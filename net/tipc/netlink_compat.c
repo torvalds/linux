@@ -1036,12 +1036,12 @@ static int tipc_nl_compat_handle(struct tipc_nl_compat_msg *msg)
 	case TIPC_CMD_SET_LINK_PRI:
 	case TIPC_CMD_SET_LINK_WINDOW:
 		msg->req_type =  TIPC_TLV_LINK_CONFIG;
-		doit.doit = tipc_nl_link_set;
+		doit.doit = tipc_nl_node_set_link;
 		doit.transcode = tipc_nl_compat_link_set;
 		return tipc_nl_compat_doit(&doit, msg);
 	case TIPC_CMD_RESET_LINK_STATS:
 		msg->req_type = TIPC_TLV_LINK_NAME;
-		doit.doit = tipc_nl_link_reset_stats;
+		doit.doit = tipc_nl_node_reset_link_stats;
 		doit.transcode = tipc_nl_compat_link_reset_stats;
 		return tipc_nl_compat_doit(&doit, msg);
 	case TIPC_CMD_SHOW_NAME_TABLE:

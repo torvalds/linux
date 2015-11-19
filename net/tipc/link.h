@@ -249,14 +249,15 @@ bool tipc_link_is_failingover(struct tipc_link *l);
 bool tipc_link_is_blocked(struct tipc_link *l);
 void tipc_link_set_active(struct tipc_link *l, bool active);
 void tipc_link_reset(struct tipc_link *l_ptr);
+void link_reset_statistics(struct tipc_link *l);
 int tipc_link_xmit(struct tipc_link *link,	struct sk_buff_head *list,
 		   struct sk_buff_head *xmitq);
+void tipc_link_proto_xmit(struct tipc_link *l, u32 msg_typ, int probe_msg,
+			  u32 gap, u32 tolerance, u32 priority);
 void tipc_link_set_queue_limits(struct tipc_link *l, u32 window);
-
+int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
+		       struct tipc_link *link, int nlflags);
 int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb);
-int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info);
-int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info);
-int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq);
 int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,

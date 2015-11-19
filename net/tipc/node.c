@@ -42,6 +42,87 @@
 #include "bcast.h"
 #include "discover.h"
 
+/* Out-of-range value for node signature */
+#define INVALID_NODE_SIG	0x10000
+
+#define INVALID_BEARER_ID -1
+
+/* Flags used to take different actions according to flag type
+ * TIPC_NOTIFY_NODE_DOWN: notify node is down
+ * TIPC_NOTIFY_NODE_UP: notify node is up
+ * TIPC_DISTRIBUTE_NAME: publish or withdraw link state name type
+ */
+enum {
+	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
+	TIPC_NOTIFY_NODE_UP		= (1 << 4),
+	TIPC_NOTIFY_LINK_UP		= (1 << 6),
+	TIPC_NOTIFY_LINK_DOWN		= (1 << 7)
+};
+
+struct tipc_link_entry {
+	struct tipc_link *link;
+	spinlock_t lock; /* per link */
+	u32 mtu;
+	struct sk_buff_head inputq;
+	struct tipc_media_addr maddr;
+};
+
+struct tipc_bclink_entry {
+	struct tipc_link *link;
+	struct sk_buff_head inputq1;
+	struct sk_buff_head arrvq;
+	struct sk_buff_head inputq2;
+	struct sk_buff_head namedq;
+};
+
+/**
+ * struct tipc_node - TIPC node structure
+ * @addr: network address of node
+ * @ref: reference counter to node object
+ * @lock: rwlock governing access to structure
+ * @net: the applicable net namespace
+ * @hash: links to adjacent nodes in unsorted hash chain
+ * @inputq: pointer to input queue containing messages for msg event
+ * @namedq: pointer to name table input queue with name table messages
+ * @active_links: bearer ids of active links, used as index into links[] array
+ * @links: array containing references to all links to node
+ * @action_flags: bit mask of different types of node actions
+ * @state: connectivity state vs peer node
+ * @sync_point: sequence number where synch/failover is finished
+ * @list: links to adjacent nodes in sorted list of cluster's nodes
+ * @working_links: number of working links to node (both active and standby)
+ * @link_cnt: number of links to node
+ * @capabilities: bitmap, indicating peer node's functional capabilities
+ * @signature: node instance identifier
+ * @link_id: local and remote bearer ids of changing link, if any
+ * @publ_list: list of publications
+ * @rcu: rcu struct for tipc_node
+ */
+struct tipc_node {
+	u32 addr;
+	struct kref kref;
+	rwlock_t lock;
+	struct net *net;
+	struct hlist_node hash;
+	int active_links[2];
+	struct tipc_link_entry links[MAX_BEARERS];
+	struct tipc_bclink_entry bc_entry;
+	int action_flags;
+	struct list_head list;
+	int state;
+	u16 sync_point;
+	int link_cnt;
+	u16 working_links;
+	u16 capabilities;
+	u32 signature;
+	u32 link_id;
+	struct list_head publ_list;
+	struct list_head conn_sks;
+	unsigned long keepalive_intv;
+	struct timer_list timer;
+	struct rcu_head rcu;
+};
+
 /* Node FSM states and events:
  */
 enum {
@@ -75,6 +156,9 @@ static void node_lost_contact(struct tipc_node *n, struct sk_buff_head *inputq);
 static void tipc_node_delete(struct tipc_node *node);
 static void tipc_node_timeout(unsigned long data);
 static void tipc_node_fsm_evt(struct tipc_node *n, int evt);
+static struct tipc_node *tipc_node_find(struct net *net, u32 addr);
+static void tipc_node_put(struct tipc_node *node);
+static bool tipc_node_is_up(struct tipc_node *n);
 
 struct tipc_sock_conn {
 	u32 port;
@@ -83,12 +167,54 @@ struct tipc_sock_conn {
 	struct list_head list;
 };
 
+static const struct nla_policy tipc_nl_link_policy[TIPC_NLA_LINK_MAX + 1] = {
+	[TIPC_NLA_LINK_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_LINK_NAME] = {
+		.type = NLA_STRING,
+		.len = TIPC_MAX_LINK_NAME
+	},
+	[TIPC_NLA_LINK_MTU]		= { .type = NLA_U32 },
+	[TIPC_NLA_LINK_BROADCAST]	= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_UP]		= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_ACTIVE]		= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_PROP]		= { .type = NLA_NESTED },
+	[TIPC_NLA_LINK_STATS]		= { .type = NLA_NESTED },
+	[TIPC_NLA_LINK_RX]		= { .type = NLA_U32 },
+	[TIPC_NLA_LINK_TX]		= { .type = NLA_U32 }
+};
+
 static const struct nla_policy tipc_nl_node_policy[TIPC_NLA_NODE_MAX + 1] = {
 	[TIPC_NLA_NODE_UNSPEC]		= { .type = NLA_UNSPEC },
 	[TIPC_NLA_NODE_ADDR]		= { .type = NLA_U32 },
 	[TIPC_NLA_NODE_UP]		= { .type = NLA_FLAG }
 };
 
+static struct tipc_link *node_active_link(struct tipc_node *n, int sel)
+{
+	int bearer_id = n->active_links[sel & 1];
+
+	if (unlikely(bearer_id == INVALID_BEARER_ID))
+		return NULL;
+
+	return n->links[bearer_id].link;
+}
+
+int tipc_node_get_mtu(struct net *net, u32 addr, u32 sel)
+{
+	struct tipc_node *n;
+	int bearer_id;
+	unsigned int mtu = MAX_MSG_SIZE;
+
+	n = tipc_node_find(net, addr);
+	if (unlikely(!n))
+		return mtu;
+
+	bearer_id = n->active_links[sel & 1];
+	if (likely(bearer_id != INVALID_BEARER_ID))
+		mtu = n->links[bearer_id].mtu;
+	tipc_node_put(n);
+	return mtu;
+}
 /*
  * A trivial power-of-two bitmask technique is used for speed, since this
  * operation is done for every incoming TIPC packet. The number of hash table
@@ -107,7 +233,7 @@ static void tipc_node_kref_release(struct kref *kref)
 	tipc_node_delete(node);
 }
 
-void tipc_node_put(struct tipc_node *node)
+static void tipc_node_put(struct tipc_node *node)
 {
 	kref_put(&node->kref, tipc_node_kref_release);
 }
@@ -120,7 +246,7 @@ static void tipc_node_get(struct tipc_node *node)
 /*
  * tipc_node_find - locate specified node object, if it exists
  */
-struct tipc_node *tipc_node_find(struct net *net, u32 addr)
+static struct tipc_node *tipc_node_find(struct net *net, u32 addr)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_node *node;
@@ -141,12 +267,12 @@ struct tipc_node *tipc_node_find(struct net *net, u32 addr)
 	return NULL;
 }
 
-void tipc_node_read_lock(struct tipc_node *n)
+static void tipc_node_read_lock(struct tipc_node *n)
 {
 	read_lock_bh(&n->lock);
 }
 
-void tipc_node_read_unlock(struct tipc_node *n)
+static void tipc_node_read_unlock(struct tipc_node *n)
 {
 	read_unlock_bh(&n->lock);
 }
@@ -588,7 +714,7 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id, bool delete)
 	tipc_sk_rcv(n->net, &le->inputq);
 }
 
-bool tipc_node_is_up(struct tipc_node *n)
+static bool tipc_node_is_up(struct tipc_node *n)
 {
 	return n->active_links[0] != INVALID_BEARER_ID;
 }
@@ -1462,6 +1588,319 @@ out:
 	cb->args[0] = done;
 	cb->args[1] = last_addr;
 	rcu_read_unlock();
+
+	return skb->len;
+}
+
+/* tipc_link_find_owner - locate owner node of link by link's name
+ * @net: the applicable net namespace
+ * @name: pointer to link name string
+ * @bearer_id: pointer to index in 'node->links' array where the link was found.
+ *
+ * Returns pointer to node owning the link, or 0 if no matching link is found.
+ */
+static struct tipc_node *tipc_link_find_owner(struct net *net,
+					      const char *link_name,
+					      unsigned int *bearer_id)
+{
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_link *l_ptr;
+	struct tipc_node *n_ptr;
+	struct tipc_node *found_node = NULL;
+	int i;
+
+	*bearer_id = 0;
+	rcu_read_lock();
+	list_for_each_entry_rcu(n_ptr, &tn->node_list, list) {
+		tipc_node_read_lock(n_ptr);
+		for (i = 0; i < MAX_BEARERS; i++) {
+			l_ptr = n_ptr->links[i].link;
+			if (l_ptr && !strcmp(l_ptr->name, link_name)) {
+				*bearer_id = i;
+				found_node = n_ptr;
+				break;
+			}
+		}
+		tipc_node_read_unlock(n_ptr);
+		if (found_node)
+			break;
+	}
+	rcu_read_unlock();
+
+	return found_node;
+}
+
+int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	int res = 0;
+	int bearer_id;
+	char *name;
+	struct tipc_link *link;
+	struct tipc_node *node;
+	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
+	struct net *net = sock_net(skb->sk);
+
+	if (!info->attrs[TIPC_NLA_LINK])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
+			       info->attrs[TIPC_NLA_LINK],
+			       tipc_nl_link_policy);
+	if (err)
+		return err;
+
+	if (!attrs[TIPC_NLA_LINK_NAME])
+		return -EINVAL;
+
+	name = nla_data(attrs[TIPC_NLA_LINK_NAME]);
+
+	if (strcmp(name, tipc_bclink_name) == 0)
+		return tipc_nl_bc_link_set(net, attrs);
+
+	node = tipc_link_find_owner(net, name, &bearer_id);
+	if (!node)
+		return -EINVAL;
+
+	tipc_node_read_lock(node);
+
+	link = node->links[bearer_id].link;
+	if (!link) {
+		res = -EINVAL;
+		goto out;
+	}
+
+	if (attrs[TIPC_NLA_LINK_PROP]) {
+		struct nlattr *props[TIPC_NLA_PROP_MAX + 1];
+
+		err = tipc_nl_parse_link_prop(attrs[TIPC_NLA_LINK_PROP],
+					      props);
+		if (err) {
+			res = err;
+			goto out;
+		}
+
+		if (props[TIPC_NLA_PROP_TOL]) {
+			u32 tol;
+
+			tol = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
+			link->tolerance = tol;
+			tipc_link_proto_xmit(link, STATE_MSG, 0, 0, tol, 0);
+		}
+		if (props[TIPC_NLA_PROP_PRIO]) {
+			u32 prio;
+
+			prio = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
+			link->priority = prio;
+			tipc_link_proto_xmit(link, STATE_MSG, 0, 0, 0, prio);
+		}
+		if (props[TIPC_NLA_PROP_WIN]) {
+			u32 win;
+
+			win = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+			tipc_link_set_queue_limits(link, win);
+		}
+	}
+
+out:
+	tipc_node_read_unlock(node);
+
+	return res;
+}
+
+int tipc_nl_node_get_link(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = genl_info_net(info);
+	struct tipc_nl_msg msg;
+	char *name;
+	int err;
+
+	msg.portid = info->snd_portid;
+	msg.seq = info->snd_seq;
+
+	if (!info->attrs[TIPC_NLA_LINK_NAME])
+		return -EINVAL;
+	name = nla_data(info->attrs[TIPC_NLA_LINK_NAME]);
+
+	msg.skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg.skb)
+		return -ENOMEM;
+
+	if (strcmp(name, tipc_bclink_name) == 0) {
+		err = tipc_nl_add_bc_link(net, &msg);
+		if (err) {
+			nlmsg_free(msg.skb);
+			return err;
+		}
+	} else {
+		int bearer_id;
+		struct tipc_node *node;
+		struct tipc_link *link;
+
+		node = tipc_link_find_owner(net, name, &bearer_id);
+		if (!node)
+			return -EINVAL;
+
+		tipc_node_read_lock(node);
+		link = node->links[bearer_id].link;
+		if (!link) {
+			tipc_node_read_unlock(node);
+			nlmsg_free(msg.skb);
+			return -EINVAL;
+		}
+
+		err = __tipc_nl_add_link(net, &msg, link, 0);
+		tipc_node_read_unlock(node);
+		if (err) {
+			nlmsg_free(msg.skb);
+			return err;
+		}
+	}
+
+	return genlmsg_reply(msg.skb, info);
+}
+
+int tipc_nl_node_reset_link_stats(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	char *link_name;
+	unsigned int bearer_id;
+	struct tipc_link *link;
+	struct tipc_node *node;
+	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
+	struct net *net = sock_net(skb->sk);
+	struct tipc_link_entry *le;
+
+	if (!info->attrs[TIPC_NLA_LINK])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
+			       info->attrs[TIPC_NLA_LINK],
+			       tipc_nl_link_policy);
+	if (err)
+		return err;
+
+	if (!attrs[TIPC_NLA_LINK_NAME])
+		return -EINVAL;
+
+	link_name = nla_data(attrs[TIPC_NLA_LINK_NAME]);
+
+	if (strcmp(link_name, tipc_bclink_name) == 0) {
+		err = tipc_bclink_reset_stats(net);
+		if (err)
+			return err;
+		return 0;
+	}
+
+	node = tipc_link_find_owner(net, link_name, &bearer_id);
+	if (!node)
+		return -EINVAL;
+
+	le = &node->links[bearer_id];
+	tipc_node_read_lock(node);
+	spin_lock_bh(&le->lock);
+	link = node->links[bearer_id].link;
+	if (!link) {
+		spin_unlock_bh(&le->lock);
+		tipc_node_read_unlock(node);
+		return -EINVAL;
+	}
+	link_reset_statistics(link);
+	spin_unlock_bh(&le->lock);
+	tipc_node_read_unlock(node);
+	return 0;
+}
+
+/* Caller should hold node lock  */
+static int __tipc_nl_add_node_links(struct net *net, struct tipc_nl_msg *msg,
+				    struct tipc_node *node, u32 *prev_link)
+{
+	u32 i;
+	int err;
+
+	for (i = *prev_link; i < MAX_BEARERS; i++) {
+		*prev_link = i;
+
+		if (!node->links[i].link)
+			continue;
+
+		err = __tipc_nl_add_link(net, msg,
+					 node->links[i].link, NLM_F_MULTI);
+		if (err)
+			return err;
+	}
+	*prev_link = 0;
+
+	return 0;
+}
+
+int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_node *node;
+	struct tipc_nl_msg msg;
+	u32 prev_node = cb->args[0];
+	u32 prev_link = cb->args[1];
+	int done = cb->args[2];
+	int err;
+
+	if (done)
+		return 0;
+
+	msg.skb = skb;
+	msg.portid = NETLINK_CB(cb->skb).portid;
+	msg.seq = cb->nlh->nlmsg_seq;
+
+	rcu_read_lock();
+	if (prev_node) {
+		node = tipc_node_find(net, prev_node);
+		if (!node) {
+			/* We never set seq or call nl_dump_check_consistent()
+			 * this means that setting prev_seq here will cause the
+			 * consistence check to fail in the netlink callback
+			 * handler. Resulting in the last NLMSG_DONE message
+			 * having the NLM_F_DUMP_INTR flag set.
+			 */
+			cb->prev_seq = 1;
+			goto out;
+		}
+		tipc_node_put(node);
+
+		list_for_each_entry_continue_rcu(node, &tn->node_list,
+						 list) {
+			tipc_node_read_lock(node);
+			err = __tipc_nl_add_node_links(net, &msg, node,
+						       &prev_link);
+			tipc_node_read_unlock(node);
+			if (err)
+				goto out;
+
+			prev_node = node->addr;
+		}
+	} else {
+		err = tipc_nl_add_bc_link(net, &msg);
+		if (err)
+			goto out;
+
+		list_for_each_entry_rcu(node, &tn->node_list, list) {
+			tipc_node_read_lock(node);
+			err = __tipc_nl_add_node_links(net, &msg, node,
+						       &prev_link);
+			tipc_node_read_unlock(node);
+			if (err)
+				goto out;
+
+			prev_node = node->addr;
+		}
+	}
+	done = 1;
+out:
+	rcu_read_unlock();
+
+	cb->args[0] = prev_node;
+	cb->args[1] = prev_link;
+	cb->args[2] = done;
 
 	return skb->len;
 }
