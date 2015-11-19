@@ -234,6 +234,42 @@ void tipc_node_stop(struct net *net)
 	spin_unlock_bh(&tn->node_list_lock);
 }
 
+void tipc_node_subscribe(struct net *net, struct list_head *subscr, u32 addr)
+{
+	struct tipc_node *n;
+
+	if (in_own_node(net, addr))
+		return;
+
+	n = tipc_node_find(net, addr);
+	if (!n) {
+		pr_warn("Node subscribe rejected, unknown node 0x%x\n", addr);
+		return;
+	}
+	tipc_node_lock(n);
+	list_add_tail(subscr, &n->publ_list);
+	tipc_node_unlock(n);
+	tipc_node_put(n);
+}
+
+void tipc_node_unsubscribe(struct net *net, struct list_head *subscr, u32 addr)
+{
+	struct tipc_node *n;
+
+	if (in_own_node(net, addr))
+		return;
+
+	n = tipc_node_find(net, addr);
+	if (!n) {
+		pr_warn("Node unsubscribe rejected, unknown node 0x%x\n", addr);
+		return;
+	}
+	tipc_node_lock(n);
+	list_del_init(subscr);
+	tipc_node_unlock(n);
+	tipc_node_put(n);
+}
+
 int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port)
 {
 	struct tipc_node *node;
@@ -1073,6 +1109,30 @@ int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
 	if (rc == -ELINKCONG)
 		kfree_skb(skb);
 	return 0;
+}
+
+void tipc_node_broadcast(struct net *net, struct sk_buff *skb)
+{
+	struct sk_buff *txskb;
+	struct tipc_node *n;
+	u32 dst;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(n, tipc_nodes(net), list) {
+		dst = n->addr;
+		if (in_own_node(net, dst))
+			continue;
+		if (!tipc_node_is_up(n))
+			continue;
+		txskb = pskb_copy(skb, GFP_ATOMIC);
+		if (!txskb)
+			break;
+		msg_set_destnode(buf_msg(txskb), dst);
+		tipc_node_xmit_skb(net, txskb, dst, 0);
+	}
+	rcu_read_unlock();
+
+	kfree_skb(skb);
 }
 
 /**

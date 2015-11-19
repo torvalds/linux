@@ -149,6 +149,9 @@ int tipc_node_xmit(struct net *net, struct sk_buff_head *list, u32 dnode,
 		   int selector);
 int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dest,
 		       u32 selector);
+void tipc_node_subscribe(struct net *net, struct list_head *subscr, u32 addr);
+void tipc_node_unsubscribe(struct net *net, struct list_head *subscr, u32 addr);
+void tipc_node_broadcast(struct net *net, struct sk_buff *skb);
 int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port);
 void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port);
 int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb);
