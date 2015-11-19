@@ -346,7 +346,6 @@ int uni_reader_init(struct platform_device *pdev,
 	reader->hw = &uni_reader_pcm_hw;
 	reader->dai_ops = &uni_reader_dai_ops;
 
-	dev_err(reader->dev, "%s: enter\n", __func__);
 	ret = uni_reader_parse_dt(pdev, reader);
 	if (ret < 0) {
 		dev_err(reader->dev, "Failed to parse DeviceTree");
