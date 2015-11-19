@@ -1925,7 +1925,7 @@ err_firmware:
 
 #define EVENT_REMAP_CELLS 3
 
-static int __init sdma_event_remap(struct sdma_engine *sdma)
+static int sdma_event_remap(struct sdma_engine *sdma)
 {
 	struct device_node *np = sdma->dev->of_node;
 	struct device_node *gpr_np = of_parse_phandle(np, "gpr", 0);
@@ -2105,7 +2105,7 @@ static struct dma_chan *sdma_xlate(struct of_phandle_args *dma_spec,
 	return dma_request_channel(mask, sdma_filter_fn, &data);
 }
 
-static int __init sdma_probe(struct platform_device *pdev)
+static int sdma_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(sdma_dt_ids, &pdev->dev);
