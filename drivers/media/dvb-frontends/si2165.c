@@ -690,6 +690,20 @@ static int si2165_init(struct dvb_frontend *fe)
 			goto error;
 	}
 
+	/* ts output config */
+	ret = si2165_writereg8(state, 0x04e4, 0x20);
+	if (ret < 0)
+		return ret;
+	ret = si2165_writereg16(state, 0x04ef, 0x00fe);
+	if (ret < 0)
+		return ret;
+	ret = si2165_writereg24(state, 0x04f4, 0x555555);
+	if (ret < 0)
+		return ret;
+	ret = si2165_writereg8(state, 0x04e5, 0x01);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 error:
 	return ret;
@@ -822,19 +836,6 @@ static int si2165_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 	ret = si2165_writereg8(state, 0x08f8, 0x00);
-	if (ret < 0)
-		return ret;
-	/* ts output config */
-	ret = si2165_writereg8(state, 0x04e4, 0x20);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg16(state, 0x04ef, 0x00fe);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg24(state, 0x04f4, 0x555555);
-	if (ret < 0)
-		return ret;
-	ret = si2165_writereg8(state, 0x04e5, 0x01);
 	if (ret < 0)
 		return ret;
 	/* bandwidth in 10KHz steps */
