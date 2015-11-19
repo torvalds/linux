@@ -174,7 +174,7 @@ static u8 curr_channel;
 static u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static u8 p2p_local_random = 0x01;
 static u8 p2p_recv_random = 0x00;
-static u8 u8P2P_vendorspec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
+static u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 static bool bWilc_ie;
 
 static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
@@ -2000,7 +2000,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 						if ((buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP))	{
 							if (!bWilc_ie) {
 								for (i = P2P_PUB_ACTION_SUBTYPE; i < size; i++)	{
-									if (!memcmp(u8P2P_vendorspec, &buff[i], 6)) {
+									if (!memcmp(p2p_vendor_spec, &buff[i], 6)) {
 										p2p_recv_random = buff[i + 6];
 										bWilc_ie = true;
 										PRINT_D(GENERIC_DBG, "WILC Vendor specific IE:%02x\n", p2p_recv_random);
@@ -2225,7 +2225,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 	struct host_if_drv *pstrWFIDrv;
 	u32 i;
 	perInterface_wlan_t *nic;
-	u32 buf_len = len + sizeof(u8P2P_vendorspec) + sizeof(p2p_local_random);
+	u32 buf_len = len + sizeof(p2p_vendor_spec) + sizeof(p2p_local_random);
 
 	nic = netdev_priv(wdev->netdev);
 	priv = wiphy_priv(wiphy);
@@ -2323,8 +2323,8 @@ static int mgmt_tx(struct wiphy *wiphy,
 									 * Adding WILC information element to allow two WILC devices to
 									 * identify each other and connect
 									 */
-									memcpy(&mgmt_tx->buff[len], u8P2P_vendorspec, sizeof(u8P2P_vendorspec));
-									mgmt_tx->buff[len + sizeof(u8P2P_vendorspec)] = p2p_local_random;
+									memcpy(&mgmt_tx->buff[len], p2p_vendor_spec, sizeof(p2p_vendor_spec));
+									mgmt_tx->buff[len + sizeof(p2p_vendor_spec)] = p2p_local_random;
 									mgmt_tx->size = buf_len;
 								}
 							} else {
