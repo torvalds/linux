@@ -1236,6 +1236,9 @@ static int arizona_extcon_device_get_pdata(struct arizona *arizona)
 	pdata->micd_force_micbias = device_property_read_bool(arizona->dev,
 						"wlf,micd-force-micbias");
 
+	pdata->micd_software_compare = device_property_read_bool(arizona->dev,
+						"wlf,micd-software-compare");
+
 	return 0;
 }
 
