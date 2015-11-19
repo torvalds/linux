@@ -47,6 +47,7 @@ static LIST_HEAD(nullb_list);
 static struct mutex lock;
 static int null_major;
 static int nullb_indexes;
+static struct kmem_cache *ppa_cache;
 
 struct completion_queue {
 	struct llist_head list;
@@ -521,7 +522,7 @@ static void *null_lnvm_create_dma_pool(struct request_queue *q, char *name)
 {
 	mempool_t *virtmem_pool;
 
-	virtmem_pool = mempool_create_page_pool(64, 0);
+	virtmem_pool = mempool_create_slab_pool(64, ppa_cache);
 	if (!virtmem_pool) {
 		pr_err("null_blk: Unable to create virtual memory pool\n");
 		return NULL;
@@ -767,6 +768,12 @@ static int __init null_init(void)
 		bs = PAGE_SIZE;
 	}
 
+	if (use_lightnvm && bs != 4096) {
+		pr_warn("null_blk: LightNVM only supports 4k block size\n");
+		pr_warn("null_blk: defaults block size to 4k\n");
+		bs = 4096;
+	}
+
 	if (use_lightnvm && queue_mode != NULL_Q_MQ) {
 		pr_warn("null_blk: LightNVM only supported for blk-mq\n");
 		pr_warn("null_blk: defaults queue mode to blk-mq\n");
@@ -803,15 +810,27 @@ static int __init null_init(void)
 	if (null_major < 0)
 		return null_major;
 
+	if (use_lightnvm) {
+		ppa_cache = kmem_cache_create("ppa_cache", 64 * sizeof(u64),
+								0, 0, NULL);
+		if (!ppa_cache) {
+			pr_err("null_blk: unable to create ppa cache\n");
+			return -ENOMEM;
+		}
+	}
+
 	for (i = 0; i < nr_devices; i++) {
 		if (null_add_dev()) {
 			unregister_blkdev(null_major, "nullb");
-			return -EINVAL;
+			goto err_ppa;
 		}
 	}
 
 	pr_info("null: module loaded\n");
 	return 0;
+err_ppa:
+	kmem_cache_destroy(ppa_cache);
+	return -EINVAL;
 }
 
 static void __exit null_exit(void)
@@ -826,6 +845,8 @@ static void __exit null_exit(void)
 		null_del_dev(nullb);
 	}
 	mutex_unlock(&lock);
+
+	kmem_cache_destroy(ppa_cache);
 }
 
 module_init(null_init);
