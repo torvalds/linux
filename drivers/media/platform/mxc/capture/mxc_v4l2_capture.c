@@ -2910,8 +2910,13 @@ static int mxc_v4l2_suspend(struct platform_device *pdev, pm_message_t state)
 
 	if (cam->overlay_on == true)
 		stop_preview(cam);
-	if ((cam->capture_on == true) && cam->enc_disable)
-		cam->enc_disable(cam);
+	if (cam->capture_on == true) {
+		if (cam->enc_disable_csi)
+			cam->enc_disable_csi(cam);
+
+		if (cam->enc_disable)
+			cam->enc_disable(cam);
+	}
 
 	if (cam->sensor && cam->open_count) {
 		if (cam->mclk_on[cam->mclk_source]) {
@@ -2964,8 +2969,13 @@ static int mxc_v4l2_resume(struct platform_device *pdev)
 
 	if (cam->overlay_on == true)
 		start_preview(cam);
-	if (cam->capture_on == true)
-		mxc_streamon(cam);
+	if (cam->capture_on == true) {
+		if (cam->enc_enable)
+			cam->enc_enable(cam);
+
+		if (cam->enc_enable_csi)
+			cam->enc_enable_csi(cam);
+	}
 
 	up(&cam->busy_lock);
 
