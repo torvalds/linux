@@ -1973,8 +1973,7 @@ void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
 	if (srcdev->writeable) {
 		fs_devices->rw_devices--;
 		/* zero out the old super if it is writable */
-		btrfs_scratch_superblocks(srcdev->bdev,
-					rcu_str_deref(srcdev->name));
+		btrfs_scratch_superblocks(srcdev->bdev, srcdev->name->str);
 	}
 
 	if (srcdev->bdev)
@@ -2024,8 +2023,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, tgtdev);
 
 	if (tgtdev->bdev) {
-		btrfs_scratch_superblocks(tgtdev->bdev,
-					rcu_str_deref(tgtdev->name));
+		btrfs_scratch_superblocks(tgtdev->bdev, tgtdev->name->str);
 		fs_info->fs_devices->open_devices--;
 	}
 	fs_info->fs_devices->num_devices--;
