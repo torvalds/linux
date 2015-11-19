@@ -284,7 +284,7 @@ static void reset_shadow_found(void)
 		last_scanned_shadow[i].u8Found = 0;
 }
 
-static void update_scan_time(void *pUserVoid)
+static void update_scan_time(void)
 {
 	int i;
 
@@ -523,8 +523,7 @@ static void CfgScanResult(enum scan_event enuScanEvent, tstrNetworkInfo *pstrNet
 
 			PRINT_D(CFG80211_DBG, "Scan Aborted\n");
 			if (priv->pstrScanReq != NULL) {
-
-				update_scan_time(priv);
+				update_scan_time();
 				refresh_scan(priv, 1, false);
 
 				cfg80211_scan_done(priv->pstrScanReq, false);
