@@ -3641,6 +3641,28 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		if (ro_set)
 			btrfs_dec_block_group_ro(root, cache);
 
+		/*
+		 * We might have prevented the cleaner kthread from deleting
+		 * this block group if it was already unused because we raced
+		 * and set it to RO mode first. So add it back to the unused
+		 * list, otherwise it might not ever be deleted unless a manual
+		 * balance is triggered or it becomes used and unused again.
+		 */
+		spin_lock(&cache->lock);
+		if (!cache->removed && !cache->ro && cache->reserved == 0 &&
+		    btrfs_block_group_used(&cache->item) == 0) {
+			spin_unlock(&cache->lock);
+			spin_lock(&fs_info->unused_bgs_lock);
+			if (list_empty(&cache->bg_list)) {
+				btrfs_get_block_group(cache);
+				list_add_tail(&cache->bg_list,
+					      &fs_info->unused_bgs);
+			}
+			spin_unlock(&fs_info->unused_bgs_lock);
+		} else {
+			spin_unlock(&cache->lock);
+		}
+
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;
