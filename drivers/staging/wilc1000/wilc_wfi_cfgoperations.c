@@ -421,7 +421,7 @@ static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo,
  */
 static void CfgScanResult(enum scan_event scan_event,
 			  tstrNetworkInfo *network_info,
-			  void *pUserVoid,
+			  void *user_void,
 			  void *pJoinParams)
 {
 	struct wilc_priv *priv;
@@ -430,7 +430,7 @@ static void CfgScanResult(enum scan_event scan_event,
 	struct ieee80211_channel *channel;
 	struct cfg80211_bss *bss = NULL;
 
-	priv = (struct wilc_priv *)pUserVoid;
+	priv = (struct wilc_priv *)user_void;
 	if (priv->bCfgScanning) {
 		if (scan_event == SCAN_EVENT_NETWORK_FOUND) {
 			wiphy = priv->dev->ieee80211_ptr->wiphy;
