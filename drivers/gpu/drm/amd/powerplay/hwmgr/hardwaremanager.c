@@ -180,7 +180,7 @@ int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 			hwmgr->hwmgr_func->display_config_changed(hwmgr);
 	} else
 		return phm_dispatch_table(hwmgr, &hwmgr->display_configuration_changed, NULL, NULL);
-    return 0;
+	return 0;
 }
 
 int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
@@ -193,7 +193,7 @@ int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 		if (NULL != hwmgr->hwmgr_func->display_config_changed)
 			hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment(hwmgr);
 
-    return 0;
+	return 0;
 }
 
 int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr)
@@ -260,3 +260,12 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 					display_config->nb_pstate_switch_disable);
 
 }
+
+int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr != NULL && hwmgr->hwmgr_func->set_cpu_power_state != NULL)
+		return hwmgr->hwmgr_func->set_cpu_power_state(hwmgr);
+
+	return 0;
+}
+

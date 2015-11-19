@@ -403,3 +403,8 @@ const pem_event_action uninitialize_thermal_controller_tasks[] = {
 	pem_task_uninitialize_thermal_controller,
 	NULL
 };
+
+const pem_event_action set_cpu_power_state[] = {
+	pem_task_set_cpu_power_state,
+	NULL
+};

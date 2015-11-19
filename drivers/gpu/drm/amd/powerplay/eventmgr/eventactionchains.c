@@ -260,7 +260,7 @@ const struct action_chain disable_user_2d_performance_action_chain = {
 static const pem_event_action *display_config_change_event[] = {
 	/* countDisplayConfigurationChangeEventTasks, */
 	unblock_adjust_power_state_tasks,
-	/* setCPUPowerState,*/
+	set_cpu_power_state,
 	notify_hw_power_source_tasks,
 	/* updateDALConfigurationTasks,
 	variBrightDisplayConfigurationChangeTasks, */

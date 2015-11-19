@@ -248,8 +248,7 @@ int pem_task_reset_display_phys_access(struct pp_eventmgr *eventmgr, struct pem_
 
 int pem_task_set_cpu_power_state(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
-	/* TODO */
-	return 0;
+	return phm_set_cpu_power_state(eventmgr->hwmgr);
 }
 
 /*powersaving*/

@@ -96,4 +96,5 @@ extern const pem_event_action reset_boot_state_tasks[];
 extern const pem_event_action create_new_user_performance_state_tasks[];
 extern const pem_event_action initialize_thermal_controller_tasks[];
 extern const pem_event_action uninitialize_thermal_controller_tasks[];
+extern const pem_event_action set_cpu_power_state[];
 #endif /* _EVENT_SUB_CHAINS_H_ */
