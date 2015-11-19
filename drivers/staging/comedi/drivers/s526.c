@@ -139,7 +139,36 @@
 #define S526_GPCT_MODE_PR_SELECT_MASK	S526_GPCT_MODE_PR_SELECT(0x1)
 #define S526_GPCT_MODE_PR_SELECT_PR0	S526_GPCT_MODE_PR_SELECT(0)
 #define S526_GPCT_MODE_PR_SELECT_PR1	S526_GPCT_MODE_PR_SELECT(1)
+/* Control/Status - R = readable, W = writeable, C = write 1 to clear */
 #define S526_GPCT_CTRL_REG(x)	(0x18 + ((x) * 8))
+#define S526_GPCT_CTRL_EV_STATUS(x)	((x) << 0)		/* RC */
+#define S526_GPCT_CTRL_EV_STATUS_MASK	S526_GPCT_EV_STATUS(0xf)
+#define S526_GPCT_CTRL_EV_STATUS_NONE	S526_GPCT_EV_STATUS(0)
+/* these 4 bits can be OR'ed */
+#define S526_GPCT_CTRL_EV_STATUS_ECAP	S526_GPCT_EV_STATUS(0x1)
+#define S526_GPCT_CTRL_EV_STATUS_ICAPN	S526_GPCT_EV_STATUS(0x2)
+#define S526_GPCT_CTRL_EV_STATUS_ICAPP	S526_GPCT_EV_STATUS(0x4)
+#define S526_GPCT_CTRL_EV_STATUS_RCAP	S526_GPCT_EV_STATUS(0x8)
+#define S526_GPCT_CTRL_COUT_STATUS	BIT(4)			/* R */
+#define S526_GPCT_CTRL_INDEX_STATUS	BIT(5)			/* R */
+#define S525_GPCT_CTRL_INTEN(x)		((x) << 6)		/* W */
+#define S525_GPCT_CTRL_INTEN_MASK	S526_GPCT_CTRL_INTEN(0xf)
+#define S525_GPCT_CTRL_INTEN_NONE	S526_GPCT_CTRL_INTEN(0)
+/* these 4 bits can be OR'ed */
+#define S525_GPCT_CTRL_INTEN_ERROR	S526_GPCT_CTRL_INTEN(0x1)
+#define S525_GPCT_CTRL_INTEN_IXFALL	S526_GPCT_CTRL_INTEN(0x2)
+#define S525_GPCT_CTRL_INTEN_IXRISE	S526_GPCT_CTRL_INTEN(0x4)
+#define S525_GPCT_CTRL_INTEN_RO		S526_GPCT_CTRL_INTEN(0x8)
+#define S525_GPCT_CTRL_LATCH_SEL(x)	((x) << 10)		/* W */
+#define S525_GPCT_CTRL_LATCH_SEL_MASK	S526_GPCT_CTRL_LATCH_SEL(0x7)
+#define S525_GPCT_CTRL_LATCH_SEL_NONE	S526_GPCT_CTRL_LATCH_SEL(0)
+/* these 3 bits can be OR'ed */
+#define S525_GPCT_CTRL_LATCH_SEL_IXFALL	S526_GPCT_CTRL_LATCH_SEL(0x1)
+#define S525_GPCT_CTRL_LATCH_SEL_IXRISE	S526_GPCT_CTRL_LATCH_SEL(0x2)
+#define S525_GPCT_CTRL_LATCH_SEL_ITIMER	S526_GPCT_CTRL_LATCH_SEL(0x4)
+#define S525_GPCT_CTRL_CT_ARM		BIT(13)			/* W */
+#define S525_GPCT_CTRL_CT_LOAD		BIT(14)			/* W */
+#define S526_GPCT_CTRL_CT_RESET		BIT(15)			/* W */
 #define S526_EEPROM_DATA_REG	0x32
 #define S526_EEPROM_CTRL_REG	0x34
 #define S526_EEPROM_CTRL_ADDR(x) (((x) & 0x3f) << 3)
@@ -218,10 +247,12 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		if ((val & S526_GPCT_MODE_AUTOLOAD_MASK) ==
 		    S526_GPCT_MODE_AUTOLOAD_NONE) {
 			/*  Reset the counter */
-			outw(0x8000, dev->iobase + S526_GPCT_CTRL_REG(chan));
+			outw(S526_GPCT_CTRL_CT_RESET,
+			     dev->iobase + S526_GPCT_CTRL_REG(chan));
 			/*
 			 * Load the counter from PR0
-			 * outw(0x4000, dev->iobase + S526_GPCT_CTRL_REG(chan));
+			 * outw(S526_GPCT_CTRL_CT_LOAD,
+			 *      dev->iobase + S526_GPCT_CTRL_REG(chan));
 			 */
 		}
 #else
@@ -265,9 +296,11 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		if ((val & S526_GPCT_MODE_AUTOLOAD_MASK) ==
 		    S526_GPCT_MODE_AUTOLOAD_NONE) {
 			/*  Reset the counter */
-			outw(0x8000, dev->iobase + S526_GPCT_CTRL_REG(chan));
+			outw(S526_GPCT_CTRL_CT_RESET,
+			     dev->iobase + S526_GPCT_CTRL_REG(chan));
 			/*  Load the counter from PR0 */
-			outw(0x4000, dev->iobase + S526_GPCT_CTRL_REG(chan));
+			outw(S526_GPCT_CTRL_CT_LOAD,
+			     dev->iobase + S526_GPCT_CTRL_REG(chan));
 		}
 #endif
 		break;
