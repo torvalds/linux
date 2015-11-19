@@ -142,6 +142,16 @@ config MENF21BMC_WATCHDOG
 	  This driver can also be built as a module. If so the module
 	  will be called menf21bmc_wdt.
 
+config TANGOX_WATCHDOG
+	tristate "Sigma Designs SMP86xx/SMP87xx watchdog"
+	select WATCHDOG_CORE
+	depends on ARCH_TANGOX || COMPILE_TEST
+	help
+	  Support for the watchdog in Sigma Designs SMP86xx (tango3)
+	  and SMP87xx (tango4) family chips.
+
+	  This driver can be built as a module. The module name is tangox_wdt.
+
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
