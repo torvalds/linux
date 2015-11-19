@@ -48,7 +48,6 @@ static const struct regmap_config fsl_dcu_regmap_config = {
 static int fsl_dcu_drm_irq_init(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-	unsigned int value;
 	int ret;
 
 	ret = drm_irq_install(dev, fsl_dev->irq);
@@ -56,9 +55,7 @@ static int fsl_dcu_drm_irq_init(struct drm_device *dev)
 		dev_err(dev->dev, "failed to install IRQ handler\n");
 
 	regmap_write(fsl_dev->regmap, DCU_INT_STATUS, 0);
-	regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
-	value &= DCU_INT_MASK_VBLANK;
-	regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
+	regmap_write(fsl_dev->regmap, DCU_INT_MASK, ~0);
 	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
 		     DCU_UPDATE_MODE_READREG);
 
