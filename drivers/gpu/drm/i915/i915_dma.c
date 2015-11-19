@@ -1296,8 +1296,6 @@ void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	if (file_priv && file_priv->bsd_ring)
-		file_priv->bsd_ring = NULL;
 	kfree(file_priv);
 }
 
