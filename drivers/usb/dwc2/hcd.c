@@ -268,15 +268,33 @@ static void dwc2_hcd_cleanup_channels(struct dwc2_hsotg *hsotg)
 }
 
 /**
- * dwc2_hcd_disconnect() - Handles disconnect of the HCD
+ * dwc2_hcd_connect() - Handles connect of the HCD
  *
  * @hsotg: Pointer to struct dwc2_hsotg
  *
  * Must be called with interrupt disabled and spinlock held
  */
-void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg)
+void dwc2_hcd_connect(struct dwc2_hsotg *hsotg)
+{
+	if (hsotg->lx_state != DWC2_L0)
+		usb_hcd_resume_root_hub(hsotg->priv);
+
+	hsotg->flags.b.port_connect_status_change = 1;
+	hsotg->flags.b.port_connect_status = 1;
+}
+
+/**
+ * dwc2_hcd_disconnect() - Handles disconnect of the HCD
+ *
+ * @hsotg: Pointer to struct dwc2_hsotg
+ * @force: If true, we won't try to reconnect even if we see device connected.
+ *
+ * Must be called with interrupt disabled and spinlock held
+ */
+void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force)
 {
 	u32 intr;
+	u32 hprt0;
 
 	/* Set status flags for the hub driver */
 	hsotg->flags.b.port_connect_status_change = 1;
@@ -315,6 +333,24 @@ void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg)
 		dwc2_hcd_cleanup_channels(hsotg);
 
 	dwc2_host_disconnect(hsotg);
+
+	/*
+	 * Add an extra check here to see if we're actually connected but
+	 * we don't have a detection interrupt pending.  This can happen if:
+	 *   1. hardware sees connect
+	 *   2. hardware sees disconnect
+	 *   3. hardware sees connect
+	 *   4. dwc2_port_intr() - clears connect interrupt
+	 *   5. dwc2_handle_common_intr() - calls here
+	 *
+	 * Without the extra check here we will end calling disconnect
+	 * and won't get any future interrupts to handle the connect.
+	 */
+	if (!force) {
+		hprt0 = dwc2_readl(hsotg->regs + HPRT0);
+		if (!(hprt0 & HPRT0_CONNDET) && (hprt0 & HPRT0_CONNSTS))
+			dwc2_hcd_connect(hsotg);
+	}
 }
 
 /**
@@ -2390,7 +2426,7 @@ static void _dwc2_hcd_stop(struct usb_hcd *hcd)
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 	/* Ensure hcd is disconnected */
-	dwc2_hcd_disconnect(hsotg);
+	dwc2_hcd_disconnect(hsotg, true);
 	dwc2_hcd_stop(hsotg);
 	hsotg->lx_state = DWC2_L3;
 	hcd->state = HC_STATE_HALT;

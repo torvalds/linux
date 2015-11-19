@@ -239,7 +239,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			dev_dbg(hsotg->dev, "a_suspend->a_peripheral (%d)\n",
 				hsotg->op_state);
 			spin_unlock(&hsotg->lock);
-			dwc2_hcd_disconnect(hsotg);
+			dwc2_hcd_disconnect(hsotg, false);
 			spin_lock(&hsotg->lock);
 			hsotg->op_state = OTG_STATE_A_PERIPHERAL;
 		} else {
@@ -401,7 +401,7 @@ static void dwc2_handle_disconnect_intr(struct dwc2_hsotg *hsotg)
 		dwc2_op_state_str(hsotg));
 
 	if (hsotg->op_state == OTG_STATE_A_HOST)
-		dwc2_hcd_disconnect(hsotg);
+		dwc2_hcd_disconnect(hsotg, false);
 
 	dwc2_writel(GINTSTS_DISCONNINT, hsotg->regs + GINTSTS);
 }
