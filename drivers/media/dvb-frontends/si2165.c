@@ -243,6 +243,27 @@ err:
 	return ret;
 }
 
+#define REG16(reg, val) { (reg), (val) & 0xff }, { (reg)+1, (val)>>8 & 0xff }
+struct si2165_reg_value_pair {
+	u16 reg;
+	u8 val;
+};
+
+static int si2165_write_reg_list(struct si2165_state *state,
+				 const struct si2165_reg_value_pair *regs,
+				 int count)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < count; i++) {
+		ret = si2165_writereg8(state, regs[i].reg, regs[i].val);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
 static int si2165_get_tune_settings(struct dvb_frontend *fe,
 				    struct dvb_frontend_tune_settings *s)
 {
