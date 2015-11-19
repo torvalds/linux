@@ -90,6 +90,14 @@ static const struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
+static void rockchip_usb_phy_action(void *data)
+{
+	struct rockchip_usb_phy *rk_phy = data;
+
+	if (rk_phy->clk)
+		clk_put(rk_phy->clk);
+}
+
 static int rockchip_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -122,6 +130,10 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 
 		rk_phy->reg_offset = reg_offset;
 		rk_phy->reg_base = grf;
+
+		err = devm_add_action(dev, rockchip_usb_phy_action, rk_phy);
+		if (err)
+			return err;
 
 		rk_phy->clk = of_clk_get_by_name(child, "phyclk");
 		if (IS_ERR(rk_phy->clk))
