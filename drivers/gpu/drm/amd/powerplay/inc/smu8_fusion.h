@@ -48,6 +48,14 @@ struct SMU8_Port80MonitorTable {
 	uint8_t  EnableDramShadow;
 };
 
+/*  Display specific power management parameters */
+#define PWRMGT_SEPARATION_TIME_SHIFT            0
+#define PWRMGT_SEPARATION_TIME_MASK             0xFFFF
+#define PWRMGT_DISABLE_CPU_CSTATES_SHIFT        16
+#define PWRMGT_DISABLE_CPU_CSTATES_MASK         0x1
+#define PWRMGT_DISABLE_CPU_PSTATES_SHIFT        24
+#define PWRMGT_DISABLE_CPU_PSTATES_MASK         0x1
+
 /* Clock Table Definitions */
 #define NUM_SCLK_LEVELS     8
 #define NUM_LCLK_LEVELS     8

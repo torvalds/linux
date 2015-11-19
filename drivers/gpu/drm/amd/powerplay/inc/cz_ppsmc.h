@@ -164,6 +164,7 @@ enum DPM_ARRAY {
 #define PPSMC_MSG_SetLoggerAddressHigh        ((uint16_t) 0x26C)
 #define PPSMC_MSG_SetLoggerAddressLow         ((uint16_t) 0x26D)
 #define PPSMC_MSG_SetWatermarkFrequency       ((uint16_t) 0x26E)
+#define PPSMC_MSG_SetDisplaySizePowerParams   ((uint16_t) 0x26F)
 
 /* REMOVE LATER*/
 #define PPSMC_MSG_DPM_ForceState              ((uint16_t) 0x104)
