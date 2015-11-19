@@ -167,47 +167,35 @@ static ssize_t status_store(struct device *device,
 {
 	struct drm_connector *connector = to_drm_connector(device);
 	struct drm_device *dev = connector->dev;
-	enum drm_connector_status old_status;
+	enum drm_connector_force old_force;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
 	if (ret)
 		return ret;
 
-	old_status = connector->status;
+	old_force = connector->force;
 
-	if (sysfs_streq(buf, "detect")) {
+	if (sysfs_streq(buf, "detect"))
 		connector->force = 0;
-		connector->status = connector->funcs->detect(connector, true);
-	} else if (sysfs_streq(buf, "on")) {
+	else if (sysfs_streq(buf, "on"))
 		connector->force = DRM_FORCE_ON;
-	} else if (sysfs_streq(buf, "on-digital")) {
+	else if (sysfs_streq(buf, "on-digital"))
 		connector->force = DRM_FORCE_ON_DIGITAL;
-	} else if (sysfs_streq(buf, "off")) {
+	else if (sysfs_streq(buf, "off"))
 		connector->force = DRM_FORCE_OFF;
-	} else
+	else
 		ret = -EINVAL;
 
-	if (ret == 0 && connector->force) {
-		if (connector->force == DRM_FORCE_ON ||
-		    connector->force == DRM_FORCE_ON_DIGITAL)
-			connector->status = connector_status_connected;
-		else
-			connector->status = connector_status_disconnected;
-		if (connector->funcs->force)
-			connector->funcs->force(connector);
-	}
-
-	if (old_status != connector->status) {
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+	if (old_force != connector->force || !connector->force) {
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force updated from %d to %d or reprobing\n",
 			      connector->base.id,
 			      connector->name,
-			      old_status, connector->status);
+			      old_force, connector->force);
 
-		dev->mode_config.delayed_event = true;
-		if (dev->mode_config.poll_enabled)
-			schedule_delayed_work(&dev->mode_config.output_poll_work,
-					      0);
+		connector->funcs->fill_modes(connector,
+					     dev->mode_config.max_width,
+					     dev->mode_config.max_height);
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);
