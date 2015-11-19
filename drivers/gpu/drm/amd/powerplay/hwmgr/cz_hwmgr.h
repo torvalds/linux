@@ -238,7 +238,7 @@ struct cz_hwmgr {
 	uint32_t highest_valid;
 	uint32_t high_voltage_threshold;
 	uint32_t is_nb_dpm_enabled;
-	uint32_t is_nb_dpm_enabled_by_driver;
+	struct amd_pp_display_configuration display_cfg; /* set by DAL */
 	uint32_t is_voltage_island_enabled;
 
 	bool pgacpinit;
@@ -304,6 +304,7 @@ struct cz_hwmgr {
 
 	uint32_t max_sclk_level;
 	uint32_t num_of_clk_entries;
+	bool cc6_setting_changed;
 };
 
 struct pp_hwmgr;

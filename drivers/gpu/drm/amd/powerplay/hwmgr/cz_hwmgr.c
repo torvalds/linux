@@ -239,7 +239,10 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_DynamicUVDState);
 
-	cz_hwmgr->is_nb_dpm_enabled_by_driver = 1;
+	cz_hwmgr->display_cfg.cpu_cc6_disable = false;
+	cz_hwmgr->display_cfg.cpu_pstate_disable = false;
+	cz_hwmgr->display_cfg.nb_pstate_switch_disable = false;
+	cz_hwmgr->display_cfg.cpu_pstate_separation_time = 0;
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				   PHM_PlatformCaps_DisableVoltageIsland);
@@ -812,17 +815,16 @@ static int cz_tf_set_enabled_levels(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+
 static int cz_tf_enable_nb_dpm(struct pp_hwmgr *hwmgr,
 					void *input, void *output,
 					void *storage, int result)
 {
 	int ret = 0;
-	struct cz_hwmgr *cz_hwmgr =
-				  (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	unsigned long dpm_features = 0;
 
-	if (!cz_hwmgr->is_nb_dpm_enabled &&
-		cz_hwmgr->is_nb_dpm_enabled_by_driver) {		/* also depend on dal NBPStateDisableRequired */
+	if (!cz_hwmgr->is_nb_dpm_enabled) {
 		dpm_features |= NB_DPM_MASK;
 		ret = smum_send_msg_to_smc_with_parameter(
 							     hwmgr->smumgr,
@@ -831,26 +833,48 @@ static int cz_tf_enable_nb_dpm(struct pp_hwmgr *hwmgr,
 		if (ret == 0)
 			cz_hwmgr->is_nb_dpm_enabled = true;
 	}
+
 	return ret;
+}
+
+static int cz_nbdpm_pstate_enable_disable(struct pp_hwmgr *hwmgr, bool enable, bool lock)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+
+	if (hw_data->is_nb_dpm_enabled) {
+		if (enable)
+			return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+						PPSMC_MSG_EnableLowMemoryPstate,
+						(lock ? 1 : 0));
+		else
+			return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+						PPSMC_MSG_DisableLowMemoryPstate,
+						(lock ? 1 : 0));
+	}
+
+	return 0;
 }
 
 static int cz_tf_update_low_mem_pstate(struct pp_hwmgr *hwmgr,
 					void *input, void *output,
 					void *storage, int result)
 {
-
-	struct cz_hwmgr *cz_hwmgr =
-				  (struct cz_hwmgr *)(hwmgr->backend);
+	bool disable_switch;
+	bool enable_low_mem_state;
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 	const struct phm_set_power_state_input *states = (struct phm_set_power_state_input *)input;
 	const struct cz_power_state *pnew_state = cast_const_PhwCzPowerState(states->pnew_state);
 
-	if (cz_hwmgr->sys_info.nb_dpm_enable) {
+	if (hw_data->sys_info.nb_dpm_enable) {
+		disable_switch = hw_data->display_cfg.nb_pstate_switch_disable ? true : false;
+		enable_low_mem_state = hw_data->display_cfg.nb_pstate_switch_disable ? false : true;
+
 		if (pnew_state->action == FORCE_HIGH)
-			smum_send_msg_to_smc(hwmgr->smumgr,
-				    PPSMC_MSG_DisableLowMemoryPstate);
-		else
-			smum_send_msg_to_smc(hwmgr->smumgr,
-				     PPSMC_MSG_EnableLowMemoryPstate);
+			cz_nbdpm_pstate_enable_disable(hwmgr, false, disable_switch);
+		else if(pnew_state->action == CANCEL_FORCE_HIGH)
+			cz_nbdpm_pstate_enable_disable(hwmgr, false, disable_switch);
+		else 
+			cz_nbdpm_pstate_enable_disable(hwmgr, enable_low_mem_state, disable_switch);
 	}
 	return 0;
 }
@@ -1498,6 +1522,51 @@ cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 	}
 }
 
+int cz_set_cpu_power_state(struct pp_hwmgr *hwmgr)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	uint32_t data = 0;
+	if (hw_data->cc6_setting_changed == true) {
+		data |= (hw_data->display_cfg.cpu_pstate_separation_time
+			& PWRMGT_SEPARATION_TIME_MASK)
+			<< PWRMGT_SEPARATION_TIME_SHIFT;
+
+		data|= (hw_data->display_cfg.cpu_cc6_disable ? 0x1 : 0x0)
+			<< PWRMGT_DISABLE_CPU_CSTATES_SHIFT;
+
+		data|= (hw_data->display_cfg.cpu_pstate_disable ? 0x1 : 0x0)
+			<< PWRMGT_DISABLE_CPU_PSTATES_SHIFT;
+
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+						PPSMC_MSG_SetDisplaySizePowerParams,
+						data);
+
+		hw_data->cc6_setting_changed = false;
+	}
+
+	return 0;
+}
+
+int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
+			bool cc6_disable, bool pstate_disable, bool pstate_switch_disable)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+
+	if (separation_time != hw_data->display_cfg.cpu_pstate_separation_time
+	|| cc6_disable != hw_data->display_cfg.cpu_cc6_disable
+	|| pstate_disable != hw_data->display_cfg.cpu_pstate_disable
+	|| pstate_switch_disable != hw_data->display_cfg.nb_pstate_switch_disable) {
+
+		hw_data->display_cfg.cpu_pstate_separation_time = separation_time;
+		hw_data->display_cfg.cpu_cc6_disable = cc6_disable;
+		hw_data->display_cfg.cpu_pstate_disable = pstate_disable;
+		hw_data->display_cfg.nb_pstate_switch_disable = pstate_switch_disable;
+		hw_data->cc6_setting_changed = true;
+
+	}
+	return 0;
+}
+
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
 	.backend_fini = cz_hwmgr_backend_fini,
@@ -1514,6 +1583,8 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.get_pp_table_entry = cz_dpm_get_pp_table_entry,
 	.get_num_of_pp_table_entries = cz_dpm_get_num_of_pp_table_entries,
 	.print_current_perforce_level = cz_print_current_perforce_level,
+	.set_cpu_power_state = cz_set_cpu_power_state,
+	.store_cc6_data = cz_store_cc6_data,
 };
 
 int cz_hwmgr_init(struct pp_hwmgr *hwmgr)
