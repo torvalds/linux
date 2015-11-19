@@ -289,10 +289,11 @@ static struct spacc_ddt *spacc_sg_to_ddt(struct spacc_engine *engine,
 					 enum dma_data_direction dir,
 					 dma_addr_t *ddt_phys)
 {
-	unsigned nents, mapped_ents;
+	unsigned mapped_ents;
 	struct scatterlist *cur;
 	struct spacc_ddt *ddt;
 	int i;
+	int nents;
 
 	nents = sg_nents_for_len(payload, nbytes);
 	if (nents < 0) {
@@ -326,7 +327,7 @@ static int spacc_aead_make_ddts(struct aead_request *areq)
 	struct spacc_engine *engine = req->engine;
 	struct spacc_ddt *src_ddt, *dst_ddt;
 	unsigned total;
-	unsigned int src_nents, dst_nents;
+	int src_nents, dst_nents;
 	struct scatterlist *cur;
 	int i, dst_ents, src_ents;
 
