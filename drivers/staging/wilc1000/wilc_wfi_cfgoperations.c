@@ -224,14 +224,14 @@ static void clear_shadow_scan(void)
 
 }
 
-static u32 get_rssi_avg(tstrNetworkInfo *pstrNetworkInfo)
+static u32 get_rssi_avg(tstrNetworkInfo *network_info)
 {
 	u8 i;
 	int rssi_v = 0;
-	u8 num_rssi = (pstrNetworkInfo->strRssi.u8Full) ? NUM_RSSI : (pstrNetworkInfo->strRssi.u8Index);
+	u8 num_rssi = (network_info->strRssi.u8Full) ? NUM_RSSI : (network_info->strRssi.u8Index);
 
 	for (i = 0; i < num_rssi; i++)
-		rssi_v += pstrNetworkInfo->strRssi.as8RSSI[i];
+		rssi_v += network_info->strRssi.as8RSSI[i];
 
 	rssi_v /= num_rssi;
 	return rssi_v;
