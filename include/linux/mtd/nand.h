@@ -730,6 +730,11 @@ static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
 	return chip->flash_node;
 }
 
+static inline struct nand_chip *mtd_to_nand(struct mtd_info *mtd)
+{
+	return mtd->priv;
+}
+
 /*
  * NAND Flash Manufacturer ID Codes
  */
