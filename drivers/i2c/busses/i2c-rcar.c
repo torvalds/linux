@@ -83,6 +83,7 @@
 
 #define RCAR_BUS_PHASE_START	(MDBS | MIE | ESG)
 #define RCAR_BUS_PHASE_DATA	(MDBS | MIE)
+#define RCAR_BUS_MASK_DATA	(~(ESG | FSB) & 0xFF)
 #define RCAR_BUS_PHASE_STOP	(MDBS | MIE | FSB)
 
 #define RCAR_IRQ_SEND	(MNR | MAL | MST | MAT | MDE)
@@ -289,13 +290,6 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 	if (!(msr & MDE))
 		return;
 
-	/*
-	 * If address transfer phase finished,
-	 * goto data phase.
-	 */
-	if (msr & MAT)
-		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_DATA);
-
 	if (priv->pos < msg->len) {
 		/*
 		 * Prepare next data to ICRXTX register.
@@ -345,11 +339,7 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 		return;
 
 	if (msr & MAT) {
-		/*
-		 * Address transfer phase finished,
-		 * but, there is no data at this point.
-		 * Do nothing.
-		 */
+		/* Address transfer phase finished, but no data at this point. */
 	} else if (priv->pos < msg->len) {
 		/*
 		 * get received data
@@ -365,8 +355,6 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 	 */
 	if (priv->pos + 1 >= msg->len)
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
-	else
-		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_DATA);
 
 	if (priv->pos == msg->len && !(priv->flags & ID_LAST_MSG))
 		rcar_i2c_next_msg(priv);
@@ -432,7 +420,11 @@ static bool rcar_i2c_slave_irq(struct rcar_i2c_priv *priv)
 static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 {
 	struct rcar_i2c_priv *priv = ptr;
-	u32 msr;
+	u32 msr, val;
+
+	/* Clear START or STOP as soon as we can */
+	val = rcar_i2c_read(priv, ICMCR);
+	rcar_i2c_write(priv, ICMCR, val & RCAR_BUS_MASK_DATA);
 
 	msr = rcar_i2c_read(priv, ICMSR);
 
@@ -454,7 +446,6 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 	/* Nack */
 	if (msr & MNR) {
 		/* HW automatically sends STOP after received NACK */
-		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_DATA);
 		rcar_i2c_write(priv, ICMIER, RCAR_IRQ_STOP);
 		rcar_i2c_flags_set(priv, ID_NACK);
 		goto out;
