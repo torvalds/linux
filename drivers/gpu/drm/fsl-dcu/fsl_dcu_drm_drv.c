@@ -55,20 +55,12 @@ static int fsl_dcu_drm_irq_init(struct drm_device *dev)
 	if (ret < 0)
 		dev_err(dev->dev, "failed to install IRQ handler\n");
 
-	ret = regmap_write(fsl_dev->regmap, DCU_INT_STATUS, 0);
-	if (ret)
-		dev_err(dev->dev, "set DCU_INT_STATUS failed\n");
-	ret = regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
-	if (ret)
-		dev_err(dev->dev, "read DCU_INT_MASK failed\n");
+	regmap_write(fsl_dev->regmap, DCU_INT_STATUS, 0);
+	regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
 	value &= DCU_INT_MASK_VBLANK;
-	ret = regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
-	if (ret)
-		dev_err(dev->dev, "set DCU_INT_MASK failed\n");
-	ret = regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
-			   DCU_UPDATE_MODE_READREG);
-	if (ret)
-		dev_err(dev->dev, "set DCU_UPDATE_MODE failed\n");
+	regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
+	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
+		     DCU_UPDATE_MODE_READREG);
 
 	return ret;
 }
@@ -130,18 +122,17 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 	int ret;
 
 	ret = regmap_read(fsl_dev->regmap, DCU_INT_STATUS, &int_status);
-	if (ret)
-		dev_err(dev->dev, "set DCU_INT_STATUS failed\n");
+	if (ret) {
+		dev_err(dev->dev, "read DCU_INT_STATUS failed\n");
+		return IRQ_NONE;
+	}
+
 	if (int_status & DCU_INT_STATUS_VBLANK)
 		drm_handle_vblank(dev, 0);
 
-	ret = regmap_write(fsl_dev->regmap, DCU_INT_STATUS, int_status);
-	if (ret)
-		dev_err(dev->dev, "set DCU_INT_STATUS failed\n");
-	ret = regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
-			   DCU_UPDATE_MODE_READREG);
-	if (ret)
-		dev_err(dev->dev, "set DCU_UPDATE_MODE failed\n");
+	regmap_write(fsl_dev->regmap, DCU_INT_STATUS, int_status);
+	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
+		     DCU_UPDATE_MODE_READREG);
 
 	return IRQ_HANDLED;
 }
@@ -150,15 +141,11 @@ static int fsl_dcu_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	unsigned int value;
-	int ret;
 
-	ret = regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
-	if (ret)
-		dev_err(dev->dev, "read DCU_INT_MASK failed\n");
+	regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
 	value &= ~DCU_INT_MASK_VBLANK;
-	ret = regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
-	if (ret)
-		dev_err(dev->dev, "set DCU_INT_MASK failed\n");
+	regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
+
 	return 0;
 }
 
@@ -167,15 +154,10 @@ static void fsl_dcu_drm_disable_vblank(struct drm_device *dev,
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	unsigned int value;
-	int ret;
 
-	ret = regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
-	if (ret)
-		dev_err(dev->dev, "read DCU_INT_MASK failed\n");
+	regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
 	value |= DCU_INT_MASK_VBLANK;
-	ret = regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
-	if (ret)
-		dev_err(dev->dev, "set DCU_INT_MASK failed\n");
+	regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
 }
 
 static const struct file_operations fsl_dcu_drm_fops = {

@@ -62,19 +62,15 @@ static void fsl_dcu_drm_plane_atomic_disable(struct drm_plane *plane,
 {
 	struct fsl_dcu_drm_device *fsl_dev = plane->dev->dev_private;
 	unsigned int value;
-	int index, ret;
+	int index;
 
 	index = fsl_dcu_drm_plane_index(plane);
 	if (index < 0)
 		return;
 
-	ret = regmap_read(fsl_dev->regmap, DCU_CTRLDESCLN(index, 4), &value);
-	if (ret)
-		dev_err(fsl_dev->dev, "read DCU_INT_MASK failed\n");
+	regmap_read(fsl_dev->regmap, DCU_CTRLDESCLN(index, 4), &value);
 	value &= ~DCU_LAYER_EN;
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 4), value);
-	if (ret)
-		dev_err(fsl_dev->dev, "set DCU register failed\n");
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 4), value);
 }
 
 static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
@@ -86,7 +82,7 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_gem_cma_object *gem;
 	unsigned int alpha, bpp;
-	int index, ret;
+	int index;
 
 	if (!fb)
 		return;
@@ -126,70 +122,45 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 1),
-			   DCU_LAYER_HEIGHT(state->crtc_h) |
-			   DCU_LAYER_WIDTH(state->crtc_w));
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 2),
-			   DCU_LAYER_POSY(state->crtc_y) |
-			   DCU_LAYER_POSX(state->crtc_x));
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap,
-			   DCU_CTRLDESCLN(index, 3), gem->paddr);
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 4),
-			   DCU_LAYER_EN |
-			   DCU_LAYER_TRANS(alpha) |
-			   DCU_LAYER_BPP(bpp) |
-			   DCU_LAYER_AB(0));
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 5),
-			   DCU_LAYER_CKMAX_R(0xFF) |
-			   DCU_LAYER_CKMAX_G(0xFF) |
-			   DCU_LAYER_CKMAX_B(0xFF));
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 6),
-			   DCU_LAYER_CKMIN_R(0) |
-			   DCU_LAYER_CKMIN_G(0) |
-			   DCU_LAYER_CKMIN_B(0));
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 7), 0);
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 8),
-			   DCU_LAYER_FG_FCOLOR(0));
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 9),
-			   DCU_LAYER_BG_BCOLOR(0));
-	if (ret)
-		goto set_failed;
-	if (!strcmp(fsl_dev->soc->name, "ls1021a")) {
-		ret = regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 10),
-				   DCU_LAYER_POST_SKIP(0) |
-				   DCU_LAYER_PRE_SKIP(0));
-		if (ret)
-			goto set_failed;
-	}
-	ret = regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
-				 DCU_MODE_DCU_MODE_MASK,
-				 DCU_MODE_DCU_MODE(DCU_MODE_NORMAL));
-	if (ret)
-		goto set_failed;
-	ret = regmap_write(fsl_dev->regmap,
-			   DCU_UPDATE_MODE, DCU_UPDATE_MODE_READREG);
-	if (ret)
-		goto set_failed;
-	return;
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 1),
+		     DCU_LAYER_HEIGHT(state->crtc_h) |
+		     DCU_LAYER_WIDTH(state->crtc_w));
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 2),
+		     DCU_LAYER_POSY(state->crtc_y) |
+		     DCU_LAYER_POSX(state->crtc_x));
+	regmap_write(fsl_dev->regmap,
+		     DCU_CTRLDESCLN(index, 3), gem->paddr);
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 4),
+		     DCU_LAYER_EN |
+		     DCU_LAYER_TRANS(alpha) |
+		     DCU_LAYER_BPP(bpp) |
+		     DCU_LAYER_AB(0));
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 5),
+		     DCU_LAYER_CKMAX_R(0xFF) |
+		     DCU_LAYER_CKMAX_G(0xFF) |
+		     DCU_LAYER_CKMAX_B(0xFF));
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 6),
+		     DCU_LAYER_CKMIN_R(0) |
+		     DCU_LAYER_CKMIN_G(0) |
+		     DCU_LAYER_CKMIN_B(0));
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 7), 0);
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 8),
+		     DCU_LAYER_FG_FCOLOR(0));
+	regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 9),
+		     DCU_LAYER_BG_BCOLOR(0));
 
-set_failed:
-	dev_err(fsl_dev->dev, "set DCU register failed\n");
+	if (!strcmp(fsl_dev->soc->name, "ls1021a")) {
+		regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(index, 10),
+			     DCU_LAYER_POST_SKIP(0) |
+			     DCU_LAYER_PRE_SKIP(0));
+	}
+	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
+			   DCU_MODE_DCU_MODE_MASK,
+			   DCU_MODE_DCU_MODE(DCU_MODE_NORMAL));
+	regmap_write(fsl_dev->regmap,
+		     DCU_UPDATE_MODE, DCU_UPDATE_MODE_READREG);
+
+	return;
 }
 
 static void
