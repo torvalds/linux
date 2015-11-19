@@ -168,7 +168,7 @@ static int tcp_write_timeout(struct sock *sk)
 			dst_negative_advice(sk);
 			if (tp->syn_fastopen || tp->syn_data)
 				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
-			if (tp->syn_data)
+			if (tp->syn_data && icsk->icsk_retransmits == 1)
 				NET_INC_STATS_BH(sock_net(sk),
 						 LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 		}
