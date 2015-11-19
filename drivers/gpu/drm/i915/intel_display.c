@@ -13068,7 +13068,8 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			return ret;
 
-		if (intel_pipe_config_compare(state->dev,
+		if (i915.fastboot &&
+		    intel_pipe_config_compare(state->dev,
 					to_intel_crtc_state(crtc->state),
 					pipe_config, true)) {
 			crtc_state->mode_changed = false;
