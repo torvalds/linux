@@ -119,7 +119,7 @@ static u8 h5_cfg_field(struct h5 *h5)
 	u8 field = 0;
 
 	/* Sliding window size (first 3 bits) */
-	field |= (h5->tx_win & 7);
+	field |= (h5->tx_win & 0x07);
 
 	return field;
 }
