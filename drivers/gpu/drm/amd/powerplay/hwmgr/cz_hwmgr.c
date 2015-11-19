@@ -38,7 +38,7 @@
 #include "cz_hwmgr.h"
 #include "power_state.h"
 #include "cz_clockpowergating.h"
-
+#include "pp_debug.h"
 
 #define ixSMUSVI_NB_CURRENTVID 0xD8230044
 #define CURRENT_NB_VID_MASK 0xff000000
@@ -821,10 +821,12 @@ static int cz_tf_enable_nb_dpm(struct pp_hwmgr *hwmgr,
 					void *storage, int result)
 {
 	int ret = 0;
+
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	unsigned long dpm_features = 0;
 
 	if (!cz_hwmgr->is_nb_dpm_enabled) {
+		PP_DBG_LOG("enabling ALL SMU features.\n");
 		dpm_features |= NB_DPM_MASK;
 		ret = smum_send_msg_to_smc_with_parameter(
 							     hwmgr->smumgr,
@@ -842,14 +844,19 @@ static int cz_nbdpm_pstate_enable_disable(struct pp_hwmgr *hwmgr, bool enable, b
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 
 	if (hw_data->is_nb_dpm_enabled) {
-		if (enable)
+		if (enable) {
+			PP_DBG_LOG("enable Low Memory PState.\n");
+
 			return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 						PPSMC_MSG_EnableLowMemoryPstate,
 						(lock ? 1 : 0));
-		else
+		} else {
+			PP_DBG_LOG("disable Low Memory PState.\n");
+
 			return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 						PPSMC_MSG_DisableLowMemoryPstate,
 						(lock ? 1 : 0));
+		}
 	}
 
 	return 0;
@@ -1522,11 +1529,30 @@ cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 	}
 }
 
+static void cz_hw_print_display_cfg(
+	const struct amd_pp_display_configuration *display_cfg)
+{
+	PP_DBG_LOG("New Display Configuration:\n");
+
+	PP_DBG_LOG("   cpu_cc6_disable: %d\n",
+			display_cfg->cpu_cc6_disable);
+	PP_DBG_LOG("   cpu_pstate_disable: %d\n",
+			display_cfg->cpu_pstate_disable);
+	PP_DBG_LOG("   nb_pstate_switch_disable: %d\n",
+			display_cfg->nb_pstate_switch_disable);
+	PP_DBG_LOG("   cpu_pstate_separation_time: %d\n\n",
+			display_cfg->cpu_pstate_separation_time);
+}
+
 int cz_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 	uint32_t data = 0;
+
 	if (hw_data->cc6_setting_changed == true) {
+
+		cz_hw_print_display_cfg(&hw_data->display_cfg);
+
 		data |= (hw_data->display_cfg.cpu_pstate_separation_time
 			& PWRMGT_SEPARATION_TIME_MASK)
 			<< PWRMGT_SEPARATION_TIME_SHIFT;
@@ -1536,6 +1562,9 @@ int cz_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 
 		data|= (hw_data->display_cfg.cpu_pstate_disable ? 0x1 : 0x0)
 			<< PWRMGT_DISABLE_CPU_PSTATES_SHIFT;
+
+		PP_DBG_LOG("SetDisplaySizePowerParams data: 0x%X\n",
+			data);
 
 		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 						PPSMC_MSG_SetDisplaySizePowerParams,

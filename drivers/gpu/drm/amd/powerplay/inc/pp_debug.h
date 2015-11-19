@@ -36,5 +36,12 @@
 		}				\
 	} while (0)
 
-#endif
+
+#define PP_DBG_LOG(fmt, ...) \
+	do { \
+		if(0)printk(KERN_INFO "[ pp_dbg ] " fmt, ##__VA_ARGS__); \
+	} while (0)
+
+
+#endif /* PP_DEBUG_H */
 
