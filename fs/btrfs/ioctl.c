@@ -5286,7 +5286,7 @@ out_unlock:
 static int btrfs_ioctl_get_supported_features(struct file *file,
 					      void __user *arg)
 {
-	static struct btrfs_ioctl_feature_flags features[3] = {
+	static const struct btrfs_ioctl_feature_flags features[3] = {
 		INIT_FEATURE_FLAGS(SUPP),
 		INIT_FEATURE_FLAGS(SAFE_SET),
 		INIT_FEATURE_FLAGS(SAFE_CLEAR)

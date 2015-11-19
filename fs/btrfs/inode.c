@@ -83,7 +83,7 @@ struct kmem_cache *btrfs_path_cachep;
 struct kmem_cache *btrfs_free_space_cachep;
 
 #define S_SHIFT 12
-static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
+static const unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
 	[S_IFREG >> S_SHIFT]	= BTRFS_FT_REG_FILE,
 	[S_IFDIR >> S_SHIFT]	= BTRFS_FT_DIR,
 	[S_IFCHR >> S_SHIFT]	= BTRFS_FT_CHRDEV,
