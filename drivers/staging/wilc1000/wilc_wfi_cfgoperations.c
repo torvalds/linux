@@ -175,7 +175,7 @@ static u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static u8 p2p_local_random = 0x01;
 static u8 p2p_recv_random = 0x00;
 static u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
-static bool bWilc_ie;
+static bool wilc_ie;
 
 static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
 	.channels = ieee80211_2ghz_channels,
@@ -643,7 +643,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 			 pstrDisconnectNotifInfo->u16reason, priv->dev);
 		p2p_local_random = 0x01;
 		p2p_recv_random = 0x00;
-		bWilc_ie = false;
+		wilc_ie = false;
 		eth_zero_addr(priv->au8AssociatedBss);
 		wilc_wlan_set_bssid(priv->dev, NullBssid);
 		eth_zero_addr(wilc_connected_SSID);
@@ -1073,7 +1073,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 
 	p2p_local_random = 0x01;
 	p2p_recv_random = 0x00;
-	bWilc_ie = false;
+	wilc_ie = false;
 	pstrWFIDrv->p2p_timeout = 0;
 
 	s32Error = wilc_disconnect(priv->hWILCWFIDrv, reason_code);
@@ -1998,11 +1998,11 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 				case PUBLIC_ACT_VENDORSPEC:
 					if (!memcmp(p2p_oui, &buff[ACTION_SUBTYPE_ID + 1], 4)) {
 						if ((buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP))	{
-							if (!bWilc_ie) {
+							if (!wilc_ie) {
 								for (i = P2P_PUB_ACTION_SUBTYPE; i < size; i++)	{
 									if (!memcmp(p2p_vendor_spec, &buff[i], 6)) {
 										p2p_recv_random = buff[i + 6];
-										bWilc_ie = true;
+										wilc_ie = true;
 										PRINT_D(GENERIC_DBG, "WILC Vendor specific IE:%02x\n", p2p_recv_random);
 										break;
 									}
@@ -2025,7 +2025,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 					}
 
 
-					if ((buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP) && (bWilc_ie))	{
+					if ((buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_REQ || buff[P2P_PUB_ACTION_SUBTYPE] == GO_NEG_RSP) && (wilc_ie))	{
 						PRINT_D(GENERIC_DBG, "Sending P2P to host without extra elemnt\n");
 						/* extra attribute for sig_dbm: signal strength in mBm, or 0 if unknown */
 						cfg80211_rx_mgmt(priv->wdev, s32Freq, 0, buff, size - 7, 0);
@@ -2560,9 +2560,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	PRINT_D(HOSTAPD_DBG, "Wireless interface name =%s\n", dev->name);
 	p2p_local_random = 0x01;
 	p2p_recv_random = 0x00;
-
-	bWilc_ie = false;
-
+	wilc_ie = false;
 	wilc_optaining_ip = false;
 	del_timer(&wilc_during_ip_timer);
 	PRINT_D(GENERIC_DBG, "Changing virtual interface, enable scan\n");
