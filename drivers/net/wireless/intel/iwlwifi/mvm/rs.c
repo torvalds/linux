@@ -552,9 +552,10 @@ static char *rs_pretty_rate(const struct rs_rate *rate)
 	};
 	const char *rate_str;
 
-	if (is_type_legacy(rate->type))
+	if (is_type_legacy(rate->type) && (rate->index <= IWL_RATE_54M_INDEX))
 		rate_str = legacy_rates[rate->index];
-	else if (is_type_ht(rate->type) || is_type_vht(rate->type))
+	else if ((is_type_ht(rate->type) || is_type_vht(rate->type)) &&
+		 (rate->index <= IWL_RATE_MCS_9_INDEX))
 		rate_str = ht_vht_rates[rate->index];
 	else
 		rate_str = "BAD_RATE";
