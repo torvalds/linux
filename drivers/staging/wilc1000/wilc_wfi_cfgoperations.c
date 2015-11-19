@@ -422,7 +422,7 @@ static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo,
 static void CfgScanResult(enum scan_event scan_event,
 			  tstrNetworkInfo *network_info,
 			  void *user_void,
-			  void *pJoinParams)
+			  void *join_params)
 {
 	struct wilc_priv *priv;
 	struct wiphy *wiphy;
@@ -461,12 +461,9 @@ static void CfgScanResult(enum scan_event scan_event,
 						PRINT_D(CFG80211_DBG, "Network %s found\n", network_info->au8ssid);
 						priv->u32RcvdChCount++;
 
-
-
-						if (pJoinParams == NULL) {
+						if (!join_params)
 							PRINT_INFO(CORECONFIG_DBG, ">> Something really bad happened\n");
-						}
-						add_network_to_shadow(network_info, priv, pJoinParams);
+						add_network_to_shadow(network_info, priv, join_params);
 
 						/*P2P peers are sent to WPA supplicant and added to shadow table*/
 						if (!(memcmp("DIRECT-", network_info->au8ssid, 7))) {
