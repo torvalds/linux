@@ -149,7 +149,7 @@ static struct ieee80211_channel ieee80211_2ghz_channels[] = {
 
 
 /* Table 6 in section 3.2.1.1 */
-static struct ieee80211_rate WILC_WFI_rates[] = {
+static struct ieee80211_rate ieee80211_bitrates[] = {
 	RATETAB_ENT(10,  0,  0),
 	RATETAB_ENT(20,  1,  0),
 	RATETAB_ENT(55,  2,  0),
@@ -183,8 +183,8 @@ static bool bWilc_ie;
 static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
 	.channels = ieee80211_2ghz_channels,
 	.n_channels = ARRAY_SIZE(ieee80211_2ghz_channels),
-	.bitrates = WILC_WFI_rates,
-	.n_bitrates = ARRAY_SIZE(WILC_WFI_rates),
+	.bitrates = ieee80211_bitrates,
+	.n_bitrates = ARRAY_SIZE(ieee80211_bitrates),
 };
 
 
