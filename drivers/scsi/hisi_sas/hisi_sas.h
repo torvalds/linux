@@ -38,8 +38,6 @@
 #define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024)
 #define HISI_SAS_MAX_SMP_RESP_SZ 1028
 
-#define HISI_SAS_NAME_LEN 32
-
 struct hisi_hba;
 
 enum {
@@ -178,7 +176,6 @@ struct hisi_hba {
 
 	int	queue_count;
 	int	queue;
-	char	*int_names;
 	struct hisi_sas_slot	*slot_prep;
 
 	struct dma_pool *sge_page_pool;

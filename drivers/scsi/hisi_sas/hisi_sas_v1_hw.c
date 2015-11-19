@@ -1660,18 +1660,6 @@ static irqreturn_t fatal_axi_int_v1_hw(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static const char phy_int_names[HISI_SAS_PHY_INT_NR][32] = {
-	{"Bcast"},
-	{"Phy Up"},
-	{"Abnormal"},
-};
-
-static const char cq_int_name[32] = "cq";
-static const char fatal_int_name[HISI_SAS_FATAL_INT_NR][32] = {
-	"fatal ecc",
-	"fatal axi"
-};
-
 static irq_handler_t phy_interrupts[HISI_SAS_PHY_INT_NR] = {
 	int_bcast_v1_hw,
 	int_phyup_v1_hw,
@@ -1687,7 +1675,6 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
 	struct device_node *np = dev->of_node;
-	char *int_names = hisi_hba->int_names;
 	int i, j, irq, rc, idx;
 
 	if (!np)
@@ -1706,13 +1693,8 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 				return -ENOENT;
 			}
 
-			(void)snprintf(&int_names[idx * HISI_SAS_NAME_LEN],
-				       HISI_SAS_NAME_LEN,
-				       "%s %s:%d", dev_name(dev),
-				       phy_int_names[j], i);
 			rc = devm_request_irq(dev, irq, phy_interrupts[j], 0,
-					&int_names[idx * HISI_SAS_NAME_LEN],
-					phy);
+					      DRV_NAME " phy", phy);
 			if (rc) {
 				dev_err(dev, "irq init: could not request "
 					"phy interrupt %d, rc=%d\n",
@@ -1730,12 +1712,9 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 				idx);
 			return -ENOENT;
 		}
-		(void)snprintf(&int_names[idx * HISI_SAS_NAME_LEN],
-			       HISI_SAS_NAME_LEN,
-			       "%s %s:%d", dev_name(dev), cq_int_name, i);
+
 		rc = devm_request_irq(dev, irq, cq_interrupt_v1_hw, 0,
-				      &int_names[idx * HISI_SAS_NAME_LEN],
-				      &hisi_hba->cq[i]);
+				      DRV_NAME " cq", &hisi_hba->cq[i]);
 		if (rc) {
 			dev_err(dev, "irq init: could not request cq interrupt %d, rc=%d\n",
 				irq, rc);
@@ -1751,12 +1730,9 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 				idx);
 			return -ENOENT;
 		}
-		(void)snprintf(&int_names[idx * HISI_SAS_NAME_LEN],
-			       HISI_SAS_NAME_LEN,
-			       "%s %s:%d", dev_name(dev), fatal_int_name[i], i);
+
 		rc = devm_request_irq(dev, irq, fatal_interrupts[i], 0,
-				      &int_names[idx * HISI_SAS_NAME_LEN],
-				      hisi_hba);
+				      DRV_NAME " fatal", hisi_hba);
 		if (rc) {
 			dev_err(dev,
 				"irq init: could not request fatal interrupt %d, rc=%d\n",

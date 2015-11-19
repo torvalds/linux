@@ -1160,7 +1160,6 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	struct property *sas_addr_prop;
-	int num;
 
 	shost = scsi_host_alloc(&hisi_sas_sht, sizeof(*hisi_hba));
 	if (!shost)
@@ -1195,13 +1194,6 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 		goto err_out;
 
 	if (of_property_read_u32(np, "queue-count", &hisi_hba->queue_count))
-		goto err_out;
-
-	num = of_irq_count(np);
-	hisi_hba->int_names = devm_kcalloc(dev, num,
-					   HISI_SAS_NAME_LEN,
-					   GFP_KERNEL);
-	if (!hisi_hba->int_names)
 		goto err_out;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
