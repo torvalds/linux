@@ -680,7 +680,7 @@ static cputime_t get_vtime_delta(struct task_struct *tsk)
 {
 	unsigned long long delta = vtime_delta(tsk);
 
-	WARN_ON_ONCE(tsk->vtime_snap_whence == VTIME_SLEEPING);
+	WARN_ON_ONCE(tsk->vtime_snap_whence == VTIME_INACTIVE);
 	tsk->vtime_snap += delta;
 
 	/* CHECKME: always safe to convert nsecs to cputime? */
@@ -764,7 +764,7 @@ void vtime_account_idle(struct task_struct *tsk)
 void arch_vtime_task_switch(struct task_struct *prev)
 {
 	write_seqlock(&prev->vtime_seqlock);
-	prev->vtime_snap_whence = VTIME_SLEEPING;
+	prev->vtime_snap_whence = VTIME_INACTIVE;
 	write_sequnlock(&prev->vtime_seqlock);
 
 	write_seqlock(&current->vtime_seqlock);
@@ -829,7 +829,7 @@ fetch_task_cputime(struct task_struct *t,
 			*s_dst = *s_src;
 
 		/* Task is sleeping, nothing to add */
-		if (t->vtime_snap_whence == VTIME_SLEEPING ||
+		if (t->vtime_snap_whence == VTIME_INACTIVE ||
 		    is_idle_task(t))
 			continue;
 
