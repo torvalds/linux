@@ -6538,8 +6538,6 @@ static int l2cap_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 static int l2cap_stream_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 			   struct sk_buff *skb)
 {
-	int err = 0;
-
 	BT_DBG("chan %p, control %p, skb %p, state %d", chan, control, skb,
 	       chan->rx_state);
 
@@ -6570,7 +6568,7 @@ static int l2cap_stream_rx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 	chan->last_acked_seq = control->txseq;
 	chan->expected_tx_seq = __next_seq(chan, control->txseq);
 
-	return err;
+	return 0;
 }
 
 static int l2cap_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
