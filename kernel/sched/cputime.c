@@ -466,7 +466,7 @@ void account_process_tick(struct task_struct *p, int user_tick)
 	cputime_t one_jiffy_scaled = cputime_to_scaled(cputime_one_jiffy);
 	struct rq *rq = this_rq();
 
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		return;
 
 	if (sched_clock_irqtime) {

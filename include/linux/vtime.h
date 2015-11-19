@@ -10,14 +10,14 @@
 struct task_struct;
 
 /*
- * vtime_accounting_enabled() definitions/declarations
+ * vtime_accounting_cpu_enabled() definitions/declarations
  */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-static inline bool vtime_accounting_enabled(void) { return true; }
+static inline bool vtime_accounting_cpu_enabled(void) { return true; }
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-static inline bool vtime_accounting_enabled(void)
+static inline bool vtime_accounting_cpu_enabled(void)
 {
 	if (context_tracking_is_enabled()) {
 		if (context_tracking_cpu_is_enabled())
@@ -29,7 +29,7 @@ static inline bool vtime_accounting_enabled(void)
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_GEN */
 
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
-static inline bool vtime_accounting_enabled(void) { return false; }
+static inline bool vtime_accounting_cpu_enabled(void) { return false; }
 #endif /* !CONFIG_VIRT_CPU_ACCOUNTING */
 
 
@@ -44,7 +44,7 @@ extern void vtime_task_switch(struct task_struct *prev);
 extern void vtime_common_task_switch(struct task_struct *prev);
 static inline void vtime_task_switch(struct task_struct *prev)
 {
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		vtime_common_task_switch(prev);
 }
 #endif /* __ARCH_HAS_VTIME_TASK_SWITCH */
@@ -59,7 +59,7 @@ extern void vtime_account_irq_enter(struct task_struct *tsk);
 extern void vtime_common_account_irq_enter(struct task_struct *tsk);
 static inline void vtime_account_irq_enter(struct task_struct *tsk)
 {
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		vtime_common_account_irq_enter(tsk);
 }
 #endif /* __ARCH_HAS_VTIME_ACCOUNT */
@@ -78,7 +78,7 @@ extern void vtime_gen_account_irq_exit(struct task_struct *tsk);
 
 static inline void vtime_account_irq_exit(struct task_struct *tsk)
 {
-	if (vtime_accounting_enabled())
+	if (vtime_accounting_cpu_enabled())
 		vtime_gen_account_irq_exit(tsk);
 }
 
