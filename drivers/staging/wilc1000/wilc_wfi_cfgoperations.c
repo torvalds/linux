@@ -276,7 +276,7 @@ static void refresh_scan(void *user_void, u8 all, bool direct_scan)
 
 }
 
-static void reset_shadow_found(void *pUserVoid)
+static void reset_shadow_found(void)
 {
 	int i;
 
@@ -731,9 +731,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	priv->u32RcvdChCount = 0;
 
 	wilc_set_wfi_drv_handler(priv->hWILCWFIDrv);
-
-
-	reset_shadow_found(priv);
+	reset_shadow_found();
 
 	priv->bCfgScanning = true;
 	if (request->n_channels <= MAX_NUM_SCANNED_NETWORKS) { /* TODO: mostafa: to be replaced by */
