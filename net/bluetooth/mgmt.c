@@ -6700,17 +6700,19 @@ static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
 	int i, cur_len;
 	bool flags_managed = false;
 	bool tx_power_managed = false;
-	u32 flags_params = MGMT_ADV_FLAG_DISCOV | MGMT_ADV_FLAG_LIMITED_DISCOV |
-			   MGMT_ADV_FLAG_MANAGED_FLAGS;
 
-	if (is_adv_data && (adv_flags & flags_params)) {
-		flags_managed = true;
-		max_len -= 3;
-	}
+	if (is_adv_data) {
+		if (adv_flags & (MGMT_ADV_FLAG_DISCOV |
+				 MGMT_ADV_FLAG_LIMITED_DISCOV |
+				 MGMT_ADV_FLAG_MANAGED_FLAGS)) {
+			flags_managed = true;
+			max_len -= 3;
+		}
 
-	if (is_adv_data && (adv_flags & MGMT_ADV_FLAG_TX_POWER)) {
-		tx_power_managed = true;
-		max_len -= 3;
+		if (adv_flags & MGMT_ADV_FLAG_TX_POWER) {
+			tx_power_managed = true;
+			max_len -= 3;
+		}
 	}
 
 	if (len > max_len)
