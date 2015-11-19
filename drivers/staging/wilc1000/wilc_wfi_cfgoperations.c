@@ -419,7 +419,10 @@ static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo,
  *  @date
  *  @version	1.0
  */
-static void CfgScanResult(enum scan_event enuScanEvent, tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, void *pJoinParams)
+static void CfgScanResult(enum scan_event scan_event,
+			  tstrNetworkInfo *pstrNetworkInfo,
+			  void *pUserVoid,
+			  void *pJoinParams)
 {
 	struct wilc_priv *priv;
 	struct wiphy *wiphy;
@@ -429,7 +432,7 @@ static void CfgScanResult(enum scan_event enuScanEvent, tstrNetworkInfo *pstrNet
 
 	priv = (struct wilc_priv *)pUserVoid;
 	if (priv->bCfgScanning) {
-		if (enuScanEvent == SCAN_EVENT_NETWORK_FOUND) {
+		if (scan_event == SCAN_EVENT_NETWORK_FOUND) {
 			wiphy = priv->dev->ieee80211_ptr->wiphy;
 
 			if (!wiphy)
@@ -498,7 +501,7 @@ static void CfgScanResult(enum scan_event enuScanEvent, tstrNetworkInfo *pstrNet
 					}
 				}
 			}
-		} else if (enuScanEvent == SCAN_EVENT_DONE)    {
+		} else if (scan_event == SCAN_EVENT_DONE) {
 			PRINT_D(CFG80211_DBG, "Scan Done[%p]\n", priv->dev);
 			PRINT_D(CFG80211_DBG, "Refreshing Scan ...\n");
 			refresh_scan(priv, 1, false);
@@ -517,10 +520,7 @@ static void CfgScanResult(enum scan_event enuScanEvent, tstrNetworkInfo *pstrNet
 				priv->pstrScanReq = NULL;
 			}
 			up(&(priv->hSemScanReq));
-
-		}
-		/*Aborting any scan operation during mac close*/
-		else if (enuScanEvent == SCAN_EVENT_ABORTED) {
+		} else if (scan_event == SCAN_EVENT_ABORTED) {
 			down(&(priv->hSemScanReq));
 
 			PRINT_D(CFG80211_DBG, "Scan Aborted\n");
