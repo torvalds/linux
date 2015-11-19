@@ -365,8 +365,9 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		break;
 	}
 
+	nfnl_ct = rcu_dereference(nfnl_ct_hook);
+
 	if (queue->flags & NFQA_CFG_F_CONNTRACK) {
-		nfnl_ct = rcu_dereference(nfnl_ct_hook);
 		if (nfnl_ct != NULL) {
 			ct = nfnl_ct->get_ct(entskb, &ctinfo);
 			if (ct != NULL)
@@ -1064,9 +1065,10 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	if (entry == NULL)
 		return -ENOENT;
 
+	/* rcu lock already held from nfnl->call_rcu. */
+	nfnl_ct = rcu_dereference(nfnl_ct_hook);
+
 	if (nfqa[NFQA_CT]) {
-		/* rcu lock already held from nfnl->call_rcu. */
-		nfnl_ct = rcu_dereference(nfnl_ct_hook);
 		if (nfnl_ct != NULL)
 			ct = nfqnl_ct_parse(nfnl_ct, nlh, nfqa, entry, &ctinfo);
 	}
