@@ -486,6 +486,7 @@ static int null_lnvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
 static int null_lnvm_id(struct request_queue *q, struct nvm_id *id)
 {
 	sector_t size = gb * 1024 * 1024 * 1024ULL;
+	sector_t blksize;
 	struct nvm_id_group *grp;
 
 	id->ver_id = 0x1;
@@ -493,17 +494,34 @@ static int null_lnvm_id(struct request_queue *q, struct nvm_id *id)
 	id->cgrps = 1;
 	id->cap = 0x3;
 	id->dom = 0x1;
-	id->ppat = NVM_ADDRMODE_LINEAR;
+
+	id->ppaf.blk_offset = 0;
+	id->ppaf.blk_len = 16;
+	id->ppaf.pg_offset = 16;
+	id->ppaf.pg_len = 16;
+	id->ppaf.sect_offset = 32;
+	id->ppaf.sect_len = 8;
+	id->ppaf.pln_offset = 40;
+	id->ppaf.pln_len = 8;
+	id->ppaf.lun_offset = 48;
+	id->ppaf.lun_len = 8;
+	id->ppaf.ch_offset = 56;
+	id->ppaf.ch_len = 8;
 
 	do_div(size, bs); /* convert size to pages */
+	do_div(size, 256); /* concert size to pgs pr blk */
 	grp = &id->groups[0];
 	grp->mtype = 0;
-	grp->fmtype = 1;
+	grp->fmtype = 0;
 	grp->num_ch = 1;
-	grp->num_lun = 1;
-	grp->num_pln = 1;
-	grp->num_blk = size / 256;
 	grp->num_pg = 256;
+	blksize = size;
+	do_div(size, (1 << 16));
+	grp->num_lun = size + 1;
+	do_div(blksize, grp->num_lun);
+	grp->num_blk = blksize;
+	grp->num_pln = 1;
+
 	grp->fpg_sz = bs;
 	grp->csecs = bs;
 	grp->trdt = 25000;
