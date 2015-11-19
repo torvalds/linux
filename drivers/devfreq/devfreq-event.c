@@ -270,7 +270,7 @@ int devfreq_event_get_edev_count(struct device *dev)
 
 	count = of_property_count_elems_of_size(dev->of_node, "devfreq-events",
 						sizeof(u32));
-	if (count < 0 ) {
+	if (count < 0) {
 		dev_err(dev,
 			"failed to get the count of devfreq-event in %s node\n",
 			dev->of_node->full_name);
@@ -395,7 +395,8 @@ struct devfreq_event_dev *devm_devfreq_event_add_edev(struct device *dev,
 {
 	struct devfreq_event_dev **ptr, *edev;
 
-	ptr = devres_alloc(devm_devfreq_event_release, sizeof(*ptr), GFP_KERNEL);
+	ptr = devres_alloc(devm_devfreq_event_release, sizeof(*ptr),
+				GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
