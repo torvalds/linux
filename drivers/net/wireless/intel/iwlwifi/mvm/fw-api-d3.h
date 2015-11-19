@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -245,6 +246,13 @@ enum iwl_wowlan_wakeup_filters {
 	IWL_WOWLAN_WAKEUP_BCN_FILTERING			= BIT(16),
 }; /* WOWLAN_WAKEUP_FILTER_API_E_VER_4 */
 
+enum iwl_wowlan_flags {
+	IS_11W_ASSOC		= BIT(0),
+	ENABLE_L3_FILTERING	= BIT(1),
+	ENABLE_NBNS_FILTERING	= BIT(2),
+	ENABLE_DHCP_FILTERING	= BIT(3),
+};
+
 struct iwl_wowlan_config_cmd {
 	__le32 wakeup_filter;
 	__le16 non_qos_seq;
@@ -252,8 +260,9 @@ struct iwl_wowlan_config_cmd {
 	u8 wowlan_ba_teardown_tids;
 	u8 is_11n_connection;
 	u8 offloading_tid;
-	u8 reserved[3];
-} __packed; /* WOWLAN_CONFIG_API_S_VER_3 */
+	u8 flags;
+	u8 reserved[2];
+} __packed; /* WOWLAN_CONFIG_API_S_VER_4 */
 
 /*
  * WOWLAN_TSC_RSC_PARAMS

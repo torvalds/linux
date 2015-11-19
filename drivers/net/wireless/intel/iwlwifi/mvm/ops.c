@@ -1186,7 +1186,8 @@ static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
 	mvm_ap_sta = iwl_mvm_sta_from_mac80211(ap_sta);
 	cmd->is_11n_connection = ap_sta->ht_cap.ht_supported;
 	cmd->offloading_tid = iter_data->offloading_tid;
-
+	cmd->flags = ENABLE_L3_FILTERING | ENABLE_NBNS_FILTERING |
+		ENABLE_DHCP_FILTERING;
 	/*
 	 * The d0i3 uCode takes care of the nonqos counters,
 	 * so configure only the qos seq ones.
