@@ -1683,8 +1683,12 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	spin_lock_bh(&vsi->mac_filter_list_lock);
 	/* delete addresses from the list */
 	for (i = 0; i < al->num_elements; i++)
-		i40e_del_filter(vsi, al->list[i].addr,
-				I40E_VLAN_ANY, true, false);
+		if (i40e_del_mac_all_vlan(vsi, al->list[i].addr, true, false)) {
+			ret = I40E_ERR_INVALID_MAC_ADDR;
+			spin_unlock_bh(&vsi->mac_filter_list_lock);
+			goto error_param;
+		}
+
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	/* program the updated filter list */

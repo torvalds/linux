@@ -1259,6 +1259,42 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 }
 
 /**
+ * i40e_del_mac_all_vlan - Remove a MAC filter from all VLANS
+ * @vsi: the VSI to be searched
+ * @macaddr: the mac address to be removed
+ * @is_vf: true if it is a VF
+ * @is_netdev: true if it is a netdev
+ *
+ * Removes a given MAC address from a VSI, regardless of VLAN
+ *
+ * Returns 0 for success, or error
+ **/
+int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
+			  bool is_vf, bool is_netdev)
+{
+	struct i40e_mac_filter *f = NULL;
+	int changed = 0;
+
+	WARN(!spin_is_locked(&vsi->mac_filter_list_lock),
+	     "Missing mac_filter_list_lock\n");
+	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+		if ((ether_addr_equal(macaddr, f->macaddr)) &&
+		    (is_vf == f->is_vf) &&
+		    (is_netdev == f->is_netdev)) {
+			f->counter--;
+			f->changed = true;
+			changed = 1;
+		}
+	}
+	if (changed) {
+		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
+		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
+		return 0;
+	}
+	return -ENOENT;
+}
+
+/**
  * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
  * @vsi: the PF Main VSI - inappropriate for any other VSI
  * @macaddr: the MAC address
