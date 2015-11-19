@@ -102,7 +102,7 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_LINK_GET,
 		.doit   = tipc_nl_node_get_link,
-		.dumpit	= tipc_nl_link_dump,
+		.dumpit	= tipc_nl_node_dump_link,
 		.policy = tipc_nl_policy,
 	},
 	{
