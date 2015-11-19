@@ -359,7 +359,7 @@ static void clk_pll_disable(struct clk_hw *hw)
 static int _p_div_to_hw(struct clk_hw *hw, u8 p_div)
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
-	struct pdiv_map *p_tohw = pll->params->pdiv_tohw;
+	const struct pdiv_map *p_tohw = pll->params->pdiv_tohw;
 
 	if (p_tohw) {
 		while (p_tohw->pdiv) {
@@ -375,7 +375,7 @@ static int _p_div_to_hw(struct clk_hw *hw, u8 p_div)
 static int _hw_to_p_div(struct clk_hw *hw, u8 p_div_hw)
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
-	struct pdiv_map *p_tohw = pll->params->pdiv_tohw;
+	const struct pdiv_map *p_tohw = pll->params->pdiv_tohw;
 
 	if (p_tohw) {
 		while (p_tohw->pdiv) {
@@ -1700,7 +1700,7 @@ struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 			  spinlock_t *lock)
 {
 	struct clk *parent, *clk;
-	struct pdiv_map *p_tohw = pll_params->pdiv_tohw;
+	const struct pdiv_map *p_tohw = pll_params->pdiv_tohw;
 	struct tegra_clk_pll *pll;
 	struct tegra_clk_pll_freq_table cfg;
 	unsigned long parent_rate;

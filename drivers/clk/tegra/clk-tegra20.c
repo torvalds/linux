@@ -359,7 +359,7 @@ static struct tegra_clk_pll_params pll_d_params = {
 	.flags = TEGRA_PLL_HAS_CPCON,
 };
 
-static struct pdiv_map pllu_p[] = {
+static const struct pdiv_map pllu_p[] = {
 	{ .pdiv = 1, .hw_val = 1 },
 	{ .pdiv = 2, .hw_val = 0 },
 	{ .pdiv = 0, .hw_val = 0 },

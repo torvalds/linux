@@ -182,7 +182,7 @@ static struct div_nmp pllxc_nmp = {
 	.divp_width = 4,
 };
 
-static struct pdiv_map pllxc_p[] = {
+static const struct pdiv_map pllxc_p[] = {
 	{ .pdiv =  1, .hw_val =  0 },
 	{ .pdiv =  2, .hw_val =  1 },
 	{ .pdiv =  3, .hw_val =  2 },
@@ -244,7 +244,7 @@ static struct div_nmp pllcx_nmp = {
 	.divp_width = 3,
 };
 
-static struct pdiv_map pllc_p[] = {
+static const struct pdiv_map pllc_p[] = {
 	{ .pdiv =  1, .hw_val = 0 },
 	{ .pdiv =  2, .hw_val = 1 },
 	{ .pdiv =  4, .hw_val = 3 },
@@ -318,7 +318,7 @@ static struct div_nmp pllm_nmp = {
 	.override_divp_shift = 27,
 };
 
-static struct pdiv_map pllm_p[] = {
+static const struct pdiv_map pllm_p[] = {
 	{ .pdiv = 1, .hw_val = 0 },
 	{ .pdiv = 2, .hw_val = 1 },
 	{ .pdiv = 0, .hw_val = 0 },
@@ -472,7 +472,7 @@ static struct tegra_clk_pll_params pll_d2_params = {
 		 TEGRA_PLL_USE_LOCK,
 };
 
-static struct pdiv_map pllu_p[] = {
+static const struct pdiv_map pllu_p[] = {
 	{ .pdiv = 1, .hw_val = 1 },
 	{ .pdiv = 2, .hw_val = 0 },
 	{ .pdiv = 0, .hw_val = 0 },

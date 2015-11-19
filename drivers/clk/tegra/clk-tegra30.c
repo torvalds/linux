@@ -332,7 +332,7 @@ static struct tegra_clk_pll_freq_table pll_d_freq_table[] = {
 	{        0,          0,    0,  0, 0,  0 },
 };
 
-static struct pdiv_map pllu_p[] = {
+static const struct pdiv_map pllu_p[] = {
 	{ .pdiv = 1, .hw_val = 1 },
 	{ .pdiv = 2, .hw_val = 0 },
 	{ .pdiv = 0, .hw_val = 0 },
