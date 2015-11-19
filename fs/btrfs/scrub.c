@@ -3432,7 +3432,9 @@ out:
 static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 					  struct btrfs_device *scrub_dev,
 					  u64 chunk_offset, u64 length,
-					  u64 dev_offset, int is_dev_replace)
+					  u64 dev_offset,
+					  struct btrfs_block_group_cache *cache,
+					  int is_dev_replace)
 {
 	struct btrfs_mapping_tree *map_tree =
 		&sctx->dev_root->fs_info->mapping_tree;
@@ -3445,8 +3447,18 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 	em = lookup_extent_mapping(&map_tree->map_tree, chunk_offset, 1);
 	read_unlock(&map_tree->map_tree.lock);
 
-	if (!em)
-		return -EINVAL;
+	if (!em) {
+		/*
+		 * Might have been an unused block group deleted by the cleaner
+		 * kthread or relocation.
+		 */
+		spin_lock(&cache->lock);
+		if (!cache->removed)
+			ret = -EINVAL;
+		spin_unlock(&cache->lock);
+
+		return ret;
+	}
 
 	map = (struct map_lookup *)em->bdev;
 	if (em->start != chunk_offset)
@@ -3592,7 +3604,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
 		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
-				  found_key.offset, is_dev_replace);
+				  found_key.offset, cache, is_dev_replace);
 
 		/*
 		 * flush, submit all pending read and write bios, afterwards
