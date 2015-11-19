@@ -1244,6 +1244,11 @@ static int arizona_extcon_device_get_pdata(struct arizona *arizona)
 
 	device_property_read_u32(arizona->dev, "wlf,gpsw", &pdata->gpsw);
 
+	pdata->jd_gpio5 = device_property_read_bool(arizona->dev,
+						    "wlf,use-jd-gpio");
+	pdata->jd_gpio5_nopull = device_property_read_bool(arizona->dev,
+						"wlf,use-jd-gpio-nopull");
+
 	return 0;
 }
 
