@@ -750,7 +750,9 @@ static unsigned int img_i2c_atomic(struct img_i2c *i2c,
 			next_cmd = CMD_RET_ACK;
 		break;
 	case CMD_RET_ACK:
-		if (i2c->line_status & LINESTAT_ACK_DET) {
+		if (i2c->line_status & LINESTAT_ACK_DET ||
+		    (i2c->line_status & LINESTAT_NACK_DET &&
+		    i2c->msg.flags & I2C_M_IGNORE_NAK)) {
 			if (i2c->msg.len == 0) {
 				next_cmd = CMD_GEN_STOP;
 			} else if (i2c->msg.flags & I2C_M_RD) {
@@ -1017,20 +1019,23 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		return -EIO;
 
 	for (i = 0; i < num; i++) {
-		if (likely(msgs[i].len))
-			continue;
 		/*
 		 * 0 byte reads are not possible because the slave could try
 		 * and pull the data line low, preventing a stop bit.
 		 */
-		if (unlikely(msgs[i].flags & I2C_M_RD))
+		if (!msgs[i].len && msgs[i].flags & I2C_M_RD)
 			return -EIO;
 		/*
 		 * 0 byte writes are possible and used for probing, but we
 		 * cannot do them in automatic mode, so use atomic mode
 		 * instead.
+		 *
+		 * Also, the I2C_M_IGNORE_NAK mode can only be implemented
+		 * in atomic mode.
 		 */
-		atomic = true;
+		if (!msgs[i].len ||
+		    (msgs[i].flags & I2C_M_IGNORE_NAK))
+			atomic = true;
 	}
 
 	ret = clk_prepare_enable(i2c->scb_clk);
