@@ -498,30 +498,15 @@ const struct fuse_operations lklfuse_ops = {
 	.fallocate = lklfuse_fallocate,
 };
 
-static int init_lkl(void)
+static int start_lkl(void)
 {
 	long ret;
 	char mpoint[32];
 
-	lklfuse.bs.fd = open(lklfuse.file, lklfuse.ro ? O_RDONLY : O_RDWR);
-	if (lklfuse.bs.fd < 0) {
-		fprintf(stderr, "can't open file %s: %s\n", lklfuse.file,
-			strerror(errno));
-		return -1;
-	}
-
-	ret = lkl_disk_add(lklfuse.bs);
-	if (ret < 0) {
-		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));
-		goto out_close;
-	}
-
-	lklfuse.disk_id = ret;
-
 	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, "");
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
-		goto out_close;
+		goto out;
 	}
 
 	ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.type,
@@ -548,13 +533,11 @@ out_umount:
 out_halt:
 	lkl_sys_halt();
 
-out_close:
-	close(lklfuse.bs.fd);
-
+out:
 	return ret;
 }
 
-static void cleanup_lkl(void)
+static void stop_lkl(void)
 {
 	int ret;
 
@@ -566,7 +549,6 @@ static void cleanup_lkl(void)
 		fprintf(stderr, "failed to umount disk: %d: %s\n",
 			lklfuse.disk_id, lkl_strerror(ret));
 	lkl_sys_halt();
-	close(lklfuse.bs.fd);
 }
 
 int main(int argc, char **argv)
@@ -595,10 +577,26 @@ int main(int argc, char **argv)
 		goto out_free;
 	}
 
+	ret = open(lklfuse.file, lklfuse.ro ? O_RDONLY : O_RDWR);
+	if (ret < 0) {
+		perror(lklfuse.file);
+		goto out_free;
+	}
+
+	lklfuse.bs.fd = ret;
+
+	ret = lkl_disk_add(lklfuse.bs);
+	if (ret < 0) {
+		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));
+		goto out_close_disk;
+	}
+
+	lklfuse.disk_id = ret;
+
 	ch = fuse_mount(mnt, &args);
 	if (!ch) {
 		ret = -1;
-		goto out_cleanup_lkl;
+		goto out_close_disk;
 	}
 
 	fuse = fuse_new(ch, &args, &lklfuse_ops, sizeof(lklfuse_ops), NULL);
@@ -613,14 +611,18 @@ int main(int argc, char **argv)
 		goto out_fuse_destroy;
 	}
 
-	ret = init_lkl();
-	if (ret)
+	ret = start_lkl();
+	if (ret) {
+		ret = -1;
 		goto out_remove_signals;
+	}
 
 	if (mt)
 		ret = fuse_loop_mt(fuse);
 	else
 		ret = fuse_loop(fuse);
+
+	stop_lkl();
 
 out_remove_signals:
 	fuse_remove_signal_handlers(fuse_get_session(fuse));
@@ -631,8 +633,8 @@ out_fuse_destroy:
 out_fuse_unmount:
 	fuse_unmount(mnt, ch);
 
-out_cleanup_lkl:
-	cleanup_lkl();
+out_close_disk:
+	close(lklfuse.bs.fd);
 
 out_free:
 	free(mnt);
