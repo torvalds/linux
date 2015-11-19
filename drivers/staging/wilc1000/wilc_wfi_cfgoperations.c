@@ -200,7 +200,7 @@ static bool g_gtk_keys_saved;
 static bool g_wep_keys_saved;
 
 #define AGING_TIME	(9 * 1000)
-#define duringIP_TIME 15000
+#define during_ip_time	15000
 
 static void clear_shadow_scan(void *pUserVoid)
 {
@@ -2772,7 +2772,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(GENERIC_DBG, "start duringIP timer\n");
 
 		wilc_optaining_ip = true;
-		mod_timer(&wilc_during_ip_timer, jiffies + msecs_to_jiffies(duringIP_TIME));
+		mod_timer(&wilc_during_ip_timer,
+			  jiffies + msecs_to_jiffies(during_ip_time));
 		wilc_set_power_mgmt(priv->hWILCWFIDrv, 0, 0);
 		/*Delete block ack has to be the latest config packet*/
 		/*sent before downloading new FW. This is because it blocks on*/
