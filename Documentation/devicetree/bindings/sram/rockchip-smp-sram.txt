@@ -12,7 +12,7 @@ Required sub-node properties:
 - compatible : should be "rockchip,rk3066-smp-sram"
 
 The rest of the properties should follow the generic mmio-sram discription
-found in ../../misc/sram.txt
+found in Documentation/devicetree/bindings/sram/sram.txt
 
 Example:
 
