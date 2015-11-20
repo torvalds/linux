@@ -881,8 +881,10 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		 */
 		chan->multi_count = dwc2_hb_mult(qh->maxp);
 
-	if (hsotg->core_params->dma_desc_enable > 0)
+	if (hsotg->core_params->dma_desc_enable > 0) {
 		chan->desc_list_addr = qh->desc_list_dma;
+		chan->desc_list_sz = qh->desc_list_sz;
+	}
 
 	dwc2_hc_init(hsotg, chan);
 	chan->qh = qh;

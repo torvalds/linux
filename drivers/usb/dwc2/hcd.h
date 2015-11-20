@@ -107,6 +107,7 @@ struct dwc2_qh;
  * @qh:                 QH for the transfer being processed by this channel
  * @hc_list_entry:      For linking to list of host channels
  * @desc_list_addr:     Current QH's descriptor list DMA address
+ * @desc_list_sz:       Current QH's descriptor list size
  *
  * This structure represents the state of a single host channel when acting in
  * host mode. It contains the data items needed to transfer packets to an
@@ -159,6 +160,7 @@ struct dwc2_host_chan {
 	struct dwc2_qh *qh;
 	struct list_head hc_list_entry;
 	dma_addr_t desc_list_addr;
+	u32 desc_list_sz;
 };
 
 struct dwc2_hcd_pipe_info {
@@ -251,6 +253,7 @@ enum dwc2_transaction_type {
  *                      schedule
  * @desc_list:          List of transfer descriptors
  * @desc_list_dma:      Physical address of desc_list
+ * @desc_list_sz:       Size of descriptors list
  * @n_bytes:            Xfer Bytes array. Each element corresponds to a transfer
  *                      descriptor and indicates original XferSize value for the
  *                      descriptor
@@ -284,6 +287,7 @@ struct dwc2_qh {
 	struct list_head qh_list_entry;
 	struct dwc2_hcd_dma_desc *desc_list;
 	dma_addr_t desc_list_dma;
+	u32 desc_list_sz;
 	u32 *n_bytes;
 	unsigned tt_buffer_dirty:1;
 };

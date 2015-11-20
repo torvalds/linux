@@ -685,6 +685,7 @@ struct dwc2_hregs_backup {
  * @otg_port:           OTG port number
  * @frame_list:         Frame list
  * @frame_list_dma:     Frame list DMA address
+ * @frame_list_sz:      Frame list size
  *
  * These are for peripheral mode:
  *
@@ -804,6 +805,7 @@ struct dwc2_hsotg {
 	u8 otg_port;
 	u32 *frame_list;
 	dma_addr_t frame_list_dma;
+	u32 frame_list_sz;
 
 #ifdef DEBUG
 	u32 frrem_samples;

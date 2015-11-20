@@ -1934,6 +1934,9 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 
 	dwc2_writel(hctsiz, hsotg->regs + HCTSIZ(chan->hc_num));
 
+	dma_sync_single_for_device(hsotg->dev, chan->desc_list_addr,
+				   chan->desc_list_sz, DMA_TO_DEVICE);
+
 	hc_dma = (u32)chan->desc_list_addr & HCDMA_DMA_ADDR_MASK;
 
 	/* Always start from first descriptor */
