@@ -310,10 +310,12 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 {
 	int duration_idx = TPM_UNDEFINED;
 	int duration = 0;
-	u8 category = (ordinal >> 24) & 0xFF;
 
-	if ((category == TPM_PROTECTED_COMMAND && ordinal < TPM_MAX_ORDINAL) ||
-	    (category == TPM_CONNECTION_COMMAND && ordinal < TSC_MAX_ORDINAL))
+	/*
+	 * We only have a duration table for protected commands, where the upper
+	 * 16 bits are 0. For the few other ordinals the fallback will be used.
+	 */
+	if (ordinal < TPM_MAX_ORDINAL)
 		duration_idx = tpm_ordinal_duration[ordinal];
 
 	if (duration_idx != TPM_UNDEFINED)
