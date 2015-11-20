@@ -222,14 +222,13 @@ static void nvm_free(struct nvm_dev *dev)
 static int nvm_init(struct nvm_dev *dev)
 {
 	struct nvmm_type *mt;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	if (!dev->q || !dev->ops)
-		return -EINVAL;
+		return ret;
 
 	if (dev->ops->identity(dev->q, &dev->identity)) {
 		pr_err("nvm: device could not be identified\n");
-		ret = -EINVAL;
 		goto err;
 	}
 
@@ -275,7 +274,6 @@ static int nvm_init(struct nvm_dev *dev)
 			dev->nr_chnls);
 	return 0;
 err:
-	nvm_free(dev);
 	pr_err("nvm: failed to initialize nvm\n");
 	return ret;
 }
