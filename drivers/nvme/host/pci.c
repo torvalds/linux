@@ -388,7 +388,7 @@ static void abort_completion(struct nvme_queue *nvmeq, void *ctx,
 	blk_mq_free_request(req);
 
 	dev_warn(nvmeq->q_dmadev, "Abort status:%x result:%x", status, result);
-	++nvmeq->dev->ctrl.abort_limit;
+	atomic_inc(&nvmeq->dev->ctrl.abort_limit);
 }
 
 static void async_completion(struct nvme_queue *nvmeq, void *ctx,
@@ -1124,13 +1124,15 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 		return BLK_EH_HANDLED;
 	}
 
-	if (!dev->ctrl.abort_limit)
+	if (atomic_dec_and_test(&dev->ctrl.abort_limit))
 		return BLK_EH_RESET_TIMER;
 
 	abort_req = blk_mq_alloc_request(dev->ctrl.admin_q, WRITE,
 			BLK_MQ_REQ_NOWAIT);
-	if (IS_ERR(abort_req))
+	if (IS_ERR(abort_req)) {
+		atomic_inc(&dev->ctrl.abort_limit);
 		return BLK_EH_RESET_TIMER;
+	}
 
 	abort_cmd = blk_mq_rq_to_pdu(abort_req);
 	nvme_set_info(abort_cmd, abort_req, abort_completion);
@@ -1141,7 +1143,6 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	cmd.abort.sqid = cpu_to_le16(nvmeq->qid);
 	cmd.abort.command_id = abort_req->tag;
 
-	--dev->ctrl.abort_limit;
 	cmd_rq->aborted = 1;
 
 	dev_warn(nvmeq->q_dmadev, "I/O %d QID %d timeout, aborting\n",
