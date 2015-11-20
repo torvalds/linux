@@ -576,6 +576,9 @@ enum GTI_BIT {
 	GTI_TIV		= 0x0FFFFFFF,
 };
 
+#define GTI_TIV_MAX	GTI_TIV
+#define GTI_TIV_MIN	0x20
+
 /* GIC */
 enum GIC_BIT {
 	GIC_PTCE	= 0x00000001,	/* Undocumented? */

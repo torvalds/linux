@@ -32,6 +32,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#include <asm/div64.h>
+
 #include "ravb.h"
 
 #define RAVB_DEF_MSG_ENABLE \
@@ -1659,6 +1661,38 @@ static const struct of_device_id ravb_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ravb_match_table);
 
+static int ravb_set_gti(struct net_device *ndev)
+{
+
+	struct device *dev = ndev->dev.parent;
+	struct device_node *np = dev->of_node;
+	unsigned long rate;
+	struct clk *clk;
+	uint64_t inc;
+
+	clk = of_clk_get(np, 0);
+	if (IS_ERR(clk)) {
+		dev_err(dev, "could not get clock\n");
+		return PTR_ERR(clk);
+	}
+
+	rate = clk_get_rate(clk);
+	clk_put(clk);
+
+	inc = 1000000000ULL << 20;
+	do_div(inc, rate);
+
+	if (inc < GTI_TIV_MIN || inc > GTI_TIV_MAX) {
+		dev_err(dev, "gti.tiv increment 0x%llx is outside the range 0x%x - 0x%x\n",
+			inc, GTI_TIV_MIN, GTI_TIV_MAX);
+		return -EINVAL;
+	}
+
+	ravb_write(ndev, inc, GTI);
+
+	return 0;
+}
+
 static int ravb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1755,7 +1789,9 @@ static int ravb_probe(struct platform_device *pdev)
 		   CCC);
 
 	/* Set GTI value */
-	ravb_write(ndev, ((1000 << 20) / 130) & GTI_TIV, GTI);
+	error = ravb_set_gti(ndev);
+	if (error)
+		goto out_release;
 
 	/* Request GTI loading */
 	ravb_write(ndev, ravb_read(ndev, GCCR) | GCCR_LTI, GCCR);
