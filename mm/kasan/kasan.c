@@ -393,23 +393,73 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
 #endif
 }
 
-static inline void set_track(struct kasan_track *track)
+static inline int
+in_irq_stack(unsigned long *stack, unsigned long *irq_stack,
+             unsigned long *irq_stack_end)
+{
+        return (stack >= irq_stack && stack < irq_stack_end);
+}
+
+static inline void filter_irq_stacks(struct stack_trace *trace)
+{
+	const unsigned cpu = get_cpu();
+	unsigned long *irq_stack = (unsigned long *)per_cpu(irq_stack_ptr, cpu);
+	unsigned long stack_end, stack;
+	int index = 0;
+	if (!trace->nr_entries)
+		return;
+	stack = trace->entries[0];
+	if (!in_irq_stack(stack, irq_stack, &stack_end))
+		return;
+	while (in_irq_stack(stack, irq_stack, &stack_end)) {
+		index++;
+		if (index >= trace->nr_entries)
+			break;
+		stack = trace->entries[index];
+	}
+	if (index < trace->nr_entries)
+		trace->nr_entries = index;
+}
+
+static inline kasan_stack_handle save_stack(gfp_t flags)
+{
+	unsigned long entries[KASAN_STACK_DEPTH];
+	struct stack_trace trace = {
+		.nr_entries = 0,
+		.entries = entries,
+		.max_entries = KASAN_STACK_DEPTH,
+		.skip = 0
+	};
+
+	save_stack_trace(&trace);
+	filter_irq_stacks(&trace);
+	if (trace.nr_entries != 0 &&
+	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
+		trace.nr_entries--;
+
+	return kasan_save_stack(&trace, flags);
+}
+
+static inline void set_track(struct kasan_track *track, gfp_t flags)
 {
 	track->cpu = raw_smp_processor_id();
 	track->pid = current->pid;
 	track->when = jiffies;
+	track->stack = save_stack(flags);
 }
 
 #ifdef CONFIG_SLAB
 struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
 					const void *object)
 {
+	BUILD_BUG_ON(sizeof(struct kasan_alloc_meta) > 32);
 	return (void *)object + cache->kasan_info.alloc_meta_offset;
 }
 
 struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
 				      const void *object)
 {
+	BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
 	return (void *)object + cache->kasan_info.free_meta_offset;
 }
 #endif
@@ -455,7 +505,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
 
 		alloc_info->state = KASAN_STATE_ALLOC;
 		alloc_info->alloc_size = size;
-		set_track(&alloc_info->track);
+		set_track(&alloc_info->track, flags);
 	}
 #endif
 }
