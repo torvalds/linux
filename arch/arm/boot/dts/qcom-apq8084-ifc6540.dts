@@ -3,7 +3,7 @@
 
 / {
 	model = "Qualcomm APQ8084/IFC6540";
-	compatible = "qcom,apq8084-ifc6540", "qcom,apq8084";
+	compatible = "qcom,apq8084-sbc", "qcom,apq8084";
 
 	aliases {
 		serial0 = &blsp2_uart2;
