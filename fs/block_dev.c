@@ -696,7 +696,7 @@ static struct block_device *bd_acquire(struct inode *inode)
 	spin_lock(&bdev_lock);
 	bdev = inode->i_bdev;
 	if (bdev) {
-		ihold(bdev->bd_inode);
+		bdgrab(bdev);
 		spin_unlock(&bdev_lock);
 		return bdev;
 	}
@@ -712,7 +712,7 @@ static struct block_device *bd_acquire(struct inode *inode)
 			 * So, we can access it via ->i_mapping always
 			 * without igrab().
 			 */
-			ihold(bdev->bd_inode);
+			bdgrab(bdev);
 			inode->i_bdev = bdev;
 			inode->i_mapping = bdev->bd_inode->i_mapping;
 			list_add(&inode->i_devices, &bdev->bd_inodes);
@@ -735,7 +735,7 @@ void bd_forget(struct inode *inode)
 	spin_unlock(&bdev_lock);
 
 	if (bdev)
-		iput(bdev->bd_inode);
+		bdput(bdev);
 }
 
 /**
