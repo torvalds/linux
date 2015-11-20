@@ -3146,6 +3146,47 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	if (!hsotg->status_buf)
 		goto error3;
 
+	/*
+	 * Create kmem caches to handle descriptor buffers in descriptor
+	 * DMA mode.
+	 * Alignment must be set to 512 bytes.
+	 */
+	if (hsotg->core_params->dma_desc_enable ||
+	    hsotg->core_params->dma_desc_fs_enable) {
+		hsotg->desc_gen_cache = kmem_cache_create("dwc2-gen-desc",
+				sizeof(struct dwc2_hcd_dma_desc) *
+				MAX_DMA_DESC_NUM_GENERIC, 512, SLAB_CACHE_DMA,
+				NULL);
+		if (!hsotg->desc_gen_cache) {
+			dev_err(hsotg->dev,
+				"unable to create dwc2 generic desc cache\n");
+
+			/*
+			 * Disable descriptor dma mode since it will not be
+			 * usable.
+			 */
+			hsotg->core_params->dma_desc_enable = 0;
+			hsotg->core_params->dma_desc_fs_enable = 0;
+		}
+
+		hsotg->desc_hsisoc_cache = kmem_cache_create("dwc2-hsisoc-desc",
+				sizeof(struct dwc2_hcd_dma_desc) *
+				MAX_DMA_DESC_NUM_HS_ISOC, 512, 0, NULL);
+		if (!hsotg->desc_hsisoc_cache) {
+			dev_err(hsotg->dev,
+				"unable to create dwc2 hs isoc desc cache\n");
+
+			kmem_cache_destroy(hsotg->desc_gen_cache);
+
+			/*
+			 * Disable descriptor dma mode since it will not be
+			 * usable.
+			 */
+			hsotg->core_params->dma_desc_enable = 0;
+			hsotg->core_params->dma_desc_fs_enable = 0;
+		}
+	}
+
 	hsotg->otg_port = 1;
 	hsotg->frame_list = NULL;
 	hsotg->frame_list_dma = 0;
@@ -3169,7 +3210,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	 */
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval < 0)
-		goto error3;
+		goto error4;
 
 	device_wakeup_enable(hcd->self.controller);
 
@@ -3179,6 +3220,9 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 
 	return 0;
 
+error4:
+	kmem_cache_destroy(hsotg->desc_gen_cache);
+	kmem_cache_destroy(hsotg->desc_hsisoc_cache);
 error3:
 	dwc2_hcd_release(hsotg);
 error2:
@@ -3219,6 +3263,10 @@ void dwc2_hcd_remove(struct dwc2_hsotg *hsotg)
 
 	usb_remove_hcd(hcd);
 	hsotg->priv = NULL;
+
+	kmem_cache_destroy(hsotg->desc_gen_cache);
+	kmem_cache_destroy(hsotg->desc_hsisoc_cache);
+
 	dwc2_hcd_release(hsotg);
 	usb_put_hcd(hcd);
 
