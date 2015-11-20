@@ -447,7 +447,8 @@ struct kvm {
 
 /* The guest did something we don't support. */
 #define vcpu_unimpl(vcpu, fmt, ...)					\
-	kvm_pr_unimpl("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
+	kvm_pr_unimpl("vcpu%i, guest rIP: 0x%lx " fmt,			\
+			(vcpu)->vcpu_id, kvm_rip_read(vcpu), ## __VA_ARGS__)
 
 #define vcpu_debug(vcpu, fmt, ...)					\
 	kvm_debug("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
