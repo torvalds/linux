@@ -129,6 +129,8 @@ struct vb2_mem_ops {
  * @dbuf_mapped:	flag to show whether dbuf is mapped or not
  * @bytesused:	number of bytes occupied by data in the plane (payload)
  * @length:	size of this plane (NOT the payload) in bytes
+ * @min_length:	minimum required size of this plane (NOT the payload) in bytes.
+ *		@length is always greater or equal to @min_length.
  * @offset:	when memory in the associated struct vb2_buffer is
  *		VB2_MEMORY_MMAP, equals the offset from the start of
  *		the device memory for this plane (or is a "cookie" that
@@ -150,6 +152,7 @@ struct vb2_plane {
 	unsigned int		dbuf_mapped;
 	unsigned int		bytesused;
 	unsigned int		length;
+	unsigned int		min_length;
 	union {
 		unsigned int	offset;
 		unsigned long	userptr;
@@ -489,7 +492,6 @@ struct vb2_queue {
 	wait_queue_head_t		done_wq;
 
 	void				*alloc_ctx[VB2_MAX_PLANES];
-	unsigned int			plane_sizes[VB2_MAX_PLANES];
 
 	unsigned int			streaming:1;
 	unsigned int			start_streaming_called:1;

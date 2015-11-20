@@ -203,7 +203,7 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 	 * NOTE: mmapped areas should be page aligned
 	 */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
-		unsigned long size = PAGE_ALIGN(q->plane_sizes[plane]);
+		unsigned long size = PAGE_ALIGN(vb->planes[plane].length);
 
 		mem_priv = call_ptr_memop(vb, alloc, q->alloc_ctx[plane],
 				      size, dma_dir, q->gfp_flags);
@@ -212,7 +212,6 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 
 		/* Associate allocator private data with this plane */
 		vb->planes[plane].mem_priv = mem_priv;
-		vb->planes[plane].length = q->plane_sizes[plane];
 	}
 
 	return 0;
@@ -322,7 +321,8 @@ static void __setup_offsets(struct vb2_buffer *vb)
  * Returns the number of buffers successfully allocated.
  */
 static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
-			     unsigned int num_buffers, unsigned int num_planes)
+			     unsigned int num_buffers, unsigned int num_planes,
+			     const unsigned plane_sizes[VB2_MAX_PLANES])
 {
 	unsigned int buffer, plane;
 	struct vb2_buffer *vb;
@@ -342,8 +342,10 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 		vb->index = q->num_buffers + buffer;
 		vb->type = q->type;
 		vb->memory = memory;
-		for (plane = 0; plane < num_planes; ++plane)
-			vb->planes[plane].length = q->plane_sizes[plane];
+		for (plane = 0; plane < num_planes; ++plane) {
+			vb->planes[plane].length = plane_sizes[plane];
+			vb->planes[plane].min_length = plane_sizes[plane];
+		}
 		q->bufs[vb->index] = vb;
 
 		/* Allocate video buffer memory for the MMAP type */
@@ -352,8 +354,8 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 			if (ret) {
 				dprintk(1, "failed allocating memory for "
 						"buffer %d\n", buffer);
-				kfree(vb);
 				q->bufs[vb->index] = NULL;
+				kfree(vb);
 				break;
 			}
 			__setup_offsets(vb);
@@ -690,6 +692,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		unsigned int *count)
 {
 	unsigned int num_buffers, allocated_buffers, num_planes = 0;
+	unsigned plane_sizes[VB2_MAX_PLANES] = { };
 	int ret;
 
 	if (q->streaming) {
@@ -733,7 +736,6 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 */
 	num_buffers = min_t(unsigned int, *count, VB2_MAX_FRAME);
 	num_buffers = max_t(unsigned int, num_buffers, q->min_buffers_needed);
-	memset(q->plane_sizes, 0, sizeof(q->plane_sizes));
 	memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
 	q->memory = memory;
 
@@ -742,13 +744,13 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	 * Driver also sets the size and allocator context for each plane.
 	 */
 	ret = call_qop(q, queue_setup, q, &num_buffers, &num_planes,
-		       q->plane_sizes, q->alloc_ctx);
+		       plane_sizes, q->alloc_ctx);
 	if (ret)
 		return ret;
 
 	/* Finally, allocate buffers and video memory */
 	allocated_buffers =
-		__vb2_queue_alloc(q, memory, num_buffers, num_planes);
+		__vb2_queue_alloc(q, memory, num_buffers, num_planes, plane_sizes);
 	if (allocated_buffers == 0) {
 		dprintk(1, "memory allocation failed\n");
 		return -ENOMEM;
@@ -775,7 +777,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		num_planes = 0;
 
 		ret = call_qop(q, queue_setup, q, &num_buffers,
-			       &num_planes, q->plane_sizes, q->alloc_ctx);
+			       &num_planes, plane_sizes, q->alloc_ctx);
 
 		if (!ret && allocated_buffers < num_buffers)
 			ret = -ENOMEM;
@@ -832,6 +834,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 		const unsigned requested_sizes[])
 {
 	unsigned int num_planes = 0, num_buffers, allocated_buffers;
+	unsigned plane_sizes[VB2_MAX_PLANES] = { };
 	int ret;
 
 	if (q->num_buffers == VB2_MAX_FRAME) {
@@ -840,7 +843,6 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	}
 
 	if (!q->num_buffers) {
-		memset(q->plane_sizes, 0, sizeof(q->plane_sizes));
 		memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
 		q->memory = memory;
 		q->waiting_for_buffers = !q->is_output;
@@ -850,7 +852,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 
 	if (requested_planes && requested_sizes) {
 		num_planes = requested_planes;
-		memcpy(q->plane_sizes, requested_sizes, sizeof(q->plane_sizes));
+		memcpy(plane_sizes, requested_sizes, sizeof(plane_sizes));
 	}
 
 	/*
@@ -858,13 +860,13 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 	 * buffer and their sizes are acceptable
 	 */
 	ret = call_qop(q, queue_setup, q, &num_buffers,
-		       &num_planes, q->plane_sizes, q->alloc_ctx);
+		       &num_planes, plane_sizes, q->alloc_ctx);
 	if (ret)
 		return ret;
 
 	/* Finally, allocate buffers and video memory */
 	allocated_buffers = __vb2_queue_alloc(q, memory, num_buffers,
-				num_planes);
+				num_planes, plane_sizes);
 	if (allocated_buffers == 0) {
 		dprintk(1, "memory allocation failed\n");
 		return -ENOMEM;
@@ -881,7 +883,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 		 * queue driver has set up
 		 */
 		ret = call_qop(q, queue_setup, q, &num_buffers,
-			       &num_planes, q->plane_sizes, q->alloc_ctx);
+			       &num_planes, plane_sizes, q->alloc_ctx);
 
 		if (!ret && allocated_buffers < num_buffers)
 			ret = -ENOMEM;
@@ -1097,11 +1099,12 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 				"reacquiring memory\n", plane);
 
 		/* Check if the provided plane buffer is large enough */
-		if (planes[plane].length < q->plane_sizes[plane]) {
+		if (planes[plane].length < vb->planes[plane].min_length) {
 			dprintk(1, "provided buffer size %u is less than "
 						"setup size %u for plane %d\n",
 						planes[plane].length,
-						q->plane_sizes[plane], plane);
+						vb->planes[plane].min_length,
+						plane);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -1214,7 +1217,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 		if (planes[plane].length == 0)
 			planes[plane].length = dbuf->size;
 
-		if (planes[plane].length < q->plane_sizes[plane]) {
+		if (planes[plane].length < vb->planes[plane].min_length) {
 			dprintk(1, "invalid dmabuf length for plane %d\n",
 				plane);
 			ret = -EINVAL;
