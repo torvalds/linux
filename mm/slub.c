@@ -2807,44 +2807,93 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
+struct detached_freelist {
+	struct page *page;
+	void *tail;
+	void *freelist;
+	int cnt;
+};
+
+/*
+ * This function progressively scans the array with free objects (with
+ * a limited look ahead) and extract objects belonging to the same
+ * page.  It builds a detached freelist directly within the given
+ * page/objects.  This can happen without any need for
+ * synchronization, because the objects are owned by running process.
+ * The freelist is build up as a single linked list in the objects.
+ * The idea is, that this detached freelist can then be bulk
+ * transferred to the real freelist(s), but only requiring a single
+ * synchronization primitive.  Look ahead in the array is limited due
+ * to performance reasons.
+ */
+static int build_detached_freelist(struct kmem_cache *s, size_t size,
+				   void **p, struct detached_freelist *df)
+{
+	size_t first_skipped_index = 0;
+	int lookahead = 3;
+	void *object;
+
+	/* Always re-init detached_freelist */
+	df->page = NULL;
+
+	do {
+		object = p[--size];
+	} while (!object && size);
+
+	if (!object)
+		return 0;
+
+	/* Start new detached freelist */
+	set_freepointer(s, object, NULL);
+	df->page = virt_to_head_page(object);
+	df->tail = object;
+	df->freelist = object;
+	p[size] = NULL; /* mark object processed */
+	df->cnt = 1;
+
+	while (size) {
+		object = p[--size];
+		if (!object)
+			continue; /* Skip processed objects */
+
+		/* df->page is always set at this point */
+		if (df->page == virt_to_head_page(object)) {
+			/* Opportunity build freelist */
+			set_freepointer(s, object, df->freelist);
+			df->freelist = object;
+			df->cnt++;
+			p[size] = NULL; /* mark object processed */
+
+			continue;
+		}
+
+		/* Limit look ahead search */
+		if (!--lookahead)
+			break;
+
+		if (!first_skipped_index)
+			first_skipped_index = size + 1;
+	}
+
+	return first_skipped_index;
+}
+
+
 /* Note that interrupts must be enabled when calling this function. */
 void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
 {
-	struct kmem_cache_cpu *c;
-	struct page *page;
-	int i;
+	if (WARN_ON(!size))
+		return;
 
-	local_irq_disable();
-	c = this_cpu_ptr(s->cpu_slab);
+	do {
+		struct detached_freelist df;
 
-	for (i = 0; i < size; i++) {
-		void *object = p[i];
+		size = build_detached_freelist(s, size, p, &df);
+		if (unlikely(!df.page))
+			continue;
 
-		BUG_ON(!object);
-		/* kmem cache debug support */
-		s = cache_from_obj(s, object);
-		if (unlikely(!s))
-			goto exit;
-		slab_free_hook(s, object);
-
-		page = virt_to_head_page(object);
-
-		if (c->page == page) {
-			/* Fastpath: local CPU free */
-			set_freepointer(s, object, c->freelist);
-			c->freelist = object;
-		} else {
-			c->tid = next_tid(c->tid);
-			local_irq_enable();
-			/* Slowpath: overhead locked cmpxchg_double_slab */
-			__slab_free(s, page, object, object, 1, _RET_IP_);
-			local_irq_disable();
-			c = this_cpu_ptr(s->cpu_slab);
-		}
-	}
-exit:
-	c->tid = next_tid(c->tid);
-	local_irq_enable();
+		slab_free(s, df.page, df.freelist, df.tail, df.cnt, _RET_IP_);
+	} while (likely(size));
 }
 EXPORT_SYMBOL(kmem_cache_free_bulk);
 
