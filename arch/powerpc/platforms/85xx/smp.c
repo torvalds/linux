@@ -53,6 +53,7 @@ static void mpc85xx_give_timebase(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
+	hard_irq_disable();
 
 	while (!tb_req)
 		barrier();
@@ -101,6 +102,7 @@ static void mpc85xx_take_timebase(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
+	hard_irq_disable();
 
 	tb_req = 1;
 	while (!tb_valid)
@@ -136,8 +138,31 @@ static void smp_85xx_mach_cpu_die(void)
 	while (1)
 		;
 }
+
+static void qoriq_cpu_kill(unsigned int cpu)
+{
+	int i;
+
+	for (i = 0; i < 500; i++) {
+		if (is_cpu_dead(cpu)) {
+#ifdef CONFIG_PPC64
+			paca[cpu].cpu_start = 0;
+#endif
+			return;
+		}
+		msleep(20);
+	}
+	pr_err("CPU%d didn't die...\n", cpu);
+}
 #endif
 
+/*
+ * To keep it compatible with old boot program which uses
+ * cache-inhibit spin table, we need to flush the cache
+ * before accessing spin table to invalidate any staled data.
+ * We also need to flush the cache after writing to spin
+ * table to push data out.
+ */
 static inline void flush_spin_table(void *spin_table)
 {
 	flush_dcache_range((ulong)spin_table,
@@ -176,20 +201,95 @@ static void wake_hw_thread(void *info)
 }
 #endif
 
+static int smp_85xx_start_cpu(int cpu)
+{
+	int ret = 0;
+	struct device_node *np;
+	const u64 *cpu_rel_addr;
+	unsigned long flags;
+	int ioremappable;
+	int hw_cpu = get_hard_smp_processor_id(cpu);
+	struct epapr_spin_table __iomem *spin_table;
+
+	np = of_get_cpu_node(cpu, NULL);
+	cpu_rel_addr = of_get_property(np, "cpu-release-addr", NULL);
+	if (!cpu_rel_addr) {
+		pr_err("No cpu-release-addr for cpu %d\n", cpu);
+		return -ENOENT;
+	}
+
+	/*
+	 * A secondary core could be in a spinloop in the bootpage
+	 * (0xfffff000), somewhere in highmem, or somewhere in lowmem.
+	 * The bootpage and highmem can be accessed via ioremap(), but
+	 * we need to directly access the spinloop if its in lowmem.
+	 */
+	ioremappable = *cpu_rel_addr > virt_to_phys(high_memory);
+
+	/* Map the spin table */
+	if (ioremappable)
+		spin_table = ioremap_prot(*cpu_rel_addr,
+			sizeof(struct epapr_spin_table), _PAGE_COHERENT);
+	else
+		spin_table = phys_to_virt(*cpu_rel_addr);
+
+	local_irq_save(flags);
+	hard_irq_disable();
+
+	if (qoriq_pm_ops)
+		qoriq_pm_ops->cpu_up_prepare(cpu);
+
+	/* if cpu is not spinning, reset it */
+	if (read_spin_table_addr_l(spin_table) != 1) {
+		/*
+		 * We don't set the BPTR register here since it already points
+		 * to the boot page properly.
+		 */
+		mpic_reset_core(cpu);
+
+		/*
+		 * wait until core is ready...
+		 * We need to invalidate the stale data, in case the boot
+		 * loader uses a cache-inhibited spin table.
+		 */
+		if (!spin_event_timeout(
+				read_spin_table_addr_l(spin_table) == 1,
+				10000, 100)) {
+			pr_err("timeout waiting for cpu %d to reset\n",
+				hw_cpu);
+			ret = -EAGAIN;
+			goto err;
+		}
+	}
+
+	flush_spin_table(spin_table);
+	out_be32(&spin_table->pir, hw_cpu);
+#ifdef CONFIG_PPC64
+	out_be64((u64 *)(&spin_table->addr_h),
+		__pa(ppc_function_entry(generic_secondary_smp_init)));
+#else
+	out_be32(&spin_table->addr_l, __pa(__early_start));
+#endif
+	flush_spin_table(spin_table);
+err:
+	local_irq_restore(flags);
+
+	if (ioremappable)
+		iounmap(spin_table);
+
+	return ret;
+}
+
 static int smp_85xx_kick_cpu(int nr)
 {
-	unsigned long flags;
-	const u64 *cpu_rel_addr;
-	__iomem struct epapr_spin_table *spin_table;
-	struct device_node *np;
-	int hw_cpu = get_hard_smp_processor_id(nr);
-	int ioremappable;
 	int ret = 0;
+#ifdef CONFIG_PPC64
+	int primary = nr;
+#endif
 
-	WARN_ON(nr < 0 || nr >= NR_CPUS);
-	WARN_ON(hw_cpu < 0 || hw_cpu >= NR_CPUS);
+	WARN_ON(nr < 0 || nr >= num_possible_cpus());
 
-	pr_debug("smp_85xx_kick_cpu: kick CPU #%d\n", nr);
+	pr_debug("kick CPU #%d\n", nr);
 
 #ifdef CONFIG_PPC64
 	/* Threads don't use the spin table */
@@ -213,110 +313,25 @@ static int smp_85xx_kick_cpu(int nr)
 
 		smp_call_function_single(primary, wake_hw_thread, &nr, 0);
 		return 0;
-	} else if (cpu_thread_in_core(boot_cpuid) != 0 &&
-		   cpu_first_thread_sibling(boot_cpuid) == nr) {
-		if (WARN_ON_ONCE(!cpu_has_feature(CPU_FTR_SMT)))
-			return -ENOENT;
-
-		smp_call_function_single(boot_cpuid, wake_hw_thread, &nr, 0);
-	}
-#endif
-
-	np = of_get_cpu_node(nr, NULL);
-	cpu_rel_addr = of_get_property(np, "cpu-release-addr", NULL);
-
-	if (cpu_rel_addr == NULL) {
-		printk(KERN_ERR "No cpu-release-addr for cpu %d\n", nr);
-		return -ENOENT;
 	}
 
-	/*
-	 * A secondary core could be in a spinloop in the bootpage
-	 * (0xfffff000), somewhere in highmem, or somewhere in lowmem.
-	 * The bootpage and highmem can be accessed via ioremap(), but
-	 * we need to directly access the spinloop if its in lowmem.
-	 */
-	ioremappable = *cpu_rel_addr > virt_to_phys(high_memory);
+	ret = smp_85xx_start_cpu(primary);
+	if (ret)
+		return ret;
 
-	/* Map the spin table */
-	if (ioremappable)
-		spin_table = ioremap_prot(*cpu_rel_addr,
-			sizeof(struct epapr_spin_table), _PAGE_COHERENT);
-	else
-		spin_table = phys_to_virt(*cpu_rel_addr);
-
-	local_irq_save(flags);
-#ifdef CONFIG_PPC32
-#ifdef CONFIG_HOTPLUG_CPU
-	/* Corresponding to generic_set_cpu_dead() */
+	paca[nr].cpu_start = 1;
 	generic_set_cpu_up(nr);
 
-	if (system_state == SYSTEM_RUNNING) {
-		/*
-		 * To keep it compatible with old boot program which uses
-		 * cache-inhibit spin table, we need to flush the cache
-		 * before accessing spin table to invalidate any staled data.
-		 * We also need to flush the cache after writing to spin
-		 * table to push data out.
-		 */
-		flush_spin_table(spin_table);
-		out_be32(&spin_table->addr_l, 0);
-		flush_spin_table(spin_table);
-
-		/*
-		 * We don't set the BPTR register here since it already points
-		 * to the boot page properly.
-		 */
-		mpic_reset_core(nr);
-
-		/*
-		 * wait until core is ready...
-		 * We need to invalidate the stale data, in case the boot
-		 * loader uses a cache-inhibited spin table.
-		 */
-		if (!spin_event_timeout(
-				read_spin_table_addr_l(spin_table) == 1,
-				10000, 100)) {
-			pr_err("%s: timeout waiting for core %d to reset\n",
-							__func__, hw_cpu);
-			ret = -ENOENT;
-			goto out;
-		}
-
-		/*  clear the acknowledge status */
-		__secondary_hold_acknowledge = -1;
-	}
-#endif
-	flush_spin_table(spin_table);
-	out_be32(&spin_table->pir, hw_cpu);
-	out_be32(&spin_table->addr_l, __pa(__early_start));
-	flush_spin_table(spin_table);
-
-	/* Wait a bit for the CPU to ack. */
-	if (!spin_event_timeout(__secondary_hold_acknowledge == hw_cpu,
-					10000, 100)) {
-		pr_err("%s: timeout waiting for core %d to ack\n",
-						__func__, hw_cpu);
-		ret = -ENOENT;
-		goto out;
-	}
-out:
+	return ret;
 #else
-	smp_generic_kick_cpu(nr);
+	ret = smp_85xx_start_cpu(nr);
+	if (ret)
+		return ret;
 
-	flush_spin_table(spin_table);
-	out_be32(&spin_table->pir, hw_cpu);
-	out_be64((u64 *)(&spin_table->addr_h),
-		__pa(ppc_function_entry(generic_secondary_smp_init)));
-	flush_spin_table(spin_table);
-#endif
-
-	local_irq_restore(flags);
-
-	if (ioremappable)
-		iounmap(spin_table);
+	generic_set_cpu_up(nr);
 
 	return ret;
+#endif
 }
 
 struct smp_ops_t smp_85xx_ops = {
@@ -473,6 +488,10 @@ void __init mpc85xx_smp_init(void)
 	}
 
 #ifdef CONFIG_HOTPLUG_CPU
+#ifdef CONFIG_FSL_CORENET_RCPM
+	fsl_rcpm_init();
+#endif
+
 #ifdef CONFIG_FSL_PMC
 	mpc85xx_setup_pmc();
 #endif
@@ -480,6 +499,7 @@ void __init mpc85xx_smp_init(void)
 		smp_85xx_ops.give_timebase = mpc85xx_give_timebase;
 		smp_85xx_ops.take_timebase = mpc85xx_take_timebase;
 		ppc_md.cpu_die = smp_85xx_mach_cpu_die;
+		smp_85xx_ops.cpu_die = qoriq_cpu_kill;
 	}
 #endif
 	smp_ops = &smp_85xx_ops;
