@@ -276,6 +276,7 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 static int nvme_nvm_identity(struct request_queue *q, struct nvm_id *nvm_id)
 {
 	struct nvme_ns *ns = q->queuedata;
+	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_id *nvme_nvm_id;
 	struct nvme_nvm_command c = {};
 	int ret;
@@ -288,8 +289,8 @@ static int nvme_nvm_identity(struct request_queue *q, struct nvm_id *nvm_id)
 	if (!nvme_nvm_id)
 		return -ENOMEM;
 
-	ret = nvme_submit_sync_cmd(q, (struct nvme_command *)&c, nvme_nvm_id,
-						sizeof(struct nvme_nvm_id));
+	ret = nvme_submit_sync_cmd(dev->admin_q, (struct nvme_command *)&c,
+				nvme_nvm_id, sizeof(struct nvme_nvm_id));
 	if (ret) {
 		ret = -EIO;
 		goto out;
@@ -315,7 +316,7 @@ static int nvme_nvm_get_l2p_tbl(struct request_queue *q, u64 slba, u32 nlb,
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
-	u32 len = queue_max_hw_sectors(q) << 9;
+	u32 len = queue_max_hw_sectors(dev->admin_q) << 9;
 	u32 nlb_pr_rq = len / sizeof(u64);
 	u64 cmd_slba = slba;
 	void *entries;
@@ -333,8 +334,8 @@ static int nvme_nvm_get_l2p_tbl(struct request_queue *q, u64 slba, u32 nlb,
 		c.l2p.slba = cpu_to_le64(cmd_slba);
 		c.l2p.nlb = cpu_to_le32(cmd_nlb);
 
-		ret = nvme_submit_sync_cmd(q, (struct nvme_command *)&c,
-								entries, len);
+		ret = nvme_submit_sync_cmd(dev->admin_q,
+				(struct nvme_command *)&c, entries, len);
 		if (ret) {
 			dev_err(dev->dev, "L2P table transfer failed (%d)\n",
 									ret);
@@ -375,7 +376,8 @@ static int nvme_nvm_get_bb_tbl(struct request_queue *q, struct ppa_addr ppa,
 	if (!bb_tbl)
 		return -ENOMEM;
 
-	ret = nvme_submit_sync_cmd(q, (struct nvme_command *)&c, bb_tbl, tblsz);
+	ret = nvme_submit_sync_cmd(dev->admin_q, (struct nvme_command *)&c,
+								bb_tbl, tblsz);
 	if (ret) {
 		dev_err(dev->dev, "get bad block table failed (%d)\n", ret);
 		ret = -EIO;
@@ -427,7 +429,8 @@ static int nvme_nvm_set_bb_tbl(struct request_queue *q, struct nvm_rq *rqd,
 	c.set_bb.nlb = cpu_to_le16(rqd->nr_pages - 1);
 	c.set_bb.value = type;
 
-	ret = nvme_submit_sync_cmd(q, (struct nvme_command *)&c, NULL, 0);
+	ret = nvme_submit_sync_cmd(dev->admin_q, (struct nvme_command *)&c,
+								NULL, 0);
 	if (ret)
 		dev_err(dev->dev, "set bad block table failed (%d)\n", ret);
 	return ret;
