@@ -288,37 +288,29 @@ static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)
 
 /**
  * __setup_offsets() - setup unique offsets ("cookies") for every plane in
- * every buffer on the queue
+ * the buffer.
  */
-static void __setup_offsets(struct vb2_queue *q, unsigned int n)
+static void __setup_offsets(struct vb2_buffer *vb)
 {
-	unsigned int buffer, plane;
-	struct vb2_buffer *vb;
-	unsigned long off;
+	struct vb2_queue *q = vb->vb2_queue;
+	unsigned int plane;
+	unsigned long off = 0;
 
-	if (q->num_buffers) {
-		struct vb2_plane *p;
-		vb = q->bufs[q->num_buffers - 1];
-		p = &vb->planes[vb->num_planes - 1];
+	if (vb->index) {
+		struct vb2_buffer *prev = q->bufs[vb->index - 1];
+		struct vb2_plane *p = &prev->planes[prev->num_planes - 1];
+
 		off = PAGE_ALIGN(p->m.offset + p->length);
-	} else {
-		off = 0;
 	}
 
-	for (buffer = q->num_buffers; buffer < q->num_buffers + n; ++buffer) {
-		vb = q->bufs[buffer];
-		if (!vb)
-			continue;
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		vb->planes[plane].m.offset = off;
 
-		for (plane = 0; plane < vb->num_planes; ++plane) {
-			vb->planes[plane].m.offset = off;
+		dprintk(3, "buffer %d, plane %d offset 0x%08lx\n",
+				vb->index, plane, off);
 
-			dprintk(3, "buffer %d, plane %d offset 0x%08lx\n",
-					buffer, plane, off);
-
-			off += vb->planes[plane].length;
-			off = PAGE_ALIGN(off);
-		}
+		off += vb->planes[plane].length;
+		off = PAGE_ALIGN(off);
 	}
 }
 
@@ -364,6 +356,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 				q->bufs[vb->index] = NULL;
 				break;
 			}
+			__setup_offsets(vb);
 			/*
 			 * Call the driver-provided buffer initialization
 			 * callback, if given. An error in initialization
@@ -380,9 +373,6 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 			}
 		}
 	}
-
-	if (memory == VB2_MEMORY_MMAP)
-		__setup_offsets(q, buffer);
 
 	dprintk(1, "allocated %d buffers, %d plane(s) each\n",
 			buffer, num_planes);
