@@ -214,6 +214,10 @@ union kvm_mmu_page_role {
 	};
 };
 
+struct kvm_rmap_head {
+	unsigned long val;
+};
+
 struct kvm_mmu_page {
 	struct list_head link;
 	struct hlist_node hash_link;
@@ -231,7 +235,7 @@ struct kvm_mmu_page {
 	bool unsync;
 	int root_count;          /* Currently serving as active root */
 	unsigned int unsync_children;
-	unsigned long parent_ptes;	/* Reverse mapping for parent_pte */
+	struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
 
 	/* The page is obsolete if mmu_valid_gen != kvm->arch.mmu_valid_gen.  */
 	unsigned long mmu_valid_gen;
@@ -606,7 +610,7 @@ struct kvm_lpage_info {
 };
 
 struct kvm_arch_memory_slot {
-	unsigned long *rmap[KVM_NR_PAGE_SIZES];
+	struct kvm_rmap_head *rmap[KVM_NR_PAGE_SIZES];
 	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
 };
 
