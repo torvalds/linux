@@ -4080,6 +4080,29 @@ i915_vma_misplaced(struct i915_vma *vma, uint32_t alignment, uint64_t flags)
 	return false;
 }
 
+void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
+{
+	struct drm_i915_gem_object *obj = vma->obj;
+	bool mappable, fenceable;
+	u32 fence_size, fence_alignment;
+
+	fence_size = i915_gem_get_gtt_size(obj->base.dev,
+					   obj->base.size,
+					   obj->tiling_mode);
+	fence_alignment = i915_gem_get_gtt_alignment(obj->base.dev,
+						     obj->base.size,
+						     obj->tiling_mode,
+						     true);
+
+	fenceable = (vma->node.size == fence_size &&
+		     (vma->node.start & (fence_alignment - 1)) == 0);
+
+	mappable = (vma->node.start + fence_size <=
+		    to_i915(obj->base.dev)->gtt.mappable_end);
+
+	obj->map_and_fenceable = mappable && fenceable;
+}
+
 static int
 i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 		       struct i915_address_space *vm,
@@ -4147,25 +4170,7 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 
 	if (ggtt_view && ggtt_view->type == I915_GGTT_VIEW_NORMAL &&
 	    (bound ^ vma->bound) & GLOBAL_BIND) {
-		bool mappable, fenceable;
-		u32 fence_size, fence_alignment;
-
-		fence_size = i915_gem_get_gtt_size(obj->base.dev,
-						   obj->base.size,
-						   obj->tiling_mode);
-		fence_alignment = i915_gem_get_gtt_alignment(obj->base.dev,
-							     obj->base.size,
-							     obj->tiling_mode,
-							     true);
-
-		fenceable = (vma->node.size == fence_size &&
-			     (vma->node.start & (fence_alignment - 1)) == 0);
-
-		mappable = (vma->node.start + fence_size <=
-			    dev_priv->gtt.mappable_end);
-
-		obj->map_and_fenceable = mappable && fenceable;
-
+		__i915_vma_set_map_and_fenceable(vma);
 		WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
 	}
 
