@@ -209,7 +209,6 @@
 				compatible = "nxp,lpc3220-uart";
 				reg = <0x40090000 0x1000>;
 				interrupts = <9 0>;
-				clock-frequency = <13000000>;
 				reg-shift = <2>;
 				clocks = <&clk LPC32XX_CLK_UART5>;
 				status = "disabled";
@@ -219,7 +218,6 @@
 				compatible = "nxp,lpc3220-uart";
 				reg = <0x40080000 0x1000>;
 				interrupts = <7 0>;
-				clock-frequency = <13000000>;
 				reg-shift = <2>;
 				clocks = <&clk LPC32XX_CLK_UART3>;
 				status = "disabled";
@@ -229,7 +227,6 @@
 				compatible = "nxp,lpc3220-uart";
 				reg = <0x40088000 0x1000>;
 				interrupts = <8 0>;
-				clock-frequency = <13000000>;
 				reg-shift = <2>;
 				clocks = <&clk LPC32XX_CLK_UART4>;
 				status = "disabled";
@@ -239,7 +236,6 @@
 				compatible = "nxp,lpc3220-uart";
 				reg = <0x40098000 0x1000>;
 				interrupts = <10 0>;
-				clock-frequency = <13000000>;
 				reg-shift = <2>;
 				clocks = <&clk LPC32XX_CLK_UART6>;
 				status = "disabled";
