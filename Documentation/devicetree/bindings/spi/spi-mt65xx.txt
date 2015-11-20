@@ -32,7 +32,7 @@ Optional properties:
 -cs-gpios: see spi-bus.txt, only required for MT8173.
 
 - mediatek,pad-select: specify which pins group(ck/mi/mo/cs) spi
-  controller used. This is a array, the element value should be 0~3,
+  controller used. This is an array, the element value should be 0~3,
   only required for MT8173.
     0: specify GPIO69,70,71,72 for spi pins.
     1: specify GPIO102,103,104,105 for spi pins.
