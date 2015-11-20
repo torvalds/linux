@@ -1734,6 +1734,28 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 			port_status |= USB_PORT_STAT_TEST;
 		/* USB_PORT_FEAT_INDICATOR unsupported always 0 */
 
+		if (hsotg->core_params->dma_desc_fs_enable) {
+			/*
+			 * Enable descriptor DMA only if a full speed
+			 * device is connected.
+			 */
+			if (hsotg->new_connection &&
+			    ((port_status &
+			      (USB_PORT_STAT_CONNECTION |
+			       USB_PORT_STAT_HIGH_SPEED |
+			       USB_PORT_STAT_LOW_SPEED)) ==
+			       USB_PORT_STAT_CONNECTION)) {
+				u32 hcfg;
+
+				dev_info(hsotg->dev, "Enabling descriptor DMA mode\n");
+				hsotg->core_params->dma_desc_enable = 1;
+				hcfg = dwc2_readl(hsotg->regs + HCFG);
+				hcfg |= HCFG_DESCDMA;
+				dwc2_writel(hcfg, hsotg->regs + HCFG);
+				hsotg->new_connection = false;
+			}
+		}
+
 		dev_vdbg(hsotg->dev, "port_status=%08x\n", port_status);
 		*(__le32 *)buf = cpu_to_le32(port_status);
 		break;

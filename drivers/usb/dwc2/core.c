@@ -2485,6 +2485,29 @@ void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val)
 	hsotg->core_params->dma_desc_enable = val;
 }
 
+void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg, int val)
+{
+	int valid = 1;
+
+	if (val > 0 && (hsotg->core_params->dma_enable <= 0 ||
+			!hsotg->hw_params.dma_desc_enable))
+		valid = 0;
+	if (val < 0)
+		valid = 0;
+
+	if (!valid) {
+		if (val >= 0)
+			dev_err(hsotg->dev,
+				"%d invalid for dma_desc_fs_enable parameter. Check HW configuration.\n",
+				val);
+		val = (hsotg->core_params->dma_enable > 0 &&
+			hsotg->hw_params.dma_desc_enable);
+	}
+
+	hsotg->core_params->dma_desc_fs_enable = val;
+	dev_dbg(hsotg->dev, "Setting dma_desc_fs_enable to %d\n", val);
+}
+
 void dwc2_set_param_host_support_fs_ls_low_power(struct dwc2_hsotg *hsotg,
 						 int val)
 {
@@ -3016,6 +3039,7 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	dwc2_set_param_otg_cap(hsotg, params->otg_cap);
 	dwc2_set_param_dma_enable(hsotg, params->dma_enable);
 	dwc2_set_param_dma_desc_enable(hsotg, params->dma_desc_enable);
+	dwc2_set_param_dma_desc_fs_enable(hsotg, params->dma_desc_fs_enable);
 	dwc2_set_param_host_support_fs_ls_low_power(hsotg,
 			params->host_support_fs_ls_low_power);
 	dwc2_set_param_enable_dynamic_fifo(hsotg,

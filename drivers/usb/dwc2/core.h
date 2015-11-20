@@ -246,6 +246,13 @@ enum dwc2_ep0_state {
  *                      value for this if none is specified.
  *                       0 - Address DMA
  *                       1 - Descriptor DMA (default, if available)
+ * @dma_desc_fs_enable: When DMA mode is enabled, specifies whether to use
+ *                      address DMA mode or descriptor DMA mode for accessing
+ *                      the data FIFOs in Full Speed mode only. The driver
+ *                      will automatically detect the value for this if none is
+ *                      specified.
+ *                       0 - Address DMA
+ *                       1 - Descriptor DMA in FS (default, if available)
  * @speed:              Specifies the maximum speed of operation in host and
  *                      device mode. The actual speed depends on the speed of
  *                      the attached device and the value of phy_type.
@@ -375,6 +382,7 @@ struct dwc2_core_params {
 	int otg_ver;
 	int dma_enable;
 	int dma_desc_enable;
+	int dma_desc_fs_enable;
 	int speed;
 	int enable_dynamic_fifo;
 	int en_multiple_tx_fifo;
@@ -456,6 +464,7 @@ struct dwc2_hw_params {
 	unsigned op_mode:3;
 	unsigned arch:2;
 	unsigned dma_desc_enable:1;
+	unsigned dma_desc_fs_enable:1;
 	unsigned enable_dynamic_fifo:1;
 	unsigned en_multiple_tx_fifo:1;
 	unsigned host_rx_fifo_size:16;
@@ -770,6 +779,7 @@ struct dwc2_hsotg {
 	u16 frame_number;
 	u16 periodic_qh_count;
 	bool bus_suspended;
+	bool new_connection;
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 #define FRAME_NUM_ARRAY_SIZE 1000
@@ -940,6 +950,16 @@ extern void dwc2_set_param_dma_enable(struct dwc2_hsotg *hsotg, int val);
  * 1 - DMA Descriptor(default, if available)
  */
 extern void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val);
+
+/*
+ * When DMA mode is enabled specifies whether to use
+ * address DMA or DMA Descritor mode with full speed devices
+ * for accessing the data FIFOs in host mode.
+ * 0 - address DMA
+ * 1 - FS DMA Descriptor(default, if available)
+ */
+extern void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg,
+					      int val);
 
 /*
  * Specifies the maximum speed of operation in host and device mode.
