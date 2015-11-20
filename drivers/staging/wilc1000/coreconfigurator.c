@@ -601,7 +601,7 @@ s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
 					       wids[counter].id,
 					       (counter == count - 1),
 					       drv)) {
-				ret = -1;
+				ret = -ETIMEDOUT;
 				printk("[Sendconfigpkt]Get Timed out\n");
 				break;
 			}
@@ -622,7 +622,7 @@ s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
 					       wids[counter].size,
 					       (counter == count - 1),
 					       drv)) {
-				ret = -1;
+				ret = -ETIMEDOUT;
 				printk("[Sendconfigpkt]Set Timed out\n");
 				break;
 			}
