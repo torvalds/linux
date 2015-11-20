@@ -21,4 +21,9 @@ static inline void acpi_irq_init(void)
 }
 #define acpi_irq_init acpi_irq_init
 
+static inline int nr_legacy_irqs(void)
+{
+	return 0;
+}
+
 #endif
