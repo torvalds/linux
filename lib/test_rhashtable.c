@@ -36,9 +36,9 @@ static int runs = 4;
 module_param(runs, int, 0);
 MODULE_PARM_DESC(runs, "Number of test runs per variant (default: 4)");
 
-static int max_size = 65536;
+static int max_size = 0;
 module_param(max_size, int, 0);
-MODULE_PARM_DESC(runs, "Maximum table size (default: 65536)");
+MODULE_PARM_DESC(runs, "Maximum table size (default: calculated)");
 
 static bool shrinking = false;
 module_param(shrinking, bool, 0);
@@ -321,7 +321,7 @@ static int __init test_rht_init(void)
 	entries = min(entries, MAX_ENTRIES);
 
 	test_rht_params.automatic_shrinking = shrinking;
-	test_rht_params.max_size = max_size;
+	test_rht_params.max_size = max_size ? : roundup_pow_of_two(entries);
 	test_rht_params.nelem_hint = size;
 
 	pr_info("Running rhashtable test nelem=%d, max_size=%d, shrinking=%d\n",
@@ -367,6 +367,8 @@ static int __init test_rht_init(void)
 		return -ENOMEM;
 	}
 
+	test_rht_params.max_size = max_size ? :
+	                           roundup_pow_of_two(tcount * entries);
 	err = rhashtable_init(&ht, &test_rht_params);
 	if (err < 0) {
 		pr_warn("Test failed: Unable to initialize hashtable: %d\n",
