@@ -114,7 +114,7 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	return 0;
 }
 
-static int __copy_timestamp(struct vb2_buffer *vb, const void *pb)
+static void __copy_timestamp(struct vb2_buffer *vb, const void *pb)
 {
 	const struct v4l2_buffer *b = pb;
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -131,7 +131,6 @@ static int __copy_timestamp(struct vb2_buffer *vb, const void *pb)
 		if (b->flags & V4L2_BUF_FLAG_TIMECODE)
 			vbuf->timecode = b->timecode;
 	}
-	return 0;
 };
 
 static void vb2_warn_zero_bytesused(struct vb2_buffer *vb)
@@ -182,7 +181,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
  * __fill_v4l2_buffer() - fill in a struct v4l2_buffer with information to be
  * returned to userspace
  */
-static int __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
+static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 {
 	struct v4l2_buffer *b = pb;
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -281,8 +280,6 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		b->flags & V4L2_BUF_FLAG_DONE &&
 		b->flags & V4L2_BUF_FLAG_LAST)
 		q->last_buffer_dequeued = true;
-
-	return 0;
 }
 
 /**
@@ -474,8 +471,9 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 	}
 	vb = q->bufs[b->index];
 	ret = __verify_planes_array(vb, b);
-
-	return ret ? ret : vb2_core_querybuf(q, b->index, b);
+	if (!ret)
+		vb2_core_querybuf(q, b->index, b);
+	return ret;
 }
 EXPORT_SYMBOL(vb2_querybuf);
 

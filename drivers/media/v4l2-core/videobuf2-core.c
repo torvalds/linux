@@ -178,6 +178,12 @@ module_param(debug, int, 0644);
 	ret;								\
 })
 
+#define call_void_bufop(q, op, args...)					\
+({									\
+	if (q && q->buf_ops && q->buf_ops->op)				\
+		q->buf_ops->op(args);					\
+})
+
 static void __vb2_queue_cancel(struct vb2_queue *q);
 static void __enqueue_in_driver(struct vb2_buffer *vb);
 
@@ -586,13 +592,10 @@ static bool __buffers_in_use(struct vb2_queue *q)
  * Should be called from vidioc_querybuf ioctl handler in driver.
  * The passed buffer should have been verified.
  * This function fills the relevant information for the userspace.
- *
- * The return values from this function are intended to be directly returned
- * from vidioc_querybuf handler in driver.
  */
-int vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb)
+void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb)
 {
-	return call_bufop(q, fill_user_buffer, q->bufs[index], pb);
+	call_void_bufop(q, fill_user_buffer, q->bufs[index], pb);
 }
 EXPORT_SYMBOL_GPL(vb2_core_querybuf);
 
@@ -1420,9 +1423,7 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 		return ret;
 
 	/* Fill buffer information for the userspace */
-	ret = call_bufop(q, fill_user_buffer, vb, pb);
-	if (ret)
-		return ret;
+	call_void_bufop(q, fill_user_buffer, vb, pb);
 
 	dprintk(1, "prepare of buffer %d succeeded\n", vb->index);
 
@@ -1543,7 +1544,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 	q->waiting_for_buffers = false;
 	vb->state = VB2_BUF_STATE_QUEUED;
 
-	call_bufop(q, copy_timestamp, vb, pb);
+	call_void_bufop(q, copy_timestamp, vb, pb);
 
 	trace_vb2_qbuf(q, vb);
 
@@ -1555,9 +1556,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 		__enqueue_in_driver(vb);
 
 	/* Fill buffer information for the userspace */
-	ret = call_bufop(q, fill_user_buffer, vb, pb);
-	if (ret)
-		return ret;
+	call_void_bufop(q, fill_user_buffer, vb, pb);
 
 	/*
 	 * If streamon has been called, and we haven't yet called
@@ -1780,9 +1779,7 @@ int vb2_core_dqbuf(struct vb2_queue *q, void *pb, bool nonblocking)
 	call_void_vb_qop(vb, buf_finish, vb);
 
 	/* Fill buffer information for the userspace */
-	ret = call_bufop(q, fill_user_buffer, vb, pb);
-	if (ret)
-		return ret;
+	call_void_bufop(q, fill_user_buffer, vb, pb);
 
 	/* Remove from videobuf queue */
 	list_del(&vb->queued_entry);

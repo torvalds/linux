@@ -369,11 +369,22 @@ struct vb2_ops {
 	void (*buf_queue)(struct vb2_buffer *vb);
 };
 
+/**
+ * struct vb2_ops - driver-specific callbacks
+ *
+ * @fill_user_buffer:	given a vb2_buffer fill in the userspace structure.
+ *			For V4L2 this is a struct v4l2_buffer.
+ * @fill_vb2_buffer:	given a userspace structure, fill in the vb2_buffer.
+ *			If the userspace structure is invalid, then this op
+ *			will return an error.
+ * @copy_timestamp:	copy the timestamp from a userspace structure to
+ *			the vb2_buffer struct.
+ */
 struct vb2_buf_ops {
-	int (*fill_user_buffer)(struct vb2_buffer *vb, void *pb);
+	void (*fill_user_buffer)(struct vb2_buffer *vb, void *pb);
 	int (*fill_vb2_buffer)(struct vb2_buffer *vb, const void *pb,
 				struct vb2_plane *planes);
-	int (*copy_timestamp)(struct vb2_buffer *vb, const void *pb);
+	void (*copy_timestamp)(struct vb2_buffer *vb, const void *pb);
 };
 
 /**
@@ -512,7 +523,7 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state);
 void vb2_discard_done(struct vb2_queue *q);
 int vb2_wait_for_all_buffers(struct vb2_queue *q);
 
-int vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
+void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
 int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		unsigned int *count);
 int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
