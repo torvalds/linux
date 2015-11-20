@@ -213,7 +213,9 @@ struct nvm_lun {
 	int lun_id;
 	int chnl_id;
 
+	unsigned int nr_inuse_blocks;	/* Number of used blocks */
 	unsigned int nr_free_blocks;	/* Number of unused blocks */
+	unsigned int nr_bad_blocks;	/* Number of bad blocks */
 	struct nvm_block *blocks;
 
 	spinlock_t lock;
