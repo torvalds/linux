@@ -35,12 +35,10 @@ static struct snd_soc_card skylake_audio_card;
 
 static inline struct snd_soc_dai *skl_get_codec_dai(struct snd_soc_card *card)
 {
-	int i;
+	struct snd_soc_pcm_runtime *rtd;
 
-	for (i = 0; i < card->num_rtd; i++) {
-		struct snd_soc_pcm_runtime *rtd;
+	list_for_each_entry(rtd, &card->rtd_list, list) {
 
-		rtd = card->rtd + i;
 		if (!strncmp(rtd->codec_dai->name, SKL_NUVOTON_CODEC_DAI,
 			     strlen(SKL_NUVOTON_CODEC_DAI)))
 			return rtd->codec_dai;
