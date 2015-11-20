@@ -849,7 +849,7 @@ out:
 	if (!ar->board_data || !ar->board_len) {
 		ath10k_err(ar,
 			   "failed to fetch board data for %s from %s/%s\n",
-			   ar->hw_params.fw.dir, boardname, filename);
+			   boardname, ar->hw_params.fw.dir, filename);
 		ret = -ENODATA;
 		goto err;
 	}
