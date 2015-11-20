@@ -2697,6 +2697,15 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	if (IS_VALLEYVIEW(dev))
 		vlv_init_panel_power_sequencer(intel_dp);
 
+	/*
+	 * We get an occasional spurious underrun between the port
+	 * enable and vdd enable, when enabling port A eDP.
+	 *
+	 * FIXME: Not sure if this applies to (PCH) port D eDP as well
+	 */
+	if (port == PORT_A)
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+
 	intel_dp_enable_port(intel_dp);
 
 	if (port == PORT_A && IS_GEN5(dev_priv)) {
@@ -2713,6 +2722,9 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	edp_panel_vdd_on(intel_dp);
 	edp_panel_on(intel_dp);
 	edp_panel_vdd_off(intel_dp, true);
+
+	if (port == PORT_A)
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	pps_unlock(intel_dp);
 
