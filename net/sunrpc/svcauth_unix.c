@@ -728,10 +728,6 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	struct kvec	*resv = &rqstp->rq_res.head[0];
 	struct svc_cred	*cred = &rqstp->rq_cred;
 
-	cred->cr_group_info = NULL;
-	cred->cr_principal = NULL;
-	rqstp->rq_client = NULL;
-
 	if (argv->iov_len < 3*4)
 		return SVC_GARBAGE;
 
@@ -793,10 +789,6 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	struct svc_cred	*cred = &rqstp->rq_cred;
 	u32		slen, i;
 	int		len   = argv->iov_len;
-
-	cred->cr_group_info = NULL;
-	cred->cr_principal = NULL;
-	rqstp->rq_client = NULL;
 
 	if ((len -= 3*4) < 0)
 		return SVC_GARBAGE;
