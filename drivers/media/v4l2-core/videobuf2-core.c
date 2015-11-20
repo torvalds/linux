@@ -352,6 +352,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 		vb->memory = memory;
 		for (plane = 0; plane < num_planes; ++plane)
 			vb->planes[plane].length = q->plane_sizes[plane];
+		q->bufs[vb->index] = vb;
 
 		/* Allocate video buffer memory for the MMAP type */
 		if (memory == VB2_MEMORY_MMAP) {
@@ -360,6 +361,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 				dprintk(1, "failed allocating memory for "
 						"buffer %d\n", buffer);
 				kfree(vb);
+				q->bufs[vb->index] = NULL;
 				break;
 			}
 			/*
@@ -372,12 +374,11 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 				dprintk(1, "buffer %d %p initialization"
 					" failed\n", buffer, vb);
 				__vb2_buf_mem_free(vb);
+				q->bufs[vb->index] = NULL;
 				kfree(vb);
 				break;
 			}
 		}
-
-		q->bufs[q->num_buffers + buffer] = vb;
 	}
 
 	if (memory == VB2_MEMORY_MMAP)
