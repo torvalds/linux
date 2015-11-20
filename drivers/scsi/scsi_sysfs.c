@@ -1110,7 +1110,9 @@ void __scsi_remove_device(struct scsi_device *sdev)
 		device_unregister(&sdev->sdev_dev);
 		transport_remove_device(dev);
 		scsi_dh_remove_device(sdev);
-	}
+		device_del(dev);
+	} else
+		put_device(&sdev->sdev_dev);
 
 	/*
 	 * Stop accepting new requests and wait until all queuecommand() and
@@ -1120,16 +1122,6 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	scsi_device_set_state(sdev, SDEV_DEL);
 	blk_cleanup_queue(sdev->request_queue);
 	cancel_work_sync(&sdev->requeue_work);
-
-	/*
-	 * Remove the device after blk_cleanup_queue() has been called such
-	 * a possible bdi_register() call with the same name occurs after
-	 * blk_cleanup_queue() has called bdi_destroy().
-	 */
-	if (sdev->is_visible)
-		device_del(dev);
-	else
-		put_device(&sdev->sdev_dev);
 
 	if (sdev->host->hostt->slave_destroy)
 		sdev->host->hostt->slave_destroy(sdev);
