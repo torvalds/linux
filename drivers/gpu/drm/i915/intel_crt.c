@@ -777,10 +777,36 @@ void intel_crt_init(struct drm_device *dev)
 	struct intel_crt *crt;
 	struct intel_connector *intel_connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	i915_reg_t adpa_reg;
+	u32 adpa;
 
 	/* Skip machines without VGA that falsely report hotplug events */
 	if (dmi_check_system(intel_no_crt))
 		return;
+
+	if (HAS_PCH_SPLIT(dev))
+		adpa_reg = PCH_ADPA;
+	else if (IS_VALLEYVIEW(dev))
+		adpa_reg = VLV_ADPA;
+	else
+		adpa_reg = ADPA;
+
+	adpa = I915_READ(adpa_reg);
+	if ((adpa & ADPA_DAC_ENABLE) == 0) {
+		/*
+		 * On some machines (some IVB at least) CRT can be
+		 * fused off, but there's no known fuse bit to
+		 * indicate that. On these machine the ADPA register
+		 * works normally, except the DAC enable bit won't
+		 * take. So the only way to tell is attempt to enable
+		 * it and see what happens.
+		 */
+		I915_WRITE(adpa_reg, adpa | ADPA_DAC_ENABLE |
+			   ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
+		if ((I915_READ(adpa_reg) & ADPA_DAC_ENABLE) == 0)
+			return;
+		I915_WRITE(adpa_reg, adpa);
+	}
 
 	crt = kzalloc(sizeof(struct intel_crt), GFP_KERNEL);
 	if (!crt)
@@ -815,12 +841,7 @@ void intel_crt_init(struct drm_device *dev)
 		connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	if (HAS_PCH_SPLIT(dev))
-		crt->adpa_reg = PCH_ADPA;
-	else if (IS_VALLEYVIEW(dev))
-		crt->adpa_reg = VLV_ADPA;
-	else
-		crt->adpa_reg = ADPA;
+	crt->adpa_reg = adpa_reg;
 
 	crt->base.compute_config = intel_crt_compute_config;
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev)) {
