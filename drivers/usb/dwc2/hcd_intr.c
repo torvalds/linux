@@ -372,10 +372,21 @@ static void dwc2_port_intr(struct dwc2_hsotg *hsotg)
 			 "  --Port Interrupt HPRT0=0x%08x Port Enable Changed (now %d)--\n",
 			 hprt0, !!(hprt0 & HPRT0_ENA));
 		hprt0_modify |= HPRT0_ENACHG;
-		if (hprt0 & HPRT0_ENA)
+		if (hprt0 & HPRT0_ENA) {
+			hsotg->new_connection = true;
 			dwc2_hprt0_enable(hsotg, hprt0, &hprt0_modify);
-		else
+		} else {
 			hsotg->flags.b.port_enable_change = 1;
+			if (hsotg->core_params->dma_desc_fs_enable) {
+				u32 hcfg;
+
+				hsotg->core_params->dma_desc_enable = 0;
+				hsotg->new_connection = false;
+				hcfg = dwc2_readl(hsotg->regs + HCFG);
+				hcfg &= ~HCFG_DESCDMA;
+				dwc2_writel(hcfg, hsotg->regs + HCFG);
+			}
+		}
 	}
 
 	/* Overcurrent Change Interrupt */
