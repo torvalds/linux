@@ -646,17 +646,12 @@
 
 
 	/*
-	 * Align fault_vector_20 on 4K boundary so that both
-	 * fault_vector_11 and fault_vector_20 are on the
-	 * same page. This is only necessary as long as we
-	 * write protect the kernel text, which we may stop
-	 * doing once we use large page translations to cover
-	 * the static part of the kernel address space.
+	 * Fault_vectors are architecturally required to be aligned on a 2K
+	 * boundary
 	 */
 
 	.text
-
-	.align 4096
+	.align 2048
 
 ENTRY(fault_vector_20)
 	/* First vector is invalid (0) */

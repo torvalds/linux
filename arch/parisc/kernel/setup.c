@@ -377,6 +377,7 @@ arch_initcall(parisc_init);
 void start_parisc(void)
 {
 	extern void start_kernel(void);
+	extern void early_trap_init(void);
 
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
@@ -396,6 +397,8 @@ void start_parisc(void)
 	} else {
 		panic("must have an fpu to boot linux");
 	}
+
+	early_trap_init(); /* initialize checksum of fault_vector */
 
 	start_kernel();
 	// not reached
