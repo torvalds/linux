@@ -277,5 +277,12 @@
 					     "usbclk", "iprocfast", "sata1",
 					     "sata2";
 		};
+
+		pinctrl: pinctrl@3f1c0 {
+			compatible = "brcm,nsp-pinmux";
+			reg = <0x3f1c0 0x04>,
+			      <0x30028 0x04>,
+			      <0x3f408 0x04>;
+		};
 	};
 };
