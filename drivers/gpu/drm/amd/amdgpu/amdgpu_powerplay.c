@@ -81,6 +81,7 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 			amd_pp->ip_funcs = &fiji_dpm_ip_funcs;
 			break;
 		case CHIP_CARRIZO:
+		case CHIP_STONEY:
 			amd_pp->ip_funcs = &cz_dpm_ip_funcs;
 			break;
 		default:
