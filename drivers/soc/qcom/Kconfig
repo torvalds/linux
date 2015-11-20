@@ -54,7 +54,7 @@ config QCOM_SMEM_STATE
 	bool
 
 config QCOM_SMP2P
-	bool "Qualcomm Shared Memory Point to Point support"
+	tristate "Qualcomm Shared Memory Point to Point support"
 	depends on QCOM_SMEM
 	select QCOM_SMEM_STATE
 	help
@@ -62,7 +62,7 @@ config QCOM_SMP2P
 	  protocol.
 
 config QCOM_SMSM
-	bool "Qualcomm Shared Memory State Machine"
+	tristate "Qualcomm Shared Memory State Machine"
 	depends on QCOM_SMEM
 	select QCOM_SMEM_STATE
 	help
