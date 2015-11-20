@@ -51,13 +51,10 @@ static vfio_platform_reset_fn_t vfio_platform_lookup_reset(const char *compat,
 
 static void vfio_platform_get_reset(struct vfio_platform_device *vdev)
 {
-	char modname[256];
-
 	vdev->reset = vfio_platform_lookup_reset(vdev->compat,
 						&vdev->reset_module);
 	if (!vdev->reset) {
-		snprintf(modname, 256, "vfio-reset:%s", vdev->compat);
-		request_module(modname);
+		request_module("vfio-reset:%s", vdev->compat);
 		vdev->reset = vfio_platform_lookup_reset(vdev->compat,
 							 &vdev->reset_module);
 	}
