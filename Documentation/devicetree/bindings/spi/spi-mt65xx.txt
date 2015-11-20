@@ -29,7 +29,7 @@ Required properties:
   muxes clock, and "spi-clk" for the clock gate.
 
 Optional properties:
--cs-gpios: see spi-bus.txt, only required for MT8173.
+-cs-gpios: see spi-bus.txt.
 
 - mediatek,pad-select: specify which pins group(ck/mi/mo/cs) spi
   controller used. This is an array, the element value should be 0~3,
