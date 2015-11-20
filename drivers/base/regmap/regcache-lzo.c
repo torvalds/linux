@@ -152,8 +152,8 @@ static int regcache_lzo_init(struct regmap *map)
 	 * that register.
 	 */
 	bmp_size = map->num_reg_defaults_raw;
-	sync_bmp = kmalloc(BITS_TO_LONGS(bmp_size) * sizeof(long),
-			   GFP_KERNEL);
+	sync_bmp = kmalloc_array(BITS_TO_LONGS(bmp_size), sizeof(long),
+				 GFP_KERNEL);
 	if (!sync_bmp) {
 		ret = -ENOMEM;
 		goto err;

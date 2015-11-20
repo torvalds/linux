@@ -422,8 +422,9 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 
 	if (!map->use_single_read && map->reg_stride == 1 &&
 	    d->irq_reg_stride == 1) {
-		d->status_reg_buf = kmalloc(map->format.val_bytes *
-					    chip->num_regs, GFP_KERNEL);
+		d->status_reg_buf = kmalloc_array(chip->num_regs,
+						  map->format.val_bytes,
+						  GFP_KERNEL);
 		if (!d->status_reg_buf)
 			goto err_alloc;
 	}

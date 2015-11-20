@@ -361,8 +361,8 @@ regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
 		rbnode->base_reg = reg;
 	}
 
-	rbnode->block = kmalloc(rbnode->blklen * map->cache_word_size,
-				GFP_KERNEL);
+	rbnode->block = kmalloc_array(rbnode->blklen, map->cache_word_size,
+				      GFP_KERNEL);
 	if (!rbnode->block)
 		goto err_free;
 
