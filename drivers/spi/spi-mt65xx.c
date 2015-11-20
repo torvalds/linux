@@ -154,9 +154,6 @@ static int mtk_spi_prepare_message(struct spi_master *master,
 		reg_val |= SPI_CMD_CPOL;
 	else
 		reg_val &= ~SPI_CMD_CPOL;
-	writel(reg_val, mdata->base + SPI_CMD_REG);
-
-	reg_val = readl(mdata->base + SPI_CMD_REG);
 
 	/* set the mlsbx and mlsbtx */
 	if (chip_config->tx_mlsb)
