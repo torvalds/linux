@@ -1742,7 +1742,6 @@ poll_for_irq(unsigned long v)
 	atomic_set(&devdata->interrupt_rcvd, 0);
 
 	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
-
 }
 
 /**
