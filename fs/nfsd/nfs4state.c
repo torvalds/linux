@@ -1875,6 +1875,10 @@ static int copy_cred(struct svc_cred *target, struct svc_cred *source)
 	ret = strdup_if_nonnull(&target->cr_principal, source->cr_principal);
 	if (ret)
 		return ret;
+	ret = strdup_if_nonnull(&target->cr_raw_principal,
+					source->cr_raw_principal);
+	if (ret)
+		return ret;
 	target->cr_flavor = source->cr_flavor;
 	target->cr_uid = source->cr_uid;
 	target->cr_gid = source->cr_gid;
@@ -1978,6 +1982,9 @@ static bool mach_creds_match(struct nfs4_client *cl, struct svc_rqst *rqstp)
 		return false;
 	if (!svc_rqst_integrity_protected(rqstp))
 		return false;
+	if (cl->cl_cred.cr_raw_principal)
+		return 0 == strcmp(cl->cl_cred.cr_raw_principal,
+						cr->cr_raw_principal);
 	if (!cr->cr_principal)
 		return false;
 	return 0 == strcmp(cl->cl_cred.cr_principal, cr->cr_principal);
@@ -2390,7 +2397,8 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		 * Which is a bug, really.  Anyway, we can't enforce
 		 * MACH_CRED in that case, better to give up now:
 		 */
-		if (!new->cl_cred.cr_principal) {
+		if (!new->cl_cred.cr_principal &&
+					!new->cl_cred.cr_raw_principal) {
 			status = nfserr_serverfault;
 			goto out_nolock;
 		}
