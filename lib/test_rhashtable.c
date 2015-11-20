@@ -236,6 +236,8 @@ static int thread_lookup_test(struct thread_data *tdata)
 			       obj->value, key);
 			err++;
 		}
+
+		cond_resched();
 	}
 	return err;
 }
@@ -251,6 +253,7 @@ static int threadfunc(void *data)
 
 	for (i = 0; i < entries; i++) {
 		tdata->objs[i].value = (tdata->id << 16) | i;
+		cond_resched();
 		err = rhashtable_insert_fast(&ht, &tdata->objs[i].node,
 		                             test_rht_params);
 		if (err == -ENOMEM || err == -EBUSY) {
@@ -285,6 +288,8 @@ static int threadfunc(void *data)
 				goto out;
 			}
 			tdata->objs[i].value = TEST_INSERT_FAIL;
+
+			cond_resched();
 		}
 		err = thread_lookup_test(tdata);
 		if (err) {
