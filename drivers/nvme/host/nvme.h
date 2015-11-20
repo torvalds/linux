@@ -51,7 +51,7 @@ struct nvme_dev {
 	u32 db_stride;
 	u32 ctrl_config;
 	struct msix_entry *entry;
-	struct nvme_bar __iomem *bar;
+	void __iomem *bar;
 	struct list_head namespaces;
 	struct kref kref;
 	struct device *device;

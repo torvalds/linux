@@ -611,7 +611,7 @@ static int nvme_trans_device_id_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 
 	memset(inq_response, 0, alloc_len);
 	inq_response[1] = INQ_DEVICE_IDENTIFICATION_PAGE;    /* Page Code */
-	if (readl(&dev->bar->vs) >= NVME_VS(1, 1)) {
+	if (readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 1)) {
 		struct nvme_id_ns *id_ns;
 		void *eui;
 		int len;
@@ -623,7 +623,7 @@ static int nvme_trans_device_id_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 
 		eui = id_ns->eui64;
 		len = sizeof(id_ns->eui64);
-		if (readl(&dev->bar->vs) >= NVME_VS(1, 2)) {
+		if (readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 2)) {
 			if (bitmap_empty(eui, len * 8)) {
 				eui = id_ns->nguid;
 				len = sizeof(id_ns->nguid);
@@ -2297,7 +2297,7 @@ static int nvme_trans_test_unit_ready(struct nvme_ns *ns,
 {
 	struct nvme_dev *dev = ns->dev;
 
-	if (!(readl(&dev->bar->csts) & NVME_CSTS_RDY))
+	if (!(readl(dev->bar + NVME_REG_CSTS) & NVME_CSTS_RDY))
 		return nvme_trans_completion(hdr, SAM_STAT_CHECK_CONDITION,
 					    NOT_READY, SCSI_ASC_LUN_NOT_READY,
 					    SCSI_ASCQ_CAUSE_NOT_REPORTABLE);
