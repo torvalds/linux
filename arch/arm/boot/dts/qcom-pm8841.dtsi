@@ -3,8 +3,8 @@
 
 &spmi_bus {
 
-	usid4: pm8841@4 {
-		compatible = "qcom,spmi-pmic";
+	pm8841_0: pm8841@4 {
+		compatible = "qcom,pm8841", "qcom,spmi-pmic";
 		reg = <0x4 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -27,8 +27,8 @@
 		};
 	};
 
-	usid5: pm8841@5 {
-		compatible = "qcom,spmi-pmic";
+	pm8841_1: pm8841@5 {
+		compatible = "qcom,pm8841", "qcom,spmi-pmic";
 		reg = <0x5 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;

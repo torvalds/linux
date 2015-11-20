@@ -4,8 +4,8 @@
 
 &spmi_bus {
 
-	usid0: pma8084@0 {
-		compatible = "qcom,spmi-pmic";
+	pma8084_0: pma8084@0 {
+		compatible = "qcom,pma8084", "qcom,spmi-pmic";
 		reg = <0x0 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -101,8 +101,8 @@
 		};
 	};
 
-	usid1: pma8084@1 {
-		compatible = "qcom,spmi-pmic";
+	pma8084_1: pma8084@1 {
+		compatible = "qcom,pma8084", "qcom,spmi-pmic";
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
