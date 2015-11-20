@@ -132,10 +132,14 @@ qh_refresh (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 * qtd is updated in qh_completions(). Update the QH
 	 * overlay here.
 	 */
-	if (qh->hw->hw_token & ACTIVE_BIT(ehci))
+	if (qh->hw->hw_token & ACTIVE_BIT(ehci)) {
 		qh->hw->hw_qtd_next = qtd->hw_next;
-	else
+		if (qh->should_be_inactive)
+			ehci_warn(ehci, "qh %p should be inactive!\n", qh);
+	} else {
 		qh_update(ehci, qh, qtd);
+	}
+	qh->should_be_inactive = 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -438,6 +442,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 					(hw->hw_token & ACTIVE_BIT(ehci))) {
 				token = hc32_to_cpu(ehci, hw->hw_token);
 				hw->hw_token &= ~ACTIVE_BIT(ehci);
+				qh->should_be_inactive = 1;
 
 				/* An unlink may leave an incomplete
 				 * async transaction in the TT buffer.
