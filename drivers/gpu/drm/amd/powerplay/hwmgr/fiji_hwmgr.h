@@ -339,6 +339,11 @@ enum Fiji_I2CLineID {
 extern int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern int tonga_get_mc_microcode_version (struct pp_hwmgr *hwmgr);
+int fiji_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input);
+int fiji_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
+int fiji_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
+int fiji_update_acp_dpm(struct pp_hwmgr *hwmgr, bool bgate);
+int fiji_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
 
 #define PP_HOST_TO_SMC_UL(X) cpu_to_be32(X)
 #define PP_SMC_TO_HOST_UL(X) be32_to_cpu(X)

@@ -51,6 +51,8 @@
 #include "pp_acpi.h"
 #include "amd_pcie_helpers.h"
 
+#include "fiji_clockpowergating.h"
+
 #define VOLTAGE_SCALE	4
 #define SMC_RAM_END		0x40000
 #define VDDC_VDDCI_DELTA	300
@@ -4385,14 +4387,70 @@ static int fiji_generate_dpm_level_enable_mask(
 	return 0;
 }
 
-static int fiji_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
+int fiji_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
+{
+	return smum_send_msg_to_smc(hwmgr->smumgr, enable ?
+				  (PPSMC_Msg)PPSMC_MSG_UVDDPM_Enable :
+				  (PPSMC_Msg)PPSMC_MSG_UVDDPM_Disable);
+}
+
+int fiji_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	return smum_send_msg_to_smc(hwmgr->smumgr, enable?
 			PPSMC_MSG_VCEDPM_Enable :
 			PPSMC_MSG_VCEDPM_Disable);
 }
 
-static int fiji_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
+int fiji_enable_disable_samu_dpm(struct pp_hwmgr *hwmgr, bool enable)
+{
+	return smum_send_msg_to_smc(hwmgr->smumgr, enable?
+			PPSMC_MSG_SAMUDPM_Enable :
+			PPSMC_MSG_SAMUDPM_Disable);
+}
+
+int fiji_enable_disable_acp_dpm(struct pp_hwmgr *hwmgr, bool enable)
+{
+	return smum_send_msg_to_smc(hwmgr->smumgr, enable?
+			PPSMC_MSG_ACPDPM_Enable :
+			PPSMC_MSG_ACPDPM_Disable);
+}
+
+int fiji_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	uint32_t mm_boot_level_offset, mm_boot_level_value;
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+
+	if (!bgate) {
+		data->smc_state_table.UvdBootLevel = 0;
+		if (table_info->mm_dep_table->count > 0)
+			data->smc_state_table.UvdBootLevel =
+					(uint8_t) (table_info->mm_dep_table->count - 1);
+		mm_boot_level_offset = data->dpm_table_start +
+				offsetof(SMU73_Discrete_DpmTable, UvdBootLevel);
+		mm_boot_level_offset /= 4;
+		mm_boot_level_offset *= 4;
+		mm_boot_level_value = cgs_read_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC, mm_boot_level_offset);
+		mm_boot_level_value &= 0x00FFFFFF;
+		mm_boot_level_value |= data->smc_state_table.UvdBootLevel << 24;
+		cgs_write_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
+
+		if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_UVDDPM) ||
+			phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_StablePState))
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_UVDDPM_SetEnabledMask,
+					(uint32_t)(1 << data->smc_state_table.UvdBootLevel));
+	}
+
+	return fiji_enable_disable_uvd_dpm(hwmgr, !bgate);
+}
+
+int fiji_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
 {
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
@@ -4436,6 +4494,68 @@ static int fiji_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
 	}
 
 	return 0;
+}
+
+int fiji_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	uint32_t mm_boot_level_offset, mm_boot_level_value;
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+
+	if (!bgate) {
+		data->smc_state_table.SamuBootLevel =
+				(uint8_t) (table_info->mm_dep_table->count - 1);
+		mm_boot_level_offset = data->dpm_table_start +
+				offsetof(SMU73_Discrete_DpmTable, SamuBootLevel);
+		mm_boot_level_offset /= 4;
+		mm_boot_level_offset *= 4;
+		mm_boot_level_value = cgs_read_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC, mm_boot_level_offset);
+		mm_boot_level_value &= 0xFFFFFF00;
+		mm_boot_level_value |= data->smc_state_table.SamuBootLevel << 0;
+		cgs_write_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
+
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_StablePState))
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_SAMUDPM_SetEnabledMask,
+					(uint32_t)(1 << data->smc_state_table.SamuBootLevel));
+	}
+
+	return fiji_enable_disable_samu_dpm(hwmgr, !bgate);
+}
+
+int fiji_update_acp_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	uint32_t mm_boot_level_offset, mm_boot_level_value;
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+
+	if (!bgate) {
+		data->smc_state_table.AcpBootLevel =
+				(uint8_t) (table_info->mm_dep_table->count - 1);
+		mm_boot_level_offset = data->dpm_table_start +
+				offsetof(SMU73_Discrete_DpmTable, AcpBootLevel);
+		mm_boot_level_offset /= 4;
+		mm_boot_level_offset *= 4;
+		mm_boot_level_value = cgs_read_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC, mm_boot_level_offset);
+		mm_boot_level_value &= 0xFFFF00FF;
+		mm_boot_level_value |= data->smc_state_table.AcpBootLevel << 8;
+		cgs_write_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
+
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_StablePState))
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+						PPSMC_MSG_ACPDPM_SetEnabledMask,
+						(uint32_t)(1 << data->smc_state_table.AcpBootLevel));
+	}
+
+	return fiji_enable_disable_acp_dpm(hwmgr, !bgate);
 }
 
 static int fiji_update_sclk_threshold(struct pp_hwmgr *hwmgr)
@@ -4747,6 +4867,9 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.get_sclk = &fiji_dpm_get_sclk,
 	.get_mclk = &fiji_dpm_get_mclk,
 	.print_current_perforce_level = &fiji_print_current_perforce_level,
+	.powergate_uvd = &fiji_phm_powergate_uvd,
+	.powergate_vce = &fiji_phm_powergate_vce,
+	.disable_clock_power_gating = &fiji_phm_disable_clock_power_gating,
 };
 
 int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)
