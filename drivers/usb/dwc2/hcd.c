@@ -2358,13 +2358,19 @@ static void dwc2_hcd_reset_func(struct work_struct *work)
 {
 	struct dwc2_hsotg *hsotg = container_of(work, struct dwc2_hsotg,
 						reset_work.work);
+	unsigned long flags;
 	u32 hprt0;
 
 	dev_dbg(hsotg->dev, "USB RESET function called\n");
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+
 	hprt0 = dwc2_read_hprt0(hsotg);
 	hprt0 &= ~HPRT0_RST;
 	dwc2_writel(hprt0, hsotg->regs + HPRT0);
 	hsotg->flags.b.port_reset_change = 1;
+
+	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 
 /*
