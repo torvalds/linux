@@ -2887,13 +2887,17 @@ static int build_detached_freelist(struct kmem_cache *s, size_t size,
 
 
 /* Note that interrupts must be enabled when calling this function. */
-void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 {
 	if (WARN_ON(!size))
 		return;
 
 	do {
 		struct detached_freelist df;
+		struct kmem_cache *s;
+
+		/* Support for memcg */
+		s = cache_from_obj(orig_s, p[size - 1]);
 
 		size = build_detached_freelist(s, size, p, &df);
 		if (unlikely(!df.page))
