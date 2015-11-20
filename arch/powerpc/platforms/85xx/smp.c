@@ -2,7 +2,7 @@
  * Author: Andy Fleming <afleming@freescale.com>
  * 	   Kumar Gala <galak@kernel.crashing.org>
  *
- * Copyright 2006-2008, 2011-2012 Freescale Semiconductor Inc.
+ * Copyright 2006-2008, 2011-2012, 2015 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/kexec.h>
 #include <linux/highmem.h>
 #include <linux/cpu.h>
@@ -29,6 +28,7 @@
 #include <asm/dbell.h>
 #include <asm/code-patching.h>
 #include <asm/cputhreads.h>
+#include <asm/fsl_pm.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/mpic.h>
@@ -43,23 +43,10 @@ struct epapr_spin_table {
 	u32	pir;
 };
 
-static struct ccsr_guts __iomem *guts;
+#ifdef CONFIG_HOTPLUG_CPU
 static u64 timebase;
 static int tb_req;
 static int tb_valid;
-
-static void mpc85xx_timebase_freeze(int freeze)
-{
-	uint32_t mask;
-
-	mask = CCSR_GUTS_DEVDISR_TB0 | CCSR_GUTS_DEVDISR_TB1;
-	if (freeze)
-		setbits32(&guts->devdisr, mask);
-	else
-		clrbits32(&guts->devdisr, mask);
-
-	in_be32(&guts->devdisr);
-}
 
 static void mpc85xx_give_timebase(void)
 {
@@ -71,7 +58,7 @@ static void mpc85xx_give_timebase(void)
 		barrier();
 	tb_req = 0;
 
-	mpc85xx_timebase_freeze(1);
+	qoriq_pm_ops->freeze_time_base(true);
 #ifdef CONFIG_PPC64
 	/*
 	 * e5500/e6500 have a workaround for erratum A-006958 in place
@@ -104,7 +91,7 @@ static void mpc85xx_give_timebase(void)
 	while (tb_valid)
 		barrier();
 
-	mpc85xx_timebase_freeze(0);
+	qoriq_pm_ops->freeze_time_base(false);
 
 	local_irq_restore(flags);
 }
@@ -126,31 +113,25 @@ static void mpc85xx_take_timebase(void)
 	local_irq_restore(flags);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static void smp_85xx_mach_cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
-	u32 tmp;
 
 	local_irq_disable();
+	hard_irq_disable();
+	/* mask all irqs to prevent cpu wakeup */
+	qoriq_pm_ops->irq_mask(cpu);
+
 	idle_task_exit();
-	generic_set_cpu_dead(cpu);
-	mb();
 
 	mtspr(SPRN_TCR, 0);
+	mtspr(SPRN_TSR, mfspr(SPRN_TSR));
+
+	generic_set_cpu_dead(cpu);
 
 	cur_cpu_spec->cpu_down_flush();
 
-	tmp = (mfspr(SPRN_HID0) & ~(HID0_DOZE|HID0_SLEEP)) | HID0_NAP;
-	mtspr(SPRN_HID0, tmp);
-	isync();
-
-	/* Enter NAP mode. */
-	tmp = mfmsr();
-	tmp |= MSR_WE;
-	mb();
-	mtmsr(tmp);
-	isync();
+	qoriq_pm_ops->cpu_die(cpu);
 
 	while (1)
 		;
@@ -468,16 +449,6 @@ static void smp_85xx_setup_cpu(int cpu_nr)
 	smp_85xx_basic_setup(cpu_nr);
 }
 
-static const struct of_device_id mpc85xx_smp_guts_ids[] = {
-	{ .compatible = "fsl,mpc8572-guts", },
-	{ .compatible = "fsl,p1020-guts", },
-	{ .compatible = "fsl,p1021-guts", },
-	{ .compatible = "fsl,p1022-guts", },
-	{ .compatible = "fsl,p1023-guts", },
-	{ .compatible = "fsl,p2020-guts", },
-	{},
-};
-
 void __init mpc85xx_smp_init(void)
 {
 	struct device_node *np;
@@ -501,22 +472,16 @@ void __init mpc85xx_smp_init(void)
 		smp_85xx_ops.probe = NULL;
 	}
 
-	np = of_find_matching_node(NULL, mpc85xx_smp_guts_ids);
-	if (np) {
-		guts = of_iomap(np, 0);
-		of_node_put(np);
-		if (!guts) {
-			pr_err("%s: Could not map guts node address\n",
-								__func__);
-			return;
-		}
+#ifdef CONFIG_HOTPLUG_CPU
+#ifdef CONFIG_FSL_PMC
+	mpc85xx_setup_pmc();
+#endif
+	if (qoriq_pm_ops) {
 		smp_85xx_ops.give_timebase = mpc85xx_give_timebase;
 		smp_85xx_ops.take_timebase = mpc85xx_take_timebase;
-#ifdef CONFIG_HOTPLUG_CPU
 		ppc_md.cpu_die = smp_85xx_mach_cpu_die;
-#endif
 	}
-
+#endif
 	smp_ops = &smp_85xx_ops;
 
 #ifdef CONFIG_KEXEC
