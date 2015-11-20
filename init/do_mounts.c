@@ -548,6 +548,7 @@ void __init mount_root(void)
 void __init prepare_namespace(void)
 {
 	int is_floppy;
+	int err;
 
 	if (root_delay) {
 		printk(KERN_INFO "Waiting %d sec before mounting root device...\n",
@@ -601,6 +602,13 @@ out:
 	devtmpfs_mount("dev");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
+#ifdef CONFIG_BLOCK
+	/* recreate the /dev/root */
+	err = create_dev("/dev/root", ROOT_DEV);
+
+	if (err < 0)
+		pr_emerg("Failed to create /dev/root: %d\n", err);
+#endif
 }
 
 static bool is_tmpfs;
