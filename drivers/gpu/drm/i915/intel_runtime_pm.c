@@ -1499,11 +1499,15 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 
 	mutex_lock(&power_domains->lock);
 
-	WARN_ON(!power_domains->domain_use_count[domain]);
+	WARN(!power_domains->domain_use_count[domain],
+	     "Use count on domain %s is already zero\n",
+	     intel_display_power_domain_str(domain));
 	power_domains->domain_use_count[domain]--;
 
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
-		WARN_ON(!power_well->count);
+		WARN(!power_well->count,
+		     "Use count on power well %s is already zero",
+		     power_well->name);
 
 		if (!--power_well->count)
 			intel_power_well_disable(dev_priv, power_well);
