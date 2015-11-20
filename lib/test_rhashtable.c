@@ -52,6 +52,10 @@ static int tcount = 10;
 module_param(tcount, int, 0);
 MODULE_PARM_DESC(tcount, "Number of threads to spawn (default: 10)");
 
+static bool enomem_retry = false;
+module_param(enomem_retry, bool, 0);
+MODULE_PARM_DESC(enomem_retry, "Retry insert even if -ENOMEM was returned (default: off)");
+
 struct test_obj {
 	int			value;
 	struct rhash_head	node;
@@ -79,13 +83,21 @@ static struct semaphore startup_sem = __SEMAPHORE_INITIALIZER(startup_sem, 0);
 static int insert_retry(struct rhashtable *ht, struct rhash_head *obj,
                         const struct rhashtable_params params)
 {
-	int err, retries = -1;
+	int err, retries = -1, enomem_retries = 0;
 
 	do {
 		retries++;
 		cond_resched();
 		err = rhashtable_insert_fast(ht, obj, params);
+		if (err == -ENOMEM && enomem_retry) {
+			enomem_retries++;
+			err = -EBUSY;
+		}
 	} while (err == -EBUSY);
+
+	if (enomem_retries)
+		pr_info(" %u insertions retried after -ENOMEM\n",
+			enomem_retries);
 
 	return err ? : retries;
 }
