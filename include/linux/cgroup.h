@@ -81,7 +81,6 @@ struct cgroup_subsys_state *cgroup_get_e_css(struct cgroup *cgroup,
 struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 						       struct cgroup_subsys *ss);
 
-bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor);
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 
@@ -457,6 +456,23 @@ static inline struct cgroup *task_cgroup(struct task_struct *task,
 					 int subsys_id)
 {
 	return task_css(task, subsys_id)->cgroup;
+}
+
+/**
+ * cgroup_is_descendant - test ancestry
+ * @cgrp: the cgroup to be tested
+ * @ancestor: possible ancestor of @cgrp
+ *
+ * Test whether @cgrp is a descendant of @ancestor.  It also returns %true
+ * if @cgrp == @ancestor.  This function is safe to call as long as @cgrp
+ * and @ancestor are accessible.
+ */
+static inline bool cgroup_is_descendant(struct cgroup *cgrp,
+					struct cgroup *ancestor)
+{
+	if (cgrp->root != ancestor->root || cgrp->level < ancestor->level)
+		return false;
+	return cgrp->ancestor_ids[ancestor->level] == ancestor->id;
 }
 
 /* no synchronization, the result can only be used as a hint */
