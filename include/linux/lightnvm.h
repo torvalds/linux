@@ -380,7 +380,7 @@ typedef int (nvmm_end_io_fn)(struct nvm_rq *, int);
 typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *,
 								unsigned long);
 typedef struct nvm_lun *(nvmm_get_lun_fn)(struct nvm_dev *, int);
-typedef void (nvmm_free_blocks_print_fn)(struct nvm_dev *);
+typedef void (nvmm_lun_info_print_fn)(struct nvm_dev *);
 
 struct nvmm_type {
 	const char *name;
@@ -404,7 +404,7 @@ struct nvmm_type {
 	nvmm_get_lun_fn *get_lun;
 
 	/* Statistics */
-	nvmm_free_blocks_print_fn *free_blocks_print;
+	nvmm_lun_info_print_fn *lun_info_print;
 	struct list_head list;
 };
 

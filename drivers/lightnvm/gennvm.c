@@ -464,15 +464,24 @@ static struct nvm_lun *gennvm_get_lun(struct nvm_dev *dev, int lunid)
 	return &gn->luns[lunid].vlun;
 }
 
-static void gennvm_free_blocks_print(struct nvm_dev *dev)
+static void gennvm_lun_info_print(struct nvm_dev *dev)
 {
 	struct gen_nvm *gn = dev->mp;
 	struct gen_lun *lun;
 	unsigned int i;
 
-	gennvm_for_each_lun(gn, lun, i)
-		pr_info("%s: lun%8u\t%u\n",
-					dev->name, i, lun->vlun.nr_free_blocks);
+
+	gennvm_for_each_lun(gn, lun, i) {
+		spin_lock(&lun->vlun.lock);
+
+		pr_info("%s: lun%8u\t%u\t%u\t%u\n",
+				dev->name, i,
+				lun->vlun.nr_free_blocks,
+				lun->vlun.nr_inuse_blocks,
+				lun->vlun.nr_bad_blocks);
+
+		spin_unlock(&lun->vlun.lock);
+	}
 }
 
 static struct nvmm_type gennvm = {
@@ -490,7 +499,7 @@ static struct nvmm_type gennvm = {
 	.erase_blk	= gennvm_erase_blk,
 
 	.get_lun	= gennvm_get_lun,
-	.free_blocks_print = gennvm_free_blocks_print,
+	.lun_info_print = gennvm_lun_info_print,
 };
 
 static int __init gennvm_module_init(void)

@@ -544,7 +544,7 @@ static int nvm_configure_show(const char *val)
 	if (!dev->mt)
 		return 0;
 
-	dev->mt->free_blocks_print(dev);
+	dev->mt->lun_info_print(dev);
 
 	return 0;
 }
