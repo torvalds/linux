@@ -316,7 +316,7 @@ void kmem_cache_free(struct kmem_cache *, void *);
  * Note that interrupts must be enabled when calling these functions.
  */
 void kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-bool kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
+int kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 
 #ifdef CONFIG_NUMA
 void *__kmalloc_node(size_t size, gfp_t flags, int node) __assume_kmalloc_alignment;

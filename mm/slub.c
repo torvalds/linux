@@ -2909,8 +2909,8 @@ void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 EXPORT_SYMBOL(kmem_cache_free_bulk);
 
 /* Note that interrupts must be enabled when calling this function. */
-bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
-			   void **p)
+int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+			  void **p)
 {
 	struct kmem_cache_cpu *c;
 	int i;
@@ -2959,12 +2959,12 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
 
 	/* memcg and kmem_cache debug support */
 	slab_post_alloc_hook(s, flags, size, p);
-	return true;
+	return i;
 error:
 	local_irq_enable();
 	slab_post_alloc_hook(s, flags, i, p);
 	__kmem_cache_free_bulk(s, i, p);
-	return false;
+	return 0;
 }
 EXPORT_SYMBOL(kmem_cache_alloc_bulk);
 
