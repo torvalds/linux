@@ -200,6 +200,7 @@ extern void generic_secondary_thread_init(void);
 extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 extern char __secondary_hold;
+extern unsigned int booting_thread_hwid;
 
 extern void __early_start(void);
 #endif /* __ASSEMBLY__ */

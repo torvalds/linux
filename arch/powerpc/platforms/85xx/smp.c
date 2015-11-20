@@ -180,24 +180,11 @@ static inline u32 read_spin_table_addr_l(void *spin_table)
 static void wake_hw_thread(void *info)
 {
 	void fsl_secondary_thread_init(void);
-	unsigned long imsr, inia;
-	int nr = *(const int *)info;
+	unsigned long inia;
+	int cpu = *(const int *)info;
 
-	imsr = MSR_KERNEL;
 	inia = *(unsigned long *)fsl_secondary_thread_init;
-
-	if (cpu_thread_in_core(nr) == 0) {
-		/* For when we boot on a secondary thread with kdump */
-		mttmr(TMRN_IMSR0, imsr);
-		mttmr(TMRN_INIA0, inia);
-		mtspr(SPRN_TENS, TEN_THREAD(0));
-	} else {
-		mttmr(TMRN_IMSR1, imsr);
-		mttmr(TMRN_INIA1, inia);
-		mtspr(SPRN_TENS, TEN_THREAD(1));
-	}
-
-	smp_generic_kick_cpu(nr);
+	book3e_start_thread(cpu_thread_in_core(cpu), inia);
 }
 #endif
 
@@ -292,33 +279,54 @@ static int smp_85xx_kick_cpu(int nr)
 	pr_debug("kick CPU #%d\n", nr);
 
 #ifdef CONFIG_PPC64
-	/* Threads don't use the spin table */
-	if (cpu_thread_in_core(nr) != 0) {
-		int primary = cpu_first_thread_sibling(nr);
-
+	if (threads_per_core == 2) {
 		if (WARN_ON_ONCE(!cpu_has_feature(CPU_FTR_SMT)))
 			return -ENOENT;
 
-		if (cpu_thread_in_core(nr) != 1) {
-			pr_err("%s: cpu %d: invalid hw thread %d\n",
-			       __func__, nr, cpu_thread_in_core(nr));
-			return -ENOENT;
+		booting_thread_hwid = cpu_thread_in_core(nr);
+		primary = cpu_first_thread_sibling(nr);
+
+		if (qoriq_pm_ops)
+			qoriq_pm_ops->cpu_up_prepare(nr);
+
+		/*
+		 * If either thread in the core is online, use it to start
+		 * the other.
+		 */
+		if (cpu_online(primary)) {
+			smp_call_function_single(primary,
+					wake_hw_thread, &nr, 1);
+			goto done;
+		} else if (cpu_online(primary + 1)) {
+			smp_call_function_single(primary + 1,
+					wake_hw_thread, &nr, 1);
+			goto done;
 		}
 
-		if (!cpu_online(primary)) {
-			pr_err("%s: cpu %d: primary %d not online\n",
-			       __func__, nr, primary);
-			return -ENOENT;
-		}
+		/*
+		 * If getting here, it means both threads in the core are
+		 * offline. So start the primary thread, then it will start
+		 * the thread specified in booting_thread_hwid, the one
+		 * corresponding to nr.
+		 */
 
-		smp_call_function_single(primary, wake_hw_thread, &nr, 0);
-		return 0;
+	} else if (threads_per_core == 1) {
+		/*
+		 * If one core has only one thread, set booting_thread_hwid to
+		 * an invalid value.
+		 */
+		booting_thread_hwid = INVALID_THREAD_HWID;
+
+	} else if (threads_per_core > 2) {
+		pr_err("Do not support more than 2 threads per CPU.");
+		return -EINVAL;
 	}
 
 	ret = smp_85xx_start_cpu(primary);
 	if (ret)
 		return ret;
 
+done:
 	paca[nr].cpu_start = 1;
 	generic_set_cpu_up(nr);
 

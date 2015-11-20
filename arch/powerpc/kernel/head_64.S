@@ -40,6 +40,7 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/ptrace.h>
 #include <asm/hw_irq.h>
+#include <asm/cputhreads.h>
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -182,6 +183,45 @@ exception_marker:
 
 #ifdef CONFIG_PPC_BOOK3E
 /*
+ * The booting_thread_hwid holds the thread id we want to boot in cpu
+ * hotplug case. It is set by cpu hotplug code, and is invalid by default.
+ * The thread id is the same as the initial value of SPRN_PIR[THREAD_ID]
+ * bit field.
+ */
+	.globl	booting_thread_hwid
+booting_thread_hwid:
+	.long  INVALID_THREAD_HWID
+	.align 3
+/*
+ * start a thread in the same core
+ * input parameters:
+ * r3 = the thread physical id
+ * r4 = the entry point where thread starts
+ */
+_GLOBAL(book3e_start_thread)
+	LOAD_REG_IMMEDIATE(r5, MSR_KERNEL)
+	cmpi	0, r3, 0
+	beq	10f
+	cmpi	0, r3, 1
+	beq	11f
+	/* If the thread id is invalid, just exit. */
+	b	13f
+10:
+	mttmr	TMRN_IMSR0, r5
+	mttmr	TMRN_INIA0, r4
+	b	12f
+11:
+	mttmr	TMRN_IMSR1, r5
+	mttmr	TMRN_INIA1, r4
+12:
+	isync
+	li	r6, 1
+	sld	r6, r6, r3
+	mtspr	SPRN_TENS, r6
+13:
+	blr
+
+/*
  * stop a thread in the same core
  * input parameter:
  * r3 = the thread physical id
@@ -280,6 +320,44 @@ _GLOBAL(generic_secondary_smp_init)
 	mr	r3,r24
 	mr	r4,r25
 	bl	book3e_secondary_core_init
+
+/*
+ * After common core init has finished, check if the current thread is the
+ * one we wanted to boot. If not, start the specified thread and stop the
+ * current thread.
+ */
+	LOAD_REG_ADDR(r4, booting_thread_hwid)
+	lwz     r3, 0(r4)
+	li	r5, INVALID_THREAD_HWID
+	cmpw	r3, r5
+	beq	20f
+
+	/*
+	 * The value of booting_thread_hwid has been stored in r3,
+	 * so make it invalid.
+	 */
+	stw	r5, 0(r4)
+
+	/*
+	 * Get the current thread id and check if it is the one we wanted.
+	 * If not, start the one specified in booting_thread_hwid and stop
+	 * the current thread.
+	 */
+	mfspr	r8, SPRN_TIR
+	cmpw	r3, r8
+	beq	20f
+
+	/* start the specified thread */
+	LOAD_REG_ADDR(r5, fsl_secondary_thread_init)
+	ld	r4, 0(r5)
+	bl	book3e_start_thread
+
+	/* stop the current thread */
+	mr	r3, r8
+	bl	book3e_stop_thread
+10:
+	b	10b
+20:
 #endif
 
 generic_secondary_common_init:
