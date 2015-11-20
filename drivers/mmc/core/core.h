@@ -94,8 +94,8 @@ int mmc_hs400_to_hs200(struct mmc_card *card);
 void mmc_register_pm_notifier(struct mmc_host *host);
 void mmc_unregister_pm_notifier(struct mmc_host *host);
 #else
-static void mmc_register_pm_notifier(struct mmc_host *host) { }
-static void mmc_unregister_pm_notifier(struct mmc_host *host) { }
+static inline void mmc_register_pm_notifier(struct mmc_host *host) { }
+static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
 #endif
 
 #endif
