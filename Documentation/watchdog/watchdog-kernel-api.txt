@@ -53,6 +53,7 @@ struct watchdog_device {
 	unsigned int timeout;
 	unsigned int min_timeout;
 	unsigned int max_timeout;
+	struct notifier_block reboot_nb;
 	struct notifier_block restart_nb;
 	void *driver_data;
 	struct mutex lock;
@@ -76,6 +77,9 @@ It contains following fields:
 * timeout: the watchdog timer's timeout value (in seconds).
 * min_timeout: the watchdog timer's minimum timeout value (in seconds).
 * max_timeout: the watchdog timer's maximum timeout value (in seconds).
+* reboot_nb: notifier block that is registered for reboot notifications, for
+  internal use only. If the driver calls watchdog_stop_on_reboot, watchdog core
+  will stop the watchdog on such notifications.
 * restart_nb: notifier block that is registered for machine restart, for
   internal use only. If a watchdog is capable of restarting the machine, it
   should define ops->restart. Priority can be changed through
@@ -239,6 +243,10 @@ the device tree (if the module timeout parameter is invalid). Best practice is
 to set the default timeout value as timeout value in the watchdog_device and
 then use this function to set the user "preferred" timeout value.
 This routine returns zero on success and a negative errno code for failure.
+
+To disable the watchdog on reboot, the user must call the following helper:
+
+static inline void watchdog_stop_on_reboot(struct watchdog_device *wdd);
 
 To change the priority of the restart handler the following helper should be
 used:
