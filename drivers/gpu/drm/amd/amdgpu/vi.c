@@ -1386,15 +1386,12 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 
 static uint32_t vi_get_rev_id(struct amdgpu_device *adev)
 {
-	if (adev->asic_type == CHIP_TOPAZ)
-		return (RREG32(mmPCIE_EFUSE4) & PCIE_EFUSE4__STRAP_BIF_ATI_REV_ID_MASK)
-			>> PCIE_EFUSE4__STRAP_BIF_ATI_REV_ID__SHIFT;
-	else if (adev->flags & AMD_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return (RREG32_SMC(ATI_REV_ID_FUSE_MACRO__ADDRESS) & ATI_REV_ID_FUSE_MACRO__MASK)
 			>> ATI_REV_ID_FUSE_MACRO__SHIFT;
 	else
-		return (RREG32(mmCC_DRM_ID_STRAPS) & CC_DRM_ID_STRAPS__ATI_REV_ID_MASK)
-			>> CC_DRM_ID_STRAPS__ATI_REV_ID__SHIFT;
+		return (RREG32(mmPCIE_EFUSE4) & PCIE_EFUSE4__STRAP_BIF_ATI_REV_ID_MASK)
+			>> PCIE_EFUSE4__STRAP_BIF_ATI_REV_ID__SHIFT;
 }
 
 static const struct amdgpu_asic_funcs vi_asic_funcs =
