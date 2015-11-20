@@ -2047,14 +2047,14 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 				}
 			}
 
-			if (mxc_fbi->cur_prefetch == !!enable)
-				break;
-
 			retval = mxcfb_check_var(&fbi->var, fbi);
 			if (retval)
 				break;
 
 			mxc_fbi->prefetch = !!enable;
+
+			if (mxc_fbi->cur_prefetch == mxc_fbi->prefetch)
+				break;
 
 			fbi->var.activate = (fbi->var.activate & ~FB_ACTIVATE_MASK) |
 						FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
