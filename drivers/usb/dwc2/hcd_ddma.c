@@ -87,10 +87,18 @@ static u16 dwc2_frame_incr_val(struct dwc2_qh *qh)
 static int dwc2_desc_list_alloc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 				gfp_t flags)
 {
+	struct kmem_cache *desc_cache;
+
+	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC
+	    && qh->dev_speed == USB_SPEED_HIGH)
+		desc_cache = hsotg->desc_hsisoc_cache;
+	else
+		desc_cache = hsotg->desc_gen_cache;
+
 	qh->desc_list_sz = sizeof(struct dwc2_hcd_dma_desc) *
 						dwc2_max_desc_num(qh);
 
-	qh->desc_list = kzalloc(qh->desc_list_sz, flags | GFP_DMA);
+	qh->desc_list = kmem_cache_zalloc(desc_cache, flags | GFP_DMA);
 	if (!qh->desc_list)
 		return -ENOMEM;
 
@@ -113,10 +121,18 @@ static int dwc2_desc_list_alloc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 
 static void dwc2_desc_list_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
+	struct kmem_cache *desc_cache;
+
+	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC
+	    && qh->dev_speed == USB_SPEED_HIGH)
+		desc_cache = hsotg->desc_hsisoc_cache;
+	else
+		desc_cache = hsotg->desc_gen_cache;
+
 	if (qh->desc_list) {
 		dma_unmap_single(hsotg->dev, qh->desc_list_dma,
 				 qh->desc_list_sz, DMA_FROM_DEVICE);
-		kfree(qh->desc_list);
+		kmem_cache_free(desc_cache, qh->desc_list);
 		qh->desc_list = NULL;
 	}
 
