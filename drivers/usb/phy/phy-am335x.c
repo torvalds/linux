@@ -9,7 +9,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include "am35x-phy-control.h"
+#include "phy-am335x-control.h"
 #include "phy-generic.h"
 
 struct am335x_phy {

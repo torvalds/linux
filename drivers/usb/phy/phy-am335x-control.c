@@ -4,7 +4,7 @@
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include "am35x-phy-control.h"
+#include "phy-am335x-control.h"
 
 struct am335x_control_usb {
 	struct device *dev;
