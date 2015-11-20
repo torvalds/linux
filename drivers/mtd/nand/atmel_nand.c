@@ -128,7 +128,7 @@ struct atmel_nand_host {
 
 	struct atmel_nfc	*nfc;
 
-	struct atmel_nand_caps	*caps;
+	const struct atmel_nand_caps	*caps;
 	bool			has_pmecc;
 	u8			pmecc_corr_cap;
 	u16			pmecc_sector_size;
@@ -2303,11 +2303,11 @@ static int atmel_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct atmel_nand_caps at91rm9200_caps = {
+static const struct atmel_nand_caps at91rm9200_caps = {
 	.pmecc_correct_erase_page = false,
 };
 
-static struct atmel_nand_caps sama5d4_caps = {
+static const struct atmel_nand_caps sama5d4_caps = {
 	.pmecc_correct_erase_page = true,
 };
 
