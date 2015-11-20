@@ -1327,7 +1327,7 @@ static int nvme_trans_send_download_fw_cmd(struct nvme_ns *ns, struct sg_io_hdr 
 	c.dlfw.numd = cpu_to_le32((tot_len/BYTES_TO_DWORDS) - 1);
 	c.dlfw.offset = cpu_to_le32(offset/BYTES_TO_DWORDS);
 
-	nvme_sc = __nvme_submit_sync_cmd(ns->ctrl->admin_q, &c, NULL,
+	nvme_sc = nvme_submit_user_cmd(ns->ctrl->admin_q, &c,
 			hdr->dxferp, tot_len, NULL, 0);
 	return nvme_trans_status_code(hdr, nvme_sc);
 }
@@ -1731,7 +1731,7 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			nvme_sc = NVME_SC_LBA_RANGE;
 			break;
 		}
-		nvme_sc = __nvme_submit_sync_cmd(ns->queue, &c, NULL,
+		nvme_sc = nvme_submit_user_cmd(ns->queue, &c,
 				next_mapping_addr, unit_len, NULL, 0);
 		if (nvme_sc)
 			break;

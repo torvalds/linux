@@ -21,22 +21,15 @@
 
 #include "nvme.h"
 
-/*
- * Returns 0 on success.  If the result is negative, it's a Linux error code;
- * if the result is positive, it's an NVM Express status code
- */
-int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
-		void *buffer, void __user *ubuffer, unsigned bufflen,
-		u32 *result, unsigned timeout)
+struct request *nvme_alloc_request(struct request_queue *q,
+		struct nvme_command *cmd, unsigned int flags)
 {
 	bool write = cmd->common.opcode & 1;
-	struct bio *bio = NULL;
 	struct request *req;
-	int ret;
 
-	req = blk_mq_alloc_request(q, write, 0);
+	req = blk_mq_alloc_request(q, write, flags);
 	if (IS_ERR(req))
-		return PTR_ERR(req);
+		return req;
 
 	req->cmd_type = REQ_TYPE_DRV_PRIV;
 	req->cmd_flags |= REQ_FAILFAST_DRIVER;
@@ -44,17 +37,65 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 	req->__sector = (sector_t) -1;
 	req->bio = req->biotail = NULL;
 
-	req->timeout = timeout ? timeout : ADMIN_TIMEOUT;
-
 	req->cmd = (unsigned char *)cmd;
 	req->cmd_len = sizeof(struct nvme_command);
 	req->special = (void *)0;
+
+	return req;
+}
+
+/*
+ * Returns 0 on success.  If the result is negative, it's a Linux error code;
+ * if the result is positive, it's an NVM Express status code
+ */
+int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void *buffer, unsigned bufflen, u32 *result, unsigned timeout)
+{
+	struct request *req;
+	int ret;
+
+	req = nvme_alloc_request(q, cmd, 0);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	req->timeout = timeout ? timeout : ADMIN_TIMEOUT;
 
 	if (buffer && bufflen) {
 		ret = blk_rq_map_kern(q, req, buffer, bufflen, GFP_KERNEL);
 		if (ret)
 			goto out;
-	} else if (ubuffer && bufflen) {
+	}
+
+	blk_execute_rq(req->q, NULL, req, 0);
+	if (result)
+		*result = (u32)(uintptr_t)req->special;
+	ret = req->errors;
+ out:
+	blk_mq_free_request(req);
+	return ret;
+}
+
+int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void *buffer, unsigned bufflen)
+{
+	return __nvme_submit_sync_cmd(q, cmd, buffer, bufflen, NULL, 0);
+}
+
+int nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void __user *ubuffer, unsigned bufflen, u32 *result,
+		unsigned timeout)
+{
+	struct bio *bio = NULL;
+	struct request *req;
+	int ret;
+
+	req = nvme_alloc_request(q, cmd, 0);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	req->timeout = timeout ? timeout : ADMIN_TIMEOUT;
+
+	if (ubuffer && bufflen) {
 		ret = blk_rq_map_user(q, req, NULL, ubuffer, bufflen,
 				GFP_KERNEL);
 		if (ret)
@@ -71,12 +112,6 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
  out:
 	blk_mq_free_request(req);
 	return ret;
-}
-
-int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
-		void *buffer, unsigned bufflen)
-{
-	return __nvme_submit_sync_cmd(q, cmd, buffer, NULL, bufflen, NULL, 0);
 }
 
 int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
@@ -131,8 +166,7 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 	c.features.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(fid);
 
-	return __nvme_submit_sync_cmd(dev->admin_q, &c, NULL, NULL, 0,
-			result, 0);
+	return __nvme_submit_sync_cmd(dev->admin_q, &c, NULL, 0, result, 0);
 }
 
 int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
@@ -146,8 +180,7 @@ int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 	c.features.fid = cpu_to_le32(fid);
 	c.features.dword11 = cpu_to_le32(dword11);
 
-	return __nvme_submit_sync_cmd(dev->admin_q, &c, NULL, NULL, 0,
-			result, 0);
+	return __nvme_submit_sync_cmd(dev->admin_q, &c, NULL, 0, result, 0);
 }
 
 int nvme_get_log_page(struct nvme_ctrl *dev, struct nvme_smart_log **log)

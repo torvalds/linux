@@ -1697,7 +1697,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.appmask = cpu_to_le16(io.appmask);
 	c.rw.metadata = cpu_to_le64(meta_dma);
 
-	status = __nvme_submit_sync_cmd(ns->queue, &c, NULL,
+	status = nvme_submit_user_cmd(ns->queue, &c,
 			(void __user *)(uintptr_t)io.addr, length, NULL, 0);
  unmap:
 	if (meta) {
@@ -1739,8 +1739,8 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	if (cmd.timeout_ms)
 		timeout = msecs_to_jiffies(cmd.timeout_ms);
 
-	status = __nvme_submit_sync_cmd(ns ? ns->queue : ctrl->admin_q, &c,
-			NULL, (void __user *)(uintptr_t)cmd.addr, cmd.data_len,
+	status = nvme_submit_user_cmd(ns ? ns->queue : ctrl->admin_q, &c,
+			(void __user *)(uintptr_t)cmd.addr, cmd.data_len,
 			&cmd.result, timeout);
 	if (status >= 0) {
 		if (put_user(cmd.result, &ucmd->result))
