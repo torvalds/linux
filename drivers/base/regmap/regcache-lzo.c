@@ -139,7 +139,7 @@ static int regcache_lzo_init(struct regmap *map)
 	ret = 0;
 
 	blkcount = regcache_lzo_block_count(map);
-	map->cache = kzalloc(blkcount * sizeof *lzo_blocks,
+	map->cache = kcalloc(blkcount, sizeof(*lzo_blocks),
 			     GFP_KERNEL);
 	if (!map->cache)
 		return -ENOMEM;

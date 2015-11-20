@@ -386,23 +386,23 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	if (!d)
 		return -ENOMEM;
 
-	d->status_buf = kzalloc(sizeof(unsigned int) * chip->num_regs,
+	d->status_buf = kcalloc(chip->num_regs, sizeof(unsigned int),
 				GFP_KERNEL);
 	if (!d->status_buf)
 		goto err_alloc;
 
-	d->mask_buf = kzalloc(sizeof(unsigned int) * chip->num_regs,
+	d->mask_buf = kcalloc(chip->num_regs, sizeof(unsigned int),
 			      GFP_KERNEL);
 	if (!d->mask_buf)
 		goto err_alloc;
 
-	d->mask_buf_def = kzalloc(sizeof(unsigned int) * chip->num_regs,
+	d->mask_buf_def = kcalloc(chip->num_regs, sizeof(unsigned int),
 				  GFP_KERNEL);
 	if (!d->mask_buf_def)
 		goto err_alloc;
 
 	if (chip->wake_base) {
-		d->wake_buf = kzalloc(sizeof(unsigned int) * chip->num_regs,
+		d->wake_buf = kcalloc(chip->num_regs, sizeof(unsigned int),
 				      GFP_KERNEL);
 		if (!d->wake_buf)
 			goto err_alloc;
