@@ -65,6 +65,72 @@
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 				    int power_well_id);
 
+const char *
+intel_display_power_domain_str(enum intel_display_power_domain domain)
+{
+	switch (domain) {
+	case POWER_DOMAIN_PIPE_A:
+		return "PIPE_A";
+	case POWER_DOMAIN_PIPE_B:
+		return "PIPE_B";
+	case POWER_DOMAIN_PIPE_C:
+		return "PIPE_C";
+	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
+		return "PIPE_A_PANEL_FITTER";
+	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
+		return "PIPE_B_PANEL_FITTER";
+	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
+		return "PIPE_C_PANEL_FITTER";
+	case POWER_DOMAIN_TRANSCODER_A:
+		return "TRANSCODER_A";
+	case POWER_DOMAIN_TRANSCODER_B:
+		return "TRANSCODER_B";
+	case POWER_DOMAIN_TRANSCODER_C:
+		return "TRANSCODER_C";
+	case POWER_DOMAIN_TRANSCODER_EDP:
+		return "TRANSCODER_EDP";
+	case POWER_DOMAIN_PORT_DDI_A_LANES:
+		return "PORT_DDI_A_LANES";
+	case POWER_DOMAIN_PORT_DDI_B_LANES:
+		return "PORT_DDI_B_LANES";
+	case POWER_DOMAIN_PORT_DDI_C_LANES:
+		return "PORT_DDI_C_LANES";
+	case POWER_DOMAIN_PORT_DDI_D_LANES:
+		return "PORT_DDI_D_LANES";
+	case POWER_DOMAIN_PORT_DDI_E_LANES:
+		return "PORT_DDI_E_LANES";
+	case POWER_DOMAIN_PORT_DSI:
+		return "PORT_DSI";
+	case POWER_DOMAIN_PORT_CRT:
+		return "PORT_CRT";
+	case POWER_DOMAIN_PORT_OTHER:
+		return "PORT_OTHER";
+	case POWER_DOMAIN_VGA:
+		return "VGA";
+	case POWER_DOMAIN_AUDIO:
+		return "AUDIO";
+	case POWER_DOMAIN_PLLS:
+		return "PLLS";
+	case POWER_DOMAIN_AUX_A:
+		return "AUX_A";
+	case POWER_DOMAIN_AUX_B:
+		return "AUX_B";
+	case POWER_DOMAIN_AUX_C:
+		return "AUX_C";
+	case POWER_DOMAIN_AUX_D:
+		return "AUX_D";
+	case POWER_DOMAIN_GMBUS:
+		return "GMBUS";
+	case POWER_DOMAIN_INIT:
+		return "INIT";
+	case POWER_DOMAIN_MODESET:
+		return "MODESET";
+	default:
+		MISSING_CASE(domain);
+		return "?";
+	}
+}
+
 static void intel_power_well_enable(struct drm_i915_private *dev_priv,
 				    struct i915_power_well *power_well)
 {

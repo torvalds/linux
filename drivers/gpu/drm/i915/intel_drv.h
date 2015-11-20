@@ -1412,6 +1412,8 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv);
 void skl_pw1_misc_io_init(struct drm_i915_private *dev_priv);
 void skl_pw1_misc_io_fini(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv);
+const char *
+intel_display_power_domain_str(enum intel_display_power_domain domain);
 
 bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain);
