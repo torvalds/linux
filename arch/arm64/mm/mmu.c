@@ -64,8 +64,12 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 
 static void __init *early_alloc(unsigned long sz)
 {
-	void *ptr = __va(memblock_alloc(sz, sz));
-	BUG_ON(!ptr);
+	phys_addr_t phys;
+	void *ptr;
+
+	phys = memblock_alloc(sz, sz);
+	BUG_ON(!phys);
+	ptr = __va(phys);
 	memset(ptr, 0, sz);
 	return ptr;
 }
