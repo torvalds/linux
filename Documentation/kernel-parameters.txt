@@ -3874,6 +3874,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	usbcore.usbfs_snoop=
 			[USB] Set to log all usbfs traffic (default 0 = off).
 
+	usbcore.usbfs_snoop_max=
+			[USB] Maximum number of bytes to snoop in each URB
+			(default = 65536).
+
 	usbcore.blinkenlights=
 			[USB] Set to cycle leds on hubs (default 0 = off).
 

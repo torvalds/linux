@@ -100,6 +100,11 @@ static bool usbfs_snoop;
 module_param(usbfs_snoop, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(usbfs_snoop, "true to log all usbfs traffic");
 
+static unsigned usbfs_snoop_max = 65536;
+module_param(usbfs_snoop_max, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(usbfs_snoop_max,
+		"maximum number of bytes to print while snooping");
+
 #define snoop(dev, format, arg...)				\
 	do {							\
 		if (usbfs_snoop)				\
@@ -392,6 +397,7 @@ static void snoop_urb(struct usb_device *udev,
 					ep, t, d, length, timeout_or_status);
 	}
 
+	data_len = min(data_len, usbfs_snoop_max);
 	if (data && data_len > 0) {
 		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE, 32, 1,
 			data, data_len, 1);
@@ -402,7 +408,8 @@ static void snoop_urb_data(struct urb *urb, unsigned len)
 {
 	int i, size;
 
-	if (!usbfs_snoop)
+	len = min(len, usbfs_snoop_max);
+	if (!usbfs_snoop || len == 0)
 		return;
 
 	if (urb->num_sgs == 0) {
