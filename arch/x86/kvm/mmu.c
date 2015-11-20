@@ -311,11 +311,6 @@ static int is_large_pte(u64 pte)
 	return pte & PT_PAGE_SIZE_MASK;
 }
 
-static int is_rmap_spte(u64 pte)
-{
-	return is_shadow_present_pte(pte);
-}
-
 static int is_last_spte(u64 pte, int level)
 {
 	if (level == PT_PAGE_TABLE_LEVEL)
@@ -540,7 +535,7 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 	u64 old_spte = *sptep;
 	bool ret = false;
 
-	WARN_ON(!is_rmap_spte(new_spte));
+	WARN_ON(!is_shadow_present_pte(new_spte));
 
 	if (!is_shadow_present_pte(old_spte)) {
 		mmu_spte_set(sptep, new_spte);
@@ -595,7 +590,7 @@ static int mmu_spte_clear_track_bits(u64 *sptep)
 	else
 		old_spte = __update_clear_spte_slow(sptep, 0ull);
 
-	if (!is_rmap_spte(old_spte))
+	if (!is_shadow_present_pte(old_spte))
 		return 0;
 
 	pfn = spte_to_pfn(old_spte);
@@ -2575,7 +2570,7 @@ static bool mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep, unsigned pte_access,
 	pgprintk("%s: spte %llx write_fault %d gfn %llx\n", __func__,
 		 *sptep, write_fault, gfn);
 
-	if (is_rmap_spte(*sptep)) {
+	if (is_shadow_present_pte(*sptep)) {
 		/*
 		 * If we overwrite a PTE page pointer with a 2MB PMD, unlink
 		 * the parent of the now unreachable PTE.
@@ -2919,7 +2914,7 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
 	 * If the mapping has been changed, let the vcpu fault on the
 	 * same address again.
 	 */
-	if (!is_rmap_spte(spte)) {
+	if (!is_shadow_present_pte(spte)) {
 		ret = true;
 		goto exit;
 	}

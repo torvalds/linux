@@ -183,7 +183,7 @@ static void check_mappings_rmap(struct kvm *kvm, struct kvm_mmu_page *sp)
 		return;
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-		if (!is_rmap_spte(sp->spt[i]))
+		if (!is_shadow_present_pte(sp->spt[i]))
 			continue;
 
 		inspect_spte_has_rmap(kvm, sp->spt + i);
