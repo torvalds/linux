@@ -633,6 +633,7 @@ next:
 		update_ps_mdata(&mdata, rcd);
 	}
 }
+#endif /* CONFIG_PRESCAN_RXQ */
 
 static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 {
@@ -659,7 +660,6 @@ static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 
 	return ret;
 }
-#endif /* CONFIG_PRESCAN_RXQ */
 
 static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 {
