@@ -1857,15 +1857,24 @@ static void copy_clid(struct nfs4_client *target, struct nfs4_client *source)
 	target->cl_clientid.cl_id = source->cl_clientid.cl_id; 
 }
 
-static int copy_cred(struct svc_cred *target, struct svc_cred *source)
+int strdup_if_nonnull(char **target, char *source)
 {
-	if (source->cr_principal) {
-		target->cr_principal =
-				kstrdup(source->cr_principal, GFP_KERNEL);
-		if (target->cr_principal == NULL)
+	if (source) {
+		*target = kstrdup(source, GFP_KERNEL);
+		if (!*target)
 			return -ENOMEM;
 	} else
-		target->cr_principal = NULL;
+		*target = NULL;
+	return 0;
+}
+
+static int copy_cred(struct svc_cred *target, struct svc_cred *source)
+{
+	int ret;
+
+	ret = strdup_if_nonnull(&target->cr_principal, source->cr_principal);
+	if (ret)
+		return ret;
 	target->cr_flavor = source->cr_flavor;
 	target->cr_uid = source->cr_uid;
 	target->cr_gid = source->cr_gid;
