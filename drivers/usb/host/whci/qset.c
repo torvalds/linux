@@ -377,6 +377,10 @@ static int qset_fill_page_list(struct whc *whc, struct whc_std *std, gfp_t mem_f
 	if (std->pl_virt == NULL)
 		return -ENOMEM;
 	std->dma_addr = dma_map_single(whc->wusbhc.dev, std->pl_virt, pl_len, DMA_TO_DEVICE);
+	if (dma_mapping_error(whc->wusbhc.dev, std->dma_addr)) {
+		kfree(std->pl_virt);
+		return -EFAULT;
+	}
 
 	for (p = 0; p < std->num_pointers; p++) {
 		std->pl_virt[p].buf_ptr = cpu_to_le64(dma_addr);
