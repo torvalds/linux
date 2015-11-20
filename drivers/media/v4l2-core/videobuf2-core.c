@@ -2861,6 +2861,6 @@ int vb2_thread_stop(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(vb2_thread_stop);
 
-MODULE_DESCRIPTION("Driver helper framework for Video for Linux 2");
+MODULE_DESCRIPTION("Media buffer core framework");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>, Marek Szyprowski");
 MODULE_LICENSE("GPL");
