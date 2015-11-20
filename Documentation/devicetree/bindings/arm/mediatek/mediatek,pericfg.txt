@@ -18,7 +18,7 @@ The available clocks are defined in dt-bindings/clock/mt*-clk.h.
 Also it uses the common reset controller binding from
 Documentation/devicetree/bindings/reset/reset.txt.
 The available reset outputs are defined in
-dt-bindings/reset-controller/mt*-resets.h
+dt-bindings/reset/mt*-resets.h
 
 Example:
 

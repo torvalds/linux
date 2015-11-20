@@ -15,7 +15,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/mt8173-power.h>
-#include <dt-bindings/reset-controller/mt8173-resets.h>
+#include <dt-bindings/reset/mt8173-resets.h>
 #include "mt8173-pinfunc.h"
 
 / {
