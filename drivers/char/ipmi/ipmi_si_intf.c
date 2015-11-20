@@ -2559,7 +2559,6 @@ static void ipmi_pci_remove(struct pci_dev *pdev)
 {
 	struct smi_info *info = pci_get_drvdata(pdev);
 	cleanup_one_si(info);
-	pci_disable_device(pdev);
 }
 
 static const struct pci_device_id ipmi_pci_devices[] = {
