@@ -3062,9 +3062,6 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 	int count;
 	struct clk *clk;
 
-	if (index < 0)
-		return NULL;
-
 	rc = of_parse_phandle_with_args(np, "clocks", "#clock-cells", index,
 					&clkspec);
 	if (rc)
