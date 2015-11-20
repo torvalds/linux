@@ -2385,6 +2385,15 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			status = nfserr_inval;
 			goto out_nolock;
 		}
+		/*
+		 * Sometimes userspace doesn't give us a principal.
+		 * Which is a bug, really.  Anyway, we can't enforce
+		 * MACH_CRED in that case, better to give up now:
+		 */
+		if (!new->cl_cred.cr_principal) {
+			status = nfserr_serverfault;
+			goto out_nolock;
+		}
 		new->cl_mach_cred = true;
 	case SP4_NONE:
 		break;
