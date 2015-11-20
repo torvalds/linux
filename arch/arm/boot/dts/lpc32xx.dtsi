@@ -92,6 +92,7 @@
 				compatible = "nxp,ohci-nxp", "usb-ohci";
 				reg = <0x0 0x300>;
 				interrupts = <0x3b 0>;
+				clocks = <&usbclk LPC32XX_USB_CLK_HOST>;
 				status = "disabled";
 			};
 
@@ -99,6 +100,7 @@
 				compatible = "nxp,lpc3220-udc";
 				reg = <0x0 0x300>;
 				interrupts = <0x3d 0>, <0x3e 0>, <0x3c 0>, <0x3a 0>;
+				clocks = <&usbclk LPC32XX_USB_CLK_DEVICE>;
 				status = "disabled";
 			};
 
@@ -106,9 +108,16 @@
 				compatible = "nxp,pnx-i2c";
 				reg = <0x300 0x100>;
 				interrupts = <0x3f 0>;
+				clocks = <&usbclk LPC32XX_USB_CLK_I2C>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				pnx,timeout = <0x64>;
+			};
+
+			usbclk: clock-controller@f00 {
+				compatible = "nxp,lpc3220-usb-clk";
+				reg = <0xf00 0x100>;
+				#clock-cells = <1>;
 			};
 		};
 
