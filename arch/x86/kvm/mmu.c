@@ -1809,6 +1809,13 @@ static int mmu_pages_add(struct kvm_mmu_pages *pvec, struct kvm_mmu_page *sp,
 	return (pvec->nr == KVM_PAGE_ARRAY_NR);
 }
 
+static inline void clear_unsync_child_bit(struct kvm_mmu_page *sp, int idx)
+{
+	--sp->unsync_children;
+	WARN_ON((int)sp->unsync_children < 0);
+	__clear_bit(idx, sp->unsync_child_bitmap);
+}
+
 static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 			   struct kvm_mmu_pages *pvec)
 {
@@ -1818,8 +1825,10 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 		struct kvm_mmu_page *child;
 		u64 ent = sp->spt[i];
 
-		if (!is_shadow_present_pte(ent) || is_large_pte(ent))
-			goto clear_child_bitmap;
+		if (!is_shadow_present_pte(ent) || is_large_pte(ent)) {
+			clear_unsync_child_bit(sp, i);
+			continue;
+		}
 
 		child = page_header(ent & PT64_BASE_ADDR_MASK);
 
@@ -1828,27 +1837,20 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 				return -ENOSPC;
 
 			ret = __mmu_unsync_walk(child, pvec);
-			if (!ret)
-				goto clear_child_bitmap;
-			else if (ret > 0)
+			if (!ret) {
+				clear_unsync_child_bit(sp, i);
+				continue;
+			} else if (ret > 0) {
 				nr_unsync_leaf += ret;
-			else
+			} else
 				return ret;
 		} else if (child->unsync) {
 			nr_unsync_leaf++;
 			if (mmu_pages_add(pvec, child, i))
 				return -ENOSPC;
 		} else
-			 goto clear_child_bitmap;
-
-		continue;
-
-clear_child_bitmap:
-		__clear_bit(i, sp->unsync_child_bitmap);
-		sp->unsync_children--;
-		WARN_ON((int)sp->unsync_children < 0);
+			clear_unsync_child_bit(sp, i);
 	}
-
 
 	return nr_unsync_leaf;
 }
@@ -2012,9 +2014,7 @@ static void mmu_pages_clear_parents(struct mmu_page_path *parents)
 		if (!sp)
 			return;
 
-		--sp->unsync_children;
-		WARN_ON((int)sp->unsync_children < 0);
-		__clear_bit(idx, sp->unsync_child_bitmap);
+		clear_unsync_child_bit(sp, idx);
 		level++;
 	} while (level < PT64_ROOT_LEVEL-1 && !sp->unsync_children);
 }
