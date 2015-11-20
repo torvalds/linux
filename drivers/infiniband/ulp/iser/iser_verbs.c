@@ -1293,7 +1293,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 		if (mr_status.fail_status & IB_MR_CHECK_SIG_STATUS) {
 			sector_t sector_off = mr_status.sig_err.sig_err_offset;
 
-			do_div(sector_off, sector_size + 8);
+			sector_div(sector_off, sector_size + 8);
 			*sector = scsi_get_lba(iser_task->sc) + sector_off;
 
 			pr_err("PI error found type %d at sector %llx "
