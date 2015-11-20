@@ -227,7 +227,6 @@ static int fld_cache_shrink(struct fld_cache *cache)
 
 	while (cache->fci_cache_count + cache->fci_threshold >
 	       cache->fci_cache_size && curr != &cache->fci_lru) {
-
 		flde = list_entry(curr, struct fld_cache_entry, fce_lru);
 		curr = curr->prev;
 		fld_cache_entry_delete(cache, flde);
