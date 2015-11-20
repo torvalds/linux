@@ -68,7 +68,7 @@ static const struct mfd_cell s5m8767_devs[] = {
 
 static const struct mfd_cell s2mps11_devs[] = {
 	{
-		.name = "s2mps11-pmic",
+		.name = "s2mps11-regulator",
 	}, {
 		.name = "s2mps14-rtc",
 	}, {
@@ -78,7 +78,7 @@ static const struct mfd_cell s2mps11_devs[] = {
 };
 
 static const struct mfd_cell s2mps13_devs[] = {
-	{ .name = "s2mps13-pmic", },
+	{ .name = "s2mps13-regulator", },
 	{ .name = "s2mps13-rtc", },
 	{
 		.name = "s2mps13-clk",
@@ -88,7 +88,7 @@ static const struct mfd_cell s2mps13_devs[] = {
 
 static const struct mfd_cell s2mps14_devs[] = {
 	{
-		.name = "s2mps14-pmic",
+		.name = "s2mps14-regulator",
 	}, {
 		.name = "s2mps14-rtc",
 	}, {
@@ -116,7 +116,7 @@ static const struct mfd_cell s2mpa01_devs[] = {
 
 static const struct mfd_cell s2mpu02_devs[] = {
 	{
-		.name = "s2mpu02-pmic",
+		.name = "s2mpu02-regulator",
 	},
 };
 

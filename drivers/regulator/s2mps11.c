@@ -1199,11 +1199,11 @@ out:
 }
 
 static const struct platform_device_id s2mps11_pmic_id[] = {
-	{ "s2mps11-pmic", S2MPS11X},
-	{ "s2mps13-pmic", S2MPS13X},
-	{ "s2mps14-pmic", S2MPS14X},
+	{ "s2mps11-regulator", S2MPS11X},
+	{ "s2mps13-regulator", S2MPS13X},
+	{ "s2mps14-regulator", S2MPS14X},
 	{ "s2mps15-regulator", S2MPS15X},
-	{ "s2mpu02-pmic", S2MPU02},
+	{ "s2mpu02-regulator", S2MPU02},
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, s2mps11_pmic_id);
