@@ -478,11 +478,13 @@ static int stm_is_locked_sr(struct spi_nor *nor, loff_t ofs, uint64_t len,
 static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
 	struct mtd_info *mtd = &nor->mtd;
-	u8 status_old, status_new;
+	int status_old, status_new;
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
 	u8 shift = ffs(mask) - 1, pow, val;
 
 	status_old = read_sr(nor);
+	if (status_old < 0)
+		return status_old;
 
 	/* SPI NOR always locks to the end */
 	if (ofs + len != mtd->size) {
@@ -528,11 +530,13 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
 	struct mtd_info *mtd = &nor->mtd;
-	uint8_t status_old, status_new;
+	int status_old, status_new;
 	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
 	u8 shift = ffs(mask) - 1, pow, val;
 
 	status_old = read_sr(nor);
+	if (status_old < 0)
+		return status_old;
 
 	/* Cannot unlock; would unlock larger region than requested */
 	if (stm_is_locked_sr(nor, status_old, ofs - mtd->erasesize,
@@ -1032,6 +1036,8 @@ static int macronix_quad_enable(struct spi_nor *nor)
 	int ret, val;
 
 	val = read_sr(nor);
+	if (val < 0)
+		return val;
 	write_enable(nor);
 
 	write_sr(nor, val | SR_QUAD_EN_MX);
