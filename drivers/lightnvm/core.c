@@ -313,11 +313,13 @@ int nvm_register(struct request_queue *q, char *disk_name,
 								"ppalist");
 		if (!dev->ppalist_pool) {
 			pr_err("nvm: could not create ppa pool\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_init;
 		}
 	} else if (dev->ops->max_phys_sect > 256) {
 		pr_info("nvm: max sectors supported is 256.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_init;
 	}
 
 	down_write(&nvm_lock);
