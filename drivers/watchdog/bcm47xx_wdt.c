@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
-#include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <linux/timer.h>
@@ -168,17 +167,6 @@ static const struct watchdog_info bcm47xx_wdt_info = {
 				WDIOF_MAGICCLOSE,
 };
 
-static int bcm47xx_wdt_notify_sys(struct notifier_block *this,
-				  unsigned long code, void *unused)
-{
-	struct bcm47xx_wdt *wdt;
-
-	wdt = container_of(this, struct bcm47xx_wdt, notifier);
-	if (code == SYS_DOWN || code == SYS_HALT)
-		wdt->wdd.ops->stop(&wdt->wdd);
-	return NOTIFY_DONE;
-}
-
 static struct watchdog_ops bcm47xx_wdt_soft_ops = {
 	.owner		= THIS_MODULE,
 	.start		= bcm47xx_wdt_soft_start,
@@ -215,24 +203,17 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 		goto err_timer;
 	watchdog_set_nowayout(&wdt->wdd, nowayout);
 	watchdog_set_restart_priority(&wdt->wdd, 64);
-
-	wdt->notifier.notifier_call = &bcm47xx_wdt_notify_sys;
-
-	ret = register_reboot_notifier(&wdt->notifier);
-	if (ret)
-		goto err_timer;
+	watchdog_stop_on_reboot(&wdt->wdd);
 
 	ret = watchdog_register_device(&wdt->wdd);
 	if (ret)
-		goto err_notifier;
+		goto err_timer;
 
 	dev_info(&pdev->dev, "BCM47xx Watchdog Timer enabled (%d seconds%s%s)\n",
 		timeout, nowayout ? ", nowayout" : "",
 		soft ? ", Software Timer" : "");
 	return 0;
 
-err_notifier:
-	unregister_reboot_notifier(&wdt->notifier);
 err_timer:
 	if (soft)
 		del_timer_sync(&wdt->soft_timer);
@@ -248,7 +229,6 @@ static int bcm47xx_wdt_remove(struct platform_device *pdev)
 		return -ENXIO;
 
 	watchdog_unregister_device(&wdt->wdd);
-	unregister_reboot_notifier(&wdt->notifier);
 
 	return 0;
 }
