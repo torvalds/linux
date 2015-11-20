@@ -2564,13 +2564,13 @@ done:
 	return ret;
 }
 
-static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
-			 unsigned pte_access, int write_fault, int *emulate,
-			 int level, gfn_t gfn, pfn_t pfn, bool speculative,
-			 bool host_writable)
+static bool mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep, unsigned pte_access,
+			 int write_fault, int level, gfn_t gfn, pfn_t pfn,
+			 bool speculative, bool host_writable)
 {
 	int was_rmapped = 0;
 	int rmap_count;
+	bool emulate = false;
 
 	pgprintk("%s: spte %llx write_fault %d gfn %llx\n", __func__,
 		 *sptep, write_fault, gfn);
@@ -2600,12 +2600,12 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if (set_spte(vcpu, sptep, pte_access, level, gfn, pfn, speculative,
 	      true, host_writable)) {
 		if (write_fault)
-			*emulate = 1;
+			emulate = true;
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	}
 
-	if (unlikely(is_mmio_spte(*sptep) && emulate))
-		*emulate = 1;
+	if (unlikely(is_mmio_spte(*sptep)))
+		emulate = true;
 
 	pgprintk("%s: setting spte %llx\n", __func__, *sptep);
 	pgprintk("instantiating %s PTE (%s) at %llx (%llx) addr %p\n",
@@ -2624,6 +2624,8 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	}
 
 	kvm_release_pfn_clean(pfn);
+
+	return emulate;
 }
 
 static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
@@ -2658,9 +2660,8 @@ static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
 		return -1;
 
 	for (i = 0; i < ret; i++, gfn++, start++)
-		mmu_set_spte(vcpu, start, access, 0, NULL,
-			     sp->role.level, gfn, page_to_pfn(pages[i]),
-			     true, true);
+		mmu_set_spte(vcpu, start, access, 0, sp->role.level, gfn,
+			     page_to_pfn(pages[i]), true, true);
 
 	return 0;
 }
@@ -2721,9 +2722,9 @@ static int __direct_map(struct kvm_vcpu *vcpu, int write, int map_writable,
 
 	for_each_shadow_entry(vcpu, (u64)gfn << PAGE_SHIFT, iterator) {
 		if (iterator.level == level) {
-			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL,
-				     write, &emulate, level, gfn, pfn,
-				     prefault, map_writable);
+			emulate = mmu_set_spte(vcpu, iterator.sptep, ACC_ALL,
+					       write, level, gfn, pfn, prefault,
+					       map_writable);
 			direct_pte_prefetch(vcpu, iterator.sptep);
 			++vcpu->stat.pf_fixed;
 			break;

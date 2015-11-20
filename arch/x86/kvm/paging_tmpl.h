@@ -475,8 +475,8 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	 * we call mmu_set_spte() with host_writable = true because
 	 * pte_prefetch_gfn_to_pfn always gets a writable pfn.
 	 */
-	mmu_set_spte(vcpu, spte, pte_access, 0, NULL, PT_PAGE_TABLE_LEVEL,
-		     gfn, pfn, true, true);
+	mmu_set_spte(vcpu, spte, pte_access, 0, PT_PAGE_TABLE_LEVEL, gfn, pfn,
+		     true, true);
 
 	return true;
 }
@@ -556,7 +556,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	struct kvm_mmu_page *sp = NULL;
 	struct kvm_shadow_walk_iterator it;
 	unsigned direct_access, access = gw->pt_access;
-	int top_level, emulate = 0;
+	int top_level, emulate;
 
 	direct_access = gw->pte_access;
 
@@ -622,8 +622,8 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	}
 
 	clear_sp_write_flooding_count(it.sptep);
-	mmu_set_spte(vcpu, it.sptep, gw->pte_access, write_fault, &emulate,
-		     it.level, gw->gfn, pfn, prefault, map_writable);
+	emulate = mmu_set_spte(vcpu, it.sptep, gw->pte_access, write_fault,
+			       it.level, gw->gfn, pfn, prefault, map_writable);
 	FNAME(pte_prefetch)(vcpu, gw, it.sptep);
 
 	return emulate;
