@@ -10888,9 +10888,9 @@ S:	Maintained
 F:	drivers/media/tuners/tua9001*
 
 TULIP NETWORK DRIVERS
-M:	Grant Grundler <grundler@parisc-linux.org>
 L:	netdev@vger.kernel.org
-S:	Maintained
+L:	linux-parisc@vger.kernel.org
+S:	Orphan
 F:	drivers/net/ethernet/dec/tulip/
 
 TUN/TAP driver
