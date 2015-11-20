@@ -678,7 +678,7 @@ static void *fake_store(unsigned long long lba)
 
 static struct sd_dif_tuple *dif_store(sector_t sector)
 {
-	sector = do_div(sector, sdebug_store_sectors);
+	sector = sector_div(sector, sdebug_store_sectors);
 
 	return dif_storep + sector;
 }
@@ -2780,7 +2780,7 @@ static unsigned long lba_to_map_index(sector_t lba)
 		lba += scsi_debug_unmap_granularity -
 			scsi_debug_unmap_alignment;
 	}
-	do_div(lba, scsi_debug_unmap_granularity);
+	sector_div(lba, scsi_debug_unmap_granularity);
 
 	return lba;
 }
