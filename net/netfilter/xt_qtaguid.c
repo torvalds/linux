@@ -1589,10 +1589,10 @@ static struct sock *qtaguid_find_sk(const struct sk_buff *skb,
 
 	switch (par->family) {
 	case NFPROTO_IPV6:
-		sk = xt_socket_lookup_slow_v6(skb, par->in);
+		sk = xt_socket_lookup_slow_v6(dev_net(skb->dev), skb, par->in);
 		break;
 	case NFPROTO_IPV4:
-		sk = xt_socket_lookup_slow_v4(skb, par->in);
+		sk = xt_socket_lookup_slow_v4(dev_net(skb->dev), skb, par->in);
 		break;
 	default:
 		return NULL;
