@@ -805,7 +805,7 @@ static int pxamci_probe(struct platform_device *pdev)
 		goto out;
 	} else {
 		mmc->caps |= host->pdata->gpio_card_ro_invert ?
-			MMC_CAP2_RO_ACTIVE_HIGH : 0;
+			0 : MMC_CAP2_RO_ACTIVE_HIGH;
 	}
 
 	if (gpio_is_valid(gpio_cd))

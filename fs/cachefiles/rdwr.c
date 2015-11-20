@@ -879,7 +879,7 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 	loff_t pos, eof;
 	size_t len;
 	void *data;
-	int ret;
+	int ret = -ENOBUFS;
 
 	ASSERT(op != NULL);
 	ASSERT(page != NULL);
