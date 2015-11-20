@@ -28,6 +28,22 @@
 		};
 	};
 
+	clocks {
+		xtal_32k: xtal_32k {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+			clock-output-names = "xtal_32k";
+		};
+
+		xtal: xtal {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <13000000>;
+			clock-output-names = "xtal";
+		};
+	};
+
 	ahb {
 		#address-cells = <1>;
 		#size-cells = <1>;
