@@ -103,6 +103,7 @@ static inline u32 get_tensr(void)
 	return 1;
 }
 
+void book3e_stop_thread(int thread);
 
 #endif /* _ASM_POWERPC_CPUTHREADS_H */
 

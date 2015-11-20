@@ -181,6 +181,25 @@ exception_marker:
 #endif
 
 #ifdef CONFIG_PPC_BOOK3E
+/*
+ * stop a thread in the same core
+ * input parameter:
+ * r3 = the thread physical id
+ */
+_GLOBAL(book3e_stop_thread)
+	cmpi	0, r3, 0
+	beq	10f
+	cmpi	0, r3, 1
+	beq	10f
+	/* If the thread id is invalid, just exit. */
+	b	13f
+10:
+	li	r4, 1
+	sld	r4, r4, r3
+	mtspr	SPRN_TENC, r4
+13:
+	blr
+
 _GLOBAL(fsl_secondary_thread_init)
 	mfspr	r4,SPRN_BUCSR
 
