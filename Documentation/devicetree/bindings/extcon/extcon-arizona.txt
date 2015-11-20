@@ -14,9 +14,9 @@ Optional properties:
     If this node is not mentioned or if the value is unknown, then
     headphone detection mode is set to HPDETL.
 
-  - wlf,use-jd-gpio : Use GPIO input along with JD1 for dual pin jack
+  - wlf,use-jd2 : Use the additional JD input along with JD1 for dual pin jack
     detection.
-  - wlf,use-jd-gpio-nopull : Internal pull on GPIO is disabled when used for
+  - wlf,use-jd2-nopull : Internal pull on JD2 is disabled when used for
     jack detection.
   - wlf,jd-invert : Invert the polarity of the jack detection switch
 
