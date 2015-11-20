@@ -365,6 +365,8 @@ static int ocfs2_mknod(struct inode *dir,
 		mlog_errno(status);
 		goto leave;
 	}
+	/* update inode->i_mode after mask with "umask". */
+	inode->i_mode = mode;
 
 	handle = ocfs2_start_trans(osb, ocfs2_mknod_credits(osb->sb,
 							    S_ISDIR(mode),
