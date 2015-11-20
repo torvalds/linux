@@ -25,7 +25,7 @@ static u64 get64(const u64 *p)
 
 	if (BITS_PER_LONG < 64) {
 		u32 *p32 = (u32 *)p;
-		u32 h, l;
+		u32 h, l, h2;
 
 		/*
 		 * Read high then low, and then make sure high is
@@ -34,15 +34,14 @@ static u64 get64(const u64 *p)
 		 * XXX some clean way to make this endian-proof?
 		 */
 		do {
-			h = p32[1];
-			barrier();
-			l = p32[0];
-			barrier();
-		} while (p32[1] != h);
+			h = READ_ONCE(p32[1]);
+			l = READ_ONCE(p32[0]);
+			h2 = READ_ONCE(p32[1]);
+		} while(h2 != h);
 
 		ret = (((u64)h) << 32) | l;
 	} else
-		ret = *p;
+		ret = READ_ONCE(*p);
 
 	return ret;
 }
@@ -66,9 +65,7 @@ void xen_get_runstate_snapshot(struct vcpu_runstate_info *res)
 	 */
 	do {
 		state_time = get64(&state->state_entry_time);
-		barrier();
-		*res = *state;
-		barrier();
+		*res = READ_ONCE(*state);
 	} while (get64(&state->state_entry_time) != state_time);
 }
 
