@@ -980,7 +980,6 @@ static void r852_remove(struct pci_dev *pci_dev)
 
 	/* Stop interrupts */
 	r852_disable_irqs(dev);
-	synchronize_irq(dev->irq);
 	free_irq(dev->irq, dev);
 
 	/* Cleanup */
