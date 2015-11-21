@@ -41,7 +41,7 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 	snprintf(firmware_name, sizeof(firmware_name),
 		 "ara:%08x:%08x:%08x:%08x:%02x.tftf",
 		 intf->unipro_mfg_id, intf->unipro_prod_id,
-		 intf->ara_vend_id, intf->ara_prod_id, stage);
+		 intf->vendor, intf->product, stage);
 
 	return request_firmware(&firmware->fw, firmware_name,
 				&connection->bundle->dev);

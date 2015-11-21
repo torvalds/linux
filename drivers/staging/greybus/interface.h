@@ -22,16 +22,14 @@ struct gb_interface {
 	u8 device_id;		/* Device id allocated for the interface block by the SVC */
 
 	/* Information taken from the manifest descriptor */
-	u16 vendor;
-	u16 product;
 	char *vendor_string;
 	char *product_string;
 
 	/* Information taken from the hotplug event */
 	u32 unipro_mfg_id;
 	u32 unipro_prod_id;
-	u32 ara_vend_id;
-	u32 ara_prod_id;
+	u32 vendor;
+	u32 product;
 
 	struct gb_module *module;
 	struct gb_host_device *hd;

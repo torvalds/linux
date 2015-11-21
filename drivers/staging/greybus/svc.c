@@ -460,8 +460,8 @@ static void svc_process_hotplug(struct work_struct *work)
 
 	intf->unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
 	intf->unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
-	intf->ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
-	intf->ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
+	intf->vendor = le32_to_cpu(hotplug->data.ara_vend_id);
+	intf->product = le32_to_cpu(hotplug->data.ara_prod_id);
 
 	/*
 	 * Create a device id for the interface:

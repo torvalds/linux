@@ -11,8 +11,8 @@
 
 struct greybus_bundle_id {
 	__u16	match_flags;
-	__u16	vendor;
-	__u16	product;
+	__u32	vendor;
+	__u32	product;
 	__u8	class;
 
 	kernel_ulong_t	driver_info __aligned(sizeof(kernel_ulong_t));
