@@ -391,6 +391,23 @@ static void ipmr_del_tunnel(struct net_device *dev, struct vifctl *v)
 	}
 }
 
+/* Initialize ipmr pimreg/tunnel in_device */
+static bool ipmr_init_vif_indev(const struct net_device *dev)
+{
+	struct in_device *in_dev;
+
+	ASSERT_RTNL();
+
+	in_dev = __in_dev_get_rtnl(dev);
+	if (!in_dev)
+		return false;
+	ipv4_devconf_setall(in_dev);
+	neigh_parms_data_state_setall(in_dev->arp_parms);
+	IPV4_DEVCONF(in_dev->cnf, RP_FILTER) = 0;
+
+	return true;
+}
+
 static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 {
 	struct net_device  *dev;
@@ -402,7 +419,6 @@ static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 		int err;
 		struct ifreq ifr;
 		struct ip_tunnel_parm p;
-		struct in_device  *in_dev;
 
 		memset(&p, 0, sizeof(p));
 		p.iph.daddr = v->vifc_rmt_addr.s_addr;
@@ -427,15 +443,8 @@ static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 		if (err == 0 &&
 		    (dev = __dev_get_by_name(net, p.name)) != NULL) {
 			dev->flags |= IFF_MULTICAST;
-
-			in_dev = __in_dev_get_rtnl(dev);
-			if (!in_dev)
+			if (!ipmr_init_vif_indev(dev))
 				goto failure;
-
-			ipv4_devconf_setall(in_dev);
-			neigh_parms_data_state_setall(in_dev->arp_parms);
-			IPV4_DEVCONF(in_dev->cnf, RP_FILTER) = 0;
-
 			if (dev_open(dev))
 				goto failure;
 			dev_hold(dev);
@@ -502,7 +511,6 @@ static void reg_vif_setup(struct net_device *dev)
 static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 {
 	struct net_device *dev;
-	struct in_device *in_dev;
 	char name[IFNAMSIZ];
 
 	if (mrt->id == RT_TABLE_DEFAULT)
@@ -522,18 +530,8 @@ static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 		return NULL;
 	}
 
-	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(dev);
-	if (!in_dev) {
-		rcu_read_unlock();
+	if (!ipmr_init_vif_indev(dev))
 		goto failure;
-	}
-
-	ipv4_devconf_setall(in_dev);
-	neigh_parms_data_state_setall(in_dev->arp_parms);
-	IPV4_DEVCONF(in_dev->cnf, RP_FILTER) = 0;
-	rcu_read_unlock();
-
 	if (dev_open(dev))
 		goto failure;
 
