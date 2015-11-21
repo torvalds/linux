@@ -259,8 +259,8 @@ enum {
 };
 
 /* flags for options */
-#define DEVICE_FLAGS_UNPLUG		BIT(0)
-#define DEVICE_FLAGS_DISCONNECTED	BIT(1)
+#define DEVICE_FLAGS_UNPLUG		0
+#define DEVICE_FLAGS_DISCONNECTED	1
 
 struct vnt_private {
 	/* mac80211 */
