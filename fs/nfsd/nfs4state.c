@@ -98,7 +98,7 @@ static struct kmem_cache *odstate_slab;
 
 static void free_session(struct nfsd4_session *);
 
-static struct nfsd4_callback_ops nfsd4_cb_recall_ops;
+static const struct nfsd4_callback_ops nfsd4_cb_recall_ops;
 
 static bool is_session_dead(struct nfsd4_session *ses)
 {
@@ -3648,7 +3648,7 @@ static void nfsd4_cb_recall_release(struct nfsd4_callback *cb)
 	nfs4_put_stid(&dp->dl_stid);
 }
 
-static struct nfsd4_callback_ops nfsd4_cb_recall_ops = {
+static const struct nfsd4_callback_ops nfsd4_cb_recall_ops = {
 	.prepare	= nfsd4_cb_recall_prepare,
 	.done		= nfsd4_cb_recall_done,
 	.release	= nfsd4_cb_recall_release,

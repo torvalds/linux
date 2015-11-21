@@ -1143,7 +1143,7 @@ nfsd4_run_cb_work(struct work_struct *work)
 }
 
 void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
-		struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op)
+		const struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op)
 {
 	cb->cb_clp = clp;
 	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[op];
