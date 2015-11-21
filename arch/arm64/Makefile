@@ -168,3 +168,33 @@ define archhelp
   echo  '                  (distribution) /sbin/installkernel or'
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
 endef
+
+kernel.img: Image.lz4
+	$(Q)scripts/mkkrnlimg $(objtree)/arch/arm64/boot/Image $(objtree)/kernel.img >/dev/null
+	@echo '  Image:  kernel.img is ready'
+
+LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
+LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
+RAMDISK_IMG := $(notdir $(wildcard $(objtree)/ramdisk.img))
+make_boot_img := \
+	$(srctree)/scripts/mkbootimg \
+		--kernel $(objtree)/arch/arm64/boot/Image \
+		$(if $(RAMDISK_IMG),--ramdisk $(objtree)/ramdisk.img) \
+		--second resource.img \
+		-o boot.img && \
+	echo '  Image:  boot.img (with Image $(if $(RAMDISK_IMG),'ramdisk.img ')resource.img) is ready'; \
+	$(srctree)/scripts/mkbootimg \
+		--kernel $(objtree)/arch/arm64/boot/Image.lz4 \
+		$(if $(RAMDISK_IMG),--ramdisk $(objtree)/ramdisk.img) \
+		--second resource.img \
+		-o zboot.img && \
+	echo '  Image:  zboot.img (with Image.lz4 $(if $(RAMDISK_IMG),'ramdisk.img ')resource.img) is ready'
+
+%.img: rockchip/%.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
+	$(Q) if [ -f $(srctree)/$(LOGO) -a "$(srctree)" != "$(objtree)" ]; then cp -a $(srctree)/$(LOGO) $(objtree)/; fi
+	$(Q) if [ -f $(srctree)/$(LOGO_KERNEL) -a "$(srctree)" != "$(objtree)" ]; then cp -a $(srctree)/$(LOGO_KERNEL) $(objtree)/; fi
+	$(Q)scripts/resource_tool $(objtree)/arch/arm64/boot/dts/rockchip/$*.dtb $(LOGO) $(LOGO_KERNEL)
+	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'
+	$(Q) if [ -x $(srctree)/scripts/mkbootimg ]; then $(make_boot_img); fi
+
+CLEAN_FILES += boot.img kernel.img resource.img zboot.img
