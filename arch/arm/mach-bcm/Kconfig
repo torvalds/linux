@@ -52,6 +52,10 @@ config ARCH_BCM_NSP
 config ARCH_BCM_5301X
 	bool "Broadcom BCM470X / BCM5301X ARM SoC" if ARCH_MULTI_V7
 	select ARCH_BCM_IPROC
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select ARM_ERRATA_764369 if SMP
+
 	help
 	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
 
