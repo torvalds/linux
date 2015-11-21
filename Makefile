@@ -389,6 +389,12 @@ PYTHON2		= python2
 PYTHON3		= python3
 CHECK		= sparse
 
+# Use the wrapper for the compiler. This wrapper scans for new
+# warnings and causes the build to stop upon encountering them.
+ifneq ($(wildcard $(srctree)/scripts/gcc-wrapper.py),)
+CC		= $(srctree)/scripts/gcc-wrapper.py $(CROSS_COMPILE)gcc
+endif
+
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void -Wno-unknown-attribute $(CF)
 NOSTDINC_FLAGS  =
