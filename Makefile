@@ -465,6 +465,14 @@ LZ4		= lz4
 XZ		= xz
 ZSTD		= zstd
 
+# Use the wrapper for the compiler. This wrapper scans for new
+# warnings and causes the build to stop upon encountering them.
+ifeq ($(CC),$(CROSS_COMPILE)gcc)
+ifneq ($(wildcard $(srctree)/scripts/gcc-wrapper.py),)
+CC		= $(srctree)/scripts/gcc-wrapper.py $(CROSS_COMPILE)gcc
+endif
+endif
+
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void -Wno-unknown-attribute $(CF)
 NOSTDINC_FLAGS :=
