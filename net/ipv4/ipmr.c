@@ -1396,11 +1396,12 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 		rtnl_unlock();
 		return ret;
 	}
-#ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
 	case MRT_TABLE:
 	{
 		u32 v;
 
+		if (!IS_BUILTIN(CONFIG_IP_MROUTE_MULTIPLE_TABLES))
+			return -ENOPROTOOPT;
 		if (optlen != sizeof(u32))
 			return -EINVAL;
 		if (get_user(v, (u32 __user *)optval))
@@ -1420,7 +1421,6 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 		rtnl_unlock();
 		return ret;
 	}
-#endif
 	/* Spurious command, or MRT_VERSION which you cannot set. */
 	default:
 		return -ENOPROTOOPT;
