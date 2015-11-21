@@ -487,7 +487,6 @@ static int m_can_handle_lec_err(struct net_device *dev,
 	 * type of the last error to occur on the CAN bus
 	 */
 	cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
-	cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 
 	switch (lec_type) {
 	case LEC_STUFF_ERROR:

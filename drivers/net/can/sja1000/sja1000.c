@@ -449,7 +449,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 			cf->data[2] |= CAN_ERR_PROT_STUFF;
 			break;
 		default:
-			cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 			cf->data[3] = ecc & ECC_SEG;
 			break;
 		}
