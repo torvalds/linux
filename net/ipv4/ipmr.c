@@ -84,9 +84,7 @@ struct mr_table {
 	atomic_t		cache_resolve_queue_len;
 	bool			mroute_do_assert;
 	bool			mroute_do_pim;
-#if defined(CONFIG_IP_PIMSM_V1) || defined(CONFIG_IP_PIMSM_V2)
 	int			mroute_reg_vif_num;
-#endif
 };
 
 struct ipmr_rule {
@@ -347,9 +345,7 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 	setup_timer(&mrt->ipmr_expire_timer, ipmr_expire_process,
 		    (unsigned long)mrt);
 
-#ifdef CONFIG_IP_PIMSM
 	mrt->mroute_reg_vif_num = -1;
-#endif
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
 	list_add_tail_rcu(&mrt->list, &net->ipv4.mr_tables);
 #endif
@@ -584,10 +580,8 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 		return -EADDRNOTAVAIL;
 	}
 
-#ifdef CONFIG_IP_PIMSM
 	if (vifi == mrt->mroute_reg_vif_num)
 		mrt->mroute_reg_vif_num = -1;
-#endif
 
 	if (vifi + 1 == mrt->maxvif) {
 		int tmp;
@@ -824,10 +818,8 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
 	v->dev = dev;
-#ifdef CONFIG_IP_PIMSM
 	if (v->flags & VIFF_REGISTER)
 		mrt->mroute_reg_vif_num = vifi;
-#endif
 	if (vifi+1 > mrt->maxvif)
 		mrt->maxvif = vifi+1;
 	write_unlock_bh(&mrt_lock);
