@@ -1816,7 +1816,7 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 	nfit_saved = acpi_desc->nfit;
 	acpi_desc->nfit = (struct acpi_table_nfit *)buf.pointer;
 	ret = acpi_nfit_init(acpi_desc, buf.length);
-	if (!ret) {
+	if (ret) {
 		/* Merge failed, restore old nfit, and exit */
 		acpi_desc->nfit = nfit_saved;
 		dev_err(dev, "failed to merge updated NFIT\n");
