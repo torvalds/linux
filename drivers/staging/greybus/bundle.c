@@ -68,41 +68,6 @@ struct device_type greybus_bundle_type = {
 	.release =	gb_bundle_release,
 };
 
-static int gb_bundle_match_one_id(struct gb_bundle *bundle,
-				     const struct greybus_bundle_id *id)
-{
-	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
-	    (id->vendor != bundle->intf->vendor))
-		return 0;
-
-	if ((id->match_flags & GREYBUS_ID_MATCH_PRODUCT) &&
-	    (id->product != bundle->intf->product))
-		return 0;
-
-	if ((id->match_flags & GREYBUS_ID_MATCH_CLASS) &&
-	    (id->class != bundle->class))
-		return 0;
-
-	return 1;
-}
-
-const struct greybus_bundle_id *
-gb_bundle_match_id(struct gb_bundle *bundle,
-		   const struct greybus_bundle_id *id)
-{
-	if (id == NULL)
-		return NULL;
-
-	for (; id->vendor || id->product || id->class || id->driver_info;
-									id++) {
-		if (gb_bundle_match_one_id(bundle, id))
-			return id;
-	}
-
-	return NULL;
-}
-
-
 /* XXX This could be per-host device or per-module */
 static DEFINE_SPINLOCK(gb_bundles_lock);
 

@@ -29,13 +29,46 @@ int greybus_disabled(void)
 }
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
+static int greybus_match_one_id(struct gb_bundle *bundle,
+				     const struct greybus_bundle_id *id)
+{
+	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
+	    (id->vendor != bundle->intf->vendor))
+		return 0;
+
+	if ((id->match_flags & GREYBUS_ID_MATCH_PRODUCT) &&
+	    (id->product != bundle->intf->product))
+		return 0;
+
+	if ((id->match_flags & GREYBUS_ID_MATCH_CLASS) &&
+	    (id->class != bundle->class))
+		return 0;
+
+	return 1;
+}
+
+static const struct greybus_bundle_id *
+greybus_match_id(struct gb_bundle *bundle, const struct greybus_bundle_id *id)
+{
+	if (id == NULL)
+		return NULL;
+
+	for (; id->vendor || id->product || id->class || id->driver_info;
+									id++) {
+		if (greybus_match_one_id(bundle, id))
+			return id;
+	}
+
+	return NULL;
+}
+
 static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(drv);
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 	const struct greybus_bundle_id *id;
 
-	id = gb_bundle_match_id(bundle, driver->id_table);
+	id = greybus_match_id(bundle, driver->id_table);
 	if (id)
 		return 1;
 	/* FIXME - Dynamic ids? */
@@ -97,7 +130,7 @@ static int greybus_probe(struct device *dev)
 	int retval;
 
 	/* match id */
-	id = gb_bundle_match_id(bundle, driver->id_table);
+	id = greybus_match_id(bundle, driver->id_table);
 	if (!id)
 		return -ENODEV;
 
