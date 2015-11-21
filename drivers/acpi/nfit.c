@@ -233,11 +233,12 @@ static bool add_spa(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_table_prev *prev,
 		struct acpi_nfit_system_address *spa)
 {
+	size_t length = min_t(size_t, sizeof(*spa), spa->header.length);
 	struct device *dev = acpi_desc->dev;
 	struct nfit_spa *nfit_spa;
 
 	list_for_each_entry(nfit_spa, &prev->spas, list) {
-		if (memcmp(nfit_spa->spa, spa, sizeof(*spa)) == 0) {
+		if (memcmp(nfit_spa->spa, spa, length) == 0) {
 			list_move_tail(&nfit_spa->list, &acpi_desc->spas);
 			return true;
 		}
@@ -259,11 +260,12 @@ static bool add_memdev(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_table_prev *prev,
 		struct acpi_nfit_memory_map *memdev)
 {
+	size_t length = min_t(size_t, sizeof(*memdev), memdev->header.length);
 	struct device *dev = acpi_desc->dev;
 	struct nfit_memdev *nfit_memdev;
 
 	list_for_each_entry(nfit_memdev, &prev->memdevs, list)
-		if (memcmp(nfit_memdev->memdev, memdev, sizeof(*memdev)) == 0) {
+		if (memcmp(nfit_memdev->memdev, memdev, length) == 0) {
 			list_move_tail(&nfit_memdev->list, &acpi_desc->memdevs);
 			return true;
 		}
@@ -284,11 +286,12 @@ static bool add_dcr(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_table_prev *prev,
 		struct acpi_nfit_control_region *dcr)
 {
+	size_t length = min_t(size_t, sizeof(*dcr), dcr->header.length);
 	struct device *dev = acpi_desc->dev;
 	struct nfit_dcr *nfit_dcr;
 
 	list_for_each_entry(nfit_dcr, &prev->dcrs, list)
-		if (memcmp(nfit_dcr->dcr, dcr, sizeof(*dcr)) == 0) {
+		if (memcmp(nfit_dcr->dcr, dcr, length) == 0) {
 			list_move_tail(&nfit_dcr->list, &acpi_desc->dcrs);
 			return true;
 		}
@@ -308,11 +311,12 @@ static bool add_bdw(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_table_prev *prev,
 		struct acpi_nfit_data_region *bdw)
 {
+	size_t length = min_t(size_t, sizeof(*bdw), bdw->header.length);
 	struct device *dev = acpi_desc->dev;
 	struct nfit_bdw *nfit_bdw;
 
 	list_for_each_entry(nfit_bdw, &prev->bdws, list)
-		if (memcmp(nfit_bdw->bdw, bdw, sizeof(*bdw)) == 0) {
+		if (memcmp(nfit_bdw->bdw, bdw, length) == 0) {
 			list_move_tail(&nfit_bdw->list, &acpi_desc->bdws);
 			return true;
 		}
@@ -332,11 +336,12 @@ static bool add_idt(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_table_prev *prev,
 		struct acpi_nfit_interleave *idt)
 {
+	size_t length = min_t(size_t, sizeof(*idt), idt->header.length);
 	struct device *dev = acpi_desc->dev;
 	struct nfit_idt *nfit_idt;
 
 	list_for_each_entry(nfit_idt, &prev->idts, list)
-		if (memcmp(nfit_idt->idt, idt, sizeof(*idt)) == 0) {
+		if (memcmp(nfit_idt->idt, idt, length) == 0) {
 			list_move_tail(&nfit_idt->list, &acpi_desc->idts);
 			return true;
 		}
@@ -356,11 +361,12 @@ static bool add_flush(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_table_prev *prev,
 		struct acpi_nfit_flush_address *flush)
 {
+	size_t length = min_t(size_t, sizeof(*flush), flush->header.length);
 	struct device *dev = acpi_desc->dev;
 	struct nfit_flush *nfit_flush;
 
 	list_for_each_entry(nfit_flush, &prev->flushes, list)
-		if (memcmp(nfit_flush->flush, flush, sizeof(*flush)) == 0) {
+		if (memcmp(nfit_flush->flush, flush, length) == 0) {
 			list_move_tail(&nfit_flush->list, &acpi_desc->flushes);
 			return true;
 		}
