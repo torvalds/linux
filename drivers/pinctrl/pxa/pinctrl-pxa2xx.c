@@ -184,7 +184,70 @@ static const struct pinmux_ops pxa2xx_pinmux_ops = {
 	.gpio_set_direction = pxa2xx_pmx_gpio_set_direction,
 };
 
+static int pxa2xx_pconf_group_get(struct pinctrl_dev *pctldev,
+				  unsigned group,
+				  unsigned long *config)
+{
+	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	struct pxa_pinctrl_group *g = pctl->groups + group;
+	unsigned long flags;
+	unsigned pin = g->pin;
+	void __iomem *pgsr = pctl->base_pgsr[pin / 32];
+	u32 val;
+
+	spin_lock_irqsave(&pctl->lock, flags);
+	val = readl_relaxed(pgsr) & BIT(pin % 32);
+	*config = val ? PIN_CONFIG_LOW_POWER_MODE : 0;
+	spin_unlock_irqrestore(&pctl->lock, flags);
+
+	dev_dbg(pctl->dev, "get sleep gpio state(pin=%d) %d\n",
+		pin, !!val);
+	return 0;
+}
+
+static int pxa2xx_pconf_group_set(struct pinctrl_dev *pctldev,
+				  unsigned group,
+				  unsigned long *configs,
+				  unsigned num_configs)
+{
+	struct pxa_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	struct pxa_pinctrl_group *g = pctl->groups + group;
+	unsigned long flags;
+	unsigned pin = g->pin;
+	void __iomem *pgsr = pctl->base_pgsr[pin / 32];
+	int i, is_set = 0;
+	u32 val;
+
+	for (i = 0; i < num_configs; i++) {
+		switch (pinconf_to_config_param(configs[i])) {
+		case PIN_CONFIG_LOW_POWER_MODE:
+			is_set = pinconf_to_config_argument(configs[i]);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	dev_dbg(pctl->dev, "set sleep gpio state(pin=%d) %d\n",
+		pin, is_set);
+
+	spin_lock_irqsave(&pctl->lock, flags);
+	val = readl_relaxed(pgsr);
+	val = (val & ~BIT(pin % 32)) | (is_set ? BIT(pin % 32) : 0);
+	writel_relaxed(val, pgsr);
+	spin_unlock_irqrestore(&pctl->lock, flags);
+
+	return 0;
+}
+
+static const struct pinconf_ops pxa2xx_pconf_ops = {
+	.pin_config_group_get	= pxa2xx_pconf_group_get,
+	.pin_config_group_set	= pxa2xx_pconf_group_set,
+	.is_generic		= true,
+};
+
 static struct pinctrl_desc pxa2xx_pinctrl_desc = {
+	.confops	= &pxa2xx_pconf_ops,
 	.pctlops	= &pxa2xx_pctl_ops,
 	.pmxops		= &pxa2xx_pinmux_ops,
 };
