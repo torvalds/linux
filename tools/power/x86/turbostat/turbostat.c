@@ -2673,6 +2673,19 @@ guess:
 
 	return 0;
 }
+
+void decode_misc_enable_msr(void)
+{
+	unsigned long long msr;
+
+	if (!get_msr(base_cpu, MSR_IA32_MISC_ENABLE, &msr))
+		fprintf(stderr, "cpu%d: MSR_IA32_MISC_ENABLE: 0x%08llx (%s %s %s)\n",
+			base_cpu, msr,
+			msr & (1 << 3) ? "TCC" : "",
+			msr & (1 << 16) ? "EIST" : "",
+			msr & (1 << 18) ? "MONITOR" : "");
+}
+
 void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx, max_level;
@@ -2696,9 +2709,19 @@ void process_cpuid()
 	if (family == 6 || family == 0xf)
 		model += ((fms >> 16) & 0xf) << 4;
 
-	if (debug)
+	if (debug) {
 		fprintf(stderr, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
+		fprintf(stderr, "CPUID(1): %s %s %s %s %s %s %s %s\n",
+			ecx & (1 << 0) ? "SSE3" : "-",
+			ecx & (1 << 3) ? "MONITOR" : "-",
+			ecx & (1 << 7) ? "EIST" : "-",
+			ecx & (1 << 8) ? "TM2" : "-",
+			edx & (1 << 4) ? "TSC" : "-",
+			edx & (1 << 5) ? "MSR" : "-",
+			edx & (1 << 22) ? "ACPI-TM" : "-",
+			edx & (1 << 29) ? "TM" : "-");
+	}
 
 	if (!(edx & (1 << 5)))
 		errx(1, "CPUID: no MSR");
@@ -2738,6 +2761,9 @@ void process_cpuid()
 			do_dts ? "" : "No ",
 			do_ptm ? "" : "No ",
 			has_epb ? "" : "No ");
+
+	if (debug)
+		decode_misc_enable_msr();
 
 	if (max_level > 0x15) {
 		unsigned int eax_crystal;
