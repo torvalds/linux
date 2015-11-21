@@ -2677,8 +2677,6 @@ int __init ip_mr_init(void)
 				       sizeof(struct mfc_cache),
 				       0, SLAB_HWCACHE_ALIGN | SLAB_PANIC,
 				       NULL);
-	if (!mrt_cachep)
-		return -ENOMEM;
 
 	err = register_pernet_subsys(&ipmr_net_ops);
 	if (err)
