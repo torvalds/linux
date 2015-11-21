@@ -42,16 +42,16 @@
 #define GREYBUS_VERSION_MAJOR	0x00
 #define GREYBUS_VERSION_MINOR	0x01
 
-#define GREYBUS_DEVICE_ID_MATCH_DEVICE \
-	(GREYBUS_DEVICE_ID_MATCH_VENDOR | GREYBUS_DEVICE_ID_MATCH_PRODUCT)
+#define GREYBUS_ID_MATCH_DEVICE \
+	(GREYBUS_ID_MATCH_VENDOR | GREYBUS_ID_MATCH_PRODUCT)
 
 #define GREYBUS_DEVICE(v, p)					\
-	.match_flags	= GREYBUS_DEVICE_ID_MATCH_DEVICE,	\
+	.match_flags	= GREYBUS_ID_MATCH_DEVICE,		\
 	.vendor		= (v),					\
 	.product	= (p),
 
 #define GREYBUS_DEVICE_SERIAL(s)				\
-	.match_flags	= GREYBUS_DEVICE_ID_MATCH_SERIAL,	\
+	.match_flags	= GREYBUS_ID_MATCH_SERIAL,		\
 	.serial_number	= (s),
 
 /* Maximum number of CPorts */
