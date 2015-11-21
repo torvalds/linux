@@ -152,8 +152,11 @@ void panic(const char *fmt, ...)
 	 * We may have ended up stopping the CPU holding the lock (in
 	 * smp_send_stop()) while still having some valuable data in the console
 	 * buffer.  Try to acquire the lock then release it regardless of the
-	 * result.  The release will also print the buffers out.
+	 * result.  The release will also print the buffers out.  Locks debug
+	 * should be disabled to avoid reporting bad unlock balance when
+	 * panic() is not being callled from OOPS.
 	 */
+	debug_locks_off();
 	console_trylock();
 	console_unlock();
 
