@@ -390,7 +390,6 @@ static int __init mtk_nor_init(struct mt8173_nor *mt8173_nor,
 	nor->read_reg = mt8173_nor_read_reg;
 	nor->write = mt8173_nor_write;
 	nor->write_reg = mt8173_nor_write_reg;
-	nor->mtd.owner = THIS_MODULE;
 	nor->mtd.name = "mtk_nor";
 	/* initialized with NULL */
 	ret = spi_nor_scan(nor, NULL, SPI_NOR_DUAL);
