@@ -451,7 +451,9 @@ static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
 	int i;
 
 	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_API, 32)) {
-		IWL_ERR(drv, "api_index larger than supported by driver\n");
+		IWL_ERR(drv,
+			"api flags index %d larger than supported by driver\n",
+			api_index);
 		/* don't return an error so we can load FW that has more bits */
 		return 0;
 	}
@@ -473,7 +475,9 @@ static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
 	int i;
 
 	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_CAPA, 32)) {
-		IWL_ERR(drv, "api_index larger than supported by driver\n");
+		IWL_ERR(drv,
+			"capa flags index %d larger than supported by driver\n",
+			api_index);
 		/* don't return an error so we can load FW that has more bits */
 		return 0;
 	}
