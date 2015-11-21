@@ -48,7 +48,7 @@
 		};
 
 		pm8941_gpios: gpios@c000 {
-			compatible = "qcom,pm8941-gpio";
+			compatible = "qcom,pm8941-gpio", "qcom,spmi-gpio";
 			reg = <0xc000 0x2400>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -91,7 +91,7 @@
 		};
 
 		pm8941_mpps: mpps@a000 {
-			compatible = "qcom,pm8941-mpp";
+			compatible = "qcom,pm8941-mpp", "qcom,spmi-mpp";
 			reg = <0xa000 0x800>;
 			gpio-controller;
 			#gpio-cells = <2>;

@@ -10,7 +10,7 @@
 		#size-cells = <0>;
 
 		pm8841_mpps: mpps@a000 {
-			compatible = "qcom,pm8841-mpp";
+			compatible = "qcom,pm8841-mpp", "qcom,spmi-mpp";
 			reg = <0xa000 0x400>;
 			gpio-controller;
 			#gpio-cells = <2>;

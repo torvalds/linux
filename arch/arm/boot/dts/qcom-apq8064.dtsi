@@ -410,7 +410,8 @@
 
 				pm8921_gpio: gpio@150 {
 
-					compatible = "qcom,pm8921-gpio";
+					compatible = "qcom,pm8921-gpio",
+						     "qcom,ssbi-gpio";
 					reg = <0x150>;
 					interrupts = <192 1>, <193 1>, <194 1>,
 						     <195 1>, <196 1>, <197 1>,
@@ -434,7 +435,8 @@
 				};
 
 				pm8921_mpps: mpps@50 {
-					compatible = "qcom,pm8921-mpp";
+					compatible = "qcom,pm8921-mpp",
+						     "qcom,ssbi-mpp";
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
