@@ -2,6 +2,7 @@ Qualcomm adreno/snapdragon hdmi output
 
 Required properties:
 - compatible: one of the following
+   * "qcom,hdmi-tx-8996"
    * "qcom,hdmi-tx-8994"
    * "qcom,hdmi-tx-8084"
    * "qcom,hdmi-tx-8974"
@@ -21,6 +22,7 @@ Required properties:
 Optional properties:
 - qcom,hdmi-tx-mux-en-gpio: hdmi mux enable pin
 - qcom,hdmi-tx-mux-sel-gpio: hdmi mux select pin
+- power-domains: reference to the power domain(s), if available.
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-1: the "sleep" pinctrl state
@@ -35,6 +37,7 @@ Example:
 		reg-names = "core_physical";
 		reg = <0x04a00000 0x1000>;
 		interrupts = <GIC_SPI 79 0>;
+		power-domains = <&mmcc MDSS_GDSC>;
 		clock-names =
 		    "core_clk",
 		    "master_iface_clk",

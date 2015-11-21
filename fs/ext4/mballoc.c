@@ -3333,8 +3333,8 @@ ext4_mb_check_group_pa(ext4_fsblk_t goal_block,
 		atomic_inc(&pa->pa_count);
 		return pa;
 	}
-	cur_distance = abs64(goal_block - cpa->pa_pstart);
-	new_distance = abs64(goal_block - pa->pa_pstart);
+	cur_distance = abs(goal_block - cpa->pa_pstart);
+	new_distance = abs(goal_block - pa->pa_pstart);
 
 	if (cur_distance <= new_distance)
 		return cpa;

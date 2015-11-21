@@ -111,20 +111,6 @@ void *kmap_atomic_pfn(unsigned long pfn)
 	return (void *)vaddr;
 }
 
-struct page *kmap_atomic_to_page(void *ptr)
-{
-	unsigned long vaddr = (unsigned long)ptr;
-	int idx;
-	pte_t *pte;
-
-	if (vaddr < FIXADDR_START)
-		return virt_to_page(ptr);
-
-	idx = virt_to_fix(vaddr);
-	pte = kmap_pte - (idx - FIX_KMAP_BEGIN);
-	return pte_page(*pte);
-}
-
 void __init kmap_init(void)
 {
 	unsigned long kmap_vstart;

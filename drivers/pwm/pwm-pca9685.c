@@ -19,9 +19,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -297,7 +299,6 @@ static const struct regmap_config pca9685_regmap_i2c_config = {
 static int pca9685_pwm_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node;
 	struct pca9685 *pca;
 	int ret;
 	int mode2;
@@ -320,12 +321,12 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 
 	regmap_read(pca->regmap, PCA9685_MODE2, &mode2);
 
-	if (of_property_read_bool(np, "invert"))
+	if (device_property_read_bool(&client->dev, "invert"))
 		mode2 |= MODE2_INVRT;
 	else
 		mode2 &= ~MODE2_INVRT;
 
-	if (of_property_read_bool(np, "open-drain"))
+	if (device_property_read_bool(&client->dev, "open-drain"))
 		mode2 &= ~MODE2_OUTDRV;
 	else
 		mode2 |= MODE2_OUTDRV;
@@ -363,16 +364,27 @@ static const struct i2c_device_id pca9685_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pca9685_id);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id pca9685_acpi_ids[] = {
+	{ "INT3492", 0 },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(acpi, pca9685_acpi_ids);
+#endif
+
+#ifdef CONFIG_OF
 static const struct of_device_id pca9685_dt_ids[] = {
 	{ .compatible = "nxp,pca9685-pwm", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pca9685_dt_ids);
+#endif
 
 static struct i2c_driver pca9685_i2c_driver = {
 	.driver = {
 		.name = "pca9685-pwm",
-		.of_match_table = pca9685_dt_ids,
+		.acpi_match_table = ACPI_PTR(pca9685_acpi_ids),
+		.of_match_table = of_match_ptr(pca9685_dt_ids),
 	},
 	.probe = pca9685_pwm_probe,
 	.remove = pca9685_pwm_remove,

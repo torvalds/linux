@@ -1505,6 +1505,13 @@ static void nfs_writeback_result(struct rpc_task *task,
 			task->tk_status = -EIO;
 			return;
 		}
+
+		/* For non rpc-based layout drivers, retry-through-MDS */
+		if (!task->tk_ops) {
+			hdr->pnfs_error = -EAGAIN;
+			return;
+		}
+
 		/* Was this an NFSv2 write or an NFSv3 stable write? */
 		if (resp->verf->committed != NFS_UNSTABLE) {
 			/* Resend from where the server left off */

@@ -897,8 +897,8 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && (pos + count) > inode->i_size) {
 		i_size_write(inode, pos + count);
-		/* Marks the inode as dirty */
 		file_update_time(file);
+		mark_inode_dirty(inode);
 	}
 
 	return generic_write_sync(file, pos, count);

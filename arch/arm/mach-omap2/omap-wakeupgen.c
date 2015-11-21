@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -330,7 +331,7 @@ static int irq_cpu_hotplug_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __refdata irq_hotplug_notifier = {
+static struct notifier_block irq_hotplug_notifier = {
 	.notifier_call = irq_cpu_hotplug_notify,
 };
 
@@ -540,9 +541,4 @@ static int __init wakeupgen_init(struct device_node *node,
 
 	return 0;
 }
-
-/*
- * We cannot use the IRQCHIP_DECLARE macro that lives in
- * drivers/irqchip, so we're forced to roll our own. Not very nice.
- */
-OF_DECLARE_2(irqchip, ti_wakeupgen, "ti,omap4-wugen-mpu", wakeupgen_init);
+IRQCHIP_DECLARE(ti_wakeupgen, "ti,omap4-wugen-mpu", wakeupgen_init);

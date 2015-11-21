@@ -36,14 +36,6 @@
 #define PT_HOST_USERLOCAL   PT_EPC
 
 #define CP0_DDATA_LO        $28,3
-#define CP0_CONFIG3         $16,3
-#define CP0_CONFIG5         $16,5
-#define CP0_EBASE           $15,1
-
-#define CP0_INTCTL          $12,1
-#define CP0_SRSCTL          $12,2
-#define CP0_SRSMAP          $12,3
-#define CP0_HWRENA          $7,0
 
 /* Resume Flags */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */

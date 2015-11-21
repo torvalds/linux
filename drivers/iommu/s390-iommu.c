@@ -216,6 +216,7 @@ static int s390_iommu_update_trans(struct s390_domain *s390_domain,
 	u8 *page_addr = (u8 *) (pa & PAGE_MASK);
 	dma_addr_t start_dma_addr = dma_addr;
 	unsigned long irq_flags, nr_pages, i;
+	unsigned long *entry;
 	int rc = 0;
 
 	if (dma_addr < s390_domain->domain.geometry.aperture_start ||
@@ -228,8 +229,12 @@ static int s390_iommu_update_trans(struct s390_domain *s390_domain,
 
 	spin_lock_irqsave(&s390_domain->dma_table_lock, irq_flags);
 	for (i = 0; i < nr_pages; i++) {
-		dma_update_cpu_trans(s390_domain->dma_table, page_addr,
-				     dma_addr, flags);
+		entry = dma_walk_cpu_trans(s390_domain->dma_table, dma_addr);
+		if (!entry) {
+			rc = -ENOMEM;
+			goto undo_cpu_trans;
+		}
+		dma_update_cpu_trans(entry, page_addr, flags);
 		page_addr += PAGE_SIZE;
 		dma_addr += PAGE_SIZE;
 	}
@@ -242,6 +247,20 @@ static int s390_iommu_update_trans(struct s390_domain *s390_domain,
 			break;
 	}
 	spin_unlock(&s390_domain->list_lock);
+
+undo_cpu_trans:
+	if (rc && ((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID)) {
+		flags = ZPCI_PTE_INVALID;
+		while (i-- > 0) {
+			page_addr -= PAGE_SIZE;
+			dma_addr -= PAGE_SIZE;
+			entry = dma_walk_cpu_trans(s390_domain->dma_table,
+						   dma_addr);
+			if (!entry)
+				break;
+			dma_update_cpu_trans(entry, page_addr, flags);
+		}
+	}
 	spin_unlock_irqrestore(&s390_domain->dma_table_lock, irq_flags);
 
 	return rc;

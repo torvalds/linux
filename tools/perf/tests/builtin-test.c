@@ -166,6 +166,10 @@ static struct test generic_tests[] = {
 		.func = test_session_topology,
 	},
 	{
+		.desc = "Test BPF filter",
+		.func = test__bpf,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -192,7 +196,7 @@ static bool perf_test__matches(struct test *test, int curr, int argc, const char
 			continue;
 		}
 
-		if (strstr(test->desc, argv[i]))
+		if (strcasestr(test->desc, argv[i]))
 			return true;
 	}
 

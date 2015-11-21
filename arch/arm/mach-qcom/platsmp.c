@@ -49,7 +49,7 @@ extern void secondary_startup_arm(void);
 static DEFINE_SPINLOCK(boot_lock);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __ref qcom_cpu_die(unsigned int cpu)
+static void qcom_cpu_die(unsigned int cpu)
 {
 	wfi();
 }

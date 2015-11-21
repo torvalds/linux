@@ -223,6 +223,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (!p_hwfn->p_tx_cids) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate memory for Tx Cids\n");
+			rc = -ENOMEM;
 			goto alloc_err;
 		}
 
@@ -230,6 +231,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (!p_hwfn->p_rx_cids) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate memory for Rx Cids\n");
+			rc = -ENOMEM;
 			goto alloc_err;
 		}
 	}
@@ -281,14 +283,17 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		/* EQ */
 		p_eq = qed_eq_alloc(p_hwfn, 256);
-
-		if (!p_eq)
+		if (!p_eq) {
+			rc = -ENOMEM;
 			goto alloc_err;
+		}
 		p_hwfn->p_eq = p_eq;
 
 		p_consq = qed_consq_alloc(p_hwfn);
-		if (!p_consq)
+		if (!p_consq) {
+			rc = -ENOMEM;
 			goto alloc_err;
+		}
 		p_hwfn->p_consq = p_consq;
 
 		/* DMA info initialization */
@@ -303,6 +308,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 	cdev->reset_stats = kzalloc(sizeof(*cdev->reset_stats), GFP_KERNEL);
 	if (!cdev->reset_stats) {
 		DP_NOTICE(cdev, "Failed to allocate reset statistics\n");
+		rc = -ENOMEM;
 		goto alloc_err;
 	}
 
@@ -562,7 +568,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Enable classification by MAC if needed */
-	if (hw_mode & MODE_MF_SI) {
+	if (hw_mode & (1 << MODE_MF_SI)) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
 			   "Configuring TAGMAC_CLS_TYPE\n");
 		STORE_RT_REG(p_hwfn,

@@ -803,7 +803,7 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 	return NVM_IO_OK;
 }
 
-static void rrpc_make_rq(struct request_queue *q, struct bio *bio)
+static blk_qc_t rrpc_make_rq(struct request_queue *q, struct bio *bio)
 {
 	struct rrpc *rrpc = q->queuedata;
 	struct nvm_rq *rqd;
@@ -811,21 +811,21 @@ static void rrpc_make_rq(struct request_queue *q, struct bio *bio)
 
 	if (bio->bi_rw & REQ_DISCARD) {
 		rrpc_discard(rrpc, bio);
-		return;
+		return BLK_QC_T_NONE;
 	}
 
 	rqd = mempool_alloc(rrpc->rq_pool, GFP_KERNEL);
 	if (!rqd) {
 		pr_err_ratelimited("rrpc: not able to queue bio.");
 		bio_io_error(bio);
-		return;
+		return BLK_QC_T_NONE;
 	}
 	memset(rqd, 0, sizeof(struct nvm_rq));
 
 	err = rrpc_submit_io(rrpc, bio, rqd, NVM_IOTYPE_NONE);
 	switch (err) {
 	case NVM_IO_OK:
-		return;
+		return BLK_QC_T_NONE;
 	case NVM_IO_ERR:
 		bio_io_error(bio);
 		break;
@@ -841,6 +841,7 @@ static void rrpc_make_rq(struct request_queue *q, struct bio *bio)
 	}
 
 	mempool_free(rqd, rrpc->rq_pool);
+	return BLK_QC_T_NONE;
 }
 
 static void rrpc_requeue(struct work_struct *work)

@@ -60,7 +60,7 @@
 #define ATOM_CT_PS_MASK		0x7F
 #define ATOM_CT_CODE_PTR	6
 
-#define ATOM_OP_CNT		123
+#define ATOM_OP_CNT		127
 #define ATOM_OP_EOT		91
 
 #define ATOM_CASE_MAGIC		0x63

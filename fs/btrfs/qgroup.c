@@ -2198,7 +2198,6 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	int slot;
 	int ret;
 
-	path->leave_spinning = 1;
 	mutex_lock(&fs_info->qgroup_rescan_lock);
 	ret = btrfs_search_slot_for_read(fs_info->extent_root,
 					 &fs_info->qgroup_rescan_progress,
@@ -2286,7 +2285,7 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 		goto out;
 
 	err = 0;
-	while (!err) {
+	while (!err && !btrfs_fs_closing(fs_info)) {
 		trans = btrfs_start_transaction(fs_info->fs_root, 0);
 		if (IS_ERR(trans)) {
 			err = PTR_ERR(trans);
@@ -2307,7 +2306,8 @@ out:
 	btrfs_free_path(path);
 
 	mutex_lock(&fs_info->qgroup_rescan_lock);
-	fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
+	if (!btrfs_fs_closing(fs_info))
+		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 
 	if (err > 0 &&
 	    fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT) {
@@ -2336,7 +2336,9 @@ out:
 	}
 	btrfs_end_transaction(trans, fs_info->quota_root);
 
-	if (err >= 0) {
+	if (btrfs_fs_closing(fs_info)) {
+		btrfs_info(fs_info, "qgroup scan paused");
+	} else if (err >= 0) {
 		btrfs_info(fs_info, "qgroup scan completed%s",
 			err > 0 ? " (inconsistency flag cleared)" : "");
 	} else {
@@ -2384,11 +2386,10 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 	memset(&fs_info->qgroup_rescan_progress, 0,
 		sizeof(fs_info->qgroup_rescan_progress));
 	fs_info->qgroup_rescan_progress.objectid = progress_objectid;
+	init_completion(&fs_info->qgroup_rescan_completion);
 
 	spin_unlock(&fs_info->qgroup_lock);
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
-
-	init_completion(&fs_info->qgroup_rescan_completion);
 
 	memset(&fs_info->qgroup_rescan_work, 0,
 	       sizeof(fs_info->qgroup_rescan_work));

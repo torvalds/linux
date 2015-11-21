@@ -60,6 +60,16 @@ config COMMON_CLK_RK808
 	  clocked at 32KHz each. Clkout1 is always on, Clkout2 can off
 	  by control register.
 
+config COMMON_CLK_SCPI
+	tristate "Clock driver controlled via SCPI interface"
+	depends on ARM_SCPI_PROTOCOL || COMPILE_TEST
+	  ---help---
+	  This driver provides support for clocks that are controlled
+	  by firmware that implements the SCPI interface.
+
+	  This driver uses SCPI Message Protocol to interact with the
+	  firmware providing all the clock controls.
+
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C

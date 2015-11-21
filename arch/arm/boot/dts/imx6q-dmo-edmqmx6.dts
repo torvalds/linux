@@ -109,7 +109,7 @@
 	status = "okay";
 
 	flash: m25p80@0 {
-		compatible = "m25p80";
+		compatible = "m25p80", "jedec,spi-nor";
 		spi-max-frequency = <40000000>;
 		reg = <0>;
 	};

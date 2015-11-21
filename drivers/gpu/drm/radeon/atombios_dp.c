@@ -179,6 +179,7 @@ radeon_dp_aux_transfer_atom(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
+	case DP_AUX_I2C_WRITE_STATUS_UPDATE:
 		/* The atom implementation only supports writes with a max payload of
 		 * 12 bytes since it uses 4 bits for the total count (header + payload)
 		 * in the parameter space.  The atom interface supports 16 byte

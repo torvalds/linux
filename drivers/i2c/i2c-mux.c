@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/of.h>
+#include <linux/acpi.h>
 
 /* multiplexer per channel data */
 struct i2c_mux_priv {
@@ -172,6 +173,13 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 			}
 		}
 	}
+
+	/*
+	 * Associate the mux channel with an ACPI node.
+	 */
+	if (has_acpi_companion(mux_dev))
+		acpi_preset_companion(&priv->adap.dev, ACPI_COMPANION(mux_dev),
+				      chan_id);
 
 	if (force_nr) {
 		priv->adap.nr = force_nr;

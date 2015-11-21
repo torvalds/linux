@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <sys/mman.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -276,8 +277,8 @@ out:
 	return ret;
 }
 
-#define PRESENT_BIT     0x8000000000000000
-#define PFN_MASK        0x007FFFFFFFFFFFFF
+#define PRESENT_BIT     0x8000000000000000ULL
+#define PFN_MASK        0x007FFFFFFFFFFFFFULL
 #define UNEVICTABLE_BIT (1UL << 18)
 
 static int lock_check(char *map)

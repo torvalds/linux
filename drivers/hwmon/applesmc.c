@@ -537,7 +537,7 @@ static int applesmc_init_index(struct applesmc_registers *s)
 static int applesmc_init_smcreg_try(void)
 {
 	struct applesmc_registers *s = &smcreg;
-	bool left_light_sensor, right_light_sensor;
+	bool left_light_sensor = 0, right_light_sensor = 0;
 	unsigned int count;
 	u8 tmp[1];
 	int ret;

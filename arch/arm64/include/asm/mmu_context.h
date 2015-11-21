@@ -101,7 +101,7 @@ static inline void cpu_set_default_tcr_t0sz(void)
 #define destroy_context(mm)		do { } while(0)
 void check_and_switch_context(struct mm_struct *mm, unsigned int cpu);
 
-#define init_new_context(tsk,mm)	({ atomic64_set(&mm->context.id, 0); 0; })
+#define init_new_context(tsk,mm)	({ atomic64_set(&(mm)->context.id, 0); 0; })
 
 /*
  * This is called when "tsk" is about to enter lazy TLB mode.

@@ -705,8 +705,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
 
 	if (unlikely(error_code & PFERR_RSVD_MASK)) {
-		r = handle_mmio_page_fault(vcpu, addr, error_code,
-					      mmu_is_nested(vcpu));
+		r = handle_mmio_page_fault(vcpu, addr, mmu_is_nested(vcpu));
 		if (likely(r != RET_MMIO_PF_INVALID))
 			return r;
 
