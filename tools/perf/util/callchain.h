@@ -143,6 +143,7 @@ extern __thread struct callchain_cursor callchain_cursor;
 static inline void callchain_init(struct callchain_root *root)
 {
 	INIT_LIST_HEAD(&root->node.val);
+	INIT_LIST_HEAD(&root->node.parent_val);
 
 	root->node.parent = NULL;
 	root->node.hit = 0;
