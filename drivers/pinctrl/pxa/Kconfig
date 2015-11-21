@@ -1,0 +1,9 @@
+if (ARCH_PXA || COMPILE_TEST)
+
+config PINCTRL_PXA
+	bool
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+
+endif
