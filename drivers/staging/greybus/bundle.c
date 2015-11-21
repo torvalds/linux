@@ -79,10 +79,6 @@ static int gb_bundle_match_one_id(struct gb_bundle *bundle,
 	    (id->product != bundle->intf->product))
 		return 0;
 
-	if ((id->match_flags & GREYBUS_ID_MATCH_SERIAL) &&
-	    (id->unique_id != bundle->intf->unique_id))
-		return 0;
-
 	if ((id->match_flags & GREYBUS_ID_MATCH_CLASS) &&
 	    (id->class != bundle->class))
 		return 0;
@@ -97,8 +93,8 @@ gb_bundle_match_id(struct gb_bundle *bundle,
 	if (id == NULL)
 		return NULL;
 
-	for (; id->vendor || id->product || id->unique_id || id->class ||
-	       id->driver_info; id++) {
+	for (; id->vendor || id->product || id->class || id->driver_info;
+									id++) {
 		if (gb_bundle_match_one_id(bundle, id))
 			return id;
 	}

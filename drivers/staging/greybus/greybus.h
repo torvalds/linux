@@ -50,10 +50,6 @@
 	.vendor		= (v),					\
 	.product	= (p),
 
-#define GREYBUS_DEVICE_SERIAL(s)				\
-	.match_flags	= GREYBUS_ID_MATCH_SERIAL,		\
-	.serial_number	= (s),
-
 /* Maximum number of CPorts */
 #define CPORT_ID_MAX	4095		/* UniPro max id is 4095 */
 #define CPORT_ID_BAD	U16_MAX
