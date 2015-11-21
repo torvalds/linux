@@ -682,7 +682,7 @@ static int vfio_group_nb_add_dev(struct vfio_group *group, struct device *dev)
 		return 0;
 
 	/* TODO Prevent device auto probing */
-	WARN("Device %s added to live group %d!\n", dev_name(dev),
+	WARN(1, "Device %s added to live group %d!\n", dev_name(dev),
 	     iommu_group_id(group->iommu_group));
 
 	return 0;
