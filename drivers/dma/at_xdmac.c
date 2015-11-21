@@ -2007,8 +2007,6 @@ static int at_xdmac_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&atxdmac->dma);
 	clk_disable_unprepare(atxdmac->clk);
 
-	synchronize_irq(atxdmac->irq);
-
 	free_irq(atxdmac->irq, atxdmac->dma.dev);
 
 	for (i = 0; i < atxdmac->dma.chancnt; i++) {
