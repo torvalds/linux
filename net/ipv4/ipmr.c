@@ -1443,29 +1443,29 @@ int ip_mroute_getsockopt(struct sock *sk, int optname, char __user *optval, int 
 	if (!mrt)
 		return -ENOENT;
 
-	if (optname != MRT_VERSION &&
-	   optname != MRT_PIM &&
-	   optname != MRT_ASSERT)
-		return -ENOPROTOOPT;
-
-	if (get_user(olr, optlen))
-		return -EFAULT;
-
-	olr = min_t(unsigned int, olr, sizeof(int));
-	if (olr < 0)
-		return -EINVAL;
-
-	if (put_user(olr, optlen))
-		return -EFAULT;
-	if (optname == MRT_VERSION) {
+	switch (optname) {
+	case MRT_VERSION:
 		val = 0x0305;
-	} else if (optname == MRT_PIM) {
+		break;
+	case MRT_PIM:
 		if (!pimsm_enabled())
 			return -ENOPROTOOPT;
 		val = mrt->mroute_do_pim;
-	} else {
+		break;
+	case MRT_ASSERT:
 		val = mrt->mroute_do_assert;
+		break;
+	default:
+		return -ENOPROTOOPT;
 	}
+
+	if (get_user(olr, optlen))
+		return -EFAULT;
+	olr = min_t(unsigned int, olr, sizeof(int));
+	if (olr < 0)
+		return -EINVAL;
+	if (put_user(olr, optlen))
+		return -EFAULT;
 	if (copy_to_user(optval, &val, olr))
 		return -EFAULT;
 	return 0;
