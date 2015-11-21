@@ -320,7 +320,6 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 	rtsx_do_before_power_down(chip, PM_S3);
 
 	if (dev->irq >= 0) {
-		synchronize_irq(dev->irq);
 		free_irq(dev->irq, (void *)dev);
 		dev->irq = -1;
 	}
@@ -398,7 +397,6 @@ static void rtsx_shutdown(struct pci_dev *pci)
 	rtsx_do_before_power_down(chip, PM_S1);
 
 	if (dev->irq >= 0) {
-		synchronize_irq(dev->irq);
 		free_irq(dev->irq, (void *)dev);
 		dev->irq = -1;
 	}
