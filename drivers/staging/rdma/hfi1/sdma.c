@@ -765,8 +765,14 @@ struct sdma_engine *sdma_select_engine_vl(
 	struct sdma_map_elem *e;
 	struct sdma_engine *rval;
 
-	if (WARN_ON(vl > 8))
-		return &dd->per_sdma[0];
+	/* NOTE This should only happen if SC->VL changed after the initial
+	 *      checks on the QP/AH
+	 *      Default will return engine 0 below
+	 */
+	if (vl >= num_vls) {
+		rval = NULL;
+		goto done;
+	}
 
 	rcu_read_lock();
 	m = rcu_dereference(dd->sdma_map);
@@ -778,6 +784,7 @@ struct sdma_engine *sdma_select_engine_vl(
 	rval = e->sde[selector & e->mask];
 	rcu_read_unlock();
 
+done:
 	rval =  !rval ? &dd->per_sdma[0] : rval;
 	trace_hfi1_sdma_engine_select(dd, selector, vl, rval->this_idx);
 	return rval;
