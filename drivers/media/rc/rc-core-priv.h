@@ -167,11 +167,4 @@ void ir_raw_init(void);
  * loads the compiled decoders for their usage with IR raw events
  */
 
-/* from ir-lirc-codec.c */
-#ifdef CONFIG_IR_LIRC_CODEC_MODULE
-#define load_lirc_codec()	request_module_nowait("ir-lirc-codec")
-#else
-static inline void load_lirc_codec(void) { }
-#endif
-
 #endif /* _RC_CORE_PRIV */

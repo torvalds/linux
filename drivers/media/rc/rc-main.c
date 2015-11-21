@@ -1471,10 +1471,8 @@ int rc_register_device(struct rc_dev *dev)
 	kfree(path);
 
 	if (dev->driver_type == RC_DRIVER_IR_RAW) {
-		/* Load raw decoders, if they aren't already */
 		if (!raw_init) {
-			IR_dprintk(1, "Loading raw decoders\n");
-			ir_raw_init();
+			request_module_nowait("ir-lirc-codec");
 			raw_init = true;
 		}
 		/* calls ir_register_device so unlock mutex here*/
