@@ -219,7 +219,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 {
 	return gb_connection_create_range(bundle->intf->hd, bundle,
 					  &bundle->dev, cport_id, protocol_id,
-					  0, bundle->intf->hd->num_cports - 1);
+					  0, bundle->intf->hd->num_cports);
 }
 
 /*
