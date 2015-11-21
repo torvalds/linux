@@ -23,7 +23,6 @@ static DEVICE_ATTR_RO(field)
 gb_interface_attr(device_id, d);
 gb_interface_attr(vendor, x);
 gb_interface_attr(product, x);
-gb_interface_attr(unique_id, llX);
 gb_interface_attr(vendor_string, s);
 gb_interface_attr(product_string, s);
 
@@ -31,7 +30,6 @@ static struct attribute *interface_attrs[] = {
 	&dev_attr_device_id.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_product.attr,
-	&dev_attr_unique_id.attr,
 	&dev_attr_vendor_string.attr,
 	&dev_attr_product_string.attr,
 	NULL,

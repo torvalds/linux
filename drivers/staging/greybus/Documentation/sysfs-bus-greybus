@@ -107,13 +107,6 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Product ID string of a Greybus interface block.
 
-What:		/sys/bus/greybus/device/endoE:M:I/unique_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Unique ID of a Greybus interface block.
-
 What:		/sys/bus/greybus/device/endoE:M:I/vendor
 Date:		October 2015
 KernelVersion:	4.XX

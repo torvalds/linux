@@ -396,7 +396,6 @@ static bool gb_manifest_parse_interface(struct gb_interface *intf,
 	// Vendor, Product and Unique id must come via control protocol
 	intf->vendor = 0xffff;
 	intf->product = 0x0001;
-	intf->unique_id = 0;
 
 	/* Release the interface descriptor, now that we're done with it */
 	release_manifest_descriptor(interface_desc);
