@@ -979,7 +979,6 @@ static int mdc_dma_remove(struct platform_device *pdev)
 				 vc.chan.device_node) {
 		list_del(&mchan->vc.chan.device_node);
 
-		synchronize_irq(mchan->irq);
 		devm_free_irq(&pdev->dev, mchan->irq, mchan);
 
 		tasklet_kill(&mchan->vc.task);
