@@ -82,7 +82,7 @@ static void fmr2_tea575x_set_direction(struct snd_tea575x *tea, bool output)
 {
 }
 
-static struct snd_tea575x_ops fmr2_tea_ops = {
+static const struct snd_tea575x_ops fmr2_tea_ops = {
 	.set_pins = fmr2_tea575x_set_pins,
 	.get_pins = fmr2_tea575x_get_pins,
 	.set_direction = fmr2_tea575x_set_direction,

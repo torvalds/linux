@@ -108,7 +108,7 @@ static void maxiradio_tea575x_set_direction(struct snd_tea575x *tea, bool output
 {
 }
 
-static struct snd_tea575x_ops maxiradio_tea_ops = {
+static const struct snd_tea575x_ops maxiradio_tea_ops = {
 	.set_pins = maxiradio_tea575x_set_pins,
 	.get_pins = maxiradio_tea575x_get_pins,
 	.set_direction = maxiradio_tea575x_set_direction,

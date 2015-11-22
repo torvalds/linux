@@ -150,7 +150,7 @@ static u32 shark_read_val(struct snd_tea575x *tea)
 	return val;
 }
 
-static struct snd_tea575x_ops shark_tea_ops = {
+static const struct snd_tea575x_ops shark_tea_ops = {
 	.write_val = shark_write_val,
 	.read_val  = shark_read_val,
 };

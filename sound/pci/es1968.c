@@ -2605,7 +2605,7 @@ static void snd_es1968_tea575x_set_direction(struct snd_tea575x *tea, bool outpu
 	}
 }
 
-static struct snd_tea575x_ops snd_es1968_tea_ops = {
+static const struct snd_tea575x_ops snd_es1968_tea_ops = {
 	.set_pins = snd_es1968_tea575x_set_pins,
 	.get_pins = snd_es1968_tea575x_get_pins,
 	.set_direction = snd_es1968_tea575x_set_direction,

@@ -63,7 +63,7 @@ struct snd_tea575x {
 	u32 band;			/* 0: FM, 1: FM-Japan, 2: AM */
 	u32 freq;			/* frequency */
 	struct mutex mutex;
-	struct snd_tea575x_ops *ops;
+	const struct snd_tea575x_ops *ops;
 	void *private_data;
 	u8 card[32];
 	u8 bus_info[32];

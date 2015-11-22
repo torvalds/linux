@@ -815,7 +815,7 @@ static void snd_fm801_tea575x_set_direction(struct snd_tea575x *tea, bool output
 	fm801_writew(chip, GPIO_CTRL, reg);
 }
 
-static struct snd_tea575x_ops snd_fm801_tea_ops = {
+static const struct snd_tea575x_ops snd_fm801_tea_ops = {
 	.set_pins = snd_fm801_tea575x_set_pins,
 	.get_pins = snd_fm801_tea575x_get_pins,
 	.set_direction = snd_fm801_tea575x_set_direction,
