@@ -309,7 +309,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 		case VME_IRQ_GEN:
 			copied = copy_from_user(&irq_req, argp,
 						sizeof(irq_req));
-			if (copied != 0) {
+			if (copied) {
 				pr_warn("Partial copy from userspace\n");
 				return -EFAULT;
 			}
@@ -335,7 +335,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 
 			copied = copy_to_user(argp, &master,
 					      sizeof(master));
-			if (copied != 0) {
+			if (copied) {
 				pr_warn("Partial copy to userspace\n");
 				return -EFAULT;
 			}
@@ -350,7 +350,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 			}
 
 			copied = copy_from_user(&master, argp, sizeof(master));
-			if (copied != 0) {
+			if (copied) {
 				pr_warn("Partial copy from userspace\n");
 				return -EFAULT;
 			}
@@ -380,7 +380,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 
 			copied = copy_to_user(argp, &slave,
 					      sizeof(slave));
-			if (copied != 0) {
+			if (copied) {
 				pr_warn("Partial copy to userspace\n");
 				return -EFAULT;
 			}
@@ -390,7 +390,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 		case VME_SET_SLAVE:
 
 			copied = copy_from_user(&slave, argp, sizeof(slave));
-			if (copied != 0) {
+			if (copied) {
 				pr_warn("Partial copy from userspace\n");
 				return -EFAULT;
 			}
@@ -757,7 +757,7 @@ static int __init vme_user_init(void)
 	 * we just change the code in vme_user_match().
 	 */
 	retval = vme_register_driver(&vme_user_driver, VME_MAX_SLOTS);
-	if (retval != 0)
+	if (retval)
 		goto err_reg;
 
 	return retval;

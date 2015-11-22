@@ -190,7 +190,7 @@ int pio2_gpio_init(struct pio2_card *card)
 
 	label = kasprintf(GFP_KERNEL,
 			  "%s@%s", driver_name, dev_name(&card->vdev->dev));
-	if (label == NULL)
+	if (!label)
 		return -ENOMEM;
 
 	card->gc.label = label;

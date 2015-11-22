@@ -230,7 +230,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	card->vdev = vdev;
 
 	for (i = 0; i < PIO2_VARIANT_LENGTH; i++) {
-		if (isdigit(card->variant[i]) == 0) {
+		if (!isdigit(card->variant[i])) {
 			dev_err(&card->vdev->dev, "Variant invalid\n");
 			retval = -EINVAL;
 			goto err_variant;
