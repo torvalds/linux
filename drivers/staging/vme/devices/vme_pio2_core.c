@@ -215,7 +215,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	u8 reg;
 	int vec;
 
-	card = kzalloc(sizeof(struct pio2_card), GFP_KERNEL);
+	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card) {
 		retval = -ENOMEM;
 		goto err_struct;

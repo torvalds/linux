@@ -308,7 +308,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 		switch (cmd) {
 		case VME_IRQ_GEN:
 			copied = copy_from_user(&irq_req, argp,
-						sizeof(struct vme_irq_id));
+						sizeof(irq_req));
 			if (copied != 0) {
 				pr_warn("Partial copy from userspace\n");
 				return -EFAULT;
@@ -322,7 +322,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 	case MASTER_MINOR:
 		switch (cmd) {
 		case VME_GET_MASTER:
-			memset(&master, 0, sizeof(struct vme_master));
+			memset(&master, 0, sizeof(master));
 
 			/* XXX	We do not want to push aspace, cycle and width
 			 *	to userspace as they are
@@ -334,7 +334,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 						&master.cycle, &master.dwidth);
 
 			copied = copy_to_user(argp, &master,
-					      sizeof(struct vme_master));
+					      sizeof(master));
 			if (copied != 0) {
 				pr_warn("Partial copy to userspace\n");
 				return -EFAULT;
@@ -368,7 +368,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 	case SLAVE_MINOR:
 		switch (cmd) {
 		case VME_GET_SLAVE:
-			memset(&slave, 0, sizeof(struct vme_slave));
+			memset(&slave, 0, sizeof(slave));
 
 			/* XXX	We do not want to push aspace, cycle and width
 			 *	to userspace as they are
@@ -379,7 +379,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 					       &slave.aspace, &slave.cycle);
 
 			copied = copy_to_user(argp, &slave,
-					      sizeof(struct vme_slave));
+					      sizeof(slave));
 			if (copied != 0) {
 				pr_warn("Partial copy to userspace\n");
 				return -EFAULT;
