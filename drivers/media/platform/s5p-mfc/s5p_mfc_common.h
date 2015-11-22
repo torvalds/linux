@@ -653,7 +653,7 @@ struct s5p_mfc_ctx {
 		unsigned int bits;
 	} slice_size;
 
-	struct s5p_mfc_codec_ops *c_ops;
+	const struct s5p_mfc_codec_ops *c_ops;
 
 	struct v4l2_ctrl *ctrls[MFC_MAX_CTRLS];
 	struct v4l2_ctrl_handler ctrl_handler;

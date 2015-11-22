@@ -936,7 +936,7 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
-static struct s5p_mfc_codec_ops encoder_codec_ops = {
+static const struct s5p_mfc_codec_ops encoder_codec_ops = {
 	.pre_seq_start		= enc_pre_seq_start,
 	.post_seq_start		= enc_post_seq_start,
 	.pre_frame_start	= enc_pre_frame_start,
@@ -2051,7 +2051,7 @@ static struct vb2_ops s5p_mfc_enc_qops = {
 	.buf_queue		= s5p_mfc_buf_queue,
 };
 
-struct s5p_mfc_codec_ops *get_enc_codec_ops(void)
+const struct s5p_mfc_codec_ops *get_enc_codec_ops(void)
 {
 	return &encoder_codec_ops;
 }
