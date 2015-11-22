@@ -18,6 +18,7 @@
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
+#include "vsp1_dl.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
 
@@ -28,9 +29,10 @@
  * Device Access
  */
 
-static inline void vsp1_bru_write(struct vsp1_bru *bru, u32 reg, u32 data)
+static inline void vsp1_bru_write(struct vsp1_bru *bru, struct vsp1_dl_list *dl,
+				  u32 reg, u32 data)
 {
-	vsp1_mod_write(&bru->entity, reg, data);
+	vsp1_dl_list_write(dl, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -303,7 +305,7 @@ static struct v4l2_subdev_ops bru_ops = {
  * VSP1 Entity Operations
  */
 
-static void bru_configure(struct vsp1_entity *entity)
+static void bru_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&entity->subdev.entity);
 	struct vsp1_bru *bru = to_bru(&entity->subdev);
@@ -324,26 +326,26 @@ static void bru_configure(struct vsp1_entity *entity)
 	 * format at the pipeline output is premultiplied.
 	 */
 	flags = pipe->output ? pipe->output->format.flags : 0;
-	vsp1_bru_write(bru, VI6_BRU_INCTRL,
+	vsp1_bru_write(bru, dl, VI6_BRU_INCTRL,
 		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
 		       0 : VI6_BRU_INCTRL_NRM);
 
 	/* Set the background position to cover the whole output image and
 	 * configure its color.
 	 */
-	vsp1_bru_write(bru, VI6_BRU_VIRRPF_SIZE,
+	vsp1_bru_write(bru, dl, VI6_BRU_VIRRPF_SIZE,
 		       (format->width << VI6_BRU_VIRRPF_SIZE_HSIZE_SHIFT) |
 		       (format->height << VI6_BRU_VIRRPF_SIZE_VSIZE_SHIFT));
-	vsp1_bru_write(bru, VI6_BRU_VIRRPF_LOC, 0);
+	vsp1_bru_write(bru, dl, VI6_BRU_VIRRPF_LOC, 0);
 
-	vsp1_bru_write(bru, VI6_BRU_VIRRPF_COL, bru->bgcolor |
+	vsp1_bru_write(bru, dl, VI6_BRU_VIRRPF_COL, bru->bgcolor |
 		       (0xff << VI6_BRU_VIRRPF_COL_A_SHIFT));
 
 	/* Route BRU input 1 as SRC input to the ROP unit and configure the ROP
 	 * unit with a NOP operation to make BRU input 1 available as the
 	 * Blend/ROP unit B SRC input.
 	 */
-	vsp1_bru_write(bru, VI6_BRU_ROP, VI6_BRU_ROP_DSTSEL_BRUIN(1) |
+	vsp1_bru_write(bru, dl, VI6_BRU_ROP, VI6_BRU_ROP_DSTSEL_BRUIN(1) |
 		       VI6_BRU_ROP_CROP(VI6_ROP_NOP) |
 		       VI6_BRU_ROP_AROP(VI6_ROP_NOP));
 
@@ -380,7 +382,7 @@ static void bru_configure(struct vsp1_entity *entity)
 		if (i != 1)
 			ctrl |= VI6_BRU_CTRL_SRCSEL_BRUIN(i);
 
-		vsp1_bru_write(bru, VI6_BRU_CTRL(i), ctrl);
+		vsp1_bru_write(bru, dl, VI6_BRU_CTRL(i), ctrl);
 
 		/* Harcode the blending formula to
 		 *
@@ -394,7 +396,7 @@ static void bru_configure(struct vsp1_entity *entity)
 		 *
 		 * otherwise.
 		 */
-		vsp1_bru_write(bru, VI6_BRU_BLD(i),
+		vsp1_bru_write(bru, dl, VI6_BRU_BLD(i),
 			       VI6_BRU_BLD_CCMDX_255_SRC_A |
 			       (premultiplied ? VI6_BRU_BLD_CCMDY_COEFY :
 						VI6_BRU_BLD_CCMDY_SRC_A) |

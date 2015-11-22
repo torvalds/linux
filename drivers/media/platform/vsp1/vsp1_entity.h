@@ -19,6 +19,7 @@
 #include <media/v4l2-subdev.h>
 
 struct vsp1_device;
+struct vsp1_dl_list;
 
 enum vsp1_entity_type {
 	VSP1_ENTITY_BRU,
@@ -57,15 +58,15 @@ struct vsp1_route {
  * struct vsp1_entity_operations - Entity operations
  * @destroy:	Destroy the entity.
  * @set_memory:	Setup memory buffer access. This operation applies the settings
- *		stored in the rwpf mem field to the hardware. Valid for RPF and
- *		WPF only.
+ *		stored in the rwpf mem field to the display list. Valid for RPF
+ *		and WPF only.
  * @configure:	Setup the hardware based on the entity state (pipeline, formats,
  *		selection rectangles, ...)
  */
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
-	void (*set_memory)(struct vsp1_entity *);
-	void (*configure)(struct vsp1_entity *);
+	void (*set_memory)(struct vsp1_entity *, struct vsp1_dl_list *dl);
+	void (*configure)(struct vsp1_entity *, struct vsp1_dl_list *dl);
 };
 
 struct vsp1_entity {
@@ -121,8 +122,7 @@ vsp1_entity_get_pad_compose(struct vsp1_entity *entity,
 int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
 			 struct v4l2_subdev_pad_config *cfg);
 
-void vsp1_entity_route_setup(struct vsp1_entity *source);
-
-void vsp1_mod_write(struct vsp1_entity *e, u32 reg, u32 data);
+void vsp1_entity_route_setup(struct vsp1_entity *source,
+			     struct vsp1_dl_list *dl);
 
 #endif /* __VSP1_ENTITY_H__ */

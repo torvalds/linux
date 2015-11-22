@@ -21,16 +21,9 @@
 #include "vsp1.h"
 #include "vsp1_dl.h"
 #include "vsp1_entity.h"
-#include "vsp1_pipe.h"
 
-void vsp1_mod_write(struct vsp1_entity *e, u32 reg, u32 data)
-{
-	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&e->subdev.entity);
-
-	vsp1_dl_list_write(pipe->dl, reg, data);
-}
-
-void vsp1_entity_route_setup(struct vsp1_entity *source)
+void vsp1_entity_route_setup(struct vsp1_entity *source,
+			     struct vsp1_dl_list *dl)
 {
 	struct vsp1_entity *sink;
 
@@ -38,8 +31,8 @@ void vsp1_entity_route_setup(struct vsp1_entity *source)
 		return;
 
 	sink = container_of(source->sink, struct vsp1_entity, subdev.entity);
-	vsp1_mod_write(source, source->route->reg,
-		       sink->route->inputs[source->sink_pad]);
+	vsp1_dl_list_write(dl, source->route->reg,
+			   sink->route->inputs[source->sink_pad]);
 }
 
 /* -----------------------------------------------------------------------------

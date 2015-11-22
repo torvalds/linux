@@ -17,6 +17,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_sru.h"
 
 #define SRU_MIN_SIZE				4U
@@ -26,9 +27,10 @@
  * Device Access
  */
 
-static inline void vsp1_sru_write(struct vsp1_sru *sru, u32 reg, u32 data)
+static inline void vsp1_sru_write(struct vsp1_sru *sru, struct vsp1_dl_list *dl,
+				  u32 reg, u32 data)
 {
-	vsp1_mod_write(&sru->entity, reg, data);
+	vsp1_dl_list_write(dl, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -295,7 +297,7 @@ static struct v4l2_subdev_ops sru_ops = {
  * VSP1 Entity Operations
  */
 
-static void sru_configure(struct vsp1_entity *entity)
+static void sru_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	const struct vsp1_sru_param *param;
 	struct vsp1_sru *sru = to_sru(&entity->subdev);
@@ -321,9 +323,9 @@ static void sru_configure(struct vsp1_entity *entity)
 
 	ctrl0 |= param->ctrl0;
 
-	vsp1_sru_write(sru, VI6_SRU_CTRL0, ctrl0);
-	vsp1_sru_write(sru, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
-	vsp1_sru_write(sru, VI6_SRU_CTRL2, param->ctrl2);
+	vsp1_sru_write(sru, dl, VI6_SRU_CTRL0, ctrl0);
+	vsp1_sru_write(sru, dl, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
+	vsp1_sru_write(sru, dl, VI6_SRU_CTRL2, param->ctrl2);
 }
 
 static const struct vsp1_entity_operations sru_entity_ops = {

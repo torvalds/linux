@@ -17,6 +17,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_hsit.h"
 
 #define HSIT_MIN_SIZE				4U
@@ -26,9 +27,10 @@
  * Device Access
  */
 
-static inline void vsp1_hsit_write(struct vsp1_hsit *hsit, u32 reg, u32 data)
+static inline void vsp1_hsit_write(struct vsp1_hsit *hsit,
+				   struct vsp1_dl_list *dl, u32 reg, u32 data)
 {
-	vsp1_mod_write(&hsit->entity, reg, data);
+	vsp1_dl_list_write(dl, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -164,14 +166,14 @@ static struct v4l2_subdev_ops hsit_ops = {
  * VSP1 Entity Operations
  */
 
-static void hsit_configure(struct vsp1_entity *entity)
+static void hsit_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	struct vsp1_hsit *hsit = to_hsit(&entity->subdev);
 
 	if (hsit->inverse)
-		vsp1_hsit_write(hsit, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
+		vsp1_hsit_write(hsit, dl, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
 	else
-		vsp1_hsit_write(hsit, VI6_HST_CTRL, VI6_HST_CTRL_EN);
+		vsp1_hsit_write(hsit, dl, VI6_HST_CTRL, VI6_HST_CTRL_EN);
 }
 
 static const struct vsp1_entity_operations hsit_entity_ops = {

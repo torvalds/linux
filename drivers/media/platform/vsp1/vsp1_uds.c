@@ -17,6 +17,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_uds.h"
 
 #define UDS_MIN_SIZE				4U
@@ -29,19 +30,21 @@
  * Device Access
  */
 
-static inline void vsp1_uds_write(struct vsp1_uds *uds, u32 reg, u32 data)
+static inline void vsp1_uds_write(struct vsp1_uds *uds, struct vsp1_dl_list *dl,
+				  u32 reg, u32 data)
 {
-	vsp1_mod_write(&uds->entity, reg + uds->entity.index * VI6_UDS_OFFSET,
-		       data);
+	vsp1_dl_list_write(dl, reg + uds->entity.index * VI6_UDS_OFFSET, data);
 }
 
 /* -----------------------------------------------------------------------------
  * Scaling Computation
  */
 
-void vsp1_uds_set_alpha(struct vsp1_uds *uds, unsigned int alpha)
+void vsp1_uds_set_alpha(struct vsp1_uds *uds, struct vsp1_dl_list *dl,
+			unsigned int alpha)
 {
-	vsp1_uds_write(uds, VI6_UDS_ALPVAL, alpha << VI6_UDS_ALPVAL_VAL0_SHIFT);
+	vsp1_uds_write(uds, dl, VI6_UDS_ALPVAL,
+		       alpha << VI6_UDS_ALPVAL_VAL0_SHIFT);
 }
 
 /*
@@ -281,7 +284,7 @@ static struct v4l2_subdev_ops uds_ops = {
  * VSP1 Entity Operations
  */
 
-static void uds_configure(struct vsp1_entity *entity)
+static void uds_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	struct vsp1_uds *uds = to_uds(&entity->subdev);
 	const struct v4l2_mbus_framefmt *output;
@@ -309,21 +312,21 @@ static void uds_configure(struct vsp1_entity *entity)
 	else
 		multitap = true;
 
-	vsp1_uds_write(uds, VI6_UDS_CTRL,
+	vsp1_uds_write(uds, dl, VI6_UDS_CTRL,
 		       (uds->scale_alpha ? VI6_UDS_CTRL_AON : 0) |
 		       (multitap ? VI6_UDS_CTRL_BC : 0));
 
-	vsp1_uds_write(uds, VI6_UDS_PASS_BWIDTH,
+	vsp1_uds_write(uds, dl, VI6_UDS_PASS_BWIDTH,
 		       (uds_passband_width(hscale)
 				<< VI6_UDS_PASS_BWIDTH_H_SHIFT) |
 		       (uds_passband_width(vscale)
 				<< VI6_UDS_PASS_BWIDTH_V_SHIFT));
 
 	/* Set the scaling ratios and the output size. */
-	vsp1_uds_write(uds, VI6_UDS_SCALE,
+	vsp1_uds_write(uds, dl, VI6_UDS_SCALE,
 		       (hscale << VI6_UDS_SCALE_HFRAC_SHIFT) |
 		       (vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
-	vsp1_uds_write(uds, VI6_UDS_CLIP_SIZE,
+	vsp1_uds_write(uds, dl, VI6_UDS_CLIP_SIZE,
 		       (output->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
 		       (output->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
 }

@@ -17,6 +17,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_lif.h"
 
 #define LIF_MIN_SIZE				2U
@@ -26,9 +27,10 @@
  * Device Access
  */
 
-static inline void vsp1_lif_write(struct vsp1_lif *lif, u32 reg, u32 data)
+static inline void vsp1_lif_write(struct vsp1_lif *lif, struct vsp1_dl_list *dl,
+				  u32 reg, u32 data)
 {
-	vsp1_mod_write(&lif->entity, reg, data);
+	vsp1_dl_list_write(dl, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -183,7 +185,7 @@ static struct v4l2_subdev_ops lif_ops = {
  * VSP1 Entity Operations
  */
 
-static void lif_configure(struct vsp1_entity *entity)
+static void lif_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_lif *lif = to_lif(&entity->subdev);
@@ -196,11 +198,11 @@ static void lif_configure(struct vsp1_entity *entity)
 
 	obth = min(obth, (format->width + 1) / 2 * format->height - 4);
 
-	vsp1_lif_write(lif, VI6_LIF_CSBTH,
+	vsp1_lif_write(lif, dl, VI6_LIF_CSBTH,
 			(hbth << VI6_LIF_CSBTH_HBTH_SHIFT) |
 			(lbth << VI6_LIF_CSBTH_LBTH_SHIFT));
 
-	vsp1_lif_write(lif, VI6_LIF_CTRL,
+	vsp1_lif_write(lif, dl, VI6_LIF_CTRL,
 			(obth << VI6_LIF_CTRL_OBTH_SHIFT) |
 			(format->code == 0 ? VI6_LIF_CTRL_CFMT : 0) |
 			VI6_LIF_CTRL_REQSEL | VI6_LIF_CTRL_LIF_EN);

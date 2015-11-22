@@ -16,6 +16,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
 
@@ -26,10 +27,10 @@
  * Device Access
  */
 
-static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf, u32 reg, u32 data)
+static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf,
+				  struct vsp1_dl_list *dl, u32 reg, u32 data)
 {
-	vsp1_mod_write(&rpf->entity, reg + rpf->entity.index * VI6_RPF_OFFSET,
-		       data);
+	vsp1_dl_list_write(dl, reg + rpf->entity.index * VI6_RPF_OFFSET, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -44,19 +45,19 @@ static struct v4l2_subdev_ops rpf_ops = {
  * VSP1 Entity Operations
  */
 
-static void rpf_set_memory(struct vsp1_entity *entity)
+static void rpf_set_memory(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	struct vsp1_rwpf *rpf = entity_to_rwpf(entity);
 
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
+	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_Y,
 		       rpf->mem.addr[0] + rpf->offsets[0]);
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
+	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C0,
 		       rpf->mem.addr[1] + rpf->offsets[1]);
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
+	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C1,
 		       rpf->mem.addr[2] + rpf->offsets[1]);
 }
 
-static void rpf_configure(struct vsp1_entity *entity)
+static void rpf_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&entity->subdev.entity);
 	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
@@ -78,10 +79,10 @@ static void rpf_configure(struct vsp1_entity *entity)
 	 */
 	crop = vsp1_rwpf_get_crop(rpf, rpf->entity.config);
 
-	vsp1_rpf_write(rpf, VI6_RPF_SRC_BSIZE,
+	vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_BSIZE,
 		       (crop->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
 		       (crop->height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
-	vsp1_rpf_write(rpf, VI6_RPF_SRC_ESIZE,
+	vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_ESIZE,
 		       (crop->width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
 		       (crop->height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
 
@@ -99,7 +100,7 @@ static void rpf_configure(struct vsp1_entity *entity)
 		rpf->offsets[1] = 0;
 	}
 
-	vsp1_rpf_write(rpf, VI6_RPF_SRCM_PSTRIDE, pstride);
+	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_PSTRIDE, pstride);
 
 	/* Format */
 	sink_format = vsp1_entity_get_pad_format(&rpf->entity,
@@ -120,8 +121,8 @@ static void rpf_configure(struct vsp1_entity *entity)
 	if (sink_format->code != source_format->code)
 		infmt |= VI6_RPF_INFMT_CSC;
 
-	vsp1_rpf_write(rpf, VI6_RPF_INFMT, infmt);
-	vsp1_rpf_write(rpf, VI6_RPF_DSWAP, fmtinfo->swap);
+	vsp1_rpf_write(rpf, dl, VI6_RPF_INFMT, infmt);
+	vsp1_rpf_write(rpf, dl, VI6_RPF_DSWAP, fmtinfo->swap);
 
 	/* Output location */
 	if (pipe->bru) {
@@ -134,7 +135,7 @@ static void rpf_configure(struct vsp1_entity *entity)
 		top = compose->top;
 	}
 
-	vsp1_rpf_write(rpf, VI6_RPF_LOC,
+	vsp1_rpf_write(rpf, dl, VI6_RPF_LOC,
 		       (left << VI6_RPF_LOC_HCOORD_SHIFT) |
 		       (top << VI6_RPF_LOC_VCOORD_SHIFT));
 
@@ -142,17 +143,17 @@ static void rpf_configure(struct vsp1_entity *entity)
 	 * alpha value set through the V4L2_CID_ALPHA_COMPONENT control
 	 * otherwise. Disable color keying.
 	 */
-	vsp1_rpf_write(rpf, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
+	vsp1_rpf_write(rpf, dl, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
 				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
 
-	vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
+	vsp1_rpf_write(rpf, dl, VI6_RPF_VRTCOL_SET,
 		       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
 
-	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, rpf->alpha);
+	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, dl, rpf->alpha);
 
-	vsp1_rpf_write(rpf, VI6_RPF_MSK_CTRL, 0);
-	vsp1_rpf_write(rpf, VI6_RPF_CKEY_CTRL, 0);
+	vsp1_rpf_write(rpf, dl, VI6_RPF_MSK_CTRL, 0);
+	vsp1_rpf_write(rpf, dl, VI6_RPF_CKEY_CTRL, 0);
 }
 
 static const struct vsp1_entity_operations rpf_entity_ops = {

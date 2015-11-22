@@ -27,10 +27,10 @@
  * Device Access
  */
 
-static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf, u32 reg, u32 data)
+static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf,
+				  struct vsp1_dl_list *dl, u32 reg, u32 data)
 {
-	vsp1_mod_write(&wpf->entity,
-		       reg + wpf->entity.index * VI6_WPF_OFFSET, data);
+	vsp1_dl_list_write(dl, reg + wpf->entity.index * VI6_WPF_OFFSET, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -79,16 +79,16 @@ static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 	vsp1_dlm_destroy(wpf->dlm);
 }
 
-static void wpf_set_memory(struct vsp1_entity *entity)
+static void wpf_set_memory(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	struct vsp1_rwpf *wpf = entity_to_rwpf(entity);
 
-	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, wpf->mem.addr[0]);
-	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0, wpf->mem.addr[1]);
-	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1, wpf->mem.addr[2]);
+	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_Y, wpf->mem.addr[0]);
+	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C0, wpf->mem.addr[1]);
+	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C1, wpf->mem.addr[2]);
 }
 
-static void wpf_configure(struct vsp1_entity *entity)
+static void wpf_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&entity->subdev.entity);
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
@@ -103,10 +103,10 @@ static void wpf_configure(struct vsp1_entity *entity)
 	/* Cropping */
 	crop = vsp1_rwpf_get_crop(wpf, wpf->entity.config);
 
-	vsp1_wpf_write(wpf, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+	vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |
 		       (crop->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
-	vsp1_wpf_write(wpf, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+	vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (crop->top << VI6_WPF_SZCLIP_OFST_SHIFT) |
 		       (crop->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
@@ -132,25 +132,25 @@ static void wpf_configure(struct vsp1_entity *entity)
 			outfmt |= VI6_WPF_OUTFMT_SPUVS;
 
 		/* Destination stride and byte swapping. */
-		vsp1_wpf_write(wpf, VI6_WPF_DSTM_STRIDE_Y,
+		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_STRIDE_Y,
 			       format->plane_fmt[0].bytesperline);
 		if (format->num_planes > 1)
-			vsp1_wpf_write(wpf, VI6_WPF_DSTM_STRIDE_C,
+			vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_STRIDE_C,
 				       format->plane_fmt[1].bytesperline);
 
-		vsp1_wpf_write(wpf, VI6_WPF_DSWAP, fmtinfo->swap);
+		vsp1_wpf_write(wpf, dl, VI6_WPF_DSWAP, fmtinfo->swap);
 	}
 
 	if (sink_format->code != source_format->code)
 		outfmt |= VI6_WPF_OUTFMT_CSC;
 
 	outfmt |= wpf->alpha << VI6_WPF_OUTFMT_PDV_SHIFT;
-	vsp1_wpf_write(wpf, VI6_WPF_OUTFMT, outfmt);
+	vsp1_wpf_write(wpf, dl, VI6_WPF_OUTFMT, outfmt);
 
-	vsp1_mod_write(&wpf->entity, VI6_DPR_WPF_FPORCH(wpf->entity.index),
-		       VI6_DPR_WPF_FPORCH_FP_WPFN);
+	vsp1_dl_list_write(dl, VI6_DPR_WPF_FPORCH(wpf->entity.index),
+			   VI6_DPR_WPF_FPORCH_FP_WPFN);
 
-	vsp1_mod_write(&wpf->entity, VI6_WPF_WRBCK_CTRL, 0);
+	vsp1_dl_list_write(dl, VI6_WPF_WRBCK_CTRL, 0);
 
 	/* Sources. If the pipeline has a single input and BRU is not used,
 	 * configure it as the master layer. Otherwise configure all
@@ -171,12 +171,12 @@ static void wpf_configure(struct vsp1_entity *entity)
 	if (pipe->bru || pipe->num_inputs > 1)
 		srcrpf |= VI6_WPF_SRCRPF_VIRACT_MST;
 
-	vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, srcrpf);
+	vsp1_wpf_write(wpf, dl, VI6_WPF_SRCRPF, srcrpf);
 
 	/* Enable interrupts */
-	vsp1_mod_write(&wpf->entity, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
-	vsp1_mod_write(&wpf->entity, VI6_WPF_IRQ_ENB(wpf->entity.index),
-		       VI6_WFP_IRQ_ENB_FREE);
+	vsp1_dl_list_write(dl, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
+	vsp1_dl_list_write(dl, VI6_WPF_IRQ_ENB(wpf->entity.index),
+			   VI6_WFP_IRQ_ENB_FREE);
 }
 
 static const struct vsp1_entity_operations wpf_entity_ops = {

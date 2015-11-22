@@ -455,11 +455,11 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 		struct vsp1_rwpf *rwpf = pipe->inputs[i];
 
 		if (rwpf)
-			vsp1_rwpf_set_memory(rwpf);
+			vsp1_rwpf_set_memory(rwpf, pipe->dl);
 	}
 
 	if (!pipe->lif)
-		vsp1_rwpf_set_memory(pipe->output);
+		vsp1_rwpf_set_memory(pipe->output, pipe->dl);
 
 	vsp1_dl_list_commit(pipe->dl);
 	pipe->dl = NULL;
@@ -616,14 +616,11 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	}
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		vsp1_entity_route_setup(entity);
+		vsp1_entity_route_setup(entity, pipe->dl);
 
 		if (entity->ops->configure)
-			entity->ops->configure(entity);
+			entity->ops->configure(entity, pipe->dl);
 	}
-
-	/* We know that the WPF s_stream operation never fails. */
-	v4l2_subdev_call(&pipe->output->entity.subdev, video, s_stream, 1);
 
 	return 0;
 }

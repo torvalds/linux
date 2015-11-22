@@ -75,12 +75,14 @@ struct v4l2_rect *vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf,
 /**
  * vsp1_rwpf_set_memory - Configure DMA addresses for a [RW]PF
  * @rwpf: the [RW]PF instance
+ * @dl: the display list
  *
- * This function applies the cached memory buffer address to the hardware.
+ * This function applies the cached memory buffer address to the display list.
  */
-static inline void vsp1_rwpf_set_memory(struct vsp1_rwpf *rwpf)
+static inline void vsp1_rwpf_set_memory(struct vsp1_rwpf *rwpf,
+					struct vsp1_dl_list *dl)
 {
-	rwpf->entity.ops->set_memory(&rwpf->entity);
+	rwpf->entity.ops->set_memory(&rwpf->entity, dl);
 }
 
 #endif /* __VSP1_RWPF_H__ */

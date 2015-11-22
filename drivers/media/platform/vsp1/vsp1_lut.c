@@ -18,6 +18,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_lut.h"
 
 #define LUT_MIN_SIZE				4U
@@ -27,9 +28,10 @@
  * Device Access
  */
 
-static inline void vsp1_lut_write(struct vsp1_lut *lut, u32 reg, u32 data)
+static inline void vsp1_lut_write(struct vsp1_lut *lut, struct vsp1_dl_list *dl,
+				  u32 reg, u32 data)
 {
-	vsp1_mod_write(&lut->entity, reg, data);
+	vsp1_dl_list_write(dl, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -219,11 +221,11 @@ static struct v4l2_subdev_ops lut_ops = {
  * VSP1 Entity Operations
  */
 
-static void lut_configure(struct vsp1_entity *entity)
+static void lut_configure(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 {
 	struct vsp1_lut *lut = to_lut(&entity->subdev);
 
-	vsp1_lut_write(lut, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
+	vsp1_lut_write(lut, dl, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
 }
 
 static const struct vsp1_entity_operations lut_entity_ops = {

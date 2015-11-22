@@ -455,23 +455,21 @@ void vsp1_du_atomic_flush(struct device *dev)
 			struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 
 			if (!pipe->inputs[rpf->entity.index]) {
-				vsp1_mod_write(entity, entity->route->reg,
-					   VI6_DPR_NODE_UNUSED);
+				vsp1_dl_list_write(pipe->dl, entity->route->reg,
+						   VI6_DPR_NODE_UNUSED);
 				continue;
 			}
 		}
 
-		vsp1_entity_route_setup(entity);
+		vsp1_entity_route_setup(entity, pipe->dl);
 
 		if (entity->ops->configure)
-			entity->ops->configure(entity);
+			entity->ops->configure(entity, pipe->dl);
 
 		if (entity->type == VSP1_ENTITY_RPF)
-			vsp1_rwpf_set_memory(to_rwpf(&entity->subdev));
+			vsp1_rwpf_set_memory(to_rwpf(&entity->subdev),
+					     pipe->dl);
 	}
-
-	/* We know that the WPF s_stream operation never fails. */
-	v4l2_subdev_call(&pipe->output->entity.subdev, video, s_stream, 1);
 
 	vsp1_dl_list_commit(pipe->dl);
 	pipe->dl = NULL;

@@ -295,6 +295,7 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
  */
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 				   struct vsp1_entity *input,
+				   struct vsp1_dl_list *dl,
 				   unsigned int alpha)
 {
 	struct vsp1_entity *entity;
@@ -317,7 +318,7 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 		if (entity->type == VSP1_ENTITY_UDS) {
 			struct vsp1_uds *uds = to_uds(&entity->subdev);
 
-			vsp1_uds_set_alpha(uds, alpha);
+			vsp1_uds_set_alpha(uds, dl, alpha);
 			break;
 		}
 
