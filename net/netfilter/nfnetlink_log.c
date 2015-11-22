@@ -1064,15 +1064,26 @@ static int __net_init nfnl_log_net_init(struct net *net)
 {
 	unsigned int i;
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *proc;
+	kuid_t root_uid;
+	kgid_t root_gid;
+#endif
 
 	for (i = 0; i < INSTANCE_BUCKETS; i++)
 		INIT_HLIST_HEAD(&log->instance_table[i]);
 	spin_lock_init(&log->instances_lock);
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("nfnetlink_log", 0440,
-			 net->nf.proc_netfilter, &nful_file_ops))
+	proc = proc_create("nfnetlink_log", 0440,
+			   net->nf.proc_netfilter, &nful_file_ops);
+	if (!proc)
 		return -ENOMEM;
+
+	root_uid = make_kuid(net->user_ns, 0);
+	root_gid = make_kgid(net->user_ns, 0);
+	if (uid_valid(root_uid) && gid_valid(root_gid))
+		proc_set_user(proc, root_uid, root_gid);
 #endif
 	return 0;
 }
