@@ -82,6 +82,7 @@ struct iwl_mvm_scan_timing_params {
 	u32 dwell_active;
 	u32 dwell_passive;
 	u32 dwell_fragmented;
+	u32 dwell_extended;
 	u32 suspend_time;
 	u32 max_out_time;
 };
@@ -91,6 +92,7 @@ static struct iwl_mvm_scan_timing_params scan_timing[] = {
 		.dwell_active = 10,
 		.dwell_passive = 110,
 		.dwell_fragmented = 44,
+		.dwell_extended = 100,
 		.suspend_time = 0,
 		.max_out_time = 0,
 	},
@@ -98,6 +100,7 @@ static struct iwl_mvm_scan_timing_params scan_timing[] = {
 		.dwell_active = 10,
 		.dwell_passive = 110,
 		.dwell_fragmented = 44,
+		.dwell_extended = 100,
 		.suspend_time = 30,
 		.max_out_time = 120,
 	},
@@ -105,6 +108,7 @@ static struct iwl_mvm_scan_timing_params scan_timing[] = {
 		.dwell_active = 10,
 		.dwell_passive = 110,
 		.dwell_fragmented = 44,
+		.dwell_extended = 100,
 		.suspend_time = 120,
 		.max_out_time = 120,
 	},
@@ -112,6 +116,7 @@ static struct iwl_mvm_scan_timing_params scan_timing[] = {
 		.dwell_active = 10,
 		.dwell_passive = 110,
 		.dwell_fragmented = 44,
+		.dwell_extended = 44,
 		.suspend_time = 95,
 		.max_out_time = 44,
 	},
@@ -716,6 +721,7 @@ static void iwl_mvm_scan_lmac_dwell(struct iwl_mvm *mvm,
 	cmd->active_dwell = scan_timing[params->type].dwell_active;
 	cmd->passive_dwell = scan_timing[params->type].dwell_passive;
 	cmd->fragmented_dwell = scan_timing[params->type].dwell_fragmented;
+	cmd->extended_dwell = scan_timing[params->type].dwell_extended;
 	cmd->max_out_time = cpu_to_le32(scan_timing[params->type].max_out_time);
 	cmd->suspend_time = cpu_to_le32(scan_timing[params->type].suspend_time);
 	cmd->scan_prio = iwl_mvm_scan_priority(mvm, IWL_SCAN_PRIORITY_EXT_6);
@@ -749,8 +755,15 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 		vif->type != NL80211_IFTYPE_P2P_DEVICE);
 }
 
+static inline bool iwl_mvm_is_regular_scan(struct iwl_mvm_scan_params *params)
+{
+	return params->n_scan_plans == 1 &&
+		params->scan_plans[0].iterations == 1;
+}
+
 static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
-				   struct iwl_mvm_scan_params *params)
+				   struct iwl_mvm_scan_params *params,
+				   struct ieee80211_vif *vif)
 {
 	int flags = 0;
 
@@ -775,6 +788,10 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 	if (mvm->scan_iter_notif_enabled)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
 #endif
+
+	if (iwl_mvm_is_regular_scan(params) &&
+	    vif->type != NL80211_IFTYPE_P2P_DEVICE)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL;
 
 	return flags;
 }
@@ -804,7 +821,8 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	cmd->delay = cpu_to_le32(params->delay);
 
-	cmd->scan_flags = cpu_to_le32(iwl_mvm_scan_lmac_flags(mvm, params));
+	cmd->scan_flags = cpu_to_le32(iwl_mvm_scan_lmac_flags(mvm, params,
+							      vif));
 
 	cmd->flags = iwl_mvm_scan_rxon_flags(params->channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
@@ -942,6 +960,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	scan_config->dwell_active = scan_timing[type].dwell_active;
 	scan_config->dwell_passive = scan_timing[type].dwell_passive;
 	scan_config->dwell_fragmented = scan_timing[type].dwell_fragmented;
+	scan_config->dwell_extended = scan_timing[type].dwell_extended;
 
 	memcpy(&scan_config->mac_addr, &mvm->addresses[0].addr, ETH_ALEN);
 
@@ -983,16 +1002,11 @@ static int iwl_mvm_scan_uid_by_status(struct iwl_mvm *mvm, int status)
 	return -ENOENT;
 }
 
-static inline bool iwl_mvm_is_regular_scan(struct iwl_mvm_scan_params *params)
-{
-	return params->n_scan_plans == 1 &&
-		params->scan_plans[0].iterations == 1;
-}
-
 static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 				    struct iwl_scan_req_umac *cmd,
 				    struct iwl_mvm_scan_params *params)
 {
+	cmd->extended_dwell = scan_timing[params->type].dwell_extended;
 	cmd->active_dwell = scan_timing[params->type].dwell_active;
 	cmd->passive_dwell = scan_timing[params->type].dwell_passive;
 	cmd->fragmented_dwell = scan_timing[params->type].dwell_fragmented;
@@ -1027,7 +1041,8 @@ iwl_mvm_umac_scan_cfg_channels(struct iwl_mvm *mvm,
 }
 
 static u32 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
-				   struct iwl_mvm_scan_params *params)
+				   struct iwl_mvm_scan_params *params,
+				   struct ieee80211_vif *vif)
 {
 	int flags = 0;
 
@@ -1055,6 +1070,11 @@ static u32 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	if (mvm->scan_iter_notif_enabled)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 #endif
+
+	if (iwl_mvm_is_regular_scan(params) &&
+	    vif->type != NL80211_IFTYPE_P2P_DEVICE)
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL;
+
 	return flags;
 }
 
@@ -1085,7 +1105,8 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	mvm->scan_uid_status[uid] = type;
 
 	cmd->uid = cpu_to_le32(uid);
-	cmd->general_flags = cpu_to_le32(iwl_mvm_scan_umac_flags(mvm, params));
+	cmd->general_flags = cpu_to_le32(iwl_mvm_scan_umac_flags(mvm, params,
+								 vif));
 
 	if (type == IWL_MVM_SCAN_SCHED)
 		cmd->flags = cpu_to_le32(IWL_UMAC_SCAN_FLAG_PREEMPTIVE);
