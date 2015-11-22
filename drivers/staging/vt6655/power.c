@@ -64,11 +64,10 @@
 
 void
 PSvEnablePowerSaving(
-	void *hDeviceContext,
+	struct vnt_private *priv,
 	unsigned short wListenInterval
 )
 {
-	struct vnt_private *priv = hDeviceContext;
 	u16 wAID = priv->current_aid | BIT(14) | BIT(15);
 
 	/* set period of power up before TBTT */
@@ -117,11 +116,9 @@ PSvEnablePowerSaving(
 
 void
 PSvDisablePowerSaving(
-	void *hDeviceContext
+	struct vnt_private *priv
 )
 {
-	struct vnt_private *priv = hDeviceContext;
-
 	/* disable power saving hw function */
 	MACbPSWakeup(priv->PortOffset);
 	/* clear AutoSleep */
@@ -149,10 +146,9 @@ PSvDisablePowerSaving(
 
 bool
 PSbIsNextTBTTWakeUp(
-	void *hDeviceContext
+	struct vnt_private *priv
 )
 {
-	struct vnt_private *priv = hDeviceContext;
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_conf *conf = &hw->conf;
 	bool bWakeUp = false;
