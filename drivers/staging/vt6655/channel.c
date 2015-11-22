@@ -174,9 +174,8 @@ void vnt_init_bands(struct vnt_private *priv)
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool set_channel(void *pDeviceHandler, struct ieee80211_channel *ch)
+bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 {
-	struct vnt_private *priv = pDeviceHandler;
 	bool bResult = true;
 
 	if (priv->byCurrentCh == ch->hw_value)
