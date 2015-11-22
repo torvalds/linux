@@ -289,7 +289,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	}
 
 	retval = vme_master_set(card->window, 1, card->base, 0x10000, VME_A24,
-				(VME_SCT | VME_USER | VME_DATA), VME_D16);
+				VME_SCT | VME_USER | VME_DATA, VME_D16);
 	if (retval) {
 		dev_err(&card->vdev->dev,
 			"Unable to configure VME master resource\n");

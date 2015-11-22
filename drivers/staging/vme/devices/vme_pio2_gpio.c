@@ -205,7 +205,7 @@ int pio2_gpio_init(struct pio2_card *card)
 	card->gc.set = pio2_gpio_set;
 
 	/* This function adds a memory mapped GPIO chip */
-	retval = gpiochip_add(&(card->gc));
+	retval = gpiochip_add(&card->gc);
 	if (retval) {
 		dev_err(&card->vdev->dev, "Unable to register GPIO\n");
 		kfree(card->gc.label);
@@ -218,7 +218,7 @@ void pio2_gpio_exit(struct pio2_card *card)
 {
 	const char *label = card->gc.label;
 
-	gpiochip_remove(&(card->gc));
+	gpiochip_remove(&card->gc);
 	kfree(label);
 }
 
