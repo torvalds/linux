@@ -130,7 +130,7 @@ struct snd_rawmidi {
 	int ossreg;
 #endif
 
-	struct snd_rawmidi_global_ops *ops;
+	const struct snd_rawmidi_global_ops *ops;
 
 	struct snd_rawmidi_str streams[2];
 
