@@ -242,6 +242,9 @@ static int __init idio_16_probe(struct platform_device *pdev)
 		goto err_gpio_register;
 	}
 
+	/* Disable IRQ by default */
+	outb(0, base + 2);
+
 	err = gpiochip_irqchip_add(&idio16gpio->chip, &idio_16_irqchip, 0,
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
