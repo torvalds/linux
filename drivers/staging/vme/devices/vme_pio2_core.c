@@ -343,7 +343,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	vec = card->irq_vector | PIO2_VME_VECTOR_SPUR;
 
 	retval = vme_irq_request(vdev, card->irq_level, vec,
-				 &pio2_int, (void *)card);
+				 &pio2_int, card);
 	if (retval < 0) {
 		dev_err(&card->vdev->dev,
 			"Unable to attach VME interrupt vector0x%x, level 0x%x\n",
@@ -356,7 +356,7 @@ static int pio2_probe(struct vme_dev *vdev)
 		vec = card->irq_vector | PIO2_VECTOR_BANK[i];
 
 		retval = vme_irq_request(vdev, card->irq_level, vec,
-					 &pio2_int, (void *)card);
+					 &pio2_int, card);
 		if (retval < 0) {
 			dev_err(&card->vdev->dev,
 				"Unable to attach VME interrupt vector0x%x, level 0x%x\n",
@@ -370,7 +370,7 @@ static int pio2_probe(struct vme_dev *vdev)
 		vec = card->irq_vector | PIO2_VECTOR_CNTR[i];
 
 		retval = vme_irq_request(vdev, card->irq_level, vec,
-			&pio2_int, (void *)card);
+			&pio2_int, card);
 		if (retval < 0) {
 			dev_err(&card->vdev->dev,
 				"Unable to attach VME interrupt vector0x%x, level 0x%x\n",
