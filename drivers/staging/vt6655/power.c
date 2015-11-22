@@ -151,7 +151,7 @@ PSbIsNextTBTTWakeUp(
 {
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_conf *conf = &hw->conf;
-	bool bWakeUp = false;
+	bool wake_up = false;
 
 	if (conf->listen_interval > 1) {
 		if (!priv->wake_up_count)
@@ -163,9 +163,9 @@ PSbIsNextTBTTWakeUp(
 			/* Turn on wake up to listen next beacon */
 			MACvRegBitsOn(priv->PortOffset,
 				      MAC_REG_PSCTL, PSCTL_LNBCN);
-			bWakeUp = true;
+			wake_up = true;
 		}
 	}
 
-	return bWakeUp;
+	return wake_up;
 }
