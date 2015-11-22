@@ -1580,12 +1580,9 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
 }
 
-static void set_connectable_complete(struct hci_dev *hdev, u8 status,
-				     u16 opcode)
+void mgmt_set_connectable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct mgmt_pending_cmd *cmd;
-	struct mgmt_mode *cp;
-	bool conn_changed, discov_changed;
 
 	BT_DBG("status 0x%02x", status);
 
@@ -1601,27 +1598,8 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status,
 		goto remove_cmd;
 	}
 
-	cp = cmd->param;
-	if (cp->val) {
-		conn_changed = !hci_dev_test_and_set_flag(hdev,
-							  HCI_CONNECTABLE);
-		discov_changed = false;
-	} else {
-		conn_changed = hci_dev_test_and_clear_flag(hdev,
-							   HCI_CONNECTABLE);
-		discov_changed = hci_dev_test_and_clear_flag(hdev,
-							     HCI_DISCOVERABLE);
-	}
-
 	send_settings_rsp(cmd->sk, MGMT_OP_SET_CONNECTABLE, hdev);
-
-	if (conn_changed || discov_changed) {
-		new_settings(hdev, cmd->sk);
-		hci_req_update_scan(hdev);
-		if (discov_changed)
-			hci_req_update_adv_data(hdev, HCI_ADV_CURRENT);
-		hci_update_background_scan(hdev);
-	}
+	new_settings(hdev, cmd->sk);
 
 remove_cmd:
 	mgmt_pending_remove(cmd);
@@ -1664,8 +1642,6 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_mode *cp = data;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
-	u8 scan;
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
@@ -1699,57 +1675,19 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	hci_req_init(&req, hdev);
+	if (cp->val) {
+		hci_dev_set_flag(hdev, HCI_CONNECTABLE);
+	} else {
+		if (hdev->discov_timeout > 0)
+			cancel_delayed_work(&hdev->discov_off);
 
-	/* If BR/EDR is not enabled and we disable advertising as a
-	 * by-product of disabling connectable, we need to update the
-	 * advertising flags.
-	 */
-	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
-		if (!cp->val) {
-			hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
-			hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
-		}
-		__hci_req_update_adv_data(&req, HCI_ADV_CURRENT);
-	} else if (cp->val != test_bit(HCI_PSCAN, &hdev->flags)) {
-		if (cp->val) {
-			scan = SCAN_PAGE;
-		} else {
-			/* If we don't have any whitelist entries just
-			 * disable all scanning. If there are entries
-			 * and we had both page and inquiry scanning
-			 * enabled then fall back to only page scanning.
-			 * Otherwise no changes are needed.
-			 */
-			if (list_empty(&hdev->whitelist))
-				scan = SCAN_DISABLED;
-			else if (test_bit(HCI_ISCAN, &hdev->flags))
-				scan = SCAN_PAGE;
-			else
-				goto no_scan_update;
-
-			if (test_bit(HCI_ISCAN, &hdev->flags) &&
-			    hdev->discov_timeout > 0)
-				cancel_delayed_work(&hdev->discov_off);
-		}
-
-		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
+		hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
+		hci_dev_clear_flag(hdev, HCI_CONNECTABLE);
 	}
 
-no_scan_update:
-	/* Update the advertising parameters if necessary */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-	    hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
-		__hci_req_enable_advertising(&req);
-
-	err = hci_req_run(&req, set_connectable_complete);
-	if (err < 0) {
-		mgmt_pending_remove(cmd);
-		if (err == -ENODATA)
-			err = set_connectable_update_settings(hdev, sk,
-							      cp->val);
-		goto failed;
-	}
+	queue_work(hdev->req_workqueue, &hdev->connectable_update);
+	err = 0;
 
 failed:
 	hci_dev_unlock(hdev);

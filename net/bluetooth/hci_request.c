@@ -1274,6 +1274,43 @@ static void scan_update_work(struct work_struct *work)
 	hci_req_sync(hdev, update_scan, 0, HCI_CMD_TIMEOUT, NULL);
 }
 
+static int connectable_update(struct hci_request *req, unsigned long opt)
+{
+	struct hci_dev *hdev = req->hdev;
+
+	hci_dev_lock(hdev);
+
+	__hci_req_update_scan(req);
+
+	/* If BR/EDR is not enabled and we disable advertising as a
+	 * by-product of disabling connectable, we need to update the
+	 * advertising flags.
+	 */
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		__hci_req_update_adv_data(req, HCI_ADV_CURRENT);
+
+	/* Update the advertising parameters if necessary */
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
+	    hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
+		__hci_req_enable_advertising(req);
+
+	__hci_update_background_scan(req);
+
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static void connectable_update_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    connectable_update);
+	u8 status;
+
+	hci_req_sync(hdev, connectable_update, 0, HCI_CMD_TIMEOUT, &status);
+	mgmt_set_connectable_complete(hdev, status);
+}
+
 void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
 		      u8 reason)
 {
@@ -1789,6 +1826,7 @@ void hci_request_setup(struct hci_dev *hdev)
 	INIT_WORK(&hdev->discov_update, discov_update);
 	INIT_WORK(&hdev->bg_scan_update, bg_scan_update);
 	INIT_WORK(&hdev->scan_update, scan_update_work);
+	INIT_WORK(&hdev->connectable_update, connectable_update_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
 	INIT_DELAYED_WORK(&hdev->adv_instance_expire, adv_timeout_expire);
@@ -1801,6 +1839,7 @@ void hci_request_cancel_all(struct hci_dev *hdev)
 	cancel_work_sync(&hdev->discov_update);
 	cancel_work_sync(&hdev->bg_scan_update);
 	cancel_work_sync(&hdev->scan_update);
+	cancel_work_sync(&hdev->connectable_update);
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
 	cancel_delayed_work_sync(&hdev->le_scan_restart);
 
