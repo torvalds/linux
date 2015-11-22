@@ -78,6 +78,11 @@ config I8259
 	bool
 	select IRQ_DOMAIN
 
+config BCM6345_L1_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 config BCM7038_L1_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
