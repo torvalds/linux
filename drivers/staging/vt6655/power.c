@@ -120,7 +120,7 @@ PSvDisablePowerSaving(
 )
 {
 	/* disable power saving hw function */
-	MACbPSWakeup(priv->PortOffset);
+	MACbPSWakeup(priv);
 	/* clear AutoSleep */
 	MACvRegBitsOff(priv->PortOffset, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 	/* clear HWUTSF */

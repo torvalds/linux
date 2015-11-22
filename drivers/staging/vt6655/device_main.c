@@ -211,11 +211,11 @@ static void device_init_registers(struct vnt_private *priv)
 	unsigned char byCCKPwrdBm = 0;
 	unsigned char byOFDMPwrdBm = 0;
 
-	MACbShutdown(priv->PortOffset);
+	MACbShutdown(priv);
 	BBvSoftwareReset(priv);
 
 	/* Do MACbSoftwareReset in MACvInitialize */
-	MACbSoftwareReset(priv->PortOffset);
+	MACbSoftwareReset(priv);
 
 	priv->bAES = false;
 
@@ -229,7 +229,7 @@ static void device_init_registers(struct vnt_private *priv)
 	priv->byTopCCKBasicRate = RATE_1M;
 
 	/* init MAC */
-	MACvInitialize(priv->PortOffset);
+	MACvInitialize(priv);
 
 	/* Get Local ID */
 	VNSvInPortB(priv->PortOffset + MAC_REG_LOCALID, &priv->byLocalID);
@@ -357,8 +357,8 @@ static void device_init_registers(struct vnt_private *priv)
 			  MAC_REG_CFG, (CFG_TKIPOPT | CFG_NOTXTIMEOUT));
 
 	/* set performance parameter by registry */
-	MACvSetShortRetryLimit(priv->PortOffset, priv->byShortRetryLimit);
-	MACvSetLongRetryLimit(priv->PortOffset, priv->byLongRetryLimit);
+	MACvSetShortRetryLimit(priv, priv->byShortRetryLimit);
+	MACvSetLongRetryLimit(priv, priv->byLongRetryLimit);
 
 	/* reset TSF counter */
 	VNSvOutPortB(priv->PortOffset + MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
@@ -884,7 +884,7 @@ static void device_error(struct vnt_private *priv, unsigned short status)
 	if (status & ISR_FETALERR) {
 		dev_err(&priv->pcid->dev, "Hardware fatal error\n");
 
-		MACbShutdown(priv->PortOffset);
+		MACbShutdown(priv);
 		return;
 	}
 }
@@ -1012,7 +1012,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 			if ((priv->op_mode == NL80211_IFTYPE_AP ||
 			    priv->op_mode == NL80211_IFTYPE_ADHOC) &&
 			    priv->vif->bss_conf.enable_beacon) {
-				MACvOneShotTimer1MicroSec(priv->PortOffset,
+				MACvOneShotTimer1MicroSec(priv,
 							  (priv->vif->bss_conf.beacon_int - MAKE_BEACON_RESERVED) << 10);
 			}
 
@@ -1197,8 +1197,8 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	cancel_work_sync(&priv->interrupt_work);
 
-	MACbShutdown(priv->PortOffset);
-	MACbSoftwareReset(priv->PortOffset);
+	MACbShutdown(priv);
+	MACbSoftwareReset(priv);
 	CARDbRadioPowerOff(priv);
 
 	device_free_td0_ring(priv);
@@ -1636,13 +1636,13 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	INIT_WORK(&priv->interrupt_work, vnt_interrupt_work);
 
 	/* do reset */
-	if (!MACbSoftwareReset(priv->PortOffset)) {
+	if (!MACbSoftwareReset(priv)) {
 		dev_err(&pcid->dev, ": Failed to access MAC hardware..\n");
 		device_free_info(priv);
 		return -ENODEV;
 	}
 	/* initial to reload eeprom */
-	MACvInitialize(priv->PortOffset);
+	MACvInitialize(priv);
 	MACvReadEtherAddress(priv->PortOffset, priv->abyCurrentNetAddr);
 
 	/* Get RFType */
@@ -1690,7 +1690,7 @@ static int vt6655_suspend(struct pci_dev *pcid, pm_message_t state)
 
 	pci_save_state(pcid);
 
-	MACbShutdown(priv->PortOffset);
+	MACbShutdown(priv);
 
 	pci_disable_device(pcid);
 	pci_set_power_state(pcid, pci_choose_state(pcid, state));

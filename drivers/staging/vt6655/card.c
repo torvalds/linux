@@ -535,11 +535,9 @@ CARDvSafeResetTx(
 	}
 
 	/* set MAC TD pointer */
-	MACvSetCurrTXDescAddr(TYPE_TXDMA0, priv->PortOffset,
-			      (priv->td0_pool_dma));
+	MACvSetCurrTXDescAddr(TYPE_TXDMA0, priv, priv->td0_pool_dma);
 
-	MACvSetCurrTXDescAddr(TYPE_AC0DMA, priv->PortOffset,
-			      (priv->td1_pool_dma));
+	MACvSetCurrTXDescAddr(TYPE_AC0DMA, priv, priv->td1_pool_dma);
 
 	/* set MAC Beacon TX pointer */
 	MACvSetCurrBCNTxDescAddr(priv->PortOffset,
@@ -590,11 +588,9 @@ CARDvSafeResetRx(
 	MACvRx0PerPktMode(priv->PortOffset);
 	MACvRx1PerPktMode(priv->PortOffset);
 	/* set MAC RD pointer */
-	MACvSetCurrRx0DescAddr(priv->PortOffset,
-			       priv->rd0_pool_dma);
+	MACvSetCurrRx0DescAddr(priv, priv->rd0_pool_dma);
 
-	MACvSetCurrRx1DescAddr(priv->PortOffset,
-			       priv->rd1_pool_dma);
+	MACvSetCurrRx1DescAddr(priv, priv->rd1_pool_dma);
 }
 
 /*
@@ -839,8 +835,6 @@ unsigned char CARDbyGetPktType(struct vnt_private *priv)
  */
 void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
-
 	switch (wLoopbackMode) {
 	case CARD_LB_NONE:
 	case CARD_LB_MAC:
@@ -850,7 +844,7 @@ void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode
 		break;
 	}
 	/* set MAC loopback */
-	MACvSetLoopbackMode(dwIoBase, LOBYTE(wLoopbackMode));
+	MACvSetLoopbackMode(priv, LOBYTE(wLoopbackMode));
 	/* set Baseband loopback */
 }
 
@@ -869,7 +863,7 @@ bool CARDbSoftwareReset(struct vnt_private *priv)
 {
 
 	/* reset MAC */
-	if (!MACbSafeSoftwareReset(priv->PortOffset))
+	if (!MACbSafeSoftwareReset(priv))
 		return false;
 
 	return true;
