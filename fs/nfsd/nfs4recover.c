@@ -631,7 +631,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	return -ENOENT;
 }
 
-static struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
+static const struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
 	.init		= nfsd4_legacy_tracking_init,
 	.exit		= nfsd4_legacy_tracking_exit,
 	.create		= nfsd4_create_clid_dir,
@@ -1050,7 +1050,7 @@ out_err:
 		printk(KERN_ERR "NFSD: Unable to end grace period: %d\n", ret);
 }
 
-static struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops = {
+static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops = {
 	.init		= nfsd4_init_cld_pipe,
 	.exit		= nfsd4_remove_cld_pipe,
 	.create		= nfsd4_cld_create,
@@ -1394,7 +1394,7 @@ nfsd4_umh_cltrack_grace_done(struct nfsd_net *nn)
 	kfree(legacy);
 }
 
-static struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
+static const struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
 	.init		= nfsd4_umh_cltrack_init,
 	.exit		= NULL,
 	.create		= nfsd4_umh_cltrack_create,
