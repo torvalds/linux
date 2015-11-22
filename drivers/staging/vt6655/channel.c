@@ -176,10 +176,10 @@ void vnt_init_bands(struct vnt_private *priv)
  */
 bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 {
-	bool bResult = true;
+	bool ret = true;
 
 	if (priv->byCurrentCh == ch->hw_value)
-		return bResult;
+		return ret;
 
 	/* Set VGA to max sensitivity */
 	if (priv->bUpdateBBVGA &&
@@ -200,8 +200,8 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 						  ch->hw_value);
 
 	priv->byCurrentCh = ch->hw_value;
-	bResult &= RFbSelectChannel(priv, priv->byRFType,
-				    ch->hw_value);
+	ret &= RFbSelectChannel(priv, priv->byRFType,
+				ch->hw_value);
 
 	/* Init Synthesizer Table */
 	if (priv->bEnablePSMode)
@@ -232,5 +232,5 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	else
 		RFbSetPower(priv, RATE_6M, priv->byCurrentCh);
 
-	return bResult;
+	return ret;
 }
