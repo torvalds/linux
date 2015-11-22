@@ -989,8 +989,6 @@ reg_fail:
 		par->fbtftops.unregister_backlight(par);
 	if (spi)
 		spi_set_drvdata(spi, NULL);
-	if (par->pdev)
-		platform_set_drvdata(par->pdev, NULL);
 
 	return ret;
 }
@@ -1012,8 +1010,6 @@ int fbtft_unregister_framebuffer(struct fb_info *fb_info)
 
 	if (spi)
 		spi_set_drvdata(spi, NULL);
-	if (par->pdev)
-		platform_set_drvdata(par->pdev, NULL);
 	if (par->fbtftops.unregister_backlight)
 		par->fbtftops.unregister_backlight(par);
 	fbtft_sysfs_exit(par);
