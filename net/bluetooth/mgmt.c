@@ -7305,13 +7305,6 @@ static void powered_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 	BT_DBG("status 0x%02x", status);
 
 	if (!status) {
-		/* Register the available SMP channels (BR/EDR and LE) only
-		 * when successfully powering on the controller. This late
-		 * registration is required so that LE SMP can clearly
-		 * decide if the public address or static address is used.
-		 */
-		smp_register(hdev);
-
 		restart_le_actions(hdev);
 		hci_update_background_scan(hdev);
 	}
@@ -7423,6 +7416,13 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 		return 0;
 
 	if (powered) {
+		/* Register the available SMP channels (BR/EDR and LE) only
+		 * when successfully powering on the controller. This late
+		 * registration is required so that LE SMP can clearly
+		 * decide if the public address or static address is used.
+		 */
+		smp_register(hdev);
+
 		if (powered_update_hci(hdev) == 0)
 			return 0;
 
