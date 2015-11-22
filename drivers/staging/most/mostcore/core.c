@@ -1869,7 +1869,7 @@ static int __init most_init(void)
 
 	class_glue_dir =
 		device_create(most_class, NULL, 0, NULL, "mostcore");
-	if (!class_glue_dir)
+	if (IS_ERR(class_glue_dir))
 		goto exit_driver;
 
 	most_aim_kset =
