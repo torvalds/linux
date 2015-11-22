@@ -49,7 +49,7 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (num_cports == 0 || num_cports > CPORT_ID_MAX) {
+	if (num_cports == 0 || num_cports > CPORT_ID_MAX + 1) {
 		dev_err(parent, "Invalid number of CPorts: %zu\n", num_cports);
 		return ERR_PTR(-EINVAL);
 	}
