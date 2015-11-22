@@ -63,19 +63,9 @@ static struct v4l2_subdev_video_ops wpf_video_ops = {
 	.s_stream = wpf_s_stream,
 };
 
-static struct v4l2_subdev_pad_ops wpf_pad_ops = {
-	.init_cfg = vsp1_entity_init_cfg,
-	.enum_mbus_code = vsp1_rwpf_enum_mbus_code,
-	.enum_frame_size = vsp1_rwpf_enum_frame_size,
-	.get_fmt = vsp1_rwpf_get_format,
-	.set_fmt = vsp1_rwpf_set_format,
-	.get_selection = vsp1_rwpf_get_selection,
-	.set_selection = vsp1_rwpf_set_selection,
-};
-
 static struct v4l2_subdev_ops wpf_ops = {
 	.video	= &wpf_video_ops,
-	.pad    = &wpf_pad_ops,
+	.pad    = &vsp1_rwpf_pad_ops,
 };
 
 /* -----------------------------------------------------------------------------

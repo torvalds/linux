@@ -68,24 +68,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index);
 
 int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf);
 
-int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_pad_config *cfg,
-			     struct v4l2_subdev_mbus_code_enum *code);
-int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
-			      struct v4l2_subdev_frame_size_enum *fse);
-int vsp1_rwpf_get_format(struct v4l2_subdev *subdev,
-			 struct v4l2_subdev_pad_config *cfg,
-			 struct v4l2_subdev_format *fmt);
-int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
-			 struct v4l2_subdev_pad_config *cfg,
-			 struct v4l2_subdev_format *fmt);
-int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_pad_config *cfg,
-			    struct v4l2_subdev_selection *sel);
-int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_pad_config *cfg,
-			    struct v4l2_subdev_selection *sel);
+extern const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops;
 
 struct v4l2_rect *vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf,
 				     struct v4l2_subdev_pad_config *config);
