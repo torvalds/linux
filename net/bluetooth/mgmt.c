@@ -1282,13 +1282,9 @@ static u8 mgmt_le_support(struct hci_dev *hdev)
 		return MGMT_STATUS_SUCCESS;
 }
 
-static void set_discoverable_complete(struct hci_dev *hdev, u8 status,
-				      u16 opcode)
+void mgmt_set_discoverable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct mgmt_pending_cmd *cmd;
-	struct mgmt_mode *cp;
-	struct hci_request req;
-	bool changed;
 
 	BT_DBG("status 0x%02x", status);
 
@@ -1305,33 +1301,14 @@ static void set_discoverable_complete(struct hci_dev *hdev, u8 status,
 		goto remove_cmd;
 	}
 
-	cp = cmd->param;
-	if (cp->val) {
-		changed = !hci_dev_test_and_set_flag(hdev, HCI_DISCOVERABLE);
-
-		if (hdev->discov_timeout > 0) {
-			int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
-			queue_delayed_work(hdev->workqueue, &hdev->discov_off,
-					   to);
-		}
-	} else {
-		changed = hci_dev_test_and_clear_flag(hdev, HCI_DISCOVERABLE);
+	if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE) &&
+	    hdev->discov_timeout > 0) {
+		int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
+		queue_delayed_work(hdev->req_workqueue, &hdev->discov_off, to);
 	}
 
 	send_settings_rsp(cmd->sk, MGMT_OP_SET_DISCOVERABLE, hdev);
-
-	if (changed)
-		new_settings(hdev, cmd->sk);
-
-	/* When the discoverable mode gets changed, make sure
-	 * that class of device has the limited discoverable
-	 * bit correctly set. Also update page scan based on whitelist
-	 * entries.
-	 */
-	hci_req_init(&req, hdev);
-	__hci_req_update_scan(&req);
-	__hci_req_update_class(&req);
-	hci_req_run(&req, NULL);
+	new_settings(hdev, cmd->sk);
 
 remove_cmd:
 	mgmt_pending_remove(cmd);
@@ -1345,9 +1322,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_set_discoverable *cp = data;
 	struct mgmt_pending_cmd *cmd;
-	struct hci_request req;
 	u16 timeout;
-	u8 scan;
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
@@ -1447,58 +1422,19 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	cancel_delayed_work(&hdev->discov_off);
 	hdev->discov_timeout = timeout;
 
+	if (cp->val)
+		hci_dev_set_flag(hdev, HCI_DISCOVERABLE);
+	else
+		hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
+
 	/* Limited discoverable mode */
 	if (cp->val == 0x02)
 		hci_dev_set_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 	else
 		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 
-	hci_req_init(&req, hdev);
-
-	/* The procedure for LE-only controllers is much simpler - just
-	 * update the advertising data.
-	 */
-	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-		goto update_ad;
-
-	scan = SCAN_PAGE;
-
-	if (cp->val) {
-		struct hci_cp_write_current_iac_lap hci_cp;
-
-		if (cp->val == 0x02) {
-			/* Limited discoverable mode */
-			hci_cp.num_iac = min_t(u8, hdev->num_iac, 2);
-			hci_cp.iac_lap[0] = 0x00;	/* LIAC */
-			hci_cp.iac_lap[1] = 0x8b;
-			hci_cp.iac_lap[2] = 0x9e;
-			hci_cp.iac_lap[3] = 0x33;	/* GIAC */
-			hci_cp.iac_lap[4] = 0x8b;
-			hci_cp.iac_lap[5] = 0x9e;
-		} else {
-			/* General discoverable mode */
-			hci_cp.num_iac = 1;
-			hci_cp.iac_lap[0] = 0x33;	/* GIAC */
-			hci_cp.iac_lap[1] = 0x8b;
-			hci_cp.iac_lap[2] = 0x9e;
-		}
-
-		hci_req_add(&req, HCI_OP_WRITE_CURRENT_IAC_LAP,
-			    (hci_cp.num_iac * 3) + 1, &hci_cp);
-
-		scan |= SCAN_INQUIRY;
-	} else {
-		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
-	}
-
-	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
-
-update_ad:
-	__hci_req_update_adv_data(&req, HCI_ADV_CURRENT);
-
-	err = hci_req_run(&req, set_discoverable_complete);
-	if (err < 0)
-		mgmt_pending_remove(cmd);
+	queue_work(hdev->req_workqueue, &hdev->discoverable_update);
+	err = 0;
 
 failed:
 	hci_dev_unlock(hdev);
