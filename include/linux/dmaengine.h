@@ -895,6 +895,8 @@ static inline int dmaengine_terminate_async(struct dma_chan *chan)
  */
 static inline void dmaengine_synchronize(struct dma_chan *chan)
 {
+	might_sleep();
+
 	if (chan->device->device_synchronize)
 		chan->device->device_synchronize(chan);
 }
