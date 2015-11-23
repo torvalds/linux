@@ -403,4 +403,17 @@
 			qcom,vset-millivolts = <3000>;
 		};
 	};
+
+	pm8941@1 {
+		wled@d800 {
+			status = "ok";
+
+			qcom,cs-out;
+			qcom,current-limit = <20>;
+			qcom,current-boost-limit = <805>;
+			qcom,switching-freq = <1600>;
+			qcom,ovp = <29>;
+			qcom,num-strings = <2>;
+		};
+	};
 };

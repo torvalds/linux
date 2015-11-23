@@ -159,17 +159,12 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		wled@d800 {
+		pm8941_wled: wled@d800 {
 			compatible = "qcom,pm8941-wled";
 			reg = <0xd800 0x100>;
 			label = "backlight";
 
-			qcom,cs-out;
-			qcom,current-limit = <20>;
-			qcom,current-boost-limit = <805>;
-			qcom,switching-freq = <1600>;
-			qcom,ovp = <29>;
-			qcom,num-strings = <2>;
+			status = "disabled";
 		};
 	};
 };
