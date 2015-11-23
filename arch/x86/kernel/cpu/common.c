@@ -1180,7 +1180,7 @@ void syscall_init(void)
 	 * They both write to the same internal register. STAR allows to
 	 * set CS/DS but only a 32bit target. LSTAR sets the 64bit rip.
 	 */
-	wrmsrl(MSR_STAR,  ((u64)__USER32_CS)<<48  | ((u64)__KERNEL_CS)<<32);
+	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
 	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 #ifdef CONFIG_IA32_EMULATION
