@@ -220,8 +220,14 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		 * trigger any commands to be sent. This is normal behavior
 		 * and should not trigger an error return.
 		 */
-		if (err == -ENODATA)
+		if (err == -ENODATA) {
+			if (hci_status)
+				*hci_status = 0;
 			return 0;
+		}
+
+		if (hci_status)
+			*hci_status = HCI_ERROR_UNSPECIFIED;
 
 		return err;
 	}
