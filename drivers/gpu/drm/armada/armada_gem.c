@@ -274,12 +274,10 @@ int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	struct armada_gem_object *obj;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
 	obj = armada_gem_object_lookup(dev, file, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object\n");
-		ret = -EINVAL;
-		goto err_unlock;
+		return -EINVAL;
 	}
 
 	/* Don't allow imported objects to be mapped */
@@ -295,9 +293,7 @@ int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	}
 
  err_unref:
-	drm_gem_object_unreference(&obj->obj);
- err_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(&obj->obj);
 
 	return ret;
 }
