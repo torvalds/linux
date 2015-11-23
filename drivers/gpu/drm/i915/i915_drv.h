@@ -2758,10 +2758,17 @@ ironlake_disable_display_irq(struct drm_i915_private *dev_priv, u32 mask);
 void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 				  uint32_t interrupt_mask,
 				  uint32_t enabled_irq_mask);
-#define ibx_enable_display_interrupt(dev_priv, bits) \
-	ibx_display_interrupt_update((dev_priv), (bits), (bits))
-#define ibx_disable_display_interrupt(dev_priv, bits) \
-	ibx_display_interrupt_update((dev_priv), (bits), 0)
+static inline void
+ibx_enable_display_interrupt(struct drm_i915_private *dev_priv, uint32_t bits)
+{
+	ibx_display_interrupt_update(dev_priv, bits, bits);
+}
+static inline void
+ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, uint32_t bits)
+{
+	ibx_display_interrupt_update(dev_priv, bits, 0);
+}
+
 
 /* i915_gem.c */
 int i915_gem_create_ioctl(struct drm_device *dev, void *data,
