@@ -1270,6 +1270,61 @@
 		cd-gpios = <&gpio TEGRA_GPIO(Z, 1) GPIO_ACTIVE_LOW>;
 	};
 
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdd_sys_mux: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "VDD_SYS_MUX";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		vdd_5v0_sys: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "VDD_5V0_SYS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_sys_mux>;
+		};
+
+		vdd_3v3_sys: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "VDD_3V3_SYS";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&pmic 3 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_sys_mux>;
+
+			regulator-enable-ramp-delay = <160>;
+			regulator-disable-ramp-delay = <10000>;
+		};
+
+		vdd_5v0_io: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "VDD_5V0_IO_SYS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		label = "gpio-keys";
