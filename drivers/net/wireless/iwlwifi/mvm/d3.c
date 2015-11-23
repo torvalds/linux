@@ -274,18 +274,13 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (sta) {
-			u8 *pn = seq.ccmp.pn;
+			u64 pn64;
 
 			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.unicast_rsc;
 			aes_tx_sc = &data->rsc_tsc->all_tsc_rsc.aes.tsc;
 
-			ieee80211_get_key_tx_seq(key, &seq);
-			aes_tx_sc->pn = cpu_to_le64((u64)pn[5] |
-						    ((u64)pn[4] << 8) |
-						    ((u64)pn[3] << 16) |
-						    ((u64)pn[2] << 24) |
-						    ((u64)pn[1] << 32) |
-						    ((u64)pn[0] << 40));
+			pn64 = atomic64_read(&key->tx_pn);
+			aes_tx_sc->pn = cpu_to_le64(pn64);
 		} else {
 			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.multicast_rsc;
 		}
@@ -298,12 +293,12 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 			u8 *pn = seq.ccmp.pn;
 
 			ieee80211_get_key_rx_seq(key, i, &seq);
-			aes_sc->pn = cpu_to_le64((u64)pn[5] |
-						 ((u64)pn[4] << 8) |
-						 ((u64)pn[3] << 16) |
-						 ((u64)pn[2] << 24) |
-						 ((u64)pn[1] << 32) |
-						 ((u64)pn[0] << 40));
+			aes_sc[i].pn = cpu_to_le64((u64)pn[5] |
+						   ((u64)pn[4] << 8) |
+						   ((u64)pn[3] << 16) |
+						   ((u64)pn[2] << 24) |
+						   ((u64)pn[1] << 32) |
+						   ((u64)pn[0] << 40));
 		}
 		data->use_rsc_tsc = true;
 		break;
@@ -1170,6 +1165,9 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
+	/* make sure the d0i3 exit work is not pending */
+	flush_work(&mvm->d0i3_exit_work);
+
 	ret = iwl_trans_suspend(mvm->trans);
 	if (ret)
 		return ret;
@@ -1453,15 +1451,15 @@ static void iwl_mvm_d3_update_gtks(struct ieee80211_hw *hw,
 
 		switch (key->cipher) {
 		case WLAN_CIPHER_SUITE_CCMP:
-			iwl_mvm_aes_sc_to_seq(&sc->aes.tsc, &seq);
 			iwl_mvm_set_aes_rx_seq(sc->aes.unicast_rsc, key);
+			atomic64_set(&key->tx_pn, le64_to_cpu(sc->aes.tsc.pn));
 			break;
 		case WLAN_CIPHER_SUITE_TKIP:
 			iwl_mvm_tkip_sc_to_seq(&sc->tkip.tsc, &seq);
 			iwl_mvm_set_tkip_rx_seq(sc->tkip.unicast_rsc, key);
+			ieee80211_set_key_tx_seq(key, &seq);
 			break;
 		}
-		ieee80211_set_key_tx_seq(key, &seq);
 
 		/* that's it for this key */
 		return;

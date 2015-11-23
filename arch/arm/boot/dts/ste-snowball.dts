@@ -47,35 +47,35 @@
 
 		button@1 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			linux,code = <2>;
 			label = "userpb";
 			gpios = <&gpio1 0 0x4>;
 		};
 		button@2 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			linux,code = <3>;
 			label = "extkb1";
 			gpios = <&gpio4 23 0x4>;
 		};
 		button@3 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			linux,code = <4>;
 			label = "extkb2";
 			gpios = <&gpio4 24 0x4>;
 		};
 		button@4 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			linux,code = <5>;
 			label = "extkb3";
 			gpios = <&gpio5 1 0x4>;
 		};
 		button@5 {
 			debounce_interval = <50>;
-			wakeup = <1>;
+			wakeup-source;
 			linux,code = <6>;
 			label = "extkb4";
 			gpios = <&gpio5 2 0x4>;

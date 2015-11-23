@@ -24,6 +24,24 @@ config AK09911
 	help
 	  Deprecated: AK09911 is now supported by AK8975 driver.
 
+config BMC150_MAGN
+	tristate "Bosch BMC150 Magnetometer Driver"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the BMC150 magnetometer.
+
+	  Currently this only supports the device via an i2c interface.
+
+	  This is a combo module with both accelerometer and magnetometer.
+	  This driver is only implementing magnetometer part, which has
+	  its own address and register map.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called bmc150_magn.
+
 config MAG3110
 	tristate "Freescale MAG3110 3-Axis Magnetometer"
 	depends on I2C
@@ -86,20 +104,5 @@ config IIO_ST_MAGN_SPI_3AXIS
 	tristate
 	depends on IIO_ST_MAGN_3AXIS
 	depends on IIO_ST_SENSORS_SPI
-
-config BMC150_MAGN
-	tristate "Bosch BMC150 Magnetometer Driver"
-	depends on I2C
-	select REGMAP_I2C
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  Say yes here to build support for the BMC150 magnetometer.
-
-	  Currently this only supports the device via an i2c interface.
-
-	  This is a combo module with both accelerometer and magnetometer.
-	  This driver is only implementing magnetometer part, which has
-	  its own address and register map.
 
 endmenu

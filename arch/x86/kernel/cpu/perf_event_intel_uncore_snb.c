@@ -420,15 +420,25 @@ static void snb_uncore_imc_event_del(struct perf_event *event, int flags)
 static int snb_pci2phy_map_init(int devid)
 {
 	struct pci_dev *dev = NULL;
-	int bus;
+	struct pci2phy_map *map;
+	int bus, segment;
 
 	dev = pci_get_device(PCI_VENDOR_ID_INTEL, devid, dev);
 	if (!dev)
 		return -ENOTTY;
 
 	bus = dev->bus->number;
+	segment = pci_domain_nr(dev->bus);
 
-	uncore_pcibus_to_physid[bus] = 0;
+	raw_spin_lock(&pci2phy_map_lock);
+	map = __find_pci2phy_map(segment);
+	if (!map) {
+		raw_spin_unlock(&pci2phy_map_lock);
+		pci_dev_put(dev);
+		return -ENOMEM;
+	}
+	map->pbus_to_physid[bus] = 0;
+	raw_spin_unlock(&pci2phy_map_lock);
 
 	pci_dev_put(dev);
 

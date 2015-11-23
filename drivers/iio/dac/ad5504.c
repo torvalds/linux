@@ -214,7 +214,6 @@ static struct attribute *ad5504_ev_attributes[] = {
 
 static struct attribute_group ad5504_ev_attribute_group = {
 	.attrs = ad5504_ev_attributes,
-	.name = "events",
 };
 
 static irqreturn_t ad5504_event_handler(int irq, void *private)
@@ -364,7 +363,6 @@ MODULE_DEVICE_TABLE(spi, ad5504_id);
 static struct spi_driver ad5504_driver = {
 	.driver = {
 		   .name = "ad5504",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = ad5504_probe,
 	.remove = ad5504_remove,

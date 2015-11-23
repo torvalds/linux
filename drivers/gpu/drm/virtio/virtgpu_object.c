@@ -82,24 +82,19 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 	size = roundup(size, PAGE_SIZE);
 	ret = drm_gem_object_init(vgdev->ddev, &bo->gem_base, size);
 	if (ret != 0)
-		goto err_gem_init;
+		return ret;
 	bo->dumb = false;
 	virtio_gpu_init_ttm_placement(bo, pinned);
 
 	ret = ttm_bo_init(&vgdev->mman.bdev, &bo->tbo, size, type,
 			  &bo->placement, 0, !kernel, NULL, acc_size,
 			  NULL, NULL, &virtio_gpu_ttm_bo_destroy);
+	/* ttm_bo_init failure will call the destroy */
 	if (ret != 0)
-		goto err_ttm_init;
+		return ret;
 
 	*bo_ptr = bo;
 	return 0;
-
-err_ttm_init:
-	drm_gem_object_release(&bo->gem_base);
-err_gem_init:
-	kfree(bo);
-	return ret;
 }
 
 int virtio_gpu_object_kmap(struct virtio_gpu_object *bo, void **ptr)

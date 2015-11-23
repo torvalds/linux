@@ -2306,7 +2306,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(struct net *net,
 						 sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	time_t stale;
+	u32 stale;
 	sctp_cookie_preserve_param_t bht;
 	sctp_errhdr_t *err;
 	struct sctp_chunk *reply;

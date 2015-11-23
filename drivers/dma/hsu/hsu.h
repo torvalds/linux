@@ -107,6 +107,7 @@ struct hsu_dma {
 
 	/* channels */
 	struct hsu_dma_chan		*chan;
+	unsigned short			nr_channels;
 };
 
 static inline struct hsu_dma *to_hsu_dma(struct dma_device *ddev)

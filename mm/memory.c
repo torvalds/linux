@@ -2426,6 +2426,8 @@ void unmap_mapping_range(struct address_space *mapping,
 	if (details.last_index < details.first_index)
 		details.last_index = ULONG_MAX;
 
+
+	/* DAX uses i_mmap_lock to serialise file truncate vs page fault */
 	i_mmap_lock_write(mapping);
 	if (unlikely(!RB_EMPTY_ROOT(&mapping->i_mmap)))
 		unmap_mapping_range_tree(&mapping->i_mmap, &details);
@@ -3013,9 +3015,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		} else {
 			/*
 			 * The fault handler has no page to lock, so it holds
-			 * i_mmap_lock for write to protect against truncate.
+			 * i_mmap_lock for read to protect against truncate.
 			 */
-			i_mmap_unlock_write(vma->vm_file->f_mapping);
+			i_mmap_unlock_read(vma->vm_file->f_mapping);
 		}
 		goto uncharge_out;
 	}
@@ -3029,9 +3031,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	} else {
 		/*
 		 * The fault handler has no page to lock, so it holds
-		 * i_mmap_lock for write to protect against truncate.
+		 * i_mmap_lock for read to protect against truncate.
 		 */
-		i_mmap_unlock_write(vma->vm_file->f_mapping);
+		i_mmap_unlock_read(vma->vm_file->f_mapping);
 	}
 	return ret;
 uncharge_out:

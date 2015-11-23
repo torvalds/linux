@@ -166,8 +166,6 @@ SECTIONS
     RELOCATE_ENTRY(_DebugInterruptVector_text,
 		   .DebugInterruptVector.text);
 #if defined(CONFIG_SMP)
-    RELOCATE_ENTRY(_SecondaryResetVector_literal,
-		   .SecondaryResetVector.literal);
     RELOCATE_ENTRY(_SecondaryResetVector_text,
 		   .SecondaryResetVector.text);
 #endif
@@ -282,17 +280,11 @@ SECTIONS
 
 #if defined(CONFIG_SMP)
 
-  SECTION_VECTOR (_SecondaryResetVector_literal,
-		  .SecondaryResetVector.literal,
-		  RESET_VECTOR1_VADDR - 4,
-		  SIZEOF(.DoubleExceptionVector.text),
-		  .DoubleExceptionVector.text)
-
   SECTION_VECTOR (_SecondaryResetVector_text,
 		  .SecondaryResetVector.text,
 		  RESET_VECTOR1_VADDR,
-		  4,
-		  .SecondaryResetVector.literal)
+		  SIZEOF(.DoubleExceptionVector.text),
+		  .DoubleExceptionVector.text)
 
   . = LOADADDR(.SecondaryResetVector.text)+SIZEOF(.SecondaryResetVector.text);
 
@@ -305,31 +297,6 @@ SECTIONS
   BSS_SECTION(0, 8192, 0)
 
   _end = .;
-
-  /* only used by the boot loader  */
-
-  . = ALIGN(0x10);
-  .bootstrap : { *(.bootstrap.literal .bootstrap.text .bootstrap.data) }
-
-  .ResetVector.text RESET_VECTOR_VADDR :
-  {
-    *(.ResetVector.text)
-  }
-
-
-  /*
-   * This is a remapped copy of the Secondary Reset Vector Code.
-   * It keeps gdb in sync with the PC after switching
-   * to the temporary mapping used while setting up
-   * the V2 MMU mappings for Linux.
-   *
-   * Only debug information about this section is put in the kernel image.
-   */
-  .SecondaryResetVector.remapped_text 0x46000000 (INFO):
-  {
-	*(.SecondaryResetVector.remapped_text)
-  }
-
 
   .xt.lit : { *(.xt.lit) }
   .xt.prop : { *(.xt.prop) }

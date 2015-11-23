@@ -29,7 +29,7 @@
 static const struct pci_device_id nicvf_id_table[] = {
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CAVIUM,
 			 PCI_DEVICE_ID_THUNDER_NIC_VF,
-			 PCI_VENDOR_ID_CAVIUM, 0xA11E) },
+			 PCI_VENDOR_ID_CAVIUM, 0xA134) },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CAVIUM,
 			 PCI_DEVICE_ID_THUNDER_PASS1_NIC_VF,
 			 PCI_VENDOR_ID_CAVIUM, 0xA11E) },
@@ -1583,8 +1583,14 @@ err_disable_device:
 static void nicvf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct nicvf *nic = netdev_priv(netdev);
-	struct net_device *pnetdev = nic->pnicvf->netdev;
+	struct nicvf *nic;
+	struct net_device *pnetdev;
+
+	if (!netdev)
+		return;
+
+	nic = netdev_priv(netdev);
+	pnetdev = nic->pnicvf->netdev;
 
 	/* Check if this Qset is assigned to different VF.
 	 * If yes, clean primary and all secondary Qsets.

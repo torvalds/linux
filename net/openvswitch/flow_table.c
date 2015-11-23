@@ -93,7 +93,8 @@ struct sw_flow *ovs_flow_alloc(void)
 
 	/* Initialize the default stat node. */
 	stats = kmem_cache_alloc_node(flow_stats_cache,
-				      GFP_KERNEL | __GFP_ZERO, 0);
+				      GFP_KERNEL | __GFP_ZERO,
+				      node_online(0) ? 0 : NUMA_NO_NODE);
 	if (!stats)
 		goto err;
 
@@ -427,7 +428,7 @@ static u32 flow_hash(const struct sw_flow_key *key,
 
 static int flow_key_start(const struct sw_flow_key *key)
 {
-	if (key->tun_key.u.ipv4.dst)
+	if (key->tun_proto)
 		return 0;
 	else
 		return rounddown(offsetof(struct sw_flow_key, phy),

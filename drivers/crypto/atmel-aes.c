@@ -260,7 +260,11 @@ static struct atmel_aes_dev *atmel_aes_find_dev(struct atmel_aes_ctx *ctx)
 
 static int atmel_aes_hw_init(struct atmel_aes_dev *dd)
 {
-	clk_prepare_enable(dd->iclk);
+	int err;
+
+	err = clk_prepare_enable(dd->iclk);
+	if (err)
+		return err;
 
 	if (!(dd->flags & AES_FLAGS_INIT)) {
 		atmel_aes_write(dd, AES_CR, AES_CR_SWRST);
@@ -1320,7 +1324,6 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	struct crypto_platform_data *pdata;
 	struct device *dev = &pdev->dev;
 	struct resource *aes_res;
-	unsigned long aes_phys_size;
 	int err;
 
 	pdata = pdev->dev.platform_data;
@@ -1337,7 +1340,7 @@ static int atmel_aes_probe(struct platform_device *pdev)
 		goto aes_dd_err;
 	}
 
-	aes_dd = kzalloc(sizeof(struct atmel_aes_dev), GFP_KERNEL);
+	aes_dd = devm_kzalloc(&pdev->dev, sizeof(*aes_dd), GFP_KERNEL);
 	if (aes_dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		err = -ENOMEM;
@@ -1368,36 +1371,35 @@ static int atmel_aes_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 	aes_dd->phys_base = aes_res->start;
-	aes_phys_size = resource_size(aes_res);
 
 	/* Get the IRQ */
 	aes_dd->irq = platform_get_irq(pdev,  0);
 	if (aes_dd->irq < 0) {
 		dev_err(dev, "no IRQ resource info\n");
 		err = aes_dd->irq;
-		goto aes_irq_err;
+		goto res_err;
 	}
 
-	err = request_irq(aes_dd->irq, atmel_aes_irq, IRQF_SHARED, "atmel-aes",
-						aes_dd);
+	err = devm_request_irq(&pdev->dev, aes_dd->irq, atmel_aes_irq,
+			       IRQF_SHARED, "atmel-aes", aes_dd);
 	if (err) {
 		dev_err(dev, "unable to request aes irq.\n");
-		goto aes_irq_err;
+		goto res_err;
 	}
 
 	/* Initializing the clock */
-	aes_dd->iclk = clk_get(&pdev->dev, "aes_clk");
+	aes_dd->iclk = devm_clk_get(&pdev->dev, "aes_clk");
 	if (IS_ERR(aes_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(aes_dd->iclk);
-		goto clk_err;
+		goto res_err;
 	}
 
-	aes_dd->io_base = ioremap(aes_dd->phys_base, aes_phys_size);
+	aes_dd->io_base = devm_ioremap_resource(&pdev->dev, aes_res);
 	if (!aes_dd->io_base) {
 		dev_err(dev, "can't ioremap\n");
 		err = -ENOMEM;
-		goto aes_io_err;
+		goto res_err;
 	}
 
 	atmel_aes_hw_version_init(aes_dd);
@@ -1434,17 +1436,9 @@ err_algs:
 err_aes_dma:
 	atmel_aes_buff_cleanup(aes_dd);
 err_aes_buff:
-	iounmap(aes_dd->io_base);
-aes_io_err:
-	clk_put(aes_dd->iclk);
-clk_err:
-	free_irq(aes_dd->irq, aes_dd);
-aes_irq_err:
 res_err:
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
-	kfree(aes_dd);
-	aes_dd = NULL;
 aes_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1468,16 +1462,6 @@ static int atmel_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&aes_dd->queue_task);
 
 	atmel_aes_dma_cleanup(aes_dd);
-
-	iounmap(aes_dd->io_base);
-
-	clk_put(aes_dd->iclk);
-
-	if (aes_dd->irq > 0)
-		free_irq(aes_dd->irq, aes_dd);
-
-	kfree(aes_dd);
-	aes_dd = NULL;
 
 	return 0;
 }

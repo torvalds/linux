@@ -45,6 +45,7 @@
 
 #include <dt-bindings/thermal/thermal.h>
 
+#include <dt-bindings/clock/sun4i-a10-pll2.h>
 #include <dt-bindings/dma/sun4i-a10.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
@@ -193,6 +194,15 @@
 			reg = <0x01c20000 0x4>;
 			clocks = <&osc24M>;
 			clock-output-names = "pll1";
+		};
+
+		pll2: clk@01c20008 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-pll2-clk";
+			reg = <0x01c20008 0x8>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll2-1x", "pll2-2x",
+					     "pll2-4x", "pll2-8x";
 		};
 
 		pll4: clk@01c20018 {
@@ -480,6 +490,14 @@
 			reg = <0x01c200d4 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
 			clock-output-names = "spi3";
+		};
+
+		codec_clk: clk@01c20140 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-codec-clk";
+			reg = <0x01c20140 0x4>;
+			clocks = <&pll2 SUN4I_A10_PLL2_1X>;
+			clock-output-names = "codec";
 		};
 	};
 
@@ -1001,6 +1019,19 @@
 			compatible = "allwinner,sun4i-a10-lradc-keys";
 			reg = <0x01c22800 0x100>;
 			interrupts = <31>;
+			status = "disabled";
+		};
+
+		codec: codec@01c22c00 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun4i-a10-codec";
+			reg = <0x01c22c00 0x40>;
+			interrupts = <30>;
+			clocks = <&apb0_gates 0>, <&codec_clk>;
+			clock-names = "apb", "codec";
+			dmas = <&dma SUN4I_DMA_NORMAL 19>,
+			       <&dma SUN4I_DMA_NORMAL 19>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 

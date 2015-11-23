@@ -159,8 +159,10 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 	}
 
 	tx_buf = kmalloc(DOWNLOAD_SIZE, GFP_KERNEL);
-	if (tx_buf == NULL)
+	if (!tx_buf) {
+		release_firmware(firm);
 		return -ENOMEM;
+	}
 
 	if (firm->size < sizeof(hdr)) {
 		dev_err(&usbdev->dev, "Cannot read the image info.\n");
@@ -285,8 +287,10 @@ static int em_download_image(struct usb_device *usbdev, const char *img_name,
 	}
 
 	buf = kmalloc(DOWNLOAD_CHUCK + pad_size, GFP_KERNEL);
-	if (buf == NULL)
+	if (!buf) {
+		release_firmware(firm);
 		return -ENOMEM;
+	}
 
 	strcpy(buf+pad_size, type_string);
 	ret = gdm_wibro_send(usbdev, buf, strlen(type_string)+pad_size);

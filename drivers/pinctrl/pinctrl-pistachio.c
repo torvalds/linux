@@ -1171,16 +1171,6 @@ static struct pinctrl_desc pistachio_pinctrl_desc = {
 	.confops = &pistachio_pinconf_ops,
 };
 
-static int pistachio_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void pistachio_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int pistachio_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct pistachio_gpio_bank *bank = gc_to_bank(chip);
@@ -1332,8 +1322,8 @@ static void pistachio_gpio_irq_handler(struct irq_desc *desc)
 		.npins = _npins,					\
 		.gpio_chip = {						\
 			.label = "GPIO" #_bank,				\
-			.request = pistachio_gpio_request,		\
-			.free = pistachio_gpio_free,			\
+			.request = gpiochip_generic_request,		\
+			.free = gpiochip_generic_free,			\
 			.get_direction = pistachio_gpio_get_direction,	\
 			.direction_input = pistachio_gpio_direction_input, \
 			.direction_output = pistachio_gpio_direction_output, \

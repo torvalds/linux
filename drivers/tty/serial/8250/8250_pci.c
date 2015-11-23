@@ -28,7 +28,6 @@
 
 #include <linux/dmaengine.h>
 #include <linux/platform_data/dma-dw.h>
-#include <linux/platform_data/dma-hsu.h>
 
 #include "8250.h"
 
@@ -1508,167 +1507,6 @@ byt_serial_setup(struct serial_private *priv,
 	return ret;
 }
 
-#define INTEL_MID_UART_PS		0x30
-#define INTEL_MID_UART_MUL		0x34
-#define INTEL_MID_UART_DIV		0x38
-
-static void intel_mid_set_termios(struct uart_port *p,
-				  struct ktermios *termios,
-				  struct ktermios *old,
-				  unsigned long fref)
-{
-	unsigned int baud = tty_termios_baud_rate(termios);
-	unsigned short ps = 16;
-	unsigned long fuart = baud * ps;
-	unsigned long w = BIT(24) - 1;
-	unsigned long mul, div;
-
-	if (fref < fuart) {
-		/* Find prescaler value that satisfies Fuart < Fref */
-		if (fref > baud)
-			ps = fref / baud;	/* baud rate too high */
-		else
-			ps = 1;			/* PLL case */
-		fuart = baud * ps;
-	} else {
-		/* Get Fuart closer to Fref */
-		fuart *= rounddown_pow_of_two(fref / fuart);
-	}
-
-	rational_best_approximation(fuart, fref, w, w, &mul, &div);
-	p->uartclk = fuart * 16 / ps;		/* core uses ps = 16 always */
-
-	writel(ps, p->membase + INTEL_MID_UART_PS);		/* set PS */
-	writel(mul, p->membase + INTEL_MID_UART_MUL);		/* set MUL */
-	writel(div, p->membase + INTEL_MID_UART_DIV);
-
-	serial8250_do_set_termios(p, termios, old);
-}
-
-static void intel_mid_set_termios_38_4M(struct uart_port *p,
-					struct ktermios *termios,
-					struct ktermios *old)
-{
-	intel_mid_set_termios(p, termios, old, 38400000);
-}
-
-static void intel_mid_set_termios_50M(struct uart_port *p,
-				      struct ktermios *termios,
-				      struct ktermios *old)
-{
-	/*
-	 * The uart clk is 50Mhz, and the baud rate come from:
-	 *      baud = 50M * MUL / (DIV * PS * DLAB)
-	 */
-	intel_mid_set_termios(p, termios, old, 50000000);
-}
-
-static bool intel_mid_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct hsu_dma_slave *s = param;
-
-	if (s->dma_dev != chan->device->dev || s->chan_id != chan->chan_id)
-		return false;
-
-	chan->private = s;
-	return true;
-}
-
-static int intel_mid_serial_setup(struct serial_private *priv,
-				  const struct pciserial_board *board,
-				  struct uart_8250_port *port, int idx,
-				  int index, struct pci_dev *dma_dev)
-{
-	struct device *dev = port->port.dev;
-	struct uart_8250_dma *dma;
-	struct hsu_dma_slave *tx_param, *rx_param;
-
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
-	if (!dma)
-		return -ENOMEM;
-
-	tx_param = devm_kzalloc(dev, sizeof(*tx_param), GFP_KERNEL);
-	if (!tx_param)
-		return -ENOMEM;
-
-	rx_param = devm_kzalloc(dev, sizeof(*rx_param), GFP_KERNEL);
-	if (!rx_param)
-		return -ENOMEM;
-
-	rx_param->chan_id = index * 2 + 1;
-	tx_param->chan_id = index * 2;
-
-	dma->rxconf.src_maxburst = 64;
-	dma->txconf.dst_maxburst = 64;
-
-	rx_param->dma_dev = &dma_dev->dev;
-	tx_param->dma_dev = &dma_dev->dev;
-
-	dma->fn = intel_mid_dma_filter;
-	dma->rx_param = rx_param;
-	dma->tx_param = tx_param;
-
-	port->port.type = PORT_16750;
-	port->port.flags |= UPF_FIXED_PORT | UPF_FIXED_TYPE;
-	port->dma = dma;
-
-	return pci_default_setup(priv, board, port, idx);
-}
-
-#define PCI_DEVICE_ID_INTEL_PNW_UART1	0x081b
-#define PCI_DEVICE_ID_INTEL_PNW_UART2	0x081c
-#define PCI_DEVICE_ID_INTEL_PNW_UART3	0x081d
-
-static int pnw_serial_setup(struct serial_private *priv,
-			    const struct pciserial_board *board,
-			    struct uart_8250_port *port, int idx)
-{
-	struct pci_dev *pdev = priv->dev;
-	struct pci_dev *dma_dev;
-	int index;
-
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_PNW_UART1:
-		index = 0;
-		break;
-	case PCI_DEVICE_ID_INTEL_PNW_UART2:
-		index = 1;
-		break;
-	case PCI_DEVICE_ID_INTEL_PNW_UART3:
-		index = 2;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(PCI_SLOT(pdev->devfn), 3));
-
-	port->port.set_termios = intel_mid_set_termios_50M;
-
-	return intel_mid_serial_setup(priv, board, port, idx, index, dma_dev);
-}
-
-#define PCI_DEVICE_ID_INTEL_TNG_UART	0x1191
-
-static int tng_serial_setup(struct serial_private *priv,
-			    const struct pciserial_board *board,
-			    struct uart_8250_port *port, int idx)
-{
-	struct pci_dev *pdev = priv->dev;
-	struct pci_dev *dma_dev;
-	int index = PCI_FUNC(pdev->devfn);
-
-	/* Currently no support for HSU port0 */
-	if (index-- == 0)
-		return -ENODEV;
-
-	dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(5, 0));
-
-	port->port.set_termios = intel_mid_set_termios_38_4M;
-
-	return intel_mid_serial_setup(priv, board, port, idx, index, dma_dev);
-}
-
 static int
 pci_omegapci_setup(struct serial_private *priv,
 		      const struct pciserial_board *board,
@@ -2209,34 +2047,6 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= byt_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_PNW_UART1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= pnw_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_PNW_UART2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= pnw_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_PNW_UART3,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= pnw_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_TNG_UART,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= tng_serial_setup,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
@@ -3119,8 +2929,6 @@ enum pci_board_num_t {
 	pbn_ADDIDATA_PCIe_8_3906250,
 	pbn_ce4100_1_115200,
 	pbn_byt,
-	pbn_pnw,
-	pbn_tng,
 	pbn_qrk,
 	pbn_omegapci,
 	pbn_NETMOS9900_2s_115200,
@@ -3907,16 +3715,6 @@ static struct pciserial_board pci_boards[] = {
 		.uart_offset	= 0x80,
 		.reg_shift      = 2,
 	},
-	[pbn_pnw] = {
-		.flags		= FL_BASE0,
-		.num_ports	= 1,
-		.base_baud	= 115200,
-	},
-	[pbn_tng] = {
-		.flags		= FL_BASE0,
-		.num_ports	= 1,
-		.base_baud	= 1843200,
-	},
 	[pbn_qrk] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,
@@ -4005,6 +3803,13 @@ static const struct pci_device_id blacklist[] = {
 	{ PCI_DEVICE(0x4348, 0x5053), }, /* WCH CH353 1S1P */
 	{ PCI_DEVICE(0x1c00, 0x3250), }, /* WCH CH382 2S1P */
 	{ PCI_DEVICE(0x1c00, 0x3470), }, /* WCH CH384 4S */
+
+	/* Intel platforms with MID UART */
+	{ PCI_VDEVICE(INTEL, 0x081b), },
+	{ PCI_VDEVICE(INTEL, 0x081c), },
+	{ PCI_VDEVICE(INTEL, 0x081d), },
+	{ PCI_VDEVICE(INTEL, 0x1191), },
+	{ PCI_VDEVICE(INTEL, 0x19d8), },
 };
 
 /*
@@ -5700,26 +5505,6 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_ANY_ID,  PCI_ANY_ID,
 		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
 		pbn_byt },
-
-	/*
-	 * Intel Penwell
-	 */
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PNW_UART1,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		pbn_pnw},
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PNW_UART2,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		pbn_pnw},
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PNW_UART3,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		pbn_pnw},
-
-	/*
-	 * Intel Tangier
-	 */
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_TNG_UART,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		pbn_tng},
 
 	/*
 	 * Intel Quark x1000

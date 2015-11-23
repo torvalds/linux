@@ -194,14 +194,15 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	 * digest storage space.
 	 */
 	ret = -ENOMEM;
-	digest = kzalloc(digest_size + desc_size, GFP_KERNEL);
+	digest = kzalloc(ALIGN(digest_size, __alignof__(*desc)) + desc_size,
+			 GFP_KERNEL);
 	if (!digest)
 		goto error;
 
 	cert->sig.digest = digest;
 	cert->sig.digest_size = digest_size;
 
-	desc = digest + digest_size;
+	desc = PTR_ALIGN(digest + digest_size, __alignof__(*desc));
 	desc->tfm = tfm;
 	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 

@@ -3760,7 +3760,7 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8962, &wm8962_dai, 1);
 	if (ret < 0)
-		goto err_enable;
+		goto err_pm_runtime;
 
 	regcache_cache_only(wm8962->regmap, true);
 
@@ -3769,6 +3769,8 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 
 	return 0;
 
+err_pm_runtime:
+	pm_runtime_disable(&i2c->dev);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 err:
@@ -3778,6 +3780,7 @@ err:
 static int wm8962_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
+	pm_runtime_disable(&client->dev);
 	return 0;
 }
 
@@ -3804,6 +3807,8 @@ static int wm8962_runtime_resume(struct device *dev)
 	regcache_cache_only(wm8962->regmap, false);
 
 	wm8962_reset(wm8962);
+
+	regcache_mark_dirty(wm8962->regmap);
 
 	/* SYSCLK defaults to on; make sure it is off so we can safely
 	 * write to registers if the device is declocked.

@@ -593,6 +593,28 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	arm_notify_die("", regs, &info, ifsr, 0);
 }
 
+/*
+ * Abort handler to be used only during first unmasking of asynchronous aborts
+ * on the boot CPU. This makes sure that the machine will not die if the
+ * firmware/bootloader left an imprecise abort pending for us to trip over.
+ */
+static int __init early_abort_handler(unsigned long addr, unsigned int fsr,
+				      struct pt_regs *regs)
+{
+	pr_warn("Hit pending asynchronous external abort (FSR=0x%08x) during "
+		"first unmask, this is most likely caused by a "
+		"firmware/bootloader bug.\n", fsr);
+
+	return 0;
+}
+
+void __init early_abt_enable(void)
+{
+	fsr_info[22].fn = early_abort_handler;
+	local_abt_enable();
+	fsr_info[22].fn = do_bad;
+}
+
 #ifndef CONFIG_ARM_LPAE
 static int __init exceptions_init(void)
 {

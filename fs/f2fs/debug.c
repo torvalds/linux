@@ -33,11 +33,11 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	int i;
 
 	/* validation check of the segment numbers */
-	si->hit_largest = atomic_read(&sbi->read_hit_largest);
-	si->hit_cached = atomic_read(&sbi->read_hit_cached);
-	si->hit_rbtree = atomic_read(&sbi->read_hit_rbtree);
+	si->hit_largest = atomic64_read(&sbi->read_hit_largest);
+	si->hit_cached = atomic64_read(&sbi->read_hit_cached);
+	si->hit_rbtree = atomic64_read(&sbi->read_hit_rbtree);
 	si->hit_total = si->hit_largest + si->hit_cached + si->hit_rbtree;
-	si->total_ext = atomic_read(&sbi->total_hit_ext);
+	si->total_ext = atomic64_read(&sbi->total_hit_ext);
 	si->ext_tree = sbi->total_ext_tree;
 	si->ext_node = atomic_read(&sbi->total_ext_node);
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
@@ -118,7 +118,7 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 		}
 	}
 	dist = div_u64(MAIN_SECS(sbi) * hblks_per_sec * hblks_per_sec, 100);
-	si->bimodal = div_u64(bimodal, dist);
+	si->bimodal = div64_u64(bimodal, dist);
 	if (si->dirty_count)
 		si->avg_vblocks = div_u64(total_vblocks, ndirty);
 	else
@@ -198,9 +198,9 @@ get_cache:
 
 	si->page_mem = 0;
 	npages = NODE_MAPPING(sbi)->nrpages;
-	si->page_mem += npages << PAGE_CACHE_SHIFT;
+	si->page_mem += (unsigned long long)npages << PAGE_CACHE_SHIFT;
 	npages = META_MAPPING(sbi)->nrpages;
-	si->page_mem += npages << PAGE_CACHE_SHIFT;
+	si->page_mem += (unsigned long long)npages << PAGE_CACHE_SHIFT;
 }
 
 static int stat_show(struct seq_file *s, void *v)
@@ -283,12 +283,12 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - node blocks : %d (%d)\n", si->node_blks,
 				si->bg_node_blks);
 		seq_puts(s, "\nExtent Cache:\n");
-		seq_printf(s, "  - Hit Count: L1-1:%d L1-2:%d L2:%d\n",
+		seq_printf(s, "  - Hit Count: L1-1:%llu L1-2:%llu L2:%llu\n",
 				si->hit_largest, si->hit_cached,
 				si->hit_rbtree);
-		seq_printf(s, "  - Hit Ratio: %d%% (%d / %d)\n",
+		seq_printf(s, "  - Hit Ratio: %llu%% (%llu / %llu)\n",
 				!si->total_ext ? 0 :
-				(si->hit_total * 100) / si->total_ext,
+				div64_u64(si->hit_total * 100, si->total_ext),
 				si->hit_total, si->total_ext);
 		seq_printf(s, "  - Inner Struct Count: tree: %d, node: %d\n",
 				si->ext_tree, si->ext_node);
@@ -333,13 +333,13 @@ static int stat_show(struct seq_file *s, void *v)
 
 		/* memory footprint */
 		update_mem_info(si->sbi);
-		seq_printf(s, "\nMemory: %u KB\n",
+		seq_printf(s, "\nMemory: %llu KB\n",
 			(si->base_mem + si->cache_mem + si->page_mem) >> 10);
-		seq_printf(s, "  - static: %u KB\n",
+		seq_printf(s, "  - static: %llu KB\n",
 				si->base_mem >> 10);
-		seq_printf(s, "  - cached: %u KB\n",
+		seq_printf(s, "  - cached: %llu KB\n",
 				si->cache_mem >> 10);
-		seq_printf(s, "  - paged : %u KB\n",
+		seq_printf(s, "  - paged : %llu KB\n",
 				si->page_mem >> 10);
 	}
 	mutex_unlock(&f2fs_stat_mutex);
@@ -378,10 +378,10 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	si->sbi = sbi;
 	sbi->stat_info = si;
 
-	atomic_set(&sbi->total_hit_ext, 0);
-	atomic_set(&sbi->read_hit_rbtree, 0);
-	atomic_set(&sbi->read_hit_largest, 0);
-	atomic_set(&sbi->read_hit_cached, 0);
+	atomic64_set(&sbi->total_hit_ext, 0);
+	atomic64_set(&sbi->read_hit_rbtree, 0);
+	atomic64_set(&sbi->read_hit_largest, 0);
+	atomic64_set(&sbi->read_hit_cached, 0);
 
 	atomic_set(&sbi->inline_xattr, 0);
 	atomic_set(&sbi->inline_inode, 0);

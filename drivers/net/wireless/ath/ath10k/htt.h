@@ -1485,9 +1485,9 @@ struct ath10k_htt {
 	spinlock_t tx_lock;
 	int max_num_pending_tx;
 	int num_pending_tx;
+	int num_pending_mgmt_tx;
 	struct idr pending_tx;
 	wait_queue_head_t empty_tx_wq;
-	struct dma_pool *tx_pool;
 
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */
@@ -1508,6 +1508,11 @@ struct ath10k_htt {
 		dma_addr_t paddr;
 		struct htt_msdu_ext_desc *vaddr;
 	} frag_desc;
+
+	struct {
+		dma_addr_t paddr;
+		struct ath10k_htt_txbuf *vaddr;
+	} txbuf;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1586,8 +1591,9 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt);
 int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,
 				u8 max_subfrms_amsdu);
+void ath10k_htt_hif_tx_complete(struct ath10k *ar, struct sk_buff *skb);
 
-void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt);
+void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt, bool limit_mgmt_desc);
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *);

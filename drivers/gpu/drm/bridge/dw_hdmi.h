@@ -545,6 +545,9 @@
 #define HDMI_I2CM_FS_SCL_LCNT_0_ADDR            0x7E12
 
 enum {
+/* CONFIG1_ID field values */
+	HDMI_CONFIG1_AHB = 0x01,
+
 /* IH_FC_INT2 field values */
 	HDMI_IH_FC_INT2_OVERFLOW_MASK = 0x03,
 	HDMI_IH_FC_INT2_LOW_PRIORITY_OVERFLOW = 0x02,

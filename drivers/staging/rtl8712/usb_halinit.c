@@ -167,12 +167,12 @@ u8 r8712_usb_hal_bus_init(struct _adapter *padapter)
 		r8712_write8(padapter, CR + 1, 0x37);
 		/* Fix the RX FIFO issue(usb error), */
 		val8 = r8712_read8(padapter, 0x1025FE5c);
-		r8712_write8(padapter, 0x1025FE5c, (val8|BIT(7)));
+		r8712_write8(padapter, 0x1025FE5c, (val8 | BIT(7)));
 		val8 = r8712_read8(padapter, 0x102500ab);
-		r8712_write8(padapter, 0x102500ab, (val8|BIT(6)|BIT(7)));
+		r8712_write8(padapter, 0x102500ab, (val8 | BIT(6) | BIT(7)));
 		/* For power save, used this in the bit file after 970621 */
 		val8 = r8712_read8(padapter, SYS_CLKR);
-		r8712_write8(padapter, SYS_CLKR, val8&(~CPU_CLKSEL));
+		r8712_write8(padapter, SYS_CLKR, val8 & (~CPU_CLKSEL));
 	} else if (pregistrypriv->chip_version == RTL8712_2ndCUT ||
 		  pregistrypriv->chip_version == RTL8712_3rdCUT) {
 		/* Initialization for power on sequence,
@@ -280,13 +280,14 @@ u8 r8712_usb_hal_bus_init(struct _adapter *padapter)
 
 		if (PollingCnt <= 0) {
 			val8 = r8712_read8(padapter, CR);
-			r8712_write8(padapter, CR, val8&(~_TXDMA_EN));
+			r8712_write8(padapter, CR, val8 & (~_TXDMA_EN));
 			udelay(2); /* PlatformStallExecution(2); */
 			/* Reset TxDMA */
-			r8712_write8(padapter, CR, val8|_TXDMA_EN);
+			r8712_write8(padapter, CR, val8 | _TXDMA_EN);
 		}
-	} else
+	} else {
 		ret = _FAIL;
+	}
 	return ret;
 }
 

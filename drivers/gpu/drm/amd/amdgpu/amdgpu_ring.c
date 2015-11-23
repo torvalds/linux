@@ -67,8 +67,6 @@ void amdgpu_ring_free_size(struct amdgpu_ring *ring)
 	if (!ring->ring_free_dw) {
 		/* this is an empty ring */
 		ring->ring_free_dw = ring->ring_size / 4;
-		/*  update lockup info to avoid false positive */
-		amdgpu_ring_lockup_update(ring);
 	}
 }
 
@@ -206,46 +204,6 @@ void amdgpu_ring_unlock_undo(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_undo(ring);
 	mutex_unlock(ring->ring_lock);
-}
-
-/**
- * amdgpu_ring_lockup_update - update lockup variables
- *
- * @ring: amdgpu_ring structure holding ring information
- *
- * Update the last rptr value and timestamp (all asics).
- */
-void amdgpu_ring_lockup_update(struct amdgpu_ring *ring)
-{
-	atomic_set(&ring->last_rptr, amdgpu_ring_get_rptr(ring));
-	atomic64_set(&ring->last_activity, jiffies_64);
-}
-
-/**
- * amdgpu_ring_test_lockup() - check if ring is lockedup by recording information
- * @ring:       amdgpu_ring structure holding ring information
- *
- */
-bool amdgpu_ring_test_lockup(struct amdgpu_ring *ring)
-{
-	uint32_t rptr = amdgpu_ring_get_rptr(ring);
-	uint64_t last = atomic64_read(&ring->last_activity);
-	uint64_t elapsed;
-
-	if (rptr != atomic_read(&ring->last_rptr)) {
-		/* ring is still working, no lockup */
-		amdgpu_ring_lockup_update(ring);
-		return false;
-	}
-
-	elapsed = jiffies_to_msecs(jiffies_64 - last);
-	if (amdgpu_lockup_timeout && elapsed >= amdgpu_lockup_timeout) {
-		dev_err(ring->adev->dev, "ring %d stalled for more than %llumsec\n",
-			ring->idx, elapsed);
-		return true;
-	}
-	/* give a chance to the GPU ... */
-	return false;
 }
 
 /**
@@ -436,7 +394,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
-	amdgpu_ring_lockup_update(ring);
 	return 0;
 }
 
@@ -477,6 +434,30 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 		}
 		amdgpu_bo_unref(&ring_obj);
 	}
+}
+
+/**
+ * amdgpu_ring_from_fence - get ring from fence
+ *
+ * @f: fence structure
+ *
+ * Extract the ring a fence belongs to. Handles both scheduler as
+ * well as hardware fences.
+ */
+struct amdgpu_ring *amdgpu_ring_from_fence(struct fence *f)
+{
+	struct amdgpu_fence *a_fence;
+	struct amd_sched_fence *s_fence;
+
+	s_fence = to_amd_sched_fence(f);
+	if (s_fence)
+		return container_of(s_fence->sched, struct amdgpu_ring, sched);
+
+	a_fence = to_amdgpu_fence(f);
+	if (a_fence)
+		return a_fence->ring;
+
+	return NULL;
 }
 
 /*
@@ -540,8 +521,8 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 static int amdgpu_gfx_index = offsetof(struct amdgpu_device, gfx.gfx_ring[0]);
 static int cayman_cp1_index = offsetof(struct amdgpu_device, gfx.compute_ring[0]);
 static int cayman_cp2_index = offsetof(struct amdgpu_device, gfx.compute_ring[1]);
-static int amdgpu_dma1_index = offsetof(struct amdgpu_device, sdma[0].ring);
-static int amdgpu_dma2_index = offsetof(struct amdgpu_device, sdma[1].ring);
+static int amdgpu_dma1_index = offsetof(struct amdgpu_device, sdma.instance[0].ring);
+static int amdgpu_dma2_index = offsetof(struct amdgpu_device, sdma.instance[1].ring);
 static int r600_uvd_index = offsetof(struct amdgpu_device, uvd.ring);
 static int si_vce1_index = offsetof(struct amdgpu_device, vce.ring[0]);
 static int si_vce2_index = offsetof(struct amdgpu_device, vce.ring[1]);

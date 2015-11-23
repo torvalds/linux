@@ -17,6 +17,7 @@
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -189,13 +190,22 @@ static int arizona_ldo1_of_get_pdata(struct arizona *arizona,
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
 	struct arizona_ldo1 *ldo1 = config->driver_data;
+	struct device_node *np = arizona->dev->of_node;
 	struct device_node *init_node, *dcvdd_node;
 	struct regulator_init_data *init_data;
 
-	pdata->ldoena = arizona_of_get_named_gpio(arizona, "wlf,ldoena", true);
+	pdata->ldoena = of_get_named_gpio(np, "wlf,ldoena", 0);
+	if (pdata->ldoena < 0) {
+		dev_warn(arizona->dev,
+			 "LDOENA GPIO property missing/malformed: %d\n",
+			 pdata->ldoena);
+		pdata->ldoena = 0;
+	} else {
+		config->ena_gpio_initialized = true;
+	}
 
-	init_node = of_get_child_by_name(arizona->dev->of_node, "ldo1");
-	dcvdd_node = of_parse_phandle(arizona->dev->of_node, "DCVDD-supply", 0);
+	init_node = of_get_child_by_name(np, "ldo1");
+	dcvdd_node = of_parse_phandle(np, "DCVDD-supply", 0);
 
 	if (init_node) {
 		config->of_node = init_node;
@@ -245,6 +255,8 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	switch (arizona->type) {
 	case WM5102:
 	case WM8997:
+	case WM8998:
+	case WM1814:
 		desc = &arizona_ldo1_hc;
 		ldo1->init_data = arizona_ldo1_dvfs;
 		break;
@@ -272,8 +284,6 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 			ret = arizona_ldo1_of_get_pdata(arizona, &config, desc);
 			if (ret < 0)
 				return ret;
-
-			config.ena_gpio_initialized = true;
 		}
 	}
 

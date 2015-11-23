@@ -3,4 +3,6 @@
 #
 
 obj-$(CONFIG_HIX5HD2_GMAC) += hix5hd2_gmac.o
-obj-$(CONFIG_HIP04_ETH) += hip04_mdio.o hip04_eth.o
+obj-$(CONFIG_HIP04_ETH) += hip04_eth.o
+obj-$(CONFIG_HNS_MDIO) += hns_mdio.o
+obj-$(CONFIG_HNS) += hns/

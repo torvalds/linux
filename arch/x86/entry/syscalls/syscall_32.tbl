@@ -8,7 +8,7 @@
 #
 0	i386	restart_syscall		sys_restart_syscall
 1	i386	exit			sys_exit
-2	i386	fork			sys_fork			stub32_fork
+2	i386	fork			sys_fork			sys_fork
 3	i386	read			sys_read
 4	i386	write			sys_write
 5	i386	open			sys_open			compat_sys_open
@@ -17,7 +17,7 @@
 8	i386	creat			sys_creat
 9	i386	link			sys_link
 10	i386	unlink			sys_unlink
-11	i386	execve			sys_execve			stub32_execve
+11	i386	execve			sys_execve			compat_sys_execve
 12	i386	chdir			sys_chdir
 13	i386	time			sys_time			compat_sys_time
 14	i386	mknod			sys_mknod
@@ -125,7 +125,7 @@
 116	i386	sysinfo			sys_sysinfo			compat_sys_sysinfo
 117	i386	ipc			sys_ipc				compat_sys_ipc
 118	i386	fsync			sys_fsync
-119	i386	sigreturn		sys_sigreturn			stub32_sigreturn
+119	i386	sigreturn		sys_sigreturn			sys32_sigreturn
 120	i386	clone			sys_clone			stub32_clone
 121	i386	setdomainname		sys_setdomainname
 122	i386	uname			sys_newuname
@@ -179,7 +179,7 @@
 170	i386	setresgid		sys_setresgid16
 171	i386	getresgid		sys_getresgid16
 172	i386	prctl			sys_prctl
-173	i386	rt_sigreturn		sys_rt_sigreturn		stub32_rt_sigreturn
+173	i386	rt_sigreturn		sys_rt_sigreturn		sys32_rt_sigreturn
 174	i386	rt_sigaction		sys_rt_sigaction		compat_sys_rt_sigaction
 175	i386	rt_sigprocmask		sys_rt_sigprocmask
 176	i386	rt_sigpending		sys_rt_sigpending		compat_sys_rt_sigpending
@@ -196,7 +196,7 @@
 187	i386	sendfile		sys_sendfile			compat_sys_sendfile
 188	i386	getpmsg
 189	i386	putpmsg
-190	i386	vfork			sys_vfork			stub32_vfork
+190	i386	vfork			sys_vfork			sys_vfork
 191	i386	ugetrlimit		sys_getrlimit			compat_sys_getrlimit
 192	i386	mmap2			sys_mmap_pgoff
 193	i386	truncate64		sys_truncate64			sys32_truncate64
@@ -364,7 +364,7 @@
 355	i386	getrandom		sys_getrandom
 356	i386	memfd_create		sys_memfd_create
 357	i386	bpf			sys_bpf
-358	i386	execveat		sys_execveat			stub32_execveat
+358	i386	execveat		sys_execveat			compat_sys_execveat
 359	i386	socket			sys_socket
 360	i386	socketpair		sys_socketpair
 361	i386	bind			sys_bind
@@ -382,3 +382,4 @@
 373	i386	shutdown		sys_shutdown
 374	i386	userfaultfd		sys_userfaultfd
 375	i386	membarrier		sys_membarrier
+376	i386	mlock2			sys_mlock2

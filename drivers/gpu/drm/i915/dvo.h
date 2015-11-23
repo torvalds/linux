@@ -94,8 +94,8 @@ struct intel_dvo_dev_ops {
 	 * after this function is called.
 	 */
 	void (*mode_set)(struct intel_dvo_device *dvo,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode);
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode);
 
 	/*
 	 * Probe for a connected output, and return detect_status.

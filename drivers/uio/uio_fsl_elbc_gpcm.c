@@ -470,6 +470,7 @@ static const struct of_device_id uio_fsl_elbc_gpcm_match[] = {
 	{ .compatible = "fsl,elbc-gpcm-uio", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, uio_fsl_elbc_gpcm_match);
 
 static struct platform_driver uio_fsl_elbc_gpcm_driver = {
 	.driver = {

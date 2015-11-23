@@ -432,4 +432,5 @@ EXPORT(sys_call_table)
 	PTR	sys_execveat
 	PTR	sys_userfaultfd
 	PTR	sys_membarrier
+	PTR	sys_mlock2
 	.size	sys_call_table,.-sys_call_table

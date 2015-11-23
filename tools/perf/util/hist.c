@@ -15,6 +15,8 @@ static bool hists__filter_entry_by_thread(struct hists *hists,
 					  struct hist_entry *he);
 static bool hists__filter_entry_by_symbol(struct hists *hists,
 					  struct hist_entry *he);
+static bool hists__filter_entry_by_socket(struct hists *hists,
+					  struct hist_entry *he);
 
 u16 hists__col_len(struct hists *hists, enum hist_column col)
 {
@@ -130,6 +132,18 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 			hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL,
 					   symlen);
 		}
+
+		if (h->mem_info->iaddr.sym) {
+			symlen = (int)h->mem_info->iaddr.sym->namelen + 4
+			       + unresolved_col_width + 2;
+			hists__new_col_len(hists, HISTC_MEM_IADDR_SYMBOL,
+					   symlen);
+		} else {
+			symlen = unresolved_col_width + 4 + 2;
+			hists__new_col_len(hists, HISTC_MEM_IADDR_SYMBOL,
+					   symlen);
+		}
+
 		if (h->mem_info->daddr.map) {
 			symlen = dso__name_len(h->mem_info->daddr.map->dso);
 			hists__new_col_len(hists, HISTC_MEM_DADDR_DSO,
@@ -141,9 +155,12 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	} else {
 		symlen = unresolved_col_width + 4 + 2;
 		hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL, symlen);
+		hists__new_col_len(hists, HISTC_MEM_IADDR_SYMBOL, symlen);
 		hists__set_unres_dso_col_len(hists, HISTC_MEM_DADDR_DSO);
 	}
 
+	hists__new_col_len(hists, HISTC_CPU, 3);
+	hists__new_col_len(hists, HISTC_SOCKET, 6);
 	hists__new_col_len(hists, HISTC_MEM_LOCKED, 6);
 	hists__new_col_len(hists, HISTC_MEM_TLB, 22);
 	hists__new_col_len(hists, HISTC_MEM_SNOOP, 12);
@@ -452,6 +469,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 			.map	= al->map,
 			.sym	= al->sym,
 		},
+		.socket	 = al->socket,
 		.cpu	 = al->cpu,
 		.cpumode = al->cpumode,
 		.ip	 = al->addr,
@@ -690,7 +708,7 @@ iter_finish_normal_entry(struct hist_entry_iter *iter,
 }
 
 static int
-iter_prepare_cumulative_entry(struct hist_entry_iter *iter __maybe_unused,
+iter_prepare_cumulative_entry(struct hist_entry_iter *iter,
 			      struct addr_location *al __maybe_unused)
 {
 	struct hist_entry **he_cache;
@@ -702,7 +720,7 @@ iter_prepare_cumulative_entry(struct hist_entry_iter *iter __maybe_unused,
 	 * cumulated only one time to prevent entries more than 100%
 	 * overhead.
 	 */
-	he_cache = malloc(sizeof(*he_cache) * (PERF_MAX_STACK_DEPTH + 1));
+	he_cache = malloc(sizeof(*he_cache) * (iter->max_stack + 1));
 	if (he_cache == NULL)
 		return -ENOMEM;
 
@@ -862,6 +880,8 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 					iter->evsel, al, max_stack_depth);
 	if (err)
 		return err;
+
+	iter->max_stack = max_stack_depth;
 
 	err = iter->ops->prepare_entry(iter, al);
 	if (err)
@@ -1024,6 +1044,7 @@ static void hists__apply_filters(struct hists *hists, struct hist_entry *he)
 	hists__filter_entry_by_dso(hists, he);
 	hists__filter_entry_by_thread(hists, he);
 	hists__filter_entry_by_symbol(hists, he);
+	hists__filter_entry_by_socket(hists, he);
 }
 
 void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
@@ -1143,7 +1164,7 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 	struct perf_evsel *evsel = hists_to_evsel(hists);
 	bool use_callchain;
 
-	if (evsel && !symbol_conf.show_ref_callgraph)
+	if (evsel && symbol_conf.use_callchain && !symbol_conf.show_ref_callgraph)
 		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
 	else
 		use_callchain = symbol_conf.use_callchain;
@@ -1289,6 +1310,37 @@ void hists__filter_by_symbol(struct hists *hists)
 			continue;
 
 		hists__remove_entry_filter(hists, h, HIST_FILTER__SYMBOL);
+	}
+}
+
+static bool hists__filter_entry_by_socket(struct hists *hists,
+					  struct hist_entry *he)
+{
+	if ((hists->socket_filter > -1) &&
+	    (he->socket != hists->socket_filter)) {
+		he->filtered |= (1 << HIST_FILTER__SOCKET);
+		return true;
+	}
+
+	return false;
+}
+
+void hists__filter_by_socket(struct hists *hists)
+{
+	struct rb_node *nd;
+
+	hists->stats.nr_non_filtered_samples = 0;
+
+	hists__reset_filter_stats(hists);
+	hists__reset_col_len(hists);
+
+	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (hists__filter_entry_by_socket(hists, h))
+			continue;
+
+		hists__remove_entry_filter(hists, h, HIST_FILTER__SOCKET);
 	}
 }
 
@@ -1517,6 +1569,7 @@ static int hists_evsel__init(struct perf_evsel *evsel)
 	hists->entries_collapsed = RB_ROOT;
 	hists->entries = RB_ROOT;
 	pthread_mutex_init(&hists->lock, NULL);
+	hists->socket_filter = -1;
 	return 0;
 }
 

@@ -19,6 +19,7 @@
 #include <linux/kexec.h>
 #include <linux/highmem.h>
 #include <linux/cpu.h>
+#include <linux/fsl/guts.h>
 
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
@@ -26,7 +27,6 @@
 #include <asm/mpic.h>
 #include <asm/cacheflush.h>
 #include <asm/dbell.h>
-#include <asm/fsl_guts.h>
 #include <asm/code-patching.h>
 #include <asm/cputhreads.h>
 
@@ -173,15 +173,22 @@ static inline u32 read_spin_table_addr_l(void *spin_table)
 static void wake_hw_thread(void *info)
 {
 	void fsl_secondary_thread_init(void);
-	unsigned long imsr1, inia1;
+	unsigned long imsr, inia;
 	int nr = *(const int *)info;
 
-	imsr1 = MSR_KERNEL;
-	inia1 = *(unsigned long *)fsl_secondary_thread_init;
+	imsr = MSR_KERNEL;
+	inia = *(unsigned long *)fsl_secondary_thread_init;
 
-	mttmr(TMRN_IMSR1, imsr1);
-	mttmr(TMRN_INIA1, inia1);
-	mtspr(SPRN_TENS, TEN_THREAD(1));
+	if (cpu_thread_in_core(nr) == 0) {
+		/* For when we boot on a secondary thread with kdump */
+		mttmr(TMRN_IMSR0, imsr);
+		mttmr(TMRN_INIA0, inia);
+		mtspr(SPRN_TENS, TEN_THREAD(0));
+	} else {
+		mttmr(TMRN_IMSR1, imsr);
+		mttmr(TMRN_INIA1, inia);
+		mtspr(SPRN_TENS, TEN_THREAD(1));
+	}
 
 	smp_generic_kick_cpu(nr);
 }
@@ -224,6 +231,12 @@ static int smp_85xx_kick_cpu(int nr)
 
 		smp_call_function_single(primary, wake_hw_thread, &nr, 0);
 		return 0;
+	} else if (cpu_thread_in_core(boot_cpuid) != 0 &&
+		   cpu_first_thread_sibling(boot_cpuid) == nr) {
+		if (WARN_ON_ONCE(!cpu_has_feature(CPU_FTR_SMT)))
+			return -ENOENT;
+
+		smp_call_function_single(boot_cpuid, wake_hw_thread, &nr, 0);
 	}
 #endif
 
@@ -331,13 +344,14 @@ struct smp_ops_t smp_85xx_ops = {
 	.cpu_disable	= generic_cpu_disable,
 	.cpu_die	= generic_cpu_die,
 #endif
-#ifdef CONFIG_KEXEC
+#if defined(CONFIG_KEXEC) && !defined(CONFIG_PPC64)
 	.give_timebase	= smp_generic_give_timebase,
 	.take_timebase	= smp_generic_take_timebase,
 #endif
 };
 
 #ifdef CONFIG_KEXEC
+#ifdef CONFIG_PPC32
 atomic_t kexec_down_cpus = ATOMIC_INIT(0);
 
 void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
@@ -357,9 +371,64 @@ static void mpc85xx_smp_kexec_down(void *arg)
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0,1);
 }
+#else
+void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
+{
+	int cpu = smp_processor_id();
+	int sibling = cpu_last_thread_sibling(cpu);
+	bool notified = false;
+	int disable_cpu;
+	int disable_threadbit = 0;
+	long start = mftb();
+	long now;
+
+	local_irq_disable();
+	hard_irq_disable();
+	mpic_teardown_this_cpu(secondary);
+
+	if (cpu == crashing_cpu && cpu_thread_in_core(cpu) != 0) {
+		/*
+		 * We enter the crash kernel on whatever cpu crashed,
+		 * even if it's a secondary thread.  If that's the case,
+		 * disable the corresponding primary thread.
+		 */
+		disable_threadbit = 1;
+		disable_cpu = cpu_first_thread_sibling(cpu);
+	} else if (sibling != crashing_cpu &&
+		   cpu_thread_in_core(cpu) == 0 &&
+		   cpu_thread_in_core(sibling) != 0) {
+		disable_threadbit = 2;
+		disable_cpu = sibling;
+	}
+
+	if (disable_threadbit) {
+		while (paca[disable_cpu].kexec_state < KEXEC_STATE_REAL_MODE) {
+			barrier();
+			now = mftb();
+			if (!notified && now - start > 1000000) {
+				pr_info("%s/%d: waiting for cpu %d to enter KEXEC_STATE_REAL_MODE (%d)\n",
+					__func__, smp_processor_id(),
+					disable_cpu,
+					paca[disable_cpu].kexec_state);
+				notified = true;
+			}
+		}
+
+		if (notified) {
+			pr_info("%s: cpu %d done waiting\n",
+				__func__, disable_cpu);
+		}
+
+		mtspr(SPRN_TENC, disable_threadbit);
+		while (mfspr(SPRN_TENSR) & disable_threadbit)
+			cpu_relax();
+	}
+}
+#endif
 
 static void mpc85xx_smp_machine_kexec(struct kimage *image)
 {
+#ifdef CONFIG_PPC32
 	int timeout = INT_MAX;
 	int i, num_cpus = num_present_cpus();
 
@@ -380,6 +449,7 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 		if ( i == smp_processor_id() ) continue;
 		mpic_reset_core(i);
 	}
+#endif
 
 	default_machine_kexec(image);
 }

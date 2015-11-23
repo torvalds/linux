@@ -22,6 +22,7 @@
 #ifndef _DAVINCI_VPFE_VIDEO_H
 #define _DAVINCI_VPFE_VIDEO_H
 
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 struct vpfe_device;
@@ -72,7 +73,7 @@ struct vpfe_pipeline {
 	container_of(vdev, struct vpfe_video_device, video_dev)
 
 struct vpfe_cap_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 

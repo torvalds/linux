@@ -322,6 +322,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 			goto probe_failed;
 	}
 
+	pinctrl_init_done(dev);
+
 	if (dev->pm_domain && dev->pm_domain->sync)
 		dev->pm_domain->sync(dev);
 

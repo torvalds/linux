@@ -17,7 +17,7 @@
 
 #include <linux/platform_device.h>
 
-#define INT_DMA_LCD			25
+#define INT_DMA_LCD			(NR_IRQS_LEGACY + 25)
 
 #define OMAP1_DMA_TOUT_IRQ		(1 << 0)
 #define OMAP_DMA_DROP_IRQ		(1 << 1)

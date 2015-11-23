@@ -178,6 +178,14 @@
 	};
 };
 
+&mmc0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_clk>, <&sd0_cmd>, <&sd0_cd>, <&sd0_bus4>;
+	vmmc-supply = <&vcc_sd0>;
+};
+
 &pinctrl {
 	lan8720a {
 		phy_int: phy-int {

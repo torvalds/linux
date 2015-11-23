@@ -1123,8 +1123,10 @@ config X86_REBOOTFIXUPS
 	  Say N otherwise.
 
 config MICROCODE
-	tristate "CPU microcode loading support"
+	bool "CPU microcode loading support"
+	default y
 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
+	depends on BLK_DEV_INITRD
 	select FW_LOADER
 	---help---
 
@@ -1165,24 +1167,6 @@ config MICROCODE_AMD
 config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
-
-config MICROCODE_INTEL_EARLY
-	bool
-
-config MICROCODE_AMD_EARLY
-	bool
-
-config MICROCODE_EARLY
-	bool "Early load microcode"
-	depends on MICROCODE=y && BLK_DEV_INITRD
-	select MICROCODE_INTEL_EARLY if MICROCODE_INTEL
-	select MICROCODE_AMD_EARLY if MICROCODE_AMD
-	default y
-	help
-	  This option provides functionality to read additional microcode data
-	  at the beginning of initrd image. The data tells kernel to load
-	  microcode to CPU's as early as possible. No functional change if no
-	  microcode data is glued to the initrd, therefore it's safe to say Y.
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
@@ -1308,6 +1292,7 @@ config HIGHMEM
 config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
 	depends on X86_32 && !HIGHMEM4G
+	select SWIOTLB
 	---help---
 	  PAE is required for NX support, and furthermore enables
 	  larger swapspace support for non-overcommit purposes. It
@@ -2041,6 +2026,55 @@ config COMPAT_VDSO
 
 	  If unsure, say N: if you are compiling your own kernel, you
 	  are unlikely to be using a buggy version of glibc.
+
+choice
+	prompt "vsyscall table for legacy applications"
+	depends on X86_64
+	default LEGACY_VSYSCALL_EMULATE
+	help
+	  Legacy user code that does not know how to find the vDSO expects
+	  to be able to issue three syscalls by calling fixed addresses in
+	  kernel space. Since this location is not randomized with ASLR,
+	  it can be used to assist security vulnerability exploitation.
+
+	  This setting can be changed at boot time via the kernel command
+	  line parameter vsyscall=[native|emulate|none].
+
+	  On a system with recent enough glibc (2.14 or newer) and no
+	  static binaries, you can say None without a performance penalty
+	  to improve security.
+
+	  If unsure, select "Emulate".
+
+	config LEGACY_VSYSCALL_NATIVE
+		bool "Native"
+		help
+		  Actual executable code is located in the fixed vsyscall
+		  address mapping, implementing time() efficiently. Since
+		  this makes the mapping executable, it can be used during
+		  security vulnerability exploitation (traditionally as
+		  ROP gadgets). This configuration is not recommended.
+
+	config LEGACY_VSYSCALL_EMULATE
+		bool "Emulate"
+		help
+		  The kernel traps and emulates calls into the fixed
+		  vsyscall address mapping. This makes the mapping
+		  non-executable, but it still contains known contents,
+		  which could be used in certain rare security vulnerability
+		  exploits. This configuration is recommended when userspace
+		  still uses the vsyscall area.
+
+	config LEGACY_VSYSCALL_NONE
+		bool "None"
+		help
+		  There will be no vsyscall mapping at all. This will
+		  eliminate any risk of ASLR bypass due to the vsyscall
+		  fixed address mapping. Attempts to use the vsyscalls
+		  will be reported to dmesg, so that either old or
+		  malicious userspace programs can be identified.
+
+endchoice
 
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"

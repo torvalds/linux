@@ -125,12 +125,17 @@ static u64 jit_get_skb_w(struct sk_buff *skb, int offset)
 }
 
 /*
- * Wrapper that handles both OABI and EABI and assures Thumb2 interworking
+ * Wrappers which handle both OABI and EABI and assures Thumb2 interworking
  * (where the assembly routines like __aeabi_uidiv could cause problems).
  */
 static u32 jit_udiv(u32 dividend, u32 divisor)
 {
 	return dividend / divisor;
+}
+
+static u32 jit_mod(u32 dividend, u32 divisor)
+{
+	return dividend % divisor;
 }
 
 static inline void _emit(int cond, u32 inst, struct jit_ctx *ctx)
@@ -471,11 +476,17 @@ static inline void emit_blx_r(u8 tgt_reg, struct jit_ctx *ctx)
 #endif
 }
 
-static inline void emit_udiv(u8 rd, u8 rm, u8 rn, struct jit_ctx *ctx)
+static inline void emit_udivmod(u8 rd, u8 rm, u8 rn, struct jit_ctx *ctx,
+				int bpf_op)
 {
 #if __LINUX_ARM_ARCH__ == 7
 	if (elf_hwcap & HWCAP_IDIVA) {
-		emit(ARM_UDIV(rd, rm, rn), ctx);
+		if (bpf_op == BPF_DIV)
+			emit(ARM_UDIV(rd, rm, rn), ctx);
+		else {
+			emit(ARM_UDIV(ARM_R3, rm, rn), ctx);
+			emit(ARM_MLS(rd, rn, ARM_R3, rm), ctx);
+		}
 		return;
 	}
 #endif
@@ -496,7 +507,8 @@ static inline void emit_udiv(u8 rd, u8 rm, u8 rn, struct jit_ctx *ctx)
 		emit(ARM_MOV_R(ARM_R0, rm), ctx);
 
 	ctx->seen |= SEEN_CALL;
-	emit_mov_i(ARM_R3, (u32)jit_udiv, ctx);
+	emit_mov_i(ARM_R3, bpf_op == BPF_DIV ? (u32)jit_udiv : (u32)jit_mod,
+		   ctx);
 	emit_blx_r(ARM_R3, ctx);
 
 	if (rd != ARM_R0)
@@ -614,6 +626,7 @@ load_common:
 		case BPF_LD | BPF_B | BPF_IND:
 			load_order = 0;
 load_ind:
+			update_on_xread(ctx);
 			OP_IMM3(ARM_ADD, r_off, r_X, k, ctx);
 			goto load_common;
 		case BPF_LDX | BPF_IMM:
@@ -697,13 +710,27 @@ load_ind:
 			if (k == 1)
 				break;
 			emit_mov_i(r_scratch, k, ctx);
-			emit_udiv(r_A, r_A, r_scratch, ctx);
+			emit_udivmod(r_A, r_A, r_scratch, ctx, BPF_DIV);
 			break;
 		case BPF_ALU | BPF_DIV | BPF_X:
 			update_on_xread(ctx);
 			emit(ARM_CMP_I(r_X, 0), ctx);
 			emit_err_ret(ARM_COND_EQ, ctx);
-			emit_udiv(r_A, r_A, r_X, ctx);
+			emit_udivmod(r_A, r_A, r_X, ctx, BPF_DIV);
+			break;
+		case BPF_ALU | BPF_MOD | BPF_K:
+			if (k == 1) {
+				emit_mov_i(r_A, 0, ctx);
+				break;
+			}
+			emit_mov_i(r_scratch, k, ctx);
+			emit_udivmod(r_A, r_A, r_scratch, ctx, BPF_MOD);
+			break;
+		case BPF_ALU | BPF_MOD | BPF_X:
+			update_on_xread(ctx);
+			emit(ARM_CMP_I(r_X, 0), ctx);
+			emit_err_ret(ARM_COND_EQ, ctx);
+			emit_udivmod(r_A, r_A, r_X, ctx, BPF_MOD);
 			break;
 		case BPF_ALU | BPF_OR | BPF_K:
 			/* A |= K */
@@ -1034,7 +1061,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	}
 	build_epilogue(&ctx);
 
-	flush_icache_range((u32)ctx.target, (u32)(ctx.target + ctx.idx));
+	flush_icache_range((u32)header, (u32)(ctx.target + ctx.idx));
 
 #if __LINUX_ARM_ARCH__ < 7
 	if (ctx.imm_count)
@@ -1047,7 +1074,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 
 	set_memory_ro((unsigned long)header, header->pages);
 	fp->bpf_func = (void *)ctx.target;
-	fp->jited = true;
+	fp->jited = 1;
 out:
 	kfree(ctx.offsets);
 	return;

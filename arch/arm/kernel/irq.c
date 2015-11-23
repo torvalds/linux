@@ -39,6 +39,7 @@
 #include <linux/export.h>
 
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/hardware/cache-uniphier.h>
 #include <asm/outercache.h>
 #include <asm/exception.h>
 #include <asm/mach/arch.h>
@@ -97,6 +98,8 @@ void __init init_IRQ(void)
 		if (ret)
 			pr_err("L2C: failed to init: %d\n", ret);
 	}
+
+	uniphier_cache_init();
 }
 
 #ifdef CONFIG_MULTI_IRQ_HANDLER
