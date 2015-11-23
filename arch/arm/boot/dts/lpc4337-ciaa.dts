@@ -166,6 +166,10 @@
 	pinctrl-0 = <&enet_rmii_pins>;
 };
 
+&sct_pwm {
+	status = "okay";
+};
+
 &ssp1 {
 	status = "okay";
 	pinctrl-names = "default";
