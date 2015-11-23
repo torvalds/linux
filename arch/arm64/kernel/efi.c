@@ -227,18 +227,12 @@ static bool __init efi_virtmap_init(void)
 	init_new_context(NULL, &efi_mm);
 
 	for_each_efi_memory_desc(&memmap, md) {
-		u64 paddr, npages, size;
 		pgprot_t prot;
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 		if (md->virt_addr == 0)
 			return false;
-
-		paddr = md->phys_addr;
-		npages = md->num_pages;
-		memrange_efi_to_native(&paddr, &npages);
-		size = npages << PAGE_SHIFT;
 
 		pr_info("  EFI remap 0x%016llx => %p\n",
 			md->phys_addr, (void *)md->virt_addr);
@@ -256,7 +250,8 @@ static bool __init efi_virtmap_init(void)
 		else
 			prot = PAGE_KERNEL;
 
-		create_pgd_mapping(&efi_mm, paddr, md->virt_addr, size,
+		create_pgd_mapping(&efi_mm, md->phys_addr, md->virt_addr,
+				   md->num_pages << EFI_PAGE_SHIFT, 
 				   __pgprot(pgprot_val(prot) | PTE_NG));
 	}
 	return true;
