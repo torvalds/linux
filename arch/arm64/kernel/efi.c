@@ -127,7 +127,11 @@ static int __init uefi_init(void)
 	table_size = sizeof(efi_config_table_64_t) * efi.systab->nr_tables;
 	config_tables = early_memremap(efi_to_phys(efi.systab->tables),
 				       table_size);
-
+	if (config_tables == NULL) {
+		pr_warn("Unable to map EFI config table array.\n");
+		retval = -ENOMEM;
+		goto out;
+	}
 	retval = efi_config_parse_tables(config_tables, efi.systab->nr_tables,
 					 sizeof(efi_config_table_64_t), NULL);
 
@@ -209,6 +213,14 @@ void __init efi_init(void)
 			 PAGE_ALIGN(params.mmap_size + (params.mmap & ~PAGE_MASK)));
 	memmap.phys_map = params.mmap;
 	memmap.map = early_memremap(params.mmap, params.mmap_size);
+	if (memmap.map == NULL) {
+		/*
+		* If we are booting via UEFI, the UEFI memory map is the only
+		* description of memory we have, so there is little point in
+		* proceeding if we cannot access it.
+		*/
+		panic("Unable to map EFI memory map.\n");
+	}
 	memmap.map_end = memmap.map + params.mmap_size;
 	memmap.desc_size = params.desc_size;
 	memmap.desc_version = params.desc_ver;
