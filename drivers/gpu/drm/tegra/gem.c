@@ -28,11 +28,8 @@ static inline struct tegra_bo *host1x_to_tegra_bo(struct host1x_bo *bo)
 static void tegra_bo_put(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-	struct drm_device *drm = obj->gem.dev;
 
-	mutex_lock(&drm->struct_mutex);
-	drm_gem_object_unreference(&obj->gem);
-	mutex_unlock(&drm->struct_mutex);
+	drm_gem_object_unreference_unlocked(&obj->gem);
 }
 
 static dma_addr_t tegra_bo_pin(struct host1x_bo *bo, struct sg_table **sgt)
@@ -72,11 +69,8 @@ static void tegra_bo_kunmap(struct host1x_bo *bo, unsigned int page,
 static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
-	struct drm_device *drm = obj->gem.dev;
 
-	mutex_lock(&drm->struct_mutex);
 	drm_gem_object_reference(&obj->gem);
-	mutex_unlock(&drm->struct_mutex);
 
 	return bo;
 }

@@ -277,9 +277,7 @@ host1x_bo_lookup(struct drm_device *drm, struct drm_file *file, u32 handle)
 	if (!gem)
 		return NULL;
 
-	mutex_lock(&drm->struct_mutex);
-	drm_gem_object_unreference(gem);
-	mutex_unlock(&drm->struct_mutex);
+	drm_gem_object_unreference_unlocked(gem);
 
 	bo = to_tegra_bo(gem);
 	return &bo->base;
