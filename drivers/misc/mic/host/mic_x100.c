@@ -468,8 +468,13 @@ mic_x100_load_firmware(struct mic_device *mdev, const char *buf)
 	}
 	memcpy_toio(mdev->aper.va + mdev->bootaddr, fw->data, fw->size);
 	mdev->ops->write_spad(mdev, MIC_X100_FW_SIZE, fw->size);
-	if (!strcmp(mdev->cosm_dev->bootmode, "flash"))
+	if (!strcmp(mdev->cosm_dev->bootmode, "flash")) {
+		rc = -EINVAL;
+		dev_err(&mdev->pdev->dev, "%s %d rc %d\n",
+			__func__, __LINE__, rc);
+		release_firmware(fw);
 		goto done;
+	}
 	/* load command line */
 	rc = mic_x100_load_command_line(mdev, fw);
 	if (rc) {
