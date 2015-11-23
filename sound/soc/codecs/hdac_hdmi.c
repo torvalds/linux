@@ -200,6 +200,8 @@ static int hdac_hdmi_set_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
+	if (!dd)
+		return -ENOMEM;
 	dd->format = snd_hdac_calc_stream_format(params_rate(hparams),
 			params_channels(hparams), params_format(hparams),
 			24, 0);
