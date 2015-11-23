@@ -16,6 +16,10 @@ Required properties:
 	Required elements: "pclk", "gclk" and "aclk".
 - clocks
 	Please refer to clock-bindings.txt.
+- assigned-clocks
+	Should be <&classd_gclk>.
+- assigned-clock-parents
+	Should be <&audio_pll_pmc>.
 
 Optional properties:
 - pinctrl-names, pinctrl-0
@@ -43,6 +47,8 @@ classd: classd@fc048000 {
 		dma-names = "tx";
 		clocks = <&classd_clk>, <&classd_gclk>, <&audio_pll_pmc>;
 		clock-names = "pclk", "gclk", "aclk";
+		assigned-clocks = <&classd_gclk>;
+		assigned-clock-parents = <&audio_pll_pmc>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_classd_default>;
