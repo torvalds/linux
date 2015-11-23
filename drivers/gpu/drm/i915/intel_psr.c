@@ -524,10 +524,14 @@ void intel_psr_disable(struct intel_dp *intel_dp)
 		return;
 	}
 
+	/* Disable PSR on Source */
 	if (HAS_DDI(dev))
 		hsw_psr_disable(intel_dp);
 	else
 		vlv_psr_disable(intel_dp);
+
+	/* Disable PSR on Sink */
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
 
 	dev_priv->psr.enabled = NULL;
 	mutex_unlock(&dev_priv->psr.lock);
