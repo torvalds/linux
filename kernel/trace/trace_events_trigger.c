@@ -543,11 +543,12 @@ static int register_trigger(char *glob, struct event_trigger_ops *ops,
 	list_add_rcu(&data->list, &file->triggers);
 	ret++;
 
+	update_cond_flag(file);
 	if (trace_event_trigger_enable_disable(file, 1) < 0) {
 		list_del_rcu(&data->list);
+		update_cond_flag(file);
 		ret--;
 	}
-	update_cond_flag(file);
 out:
 	return ret;
 }
@@ -575,8 +576,8 @@ static void unregister_trigger(char *glob, struct event_trigger_ops *ops,
 		if (data->cmd_ops->trigger_type == test->cmd_ops->trigger_type) {
 			unregistered = true;
 			list_del_rcu(&data->list);
-			update_cond_flag(file);
 			trace_event_trigger_enable_disable(file, 0);
+			update_cond_flag(file);
 			break;
 		}
 	}
@@ -1319,11 +1320,12 @@ static int event_enable_register_trigger(char *glob,
 	list_add_rcu(&data->list, &file->triggers);
 	ret++;
 
+	update_cond_flag(file);
 	if (trace_event_trigger_enable_disable(file, 1) < 0) {
 		list_del_rcu(&data->list);
+		update_cond_flag(file);
 		ret--;
 	}
-	update_cond_flag(file);
 out:
 	return ret;
 }
@@ -1344,8 +1346,8 @@ static void event_enable_unregister_trigger(char *glob,
 		    (enable_data->file == test_enable_data->file)) {
 			unregistered = true;
 			list_del_rcu(&data->list);
-			update_cond_flag(file);
 			trace_event_trigger_enable_disable(file, 0);
+			update_cond_flag(file);
 			break;
 		}
 	}
