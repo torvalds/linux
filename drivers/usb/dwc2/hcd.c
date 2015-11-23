@@ -324,12 +324,13 @@ void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg)
  */
 static void dwc2_hcd_rem_wakeup(struct dwc2_hsotg *hsotg)
 {
-	if (hsotg->lx_state == DWC2_L2) {
+	if (hsotg->bus_suspended) {
 		hsotg->flags.b.port_suspend_change = 1;
 		usb_hcd_resume_root_hub(hsotg->priv);
-	} else {
-		hsotg->flags.b.port_l1_change = 1;
 	}
+
+	if (hsotg->lx_state == DWC2_L1)
+		hsotg->flags.b.port_l1_change = 1;
 }
 
 /**
@@ -1428,8 +1429,8 @@ static void dwc2_wakeup_detected(unsigned long data)
 	dev_dbg(hsotg->dev, "Clear Resume: HPRT0=%0x\n",
 		dwc2_readl(hsotg->regs + HPRT0));
 
-	hsotg->bus_suspended = 0;
 	dwc2_hcd_rem_wakeup(hsotg);
+	hsotg->bus_suspended = 0;
 
 	/* Change to L0 state */
 	hsotg->lx_state = DWC2_L0;
