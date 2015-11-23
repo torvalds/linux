@@ -51,7 +51,11 @@ struct usb_udc {
 
 static struct class *udc_class;
 static LIST_HEAD(udc_list);
+static LIST_HEAD(gadget_driver_pending_list);
 static DEFINE_MUTEX(udc_lock);
+
+static int udc_bind_to_driver(struct usb_udc *udc,
+		struct usb_gadget_driver *driver);
 
 /* ------------------------------------------------------------------------- */
 
@@ -264,6 +268,7 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 		void (*release)(struct device *dev))
 {
 	struct usb_udc		*udc;
+	struct usb_gadget_driver *driver;
 	int			ret = -ENOMEM;
 
 	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
@@ -310,6 +315,18 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 
 	usb_gadget_set_state(gadget, USB_STATE_NOTATTACHED);
 	udc->vbus = true;
+
+	/* pick up one of pending gadget drivers */
+	list_for_each_entry(driver, &gadget_driver_pending_list, pending) {
+		if (!driver->udc_name || strcmp(driver->udc_name,
+						dev_name(&udc->dev)) == 0) {
+			ret = udc_bind_to_driver(udc, driver);
+			if (ret)
+				goto err4;
+			list_del(&driver->pending);
+			break;
+		}
+	}
 
 	mutex_unlock(&udc_lock);
 
@@ -381,10 +398,14 @@ void usb_del_gadget_udc(struct usb_gadget *gadget)
 
 	mutex_lock(&udc_lock);
 	list_del(&udc->list);
-	mutex_unlock(&udc_lock);
 
-	if (udc->driver)
+	if (udc->driver) {
+		struct usb_gadget_driver *driver = udc->driver;
+
 		usb_gadget_remove_driver(udc);
+		list_add(&driver->pending, &gadget_driver_pending_list);
+	}
+	mutex_unlock(&udc_lock);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_REMOVE);
 	flush_work(&gadget->work);
@@ -443,11 +464,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 			if (!ret)
 				break;
 		}
-		if (ret)
-			ret = -ENODEV;
-		else if (udc->driver)
-			ret = -EBUSY;
-		else
+		if (!ret && !udc->driver)
 			goto found;
 	} else {
 		list_for_each_entry(udc, &udc_list, list) {
@@ -457,9 +474,11 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 		}
 	}
 
-	pr_debug("couldn't find an available UDC\n");
+	list_add_tail(&driver->pending, &gadget_driver_pending_list);
+	pr_info("udc-core: couldn't find an available UDC - added [%s] to list of pending drivers\n",
+		driver->function);
 	mutex_unlock(&udc_lock);
-	return ret;
+	return 0;
 found:
 	ret = udc_bind_to_driver(udc, driver);
 	mutex_unlock(&udc_lock);
@@ -485,6 +504,10 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 			break;
 		}
 
+	if (ret) {
+		list_del(&driver->pending);
+		ret = 0;
+	}
 	mutex_unlock(&udc_lock);
 	return ret;
 }
