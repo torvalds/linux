@@ -561,11 +561,11 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 
 		if (block_size < PAGE_SIZE) {
 			sg_set_page(&write_sg[i], m.page, block_size,
-				    block_size);
+				    m.piter.sg->offset + block_size);
 		} else {
 			sg_miter_next(&m);
 			sg_set_page(&write_sg[i], m.page, block_size,
-				    0);
+				    m.piter.sg->offset);
 		}
 		len -= block_size;
 		i++;
