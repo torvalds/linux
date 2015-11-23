@@ -406,8 +406,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	memset(dev_priv->vram_addr + backing->offset, 0, size);
 
-	mutex_lock(&dev->struct_mutex);
-
 	info = drm_fb_helper_alloc_fbi(&fbdev->psb_fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
@@ -463,17 +461,15 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	dev_dbg(dev->dev, "allocated %dx%d fb\n",
 					psbfb->base.width, psbfb->base.height);
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 out_unref:
 	if (backing->stolen)
 		psb_gtt_free_range(dev, backing);
 	else
-		drm_gem_object_unreference(&backing->gem);
+		drm_gem_object_unreference_unlocked(&backing->gem);
 
 	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
 out_err1:
-	mutex_unlock(&dev->struct_mutex);
 	psb_gtt_free_range(dev, backing);
 	return ret;
 }
@@ -569,7 +565,7 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 	drm_framebuffer_cleanup(&psbfb->base);
 
 	if (psbfb->gtt)
-		drm_gem_object_unreference(&psbfb->gtt->gem);
+		drm_gem_object_unreference_unlocked(&psbfb->gtt->gem);
 	return 0;
 }
 
@@ -784,12 +780,8 @@ void psb_modeset_cleanup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	if (dev_priv->modeset) {
-		mutex_lock(&dev->struct_mutex);
-
 		drm_kms_helper_poll_fini(dev);
 		psb_fbdev_fini(dev);
 		drm_mode_config_cleanup(dev);
-
-		mutex_unlock(&dev->struct_mutex);
 	}
 }
