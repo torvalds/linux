@@ -147,8 +147,24 @@ static void skl_tplg_update_params(struct skl_module_fmt *fmt,
 		fmt->s_freq = params->s_freq;
 	if (fixup & SKL_CH_FIXUP_MASK)
 		fmt->channels = params->ch;
-	if (fixup & SKL_FMT_FIXUP_MASK)
-		fmt->valid_bit_depth = params->s_fmt;
+	if (fixup & SKL_FMT_FIXUP_MASK) {
+		fmt->valid_bit_depth = skl_get_bit_depth(params->s_fmt);
+
+		/*
+		 * 16 bit is 16 bit container whereas 24 bit is in 32 bit
+		 * container so update bit depth accordingly
+		 */
+		switch (fmt->valid_bit_depth) {
+		case SKL_DEPTH_16BIT:
+			fmt->bit_depth = fmt->valid_bit_depth;
+			break;
+
+		default:
+			fmt->bit_depth = SKL_DEPTH_32BIT;
+			break;
+		}
+	}
+
 }
 
 /*
