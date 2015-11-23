@@ -827,6 +827,8 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
  * @reset: Invoked on USB bus reset. It is mandatory for all gadget drivers
  *	and should be called in_interrupt.
  * @driver: Driver model state for this driver.
+ * @udc_name: A name of UDC this driver should be bound to. If udc_name is NULL,
+ *	this driver will be bound to any available UDC.
  *
  * Devices are disabled till a gadget driver successfully bind()s, which
  * means the driver will handle setup() requests needed to enumerate (and
@@ -887,6 +889,8 @@ struct usb_gadget_driver {
 
 	/* FIXME support safe rmmod */
 	struct device_driver	driver;
+
+	char			*udc_name;
 };
 
 
