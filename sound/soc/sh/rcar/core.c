@@ -1033,7 +1033,6 @@ static int __rsnd_kctrl_new(struct rsnd_mod *mod,
 			    void (*update)(struct rsnd_dai_stream *io,
 					   struct rsnd_mod *mod))
 {
-	struct snd_soc_card *soc_card = rtd->card;
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_kcontrol *kctrl;
 	struct snd_kcontrol_new knew = {
