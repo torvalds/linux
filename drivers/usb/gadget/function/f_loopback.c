@@ -329,7 +329,7 @@ static int alloc_requests(struct usb_composite_dev *cdev,
 	for (i = 0; i < loop->qlen && result == 0; i++) {
 		result = -ENOMEM;
 
-		in_req = usb_ep_alloc_request(loop->in_ep, GFP_KERNEL);
+		in_req = usb_ep_alloc_request(loop->in_ep, GFP_ATOMIC);
 		if (!in_req)
 			goto fail;
 

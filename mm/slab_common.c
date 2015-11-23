@@ -112,7 +112,7 @@ void __kmem_cache_free_bulk(struct kmem_cache *s, size_t nr, void **p)
 		kmem_cache_free(s, p[i]);
 }
 
-bool __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
+int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
 								void **p)
 {
 	size_t i;
@@ -121,10 +121,10 @@ bool __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
 		void *x = p[i] = kmem_cache_alloc(s, flags);
 		if (!x) {
 			__kmem_cache_free_bulk(s, i, p);
-			return false;
+			return 0;
 		}
 	}
-	return true;
+	return i;
 }
 
 #ifdef CONFIG_MEMCG_KMEM

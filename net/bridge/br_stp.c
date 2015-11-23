@@ -48,7 +48,7 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 
 	p->state = state;
 	err = switchdev_port_attr_set(p->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
 }

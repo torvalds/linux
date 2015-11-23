@@ -629,6 +629,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, EFFECTIVE_L2_QUEUE_SIZE, 7);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_DEFAULT_PAGE_OUT_TO_SYSTEM_MEMORY, 1);
 	WREG32(mmVM_L2_CNTL, tmp);
 	tmp = RREG32(mmVM_L2_CNTL2);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
@@ -979,12 +980,10 @@ static int gmc_v8_0_sw_init(void *handle)
 
 static int gmc_v8_0_sw_fini(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			fence_put(adev->vm_manager.active[i]);
+		amdgpu_vm_manager_fini(adev);
 		gmc_v8_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
@@ -1031,12 +1030,10 @@ static int gmc_v8_0_hw_fini(void *handle)
 
 static int gmc_v8_0_suspend(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			fence_put(adev->vm_manager.active[i]);
+		amdgpu_vm_manager_fini(adev);
 		gmc_v8_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
