@@ -1713,6 +1713,15 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 			   I915_READ(DPLL(!crtc->pipe)) | DPLL_DVO_2X_MODE);
 	}
 
+	/*
+	 * Apparently we need to have VGA mode enabled prior to changing
+	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
+	 * dividers, even though the register value does change.
+	 */
+	I915_WRITE(reg, 0);
+
+	I915_WRITE(reg, dpll);
+
 	/* Wait for the clocks to stabilize. */
 	POSTING_READ(reg);
 	udelay(150);
@@ -2383,22 +2392,24 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 	 * framebuffer compression.  For simplicity, we always install
 	 * a fence as the cost is not that onerous.
 	 */
-	ret = i915_gem_object_get_fence(obj);
-	if (ret == -EDEADLK) {
-		/*
-		 * -EDEADLK means there are no free fences
-		 * no pending flips.
-		 *
-		 * This is propagated to atomic, but it uses
-		 * -EDEADLK to force a locking recovery, so
-		 * change the returned error to -EBUSY.
-		 */
-		ret = -EBUSY;
-		goto err_unpin;
-	} else if (ret)
-		goto err_unpin;
+	if (view.type == I915_GGTT_VIEW_NORMAL) {
+		ret = i915_gem_object_get_fence(obj);
+		if (ret == -EDEADLK) {
+			/*
+			 * -EDEADLK means there are no free fences
+			 * no pending flips.
+			 *
+			 * This is propagated to atomic, but it uses
+			 * -EDEADLK to force a locking recovery, so
+			 * change the returned error to -EBUSY.
+			 */
+			ret = -EBUSY;
+			goto err_unpin;
+		} else if (ret)
+			goto err_unpin;
 
-	i915_gem_object_pin_fence(obj);
+		i915_gem_object_pin_fence(obj);
+	}
 
 	intel_runtime_pm_put(dev_priv);
 	return 0;
@@ -2420,7 +2431,9 @@ static void intel_unpin_fb_obj(struct drm_framebuffer *fb,
 
 	intel_fill_fb_ggtt_view(&view, fb, plane_state);
 
-	i915_gem_object_unpin_fence(obj);
+	if (view.type == I915_GGTT_VIEW_NORMAL)
+		i915_gem_object_unpin_fence(obj);
+
 	i915_gem_object_unpin_from_display_plane(obj, &view);
 }
 
@@ -2623,11 +2636,13 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	return;
 
 valid_fb:
-	plane_state->src_x = plane_state->src_y = 0;
+	plane_state->src_x = 0;
+	plane_state->src_y = 0;
 	plane_state->src_w = fb->width << 16;
 	plane_state->src_h = fb->height << 16;
 
-	plane_state->crtc_x = plane_state->src_y = 0;
+	plane_state->crtc_x = 0;
+	plane_state->crtc_y = 0;
 	plane_state->crtc_w = fb->width;
 	plane_state->crtc_h = fb->height;
 
@@ -4217,6 +4232,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 	struct intel_shared_dpll *pll;
 	struct intel_shared_dpll_config *shared_dpll;
 	enum intel_dpll_id i;
+	int max = dev_priv->num_shared_dpll;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
 
@@ -4251,9 +4267,11 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 		WARN_ON(shared_dpll[i].crtc_mask);
 
 		goto found;
-	}
+	} else if (INTEL_INFO(dev_priv)->gen < 9 && HAS_DDI(dev_priv))
+		/* Do not consider SPLL */
+		max = 2;
 
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+	for (i = 0; i < max; i++) {
 		pll = &dev_priv->shared_dplls[i];
 
 		/* Only want to check enabled timings first */
@@ -9787,6 +9805,8 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 	case PORT_CLK_SEL_WRPLL2:
 		pipe_config->shared_dpll = DPLL_ID_WRPLL2;
 		break;
+	case PORT_CLK_SEL_SPLL:
+		pipe_config->shared_dpll = DPLL_ID_SPLL;
 	}
 }
 
@@ -12100,9 +12120,10 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			      pipe_config->dpll_hw_state.cfgcr1,
 			      pipe_config->dpll_hw_state.cfgcr2);
 	} else if (HAS_DDI(dev)) {
-		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: wrpll: 0x%x\n",
+		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
 			      pipe_config->ddi_pll_sel,
-			      pipe_config->dpll_hw_state.wrpll);
+			      pipe_config->dpll_hw_state.wrpll,
+			      pipe_config->dpll_hw_state.spll);
 	} else {
 		DRM_DEBUG_KMS("dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
 			      "fp0: 0x%x, fp1: 0x%x\n",
@@ -12637,6 +12658,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
 	PIPE_CONF_CHECK_X(dpll_hw_state.fp1);
 	PIPE_CONF_CHECK_X(dpll_hw_state.wrpll);
+	PIPE_CONF_CHECK_X(dpll_hw_state.spll);
 	PIPE_CONF_CHECK_X(dpll_hw_state.ctrl1);
 	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr1);
 	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr2);
@@ -13181,6 +13203,9 @@ static int intel_atomic_check(struct drm_device *dev,
 		struct intel_crtc_state *pipe_config =
 			to_intel_crtc_state(crtc_state);
 
+		memset(&to_intel_crtc(crtc)->atomic, 0,
+		       sizeof(struct intel_crtc_atomic_commit));
+
 		/* Catch I915_MODE_FLAG_INHERITED */
 		if (crtc_state->mode.private_flags != crtc->state->mode.private_flags)
 			crtc_state->mode_changed = true;
@@ -13205,7 +13230,8 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			return ret;
 
-		if (intel_pipe_config_compare(state->dev,
+		if (i915.fastboot &&
+		    intel_pipe_config_compare(state->dev,
 					to_intel_crtc_state(crtc->state),
 					pipe_config, true)) {
 			crtc_state->mode_changed = false;
@@ -14413,6 +14439,11 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 
+	if (obj->userptr.mm) {
+		DRM_DEBUG("attempting to use a userptr for a framebuffer, denied\n");
+		return -EINVAL;
+	}
+
 	return drm_gem_handle_create(file, &obj->base, handle);
 }
 
@@ -14619,17 +14650,18 @@ static int intel_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 intel_user_framebuffer_create(struct drm_device *dev,
 			      struct drm_file *filp,
-			      struct drm_mode_fb_cmd2 *mode_cmd)
+			      struct drm_mode_fb_cmd2 *user_mode_cmd)
 {
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
+	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, filp,
-						mode_cmd->handles[0]));
+						mode_cmd.handles[0]));
 	if (&obj->base == NULL)
 		return ERR_PTR(-ENOENT);
 
-	fb = intel_framebuffer_create(dev, mode_cmd, obj);
+	fb = intel_framebuffer_create(dev, &mode_cmd, obj);
 	if (IS_ERR(fb))
 		drm_gem_object_unreference_unlocked(&obj->base);
 
@@ -14965,6 +14997,9 @@ static struct intel_quirk intel_quirks[] = {
 	/* Apple Macbook 2,1 (Core 2 T7400) */
 	{ 0x27a2, 0x8086, 0x7270, quirk_backlight_present },
 
+	/* Apple Macbook 4,1 */
+	{ 0x2a02, 0x106b, 0x00a1, quirk_backlight_present },
+
 	/* Toshiba CB35 Chromebook (Celeron 2955U) */
 	{ 0x0a06, 0x1179, 0x0a88, quirk_backlight_present },
 
@@ -14973,6 +15008,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Dell Chromebook 11 */
 	{ 0x0a06, 0x1028, 0x0a35, quirk_backlight_present },
+
+	/* Dell Chromebook 11 (2015 version) */
+	{ 0x0a16, 0x1028, 0x0a35, quirk_backlight_present },
 };
 
 static void intel_init_quirks(struct drm_device *dev)

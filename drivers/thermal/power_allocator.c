@@ -144,6 +144,16 @@ static void estimate_pid_constants(struct thermal_zone_device *tz,
 		switch_on_temp = 0;
 
 	temperature_threshold = control_temp - switch_on_temp;
+	/*
+	 * estimate_pid_constants() tries to find appropriate default
+	 * values for thermal zones that don't provide them. If a
+	 * system integrator has configured a thermal zone with two
+	 * passive trip points at the same temperature, that person
+	 * hasn't put any effort to set up the thermal zone properly
+	 * so just give up.
+	 */
+	if (!temperature_threshold)
+		return;
 
 	if (!tz->tzp->k_po || force)
 		tz->tzp->k_po = int_to_frac(sustainable_power) /
@@ -218,7 +228,7 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 	if (err < int_to_frac(tz->tzp->integral_cutoff)) {
 		s64 i_next = i + mul_frac(tz->tzp->k_i, err);
 
-		if (abs64(i_next) < max_power_frac) {
+		if (abs(i_next) < max_power_frac) {
 			i = i_next;
 			params->err_integral += err;
 		}

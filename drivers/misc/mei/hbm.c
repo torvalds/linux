@@ -281,7 +281,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 	return 0;
 }
 
-/*
+/**
  * mei_hbm_enum_clients_req - sends enumeration client request message.
  *
  * @dev: the device structure
@@ -314,7 +314,7 @@ static int mei_hbm_enum_clients_req(struct mei_device *dev)
 	return 0;
 }
 
-/*
+/**
  * mei_hbm_me_cl_add - add new me client to the list
  *
  * @dev: the device structure
@@ -569,7 +569,7 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 	return 0;
 }
 
-/*
+/**
  * mei_hbm_pg - sends pg command
  *
  * @dev: the device structure
@@ -1209,7 +1209,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		 * after the host receives the enum_resp
 		 * message clients may be added or removed
 		 */
-		if (dev->hbm_state <= MEI_HBM_ENUM_CLIENTS &&
+		if (dev->hbm_state <= MEI_HBM_ENUM_CLIENTS ||
 		    dev->hbm_state >= MEI_HBM_STOPPED) {
 			dev_err(dev->dev, "hbm: add client: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);

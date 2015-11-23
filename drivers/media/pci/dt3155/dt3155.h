@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
+#include <media/videobuf2-v4l2.h>
 
 #define DT3155_NAME "dt3155"
 #define DT3155_VER_MAJ 2
@@ -181,7 +182,7 @@ struct dt3155_priv {
 	struct pci_dev *pdev;
 	struct vb2_queue vidq;
 	struct vb2_alloc_ctx *alloc_ctx;
-	struct vb2_buffer *curr_buf;
+	struct vb2_v4l2_buffer *curr_buf;
 	struct mutex mux;
 	struct list_head dmaq;
 	spinlock_t lock;

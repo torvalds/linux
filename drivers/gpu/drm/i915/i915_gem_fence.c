@@ -317,7 +317,7 @@ i915_find_fence_reg(struct drm_device *dev)
 
 	/* First try to find a free reg */
 	avail = NULL;
-	for (i = dev_priv->fence_reg_start; i < dev_priv->num_fence_regs; i++) {
+	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		reg = &dev_priv->fence_regs[i];
 		if (!reg->obj)
 			return reg;

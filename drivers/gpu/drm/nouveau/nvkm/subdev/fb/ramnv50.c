@@ -33,6 +33,7 @@
 #include <subdev/bios/rammap.h>
 #include <subdev/bios/timing.h>
 #include <subdev/clk/pll.h>
+#include <subdev/gpio.h>
 
 struct nv50_ramseq {
 	struct hwsq base;
@@ -59,6 +60,7 @@ struct nv50_ramseq {
 	struct hwsq_reg r_0x611200;
 	struct hwsq_reg r_timing[9];
 	struct hwsq_reg r_mr[4];
+	struct hwsq_reg r_gpio[4];
 };
 
 struct nv50_ram {
@@ -144,6 +146,38 @@ nv50_ram_timing_calc(struct nv50_ram *ram, u32 *timing)
 	nvkm_debug(subdev, " 240: %08x\n", timing[8]);
 	return 0;
 }
+
+static int
+nv50_ram_timing_read(struct nv50_ram *ram, u32 *timing)
+{
+	unsigned int i;
+	struct nvbios_ramcfg *cfg = &ram->base.target.bios;
+	struct nvkm_subdev *subdev = &ram->base.fb->subdev;
+	struct nvkm_device *device = subdev->device;
+
+	for (i = 0; i <= 8; i++)
+		timing[i] = nvkm_rd32(device, 0x100220 + (i * 4));
+
+	/* Derive the bare minimum for the MR calculation to succeed */
+	cfg->timing_ver = 0x10;
+	T(CL) = (timing[3] & 0xff) + 1;
+
+	switch (ram->base.type) {
+	case NVKM_RAM_TYPE_DDR2:
+		T(CWL) = T(CL) - 1;
+		break;
+	case NVKM_RAM_TYPE_GDDR3:
+		T(CWL) = ((timing[2] & 0xff000000) >> 24) + 1;
+		break;
+	default:
+		return -ENOSYS;
+		break;
+	}
+
+	T(WR) = ((timing[1] >> 24) & 0xff) - 1 - T(CWL);
+
+	return 0;
+}
 #undef T
 
 static void
@@ -152,6 +186,33 @@ nvkm_sddr2_dll_reset(struct nv50_ramseq *hwsq)
 	ram_mask(hwsq, mr[0], 0x100, 0x100);
 	ram_mask(hwsq, mr[0], 0x100, 0x000);
 	ram_nsec(hwsq, 24000);
+}
+
+static void
+nv50_ram_gpio(struct nv50_ramseq *hwsq, u8 tag, u32 val)
+{
+	struct nvkm_gpio *gpio = hwsq->base.subdev->device->gpio;
+	struct dcb_gpio_func func;
+	u32 reg, sh, gpio_val;
+	int ret;
+
+	if (nvkm_gpio_get(gpio, 0, tag, DCB_GPIO_UNUSED) != val) {
+		ret = nvkm_gpio_find(gpio, 0, tag, DCB_GPIO_UNUSED, &func);
+		if (ret)
+			return;
+
+		reg = func.line >> 3;
+		sh = (func.line & 0x7) << 2;
+		gpio_val = ram_rd32(hwsq, gpio[reg]);
+
+		if (gpio_val & (8 << sh))
+			val = !val;
+		if (!(func.log[1] & 1))
+			val = !val;
+
+		ram_mask(hwsq, gpio[reg], (0x3 << sh), ((val | 0x2) << sh));
+		ram_nsec(hwsq, 20000);
+	}
 }
 
 static int
@@ -213,9 +274,10 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 				 strap, data, ver, hdr);
 			return -EINVAL;
 		}
+		nv50_ram_timing_calc(ram, timing);
+	} else {
+		nv50_ram_timing_read(ram, timing);
 	}
-
-	nv50_ram_timing_calc(ram, timing);
 
 	ret = ram_init(hwsq, subdev);
 	if (ret)
@@ -235,20 +297,27 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 		break;
 	}
 
-	if (ret)
+	if (ret) {
+		nvkm_error(subdev, "Could not calculate MR\n");
 		return ret;
+	}
+
+	if (subdev->device->chipset <= 0x96 && !next->bios.ramcfg_00_03_02)
+		ram_mask(hwsq, 0x100710, 0x00000200, 0x00000000);
 
 	/* Always disable this bit during reclock */
 	ram_mask(hwsq, 0x100200, 0x00000800, 0x00000000);
 
-	ram_wait(hwsq, 0x01, 0x00); /* wait for !vblank */
-	ram_wait(hwsq, 0x01, 0x01); /* wait for vblank */
+	ram_wait_vblank(hwsq);
 	ram_wr32(hwsq, 0x611200, 0x00003300);
 	ram_wr32(hwsq, 0x002504, 0x00000001); /* block fifo */
 	ram_nsec(hwsq, 8000);
 	ram_setf(hwsq, 0x10, 0x00); /* disable fb */
 	ram_wait(hwsq, 0x00, 0x01); /* wait for fb disabled */
 	ram_nsec(hwsq, 2000);
+
+	if (next->bios.timing_10_ODT)
+		nv50_ram_gpio(hwsq, 0x2e, 1);
 
 	ram_wr32(hwsq, 0x1002d4, 0x00000001); /* precharge */
 	ram_wr32(hwsq, 0x1002d0, 0x00000001); /* refresh */
@@ -286,8 +355,12 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 			next->bios.rammap_00_16_40 << 14);
 	ram_mask(hwsq, 0x00400c, 0x0000ffff, (N1 << 8) | M1);
 	ram_mask(hwsq, 0x004008, 0x91ff0000, r004008);
-	if (subdev->device->chipset >= 0x96)
+
+	/* XXX: GDDR3 only? */
+	if (subdev->device->chipset >= 0x92)
 		ram_wr32(hwsq, 0x100da0, r100da0);
+
+	nv50_ram_gpio(hwsq, 0x18, !next->bios.ramcfg_FBVDDQ);
 	ram_nsec(hwsq, 64000); /*XXX*/
 	ram_nsec(hwsq, 32000); /*XXX*/
 
@@ -329,19 +402,33 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_mask(hwsq, 0x100200, 0x00001000, !next->bios.ramcfg_00_04_02 << 12);
 
 	/* XXX: A lot of this could be "chipset"/"ram type" specific stuff */
-	unk710  = ram_rd32(hwsq, 0x100710) & ~0x00000101;
+	unk710  = ram_rd32(hwsq, 0x100710) & ~0x00000100;
 	unk714  = ram_rd32(hwsq, 0x100714) & ~0xf0000020;
 	unk718  = ram_rd32(hwsq, 0x100718) & ~0x00000100;
 	unk71c  = ram_rd32(hwsq, 0x10071c) & ~0x00000100;
+	if (subdev->device->chipset <= 0x96) {
+		unk710 &= ~0x0000006e;
+		unk714 &= ~0x00000100;
+
+		if (!next->bios.ramcfg_00_03_08)
+			unk710 |= 0x00000060;
+		if (!next->bios.ramcfg_FBVDDQ)
+			unk714 |= 0x00000100;
+		if ( next->bios.ramcfg_00_04_04)
+			unk710 |= 0x0000000e;
+	} else {
+		unk710 &= ~0x00000001;
+
+		if (!next->bios.ramcfg_00_03_08)
+			unk710 |= 0x00000001;
+	}
 
 	if ( next->bios.ramcfg_00_03_01)
 		unk71c |= 0x00000100;
 	if ( next->bios.ramcfg_00_03_02)
 		unk710 |= 0x00000100;
-	if (!next->bios.ramcfg_00_03_08) {
-		unk710 |= 0x1;
-		unk714 |= 0x20;
-	}
+	if (!next->bios.ramcfg_00_03_08)
+		unk714 |= 0x00000020;
 	if ( next->bios.ramcfg_00_04_04)
 		unk714 |= 0x70000000;
 	if ( next->bios.ramcfg_00_04_20)
@@ -352,6 +439,8 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_mask(hwsq, 0x100718, 0xffffffff, unk718);
 	ram_mask(hwsq, 0x100710, 0xffffffff, unk710);
 
+	/* XXX: G94 does not even test these regs in trace. Harmless we do it,
+	 * but why is it omitted? */
 	if (next->bios.rammap_00_16_20) {
 		ram_wr32(hwsq, 0x1005a0, next->bios.ramcfg_00_07 << 16 |
 					 next->bios.ramcfg_00_06 << 8 |
@@ -363,6 +452,9 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 		ram_mask(hwsq, 0x10053c, 0x00001000, 0x00001000);
 	}
 	ram_mask(hwsq, mr[1], 0xffffffff, ram->base.mr[1]);
+
+	if (!next->bios.timing_10_ODT)
+		nv50_ram_gpio(hwsq, 0x2e, 0);
 
 	/* Reset DLL */
 	if (!next->bios.ramcfg_DLLoff)
@@ -379,6 +471,8 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 		ram_mask(hwsq, 0x004008, 0x00004000, 0x00000000);
 	if (next->bios.ramcfg_00_03_02)
 		ram_mask(hwsq, 0x10021c, 0x00010000, 0x00010000);
+	if (subdev->device->chipset <= 0x96 && next->bios.ramcfg_00_03_02)
+		ram_mask(hwsq, 0x100710, 0x00000200, 0x00000200);
 
 	return 0;
 }
@@ -633,6 +727,11 @@ nv50_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		ram->hwsq.r_mr[2] = hwsq_reg(0x1002e0);
 		ram->hwsq.r_mr[3] = hwsq_reg(0x1002e4);
 	}
+
+	ram->hwsq.r_gpio[0] = hwsq_reg(0x00e104);
+	ram->hwsq.r_gpio[1] = hwsq_reg(0x00e108);
+	ram->hwsq.r_gpio[2] = hwsq_reg(0x00e120);
+	ram->hwsq.r_gpio[3] = hwsq_reg(0x00e124);
 
 	return 0;
 }

@@ -37,6 +37,7 @@
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 MODULE_DESCRIPTION("V4L2 PCI Skeleton Driver");
@@ -162,10 +163,11 @@ static irqreturn_t skeleton_irq(int irq, void *dev_id)
  * minimum number: many DMA engines need a minimum of 2 buffers in the
  * queue and you need to have another available for userspace processing.
  */
-static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int queue_setup(struct vb2_queue *vq, const void *parg,
 		       unsigned int *nbuffers, unsigned int *nplanes,
 		       unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct skeleton *skel = vb2_get_drv_priv(vq);
 
 	skel->field = skel->format.field;

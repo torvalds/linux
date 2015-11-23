@@ -1135,7 +1135,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 		case DRM_PLANE_TYPE_CURSOR:
 			for (level = 0; level < wm_state->num_levels; level++)
 				wm_state->sr[level].cursor =
-					wm_state->sr[level].cursor;
+					wm_state->wm[level].cursor;
 			break;
 		case DRM_PLANE_TYPE_PRIMARY:
 			for (level = 0; level < wm_state->num_levels; level++)
@@ -2814,7 +2814,12 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 	int plane;
 	u32 val;
 
+	memset(ddb, 0, sizeof(*ddb));
+
 	for_each_pipe(dev_priv, pipe) {
+		if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PIPE(pipe)))
+			continue;
+
 		for_each_plane(dev_priv, pipe, plane) {
 			val = I915_READ(PLANE_BUF_CFG(pipe, plane));
 			skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane],
@@ -4326,7 +4331,7 @@ static void gen6_set_rps(struct drm_device *dev, u8 val)
 	POSTING_READ(GEN6_RPNSWREQ);
 
 	dev_priv->rps.cur_freq = val;
-	trace_intel_gpu_freq_change(val * 50);
+	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
 }
 
 static void valleyview_set_rps(struct drm_device *dev, u8 val)
@@ -7133,7 +7138,8 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	if (IS_GEN9(dev_priv->dev))
-		return (val * GT_FREQUENCY_MULTIPLIER) / GEN9_FREQ_SCALER;
+		return DIV_ROUND_CLOSEST(val * GT_FREQUENCY_MULTIPLIER,
+					 GEN9_FREQ_SCALER);
 	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_gpu_freq(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
@@ -7145,13 +7151,14 @@ int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	if (IS_GEN9(dev_priv->dev))
-		return (val * GEN9_FREQ_SCALER) / GT_FREQUENCY_MULTIPLIER;
+		return DIV_ROUND_CLOSEST(val * GEN9_FREQ_SCALER,
+					 GT_FREQUENCY_MULTIPLIER);
 	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_freq_opcode(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
 		return byt_freq_opcode(dev_priv, val);
 	else
-		return val / GT_FREQUENCY_MULTIPLIER;
+		return DIV_ROUND_CLOSEST(val, GT_FREQUENCY_MULTIPLIER);
 }
 
 struct request_boost {

@@ -31,6 +31,9 @@
 
 #define MCL_CURRENT	1		/* lock all current mappings */
 #define MCL_FUTURE	2		/* lock all future mappings */
+#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
+
+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
 
 #define MADV_NORMAL     0               /* no further special treatment */
 #define MADV_RANDOM     1               /* expect random page references */
@@ -45,16 +48,6 @@
 #define MADV_REMOVE	9		/* remove these pages & resources */
 #define MADV_DONTFORK	10		/* don't inherit across fork */
 #define MADV_DOFORK	11		/* do inherit across fork */
-
-/* The range 12-64 is reserved for page size specification. */
-#define MADV_4K_PAGES   12              /* Use 4K pages  */
-#define MADV_16K_PAGES  14              /* Use 16K pages */
-#define MADV_64K_PAGES  16              /* Use 64K pages */
-#define MADV_256K_PAGES 18              /* Use 256K pages */
-#define MADV_1M_PAGES   20              /* Use 1 Megabyte pages */
-#define MADV_4M_PAGES   22              /* Use 4 Megabyte pages */
-#define MADV_16M_PAGES  24              /* Use 16 Megabyte pages */
-#define MADV_64M_PAGES  26              /* Use 64 Megabyte pages */
 
 #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
 #define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */

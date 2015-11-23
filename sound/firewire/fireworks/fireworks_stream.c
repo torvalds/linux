@@ -31,7 +31,7 @@ init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 	if (err < 0)
 		goto end;
 
-	err = amdtp_stream_init(stream, efw->unit, s_dir, CIP_BLOCKING);
+	err = amdtp_am824_init(stream, efw->unit, s_dir, CIP_BLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(stream);
 		cmp_connection_destroy(conn);
@@ -73,8 +73,10 @@ start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
 		midi_ports = efw->midi_in_ports;
 	}
 
-	amdtp_stream_set_parameters(stream, sampling_rate,
-				    pcm_channels, midi_ports);
+	err = amdtp_am824_set_parameters(stream, sampling_rate,
+					 pcm_channels, midi_ports, false);
+	if (err < 0)
+		goto end;
 
 	/*  establish connection via CMP */
 	err = cmp_connection_establish(conn,

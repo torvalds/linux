@@ -40,11 +40,11 @@
 #include <asm/idle.h>
 #include <asm/io_apic.h>
 #include <asm/xen/pci.h>
-#include <xen/page.h>
 #endif
 #include <asm/sync_bitops.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
+#include <xen/page.h>
 
 #include <xen/xen.h>
 #include <xen/hvm.h>

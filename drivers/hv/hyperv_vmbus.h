@@ -63,9 +63,6 @@ enum hv_cpuid_function {
 /* Define version of the synthetic interrupt controller. */
 #define HV_SYNIC_VERSION		(1)
 
-/* Define the expected SynIC version. */
-#define HV_SYNIC_VERSION_1		(0x1)
-
 /* Define synthetic interrupt controller message constants. */
 #define HV_MESSAGE_SIZE			(256)
 #define HV_MESSAGE_PAYLOAD_BYTE_COUNT	(240)
@@ -105,8 +102,6 @@ enum hv_message_type {
 	HVMSG_X64_LEGACY_FP_ERROR		= 0x80010005
 };
 
-/* Define the number of synthetic interrupt sources. */
-#define HV_SYNIC_SINT_COUNT		(16)
 #define HV_SYNIC_STIMER_COUNT		(4)
 
 /* Define invalid partition identifier. */

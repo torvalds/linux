@@ -9,6 +9,7 @@
 #define __LINUX_IRQCHIP_MIPS_GIC_H
 
 #include <linux/clocksource.h>
+#include <linux/ioport.h>
 
 #define GIC_MAX_INTRS			256
 
@@ -245,6 +246,8 @@
 #define GIC_SHARED_TO_HWIRQ(x)	(GIC_SHARED_HWIRQ_BASE + (x))
 #define GIC_HWIRQ_TO_SHARED(x)	((x) - GIC_SHARED_HWIRQ_BASE)
 
+#ifdef CONFIG_MIPS_GIC
+
 extern unsigned int gic_present;
 
 extern void gic_init(unsigned long gic_base_addr,
@@ -264,4 +267,18 @@ extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
 extern int gic_get_c0_compare_int(void);
 extern int gic_get_c0_perfcount_int(void);
 extern int gic_get_c0_fdc_int(void);
+extern int gic_get_usm_range(struct resource *gic_usm_res);
+
+#else /* CONFIG_MIPS_GIC */
+
+#define gic_present	0
+
+static inline int gic_get_usm_range(struct resource *gic_usm_res)
+{
+	/* Shouldn't be called. */
+	return -1;
+}
+
+#endif /* CONFIG_MIPS_GIC */
+
 #endif /* __LINUX_IRQCHIP_MIPS_GIC_H */

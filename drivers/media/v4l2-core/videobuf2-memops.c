@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-memops.h>
 
 /**

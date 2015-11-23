@@ -376,38 +376,42 @@ static void uv_nmi_wait(int master)
 		atomic_read(&uv_nmi_cpus_in_nmi), num_online_cpus());
 }
 
+/* Dump Instruction Pointer header */
 static void uv_nmi_dump_cpu_ip_hdr(void)
 {
-	printk(KERN_DEFAULT
-		"\nUV: %4s %6s %-32s %s   (Note: PID 0 not listed)\n",
+	pr_info("\nUV: %4s %6s %-32s %s   (Note: PID 0 not listed)\n",
 		"CPU", "PID", "COMMAND", "IP");
 }
 
+/* Dump Instruction Pointer info */
 static void uv_nmi_dump_cpu_ip(int cpu, struct pt_regs *regs)
 {
-	printk(KERN_DEFAULT "UV: %4d %6d %-32.32s ",
-		cpu, current->pid, current->comm);
-
+	pr_info("UV: %4d %6d %-32.32s ", cpu, current->pid, current->comm);
 	printk_address(regs->ip);
 }
 
-/* Dump this cpu's state */
+/*
+ * Dump this CPU's state.  If action was set to "kdump" and the crash_kexec
+ * failed, then we provide "dump" as an alternate action.  Action "dump" now
+ * also includes the show "ips" (instruction pointers) action whereas the
+ * action "ips" only displays instruction pointers for the non-idle CPU's.
+ * This is an abbreviated form of the "ps" command.
+ */
 static void uv_nmi_dump_state_cpu(int cpu, struct pt_regs *regs)
 {
 	const char *dots = " ................................. ";
 
-	if (uv_nmi_action_is("ips")) {
-		if (cpu == 0)
-			uv_nmi_dump_cpu_ip_hdr();
+	if (cpu == 0)
+		uv_nmi_dump_cpu_ip_hdr();
 
-		if (current->pid != 0)
-			uv_nmi_dump_cpu_ip(cpu, regs);
+	if (current->pid != 0 || !uv_nmi_action_is("ips"))
+		uv_nmi_dump_cpu_ip(cpu, regs);
 
-	} else if (uv_nmi_action_is("dump")) {
-		printk(KERN_DEFAULT
-			"UV:%sNMI process trace for CPU %d\n", dots, cpu);
+	if (uv_nmi_action_is("dump")) {
+		pr_info("UV:%sNMI process trace for CPU %d\n", dots, cpu);
 		show_regs(regs);
 	}
+
 	this_cpu_write(uv_cpu_nmi.state, UV_NMI_STATE_DUMP_DONE);
 }
 
@@ -469,8 +473,7 @@ static void uv_nmi_dump_state(int cpu, struct pt_regs *regs, int master)
 				uv_nmi_trigger_dump(tcpu);
 		}
 		if (ignored)
-			printk(KERN_DEFAULT "UV: %d CPUs ignored NMI\n",
-				ignored);
+			pr_alert("UV: %d CPUs ignored NMI\n", ignored);
 
 		console_loglevel = saved_console_loglevel;
 		pr_alert("UV: process trace complete\n");
@@ -492,8 +495,9 @@ static void uv_nmi_touch_watchdogs(void)
 	touch_nmi_watchdog();
 }
 
-#if defined(CONFIG_KEXEC_CORE)
 static atomic_t uv_nmi_kexec_failed;
+
+#if defined(CONFIG_KEXEC_CORE)
 static void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
 {
 	/* Call crash to dump system state */
@@ -502,10 +506,9 @@ static void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
 		crash_kexec(regs);
 
 		pr_emerg("UV: crash_kexec unexpectedly returned, ");
+		atomic_set(&uv_nmi_kexec_failed, 1);
 		if (!kexec_crash_image) {
 			pr_cont("crash kernel not loaded\n");
-			atomic_set(&uv_nmi_kexec_failed, 1);
-			uv_nmi_sync_exit(1);
 			return;
 		}
 		pr_cont("kexec busy, stalling cpus while waiting\n");
@@ -514,9 +517,6 @@ static void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
 	/* If crash exec fails the slaves should return, otherwise stall */
 	while (atomic_read(&uv_nmi_kexec_failed) == 0)
 		mdelay(10);
-
-	/* Crash kernel most likely not loaded, return in an orderly fashion */
-	uv_nmi_sync_exit(0);
 }
 
 #else /* !CONFIG_KEXEC_CORE */
@@ -524,6 +524,7 @@ static inline void uv_nmi_kdump(int cpu, int master, struct pt_regs *regs)
 {
 	if (master)
 		pr_err("UV: NMI kdump: KEXEC not supported in this kernel\n");
+	atomic_set(&uv_nmi_kexec_failed, 1);
 }
 #endif /* !CONFIG_KEXEC_CORE */
 
@@ -613,8 +614,13 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	master = (atomic_read(&uv_nmi_cpu) == cpu);
 
 	/* If NMI action is "kdump", then attempt to do it */
-	if (uv_nmi_action_is("kdump"))
+	if (uv_nmi_action_is("kdump")) {
 		uv_nmi_kdump(cpu, master, regs);
+
+		/* Unexpected return, revert action to "dump" */
+		if (master)
+			strncpy(uv_nmi_action, "dump", strlen(uv_nmi_action));
+	}
 
 	/* Pause as all cpus enter the NMI handler */
 	uv_nmi_wait(master);
@@ -640,6 +646,7 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 		atomic_set(&uv_nmi_cpus_in_nmi, -1);
 		atomic_set(&uv_nmi_cpu, -1);
 		atomic_set(&uv_in_nmi, 0);
+		atomic_set(&uv_nmi_kexec_failed, 0);
 	}
 
 	uv_nmi_touch_watchdogs();

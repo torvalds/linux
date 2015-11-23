@@ -30,6 +30,9 @@
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
 
+extern struct kmem_cache *sched_fence_slab;
+extern atomic_t sched_fence_slab_ref;
+
 /**
  * A scheduler entity is a wrapper around a job queue or a group
  * of other entities. Entities take turns emitting jobs from their 
@@ -68,13 +71,14 @@ struct amd_sched_fence {
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
+	struct delayed_work		dwork;
+	struct list_head		list;
 };
 
 struct amd_sched_job {
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
 	struct amd_sched_fence          *s_fence;
-	void		                *owner;
 };
 
 extern const struct fence_ops amd_sched_fence_ops;
@@ -103,18 +107,21 @@ struct amd_sched_backend_ops {
 struct amd_gpu_scheduler {
 	struct amd_sched_backend_ops	*ops;
 	uint32_t			hw_submission_limit;
+	long				timeout;
 	const char			*name;
 	struct amd_sched_rq		sched_rq;
 	struct amd_sched_rq		kernel_rq;
 	wait_queue_head_t		wake_up_worker;
 	wait_queue_head_t		job_scheduled;
 	atomic_t			hw_rq_count;
+	struct list_head		fence_list;
+	spinlock_t			fence_list_lock;
 	struct task_struct		*thread;
 };
 
 int amd_sched_init(struct amd_gpu_scheduler *sched,
 		   struct amd_sched_backend_ops *ops,
-		   uint32_t hw_submission, const char *name);
+		   uint32_t hw_submission, long timeout, const char *name);
 void amd_sched_fini(struct amd_gpu_scheduler *sched);
 
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
@@ -123,7 +130,7 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  uint32_t jobs);
 void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity);
-int amd_sched_entity_push_job(struct amd_sched_job *sched_job);
+void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
 
 struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity, void *owner);

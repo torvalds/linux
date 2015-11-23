@@ -5,6 +5,7 @@ libperf-y += build-id.o
 libperf-y += config.o
 libperf-y += ctype.o
 libperf-y += db-export.o
+libperf-y += env.o
 libperf-y += environment.o
 libperf-y += event.o
 libperf-y += evlist.o
@@ -17,6 +18,7 @@ libperf-y += levenshtein.o
 libperf-y += llvm-utils.o
 libperf-y += parse-options.o
 libperf-y += parse-events.o
+libperf-y += perf_regs.o
 libperf-y += path.o
 libperf-y += rbtree.o
 libperf-y += bitmap.o
@@ -85,6 +87,7 @@ libperf-$(CONFIG_AUXTRACE) += intel-bts.o
 libperf-y += parse-branch-options.o
 libperf-y += parse-regs-options.o
 
+libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
 libperf-$(CONFIG_LIBELF) += probe-file.o
 libperf-$(CONFIG_LIBELF) += probe-event.o
@@ -103,7 +106,6 @@ libperf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
 
 libperf-y += scripting-engines/
 
-libperf-$(CONFIG_PERF_REGS) += perf_regs.o
 libperf-$(CONFIG_ZLIB) += zlib.o
 libperf-$(CONFIG_LZMA) += lzma.o
 

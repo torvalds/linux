@@ -1114,6 +1114,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0db0, 0x871c) },
 	{ USB_DEVICE(0x0db0, 0x899a) },
 	/* Ovislink */
+	{ USB_DEVICE(0x1b75, 0x3070) },
 	{ USB_DEVICE(0x1b75, 0x3071) },
 	{ USB_DEVICE(0x1b75, 0x3072) },
 	{ USB_DEVICE(0x1b75, 0xa200) },

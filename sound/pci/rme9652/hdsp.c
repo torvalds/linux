@@ -5112,6 +5112,7 @@ static int hdsp_request_fw_loader(struct hdsp *hdsp)
 		dev_err(hdsp->card->dev,
 			"too short firmware size %d (expected %d)\n",
 			   (int)fw->size, HDSP_FIRMWARE_SIZE);
+		release_firmware(fw);
 		return -EINVAL;
 	}
 

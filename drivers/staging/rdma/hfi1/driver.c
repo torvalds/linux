@@ -302,6 +302,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		qp_num = be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;
 		if (lid < HFI1_MULTICAST_LID_BASE) {
 			struct hfi1_qp *qp;
+			unsigned long flags;
 
 			rcu_read_lock();
 			qp = hfi1_lookup_qpn(ibp, qp_num);
@@ -314,7 +315,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			 * Handle only RC QPs - for other QP types drop error
 			 * packet.
 			 */
-			spin_lock(&qp->r_lock);
+			spin_lock_irqsave(&qp->r_lock, flags);
 
 			/* Check for valid receive state. */
 			if (!(ib_hfi1_state_ops[qp->state] &
@@ -335,7 +336,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 				break;
 			}
 
-			spin_unlock(&qp->r_lock);
+			spin_unlock_irqrestore(&qp->r_lock, flags);
 			rcu_read_unlock();
 		} /* Unicast QP */
 	} /* Valid packet with TIDErr */
@@ -426,8 +427,7 @@ static inline void init_packet(struct hfi1_ctxtdata *rcd,
 	packet->rcd = rcd;
 	packet->updegr = 0;
 	packet->etail = -1;
-	packet->rhf_addr = (__le32 *) rcd->rcvhdrq + rcd->head +
-			   rcd->dd->rhf_offset;
+	packet->rhf_addr = get_rhf_addr(rcd);
 	packet->rhf = rhf_to_cpu(packet->rhf_addr);
 	packet->rhqoff = rcd->head;
 	packet->numpkt = 0;
@@ -618,10 +618,7 @@ next:
 }
 #endif /* CONFIG_PRESCAN_RXQ */
 
-#define RCV_PKT_OK 0x0
-#define RCV_PKT_MAX 0x1
-
-static inline int process_rcv_packet(struct hfi1_packet *packet)
+static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 {
 	int ret = RCV_PKT_OK;
 
@@ -663,9 +660,13 @@ static inline int process_rcv_packet(struct hfi1_packet *packet)
 	if (packet->rhqoff >= packet->maxcnt)
 		packet->rhqoff = 0;
 
-	if (packet->numpkt == MAX_PKT_RECV) {
-		ret = RCV_PKT_MAX;
-		this_cpu_inc(*packet->rcd->dd->rcv_limit);
+	if (unlikely((packet->numpkt & (MAX_PKT_RECV - 1)) == 0)) {
+		if (thread) {
+			cond_resched();
+		} else {
+			ret = RCV_PKT_LIMIT;
+			this_cpu_inc(*packet->rcd->dd->rcv_limit);
+		}
 	}
 
 	packet->rhf_addr = (__le32 *) packet->rcd->rcvhdrq + packet->rhqoff +
@@ -742,57 +743,63 @@ static inline void process_rcv_qp_work(struct hfi1_packet *packet)
 /*
  * Handle receive interrupts when using the no dma rtail option.
  */
-void handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd)
+int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 {
 	u32 seq;
-	int last = 0;
+	int last = RCV_PKT_OK;
 	struct hfi1_packet packet;
 
 	init_packet(rcd, &packet);
 	seq = rhf_rcv_seq(packet.rhf);
-	if (seq != rcd->seq_cnt)
+	if (seq != rcd->seq_cnt) {
+		last = RCV_PKT_DONE;
 		goto bail;
+	}
 
 	prescan_rxq(&packet);
 
-	while (!last) {
-		last = process_rcv_packet(&packet);
+	while (last == RCV_PKT_OK) {
+		last = process_rcv_packet(&packet, thread);
 		seq = rhf_rcv_seq(packet.rhf);
 		if (++rcd->seq_cnt > 13)
 			rcd->seq_cnt = 1;
 		if (seq != rcd->seq_cnt)
-			last = 1;
+			last = RCV_PKT_DONE;
 		process_rcv_update(last, &packet);
 	}
 	process_rcv_qp_work(&packet);
 bail:
 	finish_packet(&packet);
+	return last;
 }
 
-void handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd)
+int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 {
 	u32 hdrqtail;
-	int last = 0;
+	int last = RCV_PKT_OK;
 	struct hfi1_packet packet;
 
 	init_packet(rcd, &packet);
 	hdrqtail = get_rcvhdrtail(rcd);
-	if (packet.rhqoff == hdrqtail)
+	if (packet.rhqoff == hdrqtail) {
+		last = RCV_PKT_DONE;
 		goto bail;
+	}
 	smp_rmb();  /* prevent speculative reads of dma'ed hdrq */
 
 	prescan_rxq(&packet);
 
-	while (!last) {
-		last = process_rcv_packet(&packet);
+	while (last == RCV_PKT_OK) {
+		last = process_rcv_packet(&packet, thread);
+		hdrqtail = get_rcvhdrtail(rcd);
 		if (packet.rhqoff == hdrqtail)
-			last = 1;
+			last = RCV_PKT_DONE;
 		process_rcv_update(last, &packet);
 	}
 	process_rcv_qp_work(&packet);
 bail:
 	finish_packet(&packet);
-
+	return last;
 }
 
 static inline void set_all_nodma_rtail(struct hfi1_devdata *dd)
@@ -820,12 +827,11 @@ static inline void set_all_dma_rtail(struct hfi1_devdata *dd)
  * Called from interrupt handler for errors or receive interrupt.
  * This is the slow path interrupt handler.
  */
-void handle_receive_interrupt(struct hfi1_ctxtdata *rcd)
+int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 {
-
 	struct hfi1_devdata *dd = rcd->dd;
 	u32 hdrqtail;
-	int last = 0, needset = 1;
+	int last = RCV_PKT_OK, needset = 1;
 	struct hfi1_packet packet;
 
 	init_packet(rcd, &packet);
@@ -833,19 +839,23 @@ void handle_receive_interrupt(struct hfi1_ctxtdata *rcd)
 	if (!HFI1_CAP_IS_KSET(DMA_RTAIL)) {
 		u32 seq = rhf_rcv_seq(packet.rhf);
 
-		if (seq != rcd->seq_cnt)
+		if (seq != rcd->seq_cnt) {
+			last = RCV_PKT_DONE;
 			goto bail;
+		}
 		hdrqtail = 0;
 	} else {
 		hdrqtail = get_rcvhdrtail(rcd);
-		if (packet.rhqoff == hdrqtail)
+		if (packet.rhqoff == hdrqtail) {
+			last = RCV_PKT_DONE;
 			goto bail;
+		}
 		smp_rmb();  /* prevent speculative reads of dma'ed hdrq */
 	}
 
 	prescan_rxq(&packet);
 
-	while (!last) {
+	while (last == RCV_PKT_OK) {
 
 		if (unlikely(dd->do_drop && atomic_xchg(&dd->drop_packet,
 			DROP_PACKET_OFF) == DROP_PACKET_ON)) {
@@ -859,7 +869,7 @@ void handle_receive_interrupt(struct hfi1_ctxtdata *rcd)
 			packet.rhf = rhf_to_cpu(packet.rhf_addr);
 
 		} else {
-			last = process_rcv_packet(&packet);
+			last = process_rcv_packet(&packet, thread);
 		}
 
 		if (!HFI1_CAP_IS_KSET(DMA_RTAIL)) {
@@ -868,7 +878,7 @@ void handle_receive_interrupt(struct hfi1_ctxtdata *rcd)
 			if (++rcd->seq_cnt > 13)
 				rcd->seq_cnt = 1;
 			if (seq != rcd->seq_cnt)
-				last = 1;
+				last = RCV_PKT_DONE;
 			if (needset) {
 				dd_dev_info(dd,
 					"Switching to NO_DMA_RTAIL\n");
@@ -877,7 +887,7 @@ void handle_receive_interrupt(struct hfi1_ctxtdata *rcd)
 			}
 		} else {
 			if (packet.rhqoff == hdrqtail)
-				last = 1;
+				last = RCV_PKT_DONE;
 			if (needset) {
 				dd_dev_info(dd,
 					    "Switching to DMA_RTAIL\n");
@@ -897,6 +907,7 @@ bail:
 	 * if no packets were processed.
 	 */
 	finish_packet(&packet);
+	return last;
 }
 
 /*
@@ -1062,9 +1073,9 @@ void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int val)
 	 */
 	if (atomic_inc_return(&ppd->led_override_timer_active) == 1) {
 		/* Need to start timer */
-		init_timer(&ppd->led_override_timer);
-		ppd->led_override_timer.function = run_led_override;
-		ppd->led_override_timer.data = (unsigned long) ppd;
+		setup_timer(&ppd->led_override_timer, run_led_override,
+				(unsigned long)ppd);
+
 		ppd->led_override_timer.expires = jiffies + 1;
 		add_timer(&ppd->led_override_timer);
 	} else {

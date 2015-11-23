@@ -1953,7 +1953,7 @@ static struct ldc_mtable_entry *alloc_npages(struct ldc_iommu *iommu,
 
 	entry = iommu_tbl_range_alloc(NULL, &iommu->iommu_map_table,
 				      npages, NULL, (unsigned long)-1, 0);
-	if (unlikely(entry < 0))
+	if (unlikely(entry == IOMMU_ERROR_CODE))
 		return NULL;
 
 	return iommu->page_table + entry;

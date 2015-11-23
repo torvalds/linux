@@ -36,7 +36,6 @@
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
-#include <asm/cache.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -74,12 +73,6 @@
 #define TB_NIL	(~(u64)0)
 
 static DECLARE_BITMAP(default_enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
-
-#if defined(CONFIG_PPC_64K_PAGES)
-#define MPP_BUFFER_ORDER	0
-#elif defined(CONFIG_PPC_4K_PAGES)
-#define MPP_BUFFER_ORDER	3
-#endif
 
 static int dynamic_mt_modes = 6;
 module_param(dynamic_mt_modes, int, S_IRUGO | S_IWUSR);
@@ -1455,13 +1448,6 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
 	vcore->kvm = kvm;
 	INIT_LIST_HEAD(&vcore->preempt_list);
 
-	vcore->mpp_buffer_is_valid = false;
-
-	if (cpu_has_feature(CPU_FTR_ARCH_207S))
-		vcore->mpp_buffer = (void *)__get_free_pages(
-			GFP_KERNEL|__GFP_ZERO,
-			MPP_BUFFER_ORDER);
-
 	return vcore;
 }
 
@@ -1894,33 +1880,6 @@ static int on_primary_thread(void)
 	return 1;
 }
 
-static void kvmppc_start_saving_l2_cache(struct kvmppc_vcore *vc)
-{
-	phys_addr_t phy_addr, mpp_addr;
-
-	phy_addr = (phys_addr_t)virt_to_phys(vc->mpp_buffer);
-	mpp_addr = phy_addr & PPC_MPPE_ADDRESS_MASK;
-
-	mtspr(SPRN_MPPR, mpp_addr | PPC_MPPR_FETCH_ABORT);
-	logmpp(mpp_addr | PPC_LOGMPP_LOG_L2);
-
-	vc->mpp_buffer_is_valid = true;
-}
-
-static void kvmppc_start_restoring_l2_cache(const struct kvmppc_vcore *vc)
-{
-	phys_addr_t phy_addr, mpp_addr;
-
-	phy_addr = virt_to_phys(vc->mpp_buffer);
-	mpp_addr = phy_addr & PPC_MPPE_ADDRESS_MASK;
-
-	/* We must abort any in-progress save operations to ensure
-	 * the table is valid so that prefetch engine knows when to
-	 * stop prefetching. */
-	logmpp(mpp_addr | PPC_LOGMPP_LOG_ABORT);
-	mtspr(SPRN_MPPR, mpp_addr | PPC_MPPR_FETCH_WHOLE_TABLE);
-}
-
 /*
  * A list of virtual cores for each physical CPU.
  * These are vcores that could run but their runner VCPU tasks are
@@ -2060,7 +2019,7 @@ static bool can_split_piggybacked_subcores(struct core_info *cip)
 			return false;
 		n_subcores += (cip->subcore_threads[sub] - 1) >> 1;
 	}
-	if (n_subcores > 3 || large_sub < 0)
+	if (large_sub < 0 || !subcore_config_ok(n_subcores + 1, 2))
 		return false;
 
 	/*
@@ -2471,13 +2430,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	srcu_idx = srcu_read_lock(&vc->kvm->srcu);
 
-	if (vc->mpp_buffer_is_valid)
-		kvmppc_start_restoring_l2_cache(vc);
-
 	__kvmppc_vcore_entry();
-
-	if (vc->mpp_buffer)
-		kvmppc_start_saving_l2_cache(vc);
 
 	srcu_read_unlock(&vc->kvm->srcu, srcu_idx);
 
@@ -3073,14 +3026,8 @@ static void kvmppc_free_vcores(struct kvm *kvm)
 {
 	long int i;
 
-	for (i = 0; i < KVM_MAX_VCORES; ++i) {
-		if (kvm->arch.vcores[i] && kvm->arch.vcores[i]->mpp_buffer) {
-			struct kvmppc_vcore *vc = kvm->arch.vcores[i];
-			free_pages((unsigned long)vc->mpp_buffer,
-				   MPP_BUFFER_ORDER);
-		}
+	for (i = 0; i < KVM_MAX_VCORES; ++i)
 		kfree(kvm->arch.vcores[i]);
-	}
 	kvm->arch.online_vcores = 0;
 }
 

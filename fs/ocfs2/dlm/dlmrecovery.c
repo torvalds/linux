@@ -205,7 +205,7 @@ int dlm_launch_recovery_thread(struct dlm_ctxt *dlm)
 	mlog(0, "starting dlm recovery thread...\n");
 
 	dlm->dlm_reco_thread_task = kthread_run(dlm_recovery_thread, dlm,
-						"dlm_reco_thread");
+			"dlm_reco-%s", dlm->name);
 	if (IS_ERR(dlm->dlm_reco_thread_task)) {
 		mlog_errno(PTR_ERR(dlm->dlm_reco_thread_task));
 		dlm->dlm_reco_thread_task = NULL;
@@ -1723,8 +1723,8 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 			} else {
 				dispatched = 1;
 				__dlm_lockres_grab_inflight_worker(dlm, res);
+				spin_unlock(&res->spinlock);
 			}
-			spin_unlock(&res->spinlock);
 		} else {
 			/* put.. incase we are not the master */
 			spin_unlock(&res->spinlock);

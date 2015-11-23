@@ -956,7 +956,6 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	seq_printf(m, "Reserved fences = %d\n", dev_priv->fence_reg_start);
 	seq_printf(m, "Total fences = %d\n", dev_priv->num_fence_regs);
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_gem_object *obj = dev_priv->fence_regs[i].obj;

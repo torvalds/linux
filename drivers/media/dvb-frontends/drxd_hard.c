@@ -2950,10 +2950,9 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 {
 	struct drxd_state *state = NULL;
 
-	state = kmalloc(sizeof(struct drxd_state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return NULL;
-	memset(state, 0, sizeof(*state));
 
 	state->ops = drxd_ops;
 	state->dev = dev;

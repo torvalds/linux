@@ -178,6 +178,8 @@
 
 #define REVISION				0x370
 #define     REVISION__VALUE				0xffff
+#define MAKE_COMPARABLE_REVISION(x)		swab16((x) & REVISION__VALUE)
+#define REVISION_5_1				0x00000501
 
 #define ONFI_DEVICE_FEATURES			0x380
 #define     ONFI_DEVICE_FEATURES__VALUE			0x003f

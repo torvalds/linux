@@ -85,7 +85,7 @@ void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded);
 /*
  * tbfadt - FADT parse/convert/validate
  */
-void acpi_tb_parse_fadt(u32 table_index);
+void acpi_tb_parse_fadt(void);
 
 void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length);
 
@@ -137,8 +137,6 @@ acpi_status acpi_tb_get_owner_id(u32 table_index, acpi_owner_id *owner_id);
  * tbutils - table manager utilities
  */
 acpi_status acpi_tb_initialize_facs(void);
-
-u8 acpi_tb_tables_loaded(void);
 
 void
 acpi_tb_print_table_header(acpi_physical_address address,

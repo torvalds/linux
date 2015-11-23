@@ -169,8 +169,26 @@ static int modify_irte(struct irq_2_iommu *irq_iommu,
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	irte = &iommu->ir_table->base[index];
 
-	set_64bit(&irte->low, irte_modified->low);
-	set_64bit(&irte->high, irte_modified->high);
+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE)
+	if ((irte->pst == 1) || (irte_modified->pst == 1)) {
+		bool ret;
+
+		ret = cmpxchg_double(&irte->low, &irte->high,
+				     irte->low, irte->high,
+				     irte_modified->low, irte_modified->high);
+		/*
+		 * We use cmpxchg16 to atomically update the 128-bit IRTE,
+		 * and it cannot be updated by the hardware or other processors
+		 * behind us, so the return value of cmpxchg16 should be the
+		 * same as the old value.
+		 */
+		WARN_ON(!ret);
+	} else
+#endif
+	{
+		set_64bit(&irte->low, irte_modified->low);
+		set_64bit(&irte->high, irte_modified->high);
+	}
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
@@ -384,7 +402,7 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 
 static int iommu_load_old_irte(struct intel_iommu *iommu)
 {
-	struct irte __iomem *old_ir_table;
+	struct irte *old_ir_table;
 	phys_addr_t irt_phys;
 	unsigned int i;
 	size_t size;
@@ -408,12 +426,12 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 	size     = INTR_REMAP_TABLE_ENTRIES*sizeof(struct irte);
 
 	/* Map the old IR table */
-	old_ir_table = ioremap_cache(irt_phys, size);
+	old_ir_table = memremap(irt_phys, size, MEMREMAP_WB);
 	if (!old_ir_table)
 		return -ENOMEM;
 
 	/* Copy data over */
-	memcpy_fromio(iommu->ir_table->base, old_ir_table, size);
+	memcpy(iommu->ir_table->base, old_ir_table, size);
 
 	__iommu_flush_cache(iommu, iommu->ir_table->base, size);
 
@@ -426,7 +444,7 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 			bitmap_set(iommu->ir_table->bitmap, i, 1);
 	}
 
-	iounmap(old_ir_table);
+	memunmap(old_ir_table);
 
 	return 0;
 }
@@ -672,7 +690,7 @@ static int __init intel_prepare_irq_remapping(void)
 	if (!dmar_ir_support())
 		return -ENODEV;
 
-	if (parse_ioapics_under_ir() != 1) {
+	if (parse_ioapics_under_ir()) {
 		pr_info("Not enabling interrupt remapping\n");
 		goto error;
 	}
@@ -727,7 +745,16 @@ static inline void set_irq_posting_cap(void)
 	struct intel_iommu *iommu;
 
 	if (!disable_irq_post) {
-		intel_irq_remap_ops.capability |= 1 << IRQ_POSTING_CAP;
+		/*
+		 * If IRTE is in posted format, the 'pda' field goes across the
+		 * 64-bit boundary, we need use cmpxchg16b to atomically update
+		 * it. We only expose posted-interrupt when X86_FEATURE_CX16
+		 * is supported. Actually, hardware platforms supporting PI
+		 * should have X86_FEATURE_CX16 support, this has been confirmed
+		 * with Intel hardware guys.
+		 */
+		if ( cpu_has_cx16 )
+			intel_irq_remap_ops.capability |= 1 << IRQ_POSTING_CAP;
 
 		for_each_iommu(iommu, drhd)
 			if (!cap_pi_support(iommu->cap)) {
@@ -907,16 +934,21 @@ static int __init parse_ioapics_under_ir(void)
 	bool ir_supported = false;
 	int ioapic_idx;
 
-	for_each_iommu(iommu, drhd)
-		if (ecap_ir_support(iommu->ecap)) {
-			if (ir_parse_ioapic_hpet_scope(drhd->hdr, iommu))
-				return -1;
+	for_each_iommu(iommu, drhd) {
+		int ret;
 
-			ir_supported = true;
-		}
+		if (!ecap_ir_support(iommu->ecap))
+			continue;
+
+		ret = ir_parse_ioapic_hpet_scope(drhd->hdr, iommu);
+		if (ret)
+			return ret;
+
+		ir_supported = true;
+	}
 
 	if (!ir_supported)
-		return 0;
+		return -ENODEV;
 
 	for (ioapic_idx = 0; ioapic_idx < nr_ioapics; ioapic_idx++) {
 		int ioapic_id = mpc_ioapic_id(ioapic_idx);
@@ -928,7 +960,7 @@ static int __init parse_ioapics_under_ir(void)
 		}
 	}
 
-	return 1;
+	return 0;
 }
 
 static int __init ir_dev_scope_init(void)

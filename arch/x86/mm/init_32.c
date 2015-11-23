@@ -957,6 +957,8 @@ void mark_rodata_ro(void)
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
 #endif
 	mark_nxdata_nx();
+	if (__supported_pte_mask & _PAGE_NX)
+		debug_checkwx();
 }
 #endif
 

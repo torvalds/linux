@@ -167,7 +167,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	acpi=		[HW,ACPI,X86,ARM64]
 			Advanced Configuration and Power Interface
-			Format: { force | off | strict | noirq | rsdt }
+			Format: { force | off | strict | noirq | rsdt |
+				  copy_dsdt }
 			force -- enable ACPI if default was off
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
@@ -789,8 +790,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			is passed, kernel could allocate physical memory region
 			above 4G, that cause second kernel crash on system
 			that require some amount of low memory, e.g. swiotlb
-			requires at least 64M+32K low memory.  Kernel would
-			try to allocate 72M below 4G automatically.
+			requires at least 64M+32K low memory, also enough extra
+			low memory is needed to make sure DMA buffers for 32-bit
+			devices won't run out. Kernel would try to allocate at
+			at least 256M below 4G automatically.
 			This one let user to specify own low range under 4G
 			for second kernel instead.
 			0: to disable low allocation.
@@ -974,6 +977,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	earlycon=	[KNL] Output early console device and options.
 
+			When used with no options, the early console is
+			determined by the stdout-path property in device
+			tree's chosen node.
+
 		cdns,<addr>
 			Start an early, polled-mode console on a cadence serial
 			port at the specified address. The cadence serial port
@@ -1025,6 +1032,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			a correct base address of the selected UART port. The
 			serial port must already be setup and configured.
 			Options are not yet supported.
+
+		lpuart,<addr>
+		lpuart32,<addr>
+			Use early console provided by Freescale LP UART driver
+			found on Freescale Vybrid and QorIQ LS1021A processors.
+			A valid base address must be provided, and the serial
+			port must already be setup and configured.
 
 	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
 			earlyprintk=vga
@@ -1096,6 +1110,21 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			your efi variable storage. Use this parameter only if
 			you are really sure that your UEFI does sane gc and
 			fulfills the spec otherwise your board may brick.
+
+	efi_fake_mem=	nn[KMG]@ss[KMG]:aa[,nn[KMG]@ss[KMG]:aa,..] [EFI; X86]
+			Add arbitrary attribute to specific memory range by
+			updating original EFI memory map.
+			Region of memory which aa attribute is added to is
+			from ss to ss+nn.
+			If efi_fake_mem=2G@4G:0x10000,2G@0x10a0000000:0x10000
+			is specified, EFI_MEMORY_MORE_RELIABLE(0x10000)
+			attribute is added to range 0x100000000-0x180000000 and
+			0x10a0000000-0x1120000000.
+
+			Using this parameter you can do debugging of EFI memmap
+			related feature. For example, you can do debugging of
+			Address Range Mirroring feature even if your box
+			doesn't support it.
 
 	eisa_irq_edge=	[PARISC,HW]
 			See header of drivers/parisc/eisa.c.
@@ -1248,6 +1277,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	grcan.rxsize=	[HW] Sets the size of the rx buffer.
 			Format: <unsigned int> such that (rxsize & ~0x1fffc0) == 0.
 			Default: 1024
+
+	hardlockup_all_cpu_backtrace=
+			[KNL] Should the hard-lockup detector generate
+			backtraces on all cpus.
+			Format: <integer>
 
 	hashdist=	[KNL,NUMA] Large hashes allocated during boot
 			are distributed across NUMA nodes.  Defaults on
@@ -1556,6 +1590,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			nosid	disable Source ID checking
 			no_x2apic_optout
 				BIOS x2APIC opt-out request will be ignored
+			nopost	disable Interrupt Posting
 
 	iomem=		Disable strict checking of access to MMIO memory
 		strict	regions from userspace.
@@ -2317,11 +2352,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
 			Format: [panic,][nopanic,][num]
 			Valid num: 0 or 1
-			0 - turn nmi_watchdog off
-			1 - turn nmi_watchdog on
+			0 - turn hardlockup detector in nmi_watchdog off
+			1 - turn hardlockup detector in nmi_watchdog on
 			When panic is specified, panic when an NMI watchdog
 			timeout occurs (or 'nopanic' to override the opposite
-			default).
+			default). To disable both hard and soft lockup detectors,
+			please see 'nowatchdog'.
 			This is useful when you use a panic=... timeout and
 			need the box quickly up again.
 
@@ -3077,9 +3113,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			cache-to-cache transfer latencies.
 
 	rcutree.rcu_fanout_leaf= [KNL]
-			Increase the number of CPUs assigned to each
-			leaf rcu_node structure.  Useful for very large
-			systems.
+			Change the number of CPUs assigned to each
+			leaf rcu_node structure.  Useful for very
+			large systems, which will choose the value 64,
+			and for NUMA systems with large remote-access
+			latencies, which will choose a value aligned
+			with the appropriate hardware boundaries.
 
 	rcutree.jiffies_till_sched_qs= [KNL]
 			Set required age in jiffies for a

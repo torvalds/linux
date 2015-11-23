@@ -342,6 +342,7 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
 	struct drm_plane *plane;
 	struct drm_atomic_state *state;
 	int i, ret;
+	unsigned plane_mask;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -349,10 +350,9 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
 
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 retry:
+	plane_mask = 0;
 	drm_for_each_plane(plane, dev) {
 		struct drm_plane_state *plane_state;
-
-		plane->old_fb = plane->fb;
 
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
@@ -360,11 +360,10 @@ retry:
 			goto fail;
 		}
 
-		ret = drm_atomic_plane_set_property(plane, plane_state,
-				dev->mode_config.rotation_property,
-				BIT(DRM_ROTATE_0));
-		if (ret != 0)
-			goto fail;
+		plane_state->rotation = BIT(DRM_ROTATE_0);
+
+		plane->old_fb = plane->fb;
+		plane_mask |= 1 << drm_plane_index(plane);
 
 		/* disable non-primary: */
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
@@ -386,19 +385,7 @@ retry:
 	ret = drm_atomic_commit(state);
 
 fail:
-	drm_for_each_plane(plane, dev) {
-		if (ret == 0) {
-			struct drm_framebuffer *new_fb = plane->state->fb;
-			if (new_fb)
-				drm_framebuffer_reference(new_fb);
-			plane->fb = new_fb;
-			plane->crtc = plane->state->crtc;
-
-			if (plane->old_fb)
-				drm_framebuffer_unreference(plane->old_fb);
-		}
-		plane->old_fb = NULL;
-	}
+	drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret == -EDEADLK)
 		goto backoff;
@@ -442,7 +429,11 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 		struct drm_crtc *crtc = mode_set->crtc;
 		int ret;
 
-		if (crtc->funcs->cursor_set) {
+		if (crtc->funcs->cursor_set2) {
+			ret = crtc->funcs->cursor_set2(crtc, NULL, 0, 0, 0, 0, 0);
+			if (ret)
+				return ret;
+		} else if (crtc->funcs->cursor_set) {
 			ret = crtc->funcs->cursor_set(crtc, NULL, 0, 0, 0);
 			if (ret)
 				return ret;
@@ -1231,12 +1222,14 @@ int drm_fb_helper_set_par(struct fb_info *info)
 EXPORT_SYMBOL(drm_fb_helper_set_par);
 
 static int pan_display_atomic(struct fb_var_screeninfo *var,
-		struct fb_info *info)
+			      struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_atomic_state *state;
+	struct drm_plane *plane;
 	int i, ret;
+	unsigned plane_mask;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -1244,6 +1237,7 @@ static int pan_display_atomic(struct fb_var_screeninfo *var,
 
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 retry:
+	plane_mask = 0;
 	for(i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set;
 
@@ -1255,6 +1249,10 @@ retry:
 		ret = __drm_atomic_helper_set_config(mode_set, state);
 		if (ret != 0)
 			goto fail;
+
+		plane = mode_set->crtc->primary;
+		plane_mask |= drm_plane_index(plane);
+		plane->old_fb = plane->fb;
 	}
 
 	ret = drm_atomic_commit(state);
@@ -1264,13 +1262,15 @@ retry:
 	info->var.xoffset = var->xoffset;
 	info->var.yoffset = var->yoffset;
 
-	return 0;
 
 fail:
+	drm_atomic_clean_old_fb(dev, plane_mask, ret);
+
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
+	if (ret != 0)
+		drm_atomic_state_free(state);
 
 	return ret;
 

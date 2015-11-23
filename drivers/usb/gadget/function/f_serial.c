@@ -153,7 +153,7 @@ static int gser_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	/* we know alt == 0, so this is an activation or a reset */
 
-	if (gser->port.in->driver_data) {
+	if (gser->port.in->enabled) {
 		dev_dbg(&cdev->gadget->dev,
 			"reset generic ttyGS%d\n", gser->port_num);
 		gserial_disconnect(&gser->port);
@@ -219,13 +219,11 @@ static int gser_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	gser->port.in = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &gser_fs_out_desc);
 	if (!ep)
 		goto fail;
 	gser->port.out = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
@@ -249,12 +247,6 @@ static int gser_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	/* we might as well release our claims on endpoints */
-	if (gser->port.out)
-		gser->port.out->driver_data = NULL;
-	if (gser->port.in)
-		gser->port.in->driver_data = NULL;
-
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
 
 	return status;
@@ -266,22 +258,6 @@ static inline struct f_serial_opts *to_f_serial_opts(struct config_item *item)
 			    func_inst.group);
 }
 
-CONFIGFS_ATTR_STRUCT(f_serial_opts);
-static ssize_t f_serial_attr_show(struct config_item *item,
-				  struct configfs_attribute *attr,
-				  char *page)
-{
-	struct f_serial_opts *opts = to_f_serial_opts(item);
-	struct f_serial_opts_attribute *f_serial_opts_attr =
-		container_of(attr, struct f_serial_opts_attribute, attr);
-	ssize_t ret = 0;
-
-	if (f_serial_opts_attr->show)
-		ret = f_serial_opts_attr->show(opts, page);
-
-	return ret;
-}
-
 static void serial_attr_release(struct config_item *item)
 {
 	struct f_serial_opts *opts = to_f_serial_opts(item);
@@ -291,19 +267,17 @@ static void serial_attr_release(struct config_item *item)
 
 static struct configfs_item_operations serial_item_ops = {
 	.release	= serial_attr_release,
-	.show_attribute = f_serial_attr_show,
 };
 
-static ssize_t f_serial_port_num_show(struct f_serial_opts *opts, char *page)
+static ssize_t f_serial_port_num_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%u\n", opts->port_num);
+	return sprintf(page, "%u\n", to_f_serial_opts(item)->port_num);
 }
 
-static struct f_serial_opts_attribute f_serial_port_num =
-	__CONFIGFS_ATTR_RO(port_num, f_serial_port_num_show);
+CONFIGFS_ATTR_RO(f_serial_, port_num);
 
 static struct configfs_attribute *acm_attrs[] = {
-	&f_serial_port_num.attr,
+	&f_serial_attr_port_num,
 	NULL,
 };
 

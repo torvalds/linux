@@ -112,6 +112,16 @@ struct x86_emulate_ops {
 			struct x86_exception *fault);
 
 	/*
+	 * read_phys: Read bytes of standard (non-emulated/special) memory.
+	 *            Used for descriptor reading.
+	 *  @addr:  [IN ] Physical address from which to read.
+	 *  @val:   [OUT] Value read from memory.
+	 *  @bytes: [IN ] Number of bytes to read from memory.
+	 */
+	int (*read_phys)(struct x86_emulate_ctxt *ctxt, unsigned long addr,
+			void *val, unsigned int bytes);
+
+	/*
 	 * write_std: Write bytes of standard (non-emulated/special) memory.
 	 *            Used for descriptor writing.
 	 *  @addr:  [IN ] Linear address to which to write.

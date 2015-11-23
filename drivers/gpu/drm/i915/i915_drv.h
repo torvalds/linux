@@ -349,6 +349,8 @@ enum intel_dpll_id {
 	/* hsw/bdw */
 	DPLL_ID_WRPLL1 = 0,
 	DPLL_ID_WRPLL2 = 1,
+	DPLL_ID_SPLL = 2,
+
 	/* skl */
 	DPLL_ID_SKL_DPLL1 = 0,
 	DPLL_ID_SKL_DPLL2 = 1,
@@ -365,6 +367,7 @@ struct intel_dpll_hw_state {
 
 	/* hsw, bdw */
 	uint32_t wrpll;
+	uint32_t spll;
 
 	/* skl */
 	/*
@@ -1772,7 +1775,6 @@ struct drm_i915_private {
 	struct mutex pps_mutex;
 
 	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
-	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
@@ -2654,6 +2656,7 @@ struct i915_params {
 	int enable_cmd_parser;
 	/* leave bools at the end to not create holes */
 	bool enable_hangcheck;
+	bool fastboot;
 	bool prefault_disable;
 	bool load_detect_test;
 	bool reset;

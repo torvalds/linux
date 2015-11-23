@@ -332,7 +332,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/*
 	 * Switch FS and GS.
 	 *
-	 * These are even more complicated than FS and GS: they have
+	 * These are even more complicated than DS and ES: they have
 	 * 64-bit bases are that controlled by arch_prctl.  Those bases
 	 * only differ from the values in the GDT or LDT if the selector
 	 * is 0.
@@ -400,14 +400,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * Switch the PDA and FPU contexts.
 	 */
 	this_cpu_write(current_task, next_p);
-
-	/*
-	 * If it were not for PREEMPT_ACTIVE we could guarantee that the
-	 * preempt_count of all tasks was equal here and this would not be
-	 * needed.
-	 */
-	task_thread_info(prev_p)->saved_preempt_count = this_cpu_read(__preempt_count);
-	this_cpu_write(__preempt_count, task_thread_info(next_p)->saved_preempt_count);
 
 	/* Reload esp0 and ss1.  This changes current_thread_info(). */
 	load_sp0(tss, next);
@@ -498,30 +490,6 @@ void set_personality_ia32(bool x32)
 	}
 }
 EXPORT_SYMBOL_GPL(set_personality_ia32);
-
-unsigned long get_wchan(struct task_struct *p)
-{
-	unsigned long stack;
-	u64 fp, ip;
-	int count = 0;
-
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
-	stack = (unsigned long)task_stack_page(p);
-	if (p->thread.sp < stack || p->thread.sp >= stack+THREAD_SIZE)
-		return 0;
-	fp = *(u64 *)(p->thread.sp);
-	do {
-		if (fp < (unsigned long)stack ||
-		    fp >= (unsigned long)stack+THREAD_SIZE)
-			return 0;
-		ip = *(u64 *)(fp+8);
-		if (!in_sched_functions(ip))
-			return ip;
-		fp = *(u64 *)fp;
-	} while (count++ < 16);
-	return 0;
-}
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 {

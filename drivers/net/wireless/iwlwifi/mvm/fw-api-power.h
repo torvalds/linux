@@ -192,16 +192,10 @@ struct iwl_powertable_cmd {
 /**
  * enum iwl_device_power_flags - masks for device power command flags
  * @DEVIC_POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
- *	receiver and transmitter. '0' - does not allow. This flag should be
- *	always set to '1' unless one need to disable actual power down for debug
- *	purposes.
- * @DEVICE_POWER_FLAGS_CAM_MSK: '1' CAM (Continuous Active Mode) is set, meaning
- *	that power management is disabled. '0' Power management is enabled, one
- *	of power schemes is applied.
+ *	receiver and transmitter. '0' - does not allow.
 */
 enum iwl_device_power_flags {
 	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK	= BIT(0),
-	DEVICE_POWER_FLAGS_CAM_MSK		= BIT(13),
 };
 
 /**

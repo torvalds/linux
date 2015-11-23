@@ -108,8 +108,6 @@ create setup for different displays.
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	if (par->gpio.cs != -1)
@@ -149,9 +147,6 @@ static int init_display(struct fbtft_par *par)
 static void set_addr_win(struct fbtft_par *par, int xs, int ys,
 				int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	switch (par->info->var.rotate) {
 	case 0:
 		write_reg(par, CMD_CLMADRS, xs >> 8, xs & 0xff, xe >> 8,
@@ -204,8 +199,6 @@ static int set_var(struct fbtft_par *par)
 {
 	u8 mactrl_data = 0; /* Avoid compiler warning */
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	switch (par->info->var.rotate) {
 	case 0:
 		mactrl_data = 0x08;
@@ -230,7 +223,7 @@ static int set_var(struct fbtft_par *par)
 }
 
 #ifdef GAMMA_ADJ
-#define CURVE(num, idx)  curves[num*par->gamma.num_values + idx]
+#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int gamma_adj(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long mask[] = {
@@ -239,11 +232,9 @@ static int gamma_adj(struct fbtft_par *par, unsigned long *curves)
 		0x3F, 0x3F, 0x3F, 0x3F, 0x3F};
 	int i, j;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	for (i = 0; i < GAMMA_NUM; i++)
 		for (j = 0; j < GAMMA_LEN; j++)
-			CURVE(i, j) &= mask[i*par->gamma.num_values + j];
+			CURVE(i, j) &= mask[i * par->gamma.num_values + j];
 
 	write_reg(par, CMD_PGAMMAC,
 				CURVE(0, 0),

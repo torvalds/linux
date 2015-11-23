@@ -1007,26 +1007,29 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	force_grh = rdma_cap_eth_ah(device, port_num);
 
 	if (rec->hop_limit > 1 || force_grh) {
+		struct net_device *ndev = ib_get_ndev_from_path(rec);
+
 		ah_attr->ah_flags = IB_AH_GRH;
 		ah_attr->grh.dgid = rec->dgid;
 
-		ret = ib_find_cached_gid(device, &rec->sgid, &port_num,
+		ret = ib_find_cached_gid(device, &rec->sgid, ndev, &port_num,
 					 &gid_index);
-		if (ret)
+		if (ret) {
+			if (ndev)
+				dev_put(ndev);
 			return ret;
+		}
 
 		ah_attr->grh.sgid_index    = gid_index;
 		ah_attr->grh.flow_label    = be32_to_cpu(rec->flow_label);
 		ah_attr->grh.hop_limit     = rec->hop_limit;
 		ah_attr->grh.traffic_class = rec->traffic_class;
+		if (ndev)
+			dev_put(ndev);
 	}
 	if (force_grh) {
 		memcpy(ah_attr->dmac, rec->dmac, ETH_ALEN);
-		ah_attr->vlan_id = rec->vlan_id;
-	} else {
-		ah_attr->vlan_id = 0xffff;
 	}
-
 	return 0;
 }
 EXPORT_SYMBOL(ib_init_ah_from_path);
@@ -1083,7 +1086,7 @@ static void init_mad(struct ib_sa_mad *mad, struct ib_mad_agent *agent)
 
 static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 {
-	bool preload = !!(gfp_mask & __GFP_WAIT);
+	bool preload = gfpflags_allow_blocking(gfp_mask);
 	unsigned long flags;
 	int ret, id;
 
@@ -1150,9 +1153,9 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 
 		ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table),
 			  mad->data, &rec);
-		rec.vlan_id = 0xffff;
+		rec.net = NULL;
+		rec.ifindex = 0;
 		memset(rec.dmac, 0, ETH_ALEN);
-		memset(rec.smac, 0, ETH_ALEN);
 		query->callback(status, &rec, query->context);
 	} else
 		query->callback(status, NULL, query->context);

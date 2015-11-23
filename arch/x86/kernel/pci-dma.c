@@ -90,7 +90,7 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 again:
 	page = NULL;
 	/* CMA can be used only in the context which permits sleeping */
-	if (flag & __GFP_WAIT) {
+	if (gfpflags_allow_blocking(flag)) {
 		page = dma_alloc_from_contiguous(dev, count, get_order(size));
 		if (page && page_to_phys(page) + size > dma_mask) {
 			dma_release_from_contiguous(dev, page, count);
@@ -131,11 +131,12 @@ void dma_generic_free_coherent(struct device *dev, size_t size, void *vaddr,
 
 bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp)
 {
+	if (!*dev)
+		*dev = &x86_dma_fallback_dev;
+
 	*gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
 	*gfp = dma_alloc_coherent_gfp_flags(*dev, *gfp);
 
-	if (!*dev)
-		*dev = &x86_dma_fallback_dev;
 	if (!is_device_dma_capable(*dev))
 		return false;
 	return true;

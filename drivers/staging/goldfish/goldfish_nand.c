@@ -48,7 +48,7 @@ static u32 goldfish_nand_cmd_with_params(struct mtd_info *mtd,
 	struct cmd_params *cps = nand->cmd_params;
 	unsigned char __iomem  *base = nand->base;
 
-	if (cps == NULL)
+	if (!cps)
 		return -1;
 
 	switch (cmd) {
@@ -379,7 +379,7 @@ static int goldfish_nand_probe(struct platform_device *pdev)
 	unsigned char __iomem  *base;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL)
+	if (!r)
 		return -ENODEV;
 
 	base = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);

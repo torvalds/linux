@@ -32,7 +32,7 @@ struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity
 	struct amd_sched_fence *fence = NULL;
 	unsigned seq;
 
-	fence = kzalloc(sizeof(struct amd_sched_fence), GFP_KERNEL);
+	fence = kmem_cache_zalloc(sched_fence_slab, GFP_KERNEL);
 	if (fence == NULL)
 		return NULL;
 	fence->owner = owner;
@@ -71,11 +71,17 @@ static bool amd_sched_fence_enable_signaling(struct fence *f)
 	return true;
 }
 
+static void amd_sched_fence_release(struct fence *f)
+{
+	struct amd_sched_fence *fence = to_amd_sched_fence(f);
+	kmem_cache_free(sched_fence_slab, fence);
+}
+
 const struct fence_ops amd_sched_fence_ops = {
 	.get_driver_name = amd_sched_fence_get_driver_name,
 	.get_timeline_name = amd_sched_fence_get_timeline_name,
 	.enable_signaling = amd_sched_fence_enable_signaling,
 	.signaled = NULL,
 	.wait = fence_default_wait,
-	.release = NULL,
+	.release = amd_sched_fence_release,
 };

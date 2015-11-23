@@ -64,7 +64,7 @@ config ARM_ETHERH
 	  should say Y to this option if you wish to use it with Linux.
 
 config MAC8390
-	bool "Macintosh NS 8390 based ethernet cards"
+	tristate "Macintosh NS 8390 based ethernet cards"
 	depends on MAC
 	select CRC32
 	---help---

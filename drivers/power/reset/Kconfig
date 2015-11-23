@@ -15,7 +15,7 @@ config POWER_RESET_AS3722
 	  This driver supports turning off board via a ams AS3722 power-off.
 
 config POWER_RESET_AT91_POWEROFF
-	bool "Atmel AT91 poweroff driver"
+	tristate "Atmel AT91 poweroff driver"
 	depends on ARCH_AT91
 	default SOC_AT91SAM9 || SOC_SAMA5
 	help
@@ -23,7 +23,7 @@ config POWER_RESET_AT91_POWEROFF
 	  SoCs
 
 config POWER_RESET_AT91_RESET
-	bool "Atmel AT91 reset driver"
+	tristate "Atmel AT91 reset driver"
 	depends on ARCH_AT91
 	default SOC_AT91SAM9 || SOC_SAMA5
 	help

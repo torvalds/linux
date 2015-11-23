@@ -304,10 +304,24 @@
 		>;
 	};
 
+	dcan0_sleep: dcan0_sleep_pins {
+		pinctrl-single,pins = <
+			0x178 (PIN_INPUT_PULLUP | MUX_MODE7)	/* uart1_ctsn.gpio0_12 */
+			0x17c (PIN_INPUT_PULLUP | MUX_MODE7)	/* uart1_rtsn.gpio0_13 */
+		>;
+	};
+
 	dcan1_default: dcan1_default_pins {
 		pinctrl-single,pins = <
 			0x180 (PIN_OUTPUT | MUX_MODE2)		/* uart1_rxd.d_can1_tx */
 			0x184 (PIN_INPUT_PULLUP | MUX_MODE2)	/* uart1_txd.d_can1_rx */
+		>;
+	};
+
+	dcan1_sleep: dcan1_sleep_pins {
+		pinctrl-single,pins = <
+			0x180 (PIN_INPUT_PULLUP | MUX_MODE7)	/* uart1_rxd.gpio0_14 */
+			0x184 (PIN_INPUT_PULLUP | MUX_MODE7)	/* uart1_txd.gpio0_15 */
 		>;
 	};
 
@@ -581,8 +595,17 @@
 
 		attb-gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 
+		/*
+		 * 0x264 represents the offset of padconf register of
+		 * gpio3_22 from am43xx_pinmux base.
+		 */
+		interrupts-extended = <&gpio3 22 IRQ_TYPE_NONE>,
+				      <&am43xx_pinmux 0x264>;
+		interrupt-names = "tsc", "wakeup";
+
 		touchscreen-size-x = <1024>;
 		touchscreen-size-y = <600>;
+		wakeup-source;
 	};
 
 	ov2659@30 {
@@ -689,7 +712,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
-	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 };
 
 /* eMMC sits on mmc2 */
@@ -886,14 +909,16 @@
 };
 
 &dcan0 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&dcan0_default>;
+	pinctrl-1 = <&dcan0_sleep>;
 	status = "okay";
 };
 
 &dcan1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&dcan1_default>;
+	pinctrl-1 = <&dcan1_sleep>;
 	status = "okay";
 };
 

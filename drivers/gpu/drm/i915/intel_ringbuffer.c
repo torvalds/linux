@@ -347,6 +347,7 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 	if (flush_domains) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_FLUSH_ENABLE;
 	}
 	if (invalidate_domains) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
@@ -418,6 +419,7 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req,
 	if (flush_domains) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_FLUSH_ENABLE;
 	}
 	if (invalidate_domains) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;

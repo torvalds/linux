@@ -41,7 +41,6 @@
  * CPU Interface.
  */
 
-#define FIMD_DEFAULT_FRAMERATE 60
 #define MIN_FB_WIDTH_FOR_16WORD_BURST 128
 
 /* position control register for hardware window 0, 2 ~ 4.*/
@@ -88,6 +87,7 @@
 
 /* FIMD has totally five hardware windows. */
 #define WINDOWS_NR	5
+#define CURSOR_WIN	4
 
 struct fimd_driver_data {
 	unsigned int timing_base;
@@ -154,7 +154,6 @@ struct fimd_context {
 	struct clk			*lcd_clk;
 	void __iomem			*regs;
 	struct regmap			*sysreg;
-	unsigned int			default_win;
 	unsigned long			irq_flags;
 	u32				vidcon0;
 	u32				vidcon1;
@@ -375,16 +374,6 @@ static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 	clkdiv = DIV_ROUND_UP(clk_get_rate(ctx->lcd_clk), ideal_clk);
 
 	return (clkdiv < 0x100) ? clkdiv : 0xff;
-}
-
-static bool fimd_mode_fixup(struct exynos_drm_crtc *crtc,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	if (adjusted_mode->vrefresh == 0)
-		adjusted_mode->vrefresh = FIMD_DEFAULT_FRAMERATE;
-
-	return true;
 }
 
 static void fimd_commit(struct exynos_drm_crtc *crtc)
@@ -882,13 +871,12 @@ static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
 		return;
 
 	val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
-	writel(DP_MIE_CLK_DP_ENABLE, ctx->regs + DP_MIE_CLKCON);
+	writel(val, ctx->regs + DP_MIE_CLKCON);
 }
 
 static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.enable = fimd_enable,
 	.disable = fimd_disable,
-	.mode_fixup = fimd_mode_fixup,
 	.commit = fimd_commit,
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
@@ -961,8 +949,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	ctx->pipe = priv->pipe++;
 
 	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
+		type = exynos_plane_get_type(zpos, CURSOR_WIN);
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
 					1 << ctx->pipe, type, fimd_formats,
 					ARRAY_SIZE(fimd_formats), zpos);
@@ -970,7 +957,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[ctx->default_win];
+	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
 					   &fimd_crtc_ops, ctx);
