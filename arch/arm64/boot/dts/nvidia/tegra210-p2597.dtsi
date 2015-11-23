@@ -1261,6 +1261,23 @@
 		};
 	};
 
+	pwm@7000a000 {
+		status = "okay";
+	};
+
+	i2c@7000c400 {
+		status = "okay";
+		clock-frequency = <100000>;
+
+		exp1: gpio@74 {
+			compatible = "ti,tca9539";
+			reg = <0x74>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+	};
+
 	/* MMC/SD */
 	sdhci@700b0000 {
 		status = "okay";
@@ -1339,6 +1356,39 @@
 
 			regulator-enable-ramp-delay = <472>;
 			regulator-disable-ramp-delay = <4880>;
+		};
+
+		vdd_dsi_csi: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			regulator-name = "AVDD_DSI_CSI_1V2";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			vin-supply = <&vdd_sys_1v2>;
+		};
+
+		vdd_3v3_dis: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			regulator-name = "VDD_DIS_3V3_LCD";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			gpio = <&exp1 3 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_3v3_sys>;
+		};
+
+		vdd_1v8_dis: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			regulator-name = "VDD_LCD_1V8_DIS";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+			gpio = <&exp1 14 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_1v8>;
 		};
 	};
 
