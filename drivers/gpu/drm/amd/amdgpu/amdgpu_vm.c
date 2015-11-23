@@ -1010,13 +1010,13 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	/* make sure object fit at this offset */
-	eaddr = saddr + size;
+	eaddr = saddr + size - 1;
 	if ((saddr >= eaddr) || (offset + size > amdgpu_bo_size(bo_va->bo)))
 		return -EINVAL;
 
 	last_pfn = eaddr / AMDGPU_GPU_PAGE_SIZE;
-	if (last_pfn > adev->vm_manager.max_pfn) {
-		dev_err(adev->dev, "va above limit (0x%08X > 0x%08X)\n",
+	if (last_pfn >= adev->vm_manager.max_pfn) {
+		dev_err(adev->dev, "va above limit (0x%08X >= 0x%08X)\n",
 			last_pfn, adev->vm_manager.max_pfn);
 		return -EINVAL;
 	}
@@ -1025,7 +1025,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
 	spin_lock(&vm->it_lock);
-	it = interval_tree_iter_first(&vm->va, saddr, eaddr - 1);
+	it = interval_tree_iter_first(&vm->va, saddr, eaddr);
 	spin_unlock(&vm->it_lock);
 	if (it) {
 		struct amdgpu_bo_va_mapping *tmp;
@@ -1046,7 +1046,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 
 	INIT_LIST_HEAD(&mapping->list);
 	mapping->it.start = saddr;
-	mapping->it.last = eaddr - 1;
+	mapping->it.last = eaddr;
 	mapping->offset = offset;
 	mapping->flags = flags;
 
