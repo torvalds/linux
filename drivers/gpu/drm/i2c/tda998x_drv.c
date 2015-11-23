@@ -878,7 +878,10 @@ tda998x_encoder_mode_fixup(struct drm_encoder *encoder,
 static int tda998x_connector_mode_valid(struct drm_connector *connector,
 					struct drm_display_mode *mode)
 {
-	if (mode->clock > 150000)
+	/* TDA19988 dotclock can go up to 165MHz */
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
+
+	if (mode->clock > ((priv->rev == TDA19988) ? 165000 : 150000))
 		return MODE_CLOCK_HIGH;
 	if (mode->htotal >= BIT(13))
 		return MODE_BAD_HVALUE;
