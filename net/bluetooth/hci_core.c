@@ -1537,7 +1537,6 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	flush_work(&hdev->rx_work);
 
 	if (hdev->discov_timeout > 0) {
-		cancel_delayed_work(&hdev->discov_off);
 		hdev->discov_timeout = 0;
 		hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
 		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
@@ -2094,17 +2093,6 @@ static void hci_error_reset(struct work_struct *work)
 		return;
 
 	hci_dev_do_open(hdev);
-}
-
-static void hci_discov_off(struct work_struct *work)
-{
-	struct hci_dev *hdev;
-
-	hdev = container_of(work, struct hci_dev, discov_off.work);
-
-	BT_DBG("%s", hdev->name);
-
-	mgmt_discoverable_timeout(hdev);
 }
 
 void hci_uuids_clear(struct hci_dev *hdev)
@@ -2986,7 +2974,6 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_WORK(&hdev->error_reset, hci_error_reset);
 
 	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
-	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
 
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);

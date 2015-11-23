@@ -1401,8 +1401,8 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		if (cp->val && hdev->discov_timeout > 0) {
 			int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
-			queue_delayed_work(hdev->workqueue, &hdev->discov_off,
-					   to);
+			queue_delayed_work(hdev->req_workqueue,
+					   &hdev->discov_off, to);
 		}
 
 		err = send_settings_rsp(sk, MGMT_OP_SET_DISCOVERABLE, hdev);
@@ -6846,43 +6846,6 @@ void mgmt_set_powered_failed(struct hci_dev *hdev, int err)
 	mgmt_cmd_status(cmd->sk, hdev->id, MGMT_OP_SET_POWERED, status);
 
 	mgmt_pending_remove(cmd);
-}
-
-void mgmt_discoverable_timeout(struct hci_dev *hdev)
-{
-	struct hci_request req;
-
-	hci_dev_lock(hdev);
-
-	/* When discoverable timeout triggers, then just make sure
-	 * the limited discoverable flag is cleared. Even in the case
-	 * of a timeout triggered from general discoverable, it is
-	 * safe to unconditionally clear the flag.
-	 */
-	hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
-	hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
-
-	hci_req_init(&req, hdev);
-	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
-		u8 scan = SCAN_PAGE;
-		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE,
-			    sizeof(scan), &scan);
-	}
-	__hci_req_update_class(&req);
-
-	/* Advertising instances don't use the global discoverable setting, so
-	 * only update AD if advertising was enabled using Set Advertising.
-	 */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
-		__hci_req_update_adv_data(&req, HCI_ADV_CURRENT);
-
-	hci_req_run(&req, NULL);
-
-	hdev->discov_timeout = 0;
-
-	new_settings(hdev, NULL);
-
-	hci_dev_unlock(hdev);
 }
 
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
