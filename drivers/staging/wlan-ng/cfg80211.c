@@ -558,7 +558,6 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 							(u8 *)sme->key);
 			if (result)
 				goto exit;
-
 		}
 
 		/* Assume we should set privacy invoked and exclude unencrypted
@@ -590,7 +589,6 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 						P80211ENUM_truth_false);
 		if (result)
 			goto exit;
-
 	}
 
 	/* Now do the actual join. Note there is no way that I can
