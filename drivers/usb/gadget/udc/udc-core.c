@@ -549,21 +549,35 @@ EXPORT_SYMBOL_GPL(usb_udc_attach_driver);
 int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 {
 	struct usb_udc		*udc = NULL;
-	int			ret;
+	int			ret = -ENODEV;
 
 	if (!driver || !driver->bind || !driver->setup)
 		return -EINVAL;
 
 	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list) {
-		/* For now we take the first one */
-		if (!udc->driver)
+	if (driver->udc_name) {
+		list_for_each_entry(udc, &udc_list, list) {
+			ret = strcmp(driver->udc_name, dev_name(&udc->dev));
+			if (!ret)
+				break;
+		}
+		if (ret)
+			ret = -ENODEV;
+		else if (udc->driver)
+			ret = -EBUSY;
+		else
 			goto found;
+	} else {
+		list_for_each_entry(udc, &udc_list, list) {
+			/* For now we take the first one */
+			if (!udc->driver)
+				goto found;
+		}
 	}
 
 	pr_debug("couldn't find an available UDC\n");
 	mutex_unlock(&udc_lock);
-	return -ENODEV;
+	return ret;
 found:
 	ret = udc_bind_to_driver(udc, driver);
 	mutex_unlock(&udc_lock);
