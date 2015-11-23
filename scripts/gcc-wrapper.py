@@ -42,7 +42,7 @@ import subprocess
 allowed_warnings = set([
     "core.c:142", # drivers/regulator/core.c:142:6: warning: unused variable 'i'
     "posix-cpu-timers.c:1268", # kernel/time/posix-cpu-timers.c:1268:13: warning: 'now' may be used uninitialized in this function
-    "af_unix.c:910", # net/unix/af_unix.c:910:20: warning: 'hash' may be used uninitialized in this function
+    "af_unix.c:911", # net/unix/af_unix.c:911:20: warning: 'hash' may be used uninitialized in this function
     "sunxi_sram.c:214", # drivers/soc/sunxi/sunxi_sram.c:214:24: warning: 'device' may be used uninitialized in this function
     "ks8851.c:298", # drivers/net/ethernet/micrel/ks8851.c:298:2: warning: 'rxb[0]' may be used uninitialized in this function
     "ks8851.c:421", # drivers/net/ethernet/micrel/ks8851.c:421:20: warning: 'rxb[0]' may be used uninitialized in this function
