@@ -2688,7 +2688,7 @@ void decode_misc_enable_msr(void)
 
 void process_cpuid()
 {
-	unsigned int eax, ebx, ecx, edx, max_level;
+	unsigned int eax, ebx, ecx, edx, max_level, max_extended_level;
 	unsigned int fms, family, model, stepping;
 
 	eax = ebx = ecx = edx = 0;
@@ -2732,9 +2732,9 @@ void process_cpuid()
 	 * This check is valid for both Intel and AMD.
 	 */
 	ebx = ecx = edx = 0;
-	__get_cpuid(0x80000000, &max_level, &ebx, &ecx, &edx);
+	__get_cpuid(0x80000000, &max_extended_level, &ebx, &ecx, &edx);
 
-	if (max_level >= 0x80000007) {
+	if (max_extended_level >= 0x80000007) {
 
 		/*
 		 * Non-Stop TSC is advertised by CPUID.EAX=0x80000007: EDX.bit8
@@ -2765,7 +2765,7 @@ void process_cpuid()
 	if (debug)
 		decode_misc_enable_msr();
 
-	if (max_level > 0x15) {
+	if (max_level >= 0x15) {
 		unsigned int eax_crystal;
 		unsigned int ebx_tsc;
 
@@ -2798,6 +2798,19 @@ void process_cpuid()
 						tsc_hz / 1000000, crystal_hz, ebx_tsc,  eax_crystal);
 			}
 		}
+	}
+	if (max_level >= 0x16) {
+		unsigned int base_mhz, max_mhz, bus_mhz, edx;
+
+		/*
+		 * CPUID 16H Base MHz, Max MHz, Bus MHz
+		 */
+		base_mhz = max_mhz = bus_mhz = edx = 0;
+
+		__get_cpuid(0x16, &base_mhz, &max_mhz, &bus_mhz, &edx);
+		if (debug)
+			fprintf(stderr, "CPUID(0x16): base_mhz: %d max_mhz: %d bus_mhz: %d\n",
+				base_mhz, max_mhz, bus_mhz);
 	}
 
 	if (has_aperf)
@@ -3151,7 +3164,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(stderr, "turbostat version 4.8 26-Sep, 2015"
+	fprintf(stderr, "turbostat version 4.9 22 Nov, 2015"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
