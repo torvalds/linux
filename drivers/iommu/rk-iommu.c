@@ -27,7 +27,7 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/device.h>
-#include "rockchip-iommu.h"
+#include "rk-iommu.h"
 
 /* We does not consider super section mapping (16MB) */
 #define SPAGE_ORDER 12
@@ -187,7 +187,13 @@ struct rk_iommu_domain {
 	short *lv2entcnt; /* free lv2 entry counter for each section */
 	spinlock_t lock; /* lock for this structure */
 	spinlock_t pgtablelock; /* lock for modifying page table @ pgtable */
+	struct iommu_domain domain;
 };
+
+static struct rk_iommu_domain *to_rk_domain(struct iommu_domain *dom)
+{
+	return container_of(dom, struct rk_iommu_domain, domain);
+}
 
 static bool rockchip_set_iommu_active(struct iommu_drvdata *data)
 {
@@ -594,7 +600,7 @@ static irqreturn_t rockchip_iommu_irq(int irq, void *dev_id)
 				report_iommu_fault(data->domain, data->iommu,
 						   fault_address, flags);
 			if (data->fault_handler)
-				data->fault_handler(data->iommu, IOMMU_PAGEFAULT, dte, fault_address, 1);
+				data->fault_handler(data->master, IOMMU_PAGEFAULT, dte, fault_address, 1);
 
 			rockchip_iommu_page_fault_done(data->res_bases[i],
 					               data->dbgname);
@@ -821,7 +827,7 @@ int rockchip_iommu_tlb_invalidate(struct device *dev)
 static phys_addr_t rockchip_iommu_iova_to_phys(struct iommu_domain *domain,
 					       dma_addr_t iova)
 {
-	struct rk_iommu_domain *priv = domain->priv;
+	struct rk_iommu_domain *priv = to_rk_domain(domain);
 	unsigned int *entry;
 	unsigned long flags;
 	phys_addr_t phys = 0;
@@ -872,7 +878,7 @@ static unsigned int *rockchip_alloc_lv2entry(unsigned int *sent,
 static size_t rockchip_iommu_unmap(struct iommu_domain *domain,
 				   unsigned long iova, size_t size)
 {
-	struct rk_iommu_domain *priv = domain->priv;
+	struct rk_iommu_domain *priv = to_rk_domain(domain);
 	unsigned long flags;
 	unsigned int *ent;
 
@@ -913,7 +919,7 @@ done:
 static int rockchip_iommu_map(struct iommu_domain *domain, unsigned long iova,
 			      phys_addr_t paddr, size_t size, int prot)
 {
-	struct rk_iommu_domain *priv = domain->priv;
+	struct rk_iommu_domain *priv = to_rk_domain(domain);
 	unsigned int *entry;
 	unsigned long flags;
 	int ret = -ENOMEM;
@@ -945,7 +951,7 @@ static int rockchip_iommu_map(struct iommu_domain *domain, unsigned long iova,
 static void rockchip_iommu_detach_device(struct iommu_domain *domain, struct device *dev)
 {
 	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
-	struct rk_iommu_domain *priv = domain->priv;
+	struct rk_iommu_domain *priv = to_rk_domain(domain);
 	struct list_head *pos;
 	unsigned long flags;
 	bool found = false;
@@ -981,7 +987,7 @@ static void rockchip_iommu_detach_device(struct iommu_domain *domain, struct dev
 static int rockchip_iommu_attach_device(struct iommu_domain *domain, struct device *dev)
 {
 	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
-	struct rk_iommu_domain *priv = domain->priv;
+	struct rk_iommu_domain *priv = to_rk_domain(domain);
 	unsigned long flags;
 	int ret;
 
@@ -994,6 +1000,7 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain, struct devi
 		BUG_ON(!list_empty(&data->node));
 		list_add_tail(&data->node, &priv->clients);
 		data->domain = domain;
+		data->master = dev;
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1005,7 +1012,9 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain, struct devi
 		dev_dbg(dev->archdata.iommu,"%s: IOMMU with pgtable 0x%x already attached\n",
 			__func__, (unsigned int)virt_to_phys(priv->pgtable));
 	} else {
-		if (!(strstr(data->dbgname, "vpu") || strstr(data->dbgname, "hevc")))
+		if (!(strstr(data->dbgname, "vpu") ||
+		      strstr(data->dbgname, "hevc") ||
+		      strstr(data->dbgname, "vdec")))
 			dev_info(dev->archdata.iommu,"%s: Attached new IOMMU with pgtable 0x%x\n",
 				__func__, (unsigned int)virt_to_phys(priv->pgtable));
 	}
@@ -1013,9 +1022,9 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain, struct devi
 	return ret;
 }
 
-static void rockchip_iommu_domain_destroy(struct iommu_domain *domain)
+static void rockchip_iommu_domain_free(struct iommu_domain *domain)
 {
-	struct rk_iommu_domain *priv = domain->priv;
+	struct rk_iommu_domain *priv = to_rk_domain(domain);
 	int i;
 
 	WARN_ON(!list_empty(&priv->clients));
@@ -1027,17 +1036,19 @@ static void rockchip_iommu_domain_destroy(struct iommu_domain *domain)
 
 	free_pages((unsigned long)priv->pgtable, 0);
 	free_pages((unsigned long)priv->lv2entcnt, 0);
-	kfree(domain->priv);
-	domain->priv = NULL;
+	kfree(priv);
 }
 
-static int rockchip_iommu_domain_init(struct iommu_domain *domain)
+static struct iommu_domain *rockchip_iommu_domain_alloc(unsigned type)
 {
 	struct rk_iommu_domain *priv;
 
+	if (type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
+
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return NULL;
 
 /*rk32xx iommu use 2 level pagetable,
    level1 and leve2 both have 1024 entries,each entry  occupy 4 bytes,
@@ -1059,19 +1070,18 @@ static int rockchip_iommu_domain_init(struct iommu_domain *domain)
 	spin_lock_init(&priv->pgtablelock);
 	INIT_LIST_HEAD(&priv->clients);
 
-	domain->priv = priv;
-	return 0;
+	return &priv->domain;
 
 err_counter:
 	free_pages((unsigned long)priv->pgtable, 0);
 err_pgtable:
 	kfree(priv);
-	return -ENOMEM;
+	return NULL;
 }
 
 static struct iommu_ops rk_iommu_ops = {
-	.domain_init = rockchip_iommu_domain_init,
-	.domain_destroy = rockchip_iommu_domain_destroy,
+	.domain_alloc = rockchip_iommu_domain_alloc,
+	.domain_free = rockchip_iommu_domain_free,
 	.attach_dev = rockchip_iommu_attach_device,
 	.detach_dev = rockchip_iommu_detach_device,
 	.map = rockchip_iommu_map,
@@ -1214,6 +1224,7 @@ static const struct of_device_id iommu_dt_ids[] = {
 	{ .compatible = VPU_IOMMU_COMPATIBLE_NAME},
 	{ .compatible = ISP_IOMMU_COMPATIBLE_NAME},
 	{ .compatible = VOP_IOMMU_COMPATIBLE_NAME},
+	{ .compatible = VDEC_IOMMU_COMPATIBLE_NAME},
 	{ /* end */ }
 };
 

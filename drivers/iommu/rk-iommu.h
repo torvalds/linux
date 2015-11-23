@@ -29,6 +29,7 @@ struct rk_iovmm {
 struct iommu_drvdata {
 	struct list_head node; /* entry of rk_iommu_domain.clients */
 	struct device *iommu;	/*  IOMMU's device descriptor */
+	struct device *master; /* IOMMU's master device descriptor */
 	int num_res_mem;
 	int num_res_irq;
 	const char *dbgname;
@@ -41,7 +42,7 @@ struct iommu_drvdata {
 	rockchip_iommu_fault_handler_t fault_handler;
 };
 
-#ifdef CONFIG_ROCKCHIP_IOVMM
+#ifdef CONFIG_RK_IOVMM
 
 #define IOVA_START 0x10000000
 #define IOVM_SIZE (SZ_1G - SZ_4K) /* last 4K is for error values */
@@ -71,7 +72,7 @@ static inline int rockchip_init_iovmm(struct device *iommu,
 #endif
 
 
-#ifdef CONFIG_ROCKCHIP_IOMMU
+#ifdef CONFIG_RK_IOMMU
 
 /**
  * rockchip_iommu_tlb_invalidate() - flush all TLB entry in iommu
@@ -82,7 +83,7 @@ static inline int rockchip_init_iovmm(struct device *iommu,
 int rockchip_iommu_tlb_invalidate(struct device *owner);
 int rockchip_iommu_tlb_invalidate_global(struct device *owner);
 
-#else /* CONFIG_ROCKCHIP_IOMMU */
+#else /* CONFIG_RK_IOMMU */
 static inline int rockchip_iommu_tlb_invalidate(struct device *owner)
 {
 	return -1;

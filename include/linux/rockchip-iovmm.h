@@ -19,6 +19,7 @@
 #define VOP_IOMMU_COMPATIBLE_NAME	"rockchip,vop_mmu"
 #define HEVC_IOMMU_COMPATIBLE_NAME "rockchip,hevc_mmu"
 #define VPU_IOMMU_COMPATIBLE_NAME "rockchip,vpu_mmu"
+#define VDEC_IOMMU_COMPATIBLE_NAME "rockchip,vdec_mmu"
 
 enum rk_iommu_inttype {
 	IOMMU_PAGEFAULT,
@@ -47,7 +48,7 @@ typedef int (*rockchip_iommu_fault_handler_t)(struct device *dev,
 struct scatterlist;
 struct device;
 
-#ifdef CONFIG_ROCKCHIP_IOVMM
+#ifdef CONFIG_RK_IOVMM
 
 int rockchip_iovmm_activate(struct device *dev);
 void rockchip_iovmm_deactivate(struct device *dev);
@@ -148,6 +149,6 @@ static inline int rockchip_iovmm_invalidate_tlb(struct device *dev)
 	return -ENOSYS;
 }
 
-#endif /* CONFIG_ROCKCHIP_IOVMM */
+#endif /* CONFIG_RK_IOVMM */
 
 #endif /*__ASM_PLAT_IOVMM_H*/

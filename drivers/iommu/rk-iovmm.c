@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
-#include "rockchip-iommu.h"
+#include "rk-iommu.h"
 
 #define IOMMU_REGION_GUARD		(2<<PAGE_SHIFT)
 
@@ -71,7 +71,7 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 	struct rk_iovmm *vmm = rockchip_get_iovmm(dev);
 	int order;
 	int ret;
-	
+
 	for (; sg_dma_len(sg) < offset; sg = sg_next(sg))
 		offset -= sg_dma_len(sg);
 
@@ -204,10 +204,10 @@ void rockchip_iovmm_unmap(struct device *dev, dma_addr_t iova)
 		      region->size+IOMMU_REGION_GUARD);
 
 	WARN_ON(unmapped_size != region->size);
-	
+
 	dev_dbg(dev->archdata.iommu, "IOVMM: Unmapped %zx bytes from %pad.\n",
 		unmapped_size, &region->start);
-	
+
 	kfree(region);
 }
 
