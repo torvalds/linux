@@ -367,6 +367,9 @@ static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
 	return __irq_domain_alloc_irqs(domain, -1, nr_irqs, node, arg, false);
 }
 
+extern int irq_domain_alloc_irqs_recursive(struct irq_domain *domain,
+					   unsigned int irq_base,
+					   unsigned int nr_irqs, void *arg);
 extern int irq_domain_set_hwirq_and_chip(struct irq_domain *domain,
 					 unsigned int virq,
 					 irq_hw_number_t hwirq,

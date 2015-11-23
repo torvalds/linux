@@ -1125,9 +1125,9 @@ static void irq_domain_free_irqs_recursive(struct irq_domain *domain,
 	}
 }
 
-static int irq_domain_alloc_irqs_recursive(struct irq_domain *domain,
-					   unsigned int irq_base,
-					   unsigned int nr_irqs, void *arg)
+int irq_domain_alloc_irqs_recursive(struct irq_domain *domain,
+				    unsigned int irq_base,
+				    unsigned int nr_irqs, void *arg)
 {
 	int ret = 0;
 	struct irq_domain *parent = domain->parent;
