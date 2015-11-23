@@ -62,15 +62,10 @@ int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 	int ret = 0;
 	struct drm_gem_object *obj;
 
-	mutex_lock(&dev->struct_mutex);
-
 	/* GEM does all our handle to object mapping */
 	obj = drm_gem_object_lookup(dev, file, handle);
-	if (obj == NULL) {
-		ret = -ENOENT;
-		goto unlock;
-	}
-	/* What validation is needed here ? */
+	if (obj == NULL)
+		return -ENOENT;
 
 	/* Make it mmapable */
 	ret = drm_gem_create_mmap_offset(obj);
@@ -78,9 +73,7 @@ int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 		goto out;
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 out:
-	drm_gem_object_unreference(obj);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
 
