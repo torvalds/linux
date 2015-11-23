@@ -592,7 +592,8 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	/* Now do the actual join. Note there is no way that I can
-	   see to request a specific bssid */
+	 * see to request a specific bssid
+	 */
 	msg_join.msgcode = DIDmsg_lnxreq_autojoin;
 
 	memcpy(msg_join.ssid.data.data, sme->ssid, length);
