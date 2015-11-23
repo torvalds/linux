@@ -208,6 +208,7 @@ struct toshiba_acpi_dev {
 	unsigned int sysfs_created:1;
 	unsigned int special_functions;
 
+	bool kbd_event_generated;
 	bool kbd_led_registered;
 	bool illumination_led_registered;
 	bool eco_led_registered;
@@ -525,6 +526,7 @@ static void toshiba_kbd_illum_available(struct toshiba_acpi_dev *dev)
 
 	dev->kbd_illum_supported = 0;
 	dev->kbd_led_registered = false;
+	dev->kbd_event_generated = false;
 
 	if (!sci_open(dev))
 		return;
@@ -1642,6 +1644,11 @@ static const struct backlight_ops toshiba_backlight_data = {
 	.update_status  = set_lcd_status,
 };
 
+/* Keyboard backlight work */
+static void toshiba_acpi_kbd_bl_work(struct work_struct *work);
+
+static DECLARE_WORK(kbd_bl_work, toshiba_acpi_kbd_bl_work);
+
 /*
  * Sysfs files
  */
@@ -1741,6 +1748,24 @@ static ssize_t kbd_backlight_mode_store(struct device *dev,
 			return ret;
 
 		toshiba->kbd_mode = mode;
+
+		/*
+		 * Some laptop models with the second generation backlit
+		 * keyboard (type 2) do not generate the keyboard backlight
+		 * changed event (0x92), and thus, the driver will never update
+		 * the sysfs entries.
+		 *
+		 * The event is generated right when changing the keyboard
+		 * backlight mode and the *notify function will set the
+		 * kbd_event_generated to true.
+		 *
+		 * In case the event is not generated, schedule the keyboard
+		 * backlight work to update the sysfs entries and emulate the
+		 * event via genetlink.
+		 */
+		if (toshiba->kbd_type == 2 &&
+		    !toshiba_acpi->kbd_event_generated)
+			schedule_work(&kbd_bl_work);
 	}
 
 	return count;
@@ -2272,6 +2297,21 @@ static struct attribute_group toshiba_attr_group = {
 	.is_visible = toshiba_sysfs_is_visible,
 	.attrs = toshiba_attributes,
 };
+
+static void toshiba_acpi_kbd_bl_work(struct work_struct *work)
+{
+	struct acpi_device *acpi_dev = toshiba_acpi->acpi_dev;
+
+	/* Update the sysfs entries */
+	if (sysfs_update_group(&acpi_dev->dev.kobj,
+			       &toshiba_attr_group))
+		pr_err("Unable to update sysfs entries\n");
+
+	/* Emulate the keyboard backlight event */
+	acpi_bus_generate_netlink_event(acpi_dev->pnp.device_class,
+					dev_name(&acpi_dev->dev),
+					0x92, 0);
+}
 
 /*
  * Misc device
@@ -2947,7 +2987,6 @@ error:
 static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
-	int ret;
 
 	switch (event) {
 	case 0x80: /* Hotkeys and some system events */
@@ -2977,10 +3016,10 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 		pr_info("SATA power event received %x\n", event);
 		break;
 	case 0x92: /* Keyboard backlight mode changed */
+		toshiba_acpi->kbd_event_generated = true;
 		/* Update sysfs entries */
-		ret = sysfs_update_group(&acpi_dev->dev.kobj,
-					 &toshiba_attr_group);
-		if (ret)
+		if (sysfs_update_group(&acpi_dev->dev.kobj,
+				       &toshiba_attr_group))
 			pr_err("Unable to update sysfs entries\n");
 		break;
 	case 0x85: /* Unknown */
