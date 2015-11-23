@@ -26,7 +26,10 @@
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
 #include <linux/console.h>
+#include <linux/pvclock_gtod.h>
+#include <linux/time64.h>
 #include <linux/timekeeping.h>
+#include <linux/timekeeper_internal.h>
 
 #include <linux/mm.h>
 
@@ -114,6 +117,49 @@ static void xen_read_wallclock(struct timespec64 *ts)
 	ktime_get_ts64(&ts_monotonic);
 	*ts = timespec64_add(now, ts_monotonic);
 }
+
+static int xen_pvclock_gtod_notify(struct notifier_block *nb,
+				   unsigned long was_set, void *priv)
+{
+	/* Protected by the calling core code serialization */
+	static struct timespec64 next_sync;
+
+	struct xen_platform_op op;
+	struct timespec64 now, system_time;
+	struct timekeeper *tk = priv;
+
+	now.tv_sec = tk->xtime_sec;
+	now.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
+	system_time = timespec64_add(now, tk->wall_to_monotonic);
+
+	/*
+	 * We only take the expensive HV call when the clock was set
+	 * or when the 11 minutes RTC synchronization time elapsed.
+	 */
+	if (!was_set && timespec64_compare(&now, &next_sync) < 0)
+		return NOTIFY_OK;
+
+	op.cmd = XENPF_settime64;
+	op.u.settime64.mbz = 0;
+	op.u.settime64.secs = now.tv_sec;
+	op.u.settime64.nsecs = now.tv_nsec;
+	op.u.settime64.system_time = timespec64_to_ns(&system_time);
+	(void)HYPERVISOR_platform_op(&op);
+
+	/*
+	 * Move the next drift compensation time 11 minutes
+	 * ahead. That's emulating the sync_cmos_clock() update for
+	 * the hardware RTC.
+	 */
+	next_sync = now;
+	next_sync.tv_sec += 11 * 60;
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block xen_pvclock_gtod_notifier = {
+	.notifier_call = xen_pvclock_gtod_notify,
+};
 
 static void xen_percpu_init(void)
 {
@@ -311,6 +357,8 @@ static int __init xen_guest_init(void)
 
 	pv_time_ops.steal_clock = xen_stolen_accounting;
 	static_key_slow_inc(&paravirt_steal_enabled);
+	if (xen_initial_domain())
+		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 
 	return 0;
 }
