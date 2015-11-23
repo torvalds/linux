@@ -229,7 +229,7 @@ static int sch311x_gpio_direction_out(struct gpio_chip *chip, unsigned offset,
 
 static int sch311x_gpio_probe(struct platform_device *pdev)
 {
-	struct sch311x_pdev_data *pdata = pdev->dev.platform_data;
+	struct sch311x_pdev_data *pdata = dev_get_platdata(&pdev->dev);
 	struct sch311x_gpio_priv *priv;
 	struct sch311x_gpio_block *block;
 	int err, i;
@@ -289,7 +289,7 @@ exit_err:
 
 static int sch311x_gpio_remove(struct platform_device *pdev)
 {
-	struct sch311x_pdev_data *pdata = pdev->dev.platform_data;
+	struct sch311x_pdev_data *pdata = dev_get_platdata(&pdev->dev);
 	struct sch311x_gpio_priv *priv = platform_get_drvdata(pdev);
 	int i;
 

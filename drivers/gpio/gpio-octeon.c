@@ -128,7 +128,7 @@ out:
 
 static int octeon_gpio_remove(struct platform_device *pdev)
 {
-	struct gpio_chip *chip = pdev->dev.platform_data;
+	struct gpio_chip *chip = dev_get_platdata(&pdev->dev);
 	gpiochip_remove(chip);
 	return 0;
 }

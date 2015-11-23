@@ -138,7 +138,7 @@ static const struct of_device_id ath79_gpio_of_match[] = {
 
 static int ath79_gpio_probe(struct platform_device *pdev)
 {
-	struct ath79_gpio_platform_data *pdata = pdev->dev.platform_data;
+	struct ath79_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct ath79_gpio_ctrl *ctrl;
 	struct resource *res;

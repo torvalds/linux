@@ -298,7 +298,7 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 {
 	int err;
 	int i;
-	struct f7188x_sio *sio = pdev->dev.platform_data;
+	struct f7188x_sio *sio = dev_get_platdata(&pdev->dev);
 	struct f7188x_gpio_data *data;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
