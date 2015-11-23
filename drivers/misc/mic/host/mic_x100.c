@@ -450,14 +450,14 @@ mic_x100_load_firmware(struct mic_device *mdev, const char *buf)
 
 	rc = mic_x100_get_boot_addr(mdev);
 	if (rc)
-		goto done;
+		return rc;
 	/* load OS */
 	rc = request_firmware(&fw, mdev->cosm_dev->firmware, &mdev->pdev->dev);
 	if (rc < 0) {
 		dev_err(&mdev->pdev->dev,
 			"ramdisk request_firmware failed: %d %s\n",
 			rc, mdev->cosm_dev->firmware);
-		goto done;
+		return rc;
 	}
 	if (mdev->bootaddr > mdev->aper.len - fw->size) {
 		rc = -EINVAL;
