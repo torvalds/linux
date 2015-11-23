@@ -239,7 +239,9 @@ static int prism2_del_key(struct wiphy *wiphy, struct net_device *dev,
 	int result = 0;
 
 	/* There is no direct way in the hardware (AFAIK) of removing
-	   a key, so we will cheat by setting the key to a bogus value */
+	 * a key, so we will cheat by setting the key to a bogus value
+	 */
+
 	/* send key to driver */
 	switch (key_index) {
 	case 0:
@@ -561,8 +563,9 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 		}
 
 		/* Assume we should set privacy invoked and exclude unencrypted
-		   We could possibly use sme->privacy here, but the assumption
-		   seems reasonable anyway */
+		 * We could possible use sme->privacy here, but the assumption
+		 * seems reasonable anyways
+		 */
 		result = prism2_domibset_uint32(wlandev,
 						DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked,
 						P80211ENUM_truth_true);
@@ -577,7 +580,8 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	} else {
 		/* Assume we should unset privacy invoked
-		   and exclude unencrypted */
+		 * and exclude unencrypted
+		 */
 		result = prism2_domibset_uint32(wlandev,
 						DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked,
 						P80211ENUM_truth_false);
