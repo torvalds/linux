@@ -119,8 +119,6 @@ struct vop {
 	/* vop dclk reset */
 	struct reset_control *dclk_rst;
 
-	int pipe;
-
 	struct vop_win win[];
 };
 
@@ -692,7 +690,7 @@ static void vop_enable(struct drm_crtc *crtc)
 
 	enable_irq(vop->irq);
 
-	drm_vblank_on(vop->drm_dev, vop->pipe);
+	drm_crtc_vblank_on(crtc);
 
 	return;
 
@@ -711,7 +709,7 @@ static void vop_disable(struct drm_crtc *crtc)
 	if (!vop->is_enabled)
 		return;
 
-	drm_vblank_off(crtc->dev, vop->pipe);
+	drm_crtc_vblank_off(crtc);
 
 	/*
 	 * Vop standby will take effect at end of current frame,
@@ -918,7 +916,7 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	 */
 	mutex_lock(&vop->vsync_mutex);
 	if (fb != vop_win_last_pending_fb(vop_win)) {
-		ret = drm_vblank_get(plane->dev, vop->pipe);
+		ret = drm_crtc_vblank_get(crtc);
 		if (ret) {
 			DRM_ERROR("failed to get vblank, %d\n", ret);
 			mutex_unlock(&vop->vsync_mutex);
@@ -929,7 +927,7 @@ static int vop_update_plane_event(struct drm_plane *plane,
 
 		ret = vop_win_queue_fb(vop_win, fb, yrgb_mst, event);
 		if (ret) {
-			drm_vblank_put(plane->dev, vop->pipe);
+			drm_crtc_vblank_put(crtc);
 			mutex_unlock(&vop->vsync_mutex);
 			return ret;
 		}
@@ -1023,7 +1021,7 @@ static int vop_disable_plane(struct drm_plane *plane)
 
 	vop = to_vop(plane->crtc);
 
-	ret = drm_vblank_get(plane->dev, vop->pipe);
+	ret = drm_crtc_vblank_get(plane->crtc);
 	if (ret) {
 		DRM_ERROR("failed to get vblank, %d\n", ret);
 		return ret;
@@ -1033,7 +1031,7 @@ static int vop_disable_plane(struct drm_plane *plane)
 
 	ret = vop_win_queue_fb(vop_win, NULL, 0, NULL);
 	if (ret) {
-		drm_vblank_put(plane->dev, vop->pipe);
+		drm_crtc_vblank_put(plane->crtc);
 		mutex_unlock(&vop->vsync_mutex);
 		return ret;
 	}
@@ -1295,7 +1293,7 @@ static void vop_win_state_complete(struct vop_win *vop_win,
 	}
 
 	list_del(&state->head);
-	drm_vblank_put(crtc->dev, vop->pipe);
+	drm_crtc_vblank_put(crtc);
 }
 
 static void vop_crtc_destroy(struct drm_crtc *crtc)
@@ -1410,6 +1408,7 @@ done:
 static irqreturn_t vop_isr(int irq, void *data)
 {
 	struct vop *vop = data;
+	struct drm_crtc *crtc = &vop->crtc;
 	uint32_t intr0_reg, active_irqs;
 	unsigned long flags;
 	int ret = IRQ_NONE;
@@ -1438,7 +1437,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 	}
 
 	if (active_irqs & FS_INTR) {
-		drm_handle_vblank(vop->drm_dev, vop->pipe);
+		drm_crtc_handle_vblank(crtc);
 		active_irqs &= ~FS_INTR;
 		ret = (vop->vsync_work_pending) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
 	}
@@ -1531,8 +1530,7 @@ static int vop_create_crtc(struct vop *vop)
 
 	init_completion(&vop->dsp_hold_completion);
 	crtc->port = port;
-	vop->pipe = drm_crtc_index(crtc);
-	rockchip_register_crtc_funcs(drm_dev, &private_crtc_funcs, vop->pipe);
+	rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 
 	return 0;
 
@@ -1548,7 +1546,7 @@ static void vop_destroy_crtc(struct vop *vop)
 {
 	struct drm_crtc *crtc = &vop->crtc;
 
-	rockchip_unregister_crtc_funcs(vop->drm_dev, vop->pipe);
+	rockchip_unregister_crtc_funcs(crtc);
 	of_node_put(crtc->port);
 	drm_crtc_cleanup(crtc);
 }

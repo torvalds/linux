@@ -64,11 +64,11 @@ void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 }
 EXPORT_SYMBOL_GPL(rockchip_drm_dma_detach_device);
 
-int rockchip_register_crtc_funcs(struct drm_device *dev,
-				 const struct rockchip_crtc_funcs *crtc_funcs,
-				 int pipe)
+int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
+				 const struct rockchip_crtc_funcs *crtc_funcs)
 {
-	struct rockchip_drm_private *priv = dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
 
 	if (pipe > ROCKCHIP_MAX_CRTC)
 		return -EINVAL;
@@ -79,9 +79,10 @@ int rockchip_register_crtc_funcs(struct drm_device *dev,
 }
 EXPORT_SYMBOL_GPL(rockchip_register_crtc_funcs);
 
-void rockchip_unregister_crtc_funcs(struct drm_device *dev, int pipe)
+void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 {
-	struct rockchip_drm_private *priv = dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
 
 	if (pipe > ROCKCHIP_MAX_CRTC)
 		return;
