@@ -285,7 +285,7 @@ int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	/* Don't allow imported objects to be mapped */
 	if (obj->obj.import_attach) {
 		ret = -EINVAL;
-		goto err_unlock;
+		goto err_unref;
 	}
 
 	ret = drm_gem_create_mmap_offset(&obj->obj);
@@ -294,6 +294,7 @@ int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 		DRM_DEBUG_DRIVER("handle %#x offset %llx\n", handle, *offset);
 	}
 
+ err_unref:
 	drm_gem_object_unreference(&obj->obj);
  err_unlock:
 	mutex_unlock(&dev->struct_mutex);
