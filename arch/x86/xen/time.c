@@ -16,6 +16,7 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/pvclock_gtod.h>
+#include <linux/timekeeper_internal.h>
 
 #include <asm/pvclock.h>
 #include <asm/xen/hypervisor.h>
@@ -123,9 +124,13 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 	static struct timespec next_sync;
 
 	struct xen_platform_op op;
-	struct timespec now;
+	struct timespec64 now;
+	struct timekeeper *tk = priv;
+	static bool settime64_supported = true;
+	int ret;
 
-	now = __current_kernel_time();
+	now.tv_sec = tk->xtime_sec;
+	now.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
 
 	/*
 	 * We only take the expensive HV call when the clock was set
@@ -134,12 +139,28 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 	if (!was_set && timespec_compare(&now, &next_sync) < 0)
 		return NOTIFY_OK;
 
-	op.cmd = XENPF_settime32;
-	op.u.settime32.secs = now.tv_sec;
-	op.u.settime32.nsecs = now.tv_nsec;
-	op.u.settime32.system_time = xen_clocksource_read();
+again:
+	if (settime64_supported) {
+		op.cmd = XENPF_settime64;
+		op.u.settime64.mbz = 0;
+		op.u.settime64.secs = now.tv_sec;
+		op.u.settime64.nsecs = now.tv_nsec;
+		op.u.settime64.system_time = xen_clocksource_read();
+	} else {
+		op.cmd = XENPF_settime32;
+		op.u.settime32.secs = now.tv_sec;
+		op.u.settime32.nsecs = now.tv_nsec;
+		op.u.settime32.system_time = xen_clocksource_read();
+	}
 
-	(void)HYPERVISOR_platform_op(&op);
+	ret = HYPERVISOR_platform_op(&op);
+
+	if (ret == -ENOSYS && settime64_supported) {
+		settime64_supported = false;
+		goto again;
+	}
+	if (ret < 0)
+		return NOTIFY_BAD;
 
 	/*
 	 * Move the next drift compensation time 11 minutes
