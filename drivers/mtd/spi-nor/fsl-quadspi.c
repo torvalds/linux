@@ -209,6 +209,8 @@
 #define SEQID_RDCR		9
 #define SEQID_EN4B		10
 #define SEQID_BRWR		11
+#define SEQID_RD_EVCR		12
+#define SEQID_WD_EVCR		13
 
 #define QUADSPI_MIN_IOMAP SZ_4M
 
@@ -463,6 +465,13 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	lut_base = SEQID_BRWR * 4;
 	writel(LUT0(CMD, PAD1, SPINOR_OP_BRWR), base + QUADSPI_LUT(lut_base));
 
+	/* Read EVCR register */
+	lut_base = SEQID_RD_EVCR * 4;
+	writel(LUT0(CMD, PAD1, SPINOR_OP_RD_EVCR), base + QUADSPI_LUT(lut_base));
+
+	/* Write EVCR register */
+	lut_base = SEQID_WD_EVCR * 4;
+	writel(LUT0(CMD, PAD1, SPINOR_OP_WD_EVCR), base + QUADSPI_LUT(lut_base));
 	fsl_qspi_lock_lut(q);
 }
 
@@ -499,6 +508,10 @@ static int fsl_qspi_get_seqid(struct fsl_qspi *q, u8 cmd)
 		return SEQID_EN4B;
 	case SPINOR_OP_BRWR:
 		return SEQID_BRWR;
+	case SPINOR_OP_RD_EVCR:
+		return SEQID_RD_EVCR;
+	case SPINOR_OP_WD_EVCR:
+		return SEQID_WD_EVCR;
 	default:
 		dev_err(q->dev, "Unsupported cmd 0x%.2x\n", cmd);
 		break;
