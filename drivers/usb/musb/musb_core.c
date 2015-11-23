@@ -2094,6 +2094,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 #ifndef CONFIG_MUSB_PIO_ONLY
 	if (!musb->ops->dma_init || !musb->ops->dma_exit) {
 		dev_err(dev, "DMA controller not set\n");
+		status = -ENODEV;
 		goto fail2;
 	}
 	musb_dma_controller_create = musb->ops->dma_init;
