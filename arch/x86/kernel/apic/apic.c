@@ -2270,6 +2270,7 @@ static struct {
 	unsigned int apic_tmict;
 	unsigned int apic_tdcr;
 	unsigned int apic_thmr;
+	unsigned int apic_cmci;
 } apic_pm_state;
 
 static int lapic_suspend(void)
@@ -2298,6 +2299,10 @@ static int lapic_suspend(void)
 #ifdef CONFIG_X86_THERMAL_VECTOR
 	if (maxlvt >= 5)
 		apic_pm_state.apic_thmr = apic_read(APIC_LVTTHMR);
+#endif
+#ifdef CONFIG_X86_MCE_INTEL
+	if (maxlvt >= 6)
+		apic_pm_state.apic_cmci = apic_read(APIC_LVTCMCI);
 #endif
 
 	local_irq_save(flags);
@@ -2355,9 +2360,13 @@ static void lapic_resume(void)
 	apic_write(APIC_SPIV, apic_pm_state.apic_spiv);
 	apic_write(APIC_LVT0, apic_pm_state.apic_lvt0);
 	apic_write(APIC_LVT1, apic_pm_state.apic_lvt1);
-#if defined(CONFIG_X86_MCE_INTEL)
+#ifdef CONFIG_X86_THERMAL_VECTOR
 	if (maxlvt >= 5)
 		apic_write(APIC_LVTTHMR, apic_pm_state.apic_thmr);
+#endif
+#ifdef CONFIG_X86_MCE_INTEL
+	if (maxlvt >= 6)
+		apic_write(APIC_LVTCMCI, apic_pm_state.apic_cmci);
 #endif
 	if (maxlvt >= 4)
 		apic_write(APIC_LVTPC, apic_pm_state.apic_lvtpc);
