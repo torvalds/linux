@@ -182,7 +182,7 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Make sure we don't parallel update on a fault, nor move or remove
 	   something from beneath our feet */
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev_priv->mmap_mutex);
 
 	/* For now the mmap pins the object and it stays pinned. As things
 	   stand that will do us no harm */
@@ -208,7 +208,7 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
 
 fail:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->mmap_mutex);
 	switch (ret) {
 	case 0:
 	case -ERESTARTSYS:
