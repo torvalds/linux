@@ -1418,7 +1418,7 @@ int rv770_resume_smc(struct radeon_device *rdev)
 int rv770_set_sw_state(struct radeon_device *rdev)
 {
 	if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_SwitchToSwState) != PPSMC_Result_OK)
-		return -EINVAL;
+		DRM_ERROR("rv770_set_sw_state failed\n");
 	return 0;
 }
 
