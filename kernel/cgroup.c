@@ -760,9 +760,11 @@ static void put_css_set_locked(struct css_set *cset)
 	if (!atomic_dec_and_test(&cset->refcount))
 		return;
 
-	/* This css_set is dead. unlink it and release cgroup refcounts */
-	for_each_subsys(ss, ssid)
+	/* This css_set is dead. unlink it and release cgroup and css refs */
+	for_each_subsys(ss, ssid) {
 		list_del(&cset->e_cset_node[ssid]);
+		css_put(cset->subsys[ssid]);
+	}
 	hash_del(&cset->hlist);
 	css_set_count--;
 
@@ -1062,9 +1064,13 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	key = css_set_hash(cset->subsys);
 	hash_add(css_set_table, &cset->hlist, key);
 
-	for_each_subsys(ss, ssid)
+	for_each_subsys(ss, ssid) {
+		struct cgroup_subsys_state *css = cset->subsys[ssid];
+
 		list_add_tail(&cset->e_cset_node[ssid],
-			      &cset->subsys[ssid]->cgroup->e_csets[ssid]);
+			      &css->cgroup->e_csets[ssid]);
+		css_get(css);
+	}
 
 	spin_unlock_bh(&css_set_lock);
 
