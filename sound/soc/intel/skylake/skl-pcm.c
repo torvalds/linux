@@ -181,10 +181,6 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 	int err;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
-	if (hdac_stream(stream)->prepared) {
-		dev_dbg(dai->dev, "already stream is prepared - returning\n");
-		return 0;
-	}
 
 	format_val = skl_get_format(substream, dai);
 	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d\n",
@@ -342,6 +338,8 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct skl *skl = get_skl_ctx(dai->dev);
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_cfg *mconfig;
+	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
+	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	int ret;
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
@@ -349,15 +347,17 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		return -EIO;
 
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_RESUME:
+		skl_pcm_prepare(substream, dai);
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-	case SNDRV_PCM_TRIGGER_RESUME:
 		/*
 		 * Start HOST DMA and Start FE Pipe.This is to make sure that
 		 * there are no underrun/overrun in the case when the FE
 		 * pipeline is started but there is a delay in starting the
 		 * DMA channel on the host.
 		 */
+		snd_hdac_ext_stream_decouple(ebus, stream, true);
 		ret = skl_decoupled_trigger(substream, cmd);
 		if (ret < 0)
 			return ret;
@@ -377,6 +377,8 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			return ret;
 
 		ret = skl_decoupled_trigger(substream, cmd);
+		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
+			snd_hdac_ext_stream_decouple(ebus, stream, false);
 		break;
 
 	default:
