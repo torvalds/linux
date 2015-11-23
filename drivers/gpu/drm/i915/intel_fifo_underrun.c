@@ -178,14 +178,10 @@ static void broadwell_set_fifo_underrun_reporting(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	assert_spin_locked(&dev_priv->irq_lock);
-
 	if (enable)
-		dev_priv->de_irq_mask[pipe] &= ~GEN8_PIPE_FIFO_UNDERRUN;
+		bdw_enable_pipe_irq(dev_priv, pipe, GEN8_PIPE_FIFO_UNDERRUN);
 	else
-		dev_priv->de_irq_mask[pipe] |= GEN8_PIPE_FIFO_UNDERRUN;
-	I915_WRITE(GEN8_DE_PIPE_IMR(pipe), dev_priv->de_irq_mask[pipe]);
-	POSTING_READ(GEN8_DE_PIPE_IMR(pipe));
+		bdw_disable_pipe_irq(dev_priv, pipe, GEN8_PIPE_FIFO_UNDERRUN);
 }
 
 static void ibx_set_fifo_underrun_reporting(struct drm_device *dev,

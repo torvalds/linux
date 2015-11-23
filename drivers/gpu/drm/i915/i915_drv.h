@@ -2764,6 +2764,20 @@ ilk_disable_display_irq(struct drm_i915_private *dev_priv, uint32_t bits)
 {
 	ilk_update_display_irq(dev_priv, bits, 0);
 }
+void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
+			 enum pipe pipe,
+			 uint32_t interrupt_mask,
+			 uint32_t enabled_irq_mask);
+static inline void bdw_enable_pipe_irq(struct drm_i915_private *dev_priv,
+				       enum pipe pipe, uint32_t bits)
+{
+	bdw_update_pipe_irq(dev_priv, pipe, bits, bits);
+}
+static inline void bdw_disable_pipe_irq(struct drm_i915_private *dev_priv,
+					enum pipe pipe, uint32_t bits)
+{
+	bdw_update_pipe_irq(dev_priv, pipe, bits, 0);
+}
 void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 				  uint32_t interrupt_mask,
 				  uint32_t enabled_irq_mask);
