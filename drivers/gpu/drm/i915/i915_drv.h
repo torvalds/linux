@@ -2751,10 +2751,19 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv);
 void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
 				   uint32_t mask,
 				   uint32_t bits);
-void
-ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask);
-void
-ironlake_disable_display_irq(struct drm_i915_private *dev_priv, u32 mask);
+void ilk_update_display_irq(struct drm_i915_private *dev_priv,
+			    uint32_t interrupt_mask,
+			    uint32_t enabled_irq_mask);
+static inline void
+ilk_enable_display_irq(struct drm_i915_private *dev_priv, uint32_t bits)
+{
+	ilk_update_display_irq(dev_priv, bits, bits);
+}
+static inline void
+ilk_disable_display_irq(struct drm_i915_private *dev_priv, uint32_t bits)
+{
+	ilk_update_display_irq(dev_priv, bits, 0);
+}
 void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 				  uint32_t interrupt_mask,
 				  uint32_t enabled_irq_mask);
