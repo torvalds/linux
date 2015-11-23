@@ -258,6 +258,7 @@ static void  __create_mapping(struct mm_struct *mm, pgd_t *pgd,
 	if (WARN_ON((phys ^ virt) & ~PAGE_MASK))
 		return;
 
+	phys &= PAGE_MASK;
 	addr = virt & PAGE_MASK;
 	length = PAGE_ALIGN(size + (virt & ~PAGE_MASK));
 
