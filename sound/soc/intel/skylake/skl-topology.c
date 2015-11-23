@@ -652,6 +652,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	int ret = 0;
 
 	skl_tplg_free_pipe_mcps(skl, mconfig);
+	skl_tplg_free_pipe_mem(skl, mconfig);
 
 	list_for_each_entry(w_module, &s_pipe->w_list, node) {
 		dst_module = w_module->w->priv;
@@ -670,7 +671,6 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	}
 
 	ret = skl_delete_pipe(ctx, mconfig->pipe);
-	skl_tplg_free_pipe_mem(skl, mconfig);
 
 	return ret;
 }
