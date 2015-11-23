@@ -2582,8 +2582,11 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		}
 	seq_puts(m, "\n");
 
-	/* CHV PSR has no kind of performance counter */
-	if (HAS_DDI(dev)) {
+	/*
+	 * VLV/CHV PSR has no kind of performance counter
+	 * SKL+ Perf counter is reset to 0 everytime DC state is entered
+	 */
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		psrperf = I915_READ(EDP_PSR_PERF_CNT) &
 			EDP_PSR_PERF_CNT_MASK;
 
