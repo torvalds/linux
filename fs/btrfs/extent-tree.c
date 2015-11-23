@@ -5915,19 +5915,6 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			set_extent_dirty(info->pinned_extents,
 					 bytenr, bytenr + num_bytes - 1,
 					 GFP_NOFS | __GFP_NOFAIL);
-			/*
-			 * No longer have used bytes in this block group, queue
-			 * it for deletion.
-			 */
-			if (old_val == 0) {
-				spin_lock(&info->unused_bgs_lock);
-				if (list_empty(&cache->bg_list)) {
-					btrfs_get_block_group(cache);
-					list_add_tail(&cache->bg_list,
-						      &info->unused_bgs);
-				}
-				spin_unlock(&info->unused_bgs_lock);
-			}
 		}
 
 		spin_lock(&trans->transaction->dirty_bgs_lock);
@@ -5938,6 +5925,22 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			btrfs_get_block_group(cache);
 		}
 		spin_unlock(&trans->transaction->dirty_bgs_lock);
+
+		/*
+		 * No longer have used bytes in this block group, queue it for
+		 * deletion. We do this after adding the block group to the
+		 * dirty list to avoid races between cleaner kthread and space
+		 * cache writeout.
+		 */
+		if (!alloc && old_val == 0) {
+			spin_lock(&info->unused_bgs_lock);
+			if (list_empty(&cache->bg_list)) {
+				btrfs_get_block_group(cache);
+				list_add_tail(&cache->bg_list,
+					      &info->unused_bgs);
+			}
+			spin_unlock(&info->unused_bgs_lock);
+		}
 
 		btrfs_put_block_group(cache);
 		total -= num_bytes;
