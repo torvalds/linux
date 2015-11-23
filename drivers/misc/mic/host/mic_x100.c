@@ -450,21 +450,21 @@ mic_x100_load_firmware(struct mic_device *mdev, const char *buf)
 
 	rc = mic_x100_get_boot_addr(mdev);
 	if (rc)
-		goto error;
+		goto done;
 	/* load OS */
 	rc = request_firmware(&fw, mdev->cosm_dev->firmware, &mdev->pdev->dev);
 	if (rc < 0) {
 		dev_err(&mdev->pdev->dev,
 			"ramdisk request_firmware failed: %d %s\n",
 			rc, mdev->cosm_dev->firmware);
-		goto error;
+		goto done;
 	}
 	if (mdev->bootaddr > mdev->aper.len - fw->size) {
 		rc = -EINVAL;
 		dev_err(&mdev->pdev->dev, "%s %d rc %d bootaddr 0x%x\n",
 			__func__, __LINE__, rc, mdev->bootaddr);
 		release_firmware(fw);
-		goto error;
+		goto done;
 	}
 	memcpy_toio(mdev->aper.va + mdev->bootaddr, fw->data, fw->size);
 	mdev->ops->write_spad(mdev, MIC_X100_FW_SIZE, fw->size);
@@ -475,14 +475,13 @@ mic_x100_load_firmware(struct mic_device *mdev, const char *buf)
 	if (rc) {
 		dev_err(&mdev->pdev->dev, "%s %d rc %d\n",
 			__func__, __LINE__, rc);
-		goto error;
+		goto done;
 	}
 	release_firmware(fw);
 	/* load ramdisk */
 	if (mdev->cosm_dev->ramdisk)
 		rc = mic_x100_load_ramdisk(mdev);
-error:
-	dev_dbg(&mdev->pdev->dev, "%s %d rc %d\n", __func__, __LINE__, rc);
+
 done:
 	return rc;
 }
