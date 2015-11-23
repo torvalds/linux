@@ -35,6 +35,9 @@
 /* Time To Live of broadcast messages */
 #define BATADV_TTL 50
 
+/* maximum sequence number age of broadcast messages */
+#define BATADV_BCAST_MAX_AGE 64
+
 /* purge originators after time in seconds if no valid packet comes in
  * -> TODO: check influence on BATADV_TQ_LOCAL_WINDOW_SIZE
  */

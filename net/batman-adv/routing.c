@@ -146,23 +146,29 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @seq_num_diff: difference between the current/received sequence number and
  *  the last sequence number
+ * @seq_old_max_diff: maximum age of sequence number not considered as restart
  * @last_reset: jiffies timestamp of the last reset, will be updated when reset
  *  is detected
+ * @protection_started: is set to true if the protection window was started,
+ *   doesn't change otherwise.
  *
  * Return:
  *  0 if the packet is to be accepted.
  *  1 if the packet is to be ignored.
  */
 int batadv_window_protected(struct batadv_priv *bat_priv, s32 seq_num_diff,
-			    unsigned long *last_reset)
+			    s32 seq_old_max_diff, unsigned long *last_reset,
+			    bool *protection_started)
 {
-	if (seq_num_diff <= -BATADV_TQ_LOCAL_WINDOW_SIZE ||
+	if (seq_num_diff <= -seq_old_max_diff ||
 	    seq_num_diff >= BATADV_EXPECTED_SEQNO_RANGE) {
 		if (!batadv_has_timed_out(*last_reset,
 					  BATADV_RESET_PROTECTION_MS))
 			return 1;
 
 		*last_reset = jiffies;
+		if (protection_started)
+			*protection_started = true;
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "old packet received, start protection\n");
 	}
@@ -1073,7 +1079,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 
 	/* check whether the packet is old and the host just restarted. */
 	if (batadv_window_protected(bat_priv, seq_diff,
-				    &orig_node->bcast_seqno_reset))
+				    BATADV_BCAST_MAX_AGE,
+				    &orig_node->bcast_seqno_reset, NULL))
 		goto spin_unlock;
 
 	/* mark broadcast in flood history, update window position

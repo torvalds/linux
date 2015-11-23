@@ -1315,7 +1315,8 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	/* signalize caller that the packet is to be dropped. */
 	if (!hlist_empty(&orig_node->neigh_list) &&
 	    batadv_window_protected(bat_priv, seq_diff,
-				    &orig_ifinfo->batman_seqno_reset)) {
+				    BATADV_TQ_LOCAL_WINDOW_SIZE,
+				    &orig_ifinfo->batman_seqno_reset, NULL)) {
 		ret = BATADV_PROTECTED;
 		goto out;
 	}
