@@ -160,6 +160,11 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Test LLVM searching and compiling",
 		.func = test__llvm,
+		.subtest = {
+			.skip_if_fail	= true,
+			.get_nr		= test__llvm_subtest_get_nr,
+			.get_desc	= test__llvm_subtest_get_desc,
+		},
 	},
 	{
 		.desc = "Test topology in session",
@@ -168,6 +173,11 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Test BPF filter",
 		.func = test__bpf,
+		.subtest = {
+			.skip_if_fail	= true,
+			.get_nr		= test__bpf_subtest_get_nr,
+			.get_desc	= test__bpf_subtest_get_desc,
+		},
 	},
 	{
 		.func = NULL,
@@ -203,7 +213,7 @@ static bool perf_test__matches(struct test *test, int curr, int argc, const char
 	return false;
 }
 
-static int run_test(struct test *test)
+static int run_test(struct test *test, int subtest)
 {
 	int status, err = -1, child = fork();
 	char sbuf[STRERR_BUFSIZE];
@@ -216,7 +226,19 @@ static int run_test(struct test *test)
 
 	if (!child) {
 		pr_debug("test child forked, pid %d\n", getpid());
-		err = test->func();
+		if (!verbose) {
+			int nullfd = open("/dev/null", O_WRONLY);
+			if (nullfd >= 0) {
+				close(STDERR_FILENO);
+				close(STDOUT_FILENO);
+
+				dup2(nullfd, STDOUT_FILENO);
+				dup2(STDOUT_FILENO, STDERR_FILENO);
+				close(nullfd);
+			}
+		}
+
+		err = test->func(subtest);
 		exit(err);
 	}
 
@@ -236,6 +258,40 @@ static int run_test(struct test *test)
 #define for_each_test(j, t)	 				\
 	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
 		for (t = &tests[j][0]; t->func; t++)
+
+static int test_and_print(struct test *t, bool force_skip, int subtest)
+{
+	int err;
+
+	if (!force_skip) {
+		pr_debug("\n--- start ---\n");
+		err = run_test(t, subtest);
+		pr_debug("---- end ----\n");
+	} else {
+		pr_debug("\n--- force skipped ---\n");
+		err = TEST_SKIP;
+	}
+
+	if (!t->subtest.get_nr)
+		pr_debug("%s:", t->desc);
+	else
+		pr_debug("%s subtest %d:", t->desc, subtest);
+
+	switch (err) {
+	case TEST_OK:
+		pr_info(" Ok\n");
+		break;
+	case TEST_SKIP:
+		color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip\n");
+		break;
+	case TEST_FAIL:
+	default:
+		color_fprintf(stderr, PERF_COLOR_RED, " FAILED!\n");
+		break;
+	}
+
+	return err;
+}
 
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
@@ -264,21 +320,43 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			continue;
 		}
 
-		pr_debug("\n--- start ---\n");
-		err = run_test(t);
-		pr_debug("---- end ----\n%s:", t->desc);
+		if (!t->subtest.get_nr) {
+			test_and_print(t, false, -1);
+		} else {
+			int subn = t->subtest.get_nr();
+			/*
+			 * minus 2 to align with normal testcases.
+			 * For subtest we print additional '.x' in number.
+			 * for example:
+			 *
+			 * 35: Test LLVM searching and compiling                        :
+			 * 35.1: Basic BPF llvm compiling test                          : Ok
+			 */
+			int subw = width > 2 ? width - 2 : width;
+			bool skip = false;
+			int subi;
 
-		switch (err) {
-		case TEST_OK:
-			pr_info(" Ok\n");
-			break;
-		case TEST_SKIP:
-			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip\n");
-			break;
-		case TEST_FAIL:
-		default:
-			color_fprintf(stderr, PERF_COLOR_RED, " FAILED!\n");
-			break;
+			if (subn <= 0) {
+				color_fprintf(stderr, PERF_COLOR_YELLOW,
+					      " Skip (not compiled in)\n");
+				continue;
+			}
+			pr_info("\n");
+
+			for (subi = 0; subi < subn; subi++) {
+				int len = strlen(t->subtest.get_desc(subi));
+
+				if (subw < len)
+					subw = len;
+			}
+
+			for (subi = 0; subi < subn; subi++) {
+				pr_info("%2d.%1d: %-*s:", i, subi + 1, subw,
+					t->subtest.get_desc(subi));
+				err = test_and_print(t, skip, subi);
+				if (err != TEST_OK && t->subtest.skip_if_fail)
+					skip = true;
+			}
 		}
 	}
 

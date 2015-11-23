@@ -625,7 +625,7 @@ parse_percent_limit(const struct option *opt, const char *str,
 	return 0;
 }
 
-#define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function"
+#define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function,percent"
 
 const char report_callchain_help[] = "Display call graph (stack chain/backtrace):\n\n"
 				     CALLCHAIN_REPORT_HELP
@@ -708,7 +708,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &report,
-			     "print_type,threshold[,print_limit],order,sort_key[,branch]",
+			     "print_type,threshold[,print_limit],order,sort_key[,branch],value",
 			     report_callchain_help, &report_parse_callchain_opt,
 			     callchain_default_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,

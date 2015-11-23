@@ -122,6 +122,7 @@ void machine__delete_threads(struct machine *machine)
 
 void machine__exit(struct machine *machine)
 {
+	machine__destroy_kernel_maps(machine);
 	map_groups__exit(&machine->kmaps);
 	dsos__exit(&machine->dsos);
 	machine__exit_vdso(machine);
@@ -564,7 +565,7 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename)
 {
 	struct map *map = NULL;
-	struct dso *dso;
+	struct dso *dso = NULL;
 	struct kmod_path m;
 
 	if (kmod_path__parse_name(&m, filename))
@@ -585,7 +586,11 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 
 	map_groups__insert(&machine->kmaps, map);
 
+	/* Put the map here because map_groups__insert alread got it */
+	map__put(map);
 out:
+	/* put the dso here, corresponding to  machine__findnew_module_dso */
+	dso__put(dso);
 	free(m.name);
 	return map;
 }
@@ -788,6 +793,7 @@ void machine__destroy_kernel_maps(struct machine *machine)
 				kmap->ref_reloc_sym = NULL;
 		}
 
+		map__put(machine->vmlinux_maps[type]);
 		machine->vmlinux_maps[type] = NULL;
 	}
 }
@@ -1084,11 +1090,14 @@ int machine__create_kernel_maps(struct machine *machine)
 	struct dso *kernel = machine__get_kernel(machine);
 	const char *name;
 	u64 addr = machine__get_running_kernel_start(machine, &name);
-	if (!addr)
+	int ret;
+
+	if (!addr || kernel == NULL)
 		return -1;
 
-	if (kernel == NULL ||
-	    __machine__create_kernel_maps(machine, kernel) < 0)
+	ret = __machine__create_kernel_maps(machine, kernel);
+	dso__put(kernel);
+	if (ret < 0)
 		return -1;
 
 	if (symbol_conf.use_modules && machine__create_modules(machine) < 0) {

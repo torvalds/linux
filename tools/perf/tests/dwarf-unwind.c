@@ -142,7 +142,7 @@ static int krava_1(struct thread *thread)
 	return krava_2(thread);
 }
 
-int test__dwarf_unwind(void)
+int test__dwarf_unwind(int subtest __maybe_unused)
 {
 	struct machines machines;
 	struct machine *machine;

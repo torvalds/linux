@@ -159,7 +159,7 @@ void load_command_list(const char *prefix,
 		struct cmdnames *other_cmds)
 {
 	const char *env_path = getenv("PATH");
-	const char *exec_path = perf_exec_path();
+	char *exec_path = perf_exec_path();
 
 	if (exec_path) {
 		list_commands_in_dir(main_cmds, exec_path, prefix);
@@ -187,6 +187,7 @@ void load_command_list(const char *prefix,
 		      sizeof(*other_cmds->names), cmdname_compare);
 		uniq(other_cmds);
 	}
+	free(exec_path);
 	exclude_cmds(other_cmds, main_cmds);
 }
 
@@ -203,13 +204,14 @@ void list_commands(const char *title, struct cmdnames *main_cmds,
 			longest = other_cmds->names[i]->len;
 
 	if (main_cmds->cnt) {
-		const char *exec_path = perf_exec_path();
+		char *exec_path = perf_exec_path();
 		printf("available %s in '%s'\n", title, exec_path);
 		printf("----------------");
 		mput_char('-', strlen(title) + strlen(exec_path));
 		putchar('\n');
 		pretty_print_string_list(main_cmds, longest);
 		putchar('\n');
+		free(exec_path);
 	}
 
 	if (other_cmds->cnt) {

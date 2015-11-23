@@ -4,7 +4,7 @@
 #include "thread_map.h"
 #include "debug.h"
 
-int test__thread_map(void)
+int test__thread_map(int subtest __maybe_unused)
 {
 	struct thread_map *map;
 

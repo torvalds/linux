@@ -152,7 +152,11 @@ struct bpf_program {
 	} *reloc_desc;
 	int nr_reloc;
 
-	int fd;
+	struct {
+		int nr;
+		int *fds;
+	} instances;
+	bpf_program_prep_t preprocessor;
 
 	struct bpf_object *obj;
 	void *priv;
@@ -206,10 +210,25 @@ struct bpf_object {
 
 static void bpf_program__unload(struct bpf_program *prog)
 {
+	int i;
+
 	if (!prog)
 		return;
 
-	zclose(prog->fd);
+	/*
+	 * If the object is opened but the program was never loaded,
+	 * it is possible that prog->instances.nr == -1.
+	 */
+	if (prog->instances.nr > 0) {
+		for (i = 0; i < prog->instances.nr; i++)
+			zclose(prog->instances.fds[i]);
+	} else if (prog->instances.nr != -1) {
+		pr_warning("Internal error: instances.nr is %d\n",
+			   prog->instances.nr);
+	}
+
+	prog->instances.nr = -1;
+	zfree(&prog->instances.fds);
 }
 
 static void bpf_program__exit(struct bpf_program *prog)
@@ -260,7 +279,8 @@ bpf_program__init(void *data, size_t size, char *name, int idx,
 	memcpy(prog->insns, data,
 	       prog->insns_cnt * sizeof(struct bpf_insn));
 	prog->idx = idx;
-	prog->fd = -1;
+	prog->instances.fds = NULL;
+	prog->instances.nr = -1;
 
 	return 0;
 errout:
@@ -860,13 +880,73 @@ static int
 bpf_program__load(struct bpf_program *prog,
 		  char *license, u32 kern_version)
 {
-	int err, fd;
+	int err = 0, fd, i;
 
-	err = load_program(prog->insns, prog->insns_cnt,
-			   license, kern_version, &fd);
-	if (!err)
-		prog->fd = fd;
+	if (prog->instances.nr < 0 || !prog->instances.fds) {
+		if (prog->preprocessor) {
+			pr_warning("Internal error: can't load program '%s'\n",
+				   prog->section_name);
+			return -LIBBPF_ERRNO__INTERNAL;
+		}
 
+		prog->instances.fds = malloc(sizeof(int));
+		if (!prog->instances.fds) {
+			pr_warning("Not enough memory for BPF fds\n");
+			return -ENOMEM;
+		}
+		prog->instances.nr = 1;
+		prog->instances.fds[0] = -1;
+	}
+
+	if (!prog->preprocessor) {
+		if (prog->instances.nr != 1) {
+			pr_warning("Program '%s' is inconsistent: nr(%d) != 1\n",
+				   prog->section_name, prog->instances.nr);
+		}
+		err = load_program(prog->insns, prog->insns_cnt,
+				   license, kern_version, &fd);
+		if (!err)
+			prog->instances.fds[0] = fd;
+		goto out;
+	}
+
+	for (i = 0; i < prog->instances.nr; i++) {
+		struct bpf_prog_prep_result result;
+		bpf_program_prep_t preprocessor = prog->preprocessor;
+
+		bzero(&result, sizeof(result));
+		err = preprocessor(prog, i, prog->insns,
+				   prog->insns_cnt, &result);
+		if (err) {
+			pr_warning("Preprocessing the %dth instance of program '%s' failed\n",
+				   i, prog->section_name);
+			goto out;
+		}
+
+		if (!result.new_insn_ptr || !result.new_insn_cnt) {
+			pr_debug("Skip loading the %dth instance of program '%s'\n",
+				 i, prog->section_name);
+			prog->instances.fds[i] = -1;
+			if (result.pfd)
+				*result.pfd = -1;
+			continue;
+		}
+
+		err = load_program(result.new_insn_ptr,
+				   result.new_insn_cnt,
+				   license, kern_version, &fd);
+
+		if (err) {
+			pr_warning("Loading the %dth instance of program '%s' failed\n",
+					i, prog->section_name);
+			goto out;
+		}
+
+		if (result.pfd)
+			*result.pfd = fd;
+		prog->instances.fds[i] = fd;
+	}
+out:
 	if (err)
 		pr_warning("failed to load program '%s'\n",
 			   prog->section_name);
@@ -1121,5 +1201,53 @@ const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)
 
 int bpf_program__fd(struct bpf_program *prog)
 {
-	return prog->fd;
+	return bpf_program__nth_fd(prog, 0);
+}
+
+int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,
+			  bpf_program_prep_t prep)
+{
+	int *instances_fds;
+
+	if (nr_instances <= 0 || !prep)
+		return -EINVAL;
+
+	if (prog->instances.nr > 0 || prog->instances.fds) {
+		pr_warning("Can't set pre-processor after loading\n");
+		return -EINVAL;
+	}
+
+	instances_fds = malloc(sizeof(int) * nr_instances);
+	if (!instances_fds) {
+		pr_warning("alloc memory failed for fds\n");
+		return -ENOMEM;
+	}
+
+	/* fill all fd with -1 */
+	memset(instances_fds, -1, sizeof(int) * nr_instances);
+
+	prog->instances.nr = nr_instances;
+	prog->instances.fds = instances_fds;
+	prog->preprocessor = prep;
+	return 0;
+}
+
+int bpf_program__nth_fd(struct bpf_program *prog, int n)
+{
+	int fd;
+
+	if (n >= prog->instances.nr || n < 0) {
+		pr_warning("Can't get the %dth fd from program %s: only %d instances\n",
+			   n, prog->section_name, prog->instances.nr);
+		return -EINVAL;
+	}
+
+	fd = prog->instances.fds[n];
+	if (fd < 0) {
+		pr_warning("%dth instance of program '%s' is invalid\n",
+			   n, prog->section_name);
+		return -ENOENT;
+	}
+
+	return fd;
 }
