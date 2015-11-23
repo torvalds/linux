@@ -206,7 +206,7 @@ static int xen_hotadd_cpu(struct acpi_processor *pr)
 	op.u.cpu_add.acpi_id = pr->acpi_id;
 	op.u.cpu_add.pxm = pxm;
 
-	cpu_id = HYPERVISOR_dom0_op(&op);
+	cpu_id = HYPERVISOR_platform_op(&op);
 	if (cpu_id < 0)
 		pr_err(PREFIX "Failed to hotadd CPU for acpi_id %d\n",
 				pr->acpi_id);

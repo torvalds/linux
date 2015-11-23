@@ -139,7 +139,7 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 	op.u.settime.nsecs = now.tv_nsec;
 	op.u.settime.system_time = xen_clocksource_read();
 
-	(void)HYPERVISOR_dom0_op(&op);
+	(void)HYPERVISOR_platform_op(&op);
 
 	/*
 	 * Move the next drift compensation time 11 minutes
