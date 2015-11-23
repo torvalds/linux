@@ -78,6 +78,7 @@ struct pvclock_wall_clock {
 	u32   version;
 	u32   sec;
 	u32   nsec;
+	u32   sec_hi;
 } __attribute__((__packed__));
 #endif
 
