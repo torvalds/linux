@@ -352,13 +352,13 @@ int armada_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	if (!dobj->obj.filp) {
-		drm_gem_object_unreference(&dobj->obj);
+		drm_gem_object_unreference_unlocked(&dobj->obj);
 		return -EINVAL;
 	}
 
 	addr = vm_mmap(dobj->obj.filp, 0, args->size, PROT_READ | PROT_WRITE,
 		       MAP_SHARED, args->offset);
-	drm_gem_object_unreference(&dobj->obj);
+	drm_gem_object_unreference_unlocked(&dobj->obj);
 	if (IS_ERR_VALUE(addr))
 		return addr;
 
