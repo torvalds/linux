@@ -1108,7 +1108,8 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	limits = &powersave_limits;
 	limits->min_policy_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
 	limits->min_policy_pct = clamp_t(int, limits->min_policy_pct, 0 , 100);
-	limits->max_policy_pct = (policy->max * 100) / policy->cpuinfo.max_freq;
+	limits->max_policy_pct = DIV_ROUND_UP(policy->max * 100,
+					      policy->cpuinfo.max_freq);
 	limits->max_policy_pct = clamp_t(int, limits->max_policy_pct, 0 , 100);
 
 	/* Normalize user input to [min_policy_pct, max_policy_pct] */
@@ -1120,6 +1121,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 				   limits->max_sysfs_pct);
 	limits->max_perf_pct = max(limits->min_policy_pct,
 				   limits->max_perf_pct);
+	limits->max_perf = round_up(limits->max_perf, 8);
 
 	/* Make sure min_perf_pct <= max_perf_pct */
 	limits->min_perf_pct = min(limits->max_perf_pct, limits->min_perf_pct);
