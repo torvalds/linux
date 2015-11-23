@@ -26,6 +26,7 @@
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
 #include <linux/console.h>
+#include <linux/timekeeping.h>
 
 #include <linux/mm.h>
 
@@ -91,6 +92,27 @@ static unsigned long long xen_stolen_accounting(int cpu)
 	WARN_ON(state.state != RUNSTATE_running);
 
 	return state.time[RUNSTATE_runnable] + state.time[RUNSTATE_offline];
+}
+
+static void xen_read_wallclock(struct timespec64 *ts)
+{
+	u32 version;
+	struct timespec64 now, ts_monotonic;
+	struct shared_info *s = HYPERVISOR_shared_info;
+	struct pvclock_wall_clock *wall_clock = &(s->wc);
+
+	/* get wallclock at system boot */
+	do {
+		version = wall_clock->version;
+		rmb();		/* fetch version before time */
+		now.tv_sec  = ((uint64_t)wall_clock->sec_hi << 32) | wall_clock->sec;
+		now.tv_nsec = wall_clock->nsec;
+		rmb();		/* fetch time before checking version */
+	} while ((wall_clock->version & 1) || (version != wall_clock->version));
+
+	/* time since system boot */
+	ktime_get_ts64(&ts_monotonic);
+	*ts = timespec64_add(now, ts_monotonic);
 }
 
 static void xen_percpu_init(void)
@@ -301,6 +323,11 @@ static int __init xen_pm_init(void)
 
 	pm_power_off = xen_power_off;
 	arm_pm_restart = xen_restart;
+	if (!xen_initial_domain()) {
+		struct timespec64 ts;
+		xen_read_wallclock(&ts);
+		do_settimeofday64(&ts);
+	}
 
 	return 0;
 }
