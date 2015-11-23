@@ -256,8 +256,6 @@ static int powernv_led_classdev(struct platform_device *pdev,
 
 	for_each_child_of_node(led_node, np) {
 		p = of_find_property(np, "led-types", NULL);
-		if (!p)
-			continue;
 
 		while ((cur = of_prop_next_string(p, cur)) != NULL) {
 			powernv_led = devm_kzalloc(dev, sizeof(*powernv_led),
