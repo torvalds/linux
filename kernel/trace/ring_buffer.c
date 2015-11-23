@@ -2797,8 +2797,11 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 
 	event = __rb_reserve_next(cpu_buffer, &info);
 
-	if (unlikely(PTR_ERR(event) == -EAGAIN))
+	if (unlikely(PTR_ERR(event) == -EAGAIN)) {
+		if (info.add_timestamp)
+			info.length -= RB_LEN_TIME_EXTEND;
 		goto again;
+	}
 
 	if (!event)
 		goto out_fail;
