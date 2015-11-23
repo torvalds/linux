@@ -134,10 +134,10 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 	if (!was_set && timespec_compare(&now, &next_sync) < 0)
 		return NOTIFY_OK;
 
-	op.cmd = XENPF_settime;
-	op.u.settime.secs = now.tv_sec;
-	op.u.settime.nsecs = now.tv_nsec;
-	op.u.settime.system_time = xen_clocksource_read();
+	op.cmd = XENPF_settime32;
+	op.u.settime32.secs = now.tv_sec;
+	op.u.settime32.nsecs = now.tv_nsec;
+	op.u.settime32.system_time = xen_clocksource_read();
 
 	(void)HYPERVISOR_platform_op(&op);
 
