@@ -463,8 +463,7 @@ mic_x100_load_firmware(struct mic_device *mdev, const char *buf)
 		rc = -EINVAL;
 		dev_err(&mdev->pdev->dev, "%s %d rc %d bootaddr 0x%x\n",
 			__func__, __LINE__, rc, mdev->bootaddr);
-		release_firmware(fw);
-		goto done;
+		goto error;
 	}
 	memcpy_toio(mdev->aper.va + mdev->bootaddr, fw->data, fw->size);
 	mdev->ops->write_spad(mdev, MIC_X100_FW_SIZE, fw->size);
@@ -472,22 +471,24 @@ mic_x100_load_firmware(struct mic_device *mdev, const char *buf)
 		rc = -EINVAL;
 		dev_err(&mdev->pdev->dev, "%s %d rc %d\n",
 			__func__, __LINE__, rc);
-		release_firmware(fw);
-		goto done;
+		goto error;
 	}
 	/* load command line */
 	rc = mic_x100_load_command_line(mdev, fw);
 	if (rc) {
 		dev_err(&mdev->pdev->dev, "%s %d rc %d\n",
 			__func__, __LINE__, rc);
-		goto done;
+		goto error;
 	}
 	release_firmware(fw);
 	/* load ramdisk */
 	if (mdev->cosm_dev->ramdisk)
 		rc = mic_x100_load_ramdisk(mdev);
 
-done:
+	return rc;
+
+error:
+	release_firmware(fw);
 	return rc;
 }
 
