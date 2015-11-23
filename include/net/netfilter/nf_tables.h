@@ -19,8 +19,6 @@ struct nft_pktinfo {
 	const struct net_device		*out;
 	u8				pf;
 	u8				hook;
-	u8				nhoff;
-	u8				thoff;
 	u8				tprot;
 	/* for x_tables compatibility */
 	struct xt_action_param		xt;
