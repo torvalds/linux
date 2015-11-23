@@ -950,6 +950,10 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 
 	INIT_WORK(&ci->hnp_polling_work, ci_hnp_polling_work);
 
+	ci->fsm.host_req_flag = devm_kzalloc(ci->dev, 1, GFP_KERNEL);
+	if (!ci->fsm.host_req_flag)
+		return -ENOMEM;
+
 	/* Enable A vbus valid irq */
 	hw_write_otgsc(ci, OTGSC_AVVIE, OTGSC_AVVIE);
 
