@@ -27,6 +27,8 @@
 		(hnd).p = val;				\
 	} while (0)
 
+#define __HYPERVISOR_platform_op_raw __HYPERVISOR_platform_op
+
 #ifndef __ASSEMBLY__
 /* Explicitly size integers that represent pfns in the interface with
  * Xen so that we can have one ABI that works for 32 and 64 bit guests.
