@@ -137,8 +137,8 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		start = geometry->aperture_start;
 		end = geometry->aperture_end;
 
-		DRM_DEBUG("IOMMU context initialized (aperture: %#llx-%#llx)\n",
-			  start, end);
+		DRM_DEBUG_DRIVER("IOMMU aperture initialized (%#llx-%#llx)\n",
+				 start, end);
 		drm_mm_init(&tegra->mm, start, end - start + 1);
 	}
 
