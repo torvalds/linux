@@ -33,7 +33,7 @@ Optional properties:
     specified as per the ARIZONA_MICD_TIME_XXX defines.
   - wlf,micd-dbtime : Microphone detection hardware debounces specified as the
     number of measurements to take, valid values being 2 and 4.
-  - wlf,micd-timeout : Timeout for microphone detection, specified in
+  - wlf,micd-timeout-ms : Timeout for microphone detection, specified in
     milliseconds.
   - wlf,micd-force-micbias : Force MICBIAS continuously on during microphone
     detection.
