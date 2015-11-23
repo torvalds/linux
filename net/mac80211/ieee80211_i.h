@@ -325,19 +325,15 @@ struct mesh_preq_queue {
 
 struct ieee80211_roc_work {
 	struct list_head list;
-	struct list_head dependents;
-
-	struct delayed_work work;
 
 	struct ieee80211_sub_if_data *sdata;
 
 	struct ieee80211_channel *chan;
 
 	bool started, abort, hw_begun, notified;
-	bool to_be_freed;
 	bool on_channel;
 
-	unsigned long hw_start_time;
+	unsigned long start_time;
 
 	u32 duration, req_duration;
 	struct sk_buff *frame;
@@ -1335,6 +1331,7 @@ struct ieee80211_local {
 	/*
 	 * Remain-on-channel support
 	 */
+	struct delayed_work roc_work;
 	struct list_head roc_list;
 	struct work_struct hw_roc_start, hw_roc_done;
 	unsigned long hw_roc_start_time;

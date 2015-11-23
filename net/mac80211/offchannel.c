@@ -187,10 +187,75 @@ void ieee80211_offchannel_return(struct ieee80211_local *local)
 					false);
 }
 
-static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc)
+static void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc)
 {
-	if (roc->notified)
+	/* was never transmitted */
+	if (roc->frame) {
+		cfg80211_mgmt_tx_status(&roc->sdata->wdev, roc->mgmt_tx_cookie,
+					roc->frame->data, roc->frame->len,
+					false, GFP_KERNEL);
+		ieee80211_free_txskb(&roc->sdata->local->hw, roc->frame);
+	}
+
+	if (!roc->mgmt_tx_cookie)
+		cfg80211_remain_on_channel_expired(&roc->sdata->wdev,
+						   roc->cookie, roc->chan,
+						   GFP_KERNEL);
+
+	list_del(&roc->list);
+	kfree(roc);
+}
+
+static unsigned long ieee80211_end_finished_rocs(struct ieee80211_local *local,
+						 unsigned long now)
+{
+	struct ieee80211_roc_work *roc, *tmp;
+	long remaining_dur_min = LONG_MAX;
+
+	lockdep_assert_held(&local->mtx);
+
+	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
+		long remaining;
+
+		if (!roc->started)
+			break;
+
+		remaining = roc->start_time +
+			    msecs_to_jiffies(roc->duration) -
+			    now;
+
+		if (roc->abort || remaining <= 0)
+			ieee80211_roc_notify_destroy(roc);
+		else
+			remaining_dur_min = min(remaining_dur_min, remaining);
+	}
+
+	return remaining_dur_min;
+}
+
+static bool ieee80211_recalc_sw_work(struct ieee80211_local *local,
+				     unsigned long now)
+{
+	long dur = ieee80211_end_finished_rocs(local, now);
+
+	if (dur == LONG_MAX)
+		return false;
+
+	mod_delayed_work(local->workqueue, &local->roc_work, dur);
+	return true;
+}
+
+static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc,
+					 unsigned long start_time)
+{
+	struct ieee80211_local *local = roc->sdata->local;
+
+	if (WARN_ON(roc->notified))
 		return;
+
+	roc->start_time = start_time;
+	roc->started = true;
+	roc->hw_begun = true;
 
 	if (roc->mgmt_tx_cookie) {
 		if (!WARN_ON(!roc->frame)) {
@@ -205,40 +270,26 @@ static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc)
 	}
 
 	roc->notified = true;
+
+	if (!local->ops->remain_on_channel)
+		ieee80211_recalc_sw_work(local, start_time);
 }
 
 static void ieee80211_hw_roc_start(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, hw_roc_start);
-	struct ieee80211_roc_work *roc, *dep, *tmp;
+	struct ieee80211_roc_work *roc;
 
 	mutex_lock(&local->mtx);
 
-	if (list_empty(&local->roc_list))
-		goto out_unlock;
+	list_for_each_entry(roc, &local->roc_list, list) {
+		if (!roc->started)
+			break;
 
-	roc = list_first_entry(&local->roc_list, struct ieee80211_roc_work,
-			       list);
-
-	if (!roc->started)
-		goto out_unlock;
-
-	roc->hw_begun = true;
-	roc->hw_start_time = local->hw_roc_start_time;
-
-	ieee80211_handle_roc_started(roc);
-	list_for_each_entry_safe(dep, tmp, &roc->dependents, list) {
-		ieee80211_handle_roc_started(dep);
-
-		if (dep->duration > roc->duration) {
-			u32 dur = dep->duration;
-			dep->duration = dur - roc->duration;
-			roc->duration = dur;
-			list_move(&dep->list, &roc->list);
-		}
+		ieee80211_handle_roc_started(roc, local->hw_roc_start_time);
 	}
- out_unlock:
+
 	mutex_unlock(&local->mtx);
 }
 
@@ -254,34 +305,40 @@ void ieee80211_ready_on_channel(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(ieee80211_ready_on_channel);
 
-void ieee80211_start_next_roc(struct ieee80211_local *local)
+static void _ieee80211_start_next_roc(struct ieee80211_local *local)
 {
-	struct ieee80211_roc_work *roc;
+	struct ieee80211_roc_work *roc, *tmp;
+	enum ieee80211_roc_type type;
+	u32 min_dur, max_dur;
 
 	lockdep_assert_held(&local->mtx);
 
-	if (list_empty(&local->roc_list)) {
-		ieee80211_run_deferred_scan(local);
+	if (WARN_ON(list_empty(&local->roc_list)))
 		return;
-	}
 
 	roc = list_first_entry(&local->roc_list, struct ieee80211_roc_work,
 			       list);
 
-	if (WARN_ON_ONCE(roc->started))
+	if (WARN_ON(roc->started))
 		return;
 
+	min_dur = roc->duration;
+	max_dur = roc->duration;
+	type = roc->type;
+
+	list_for_each_entry(tmp, &local->roc_list, list) {
+		if (tmp == roc)
+			continue;
+		if (tmp->sdata != roc->sdata || tmp->chan != roc->chan)
+			break;
+		max_dur = max(tmp->duration, max_dur);
+		min_dur = min(tmp->duration, min_dur);
+		type = max(tmp->type, type);
+	}
+
 	if (local->ops->remain_on_channel) {
-		int ret, duration = roc->duration;
-
-		/* XXX: duplicated, see ieee80211_start_roc_work() */
-		if (!duration)
-			duration = 10;
-
-		ret = drv_remain_on_channel(local, roc->sdata, roc->chan,
-					    duration, roc->type);
-
-		roc->started = true;
+		int ret = drv_remain_on_channel(local, roc->sdata, roc->chan,
+						max_dur, type);
 
 		if (ret) {
 			wiphy_warn(local->hw.wiphy,
@@ -290,74 +347,24 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 			 * queue the work struct again to avoid recursion
 			 * when multiple failures occur
 			 */
-			ieee80211_remain_on_channel_expired(&local->hw);
+			list_for_each_entry(tmp, &local->roc_list, list) {
+				if (tmp->sdata != roc->sdata ||
+				    tmp->chan != roc->chan)
+					break;
+				tmp->started = true;
+				tmp->abort = true;
+			}
+			ieee80211_queue_work(&local->hw, &local->hw_roc_done);
+			return;
+		}
+
+		/* we'll notify about the start once the HW calls back */
+		list_for_each_entry(tmp, &local->roc_list, list) {
+			if (tmp->sdata != roc->sdata || tmp->chan != roc->chan)
+				break;
+			tmp->started = true;
 		}
 	} else {
-		/* delay it a bit */
-		ieee80211_queue_delayed_work(&local->hw, &roc->work,
-					     round_jiffies_relative(HZ/2));
-	}
-}
-
-static void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc,
-					 bool free)
-{
-	struct ieee80211_roc_work *dep, *tmp;
-
-	if (WARN_ON(roc->to_be_freed))
-		return;
-
-	/* was never transmitted */
-	if (roc->frame) {
-		cfg80211_mgmt_tx_status(&roc->sdata->wdev, roc->mgmt_tx_cookie,
-					roc->frame->data, roc->frame->len,
-					false, GFP_KERNEL);
-		ieee80211_free_txskb(&roc->sdata->local->hw, roc->frame);
-	}
-
-	if (!roc->mgmt_tx_cookie)
-		cfg80211_remain_on_channel_expired(&roc->sdata->wdev,
-						   roc->cookie, roc->chan,
-						   GFP_KERNEL);
-
-	list_for_each_entry_safe(dep, tmp, &roc->dependents, list)
-		ieee80211_roc_notify_destroy(dep, true);
-
-	if (free)
-		kfree(roc);
-	else
-		roc->to_be_freed = true;
-}
-
-static void ieee80211_sw_roc_work(struct work_struct *work)
-{
-	struct ieee80211_roc_work *roc =
-		container_of(work, struct ieee80211_roc_work, work.work);
-	struct ieee80211_sub_if_data *sdata = roc->sdata;
-	struct ieee80211_local *local = sdata->local;
-	bool started, on_channel;
-
-	mutex_lock(&local->mtx);
-
-	if (roc->to_be_freed)
-		goto out_unlock;
-
-	if (roc->abort)
-		goto finish;
-
-	if (WARN_ON(list_empty(&local->roc_list)))
-		goto out_unlock;
-
-	if (WARN_ON(roc != list_first_entry(&local->roc_list,
-					    struct ieee80211_roc_work,
-					    list)))
-		goto out_unlock;
-
-	if (!roc->started) {
-		struct ieee80211_roc_work *dep;
-
-		WARN_ON(local->use_chanctx);
-
 		/* If actually operating on the desired channel (with at least
 		 * 20 MHz channel width) don't stop all the operations but still
 		 * treat it as though the ROC operation started properly, so
@@ -377,27 +384,72 @@ static void ieee80211_sw_roc_work(struct work_struct *work)
 			ieee80211_hw_config(local, 0);
 		}
 
-		/* tell userspace or send frame */
-		ieee80211_handle_roc_started(roc);
-		list_for_each_entry(dep, &roc->dependents, list)
-			ieee80211_handle_roc_started(dep);
+		ieee80211_queue_delayed_work(&local->hw, &local->roc_work,
+					     msecs_to_jiffies(min_dur));
 
-		/* if it was pure TX, just finish right away */
-		if (!roc->duration)
-			goto finish;
+		/* tell userspace or send frame(s) */
+		list_for_each_entry(tmp, &local->roc_list, list) {
+			if (tmp->sdata != roc->sdata || tmp->chan != roc->chan)
+				break;
 
-		roc->started = true;
-		ieee80211_queue_delayed_work(&local->hw, &roc->work,
-					     msecs_to_jiffies(roc->duration));
+			tmp->on_channel = roc->on_channel;
+			ieee80211_handle_roc_started(tmp, jiffies);
+		}
+	}
+}
+
+void ieee80211_start_next_roc(struct ieee80211_local *local)
+{
+	struct ieee80211_roc_work *roc;
+
+	lockdep_assert_held(&local->mtx);
+
+	if (list_empty(&local->roc_list)) {
+		ieee80211_run_deferred_scan(local);
+		return;
+	}
+
+	roc = list_first_entry(&local->roc_list, struct ieee80211_roc_work,
+			       list);
+
+	if (WARN_ON_ONCE(roc->started))
+		return;
+
+	if (local->ops->remain_on_channel) {
+		_ieee80211_start_next_roc(local);
 	} else {
-		/* finish this ROC */
- finish:
-		list_del(&roc->list);
-		started = roc->started;
-		on_channel = roc->on_channel;
-		ieee80211_roc_notify_destroy(roc, !roc->abort);
+		/* delay it a bit */
+		ieee80211_queue_delayed_work(&local->hw, &local->roc_work,
+					     round_jiffies_relative(HZ/2));
+	}
+}
 
-		if (started && !on_channel) {
+static void __ieee80211_roc_work(struct ieee80211_local *local)
+{
+	struct ieee80211_roc_work *roc;
+	bool on_channel;
+
+	lockdep_assert_held(&local->mtx);
+
+	if (WARN_ON(local->ops->remain_on_channel))
+		return;
+
+	roc = list_first_entry_or_null(&local->roc_list,
+				       struct ieee80211_roc_work, list);
+	if (!roc)
+		return;
+
+	if (!roc->started) {
+		WARN_ON(local->use_chanctx);
+		_ieee80211_start_next_roc(local);
+	} else {
+		on_channel = roc->on_channel;
+		if (ieee80211_recalc_sw_work(local, jiffies))
+			return;
+
+		/* careful - roc pointer became invalid during recalc */
+
+		if (!on_channel) {
 			ieee80211_flush_queues(local, NULL, false);
 
 			local->tmp_channel = NULL;
@@ -407,14 +459,17 @@ static void ieee80211_sw_roc_work(struct work_struct *work)
 		}
 
 		ieee80211_recalc_idle(local);
-
-		if (started)
-			ieee80211_start_next_roc(local);
-		else if (list_empty(&local->roc_list))
-			ieee80211_run_deferred_scan(local);
+		ieee80211_start_next_roc(local);
 	}
+}
 
- out_unlock:
+static void ieee80211_roc_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local, roc_work.work);
+
+	mutex_lock(&local->mtx);
+	__ieee80211_roc_work(local);
 	mutex_unlock(&local->mtx);
 }
 
@@ -422,27 +477,14 @@ static void ieee80211_hw_roc_done(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, hw_roc_done);
-	struct ieee80211_roc_work *roc;
 
 	mutex_lock(&local->mtx);
 
-	if (list_empty(&local->roc_list))
-		goto out_unlock;
-
-	roc = list_first_entry(&local->roc_list, struct ieee80211_roc_work,
-			       list);
-
-	if (!roc->started)
-		goto out_unlock;
-
-	list_del(&roc->list);
-
-	ieee80211_roc_notify_destroy(roc, true);
+	ieee80211_end_finished_rocs(local, jiffies);
 
 	/* if there's another roc, start it now */
 	ieee80211_start_next_roc(local);
 
- out_unlock:
 	mutex_unlock(&local->mtx);
 }
 
@@ -456,26 +498,41 @@ void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(ieee80211_remain_on_channel_expired);
 
-static bool ieee80211_coalesce_started_roc(struct ieee80211_local *local,
-					   struct ieee80211_roc_work *new_roc,
-					   struct ieee80211_roc_work *cur_roc)
+static bool
+ieee80211_coalesce_hw_started_roc(struct ieee80211_local *local,
+				  struct ieee80211_roc_work *new_roc,
+				  struct ieee80211_roc_work *cur_roc)
 {
 	unsigned long now = jiffies;
-	unsigned long remaining = cur_roc->hw_start_time +
-				  msecs_to_jiffies(cur_roc->duration) -
-				  now;
+	unsigned long remaining;
 
-	if (WARN_ON(!cur_roc->started || !cur_roc->hw_begun))
+	if (WARN_ON(!cur_roc->started))
 		return false;
+
+	/* if it was scheduled in the hardware, but not started yet,
+	 * we can only combine if the older one had a longer duration
+	 */
+	if (!cur_roc->hw_begun && new_roc->duration > cur_roc->duration)
+		return false;
+
+	remaining = cur_roc->start_time +
+		    msecs_to_jiffies(cur_roc->duration) -
+		    now;
 
 	/* if it doesn't fit entirely, schedule a new one */
 	if (new_roc->duration > jiffies_to_msecs(remaining))
 		return false;
 
-	ieee80211_handle_roc_started(new_roc);
+	/* add just after the current one so we combine their finish later */
+	list_add(&new_roc->list, &cur_roc->list);
 
-	/* add to dependents so we send the expired event properly */
-	list_add_tail(&new_roc->list, &cur_roc->dependents);
+	/* if the existing one has already begun then let this one also
+	 * begin, otherwise they'll both be marked properly by the work
+	 * struct that runs once the driver notifies us of the beginning
+	 */
+	if (cur_roc->hw_begun)
+		ieee80211_handle_roc_started(new_roc, now);
+
 	return true;
 }
 
@@ -487,7 +544,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 				    enum ieee80211_roc_type type)
 {
 	struct ieee80211_roc_work *roc, *tmp;
-	bool queued = false;
+	bool queued = false, combine_started = true;
 	int ret;
 
 	lockdep_assert_held(&local->mtx);
@@ -517,8 +574,6 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	roc->frame = txskb;
 	roc->type = type;
 	roc->sdata = sdata;
-	INIT_DELAYED_WORK(&roc->work, ieee80211_sw_roc_work);
-	INIT_LIST_HEAD(&roc->dependents);
 
 	/*
 	 * cookie is either the roc cookie (for normal roc)
@@ -531,95 +586,88 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 		roc->mgmt_tx_cookie = *cookie;
 	}
 
-	/* if there's one pending or we're scanning, queue this one */
-	if (!list_empty(&local->roc_list) ||
-	    local->scanning || ieee80211_is_radar_required(local))
-		goto out_check_combine;
+	/* if there's no need to queue, handle it immediately */
+	if (list_empty(&local->roc_list) &&
+	    !local->scanning && !ieee80211_is_radar_required(local)) {
+		/* if not HW assist, just queue & schedule work */
+		if (!local->ops->remain_on_channel) {
+			list_add_tail(&roc->list, &local->roc_list);
+			ieee80211_queue_delayed_work(&local->hw,
+						     &local->roc_work, 0);
+		} else {
+			/* otherwise actually kick it off here
+			 * (for error handling)
+			 */
+			ret = drv_remain_on_channel(local, sdata, channel,
+						    duration, type);
+			if (ret) {
+				kfree(roc);
+				return ret;
+			}
+			roc->started = true;
+			list_add_tail(&roc->list, &local->roc_list);
+		}
 
-	/* if not HW assist, just queue & schedule work */
-	if (!local->ops->remain_on_channel) {
-		ieee80211_queue_delayed_work(&local->hw, &roc->work, 0);
-		goto out_queue;
+		return 0;
 	}
 
-	/* otherwise actually kick it off here (for error handling) */
+	/* otherwise handle queueing */
 
-	ret = drv_remain_on_channel(local, sdata, channel, duration, type);
-	if (ret) {
-		kfree(roc);
-		return ret;
-	}
-
-	roc->started = true;
-	goto out_queue;
-
- out_check_combine:
 	list_for_each_entry(tmp, &local->roc_list, list) {
 		if (tmp->chan != channel || tmp->sdata != sdata)
 			continue;
 
 		/*
-		 * Extend this ROC if possible:
-		 *
-		 * If it hasn't started yet, just increase the duration
-		 * and add the new one to the list of dependents.
-		 * If the type of the new ROC has higher priority, modify the
-		 * type of the previous one to match that of the new one.
+		 * Extend this ROC if possible: If it hasn't started, add
+		 * just after the new one to combine.
 		 */
 		if (!tmp->started) {
-			list_add_tail(&roc->list, &tmp->dependents);
-			tmp->duration = max(tmp->duration, roc->duration);
-			tmp->type = max(tmp->type, roc->type);
+			list_add(&roc->list, &tmp->list);
 			queued = true;
 			break;
 		}
 
-		/* If it has already started, it's more difficult ... */
-		if (local->ops->remain_on_channel) {
-			/*
-			 * In the offloaded ROC case, if it hasn't begun, add
-			 * this new one to the dependent list to be handled
-			 * when the master one begins. If it has begun,
-			 * check if it fits entirely within the existing one,
-			 * in which case it will just be dependent as well.
-			 * Otherwise, schedule it by itself.
+		if (!combine_started)
+			continue;
+
+		if (!local->ops->remain_on_channel) {
+			/* If there's no hardware remain-on-channel, and
+			 * doing so won't push us over the maximum r-o-c
+			 * we allow, then we can just add the new one to
+			 * the list and mark it as having started now.
+			 * If it would push over the limit, don't try to
+			 * combine with other started ones (that haven't
+			 * been running as long) but potentially sort it
+			 * with others that had the same fate.
 			 */
-			if (!tmp->hw_begun) {
-				list_add_tail(&roc->list, &tmp->dependents);
-				queued = true;
-				break;
+			unsigned long now = jiffies;
+			u32 elapsed = jiffies_to_msecs(now - tmp->start_time);
+			struct wiphy *wiphy = local->hw.wiphy;
+			u32 max_roc = wiphy->max_remain_on_channel_duration;
+
+			if (elapsed + roc->duration > max_roc) {
+				combine_started = false;
+				continue;
 			}
 
-			if (ieee80211_coalesce_started_roc(local, roc, tmp))
-				queued = true;
-		} else if (del_timer_sync(&tmp->work.timer)) {
-			unsigned long new_end;
-
-			/*
-			 * In the software ROC case, cancel the timer, if
-			 * that fails then the finish work is already
-			 * queued/pending and thus we queue the new ROC
-			 * normally, if that succeeds then we can extend
-			 * the timer duration and TX the frame (if any.)
-			 */
-
-			list_add_tail(&roc->list, &tmp->dependents);
+			list_add(&roc->list, &tmp->list);
 			queued = true;
-
-			new_end = jiffies + msecs_to_jiffies(roc->duration);
-
-			/* ok, it was started & we canceled timer */
-			if (time_after(new_end, tmp->work.timer.expires))
-				mod_timer(&tmp->work.timer, new_end);
-			else
-				add_timer(&tmp->work.timer);
-
-			ieee80211_handle_roc_started(roc);
+			roc->on_channel = tmp->on_channel;
+			ieee80211_handle_roc_started(roc, now);
+			break;
 		}
-		break;
+
+		queued = ieee80211_coalesce_hw_started_roc(local, roc, tmp);
+		if (queued)
+			break;
+		/* if it wasn't queued, perhaps it can be combined with
+		 * another that also couldn't get combined previously,
+		 * but no need to check for already started ones, since
+		 * that can't work.
+		 */
+		combine_started = false;
 	}
 
- out_queue:
 	if (!queued)
 		list_add_tail(&roc->list, &local->roc_list);
 
@@ -651,21 +699,6 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
-		struct ieee80211_roc_work *dep, *tmp2;
-
-		list_for_each_entry_safe(dep, tmp2, &roc->dependents, list) {
-			if (!mgmt_tx && dep->cookie != cookie)
-				continue;
-			else if (mgmt_tx && dep->mgmt_tx_cookie != cookie)
-				continue;
-			/* found dependent item -- just remove it */
-			list_del(&dep->list);
-			mutex_unlock(&local->mtx);
-
-			ieee80211_roc_notify_destroy(dep, true);
-			return 0;
-		}
-
 		if (!mgmt_tx && roc->cookie != cookie)
 			continue;
 		else if (mgmt_tx && roc->mgmt_tx_cookie != cookie)
@@ -680,41 +713,43 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 		return -ENOENT;
 	}
 
-	/*
-	 * We found the item to cancel, so do that. Note that it
-	 * may have dependents, which we also cancel (and send
-	 * the expired signal for.) Not doing so would be quite
-	 * tricky here, but we may need to fix it later.
-	 */
+	if (!found->started) {
+		ieee80211_roc_notify_destroy(found);
+		goto out_unlock;
+	}
 
 	if (local->ops->remain_on_channel) {
-		if (found->started) {
-			ret = drv_cancel_remain_on_channel(local);
-			if (WARN_ON_ONCE(ret)) {
-				mutex_unlock(&local->mtx);
-				return ret;
-			}
+		ret = drv_cancel_remain_on_channel(local);
+		if (WARN_ON_ONCE(ret)) {
+			mutex_unlock(&local->mtx);
+			return ret;
 		}
 
-		list_del(&found->list);
+		/* TODO:
+		 * if multiple items were combined here then we really shouldn't
+		 * cancel them all - we should wait for as much time as needed
+		 * for the longest remaining one, and only then cancel ...
+		 */
+		list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
+			if (!roc->started)
+				break;
+			if (roc == found)
+				found = NULL;
+			ieee80211_roc_notify_destroy(roc);
+		}
 
-		if (found->started)
-			ieee80211_start_next_roc(local);
-		mutex_unlock(&local->mtx);
+		/* that really must not happen - it was started */
+		WARN_ON(found);
 
-		ieee80211_roc_notify_destroy(found, true);
+		ieee80211_start_next_roc(local);
 	} else {
-		/* work may be pending so use it all the time */
+		/* go through work struct to return to the operating channel */
 		found->abort = true;
-		ieee80211_queue_delayed_work(&local->hw, &found->work, 0);
-
-		mutex_unlock(&local->mtx);
-
-		/* work will clean up etc */
-		flush_delayed_work(&found->work);
-		WARN_ON(!found->to_be_freed);
-		kfree(found);
+		mod_delayed_work(local->workqueue, &local->roc_work, 0);
 	}
+
+ out_unlock:
+	mutex_unlock(&local->mtx);
 
 	return 0;
 }
@@ -925,6 +960,7 @@ void ieee80211_roc_setup(struct ieee80211_local *local)
 {
 	INIT_WORK(&local->hw_roc_start, ieee80211_hw_roc_start);
 	INIT_WORK(&local->hw_roc_done, ieee80211_hw_roc_done);
+	INIT_DELAYED_WORK(&local->roc_work, ieee80211_roc_work);
 	INIT_LIST_HEAD(&local->roc_list);
 }
 
@@ -932,36 +968,27 @@ void ieee80211_roc_purge(struct ieee80211_local *local,
 			 struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_roc_work *roc, *tmp;
-	LIST_HEAD(tmp_list);
+	bool work_to_do = false;
 
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
 		if (sdata && roc->sdata != sdata)
 			continue;
 
-		if (roc->started && local->ops->remain_on_channel) {
-			/* can race, so ignore return value */
-			drv_cancel_remain_on_channel(local);
-		}
-
-		list_move_tail(&roc->list, &tmp_list);
-		roc->abort = true;
-	}
-	mutex_unlock(&local->mtx);
-
-	list_for_each_entry_safe(roc, tmp, &tmp_list, list) {
-		if (local->ops->remain_on_channel) {
-			list_del(&roc->list);
-			ieee80211_roc_notify_destroy(roc, true);
+		if (roc->started) {
+			if (local->ops->remain_on_channel) {
+				/* can race, so ignore return value */
+				drv_cancel_remain_on_channel(local);
+				ieee80211_roc_notify_destroy(roc);
+			} else {
+				roc->abort = true;
+				work_to_do = true;
+			}
 		} else {
-			ieee80211_queue_delayed_work(&local->hw, &roc->work, 0);
-
-			/* work will clean up etc */
-			flush_delayed_work(&roc->work);
-			WARN_ON(!roc->to_be_freed);
-			kfree(roc);
+			ieee80211_roc_notify_destroy(roc);
 		}
 	}
-
-	WARN_ON_ONCE(!list_empty(&tmp_list));
+	if (work_to_do)
+		__ieee80211_roc_work(local);
+	mutex_unlock(&local->mtx);
 }
