@@ -3277,7 +3277,6 @@ static void
 fec_enet_get_queue_num(struct platform_device *pdev, int *num_tx, int *num_rx)
 {
 	struct device_node *np = pdev->dev.of_node;
-	int err;
 
 	*num_tx = *num_rx = 1;
 
@@ -3285,13 +3284,9 @@ fec_enet_get_queue_num(struct platform_device *pdev, int *num_tx, int *num_rx)
 		return;
 
 	/* parse the num of tx and rx queues */
-	err = of_property_read_u32(np, "fsl,num-tx-queues", num_tx);
-	if (err)
-		*num_tx = 1;
+	of_property_read_u32(np, "fsl,num-tx-queues", num_tx);
 
-	err = of_property_read_u32(np, "fsl,num-rx-queues", num_rx);
-	if (err)
-		*num_rx = 1;
+	of_property_read_u32(np, "fsl,num-rx-queues", num_rx);
 
 	if (*num_tx < 1 || *num_tx > FEC_ENET_MAX_TX_QS) {
 		dev_warn(&pdev->dev, "Invalid num_tx(=%d), fall back to 1\n",
