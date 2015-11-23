@@ -1049,6 +1049,8 @@ static ssize_t trans_stat_show(struct device *dev,
 	if (!devfreq->stop_polling &&
 			devfreq_update_status(devfreq, devfreq->previous_freq))
 		return 0;
+	if (max_state == 0)
+		return sprintf(buf, "Not Supported.\n");
 
 	len = sprintf(buf, "     From  :   To\n");
 	len += sprintf(buf + len, "           :");
