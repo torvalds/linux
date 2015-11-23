@@ -266,6 +266,46 @@ int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev,
 	return ret;
 }
 
+int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
+			     int virq, int nvec, msi_alloc_info_t *arg)
+{
+	struct msi_domain_info *info = domain->host_data;
+	struct msi_domain_ops *ops = info->ops;
+	struct msi_desc *desc;
+	int ret = 0;
+
+	for_each_msi_entry(desc, dev) {
+		/* Don't even try the multi-MSI brain damage. */
+		if (WARN_ON(!desc->irq || desc->nvec_used != 1)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		if (!(desc->irq >= virq && desc->irq < (virq + nvec)))
+			continue;
+
+		ops->set_desc(arg, desc);
+		/* Assumes the domain mutex is held! */
+		ret = irq_domain_alloc_irqs_recursive(domain, virq, 1, arg);
+		if (ret)
+			break;
+
+		irq_set_msi_desc_off(virq, 0, desc);
+	}
+
+	if (ret) {
+		/* Mop up the damage */
+		for_each_msi_entry(desc, dev) {
+			if (!(desc->irq >= virq && desc->irq < (virq + nvec)))
+				continue;
+
+			irq_domain_free_irqs_common(domain, desc->irq, 1);
+		}
+	}
+
+	return ret;
+}
+
 /**
  * msi_domain_alloc_irqs - Allocate interrupts from a MSI interrupt domain
  * @domain:	The domain to allocate from
