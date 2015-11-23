@@ -525,7 +525,6 @@ static int nx842_powernv_decompress(const unsigned char *in, unsigned int inlen,
 static int __init nx842_powernv_probe(struct device_node *dn)
 {
 	struct nx842_coproc *coproc;
-	struct property *ct_prop, *ci_prop;
 	unsigned int ct, ci;
 	int chip_id;
 
@@ -534,18 +533,16 @@ static int __init nx842_powernv_probe(struct device_node *dn)
 		pr_err("ibm,chip-id missing\n");
 		return -EINVAL;
 	}
-	ct_prop = of_find_property(dn, "ibm,842-coprocessor-type", NULL);
-	if (!ct_prop) {
+
+	if (of_property_read_u32(dn, "ibm,842-coprocessor-type", &ct)) {
 		pr_err("ibm,842-coprocessor-type missing\n");
 		return -EINVAL;
 	}
-	ct = be32_to_cpu(*(unsigned int *)ct_prop->value);
-	ci_prop = of_find_property(dn, "ibm,842-coprocessor-instance", NULL);
-	if (!ci_prop) {
+
+	if (of_property_read_u32(dn, "ibm,842-coprocessor-instance", &ci)) {
 		pr_err("ibm,842-coprocessor-instance missing\n");
 		return -EINVAL;
 	}
-	ci = be32_to_cpu(*(unsigned int *)ci_prop->value);
 
 	coproc = kmalloc(sizeof(*coproc), GFP_KERNEL);
 	if (!coproc)
