@@ -35,6 +35,7 @@
  * @coreclk: clock source to access register
  * @extalclk: esai clock source to derive HCK, SCK and FS
  * @fsysclk: system clock source to derive HCK, SCK and FS
+ * @spbaclk: SPBA clock (optional, depending on SoC design)
  * @fifo_depth: depth of tx/rx FIFO
  * @slot_width: width of each DAI slot
  * @slots: number of slots
@@ -54,6 +55,7 @@ struct fsl_esai {
 	struct clk *coreclk;
 	struct clk *extalclk;
 	struct clk *fsysclk;
+	struct clk *spbaclk;
 	u32 fifo_depth;
 	u32 slot_width;
 	u32 slots;
@@ -469,6 +471,11 @@ static int fsl_esai_startup(struct snd_pcm_substream *substream,
 	ret = clk_prepare_enable(esai_priv->coreclk);
 	if (ret)
 		return ret;
+	if (!IS_ERR(esai_priv->spbaclk)) {
+		ret = clk_prepare_enable(esai_priv->spbaclk);
+		if (ret)
+			goto err_spbaclk;
+	}
 	if (!IS_ERR(esai_priv->extalclk)) {
 		ret = clk_prepare_enable(esai_priv->extalclk);
 		if (ret)
@@ -499,6 +506,9 @@ err_fsysclk:
 	if (!IS_ERR(esai_priv->extalclk))
 		clk_disable_unprepare(esai_priv->extalclk);
 err_extalck:
+	if (!IS_ERR(esai_priv->spbaclk))
+		clk_disable_unprepare(esai_priv->spbaclk);
+err_spbaclk:
 	clk_disable_unprepare(esai_priv->coreclk);
 
 	return ret;
@@ -564,6 +574,8 @@ static void fsl_esai_shutdown(struct snd_pcm_substream *substream,
 		clk_disable_unprepare(esai_priv->fsysclk);
 	if (!IS_ERR(esai_priv->extalclk))
 		clk_disable_unprepare(esai_priv->extalclk);
+	if (!IS_ERR(esai_priv->spbaclk))
+		clk_disable_unprepare(esai_priv->spbaclk);
 	clk_disable_unprepare(esai_priv->coreclk);
 }
 
@@ -818,6 +830,11 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	if (IS_ERR(esai_priv->fsysclk))
 		dev_warn(&pdev->dev, "failed to get fsys clock: %ld\n",
 				PTR_ERR(esai_priv->fsysclk));
+
+	esai_priv->spbaclk = devm_clk_get(&pdev->dev, "spba");
+	if (IS_ERR(esai_priv->spbaclk))
+		dev_warn(&pdev->dev, "failed to get spba clock: %ld\n",
+				PTR_ERR(esai_priv->spbaclk));
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
