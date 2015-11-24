@@ -1068,7 +1068,7 @@ static void *new_read(struct dm_bufio_client *c, sector_t block,
 	__flush_write_list(&write_list);
 
 	if (!b)
-		return b;
+		return NULL;
 
 	if (need_submit)
 		submit_io(b, READ, b->block, read_endio);
