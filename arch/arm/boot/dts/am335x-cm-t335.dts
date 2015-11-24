@@ -31,6 +31,14 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
+
+	/* regulator for mmc */
+	vmmc_fixed: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &am33xx_pinmux {
@@ -103,6 +111,23 @@
 			AM33XX_IOPAD(0x970, PIN_INPUT_PULLUP | MUX_MODE0)
 			/* uart0_txd.uart0_txd */
 			AM33XX_IOPAD(0x974, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			/* mmc0_dat3.mmc0_dat3 */
+			AM33XX_IOPAD(0x8f0, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_dat2.mmc0_dat2 */
+			AM33XX_IOPAD(0x8f4, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_dat1.mmc0_dat1 */
+			AM33XX_IOPAD(0x8f8, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_dat0.mmc0_dat0 */
+			AM33XX_IOPAD(0x8fc, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_clk.mmc0_clk */
+			AM33XX_IOPAD(0x900, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_cmd.mmc0_cmd */
+			AM33XX_IOPAD(0x904, PIN_INPUT_PULLUP | MUX_MODE0)
 		>;
 	};
 };
@@ -202,4 +227,12 @@
 
 &elm {
 	status = "okay";
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&vmmc_fixed>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
 };
