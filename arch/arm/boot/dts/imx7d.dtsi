@@ -85,9 +85,7 @@
 				792000	975000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
-			clocks = <&clks IMX7D_ARM_A7_ROOT_CLK>, <&clks IMX7D_ARM_A7_ROOT_SRC>,
-				 <&clks IMX7D_PLL_ARM_MAIN_CLK>, <&clks IMX7D_PLL_SYS_MAIN_CLK>;
-			clock-names = "arm", "arm_root_src", "pll_arm", "pll_sys_main";
+			clocks = <&clks IMX7D_CLK_ARM>;
 		};
 
 		cpu1: cpu@1 {
