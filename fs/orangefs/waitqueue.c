@@ -25,10 +25,10 @@
  */
 void purge_waiting_ops(void)
 {
-	struct pvfs2_kernel_op_s *op;
+	struct orangefs_kernel_op_s *op;
 
-	spin_lock(&pvfs2_request_list_lock);
-	list_for_each_entry(op, &pvfs2_request_list, list) {
+	spin_lock(&orangefs_request_list_lock);
+	list_for_each_entry(op, &orangefs_request_list, list) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "pvfs2-client-core: purging op tag %llu %s\n",
 			     llu(op->tag),
@@ -38,11 +38,11 @@ void purge_waiting_ops(void)
 		spin_unlock(&op->lock);
 		wake_up_interruptible(&op->waitq);
 	}
-	spin_unlock(&pvfs2_request_list_lock);
+	spin_unlock(&orangefs_request_list_lock);
 }
 
 /*
- * submits a PVFS2 operation and waits for it to complete
+ * submits a ORANGEFS operation and waits for it to complete
  *
  * Note op->downcall.status will contain the status of the operation (in
  * errno format), whether provided by pvfs2-client or a result of failure to
@@ -51,7 +51,7 @@ void purge_waiting_ops(void)
  *
  * Returns contents of op->downcall.status for convenience
  */
-int service_operation(struct pvfs2_kernel_op_s *op,
+int service_operation(struct orangefs_kernel_op_s *op,
 		      const char *op_name,
 		      int flags)
 {
@@ -70,30 +70,30 @@ int service_operation(struct pvfs2_kernel_op_s *op,
 retry_servicing:
 	op->downcall.status = 0;
 	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "pvfs2: service_operation: %s %p\n",
+		     "orangefs: service_operation: %s %p\n",
 		     op_name,
 		     op);
 	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "pvfs2: operation posted by process: %s, pid: %i\n",
+		     "orangefs: operation posted by process: %s, pid: %i\n",
 		     current->comm,
 		     current->pid);
 
 	/* mask out signals if this operation is not to be interrupted */
-	if (!(flags & PVFS2_OP_INTERRUPTIBLE))
+	if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
 		block_signals(&orig_sigset);
 
-	if (!(flags & PVFS2_OP_NO_SEMAPHORE)) {
+	if (!(flags & ORANGEFS_OP_NO_SEMAPHORE)) {
 		ret = mutex_lock_interruptible(&request_mutex);
 		/*
 		 * check to see if we were interrupted while waiting for
 		 * semaphore
 		 */
 		if (ret < 0) {
-			if (!(flags & PVFS2_OP_INTERRUPTIBLE))
+			if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
 				set_signals(&orig_sigset);
 			op->downcall.status = ret;
 			gossip_debug(GOSSIP_WAIT_DEBUG,
-				     "pvfs2: service_operation interrupted.\n");
+				     "orangefs: service_operation interrupted.\n");
 			return ret;
 		}
 	}
@@ -116,7 +116,7 @@ retry_servicing:
 	}
 
 	/* queue up the operation */
-	if (flags & PVFS2_OP_PRIORITY) {
+	if (flags & ORANGEFS_OP_PRIORITY) {
 		add_priority_op_to_request_list(op);
 	} else {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
@@ -125,17 +125,17 @@ retry_servicing:
 		add_op_to_request_list(op);
 	}
 
-	if (!(flags & PVFS2_OP_NO_SEMAPHORE))
+	if (!(flags & ORANGEFS_OP_NO_SEMAPHORE))
 		mutex_unlock(&request_mutex);
 
 	/*
 	 * If we are asked to service an asynchronous operation from
 	 * VFS perspective, we are done.
 	 */
-	if (flags & PVFS2_OP_ASYNC)
+	if (flags & ORANGEFS_OP_ASYNC)
 		return 0;
 
-	if (flags & PVFS2_OP_CANCELLATION) {
+	if (flags & ORANGEFS_OP_CANCELLATION) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "%s:"
 			     "About to call wait_for_cancellation_downcall.\n",
@@ -148,25 +148,25 @@ retry_servicing:
 	if (ret < 0) {
 		/* failed to get matching downcall */
 		if (ret == -ETIMEDOUT) {
-			gossip_err("pvfs2: %s -- wait timed out; aborting attempt.\n",
+			gossip_err("orangefs: %s -- wait timed out; aborting attempt.\n",
 				   op_name);
 		}
 		op->downcall.status = ret;
 	} else {
 		/* got matching downcall; make sure status is in errno format */
 		op->downcall.status =
-		    pvfs2_normalize_to_errno(op->downcall.status);
+		    orangefs_normalize_to_errno(op->downcall.status);
 		ret = op->downcall.status;
 	}
 
-	if (!(flags & PVFS2_OP_INTERRUPTIBLE))
+	if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
 		set_signals(&orig_sigset);
 
 	BUG_ON(ret != op->downcall.status);
 	/* retry if operation has not been serviced and if requested */
 	if (!op_state_serviced(op) && op->downcall.status == -EAGAIN) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "pvfs2: tag %llu (%s)"
+			     "orangefs: tag %llu (%s)"
 			     " -- operation to be retried (%d attempt)\n",
 			     llu(op->tag),
 			     op_name,
@@ -204,17 +204,17 @@ retry_servicing:
 			 * memory system can be initialized.
 			 */
 			spin_lock_irqsave(&op->lock, irqflags);
-			add_wait_queue(&pvfs2_bufmap_init_waitq, &wait_entry);
+			add_wait_queue(&orangefs_bufmap_init_waitq, &wait_entry);
 			spin_unlock_irqrestore(&op->lock, irqflags);
 
 			set_current_state(TASK_INTERRUPTIBLE);
 
 			/*
-			 * Wait for pvfs_bufmap_initialize() to wake me up
+			 * Wait for orangefs_bufmap_initialize() to wake me up
 			 * within the allotted time.
 			 */
 			ret = schedule_timeout(MSECS_TO_JIFFIES
-				(1000 * PVFS2_BUFMAP_WAIT_TIMEOUT_SECS));
+				(1000 * ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS));
 
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "Value returned from schedule_timeout:"
@@ -225,14 +225,14 @@ retry_servicing:
 				     get_bufmap_init());
 
 			spin_lock_irqsave(&op->lock, irqflags);
-			remove_wait_queue(&pvfs2_bufmap_init_waitq,
+			remove_wait_queue(&orangefs_bufmap_init_waitq,
 					  &wait_entry);
 			spin_unlock_irqrestore(&op->lock, irqflags);
 
 			if (get_bufmap_init() == 0) {
 				gossip_err("%s:The shared memory system has not started in %d seconds after the client core restarted.  Aborting user's request(%s).\n",
 					   __func__,
-					   PVFS2_BUFMAP_WAIT_TIMEOUT_SECS,
+					   ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS,
 					   get_opname_string(op));
 				return -EIO;
 			}
@@ -246,14 +246,14 @@ retry_servicing:
 	}
 
 	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "pvfs2: service_operation %s returning: %d for %p.\n",
+		     "orangefs: service_operation %s returning: %d for %p.\n",
 		     op_name,
 		     ret,
 		     op);
 	return ret;
 }
 
-void pvfs2_clean_up_interrupted_operation(struct pvfs2_kernel_op_s *op)
+void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
 {
 	/*
 	 * handle interrupted cases depending on what state we were in when
@@ -339,7 +339,7 @@ void pvfs2_clean_up_interrupted_operation(struct pvfs2_kernel_op_s *op)
  * operation since client-core seems to be exiting too often
  * or if we were interrupted.
  */
-int wait_for_matching_downcall(struct pvfs2_kernel_op_s *op)
+int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 {
 	int ret = -EINVAL;
 	DECLARE_WAITQUEUE(wait_entry, current);
@@ -386,7 +386,7 @@ int wait_for_matching_downcall(struct pvfs2_kernel_op_s *op)
 						     op,
 						     op->attempts);
 					ret = -ETIMEDOUT;
-					pvfs2_clean_up_interrupted_operation
+					orangefs_clean_up_interrupted_operation
 					    (op);
 					break;
 				}
@@ -403,7 +403,7 @@ int wait_for_matching_downcall(struct pvfs2_kernel_op_s *op)
 			 * core starts, and so on...
 			 */
 			if (op_state_purged(op)) {
-				ret = (op->attempts < PVFS2_PURGE_RETRY_COUNT) ?
+				ret = (op->attempts < ORANGEFS_PURGE_RETRY_COUNT) ?
 					 -EAGAIN :
 					 -EIO;
 				spin_unlock(&op->lock);
@@ -415,7 +415,7 @@ int wait_for_matching_downcall(struct pvfs2_kernel_op_s *op)
 					     llu(op->tag),
 					     op,
 					     op->attempts);
-				pvfs2_clean_up_interrupted_operation(op);
+				orangefs_clean_up_interrupted_operation(op);
 				break;
 			}
 			spin_unlock(&op->lock);
@@ -429,7 +429,7 @@ int wait_for_matching_downcall(struct pvfs2_kernel_op_s *op)
 			     __func__,
 			     llu(op->tag),
 			     op);
-		pvfs2_clean_up_interrupted_operation(op);
+		orangefs_clean_up_interrupted_operation(op);
 		ret = -EINTR;
 		break;
 	}
@@ -452,7 +452,7 @@ int wait_for_matching_downcall(struct pvfs2_kernel_op_s *op)
  *      cancellation upcall anyway.  the only way to exit this is to either
  *      timeout or have the cancellation be serviced properly.
  */
-int wait_for_cancellation_downcall(struct pvfs2_kernel_op_s *op)
+int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
 {
 	int ret = -EINVAL;
 	DECLARE_WAITQUEUE(wait_entry, current);
@@ -482,7 +482,7 @@ int wait_for_cancellation_downcall(struct pvfs2_kernel_op_s *op)
 				     __func__,
 				     llu(op->tag),
 				     op);
-			pvfs2_clean_up_interrupted_operation(op);
+			orangefs_clean_up_interrupted_operation(op);
 			ret = -EINTR;
 			break;
 		}
@@ -502,7 +502,7 @@ int wait_for_cancellation_downcall(struct pvfs2_kernel_op_s *op)
 				     "%s:*** operation timed out: %p\n",
 				     __func__,
 				     op);
-			pvfs2_clean_up_interrupted_operation(op);
+			orangefs_clean_up_interrupted_operation(op);
 			ret = -ETIMEDOUT;
 			break;
 		}

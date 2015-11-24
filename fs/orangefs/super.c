@@ -10,13 +10,13 @@
 
 #include <linux/parser.h>
 
-/* a cache for pvfs2-inode objects (i.e. pvfs2 inode private data) */
-static struct kmem_cache *pvfs2_inode_cache;
+/* a cache for orangefs-inode objects (i.e. orangefs inode private data) */
+static struct kmem_cache *orangefs_inode_cache;
 
-/* list for storing pvfs2 specific superblocks in use */
-LIST_HEAD(pvfs2_superblocks);
+/* list for storing orangefs specific superblocks in use */
+LIST_HEAD(orangefs_superblocks);
 
-DEFINE_SPINLOCK(pvfs2_superblocks_lock);
+DEFINE_SPINLOCK(orangefs_superblocks_lock);
 
 enum {
 	Opt_intr,
@@ -37,7 +37,7 @@ static const match_table_t tokens = {
 static int parse_mount_options(struct super_block *sb, char *options,
 		int silent)
 {
-	struct pvfs2_sb_info_s *pvfs2_sb = PVFS2_SB(sb);
+	struct orangefs_sb_info_s *orangefs_sb = ORANGEFS_SB(sb);
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
 
@@ -46,8 +46,8 @@ static int parse_mount_options(struct super_block *sb, char *options,
 	 * to zero, ie, initialize to unset.
 	 */
 	sb->s_flags &= ~MS_POSIXACL;
-	pvfs2_sb->flags &= ~PVFS2_OPT_INTR;
-	pvfs2_sb->flags &= ~PVFS2_OPT_LOCAL_LOCK;
+	orangefs_sb->flags &= ~ORANGEFS_OPT_INTR;
+	orangefs_sb->flags &= ~ORANGEFS_OPT_LOCAL_LOCK;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -61,10 +61,10 @@ static int parse_mount_options(struct super_block *sb, char *options,
 			sb->s_flags |= MS_POSIXACL;
 			break;
 		case Opt_intr:
-			pvfs2_sb->flags |= PVFS2_OPT_INTR;
+			orangefs_sb->flags |= ORANGEFS_OPT_INTR;
 			break;
 		case Opt_local_lock:
-			pvfs2_sb->flags |= PVFS2_OPT_LOCAL_LOCK;
+			orangefs_sb->flags |= ORANGEFS_OPT_LOCAL_LOCK;
 			break;
 		default:
 			goto fail;
@@ -78,24 +78,24 @@ fail:
 	return -EINVAL;
 }
 
-static void pvfs2_inode_cache_ctor(void *req)
+static void orangefs_inode_cache_ctor(void *req)
 {
-	struct pvfs2_inode_s *pvfs2_inode = req;
+	struct orangefs_inode_s *orangefs_inode = req;
 
-	inode_init_once(&pvfs2_inode->vfs_inode);
-	init_rwsem(&pvfs2_inode->xattr_sem);
+	inode_init_once(&orangefs_inode->vfs_inode);
+	init_rwsem(&orangefs_inode->xattr_sem);
 
-	pvfs2_inode->vfs_inode.i_version = 1;
+	orangefs_inode->vfs_inode.i_version = 1;
 }
 
-static struct inode *pvfs2_alloc_inode(struct super_block *sb)
+static struct inode *orangefs_alloc_inode(struct super_block *sb)
 {
-	struct pvfs2_inode_s *pvfs2_inode;
+	struct orangefs_inode_s *orangefs_inode;
 
-	pvfs2_inode = kmem_cache_alloc(pvfs2_inode_cache,
-				       PVFS2_CACHE_ALLOC_FLAGS);
-	if (pvfs2_inode == NULL) {
-		gossip_err("Failed to allocate pvfs2_inode\n");
+	orangefs_inode = kmem_cache_alloc(orangefs_inode_cache,
+				       ORANGEFS_CACHE_ALLOC_FLAGS);
+	if (orangefs_inode == NULL) {
+		gossip_err("Failed to allocate orangefs_inode\n");
 		return NULL;
 	}
 
@@ -103,71 +103,71 @@ static struct inode *pvfs2_alloc_inode(struct super_block *sb)
 	 * We want to clear everything except for rw_semaphore and the
 	 * vfs_inode.
 	 */
-	memset(&pvfs2_inode->refn.khandle, 0, 16);
-	pvfs2_inode->refn.fs_id = PVFS_FS_ID_NULL;
-	pvfs2_inode->last_failed_block_index_read = 0;
-	memset(pvfs2_inode->link_target, 0, sizeof(pvfs2_inode->link_target));
-	pvfs2_inode->pinode_flags = 0;
+	memset(&orangefs_inode->refn.khandle, 0, 16);
+	orangefs_inode->refn.fs_id = ORANGEFS_FS_ID_NULL;
+	orangefs_inode->last_failed_block_index_read = 0;
+	memset(orangefs_inode->link_target, 0, sizeof(orangefs_inode->link_target));
+	orangefs_inode->pinode_flags = 0;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_alloc_inode: allocated %p\n",
-		     &pvfs2_inode->vfs_inode);
-	return &pvfs2_inode->vfs_inode;
+		     "orangefs_alloc_inode: allocated %p\n",
+		     &orangefs_inode->vfs_inode);
+	return &orangefs_inode->vfs_inode;
 }
 
-static void pvfs2_destroy_inode(struct inode *inode)
+static void orangefs_destroy_inode(struct inode *inode)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 			"%s: deallocated %p destroying inode %pU\n",
-			__func__, pvfs2_inode, get_khandle_from_ino(inode));
+			__func__, orangefs_inode, get_khandle_from_ino(inode));
 
-	kmem_cache_free(pvfs2_inode_cache, pvfs2_inode);
+	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
 }
 
 /*
  * NOTE: information filled in here is typically reflected in the
  * output of the system command 'df'
 */
-static int pvfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
+static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int ret = -ENOMEM;
-	struct pvfs2_kernel_op_s *new_op = NULL;
+	struct orangefs_kernel_op_s *new_op = NULL;
 	int flags = 0;
 	struct super_block *sb = NULL;
 
 	sb = dentry->d_sb;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_statfs: called on sb %p (fs_id is %d)\n",
+		     "orangefs_statfs: called on sb %p (fs_id is %d)\n",
 		     sb,
-		     (int)(PVFS2_SB(sb)->fs_id));
+		     (int)(ORANGEFS_SB(sb)->fs_id));
 
-	new_op = op_alloc(PVFS2_VFS_OP_STATFS);
+	new_op = op_alloc(ORANGEFS_VFS_OP_STATFS);
 	if (!new_op)
 		return ret;
-	new_op->upcall.req.statfs.fs_id = PVFS2_SB(sb)->fs_id;
+	new_op->upcall.req.statfs.fs_id = ORANGEFS_SB(sb)->fs_id;
 
-	if (PVFS2_SB(sb)->flags & PVFS2_OPT_INTR)
-		flags = PVFS2_OP_INTERRUPTIBLE;
+	if (ORANGEFS_SB(sb)->flags & ORANGEFS_OPT_INTR)
+		flags = ORANGEFS_OP_INTERRUPTIBLE;
 
-	ret = service_operation(new_op, "pvfs2_statfs", flags);
+	ret = service_operation(new_op, "orangefs_statfs", flags);
 
 	if (new_op->downcall.status < 0)
 		goto out_op_release;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_statfs: got %ld blocks available | "
+		     "orangefs_statfs: got %ld blocks available | "
 		     "%ld blocks total | %ld block size\n",
 		     (long)new_op->downcall.resp.statfs.blocks_avail,
 		     (long)new_op->downcall.resp.statfs.blocks_total,
 		     (long)new_op->downcall.resp.statfs.block_size);
 
 	buf->f_type = sb->s_magic;
-	memcpy(&buf->f_fsid, &PVFS2_SB(sb)->fs_id, sizeof(buf->f_fsid));
+	memcpy(&buf->f_fsid, &ORANGEFS_SB(sb)->fs_id, sizeof(buf->f_fsid));
 	buf->f_bsize = new_op->downcall.resp.statfs.block_size;
-	buf->f_namelen = PVFS2_NAME_LEN;
+	buf->f_namelen = ORANGEFS_NAME_LEN;
 
 	buf->f_blocks = (sector_t) new_op->downcall.resp.statfs.blocks_total;
 	buf->f_bfree = (sector_t) new_op->downcall.resp.statfs.blocks_avail;
@@ -178,7 +178,7 @@ static int pvfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 out_op_release:
 	op_release(new_op);
-	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_statfs: returning %d\n", ret);
+	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_statfs: returning %d\n", ret);
 	return ret;
 }
 
@@ -186,9 +186,9 @@ out_op_release:
  * Remount as initiated by VFS layer.  We just need to reparse the mount
  * options, no need to signal pvfs2-client-core about it.
  */
-static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
+static int orangefs_remount_fs(struct super_block *sb, int *flags, char *data)
 {
-	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_remount_fs: called\n");
+	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_remount_fs: called\n");
 	return parse_mount_options(sb, data, 1);
 }
 
@@ -207,33 +207,33 @@ static int pvfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * the client regains all of the mount information from us.
  * NOTE: this function assumes that the request_mutex is already acquired!
  */
-int pvfs2_remount(struct super_block *sb)
+int orangefs_remount(struct super_block *sb)
 {
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_kernel_op_s *new_op;
 	int ret = -EINVAL;
 
-	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_remount: called\n");
+	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_remount: called\n");
 
-	new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
+	new_op = op_alloc(ORANGEFS_VFS_OP_FS_MOUNT);
 	if (!new_op)
 		return -ENOMEM;
-	strncpy(new_op->upcall.req.fs_mount.pvfs2_config_server,
-		PVFS2_SB(sb)->devname,
-		PVFS_MAX_SERVER_ADDR_LEN);
+	strncpy(new_op->upcall.req.fs_mount.orangefs_config_server,
+		ORANGEFS_SB(sb)->devname,
+		ORANGEFS_MAX_SERVER_ADDR_LEN);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "Attempting PVFS2 Remount via host %s\n",
-		     new_op->upcall.req.fs_mount.pvfs2_config_server);
+		     "Attempting ORANGEFS Remount via host %s\n",
+		     new_op->upcall.req.fs_mount.orangefs_config_server);
 
 	/*
 	 * we assume that the calling function has already acquire the
 	 * request_mutex to prevent other operations from bypassing
 	 * this one
 	 */
-	ret = service_operation(new_op, "pvfs2_remount",
-		PVFS2_OP_PRIORITY | PVFS2_OP_NO_SEMAPHORE);
+	ret = service_operation(new_op, "orangefs_remount",
+		ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_SEMAPHORE);
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_remount: mount got return value of %d\n",
+		     "orangefs_remount: mount got return value of %d\n",
 		     ret);
 	if (ret == 0) {
 		/*
@@ -241,8 +241,8 @@ int pvfs2_remount(struct super_block *sb)
 		 * short-lived mapping that the system interface uses
 		 * to map this superblock to a particular mount entry
 		 */
-		PVFS2_SB(sb)->id = new_op->downcall.resp.fs_mount.id;
-		PVFS2_SB(sb)->mount_pending = 0;
+		ORANGEFS_SB(sb)->id = new_op->downcall.resp.fs_mount.id;
+		ORANGEFS_SB(sb)->mount_pending = 0;
 	}
 
 	op_release(new_op);
@@ -259,54 +259,54 @@ void fsid_key_table_finalize(void)
 }
 
 /* Called whenever the VFS dirties the inode in response to atime updates */
-static void pvfs2_dirty_inode(struct inode *inode, int flags)
+static void orangefs_dirty_inode(struct inode *inode, int flags)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_dirty_inode: %pU\n",
+		     "orangefs_dirty_inode: %pU\n",
 		     get_khandle_from_ino(inode));
-	SetAtimeFlag(pvfs2_inode);
+	SetAtimeFlag(orangefs_inode);
 }
 
-static const struct super_operations pvfs2_s_ops = {
-	.alloc_inode = pvfs2_alloc_inode,
-	.destroy_inode = pvfs2_destroy_inode,
-	.dirty_inode = pvfs2_dirty_inode,
+static const struct super_operations orangefs_s_ops = {
+	.alloc_inode = orangefs_alloc_inode,
+	.destroy_inode = orangefs_destroy_inode,
+	.dirty_inode = orangefs_dirty_inode,
 	.drop_inode = generic_delete_inode,
-	.statfs = pvfs2_statfs,
-	.remount_fs = pvfs2_remount_fs,
+	.statfs = orangefs_statfs,
+	.remount_fs = orangefs_remount_fs,
 	.show_options = generic_show_options,
 };
 
-static struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
+static struct dentry *orangefs_fh_to_dentry(struct super_block *sb,
 				  struct fid *fid,
 				  int fh_len,
 				  int fh_type)
 {
-	struct pvfs2_object_kref refn;
+	struct orangefs_object_kref refn;
 
 	if (fh_len < 5 || fh_type > 2)
 		return NULL;
 
-	PVFS_khandle_from(&(refn.khandle), fid->raw, 16);
+	ORANGEFS_khandle_from(&(refn.khandle), fid->raw, 16);
 	refn.fs_id = (u32) fid->raw[4];
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "fh_to_dentry: handle %pU, fs_id %d\n",
 		     &refn.khandle,
 		     refn.fs_id);
 
-	return d_obtain_alias(pvfs2_iget(sb, &refn));
+	return d_obtain_alias(orangefs_iget(sb, &refn));
 }
 
-static int pvfs2_encode_fh(struct inode *inode,
+static int orangefs_encode_fh(struct inode *inode,
 		    __u32 *fh,
 		    int *max_len,
 		    struct inode *parent)
 {
 	int len = parent ? 10 : 5;
 	int type = 1;
-	struct pvfs2_object_kref refn;
+	struct orangefs_object_kref refn;
 
 	if (*max_len < len) {
 		gossip_lerr("fh buffer is too small for encoding\n");
@@ -315,8 +315,8 @@ static int pvfs2_encode_fh(struct inode *inode,
 		goto out;
 	}
 
-	refn = PVFS2_I(inode)->refn;
-	PVFS_khandle_to(&refn.khandle, fh, 16);
+	refn = ORANGEFS_I(inode)->refn;
+	ORANGEFS_khandle_to(&refn.khandle, fh, 16);
 	fh[4] = refn.fs_id;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
@@ -326,8 +326,8 @@ static int pvfs2_encode_fh(struct inode *inode,
 
 
 	if (parent) {
-		refn = PVFS2_I(parent)->refn;
-		PVFS_khandle_to(&refn.khandle, (char *) fh + 20, 16);
+		refn = ORANGEFS_I(parent)->refn;
+		ORANGEFS_khandle_to(&refn.khandle, (char *) fh + 20, 16);
 		fh[9] = refn.fs_id;
 
 		type = 2;
@@ -342,30 +342,30 @@ out:
 	return type;
 }
 
-static struct export_operations pvfs2_export_ops = {
-	.encode_fh = pvfs2_encode_fh,
-	.fh_to_dentry = pvfs2_fh_to_dentry,
+static struct export_operations orangefs_export_ops = {
+	.encode_fh = orangefs_encode_fh,
+	.fh_to_dentry = orangefs_fh_to_dentry,
 };
 
-static int pvfs2_fill_sb(struct super_block *sb,
-		struct pvfs2_fs_mount_response *fs_mount,
+static int orangefs_fill_sb(struct super_block *sb,
+		struct orangefs_fs_mount_response *fs_mount,
 		void *data, int silent)
 {
 	int ret = -EINVAL;
 	struct inode *root = NULL;
 	struct dentry *root_dentry = NULL;
-	struct pvfs2_object_kref root_object;
+	struct orangefs_object_kref root_object;
 
-	/* alloc and init our private pvfs2 sb info */
+	/* alloc and init our private orangefs sb info */
 	sb->s_fs_info =
-		kzalloc(sizeof(struct pvfs2_sb_info_s), PVFS2_GFP_FLAGS);
-	if (!PVFS2_SB(sb))
+		kzalloc(sizeof(struct orangefs_sb_info_s), ORANGEFS_GFP_FLAGS);
+	if (!ORANGEFS_SB(sb))
 		return -ENOMEM;
-	PVFS2_SB(sb)->sb = sb;
+	ORANGEFS_SB(sb)->sb = sb;
 
-	PVFS2_SB(sb)->root_khandle = fs_mount->root_khandle;
-	PVFS2_SB(sb)->fs_id = fs_mount->fs_id;
-	PVFS2_SB(sb)->id = fs_mount->id;
+	ORANGEFS_SB(sb)->root_khandle = fs_mount->root_khandle;
+	ORANGEFS_SB(sb)->fs_id = fs_mount->fs_id;
+	ORANGEFS_SB(sb)->id = fs_mount->id;
 
 	if (data) {
 		ret = parse_mount_options(sb, data, silent);
@@ -374,23 +374,23 @@ static int pvfs2_fill_sb(struct super_block *sb,
 	}
 
 	/* Hang the xattr handlers off the superblock */
-	sb->s_xattr = pvfs2_xattr_handlers;
-	sb->s_magic = PVFS2_SUPER_MAGIC;
-	sb->s_op = &pvfs2_s_ops;
-	sb->s_d_op = &pvfs2_dentry_operations;
+	sb->s_xattr = orangefs_xattr_handlers;
+	sb->s_magic = ORANGEFS_SUPER_MAGIC;
+	sb->s_op = &orangefs_s_ops;
+	sb->s_d_op = &orangefs_dentry_operations;
 
-	sb->s_blocksize = pvfs_bufmap_size_query();
-	sb->s_blocksize_bits = pvfs_bufmap_shift_query();
+	sb->s_blocksize = orangefs_bufmap_size_query();
+	sb->s_blocksize_bits = orangefs_bufmap_shift_query();
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
-	root_object.khandle = PVFS2_SB(sb)->root_khandle;
-	root_object.fs_id = PVFS2_SB(sb)->fs_id;
+	root_object.khandle = ORANGEFS_SB(sb)->root_khandle;
+	root_object.fs_id = ORANGEFS_SB(sb)->fs_id;
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "get inode %pU, fsid %d\n",
 		     &root_object.khandle,
 		     root_object.fs_id);
 
-	root = pvfs2_iget(sb, &root_object);
+	root = orangefs_iget(sb, &root_object);
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 
@@ -404,23 +404,23 @@ static int pvfs2_fill_sb(struct super_block *sb,
 	if (!root_dentry)
 		return -ENOMEM;
 
-	sb->s_export_op = &pvfs2_export_ops;
+	sb->s_export_op = &orangefs_export_ops;
 	sb->s_root = root_dentry;
 	return 0;
 }
 
-struct dentry *pvfs2_mount(struct file_system_type *fst,
+struct dentry *orangefs_mount(struct file_system_type *fst,
 			   int flags,
 			   const char *devname,
 			   void *data)
 {
 	int ret = -EINVAL;
 	struct super_block *sb = ERR_PTR(-EINVAL);
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_kernel_op_s *new_op;
 	struct dentry *d = ERR_PTR(-EINVAL);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_mount: called with devname %s\n",
+		     "orangefs_mount: called with devname %s\n",
 		     devname);
 
 	if (!devname) {
@@ -428,25 +428,25 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 		return ERR_PTR(-EINVAL);
 	}
 
-	new_op = op_alloc(PVFS2_VFS_OP_FS_MOUNT);
+	new_op = op_alloc(ORANGEFS_VFS_OP_FS_MOUNT);
 	if (!new_op)
 		return ERR_PTR(-ENOMEM);
 
-	strncpy(new_op->upcall.req.fs_mount.pvfs2_config_server,
+	strncpy(new_op->upcall.req.fs_mount.orangefs_config_server,
 		devname,
-		PVFS_MAX_SERVER_ADDR_LEN);
+		ORANGEFS_MAX_SERVER_ADDR_LEN);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "Attempting PVFS2 Mount via host %s\n",
-		     new_op->upcall.req.fs_mount.pvfs2_config_server);
+		     "Attempting ORANGEFS Mount via host %s\n",
+		     new_op->upcall.req.fs_mount.orangefs_config_server);
 
-	ret = service_operation(new_op, "pvfs2_mount", 0);
+	ret = service_operation(new_op, "orangefs_mount", 0);
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_mount: mount got return value of %d\n", ret);
+		     "orangefs_mount: mount got return value of %d\n", ret);
 	if (ret)
 		goto free_op;
 
-	if (new_op->downcall.resp.fs_mount.fs_id == PVFS_FS_ID_NULL) {
+	if (new_op->downcall.resp.fs_mount.fs_id == ORANGEFS_FS_ID_NULL) {
 		gossip_err("ERROR: Retrieved null fs_id\n");
 		ret = -EINVAL;
 		goto free_op;
@@ -459,7 +459,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 		goto free_op;
 	}
 
-	ret = pvfs2_fill_sb(sb,
+	ret = orangefs_fill_sb(sb,
 	      &new_op->downcall.resp.fs_mount, data,
 	      flags & MS_SILENT ? 1 : 0);
 
@@ -472,25 +472,25 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	 * on successful mount, store the devname and data
 	 * used
 	 */
-	strncpy(PVFS2_SB(sb)->devname,
+	strncpy(ORANGEFS_SB(sb)->devname,
 		devname,
-		PVFS_MAX_SERVER_ADDR_LEN);
+		ORANGEFS_MAX_SERVER_ADDR_LEN);
 
 	/* mount_pending must be cleared */
-	PVFS2_SB(sb)->mount_pending = 0;
+	ORANGEFS_SB(sb)->mount_pending = 0;
 
 	/*
-	 * finally, add this sb to our list of known pvfs2
+	 * finally, add this sb to our list of known orangefs
 	 * sb's
 	 */
-	add_pvfs2_sb(sb);
+	add_orangefs_sb(sb);
 	op_release(new_op);
 	return dget(sb->s_root);
 
 free_op:
-	gossip_err("pvfs2_mount: mount request failed with %d\n", ret);
+	gossip_err("orangefs_mount: mount request failed with %d\n", ret);
 	if (ret == -EINVAL) {
-		gossip_err("Ensure that all pvfs2-servers have the same FS configuration files\n");
+		gossip_err("Ensure that all orangefs-servers have the same FS configuration files\n");
 		gossip_err("Look at pvfs2-client-core log file (typically /tmp/pvfs2-client.log) for more details\n");
 	}
 
@@ -499,43 +499,43 @@ free_op:
 	return d;
 }
 
-void pvfs2_kill_sb(struct super_block *sb)
+void orangefs_kill_sb(struct super_block *sb)
 {
-	gossip_debug(GOSSIP_SUPER_DEBUG, "pvfs2_kill_sb: called\n");
+	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_kill_sb: called\n");
 
 	/*
 	 * issue the unmount to userspace to tell it to remove the
 	 * dynamic mount info it has for this superblock
 	 */
-	pvfs2_unmount_sb(sb);
+	orangefs_unmount_sb(sb);
 
-	/* remove the sb from our list of pvfs2 specific sb's */
-	remove_pvfs2_sb(sb);
+	/* remove the sb from our list of orangefs specific sb's */
+	remove_orangefs_sb(sb);
 
 	/* provided sb cleanup */
 	kill_anon_super(sb);
 
-	/* free the pvfs2 superblock private data */
-	kfree(PVFS2_SB(sb));
+	/* free the orangefs superblock private data */
+	kfree(ORANGEFS_SB(sb));
 }
 
-int pvfs2_inode_cache_initialize(void)
+int orangefs_inode_cache_initialize(void)
 {
-	pvfs2_inode_cache = kmem_cache_create("pvfs2_inode_cache",
-					      sizeof(struct pvfs2_inode_s),
+	orangefs_inode_cache = kmem_cache_create("orangefs_inode_cache",
+					      sizeof(struct orangefs_inode_s),
 					      0,
-					      PVFS2_CACHE_CREATE_FLAGS,
-					      pvfs2_inode_cache_ctor);
+					      ORANGEFS_CACHE_CREATE_FLAGS,
+					      orangefs_inode_cache_ctor);
 
-	if (!pvfs2_inode_cache) {
-		gossip_err("Cannot create pvfs2_inode_cache\n");
+	if (!orangefs_inode_cache) {
+		gossip_err("Cannot create orangefs_inode_cache\n");
 		return -ENOMEM;
 	}
 	return 0;
 }
 
-int pvfs2_inode_cache_finalize(void)
+int orangefs_inode_cache_finalize(void)
 {
-	kmem_cache_destroy(pvfs2_inode_cache);
+	kmem_cache_destroy(orangefs_inode_cache);
 	return 0;
 }

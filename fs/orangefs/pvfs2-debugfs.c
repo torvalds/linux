@@ -95,7 +95,7 @@ static const struct file_operations kernel_debug_fops = {
  * initialize kmod debug operations, create orangefs debugfs dir and
  * ORANGEFS_KMOD_DEBUG_HELP_FILE.
  */
-int pvfs2_debugfs_init(void)
+int orangefs_debugfs_init(void)
 {
 
 	int rc = -ENOMEM;
@@ -117,12 +117,12 @@ int pvfs2_debugfs_init(void)
 
 out:
 	if (rc)
-		pvfs2_debugfs_cleanup();
+		orangefs_debugfs_cleanup();
 
 	return rc;
 }
 
-void pvfs2_debugfs_cleanup(void)
+void orangefs_debugfs_cleanup(void)
 {
 	debugfs_remove_recursive(debug_dir);
 }
@@ -196,7 +196,7 @@ static int help_show(struct seq_file *m, void *v)
 /*
  * initialize the kernel-debug file.
  */
-int pvfs2_kernel_debug_init(void)
+int orangefs_kernel_debug_init(void)
 {
 
 	int rc = -ENOMEM;
@@ -205,11 +205,11 @@ int pvfs2_kernel_debug_init(void)
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
 
-	k_buffer = kzalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
+	k_buffer = kzalloc(ORANGEFS_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!k_buffer)
 		goto out;
 
-	if (strlen(kernel_debug_string) + 1 < PVFS2_MAX_DEBUG_STRING_LEN) {
+	if (strlen(kernel_debug_string) + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
 		strcpy(k_buffer, kernel_debug_string);
 		strcat(k_buffer, "\n");
 	} else {
@@ -233,7 +233,7 @@ int pvfs2_kernel_debug_init(void)
 
 out:
 	if (rc)
-		pvfs2_debugfs_cleanup();
+		orangefs_debugfs_cleanup();
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
 	return rc;
@@ -242,7 +242,7 @@ out:
 /*
  * initialize the client-debug file.
  */
-int pvfs2_client_debug_init(void)
+int orangefs_client_debug_init(void)
 {
 
 	int rc = -ENOMEM;
@@ -250,11 +250,11 @@ int pvfs2_client_debug_init(void)
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
 
-	c_buffer = kzalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
+	c_buffer = kzalloc(ORANGEFS_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!c_buffer)
 		goto out;
 
-	if (strlen(client_debug_string) + 1 < PVFS2_MAX_DEBUG_STRING_LEN) {
+	if (strlen(client_debug_string) + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
 		strcpy(c_buffer, client_debug_string);
 		strcat(c_buffer, "\n");
 	} else {
@@ -278,7 +278,7 @@ int pvfs2_client_debug_init(void)
 
 out:
 	if (rc)
-		pvfs2_debugfs_cleanup();
+		orangefs_debugfs_cleanup();
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
 	return rc;
@@ -320,7 +320,7 @@ static ssize_t orangefs_debug_read(struct file *file,
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "orangefs_debug_read: start\n");
 
-	buf = kmalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
+	buf = kmalloc(ORANGEFS_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!buf)
 		goto out;
 
@@ -349,7 +349,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 	int rc = -EFAULT;
 	size_t silly = 0;
 	char *debug_string;
-	struct pvfs2_kernel_op_s *new_op = NULL;
+	struct orangefs_kernel_op_s *new_op = NULL;
 	struct client_debug_mask c_mask = { NULL, 0, 0 };
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
@@ -360,15 +360,15 @@ static ssize_t orangefs_debug_write(struct file *file,
 	 * Thwart users who try to jamb a ridiculous number
 	 * of bytes into the debug file...
 	 */
-	if (count > PVFS2_MAX_DEBUG_STRING_LEN + 1) {
+	if (count > ORANGEFS_MAX_DEBUG_STRING_LEN + 1) {
 		silly = count;
-		count = PVFS2_MAX_DEBUG_STRING_LEN + 1;
+		count = ORANGEFS_MAX_DEBUG_STRING_LEN + 1;
 	}
 
-	buf = kmalloc(PVFS2_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
+	buf = kmalloc(ORANGEFS_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!buf)
 		goto out;
-	memset(buf, 0, PVFS2_MAX_DEBUG_STRING_LEN);
+	memset(buf, 0, ORANGEFS_MAX_DEBUG_STRING_LEN);
 
 	if (copy_from_user(buf, ubuf, count - 1)) {
 		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
@@ -407,18 +407,18 @@ static ssize_t orangefs_debug_write(struct file *file,
 		debug_mask_to_string(&c_mask, 1);
 		debug_string = client_debug_string;
 
-		new_op = op_alloc(PVFS2_VFS_OP_PARAM);
+		new_op = op_alloc(ORANGEFS_VFS_OP_PARAM);
 		if (!new_op) {
 			pr_info("%s: op_alloc failed!\n", __func__);
 			goto out;
 		}
 
 		new_op->upcall.req.param.op =
-			PVFS2_PARAM_REQUEST_OP_TWO_MASK_VALUES;
-		new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_SET;
+			ORANGEFS_PARAM_REQUEST_OP_TWO_MASK_VALUES;
+		new_op->upcall.req.param.type = ORANGEFS_PARAM_REQUEST_SET;
 		memset(new_op->upcall.req.param.s_value,
 		       0,
-		       PVFS2_MAX_DEBUG_STRING_LEN);
+		       ORANGEFS_MAX_DEBUG_STRING_LEN);
 		sprintf(new_op->upcall.req.param.s_value,
 			"%llx %llx\n",
 			c_mask.mask1,
@@ -426,8 +426,8 @@ static ssize_t orangefs_debug_write(struct file *file,
 
 		/* service_operation returns 0 on success... */
 		rc = service_operation(new_op,
-				       "pvfs2_param",
-					PVFS2_OP_INTERRUPTIBLE);
+				       "orangefs_param",
+					ORANGEFS_OP_INTERRUPTIBLE);
 
 		if (rc)
 			gossip_debug(GOSSIP_DEBUGFS_DEBUG,
@@ -439,7 +439,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 	}
 
 	mutex_lock(&orangefs_debug_lock);
-	memset(file->f_inode->i_private, 0, PVFS2_MAX_DEBUG_STRING_LEN);
+	memset(file->f_inode->i_private, 0, ORANGEFS_MAX_DEBUG_STRING_LEN);
 	sprintf((char *)file->f_inode->i_private, "%s\n", debug_string);
 	mutex_unlock(&orangefs_debug_lock);
 

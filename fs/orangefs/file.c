@@ -29,7 +29,7 @@ do {							\
  *       can futher be kernel-space or user-space addresses.
  *       or it can pointers to struct page's
  */
-static int precopy_buffers(struct pvfs2_bufmap *bufmap,
+static int precopy_buffers(struct orangefs_bufmap *bufmap,
 			   int buffer_index,
 			   struct iov_iter *iter,
 			   size_t total_size)
@@ -42,10 +42,10 @@ static int precopy_buffers(struct pvfs2_bufmap *bufmap,
 
 
 	if (total_size) {
-		ret = pvfs_bufmap_copy_from_iovec(bufmap,
-						iter,
-						buffer_index,
-						total_size);
+		ret = orangefs_bufmap_copy_from_iovec(bufmap,
+						      iter,
+						      buffer_index,
+						      total_size);
 		if (ret < 0)
 		gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
 			   __func__,
@@ -66,7 +66,7 @@ static int precopy_buffers(struct pvfs2_bufmap *bufmap,
  *       can futher be kernel-space or user-space addresses.
  *       or it can pointers to struct page's
  */
-static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
+static int postcopy_buffers(struct orangefs_bufmap *bufmap,
 			    int buffer_index,
 			    struct iov_iter *iter,
 			    size_t total_size)
@@ -78,10 +78,10 @@ static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
 	 * struct page pointers.
 	 */
 	if (total_size) {
-		ret = pvfs_bufmap_copy_to_iovec(bufmap,
-						iter,
-						buffer_index,
-						total_size);
+		ret = orangefs_bufmap_copy_to_iovec(bufmap,
+						    iter,
+						    buffer_index,
+						    total_size);
 		if (ret < 0)
 			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
 				__func__,
@@ -93,34 +93,34 @@ static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
 /*
  * Post and wait for the I/O upcall to finish
  */
-static ssize_t wait_for_direct_io(enum PVFS_io_type type, struct inode *inode,
+static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 		loff_t *offset, struct iov_iter *iter,
 		size_t total_size, loff_t readahead_size)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
-	struct pvfs2_khandle *handle = &pvfs2_inode->refn.khandle;
-	struct pvfs2_bufmap *bufmap = NULL;
-	struct pvfs2_kernel_op_s *new_op = NULL;
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
+	struct orangefs_bufmap *bufmap = NULL;
+	struct orangefs_kernel_op_s *new_op = NULL;
 	int buffer_index = -1;
 	ssize_t ret;
 
-	new_op = op_alloc(PVFS2_VFS_OP_FILE_IO);
+	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op) {
 		ret = -ENOMEM;
 		goto out;
 	}
 	/* synchronous I/O */
-	new_op->upcall.req.io.async_vfs_io = PVFS_VFS_SYNC_IO;
+	new_op->upcall.req.io.async_vfs_io = ORANGEFS_VFS_SYNC_IO;
 	new_op->upcall.req.io.readahead_size = readahead_size;
 	new_op->upcall.req.io.io_type = type;
-	new_op->upcall.req.io.refn = pvfs2_inode->refn;
+	new_op->upcall.req.io.refn = orangefs_inode->refn;
 
 populate_shared_memory:
 	/* get a shared buffer index */
-	ret = pvfs_bufmap_get(&bufmap, &buffer_index);
+	ret = orangefs_bufmap_get(&bufmap, &buffer_index);
 	if (ret < 0) {
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s: pvfs_bufmap_get failure (%ld)\n",
+			     "%s: orangefs_bufmap_get failure (%ld)\n",
 			     __func__, (long)ret);
 		goto out;
 	}
@@ -146,7 +146,7 @@ populate_shared_memory:
 	 * Stage 1: copy the buffers into client-core's address space
 	 * precopy_buffers only pertains to writes.
 	 */
-	if (type == PVFS_IO_WRITE) {
+	if (type == ORANGEFS_IO_WRITE) {
 		ret = precopy_buffers(bufmap,
 				      buffer_index,
 				      iter,
@@ -163,14 +163,14 @@ populate_shared_memory:
 
 	/* Stage 2: Service the I/O operation */
 	ret = service_operation(new_op,
-				type == PVFS_IO_WRITE ?
+				type == ORANGEFS_IO_WRITE ?
 					"file_write" :
 					"file_read",
 				get_interruptible_flag(inode));
 
 	/*
 	 * If service_operation() returns -EAGAIN #and# the operation was
-	 * purged from pvfs2_request_list or htable_ops_in_progress, then
+	 * purged from orangefs_request_list or htable_ops_in_progress, then
 	 * we know that the client was restarted, causing the shared memory
 	 * area to be wiped clean.  To restart a  write operation in this
 	 * case, we must re-copy the data from the user's iovec to a NEW
@@ -178,7 +178,7 @@ populate_shared_memory:
 	 * a new shared memory location.
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
-		pvfs_bufmap_put(bufmap, buffer_index);
+		orangefs_bufmap_put(bufmap, buffer_index);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s:going to repopulate_shared_memory.\n",
 			     __func__);
@@ -199,7 +199,7 @@ populate_shared_memory:
 		else
 			gossip_err("%s: error in %s handle %pU, returning %zd\n",
 				__func__,
-				type == PVFS_IO_READ ?
+				type == ORANGEFS_IO_READ ?
 					"read from" : "write to",
 				handle, ret);
 		goto out;
@@ -209,7 +209,7 @@ populate_shared_memory:
 	 * Stage 3: Post copy buffers from client-core's address space
 	 * postcopy_buffers only pertains to reads.
 	 */
-	if (type == PVFS_IO_READ) {
+	if (type == ORANGEFS_IO_READ) {
 		ret = postcopy_buffers(bufmap,
 				       buffer_index,
 				       iter,
@@ -243,7 +243,7 @@ populate_shared_memory:
 
 out:
 	if (buffer_index >= 0) {
-		pvfs_bufmap_put(bufmap, buffer_index);
+		orangefs_bufmap_put(bufmap, buffer_index);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): PUT buffer_index %d\n",
 			     __func__, handle, buffer_index);
@@ -263,12 +263,12 @@ out:
  * augmented/extended metadata attached to the file.
  * Note: File extended attributes override any mount options.
  */
-static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
+static ssize_t do_readv_writev(enum ORANGEFS_io_type type, struct file *file,
 		loff_t *offset, struct iov_iter *iter)
 {
 	struct inode *inode = file->f_mapping->host;
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
-	struct pvfs2_khandle *handle = &pvfs2_inode->refn.khandle;
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
 	size_t count = iov_iter_count(iter);
 	ssize_t total_count = 0;
 	ssize_t ret = -EINVAL;
@@ -279,7 +279,7 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		handle,
 		(int)count);
 
-	if (type == PVFS_IO_WRITE) {
+	if (type == ORANGEFS_IO_WRITE) {
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): proceeding with offset : %llu, "
 			     "size %d\n",
@@ -299,8 +299,8 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		size_t amt_complete;
 
 		/* how much to transfer in this loop iteration */
-		if (each_count > pvfs_bufmap_size_query())
-			each_count = pvfs_bufmap_size_query();
+		if (each_count > orangefs_bufmap_size_query())
+			each_count = orangefs_bufmap_size_query();
 
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): size of each_count(%d)\n",
@@ -346,10 +346,10 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		ret = total_count;
 out:
 	if (ret > 0) {
-		if (type == PVFS_IO_READ) {
+		if (type == ORANGEFS_IO_READ) {
 			file_accessed(file);
 		} else {
-			SetMtimeFlag(pvfs2_inode);
+			SetMtimeFlag(orangefs_inode);
 			inode->i_mtime = CURRENT_TIME;
 			mark_inode_dirty_sync(inode);
 		}
@@ -368,19 +368,19 @@ out:
  * Read data from a specified offset in a file (referenced by inode).
  * Data may be placed either in a user or kernel buffer.
  */
-ssize_t pvfs2_inode_read(struct inode *inode,
-			 struct iov_iter *iter,
-			 loff_t *offset,
-			 loff_t readahead_size)
+ssize_t orangefs_inode_read(struct inode *inode,
+			    struct iov_iter *iter,
+			    loff_t *offset,
+			    loff_t readahead_size)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	size_t count = iov_iter_count(iter);
 	size_t bufmap_size;
 	ssize_t ret = -EINVAL;
 
-	g_pvfs2_stats.reads++;
+	g_orangefs_stats.reads++;
 
-	bufmap_size = pvfs_bufmap_size_query();
+	bufmap_size = orangefs_bufmap_size_query();
 	if (count > bufmap_size) {
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s: count is too large (%zd/%zd)!\n",
@@ -391,11 +391,11 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s(%pU) %zd@%llu\n",
 		     __func__,
-		     &pvfs2_inode->refn.khandle,
+		     &orangefs_inode->refn.khandle,
 		     count,
 		     llu(*offset));
 
-	ret = wait_for_direct_io(PVFS_IO_READ, inode, offset, iter,
+	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, offset, iter,
 			count, readahead_size);
 	if (ret > 0)
 		*offset += ret;
@@ -403,13 +403,13 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s(%pU): Value(%zd) returned.\n",
 		     __func__,
-		     &pvfs2_inode->refn.khandle,
+		     &orangefs_inode->refn.khandle,
 		     ret);
 
 	return ret;
 }
 
-static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+static ssize_t orangefs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	loff_t pos = *(&iocb->ki_pos);
@@ -417,17 +417,17 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	BUG_ON(iocb->private);
 
-	gossip_debug(GOSSIP_FILE_DEBUG, "pvfs2_file_read_iter\n");
+	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_read_iter\n");
 
-	g_pvfs2_stats.reads++;
+	g_orangefs_stats.reads++;
 
-	rc = do_readv_writev(PVFS_IO_READ, file, &pos, iter);
+	rc = do_readv_writev(ORANGEFS_IO_READ, file, &pos, iter);
 	iocb->ki_pos = pos;
 
 	return rc;
 }
 
-static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
+static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	loff_t pos;
@@ -435,23 +435,23 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	BUG_ON(iocb->private);
 
-	gossip_debug(GOSSIP_FILE_DEBUG, "pvfs2_file_write_iter\n");
+	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_write_iter\n");
 
 	mutex_lock(&file->f_mapping->host->i_mutex);
 
 	/* Make sure generic_write_checks sees an up to date inode size. */
 	if (file->f_flags & O_APPEND) {
-		rc = pvfs2_inode_getattr(file->f_mapping->host,
-					 PVFS_ATTR_SYS_SIZE);
+		rc = orangefs_inode_getattr(file->f_mapping->host,
+					 ORANGEFS_ATTR_SYS_SIZE);
 		if (rc) {
-			gossip_err("%s: pvfs2_inode_getattr failed, rc:%zd:.\n",
+			gossip_err("%s: orangefs_inode_getattr failed, rc:%zd:.\n",
 				   __func__, rc);
 			goto out;
 		}
 	}
 
 	if (file->f_pos > i_size_read(file->f_mapping->host))
-		pvfs2_i_size_write(file->f_mapping->host, file->f_pos);
+		orangefs_i_size_write(file->f_mapping->host, file->f_pos);
 
 	rc = generic_write_checks(iocb, iter);
 
@@ -468,7 +468,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	 */
 	pos = *(&iocb->ki_pos);
 
-	rc = do_readv_writev(PVFS_IO_WRITE,
+	rc = do_readv_writev(ORANGEFS_IO_WRITE,
 			     file,
 			     &pos,
 			     iter);
@@ -479,7 +479,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	}
 
 	iocb->ki_pos = pos;
-	g_pvfs2_stats.writes++;
+	g_orangefs_stats.writes++;
 
 out:
 
@@ -490,14 +490,14 @@ out:
 /*
  * Perform a miscellaneous operation on a file.
  */
-static long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOTTY;
 	__u64 val = 0;
 	unsigned long uval;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "pvfs2_ioctl: called with cmd %d\n",
+		     "orangefs_ioctl: called with cmd %d\n",
 		     cmd);
 
 	/*
@@ -506,17 +506,17 @@ static long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	 */
 	if (cmd == FS_IOC_GETFLAGS) {
 		val = 0;
-		ret = pvfs2_inode_getxattr(file_inode(file),
-					   PVFS2_XATTR_NAME_DEFAULT_PREFIX,
-					   "user.pvfs2.meta_hint",
-					   &val, sizeof(val));
+		ret = orangefs_inode_getxattr(file_inode(file),
+					      ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
+					      "user.pvfs2.meta_hint",
+					      &val, sizeof(val));
 		if (ret < 0 && ret != -ENODATA)
 			return ret;
 		else if (ret == -ENODATA)
 			val = 0;
 		uval = val;
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "pvfs2_ioctl: FS_IOC_GETFLAGS: %llu\n",
+			     "orangefs_ioctl: FS_IOC_GETFLAGS: %llu\n",
 			     (unsigned long long)uval);
 		return put_user(uval, (int __user *)arg);
 	} else if (cmd == FS_IOC_SETFLAGS) {
@@ -524,25 +524,25 @@ static long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (get_user(uval, (int __user *)arg))
 			return -EFAULT;
 		/*
-		 * PVFS_MIRROR_FL is set internally when the mirroring mode
+		 * ORANGEFS_MIRROR_FL is set internally when the mirroring mode
 		 * is turned on for a file. The user is not allowed to turn
 		 * on this bit, but the bit is present if the user first gets
 		 * the flags and then updates the flags with some new
 		 * settings. So, we ignore it in the following edit. bligon.
 		 */
-		if ((uval & ~PVFS_MIRROR_FL) &
+		if ((uval & ~ORANGEFS_MIRROR_FL) &
 		    (~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NOATIME_FL))) {
-			gossip_err("pvfs2_ioctl: the FS_IOC_SETFLAGS only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n");
+			gossip_err("orangefs_ioctl: the FS_IOC_SETFLAGS only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n");
 			return -EINVAL;
 		}
 		val = uval;
 		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "pvfs2_ioctl: FS_IOC_SETFLAGS: %llu\n",
+			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
 			     (unsigned long long)val);
-		ret = pvfs2_inode_setxattr(file_inode(file),
-					   PVFS2_XATTR_NAME_DEFAULT_PREFIX,
-					   "user.pvfs2.meta_hint",
-					   &val, sizeof(val), 0);
+		ret = orangefs_inode_setxattr(file_inode(file),
+					      ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
+					      "user.pvfs2.meta_hint",
+					      &val, sizeof(val), 0);
 	}
 
 	return ret;
@@ -551,10 +551,10 @@ static long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 /*
  * Memory map a region of a file.
  */
-static int pvfs2_file_mmap(struct file *file, struct vm_area_struct *vma)
+static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "pvfs2_file_mmap: called on %s\n",
+		     "orangefs_file_mmap: called on %s\n",
 		     (file ?
 			(char *)file->f_path.dentry->d_name.name :
 			(char *)"Unknown"));
@@ -575,13 +575,13 @@ static int pvfs2_file_mmap(struct file *file, struct vm_area_struct *vma)
  *
  * \note Not called when each file is closed.
  */
-static int pvfs2_file_release(struct inode *inode, struct file *file)
+static int orangefs_file_release(struct inode *inode, struct file *file)
 {
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "pvfs2_file_release: called on %s\n",
+		     "orangefs_file_release: called on %s\n",
 		     file->f_path.dentry->d_name.name);
 
-	pvfs2_flush_inode(inode);
+	orangefs_flush_inode(inode);
 
 	/*
 	 * remove all associated inode pages from the page cache and mmap
@@ -599,35 +599,35 @@ static int pvfs2_file_release(struct inode *inode, struct file *file)
 /*
  * Push all data for a specific file onto permanent storage.
  */
-static int pvfs2_fsync(struct file *file,
+static int orangefs_fsync(struct file *file,
 		       loff_t start,
 		       loff_t end,
 		       int datasync)
 {
 	int ret = -EINVAL;
-	struct pvfs2_inode_s *pvfs2_inode =
-		PVFS2_I(file->f_path.dentry->d_inode);
-	struct pvfs2_kernel_op_s *new_op = NULL;
+	struct orangefs_inode_s *orangefs_inode =
+		ORANGEFS_I(file->f_path.dentry->d_inode);
+	struct orangefs_kernel_op_s *new_op = NULL;
 
 	/* required call */
 	filemap_write_and_wait_range(file->f_mapping, start, end);
 
-	new_op = op_alloc(PVFS2_VFS_OP_FSYNC);
+	new_op = op_alloc(ORANGEFS_VFS_OP_FSYNC);
 	if (!new_op)
 		return -ENOMEM;
-	new_op->upcall.req.fsync.refn = pvfs2_inode->refn;
+	new_op->upcall.req.fsync.refn = orangefs_inode->refn;
 
 	ret = service_operation(new_op,
-			"pvfs2_fsync",
+			"orangefs_fsync",
 			get_interruptible_flag(file->f_path.dentry->d_inode));
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "pvfs2_fsync got return value of %d\n",
+		     "orangefs_fsync got return value of %d\n",
 		     ret);
 
 	op_release(new_op);
 
-	pvfs2_flush_inode(file->f_path.dentry->d_inode);
+	orangefs_flush_inode(file->f_path.dentry->d_inode);
 	return ret;
 }
 
@@ -640,36 +640,36 @@ static int pvfs2_fsync(struct file *file,
  * Future upgrade could support SEEK_DATA and SEEK_HOLE but would
  * require much changes to the FS
  */
-static loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
+static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 {
 	int ret = -EINVAL;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	if (!inode) {
-		gossip_err("pvfs2_file_llseek: invalid inode (NULL)\n");
+		gossip_err("orangefs_file_llseek: invalid inode (NULL)\n");
 		return ret;
 	}
 
-	if (origin == PVFS2_SEEK_END) {
+	if (origin == ORANGEFS_SEEK_END) {
 		/*
 		 * revalidate the inode's file size.
 		 * NOTE: We are only interested in file size here,
 		 * so we set mask accordingly.
 		 */
-		ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_SIZE);
+		ret = orangefs_inode_getattr(inode, ORANGEFS_ATTR_SYS_SIZE);
 		if (ret) {
 			gossip_debug(GOSSIP_FILE_DEBUG,
 				     "%s:%s:%d calling make bad inode\n",
 				     __FILE__,
 				     __func__,
 				     __LINE__);
-			pvfs2_make_bad_inode(inode);
+			orangefs_make_bad_inode(inode);
 			return ret;
 		}
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "pvfs2_file_llseek: offset is %ld | origin is %d"
+		     "orangefs_file_llseek: offset is %ld | origin is %d"
 		     " | inode size is %lu\n",
 		     (long)offset,
 		     origin,
@@ -682,11 +682,11 @@ static loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
  * Support local locks (locks that only this kernel knows about)
  * if Orangefs was mounted -o local_lock.
  */
-static int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
+static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	int rc = -EINVAL;
 
-	if (PVFS2_SB(filp->f_inode->i_sb)->flags & PVFS2_OPT_LOCAL_LOCK) {
+	if (ORANGEFS_SB(filp->f_inode->i_sb)->flags & ORANGEFS_OPT_LOCAL_LOCK) {
 		if (cmd == F_GETLK) {
 			rc = 0;
 			posix_test_lock(filp, fl);
@@ -698,15 +698,15 @@ static int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return rc;
 }
 
-/** PVFS2 implementation of VFS file operations */
-const struct file_operations pvfs2_file_operations = {
-	.llseek		= pvfs2_file_llseek,
-	.read_iter	= pvfs2_file_read_iter,
-	.write_iter	= pvfs2_file_write_iter,
-	.lock		= pvfs2_lock,
-	.unlocked_ioctl	= pvfs2_ioctl,
-	.mmap		= pvfs2_file_mmap,
+/** ORANGEFS implementation of VFS file operations */
+const struct file_operations orangefs_file_operations = {
+	.llseek		= orangefs_file_llseek,
+	.read_iter	= orangefs_file_read_iter,
+	.write_iter	= orangefs_file_write_iter,
+	.lock		= orangefs_lock,
+	.unlocked_ioctl	= orangefs_ioctl,
+	.mmap		= orangefs_file_mmap,
 	.open		= generic_file_open,
-	.release	= pvfs2_file_release,
-	.fsync		= pvfs2_fsync,
+	.release	= orangefs_file_release,
+	.fsync		= orangefs_fsync,
 };

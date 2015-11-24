@@ -5,12 +5,12 @@
  */
 
 /* This file just defines debugging masks to be used with the gossip
- * logging utility.  All debugging masks for PVFS2 are kept here to make
+ * logging utility.  All debugging masks for ORANGEFS are kept here to make
  * sure we don't have collisions.
  */
 
-#ifndef __PVFS2_DEBUG_H
-#define __PVFS2_DEBUG_H
+#ifndef __ORANGEFS_DEBUG_H
+#define __ORANGEFS_DEBUG_H
 
 #ifdef __KERNEL__
 #include <linux/types.h>
@@ -90,7 +90,7 @@
 					 GOSSIP_BMI_DEBUG_MX +		\
 					 GOSSIP_BMI_DEBUG_PORTALS))
 
-const char *PVFS_debug_get_next_debug_keyword(int position);
+const char *ORANGEFS_debug_get_next_debug_keyword(int position);
 
 #define GOSSIP_SUPER_DEBUG		((__u64)1 << 0)
 #define GOSSIP_INODE_DEBUG		((__u64)1 << 1)
@@ -113,10 +113,10 @@ const char *PVFS_debug_get_next_debug_keyword(int position);
 #define GOSSIP_MAX_DEBUG              (((__u64)1 << GOSSIP_MAX_NR) - 1)
 
 /*function prototypes*/
-__u64 PVFS_kmod_eventlog_to_mask(const char *event_logging);
-__u64 PVFS_debug_eventlog_to_mask(const char *event_logging);
-char *PVFS_debug_mask_to_eventlog(__u64 mask);
-char *PVFS_kmod_mask_to_eventlog(__u64 mask);
+__u64 ORANGEFS_kmod_eventlog_to_mask(const char *event_logging);
+__u64 ORANGEFS_debug_eventlog_to_mask(const char *event_logging);
+char *ORANGEFS_debug_mask_to_eventlog(__u64 mask);
+char *ORANGEFS_kmod_mask_to_eventlog(__u64 mask);
 
 /* a private internal type */
 struct __keyword_mask_s {
@@ -289,4 +289,4 @@ static const int num_kmod_keyword_mask_map = (int)
 static const int num_keyword_mask_map = (int)
 	(sizeof(s_keyword_mask_map) / sizeof(struct __keyword_mask_s));
 
-#endif /* __PVFS2_DEBUG_H */
+#endif /* __ORANGEFS_DEBUG_H */

@@ -22,14 +22,14 @@ static int open_access_count;
 #define DUMP_DEVICE_ERROR()                                                   \
 do {                                                                          \
 	gossip_err("*****************************************************\n");\
-	gossip_err("PVFS2 Device Error:  You cannot open the device file ");  \
+	gossip_err("ORANGEFS Device Error:  You cannot open the device file ");  \
 	gossip_err("\n/dev/%s more than once.  Please make sure that\nthere " \
-		   "are no ", PVFS2_REQDEVICE_NAME);                          \
+		   "are no ", ORANGEFS_REQDEVICE_NAME);                          \
 	gossip_err("instances of a program using this device\ncurrently "     \
 		   "running. (You must verify this!)\n");                     \
 	gossip_err("For example, you can use the lsof program as follows:\n");\
 	gossip_err("'lsof | grep %s' (run this as root)\n",                   \
-		   PVFS2_REQDEVICE_NAME);                                     \
+		   ORANGEFS_REQDEVICE_NAME);                                     \
 	gossip_err("  open_access_count = %d\n", open_access_count);          \
 	gossip_err("*****************************************************\n");\
 } while (0)
@@ -39,7 +39,7 @@ static int hash_func(__u64 tag, int table_size)
 	return do_div(tag, (unsigned int)table_size);
 }
 
-static void pvfs2_devreq_add_op(struct pvfs2_kernel_op_s *op)
+static void orangefs_devreq_add_op(struct orangefs_kernel_op_s *op)
 {
 	int index = hash_func(op->tag, hash_table_size);
 
@@ -48,9 +48,9 @@ static void pvfs2_devreq_add_op(struct pvfs2_kernel_op_s *op)
 	spin_unlock(&htable_ops_in_progress_lock);
 }
 
-static struct pvfs2_kernel_op_s *pvfs2_devreq_remove_op(__u64 tag)
+static struct orangefs_kernel_op_s *orangefs_devreq_remove_op(__u64 tag)
 {
-	struct pvfs2_kernel_op_s *op, *next;
+	struct orangefs_kernel_op_s *op, *next;
 	int index;
 
 	index = hash_func(tag, hash_table_size);
@@ -71,12 +71,12 @@ static struct pvfs2_kernel_op_s *pvfs2_devreq_remove_op(__u64 tag)
 	return NULL;
 }
 
-static int pvfs2_devreq_open(struct inode *inode, struct file *file)
+static int orangefs_devreq_open(struct inode *inode, struct file *file)
 {
 	int ret = -EINVAL;
 
 	if (!(file->f_flags & O_NONBLOCK)) {
-		gossip_err("pvfs2: device cannot be opened in blocking mode\n");
+		gossip_err("orangefs: device cannot be opened in blocking mode\n");
 		goto out;
 	}
 	ret = -EACCES;
@@ -100,14 +100,14 @@ out:
 	return ret;
 }
 
-static ssize_t pvfs2_devreq_read(struct file *file,
+static ssize_t orangefs_devreq_read(struct file *file,
 				 char __user *buf,
 				 size_t count, loff_t *offset)
 {
-	struct pvfs2_kernel_op_s *op, *temp;
-	__s32 proto_ver = PVFS_KERNEL_PROTO_VERSION;
-	static __s32 magic = PVFS2_DEVREQ_MAGIC;
-	struct pvfs2_kernel_op_s *cur_op = NULL;
+	struct orangefs_kernel_op_s *op, *temp;
+	__s32 proto_ver = ORANGEFS_KERNEL_PROTO_VERSION;
+	static __s32 magic = ORANGEFS_DEVREQ_MAGIC;
+	struct orangefs_kernel_op_s *cur_op = NULL;
 	unsigned long ret;
 
 	/* We do not support blocking IO. */
@@ -126,14 +126,14 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 	}
 
 	/* Get next op (if any) from top of list. */
-	spin_lock(&pvfs2_request_list_lock);
-	list_for_each_entry_safe(op, temp, &pvfs2_request_list, list) {
+	spin_lock(&orangefs_request_list_lock);
+	list_for_each_entry_safe(op, temp, &orangefs_request_list, list) {
 		__s32 fsid;
 		/* This lock is held past the end of the loop when we break. */
 		spin_lock(&op->lock);
 
 		fsid = fsid_of_op(op);
-		if (fsid != PVFS_FS_ID_NULL) {
+		if (fsid != ORANGEFS_FS_ID_NULL) {
 			int ret;
 			/* Skip ops whose filesystem needs to be mounted. */
 			ret = fs_mount_pending(fsid);
@@ -147,8 +147,8 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 			 * it is being mounted. */
 			/* XXX: is there a better way to detect this? */
 			} else if (ret == -1 &&
-				   !(op->upcall.type == PVFS2_VFS_OP_FS_MOUNT ||
-				     op->upcall.type == PVFS2_VFS_OP_GETATTR)) {
+				   !(op->upcall.type == ORANGEFS_VFS_OP_FS_MOUNT ||
+				     op->upcall.type == ORANGEFS_VFS_OP_GETATTR)) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
 				    "orangefs: skipping op tag %llu %s\n",
 				    llu(op->tag), get_opname_string(op));
@@ -173,7 +173,7 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 	 * found an op and must ask the client to try again later.
 	 */
 	if (!cur_op) {
-		spin_unlock(&pvfs2_request_list_lock);
+		spin_unlock(&orangefs_request_list_lock);
 		return -EAGAIN;
 	}
 
@@ -188,7 +188,7 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 		gossip_err("orangefs: ERROR: Current op already queued.\n");
 		list_del(&cur_op->list);
 		spin_unlock(&cur_op->lock);
-		spin_unlock(&pvfs2_request_list_lock);
+		spin_unlock(&orangefs_request_list_lock);
 		return -EAGAIN;
 	}
 
@@ -199,8 +199,8 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 	set_op_state_inprogress(cur_op);
 
 	list_del(&cur_op->list);
-	spin_unlock(&pvfs2_request_list_lock);
-	pvfs2_devreq_add_op(cur_op);
+	spin_unlock(&orangefs_request_list_lock);
+	orangefs_devreq_add_op(cur_op);
 	spin_unlock(&cur_op->lock);
 
 	/* Push the upcall out. */
@@ -214,7 +214,7 @@ static ssize_t pvfs2_devreq_read(struct file *file,
 	if (ret != 0)
 		goto error;
 	ret = copy_to_user(buf+2*sizeof(__s32)+sizeof(__u64), &cur_op->upcall,
-			   sizeof(struct pvfs2_upcall_s));
+			   sizeof(struct orangefs_upcall_s));
 	if (ret != 0)
 		goto error;
 
@@ -227,23 +227,23 @@ error:
 	 * device is released.
 	 */
 	gossip_err("orangefs: Failed to copy data to user space\n");
-	spin_lock(&pvfs2_request_list_lock);
+	spin_lock(&orangefs_request_list_lock);
 	spin_lock(&cur_op->lock);
 	set_op_state_waiting(cur_op);
-	pvfs2_devreq_remove_op(cur_op->tag);
-	list_add(&cur_op->list, &pvfs2_request_list);
+	orangefs_devreq_remove_op(cur_op->tag);
+	list_add(&cur_op->list, &orangefs_request_list);
 	spin_unlock(&cur_op->lock);
-	spin_unlock(&pvfs2_request_list_lock);
+	spin_unlock(&orangefs_request_list_lock);
 	return -EFAULT;
 }
 
 /* Function for writev() callers into the device */
-static ssize_t pvfs2_devreq_writev(struct file *file,
+static ssize_t orangefs_devreq_writev(struct file *file,
 				   const struct iovec *iov,
 				   size_t count,
 				   loff_t *offset)
 {
-	struct pvfs2_kernel_op_s *op = NULL;
+	struct orangefs_kernel_op_s *op = NULL;
 	void *buffer = NULL;
 	void *ptr = NULL;
 	unsigned long i = 0;
@@ -301,7 +301,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 	tag = *((__u64 *) ptr);
 	ptr += sizeof(__u64);
 
-	if (magic != PVFS2_DEVREQ_MAGIC) {
+	if (magic != ORANGEFS_DEVREQ_MAGIC) {
 		gossip_err("Error: Device magic number does not match.\n");
 		dev_req_release(buffer);
 		return -EPROTO;
@@ -311,17 +311,17 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 	 * proto_ver = 20902 for 2.9.2
 	 */
 
-	op = pvfs2_devreq_remove_op(tag);
+	op = orangefs_devreq_remove_op(tag);
 	if (op) {
 		/* Increase ref count! */
 		get_op(op);
 		/* cut off magic and tag from payload size */
 		payload_size -= (2 * sizeof(__s32) + sizeof(__u64));
-		if (payload_size <= sizeof(struct pvfs2_downcall_s))
+		if (payload_size <= sizeof(struct orangefs_downcall_s))
 			/* copy the passed in downcall into the op */
 			memcpy(&op->downcall,
 			       ptr,
-			       sizeof(struct pvfs2_downcall_s));
+			       sizeof(struct orangefs_downcall_s));
 		else
 			gossip_debug(GOSSIP_DEV_DEBUG,
 				     "writev: Ignoring %d bytes\n",
@@ -392,8 +392,8 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		 * application reading/writing this device to return until
 		 * the buffers are done being used.
 		 */
-		if (op->upcall.type == PVFS2_VFS_OP_FILE_IO &&
-		    op->upcall.req.io.async_vfs_io == PVFS_VFS_SYNC_IO) {
+		if (op->upcall.type == ORANGEFS_VFS_OP_FILE_IO &&
+		    op->upcall.req.io.async_vfs_io == ORANGEFS_VFS_SYNC_IO) {
 			int timed_out = 0;
 			DECLARE_WAITQUEUE(wait_entry, current);
 
@@ -473,10 +473,10 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 	return total_returned_size;
 }
 
-static ssize_t pvfs2_devreq_write_iter(struct kiocb *iocb,
+static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 				      struct iov_iter *iter)
 {
-	return pvfs2_devreq_writev(iocb->ki_filp,
+	return orangefs_devreq_writev(iocb->ki_filp,
 				   iter->iov,
 				   iter->nr_segs,
 				   &iocb->ki_pos);
@@ -486,15 +486,15 @@ static ssize_t pvfs2_devreq_write_iter(struct kiocb *iocb,
 static int mark_all_pending_mounts(void)
 {
 	int unmounted = 1;
-	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
+	struct orangefs_sb_info_s *orangefs_sb = NULL;
 
-	spin_lock(&pvfs2_superblocks_lock);
-	list_for_each_entry(pvfs2_sb, &pvfs2_superblocks, list) {
+	spin_lock(&orangefs_superblocks_lock);
+	list_for_each_entry(orangefs_sb, &orangefs_superblocks, list) {
 		/* All of these file system require a remount */
-		pvfs2_sb->mount_pending = 1;
+		orangefs_sb->mount_pending = 1;
 		unmounted = 0;
 	}
-	spin_unlock(&pvfs2_superblocks_lock);
+	spin_unlock(&orangefs_superblocks_lock);
 	return unmounted;
 }
 
@@ -507,16 +507,16 @@ static int mark_all_pending_mounts(void)
 int fs_mount_pending(__s32 fsid)
 {
 	int mount_pending = -1;
-	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
+	struct orangefs_sb_info_s *orangefs_sb = NULL;
 
-	spin_lock(&pvfs2_superblocks_lock);
-	list_for_each_entry(pvfs2_sb, &pvfs2_superblocks, list) {
-		if (pvfs2_sb->fs_id == fsid) {
-			mount_pending = pvfs2_sb->mount_pending;
+	spin_lock(&orangefs_superblocks_lock);
+	list_for_each_entry(orangefs_sb, &orangefs_superblocks, list) {
+		if (orangefs_sb->fs_id == fsid) {
+			mount_pending = orangefs_sb->mount_pending;
 			break;
 		}
 	}
-	spin_unlock(&pvfs2_superblocks_lock);
+	spin_unlock(&orangefs_superblocks_lock);
 	return mount_pending;
 }
 
@@ -525,10 +525,10 @@ int fs_mount_pending(__s32 fsid)
  * Using the open_access_count variable, we enforce a reference count
  * on this file so that it can be opened by only one process at a time.
  * the devreq_mutex is used to make sure all i/o has completed
- * before we call pvfs_bufmap_finalize, and similar such tricky
+ * before we call orangefs_bufmap_finalize, and similar such tricky
  * situations
  */
-static int pvfs2_devreq_release(struct inode *inode, struct file *file)
+static int orangefs_devreq_release(struct inode *inode, struct file *file)
 {
 	int unmounted = 0;
 
@@ -537,12 +537,12 @@ static int pvfs2_devreq_release(struct inode *inode, struct file *file)
 		     __func__);
 
 	mutex_lock(&devreq_mutex);
-	pvfs_bufmap_finalize();
+	orangefs_bufmap_finalize();
 
 	open_access_count--;
 
 	unmounted = mark_all_pending_mounts();
-	gossip_debug(GOSSIP_DEV_DEBUG, "PVFS2 Device Close: Filesystem(s) %s\n",
+	gossip_debug(GOSSIP_DEV_DEBUG, "ORANGEFS Device Close: Filesystem(s) %s\n",
 		     (unmounted ? "UNMOUNTED" : "MOUNTED"));
 	mutex_unlock(&devreq_mutex);
 
@@ -578,17 +578,17 @@ int is_daemon_in_service(void)
 static inline long check_ioctl_command(unsigned int command)
 {
 	/* Check for valid ioctl codes */
-	if (_IOC_TYPE(command) != PVFS_DEV_MAGIC) {
+	if (_IOC_TYPE(command) != ORANGEFS_DEV_MAGIC) {
 		gossip_err("device ioctl magic numbers don't match! Did you rebuild pvfs2-client-core/libpvfs2? [cmd %x, magic %x != %x]\n",
 			command,
 			_IOC_TYPE(command),
-			PVFS_DEV_MAGIC);
+			ORANGEFS_DEV_MAGIC);
 		return -EINVAL;
 	}
 	/* and valid ioctl commands */
-	if (_IOC_NR(command) >= PVFS_DEV_MAXNR || _IOC_NR(command) <= 0) {
+	if (_IOC_NR(command) >= ORANGEFS_DEV_MAXNR || _IOC_NR(command) <= 0) {
 		gossip_err("Invalid ioctl command number [%d >= %d]\n",
-			   _IOC_NR(command), PVFS_DEV_MAXNR);
+			   _IOC_NR(command), ORANGEFS_DEV_MAXNR);
 		return -ENOIOCTLCMD;
 	}
 	return 0;
@@ -596,46 +596,46 @@ static inline long check_ioctl_command(unsigned int command)
 
 static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 {
-	static __s32 magic = PVFS2_DEVREQ_MAGIC;
+	static __s32 magic = ORANGEFS_DEVREQ_MAGIC;
 	static __s32 max_up_size = MAX_ALIGNED_DEV_REQ_UPSIZE;
 	static __s32 max_down_size = MAX_ALIGNED_DEV_REQ_DOWNSIZE;
-	struct PVFS_dev_map_desc user_desc;
+	struct ORANGEFS_dev_map_desc user_desc;
 	int ret = 0;
 	struct dev_mask_info_s mask_info = { 0 };
 	struct dev_mask2_info_s mask2_info = { 0, 0 };
 	int upstream_kmod = 1;
 	struct list_head *tmp = NULL;
-	struct pvfs2_sb_info_s *pvfs2_sb = NULL;
+	struct orangefs_sb_info_s *orangefs_sb = NULL;
 
 	/* mtmoore: add locking here */
 
 	switch (command) {
-	case PVFS_DEV_GET_MAGIC:
+	case ORANGEFS_DEV_GET_MAGIC:
 		return ((put_user(magic, (__s32 __user *) arg) == -EFAULT) ?
 			-EIO :
 			0);
-	case PVFS_DEV_GET_MAX_UPSIZE:
+	case ORANGEFS_DEV_GET_MAX_UPSIZE:
 		return ((put_user(max_up_size,
 				  (__s32 __user *) arg) == -EFAULT) ?
 					-EIO :
 					0);
-	case PVFS_DEV_GET_MAX_DOWNSIZE:
+	case ORANGEFS_DEV_GET_MAX_DOWNSIZE:
 		return ((put_user(max_down_size,
 				  (__s32 __user *) arg) == -EFAULT) ?
 					-EIO :
 					0);
-	case PVFS_DEV_MAP:
+	case ORANGEFS_DEV_MAP:
 		ret = copy_from_user(&user_desc,
-				     (struct PVFS_dev_map_desc __user *)
+				     (struct ORANGEFS_dev_map_desc __user *)
 				     arg,
-				     sizeof(struct PVFS_dev_map_desc));
-		return ret ? -EIO : pvfs_bufmap_initialize(&user_desc);
-	case PVFS_DEV_REMOUNT_ALL:
+				     sizeof(struct ORANGEFS_dev_map_desc));
+		return ret ? -EIO : orangefs_bufmap_initialize(&user_desc);
+	case ORANGEFS_DEV_REMOUNT_ALL:
 		gossip_debug(GOSSIP_DEV_DEBUG,
-			     "pvfs2_devreq_ioctl: got PVFS_DEV_REMOUNT_ALL\n");
+			     "orangefs_devreq_ioctl: got ORANGEFS_DEV_REMOUNT_ALL\n");
 
 		/*
-		 * remount all mounted pvfs2 volumes to regain the lost
+		 * remount all mounted orangefs volumes to regain the lost
 		 * dynamic mount tables (if any) -- NOTE: this is done
 		 * without keeping the superblock list locked due to the
 		 * upcall/downcall waiting.  also, the request semaphore is
@@ -647,30 +647,30 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		if (ret < 0)
 			return ret;
 		gossip_debug(GOSSIP_DEV_DEBUG,
-			     "pvfs2_devreq_ioctl: priority remount in progress\n");
-		list_for_each(tmp, &pvfs2_superblocks) {
-			pvfs2_sb =
-				list_entry(tmp, struct pvfs2_sb_info_s, list);
-			if (pvfs2_sb && (pvfs2_sb->sb)) {
+			     "orangefs_devreq_ioctl: priority remount in progress\n");
+		list_for_each(tmp, &orangefs_superblocks) {
+			orangefs_sb =
+				list_entry(tmp, struct orangefs_sb_info_s, list);
+			if (orangefs_sb && (orangefs_sb->sb)) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
 					     "Remounting SB %p\n",
-					     pvfs2_sb);
+					     orangefs_sb);
 
-				ret = pvfs2_remount(pvfs2_sb->sb);
+				ret = orangefs_remount(orangefs_sb->sb);
 				if (ret) {
 					gossip_debug(GOSSIP_DEV_DEBUG,
 						     "SB %p remount failed\n",
-						     pvfs2_sb);
+						     orangefs_sb);
 						break;
 				}
 			}
 		}
 		gossip_debug(GOSSIP_DEV_DEBUG,
-			     "pvfs2_devreq_ioctl: priority remount complete\n");
+			     "orangefs_devreq_ioctl: priority remount complete\n");
 		mutex_unlock(&request_mutex);
 		return ret;
 
-	case PVFS_DEV_UPSTREAM:
+	case ORANGEFS_DEV_UPSTREAM:
 		ret = copy_to_user((void __user *)arg,
 				    &upstream_kmod,
 				    sizeof(upstream_kmod));
@@ -680,7 +680,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		else
 			return ret;
 
-	case PVFS_DEV_CLIENT_MASK:
+	case ORANGEFS_DEV_CLIENT_MASK:
 		ret = copy_from_user(&mask2_info,
 				     (void __user *)arg,
 				     sizeof(struct dev_mask2_info_s));
@@ -699,13 +699,13 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 
 		return ret;
 
-	case PVFS_DEV_CLIENT_STRING:
+	case ORANGEFS_DEV_CLIENT_STRING:
 		ret = copy_from_user(&client_debug_array_string,
 				     (void __user *)arg,
-				     PVFS2_MAX_DEBUG_STRING_LEN);
+				     ORANGEFS_MAX_DEBUG_STRING_LEN);
 		if (ret != 0) {
 			pr_info("%s: "
-				"PVFS_DEV_CLIENT_STRING: copy_from_user failed"
+				"ORANGEFS_DEV_CLIENT_STRING: copy_from_user failed"
 				"\n",
 				__func__);
 			return -EIO;
@@ -753,13 +753,13 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 
 		debugfs_remove(client_debug_dentry);
 
-		pvfs2_client_debug_init();
+		orangefs_client_debug_init();
 
 		help_string_initialized++;
 
 		return ret;
 
-	case PVFS_DEV_DEBUG:
+	case ORANGEFS_DEV_DEBUG:
 		ret = copy_from_user(&mask_info,
 				     (void __user *)arg,
 				     sizeof(mask_info));
@@ -774,21 +774,21 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				 * the kernel debug mask was set when the
 				 * kernel module was loaded; don't override
 				 * it if the client-core was started without
-				 * a value for PVFS2_KMODMASK.
+				 * a value for ORANGEFS_KMODMASK.
 				 */
 				return 0;
 			}
 			debug_mask_to_string(&mask_info.mask_value,
 					     mask_info.mask_type);
 			gossip_debug_mask = mask_info.mask_value;
-			pr_info("PVFS: kernel debug mask has been modified to "
+			pr_info("ORANGEFS: kernel debug mask has been modified to "
 				":%s: :%llx:\n",
 				kernel_debug_string,
 				(unsigned long long)gossip_debug_mask);
 		} else if (mask_info.mask_type == CLIENT_MASK) {
 			debug_mask_to_string(&mask_info.mask_value,
 					     mask_info.mask_type);
-			pr_info("PVFS: client debug mask has been modified to"
+			pr_info("ORANGEFS: client debug mask has been modified to"
 				":%s: :%llx:\n",
 				client_debug_string,
 				llu(mask_info.mask_value));
@@ -805,7 +805,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 	return -ENOIOCTLCMD;
 }
 
-static long pvfs2_devreq_ioctl(struct file *file,
+static long orangefs_devreq_ioctl(struct file *file,
 			       unsigned int command, unsigned long arg)
 {
 	long ret;
@@ -820,8 +820,8 @@ static long pvfs2_devreq_ioctl(struct file *file,
 
 #ifdef CONFIG_COMPAT		/* CONFIG_COMPAT is in .config */
 
-/*  Compat structure for the PVFS_DEV_MAP ioctl */
-struct PVFS_dev_map_desc32 {
+/*  Compat structure for the ORANGEFS_DEV_MAP ioctl */
+struct ORANGEFS_dev_map_desc32 {
 	compat_uptr_t ptr;
 	__s32 total_size;
 	__s32 size;
@@ -830,12 +830,12 @@ struct PVFS_dev_map_desc32 {
 
 static unsigned long translate_dev_map26(unsigned long args, long *error)
 {
-	struct PVFS_dev_map_desc32 __user *p32 = (void __user *)args;
+	struct ORANGEFS_dev_map_desc32 __user *p32 = (void __user *)args;
 	/*
 	 * Depending on the architecture, allocate some space on the
 	 * user-call-stack based on our expected layout.
 	 */
-	struct PVFS_dev_map_desc __user *p =
+	struct ORANGEFS_dev_map_desc __user *p =
 	    compat_alloc_user_space(sizeof(*p));
 	compat_uptr_t addr;
 
@@ -863,7 +863,7 @@ err:
  * 32 bit user-space apps' ioctl handlers when kernel modules
  * is compiled as a 64 bit one
  */
-static long pvfs2_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
+static long orangefs_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
 				      unsigned long args)
 {
 	long ret;
@@ -873,7 +873,7 @@ static long pvfs2_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
 	ret = check_ioctl_command(cmd);
 	if (ret < 0)
 		return ret;
-	if (cmd == PVFS_DEV_MAP) {
+	if (cmd == ORANGEFS_DEV_MAP) {
 		/*
 		 * convert the arguments to what we expect internally
 		 * in kernel space
@@ -896,89 +896,89 @@ static long pvfs2_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
  * not noticed until we tried to compile on power pc...
  */
 #if (defined(CONFIG_COMPAT) && !defined(HAVE_REGISTER_IOCTL32_CONVERSION)) || !defined(CONFIG_COMPAT)
-static int pvfs2_ioctl32_init(void)
+static int orangefs_ioctl32_init(void)
 {
 	return 0;
 }
 
-static void pvfs2_ioctl32_cleanup(void)
+static void orangefs_ioctl32_cleanup(void)
 {
 	return;
 }
 #endif
 
 /* the assigned character device major number */
-static int pvfs2_dev_major;
+static int orangefs_dev_major;
 
 /*
- * Initialize pvfs2 device specific state:
+ * Initialize orangefs device specific state:
  * Must be called at module load time only
  */
-int pvfs2_dev_init(void)
+int orangefs_dev_init(void)
 {
 	int ret;
 
 	/* register the ioctl32 sub-system */
-	ret = pvfs2_ioctl32_init();
+	ret = orangefs_ioctl32_init();
 	if (ret < 0)
 		return ret;
 
-	/* register pvfs2-req device  */
-	pvfs2_dev_major = register_chrdev(0,
-					  PVFS2_REQDEVICE_NAME,
-					  &pvfs2_devreq_file_operations);
-	if (pvfs2_dev_major < 0) {
+	/* register orangefs-req device  */
+	orangefs_dev_major = register_chrdev(0,
+					  ORANGEFS_REQDEVICE_NAME,
+					  &orangefs_devreq_file_operations);
+	if (orangefs_dev_major < 0) {
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "Failed to register /dev/%s (error %d)\n",
-			     PVFS2_REQDEVICE_NAME, pvfs2_dev_major);
-		pvfs2_ioctl32_cleanup();
-		return pvfs2_dev_major;
+			     ORANGEFS_REQDEVICE_NAME, orangefs_dev_major);
+		orangefs_ioctl32_cleanup();
+		return orangefs_dev_major;
 	}
 
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "*** /dev/%s character device registered ***\n",
-		     PVFS2_REQDEVICE_NAME);
+		     ORANGEFS_REQDEVICE_NAME);
 	gossip_debug(GOSSIP_DEV_DEBUG, "'mknod /dev/%s c %d 0'.\n",
-		     PVFS2_REQDEVICE_NAME, pvfs2_dev_major);
+		     ORANGEFS_REQDEVICE_NAME, orangefs_dev_major);
 	return 0;
 }
 
-void pvfs2_dev_cleanup(void)
+void orangefs_dev_cleanup(void)
 {
-	unregister_chrdev(pvfs2_dev_major, PVFS2_REQDEVICE_NAME);
+	unregister_chrdev(orangefs_dev_major, ORANGEFS_REQDEVICE_NAME);
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "*** /dev/%s character device unregistered ***\n",
-		     PVFS2_REQDEVICE_NAME);
+		     ORANGEFS_REQDEVICE_NAME);
 	/* unregister the ioctl32 sub-system */
-	pvfs2_ioctl32_cleanup();
+	orangefs_ioctl32_cleanup();
 }
 
-static unsigned int pvfs2_devreq_poll(struct file *file,
+static unsigned int orangefs_devreq_poll(struct file *file,
 				      struct poll_table_struct *poll_table)
 {
 	int poll_revent_mask = 0;
 
 	if (open_access_count == 1) {
-		poll_wait(file, &pvfs2_request_list_waitq, poll_table);
+		poll_wait(file, &orangefs_request_list_waitq, poll_table);
 
-		spin_lock(&pvfs2_request_list_lock);
-		if (!list_empty(&pvfs2_request_list))
+		spin_lock(&orangefs_request_list_lock);
+		if (!list_empty(&orangefs_request_list))
 			poll_revent_mask |= POLL_IN;
-		spin_unlock(&pvfs2_request_list_lock);
+		spin_unlock(&orangefs_request_list_lock);
 	}
 	return poll_revent_mask;
 }
 
-const struct file_operations pvfs2_devreq_file_operations = {
+const struct file_operations orangefs_devreq_file_operations = {
 	.owner = THIS_MODULE,
-	.read = pvfs2_devreq_read,
-	.write_iter = pvfs2_devreq_write_iter,
-	.open = pvfs2_devreq_open,
-	.release = pvfs2_devreq_release,
-	.unlocked_ioctl = pvfs2_devreq_ioctl,
+	.read = orangefs_devreq_read,
+	.write_iter = orangefs_devreq_write_iter,
+	.open = orangefs_devreq_open,
+	.release = orangefs_devreq_release,
+	.unlocked_ioctl = orangefs_devreq_ioctl,
 
 #ifdef CONFIG_COMPAT		/* CONFIG_COMPAT is in .config */
-	.compat_ioctl = pvfs2_devreq_compat_ioctl,
+	.compat_ioctl = orangefs_devreq_compat_ioctl,
 #endif
-	.poll = pvfs2_devreq_poll
+	.poll = orangefs_devreq_poll
 };

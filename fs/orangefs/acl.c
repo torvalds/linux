@@ -10,7 +10,7 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/fs_struct.h>
 
-struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
+struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 {
 	struct posix_acl *acl;
 	int ret;
@@ -18,23 +18,23 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		key = PVFS2_XATTR_NAME_ACL_ACCESS;
+		key = ORANGEFS_XATTR_NAME_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		key = PVFS2_XATTR_NAME_ACL_DEFAULT;
+		key = ORANGEFS_XATTR_NAME_ACL_DEFAULT;
 		break;
 	default:
-		gossip_err("pvfs2_get_acl: bogus value of type %d\n", type);
+		gossip_err("orangefs_get_acl: bogus value of type %d\n", type);
 		return ERR_PTR(-EINVAL);
 	}
 	/*
 	 * Rather than incurring a network call just to determine the exact
 	 * length of the attribute, I just allocate a max length to save on
 	 * the network call. Conceivably, we could pass NULL to
-	 * pvfs2_inode_getxattr() to probe the length of the value, but
+	 * orangefs_inode_getxattr() to probe the length of the value, but
 	 * I don't do that for now.
 	 */
-	value = kmalloc(PVFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
+	value = kmalloc(ORANGEFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
 	if (value == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -43,11 +43,11 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 		     get_khandle_from_ino(inode),
 		     key,
 		     type);
-	ret = pvfs2_inode_getxattr(inode,
+	ret = orangefs_inode_getxattr(inode,
 				   "",
 				   key,
 				   value,
-				   PVFS_MAX_XATTR_VALUELEN);
+				   ORANGEFS_MAX_XATTR_VALUELEN);
 	/* if the key exists, convert it to an in-memory rep */
 	if (ret > 0) {
 		acl = posix_acl_from_xattr(&init_user_ns, value, ret);
@@ -64,9 +64,9 @@ struct posix_acl *pvfs2_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	int error = 0;
 	void *value = NULL;
 	size_t size = 0;
@@ -74,7 +74,7 @@ int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = PVFS2_XATTR_NAME_ACL_ACCESS;
+		name = ORANGEFS_XATTR_NAME_ACL_ACCESS;
 		if (acl) {
 			umode_t mode = inode->i_mode;
 			/*
@@ -90,7 +90,7 @@ int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			}
 
 			if (inode->i_mode != mode)
-				SetModeFlag(pvfs2_inode);
+				SetModeFlag(orangefs_inode);
 			inode->i_mode = mode;
 			mark_inode_dirty_sync(inode);
 			if (error == 0)
@@ -98,7 +98,7 @@ int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		}
 		break;
 	case ACL_TYPE_DEFAULT:
-		name = PVFS2_XATTR_NAME_ACL_DEFAULT;
+		name = ORANGEFS_XATTR_NAME_ACL_DEFAULT;
 		break;
 	default:
 		gossip_err("%s: invalid type %d!\n", __func__, type);
@@ -131,7 +131,7 @@ int pvfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	 * will xlate to a removexattr. However, we don't want removexattr
 	 * complain if attributes does not exist.
 	 */
-	error = pvfs2_inode_setxattr(inode, "", name, value, size, 0);
+	error = orangefs_inode_setxattr(inode, "", name, value, size, 0);
 
 out:
 	kfree(value);
@@ -140,35 +140,35 @@ out:
 	return error;
 }
 
-int pvfs2_init_acl(struct inode *inode, struct inode *dir)
+int orangefs_init_acl(struct inode *inode, struct inode *dir)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct posix_acl *default_acl, *acl;
 	umode_t mode = inode->i_mode;
 	int error = 0;
 
-	ClearModeFlag(pvfs2_inode);
+	ClearModeFlag(orangefs_inode);
 
 	error = posix_acl_create(dir, &mode, &default_acl, &acl);
 	if (error)
 		return error;
 
 	if (default_acl) {
-		error = pvfs2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = orangefs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
 	}
 
 	if (acl) {
 		if (!error)
-			error = pvfs2_set_acl(inode, acl, ACL_TYPE_ACCESS);
+			error = orangefs_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
 	}
 
 	/* If mode of the inode was changed, then do a forcible ->setattr */
 	if (mode != inode->i_mode) {
-		SetModeFlag(pvfs2_inode);
+		SetModeFlag(orangefs_inode);
 		inode->i_mode = mode;
-		pvfs2_flush_inode(inode);
+		orangefs_flush_inode(inode);
 	}
 
 	return error;

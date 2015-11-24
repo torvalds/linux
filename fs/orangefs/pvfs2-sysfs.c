@@ -669,13 +669,13 @@ static ssize_t sysfs_int_show(char *kobj_id, char *buf, void *attr)
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
 				       "%lu\n",
-				       g_pvfs2_stats.reads);
+				       g_orangefs_stats.reads);
 			goto out;
 		} else if (!strcmp(stats_orangefs_attr->attr.name, "writes")) {
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
 				       "%lu\n",
-				       g_pvfs2_stats.writes);
+				       g_orangefs_stats.writes);
 			goto out;
 		} else {
 			goto out;
@@ -752,7 +752,7 @@ out:
  */
 static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 {
-	struct pvfs2_kernel_op_s *new_op = NULL;
+	struct orangefs_kernel_op_s *new_op = NULL;
 	int rc = 0;
 	char *ser_op_type = NULL;
 	struct orangefs_attribute *orangefs_attr;
@@ -768,9 +768,9 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 		     kobj_id);
 
 	if (strcmp(kobj_id, PC_KOBJ_ID))
-		op_alloc_type = PVFS2_VFS_OP_PARAM;
+		op_alloc_type = ORANGEFS_VFS_OP_PARAM;
 	else
-		op_alloc_type = PVFS2_VFS_OP_PERF_COUNT;
+		op_alloc_type = ORANGEFS_VFS_OP_PERF_COUNT;
 
 	new_op = op_alloc(op_alloc_type);
 	if (!new_op) {
@@ -788,113 +788,113 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 	}
 
 	if (strcmp(kobj_id, PC_KOBJ_ID))
-		new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_GET;
+		new_op->upcall.req.param.type = ORANGEFS_PARAM_REQUEST_GET;
 
 	if (!strcmp(kobj_id, ORANGEFS_KOBJ_ID)) {
 		orangefs_attr = (struct orangefs_attribute *)attr;
 
 		if (!strcmp(orangefs_attr->attr.name, "perf_history_size"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_PERF_HISTORY_SIZE;
+				ORANGEFS_PARAM_REQUEST_OP_PERF_HISTORY_SIZE;
 		else if (!strcmp(orangefs_attr->attr.name,
 				 "perf_time_interval_secs"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_PERF_TIME_INTERVAL_SECS;
+				ORANGEFS_PARAM_REQUEST_OP_PERF_TIME_INTERVAL_SECS;
 		else if (!strcmp(orangefs_attr->attr.name,
 				 "perf_counter_reset"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_PERF_RESET;
+				ORANGEFS_PARAM_REQUEST_OP_PERF_RESET;
 
 	} else if (!strcmp(kobj_id, ACACHE_KOBJ_ID)) {
 		acache_attr = (struct acache_orangefs_attribute *)attr;
 
 		if (!strcmp(acache_attr->attr.name, "timeout_msecs"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_ACACHE_TIMEOUT_MSECS;
+				ORANGEFS_PARAM_REQUEST_OP_ACACHE_TIMEOUT_MSECS;
 
 		if (!strcmp(acache_attr->attr.name, "hard_limit"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_ACACHE_HARD_LIMIT;
+				ORANGEFS_PARAM_REQUEST_OP_ACACHE_HARD_LIMIT;
 
 		if (!strcmp(acache_attr->attr.name, "soft_limit"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_ACACHE_SOFT_LIMIT;
+				ORANGEFS_PARAM_REQUEST_OP_ACACHE_SOFT_LIMIT;
 
 		if (!strcmp(acache_attr->attr.name, "reclaim_percentage"))
 			new_op->upcall.req.param.op =
-			  PVFS2_PARAM_REQUEST_OP_ACACHE_RECLAIM_PERCENTAGE;
+			  ORANGEFS_PARAM_REQUEST_OP_ACACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, CAPCACHE_KOBJ_ID)) {
 		capcache_attr = (struct capcache_orangefs_attribute *)attr;
 
 		if (!strcmp(capcache_attr->attr.name, "timeout_secs"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_CAPCACHE_TIMEOUT_SECS;
+				ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_TIMEOUT_SECS;
 
 		if (!strcmp(capcache_attr->attr.name, "hard_limit"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_CAPCACHE_HARD_LIMIT;
+				ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_HARD_LIMIT;
 
 		if (!strcmp(capcache_attr->attr.name, "soft_limit"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT;
+				ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT;
 
 		if (!strcmp(capcache_attr->attr.name, "reclaim_percentage"))
 			new_op->upcall.req.param.op =
-			  PVFS2_PARAM_REQUEST_OP_CAPCACHE_RECLAIM_PERCENTAGE;
+			  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, CCACHE_KOBJ_ID)) {
 		ccache_attr = (struct ccache_orangefs_attribute *)attr;
 
 		if (!strcmp(ccache_attr->attr.name, "timeout_secs"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_CCACHE_TIMEOUT_SECS;
+				ORANGEFS_PARAM_REQUEST_OP_CCACHE_TIMEOUT_SECS;
 
 		if (!strcmp(ccache_attr->attr.name, "hard_limit"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_CCACHE_HARD_LIMIT;
+				ORANGEFS_PARAM_REQUEST_OP_CCACHE_HARD_LIMIT;
 
 		if (!strcmp(ccache_attr->attr.name, "soft_limit"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_CCACHE_SOFT_LIMIT;
+				ORANGEFS_PARAM_REQUEST_OP_CCACHE_SOFT_LIMIT;
 
 		if (!strcmp(ccache_attr->attr.name, "reclaim_percentage"))
 			new_op->upcall.req.param.op =
-			  PVFS2_PARAM_REQUEST_OP_CCACHE_RECLAIM_PERCENTAGE;
+			  ORANGEFS_PARAM_REQUEST_OP_CCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, NCACHE_KOBJ_ID)) {
 		ncache_attr = (struct ncache_orangefs_attribute *)attr;
 
 		if (!strcmp(ncache_attr->attr.name, "timeout_msecs"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_NCACHE_TIMEOUT_MSECS;
+				ORANGEFS_PARAM_REQUEST_OP_NCACHE_TIMEOUT_MSECS;
 
 		if (!strcmp(ncache_attr->attr.name, "hard_limit"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_NCACHE_HARD_LIMIT;
+				ORANGEFS_PARAM_REQUEST_OP_NCACHE_HARD_LIMIT;
 
 		if (!strcmp(ncache_attr->attr.name, "soft_limit"))
 			new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_NCACHE_SOFT_LIMIT;
+				ORANGEFS_PARAM_REQUEST_OP_NCACHE_SOFT_LIMIT;
 
 		if (!strcmp(ncache_attr->attr.name, "reclaim_percentage"))
 			new_op->upcall.req.param.op =
-			  PVFS2_PARAM_REQUEST_OP_NCACHE_RECLAIM_PERCENTAGE;
+			  ORANGEFS_PARAM_REQUEST_OP_NCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, PC_KOBJ_ID)) {
 		pc_attr = (struct pc_orangefs_attribute *)attr;
 
 		if (!strcmp(pc_attr->attr.name, ACACHE_KOBJ_ID))
 			new_op->upcall.req.perf_count.type =
-				PVFS2_PERF_COUNT_REQUEST_ACACHE;
+				ORANGEFS_PERF_COUNT_REQUEST_ACACHE;
 
 		if (!strcmp(pc_attr->attr.name, CAPCACHE_KOBJ_ID))
 			new_op->upcall.req.perf_count.type =
-				PVFS2_PERF_COUNT_REQUEST_CAPCACHE;
+				ORANGEFS_PERF_COUNT_REQUEST_CAPCACHE;
 
 		if (!strcmp(pc_attr->attr.name, NCACHE_KOBJ_ID))
 			new_op->upcall.req.perf_count.type =
-				PVFS2_PERF_COUNT_REQUEST_NCACHE;
+				ORANGEFS_PERF_COUNT_REQUEST_NCACHE;
 
 	} else {
 		gossip_err("sysfs_service_op_show: unknown kobj_id:%s:\n",
@@ -905,15 +905,15 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 
 
 	if (strcmp(kobj_id, PC_KOBJ_ID))
-		ser_op_type = "pvfs2_param";
+		ser_op_type = "orangefs_param";
 	else
-		ser_op_type = "pvfs2_perf_count";
+		ser_op_type = "orangefs_perf_count";
 
 	/*
 	 * The service_operation will return an errno return code on
 	 * error, and zero on success.
 	 */
-	rc = service_operation(new_op, ser_op_type, PVFS2_OP_INTERRUPTIBLE);
+	rc = service_operation(new_op, ser_op_type, ORANGEFS_OP_INTERRUPTIBLE);
 
 out:
 	if (!rc) {
@@ -1025,7 +1025,7 @@ static ssize_t
  */
 static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 {
-	struct pvfs2_kernel_op_s *new_op = NULL;
+	struct orangefs_kernel_op_s *new_op = NULL;
 	int val = 0;
 	int rc = 0;
 	struct orangefs_attribute *orangefs_attr;
@@ -1038,7 +1038,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		     "sysfs_service_op_store: id:%s:\n",
 		     kobj_id);
 
-	new_op = op_alloc(PVFS2_VFS_OP_PARAM);
+	new_op = op_alloc(ORANGEFS_VFS_OP_PARAM);
 	if (!new_op) {
 		rc = -ENOMEM;
 		goto out;
@@ -1066,7 +1066,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		if (!strcmp(orangefs_attr->attr.name, "perf_history_size")) {
 			if (val > 0) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_PERF_HISTORY_SIZE;
+				  ORANGEFS_PARAM_REQUEST_OP_PERF_HISTORY_SIZE;
 			} else {
 				rc = 0;
 				goto out;
@@ -1075,7 +1075,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				   "perf_time_interval_secs")) {
 			if (val > 0) {
 				new_op->upcall.req.param.op =
-				PVFS2_PARAM_REQUEST_OP_PERF_TIME_INTERVAL_SECS;
+				ORANGEFS_PARAM_REQUEST_OP_PERF_TIME_INTERVAL_SECS;
 			} else {
 				rc = 0;
 				goto out;
@@ -1084,7 +1084,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				   "perf_counter_reset")) {
 			if ((val == 0) || (val == 1)) {
 				new_op->upcall.req.param.op =
-					PVFS2_PARAM_REQUEST_OP_PERF_RESET;
+					ORANGEFS_PARAM_REQUEST_OP_PERF_RESET;
 			} else {
 				rc = 0;
 				goto out;
@@ -1097,7 +1097,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		if (!strcmp(acache_attr->attr.name, "hard_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_ACACHE_HARD_LIMIT;
+				  ORANGEFS_PARAM_REQUEST_OP_ACACHE_HARD_LIMIT;
 			} else {
 				rc = 0;
 				goto out;
@@ -1105,7 +1105,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		} else if (!strcmp(acache_attr->attr.name, "soft_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_ACACHE_SOFT_LIMIT;
+				  ORANGEFS_PARAM_REQUEST_OP_ACACHE_SOFT_LIMIT;
 			} else {
 				rc = 0;
 				goto out;
@@ -1114,7 +1114,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				   "reclaim_percentage")) {
 			if ((val > -1) && (val < 101)) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_ACACHE_RECLAIM_PERCENTAGE;
+				  ORANGEFS_PARAM_REQUEST_OP_ACACHE_RECLAIM_PERCENTAGE;
 			} else {
 				rc = 0;
 				goto out;
@@ -1122,7 +1122,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		} else if (!strcmp(acache_attr->attr.name, "timeout_msecs")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_ACACHE_TIMEOUT_MSECS;
+				  ORANGEFS_PARAM_REQUEST_OP_ACACHE_TIMEOUT_MSECS;
 			} else {
 				rc = 0;
 				goto out;
@@ -1135,7 +1135,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		if (!strcmp(capcache_attr->attr.name, "hard_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_CAPCACHE_HARD_LIMIT;
+				  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_HARD_LIMIT;
 			} else {
 				rc = 0;
 				goto out;
@@ -1143,7 +1143,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		} else if (!strcmp(capcache_attr->attr.name, "soft_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT;
+				  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT;
 			} else {
 				rc = 0;
 				goto out;
@@ -1152,7 +1152,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				   "reclaim_percentage")) {
 			if ((val > -1) && (val < 101)) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_CAPCACHE_RECLAIM_PERCENTAGE;
+				  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_RECLAIM_PERCENTAGE;
 			} else {
 				rc = 0;
 				goto out;
@@ -1160,7 +1160,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		} else if (!strcmp(capcache_attr->attr.name, "timeout_secs")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_CAPCACHE_TIMEOUT_SECS;
+				  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_TIMEOUT_SECS;
 			} else {
 				rc = 0;
 				goto out;
@@ -1173,7 +1173,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		if (!strcmp(ccache_attr->attr.name, "hard_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_CCACHE_HARD_LIMIT;
+				  ORANGEFS_PARAM_REQUEST_OP_CCACHE_HARD_LIMIT;
 			} else {
 				rc = 0;
 				goto out;
@@ -1181,7 +1181,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		} else if (!strcmp(ccache_attr->attr.name, "soft_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_CCACHE_SOFT_LIMIT;
+				  ORANGEFS_PARAM_REQUEST_OP_CCACHE_SOFT_LIMIT;
 			} else {
 				rc = 0;
 				goto out;
@@ -1190,7 +1190,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				   "reclaim_percentage")) {
 			if ((val > -1) && (val < 101)) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_CCACHE_RECLAIM_PERCENTAGE;
+				  ORANGEFS_PARAM_REQUEST_OP_CCACHE_RECLAIM_PERCENTAGE;
 			} else {
 				rc = 0;
 				goto out;
@@ -1198,7 +1198,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		} else if (!strcmp(ccache_attr->attr.name, "timeout_secs")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_CCACHE_TIMEOUT_SECS;
+				  ORANGEFS_PARAM_REQUEST_OP_CCACHE_TIMEOUT_SECS;
 			} else {
 				rc = 0;
 				goto out;
@@ -1211,7 +1211,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		if (!strcmp(ncache_attr->attr.name, "hard_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_NCACHE_HARD_LIMIT;
+				  ORANGEFS_PARAM_REQUEST_OP_NCACHE_HARD_LIMIT;
 			} else {
 				rc = 0;
 				goto out;
@@ -1219,7 +1219,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		} else if (!strcmp(ncache_attr->attr.name, "soft_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_NCACHE_SOFT_LIMIT;
+				  ORANGEFS_PARAM_REQUEST_OP_NCACHE_SOFT_LIMIT;
 			} else {
 				rc = 0;
 				goto out;
@@ -1228,7 +1228,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				   "reclaim_percentage")) {
 			if ((val > -1) && (val < 101)) {
 				new_op->upcall.req.param.op =
-					PVFS2_PARAM_REQUEST_OP_NCACHE_RECLAIM_PERCENTAGE;
+					ORANGEFS_PARAM_REQUEST_OP_NCACHE_RECLAIM_PERCENTAGE;
 			} else {
 				rc = 0;
 				goto out;
@@ -1236,7 +1236,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		} else if (!strcmp(ncache_attr->attr.name, "timeout_msecs")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
-				  PVFS2_PARAM_REQUEST_OP_NCACHE_TIMEOUT_MSECS;
+				  ORANGEFS_PARAM_REQUEST_OP_NCACHE_TIMEOUT_MSECS;
 			} else {
 				rc = 0;
 				goto out;
@@ -1250,7 +1250,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		goto out;
 	}
 
-	new_op->upcall.req.param.type = PVFS2_PARAM_REQUEST_SET;
+	new_op->upcall.req.param.type = ORANGEFS_PARAM_REQUEST_SET;
 
 	new_op->upcall.req.param.value = val;
 
@@ -1258,7 +1258,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 	 * The service_operation will return a errno return code on
 	 * error, and zero on success.
 	 */
-	rc = service_operation(new_op, "pvfs2_param", PVFS2_OP_INTERRUPTIBLE);
+	rc = service_operation(new_op, "orangefs_param", ORANGEFS_OP_INTERRUPTIBLE);
 
 	if (rc < 0) {
 		gossip_err("sysfs_service_op_store: service op returned:%d:\n",

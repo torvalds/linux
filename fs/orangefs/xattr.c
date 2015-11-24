@@ -15,8 +15,8 @@
 #include <linux/xattr.h>
 
 
-#define SYSTEM_PVFS2_KEY "system.pvfs2."
-#define SYSTEM_PVFS2_KEY_LEN 13
+#define SYSTEM_ORANGEFS_KEY "system.pvfs2."
+#define SYSTEM_ORANGEFS_KEY_LEN 13
 
 /*
  * this function returns
@@ -24,15 +24,15 @@
  *     of a listxattr.
  *   1 if the key corresponding to name is meant to be returned as part of
  *     a listxattr.
- * The ones that start SYSTEM_PVFS2_KEY are the ones to avoid printing.
+ * The ones that start SYSTEM_ORANGEFS_KEY are the ones to avoid printing.
  */
 static int is_reserved_key(const char *key, size_t size)
 {
 
-	if (size < SYSTEM_PVFS2_KEY_LEN)
+	if (size < SYSTEM_ORANGEFS_KEY_LEN)
 		return 1;
 
-	return strncmp(key, SYSTEM_PVFS2_KEY, SYSTEM_PVFS2_KEY_LEN) ?  1 : 0;
+	return strncmp(key, SYSTEM_ORANGEFS_KEY, SYSTEM_ORANGEFS_KEY_LEN) ?  1 : 0;
 }
 
 static inline int convert_to_internal_xattr_flags(int setxattr_flags)
@@ -41,10 +41,10 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
 
 	if (setxattr_flags & XATTR_REPLACE) {
 		/* Attribute must exist! */
-		internal_flag = PVFS_XATTR_REPLACE;
+		internal_flag = ORANGEFS_XATTR_REPLACE;
 	} else if (setxattr_flags & XATTR_CREATE) {
 		/* Attribute must not exist */
-		internal_flag = PVFS_XATTR_CREATE;
+		internal_flag = ORANGEFS_XATTR_CREATE;
 	}
 	return internal_flag;
 }
@@ -59,11 +59,11 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
  * unless the key does not exist for the file and/or if
  * there were errors in fetching the attribute value.
  */
-ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
+ssize_t orangefs_inode_getxattr(struct inode *inode, const char *prefix,
 		const char *name, void *buffer, size_t size)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
-	struct pvfs2_kernel_op_s *new_op = NULL;
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_kernel_op_s *new_op = NULL;
 	ssize_t ret = -ENOMEM;
 	ssize_t length = 0;
 	int fsuid;
@@ -74,10 +74,10 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 		     __func__, prefix, name, size);
 
 	if (name == NULL || (size > 0 && buffer == NULL)) {
-		gossip_err("pvfs2_inode_getxattr: bogus NULL pointers\n");
+		gossip_err("orangefs_inode_getxattr: bogus NULL pointers\n");
 		return -EINVAL;
 	}
-	if ((strlen(name) + strlen(prefix)) >= PVFS_MAX_XATTR_NAMELEN) {
+	if ((strlen(name) + strlen(prefix)) >= ORANGEFS_MAX_XATTR_NAMELEN) {
 		gossip_err("Invalid key length (%d)\n",
 			   (int)(strlen(name) + strlen(prefix)));
 		return -EINVAL;
@@ -94,15 +94,15 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 		     fsuid,
 		     fsgid);
 
-	down_read(&pvfs2_inode->xattr_sem);
+	down_read(&orangefs_inode->xattr_sem);
 
-	new_op = op_alloc(PVFS2_VFS_OP_GETXATTR);
+	new_op = op_alloc(ORANGEFS_VFS_OP_GETXATTR);
 	if (!new_op)
 		goto out_unlock;
 
-	new_op->upcall.req.getxattr.refn = pvfs2_inode->refn;
+	new_op->upcall.req.getxattr.refn = orangefs_inode->refn;
 	ret = snprintf((char *)new_op->upcall.req.getxattr.key,
-		       PVFS_MAX_XATTR_NAMELEN, "%s%s", prefix, name);
+		       ORANGEFS_MAX_XATTR_NAMELEN, "%s%s", prefix, name);
 
 	/*
 	 * NOTE: Although keys are meant to be NULL terminated textual
@@ -111,13 +111,13 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 	 */
 	new_op->upcall.req.getxattr.key_sz = ret + 1;
 
-	ret = service_operation(new_op, "pvfs2_inode_getxattr",
+	ret = service_operation(new_op, "orangefs_inode_getxattr",
 				get_interruptible_flag(inode));
 	if (ret != 0) {
 		if (ret == -ENOENT) {
 			ret = -ENODATA;
 			gossip_debug(GOSSIP_XATTR_DEBUG,
-				     "pvfs2_inode_getxattr: inode %pU key %s"
+				     "orangefs_inode_getxattr: inode %pU key %s"
 				     " does not exist!\n",
 				     get_khandle_from_ino(inode),
 				     (char *)new_op->upcall.req.getxattr.key);
@@ -149,7 +149,7 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 	memset(buffer, 0, size);
 	memcpy(buffer, new_op->downcall.resp.getxattr.val, length);
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-	     "pvfs2_inode_getxattr: inode %pU "
+	     "orangefs_inode_getxattr: inode %pU "
 	     "key %s key_sz %d, val_len %d\n",
 	     get_khandle_from_ino(inode),
 	     (char *)new_op->
@@ -163,44 +163,44 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 out_release_op:
 	op_release(new_op);
 out_unlock:
-	up_read(&pvfs2_inode->xattr_sem);
+	up_read(&orangefs_inode->xattr_sem);
 	return ret;
 }
 
-static int pvfs2_inode_removexattr(struct inode *inode,
+static int orangefs_inode_removexattr(struct inode *inode,
 			    const char *prefix,
 			    const char *name,
 			    int flags)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
-	struct pvfs2_kernel_op_s *new_op = NULL;
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_kernel_op_s *new_op = NULL;
 	int ret = -ENOMEM;
 
-	down_write(&pvfs2_inode->xattr_sem);
-	new_op = op_alloc(PVFS2_VFS_OP_REMOVEXATTR);
+	down_write(&orangefs_inode->xattr_sem);
+	new_op = op_alloc(ORANGEFS_VFS_OP_REMOVEXATTR);
 	if (!new_op)
 		goto out_unlock;
 
-	new_op->upcall.req.removexattr.refn = pvfs2_inode->refn;
+	new_op->upcall.req.removexattr.refn = orangefs_inode->refn;
 	/*
 	 * NOTE: Although keys are meant to be NULL terminated
 	 * textual strings, I am going to explicitly pass the
 	 * length just in case we change this later on...
 	 */
 	ret = snprintf((char *)new_op->upcall.req.removexattr.key,
-		       PVFS_MAX_XATTR_NAMELEN,
+		       ORANGEFS_MAX_XATTR_NAMELEN,
 		       "%s%s",
 		       (prefix ? prefix : ""),
 		       name);
 	new_op->upcall.req.removexattr.key_sz = ret + 1;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "pvfs2_inode_removexattr: key %s, key_sz %d\n",
+		     "orangefs_inode_removexattr: key %s, key_sz %d\n",
 		     (char *)new_op->upcall.req.removexattr.key,
 		     (int)new_op->upcall.req.removexattr.key_sz);
 
 	ret = service_operation(new_op,
-				"pvfs2_inode_removexattr",
+				"orangefs_inode_removexattr",
 				get_interruptible_flag(inode));
 	if (ret == -ENOENT) {
 		/*
@@ -213,11 +213,11 @@ static int pvfs2_inode_removexattr(struct inode *inode,
 	}
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "pvfs2_inode_removexattr: returning %d\n", ret);
+		     "orangefs_inode_removexattr: returning %d\n", ret);
 
 	op_release(new_op);
 out_unlock:
-	up_write(&pvfs2_inode->xattr_sem);
+	up_write(&orangefs_inode->xattr_sem);
 	return ret;
 }
 
@@ -227,11 +227,11 @@ out_unlock:
  * Returns a -ve number on error and 0 on success.  Key is text, but value
  * can be binary!
  */
-int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
+int orangefs_inode_setxattr(struct inode *inode, const char *prefix,
 		const char *name, const void *value, size_t size, int flags)
 {
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_kernel_op_s *new_op;
 	int internal_flag = 0;
 	int ret = -ENOMEM;
 
@@ -240,9 +240,9 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 		     __func__, prefix, name, size);
 
 	if (size < 0 ||
-	    size >= PVFS_MAX_XATTR_VALUELEN ||
+	    size >= ORANGEFS_MAX_XATTR_VALUELEN ||
 	    flags < 0) {
-		gossip_err("pvfs2_inode_setxattr: bogus values of size(%d), flags(%d)\n",
+		gossip_err("orangefs_inode_setxattr: bogus values of size(%d), flags(%d)\n",
 			   (int)size,
 			   flags);
 		return -EINVAL;
@@ -250,23 +250,23 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 
 	if (name == NULL ||
 	    (size > 0 && value == NULL)) {
-		gossip_err("pvfs2_inode_setxattr: bogus NULL pointers!\n");
+		gossip_err("orangefs_inode_setxattr: bogus NULL pointers!\n");
 		return -EINVAL;
 	}
 
 	internal_flag = convert_to_internal_xattr_flags(flags);
 
 	if (prefix) {
-		if (strlen(name) + strlen(prefix) >= PVFS_MAX_XATTR_NAMELEN) {
+		if (strlen(name) + strlen(prefix) >= ORANGEFS_MAX_XATTR_NAMELEN) {
 			gossip_err
-			    ("pvfs2_inode_setxattr: bogus key size (%d)\n",
+			    ("orangefs_inode_setxattr: bogus key size (%d)\n",
 			     (int)(strlen(name) + strlen(prefix)));
 			return -EINVAL;
 		}
 	} else {
-		if (strlen(name) >= PVFS_MAX_XATTR_NAMELEN) {
+		if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN) {
 			gossip_err
-			    ("pvfs2_inode_setxattr: bogus key size (%d)\n",
+			    ("orangefs_inode_setxattr: bogus key size (%d)\n",
 			     (int)(strlen(name)));
 			return -EINVAL;
 		}
@@ -278,7 +278,7 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 			     "removing xattr (%s%s)\n",
 			     prefix,
 			     name);
-		return pvfs2_inode_removexattr(inode, prefix, name, flags);
+		return orangefs_inode_removexattr(inode, prefix, name, flags);
 	}
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
@@ -286,13 +286,13 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 		     get_khandle_from_ino(inode),
 		     name);
 
-	down_write(&pvfs2_inode->xattr_sem);
-	new_op = op_alloc(PVFS2_VFS_OP_SETXATTR);
+	down_write(&orangefs_inode->xattr_sem);
+	new_op = op_alloc(ORANGEFS_VFS_OP_SETXATTR);
 	if (!new_op)
 		goto out_unlock;
 
 
-	new_op->upcall.req.setxattr.refn = pvfs2_inode->refn;
+	new_op->upcall.req.setxattr.refn = orangefs_inode->refn;
 	new_op->upcall.req.setxattr.flags = internal_flag;
 	/*
 	 * NOTE: Although keys are meant to be NULL terminated textual
@@ -300,7 +300,7 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 	 * case we change this later on...
 	 */
 	ret = snprintf((char *)new_op->upcall.req.setxattr.keyval.key,
-		       PVFS_MAX_XATTR_NAMELEN,
+		       ORANGEFS_MAX_XATTR_NAMELEN,
 		       "%s%s",
 		       prefix, name);
 	new_op->upcall.req.setxattr.keyval.key_sz = ret + 1;
@@ -308,24 +308,24 @@ int pvfs2_inode_setxattr(struct inode *inode, const char *prefix,
 	new_op->upcall.req.setxattr.keyval.val_sz = size;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "pvfs2_inode_setxattr: key %s, key_sz %d "
+		     "orangefs_inode_setxattr: key %s, key_sz %d "
 		     " value size %zd\n",
 		     (char *)new_op->upcall.req.setxattr.keyval.key,
 		     (int)new_op->upcall.req.setxattr.keyval.key_sz,
 		     size);
 
 	ret = service_operation(new_op,
-				"pvfs2_inode_setxattr",
+				"orangefs_inode_setxattr",
 				get_interruptible_flag(inode));
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "pvfs2_inode_setxattr: returning %d\n",
+		     "orangefs_inode_setxattr: returning %d\n",
 		     ret);
 
 	/* when request is serviced properly, free req op struct */
 	op_release(new_op);
 out_unlock:
-	up_write(&pvfs2_inode->xattr_sem);
+	up_write(&orangefs_inode->xattr_sem);
 	return ret;
 }
 
@@ -336,12 +336,12 @@ out_unlock:
  * subsequent memory allocations. Thus our return value is always the size of
  * all the keys unless there were errors in fetching the keys!
  */
-ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
+ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	struct inode *inode = dentry->d_inode;
-	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
-	struct pvfs2_kernel_op_s *new_op;
-	__u64 token = PVFS_ITERATE_START;
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_kernel_op_s *new_op;
+	__u64 token = ORANGEFS_ITERATE_START;
 	ssize_t ret = -ENOMEM;
 	ssize_t total = 0;
 	ssize_t length = 0;
@@ -358,8 +358,8 @@ ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		return -EINVAL;
 	}
 
-	down_read(&pvfs2_inode->xattr_sem);
-	new_op = op_alloc(PVFS2_VFS_OP_LISTXATTR);
+	down_read(&orangefs_inode->xattr_sem);
+	new_op = op_alloc(ORANGEFS_VFS_OP_LISTXATTR);
 	if (!new_op)
 		goto out_unlock;
 
@@ -368,10 +368,10 @@ ssize_t pvfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 try_again:
 	key_size = 0;
-	new_op->upcall.req.listxattr.refn = pvfs2_inode->refn;
+	new_op->upcall.req.listxattr.refn = orangefs_inode->refn;
 	new_op->upcall.req.listxattr.token = token;
 	new_op->upcall.req.listxattr.requested_count =
-	    (size == 0) ? 0 : PVFS_MAX_XATTR_LISTLEN;
+	    (size == 0) ? 0 : ORANGEFS_MAX_XATTR_LISTLEN;
 	ret = service_operation(new_op, __func__,
 				get_interruptible_flag(inode));
 	if (ret != 0)
@@ -384,7 +384,7 @@ try_again:
 		 * up allocating memory rather than us...
 		 */
 		total = new_op->downcall.resp.listxattr.returned_count *
-			PVFS_MAX_XATTR_NAMELEN;
+			ORANGEFS_MAX_XATTR_NAMELEN;
 		goto done;
 	}
 
@@ -429,7 +429,7 @@ try_again:
 	 * fetching more keys!
 	 */
 	token = new_op->downcall.resp.listxattr.token;
-	if (token != PVFS_ITERATE_END)
+	if (token != ORANGEFS_ITERATE_END)
 		goto try_again;
 
 done:
@@ -443,88 +443,88 @@ done:
 	if (ret == 0)
 		ret = total;
 out_unlock:
-	up_read(&pvfs2_inode->xattr_sem);
+	up_read(&orangefs_inode->xattr_sem);
 	return ret;
 }
 
-static int pvfs2_xattr_set_default(const struct xattr_handler *handler,
-				   struct dentry *dentry,
-				   const char *name,
-				   const void *buffer,
-				   size_t size,
-				   int flags)
+static int orangefs_xattr_set_default(const struct xattr_handler *handler,
+				      struct dentry *dentry,
+				      const char *name,
+				      const void *buffer,
+				      size_t size,
+				      int flags)
 {
-	return pvfs2_inode_setxattr(dentry->d_inode,
-				    PVFS2_XATTR_NAME_DEFAULT_PREFIX,
+	return orangefs_inode_setxattr(dentry->d_inode,
+				    ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
 				    name,
 				    buffer,
 				    size,
 				    flags);
 }
 
-static int pvfs2_xattr_get_default(const struct xattr_handler *handler,
-				   struct dentry *dentry,
-				   const char *name,
-				   void *buffer,
-				   size_t size)
+static int orangefs_xattr_get_default(const struct xattr_handler *handler,
+				      struct dentry *dentry,
+				      const char *name,
+				      void *buffer,
+				      size_t size)
 {
-	return pvfs2_inode_getxattr(dentry->d_inode,
-				    PVFS2_XATTR_NAME_DEFAULT_PREFIX,
+	return orangefs_inode_getxattr(dentry->d_inode,
+				    ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
 				    name,
 				    buffer,
 				    size);
 
 }
 
-static int pvfs2_xattr_set_trusted(const struct xattr_handler *handler,
-				   struct dentry *dentry,
-				   const char *name,
-				   const void *buffer,
-				   size_t size,
-				   int flags)
+static int orangefs_xattr_set_trusted(const struct xattr_handler *handler,
+				     struct dentry *dentry,
+				     const char *name,
+				     const void *buffer,
+				     size_t size,
+				     int flags)
 {
-	return pvfs2_inode_setxattr(dentry->d_inode,
-				    PVFS2_XATTR_NAME_TRUSTED_PREFIX,
+	return orangefs_inode_setxattr(dentry->d_inode,
+				    ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
 				    name,
 				    buffer,
 				    size,
 				    flags);
 }
 
-static int pvfs2_xattr_get_trusted(const struct xattr_handler *handler,
-				   struct dentry *dentry,
-				   const char *name,
-				   void *buffer,
-				   size_t size)
+static int orangefs_xattr_get_trusted(const struct xattr_handler *handler,
+				      struct dentry *dentry,
+				      const char *name,
+				      void *buffer,
+				      size_t size)
 {
-	return pvfs2_inode_getxattr(dentry->d_inode,
-				    PVFS2_XATTR_NAME_TRUSTED_PREFIX,
+	return orangefs_inode_getxattr(dentry->d_inode,
+				    ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
 				    name,
 				    buffer,
 				    size);
 }
 
-static struct xattr_handler pvfs2_xattr_trusted_handler = {
-	.prefix = PVFS2_XATTR_NAME_TRUSTED_PREFIX,
-	.get = pvfs2_xattr_get_trusted,
-	.set = pvfs2_xattr_set_trusted,
+static struct xattr_handler orangefs_xattr_trusted_handler = {
+	.prefix = ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
+	.get = orangefs_xattr_get_trusted,
+	.set = orangefs_xattr_set_trusted,
 };
 
-static struct xattr_handler pvfs2_xattr_default_handler = {
+static struct xattr_handler orangefs_xattr_default_handler = {
 	/*
 	 * NOTE: this is set to be the empty string.
 	 * so that all un-prefixed xattrs keys get caught
 	 * here!
 	 */
-	.prefix = PVFS2_XATTR_NAME_DEFAULT_PREFIX,
-	.get = pvfs2_xattr_get_default,
-	.set = pvfs2_xattr_set_default,
+	.prefix = ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
+	.get = orangefs_xattr_get_default,
+	.set = orangefs_xattr_set_default,
 };
 
-const struct xattr_handler *pvfs2_xattr_handlers[] = {
+const struct xattr_handler *orangefs_xattr_handlers[] = {
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
-	&pvfs2_xattr_trusted_handler,
-	&pvfs2_xattr_default_handler,
+	&orangefs_xattr_trusted_handler,
+	&orangefs_xattr_default_handler,
 	NULL
 };

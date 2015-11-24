@@ -12,27 +12,27 @@
 #include "pvfs2-kernel.h"
 
 /* Returns 1 if dentry can still be trusted, else 0. */
-static int pvfs2_revalidate_lookup(struct dentry *dentry)
+static int orangefs_revalidate_lookup(struct dentry *dentry)
 {
 	struct dentry *parent_dentry = dget_parent(dentry);
 	struct inode *parent_inode = parent_dentry->d_inode;
-	struct pvfs2_inode_s *parent = PVFS2_I(parent_inode);
+	struct orangefs_inode_s *parent = ORANGEFS_I(parent_inode);
 	struct inode *inode = dentry->d_inode;
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_kernel_op_s *new_op;
 	int ret = 0;
 	int err = 0;
 
 	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: attempting lookup.\n", __func__);
 
-	new_op = op_alloc(PVFS2_VFS_OP_LOOKUP);
+	new_op = op_alloc(ORANGEFS_VFS_OP_LOOKUP);
 	if (!new_op)
 		goto out_put_parent;
 
-	new_op->upcall.req.lookup.sym_follow = PVFS2_LOOKUP_LINK_NO_FOLLOW;
+	new_op->upcall.req.lookup.sym_follow = ORANGEFS_LOOKUP_LINK_NO_FOLLOW;
 	new_op->upcall.req.lookup.parent_refn = parent->refn;
 	strncpy(new_op->upcall.req.lookup.d_name,
 		dentry->d_name.name,
-		PVFS2_NAME_LEN);
+		ORANGEFS_NAME_LEN);
 
 	gossip_debug(GOSSIP_DCACHE_DEBUG,
 		     "%s:%s:%d interrupt flag [%d]\n",
@@ -41,7 +41,7 @@ static int pvfs2_revalidate_lookup(struct dentry *dentry)
 		     __LINE__,
 		     get_interruptible_flag(parent_inode));
 
-	err = service_operation(new_op, "pvfs2_lookup",
+	err = service_operation(new_op, "orangefs_lookup",
 			get_interruptible_flag(parent_inode));
 	if (err)
 		goto out_drop;
@@ -79,7 +79,7 @@ out_drop:
  *
  * Should return 1 if dentry can still be trusted, else 0
  */
-static int pvfs2_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct inode *inode;
 	int ret = 0;
@@ -105,7 +105,7 @@ static int pvfs2_d_revalidate(struct dentry *dentry, unsigned int flags)
 	 * exists, but is still in the expected place in the name space
 	 */
 	if (!is_root_handle(inode)) {
-		if (!pvfs2_revalidate_lookup(dentry))
+		if (!orangefs_revalidate_lookup(dentry))
 			goto invalid_exit;
 	} else {
 		gossip_debug(GOSSIP_DCACHE_DEBUG,
@@ -119,7 +119,7 @@ static int pvfs2_d_revalidate(struct dentry *dentry, unsigned int flags)
 		     __func__,
 		     inode,
 		     get_khandle_from_ino(inode));
-	ret = pvfs2_inode_getattr(inode, PVFS_ATTR_SYS_ALL_NOHINT);
+	ret = orangefs_inode_getattr(inode, ORANGEFS_ATTR_SYS_ALL_NOHINT);
 	gossip_debug(GOSSIP_DCACHE_DEBUG,
 		     "%s: getattr %s (ret = %d), returning %s for dentry i_count=%d\n",
 		     __func__,
@@ -137,6 +137,6 @@ invalid_exit:
 	return 0;
 }
 
-const struct dentry_operations pvfs2_dentry_operations = {
-	.d_revalidate = pvfs2_d_revalidate,
+const struct dentry_operations orangefs_dentry_operations = {
+	.d_revalidate = orangefs_d_revalidate,
 };

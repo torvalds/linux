@@ -14,34 +14,34 @@
 /*
  * Get a newly allocated inode to go with a negative dentry.
  */
-static int pvfs2_create(struct inode *dir,
+static int orangefs_create(struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode,
 			bool exclusive)
 {
-	struct pvfs2_inode_s *parent = PVFS2_I(dir);
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_kernel_op_s *new_op;
 	struct inode *inode;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG, "%s: called\n", __func__);
 
-	new_op = op_alloc(PVFS2_VFS_OP_CREATE);
+	new_op = op_alloc(ORANGEFS_VFS_OP_CREATE);
 	if (!new_op)
 		return -ENOMEM;
 
 	new_op->upcall.req.create.parent_refn = parent->refn;
 
 	fill_default_sys_attrs(new_op->upcall.req.create.attributes,
-			       PVFS_TYPE_METAFILE, mode);
+			       ORANGEFS_TYPE_METAFILE, mode);
 
 	strncpy(new_op->upcall.req.create.d_name,
-		dentry->d_name.name, PVFS2_NAME_LEN);
+		dentry->d_name.name, ORANGEFS_NAME_LEN);
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Create Got PVFS2 handle %pU on fsid %d (ret=%d)\n",
+		     "Create Got ORANGEFS handle %pU on fsid %d (ret=%d)\n",
 		     &new_op->downcall.resp.create.refn.khandle,
 		     new_op->downcall.resp.create.refn.fs_id, ret);
 
@@ -52,10 +52,10 @@ static int pvfs2_create(struct inode *dir,
 		goto out;
 	}
 
-	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
 				&new_op->downcall.resp.create.refn);
 	if (IS_ERR(inode)) {
-		gossip_err("*** Failed to allocate pvfs2 file inode\n");
+		gossip_err("*** Failed to allocate orangefs file inode\n");
 		ret = PTR_ERR(inode);
 		goto out;
 	}
@@ -86,11 +86,11 @@ out:
  * Attempt to resolve an object name (dentry->d_name), parent handle, and
  * fsid into a handle for the object.
  */
-static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
-	struct pvfs2_inode_s *parent = PVFS2_I(dir);
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_kernel_op_s *new_op;
 	struct inode *inode;
 	struct dentry *res;
 	int ret = -EINVAL;
@@ -106,10 +106,10 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 	gossip_debug(GOSSIP_NAME_DEBUG, "%s called on %s\n",
 		     __func__, dentry->d_name.name);
 
-	if (dentry->d_name.len > (PVFS2_NAME_LEN - 1))
+	if (dentry->d_name.len > (ORANGEFS_NAME_LEN - 1))
 		return ERR_PTR(-ENAMETOOLONG);
 
-	new_op = op_alloc(PVFS2_VFS_OP_LOOKUP);
+	new_op = op_alloc(ORANGEFS_VFS_OP_LOOKUP);
 	if (!new_op)
 		return ERR_PTR(-ENOMEM);
 
@@ -123,7 +123,7 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 	new_op->upcall.req.lookup.parent_refn = parent->refn;
 
 	strncpy(new_op->upcall.req.lookup.d_name, dentry->d_name.name,
-		PVFS2_NAME_LEN);
+		ORANGEFS_NAME_LEN);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: doing lookup on %s under %pU,%d (follow=%s)\n",
@@ -132,7 +132,7 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 		     &new_op->upcall.req.lookup.parent_refn.khandle,
 		     new_op->upcall.req.lookup.parent_refn.fs_id,
 		     ((new_op->upcall.req.lookup.sym_follow ==
-		       PVFS2_LOOKUP_LINK_FOLLOW) ? "yes" : "no"));
+		       ORANGEFS_LOOKUP_LINK_FOLLOW) ? "yes" : "no"));
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
@@ -158,7 +158,7 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 			 */
 
 			gossip_debug(GOSSIP_NAME_DEBUG,
-				     "pvfs2_lookup: Adding *negative* dentry "
+				     "orangefs_lookup: Adding *negative* dentry "
 				     "%p for %s\n",
 				     dentry,
 				     dentry->d_name.name);
@@ -173,7 +173,7 @@ static struct dentry *pvfs2_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	inode = pvfs2_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
+	inode = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
 	if (IS_ERR(inode)) {
 		gossip_debug(GOSSIP_NAME_DEBUG,
 			"error %ld from iget\n", PTR_ERR(inode));
@@ -202,11 +202,11 @@ out:
 }
 
 /* return 0 on success; non-zero otherwise */
-static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
+static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	struct pvfs2_inode_s *parent = PVFS2_I(dir);
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
@@ -218,15 +218,15 @@ static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
 		     &parent->refn.khandle,
 		     parent->refn.fs_id);
 
-	new_op = op_alloc(PVFS2_VFS_OP_REMOVE);
+	new_op = op_alloc(ORANGEFS_VFS_OP_REMOVE);
 	if (!new_op)
 		return -ENOMEM;
 
 	new_op->upcall.req.remove.parent_refn = parent->refn;
 	strncpy(new_op->upcall.req.remove.d_name, dentry->d_name.name,
-		PVFS2_NAME_LEN);
+		ORANGEFS_NAME_LEN);
 
-	ret = service_operation(new_op, "pvfs2_unlink",
+	ret = service_operation(new_op, "orangefs_unlink",
 				get_interruptible_flag(inode));
 
 	/* when request is serviced properly, free req op struct */
@@ -242,12 +242,12 @@ static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-static int pvfs2_symlink(struct inode *dir,
+static int orangefs_symlink(struct inode *dir,
 			 struct dentry *dentry,
 			 const char *symname)
 {
-	struct pvfs2_inode_s *parent = PVFS2_I(dir);
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_kernel_op_s *new_op;
 	struct inode *inode;
 	int mode = 755;
 	int ret;
@@ -257,25 +257,25 @@ static int pvfs2_symlink(struct inode *dir,
 	if (!symname)
 		return -EINVAL;
 
-	new_op = op_alloc(PVFS2_VFS_OP_SYMLINK);
+	new_op = op_alloc(ORANGEFS_VFS_OP_SYMLINK);
 	if (!new_op)
 		return -ENOMEM;
 
 	new_op->upcall.req.sym.parent_refn = parent->refn;
 
 	fill_default_sys_attrs(new_op->upcall.req.sym.attributes,
-			       PVFS_TYPE_SYMLINK,
+			       ORANGEFS_TYPE_SYMLINK,
 			       mode);
 
 	strncpy(new_op->upcall.req.sym.entry_name,
 		dentry->d_name.name,
-		PVFS2_NAME_LEN);
-	strncpy(new_op->upcall.req.sym.target, symname, PVFS2_NAME_LEN);
+		ORANGEFS_NAME_LEN);
+	strncpy(new_op->upcall.req.sym.target, symname, ORANGEFS_NAME_LEN);
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Symlink Got PVFS2 handle %pU on fsid %d (ret=%d)\n",
+		     "Symlink Got ORANGEFS handle %pU on fsid %d (ret=%d)\n",
 		     &new_op->downcall.resp.sym.refn.khandle,
 		     new_op->downcall.resp.sym.refn.fs_id, ret);
 
@@ -286,11 +286,11 @@ static int pvfs2_symlink(struct inode *dir,
 		goto out;
 	}
 
-	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0,
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0,
 				&new_op->downcall.resp.sym.refn);
 	if (IS_ERR(inode)) {
 		gossip_err
-		    ("*** Failed to allocate pvfs2 symlink inode\n");
+		    ("*** Failed to allocate orangefs symlink inode\n");
 		ret = PTR_ERR(inode);
 		goto out;
 	}
@@ -316,29 +316,29 @@ out:
 	return ret;
 }
 
-static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
-	struct pvfs2_inode_s *parent = PVFS2_I(dir);
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_kernel_op_s *new_op;
 	struct inode *inode;
 	int ret;
 
-	new_op = op_alloc(PVFS2_VFS_OP_MKDIR);
+	new_op = op_alloc(ORANGEFS_VFS_OP_MKDIR);
 	if (!new_op)
 		return -ENOMEM;
 
 	new_op->upcall.req.mkdir.parent_refn = parent->refn;
 
 	fill_default_sys_attrs(new_op->upcall.req.mkdir.attributes,
-			       PVFS_TYPE_DIRECTORY, mode);
+			      ORANGEFS_TYPE_DIRECTORY, mode);
 
 	strncpy(new_op->upcall.req.mkdir.d_name,
-		dentry->d_name.name, PVFS2_NAME_LEN);
+		dentry->d_name.name, ORANGEFS_NAME_LEN);
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Mkdir Got PVFS2 handle %pU on fsid %d\n",
+		     "Mkdir Got ORANGEFS handle %pU on fsid %d\n",
 		     &new_op->downcall.resp.mkdir.refn.khandle,
 		     new_op->downcall.resp.mkdir.refn.fs_id);
 
@@ -349,10 +349,10 @@ static int pvfs2_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out;
 	}
 
-	inode = pvfs2_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0,
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0,
 				&new_op->downcall.resp.mkdir.refn);
 	if (IS_ERR(inode)) {
-		gossip_err("*** Failed to allocate pvfs2 dir inode\n");
+		gossip_err("*** Failed to allocate orangefs dir inode\n");
 		ret = PTR_ERR(inode);
 		goto out;
 	}
@@ -381,42 +381,42 @@ out:
 	return ret;
 }
 
-static int pvfs2_rename(struct inode *old_dir,
+static int orangefs_rename(struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,
 			struct dentry *new_dentry)
 {
-	struct pvfs2_kernel_op_s *new_op;
+	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "pvfs2_rename: called (%s/%s => %s/%s) ct=%d\n",
+		     "orangefs_rename: called (%s/%s => %s/%s) ct=%d\n",
 		     old_dentry->d_parent->d_name.name,
 		     old_dentry->d_name.name,
 		     new_dentry->d_parent->d_name.name,
 		     new_dentry->d_name.name,
 		     d_count(new_dentry));
 
-	new_op = op_alloc(PVFS2_VFS_OP_RENAME);
+	new_op = op_alloc(ORANGEFS_VFS_OP_RENAME);
 	if (!new_op)
 		return -EINVAL;
 
-	new_op->upcall.req.rename.old_parent_refn = PVFS2_I(old_dir)->refn;
-	new_op->upcall.req.rename.new_parent_refn = PVFS2_I(new_dir)->refn;
+	new_op->upcall.req.rename.old_parent_refn = ORANGEFS_I(old_dir)->refn;
+	new_op->upcall.req.rename.new_parent_refn = ORANGEFS_I(new_dir)->refn;
 
 	strncpy(new_op->upcall.req.rename.d_old_name,
 		old_dentry->d_name.name,
-		PVFS2_NAME_LEN);
+		ORANGEFS_NAME_LEN);
 	strncpy(new_op->upcall.req.rename.d_new_name,
 		new_dentry->d_name.name,
-		PVFS2_NAME_LEN);
+		ORANGEFS_NAME_LEN);
 
 	ret = service_operation(new_op,
-				"pvfs2_rename",
+				"orangefs_rename",
 				get_interruptible_flag(old_dentry->d_inode));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "pvfs2_rename: got downcall status %d\n",
+		     "orangefs_rename: got downcall status %d\n",
 		     ret);
 
 	if (new_dentry->d_inode)
@@ -426,21 +426,21 @@ static int pvfs2_rename(struct inode *old_dir,
 	return ret;
 }
 
-/* PVFS2 implementation of VFS inode operations for directories */
-struct inode_operations pvfs2_dir_inode_operations = {
-	.lookup = pvfs2_lookup,
-	.get_acl = pvfs2_get_acl,
-	.set_acl = pvfs2_set_acl,
-	.create = pvfs2_create,
-	.unlink = pvfs2_unlink,
-	.symlink = pvfs2_symlink,
-	.mkdir = pvfs2_mkdir,
-	.rmdir = pvfs2_unlink,
-	.rename = pvfs2_rename,
-	.setattr = pvfs2_setattr,
-	.getattr = pvfs2_getattr,
+/* ORANGEFS implementation of VFS inode operations for directories */
+struct inode_operations orangefs_dir_inode_operations = {
+	.lookup = orangefs_lookup,
+	.get_acl = orangefs_get_acl,
+	.set_acl = orangefs_set_acl,
+	.create = orangefs_create,
+	.unlink = orangefs_unlink,
+	.symlink = orangefs_symlink,
+	.mkdir = orangefs_mkdir,
+	.rmdir = orangefs_unlink,
+	.rename = orangefs_rename,
+	.setattr = orangefs_setattr,
+	.getattr = orangefs_getattr,
 	.setxattr = generic_setxattr,
 	.getxattr = generic_getxattr,
 	.removexattr = generic_removexattr,
-	.listxattr = pvfs2_listxattr,
+	.listxattr = orangefs_listxattr,
 };
