@@ -334,7 +334,6 @@ extern void (*rtas_flash_term_hook)(int);
 
 extern struct rtas_t rtas;
 
-extern void enter_rtas(unsigned long);
 extern int rtas_token(const char *service);
 extern int rtas_service_present(const char *service);
 extern int rtas_call(int token, int, int, int *, ...);

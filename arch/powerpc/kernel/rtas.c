@@ -44,6 +44,9 @@
 #include <asm/mmu.h>
 #include <asm/topology.h>
 
+/* This is here deliberately so it's only used in this file */
+void enter_rtas(unsigned long);
+
 struct rtas_t rtas = {
 	.lock = __ARCH_SPIN_LOCK_UNLOCKED
 };
