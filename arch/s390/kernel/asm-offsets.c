@@ -120,6 +120,7 @@ int main(void)
 	OFFSET(__LC_IO_INT_PARM, _lowcore, io_int_parm);
 	OFFSET(__LC_IO_INT_WORD, _lowcore, io_int_word);
 	OFFSET(__LC_STFL_FAC_LIST, _lowcore, stfl_fac_list);
+	OFFSET(__LC_STFLE_FAC_LIST, _lowcore, stfle_fac_list);
 	OFFSET(__LC_MCCK_CODE, _lowcore, mcck_interruption_code);
 	OFFSET(__LC_MCCK_FAIL_STOR_ADDR, _lowcore, failing_storage_address);
 	OFFSET(__LC_LAST_BREAK, _lowcore, breaking_event_addr);

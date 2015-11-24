@@ -300,19 +300,19 @@ ENTRY(startup_kdump)
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
+	xc	0xf00(256),0xf00
 	lctlg	%c0,%c15,0x200(%r0)	# initialize control registers
 	stck	__LC_LAST_UPDATE_CLOCK
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
-	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
-	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
 	stfl	0(%r0)			# store facilities @ __LC_STFL_FAC_LIST
-	tm	__LC_STFL_FAC_LIST,0x01	# stfle available ?
+	mvc	__LC_STFLE_FAC_LIST(4),__LC_STFL_FAC_LIST
+	tm	__LC_STFLE_FAC_LIST,0x01	# stfle available ?
 	jz	0f
 	la	%r0,1
-	.insn	s,0xb2b00000,__LC_STFL_FAC_LIST	# store facility list extended
+	.insn	s,0xb2b00000,__LC_STFLE_FAC_LIST # store facility list extended
 	# verify if all required facilities are supported by the machine
-0:	la	%r1,__LC_STFL_FAC_LIST
+0:	la	%r1,__LC_STFLE_FAC_LIST
 	la	%r2,3f+8-.LPG0(%r13)
 	l	%r3,0(%r2)
 1:	l	%r0,0(%r1)
