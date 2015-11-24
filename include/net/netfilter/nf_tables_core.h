@@ -47,6 +47,15 @@ struct nft_payload {
 	enum nft_registers	dreg:8;
 };
 
+struct nft_payload_set {
+	enum nft_payload_bases	base:8;
+	u8			offset;
+	u8			len;
+	enum nft_registers	sreg:8;
+	u8			csum_type;
+	u8			csum_offset;
+};
+
 extern const struct nft_expr_ops nft_payload_fast_ops;
 
 int nft_payload_module_init(void);
