@@ -1406,6 +1406,8 @@ M:	David Brown <davidb@codeaurora.org>
 L:	linux-arm-msm@vger.kernel.org
 L:	linux-soc@vger.kernel.org
 S:	Maintained
+F:	arch/arm/boot/dts/qcom-*.dts
+F:	arch/arm/boot/dts/qcom-*.dtsi
 F:	arch/arm/mach-qcom/
 F:	drivers/soc/qcom/
 F:	drivers/tty/serial/msm_serial.h
