@@ -495,6 +495,9 @@ struct mac80211_hwsim_data {
 	const struct ieee80211_regdomain *regd;
 
 	struct ieee80211_channel *tmp_chan;
+	struct ieee80211_channel *roc_chan;
+	u32 roc_duration;
+	struct delayed_work roc_start;
 	struct delayed_work roc_done;
 	struct delayed_work hw_scan;
 	struct cfg80211_scan_request *hw_scan_request;
@@ -1988,6 +1991,23 @@ static void mac80211_hwsim_sw_scan_complete(struct ieee80211_hw *hw,
 	mutex_unlock(&hwsim->mutex);
 }
 
+static void hw_roc_start(struct work_struct *work)
+{
+	struct mac80211_hwsim_data *hwsim =
+		container_of(work, struct mac80211_hwsim_data, roc_start.work);
+
+	mutex_lock(&hwsim->mutex);
+
+	wiphy_debug(hwsim->hw->wiphy, "hwsim ROC begins\n");
+	hwsim->tmp_chan = hwsim->roc_chan;
+	ieee80211_ready_on_channel(hwsim->hw);
+
+	ieee80211_queue_delayed_work(hwsim->hw, &hwsim->roc_done,
+				     msecs_to_jiffies(hwsim->roc_duration));
+
+	mutex_unlock(&hwsim->mutex);
+}
+
 static void hw_roc_done(struct work_struct *work)
 {
 	struct mac80211_hwsim_data *hwsim =
@@ -2015,16 +2035,14 @@ static int mac80211_hwsim_roc(struct ieee80211_hw *hw,
 		return -EBUSY;
 	}
 
-	hwsim->tmp_chan = chan;
+	hwsim->roc_chan = chan;
+	hwsim->roc_duration = duration;
 	mutex_unlock(&hwsim->mutex);
 
 	wiphy_debug(hw->wiphy, "hwsim ROC (%d MHz, %d ms)\n",
 		    chan->center_freq, duration);
+	ieee80211_queue_delayed_work(hw, &hwsim->roc_start, HZ/50);
 
-	ieee80211_ready_on_channel(hw);
-
-	ieee80211_queue_delayed_work(hw, &hwsim->roc_done,
-				     msecs_to_jiffies(duration));
 	return 0;
 }
 
@@ -2032,6 +2050,7 @@ static int mac80211_hwsim_croc(struct ieee80211_hw *hw)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
 
+	cancel_delayed_work_sync(&hwsim->roc_start);
 	cancel_delayed_work_sync(&hwsim->roc_done);
 
 	mutex_lock(&hwsim->mutex);
@@ -2376,6 +2395,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		hw->wiphy->n_iface_combinations = ARRAY_SIZE(hwsim_if_comb);
 	}
 
+	INIT_DELAYED_WORK(&data->roc_start, hw_roc_start);
 	INIT_DELAYED_WORK(&data->roc_done, hw_roc_done);
 	INIT_DELAYED_WORK(&data->hw_scan, hw_scan_work);
 
