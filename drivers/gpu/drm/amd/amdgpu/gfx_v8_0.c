@@ -964,6 +964,322 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static const u32 vgpr_init_compute_shader[] =
+{
+	0x7e000209, 0x7e020208,
+	0x7e040207, 0x7e060206,
+	0x7e080205, 0x7e0a0204,
+	0x7e0c0203, 0x7e0e0202,
+	0x7e100201, 0x7e120200,
+	0x7e140209, 0x7e160208,
+	0x7e180207, 0x7e1a0206,
+	0x7e1c0205, 0x7e1e0204,
+	0x7e200203, 0x7e220202,
+	0x7e240201, 0x7e260200,
+	0x7e280209, 0x7e2a0208,
+	0x7e2c0207, 0x7e2e0206,
+	0x7e300205, 0x7e320204,
+	0x7e340203, 0x7e360202,
+	0x7e380201, 0x7e3a0200,
+	0x7e3c0209, 0x7e3e0208,
+	0x7e400207, 0x7e420206,
+	0x7e440205, 0x7e460204,
+	0x7e480203, 0x7e4a0202,
+	0x7e4c0201, 0x7e4e0200,
+	0x7e500209, 0x7e520208,
+	0x7e540207, 0x7e560206,
+	0x7e580205, 0x7e5a0204,
+	0x7e5c0203, 0x7e5e0202,
+	0x7e600201, 0x7e620200,
+	0x7e640209, 0x7e660208,
+	0x7e680207, 0x7e6a0206,
+	0x7e6c0205, 0x7e6e0204,
+	0x7e700203, 0x7e720202,
+	0x7e740201, 0x7e760200,
+	0x7e780209, 0x7e7a0208,
+	0x7e7c0207, 0x7e7e0206,
+	0xbf8a0000, 0xbf810000,
+};
+
+static const u32 sgpr_init_compute_shader[] =
+{
+	0xbe8a0100, 0xbe8c0102,
+	0xbe8e0104, 0xbe900106,
+	0xbe920108, 0xbe940100,
+	0xbe960102, 0xbe980104,
+	0xbe9a0106, 0xbe9c0108,
+	0xbe9e0100, 0xbea00102,
+	0xbea20104, 0xbea40106,
+	0xbea60108, 0xbea80100,
+	0xbeaa0102, 0xbeac0104,
+	0xbeae0106, 0xbeb00108,
+	0xbeb20100, 0xbeb40102,
+	0xbeb60104, 0xbeb80106,
+	0xbeba0108, 0xbebc0100,
+	0xbebe0102, 0xbec00104,
+	0xbec20106, 0xbec40108,
+	0xbec60100, 0xbec80102,
+	0xbee60004, 0xbee70005,
+	0xbeea0006, 0xbeeb0007,
+	0xbee80008, 0xbee90009,
+	0xbefc0000, 0xbf8a0000,
+	0xbf810000, 0x00000000,
+};
+
+static const u32 vgpr_init_regs[] =
+{
+	mmCOMPUTE_STATIC_THREAD_MGMT_SE0, 0xffffffff,
+	mmCOMPUTE_RESOURCE_LIMITS, 0,
+	mmCOMPUTE_NUM_THREAD_X, 256*4,
+	mmCOMPUTE_NUM_THREAD_Y, 1,
+	mmCOMPUTE_NUM_THREAD_Z, 1,
+	mmCOMPUTE_PGM_RSRC2, 20,
+	mmCOMPUTE_USER_DATA_0, 0xedcedc00,
+	mmCOMPUTE_USER_DATA_1, 0xedcedc01,
+	mmCOMPUTE_USER_DATA_2, 0xedcedc02,
+	mmCOMPUTE_USER_DATA_3, 0xedcedc03,
+	mmCOMPUTE_USER_DATA_4, 0xedcedc04,
+	mmCOMPUTE_USER_DATA_5, 0xedcedc05,
+	mmCOMPUTE_USER_DATA_6, 0xedcedc06,
+	mmCOMPUTE_USER_DATA_7, 0xedcedc07,
+	mmCOMPUTE_USER_DATA_8, 0xedcedc08,
+	mmCOMPUTE_USER_DATA_9, 0xedcedc09,
+};
+
+static const u32 sgpr1_init_regs[] =
+{
+	mmCOMPUTE_STATIC_THREAD_MGMT_SE0, 0x0f,
+	mmCOMPUTE_RESOURCE_LIMITS, 0x1000000,
+	mmCOMPUTE_NUM_THREAD_X, 256*5,
+	mmCOMPUTE_NUM_THREAD_Y, 1,
+	mmCOMPUTE_NUM_THREAD_Z, 1,
+	mmCOMPUTE_PGM_RSRC2, 20,
+	mmCOMPUTE_USER_DATA_0, 0xedcedc00,
+	mmCOMPUTE_USER_DATA_1, 0xedcedc01,
+	mmCOMPUTE_USER_DATA_2, 0xedcedc02,
+	mmCOMPUTE_USER_DATA_3, 0xedcedc03,
+	mmCOMPUTE_USER_DATA_4, 0xedcedc04,
+	mmCOMPUTE_USER_DATA_5, 0xedcedc05,
+	mmCOMPUTE_USER_DATA_6, 0xedcedc06,
+	mmCOMPUTE_USER_DATA_7, 0xedcedc07,
+	mmCOMPUTE_USER_DATA_8, 0xedcedc08,
+	mmCOMPUTE_USER_DATA_9, 0xedcedc09,
+};
+
+static const u32 sgpr2_init_regs[] =
+{
+	mmCOMPUTE_STATIC_THREAD_MGMT_SE0, 0xf0,
+	mmCOMPUTE_RESOURCE_LIMITS, 0x1000000,
+	mmCOMPUTE_NUM_THREAD_X, 256*5,
+	mmCOMPUTE_NUM_THREAD_Y, 1,
+	mmCOMPUTE_NUM_THREAD_Z, 1,
+	mmCOMPUTE_PGM_RSRC2, 20,
+	mmCOMPUTE_USER_DATA_0, 0xedcedc00,
+	mmCOMPUTE_USER_DATA_1, 0xedcedc01,
+	mmCOMPUTE_USER_DATA_2, 0xedcedc02,
+	mmCOMPUTE_USER_DATA_3, 0xedcedc03,
+	mmCOMPUTE_USER_DATA_4, 0xedcedc04,
+	mmCOMPUTE_USER_DATA_5, 0xedcedc05,
+	mmCOMPUTE_USER_DATA_6, 0xedcedc06,
+	mmCOMPUTE_USER_DATA_7, 0xedcedc07,
+	mmCOMPUTE_USER_DATA_8, 0xedcedc08,
+	mmCOMPUTE_USER_DATA_9, 0xedcedc09,
+};
+
+static const u32 sec_ded_counter_registers[] =
+{
+	mmCPC_EDC_ATC_CNT,
+	mmCPC_EDC_SCRATCH_CNT,
+	mmCPC_EDC_UCODE_CNT,
+	mmCPF_EDC_ATC_CNT,
+	mmCPF_EDC_ROQ_CNT,
+	mmCPF_EDC_TAG_CNT,
+	mmCPG_EDC_ATC_CNT,
+	mmCPG_EDC_DMA_CNT,
+	mmCPG_EDC_TAG_CNT,
+	mmDC_EDC_CSINVOC_CNT,
+	mmDC_EDC_RESTORE_CNT,
+	mmDC_EDC_STATE_CNT,
+	mmGDS_EDC_CNT,
+	mmGDS_EDC_GRBM_CNT,
+	mmGDS_EDC_OA_DED,
+	mmSPI_EDC_CNT,
+	mmSQC_ATC_EDC_GATCL1_CNT,
+	mmSQC_EDC_CNT,
+	mmSQ_EDC_DED_CNT,
+	mmSQ_EDC_INFO,
+	mmSQ_EDC_SEC_CNT,
+	mmTCC_EDC_CNT,
+	mmTCP_ATC_EDC_GATCL1_CNT,
+	mmTCP_EDC_CNT,
+	mmTD_EDC_CNT
+};
+
+static int gfx_v8_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring = &adev->gfx.compute_ring[0];
+	struct amdgpu_ib ib;
+	struct fence *f = NULL;
+	int r, i;
+	u32 tmp;
+	unsigned total_size, vgpr_offset, sgpr_offset;
+	u64 gpu_addr;
+
+	/* only supported on CZ */
+	if (adev->asic_type != CHIP_CARRIZO)
+		return 0;
+
+	/* bail if the compute ring is not ready */
+	if (!ring->ready)
+		return 0;
+
+	tmp = RREG32(mmGB_EDC_MODE);
+	WREG32(mmGB_EDC_MODE, 0);
+
+	total_size =
+		(((ARRAY_SIZE(vgpr_init_regs) / 2) * 3) + 4 + 5 + 2) * 4;
+	total_size +=
+		(((ARRAY_SIZE(sgpr1_init_regs) / 2) * 3) + 4 + 5 + 2) * 4;
+	total_size +=
+		(((ARRAY_SIZE(sgpr2_init_regs) / 2) * 3) + 4 + 5 + 2) * 4;
+	total_size = ALIGN(total_size, 256);
+	vgpr_offset = total_size;
+	total_size += ALIGN(sizeof(vgpr_init_compute_shader), 256);
+	sgpr_offset = total_size;
+	total_size += sizeof(sgpr_init_compute_shader);
+
+	/* allocate an indirect buffer to put the commands in */
+	memset(&ib, 0, sizeof(ib));
+	r = amdgpu_ib_get(ring, NULL, total_size, &ib);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
+		return r;
+	}
+
+	/* load the compute shaders */
+	for (i = 0; i < ARRAY_SIZE(vgpr_init_compute_shader); i++)
+		ib.ptr[i + (vgpr_offset / 4)] = vgpr_init_compute_shader[i];
+
+	for (i = 0; i < ARRAY_SIZE(sgpr_init_compute_shader); i++)
+		ib.ptr[i + (sgpr_offset / 4)] = sgpr_init_compute_shader[i];
+
+	/* init the ib length to 0 */
+	ib.length_dw = 0;
+
+	/* VGPR */
+	/* write the register state for the compute dispatch */
+	for (i = 0; i < ARRAY_SIZE(vgpr_init_regs); i += 2) {
+		ib.ptr[ib.length_dw++] = PACKET3(PACKET3_SET_SH_REG, 1);
+		ib.ptr[ib.length_dw++] = vgpr_init_regs[i] - PACKET3_SET_SH_REG_START;
+		ib.ptr[ib.length_dw++] = vgpr_init_regs[i + 1];
+	}
+	/* write the shader start address: mmCOMPUTE_PGM_LO, mmCOMPUTE_PGM_HI */
+	gpu_addr = (ib.gpu_addr + (u64)vgpr_offset) >> 8;
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_SET_SH_REG, 2);
+	ib.ptr[ib.length_dw++] = mmCOMPUTE_PGM_LO - PACKET3_SET_SH_REG_START;
+	ib.ptr[ib.length_dw++] = lower_32_bits(gpu_addr);
+	ib.ptr[ib.length_dw++] = upper_32_bits(gpu_addr);
+
+	/* write dispatch packet */
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_DISPATCH_DIRECT, 3);
+	ib.ptr[ib.length_dw++] = 8; /* x */
+	ib.ptr[ib.length_dw++] = 1; /* y */
+	ib.ptr[ib.length_dw++] = 1; /* z */
+	ib.ptr[ib.length_dw++] =
+		REG_SET_FIELD(0, COMPUTE_DISPATCH_INITIATOR, COMPUTE_SHADER_EN, 1);
+
+	/* write CS partial flush packet */
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_EVENT_WRITE, 0);
+	ib.ptr[ib.length_dw++] = EVENT_TYPE(7) | EVENT_INDEX(4);
+
+	/* SGPR1 */
+	/* write the register state for the compute dispatch */
+	for (i = 0; i < ARRAY_SIZE(sgpr1_init_regs); i += 2) {
+		ib.ptr[ib.length_dw++] = PACKET3(PACKET3_SET_SH_REG, 1);
+		ib.ptr[ib.length_dw++] = sgpr1_init_regs[i] - PACKET3_SET_SH_REG_START;
+		ib.ptr[ib.length_dw++] = sgpr1_init_regs[i + 1];
+	}
+	/* write the shader start address: mmCOMPUTE_PGM_LO, mmCOMPUTE_PGM_HI */
+	gpu_addr = (ib.gpu_addr + (u64)sgpr_offset) >> 8;
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_SET_SH_REG, 2);
+	ib.ptr[ib.length_dw++] = mmCOMPUTE_PGM_LO - PACKET3_SET_SH_REG_START;
+	ib.ptr[ib.length_dw++] = lower_32_bits(gpu_addr);
+	ib.ptr[ib.length_dw++] = upper_32_bits(gpu_addr);
+
+	/* write dispatch packet */
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_DISPATCH_DIRECT, 3);
+	ib.ptr[ib.length_dw++] = 8; /* x */
+	ib.ptr[ib.length_dw++] = 1; /* y */
+	ib.ptr[ib.length_dw++] = 1; /* z */
+	ib.ptr[ib.length_dw++] =
+		REG_SET_FIELD(0, COMPUTE_DISPATCH_INITIATOR, COMPUTE_SHADER_EN, 1);
+
+	/* write CS partial flush packet */
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_EVENT_WRITE, 0);
+	ib.ptr[ib.length_dw++] = EVENT_TYPE(7) | EVENT_INDEX(4);
+
+	/* SGPR2 */
+	/* write the register state for the compute dispatch */
+	for (i = 0; i < ARRAY_SIZE(sgpr2_init_regs); i += 2) {
+		ib.ptr[ib.length_dw++] = PACKET3(PACKET3_SET_SH_REG, 1);
+		ib.ptr[ib.length_dw++] = sgpr2_init_regs[i] - PACKET3_SET_SH_REG_START;
+		ib.ptr[ib.length_dw++] = sgpr2_init_regs[i + 1];
+	}
+	/* write the shader start address: mmCOMPUTE_PGM_LO, mmCOMPUTE_PGM_HI */
+	gpu_addr = (ib.gpu_addr + (u64)sgpr_offset) >> 8;
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_SET_SH_REG, 2);
+	ib.ptr[ib.length_dw++] = mmCOMPUTE_PGM_LO - PACKET3_SET_SH_REG_START;
+	ib.ptr[ib.length_dw++] = lower_32_bits(gpu_addr);
+	ib.ptr[ib.length_dw++] = upper_32_bits(gpu_addr);
+
+	/* write dispatch packet */
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_DISPATCH_DIRECT, 3);
+	ib.ptr[ib.length_dw++] = 8; /* x */
+	ib.ptr[ib.length_dw++] = 1; /* y */
+	ib.ptr[ib.length_dw++] = 1; /* z */
+	ib.ptr[ib.length_dw++] =
+		REG_SET_FIELD(0, COMPUTE_DISPATCH_INITIATOR, COMPUTE_SHADER_EN, 1);
+
+	/* write CS partial flush packet */
+	ib.ptr[ib.length_dw++] = PACKET3(PACKET3_EVENT_WRITE, 0);
+	ib.ptr[ib.length_dw++] = EVENT_TYPE(7) | EVENT_INDEX(4);
+
+	/* shedule the ib on the ring */
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
+	if (r) {
+		DRM_ERROR("amdgpu: ib submit failed (%d).\n", r);
+		goto fail;
+	}
+
+	/* wait for the GPU to finish processing the IB */
+	r = fence_wait(f, false);
+	if (r) {
+		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
+		goto fail;
+	}
+
+	tmp = REG_SET_FIELD(tmp, GB_EDC_MODE, DED_MODE, 2);
+	tmp = REG_SET_FIELD(tmp, GB_EDC_MODE, PROP_FED, 1);
+	WREG32(mmGB_EDC_MODE, tmp);
+
+	tmp = RREG32(mmCC_GC_EDC_CONFIG);
+	tmp = REG_SET_FIELD(tmp, CC_GC_EDC_CONFIG, DIS_EDC, 0) | 1;
+	WREG32(mmCC_GC_EDC_CONFIG, tmp);
+
+
+	/* read back registers to clear the counters */
+	for (i = 0; i < ARRAY_SIZE(sec_ded_counter_registers); i++)
+		RREG32(sec_ded_counter_registers[i]);
+
+fail:
+	fence_put(f);
+	amdgpu_ib_free(adev, &ib);
+
+	return r;
+}
+
 static void gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config;
@@ -4458,6 +4774,19 @@ static int gfx_v8_0_early_init(void *handle)
 	return 0;
 }
 
+static int gfx_v8_0_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	/* requires IBs so do in late init after IB pool is initialized */
+	r = gfx_v8_0_do_edc_gpr_workarounds(adev);
+	if (r)
+		return r;
+
+	return 0;
+}
+
 static int gfx_v8_0_set_powergating_state(void *handle,
 					  enum amd_powergating_state state)
 {
@@ -4995,7 +5324,7 @@ static int gfx_v8_0_priv_inst_irq(struct amdgpu_device *adev,
 
 const struct amd_ip_funcs gfx_v8_0_ip_funcs = {
 	.early_init = gfx_v8_0_early_init,
-	.late_init = NULL,
+	.late_init = gfx_v8_0_late_init,
 	.sw_init = gfx_v8_0_sw_init,
 	.sw_fini = gfx_v8_0_sw_fini,
 	.hw_init = gfx_v8_0_hw_init,
