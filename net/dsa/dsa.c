@@ -24,6 +24,7 @@
 #include <linux/of_gpio.h>
 #include <linux/sysfs.h>
 #include <linux/phy_fixed.h>
+#include <linux/gpio/consumer.h>
 #include "dsa_priv.h"
 
 char dsa_driver_version[] = "0.1";
