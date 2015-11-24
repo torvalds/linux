@@ -46,14 +46,16 @@ static size_t roundup_gem_size(size_t size)
 	return roundup(size, PAGE_SIZE);
 }
 
-/* dev->struct_mutex is held here */
 void armada_gem_free_object(struct drm_gem_object *obj)
 {
 	struct armada_gem_object *dobj = drm_to_armada_gem(obj);
+	struct armada_private *priv = obj->dev->dev_private;
 
 	DRM_DEBUG_DRIVER("release obj %p\n", dobj);
 
 	drm_gem_free_mmap_offset(&dobj->obj);
+
+	might_lock(&priv->linear_lock);
 
 	if (dobj->page) {
 		/* page backed memory */
@@ -61,7 +63,9 @@ void armada_gem_free_object(struct drm_gem_object *obj)
 		__free_pages(dobj->page, order);
 	} else if (dobj->linear) {
 		/* linear backed memory */
+		mutex_lock(&priv->linear_lock);
 		drm_mm_remove_node(dobj->linear);
+		mutex_unlock(&priv->linear_lock);
 		kfree(dobj->linear);
 		if (dobj->addr)
 			iounmap(dobj->addr);
@@ -144,10 +148,10 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 		if (!node)
 			return -ENOSPC;
 
-		mutex_lock(&dev->struct_mutex);
+		mutex_lock(&priv->linear_lock);
 		ret = drm_mm_insert_node(&priv->linear, node, size, align,
 					 DRM_MM_SEARCH_DEFAULT);
-		mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&priv->linear_lock);
 		if (ret) {
 			kfree(node);
 			return ret;
@@ -158,9 +162,9 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 		/* Ensure that the memory we're returning is cleared. */
 		ptr = ioremap_wc(obj->linear->start, size);
 		if (!ptr) {
-			mutex_lock(&dev->struct_mutex);
+			mutex_lock(&priv->linear_lock);
 			drm_mm_remove_node(obj->linear);
-			mutex_unlock(&dev->struct_mutex);
+			mutex_unlock(&priv->linear_lock);
 			kfree(obj->linear);
 			obj->linear = NULL;
 			return -ENOMEM;
