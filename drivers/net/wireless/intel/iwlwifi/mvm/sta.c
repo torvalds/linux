@@ -1708,7 +1708,12 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 		cmd.sleep_state_flags |= cpu_to_le16(STA_SLEEP_STATE_UAPSD);
 	}
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
+	/* block the Tx queues until the FW updated the sleep Tx count */
+	iwl_trans_block_txq_ptrs(mvm->trans, true);
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA,
+				   CMD_ASYNC | CMD_WANT_ASYNC_CALLBACK,
+				   sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }

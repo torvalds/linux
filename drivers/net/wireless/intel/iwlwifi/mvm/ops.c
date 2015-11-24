@@ -839,6 +839,18 @@ static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	}
 }
 
+static void iwl_mvm_async_cb(struct iwl_op_mode *op_mode,
+			     const struct iwl_device_cmd *cmd)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	/*
+	 * For now, we only set the CMD_WANT_ASYNC_CALLBACK for ADD_STA
+	 * commands that need to block the Tx queues.
+	 */
+	iwl_trans_block_txq_ptrs(mvm->trans, false);
+}
+
 static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -1414,6 +1426,7 @@ int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 
 #define IWL_MVM_COMMON_OPS					\
 	/* these could be differentiated */			\
+	.async_cb = iwl_mvm_async_cb,				\
 	.queue_full = iwl_mvm_stop_sw_queue,			\
 	.queue_not_full = iwl_mvm_wake_sw_queue,		\
 	.hw_rf_kill = iwl_mvm_set_hw_rfkill_state,		\
