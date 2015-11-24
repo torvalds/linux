@@ -20,4 +20,15 @@
 
 #define MODULE_ARCH_VERMAGIC	"aarch64"
 
+#ifdef CONFIG_ARM64_MODULE_PLTS
+struct mod_arch_specific {
+	struct elf64_shdr	*plt;
+	int			plt_num_entries;
+	int			plt_max_entries;
+};
+#endif
+
+u64 module_emit_plt_entry(struct module *mod, const Elf64_Rela *rela,
+			  Elf64_Sym *sym);
+
 #endif /* __ASM_MODULE_H */
