@@ -2179,6 +2179,8 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 
 	if (dbg->control & ~VALID_GUESTDBG_FLAGS)
 		return -EINVAL;
+	if (!sclp.has_gpere)
+		return -EINVAL;
 
 	if (dbg->control & KVM_GUESTDBG_ENABLE) {
 		vcpu->guest_debug = dbg->control;
