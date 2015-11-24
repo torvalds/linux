@@ -317,8 +317,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_NR_VCPUS:
 	case KVM_CAP_MAX_VCPUS:
-		r = sclp.has_esca ? KVM_S390_ESCA_CPU_SLOTS
-				  : KVM_S390_BSCA_CPU_SLOTS;
+		r = KVM_S390_BSCA_CPU_SLOTS;
+		if (sclp.has_esca && sclp.has_64bscao)
+			r = KVM_S390_ESCA_CPU_SLOTS;
 		break;
 	case KVM_CAP_NR_MEMSLOTS:
 		r = KVM_USER_MEM_SLOTS;
@@ -1295,6 +1296,7 @@ static void sca_dispose(struct kvm *kvm)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
+	gfp_t alloc_flags = GFP_KERNEL;
 	int i, rc;
 	char debug_name[16];
 	static unsigned long sca_offset;
@@ -1319,8 +1321,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	ratelimit_state_init(&kvm->arch.sthyi_limit, 5 * HZ, 500);
 
 	kvm->arch.use_esca = 0; /* start with basic SCA */
+	if (!sclp.has_64bscao)
+		alloc_flags |= GFP_DMA;
 	rwlock_init(&kvm->arch.sca_lock);
-	kvm->arch.sca = (struct bsca_block *) get_zeroed_page(GFP_KERNEL);
+	kvm->arch.sca = (struct bsca_block *) get_zeroed_page(alloc_flags);
 	if (!kvm->arch.sca)
 		goto out_err;
 	spin_lock(&kvm_lock);
@@ -1567,7 +1571,7 @@ static int sca_can_add_vcpu(struct kvm *kvm, unsigned int id)
 
 	if (id < KVM_S390_BSCA_CPU_SLOTS)
 		return true;
-	if (!sclp.has_esca)
+	if (!sclp.has_esca || !sclp.has_64bscao)
 		return false;
 
 	mutex_lock(&kvm->lock);
