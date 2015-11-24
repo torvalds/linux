@@ -428,6 +428,12 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	if (sg)
 		sg_mark_end(sg);
 
+	/*
+	 * Something must have been wrong if the figured number of
+	 * segment is bigger than number of req's physical segments
+	 */
+	WARN_ON(nsegs > rq->nr_phys_segments);
+
 	return nsegs;
 }
 EXPORT_SYMBOL(blk_rq_map_sg);
