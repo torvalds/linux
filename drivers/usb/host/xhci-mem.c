@@ -1245,7 +1245,7 @@ static unsigned int xhci_microframes_to_exponent(struct usb_device *udev,
 	interval = fls(desc_interval) - 1;
 	interval = clamp_val(interval, min_exponent, max_exponent);
 	if ((1 << interval) != desc_interval)
-		dev_warn(&udev->dev,
+		dev_dbg(&udev->dev,
 			 "ep %#x - rounding interval to %d microframes, ep desc says %d microframes\n",
 			 ep->desc.bEndpointAddress,
 			 1 << interval,
