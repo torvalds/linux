@@ -473,6 +473,45 @@ DEFINE_NFS4_OPEN_EVENT(nfs4_open_reclaim);
 DEFINE_NFS4_OPEN_EVENT(nfs4_open_expired);
 DEFINE_NFS4_OPEN_EVENT(nfs4_open_file);
 
+TRACE_EVENT(nfs4_cached_open,
+		TP_PROTO(
+			const struct nfs4_state *state
+		),
+		TP_ARGS(state),
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(unsigned int, fmode)
+			__field(int, stateid_seq)
+			__field(u32, stateid_hash)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = state->inode;
+
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->fmode = (__force unsigned int)state->state;
+			__entry->stateid_seq =
+				be32_to_cpu(state->stateid.seqid);
+			__entry->stateid_hash =
+				nfs_stateid_hash(&state->stateid);
+		),
+
+		TP_printk(
+			"fmode=%s fileid=%02x:%02x:%llu "
+			"fhandle=0x%08x stateid=%d:0x%08x",
+			__entry->fmode ?  show_fmode_flags(__entry->fmode) :
+					  "closed",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			__entry->stateid_seq, __entry->stateid_hash
+		)
+);
+
 TRACE_EVENT(nfs4_close,
 		TP_PROTO(
 			const struct nfs4_state *state,
