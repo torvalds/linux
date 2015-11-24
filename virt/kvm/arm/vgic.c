@@ -1417,25 +1417,13 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 static bool vgic_sync_hwirq(struct kvm_vcpu *vcpu, int lr, struct vgic_lr vlr)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
-	struct irq_phys_map *map;
-	bool phys_active;
 	bool level_pending;
-	int ret;
 
 	if (!(vlr.state & LR_HW))
 		return false;
 
-	map = vgic_irq_map_search(vcpu, vlr.irq);
-	BUG_ON(!map);
-
-	ret = irq_get_irqchip_state(map->irq,
-				    IRQCHIP_STATE_ACTIVE,
-				    &phys_active);
-
-	WARN_ON(ret);
-
-	if (phys_active)
-		return 0;
+	if (vlr.state & LR_STATE_ACTIVE)
+		return false;
 
 	spin_lock(&dist->lock);
 	level_pending = process_queued_irq(vcpu, lr, vlr);
