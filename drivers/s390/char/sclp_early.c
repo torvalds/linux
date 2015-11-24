@@ -46,7 +46,8 @@ struct read_info_sccb {
 	u64	rnmax2;			/* 104-111 */
 	u8	_pad_112[116 - 112];	/* 112-115 */
 	u8	fac116;			/* 116 */
-	u8	_pad_117[119 - 117];	/* 117-118 */
+	u8	fac117;			/* 117 */
+	u8	_pad_118;		/* 118 */
 	u8	fac119;			/* 119 */
 	u16	hcpua;			/* 120-121 */
 	u8	_pad_122[124 - 122];	/* 122-123 */
@@ -118,6 +119,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	sclp.has_64bscao = !!(sccb->fac116 & 0x80);
 	sclp.has_cmma = !!(sccb->fac116 & 0x40);
 	sclp.has_esca = !!(sccb->fac116 & 0x08);
+	sclp.has_pfmfi = !!(sccb->fac117 & 0x40);
 	sclp.has_hvs = !!(sccb->fac119 & 0x80);
 	if (sccb->fac85 & 0x02)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
