@@ -97,6 +97,9 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.compatible = "renesas,xhci-r8a7791",
 		.data = &xhci_plat_renesas_rcar_gen2,
 	}, {
+		.compatible = "renesas,xhci-r8a7793",
+		.data = &xhci_plat_renesas_rcar_gen2,
+	}, {
 	},
 };
 MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
