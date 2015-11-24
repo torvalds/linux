@@ -38,6 +38,7 @@ static void cp210x_change_speed(struct tty_struct *, struct usb_serial_port *,
 							struct ktermios *);
 static void cp210x_set_termios(struct tty_struct *, struct usb_serial_port *,
 							struct ktermios*);
+static bool cp210x_tx_empty(struct usb_serial_port *port);
 static int cp210x_tiocmget(struct tty_struct *);
 static int cp210x_tiocmset(struct tty_struct *, unsigned int, unsigned int);
 static int cp210x_tiocmset_port(struct usb_serial_port *port,
@@ -215,6 +216,7 @@ static struct usb_serial_driver cp210x_device = {
 	.close			= cp210x_close,
 	.break_ctl		= cp210x_break_ctl,
 	.set_termios		= cp210x_set_termios,
+	.tx_empty		= cp210x_tx_empty,
 	.tiocmget		= cp210x_tiocmget,
 	.tiocmset		= cp210x_tiocmset,
 	.port_probe		= cp210x_port_probe,
@@ -300,6 +302,17 @@ static struct usb_serial_driver * const serial_drivers[] = {
 #define CONTROL_DCD		0x0080
 #define CONTROL_WRITE_DTR	0x0100
 #define CONTROL_WRITE_RTS	0x0200
+
+/* CP210X_GET_COMM_STATUS returns these 0x13 bytes */
+struct cp210x_comm_status {
+	__le32   ulErrors;
+	__le32   ulHoldReasons;
+	__le32   ulAmountInInQueue;
+	__le32   ulAmountInOutQueue;
+	u8       bEofReceived;
+	u8       bWaitForImmediate;
+	u8       bReserved;
+} __packed;
 
 /*
  * CP210X_PURGE - 16 bits passed in wValue of USB request.
@@ -547,6 +560,51 @@ static void cp210x_close(struct usb_serial_port *port)
 	cp210x_set_config(port, CP210X_PURGE, &purge_ctl, 2);
 
 	cp210x_set_config_single(port, CP210X_IFC_ENABLE, UART_DISABLE);
+}
+
+/*
+ * Read how many bytes are waiting in the TX queue.
+ */
+static int cp210x_get_tx_queue_byte_count(struct usb_serial_port *port,
+		u32 *count)
+{
+	struct usb_serial *serial = port->serial;
+	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
+	struct cp210x_comm_status *sts;
+	int result;
+
+	sts = kmalloc(sizeof(*sts), GFP_KERNEL);
+	if (!sts)
+		return -ENOMEM;
+
+	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+			CP210X_GET_COMM_STATUS, REQTYPE_INTERFACE_TO_HOST,
+			0, port_priv->bInterfaceNumber, sts, sizeof(*sts),
+			USB_CTRL_GET_TIMEOUT);
+	if (result == sizeof(*sts)) {
+		*count = le32_to_cpu(sts->ulAmountInOutQueue);
+		result = 0;
+	} else {
+		dev_err(&port->dev, "failed to get comm status: %d\n", result);
+		if (result >= 0)
+			result = -EPROTO;
+	}
+
+	kfree(sts);
+
+	return result;
+}
+
+static bool cp210x_tx_empty(struct usb_serial_port *port)
+{
+	int err;
+	u32 count;
+
+	err = cp210x_get_tx_queue_byte_count(port, &count);
+	if (err)
+		return true;
+
+	return !count;
 }
 
 /*
