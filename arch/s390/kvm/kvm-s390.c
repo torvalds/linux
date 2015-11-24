@@ -275,6 +275,8 @@ static void kvm_s390_cpu_feat_init(void)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_GSLS);
 	if (sclp.has_ib)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_IB);
+	if (sclp.has_cei)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_CEI);
 }
 
 int kvm_arch_init(void *opaque)
