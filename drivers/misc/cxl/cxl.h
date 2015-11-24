@@ -445,6 +445,9 @@ struct cxl_context {
 	unsigned int sst_size, sst_lru;
 
 	wait_queue_head_t wq;
+	/* pid of the group leader associated with the pid */
+	struct pid *glpid;
+	/* use mm context associated with this pid for ds faults */
 	struct pid *pid;
 	spinlock_t lock; /* Protects pending_irq_mask, pending_fault and fault_addr */
 	/* Only used in PR mode */
