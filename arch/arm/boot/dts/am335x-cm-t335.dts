@@ -37,6 +37,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <>;
 
+	i2c0_pins: pinmux_i2c0_pins {
+		pinctrl-single,pins = <
+			/* i2c0_sda.i2c0_sda */
+			AM33XX_IOPAD(0x988, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* i2c0_scl.i2c0_scl */
+			AM33XX_IOPAD(0x98c, PIN_INPUT_PULLUP | MUX_MODE0)
+		>;
+	};
+
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			/* uart0_ctsn.i2c1_sda */
+			AM33XX_IOPAD(0x968, PIN_INPUT_PULLUP | MUX_MODE2)
+			/* uart0_rtsn.i2c1_scl */
+			AM33XX_IOPAD(0x96c, PIN_INPUT_PULLUP | MUX_MODE2)
+		>;
+	};
+
 	gpio_led_pins: pinmux_gpio_led_pins {
 		pinctrl-single,pins = <
 			/* gpmc_csn3.gpio2_0 */
@@ -59,4 +77,23 @@
 	pinctrl-0 = <&uart0_pins>;
 
 	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+
+	status = "okay";
+	clock-frequency = <400000>;
+	/* CM-T335 board EEPROM */
+	eeprom: 24c02@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+	/* Real Time Clock */
+	ext_rtc: em3027@56 {
+		compatible = "emmicro,em3027";
+		reg = <0x56>;
+	};
 };
