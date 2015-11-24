@@ -27,6 +27,10 @@
 #include "smp.h"
 #include "hci_request.h"
 
+#define HCI_REQ_DONE	  0
+#define HCI_REQ_PEND	  1
+#define HCI_REQ_CANCELED  2
+
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
 {
 	skb_queue_head_init(&req->cmd_q);
@@ -56,8 +60,12 @@ static int req_run(struct hci_request *req, hci_req_complete_t complete,
 		return -ENODATA;
 
 	skb = skb_peek_tail(&req->cmd_q);
-	bt_cb(skb)->hci.req_complete = complete;
-	bt_cb(skb)->hci.req_complete_skb = complete_skb;
+	if (complete) {
+		bt_cb(skb)->hci.req_complete = complete;
+	} else if (complete_skb) {
+		bt_cb(skb)->hci.req_complete_skb = complete_skb;
+		bt_cb(skb)->hci.req_flags |= HCI_REQ_SKB;
+	}
 
 	spin_lock_irqsave(&hdev->cmd_q.lock, flags);
 	skb_queue_splice_tail(&req->cmd_q, &hdev->cmd_q);
@@ -76,6 +84,203 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 int hci_req_run_skb(struct hci_request *req, hci_req_complete_skb_t complete)
 {
 	return req_run(req, NULL, complete);
+}
+
+static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
+				  struct sk_buff *skb)
+{
+	BT_DBG("%s result 0x%2.2x", hdev->name, result);
+
+	if (hdev->req_status == HCI_REQ_PEND) {
+		hdev->req_result = result;
+		hdev->req_status = HCI_REQ_DONE;
+		if (skb)
+			hdev->req_skb = skb_get(skb);
+		wake_up_interruptible(&hdev->req_wait_q);
+	}
+}
+
+void hci_req_sync_cancel(struct hci_dev *hdev, int err)
+{
+	BT_DBG("%s err 0x%2.2x", hdev->name, err);
+
+	if (hdev->req_status == HCI_REQ_PEND) {
+		hdev->req_result = err;
+		hdev->req_status = HCI_REQ_CANCELED;
+		wake_up_interruptible(&hdev->req_wait_q);
+	}
+}
+
+struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
+				  const void *param, u8 event, u32 timeout)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	struct hci_request req;
+	struct sk_buff *skb;
+	int err = 0;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_req_init(&req, hdev);
+
+	hci_req_add_ev(&req, opcode, plen, param, event);
+
+	hdev->req_status = HCI_REQ_PEND;
+
+	add_wait_queue(&hdev->req_wait_q, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	err = hci_req_run_skb(&req, hci_req_sync_complete);
+	if (err < 0) {
+		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
+		return ERR_PTR(err);
+	}
+
+	schedule_timeout(timeout);
+
+	remove_wait_queue(&hdev->req_wait_q, &wait);
+
+	if (signal_pending(current))
+		return ERR_PTR(-EINTR);
+
+	switch (hdev->req_status) {
+	case HCI_REQ_DONE:
+		err = -bt_to_errno(hdev->req_result);
+		break;
+
+	case HCI_REQ_CANCELED:
+		err = -hdev->req_result;
+		break;
+
+	default:
+		err = -ETIMEDOUT;
+		break;
+	}
+
+	hdev->req_status = hdev->req_result = 0;
+	skb = hdev->req_skb;
+	hdev->req_skb = NULL;
+
+	BT_DBG("%s end: err %d", hdev->name, err);
+
+	if (err < 0) {
+		kfree_skb(skb);
+		return ERR_PTR(err);
+	}
+
+	if (!skb)
+		return ERR_PTR(-ENODATA);
+
+	return skb;
+}
+EXPORT_SYMBOL(__hci_cmd_sync_ev);
+
+struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
+			       const void *param, u32 timeout)
+{
+	return __hci_cmd_sync_ev(hdev, opcode, plen, param, 0, timeout);
+}
+EXPORT_SYMBOL(__hci_cmd_sync);
+
+/* Execute request and wait for completion. */
+int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
+						     unsigned long opt),
+		   unsigned long opt, u32 timeout, u8 *hci_status)
+{
+	struct hci_request req;
+	DECLARE_WAITQUEUE(wait, current);
+	int err = 0;
+
+	BT_DBG("%s start", hdev->name);
+
+	hci_req_init(&req, hdev);
+
+	hdev->req_status = HCI_REQ_PEND;
+
+	err = func(&req, opt);
+	if (err) {
+		if (hci_status)
+			*hci_status = HCI_ERROR_UNSPECIFIED;
+		return err;
+	}
+
+	add_wait_queue(&hdev->req_wait_q, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	err = hci_req_run_skb(&req, hci_req_sync_complete);
+	if (err < 0) {
+		hdev->req_status = 0;
+
+		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
+
+		/* ENODATA means the HCI request command queue is empty.
+		 * This can happen when a request with conditionals doesn't
+		 * trigger any commands to be sent. This is normal behavior
+		 * and should not trigger an error return.
+		 */
+		if (err == -ENODATA) {
+			if (hci_status)
+				*hci_status = 0;
+			return 0;
+		}
+
+		if (hci_status)
+			*hci_status = HCI_ERROR_UNSPECIFIED;
+
+		return err;
+	}
+
+	schedule_timeout(timeout);
+
+	remove_wait_queue(&hdev->req_wait_q, &wait);
+
+	if (signal_pending(current))
+		return -EINTR;
+
+	switch (hdev->req_status) {
+	case HCI_REQ_DONE:
+		err = -bt_to_errno(hdev->req_result);
+		if (hci_status)
+			*hci_status = hdev->req_result;
+		break;
+
+	case HCI_REQ_CANCELED:
+		err = -hdev->req_result;
+		if (hci_status)
+			*hci_status = HCI_ERROR_UNSPECIFIED;
+		break;
+
+	default:
+		err = -ETIMEDOUT;
+		if (hci_status)
+			*hci_status = HCI_ERROR_UNSPECIFIED;
+		break;
+	}
+
+	hdev->req_status = hdev->req_result = 0;
+
+	BT_DBG("%s end: err %d", hdev->name, err);
+
+	return err;
+}
+
+int hci_req_sync(struct hci_dev *hdev, int (*req)(struct hci_request *req,
+						  unsigned long opt),
+		 unsigned long opt, u32 timeout, u8 *hci_status)
+{
+	int ret;
+
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return -ENETDOWN;
+
+	/* Serialize all requests */
+	hci_req_sync_lock(hdev);
+	ret = __hci_req_sync(hdev, req, opt, timeout, hci_status);
+	hci_req_sync_unlock(hdev);
+
+	return ret;
 }
 
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
@@ -98,8 +303,8 @@ struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	BT_DBG("skb len %d", skb->len);
 
-	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
-	bt_cb(skb)->hci.opcode = opcode;
+	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
+	hci_skb_opcode(skb) = opcode;
 
 	return skb;
 }
@@ -128,7 +333,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 	}
 
 	if (skb_queue_empty(&req->cmd_q))
-		bt_cb(skb)->hci.req_start = true;
+		bt_cb(skb)->hci.req_flags |= HCI_REQ_START;
 
 	bt_cb(skb)->hci.req_event = event;
 
@@ -476,7 +681,7 @@ void hci_update_page_scan(struct hci_dev *hdev)
  *
  * This function requires the caller holds hdev->lock.
  */
-void __hci_update_background_scan(struct hci_request *req)
+static void __hci_update_background_scan(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 
@@ -541,28 +746,6 @@ void __hci_update_background_scan(struct hci_request *req)
 
 		BT_DBG("%s starting background scanning", hdev->name);
 	}
-}
-
-static void update_background_scan_complete(struct hci_dev *hdev, u8 status,
-					    u16 opcode)
-{
-	if (status)
-		BT_DBG("HCI request failed to update background scanning: "
-		       "status 0x%2.2x", status);
-}
-
-void hci_update_background_scan(struct hci_dev *hdev)
-{
-	int err;
-	struct hci_request req;
-
-	hci_req_init(&req, hdev);
-
-	__hci_update_background_scan(&req);
-
-	err = hci_req_run(&req, update_background_scan_complete);
-	if (err && err != -ENODATA)
-		BT_ERR("Failed to run HCI request: err %d", err);
 }
 
 void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
@@ -656,4 +839,447 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
 	}
 
 	return 0;
+}
+
+static int update_bg_scan(struct hci_request *req, unsigned long opt)
+{
+	hci_dev_lock(req->hdev);
+	__hci_update_background_scan(req);
+	hci_dev_unlock(req->hdev);
+	return 0;
+}
+
+static void bg_scan_update(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    bg_scan_update);
+	struct hci_conn *conn;
+	u8 status;
+	int err;
+
+	err = hci_req_sync(hdev, update_bg_scan, 0, HCI_CMD_TIMEOUT, &status);
+	if (!err)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+	if (conn)
+		hci_le_conn_failed(conn, status);
+
+	hci_dev_unlock(hdev);
+}
+
+static int le_scan_disable(struct hci_request *req, unsigned long opt)
+{
+	hci_req_add_le_scan_disable(req);
+	return 0;
+}
+
+static int bredr_inquiry(struct hci_request *req, unsigned long opt)
+{
+	u8 length = opt;
+	/* General inquiry access code (GIAC) */
+	u8 lap[3] = { 0x33, 0x8b, 0x9e };
+	struct hci_cp_inquiry cp;
+
+	BT_DBG("%s", req->hdev->name);
+
+	hci_dev_lock(req->hdev);
+	hci_inquiry_cache_flush(req->hdev);
+	hci_dev_unlock(req->hdev);
+
+	memset(&cp, 0, sizeof(cp));
+	memcpy(&cp.lap, lap, sizeof(cp.lap));
+	cp.length = length;
+
+	hci_req_add(req, HCI_OP_INQUIRY, sizeof(cp), &cp);
+
+	return 0;
+}
+
+static void le_scan_disable_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    le_scan_disable.work);
+	u8 status;
+
+	BT_DBG("%s", hdev->name);
+
+	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
+		return;
+
+	cancel_delayed_work(&hdev->le_scan_restart);
+
+	hci_req_sync(hdev, le_scan_disable, 0, HCI_CMD_TIMEOUT, &status);
+	if (status) {
+		BT_ERR("Failed to disable LE scan: status 0x%02x", status);
+		return;
+	}
+
+	hdev->discovery.scan_start = 0;
+
+	/* If we were running LE only scan, change discovery state. If
+	 * we were running both LE and BR/EDR inquiry simultaneously,
+	 * and BR/EDR inquiry is already finished, stop discovery,
+	 * otherwise BR/EDR inquiry will stop discovery when finished.
+	 * If we will resolve remote device name, do not change
+	 * discovery state.
+	 */
+
+	if (hdev->discovery.type == DISCOV_TYPE_LE)
+		goto discov_stopped;
+
+	if (hdev->discovery.type != DISCOV_TYPE_INTERLEAVED)
+		return;
+
+	if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks)) {
+		if (!test_bit(HCI_INQUIRY, &hdev->flags) &&
+		    hdev->discovery.state != DISCOVERY_RESOLVING)
+			goto discov_stopped;
+
+		return;
+	}
+
+	hci_req_sync(hdev, bredr_inquiry, DISCOV_INTERLEAVED_INQUIRY_LEN,
+		     HCI_CMD_TIMEOUT, &status);
+	if (status) {
+		BT_ERR("Inquiry failed: status 0x%02x", status);
+		goto discov_stopped;
+	}
+
+	return;
+
+discov_stopped:
+	hci_dev_lock(hdev);
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+	hci_dev_unlock(hdev);
+}
+
+static int le_scan_restart(struct hci_request *req, unsigned long opt)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_le_set_scan_enable cp;
+
+	/* If controller is not scanning we are done. */
+	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
+		return 0;
+
+	hci_req_add_le_scan_disable(req);
+
+	memset(&cp, 0, sizeof(cp));
+	cp.enable = LE_SCAN_ENABLE;
+	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+
+	return 0;
+}
+
+static void le_scan_restart_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    le_scan_restart.work);
+	unsigned long timeout, duration, scan_start, now;
+	u8 status;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_req_sync(hdev, le_scan_restart, 0, HCI_CMD_TIMEOUT, &status);
+	if (status) {
+		BT_ERR("Failed to restart LE scan: status %d", status);
+		return;
+	}
+
+	hci_dev_lock(hdev);
+
+	if (!test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks) ||
+	    !hdev->discovery.scan_start)
+		goto unlock;
+
+	/* When the scan was started, hdev->le_scan_disable has been queued
+	 * after duration from scan_start. During scan restart this job
+	 * has been canceled, and we need to queue it again after proper
+	 * timeout, to make sure that scan does not run indefinitely.
+	 */
+	duration = hdev->discovery.scan_duration;
+	scan_start = hdev->discovery.scan_start;
+	now = jiffies;
+	if (now - scan_start <= duration) {
+		int elapsed;
+
+		if (now >= scan_start)
+			elapsed = now - scan_start;
+		else
+			elapsed = ULONG_MAX - scan_start + now;
+
+		timeout = duration - elapsed;
+	} else {
+		timeout = 0;
+	}
+
+	queue_delayed_work(hdev->req_workqueue,
+			   &hdev->le_scan_disable, timeout);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
+static void cancel_adv_timeout(struct hci_dev *hdev)
+{
+	if (hdev->adv_instance_timeout) {
+		hdev->adv_instance_timeout = 0;
+		cancel_delayed_work(&hdev->adv_instance_expire);
+	}
+}
+
+static void disable_advertising(struct hci_request *req)
+{
+	u8 enable = 0x00;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+}
+
+static int active_scan(struct hci_request *req, unsigned long opt)
+{
+	uint16_t interval = opt;
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_le_set_scan_param param_cp;
+	struct hci_cp_le_set_scan_enable enable_cp;
+	u8 own_addr_type;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV)) {
+		hci_dev_lock(hdev);
+
+		/* Don't let discovery abort an outgoing connection attempt
+		 * that's using directed advertising.
+		 */
+		if (hci_lookup_le_connect(hdev)) {
+			hci_dev_unlock(hdev);
+			return -EBUSY;
+		}
+
+		cancel_adv_timeout(hdev);
+		hci_dev_unlock(hdev);
+
+		disable_advertising(req);
+	}
+
+	/* If controller is scanning, it means the background scanning is
+	 * running. Thus, we should temporarily stop it in order to set the
+	 * discovery scanning parameters.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_LE_SCAN))
+		hci_req_add_le_scan_disable(req);
+
+	/* All active scans will be done with either a resolvable private
+	 * address (when privacy feature has been enabled) or non-resolvable
+	 * private address.
+	 */
+	err = hci_update_random_address(req, true, &own_addr_type);
+	if (err < 0)
+		own_addr_type = ADDR_LE_DEV_PUBLIC;
+
+	memset(&param_cp, 0, sizeof(param_cp));
+	param_cp.type = LE_SCAN_ACTIVE;
+	param_cp.interval = cpu_to_le16(interval);
+	param_cp.window = cpu_to_le16(DISCOV_LE_SCAN_WIN);
+	param_cp.own_address_type = own_addr_type;
+
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
+		    &param_cp);
+
+	memset(&enable_cp, 0, sizeof(enable_cp));
+	enable_cp.enable = LE_SCAN_ENABLE;
+	enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+
+	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
+		    &enable_cp);
+
+	return 0;
+}
+
+static int interleaved_discov(struct hci_request *req, unsigned long opt)
+{
+	int err;
+
+	BT_DBG("%s", req->hdev->name);
+
+	err = active_scan(req, opt);
+	if (err)
+		return err;
+
+	return bredr_inquiry(req, DISCOV_BREDR_INQUIRY_LEN);
+}
+
+static void start_discovery(struct hci_dev *hdev, u8 *status)
+{
+	unsigned long timeout;
+
+	BT_DBG("%s type %u", hdev->name, hdev->discovery.type);
+
+	switch (hdev->discovery.type) {
+	case DISCOV_TYPE_BREDR:
+		if (!hci_dev_test_flag(hdev, HCI_INQUIRY))
+			hci_req_sync(hdev, bredr_inquiry,
+				     DISCOV_BREDR_INQUIRY_LEN, HCI_CMD_TIMEOUT,
+				     status);
+		return;
+	case DISCOV_TYPE_INTERLEAVED:
+		/* When running simultaneous discovery, the LE scanning time
+		 * should occupy the whole discovery time sine BR/EDR inquiry
+		 * and LE scanning are scheduled by the controller.
+		 *
+		 * For interleaving discovery in comparison, BR/EDR inquiry
+		 * and LE scanning are done sequentially with separate
+		 * timeouts.
+		 */
+		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+			     &hdev->quirks)) {
+			timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
+			/* During simultaneous discovery, we double LE scan
+			 * interval. We must leave some time for the controller
+			 * to do BR/EDR inquiry.
+			 */
+			hci_req_sync(hdev, interleaved_discov,
+				     DISCOV_LE_SCAN_INT * 2, HCI_CMD_TIMEOUT,
+				     status);
+			break;
+		}
+
+		timeout = msecs_to_jiffies(hdev->discov_interleaved_timeout);
+		hci_req_sync(hdev, active_scan, DISCOV_LE_SCAN_INT,
+			     HCI_CMD_TIMEOUT, status);
+		break;
+	case DISCOV_TYPE_LE:
+		timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
+		hci_req_sync(hdev, active_scan, DISCOV_LE_SCAN_INT,
+			     HCI_CMD_TIMEOUT, status);
+		break;
+	default:
+		*status = HCI_ERROR_UNSPECIFIED;
+		return;
+	}
+
+	if (*status)
+		return;
+
+	BT_DBG("%s timeout %u ms", hdev->name, jiffies_to_msecs(timeout));
+
+	/* When service discovery is used and the controller has a
+	 * strict duplicate filter, it is important to remember the
+	 * start and duration of the scan. This is required for
+	 * restarting scanning during the discovery phase.
+	 */
+	if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks) &&
+		     hdev->discovery.result_filtering) {
+		hdev->discovery.scan_start = jiffies;
+		hdev->discovery.scan_duration = timeout;
+	}
+
+	queue_delayed_work(hdev->req_workqueue, &hdev->le_scan_disable,
+			   timeout);
+}
+
+bool hci_req_stop_discovery(struct hci_request *req)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct discovery_state *d = &hdev->discovery;
+	struct hci_cp_remote_name_req_cancel cp;
+	struct inquiry_entry *e;
+	bool ret = false;
+
+	BT_DBG("%s state %u", hdev->name, hdev->discovery.state);
+
+	if (d->state == DISCOVERY_FINDING || d->state == DISCOVERY_STOPPING) {
+		if (test_bit(HCI_INQUIRY, &hdev->flags))
+			hci_req_add(req, HCI_OP_INQUIRY_CANCEL, 0, NULL);
+
+		if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
+			cancel_delayed_work(&hdev->le_scan_disable);
+			hci_req_add_le_scan_disable(req);
+		}
+
+		ret = true;
+	} else {
+		/* Passive scanning */
+		if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
+			hci_req_add_le_scan_disable(req);
+			ret = true;
+		}
+	}
+
+	/* No further actions needed for LE-only discovery */
+	if (d->type == DISCOV_TYPE_LE)
+		return ret;
+
+	if (d->state == DISCOVERY_RESOLVING || d->state == DISCOVERY_STOPPING) {
+		e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY,
+						     NAME_PENDING);
+		if (!e)
+			return ret;
+
+		bacpy(&cp.bdaddr, &e->data.bdaddr);
+		hci_req_add(req, HCI_OP_REMOTE_NAME_REQ_CANCEL, sizeof(cp),
+			    &cp);
+		ret = true;
+	}
+
+	return ret;
+}
+
+static int stop_discovery(struct hci_request *req, unsigned long opt)
+{
+	hci_dev_lock(req->hdev);
+	hci_req_stop_discovery(req);
+	hci_dev_unlock(req->hdev);
+
+	return 0;
+}
+
+static void discov_update(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    discov_update);
+	u8 status = 0;
+
+	switch (hdev->discovery.state) {
+	case DISCOVERY_STARTING:
+		start_discovery(hdev, &status);
+		mgmt_start_discovery_complete(hdev, status);
+		if (status)
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		else
+			hci_discovery_set_state(hdev, DISCOVERY_FINDING);
+		break;
+	case DISCOVERY_STOPPING:
+		hci_req_sync(hdev, stop_discovery, 0, HCI_CMD_TIMEOUT, &status);
+		mgmt_stop_discovery_complete(hdev, status);
+		if (!status)
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		break;
+	case DISCOVERY_STOPPED:
+	default:
+		return;
+	}
+}
+
+void hci_request_setup(struct hci_dev *hdev)
+{
+	INIT_WORK(&hdev->discov_update, discov_update);
+	INIT_WORK(&hdev->bg_scan_update, bg_scan_update);
+	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
+	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
+}
+
+void hci_request_cancel_all(struct hci_dev *hdev)
+{
+	hci_req_sync_cancel(hdev, ENODEV);
+
+	cancel_work_sync(&hdev->discov_update);
+	cancel_work_sync(&hdev->bg_scan_update);
+	cancel_delayed_work_sync(&hdev->le_scan_disable);
+	cancel_delayed_work_sync(&hdev->le_scan_restart);
 }
