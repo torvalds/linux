@@ -88,13 +88,7 @@ void set_default_offline_state(int cpu)
 
 static void rtas_stop_self(void)
 {
-	static struct rtas_args args = {
-		.nargs = 0,
-		.nret = cpu_to_be32(1),
-		.rets = &args.args[0],
-	};
-
-	args.token = cpu_to_be32(rtas_stop_self_token);
+	static struct rtas_args args;
 
 	local_irq_disable();
 
@@ -102,7 +96,8 @@ static void rtas_stop_self(void)
 
 	printk("cpu %u (hwid %u) Ready to die...\n",
 	       smp_processor_id(), hard_smp_processor_id());
-	enter_rtas(__pa(&args));
+
+	rtas_call_unlocked(&args, rtas_stop_self_token, 0, 1, NULL);
 
 	panic("Alas, I survived.\n");
 }
