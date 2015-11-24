@@ -475,7 +475,7 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	}
 
 	/* OK, find all the descriptors */
-	desc = (struct greybus_descriptor *)(header + 1);
+	desc = manifest->descriptors;
 	size -= sizeof(*header);
 	while (size) {
 		int desc_size;
