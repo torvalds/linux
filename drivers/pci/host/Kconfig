@@ -118,13 +118,11 @@ config PCI_VERSATILE
 	depends on ARCH_VERSATILE
 
 config PCIE_IPROC
-	tristate "Broadcom iProc PCIe controller"
-	depends on OF && (ARM || ARM64)
-	default n
+	tristate
 	help
 	  This enables the iProc PCIe core controller support for Broadcom's
-	  iProc family of SoCs. An appropriate bus interface driver also needs
-	  to be enabled
+	  iProc family of SoCs. An appropriate bus interface driver needs
+	  to be enabled to select this.
 
 config PCIE_IPROC_PLATFORM
 	tristate "Broadcom iProc PCIe platform bus driver"
