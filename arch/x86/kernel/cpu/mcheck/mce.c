@@ -484,7 +484,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
 	if (!mce)
 		return NOTIFY_DONE;
 
-	if (mce->usable_addr && (mce->severity == MCE_AO_SEVERITY)) {
+	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
 		pfn = mce->addr >> PAGE_SHIFT;
 		memory_failure(pfn, MCE_VECTOR, 0);
 	}
@@ -610,12 +610,9 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
 
-		if (severity == MCE_DEFERRED_SEVERITY && memory_error(&m)) {
-			if (m.status & MCI_STATUS_ADDRV) {
+		if (severity == MCE_DEFERRED_SEVERITY && memory_error(&m))
+			if (m.status & MCI_STATUS_ADDRV)
 				m.severity = severity;
-				m.usable_addr = mce_usable_address(&m);
-			}
-		}
 
 		/*
 		 * Don't get the IP here because it's unlikely to
@@ -623,7 +620,7 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 */
 		if (!(flags & MCP_DONTLOG) && !mca_cfg.dont_log_ce)
 			mce_log(&m);
-		else if (m.usable_addr) {
+		else if (mce_usable_address(&m)) {
 			/*
 			 * Although we skipped logging this, we still want
 			 * to take action. Add to the pool so the registered
@@ -1091,7 +1088,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 		/* assuming valid severity level != 0 */
 		m.severity = severity;
-		m.usable_addr = mce_usable_address(&m);
 
 		mce_log(&m);
 
