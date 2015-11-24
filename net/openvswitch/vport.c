@@ -256,8 +256,8 @@ int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
  *
  * @vport: vport to delete.
  *
- * Detaches @vport from its datapath and destroys it.  It is possible to fail
- * for reasons such as lack of memory.  ovs_mutex must be held.
+ * Detaches @vport from its datapath and destroys it.  ovs_mutex must
+ * be held.
  */
 void ovs_vport_del(struct vport *vport)
 {
