@@ -409,7 +409,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	unsigned int channels = params_channels(params);
-	u32 word_width = snd_pcm_format_width(params_format(params));
+	u32 word_width = params_width(params);
 	u32 val_cr4 = 0, val_cr5 = 0;
 	u32 slot_width = word_width;
 	int ret;
