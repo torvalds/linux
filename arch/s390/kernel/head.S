@@ -306,7 +306,7 @@ ENTRY(startup_kdump)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
 	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
 	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
-	.insn	s,0xb2b10000,0		# store facilities @ __LC_STFL_FAC_LIST
+	stfl	0(%r0)			# store facilities @ __LC_STFL_FAC_LIST
 	tm	__LC_STFL_FAC_LIST,0x01	# stfle available ?
 	jz	0f
 	la	%r0,1
