@@ -41,7 +41,7 @@ obj-$(CONFIG_PINCTRL_ST) 	+= pinctrl-st.o
 obj-$(CONFIG_PINCTRL_ZYNQ)	+= pinctrl-zynq.o
 
 obj-$(CONFIG_ARCH_BCM)		+= bcm/
-obj-$(CONFIG_ARCH_BERLIN)	+= berlin/
+obj-$(CONFIG_PINCTRL_BERLIN)	+= berlin/
 obj-y				+= freescale/
 obj-$(CONFIG_X86)		+= intel/
 obj-$(CONFIG_PLAT_ORION)        += mvebu/
