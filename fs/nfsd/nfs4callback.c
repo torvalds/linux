@@ -792,12 +792,16 @@ static void warn_no_callback_path(struct nfs4_client *clp, int reason)
 
 static void nfsd4_mark_cb_down(struct nfs4_client *clp, int reason)
 {
+	if (test_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_flags))
+		return;
 	clp->cl_cb_state = NFSD4_CB_DOWN;
 	warn_no_callback_path(clp, reason);
 }
 
 static void nfsd4_mark_cb_fault(struct nfs4_client *clp, int reason)
 {
+	if (test_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_flags))
+		return;
 	clp->cl_cb_state = NFSD4_CB_FAULT;
 	warn_no_callback_path(clp, reason);
 }
