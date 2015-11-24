@@ -45,6 +45,7 @@ struct cs42xx8_priv {
 	bool slave_mode;
 	unsigned long sysclk;
 	int rate[2];
+	u32 tx_channels;
 };
 
 /* -127.5dB to 0dB with step of 0.5dB */
@@ -250,6 +251,9 @@ static int cs42xx8_hw_params(struct snd_pcm_substream *substream,
 	u32 fm_tx, fm_rx;
 	u32 i, fm, val, mask;
 
+	if (tx)
+		cs42xx8->tx_channels = params_channels(params);
+
 	rate_tx = tx ? rate : cs42xx8->rate[0];
 	rate_rx = tx ? cs42xx8->rate[1] : rate;
 
@@ -344,9 +348,11 @@ static int cs42xx8_digital_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs42xx8_priv *cs42xx8 = snd_soc_codec_get_drvdata(codec);
+	u8 dac_unmute = cs42xx8->tx_channels ?
+		        ~((0x1 << cs42xx8->tx_channels) - 1) : 0;
 
-	regmap_update_bits(cs42xx8->regmap, CS42XX8_DACMUTE,
-			   CS42XX8_DACMUTE_ALL, mute ? CS42XX8_DACMUTE_ALL : 0);
+	regmap_write(cs42xx8->regmap, CS42XX8_DACMUTE,
+		     mute ? CS42XX8_DACMUTE_ALL : dac_unmute);
 
 	return 0;
 }
