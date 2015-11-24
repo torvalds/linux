@@ -696,8 +696,17 @@ static inline u32 nfs_fhandle_hash(const struct nfs_fh *fh)
 {
 	return ~crc32_le(0xFFFFFFFF, &fh->data[0], fh->size);
 }
+static inline u32 nfs_stateid_hash(const nfs4_stateid *stateid)
+{
+	return ~crc32_le(0xFFFFFFFF, &stateid->other[0],
+				NFS4_STATEID_OTHER_SIZE);
+}
 #else
 static inline u32 nfs_fhandle_hash(const struct nfs_fh *fh)
+{
+	return 0;
+}
+static inline u32 nfs_stateid_hash(nfs4_stateid *stateid)
 {
 	return 0;
 }
