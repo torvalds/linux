@@ -1593,10 +1593,6 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 /*
  * iwl_pcie_hcmd_complete - Pull unused buffers off the queue and reclaim them
  * @rxb: Rx buffer to reclaim
- *
- * If an Rx buffer has an async callback associated with it the callback
- * will be executed.  The attached skb (if present) will only be freed
- * if the callback returns 1
  */
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb)
@@ -1639,6 +1635,9 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		meta->source->_rx_page_addr = (unsigned long)page_address(p);
 		meta->source->_rx_page_order = trans_pcie->rx_page_order;
 	}
+
+	if (meta->flags & CMD_WANT_ASYNC_CALLBACK)
+		iwl_op_mode_async_cb(trans->op_mode, cmd);
 
 	iwl_pcie_cmdq_reclaim(trans, txq_id, index);
 

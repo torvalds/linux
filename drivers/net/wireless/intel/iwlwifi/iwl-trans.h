@@ -248,6 +248,8 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_MAKE_TRANS_IDLE: The command response should mark the trans as idle.
  * @CMD_WAKE_UP_TRANS: The command response should wake up the trans
  *	(i.e. mark it as non-idle).
+ * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
+ *	called after this command completes. Valid only with CMD_ASYNC.
  * @CMD_TB_BITMAP_POS: Position of the first bit for the TB bitmap. We need to
  *	check that we leave enough room for the TBs bitmap which needs 20 bits.
  */
@@ -259,6 +261,7 @@ enum CMD_MODE {
 	CMD_SEND_IN_IDLE	= BIT(4),
 	CMD_MAKE_TRANS_IDLE	= BIT(5),
 	CMD_WAKE_UP_TRANS	= BIT(6),
+	CMD_WANT_ASYNC_CALLBACK	= BIT(7),
 
 	CMD_TB_BITMAP_POS	= 11,
 };
@@ -902,6 +905,10 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 		return -EIO;
 	}
+
+	if (WARN_ON((cmd->flags & CMD_WANT_ASYNC_CALLBACK) &&
+		    !(cmd->flags & CMD_ASYNC)))
+		return -EINVAL;
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
