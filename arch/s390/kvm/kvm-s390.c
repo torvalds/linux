@@ -485,9 +485,8 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	unsigned int idx;
 	switch (attr->attr) {
 	case KVM_S390_VM_MEM_ENABLE_CMMA:
-		/* enable CMMA only for z10 and later (EDAT_1) */
 		ret = -EINVAL;
-		if (!MACHINE_IS_LPAR || !MACHINE_HAS_EDAT1)
+		if (!sclp.has_cmma)
 			break;
 
 		ret = -EBUSY;
