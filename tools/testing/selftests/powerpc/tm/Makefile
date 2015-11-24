@@ -4,7 +4,7 @@ all: $(TEST_PROGS)
 
 $(TEST_PROGS): ../harness.c
 
-tm-syscall: tm-syscall-asm.S
+tm-syscall: tm-syscall-asm.S ../utils.c
 tm-syscall: CFLAGS += -mhtm -I../../../../../usr/include
 
 include ../../lib.mk

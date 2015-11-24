@@ -12,6 +12,8 @@ $(TEST_PROGS): $(EXTRA_SOURCES)
 count_instructions: loop.S count_instructions.c $(EXTRA_SOURCES)
 	$(CC) $(CFLAGS) -m64 -o $@ $^
 
+per_event_excludes: ../utils.c
+
 include ../../lib.mk
 
 DEFAULT_RUN_TESTS := $(RUN_TESTS)
