@@ -9719,14 +9719,10 @@ static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 	else
 		cdclk = 337500;
 
-	/*
-	 * FIXME move the cdclk caclulation to
-	 * compute_config() so we can fail gracegully.
-	 */
 	if (cdclk > dev_priv->max_cdclk_freq) {
-		DRM_ERROR("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
-			  cdclk, dev_priv->max_cdclk_freq);
-		cdclk = dev_priv->max_cdclk_freq;
+		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
+			      cdclk, dev_priv->max_cdclk_freq);
+		return -EINVAL;
 	}
 
 	to_intel_atomic_state(state)->cdclk = cdclk;
