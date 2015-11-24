@@ -307,10 +307,9 @@ static irqreturn_t i40evf_msix_aq(int irq, void *data)
 	struct i40e_hw *hw = &adapter->hw;
 	u32 val;
 
-	/* handle non-queue interrupts */
-	rd32(hw, I40E_VFINT_ICR01);
-	rd32(hw, I40E_VFINT_ICR0_ENA1);
-
+	/* handle non-queue interrupts, these reads clear the registers */
+	val = rd32(hw, I40E_VFINT_ICR01);
+	val = rd32(hw, I40E_VFINT_ICR0_ENA1);
 
 	val = rd32(hw, I40E_VFINT_DYN_CTL01) |
 	      I40E_VFINT_DYN_CTL01_CLEARPBA_MASK;
