@@ -1114,7 +1114,7 @@ ds1685_rtc_sysfs_battery_show(struct device *dev,
 
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
 
-	return snprintf(buf, 13, "%s\n",
+	return sprintf(buf, "%s\n",
 			(ctrld & RTC_CTRL_D_VRT) ? "ok" : "not ok or N/A");
 }
 static DEVICE_ATTR(battery, S_IRUGO, ds1685_rtc_sysfs_battery_show, NULL);
@@ -1137,7 +1137,7 @@ ds1685_rtc_sysfs_auxbatt_show(struct device *dev,
 	ctrl4a = rtc->read(rtc, RTC_EXT_CTRL_4A);
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	return snprintf(buf, 13, "%s\n",
+	return sprintf(buf, "%s\n",
 			(ctrl4a & RTC_CTRL_4A_VRT2) ? "ok" : "not ok or N/A");
 }
 static DEVICE_ATTR(auxbatt, S_IRUGO, ds1685_rtc_sysfs_auxbatt_show, NULL);
@@ -1160,9 +1160,7 @@ ds1685_rtc_sysfs_serial_show(struct device *dev,
 	ds1685_rtc_get_ssn(rtc, ssn);
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	return snprintf(buf, 24, "%8phC\n", ssn);
-
-	return 0;
+	return sprintf(buf, "%8phC\n", ssn);
 }
 static DEVICE_ATTR(serial, S_IRUGO, ds1685_rtc_sysfs_serial_show, NULL);
 
@@ -1285,7 +1283,7 @@ ds1685_rtc_sysfs_ctrl_regs_show(struct device *dev,
 	tmp = rtc->read(rtc, reg_info->reg) & reg_info->bit;
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	return snprintf(buf, 2, "%d\n", (tmp ? 1 : 0));
+	return sprintf(buf, "%d\n", (tmp ? 1 : 0));
 }
 
 /**
@@ -1621,7 +1619,7 @@ ds1685_rtc_sysfs_time_regs_show(struct device *dev,
 	tmp = ds1685_rtc_bcd2bin(rtc, tmp, bcd_reg_info->mask,
 				 bin_reg_info->mask);
 
-	return snprintf(buf, 4, "%d\n", tmp);
+	return sprintf(buf, "%d\n", tmp);
 }
 
 /**
