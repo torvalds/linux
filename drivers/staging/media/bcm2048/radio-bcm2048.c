@@ -1000,8 +1000,8 @@ static int bcm2048_set_fm_search_tune_mode(struct bcm2048_device *bdev,
 		timeout = BCM2048_AUTO_SEARCH_TIMEOUT;
 
 	if (!wait_for_completion_timeout(&bdev->compl,
-			msecs_to_jiffies(timeout)))
-			dev_err(&bdev->client->dev, "IRQ timeout.\n");
+		msecs_to_jiffies(timeout)))
+		dev_err(&bdev->client->dev, "IRQ timeout.\n");
 
 	if (value)
 		if (!bdev->scan_state)
