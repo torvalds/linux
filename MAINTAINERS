@@ -6366,6 +6366,7 @@ F:	arch/*/include/asm/pmem.h
 LIGHTNVM PLATFORM SUPPORT
 M:	Matias Bjorling <mb@lightnvm.io>
 W:	http://github/OpenChannelSSD
+L:	linux-block@vger.kernel.org
 S:	Maintained
 F:	drivers/lightnvm/
 F:	include/linux/lightnvm.h

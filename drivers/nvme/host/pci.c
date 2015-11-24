@@ -968,7 +968,8 @@ static void __nvme_process_cq(struct nvme_queue *nvmeq, unsigned int *tag)
 	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
 		return;
 
-	writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
+	if (likely(nvmeq->cq_vector >= 0))
+		writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
 	nvmeq->cq_head = head;
 	nvmeq->cq_phase = phase;
 
@@ -2268,7 +2269,7 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	if (dev->max_hw_sectors) {
 		blk_queue_max_hw_sectors(ns->queue, dev->max_hw_sectors);
 		blk_queue_max_segments(ns->queue,
-			((dev->max_hw_sectors << 9) / dev->page_size) + 1);
+			(dev->max_hw_sectors / (dev->page_size >> 9)) + 1);
 	}
 	if (dev->stripe_size)
 		blk_queue_chunk_sectors(ns->queue, dev->stripe_size >> 9);
@@ -2787,6 +2788,10 @@ static void nvme_del_queue_end(struct nvme_queue *nvmeq)
 {
 	struct nvme_delq_ctx *dq = nvmeq->cmdinfo.ctx;
 	nvme_put_dq(dq);
+
+	spin_lock_irq(&nvmeq->q_lock);
+	nvme_process_cq(nvmeq);
+	spin_unlock_irq(&nvmeq->q_lock);
 }
 
 static int adapter_async_del_queue(struct nvme_queue *nvmeq, u8 opcode,
