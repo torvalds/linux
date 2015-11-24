@@ -9,7 +9,11 @@
 #include <asm/processor.h>
 #include <asm/sclp.h>
 
+#define EVTYP_VT220MSG_MASK	0x00000040
+#define EVTYP_MSG_MASK		0x40000000
+
 static char _sclp_work_area[4096] __aligned(PAGE_SIZE);
+static bool have_vt220, have_linemode;
 
 static void _sclp_wait_int(void)
 {
@@ -68,7 +72,7 @@ static int _sclp_setup(int disable)
 		0x00, 0x1c,
 		0x00, 0x00, 0x00, 0x00,	0x00, 0x00, 0x00, 0x00,
 		0x00, 0x04,
-		0x80, 0x00, 0x00, 0x00,	0x40, 0x00, 0x00, 0x00,
+		0x80, 0x00, 0x00, 0x00,	0x40, 0x00, 0x00, 0x40,
 		0x00, 0x00, 0x00, 0x00,	0x00, 0x00, 0x00, 0x00
 	};
 	unsigned int *masks;
@@ -82,13 +86,13 @@ static int _sclp_setup(int disable)
 	rc = _sclp_servc(0x00780005, _sclp_work_area);
 	if (rc)
 		return rc;
-	if ((masks[0] & masks[3]) != masks[0] ||
-	    (masks[1] & masks[2]) != masks[1])
-		return -EIO;
+	have_vt220 = masks[2] & EVTYP_VT220MSG_MASK;
+	have_linemode = masks[2] & EVTYP_MSG_MASK;
 	return 0;
 }
 
-static int _sclp_print(const char *str)
+/* Output multi-line text using SCLP Message interface. */
+static void _sclp_print_lm(const char *str)
 {
 	static unsigned char write_head[] = {
 		/* sccb header */
@@ -143,18 +147,49 @@ static int _sclp_print(const char *str)
 	} while (ch != 0);
 
 	/* SCLP write data */
-	return _sclp_servc(0x00760005, _sclp_work_area);
+	_sclp_servc(0x00760005, _sclp_work_area);
 }
 
-int _sclp_print_early(const char *str)
+/* Output multi-line text (plus a newline) using SCLP VT220
+ * interface.
+ */
+static void _sclp_print_vt220(const char *str)
 {
-	int rc;
+	static unsigned char const write_head[] = {
+		/* sccb header */
+		0x00, 0x0e,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		/* evbuf header */
+		0x00, 0x06,
+		0x1a, 0x00, 0x00, 0x00,
+	};
+	size_t len = strlen(str);
 
-	rc = _sclp_setup(0);
-	if (rc)
-		return rc;
-	rc = _sclp_print(str);
-	if (rc)
-		return rc;
-	return _sclp_setup(1);
+	if (sizeof(write_head) + len >= sizeof(_sclp_work_area))
+		len = sizeof(_sclp_work_area) - sizeof(write_head) - 1;
+
+	memcpy(_sclp_work_area, write_head, sizeof(write_head));
+	memcpy(_sclp_work_area + sizeof(write_head), str, len);
+	_sclp_work_area[sizeof(write_head) + len] = '\n';
+
+	/* Update length fields in evbuf and sccb headers */
+	*(unsigned short *)(_sclp_work_area + 8) += len + 1;
+	*(unsigned short *)(_sclp_work_area + 0) += len + 1;
+
+	/* SCLP write data */
+	(void)_sclp_servc(0x00760005, _sclp_work_area);
+}
+
+/* Output one or more lines of text on the SCLP console (VT220 and /
+ * or line-mode). All lines get terminated; no need for a trailing LF.
+ */
+void _sclp_print_early(const char *str)
+{
+	if (_sclp_setup(0) != 0)
+		return;
+	if (have_linemode)
+		_sclp_print_lm(str);
+	if (have_vt220)
+		_sclp_print_vt220(str);
+	_sclp_setup(1);
 }

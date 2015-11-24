@@ -80,6 +80,6 @@ int sclp_pci_deconfigure(u32 fid);
 int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
 int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
 void sclp_early_detect(void);
-int _sclp_print_early(const char *);
+void _sclp_print_early(const char *);
 
 #endif /* _ASM_S390_SCLP_H */
