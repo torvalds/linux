@@ -3474,7 +3474,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 				       params->wait, cookie, skb,
 				       IEEE80211_ROC_TYPE_MGMT_TX);
 	if (ret)
-		kfree_skb(skb);
+		ieee80211_free_txskb(&local->hw, skb);
  out_unlock:
 	mutex_unlock(&local->mtx);
 	return ret;
