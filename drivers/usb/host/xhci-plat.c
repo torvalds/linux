@@ -76,6 +76,7 @@ static const struct xhci_plat_priv xhci_plat_marvell_armada = {
 
 static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen2 = {
 	.type = XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2,
+	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V1,
 };
 
 static const struct of_device_id usb_xhci_of_match[] = {
