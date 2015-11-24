@@ -1442,7 +1442,8 @@ static int vi_common_early_init(void *handle)
 		break;
 	case CHIP_FIJI:
 		adev->has_uvd = true;
-		adev->cg_flags = 0;
+		adev->cg_flags = AMDGPU_CG_SUPPORT_UVD_MGCG |
+				AMDGPU_CG_SUPPORT_VCE_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
