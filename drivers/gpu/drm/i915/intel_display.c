@@ -5232,10 +5232,6 @@ static enum intel_display_power_domain port_to_aux_power_domain(enum port port)
 	}
 }
 
-#define for_each_power_domain(domain, mask)				\
-	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
-		if ((1 << (domain)) & (mask))
-
 enum intel_display_power_domain
 intel_display_port_power_domain(struct intel_encoder *intel_encoder)
 {
