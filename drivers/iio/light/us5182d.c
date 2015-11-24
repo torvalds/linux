@@ -119,6 +119,9 @@ struct us5182d_data {
 	u8 opmode;
 	u8 power_mode;
 
+	bool als_enabled;
+	bool px_enabled;
+
 	bool default_continuous;
 };
 
@@ -227,6 +230,50 @@ static int us5182d_set_opmode(struct us5182d_data *data, u8 mode)
 	return 0;
 }
 
+static int us5182d_als_enable(struct us5182d_data *data)
+{
+	int ret;
+	u8 mode;
+
+	if (data->power_mode == US5182D_ONESHOT)
+		return us5182d_set_opmode(data, US5182D_ALS_ONLY);
+
+	if (data->als_enabled)
+		return 0;
+
+	mode = data->px_enabled ? US5182D_ALS_PX : US5182D_ALS_ONLY;
+
+	ret = us5182d_set_opmode(data, mode);
+	if (ret < 0)
+		return ret;
+
+	data->als_enabled = true;
+
+	return 0;
+}
+
+static int us5182d_px_enable(struct us5182d_data *data)
+{
+	int ret;
+	u8 mode;
+
+	if (data->power_mode == US5182D_ONESHOT)
+		return us5182d_set_opmode(data, US5182D_PX_ONLY);
+
+	if (data->px_enabled)
+		return 0;
+
+	mode = data->als_enabled ? US5182D_ALS_PX : US5182D_PX_ONLY;
+
+	ret = us5182d_set_opmode(data, mode);
+	if (ret < 0)
+		return ret;
+
+	data->px_enabled = true;
+
+	return 0;
+}
+
 static int us5182d_shutdown_en(struct us5182d_data *data, u8 state)
 {
 	int ret;
@@ -241,7 +288,16 @@ static int us5182d_shutdown_en(struct us5182d_data *data, u8 state)
 	ret = ret & ~US5182D_CFG0_SHUTDOWN_EN;
 	ret = ret | state;
 
-	return i2c_smbus_write_byte_data(data->client, US5182D_REG_CFG0, ret);
+	ret = i2c_smbus_write_byte_data(data->client, US5182D_REG_CFG0, ret);
+	if (ret < 0)
+		return ret;
+
+	if (state & US5182D_CFG0_SHUTDOWN_EN) {
+		data->als_enabled = false;
+		data->px_enabled = false;
+	}
+
+	return ret;
 }
 
 static int us5182d_read_raw(struct iio_dev *indio_dev,
@@ -261,7 +317,7 @@ static int us5182d_read_raw(struct iio_dev *indio_dev,
 				if (ret < 0)
 					goto out_err;
 			}
-			ret = us5182d_set_opmode(data, US5182D_OPMODE_ALS);
+			ret = us5182d_als_enable(data);
 			if (ret < 0)
 				goto out_err;
 
@@ -278,7 +334,7 @@ static int us5182d_read_raw(struct iio_dev *indio_dev,
 				if (ret < 0)
 					goto out_err;
 			}
-			ret = us5182d_set_opmode(data, US5182D_OPMODE_PX);
+			ret = us5182d_px_enable(data);
 			if (ret < 0)
 				goto out_err;
 
@@ -421,13 +477,15 @@ static int us5182d_init(struct iio_dev *indio_dev)
 			return ret;
 	}
 
+	data->als_enabled = true;
+	data->px_enabled = true;
+
 	if (!data->default_continuous) {
 		ret = us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
 		if (ret < 0)
 			return ret;
 		data->power_mode = US5182D_ONESHOT;
 	}
-
 
 	return ret;
 }
