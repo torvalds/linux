@@ -121,7 +121,7 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 				   unsigned long was_set, void *priv)
 {
 	/* Protected by the calling core code serialization */
-	static struct timespec next_sync;
+	static struct timespec64 next_sync;
 
 	struct xen_platform_op op;
 	struct timespec64 now;
@@ -136,7 +136,7 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 	 * We only take the expensive HV call when the clock was set
 	 * or when the 11 minutes RTC synchronization time elapsed.
 	 */
-	if (!was_set && timespec_compare(&now, &next_sync) < 0)
+	if (!was_set && timespec64_compare(&now, &next_sync) < 0)
 		return NOTIFY_OK;
 
 again:
