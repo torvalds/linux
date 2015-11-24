@@ -1788,6 +1788,7 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	drm_kms_helper_poll_enable(dev);
+	drm_helper_hpd_irq_event(dev);
 
 	if (fbcon) {
 		amdgpu_fbdev_set_suspend(adev, 0);
