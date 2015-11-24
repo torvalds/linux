@@ -318,7 +318,9 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 	 * trying to tx (during RFKILL, we're not trying to tx).
 	 */
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->q.write_ptr);
-	iwl_write32(trans, HBUS_TARG_WRPTR, txq->q.write_ptr | (txq_id << 8));
+	if (!txq->block)
+		iwl_write32(trans, HBUS_TARG_WRPTR,
+			    txq->q.write_ptr | (txq_id << 8));
 }
 
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)

@@ -278,6 +278,7 @@ struct iwl_txq {
 	bool frozen;
 	u8 active;
 	bool ampdu;
+	bool block;
 	unsigned long wd_timeout;
 };
 

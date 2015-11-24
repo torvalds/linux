@@ -1673,6 +1673,33 @@ next_queue:
 	}
 }
 
+static void iwl_trans_pcie_block_txq_ptrs(struct iwl_trans *trans, bool block)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int i;
+
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
+		struct iwl_txq *txq = &trans_pcie->txq[i];
+
+		if (i == trans_pcie->cmd_queue)
+			continue;
+
+		spin_lock_bh(&txq->lock);
+
+		if (!block && !(WARN_ON_ONCE(!txq->block))) {
+			txq->block--;
+			if (!txq->block) {
+				iwl_write32(trans, HBUS_TARG_WRPTR,
+					    txq->q.write_ptr | (i << 8));
+			}
+		} else if (block) {
+			txq->block++;
+		}
+
+		spin_unlock_bh(&txq->lock);
+	}
+}
+
 #define IWL_FLUSH_WAIT_MS	2000
 
 static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
@@ -2467,6 +2494,7 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,
 	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
+	.block_txq_ptrs = iwl_trans_pcie_block_txq_ptrs,
 
 	.write8 = iwl_trans_pcie_write8,
 	.write32 = iwl_trans_pcie_write32,
