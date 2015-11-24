@@ -39,6 +39,13 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ecap0 0 50000 0>;
+		brightness-levels = <0 51 53 56 62 75 101 152 255>;
+		default-brightness-level = <8>;
+	};
 };
 
 &am33xx_pinmux {
@@ -111,6 +118,13 @@
 			AM33XX_IOPAD(0x970, PIN_INPUT_PULLUP | MUX_MODE0)
 			/* uart0_txd.uart0_txd */
 			AM33XX_IOPAD(0x974, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+
+	ecap0_pins: pinmux_ecap0_pins {
+		pinctrl-single,pins = <
+			/* eCAP0_in_PWM0_out.eCAP0_in_PWM0_out MODE0 */
+			AM33XX_IOPAD(0x964, 0x0)
 		>;
 	};
 
@@ -220,6 +234,16 @@
 	ext_rtc: em3027@56 {
 		compatible = "emmicro,em3027";
 		reg = <0x56>;
+	};
+};
+
+&epwmss0 {
+	status = "okay";
+
+	ecap0: ecap@48300100 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ecap0_pins>;
 	};
 };
 
