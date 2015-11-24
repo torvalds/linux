@@ -103,6 +103,7 @@ struct kvm_s390_vm_cpu_machine {
 #define KVM_S390_VM_CPU_FEAT_SIIF	3
 #define KVM_S390_VM_CPU_FEAT_GPERE	4
 #define KVM_S390_VM_CPU_FEAT_GSLS	5
+#define KVM_S390_VM_CPU_FEAT_IB		6
 struct kvm_s390_vm_cpu_feat {
 	__u64 feat[16];
 };
