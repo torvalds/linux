@@ -13850,7 +13850,7 @@ skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state
 	struct drm_i915_private *dev_priv;
 	int crtc_clock, cdclk;
 
-	if (!intel_crtc || !crtc_state)
+	if (!intel_crtc || !crtc_state->base.enable)
 		return DRM_PLANE_HELPER_NO_SCALING;
 
 	dev = intel_crtc->base.dev;
