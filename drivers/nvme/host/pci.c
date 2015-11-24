@@ -1728,9 +1728,13 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	u32 aqa;
 	u64 cap = lo_hi_readq(&dev->bar->cap);
 	struct nvme_queue *nvmeq;
-	unsigned page_shift = PAGE_SHIFT;
+	/*
+	 * default to a 4K page size, with the intention to update this
+	 * path in the future to accomodate architectures with differing
+	 * kernel and IO page sizes.
+	 */
+	unsigned page_shift = 12;
 	unsigned dev_page_min = NVME_CAP_MPSMIN(cap) + 12;
-	unsigned dev_page_max = NVME_CAP_MPSMAX(cap) + 12;
 
 	if (page_shift < dev_page_min) {
 		dev_err(dev->dev,
@@ -1738,13 +1742,6 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 				"host (%u)\n", 1 << dev_page_min,
 				1 << page_shift);
 		return -ENODEV;
-	}
-	if (page_shift > dev_page_max) {
-		dev_info(dev->dev,
-				"Device maximum page size (%u) smaller than "
-				"host (%u); enabling work-around\n",
-				1 << dev_page_max, 1 << page_shift);
-		page_shift = dev_page_max;
 	}
 
 	dev->subsystem = readl(&dev->bar->vs) >= NVME_VS(1, 1) ?
