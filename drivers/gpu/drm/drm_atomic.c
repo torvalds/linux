@@ -1430,7 +1430,7 @@ static int atomic_set_prop(struct drm_atomic_state *state,
 }
 
 /**
- * drm_atomic_update_old_fb -- Unset old_fb pointers and set plane->fb pointers.
+ * drm_atomic_clean_old_fb -- Unset old_fb pointers and set plane->fb pointers.
  *
  * @dev: drm device to check.
  * @plane_mask: plane mask for planes that were updated.
