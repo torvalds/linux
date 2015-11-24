@@ -41,7 +41,8 @@ struct sclp_core_entry {
 	u8 reserved2[3];
 	u8 : 2;
 	u8 ib : 1;
-	u8 : 5;
+	u8 cei : 1;
+	u8 : 4;
 	u8 reserved3[6];
 	u8 type;
 	u8 reserved1;
@@ -69,6 +70,7 @@ struct sclp_info {
 	unsigned char has_cmma : 1;
 	unsigned char has_gsls : 1;
 	unsigned char has_ib : 1;
+	unsigned char has_cei : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;

@@ -150,6 +150,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 		sclp.has_sief2 = cpue->sief2;
 		sclp.has_gpere = cpue->gpere;
 		sclp.has_ib = cpue->ib;
+		sclp.has_cei = cpue->cei;
 		break;
 	}
 
