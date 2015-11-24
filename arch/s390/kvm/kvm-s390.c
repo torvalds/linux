@@ -1027,7 +1027,7 @@ static int kvm_s390_apxa_installed(void)
 	u8 config[128];
 	int cc;
 
-	if (test_facility(2) && test_facility(12)) {
+	if (test_facility(12)) {
 		cc = kvm_s390_query_ap_config(config);
 
 		if (cc)
