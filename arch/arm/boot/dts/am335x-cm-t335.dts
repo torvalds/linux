@@ -62,6 +62,41 @@
 		>;
 	};
 
+	nandflash_pins: pinmux_nandflash_pins {
+		pinctrl-single,pins = <
+			/* gpmc_ad0.gpmc_ad0 */
+			AM33XX_IOPAD(0x800, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad1.gpmc_ad1 */
+			AM33XX_IOPAD(0x804, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad2.gpmc_ad2 */
+			AM33XX_IOPAD(0x808, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad3.gpmc_ad3 */
+			AM33XX_IOPAD(0x80c, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad4.gpmc_ad4 */
+			AM33XX_IOPAD(0x810, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad5.gpmc_ad5 */
+			AM33XX_IOPAD(0x814, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad6.gpmc_ad6 */
+			AM33XX_IOPAD(0x818, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad7.gpmc_ad7 */
+			AM33XX_IOPAD(0x81c, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_wait0.gpmc_wait0 */
+			AM33XX_IOPAD(0x870, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_wpn.gpio0_30 */
+			AM33XX_IOPAD(0x874, PIN_INPUT_PULLUP | MUX_MODE7)
+			/* gpmc_csn0.gpmc_csn0  */
+			AM33XX_IOPAD(0x87c, PIN_OUTPUT | MUX_MODE0)
+			/* gpmc_advn_ale.gpmc_advn_ale */
+			AM33XX_IOPAD(0x890, PIN_OUTPUT | MUX_MODE0)
+			/* gpmc_oen_ren.gpmc_oen_ren */
+			AM33XX_IOPAD(0x894, PIN_OUTPUT | MUX_MODE0)
+			/* gpmc_wen.gpmc_wen */
+			AM33XX_IOPAD(0x898, PIN_OUTPUT | MUX_MODE0)
+			/* gpmc_ben0_cle.gpmc_ben0_cle */
+			AM33XX_IOPAD(0x89c, PIN_OUTPUT | MUX_MODE0)
+		>;
+	};
+
 	uart0_pins: pinmux_uart0_pins {
 		pinctrl-single,pins = <
 			/* uart0_rxd.uart0_rxd */
@@ -96,4 +131,75 @@
 		compatible = "emmicro,em3027";
 		reg = <0x56>;
 	};
+};
+
+&gpmc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&nandflash_pins>;
+	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
+	nand@0,0 {
+		reg = <0 0 0>; /* CS0, offset 0 */
+		ti,nand-ecc-opt = "bch8";
+		ti,elm-id = <&elm>;
+		nand-bus-width = <8>;
+		gpmc,device-width = <1>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-on-ns = <0>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wait-on-read = "true";
+		gpmc,wait-on-write = "true";
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		/* MTD partition table */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		partition@0 {
+			label = "spl";
+			reg = <0x00000000 0x00200000>;
+		};
+		partition@1 {
+			label = "uboot";
+			reg = <0x00200000 0x00100000>;
+		};
+		partition@2 {
+			label = "uboot environment";
+			reg = <0x00300000 0x00100000>;
+		};
+		partition@3 {
+			label = "dtb";
+			reg = <0x00400000 0x00100000>;
+		};
+		partition@4 {
+			label = "splash";
+			reg = <0x00500000 0x00400000>;
+		};
+		partition@5 {
+			label = "linux";
+			reg = <0x00900000 0x00600000>;
+		};
+		partition@6 {
+			label = "rootfs";
+			reg = <0x00F00000 0>;
+		};
+	};
+};
+
+&elm {
+	status = "okay";
 };
