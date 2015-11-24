@@ -111,7 +111,7 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 	size = htt->max_num_pending_tx * sizeof(struct ath10k_htt_txbuf);
 	htt->txbuf.vaddr = dma_alloc_coherent(ar->dev, size,
 						  &htt->txbuf.paddr,
-						  GFP_DMA);
+						  GFP_KERNEL);
 	if (!htt->txbuf.vaddr) {
 		ath10k_err(ar, "failed to alloc tx buffer\n");
 		ret = -ENOMEM;
@@ -124,7 +124,7 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 	size = htt->max_num_pending_tx * sizeof(struct htt_msdu_ext_desc);
 	htt->frag_desc.vaddr = dma_alloc_coherent(ar->dev, size,
 						  &htt->frag_desc.paddr,
-						  GFP_DMA);
+						  GFP_KERNEL);
 	if (!htt->frag_desc.vaddr) {
 		ath10k_warn(ar, "failed to alloc fragment desc memory\n");
 		ret = -ENOMEM;
