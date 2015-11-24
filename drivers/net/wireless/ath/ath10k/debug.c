@@ -2185,8 +2185,8 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("wmi_services", S_IRUSR, ar->debug.debugfs_phy, ar,
 			    &fops_wmi_services);
 
-	debugfs_create_file("simulate_fw_crash", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_simulate_fw_crash);
+	debugfs_create_file("simulate_fw_crash", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_simulate_fw_crash);
 
 	debugfs_create_file("fw_crash_dump", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_fw_crash_dump);
@@ -2203,15 +2203,15 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_chip_id);
 
-	debugfs_create_file("htt_stats_mask", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_htt_stats_mask);
+	debugfs_create_file("htt_stats_mask", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_htt_stats_mask);
 
 	debugfs_create_file("htt_max_amsdu_ampdu", S_IRUSR | S_IWUSR,
 			    ar->debug.debugfs_phy, ar,
 			    &fops_htt_max_amsdu_ampdu);
 
-	debugfs_create_file("fw_dbglog", S_IRUSR, ar->debug.debugfs_phy,
-			    ar, &fops_fw_dbglog);
+	debugfs_create_file("fw_dbglog", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_fw_dbglog);
 
 	debugfs_create_file("cal_data", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_cal_data);
