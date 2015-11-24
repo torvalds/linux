@@ -98,7 +98,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 
 			seg_size += bv.bv_len;
 			bvprv = bv;
-			bvprvp = &bv;
+			bvprvp = &bvprv;
 			sectors += bv.bv_len >> 9;
 			continue;
 		}
@@ -108,7 +108,7 @@ new_segment:
 
 		nsegs++;
 		bvprv = bv;
-		bvprvp = &bv;
+		bvprvp = &bvprv;
 		seg_size = bv.bv_len;
 		sectors += bv.bv_len >> 9;
 	}
