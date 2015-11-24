@@ -93,21 +93,13 @@ static void unlock_rtas(unsigned long flags)
  */
 static void call_rtas_display_status(unsigned char c)
 {
-	struct rtas_args *args = &rtas.args;
 	unsigned long s;
 
 	if (!rtas.base)
 		return;
+
 	s = lock_rtas();
-
-	args->token = cpu_to_be32(10);
-	args->nargs = cpu_to_be32(1);
-	args->nret  = cpu_to_be32(1);
-	args->rets  = &(args->args[1]);
-	args->args[0] = cpu_to_be32(c);
-
-	enter_rtas(__pa(args));
-
+	rtas_call_unlocked(&rtas.args, 10, 1, 1, NULL, c);
 	unlock_rtas(s);
 }
 
