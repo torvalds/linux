@@ -111,6 +111,8 @@ static int prepare_cpuflags(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		newflags |= cpuflags & CPUSTAT_P;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_GSLS))
 		newflags |= cpuflags & CPUSTAT_SM;
+	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_IBS))
+		newflags |= cpuflags & CPUSTAT_IBS;
 
 	atomic_set(&scb_s->cpuflags, newflags);
 	return 0;
