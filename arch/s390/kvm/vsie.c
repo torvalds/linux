@@ -107,6 +107,8 @@ static int prepare_cpuflags(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			return set_validity_icpt(scb_s, 0x0001U);
 		newflags |= CPUSTAT_GED2;
 	}
+	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_GPERE))
+		newflags |= cpuflags & CPUSTAT_P;
 
 	atomic_set(&scb_s->cpuflags, newflags);
 	return 0;
