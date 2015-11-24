@@ -567,7 +567,7 @@ DEFINE_PER_CPU(unsigned, mce_poll_count);
  */
 bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
-	bool error_logged = false;
+	bool error_seen = false;
 	struct mce m;
 	int severity;
 	int i;
@@ -601,6 +601,8 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		    (m.status & (mca_cfg.ser ? MCI_STATUS_S : MCI_STATUS_UC)))
 			continue;
 
+		error_seen = true;
+
 		mce_read_aux(&m, i);
 
 		if (!(flags & MCP_TIMESTAMP))
@@ -608,17 +610,10 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
 
-		/*
-		 * In the cases where we don't have a valid address after all,
-		 * do not add it into the ring buffer.
-		 */
 		if (severity == MCE_DEFERRED_SEVERITY && memory_error(&m)) {
 			if (m.status & MCI_STATUS_ADDRV) {
 				m.severity = severity;
 				m.usable_addr = mce_usable_address(&m);
-
-				if (!mce_gen_pool_add(&m))
-					mce_schedule_work();
 			}
 		}
 
@@ -626,9 +621,16 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
 		 */
-		if (!(flags & MCP_DONTLOG) && !mca_cfg.dont_log_ce) {
-			error_logged = true;
+		if (!(flags & MCP_DONTLOG) && !mca_cfg.dont_log_ce)
 			mce_log(&m);
+		else if (m.usable_addr) {
+			/*
+			 * Although we skipped logging this, we still want
+			 * to take action. Add to the pool so the registered
+			 * notifiers will see it.
+			 */
+			if (!mce_gen_pool_add(&m))
+				mce_schedule_work();
 		}
 
 		/*
@@ -644,7 +646,7 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 	sync_core();
 
-	return error_logged;
+	return error_seen;
 }
 EXPORT_SYMBOL_GPL(machine_check_poll);
 
