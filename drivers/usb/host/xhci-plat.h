@@ -16,6 +16,7 @@
 enum xhci_plat_type {
 	XHCI_PLAT_TYPE_MARVELL_ARMADA,
 	XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2,
+	XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3,
 };
 
 struct xhci_plat_priv {

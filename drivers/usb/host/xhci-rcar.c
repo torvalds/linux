@@ -17,7 +17,14 @@
 #include "xhci-plat.h"
 #include "xhci-rcar.h"
 
+/*
+* - The V2 firmware is possible to use on R-Car Gen2. However, the V2 causes
+*   performance degradation. So, this driver continues to use the V1 if R-Car
+*   Gen2.
+* - The V1 firmware is impossible to use on R-Car Gen3.
+*/
 MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V1);
+MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V2);
 
 /*** Register Offset ***/
 #define RCAR_USB3_INT_ENA	0x224	/* Interrupt Enable */

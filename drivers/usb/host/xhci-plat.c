@@ -52,7 +52,8 @@ static int xhci_plat_setup(struct usb_hcd *hcd)
 {
 	int ret;
 
-	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2)) {
+	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2) ||
+	    xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3)) {
 		ret = xhci_rcar_init_quirk(hcd);
 		if (ret)
 			return ret;
@@ -63,7 +64,8 @@ static int xhci_plat_setup(struct usb_hcd *hcd)
 
 static int xhci_plat_start(struct usb_hcd *hcd)
 {
-	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2))
+	if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2) ||
+	    xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3))
 		xhci_rcar_start(hcd);
 
 	return xhci_run(hcd);
@@ -77,6 +79,11 @@ static const struct xhci_plat_priv xhci_plat_marvell_armada = {
 static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen2 = {
 	.type = XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2,
 	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V1,
+};
+
+static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
+	.type = XHCI_PLAT_TYPE_RENESAS_RCAR_GEN3,
+	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V2,
 };
 
 static const struct of_device_id usb_xhci_of_match[] = {
@@ -99,6 +106,9 @@ static const struct of_device_id usb_xhci_of_match[] = {
 	}, {
 		.compatible = "renesas,xhci-r8a7793",
 		.data = &xhci_plat_renesas_rcar_gen2,
+	}, {
+		.compatible = "renesas,xhci-r8a7795",
+		.data = &xhci_plat_renesas_rcar_gen3,
 	}, {
 	},
 };
