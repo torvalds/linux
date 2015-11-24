@@ -733,7 +733,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb, *ack_skb;
+	struct sk_buff *skb;
 	struct sta_info *sta;
 	const struct ieee80211_mgmt *mgmt = (void *)params->buf;
 	bool need_offchan = false;
@@ -876,10 +876,8 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		/* make a copy to preserve the frame contents
 		 * in case of encryption.
 		 */
-		ack_skb = ieee80211_make_ack_skb(local, skb, cookie,
-						 GFP_KERNEL);
-		if (IS_ERR(ack_skb)) {
-			ret = PTR_ERR(ack_skb);
+		ret = ieee80211_attach_ack_skb(local, skb, cookie, GFP_KERNEL);
+		if (ret) {
 			kfree_skb(skb);
 			goto out_unlock;
 		}

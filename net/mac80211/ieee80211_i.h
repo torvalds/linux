@@ -1484,9 +1484,8 @@ void ieee80211_configure_filter(struct ieee80211_local *local);
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
 
 u64 ieee80211_mgmt_tx_cookie(struct ieee80211_local *local);
-struct sk_buff *ieee80211_make_ack_skb(struct ieee80211_local *local,
-				       struct sk_buff *skb, u64 *cookie,
-				       gfp_t gfp);
+int ieee80211_attach_ack_skb(struct ieee80211_local *local, struct sk_buff *skb,
+			     u64 *cookie, gfp_t gfp);
 
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);

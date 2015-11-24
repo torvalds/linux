@@ -2987,9 +2987,8 @@ u64 ieee80211_mgmt_tx_cookie(struct ieee80211_local *local)
 	return local->roc_cookie_counter;
 }
 
-struct sk_buff *ieee80211_make_ack_skb(struct ieee80211_local *local,
-				       struct sk_buff *skb, u64 *cookie,
-				       gfp_t gfp)
+int ieee80211_attach_ack_skb(struct ieee80211_local *local, struct sk_buff *skb,
+			     u64 *cookie, gfp_t gfp)
 {
 	unsigned long spin_flags;
 	struct sk_buff *ack_skb;
@@ -2997,7 +2996,7 @@ struct sk_buff *ieee80211_make_ack_skb(struct ieee80211_local *local,
 
 	ack_skb = skb_copy(skb, gfp);
 	if (!ack_skb)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	spin_lock_irqsave(&local->ack_status_lock, spin_flags);
 	id = idr_alloc(&local->ack_status_frames, ack_skb,
@@ -3006,7 +3005,7 @@ struct sk_buff *ieee80211_make_ack_skb(struct ieee80211_local *local,
 
 	if (id < 0) {
 		kfree_skb(ack_skb);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	IEEE80211_SKB_CB(skb)->ack_frame_id = id;
@@ -3014,7 +3013,7 @@ struct sk_buff *ieee80211_make_ack_skb(struct ieee80211_local *local,
 	*cookie = ieee80211_mgmt_tx_cookie(local);
 	IEEE80211_SKB_CB(ack_skb)->ack.cookie = *cookie;
 
-	return ack_skb;
+	return 0;
 }
 
 static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
@@ -3092,7 +3091,7 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_qos_hdr *nullfunc;
-	struct sk_buff *skb, *ack_skb;
+	struct sk_buff *skb;
 	int size = sizeof(*nullfunc);
 	__le16 fc;
 	bool qos;
@@ -3160,10 +3159,9 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	if (qos)
 		nullfunc->qos_ctrl = cpu_to_le16(7);
 
-	ack_skb = ieee80211_make_ack_skb(local, skb, cookie, GFP_ATOMIC);
-	if (IS_ERR(ack_skb)) {
+	ret = ieee80211_attach_ack_skb(local, skb, cookie, GFP_ATOMIC);
+	if (ret) {
 		kfree_skb(skb);
-		ret = PTR_ERR(ack_skb);
 		goto unlock;
 	}
 
