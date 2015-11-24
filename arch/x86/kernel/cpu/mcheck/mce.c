@@ -522,10 +522,10 @@ static bool memory_error(struct mce *m)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor == X86_VENDOR_AMD) {
-		/*
-		 * coming soon
-		 */
-		return false;
+		/* ErrCodeExt[20:16] */
+		u8 xec = (m->status >> 16) & 0x1f;
+
+		return (xec == 0x0 || xec == 0x8);
 	} else if (c->x86_vendor == X86_VENDOR_INTEL) {
 		/*
 		 * Intel SDM Volume 3B - 15.9.2 Compound Error Codes
