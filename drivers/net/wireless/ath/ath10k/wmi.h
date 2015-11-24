@@ -4274,6 +4274,8 @@ enum wmi_vdev_subtype {
 	WMI_VDEV_SUBTYPE_P2P_DEVICE = 1,
 	WMI_VDEV_SUBTYPE_P2P_CLIENT = 2,
 	WMI_VDEV_SUBTYPE_P2P_GO     = 3,
+	WMI_VDEV_SUBTYPE_PROXY_STA	= 4,
+	WMI_VDEV_SUBTYPE_MESH		= 5,
 };
 
 /* values for vdev_subtype */
