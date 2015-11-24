@@ -853,7 +853,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   "Periodic Rate\t: %s\n"
 	   "SQW Freq\t: %s\n"
 #ifdef CONFIG_RTC_DS1685_PROC_REGS
-	   "Serial #\t: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n"
+	   "Serial #\t: %8phC\n"
 	   "Register Status\t:\n"
 	   "   Ctrl A\t: UIP  DV2  DV1  DV0  RS3  RS2  RS1  RS0\n"
 	   "\t\t:  %s\n"
@@ -872,7 +872,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   "   Ctrl 4B\t: ABE  E32k  CS  RCE  PRS  RIE  WIE  KSE\n"
 	   "\t\t:  %s\n",
 #else
-	   "Serial #\t: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+	   "Serial #\t: %8phC\n",
 #endif
 	   model,
 	   ((ctrla & RTC_CTRL_A_DV1) ? "enabled" : "disabled"),
@@ -888,7 +888,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   (!((ctrl4b & RTC_CTRL_4B_E32K)) ?
 	    ds1685_rtc_sqw_freq[(ctrla & RTC_CTRL_A_RS_MASK)] : "32768Hz"),
 #ifdef CONFIG_RTC_DS1685_PROC_REGS
-	   ssn[0], ssn[1], ssn[2], ssn[3], ssn[4], ssn[5], ssn[6], ssn[7],
+	   ssn,
 	   ds1685_rtc_print_regs(ctrla, bits[0]),
 	   ds1685_rtc_print_regs(ctrlb, bits[1]),
 	   ds1685_rtc_print_regs(ctrlc, bits[2]),
@@ -896,7 +896,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   ds1685_rtc_print_regs(ctrl4a, bits[4]),
 	   ds1685_rtc_print_regs(ctrl4b, bits[5]));
 #else
-	   ssn[0], ssn[1], ssn[2], ssn[3], ssn[4], ssn[5], ssn[6], ssn[7]);
+	   ssn);
 #endif
 	return 0;
 }
@@ -1160,9 +1160,7 @@ ds1685_rtc_sysfs_serial_show(struct device *dev,
 	ds1685_rtc_get_ssn(rtc, ssn);
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	return snprintf(buf, 24, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-			ssn[0], ssn[1], ssn[2], ssn[3], ssn[4], ssn[5],
-			ssn[6], ssn[7]);
+	return snprintf(buf, 24, "%8phC\n", ssn);
 
 	return 0;
 }
