@@ -57,13 +57,13 @@
 	     i < (power_domains)->power_well_count &&			\
 		 ((power_well) = &(power_domains)->power_wells[i]);	\
 	     i++)							\
-		if ((power_well)->domains & (domain_mask))
+		for_each_if ((power_well)->domains & (domain_mask))
 
 #define for_each_power_well_rev(i, power_well, domain_mask, power_domains) \
 	for (i = (power_domains)->power_well_count - 1;			 \
 	     i >= 0 && ((power_well) = &(power_domains)->power_wells[i]);\
 	     i--)							 \
-		if ((power_well)->domains & (domain_mask))
+		for_each_if ((power_well)->domains & (domain_mask))
 
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 				    int power_well_id);

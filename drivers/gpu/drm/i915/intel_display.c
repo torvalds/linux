@@ -12281,7 +12281,7 @@ static bool intel_fuzzy_clock_check(int clock1, int clock2)
 	list_for_each_entry((intel_crtc), \
 			    &(dev)->mode_config.crtc_list, \
 			    base.head) \
-		if (mask & (1 <<(intel_crtc)->pipe))
+		for_each_if (mask & (1 <<(intel_crtc)->pipe))
 
 static bool
 intel_compare_m_n(unsigned int m, unsigned int n,
