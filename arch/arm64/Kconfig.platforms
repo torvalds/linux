@@ -108,6 +108,12 @@ config ARCH_THUNDER
 	help
 	  This enables support for Cavium's Thunder Family of SoCs.
 
+config ARCH_UNIPHIER
+	bool "Socionext UniPhier SoC Family"
+	select PINCTRL
+	help
+	  This enables support for Socionext UniPhier SoC family.
+
 config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
 	select ARCH_REQUIRE_GPIOLIB
