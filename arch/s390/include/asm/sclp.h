@@ -32,7 +32,8 @@ struct sclp_core_entry {
 	u8 reserved0;
 	u8 : 4;
 	u8 sief2 : 1;
-	u8 : 3;
+	u8 skey : 1;
+	u8 : 2;
 	u8 : 2;
 	u8 gpere : 1;
 	u8 siif : 1;
@@ -73,6 +74,7 @@ struct sclp_info {
 	unsigned char has_cei : 1;
 	unsigned char has_pfmfi : 1;
 	unsigned char has_ibs : 1;
+	unsigned char has_skey : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;
