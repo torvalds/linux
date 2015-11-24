@@ -266,7 +266,7 @@ int ipu_irq_unmap(unsigned int source)
 }
 
 /* Chained IRQ handler for IPU function and error interrupt */
-static void ipu_irq_handler(unsigned int __irq, struct irq_desc *desc)
+static void ipu_irq_handler(struct irq_desc *desc)
 {
 	struct ipu *ipu = irq_desc_get_handler_data(desc);
 	u32 status;

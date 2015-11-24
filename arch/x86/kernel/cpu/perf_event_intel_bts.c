@@ -222,6 +222,7 @@ static void __bts_event_start(struct perf_event *event)
 	if (!buf || bts_buffer_is_full(buf, bts))
 		return;
 
+	event->hw.itrace_started = 1;
 	event->hw.state = 0;
 
 	if (!buf->snapshot)
@@ -493,6 +494,19 @@ static int bts_event_init(struct perf_event *event)
 
 	if (x86_add_exclusive(x86_lbr_exclusive_bts))
 		return -EBUSY;
+
+	/*
+	 * BTS leaks kernel addresses even when CPL0 tracing is
+	 * disabled, so disallow intel_bts driver for unprivileged
+	 * users on paranoid systems since it provides trace data
+	 * to the user in a zero-copy fashion.
+	 *
+	 * Note that the default paranoia setting permits unprivileged
+	 * users to profile the kernel.
+	 */
+	if (event->attr.exclude_kernel && perf_paranoid_kernel() &&
+	    !capable(CAP_SYS_ADMIN))
+		return -EACCES;
 
 	ret = x86_reserve_hardware();
 	if (ret) {

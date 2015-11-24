@@ -561,6 +561,16 @@ struct regmap *__regmap_init(struct device *dev,
 		}
 		map->lock_arg = map;
 	}
+
+	/*
+	 * When we write in fast-paths with regmap_bulk_write() don't allocate
+	 * scratch buffers with sleeping allocations.
+	 */
+	if ((bus && bus->fast_io) || config->fast_io)
+		map->alloc_flags = GFP_ATOMIC;
+	else
+		map->alloc_flags = GFP_KERNEL;
+
 	map->format.reg_bytes = DIV_ROUND_UP(config->reg_bits, 8);
 	map->format.pad_bytes = config->pad_bits / 8;
 	map->format.val_bytes = DIV_ROUND_UP(config->val_bits, 8);
@@ -619,6 +629,7 @@ struct regmap *__regmap_init(struct device *dev,
 		goto skip_format_initialization;
 	} else {
 		map->reg_read  = _regmap_bus_read;
+		map->reg_update_bits = bus->reg_update_bits;
 	}
 
 	reg_endian = regmap_get_reg_endian(bus, config);
@@ -1786,7 +1797,7 @@ out:
 		if (!val_count)
 			return -EINVAL;
 
-		wval = kmemdup(val, val_count * val_bytes, GFP_KERNEL);
+		wval = kmemdup(val, val_count * val_bytes, map->alloc_flags);
 		if (!wval) {
 			dev_err(map->dev, "Error in memory allocation\n");
 			return -ENOMEM;
@@ -2509,20 +2520,26 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 	int ret;
 	unsigned int tmp, orig;
 
-	ret = _regmap_read(map, reg, &orig);
-	if (ret != 0)
-		return ret;
+	if (change)
+		*change = false;
 
-	tmp = orig & ~mask;
-	tmp |= val & mask;
-
-	if (force_write || (tmp != orig)) {
-		ret = _regmap_write(map, reg, tmp);
-		if (change)
+	if (regmap_volatile(map, reg) && map->reg_update_bits) {
+		ret = map->reg_update_bits(map->bus_context, reg, mask, val);
+		if (ret == 0 && change)
 			*change = true;
 	} else {
-		if (change)
-			*change = false;
+		ret = _regmap_read(map, reg, &orig);
+		if (ret != 0)
+			return ret;
+
+		tmp = orig & ~mask;
+		tmp |= val & mask;
+
+		if (force_write || (tmp != orig)) {
+			ret = _regmap_write(map, reg, tmp);
+			if (ret == 0 && change)
+				*change = true;
+		}
 	}
 
 	return ret;

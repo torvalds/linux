@@ -368,7 +368,7 @@ static void topology_add_core(struct toptree *core)
 		cpumask_copy(&top->thread_mask, &core->mask);
 		cpumask_copy(&top->core_mask, &core_mc(core)->mask);
 		cpumask_copy(&top->book_mask, &core_book(core)->mask);
-		cpumask_set_cpu(cpu, node_to_cpumask_map[core_node(core)->id]);
+		cpumask_set_cpu(cpu, &node_to_cpumask_map[core_node(core)->id]);
 		top->node_id = core_node(core)->id;
 	}
 }
@@ -383,7 +383,7 @@ static void toptree_to_topology(struct toptree *numa)
 
 	/* Clear all node masks */
 	for (i = 0; i < MAX_NUMNODES; i++)
-		cpumask_clear(node_to_cpumask_map[i]);
+		cpumask_clear(&node_to_cpumask_map[i]);
 
 	/* Rebuild all masks */
 	toptree_for_each(core, numa, CORE)
@@ -436,9 +436,15 @@ static void emu_update_cpu_topology(void)
  */
 static unsigned long emu_setup_size_adjust(unsigned long size)
 {
+	unsigned long size_new;
+
 	size = size ? : CONFIG_EMU_SIZE;
-	size = roundup(size, memory_block_size_bytes());
-	return size;
+	size_new = roundup(size, memory_block_size_bytes());
+	if (size_new == size)
+		return size;
+	pr_warn("Increasing memory stripe size from %ld MB to %ld MB\n",
+		size >> 20, size_new >> 20);
+	return size_new;
 }
 
 /*

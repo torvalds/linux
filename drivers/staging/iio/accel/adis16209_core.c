@@ -235,7 +235,6 @@ static int adis16209_remove(struct spi_device *spi)
 static struct spi_driver adis16209_driver = {
 	.driver = {
 		.name = "adis16209",
-		.owner = THIS_MODULE,
 	},
 	.probe = adis16209_probe,
 	.remove = adis16209_remove,

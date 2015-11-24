@@ -65,12 +65,10 @@ static void combiner_unmask_irq(struct irq_data *data)
 	__raw_writel(mask, combiner_base(data) + COMBINER_ENABLE_SET);
 }
 
-static void combiner_handle_cascade_irq(unsigned int __irq,
-					struct irq_desc *desc)
+static void combiner_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct combiner_chip_data *chip_data = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned int irq = irq_desc_get_irq(desc);
 	unsigned int cascade_irq, combiner_irq;
 	unsigned long status;
 
@@ -88,7 +86,7 @@ static void combiner_handle_cascade_irq(unsigned int __irq,
 	cascade_irq = irq_find_mapping(combiner_irq_domain, combiner_irq);
 
 	if (unlikely(!cascade_irq))
-		handle_bad_irq(irq, desc);
+		handle_bad_irq(desc);
 	else
 		generic_handle_irq(cascade_irq);
 
@@ -146,7 +144,7 @@ static int combiner_irq_domain_xlate(struct irq_domain *d,
 				     unsigned long *out_hwirq,
 				     unsigned int *out_type)
 {
-	if (d->of_node != controller)
+	if (irq_domain_get_of_node(d) != controller)
 		return -EINVAL;
 
 	if (intsize < 2)
@@ -165,7 +163,7 @@ static int combiner_irq_domain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler(irq, &combiner_chip, handle_level_irq);
 	irq_set_chip_data(irq, &combiner_data[hw >> 3]);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(irq);
 
 	return 0;
 }

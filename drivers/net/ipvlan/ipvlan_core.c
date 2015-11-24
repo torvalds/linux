@@ -344,17 +344,18 @@ static int ipvlan_process_v4_outbound(struct sk_buff *skb)
 {
 	const struct iphdr *ip4h = ip_hdr(skb);
 	struct net_device *dev = skb->dev;
+	struct net *net = dev_net(dev);
 	struct rtable *rt;
 	int err, ret = NET_XMIT_DROP;
 	struct flowi4 fl4 = {
-		.flowi4_oif = dev_get_iflink(dev),
+		.flowi4_oif = dev->ifindex,
 		.flowi4_tos = RT_TOS(ip4h->tos),
 		.flowi4_flags = FLOWI_FLAG_ANYSRC,
 		.daddr = ip4h->daddr,
 		.saddr = ip4h->saddr,
 	};
 
-	rt = ip_route_output_flow(dev_net(dev), &fl4, NULL);
+	rt = ip_route_output_flow(net, &fl4, NULL);
 	if (IS_ERR(rt))
 		goto err;
 
@@ -364,7 +365,7 @@ static int ipvlan_process_v4_outbound(struct sk_buff *skb)
 	}
 	skb_dst_drop(skb);
 	skb_dst_set(skb, &rt->dst);
-	err = ip_local_out(skb);
+	err = ip_local_out(net, skb->sk, skb);
 	if (unlikely(net_xmit_eval(err)))
 		dev->stats.tx_errors++;
 	else
@@ -381,10 +382,11 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 {
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct net_device *dev = skb->dev;
+	struct net *net = dev_net(dev);
 	struct dst_entry *dst;
 	int err, ret = NET_XMIT_DROP;
 	struct flowi6 fl6 = {
-		.flowi6_iif = skb->dev->ifindex,
+		.flowi6_iif = dev->ifindex,
 		.daddr = ip6h->daddr,
 		.saddr = ip6h->saddr,
 		.flowi6_flags = FLOWI_FLAG_ANYSRC,
@@ -393,7 +395,7 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 		.flowi6_proto = ip6h->nexthdr,
 	};
 
-	dst = ip6_route_output(dev_net(dev), NULL, &fl6);
+	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {
 		ret = dst->error;
 		dst_release(dst);
@@ -401,7 +403,7 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 	}
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
-	err = ip6_local_out(skb);
+	err = ip6_local_out(net, skb->sk, skb);
 	if (unlikely(net_xmit_eval(err)))
 		dev->stats.tx_errors++;
 	else

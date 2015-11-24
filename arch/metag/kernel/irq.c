@@ -94,13 +94,11 @@ void do_IRQ(int irq, struct pt_regs *regs)
 			"MOV   D0.5,%0\n"
 			"MOV   D1Ar1,%1\n"
 			"MOV   D1RtP,%2\n"
-			"MOV   D0Ar2,%3\n"
 			"SWAP  A0StP,D0.5\n"
 			"SWAP  PC,D1RtP\n"
 			"MOV   A0StP,D0.5\n"
 			:
-			: "r" (isp), "r" (irq), "r" (desc->handle_irq),
-			  "r" (desc)
+			: "r" (isp), "r" (desc), "r" (desc->handle_irq)
 			: "memory", "cc", "D1Ar1", "D0Ar2", "D1Ar3", "D0Ar4",
 			  "D1Ar5", "D0Ar6", "D0Re0", "D1Re0", "D0.4", "D1RtP",
 			  "D0.5"

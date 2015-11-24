@@ -166,8 +166,11 @@ nfs_direct_select_verf(struct nfs_direct_req *dreq,
 	struct nfs_writeverf *verfp = &dreq->verf;
 
 #ifdef CONFIG_NFS_V4_1
-	if (ds_clp) {
-		/* pNFS is in use, use the DS verf */
+	/*
+	 * pNFS is in use, use the DS verf except commit_through_mds is set
+	 * for layout segment where nbuckets is zero.
+	 */
+	if (ds_clp && dreq->ds_cinfo.nbuckets > 0) {
 		if (commit_idx >= 0 && commit_idx < dreq->ds_cinfo.nbuckets)
 			verfp = &dreq->ds_cinfo.buckets[commit_idx].direct_verf;
 		else

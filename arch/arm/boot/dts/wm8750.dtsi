@@ -17,7 +17,7 @@
 
 		cpu {
 			device_type = "cpu";
-			compatible = "arm,arm1176ej-s";
+			compatible = "arm,arm1176jzf";
 		};
 	};
 

@@ -108,6 +108,7 @@ static ssize_t sysfs_kf_read(struct kernfs_open_file *of, char *buf,
 {
 	const struct sysfs_ops *ops = sysfs_file_ops(of->kn);
 	struct kobject *kobj = of->kn->parent->priv;
+	size_t len;
 
 	/*
 	 * If buf != of->prealloc_buf, we don't know how
@@ -115,7 +116,8 @@ static ssize_t sysfs_kf_read(struct kernfs_open_file *of, char *buf,
 	 */
 	if (pos || WARN_ON_ONCE(buf != of->prealloc_buf))
 		return 0;
-	return ops->show(kobj, of->kn->priv, buf);
+	len = ops->show(kobj, of->kn->priv, buf);
+	return min(count, len);
 }
 
 /* kernfs write callback for regular sysfs files */

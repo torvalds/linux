@@ -14,8 +14,10 @@
 /* node block offset on the NAT area dedicated to the given start node id */
 #define	NAT_BLOCK_OFFSET(start_nid) (start_nid / NAT_ENTRY_PER_BLOCK)
 
-/* # of pages to perform readahead before building free nids */
+/* # of pages to perform synchronous readahead before building free nids */
 #define FREE_NID_PAGES 4
+
+#define DEF_RA_NID_PAGES	4	/* # of nid pages to be readaheaded */
 
 /* maximum readahead size for node during getting data blocks */
 #define MAX_RA_NODE		128

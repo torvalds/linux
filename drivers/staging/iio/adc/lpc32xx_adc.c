@@ -67,10 +67,10 @@ struct lpc32xx_adc_info {
 };
 
 static int lpc32xx_read_raw(struct iio_dev *indio_dev,
-				struct iio_chan_spec const *chan,
-				int *val,
-				int *val2,
-				long mask)
+			    struct iio_chan_spec const *chan,
+			    int *val,
+			    int *val2,
+			    long mask)
 {
 	struct lpc32xx_adc_info *info = iio_priv(indio_dev);
 
@@ -79,10 +79,10 @@ static int lpc32xx_read_raw(struct iio_dev *indio_dev,
 		clk_enable(info->clk);
 		/* Measurement setup */
 		__raw_writel(AD_INTERNAL | (chan->address) | AD_REFp | AD_REFm,
-			LPC32XX_ADC_SELECT(info->adc_base));
+			     LPC32XX_ADC_SELECT(info->adc_base));
 		/* Trigger conversion */
 		__raw_writel(AD_PDN_CTRL | AD_STROBE,
-			LPC32XX_ADC_CTRL(info->adc_base));
+			     LPC32XX_ADC_CTRL(info->adc_base));
 		wait_for_completion(&info->completion); /* set by ISR */
 		clk_disable(info->clk);
 		*val = info->value;
@@ -137,7 +137,7 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get platform I/O memory\n");
-		return -EBUSY;
+		return -ENXIO;
 	}
 
 	iodev = devm_iio_device_alloc(&pdev->dev, sizeof(*info));
@@ -162,11 +162,11 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev, "failed getting interrupt resource\n");
-		return -EINVAL;
+		return -ENXIO;
 	}
 
 	retval = devm_request_irq(&pdev->dev, irq, lpc32xx_adc_isr, 0,
-								MOD_NAME, info);
+				  MOD_NAME, info);
 	if (retval < 0) {
 		dev_err(&pdev->dev, "failed requesting interrupt\n");
 		return retval;

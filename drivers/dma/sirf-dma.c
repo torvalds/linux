@@ -1149,6 +1149,7 @@ static const struct of_device_id sirfsoc_dma_match[] = {
 	{ .compatible = "sirf,atlas7-dmac-v2", .data = &sirfsoc_dmadata_a7v2,},
 	{},
 };
+MODULE_DEVICE_TABLE(of, sirfsoc_dma_match);
 
 static struct platform_driver sirfsoc_dma_driver = {
 	.probe		= sirfsoc_dma_probe,

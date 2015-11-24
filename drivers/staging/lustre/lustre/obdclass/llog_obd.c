@@ -36,7 +36,6 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-
 #include "../include/obd_class.h"
 #include "../include/lustre_log.h"
 #include "llog_internal.h"
@@ -211,36 +210,6 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 	return rc;
 }
 EXPORT_SYMBOL(llog_setup);
-
-int llog_sync(struct llog_ctxt *ctxt, struct obd_export *exp, int flags)
-{
-	int rc = 0;
-
-	if (!ctxt)
-		return 0;
-
-	if (CTXTP(ctxt, sync))
-		rc = CTXTP(ctxt, sync)(ctxt, exp, flags);
-
-	return rc;
-}
-EXPORT_SYMBOL(llog_sync);
-
-int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
-		struct llog_cookie *cookies, int flags)
-{
-	int rc;
-
-	if (!ctxt) {
-		CERROR("No ctxt\n");
-		return -ENODEV;
-	}
-
-	CTXT_CHECK_OP(ctxt, cancel, -EOPNOTSUPP);
-	rc = CTXTP(ctxt, cancel)(env, ctxt, cookies, flags);
-	return rc;
-}
-EXPORT_SYMBOL(llog_cancel);
 
 /* context key constructor/destructor: llog_key_init, llog_key_fini */
 LU_KEY_INIT_FINI(llog, struct llog_thread_info);

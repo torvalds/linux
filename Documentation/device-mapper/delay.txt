@@ -8,6 +8,7 @@ Parameters:
     <device> <offset> <delay> [<write_device> <write_offset> <write_delay>]
 
 With separate write parameters, the first set is only used for reads.
+Offsets are specified in sectors.
 Delays are specified in milliseconds.
 
 Example scripts

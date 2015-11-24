@@ -191,16 +191,18 @@ cfs_set_ptldebug_header(struct ptldebug_header *header,
 			struct libcfs_debug_msg_data *msgdata,
 			unsigned long stack)
 {
-	struct timeval tv;
+	struct timespec64 ts;
 
-	do_gettimeofday(&tv);
+	ktime_get_real_ts64(&ts);
 
 	header->ph_subsys = msgdata->msg_subsys;
 	header->ph_mask = msgdata->msg_mask;
 	header->ph_cpu_id = smp_processor_id();
 	header->ph_type = cfs_trace_buf_idx_get();
-	header->ph_sec = (__u32)tv.tv_sec;
-	header->ph_usec = tv.tv_usec;
+	/* y2038 safe since all user space treats this as unsigned, but
+	 * will overflow in 2106 */
+	header->ph_sec = (u32)ts.tv_sec;
+	header->ph_usec = ts.tv_nsec / NSEC_PER_USEC;
 	header->ph_stack = stack;
 	header->ph_pid = current->pid;
 	header->ph_line_num = msgdata->msg_line;
@@ -212,12 +214,11 @@ static char *
 dbghdr_to_err_string(struct ptldebug_header *hdr)
 {
 	switch (hdr->ph_subsys) {
-
-		case S_LND:
-		case S_LNET:
-			return "LNetError";
-		default:
-			return "LustreError";
+	case S_LND:
+	case S_LNET:
+		return "LNetError";
+	default:
+		return "LustreError";
 	}
 }
 
@@ -225,12 +226,11 @@ static char *
 dbghdr_to_info_string(struct ptldebug_header *hdr)
 {
 	switch (hdr->ph_subsys) {
-
-		case S_LND:
-		case S_LNET:
-			return "LNet";
-		default:
-			return "Lustre";
+	case S_LND:
+	case S_LNET:
+		return "LNet";
+	default:
+		return "Lustre";
 	}
 }
 

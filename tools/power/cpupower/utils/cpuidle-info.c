@@ -126,8 +126,8 @@ static void proc_cpuidle_cpu_output(unsigned int cpu)
 }
 
 static struct option info_opts[] = {
-	{ .name = "silent",	.has_arg = no_argument,	.flag = NULL,	.val = 's'},
-	{ .name = "proc",	.has_arg = no_argument,	.flag = NULL,	.val = 'o'},
+	{"silent", no_argument, NULL, 's'},
+	{"proc", no_argument, NULL, 'o'},
 	{ },
 };
 

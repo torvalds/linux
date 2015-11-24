@@ -168,7 +168,6 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 {
 	struct vnt_rcb *rcb = urb->context;
 	struct vnt_private *priv = rcb->priv;
-	unsigned long flags;
 
 	switch (urb->status) {
 	case 0:
@@ -184,8 +183,6 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 	}
 
 	if (urb->actual_length) {
-		spin_lock_irqsave(&priv->lock, flags);
-
 		if (vnt_rx_data(priv, rcb, urb->actual_length)) {
 			rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
 			if (!rcb->skb) {
@@ -193,7 +190,6 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 					"Failed to re-alloc rx skb\n");
 
 				rcb->in_use = false;
-				spin_unlock_irqrestore(&priv->lock, flags);
 				return;
 			}
 		} else {
@@ -203,8 +199,6 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 
 		urb->transfer_buffer = skb_put(rcb->skb,
 						skb_tailroom(rcb->skb));
-
-		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	if (usb_submit_urb(urb, GFP_ATOMIC)) {

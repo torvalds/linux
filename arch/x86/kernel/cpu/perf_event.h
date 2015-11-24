@@ -47,6 +47,7 @@ enum extra_reg_type {
 	EXTRA_REG_RSP_1 = 1,	/* offcore_response_1 */
 	EXTRA_REG_LBR   = 2,	/* lbr_select */
 	EXTRA_REG_LDLAT = 3,	/* ld_lat_threshold */
+	EXTRA_REG_FE    = 4,    /* fe_* */
 
 	EXTRA_REG_MAX		/* number of entries needed */
 };
@@ -195,7 +196,7 @@ struct cpu_hw_events {
 
 	int			n_excl; /* the number of exclusive events */
 
-	unsigned int		group_flag;
+	unsigned int		txn_flags;
 	int			is_fake;
 
 	/*

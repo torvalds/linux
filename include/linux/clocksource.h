@@ -246,16 +246,13 @@ extern int clocksource_i8253_init(void);
 #define CLOCKSOURCE_OF_DECLARE(name, compat, fn) \
 	OF_DECLARE_1(clksrc, name, compat, fn)
 
-#ifdef CONFIG_CLKSRC_OF
-extern void clocksource_of_init(void);
+#ifdef CONFIG_CLKSRC_PROBE
+extern void clocksource_probe(void);
 #else
-static inline void clocksource_of_init(void) {}
+static inline void clocksource_probe(void) {}
 #endif
 
-#ifdef CONFIG_ACPI
-void acpi_generic_timer_init(void);
-#else
-static inline void acpi_generic_timer_init(void) { }
-#endif
+#define CLOCKSOURCE_ACPI_DECLARE(name, table_id, fn)		\
+	ACPI_DECLARE_PROBE_ENTRY(clksrc, name, table_id, 0, NULL, 0, fn)
 
 #endif /* _LINUX_CLOCKSOURCE_H */

@@ -11,7 +11,7 @@ struct vm86;
 #include <asm/math_emu.h>
 #include <asm/segment.h>
 #include <asm/types.h>
-#include <asm/sigcontext.h>
+#include <uapi/asm/sigcontext.h>
 #include <asm/current.h>
 #include <asm/cpufeature.h>
 #include <asm/page.h>
@@ -556,12 +556,12 @@ static inline unsigned int cpuid_edx(unsigned int op)
 }
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static inline void rep_nop(void)
+static __always_inline void rep_nop(void)
 {
 	asm volatile("rep; nop" ::: "memory");
 }
 
-static inline void cpu_relax(void)
+static __always_inline void cpu_relax(void)
 {
 	rep_nop();
 }

@@ -73,7 +73,7 @@ static struct irqaction ar5312_ahb_err_interrupt  = {
 	.name    = "ar5312-ahb-error",
 };
 
-static void ar5312_misc_irq_handler(unsigned irq, struct irq_desc *desc)
+static void ar5312_misc_irq_handler(struct irq_desc *desc)
 {
 	u32 pending = ar5312_rst_reg_read(AR5312_ISR) &
 		      ar5312_rst_reg_read(AR5312_IMR);

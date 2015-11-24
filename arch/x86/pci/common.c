@@ -166,6 +166,7 @@ void pcibios_fixup_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
+	pci_read_bridge_bases(b);
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
 }
@@ -674,6 +675,14 @@ int pcibios_add_device(struct pci_dev *dev)
 
 int pcibios_alloc_irq(struct pci_dev *dev)
 {
+	/*
+	 * If the PCI device was already claimed by core code and has
+	 * MSI enabled, probing of the pcibios IRQ will overwrite
+	 * dev->irq.  So bail out if MSI is already enabled.
+	 */
+	if (pci_dev_msi_enabled(dev))
+		return -EBUSY;
+
 	return pcibios_enable_irq(dev);
 }
 

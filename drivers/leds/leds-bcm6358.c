@@ -215,8 +215,10 @@ static int bcm6358_leds_probe(struct platform_device *pdev)
 		}
 
 		rc = bcm6358_led(dev, child, reg, mem, lock);
-		if (rc < 0)
+		if (rc < 0) {
+			of_node_put(child);
 			return rc;
+		}
 	}
 
 	return 0;
@@ -226,6 +228,7 @@ static const struct of_device_id bcm6358_leds_of_match[] = {
 	{ .compatible = "brcm,bcm6358-leds", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, bcm6358_leds_of_match);
 
 static struct platform_driver bcm6358_leds_driver = {
 	.probe = bcm6358_leds_probe,

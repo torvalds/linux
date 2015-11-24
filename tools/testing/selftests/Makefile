@@ -6,6 +6,7 @@ TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
 TARGETS += kcmp
+TARGETS += lib
 TARGETS += membarrier
 TARGETS += memfd
 TARGETS += memory-hotplug
@@ -13,15 +14,16 @@ TARGETS += mount
 TARGETS += mqueue
 TARGETS += net
 TARGETS += powerpc
+TARGETS += pstore
 TARGETS += ptrace
 TARGETS += seccomp
 TARGETS += size
+TARGETS += static_keys
 TARGETS += sysctl
 ifneq (1, $(quicktest))
 TARGETS += timers
 endif
 TARGETS += user
-TARGETS += jumplabel
 TARGETS += vm
 TARGETS += x86
 TARGETS += zram
@@ -64,6 +66,9 @@ clean_hotplug:
 	for TARGET in $(TARGETS_HOTPLUG); do \
 		make -C $$TARGET clean; \
 	done;
+
+run_pstore_crash:
+	make -C pstore run_crash
 
 INSTALL_PATH ?= install
 INSTALL_PATH := $(abspath $(INSTALL_PATH))

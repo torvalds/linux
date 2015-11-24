@@ -118,7 +118,7 @@ static inline void ftm_reset_counter(void __iomem *base)
 	ftm_writel(0x00, base + FTM_CNT);
 }
 
-static u64 ftm_read_sched_clock(void)
+static u64 notrace ftm_read_sched_clock(void)
 {
 	return ftm_readl(priv->clksrc_base + FTM_CNT);
 }

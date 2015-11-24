@@ -32,4 +32,13 @@ struct sti_private {
 	} commit;
 };
 
+extern struct platform_driver sti_tvout_driver;
+extern struct platform_driver sti_vtac_driver;
+extern struct platform_driver sti_hqvdp_driver;
+extern struct platform_driver sti_hdmi_driver;
+extern struct platform_driver sti_hda_driver;
+extern struct platform_driver sti_dvo_driver;
+extern struct platform_driver sti_vtg_driver;
+extern struct platform_driver sti_compositor_driver;
+
 #endif

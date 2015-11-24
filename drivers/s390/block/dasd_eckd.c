@@ -1032,6 +1032,21 @@ static unsigned char dasd_eckd_path_access(void *conf_data, int conf_len)
 		return 0;
 }
 
+static void dasd_eckd_clear_conf_data(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	int i;
+
+	private = (struct dasd_eckd_private *) device->private;
+	private->conf_data = NULL;
+	private->conf_len = 0;
+	for (i = 0; i < 8; i++) {
+		kfree(private->path_conf_data[i]);
+		private->path_conf_data[i] = NULL;
+	}
+}
+
+
 static int dasd_eckd_read_conf(struct dasd_device *device)
 {
 	void *conf_data;
@@ -1068,20 +1083,10 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			path_data->opm |= lpm;
 			continue;	/* no error */
 		}
-		/* translate path mask to position in mask */
-		pos = 8 - ffs(lpm);
-		kfree(private->path_conf_data[pos]);
-		if ((__u8 *)private->path_conf_data[pos] ==
-		    private->conf_data) {
-			private->conf_data = NULL;
-			private->conf_len = 0;
-			conf_data_saved = 0;
-		}
-		private->path_conf_data[pos] =
-			(struct dasd_conf_data *) conf_data;
 		/* save first valid configuration data */
 		if (!conf_data_saved) {
-			kfree(private->conf_data);
+			/* initially clear previously stored conf_data */
+			dasd_eckd_clear_conf_data(device);
 			private->conf_data = conf_data;
 			private->conf_len = conf_len;
 			if (dasd_eckd_identify_conf_parts(private)) {
@@ -1090,6 +1095,10 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 				kfree(conf_data);
 				continue;
 			}
+			pos = pathmask_to_pos(lpm);
+			/* store per path conf_data */
+			private->path_conf_data[pos] =
+				(struct dasd_conf_data *) conf_data;
 			/*
 			 * build device UID that other path data
 			 * can be compared to it
@@ -1147,7 +1156,10 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 				path_data->cablepm |= lpm;
 				continue;
 			}
-
+			pos = pathmask_to_pos(lpm);
+			/* store per path conf_data */
+			private->path_conf_data[pos] =
+				(struct dasd_conf_data *) conf_data;
 			path_private.conf_data = NULL;
 			path_private.conf_len = 0;
 		}
@@ -1159,7 +1171,12 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			path_data->ppm |= lpm;
 			break;
 		}
-		path_data->opm |= lpm;
+		if (!path_data->opm) {
+			path_data->opm = lpm;
+			dasd_generic_path_operational(device);
+		} else {
+			path_data->opm |= lpm;
+		}
 		/*
 		 * if the path is used
 		 * it should not be in one of the negative lists
@@ -4423,7 +4440,12 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	private = (struct dasd_eckd_private *) device->private;
 
 	/* Read Configuration Data */
-	dasd_eckd_read_conf(device);
+	rc = dasd_eckd_read_conf(device);
+	if (rc) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
+				"Read configuration data failed, rc=%d", rc);
+		goto out_err;
+	}
 
 	dasd_eckd_get_uid(device, &temp_uid);
 	/* Generate device unique id */
@@ -4439,13 +4461,18 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	/* register lcu with alias handling, enable PAV if this is a new lcu */
 	rc = dasd_alias_make_device_known_to_lcu(device);
 	if (rc)
-		return rc;
+		goto out_err;
 
 	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr_flags);
 	dasd_eckd_validate_server(device, cqr_flags);
 
 	/* RE-Read Configuration Data */
-	dasd_eckd_read_conf(device);
+	rc = dasd_eckd_read_conf(device);
+	if (rc) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
+			"Read configuration data failed, rc=%d", rc);
+		goto out_err2;
+	}
 
 	/* Read Feature Codes */
 	dasd_eckd_read_features(device);
@@ -4456,7 +4483,7 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	if (rc) {
 		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
 				"Read device characteristic failed, rc=%d", rc);
-		goto out_err;
+		goto out_err2;
 	}
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	memcpy(&private->rdc_data, &temp_rdc_data, sizeof(temp_rdc_data));
@@ -4467,6 +4494,8 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 
 	return 0;
 
+out_err2:
+	dasd_alias_disconnect_device_from_lcu(device);
 out_err:
 	return -1;
 }
@@ -4671,7 +4700,7 @@ static struct dasd_conf_data *dasd_eckd_get_ref_conf(struct dasd_device *device,
 			return conf_data;
 	}
 out:
-	return private->path_conf_data[8 - ffs(lpum)];
+	return private->path_conf_data[pathmask_to_pos(lpum)];
 }
 
 /*
@@ -4716,7 +4745,7 @@ static int dasd_eckd_cuir_scope(struct dasd_device *device, __u8 lpum,
 	for (path = 0x80; path; path >>= 1) {
 		/* initialise data per path */
 		bitmask = mask;
-		pos = 8 - ffs(path);
+		pos = pathmask_to_pos(path);
 		conf_data = private->path_conf_data[pos];
 		pos = 8 - ffs(cuir->ned_map);
 		ned = (char *) &conf_data->neds[pos];
@@ -4937,9 +4966,7 @@ static void dasd_eckd_handle_cuir(struct dasd_device *device, void *messages,
 		      ((u64 *)cuir)[0], ((u64 *)cuir)[1], ((u64 *)cuir)[2],
 		      ((u32 *)cuir)[3]);
 	ccw_device_get_schid(device->cdev, &sch_id);
-	/* get position of path in mask */
-	pos = 8 - ffs(lpum);
-	/* get channel path descriptor from this position */
+	pos = pathmask_to_pos(lpum);
 	desc = ccw_device_get_chp_desc(device->cdev, pos);
 
 	if (cuir->code == CUIR_QUIESCE) {

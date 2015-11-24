@@ -888,19 +888,9 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	return 0;
 }
 
-static int samsung_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void samsung_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static const struct gpio_chip samsung_gpiolib_chip = {
-	.request = samsung_gpio_request,
-	.free = samsung_gpio_free,
+	.request = gpiochip_generic_request,
+	.free = gpiochip_generic_free,
 	.set = samsung_gpio_set,
 	.get = samsung_gpio_get,
 	.direction_input = samsung_gpio_direction_input,

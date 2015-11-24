@@ -60,7 +60,6 @@ struct nxp_spifi {
 	struct clk *clk_reg;
 	void __iomem *io_base;
 	void __iomem *flash_base;
-	struct mtd_info mtd;
 	struct spi_nor nor;
 	bool memory_mode;
 	u32 mcmd;
@@ -150,8 +149,7 @@ static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return nxp_spifi_wait_for_cmd(spifi);
 }
 
-static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
-			       int len, int write_enable)
+static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 {
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
@@ -331,9 +329,8 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 
 	writel(ctrl, spifi->io_base + SPIFI_CTRL);
 
-	spifi->mtd.priv  = &spifi->nor;
-	spifi->nor.mtd   = &spifi->mtd;
 	spifi->nor.dev   = spifi->dev;
+	spifi->nor.flash_node = np;
 	spifi->nor.priv  = spifi;
 	spifi->nor.read  = nxp_spifi_read;
 	spifi->nor.write = nxp_spifi_write;
@@ -365,7 +362,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 	}
 
 	ppdata.of_node = np;
-	ret = mtd_device_parse_register(&spifi->mtd, NULL, &ppdata, NULL, 0);
+	ret = mtd_device_parse_register(&spifi->nor.mtd, NULL, &ppdata, NULL, 0);
 	if (ret) {
 		dev_err(spifi->dev, "mtd device parse failed\n");
 		return ret;
@@ -454,7 +451,7 @@ static int nxp_spifi_remove(struct platform_device *pdev)
 {
 	struct nxp_spifi *spifi = platform_get_drvdata(pdev);
 
-	mtd_device_unregister(&spifi->mtd);
+	mtd_device_unregister(&spifi->nor.mtd);
 	clk_disable_unprepare(spifi->clk_spifi);
 	clk_disable_unprepare(spifi->clk_reg);
 

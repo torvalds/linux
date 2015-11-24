@@ -8,15 +8,6 @@
  * Public License ("GPL") version 2 as distributed in the 'COPYING'
  * file from the main directory of the linux kernel source.
  *
- *
- * Your platform definition file should specify something like:
- *
- * static struct at91_can_data ek_can_data = {
- *	transceiver_switch = sam9263ek_transceiver_switch,
- * };
- *
- * at91_add_device_can(&ek_can_data);
- *
  */
 
 #include <linux/clk.h>
@@ -33,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/platform_data/atmel.h>
 
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
@@ -324,15 +314,6 @@ static inline u32 at91_can_id_to_reg_mid(canid_t can_id)
 	return reg_mid;
 }
 
-/*
- * Swtich transceiver on or off
- */
-static void at91_transceiver_switch(const struct at91_priv *priv, int on)
-{
-	if (priv->pdata && priv->pdata->transceiver_switch)
-		priv->pdata->transceiver_switch(on);
-}
-
 static void at91_setup_mailboxes(struct net_device *dev)
 {
 	struct at91_priv *priv = netdev_priv(dev);
@@ -416,7 +397,6 @@ static void at91_chip_start(struct net_device *dev)
 
 	at91_set_bittiming(dev);
 	at91_setup_mailboxes(dev);
-	at91_transceiver_switch(priv, 1);
 
 	/* enable chip */
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
@@ -444,7 +424,6 @@ static void at91_chip_stop(struct net_device *dev, enum can_state state)
 	reg_mr = at91_read(priv, AT91_MR);
 	at91_write(priv, AT91_MR, reg_mr & ~AT91_MR_CANEN);
 
-	at91_transceiver_switch(priv, 0);
 	priv->can.state = state;
 }
 

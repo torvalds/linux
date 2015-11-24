@@ -576,7 +576,8 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 		}
 		if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT
 		    || q->type == V4L2_BUF_TYPE_VBI_OUTPUT
-		    || q->type == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
+		    || q->type == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT
+		    || q->type == V4L2_BUF_TYPE_SDR_OUTPUT) {
 			buf->size = b->bytesused;
 			buf->field = b->field;
 			buf->ts = b->timestamp;
@@ -1154,6 +1155,7 @@ unsigned int videobuf_poll_stream(struct file *file,
 			case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 			case V4L2_BUF_TYPE_VBI_OUTPUT:
 			case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+			case V4L2_BUF_TYPE_SDR_OUTPUT:
 				rc = POLLOUT | POLLWRNORM;
 				break;
 			default:

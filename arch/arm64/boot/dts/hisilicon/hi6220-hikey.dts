@@ -17,11 +17,14 @@
 	compatible = "hisilicon,hi6220-hikey", "hisilicon,hi6220";
 
 	aliases {
-		serial0 = &uart0;
+		serial0 = &uart0; /* On board UART0 */
+		serial1 = &uart1; /* BT UART */
+		serial2 = &uart2; /* LS Expansion UART0 */
+		serial3 = &uart3; /* LS Expansion UART1 */
 	};
 
 	chosen {
-		stdout-path = "serial0:115200n8";
+		stdout-path = "serial3:115200n8";
 	};
 
 	memory@0 {

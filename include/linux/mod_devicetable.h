@@ -219,6 +219,14 @@ struct serio_device_id {
 	__u8 proto;
 };
 
+struct hda_device_id {
+	__u32 vendor_id;
+	__u32 rev_id;
+	__u8 api_version;
+	const char *name;
+	unsigned long driver_data;
+};
+
 /*
  * Struct used for matching a device
  */
@@ -601,15 +609,13 @@ struct ipack_device_id {
 
 #define MEI_CL_MODULE_PREFIX "mei:"
 #define MEI_CL_NAME_SIZE 32
-#define MEI_CL_UUID_FMT "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-#define MEI_CL_UUID_ARGS(_u) \
-	_u[0], _u[1], _u[2], _u[3], _u[4], _u[5], _u[6], _u[7], \
-	_u[8], _u[9], _u[10], _u[11], _u[12], _u[13], _u[14], _u[15]
+#define MEI_CL_VERSION_ANY 0xff
 
 /**
  * struct mei_cl_device_id - MEI client device identifier
  * @name: helper name
  * @uuid: client uuid
+ * @version: client protocol version
  * @driver_info: information used by the driver.
  *
  * identifies mei client device by uuid and name
@@ -617,6 +623,7 @@ struct ipack_device_id {
 struct mei_cl_device_id {
 	char name[MEI_CL_NAME_SIZE];
 	uuid_le uuid;
+	__u8    version;
 	kernel_ulong_t driver_info;
 };
 

@@ -43,6 +43,8 @@ int test__task_exit(void)
 	};
 	const char *argv[] = { "true", NULL };
 	char sbuf[STRERR_BUFSIZE];
+	struct cpu_map *cpus;
+	struct thread_map *threads;
 
 	signal(SIGCHLD, sig_handler);
 
@@ -58,13 +60,18 @@ int test__task_exit(void)
 	 * perf_evlist__prepare_workload we'll fill in the only thread
 	 * we're monitoring, the one forked there.
 	 */
-	evlist->cpus = cpu_map__dummy_new();
-	evlist->threads = thread_map__new_by_tid(-1);
-	if (!evlist->cpus || !evlist->threads) {
+	cpus = cpu_map__dummy_new();
+	threads = thread_map__new_by_tid(-1);
+	if (!cpus || !threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_delete_evlist;
+		goto out_free_maps;
 	}
+
+	perf_evlist__set_maps(evlist, cpus, threads);
+
+	cpus	= NULL;
+	threads = NULL;
 
 	err = perf_evlist__prepare_workload(evlist, &target, argv, false,
 					    workload_exec_failed_signal);
@@ -114,6 +121,9 @@ retry:
 		err = -1;
 	}
 
+out_free_maps:
+	cpu_map__put(cpus);
+	thread_map__put(threads);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 	return err;

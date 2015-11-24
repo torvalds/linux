@@ -171,11 +171,11 @@ do {						\
 static inline void elf_common_init(struct thread_struct *t,
 				   struct pt_regs *regs, const u16 ds)
 {
-	/* Commented-out registers are cleared in stub_execve */
-	/*regs->ax = regs->bx =*/ regs->cx = regs->dx = 0;
-	regs->si = regs->di /*= regs->bp*/ = 0;
+	/* ax gets execve's return value. */
+	/*regs->ax = */ regs->bx = regs->cx = regs->dx = 0;
+	regs->si = regs->di = regs->bp = 0;
 	regs->r8 = regs->r9 = regs->r10 = regs->r11 = 0;
-	/*regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;*/
+	regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;
 	t->fs = t->gs = 0;
 	t->fsindex = t->gsindex = 0;
 	t->ds = t->es = ds;
@@ -328,7 +328,7 @@ else									\
 
 #define VDSO_ENTRY							\
 	((unsigned long)current->mm->context.vdso +			\
-	 selected_vdso32->sym___kernel_vsyscall)
+	 vdso_image_32.sym___kernel_vsyscall)
 
 struct linux_binprm;
 

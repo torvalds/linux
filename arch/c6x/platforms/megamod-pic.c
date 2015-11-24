@@ -93,7 +93,7 @@ static struct irq_chip megamod_chip = {
 	.irq_unmask	= unmask_megamod,
 };
 
-static void megamod_irq_cascade(unsigned int __irq, struct irq_desc *desc)
+static void megamod_irq_cascade(struct irq_desc *desc)
 {
 	struct megamod_cascade_data *cascade;
 	struct megamod_pic *pic;
@@ -178,7 +178,7 @@ static void __init set_megamod_mux(struct megamod_pic *pic, int src, int output)
 static void __init parse_priority_map(struct megamod_pic *pic,
 				      int *mapping, int size)
 {
-	struct device_node *np = pic->irqhost->of_node;
+	struct device_node *np = irq_domain_get_of_node(pic->irqhost);
 	const __be32 *map;
 	int i, maplen;
 	u32 val;

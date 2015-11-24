@@ -36,9 +36,6 @@
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
 #define AP_POLL_TIME 1		/* Time in ticks between receive polls. */
 
-#define AP_POLL_IMMEDIATELY	1 /* continue running poll tasklet */
-#define AP_POLL_AFTER_TIMEOUT	2 /* run poll tasklet again after timout */
-
 extern int ap_domain_index;
 
 /**
@@ -75,21 +72,9 @@ struct ap_queue_status {
 	unsigned int pad2		: 16;
 } __packed;
 
-#define AP_QUEUE_STATUS_INVALID \
-		{ 1, 1, 1, 0xF, 1, 0xFF, 0xFFFF }
 
-static inline
-int ap_queue_status_invalid_test(struct ap_queue_status *status)
-{
-	struct ap_queue_status invalid = AP_QUEUE_STATUS_INVALID;
-	return !(memcmp(status, &invalid, sizeof(struct ap_queue_status)));
-}
-
-#define AP_MAX_BITS 31
 static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 {
-	if (nr > AP_MAX_BITS)
-		return 0;
 	return (*ptr & (0x80000000u >> nr)) != 0;
 }
 
@@ -132,19 +117,45 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_FUNC_APXA  6
 
 /*
- * AP reset flag states
- */
-#define AP_RESET_IGNORE	0	/* request timeout will be ignored */
-#define AP_RESET_ARMED	1	/* request timeout timer is active */
-#define AP_RESET_DO	2	/* AP reset required */
-#define AP_RESET_IN_PROGRESS	3	/* AP reset in progress */
-
-/*
  * AP interrupt states
  */
 #define AP_INTR_DISABLED	0	/* AP interrupt disabled */
 #define AP_INTR_ENABLED		1	/* AP interrupt enabled */
-#define AP_INTR_IN_PROGRESS	3	/* AP interrupt in progress */
+
+/*
+ * AP device states
+ */
+enum ap_state {
+	AP_STATE_RESET_START,
+	AP_STATE_RESET_WAIT,
+	AP_STATE_SETIRQ_WAIT,
+	AP_STATE_IDLE,
+	AP_STATE_WORKING,
+	AP_STATE_QUEUE_FULL,
+	AP_STATE_SUSPEND_WAIT,
+	AP_STATE_BORKED,
+	NR_AP_STATES
+};
+
+/*
+ * AP device events
+ */
+enum ap_event {
+	AP_EVENT_POLL,
+	AP_EVENT_TIMEOUT,
+	NR_AP_EVENTS
+};
+
+/*
+ * AP wait behaviour
+ */
+enum ap_wait {
+	AP_WAIT_AGAIN,		/* retry immediately */
+	AP_WAIT_TIMEOUT,	/* wait for timeout */
+	AP_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
+	AP_WAIT_NONE,		/* no wait */
+	NR_AP_WAIT
+};
 
 struct ap_device;
 struct ap_message;
@@ -163,20 +174,22 @@ struct ap_driver {
 int ap_driver_register(struct ap_driver *, struct module *, char *);
 void ap_driver_unregister(struct ap_driver *);
 
+typedef enum ap_wait (ap_func_t)(struct ap_device *ap_dev);
+
 struct ap_device {
 	struct device device;
 	struct ap_driver *drv;		/* Pointer to AP device driver. */
 	spinlock_t lock;		/* Per device lock. */
 	struct list_head list;		/* private list of all AP devices. */
 
+	enum ap_state state;		/* State of the AP device. */
+
 	ap_qid_t qid;			/* AP queue id. */
 	int queue_depth;		/* AP queue depth.*/
 	int device_type;		/* AP device type. */
 	int raw_hwtype;			/* AP raw hardware type. */
 	unsigned int functions;		/* AP device function bitfield. */
-	int unregistered;		/* marks AP device as unregistered */
 	struct timer_list timeout;	/* Timer for request timeouts. */
-	int reset;			/* Reset required after req. timeout. */
 
 	int interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */
@@ -199,6 +212,7 @@ struct ap_message {
 	unsigned long long psmid;	/* Message id. */
 	void *message;			/* Pointer to message buffer. */
 	size_t length;			/* Message length. */
+	int rc;				/* Return code for this message */
 
 	void *private;			/* ap driver private pointer. */
 	unsigned int special:1;		/* Used for special commands. */
@@ -231,6 +245,7 @@ static inline void ap_init_message(struct ap_message *ap_msg)
 {
 	ap_msg->psmid = 0;
 	ap_msg->length = 0;
+	ap_msg->rc = 0;
 	ap_msg->special = 0;
 	ap_msg->receive = NULL;
 }

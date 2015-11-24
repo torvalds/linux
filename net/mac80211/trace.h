@@ -33,11 +33,11 @@
 			__field(u32, chan_width)					\
 			__field(u32, center_freq1)					\
 			__field(u32, center_freq2)
-#define CHANDEF_ASSIGN(c)								\
-			__entry->control_freq = (c)->chan ? (c)->chan->center_freq : 0;	\
-			__entry->chan_width = (c)->width;				\
-			__entry->center_freq1 = (c)->center_freq1;			\
-			__entry->center_freq2 = (c)->center_freq2;
+#define CHANDEF_ASSIGN(c)							\
+			__entry->control_freq = (c) ? ((c)->chan ? (c)->chan->center_freq : 0) : 0;	\
+			__entry->chan_width = (c) ? (c)->width : 0;			\
+			__entry->center_freq1 = (c) ? (c)->center_freq1 : 0;		\
+			__entry->center_freq2 = (c) ? (c)->center_freq2 : 0;
 #define CHANDEF_PR_FMT	" control:%d MHz width:%d center: %d/%d MHz"
 #define CHANDEF_PR_ARG	__entry->control_freq, __entry->chan_width,			\
 			__entry->center_freq1, __entry->center_freq2
@@ -325,7 +325,6 @@ TRACE_EVENT(drv_config,
 		__field(u32, flags)
 		__field(int, power_level)
 		__field(int, dynamic_ps_timeout)
-		__field(int, max_sleep_period)
 		__field(u16, listen_interval)
 		__field(u8, long_frame_max_tx_count)
 		__field(u8, short_frame_max_tx_count)
@@ -339,7 +338,6 @@ TRACE_EVENT(drv_config,
 		__entry->flags = local->hw.conf.flags;
 		__entry->power_level = local->hw.conf.power_level;
 		__entry->dynamic_ps_timeout = local->hw.conf.dynamic_ps_timeout;
-		__entry->max_sleep_period = local->hw.conf.max_sleep_period;
 		__entry->listen_interval = local->hw.conf.listen_interval;
 		__entry->long_frame_max_tx_count =
 			local->hw.conf.long_frame_max_tx_count;
@@ -494,6 +492,36 @@ TRACE_EVENT(drv_configure_filter,
 	TP_printk(
 		LOCAL_PR_FMT " changed:%#x total:%#x",
 		LOCAL_PR_ARG, __entry->changed, __entry->total
+	)
+);
+
+TRACE_EVENT(drv_config_iface_filter,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 unsigned int filter_flags,
+		 unsigned int changed_flags),
+
+	TP_ARGS(local, sdata, filter_flags, changed_flags),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(unsigned int, filter_flags)
+		__field(unsigned int, changed_flags)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->filter_flags = filter_flags;
+		__entry->changed_flags = changed_flags;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT
+		" filter_flags: %#x changed_flags: %#x",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->filter_flags,
+		__entry->changed_flags
 	)
 );
 
@@ -944,9 +972,9 @@ TRACE_EVENT(drv_ampdu_action,
 		 struct ieee80211_sub_if_data *sdata,
 		 enum ieee80211_ampdu_mlme_action action,
 		 struct ieee80211_sta *sta, u16 tid,
-		 u16 *ssn, u8 buf_size),
+		 u16 *ssn, u8 buf_size, bool amsdu),
 
-	TP_ARGS(local, sdata, action, sta, tid, ssn, buf_size),
+	TP_ARGS(local, sdata, action, sta, tid, ssn, buf_size, amsdu),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -955,6 +983,7 @@ TRACE_EVENT(drv_ampdu_action,
 		__field(u16, tid)
 		__field(u16, ssn)
 		__field(u8, buf_size)
+		__field(bool, amsdu)
 		VIF_ENTRY
 	),
 
@@ -966,12 +995,13 @@ TRACE_EVENT(drv_ampdu_action,
 		__entry->tid = tid;
 		__entry->ssn = ssn ? *ssn : 0;
 		__entry->buf_size = buf_size;
+		__entry->amsdu = amsdu;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " action:%d tid:%d buf:%d",
+		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " action:%d tid:%d buf:%d amsdu:%d",
 		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->action,
-		__entry->tid, __entry->buf_size
+		__entry->tid, __entry->buf_size, __entry->amsdu
 	)
 );
 

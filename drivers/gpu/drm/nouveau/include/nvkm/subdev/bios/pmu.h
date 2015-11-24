@@ -4,8 +4,6 @@ struct nvbios_pmuT {
 };
 
 u32 nvbios_pmuTe(struct nvkm_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
-u32 nvbios_pmuTp(struct nvkm_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-		 struct nvbios_pmuT *);
 
 struct nvbios_pmuE {
 	u8  type;

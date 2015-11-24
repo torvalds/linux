@@ -16,6 +16,7 @@ config H8300
 	select OF_EARLY_FLATTREE
 	select HAVE_MEMBLOCK
 	select HAVE_DMA_ATTRS
+	select CLKSRC_OF
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
