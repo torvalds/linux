@@ -4952,7 +4952,7 @@ EXPORT_SYMBOL_GPL(xhci_gen_setup);
 static const struct hc_driver xhci_hc_driver = {
 	.description =		"xhci-hcd",
 	.product_desc =		"xHCI Host Controller",
-	.hcd_priv_size =	sizeof(struct xhci_hcd *),
+	.hcd_priv_size =	sizeof(struct xhci_hcd),
 
 	/*
 	 * generic hardware linkage

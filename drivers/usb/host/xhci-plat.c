@@ -31,7 +31,6 @@ static int xhci_plat_setup(struct usb_hcd *hcd);
 static int xhci_plat_start(struct usb_hcd *hcd);
 
 static const struct xhci_driver_overrides xhci_plat_overrides __initconst = {
-	.extra_priv_size = sizeof(struct xhci_hcd),
 	.reset = xhci_plat_setup,
 	.start = xhci_plat_start,
 };
