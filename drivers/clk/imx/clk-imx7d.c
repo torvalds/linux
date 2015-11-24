@@ -833,6 +833,12 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 
 	clks[IMX7D_GPT_3M_CLK] = imx_clk_fixed_factor("gpt_3m", "osc", 1, 8);
 
+	clks[IMX7D_CLK_ARM] = imx_clk_cpu("arm", "arm_a7_root_clk",
+					 clks[IMX7D_ARM_A7_ROOT_CLK],
+					 clks[IMX7D_ARM_A7_ROOT_SRC],
+					 clks[IMX7D_PLL_ARM_MAIN_CLK],
+					 clks[IMX7D_PLL_SYS_MAIN_CLK]);
+
 	for (i = 0; i < ARRAY_SIZE(clks); i++)
 		if (IS_ERR(clks[i]))
 			pr_err("i.MX7D clk %d: register failed with %ld\n",
