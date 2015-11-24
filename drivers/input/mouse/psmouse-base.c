@@ -119,6 +119,7 @@ struct psmouse_protocol {
 	enum psmouse_type type;
 	bool maxproto;
 	bool ignore_parity; /* Protocol should ignore parity errors from KBC */
+	bool try_passthru; /* Try protocol also on passthrough ports */
 	const char *name;
 	const char *alias;
 	int (*detect)(struct psmouse *, bool);
@@ -691,6 +692,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.maxproto	= true,
 		.ignore_parity	= true,
 		.detect		= ps2bare_detect,
+		.try_passthru	= true,
 	},
 #ifdef CONFIG_MOUSE_PS2_LOGIPS2PP
 	{
@@ -728,6 +730,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.maxproto	= true,
 		.ignore_parity	= true,
 		.detect		= intellimouse_detect,
+		.try_passthru	= true,
 	},
 	{
 		.type		= PSMOUSE_IMEX,
@@ -736,6 +739,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.maxproto	= true,
 		.ignore_parity	= true,
 		.detect		= im_explorer_detect,
+		.try_passthru	= true,
 	},
 #ifdef CONFIG_MOUSE_PS2_SYNAPTICS
 	{
@@ -777,6 +781,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "TPPS/2",
 		.alias		= "trackpoint",
 		.detect		= trackpoint_detect,
+		.try_passthru	= true,
 	},
 #endif
 #ifdef CONFIG_MOUSE_PS2_TOUCHKIT
@@ -932,6 +937,11 @@ static bool psmouse_try_protocol(struct psmouse *psmouse,
 	proto = __psmouse_protocol_by_type(type);
 	if (!proto)
 		return false;
+
+	if (psmouse->ps2dev.serio->id.type == SERIO_PS_PSTHRU &&
+	    !proto->try_passthru) {
+		return false;
+	}
 
 	if (set_properties)
 		psmouse_apply_defaults(psmouse);
