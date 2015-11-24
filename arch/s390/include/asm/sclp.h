@@ -38,7 +38,11 @@ struct sclp_core_entry {
 	u8 siif : 1;
 	u8 sigpif : 1;
 	u8 : 3;
-	u8 reserved2[10];
+	u8 reserved2[3];
+	u8 : 2;
+	u8 ib : 1;
+	u8 : 5;
+	u8 reserved3[6];
 	u8 type;
 	u8 reserved1;
 } __attribute__((packed));
@@ -64,6 +68,7 @@ struct sclp_info {
 	unsigned char has_gpere : 1;
 	unsigned char has_cmma : 1;
 	unsigned char has_gsls : 1;
+	unsigned char has_ib : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;
