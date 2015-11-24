@@ -63,6 +63,7 @@ struct sclp_info {
 	unsigned char has_64bscao : 1;
 	unsigned char has_gpere : 1;
 	unsigned char has_cmma : 1;
+	unsigned char has_gsls : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;
