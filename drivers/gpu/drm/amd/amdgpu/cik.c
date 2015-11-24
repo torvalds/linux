@@ -929,6 +929,37 @@ static bool cik_read_disabled_bios(struct amdgpu_device *adev)
 	return r;
 }
 
+static bool cik_read_bios_from_rom(struct amdgpu_device *adev,
+				   u8 *bios, u32 length_bytes)
+{
+	u32 *dw_ptr;
+	unsigned long flags;
+	u32 i, length_dw;
+
+	if (bios == NULL)
+		return false;
+	if (length_bytes == 0)
+		return false;
+	/* APU vbios image is part of sbios image */
+	if (adev->flags & AMD_IS_APU)
+		return false;
+
+	dw_ptr = (u32 *)bios;
+	length_dw = ALIGN(length_bytes, 4) / 4;
+	/* take the smc lock since we are using the smc index */
+	spin_lock_irqsave(&adev->smc_idx_lock, flags);
+	/* set rom index to 0 */
+	WREG32(mmSMC_IND_INDEX_0, ixROM_INDEX);
+	WREG32(mmSMC_IND_DATA_0, 0);
+	/* set index to data for continous read */
+	WREG32(mmSMC_IND_INDEX_0, ixROM_DATA);
+	for (i = 0; i < length_dw; i++)
+		dw_ptr[i] = RREG32(mmSMC_IND_DATA_0);
+	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
+
+	return true;
+}
+
 static struct amdgpu_allowed_register_entry cik_allowed_read_registers[] = {
 	{mmGRBM_STATUS, false},
 	{mmGB_ADDR_CONFIG, false},
@@ -2267,6 +2298,7 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 static const struct amdgpu_asic_funcs cik_asic_funcs =
 {
 	.read_disabled_bios = &cik_read_disabled_bios,
+	.read_bios_from_rom = &cik_read_bios_from_rom,
 	.read_register = &cik_read_register,
 	.reset = &cik_asic_reset,
 	.set_vga_state = &cik_vga_set_state,
