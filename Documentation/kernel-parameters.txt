@@ -3296,6 +3296,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutorture.verbose= [KNL]
 			Enable additional printk() statements.
 
+	rcupdate.rcu_cpu_stall_suppress= [KNL]
+			Suppress RCU CPU stall warning messages.
+
+	rcupdate.rcu_cpu_stall_timeout= [KNL]
+			Set timeout for RCU CPU stall warning messages.
+
 	rcupdate.rcu_expedited= [KNL]
 			Use expedited grace-period primitives, for
 			example, synchronize_rcu_expedited() instead
@@ -3303,11 +3309,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			but can increase CPU utilization, degrade
 			real-time latency, and degrade energy efficiency.
 
-	rcupdate.rcu_cpu_stall_suppress= [KNL]
-			Suppress RCU CPU stall warning messages.
-
-	rcupdate.rcu_cpu_stall_timeout= [KNL]
-			Set timeout for RCU CPU stall warning messages.
+	rcupdate.rcu_normal= [KNL]
+			Use only normal grace-period primitives,
+			for example, synchronize_rcu() instead of
+			synchronize_rcu_expedited().  This improves
+			real-time latency, CPU utilization, and energy
+			efficiency, but can expose users to increased
+			grace-period latency.  This parameter overrides
+			rcupdate.rcu_expedited.
 
 	rcupdate.rcu_task_stall_timeout= [KNL]
 			Set timeout in jiffies for RCU task stall warning
