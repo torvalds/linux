@@ -172,7 +172,7 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 
 	if (task) {
 		ctx->pid = get_task_pid(task, PIDTYPE_PID);
-		get_pid(ctx->pid);
+		ctx->glpid = get_task_pid(task->group_leader, PIDTYPE_PID);
 		kernel = false;
 	}
 

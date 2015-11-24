@@ -201,8 +201,12 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	 * where a process (master, some daemon, etc) has opened the chardev on
 	 * behalf of another process, so the AFU's mm gets bound to the process
 	 * that performs this ioctl and not the process that opened the file.
+	 * Also we grab the PID of the group leader so that if the task that
+	 * has performed the attach operation exits the mm context of the
+	 * process is still accessible.
 	 */
-	ctx->pid = get_pid(get_task_pid(current, PIDTYPE_PID));
+	ctx->pid = get_task_pid(current, PIDTYPE_PID);
+	ctx->glpid = get_task_pid(current->group_leader, PIDTYPE_PID);
 
 	trace_cxl_attach(ctx, work.work_element_descriptor, work.num_interrupts, amr);
 

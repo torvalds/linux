@@ -42,7 +42,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 	spin_lock_init(&ctx->sste_lock);
 	ctx->afu = afu;
 	ctx->master = master;
-	ctx->pid = NULL; /* Set in start work ioctl */
+	ctx->pid = ctx->glpid = NULL; /* Set in start work ioctl */
 	mutex_init(&ctx->mapping_lock);
 	ctx->mapping = mapping;
 
@@ -217,7 +217,11 @@ int __detach_context(struct cxl_context *ctx)
 	WARN_ON(cxl_detach_process(ctx) &&
 		cxl_adapter_link_ok(ctx->afu->adapter));
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
+
+	/* release the reference to the group leader and mm handling pid */
 	put_pid(ctx->pid);
+	put_pid(ctx->glpid);
+
 	cxl_ctx_put();
 	return 0;
 }
