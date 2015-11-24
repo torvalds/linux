@@ -109,6 +109,8 @@ static int prepare_cpuflags(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	}
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_GPERE))
 		newflags |= cpuflags & CPUSTAT_P;
+	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_GSLS))
+		newflags |= cpuflags & CPUSTAT_SM;
 
 	atomic_set(&scb_s->cpuflags, newflags);
 	return 0;
@@ -242,7 +244,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	bool had_tx = scb_s->ecb & 0x10U;
-	unsigned long new_mso;
+	unsigned long new_mso = 0;
 	int rc;
 
 	/* make sure we don't have any leftovers when reusing the scb */
@@ -284,7 +286,8 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
 	scb_s->icpua = scb_o->icpua;
 
-	new_mso = scb_o->mso & 0xfffffffffff00000UL;
+	if (!(atomic_read(&scb_s->cpuflags) & CPUSTAT_SM))
+		new_mso = scb_o->mso & 0xfffffffffff00000UL;
 	/* if the hva of the prefix changes, we have to remap the prefix */
 	if (scb_s->mso != new_mso || scb_s->prefix != scb_o->prefix)
 		prefix_unmapped(vsie_page);
