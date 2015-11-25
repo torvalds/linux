@@ -80,15 +80,6 @@
 # define debug_align(X) (X)
 #endif
 
-/*
- * Given BASE and SIZE this macro calculates the number of pages the
- * memory regions occupies
- */
-#define MOD_NUMBER_OF_PAGES(BASE, SIZE) (((SIZE) > 0) ?		\
-		(PFN_DOWN((unsigned long)(BASE) + (SIZE) - 1) -	\
-			 PFN_DOWN((unsigned long)BASE) + 1)	\
-		: (0UL))
-
 /* If this is set, the section belongs in the init part of the module */
 #define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG-1))
 
@@ -1858,74 +1849,75 @@ static void mod_sysfs_teardown(struct module *mod)
 /*
  * LKM RO/NX protection: protect module's text/ro-data
  * from modification and any data from execution.
+ *
+ * General layout of module is:
+ *          [text] [read-only-data] [writable data]
+ * text_size -----^                ^               ^
+ * ro_size ------------------------|               |
+ * size -------------------------------------------|
+ *
+ * These values are always page-aligned (as is base)
  */
-void set_page_attributes(void *start, void *end, int (*set)(unsigned long start, int num_pages))
+static void frob_text(const struct module_layout *layout,
+		      int (*set_memory)(unsigned long start, int num_pages))
 {
-	unsigned long begin_pfn = PFN_DOWN((unsigned long)start);
-	unsigned long end_pfn = PFN_DOWN((unsigned long)end);
-
-	if (end_pfn > begin_pfn)
-		set(begin_pfn << PAGE_SHIFT, end_pfn - begin_pfn);
+	BUG_ON((unsigned long)layout->base & (PAGE_SIZE-1));
+	BUG_ON((unsigned long)layout->text_size & (PAGE_SIZE-1));
+	set_memory((unsigned long)layout->base,
+		   layout->text_size >> PAGE_SHIFT);
 }
 
-static void set_section_ro_nx(void *base,
-			unsigned long text_size,
-			unsigned long ro_size,
-			unsigned long total_size,
-			int (*set_ro)(unsigned long start, int num_pages),
-			int (*set_nx)(unsigned long start, int num_pages))
+static void frob_rodata(const struct module_layout *layout,
+			int (*set_memory)(unsigned long start, int num_pages))
 {
-	/* begin and end PFNs of the current subsection */
-	unsigned long begin_pfn;
-	unsigned long end_pfn;
-
-	/*
-	 * Set RO for module text and RO-data:
-	 * - Always protect first page.
-	 * - Do not protect last partial page.
-	 */
-	if (ro_size > 0)
-		set_page_attributes(base, base + ro_size, set_ro);
-
-	/*
-	 * Set NX permissions for module data:
-	 * - Do not protect first partial page.
-	 * - Always protect last page.
-	 */
-	if (total_size > text_size) {
-		begin_pfn = PFN_UP((unsigned long)base + text_size);
-		end_pfn = PFN_UP((unsigned long)base + total_size);
-		if (end_pfn > begin_pfn)
-			set_nx(begin_pfn << PAGE_SHIFT, end_pfn - begin_pfn);
-	}
+	BUG_ON((unsigned long)layout->base & (PAGE_SIZE-1));
+	BUG_ON((unsigned long)layout->text_size & (PAGE_SIZE-1));
+	BUG_ON((unsigned long)layout->ro_size & (PAGE_SIZE-1));
+	set_memory((unsigned long)layout->base + layout->text_size,
+		   (layout->ro_size - layout->text_size) >> PAGE_SHIFT);
 }
 
-static void set_module_core_ro_nx(struct module *mod)
+static void frob_writable_data(const struct module_layout *layout,
+			       int (*set_memory)(unsigned long start, int num_pages))
 {
-	set_section_ro_nx(mod->core_layout.base, mod->core_layout.text_size,
-			  mod->core_layout.ro_size, mod->core_layout.size,
-			  set_memory_ro, set_memory_nx);
+	BUG_ON((unsigned long)layout->base & (PAGE_SIZE-1));
+	BUG_ON((unsigned long)layout->ro_size & (PAGE_SIZE-1));
+	BUG_ON((unsigned long)layout->size & (PAGE_SIZE-1));
+	set_memory((unsigned long)layout->base + layout->ro_size,
+		   (layout->size - layout->ro_size) >> PAGE_SHIFT);
 }
 
-static void unset_module_core_ro_nx(struct module *mod)
+/* livepatching wants to disable read-only so it can frob module. */
+void module_disable_ro(const struct module *mod)
 {
-	set_section_ro_nx(mod->core_layout.base, mod->core_layout.text_size,
-			  mod->core_layout.ro_size, mod->core_layout.size,
-			  set_memory_rw, set_memory_x);
+	frob_text(&mod->core_layout, set_memory_rw);
+	frob_rodata(&mod->core_layout, set_memory_rw);
+	frob_text(&mod->init_layout, set_memory_rw);
+	frob_rodata(&mod->init_layout, set_memory_rw);
 }
 
-static void set_module_init_ro_nx(struct module *mod)
+void module_enable_ro(const struct module *mod)
 {
-	set_section_ro_nx(mod->init_layout.base, mod->init_layout.text_size,
-			  mod->init_layout.ro_size, mod->init_layout.size,
-			  set_memory_ro, set_memory_nx);
+	frob_text(&mod->core_layout, set_memory_ro);
+	frob_rodata(&mod->core_layout, set_memory_ro);
+	frob_text(&mod->init_layout, set_memory_ro);
+	frob_rodata(&mod->init_layout, set_memory_ro);
 }
 
-static void unset_module_init_ro_nx(struct module *mod)
+static void module_enable_nx(const struct module *mod)
 {
-	set_section_ro_nx(mod->init_layout.base, mod->init_layout.text_size,
-			  mod->init_layout.ro_size, mod->init_layout.size,
-			  set_memory_rw, set_memory_x);
+	frob_rodata(&mod->core_layout, set_memory_nx);
+	frob_writable_data(&mod->core_layout, set_memory_nx);
+	frob_rodata(&mod->init_layout, set_memory_nx);
+	frob_writable_data(&mod->init_layout, set_memory_nx);
+}
+
+static void module_disable_nx(const struct module *mod)
+{
+	frob_rodata(&mod->core_layout, set_memory_x);
+	frob_writable_data(&mod->core_layout, set_memory_x);
+	frob_rodata(&mod->init_layout, set_memory_x);
+	frob_writable_data(&mod->init_layout, set_memory_x);
 }
 
 /* Iterate through all modules and set each module's text as RW */
@@ -1937,16 +1929,9 @@ void set_all_modules_text_rw(void)
 	list_for_each_entry_rcu(mod, &modules, list) {
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
-		if ((mod->core_layout.base) && (mod->core_layout.text_size)) {
-			set_page_attributes(mod->core_layout.base,
-						mod->core_layout.base + mod->core_layout.text_size,
-						set_memory_rw);
-		}
-		if ((mod->init_layout.base) && (mod->init_layout.text_size)) {
-			set_page_attributes(mod->init_layout.base,
-						mod->init_layout.base + mod->init_layout.text_size,
-						set_memory_rw);
-		}
+
+		frob_text(&mod->core_layout, set_memory_rw);
+		frob_text(&mod->init_layout, set_memory_rw);
 	}
 	mutex_unlock(&module_mutex);
 }
@@ -1960,24 +1945,25 @@ void set_all_modules_text_ro(void)
 	list_for_each_entry_rcu(mod, &modules, list) {
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
-		if ((mod->core_layout.base) && (mod->core_layout.text_size)) {
-			set_page_attributes(mod->core_layout.base,
-						mod->core_layout.base + mod->core_layout.text_size,
-						set_memory_ro);
-		}
-		if ((mod->init_layout.base) && (mod->init_layout.text_size)) {
-			set_page_attributes(mod->init_layout.base,
-						mod->init_layout.base + mod->init_layout.text_size,
-						set_memory_ro);
-		}
+
+		frob_text(&mod->core_layout, set_memory_ro);
+		frob_text(&mod->init_layout, set_memory_ro);
 	}
 	mutex_unlock(&module_mutex);
 }
+
+static void disable_ro_nx(const struct module_layout *layout)
+{
+	frob_text(layout, set_memory_rw);
+	frob_rodata(layout, set_memory_rw);
+	frob_rodata(layout, set_memory_x);
+	frob_writable_data(layout, set_memory_x);
+}
+
 #else
-static void set_module_core_ro_nx(struct module *mod) { }
-static void set_module_init_ro_nx(struct module *mod) { }
-static void unset_module_core_ro_nx(struct module *mod) { }
-static void unset_module_init_ro_nx(struct module *mod) { }
+static void disable_ro_nx(const struct module_layout *layout) { }
+static void module_enable_nx(const struct module *mod) { }
+static void module_disable_nx(const struct module *mod) { }
 #endif
 
 void __weak module_memfree(void *module_region)
@@ -2029,8 +2015,8 @@ static void free_module(struct module *mod)
 	synchronize_sched();
 	mutex_unlock(&module_mutex);
 
-	/* This may be NULL, but that's OK */
-	unset_module_init_ro_nx(mod);
+	/* This may be empty, but that's OK */
+	disable_ro_nx(&mod->init_layout);
 	module_arch_freeing_init(mod);
 	module_memfree(mod->init_layout.base);
 	kfree(mod->args);
@@ -2040,7 +2026,7 @@ static void free_module(struct module *mod)
 	lockdep_free_key_range(mod->core_layout.base, mod->core_layout.size);
 
 	/* Finally, free the core (containing the module structure) */
-	unset_module_core_ro_nx(mod);
+	disable_ro_nx(&mod->core_layout);
 	module_memfree(mod->core_layout.base);
 
 #ifdef CONFIG_MPU
@@ -3275,7 +3261,7 @@ static noinline int do_init_module(struct module *mod)
 	mod->strtab = mod->core_strtab;
 #endif
 	mod_tree_remove_init(mod);
-	unset_module_init_ro_nx(mod);
+	disable_ro_nx(&mod->init_layout);
 	module_arch_freeing_init(mod);
 	mod->init_layout.base = NULL;
 	mod->init_layout.size = 0;
@@ -3370,8 +3356,8 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	module_bug_finalize(info->hdr, info->sechdrs, mod);
 
 	/* Set RO and NX regions */
-	set_module_init_ro_nx(mod);
-	set_module_core_ro_nx(mod);
+	module_enable_ro(mod);
+	module_enable_nx(mod);
 
 	/* Mark state as coming so strong_try_module_get() ignores us,
 	 * but kallsyms etc. can see us. */
@@ -3536,8 +3522,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 				     MODULE_STATE_GOING, mod);
 
 	/* we can't deallocate the module until we clear memory protection */
-	unset_module_init_ro_nx(mod);
-	unset_module_core_ro_nx(mod);
+	module_disable_ro(mod);
+	module_disable_nx(mod);
 
  ddebug_cleanup:
 	dynamic_debug_remove(info->debug);
