@@ -70,34 +70,6 @@ struct device_type greybus_interface_type = {
 };
 
 /*
- * Create kernel structures corresponding to a bundle and connection for
- * managing control CPort.
- */
-static int
-gb_interface_create_control_bundle_connection(struct gb_interface *intf)
-{
-	struct gb_bundle *bundle;
-	struct gb_connection *connection;
-
-	bundle = gb_bundle_create(intf, GB_CONTROL_BUNDLE_ID,
-						GREYBUS_CLASS_CONTROL);
-	if (!bundle) {
-		dev_err(&intf->dev, "failed to create control bundle\n");
-		return -ENOMEM;
-	}
-
-	connection = gb_connection_create_dynamic(intf, bundle,
-						GB_CONTROL_CPORT_ID,
-						GREYBUS_PROTOCOL_CONTROL);
-	if (!connection) {
-		dev_err(&intf->dev, "failed to create control connection\n");
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-/*
  * A Greybus module represents a user-replaceable component on an Ara
  * phone.  An interface is the physical connection on that module.  A
  * module may have more than one interface.
@@ -170,6 +142,9 @@ void gb_interface_remove(struct gb_interface *intf)
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
 
+	if (intf->control)
+		gb_connection_destroy(intf->control->connection);
+
 	device_unregister(&intf->dev);
 }
 
@@ -190,15 +165,20 @@ void gb_interfaces_remove(struct gb_host_device *hd)
  */
 int gb_interface_init(struct gb_interface *intf, u8 device_id)
 {
+	struct gb_connection *connection;
 	int ret, size;
 	void *manifest;
 
 	intf->device_id = device_id;
 
 	/* Establish control CPort connection */
-	ret = gb_interface_create_control_bundle_connection(intf);
-	if (ret)
-		return ret;
+	connection = gb_connection_create_dynamic(intf, NULL,
+						GB_CONTROL_CPORT_ID,
+						GREYBUS_PROTOCOL_CONTROL);
+	if (!connection) {
+		dev_err(&intf->dev, "failed to create control connection\n");
+		return -ENOMEM;
+	}
 
 	/* Get manifest size using control protocol on CPort */
 	size = gb_control_get_manifest_size_operation(intf);

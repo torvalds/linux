@@ -254,24 +254,10 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		/* Found one.  Set up its function structure */
 		protocol_id = desc_cport->protocol_id;
 
-		/* Validate declarations of the control protocol CPort */
-		if (cport_id == GB_CONTROL_CPORT_ID) {
-			/* This should have protocol set to control protocol*/
-			if (protocol_id != GREYBUS_PROTOCOL_CONTROL)
-				goto print_error_exit;
-			/* Don't recreate connection for control cport */
-			goto release_descriptor;
-		}
-		/* Nothing else should have its protocol as control protocol */
-		if (protocol_id == GREYBUS_PROTOCOL_CONTROL) {
-			goto print_error_exit;
-		}
-
 		if (!gb_connection_create_dynamic(intf, bundle, cport_id,
 								protocol_id))
 			goto exit;
 
-release_descriptor:
 		count++;
 
 		/* Release the cport descriptor */
@@ -279,12 +265,6 @@ release_descriptor:
 	}
 
 	return count;
-print_error_exit:
-	/* A control protocol parse error was encountered */
-	dev_err(&bundle->dev,
-		"cport_id, protocol_id 0x%04hx,0x%04hx want 0x%04hx,0x%04hx\n",
-		cport_id, protocol_id, GB_CONTROL_CPORT_ID,
-		GREYBUS_PROTOCOL_CONTROL);
 exit:
 
 	/*
@@ -308,6 +288,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 	struct gb_bundle *bundle_next;
 	u32 count = 0;
 	u8 bundle_id;
+	u8 class;
 
 	while ((desc = get_next_bundle_desc(intf))) {
 		struct greybus_descriptor_bundle *desc_bundle;
@@ -315,36 +296,31 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		/* Found one.  Set up its bundle structure*/
 		desc_bundle = desc->data;
 		bundle_id = desc_bundle->id;
+		class = desc_bundle->class;
 
-		/* Don't recreate bundle for control cport */
+		/* Done with this bundle descriptor */
+		release_manifest_descriptor(desc);
+
+		/* Ignore any legacy control bundles */
 		if (bundle_id == GB_CONTROL_BUNDLE_ID) {
-			/* This should have class set to control class */
-			if (desc_bundle->class != GREYBUS_CLASS_CONTROL) {
-				dev_err(&intf->dev,
-					"bad class 0x%02x for control bundle\n",
-					desc_bundle->class);
-				goto cleanup;
-			}
-
-			bundle = intf->control->connection->bundle;
-			goto parse_cports;
+			dev_dbg(&intf->dev, "%s - ignoring control bundle\n",
+					__func__);
+			release_cport_descriptors(&intf->manifest_descs,
+								bundle_id);
+			continue;
 		}
 
 		/* Nothing else should have its class set to control class */
-		if (desc_bundle->class == GREYBUS_CLASS_CONTROL) {
+		if (class == GREYBUS_CLASS_CONTROL) {
 			dev_err(&intf->dev,
 				"bundle 0x%02x cannot use control class\n",
 				bundle_id);
 			goto cleanup;
 		}
 
-		bundle = gb_bundle_create(intf, bundle_id, desc_bundle->class);
+		bundle = gb_bundle_create(intf, bundle_id, class);
 		if (!bundle)
 			goto cleanup;
-
-parse_cports:
-		/* Done with this bundle descriptor */
-		release_manifest_descriptor(desc);
 
 		/*
 		 * Now go set up this bundle's functions and cports.
@@ -362,15 +338,8 @@ parse_cports:
 		 * separate entities and don't reject entire interface and its
 		 * bundles on failing to initialize a cport. But make sure the
 		 * bundle which needs the cport, gets destroyed properly.
-		 *
-		 * The control bundle and its connections are special. The
-		 * entire manifest should be rejected if we failed to initialize
-		 * the control bundle/connections.
 		 */
 		if (!gb_manifest_parse_cports(bundle)) {
-			if (bundle_id == GB_CONTROL_BUNDLE_ID)
-				goto cleanup;
-
 			gb_bundle_destroy(bundle);
 			continue;
 		}
