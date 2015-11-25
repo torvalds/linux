@@ -1764,9 +1764,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 						strWIDList, 4,
 						get_id_from_handler(hif_drv));
 			kfree(pu8keybuf);
-		}
-
-		if (pstrHostIFkeyAttr->action & ADDKEY) {
+		} else if (pstrHostIFkeyAttr->action & ADDKEY) {
 			PRINT_D(HOSTINF_DBG, "Handling WEP key\n");
 			pu8keybuf = kmalloc(pstrHostIFkeyAttr->attr.wep.key_len + 2, GFP_KERNEL);
 			if (!pu8keybuf) {
@@ -1848,9 +1846,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 
 			kfree(pu8keybuf);
 			up(&hif_drv->sem_test_key_block);
-		}
-
-		if (pstrHostIFkeyAttr->action & ADDKEY) {
+		} else if (pstrHostIFkeyAttr->action & ADDKEY) {
 			PRINT_D(HOSTINF_DBG, "Handling group key(Rx) function\n");
 
 			pu8keybuf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
@@ -1921,8 +1917,7 @@ _WPARxGtk_end_case_:
 						get_id_from_handler(hif_drv));
 			kfree(pu8keybuf);
 			up(&hif_drv->sem_test_key_block);
-		}
-		if (pstrHostIFkeyAttr->action & ADDKEY) {
+		} else if (pstrHostIFkeyAttr->action & ADDKEY) {
 			pu8keybuf = kmalloc(PTK_KEY_MSG_LEN, GFP_KERNEL);
 			if (!pu8keybuf) {
 				PRINT_ER("No buffer to send PTK Key\n");
