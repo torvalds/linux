@@ -17,7 +17,7 @@ DOCBOOKS := z8530book.xml device-drivers.xml \
 	    tracepoint.xml gpu.xml media_api.xml w1.xml \
 	    writing_musb_glue_layer.xml crypto-API.xml iio.xml
 
-MARKDOWNREADY := 
+MARKDOWNREADY := gpu.xml
 
 include Documentation/DocBook/media/Makefile
 
