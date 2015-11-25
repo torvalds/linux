@@ -8932,7 +8932,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	is_lvds = intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS);
+	is_lvds = intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS);
 
 	WARN(!(HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)),
 	     "Unexpected PCH type %d\n", INTEL_PCH_TYPE(dev));
