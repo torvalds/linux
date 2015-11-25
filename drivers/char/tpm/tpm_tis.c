@@ -603,12 +603,13 @@ static irqreturn_t tis_int_handler(int dummy, void *dev_id)
  * irq is seen then leave the chip setup for IRQ operation, otherwise reverse
  * everything and leave in polling mode. Returns 0 on success.
  */
-static int tpm_tis_probe_irq_single(struct tpm_chip *chip, u32 intmask, int irq)
+static int tpm_tis_probe_irq_single(struct tpm_chip *chip, u32 intmask,
+				    int flags, int irq)
 {
 	struct priv_data *priv = chip->vendor.priv;
 	u8 original_int_vec;
 
-	if (devm_request_irq(chip->pdev, irq, tis_int_handler, IRQF_SHARED,
+	if (devm_request_irq(chip->pdev, irq, tis_int_handler, flags,
 			     chip->devname, chip) != 0) {
 		dev_info(chip->pdev, "Unable to request irq: %d for probe\n",
 			 irq);
@@ -666,10 +667,13 @@ static void tpm_tis_probe_irq(struct tpm_chip *chip, u32 intmask)
 				   TPM_INT_VECTOR(chip->vendor.locality));
 
 	if (!original_int_vec) {
-		for (i = 3; i <= 15; i++)
-			if (!tpm_tis_probe_irq_single(chip, intmask, i))
-				return;
-	} else if (!tpm_tis_probe_irq_single(chip, intmask, original_int_vec))
+		if (IS_ENABLED(CONFIG_X86))
+			for (i = 3; i <= 15; i++)
+				if (!tpm_tis_probe_irq_single(chip, intmask, 0,
+							      i))
+					return;
+	} else if (!tpm_tis_probe_irq_single(chip, intmask, 0,
+					     original_int_vec))
 		return;
 }
 
@@ -805,7 +809,8 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 	init_waitqueue_head(&chip->vendor.int_queue);
 	if (interrupts) {
 		if (tpm_info->irq) {
-			tpm_tis_probe_irq_single(chip, intmask, tpm_info->irq);
+			tpm_tis_probe_irq_single(chip, intmask, IRQF_SHARED,
+						 tpm_info->irq);
 			if (!chip->vendor.irq)
 				dev_err(chip->pdev, FW_BUG
 					"TPM interrupt not working, polling instead\n");
