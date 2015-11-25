@@ -2135,6 +2135,8 @@ dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 	dhd_info_t *dhd = (dhd_info_t *)(dhdp->info);
 	struct ether_header *eh;
 	uint16 type;
+	uint datalen;
+	dhd_if_t *ifp;
 
 	dhd_prot_hdrpull(dhdp, NULL, txp, NULL, NULL);
 
@@ -2146,9 +2148,12 @@ dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 
 #ifdef PROP_TXSTATUS
 	if (dhdp->wlfc_state && (dhdp->proptxstatus_mode != WLFC_FCMODE_NONE)) {
-		dhd_if_t *ifp = dhd->iflist[DHD_PKTTAG_IF(PKTTAG(txp))];
-		uint datalen  = PKTLEN(dhd->pub.osh, txp);
+		ifp = dhd->iflist[DHD_PKTTAG_IF(PKTTAG(txp))];
+		/* if the interface is released somewhere just return */
+		if (ifp == NULL)
+			return;
 
+		datalen  = PKTLEN(dhd->pub.osh, txp);
 		if (success) {
 			dhd->pub.tx_packets++;
 			ifp->stats.tx_packets++;
