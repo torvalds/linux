@@ -727,6 +727,12 @@ int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 
 	/* Get associated drm_crtc: */
 	crtc = &adev->mode_info.crtcs[pipe]->base;
+	if (!crtc) {
+		/* This can occur on driver load if some component fails to
+		 * initialize completely and driver is unloaded */
+		DRM_ERROR("Uninitialized crtc %d\n", pipe);
+		return -EINVAL;
+	}
 
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
