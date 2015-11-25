@@ -207,7 +207,6 @@ struct dm_snap_pending_exception {
 	 */
 	struct bio *full_bio;
 	bio_end_io_t *full_bio_end_io;
-	void *full_bio_private;
 };
 
 /*
@@ -1485,10 +1484,8 @@ out:
 	snapshot_bios = bio_list_get(&pe->snapshot_bios);
 	origin_bios = bio_list_get(&pe->origin_bios);
 	full_bio = pe->full_bio;
-	if (full_bio) {
+	if (full_bio)
 		full_bio->bi_end_io = pe->full_bio_end_io;
-		full_bio->bi_private = pe->full_bio_private;
-	}
 	increment_pending_exceptions_done_count();
 
 	up_write(&s->lock);
@@ -1605,7 +1602,6 @@ static void start_full_bio(struct dm_snap_pending_exception *pe,
 
 	pe->full_bio = bio;
 	pe->full_bio_end_io = bio->bi_end_io;
-	pe->full_bio_private = bio->bi_private;
 
 	callback_data = dm_kcopyd_prepare_callback(s->kcopyd_client,
 						   copy_callback, pe);
