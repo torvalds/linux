@@ -9630,6 +9630,9 @@ static void dce8_program_watermarks(struct radeon_device *rdev,
 		    (rdev->disp_priority == 2)) {
 			DRM_DEBUG_KMS("force priority to high\n");
 		}
+
+		/* Save number of lines the linebuffer leads before the scanout */
+		radeon_crtc->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode->crtc_hdisplay);
 	}
 
 	/* select wm A */

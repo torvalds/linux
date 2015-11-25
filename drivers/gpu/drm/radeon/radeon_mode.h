@@ -367,6 +367,7 @@ struct radeon_crtc {
 	u32 line_time;
 	u32 wm_low;
 	u32 wm_high;
+	u32 lb_vblank_lead_lines;
 	struct drm_display_mode hw_mode;
 	enum radeon_output_csc output_csc;
 };
@@ -687,6 +688,9 @@ struct atom_voltage_table
 	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
 };
 
+/* Driver internal use only flags of radeon_get_crtc_scanoutpos() */
+#define USE_REAL_VBLANKSTART 		(1 << 30)
+#define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
 extern void
 radeon_add_atom_connector(struct drm_device *dev,
