@@ -557,6 +557,8 @@ enum iwl_fw_dbg_trigger_vif_type {
  * @start_conf_id: if mode is %IWL_FW_DBG_TRIGGER_START, this defines what
  *	configuration should be applied when the triggers kicks in.
  * @occurrences: number of occurrences. 0 means the trigger will never fire.
+ * @trig_dis_ms: the time, in milliseconds, after an occurrence of this
+ *	trigger in which another occurrence should be ignored.
  */
 struct iwl_fw_dbg_trigger_tlv {
 	__le32 id;
@@ -566,7 +568,8 @@ struct iwl_fw_dbg_trigger_tlv {
 	u8 mode;
 	u8 start_conf_id;
 	__le16 occurrences;
-	__le32 reserved[2];
+	__le16 trig_dis_ms;
+	__le16 reserved[3];
 
 	u8 data[0];
 } __packed;

@@ -658,6 +658,9 @@ struct iwl_mvm {
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
 
+	/* ts of the beginning of a non-collect fw dbg data period */
+	unsigned long fw_dbg_non_collect_ts_start[FW_DBG_TRIGGER_MAX - 1];
+
 	/* UMAC scan tracking */
 	u32 scan_uid_status[IWL_MVM_MAX_UMAC_SCANS];
 
