@@ -136,14 +136,28 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		scnprintf(boardinfo, sizeof(boardinfo), "sub %04x:%04x",
 			  ar->id.subsystem_vendor, ar->id.subsystem_device);
 
-	ath10k_info(ar, "%s (0x%08x, 0x%08x %s) fw %s fwapi %d bdapi %d htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d features %s\n",
+	ath10k_info(ar, "%s target 0x%08x chip_id 0x%08x %s",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
-		    boardinfo,
+		    boardinfo);
+
+	ath10k_info(ar, "firmware ver %s api %d features %s\n",
 		    ar->hw->wiphy->fw_version,
 		    ar->fw_api,
-		    ar->bd_api,
+		    fw_features);
+
+	ath10k_info(ar, "board_file api %d",
+		    ar->bd_api);
+
+	ath10k_info(ar, "kconfig debug %d debugfs %d tracing %d dfs %d testmode %d\n",
+		    config_enabled(CONFIG_ATH10K_DEBUG),
+		    config_enabled(CONFIG_ATH10K_DEBUGFS),
+		    config_enabled(CONFIG_ATH10K_TRACING),
+		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
+		    config_enabled(CONFIG_NL80211_TESTMODE));
+
+	ath10k_info(ar, "htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d\n",
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor,
 		    ar->wmi.op_version,
@@ -151,14 +165,7 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations,
 		    test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags),
-		    !test_bit(ATH10K_FLAG_HW_CRYPTO_DISABLED, &ar->dev_flags),
-		    fw_features);
-	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d testmode %d\n",
-		    config_enabled(CONFIG_ATH10K_DEBUG),
-		    config_enabled(CONFIG_ATH10K_DEBUGFS),
-		    config_enabled(CONFIG_ATH10K_TRACING),
-		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
-		    config_enabled(CONFIG_NL80211_TESTMODE));
+		    !test_bit(ATH10K_FLAG_HW_CRYPTO_DISABLED, &ar->dev_flags));
 }
 EXPORT_SYMBOL(ath10k_print_driver_info);
 
