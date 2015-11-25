@@ -503,6 +503,21 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	struct duration_t *duration_cap;
 	ssize_t rc;
 
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		/* Fixed timeouts for TPM2 */
+		chip->vendor.timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
+		chip->vendor.timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
+		chip->vendor.timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
+		chip->vendor.timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
+		chip->vendor.duration[TPM_SHORT] =
+		    msecs_to_jiffies(TPM2_DURATION_SHORT);
+		chip->vendor.duration[TPM_MEDIUM] =
+		    msecs_to_jiffies(TPM2_DURATION_MEDIUM);
+		chip->vendor.duration[TPM_LONG] =
+		    msecs_to_jiffies(TPM2_DURATION_LONG);
+		return 0;
+	}
+
 	tpm_cmd.header.in = tpm_getcap_header;
 	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
 	tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);

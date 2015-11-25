@@ -740,6 +740,16 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 	if (intfcaps & TPM_INTF_DATA_AVAIL_INT)
 		dev_dbg(dev, "\tData Avail Int Support\n");
 
+	/* Very early on issue a command to the TPM in polling mode to make
+	 * sure it works. May as well use that command to set the proper
+	 *  timeouts for the driver.
+	 */
+	if (tpm_get_timeouts(chip)) {
+		dev_err(dev, "Could not get TPM timeouts and durations\n");
+		rc = -ENODEV;
+		goto out_err;
+	}
+
 	/* INTERRUPT Setup */
 	init_waitqueue_head(&chip->vendor.read_queue);
 	init_waitqueue_head(&chip->vendor.int_queue);
@@ -837,18 +847,13 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 		iowrite8(irq_r, chip->vendor.iobase +
 			 TPM_INT_VECTOR(chip->vendor.locality));
 
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
-		chip->vendor.timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
-		chip->vendor.timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
-		chip->vendor.timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
-		chip->vendor.timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
-		chip->vendor.duration[TPM_SHORT] =
-			msecs_to_jiffies(TPM2_DURATION_SHORT);
-		chip->vendor.duration[TPM_MEDIUM] =
-			msecs_to_jiffies(TPM2_DURATION_MEDIUM);
-		chip->vendor.duration[TPM_LONG] =
-			msecs_to_jiffies(TPM2_DURATION_LONG);
+	if (tpm_get_timeouts(chip)) {
+		dev_err(dev, "Could not get TPM timeouts and durations\n");
+		rc = -ENODEV;
+		goto out_err;
+	}
 
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		rc = tpm2_do_selftest(chip);
 		if (rc == TPM2_RC_INITIALIZE) {
 			dev_warn(dev, "Firmware has not started TPM\n");
@@ -864,12 +869,6 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 			goto out_err;
 		}
 	} else {
-		if (tpm_get_timeouts(chip)) {
-			dev_err(dev, "Could not get TPM timeouts and durations\n");
-			rc = -ENODEV;
-			goto out_err;
-		}
-
 		if (tpm_do_selftest(chip)) {
 			dev_err(dev, "TPM self test failed\n");
 			rc = -ENODEV;
