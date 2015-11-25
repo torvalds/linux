@@ -241,13 +241,13 @@ static int palmas_clks_probe(struct platform_device *pdev)
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *node = pdev->dev.of_node;
 	const struct palmas_clks_of_match_data *match_data;
-	const struct of_device_id *match;
 	struct palmas_clock_info *cinfo;
 	struct clk *clk;
 	int ret;
 
-	match = of_match_device(palmas_clks_of_match, &pdev->dev);
-	match_data = match->data;
+	match_data = of_device_get_match_data(&pdev->dev);
+	if (!match_data)
+		return 1;
 
 	cinfo = devm_kzalloc(&pdev->dev, sizeof(*cinfo), GFP_KERNEL);
 	if (!cinfo)
