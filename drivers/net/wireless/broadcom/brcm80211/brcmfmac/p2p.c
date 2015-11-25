@@ -642,7 +642,6 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 	struct brcmf_cfg80211_vif *vif;
 	struct brcmf_p2p_scan_le *p2p_params;
 	struct brcmf_scan_params_le *sparams;
-	struct brcmf_ssid ssid;
 
 	memsize += num_chans * sizeof(__le16);
 	memblk = kzalloc(memsize, GFP_KERNEL);
@@ -655,16 +654,16 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 		ret = -EINVAL;
 		goto exit;
 	}
+	p2p_params = (struct brcmf_p2p_scan_le *)memblk;
+	sparams = &p2p_params->eparams.params_le;
 
 	switch (search_state) {
 	case WL_P2P_DISC_ST_SEARCH:
 		/*
 		 * If we in SEARCH STATE, we don't need to set SSID explictly
-		 * because dongle use P2P WILDCARD internally by default
+		 * because dongle use P2P WILDCARD internally by default, use
+		 * null ssid, which it is already due to kzalloc.
 		 */
-		/* use null ssid */
-		ssid.SSID_len = 0;
-		memset(ssid.SSID, 0, sizeof(ssid.SSID));
 		break;
 	case WL_P2P_DISC_ST_SCAN:
 		/*
@@ -673,8 +672,10 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 		 * P2P WILDCARD because we just do broadcast scan unless
 		 * setting SSID.
 		 */
-		ssid.SSID_len = BRCMF_P2P_WILDCARD_SSID_LEN;
-		memcpy(ssid.SSID, BRCMF_P2P_WILDCARD_SSID, ssid.SSID_len);
+		sparams->ssid_le.SSID_len =
+				cpu_to_le32(BRCMF_P2P_WILDCARD_SSID_LEN);
+		memcpy(sparams->ssid_le.SSID, BRCMF_P2P_WILDCARD_SSID,
+		       BRCMF_P2P_WILDCARD_SSID_LEN);
 		break;
 	default:
 		brcmf_err(" invalid search state %d\n", search_state);
@@ -687,11 +688,9 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 	/*
 	 * set p2p scan parameters.
 	 */
-	p2p_params = (struct brcmf_p2p_scan_le *)memblk;
 	p2p_params->type = 'E';
 
 	/* determine the scan engine parameters */
-	sparams = &p2p_params->eparams.params_le;
 	sparams->bss_type = DOT11_BSSTYPE_ANY;
 	if (p2p->cfg->active_scan)
 		sparams->scan_type = 0;
@@ -699,9 +698,6 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 		sparams->scan_type = 1;
 
 	eth_broadcast_addr(sparams->bssid);
-	if (ssid.SSID_len)
-		memcpy(sparams->ssid_le.SSID, ssid.SSID, ssid.SSID_len);
-	sparams->ssid_le.SSID_len = cpu_to_le32(ssid.SSID_len);
 	sparams->home_time = cpu_to_le32(P2PAPI_SCAN_HOME_TIME_MS);
 
 	/*

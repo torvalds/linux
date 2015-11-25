@@ -124,13 +124,11 @@ struct brcmf_cfg80211_security {
 /**
  * struct brcmf_cfg80211_profile - profile information.
  *
- * @ssid: ssid of associated/associating ap.
  * @bssid: bssid of joined/joining ibss.
  * @sec: security information.
  * @key: key information
  */
 struct brcmf_cfg80211_profile {
-	struct brcmf_ssid ssid;
 	u8 bssid[ETH_ALEN];
 	struct brcmf_cfg80211_security sec;
 	struct brcmf_wsec_key key[BRCMF_MAX_DEFAULT_KEYS];

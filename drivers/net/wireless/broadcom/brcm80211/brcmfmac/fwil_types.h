@@ -282,14 +282,9 @@ struct brcm_rateset_le {
 	u8 rates[BRCMF_MAXRATES_IN_SET];
 };
 
-struct brcmf_ssid {
-	u32 SSID_len;
-	unsigned char SSID[32];
-};
-
 struct brcmf_ssid_le {
 	__le32 SSID_len;
-	unsigned char SSID[32];
+	unsigned char SSID[IEEE80211_MAX_SSID_LEN];
 };
 
 struct brcmf_scan_params_le {
