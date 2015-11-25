@@ -109,6 +109,7 @@ extern struct device_type greybus_endo_type;
 extern struct device_type greybus_module_type;
 extern struct device_type greybus_interface_type;
 extern struct device_type greybus_bundle_type;
+extern struct device_type greybus_svc_type;
 
 static inline int is_gb_host_device(const struct device *dev)
 {
@@ -133,6 +134,11 @@ static inline int is_gb_interface(const struct device *dev)
 static inline int is_gb_bundle(const struct device *dev)
 {
 	return dev->type == &greybus_bundle_type;
+}
+
+static inline int is_gb_svc(const struct device *dev)
+{
+	return dev->type == &greybus_svc_type;
 }
 
 static inline bool cport_id_valid(struct gb_host_device *hd, u16 cport_id)

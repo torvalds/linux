@@ -16,19 +16,6 @@
 #define CPORT_FLAGS_CSD_N       BIT(1)
 #define CPORT_FLAGS_CSV_N       BIT(2)
 
-enum gb_svc_state {
-	GB_SVC_STATE_RESET,
-	GB_SVC_STATE_PROTOCOL_VERSION,
-	GB_SVC_STATE_SVC_HELLO,
-};
-
-struct gb_svc {
-	struct device		dev;
-
-	struct gb_connection	*connection;
-	enum gb_svc_state	state;
-	struct ida		device_id_map;
-};
 
 struct svc_hotplug {
 	struct work_struct work;
@@ -348,6 +335,7 @@ static int gb_svc_version_request(struct gb_operation *op)
 static int gb_svc_hello(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
+	struct gb_svc *svc = connection->private;
 	struct gb_host_device *hd = connection->hd;
 	struct gb_svc_hello_request *hello_request;
 	struct gb_interface *intf;
@@ -369,6 +357,12 @@ static int gb_svc_hello(struct gb_operation *op)
 	hello_request = op->request->payload;
 	endo_id = le16_to_cpu(hello_request->endo_id);
 	interface_id = hello_request->interface_id;
+
+	ret = device_add(&svc->dev);
+	if (ret) {
+		dev_err(&svc->dev, "failed to register svc device: %d\n", ret);
+		return ret;
+	}
 
 	/* Setup Endo */
 	ret = greybus_endo_setup(hd, endo_id, interface_id);
@@ -671,7 +665,7 @@ static int gb_svc_request_recv(u8 type, struct gb_operation *op)
 
 static void gb_svc_release(struct device *dev)
 {
-	struct gb_svc *svc = container_of(dev, struct gb_svc, dev);
+	struct gb_svc *svc = to_gb_svc(dev);
 
 	ida_destroy(&svc->device_id_map);
 	kfree(svc);
@@ -715,6 +709,9 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
+
+	if (device_is_registered(&svc->dev))
+		device_del(&svc->dev);
 
 	connection->hd->svc = NULL;
 	connection->private = NULL;

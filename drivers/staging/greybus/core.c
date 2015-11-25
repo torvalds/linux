@@ -81,6 +81,7 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct gb_module *module = NULL;
 	struct gb_interface *intf = NULL;
 	struct gb_bundle *bundle = NULL;
+	struct gb_svc *svc = NULL;
 
 	if (is_gb_endo(dev)) {
 		/*
@@ -99,6 +100,8 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	} else if (is_gb_bundle(dev)) {
 		bundle = to_gb_bundle(dev);
 		intf = bundle->intf;
+	} else if (is_gb_svc(dev)) {
+		svc = to_gb_svc(dev);
 	} else {
 		dev_WARN(dev, "uevent for unknown greybus device \"type\"!\n");
 		return -EINVAL;

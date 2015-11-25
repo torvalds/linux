@@ -10,7 +10,20 @@
 #ifndef __SVC_H
 #define __SVC_H
 
-struct gb_svc;
+enum gb_svc_state {
+	GB_SVC_STATE_RESET,
+	GB_SVC_STATE_PROTOCOL_VERSION,
+	GB_SVC_STATE_SVC_HELLO,
+};
+
+struct gb_svc {
+	struct device		dev;
+
+	struct gb_connection	*connection;
+	enum gb_svc_state	state;
+	struct ida		device_id_map;
+};
+#define to_gb_svc(d) container_of(d, struct gb_svc, d)
 
 int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id);
 int gb_svc_connection_create(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
