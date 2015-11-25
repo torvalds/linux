@@ -699,6 +699,7 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 
 	dev_set_name(&svc->dev, "%d-svc", hd->bus_id);
 
+	ida_init(&svc->device_id_map);
 	svc->state = GB_SVC_STATE_RESET;
 	svc->connection = connection;
 	connection->private = svc;
@@ -707,8 +708,6 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 
 	WARN_ON(connection->hd->initial_svc_connection);
 	connection->hd->initial_svc_connection = connection;
-
-	ida_init(&svc->device_id_map);
 
 	return 0;
 }
