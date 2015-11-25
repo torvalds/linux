@@ -506,6 +506,7 @@ static int wilc1000_firmware_download(struct net_device *dev)
 	PRINT_D(INIT_DBG, "Freeing FW buffer ...\n");
 	PRINT_D(INIT_DBG, "Releasing firmware\n");
 	release_firmware(wilc->firmware);
+	wilc->firmware = NULL;
 
 	PRINT_D(INIT_DBG, "Download Succeeded\n");
 
