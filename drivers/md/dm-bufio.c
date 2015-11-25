@@ -1928,8 +1928,7 @@ static void __exit dm_bufio_exit(void)
 		bug = 1;
 	}
 
-	if (bug)
-		BUG();
+	BUG_ON(bug);
 }
 
 module_init(dm_bufio_init)
