@@ -20,10 +20,12 @@ gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
 	struct gb_host_device *hd = intf->hd;
 	struct gb_connection *connection;
 
-	list_for_each_entry(connection, &hd->connections, hd_links)
-		if (connection->bundle->intf == intf &&
+	list_for_each_entry(connection, &hd->connections, hd_links) {
+		if (connection->intf == intf &&
 				connection->intf_cport_id == cport_id)
 			return connection;
+	}
+
 	return NULL;
 }
 
