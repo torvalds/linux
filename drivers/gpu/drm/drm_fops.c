@@ -488,9 +488,19 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 	if (!access_ok(VERIFY_WRITE, buffer, count))
 		return -EFAULT;
 
-	spin_lock_irq(&dev->event_lock);
 	for (;;) {
-		if (list_empty(&file_priv->event_list)) {
+		struct drm_pending_event *e = NULL;
+
+		spin_lock_irq(&dev->event_lock);
+		if (!list_empty(&file_priv->event_list)) {
+			e = list_first_entry(&file_priv->event_list,
+					struct drm_pending_event, link);
+			file_priv->event_space += e->event->length;
+			list_del(&e->link);
+		}
+		spin_unlock_irq(&dev->event_lock);
+
+		if (e == NULL) {
 			if (ret)
 				break;
 
@@ -499,36 +509,34 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 				break;
 			}
 
-			spin_unlock_irq(&dev->event_lock);
 			ret = wait_event_interruptible(file_priv->event_wait,
 						       !list_empty(&file_priv->event_list));
-			spin_lock_irq(&dev->event_lock);
 			if (ret < 0)
 				break;
 
 			ret = 0;
 		} else {
-			struct drm_pending_event *e;
+			unsigned length = e->event->length;
 
-			e = list_first_entry(&file_priv->event_list,
-					     struct drm_pending_event, link);
-			if (e->event->length + ret > count)
-				break;
-
-			if (__copy_to_user_inatomic(buffer + ret,
-						    e->event, e->event->length)) {
-				if (ret == 0)
-					ret = -EFAULT;
+			if (length > count - ret) {
+put_back_event:
+				spin_lock_irq(&dev->event_lock);
+				file_priv->event_space -= length;
+				list_add(&e->link, &file_priv->event_list);
+				spin_unlock_irq(&dev->event_lock);
 				break;
 			}
 
-			file_priv->event_space += e->event->length;
-			ret += e->event->length;
-			list_del(&e->link);
+			if (copy_to_user(buffer + ret, e->event, length)) {
+				if (ret == 0)
+					ret = -EFAULT;
+				goto put_back_event;
+			}
+
+			ret += length;
 			e->destroy(e);
 		}
 	}
-	spin_unlock_irq(&dev->event_lock);
 
 	return ret;
 }
