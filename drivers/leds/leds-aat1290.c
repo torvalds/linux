@@ -275,7 +275,7 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 	if (ret < 0) {
 		dev_err(dev,
 			"flash-max-microamp DT property missing\n");
-		return ret;
+		goto err_parse_dt;
 	}
 
 	ret = of_property_read_u32(child_node, "flash-max-timeout-us",
@@ -283,12 +283,13 @@ static int aat1290_led_parse_dt(struct aat1290_led *led,
 	if (ret < 0) {
 		dev_err(dev,
 			"flash-max-timeout-us DT property missing\n");
-		return ret;
+		goto err_parse_dt;
 	}
 
-	of_node_put(child_node);
-
 	*sub_node = child_node;
+
+err_parse_dt:
+	of_node_put(child_node);
 
 	return ret;
 }
