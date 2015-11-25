@@ -129,4 +129,8 @@ archclean:
 define archhelp
   echo  '* image           - Kernel image for IPL ($(boot)/image)'
   echo	'* bzImage         - Compressed kernel image for IPL ($(boot)/bzImage)'
+  echo	'  install         - Install kernel using'
+  echo	'                    (your) ~/bin/$(INSTALLKERNEL) or'
+  echo	'                    (distribution) /sbin/$(INSTALLKERNEL) or'
+  echo	'                    install to $$(INSTALL_PATH)'
 endef
