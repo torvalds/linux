@@ -749,8 +749,14 @@ static void frontend_changed(struct xenbus_device *dev,
 		}
 
 		err = connect_ring(be);
-		if (err)
+		if (err) {
+			/*
+			 * Clean up so that memory resources can be used by
+			 * other devices. connect_ring reported already error.
+			 */
+			xen_blkif_disconnect(be->blkif);
 			break;
+		}
 		xen_update_blkif_status(be->blkif);
 		break;
 
