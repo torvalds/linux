@@ -762,9 +762,13 @@ extern int module_sysfs_initialized;
 #ifdef CONFIG_DEBUG_SET_MODULE_RONX
 extern void set_all_modules_text_rw(void);
 extern void set_all_modules_text_ro(void);
+extern void module_enable_ro(const struct module *mod);
+extern void module_disable_ro(const struct module *mod);
 #else
 static inline void set_all_modules_text_rw(void) { }
 static inline void set_all_modules_text_ro(void) { }
+static inline void module_enable_ro(const struct module *mod) { }
+static inline void module_disable_ro(const struct module *mod) { }
 #endif
 
 #ifdef CONFIG_GENERIC_BUG
