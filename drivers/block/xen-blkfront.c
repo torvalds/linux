@@ -2443,7 +2443,7 @@ static int __init xlblk_init(void)
 	if (xen_blkif_max_ring_order > XENBUS_MAX_RING_GRANT_ORDER) {
 		pr_info("Invalid max_ring_order (%d), will use default max: %d.\n",
 			xen_blkif_max_ring_order, XENBUS_MAX_RING_GRANT_ORDER);
-		xen_blkif_max_ring_order = 0;
+		xen_blkif_max_ring_order = XENBUS_MAX_RING_GRANT_ORDER;
 	}
 
 	if (xen_blkif_max_queues > nr_cpus) {
