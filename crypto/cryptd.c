@@ -887,8 +887,7 @@ struct cryptd_ablkcipher *cryptd_alloc_ablkcipher(const char *alg_name,
 	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
 		     "cryptd(%s)", alg_name) >= CRYPTO_MAX_ALG_NAME)
 		return ERR_PTR(-EINVAL);
-	type &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV);
-	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
+	type = crypto_skcipher_type(type);
 	mask &= ~CRYPTO_ALG_TYPE_MASK;
 	mask |= (CRYPTO_ALG_GENIV | CRYPTO_ALG_TYPE_BLKCIPHER_MASK);
 	tfm = crypto_alloc_base(cryptd_alg_name, type, mask);
