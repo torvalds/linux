@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-realview/include/mach/platform.h
- *
  * Copyright (c) ARM Limited 2003.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify

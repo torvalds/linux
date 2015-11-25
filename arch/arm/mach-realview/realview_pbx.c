@@ -43,7 +43,7 @@
 
 #include "hardware.h"
 #include "board-pbx.h"
-#include "irqs.h"
+#include "irqs-pbx.h"
 
 #include "core.h"
 

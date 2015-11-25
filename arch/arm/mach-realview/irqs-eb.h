@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-realview/include/mach/irqs-eb.h
- *
  * Copyright (C) 2007 ARM Limited
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,6 +19,7 @@
 #ifndef __MACH_IRQS_EB_H
 #define __MACH_IRQS_EB_H
 
+#define IRQ_LOCALTIMER		29
 #define IRQ_EB_GIC_START	32
 
 /*
@@ -111,22 +110,5 @@
 #define IRQ_EB11MP_SSP		0
 
 #define NR_GIC_EB11MP		2
-
-/*
- * Only define NR_IRQS if less than NR_IRQS_EB
- */
-#define NR_IRQS_EB		(IRQ_EB_GIC_START + 128)
-
-#if defined(CONFIG_MACH_REALVIEW_EB) \
-	&& (!defined(NR_IRQS) || (NR_IRQS < NR_IRQS_EB))
-#undef NR_IRQS
-#define NR_IRQS			NR_IRQS_EB
-#endif
-
-#if defined(CONFIG_REALVIEW_EB_ARM11MP) || defined(CONFIG_REALVIEW_EB_A9MP) \
-	&& (!defined(MAX_GIC_NR) || (MAX_GIC_NR < NR_GIC_EB11MP))
-#undef MAX_GIC_NR
-#define MAX_GIC_NR		NR_GIC_EB11MP
-#endif
 
 #endif	/* __MACH_IRQS_EB_H */

@@ -46,7 +46,7 @@
 #include <asm/mach/time.h>
 
 #include "board-pb1176.h"
-#include "irqs.h"
+#include "irqs-pb1176.h"
 
 #include "core.h"
 

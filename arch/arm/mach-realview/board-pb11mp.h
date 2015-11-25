@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-realview/include/mach/board-pb11mp.h
- *
  * Copyright (C) 2008 ARM Limited
  *
  * This program is free software; you can redistribute it and/or modify

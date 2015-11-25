@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-realview/include/mach/irqs-pbx.h
- *
  * Copyright (C) 2009 ARM Limited
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,6 +18,7 @@
 #ifndef __MACH_IRQS_PBX_H
 #define __MACH_IRQS_PBX_H
 
+#define IRQ_LOCALTIMER				29
 #define IRQ_PBX_GIC_START			32
 
 /*
@@ -84,26 +83,5 @@
 
 #define IRQ_PBX_SMC		-1
 #define IRQ_PBX_SCTL		-1
-
-#define NR_GIC_PBX		1
-
-/*
- * Only define NR_IRQS if less than NR_IRQS_PBX
- */
-#define NR_IRQS_PBX		(IRQ_PBX_GIC_START + 96)
-
-#if defined(CONFIG_MACH_REALVIEW_PBX)
-
-#if !defined(NR_IRQS) || (NR_IRQS < NR_IRQS_PBX)
-#undef NR_IRQS
-#define NR_IRQS			NR_IRQS_PBX
-#endif
-
-#if !defined(MAX_GIC_NR) || (MAX_GIC_NR < NR_GIC_PBX)
-#undef MAX_GIC_NR
-#define MAX_GIC_NR		NR_GIC_PBX
-#endif
-
-#endif	/* CONFIG_MACH_REALVIEW_PBX */
 
 #endif	/* __MACH_IRQS_PBX_H */

@@ -45,7 +45,7 @@
 #include <asm/outercache.h>
 
 #include "board-pb11mp.h"
-#include "irqs.h"
+#include "irqs-pb11mp.h"
 
 #include "core.h"
 

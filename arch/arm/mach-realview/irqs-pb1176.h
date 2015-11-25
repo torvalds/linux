@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-realview/include/mach/irqs-pb1176.h
- *
  * Copyright (C) 2008 ARM Limited
  *
  * This program is free software; you can redistribute it and/or modify
@@ -75,24 +73,5 @@
 #define IRQ_PB1176_RTC		(IRQ_PB1176_GIC_START + 25)	/* Real Time Clock */
 
 #define IRQ_PB1176_SCTL		-1
-
-#define NR_GIC_PB1176		2
-
-/*
- * Only define NR_IRQS if less than NR_IRQS_PB1176
- */
-#define NR_IRQS_PB1176		(IRQ_DC1176_GIC_START + 96)
-
-#if defined(CONFIG_MACH_REALVIEW_PB1176)
-
-#if !defined(NR_IRQS) || (NR_IRQS < NR_IRQS_PB1176)
-#undef NR_IRQS
-#define NR_IRQS			NR_IRQS_PB1176
-#endif
-
-#if !defined(MAX_GIC_NR) || (MAX_GIC_NR < NR_GIC_PB1176)
-#undef MAX_GIC_NR
-#define MAX_GIC_NR		NR_GIC_PB1176
-#endif
 
 #endif	/* __MACH_IRQS_PB1176_H */

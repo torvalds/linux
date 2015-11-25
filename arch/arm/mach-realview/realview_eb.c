@@ -45,7 +45,7 @@
 #include <asm/mach/time.h>
 
 #include "board-eb.h"
-#include "irqs.h"
+#include "irqs-eb.h"
 
 #include "core.h"
 

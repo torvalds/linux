@@ -41,7 +41,7 @@
 
 #include "hardware.h"
 #include "board-pba8.h"
-#include "irqs.h"
+#include "irqs-pba8.h"
 
 #include "core.h"
 

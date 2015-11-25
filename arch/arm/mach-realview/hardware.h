@@ -1,6 +1,4 @@
 /*
- *  arch/arm/mach-realview/include/mach/hardware.h
- *
  *  This file contains the hardware definitions of the RealView boards.
  *
  *  Copyright (C) 2003 ARM Limited.
