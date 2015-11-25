@@ -126,6 +126,7 @@ struct mmc_host_ops {
 
 	/* Check if the card is pulling dat[0:3] low */
 	int	(*card_busy)(struct mmc_host *host);
+	int     (*set_sdio_status)(struct mmc_host *host, int val);
 
 	/* The tuning command opcode value is different for SD and eMMC cards */
 	int	(*execute_tuning)(struct mmc_host *host, u32 opcode);
@@ -291,6 +292,11 @@ struct mmc_host {
 #define MMC_CAP2_NO_WRITE_PROTECT (1 << 18)	/* No physical write protect pin, assume that card is always read-write */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
+
+	u32			restrict_caps;  /* Indicate slot specific card type */
+#define RESTRICT_CARD_TYPE_SD   (1 << 0)        /* Can support Secure-Digital Card */
+#define RESTRICT_CARD_TYPE_SDIO (1 << 1)        /* Can support Secure-Digital I/O Card or Combo-Mem */
+#define RESTRICT_CARD_TYPE_EMMC (1 << 2)        /* Can support embedded Multi-Media Card */
 
 	/* host specific block data */
 	unsigned int		max_seg_size;	/* see blk_queue_max_segment_size */

@@ -290,6 +290,13 @@ int mmc_of_parse(struct mmc_host *host)
 	if (of_property_read_bool(np, "mmc-hs400-1_2v"))
 		host->caps2 |= MMC_CAP2_HS400_1_2V | MMC_CAP2_HS200_1_2V_SDR;
 
+	if (of_property_read_bool(np, "supports-sd"))
+		host->restrict_caps |= RESTRICT_CARD_TYPE_SD;
+	if (of_property_read_bool(np, "supports-sdio"))
+		host->restrict_caps |= RESTRICT_CARD_TYPE_SDIO;
+	if (of_property_read_bool(np, "supports-emmc"))
+		host->restrict_caps |= RESTRICT_CARD_TYPE_EMMC;
+
 	host->dsr_req = !of_property_read_u32(np, "dsr", &host->dsr);
 	if (host->dsr_req && (host->dsr & ~0xffff)) {
 		dev_err(host->parent,
@@ -377,6 +384,7 @@ EXPORT_SYMBOL(mmc_alloc_host);
  *	prepared to start servicing requests before this function
  *	completes.
  */
+static struct mmc_host *primary_sdio_host;
 int mmc_add_host(struct mmc_host *host)
 {
 	int err;
@@ -396,6 +404,9 @@ int mmc_add_host(struct mmc_host *host)
 
 	mmc_start_host(host);
 	register_pm_notifier(&host->pm_notify);
+
+	if (host->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
+		primary_sdio_host = host;
 
 	return 0;
 }
@@ -439,3 +450,45 @@ void mmc_free_host(struct mmc_host *host)
 }
 
 EXPORT_SYMBOL(mmc_free_host);
+
+/**
+ * mmc_host_rescan - triger software rescan flow
+ * @host: mmc host
+ *
+ * rescan slot attach in the assigned host.
+ * If @host is NULL, default rescan primary_sdio_host
+ * saved by mmc_add_host().
+ * OR, rescan host from argument.
+ *
+ */
+int mmc_host_rescan(struct mmc_host *host, int val, int is_cap_sdio_irq)
+{
+	if (NULL != primary_sdio_host) {
+		if (!host)
+			  host = primary_sdio_host;
+		else
+			pr_info("%s: mmc_host_rescan pass in host from argument!\n",
+				mmc_hostname(host));
+	} else {
+		pr_err("sdio: host isn't  initialization successfully.\n");
+		return -ENOMEDIUM;
+	}
+
+	pr_info("%s:mmc host rescan start!\n", mmc_hostname(host));
+
+	/*  0: oob  1:cap-sdio-irq */
+	if (is_cap_sdio_irq == 1) {
+		host->caps |= MMC_CAP_SDIO_IRQ;
+	} else if (is_cap_sdio_irq == 0) {
+		host->caps &= ~MMC_CAP_SDIO_IRQ;
+	} else {
+		dev_err(&host->class_dev, "sdio: host doesn't identify oob or sdio_irq mode!\n");
+		return -ENOMEDIUM;
+	}
+
+	if (!(host->caps & MMC_CAP_NONREMOVABLE) && host->ops->set_sdio_status)
+		host->ops->set_sdio_status(host, val);
+
+	return 0;
+}
+EXPORT_SYMBOL(mmc_host_rescan);

@@ -202,6 +202,7 @@ struct gendisk {
 	struct request_queue *queue;
 	void *private_data;
 
+	int emmc_disk;			/* Flag for emmc devive */
 	int flags;
 	struct device *driverfs_dev;  // FIXME: remove
 	struct kobject *slave_dir;
