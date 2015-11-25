@@ -49,6 +49,9 @@ static struct facility_def facility_defs[] = {
 			49, /* misc-instruction-extensions */
 			52, /* interlocked facility 2 */
 #endif
+#ifdef CONFIG_HAVE_MARCH_Z13_FEATURES
+			53, /* load-and-zero-rightmost-byte, etc. */
+#endif
 			-1 /* END */
 		}
 	},
