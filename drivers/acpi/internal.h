@@ -86,6 +86,14 @@ bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
 #define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
 			  ACPI_STA_DEVICE_UI | ACPI_STA_DEVICE_FUNCTIONING)
 
+extern struct list_head acpi_bus_id_list;
+
+struct acpi_device_bus_id{
+	char bus_id[15];
+	unsigned int instance_no;
+	struct list_head node;
+};
+
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *));
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,

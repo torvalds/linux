@@ -87,6 +87,8 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, int rev, int func,
 	  .package.elements = (eles)			\
 	}
 
+bool acpi_dev_present(const char *hid);
+
 #ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
