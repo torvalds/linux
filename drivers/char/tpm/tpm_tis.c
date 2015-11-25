@@ -99,6 +99,7 @@ static struct tpm_info tis_default_info = {
 #define	TPM_RID(l)			(0x0F04 | ((l) << 12))
 
 struct priv_data {
+	bool irq_probing;
 	bool irq_tested;
 };
 
@@ -463,8 +464,9 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		msleep(1);
 	if (!priv->irq_tested) {
 		disable_interrupts(chip);
-		dev_err(chip->pdev,
-			FW_BUG "TPM interrupt not working, polling instead\n");
+		if (!priv->irq_probing)
+			dev_err(chip->pdev, FW_BUG
+				"TPM interrupt not working, polling instead\n");
 	}
 	priv->irq_tested = true;
 	return rc;
@@ -569,26 +571,6 @@ static const struct tpm_class_ops tpm_tis = {
 	.req_complete_val = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_canceled = tpm_tis_req_canceled,
 };
-
-static irqreturn_t tis_int_probe(int irq, void *dev_id)
-{
-	struct tpm_chip *chip = dev_id;
-	u32 interrupt;
-
-	interrupt = ioread32(chip->vendor.iobase +
-			     TPM_INT_STATUS(chip->vendor.locality));
-
-	if (interrupt == 0)
-		return IRQ_NONE;
-
-	chip->vendor.probed_irq = irq;
-
-	/* Clear interrupts handled with TPM_EOI */
-	iowrite32(interrupt,
-		  chip->vendor.iobase +
-		  TPM_INT_STATUS(chip->vendor.locality));
-	return IRQ_HANDLED;
-}
 
 static irqreturn_t tis_int_handler(int dummy, void *dev_id)
 {
@@ -772,13 +754,14 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 			iowrite8(i, chip->vendor.iobase +
 				 TPM_INT_VECTOR(chip->vendor.locality));
 			if (devm_request_irq
-			    (dev, i, tis_int_probe, IRQF_SHARED,
+			    (dev, i, tis_int_handler, IRQF_SHARED,
 			     chip->devname, chip) != 0) {
 				dev_info(chip->pdev,
 					 "Unable to request irq: %d for probe\n",
 					 i);
 				continue;
 			}
+			chip->vendor.irq = i;
 
 			/* Clear all existing */
 			iowrite32(ioread32
@@ -792,7 +775,8 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 				  chip->vendor.iobase +
 				  TPM_INT_ENABLE(chip->vendor.locality));
 
-			chip->vendor.probed_irq = 0;
+			priv->irq_tested = false;
+			priv->irq_probing = true;
 
 			/* Generate Interrupts */
 			if (chip->flags & TPM_CHIP_FLAG_TPM2)
@@ -800,26 +784,20 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 			else
 				tpm_gen_interrupt(chip);
 
-			chip->vendor.irq = chip->vendor.probed_irq;
+			priv->irq_probing = false;
 
-			/* free_irq will call into tis_int_probe;
-			   clear all irqs we haven't seen while doing
-			   tpm_gen_interrupt */
-			iowrite32(ioread32
-				  (chip->vendor.iobase +
-				   TPM_INT_STATUS(chip->vendor.locality)),
-				  chip->vendor.iobase +
-				  TPM_INT_STATUS(chip->vendor.locality));
-
-			/* Turn off */
-			iowrite32(intmask,
-				  chip->vendor.iobase +
-				  TPM_INT_ENABLE(chip->vendor.locality));
-
-			devm_free_irq(dev, i, chip);
+			/* tpm_tis_send will either confirm the interrupt is
+			 * working or it will call disable_irq which undoes
+			 * all of the above.
+			 */
+			if (chip->vendor.irq)
+				break;
 		}
+		if (!chip->vendor.irq)
+			iowrite8(irq_r, chip->vendor.iobase +
+				 TPM_INT_VECTOR(chip->vendor.locality));
 	}
-	if (chip->vendor.irq) {
+	if (chip->vendor.irq && !priv->irq_tested) {
 		iowrite8(chip->vendor.irq,
 			 chip->vendor.iobase +
 			 TPM_INT_VECTOR(chip->vendor.locality));
@@ -843,9 +821,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 				  chip->vendor.iobase +
 				  TPM_INT_ENABLE(chip->vendor.locality));
 		}
-	} else if (irq_r != -1)
-		iowrite8(irq_r, chip->vendor.iobase +
-			 TPM_INT_VECTOR(chip->vendor.locality));
+	}
 
 	if (tpm_get_timeouts(chip)) {
 		dev_err(dev, "Could not get TPM timeouts and durations\n");
