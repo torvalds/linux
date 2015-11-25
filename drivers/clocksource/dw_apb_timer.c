@@ -49,12 +49,12 @@ clocksource_to_dw_apb_clocksource(struct clocksource *cs)
 	return container_of(cs, struct dw_apb_clocksource, cs);
 }
 
-static unsigned long apbt_readl(struct dw_apb_timer *timer, unsigned long offs)
+static u32 apbt_readl(struct dw_apb_timer *timer, unsigned long offs)
 {
 	return readl(timer->base + offs);
 }
 
-static void apbt_writel(struct dw_apb_timer *timer, unsigned long val,
+static void apbt_writel(struct dw_apb_timer *timer, u32 val,
 		 unsigned long offs)
 {
 	writel(val, timer->base + offs);
@@ -62,7 +62,7 @@ static void apbt_writel(struct dw_apb_timer *timer, unsigned long val,
 
 static void apbt_disable_int(struct dw_apb_timer *timer)
 {
-	unsigned long ctrl = apbt_readl(timer, APBTMR_N_CONTROL);
+	u32 ctrl = apbt_readl(timer, APBTMR_N_CONTROL);
 
 	ctrl |= APBTMR_CONTROL_INT;
 	apbt_writel(timer, ctrl, APBTMR_N_CONTROL);
@@ -103,7 +103,7 @@ static irqreturn_t dw_apb_clockevent_irq(int irq, void *data)
 
 static void apbt_enable_int(struct dw_apb_timer *timer)
 {
-	unsigned long ctrl = apbt_readl(timer, APBTMR_N_CONTROL);
+	u32 ctrl = apbt_readl(timer, APBTMR_N_CONTROL);
 	/* clear pending intr */
 	apbt_readl(timer, APBTMR_N_EOI);
 	ctrl &= ~APBTMR_CONTROL_INT;
@@ -113,7 +113,7 @@ static void apbt_enable_int(struct dw_apb_timer *timer)
 static int apbt_shutdown(struct clock_event_device *evt)
 {
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
-	unsigned long ctrl;
+	u32 ctrl;
 
 	pr_debug("%s CPU %d state=shutdown\n", __func__,
 		 cpumask_first(evt->cpumask));
@@ -127,7 +127,7 @@ static int apbt_shutdown(struct clock_event_device *evt)
 static int apbt_set_oneshot(struct clock_event_device *evt)
 {
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
-	unsigned long ctrl;
+	u32 ctrl;
 
 	pr_debug("%s CPU %d state=oneshot\n", __func__,
 		 cpumask_first(evt->cpumask));
@@ -160,7 +160,7 @@ static int apbt_set_periodic(struct clock_event_device *evt)
 {
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 	unsigned long period = DIV_ROUND_UP(dw_ced->timer.freq, HZ);
-	unsigned long ctrl;
+	u32 ctrl;
 
 	pr_debug("%s CPU %d state=periodic\n", __func__,
 		 cpumask_first(evt->cpumask));
@@ -196,7 +196,7 @@ static int apbt_resume(struct clock_event_device *evt)
 static int apbt_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
-	unsigned long ctrl;
+	u32 ctrl;
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 
 	/* Disable timer */
@@ -323,7 +323,7 @@ void dw_apb_clocksource_start(struct dw_apb_clocksource *dw_cs)
 	 * start count down from 0xffff_ffff. this is done by toggling the
 	 * enable bit then load initial load count to ~0.
 	 */
-	unsigned long ctrl = apbt_readl(&dw_cs->timer, APBTMR_N_CONTROL);
+	u32 ctrl = apbt_readl(&dw_cs->timer, APBTMR_N_CONTROL);
 
 	ctrl &= ~APBTMR_CONTROL_ENABLE;
 	apbt_writel(&dw_cs->timer, ctrl, APBTMR_N_CONTROL);
@@ -338,7 +338,7 @@ void dw_apb_clocksource_start(struct dw_apb_clocksource *dw_cs)
 
 static cycle_t __apbt_read_clocksource(struct clocksource *cs)
 {
-	unsigned long current_count;
+	u32 current_count;
 	struct dw_apb_clocksource *dw_cs =
 		clocksource_to_dw_apb_clocksource(cs);
 
