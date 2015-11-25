@@ -212,7 +212,8 @@ static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
 
 	spin_lock_irqsave(&drm->event_lock, flags);
 	if (ipu_crtc->page_flip_event)
-		drm_send_vblank_event(drm, -1, ipu_crtc->page_flip_event);
+		drm_crtc_send_vblank_event(&ipu_crtc->base,
+					   ipu_crtc->page_flip_event);
 	ipu_crtc->page_flip_event = NULL;
 	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
 	spin_unlock_irqrestore(&drm->event_lock, flags);
