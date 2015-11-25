@@ -36,7 +36,6 @@ config REALVIEW_EB_A9MP
 config REALVIEW_EB_ARM11MP
 	bool "Support ARM11MPCore Tile"
 	depends on MACH_REALVIEW_EB
-	select ARCH_HAS_BARRIERS if SMP
 	select CPU_V6K
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
@@ -57,7 +56,6 @@ config REALVIEW_EB_ARM11MP_REVB
 
 config MACH_REALVIEW_PB11MP
 	bool "Support RealView(R) Platform Baseboard for ARM11MPCore"
-	select ARCH_HAS_BARRIERS if SMP
 	select ARM_GIC
 	select CPU_V6K
 	select HAVE_ARM_SCU if SMP
