@@ -836,7 +836,6 @@ static int __init acpi_wmi_init(void)
 		return error;
 	}
 
-	pr_info("Mapper loaded\n");
 	return 0;
 }
 
@@ -844,8 +843,6 @@ static void __exit acpi_wmi_exit(void)
 {
 	acpi_bus_unregister_driver(&acpi_wmi_driver);
 	class_unregister(&wmi_class);
-
-	pr_info("Mapper unloaded\n");
 }
 
 subsys_initcall(acpi_wmi_init);
