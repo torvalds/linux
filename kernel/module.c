@@ -1886,7 +1886,9 @@ void set_page_attributes(void *start, void *end, int (*set)(unsigned long start,
 static void set_section_ro_nx(void *base,
 			unsigned long text_size,
 			unsigned long ro_size,
-			unsigned long total_size)
+			unsigned long total_size,
+			int (*set_ro)(unsigned long start, int num_pages),
+			int (*set_nx)(unsigned long start, int num_pages))
 {
 	/* begin and end PFNs of the current subsection */
 	unsigned long begin_pfn;
@@ -1898,7 +1900,7 @@ static void set_section_ro_nx(void *base,
 	 * - Do not protect last partial page.
 	 */
 	if (ro_size > 0)
-		set_page_attributes(base, base + ro_size, set_memory_ro);
+		set_page_attributes(base, base + ro_size, set_ro);
 
 	/*
 	 * Set NX permissions for module data:
@@ -1909,28 +1911,36 @@ static void set_section_ro_nx(void *base,
 		begin_pfn = PFN_UP((unsigned long)base + text_size);
 		end_pfn = PFN_UP((unsigned long)base + total_size);
 		if (end_pfn > begin_pfn)
-			set_memory_nx(begin_pfn << PAGE_SHIFT, end_pfn - begin_pfn);
+			set_nx(begin_pfn << PAGE_SHIFT, end_pfn - begin_pfn);
 	}
+}
+
+static void set_module_core_ro_nx(struct module *mod)
+{
+	set_section_ro_nx(mod->module_core, mod->core_text_size,
+			  mod->core_ro_size, mod->core_size,
+			  set_memory_ro, set_memory_nx);
 }
 
 static void unset_module_core_ro_nx(struct module *mod)
 {
-	set_page_attributes(mod->module_core + mod->core_text_size,
-		mod->module_core + mod->core_size,
-		set_memory_x);
-	set_page_attributes(mod->module_core,
-		mod->module_core + mod->core_ro_size,
-		set_memory_rw);
+	set_section_ro_nx(mod->module_core, mod->core_text_size,
+			  mod->core_ro_size, mod->core_size,
+			  set_memory_rw, set_memory_x);
+}
+
+static void set_module_init_ro_nx(struct module *mod)
+{
+	set_section_ro_nx(mod->module_init, mod->init_text_size,
+			  mod->init_ro_size, mod->init_size,
+			  set_memory_ro, set_memory_nx);
 }
 
 static void unset_module_init_ro_nx(struct module *mod)
 {
-	set_page_attributes(mod->module_init + mod->init_text_size,
-		mod->module_init + mod->init_size,
-		set_memory_x);
-	set_page_attributes(mod->module_init,
-		mod->module_init + mod->init_ro_size,
-		set_memory_rw);
+	set_section_ro_nx(mod->module_init, mod->init_text_size,
+			  mod->init_ro_size, mod->init_size,
+			  set_memory_rw, set_memory_x);
 }
 
 /* Iterate through all modules and set each module's text as RW */
@@ -1979,7 +1989,8 @@ void set_all_modules_text_ro(void)
 	mutex_unlock(&module_mutex);
 }
 #else
-static inline void set_section_ro_nx(void *base, unsigned long text_size, unsigned long ro_size, unsigned long total_size) { }
+static void set_module_core_ro_nx(struct module *mod) { }
+static void set_module_init_ro_nx(struct module *mod) { }
 static void unset_module_core_ro_nx(struct module *mod) { }
 static void unset_module_init_ro_nx(struct module *mod) { }
 #endif
@@ -3373,17 +3384,9 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	/* This relies on module_mutex for list integrity. */
 	module_bug_finalize(info->hdr, info->sechdrs, mod);
 
-	/* Set RO and NX regions for core */
-	set_section_ro_nx(mod->module_core,
-				mod->core_text_size,
-				mod->core_ro_size,
-				mod->core_size);
-
-	/* Set RO and NX regions for init */
-	set_section_ro_nx(mod->module_init,
-				mod->init_text_size,
-				mod->init_ro_size,
-				mod->init_size);
+	/* Set RO and NX regions */
+	set_module_init_ro_nx(mod);
+	set_module_core_ro_nx(mod);
 
 	/* Mark state as coming so strong_try_module_get() ignores us,
 	 * but kallsyms etc. can see us. */
