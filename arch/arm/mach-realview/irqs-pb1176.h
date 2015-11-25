@@ -95,6 +95,4 @@
 #define MAX_GIC_NR		NR_GIC_PB1176
 #endif
 
-#endif	/* CONFIG_MACH_REALVIEW_PB1176 */
-
 #endif	/* __MACH_IRQS_PB1176_H */

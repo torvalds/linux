@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_BOARD_EB_H
 #define __ASM_ARCH_BOARD_EB_H
 
-#include <mach/platform.h>
+#include "platform.h"
 
 /*
  * RealView EB + ARM11MPCore peripheral addresses

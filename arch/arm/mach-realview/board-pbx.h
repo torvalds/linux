@@ -20,7 +20,7 @@
 #ifndef __ASM_ARCH_BOARD_PBX_H
 #define __ASM_ARCH_BOARD_PBX_H
 
-#include <mach/platform.h>
+#include "platform.h"
 
 /*
  * Peripheral addresses

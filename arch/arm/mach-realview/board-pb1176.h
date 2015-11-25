@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_BOARD_PB1176_H
 #define __ASM_ARCH_BOARD_PB1176_H
 
-#include <mach/platform.h>
+#include "platform.h"
 
 /*
  * Peripheral addresses

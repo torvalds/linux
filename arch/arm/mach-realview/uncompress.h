@@ -17,14 +17,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <asm/mach-types.h>
 
-#include <mach/board-eb.h>
-#include <mach/board-pb11mp.h>
-#include <mach/board-pb1176.h>
-#include <mach/board-pba8.h>
-#include <mach/board-pbx.h>
+#include "board-eb.h"
+#include "board-pb11mp.h"
+#include "board-pb1176.h"
+#include "board-pba8.h"
+#include "board-pbx.h"
 
 #define AMBA_UART_DR(base)	(*(volatile unsigned char *)((base) + 0x00))
 #define AMBA_UART_LCRH(base)	(*(volatile unsigned char *)((base) + 0x2c))
