@@ -418,11 +418,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
  * PPR restore macros used in entry_64.S
  * Used for P7 or later processors
  */
-#define HMT_MEDIUM_LOW_HAS_PPR						\
-BEGIN_FTR_SECTION_NESTED(944)						\
-	HMT_MEDIUM_LOW;							\
-END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,944)
-
 #define SET_DEFAULT_THREAD_PPR(ra, rb)					\
 BEGIN_FTR_SECTION_NESTED(945)						\
 	lis	ra,INIT_PPR@highest;	/* default ppr=3 */		\
