@@ -60,6 +60,17 @@ static void apbt_writel(struct dw_apb_timer *timer, u32 val,
 	writel(val, timer->base + offs);
 }
 
+static inline u32 apbt_readl_relaxed(struct dw_apb_timer *timer, unsigned long offs)
+{
+	return readl_relaxed(timer->base + offs);
+}
+
+static inline void apbt_writel_relaxed(struct dw_apb_timer *timer, u32 val,
+			unsigned long offs)
+{
+	writel_relaxed(val, timer->base + offs);
+}
+
 static void apbt_disable_int(struct dw_apb_timer *timer)
 {
 	u32 ctrl = apbt_readl(timer, APBTMR_N_CONTROL);
@@ -81,7 +92,7 @@ void dw_apb_clockevent_pause(struct dw_apb_clock_event_device *dw_ced)
 
 static void apbt_eoi(struct dw_apb_timer *timer)
 {
-	apbt_readl(timer, APBTMR_N_EOI);
+	apbt_readl_relaxed(timer, APBTMR_N_EOI);
 }
 
 static irqreturn_t dw_apb_clockevent_irq(int irq, void *data)
@@ -200,13 +211,13 @@ static int apbt_next_event(unsigned long delta,
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 
 	/* Disable timer */
-	ctrl = apbt_readl(&dw_ced->timer, APBTMR_N_CONTROL);
+	ctrl = apbt_readl_relaxed(&dw_ced->timer, APBTMR_N_CONTROL);
 	ctrl &= ~APBTMR_CONTROL_ENABLE;
-	apbt_writel(&dw_ced->timer, ctrl, APBTMR_N_CONTROL);
+	apbt_writel_relaxed(&dw_ced->timer, ctrl, APBTMR_N_CONTROL);
 	/* write new count */
-	apbt_writel(&dw_ced->timer, delta, APBTMR_N_LOAD_COUNT);
+	apbt_writel_relaxed(&dw_ced->timer, delta, APBTMR_N_LOAD_COUNT);
 	ctrl |= APBTMR_CONTROL_ENABLE;
-	apbt_writel(&dw_ced->timer, ctrl, APBTMR_N_CONTROL);
+	apbt_writel_relaxed(&dw_ced->timer, ctrl, APBTMR_N_CONTROL);
 
 	return 0;
 }
@@ -342,7 +353,8 @@ static cycle_t __apbt_read_clocksource(struct clocksource *cs)
 	struct dw_apb_clocksource *dw_cs =
 		clocksource_to_dw_apb_clocksource(cs);
 
-	current_count = apbt_readl(&dw_cs->timer, APBTMR_N_CURRENT_VALUE);
+	current_count = apbt_readl_relaxed(&dw_cs->timer,
+					APBTMR_N_CURRENT_VALUE);
 
 	return (cycle_t)~current_count;
 }
