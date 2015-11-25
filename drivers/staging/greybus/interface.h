@@ -28,8 +28,8 @@ struct gb_interface {
 	/* Information taken from the hotplug event */
 	u32 unipro_mfg_id;
 	u32 unipro_prod_id;
-	u32 vendor;
-	u32 product;
+	u32 vendor_id;
+	u32 product_id;
 
 	struct gb_module *module;
 	struct gb_host_device *hd;

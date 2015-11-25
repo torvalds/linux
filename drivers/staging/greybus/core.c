@@ -33,11 +33,11 @@ static int greybus_match_one_id(struct gb_bundle *bundle,
 				     const struct greybus_bundle_id *id)
 {
 	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
-	    (id->vendor != bundle->intf->vendor))
+	    (id->vendor != bundle->intf->vendor_id))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_ID_MATCH_PRODUCT) &&
-	    (id->product != bundle->intf->product))
+	    (id->product != bundle->intf->product_id))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_ID_MATCH_CLASS) &&
