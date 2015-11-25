@@ -23,6 +23,8 @@ enum gb_svc_state {
 };
 
 struct gb_svc {
+	struct device		dev;
+
 	struct gb_connection	*connection;
 	enum gb_svc_state	state;
 	struct ida		device_id_map;
@@ -667,18 +669,41 @@ static int gb_svc_request_recv(u8 type, struct gb_operation *op)
 	}
 }
 
+static void gb_svc_release(struct device *dev)
+{
+	struct gb_svc *svc = container_of(dev, struct gb_svc, dev);
+
+	ida_destroy(&svc->device_id_map);
+	kfree(svc);
+}
+
+struct device_type greybus_svc_type = {
+	.name		= "greybus_svc",
+	.release	= gb_svc_release,
+};
+
 static int gb_svc_connection_init(struct gb_connection *connection)
 {
+	struct gb_host_device *hd = connection->hd;
 	struct gb_svc *svc;
 
 	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
 	if (!svc)
 		return -ENOMEM;
 
-	connection->hd->svc = svc;
+	svc->dev.parent = &hd->dev;
+	svc->dev.bus = &greybus_bus_type;
+	svc->dev.type = &greybus_svc_type;
+	svc->dev.dma_mask = svc->dev.parent->dma_mask;
+	device_initialize(&svc->dev);
+
+	dev_set_name(&svc->dev, "%d-svc", hd->bus_id);
+
 	svc->state = GB_SVC_STATE_RESET;
 	svc->connection = connection;
 	connection->private = svc;
+
+	hd->svc = svc;
 
 	WARN_ON(connection->hd->initial_svc_connection);
 	connection->hd->initial_svc_connection = connection;
@@ -692,10 +717,10 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
 
-	ida_destroy(&svc->device_id_map);
 	connection->hd->svc = NULL;
 	connection->private = NULL;
-	kfree(svc);
+
+	put_device(&svc->dev);
 }
 
 static struct gb_protocol svc_protocol = {
