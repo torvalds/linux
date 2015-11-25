@@ -157,7 +157,7 @@ static inline uint32_t mixercfg(uint32_t mixer_cfg, int mixer,
 			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE6_MIXER1);
 		break;
 	default:
-		WARN_ON("invalid pipe");
+		WARN(1, "invalid pipe");
 		break;
 	}
 
