@@ -2161,6 +2161,59 @@ static const struct file_operations fops_btcoex = {
 	.open = simple_open
 };
 
+static ssize_t ath10k_debug_fw_checksums_read(struct file *file,
+					      char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	unsigned int len = 0, buf_len = 4096;
+	ssize_t ret_cnt;
+	char *buf;
+
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (len > buf_len)
+		len = buf_len;
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "firmware-N.bin\t\t%08x\n",
+			 crc32_le(0, ar->firmware->data, ar->firmware->size));
+	len += scnprintf(buf + len, buf_len - len,
+			 "athwlan\t\t\t%08x\n",
+			 crc32_le(0, ar->firmware_data, ar->firmware_len));
+	len += scnprintf(buf + len, buf_len - len,
+			 "otp\t\t\t%08x\n",
+			 crc32_le(0, ar->otp_data, ar->otp_len));
+	len += scnprintf(buf + len, buf_len - len,
+			 "codeswap\t\t%08x\n",
+			 crc32_le(0, ar->swap.firmware_codeswap_data,
+				  ar->swap.firmware_codeswap_len));
+	len += scnprintf(buf + len, buf_len - len,
+			 "board-N.bin\t\t%08x\n",
+			 crc32_le(0, ar->board->data, ar->board->size));
+	len += scnprintf(buf + len, buf_len - len,
+			 "board\t\t\t%08x\n",
+			 crc32_le(0, ar->board_data, ar->board_len));
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	mutex_unlock(&ar->conf_mutex);
+
+	kfree(buf);
+	return ret_cnt;
+}
+
+static const struct file_operations fops_fw_checksums = {
+	.read = ath10k_debug_fw_checksums_read,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
@@ -2273,6 +2326,9 @@ int ath10k_debug_register(struct ath10k *ar)
 	if (test_bit(WMI_SERVICE_COEX_GPIO, ar->wmi.svc_map))
 		debugfs_create_file("btcoex", S_IRUGO | S_IWUSR,
 				    ar->debug.debugfs_phy, ar, &fops_btcoex);
+
+	debugfs_create_file("fw_checksums", S_IRUSR,
+			    ar->debug.debugfs_phy, ar, &fops_fw_checksums);
 
 	return 0;
 }
