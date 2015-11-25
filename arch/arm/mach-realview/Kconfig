@@ -102,14 +102,13 @@ config MACH_REALVIEW_PBA8
 
 config MACH_REALVIEW_PBX
 	bool "Support RealView(R) Platform Baseboard Explore"
-	select ARCH_SPARSEMEM_ENABLE if CPU_V7 && !REALVIEW_HIGH_PHYS_OFFSET
 	select ARM_GIC
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select HAVE_PATA_PLATFORM
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
-	select ZONE_DMA if SPARSEMEM
+	select ZONE_DMA
 	help
 	  Include support for the ARM(R) RealView(R) Platform Baseboard
 	  Explore.
@@ -124,6 +123,6 @@ config REALVIEW_HIGH_PHYS_OFFSET
 	  the board supports 512MB of RAM, this option allows the
 	  memory to be accessed contiguously at the high physical
 	  offset. On the PBX board, disabling this option allows 1GB of
-	  RAM to be used with SPARSEMEM.
+	  RAM to be used with HIGHMEM.
 
 endmenu
