@@ -305,6 +305,12 @@ enum ftrace_bug_type {
 };
 extern enum ftrace_bug_type ftrace_bug_type;
 
+/*
+ * Archs can set this to point to a variable that holds the value that was
+ * expected at the call site before calling ftrace_bug().
+ */
+extern const void *ftrace_expected;
+
 void ftrace_bug(int err, struct dyn_ftrace *rec);
 
 struct seq_file;

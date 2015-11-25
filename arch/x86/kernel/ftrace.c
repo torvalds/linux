@@ -105,6 +105,8 @@ ftrace_modify_code_direct(unsigned long ip, unsigned const char *old_code,
 {
 	unsigned char replaced[MCOUNT_INSN_SIZE];
 
+	ftrace_expected = old_code;
+
 	/*
 	 * Note: Due to modules and __init, code can
 	 *  disappear and change, we need to protect against faulting
@@ -153,6 +155,8 @@ int ftrace_make_nop(struct module *mod,
 	 */
 	if (addr == MCOUNT_ADDR)
 		return ftrace_modify_code_direct(rec->ip, old, new);
+
+	ftrace_expected = NULL;
 
 	/* Normal cases use add_brk_on_nop */
 	WARN_ONCE(1, "invalid use of ftrace_make_nop");
@@ -220,6 +224,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 				 unsigned long addr)
 {
 	WARN_ON(1);
+	ftrace_expected = NULL;
 	return -EINVAL;
 }
 
@@ -313,6 +318,8 @@ static int add_break(unsigned long ip, const char *old)
 
 	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
+
+	ftrace_expected = old;
 
 	/* Make sure it is what we expect it to be */
 	if (memcmp(replaced, old, MCOUNT_INSN_SIZE) != 0)
@@ -412,6 +419,8 @@ static int remove_breakpoint(struct dyn_ftrace *rec)
 		/* Check both ftrace_addr and ftrace_old_addr */
 		ftrace_addr = ftrace_get_addr_curr(rec);
 		nop = ftrace_call_replace(ip, ftrace_addr);
+
+		ftrace_expected = nop;
 
 		if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) != 0)
 			return -EINVAL;

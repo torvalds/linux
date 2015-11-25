@@ -1940,7 +1940,7 @@ static int ftrace_hash_ipmodify_update(struct ftrace_ops *ops,
 	return __ftrace_hash_update_ipmodify(ops, old_hash, new_hash);
 }
 
-static void print_ip_ins(const char *fmt, unsigned char *p)
+static void print_ip_ins(const char *fmt, const unsigned char *p)
 {
 	int i;
 
@@ -1954,6 +1954,7 @@ static struct ftrace_ops *
 ftrace_find_tramp_ops_any(struct dyn_ftrace *rec);
 
 enum ftrace_bug_type ftrace_bug_type;
+const void *ftrace_expected;
 
 static void print_bug_type(void)
 {
@@ -2001,8 +2002,12 @@ void ftrace_bug(int failed, struct dyn_ftrace *rec)
 		FTRACE_WARN_ON_ONCE(1);
 		pr_info("ftrace failed to modify ");
 		print_ip_sym(ip);
-		print_ip_ins(" actual: ", (unsigned char *)ip);
+		print_ip_ins(" actual:   ", (unsigned char *)ip);
 		pr_cont("\n");
+		if (ftrace_expected) {
+			print_ip_ins(" expected: ", ftrace_expected);
+			pr_cont("\n");
+		}
 		break;
 	case -EPERM:
 		FTRACE_WARN_ON_ONCE(1);
