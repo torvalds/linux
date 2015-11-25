@@ -148,8 +148,7 @@ static inline u64 drm_mm_hole_node_start(struct drm_mm_node *hole_node)
 
 static inline u64 __drm_mm_hole_node_end(struct drm_mm_node *hole_node)
 {
-	return list_entry(hole_node->node_list.next,
-			  struct drm_mm_node, node_list)->start;
+	return list_next_entry(hole_node, node_list)->start;
 }
 
 /**
