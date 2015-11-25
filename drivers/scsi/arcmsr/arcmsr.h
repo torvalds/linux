@@ -74,6 +74,9 @@ struct device_attribute;
 #ifndef PCI_DEVICE_ID_ARECA_1214
 	#define PCI_DEVICE_ID_ARECA_1214	0x1214
 #endif
+#ifndef PCI_DEVICE_ID_ARECA_1203
+	#define PCI_DEVICE_ID_ARECA_1203	0x1203
+#endif
 /*
 **********************************************************************************
 **
@@ -245,6 +248,12 @@ struct FIRMWARE_INFO
 /* window of "instruction flags" from iop to driver */
 #define ARCMSR_IOP2DRV_DOORBELL                       0x00020408
 #define ARCMSR_IOP2DRV_DOORBELL_MASK                  0x0002040C
+/* window of "instruction flags" from iop to driver */
+#define ARCMSR_IOP2DRV_DOORBELL_1203                  0x00021870
+#define ARCMSR_IOP2DRV_DOORBELL_MASK_1203             0x00021874
+/* window of "instruction flags" from driver to iop */
+#define ARCMSR_DRV2IOP_DOORBELL_1203                  0x00021878
+#define ARCMSR_DRV2IOP_DOORBELL_MASK_1203             0x0002187C
 /* ARECA FLAG LANGUAGE */
 /* ioctl transfer */
 #define ARCMSR_IOP2DRV_DATA_WRITE_OK                  0x00000001
