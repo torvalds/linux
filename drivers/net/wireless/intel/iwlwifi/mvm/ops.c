@@ -607,8 +607,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
 
-	/* rpm starts with a taken ref. only set the appropriate bit here. */
-	mvm->refs[IWL_MVM_REF_UCODE_DOWN] = 1;
+	/* rpm starts with a taken reference, we can release it now */
+	iwl_trans_unref(mvm->trans);
 
 	iwl_mvm_tof_init(mvm);
 
