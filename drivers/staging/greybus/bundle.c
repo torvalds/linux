@@ -14,7 +14,7 @@ static ssize_t bundle_class_show(struct device *dev,
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 
-	return sprintf(buf, "%d\n", bundle->class);
+	return sprintf(buf, "0x%02x\n", bundle->class);
 }
 static DEVICE_ATTR_RO(bundle_class);
 
