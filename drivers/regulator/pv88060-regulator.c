@@ -365,7 +365,7 @@ static int pv88060_i2c_probe(struct i2c_client *i2c,
 			return ret;
 		}
 
-		ret = request_threaded_irq(i2c->irq, NULL,
+		ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,
 					pv88060_irq_handler,
 					IRQF_TRIGGER_LOW|IRQF_ONESHOT,
 					"pv88060", chip);
