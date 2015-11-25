@@ -541,19 +541,11 @@ int gb_connection_bind_protocol(struct gb_connection *connection)
 	}
 	connection->protocol = protocol;
 
-	/*
-	 * If we have a valid device_id for the interface block, then we have an
-	 * active device, so bring up the connection at the same time.
-	 */
-	if ((!connection->bundle &&
-	     protocol->flags & GB_PROTOCOL_NO_BUNDLE) ||
-	    connection->bundle->intf->device_id != GB_DEVICE_ID_BAD) {
-		ret = gb_connection_init(connection);
-		if (ret) {
-			gb_protocol_put(protocol);
-			connection->protocol = NULL;
-			return ret;
-		}
+	ret = gb_connection_init(connection);
+	if (ret) {
+		gb_protocol_put(protocol);
+		connection->protocol = NULL;
+		return ret;
 	}
 
 	return 0;
