@@ -126,7 +126,8 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 
 	brcmf_dbg(FIL, "Failed: %s (%d)\n",
 		  brcmf_fil_get_errstr((u32)(-err)), err);
-	return -EBADE;
+
+	return err;
 }
 
 s32
