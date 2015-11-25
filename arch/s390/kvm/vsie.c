@@ -307,6 +307,11 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			prefix_unmapped(vsie_page);
 		scb_s->ecb |= scb_o->ecb & 0x10U;
 	}
+	/* SIMD */
+	if (test_kvm_facility(vcpu->kvm, 129)) {
+		scb_s->eca |= scb_o->eca & 0x00020000U;
+		scb_s->ecd |= scb_o->ecd & 0x20000000U;
+	}
 
 	prepare_ibc(vcpu, vsie_page);
 	rc = shadow_crycb(vcpu, vsie_page);
@@ -452,6 +457,13 @@ static void unpin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		unpin_guest_page(vcpu->kvm, gpa, hpa);
 		scb_s->itdba = 0;
 	}
+
+	hpa = scb_s->gvrd;
+	if (hpa) {
+		gpa = scb_o->gvrd & ~0x1ffUL;
+		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		scb_s->gvrd = 0;
+	}
 }
 
 /*
@@ -509,6 +521,25 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (rc)
 			goto unpin;
 		scb_s->itdba = hpa;
+	}
+
+	gpa = scb_o->gvrd & ~0x1ffUL;
+	if (gpa && (scb_s->eca & 0x00020000U) &&
+	    !(scb_s->ecd & 0x20000000U)) {
+		if (!(gpa & ~0x1fffUL)) {
+			rc = set_validity_icpt(scb_s, 0x1310U);
+			goto unpin;
+		}
+		/*
+		 * 512 bytes vector registers cannot cross page boundaries
+		 * if this block gets bigger, we have to shadow it.
+		 */
+		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
+		if (rc == -EINVAL)
+			rc = set_validity_icpt(scb_s, 0x1310U);
+		if (rc)
+			goto unpin;
+		scb_s->gvrd = hpa;
 	}
 	return 0;
 unpin:
