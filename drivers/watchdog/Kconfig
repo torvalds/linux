@@ -180,6 +180,16 @@ config ARM_SP805_WATCHDOG
 	  ARM Primecell SP805 Watchdog timer. This will reboot your system when
 	  the timeout is reached.
 
+config ASM9260_WATCHDOG
+	tristate "Alphascale ASM9260 watchdog"
+	depends on MACH_ASM9260
+	depends on OF
+	select WATCHDOG_CORE
+	select RESET_CONTROLLER
+	help
+	  Watchdog timer embedded into Alphascale asm9260 chips. This will reboot your
+	  system when the timeout is reached.
+
 config AT91RM9200_WATCHDOG
 	tristate "AT91RM9200 watchdog"
 	depends on SOC_AT91RM9200 && MFD_SYSCON
