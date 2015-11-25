@@ -460,7 +460,6 @@ struct brcmf_sdio {
 
 	struct sk_buff *glomd;	/* Packet containing glomming descriptor */
 	struct sk_buff_head glom; /* Packet list for glommed superframe */
-	uint glomerr;		/* Glom packet read errors */
 
 	u8 *rxbuf;		/* Buffer for receiving control packets */
 	uint rxblen;		/* Allocated length of rxbuf */
@@ -1654,20 +1653,15 @@ static u8 brcmf_sdio_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		sdio_release_host(bus->sdiodev->func[1]);
 		bus->sdcnt.f2rxdata++;
 
-		/* On failure, kill the superframe, allow a couple retries */
+		/* On failure, kill the superframe */
 		if (errcode < 0) {
 			brcmf_err("glom read of %d bytes failed: %d\n",
 				  dlen, errcode);
 
 			sdio_claim_host(bus->sdiodev->func[1]);
-			if (bus->glomerr++ < 3) {
-				brcmf_sdio_rxfail(bus, true, true);
-			} else {
-				bus->glomerr = 0;
-				brcmf_sdio_rxfail(bus, true, false);
-				bus->sdcnt.rxglomfail++;
-				brcmf_sdio_free_glom(bus);
-			}
+			brcmf_sdio_rxfail(bus, true, false);
+			bus->sdcnt.rxglomfail++;
+			brcmf_sdio_free_glom(bus);
 			sdio_release_host(bus->sdiodev->func[1]);
 			return 0;
 		}
@@ -1708,19 +1702,11 @@ static u8 brcmf_sdio_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		}
 
 		if (errcode) {
-			/* Terminate frame on error, request
-				 a couple retries */
+			/* Terminate frame on error */
 			sdio_claim_host(bus->sdiodev->func[1]);
-			if (bus->glomerr++ < 3) {
-				/* Restore superframe header space */
-				skb_push(pfirst, sfdoff);
-				brcmf_sdio_rxfail(bus, true, true);
-			} else {
-				bus->glomerr = 0;
-				brcmf_sdio_rxfail(bus, true, false);
-				bus->sdcnt.rxglomfail++;
-				brcmf_sdio_free_glom(bus);
-			}
+			brcmf_sdio_rxfail(bus, true, false);
+			bus->sdcnt.rxglomfail++;
+			brcmf_sdio_free_glom(bus);
 			sdio_release_host(bus->sdiodev->func[1]);
 			bus->cur_read.len = 0;
 			return 0;
