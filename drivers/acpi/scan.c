@@ -471,9 +471,23 @@ static void acpi_device_release(struct device *dev)
 
 static void acpi_device_del(struct acpi_device *device)
 {
+	struct acpi_device_bus_id *acpi_device_bus_id;
+
 	mutex_lock(&acpi_device_lock);
 	if (device->parent)
 		list_del(&device->node);
+
+	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
+		if (!strcmp(acpi_device_bus_id->bus_id,
+			    acpi_device_hid(device))) {
+			if (acpi_device_bus_id->instance_no > 0)
+				acpi_device_bus_id->instance_no--;
+			else {
+				list_del(&acpi_device_bus_id->node);
+				kfree(acpi_device_bus_id);
+			}
+			break;
+		}
 
 	list_del(&device->wakeup_list);
 	mutex_unlock(&acpi_device_lock);
