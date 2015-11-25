@@ -33,7 +33,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
-#include <linux/time.h>
+#include <linux/ktime.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 
@@ -144,25 +144,22 @@ static void lirc_off(void)
 
 static unsigned int init_lirc_timer(void)
 {
-	struct timeval tv, now;
+	ktime_t kt, now, timeout;
 	unsigned int level, newlevel, timeelapsed, newtimer;
 	int count = 0;
 
-	do_gettimeofday(&tv);
-	tv.tv_sec++;                     /* wait max. 1 sec. */
+	kt = ktime_get();
+	/* wait max. 1 sec. */
+	timeout = ktime_add_ns(kt, NSEC_PER_SEC);
 	level = lirc_get_timer();
 	do {
 		newlevel = lirc_get_timer();
 		if (level == 0 && newlevel != 0)
 			count++;
 		level = newlevel;
-		do_gettimeofday(&now);
-	} while (count < 1000 && (now.tv_sec < tv.tv_sec
-			     || (now.tv_sec == tv.tv_sec
-				 && now.tv_usec < tv.tv_usec)));
-
-	timeelapsed = (now.tv_sec + 1 - tv.tv_sec)*1000000
-		     + (now.tv_usec - tv.tv_usec);
+		now = ktime_get();
+	} while (count < 1000 && (ktime_before(now, timeout)));
+	timeelapsed = ktime_us_delta(now, kt);
 	if (count >= 1000 && timeelapsed > 0) {
 		if (default_timer == 0) {
 			/* autodetect timer */
@@ -220,8 +217,8 @@ static void rbuf_write(int signal)
 
 static void lirc_lirc_irq_handler(void *blah)
 {
-	struct timeval tv;
-	static struct timeval lasttv;
+	ktime_t kt, delkt;
+	static ktime_t lastkt;
 	static int init;
 	long signal;
 	int data;
@@ -244,16 +241,14 @@ static void lirc_lirc_irq_handler(void *blah)
 
 #ifdef LIRC_TIMER
 	if (init) {
-		do_gettimeofday(&tv);
+		kt = ktime_get();
 
-		signal = tv.tv_sec - lasttv.tv_sec;
-		if (signal > 15)
+		delkt = ktime_sub(kt, lastkt);
+		if (ktime_compare(delkt, ktime_set(15, 0)) > 0)
 			/* really long time */
 			data = PULSE_MASK;
 		else
-			data = (int) (signal*1000000 +
-					 tv.tv_usec - lasttv.tv_usec +
-					 LIRC_SFH506_DELAY);
+			data = (int)(ktime_to_us(delkt) + LIRC_SFH506_DELAY);
 
 		rbuf_write(data); /* space */
 	} else {
@@ -301,7 +296,7 @@ static void lirc_lirc_irq_handler(void *blah)
 			data = 1;
 		rbuf_write(PULSE_BIT|data); /* pulse */
 	}
-	do_gettimeofday(&lasttv);
+	lastkt = ktime_get();
 #else
 	/* add your code here */
 #endif
