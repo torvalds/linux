@@ -130,25 +130,25 @@ void ath10k_print_driver_info(struct ath10k *ar)
 	ath10k_core_get_fw_features_str(ar, fw_features, sizeof(fw_features));
 
 	if (ar->id.bmi_ids_valid)
-		scnprintf(boardinfo, sizeof(boardinfo), "bmi %d:%d",
+		scnprintf(boardinfo, sizeof(boardinfo), "%d:%d",
 			  ar->id.bmi_chip_id, ar->id.bmi_board_id);
 	else
-		scnprintf(boardinfo, sizeof(boardinfo), "sub %04x:%04x",
-			  ar->id.subsystem_vendor, ar->id.subsystem_device);
+		scnprintf(boardinfo, sizeof(boardinfo), "N/A");
 
-	ath10k_info(ar, "%s target 0x%08x chip_id 0x%08x %s",
+	ath10k_info(ar, "%s target 0x%08x chip_id 0x%08x sub %04x:%04x",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
-		    boardinfo);
+		    ar->id.subsystem_vendor, ar->id.subsystem_device);
 
 	ath10k_info(ar, "firmware ver %s api %d features %s\n",
 		    ar->hw->wiphy->fw_version,
 		    ar->fw_api,
 		    fw_features);
 
-	ath10k_info(ar, "board_file api %d",
-		    ar->bd_api);
+	ath10k_info(ar, "board_file api %d bmi_id %s",
+		    ar->bd_api,
+		    boardinfo);
 
 	ath10k_info(ar, "kconfig debug %d debugfs %d tracing %d dfs %d testmode %d\n",
 		    config_enabled(CONFIG_ATH10K_DEBUG),
