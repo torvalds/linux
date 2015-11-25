@@ -51,9 +51,6 @@ struct gb_connection {
 	void				*private;
 };
 
-int svc_update_connection(struct gb_interface *intf,
-			  struct gb_connection *connection);
-
 struct gb_connection *gb_connection_create_static(struct gb_host_device *hd,
 				u16 hd_cport_id, u8 protocol_id);
 struct gb_connection *gb_connection_create_dynamic(struct gb_interface *intf,

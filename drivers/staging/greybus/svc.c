@@ -49,51 +49,6 @@ static struct attribute *svc_attrs[] = {
 };
 ATTRIBUTE_GROUPS(svc);
 
-/*
- * AP's SVC cport is required early to get messages from the SVC. This happens
- * even before the Endo is created and hence any modules or interfaces.
- *
- * This is a temporary connection, used only at initial bootup.
- */
-struct gb_connection *
-gb_ap_svc_connection_create(struct gb_host_device *hd)
-{
-	struct gb_connection *connection;
-
-	connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
-							GREYBUS_PROTOCOL_SVC);
-
-	return connection;
-}
-
-/*
- * We know endo-type and AP's interface id now, lets create a proper svc
- * connection (and its interface/bundle) now and get rid of the initial
- * 'partially' initialized one svc connection.
- */
-static struct gb_interface *
-gb_ap_interface_create(struct gb_host_device *hd,
-		       struct gb_connection *connection, u8 interface_id)
-{
-	struct gb_interface *intf;
-	struct device *dev = &hd->endo->dev;
-
-	intf = gb_interface_create(hd, interface_id);
-	if (!intf) {
-		dev_err(dev, "%s: Failed to create interface with id %hhu\n",
-			__func__, interface_id);
-		return NULL;
-	}
-
-	intf->device_id = GB_DEVICE_ID_AP;
-	svc_update_connection(intf, connection);
-
-	/* Its no longer a partially initialized connection */
-	hd->initial_svc_connection = NULL;
-
-	return intf;
-}
-
 static int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id)
 {
 	struct gb_svc_intf_device_id_request request;
@@ -360,7 +315,6 @@ static int gb_svc_hello(struct gb_operation *op)
 	struct gb_svc *svc = connection->private;
 	struct gb_host_device *hd = connection->hd;
 	struct gb_svc_hello_request *hello_request;
-	struct gb_interface *intf;
 	int ret;
 
 	/*
@@ -388,16 +342,6 @@ static int gb_svc_hello(struct gb_operation *op)
 	ret = greybus_endo_setup(hd, svc->endo_id, svc->ap_intf_id);
 	if (ret)
 		return ret;
-
-	/*
-	 * Endo and its modules are ready now, fix AP's partially initialized
-	 * svc protocol and its connection.
-	 */
-	intf = gb_ap_interface_create(hd, connection, svc->ap_intf_id);
-	if (!intf) {
-		gb_endo_remove(hd->endo);
-		return ret;
-	}
 
 	return 0;
 }
@@ -719,9 +663,6 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 	connection->private = svc;
 
 	hd->svc = svc;
-
-	WARN_ON(connection->hd->initial_svc_connection);
-	connection->hd->initial_svc_connection = connection;
 
 	return 0;
 }

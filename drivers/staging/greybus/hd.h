@@ -41,8 +41,8 @@ struct gb_host_device {
 	size_t buffer_size_max;
 
 	struct gb_endo *endo;
-	struct gb_connection *initial_svc_connection;
 	struct gb_svc *svc;
+	struct gb_connection *svc_connection;
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __aligned(sizeof(s64));

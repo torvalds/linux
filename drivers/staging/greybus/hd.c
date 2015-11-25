@@ -98,6 +98,18 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 }
 EXPORT_SYMBOL_GPL(gb_hd_create);
 
+static int gb_hd_create_svc_connection(struct gb_host_device *hd)
+{
+	hd->svc_connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
+							GREYBUS_PROTOCOL_SVC);
+	if (!hd->svc_connection) {
+		dev_err(&hd->dev, "failed to create svc connection\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 int gb_hd_add(struct gb_host_device *hd)
 {
 	int ret;
@@ -106,19 +118,10 @@ int gb_hd_add(struct gb_host_device *hd)
 	if (ret)
 		return ret;
 
-	/*
-	 * Initialize AP's SVC protocol connection:
-	 *
-	 * This is required as part of early initialization of the host device
-	 * as we need this connection in order to start any kind of message
-	 * exchange between the AP and the SVC. SVC will start with a
-	 * 'get-version' request followed by a 'svc-hello' message and at that
-	 * time we will create a fully initialized svc-connection, as we need
-	 * endo-id and AP's interface id for that.
-	 */
-	if (!gb_ap_svc_connection_create(hd)) {
+	ret = gb_hd_create_svc_connection(hd);
+	if (ret) {
 		device_del(&hd->dev);
-		return -ENOMEM;
+		return ret;
 	}
 
 	return 0;
@@ -135,9 +138,7 @@ void gb_hd_del(struct gb_host_device *hd)
 	gb_interfaces_remove(hd);
 	gb_endo_remove(hd->endo);
 
-	/* Is the SVC still using the partially uninitialized connection ? */
-	if (hd->initial_svc_connection)
-		gb_connection_destroy(hd->initial_svc_connection);
+	gb_connection_destroy(hd->svc_connection);
 
 	device_del(&hd->dev);
 }

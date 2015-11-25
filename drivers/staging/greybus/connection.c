@@ -77,24 +77,6 @@ static void gb_connection_kref_release(struct kref *kref)
 	mutex_unlock(&connection_mutex);
 }
 
-int svc_update_connection(struct gb_interface *intf,
-			  struct gb_connection *connection)
-{
-	struct gb_bundle *bundle;
-
-	bundle = gb_bundle_create(intf, GB_SVC_BUNDLE_ID, GREYBUS_CLASS_SVC);
-	if (!bundle)
-		return -EINVAL;
-
-	connection->bundle = bundle;
-
-	spin_lock_irq(&gb_connections_lock);
-	list_add(&connection->bundle_links, &bundle->connections);
-	spin_unlock_irq(&gb_connections_lock);
-
-	return 0;
-}
-
 static void gb_connection_init_name(struct gb_connection *connection)
 {
 	u16 hd_cport_id = connection->hd_cport_id;
