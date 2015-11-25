@@ -208,8 +208,8 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 
 	retval = gb_connection_bind_protocol(connection);
 	if (retval) {
-		dev_err(&hd->dev, "%d: failed to bind protocol: %d\n",
-			cport_id, retval);
+		dev_err(&hd->dev, "%s: failed to bind protocol: %d\n",
+			connection->name, retval);
 		gb_connection_destroy(connection);
 		return NULL;
 	}
@@ -320,8 +320,9 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 			connection->intf_cport_id,
 			intf->boot_over_unipro);
 	if (ret) {
-		dev_err(&connection->bundle->dev,
-			"failed to create svc connection: %d\n", ret);
+		dev_err(&connection->hd->dev,
+			"%s: failed to create svc connection: %d\n",
+			connection->name, ret);
 		return ret;
 	}
 
@@ -513,8 +514,9 @@ void gb_connection_latency_tag_enable(struct gb_connection *connection)
 
 	ret = hd->driver->latency_tag_enable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(&connection->bundle->dev,
-			"failed to enable latency tag: %d\n", ret);
+		dev_err(&connection->hd->dev,
+			"%s: failed to enable latency tag: %d\n",
+			connection->name, ret);
 	}
 }
 EXPORT_SYMBOL_GPL(gb_connection_latency_tag_enable);
@@ -529,8 +531,9 @@ void gb_connection_latency_tag_disable(struct gb_connection *connection)
 
 	ret = hd->driver->latency_tag_disable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(&connection->bundle->dev,
-			"failed to disable latency tag: %d\n", ret);
+		dev_err(&connection->hd->dev,
+			"%s: failed to disable latency tag: %d\n",
+			connection->name, ret);
 	}
 }
 EXPORT_SYMBOL_GPL(gb_connection_latency_tag_disable);
