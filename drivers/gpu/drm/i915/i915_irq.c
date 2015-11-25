@@ -288,11 +288,11 @@ static i915_reg_t gen6_pm_ier(struct drm_i915_private *dev_priv)
 }
 
 /**
-  * snb_update_pm_irq - update GEN6_PMIMR
-  * @dev_priv: driver private
-  * @interrupt_mask: mask of interrupt bits to update
-  * @enabled_irq_mask: mask of interrupt bits to enable
-  */
+ * snb_update_pm_irq - update GEN6_PMIMR
+ * @dev_priv: driver private
+ * @interrupt_mask: mask of interrupt bits to update
+ * @enabled_irq_mask: mask of interrupt bits to enable
+ */
 static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 			      uint32_t interrupt_mask,
 			      uint32_t enabled_irq_mask)
@@ -406,11 +406,11 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 }
 
 /**
-  * bdw_update_port_irq - update DE port interrupt
-  * @dev_priv: driver private
-  * @interrupt_mask: mask of interrupt bits to update
-  * @enabled_irq_mask: mask of interrupt bits to enable
-  */
+ * bdw_update_port_irq - update DE port interrupt
+ * @dev_priv: driver private
+ * @interrupt_mask: mask of interrupt bits to update
+ * @enabled_irq_mask: mask of interrupt bits to enable
+ */
 static void bdw_update_port_irq(struct drm_i915_private *dev_priv,
 				uint32_t interrupt_mask,
 				uint32_t enabled_irq_mask)

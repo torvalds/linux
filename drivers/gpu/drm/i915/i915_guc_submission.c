@@ -677,7 +677,7 @@ static struct drm_i915_gem_object *gem_allocate_guc_obj(struct drm_device *dev,
 /**
  * gem_release_guc_obj() - Release gem object allocated for GuC usage
  * @obj:	gem obj to be released
-  */
+ */
 static void gem_release_guc_obj(struct drm_i915_gem_object *obj)
 {
 	if (!obj)
