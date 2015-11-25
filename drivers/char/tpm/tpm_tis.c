@@ -401,7 +401,7 @@ static void disable_interrupts(struct tpm_chip *chip)
 	iowrite32(intmask,
 		  chip->vendor.iobase +
 		  TPM_INT_ENABLE(chip->vendor.locality));
-	free_irq(chip->vendor.irq, chip);
+	devm_free_irq(chip->pdev, chip->vendor.irq, chip);
 	chip->vendor.irq = 0;
 }
 
