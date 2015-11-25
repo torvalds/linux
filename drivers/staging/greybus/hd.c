@@ -130,13 +130,7 @@ EXPORT_SYMBOL_GPL(gb_hd_add);
 
 void gb_hd_del(struct gb_host_device *hd)
 {
-	/*
-	 * Tear down all interfaces, modules, and the endo that is associated
-	 * with this host controller before freeing the memory associated with
-	 * the host controller.
-	 */
 	gb_interfaces_remove(hd);
-	gb_endo_remove(hd->endo);
 
 	gb_connection_destroy(hd->svc_connection);
 

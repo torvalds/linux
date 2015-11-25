@@ -310,14 +310,9 @@ static int gb_svc_hello(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_svc *svc = connection->private;
-	struct gb_host_device *hd = connection->hd;
 	struct gb_svc_hello_request *hello_request;
 	int ret;
 
-	/*
-	 * SVC sends information about the endo and interface-id on the hello
-	 * request, use that to create an endo.
-	 */
 	if (op->request->payload_size < sizeof(*hello_request)) {
 		dev_warn(&svc->dev, "short hello request (%zu < %zu)\n",
 				op->request->payload_size,
@@ -334,11 +329,6 @@ static int gb_svc_hello(struct gb_operation *op)
 		dev_err(&svc->dev, "failed to register svc device: %d\n", ret);
 		return ret;
 	}
-
-	/* Setup Endo */
-	ret = greybus_endo_setup(hd, svc->endo_id, svc->ap_intf_id);
-	if (ret)
-		return ret;
 
 	return 0;
 }

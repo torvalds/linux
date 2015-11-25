@@ -26,10 +26,8 @@
 #include "greybus_protocols.h"
 #include "manifest.h"
 #include "hd.h"
-#include "endo.h"
 #include "svc.h"
 #include "firmware.h"
-#include "module.h"
 #include "control.h"
 #include "interface.h"
 #include "bundle.h"
@@ -105,8 +103,6 @@ struct dentry *gb_debugfs_get(void);
 extern struct bus_type greybus_bus_type;
 
 extern struct device_type greybus_hd_type;
-extern struct device_type greybus_endo_type;
-extern struct device_type greybus_module_type;
 extern struct device_type greybus_interface_type;
 extern struct device_type greybus_bundle_type;
 extern struct device_type greybus_svc_type;
@@ -114,16 +110,6 @@ extern struct device_type greybus_svc_type;
 static inline int is_gb_host_device(const struct device *dev)
 {
 	return dev->type == &greybus_hd_type;
-}
-
-static inline int is_gb_endo(const struct device *dev)
-{
-	return dev->type == &greybus_endo_type;
-}
-
-static inline int is_gb_module(const struct device *dev)
-{
-	return dev->type == &greybus_module_type;
 }
 
 static inline int is_gb_interface(const struct device *dev)
