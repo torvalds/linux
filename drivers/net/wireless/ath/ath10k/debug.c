@@ -122,33 +122,17 @@ void ath10k_info(struct ath10k *ar, const char *fmt, ...)
 }
 EXPORT_SYMBOL(ath10k_info);
 
-void ath10k_print_driver_info(struct ath10k *ar)
+void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 {
 	char fw_features[128] = {};
-	char boardinfo[100];
 
 	ath10k_core_get_fw_features_str(ar, fw_features, sizeof(fw_features));
-
-	if (ar->id.bmi_ids_valid)
-		scnprintf(boardinfo, sizeof(boardinfo), "%d:%d",
-			  ar->id.bmi_chip_id, ar->id.bmi_board_id);
-	else
-		scnprintf(boardinfo, sizeof(boardinfo), "N/A");
 
 	ath10k_info(ar, "%s target 0x%08x chip_id 0x%08x sub %04x:%04x",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
 		    ar->id.subsystem_vendor, ar->id.subsystem_device);
-
-	ath10k_info(ar, "firmware ver %s api %d features %s\n",
-		    ar->hw->wiphy->fw_version,
-		    ar->fw_api,
-		    fw_features);
-
-	ath10k_info(ar, "board_file api %d bmi_id %s",
-		    ar->bd_api,
-		    boardinfo);
 
 	ath10k_info(ar, "kconfig debug %d debugfs %d tracing %d dfs %d testmode %d\n",
 		    config_enabled(CONFIG_ATH10K_DEBUG),
@@ -157,6 +141,29 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
 		    config_enabled(CONFIG_NL80211_TESTMODE));
 
+	ath10k_info(ar, "firmware ver %s api %d features %s\n",
+		    ar->hw->wiphy->fw_version,
+		    ar->fw_api,
+		    fw_features);
+}
+
+void ath10k_debug_print_board_info(struct ath10k *ar)
+{
+	char boardinfo[100];
+
+	if (ar->id.bmi_ids_valid)
+		scnprintf(boardinfo, sizeof(boardinfo), "%d:%d",
+			  ar->id.bmi_chip_id, ar->id.bmi_board_id);
+	else
+		scnprintf(boardinfo, sizeof(boardinfo), "N/A");
+
+	ath10k_info(ar, "board_file api %d bmi_id %s",
+		    ar->bd_api,
+		    boardinfo);
+}
+
+void ath10k_debug_print_boot_info(struct ath10k *ar)
+{
 	ath10k_info(ar, "htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d\n",
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor,
@@ -166,6 +173,13 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    ar->max_num_stations,
 		    test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags),
 		    !test_bit(ATH10K_FLAG_HW_CRYPTO_DISABLED, &ar->dev_flags));
+}
+
+void ath10k_print_driver_info(struct ath10k *ar)
+{
+	ath10k_debug_print_hwfw_info(ar);
+	ath10k_debug_print_board_info(ar);
+	ath10k_debug_print_boot_info(ar);
 }
 EXPORT_SYMBOL(ath10k_print_driver_info);
 
