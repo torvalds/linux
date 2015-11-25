@@ -18,6 +18,15 @@ static ssize_t bundle_class_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(bundle_class);
 
+static ssize_t bundle_id_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+
+	return sprintf(buf, "%u\n", bundle->id);
+}
+static DEVICE_ATTR_RO(bundle_id);
+
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -49,6 +58,7 @@ static DEVICE_ATTR_RW(state);
 
 static struct attribute *bundle_attrs[] = {
 	&dev_attr_bundle_class.attr,
+	&dev_attr_bundle_id.attr,
 	&dev_attr_state.attr,
 	NULL,
 };

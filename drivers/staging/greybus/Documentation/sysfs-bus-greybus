@@ -104,6 +104,13 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The greybus class of the bundle B.
 
+What:		/sys/bus/greybus/device/N-I.B/bundle_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The interface-unique id of the bundle B.
+
 What:		/sys/bus/greybus/device/N-I.B/state
 Date:		October 2015
 KernelVersion:	4.XX
