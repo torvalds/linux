@@ -1860,24 +1860,43 @@ static void vmlinux_path__exit(void)
 	zfree(&vmlinux_path);
 }
 
+static const char * const vmlinux_paths[] = {
+	"vmlinux",
+	"/boot/vmlinux"
+};
+
+static const char * const vmlinux_paths_upd[] = {
+	"/boot/vmlinux-%s",
+	"/usr/lib/debug/boot/vmlinux-%s",
+	"/lib/modules/%s/build/vmlinux",
+	"/usr/lib/debug/lib/modules/%s/vmlinux"
+};
+
+static int vmlinux_path__add(const char *new_entry)
+{
+	vmlinux_path[vmlinux_path__nr_entries] = strdup(new_entry);
+	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
+		return -1;
+	++vmlinux_path__nr_entries;
+
+	return 0;
+}
+
 static int vmlinux_path__init(struct perf_env *env)
 {
 	struct utsname uts;
 	char bf[PATH_MAX];
 	char *kernel_version;
+	unsigned int i;
 
-	vmlinux_path = malloc(sizeof(char *) * 6);
+	vmlinux_path = malloc(sizeof(char *) * (ARRAY_SIZE(vmlinux_paths) +
+			      ARRAY_SIZE(vmlinux_paths_upd)));
 	if (vmlinux_path == NULL)
 		return -1;
 
-	vmlinux_path[vmlinux_path__nr_entries] = strdup("vmlinux");
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
-	vmlinux_path[vmlinux_path__nr_entries] = strdup("/boot/vmlinux");
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
+	for (i = 0; i < ARRAY_SIZE(vmlinux_paths); i++)
+		if (vmlinux_path__add(vmlinux_paths[i]) < 0)
+			goto out_fail;
 
 	/* only try kernel version if no symfs was given */
 	if (symbol_conf.symfs[0] != 0)
@@ -1892,28 +1911,11 @@ static int vmlinux_path__init(struct perf_env *env)
 		kernel_version = uts.release;
 	}
 
-	snprintf(bf, sizeof(bf), "/boot/vmlinux-%s", kernel_version);
-	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
-	snprintf(bf, sizeof(bf), "/usr/lib/debug/boot/vmlinux-%s",
-		 kernel_version);
-	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-        ++vmlinux_path__nr_entries;
-	snprintf(bf, sizeof(bf), "/lib/modules/%s/build/vmlinux", kernel_version);
-	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
-	snprintf(bf, sizeof(bf), "/usr/lib/debug/lib/modules/%s/vmlinux",
-		 kernel_version);
-	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
-	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
-		goto out_fail;
-	++vmlinux_path__nr_entries;
+	for (i = 0; i < ARRAY_SIZE(vmlinux_paths_upd); i++) {
+		snprintf(bf, sizeof(bf), vmlinux_paths_upd[i], kernel_version);
+		if (vmlinux_path__add(bf) < 0)
+			goto out_fail;
+	}
 
 	return 0;
 
