@@ -28,7 +28,6 @@
 
 #include <asm/sizes.h>
 #include <asm/unaligned.h>
-#include <linux/platform_data/mmc-mvsdio.h>
 
 #include "mvsdio.h"
 
@@ -36,6 +35,12 @@
 
 static int maxfreq;
 static int nodma;
+
+struct mvsdio_platform_data {
+	unsigned int clock;
+	int gpio_card_detect;
+	int gpio_write_protect;
+};
 
 struct mvsd_host {
 	void __iomem *base;
