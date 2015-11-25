@@ -642,7 +642,8 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 			else
 				mvm->nvm_file_name = nvm_file_C;
 
-			if (ret == -EFAULT && mvm->nvm_file_name) {
+			if ((ret == -EFAULT || ret == -ENOENT) &&
+			    mvm->nvm_file_name) {
 				/* in case nvm file was failed try again */
 				ret = iwl_mvm_read_external_nvm(mvm);
 				if (ret)
