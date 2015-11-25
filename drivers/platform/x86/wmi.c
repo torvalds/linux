@@ -67,6 +67,8 @@ struct wmi_block {
 	struct acpi_device *acpi_device;
 	wmi_notify_handler handler;
 	void *handler_data;
+
+	bool read_takes_no_args;	/* only defined if readable */
 };
 
 
@@ -136,6 +138,30 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 		}
 	}
 	return false;
+}
+
+static int get_subobj_info(acpi_handle handle, const char *pathname,
+			   struct acpi_device_info **info)
+{
+	struct acpi_device_info *dummy_info, **info_ptr;
+	acpi_handle subobj_handle;
+	acpi_status status;
+
+	status = acpi_get_handle(handle, (char *)pathname, &subobj_handle);
+	if (status == AE_NOT_FOUND)
+		return -ENOENT;
+	else if (ACPI_FAILURE(status))
+		return -EIO;
+
+	info_ptr = info ? info : &dummy_info;
+	status = acpi_get_object_info(subobj_handle, info_ptr);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	if (!info)
+		kfree(dummy_info);
+
+	return 0;
 }
 
 static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
@@ -260,6 +286,9 @@ struct acpi_buffer *out)
 	input.pointer = wq_params;
 	wq_params[0].type = ACPI_TYPE_INTEGER;
 	wq_params[0].integer.value = instance;
+
+	if (instance == 0 && wblock->read_takes_no_args)
+		input.count = 0;
 
 	/*
 	 * If ACPI_WMI_EXPENSIVE, call the relevant WCxx method first to
@@ -628,11 +657,37 @@ static ssize_t object_id_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(object_id);
 
-static struct attribute *wmi_data_or_method_attrs[] = {
+static ssize_t readable_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct wmi_device *wdev = dev_to_wdev(dev);
+
+	return sprintf(buf, "%d\n", (int)wdev->readable);
+}
+static DEVICE_ATTR_RO(readable);
+
+static ssize_t writeable_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct wmi_device *wdev = dev_to_wdev(dev);
+
+	return sprintf(buf, "%d\n", (int)wdev->writeable);
+}
+static DEVICE_ATTR_RO(writeable);
+
+static struct attribute *wmi_data_attrs[] = {
+	&dev_attr_object_id.attr,
+	&dev_attr_readable.attr,
+	&dev_attr_writeable.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(wmi_data);
+
+static struct attribute *wmi_method_attrs[] = {
 	&dev_attr_object_id.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(wmi_data_or_method);
+ATTRIBUTE_GROUPS(wmi_method);
 
 static int wmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -731,13 +786,13 @@ static struct device_type wmi_type_event = {
 
 static struct device_type wmi_type_method = {
 	.name = "method",
-	.groups = wmi_data_or_method_groups,
+	.groups = wmi_method_groups,
 	.release = wmi_dev_release,
 };
 
 static struct device_type wmi_type_data = {
 	.name = "data",
-	.groups = wmi_data_or_method_groups,
+	.groups = wmi_data_groups,
 	.release = wmi_dev_release,
 };
 
@@ -756,7 +811,45 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	} else if (gblock->flags & ACPI_WMI_METHOD) {
 		wblock->dev.dev.type = &wmi_type_method;
 	} else {
+		struct acpi_device_info *info;
+		char method[5];
+		int result;
+
 		wblock->dev.dev.type = &wmi_type_data;
+
+		strcpy(method, "WQ");
+		strncat(method, wblock->gblock.object_id, 2);
+		result = get_subobj_info(device->handle, method, &info);
+
+		if (result == 0) {
+			wblock->dev.readable = true;
+
+			/*
+			 * The Microsoft documentation specifically states:
+			 *
+			 *   Data blocks registered with only a single instance
+			 *   can ignore the parameter.
+			 *
+			 * ACPICA will get mad at us if we call the method
+			 * with the wrong number of arguments, so check what
+			 * our method expects.  (On some Dell laptops, WQxx
+			 * may not be a method at all.)
+			 */
+			if (info->type != ACPI_TYPE_METHOD ||
+			    info->param_count == 0)
+				wblock->read_takes_no_args = true;
+
+			kfree(info);
+		}
+
+		strcpy(method, "WS");
+		strncat(method, wblock->gblock.object_id, 2);
+		result = get_subobj_info(device->handle, method, NULL);
+
+		if (result == 0) {
+			wblock->dev.writeable = true;
+		}
+
 	}
 
 	return device_register(&wblock->dev.dev);

@@ -21,6 +21,12 @@
 
 struct wmi_device {
 	struct device dev;
+
+	/*
+	 * These are true for data objects that support reads and writes,
+	 * respectively.
+	 */
+	bool readable, writeable;
 };
 
 struct wmi_device_id {
