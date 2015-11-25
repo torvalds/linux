@@ -60,11 +60,8 @@ gb_ap_svc_connection_create(struct gb_host_device *hd)
 {
 	struct gb_connection *connection;
 
-	connection = gb_connection_create_range(hd, NULL,
-						GB_SVC_CPORT_ID,
-						GREYBUS_PROTOCOL_SVC,
-						GB_SVC_CPORT_ID,
-						GB_SVC_CPORT_ID + 1);
+	connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
+							GREYBUS_PROTOCOL_SVC);
 
 	return connection;
 }

@@ -251,7 +251,8 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 			goto print_error_exit;
 		}
 
-		if (!gb_connection_create(bundle, cport_id, protocol_id))
+		if (!gb_connection_create_dynamic(intf, bundle, cport_id,
+								protocol_id))
 			goto exit;
 
 release_descriptor:

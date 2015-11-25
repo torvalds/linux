@@ -94,25 +94,32 @@ int svc_update_connection(struct gb_interface *intf,
 }
 
 /*
- * Set up a Greybus connection, representing the bidirectional link
+ * gb_connection_create() - create a Greybus connection
+ * @hd:			host device of the connection
+ * @hd_cport_id:	host-device cport id, or -1 for dynamic allocation
+ * @intf:		remote interface, or NULL for static connections
+ * @bundle:		remote-interface bundle (may be NULL)
+ * @cport_id:		remote-interface cport id, or 0 for static connections
+ * @protocol_id:	protocol id
+ *
+ * Create a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
- * another Greybus module.
+ * another Greybus interface.
  *
  * A connection also maintains the state of operations sent over the
  * connection.
  *
- * Returns a pointer to the new connection if successful, or a null
- * pointer otherwise.
+ * Return: A pointer to the new connection if successful, or NULL otherwise.
  */
-struct gb_connection *
-gb_connection_create_range(struct gb_host_device *hd,
-			   struct gb_bundle *bundle,
-			   u16 cport_id, u8 protocol_id, u32 ida_start,
-			   u32 ida_end)
+static struct gb_connection *
+gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
+				struct gb_interface *intf,
+				struct gb_bundle *bundle, int cport_id,
+				u8 protocol_id)
 {
 	struct gb_connection *connection;
 	struct ida *id_map = &hd->cport_id_map;
-	int hd_cport_id;
+	int ida_start, ida_end;
 	int retval;
 	u8 major = 0;
 	u8 minor = 1;
@@ -128,6 +135,17 @@ gb_connection_create_range(struct gb_host_device *hd,
 		return NULL;
 	}
 
+	if (hd_cport_id < 0) {
+		ida_start = 0;
+		ida_end = hd->num_cports;
+	} else if (hd_cport_id < hd->num_cports) {
+		ida_start = hd_cport_id;
+		ida_end = hd_cport_id + 1;
+	} else {
+		dev_err(&hd->dev, "cport %d not available\n", hd_cport_id);
+		return NULL;
+	}
+
 	hd_cport_id = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
 	if (hd_cport_id < 0)
 		return NULL;
@@ -139,6 +157,7 @@ gb_connection_create_range(struct gb_host_device *hd,
 	connection->hd_cport_id = hd_cport_id;
 	connection->intf_cport_id = cport_id;
 	connection->hd = hd;
+	connection->intf = intf;
 
 	connection->protocol_id = protocol_id;
 	connection->major = major;
@@ -186,6 +205,23 @@ err_remove_ida:
 	return NULL;
 }
 
+struct gb_connection *
+gb_connection_create_static(struct gb_host_device *hd,
+					u16 hd_cport_id, u8 protocol_id)
+{
+	return gb_connection_create(hd, hd_cport_id, NULL, NULL, 0,
+								protocol_id);
+}
+
+struct gb_connection *
+gb_connection_create_dynamic(struct gb_interface *intf,
+					struct gb_bundle *bundle,
+					u16 cport_id, u8 protocol_id)
+{
+	return gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
+								protocol_id);
+}
+
 static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 {
 	struct gb_host_device *hd = connection->hd;
@@ -212,14 +248,6 @@ static void gb_connection_hd_cport_disable(struct gb_connection *connection)
 		return;
 
 	hd->driver->cport_disable(hd, connection->hd_cport_id);
-}
-
-struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
-				u16 cport_id, u8 protocol_id)
-{
-	return gb_connection_create_range(bundle->intf->hd, bundle,
-					  cport_id, protocol_id,
-					  0, bundle->intf->hd->num_cports);
 }
 
 /*

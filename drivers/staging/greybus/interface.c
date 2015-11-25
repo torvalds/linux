@@ -86,7 +86,8 @@ gb_interface_create_control_bundle_connection(struct gb_interface *intf)
 		return -ENOMEM;
 	}
 
-	connection = gb_connection_create(bundle, GB_CONTROL_CPORT_ID,
+	connection = gb_connection_create_dynamic(intf, bundle,
+						GB_CONTROL_CPORT_ID,
 						GREYBUS_PROTOCOL_CONTROL);
 	if (!connection) {
 		dev_err(&intf->dev, "failed to create control connection\n");
