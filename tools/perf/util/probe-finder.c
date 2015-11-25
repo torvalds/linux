@@ -654,6 +654,7 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwfl_Module *mod,
 static int call_probe_finder(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
 	Dwarf_Attribute fb_attr;
+	Dwarf_Frame *frame = NULL;
 	size_t nops;
 	int ret;
 
@@ -683,26 +684,24 @@ static int call_probe_finder(Dwarf_Die *sc_die, struct probe_finder *pf)
 	ret = dwarf_getlocation_addr(&fb_attr, pf->addr, &pf->fb_ops, &nops, 1);
 	if (ret <= 0 || nops == 0) {
 		pf->fb_ops = NULL;
-		ret = 0;
 #if _ELFUTILS_PREREQ(0, 142)
 	} else if (nops == 1 && pf->fb_ops[0].atom == DW_OP_call_frame_cfa &&
 		   pf->cfi != NULL) {
-		Dwarf_Frame *frame = NULL;
 		if (dwarf_cfi_addrframe(pf->cfi, pf->addr, &frame) != 0 ||
 		    dwarf_frame_cfa(frame, &pf->fb_ops, &nops) != 0) {
 			pr_warning("Failed to get call frame on 0x%jx\n",
 				   (uintmax_t)pf->addr);
-			ret = -ENOENT;
+			free(frame);
+			return -ENOENT;
 		}
-		free(frame);
 #endif
 	}
 
 	/* Call finder's callback handler */
-	if (ret >= 0)
-		ret = pf->callback(sc_die, pf);
+	ret = pf->callback(sc_die, pf);
 
-	/* *pf->fb_ops will be cached in libdw. Don't free it. */
+	/* Since *pf->fb_ops can be a part of frame. we should free it here. */
+	free(frame);
 	pf->fb_ops = NULL;
 
 	return ret;
