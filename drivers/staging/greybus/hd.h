@@ -26,8 +26,8 @@ struct gb_hd_driver {
 };
 
 struct gb_host_device {
-	struct kref kref;
-	struct device *parent;
+	struct device dev;
+	int bus_id;
 	const struct gb_hd_driver *driver;
 
 	struct list_head interfaces;
@@ -47,6 +47,7 @@ struct gb_host_device {
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __aligned(sizeof(s64));
 };
+#define to_gb_host_device(d) container_of(d, struct gb_host_device, d)
 
 struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 					struct device *parent,
@@ -55,5 +56,8 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 int gb_hd_add(struct gb_host_device *hd);
 void gb_hd_del(struct gb_host_device *hd);
 void gb_hd_put(struct gb_host_device *hd);
+
+int gb_hd_init(void);
+void gb_hd_exit(void);
 
 #endif	/* __HD_H */

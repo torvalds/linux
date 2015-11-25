@@ -77,6 +77,7 @@ static int greybus_module_match(struct device *dev, struct device_driver *drv)
 
 static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
+	struct gb_host_device *hd = NULL;
 	struct gb_module *module = NULL;
 	struct gb_interface *intf = NULL;
 	struct gb_bundle *bundle = NULL;
@@ -89,7 +90,9 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return 0;
 	}
 
-	if (is_gb_module(dev)) {
+	if (is_gb_host_device(dev)) {
+		hd = to_gb_host_device(dev);
+	} else if (is_gb_module(dev)) {
 		module = to_gb_module(dev);
 	} else if (is_gb_interface(dev)) {
 		intf = to_gb_interface(dev);
@@ -196,6 +199,12 @@ static int __init gb_init(void)
 		goto error_bus;
 	}
 
+	retval = gb_hd_init();
+	if (retval) {
+		pr_err("gb_hd_init failed (%d)\n", retval);
+		goto error_hd;
+	}
+
 	retval = gb_operation_init();
 	if (retval) {
 		pr_err("gb_operation_init failed (%d)\n", retval);
@@ -237,6 +246,8 @@ error_control:
 error_endo:
 	gb_operation_exit();
 error_operation:
+	gb_hd_exit();
+error_hd:
 	bus_unregister(&greybus_bus_type);
 error_bus:
 	gb_debugfs_cleanup();
@@ -252,6 +263,7 @@ static void __exit gb_exit(void)
 	gb_control_protocol_exit();
 	gb_endo_exit();
 	gb_operation_exit();
+	gb_hd_exit();
 	bus_unregister(&greybus_bus_type);
 	gb_debugfs_cleanup();
 	tracepoint_synchronize_unregister();

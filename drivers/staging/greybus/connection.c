@@ -55,7 +55,7 @@ void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 
 	connection = gb_connection_hd_find(hd, cport_id);
 	if (!connection) {
-		dev_err(hd->parent,
+		dev_err(&hd->dev,
 			"nonexistent connection (%zu bytes dropped)\n", length);
 		return;
 	}
@@ -196,7 +196,7 @@ static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 
 	ret = hd->driver->cport_enable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(hd->parent,
+		dev_err(&hd->dev,
 			"failed to enable host cport: %d\n", ret);
 		return ret;
 	}
@@ -502,7 +502,7 @@ int gb_connection_bind_protocol(struct gb_connection *connection)
 				   connection->major,
 				   connection->minor);
 	if (!protocol) {
-		dev_warn(connection->hd->parent,
+		dev_warn(&connection->hd->dev,
 				"protocol 0x%02hhx version %hhu.%hhu not found\n",
 				connection->protocol_id,
 				connection->major, connection->minor);

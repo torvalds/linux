@@ -219,7 +219,7 @@ static bool validate_front_ribs(struct gb_host_device *hd,
 		layout->front_ribs = 0x5;
 		break;
 	default:
-		dev_err(hd->parent,
+		dev_err(&hd->dev,
 			"%s: Invalid endo front mask 0x%02x, id 0x%04x\n",
 			__func__, front_mask, endo_id);
 		return false;
@@ -266,21 +266,21 @@ static bool validate_back_ribs(struct gb_host_device *hd,
 	right_ribs = endo_back_right_ribs(endo_id, max_ribs);
 
 	if (!single_cross_rib(left_ribs, right_ribs)) {
-		dev_err(hd->parent,
+		dev_err(&hd->dev,
 			"%s: More than one spanning rib (left 0x%02x right 0x%02x), id 0x%04x\n",
 			__func__, left_ribs, right_ribs, endo_id);
 		return false;
 	}
 
 	if (modules_oversized(max_ribs, left_ribs)) {
-			dev_err(hd->parent,
+			dev_err(&hd->dev,
 				"%s: Oversized module (left) 0x%02x, id 0x%04x\n",
 				__func__, left_ribs, endo_id);
 			return false;
 	}
 
 	if (modules_oversized(max_ribs, right_ribs)) {
-			dev_err(hd->parent,
+			dev_err(&hd->dev,
 				"%s: Oversized module (Right) 0x%02x, id 0x%04x\n",
 				__func__, right_ribs, endo_id);
 			return false;
@@ -306,7 +306,7 @@ static bool validate_back_ribs(struct gb_host_device *hd,
 	 * are of different widths.
 	 */
 	if (max_ribs != ENDO_BACK_RIBS_MEDIUM && left_ribs < right_ribs) {
-		dev_err(hd->parent, "%s: Non-canonical endo id 0x%04x\n", __func__,
+		dev_err(&hd->dev, "%s: Non-canonical endo id 0x%04x\n", __func__,
 			endo_id);
 		return false;
 	}
@@ -334,7 +334,7 @@ static int gb_endo_validate_id(struct gb_host_device *hd,
 		/* Mini Endo type */
 		layout->max_ribs = ENDO_BACK_RIBS_MINI;
 	} else {
-		dev_err(hd->parent, "%s: Invalid endo type, id 0x%04x\n",
+		dev_err(&hd->dev, "%s: Invalid endo type, id 0x%04x\n",
 			__func__, endo_id);
 		return -EINVAL;
 	}
@@ -447,11 +447,11 @@ static int gb_endo_register(struct gb_host_device *hd,
 
 	endo->dev_id = dev_id;
 
-	endo->dev.parent = hd->parent;
+	endo->dev.parent = &hd->dev;
 	endo->dev.bus = &greybus_bus_type;
 	endo->dev.type = &greybus_endo_type;
 	endo->dev.groups = endo_groups;
-	endo->dev.dma_mask = hd->parent->dma_mask;
+	endo->dev.dma_mask = hd->dev.dma_mask;
 	device_initialize(&endo->dev);
 	dev_set_name(&endo->dev, "endo%hu", endo->dev_id);
 
@@ -463,7 +463,7 @@ static int gb_endo_register(struct gb_host_device *hd,
 
 	retval = device_add(&endo->dev);
 	if (retval) {
-		dev_err(hd->parent, "failed to add endo device of id 0x%04x\n",
+		dev_err(&hd->dev, "failed to add endo device of id 0x%04x\n",
 			endo->id);
 		put_device(&endo->dev);
 	}

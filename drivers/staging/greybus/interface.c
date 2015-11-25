@@ -149,7 +149,7 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 	intf->dev.bus = &greybus_bus_type;
 	intf->dev.type = &greybus_interface_type;
 	intf->dev.groups = interface_groups;
-	intf->dev.dma_mask = hd->parent->dma_mask;
+	intf->dev.dma_mask = hd->dev.dma_mask;
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%s:%d", dev_name(&module->dev), interface_id);
 

@@ -104,10 +104,16 @@ struct dentry *gb_debugfs_get(void);
 
 extern struct bus_type greybus_bus_type;
 
+extern struct device_type greybus_hd_type;
 extern struct device_type greybus_endo_type;
 extern struct device_type greybus_module_type;
 extern struct device_type greybus_interface_type;
 extern struct device_type greybus_bundle_type;
+
+static inline int is_gb_host_device(const struct device *dev)
+{
+	return dev->type == &greybus_hd_type;
+}
 
 static inline int is_gb_endo(const struct device *dev)
 {

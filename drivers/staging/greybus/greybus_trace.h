@@ -114,13 +114,13 @@ DECLARE_EVENT_CLASS(gb_host_device,
 	TP_ARGS(hd, intf_cport_id, payload_size),
 
 	TP_STRUCT__entry(
-		__string(name, dev_name(hd->parent))
+		__string(name, dev_name(&hd->dev))
 		__field(u16, intf_cport_id)
 		__field(size_t, payload_size)
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev_name(hd->parent))
+		__assign_str(name, dev_name(&hd->dev))
 		__entry->intf_cport_id = intf_cport_id;
 		__entry->payload_size = payload_size;
 	),
