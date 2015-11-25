@@ -172,6 +172,8 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
 
+	mutex_init(&priv->event_read_lock);
+
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_open(dev, priv);
 
@@ -483,10 +485,14 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
-	ssize_t ret = 0;
+	ssize_t ret;
 
 	if (!access_ok(VERIFY_WRITE, buffer, count))
 		return -EFAULT;
+
+	ret = mutex_lock_interruptible(&file_priv->event_read_lock);
+	if (ret)
+		return ret;
 
 	for (;;) {
 		struct drm_pending_event *e = NULL;
@@ -509,12 +515,13 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 				break;
 			}
 
+			mutex_unlock(&file_priv->event_read_lock);
 			ret = wait_event_interruptible(file_priv->event_wait,
 						       !list_empty(&file_priv->event_list));
-			if (ret < 0)
-				break;
-
-			ret = 0;
+			if (ret >= 0)
+				ret = mutex_lock_interruptible(&file_priv->event_read_lock);
+			if (ret)
+				return ret;
 		} else {
 			unsigned length = e->event->length;
 
@@ -537,6 +544,7 @@ put_back_event:
 			e->destroy(e);
 		}
 	}
+	mutex_unlock(&file_priv->event_read_lock);
 
 	return ret;
 }
