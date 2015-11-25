@@ -577,6 +577,12 @@ config NFT_DUP_NETDEV
 	help
 	  This option enables packet duplication for the "netdev" family.
 
+config NFT_FWD_NETDEV
+	tristate "Netfilter nf_tables netdev packet forwarding support"
+	select NF_DUP_NETDEV
+	help
+	  This option enables packet forwarding for the "netdev" family.
+
 endif # NF_TABLES_NETDEV
 
 endif # NF_TABLES
