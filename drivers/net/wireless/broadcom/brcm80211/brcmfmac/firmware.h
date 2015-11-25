@@ -21,11 +21,51 @@
 #define BRCMF_FW_REQ_FLAGS		0x00F0
 #define  BRCMF_FW_REQ_NV_OPTIONAL	0x0010
 
-#define	BRCMF_FW_PATH_LEN	256
-#define	BRCMF_FW_NAME_LEN	32
+#define	BRCMF_FW_NAME_LEN		320
 
-extern char brcmf_firmware_path[];
+#define BRCMF_FW_DEFAULT_PATH		"brcm/"
 
+/**
+ * struct brcmf_firmware_mapping - Used to map chipid/revmask to firmware
+ *	filename and nvram filename. Each bus type implementation should create
+ *	a table of firmware mappings (using the macros defined below).
+ *
+ * @chipid: ID of chip.
+ * @revmask: bitmask of revisions, e.g. 0x10 means rev 4 only, 0xf means rev 0-3
+ * @fw: name of the firmware file.
+ * @nvram: name of nvram file.
+ */
+struct brcmf_firmware_mapping {
+	u32 chipid;
+	u32 revmask;
+	const char *fw;
+	const char *nvram;
+};
+
+#define BRCMF_FW_NVRAM_DEF(fw_nvram_name, fw, nvram) \
+static const char BRCM_ ## fw_nvram_name ## _FIRMWARE_NAME[] = \
+	BRCMF_FW_DEFAULT_PATH fw; \
+static const char BRCM_ ## fw_nvram_name ## _NVRAM_NAME[] = \
+	BRCMF_FW_DEFAULT_PATH nvram; \
+MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH fw); \
+MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH nvram)
+
+#define BRCMF_FW_DEF(fw_name, fw) \
+static const char BRCM_ ## fw_name ## _FIRMWARE_NAME[] = \
+	BRCMF_FW_DEFAULT_PATH fw; \
+MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH fw) \
+
+#define BRCMF_FW_NVRAM_ENTRY(chipid, mask, name) \
+	{ chipid, mask, \
+	  BRCM_ ## name ## _FIRMWARE_NAME, BRCM_ ## name ## _NVRAM_NAME }
+
+#define BRCMF_FW_ENTRY(chipid, mask, name) \
+	{ chipid, mask, BRCM_ ## name ## _FIRMWARE_NAME, NULL }
+
+int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
+			      struct brcmf_firmware_mapping mapping_table[],
+			      u32 table_size, char fw_name[BRCMF_FW_NAME_LEN],
+			      char nvram_name[BRCMF_FW_NAME_LEN]);
 void brcmf_fw_nvram_free(void *nvram);
 /*
  * Request firmware(s) asynchronously. When the asynchronous request

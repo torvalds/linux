@@ -596,135 +596,40 @@ static const struct sdiod_drive_str sdiod_drvstr_tab2_3v3[] = {
 	{4,  0x1}
 };
 
-#define BCM43143_FIRMWARE_NAME		"brcm/brcmfmac43143-sdio.bin"
-#define BCM43143_NVRAM_NAME		"brcm/brcmfmac43143-sdio.txt"
-#define BCM43241B0_FIRMWARE_NAME	"brcm/brcmfmac43241b0-sdio.bin"
-#define BCM43241B0_NVRAM_NAME		"brcm/brcmfmac43241b0-sdio.txt"
-#define BCM43241B4_FIRMWARE_NAME	"brcm/brcmfmac43241b4-sdio.bin"
-#define BCM43241B4_NVRAM_NAME		"brcm/brcmfmac43241b4-sdio.txt"
-#define BCM43241B5_FIRMWARE_NAME	"brcm/brcmfmac43241b5-sdio.bin"
-#define BCM43241B5_NVRAM_NAME		"brcm/brcmfmac43241b5-sdio.txt"
-#define BCM4329_FIRMWARE_NAME		"brcm/brcmfmac4329-sdio.bin"
-#define BCM4329_NVRAM_NAME		"brcm/brcmfmac4329-sdio.txt"
-#define BCM4330_FIRMWARE_NAME		"brcm/brcmfmac4330-sdio.bin"
-#define BCM4330_NVRAM_NAME		"brcm/brcmfmac4330-sdio.txt"
-#define BCM4334_FIRMWARE_NAME		"brcm/brcmfmac4334-sdio.bin"
-#define BCM4334_NVRAM_NAME		"brcm/brcmfmac4334-sdio.txt"
-#define BCM43340_FIRMWARE_NAME		"brcm/brcmfmac43340-sdio.bin"
-#define BCM43340_NVRAM_NAME		"brcm/brcmfmac43340-sdio.txt"
-#define BCM4335_FIRMWARE_NAME		"brcm/brcmfmac4335-sdio.bin"
-#define BCM4335_NVRAM_NAME		"brcm/brcmfmac4335-sdio.txt"
-#define BCM43362_FIRMWARE_NAME		"brcm/brcmfmac43362-sdio.bin"
-#define BCM43362_NVRAM_NAME		"brcm/brcmfmac43362-sdio.txt"
-#define BCM4339_FIRMWARE_NAME		"brcm/brcmfmac4339-sdio.bin"
-#define BCM4339_NVRAM_NAME		"brcm/brcmfmac4339-sdio.txt"
-#define BCM43430_FIRMWARE_NAME		"brcm/brcmfmac43430-sdio.bin"
-#define BCM43430_NVRAM_NAME		"brcm/brcmfmac43430-sdio.txt"
-#define BCM43455_FIRMWARE_NAME		"brcm/brcmfmac43455-sdio.bin"
-#define BCM43455_NVRAM_NAME		"brcm/brcmfmac43455-sdio.txt"
-#define BCM4354_FIRMWARE_NAME		"brcm/brcmfmac4354-sdio.bin"
-#define BCM4354_NVRAM_NAME		"brcm/brcmfmac4354-sdio.txt"
+BRCMF_FW_NVRAM_DEF(43143, "brcmfmac43143-sdio.bin", "brcmfmac43143-sdio.txt");
+BRCMF_FW_NVRAM_DEF(43241B0, "brcmfmac43241b0-sdio.bin",
+		   "brcmfmac43241b0-sdio.txt");
+BRCMF_FW_NVRAM_DEF(43241B4, "brcmfmac43241b4-sdio.bin",
+		   "brcmfmac43241b4-sdio.txt");
+BRCMF_FW_NVRAM_DEF(43241B5, "brcmfmac43241b5-sdio.bin",
+		   "brcmfmac43241b5-sdio.txt");
+BRCMF_FW_NVRAM_DEF(4329, "brcmfmac4329-sdio.bin", "brcmfmac4329-sdio.txt");
+BRCMF_FW_NVRAM_DEF(4330, "brcmfmac4330-sdio.bin", "brcmfmac4330-sdio.txt");
+BRCMF_FW_NVRAM_DEF(4334, "brcmfmac4334-sdio.bin", "brcmfmac4334-sdio.txt");
+BRCMF_FW_NVRAM_DEF(43340, "brcmfmac43340-sdio.bin", "brcmfmac43340-sdio.txt");
+BRCMF_FW_NVRAM_DEF(4335, "brcmfmac4335-sdio.bin", "brcmfmac4335-sdio.txt");
+BRCMF_FW_NVRAM_DEF(43362, "brcmfmac43362-sdio.bin", "brcmfmac43362-sdio.txt");
+BRCMF_FW_NVRAM_DEF(4339, "brcmfmac4339-sdio.bin", "brcmfmac4339-sdio.txt");
+BRCMF_FW_NVRAM_DEF(43430, "brcmfmac43430-sdio.bin", "brcmfmac43430-sdio.txt");
+BRCMF_FW_NVRAM_DEF(43455, "brcmfmac43455-sdio.bin", "brcmfmac43455-sdio.txt");
+BRCMF_FW_NVRAM_DEF(4354, "brcmfmac4354-sdio.bin", "brcmfmac4354-sdio.txt");
 
-MODULE_FIRMWARE(BCM43143_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM43143_NVRAM_NAME);
-MODULE_FIRMWARE(BCM43241B0_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM43241B0_NVRAM_NAME);
-MODULE_FIRMWARE(BCM43241B4_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM43241B4_NVRAM_NAME);
-MODULE_FIRMWARE(BCM43241B5_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM43241B5_NVRAM_NAME);
-MODULE_FIRMWARE(BCM4329_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM4329_NVRAM_NAME);
-MODULE_FIRMWARE(BCM4330_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM4330_NVRAM_NAME);
-MODULE_FIRMWARE(BCM4334_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM4334_NVRAM_NAME);
-MODULE_FIRMWARE(BCM43340_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM43340_NVRAM_NAME);
-MODULE_FIRMWARE(BCM4335_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM4335_NVRAM_NAME);
-MODULE_FIRMWARE(BCM43362_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM43362_NVRAM_NAME);
-MODULE_FIRMWARE(BCM4339_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM4339_NVRAM_NAME);
-MODULE_FIRMWARE(BCM43430_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM43430_NVRAM_NAME);
-MODULE_FIRMWARE(BCM43455_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM43455_NVRAM_NAME);
-MODULE_FIRMWARE(BCM4354_FIRMWARE_NAME);
-MODULE_FIRMWARE(BCM4354_NVRAM_NAME);
-
-struct brcmf_firmware_names {
-	u32 chipid;
-	u32 revmsk;
-	const char *bin;
-	const char *nv;
+static struct brcmf_firmware_mapping brcmf_sdio_fwnames[] = {
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, 43143),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43241_CHIP_ID, 0x0000001F, 43241B0),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43241_CHIP_ID, 0x00000020, 43241B4),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43241_CHIP_ID, 0xFFFFFFC0, 43241B5),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4329_CHIP_ID, 0xFFFFFFFF, 4329),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4330_CHIP_ID, 0xFFFFFFFF, 4330),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4334_CHIP_ID, 0xFFFFFFFF, 4334),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43340_CHIP_ID, 0xFFFFFFFF, 43340),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4335_CHIP_ID, 0xFFFFFFFF, 4335),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43362_CHIP_ID, 0xFFFFFFFE, 43362),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4339_CHIP_ID, 0xFFFFFFFF, 4339),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43430_CHIP_ID, 0xFFFFFFFF, 43430),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4345_CHIP_ID, 0xFFFFFFC0, 43455),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4354_CHIP_ID, 0xFFFFFFFF, 4354)
 };
-
-enum brcmf_firmware_type {
-	BRCMF_FIRMWARE_BIN,
-	BRCMF_FIRMWARE_NVRAM
-};
-
-#define BRCMF_FIRMWARE_NVRAM(name) \
-	name ## _FIRMWARE_NAME, name ## _NVRAM_NAME
-
-static const struct brcmf_firmware_names brcmf_fwname_data[] = {
-	{ BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43143) },
-	{ BRCM_CC_43241_CHIP_ID, 0x0000001F, BRCMF_FIRMWARE_NVRAM(BCM43241B0) },
-	{ BRCM_CC_43241_CHIP_ID, 0x00000020, BRCMF_FIRMWARE_NVRAM(BCM43241B4) },
-	{ BRCM_CC_43241_CHIP_ID, 0xFFFFFFC0, BRCMF_FIRMWARE_NVRAM(BCM43241B5) },
-	{ BRCM_CC_4329_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4329) },
-	{ BRCM_CC_4330_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4330) },
-	{ BRCM_CC_4334_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4334) },
-	{ BRCM_CC_43340_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43340) },
-	{ BRCM_CC_4335_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4335) },
-	{ BRCM_CC_43362_CHIP_ID, 0xFFFFFFFE, BRCMF_FIRMWARE_NVRAM(BCM43362) },
-	{ BRCM_CC_4339_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4339) },
-	{ BRCM_CC_43430_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43430) },
-	{ BRCM_CC_4345_CHIP_ID, 0xFFFFFFC0, BRCMF_FIRMWARE_NVRAM(BCM43455) },
-	{ BRCM_CC_4354_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4354) }
-};
-
-static int brcmf_sdio_get_fwnames(struct brcmf_chip *ci,
-				  struct brcmf_sdio_dev *sdiodev)
-{
-	int i;
-	char end;
-
-	for (i = 0; i < ARRAY_SIZE(brcmf_fwname_data); i++) {
-		if (brcmf_fwname_data[i].chipid == ci->chip &&
-		    brcmf_fwname_data[i].revmsk & BIT(ci->chiprev))
-			break;
-	}
-
-	if (i == ARRAY_SIZE(brcmf_fwname_data)) {
-		brcmf_err("Unknown chipid %d [%d]\n", ci->chip, ci->chiprev);
-		return -ENODEV;
-	}
-
-	/* check if firmware path is provided by module parameter */
-	if (brcmf_firmware_path[0] != '\0') {
-		strlcpy(sdiodev->fw_name, brcmf_firmware_path,
-			sizeof(sdiodev->fw_name));
-		strlcpy(sdiodev->nvram_name, brcmf_firmware_path,
-			sizeof(sdiodev->nvram_name));
-
-		end = brcmf_firmware_path[strlen(brcmf_firmware_path) - 1];
-		if (end != '/') {
-			strlcat(sdiodev->fw_name, "/",
-				sizeof(sdiodev->fw_name));
-			strlcat(sdiodev->nvram_name, "/",
-				sizeof(sdiodev->nvram_name));
-		}
-	}
-	strlcat(sdiodev->fw_name, brcmf_fwname_data[i].bin,
-		sizeof(sdiodev->fw_name));
-	strlcat(sdiodev->nvram_name, brcmf_fwname_data[i].nv,
-		sizeof(sdiodev->nvram_name));
-
-	return 0;
-}
 
 static void pkt_align(struct sk_buff *p, int len, int align)
 {
@@ -4252,7 +4157,10 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
 
-	ret = brcmf_sdio_get_fwnames(bus->ci, sdiodev);
+	ret = brcmf_fw_map_chip_to_name(bus->ci->chip, bus->ci->chiprev,
+					brcmf_sdio_fwnames,
+					ARRAY_SIZE(brcmf_sdio_fwnames),
+					sdiodev->fw_name, sdiodev->nvram_name);
 	if (ret)
 		goto fail;
 

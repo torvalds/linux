@@ -28,9 +28,9 @@
 #define BRCMF_FW_NVRAM_DEVPATH_LEN		19	/* devpath0=pcie/1/4/ */
 #define BRCMF_FW_NVRAM_PCIEDEV_LEN		10	/* pcie/1/4/ + \0 */
 
-char brcmf_firmware_path[BRCMF_FW_PATH_LEN];
+static char brcmf_firmware_path[BRCMF_FW_NAME_LEN];
 module_param_string(alternative_fw_path, brcmf_firmware_path,
-		    BRCMF_FW_PATH_LEN, 0440);
+		    BRCMF_FW_NAME_LEN, 0440);
 
 enum nvram_parser_state {
 	IDLE,
@@ -537,5 +537,45 @@ int brcmf_fw_get_firmwares(struct device *dev, u16 flags,
 {
 	return brcmf_fw_get_firmwares_pcie(dev, flags, code, nvram, fw_cb, 0,
 					   0);
+}
+
+int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
+			      struct brcmf_firmware_mapping mapping_table[],
+			      u32 table_size, char fw_name[BRCMF_FW_NAME_LEN],
+			      char nvram_name[BRCMF_FW_NAME_LEN])
+{
+	u32 i;
+	char end;
+
+	for (i = 0; i < table_size; i++) {
+		if (mapping_table[i].chipid == chip &&
+		    mapping_table[i].revmask & BIT(chiprev))
+			break;
+	}
+
+	if (i == table_size) {
+		brcmf_err("Unknown chipid %d [%d]\n", chip, chiprev);
+		return -ENODEV;
+	}
+
+	/* check if firmware path is provided by module parameter */
+	if (brcmf_firmware_path[0] != '\0') {
+		strlcpy(fw_name, brcmf_firmware_path, BRCMF_FW_NAME_LEN);
+		if ((nvram_name) && (mapping_table[i].nvram))
+			strlcpy(nvram_name, brcmf_firmware_path,
+				BRCMF_FW_NAME_LEN);
+
+		end = brcmf_firmware_path[strlen(brcmf_firmware_path) - 1];
+		if (end != '/') {
+			strlcat(fw_name, "/", BRCMF_FW_NAME_LEN);
+			if ((nvram_name) && (mapping_table[i].nvram))
+				strlcat(nvram_name, "/", BRCMF_FW_NAME_LEN);
+		}
+	}
+	strlcat(fw_name, mapping_table[i].fw, BRCMF_FW_NAME_LEN);
+	if ((nvram_name) && (mapping_table[i].nvram))
+		strlcat(nvram_name, mapping_table[i].nvram, BRCMF_FW_NAME_LEN);
+
+	return 0;
 }
 
