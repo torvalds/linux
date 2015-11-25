@@ -9,14 +9,14 @@
 
 #include "greybus.h"
 
-static ssize_t class_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t bundle_class_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 
 	return sprintf(buf, "%d\n", bundle->class);
 }
-static DEVICE_ATTR_RO(class);
+static DEVICE_ATTR_RO(bundle_class);
 
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -48,7 +48,7 @@ static DEVICE_ATTR_RW(state);
 
 
 static struct attribute *bundle_attrs[] = {
-	&dev_attr_class.attr,
+	&dev_attr_bundle_class.attr,
 	&dev_attr_state.attr,
 	NULL,
 };
