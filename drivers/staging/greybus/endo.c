@@ -75,36 +75,7 @@ static const struct attribute_group svc_group = {
 	.name = "svc",
 };
 
-static ssize_t id_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct gb_endo *endo = to_gb_endo(dev);
-
-	return sprintf(buf, "0x%04x\n", endo->id);
-}
-static DEVICE_ATTR_RO(id);
-
-static ssize_t ap_intf_id_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct gb_endo *endo = to_gb_endo(dev);
-
-	return sprintf(buf, "%u\n", endo->ap_intf_id);
-}
-static DEVICE_ATTR_RO(ap_intf_id);
-
-static struct attribute *endo_attrs[] = {
-	&dev_attr_id.attr,
-	&dev_attr_ap_intf_id.attr,
-	NULL,
-};
-
-static const struct attribute_group endo_group = {
-	.attrs = endo_attrs,
-};
-
 static const struct attribute_group *endo_groups[] = {
-	&endo_group,
 	&svc_group,
 	NULL,
 };
@@ -490,8 +461,6 @@ struct gb_endo *gb_endo_create(struct gb_host_device *hd, u16 endo_id,
 		retval = -EINVAL;
 		goto free_endo;
 	}
-	endo->id = endo_id;
-	endo->ap_intf_id = ap_intf_id;
 
 	/* Register Endo device */
 	retval = gb_endo_register(hd, endo);

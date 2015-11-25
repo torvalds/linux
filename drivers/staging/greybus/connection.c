@@ -268,7 +268,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 
 	intf = connection->bundle->intf;
 	ret = gb_svc_connection_create(hd->svc,
-			hd->endo->ap_intf_id,
+			hd->svc->ap_intf_id,
 			connection->hd_cport_id,
 			intf->interface_id,
 			connection->intf_cport_id,
@@ -289,7 +289,7 @@ gb_connection_svc_connection_destroy(struct gb_connection *connection)
 		return;
 
 	gb_svc_connection_destroy(connection->hd->svc,
-				  connection->hd->endo->ap_intf_id,
+				  connection->hd->svc->ap_intf_id,
 				  connection->hd_cport_id,
 				  connection->bundle->intf->interface_id,
 				  connection->intf_cport_id);

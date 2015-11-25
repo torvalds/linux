@@ -22,6 +22,9 @@ struct gb_svc {
 	struct gb_connection	*connection;
 	enum gb_svc_state	state;
 	struct ida		device_id_map;
+
+	u16 endo_id;
+	u8 ap_intf_id;
 };
 #define to_gb_svc(d) container_of(d, struct gb_svc, d)
 

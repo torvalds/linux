@@ -24,6 +24,31 @@ struct svc_hotplug {
 };
 
 
+static ssize_t endo_id_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct gb_svc *svc = to_gb_svc(dev);
+
+	return sprintf(buf, "0x%04x\n", svc->endo_id);
+}
+static DEVICE_ATTR_RO(endo_id);
+
+static ssize_t ap_intf_id_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct gb_svc *svc = to_gb_svc(dev);
+
+	return sprintf(buf, "%u\n", svc->ap_intf_id);
+}
+static DEVICE_ATTR_RO(ap_intf_id);
+
+static struct attribute *svc_attrs[] = {
+	&dev_attr_endo_id.attr,
+	&dev_attr_ap_intf_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(svc);
+
 /*
  * AP's SVC cport is required early to get messages from the SVC. This happens
  * even before the Endo is created and hence any modules or interfaces.
@@ -339,8 +364,6 @@ static int gb_svc_hello(struct gb_operation *op)
 	struct gb_host_device *hd = connection->hd;
 	struct gb_svc_hello_request *hello_request;
 	struct gb_interface *intf;
-	u16 endo_id;
-	u8 interface_id;
 	int ret;
 
 	/*
@@ -355,8 +378,8 @@ static int gb_svc_hello(struct gb_operation *op)
 	}
 
 	hello_request = op->request->payload;
-	endo_id = le16_to_cpu(hello_request->endo_id);
-	interface_id = hello_request->interface_id;
+	svc->endo_id = le16_to_cpu(hello_request->endo_id);
+	svc->ap_intf_id = hello_request->interface_id;
 
 	ret = device_add(&svc->dev);
 	if (ret) {
@@ -365,7 +388,7 @@ static int gb_svc_hello(struct gb_operation *op)
 	}
 
 	/* Setup Endo */
-	ret = greybus_endo_setup(hd, endo_id, interface_id);
+	ret = greybus_endo_setup(hd, svc->endo_id, svc->ap_intf_id);
 	if (ret)
 		return ret;
 
@@ -373,7 +396,7 @@ static int gb_svc_hello(struct gb_operation *op)
 	 * Endo and its modules are ready now, fix AP's partially initialized
 	 * svc protocol and its connection.
 	 */
-	intf = gb_ap_interface_create(hd, connection, interface_id);
+	intf = gb_ap_interface_create(hd, connection, svc->ap_intf_id);
 	if (!intf) {
 		gb_endo_remove(hd->endo);
 		return ret;
@@ -385,7 +408,6 @@ static int gb_svc_hello(struct gb_operation *op)
 static void svc_intf_remove(struct gb_connection *connection,
 			    struct gb_interface *intf)
 {
-	struct gb_host_device *hd = connection->hd;
 	struct gb_svc *svc = connection->private;
 	u8 intf_id = intf->interface_id;
 	u8 device_id;
@@ -396,7 +418,7 @@ static void svc_intf_remove(struct gb_connection *connection,
 	/*
 	 * Destroy the two-way route between the AP and the interface.
 	 */
-	gb_svc_route_destroy(svc, hd->endo->ap_intf_id, intf_id);
+	gb_svc_route_destroy(svc, svc->ap_intf_id, intf_id);
 
 	ida_simple_remove(&svc->device_id_map, device_id);
 }
@@ -486,7 +508,7 @@ static void svc_process_hotplug(struct work_struct *work)
 	/*
 	 * Create a two-way route between the AP and the new interface
 	 */
-	ret = gb_svc_route_create(svc, hd->endo->ap_intf_id, GB_DEVICE_ID_AP,
+	ret = gb_svc_route_create(svc, svc->ap_intf_id, GB_DEVICE_ID_AP,
 				  intf_id, device_id);
 	if (ret) {
 		pr_err("%d: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
@@ -504,7 +526,7 @@ static void svc_process_hotplug(struct work_struct *work)
 	goto free_svc_hotplug;
 
 destroy_route:
-	gb_svc_route_destroy(svc, hd->endo->ap_intf_id, intf_id);
+	gb_svc_route_destroy(svc, svc->ap_intf_id, intf_id);
 svc_id_free:
 	/*
 	 * XXX Should we tell SVC that this id doesn't belong to interface
@@ -688,6 +710,7 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 	svc->dev.parent = &hd->dev;
 	svc->dev.bus = &greybus_bus_type;
 	svc->dev.type = &greybus_svc_type;
+	svc->dev.groups = svc_groups;
 	svc->dev.dma_mask = svc->dev.parent->dma_mask;
 	device_initialize(&svc->dev);
 
