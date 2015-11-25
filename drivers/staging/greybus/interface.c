@@ -20,12 +20,14 @@ static ssize_t field##_show(struct device *dev,				\
 }									\
 static DEVICE_ATTR_RO(field)
 
+gb_interface_attr(interface_id, u);
 gb_interface_attr(vendor_id, x);
 gb_interface_attr(product_id, x);
 gb_interface_attr(vendor_string, s);
 gb_interface_attr(product_string, s);
 
 static struct attribute *interface_attrs[] = {
+	&dev_attr_interface_id.attr,
 	&dev_attr_vendor_id.attr,
 	&dev_attr_product_id.attr,
 	&dev_attr_vendor_string.attr,
