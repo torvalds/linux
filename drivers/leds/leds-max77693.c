@@ -648,6 +648,7 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 		if (sub_nodes[fled_id]) {
 			dev_err(dev,
 				"Conflicting \"led-sources\" DT properties\n");
+			of_node_put(child_node);
 			return -EINVAL;
 		}
 
