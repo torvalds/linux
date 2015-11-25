@@ -3153,16 +3153,6 @@ static int user_passkey_neg_reply(struct sock *sk, struct hci_dev *hdev,
 				 HCI_OP_USER_PASSKEY_NEG_REPLY, 0);
 }
 
-static void update_name(struct hci_request *req)
-{
-	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_write_local_name cp;
-
-	memcpy(cp.name, hdev->dev_name, sizeof(cp.name));
-
-	hci_req_add(req, HCI_OP_WRITE_LOCAL_NAME, sizeof(cp), &cp);
-}
-
 static void set_name_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct mgmt_cp_set_local_name *cp;
@@ -3241,7 +3231,7 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_req_init(&req, hdev);
 
 	if (lmp_bredr_capable(hdev)) {
-		update_name(&req);
+		__hci_req_update_name(&req);
 		update_eir(&req);
 	}
 
@@ -6768,7 +6758,7 @@ static int powered_update_hci(struct hci_dev *hdev)
 			write_fast_connectable(&req, false);
 		__hci_req_update_scan(&req);
 		__hci_req_update_class(&req);
-		update_name(&req);
+		__hci_req_update_name(&req);
 		update_eir(&req);
 	}
 

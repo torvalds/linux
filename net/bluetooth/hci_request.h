@@ -55,6 +55,8 @@ void hci_req_sync_cancel(struct hci_dev *hdev, int err);
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 				const void *param);
 
+void __hci_req_update_name(struct hci_request *req);
+
 void hci_req_add_le_scan_disable(struct hci_request *req);
 void hci_req_add_le_passive_scan(struct hci_request *req);
 

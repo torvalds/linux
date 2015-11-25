@@ -420,6 +420,16 @@ static void __hci_update_background_scan(struct hci_request *req)
 	}
 }
 
+void __hci_req_update_name(struct hci_request *req)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_write_local_name cp;
+
+	memcpy(cp.name, hdev->dev_name, sizeof(cp.name));
+
+	hci_req_add(req, HCI_OP_WRITE_LOCAL_NAME, sizeof(cp), &cp);
+}
+
 void hci_req_add_le_scan_disable(struct hci_request *req)
 {
 	struct hci_cp_le_set_scan_enable cp;
