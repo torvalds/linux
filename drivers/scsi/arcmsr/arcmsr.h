@@ -288,6 +288,9 @@ struct FIRMWARE_INFO
 #define ARCMSR_MESSAGE_RBUFFER			      0x0000ff00
 /* iop message_rwbuffer for message command */
 #define ARCMSR_MESSAGE_RWBUFFER			      0x0000fa00
+
+#define MEM_BASE0(x)	(u32 __iomem *)((unsigned long)acb->mem_base0 + x)
+#define MEM_BASE1(x)	(u32 __iomem *)((unsigned long)acb->mem_base1 + x)
 /* 
 ************************************************************************
 **                SPEC. for Areca HBC adapter
