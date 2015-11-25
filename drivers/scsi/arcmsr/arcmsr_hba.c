@@ -2694,15 +2694,15 @@ static bool arcmsr_hbaB_get_config(struct AdapterControlBlock *acb)
 		acb->firm_model,
 		acb->firm_version);
 
-	acb->signature = readl(&reg->message_rwbuffer[1]);
+	acb->signature = readl(&reg->message_rwbuffer[0]);
 	/*firm_signature,1,00-03*/
-	acb->firm_request_len = readl(&reg->message_rwbuffer[2]);
+	acb->firm_request_len = readl(&reg->message_rwbuffer[1]);
 	/*firm_request_len,1,04-07*/
-	acb->firm_numbers_queue = readl(&reg->message_rwbuffer[3]);
+	acb->firm_numbers_queue = readl(&reg->message_rwbuffer[2]);
 	/*firm_numbers_queue,2,08-11*/
-	acb->firm_sdram_size = readl(&reg->message_rwbuffer[4]);
+	acb->firm_sdram_size = readl(&reg->message_rwbuffer[3]);
 	/*firm_sdram_size,3,12-15*/
-	acb->firm_hd_channels = readl(&reg->message_rwbuffer[5]);
+	acb->firm_hd_channels = readl(&reg->message_rwbuffer[4]);
 	/*firm_ide_channels,4,16-19*/
 	acb->firm_cfg_version = readl(&reg->message_rwbuffer[25]);  /*firm_cfg_version,25,100-103*/
 	/*firm_ide_channels,4,16-19*/
@@ -2880,15 +2880,15 @@ static bool arcmsr_hbaD_get_config(struct AdapterControlBlock *acb)
 		iop_device_map++;
 		count--;
 	}
-	acb->signature = readl(&reg->msgcode_rwbuffer[1]);
+	acb->signature = readl(&reg->msgcode_rwbuffer[0]);
 	/*firm_signature,1,00-03*/
-	acb->firm_request_len = readl(&reg->msgcode_rwbuffer[2]);
+	acb->firm_request_len = readl(&reg->msgcode_rwbuffer[1]);
 	/*firm_request_len,1,04-07*/
-	acb->firm_numbers_queue = readl(&reg->msgcode_rwbuffer[3]);
+	acb->firm_numbers_queue = readl(&reg->msgcode_rwbuffer[2]);
 	/*firm_numbers_queue,2,08-11*/
-	acb->firm_sdram_size = readl(&reg->msgcode_rwbuffer[4]);
+	acb->firm_sdram_size = readl(&reg->msgcode_rwbuffer[3]);
 	/*firm_sdram_size,3,12-15*/
-	acb->firm_hd_channels = readl(&reg->msgcode_rwbuffer[5]);
+	acb->firm_hd_channels = readl(&reg->msgcode_rwbuffer[4]);
 	/*firm_hd_channels,4,16-19*/
 	acb->firm_cfg_version = readl(&reg->msgcode_rwbuffer[25]);
 	pr_notice("Areca RAID Controller%d: Model %s, F/W %s\n",
