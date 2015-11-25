@@ -677,6 +677,15 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 		goto out_err;
 	}
 
+	/* Take control of the TPM's interrupt hardware and shut it off */
+	intmask = ioread32(chip->vendor.iobase +
+			   TPM_INT_ENABLE(chip->vendor.locality));
+	intmask |= TPM_INTF_CMD_READY_INT | TPM_INTF_LOCALITY_CHANGE_INT |
+		   TPM_INTF_DATA_AVAIL_INT | TPM_INTF_STS_VALID_INT;
+	intmask &= ~TPM_GLOBAL_INT_ENABLE;
+	iowrite32(intmask,
+		  chip->vendor.iobase + TPM_INT_ENABLE(chip->vendor.locality));
+
 	if (request_locality(chip, 0) != 0) {
 		rc = -ENODEV;
 		goto out_err;
@@ -735,17 +744,6 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 	init_waitqueue_head(&chip->vendor.read_queue);
 	init_waitqueue_head(&chip->vendor.int_queue);
 
-	intmask =
-	    ioread32(chip->vendor.iobase +
-		     TPM_INT_ENABLE(chip->vendor.locality));
-
-	intmask |= TPM_INTF_CMD_READY_INT
-	    | TPM_INTF_LOCALITY_CHANGE_INT | TPM_INTF_DATA_AVAIL_INT
-	    | TPM_INTF_STS_VALID_INT;
-
-	iowrite32(intmask,
-		  chip->vendor.iobase +
-		  TPM_INT_ENABLE(chip->vendor.locality));
 	if (interrupts)
 		chip->vendor.irq = tpm_info->irq;
 	if (interrupts && !chip->vendor.irq) {
