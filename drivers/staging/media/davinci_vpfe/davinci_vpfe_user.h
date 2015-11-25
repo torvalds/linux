@@ -538,7 +538,7 @@ struct vpfe_isif_raw_config {
 };
 
 /**********************************************************************
-      IPIPE API Structures
+*      IPIPE API Structures
 **********************************************************************/
 
 /* IPIPE module configurations */
