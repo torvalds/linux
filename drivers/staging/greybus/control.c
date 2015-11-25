@@ -22,9 +22,8 @@ int gb_control_get_manifest_size_operation(struct gb_interface *intf)
 	ret = gb_operation_sync(connection, GB_CONTROL_TYPE_GET_MANIFEST_SIZE,
 				NULL, 0, &response, sizeof(response));
 	if (ret) {
-		dev_err(&connection->bundle->dev,
-			"%s: Manifest size get operation failed (%d)\n",
-			__func__, ret);
+		dev_err(&connection->intf->dev,
+				"failed to get manifest size: %d\n", ret);
 		return ret;
 	}
 
@@ -72,7 +71,7 @@ static int gb_control_connection_init(struct gb_connection *connection)
 	connection->private = control;
 
 	/* Set interface's control connection */
-	connection->bundle->intf->control = control;
+	connection->intf->control = control;
 
 	return 0;
 }
@@ -81,10 +80,7 @@ static void gb_control_connection_exit(struct gb_connection *connection)
 {
 	struct gb_control *control = connection->private;
 
-	if (WARN_ON(connection->bundle->intf->control != control))
-		return;
-
-	connection->bundle->intf->control = NULL;
+	connection->intf->control = NULL;
 	kfree(control);
 }
 
