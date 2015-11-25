@@ -18,7 +18,6 @@ struct gb_operation;
 #define GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED	BIT(1)	/* Don't sent disconnected requests */
 #define GB_PROTOCOL_NO_BUNDLE			BIT(2)	/* Protocol May have a bundle-less connection */
 #define GB_PROTOCOL_SKIP_VERSION		BIT(3)	/* Don't send get_version() requests */
-#define GB_PROTOCOL_SKIP_SVC_CONNECTION		BIT(4)	/* Don't send SVC connection requests */
 
 typedef int (*gb_connection_init_t)(struct gb_connection *);
 typedef void (*gb_connection_exit_t)(struct gb_connection *);

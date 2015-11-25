@@ -750,7 +750,6 @@ static struct gb_protocol svc_protocol = {
 	.flags			= GB_PROTOCOL_SKIP_CONTROL_CONNECTED |
 				  GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED |
 				  GB_PROTOCOL_NO_BUNDLE |
-				  GB_PROTOCOL_SKIP_VERSION |
-				  GB_PROTOCOL_SKIP_SVC_CONNECTION,
+				  GB_PROTOCOL_SKIP_VERSION,
 };
 gb_builtin_protocol_driver(svc_protocol);

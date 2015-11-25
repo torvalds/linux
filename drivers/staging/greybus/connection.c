@@ -289,11 +289,10 @@ static int
 gb_connection_svc_connection_create(struct gb_connection *connection)
 {
 	struct gb_host_device *hd = connection->hd;
-	struct gb_protocol *protocol = connection->protocol;
 	struct gb_interface *intf;
 	int ret;
 
-	if (protocol->flags & GB_PROTOCOL_SKIP_SVC_CONNECTION)
+	if (gb_connection_is_static(connection))
 		return 0;
 
 	intf = connection->bundle->intf;
@@ -315,7 +314,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 static void
 gb_connection_svc_connection_destroy(struct gb_connection *connection)
 {
-	if (connection->protocol->flags & GB_PROTOCOL_SKIP_SVC_CONNECTION)
+	if (gb_connection_is_static(connection))
 		return;
 
 	gb_svc_connection_destroy(connection->hd->svc,
