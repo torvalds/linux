@@ -490,6 +490,16 @@ typedef struct xfs_swapext
 #define XFS_FSOP_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
 
 /*
+ * ioctl limits
+ */
+#ifdef XATTR_LIST_MAX
+#  define XFS_XATTR_LIST_MAX XATTR_LIST_MAX
+#else
+#  define XFS_XATTR_LIST_MAX 65536
+#endif
+
+
+/*
  * ioctl commands that are used by Linux filesystems
  */
 #define XFS_IOC_GETXFLAGS	FS_IOC_GETFLAGS

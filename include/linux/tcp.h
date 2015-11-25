@@ -397,6 +397,13 @@ static inline void fastopen_queue_tune(struct sock *sk, int backlog)
 	queue->fastopenq.max_qlen = min_t(unsigned int, backlog, somaxconn);
 }
 
+static inline void tcp_move_syn(struct tcp_sock *tp,
+				struct request_sock *req)
+{
+	tp->saved_syn = req->saved_syn;
+	req->saved_syn = NULL;
+}
+
 static inline void tcp_saved_syn_free(struct tcp_sock *tp)
 {
 	kfree(tp->saved_syn);

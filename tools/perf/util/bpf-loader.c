@@ -26,18 +26,40 @@ static int libbpf_##name(const char *fmt, ...)	\
 	return ret;				\
 }
 
-DEFINE_PRINT_FN(warning, 0)
-DEFINE_PRINT_FN(info, 0)
+DEFINE_PRINT_FN(warning, 1)
+DEFINE_PRINT_FN(info, 1)
 DEFINE_PRINT_FN(debug, 1)
 
 struct bpf_prog_priv {
 	struct perf_probe_event pev;
 };
 
+static bool libbpf_initialized;
+
+struct bpf_object *
+bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
+{
+	struct bpf_object *obj;
+
+	if (!libbpf_initialized) {
+		libbpf_set_print(libbpf_warning,
+				 libbpf_info,
+				 libbpf_debug);
+		libbpf_initialized = true;
+	}
+
+	obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, name);
+	if (IS_ERR(obj)) {
+		pr_debug("bpf: failed to load buffer\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return obj;
+}
+
 struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 {
 	struct bpf_object *obj;
-	static bool libbpf_initialized;
 
 	if (!libbpf_initialized) {
 		libbpf_set_print(libbpf_warning,
@@ -53,15 +75,15 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 
 		err = llvm__compile_bpf(filename, &obj_buf, &obj_buf_sz);
 		if (err)
-			return ERR_PTR(err);
+			return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
 		obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, filename);
 		free(obj_buf);
 	} else
 		obj = bpf_object__open(filename);
 
-	if (!obj) {
+	if (IS_ERR(obj)) {
 		pr_debug("bpf: failed to load %s\n", filename);
-		return ERR_PTR(-EINVAL);
+		return obj;
 	}
 
 	return obj;
@@ -96,9 +118,9 @@ config_bpf_program(struct bpf_program *prog)
 	int err;
 
 	config_str = bpf_program__title(prog, false);
-	if (!config_str) {
+	if (IS_ERR(config_str)) {
 		pr_debug("bpf: unable to get title for program\n");
-		return -EINVAL;
+		return PTR_ERR(config_str);
 	}
 
 	priv = calloc(sizeof(*priv), 1);
@@ -113,14 +135,14 @@ config_bpf_program(struct bpf_program *prog)
 	if (err < 0) {
 		pr_debug("bpf: '%s' is not a valid config string\n",
 			 config_str);
-		err = -EINVAL;
+		err = -BPF_LOADER_ERRNO__CONFIG;
 		goto errout;
 	}
 
 	if (pev->group && strcmp(pev->group, PERF_BPF_PROBE_GROUP)) {
 		pr_debug("bpf: '%s': group for event is set and not '%s'.\n",
 			 config_str, PERF_BPF_PROBE_GROUP);
-		err = -EINVAL;
+		err = -BPF_LOADER_ERRNO__GROUP;
 		goto errout;
 	} else if (!pev->group)
 		pev->group = strdup(PERF_BPF_PROBE_GROUP);
@@ -132,9 +154,9 @@ config_bpf_program(struct bpf_program *prog)
 	}
 
 	if (!pev->event) {
-		pr_debug("bpf: '%s': event name is missing\n",
+		pr_debug("bpf: '%s': event name is missing. Section name should be 'key=value'\n",
 			 config_str);
-		err = -EINVAL;
+		err = -BPF_LOADER_ERRNO__EVENTNAME;
 		goto errout;
 	}
 	pr_debug("bpf: config '%s' is ok\n", config_str);
@@ -285,7 +307,7 @@ int bpf__foreach_tev(struct bpf_object *obj,
 				(void **)&priv);
 		if (err || !priv) {
 			pr_debug("bpf: failed to get private field\n");
-			return -EINVAL;
+			return -BPF_LOADER_ERRNO__INTERNAL;
 		}
 
 		pev = &priv->pev;
@@ -308,13 +330,57 @@ int bpf__foreach_tev(struct bpf_object *obj,
 	return 0;
 }
 
+#define ERRNO_OFFSET(e)		((e) - __BPF_LOADER_ERRNO__START)
+#define ERRCODE_OFFSET(c)	ERRNO_OFFSET(BPF_LOADER_ERRNO__##c)
+#define NR_ERRNO	(__BPF_LOADER_ERRNO__END - __BPF_LOADER_ERRNO__START)
+
+static const char *bpf_loader_strerror_table[NR_ERRNO] = {
+	[ERRCODE_OFFSET(CONFIG)]	= "Invalid config string",
+	[ERRCODE_OFFSET(GROUP)]		= "Invalid group name",
+	[ERRCODE_OFFSET(EVENTNAME)]	= "No event name found in config string",
+	[ERRCODE_OFFSET(INTERNAL)]	= "BPF loader internal error",
+	[ERRCODE_OFFSET(COMPILE)]	= "Error when compiling BPF scriptlet",
+};
+
+static int
+bpf_loader_strerror(int err, char *buf, size_t size)
+{
+	char sbuf[STRERR_BUFSIZE];
+	const char *msg;
+
+	if (!buf || !size)
+		return -1;
+
+	err = err > 0 ? err : -err;
+
+	if (err >= __LIBBPF_ERRNO__START)
+		return libbpf_strerror(err, buf, size);
+
+	if (err >= __BPF_LOADER_ERRNO__START && err < __BPF_LOADER_ERRNO__END) {
+		msg = bpf_loader_strerror_table[ERRNO_OFFSET(err)];
+		snprintf(buf, size, "%s", msg);
+		buf[size - 1] = '\0';
+		return 0;
+	}
+
+	if (err >= __BPF_LOADER_ERRNO__END)
+		snprintf(buf, size, "Unknown bpf loader error %d", err);
+	else
+		snprintf(buf, size, "%s",
+			 strerror_r(err, sbuf, sizeof(sbuf)));
+
+	buf[size - 1] = '\0';
+	return -1;
+}
+
 #define bpf__strerror_head(err, buf, size) \
 	char sbuf[STRERR_BUFSIZE], *emsg;\
 	if (!size)\
 		return 0;\
 	if (err < 0)\
 		err = -err;\
-	emsg = strerror_r(err, sbuf, sizeof(sbuf));\
+	bpf_loader_strerror(err, sbuf, sizeof(sbuf));\
+	emsg = sbuf;\
 	switch (err) {\
 	default:\
 		scnprintf(buf, size, "%s", emsg);\
@@ -330,23 +396,62 @@ int bpf__foreach_tev(struct bpf_object *obj,
 	}\
 	buf[size - 1] = '\0';
 
+int bpf__strerror_prepare_load(const char *filename, bool source,
+			       int err, char *buf, size_t size)
+{
+	size_t n;
+	int ret;
+
+	n = snprintf(buf, size, "Failed to load %s%s: ",
+			 filename, source ? " from source" : "");
+	if (n >= size) {
+		buf[size - 1] = '\0';
+		return 0;
+	}
+	buf += n;
+	size -= n;
+
+	ret = bpf_loader_strerror(err, buf, size);
+	buf[size - 1] = '\0';
+	return ret;
+}
+
 int bpf__strerror_probe(struct bpf_object *obj __maybe_unused,
 			int err, char *buf, size_t size)
 {
 	bpf__strerror_head(err, buf, size);
 	bpf__strerror_entry(EEXIST, "Probe point exist. Try use 'perf probe -d \"*\"'");
-	bpf__strerror_entry(EPERM, "You need to be root, and /proc/sys/kernel/kptr_restrict should be 0\n");
-	bpf__strerror_entry(ENOENT, "You need to check probing points in BPF file\n");
+	bpf__strerror_entry(EACCES, "You need to be root");
+	bpf__strerror_entry(EPERM, "You need to be root, and /proc/sys/kernel/kptr_restrict should be 0");
+	bpf__strerror_entry(ENOENT, "You need to check probing points in BPF file");
 	bpf__strerror_end(buf, size);
 	return 0;
 }
 
-int bpf__strerror_load(struct bpf_object *obj __maybe_unused,
+int bpf__strerror_load(struct bpf_object *obj,
 		       int err, char *buf, size_t size)
 {
 	bpf__strerror_head(err, buf, size);
-	bpf__strerror_entry(EINVAL, "%s: Are you root and runing a CONFIG_BPF_SYSCALL kernel?",
-			    emsg)
+	case LIBBPF_ERRNO__KVER: {
+		unsigned int obj_kver = bpf_object__get_kversion(obj);
+		unsigned int real_kver;
+
+		if (fetch_kernel_version(&real_kver, NULL, 0)) {
+			scnprintf(buf, size, "Unable to fetch kernel version");
+			break;
+		}
+
+		if (obj_kver != real_kver) {
+			scnprintf(buf, size,
+				  "'version' ("KVER_FMT") doesn't match running kernel ("KVER_FMT")",
+				  KVER_PARAM(obj_kver),
+				  KVER_PARAM(real_kver));
+			break;
+		}
+
+		scnprintf(buf, size, "Failed to load program for unknown reason");
+		break;
+	}
 	bpf__strerror_end(buf, size);
 	return 0;
 }

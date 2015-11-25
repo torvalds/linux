@@ -1493,9 +1493,9 @@ static void mvneta_rxq_drop_pkts(struct mvneta_port *pp,
 		struct mvneta_rx_desc *rx_desc = rxq->descs + i;
 		void *data = (void *)rx_desc->buf_cookie;
 
-		mvneta_frag_free(pp, data);
 		dma_unmap_single(pp->dev->dev.parent, rx_desc->buf_phys_addr,
 				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
+		mvneta_frag_free(pp, data);
 	}
 
 	if (rx_done)

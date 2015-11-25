@@ -334,9 +334,15 @@ struct mlx5e_tx_skb_cb {
 
 #define MLX5E_TX_SKB_CB(__skb) ((struct mlx5e_tx_skb_cb *)__skb->cb)
 
+enum mlx5e_dma_map_type {
+	MLX5E_DMA_MAP_SINGLE,
+	MLX5E_DMA_MAP_PAGE
+};
+
 struct mlx5e_sq_dma {
-	dma_addr_t addr;
-	u32        size;
+	dma_addr_t              addr;
+	u32                     size;
+	enum mlx5e_dma_map_type type;
 };
 
 enum {

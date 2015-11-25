@@ -1267,6 +1267,8 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 		/* check iButton feature support for motherboard controller */
 		if (pm8001_ha->pdev->subsystem_vendor !=
 			PCI_VENDOR_ID_ADAPTEC2 &&
+			pm8001_ha->pdev->subsystem_vendor !=
+			PCI_VENDOR_ID_ATTO &&
 			pm8001_ha->pdev->subsystem_vendor != 0) {
 			ibutton0 = pm8001_cr32(pm8001_ha, 0,
 					MSGU_HOST_SCRATCH_PAD_6);
@@ -4575,6 +4577,38 @@ void pm8001_set_phy_profile(struct pm8001_hba_info *pm8001_ha,
 		length = length + PHY_DWORD_LENGTH;
 	}
 	PM8001_INIT_DBG(pm8001_ha, pm8001_printk("phy settings completed\n"));
+}
+
+void pm8001_set_phy_profile_single(struct pm8001_hba_info *pm8001_ha,
+		u32 phy, u32 length, u32 *buf)
+{
+	u32 tag, opc;
+	int rc, i;
+	struct set_phy_profile_req payload;
+	struct inbound_queue_table *circularQ;
+
+	memset(&payload, 0, sizeof(payload));
+
+	rc = pm8001_tag_alloc(pm8001_ha, &tag);
+	if (rc)
+		PM8001_INIT_DBG(pm8001_ha, pm8001_printk("Invalid tag"));
+
+	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+	opc = OPC_INB_SET_PHY_PROFILE;
+
+	payload.tag = cpu_to_le32(tag);
+	payload.ppc_phyid = (((SAS_PHY_ANALOG_SETTINGS_PAGE & 0xF) << 8)
+				| (phy & 0xFF));
+
+	for (i = 0; i < length; i++)
+		payload.reserved[i] = cpu_to_le32(*(buf + i));
+
+	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload, 0);
+	if (rc)
+		pm8001_tag_free(pm8001_ha, tag);
+
+	PM8001_INIT_DBG(pm8001_ha,
+		pm8001_printk("PHY %d settings applied", phy));
 }
 const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.name			= "pmc80xx",

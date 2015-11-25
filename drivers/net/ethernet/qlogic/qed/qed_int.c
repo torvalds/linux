@@ -251,11 +251,6 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie)
 	int arr_size;
 	u16 rc = 0;
 
-	if (!p_hwfn) {
-		DP_ERR(p_hwfn->cdev, "DPC called - no hwfn!\n");
-		return;
-	}
-
 	if (!p_hwfn->p_sp_sb) {
 		DP_ERR(p_hwfn->cdev, "DPC called - no p_sp_sb\n");
 		return;

@@ -350,4 +350,12 @@ static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints, int
 
 int get_stack_size(const char *str, unsigned long *_size);
 
+int fetch_kernel_version(unsigned int *puint,
+			 char *str, size_t str_sz);
+#define KVER_VERSION(x)		(((x) >> 16) & 0xff)
+#define KVER_PATCHLEVEL(x)	(((x) >> 8) & 0xff)
+#define KVER_SUBLEVEL(x)	((x) & 0xff)
+#define KVER_FMT	"%d.%d.%d"
+#define KVER_PARAM(x)	KVER_VERSION(x), KVER_PATCHLEVEL(x), KVER_SUBLEVEL(x)
+
 #endif /* GIT_COMPAT_UTIL_H */

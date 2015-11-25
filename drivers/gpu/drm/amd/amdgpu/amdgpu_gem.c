@@ -483,6 +483,9 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		if (domain == AMDGPU_GEM_DOMAIN_CPU)
 			goto error_unreserve;
 	}
+	r = amdgpu_vm_update_page_directory(adev, bo_va->vm);
+	if (r)
+		goto error_unreserve;
 
 	r = amdgpu_vm_clear_freed(adev, bo_va->vm);
 	if (r)
@@ -512,6 +515,9 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_bo *rbo;
 	struct amdgpu_bo_va *bo_va;
+	struct ttm_validate_buffer tv, tv_pd;
+	struct ww_acquire_ctx ticket;
+	struct list_head list, duplicates;
 	uint32_t invalid_flags, va_flags = 0;
 	int r = 0;
 
@@ -549,7 +555,18 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	mutex_lock(&fpriv->vm.mutex);
 	rbo = gem_to_amdgpu_bo(gobj);
-	r = amdgpu_bo_reserve(rbo, false);
+	INIT_LIST_HEAD(&list);
+	INIT_LIST_HEAD(&duplicates);
+	tv.bo = &rbo->tbo;
+	tv.shared = true;
+	list_add(&tv.head, &list);
+
+	if (args->operation == AMDGPU_VA_OP_MAP) {
+		tv_pd.bo = &fpriv->vm.page_directory->tbo;
+		tv_pd.shared = true;
+		list_add(&tv_pd.head, &list);
+	}
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
 	if (r) {
 		mutex_unlock(&fpriv->vm.mutex);
 		drm_gem_object_unreference_unlocked(gobj);
@@ -558,7 +575,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 
 	bo_va = amdgpu_vm_bo_find(&fpriv->vm, rbo);
 	if (!bo_va) {
-		amdgpu_bo_unreserve(rbo);
+		ttm_eu_backoff_reservation(&ticket, &list);
+		drm_gem_object_unreference_unlocked(gobj);
 		mutex_unlock(&fpriv->vm.mutex);
 		return -ENOENT;
 	}
@@ -581,7 +599,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	default:
 		break;
 	}
-
+	ttm_eu_backoff_reservation(&ticket, &list);
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE))
 		amdgpu_gem_va_update_vm(adev, bo_va, args->operation);
 	mutex_unlock(&fpriv->vm.mutex);
