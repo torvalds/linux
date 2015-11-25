@@ -2664,7 +2664,7 @@ static bool arcmsr_hbaB_get_config(struct AdapterControlBlock *acb)
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'get adapter firmware \
 			miscellaneous data' timeout \n", acb->host->host_no);
-		return false;
+		goto err_free_dma;
 	}
 	count = 8;
 	while (count){
@@ -2707,6 +2707,10 @@ static bool arcmsr_hbaB_get_config(struct AdapterControlBlock *acb)
 	acb->firm_cfg_version = readl(&reg->message_rwbuffer[25]);  /*firm_cfg_version,25,100-103*/
 	/*firm_ide_channels,4,16-19*/
 	return true;
+err_free_dma:
+	dma_free_coherent(&acb->pdev->dev, acb->roundup_ccbsize,
+			acb->dma_coherent2, acb->dma_coherent_handle2);
+	return false;
 }
 
 static bool arcmsr_hbaC_get_config(struct AdapterControlBlock *pACB)
