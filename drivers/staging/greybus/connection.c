@@ -95,6 +95,21 @@ int svc_update_connection(struct gb_interface *intf,
 	return 0;
 }
 
+static void gb_connection_init_name(struct gb_connection *connection)
+{
+	u16 hd_cport_id = connection->hd_cport_id;
+	u16 cport_id = 0;
+	u8 intf_id = 0;
+
+	if (connection->intf) {
+		intf_id = connection->intf->interface_id;
+		cport_id = connection->intf_cport_id;
+	}
+
+	snprintf(connection->name, sizeof(connection->name),
+			"%hu/%hhu:%hu", hd_cport_id, intf_id, cport_id);
+}
+
 /*
  * gb_connection_create() - create a Greybus connection
  * @hd:			host device of the connection
@@ -178,6 +193,8 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 		goto err_free_connection;
 
 	kref_init(&connection->kref);
+
+	gb_connection_init_name(connection);
 
 	spin_lock_irq(&gb_connections_lock);
 	list_add(&connection->hd_links, &hd->connections);

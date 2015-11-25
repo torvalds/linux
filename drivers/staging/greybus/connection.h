@@ -43,6 +43,7 @@ struct gb_connection {
 	enum gb_connection_state	state;
 	struct list_head		operations;
 
+	char				name[16];
 	struct workqueue_struct		*wq;
 
 	atomic_t			op_cycle;
