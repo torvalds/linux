@@ -294,7 +294,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 	if (gb_connection_is_static(connection))
 		return 0;
 
-	intf = connection->bundle->intf;
+	intf = connection->intf;
 	ret = gb_svc_connection_create(hd->svc,
 			hd->svc->ap_intf_id,
 			connection->hd_cport_id,
@@ -320,7 +320,7 @@ gb_connection_svc_connection_destroy(struct gb_connection *connection)
 	gb_svc_connection_destroy(connection->hd->svc,
 				  connection->hd->svc->ap_intf_id,
 				  connection->hd_cport_id,
-				  connection->bundle->intf->interface_id,
+				  connection->intf->interface_id,
 				  connection->intf_cport_id);
 }
 
