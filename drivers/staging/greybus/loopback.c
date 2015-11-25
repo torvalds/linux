@@ -878,12 +878,6 @@ static int gb_loopback_bus_id_compare(void *priv, struct list_head *lha,
 	struct gb_connection *ca = a->connection;
 	struct gb_connection *cb = b->connection;
 
-	if (ca->bundle->intf->module->module_id <
-	    cb->bundle->intf->module->module_id)
-		return -1;
-	if (cb->bundle->intf->module->module_id <
-	    ca->bundle->intf->module->module_id)
-		return 1;
 	if (ca->bundle->intf->interface_id < cb->bundle->intf->interface_id)
 		return -1;
 	if (cb->bundle->intf->interface_id < ca->bundle->intf->interface_id)

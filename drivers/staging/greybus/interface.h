@@ -31,7 +31,6 @@ struct gb_interface {
 	u32 vendor_id;
 	u32 product_id;
 
-	struct gb_module *module;
 	struct gb_host_device *hd;
 
 	/* The interface needs to boot over unipro */

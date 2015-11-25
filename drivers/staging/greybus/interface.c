@@ -124,20 +124,14 @@ int gb_create_bundle_connection(struct gb_interface *intf, u8 class)
 struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 					 u8 interface_id)
 {
-	struct gb_module *module;
 	struct gb_interface *intf;
 	int retval;
 
-	module = gb_module_find(hd, endo_get_module_id(hd->endo, interface_id));
-	if (!module)
-		return NULL;
-
 	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
 	if (!intf)
-		goto put_module;
+		return NULL;
 
 	intf->hd = hd;		/* XXX refcount? */
-	intf->module = module;
 	intf->interface_id = interface_id;
 	INIT_LIST_HEAD(&intf->bundles);
 	INIT_LIST_HEAD(&intf->manifest_descs);
@@ -145,13 +139,13 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 	/* Invalid device id to start with */
 	intf->device_id = GB_DEVICE_ID_BAD;
 
-	intf->dev.parent = &module->dev;
+	intf->dev.parent = &hd->dev;
 	intf->dev.bus = &greybus_bus_type;
 	intf->dev.type = &greybus_interface_type;
 	intf->dev.groups = interface_groups;
 	intf->dev.dma_mask = hd->dev.dma_mask;
 	device_initialize(&intf->dev);
-	dev_set_name(&intf->dev, "%s:%d", dev_name(&module->dev), interface_id);
+	dev_set_name(&intf->dev, "%d-%d", hd->bus_id, interface_id);
 
 	retval = device_add(&intf->dev);
 	if (retval) {
@@ -167,8 +161,6 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 
 free_intf:
 	put_device(&intf->dev);
-put_module:
-	put_device(&module->dev);
 	return NULL;
 }
 
@@ -177,7 +169,6 @@ put_module:
  */
 void gb_interface_remove(struct gb_interface *intf)
 {
-	struct gb_module *module;
 	struct gb_bundle *bundle;
 	struct gb_bundle *next;
 
@@ -191,9 +182,7 @@ void gb_interface_remove(struct gb_interface *intf)
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
 
-	module = intf->module;
 	device_unregister(&intf->dev);
-	put_device(&module->dev);
 }
 
 void gb_interfaces_remove(struct gb_host_device *hd)
