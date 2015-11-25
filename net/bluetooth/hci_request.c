@@ -349,6 +349,41 @@ void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
 	hci_req_add_ev(req, opcode, plen, param, 0);
 }
 
+void __hci_req_write_fast_connectable(struct hci_request *req, bool enable)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_write_page_scan_activity acp;
+	u8 type;
+
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		return;
+
+	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
+		return;
+
+	if (enable) {
+		type = PAGE_SCAN_TYPE_INTERLACED;
+
+		/* 160 msec page scan interval */
+		acp.interval = cpu_to_le16(0x0100);
+	} else {
+		type = PAGE_SCAN_TYPE_STANDARD;	/* default */
+
+		/* default 1.28 sec page scan */
+		acp.interval = cpu_to_le16(0x0800);
+	}
+
+	acp.window = cpu_to_le16(0x0012);
+
+	if (__cpu_to_le16(hdev->page_scan_interval) != acp.interval ||
+	    __cpu_to_le16(hdev->page_scan_window) != acp.window)
+		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_ACTIVITY,
+			    sizeof(acp), &acp);
+
+	if (hdev->page_scan_type != type)
+		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
+}
+
 /* This function controls the background scanning based on hdev->pend_le_conns
  * list. If there are pending LE connection we start the background scanning,
  * otherwise we stop it.
