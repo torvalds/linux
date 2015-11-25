@@ -618,7 +618,10 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr,
 		nfs_inc_stats(inode, NFSIOS_SETATTRTRUNC);
 		nfs_vmtruncate(inode, attr->ia_size);
 	}
-	nfs_update_inode(inode, fattr);
+	if (fattr->valid)
+		nfs_update_inode(inode, fattr);
+	else
+		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR;
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL_GPL(nfs_setattr_update_inode);
