@@ -25,9 +25,6 @@
 
 #include "pinctrl-intel.h"
 
-/* Maximum number of pads in each group */
-#define NPADS_IN_GPP			24
-
 /* Offset from regs */
 #define PADBAR				0x00c
 #define GPI_IS				0x100
@@ -173,11 +170,11 @@ static bool intel_pad_acpi_mode(struct intel_pinctrl *pctrl, unsigned pin)
 		return false;
 
 	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
+	gpp = padno / community->gpp_size;
 	offset = community->hostown_offset + gpp * 4;
 	hostown = community->regs + offset;
 
-	return !(readl(hostown) & BIT(padno % NPADS_IN_GPP));
+	return !(readl(hostown) & BIT(padno % community->gpp_size));
 }
 
 static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
@@ -193,7 +190,7 @@ static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
 		return false;
 
 	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
+	gpp = padno / community->gpp_size;
 
 	/*
 	 * If PADCFGLOCK and PADCFGLOCKTX bits are both clear for this pad,
@@ -202,12 +199,12 @@ static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
 	 */
 	offset = community->padcfglock_offset + gpp * 8;
 	value = readl(community->regs + offset);
-	if (value & BIT(pin % NPADS_IN_GPP))
+	if (value & BIT(pin % community->gpp_size))
 		return true;
 
 	offset = community->padcfglock_offset + 4 + gpp * 8;
 	value = readl(community->regs + offset);
-	if (value & BIT(pin % NPADS_IN_GPP))
+	if (value & BIT(pin % community->gpp_size))
 		return true;
 
 	return false;
@@ -663,8 +660,8 @@ static void intel_gpio_irq_ack(struct irq_data *d)
 	community = intel_get_community(pctrl, pin);
 	if (community) {
 		unsigned padno = pin_to_padno(community, pin);
-		unsigned gpp_offset = padno % NPADS_IN_GPP;
-		unsigned gpp = padno / NPADS_IN_GPP;
+		unsigned gpp_offset = padno % community->gpp_size;
+		unsigned gpp = padno / community->gpp_size;
 
 		writel(BIT(gpp_offset), community->regs + GPI_IS + gpp * 4);
 	}
@@ -685,8 +682,8 @@ static void intel_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
 	community = intel_get_community(pctrl, pin);
 	if (community) {
 		unsigned padno = pin_to_padno(community, pin);
-		unsigned gpp_offset = padno % NPADS_IN_GPP;
-		unsigned gpp = padno / NPADS_IN_GPP;
+		unsigned gpp_offset = padno % community->gpp_size;
+		unsigned gpp = padno / community->gpp_size;
 		void __iomem *reg;
 		u32 value;
 
@@ -780,8 +777,8 @@ static int intel_gpio_irq_wake(struct irq_data *d, unsigned int on)
 		return -EINVAL;
 
 	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
-	gpp_offset = padno % NPADS_IN_GPP;
+	gpp = padno / community->gpp_size;
+	gpp_offset = padno % community->gpp_size;
 
 	/* Clear the existing wake status */
 	writel(BIT(gpp_offset), community->regs + GPI_GPE_STS + gpp * 4);
@@ -819,14 +816,14 @@ static irqreturn_t intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 		/* Only interrupts that are enabled */
 		pending &= enabled;
 
-		for_each_set_bit(gpp_offset, &pending, NPADS_IN_GPP) {
+		for_each_set_bit(gpp_offset, &pending, community->gpp_size) {
 			unsigned padno, irq;
 
 			/*
 			 * The last group in community can have less pins
 			 * than NPADS_IN_GPP.
 			 */
-			padno = gpp_offset + gpp * NPADS_IN_GPP;
+			padno = gpp_offset + gpp * community->gpp_size;
 			if (padno >= community->npins)
 				break;
 
@@ -1002,7 +999,8 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 
 		community->regs = regs;
 		community->pad_regs = regs + padbar;
-		community->ngpps = DIV_ROUND_UP(community->npins, NPADS_IN_GPP);
+		community->ngpps = DIV_ROUND_UP(community->npins,
+						community->gpp_size);
 	}
 
 	irq = platform_get_irq(pdev, 0);
