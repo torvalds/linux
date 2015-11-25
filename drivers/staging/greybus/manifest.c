@@ -60,6 +60,22 @@ static void release_manifest_descriptors(struct gb_interface *intf)
 		release_manifest_descriptor(descriptor);
 }
 
+static void release_cport_descriptors(struct list_head *head, u8 bundle_id)
+{
+	struct manifest_desc *desc, *tmp;
+	struct greybus_descriptor_cport *desc_cport;
+
+	list_for_each_entry_safe(desc, tmp, head, links) {
+		desc_cport = desc->data;
+
+		if (desc->type != GREYBUS_TYPE_CPORT)
+			continue;
+
+		if (desc_cport->bundle == bundle_id)
+			release_manifest_descriptor(desc);
+	}
+}
+
 static struct manifest_desc *get_next_bundle_desc(struct gb_interface *intf)
 {
 	struct manifest_desc *descriptor;
@@ -275,14 +291,7 @@ exit:
 	 * Free all cports for this bundle to avoid 'excess descriptors'
 	 * warnings.
 	 */
-	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
-		struct greybus_descriptor_cport *desc_cport = desc->data;
-
-		if (desc->type != GREYBUS_TYPE_CPORT)
-			continue;
-		if (desc_cport->bundle == bundle_id)
-			release_manifest_descriptor(desc);
-	}
+	release_cport_descriptors(&intf->manifest_descs, bundle_id);
 
 	return 0;	/* Error; count should also be 0 */
 }
