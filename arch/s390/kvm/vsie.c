@@ -449,6 +449,8 @@ static void unpin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	hpa = (u64) scb_s->scaoh << 32 | scb_s->scaol;
 	if (hpa) {
 		gpa = scb_o->scaol & ~0xfUL;
+		if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_64BSCAO))
+			gpa |= (u64) scb_o->scaoh << 32;
 		unpin_guest_page(vcpu->kvm, gpa, hpa);
 		scb_s->scaol = 0;
 		scb_s->scaoh = 0;
@@ -499,6 +501,8 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	int rc = 0;
 
 	gpa = scb_o->scaol & ~0xfUL;
+	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_64BSCAO))
+		gpa |= (u64) scb_o->scaoh << 32;
 	if (gpa) {
 		if (!(gpa & ~0x1fffUL))
 			rc = set_validity_icpt(scb_s, 0x0038U);
