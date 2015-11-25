@@ -259,6 +259,26 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		IWL_MVM_PS_HEAVY_RX_THLD_PERCENT;
 }
 
+static void iwl_mvm_p2p_standalone_iterator(void *_data, u8 *mac,
+					    struct ieee80211_vif *vif)
+{
+	bool *is_p2p_standalone = _data;
+
+	switch (ieee80211_vif_type_p2p(vif)) {
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_AP:
+		*is_p2p_standalone = false;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (vif->bss_conf.assoc)
+			*is_p2p_standalone = false;
+		break;
+
+	default:
+		break;
+	}
+}
+
 static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif)
 {
@@ -268,9 +288,6 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 		    ETH_ALEN))
 		return false;
 
-	if (vif->p2p &&
-	    !(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD))
-		return false;
 	/*
 	 * Avoid using uAPSD if P2P client is associated to GO that uses
 	 * opportunistic power save. This is due to current FW limitation.
@@ -286,6 +303,22 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	 */
 	if (iwl_mvm_phy_ctx_count(mvm) >= 2)
 		return false;
+
+	if (vif->p2p) {
+		/* Allow U-APSD only if p2p is stand alone */
+		bool is_p2p_standalone = true;
+
+		if (!iwl_mvm_is_p2p_standalone_uapsd_supported(mvm))
+			return false;
+
+		ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+					IEEE80211_IFACE_ITER_NORMAL,
+					iwl_mvm_p2p_standalone_iterator,
+					&is_p2p_standalone);
+
+		if (!is_p2p_standalone)
+			return false;
+	}
 
 	return true;
 }
