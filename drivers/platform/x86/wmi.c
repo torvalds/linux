@@ -64,7 +64,7 @@ struct guid_block {
 struct wmi_block {
 	struct list_head list;
 	struct guid_block gblock;
-	acpi_handle handle;
+	struct acpi_device *acpi_device;
 	wmi_notify_handler handler;
 	void *handler_data;
 	struct device dev;
@@ -147,7 +147,7 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
 	acpi_handle handle;
 
 	block = &wblock->gblock;
-	handle = wblock->handle;
+	handle = wblock->acpi_device->handle;
 
 	snprintf(method, 5, "WE%02X", block->notify_id);
 	status = acpi_execute_simple_method(handle, method, enable);
@@ -186,7 +186,7 @@ u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 		return AE_ERROR;
 
 	block = &wblock->gblock;
-	handle = wblock->handle;
+	handle = wblock->acpi_device->handle;
 
 	if (!(block->flags & ACPI_WMI_METHOD))
 		return AE_BAD_DATA;
@@ -248,7 +248,7 @@ struct acpi_buffer *out)
 		return AE_ERROR;
 
 	block = &wblock->gblock;
-	handle = wblock->handle;
+	handle = wblock->acpi_device->handle;
 
 	if (block->instance_count < instance)
 		return AE_BAD_PARAMETER;
@@ -321,7 +321,7 @@ const struct acpi_buffer *in)
 		return AE_ERROR;
 
 	block = &wblock->gblock;
-	handle = wblock->handle;
+	handle = wblock->acpi_device->handle;
 
 	if (block->instance_count < instance)
 		return AE_BAD_PARAMETER;
@@ -525,8 +525,8 @@ acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out)
 
 		if ((gblock->flags & ACPI_WMI_EVENT) &&
 			(gblock->notify_id == event))
-			return acpi_evaluate_object(wblock->handle, "_WED",
-				&input, out);
+			return acpi_evaluate_object(wblock->acpi_device->handle,
+				"_WED", &input, out);
 	}
 
 	return AE_NOT_FOUND;
@@ -618,27 +618,40 @@ static int wmi_create_device(const struct guid_block *gblock,
 	return device_register(&wblock->dev);
 }
 
-static void wmi_free_devices(void)
+static void wmi_free_devices(struct acpi_device *device)
 {
 	struct wmi_block *wblock, *next;
 
 	/* Delete devices for all the GUIDs */
 	list_for_each_entry_safe(wblock, next, &wmi_block_list, list) {
-		list_del(&wblock->list);
-		if (wblock->dev.class)
-			device_unregister(&wblock->dev);
-		else
-			kfree(wblock);
+		if (wblock->acpi_device == device) {
+			list_del(&wblock->list);
+			if (wblock->dev.class)
+				device_unregister(&wblock->dev);
+			else
+				kfree(wblock);
+		}
 	}
 }
 
-static bool guid_already_parsed(const char *guid_string)
+static bool guid_already_parsed(struct acpi_device *device,
+				const u8 *guid)
 {
 	struct wmi_block *wblock;
 
-	list_for_each_entry(wblock, &wmi_block_list, list)
-		if (memcmp(wblock->gblock.guid, guid_string, 16) == 0)
+	list_for_each_entry(wblock, &wmi_block_list, list) {
+		if (memcmp(wblock->gblock.guid, guid, 16) == 0) {
+			/*
+			 * Because we historically didn't track the relationship
+			 * between GUIDs and ACPI nodes, we don't know whether
+			 * we need to suppress GUIDs that are unique on a
+			 * given node but duplicated across nodes.
+			 */
+			dev_warn(&device->dev, "duplicate WMI GUID %pUL (first instance was on %s)\n",
+				 guid, dev_name(&wblock->acpi_device->dev));
 			return true;
+		}
+	}
 
 	return false;
 }
@@ -680,7 +693,7 @@ static int parse_wdg(struct acpi_device *device)
 		if (!wblock)
 			return -ENOMEM;
 
-		wblock->handle = device->handle;
+		wblock->acpi_device = device;
 		wblock->gblock = gblock[i];
 
 		/*
@@ -689,10 +702,10 @@ static int parse_wdg(struct acpi_device *device)
 		  case yet, so for now, we'll just ignore the duplicate
 		  for device creation.
 		*/
-		if (!guid_already_parsed(gblock[i].guid)) {
+		if (!guid_already_parsed(device, gblock[i].guid)) {
 			retval = wmi_create_device(&gblock[i], wblock, device);
 			if (retval) {
-				wmi_free_devices();
+				wmi_free_devices(device);
 				goto out_free_pointer;
 			}
 		}
@@ -767,8 +780,9 @@ static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 		wblock = list_entry(p, struct wmi_block, list);
 		block = &wblock->gblock;
 
-		if ((block->flags & ACPI_WMI_EVENT) &&
-			(block->notify_id == event)) {
+		if (wblock->acpi_device == device &&
+		    (block->flags & ACPI_WMI_EVENT) &&
+		    (block->notify_id == event)) {
 			if (wblock->handler)
 				wblock->handler(event, wblock->handler_data);
 			if (debug_event) {
@@ -788,7 +802,7 @@ static int acpi_wmi_remove(struct acpi_device *device)
 {
 	acpi_remove_address_space_handler(device->handle,
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
-	wmi_free_devices();
+	wmi_free_devices(device);
 
 	return 0;
 }
