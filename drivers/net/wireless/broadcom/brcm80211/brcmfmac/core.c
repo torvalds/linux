@@ -1083,6 +1083,8 @@ fail:
 			brcmf_net_detach(ifp->ndev);
 		if (p2p_ifp)
 			brcmf_net_detach(p2p_ifp->ndev);
+		drvr->iflist[0] = NULL;
+		drvr->iflist[1] = NULL;
 		return ret;
 	}
 	return 0;
