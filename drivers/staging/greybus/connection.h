@@ -54,7 +54,7 @@ int svc_update_connection(struct gb_interface *intf,
 struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, u8 protocol_id);
 struct gb_connection *gb_connection_create_range(struct gb_host_device *hd,
-			   struct gb_bundle *bundle, struct device *parent,
+			   struct gb_bundle *bundle,
 			   u16 cport_id, u8 protocol_id, u32 ida_start,
 			   u32 ida_end);
 void gb_connection_destroy(struct gb_connection *connection);

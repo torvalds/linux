@@ -106,7 +106,7 @@ int svc_update_connection(struct gb_interface *intf,
  */
 struct gb_connection *
 gb_connection_create_range(struct gb_host_device *hd,
-			   struct gb_bundle *bundle, struct device *parent,
+			   struct gb_bundle *bundle,
 			   u16 cport_id, u8 protocol_id, u32 ida_start,
 			   u32 ida_end)
 {
@@ -152,7 +152,7 @@ gb_connection_create_range(struct gb_host_device *hd,
 	INIT_LIST_HEAD(&connection->operations);
 
 	connection->wq = alloc_workqueue("%s:%d", WQ_UNBOUND, 1,
-					 dev_name(parent), cport_id);
+					 dev_name(&hd->dev), hd_cport_id);
 	if (!connection->wq)
 		goto err_free_connection;
 
@@ -170,7 +170,7 @@ gb_connection_create_range(struct gb_host_device *hd,
 
 	retval = gb_connection_bind_protocol(connection);
 	if (retval) {
-		dev_err(parent, "%d: failed to bind protocol: %d\n",
+		dev_err(&hd->dev, "%d: failed to bind protocol: %d\n",
 			cport_id, retval);
 		gb_connection_destroy(connection);
 		return NULL;
@@ -218,7 +218,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, u8 protocol_id)
 {
 	return gb_connection_create_range(bundle->intf->hd, bundle,
-					  &bundle->dev, cport_id, protocol_id,
+					  cport_id, protocol_id,
 					  0, bundle->intf->hd->num_cports);
 }
 

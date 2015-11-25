@@ -101,7 +101,7 @@ int gb_create_bundle_connection(struct gb_interface *intf, u8 class)
 	if (!bundle)
 		return -EINVAL;
 
-	if (!gb_connection_create_range(bundle->intf->hd, bundle, &bundle->dev,
+	if (!gb_connection_create_range(bundle->intf->hd, bundle,
 					cport_id, protocol_id, ida_start,
 					ida_end))
 		return -EINVAL;
