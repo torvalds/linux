@@ -185,6 +185,7 @@
 		interrupts = <0 89 0>;
 		clocks = <&clock CLK_SCLK_FIMG2D>, <&clock CLK_G2D>;
 		clock-names = "sclk_fimg2d", "fimg2d";
+		power-domains = <&pd_lcd0>;
 		iommus = <&sysmmu_g2d>;
 		status = "disabled";
 	};
