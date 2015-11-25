@@ -267,6 +267,8 @@ static void kvm_s390_cpu_feat_init(void)
 	allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIEF2);
 	if (sclp.has_64bscao)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_64BSCAO);
+	if (sclp.has_siif)
+		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIIF);
 }
 
 int kvm_arch_init(void *opaque)

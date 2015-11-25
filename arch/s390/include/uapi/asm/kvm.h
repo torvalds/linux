@@ -100,6 +100,7 @@ struct kvm_s390_vm_cpu_machine {
 #define KVM_S390_VM_CPU_FEAT_ESOP	0
 #define KVM_S390_VM_CPU_FEAT_SIEF2	1
 #define KVM_S390_VM_CPU_FEAT_64BSCAO	2
+#define KVM_S390_VM_CPU_FEAT_SIIF	3
 struct kvm_s390_vm_cpu_feat {
 	__u64 feat[16];
 };
