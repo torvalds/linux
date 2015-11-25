@@ -945,6 +945,11 @@ static void snd_compress_proc_done(struct snd_compr *compr)
 	snd_info_free_entry(compr->proc_root);
 	compr->proc_root = NULL;
 }
+
+static inline void snd_compress_set_id(struct snd_compr *compr, const char *id)
+{
+	strlcpy(compr->id, id, sizeof(compr->id));
+}
 #else
 static inline int snd_compress_proc_init(struct snd_compr *compr)
 {
@@ -952,6 +957,10 @@ static inline int snd_compress_proc_init(struct snd_compr *compr)
 }
 
 static inline void snd_compress_proc_done(struct snd_compr *compr)
+{
+}
+
+static inline void snd_compress_set_id(struct snd_compr *compr, const char *id)
 {
 }
 #endif
@@ -974,7 +983,7 @@ static int snd_compress_dev_free(struct snd_device *device)
  * @compr: compress device pointer
  */
 int snd_compress_new(struct snd_card *card, int device,
-			int dirn, struct snd_compr *compr)
+			int dirn, const char *id, struct snd_compr *compr)
 {
 	static struct snd_device_ops ops = {
 		.dev_free = snd_compress_dev_free,
@@ -986,6 +995,8 @@ int snd_compress_new(struct snd_card *card, int device,
 	compr->card = card;
 	compr->device = device;
 	compr->direction = dirn;
+
+	snd_compress_set_id(compr, id);
 
 	snd_device_initialize(&compr->dev, card);
 	dev_set_name(&compr->dev, "comprC%iD%i", card->number, device);
