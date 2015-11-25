@@ -4756,7 +4756,6 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 	vif->wdev.iftype = type;
 
 	vif->pm_block = pm_block;
-	vif->roam_off = -1;
 
 	brcmf_init_prof(&vif->profile);
 
@@ -5306,35 +5305,33 @@ static void init_vif_event(struct brcmf_cfg80211_vif_event *event)
 	mutex_init(&event->vif_event_lock);
 }
 
-static s32
-brcmf_dongle_roam(struct brcmf_if *ifp, u32 bcn_timeout)
+static s32 brcmf_dongle_roam(struct brcmf_if *ifp)
 {
-	s32 err = 0;
+	s32 err;
+	u32 bcn_timeout;
 	__le32 roamtrigger[2];
 	__le32 roam_delta[2];
 
-	/*
-	 * Setup timeout if Beacons are lost and roam is
-	 * off to report link down
-	 */
-	if (brcmf_roamoff) {
-		err = brcmf_fil_iovar_int_set(ifp, "bcn_timeout", bcn_timeout);
-		if (err) {
-			brcmf_err("bcn_timeout error (%d)\n", err);
-			goto dongle_rom_out;
-		}
+	/* Configure beacon timeout value based upon roaming setting */
+	if (brcmf_roamoff)
+		bcn_timeout = BRCMF_DEFAULT_BCN_TIMEOUT_ROAM_OFF;
+	else
+		bcn_timeout = BRCMF_DEFAULT_BCN_TIMEOUT_ROAM_ON;
+	err = brcmf_fil_iovar_int_set(ifp, "bcn_timeout", bcn_timeout);
+	if (err) {
+		brcmf_err("bcn_timeout error (%d)\n", err);
+		goto roam_setup_done;
 	}
 
-	/*
-	 * Enable/Disable built-in roaming to allow supplicant
-	 * to take care of roaming
+	/* Enable/Disable built-in roaming to allow supplicant to take care of
+	 * roaming.
 	 */
 	brcmf_dbg(INFO, "Internal Roaming = %s\n",
 		  brcmf_roamoff ? "Off" : "On");
 	err = brcmf_fil_iovar_int_set(ifp, "roam_off", !!(brcmf_roamoff));
 	if (err) {
 		brcmf_err("roam_off error (%d)\n", err);
-		goto dongle_rom_out;
+		goto roam_setup_done;
 	}
 
 	roamtrigger[0] = cpu_to_le32(WL_ROAM_TRIGGER_LEVEL);
@@ -5343,7 +5340,7 @@ brcmf_dongle_roam(struct brcmf_if *ifp, u32 bcn_timeout)
 				     (void *)roamtrigger, sizeof(roamtrigger));
 	if (err) {
 		brcmf_err("WLC_SET_ROAM_TRIGGER error (%d)\n", err);
-		goto dongle_rom_out;
+		goto roam_setup_done;
 	}
 
 	roam_delta[0] = cpu_to_le32(WL_ROAM_DELTA);
@@ -5352,10 +5349,10 @@ brcmf_dongle_roam(struct brcmf_if *ifp, u32 bcn_timeout)
 				     (void *)roam_delta, sizeof(roam_delta));
 	if (err) {
 		brcmf_err("WLC_SET_ROAM_DELTA error (%d)\n", err);
-		goto dongle_rom_out;
+		goto roam_setup_done;
 	}
 
-dongle_rom_out:
+roam_setup_done:
 	return err;
 }
 
@@ -6070,7 +6067,7 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 	brcmf_dbg(INFO, "power save set to %s\n",
 		  (power_mode ? "enabled" : "disabled"));
 
-	err = brcmf_dongle_roam(ifp, WL_BEACON_TIMEOUT);
+	err = brcmf_dongle_roam(ifp);
 	if (err)
 		goto default_conf_out;
 	err = brcmf_cfg80211_change_iface(wdev->wiphy, ndev, wdev->iftype,

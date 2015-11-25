@@ -29,7 +29,6 @@
 
 const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-#define BRCMF_DEFAULT_BCN_TIMEOUT	3
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
 #define BRCMF_DEFAULT_SCAN_UNASSOC_TIME	40
 
@@ -104,26 +103,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_fil_iovar_int_set(ifp, "mpc", 1);
 	if (err) {
 		brcmf_err("failed setting mpc\n");
-		goto done;
-	}
-
-	/*
-	 * Setup timeout if Beacons are lost and roam is off to report
-	 * link down
-	 */
-	err = brcmf_fil_iovar_int_set(ifp, "bcn_timeout",
-				      BRCMF_DEFAULT_BCN_TIMEOUT);
-	if (err) {
-		brcmf_err("bcn_timeout error (%d)\n", err);
-		goto done;
-	}
-
-	/* Enable/Disable build-in roaming to allowed ext supplicant to take
-	 * of romaing
-	 */
-	err = brcmf_fil_iovar_int_set(ifp, "roam_off", 1);
-	if (err) {
-		brcmf_err("roam_off error (%d)\n", err);
 		goto done;
 	}
 
