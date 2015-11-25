@@ -498,4 +498,15 @@ config CRYPTO_DEV_SUN4I_SS
 	  To compile this driver as a module, choose M here: the module
 	  will be called sun4i-ss.
 
+config CRYPTO_DEV_ROCKCHIP
+	tristate "Rockchip's Cryptographic Engine driver"
+	depends on OF && ARCH_ROCKCHIP
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_BLKCIPHER
+
+	help
+	  This driver interfaces with the hardware crypto accelerator.
+	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
+
 endif # CRYPTO_HW
