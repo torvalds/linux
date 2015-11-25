@@ -187,7 +187,6 @@
 		clock-names = "sclk_fimg2d", "fimg2d";
 		power-domains = <&pd_lcd0>;
 		iommus = <&sysmmu_g2d>;
-		status = "disabled";
 	};
 
 	camera {
