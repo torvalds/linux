@@ -296,6 +296,15 @@ int ftrace_arch_code_modify_post_process(void);
 
 struct dyn_ftrace;
 
+enum ftrace_bug_type {
+	FTRACE_BUG_UNKNOWN,
+	FTRACE_BUG_INIT,
+	FTRACE_BUG_NOP,
+	FTRACE_BUG_CALL,
+	FTRACE_BUG_UPDATE,
+};
+extern enum ftrace_bug_type ftrace_bug_type;
+
 void ftrace_bug(int err, struct dyn_ftrace *rec);
 
 struct seq_file;

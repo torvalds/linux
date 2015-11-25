@@ -1953,6 +1953,28 @@ static void print_ip_ins(const char *fmt, unsigned char *p)
 static struct ftrace_ops *
 ftrace_find_tramp_ops_any(struct dyn_ftrace *rec);
 
+enum ftrace_bug_type ftrace_bug_type;
+
+static void print_bug_type(void)
+{
+	switch (ftrace_bug_type) {
+	case FTRACE_BUG_UNKNOWN:
+		break;
+	case FTRACE_BUG_INIT:
+		pr_info("Initializing ftrace call sites\n");
+		break;
+	case FTRACE_BUG_NOP:
+		pr_info("Setting ftrace call site to NOP\n");
+		break;
+	case FTRACE_BUG_CALL:
+		pr_info("Setting ftrace call site to call ftrace function\n");
+		break;
+	case FTRACE_BUG_UPDATE:
+		pr_info("Updating ftrace call site to call a different ftrace function\n");
+		break;
+	}
+}
+
 /**
  * ftrace_bug - report and shutdown function tracer
  * @failed: The failed type (EFAULT, EINVAL, EPERM)
@@ -1992,6 +2014,7 @@ void ftrace_bug(int failed, struct dyn_ftrace *rec)
 		pr_info("ftrace faulted on unknown error ");
 		print_ip_sym(ip);
 	}
+	print_bug_type();
 	if (rec) {
 		struct ftrace_ops *ops = NULL;
 
@@ -2015,6 +2038,8 @@ void ftrace_bug(int failed, struct dyn_ftrace *rec)
 static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 {
 	unsigned long flag = 0UL;
+
+	ftrace_bug_type = FTRACE_BUG_UNKNOWN;
 
 	/*
 	 * If we are updating calls:
@@ -2077,9 +2102,12 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 		 *   from the save regs, to a non-save regs function or
 		 *   vice versa, or from a trampoline call.
 		 */
-		if (flag & FTRACE_FL_ENABLED)
+		if (flag & FTRACE_FL_ENABLED) {
+			ftrace_bug_type = FTRACE_BUG_CALL;
 			return FTRACE_UPDATE_MAKE_CALL;
+		}
 
+		ftrace_bug_type = FTRACE_BUG_UPDATE;
 		return FTRACE_UPDATE_MODIFY_CALL;
 	}
 
@@ -2096,6 +2124,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 					FTRACE_FL_REGS_EN);
 	}
 
+	ftrace_bug_type = FTRACE_BUG_NOP;
 	return FTRACE_UPDATE_MAKE_NOP;
 }
 
@@ -2307,17 +2336,22 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 
 	ret = ftrace_update_record(rec, enable);
 
+	ftrace_bug_type = FTRACE_BUG_UNKNOWN;
+
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
 		return 0;
 
 	case FTRACE_UPDATE_MAKE_CALL:
+		ftrace_bug_type = FTRACE_BUG_CALL;
 		return ftrace_make_call(rec, ftrace_addr);
 
 	case FTRACE_UPDATE_MAKE_NOP:
+		ftrace_bug_type = FTRACE_BUG_NOP;
 		return ftrace_make_nop(NULL, rec, ftrace_old_addr);
 
 	case FTRACE_UPDATE_MODIFY_CALL:
+		ftrace_bug_type = FTRACE_BUG_UPDATE;
 		return ftrace_modify_call(rec, ftrace_old_addr, ftrace_addr);
 	}
 
@@ -2425,6 +2459,7 @@ ftrace_code_disable(struct module *mod, struct dyn_ftrace *rec)
 
 	ret = ftrace_make_nop(mod, rec, MCOUNT_ADDR);
 	if (ret) {
+		ftrace_bug_type = FTRACE_BUG_INIT;
 		ftrace_bug(ret, rec);
 		return 0;
 	}
