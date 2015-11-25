@@ -148,7 +148,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	bundle->dev.type = &greybus_bundle_type;
 	bundle->dev.groups = bundle_groups;
 	device_initialize(&bundle->dev);
-	dev_set_name(&bundle->dev, "%s:%d", dev_name(&intf->dev), bundle_id);
+	dev_set_name(&bundle->dev, "%s.%d", dev_name(&intf->dev), bundle_id);
 
 	retval = device_add(&bundle->dev);
 	if (retval) {
