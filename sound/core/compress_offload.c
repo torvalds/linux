@@ -40,6 +40,7 @@
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/info.h>
 #include <sound/compress_params.h>
 #include <sound/compress_offload.h>
 #include <sound/compress_driver.h>
@@ -891,11 +892,76 @@ static int snd_compress_dev_disconnect(struct snd_device *device)
 	return 0;
 }
 
+#ifdef CONFIG_SND_VERBOSE_PROCFS
+static void snd_compress_proc_info_read(struct snd_info_entry *entry,
+					struct snd_info_buffer *buffer)
+{
+	struct snd_compr *compr = (struct snd_compr *)entry->private_data;
+
+	snd_iprintf(buffer, "card: %d\n", compr->card->number);
+	snd_iprintf(buffer, "device: %d\n", compr->device);
+	snd_iprintf(buffer, "stream: %s\n",
+			compr->direction == SND_COMPRESS_PLAYBACK
+				? "PLAYBACK" : "CAPTURE");
+	snd_iprintf(buffer, "id: %s\n", compr->id);
+}
+
+static int snd_compress_proc_init(struct snd_compr *compr)
+{
+	struct snd_info_entry *entry;
+	char name[16];
+
+	sprintf(name, "compr%i", compr->device);
+	entry = snd_info_create_card_entry(compr->card, name,
+					   compr->card->proc_root);
+	if (!entry)
+		return -ENOMEM;
+	entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	if (snd_info_register(entry) < 0) {
+		snd_info_free_entry(entry);
+		return -ENOMEM;
+	}
+	compr->proc_root = entry;
+
+	entry = snd_info_create_card_entry(compr->card, "info",
+					   compr->proc_root);
+	if (entry) {
+		snd_info_set_text_ops(entry, compr,
+				      snd_compress_proc_info_read);
+		if (snd_info_register(entry) < 0) {
+			snd_info_free_entry(entry);
+			entry = NULL;
+		}
+	}
+	compr->proc_info_entry = entry;
+
+	return 0;
+}
+
+static void snd_compress_proc_done(struct snd_compr *compr)
+{
+	snd_info_free_entry(compr->proc_info_entry);
+	compr->proc_info_entry = NULL;
+	snd_info_free_entry(compr->proc_root);
+	compr->proc_root = NULL;
+}
+#else
+static inline int snd_compress_proc_init(struct snd_compr *compr)
+{
+	return 0;
+}
+
+static inline void snd_compress_proc_done(struct snd_compr *compr)
+{
+}
+#endif
+
 static int snd_compress_dev_free(struct snd_device *device)
 {
 	struct snd_compr *compr;
 
 	compr = device->device_data;
+	snd_compress_proc_done(compr);
 	put_device(&compr->dev);
 	return 0;
 }
@@ -915,6 +981,7 @@ int snd_compress_new(struct snd_card *card, int device,
 		.dev_register = snd_compress_dev_register,
 		.dev_disconnect = snd_compress_dev_disconnect,
 	};
+	int ret;
 
 	compr->card = card;
 	compr->device = device;
@@ -923,7 +990,11 @@ int snd_compress_new(struct snd_card *card, int device,
 	snd_device_initialize(&compr->dev, card);
 	dev_set_name(&compr->dev, "comprC%iD%i", card->number, device);
 
-	return snd_device_new(card, SNDRV_DEV_COMPRESS, compr, &ops);
+	ret = snd_device_new(card, SNDRV_DEV_COMPRESS, compr, &ops);
+	if (ret == 0)
+		snd_compress_proc_init(compr);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_compress_new);
 
