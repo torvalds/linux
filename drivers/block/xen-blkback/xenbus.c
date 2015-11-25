@@ -996,7 +996,7 @@ static int connect_ring(struct backend_info *be)
 		be->blkif->blk_protocol = BLKIF_PROTOCOL_X86_64;
 	else {
 		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
-		return -1;
+		return -ENOSYS;
 	}
 	err = xenbus_gather(XBT_NIL, dev->otherend,
 			    "feature-persistent", "%u",

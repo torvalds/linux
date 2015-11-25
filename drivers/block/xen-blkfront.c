@@ -828,11 +828,11 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 	info->tag_set.driver_data = info;
 
 	if (blk_mq_alloc_tag_set(&info->tag_set))
-		return -1;
+		return -EINVAL;
 	rq = blk_mq_init_queue(&info->tag_set);
 	if (IS_ERR(rq)) {
 		blk_mq_free_tag_set(&info->tag_set);
-		return -1;
+		return PTR_ERR(rq);
 	}
 
 	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
