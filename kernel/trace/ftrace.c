@@ -1952,6 +1952,8 @@ static void print_ip_ins(const char *fmt, const unsigned char *p)
 
 static struct ftrace_ops *
 ftrace_find_tramp_ops_any(struct dyn_ftrace *rec);
+static struct ftrace_ops *
+ftrace_find_tramp_ops_next(struct dyn_ftrace *rec, struct ftrace_ops *ops);
 
 enum ftrace_bug_type ftrace_bug_type;
 const void *ftrace_expected;
@@ -2028,15 +2030,19 @@ void ftrace_bug(int failed, struct dyn_ftrace *rec)
 			rec->flags & FTRACE_FL_REGS ? " R" : "  ");
 		if (rec->flags & FTRACE_FL_TRAMP_EN) {
 			ops = ftrace_find_tramp_ops_any(rec);
-			if (ops)
-				pr_cont("\ttramp: %pS",
-					(void *)ops->trampoline);
-			else
+			if (ops) {
+				do {
+					pr_cont("\ttramp: %pS (%pS)",
+						(void *)ops->trampoline,
+						(void *)ops->func);
+					ops = ftrace_find_tramp_ops_next(rec, ops);
+				} while (ops);
+			} else
 				pr_cont("\ttramp: ERROR!");
 
 		}
 		ip = ftrace_get_addr_curr(rec);
-		pr_cont(" expected tramp: %lx\n", ip);
+		pr_cont("\n expected tramp: %lx\n", ip);
 	}
 }
 
@@ -2174,6 +2180,24 @@ ftrace_find_tramp_ops_any(struct dyn_ftrace *rec)
 		if (hash_contains_ip(ip, op->func_hash))
 			return op;
 	} while_for_each_ftrace_op(op);
+
+	return NULL;
+}
+
+static struct ftrace_ops *
+ftrace_find_tramp_ops_next(struct dyn_ftrace *rec,
+			   struct ftrace_ops *op)
+{
+	unsigned long ip = rec->ip;
+
+	while_for_each_ftrace_op(op) {
+
+		if (!op->trampoline)
+			continue;
+
+		if (hash_contains_ip(ip, op->func_hash))
+			return op;
+	} 
 
 	return NULL;
 }
@@ -3306,10 +3330,14 @@ static int t_show(struct seq_file *m, void *v)
 			   rec->flags & FTRACE_FL_IPMODIFY ? " I" : "  ");
 		if (rec->flags & FTRACE_FL_TRAMP_EN) {
 			ops = ftrace_find_tramp_ops_any(rec);
-			if (ops)
-				seq_printf(m, "\ttramp: %pS",
-					   (void *)ops->trampoline);
-			else
+			if (ops) {
+				do {
+					seq_printf(m, "\ttramp: %pS (%pS)",
+						   (void *)ops->trampoline,
+						   (void *)ops->func);
+					ops = ftrace_find_tramp_ops_next(rec, ops);
+				} while (ops);
+			} else
 				seq_puts(m, "\ttramp: ERROR!");
 
 		}
