@@ -96,7 +96,6 @@ __start_interrupts:
 
 	.globl system_reset_pSeries;
 system_reset_pSeries:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 #ifdef CONFIG_PPC_P7_NAP
 BEGIN_FTR_SECTION
@@ -164,7 +163,6 @@ machine_check_pSeries_1:
 	 * some code path might still want to branch into the original
 	 * vector
 	 */
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)		/* save r13 */
 #ifdef CONFIG_PPC_P7_NAP
 BEGIN_FTR_SECTION
@@ -199,7 +197,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 	. = 0x300
 	.globl data_access_pSeries
 data_access_pSeries:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common, EXC_STD,
 				 KVMTEST, 0x300)
@@ -207,7 +204,6 @@ data_access_pSeries:
 	. = 0x380
 	.globl data_access_slb_pSeries
 data_access_slb_pSeries:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST, 0x380)
@@ -239,7 +235,6 @@ data_access_slb_pSeries:
 	. = 0x480
 	.globl instruction_access_slb_pSeries
 instruction_access_slb_pSeries:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST, 0x480)
@@ -269,7 +264,6 @@ instruction_access_slb_pSeries:
 	.globl hardware_interrupt_hv;
 hardware_interrupt_pSeries:
 hardware_interrupt_hv:
-	HMT_MEDIUM_PPR_DISCARD
 	BEGIN_FTR_SECTION
 		_MASKABLE_EXCEPTION_PSERIES(0x502, hardware_interrupt,
 					    EXC_HV, SOFTEN_TEST_HV)
@@ -413,7 +407,6 @@ hv_facility_unavailable_trampoline:
 	. = 0x1500
 	.global denorm_exception_hv
 denorm_exception_hv:
-	HMT_MEDIUM_PPR_DISCARD
 	mtspr	SPRN_SPRG_HSCRATCH0,r13
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x1500)
@@ -527,7 +520,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 machine_check_pSeries:
 	.globl machine_check_fwnmi
 machine_check_fwnmi:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_0(PACA_EXMC)
 machine_check_pSeries_0:
@@ -711,7 +703,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 	.globl system_reset_fwnmi
       .align 7
 system_reset_fwnmi:
-	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
 				 NOTEST, 0x100)
