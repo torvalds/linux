@@ -316,7 +316,13 @@ syscall_exit_work:
 	subi	r12,r12,TI_FLAGS
 
 4:	/* Anything else left to do? */
-	SET_DEFAULT_THREAD_PPR(r3, r10)		/* Set thread.ppr = 3 */
+BEGIN_FTR_SECTION
+	lis	r3,INIT_PPR@highest	/* Set thread.ppr = 3 */
+	ld	r10,PACACURRENT(r13)
+	sldi	r3,r3,32	/* bits 11-13 are used for ppr */
+	std	r3,TASKTHREADPPR(r10)
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP)
 	beq	ret_from_except_lite
 
