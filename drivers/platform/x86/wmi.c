@@ -757,6 +757,15 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 		if (debug_dump_wdg)
 			wmi_dump_wdg(&gblock[i]);
 
+		/*
+		 * Some WMI devices, like those for nVidia hooks, have a
+		 * duplicate GUID. It's not clear what we should do in this
+		 * case yet, so for now, we'll just ignore the duplicate
+		 * for device creation.
+		 */
+		if (guid_already_parsed(device, gblock[i].guid))
+			continue;
+
 		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
 		if (!wblock)
 			return -ENOMEM;
@@ -764,19 +773,12 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 		wblock->acpi_device = device;
 		wblock->gblock = gblock[i];
 
-		/*
-		  Some WMI devices, like those for nVidia hooks, have a
-		  duplicate GUID. It's not clear what we should do in this
-		  case yet, so for now, we'll just ignore the duplicate
-		  for device creation.
-		*/
-		if (!guid_already_parsed(device, gblock[i].guid)) {
-			retval = wmi_create_device(wmi_bus_dev, &gblock[i],
-						   wblock, device);
-			if (retval) {
-				wmi_free_devices(device);
-				goto out_free_pointer;
-			}
+		retval = wmi_create_device(wmi_bus_dev, &gblock[i],
+					   wblock, device);
+		if (retval) {
+			put_device(&wblock->dev.dev);
+			wmi_free_devices(device);
+			goto out_free_pointer;
 		}
 
 		list_add_tail(&wblock->list, &wmi_block_list);
