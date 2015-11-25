@@ -1824,8 +1824,24 @@ static void ibx_hpd_irq_handler(struct drm_device *dev, u32 hotplug_trigger,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
 
+	/*
+	 * Somehow the PCH doesn't seem to really ack the interrupt to the CPU
+	 * unless we touch the hotplug register, even if hotplug_trigger is
+	 * zero. Not acking leads to "The master control interrupt lied (SDE)!"
+	 * errors.
+	 */
 	dig_hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+	if (!hotplug_trigger) {
+		u32 mask = PORTA_HOTPLUG_STATUS_MASK |
+			PORTD_HOTPLUG_STATUS_MASK |
+			PORTC_HOTPLUG_STATUS_MASK |
+			PORTB_HOTPLUG_STATUS_MASK;
+		dig_hotplug_reg &= ~mask;
+	}
+
 	I915_WRITE(PCH_PORT_HOTPLUG, dig_hotplug_reg);
+	if (!hotplug_trigger)
+		return;
 
 	intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
 			   dig_hotplug_reg, hpd,
@@ -1840,8 +1856,7 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
-	if (hotplug_trigger)
-		ibx_hpd_irq_handler(dev, hotplug_trigger, hpd_ibx);
+	ibx_hpd_irq_handler(dev, hotplug_trigger, hpd_ibx);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK) >>
@@ -1934,8 +1949,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
-	if (hotplug_trigger)
-		ibx_hpd_irq_handler(dev, hotplug_trigger, hpd_cpt);
+	ibx_hpd_irq_handler(dev, hotplug_trigger, hpd_cpt);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
