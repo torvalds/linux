@@ -946,7 +946,7 @@ static void brcmf_escan_prep(struct brcmf_cfg80211_info *cfg,
 
 static s32
 brcmf_run_escan(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
-		struct cfg80211_scan_request *request, u16 action)
+		struct cfg80211_scan_request *request)
 {
 	s32 params_size = BRCMF_SCAN_PARAMS_FIXED_SIZE +
 			  offsetof(struct brcmf_escan_params_le, params_le);
@@ -971,7 +971,7 @@ brcmf_run_escan(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 	BUG_ON(params_size + sizeof("escan") >= BRCMF_DCMD_MEDLEN);
 	brcmf_escan_prep(cfg, &params->params_le, request);
 	params->version = cpu_to_le32(BRCMF_ESCAN_REQ_VERSION);
-	params->action = cpu_to_le16(action);
+	params->action = cpu_to_le16(WL_ESCAN_ACTION_START);
 	params->sync_id = cpu_to_le16(0x1234);
 
 	err = brcmf_fil_iovar_data_set(ifp, "escan", params, params_size);
@@ -1013,7 +1013,7 @@ brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
 	results->count = 0;
 	results->buflen = WL_ESCAN_RESULTS_FIXED_SIZE;
 
-	err = escan->run(cfg, ifp, request, WL_ESCAN_ACTION_START);
+	err = escan->run(cfg, ifp, request);
 	if (err)
 		brcmf_scan_config_mpc(ifp, 1);
 	return err;

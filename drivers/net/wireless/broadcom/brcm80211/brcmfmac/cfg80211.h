@@ -231,7 +231,7 @@ struct escan_info {
 	struct wiphy *wiphy;
 	struct brcmf_if *ifp;
 	s32 (*run)(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
-		   struct cfg80211_scan_request *request, u16 action);
+		   struct cfg80211_scan_request *request);
 };
 
 /**

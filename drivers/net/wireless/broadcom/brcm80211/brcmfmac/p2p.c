@@ -625,11 +625,10 @@ exit:
  * @num_chans: number of channels to scan.
  * @chanspecs: channel parameters for @num_chans channels.
  * @search_state: P2P discover state to use.
- * @action: scan action to pass to firmware.
  * @bss_type: type of P2P bss.
  */
 static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
-			   u16 chanspecs[], s32 search_state, u16 action,
+			   u16 chanspecs[], s32 search_state,
 			   enum p2p_bss_type bss_type)
 {
 	s32 ret = 0;
@@ -738,7 +737,7 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 
 	/* set the escan specific parameters */
 	p2p_params->eparams.version = cpu_to_le32(BRCMF_ESCAN_REQ_VERSION);
-	p2p_params->eparams.action =  cpu_to_le16(action);
+	p2p_params->eparams.action =  cpu_to_le16(WL_ESCAN_ACTION_START);
 	p2p_params->eparams.sync_id = cpu_to_le16(0x1234);
 	/* perform p2p scan on primary device */
 	ret = brcmf_fil_bsscfg_data_set(vif->ifp, "p2p_scan", memblk, memsize);
@@ -762,8 +761,7 @@ exit:
  */
 static s32 brcmf_p2p_run_escan(struct brcmf_cfg80211_info *cfg,
 			       struct brcmf_if *ifp,
-			       struct cfg80211_scan_request *request,
-			       u16 action)
+			       struct cfg80211_scan_request *request)
 {
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
 	s32 err = 0;
@@ -823,7 +821,7 @@ static s32 brcmf_p2p_run_escan(struct brcmf_cfg80211_info *cfg,
 			num_nodfs++;
 		}
 		err = brcmf_p2p_escan(p2p, num_nodfs, chanspecs, search_state,
-				      action, P2PAPI_BSSCFG_DEVICE);
+				      P2PAPI_BSSCFG_DEVICE);
 		kfree(chanspecs);
 	}
 exit:
@@ -1092,8 +1090,7 @@ static s32 brcmf_p2p_act_frm_search(struct brcmf_p2p_info *p2p, u16 channel)
 		default_chan_list[2] = ch.chspec;
 	}
 	err = brcmf_p2p_escan(p2p, channel_cnt, default_chan_list,
-			      WL_P2P_DISC_ST_SEARCH, WL_ESCAN_ACTION_START,
-			      P2PAPI_BSSCFG_DEVICE);
+			      WL_P2P_DISC_ST_SEARCH, P2PAPI_BSSCFG_DEVICE);
 	kfree(default_chan_list);
 exit:
 	return err;
