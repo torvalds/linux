@@ -153,6 +153,9 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		goto done;
 	}
 
+	/* Enable tx beamforming, errors can be ignored (not supported) */
+	(void)brcmf_fil_iovar_int_set(ifp, "txbf", 1);
+
 	/* do bus specific preinit here */
 	err = brcmf_bus_preinit(ifp->drvr->bus_if);
 done:

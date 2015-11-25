@@ -5672,7 +5672,8 @@ static __le16 brcmf_get_mcs_map(u32 nchain, enum ieee80211_vht_mcs_support supp)
 }
 
 static void brcmf_update_vht_cap(struct ieee80211_supported_band *band,
-				 u32 bw_cap[2], u32 nchain)
+				 u32 bw_cap[2], u32 nchain, u32 txstreams,
+				 u32 txbf_bfe_cap, u32 txbf_bfr_cap)
 {
 	__le16 mcs_map;
 
@@ -5691,6 +5692,25 @@ static void brcmf_update_vht_cap(struct ieee80211_supported_band *band,
 	mcs_map = brcmf_get_mcs_map(nchain, IEEE80211_VHT_MCS_SUPPORT_0_9);
 	band->vht_cap.vht_mcs.rx_mcs_map = mcs_map;
 	band->vht_cap.vht_mcs.tx_mcs_map = mcs_map;
+
+	/* Beamforming support information */
+	if (txbf_bfe_cap & BRCMF_TXBF_SU_BFE_CAP)
+		band->vht_cap.cap |= IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
+	if (txbf_bfe_cap & BRCMF_TXBF_MU_BFE_CAP)
+		band->vht_cap.cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
+	if (txbf_bfr_cap & BRCMF_TXBF_SU_BFR_CAP)
+		band->vht_cap.cap |= IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
+	if (txbf_bfr_cap & BRCMF_TXBF_MU_BFR_CAP)
+		band->vht_cap.cap |= IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE;
+
+	if ((txbf_bfe_cap || txbf_bfr_cap) && (txstreams > 1)) {
+		band->vht_cap.cap |=
+			(2 << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT);
+		band->vht_cap.cap |= ((txstreams - 1) <<
+				IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT);
+		band->vht_cap.cap |=
+			IEEE80211_VHT_CAP_VHT_LINK_ADAPTATION_VHT_MRQ_MFB;
+	}
 }
 
 static int brcmf_setup_wiphybands(struct wiphy *wiphy)
@@ -5705,6 +5725,9 @@ static int brcmf_setup_wiphybands(struct wiphy *wiphy)
 	int err;
 	s32 i;
 	struct ieee80211_supported_band *band;
+	u32 txstreams = 0;
+	u32 txbf_bfe_cap = 0;
+	u32 txbf_bfr_cap = 0;
 
 	(void)brcmf_fil_iovar_int_get(ifp, "vhtmode", &vhtmode);
 	err = brcmf_fil_iovar_int_get(ifp, "nmode", &nmode);
@@ -5733,6 +5756,14 @@ static int brcmf_setup_wiphybands(struct wiphy *wiphy)
 		return err;
 	}
 
+	if (vhtmode) {
+		(void)brcmf_fil_iovar_int_get(ifp, "txstreams", &txstreams);
+		(void)brcmf_fil_iovar_int_get(ifp, "txbf_bfe_cap",
+					      &txbf_bfe_cap);
+		(void)brcmf_fil_iovar_int_get(ifp, "txbf_bfr_cap",
+					      &txbf_bfr_cap);
+	}
+
 	wiphy = cfg_to_wiphy(cfg);
 	for (i = 0; i < ARRAY_SIZE(wiphy->bands); i++) {
 		band = wiphy->bands[i];
@@ -5742,7 +5773,8 @@ static int brcmf_setup_wiphybands(struct wiphy *wiphy)
 		if (nmode)
 			brcmf_update_ht_cap(band, bw_cap, nchain);
 		if (vhtmode)
-			brcmf_update_vht_cap(band, bw_cap, nchain);
+			brcmf_update_vht_cap(band, bw_cap, nchain, txstreams,
+					     txbf_bfe_cap, txbf_bfr_cap);
 	}
 
 	return 0;
