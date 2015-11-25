@@ -14,6 +14,9 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/cpufreq_sched.h>
+
 #include "sched.h"
 
 #define THROTTLE_NSEC		50000000 /* 50ms default */
@@ -78,6 +81,7 @@ static bool finish_last_request(struct gov_data *gd)
 		int usec_left = ktime_to_ns(ktime_sub(gd->throttle, now));
 
 		usec_left /= NSEC_PER_USEC;
+		trace_cpufreq_sched_throttled(usec_left);
 		usleep_range(usec_left, usec_left + 100);
 		now = ktime_get();
 		if (ktime_after(now, gd->throttle))
@@ -183,6 +187,9 @@ static void update_fdomain_capacity_request(int cpu)
 	index_new = cpufreq_frequency_table_target(policy, freq_new, CPUFREQ_RELATION_L);
 	freq_new = policy->freq_table[index_new].frequency;
 
+	trace_cpufreq_sched_request_opp(cpu, capacity, freq_new,
+					gd->requested_freq);
+
 	if (freq_new == gd->requested_freq)
 		goto out;
 
@@ -218,6 +225,8 @@ void update_cpu_capacity_request(int cpu, bool request)
 
 	if (new_capacity == scr->total)
 		return;
+
+	trace_cpufreq_sched_update_capacity(cpu, request, scr, new_capacity);
 
 	scr->total = new_capacity;
 	if (request)
