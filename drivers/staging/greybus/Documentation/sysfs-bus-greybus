@@ -1,13 +1,19 @@
-What:		/sys/bus/greybus/device/endoE
+What:		/sys/bus/greybus/device/greybusN
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		The "root" endo devices for the Greybus device tree. E
-		is replaced with a 2 byte number representing the endo,
-		mostly 0.
+		The "root" greybus device for the Greybus device tree, or bus,
+		where N is a dynamically assigned 1-based id.
 
-What:		/sys/bus/greybus/device/endoE/id
+What:		/sys/bus/greybus/device/N-svc/endo_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The singleton SVC device of bus N.
+
+What:		/sys/bus/greybus/device/N-svc/endo_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -16,112 +22,74 @@ Description:
 		defined by the Endo layout scheme, documented in
 		the ARA Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endoE/ap_intf_id
+What:		/sys/bus/greybus/device/N-svc/ap_intf_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The AP interface ID, a 1-byte non-zero integer which
-		defines the position of the AP module on the Endo.
+		defines the position of the AP module on the frame.
 		The interface positions are defined in the ARA
 		Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endoE/svc/serial_number
+What:		/sys/bus/greybus/device/N-svc/unique_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		The serial number of the SVC device
+		The unique ID, or serial number, of the SVC device
 
-What:		/sys/bus/greybus/device/endoE/svc/version
+What:		/sys/bus/greybus/device/N-svc/version
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The version number of the firmware in the SVC device.
 
-What:		/sys/bus/greybus/device/endoE:M
+What:		/sys/bus/greybus/device/N-I
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		A module slot on the endoE, M is replaced by a 1-byte
-		number representing the module slot.
+		An Interface I on the bus N, where I is the 1-byte interface
+		ID.
 
-What:		/sys/bus/greybus/device/endoE:M/epm
+What:		/sys/bus/greybus/device/N-I/interface_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		The EPM (Electropermanent Magnet) control file for
-		the specific module slot the file is present in.
-		Writing 1 to it turns it on, writing 0 to it turns it
-		off.  Reading the value returns if it is on or off.
+		The ID of a Greybus interface.
 
-What:		/sys/bus/greybus/device/endoE:M/power_control
+What:		/sys/bus/greybus/device/N-I/product_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		The power control file for the specific module slot that
-		the file is present in.  Writing 1 to it turns power on
-		to the module, writing 0 to it turns power off to the
-		module.  Reading the value returns if it is on or off.
+		Product ID of a Greybus interface.
 
-What:		/sys/bus/greybus/device/endoE:M/present
+What:		/sys/bus/greybus/device/N-I/product_string
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		The "is a module present in the slot" file for the
-		specific module slot that the file is present in.
-		This is read-only, 1 means a module is present, 0 means
-		no module is present.
+		Product ID string of a Greybus interface.
 
-What:		/sys/bus/greybus/device/endoE:M:I
+What:		/sys/bus/greybus/device/N-I/vendor_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		An Interface I on the module slot M on the endoE, I is
-		replaced by a 1-byte number representing the interface.
+		Vendor ID of a Greybus interface.
 
-What:		/sys/bus/greybus/device/endoE:M:I/device_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The device ID of a Greybus interface block.
-
-What:		/sys/bus/greybus/device/endoE:M:I/product
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Product ID of a Greybus interface block.
-
-What:		/sys/bus/greybus/device/endoE:M:I/product_string
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Product ID string of a Greybus interface block.
-
-What:		/sys/bus/greybus/device/endoE:M:I/vendor
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		Vendor ID of a Greybus interface block.
-
-What:		/sys/bus/greybus/device/endoE:M:I/vendor_string
+What:		/sys/bus/greybus/device/N-I/vendor_string
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Vendor ID string of a Greybus interface block.
 
-What:		/sys/bus/greybus/device/endoE:M:I:B
+What:		/sys/bus/greybus/device/N-I.B
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -129,14 +97,14 @@ Description:
 		A bundle B on the Interface I, B is replaced by a 1-byte
 		number representing the bundle.
 
-What:		/sys/bus/greybus/device/endoE:M:I:B/class
+What:		/sys/bus/greybus/device/N-I.B/bundle_class
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The greybus class of the bundle B.
 
-What:		/sys/bus/greybus/device/endoE:M:I:B/state
+What:		/sys/bus/greybus/device/N-I.B/state
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
