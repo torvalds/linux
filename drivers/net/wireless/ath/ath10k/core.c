@@ -1753,7 +1753,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 
 	ret = ath10k_core_get_board_id_from_otp(ar);
 	if (ret && ret != -EOPNOTSUPP) {
-		ath10k_err(ar, "failed to get board id from otp for qca99x0: %d\n",
+		ath10k_err(ar, "failed to get board id from otp: %d\n",
 			   ret);
 		return ret;
 	}
