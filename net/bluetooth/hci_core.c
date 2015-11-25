@@ -1399,10 +1399,10 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		    !hci_dev_test_flag(hdev, HCI_CONFIG) &&
 		    !hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
 		    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
+		    hci_dev_test_flag(hdev, HCI_MGMT) &&
 		    hdev->dev_type == HCI_BREDR) {
-			hci_dev_lock(hdev);
-			mgmt_powered(hdev, 1);
-			hci_dev_unlock(hdev);
+			ret = __hci_req_hci_power_on(hdev);
+			mgmt_power_on(hdev, ret);
 		}
 	} else {
 		/* Init failed, cleanup */
@@ -1559,8 +1559,9 @@ int hci_dev_do_close(struct hci_dev *hdev)
 
 	auto_off = hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF);
 
-	if (!auto_off && hdev->dev_type == HCI_BREDR)
-		mgmt_powered(hdev, 0);
+	if (!auto_off && hdev->dev_type == HCI_BREDR &&
+	    hci_dev_test_flag(hdev, HCI_MGMT))
+		__mgmt_power_off(hdev);
 
 	hci_inquiry_cache_flush(hdev);
 	hci_pend_le_actions_clear(hdev);
@@ -2012,6 +2013,16 @@ static void hci_power_on(struct work_struct *work)
 	int err;
 
 	BT_DBG("%s", hdev->name);
+
+	if (test_bit(HCI_UP, &hdev->flags) &&
+	    hci_dev_test_flag(hdev, HCI_MGMT) &&
+	    hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
+		hci_req_sync_lock(hdev);
+		err = __hci_req_hci_power_on(hdev);
+		hci_req_sync_unlock(hdev);
+		mgmt_power_on(hdev, err);
+		return;
+	}
 
 	err = hci_dev_do_open(hdev);
 	if (err < 0) {

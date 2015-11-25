@@ -961,17 +961,6 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
-		cancel_delayed_work(&hdev->power_off);
-
-		if (cp->val) {
-			mgmt_pending_add(sk, MGMT_OP_SET_POWERED, hdev,
-					 data, len);
-			err = mgmt_powered(hdev, 1);
-			goto failed;
-		}
-	}
-
 	if (!!cp->val == hdev_is_powered(hdev)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_POWERED, hdev);
 		goto failed;
@@ -6434,139 +6423,33 @@ static void restart_le_actions(struct hci_dev *hdev)
 	}
 }
 
-static void powered_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+void mgmt_power_on(struct hci_dev *hdev, int err)
 {
 	struct cmd_lookup match = { NULL, hdev };
 
-	BT_DBG("status 0x%02x", status);
+	BT_DBG("err %d", err);
 
-	if (!status) {
+	hci_dev_lock(hdev);
+
+	if (!err) {
 		restart_le_actions(hdev);
 		hci_update_background_scan(hdev);
 	}
-
-	hci_dev_lock(hdev);
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
 	new_settings(hdev, match.sk);
 
-	hci_dev_unlock(hdev);
-
 	if (match.sk)
 		sock_put(match.sk);
+
+	hci_dev_unlock(hdev);
 }
 
-static int powered_update_hci(struct hci_dev *hdev)
-{
-	struct hci_request req;
-	struct adv_info *adv_instance;
-	u8 link_sec;
-
-	hci_req_init(&req, hdev);
-
-	if (hci_dev_test_flag(hdev, HCI_SSP_ENABLED) &&
-	    !lmp_host_ssp_capable(hdev)) {
-		u8 mode = 0x01;
-
-		hci_req_add(&req, HCI_OP_WRITE_SSP_MODE, sizeof(mode), &mode);
-
-		if (bredr_sc_enabled(hdev) && !lmp_host_sc_capable(hdev)) {
-			u8 support = 0x01;
-
-			hci_req_add(&req, HCI_OP_WRITE_SC_SUPPORT,
-				    sizeof(support), &support);
-		}
-	}
-
-	if (hci_dev_test_flag(hdev, HCI_LE_ENABLED) &&
-	    lmp_bredr_capable(hdev)) {
-		struct hci_cp_write_le_host_supported cp;
-
-		cp.le = 0x01;
-		cp.simul = 0x00;
-
-		/* Check first if we already have the right
-		 * host state (host features set)
-		 */
-		if (cp.le != lmp_host_le_capable(hdev) ||
-		    cp.simul != lmp_host_le_br_capable(hdev))
-			hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED,
-				    sizeof(cp), &cp);
-	}
-
-	if (lmp_le_capable(hdev)) {
-		/* Make sure the controller has a good default for
-		 * advertising data. This also applies to the case
-		 * where BR/EDR was toggled during the AUTO_OFF phase.
-		 */
-		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED) &&
-		    (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-		     !hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))) {
-			__hci_req_update_adv_data(&req, HCI_ADV_CURRENT);
-			__hci_req_update_scan_rsp_data(&req, HCI_ADV_CURRENT);
-		}
-
-		if (hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) &&
-		    hdev->cur_adv_instance == 0x00 &&
-		    !list_empty(&hdev->adv_instances)) {
-			adv_instance = list_first_entry(&hdev->adv_instances,
-							struct adv_info, list);
-			hdev->cur_adv_instance = adv_instance->instance;
-		}
-
-		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
-			__hci_req_enable_advertising(&req);
-		else if (hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) &&
-			 hdev->cur_adv_instance)
-			__hci_req_schedule_adv_instance(&req,
-							hdev->cur_adv_instance,
-							true);
-	}
-
-	link_sec = hci_dev_test_flag(hdev, HCI_LINK_SECURITY);
-	if (link_sec != test_bit(HCI_AUTH, &hdev->flags))
-		hci_req_add(&req, HCI_OP_WRITE_AUTH_ENABLE,
-			    sizeof(link_sec), &link_sec);
-
-	if (lmp_bredr_capable(hdev)) {
-		if (hci_dev_test_flag(hdev, HCI_FAST_CONNECTABLE))
-			__hci_req_write_fast_connectable(&req, true);
-		else
-			__hci_req_write_fast_connectable(&req, false);
-		__hci_req_update_scan(&req);
-		__hci_req_update_class(&req);
-		__hci_req_update_name(&req);
-		__hci_req_update_eir(&req);
-	}
-
-	return hci_req_run(&req, powered_complete);
-}
-
-int mgmt_powered(struct hci_dev *hdev, u8 powered)
+void __mgmt_power_off(struct hci_dev *hdev)
 {
 	struct cmd_lookup match = { NULL, hdev };
 	u8 status, zero_cod[] = { 0, 0, 0 };
-	int err;
-
-	if (!hci_dev_test_flag(hdev, HCI_MGMT))
-		return 0;
-
-	if (powered) {
-		/* Register the available SMP channels (BR/EDR and LE) only
-		 * when successfully powering on the controller. This late
-		 * registration is required so that LE SMP can clearly
-		 * decide if the public address or static address is used.
-		 */
-		smp_register(hdev);
-
-		if (powered_update_hci(hdev) == 0)
-			return 0;
-
-		mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp,
-				     &match);
-		goto new_settings;
-	}
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
@@ -6588,13 +6471,10 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 		mgmt_generic_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev,
 				   zero_cod, sizeof(zero_cod), NULL);
 
-new_settings:
-	err = new_settings(hdev, match.sk);
+	new_settings(hdev, match.sk);
 
 	if (match.sk)
 		sock_put(match.sk);
-
-	return err;
 }
 
 void mgmt_set_powered_failed(struct hci_dev *hdev, int err)
