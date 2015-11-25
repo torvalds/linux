@@ -362,8 +362,8 @@ static void __init __map_memblock(phys_addr_t start, phys_addr_t end)
 	 * for now. This will get more fine grained later once all memory
 	 * is mapped
 	 */
-	unsigned long kernel_x_start = round_down(__pa(_stext), SECTION_SIZE);
-	unsigned long kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
+	unsigned long kernel_x_start = round_down(__pa(_stext), SWAPPER_BLOCK_SIZE);
+	unsigned long kernel_x_end = round_up(__pa(__init_end), SWAPPER_BLOCK_SIZE);
 
 	if (end < kernel_x_start) {
 		create_mapping(start, __phys_to_virt(start),
@@ -451,18 +451,18 @@ static void __init fixup_executable(void)
 {
 #ifdef CONFIG_DEBUG_RODATA
 	/* now that we are actually fully mapped, make the start/end more fine grained */
-	if (!IS_ALIGNED((unsigned long)_stext, SECTION_SIZE)) {
+	if (!IS_ALIGNED((unsigned long)_stext, SWAPPER_BLOCK_SIZE)) {
 		unsigned long aligned_start = round_down(__pa(_stext),
-							SECTION_SIZE);
+							 SWAPPER_BLOCK_SIZE);
 
 		create_mapping(aligned_start, __phys_to_virt(aligned_start),
 				__pa(_stext) - aligned_start,
 				PAGE_KERNEL);
 	}
 
-	if (!IS_ALIGNED((unsigned long)__init_end, SECTION_SIZE)) {
+	if (!IS_ALIGNED((unsigned long)__init_end, SWAPPER_BLOCK_SIZE)) {
 		unsigned long aligned_end = round_up(__pa(__init_end),
-							SECTION_SIZE);
+							  SWAPPER_BLOCK_SIZE);
 		create_mapping(__pa(__init_end), (unsigned long)__init_end,
 				aligned_end - __pa(__init_end),
 				PAGE_KERNEL);
@@ -475,7 +475,7 @@ void mark_rodata_ro(void)
 {
 	create_mapping_late(__pa(_stext), (unsigned long)_stext,
 				(unsigned long)_etext - (unsigned long)_stext,
-				PAGE_KERNEL_EXEC | PTE_RDONLY);
+				PAGE_KERNEL_ROX);
 
 }
 #endif

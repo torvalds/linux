@@ -1073,10 +1073,10 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	ret = drm_mm_dump_table(m, mm);
 	spin_unlock(&glob->lru_lock);
 	if (ttm_pl == TTM_PL_VRAM)
-		seq_printf(m, "man size:%llu pages, ram usage:%luMB, vis usage:%luMB\n",
+		seq_printf(m, "man size:%llu pages, ram usage:%lluMB, vis usage:%lluMB\n",
 			   adev->mman.bdev.man[ttm_pl].size,
-			   atomic64_read(&adev->vram_usage) >> 20,
-			   atomic64_read(&adev->vram_vis_usage) >> 20);
+			   (u64)atomic64_read(&adev->vram_usage) >> 20,
+			   (u64)atomic64_read(&adev->vram_vis_usage) >> 20);
 	return ret;
 }
 

@@ -73,9 +73,11 @@ struct gic_chip_data {
 	union gic_base cpu_base;
 #ifdef CONFIG_CPU_PM
 	u32 saved_spi_enable[DIV_ROUND_UP(1020, 32)];
+	u32 saved_spi_active[DIV_ROUND_UP(1020, 32)];
 	u32 saved_spi_conf[DIV_ROUND_UP(1020, 16)];
 	u32 saved_spi_target[DIV_ROUND_UP(1020, 4)];
 	u32 __percpu *saved_ppi_enable;
+	u32 __percpu *saved_ppi_active;
 	u32 __percpu *saved_ppi_conf;
 #endif
 	struct irq_domain *domain;
@@ -566,6 +568,10 @@ static void gic_dist_save(unsigned int gic_nr)
 	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++)
 		gic_data[gic_nr].saved_spi_enable[i] =
 			readl_relaxed(dist_base + GIC_DIST_ENABLE_SET + i * 4);
+
+	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++)
+		gic_data[gic_nr].saved_spi_active[i] =
+			readl_relaxed(dist_base + GIC_DIST_ACTIVE_SET + i * 4);
 }
 
 /*
@@ -604,9 +610,19 @@ static void gic_dist_restore(unsigned int gic_nr)
 		writel_relaxed(gic_data[gic_nr].saved_spi_target[i],
 			dist_base + GIC_DIST_TARGET + i * 4);
 
-	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++)
+	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++) {
+		writel_relaxed(GICD_INT_EN_CLR_X32,
+			dist_base + GIC_DIST_ENABLE_CLEAR + i * 4);
 		writel_relaxed(gic_data[gic_nr].saved_spi_enable[i],
 			dist_base + GIC_DIST_ENABLE_SET + i * 4);
+	}
+
+	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 32); i++) {
+		writel_relaxed(GICD_INT_EN_CLR_X32,
+			dist_base + GIC_DIST_ACTIVE_CLEAR + i * 4);
+		writel_relaxed(gic_data[gic_nr].saved_spi_active[i],
+			dist_base + GIC_DIST_ACTIVE_SET + i * 4);
+	}
 
 	writel_relaxed(GICD_ENABLE, dist_base + GIC_DIST_CTRL);
 }
@@ -631,6 +647,10 @@ static void gic_cpu_save(unsigned int gic_nr)
 	for (i = 0; i < DIV_ROUND_UP(32, 32); i++)
 		ptr[i] = readl_relaxed(dist_base + GIC_DIST_ENABLE_SET + i * 4);
 
+	ptr = raw_cpu_ptr(gic_data[gic_nr].saved_ppi_active);
+	for (i = 0; i < DIV_ROUND_UP(32, 32); i++)
+		ptr[i] = readl_relaxed(dist_base + GIC_DIST_ACTIVE_SET + i * 4);
+
 	ptr = raw_cpu_ptr(gic_data[gic_nr].saved_ppi_conf);
 	for (i = 0; i < DIV_ROUND_UP(32, 16); i++)
 		ptr[i] = readl_relaxed(dist_base + GIC_DIST_CONFIG + i * 4);
@@ -654,8 +674,18 @@ static void gic_cpu_restore(unsigned int gic_nr)
 		return;
 
 	ptr = raw_cpu_ptr(gic_data[gic_nr].saved_ppi_enable);
-	for (i = 0; i < DIV_ROUND_UP(32, 32); i++)
+	for (i = 0; i < DIV_ROUND_UP(32, 32); i++) {
+		writel_relaxed(GICD_INT_EN_CLR_X32,
+			       dist_base + GIC_DIST_ENABLE_CLEAR + i * 4);
 		writel_relaxed(ptr[i], dist_base + GIC_DIST_ENABLE_SET + i * 4);
+	}
+
+	ptr = raw_cpu_ptr(gic_data[gic_nr].saved_ppi_active);
+	for (i = 0; i < DIV_ROUND_UP(32, 32); i++) {
+		writel_relaxed(GICD_INT_EN_CLR_X32,
+			       dist_base + GIC_DIST_ACTIVE_CLEAR + i * 4);
+		writel_relaxed(ptr[i], dist_base + GIC_DIST_ACTIVE_SET + i * 4);
+	}
 
 	ptr = raw_cpu_ptr(gic_data[gic_nr].saved_ppi_conf);
 	for (i = 0; i < DIV_ROUND_UP(32, 16); i++)
@@ -709,6 +739,10 @@ static void __init gic_pm_init(struct gic_chip_data *gic)
 	gic->saved_ppi_enable = __alloc_percpu(DIV_ROUND_UP(32, 32) * 4,
 		sizeof(u32));
 	BUG_ON(!gic->saved_ppi_enable);
+
+	gic->saved_ppi_active = __alloc_percpu(DIV_ROUND_UP(32, 32) * 4,
+		sizeof(u32));
+	BUG_ON(!gic->saved_ppi_active);
 
 	gic->saved_ppi_conf = __alloc_percpu(DIV_ROUND_UP(32, 16) * 4,
 		sizeof(u32));
