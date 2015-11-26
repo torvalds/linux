@@ -18,6 +18,7 @@
 #include <asm/mmu_context.h>
 #include <asm/sclp.h>
 #include <asm/nmi.h>
+#include <asm/dis.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -27,7 +28,8 @@ struct vsie_page {
 	struct kvm_s390_sie_block *scb_o;	/* 0x0200 */
 	/* the shadow gmap in use by the vsie_page */
 	struct gmap *gmap;			/* 0x0208 */
-	__u8 reserved[0x1000 - 0x0210];		/* 0x0210 */
+	__u8 reserved[0x0800 - 0x0210];		/* 0x0210 */
+	__u8 fac[S390_ARCH_FAC_LIST_SIZE_BYTE];	/* 0x0800 */
 } __packed;
 
 /* trigger a validity icpt for the given scb */
@@ -194,6 +196,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->ecb2 = 0;
 	scb_s->ecb3 = 0;
 	scb_s->ecd = 0;
+	scb_s->fac = 0;
 
 	rc = prepare_cpuflags(vcpu, vsie_page);
 	if (rc)
@@ -521,6 +524,44 @@ static inline void clear_vsie_icpt(struct vsie_page *vsie_page)
 	vsie_page->scb_s.icptcode = 0;
 }
 
+/* rewind the psw and clear the vsie icpt, so we can retry execution */
+static void retry_vsie_icpt(struct vsie_page *vsie_page)
+{
+	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
+	int ilen = insn_length(scb_s->ipa >> 8);
+
+	/* take care of EXECUTE instructions */
+	if (scb_s->icptstatus & 1) {
+		ilen = (scb_s->icptstatus >> 4) & 0x6;
+		if (!ilen)
+			ilen = 4;
+	}
+	scb_s->gpsw.addr = __rewind_psw(scb_s->gpsw, ilen);
+	clear_vsie_icpt(vsie_page);
+}
+
+/*
+ * Try to shadow + enable the guest 2 provided facility list.
+ * Retry instruction execution if enabled for and provided by guest 2.
+ *
+ * Returns: - 0 if handled (retry or guest 2 icpt)
+ *          - > 0 if control has to be given to guest 2
+ */
+static int handle_stfle(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+{
+	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
+	__u32 fac = vsie_page->scb_o->fac & 0x7ffffff8U;
+
+	if (fac && test_kvm_facility(vcpu->kvm, 7)) {
+		retry_vsie_icpt(vsie_page);
+		if (read_guest_real(vcpu, fac, &vsie_page->fac,
+				    sizeof(vsie_page->fac)))
+			return set_validity_icpt(scb_s, 0x1090U);
+		scb_s->fac = (__u32)(__u64) &vsie_page->fac;
+	}
+	return 0;
+}
+
 /*
  * Run the vsie on a shadow scb and a shadow gmap, without any further
  * sanity checks, handling SIE faults.
@@ -558,6 +599,10 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		return handle_fault(vcpu, vsie_page);
 
 	switch (scb_s->icptcode) {
+	case ICPT_INST:
+		if (scb_s->ipa == 0xb2b0)
+			rc = handle_stfle(vcpu, vsie_page);
+		break;
 	case ICPT_STOP:
 		/* stop not requested by g2 - must have been a kick */
 		if (!(atomic_read(&scb_o->cpuflags) & CPUSTAT_STOP_INT))
@@ -690,7 +735,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 
 	mutex_lock(&kvm->arch.vsie.mutex);
 	if (kvm->arch.vsie.page_count < nr_vcpus) {
-		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		page = alloc_page(GFP_KERNEL | __GFP_ZERO | GFP_DMA);
 		if (!page) {
 			mutex_unlock(&kvm->arch.vsie.mutex);
 			return ERR_PTR(-ENOMEM);
