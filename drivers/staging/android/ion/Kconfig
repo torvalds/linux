@@ -27,6 +27,12 @@ config ION_DUMMY
 	  one doesn't have access to hardware drivers that
 	  use ION.
 
+config ION_ROCKCHIP
+	tristate "Ion for Rockchip"
+	depends on ARCH_ROCKCHIP && ION
+	help
+	  Choose this option if you wish to use ion on an Rockchip.
+
 config ION_TEGRA
 	tristate "Ion for Tegra"
 	depends on ARCH_TEGRA && ION

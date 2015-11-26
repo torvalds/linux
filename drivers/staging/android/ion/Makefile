@@ -6,5 +6,6 @@ obj-$(CONFIG_ION) += compat_ion.o
 endif
 
 obj-$(CONFIG_ION_DUMMY) += ion_dummy_driver.o
+obj-$(CONFIG_ION_ROCKCHIP) += rockchip/
 obj-$(CONFIG_ION_TEGRA) += tegra/
 
