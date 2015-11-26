@@ -32,7 +32,6 @@
 #endif
 
 #include <linux/compat.h>
-#include <linux/rockchip/psci.h>
 
 struct ion_device *rockchip_ion_dev;
 EXPORT_SYMBOL(rockchip_ion_dev);
@@ -51,9 +50,7 @@ extern struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
 extern int ion_handle_put(struct ion_handle *handle);
 
 #define ION_CMA_HEAP_NAME		"cma"
-#define ION_IOMMU_HEAP_NAME		"iommu"
 #define ION_VMALLOC_HEAP_NAME		"vmalloc"
-#define ION_DRM_HEAP_NAME		"drm"
 #define ION_CARVEOUT_HEAP_NAME		"carveout"
 
 #define MAX_ION_HEAP		10
@@ -74,11 +71,6 @@ static struct ion_heap_desc ion_heap_meta[] = {
 		.id	= ION_CMA_HEAP_ID,
 		.type	= ION_HEAP_TYPE_DMA,
 		.name	= ION_CMA_HEAP_NAME,
-	},
-	{
-		.id 	= ION_DRM_HEAP_ID,
-		.type	= ION_HEAP_TYPE_DRM,
-		.name	= ION_DRM_HEAP_NAME,
 	},
 	{
 		.id 	= ION_CARVEOUT_HEAP_ID,
@@ -117,22 +109,6 @@ struct ion_client *rockchip_ion_client_create(const char *name)
 	return ion_client_create(rockchip_ion_dev, name);
 }
 EXPORT_SYMBOL(rockchip_ion_client_create);
-
-static int rockchip_ion_set_secured(struct ion_client *client,
-				    unsigned long arg)
-{
-	bool val = 0;
-	int ret = 0;
-
-	if (copy_from_user(&val, (void __user *)arg, sizeof(bool)))
-		return -EFAULT;
-
-	ret = psci_set_memory_secure(val);
-	if (ret)
-		pr_err("%s fail to set memory secured (%d)\n", __func__, ret);
-
-	return ret;
-}
 
 #ifdef CONFIG_COMPAT
 struct compat_ion_phys_data {
@@ -244,8 +220,6 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 		switch (cmd) {
 		case ION_IOC_GET_PHYS:
 			return rockchip_ion_get_phys(client, arg);
-		case ION_IOC_SET_SECURED:
-			return rockchip_ion_set_secured(client, arg);
 		default:
 			return -ENOTTY;
 		}

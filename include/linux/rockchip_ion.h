@@ -31,7 +31,6 @@ enum ion_heap_ids {
        ION_VMALLOC_HEAP_ID = 0,
        ION_CARVEOUT_HEAP_ID = 2,
        ION_CMA_HEAP_ID = 4,
-       ION_DRM_HEAP_ID = 5,
 };
 
 #define ION_HEAP(bit) (1 << (bit))
@@ -49,8 +48,4 @@ struct ion_phys_data {
  */
 #define ION_IOC_GET_PHYS	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 0, \
 						struct ion_phys_data)
-/**
- * Set memory region secured.
- */
-#define ION_IOC_SET_SECURED	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 1, bool)
 #endif
