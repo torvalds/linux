@@ -81,6 +81,7 @@ static int nvme_reset(struct nvme_dev *dev);
 static void nvme_process_cq(struct nvme_queue *nvmeq);
 static void nvme_unmap_data(struct nvme_dev *dev, struct nvme_iod *iod);
 static void nvme_dead_ctrl(struct nvme_dev *dev);
+static void nvme_dev_shutdown(struct nvme_dev *dev);
 
 struct async_cmd_info {
 	struct kthread_work work;
@@ -1087,17 +1088,23 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	struct nvme_command cmd;
 
 	/*
-	 * Schedule controller reset if the command was already aborted once
-	 * before and still hasn't been returned to the driver, or if this is
-	 * the admin queue.
+	 * Shutdown the controller immediately and schedule a reset if the
+	 * command was already aborted once before and still hasn't been
+	 * returned to the driver, or if this is the admin queue.
 	 */
 	if (!nvmeq->qid || cmd_rq->aborted) {
-		if (queue_work(nvme_workq, &dev->reset_work)) {
-			dev_warn(dev->dev,
-				 "I/O %d QID %d timeout, reset controller\n",
-				 req->tag, nvmeq->qid);
-		}
-		return BLK_EH_RESET_TIMER;
+		dev_warn(dev->dev,
+			 "I/O %d QID %d timeout, reset controller\n",
+			 req->tag, nvmeq->qid);
+		nvme_dev_shutdown(dev);
+		queue_work(nvme_workq, &dev->reset_work);
+
+		/*
+		 * Mark the request as handled, since the inline shutdown
+		 * forces all outstanding requests to complete.
+		 */
+		req->errors = NVME_SC_CANCELLED;
+		return BLK_EH_HANDLED;
 	}
 
 	if (!dev->ctrl.abort_limit)
