@@ -22,4 +22,10 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 			      u32 intid);
 bool vgic_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq);
 
+void vgic_v2_process_maintenance(struct kvm_vcpu *vcpu);
+void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu);
+void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
+void vgic_v2_clear_lr(struct kvm_vcpu *vcpu, int lr);
+void vgic_v2_set_underflow(struct kvm_vcpu *vcpu);
+
 #endif
