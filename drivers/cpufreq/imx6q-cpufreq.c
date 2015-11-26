@@ -238,6 +238,9 @@ static int imx6_cpufreq_pm_notify(struct notifier_block *nb,
 	 * devices may be already suspended, to avoid such scenario,
 	 * we just increase cpufreq to highest setpoint before suspend.
 	 */
+	if (!data)
+		return NOTIFY_BAD;
+
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		cpufreq_policy_min_pre_suspend = data->user_policy.min;
