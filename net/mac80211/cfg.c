@@ -1216,16 +1216,6 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!sta)
 		return -ENOMEM;
 
-	/*
-	 * defaults -- if userspace wants something else we'll
-	 * change it accordingly in sta_apply_parameters()
-	 */
-	if (!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
-	    !(params->sta_flags_set & (BIT(NL80211_STA_FLAG_AUTHENTICATED) |
-					BIT(NL80211_STA_FLAG_ASSOCIATED)))) {
-		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
-		sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
-	}
 	if (params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
 		sta->sta.tdls = true;
 
