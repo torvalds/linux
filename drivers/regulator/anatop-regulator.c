@@ -241,6 +241,12 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	if (!sreg)
 		return -ENOMEM;
 	sreg->name = of_get_property(np, "regulator-name", NULL);
+
+	if (!sreg->name) {
+		dev_err(dev, "no regulator-name set\n");
+		return -EINVAL;
+	}
+
 	rdesc = &sreg->rdesc;
 	rdesc->name = sreg->name;
 	rdesc->type = REGULATOR_VOLTAGE;
