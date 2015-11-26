@@ -3734,7 +3734,6 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status,
 	 * set up earlier, then re-enable multi-instance advertising.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-	    !hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE) ||
 	    list_empty(&hdev->adv_instances))
 		goto unlock;
 
@@ -5892,9 +5891,6 @@ static void add_advertising_complete(struct hci_dev *hdev, u8 status,
 
 	cmd = pending_find(MGMT_OP_ADD_ADVERTISING, hdev);
 
-	if (status)
-		hci_dev_clear_flag(hdev, HCI_ADVERTISING_INSTANCE);
-
 	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list) {
 		if (!adv_instance->pending)
 			continue;
@@ -6012,8 +6008,6 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	if (hdev->adv_instance_cnt > prev_instance_cnt)
 		mgmt_advertising_added(sk, hdev, cp->instance);
 
-	hci_dev_set_flag(hdev, HCI_ADVERTISING_INSTANCE);
-
 	if (hdev->cur_adv_instance == cp->instance) {
 		/* If the currently advertised instance is being changed then
 		 * cancel the current advertising and schedule the next
@@ -6129,7 +6123,7 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE)) {
+	if (list_empty(&hdev->adv_instances)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_REMOVE_ADVERTISING,
 				      MGMT_STATUS_INVALID_PARAMS);
 		goto unlock;
