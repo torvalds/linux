@@ -3514,8 +3514,10 @@ static long mxc_ipu_ioctl(struct file *file,
 			if (mem == NULL)
 				return -ENOMEM;
 
-			if (get_user(size, argp))
+			if (get_user(size, argp)) {
+				kfree(mem);
 				return -EFAULT;
+			}
 
 			mem->size = PAGE_ALIGN(size);
 
@@ -3531,11 +3533,20 @@ static long mxc_ipu_ioctl(struct file *file,
 			list_add(&mem->list, &ipu_alloc_list);
 			mutex_unlock(&ipu_alloc_lock);
 
+			if (put_user(mem->phy_addr, argp)) {
+				mutex_lock(&ipu_alloc_lock);
+				list_del(&mem->list);
+				mutex_unlock(&ipu_alloc_lock);
+				dma_free_coherent(ipu_dev,
+						  mem->size,
+						  mem->cpu_addr,
+						  mem->phy_addr);
+				kfree(mem);
+				return -EFAULT;
+			}
+
 			dev_dbg(ipu_dev, "allocated %d bytes @ 0x%08X\n",
 				mem->size, mem->phy_addr);
-
-			if (put_user(mem->phy_addr, argp))
-				return -EFAULT;
 
 			break;
 		}
