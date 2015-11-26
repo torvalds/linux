@@ -75,11 +75,6 @@ struct ipmr_result {
 	struct mr_table		*mrt;
 };
 
-static inline bool pimsm_enabled(void)
-{
-	return IS_BUILTIN(CONFIG_IP_PIMSM_V1) || IS_BUILTIN(CONFIG_IP_PIMSM_V2);
-}
-
 /* Big lock, protecting vif table, mrt cache and mroute socket state.
  * Note that the changes are semaphored via rtnl_lock.
  */
@@ -751,7 +746,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 
 	switch (vifc->vifc_flags) {
 	case VIFF_REGISTER:
-		if (!pimsm_enabled())
+		if (!ipmr_pimsm_enabled())
 			return -EINVAL;
 		/* Special Purpose VIF in PIM
 		 * All the packets will be sent to the daemon
@@ -1377,7 +1372,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 		mrt->mroute_do_assert = val;
 		break;
 	case MRT_PIM:
-		if (!pimsm_enabled()) {
+		if (!ipmr_pimsm_enabled()) {
 			ret = -ENOPROTOOPT;
 			break;
 		}
@@ -1451,7 +1446,7 @@ int ip_mroute_getsockopt(struct sock *sk, int optname, char __user *optval, int 
 		val = 0x0305;
 		break;
 	case MRT_PIM:
-		if (!pimsm_enabled())
+		if (!ipmr_pimsm_enabled())
 			return -ENOPROTOOPT;
 		val = mrt->mroute_do_pim;
 		break;
