@@ -271,6 +271,10 @@
 		     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>;
 };
 
+&mdma1 {
+	power-domains = <&pd_lcd0>;
+};
+
 &pmu_system_controller {
 	clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
 			"clkout4", "clkout8", "clkout9";
