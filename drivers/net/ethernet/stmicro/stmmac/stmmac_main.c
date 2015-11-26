@@ -3102,6 +3102,7 @@ int stmmac_resume(struct net_device *ndev)
 	init_dma_desc_rings(ndev, GFP_ATOMIC);
 	stmmac_hw_setup(ndev, false);
 	stmmac_init_tx_coalesce(priv);
+	stmmac_set_rx_mode(ndev);
 
 	napi_enable(&priv->napi);
 
