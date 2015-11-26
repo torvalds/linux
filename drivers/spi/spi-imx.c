@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2007, 2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2007, 2016 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2008 Juergen Beisert
  *
  * This program is free software; you can redistribute it and/or
@@ -209,7 +209,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
 
-	if (spi_imx->dma_is_inited &&
+	if (transfer && spi_imx->dma_is_inited &&
 		(transfer->len > spi_imx_get_fifosize(spi_imx)))
 		return true;
 	return false;
