@@ -22,6 +22,9 @@
 extern unsigned char nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
+extern unsigned char admin_timeout;
+#define ADMIN_TIMEOUT	(admin_timeout * HZ)
+
 enum {
 	NVME_NS_LBA		= 0,
 	NVME_NS_LIGHTNVM	= 1,
