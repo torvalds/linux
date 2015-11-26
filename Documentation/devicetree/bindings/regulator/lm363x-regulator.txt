@@ -1,0 +1,34 @@
+TI LMU LM363x regulator device tree bindings
+
+LM363x regulator driver supports LM3631 and LM3632.
+LM3631 has five regulators and LM3632 supports three regulators.
+
+Required property:
+  - compatible: "ti,lm363x-regulator"
+
+Optional properties:
+  LM3632 has external enable pins for two LDOs.
+  - ti,lcm-en1-gpio: A GPIO specifier for Vpos control pin.
+  - ti,lcm-en2-gpio: A GPIO specifier for Vneg control pin.
+
+Child nodes:
+  LM3631
+  - vboost
+  - vcont
+  - voref
+  - vpos
+  - vneg
+
+  LM3632
+  - vboost
+  - vpos
+  - vneg
+
+  Optional properties of a child node:
+  Each sub-node should contain the constraints and initialization.
+  Please refer to [1].
+
+Examples: Please refer to ti-lmu dt-bindings [2].
+
+[1] ../regulator/regulator.txt
+[2] ../mfd/ti-lmu.txt
