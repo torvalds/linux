@@ -71,7 +71,17 @@ FEATURE_DISPLAY = libelf bpf
 INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/include/uapi
 FEATURE_CHECK_CFLAGS-bpf = $(INCLUDES)
 
+check_feat := 1
+NON_CHECK_FEAT_TARGETS := clean TAGS tags cscope help
+ifdef MAKECMDGOALS
+ifeq ($(filter-out $(NON_CHECK_FEAT_TARGETS),$(MAKECMDGOALS)),)
+  check_feat := 0
+endif
+endif
+
+ifeq ($(check_feat),1)
 include $(srctree)/tools/build/Makefile.feature
+endif
 
 export prefix libdir src obj
 
