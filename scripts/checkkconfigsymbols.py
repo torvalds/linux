@@ -8,6 +8,7 @@
 # Licensed under the terms of the GNU GPL License version 2
 
 
+import difflib
 import os
 import re
 import signal
@@ -74,6 +75,9 @@ def parse_options():
                            "the pattern needs to be a Python regex.  To "
                            "ignore defconfigs, specify -i '.*defconfig'.")
 
+    parser.add_option('-s', '--sim', dest='sim', action='store', default="",
+                      help="Print a list of maximum 10 string-similar symbols.")
+
     parser.add_option('', '--force', dest='force', action='store_true',
                       default=False,
                       help="Reset current Git tree even when it's dirty.")
@@ -112,6 +116,18 @@ def main():
     """Main function of this module."""
     opts = parse_options()
 
+    if opts.sim and not opts.commit and not opts.diff:
+        sims = find_sims(opts.sim, opts.ignore)
+        if sims:
+            print "%s: %s" % (yel("Similar symbols"), ', '.join(sims))
+        else:
+            print "%s: no similar symbols found" % yel("Similar symbols")
+        sys.exit(0)
+
+    # dictionary of (un)defined symbols
+    defined = {}
+    undefined = {}
+
     if opts.commit or opts.diff:
         head = get_head()
 
@@ -130,40 +146,56 @@ def main():
 
         # get undefined items before the commit
         execute("git reset --hard %s" % commit_a)
-        undefined_a = check_symbols(opts.ignore)
+        undefined_a, _ = check_symbols(opts.ignore)
 
         # get undefined items for the commit
         execute("git reset --hard %s" % commit_b)
-        undefined_b = check_symbols(opts.ignore)
+        undefined_b, defined = check_symbols(opts.ignore)
 
         # report cases that are present for the commit but not before
         for feature in sorted(undefined_b):
             # feature has not been undefined before
             if not feature in undefined_a:
                 files = sorted(undefined_b.get(feature))
-                print "%s\t%s" % (yel(feature), ", ".join(files))
-                if opts.find:
-                    commits = find_commits(feature, opts.diff)
-                    print red(commits)
+                undefined[feature] = files
             # check if there are new files that reference the undefined feature
             else:
                 files = sorted(undefined_b.get(feature) -
                                undefined_a.get(feature))
                 if files:
-                    print "%s\t%s" % (yel(feature), ", ".join(files))
-                    if opts.find:
-                        commits = find_commits(feature, opts.diff)
-                        print red(commits)
+                    undefined[feature] = files
 
         # reset to head
         execute("git reset --hard %s" % head)
 
     # default to check the entire tree
     else:
-        undefined = check_symbols(opts.ignore)
-        for feature in sorted(undefined):
-            files = sorted(undefined.get(feature))
-            print "%s\t%s" % (yel(feature), ", ".join(files))
+        undefined, defined = check_symbols(opts.ignore)
+
+    # now print the output
+    for feature in sorted(undefined):
+        print red(feature)
+
+        files = sorted(undefined.get(feature))
+        print "%s: %s" % (yel("Referencing files"), ", ".join(files))
+
+        sims = find_sims(feature, opts.ignore, defined)
+        sims_out = yel("Similar symbols")
+        if sims:
+            print "%s: %s" % (sims_out, ', '.join(sims))
+        else:
+            print "%s: %s" % (sims_out, "no similar symbols found")
+
+        if opts.find:
+            print "%s:" % yel("Commits changing symbol")
+            commits = find_commits(feature, opts.diff)
+            if commits:
+                for commit in commits:
+                    commit = commit.split(" ", 1)
+                    print "\t- %s (\"%s\")" % (yel(commit[0]), commit[1])
+            else:
+                print "\t- no commit found"
+        print  #  new line
 
 
 def yel(string):
@@ -193,7 +225,7 @@ def find_commits(symbol, diff):
     """Find commits changing %symbol in the given range of %diff."""
     commits = execute("git log --pretty=oneline --abbrev-commit -G %s %s"
                       % (symbol, diff))
-    return commits
+    return [x for x in commits.split("\n") if x]
 
 
 def tree_is_dirty():
@@ -222,6 +254,45 @@ def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
+def find_sims(symbol, ignore, defined = []):
+    """Return a list of max. ten Kconfig symbols that are string-similar to
+    @symbol."""
+    if defined:
+        return sorted(difflib.get_close_matches(symbol, set(defined), 10))
+
+    pool = Pool(cpu_count(), init_worker)
+    kfiles = []
+    for gitfile in get_files():
+        if REGEX_FILE_KCONFIG.match(gitfile):
+            kfiles.append(gitfile)
+
+    arglist = []
+    for part in partition(kfiles, cpu_count()):
+        arglist.append((part, ignore))
+
+    for res in pool.map(parse_kconfig_files, arglist):
+        defined.extend(res[0])
+
+    return sorted(difflib.get_close_matches(symbol, set(defined), 10))
+
+
+def get_files():
+    """Return a list of all files in the current git directory."""
+    # use 'git ls-files' to get the worklist
+    stdout = execute("git ls-files")
+    if len(stdout) > 0 and stdout[-1] == "\n":
+        stdout = stdout[:-1]
+
+    files = []
+    for gitfile in stdout.rsplit("\n"):
+        if ".git" in gitfile or "ChangeLog" in gitfile or      \
+                ".log" in gitfile or os.path.isdir(gitfile) or \
+                gitfile.startswith("tools/"):
+            continue
+        files.append(gitfile)
+    return files
+
+
 def check_symbols(ignore):
     """Find undefined Kconfig symbols and return a dict with the symbol as key
     and a list of referencing files as value.  Files matching %ignore are not
@@ -243,16 +314,7 @@ def check_symbols_helper(pool, ignore):
     defined_features = []
     referenced_features = dict()  # {file: [features]}
 
-    # use 'git ls-files' to get the worklist
-    stdout = execute("git ls-files")
-    if len(stdout) > 0 and stdout[-1] == "\n":
-        stdout = stdout[:-1]
-
-    for gitfile in stdout.rsplit("\n"):
-        if ".git" in gitfile or "ChangeLog" in gitfile or      \
-                ".log" in gitfile or os.path.isdir(gitfile) or \
-                gitfile.startswith("tools/"):
-            continue
+    for gitfile in get_files():
         if REGEX_FILE_KCONFIG.match(gitfile):
             kconfig_files.append(gitfile)
         else:
@@ -296,7 +358,7 @@ def check_symbols_helper(pool, ignore):
                 if feature[:-len("_MODULE")] in defined_features:
                     continue
             undefined[feature] = referenced_features.get(feature)
-    return undefined
+    return undefined, defined_features
 
 
 def parse_source_files(source_files):
