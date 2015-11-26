@@ -1583,7 +1583,7 @@ void ipu_uninit_sync_panel(struct ipu_soc *ipu, int disp)
 	uint32_t reg;
 	uint32_t di_gen;
 
-	if ((disp != 0) || (disp != 1))
+	if (disp != 0 && disp != 1)
 		return;
 
 	mutex_lock(&ipu->mutex_lock);
