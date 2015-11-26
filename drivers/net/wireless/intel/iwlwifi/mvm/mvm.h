@@ -475,6 +475,14 @@ enum iwl_scan_status {
 	IWL_MVM_SCAN_MASK		= 0xff,
 };
 
+enum iwl_mvm_scan_type {
+	IWL_SCAN_TYPE_NOT_SET,
+	IWL_SCAN_TYPE_UNASSOC,
+	IWL_SCAN_TYPE_WILD,
+	IWL_SCAN_TYPE_MILD,
+	IWL_SCAN_TYPE_FRAGMENTED,
+};
+
 /**
  * struct iwl_nvm_section - describes an NVM section in memory.
  *
@@ -643,7 +651,7 @@ struct iwl_mvm {
 	unsigned int scan_status;
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
-	bool scan_fragmented;
+	enum iwl_mvm_scan_type scan_type;
 
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
