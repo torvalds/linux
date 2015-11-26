@@ -168,7 +168,7 @@ enum ipu_dmfc_type {
 
 static inline int _ipu_is_smfc_chan(uint32_t dma_chan)
 {
-	return ((dma_chan >= 0) && (dma_chan <= 3));
+	return dma_chan <= 3;
 }
 
 static inline u32 ipu_cm_read(struct ipu_soc *ipu, unsigned offset)
