@@ -396,12 +396,8 @@ static u32 rsnd_ssi_record_error(struct rsnd_ssi *ssi)
 	u32 status = rsnd_ssi_status_get(mod);
 
 	/* under/over flow error */
-	if (status & (UIRQ | OIRQ)) {
+	if (status & (UIRQ | OIRQ))
 		ssi->err++;
-
-		/* clear error status */
-		rsnd_ssi_status_clear(mod);
-	}
 
 	return status;
 }
@@ -537,6 +533,7 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 
+	rsnd_ssi_status_clear(mod);
 rsnd_ssi_interrupt_out:
 	spin_unlock(&priv->lock);
 
