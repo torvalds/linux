@@ -377,9 +377,9 @@ struct mlb_data {
 	void __iomem *membase;	/* mlb module base address */
 	struct gen_pool *iram_pool;
 	u32 iram_size;
-	u32 irq_ahb0;
-	u32 irq_ahb1;
-	u32 irq_mlb;
+	int irq_ahb0;
+	int irq_ahb1;
+	int irq_mlb;
 	u32 quirk_flag;
 };
 
