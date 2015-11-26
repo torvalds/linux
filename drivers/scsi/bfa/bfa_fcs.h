@@ -4,7 +4,7 @@
  * All rights reserved
  * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -634,7 +634,7 @@ void bfa_fcs_fcpim_uf_recv(struct bfa_fcs_itnim_s *itnim,
 
 /*
  * HBA Attribute Block : BFA internal representation. Note : Some variable
- * sizes have been trimmed to suit BFA For Ex : Model will be "Brocade". Based
+ * sizes have been trimmed to suit BFA For Ex : Model will be "QLogic ". Based
  * on this the size has been reduced to 16 bytes from the standard's 64 bytes.
  */
 struct bfa_fcs_fdmi_hba_attr_s {
