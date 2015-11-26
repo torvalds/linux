@@ -93,7 +93,6 @@ MODULE_PARM_DESC(debug_dump_wdg,
 
 static int acpi_wmi_remove(struct acpi_device *device);
 static int acpi_wmi_add(struct acpi_device *device);
-static void acpi_wmi_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id wmi_device_ids[] = {
 	{"PNP0C14", 0},
@@ -109,7 +108,6 @@ static struct acpi_driver acpi_wmi_driver = {
 	.ops = {
 		.add = acpi_wmi_add,
 		.remove = acpi_wmi_remove,
-		.notify = acpi_wmi_notify,
 	},
 };
 
@@ -1019,36 +1017,80 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 	}
 }
 
-static void acpi_wmi_notify(struct acpi_device *device, u32 event)
+static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
+				    void *context)
 {
 	struct guid_block *block;
 	struct wmi_block *wblock;
 	struct list_head *p;
+	bool found_it = false;
 
 	list_for_each(p, &wmi_block_list) {
 		wblock = list_entry(p, struct wmi_block, list);
 		block = &wblock->gblock;
 
-		if (wblock->acpi_device == device &&
+		if (wblock->acpi_device->handle == handle &&
 		    (block->flags & ACPI_WMI_EVENT) &&
-		    (block->notify_id == event)) {
-			if (wblock->handler)
-				wblock->handler(event, wblock->handler_data);
-			if (debug_event) {
-				pr_info("DEBUG Event GUID: %pUL\n",
-					wblock->gblock.guid);
-			}
-
-			acpi_bus_generate_netlink_event(
-				device->pnp.device_class, dev_name(&device->dev),
-				event, 0);
+		    (block->notify_id == event))
+		{
+			found_it = true;
 			break;
 		}
 	}
+
+	if (!found_it)
+		return;
+
+	/* If a driver is bound, then notify the driver. */
+	if (wblock->dev.dev.driver) {
+		struct wmi_driver *driver;
+		struct acpi_object_list input;
+		union acpi_object params[1];
+		struct acpi_buffer evdata = { ACPI_ALLOCATE_BUFFER, NULL };
+		acpi_status status;
+
+		driver = container_of(wblock->dev.dev.driver,
+				      struct wmi_driver, driver);
+
+		input.count = 1;
+		input.pointer = params;
+		params[0].type = ACPI_TYPE_INTEGER;
+		params[0].integer.value = event;
+
+		status = acpi_evaluate_object(wblock->acpi_device->handle,
+					      "_WED", &input, &evdata);
+		if (ACPI_FAILURE(status)) {
+			dev_warn(&wblock->dev.dev,
+				 "failed to get event data\n");
+			return;
+		}
+
+		if (driver->notify)
+			driver->notify(&wblock->dev,
+				       (union acpi_object *)evdata.pointer);
+
+		kfree(evdata.pointer);
+	} else if (wblock->handler) {
+		/* Legacy handler */
+		wblock->handler(event, wblock->handler_data);
+	}
+
+	if (debug_event) {
+		pr_info("DEBUG Event GUID: %pUL\n",
+			wblock->gblock.guid);
+	}
+
+	acpi_bus_generate_netlink_event(
+		wblock->acpi_device->pnp.device_class,
+		dev_name(&wblock->dev.dev),
+		event, 0);
+
 }
 
 static int acpi_wmi_remove(struct acpi_device *device)
 {
+	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+				   acpi_wmi_notify_handler);
 	acpi_remove_address_space_handler(device->handle,
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
 	wmi_free_devices(device);
@@ -1073,11 +1115,20 @@ static int acpi_wmi_add(struct acpi_device *device)
 		return -ENODEV;
 	}
 
+	status = acpi_install_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+					     acpi_wmi_notify_handler,
+					     NULL);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&device->dev, "Error installing notify handler\n");
+		error = -ENODEV;
+		goto err_remove_ec_handler;
+	}
+
 	wmi_bus_dev = device_create(&wmi_bus_class, &device->dev, MKDEV(0, 0),
 				    NULL, "wmi_bus-%s", dev_name(&device->dev));
 	if (IS_ERR(wmi_bus_dev)) {
 		error = PTR_ERR(wmi_bus_dev);
-		goto err_remove_handler;
+		goto err_remove_notify_handler;
 	}
 	device->driver_data = wmi_bus_dev;
 
@@ -1092,7 +1143,11 @@ static int acpi_wmi_add(struct acpi_device *device)
 err_remove_busdev:
 	device_unregister(wmi_bus_dev);
 
-err_remove_handler:
+err_remove_notify_handler:
+	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+				   acpi_wmi_notify_handler);
+
+err_remove_ec_handler:
 	acpi_remove_address_space_handler(device->handle,
 					  ACPI_ADR_SPACE_EC,
 					  &acpi_wmi_ec_space_handler);
