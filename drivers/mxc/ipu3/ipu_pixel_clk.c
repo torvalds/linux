@@ -311,7 +311,7 @@ struct clk *clk_register_gate_pix_clk(struct device *dev, const char *name,
 
 	clk = clk_register(dev, &gate->hw);
 	if (IS_ERR(clk))
-		kfree(clk);
+		kfree(gate);
 
 	return clk;
 }
