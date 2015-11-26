@@ -1007,26 +1007,6 @@ static void pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
 	}
 }
 
-typedef void (*pte_list_walk_fn) (u64 *spte);
-static void pte_list_walk(struct kvm_rmap_head *rmap_head, pte_list_walk_fn fn)
-{
-	struct pte_list_desc *desc;
-	int i;
-
-	if (!rmap_head->val)
-		return;
-
-	if (!(rmap_head->val & 1))
-		return fn((u64 *)rmap_head->val);
-
-	desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
-	while (desc) {
-		for (i = 0; i < PTE_LIST_EXT && desc->sptes[i]; ++i)
-			fn(desc->sptes[i]);
-		desc = desc->more;
-	}
-}
-
 static struct kvm_rmap_head *__gfn_to_rmap(gfn_t gfn, int level,
 					   struct kvm_memory_slot *slot)
 {
@@ -1749,7 +1729,12 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu, int direct
 static void mark_unsync(u64 *spte);
 static void kvm_mmu_mark_parents_unsync(struct kvm_mmu_page *sp)
 {
-	pte_list_walk(&sp->parent_ptes, mark_unsync);
+	u64 *sptep;
+	struct rmap_iterator iter;
+
+	for_each_rmap_spte(&sp->parent_ptes, &iter, sptep) {
+		mark_unsync(sptep);
+	}
 }
 
 static void mark_unsync(u64 *spte)
