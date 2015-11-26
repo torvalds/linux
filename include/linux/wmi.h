@@ -29,6 +29,10 @@ struct wmi_device {
 	bool readable, writeable;
 };
 
+/* Caller must kfree the result. */
+extern union acpi_object *wmidev_block_query(struct wmi_device *wdev,
+					     u8 instance);
+
 struct wmi_device_id {
 	const char *guid_string;
 };

@@ -244,19 +244,10 @@ u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 }
 EXPORT_SYMBOL_GPL(wmi_evaluate_method);
 
-/**
- * wmi_query_block - Return contents of a WMI block
- * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
- * @instance: Instance index
- * &out: Empty buffer to return the contents of the data block to
- *
- * Return the contents of an ACPI-WMI data block to a buffer
- */
-acpi_status wmi_query_block(const char *guid_string, u8 instance,
-struct acpi_buffer *out)
+static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
+				 struct acpi_buffer *out)
 {
 	struct guid_block *block = NULL;
-	struct wmi_block *wblock = NULL;
 	acpi_handle handle;
 	acpi_status status, wc_status = AE_ERROR;
 	struct acpi_object_list input;
@@ -264,11 +255,8 @@ struct acpi_buffer *out)
 	char method[5];
 	char wc_method[5] = "WC";
 
-	if (!guid_string || !out)
+	if (!out)
 		return AE_BAD_PARAMETER;
-
-	if (!find_guid(guid_string, &wblock))
-		return AE_ERROR;
 
 	block = &wblock->gblock;
 	handle = wblock->acpi_device->handle;
@@ -320,7 +308,41 @@ struct acpi_buffer *out)
 
 	return status;
 }
+
+/**
+ * wmi_query_block - Return contents of a WMI block (deprecated)
+ * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
+ * @instance: Instance index
+ * &out: Empty buffer to return the contents of the data block to
+ *
+ * Return the contents of an ACPI-WMI data block to a buffer
+ */
+acpi_status wmi_query_block(const char *guid_string, u8 instance,
+			    struct acpi_buffer *out)
+{
+	struct wmi_block *wblock;
+
+	if (!guid_string)
+		return AE_BAD_PARAMETER;
+
+	if (!find_guid(guid_string, &wblock))
+		return AE_ERROR;
+
+	return __query_block(wblock, instance, out);
+}
 EXPORT_SYMBOL_GPL(wmi_query_block);
+
+union acpi_object *wmidev_block_query(struct wmi_device *wdev, u8 instance)
+{
+	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct wmi_block *wblock = container_of(wdev, struct wmi_block, dev);
+
+	if (ACPI_FAILURE(__query_block(wblock, instance, &out)))
+		return NULL;
+
+	return (union acpi_object *)out.pointer;
+}
+EXPORT_SYMBOL_GPL(wmidev_block_query);
 
 /**
  * wmi_set_block - Write to a WMI block
@@ -331,7 +353,7 @@ EXPORT_SYMBOL_GPL(wmi_query_block);
  * Write the contents of the input buffer to an ACPI-WMI data block
  */
 acpi_status wmi_set_block(const char *guid_string, u8 instance,
-const struct acpi_buffer *in)
+			  const struct acpi_buffer *in)
 {
 	struct guid_block *block = NULL;
 	struct wmi_block *wblock = NULL;
