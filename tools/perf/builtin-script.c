@@ -643,57 +643,24 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 	printf("\n");
 }
 
-static int default_start_script(const char *script __maybe_unused,
-				int argc __maybe_unused,
-				const char **argv __maybe_unused)
-{
-	return 0;
-}
-
-static int default_flush_script(void)
-{
-	return 0;
-}
-
-static int default_stop_script(void)
-{
-	return 0;
-}
-
-static int default_generate_script(struct pevent *pevent __maybe_unused,
-				   const char *outfile __maybe_unused)
-{
-	return 0;
-}
-
-static struct scripting_ops default_scripting_ops = {
-	.start_script		= default_start_script,
-	.flush_script		= default_flush_script,
-	.stop_script		= default_stop_script,
-	.process_event		= process_event,
-	.generate_script	= default_generate_script,
-};
-
 static struct scripting_ops	*scripting_ops;
 
 static void setup_scripting(void)
 {
 	setup_perl_scripting();
 	setup_python_scripting();
-
-	scripting_ops = &default_scripting_ops;
 }
 
 static int flush_scripting(void)
 {
-	return scripting_ops->flush_script();
+	return scripting_ops ? scripting_ops->flush_script() : 0;
 }
 
 static int cleanup_scripting(void)
 {
 	pr_debug("\nperf script stopped\n");
 
-	return scripting_ops->stop_script();
+	return scripting_ops ? scripting_ops->stop_script() : 0;
 }
 
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
@@ -727,7 +694,11 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		goto out_put;
 
-	scripting_ops->process_event(event, sample, evsel, &al);
+	if (scripting_ops)
+		scripting_ops->process_event(event, sample, evsel, &al);
+	else
+		process_event(event, sample, evsel, &al);
+
 out_put:
 	addr_location__put(&al);
 	return 0;
