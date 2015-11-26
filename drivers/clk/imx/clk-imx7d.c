@@ -839,10 +839,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 					 clks[IMX7D_PLL_ARM_MAIN_CLK],
 					 clks[IMX7D_PLL_SYS_MAIN_CLK]);
 
-	for (i = 0; i < ARRAY_SIZE(clks); i++)
-		if (IS_ERR(clks[i]))
-			pr_err("i.MX7D clk %d: register failed with %ld\n",
-					i, PTR_ERR(clks[i]));
+	imx_check_clocks(clks, ARRAY_SIZE(clks));
 
 	clk_data.clks = clks;
 	clk_data.clk_num = ARRAY_SIZE(clks);
