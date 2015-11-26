@@ -170,6 +170,25 @@
 			rx-fifo-depth = <0x40>;
 		};
 
+		cci: cci@fd6e0000 {
+			compatible = "arm,cci-400";
+			reg = <0x0 0xfd6e0000 0x0 0x9000>;
+			ranges = <0x0 0x0 0xfd6e0000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pmu@9000 {
+				compatible = "arm,cci-400-pmu,r1";
+				reg = <0x9000 0x5000>;
+				interrupt-parent = <&gic>;
+				interrupts = <0 123 4>,
+					     <0 123 4>,
+					     <0 123 4>,
+					     <0 123 4>,
+					     <0 123 4>;
+			};
+		};
+
 		gem0: ethernet@ff0b0000 {
 			compatible = "cdns,gem";
 			status = "disabled";
