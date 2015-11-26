@@ -2059,7 +2059,7 @@ static const unsigned int lcd2_data9_mux[] = {
 	LCD2D8_MARK,
 };
 static const unsigned int lcd2_data12_pins[] = {
-	/* D[0:12] */
+	/* D[0:11] */
 	128, 129, 142, 143, 144, 145, 138, 139,
 	140, 141, 130, 131,
 };
