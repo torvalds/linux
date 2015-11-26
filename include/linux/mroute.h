@@ -9,43 +9,38 @@
 #ifdef CONFIG_IP_MROUTE
 static inline int ip_mroute_opt(int opt)
 {
-	return (opt >= MRT_BASE) && (opt <= MRT_MAX);
+	return opt >= MRT_BASE && opt <= MRT_MAX;
 }
-#else
-static inline int ip_mroute_opt(int opt)
-{
-	return 0;
-}
-#endif
 
-#ifdef CONFIG_IP_MROUTE
-extern int ip_mroute_setsockopt(struct sock *, int, char __user *, unsigned int);
-extern int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
-extern int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);
-extern int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
-extern int ip_mr_init(void);
+int ip_mroute_setsockopt(struct sock *, int, char __user *, unsigned int);
+int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
+int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);
+int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
+int ip_mr_init(void);
 #else
-static inline
-int ip_mroute_setsockopt(struct sock *sock,
-			 int optname, char __user *optval, unsigned int optlen)
+static inline int ip_mroute_setsockopt(struct sock *sock, int optname,
+				       char __user *optval, unsigned int optlen)
 {
 	return -ENOPROTOOPT;
 }
 
-static inline
-int ip_mroute_getsockopt(struct sock *sock,
-			 int optname, char __user *optval, int __user *optlen)
+static inline int ip_mroute_getsockopt(struct sock *sock, int optname,
+				       char __user *optval, int __user *optlen)
 {
 	return -ENOPROTOOPT;
 }
 
-static inline
-int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
+static inline int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
 {
 	return -ENOIOCTLCMD;
 }
 
 static inline int ip_mr_init(void)
+{
+	return 0;
+}
+
+static inline int ip_mroute_opt(int opt)
 {
 	return 0;
 }
@@ -96,16 +91,16 @@ struct mfc_cache {
 	struct rcu_head	rcu;
 };
 
-#define MFC_LINES		64
+#define MFC_LINES 64
 
 #ifdef __BIG_ENDIAN
 #define MFC_HASH(a,b)	(((((__force u32)(__be32)a)>>24)^(((__force u32)(__be32)b)>>26))&(MFC_LINES-1))
 #else
 #define MFC_HASH(a,b)	((((__force u32)(__be32)a)^(((__force u32)(__be32)b)>>2))&(MFC_LINES-1))
-#endif		
+#endif
 
 struct rtmsg;
-extern int ipmr_get_route(struct net *net, struct sk_buff *skb,
-			  __be32 saddr, __be32 daddr,
-			  struct rtmsg *rtm, int nowait);
+int ipmr_get_route(struct net *net, struct sk_buff *skb,
+		   __be32 saddr, __be32 daddr,
+		   struct rtmsg *rtm, int nowait);
 #endif
