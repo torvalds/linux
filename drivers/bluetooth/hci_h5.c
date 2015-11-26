@@ -317,7 +317,7 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_rsp, 2) == 0) {
 		if (H5_HDR_LEN(hdr) > 2)
-			h5->tx_win = (data[2] & 7);
+			h5->tx_win = (data[2] & 0x07);
 		BT_DBG("Three-wire init complete. tx_win %u", h5->tx_win);
 		h5->state = H5_ACTIVE;
 		hci_uart_init_ready(hu);
