@@ -4256,8 +4256,8 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	 * station. Include these parameters here and will check them in
 	 * cfg80211_check_station_change().
 	 */
-	if (info->attrs[NL80211_ATTR_PEER_AID])
-		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_PEER_AID]);
+	if (info->attrs[NL80211_ATTR_STA_AID])
+		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
 
 	if (info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL])
 		params.listen_interval =
