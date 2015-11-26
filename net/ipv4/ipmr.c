@@ -1284,12 +1284,14 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 
 	switch (optname) {
 	case MRT_INIT:
-		if (optlen != sizeof(int))
+		if (optlen != sizeof(int)) {
 			ret = -EINVAL;
-		if (rtnl_dereference(mrt->mroute_sk))
-			ret = -EADDRINUSE;
-		if (ret)
 			break;
+		}
+		if (rtnl_dereference(mrt->mroute_sk)) {
+			ret = -EADDRINUSE;
+			break;
+		}
 
 		ret = ip_ra_control(sk, 1, mrtsock_destruct);
 		if (ret == 0) {
