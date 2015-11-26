@@ -150,10 +150,8 @@ static int max17135_probe(struct i2c_client *client,
 
 	/* Create the PMIC data structure */
 	max17135 = kzalloc(sizeof(struct max17135), GFP_KERNEL);
-	if (max17135 == NULL) {
-		kfree(client);
+	if (max17135 == NULL)
 		return -ENOMEM;
-	}
 
 	/* Initialize the PMIC data structure */
 	i2c_set_clientdata(client, max17135);
