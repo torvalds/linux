@@ -19,6 +19,8 @@
 #include <linux/kref.h>
 #include <linux/blk-mq.h>
 
+struct nvme_passthru_cmd;
+
 extern unsigned char nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
@@ -34,6 +36,7 @@ struct nvme_ctrl {
 	const struct nvme_ctrl_ops *ops;
 	struct request_queue *admin_q;
 	struct device *dev;
+	struct kref kref;
 	int instance;
 
 	char name[12];
@@ -69,6 +72,7 @@ struct nvme_ns {
 
 struct nvme_ctrl_ops {
 	int (*reg_read32)(struct nvme_ctrl *ctrl, u32 off, u32 *val);
+	void (*free_ctrl)(struct nvme_ctrl *ctrl);
 };
 
 static inline bool nvme_ctrl_ready(struct nvme_ctrl *ctrl)
@@ -148,6 +152,9 @@ static inline int nvme_error_status(u16 status)
 	}
 }
 
+void nvme_put_ctrl(struct nvme_ctrl *ctrl);
+void nvme_put_ns(struct nvme_ns *ns);
+
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags);
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
@@ -169,6 +176,13 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 			dma_addr_t dma_addr, u32 *result);
 int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 			dma_addr_t dma_addr, u32 *result);
+
+extern const struct block_device_operations nvme_fops;
+extern spinlock_t dev_list_lock;
+
+int nvme_revalidate_disk(struct gendisk *disk);
+int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
+			struct nvme_passthru_cmd __user *ucmd);
 
 struct sg_io_hdr;
 
