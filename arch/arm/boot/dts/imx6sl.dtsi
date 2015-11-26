@@ -151,7 +151,7 @@
 						"rxtx1", "rxtx2",
 						"rxtx3", "rxtx4",
 						"rxtx5", "rxtx6",
-						"rxtx7", "dma";
+						"rxtx7", "spba";
 					status = "disabled";
 				};
 
