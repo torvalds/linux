@@ -13690,6 +13690,17 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 			return ret;
 	}
 
+	/* For framebuffer backed by dmabuf, wait for fence */
+	if (obj && obj->base.dma_buf) {
+		ret = reservation_object_wait_timeout_rcu(obj->base.dma_buf->resv,
+							  false, true,
+							  MAX_SCHEDULE_TIMEOUT);
+		if (ret == -ERESTARTSYS)
+			return ret;
+
+		WARN_ON(ret < 0);
+	}
+
 	if (!obj) {
 		ret = 0;
 	} else if (plane->type == DRM_PLANE_TYPE_CURSOR &&
