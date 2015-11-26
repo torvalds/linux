@@ -1871,7 +1871,8 @@ static void hw_scan_work(struct work_struct *work)
 		    req->channels[hwsim->scan_chan_idx]->center_freq);
 
 	hwsim->tmp_chan = req->channels[hwsim->scan_chan_idx];
-	if (hwsim->tmp_chan->flags & IEEE80211_CHAN_NO_IR ||
+	if (hwsim->tmp_chan->flags & (IEEE80211_CHAN_NO_IR |
+				      IEEE80211_CHAN_RADAR) ||
 	    !req->n_ssids) {
 		dwell = 120;
 	} else {
