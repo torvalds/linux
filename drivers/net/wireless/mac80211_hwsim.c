@@ -1250,6 +1250,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *channel;
 	bool ack;
@@ -1295,6 +1296,22 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 				       ARRAY_SIZE(txi->control.rates));
 
 	txi->rate_driver_data[0] = channel;
+
+	if (skb->len >= 24 + 8 &&
+	    ieee80211_is_probe_resp(hdr->frame_control)) {
+		/* fake header transmission time */
+		struct ieee80211_mgmt *mgmt;
+		struct ieee80211_rate *txrate;
+		u64 ts;
+
+		mgmt = (struct ieee80211_mgmt *)skb->data;
+		txrate = ieee80211_get_tx_rate(hw, txi);
+		ts = mac80211_hwsim_get_tsf_raw();
+		mgmt->u.probe_resp.timestamp =
+			cpu_to_le64(ts + data->tsf_offset +
+				    24 * 8 * 10 / txrate->bitrate);
+	}
+
 	mac80211_hwsim_monitor_rx(hw, skb, channel);
 
 	/* wmediumd mode check */
