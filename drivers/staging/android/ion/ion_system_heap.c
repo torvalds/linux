@@ -23,6 +23,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/rockchip-iovmm.h>
 #include "ion.h"
 #include "ion_priv.h"
 
@@ -240,6 +241,43 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
 	return nr_total;
 }
 
+#ifdef CONFIG_RK_IOMMU
+static int ion_system_map_iommu(struct ion_buffer *buffer,
+				struct device *iommu_dev,
+				struct ion_iommu_map *data,
+				unsigned long iova_length,
+				unsigned long flags)
+{
+	int ret = 0;
+	struct sg_table *table = (struct sg_table *)buffer->priv_virt;
+
+	data->iova_addr = rockchip_iovmm_map(iommu_dev,
+					     table->sgl, 0,
+					     iova_length);
+	pr_debug("%s: map %lx -> %lx\n", __func__,
+		 (unsigned long)table->sgl->dma_address,
+		 data->iova_addr);
+	if (IS_ERR_VALUE(data->iova_addr)) {
+		pr_err("%s: rockchip_iovmm_map() failed: 0x%lx\n",
+		       __func__, data->iova_addr);
+		ret = data->iova_addr;
+		goto out;
+	}
+
+	data->mapped_size = iova_length;
+out:
+	return ret;
+}
+
+void ion_system_unmap_iommu(struct device *iommu_dev,
+			    struct ion_iommu_map *data)
+{
+	pr_debug("%s: unmap 0x%x@0x%lx\n", __func__,
+		 data->mapped_size, data->iova_addr);
+	rockchip_iovmm_unmap(iommu_dev, data->iova_addr);
+}
+#endif
+
 static struct ion_heap_ops system_heap_ops = {
 	.allocate = ion_system_heap_allocate,
 	.free = ion_system_heap_free,
@@ -249,6 +287,10 @@ static struct ion_heap_ops system_heap_ops = {
 	.unmap_kernel = ion_heap_unmap_kernel,
 	.map_user = ion_heap_map_user,
 	.shrink = ion_system_heap_shrink,
+#ifdef CONFIG_RK_IOMMU
+	.map_iommu = ion_system_map_iommu,
+	.unmap_iommu = ion_system_unmap_iommu,
+#endif
 };
 
 static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
