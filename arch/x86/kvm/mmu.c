@@ -2119,12 +2119,8 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		if (sp->unsync && kvm_sync_page_transient(vcpu, sp))
 			break;
 
-		mmu_page_add_parent_pte(vcpu, sp, parent_pte);
-		if (sp->unsync_children) {
+		if (sp->unsync_children)
 			kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
-			kvm_mmu_mark_parents_unsync(sp);
-		} else if (sp->unsync)
-			kvm_mmu_mark_parents_unsync(sp);
 
 		__clear_sp_write_flooding_count(sp);
 		trace_kvm_mmu_get_page(sp, false);
@@ -2134,8 +2130,6 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	++vcpu->kvm->stat.mmu_cache_miss;
 
 	sp = kvm_mmu_alloc_page(vcpu, direct);
-
-	mmu_page_add_parent_pte(vcpu, sp, parent_pte);
 
 	sp->gfn = gfn;
 	sp->role = role;
@@ -2204,7 +2198,8 @@ static void shadow_walk_next(struct kvm_shadow_walk_iterator *iterator)
 	return __shadow_walk_next(iterator, *iterator->sptep);
 }
 
-static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
+static void link_shadow_page(struct kvm_vcpu *vcpu, u64 *sptep,
+			     struct kvm_mmu_page *sp)
 {
 	u64 spte;
 
@@ -2215,6 +2210,11 @@ static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
 	       shadow_user_mask | shadow_x_mask | shadow_accessed_mask;
 
 	mmu_spte_set(sptep, spte);
+
+	mmu_page_add_parent_pte(vcpu, sp, sptep);
+
+	if (sp->unsync_children || sp->unsync)
+		mark_unsync(sptep);
 }
 
 static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
@@ -2271,11 +2271,6 @@ static void kvm_mmu_page_unlink_children(struct kvm *kvm,
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
 		mmu_page_zap_pte(kvm, sp, sp->spt + i);
-}
-
-static void kvm_mmu_put_page(struct kvm_mmu_page *sp, u64 *parent_pte)
-{
-	mmu_page_remove_parent_pte(sp, parent_pte);
 }
 
 static void kvm_mmu_unlink_parents(struct kvm *kvm, struct kvm_mmu_page *sp)
@@ -2743,7 +2738,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, int write, int map_writable,
 					      iterator.level - 1,
 					      1, ACC_ALL, iterator.sptep);
 
-			link_shadow_page(iterator.sptep, sp);
+			link_shadow_page(vcpu, iterator.sptep, sp);
 		}
 	}
 	return emulate;
