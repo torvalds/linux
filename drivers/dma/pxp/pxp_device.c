@@ -317,7 +317,7 @@ static void pxp_dma_done(void *arg)
 
 static int pxp_ioc_config_chan(struct pxp_file *priv, unsigned long arg)
 {
-	struct scatterlist sg[3];
+	struct scatterlist *sg;
 	struct pxp_tx_desc *desc;
 	struct dma_async_tx_descriptor *txd;
 	struct pxp_config_data *pxp_conf;
@@ -356,6 +356,12 @@ static int pxp_ioc_config_chan(struct pxp_file *priv, unsigned long arg)
 	if (pxp_conf->proc_data.engine_enable & PXP_ENABLE_DITHER)
 		sg_len += 4;
 
+	sg = kmalloc(sizeof(*sg) * sg_len, GFP_KERNEL);
+	if (!sg) {
+		kfree(pxp_conf);
+		return -ENOMEM;
+	}
+
 	sg_init_table(sg, sg_len);
 
 	txd = chan->device->device_prep_slave_sg(chan,
@@ -366,6 +372,7 @@ static int pxp_ioc_config_chan(struct pxp_file *priv, unsigned long arg)
 	if (!txd) {
 		pr_err("Error preparing a DMA transaction descriptor.\n");
 		kfree(pxp_conf);
+		kfree(sg);
 		return -EIO;
 	}
 
@@ -488,12 +495,14 @@ static int pxp_ioc_config_chan(struct pxp_file *priv, unsigned long arg)
 	if (cookie < 0) {
 		pr_err("Error tx_submit\n");
 		kfree(pxp_conf);
+		kfree(sg);
 		return -EIO;
 	}
 
 	atomic_inc(&irq_info[chan_id].irq_pending);
 
 	kfree(pxp_conf);
+	kfree(sg);
 
 	return 0;
 }
