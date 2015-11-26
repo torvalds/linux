@@ -67,22 +67,6 @@
 #include <net/fib_rules.h>
 #include <linux/netconf.h>
 
-struct mr_table {
-	struct list_head	list;
-	possible_net_t		net;
-	u32			id;
-	struct sock __rcu	*mroute_sk;
-	struct timer_list	ipmr_expire_timer;
-	struct list_head	mfc_unres_queue;
-	struct list_head	mfc_cache_array[MFC_LINES];
-	struct vif_device	vif_table[MAXVIFS];
-	int			maxvif;
-	atomic_t		cache_resolve_queue_len;
-	bool			mroute_do_assert;
-	bool			mroute_do_pim;
-	int			mroute_reg_vif_num;
-};
-
 struct ipmr_rule {
 	struct fib_rule		common;
 };
@@ -103,8 +87,6 @@ static inline bool pimsm_enabled(void)
 static DEFINE_RWLOCK(mrt_lock);
 
 /* Multicast router control variables */
-
-#define VIF_EXISTS(_mrt, _idx) ((_mrt)->vif_table[_idx].dev != NULL)
 
 /* Special spinlock for queue of unresolved entries */
 static DEFINE_SPINLOCK(mfc_unres_lock);

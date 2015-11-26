@@ -59,6 +59,25 @@ struct vif_device {
 
 #define VIFF_STATIC 0x8000
 
+#define VIF_EXISTS(_mrt, _idx) ((_mrt)->vif_table[_idx].dev != NULL)
+#define MFC_LINES 64
+
+struct mr_table {
+	struct list_head	list;
+	possible_net_t		net;
+	u32			id;
+	struct sock __rcu	*mroute_sk;
+	struct timer_list	ipmr_expire_timer;
+	struct list_head	mfc_unres_queue;
+	struct list_head	mfc_cache_array[MFC_LINES];
+	struct vif_device	vif_table[MAXVIFS];
+	int			maxvif;
+	atomic_t		cache_resolve_queue_len;
+	bool			mroute_do_assert;
+	bool			mroute_do_pim;
+	int			mroute_reg_vif_num;
+};
+
 /* mfc_flags:
  * MFC_STATIC - the entry was added statically (not by a routing daemon)
  */
@@ -90,8 +109,6 @@ struct mfc_cache {
 	} mfc_un;
 	struct rcu_head	rcu;
 };
-
-#define MFC_LINES 64
 
 #ifdef __BIG_ENDIAN
 #define MFC_HASH(a,b)	(((((__force u32)(__be32)a)>>24)^(((__force u32)(__be32)b)>>26))&(MFC_LINES-1))
