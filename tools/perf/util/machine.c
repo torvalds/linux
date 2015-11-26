@@ -561,6 +561,24 @@ int machine__process_switch_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
+static void dso__adjust_kmod_long_name(struct dso *dso, const char *filename)
+{
+	const char *dup_filename;
+
+	if (!filename || !dso || !dso->long_name)
+		return;
+	if (dso->long_name[0] != '[')
+		return;
+	if (!strchr(filename, '/'))
+		return;
+
+	dup_filename = strdup(filename);
+	if (!dup_filename)
+		return;
+
+	dso__set_long_name(dso, filename, true);
+}
+
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename)
 {
@@ -573,8 +591,15 @@ struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 
 	map = map_groups__find_by_name(&machine->kmaps, MAP__FUNCTION,
 				       m.name);
-	if (map)
+	if (map) {
+		/*
+		 * If the map's dso is an offline module, give dso__load()
+		 * a chance to find the file path of that module by fixing
+		 * long_name.
+		 */
+		dso__adjust_kmod_long_name(map->dso, filename);
 		goto out;
+	}
 
 	dso = machine__findnew_module_dso(machine, &m, filename);
 	if (dso == NULL)
