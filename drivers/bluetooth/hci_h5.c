@@ -116,12 +116,8 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 
 static u8 h5_cfg_field(struct h5 *h5)
 {
-	u8 field = 0;
-
 	/* Sliding window size (first 3 bits) */
-	field |= (h5->tx_win & 0x07);
-
-	return field;
+	return h5->tx_win & 0x07;
 }
 
 static void h5_timed_event(unsigned long arg)
