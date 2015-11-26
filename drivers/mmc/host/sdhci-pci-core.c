@@ -277,7 +277,7 @@ static int spt_select_drive_strength(struct sdhci_host *host,
 	if (sdhci_pci_spt_drive_strength > 0)
 		drive_strength = sdhci_pci_spt_drive_strength & 0xf;
 	else
-		drive_strength = 1; /* 33-ohm */
+		drive_strength = 0; /* Default 50-ohm */
 
 	if ((mmc_driver_type_mask(drive_strength) & card_drv) == 0)
 		drive_strength = 0; /* Default 50-ohm */
