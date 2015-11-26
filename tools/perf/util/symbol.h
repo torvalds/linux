@@ -108,7 +108,8 @@ struct symbol_conf {
 			show_hist_headers,
 			branch_callstack,
 			has_filter,
-			show_ref_callgraph;
+			show_ref_callgraph,
+			hide_unresolved;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
