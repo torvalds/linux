@@ -238,7 +238,7 @@ struct clk *clk_register_div_pix_clk(struct device *dev, const char *name,
 
 	clk = clk_register(dev, &di_div->hw);
 	if (IS_ERR(clk))
-		kfree(clk);
+		kfree(di_div);
 
 	return clk;
 }
