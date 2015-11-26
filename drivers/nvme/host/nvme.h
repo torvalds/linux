@@ -19,6 +19,16 @@
 #include <linux/kref.h>
 #include <linux/blk-mq.h>
 
+enum {
+	/*
+	 * Driver internal status code for commands that were cancelled due
+	 * to timeouts or controller shutdown.  The value is negative so
+	 * that it a) doesn't overlap with the unsigned hardware error codes,
+	 * and b) can easily be tested for.
+	 */
+	NVME_SC_CANCELLED		= -EINTR,
+};
+
 extern unsigned char nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
