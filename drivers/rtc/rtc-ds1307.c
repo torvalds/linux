@@ -1134,7 +1134,10 @@ read_rtc:
 				bin2bcd(tmp));
 	}
 
-	device_set_wakeup_capable(&client->dev, want_irq);
+	if (want_irq) {
+		device_set_wakeup_capable(&client->dev, true);
+		set_bit(HAS_ALARM, &ds1307->flags);
+	}
 	ds1307->rtc = devm_rtc_device_register(&client->dev, client->name,
 				rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1307->rtc)) {
@@ -1148,12 +1151,11 @@ read_rtc:
 						ds1307->rtc->name, client);
 		if (err) {
 			client->irq = 0;
+			device_set_wakeup_capable(&client->dev, false);
+			clear_bit(HAS_ALARM, &ds1307->flags);
 			dev_err(&client->dev, "unable to request IRQ!\n");
-		} else {
-
-			set_bit(HAS_ALARM, &ds1307->flags);
+		} else
 			dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
-		}
 	}
 
 	if (chip->nvram_size) {
