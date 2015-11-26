@@ -11,15 +11,59 @@
 
 #include "greybus.h"
 
+#define ES2_UNIPRO_MFG_ID	0x00000126
+#define ES2_UNIPRO_PROD_ID	0x00001000
+
 struct gb_firmware {
 	struct gb_connection	*connection;
 	const struct firmware	*fw;
+	u32			vendor_id;
+	u32			product_id;
 };
 
 static void free_firmware(struct gb_firmware *firmware)
 {
 	release_firmware(firmware->fw);
 	firmware->fw = NULL;
+}
+
+/*
+ * The es2 chip doesn't have VID/PID programmed into the hardware and we need to
+ * hack that up to distinguish different modules and their firmware blobs.
+ *
+ * This fetches VID/PID (over firmware protocol) for es2 chip only, when VID/PID
+ * already sent during hotplug are 0.
+ *
+ * Otherwise, we keep firmware->vendor_id/product_id same as what's passed
+ * during hotplug.
+ */
+static void firmware_es2_fixup_vid_pid(struct gb_firmware *firmware)
+{
+	struct gb_firmware_get_vid_pid_response response;
+	struct gb_connection *connection = firmware->connection;
+	struct gb_interface *intf = connection->bundle->intf;
+	int ret;
+
+	/*
+	 * Use VID/PID specified at hotplug if:
+	 * - Bridge ASIC chip isn't ES2
+	 * - Received non-zero Vendor/Product ids
+	 */
+	if (intf->unipro_mfg_id != ES2_UNIPRO_MFG_ID ||
+	    intf->unipro_prod_id != ES2_UNIPRO_PROD_ID ||
+	    intf->vendor_id != 0 || intf->product_id != 0)
+		return;
+
+	ret = gb_operation_sync(connection, GB_FIRMWARE_TYPE_GET_VID_PID,
+				NULL, 0, &response, sizeof(response));
+	if (ret) {
+		dev_err(&connection->bundle->dev,
+			"Firmware get vid/pid operation failed (%d)\n", ret);
+		return;
+	}
+
+	firmware->vendor_id = le32_to_cpu(response.vendor_id);
+	firmware->product_id = le32_to_cpu(response.product_id);
 }
 
 /* This returns path of the firmware blob on the disk */
@@ -41,7 +85,7 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 	snprintf(firmware_name, sizeof(firmware_name),
 		 "ara:%08x:%08x:%08x:%08x:%02x.tftf",
 		 intf->unipro_mfg_id, intf->unipro_prod_id,
-		 intf->vendor_id, intf->product_id, stage);
+		 firmware->vendor_id, firmware->product_id, stage);
 
 	return request_firmware(&firmware->fw, firmware_name,
 				&connection->bundle->dev);
@@ -182,6 +226,11 @@ static int gb_firmware_connection_init(struct gb_connection *connection)
 
 	firmware->connection = connection;
 	connection->private = firmware;
+
+	firmware->vendor_id = connection->intf->vendor_id;
+	firmware->product_id = connection->intf->product_id;
+
+	firmware_es2_fixup_vid_pid(firmware);
 
 	/*
 	 * Module's Bootrom needs a way to know (currently), when to start

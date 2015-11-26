@@ -158,6 +158,7 @@ struct gb_control_disconnected_request {
 #define GB_FIRMWARE_TYPE_GET_FIRMWARE		0x03
 #define GB_FIRMWARE_TYPE_READY_TO_BOOT		0x04
 #define GB_FIRMWARE_TYPE_AP_READY		0x05	/* Request with no-payload */
+#define GB_FIRMWARE_TYPE_GET_VID_PID		0x06	/* Request with no-payload */
 
 /* Greybus firmware boot stages */
 #define GB_FIRMWARE_BOOT_STAGE_ONE		0x01 /* Reserved for the boot ROM */
@@ -196,6 +197,12 @@ struct gb_firmware_ready_to_boot_request {
 	__u8			status;
 } __packed;
 /* Firmware protocol Ready to boot response has no payload */
+
+/* Firmware protocol get VID/PID request has no payload */
+struct gb_firmware_get_vid_pid_response {
+	__le32			vendor_id;
+	__le32			product_id;
+} __packed;
 
 
 /* Power Supply */
