@@ -290,6 +290,7 @@ static void
 sort_chain_flat(struct rb_root *rb_root, struct callchain_root *root,
 		u64 min_hit, struct callchain_param *param __maybe_unused)
 {
+	*rb_root = RB_ROOT;
 	__sort_chain_flat(rb_root, &root->node, min_hit);
 }
 
