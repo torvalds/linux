@@ -3318,6 +3318,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			grace-period latency.  This parameter overrides
 			rcupdate.rcu_expedited.
 
+	rcupdate.rcu_normal_after_boot= [KNL]
+			Once boot has completed (that is, after
+			rcu_end_inkernel_boot() has been invoked), use
+			only normal grace-period primitives.
+
 	rcupdate.rcu_task_stall_timeout= [KNL]
 			Set timeout in jiffies for RCU task stall warning
 			messages.  Disable with a value less than or equal

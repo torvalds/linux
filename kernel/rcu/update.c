@@ -63,6 +63,9 @@ MODULE_ALIAS("rcupdate");
 module_param(rcu_expedited, int, 0);
 module_param(rcu_normal, int, 0);
 
+static int rcu_normal_after_boot;
+module_param(rcu_normal_after_boot, int, 0);
+
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_PREEMPT_COUNT)
 /**
  * rcu_read_lock_sched_held() - might we be in RCU-sched read-side critical section?
@@ -178,6 +181,8 @@ void rcu_end_inkernel_boot(void)
 {
 	if (IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT))
 		rcu_unexpedite_gp();
+	if (rcu_normal_after_boot)
+		WRITE_ONCE(rcu_normal, 1);
 }
 
 #ifdef CONFIG_PREEMPT_RCU
