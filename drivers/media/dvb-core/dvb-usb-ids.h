@@ -118,6 +118,7 @@
 #define USB_PID_DIBCOM_STK807XP				0x1f90
 #define USB_PID_DIBCOM_STK807XPVR			0x1f98
 #define USB_PID_DIBCOM_STK8096GP                        0x1fa0
+#define USB_PID_DIBCOM_STK8096PVR                       0x1faa
 #define USB_PID_DIBCOM_NIM8096MD                        0x1fa8
 #define USB_PID_DIBCOM_TFE8096P				0x1f9C
 #define USB_PID_DIBCOM_ANCHOR_2135_COLD			0x2131
