@@ -715,7 +715,8 @@ struct intel_hdmi {
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       bool enable,
 			       const struct drm_display_mode *adjusted_mode);
-	bool (*infoframe_enabled)(struct drm_encoder *encoder);
+	bool (*infoframe_enabled)(struct drm_encoder *encoder,
+				  const struct intel_crtc_state *pipe_config);
 };
 
 struct intel_dp_mst_encoder;
