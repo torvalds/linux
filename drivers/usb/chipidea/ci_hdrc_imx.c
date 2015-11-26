@@ -359,10 +359,12 @@ static int ci_hdrc_imx_notify_event(struct ci_hdrc *ci, unsigned event)
 		if (data->usbmisc_data)
 			return imx_usbmisc_term_select_override(
 					data->usbmisc_data, true, 1);
+		break;
 	case CI_HDRC_IMX_TERM_SELECT_OVERRIDE_OFF:
 		if (data->usbmisc_data)
 			return imx_usbmisc_term_select_override(
 					data->usbmisc_data, false, 0);
+		break;
 	default:
 		dev_dbg(dev, "unknown event\n");
 	}
