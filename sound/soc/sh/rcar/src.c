@@ -300,7 +300,7 @@ static void rsnd_src_irq_ctrol(struct rsnd_mod *mod, int enable)
 	rsnd_mod_bset(mod, SCU_SYS_INT_EN1, sys_int_mask, sys_int_val);
 }
 
-static void rsnd_src_error_clear(struct rsnd_mod *mod)
+static void rsnd_src_status_clear(struct rsnd_mod *mod)
 {
 	u32 val = OUF_SRC(rsnd_mod_id(mod));
 
@@ -308,7 +308,7 @@ static void rsnd_src_error_clear(struct rsnd_mod *mod)
 	rsnd_mod_bset(mod, SCU_SYS_STATUS1, val, val);
 }
 
-static bool rsnd_src_error_record(struct rsnd_mod *mod)
+static bool rsnd_src_record_error(struct rsnd_mod *mod)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 val0, val1;
@@ -331,9 +331,6 @@ static bool rsnd_src_error_record(struct rsnd_mod *mod)
 		src->err++;
 		ret = true;
 	}
-
-	/* clear error static */
-	rsnd_src_error_clear(mod);
 
 	return ret;
 }
@@ -383,7 +380,7 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 
 	rsnd_src_set_convert_rate(io, mod);
 
-	rsnd_src_error_clear(mod);
+	rsnd_src_status_clear(mod);
 
 	rsnd_src_irq_enable(mod);
 
@@ -434,7 +431,7 @@ static void __rsnd_src_interrupt(struct rsnd_mod *mod,
 	if (!rsnd_io_is_working(io))
 		goto rsnd_src_interrupt_out;
 
-	if (rsnd_src_error_record(mod)) {
+	if (rsnd_src_record_error(mod)) {
 
 		dev_dbg(dev, "%s[%d] restart\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
@@ -450,7 +447,9 @@ static void __rsnd_src_interrupt(struct rsnd_mod *mod,
 			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 
+	rsnd_src_status_clear(mod);
 rsnd_src_interrupt_out:
+
 	spin_unlock(&priv->lock);
 }
 
