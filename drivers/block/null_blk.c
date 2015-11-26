@@ -464,7 +464,7 @@ static int null_lnvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
-	rq = blk_mq_alloc_request(q, bio_rw(bio), GFP_KERNEL, 0);
+	rq = blk_mq_alloc_request(q, bio_rw(bio), 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
