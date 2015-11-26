@@ -64,6 +64,13 @@ struct vif_device {
 
 #define VIFF_STATIC 0x8000
 
+/* mfc_flags:
+ * MFC_STATIC - the entry was added statically (not by a routing daemon)
+ */
+enum {
+	MFC_STATIC = BIT(0),
+};
+
 struct mfc_cache {
 	struct list_head list;
 	__be32 mfc_mcastgrp;			/* Group the entry belongs to 	*/
@@ -88,9 +95,6 @@ struct mfc_cache {
 	} mfc_un;
 	struct rcu_head	rcu;
 };
-
-#define MFC_STATIC		1
-#define MFC_NOTIFY		2
 
 #define MFC_LINES		64
 

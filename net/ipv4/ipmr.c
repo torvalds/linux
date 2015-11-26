@@ -2199,8 +2199,6 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 	}
 
 	read_lock(&mrt_lock);
-	if (!nowait && (rtm->rtm_flags & RTM_F_NOTIFY))
-		cache->mfc_flags |= MFC_NOTIFY;
 	err = __ipmr_fill_mroute(mrt, skb, cache, rtm);
 	read_unlock(&mrt_lock);
 	rcu_read_unlock();
