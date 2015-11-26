@@ -232,6 +232,7 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 			dma_addr_t dma_addr, u32 *result);
 int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 			dma_addr_t dma_addr, u32 *result);
+int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
 
 extern spinlock_t dev_list_lock;
 
