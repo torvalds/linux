@@ -587,9 +587,13 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 	uint32_t flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
 	int r;
 
-	if (gtt->userptr)
-		amdgpu_ttm_tt_pin_userptr(ttm);
-
+	if (gtt->userptr) {
+		r = amdgpu_ttm_tt_pin_userptr(ttm);
+		if (r) {
+			DRM_ERROR("failed to pin userptr\n");
+			return r;
+		}
+	}
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
 	if (!ttm->num_pages) {
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
