@@ -44,7 +44,7 @@ imx_sema4_mutex_create(u32 dev_num, u32 mutex_num)
 {
 	struct imx_sema4_mutex *mutex_ptr = NULL;
 
-	if ((mutex_num > SEMA4_NUM_GATES) || dev_num >= SEMA4_NUM_DEVICES)
+	if (mutex_num >= SEMA4_NUM_GATES || dev_num >= SEMA4_NUM_DEVICES)
 		goto out;
 
 	if (imx6_sema4->cpine_val & (1 < mutex_num)) {
@@ -121,11 +121,12 @@ EXPORT_SYMBOL(imx_sema4_mutex_destroy);
  */
 int _imx_sema4_mutex_lock(struct imx_sema4_mutex *mutex_ptr)
 {
-	int ret = 0, i = mutex_ptr->gate_num;
+	int ret = 0, i = 0;
 
 	if ((mutex_ptr == NULL) || (mutex_ptr->valid != CORE_MUTEX_VALID))
 		return -EINVAL;
 
+	i = mutex_ptr->gate_num;
 	mutex_ptr->gate_val = readb(imx6_sema4->ioaddr + i);
 	mutex_ptr->gate_val &= SEMA4_GATE_MASK;
 	/* Check to see if this core already own it */
@@ -234,11 +235,12 @@ EXPORT_SYMBOL(imx_sema4_mutex_lock);
  */
 int imx_sema4_mutex_unlock(struct imx_sema4_mutex *mutex_ptr)
 {
-	int ret = 0, i = mutex_ptr->gate_num;
+	int ret = 0, i = 0;
 
 	if ((mutex_ptr == NULL) || (mutex_ptr->valid != CORE_MUTEX_VALID))
 		return -EINVAL;
 
+	i = mutex_ptr->gate_num;
 	mutex_ptr->gate_val = readb(imx6_sema4->ioaddr + i);
 	mutex_ptr->gate_val &= SEMA4_GATE_MASK;
 	/* make sure it is locked by this core */
@@ -271,7 +273,7 @@ static irqreturn_t imx_sema4_isr(int irq, void *dev_id)
 {
 	int i;
 	struct imx_sema4_mutex *mutex_ptr;
-	u32 mask;
+	unsigned int mask;
 	struct imx_sema4_mutex_device *imx6_sema4 = dev_id;
 
 	imx6_sema4->cpntf_val = readw(imx6_sema4->ioaddr + SEMA4_CP0NTF);
