@@ -1537,26 +1537,33 @@ static int nvme_kthread(void *data)
 	return 0;
 }
 
-/*
- * Create I/O queues.  Failing to create an I/O queue is not an issue,
- * we can continue with less than the desired amount of queues, and
- * even a controller without I/O queues an still be used to issue
- * admin commands.  This might be useful to upgrade a buggy firmware
- * for example.
- */
-static void nvme_create_io_queues(struct nvme_dev *dev)
+static int nvme_create_io_queues(struct nvme_dev *dev)
 {
 	unsigned i;
+	int ret = 0;
 
-	for (i = dev->queue_count; i <= dev->max_qid; i++)
-		if (!nvme_alloc_queue(dev, i, dev->q_depth))
+	for (i = dev->queue_count; i <= dev->max_qid; i++) {
+		if (!nvme_alloc_queue(dev, i, dev->q_depth)) {
+			ret = -ENOMEM;
 			break;
+		}
+	}
 
-	for (i = dev->online_queues; i <= dev->queue_count - 1; i++)
-		if (nvme_create_queue(dev->queues[i], i)) {
+	for (i = dev->online_queues; i <= dev->queue_count - 1; i++) {
+		ret = nvme_create_queue(dev->queues[i], i);
+		if (ret) {
 			nvme_free_queues(dev, i);
 			break;
 		}
+	}
+
+	/*
+	 * Ignore failing Create SQ/CQ commands, we can continue with less
+	 * than the desired aount of queues, and even a controller without
+	 * I/O queues an still be used to issue admin commands.  This might
+	 * be useful to upgrade a buggy firmware for example.
+	 */
+	return ret >= 0 ? 0 : ret;
 }
 
 static void __iomem *nvme_map_cmb(struct nvme_dev *dev)
@@ -1702,9 +1709,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 
 	/* Free previously allocated queues that are no longer usable */
 	nvme_free_queues(dev, nr_io_queues + 1);
-	nvme_create_io_queues(dev);
-
-	return 0;
+	return nvme_create_io_queues(dev);
 
  free_queues:
 	nvme_free_queues(dev, 1);
