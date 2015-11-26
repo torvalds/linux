@@ -202,4 +202,11 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
  */
 struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
 
+void ion_handle_get(struct ion_handle *handle);
+
+int ion_handle_put(struct ion_handle *handle);
+
+struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
+					int id);
+
 #endif /* _LINUX_ION_H */
