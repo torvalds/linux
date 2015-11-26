@@ -1060,6 +1060,7 @@ static int __erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk)
 		/* Re-schedule the LEB for erasure */
 		err1 = schedule_erase(ubi, e, vol_id, lnum, 0);
 		if (err1) {
+			wl_entry_destroy(ubi, e);
 			err = err1;
 			goto out_ro;
 		}
