@@ -105,15 +105,13 @@ static inline void purge_tlb_entries_huge(struct mm_struct *mm, unsigned long ad
 	addr |= _HUGE_PAGE_SIZE_ENCODING_DEFAULT;
 
 	for (i = 0; i < (1 << (HPAGE_SHIFT-REAL_HPAGE_SHIFT)); i++) {
-		mtsp(mm->context, 1);
-		pdtlb(addr);
-		if (unlikely(split_tlb))
-			pitlb(addr);
+		purge_tlb_entries(mm, addr);
 		addr += (1UL << REAL_HPAGE_SHIFT);
 	}
 }
 
-void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+/* __set_huge_pte_at() must be called holding the pa_tlb_lock. */
+static void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry)
 {
 	unsigned long addr_start;
@@ -123,13 +121,8 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 	addr_start = addr;
 
 	for (i = 0; i < (1 << HUGETLB_PAGE_ORDER); i++) {
-		/* Directly write pte entry.  We could call set_pte_at(mm, addr, ptep, entry)
-		 * instead, but then we get double locking on pa_tlb_lock. */
-		*ptep = entry;
+		set_pte(ptep, entry);
 		ptep++;
-
-		/* Drop the PAGE_SIZE/non-huge tlb entry */
-		purge_tlb_entries(mm, addr);
 
 		addr += PAGE_SIZE;
 		pte_val(entry) += PAGE_SIZE;
@@ -138,17 +131,60 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 	purge_tlb_entries_huge(mm, addr_start);
 }
 
+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep, pte_t entry)
+{
+	unsigned long flags;
+
+	purge_tlb_start(flags);
+	__set_huge_pte_at(mm, addr, ptep, entry);
+	purge_tlb_end(flags);
+}
+
 
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep)
 {
+	unsigned long flags;
 	pte_t entry;
 
+	purge_tlb_start(flags);
 	entry = *ptep;
-	set_huge_pte_at(mm, addr, ptep, __pte(0));
+	__set_huge_pte_at(mm, addr, ptep, __pte(0));
+	purge_tlb_end(flags);
 
 	return entry;
 }
+
+
+void huge_ptep_set_wrprotect(struct mm_struct *mm,
+				unsigned long addr, pte_t *ptep)
+{
+	unsigned long flags;
+	pte_t old_pte;
+
+	purge_tlb_start(flags);
+	old_pte = *ptep;
+	__set_huge_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));
+	purge_tlb_end(flags);
+}
+
+int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+				unsigned long addr, pte_t *ptep,
+				pte_t pte, int dirty)
+{
+	unsigned long flags;
+	int changed;
+
+	purge_tlb_start(flags);
+	changed = !pte_same(*ptep, pte);
+	if (changed) {
+		__set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
+	}
+	purge_tlb_end(flags);
+	return changed;
+}
+
 
 int pmd_huge(pmd_t pmd)
 {
