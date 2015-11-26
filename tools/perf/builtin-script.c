@@ -588,8 +588,17 @@ static void print_sample_flags(u32 flags)
 	printf("  %-4s ", str);
 }
 
-static void process_event(union perf_event *event, struct perf_sample *sample,
-			  struct perf_evsel *evsel, struct addr_location *al)
+struct perf_script {
+	struct perf_tool	tool;
+	struct perf_session	*session;
+	bool			show_task_events;
+	bool			show_mmap_events;
+	bool			show_switch_events;
+};
+
+static void process_event(struct perf_script *script __maybe_unused, union perf_event *event,
+			  struct perf_sample *sample, struct perf_evsel *evsel,
+			  struct addr_location *al)
 {
 	struct thread *thread = al->thread;
 	struct perf_event_attr *attr = &evsel->attr;
@@ -663,12 +672,13 @@ static int cleanup_scripting(void)
 	return scripting_ops ? scripting_ops->stop_script() : 0;
 }
 
-static int process_sample_event(struct perf_tool *tool __maybe_unused,
+static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
+	struct perf_script *scr = container_of(tool, struct perf_script, tool);
 	struct addr_location al;
 
 	if (debug_mode) {
@@ -697,20 +707,12 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (scripting_ops)
 		scripting_ops->process_event(event, sample, evsel, &al);
 	else
-		process_event(event, sample, evsel, &al);
+		process_event(scr, event, sample, evsel, &al);
 
 out_put:
 	addr_location__put(&al);
 	return 0;
 }
-
-struct perf_script {
-	struct perf_tool	tool;
-	struct perf_session	*session;
-	bool			show_task_events;
-	bool			show_mmap_events;
-	bool			show_switch_events;
-};
 
 static int process_attr(struct perf_tool *tool, union perf_event *event,
 			struct perf_evlist **pevlist)
