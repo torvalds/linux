@@ -126,6 +126,7 @@ typedef s390_regs elf_gregset_t;
 typedef s390_fp_regs compat_elf_fpregset_t;
 typedef s390_compat_regs compat_elf_gregset_t;
 
+#include <linux/compat.h>
 #include <linux/sched.h>	/* for task_struct */
 #include <asm/mmu_context.h>
 
@@ -159,7 +160,7 @@ extern unsigned int vdso_enabled;
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk. 64-bit
    tasks are aligned to 4GB. */
-#define ELF_ET_DYN_BASE (is_32bit_task() ? \
+#define ELF_ET_DYN_BASE (is_compat_task() ? \
 				(STACK_TOP / 3 * 2) : \
 				(STACK_TOP / 3 * 2) & ~((1UL << 32) - 1))
 
@@ -212,9 +213,9 @@ do {								\
  * of up to 1GB. For 31-bit processes the virtual address space is limited,
  * use no alignment and limit the randomization to 8MB.
  */
-#define BRK_RND_MASK	(is_32bit_task() ? 0x7ffUL : 0x3ffffUL)
-#define MMAP_RND_MASK	(is_32bit_task() ? 0x7ffUL : 0x3ff80UL)
-#define MMAP_ALIGN_MASK	(is_32bit_task() ? 0 : 0x7fUL)
+#define BRK_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x3ffffUL)
+#define MMAP_RND_MASK	(is_compat_task() ? 0x7ffUL : 0x3ff80UL)
+#define MMAP_ALIGN_MASK	(is_compat_task() ? 0 : 0x7fUL)
 #define STACK_RND_MASK	MMAP_RND_MASK
 
 #define ARCH_DLINFO							    \
