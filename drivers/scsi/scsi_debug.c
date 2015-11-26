@@ -4846,10 +4846,10 @@ static int __init scsi_debug_init(void)
 	/* play around with geometry, don't waste too much on track 0 */
 	sdebug_heads = 8;
 	sdebug_sectors_per = 32;
-	if (scsi_debug_dev_size_mb >= 16)
-		sdebug_heads = 32;
-	else if (scsi_debug_dev_size_mb >= 256)
+	if (scsi_debug_dev_size_mb >= 256)
 		sdebug_heads = 64;
+	else if (scsi_debug_dev_size_mb >= 16)
+		sdebug_heads = 32;
 	sdebug_cylinders_per = (unsigned long)sdebug_capacity /
 			       (sdebug_sectors_per * sdebug_heads);
 	if (sdebug_cylinders_per >= 1024) {
