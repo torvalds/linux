@@ -984,12 +984,13 @@ EXPORT_SYMBOL_GPL(imx_usbmisc_set_wakeup);
 int imx_usbmisc_charger_detection(struct imx_usbmisc_data *data, bool connect)
 {
 	struct imx_usbmisc *usbmisc;
-	struct usb_charger *charger = data->charger;
+	struct usb_charger *charger;
 	int ret = 0;
 
 	if (!data)
 		return -EINVAL;
 
+	charger = data->charger;
 	usbmisc = dev_get_drvdata(data->dev);
 	if (!usbmisc->ops->charger_primary_detection)
 		return -ENOTSUPP;
