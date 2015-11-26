@@ -1043,7 +1043,7 @@ out_finish:
 static struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
 	.save = vmw_du_crtc_save,
 	.restore = vmw_du_crtc_restore,
-	.cursor_set = vmw_du_crtc_cursor_set,
+	.cursor_set2 = vmw_du_crtc_cursor_set2,
 	.cursor_move = vmw_du_crtc_cursor_move,
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_stdu_crtc_destroy,
