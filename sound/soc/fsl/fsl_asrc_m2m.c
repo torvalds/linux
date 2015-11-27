@@ -273,8 +273,9 @@ static int fsl_asrc_prepare_io_buffer(struct fsl_asrc_pair *pair,
 	else
 		word_size = 2;
 
-	if (buf_len < word_size * pair->channels * wm) {
-		pair_err("%sput buffer size is too small: [%d]\n",
+	if (buf_len < word_size * pair->channels * wm ||
+	    buf_len > ASRC_DMA_BUFFER_SIZE) {
+		pair_err("%sput buffer size is error: [%d]\n",
 				DIR_STR(dir), buf_len);
 		return -EINVAL;
 	}
@@ -824,7 +825,7 @@ static int fsl_asrc_open(struct inode *inode, struct file *file)
 	}
 
 	m2m = kzalloc(sizeof(struct fsl_asrc_m2m), GFP_KERNEL);
-	if (!pair) {
+	if (!m2m) {
 		dev_err(dev, "failed to allocate m2m resource\n");
 		return -ENOMEM;
 	}
@@ -852,9 +853,6 @@ static int fsl_asrc_close(struct inode *inode, struct file *file)
 	struct device *dev = &asrc_priv->pdev->dev;
 	unsigned long lock_flags;
 	int i;
-
-	if (!pair)
-		goto out;
 
 	/* Make sure we have clear the pointer */
 	spin_lock_irqsave(&asrc_priv->lock, lock_flags);
@@ -897,7 +895,6 @@ static int fsl_asrc_close(struct inode *inode, struct file *file)
 	spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
 	file->private_data = NULL;
 
-out:
 	pm_runtime_put_sync(dev);
 
 	return 0;
