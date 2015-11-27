@@ -284,7 +284,7 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	buf[3] = HX8369_CMD_SETGAMMA_PARAM_4;
 	buf[4] = HX8369_CMD_SETGAMMA_PARAM_5;
 	buf[5] = HX8369_CMD_SETGAMMA_PARAM_6;
-	buf[7] = HX8369_CMD_SETGAMMA_PARAM_7;
+	buf[6] = HX8369_CMD_SETGAMMA_PARAM_7;
 	buf[7] = HX8369_CMD_SETGAMMA_PARAM_8;
 	buf[8] = HX8369_CMD_SETGAMMA_PARAM_9;
 	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
