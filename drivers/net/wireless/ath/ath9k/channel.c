@@ -1101,6 +1101,7 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 			nullfunc->frame_control |=
 				cpu_to_le16(IEEE80211_FCTL_PM);
 
+		skb->priority = 7;
 		skb_set_queue_mapping(skb, IEEE80211_AC_VO);
 		if (!ieee80211_tx_prepare_skb(sc->hw, vif, skb, band, &sta)) {
 			dev_kfree_skb_any(skb);
