@@ -1505,6 +1505,8 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 
 	noa->index = avp->noa_index;
 	noa->oppps_ctwindow = ath9k_get_ctwin(sc, avp);
+	if (noa->oppps_ctwindow)
+		noa->oppps_ctwindow |= BIT(7);
 
 	if (avp->noa_duration) {
 		if (avp->periodic_noa) {
