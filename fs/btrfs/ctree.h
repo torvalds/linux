@@ -598,7 +598,7 @@ struct btrfs_path {
 	int locks[BTRFS_MAX_LEVEL];
 	u8 reada;
 	/* keep some upper locks as we walk down */
-	int lowest_level;
+	u8 lowest_level;
 
 	/*
 	 * set by btrfs_split_item, tells search_slot to keep all locks
