@@ -37,6 +37,7 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/wmi.h>
 #include <linux/uuid.h>
 
@@ -91,8 +92,8 @@ module_param(debug_dump_wdg, bool, 0444);
 MODULE_PARM_DESC(debug_dump_wdg,
 		 "Dump available WMI interfaces [0/1]");
 
-static int acpi_wmi_remove(struct acpi_device *device);
-static int acpi_wmi_add(struct acpi_device *device);
+static int acpi_wmi_remove(struct platform_device *device);
+static int acpi_wmi_probe(struct platform_device *device);
 
 static const struct acpi_device_id wmi_device_ids[] = {
 	{"PNP0C14", 0},
@@ -101,14 +102,13 @@ static const struct acpi_device_id wmi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, wmi_device_ids);
 
-static struct acpi_driver acpi_wmi_driver = {
-	.name = "acpi-wmi",
-	.owner = THIS_MODULE,
-	.ids = wmi_device_ids,
-	.ops = {
-		.add = acpi_wmi_add,
-		.remove = acpi_wmi_remove,
+static struct platform_driver acpi_wmi_driver = {
+	.driver = {
+		.name = "acpi-wmi",
+		.acpi_match_table = wmi_device_ids,
 	},
+	.probe = acpi_wmi_probe,
+	.remove = acpi_wmi_remove,
 };
 
 /*
@@ -1109,26 +1109,34 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 
 }
 
-static int acpi_wmi_remove(struct acpi_device *device)
+static int acpi_wmi_remove(struct platform_device *device)
 {
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+	struct acpi_device *acpi_device = ACPI_COMPANION(&device->dev);
+
+	acpi_remove_notify_handler(acpi_device->handle, ACPI_DEVICE_NOTIFY,
 				   acpi_wmi_notify_handler);
-	acpi_remove_address_space_handler(device->handle,
+	acpi_remove_address_space_handler(acpi_device->handle,
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
-	wmi_free_devices(device);
-	device_unregister((struct device *)acpi_driver_data(device));
-	device->driver_data = NULL;
+	wmi_free_devices(acpi_device);
+	device_unregister((struct device *)dev_get_drvdata(&device->dev));
 
 	return 0;
 }
 
-static int acpi_wmi_add(struct acpi_device *device)
+static int acpi_wmi_probe(struct platform_device *device)
 {
+	struct acpi_device *acpi_device;
 	struct device *wmi_bus_dev;
 	acpi_status status;
 	int error;
 
-	status = acpi_install_address_space_handler(device->handle,
+	acpi_device = ACPI_COMPANION(&device->dev);
+	if (!acpi_device) {
+		dev_err(&device->dev, "ACPI companion is missing\n");
+		return -ENODEV;
+	}
+
+	status = acpi_install_address_space_handler(acpi_device->handle,
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_wmi_ec_space_handler,
 						    NULL, NULL);
@@ -1137,7 +1145,8 @@ static int acpi_wmi_add(struct acpi_device *device)
 		return -ENODEV;
 	}
 
-	status = acpi_install_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+	status = acpi_install_notify_handler(acpi_device->handle,
+					     ACPI_DEVICE_NOTIFY,
 					     acpi_wmi_notify_handler,
 					     NULL);
 	if (ACPI_FAILURE(status)) {
@@ -1152,9 +1161,9 @@ static int acpi_wmi_add(struct acpi_device *device)
 		error = PTR_ERR(wmi_bus_dev);
 		goto err_remove_notify_handler;
 	}
-	device->driver_data = wmi_bus_dev;
+	dev_set_drvdata(&device->dev, wmi_bus_dev);
 
-	error = parse_wdg(wmi_bus_dev, device);
+	error = parse_wdg(wmi_bus_dev, acpi_device);
 	if (error) {
 		pr_err("Failed to parse WDG method\n");
 		goto err_remove_busdev;
@@ -1166,11 +1175,11 @@ err_remove_busdev:
 	device_unregister(wmi_bus_dev);
 
 err_remove_notify_handler:
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+	acpi_remove_notify_handler(acpi_device->handle, ACPI_DEVICE_NOTIFY,
 				   acpi_wmi_notify_handler);
 
 err_remove_ec_handler:
-	acpi_remove_address_space_handler(device->handle,
+	acpi_remove_address_space_handler(acpi_device->handle,
 					  ACPI_ADR_SPACE_EC,
 					  &acpi_wmi_ec_space_handler);
 
@@ -1208,7 +1217,7 @@ static int __init acpi_wmi_init(void)
 	if (error)
 		goto err_unreg_class;
 
-	error = acpi_bus_register_driver(&acpi_wmi_driver);
+	error = platform_driver_register(&acpi_wmi_driver);
 	if (error) {
 		pr_err("Error loading mapper\n");
 		goto err_unreg_bus;
@@ -1227,7 +1236,7 @@ err_unreg_bus:
 
 static void __exit acpi_wmi_exit(void)
 {
-	acpi_bus_unregister_driver(&acpi_wmi_driver);
+	platform_driver_unregister(&acpi_wmi_driver);
 	class_unregister(&wmi_bus_class);
 	bus_unregister(&wmi_bus_type);
 }
