@@ -117,10 +117,22 @@ static inline int _ipu_is_sync_irq(uint32_t irq)
 		(reg_num == 14) || (reg_num == 15));
 }
 
+static inline uint32_t tri_cur_buf_mask(uint32_t dma_chan)
+{
+	uint32_t mask = 1UL << ((dma_chan * 2) & 0x1F);
+
+	return mask * 3;
+}
+
+static inline uint32_t tri_cur_buf_shift(uint32_t dma_chan)
+{
+	uint32_t mask = 1UL << ((dma_chan * 2) & 0x1F);
+
+	return ffs(mask) - 1;
+}
+
 #define idma_is_valid(ch)	(ch != NO_DMA)
 #define idma_mask(ch)		(idma_is_valid(ch) ? (1UL << (ch & 0x1F)) : 0)
-#define tri_cur_buf_mask(ch)	(idma_mask(ch*2) * 3)
-#define tri_cur_buf_shift(ch)	(ffs(idma_mask(ch*2)) - 1)
 
 static inline bool idma_is_set(struct ipu_soc *ipu, uint32_t reg, uint32_t dma)
 {
