@@ -1187,8 +1187,7 @@ static void adv_timeout_expire(struct work_struct *work)
 	if (list_empty(&hdev->adv_instances))
 		__hci_req_disable_advertising(&req);
 
-	if (!skb_queue_empty(&req.cmd_q))
-		hci_req_run(&req, NULL);
+	hci_req_run(&req, NULL);
 
 unlock:
 	hci_dev_unlock(hdev);
