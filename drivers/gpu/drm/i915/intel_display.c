@@ -4981,8 +4981,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
-		if (encoder->pre_pll_enable)
-			encoder->pre_pll_enable(encoder);
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
 	}
