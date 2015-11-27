@@ -205,48 +205,28 @@ static void pids_cancel_attach(struct cgroup_subsys_state *css,
 	}
 }
 
+/*
+ * task_css_check(true) in pids_can_fork() and pids_cancel_fork() relies
+ * on threadgroup_change_begin() held by the copy_process().
+ */
 static int pids_can_fork(struct task_struct *task, void **priv_p)
 {
 	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids;
-	int err;
 
-	/*
-	 * Use the "current" task_css for the pids subsystem as the tentative
-	 * css. It is possible we will charge the wrong hierarchy, in which
-	 * case we will forcefully revert/reapply the charge on the right
-	 * hierarchy after it is committed to the task proper.
-	 */
-	css = task_get_css(current, pids_cgrp_id);
+	css = task_css_check(current, pids_cgrp_id, true);
 	pids = css_pids(css);
-
-	err = pids_try_charge(pids, 1);
-	if (err)
-		goto err_css_put;
-
-	*priv_p = css;
-	return 0;
-
-err_css_put:
-	css_put(css);
-	return err;
+	return pids_try_charge(pids, 1);
 }
 
 static void pids_cancel_fork(struct task_struct *task, void *priv)
 {
-	struct cgroup_subsys_state *css = priv;
-	struct pids_cgroup *pids = css_pids(css);
+	struct cgroup_subsys_state *css;
+	struct pids_cgroup *pids;
 
+	css = task_css_check(current, pids_cgrp_id, true);
+	pids = css_pids(css);
 	pids_uncharge(pids, 1);
-	css_put(css);
-}
-
-static void pids_fork(struct task_struct *task, void *priv)
-{
-	struct cgroup_subsys_state *css = priv;
-
-	WARN_ON(task_css_check(task, pids_cgrp_id, true) != css);
-	css_put(css);
 }
 
 static void pids_free(struct task_struct *task)
@@ -329,7 +309,6 @@ struct cgroup_subsys pids_cgrp_subsys = {
 	.cancel_attach 	= pids_cancel_attach,
 	.can_fork	= pids_can_fork,
 	.cancel_fork	= pids_cancel_fork,
-	.fork		= pids_fork,
 	.free		= pids_free,
 	.legacy_cftypes	= pids_files,
 	.dfl_cftypes	= pids_files,
