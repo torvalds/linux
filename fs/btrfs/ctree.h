@@ -3910,7 +3910,7 @@ struct btrfs_delalloc_work {
 };
 
 struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
-						    int wait, int delay_iput);
+						    int delay_iput);
 void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work);
 
 struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *page,
