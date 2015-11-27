@@ -1417,6 +1417,8 @@ static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 	target_tsf = avp->noa.next_tsf;
 	if (!avp->noa.absent)
 		target_tsf -= ATH_P2P_PS_STOP_TIME;
+	else
+		target_tsf += ATH_P2P_PS_STOP_TIME;
 
 	if (target_tsf - tsf < ATH_P2P_PS_STOP_TIME)
 		target_tsf = tsf + ATH_P2P_PS_STOP_TIME;
@@ -1543,6 +1545,8 @@ void ath9k_p2p_ps_timer(void *priv)
 	tsf = ath9k_hw_gettsf32(sc->sc_ah);
 	if (!avp->noa.absent)
 		tsf += ATH_P2P_PS_STOP_TIME;
+	else
+		tsf -= ATH_P2P_PS_STOP_TIME;
 
 	if (!avp->noa.has_next_tsf ||
 	    avp->noa.next_tsf - tsf > BIT(31))
