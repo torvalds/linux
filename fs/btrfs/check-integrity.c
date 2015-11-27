@@ -95,6 +95,7 @@
 #include <linux/genhd.h>
 #include <linux/blkdev.h>
 #include <linux/vmalloc.h>
+#include <linux/string.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "hash.h"
@@ -3076,7 +3077,7 @@ int btrfsic_mount(struct btrfs_root *root,
 
 	list_for_each_entry(device, dev_head, dev_list) {
 		struct btrfsic_dev_state *ds;
-		char *p;
+		const char *p;
 
 		if (!device->bdev || !device->name)
 			continue;
@@ -3092,11 +3093,7 @@ int btrfsic_mount(struct btrfs_root *root,
 		ds->state = state;
 		bdevname(ds->bdev, ds->name);
 		ds->name[BDEVNAME_SIZE - 1] = '\0';
-		for (p = ds->name; *p != '\0'; p++);
-		while (p > ds->name && *p != '/')
-			p--;
-		if (*p == '/')
-			p++;
+		p = kbasename(ds->name);
 		strlcpy(ds->name, p, sizeof(ds->name));
 		btrfsic_dev_state_hashtable_add(ds,
 						&btrfsic_dev_state_hashtable);
