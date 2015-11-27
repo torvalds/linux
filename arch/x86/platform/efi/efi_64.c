@@ -47,16 +47,7 @@
  */
 static u64 efi_va = EFI_VA_START;
 
-/*
- * Scratch space used for switching the pagetable in the EFI stub
- */
-struct efi_scratch {
-	u64 r15;
-	u64 prev_cr3;
-	pgd_t *efi_pgt;
-	bool use_pgd;
-	u64 phys_stack;
-} __packed;
+struct efi_scratch efi_scratch;
 
 static void __init early_code_mapping_set_exec(int executable)
 {
@@ -83,8 +74,11 @@ pgd_t * __init efi_call_phys_prolog(void)
 	int pgd;
 	int n_pgds;
 
-	if (!efi_enabled(EFI_OLD_MEMMAP))
-		return NULL;
+	if (!efi_enabled(EFI_OLD_MEMMAP)) {
+		save_pgd = (pgd_t *)read_cr3();
+		write_cr3((unsigned long)efi_scratch.efi_pgt);
+		goto out;
+	}
 
 	early_code_mapping_set_exec(1);
 
@@ -96,6 +90,7 @@ pgd_t * __init efi_call_phys_prolog(void)
 		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);
 		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));
 	}
+out:
 	__flush_tlb_all();
 
 	return save_pgd;
@@ -109,8 +104,11 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)
 	int pgd_idx;
 	int nr_pgds;
 
-	if (!save_pgd)
+	if (!efi_enabled(EFI_OLD_MEMMAP)) {
+		write_cr3((unsigned long)save_pgd);
+		__flush_tlb_all();
 		return;
+	}
 
 	nr_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT) , PGDIR_SIZE);
 

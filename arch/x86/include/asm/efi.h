@@ -3,6 +3,7 @@
 
 #include <asm/fpu/api.h>
 #include <asm/pgtable.h>
+#include <asm/tlb.h>
 
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
@@ -64,6 +65,17 @@ extern u64 asmlinkage efi_call(void *fp, ...);
 
 #define efi_call_phys(f, args...)		efi_call((f), args)
 
+/*
+ * Scratch space used for switching the pagetable in the EFI stub
+ */
+struct efi_scratch {
+	u64	r15;
+	u64	prev_cr3;
+	pgd_t	*efi_pgt;
+	bool	use_pgd;
+	u64	phys_stack;
+} __packed;
+
 #define efi_call_virt(f, ...)						\
 ({									\
 	efi_status_t __s;						\
@@ -71,7 +83,20 @@ extern u64 asmlinkage efi_call(void *fp, ...);
 	efi_sync_low_kernel_mappings();					\
 	preempt_disable();						\
 	__kernel_fpu_begin();						\
+									\
+	if (efi_scratch.use_pgd) {					\
+		efi_scratch.prev_cr3 = read_cr3();			\
+		write_cr3((unsigned long)efi_scratch.efi_pgt);		\
+		__flush_tlb_all();					\
+	}								\
+									\
 	__s = efi_call((void *)efi.systab->runtime->f, __VA_ARGS__);	\
+									\
+	if (efi_scratch.use_pgd) {					\
+		write_cr3(efi_scratch.prev_cr3);			\
+		__flush_tlb_all();					\
+	}								\
+									\
 	__kernel_fpu_end();						\
 	preempt_enable();						\
 	__s;								\
