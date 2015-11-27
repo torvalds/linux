@@ -30,7 +30,7 @@ lead to false interrupt, but that doesn't harm.
 
 ALS contains 4 different gain steps. Driver automatically
 selects suitable gain step. After each measurement, reliability of the results
-is estimated and new measurement is trigged if necessary.
+is estimated and new measurement is triggered if necessary.
 
 Platform data can provide tuned values to the conversion formulas if
 values are known. Otherwise plain sensor default values are used.

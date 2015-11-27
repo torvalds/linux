@@ -29,6 +29,11 @@
 #include <linux/uio.h>
 #include <linux/vmstat.h>
 
+/*
+ * dax_clear_blocks() is called from within transaction context from XFS,
+ * and hence this means the stack from this point must follow GFP_NOFS
+ * semantics for all operations.
+ */
 int dax_clear_blocks(struct inode *inode, sector_t block, long size)
 {
 	struct block_device *bdev = inode->i_sb->s_bdev;
@@ -169,8 +174,10 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
 		else
 			len = iov_iter_zero(max - pos, iter);
 
-		if (!len)
+		if (!len) {
+			retval = -EFAULT;
 			break;
+		}
 
 		pos += len;
 		addr += len;
@@ -534,6 +541,10 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	unsigned long pfn;
 	int result = 0;
 
+	/* dax pmd mappings are broken wrt gup and fork */
+	if (!IS_ENABLED(CONFIG_FS_DAX_PMD))
+		return VM_FAULT_FALLBACK;
+
 	/* Fall back to PTEs if we're going to COW */
 	if (write && !(vma->vm_flags & VM_SHARED))
 		return VM_FAULT_FALLBACK;
@@ -620,6 +631,13 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 			goto out;
 		}
 		if ((length < PMD_SIZE) || (pfn & PG_PMD_COLOUR))
+			goto fallback;
+
+		/*
+		 * TODO: teach vmf_insert_pfn_pmd() to support
+		 * 'pte_special' for pmds
+		 */
+		if (pfn_valid(pfn))
 			goto fallback;
 
 		if (buffer_unwritten(&bh) || buffer_new(&bh)) {

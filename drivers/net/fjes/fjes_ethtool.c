@@ -105,8 +105,6 @@ static void fjes_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->fw_version, "none", sizeof(drvinfo->fw_version));
 	snprintf(drvinfo->bus_info, sizeof(drvinfo->bus_info),
 		 "platform:%s", plat_dev->name);
-	drvinfo->regdump_len = 0;
-	drvinfo->eedump_len = 0;
 }
 
 static int fjes_get_settings(struct net_device *netdev,

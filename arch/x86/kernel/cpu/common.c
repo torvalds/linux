@@ -273,10 +273,9 @@ __setup("nosmap", setup_disable_smap);
 
 static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 {
-	unsigned long eflags;
+	unsigned long eflags = native_save_fl();
 
 	/* This should have been cleared long ago */
-	raw_local_save_flags(eflags);
 	BUG_ON(eflags & X86_EFLAGS_AC);
 
 	if (cpu_has(c, X86_FEATURE_SMAP)) {
@@ -670,6 +669,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 
 		c->x86_virt_bits = (eax >> 8) & 0xff;
 		c->x86_phys_bits = eax & 0xff;
+		c->x86_capability[13] = cpuid_ebx(0x80000008);
 	}
 #ifdef CONFIG_X86_32
 	else if (cpu_has(c, X86_FEATURE_PAE) || cpu_has(c, X86_FEATURE_PSE36))

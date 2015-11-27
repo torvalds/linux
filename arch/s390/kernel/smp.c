@@ -33,6 +33,7 @@
 #include <linux/crash_dump.h>
 #include <linux/memblock.h>
 #include <asm/asm-offsets.h>
+#include <asm/diag.h>
 #include <asm/switch_to.h>
 #include <asm/facility.h>
 #include <asm/ipl.h>
@@ -261,6 +262,8 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->thread_info = (unsigned long) task_thread_info(tsk);
 	lc->current_task = (unsigned long) tsk;
+	lc->lpp = LPP_MAGIC;
+	lc->current_pid = tsk->pid;
 	lc->user_timer = ti->user_timer;
 	lc->system_timer = ti->system_timer;
 	lc->steal_timer = 0;
@@ -375,11 +378,14 @@ int smp_vcpu_scheduled(int cpu)
 
 void smp_yield_cpu(int cpu)
 {
-	if (MACHINE_HAS_DIAG9C)
+	if (MACHINE_HAS_DIAG9C) {
+		diag_stat_inc_norecursion(DIAG_STAT_X09C);
 		asm volatile("diag %0,0,0x9c"
 			     : : "d" (pcpu_devices[cpu].address));
-	else if (MACHINE_HAS_DIAG44)
+	} else if (MACHINE_HAS_DIAG44) {
+		diag_stat_inc_norecursion(DIAG_STAT_X044);
 		asm volatile("diag 0,0,0x44");
+	}
 }
 
 /*

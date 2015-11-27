@@ -873,7 +873,6 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->adapter.class = I2C_CLASS_DEPRECATED;
 	strlcpy(i2c_dev->adapter.name, "Tegra I2C adapter",
 		sizeof(i2c_dev->adapter.name));
-	i2c_dev->adapter.algo = &tegra_i2c_algo;
 	i2c_dev->adapter.dev.parent = &pdev->dev;
 	i2c_dev->adapter.nr = pdev->id;
 	i2c_dev->adapter.dev.of_node = pdev->dev.of_node;

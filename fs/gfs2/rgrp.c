@@ -729,9 +729,9 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 		rb_erase(n, &sdp->sd_rindex_tree);
 
 		if (gl) {
-			spin_lock(&gl->gl_spin);
+			spin_lock(&gl->gl_lockref.lock);
 			gl->gl_object = NULL;
-			spin_unlock(&gl->gl_spin);
+			spin_unlock(&gl->gl_lockref.lock);
 			gfs2_glock_add_to_lru(gl);
 			gfs2_glock_put(gl);
 		}
@@ -933,8 +933,9 @@ static int read_rindex_entry(struct gfs2_inode *ip)
 		goto fail;
 
 	rgd->rd_gl->gl_object = rgd;
-	rgd->rd_gl->gl_vm.start = rgd->rd_addr * bsize;
-	rgd->rd_gl->gl_vm.end = rgd->rd_gl->gl_vm.start + (rgd->rd_length * bsize) - 1;
+	rgd->rd_gl->gl_vm.start = (rgd->rd_addr * bsize) & PAGE_CACHE_MASK;
+	rgd->rd_gl->gl_vm.end = PAGE_CACHE_ALIGN((rgd->rd_addr +
+						  rgd->rd_length) * bsize) - 1;
 	rgd->rd_rgl = (struct gfs2_rgrp_lvb *)rgd->rd_gl->gl_lksb.sb_lvbptr;
 	rgd->rd_flags &= ~(GFS2_RDF_UPTODATE | GFS2_RDF_PREFERRED);
 	if (rgd->rd_data > sdp->sd_max_rg_data)

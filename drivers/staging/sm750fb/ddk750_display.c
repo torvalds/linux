@@ -6,7 +6,7 @@
 
 #define primaryWaitVerticalSync(delay) waitNextVerticalSync(0, delay)
 
-static void setDisplayControl(int ctrl, int dispState)
+static void setDisplayControl(int ctrl, int disp_state)
 {
 	/* state != 0 means turn on both timing & plane en_bit */
 	unsigned long ulDisplayCtrlReg, ulReservedBits;
@@ -18,7 +18,7 @@ static void setDisplayControl(int ctrl, int dispState)
 	if (!ctrl) {
 		ulDisplayCtrlReg = PEEK32(PANEL_DISPLAY_CTRL);
 		/* Turn on/off the Panel display control */
-		if (dispState) {
+		if (disp_state) {
 			/* Timing should be enabled first before enabling the plane
 			 * because changing at the same time does not guarantee that
 			 * the plane will also enabled or disabled.
@@ -70,7 +70,7 @@ static void setDisplayControl(int ctrl, int dispState)
 		/* Set the secondary display control */
 		ulDisplayCtrlReg = PEEK32(CRT_DISPLAY_CTRL);
 
-		if (dispState) {
+		if (disp_state) {
 			/* Timing should be enabled first before enabling the plane because changing at the
 			   same time does not guarantee that the plane will also enabled or disabled.
 			   */
@@ -116,7 +116,6 @@ static void setDisplayControl(int ctrl, int dispState)
 		}
 	}
 }
-
 
 static void waitNextVerticalSync(int ctrl, int delay)
 {
@@ -189,7 +188,6 @@ static void swPanelPowerSequence(int disp, int delay)
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
-
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
 	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, DATA, disp);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
@@ -199,7 +197,6 @@ static void swPanelPowerSequence(int disp, int delay)
 	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, VBIASEN, disp);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
-
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
 	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, FPEN, disp);
@@ -231,55 +228,22 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 
 	if (output & PRI_TP_USAGE) {
 		/* set primary timing and plane en_bit */
-		setDisplayControl(0, (output&PRI_TP_MASK)>>PRI_TP_OFFSET);
+		setDisplayControl(0, (output & PRI_TP_MASK) >> PRI_TP_OFFSET);
 	}
 
 	if (output & SEC_TP_USAGE) {
 		/* set secondary timing and plane en_bit*/
-		setDisplayControl(1, (output&SEC_TP_MASK)>>SEC_TP_OFFSET);
+		setDisplayControl(1, (output & SEC_TP_MASK) >> SEC_TP_OFFSET);
 	}
 
 	if (output & PNL_SEQ_USAGE) {
 		/* set  panel sequence */
-		swPanelPowerSequence((output&PNL_SEQ_MASK)>>PNL_SEQ_OFFSET, 4);
+		swPanelPowerSequence((output & PNL_SEQ_MASK) >> PNL_SEQ_OFFSET, 4);
 	}
 
 	if (output & DAC_USAGE)
-		setDAC((output & DAC_MASK)>>DAC_OFFSET);
+		setDAC((output & DAC_MASK) >> DAC_OFFSET);
 
 	if (output & DPMS_USAGE)
 		ddk750_setDPMS((output & DPMS_MASK) >> DPMS_OFFSET);
 }
-
-
-int ddk750_initDVIDisp(void)
-{
-	/* Initialize DVI. If the dviInit fail and the VendorID or the DeviceID are
-	   not zeroed, then set the failure flag. If it is zeroe, it might mean
-	   that the system is in Dual CRT Monitor configuration. */
-
-	/* De-skew enabled with default 111b value.
-	   This will fix some artifacts problem in some mode on board 2.2.
-	   Somehow this fix does not affect board 2.1.
-	 */
-	if ((dviInit(1,  /* Select Rising Edge */
-		     1,  /* Select 24-bit bus */
-		     0,  /* Select Single Edge clock */
-		     1,  /* Enable HSync as is */
-		     1,  /* Enable VSync as is */
-		     1,  /* Enable De-skew */
-		     7,  /* Set the de-skew setting to maximum setup */
-		     1,  /* Enable continuous Sync */
-		     1,  /* Enable PLL Filter */
-		     4   /* Use the recommended value for PLL Filter value */
-		     ) != 0) && (dviGetVendorID() != 0x0000) && (dviGetDeviceID() != 0x0000)) {
-		return (-1);
-	}
-
-	/* TODO: Initialize other display component */
-
-	/* Success */
-	return 0;
-
-}
-

@@ -2,7 +2,6 @@
 #define __TRUSTED_KEY_H
 
 /* implementation specific TPM constants */
-#define MAX_PCRINFO_SIZE		64
 #define MAX_BUF_SIZE			512
 #define TPM_GETRANDOM_SIZE		14
 #define TPM_OSAP_SIZE			36
@@ -34,16 +33,6 @@ struct osapsess {
 enum {
 	SEAL_keytype = 1,
 	SRK_keytype = 4
-};
-
-struct trusted_key_options {
-	uint16_t keytype;
-	uint32_t keyhandle;
-	unsigned char keyauth[SHA1_DIGEST_SIZE];
-	unsigned char blobauth[SHA1_DIGEST_SIZE];
-	uint32_t pcrinfo_len;
-	unsigned char pcrinfo[MAX_PCRINFO_SIZE];
-	int pcrlock;
 };
 
 #define TPM_DEBUG 0

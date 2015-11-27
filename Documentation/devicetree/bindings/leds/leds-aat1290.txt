@@ -27,9 +27,9 @@ Required properties of the LED child node:
 - flash-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
                        Maximum flash LED supply current can be calculated using
                        following formula: I = 1A * 162kohm / Rset.
-- flash-timeout-us : see Documentation/devicetree/bindings/leds/common.txt
-                     Maximum flash timeout can be calculated using following
-                     formula: T = 8.82 * 10^9 * Ct.
+- flash-max-timeout-us : see Documentation/devicetree/bindings/leds/common.txt
+                         Maximum flash timeout can be calculated using following
+                         formula: T = 8.82 * 10^9 * Ct.
 
 Optional properties of the LED child node:
 - label : see Documentation/devicetree/bindings/leds/common.txt
@@ -54,7 +54,7 @@ aat1290 {
 		label = "aat1290-flash";
 		led-max-microamp = <520833>;
 		flash-max-microamp = <1012500>;
-		flash-timeout-us = <1940000>;
+		flash-max-timeout-us = <1940000>;
 	};
 };
 

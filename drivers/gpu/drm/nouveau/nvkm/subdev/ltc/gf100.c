@@ -122,6 +122,36 @@ gf100_ltc_intr(struct nvkm_ltc *ltc)
 	}
 }
 
+void
+gf100_ltc_invalidate(struct nvkm_ltc *ltc)
+{
+	struct nvkm_device *device = ltc->subdev.device;
+	s64 taken;
+
+	nvkm_wr32(device, 0x70004, 0x00000001);
+	taken = nvkm_wait_msec(device, 2, 0x70004, 0x00000003, 0x00000000);
+	if (taken < 0)
+		nvkm_warn(&ltc->subdev, "LTC invalidate timeout\n");
+
+	if (taken > 0)
+		nvkm_debug(&ltc->subdev, "LTC invalidate took %lld ns\n", taken);
+}
+
+void
+gf100_ltc_flush(struct nvkm_ltc *ltc)
+{
+	struct nvkm_device *device = ltc->subdev.device;
+	s64 taken;
+
+	nvkm_wr32(device, 0x70010, 0x00000001);
+	taken = nvkm_wait_msec(device, 2, 0x70010, 0x00000003, 0x00000000);
+	if (taken < 0)
+		nvkm_warn(&ltc->subdev, "LTC flush timeout\n");
+
+	if (taken > 0)
+		nvkm_debug(&ltc->subdev, "LTC flush took %lld ns\n", taken);
+}
+
 /* TODO: Figure out tag memory details and drop the over-cautious allocation.
  */
 int
@@ -215,6 +245,8 @@ gf100_ltc = {
 	.zbc = 16,
 	.zbc_clear_color = gf100_ltc_zbc_clear_color,
 	.zbc_clear_depth = gf100_ltc_zbc_clear_depth,
+	.invalidate = gf100_ltc_invalidate,
+	.flush = gf100_ltc_flush,
 };
 
 int

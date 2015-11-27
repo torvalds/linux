@@ -75,36 +75,6 @@ static inline unsigned long __copy_from_user_nocache(void *to,
 
 #endif		/* ARCH_HAS_NOCACHE_UACCESS */
 
-/**
- * probe_kernel_address(): safely attempt to read from a location
- * @addr: address to read from - its type is type typeof(retval)*
- * @retval: read into this variable
- *
- * Safely read from address @addr into variable @revtal.  If a kernel fault
- * happens, handle that and return -EFAULT.
- * We ensure that the __get_user() is executed in atomic context so that
- * do_page_fault() doesn't attempt to take mmap_sem.  This makes
- * probe_kernel_address() suitable for use within regions where the caller
- * already holds mmap_sem, or other locks which nest inside mmap_sem.
- * This must be a macro because __get_user() needs to know the types of the
- * args.
- *
- * We don't include enough header files to be able to do the set_fs().  We
- * require that the probe_kernel_address() caller will do that.
- */
-#define probe_kernel_address(addr, retval)		\
-	({						\
-		long ret;				\
-		mm_segment_t old_fs = get_fs();		\
-							\
-		set_fs(KERNEL_DS);			\
-		pagefault_disable();			\
-		ret = __copy_from_user_inatomic(&(retval), (__force typeof(retval) __user *)(addr), sizeof(retval));		\
-		pagefault_enable();			\
-		set_fs(old_fs);				\
-		ret;					\
-	})
-
 /*
  * probe_kernel_read(): safely attempt to read from a location
  * @dst: pointer to the buffer that shall take the data
@@ -130,5 +100,15 @@ extern long notrace probe_kernel_write(void *dst, const void *src, size_t size);
 extern long notrace __probe_kernel_write(void *dst, const void *src, size_t size);
 
 extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
+
+/**
+ * probe_kernel_address(): safely attempt to read from a location
+ * @addr: address to read from
+ * @retval: read into this variable
+ *
+ * Returns 0 on success, or -EFAULT.
+ */
+#define probe_kernel_address(addr, retval)		\
+	probe_kernel_read(&retval, addr, sizeof(retval))
 
 #endif		/* __LINUX_UACCESS_H__ */

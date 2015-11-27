@@ -145,6 +145,7 @@ enum v4l2_buf_type {
 	V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,
 	V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,
 	V4L2_BUF_TYPE_SDR_CAPTURE          = 11,
+	V4L2_BUF_TYPE_SDR_OUTPUT           = 12,
 	/* Deprecated, do not use */
 	V4L2_BUF_TYPE_PRIVATE              = 0x80,
 };
@@ -159,15 +160,19 @@ enum v4l2_buf_type {
 	 || (type) == V4L2_BUF_TYPE_VIDEO_OVERLAY		\
 	 || (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY	\
 	 || (type) == V4L2_BUF_TYPE_VBI_OUTPUT			\
-	 || (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT)
+	 || (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT		\
+	 || (type) == V4L2_BUF_TYPE_SDR_OUTPUT)
 
 enum v4l2_tuner_type {
 	V4L2_TUNER_RADIO	     = 1,
 	V4L2_TUNER_ANALOG_TV	     = 2,
 	V4L2_TUNER_DIGITAL_TV	     = 3,
-	V4L2_TUNER_ADC               = 4,
+	V4L2_TUNER_SDR               = 4,
 	V4L2_TUNER_RF                = 5,
 };
+
+/* Deprecated, do not use */
+#define V4L2_TUNER_ADC  V4L2_TUNER_SDR
 
 enum v4l2_memory {
 	V4L2_MEMORY_MMAP             = 1,
@@ -229,6 +234,9 @@ enum v4l2_colorspace {
 
 	/* Raw colorspace: for RAW unprocessed images */
 	V4L2_COLORSPACE_RAW           = 11,
+
+	/* DCI-P3 colorspace, used by cinema projectors */
+	V4L2_COLORSPACE_DCI_P3        = 12,
 };
 
 /*
@@ -256,6 +264,8 @@ enum v4l2_xfer_func {
 	 * V4L2_COLORSPACE_SMPTE240M: V4L2_XFER_FUNC_SMPTE240M
 	 *
 	 * V4L2_COLORSPACE_RAW: V4L2_XFER_FUNC_NONE
+	 *
+	 * V4L2_COLORSPACE_DCI_P3: V4L2_XFER_FUNC_DCI_P3
 	 */
 	V4L2_XFER_FUNC_DEFAULT     = 0,
 	V4L2_XFER_FUNC_709         = 1,
@@ -263,6 +273,8 @@ enum v4l2_xfer_func {
 	V4L2_XFER_FUNC_ADOBERGB    = 3,
 	V4L2_XFER_FUNC_SMPTE240M   = 4,
 	V4L2_XFER_FUNC_NONE        = 5,
+	V4L2_XFER_FUNC_DCI_P3      = 6,
+	V4L2_XFER_FUNC_SMPTE2084   = 7,
 };
 
 /*
@@ -272,9 +284,10 @@ enum v4l2_xfer_func {
 #define V4L2_MAP_XFER_FUNC_DEFAULT(colsp) \
 	((colsp) == V4L2_COLORSPACE_ADOBERGB ? V4L2_XFER_FUNC_ADOBERGB : \
 	 ((colsp) == V4L2_COLORSPACE_SMPTE240M ? V4L2_XFER_FUNC_SMPTE240M : \
-	  ((colsp) == V4L2_COLORSPACE_RAW ? V4L2_XFER_FUNC_NONE : \
-	   ((colsp) == V4L2_COLORSPACE_SRGB || (colsp) == V4L2_COLORSPACE_JPEG ? \
-	    V4L2_XFER_FUNC_SRGB : V4L2_XFER_FUNC_709))))
+	  ((colsp) == V4L2_COLORSPACE_DCI_P3 ? V4L2_XFER_FUNC_DCI_P3 : \
+	   ((colsp) == V4L2_COLORSPACE_RAW ? V4L2_XFER_FUNC_NONE : \
+	    ((colsp) == V4L2_COLORSPACE_SRGB || (colsp) == V4L2_COLORSPACE_JPEG ? \
+	     V4L2_XFER_FUNC_SRGB : V4L2_XFER_FUNC_709)))))
 
 enum v4l2_ycbcr_encoding {
 	/*
@@ -285,7 +298,7 @@ enum v4l2_ycbcr_encoding {
 	 * V4L2_COLORSPACE_470_SYSTEM_BG, V4L2_COLORSPACE_ADOBERGB and
 	 * V4L2_COLORSPACE_JPEG: V4L2_YCBCR_ENC_601
 	 *
-	 * V4L2_COLORSPACE_REC709: V4L2_YCBCR_ENC_709
+	 * V4L2_COLORSPACE_REC709 and V4L2_COLORSPACE_DCI_P3: V4L2_YCBCR_ENC_709
 	 *
 	 * V4L2_COLORSPACE_SRGB: V4L2_YCBCR_ENC_SYCC
 	 *
@@ -325,7 +338,8 @@ enum v4l2_ycbcr_encoding {
  * This depends on the colorspace.
  */
 #define V4L2_MAP_YCBCR_ENC_DEFAULT(colsp) \
-	((colsp) == V4L2_COLORSPACE_REC709 ? V4L2_YCBCR_ENC_709 : \
+	(((colsp) == V4L2_COLORSPACE_REC709 || \
+	  (colsp) == V4L2_COLORSPACE_DCI_P3) ? V4L2_YCBCR_ENC_709 : \
 	 ((colsp) == V4L2_COLORSPACE_BT2020 ? V4L2_YCBCR_ENC_BT2020 : \
 	  ((colsp) == V4L2_COLORSPACE_SMPTE240M ? V4L2_YCBCR_ENC_SMPTE240M : \
 	   V4L2_YCBCR_ENC_601)))
@@ -423,6 +437,7 @@ struct v4l2_capability {
 
 #define V4L2_CAP_SDR_CAPTURE		0x00100000  /* Is a SDR capture device */
 #define V4L2_CAP_EXT_PIX_FORMAT		0x00200000  /* Supports the extended pixel format */
+#define V4L2_CAP_SDR_OUTPUT		0x00400000  /* Is a SDR output device */
 
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
@@ -1578,7 +1593,8 @@ struct v4l2_modulator {
 	__u32			rangelow;
 	__u32			rangehigh;
 	__u32			txsubchans;
-	__u32			reserved[4];
+	__u32			type;	/* enum v4l2_tuner_type */
+	__u32			reserved[3];
 };
 
 /*  Flags for the 'capability' field */
@@ -2271,7 +2287,7 @@ struct v4l2_create_buffers {
 #define VIDIOC_QUERY_EXT_CTRL	_IOWR('V', 103, struct v4l2_query_ext_ctrl)
 
 /* Reminder: when adding new ioctls please add support for them to
-   drivers/media/video/v4l2-compat-ioctl32.c as well! */
+   drivers/media/v4l2-core/v4l2-compat-ioctl32.c as well! */
 
 #define BASE_VIDIOC_PRIVATE	192		/* 192-255 are private */
 

@@ -196,8 +196,6 @@ static void igbvf_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->regdump_len = igbvf_get_regs_len(netdev);
-	drvinfo->eedump_len = igbvf_get_eeprom_len(netdev);
 }
 
 static void igbvf_get_ringparam(struct net_device *netdev,

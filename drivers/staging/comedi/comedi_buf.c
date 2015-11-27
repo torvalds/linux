@@ -245,7 +245,7 @@ void comedi_buf_reset(struct comedi_subdevice *s)
 	async->events = 0;
 }
 
-static unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s)
+static unsigned int comedi_buf_write_n_unalloc(struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
@@ -253,15 +253,33 @@ static unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s)
 	return free_end - async->buf_write_alloc_count;
 }
 
-/* allocates chunk for the writer from free buffer space */
+unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s)
+{
+	struct comedi_async *async = s->async;
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
+
+	return free_end - async->buf_write_count;
+}
+
+/**
+ * comedi_buf_write_alloc() - Reserve buffer space for writing
+ * @s: COMEDI subdevice.
+ * @nbytes: Maximum space to reserve in bytes.
+ *
+ * Reserve up to @nbytes bytes of space to be written in the COMEDI acquisition
+ * data buffer associated with the subdevice.  The amount reserved is limited
+ * by the space available.
+ *
+ * Return: The amount of space reserved in bytes.
+ */
 unsigned int comedi_buf_write_alloc(struct comedi_subdevice *s,
 				    unsigned int nbytes)
 {
 	struct comedi_async *async = s->async;
-	unsigned int available = comedi_buf_write_n_available(s);
+	unsigned int unalloc = comedi_buf_write_n_unalloc(s);
 
-	if (nbytes > available)
-		nbytes = available;
+	if (nbytes > unalloc)
+		nbytes = unalloc;
 
 	async->buf_write_alloc_count += nbytes;
 
@@ -329,7 +347,21 @@ unsigned int comedi_buf_write_n_allocated(struct comedi_subdevice *s)
 	return async->buf_write_alloc_count - async->buf_write_count;
 }
 
-/* transfers a chunk from writer to filled buffer space */
+/**
+ * comedi_buf_write_free() - Free buffer space after it is written
+ * @s: COMEDI subdevice.
+ * @nbytes: Maximum space to free in bytes.
+ *
+ * Free up to @nbytes bytes of space previously reserved for writing in the
+ * COMEDI acquisition data buffer associated with the subdevice.  The amount of
+ * space freed is limited to the amount that was reserved.  The freed space is
+ * assumed to have been filled with sample data by the writer.
+ *
+ * If the samples in the freed space need to be "munged", do so here.  The
+ * freed space becomes available for allocation by the reader.
+ *
+ * Return: The amount of space freed in bytes.
+ */
 unsigned int comedi_buf_write_free(struct comedi_subdevice *s,
 				   unsigned int nbytes)
 {
@@ -349,6 +381,17 @@ unsigned int comedi_buf_write_free(struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(comedi_buf_write_free);
 
+/**
+ * comedi_buf_read_n_available() - Determine amount of readable buffer space
+ * @s: COMEDI subdevice.
+ *
+ * Determine the amount of readable buffer space in the COMEDI acquisition data
+ * buffer associated with the subdevice.  The readable buffer space is that
+ * which has been freed by the writer and "munged" to the sample data format
+ * expected by COMEDI if necessary.
+ *
+ * Return: The amount of readable buffer space.
+ */
 unsigned int comedi_buf_read_n_available(struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
@@ -369,7 +412,21 @@ unsigned int comedi_buf_read_n_available(struct comedi_subdevice *s)
 }
 EXPORT_SYMBOL_GPL(comedi_buf_read_n_available);
 
-/* allocates a chunk for the reader from filled (and munged) buffer space */
+/**
+ * comedi_buf_read_alloc() - Reserve buffer space for reading
+ * @s: COMEDI subdevice.
+ * @nbytes: Maximum space to reserve in bytes.
+ *
+ * Reserve up to @nbytes bytes of previously written and "munged" buffer space
+ * for reading in the COMEDI acquisition data buffer associated with the
+ * subdevice.  The amount reserved is limited to the space available.  The
+ * reader can read from the reserved space and then free it.  A reader is also
+ * allowed to read from the space before reserving it as long as it determines
+ * the amount of readable data available, but the space needs to be marked as
+ * reserved before it can be freed.
+ *
+ * Return: The amount of space reserved in bytes.
+ */
 unsigned int comedi_buf_read_alloc(struct comedi_subdevice *s,
 				   unsigned int nbytes)
 {
@@ -397,7 +454,19 @@ static unsigned int comedi_buf_read_n_allocated(struct comedi_async *async)
 	return async->buf_read_alloc_count - async->buf_read_count;
 }
 
-/* transfers control of a chunk from reader to free buffer space */
+/**
+ * comedi_buf_read_free() - Free buffer space after it has been read
+ * @s: COMEDI subdevice.
+ * @nbytes: Maximum space to free in bytes.
+ *
+ * Free up to @nbytes bytes of buffer space previously reserved for reading in
+ * the COMEDI acquisition data buffer associated with the subdevice.  The
+ * amount of space freed is limited to the amount that was reserved.
+ *
+ * The freed space becomes available for allocation by the writer.
+ *
+ * Return: The amount of space freed in bytes.
+ */
 unsigned int comedi_buf_read_free(struct comedi_subdevice *s,
 				  unsigned int nbytes)
 {
@@ -469,15 +538,21 @@ static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
 }
 
 /**
- * comedi_buf_write_samples - write sample data to comedi buffer
- * @s: comedi_subdevice struct
- * @data: samples
- * @nsamples: number of samples
+ * comedi_buf_write_samples() - Write sample data to COMEDI buffer
+ * @s: COMEDI subdevice.
+ * @data: Pointer to source samples.
+ * @nsamples: Number of samples to write.
  *
- * Writes nsamples to the comedi buffer associated with the subdevice, marks
- * it as written and updates the acquisition scan progress.
+ * Write up to @nsamples samples to the COMEDI acquisition data buffer
+ * associated with the subdevice, mark it as written and update the
+ * acquisition scan progress.  If there is not enough room for the specified
+ * number of samples, the number of samples written is limited to the number
+ * that will fit and the %COMEDI_CB_OVERFLOW event flag is set to cause the
+ * acquisition to terminate with an overrun error.  Set the %COMEDI_CB_BLOCK
+ * event flag if any samples are written to cause waiting tasks to be woken
+ * when the event flags are processed.
  *
- * Returns the amount of data written in bytes.
+ * Return: The amount of data written in bytes.
  */
 unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 				      const void *data, unsigned int nsamples)
@@ -490,8 +565,7 @@ unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 	 * If not, clamp the nsamples to the number that will fit, flag the
 	 * buffer overrun and add the samples that fit.
 	 */
-	max_samples = comedi_bytes_to_samples(s,
-					      comedi_buf_write_n_available(s));
+	max_samples = comedi_bytes_to_samples(s, comedi_buf_write_n_unalloc(s));
 	if (nsamples > max_samples) {
 		dev_warn(s->device->class_dev, "buffer overrun\n");
 		s->async->events |= COMEDI_CB_OVERFLOW;
@@ -513,15 +587,18 @@ unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(comedi_buf_write_samples);
 
 /**
- * comedi_buf_read_samples - read sample data from comedi buffer
- * @s: comedi_subdevice struct
- * @data: destination
- * @nsamples: maximum number of samples to read
+ * comedi_buf_read_samples() - Read sample data from COMEDI buffer
+ * @s: COMEDI subdevice.
+ * @data: Pointer to destination.
+ * @nsamples: Maximum number of samples to read.
  *
- * Reads up to nsamples from the comedi buffer associated with the subdevice,
- * marks it as read and updates the acquisition scan progress.
+ * Read up to @nsamples samples from the COMEDI acquisition data buffer
+ * associated with the subdevice, mark it as read and update the acquisition
+ * scan progress.  Limit the number of samples read to the number available.
+ * Set the %COMEDI_CB_BLOCK event flag if any samples are read to cause waiting
+ * tasks to be woken when the event flags are processed.
  *
- * Returns the amount of data read in bytes.
+ * Return: The amount of data read in bytes.
  */
 unsigned int comedi_buf_read_samples(struct comedi_subdevice *s,
 				     void *data, unsigned int nsamples)

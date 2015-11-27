@@ -3314,12 +3314,11 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 					-EAGAIN : -ERESTARTSYS;
 			break;
 		}
-		
+
 		dcd = tty_port_carrier_raised(&info->port);
-		
- 		if (!(port->flags & ASYNC_CLOSING) && (do_clocal || dcd))
- 			break;
-			
+		if (do_clocal || dcd)
+			break;
+
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
 			break;
@@ -3398,15 +3397,6 @@ static int mgsl_open(struct tty_struct *tty, struct file * filp)
 		printk("%s(%d):mgsl_open(%s), old ref count = %d\n",
 			 __FILE__,__LINE__,tty->driver->name, info->port.count);
 
-	/* If port is closing, signal caller to try again */
-	if (info->port.flags & ASYNC_CLOSING){
-		wait_event_interruptible_tty(tty, info->port.close_wait,
-				     !(info->port.flags & ASYNC_CLOSING));
-		retval = ((info->port.flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS);
-		goto cleanup;
-	}
-	
 	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
@@ -6635,7 +6625,7 @@ static bool mgsl_get_rx_frame(struct mgsl_struct *info)
 			unsigned char *ptmp = info->intermediate_rxbuffer;
 
 			if ( !(status & RXSTATUS_CRC_ERROR))
-			info->icount.rxok++;
+				info->icount.rxok++;
 			
 			while(copy_count) {
 				int partial_count;

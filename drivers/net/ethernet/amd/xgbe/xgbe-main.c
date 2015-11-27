@@ -342,6 +342,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	struct resource *res;
 	const char *phy_mode;
 	unsigned int i, phy_memnum, phy_irqnum;
+	enum dev_dma_attr attr;
 	int ret;
 
 	DBGPR("--> xgbe_probe\n");
@@ -371,7 +372,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	set_bit(XGBE_DOWN, &pdata->dev_state);
 
 	/* Check if we should use ACPI or DT */
-	pdata->use_acpi = (!pdata->adev || acpi_disabled) ? 0 : 1;
+	pdata->use_acpi = dev->of_node ? 0 : 1;
 
 	phy_pdev = xgbe_get_phy_pdev(pdata);
 	if (!phy_pdev) {
@@ -609,7 +610,12 @@ static int xgbe_probe(struct platform_device *pdev)
 		goto err_io;
 
 	/* Set the DMA coherency values */
-	pdata->coherent = device_dma_is_coherent(pdata->dev);
+	attr = device_get_dma_attr(dev);
+	if (attr == DEV_DMA_NOT_SUPPORTED) {
+		dev_err(dev, "DMA is not supported");
+		goto err_io;
+	}
+	pdata->coherent = (attr == DEV_DMA_COHERENT);
 	if (pdata->coherent) {
 		pdata->axdomain = XGBE_DMA_OS_AXDOMAIN;
 		pdata->arcache = XGBE_DMA_OS_ARCACHE;

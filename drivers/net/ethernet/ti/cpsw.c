@@ -29,6 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
@@ -1789,7 +1790,6 @@ static void cpsw_get_drvinfo(struct net_device *ndev,
 	strlcpy(info->driver, "cpsw", sizeof(info->driver));
 	strlcpy(info->version, "1.0", sizeof(info->version));
 	strlcpy(info->bus_info, priv->pdev->name, sizeof(info->bus_info));
-	info->regdump_len = cpsw_get_regs_len(ndev);
 }
 
 static u32 cpsw_get_msglevel(struct net_device *ndev)
@@ -2037,6 +2037,19 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 			continue;
 
 		priv->phy_node = of_parse_phandle(slave_node, "phy-handle", 0);
+		if (of_phy_is_fixed_link(slave_node)) {
+			struct phy_device *pd;
+
+			ret = of_phy_register_fixed_link(slave_node);
+			if (ret)
+				return ret;
+			pd = of_phy_find_device(slave_node);
+			if (!pd)
+				return -ENODEV;
+			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
+				 PHY_ID_FMT, pd->bus->id, pd->phy_id);
+			goto no_phy_slave;
+		}
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
 			dev_err(&pdev->dev, "Missing slave[%d] phy_id property\n", i);
@@ -2064,13 +2077,10 @@ no_phy_slave:
 		if (mac_addr) {
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
 		} else {
-			if (of_machine_is_compatible("ti,am33xx")) {
-				ret = cpsw_am33xx_cm_get_macid(&pdev->dev,
-							0x630, i,
-							slave_data->mac_addr);
-				if (ret)
-					return ret;
-			}
+			ret = ti_cm_get_macid(&pdev->dev, i,
+					      slave_data->mac_addr);
+			if (ret)
+				return ret;
 		}
 		if (data->dual_emac) {
 			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",
@@ -2214,6 +2224,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	void __iomem			*ss_regs;
 	struct resource			*res, *ss_res;
 	const struct of_device_id	*of_id;
+	struct gpio_descs		*mode;
 	u32 slave_offset, sliver_offset, slave_size;
 	int ret = 0, i;
 	int irq;
@@ -2236,6 +2247,13 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (!priv->cpts) {
 		dev_err(&pdev->dev, "error allocating cpts\n");
 		ret = -ENOMEM;
+		goto clean_ndev_ret;
+	}
+
+	mode = devm_gpiod_get_array_optional(&pdev->dev, "mode", GPIOD_OUT_LOW);
+	if (IS_ERR(mode)) {
+		ret = PTR_ERR(mode);
+		dev_err(&pdev->dev, "gpio request failed, ret %d\n", ret);
 		goto clean_ndev_ret;
 	}
 
@@ -2585,17 +2603,7 @@ static struct platform_driver cpsw_driver = {
 	.remove = cpsw_remove,
 };
 
-static int __init cpsw_init(void)
-{
-	return platform_driver_register(&cpsw_driver);
-}
-late_initcall(cpsw_init);
-
-static void __exit cpsw_exit(void)
-{
-	platform_driver_unregister(&cpsw_driver);
-}
-module_exit(cpsw_exit);
+module_platform_driver(cpsw_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cyril Chemparathy <cyril@ti.com>");

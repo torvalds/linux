@@ -58,12 +58,6 @@
  *
  * Since "struct usb_bus" is so thin, you can't share much code in it.
  * This framework is a layer over that, and should be more sharable.
- *
- * @authorized_default: Specifies if new devices are authorized to
- *                      connect by default or they require explicit
- *                      user space authorization; this bit is settable
- *                      through /sys/class/usb_host/X/authorized_default.
- *                      For the rest is RO, so we don't lock to r/w it.
  */
 
 /*-------------------------------------------------------------------------*/
@@ -120,6 +114,8 @@ struct usb_hcd {
 #define HCD_FLAG_WAKEUP_PENDING		4	/* root hub is resuming? */
 #define HCD_FLAG_RH_RUNNING		5	/* root hub is running? */
 #define HCD_FLAG_DEAD			6	/* controller has died? */
+#define HCD_FLAG_INTF_AUTHORIZED	7	/* authorize interfaces? */
+#define HCD_FLAG_DEV_AUTHORIZED		8	/* authorize devices? */
 
 	/* The flags can be tested using these macros; they are likely to
 	 * be slightly faster than test_bit().
@@ -131,6 +127,22 @@ struct usb_hcd {
 #define HCD_RH_RUNNING(hcd)	((hcd)->flags & (1U << HCD_FLAG_RH_RUNNING))
 #define HCD_DEAD(hcd)		((hcd)->flags & (1U << HCD_FLAG_DEAD))
 
+	/*
+	 * Specifies if interfaces are authorized by default
+	 * or they require explicit user space authorization; this bit is
+	 * settable through /sys/class/usb_host/X/interface_authorized_default
+	 */
+#define HCD_INTF_AUTHORIZED(hcd) \
+	((hcd)->flags & (1U << HCD_FLAG_INTF_AUTHORIZED))
+
+	/*
+	 * Specifies if devices are authorized by default
+	 * or they require explicit user space authorization; this bit is
+	 * settable through /sys/class/usb_host/X/authorized_default
+	 */
+#define HCD_DEV_AUTHORIZED(hcd) \
+	((hcd)->flags & (1U << HCD_FLAG_DEV_AUTHORIZED))
+
 	/* Flags that get set only during HCD registration or removal. */
 	unsigned		rh_registered:1;/* is root hub registered? */
 	unsigned		rh_pollable:1;	/* may we poll the root hub? */
@@ -141,7 +153,6 @@ struct usb_hcd {
 	 * support the new root-hub polling mechanism. */
 	unsigned		uses_new_polling:1;
 	unsigned		wireless:1;	/* Wireless USB HCD */
-	unsigned		authorized_default:1;
 	unsigned		has_tt:1;	/* Integrated TT in root hub */
 	unsigned		amd_resume_bug:1; /* AMD remote wakeup quirk */
 	unsigned		can_do_streams:1; /* HC supports streams */
@@ -239,6 +250,7 @@ struct hc_driver {
 #define	HCD_USB2	0x0020		/* USB 2.0 */
 #define	HCD_USB25	0x0030		/* Wireless USB 1.0 (USB 2.5)*/
 #define	HCD_USB3	0x0040		/* USB 3.0 */
+#define	HCD_USB31	0x0050		/* USB 3.1 */
 #define	HCD_MASK	0x0070
 #define	HCD_BH		0x0100		/* URB complete in BH context */
 

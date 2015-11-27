@@ -326,9 +326,8 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid);
 int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads);
 int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb);
 int drm_av_sync_delay(struct drm_connector *connector,
-		      struct drm_display_mode *mode);
-struct drm_connector *drm_select_eld(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode);
+		      const struct drm_display_mode *mode);
+struct drm_connector *drm_select_eld(struct drm_encoder *encoder);
 int drm_load_edid_firmware(struct drm_connector *connector);
 
 int

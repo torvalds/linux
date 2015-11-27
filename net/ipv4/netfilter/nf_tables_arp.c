@@ -15,15 +15,15 @@
 #include <net/netfilter/nf_tables.h>
 
 static unsigned int
-nft_do_chain_arp(const struct nf_hook_ops *ops,
+nft_do_chain_arp(void *priv,
 		  struct sk_buff *skb,
 		  const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
 
-	nft_set_pktinfo(&pkt, ops, skb, state);
+	nft_set_pktinfo(&pkt, skb, state);
 
-	return nft_do_chain(&pkt, ops);
+	return nft_do_chain(&pkt, priv);
 }
 
 static struct nft_af_info nft_af_arp __read_mostly = {

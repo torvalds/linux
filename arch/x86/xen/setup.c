@@ -212,7 +212,7 @@ static unsigned long __init xen_find_pfn_range(unsigned long *min_pfn)
 		e_pfn = PFN_DOWN(entry->addr + entry->size);
 
 		/* We only care about E820 after this */
-		if (e_pfn < *min_pfn)
+		if (e_pfn <= *min_pfn)
 			continue;
 
 		s_pfn = PFN_UP(entry->addr);
@@ -829,6 +829,8 @@ char * __init xen_memory_setup(void)
 	addr = xen_e820_map[0].addr;
 	size = xen_e820_map[0].size;
 	while (i < xen_e820_map_entries) {
+		bool discard = false;
+
 		chunk_size = size;
 		type = xen_e820_map[i].type;
 
@@ -843,10 +845,11 @@ char * __init xen_memory_setup(void)
 				xen_add_extra_mem(pfn_s, n_pfns);
 				xen_max_p2m_pfn = pfn_s + n_pfns;
 			} else
-				type = E820_UNUSABLE;
+				discard = true;
 		}
 
-		xen_align_and_add_e820_region(addr, chunk_size, type);
+		if (!discard)
+			xen_align_and_add_e820_region(addr, chunk_size, type);
 
 		addr += chunk_size;
 		size -= chunk_size;
@@ -965,17 +968,8 @@ char * __init xen_auto_xlated_memory_setup(void)
 static void __init fiddle_vdso(void)
 {
 #ifdef CONFIG_X86_32
-	/*
-	 * This could be called before selected_vdso32 is initialized, so
-	 * just fiddle with both possible images.  vdso_image_32_syscall
-	 * can't be selected, since it only exists on 64-bit systems.
-	 */
-	u32 *mask;
-	mask = vdso_image_32_int80.data +
-		vdso_image_32_int80.sym_VDSO32_NOTE_MASK;
-	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
-	mask = vdso_image_32_sysenter.data +
-		vdso_image_32_sysenter.sym_VDSO32_NOTE_MASK;
+	u32 *mask = vdso_image_32.data +
+		vdso_image_32.sym_VDSO32_NOTE_MASK;
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 #endif
 }

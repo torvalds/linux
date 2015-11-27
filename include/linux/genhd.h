@@ -163,6 +163,18 @@ struct disk_part_tbl {
 
 struct disk_events;
 
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+
+struct blk_integrity {
+	struct blk_integrity_profile	*profile;
+	unsigned char			flags;
+	unsigned char			tuple_size;
+	unsigned char			interval_exp;
+	unsigned char			tag_size;
+};
+
+#endif	/* CONFIG_BLK_DEV_INTEGRITY */
+
 struct gendisk {
 	/* major, first_minor and minors are input parameters only,
 	 * don't use directly.  Use disk_devt() and disk_max_parts().
@@ -198,8 +210,8 @@ struct gendisk {
 	atomic_t sync_io;		/* RAID */
 	struct disk_events *ev;
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
-	struct blk_integrity *integrity;
-#endif
+	struct kobject integrity_kobj;
+#endif	/* CONFIG_BLK_DEV_INTEGRITY */
 	int node_id;
 };
 
@@ -726,6 +738,16 @@ static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
 	part->nr_sects = size;
 #endif
 }
+
+#if defined(CONFIG_BLK_DEV_INTEGRITY)
+extern void blk_integrity_add(struct gendisk *);
+extern void blk_integrity_del(struct gendisk *);
+extern void blk_integrity_revalidate(struct gendisk *);
+#else	/* CONFIG_BLK_DEV_INTEGRITY */
+static inline void blk_integrity_add(struct gendisk *disk) { }
+static inline void blk_integrity_del(struct gendisk *disk) { }
+static inline void blk_integrity_revalidate(struct gendisk *disk) { }
+#endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 #else /* CONFIG_BLOCK */
 

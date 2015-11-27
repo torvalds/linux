@@ -39,6 +39,7 @@
 #include <linux/prefetch.h>
 #include <net/ip6_checksum.h>
 #include <linux/ktime.h>
+#include <linux/numa.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
@@ -112,6 +113,71 @@ static struct enic_intr_mod_range mod_range[ENIC_MAX_LINK_SPEEDS] = {
 	{3,  6}, /* 10 - 40 Gbps */
 };
 
+static void enic_init_affinity_hint(struct enic *enic)
+{
+	int numa_node = dev_to_node(&enic->pdev->dev);
+	int i;
+
+	for (i = 0; i < enic->intr_count; i++) {
+		if (enic_is_err_intr(enic, i) || enic_is_notify_intr(enic, i) ||
+		    (enic->msix[i].affinity_mask &&
+		     !cpumask_empty(enic->msix[i].affinity_mask)))
+			continue;
+		if (zalloc_cpumask_var(&enic->msix[i].affinity_mask,
+				       GFP_KERNEL))
+			cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+					enic->msix[i].affinity_mask);
+	}
+}
+
+static void enic_free_affinity_hint(struct enic *enic)
+{
+	int i;
+
+	for (i = 0; i < enic->intr_count; i++) {
+		if (enic_is_err_intr(enic, i) || enic_is_notify_intr(enic, i))
+			continue;
+		free_cpumask_var(enic->msix[i].affinity_mask);
+	}
+}
+
+static void enic_set_affinity_hint(struct enic *enic)
+{
+	int i;
+	int err;
+
+	for (i = 0; i < enic->intr_count; i++) {
+		if (enic_is_err_intr(enic, i)		||
+		    enic_is_notify_intr(enic, i)	||
+		    !enic->msix[i].affinity_mask	||
+		    cpumask_empty(enic->msix[i].affinity_mask))
+			continue;
+		err = irq_set_affinity_hint(enic->msix_entry[i].vector,
+					    enic->msix[i].affinity_mask);
+		if (err)
+			netdev_warn(enic->netdev, "irq_set_affinity_hint failed, err %d\n",
+				    err);
+	}
+
+	for (i = 0; i < enic->wq_count; i++) {
+		int wq_intr = enic_msix_wq_intr(enic, i);
+
+		if (enic->msix[wq_intr].affinity_mask &&
+		    !cpumask_empty(enic->msix[wq_intr].affinity_mask))
+			netif_set_xps_queue(enic->netdev,
+					    enic->msix[wq_intr].affinity_mask,
+					    i);
+	}
+}
+
+static void enic_unset_affinity_hint(struct enic *enic)
+{
+	int i;
+
+	for (i = 0; i < enic->intr_count; i++)
+		irq_set_affinity_hint(enic->msix_entry[i].vector, NULL);
+}
+
 int enic_is_dynamic(struct enic *enic)
 {
 	return enic->pdev->device == PCI_DEVICE_ID_CISCO_VIC_ENET_DYN;
@@ -178,13 +244,15 @@ static int enic_wq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc,
 	return 0;
 }
 
-static void enic_log_q_error(struct enic *enic)
+static bool enic_log_q_error(struct enic *enic)
 {
 	unsigned int i;
 	u32 error_status;
+	bool err = false;
 
 	for (i = 0; i < enic->wq_count; i++) {
 		error_status = vnic_wq_error_status(&enic->wq[i]);
+		err |= error_status;
 		if (error_status)
 			netdev_err(enic->netdev, "WQ[%d] error_status %d\n",
 				i, error_status);
@@ -192,10 +260,13 @@ static void enic_log_q_error(struct enic *enic)
 
 	for (i = 0; i < enic->rq_count; i++) {
 		error_status = vnic_rq_error_status(&enic->rq[i]);
+		err |= error_status;
 		if (error_status)
 			netdev_err(enic->netdev, "RQ[%d] error_status %d\n",
 				i, error_status);
 	}
+
+	return err;
 }
 
 static void enic_msglvl_check(struct enic *enic)
@@ -333,10 +404,9 @@ static irqreturn_t enic_isr_msix_err(int irq, void *data)
 
 	vnic_intr_return_all_credits(&enic->intr[intr]);
 
-	enic_log_q_error(enic);
-
-	/* schedule recovery from WQ/RQ error */
-	schedule_work(&enic->reset);
+	if (enic_log_q_error(enic))
+		/* schedule recovery from WQ/RQ error */
+		schedule_work(&enic->reset);
 
 	return IRQ_HANDLED;
 }
@@ -804,7 +874,7 @@ static void enic_set_rx_mode(struct net_device *netdev)
 static void enic_tx_timeout(struct net_device *netdev)
 {
 	struct enic *enic = netdev_priv(netdev);
-	schedule_work(&enic->reset);
+	schedule_work(&enic->tx_hang_reset);
 }
 
 static int enic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
@@ -1645,6 +1715,8 @@ static int enic_open(struct net_device *netdev)
 		netdev_err(netdev, "Unable to request irq.\n");
 		return err;
 	}
+	enic_init_affinity_hint(enic);
+	enic_set_affinity_hint(enic);
 
 	err = enic_dev_notify_set(enic);
 	if (err) {
@@ -1697,6 +1769,7 @@ err_out_free_rq:
 		vnic_rq_clean(&enic->rq[i], enic_free_rq_buf);
 	enic_dev_notify_unset(enic);
 err_out_free_intr:
+	enic_unset_affinity_hint(enic);
 	enic_free_intr(enic);
 
 	return err;
@@ -1750,6 +1823,7 @@ static int enic_stop(struct net_device *netdev)
 	}
 
 	enic_dev_notify_unset(enic);
+	enic_unset_affinity_hint(enic);
 	enic_free_intr(enic);
 
 	for (i = 0; i < enic->wq_count; i++)
@@ -1924,6 +1998,19 @@ static int enic_dev_open(struct enic *enic)
 	return err;
 }
 
+static int enic_dev_soft_reset(struct enic *enic)
+{
+	int err;
+
+	err = enic_dev_wait(enic->vdev, vnic_dev_soft_reset,
+			    vnic_dev_soft_reset_done, 0);
+	if (err)
+		netdev_err(enic->netdev, "vNIC soft reset failed, err %d\n",
+			   err);
+
+	return err;
+}
+
 static int enic_dev_hang_reset(struct enic *enic)
 {
 	int err;
@@ -2056,6 +2143,26 @@ static void enic_reset(struct work_struct *work)
 
 	if (!netif_running(enic->netdev))
 		return;
+
+	rtnl_lock();
+
+	spin_lock(&enic->enic_api_lock);
+	enic_stop(enic->netdev);
+	enic_dev_soft_reset(enic);
+	enic_reset_addr_lists(enic);
+	enic_init_vnic_resources(enic);
+	enic_set_rss_nic_cfg(enic);
+	enic_dev_set_ig_vlan_rewrite_mode(enic);
+	enic_open(enic->netdev);
+	spin_unlock(&enic->enic_api_lock);
+	call_netdevice_notifiers(NETDEV_REBOOT, enic->netdev);
+
+	rtnl_unlock();
+}
+
+static void enic_tx_hang_reset(struct work_struct *work)
+{
+	struct enic *enic = container_of(work, struct enic, tx_hang_reset);
 
 	rtnl_lock();
 
@@ -2272,6 +2379,7 @@ static void enic_dev_deinit(struct enic *enic)
 
 	enic_free_vnic_resources(enic);
 	enic_clear_intr_mode(enic);
+	enic_free_affinity_hint(enic);
 }
 
 static void enic_kdump_kernel_config(struct enic *enic)
@@ -2367,6 +2475,7 @@ static int enic_dev_init(struct enic *enic)
 	return 0;
 
 err_out_free_vnic_resources:
+	enic_free_affinity_hint(enic);
 	enic_clear_intr_mode(enic);
 	enic_free_vnic_resources(enic);
 
@@ -2583,6 +2692,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	enic_set_rx_coal_setting(enic);
 	INIT_WORK(&enic->reset, enic_reset);
+	INIT_WORK(&enic->tx_hang_reset, enic_tx_hang_reset);
 	INIT_WORK(&enic->change_mtu_work, enic_change_mtu_work);
 
 	for (i = 0; i < enic->wq_count; i++)

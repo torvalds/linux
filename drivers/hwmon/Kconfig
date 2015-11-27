@@ -321,6 +321,15 @@ config SENSORS_APPLESMC
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
 
+config SENSORS_ARM_SCPI
+	tristate "ARM SCPI Sensors"
+	depends on ARM_SCPI_PROTOCOL
+	depends on THERMAL || !THERMAL_OF
+	help
+	  This driver provides support for temperature, voltage, current
+	  and power sensors available on ARM Ltd's SCP based platforms. The
+	  actual number and type of sensors exported depend on the platform.
+
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
 	depends on X86 && I2C
@@ -1463,6 +1472,7 @@ config SENSORS_INA209
 config SENSORS_INA2XX
 	tristate "Texas Instruments INA219 and compatibles"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for INA219, INA220, INA226,
 	  INA230, and INA231 power monitor chips.

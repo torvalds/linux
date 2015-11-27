@@ -233,9 +233,9 @@ static int get_ablock(struct dm_array_info *info, dm_block_t b,
 /*
  * Unlocks an array block.
  */
-static int unlock_ablock(struct dm_array_info *info, struct dm_block *block)
+static void unlock_ablock(struct dm_array_info *info, struct dm_block *block)
 {
-	return dm_tm_unlock(info->btree_info.tm, block);
+	dm_tm_unlock(info->btree_info.tm, block);
 }
 
 /*----------------------------------------------------------------*/

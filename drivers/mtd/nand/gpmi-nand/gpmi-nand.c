@@ -1160,7 +1160,7 @@ static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int oob_required)
+				const uint8_t *buf, int oob_required, int page)
 {
 	struct gpmi_nand_data *this = chip->priv;
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
@@ -1446,7 +1446,7 @@ static int gpmi_ecc_read_page_raw(struct mtd_info *mtd,
 static int gpmi_ecc_write_page_raw(struct mtd_info *mtd,
 				   struct nand_chip *chip,
 				   const uint8_t *buf,
-				   int oob_required)
+				   int oob_required, int page)
 {
 	struct gpmi_nand_data *this = chip->priv;
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
@@ -1533,7 +1533,7 @@ static int gpmi_ecc_write_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0, page);
 
-	return gpmi_ecc_write_page_raw(mtd, chip, NULL, 1);
+	return gpmi_ecc_write_page_raw(mtd, chip, NULL, 1, page);
 }
 
 static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
@@ -1717,7 +1717,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 		/* Write the first page of the current stride. */
 		dev_dbg(dev, "Writing an NCB fingerprint in page 0x%x\n", page);
 		chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
-		chip->ecc.write_page_raw(mtd, chip, buffer, 0);
+		chip->ecc.write_page_raw(mtd, chip, buffer, 0, page);
 		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
 
 		/* Wait for the write to finish. */
@@ -1897,7 +1897,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	/* init the MTD data structures */
 	mtd->priv		= chip;
 	mtd->name		= "gpmi-nand";
-	mtd->owner		= THIS_MODULE;
+	mtd->dev.parent		= this->dev;
 
 	/* init the nand_chip{}, we don't support a 16-bit NAND Flash bus. */
 	chip->priv		= this;

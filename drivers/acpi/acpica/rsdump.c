@@ -51,7 +51,6 @@ ACPI_MODULE_NAME("rsdump")
 /*
  * All functions in this module are used by the AML Debugger only
  */
-#if defined(ACPI_DEBUGGER)
 /* Local prototypes */
 static void acpi_rs_out_string(char *title, char *value);
 
@@ -565,5 +564,3 @@ static void acpi_rs_dump_word_list(u16 length, u16 *data)
 		acpi_os_printf("%25s%2.2X : %4.4X\n", "Word", i, data[i]);
 	}
 }
-
-#endif

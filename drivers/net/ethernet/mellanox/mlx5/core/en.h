@@ -334,9 +334,15 @@ struct mlx5e_tx_skb_cb {
 
 #define MLX5E_TX_SKB_CB(__skb) ((struct mlx5e_tx_skb_cb *)__skb->cb)
 
+enum mlx5e_dma_map_type {
+	MLX5E_DMA_MAP_SINGLE,
+	MLX5E_DMA_MAP_PAGE
+};
+
 struct mlx5e_sq_dma {
-	dma_addr_t addr;
-	u32        size;
+	dma_addr_t              addr;
+	u32                     size;
+	enum mlx5e_dma_map_type type;
 };
 
 enum {
@@ -615,6 +621,12 @@ static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 
 	mcq = &cq->mcq;
 	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, NULL, cq->wq.cc);
+}
+
+static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
+{
+	return min_t(int, mdev->priv.eq_table.num_comp_vectors,
+		     MLX5E_MAX_NUM_CHANNELS);
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;

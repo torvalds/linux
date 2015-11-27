@@ -111,7 +111,6 @@ static int tps65912_spi_remove(struct spi_device *spi)
 static struct spi_driver tps65912_spi_driver = {
 	.driver = {
 		.name = "tps65912",
-		.owner = THIS_MODULE,
 	},
 	.probe	= tps65912_spi_probe,
 	.remove = tps65912_spi_remove,

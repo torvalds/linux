@@ -472,7 +472,7 @@ static void lkdtm_do_action(enum ctype which)
 		break;
 	}
 	case CT_ACCESS_USERSPACE: {
-		unsigned long user_addr, tmp;
+		unsigned long user_addr, tmp = 0;
 		unsigned long *ptr;
 
 		user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
@@ -480,6 +480,12 @@ static void lkdtm_do_action(enum ctype which)
 				    MAP_ANONYMOUS | MAP_PRIVATE, 0);
 		if (user_addr >= TASK_SIZE) {
 			pr_warn("Failed to allocate user memory\n");
+			return;
+		}
+
+		if (copy_to_user((void __user *)user_addr, &tmp, sizeof(tmp))) {
+			pr_warn("copy_to_user failed\n");
+			vm_munmap(user_addr, PAGE_SIZE);
 			return;
 		}
 

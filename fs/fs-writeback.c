@@ -779,8 +779,8 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 				  bool skip_if_busy)
 {
 	struct bdi_writeback *last_wb = NULL;
-	struct bdi_writeback *wb = list_entry_rcu(&bdi->wb_list,
-						struct bdi_writeback, bdi_node);
+	struct bdi_writeback *wb = list_entry(&bdi->wb_list,
+					      struct bdi_writeback, bdi_node);
 
 	might_sleep();
 restart:
@@ -1981,9 +1981,9 @@ static noinline void block_dump___mark_inode_dirty(struct inode *inode)
  * page->mapping->host, so the page-dirtying time is recorded in the internal
  * blockdev inode.
  */
-#define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
 void __mark_inode_dirty(struct inode *inode, int flags)
 {
+#define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
 	struct super_block *sb = inode->i_sb;
 	int dirtytime;
 
@@ -2093,6 +2093,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 out_unlock_inode:
 	spin_unlock(&inode->i_lock);
 
+#undef I_DIRTY_INODE
 }
 EXPORT_SYMBOL(__mark_inode_dirty);
 
@@ -2149,7 +2150,12 @@ static void wait_sb_inodes(struct super_block *sb)
 		iput(old_inode);
 		old_inode = inode;
 
-		filemap_fdatawait(mapping);
+		/*
+		 * We keep the error status of individual mapping so that
+		 * applications can catch the writeback error using fsync(2).
+		 * See filemap_fdatawait_keep_errors() for details.
+		 */
+		filemap_fdatawait_keep_errors(mapping);
 
 		cond_resched();
 
