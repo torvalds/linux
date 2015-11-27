@@ -226,6 +226,20 @@ static const char *chanctx_state_string(enum ath_chanctx_state state)
 	}
 }
 
+static const u32 chanctx_event_delta(struct ath_softc *sc)
+{
+	u64 ms;
+	struct timespec ts, *old;
+
+	getrawmonotonic(&ts);
+	old = &sc->last_event_time;
+	ms = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+	ms -= old->tv_sec * 1000 + old->tv_nsec / 1000000;
+	sc->last_event_time = ts;
+
+	return (u32)ms;
+}
+
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -489,10 +503,11 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 
 	spin_lock_bh(&sc->chan_lock);
 
-	ath_dbg(common, CHAN_CTX, "cur_chan: %d MHz, event: %s, state: %s\n",
+	ath_dbg(common, CHAN_CTX, "cur_chan: %d MHz, event: %s, state: %s, delta: %u ms\n",
 		sc->cur_chan->chandef.center_freq1,
 		chanctx_event_string(ev),
-		chanctx_state_string(sc->sched.state));
+		chanctx_state_string(sc->sched.state),
+		chanctx_event_delta(sc));
 
 	switch (ev) {
 	case ATH_CHANCTX_EVENT_BEACON_PREPARE:

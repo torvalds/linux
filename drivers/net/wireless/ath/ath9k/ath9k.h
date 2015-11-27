@@ -981,6 +981,7 @@ struct ath_softc {
 	struct ath_offchannel offchannel;
 	struct ath_chanctx *next_chan;
 	struct completion go_beacon;
+	struct timespec last_event_time;
 #endif
 
 	unsigned long driver_data;
