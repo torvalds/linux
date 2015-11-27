@@ -34,6 +34,9 @@ static struct amd_sched_job *
 amd_sched_entity_pop_job(struct amd_sched_entity *entity);
 static void amd_sched_wakeup(struct amd_gpu_scheduler *sched);
 
+struct kmem_cache *sched_fence_slab;
+atomic_t sched_fence_slab_ref = ATOMIC_INIT(0);
+
 /* Initialize a given run queue struct */
 static void amd_sched_rq_init(struct amd_sched_rq *rq)
 {
@@ -273,22 +276,13 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
  *
  * Returns 0 for success, negative error code otherwise.
  */
-int amd_sched_entity_push_job(struct amd_sched_job *sched_job)
+void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 {
 	struct amd_sched_entity *entity = sched_job->s_entity;
-	struct amd_sched_fence *fence = amd_sched_fence_create(
-		entity, sched_job->owner);
-
-	if (!fence)
-		return -ENOMEM;
-
-	fence_get(&fence->base);
-	sched_job->s_fence = fence;
 
 	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));
 	trace_amd_sched_job(sched_job);
-	return 0;
 }
 
 /**
@@ -343,6 +337,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 		list_del_init(&s_fence->list);
 		spin_unlock_irqrestore(&sched->fence_list_lock, flags);
 	}
+	trace_amd_sched_process_job(s_fence);
 	fence_put(&s_fence->base);
 	wake_up_interruptible(&sched->wake_up_worker);
 }
@@ -450,6 +445,13 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
 	init_waitqueue_head(&sched->wake_up_worker);
 	init_waitqueue_head(&sched->job_scheduled);
 	atomic_set(&sched->hw_rq_count, 0);
+	if (atomic_inc_return(&sched_fence_slab_ref) == 1) {
+		sched_fence_slab = kmem_cache_create(
+			"amd_sched_fence", sizeof(struct amd_sched_fence), 0,
+			SLAB_HWCACHE_ALIGN, NULL);
+		if (!sched_fence_slab)
+			return -ENOMEM;
+	}
 
 	/* Each scheduler will run on a seperate kernel thread */
 	sched->thread = kthread_run(amd_sched_main, sched, sched->name);
@@ -470,4 +472,6 @@ void amd_sched_fini(struct amd_gpu_scheduler *sched)
 {
 	if (sched->thread)
 		kthread_stop(sched->thread);
+	if (atomic_dec_and_test(&sched_fence_slab_ref))
+		kmem_cache_destroy(sched_fence_slab);
 }
