@@ -336,8 +336,10 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
 		int i, npages = obj->size >> PAGE_SHIFT;
 		for (i = 0; i < npages; i++) {
-			dma_unmap_page(obj->dev->dev, omap_obj->addrs[i],
-					PAGE_SIZE, DMA_BIDIRECTIONAL);
+			if (omap_obj->addrs[i])
+				dma_unmap_page(obj->dev->dev,
+					       omap_obj->addrs[i],
+					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 		}
 	}
 
