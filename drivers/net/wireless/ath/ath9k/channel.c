@@ -356,14 +356,16 @@ static void ath_chanctx_setup_timer(struct ath_softc *sc, u32 tsf_time)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
+	unsigned long timeout;
 
 	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, tsf_time, 1000000);
 	tsf_time -= ath9k_hw_gettsf32(ah);
-	tsf_time = msecs_to_jiffies(tsf_time / 1000) + 1;
-	mod_timer(&sc->sched.timer, jiffies + tsf_time);
+	timeout = msecs_to_jiffies(tsf_time / 1000) + 1;
+	mod_timer(&sc->sched.timer, jiffies + timeout);
 
 	ath_dbg(common, CHAN_CTX,
-		"Setup chanctx timer with timeout: %d ms\n", jiffies_to_msecs(tsf_time));
+		"Setup chanctx timer with timeout: %d (%d) ms\n",
+		tsf_time / 1000, jiffies_to_msecs(timeout));
 }
 
 static void ath_chanctx_handle_bmiss(struct ath_softc *sc,
