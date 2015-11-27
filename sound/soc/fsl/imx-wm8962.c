@@ -517,7 +517,7 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 static int imx_wm8962_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *cpu_np, *codec_np;
+	struct device_node *cpu_np, *codec_np = NULL;
 	struct platform_device *cpu_pdev;
 	struct imx_priv *priv = &card_priv;
 	struct i2c_client *codec_dev;
@@ -545,12 +545,12 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(np, "mux-int-port", &int_port);
 	if (ret) {
 		dev_err(&pdev->dev, "mux-int-port missing or invalid\n");
-		return ret;
+		goto fail;
 	}
 	ret = of_property_read_u32(np, "mux-ext-port", &ext_port);
 	if (ret) {
 		dev_err(&pdev->dev, "mux-ext-port missing or invalid\n");
-		return ret;
+		goto fail;
 	}
 
 	/*
@@ -568,14 +568,14 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 			IMX_AUDMUX_V2_PDCR_RXDSEL(ext_port));
 	if (ret) {
 		dev_err(&pdev->dev, "audmux internal port setup failed\n");
-		return ret;
+		goto fail;
 	}
 	ret = imx_audmux_v2_configure_port(ext_port,
 			IMX_AUDMUX_V2_PTCR_SYN,
 			IMX_AUDMUX_V2_PDCR_RXDSEL(int_port));
 	if (ret) {
 		dev_err(&pdev->dev, "audmux external port setup failed\n");
-		return ret;
+		goto fail;
 	}
 
 audmux_bypass:
