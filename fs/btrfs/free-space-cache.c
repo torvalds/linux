@@ -891,7 +891,7 @@ out:
 		spin_unlock(&block_group->lock);
 		ret = 0;
 
-		btrfs_warn(fs_info, "failed to load free space cache for block group %llu, rebuild it now",
+		btrfs_warn(fs_info, "failed to load free space cache for block group %llu, rebuilding it now",
 			block_group->key.objectid);
 	}
 
