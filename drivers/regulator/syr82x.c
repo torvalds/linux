@@ -32,19 +32,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/regmap.h>
 
-#if 0
-#define DBG(x...)	printk(KERN_INFO x)
-#else
-#define DBG(x...)
-#endif
-#if 1
-#define DBG_INFO(x...)	printk(KERN_INFO x)
-#else
-#define DBG_INFO(x...)
-#endif
-#define PM_CONTROL
-
-#define SYR82X_SPEED 200*1000
 #define syr82x_NUM_REGULATORS 1
 
 struct syr82x {
@@ -93,10 +80,6 @@ struct syr82x_platform_data {
 };
 struct syr82x *g_syr82x;
 
-static int syr82x_reg_read(struct syr82x *syr82x, u8 reg);
-static int syr82x_set_bits(struct syr82x *syr82x, u8 reg, u16 mask, u16 val);
-
-
 #define SYR82X_BUCK1_SET_VOL_BASE 0x00
 #define SYR82X_BUCK1_SLP_VOL_BASE 0x01
 #define SYR82X_CONTR_REG1 0x02
@@ -107,6 +90,19 @@ static int syr82x_set_bits(struct syr82x *syr82x, u8 reg, u16 mask, u16 val);
 #define BUCK_VOL_MASK 0x3f
 #define VOL_MIN_IDX 0x00
 #define VOL_MAX_IDX 0x3f
+
+struct syr82x_reg_data {
+	int addr;
+	int mask;
+	int value;
+};
+
+static const struct regmap_config syr82x_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = SYR82X_CONTR_REG2,
+	.cache_type = REGCACHE_RBTREE,
+};
 
 const static int buck_voltage_map[] = {
 	 712500, 725000, 737500,750000, 762500,775000,787500,800000,
@@ -128,12 +124,15 @@ static int syr82x_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
 static int syr82x_dcdc_is_enabled(struct regulator_dev *dev)
 {
 	struct syr82x *syr82x = rdev_get_drvdata(dev);
-	u16 val;
-	u16 mask=0x80;	
-	val = syr82x_reg_read(syr82x, SYR82X_BUCK1_SET_VOL_BASE);
-	if (val < 0)
-		return val;
-	 val=val&~0x7f;
+	unsigned int val;
+	u16 mask = 0x80;
+	int ret = 0;
+
+	ret = regmap_read(syr82x->regmap, SYR82X_BUCK1_SET_VOL_BASE, &val);
+	if (ret != 0)
+		return ret;
+
+	val &= (~0x7f);
 	if (val & mask)
 		return 1;
 	else
@@ -142,25 +141,39 @@ static int syr82x_dcdc_is_enabled(struct regulator_dev *dev)
 static int syr82x_dcdc_enable(struct regulator_dev *dev)
 {
 	struct syr82x *syr82x = rdev_get_drvdata(dev);
-	u16 mask=0x80;	
+	u16 mask = 0x80;
+	int ret = 0;
 
-	return syr82x_set_bits(syr82x, SYR82X_BUCK1_SET_VOL_BASE, mask, 0x80);
-
+	ret = regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SET_VOL_BASE,
+				 mask, 0x80);
+	return ret;
 }
 static int syr82x_dcdc_disable(struct regulator_dev *dev)
 {
 	struct syr82x *syr82x = rdev_get_drvdata(dev);
-	u16 mask=0x80;
-	 return syr82x_set_bits(syr82x, SYR82X_BUCK1_SET_VOL_BASE, mask, 0);
+	u16 mask = 0x80;
+	int ret = 0;
+
+	ret = regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SET_VOL_BASE,
+				 mask, 0);
+	return ret;
 }
 static int syr82x_dcdc_get_voltage(struct regulator_dev *dev)
 {
 	struct syr82x *syr82x = rdev_get_drvdata(dev);
-	u16 reg = 0;
+	unsigned int reg;
 	int val;
-	reg = syr82x_reg_read(syr82x,SYR82X_BUCK1_SET_VOL_BASE);
+	int ret = 0;
+
+	ret = regmap_read(syr82x->regmap, SYR82X_BUCK1_SET_VOL_BASE, &reg);
+	if (ret != 0)
+		return ret;
+
 	reg &= BUCK_VOL_MASK;
-	val = buck_voltage_map[reg];	
+	val = buck_voltage_map[reg];
+
 	return val;
 }
 static int syr82x_dcdc_set_voltage(struct regulator_dev *dev,
@@ -183,8 +196,10 @@ static int syr82x_dcdc_set_voltage(struct regulator_dev *dev,
 	if (vol_map[val] > max_uV)
 		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
 
-	ret = syr82x_set_bits(syr82x, SYR82X_BUCK1_SET_VOL_BASE ,BUCK_VOL_MASK, val);
-	if(ret < 0)
+	ret = regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SET_VOL_BASE,
+				 BUCK_VOL_MASK, val);
+	if (ret != 0)
 		printk("###################WARNING:set voltage is error!voltage set is %d mv %d\n",vol_map[val],ret);
 	
 	return ret;
@@ -194,13 +209,15 @@ static unsigned int syr82x_dcdc_get_mode(struct regulator_dev *dev)
 {
 	struct syr82x *syr82x = rdev_get_drvdata(dev);
 	u16 mask = 0x40;
-	u16 val;
-	val = syr82x_reg_read(syr82x, SYR82X_BUCK1_SET_VOL_BASE);
-        if (val < 0) {
-                return val;
-        }
-	val=val & mask;
-	if (val== mask)
+	unsigned int val;
+	int ret = 0;
+
+	ret = regmap_read(syr82x->regmap, SYR82X_BUCK1_SET_VOL_BASE, &val);
+	if (ret != 0)
+		return ret;
+
+	val &= mask;
+	if (val == mask)
 		return REGULATOR_MODE_FAST;
 	else
 		return REGULATOR_MODE_NORMAL;
@@ -214,9 +231,13 @@ static int syr82x_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 	switch(mode)
 	{
 	case REGULATOR_MODE_FAST:
-		return syr82x_set_bits(syr82x,SYR82X_BUCK1_SET_VOL_BASE, mask, mask);
+		return regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SET_VOL_BASE,
+				 mask, mask);
 	case REGULATOR_MODE_NORMAL:
-		return syr82x_set_bits(syr82x, SYR82X_BUCK1_SET_VOL_BASE, mask, 0);
+		return regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SET_VOL_BASE,
+				 mask, 0);
 	default:
 		printk("error:dcdc_syr82x only auto and pwm mode\n");
 		return -EINVAL;
@@ -240,16 +261,20 @@ static int syr82x_dcdc_set_voltage_time_sel(struct regulator_dev *dev,   unsigne
 static int syr82x_dcdc_suspend_enable(struct regulator_dev *dev)
 {
 	struct syr82x *syr82x = rdev_get_drvdata(dev);
-	u16 mask=0x80;	
-	
-	return syr82x_set_bits(syr82x, SYR82X_BUCK1_SLP_VOL_BASE, mask, 0x80);
+	u16 mask = 0x80;
 
+	return regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SLP_VOL_BASE,
+				 mask, 0x80);
 }
 static int syr82x_dcdc_suspend_disable(struct regulator_dev *dev)
 {
 	struct syr82x *syr82x = rdev_get_drvdata(dev);
 	u16 mask=0x80;
-	 return syr82x_set_bits(syr82x, SYR82X_BUCK1_SLP_VOL_BASE, mask, 0);
+
+	return regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SLP_VOL_BASE,
+				 mask, 0);
 }
 static int syr82x_dcdc_set_sleep_voltage(struct regulator_dev *dev,
 					    int uV)
@@ -270,7 +295,10 @@ static int syr82x_dcdc_set_sleep_voltage(struct regulator_dev *dev,
 
 	if (vol_map[val] > uV)
 		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
-	ret = syr82x_set_bits(syr82x,SYR82X_BUCK1_SLP_VOL_BASE ,BUCK_VOL_MASK, val);	
+
+	ret = regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SLP_VOL_BASE,
+				 BUCK_VOL_MASK, val);
 	return ret;
 }
 
@@ -283,9 +311,13 @@ static int syr82x_dcdc_set_suspend_mode(struct regulator_dev *dev, unsigned int 
 	switch(mode)
 	{
 	case REGULATOR_MODE_FAST:
-		return syr82x_set_bits(syr82x,SYR82X_BUCK1_SLP_VOL_BASE, mask, mask);
+		return regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SLP_VOL_BASE,
+				 mask, mask);
 	case REGULATOR_MODE_NORMAL:
-		return syr82x_set_bits(syr82x, SYR82X_BUCK1_SLP_VOL_BASE, mask, 0);
+		return regmap_update_bits(syr82x->regmap,
+				 SYR82X_BUCK1_SLP_VOL_BASE,
+				 mask, 0);
 	default:
 		printk("error:dcdc_syr82x only auto and pwm mode\n");
 		return -EINVAL;
@@ -319,123 +351,12 @@ static struct regulator_desc regulators[] = {
 	},
 };
 
-static int syr82x_i2c_read(struct i2c_client *i2c, char reg, int count,	u16 *dest)
-{
-      int ret;
-    struct i2c_adapter *adap;
-    struct i2c_msg msgs[2];
-
-    if(!i2c)
-		return ret;
-
-	if (count != 1)
-		return -EIO;  
-  
-    adap = i2c->adapter;		
-    
-    msgs[0].addr = i2c->addr;
-    msgs[0].buf = &reg;
-    msgs[0].flags = i2c->flags;
-    msgs[0].len = 1;
-    msgs[0].scl_rate = SYR82X_SPEED;
-    
-    msgs[1].buf = (u8 *)dest;
-    msgs[1].addr = i2c->addr;
-    msgs[1].flags = i2c->flags | I2C_M_RD;
-    msgs[1].len = 1;
-    msgs[1].scl_rate = SYR82X_SPEED;
-    ret = i2c_transfer(adap, msgs, 2);
-
-	DBG("***run in %s %d msgs[1].buf = %d\n",__FUNCTION__,__LINE__,*(msgs[1].buf));
-
-	return ret;   
-}
-
-static int syr82x_i2c_write(struct i2c_client *i2c, char reg, int count, const u16 src)
-{
-	int ret=-1;
-	
-	struct i2c_adapter *adap;
-	struct i2c_msg msg;
-	char tx_buf[2];
-
-	if(!i2c)
-		return ret;
-	if (count != 1)
-		return -EIO;
-    
-	adap = i2c->adapter;		
-	tx_buf[0] = reg;
-	tx_buf[1] = src;
-	
-	msg.addr = i2c->addr;
-	msg.buf = &tx_buf[0];
-	msg.len = 1 +1;
-	msg.flags = i2c->flags;   
-	msg.scl_rate = SYR82X_SPEED;	
-
-	ret = i2c_transfer(adap, &msg, 1);
-	return ret;	
-}
-
-static int syr82x_reg_read(struct syr82x *syr82x, u8 reg)
-{
-	u16 val = 0;
-	int ret;
-
-	mutex_lock(&syr82x->io_lock);
-
-	ret = syr82x_i2c_read(syr82x->i2c, reg, 1, &val);
-
-	DBG("reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
-	if (ret < 0){
-		mutex_unlock(&syr82x->io_lock);
-		return ret;
-	}
-	mutex_unlock(&syr82x->io_lock);
-
-	return val & 0xff;	
-}
-
-static int syr82x_set_bits(struct syr82x *syr82x, u8 reg, u16 mask, u16 val)
-{
-	u16 tmp;
-	int ret;
-
-	mutex_lock(&syr82x->io_lock);
-
-	ret = syr82x_i2c_read(syr82x->i2c, reg, 1, &tmp);
-	DBG("1 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
-	if (ret < 0){
-                mutex_unlock(&syr82x->io_lock);
-                return ret;
-        }
-	tmp = (tmp & ~mask) | val;
-	ret = syr82x_i2c_write(syr82x->i2c, reg, 1, tmp);
-	DBG("reg write 0x%02x -> 0x%02x\n", (int)reg, (unsigned)val&0xff);
-	if (ret < 0){
-                mutex_unlock(&syr82x->io_lock);
-                return ret;
-        }
-	ret = syr82x_i2c_read(syr82x->i2c, reg, 1, &tmp);
-	DBG("2 reg read 0x%02x -> 0x%02x\n", (int)reg, (unsigned)tmp&0xff);
-	if (ret < 0){
-                mutex_unlock(&syr82x->io_lock);
-                return ret;
-        }
-	mutex_unlock(&syr82x->io_lock);
-
-	return 0;//ret;	
-}
-
-#ifdef CONFIG_OF
 static struct of_device_id syr82x_of_match[] = {
 	{ .compatible = "silergy,syr82x"},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, syr82x_of_match);
-#endif
-#ifdef CONFIG_OF
+
 static struct of_regulator_match syr82x_reg_matches[] = {
 	{ .name = "syr82x_dcdc1" ,.driver_data = (void *)0},
 };
@@ -446,7 +367,6 @@ static struct syr82x_board *syr82x_parse_dt(struct syr82x *syr82x)
 	struct device_node *regs;
 	struct device_node *syr82x_np;
 	int count;
-	DBG("%s,line=%d\n", __func__,__LINE__);	
 	
 	syr82x_np = of_node_get(syr82x->dev->of_node);
 	if (!syr82x_np) {
@@ -469,13 +389,6 @@ static struct syr82x_board *syr82x_parse_dt(struct syr82x *syr82x)
 	return pdata;
 }
 
-#else
-static struct syr82x_board *syr82x_parse_dt(struct i2c_client *i2c)
-{
-	return NULL;
-}
-#endif
-
 static int syr82x_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct syr82x *syr82x;	
@@ -486,8 +399,7 @@ static int syr82x_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 	struct regulator_init_data *reg_data;
 	const char *rail_name = NULL;
 	int ret;
-	
-	DBG("%s,line=%d\n", __func__,__LINE__);	
+	unsigned int val;
 
 	if (i2c->dev.of_node) {
 		match = of_match_device(syr82x_of_match, &i2c->dev);
@@ -502,24 +414,30 @@ static int syr82x_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 		ret = -ENOMEM;		
 		goto err;
 	}
+
+	syr82x->regmap = devm_regmap_init_i2c(i2c, &syr82x_regmap_config);
+	if (IS_ERR(syr82x->regmap)) {
+		dev_err(&i2c->dev, "regmap initialization failed\n");
+		return PTR_ERR(syr82x->regmap);
+	}
 	syr82x->i2c = i2c;
 	syr82x->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, syr82x);
 	g_syr82x = syr82x;
 		
-	mutex_init(&syr82x->io_lock);	
-
-	ret = syr82x_reg_read(syr82x,SYR82X_ID1_REG);
-	if ((ret <0) ||(ret ==0xff) ||(ret ==0)){
-		printk("The device is not syr82x %x \n",ret);
+	mutex_init(&syr82x->io_lock);
+	ret = regmap_read(syr82x->regmap, SYR82X_ID1_REG, &val);
+	if ((ret < 0) || (val == 0xff) || (val == 0)) {
+		dev_err(&i2c->dev, "The device is not syr82x\n");
 		goto err;
 	}
-	
-	ret = syr82x_set_bits(syr82x,SYR82X_CONTR_REG1,(1 << 6),(1<<6));  //10mv/2.4us
+	ret = regmap_update_bits(syr82x->regmap,
+				 SYR82X_CONTR_REG1,
+				 (1 << 6), (1 << 6));
 
 	if (syr82x->dev->of_node)
 		pdev = syr82x_parse_dt(syr82x);
-	
+
 	if (pdev) {
 		syr82x->num_regulators = syr82x_NUM_REGULATORS;
 		syr82x->rdev = kcalloc(syr82x_NUM_REGULATORS,sizeof(struct regulator_dev *), GFP_KERNEL);

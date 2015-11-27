@@ -615,6 +615,14 @@ config REGULATOR_SKY81452
 	  This driver can also be built as a module. If so, the module
 	  will be called sky81452-regulator.
 
+config REGULATOR_SYR82X
+	tristate "SYR82X DCDC SUPPORT REGULATOR"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Support the voltage and current regulators of the SYR82X
+	  series of DCDC devices.
+
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"
 	depends on ARCH_OMAP
