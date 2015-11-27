@@ -1018,7 +1018,7 @@ void __hci_req_update_scan_rsp_data(struct hci_request *req, int instance)
 	if (instance == HCI_ADV_CURRENT)
 		instance = get_current_adv_instance(req->hdev);
 
-	update_inst_scan_rsp_data(req, get_current_adv_instance(req->hdev));
+	update_inst_scan_rsp_data(req, instance);
 }
 
 static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
