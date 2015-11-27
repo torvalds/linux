@@ -44,7 +44,7 @@ config EVM_EXTRA_SMACK_XATTRS
 
 config EVM_LOAD_X509
 	bool "Load an X509 certificate onto the '.evm' trusted keyring"
-	depends on INTEGRITY_TRUSTED_KEYRING
+	depends on EVM && INTEGRITY_TRUSTED_KEYRING
 	default n
 	help
 	   Load an X509 certificate onto the '.evm' trusted keyring.
