@@ -39,7 +39,6 @@
 #ifndef VVP_INTERNAL_H
 #define VVP_INTERNAL_H
 
-
 #include "../include/cl_object.h"
 #include "llite_internal.h"
 

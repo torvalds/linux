@@ -31,10 +31,11 @@
 #include "vivid-kthread-out.h"
 #include "vivid-vid-out.h"
 
-static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int vid_out_queue_setup(struct vb2_queue *vq, const void *parg,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
 	const struct vivid_fmt *vfmt = dev->fmt_out;
 	unsigned planes = vfmt->buffers;
@@ -109,6 +110,7 @@ static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *f
 
 static int vid_out_buf_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned long size;
 	unsigned planes;
@@ -131,14 +133,14 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 	}
 
 	if (dev->field_out != V4L2_FIELD_ALTERNATE)
-		vb->v4l2_buf.field = dev->field_out;
-	else if (vb->v4l2_buf.field != V4L2_FIELD_TOP &&
-		 vb->v4l2_buf.field != V4L2_FIELD_BOTTOM)
+		vbuf->field = dev->field_out;
+	else if (vbuf->field != V4L2_FIELD_TOP &&
+		 vbuf->field != V4L2_FIELD_BOTTOM)
 		return -EINVAL;
 
 	for (p = 0; p < planes; p++) {
 		size = dev->bytesperline_out[p] * dev->fmt_out_rect.height +
-			vb->v4l2_planes[p].data_offset;
+			vb->planes[p].data_offset;
 
 		if (vb2_get_plane_payload(vb, p) < size) {
 			dprintk(dev, 1, "%s the payload is too small for plane %u (%lu < %lu)\n",
@@ -152,8 +154,9 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 
 static void vid_out_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct vivid_buffer *buf = container_of(vb, struct vivid_buffer, vb);
+	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
 	dprintk(dev, 1, "%s\n", __func__);
 
@@ -186,7 +189,8 @@ static int vid_out_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->vid_out_active, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 	}
 	return err;

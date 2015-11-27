@@ -629,7 +629,6 @@ static struct spi_driver pmic_driver = {
 	.probe		= pmic_probe,
 	.driver		= {
 		.name	= "tps6524x",
-		.owner	= THIS_MODULE,
 	},
 };
 

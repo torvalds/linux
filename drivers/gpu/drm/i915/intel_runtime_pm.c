@@ -464,14 +464,14 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
 					SKL_DISP_PW_2);
 
-	WARN(!IS_SKYLAKE(dev), "Platform doesn't support DC5.\n");
-	WARN(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
-	WARN(pg2_enabled, "PG2 not disabled to enable DC5.\n");
+	WARN_ONCE(!IS_SKYLAKE(dev), "Platform doesn't support DC5.\n");
+	WARN_ONCE(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
+	WARN_ONCE(pg2_enabled, "PG2 not disabled to enable DC5.\n");
 
-	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
-				"DC5 already programmed to be enabled.\n");
-	WARN(dev_priv->pm.suspended,
-		"DC5 cannot be enabled, if platform is runtime-suspended.\n");
+	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
+		  "DC5 already programmed to be enabled.\n");
+	WARN_ONCE(dev_priv->pm.suspended,
+		  "DC5 cannot be enabled, if platform is runtime-suspended.\n");
 
 	assert_csr_loaded(dev_priv);
 }
@@ -487,8 +487,8 @@ static void assert_can_disable_dc5(struct drm_i915_private *dev_priv)
 	if (dev_priv->power_domains.initializing)
 		return;
 
-	WARN(!pg2_enabled, "PG2 not enabled to disable DC5.\n");
-	WARN(dev_priv->pm.suspended,
+	WARN_ONCE(!pg2_enabled, "PG2 not enabled to disable DC5.\n");
+	WARN_ONCE(dev_priv->pm.suspended,
 		"Disabling of DC5 while platform is runtime-suspended should never happen.\n");
 }
 
@@ -527,12 +527,12 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	WARN(!IS_SKYLAKE(dev), "Platform doesn't support DC6.\n");
-	WARN(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
-	WARN(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
-		"Backlight is not disabled.\n");
-	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
-		"DC6 already programmed to be enabled.\n");
+	WARN_ONCE(!IS_SKYLAKE(dev), "Platform doesn't support DC6.\n");
+	WARN_ONCE(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
+	WARN_ONCE(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
+		  "Backlight is not disabled.\n");
+	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
+		  "DC6 already programmed to be enabled.\n");
 
 	assert_csr_loaded(dev_priv);
 }
@@ -547,8 +547,8 @@ static void assert_can_disable_dc6(struct drm_i915_private *dev_priv)
 		return;
 
 	assert_csr_loaded(dev_priv);
-	WARN(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
-		"DC6 already programmed to be disabled.\n");
+	WARN_ONCE(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
+		  "DC6 already programmed to be disabled.\n");
 }
 
 static void skl_enable_dc6(struct drm_i915_private *dev_priv)
@@ -657,9 +657,15 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 		}
 	} else {
 		if (enable_requested) {
-			I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
-			POSTING_READ(HSW_PWR_WELL_DRIVER);
-			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
+			if (IS_SKYLAKE(dev) &&
+				(power_well->data == SKL_DISP_PW_1) &&
+				(intel_csr_load_status_get(dev_priv) == FW_LOADED))
+				DRM_DEBUG_KMS("Not Disabling PW1, dmc will handle\n");
+			else {
+				I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
+				POSTING_READ(HSW_PWR_WELL_DRIVER);
+				DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
+			}
 
 			if ((GEN9_ENABLE_DC5(dev) || SKL_ENABLE_DC6(dev)) &&
 				power_well->data == SKL_DISP_PW_2) {
@@ -671,7 +677,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 				wait_for((state = intel_csr_load_status_get(dev_priv)) !=
 						FW_UNINITIALIZED, 1000);
 				if (state != FW_LOADED)
-					DRM_ERROR("CSR firmware not ready (%d)\n",
+					DRM_DEBUG("CSR firmware not ready (%d)\n",
 							state);
 				else
 					if (SKL_ENABLE_DC6(dev))
@@ -856,6 +862,25 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 {
+	enum pipe pipe;
+
+	/*
+	 * Enable the CRI clock source so we can get at the
+	 * display and the reference clock for VGA
+	 * hotplug / manual detection. Supposedly DSI also
+	 * needs the ref clock up and running.
+	 *
+	 * CHV DPLL B/C have some issues if VGA mode is enabled.
+	 */
+	for_each_pipe(dev_priv->dev, pipe) {
+		u32 val = I915_READ(DPLL(pipe));
+
+		val |= DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
+		if (pipe != PIPE_A)
+			val |= DPLL_INTEGRATED_CRI_CLK_VLV;
+
+		I915_WRITE(DPLL(pipe), val);
+	}
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_enable_display_irqs(dev_priv);
@@ -907,13 +932,7 @@ static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 {
 	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC);
 
-	/*
-	 * Enable the CRI clock source so we can get at the
-	 * display and the reference clock for VGA
-	 * hotplug / manual detection.
-	 */
-	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-		   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
+	/* since ref/cri clock was enabled */
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
 
 	vlv_set_power_well(dev_priv, power_well, true);
@@ -948,30 +967,149 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, false);
 }
 
+#define POWER_DOMAIN_MASK (BIT(POWER_DOMAIN_NUM) - 1)
+
+static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
+						 int power_well_id)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+	int i;
+
+	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
+		if (power_well->data == power_well_id)
+			return power_well;
+	}
+
+	return NULL;
+}
+
+#define BITS_SET(val, bits) (((val) & (bits)) == (bits))
+
+static void assert_chv_phy_status(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_well *cmn_bc =
+		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC);
+	struct i915_power_well *cmn_d =
+		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_D);
+	u32 phy_control = dev_priv->chv_phy_control;
+	u32 phy_status = 0;
+	u32 phy_status_mask = 0xffffffff;
+	u32 tmp;
+
+	/*
+	 * The BIOS can leave the PHY is some weird state
+	 * where it doesn't fully power down some parts.
+	 * Disable the asserts until the PHY has been fully
+	 * reset (ie. the power well has been disabled at
+	 * least once).
+	 */
+	if (!dev_priv->chv_phy_assert[DPIO_PHY0])
+		phy_status_mask &= ~(PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH0, 0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH0, 1) |
+				     PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH1) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 1));
+
+	if (!dev_priv->chv_phy_assert[DPIO_PHY1])
+		phy_status_mask &= ~(PHY_STATUS_CMN_LDO(DPIO_PHY1, DPIO_CH0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 0) |
+				     PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 1));
+
+	if (cmn_bc->ops->is_enabled(dev_priv, cmn_bc)) {
+		phy_status |= PHY_POWERGOOD(DPIO_PHY0);
+
+		/* this assumes override is only used to enable lanes */
+		if ((phy_control & PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY0, DPIO_CH0)) == 0)
+			phy_control |= PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH0);
+
+		if ((phy_control & PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY0, DPIO_CH1)) == 0)
+			phy_control |= PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH1);
+
+		/* CL1 is on whenever anything is on in either channel */
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH0) |
+			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH1)))
+			phy_status |= PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH0);
+
+		/*
+		 * The DPLLB check accounts for the pipe B + port A usage
+		 * with CL2 powered up but all the lanes in the second channel
+		 * powered down.
+		 */
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY0, DPIO_CH1)) &&
+		    (I915_READ(DPLL(PIPE_B)) & DPLL_VCO_ENABLE) == 0)
+			phy_status |= PHY_STATUS_CMN_LDO(DPIO_PHY0, DPIO_CH1);
+
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0x3, DPIO_PHY0, DPIO_CH0)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH0, 0);
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xc, DPIO_PHY0, DPIO_CH0)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH0, 1);
+
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0x3, DPIO_PHY0, DPIO_CH1)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 0);
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xc, DPIO_PHY0, DPIO_CH1)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY0, DPIO_CH1, 1);
+	}
+
+	if (cmn_d->ops->is_enabled(dev_priv, cmn_d)) {
+		phy_status |= PHY_POWERGOOD(DPIO_PHY1);
+
+		/* this assumes override is only used to enable lanes */
+		if ((phy_control & PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY1, DPIO_CH0)) == 0)
+			phy_control |= PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY1, DPIO_CH0);
+
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xf, DPIO_PHY1, DPIO_CH0)))
+			phy_status |= PHY_STATUS_CMN_LDO(DPIO_PHY1, DPIO_CH0);
+
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0x3, DPIO_PHY1, DPIO_CH0)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 0);
+		if (BITS_SET(phy_control,
+			     PHY_CH_POWER_DOWN_OVRD(0xc, DPIO_PHY1, DPIO_CH0)))
+			phy_status |= PHY_STATUS_SPLINE_LDO(DPIO_PHY1, DPIO_CH0, 1);
+	}
+
+	phy_status &= phy_status_mask;
+
+	/*
+	 * The PHY may be busy with some initial calibration and whatnot,
+	 * so the power state can take a while to actually change.
+	 */
+	if (wait_for((tmp = I915_READ(DISPLAY_PHY_STATUS) & phy_status_mask) == phy_status, 10))
+		WARN(phy_status != tmp,
+		     "Unexpected PHY_STATUS 0x%08x, expected 0x%08x (PHY_CONTROL=0x%08x)\n",
+		     tmp, phy_status, dev_priv->chv_phy_control);
+}
+
+#undef BITS_SET
+
 static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
 	enum dpio_phy phy;
+	enum pipe pipe;
+	uint32_t tmp;
 
 	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC &&
 		     power_well->data != PUNIT_POWER_WELL_DPIO_CMN_D);
 
-	/*
-	 * Enable the CRI clock source so we can get at the
-	 * display and the reference clock for VGA
-	 * hotplug / manual detection.
-	 */
 	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+		pipe = PIPE_A;
 		phy = DPIO_PHY0;
-		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REF_CLK_ENABLE_VLV);
-		I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
 	} else {
+		pipe = PIPE_C;
 		phy = DPIO_PHY1;
-		I915_WRITE(DPLL(PIPE_C), I915_READ(DPLL(PIPE_C)) | DPLL_VGA_MODE_DIS |
-			   DPLL_REF_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
 	}
+
+	/* since ref/cri clock was enabled */
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
 	vlv_set_power_well(dev_priv, power_well, true);
 
@@ -979,8 +1117,38 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	if (wait_for(I915_READ(DISPLAY_PHY_STATUS) & PHY_POWERGOOD(phy), 1))
 		DRM_ERROR("Display PHY %d is not power up\n", phy);
 
+	mutex_lock(&dev_priv->sb_lock);
+
+	/* Enable dynamic power down */
+	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW28);
+	tmp |= DPIO_DYNPWRDOWNEN_CH0 | DPIO_CL1POWERDOWNEN |
+		DPIO_SUS_CLK_CONFIG_GATE_CLKREQ;
+	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW28, tmp);
+
+	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+		tmp = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW6_CH1);
+		tmp |= DPIO_DYNPWRDOWNEN_CH1;
+		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW6_CH1, tmp);
+	} else {
+		/*
+		 * Force the non-existing CL2 off. BXT does this
+		 * too, so maybe it saves some power even though
+		 * CL2 doesn't exist?
+		 */
+		tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);
+		tmp |= DPIO_CL2_LDOFUSE_PWRENB;
+		vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW30, tmp);
+	}
+
+	mutex_unlock(&dev_priv->sb_lock);
+
 	dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(phy);
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+
+	DRM_DEBUG_KMS("Enabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
+		      phy, dev_priv->chv_phy_control);
+
+	assert_chv_phy_status(dev_priv);
 }
 
 static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
@@ -1004,6 +1172,137 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
 
 	vlv_set_power_well(dev_priv, power_well, false);
+
+	DRM_DEBUG_KMS("Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
+		      phy, dev_priv->chv_phy_control);
+
+	/* PHY is fully reset now, so we can enable the PHY state asserts */
+	dev_priv->chv_phy_assert[phy] = true;
+
+	assert_chv_phy_status(dev_priv);
+}
+
+static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpio_phy phy,
+				     enum dpio_channel ch, bool override, unsigned int mask)
+{
+	enum pipe pipe = phy == DPIO_PHY0 ? PIPE_A : PIPE_C;
+	u32 reg, val, expected, actual;
+
+	/*
+	 * The BIOS can leave the PHY is some weird state
+	 * where it doesn't fully power down some parts.
+	 * Disable the asserts until the PHY has been fully
+	 * reset (ie. the power well has been disabled at
+	 * least once).
+	 */
+	if (!dev_priv->chv_phy_assert[phy])
+		return;
+
+	if (ch == DPIO_CH0)
+		reg = _CHV_CMN_DW0_CH0;
+	else
+		reg = _CHV_CMN_DW6_CH1;
+
+	mutex_lock(&dev_priv->sb_lock);
+	val = vlv_dpio_read(dev_priv, pipe, reg);
+	mutex_unlock(&dev_priv->sb_lock);
+
+	/*
+	 * This assumes !override is only used when the port is disabled.
+	 * All lanes should power down even without the override when
+	 * the port is disabled.
+	 */
+	if (!override || mask == 0xf) {
+		expected = DPIO_ALLDL_POWERDOWN | DPIO_ANYDL_POWERDOWN;
+		/*
+		 * If CH1 common lane is not active anymore
+		 * (eg. for pipe B DPLL) the entire channel will
+		 * shut down, which causes the common lane registers
+		 * to read as 0. That means we can't actually check
+		 * the lane power down status bits, but as the entire
+		 * register reads as 0 it's a good indication that the
+		 * channel is indeed entirely powered down.
+		 */
+		if (ch == DPIO_CH1 && val == 0)
+			expected = 0;
+	} else if (mask != 0x0) {
+		expected = DPIO_ANYDL_POWERDOWN;
+	} else {
+		expected = 0;
+	}
+
+	if (ch == DPIO_CH0)
+		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH0;
+	else
+		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH1;
+	actual &= DPIO_ALLDL_POWERDOWN | DPIO_ANYDL_POWERDOWN;
+
+	WARN(actual != expected,
+	     "Unexpected DPIO lane power down: all %d, any %d. Expected: all %d, any %d. (0x%x = 0x%08x)\n",
+	     !!(actual & DPIO_ALLDL_POWERDOWN), !!(actual & DPIO_ANYDL_POWERDOWN),
+	     !!(expected & DPIO_ALLDL_POWERDOWN), !!(expected & DPIO_ANYDL_POWERDOWN),
+	     reg, val);
+}
+
+bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
+			  enum dpio_channel ch, bool override)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	bool was_override;
+
+	mutex_lock(&power_domains->lock);
+
+	was_override = dev_priv->chv_phy_control & PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+
+	if (override == was_override)
+		goto out;
+
+	if (override)
+		dev_priv->chv_phy_control |= PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+	else
+		dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+
+	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+
+	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d (DPIO_PHY_CONTROL=0x%08x)\n",
+		      phy, ch, dev_priv->chv_phy_control);
+
+	assert_chv_phy_status(dev_priv);
+
+out:
+	mutex_unlock(&power_domains->lock);
+
+	return was_override;
+}
+
+void chv_phy_powergate_lanes(struct intel_encoder *encoder,
+			     bool override, unsigned int mask)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	enum dpio_phy phy = vlv_dport_to_phy(enc_to_dig_port(&encoder->base));
+	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(&encoder->base));
+
+	mutex_lock(&power_domains->lock);
+
+	dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD(0xf, phy, ch);
+	dev_priv->chv_phy_control |= PHY_CH_POWER_DOWN_OVRD(mask, phy, ch);
+
+	if (override)
+		dev_priv->chv_phy_control |= PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+	else
+		dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
+
+	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+
+	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d lanes 0x%x (PHY_CONTROL=0x%08x)\n",
+		      phy, ch, mask, dev_priv->chv_phy_control);
+
+	assert_chv_phy_status(dev_priv);
+
+	assert_chv_phy_powergate(dev_priv, phy, ch, override, mask);
+
+	mutex_unlock(&power_domains->lock);
 }
 
 static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
@@ -1166,8 +1465,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 
 	intel_runtime_pm_put(dev_priv);
 }
-
-#define POWER_DOMAIN_MASK (BIT(POWER_DOMAIN_NUM) - 1)
 
 #define HSW_ALWAYS_ON_POWER_DOMAINS (			\
 	BIT(POWER_DOMAIN_PIPE_A) |			\
@@ -1430,21 +1727,6 @@ static struct i915_power_well chv_power_wells[] = {
 	},
 };
 
-static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
-						 int power_well_id)
-{
-	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	struct i915_power_well *power_well;
-	int i;
-
-	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
-		if (power_well->data == power_well_id)
-			return power_well;
-	}
-
-	return NULL;
-}
-
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 				    int power_well_id)
 {
@@ -1529,6 +1811,21 @@ static struct i915_power_well bxt_power_wells[] = {
 	}
 };
 
+static int
+sanitize_disable_power_well_option(const struct drm_i915_private *dev_priv,
+				   int disable_power_well)
+{
+	if (disable_power_well >= 0)
+		return !!disable_power_well;
+
+	if (IS_SKYLAKE(dev_priv)) {
+		DRM_DEBUG_KMS("Disabling display power well support\n");
+		return 0;
+	}
+
+	return 1;
+}
+
 #define set_power_wells(power_domains, __power_wells) ({		\
 	(power_domains)->power_wells = (__power_wells);			\
 	(power_domains)->power_well_count = ARRAY_SIZE(__power_wells);	\
@@ -1544,6 +1841,9 @@ static struct i915_power_well bxt_power_wells[] = {
 int intel_power_domains_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	i915.disable_power_well = sanitize_disable_power_well_option(dev_priv,
+						     i915.disable_power_well);
 
 	mutex_init(&power_domains->lock);
 
@@ -1583,7 +1883,6 @@ static void intel_runtime_pm_disable(struct drm_i915_private *dev_priv)
 
 	/* Make sure we're not suspended first. */
 	pm_runtime_get_sync(device);
-	pm_runtime_disable(device);
 }
 
 /**
@@ -1630,19 +1929,80 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 	 * DISPLAY_PHY_CONTROL can get corrupted if read. As a
 	 * workaround never ever read DISPLAY_PHY_CONTROL, and
 	 * instead maintain a shadow copy ourselves. Use the actual
-	 * power well state to reconstruct the expected initial
-	 * value.
+	 * power well state and lane status to reconstruct the
+	 * expected initial value.
 	 */
 	dev_priv->chv_phy_control =
 		PHY_LDO_SEQ_DELAY(PHY_LDO_DELAY_600NS, DPIO_PHY0) |
 		PHY_LDO_SEQ_DELAY(PHY_LDO_DELAY_600NS, DPIO_PHY1) |
-		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY0, DPIO_CH0) |
-		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY0, DPIO_CH1) |
-		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY1, DPIO_CH0);
-	if (cmn_bc->ops->is_enabled(dev_priv, cmn_bc))
+		PHY_CH_POWER_MODE(PHY_CH_DEEP_PSR, DPIO_PHY0, DPIO_CH0) |
+		PHY_CH_POWER_MODE(PHY_CH_DEEP_PSR, DPIO_PHY0, DPIO_CH1) |
+		PHY_CH_POWER_MODE(PHY_CH_DEEP_PSR, DPIO_PHY1, DPIO_CH0);
+
+	/*
+	 * If all lanes are disabled we leave the override disabled
+	 * with all power down bits cleared to match the state we
+	 * would use after disabling the port. Otherwise enable the
+	 * override and set the lane powerdown bits accding to the
+	 * current lane status.
+	 */
+	if (cmn_bc->ops->is_enabled(dev_priv, cmn_bc)) {
+		uint32_t status = I915_READ(DPLL(PIPE_A));
+		unsigned int mask;
+
+		mask = status & DPLL_PORTB_READY_MASK;
+		if (mask == 0xf)
+			mask = 0x0;
+		else
+			dev_priv->chv_phy_control |=
+				PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY0, DPIO_CH0);
+
+		dev_priv->chv_phy_control |=
+			PHY_CH_POWER_DOWN_OVRD(mask, DPIO_PHY0, DPIO_CH0);
+
+		mask = (status & DPLL_PORTC_READY_MASK) >> 4;
+		if (mask == 0xf)
+			mask = 0x0;
+		else
+			dev_priv->chv_phy_control |=
+				PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY0, DPIO_CH1);
+
+		dev_priv->chv_phy_control |=
+			PHY_CH_POWER_DOWN_OVRD(mask, DPIO_PHY0, DPIO_CH1);
+
 		dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(DPIO_PHY0);
-	if (cmn_d->ops->is_enabled(dev_priv, cmn_d))
+
+		dev_priv->chv_phy_assert[DPIO_PHY0] = false;
+	} else {
+		dev_priv->chv_phy_assert[DPIO_PHY0] = true;
+	}
+
+	if (cmn_d->ops->is_enabled(dev_priv, cmn_d)) {
+		uint32_t status = I915_READ(DPIO_PHY_STATUS);
+		unsigned int mask;
+
+		mask = status & DPLL_PORTD_READY_MASK;
+
+		if (mask == 0xf)
+			mask = 0x0;
+		else
+			dev_priv->chv_phy_control |=
+				PHY_CH_POWER_DOWN_OVRD_EN(DPIO_PHY1, DPIO_CH0);
+
+		dev_priv->chv_phy_control |=
+			PHY_CH_POWER_DOWN_OVRD(mask, DPIO_PHY1, DPIO_CH0);
+
 		dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(DPIO_PHY1);
+
+		dev_priv->chv_phy_assert[DPIO_PHY1] = false;
+	} else {
+		dev_priv->chv_phy_assert[DPIO_PHY1] = true;
+	}
+
+	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
+
+	DRM_DEBUG_KMS("Initial PHY_CONTROL=0x%08x\n",
+		      dev_priv->chv_phy_control);
 }
 
 static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
@@ -1688,7 +2048,9 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 	power_domains->initializing = true;
 
 	if (IS_CHERRYVIEW(dev)) {
+		mutex_lock(&power_domains->lock);
 		chv_phy_control_init(dev_priv);
+		mutex_unlock(&power_domains->lock);
 	} else if (IS_VALLEYVIEW(dev)) {
 		mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(dev_priv);
@@ -1819,8 +2181,6 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 
 	if (!HAS_RUNTIME_PM(dev))
 		return;
-
-	pm_runtime_set_active(device);
 
 	/*
 	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a

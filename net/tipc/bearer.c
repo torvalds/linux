@@ -193,10 +193,8 @@ void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 
 	rcu_read_lock();
 	b_ptr = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
-	if (b_ptr) {
-		tipc_bcbearer_sort(net, &b_ptr->nodes, dest, true);
+	if (b_ptr)
 		tipc_disc_add_dest(b_ptr->link_req);
-	}
 	rcu_read_unlock();
 }
 
@@ -207,10 +205,8 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
 
 	rcu_read_lock();
 	b_ptr = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
-	if (b_ptr) {
-		tipc_bcbearer_sort(net, &b_ptr->nodes, dest, false);
+	if (b_ptr)
 		tipc_disc_remove_dest(b_ptr->link_req);
-	}
 	rcu_read_unlock();
 }
 
@@ -362,6 +358,7 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b_ptr)
 	b_ptr->media->disable_media(b_ptr);
 
 	tipc_node_delete_links(net, b_ptr->identity);
+	RCU_INIT_POINTER(b_ptr->media_ptr, NULL);
 	if (b_ptr->link_req)
 		tipc_disc_delete(b_ptr->link_req);
 
@@ -399,16 +396,13 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 
 /* tipc_disable_l2_media - detach TIPC bearer from an L2 interface
  *
- * Mark L2 bearer as inactive so that incoming buffers are thrown away,
- * then get worker thread to complete bearer cleanup.  (Can't do cleanup
- * here because cleanup code needs to sleep and caller holds spinlocks.)
+ * Mark L2 bearer as inactive so that incoming buffers are thrown away
  */
 void tipc_disable_l2_media(struct tipc_bearer *b)
 {
 	struct net_device *dev;
 
 	dev = (struct net_device *)rtnl_dereference(b->media_ptr);
-	RCU_INIT_POINTER(b->media_ptr, NULL);
 	RCU_INIT_POINTER(dev->tipc_ptr, NULL);
 	synchronize_net();
 	dev_put(dev);
@@ -420,10 +414,9 @@ void tipc_disable_l2_media(struct tipc_bearer *b)
  * @b_ptr: the bearer through which the packet is to be sent
  * @dest: peer destination address
  */
-int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
+int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 		     struct tipc_bearer *b, struct tipc_media_addr *dest)
 {
-	struct sk_buff *clone;
 	struct net_device *dev;
 	int delta;
 
@@ -431,42 +424,48 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
 	if (!dev)
 		return 0;
 
-	clone = skb_clone(buf, GFP_ATOMIC);
-	if (!clone)
-		return 0;
-
-	delta = dev->hard_header_len - skb_headroom(buf);
+	delta = dev->hard_header_len - skb_headroom(skb);
 	if ((delta > 0) &&
-	    pskb_expand_head(clone, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
-		kfree_skb(clone);
+	    pskb_expand_head(skb, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
+		kfree_skb(skb);
 		return 0;
 	}
 
-	skb_reset_network_header(clone);
-	clone->dev = dev;
-	clone->protocol = htons(ETH_P_TIPC);
-	dev_hard_header(clone, dev, ETH_P_TIPC, dest->value,
-			dev->dev_addr, clone->len);
-	dev_queue_xmit(clone);
+	skb_reset_network_header(skb);
+	skb->dev = dev;
+	skb->protocol = htons(ETH_P_TIPC);
+	dev_hard_header(skb, dev, ETH_P_TIPC, dest->value,
+			dev->dev_addr, skb->len);
+	dev_queue_xmit(skb);
 	return 0;
 }
 
-/* tipc_bearer_send- sends buffer to destination over bearer
- *
- * IMPORTANT:
- * The media send routine must not alter the buffer being passed in
- * as it may be needed for later retransmission!
- */
-void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
-		      struct tipc_media_addr *dest)
+int tipc_bearer_mtu(struct net *net, u32 bearer_id)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_bearer *b_ptr;
+	int mtu = 0;
+	struct tipc_bearer *b;
 
 	rcu_read_lock();
-	b_ptr = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
-	if (likely(b_ptr))
-		b_ptr->media->send_msg(net, buf, b_ptr, dest);
+	b = rcu_dereference_rtnl(tipc_net(net)->bearer_list[bearer_id]);
+	if (b)
+		mtu = b->mtu;
+	rcu_read_unlock();
+	return mtu;
+}
+
+/* tipc_bearer_xmit_skb - sends buffer to destination over bearer
+ */
+void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
+			  struct sk_buff *skb,
+			  struct tipc_media_addr *dest)
+{
+	struct tipc_net *tn = tipc_net(net);
+	struct tipc_bearer *b;
+
+	rcu_read_lock();
+	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
+	if (likely(b))
+		b->media->send_msg(net, skb, b, dest);
 	rcu_read_unlock();
 }
 
@@ -489,8 +488,31 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		skb_queue_walk_safe(xmitq, skb, tmp) {
 			__skb_dequeue(xmitq);
 			b->media->send_msg(net, skb, b, dst);
-			/* Until we remove cloning in tipc_l2_send_msg(): */
-			kfree_skb(skb);
+		}
+	}
+	rcu_read_unlock();
+}
+
+/* tipc_bearer_bc_xmit() - broadcast buffers to all destinations
+ */
+void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
+			 struct sk_buff_head *xmitq)
+{
+	struct tipc_net *tn = tipc_net(net);
+	int net_id = tn->net_id;
+	struct tipc_bearer *b;
+	struct sk_buff *skb, *tmp;
+	struct tipc_msg *hdr;
+
+	rcu_read_lock();
+	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
+	if (likely(b)) {
+		skb_queue_walk_safe(xmitq, skb, tmp) {
+			hdr = buf_msg(skb);
+			msg_set_non_seq(hdr, 1);
+			msg_set_mc_netid(hdr, net_id);
+			__skb_dequeue(xmitq);
+			b->media->send_msg(net, skb, b, &b->bcast_addr);
 		}
 	}
 	rcu_read_unlock();
@@ -554,7 +576,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev))
 			break;
-	case NETDEV_DOWN:
+	case NETDEV_GOING_DOWN:
 	case NETDEV_CHANGEMTU:
 		tipc_reset_bearer(net, b_ptr);
 		break;

@@ -620,7 +620,7 @@ static int set_sctp(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
-static int ovs_vport_output(struct sock *sock, struct sk_buff *skb)
+static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct ovs_frag_data *data = this_cpu_ptr(&ovs_frag_data_storage);
 	struct vport *vport = data->vport;
@@ -679,8 +679,8 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb)
 	skb_pull(skb, hlen);
 }
 
-static void ovs_fragment(struct vport *vport, struct sk_buff *skb, u16 mru,
-			 __be16 ethertype)
+static void ovs_fragment(struct net *net, struct vport *vport,
+			 struct sk_buff *skb, u16 mru, __be16 ethertype)
 {
 	if (skb_network_offset(skb) > MAX_L2_LEN) {
 		OVS_NLERR(1, "L2 header too long to fragment");
@@ -700,7 +700,7 @@ static void ovs_fragment(struct vport *vport, struct sk_buff *skb, u16 mru,
 		skb_dst_set_noref(skb, &ovs_dst);
 		IPCB(skb)->frag_max_size = mru;
 
-		ip_do_fragment(skb->sk, skb, ovs_vport_output);
+		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
 	} else if (ethertype == htons(ETH_P_IPV6)) {
 		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
@@ -721,7 +721,7 @@ static void ovs_fragment(struct vport *vport, struct sk_buff *skb, u16 mru,
 		skb_dst_set_noref(skb, &ovs_rt.dst);
 		IP6CB(skb)->frag_max_size = mru;
 
-		v6ops->fragment(skb->sk, skb, ovs_vport_output);
+		v6ops->fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
 	} else {
 		WARN_ONCE(1, "Failed fragment ->%s: eth=%04x, MRU=%d, MTU=%d.",
@@ -746,6 +746,7 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 		if (likely(!mru || (skb->len <= mru + ETH_HLEN))) {
 			ovs_vport_send(vport, skb);
 		} else if (mru <= vport->dev->mtu) {
+			struct net *net = read_pnet(&dp->net);
 			__be16 ethertype = key->eth.type;
 
 			if (!is_flow_key_valid(key)) {
@@ -755,7 +756,7 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 					ethertype = vlan_get_protocol(skb);
 			}
 
-			ovs_fragment(vport, skb, mru, ethertype);
+			ovs_fragment(net, vport, skb, mru, ethertype);
 		} else {
 			kfree_skb(skb);
 		}
@@ -768,7 +769,6 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 			    struct sw_flow_key *key, const struct nlattr *attr,
 			    const struct nlattr *actions, int actions_len)
 {
-	struct ip_tunnel_info info;
 	struct dp_upcall_info upcall;
 	const struct nlattr *a;
 	int rem;
@@ -796,11 +796,9 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 			if (vport) {
 				int err;
 
-				upcall.egress_tun_info = &info;
-				err = ovs_vport_get_egress_tun_info(vport, skb,
-								    &upcall);
-				if (err)
-					upcall.egress_tun_info = NULL;
+				err = dev_fill_metadata_dst(vport->dev, skb);
+				if (!err)
+					upcall.egress_tun_info = skb_tunnel_info(skb);
 			}
 
 			break;
@@ -1112,8 +1110,8 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 					     nla_data(a));
 
 			/* Hide stolen IP fragments from user space. */
-			if (err == -EINPROGRESS)
-				return 0;
+			if (err)
+				return err == -EINPROGRESS ? 0 : err;
 			break;
 		}
 

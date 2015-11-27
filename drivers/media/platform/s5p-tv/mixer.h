@@ -24,7 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <media/v4l2-device.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 #include "regs-mixer.h"
 
@@ -113,7 +113,7 @@ struct mxr_geometry {
 /** instance of a buffer */
 struct mxr_buffer {
 	/** common v4l buffer stuff -- must be first */
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer vb;
 	/** node for layer's lists */
 	struct list_head	list;
 };

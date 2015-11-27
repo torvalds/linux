@@ -119,10 +119,12 @@ struct vmci_transport {
 	u64 queue_pair_size;
 	u64 queue_pair_min_size;
 	u64 queue_pair_max_size;
-	u32 attach_sub_id;
 	u32 detach_sub_id;
 	union vmci_transport_notify notify;
 	struct vmci_transport_notify_ops *notify_ops;
+	struct list_head elem;
+	struct sock *sk;
+	spinlock_t lock; /* protects sk. */
 };
 
 int vmci_transport_register(void);

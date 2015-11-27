@@ -417,6 +417,21 @@ struct cpl_t5_act_open_req {
 	__be64 params;
 };
 
+struct cpl_t6_act_open_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be32 local_ip;
+	__be32 peer_ip;
+	__be64 opt0;
+	__be32 rsvd;
+	__be32 opt2;
+	__be64 params;
+	__be32 rsvd2;
+	__be32 opt3;
+};
+
 struct cpl_act_open_req6 {
 	WR_HDR;
 	union opcode_tid ot;
@@ -444,6 +459,23 @@ struct cpl_t5_act_open_req6 {
 	__be32 rsvd;
 	__be32 opt2;
 	__be64 params;
+};
+
+struct cpl_t6_act_open_req6 {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be64 local_ip_hi;
+	__be64 local_ip_lo;
+	__be64 peer_ip_hi;
+	__be64 peer_ip_lo;
+	__be64 opt0;
+	__be32 rsvd;
+	__be32 opt2;
+	__be64 params;
+	__be32 rsvd2;
+	__be32 opt3;
 };
 
 struct cpl_act_open_rpl {
@@ -503,6 +535,19 @@ struct cpl_pass_establish {
 #define TCPOPT_MSS_S	12
 #define TCPOPT_MSS_M	0xF
 #define TCPOPT_MSS_G(x)	(((x) >> TCPOPT_MSS_S) & TCPOPT_MSS_M)
+
+#define T6_TCP_HDR_LEN_S   8
+#define T6_TCP_HDR_LEN_V(x) ((x) << T6_TCP_HDR_LEN_S)
+#define T6_TCP_HDR_LEN_G(x) (((x) >> T6_TCP_HDR_LEN_S) & TCP_HDR_LEN_M)
+
+#define T6_IP_HDR_LEN_S    14
+#define T6_IP_HDR_LEN_V(x) ((x) << T6_IP_HDR_LEN_S)
+#define T6_IP_HDR_LEN_G(x) (((x) >> T6_IP_HDR_LEN_S) & IP_HDR_LEN_M)
+
+#define T6_ETH_HDR_LEN_S    24
+#define T6_ETH_HDR_LEN_M    0xFF
+#define T6_ETH_HDR_LEN_V(x) ((x) << T6_ETH_HDR_LEN_S)
+#define T6_ETH_HDR_LEN_G(x) (((x) >> T6_ETH_HDR_LEN_S) & T6_ETH_HDR_LEN_M)
 
 struct cpl_act_establish {
 	union opcode_tid ot;
@@ -832,6 +877,9 @@ struct cpl_rx_pkt {
 	__be16 hdr_len;
 	__be16 err_vec;
 };
+
+#define RX_T6_ETHHDR_LEN_M    0xFF
+#define RX_T6_ETHHDR_LEN_G(x) (((x) >> RX_ETHHDR_LEN_S) & RX_T6_ETHHDR_LEN_M)
 
 #define RXF_PSH_S    20
 #define RXF_PSH_V(x) ((x) << RXF_PSH_S)

@@ -34,9 +34,9 @@
  */
 
 static int sca3000_read_data(struct sca3000_state *st,
-			    uint8_t reg_address_high,
-			    u8 **rx_p,
-			    int len)
+			     u8 reg_address_high,
+			     u8 **rx_p,
+			     int len)
 {
 	int ret;
 	struct spi_transfer xfer[2] = {
@@ -106,7 +106,7 @@ static int sca3000_read_first_n_hw_rb(struct iio_buffer *r,
 	 * i.e. number of time points * number of channels.
 	 */
 	if (count > num_available * bytes_per_sample)
-		num_read = num_available*bytes_per_sample;
+		num_read = num_available * bytes_per_sample;
 	else
 		num_read = count;
 
@@ -160,9 +160,9 @@ static ssize_t sca3000_query_ring_int(struct device *dev,
  * sca3000_set_ring_int() set state of ring status interrupt
  **/
 static ssize_t sca3000_set_ring_int(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf,
-				      size_t len)
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
@@ -208,7 +208,7 @@ static ssize_t sca3000_show_buffer_scale(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 
-	return sprintf(buf, "0.%06d\n", 4*st->info->scale);
+	return sprintf(buf, "0.%06d\n", 4 * st->info->scale);
 }
 
 static IIO_DEVICE_ATTR(in_accel_scale,
@@ -267,7 +267,7 @@ int sca3000_configure_ring(struct iio_dev *indio_dev)
 	struct iio_buffer *buffer;
 
 	buffer = sca3000_rb_allocate(indio_dev);
-	if (buffer == NULL)
+	if (!buffer)
 		return -ENOMEM;
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
@@ -307,6 +307,7 @@ error_ret:
 
 	return ret;
 }
+
 /**
  * sca3000_hw_ring_preenable() hw ring buffer preenable function
  *

@@ -363,7 +363,9 @@ err:
  */
 struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
 {
-	unsigned long mask, offset, pfn, start = 0;
+	unsigned long mask, offset;
+	unsigned long pfn = -1;
+	unsigned long start = 0;
 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
 	struct page *page = NULL;
 	int ret;
@@ -418,7 +420,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
 		start = bitmap_no + mask + 1;
 	}
 
-	trace_cma_alloc(page ? pfn : -1UL, page, count, align);
+	trace_cma_alloc(pfn, page, count, align);
 
 	pr_debug("%s(): returned %p\n", __func__, page);
 	return page;

@@ -321,4 +321,7 @@ do {									\
 #define l2tp_dbg(ptr, type, fmt, ...)					\
 	l2tp_printk(ptr, type, pr_debug, fmt, ##__VA_ARGS__)
 
+#define MODULE_ALIAS_L2TP_PWTYPE(type) \
+	MODULE_ALIAS("net-l2tp-type-" __stringify(type))
+
 #endif /* _L2TP_CORE_H_ */

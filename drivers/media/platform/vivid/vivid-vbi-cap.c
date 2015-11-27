@@ -94,36 +94,38 @@ static void vivid_g_fmt_vbi_cap(struct vivid_dev *dev, struct v4l2_vbi_format *v
 void vivid_raw_vbi_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 {
 	struct v4l2_vbi_format vbi;
-	u8 *vbuf = vb2_plane_vaddr(&buf->vb, 0);
+	u8 *vbuf = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
 	vivid_g_fmt_vbi_cap(dev, &vbi);
-	buf->vb.v4l2_buf.sequence = dev->vbi_cap_seq_count;
+	buf->vb.sequence = dev->vbi_cap_seq_count;
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE)
-		buf->vb.v4l2_buf.sequence /= 2;
+		buf->vb.sequence /= 2;
 
-	vivid_sliced_vbi_cap_fill(dev, buf->vb.v4l2_buf.sequence);
+	vivid_sliced_vbi_cap_fill(dev, buf->vb.sequence);
 
-	memset(vbuf, 0x10, vb2_plane_size(&buf->vb, 0));
+	memset(vbuf, 0x10, vb2_plane_size(&buf->vb.vb2_buf, 0));
 
 	if (!VIVID_INVALID_SIGNAL(dev->std_signal_mode))
 		vivid_vbi_gen_raw(&dev->vbi_gen, &vbi, vbuf);
 
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	buf->vb.v4l2_buf.timestamp.tv_sec += dev->time_wrap_offset;
+	v4l2_get_timestamp(&buf->vb.timestamp);
+	buf->vb.timestamp.tv_sec += dev->time_wrap_offset;
 }
 
 
-void vivid_sliced_vbi_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
+void vivid_sliced_vbi_cap_process(struct vivid_dev *dev,
+			struct vivid_buffer *buf)
 {
-	struct v4l2_sliced_vbi_data *vbuf = vb2_plane_vaddr(&buf->vb, 0);
+	struct v4l2_sliced_vbi_data *vbuf =
+			vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
-	buf->vb.v4l2_buf.sequence = dev->vbi_cap_seq_count;
+	buf->vb.sequence = dev->vbi_cap_seq_count;
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE)
-		buf->vb.v4l2_buf.sequence /= 2;
+		buf->vb.sequence /= 2;
 
-	vivid_sliced_vbi_cap_fill(dev, buf->vb.v4l2_buf.sequence);
+	vivid_sliced_vbi_cap_fill(dev, buf->vb.sequence);
 
-	memset(vbuf, 0, vb2_plane_size(&buf->vb, 0));
+	memset(vbuf, 0, vb2_plane_size(&buf->vb.vb2_buf, 0));
 	if (!VIVID_INVALID_SIGNAL(dev->std_signal_mode)) {
 		unsigned i;
 
@@ -131,11 +133,11 @@ void vivid_sliced_vbi_cap_process(struct vivid_dev *dev, struct vivid_buffer *bu
 			vbuf[i] = dev->vbi_gen.data[i];
 	}
 
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	buf->vb.v4l2_buf.timestamp.tv_sec += dev->time_wrap_offset;
+	v4l2_get_timestamp(&buf->vb.timestamp);
+	buf->vb.timestamp.tv_sec += dev->time_wrap_offset;
 }
 
-static int vbi_cap_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int vbi_cap_queue_setup(struct vb2_queue *vq, const void *parg,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], void *alloc_ctxs[])
 {
@@ -187,8 +189,9 @@ static int vbi_cap_buf_prepare(struct vb2_buffer *vb)
 
 static void vbi_cap_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct vivid_buffer *buf = container_of(vb, struct vivid_buffer, vb);
+	struct vivid_buffer *buf = container_of(vbuf, struct vivid_buffer, vb);
 
 	dprintk(dev, 1, "%s\n", __func__);
 
@@ -215,7 +218,8 @@ static int vbi_cap_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->vbi_cap_active, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 	}
 	return err;

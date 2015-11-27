@@ -1,10 +1,14 @@
 * OMAP HDQ One wire bus master controller
 
 Required properties:
-- compatible : should be "ti,omap3-1w"
+- compatible : should be "ti,omap3-1w" or "ti,am4372-hdq"
 - reg : Address and length of the register set for the device
 - interrupts : interrupt line.
 - ti,hwmods : "hdq1w"
+
+Optional properties:
+- ti,mode: should be "hdq": HDQ mode  "1w": one-wire mode.
+	   If not specified HDQ mode is implied.
 
 Example:
 
@@ -14,4 +18,5 @@ Example:
 	reg = <0x480b2000 0x1000>;
 	interrupts = <58>;
 	ti,hwmods = "hdq1w";
+	ti,mode = "hdq";
   };

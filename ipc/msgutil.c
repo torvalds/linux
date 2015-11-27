@@ -123,7 +123,6 @@ struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 	size_t len = src->m_ts;
 	size_t alen;
 
-	WARN_ON(dst == NULL);
 	if (src->m_ts > dst->m_ts)
 		return ERR_PTR(-EINVAL);
 

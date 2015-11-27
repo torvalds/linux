@@ -20,7 +20,6 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/bitmap.h>
-#include <linux/pm_qos.h>
 #include <linux/inetdevice.h>
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
@@ -32,7 +31,6 @@
 #include "mesh.h"
 #include "wep.h"
 #include "led.h"
-#include "cfg.h"
 #include "debugfs.h"
 
 void ieee80211_configure_filter(struct ieee80211_local *local)
@@ -283,7 +281,7 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 	local->in_reconfig = true;
 	barrier();
 
-	schedule_work(&local->restart_work);
+	queue_work(system_freezable_wq, &local->restart_work);
 }
 EXPORT_SYMBOL(ieee80211_restart_hw);
 
@@ -543,7 +541,8 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 			   NL80211_FEATURE_HT_IBSS |
 			   NL80211_FEATURE_VIF_TXPOWER |
 			   NL80211_FEATURE_MAC_ON_CREATE |
-			   NL80211_FEATURE_USERSPACE_MPM;
+			   NL80211_FEATURE_USERSPACE_MPM |
+			   NL80211_FEATURE_FULL_AP_CLIENT_STATE;
 
 	if (!ops->hw_scan)
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -1082,13 +1081,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	rtnl_unlock();
 
-	local->network_latency_notifier.notifier_call =
-		ieee80211_max_network_latency;
-	result = pm_qos_add_notifier(PM_QOS_NETWORK_LATENCY,
-				     &local->network_latency_notifier);
-	if (result)
-		goto fail_pm_qos;
-
 #ifdef CONFIG_INET
 	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
 	result = register_inetaddr_notifier(&local->ifa_notifier);
@@ -1113,10 +1105,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 #endif
 #if defined(CONFIG_INET) || defined(CONFIG_IPV6)
  fail_ifa:
-	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
-			       &local->network_latency_notifier);
 #endif
- fail_pm_qos:
 	rtnl_lock();
 	rate_control_deinitialize(local);
 	ieee80211_remove_interfaces(local);
@@ -1142,8 +1131,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	tasklet_kill(&local->tx_pending_tasklet);
 	tasklet_kill(&local->tasklet);
 
-	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
-			       &local->network_latency_notifier);
 #ifdef CONFIG_INET
 	unregister_inetaddr_notifier(&local->ifa_notifier);
 #endif

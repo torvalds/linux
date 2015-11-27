@@ -1203,12 +1203,13 @@ static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_
 
 static int pid_cmp(struct work_atoms *l, struct work_atoms *r)
 {
+	if (l->thread == r->thread)
+		return 0;
 	if (l->thread->tid < r->thread->tid)
 		return -1;
 	if (l->thread->tid > r->thread->tid)
 		return 1;
-
-	return 0;
+	return (int)(l->thread - r->thread);
 }
 
 static int avg_cmp(struct work_atoms *l, struct work_atoms *r)
@@ -1728,8 +1729,8 @@ static void setup_sorting(struct perf_sched *sched, const struct option *options
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
 		if (sort_dimension__add(tok, &sched->sort_list) < 0) {
-			error("Unknown --sort key: `%s'", tok);
-			usage_with_options(usage_msg, options);
+			usage_with_options_msg(usage_msg, options,
+					"Unknown --sort key: `%s'", tok);
 		}
 	}
 

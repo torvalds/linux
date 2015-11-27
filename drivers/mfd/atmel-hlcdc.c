@@ -148,6 +148,7 @@ static const struct of_device_id atmel_hlcdc_match[] = {
 	{ .compatible = "atmel,sama5d4-hlcdc" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, atmel_hlcdc_match);
 
 static struct platform_driver atmel_hlcdc_driver = {
 	.probe = atmel_hlcdc_probe,

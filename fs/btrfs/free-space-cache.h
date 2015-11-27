@@ -23,6 +23,7 @@ struct btrfs_free_space {
 	struct rb_node offset_index;
 	u64 offset;
 	u64 bytes;
+	u64 max_extent_size;
 	unsigned long *bitmap;
 	struct list_head list;
 };

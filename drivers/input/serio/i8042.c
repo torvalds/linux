@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/i8042.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 
 #include <asm/io.h>
 
@@ -1170,7 +1171,8 @@ static int i8042_pm_suspend(struct device *dev)
 {
 	int i;
 
-	i8042_controller_reset(true);
+	if (pm_suspend_via_firmware())
+		i8042_controller_reset(true);
 
 	/* Set up serio interrupts for system wakeup. */
 	for (i = 0; i < I8042_NUM_PORTS; i++) {
@@ -1183,8 +1185,17 @@ static int i8042_pm_suspend(struct device *dev)
 	return 0;
 }
 
+static int i8042_pm_resume_noirq(struct device *dev)
+{
+	if (!pm_resume_via_firmware())
+		i8042_interrupt(0, NULL);
+
+	return 0;
+}
+
 static int i8042_pm_resume(struct device *dev)
 {
+	bool force_reset;
 	int i;
 
 	for (i = 0; i < I8042_NUM_PORTS; i++) {
@@ -1195,11 +1206,21 @@ static int i8042_pm_resume(struct device *dev)
 	}
 
 	/*
-	 * On resume from S2R we always try to reset the controller
-	 * to bring it in a sane state. (In case of S2D we expect
-	 * BIOS to reset the controller for us.)
+	 * If platform firmware was not going to be involved in suspend, we did
+	 * not restore the controller state to whatever it had been at boot
+	 * time, so we do not need to do anything.
 	 */
-	return i8042_controller_resume(true);
+	if (!pm_suspend_via_firmware())
+		return 0;
+
+	/*
+	 * We only need to reset the controller if we are resuming after handing
+	 * off control to the platform firmware, otherwise we can simply restore
+	 * the mode.
+	 */
+	force_reset = pm_resume_via_firmware();
+
+	return i8042_controller_resume(force_reset);
 }
 
 static int i8042_pm_thaw(struct device *dev)
@@ -1223,6 +1244,7 @@ static int i8042_pm_restore(struct device *dev)
 
 static const struct dev_pm_ops i8042_pm_ops = {
 	.suspend	= i8042_pm_suspend,
+	.resume_noirq	= i8042_pm_resume_noirq,
 	.resume		= i8042_pm_resume,
 	.thaw		= i8042_pm_thaw,
 	.poweroff	= i8042_pm_reset,

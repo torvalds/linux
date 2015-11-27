@@ -452,15 +452,19 @@ static void read_hw_revision(struct mdp5_kms *mdp5_kms,
 }
 
 static int get_clk(struct platform_device *pdev, struct clk **clkp,
-		const char *name)
+		const char *name, bool mandatory)
 {
 	struct device *dev = &pdev->dev;
 	struct clk *clk = devm_clk_get(dev, name);
-	if (IS_ERR(clk)) {
+	if (IS_ERR(clk) && mandatory) {
 		dev_err(dev, "failed to get %s (%ld)\n", name, PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
-	*clkp = clk;
+	if (IS_ERR(clk))
+		DBG("skipping %s", name);
+	else
+		*clkp = clk;
+
 	return 0;
 }
 
@@ -514,24 +518,25 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk");
+	/* mandatory clocks: */
+	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk", true);
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk");
+	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk", true);
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src");
+	ret = get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src", true);
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk");
+	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk", true);
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk");
-	if (ret)
-		DBG("failed to get (optional) lut_clk clock");
-	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk");
+	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk", true);
 	if (ret)
 		goto fail;
+
+	/* optional clocks: */
+	get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk", false);
 
 	/* we need to set a default rate before enabling.  Set a safe
 	 * rate first, then figure out hw revision, and then set a
@@ -549,15 +554,23 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	}
 
 	config = mdp5_cfg_get_config(mdp5_kms->cfg);
+	mdp5_kms->caps = config->hw->mdp.caps;
 
 	/* TODO: compute core clock rate at runtime */
 	clk_set_rate(mdp5_kms->src_clk, config->hw->max_clk);
 
-	mdp5_kms->smp = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
-	if (IS_ERR(mdp5_kms->smp)) {
-		ret = PTR_ERR(mdp5_kms->smp);
-		mdp5_kms->smp = NULL;
-		goto fail;
+	/*
+	 * Some chipsets have a Shared Memory Pool (SMP), while others
+	 * have dedicated latency buffering per source pipe instead;
+	 * this section initializes the SMP:
+	 */
+	if (mdp5_kms->caps & MDP_CAP_SMP) {
+		mdp5_kms->smp = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
+		if (IS_ERR(mdp5_kms->smp)) {
+			ret = PTR_ERR(mdp5_kms->smp);
+			mdp5_kms->smp = NULL;
+			goto fail;
+		}
 	}
 
 	mdp5_kms->ctlm = mdp5_ctlm_init(dev, mdp5_kms->mmio, mdp5_kms->cfg);
@@ -586,6 +599,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
 			dev_err(dev->dev, "failed to init iommu: %d\n", ret);
+			iommu_domain_free(config->platform.iommu);
 			goto fail;
 		}
 

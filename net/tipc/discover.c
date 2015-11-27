@@ -89,7 +89,7 @@ static void tipc_disc_init_msg(struct net *net, struct sk_buff *buf, u32 type,
 		      MAX_H_SIZE, dest_domain);
 	msg_set_non_seq(msg, 1);
 	msg_set_node_sig(msg, tn->random);
-	msg_set_node_capabilities(msg, 0);
+	msg_set_node_capabilities(msg, TIPC_NODE_CAPABILITIES);
 	msg_set_dest_domain(msg, dest_domain);
 	msg_set_bc_netid(msg, tn->net_id);
 	b_ptr->media->addr2msg(msg_media_addr(msg), &b_ptr->addr);
@@ -167,11 +167,10 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 	/* Send response, if necessary */
 	if (respond && (mtyp == DSC_REQ_MSG)) {
 		rskb = tipc_buf_acquire(MAX_H_SIZE);
-		if (rskb) {
-			tipc_disc_init_msg(net, rskb, DSC_RESP_MSG, bearer);
-			tipc_bearer_send(net, bearer->identity, rskb, &maddr);
-			kfree_skb(rskb);
-		}
+		if (!rskb)
+			return;
+		tipc_disc_init_msg(net, rskb, DSC_RESP_MSG, bearer);
+		tipc_bearer_xmit_skb(net, bearer->identity, rskb, &maddr);
 	}
 }
 
@@ -225,6 +224,7 @@ void tipc_disc_remove_dest(struct tipc_link_req *req)
 static void disc_timeout(unsigned long data)
 {
 	struct tipc_link_req *req = (struct tipc_link_req *)data;
+	struct sk_buff *skb;
 	int max_delay;
 
 	spin_lock_bh(&req->lock);
@@ -242,9 +242,9 @@ static void disc_timeout(unsigned long data)
 	 * hold at fast polling rate if don't have any associated nodes,
 	 * otherwise hold at slow polling rate
 	 */
-	tipc_bearer_send(req->net, req->bearer_id, req->buf, &req->dest);
-
-
+	skb = skb_clone(req->buf, GFP_ATOMIC);
+	if (skb)
+		tipc_bearer_xmit_skb(req->net, req->bearer_id, skb, &req->dest);
 	req->timer_intv *= 2;
 	if (req->num_nodes)
 		max_delay = TIPC_LINK_REQ_SLOW;
@@ -271,6 +271,7 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b_ptr,
 		     struct tipc_media_addr *dest)
 {
 	struct tipc_link_req *req;
+	struct sk_buff *skb;
 
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
@@ -292,7 +293,9 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b_ptr,
 	setup_timer(&req->timer, disc_timeout, (unsigned long)req);
 	mod_timer(&req->timer, jiffies + req->timer_intv);
 	b_ptr->link_req = req;
-	tipc_bearer_send(net, req->bearer_id, req->buf, &req->dest);
+	skb = skb_clone(req->buf, GFP_ATOMIC);
+	if (skb)
+		tipc_bearer_xmit_skb(net, req->bearer_id, skb, &req->dest);
 	return 0;
 }
 
@@ -316,6 +319,7 @@ void tipc_disc_delete(struct tipc_link_req *req)
 void tipc_disc_reset(struct net *net, struct tipc_bearer *b_ptr)
 {
 	struct tipc_link_req *req = b_ptr->link_req;
+	struct sk_buff *skb;
 
 	spin_lock_bh(&req->lock);
 	tipc_disc_init_msg(net, req->buf, DSC_REQ_MSG, b_ptr);
@@ -325,6 +329,8 @@ void tipc_disc_reset(struct net *net, struct tipc_bearer *b_ptr)
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	mod_timer(&req->timer, jiffies + req->timer_intv);
-	tipc_bearer_send(net, req->bearer_id, req->buf, &req->dest);
+	skb = skb_clone(req->buf, GFP_ATOMIC);
+	if (skb)
+		tipc_bearer_xmit_skb(net, req->bearer_id, skb, &req->dest);
 	spin_unlock_bh(&req->lock);
 }

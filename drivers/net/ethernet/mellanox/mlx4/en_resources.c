@@ -69,6 +69,15 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	context->pri_path.counter_index = priv->counter_index;
 	context->cqn_send = cpu_to_be32(cqn);
 	context->cqn_recv = cpu_to_be32(cqn);
+	if (!rss &&
+	    (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_LB_SRC_CHK) &&
+	    context->pri_path.counter_index !=
+			    MLX4_SINK_COUNTER_INDEX(mdev->dev)) {
+		/* disable multicast loopback to qp with same counter */
+		if (!(dev->features & NETIF_F_LOOPBACK))
+			context->pri_path.fl |= MLX4_FL_ETH_SRC_CHECK_MC_LB;
+		context->pri_path.control |= MLX4_CTRL_ETH_SRC_CHECK_IF_COUNTER;
+	}
 	context->db_rec_addr = cpu_to_be64(priv->res.db.dma << 2);
 	if (!(dev->features & NETIF_F_HW_VLAN_CTAG_RX))
 		context->param3 |= cpu_to_be32(1 << 30);
@@ -80,6 +89,22 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	}
 }
 
+int mlx4_en_change_mcast_lb(struct mlx4_en_priv *priv, struct mlx4_qp *qp,
+			    int loopback)
+{
+	int ret;
+	struct mlx4_update_qp_params qp_params;
+
+	memset(&qp_params, 0, sizeof(qp_params));
+	if (!loopback)
+		qp_params.flags = MLX4_UPDATE_QP_PARAMS_FLAGS_ETH_CHECK_MC_LB;
+
+	ret = mlx4_update_qp(priv->mdev->dev, qp->qpn,
+			     MLX4_UPDATE_QP_ETH_SRC_CHECK_MC_LB,
+			     &qp_params);
+
+	return ret;
+}
 
 int mlx4_en_map_buffer(struct mlx4_buf *buf)
 {

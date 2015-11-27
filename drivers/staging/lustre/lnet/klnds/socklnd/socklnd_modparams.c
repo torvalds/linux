@@ -134,7 +134,6 @@ static unsigned int zc_recv_min_nfrags = 16;
 module_param(zc_recv_min_nfrags, int, 0644);
 MODULE_PARM_DESC(zc_recv_min_nfrags, "minimum # of fragments to enable ZC recv");
 
-
 #if SOCKNAL_VERSION_DEBUG
 static int protocol = 3;
 module_param(protocol, int, 0644);

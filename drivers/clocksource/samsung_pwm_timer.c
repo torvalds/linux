@@ -307,7 +307,7 @@ static void samsung_clocksource_resume(struct clocksource *cs)
 	samsung_time_start(pwm.source_id, true);
 }
 
-static cycle_t samsung_clocksource_read(struct clocksource *c)
+static cycle_t notrace samsung_clocksource_read(struct clocksource *c)
 {
 	return ~readl_relaxed(pwm.source_reg);
 }

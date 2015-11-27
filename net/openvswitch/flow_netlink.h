@@ -55,9 +55,9 @@ int ovs_nla_put_mask(const struct sw_flow *flow, struct sk_buff *skb);
 int ovs_nla_get_match(struct net *, struct sw_flow_match *,
 		      const struct nlattr *key, const struct nlattr *mask,
 		      bool log);
-int ovs_nla_put_egress_tunnel_key(struct sk_buff *,
-				  const struct ip_tunnel_info *,
-				  const void *egress_tun_opts);
+
+int ovs_nla_put_tunnel_info(struct sk_buff *skb,
+			    struct ip_tunnel_info *tun_info);
 
 bool ovs_nla_get_ufid(struct sw_flow_id *, const struct nlattr *, bool log);
 int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,

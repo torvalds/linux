@@ -47,7 +47,9 @@
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
+#include <linux/net_tstamp.h>
 #include <asm/io.h>
+#include "t4_chip_type.h"
 #include "cxgb4_uld.h"
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
@@ -290,31 +292,6 @@ struct pci_params {
 	unsigned char width;
 };
 
-#define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
-#define CHELSIO_CHIP_FPGA          0x100
-#define CHELSIO_CHIP_VERSION(code) (((code) >> 4) & 0xf)
-#define CHELSIO_CHIP_RELEASE(code) ((code) & 0xf)
-
-#define CHELSIO_T4		0x4
-#define CHELSIO_T5		0x5
-#define CHELSIO_T6		0x6
-
-enum chip_type {
-	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
-	T4_A2 = CHELSIO_CHIP_CODE(CHELSIO_T4, 2),
-	T4_FIRST_REV	= T4_A1,
-	T4_LAST_REV	= T4_A2,
-
-	T5_A0 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
-	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
-	T5_FIRST_REV	= T5_A0,
-	T5_LAST_REV	= T5_A1,
-
-	T6_A0 = CHELSIO_CHIP_CODE(CHELSIO_T6, 0),
-	T6_FIRST_REV    = T6_A0,
-	T6_LAST_REV     = T6_A0,
-};
-
 struct devlog_params {
 	u32 memtype;                    /* which memory (EDC0, EDC1, MC) */
 	u32 start;                      /* start of log in firmware memory */
@@ -478,6 +455,8 @@ struct port_info {
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	struct cxgb_fcoe fcoe;
 #endif /* CONFIG_CHELSIO_T4_FCOE */
+	bool rxtstamp;  /* Enable TS */
+	struct hwtstamp_config tstamp_config;
 };
 
 struct dentry;
@@ -517,6 +496,7 @@ struct sge_fl {                     /* SGE free-buffer queue state */
 
 /* A packet gather list */
 struct pkt_gl {
+	u64 sgetstamp;		    /* SGE Time Stamp for Ingress Packet */
 	struct page_frag frags[MAX_SKB_FRAGS];
 	void *va;                         /* virtual address of first byte */
 	unsigned int nfrags;              /* # of fragments */
@@ -767,8 +747,8 @@ struct adapter {
 	bool tid_release_task_busy;
 
 	struct dentry *debugfs_root;
-	u32 use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
-	u32 trace_rss;	/* 1 implies that different RSS flit per filter is
+	bool use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
+	bool trace_rss;	/* 1 implies that different RSS flit per filter is
 			 * used per filter else if 0 default RSS flit is
 			 * used for all 4 filters.
 			 */
@@ -903,21 +883,6 @@ enum {
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
-}
-
-static inline int is_t6(enum chip_type chip)
-{
-	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T6;
-}
-
-static inline int is_t5(enum chip_type chip)
-{
-	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T5;
-}
-
-static inline int is_t4(enum chip_type chip)
-{
-	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T4;
 }
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)

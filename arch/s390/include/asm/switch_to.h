@@ -8,7 +8,7 @@
 #define __ASM_SWITCH_TO_H
 
 #include <linux/thread_info.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/api.h>
 #include <asm/ptrace.h>
 
 extern struct task_struct *__switch_to(void *, void *);

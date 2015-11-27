@@ -458,7 +458,7 @@ void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb)
 		return;
 	}
 
-	if (dev->iamthif_canceled != 1) {
+	if (!dev->iamthif_canceled) {
 		dev->iamthif_state = MEI_IAMTHIF_READ_COMPLETE;
 		dev->iamthif_stall_timer = 0;
 		list_add_tail(&cb->list, &dev->amthif_rd_complete_list.list);

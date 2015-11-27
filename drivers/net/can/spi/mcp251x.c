@@ -1243,7 +1243,6 @@ static SIMPLE_DEV_PM_OPS(mcp251x_can_pm_ops, mcp251x_can_suspend,
 static struct spi_driver mcp251x_can_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mcp251x_of_match,
 		.pm = &mcp251x_can_pm_ops,
 	},

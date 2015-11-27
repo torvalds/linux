@@ -311,6 +311,7 @@ static struct uasm_label labels[128];
 static struct uasm_reloc relocs[128];
 
 static int check_for_high_segbits;
+static bool fill_includes_sw_bits;
 
 static unsigned int kscratch_used_mask;
 
@@ -630,8 +631,14 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 static __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 							unsigned int reg)
 {
-	if (cpu_has_rixi) {
-		UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL));
+	if (cpu_has_rixi && _PAGE_NO_EXEC) {
+		if (fill_includes_sw_bits) {
+			UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL));
+		} else {
+			UASM_i_SRL(p, reg, reg, ilog2(_PAGE_NO_EXEC));
+			UASM_i_ROTR(p, reg, reg,
+				    ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+		}
 	} else {
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 		uasm_i_dsrl_safe(p, reg, reg, ilog2(_PAGE_GLOBAL));
@@ -1005,21 +1012,7 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	 * 64bit address support (36bit on a 32bit CPU) in a 32bit
 	 * Kernel is a special case. Only a few CPUs use it.
 	 */
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-	if (cpu_has_64bits) {
-		uasm_i_ld(p, tmp, 0, ptep); /* get even pte */
-		uasm_i_ld(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
-		if (cpu_has_rixi) {
-			UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
-			UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-			UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
-		} else {
-			uasm_i_dsrl_safe(p, tmp, tmp, ilog2(_PAGE_GLOBAL)); /* convert to entrylo0 */
-			UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-			uasm_i_dsrl_safe(p, ptep, ptep, ilog2(_PAGE_GLOBAL)); /* convert to entrylo1 */
-		}
-		UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
-	} else {
+	if (config_enabled(CONFIG_PHYS_ADDR_T_64BIT) && !cpu_has_64bits) {
 		int pte_off_even = sizeof(pte_t) / 2;
 		int pte_off_odd = pte_off_even + sizeof(pte_t);
 #ifdef CONFIG_XPA
@@ -1043,31 +1036,23 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 		uasm_i_mthc0(p, tmp, C0_ENTRYLO0);
 		uasm_i_mthc0(p, ptep, C0_ENTRYLO1);
 #endif
+		return;
 	}
-#else
+
 	UASM_i_LW(p, tmp, 0, ptep); /* get even pte */
 	UASM_i_LW(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
 	if (r45k_bvahwbug())
 		build_tlb_probe_entry(p);
-	if (cpu_has_rixi) {
-		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
-		if (r4k_250MHZhwbug())
-			UASM_i_MTC0(p, 0, C0_ENTRYLO0);
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
-	} else {
-		UASM_i_SRL(p, tmp, tmp, ilog2(_PAGE_GLOBAL)); /* convert to entrylo0 */
-		if (r4k_250MHZhwbug())
-			UASM_i_MTC0(p, 0, C0_ENTRYLO0);
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		UASM_i_SRL(p, ptep, ptep, ilog2(_PAGE_GLOBAL)); /* convert to entrylo1 */
-		if (r45k_bvahwbug())
-			uasm_i_mfc0(p, tmp, C0_INDEX);
-	}
+	build_convert_pte_to_entrylo(p, tmp);
+	if (r4k_250MHZhwbug())
+		UASM_i_MTC0(p, 0, C0_ENTRYLO0);
+	UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
+	build_convert_pte_to_entrylo(p, ptep);
+	if (r45k_bvahwbug())
+		uasm_i_mfc0(p, tmp, C0_INDEX);
 	if (r4k_250MHZhwbug())
 		UASM_i_MTC0(p, 0, C0_ENTRYLO1);
 	UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
-#endif
 }
 
 struct mips_huge_tlb_info {
@@ -2299,6 +2284,10 @@ static void config_htw_params(void)
 	/* re-initialize the PTI field including the even/odd bit */
 	pwfield &= ~MIPS_PWFIELD_PTI_MASK;
 	pwfield |= PAGE_SHIFT << MIPS_PWFIELD_PTI_SHIFT;
+	if (CONFIG_PGTABLE_LEVELS >= 3) {
+		pwfield &= ~MIPS_PWFIELD_MDI_MASK;
+		pwfield |= PMD_SHIFT << MIPS_PWFIELD_MDI_SHIFT;
+	}
 	/* Set the PTEI right shift */
 	ptei = _PAGE_GLOBAL_SHIFT << MIPS_PWFIELD_PTEI_SHIFT;
 	pwfield |= ptei;
@@ -2320,9 +2309,11 @@ static void config_htw_params(void)
 
 	pwsize = ilog2(PTRS_PER_PGD) << MIPS_PWSIZE_GDW_SHIFT;
 	pwsize |= ilog2(PTRS_PER_PTE) << MIPS_PWSIZE_PTW_SHIFT;
+	if (CONFIG_PGTABLE_LEVELS >= 3)
+		pwsize |= ilog2(PTRS_PER_PMD) << MIPS_PWSIZE_MDW_SHIFT;
 
 	/* If XPA has been enabled, PTEs are 64-bit in size. */
-	if (read_c0_pagegrain() & PG_ELPA)
+	if (config_enabled(CONFIG_64BITS) || (read_c0_pagegrain() & PG_ELPA))
 		pwsize |= 1;
 
 	write_c0_pwsize(pwsize);
@@ -2360,6 +2351,41 @@ static void config_xpa_params(void)
 #endif
 }
 
+static void check_pabits(void)
+{
+	unsigned long entry;
+	unsigned pabits, fillbits;
+
+	if (!cpu_has_rixi || !_PAGE_NO_EXEC) {
+		/*
+		 * We'll only be making use of the fact that we can rotate bits
+		 * into the fill if the CPU supports RIXI, so don't bother
+		 * probing this for CPUs which don't.
+		 */
+		return;
+	}
+
+	write_c0_entrylo0(~0ul);
+	back_to_back_c0_hazard();
+	entry = read_c0_entrylo0();
+
+	/* clear all non-PFN bits */
+	entry &= ~((1 << MIPS_ENTRYLO_PFN_SHIFT) - 1);
+	entry &= ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
+
+	/* find a lower bound on PABITS, and upper bound on fill bits */
+	pabits = fls_long(entry) + 6;
+	fillbits = max_t(int, (int)BITS_PER_LONG - pabits, 0);
+
+	/* minus the RI & XI bits */
+	fillbits -= min_t(unsigned, fillbits, 2);
+
+	if (fillbits >= ilog2(_PAGE_NO_EXEC))
+		fill_includes_sw_bits = true;
+
+	pr_debug("Entry* registers contain %u fill bits\n", fillbits);
+}
+
 void build_tlb_refill_handler(void)
 {
 	/*
@@ -2370,6 +2396,7 @@ void build_tlb_refill_handler(void)
 	static int run_once = 0;
 
 	output_pgtable_bits_defines();
+	check_pabits();
 
 #ifdef CONFIG_64BIT
 	check_for_high_segbits = current_cpu_data.vmbits > (PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);

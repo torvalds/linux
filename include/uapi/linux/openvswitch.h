@@ -349,6 +349,8 @@ enum ovs_tunnel_key_attr {
 	OVS_TUNNEL_KEY_ATTR_TP_SRC,		/* be16 src Transport Port. */
 	OVS_TUNNEL_KEY_ATTR_TP_DST,		/* be16 dst Transport Port. */
 	OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS,		/* Nested OVS_VXLAN_EXT_* */
+	OVS_TUNNEL_KEY_ATTR_IPV6_SRC,		/* struct in6_addr src IPv6 address. */
+	OVS_TUNNEL_KEY_ATTR_IPV6_DST,		/* struct in6_addr dst IPv6 address. */
 	__OVS_TUNNEL_KEY_ATTR_MAX
 };
 
@@ -620,7 +622,8 @@ struct ovs_action_hash {
  * enum ovs_ct_attr - Attributes for %OVS_ACTION_ATTR_CT action.
  * @OVS_CT_ATTR_COMMIT: If present, commits the connection to the conntrack
  * table. This allows future packets for the same connection to be identified
- * as 'established' or 'related'.
+ * as 'established' or 'related'. The flow key for the current packet will
+ * retain the pre-commit connection state.
  * @OVS_CT_ATTR_ZONE: u16 connection tracking zone.
  * @OVS_CT_ATTR_MARK: u32 value followed by u32 mask. For each bit set in the
  * mask, the corresponding bit in the value is copied to the connection

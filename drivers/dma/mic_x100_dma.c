@@ -193,8 +193,16 @@ static void mic_dma_prog_intr(struct mic_dma_chan *ch)
 static int mic_dma_do_dma(struct mic_dma_chan *ch, int flags, dma_addr_t src,
 			  dma_addr_t dst, size_t len)
 {
-	if (-ENOMEM == mic_dma_prog_memcpy_desc(ch, src, dst, len))
+	if (len && -ENOMEM == mic_dma_prog_memcpy_desc(ch, src, dst, len)) {
 		return -ENOMEM;
+	} else {
+		/* 3 is the maximum number of status descriptors */
+		int ret = mic_dma_avail_desc_ring_space(ch, 3);
+
+		if (ret < 0)
+			return ret;
+	}
+
 	/* Above mic_dma_prog_memcpy_desc() makes sure we have enough space */
 	if (flags & DMA_PREP_FENCE) {
 		mic_dma_prep_status_desc(&ch->desc_ring[ch->head], 0,
@@ -268,6 +276,33 @@ allocate_tx(struct mic_dma_chan *ch)
 	dma_async_tx_descriptor_init(tx, &ch->api_ch);
 	tx->tx_submit = mic_dma_tx_submit_unlock;
 	return tx;
+}
+
+/* Program a status descriptor with dst as address and value to be written */
+static struct dma_async_tx_descriptor *
+mic_dma_prep_status_lock(struct dma_chan *ch, dma_addr_t dst, u64 src_val,
+			 unsigned long flags)
+{
+	struct mic_dma_chan *mic_ch = to_mic_dma_chan(ch);
+	int result;
+
+	spin_lock(&mic_ch->prep_lock);
+	result = mic_dma_avail_desc_ring_space(mic_ch, 4);
+	if (result < 0)
+		goto error;
+	mic_dma_prep_status_desc(&mic_ch->desc_ring[mic_ch->head], src_val, dst,
+				 false);
+	mic_dma_hw_ring_inc_head(mic_ch);
+	result = mic_dma_do_dma(mic_ch, flags, 0, 0, 0);
+	if (result < 0)
+		goto error;
+
+	return allocate_tx(mic_ch);
+error:
+	dev_err(mic_dma_ch_to_device(mic_ch),
+		"Error enqueueing dma status descriptor, error=%d\n", result);
+	spin_unlock(&mic_ch->prep_lock);
+	return NULL;
 }
 
 /*
@@ -587,6 +622,8 @@ static int mic_dma_register_dma_device(struct mic_dma_device *mic_dma_dev,
 		mic_dma_free_chan_resources;
 	mic_dma_dev->dma_dev.device_tx_status = mic_dma_tx_status;
 	mic_dma_dev->dma_dev.device_prep_dma_memcpy = mic_dma_prep_memcpy_lock;
+	mic_dma_dev->dma_dev.device_prep_dma_imm_data =
+		mic_dma_prep_status_lock;
 	mic_dma_dev->dma_dev.device_prep_dma_interrupt =
 		mic_dma_prep_interrupt_lock;
 	mic_dma_dev->dma_dev.device_issue_pending = mic_dma_issue_pending;

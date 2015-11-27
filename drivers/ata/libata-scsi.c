@@ -1757,6 +1757,15 @@ nothing_to_do:
 	return 1;
 }
 
+static void ata_qc_done(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *cmd = qc->scsicmd;
+	void (*done)(struct scsi_cmnd *) = qc->scsidone;
+
+	ata_qc_free(qc);
+	done(cmd);
+}
+
 static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -1774,28 +1783,17 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	 * asc,ascq = ATA PASS-THROUGH INFORMATION AVAILABLE
 	 */
 	if (((cdb[0] == ATA_16) || (cdb[0] == ATA_12)) &&
-	    ((cdb[2] & 0x20) || need_sense)) {
+	    ((cdb[2] & 0x20) || need_sense))
 		ata_gen_passthru_sense(qc);
-	} else {
-		if (!need_sense) {
-			cmd->result = SAM_STAT_GOOD;
-		} else {
-			/* TODO: decide which descriptor format to use
-			 * for 48b LBA devices and call that here
-			 * instead of the fixed desc, which is only
-			 * good for smaller LBA (and maybe CHS?)
-			 * devices.
-			 */
-			ata_gen_ata_sense(qc);
-		}
-	}
+	else if (need_sense)
+		ata_gen_ata_sense(qc);
+	else
+		cmd->result = SAM_STAT_GOOD;
 
 	if (need_sense && !ap->ops->error_handler)
 		ata_dump_status(ap->print_id, &qc->result_tf);
 
-	qc->scsidone(cmd);
-
-	ata_qc_free(qc);
+	ata_qc_done(qc);
 }
 
 /**
@@ -2015,8 +2013,11 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 
 	VPRINTK("ENTER\n");
 
-	/* set scsi removable (RMB) bit per ata bit */
-	if (ata_id_removable(args->id))
+	/* set scsi removable (RMB) bit per ata bit, or if the
+	 * AHCI port says it's external (Hotplug-capable, eSATA).
+	 */
+	if (ata_id_removable(args->id) ||
+	    (args->dev->link->ap->pflags & ATA_PFLAG_EXTERNAL))
 		hdr[1] |= (1 << 7);
 
 	if (args->dev->class == ATA_DEV_ZAC) {
@@ -2594,8 +2595,7 @@ static void atapi_sense_complete(struct ata_queued_cmd *qc)
 		ata_gen_passthru_sense(qc);
 	}
 
-	qc->scsidone(qc->scsicmd);
-	ata_qc_free(qc);
+	ata_qc_done(qc);
 }
 
 /* is it pointless to prefer PIO for "safety reasons"? */
@@ -2690,8 +2690,7 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 			qc->dev->sdev->locked = 0;
 
 		qc->scsicmd->result = SAM_STAT_CHECK_CONDITION;
-		qc->scsidone(cmd);
-		ata_qc_free(qc);
+		ata_qc_done(qc);
 		return;
 	}
 
@@ -2735,8 +2734,7 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		cmd->result = SAM_STAT_GOOD;
 	}
 
-	qc->scsidone(cmd);
-	ata_qc_free(qc);
+	ata_qc_done(qc);
 }
 /**
  *	atapi_xlat - Initialize PACKET taskfile
@@ -2914,12 +2912,14 @@ ata_scsi_map_proto(u8 byte1)
 	case 5:		/* PIO Data-out */
 		return ATA_PROT_PIO;
 
+	case 12:	/* FPDMA */
+		return ATA_PROT_NCQ;
+
 	case 0:		/* Hard Reset */
 	case 1:		/* SRST */
 	case 8:		/* Device Diagnostic */
 	case 9:		/* Device Reset */
 	case 7:		/* DMA Queued */
-	case 12:	/* FPDMA */
 	case 15:	/* Return Response Info */
 	default:	/* Reserved */
 		break;
@@ -2946,6 +2946,9 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 
 	if ((tf->protocol = ata_scsi_map_proto(cdb[1])) == ATA_PROT_UNKNOWN)
 		goto invalid_fld;
+
+	/* enable LBA */
+	tf->flags |= ATA_TFLAG_LBA;
 
 	/*
 	 * 12 and 16 byte CDBs use different offsets to
@@ -2991,6 +2994,10 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->device = cdb[8];
 		tf->command = cdb[9];
 	}
+
+	/* For NCQ commands with FPDMA protocol, copy the tag value */
+	if (tf->protocol == ATA_PROT_NCQ)
+		tf->nsect = qc->tag << 3;
 
 	/* enforce correct master/slave bit */
 	tf->device = dev->devno ?
@@ -3688,9 +3695,6 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		 * automatically deferring requests.
 		 */
 		shost->max_host_blocked = 1;
-
-		if (scsi_init_shared_tag_map(shost, host->n_tags))
-			goto err_add;
 
 		rc = scsi_add_host_with_dma(ap->scsi_host,
 						&ap->tdev, ap->host->dev);

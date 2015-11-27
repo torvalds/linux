@@ -407,16 +407,33 @@ static void audit_printk_skb(struct sk_buff *skb)
 static void kauditd_send_skb(struct sk_buff *skb)
 {
 	int err;
+	int attempts = 0;
+#define AUDITD_RETRIES 5
+
+restart:
 	/* take a reference in case we can't send it and we want to hold it */
 	skb_get(skb);
 	err = netlink_unicast(audit_sock, skb, audit_nlk_portid, 0);
 	if (err < 0) {
-		BUG_ON(err != -ECONNREFUSED); /* Shouldn't happen */
+		pr_err("netlink_unicast sending to audit_pid=%d returned error: %d\n",
+		       audit_pid, err);
 		if (audit_pid) {
-			pr_err("*NO* daemon at audit_pid=%d\n", audit_pid);
-			audit_log_lost("auditd disappeared");
-			audit_pid = 0;
-			audit_sock = NULL;
+			if (err == -ECONNREFUSED || err == -EPERM
+			    || ++attempts >= AUDITD_RETRIES) {
+				char s[32];
+
+				snprintf(s, sizeof(s), "audit_pid=%d reset", audit_pid);
+				audit_log_lost(s);
+				audit_pid = 0;
+				audit_sock = NULL;
+			} else {
+				pr_warn("re-scheduling(#%d) write to audit_pid=%d\n",
+					attempts, audit_pid);
+				set_current_state(TASK_INTERRUPTIBLE);
+				schedule();
+				__set_current_state(TASK_RUNNING);
+				goto restart;
+			}
 		}
 		/* we might get lucky and get this in the next auditd */
 		audit_hold_skb(skb);
@@ -684,25 +701,22 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	return err;
 }
 
-static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
+static void audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 {
-	int rc = 0;
 	uid_t uid = from_kuid(&init_user_ns, current_uid());
 	pid_t pid = task_tgid_nr(current);
 
 	if (!audit_enabled && msg_type != AUDIT_USER_AVC) {
 		*ab = NULL;
-		return rc;
+		return;
 	}
 
 	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
 	if (unlikely(!*ab))
-		return rc;
+		return;
 	audit_log_format(*ab, "pid=%d uid=%u", pid, uid);
 	audit_log_session_info(*ab);
 	audit_log_task_context(*ab);
-
-	return rc;
 }
 
 int is_audit_feature_set(int i)
@@ -1357,16 +1371,16 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (unlikely(audit_filter_type(type)))
 		return NULL;
 
-	if (gfp_mask & __GFP_WAIT) {
+	if (gfp_mask & __GFP_DIRECT_RECLAIM) {
 		if (audit_pid && audit_pid == current->pid)
-			gfp_mask &= ~__GFP_WAIT;
+			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 		else
 			reserve = 0;
 	}
 
 	while (audit_backlog_limit
 	       && skb_queue_len(&audit_skb_queue) > audit_backlog_limit + reserve) {
-		if (gfp_mask & __GFP_WAIT && audit_backlog_wait_time) {
+		if (gfp_mask & __GFP_DIRECT_RECLAIM && audit_backlog_wait_time) {
 			long sleep_time;
 
 			sleep_time = timeout_start + audit_backlog_wait_time - jiffies;
@@ -1566,14 +1580,14 @@ void audit_log_n_string(struct audit_buffer *ab, const char *string,
  * @string: string to be checked
  * @len: max length of the string to check
  */
-int audit_string_contains_control(const char *string, size_t len)
+bool audit_string_contains_control(const char *string, size_t len)
 {
 	const unsigned char *p;
 	for (p = string; p < (const unsigned char *)string + len; p++) {
 		if (*p == '"' || *p < 0x21 || *p > 0x7e)
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 /**

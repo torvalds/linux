@@ -1404,44 +1404,20 @@ void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
  * @crtc_id: crtc to cleanup pageflip on
  * @crtc_base: new address of the crtc (GPU MC address)
  *
- * Does the actual pageflip (evergreen+).
- * During vblank we take the crtc lock and wait for the update_pending
- * bit to go high, when it does, we release the lock, and allow the
- * double buffered update to take place.
- * Returns the current update pending status.
+ * Triggers the actual pageflip by updating the primary
+ * surface base address (evergreen+).
  */
 void evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
-	u32 tmp = RREG32(EVERGREEN_GRPH_UPDATE + radeon_crtc->crtc_offset);
-	int i;
-
-	/* Lock the graphics update lock */
-	tmp |= EVERGREEN_GRPH_UPDATE_LOCK;
-	WREG32(EVERGREEN_GRPH_UPDATE + radeon_crtc->crtc_offset, tmp);
 
 	/* update the scanout addresses */
-	WREG32(EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset,
-	       upper_32_bits(crtc_base));
-	WREG32(EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
-	       (u32)crtc_base);
-
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset,
 	       upper_32_bits(crtc_base));
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
 	       (u32)crtc_base);
-
-	/* Wait for update_pending to go high. */
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		if (RREG32(EVERGREEN_GRPH_UPDATE + radeon_crtc->crtc_offset) & EVERGREEN_GRPH_SURFACE_UPDATE_PENDING)
-			break;
-		udelay(1);
-	}
-	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
-
-	/* Unlock the lock, so double-buffering can take place inside vblank */
-	tmp &= ~EVERGREEN_GRPH_UPDATE_LOCK;
-	WREG32(EVERGREEN_GRPH_UPDATE + radeon_crtc->crtc_offset, tmp);
+	/* post the write */
+	RREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset);
 }
 
 /**

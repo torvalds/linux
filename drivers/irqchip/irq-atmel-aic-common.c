@@ -114,7 +114,7 @@ int aic_common_irq_domain_xlate(struct irq_domain *d,
 
 static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 {
-	struct device_node *node = domain->of_node;
+	struct device_node *node = irq_domain_get_of_node(domain);
 	struct irq_chip_generic *gc;
 	struct aic_chip_data *aic;
 	struct property *prop;

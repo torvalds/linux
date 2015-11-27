@@ -48,6 +48,11 @@
 
 #define UETH__VERSION	"29-May-2008"
 
+/* Experiments show that both Linux and Windows hosts allow up to 16k
+ * frame sizes. Set the max size to 15k+52 to prevent allocating 32k
+ * blocks and still have efficient handling. */
+#define GETHER_MAX_ETH_FRAME_LEN 15412
+
 struct eth_dev {
 	/* lock is held while accessing port_usb
 	 */
@@ -146,7 +151,7 @@ static int ueth_change_mtu(struct net_device *net, int new_mtu)
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->port_usb)
 		status = -EBUSY;
-	else if (new_mtu <= ETH_HLEN || new_mtu > ETH_FRAME_LEN)
+	else if (new_mtu <= ETH_HLEN || new_mtu > GETHER_MAX_ETH_FRAME_LEN)
 		status = -ERANGE;
 	else
 		net->mtu = new_mtu;
@@ -294,7 +299,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 		while (skb2) {
 			if (status < 0
 					|| ETH_HLEN > skb2->len
-					|| skb2->len > VLAN_ETH_FRAME_LEN) {
+					|| skb2->len > GETHER_MAX_ETH_FRAME_LEN) {
 				dev->net->stats.rx_errors++;
 				dev->net->stats.rx_length_errors++;
 				DBG(dev, "rx length %d\n", skb2->len);
@@ -1144,7 +1149,6 @@ void gether_disconnect(struct gether *link)
 		spin_lock(&dev->req_lock);
 	}
 	spin_unlock(&dev->req_lock);
-	link->in_ep->driver_data = NULL;
 	link->in_ep->desc = NULL;
 
 	usb_ep_disable(link->out_ep);
@@ -1159,7 +1163,6 @@ void gether_disconnect(struct gether *link)
 		spin_lock(&dev->req_lock);
 	}
 	spin_unlock(&dev->req_lock);
-	link->out_ep->driver_data = NULL;
 	link->out_ep->desc = NULL;
 
 	/* finish forgetting about this USB link episode */
