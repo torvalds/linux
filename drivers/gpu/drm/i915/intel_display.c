@@ -5194,7 +5194,7 @@ static enum intel_display_power_domain port_to_power_domain(enum port port)
 	case PORT_E:
 		return POWER_DOMAIN_PORT_DDI_E_2_LANES;
 	default:
-		WARN_ON_ONCE(1);
+		MISSING_CASE(port);
 		return POWER_DOMAIN_PORT_OTHER;
 	}
 }
@@ -5214,7 +5214,7 @@ static enum intel_display_power_domain port_to_aux_power_domain(enum port port)
 		/* FIXME: Check VBT for actual wiring of PORT E */
 		return POWER_DOMAIN_AUX_D;
 	default:
-		WARN_ON_ONCE(1);
+		MISSING_CASE(port);
 		return POWER_DOMAIN_AUX_A;
 	}
 }
@@ -5275,7 +5275,7 @@ intel_display_port_aux_power_domain(struct intel_encoder *intel_encoder)
 		intel_dig_port = enc_to_mst(&intel_encoder->base)->primary;
 		return port_to_aux_power_domain(intel_dig_port->port);
 	default:
-		WARN_ON_ONCE(1);
+		MISSING_CASE(intel_encoder->type);
 		return POWER_DOMAIN_AUX_A;
 	}
 }
