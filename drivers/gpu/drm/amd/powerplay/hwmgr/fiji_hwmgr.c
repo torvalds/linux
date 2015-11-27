@@ -50,8 +50,11 @@
 #include "pp_debug.h"
 #include "pp_acpi.h"
 #include "amd_pcie_helpers.h"
+#include "cgs_linux.h"
+#include "ppinterrupt.h"
 
 #include "fiji_clockpowergating.h"
+#include "fiji_thermal.h"
 
 #define VOLTAGE_SCALE	4
 #define SMC_RAM_END		0x40000
@@ -693,6 +696,31 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 				FIJI_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
 		hwmgr->platform_descriptor.minimumClocksReductionPercentage  = 50;
+
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_FanSpeedInTableIsRPM);
+
+		if (table_info->cac_dtp_table->usDefaultTargetOperatingTemp &&
+				hwmgr->thermal_controller.
+				advanceFanControlParameters.ucFanControlMode) {
+			hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanPWM =
+					hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM;
+			hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM =
+					hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanRPM;
+			hwmgr->dyn_state.cac_dtp_table->usOperatingTempMinLimit =
+					table_info->cac_dtp_table->usOperatingTempMinLimit;
+			hwmgr->dyn_state.cac_dtp_table->usOperatingTempMaxLimit =
+					table_info->cac_dtp_table->usOperatingTempMaxLimit;
+			hwmgr->dyn_state.cac_dtp_table->usDefaultTargetOperatingTemp =
+					table_info->cac_dtp_table->usDefaultTargetOperatingTemp;
+			hwmgr->dyn_state.cac_dtp_table->usOperatingTempStep =
+					table_info->cac_dtp_table->usOperatingTempStep;
+			hwmgr->dyn_state.cac_dtp_table->usTargetOperatingTemp =
+					table_info->cac_dtp_table->usTargetOperatingTemp;
+
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_ODFuzzyFanControlSupport);
+		}
 
 		sys_info.size = sizeof(struct cgs_system_info);
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
@@ -4915,6 +4943,108 @@ int fiji_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 	return fiji_program_display_gap(hwmgr);
 }
 
+static int fiji_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr,
+		uint16_t us_max_fan_pwm)
+{
+	hwmgr->thermal_controller.
+	advanceFanControlParameters.usMaxFanPWM = us_max_fan_pwm;
+
+	if (phm_is_hw_access_blocked(hwmgr))
+		return 0;
+
+	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm);
+}
+
+static int fiji_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr,
+		uint16_t us_max_fan_rpm)
+{
+	hwmgr->thermal_controller.
+	advanceFanControlParameters.usMaxFanRPM = us_max_fan_rpm;
+
+	if (phm_is_hw_access_blocked(hwmgr))
+		return 0;
+
+	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
+}
+
+int fiji_dpm_set_interrupt_state(void *private_data,
+					 unsigned src_id, unsigned type,
+					 int enabled)
+{
+	uint32_t cg_thermal_int;
+	struct pp_hwmgr *hwmgr = ((struct pp_eventmgr *)private_data)->hwmgr;
+
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	switch (type) {
+	case AMD_THERMAL_IRQ_LOW_TO_HIGH:
+		if (enabled) {
+			cg_thermal_int = cgs_read_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, ixCG_THERMAL_INT);
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cgs_write_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, ixCG_THERMAL_INT, cg_thermal_int);
+		} else {
+			cg_thermal_int = cgs_read_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, ixCG_THERMAL_INT);
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+			cgs_write_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, ixCG_THERMAL_INT, cg_thermal_int);
+		}
+		break;
+
+	case AMD_THERMAL_IRQ_HIGH_TO_LOW:
+		if (enabled) {
+			cg_thermal_int = cgs_read_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, ixCG_THERMAL_INT);
+			cg_thermal_int |= CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cgs_write_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, ixCG_THERMAL_INT, cg_thermal_int);
+		} else {
+			cg_thermal_int = cgs_read_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, ixCG_THERMAL_INT);
+			cg_thermal_int &= ~CG_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
+			cgs_write_ind_register(hwmgr->device,
+					CGS_IND_REG__SMC, ixCG_THERMAL_INT, cg_thermal_int);
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+int fiji_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
+					const void *thermal_interrupt_info)
+{
+	int result;
+	const struct pp_interrupt_registration_info *info =
+			(const struct pp_interrupt_registration_info *)
+			thermal_interrupt_info;
+
+	if (info == NULL)
+		return -EINVAL;
+
+	result = cgs_add_irq_source(hwmgr->device, 230, AMD_THERMAL_IRQ_LAST,
+				fiji_dpm_set_interrupt_state,
+				info->call_back, info->context);
+
+	if (result)
+		return -EINVAL;
+
+	result = cgs_add_irq_source(hwmgr->device, 231, AMD_THERMAL_IRQ_LAST,
+				fiji_dpm_set_interrupt_state,
+				info->call_back, info->context);
+
+	if (result)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.backend_init = &fiji_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -4936,6 +5066,18 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.notify_smc_display_config_after_ps_adjustment =
 			&tonga_notify_smc_display_config_after_ps_adjustment,
 	.display_config_changed = &fiji_display_configuration_changed_task,
+	.set_max_fan_pwm_output = fiji_set_max_fan_pwm_output,
+	.set_max_fan_rpm_output = fiji_set_max_fan_rpm_output,
+	.get_temperature = fiji_thermal_get_temperature,
+	.stop_thermal_controller = fiji_thermal_stop_thermal_controller,
+	.get_fan_speed_info = fiji_fan_ctrl_get_fan_speed_info,
+	.get_fan_speed_percent = fiji_fan_ctrl_get_fan_speed_percent,
+	.set_fan_speed_percent = fiji_fan_ctrl_set_fan_speed_percent,
+	.reset_fan_speed_to_default = fiji_fan_ctrl_reset_fan_speed_to_default,
+	.get_fan_speed_rpm = fiji_fan_ctrl_get_fan_speed_rpm,
+	.set_fan_speed_rpm = fiji_fan_ctrl_set_fan_speed_rpm,
+	.uninitialize_thermal_controller = fiji_thermal_ctrl_uninitialize_thermal_controller,
+	.register_internal_thermal_interrupt = fiji_register_internal_thermal_interrupt,
 };
 
 int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)
@@ -4950,5 +5092,6 @@ int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)
 	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &fiji_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
+	pp_fiji_thermal_initialize(hwmgr);
 	return ret;
 }
