@@ -243,27 +243,10 @@ static void pids_cancel_fork(struct task_struct *task, void *priv)
 
 static void pids_fork(struct task_struct *task, void *priv)
 {
-	struct cgroup_subsys_state *css;
-	struct cgroup_subsys_state *old_css = priv;
-	struct pids_cgroup *pids;
-	struct pids_cgroup *old_pids = css_pids(old_css);
+	struct cgroup_subsys_state *css = priv;
 
-	css = task_get_css(task, pids_cgrp_id);
-	pids = css_pids(css);
-
-	/*
-	 * If the association has changed, we have to revert and reapply the
-	 * charge/uncharge on the wrong hierarchy to the current one. Since
-	 * the association can only change due to an organisation event, its
-	 * okay for us to ignore the limit in this case.
-	 */
-	if (pids != old_pids) {
-		pids_uncharge(old_pids, 1);
-		pids_charge(pids, 1);
-	}
-
+	WARN_ON(task_css_check(task, pids_cgrp_id, true) != css);
 	css_put(css);
-	css_put(old_css);
 }
 
 static void pids_free(struct task_struct *task)
