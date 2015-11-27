@@ -120,7 +120,7 @@ bpf_prog_priv__clear(struct bpf_program *prog __maybe_unused,
 }
 
 static int
-config__exec(const char *value, struct perf_probe_event *pev)
+prog_config__exec(const char *value, struct perf_probe_event *pev)
 {
 	pev->uprobes = true;
 	pev->target = strdup(value);
@@ -130,7 +130,7 @@ config__exec(const char *value, struct perf_probe_event *pev)
 }
 
 static int
-config__module(const char *value, struct perf_probe_event *pev)
+prog_config__module(const char *value, struct perf_probe_event *pev)
 {
 	pev->uprobes = false;
 	pev->target = strdup(value);
@@ -140,8 +140,7 @@ config__module(const char *value, struct perf_probe_event *pev)
 }
 
 static int
-config__bool(const char *value,
-	     bool *pbool, bool invert)
+prog_config__bool(const char *value, bool *pbool, bool invert)
 {
 	int err;
 	bool bool_value;
@@ -158,17 +157,17 @@ config__bool(const char *value,
 }
 
 static int
-config__inlines(const char *value,
-		struct perf_probe_event *pev __maybe_unused)
+prog_config__inlines(const char *value,
+		     struct perf_probe_event *pev __maybe_unused)
 {
-	return config__bool(value, &probe_conf.no_inlines, true);
+	return prog_config__bool(value, &probe_conf.no_inlines, true);
 }
 
 static int
-config__force(const char *value,
-	      struct perf_probe_event *pev __maybe_unused)
+prog_config__force(const char *value,
+		   struct perf_probe_event *pev __maybe_unused)
 {
-	return config__bool(value, &probe_conf.force_add, false);
+	return prog_config__bool(value, &probe_conf.force_add, false);
 }
 
 static struct {
@@ -176,58 +175,58 @@ static struct {
 	const char *usage;
 	const char *desc;
 	int (*func)(const char *, struct perf_probe_event *);
-} bpf_config_terms[] = {
+} bpf_prog_config_terms[] = {
 	{
 		.key	= "exec",
 		.usage	= "exec=<full path of file>",
 		.desc	= "Set uprobe target",
-		.func	= config__exec,
+		.func	= prog_config__exec,
 	},
 	{
 		.key	= "module",
 		.usage	= "module=<module name>    ",
 		.desc	= "Set kprobe module",
-		.func	= config__module,
+		.func	= prog_config__module,
 	},
 	{
 		.key	= "inlines",
 		.usage	= "inlines=[yes|no]        ",
 		.desc	= "Probe at inline symbol",
-		.func	= config__inlines,
+		.func	= prog_config__inlines,
 	},
 	{
 		.key	= "force",
 		.usage	= "force=[yes|no]          ",
 		.desc	= "Forcibly add events with existing name",
-		.func	= config__force,
+		.func	= prog_config__force,
 	},
 };
 
 static int
-do_config(const char *key, const char *value,
-	  struct perf_probe_event *pev)
+do_prog_config(const char *key, const char *value,
+	       struct perf_probe_event *pev)
 {
 	unsigned int i;
 
 	pr_debug("config bpf program: %s=%s\n", key, value);
-	for (i = 0; i < ARRAY_SIZE(bpf_config_terms); i++)
-		if (strcmp(key, bpf_config_terms[i].key) == 0)
-			return bpf_config_terms[i].func(value, pev);
+	for (i = 0; i < ARRAY_SIZE(bpf_prog_config_terms); i++)
+		if (strcmp(key, bpf_prog_config_terms[i].key) == 0)
+			return bpf_prog_config_terms[i].func(value, pev);
 
-	pr_debug("BPF: ERROR: invalid config option in object: %s=%s\n",
+	pr_debug("BPF: ERROR: invalid program config option: %s=%s\n",
 		 key, value);
 
-	pr_debug("\nHint: Currently valid options are:\n");
-	for (i = 0; i < ARRAY_SIZE(bpf_config_terms); i++)
-		pr_debug("\t%s:\t%s\n", bpf_config_terms[i].usage,
-			 bpf_config_terms[i].desc);
+	pr_debug("\nHint: Valid options are:\n");
+	for (i = 0; i < ARRAY_SIZE(bpf_prog_config_terms); i++)
+		pr_debug("\t%s:\t%s\n", bpf_prog_config_terms[i].usage,
+			 bpf_prog_config_terms[i].desc);
 	pr_debug("\n");
 
-	return -BPF_LOADER_ERRNO__CONFIG_TERM;
+	return -BPF_LOADER_ERRNO__PROGCONF_TERM;
 }
 
 static const char *
-parse_config_kvpair(const char *config_str, struct perf_probe_event *pev)
+parse_prog_config_kvpair(const char *config_str, struct perf_probe_event *pev)
 {
 	char *text = strdup(config_str);
 	char *sep, *line;
@@ -253,7 +252,7 @@ parse_config_kvpair(const char *config_str, struct perf_probe_event *pev)
 		}
 		*equ = '\0';
 
-		err = do_config(line, equ + 1, pev);
+		err = do_prog_config(line, equ + 1, pev);
 		if (err)
 			break;
 nextline:
@@ -268,10 +267,10 @@ nextline:
 }
 
 static int
-parse_config(const char *config_str, struct perf_probe_event *pev)
+parse_prog_config(const char *config_str, struct perf_probe_event *pev)
 {
 	int err;
-	const char *main_str = parse_config_kvpair(config_str, pev);
+	const char *main_str = parse_prog_config_kvpair(config_str, pev);
 
 	if (IS_ERR(main_str))
 		return PTR_ERR(main_str);
@@ -312,7 +311,7 @@ config_bpf_program(struct bpf_program *prog)
 	pev = &priv->pev;
 
 	pr_debug("bpf: config program '%s'\n", config_str);
-	err = parse_config(config_str, pev);
+	err = parse_prog_config(config_str, pev);
 	if (err)
 		goto errout;
 
@@ -750,7 +749,7 @@ static const char *bpf_loader_strerror_table[NR_ERRNO] = {
 	[ERRCODE_OFFSET(EVENTNAME)]	= "No event name found in config string",
 	[ERRCODE_OFFSET(INTERNAL)]	= "BPF loader internal error",
 	[ERRCODE_OFFSET(COMPILE)]	= "Error when compiling BPF scriptlet",
-	[ERRCODE_OFFSET(CONFIG_TERM)]	= "Invalid config term in config string",
+	[ERRCODE_OFFSET(PROGCONF_TERM)]	= "Invalid program config term in config string",
 	[ERRCODE_OFFSET(PROLOGUE)]	= "Failed to generate prologue",
 	[ERRCODE_OFFSET(PROLOGUE2BIG)]	= "Prologue too big for program",
 	[ERRCODE_OFFSET(PROLOGUEOOB)]	= "Offset out of bound for prologue",
@@ -834,7 +833,7 @@ int bpf__strerror_probe(struct bpf_object *obj __maybe_unused,
 			int err, char *buf, size_t size)
 {
 	bpf__strerror_head(err, buf, size);
-	case BPF_LOADER_ERRNO__CONFIG_TERM: {
+	case BPF_LOADER_ERRNO__PROGCONF_TERM: {
 		scnprintf(buf, size, "%s (add -v to see detail)", emsg);
 		break;
 	}
