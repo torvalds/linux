@@ -1342,6 +1342,49 @@ drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
 EXPORT_SYMBOL(drm_atomic_helper_commit_planes_on_crtc);
 
 /**
+ * drm_atomic_helper_disable_planes_on_crtc - helper to disable CRTC's planes
+ * @crtc: CRTC
+ * @atomic: if set, synchronize with CRTC's atomic_begin/flush hooks
+ *
+ * Disables all planes associated with the given CRTC. This can be
+ * used for instance in the CRTC helper disable callback to disable
+ * all planes before shutting down the display pipeline.
+ *
+ * If the atomic-parameter is set the function calls the CRTC's
+ * atomic_begin hook before and atomic_flush hook after disabling the
+ * planes.
+ *
+ * It is a bug to call this function without having implemented the
+ * ->atomic_disable() plane hook.
+ */
+void drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc *crtc,
+					      bool atomic)
+{
+	const struct drm_crtc_helper_funcs *crtc_funcs =
+		crtc->helper_private;
+	struct drm_plane *plane;
+
+	if (atomic && crtc_funcs && crtc_funcs->atomic_begin)
+		crtc_funcs->atomic_begin(crtc, NULL);
+
+	drm_for_each_plane(plane, crtc->dev) {
+		const struct drm_plane_helper_funcs *plane_funcs =
+			plane->helper_private;
+
+		if (plane->state->crtc != crtc || !plane_funcs)
+			continue;
+
+		WARN_ON(!plane_funcs->atomic_disable);
+		if (plane_funcs->atomic_disable)
+			plane_funcs->atomic_disable(plane, NULL);
+	}
+
+	if (atomic && crtc_funcs && crtc_funcs->atomic_flush)
+		crtc_funcs->atomic_flush(crtc, NULL);
+}
+EXPORT_SYMBOL(drm_atomic_helper_disable_planes_on_crtc);
+
+/**
  * drm_atomic_helper_cleanup_planes - cleanup plane resources after commit
  * @dev: DRM device
  * @old_state: atomic state object with old state structures
