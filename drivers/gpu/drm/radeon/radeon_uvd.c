@@ -124,6 +124,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_BONAIRE:
 	case CHIP_KABINI:
 	case CHIP_KAVERI:
+	case CHIP_LIVERPOOL:
 	case CHIP_HAWAII:
 	case CHIP_MULLINS:
 		legacy_fw_name = FIRMWARE_BONAIRE_LEGACY;

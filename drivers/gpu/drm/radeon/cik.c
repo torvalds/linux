@@ -118,6 +118,13 @@ MODULE_FIRMWARE("radeon/mullins_mec.bin");
 MODULE_FIRMWARE("radeon/mullins_rlc.bin");
 MODULE_FIRMWARE("radeon/mullins_sdma.bin");
 
+MODULE_FIRMWARE("radeon/LIVERPOOL_pfp.bin");
+MODULE_FIRMWARE("radeon/LIVERPOOL_me.bin");
+MODULE_FIRMWARE("radeon/LIVERPOOL_ce.bin");
+MODULE_FIRMWARE("radeon/LIVERPOOL_mec.bin");
+MODULE_FIRMWARE("radeon/LIVERPOOL_rlc.bin");
+MODULE_FIRMWARE("radeon/LIVERPOOL_sdma.bin");
+
 extern int r600_ih_ring_alloc(struct radeon_device *rdev);
 extern void r600_ih_ring_fini(struct radeon_device *rdev);
 extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
@@ -1182,6 +1189,154 @@ static const u32 bonaire_mgcg_cgcg_init[] =
 	0xd80c, 0xff000ff0, 0x00000100
 };
 
+static const u32 liverpool_golden_common_registers[] =
+{
+	0xc770, 0xffffffff, 0x00000800, /* SPI_RESOURCE_RESERVE_CU_0 */
+	0xc774, 0xffffffff, 0x00000800, /* SPI_RESOURCE_RESERVE_CU_1 */
+	0xc798, 0xffffffff, 0x00ffffbf, /* SPI_RESOURCE_RESERVE_EN_CU_0 */
+	0xc79c, 0xffffffff, 0x00ffffaf, /* SPI_RESOURCE_RESERVE_EN_CU_1 */
+	0xc7a0, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_2 */
+	0xc7a4, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_3*/
+	0xc7a8, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_4 */
+	0xc7ac, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_5 */
+	0xc7b0, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_6 */
+	0xc7b4, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_7 */
+	0xc7b8, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_8 */
+	0xc7bc, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_9 */
+	0x28350, 0xffffffff, 0x2a00161a, /* PA_SC_RASTER_CONFIG */
+	0x28354, 0xffffffff, 0x00000000, /* PA_SC_RASTER_CONFIG_1 */
+	0x5004, 0x00002000, 0x00002000, /* GARLIC_FLUSH_CNTL */
+};
+
+static const u32 liverpool_golden_registers[] =
+{
+	0xc420, 0xffffffff, 0xfffffffc, /* RLC_CGTT_MGCG_OVERRIDE */
+	0x30800, 0xffffffff, 0xe0000000, /* GRBM_GFX_INDEX */
+	/* These are all setting OFF_HYSTERESIS = 0x10 */
+	0x3c2a0, 0xffffffff, 0x00000100, /* CB_CGTT_SCLK_CTRL */
+	0x3c208, 0xffffffff, 0x00000100, /* CGTT_BCI_CLK_CTRL */
+	0x3c2c0, 0xffffffff, 0x00000100, /* CGTT_CP_CLK_CTRL */
+	0x3c2c8, 0xffffffff, 0x00000100, /* CGTT_CPC_CLK_CTRL */
+	0x3c2c4, 0xffffffff, 0x00000100, /* CGTT_CPF_CLK_CTRL */
+	0x55e4, 0xffffffff, 0x00600100, /* CGTT_DRM_CLK_CTRL0 */
+	0x3c280, 0xffffffff, 0x00000100, /* CGTT_GDS_CLK_CTRL */
+	0x3c214, 0xffffffff, 0x06000100, /* CGTT_IA_CLK_CTRL */
+	0x3c220, 0xffffffff, 0x00000100, /* CGTT_PA_CLK_CTRL */
+	0x3c218, 0xffffffff, 0x06000100, /* CGTT_WD_CLK_CTRL */
+	0x3c204, 0xffffffff, 0x00000100, /* CGTT_PC_CLK_CTRL */
+	0x3c2e0, 0xffffffff, 0x00000100, /* CGTT_RLC_CLK_CTRL */
+	0x3c224, 0xffffffff, 0x00000100, /* CGTT_SC_CLK_CTRL */
+	0x3c200, 0xffffffff, 0x00000100, /* CGTT_SPI_CLK_CTRL */
+	0x3c230, 0xffffffff, 0x00000100, /* CGTT_SQ_CLK_CTRL */
+	0x3c234, 0xffffffff, 0x00000100, /* CGTT_SQG_CLK_CTRL */
+	0x3c250, 0xffffffff, 0x00000100, /* CGTT_SX_CLK_CTRL0 */
+	0x3c254, 0xffffffff, 0x00000100, /* CGTT_SX_CLK_CTRL1 */
+	0x3c258, 0xffffffff, 0x00000100, /* CGTT_SX_CLK_CTRL2 */
+	0x3c25c, 0xffffffff, 0x00000100, /* CGTT_SX_CLK_CTRL3 */
+	0x3c260, 0xffffffff, 0x00000100, /* CGTT_SX_CLK_CTRL4 */
+	0x3c27c, 0xffffffff, 0x00000100, /* CGTT_TCI_CLK_CTRL */
+	0x3c278, 0xffffffff, 0x00000100, /* CGTT_TCP_CLK_CTRL */
+	0x3c210, 0xffffffff, 0x06000100, /* CGTT_VGT_CLK_CTRL */
+	0x3c290, 0xffffffff, 0x00000100, /* DB_CGTT_CLK_CTRL_0 */
+	0x3c274, 0xffffffff, 0x00000100, /* TA_CGTT_CTRL */
+	0x3c2b4, 0xffffffff, 0x00000100, /* TCA_CGTT_SCLK_CTRL */
+	0x3c2b0, 0xffffffff, 0x00000100, /* TCC_CGTT_SCLK_CTRL */
+	0x3c270, 0xffffffff, 0x00000100, /* TD_CGTT_CTRL */
+	/* */
+	0x30800, 0xffffffff, 0xe0000000, /* GRBM_GFX_INDEX */
+	0x3c020, 0xffffffff, 0x00010000, /* CGTS_CU0_SP0_CTRL_REG */
+	0x3c024, 0xffffffff, 0x00030002, /* CGTS_CU0_LDS_SQ_CTRL_REG */
+	0x3c028, 0xffffffff, 0x00040007, /* CGTS_CU0_TA_SQC_CTRL_REG */
+	0x3c02c, 0xffffffff, 0x00060005, /* CGTS_CU0_SP1_CTRL_REG */
+	0x3c030, 0xffffffff, 0x00090008, /* CGTS_CU0_TD_TCP_CTRL_REG */
+	0x3c034, 0xffffffff, 0x00010000, /* CGTS_CU1_SP0_CTRL_REG */
+	0x3c038, 0xffffffff, 0x00030002, /* CGTS_CU1_LDS_SQ_CTRL_REG */
+	0x3c03c, 0xffffffff, 0x00040007, /* CGTS_CU1_TA_CTRL_REG */
+	0x3c040, 0xffffffff, 0x00060005, /* CGTS_CU1_SP1_CTRL_REG */
+	0x3c044, 0xffffffff, 0x00090008, /* CGTS_CU1_TD_TCP_CTRL_REG */
+	0x3c048, 0xffffffff, 0x00010000, /* CGTS_CU2_SP0_CTRL_REG */
+	0x3c04c, 0xffffffff, 0x00030002, /* CGTS_CU2_LDS_SQ_CTRL_REG */
+	0x3c050, 0xffffffff, 0x00040007, /* CGTS_CU2_TA_CTRL_REG */
+	0x3c054, 0xffffffff, 0x00060005, /* CGTS_CU2_SP1_CTRL_REG */
+	0x3c058, 0xffffffff, 0x00090008, /* CGTS_CU2_TD_TCP_CTRL_REG */
+	0x3c05c, 0xffffffff, 0x00010000, /* CGTS_CU3_SP0_CTRL_REG */
+	0x3c060, 0xffffffff, 0x00030002, /* CGTS_CU3_LDS_SQ_CTRL_REG */
+	0x3c064, 0xffffffff, 0x00040007, /* CGTS_CU3_TA_SQC_CTRL_REG */
+	0x3c068, 0xffffffff, 0x00060005, /* CGTS_CU3_SP1_CTRL_REG */
+	0x3c06c, 0xffffffff, 0x00090008, /* CGTS_CU3_TD_TCP_CTRL_REG */
+	0x3c070, 0xffffffff, 0x00010000, /* CGTS_CU4_SP0_CTRL_REG */
+	0x3c074, 0xffffffff, 0x00030002, /* CGTS_CU4_LDS_SQ_CTRL_REG */
+	0x3c078, 0xffffffff, 0x00040007, /* CGTS_CU4_TA_CTRL_REG */
+	0x3c07c, 0xffffffff, 0x00060005, /* CGTS_CU4_SP1_CTRL_REG */
+	0x3c080, 0xffffffff, 0x00090008, /* CGTS_CU4_TD_TCP_CTRL_REG */
+	0x3c084, 0xffffffff, 0x00010000, /* CGTS_CU5_SP0_CTRL_REG */
+	0x3c088, 0xffffffff, 0x00030002, /* CGTS_CU5_LDS_SQ_CTRL_REG */
+	0x3c08c, 0xffffffff, 0x00040007, /* CGTS_CU5_TA_CTRL_REG */
+	0x3c090, 0xffffffff, 0x00060005, /* CGTS_CU5_SP1_CTRL_REG */
+	0x3c094, 0xffffffff, 0x00090008, /* CGTS_CU5_TD_TCP_CTRL_REG */
+	0x3c098, 0xffffffff, 0x00010000, /* CGTS_CU6_SP0_CTRL_REG */
+	0x3c09c, 0xffffffff, 0x00030002, /* CGTS_CU6_LDS_SQ_CTRL_REG */
+	0x3c0a0, 0xffffffff, 0x00040007, /* CGTS_CU6_TA_SQC_CTRL_REG */
+	0x3c0a4, 0xffffffff, 0x00060005, /* CGTS_CU6_SP1_CTRL_REG */
+	0x3c0a8, 0xffffffff, 0x00090008, /* CGTS_CU6_TD_TCP_CTRL_REG */
+	0x3c0ac, 0xffffffff, 0x00010000, /* CGTS_CU7_SP0_CTRL_REG */
+	0x3c0b0, 0xffffffff, 0x00030002, /* CGTS_CU7_LDS_SQ_CTRL_REG */
+	0x3c0b4, 0xffffffff, 0x00040007, /* CGTS_CU7_TA_SQC_CTRL_REG */
+	0x3c0b8, 0xffffffff, 0x00060005, /* CGTS_CU7_SP1_CTRL_REG */
+	0x3c0bc, 0xffffffff, 0x00090008, /* CGTS_CU7_TD_TCP_CTRL_REG */
+	0x3c0c0, 0xffffffff, 0x00010000, /* CGTS_CU8_SP0_CTRL_REG */
+	0x3c0c4, 0xffffffff, 0x00030002, /* CGTS_CU8_LDS_SQ_CTRL_REG */
+	0x3c0c8, 0xffffffff, 0x00040007, /* CGTS_CU8_TA_CTRL_REG */
+	0x3c0cc, 0xffffffff, 0x00060005, /* CGTS_CU8_SP1_CTRL_REG */
+	0x3c0d0, 0xffffffff, 0x00090008, /* CGTS_CU8_TD_TCP_CTRL_REG */
+	0x3c0d4, 0xffffffff, 0x00010000, /* CGTS_CU9_SP0_CTRL_REG */
+	0x3c0d8, 0xffffffff, 0x00030002, /* CGTS_CU9_LDS_SQ_CTRL_REG */
+	0x3c0dc, 0xffffffff, 0x00040007, /* CGTS_CU9_TA_CTRL_REG */
+	0x3c0e0, 0xffffffff, 0x00060005, /* CGTS_CU9_SP1_CTRL_REG */
+	0x3c0e4, 0xffffffff, 0x00090008, /* CGTS_CU9_TD_TCP_CTRL_REG */
+	0x3c000, 0xffffffff, 0x96940200, /* CGTS_SM_CTRL_REG */
+	0x8708, 0xffffffff, 0x00900100, /* CP_RB_WPTR_POLL_CNTL */
+	0xc424, 0xffffffff, 0x0020003f, /* RLC_CGCG_CGLS_CTRL */
+	0x9a10, 0x00210000, 0x00018208, /* CB_HW_CONTROL */
+	0x3c000, 0xffff1fff, 0x96940200, /* CGTS_SM_CTRL_REG */
+	0x3c00c, 0xffff0001, 0xff000000, /* CGTS_TCC_DISABLE */
+	0x3c010, 0xffff0000, 0xff000000, /* CGTS_USER_TCC_DISABLE */
+	0x55e4, 0xff607fff, 0xfc000100, /* CGTT_DRM_CLK_CTRL0 */
+	0x3c200, 0xfdfc0fff, 0x00000100, /* CGTT_SPI_CLK_CTRL */
+	0x6ed8, 0x00010000, 0x00010000, /* CRTC_DOUBLE_BUFFER_CONTROL */
+	0x9834, 0xf00fffff, 0x00004400, /* DB_DEBUG2 */
+	0x5bb0, 0x000000f0, 0x00000070, /* FBC_DEBUG_COMP */
+	0x98f8, 0x73773777, 0x12011003, /* GB_ADDR_CONFIG */
+	0x2f48, 0x73773777, 0x12010001, /* HDP_ADDR_CONFIG */
+	0x8a14, 0xf000003f, 0x00000007, /* PA_CL_ENHANCE */
+	0x8bf0, 0x00000001, 0x00000001, /* PA_SC_ENHANCE */
+	0x8b24, 0xffffffff, 0x00ffffff, /* PA_SC_FORCE_EOV_MAX_CNTS */
+	0x30a04, 0x0000ff0f, 0x00000000, /* PA_SC_LINE_STIPPLE_STATE */
+	0x28a4c, 0x07ffffff, 0x06000000, /* PA_SC_MODE_CNTL_1 */
+	0xc37c, 0xffffffff, 0x00000b00, /* RLC_PG_DELAY_2 */
+	0x4d8, 0x00000fff, 0x00000100, /* SCLK_CGTT_BLK_CTRL_REG */
+	0x3e78, 0x00000001, 0x00000002, /* SEM_CHICKEN_BITS */
+	0xc768, 0x00000008, 0x00000008, /* SPI_RESET_DEBUG */
+	0x8c00, 0x000000ff, 0x00000001, /* SQ_CONFIG */
+	0x9508, 0x00010000, 0x00010000, /* TA_CNTL_AUX */
+	0xac0c, 0xffffffff, 0x76325410, /* TCP_CHAN_STEER_LO */
+	0xc770, 0xffffffff, 0x00000800, /* SPI_RESOURCE_RESERVE_CU_0 */
+	0xc774, 0xffffffff, 0x00000800, /* SPI_RESOURCE_RESERVE_CU_1 */
+	0xc798, 0xffffffff, 0x00ffffbf, /* SPI_RESOURCE_RESERVE_EN_CU_0 */
+	0xc79c, 0xffffffff, 0x00ffffaf, /* SPI_RESOURCE_RESERVE_EN_CU_1  */
+	0xc7a0, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_2 */
+	0xc7a4, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_3 */
+	0xc7a8, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_4 */
+	0xc7ac, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_5*/
+	0xc7b0, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_6 */
+	0xc7b4, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_7 */
+	0xc7b8, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_8 */
+	0xc7bc, 0xffffffff, 0x00fffffe, /* SPI_RESOURCE_RESERVE_EN_CU_9 */
+	0x28350, 0xffffffff, 0x2a00161a, /* PA_SC_RASTER_CONFIG */
+	0x28354, 0xffffffff, 0x00000000, /* PA_SC_RASTER_CONFIG_1 */
+	0x5004, 0x00002000, 0x00002000, /* GARLIC_FLUSH_CNTL */
+};
+
 static const u32 spectre_golden_spm_registers[] =
 {
 	0x30800, 0xe0ffffff, 0xe0000000
@@ -1642,6 +1797,20 @@ static void cik_init_golden_registers(struct radeon_device *rdev)
 						 bonaire_golden_spm_registers,
 						 (const u32)ARRAY_SIZE(bonaire_golden_spm_registers));
 		break;
+	case CHIP_LIVERPOOL:
+		/*radeon_program_register_sequence(rdev,
+						 liverpool_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(liverpool_mgcg_cgcg_init));*/
+		radeon_program_register_sequence(rdev,
+						 liverpool_golden_registers,
+						 (const u32)ARRAY_SIZE(liverpool_golden_registers));
+		radeon_program_register_sequence(rdev,
+						 liverpool_golden_common_registers,
+						 (const u32)ARRAY_SIZE(liverpool_golden_common_registers));
+		/*radeon_program_register_sequence(rdev,
+						 liverpool_golden_spm_registers,
+						 (const u32)ARRAY_SIZE(liverpool_golden_spm_registers));*/
+		break;
 	case CHIP_KABINI:
 		radeon_program_register_sequence(rdev,
 						 kalindi_mgcg_cgcg_init,
@@ -2053,6 +2222,17 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		ce_req_size = CIK_CE_UCODE_SIZE * 4;
 		mec_req_size = CIK_MEC_UCODE_SIZE * 4;
 		rlc_req_size = ML_RLC_UCODE_SIZE * 4;
+		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
+		num_fw = 6;
+		break;
+	case CHIP_LIVERPOOL:
+		chip_name = "LIVERPOOL";
+		new_chip_name = "liverpool";
+		pfp_req_size = LIVERPOOL_PFP_UCODE_SIZE * 4;
+		me_req_size = LIVERPOOL_ME_UCODE_SIZE * 4;
+		ce_req_size = CIK_CE_UCODE_SIZE * 4;
+		mec_req_size = CIK_MEC_UCODE_SIZE * 4;
+		rlc_req_size = LIVERPOOL_RLC_UCODE_SIZE * 4;
 		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
 		num_fw = 6;
 		break;
@@ -3206,8 +3386,11 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	u32 tmp;
 	int i, j;
 
+	printk("gb_addr_config=%08x\n", gb_addr_config);
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
+		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
+	case CHIP_LIVERPOOL:
 		rdev->config.cik.max_shader_engines = 2;
 		rdev->config.cik.max_tile_pipes = 4;
 		rdev->config.cik.max_cu_per_sh = 7;
@@ -3222,7 +3405,6 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		rdev->config.cik.sc_prim_fifo_size_backend = 0x100;
 		rdev->config.cik.sc_hiz_tile_fifo_size = 0x30;
 		rdev->config.cik.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_HAWAII:
 		rdev->config.cik.max_shader_engines = 4;
@@ -6058,6 +6240,8 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 		case CHIP_MULLINS:
 			size = ML_RLC_UCODE_SIZE;
 			break;
+		case CHIP_LIVERPOOL:
+			size = LIVERPOOL_RLC_UCODE_SIZE;
 		}
 
 		fw_data = (const __be32 *)rdev->rlc_fw->data;
@@ -9088,6 +9272,10 @@ static u32 dce8_available_bandwidth(struct dce8_wm_params *wm)
 	u32 dram_bandwidth = dce8_dram_bandwidth(wm);
 	u32 data_return_bandwidth = dce8_data_return_bandwidth(wm);
 	u32 dmif_req_bandwidth = dce8_dmif_request_bandwidth(wm);
+
+	printk("dram_bw=%d data_ret_bw=%d dmif_req_bw=%d\n", dram_bandwidth, data_return_bandwidth, dmif_req_bandwidth);
+
+	if (!dram_bandwidth) dram_bandwidth = dmif_req_bandwidth;
 
 	return min(dram_bandwidth, min(data_return_bandwidth, dmif_req_bandwidth));
 }

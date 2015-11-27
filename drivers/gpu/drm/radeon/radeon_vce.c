@@ -76,6 +76,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 	case CHIP_BONAIRE:
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
+	case CHIP_LIVERPOOL:
 	case CHIP_HAWAII:
 	case CHIP_MULLINS:
 		fw_name = FIRMWARE_BONAIRE;

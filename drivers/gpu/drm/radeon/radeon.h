@@ -2667,7 +2667,8 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_NODCE(rdev) ((rdev->family == CHIP_HAINAN))
 #define ASIC_IS_DCE8(rdev) ((rdev->family >= CHIP_BONAIRE))
 #define ASIC_IS_DCE81(rdev) ((rdev->family == CHIP_KAVERI))
-#define ASIC_IS_DCE82(rdev) ((rdev->family == CHIP_BONAIRE))
+#define ASIC_IS_DCE82(rdev) ((rdev->family == CHIP_BONAIRE) || \
+			     (rdev->family == CHIP_LIVERPOOL))
 #define ASIC_IS_DCE83(rdev) ((rdev->family == CHIP_KABINI) || \
 			     (rdev->family == CHIP_MULLINS))
 

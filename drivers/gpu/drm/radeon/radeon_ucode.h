@@ -38,6 +38,8 @@
 #define CIK_PFP_UCODE_SIZE           2144
 #define CIK_ME_UCODE_SIZE            2144
 #define CIK_CE_UCODE_SIZE            2144
+#define LIVERPOOL_PFP_UCODE_SIZE     4192
+#define LIVERPOOL_ME_UCODE_SIZE      4192
 
 /* MEC */
 #define CIK_MEC_UCODE_SIZE           4192
@@ -53,6 +55,7 @@
 #define KB_RLC_UCODE_SIZE            2560
 #define KV_RLC_UCODE_SIZE            2560
 #define ML_RLC_UCODE_SIZE            2560
+#define LIVERPOOL_RLC_UCODE_SIZE     1536
 
 /* MC */
 #define BTC_MC_UCODE_SIZE            6024
