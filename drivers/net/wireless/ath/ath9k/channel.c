@@ -1443,6 +1443,10 @@ static void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
 		return;
 
 	sc->p2p_ps_vif = avp;
+
+	if (sc->ps_flags & PS_BEACON_SYNC)
+		return;
+
 	tsf = ath9k_hw_gettsf32(sc->sc_ah);
 	ieee80211_parse_p2p_noa(&vif->bss_conf.p2p_noa_attr, &avp->noa, tsf);
 	ath9k_update_p2p_ps_timer(sc, avp);
@@ -1585,8 +1589,7 @@ void ath9k_p2p_bss_info_changed(struct ath_softc *sc,
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
-	if (!(sc->ps_flags & PS_BEACON_SYNC))
-		ath9k_update_p2p_ps(sc, vif);
+	ath9k_update_p2p_ps(sc, vif);
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 	spin_unlock_bh(&sc->sc_pcu_lock);
 }
