@@ -5258,7 +5258,14 @@ intel_display_port_aux_power_domain(struct intel_encoder *intel_encoder)
 
 	switch (intel_encoder->type) {
 	case INTEL_OUTPUT_UNKNOWN:
-		/* Only DDI platforms should ever use this output type */
+	case INTEL_OUTPUT_HDMI:
+		/*
+		 * Only DDI platforms should ever use these output types.
+		 * We can get here after the HDMI detect code has already set
+		 * the type of the shared encoder. Since we can't be sure
+		 * what's the status of the given connectors, play safe and
+		 * run the DP detection too.
+		 */
 		WARN_ON_ONCE(!HAS_DDI(dev));
 	case INTEL_OUTPUT_DISPLAYPORT:
 	case INTEL_OUTPUT_EDP:
