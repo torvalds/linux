@@ -595,7 +595,7 @@ struct btrfs_path {
 	struct extent_buffer *nodes[BTRFS_MAX_LEVEL];
 	int slots[BTRFS_MAX_LEVEL];
 	/* if there is real range locking, this locks field will change */
-	int locks[BTRFS_MAX_LEVEL];
+	u8 locks[BTRFS_MAX_LEVEL];
 	u8 reada;
 	/* keep some upper locks as we walk down */
 	u8 lowest_level;
