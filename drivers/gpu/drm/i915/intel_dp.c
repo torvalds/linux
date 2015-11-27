@@ -277,7 +277,7 @@ static void pps_lock(struct intel_dp *intel_dp)
 	 * See vlv_power_sequencer_reset() why we need
 	 * a power domain reference here.
 	 */
-	power_domain = intel_display_port_power_domain(encoder);
+	power_domain = intel_display_port_aux_power_domain(encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
 	mutex_lock(&dev_priv->pps_mutex);
@@ -293,7 +293,7 @@ static void pps_unlock(struct intel_dp *intel_dp)
 
 	mutex_unlock(&dev_priv->pps_mutex);
 
-	power_domain = intel_display_port_power_domain(encoder);
+	power_domain = intel_display_port_aux_power_domain(encoder);
 	intel_display_power_put(dev_priv, power_domain);
 }
 
@@ -816,8 +816,6 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 
 	intel_dp_check_edp(intel_dp);
 
-	intel_aux_display_runtime_get(dev_priv);
-
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
 		status = I915_READ_NOTRACE(ch_ctl);
@@ -926,7 +924,6 @@ done:
 	ret = recv_bytes;
 out:
 	pm_qos_update_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
-	intel_aux_display_runtime_put(dev_priv);
 
 	if (vdd)
 		edp_panel_vdd_off(intel_dp, false);
@@ -1784,7 +1781,7 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (edp_have_panel_vdd(intel_dp))
 		return need_to_disable;
 
-	power_domain = intel_display_port_power_domain(intel_encoder);
+	power_domain = intel_display_port_aux_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
 	DRM_DEBUG_KMS("Turning eDP port %c VDD on\n",
@@ -1874,7 +1871,7 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	if ((pp & POWER_TARGET_ON) == 0)
 		intel_dp->last_power_cycle = jiffies;
 
-	power_domain = intel_display_port_power_domain(intel_encoder);
+	power_domain = intel_display_port_aux_power_domain(intel_encoder);
 	intel_display_power_put(dev_priv, power_domain);
 }
 
@@ -2025,7 +2022,7 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	wait_panel_off(intel_dp);
 
 	/* We got a reference when we enabled the VDD. */
-	power_domain = intel_display_port_power_domain(intel_encoder);
+	power_domain = intel_display_port_aux_power_domain(intel_encoder);
 	intel_display_power_put(dev_priv, power_domain);
 }
 
@@ -4765,26 +4762,6 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 	intel_dp->has_audio = false;
 }
 
-static enum intel_display_power_domain
-intel_dp_power_get(struct intel_dp *dp)
-{
-	struct intel_encoder *encoder = &dp_to_dig_port(dp)->base;
-	enum intel_display_power_domain power_domain;
-
-	power_domain = intel_display_port_power_domain(encoder);
-	intel_display_power_get(to_i915(encoder->base.dev), power_domain);
-
-	return power_domain;
-}
-
-static void
-intel_dp_power_put(struct intel_dp *dp,
-		   enum intel_display_power_domain power_domain)
-{
-	struct intel_encoder *encoder = &dp_to_dig_port(dp)->base;
-	intel_display_power_put(to_i915(encoder->base.dev), power_domain);
-}
-
 static enum drm_connector_status
 intel_dp_detect(struct drm_connector *connector, bool force)
 {
@@ -4808,7 +4785,8 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		return connector_status_disconnected;
 	}
 
-	power_domain = intel_dp_power_get(intel_dp);
+	power_domain = intel_display_port_aux_power_domain(intel_encoder);
+	intel_display_power_get(to_i915(dev), power_domain);
 
 	/* Can't disconnect eDP, but you can close the lid... */
 	if (is_edp(intel_dp))
@@ -4853,7 +4831,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	}
 
 out:
-	intel_dp_power_put(intel_dp, power_domain);
+	intel_display_power_put(to_i915(dev), power_domain);
 	return status;
 }
 
@@ -4862,6 +4840,7 @@ intel_dp_force(struct drm_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	enum intel_display_power_domain power_domain;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
@@ -4871,11 +4850,12 @@ intel_dp_force(struct drm_connector *connector)
 	if (connector->status != connector_status_connected)
 		return;
 
-	power_domain = intel_dp_power_get(intel_dp);
+	power_domain = intel_display_port_aux_power_domain(intel_encoder);
+	intel_display_power_get(dev_priv, power_domain);
 
 	intel_dp_set_edid(intel_dp);
 
-	intel_dp_power_put(intel_dp, power_domain);
+	intel_display_power_put(dev_priv, power_domain);
 
 	if (intel_encoder->type != INTEL_OUTPUT_EDP)
 		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
@@ -5091,7 +5071,7 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 	 * indefinitely.
 	 */
 	DRM_DEBUG_KMS("VDD left on by BIOS, adjusting state tracking\n");
-	power_domain = intel_display_port_power_domain(&intel_dig_port->base);
+	power_domain = intel_display_port_aux_power_domain(&intel_dig_port->base);
 	intel_display_power_get(dev_priv, power_domain);
 
 	edp_panel_vdd_schedule_off(intel_dp);
@@ -5173,7 +5153,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		      port_name(intel_dig_port->port),
 		      long_hpd ? "long" : "short");
 
-	power_domain = intel_display_port_power_domain(intel_encoder);
+	power_domain = intel_display_port_aux_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
 	if (long_hpd) {
