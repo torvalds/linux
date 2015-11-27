@@ -50,10 +50,10 @@ static int si7020_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = i2c_smbus_read_word_data(*client,
-					       chan->type == IIO_TEMP ?
-					       SI7020CMD_TEMP_HOLD :
-					       SI7020CMD_RH_HOLD);
+		ret = i2c_smbus_read_word_swapped(*client,
+						  chan->type == IIO_TEMP ?
+						  SI7020CMD_TEMP_HOLD :
+						  SI7020CMD_RH_HOLD);
 		if (ret < 0)
 			return ret;
 		*val = ret >> 2;
