@@ -45,7 +45,6 @@ struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
 	bool			use_tui, use_gtk, use_stdio;
-	bool			hide_unresolved;
 	bool			dont_use_callchains;
 	bool			show_full_info;
 	bool			show_threads;
@@ -146,7 +145,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct hist_entry_iter iter = {
 		.evsel 			= evsel,
 		.sample 		= sample,
-		.hide_unresolved 	= rep->hide_unresolved,
+		.hide_unresolved 	= symbol_conf.hide_unresolved,
 		.add_entry_cb 		= hist_iter__report_callback,
 	};
 	int ret = 0;
@@ -157,7 +156,7 @@ static int process_sample_event(struct perf_tool *tool,
 		return -1;
 	}
 
-	if (rep->hide_unresolved && al.sym == NULL)
+	if (symbol_conf.hide_unresolved && al.sym == NULL)
 		goto out_put;
 
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
@@ -740,7 +739,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING_NOEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
-	OPT_BOOLEAN('U', "hide-unresolved", &report.hide_unresolved,
+	OPT_BOOLEAN('U', "hide-unresolved", &symbol_conf.hide_unresolved,
 		    "Only display entries resolved to a symbol"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),

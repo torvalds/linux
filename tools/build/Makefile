@@ -25,7 +25,7 @@ export Q srctree CC LD
 MAKEFLAGS := --no-print-directory
 build     := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
-all: fixdep
+all: $(OUTPUT)fixdep
 
 clean:
 	$(call QUIET_CLEAN, fixdep)
