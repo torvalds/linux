@@ -1039,7 +1039,7 @@ int __init edac_mc_sysfs_init(void)
 	mci_pdev = kzalloc(sizeof(*mci_pdev), GFP_KERNEL);
 	if (!mci_pdev) {
 		err = -ENOMEM;
-		goto out_put_sysfs;
+		goto out;
 	}
 
 	mci_pdev->bus = edac_subsys;
@@ -1057,8 +1057,6 @@ int __init edac_mc_sysfs_init(void)
 
  out_dev_free:
 	kfree(mci_pdev);
- out_put_sysfs:
-	edac_put_sysfs_subsys();
  out:
 	return err;
 }
@@ -1066,5 +1064,4 @@ int __init edac_mc_sysfs_init(void)
 void edac_mc_sysfs_exit(void)
 {
 	device_unregister(mci_pdev);
-	edac_put_sysfs_subsys();
 }

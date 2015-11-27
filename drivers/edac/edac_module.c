@@ -92,6 +92,39 @@ static void edac_workqueue_teardown(void)
 }
 
 /*
+ * sysfs object: /sys/devices/system/edac
+ *	need to export to other files
+ */
+struct bus_type edac_subsys = {
+	.name = "edac",
+	.dev_name = "edac",
+};
+EXPORT_SYMBOL_GPL(edac_subsys);
+
+static int edac_subsys_init(void)
+{
+	int err;
+
+	/* create the /sys/devices/system/edac directory */
+	err = subsys_system_register(&edac_subsys, NULL);
+	if (err)
+		printk(KERN_ERR "Error registering toplevel EDAC sysfs dir\n");
+
+	return err;
+}
+
+static void edac_subsys_exit(void)
+{
+	bus_unregister(&edac_subsys);
+}
+
+/* return pointer to the 'edac' node in sysfs */
+struct bus_type *edac_get_sysfs_subsys(void)
+{
+	return &edac_subsys;
+}
+EXPORT_SYMBOL_GPL(edac_get_sysfs_subsys);
+/*
  * edac_init
  *      module initialization entry point
  */
@@ -100,6 +133,10 @@ static int __init edac_init(void)
 	int err = 0;
 
 	edac_printk(KERN_INFO, EDAC_MC, EDAC_VERSION "\n");
+
+	err = edac_subsys_init();
+	if (err)
+		return err;
 
 	/*
 	 * Harvest and clear any boot/initialization PCI parity errors
@@ -129,6 +166,8 @@ err_wq:
 	edac_mc_sysfs_exit();
 
 err_sysfs:
+	edac_subsys_exit();
+
 	return err;
 }
 
@@ -144,6 +183,7 @@ static void __exit edac_exit(void)
 	edac_workqueue_teardown();
 	edac_mc_sysfs_exit();
 	edac_debugfs_exit();
+	edac_subsys_exit();
 }
 
 /*
