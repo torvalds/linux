@@ -2331,6 +2331,12 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	queue = ieee80211_is_data_present(hdr->frame_control);
 
+	/* If chanctx, queue all null frames while NOA could be there */
+	if (ath9k_is_chanctx_enabled() &&
+	    ieee80211_is_nullfunc(hdr->frame_control) &&
+	    !txctl->force_channel)
+		queue = true;
+
 	/* Force queueing of all frames that belong to a virtual interface on
 	 * a different channel context, to ensure that they are sent on the
 	 * correct channel.
