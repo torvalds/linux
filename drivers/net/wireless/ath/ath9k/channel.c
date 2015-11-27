@@ -1405,7 +1405,7 @@ static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
-	s32 tsf, target_tsf;
+	u32 tsf, target_tsf;
 
 	if (!avp || !avp->noa.has_next_tsf)
 		return;
@@ -1427,7 +1427,7 @@ static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 		__func__, avp->noa.absent, tsf, target_tsf,
 		(target_tsf - tsf) / 1000);
 
-	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, (u32) target_tsf, 1000000);
+	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, target_tsf, 1000000);
 }
 
 static void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif)
