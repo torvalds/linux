@@ -397,7 +397,7 @@ static int imx_wm8958_set_bias_level_post(struct snd_soc_card *card,
 
 static int imx_wm8958_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_np, *codec_np, *gpr_np;
+	struct device_node *cpu_np, *codec_np = NULL, *gpr_np;
 	struct device_node *np = pdev->dev.of_node;
 	struct platform_device *cpu_pdev;
 	struct imx_priv *priv = &card_priv;
