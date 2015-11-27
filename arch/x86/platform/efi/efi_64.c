@@ -144,6 +144,7 @@ void efi_sync_low_kernel_mappings(void)
 int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 {
 	unsigned long pfn, text;
+	efi_memory_desc_t *md;
 	struct page *page;
 	unsigned npages;
 	pgd_t *pgd;
@@ -176,6 +177,25 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	 */
 	if (!IS_ENABLED(CONFIG_EFI_MIXED))
 		return 0;
+
+	/*
+	 * Map all of RAM so that we can access arguments in the 1:1
+	 * mapping when making EFI runtime calls.
+	 */
+	for_each_efi_memory_desc(&memmap, md) {
+		if (md->type != EFI_CONVENTIONAL_MEMORY &&
+		    md->type != EFI_LOADER_DATA &&
+		    md->type != EFI_LOADER_CODE)
+			continue;
+
+		pfn = md->phys_addr >> PAGE_SHIFT;
+		npages = md->num_pages;
+
+		if (kernel_map_pages_in_pgd(pgd, pfn, md->phys_addr, npages, 0)) {
+			pr_err("Failed to map 1:1 memory\n");
+			return 1;
+		}
+	}
 
 	page = alloc_page(GFP_KERNEL|__GFP_DMA32);
 	if (!page)
