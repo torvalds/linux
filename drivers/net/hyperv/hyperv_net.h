@@ -177,7 +177,6 @@ struct rndis_device {
 
 	enum rndis_device_state state;
 	bool link_state;
-	bool link_change;
 	atomic_t new_req_id;
 
 	spinlock_t request_lock;
@@ -644,11 +643,24 @@ struct netvsc_stats {
 	struct u64_stats_sync syncp;
 };
 
+struct netvsc_reconfig {
+	struct list_head list;
+	u32 event;
+};
+
 /* The context of the netvsc device  */
 struct net_device_context {
 	/* point back to our device context */
 	struct hv_device *device_ctx;
+	/* reconfigure work */
 	struct delayed_work dwork;
+	/* last reconfig time */
+	unsigned long last_reconfig;
+	/* reconfig events */
+	struct list_head reconfig_events;
+	/* list protection */
+	spinlock_t lock;
+
 	struct work_struct work;
 	u32 msg_enable; /* debug level */
 
