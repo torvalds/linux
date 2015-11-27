@@ -462,13 +462,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	INIT_WORK(&hu->init_ready, hci_uart_init_work);
 	INIT_WORK(&hu->write_work, hci_uart_write_work);
 
-	/* Flush any pending characters in the driver and line discipline. */
-
-	/* FIXME: why is this needed. Note don't use ldisc_ref here as the
-	   open path is before the ldisc is referencable */
-
-	if (tty->ldisc->ops->flush_buffer)
-		tty->ldisc->ops->flush_buffer(tty);
+	/* Flush any pending characters in the driver */
 	tty_driver_flush_buffer(tty);
 
 	return 0;
