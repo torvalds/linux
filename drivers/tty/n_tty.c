@@ -162,12 +162,23 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 	return put_user(x, ptr);
 }
 
-static inline int tty_copy_to_user(struct tty_struct *tty,
-					void __user *to,
-					const void *from,
-					unsigned long n)
+static int tty_copy_to_user(struct tty_struct *tty, void __user *to,
+			    size_t tail, size_t n)
 {
 	struct n_tty_data *ldata = tty->disc_data;
+	size_t size = N_TTY_BUF_SIZE - tail;
+	const void *from = read_buf_addr(ldata, tail);
+	int uncopied;
+
+	if (n > size) {
+		tty_audit_add_data(tty, from, size, ldata->icanon);
+		uncopied = copy_to_user(to, from, size);
+		if (uncopied)
+			return uncopied;
+		to += size;
+		n -= size;
+		from = ldata->read_buf;
+	}
 
 	tty_audit_add_data(tty, from, n, ldata->icanon);
 	return copy_to_user(to, from, n);
@@ -2074,7 +2085,6 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	} else if (eol != size)
 		found = 1;
 
-	size = N_TTY_BUF_SIZE - tail;
 	n = eol - tail;
 	if (n > N_TTY_BUF_SIZE)
 		n += N_TTY_BUF_SIZE;
@@ -2086,17 +2096,10 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 		eof_push = !n && ldata->read_tail != ldata->line_start;
 	}
 
-	n_tty_trace("%s: eol:%zu found:%d n:%zu c:%zu size:%zu more:%zu\n",
-		    __func__, eol, found, n, c, size, more);
+	n_tty_trace("%s: eol:%zu found:%d n:%zu c:%zu tail:%zu more:%zu\n",
+		    __func__, eol, found, n, c, tail, more);
 
-	if (n > size) {
-		ret = tty_copy_to_user(tty, *b, read_buf_addr(ldata, tail), size);
-		if (ret)
-			return -EFAULT;
-		ret = tty_copy_to_user(tty, *b + size, ldata->read_buf, n - size);
-	} else
-		ret = tty_copy_to_user(tty, *b, read_buf_addr(ldata, tail), n);
-
+	ret = tty_copy_to_user(tty, *b, tail, n);
 	if (ret)
 		return -EFAULT;
 	*b += n;
