@@ -1335,21 +1335,17 @@ intel_hdmi_set_edid(struct drm_connector *connector, bool force)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
-	struct intel_encoder *intel_encoder =
-		&hdmi_to_dig_port(intel_hdmi)->base;
-	enum intel_display_power_domain power_domain;
 	struct edid *edid = NULL;
 	bool connected = false;
 
-	power_domain = intel_display_port_power_domain(intel_encoder);
-	intel_display_power_get(dev_priv, power_domain);
+	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
 	if (force)
 		edid = drm_get_edid(connector,
 				    intel_gmbus_get_adapter(dev_priv,
 				    intel_hdmi->ddc_bus));
 
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 
 	to_intel_connector(connector)->detect_edid = edid;
 	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
