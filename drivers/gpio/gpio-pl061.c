@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/bitops.h>
@@ -269,12 +270,20 @@ static void pl061_irq_ack(struct irq_data *d)
 	spin_unlock(&chip->lock);
 }
 
+static int pl061_irq_set_wake(struct irq_data *d, unsigned int state)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	return irq_set_irq_wake(gc->irq_parent, state);
+}
+
 static struct irq_chip pl061_irqchip = {
 	.name		= "pl061",
 	.irq_ack	= pl061_irq_ack,
 	.irq_mask	= pl061_irq_mask,
 	.irq_unmask	= pl061_irq_unmask,
 	.irq_set_type	= pl061_irq_type,
+	.irq_set_wake	= pl061_irq_set_wake,
 };
 
 static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
