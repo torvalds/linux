@@ -4275,13 +4275,8 @@ static int pxp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!res || irq < 0) {
-		err = -ENODEV;
-		goto exit;
-	}
-
 	std_irq = platform_get_irq(pdev, 1);
-	if (!res || irq < 0) {
+	if (!res || irq < 0 || std_irq < 0) {
 		err = -ENODEV;
 		goto exit;
 	}
