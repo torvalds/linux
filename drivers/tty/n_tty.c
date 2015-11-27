@@ -2080,10 +2080,9 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	if (eol == N_TTY_BUF_SIZE && more) {
 		/* scan wrapped without finding set bit */
 		eol = find_next_bit(ldata->read_flags, more, 0);
-		if (eol != more)
-			found = 1;
-	} else if (eol != size)
-		found = 1;
+		found = eol != more;
+	} else
+		found = eol != size;
 
 	n = eol - tail;
 	if (n > N_TTY_BUF_SIZE)
