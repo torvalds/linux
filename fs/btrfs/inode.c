@@ -3342,7 +3342,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		ret = -ENOMEM;
 		goto out;
 	}
-	path->reada = -1;
+	path->reada = READA_BACK;
 
 	key.objectid = BTRFS_ORPHAN_OBJECTID;
 	key.type = BTRFS_ORPHAN_ITEM_KEY;
@@ -4308,7 +4308,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->reada = -1;
+	path->reada = READA_BACK;
 
 	/*
 	 * We want to drop from the next block forward in case this new size is
@@ -5744,7 +5744,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 1;
+	path->reada = READA_FORWARD;
 
 	if (key_type == BTRFS_DIR_INDEX_KEY) {
 		INIT_LIST_HEAD(&ins_list);
@@ -6775,7 +6775,7 @@ again:
 		 * Chances are we'll be called again, so go ahead and do
 		 * readahead
 		 */
-		path->reada = 1;
+		path->reada = READA_FORWARD;
 	}
 
 	ret = btrfs_lookup_file_extent(trans, root, path,

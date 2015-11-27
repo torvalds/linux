@@ -48,7 +48,7 @@ static int caching_kthread(void *data)
 	/* Since the commit root is read-only, we can safely skip locking. */
 	path->skip_locking = 1;
 	path->search_commit_root = 1;
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.offset = 0;

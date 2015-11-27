@@ -3478,7 +3478,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 		return ret;
 	}
 
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 	/* clone data */
 	key.objectid = btrfs_ino(src);
 	key.type = BTRFS_EXTENT_DATA_KEY;
