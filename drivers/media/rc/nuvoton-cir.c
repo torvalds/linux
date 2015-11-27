@@ -1079,12 +1079,12 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 		goto exit_unregister_device;
 
 	if (!devm_request_region(&pdev->dev, nvt->cir_wake_addr,
-			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
+			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME "-wake"))
 		goto exit_unregister_device;
 
 	if (devm_request_irq(&pdev->dev, nvt->cir_wake_irq,
 			     nvt_cir_wake_isr, IRQF_SHARED,
-			     NVT_DRIVER_NAME, (void *)nvt))
+			     NVT_DRIVER_NAME "-wake", (void *)nvt))
 		goto exit_unregister_device;
 
 	device_init_wakeup(&pdev->dev, true);
