@@ -1618,10 +1618,8 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	 */
 	vcpu->arch.guest_fpregs.fprs = kzalloc(sizeof(freg_t) * __NUM_FPRS,
 					       GFP_KERNEL);
-	if (!vcpu->arch.guest_fpregs.fprs) {
-		rc = -ENOMEM;
+	if (!vcpu->arch.guest_fpregs.fprs)
 		goto out_free_sie_block;
-	}
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
