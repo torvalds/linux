@@ -163,7 +163,7 @@ static int fsl_mqs_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mqs_priv->pdev = pdev;
-	strcpy(mqs_priv->name, np->name);
+	strncpy(mqs_priv->name, np->name, sizeof(mqs_priv->name) - 1);
 
 	gpr_np = of_parse_phandle(np, "gpr", 0);
 	if (IS_ERR(gpr_np)) {
