@@ -72,6 +72,18 @@ struct sclp_info {
 };
 extern struct sclp_info sclp;
 
+struct zpci_report_error_header {
+	u8 version;	/* Interface version byte */
+	u8 action;	/* Action qualifier byte
+			 * 1: Deconfigure and repair action requested
+			 *	(OpenCrypto Problem Call Home)
+			 * 2: Informational Report
+			 *	(OpenCrypto Successful Diagnostics Execution)
+			 */
+	u16 length;	/* Length of Subsequent Data (up to 4K – SCLP header */
+	u8 data[0];	/* Subsequent Data passed verbatim to SCLP ET 24 */
+} __packed;
+
 int sclp_get_core_info(struct sclp_core_info *info);
 int sclp_core_configure(u8 core);
 int sclp_core_deconfigure(u8 core);
@@ -83,6 +95,7 @@ int sclp_chp_read_info(struct sclp_chp_info *info);
 void sclp_get_ipl_info(struct sclp_ipl_info *info);
 int sclp_pci_configure(u32 fid);
 int sclp_pci_deconfigure(u32 fid);
+int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid);
 int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
 int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
 void sclp_early_detect(void);
