@@ -172,7 +172,7 @@ static struct snd_soc_ops imx_sii902x_ops = {
 
 static int imx_sii902x_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_np, *sii902x_np;
+	struct device_node *cpu_np, *sii902x_np = NULL;
 	struct platform_device *cpu_pdev;
 	struct imx_sii902x_data *data;
 	int ret;
