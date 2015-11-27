@@ -385,6 +385,7 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 
 static int mipid_bl_update_status(struct backlight_device *bl)
 {
+	int err;
 	u32 buf;
 	int brightness = bl->props.brightness;
 	struct mipi_dsi_info *mipi_dsi = bl_get_data(bl);
@@ -395,8 +396,9 @@ static int mipid_bl_update_status(struct backlight_device *bl)
 
 	buf = HX8369_CMD_WRT_DISP_BRIGHT |
 			((brightness & HX8369BL_MAX_BRIGHT) << 8);
-	mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
+	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
 		&buf, 0);
+	CHECK_RETCODE(err);
 
 	hx8369bl_brightness = brightness & HX8369BL_MAX_BRIGHT;
 
