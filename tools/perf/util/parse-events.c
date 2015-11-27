@@ -1883,7 +1883,7 @@ restart:
 
 	for (i = 0; i < max; i++, syms++) {
 
-		if (event_glob != NULL &&
+		if (event_glob != NULL && syms->symbol != NULL &&
 		    !(strglobmatch(syms->symbol, event_glob) ||
 		      (syms->alias && strglobmatch(syms->alias, event_glob))))
 			continue;
