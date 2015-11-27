@@ -104,6 +104,25 @@ Detailed correlation between sub-blocks and power line according to Exynos SoC:
 		|--- LCD0
 		|--- ISP
 
+- In case of Exynos5422, there are two power line as following:
+	VDD_MIF |--- DREX 0 (parent device, DRAM EXpress controller)
+	        |--- DREX 1
+
+	VDD_INT |--- NoC_Core (parent device)
+		|--- G2D
+		|--- G3D
+		|--- DISP1
+		|--- NoC_WCORE
+		|--- GSCL
+		|--- MSCL
+		|--- ISP
+		|--- MFC
+		|--- GEN
+		|--- PERIS
+		|--- PERIC
+		|--- FSYS
+		|--- FSYS2
+
 Example1:
 	Show the AXI buses of Exynos3250 SoC. Exynos3250 divides the buses to
 	power line (regulator). The MIF (Memory Interface) AXI bus is used to
