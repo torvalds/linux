@@ -343,6 +343,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 		break;
 	case IMX21_AUDMUX:
 		reg_max = 6;
+		break;
 	default:
 		dev_err(&pdev->dev, "unsupported version!\n");
 		return -EINVAL;
