@@ -260,7 +260,7 @@ static int cs42xx8_hw_params(struct snd_pcm_substream *substream,
 		fm_rx = CS42XX8_FM_AUTO;
 		fm_tx = CS42XX8_FM_AUTO;
 	} else {
-		if (rate_tx >= 0 && rate_tx < 50000)
+		if (rate_tx < 50000)
 			fm_tx = CS42XX8_FM_SINGLE;
 		else if (rate_tx > 50000 && rate_tx < 100000)
 			fm_tx = CS42XX8_FM_DOUBLE;
@@ -271,7 +271,7 @@ static int cs42xx8_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		if (rate_rx >= 0 && rate_rx < 50000)
+		if (rate_rx < 50000)
 			fm_rx = CS42XX8_FM_SINGLE;
 		else if (rate_rx > 50000 && rate_rx < 100000)
 			fm_rx = CS42XX8_FM_DOUBLE;
