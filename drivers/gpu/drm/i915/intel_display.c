@@ -2130,7 +2130,7 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	 * need the check.
 	 */
 	if (HAS_GMCH_DISPLAY(dev_priv->dev))
-		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI))
+		if (crtc->config->has_dsi_encoder)
 			assert_dsi_pll_enabled(dev_priv);
 		else
 			assert_pll_enabled(dev_priv, pipe);
@@ -4636,7 +4636,7 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 		return;
 
 	if (HAS_GMCH_DISPLAY(dev_priv->dev)) {
-		if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DSI))
+		if (intel_crtc->config->has_dsi_encoder)
 			assert_dsi_pll_enabled(dev_priv);
 		else
 			assert_pll_enabled(dev_priv, pipe);
@@ -4946,7 +4946,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe, hsw_workaround_pipe;
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc->state);
-	bool is_dsi = intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DSI);
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -4988,7 +4987,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config->has_pch_encoder)
 		dev_priv->display.fdi_link_train(crtc);
 
-	if (!is_dsi)
+	if (!intel_crtc->config->has_dsi_encoder)
 		intel_ddi_enable_pipe_clock(intel_crtc);
 
 	if (INTEL_INFO(dev)->gen >= 9)
@@ -5003,7 +5002,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_load_lut(crtc);
 
 	intel_ddi_set_pipe_settings(crtc);
-	if (!is_dsi)
+	if (!intel_crtc->config->has_dsi_encoder)
 		intel_ddi_enable_transcoder_func(crtc);
 
 	intel_update_watermarks(crtc);
@@ -5012,7 +5011,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config->has_pch_encoder)
 		lpt_pch_enable(crtc);
 
-	if (intel_crtc->config->dp_encoder_is_mst && !is_dsi)
+	if (intel_crtc->config->dp_encoder_is_mst)
 		intel_ddi_set_vc_payload_alloc(crtc, true);
 
 	assert_vblank_disabled(crtc);
@@ -5123,7 +5122,6 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
-	bool is_dsi = intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DSI);
 
 	if (intel_crtc->config->has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
@@ -5142,7 +5140,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	if (intel_crtc->config->dp_encoder_is_mst)
 		intel_ddi_set_vc_payload_alloc(crtc, false);
 
-	if (!is_dsi)
+	if (!intel_crtc->config->has_dsi_encoder)
 		intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
 	if (INTEL_INFO(dev)->gen >= 9)
@@ -5150,7 +5148,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	else
 		ironlake_pfit_disable(intel_crtc, false);
 
-	if (!is_dsi)
+	if (!intel_crtc->config->has_dsi_encoder)
 		intel_ddi_disable_pipe_clock(intel_crtc);
 
 	if (intel_crtc->config->has_pch_encoder) {
@@ -6152,12 +6150,9 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
-	bool is_dsi;
 
 	if (WARN_ON(intel_crtc->active))
 		return;
-
-	is_dsi = intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DSI);
 
 	if (intel_crtc->config->has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc, M1_N1);
@@ -6181,7 +6176,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
 
-	if (!is_dsi) {
+	if (!intel_crtc->config->has_dsi_encoder) {
 		if (IS_CHERRYVIEW(dev)) {
 			chv_prepare_pll(intel_crtc, intel_crtc->config);
 			chv_enable_pll(intel_crtc, intel_crtc->config);
@@ -6307,7 +6302,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	if (!intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DSI)) {
+	if (!intel_crtc->config->has_dsi_encoder) {
 		if (IS_CHERRYVIEW(dev))
 			chv_disable_pll(dev_priv, pipe);
 		else if (IS_VALLEYVIEW(dev))
@@ -7920,8 +7915,6 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	int refclk, num_connectors = 0;
 	intel_clock_t clock;
 	bool ok;
-	bool is_dsi = false;
-	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	struct drm_atomic_state *state = crtc_state->base.state;
 	struct drm_connector *connector;
@@ -7931,25 +7924,13 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
-		if (connector_state->crtc != &crtc->base)
-			continue;
-
-		encoder = to_intel_encoder(connector_state->best_encoder);
-
-		switch (encoder->type) {
-		case INTEL_OUTPUT_DSI:
-			is_dsi = true;
-			break;
-		default:
-			break;
-		}
-
-		num_connectors++;
-	}
-
-	if (is_dsi)
+	if (crtc_state->has_dsi_encoder)
 		return 0;
+
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->crtc == &crtc->base)
+			num_connectors++;
+	}
 
 	if (!crtc_state->clock_set) {
 		refclk = i9xx_get_refclk(crtc_state, num_connectors);
@@ -12599,6 +12580,8 @@ intel_pipe_config_compare(struct drm_device *dev,
 			PIPE_CONF_CHECK_M_N(dp_m2_n2);
 	} else
 		PIPE_CONF_CHECK_M_N_ALT(dp_m_n, dp_m2_n2);
+
+	PIPE_CONF_CHECK_I(has_dsi_encoder);
 
 	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_hdisplay);
 	PIPE_CONF_CHECK_I(base.adjusted_mode.crtc_htotal);

@@ -395,6 +395,9 @@ struct intel_crtc_state {
 	 * accordingly. */
 	bool has_dp_encoder;
 
+	/* DSI has special cases */
+	bool has_dsi_encoder;
+
 	/* Whether we should send NULL infoframes. Required for audio. */
 	bool has_hdmi_sink;
 

@@ -266,15 +266,17 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 }
 
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
-	struct drm_display_mode *adjusted_mode = &config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
 	DRM_DEBUG_KMS("\n");
+
+	pipe_config->has_dsi_encoder = true;
 
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
@@ -703,6 +705,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 {
 	u32 pclk = 0;
 	DRM_DEBUG_KMS("\n");
+
+	pipe_config->has_dsi_encoder = true;
 
 	/*
 	 * DPLL_MD is not used in case of DSI, reading will get some default value
