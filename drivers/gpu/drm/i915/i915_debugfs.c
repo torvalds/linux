@@ -1869,33 +1869,29 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct intel_fbdev *ifbdev = NULL;
-	struct intel_framebuffer *fb;
+	struct intel_framebuffer *fbdev_fb = NULL;
 	struct drm_framebuffer *drm_fb;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct drm_i915_private *dev_priv = dev->dev_private;
+       if (to_i915(dev)->fbdev) {
+               fbdev_fb = to_intel_framebuffer(to_i915(dev)->fbdev->helper.fb);
 
-	ifbdev = dev_priv->fbdev;
-	if (ifbdev) {
-		fb = to_intel_framebuffer(ifbdev->helper.fb);
-
-		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
-			   fb->base.width,
-			   fb->base.height,
-			   fb->base.depth,
-			   fb->base.bits_per_pixel,
-			   fb->base.modifier[0],
-			   atomic_read(&fb->base.refcount.refcount));
-		describe_obj(m, fb->obj);
-		seq_putc(m, '\n');
-	}
+               seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
+                         fbdev_fb->base.width,
+                         fbdev_fb->base.height,
+                         fbdev_fb->base.depth,
+                         fbdev_fb->base.bits_per_pixel,
+                         fbdev_fb->base.modifier[0],
+                         atomic_read(&fbdev_fb->base.refcount.refcount));
+               describe_obj(m, fbdev_fb->obj);
+               seq_putc(m, '\n');
+       }
 #endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	drm_for_each_fb(drm_fb, dev) {
-		fb = to_intel_framebuffer(drm_fb);
-		if (ifbdev && &fb->base == ifbdev->helper.fb)
+		struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
+		if (fb == fbdev_fb)
 			continue;
 
 		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
