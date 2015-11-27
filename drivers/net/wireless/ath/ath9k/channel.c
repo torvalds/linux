@@ -403,7 +403,7 @@ static void ath_chanctx_offchannel_noa(struct ath_softc *sc,
 	avp->offchannel_duration = sc->sched.offchannel_duration;
 
 	ath_dbg(common, CHAN_CTX,
-		"offchannel noa_duration: %d, noa_start: %d, noa_index: %d\n",
+		"offchannel noa_duration: %d, noa_start: %u, noa_index: %d\n",
 		avp->offchannel_duration,
 		avp->offchannel_start,
 		avp->noa_index);
@@ -443,7 +443,7 @@ static void ath_chanctx_set_periodic_noa(struct ath_softc *sc,
 		avp->periodic_noa = true;
 
 	ath_dbg(common, CHAN_CTX,
-		"noa_duration: %d, noa_start: %d, noa_index: %d, periodic: %d\n",
+		"noa_duration: %d, noa_start: %u, noa_index: %d, periodic: %d\n",
 		avp->noa_duration,
 		avp->noa_start,
 		avp->noa_index,
@@ -464,7 +464,7 @@ static void ath_chanctx_set_oneshot_noa(struct ath_softc *sc,
 	avp->noa_duration = duration + sc->sched.channel_switch_time;
 
 	ath_dbg(common, CHAN_CTX,
-		"oneshot noa_duration: %d, noa_start: %d, noa_index: %d, periodic: %d\n",
+		"oneshot noa_duration: %d, noa_start: %u, noa_index: %d, periodic: %d\n",
 		avp->noa_duration,
 		avp->noa_start,
 		avp->noa_index,
@@ -1401,6 +1401,7 @@ void ath9k_chanctx_wake_queues(struct ath_softc *sc, struct ath_chanctx *ctx)
 
 static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
 	s32 tsf, target_tsf;
 
@@ -1417,6 +1418,10 @@ static void ath9k_update_p2p_ps_timer(struct ath_softc *sc, struct ath_vif *avp)
 
 	if (target_tsf - tsf < ATH_P2P_PS_STOP_TIME)
 		target_tsf = tsf + ATH_P2P_PS_STOP_TIME;
+
+	ath_dbg(common, CHAN_CTX, "%s absent %d tsf 0x%08X next_tsf 0x%08X (%dms)\n",
+		__func__, avp->noa.absent, tsf, target_tsf,
+		(target_tsf - tsf) / 1000);
 
 	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, (u32) target_tsf, 1000000);
 }
