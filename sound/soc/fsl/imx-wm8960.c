@@ -311,13 +311,17 @@ static int imx_hifi_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_card *card = rtd->card;
 	struct imx_wm8960_data *data = snd_soc_card_get_drvdata(card);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	struct device *dev = card->dev;
+	int ret;
 
 	data->is_stream_in_use[tx] = false;
 
 	/* Power down PLL to save power*/
 	if (data->is_codec_master && !data->is_stream_in_use[!tx]) {
 		snd_soc_dai_set_pll(codec_dai, 0, 0, 0, 0);
-		snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF);
+		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF);
+		if (ret)
+			dev_warn(dev, "failed to set codec dai fmt: %d\n", ret);
 	}
 
 	return 0;
@@ -450,7 +454,8 @@ static struct snd_soc_dai_link imx_wm8960_dai[] = {
 
 static int imx_wm8960_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_np, *codec_np, *gpr_np;
+	struct device_node *cpu_np, *codec_np = NULL;
+	struct device_node *gpr_np;
 	struct platform_device *cpu_pdev;
 	struct imx_priv *priv = &card_priv;
 	struct i2c_client *codec_dev;
