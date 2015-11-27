@@ -165,6 +165,7 @@ struct bpf_program {
 
 struct bpf_map {
 	int fd;
+	char *name;
 	struct bpf_map_def def;
 	void *priv;
 	bpf_map_clear_priv_t clear_priv;
@@ -526,12 +527,46 @@ bpf_object__init_maps(struct bpf_object *obj, void *data,
 	return 0;
 }
 
+static void
+bpf_object__init_maps_name(struct bpf_object *obj, int maps_shndx)
+{
+	int i;
+	Elf_Data *symbols = obj->efile.symbols;
+
+	if (!symbols || maps_shndx < 0)
+		return;
+
+	for (i = 0; i < symbols->d_size / sizeof(GElf_Sym); i++) {
+		GElf_Sym sym;
+		size_t map_idx;
+		const char *map_name;
+
+		if (!gelf_getsym(symbols, i, &sym))
+			continue;
+		if (sym.st_shndx != maps_shndx)
+			continue;
+
+		map_name = elf_strptr(obj->efile.elf,
+				      obj->efile.ehdr.e_shstrndx,
+				      sym.st_name);
+		map_idx = sym.st_value / sizeof(struct bpf_map_def);
+		if (map_idx >= obj->nr_maps) {
+			pr_warning("index of map \"%s\" is buggy: %zu > %zu\n",
+				   map_name, map_idx, obj->nr_maps);
+			continue;
+		}
+		obj->maps[map_idx].name = strdup(map_name);
+		pr_debug("map %zu is \"%s\"\n", map_idx,
+			 obj->maps[map_idx].name);
+	}
+}
+
 static int bpf_object__elf_collect(struct bpf_object *obj)
 {
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
 	Elf_Scn *scn = NULL;
-	int idx = 0, err = 0;
+	int idx = 0, err = 0, maps_shndx = -1;
 
 	/* Elf is corrupted/truncated, avoid calling elf_strptr. */
 	if (!elf_rawdata(elf_getscn(elf, ep->e_shstrndx), NULL)) {
@@ -581,10 +616,11 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			err = bpf_object__init_kversion(obj,
 							data->d_buf,
 							data->d_size);
-		else if (strcmp(name, "maps") == 0)
+		else if (strcmp(name, "maps") == 0) {
 			err = bpf_object__init_maps(obj, data->d_buf,
 						    data->d_size);
-		else if (sh.sh_type == SHT_SYMTAB) {
+			maps_shndx = idx;
+		} else if (sh.sh_type == SHT_SYMTAB) {
 			if (obj->efile.symbols) {
 				pr_warning("bpf: multiple SYMTAB in %s\n",
 					   obj->path);
@@ -625,6 +661,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		if (err)
 			goto out;
 	}
+
+	if (maps_shndx >= 0)
+		bpf_object__init_maps_name(obj, maps_shndx);
 out:
 	return err;
 }
@@ -1086,6 +1125,7 @@ void bpf_object__close(struct bpf_object *obj)
 	bpf_object__unload(obj);
 
 	for (i = 0; i < obj->nr_maps; i++) {
+		zfree(&obj->maps[i].name);
 		if (obj->maps[i].clear_priv)
 			obj->maps[i].clear_priv(&obj->maps[i],
 						obj->maps[i].priv);
@@ -1266,6 +1306,13 @@ int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef)
 	return 0;
 }
 
+const char *bpf_map__get_name(struct bpf_map *map)
+{
+	if (!map)
+		return NULL;
+	return map->name;
+}
+
 int bpf_map__set_private(struct bpf_map *map, void *priv,
 			 bpf_map_clear_priv_t clear_priv)
 {
@@ -1317,4 +1364,16 @@ bpf_map__next(struct bpf_map *prev, struct bpf_object *obj)
 	if (idx >= obj->nr_maps)
 		return NULL;
 	return &obj->maps[idx];
+}
+
+struct bpf_map *
+bpf_object__get_map_by_name(struct bpf_object *obj, const char *name)
+{
+	struct bpf_map *pos;
+
+	bpf_map__for_each(pos, obj) {
+		if (strcmp(pos->name, name) == 0)
+			return pos;
+	}
+	return NULL;
 }

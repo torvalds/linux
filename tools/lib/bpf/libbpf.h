@@ -170,6 +170,8 @@ struct bpf_map_def {
  * it is not a uapi header so no need to consider name clash.
  */
 struct bpf_map;
+struct bpf_map *
+bpf_object__get_map_by_name(struct bpf_object *obj, const char *name);
 
 struct bpf_map *
 bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
@@ -180,6 +182,7 @@ bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
 
 int bpf_map__get_fd(struct bpf_map *map);
 int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef);
+const char *bpf_map__get_name(struct bpf_map *map);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 int bpf_map__set_private(struct bpf_map *map, void *priv,
