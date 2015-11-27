@@ -165,4 +165,25 @@ struct bpf_map_def {
 	unsigned int max_entries;
 };
 
+/*
+ * There is another 'struct bpf_map' in include/linux/map.h. However,
+ * it is not a uapi header so no need to consider name clash.
+ */
+struct bpf_map;
+
+struct bpf_map *
+bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
+#define bpf_map__for_each(pos, obj)		\
+	for ((pos) = bpf_map__next(NULL, (obj));	\
+	     (pos) != NULL;				\
+	     (pos) = bpf_map__next((pos), (obj)))
+
+int bpf_map__get_fd(struct bpf_map *map);
+int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef);
+
+typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
+int bpf_map__set_private(struct bpf_map *map, void *priv,
+			 bpf_map_clear_priv_t clear_priv);
+int bpf_map__get_private(struct bpf_map *map, void **ppriv);
+
 #endif
