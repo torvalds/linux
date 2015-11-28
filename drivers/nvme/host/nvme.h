@@ -27,6 +27,9 @@ extern unsigned char nvme_io_timeout;
 extern unsigned char admin_timeout;
 #define ADMIN_TIMEOUT	(admin_timeout * HZ)
 
+extern unsigned char shutdown_timeout;
+#define SHUTDOWN_TIMEOUT	(shutdown_timeout * HZ)
+
 enum {
 	NVME_NS_LBA		= 0,
 	NVME_NS_LIGHTNVM	= 1,
@@ -55,6 +58,10 @@ struct nvme_ctrl {
 	char serial[20];
 	char model[40];
 	char firmware_rev[8];
+
+	u32 ctrl_config;
+
+	u32 page_size;
 	u16 oncs;
 	u16 abort_limit;
 	u8 event_limit;
@@ -85,6 +92,7 @@ struct nvme_ns {
 
 struct nvme_ctrl_ops {
 	int (*reg_read32)(struct nvme_ctrl *ctrl, u32 off, u32 *val);
+	int (*reg_write32)(struct nvme_ctrl *ctrl, u32 off, u32 val);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
 };
 
@@ -165,6 +173,9 @@ static inline int nvme_error_status(u16 status)
 	}
 }
 
+int nvme_disable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
+int nvme_enable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
+int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl);
 void nvme_put_ctrl(struct nvme_ctrl *ctrl);
 void nvme_put_ns(struct nvme_ns *ns);
 

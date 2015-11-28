@@ -52,7 +52,6 @@
 #define NVME_AQ_DEPTH		256
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
-#define SHUTDOWN_TIMEOUT	(shutdown_timeout * HZ)
 
 unsigned char admin_timeout = 60;
 module_param(admin_timeout, byte, 0644);
@@ -62,7 +61,7 @@ unsigned char nvme_io_timeout = 30;
 module_param_named(io_timeout, nvme_io_timeout, byte, 0644);
 MODULE_PARM_DESC(io_timeout, "timeout in seconds for I/O");
 
-static unsigned char shutdown_timeout = 5;
+unsigned char shutdown_timeout = 5;
 module_param(shutdown_timeout, byte, 0644);
 MODULE_PARM_DESC(shutdown_timeout, "timeout in seconds for controller shutdown");
 
@@ -122,7 +121,6 @@ struct nvme_dev {
 	unsigned max_qid;
 	int q_depth;
 	u32 db_stride;
-	u32 ctrl_config;
 	struct msix_entry *entry;
 	void __iomem *bar;
 	struct list_head namespaces;
@@ -133,7 +131,6 @@ struct nvme_dev {
 	bool subsystem;
 	u32 max_hw_sectors;
 	u32 stripe_size;
-	u32 page_size;
 	void __iomem *cmb;
 	dma_addr_t cmb_dma_addr;
 	u64 cmb_size;
@@ -225,7 +222,7 @@ struct nvme_cmd_info {
  * Max size of iod being embedded in the request payload
  */
 #define NVME_INT_PAGES		2
-#define NVME_INT_BYTES(dev)	(NVME_INT_PAGES * (dev)->page_size)
+#define NVME_INT_BYTES(dev)	(NVME_INT_PAGES * (dev)->ctrl.page_size)
 #define NVME_INT_MASK		0x01
 
 /*
@@ -235,7 +232,8 @@ struct nvme_cmd_info {
  */
 static int nvme_npages(unsigned size, struct nvme_dev *dev)
 {
-	unsigned nprps = DIV_ROUND_UP(size + dev->page_size, dev->page_size);
+	unsigned nprps = DIV_ROUND_UP(size + dev->ctrl.page_size,
+				      dev->ctrl.page_size);
 	return DIV_ROUND_UP(8 * nprps, PAGE_SIZE - 8);
 }
 
@@ -527,7 +525,7 @@ static struct nvme_iod *nvme_alloc_iod(struct request *rq, struct nvme_dev *dev,
 
 static void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod)
 {
-	const int last_prp = dev->page_size / 8 - 1;
+	const int last_prp = dev->ctrl.page_size / 8 - 1;
 	int i;
 	__le64 **list = iod_list(iod);
 	dma_addr_t prp_dma = iod->first_dma;
@@ -668,7 +666,7 @@ static bool nvme_setup_prps(struct nvme_dev *dev, struct nvme_iod *iod,
 	struct scatterlist *sg = iod->sg;
 	int dma_len = sg_dma_len(sg);
 	u64 dma_addr = sg_dma_address(sg);
-	u32 page_size = dev->page_size;
+	u32 page_size = dev->ctrl.page_size;
 	int offset = dma_addr & (page_size - 1);
 	__le64 *prp_list;
 	__le64 **list = iod_list(iod);
@@ -1275,11 +1273,12 @@ static int nvme_cmb_qdepth(struct nvme_dev *dev, int nr_io_queues,
 				int entry_size)
 {
 	int q_depth = dev->q_depth;
-	unsigned q_size_aligned = roundup(q_depth * entry_size, dev->page_size);
+	unsigned q_size_aligned = roundup(q_depth * entry_size,
+					  dev->ctrl.page_size);
 
 	if (q_size_aligned * nr_io_queues > dev->cmb_size) {
 		u64 mem_per_q = div_u64(dev->cmb_size, nr_io_queues);
-		mem_per_q = round_down(mem_per_q, dev->page_size);
+		mem_per_q = round_down(mem_per_q, dev->ctrl.page_size);
 		q_depth = div_u64(mem_per_q, entry_size);
 
 		/*
@@ -1298,8 +1297,8 @@ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 				int qid, int depth)
 {
 	if (qid && dev->cmb && use_cmb_sqes && NVME_CMB_SQS(dev->cmbsz)) {
-		unsigned offset = (qid - 1) *
-					roundup(SQ_SIZE(depth), dev->page_size);
+		unsigned offset = (qid - 1) * roundup(SQ_SIZE(depth),
+						      dev->ctrl.page_size);
 		nvmeq->sq_dma_addr = dev->cmb_dma_addr + offset;
 		nvmeq->sq_cmds_io = dev->cmb + offset;
 	} else {
@@ -1407,97 +1406,6 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 	return result;
 }
 
-static int nvme_wait_ready(struct nvme_dev *dev, u64 cap, bool enabled)
-{
-	unsigned long timeout;
-	u32 bit = enabled ? NVME_CSTS_RDY : 0;
-
-	timeout = ((NVME_CAP_TIMEOUT(cap) + 1) * HZ / 2) + jiffies;
-
-	while ((readl(dev->bar + NVME_REG_CSTS) & NVME_CSTS_RDY) != bit) {
-		msleep(100);
-		if (fatal_signal_pending(current))
-			return -EINTR;
-		if (time_after(jiffies, timeout)) {
-			dev_err(dev->dev,
-				"Device not ready; aborting %s\n", enabled ?
-						"initialisation" : "reset");
-			return -ENODEV;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * If the device has been passed off to us in an enabled state, just clear
- * the enabled bit.  The spec says we should set the 'shutdown notification
- * bits', but doing so may cause the device to complete commands to the
- * admin queue ... and we don't know what memory that might be pointing at!
- */
-static int nvme_disable_ctrl(struct nvme_dev *dev, u64 cap)
-{
-	dev->ctrl_config &= ~NVME_CC_SHN_MASK;
-	dev->ctrl_config &= ~NVME_CC_ENABLE;
-	writel(dev->ctrl_config, dev->bar + NVME_REG_CC);
-
-	return nvme_wait_ready(dev, cap, false);
-}
-
-static int nvme_enable_ctrl(struct nvme_dev *dev, u64 cap)
-{
-	/*
-	 * Default to a 4K page size, with the intention to update this
-	 * path in the future to accomodate architectures with differing
-	 * kernel and IO page sizes.
-	 */
-	unsigned dev_page_min = NVME_CAP_MPSMIN(cap) + 12, page_shift = 12;
-
-	if (page_shift < dev_page_min) {
-		dev_err(dev->dev,
-			"Minimum device page size %u too large for host (%u)\n",
-			1 << dev_page_min, 1 << page_shift);
-		return -ENODEV;
-	}
-
-	dev->page_size = 1 << page_shift;
-
-	dev->ctrl_config = NVME_CC_CSS_NVM;
-	dev->ctrl_config |= (page_shift - 12) << NVME_CC_MPS_SHIFT;
-	dev->ctrl_config |= NVME_CC_ARB_RR | NVME_CC_SHN_NONE;
-	dev->ctrl_config |= NVME_CC_IOSQES | NVME_CC_IOCQES;
-	dev->ctrl_config |= NVME_CC_ENABLE;
-
-	writel(dev->ctrl_config, dev->bar + NVME_REG_CC);
-
-	return nvme_wait_ready(dev, cap, true);
-}
-
-static int nvme_shutdown_ctrl(struct nvme_dev *dev)
-{
-	unsigned long timeout;
-
-	dev->ctrl_config &= ~NVME_CC_SHN_MASK;
-	dev->ctrl_config |= NVME_CC_SHN_NORMAL;
-
-	writel(dev->ctrl_config, dev->bar + NVME_REG_CC);
-
-	timeout = SHUTDOWN_TIMEOUT + jiffies;
-	while ((readl(dev->bar + NVME_REG_CSTS) & NVME_CSTS_SHST_MASK) !=
-							NVME_CSTS_SHST_CMPLT) {
-		msleep(100);
-		if (fatal_signal_pending(current))
-			return -EINTR;
-		if (time_after(jiffies, timeout)) {
-			dev_err(dev->dev,
-				"Device shutdown incomplete; abort shutdown\n");
-			return -ENODEV;
-		}
-	}
-
-	return 0;
-}
-
 static struct blk_mq_ops nvme_mq_admin_ops = {
 	.queue_rq	= nvme_queue_rq,
 	.map_queue	= blk_mq_map_queue,
@@ -1569,7 +1477,7 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	    (readl(dev->bar + NVME_REG_CSTS) & NVME_CSTS_NSSRO))
 		writel(NVME_CSTS_NSSRO, dev->bar + NVME_REG_CSTS);
 
-	result = nvme_disable_ctrl(dev, cap);
+	result = nvme_disable_ctrl(&dev->ctrl, cap);
 	if (result < 0)
 		return result;
 
@@ -1587,7 +1495,7 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	lo_hi_writeq(nvmeq->sq_dma_addr, dev->bar + NVME_REG_ASQ);
 	lo_hi_writeq(nvmeq->cq_dma_addr, dev->bar + NVME_REG_ACQ);
 
-	result = nvme_enable_ctrl(dev, cap);
+	result = nvme_enable_ctrl(&dev->ctrl, cap);
 	if (result)
 		goto free_nvmeq;
 
@@ -1687,13 +1595,13 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	if (dev->max_hw_sectors) {
 		blk_queue_max_hw_sectors(ns->queue, dev->max_hw_sectors);
 		blk_queue_max_segments(ns->queue,
-			(dev->max_hw_sectors / (dev->page_size >> 9)) + 1);
+			(dev->max_hw_sectors / (dev->ctrl.page_size >> 9)) + 1);
 	}
 	if (dev->stripe_size)
 		blk_queue_chunk_sectors(ns->queue, dev->stripe_size >> 9);
 	if (dev->ctrl.vwc & NVME_CTRL_VWC_PRESENT)
 		blk_queue_flush(ns->queue, REQ_FLUSH | REQ_FUA);
-	blk_queue_virt_boundary(ns->queue, dev->page_size - 1);
+	blk_queue_virt_boundary(ns->queue, dev->ctrl.page_size - 1);
 
 	disk->major = nvme_major;
 	disk->first_minor = 0;
@@ -2181,7 +2089,7 @@ static void nvme_wait_dq(struct nvme_delq_ctx *dq, struct nvme_dev *dev)
 			 * queues than admin tags.
 			 */
 			set_current_state(TASK_RUNNING);
-			nvme_disable_ctrl(dev,
+			nvme_disable_ctrl(&dev->ctrl,
 				lo_hi_readq(dev->bar + NVME_REG_CAP));
 			nvme_clear_queue(dev->queues[0]);
 			flush_kthread_worker(dq->worker);
@@ -2367,7 +2275,7 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 		}
 	} else {
 		nvme_disable_io_queues(dev);
-		nvme_shutdown_ctrl(dev);
+		nvme_shutdown_ctrl(&dev->ctrl);
 		nvme_disable_queue(dev, 0);
 	}
 	nvme_dev_unmap(dev);
@@ -2683,8 +2591,15 @@ static int nvme_pci_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 	return 0;
 }
 
+static int nvme_pci_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
+{
+	writel(val, to_nvme_dev(ctrl)->bar + off);
+	return 0;
+}
+
 static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.reg_read32		= nvme_pci_reg_read32,
+	.reg_write32		= nvme_pci_reg_write32,
 	.free_ctrl		= nvme_pci_free_ctrl,
 };
 
