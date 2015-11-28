@@ -308,6 +308,12 @@ int nvm_register(struct request_queue *q, char *disk_name,
 	if (ret)
 		goto err_init;
 
+	if (dev->ops->max_phys_sect > 256) {
+		pr_info("nvm: max sectors supported is 256.\n");
+		ret = -EINVAL;
+		goto err_init;
+	}
+
 	if (dev->ops->max_phys_sect > 1) {
 		dev->ppalist_pool = dev->ops->create_dma_pool(dev->q,
 								"ppalist");
@@ -316,10 +322,6 @@ int nvm_register(struct request_queue *q, char *disk_name,
 			ret = -ENOMEM;
 			goto err_init;
 		}
-	} else if (dev->ops->max_phys_sect > 256) {
-		pr_info("nvm: max sectors supported is 256.\n");
-		ret = -EINVAL;
-		goto err_init;
 	}
 
 	down_write(&nvm_lock);
