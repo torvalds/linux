@@ -1148,9 +1148,10 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		}
 	}
 
+#endif /* CONFIG_PPC_64K_PAGES */
+
 	if (current->mm == mm)
 		check_paca_psize(ea, mm, psize, user_region);
-#endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_PPC_64K_PAGES
 	if (psize == MMU_PAGE_64K)
