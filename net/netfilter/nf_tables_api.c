@@ -4446,22 +4446,22 @@ static void nft_verdict_uninit(const struct nft_data *data)
 	}
 }
 
-static int nft_verdict_dump(struct sk_buff *skb, const struct nft_data *data)
+int nft_verdict_dump(struct sk_buff *skb, int type, const struct nft_verdict *v)
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, NFTA_DATA_VERDICT);
+	nest = nla_nest_start(skb, type);
 	if (!nest)
 		goto nla_put_failure;
 
-	if (nla_put_be32(skb, NFTA_VERDICT_CODE, htonl(data->verdict.code)))
+	if (nla_put_be32(skb, NFTA_VERDICT_CODE, htonl(v->code)))
 		goto nla_put_failure;
 
-	switch (data->verdict.code) {
+	switch (v->code) {
 	case NFT_JUMP:
 	case NFT_GOTO:
 		if (nla_put_string(skb, NFTA_VERDICT_CHAIN,
-				   data->verdict.chain->name))
+				   v->chain->name))
 			goto nla_put_failure;
 	}
 	nla_nest_end(skb, nest);
@@ -4572,7 +4572,7 @@ int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 		err = nft_value_dump(skb, data, len);
 		break;
 	case NFT_DATA_VERDICT:
-		err = nft_verdict_dump(skb, data);
+		err = nft_verdict_dump(skb, NFTA_DATA_VERDICT, &data->verdict);
 		break;
 	default:
 		err = -EINVAL;
