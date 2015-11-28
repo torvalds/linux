@@ -10,13 +10,9 @@ pxa2xx
 	- PXA2xx SPI master controller build by spi_message fifo wq
 spidev
 	- Intro to the userspace API for spi devices
-spidev_fdx.c
-	- spidev example file
 spi-lm70llp
 	- Connecting an LM70-LLP sensor to the kernel via the SPI subsys.
 spi-sc18is602
 	- NXP SC18IS602/603 I2C-bus to SPI bridge
 spi-summary
 	- (Linux) SPI overview. If unsure about SPI or SPI in Linux, start here.
-spidev_test.c
-	- SPI testing utility.
