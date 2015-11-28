@@ -180,7 +180,7 @@ static void hid_io_error(struct hid_device *hid)
 	if (time_after(jiffies, usbhid->stop_retry)) {
 
 		/* Retries failed, so do a port reset unless we lack bandwidth*/
-		if (!test_bit(HID_NO_BANDWIDTH, &usbhid->iofl)
+		if (test_bit(HID_NO_BANDWIDTH, &usbhid->iofl)
 		     && !test_and_set_bit(HID_RESET_PENDING, &usbhid->iofl)) {
 
 			schedule_work(&usbhid->reset_work);
@@ -287,6 +287,7 @@ static void hid_irq_in(struct urb *urb)
 	struct hid_device	*hid = urb->context;
 	struct usbhid_device 	*usbhid = hid->driver_data;
 	int			status;
+	static int eproto_count = 0;
 
 	switch (urb->status) {
 	case 0:			/* success */
@@ -316,8 +317,18 @@ static void hid_irq_in(struct urb *urb)
 	case -ESHUTDOWN:	/* unplug */
 		clear_bit(HID_IN_RUNNING, &usbhid->iofl);
 		return;
-	case -EILSEQ:		/* protocol error or unplug */
 	case -EPROTO:		/* protocol error or unplug */
+		eproto_count++;
+		if(eproto_count == 5){
+			usbhid_mark_busy(usbhid);
+			clear_bit(HID_IN_RUNNING, &usbhid->iofl);
+			set_bit(HID_RESET_PENDING, &usbhid->iofl);
+			printk("%s too many eproto,try to reset device\n",__func__);
+			schedule_work(&usbhid->reset_work);
+			eproto_count = 0;
+			return;
+		}
+	case -EILSEQ:		/* protocol error or unplug */
 	case -ETIME:		/* protocol error or unplug */
 	case -ETIMEDOUT:	/* Should never happen, but... */
 		usbhid_mark_busy(usbhid);
@@ -328,7 +339,7 @@ static void hid_irq_in(struct urb *urb)
 		hid_warn(urb->dev, "input irq status %d received\n",
 			 urb->status);
 	}
-
+	eproto_count = 0;
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		clear_bit(HID_IN_RUNNING, &usbhid->iofl);

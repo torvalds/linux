@@ -40,8 +40,6 @@
 #include "dwc_otg_core_if.h"
 #include "dwc_list.h"
 #include "dwc_otg_cil.h"
-#include "dwc_otg_fiq_fsm.h"
-
 
 /**
  * @file
@@ -86,9 +84,20 @@ struct dwc_otg_hcd_urb {
 	uint32_t packet_count;
 	uint32_t flags;
 	uint16_t interval;
+	uint8_t	 qh_state;
+#define URB_STATE_IDLE		1	/* QH is not being used */
+#define URB_STATE_ACTIVE	2	/* QH is on the schedule */
+#define URB_STATE_SETED		3	/* QH had finished setting reg */
+#define URB_STATE_DQUEUE	4	/* QH had been pushed into tasklet, just used for isoc */
+#define URB_STATE_UNLINK	5   /* QH has been removed from the schedule */
 	struct dwc_otg_hcd_pipe_info pipe_info;
 	struct dwc_otg_hcd_iso_packet_desc iso_descs[0];
 };
+
+typedef struct dwc_otg_hcd_urb_list{
+	struct dwc_otg_hcd_urb * urb;
+	dwc_list_link_t urb_list_entry;
+} dwc_otg_hcd_urb_list_t;
 
 static inline uint8_t dwc_otg_hcd_get_ep_num(struct dwc_otg_hcd_pipe_info *pipe)
 {
@@ -170,10 +179,10 @@ typedef enum dwc_otg_control_phase {
 
 /** Transaction types. */
 typedef enum dwc_otg_transaction_type {
-	DWC_OTG_TRANSACTION_NONE          = 0,
-	DWC_OTG_TRANSACTION_PERIODIC      = 1,
-	DWC_OTG_TRANSACTION_NON_PERIODIC  = 2,
-	DWC_OTG_TRANSACTION_ALL           = DWC_OTG_TRANSACTION_PERIODIC + DWC_OTG_TRANSACTION_NON_PERIODIC
+	DWC_OTG_TRANSACTION_NONE,
+	DWC_OTG_TRANSACTION_PERIODIC,
+	DWC_OTG_TRANSACTION_NON_PERIODIC,
+	DWC_OTG_TRANSACTION_ALL
 } dwc_otg_transaction_type_e;
 
 struct dwc_otg_qh;
@@ -323,11 +332,6 @@ typedef struct dwc_otg_qh {
 	 */
 	uint16_t sched_frame;
 
-	/*
-	** Frame a NAK was received on this queue head, used to minimise NAK retransmission
-	*/
-	uint16_t nak_frame;
-
 	/** (micro)frame at which last start split was initialized. */
 	uint16_t start_split_frame;
 
@@ -370,21 +374,9 @@ typedef struct dwc_otg_qh {
 	struct dwc_otg_hcd_urb *dwc_otg_urb;
 	/** @} */
 
-
-	uint16_t speed;
-	uint16_t frame_usecs[8];
-
-	uint32_t skip_count;
 } dwc_otg_qh_t;
 
 DWC_CIRCLEQ_HEAD(hc_list, dwc_hc);
-
-typedef struct urb_tq_entry {
-	struct urb *urb;
-	DWC_TAILQ_ENTRY(urb_tq_entry) urb_tq_entries;
-} urb_tq_entry_t;
-
-DWC_TAILQ_HEAD(urb_list, urb_tq_entry);
 
 /**
  * This structure holds the state of the HCD, including the non-periodic and
@@ -487,19 +479,6 @@ struct dwc_otg_hcd {
 	uint16_t periodic_usecs;
 
 	/**
-	 * Total bandwidth claimed so far for all periodic transfers
-	 * in a frame.
-	 * This will include a mixture of HS and FS transfers.
-	 * Units are microseconds per (micro)frame.
-	 * We have a budget per frame and have to schedule
-	 * transactions accordingly.
-	 * Watch out for the fact that things are actually scheduled for the
-	 * "next frame".
-	 */
-	uint16_t                frame_usecs[8];
-
-
-	/**
 	 * Frame number read from the core at SOF. The value ranges from 0 to
 	 * DWC_HFNUM_MAX_FRNUM.
 	 */
@@ -521,17 +500,12 @@ struct dwc_otg_hcd {
 	 * transaction and at least one host channel available for
 	 * non-periodic transactions.
 	 */
-	int periodic_channels; /* microframe_schedule==0 */
+	int periodic_channels;
 
 	/**
 	 * Number of host channels assigned to non-periodic transfers.
 	 */
-	int non_periodic_channels; /* microframe_schedule==0 */
-
-	/**
-	 * Number of host channels assigned to non-periodic transfers.
-	 */
-	int available_host_channels;
+	int non_periodic_channels;
 
 	/**
 	 * Array of pointers to the host channel descriptors. Allows accessing
@@ -562,13 +536,13 @@ struct dwc_otg_hcd {
 
 	/* Tasket to do a reset */
 	dwc_tasklet_t *reset_tasklet;
+	dwc_tasklet_t *isoc_complete_tasklet;
 
-	dwc_tasklet_t *completion_tasklet;
-	struct urb_list completed_urb_list;
-
+	dwc_list_link_t isoc_comp_urbs_list;
 	/*  */
 	dwc_spinlock_t *lock;
-	dwc_spinlock_t *channel_lock;
+	dwc_spinlock_t * isoc_comp_urbs_lock;
+	void * isoc_comp_urbs[MAX_EPS_CHANNELS];
 	/**
 	 * Private data that could be used by OS wrapper.
 	 */
@@ -579,21 +553,9 @@ struct dwc_otg_hcd {
 	/** Frame List */
 	uint32_t *frame_list;
 
-	/** Hub - Port assignment */
-	int hub_port[128];
-#ifdef FIQ_DEBUG
-	int hub_port_alloc[2048];
-#endif
-
 	/** Frame List DMA address */
 	dma_addr_t frame_list_dma;
 
-	struct fiq_stack *fiq_stack;
-	struct fiq_state *fiq_state;
-	
-	/** Virtual address for split transaction DMA bounce buffers */
-	struct fiq_dma_blob *fiq_dmab;
-	
 #ifdef DEBUG
 	uint32_t frrem_samples;
 	uint64_t frrem_accum;
@@ -612,6 +574,7 @@ struct dwc_otg_hcd {
 	uint32_t hfnum_other_samples_b;
 	uint64_t hfnum_other_frrem_accum_b;
 #endif
+	uint8_t  ssplit_lock;
 	uint8_t  auto_pm_suspend_flag;
 };
 
@@ -621,13 +584,6 @@ extern dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t
 								  * hcd);
 extern void dwc_otg_hcd_queue_transactions(dwc_otg_hcd_t * hcd,
 					   dwc_otg_transaction_type_e tr_type);
-
-int dwc_otg_hcd_allocate_port(dwc_otg_hcd_t * hcd, dwc_otg_qh_t *qh);
-void dwc_otg_hcd_release_port(dwc_otg_hcd_t * dwc_otg_hcd, dwc_otg_qh_t *qh);
-
-extern int fiq_fsm_queue_transaction(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh);
-extern int fiq_fsm_transaction_suitable(dwc_otg_qh_t *qh);
-extern void dwc_otg_cleanup_fiq_channel(dwc_otg_hcd_t *hcd, uint32_t num);
 
 /** @} */
 

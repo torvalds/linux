@@ -959,8 +959,6 @@ struct dwc_otg_core_if {
 	/* Host only flag */
 	int host_only;
 
-	int use_fiq_flag;
-
 	/** Device mode Periodic Tx FIFO Mask */
 	uint32_t p_tx_msk;
 	/** Device mode Periodic Tx FIFO Mask */
@@ -1391,8 +1389,7 @@ typedef struct dwc_otg_cil_callbacks {
 	/** Sleep (switch to L0 state) */
 	int (*sleep) (void *_p);
 #endif
-	/** Pointer passed to start() and stop() */
-	void *p;
+
 } dwc_otg_cil_callbacks_t;
 
 extern void dwc_otg_cil_register_pcd_callbacks(dwc_otg_core_if_t * _core_if,
