@@ -1,3 +1,13 @@
+/*
+ *  nintendo3ds_pad.c
+ *
+ *  Copyright (C) 2015 Sergi Granell
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
 #include <linux/input.h>
 #include <linux/input-polldev.h>
 #include <linux/platform_device.h>
@@ -143,7 +153,7 @@ err_free_dev:
 	input_free_polled_device(pdev);
 err_alloc_pdev:
 	iounmap(hid_pad);
-        release_mem_region(HID_PAD_PA, HID_PAD_SIZE);
+	release_mem_region(HID_PAD_PA, HID_PAD_SIZE);
 err_iomem:
 	kfree(n3ds_pad_dev);
 err_alloc_n3ds_pad_dev:
@@ -154,11 +164,11 @@ static int nintendo3ds_pad_remove(struct platform_device *plat_pdev)
 {
 	struct nintendo3ds_pad_dev *dev = platform_get_drvdata(plat_pdev);
 
-        input_unregister_polled_device(dev->pdev);
-        input_free_polled_device(dev->pdev);
+	input_unregister_polled_device(dev->pdev);
+	input_free_polled_device(dev->pdev);
 
 	iounmap(dev->hid_pad);
-        release_mem_region(HID_PAD_PA, HID_PAD_SIZE);
+	release_mem_region(HID_PAD_PA, HID_PAD_SIZE);
 
 	kfree(dev);
 
@@ -168,7 +178,6 @@ static int nintendo3ds_pad_remove(struct platform_device *plat_pdev)
 static const struct of_device_id nintendo3ds_pad_of_match[] = {
 	{ .compatible = "arm,nintendo3ds_pad", },
 	{},
-
 };
 MODULE_DEVICE_TABLE(of, nintendo3ds_pad_of_match);
 
