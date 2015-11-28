@@ -129,8 +129,6 @@ struct nvme_dev {
 	struct work_struct probe_work;
 	struct work_struct scan_work;
 	bool subsystem;
-	u32 max_hw_sectors;
-	u32 stripe_size;
 	void __iomem *cmb;
 	dma_addr_t cmb_dma_addr;
 	u64 cmb_size;
@@ -1592,13 +1590,13 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	list_add_tail(&ns->list, &dev->namespaces);
 
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
-	if (dev->max_hw_sectors) {
-		blk_queue_max_hw_sectors(ns->queue, dev->max_hw_sectors);
+	if (dev->ctrl.max_hw_sectors) {
+		blk_queue_max_hw_sectors(ns->queue, dev->ctrl.max_hw_sectors);
 		blk_queue_max_segments(ns->queue,
-			(dev->max_hw_sectors / (dev->ctrl.page_size >> 9)) + 1);
+			(dev->ctrl.max_hw_sectors / (dev->ctrl.page_size >> 9)) + 1);
 	}
-	if (dev->stripe_size)
-		blk_queue_chunk_sectors(ns->queue, dev->stripe_size >> 9);
+	if (dev->ctrl.stripe_size)
+		blk_queue_chunk_sectors(ns->queue, dev->ctrl.stripe_size >> 9);
 	if (dev->ctrl.vwc & NVME_CTRL_VWC_PRESENT)
 		blk_queue_flush(ns->queue, REQ_FLUSH | REQ_FUA);
 	blk_queue_virt_boundary(ns->queue, dev->ctrl.page_size - 1);
@@ -1933,38 +1931,10 @@ static void nvme_dev_scan(struct work_struct *work)
 static int nvme_dev_add(struct nvme_dev *dev)
 {
 	int res;
-	struct nvme_id_ctrl *ctrl;
-	int shift = NVME_CAP_MPSMIN(lo_hi_readq(dev->bar + NVME_REG_CAP)) + 12;
 
-	res = nvme_identify_ctrl(&dev->ctrl, &ctrl);
-	if (res) {
-		dev_err(dev->dev, "Identify Controller failed (%d)\n", res);
-		return -EIO;
-	}
-
-	dev->ctrl.oncs = le16_to_cpup(&ctrl->oncs);
-	dev->ctrl.abort_limit = ctrl->acl + 1;
-	dev->ctrl.vwc = ctrl->vwc;
-	memcpy(dev->ctrl.serial, ctrl->sn, sizeof(ctrl->sn));
-	memcpy(dev->ctrl.model, ctrl->mn, sizeof(ctrl->mn));
-	memcpy(dev->ctrl.firmware_rev, ctrl->fr, sizeof(ctrl->fr));
-	if (ctrl->mdts)
-		dev->max_hw_sectors = 1 << (ctrl->mdts + shift - 9);
-	else
-		dev->max_hw_sectors = UINT_MAX;
-
-	if ((dev->ctrl.quirks & NVME_QUIRK_STRIPE_SIZE) && ctrl->vs[3]) {
-		unsigned int max_hw_sectors;
-
-		dev->stripe_size = 1 << (ctrl->vs[3] + shift);
-		max_hw_sectors = dev->stripe_size >> (shift - 9);
-		if (dev->max_hw_sectors) {
-			dev->max_hw_sectors = min(max_hw_sectors,
-							dev->max_hw_sectors);
-		} else
-			dev->max_hw_sectors = max_hw_sectors;
-	}
-	kfree(ctrl);
+	res = nvme_init_identify(&dev->ctrl);
+	if (res)
+		return res;
 
 	if (!dev->tagset.tags) {
 		dev->tagset.ops = &nvme_mq_ops;
@@ -2597,9 +2567,16 @@ static int nvme_pci_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
 	return 0;
 }
 
+static int nvme_pci_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
+{
+	*val = readq(to_nvme_dev(ctrl)->bar + off);
+	return 0;
+}
+
 static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.reg_read32		= nvme_pci_reg_read32,
 	.reg_write32		= nvme_pci_reg_write32,
+	.reg_read64		= nvme_pci_reg_read64,
 	.free_ctrl		= nvme_pci_free_ctrl,
 };
 

@@ -776,6 +776,58 @@ int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl)
 	return ret;
 }
 
+/*
+ * Initialize the cached copies of the Identify data and various controller
+ * register in our nvme_ctrl structure.  This should be called as soon as
+ * the admin queue is fully up and running.
+ */
+int nvme_init_identify(struct nvme_ctrl *ctrl)
+{
+	struct nvme_id_ctrl *id;
+	u64 cap;
+	int ret, page_shift;
+
+	ret = ctrl->ops->reg_read64(ctrl, NVME_REG_CAP, &cap);
+	if (ret) {
+		dev_err(ctrl->dev, "Reading CAP failed (%d)\n", ret);
+		return ret;
+	}
+	page_shift = NVME_CAP_MPSMIN(cap) + 12;
+
+	ret = nvme_identify_ctrl(ctrl, &id);
+	if (ret) {
+		dev_err(ctrl->dev, "Identify Controller failed (%d)\n", ret);
+		return -EIO;
+	}
+
+	ctrl->oncs = le16_to_cpup(&id->oncs);
+	ctrl->abort_limit = id->acl + 1;
+	ctrl->vwc = id->vwc;
+	memcpy(ctrl->serial, id->sn, sizeof(id->sn));
+	memcpy(ctrl->model, id->mn, sizeof(id->mn));
+	memcpy(ctrl->firmware_rev, id->fr, sizeof(id->fr));
+	if (id->mdts)
+		ctrl->max_hw_sectors = 1 << (id->mdts + page_shift - 9);
+	else
+		ctrl->max_hw_sectors = UINT_MAX;
+
+	if ((ctrl->quirks & NVME_QUIRK_STRIPE_SIZE) && id->vs[3]) {
+		unsigned int max_hw_sectors;
+
+		ctrl->stripe_size = 1 << (id->vs[3] + page_shift);
+		max_hw_sectors = ctrl->stripe_size >> (page_shift - 9);
+		if (ctrl->max_hw_sectors) {
+			ctrl->max_hw_sectors = min(max_hw_sectors,
+							ctrl->max_hw_sectors);
+		} else {
+			ctrl->max_hw_sectors = max_hw_sectors;
+		}
+	}
+
+	kfree(id);
+	return 0;
+}
+
 static void nvme_free_ctrl(struct kref *kref)
 {
 	struct nvme_ctrl *ctrl = container_of(kref, struct nvme_ctrl, kref);
