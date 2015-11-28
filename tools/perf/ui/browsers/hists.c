@@ -2055,10 +2055,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	SLang_reset_tty();
 	SLang_init_tty(0, 0, 0);
 
-	if (min_pcnt) {
+	if (min_pcnt)
 		browser->min_pcnt = min_pcnt;
-		hist_browser__update_nr_entries(browser);
-	}
+	hist_browser__update_nr_entries(browser);
 
 	browser->pstack = pstack__new(3);
 	if (browser->pstack == NULL)

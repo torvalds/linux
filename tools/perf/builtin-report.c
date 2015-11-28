@@ -513,20 +513,26 @@ static int __cmd_report(struct report *rep)
 	if (rep->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
 					       rep->cpu_bitmap);
-		if (ret)
+		if (ret) {
+			ui__error("failed to set cpu bitmap\n");
 			return ret;
+		}
 	}
 
 	if (rep->show_threads)
 		perf_read_values_init(&rep->show_threads_values);
 
 	ret = report__setup_sample_type(rep);
-	if (ret)
+	if (ret) {
+		/* report__setup_sample_type() already showed error message */
 		return ret;
+	}
 
 	ret = perf_session__process_events(session);
-	if (ret)
+	if (ret) {
+		ui__error("failed to process sample\n");
 		return ret;
+	}
 
 	report__warn_kptr_restrict(rep);
 

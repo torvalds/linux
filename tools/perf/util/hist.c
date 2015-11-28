@@ -924,9 +924,6 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 	int64_t cmp = 0;
 
 	perf_hpp__for_each_sort_list(fmt) {
-		if (perf_hpp__should_skip(fmt))
-			continue;
-
 		cmp = fmt->cmp(fmt, left, right);
 		if (cmp)
 			break;
@@ -942,9 +939,6 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 	int64_t cmp = 0;
 
 	perf_hpp__for_each_sort_list(fmt) {
-		if (perf_hpp__should_skip(fmt))
-			continue;
-
 		cmp = fmt->collapse(fmt, left, right);
 		if (cmp)
 			break;

@@ -124,6 +124,10 @@ struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 		.symbol = "dummy",
 		.alias  = "",
 	},
+	[PERF_COUNT_SW_BPF_OUTPUT] = {
+		.symbol = "bpf-output",
+		.alias  = "",
+	},
 };
 
 #define __PERF_EVENT_FIELD(config, name) \
@@ -1879,7 +1883,7 @@ restart:
 
 	for (i = 0; i < max; i++, syms++) {
 
-		if (event_glob != NULL &&
+		if (event_glob != NULL && syms->symbol != NULL &&
 		    !(strglobmatch(syms->symbol, event_glob) ||
 		      (syms->alias && strglobmatch(syms->alias, event_glob))))
 			continue;

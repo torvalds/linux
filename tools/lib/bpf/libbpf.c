@@ -163,22 +163,25 @@ struct bpf_program {
 	bpf_program_clear_priv_t clear_priv;
 };
 
+struct bpf_map {
+	int fd;
+	char *name;
+	struct bpf_map_def def;
+	void *priv;
+	bpf_map_clear_priv_t clear_priv;
+};
+
 static LIST_HEAD(bpf_objects_list);
 
 struct bpf_object {
 	char license[64];
 	u32 kern_version;
-	void *maps_buf;
-	size_t maps_buf_sz;
 
 	struct bpf_program *programs;
 	size_t nr_programs;
-	int *map_fds;
-	/*
-	 * This field is required because maps_buf will be freed and
-	 * maps_buf_sz will be set to 0 after loaded.
-	 */
-	size_t nr_map_fds;
+	struct bpf_map *maps;
+	size_t nr_maps;
+
 	bool loaded;
 
 	/*
@@ -489,22 +492,73 @@ static int
 bpf_object__init_maps(struct bpf_object *obj, void *data,
 		      size_t size)
 {
-	if (size == 0) {
+	size_t nr_maps;
+	int i;
+
+	nr_maps = size / sizeof(struct bpf_map_def);
+	if (!data || !nr_maps) {
 		pr_debug("%s doesn't need map definition\n",
 			 obj->path);
 		return 0;
 	}
 
-	obj->maps_buf = malloc(size);
-	if (!obj->maps_buf) {
-		pr_warning("malloc maps failed: %s\n", obj->path);
+	pr_debug("maps in %s: %zd bytes\n", obj->path, size);
+
+	obj->maps = calloc(nr_maps, sizeof(obj->maps[0]));
+	if (!obj->maps) {
+		pr_warning("alloc maps for object failed\n");
 		return -ENOMEM;
 	}
+	obj->nr_maps = nr_maps;
 
-	obj->maps_buf_sz = size;
-	memcpy(obj->maps_buf, data, size);
-	pr_debug("maps in %s: %ld bytes\n", obj->path, (long)size);
+	for (i = 0; i < nr_maps; i++) {
+		struct bpf_map_def *def = &obj->maps[i].def;
+
+		/*
+		 * fill all fd with -1 so won't close incorrect
+		 * fd (fd=0 is stdin) when failure (zclose won't close
+		 * negative fd)).
+		 */
+		obj->maps[i].fd = -1;
+
+		/* Save map definition into obj->maps */
+		*def = ((struct bpf_map_def *)data)[i];
+	}
 	return 0;
+}
+
+static void
+bpf_object__init_maps_name(struct bpf_object *obj, int maps_shndx)
+{
+	int i;
+	Elf_Data *symbols = obj->efile.symbols;
+
+	if (!symbols || maps_shndx < 0)
+		return;
+
+	for (i = 0; i < symbols->d_size / sizeof(GElf_Sym); i++) {
+		GElf_Sym sym;
+		size_t map_idx;
+		const char *map_name;
+
+		if (!gelf_getsym(symbols, i, &sym))
+			continue;
+		if (sym.st_shndx != maps_shndx)
+			continue;
+
+		map_name = elf_strptr(obj->efile.elf,
+				      obj->efile.ehdr.e_shstrndx,
+				      sym.st_name);
+		map_idx = sym.st_value / sizeof(struct bpf_map_def);
+		if (map_idx >= obj->nr_maps) {
+			pr_warning("index of map \"%s\" is buggy: %zu > %zu\n",
+				   map_name, map_idx, obj->nr_maps);
+			continue;
+		}
+		obj->maps[map_idx].name = strdup(map_name);
+		pr_debug("map %zu is \"%s\"\n", map_idx,
+			 obj->maps[map_idx].name);
+	}
 }
 
 static int bpf_object__elf_collect(struct bpf_object *obj)
@@ -512,7 +566,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
 	Elf_Scn *scn = NULL;
-	int idx = 0, err = 0;
+	int idx = 0, err = 0, maps_shndx = -1;
 
 	/* Elf is corrupted/truncated, avoid calling elf_strptr. */
 	if (!elf_rawdata(elf_getscn(elf, ep->e_shstrndx), NULL)) {
@@ -562,10 +616,11 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			err = bpf_object__init_kversion(obj,
 							data->d_buf,
 							data->d_size);
-		else if (strcmp(name, "maps") == 0)
+		else if (strcmp(name, "maps") == 0) {
 			err = bpf_object__init_maps(obj, data->d_buf,
 						    data->d_size);
-		else if (sh.sh_type == SHT_SYMTAB) {
+			maps_shndx = idx;
+		} else if (sh.sh_type == SHT_SYMTAB) {
 			if (obj->efile.symbols) {
 				pr_warning("bpf: multiple SYMTAB in %s\n",
 					   obj->path);
@@ -606,6 +661,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		if (err)
 			goto out;
 	}
+
+	if (maps_shndx >= 0)
+		bpf_object__init_maps_name(obj, maps_shndx);
 out:
 	return err;
 }
@@ -688,37 +746,15 @@ static int
 bpf_object__create_maps(struct bpf_object *obj)
 {
 	unsigned int i;
-	size_t nr_maps;
-	int *pfd;
 
-	nr_maps = obj->maps_buf_sz / sizeof(struct bpf_map_def);
-	if (!obj->maps_buf || !nr_maps) {
-		pr_debug("don't need create maps for %s\n",
-			 obj->path);
-		return 0;
-	}
+	for (i = 0; i < obj->nr_maps; i++) {
+		struct bpf_map_def *def = &obj->maps[i].def;
+		int *pfd = &obj->maps[i].fd;
 
-	obj->map_fds = malloc(sizeof(int) * nr_maps);
-	if (!obj->map_fds) {
-		pr_warning("realloc perf_bpf_map_fds failed\n");
-		return -ENOMEM;
-	}
-	obj->nr_map_fds = nr_maps;
-
-	/* fill all fd with -1 */
-	memset(obj->map_fds, -1, sizeof(int) * nr_maps);
-
-	pfd = obj->map_fds;
-	for (i = 0; i < nr_maps; i++) {
-		struct bpf_map_def def;
-
-		def = *(struct bpf_map_def *)(obj->maps_buf +
-				i * sizeof(struct bpf_map_def));
-
-		*pfd = bpf_create_map(def.type,
-				      def.key_size,
-				      def.value_size,
-				      def.max_entries);
+		*pfd = bpf_create_map(def->type,
+				      def->key_size,
+				      def->value_size,
+				      def->max_entries);
 		if (*pfd < 0) {
 			size_t j;
 			int err = *pfd;
@@ -726,22 +762,17 @@ bpf_object__create_maps(struct bpf_object *obj)
 			pr_warning("failed to create map: %s\n",
 				   strerror(errno));
 			for (j = 0; j < i; j++)
-				zclose(obj->map_fds[j]);
-			obj->nr_map_fds = 0;
-			zfree(&obj->map_fds);
+				zclose(obj->maps[j].fd);
 			return err;
 		}
 		pr_debug("create map: fd=%d\n", *pfd);
-		pfd++;
 	}
 
-	zfree(&obj->maps_buf);
-	obj->maps_buf_sz = 0;
 	return 0;
 }
 
 static int
-bpf_program__relocate(struct bpf_program *prog, int *map_fds)
+bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 {
 	int i;
 
@@ -761,7 +792,7 @@ bpf_program__relocate(struct bpf_program *prog, int *map_fds)
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		insns[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
-		insns[insn_idx].imm = map_fds[map_idx];
+		insns[insn_idx].imm = obj->maps[map_idx].fd;
 	}
 
 	zfree(&prog->reloc_desc);
@@ -780,7 +811,7 @@ bpf_object__relocate(struct bpf_object *obj)
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
 
-		err = bpf_program__relocate(prog, obj->map_fds);
+		err = bpf_program__relocate(prog, obj);
 		if (err) {
 			pr_warning("failed to relocate '%s'\n",
 				   prog->section_name);
@@ -804,8 +835,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 		Elf_Data *data = obj->efile.reloc[i].data;
 		int idx = shdr->sh_info;
 		struct bpf_program *prog;
-		size_t nr_maps = obj->maps_buf_sz /
-				 sizeof(struct bpf_map_def);
+		size_t nr_maps = obj->nr_maps;
 
 		if (shdr->sh_type != SHT_REL) {
 			pr_warning("internal error at %d\n", __LINE__);
@@ -1050,10 +1080,8 @@ int bpf_object__unload(struct bpf_object *obj)
 	if (!obj)
 		return -EINVAL;
 
-	for (i = 0; i < obj->nr_map_fds; i++)
-		zclose(obj->map_fds[i]);
-	zfree(&obj->map_fds);
-	obj->nr_map_fds = 0;
+	for (i = 0; i < obj->nr_maps; i++)
+		zclose(obj->maps[i].fd);
 
 	for (i = 0; i < obj->nr_programs; i++)
 		bpf_program__unload(&obj->programs[i]);
@@ -1096,7 +1124,16 @@ void bpf_object__close(struct bpf_object *obj)
 	bpf_object__elf_finish(obj);
 	bpf_object__unload(obj);
 
-	zfree(&obj->maps_buf);
+	for (i = 0; i < obj->nr_maps; i++) {
+		zfree(&obj->maps[i].name);
+		if (obj->maps[i].clear_priv)
+			obj->maps[i].clear_priv(&obj->maps[i],
+						obj->maps[i].priv);
+		obj->maps[i].priv = NULL;
+		obj->maps[i].clear_priv = NULL;
+	}
+	zfree(&obj->maps);
+	obj->nr_maps = 0;
 
 	if (obj->programs && obj->nr_programs) {
 		for (i = 0; i < obj->nr_programs; i++)
@@ -1250,4 +1287,93 @@ int bpf_program__nth_fd(struct bpf_program *prog, int n)
 	}
 
 	return fd;
+}
+
+int bpf_map__get_fd(struct bpf_map *map)
+{
+	if (!map)
+		return -EINVAL;
+
+	return map->fd;
+}
+
+int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef)
+{
+	if (!map || !pdef)
+		return -EINVAL;
+
+	*pdef = map->def;
+	return 0;
+}
+
+const char *bpf_map__get_name(struct bpf_map *map)
+{
+	if (!map)
+		return NULL;
+	return map->name;
+}
+
+int bpf_map__set_private(struct bpf_map *map, void *priv,
+			 bpf_map_clear_priv_t clear_priv)
+{
+	if (!map)
+		return -EINVAL;
+
+	if (map->priv) {
+		if (map->clear_priv)
+			map->clear_priv(map, map->priv);
+	}
+
+	map->priv = priv;
+	map->clear_priv = clear_priv;
+	return 0;
+}
+
+int bpf_map__get_private(struct bpf_map *map, void **ppriv)
+{
+	if (!map)
+		return -EINVAL;
+
+	if (ppriv)
+		*ppriv = map->priv;
+	return 0;
+}
+
+struct bpf_map *
+bpf_map__next(struct bpf_map *prev, struct bpf_object *obj)
+{
+	size_t idx;
+	struct bpf_map *s, *e;
+
+	if (!obj || !obj->maps)
+		return NULL;
+
+	s = obj->maps;
+	e = obj->maps + obj->nr_maps;
+
+	if (prev == NULL)
+		return s;
+
+	if ((prev < s) || (prev >= e)) {
+		pr_warning("error in %s: map handler doesn't belong to object\n",
+			   __func__);
+		return NULL;
+	}
+
+	idx = (prev - obj->maps) + 1;
+	if (idx >= obj->nr_maps)
+		return NULL;
+	return &obj->maps[idx];
+}
+
+struct bpf_map *
+bpf_object__get_map_by_name(struct bpf_object *obj, const char *name)
+{
+	struct bpf_map *pos;
+
+	bpf_map__for_each(pos, obj) {
+		if (strcmp(pos->name, name) == 0)
+			return pos;
+	}
+	return NULL;
 }
