@@ -750,19 +750,20 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	 */
 	if (psmouse_do_detect(focaltech_detect, psmouse, set_properties) == 0) {
 		if (max_proto > PSMOUSE_IMEX) {
-			if (!set_properties || focaltech_init(psmouse) == 0) {
-				if (IS_ENABLED(CONFIG_MOUSE_PS2_FOCALTECH))
-					return PSMOUSE_FOCALTECH;
-				/*
-				 * Note that we need to also restrict
-				 * psmouse_max_proto so that psmouse_initialize()
-				 * does not try to reset rate and resolution,
-				 * because even that upsets the device.
-				 */
-				psmouse_max_proto = PSMOUSE_PS2;
-				return PSMOUSE_PS2;
+			if (IS_ENABLED(CONFIG_MOUSE_PS2_FOCALTECH) &&
+			    (!set_properties || focaltech_init(psmouse) == 0)) {
+				return PSMOUSE_FOCALTECH;
 			}
 		}
+		/*
+		 * Restrict psmouse_max_proto so that psmouse_initialize()
+		 * does not try to reset rate and resolution, because even
+		 * that upsets the device.
+		 * This also causes us to basically fall through to basic
+		 * protocol detection, where we fully reset the mouse,
+		 * and set it up as bare PS/2 protocol device.
+		 */
+		psmouse_max_proto = max_proto = PSMOUSE_PS2;
 	}
 
 	/*
