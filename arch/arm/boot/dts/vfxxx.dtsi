@@ -158,7 +158,7 @@
 				interrupts = <67 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_DSPI0>;
 				clock-names = "dspi";
-				spi-num-chipselects = <5>;
+				spi-num-chipselects = <6>;
 				status = "disabled";
 			};
 
@@ -170,7 +170,7 @@
 				interrupts = <68 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_DSPI1>;
 				clock-names = "dspi";
-				spi-num-chipselects = <5>;
+				spi-num-chipselects = <4>;
 				status = "disabled";
 			};
 
@@ -461,6 +461,8 @@
 				clock-names = "adc";
 				#io-channel-cells = <1>;
 				status = "disabled";
+				fsl,adck-max-frequency = <30000000>, <40000000>,
+							<20000000>;
 			};
 
 			esdhc0: esdhc@400b1000 {
@@ -472,8 +474,6 @@
 					<&clks VF610_CLK_ESDHC0>;
 				clock-names = "ipg", "ahb", "per";
 				status = "disabled";
-				fsl,adck-max-frequency = <30000000>, <40000000>,
-							<20000000>;
 			};
 
 			esdhc1: esdhc@400b2000 {
