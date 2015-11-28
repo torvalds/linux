@@ -353,11 +353,19 @@ void xprt_complete_bc_request(struct rpc_rqst *req, uint32_t copied)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct svc_serv *bc_serv = xprt->bc_serv;
+	struct xdr_buf *rq_rcv_buf = &req->rq_rcv_buf;
 
 	spin_lock(&xprt->bc_pa_lock);
 	list_del(&req->rq_bc_pa_list);
 	xprt_dec_alloc_count(xprt, 1);
 	spin_unlock(&xprt->bc_pa_lock);
+
+	if (copied <= rq_rcv_buf->head[0].iov_len) {
+		rq_rcv_buf->head[0].iov_len = copied;
+		rq_rcv_buf->page_len = 0;
+	} else {
+		rq_rcv_buf->page_len = copied - rq_rcv_buf->head[0].iov_len;
+	}
 
 	req->rq_private_buf.len = copied;
 	set_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
