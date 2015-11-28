@@ -312,14 +312,16 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
 
 int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
 
-int skl_init_module(struct skl_sst *ctx, struct skl_module_cfg *module_config,
-	char *param);
+int skl_init_module(struct skl_sst *ctx, struct skl_module_cfg *module_config);
 
 int skl_bind_modules(struct skl_sst *ctx, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
 
 int skl_unbind_modules(struct skl_sst *ctx, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
+
+int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
+			u32 param_id, struct skl_module_cfg *mcfg);
 
 enum skl_bitdepth skl_get_bit_depth(int params);
 #endif

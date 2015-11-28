@@ -340,7 +340,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		 * FE/BE params
 		 */
 		skl_tplg_update_module_params(w, ctx);
-		ret = skl_init_module(ctx, mconfig, NULL);
+		ret = skl_init_module(ctx, mconfig);
 		if (ret < 0)
 			return ret;
 	}
