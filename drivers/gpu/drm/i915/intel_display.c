@@ -4978,7 +4978,11 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc->active = true;
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+	if (intel_crtc->config->has_pch_encoder)
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+	else
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
@@ -5022,9 +5026,13 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		intel_opregion_notify_encoder(encoder, true);
 	}
 
-	if (intel_crtc->config->has_pch_encoder)
+	if (intel_crtc->config->has_pch_encoder) {
+		intel_wait_for_vblank(dev, pipe);
+		intel_wait_for_vblank(dev, pipe);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
 						      true);
+	}
 
 	/* If we change the relative order between pipe/planes enabling, we need
 	 * to change the workaround. */
