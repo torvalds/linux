@@ -314,6 +314,83 @@ static int skl_tplg_alloc_pipe_widget(struct device *dev,
 }
 
 /*
+ * some modules can have multiple params set from user control and
+ * need to be set after module is initialized. If set_param flag is
+ * set module params will be done after module is initialised.
+ */
+static int skl_tplg_set_module_params(struct snd_soc_dapm_widget *w,
+						struct skl_sst *ctx)
+{
+	int i, ret;
+	struct skl_module_cfg *mconfig = w->priv;
+	const struct snd_kcontrol_new *k;
+	struct soc_bytes_ext *sb;
+	struct skl_algo_data *bc;
+	struct skl_specific_cfg *sp_cfg;
+
+	if (mconfig->formats_config.caps_size > 0 &&
+		mconfig->formats_config.set_params) {
+		sp_cfg = &mconfig->formats_config;
+		ret = skl_set_module_params(ctx, sp_cfg->caps,
+					sp_cfg->caps_size,
+					sp_cfg->param_id, mconfig);
+		if (ret < 0)
+			return ret;
+	}
+
+	for (i = 0; i < w->num_kcontrols; i++) {
+		k = &w->kcontrol_news[i];
+		if (k->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+			sb = (void *) k->private_value;
+			bc = (struct skl_algo_data *)sb->dobj.private;
+
+			if (bc->set_params) {
+				ret = skl_set_module_params(ctx,
+						(u32 *)bc->params, bc->max,
+						bc->param_id, mconfig);
+				if (ret < 0)
+					return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * some module param can set from user control and this is required as
+ * when module is initailzed. if module param is required in init it is
+ * identifed by set_param flag. if set_param flag is not set, then this
+ * parameter needs to set as part of module init.
+ */
+static int skl_tplg_set_module_init_data(struct snd_soc_dapm_widget *w)
+{
+	const struct snd_kcontrol_new *k;
+	struct soc_bytes_ext *sb;
+	struct skl_algo_data *bc;
+	struct skl_module_cfg *mconfig = w->priv;
+	int i;
+
+	for (i = 0; i < w->num_kcontrols; i++) {
+		k = &w->kcontrol_news[i];
+		if (k->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+			sb = (struct soc_bytes_ext *)k->private_value;
+			bc = (struct skl_algo_data *)sb->dobj.private;
+
+			if (bc->set_params)
+				continue;
+
+			mconfig->formats_config.caps = (u32 *)&bc->params;
+			mconfig->formats_config.caps_size = bc->max;
+
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
  * Inside a pipe instance, we can have various modules. These modules need
  * to instantiated in DSP by invoking INIT_MODULE IPC, which is achieved by
  * skl_init_module() routine, so invoke that for all modules in a pipeline
@@ -340,7 +417,13 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		 * FE/BE params
 		 */
 		skl_tplg_update_module_params(w, ctx);
+
+		skl_tplg_set_module_init_data(w);
 		ret = skl_init_module(ctx, mconfig);
+		if (ret < 0)
+			return ret;
+
+		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
 			return ret;
 	}
@@ -1215,7 +1298,9 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 		return -ENOMEM;
 
 	memcpy(mconfig->formats_config.caps, dfw_config->caps.caps,
-					 dfw_config->caps.caps_size);
+						 dfw_config->caps.caps_size);
+	mconfig->formats_config.param_id = dfw_config->caps.param_id;
+	mconfig->formats_config.set_params = dfw_config->caps.set_params;
 
 bind_event:
 	if (tplg_w->event_type == 0) {
