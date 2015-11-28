@@ -22,8 +22,6 @@
 
 #include "nvme.h"
 
-#ifdef CONFIG_NVM
-
 #include <linux/nvme.h>
 #include <linux/bitops.h>
 #include <linux/lightnvm.h>
@@ -588,14 +586,3 @@ int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
 
 	return 0;
 }
-#else
-int nvme_nvm_register(struct request_queue *q, char *disk_name)
-{
-	return 0;
-}
-void nvme_nvm_unregister(struct request_queue *q, char *disk_name) {};
-int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
-{
-	return 0;
-}
-#endif /* CONFIG_NVM */
