@@ -140,6 +140,11 @@ struct skl_up_down_mixer_cfg {
 	s32 coeff[UP_DOWN_MIXER_MAX_COEFF];
 } __packed;
 
+struct skl_algo_cfg {
+	struct skl_base_cfg  base_cfg;
+	char params[0];
+} __packed;
+
 enum skl_dma_type {
 	SKL_DMA_HDA_HOST_OUTPUT_CLASS = 0,
 	SKL_DMA_HDA_HOST_INPUT_CLASS = 1,

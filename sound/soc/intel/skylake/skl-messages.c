@@ -387,6 +387,28 @@ static void skl_set_copier_format(struct skl_sst *ctx,
 	skl_setup_cpr_gateway_cfg(ctx, mconfig, cpr_mconfig);
 }
 
+/*
+ * Algo module are DSP pre processing modules. Algo module take base module
+ * configuration and params
+ */
+
+static void skl_set_algo_format(struct skl_sst *ctx,
+			struct skl_module_cfg *mconfig,
+			struct skl_algo_cfg *algo_mcfg)
+{
+	struct skl_base_cfg *base_cfg = (struct skl_base_cfg *)algo_mcfg;
+
+	skl_set_base_module_format(ctx, mconfig, base_cfg);
+
+	if (mconfig->formats_config.caps_size == 0)
+		return;
+
+	memcpy(algo_mcfg->params,
+			mconfig->formats_config.caps,
+			mconfig->formats_config.caps_size);
+
+}
+
 static u16 skl_get_module_param_size(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig)
 {
@@ -403,6 +425,11 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 
 	case SKL_MODULE_TYPE_UPDWMIX:
 		return sizeof(struct skl_up_down_mixer_cfg);
+
+	case SKL_MODULE_TYPE_ALGO:
+		param_size = sizeof(struct skl_base_cfg);
+		param_size += mconfig->formats_config.caps_size;
+		return param_size;
 
 	default:
 		/*
@@ -448,6 +475,10 @@ static int skl_set_module_format(struct skl_sst *ctx,
 
 	case SKL_MODULE_TYPE_UPDWMIX:
 		skl_set_updown_mixer_format(ctx, module_config, *param_data);
+		break;
+
+	case SKL_MODULE_TYPE_ALGO:
+		skl_set_algo_format(ctx, module_config, *param_data);
 		break;
 
 	default:
