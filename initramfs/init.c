@@ -1,85 +1,67 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/mount.h>
+#include <unistd.h>
+#include <dirent.h>
+
+/*void do_ls(const char *path)
+{
+	char buf[512];
+	DIR *dir;
+	struct dirent *dent;
+	struct stat st;
+
+	printf("> ls %s\n", path);
+
+	if (!(dir = opendir(path))) {
+		perror(path);
+		return;
+	}
+
+	while ((dent = readdir(dir)) != NULL) {
+		sprintf(buf, "%s/%s", path, dent->d_name);
+		stat(buf, &st);
+		printf("%-9d %s\n", st.st_size, dent->d_name);
+	}
+
+	closedir(dir);
+}*/
 
 int main(int argc, char *argv[])
 {
-	FILE *fp;
-	int fd;
-	int result;
-	char str_buffer[256];
-	int loop_count;
+	printf("\n");
+	printf("Hello world Linux userspace!\n");
+	printf("Our PID is: %d\n", getpid());
 
-	//
-	// write to stdout and stderr using standard file descriptors
-	//
-	result = sprintf(str_buffer, "write to STDOUT_FILENO\n");
-	if(result <= 0) exit(1);
-	result = write(STDOUT_FILENO, str_buffer, strlen(str_buffer));
-	if(result <= 0) exit(2);
+	execl("/bin/bash", "/bin/bash", NULL);
 
-	result = sprintf(str_buffer, "write to STDERR_FILENO\n");
-	if(result <= 0) exit(3);
-	result = write(STDERR_FILENO, str_buffer, strlen(str_buffer));
-	if(result <= 0) exit(4);
+	while (1) sleep(2);
 
-	//
-	// write to stdout and stderr using standard file stream pointers
-	//
-	result = printf("printf to stdout\n");
-	if(result <= 0) exit(5);
+	/*do_ls("/");
+	//do_ls("/bin");
 
-	result = fprintf(stderr, "fprintf to stderr\n");
-	if(result <= 0) exit(6);
+	printf("\nWe'll try to get bash running...\n");
 
-	//
-	// mount devtmpfs so we can open the LCD display driver
-	//
-	result = mount("none", "/dev", "devtmpfs", MS_SILENT, NULL);
-	if(result != 0) exit(7);
-
-	//
-	// enter an infinite loop printing a loop count to stdout and the LCD
-	// every 5 seconds
-	//
-	loop_count = 0;
-	while(1) {
-
-		result = sprintf(str_buffer, "loop = %d\n", loop_count);
-		if(result <= 0) exit(8);
-
-		//
-		// always print loop count to stdout
-		//
-		result = printf("%s", str_buffer);
-		if(result <= 0) exit(9);
-
-		//
-		// alternate printing loop count to LCD using FD and FP
-		//
-		if((loop_count & 0x1) == 0) {
-			fd = open("/dev/ttyLCD0", O_WRONLY);
-			if (fd < 0) exit(10);
-			else {
-				result = write(fd, str_buffer, strlen(str_buffer));
-				close(fd);
-				if(result <= 0) exit(11);
-			}
-		} else {
-
-			fp = fopen("/dev/ttyLCD0", "w");
-			if (fp == NULL) exit(12);
-			else {
-				result = fprintf(fp, "fp %s", str_buffer);
-				fclose(fp);
-				if(result <= 0) exit(13);
-			}
+	int pid = fork();
+	if (pid == 0) {
+		printf("Child PID: %d\n", getpid());
+		int ret = execlp("/bin/bash", "/bin/bash", NULL);
+		printf("execlp returned %d\n", ret);
+		if (ret < 0) {
+			perror("execlp");
 		}
-
-		sleep(5);
-		loop_count++;
+	} else if (pid > 0) {
+		printf("Parent PID: %d\n", getpid());
+	} else {
+		printf("fork() error\n");
 	}
+
+	printf("Infinite loop...\n");
+
+	while (1)
+		sleep(1);*/
+
+	return 0;
 }

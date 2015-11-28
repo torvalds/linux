@@ -9,7 +9,7 @@
 	chosen {
 		/* No FB: bootargs = "earlyprintk keep_bootcon fbcon=rotate:1 init=/init"; */
 
-		bootargs = "keep_bootcon fbcon=rotate:1 init=/init";
+		bootargs = "keep_bootcon fbcon=rotate:1 root=/dev/ram0 rootfstype=ramfs init=init console=tty0";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -52,6 +52,10 @@
 			compatible = "arm,arm11mpcore";
 			reg = <1>;
 		};
+	};
+
+	pad0: pad@10146000 {
+		compatible = "arm,nintendo3ds_pad";
 	};
 
 	i2c1: i2c@10161000 {
