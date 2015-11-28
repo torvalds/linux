@@ -100,7 +100,7 @@ int mxc_iomux_alloc_pin(unsigned int pin, const char *label)
 	unsigned pad = pin & IOMUX_PADNUM_MASK;
 
 	if (pad >= (PIN_MAX + 1)) {
-		printk(KERN_ERR "mxc_iomux: Attempt to request nonexistant pin %u for \"%s\"\n",
+		printk(KERN_ERR "mxc_iomux: Attempt to request nonexistent pin %u for \"%s\"\n",
 			pad, label ? label : "?");
 		return -EINVAL;
 	}
