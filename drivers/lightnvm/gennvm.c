@@ -207,6 +207,14 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	return 0;
 }
 
+static void gennvm_free(struct nvm_dev *dev)
+{
+	gennvm_blocks_free(dev);
+	gennvm_luns_free(dev);
+	kfree(dev->mp);
+	dev->mp = NULL;
+}
+
 static int gennvm_register(struct nvm_dev *dev)
 {
 	struct gen_nvm *gn;
@@ -234,16 +242,13 @@ static int gennvm_register(struct nvm_dev *dev)
 
 	return 1;
 err:
-	kfree(gn);
+	gennvm_free(dev);
 	return ret;
 }
 
 static void gennvm_unregister(struct nvm_dev *dev)
 {
-	gennvm_blocks_free(dev);
-	gennvm_luns_free(dev);
-	kfree(dev->mp);
-	dev->mp = NULL;
+	gennvm_free(dev);
 }
 
 static struct nvm_block *gennvm_get_blk(struct nvm_dev *dev,
