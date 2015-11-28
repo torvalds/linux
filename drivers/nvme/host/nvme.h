@@ -216,6 +216,12 @@ static inline int nvme_error_status(u16 status)
 	}
 }
 
+static inline bool nvme_req_needs_retry(struct request *req, u16 status)
+{
+	return !(status & NVME_SC_DNR || blk_noretry_request(req)) &&
+		(jiffies - req->start_time) < req->timeout;
+}
+
 int nvme_disable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
 int nvme_enable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
 int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl);
@@ -230,6 +236,7 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
 
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags);
+void nvme_requeue_req(struct request *req);
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buf, unsigned bufflen);
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,

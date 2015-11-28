@@ -78,6 +78,17 @@ static struct nvme_ns *nvme_get_ns_from_disk(struct gendisk *disk)
 	return ns;
 }
 
+void nvme_requeue_req(struct request *req)
+{
+	unsigned long flags;
+
+	blk_mq_requeue_request(req);
+	spin_lock_irqsave(req->q->queue_lock, flags);
+	if (!blk_queue_stopped(req->q))
+		blk_mq_kick_requeue_list(req->q);
+	spin_unlock_irqrestore(req->q->queue_lock, flags);
+}
+
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags)
 {

@@ -607,17 +607,9 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	int error = 0;
 
 	if (unlikely(status)) {
-		if (!(status & NVME_SC_DNR || blk_noretry_request(req))
-		    && (jiffies - req->start_time) < req->timeout) {
-			unsigned long flags;
-
+		if (nvme_req_needs_retry(req, status)) {
 			nvme_unmap_data(nvmeq->dev, iod);
-
-			blk_mq_requeue_request(req);
-			spin_lock_irqsave(req->q->queue_lock, flags);
-			if (!blk_queue_stopped(req->q))
-				blk_mq_kick_requeue_list(req->q);
-			spin_unlock_irqrestore(req->q->queue_lock, flags);
+			nvme_requeue_req(req);
 			return;
 		}
 
