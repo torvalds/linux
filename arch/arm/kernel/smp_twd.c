@@ -206,10 +206,8 @@ static void twd_calibrate_rate(void)
 		/* Wait for a tick to start */
 		waitjiffies = get_jiffies_64() + 1;
 
-		while (get_jiffies_64() < waitjiffies) {
-			//printk("get_jiffies_64: %llu  cnt: %llu\n", get_jiffies_64(), readl_relaxed(twd_base + TWD_TIMER_COUNTER));
+		while (get_jiffies_64() < waitjiffies)
 			udelay(10);
-		}
 
 		/* OK, now the tick has started, let's get the timer going */
 		waitjiffies += 5;

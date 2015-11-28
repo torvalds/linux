@@ -1,6 +1,3 @@
 #!/bin/sh
 
-CROSS_PATH="/opt/x-tools/arm-unknown-linux-gnueabi/bin/"
-
-export PATH=$PATH:$CROSS_PATH
-arm-unknown-linux-gnueabi-gcc init.c -o init
+arm-unknown-linux-gnueabihf-gcc -static -mfloat-abi=hard -mlittle-endian -mcpu=mpcore -march=armv6k -o init init.c
