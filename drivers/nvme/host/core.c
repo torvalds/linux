@@ -1200,17 +1200,22 @@ static void nvme_release_instance(struct nvme_ctrl *ctrl)
 	spin_unlock(&dev_list_lock);
 }
 
-static void nvme_free_ctrl(struct kref *kref)
-{
-	struct nvme_ctrl *ctrl = container_of(kref, struct nvme_ctrl, kref);
+void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
+ {
+	device_remove_file(ctrl->device, &dev_attr_reset_controller);
+	device_destroy(nvme_class, MKDEV(nvme_char_major, ctrl->instance));
 
 	spin_lock(&dev_list_lock);
 	list_del(&ctrl->node);
 	spin_unlock(&dev_list_lock);
+}
+
+static void nvme_free_ctrl(struct kref *kref)
+{
+	struct nvme_ctrl *ctrl = container_of(kref, struct nvme_ctrl, kref);
 
 	put_device(ctrl->device);
 	nvme_release_instance(ctrl);
-	device_destroy(nvme_class, MKDEV(nvme_char_major, ctrl->instance));
 
 	ctrl->ops->free_ctrl(ctrl);
 }
