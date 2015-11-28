@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/static_key.h>
 #include <linux/hash.h>
 #include <linux/jhash.h>
 #include <linux/if_vlan.h>
@@ -23,6 +24,9 @@
 #define NFT_TRACETYPE_LL_HSIZE		20
 #define NFT_TRACETYPE_NETWORK_HSIZE	40
 #define NFT_TRACETYPE_TRANSPORT_HSIZE	20
+
+DEFINE_STATIC_KEY_FALSE(nft_trace_enabled);
+EXPORT_SYMBOL_GPL(nft_trace_enabled);
 
 static int trace_fill_id(struct sk_buff *nlskb, struct sk_buff *skb)
 {

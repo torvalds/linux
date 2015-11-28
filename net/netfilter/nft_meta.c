@@ -18,10 +18,12 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/smp.h>
+#include <linux/static_key.h>
 #include <net/dst.h>
 #include <net/sock.h>
 #include <net/tcp_states.h> /* for TCP_TIME_WAIT */
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nft_meta.h>
 
 void nft_meta_get_eval(const struct nft_expr *expr,
@@ -297,6 +299,9 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
+	if (priv->key == NFT_META_NFTRACE)
+		static_branch_inc(&nft_trace_enabled);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nft_meta_set_init);
@@ -334,6 +339,16 @@ nla_put_failure:
 }
 EXPORT_SYMBOL_GPL(nft_meta_set_dump);
 
+void nft_meta_set_destroy(const struct nft_ctx *ctx,
+			  const struct nft_expr *expr)
+{
+	const struct nft_meta *priv = nft_expr_priv(expr);
+
+	if (priv->key == NFT_META_NFTRACE)
+		static_branch_dec(&nft_trace_enabled);
+}
+EXPORT_SYMBOL_GPL(nft_meta_set_destroy);
+
 static struct nft_expr_type nft_meta_type;
 static const struct nft_expr_ops nft_meta_get_ops = {
 	.type		= &nft_meta_type,
@@ -348,6 +363,7 @@ static const struct nft_expr_ops nft_meta_set_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_meta)),
 	.eval		= nft_meta_set_eval,
 	.init		= nft_meta_set_init,
+	.destroy	= nft_meta_set_destroy,
 	.dump		= nft_meta_set_dump,
 };
 

@@ -16,6 +16,7 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
+#include <linux/static_key.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
@@ -50,7 +51,7 @@ static noinline void __nft_trace_packet(struct nft_traceinfo *info,
 {
 	const struct nft_pktinfo *pkt = info->pkt;
 
-	if (!pkt->skb->nf_trace)
+	if (!info->trace || !pkt->skb->nf_trace)
 		return;
 
 	info->chain = chain;
@@ -70,7 +71,7 @@ static inline void nft_trace_packet(struct nft_traceinfo *info,
 				    int rulenum,
 				    enum nft_trace_types type)
 {
-	if (unlikely(info->trace)) {
+	if (static_branch_unlikely(&nft_trace_enabled)) {
 		info->rule = rule;
 		__nft_trace_packet(info, chain, rulenum, type);
 	}
@@ -137,7 +138,9 @@ nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 	unsigned int gencursor = nft_genmask_cur(net);
 	struct nft_traceinfo info;
 
-	nft_trace_init(&info, pkt, &regs.verdict, basechain);
+	info.trace = false;
+	if (static_branch_unlikely(&nft_trace_enabled))
+		nft_trace_init(&info, pkt, &regs.verdict, basechain);
 do_chain:
 	rulenum = 0;
 	rule = list_entry(&chain->rules, struct nft_rule, list);
