@@ -18,6 +18,8 @@
 #include <linux/errno.h>
 #include <linux/hdreg.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/list_sort.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/pr.h>
@@ -28,6 +30,9 @@
 #include <asm/unaligned.h>
 
 #include "nvme.h"
+
+static int nvme_major;
+module_param(nvme_major, int, 0);
 
 DEFINE_SPINLOCK(dev_list_lock);
 
@@ -47,7 +52,7 @@ static void nvme_free_ns(struct kref *kref)
 	kfree(ns);
 }
 
-void nvme_put_ns(struct nvme_ns *ns)
+static void nvme_put_ns(struct nvme_ns *ns)
 {
 	kref_put(&ns->kref, nvme_free_ns);
 }
@@ -496,7 +501,7 @@ static void nvme_config_discard(struct nvme_ns *ns)
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
 }
 
-int nvme_revalidate_disk(struct gendisk *disk)
+static int nvme_revalidate_disk(struct gendisk *disk)
 {
 	struct nvme_ns *ns = disk->private_data;
 	struct nvme_id_ns *id;
@@ -660,7 +665,7 @@ static const struct pr_ops nvme_pr_ops = {
 	.pr_clear	= nvme_pr_clear,
 };
 
-const struct block_device_operations nvme_fops = {
+static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
 	.compat_ioctl	= nvme_compat_ioctl,
@@ -840,3 +845,184 @@ void nvme_put_ctrl(struct nvme_ctrl *ctrl)
 	kref_put(&ctrl->kref, nvme_free_ctrl);
 }
 
+static int ns_cmp(void *priv, struct list_head *a, struct list_head *b)
+{
+	struct nvme_ns *nsa = container_of(a, struct nvme_ns, list);
+	struct nvme_ns *nsb = container_of(b, struct nvme_ns, list);
+
+	return nsa->ns_id - nsb->ns_id;
+}
+
+static struct nvme_ns *nvme_find_ns(struct nvme_ctrl *ctrl, unsigned nsid)
+{
+	struct nvme_ns *ns;
+
+	list_for_each_entry(ns, &ctrl->namespaces, list) {
+		if (ns->ns_id == nsid)
+			return ns;
+		if (ns->ns_id > nsid)
+			break;
+	}
+	return NULL;
+}
+
+static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
+{
+	struct nvme_ns *ns;
+	struct gendisk *disk;
+	int node = dev_to_node(ctrl->dev);
+
+	ns = kzalloc_node(sizeof(*ns), GFP_KERNEL, node);
+	if (!ns)
+		return;
+
+	ns->queue = blk_mq_init_queue(ctrl->tagset);
+	if (IS_ERR(ns->queue))
+		goto out_free_ns;
+	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, ns->queue);
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, ns->queue);
+	ns->queue->queuedata = ns;
+	ns->ctrl = ctrl;
+
+	disk = alloc_disk_node(0, node);
+	if (!disk)
+		goto out_free_queue;
+
+	kref_init(&ns->kref);
+	ns->ns_id = nsid;
+	ns->disk = disk;
+	ns->lba_shift = 9; /* set to a default value for 512 until disk is validated */
+	list_add_tail(&ns->list, &ctrl->namespaces);
+
+	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
+	if (ctrl->max_hw_sectors) {
+		blk_queue_max_hw_sectors(ns->queue, ctrl->max_hw_sectors);
+		blk_queue_max_segments(ns->queue,
+			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1);
+	}
+	if (ctrl->stripe_size)
+		blk_queue_chunk_sectors(ns->queue, ctrl->stripe_size >> 9);
+	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
+		blk_queue_flush(ns->queue, REQ_FLUSH | REQ_FUA);
+	blk_queue_virt_boundary(ns->queue, ctrl->page_size - 1);
+
+	disk->major = nvme_major;
+	disk->first_minor = 0;
+	disk->fops = &nvme_fops;
+	disk->private_data = ns;
+	disk->queue = ns->queue;
+	disk->driverfs_dev = ctrl->device;
+	disk->flags = GENHD_FL_EXT_DEVT;
+	sprintf(disk->disk_name, "nvme%dn%d", ctrl->instance, nsid);
+
+	/*
+	 * Initialize capacity to 0 until we establish the namespace format and
+	 * setup integrity extentions if necessary. The revalidate_disk after
+	 * add_disk allows the driver to register with integrity if the format
+	 * requires it.
+	 */
+	set_capacity(disk, 0);
+	if (nvme_revalidate_disk(ns->disk))
+		goto out_free_disk;
+
+	kref_get(&ctrl->kref);
+	if (ns->type != NVME_NS_LIGHTNVM) {
+		add_disk(ns->disk);
+		if (ns->ms) {
+			struct block_device *bd = bdget_disk(ns->disk, 0);
+			if (!bd)
+				return;
+			if (blkdev_get(bd, FMODE_READ, NULL)) {
+				bdput(bd);
+				return;
+			}
+			blkdev_reread_part(bd);
+			blkdev_put(bd, FMODE_READ);
+		}
+	}
+
+	return;
+ out_free_disk:
+	kfree(disk);
+	list_del(&ns->list);
+ out_free_queue:
+	blk_cleanup_queue(ns->queue);
+ out_free_ns:
+	kfree(ns);
+}
+
+static void nvme_ns_remove(struct nvme_ns *ns)
+{
+	bool kill = nvme_io_incapable(ns->ctrl) &&
+			!blk_queue_dying(ns->queue);
+
+	if (kill)
+		blk_set_queue_dying(ns->queue);
+	if (ns->disk->flags & GENHD_FL_UP) {
+		if (blk_get_integrity(ns->disk))
+			blk_integrity_unregister(ns->disk);
+		del_gendisk(ns->disk);
+	}
+	if (kill || !blk_queue_dying(ns->queue)) {
+		blk_mq_abort_requeue_list(ns->queue);
+		blk_cleanup_queue(ns->queue);
+	}
+	list_del_init(&ns->list);
+	nvme_put_ns(ns);
+}
+
+static void __nvme_scan_namespaces(struct nvme_ctrl *ctrl, unsigned nn)
+{
+	struct nvme_ns *ns, *next;
+	unsigned i;
+
+	for (i = 1; i <= nn; i++) {
+		ns = nvme_find_ns(ctrl, i);
+		if (ns) {
+			if (revalidate_disk(ns->disk))
+				nvme_ns_remove(ns);
+		} else
+			nvme_alloc_ns(ctrl, i);
+	}
+	list_for_each_entry_safe(ns, next, &ctrl->namespaces, list) {
+		if (ns->ns_id > nn)
+			nvme_ns_remove(ns);
+	}
+	list_sort(NULL, &ctrl->namespaces, ns_cmp);
+}
+
+void nvme_scan_namespaces(struct nvme_ctrl *ctrl)
+{
+	struct nvme_id_ctrl *id;
+
+	if (nvme_identify_ctrl(ctrl, &id))
+		return;
+	__nvme_scan_namespaces(ctrl, le32_to_cpup(&id->nn));
+	kfree(id);
+}
+
+void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
+{
+	struct nvme_ns *ns, *next;
+
+	list_for_each_entry_safe(ns, next, &ctrl->namespaces, list)
+		nvme_ns_remove(ns);
+}
+
+int __init nvme_core_init(void)
+{
+	int result;
+
+	result = register_blkdev(nvme_major, "nvme");
+	if (result < 0)
+		return result;
+	else if (result > 0)
+		nvme_major = result;
+
+	return 0;
+}
+
+void nvme_core_exit(void)
+{
+	unregister_blkdev(nvme_major, "nvme");
+}
