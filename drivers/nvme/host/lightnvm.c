@@ -355,10 +355,11 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_get_bb_tbl(struct request_queue *q, struct ppa_addr ppa,
+static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 				int nr_blocks, nvm_bb_update_fn *update_bbtbl,
 				void *priv)
 {
+	struct request_queue *q = nvmdev->q;
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
@@ -402,6 +403,7 @@ static int nvme_nvm_get_bb_tbl(struct request_queue *q, struct ppa_addr ppa,
 		goto out;
 	}
 
+	ppa = dev_to_generic_addr(nvmdev, ppa);
 	ret = update_bbtbl(ppa, nr_blocks, bb_tbl->blk, priv);
 	if (ret) {
 		ret = -EINTR;
