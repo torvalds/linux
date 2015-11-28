@@ -38,15 +38,11 @@
 #include <linux/slab.h>
 #include <linux/t10-pi.h>
 #include <linux/types.h>
-#include <linux/pr.h>
-#include <scsi/sg.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <asm/unaligned.h>
 
-#include <uapi/linux/nvme_ioctl.h>
 #include "nvme.h"
 
-#define NVME_MINORS		(1U << MINORBITS)
 #define NVME_Q_DEPTH		1024
 #define NVME_AQ_DEPTH		256
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
@@ -64,9 +60,6 @@ unsigned char shutdown_timeout = 5;
 module_param(shutdown_timeout, byte, 0644);
 MODULE_PARM_DESC(shutdown_timeout, "timeout in seconds for controller shutdown");
 
-static int nvme_char_major;
-module_param(nvme_char_major, int, 0);
-
 static int use_threaded_interrupts;
 module_param(use_threaded_interrupts, int, 0);
 
@@ -78,8 +71,6 @@ static LIST_HEAD(dev_list);
 static struct task_struct *nvme_thread;
 static struct workqueue_struct *nvme_workq;
 static wait_queue_head_t nvme_kthread_wait;
-
-static struct class *nvme_class;
 
 struct nvme_dev;
 struct nvme_queue;
@@ -1505,15 +1496,6 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	return result;
 }
 
-static int nvme_subsys_reset(struct nvme_dev *dev)
-{
-	if (!dev->subsystem)
-		return -ENOTTY;
-
-	writel(0x4E564D65, dev->bar + NVME_REG_NSSR); /* "NVMe" */
-	return 0;
-}
-
 static int nvme_kthread(void *data)
 {
 	struct nvme_dev *dev, *next;
@@ -2113,42 +2095,11 @@ static void nvme_release_prp_pools(struct nvme_dev *dev)
 	dma_pool_destroy(dev->prp_small_pool);
 }
 
-static DEFINE_IDA(nvme_instance_ida);
-
-static int nvme_set_instance(struct nvme_dev *dev)
-{
-	int instance, error;
-
-	do {
-		if (!ida_pre_get(&nvme_instance_ida, GFP_KERNEL))
-			return -ENODEV;
-
-		spin_lock(&dev_list_lock);
-		error = ida_get_new(&nvme_instance_ida, &instance);
-		spin_unlock(&dev_list_lock);
-	} while (error == -EAGAIN);
-
-	if (error)
-		return -ENODEV;
-
-	dev->ctrl.instance = instance;
-	return 0;
-}
-
-static void nvme_release_instance(struct nvme_dev *dev)
-{
-	spin_lock(&dev_list_lock);
-	ida_remove(&nvme_instance_ida, dev->ctrl.instance);
-	spin_unlock(&dev_list_lock);
-}
-
 static void nvme_pci_free_ctrl(struct nvme_ctrl *ctrl)
 {
 	struct nvme_dev *dev = to_nvme_dev(ctrl);
 
 	put_device(dev->dev);
-	put_device(ctrl->device);
-	nvme_release_instance(dev);
 	if (dev->tagset.tags)
 		blk_mq_free_tag_set(&dev->tagset);
 	if (dev->ctrl.admin_q)
@@ -2157,69 +2108,6 @@ static void nvme_pci_free_ctrl(struct nvme_ctrl *ctrl)
 	kfree(dev->entry);
 	kfree(dev);
 }
-
-static int nvme_dev_open(struct inode *inode, struct file *f)
-{
-	struct nvme_dev *dev;
-	int instance = iminor(inode);
-	int ret = -ENODEV;
-
-	spin_lock(&dev_list_lock);
-	list_for_each_entry(dev, &dev_list, node) {
-		if (dev->ctrl.instance == instance) {
-			if (!dev->ctrl.admin_q) {
-				ret = -EWOULDBLOCK;
-				break;
-			}
-			if (!kref_get_unless_zero(&dev->ctrl.kref))
-				break;
-			f->private_data = dev;
-			ret = 0;
-			break;
-		}
-	}
-	spin_unlock(&dev_list_lock);
-
-	return ret;
-}
-
-static int nvme_dev_release(struct inode *inode, struct file *f)
-{
-	struct nvme_dev *dev = f->private_data;
-	nvme_put_ctrl(&dev->ctrl);
-	return 0;
-}
-
-static long nvme_dev_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
-{
-	struct nvme_dev *dev = f->private_data;
-	struct nvme_ns *ns;
-
-	switch (cmd) {
-	case NVME_IOCTL_ADMIN_CMD:
-		return nvme_user_cmd(&dev->ctrl, NULL, (void __user *)arg);
-	case NVME_IOCTL_IO_CMD:
-		if (list_empty(&dev->ctrl.namespaces))
-			return -ENOTTY;
-		ns = list_first_entry(&dev->ctrl.namespaces, struct nvme_ns, list);
-		return nvme_user_cmd(&dev->ctrl, ns, (void __user *)arg);
-	case NVME_IOCTL_RESET:
-		dev_warn(dev->dev, "resetting controller\n");
-		return nvme_reset(dev);
-	case NVME_IOCTL_SUBSYS_RESET:
-		return nvme_subsys_reset(dev);
-	default:
-		return -ENOTTY;
-	}
-}
-
-static const struct file_operations nvme_dev_fops = {
-	.owner		= THIS_MODULE,
-	.open		= nvme_dev_open,
-	.release	= nvme_dev_release,
-	.unlocked_ioctl	= nvme_dev_ioctl,
-	.compat_ioctl	= nvme_dev_ioctl,
-};
 
 static void nvme_probe_work(struct work_struct *work)
 {
@@ -2372,21 +2260,6 @@ static int nvme_reset(struct nvme_dev *dev)
 	return ret;
 }
 
-static ssize_t nvme_sysfs_reset(struct device *dev,
-				struct device_attribute *attr, const char *buf,
-				size_t count)
-{
-	struct nvme_dev *ndev = dev_get_drvdata(dev);
-	int ret;
-
-	ret = nvme_reset(ndev);
-	if (ret < 0)
-		return ret;
-
-	return count;
-}
-static DEVICE_ATTR(reset_controller, S_IWUSR, NULL, nvme_sysfs_reset);
-
 static int nvme_pci_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 {
 	*val = readl(to_nvme_dev(ctrl)->bar + off);
@@ -2412,11 +2285,17 @@ static bool nvme_pci_io_incapable(struct nvme_ctrl *ctrl)
 	return !dev->bar || dev->online_queues < 2;
 }
 
+static int nvme_pci_reset_ctrl(struct nvme_ctrl *ctrl)
+{
+	return nvme_reset(to_nvme_dev(ctrl));
+}
+
 static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.reg_read32		= nvme_pci_reg_read32,
 	.reg_write32		= nvme_pci_reg_write32,
 	.reg_read64		= nvme_pci_reg_read64,
 	.io_incapable		= nvme_pci_io_incapable,
+	.reset_ctrl		= nvme_pci_reset_ctrl,
 	.free_ctrl		= nvme_pci_free_ctrl,
 };
 
@@ -2441,51 +2320,28 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!dev->queues)
 		goto free;
 
-	INIT_LIST_HEAD(&dev->ctrl.namespaces);
-	INIT_WORK(&dev->reset_work, nvme_reset_work);
 	dev->dev = get_device(&pdev->dev);
 	pci_set_drvdata(pdev, dev);
-
-	dev->ctrl.ops = &nvme_pci_ctrl_ops;
-	dev->ctrl.dev = dev->dev;
-	dev->ctrl.quirks = id->driver_data;
-
-	result = nvme_set_instance(dev);
-	if (result)
-		goto put_pci;
-
-	result = nvme_setup_prp_pools(dev);
-	if (result)
-		goto release;
-
-	kref_init(&dev->ctrl.kref);
-	dev->ctrl.device = device_create(nvme_class, &pdev->dev,
-				MKDEV(nvme_char_major, dev->ctrl.instance),
-				dev, "nvme%d", dev->ctrl.instance);
-	if (IS_ERR(dev->ctrl.device)) {
-		result = PTR_ERR(dev->ctrl.device);
-		goto release_pools;
-	}
-	get_device(dev->ctrl.device);
-	dev_set_drvdata(dev->ctrl.device, dev);
-
-	result = device_create_file(dev->ctrl.device, &dev_attr_reset_controller);
-	if (result)
-		goto put_dev;
 
 	INIT_LIST_HEAD(&dev->node);
 	INIT_WORK(&dev->scan_work, nvme_dev_scan);
 	INIT_WORK(&dev->probe_work, nvme_probe_work);
+	INIT_WORK(&dev->reset_work, nvme_reset_work);
+
+	result = nvme_setup_prp_pools(dev);
+	if (result)
+		goto put_pci;
+
+	result = nvme_init_ctrl(&dev->ctrl, &pdev->dev, &nvme_pci_ctrl_ops,
+			id->driver_data);
+	if (result)
+		goto release_pools;
+
 	schedule_work(&dev->probe_work);
 	return 0;
 
- put_dev:
-	device_destroy(nvme_class, MKDEV(nvme_char_major, dev->ctrl.instance));
-	put_device(dev->ctrl.device);
  release_pools:
 	nvme_release_prp_pools(dev);
- release:
-	nvme_release_instance(dev);
  put_pci:
 	put_device(dev->dev);
  free:
@@ -2523,11 +2379,9 @@ static void nvme_remove(struct pci_dev *pdev)
 	flush_work(&dev->probe_work);
 	flush_work(&dev->reset_work);
 	flush_work(&dev->scan_work);
-	device_remove_file(dev->ctrl.device, &dev_attr_reset_controller);
 	nvme_remove_namespaces(&dev->ctrl);
 	nvme_dev_shutdown(dev);
 	nvme_dev_remove_admin(dev);
-	device_destroy(nvme_class, MKDEV(nvme_char_major, dev->ctrl.instance));
 	nvme_free_queues(dev, 0);
 	nvme_release_cmb(dev);
 	nvme_release_prp_pools(dev);
@@ -2610,29 +2464,12 @@ static int __init nvme_init(void)
 	if (result < 0)
 		goto kill_workq;
 
-	result = __register_chrdev(nvme_char_major, 0, NVME_MINORS, "nvme",
-							&nvme_dev_fops);
-	if (result < 0)
-		goto unregister_blkdev;
-	else if (result > 0)
-		nvme_char_major = result;
-
-	nvme_class = class_create(THIS_MODULE, "nvme");
-	if (IS_ERR(nvme_class)) {
-		result = PTR_ERR(nvme_class);
-		goto unregister_chrdev;
-	}
-
 	result = pci_register_driver(&nvme_driver);
 	if (result)
-		goto destroy_class;
+		goto core_exit;
 	return 0;
 
- destroy_class:
-	class_destroy(nvme_class);
- unregister_chrdev:
-	__unregister_chrdev(nvme_char_major, 0, NVME_MINORS, "nvme");
- unregister_blkdev:
+ core_exit:
 	nvme_core_exit();
  kill_workq:
 	destroy_workqueue(nvme_workq);
@@ -2644,8 +2481,6 @@ static void __exit nvme_exit(void)
 	pci_unregister_driver(&nvme_driver);
 	nvme_core_exit();
 	destroy_workqueue(nvme_workq);
-	class_destroy(nvme_class);
-	__unregister_chrdev(nvme_char_major, 0, NVME_MINORS, "nvme");
 	BUG_ON(nvme_thread && !IS_ERR(nvme_thread));
 	_nvme_check_size();
 }

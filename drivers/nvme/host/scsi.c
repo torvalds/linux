@@ -600,7 +600,7 @@ static int nvme_trans_unit_serial_page(struct nvme_ns *ns,
 }
 
 static int nvme_fill_device_id_eui64(struct nvme_ns *ns, struct sg_io_hdr *hdr,
-		u8 *inq_response, int alloc_len, u32 vs)
+		u8 *inq_response, int alloc_len)
 {
 	struct nvme_id_ns *id_ns;
 	int nvme_sc, res;
@@ -615,7 +615,7 @@ static int nvme_fill_device_id_eui64(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	eui = id_ns->eui64;
 	len = sizeof(id_ns->eui64);
 
-	if (vs >= NVME_VS(1, 2)) {
+	if (ns->ctrl->vs >= NVME_VS(1, 2)) {
 		if (bitmap_empty(eui, len * 8)) {
 			eui = id_ns->nguid;
 			len = sizeof(id_ns->nguid);
@@ -687,14 +687,9 @@ static int nvme_trans_device_id_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 					u8 *resp, int alloc_len)
 {
 	int res;
-	u32 vs;
 
-	res = ns->ctrl->ops->reg_read32(ns->ctrl, NVME_REG_VS, &vs);
-	if (res)
-		return res;
-
-	if (vs >= NVME_VS(1, 1)) {
-		res = nvme_fill_device_id_eui64(ns, hdr, resp, alloc_len, vs);
+	if (ns->ctrl->vs >= NVME_VS(1, 1)) {
+		res = nvme_fill_device_id_eui64(ns, hdr, resp, alloc_len);
 		if (res != -EOPNOTSUPP)
 			return res;
 	}
