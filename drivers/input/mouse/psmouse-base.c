@@ -767,6 +767,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.type		= PSMOUSE_LIFEBOOK,
 		.name		= "LBPS/2",
 		.alias		= "lifebook",
+		.detect		= lifebook_detect,
 		.init		= lifebook_init,
 	},
 #endif
@@ -844,13 +845,24 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 	},
 };
 
-static const struct psmouse_protocol *psmouse_protocol_by_type(enum psmouse_type type)
+static const struct psmouse_protocol *__psmouse_protocol_by_type(enum psmouse_type type)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(psmouse_protocols); i++)
 		if (psmouse_protocols[i].type == type)
 			return &psmouse_protocols[i];
+
+	return NULL;
+}
+
+static const struct psmouse_protocol *psmouse_protocol_by_type(enum psmouse_type type)
+{
+	const struct psmouse_protocol *proto;
+
+	proto = __psmouse_protocol_by_type(type);
+	if (proto)
+		return proto;
 
 	WARN_ON(1);
 	return &psmouse_protocols[0];
@@ -910,18 +922,37 @@ static void psmouse_apply_defaults(struct psmouse *psmouse)
 	psmouse->pt_deactivate = NULL;
 }
 
-/*
- * Apply default settings to the psmouse structure and call specified
- * protocol detection or initialization routine.
- */
-static int psmouse_do_detect(int (*detect)(struct psmouse *psmouse,
-					   bool set_properties),
-			     struct psmouse *psmouse, bool set_properties)
+static bool psmouse_try_protocol(struct psmouse *psmouse,
+				 enum psmouse_type type,
+				 unsigned int *max_proto,
+				 bool set_properties, bool init_allowed)
 {
+	const struct psmouse_protocol *proto;
+
+	proto = __psmouse_protocol_by_type(type);
+	if (!proto)
+		return false;
+
 	if (set_properties)
 		psmouse_apply_defaults(psmouse);
 
-	return detect(psmouse, set_properties);
+	if (proto->detect(psmouse, set_properties) != 0)
+		return false;
+
+	if (set_properties && proto->init && init_allowed) {
+		if (proto->init(psmouse) != 0) {
+			/*
+			 * We detected device, but init failed. Adjust
+			 * max_proto so we only try standard protocols.
+			 */
+			if (*max_proto > PSMOUSE_IMEX)
+				*max_proto = PSMOUSE_IMEX;
+
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /*
@@ -937,12 +968,12 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	 * Always check for focaltech, this is safe as it uses pnp-id
 	 * matching.
 	 */
-	if (psmouse_do_detect(focaltech_detect, psmouse, set_properties) == 0) {
-		if (max_proto > PSMOUSE_IMEX) {
-			if (IS_ENABLED(CONFIG_MOUSE_PS2_FOCALTECH) &&
-			    (!set_properties || focaltech_init(psmouse) == 0)) {
-				return PSMOUSE_FOCALTECH;
-			}
+	if (psmouse_try_protocol(psmouse, PSMOUSE_FOCALTECH,
+				 &max_proto, set_properties, false)) {
+		if (max_proto > PSMOUSE_IMEX &&
+		    IS_ENABLED(CONFIG_MOUSE_PS2_FOCALTECH) &&
+		    (!set_properties || focaltech_init(psmouse) == 0)) {
+			return PSMOUSE_FOCALTECH;
 		}
 		/*
 		 * Restrict psmouse_max_proto so that psmouse_initialize()
@@ -959,26 +990,21 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	 * We always check for LifeBook because it does not disturb mouse
 	 * (it only checks DMI information).
 	 */
-	if (psmouse_do_detect(lifebook_detect, psmouse, set_properties) == 0) {
-		if (max_proto > PSMOUSE_IMEX) {
-			if (!set_properties || lifebook_init(psmouse) == 0)
-				return PSMOUSE_LIFEBOOK;
-		}
-	}
+	if (psmouse_try_protocol(psmouse, PSMOUSE_LIFEBOOK, &max_proto,
+				 set_properties, max_proto > PSMOUSE_IMEX))
+		return PSMOUSE_LIFEBOOK;
 
-	if (psmouse_do_detect(vmmouse_detect, psmouse, set_properties) == 0) {
-		if (max_proto > PSMOUSE_IMEX) {
-			if (!set_properties || vmmouse_init(psmouse) == 0)
-				return PSMOUSE_VMMOUSE;
-		}
-	}
+	if (psmouse_try_protocol(psmouse, PSMOUSE_VMMOUSE, &max_proto,
+				 set_properties, max_proto > PSMOUSE_IMEX))
+		return PSMOUSE_VMMOUSE;
 
 	/*
 	 * Try Kensington ThinkingMouse (we try first, because Synaptics
 	 * probe upsets the ThinkingMouse).
 	 */
 	if (max_proto > PSMOUSE_IMEX &&
-	    psmouse_do_detect(thinking_detect, psmouse, set_properties) == 0) {
+	    psmouse_try_protocol(psmouse, PSMOUSE_THINKPS, &max_proto,
+				 set_properties, true)) {
 		return PSMOUSE_THINKPS;
 	}
 
@@ -989,7 +1015,8 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	 * probing for IntelliMouse.
 	 */
 	if (max_proto > PSMOUSE_PS2 &&
-	    psmouse_do_detect(synaptics_detect, psmouse, set_properties) == 0) {
+	    psmouse_try_protocol(psmouse, PSMOUSE_SYNAPTICS, &max_proto,
+				 set_properties, false)) {
 		synaptics_hardware = true;
 
 		if (max_proto > PSMOUSE_IMEX) {
@@ -1025,64 +1052,48 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	 * Trackpads.
 	 */
 	if (max_proto > PSMOUSE_IMEX &&
-	    psmouse_do_detect(cypress_detect, psmouse, set_properties) == 0) {
-		if (!set_properties || cypress_init(psmouse) == 0)
-			return PSMOUSE_CYPRESS;
-
-		/*
-		 * Finger Sensing Pad probe upsets some modules of
-		 * Cypress Trackpad, must avoid Finger Sensing Pad
-		 * probe if Cypress Trackpad device detected.
-		 */
-		max_proto = PSMOUSE_IMEX;
+	    psmouse_try_protocol(psmouse, PSMOUSE_CYPRESS, &max_proto,
+				 set_properties, true)) {
+		return PSMOUSE_CYPRESS;
 	}
 
 	/* Try ALPS TouchPad */
 	if (max_proto > PSMOUSE_IMEX) {
 		ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_RESET_DIS);
-		if (psmouse_do_detect(alps_detect,
-				      psmouse, set_properties) == 0) {
-			if (!set_properties || alps_init(psmouse) == 0)
-				return PSMOUSE_ALPS;
-
-			/* Init failed, try basic relative protocols */
-			max_proto = PSMOUSE_IMEX;
-		}
+		if (psmouse_try_protocol(psmouse, PSMOUSE_ALPS,
+					 &max_proto, set_properties, true))
+			return PSMOUSE_ALPS;
 	}
 
 	/* Try OLPC HGPK touchpad */
 	if (max_proto > PSMOUSE_IMEX &&
-	    psmouse_do_detect(hgpk_detect, psmouse, set_properties) == 0) {
-		if (!set_properties || hgpk_init(psmouse) == 0)
-			return PSMOUSE_HGPK;
-			/* Init failed, try basic relative protocols */
-		max_proto = PSMOUSE_IMEX;
+	    psmouse_try_protocol(psmouse, PSMOUSE_HGPK, &max_proto,
+				 set_properties, true)) {
+		return PSMOUSE_HGPK;
 	}
 
 	/* Try Elantech touchpad */
 	if (max_proto > PSMOUSE_IMEX &&
-	    psmouse_do_detect(elantech_detect, psmouse, set_properties) == 0) {
-		if (!set_properties || elantech_init(psmouse) == 0)
-			return PSMOUSE_ELANTECH;
-		/* Init failed, try basic relative protocols */
-		max_proto = PSMOUSE_IMEX;
+	    psmouse_try_protocol(psmouse, PSMOUSE_ELANTECH,
+				 &max_proto, set_properties, true)) {
+		return PSMOUSE_ELANTECH;
 	}
 
 	if (max_proto > PSMOUSE_IMEX) {
-		if (psmouse_do_detect(genius_detect,
-				      psmouse, set_properties) == 0)
+		if (psmouse_try_protocol(psmouse, PSMOUSE_GENPS,
+					 &max_proto, set_properties, true))
 			return PSMOUSE_GENPS;
 
-		if (psmouse_do_detect(ps2pp_init,
-				      psmouse, set_properties) == 0)
+		if (psmouse_try_protocol(psmouse, PSMOUSE_PS2PP,
+					 &max_proto, set_properties, true))
 			return PSMOUSE_PS2PP;
 
-		if (psmouse_do_detect(trackpoint_detect,
-				      psmouse, set_properties) == 0)
+		if (psmouse_try_protocol(psmouse, PSMOUSE_TRACKPOINT,
+					 &max_proto, set_properties, true))
 			return PSMOUSE_TRACKPOINT;
 
-		if (psmouse_do_detect(touchkit_ps2_detect,
-				      psmouse, set_properties) == 0)
+		if (psmouse_try_protocol(psmouse, PSMOUSE_TOUCHKIT_PS2,
+					 &max_proto, set_properties, true))
 			return PSMOUSE_TOUCHKIT_PS2;
 	}
 
@@ -1090,14 +1101,10 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	 * Try Finger Sensing Pad. We do it here because its probe upsets
 	 * Trackpoint devices (causing TP_READ_ID command to time out).
 	 */
-	if (max_proto > PSMOUSE_IMEX) {
-		if (psmouse_do_detect(fsp_detect,
-				      psmouse, set_properties) == 0) {
-			if (!set_properties || fsp_init(psmouse) == 0)
-				return PSMOUSE_FSP;
-			/* Init failed, try basic relative protocols */
-			max_proto = PSMOUSE_IMEX;
-		}
+	if (max_proto > PSMOUSE_IMEX &&
+	    psmouse_try_protocol(psmouse, PSMOUSE_FSP,
+				 &max_proto, set_properties, true)) {
+		return PSMOUSE_FSP;
 	}
 
 	/*
@@ -1109,14 +1116,14 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	psmouse_reset(psmouse);
 
 	if (max_proto >= PSMOUSE_IMEX &&
-	    psmouse_do_detect(im_explorer_detect,
-			      psmouse, set_properties) == 0) {
+	    psmouse_try_protocol(psmouse, PSMOUSE_IMEX,
+				 &max_proto, set_properties, true)) {
 		return PSMOUSE_IMEX;
 	}
 
 	if (max_proto >= PSMOUSE_IMPS &&
-	    psmouse_do_detect(intellimouse_detect,
-			      psmouse, set_properties) == 0) {
+	    psmouse_try_protocol(psmouse, PSMOUSE_IMPS,
+				 &max_proto, set_properties, true)) {
 		return PSMOUSE_IMPS;
 	}
 
@@ -1124,7 +1131,8 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	 * Okay, all failed, we have a standard mouse here. The number of
 	 * the buttons is still a question, though. We assume 3.
 	 */
-	psmouse_do_detect(ps2bare_detect, psmouse, set_properties);
+	psmouse_try_protocol(psmouse, PSMOUSE_PS2,
+			     &max_proto, set_properties, true);
 
 	if (synaptics_hardware) {
 		/*
