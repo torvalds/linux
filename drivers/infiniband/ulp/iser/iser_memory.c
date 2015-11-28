@@ -49,7 +49,7 @@ int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		     struct iser_reg_resources *rsc,
 		     struct iser_mem_reg *mem_reg);
 
-static struct iser_reg_ops fastreg_ops = {
+static const struct iser_reg_ops fastreg_ops = {
 	.alloc_reg_res	= iser_alloc_fastreg_pool,
 	.free_reg_res	= iser_free_fastreg_pool,
 	.reg_mem	= iser_fast_reg_mr,
@@ -58,7 +58,7 @@ static struct iser_reg_ops fastreg_ops = {
 	.reg_desc_put	= iser_reg_desc_put_fr,
 };
 
-static struct iser_reg_ops fmr_ops = {
+static const struct iser_reg_ops fmr_ops = {
 	.alloc_reg_res	= iser_alloc_fmr_pool,
 	.free_reg_res	= iser_free_fmr_pool,
 	.reg_mem	= iser_fast_reg_fmr,

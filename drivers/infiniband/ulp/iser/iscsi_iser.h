@@ -410,7 +410,7 @@ struct iser_device {
 	int                          refcount;
 	int			     comps_used;
 	struct iser_comp	     *comps;
-	struct iser_reg_ops          *reg_ops;
+	const struct iser_reg_ops    *reg_ops;
 };
 
 #define ISER_CHECK_GUARD	0xc0
