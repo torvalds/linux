@@ -24,6 +24,7 @@ static void rk_crypto_complete(struct rk_crypto_info *dev, int err)
 static int rk_handle_req(struct rk_crypto_info *dev,
 			 struct ablkcipher_request *req)
 {
+	unsigned long flags;
 	int err;
 
 	if (!IS_ALIGNED(req->nbytes, dev->align_size))
@@ -38,9 +39,9 @@ static int rk_handle_req(struct rk_crypto_info *dev,
 	dev->aligned = 1;
 	dev->ablk_req = req;
 
-	spin_lock(&dev->lock);
+	spin_lock_irqsave(&dev->lock, flags);
 	err = ablkcipher_enqueue_request(&dev->queue, req);
-	spin_unlock(&dev->lock);
+	spin_unlock_irqrestore(&dev->lock, flags);
 	tasklet_schedule(&dev->crypto_tasklet);
 	return err;
 }
@@ -267,12 +268,13 @@ static int rk_set_data_start(struct rk_crypto_info *dev)
 
 static int rk_ablk_start(struct rk_crypto_info *dev)
 {
+	unsigned long flags;
 	int err;
 
-	spin_lock(&dev->lock);
+	spin_lock_irqsave(&dev->lock, flags);
 	rk_ablk_hw_init(dev);
 	err = rk_set_data_start(dev);
-	spin_unlock(&dev->lock);
+	spin_unlock_irqrestore(&dev->lock, flags);
 	return err;
 }
 
