@@ -9,7 +9,7 @@
 #include <asm/io.h>
 
 /* We poll keys - msecs */
-#define POLL_INTERVAL_DEFAULT	100
+#define POLL_INTERVAL_DEFAULT	50
 
 #define HID_PAD_PA   (0x10146000)
 #define HID_PAD_SIZE (4)
@@ -27,23 +27,58 @@
 #define BUTTON_X      (1 << 10)
 #define BUTTON_Y      (1 << 11)
 
-#define BUTTON_PRESS(b) (~ioread32(hid_pad) & (b))
+#define BUTTON_PRESSED(b, m) (~(b) & (m))
+#define BUTTON_CHANGED(b, o, m) ((b ^ o) & (m))
+
+static const struct {
+	unsigned int button;
+	unsigned int code;
+} button_map[] = {
+	{BUTTON_A,	KEY_L},
+	{BUTTON_B,	KEY_S},
+	{BUTTON_Y,	KEY_BACKSPACE},
+	{BUTTON_X,	KEY_SPACE},
+	{BUTTON_START,	KEY_ENTER},
+	{BUTTON_UP,	KEY_UP},
+	{BUTTON_DOWN,	KEY_DOWN},
+	{BUTTON_RIGHT,	KEY_RIGHT},
+	{BUTTON_LEFT,	KEY_LEFT},
+	{BUTTON_L1,	KEY_HOME},
+	{BUTTON_R1,	KEY_END}
+};
 
 struct nintendo3ds_pad_dev {
 	struct input_polled_dev *pdev;
 	void __iomem *hid_pad;
+	unsigned int old_buttons;
 };
 
 static void nintendo3ds_pad_poll(struct input_polled_dev *pdev)
 {
+	int i;
+	unsigned int buttons;
 	struct nintendo3ds_pad_dev *n3ds_pad_dev = pdev->private;
+	struct input_dev *idev = pdev->input;
 
-	printk("HID_PAD: 0x%08X\n", ioread32(n3ds_pad_dev->hid_pad));
+	buttons = ioread32(n3ds_pad_dev->hid_pad);
+
+	if (buttons ^ n3ds_pad_dev->old_buttons) {
+		for (i = 0; i < sizeof(button_map)/sizeof(*button_map); i++) {
+			if (BUTTON_CHANGED(buttons, n3ds_pad_dev->old_buttons,
+				button_map[i].button)) {
+				input_report_key(idev, button_map[i].code,
+					BUTTON_PRESSED(buttons, button_map[i].button));
+			}
+		}
+		input_sync(idev);
+	}
+
+	n3ds_pad_dev->old_buttons = buttons;
 }
 
 static int nintendo3ds_pad_probe(struct platform_device *plat_dev)
 {
-	int error;
+	int i, error;
 	struct nintendo3ds_pad_dev *n3ds_pad_dev;
 	struct input_polled_dev *pdev;
 	struct input_dev *idev;
@@ -84,11 +119,17 @@ static int nintendo3ds_pad_probe(struct platform_device *plat_dev)
 	idev->id.bustype = BUS_HOST;
 	idev->dev.parent = &plat_dev->dev;
 
-	idev->evbit[0] = BIT_MASK(EV_KEY);
-	idev->keybit[BIT_WORD(BTN_0)] = BIT_MASK(BTN_0);
+	idev->evbit[0] |= BIT(EV_KEY);
+
+	for (i = 0; i < sizeof(button_map)/sizeof(*button_map); i++) {
+		set_bit(button_map[i].code, idev->keybit);
+	}
+
+	input_set_capability(idev, EV_MSC, MSC_SCAN);
 
 	n3ds_pad_dev->pdev = pdev;
 	n3ds_pad_dev->hid_pad = hid_pad;
+	n3ds_pad_dev->old_buttons = 0xFFF;
 
 	error = input_register_polled_device(pdev);
 	if (error) {
