@@ -23,10 +23,7 @@
  * Default types range from 0~12. type can range from 0 to 0xff
  * SST types start at higher to avoid any overlapping in future
  */
-#define SOC_CONTROL_TYPE_HDA_SST_ALGO_PARAMS	0x100
-#define SOC_CONTROL_TYPE_HDA_SST_MUX		0x101
-#define SOC_CONTROL_TYPE_HDA_SST_MIX		0x101
-#define SOC_CONTROL_TYPE_HDA_SST_BYTE		0x103
+#define SKL_CONTROL_TYPE_BYTE_TLV	0x100
 
 #define HDA_SST_CFG_MAX	900 /* size of copier cfg*/
 #define MAX_IN_QUEUE 8
@@ -218,8 +215,8 @@ struct skl_dfw_module {
 struct skl_dfw_algo_data {
 	u32 set_params:1;
 	u32 rsvd:31;
-	u32 param_id;
 	u32 max;
+	u32 param_id;
 	char params[0];
 } __packed;
 
