@@ -614,9 +614,8 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 		|| (irq_mux <= 0))
 		return -EINVAL;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-	gpio_reg_base = ioremap(res->start, resource_size(res));
+	gpio_reg_base = devm_ioremap(&pdev->dev, res->start,
+				     resource_size(res));
 	if (!gpio_reg_base)
 		return -EINVAL;
 
@@ -627,13 +626,11 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "Error %ld to get gpio clock\n",
 			PTR_ERR(clk));
-		iounmap(gpio_reg_base);
 		return PTR_ERR(clk);
 	}
 	ret = clk_prepare_enable(clk);
 	if (ret) {
 		clk_put(clk);
-		iounmap(gpio_reg_base);
 		return ret;
 	}
 
