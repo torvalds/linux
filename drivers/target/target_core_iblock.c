@@ -138,6 +138,8 @@ static int iblock_configure_device(struct se_device *dev)
 				q->limits.discard_granularity >> 9;
 		dev->dev_attrib.unmap_granularity_alignment =
 				q->limits.discard_alignment;
+		dev->dev_attrib.unmap_zeroes_data =
+				q->limits.discard_zeroes_data;
 
 		pr_debug("IBLOCK: BLOCK Discard support available,"
 				" disabled by default\n");

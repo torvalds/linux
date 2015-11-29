@@ -63,6 +63,8 @@
 #define DA_UNMAP_GRANULARITY_DEFAULT		0
 /* Default unmap_granularity_alignment */
 #define DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT	0
+/* Default unmap_zeroes_data */
+#define DA_UNMAP_ZEROES_DATA_DEFAULT		0
 /* Default max_write_same_len, disabled by default */
 #define DA_MAX_WRITE_SAME_LEN			0
 /* Use a model alias based on the configfs backend device name */
@@ -674,6 +676,7 @@ struct se_dev_attrib {
 	int		force_pr_aptpl;
 	int		is_nonrot;
 	int		emulate_rest_reord;
+	int		unmap_zeroes_data;
 	u32		hw_block_size;
 	u32		block_size;
 	u32		hw_max_sectors;

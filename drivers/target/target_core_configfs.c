@@ -499,6 +499,7 @@ DEF_CONFIGFS_ATTRIB_SHOW(max_unmap_lba_count);
 DEF_CONFIGFS_ATTRIB_SHOW(max_unmap_block_desc_count);
 DEF_CONFIGFS_ATTRIB_SHOW(unmap_granularity);
 DEF_CONFIGFS_ATTRIB_SHOW(unmap_granularity_alignment);
+DEF_CONFIGFS_ATTRIB_SHOW(unmap_zeroes_data);
 DEF_CONFIGFS_ATTRIB_SHOW(max_write_same_len);
 
 #define DEF_CONFIGFS_ATTRIB_STORE_U32(_name)				\
@@ -866,6 +867,39 @@ static ssize_t emulate_rest_reord_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t unmap_zeroes_data_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (da->da_dev->export_count) {
+		pr_err("dev[%p]: Unable to change SE Device"
+		       " unmap_zeroes_data while export_count is %d\n",
+		       da->da_dev, da->da_dev->export_count);
+		return -EINVAL;
+	}
+	/*
+	 * We expect this value to be non-zero when generic Block Layer
+	 * Discard supported is detected iblock_configure_device().
+	 */
+	if (flag && !da->max_unmap_block_desc_count) {
+		pr_err("dev[%p]: Thin Provisioning LBPRZ will not be set"
+		       " because max_unmap_block_desc_count is zero\n",
+		       da->da_dev);
+	       return -ENOSYS;
+	}
+	da->unmap_zeroes_data = flag;
+	pr_debug("dev[%p]: SE Device Thin Provisioning LBPRZ bit: %d\n",
+		 da->da_dev, flag);
+	return 0;
+}
+
 /*
  * Note, this can only be called on unexported SE Device Object.
  */
@@ -998,6 +1032,7 @@ CONFIGFS_ATTR(, max_unmap_lba_count);
 CONFIGFS_ATTR(, max_unmap_block_desc_count);
 CONFIGFS_ATTR(, unmap_granularity);
 CONFIGFS_ATTR(, unmap_granularity_alignment);
+CONFIGFS_ATTR(, unmap_zeroes_data);
 CONFIGFS_ATTR(, max_write_same_len);
 
 /*
@@ -1034,6 +1069,7 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_max_unmap_block_desc_count,
 	&attr_unmap_granularity,
 	&attr_unmap_granularity_alignment,
+	&attr_unmap_zeroes_data,
 	&attr_max_write_same_len,
 	NULL,
 };
