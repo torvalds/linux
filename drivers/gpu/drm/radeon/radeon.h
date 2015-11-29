@@ -1889,7 +1889,7 @@ struct radeon_asic {
 		void (*pad_ib)(struct radeon_ib *ib);
 	} vm;
 	/* ring specific callbacks */
-	struct radeon_asic_ring *ring[RADEON_NUM_RINGS];
+	const struct radeon_asic_ring *ring[RADEON_NUM_RINGS];
 	/* irqs */
 	struct {
 		int (*set)(struct radeon_device *rdev);
