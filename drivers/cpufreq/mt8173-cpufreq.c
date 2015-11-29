@@ -59,6 +59,10 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 	int old_vproc, old_vsram, new_vsram, vsram, vproc, ret;
 
 	old_vproc = regulator_get_voltage(proc_reg);
+	if (old_vproc < 0) {
+		pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
+		return old_vproc;
+	}
 	/* Vsram should not exceed the maximum allowed voltage of SoC. */
 	new_vsram = min(new_vproc + MIN_VOLT_SHIFT, MAX_VOLT_LIMIT);
 
@@ -71,7 +75,17 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 		 */
 		do {
 			old_vsram = regulator_get_voltage(sram_reg);
+			if (old_vsram < 0) {
+				pr_err("%s: invalid Vsram value: %d\n",
+				       __func__, old_vsram);
+				return old_vsram;
+			}
 			old_vproc = regulator_get_voltage(proc_reg);
+			if (old_vproc < 0) {
+				pr_err("%s: invalid Vproc value: %d\n",
+				       __func__, old_vproc);
+				return old_vproc;
+			}
 
 			vsram = min(new_vsram, old_vproc + MAX_VOLT_SHIFT);
 
@@ -116,7 +130,17 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 		 */
 		do {
 			old_vproc = regulator_get_voltage(proc_reg);
+			if (old_vproc < 0) {
+				pr_err("%s: invalid Vproc value: %d\n",
+				       __func__, old_vproc);
+				return old_vproc;
+			}
 			old_vsram = regulator_get_voltage(sram_reg);
+			if (old_vsram < 0) {
+				pr_err("%s: invalid Vsram value: %d\n",
+				       __func__, old_vsram);
+				return old_vsram;
+			}
 
 			vproc = max(new_vproc, old_vsram - MAX_VOLT_SHIFT);
 			ret = regulator_set_voltage(proc_reg, vproc,
@@ -184,6 +208,10 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	old_freq_hz = clk_get_rate(cpu_clk);
 	old_vproc = regulator_get_voltage(info->proc_reg);
+	if (old_vproc < 0) {
+		pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
+		return old_vproc;
+	}
 
 	freq_hz = freq_table[index].frequency * 1000;
 
