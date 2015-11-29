@@ -17,11 +17,6 @@
 #include <asm/mach/pci.h>
 
 static int debug_pci;
-static resource_size_t (*align_resource)(struct pci_dev *dev,
-		  const struct resource *res,
-		  resource_size_t start,
-		  resource_size_t size,
-		  resource_size_t align) = NULL;
 
 /*
  * We can't use pci_get_device() here since we are
@@ -461,7 +456,6 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 		sys->busnr   = busnr;
 		sys->swizzle = hw->swizzle;
 		sys->map_irq = hw->map_irq;
-		align_resource = hw->align_resource;
 		INIT_LIST_HEAD(&sys->resources);
 
 		if (hw->private_data)
@@ -470,6 +464,8 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 		ret = hw->setup(nr, sys);
 
 		if (ret > 0) {
+			struct pci_host_bridge *host_bridge;
+
 			ret = pcibios_init_resources(nr, sys);
 			if (ret)  {
 				kfree(sys);
@@ -491,6 +487,9 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 			busnr = sys->bus->busn_res.end + 1;
 
 			list_add(&sys->node, head);
+
+			host_bridge = pci_find_host_bridge(sys->bus);
+			host_bridge->align_resource = hw->align_resource;
 		} else {
 			kfree(sys);
 			if (ret < 0)
@@ -578,14 +577,18 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 {
 	struct pci_dev *dev = data;
 	resource_size_t start = res->start;
+	struct pci_host_bridge *host_bridge;
 
 	if (res->flags & IORESOURCE_IO && start & 0x300)
 		start = (start + 0x3ff) & ~0x3ff;
 
 	start = (start + align - 1) & ~(align - 1);
 
-	if (align_resource)
-		return align_resource(dev, res, start, size, align);
+	host_bridge = pci_find_host_bridge(dev->bus);
+
+	if (host_bridge->align_resource)
+		return host_bridge->align_resource(dev, res,
+				start, size, align);
 
 	return start;
 }

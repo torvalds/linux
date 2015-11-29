@@ -12,9 +12,11 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
 
 #define OUI_WEISS		0x001c6a
+#define OUI_LOUD		0x000ff2
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
+#define LOUD_CATEGORY_ID	0x10
 
 static int dice_interface_check(struct fw_unit *unit)
 {
@@ -57,6 +59,8 @@ static int dice_interface_check(struct fw_unit *unit)
 	}
 	if (vendor == OUI_WEISS)
 		category = WEISS_CATEGORY_ID;
+	else if (vendor == OUI_LOUD)
+		category = LOUD_CATEGORY_ID;
 	else
 		category = DICE_CATEGORY_ID;
 	if (device->config_rom[3] != ((vendor << 8) | category) ||

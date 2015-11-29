@@ -7866,7 +7866,7 @@ static void nfs4_layoutget_done(struct rpc_task *task, void *calldata)
 			spin_unlock(&inode->i_lock);
 		goto out_restart;
 	}
-	if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN)
+	if (nfs4_async_handle_error(task, server, state, &lgp->timeout) == -EAGAIN)
 		goto out_restart;
 out:
 	dprintk("<-- %s\n", __func__);
