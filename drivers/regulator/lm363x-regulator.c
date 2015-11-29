@@ -41,18 +41,12 @@
 #define LM363X_STEP_50mV		50000
 #define LM363X_STEP_500mV		500000
 
-struct lm363x_regulator {
-	struct regmap *regmap;
-	struct regulator_dev *regulator;
-};
-
 const int ldo_cont_enable_time[] = {
 	0, 2000, 5000, 10000, 20000, 50000, 100000, 200000,
 };
 
 static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 {
-	struct lm363x_regulator *lm363x_regulator = rdev_get_drvdata(rdev);
 	enum lm363x_regulator_id id = rdev_get_id(rdev);
 	u8 val, addr, mask;
 
@@ -77,7 +71,7 @@ static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 		return 0;
 	}
 
-	if (regmap_read(lm363x_regulator->regmap, addr, (unsigned int *)&val))
+	if (regmap_read(rdev->regmap, addr, (unsigned int *)&val))
 		return -EINVAL;
 
 	val = (val & mask) >> LM3631_ENTIME_SHIFT;
@@ -244,7 +238,6 @@ static int lm363x_regulator_of_get_enable_gpio(struct device_node *np, int id)
 static int lm363x_regulator_probe(struct platform_device *pdev)
 {
 	struct ti_lmu *lmu = dev_get_drvdata(pdev->dev.parent);
-	struct lm363x_regulator *lm363x_regulator;
 	struct regmap *regmap = lmu->regmap;
 	struct regulator_config cfg = { };
 	struct regulator_dev *rdev;
@@ -252,15 +245,7 @@ static int lm363x_regulator_probe(struct platform_device *pdev)
 	int id = pdev->id;
 	int ret, ena_gpio;
 
-	lm363x_regulator = devm_kzalloc(dev, sizeof(*lm363x_regulator),
-					GFP_KERNEL);
-	if (!lm363x_regulator)
-		return -ENOMEM;
-
-	lm363x_regulator->regmap = regmap;
-
 	cfg.dev = dev;
-	cfg.driver_data = lm363x_regulator;
 	cfg.regmap = regmap;
 
 	/*
@@ -287,9 +272,6 @@ static int lm363x_regulator_probe(struct platform_device *pdev)
 		dev_err(dev, "[%d] regulator register err: %d\n", id, ret);
 		return ret;
 	}
-
-	lm363x_regulator->regulator = rdev;
-	platform_set_drvdata(pdev, lm363x_regulator);
 
 	return 0;
 }
