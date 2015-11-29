@@ -174,7 +174,7 @@ static int ap_cs8427_probeaddr(struct snd_i2c_bus *bus, unsigned short addr)
 	return -ENOENT;
 }
 
-static struct snd_i2c_ops ap_cs8427_i2c_ops = {
+static const struct snd_i2c_ops ap_cs8427_i2c_ops = {
 	.sendbytes = ap_cs8427_sendbytes,
 	.readbytes = ap_cs8427_readbytes,
 	.probeaddr = ap_cs8427_probeaddr,
