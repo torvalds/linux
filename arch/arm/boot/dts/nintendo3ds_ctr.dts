@@ -23,6 +23,16 @@
 			stride = <(240*3)>;
 			format = "r8g8b8";
 		};
+
+		/*framebuffer1: framebuffer@18119400 {
+			compatible = "simple-framebuffer";
+			reg = <0x18119400 (320*240*3)>;
+			width = <240>;
+			height = <320>;
+			stride = <(240*3)>;
+			format = "r8g8b8";
+		};*/
+
 	};
 
 	aliases {
@@ -54,8 +64,8 @@
 		};
 	};
 
-	pad0: pad@10146000 {
-		compatible = "arm,nintendo3ds_pad";
+	n3ds_input0: input@10146000 {
+		compatible = "arm,nintendo3ds_input";
 	};
 
 	i2c1: i2c@10161000 {

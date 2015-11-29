@@ -373,11 +373,11 @@ config INPUT_KXTJ9_POLLED_MODE
 	help
 	  Say Y here if you need accelerometer to work in polling mode.
 
-config INPUT_NINTENDO3DS_PAD
-	bool "Enable Nintendo 3DS pad"
+config INPUT_NINTENDO3DS_INPUT
+	bool "Enable Nintendo 3DS input"
 	select INPUT_POLLDEV
 	help
-	  Say Y here to enable the Nintendo 3DS pad.
+	  Say Y here to enable the Nintendo 3DS input.
 
 config INPUT_POWERMATE
 	tristate "Griffin PowerMate and Contour Jog support"
