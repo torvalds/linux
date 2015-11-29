@@ -323,7 +323,12 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 		DECLARE_BITMAP(has_no_links, MEDIA_ENTITY_MAX_PADS);
 
 		entity->stream_count++;
-		WARN_ON(entity->pipe && entity->pipe != pipe);
+
+		if (WARN_ON(entity->pipe && entity->pipe != pipe)) {
+			ret = -EBUSY;
+			goto error;
+		}
+
 		entity->pipe = pipe;
 
 		/* Already streaming --- no need to check. */
