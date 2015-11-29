@@ -41,7 +41,7 @@
 #define LM363X_STEP_50mV		50000
 #define LM363X_STEP_500mV		500000
 
-const int ldo_cont_enable_time[] = {
+static const int ldo_cont_enable_time[] = {
 	0, 2000, 5000, 10000, 20000, 50000, 100000, 200000,
 };
 
