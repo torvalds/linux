@@ -232,7 +232,7 @@ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	ib_ucontext_notifier_end_account(context);
 }
 
-static struct mmu_notifier_ops ib_umem_notifiers = {
+static const struct mmu_notifier_ops ib_umem_notifiers = {
 	.release                    = ib_umem_notifier_release,
 	.invalidate_page            = ib_umem_notifier_invalidate_page,
 	.invalidate_range_start     = ib_umem_notifier_invalidate_range_start,
