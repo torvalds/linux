@@ -137,6 +137,31 @@ struct stmmac_extra_stats {
 	unsigned long pcs_link;
 	unsigned long pcs_duplex;
 	unsigned long pcs_speed;
+	/* debug register */
+	unsigned long mtl_tx_status_fifo_full;
+	unsigned long mtl_tx_fifo_not_empty;
+	unsigned long mmtl_fifo_ctrl;
+	unsigned long mtl_tx_fifo_read_ctrl_write;
+	unsigned long mtl_tx_fifo_read_ctrl_wait;
+	unsigned long mtl_tx_fifo_read_ctrl_read;
+	unsigned long mtl_tx_fifo_read_ctrl_idle;
+	unsigned long mac_tx_in_pause;
+	unsigned long mac_tx_frame_ctrl_xfer;
+	unsigned long mac_tx_frame_ctrl_idle;
+	unsigned long mac_tx_frame_ctrl_wait;
+	unsigned long mac_tx_frame_ctrl_pause;
+	unsigned long mac_gmii_tx_proto_engine;
+	unsigned long mtl_rx_fifo_fill_level_full;
+	unsigned long mtl_rx_fifo_fill_above_thresh;
+	unsigned long mtl_rx_fifo_fill_below_thresh;
+	unsigned long mtl_rx_fifo_fill_level_empty;
+	unsigned long mtl_rx_fifo_read_ctrl_flush;
+	unsigned long mtl_rx_fifo_read_ctrl_read_data;
+	unsigned long mtl_rx_fifo_read_ctrl_status;
+	unsigned long mtl_rx_fifo_read_ctrl_idle;
+	unsigned long mtl_rx_fifo_ctrl_active;
+	unsigned long mac_rx_frame_ctrl_fifo;
+	unsigned long mac_gmii_rx_proto_engine;
 };
 
 /* CSR Frequency Access Defines*/
@@ -408,6 +433,7 @@ struct stmmac_ops {
 	void (*set_eee_pls)(struct mac_device_info *hw, int link);
 	void (*ctrl_ane)(struct mac_device_info *hw, bool restart);
 	void (*get_adv)(struct mac_device_info *hw, struct rgmii_adv *adv);
+	void (*debug)(void __iomem *ioaddr, struct stmmac_extra_stats *x);
 };
 
 /* PTP and HW Timer helpers */

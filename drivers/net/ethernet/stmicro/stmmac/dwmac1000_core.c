@@ -397,6 +397,80 @@ static void dwmac1000_get_adv(struct mac_device_info *hw, struct rgmii_adv *adv)
 	adv->lp_pause = (value & GMAC_ANE_PSE) >> GMAC_ANE_PSE_SHIFT;
 }
 
+static void dwmac1000_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x)
+{
+	u32 value = readl(ioaddr + GMAC_DEBUG);
+
+	if (value & GMAC_DEBUG_TXSTSFSTS)
+		x->mtl_tx_status_fifo_full++;
+	if (value & GMAC_DEBUG_TXFSTS)
+		x->mtl_tx_fifo_not_empty++;
+	if (value & GMAC_DEBUG_TWCSTS)
+		x->mmtl_fifo_ctrl++;
+	if (value & GMAC_DEBUG_TRCSTS_MASK) {
+		u32 trcsts = (value & GMAC_DEBUG_TRCSTS_MASK)
+			     >> GMAC_DEBUG_TRCSTS_SHIFT;
+		if (trcsts == GMAC_DEBUG_TRCSTS_WRITE)
+			x->mtl_tx_fifo_read_ctrl_write++;
+		else if (trcsts == GMAC_DEBUG_TRCSTS_TXW)
+			x->mtl_tx_fifo_read_ctrl_wait++;
+		else if (trcsts == GMAC_DEBUG_TRCSTS_READ)
+			x->mtl_tx_fifo_read_ctrl_read++;
+		else
+			x->mtl_tx_fifo_read_ctrl_idle++;
+	}
+	if (value & GMAC_DEBUG_TXPAUSED)
+		x->mac_tx_in_pause++;
+	if (value & GMAC_DEBUG_TFCSTS_MASK) {
+		u32 tfcsts = (value & GMAC_DEBUG_TFCSTS_MASK)
+			      >> GMAC_DEBUG_TFCSTS_SHIFT;
+
+		if (tfcsts == GMAC_DEBUG_TFCSTS_XFER)
+			x->mac_tx_frame_ctrl_xfer++;
+		else if (tfcsts == GMAC_DEBUG_TFCSTS_GEN_PAUSE)
+			x->mac_tx_frame_ctrl_pause++;
+		else if (tfcsts == GMAC_DEBUG_TFCSTS_WAIT)
+			x->mac_tx_frame_ctrl_wait++;
+		else
+			x->mac_tx_frame_ctrl_idle++;
+	}
+	if (value & GMAC_DEBUG_TPESTS)
+		x->mac_gmii_tx_proto_engine++;
+	if (value & GMAC_DEBUG_RXFSTS_MASK) {
+		u32 rxfsts = (value & GMAC_DEBUG_RXFSTS_MASK)
+			     >> GMAC_DEBUG_RRCSTS_SHIFT;
+
+		if (rxfsts == GMAC_DEBUG_RXFSTS_FULL)
+			x->mtl_rx_fifo_fill_level_full++;
+		else if (rxfsts == GMAC_DEBUG_RXFSTS_AT)
+			x->mtl_rx_fifo_fill_above_thresh++;
+		else if (rxfsts == GMAC_DEBUG_RXFSTS_BT)
+			x->mtl_rx_fifo_fill_below_thresh++;
+		else
+			x->mtl_rx_fifo_fill_level_empty++;
+	}
+	if (value & GMAC_DEBUG_RRCSTS_MASK) {
+		u32 rrcsts = (value & GMAC_DEBUG_RRCSTS_MASK) >>
+			     GMAC_DEBUG_RRCSTS_SHIFT;
+
+		if (rrcsts == GMAC_DEBUG_RRCSTS_FLUSH)
+			x->mtl_rx_fifo_read_ctrl_flush++;
+		else if (rrcsts == GMAC_DEBUG_RRCSTS_RSTAT)
+			x->mtl_rx_fifo_read_ctrl_read_data++;
+		else if (rrcsts == GMAC_DEBUG_RRCSTS_RDATA)
+			x->mtl_rx_fifo_read_ctrl_status++;
+		else
+			x->mtl_rx_fifo_read_ctrl_idle++;
+	}
+	if (value & GMAC_DEBUG_RWCSTS)
+		x->mtl_rx_fifo_ctrl_active++;
+	if (value & GMAC_DEBUG_RFCFCSTS_MASK)
+		x->mac_rx_frame_ctrl_fifo = (value & GMAC_DEBUG_RFCFCSTS_MASK)
+					    >> GMAC_DEBUG_RFCFCSTS_SHIFT;
+	if (value & GMAC_DEBUG_RPESTS)
+		x->mac_gmii_rx_proto_engine++;
+}
+
 static const struct stmmac_ops dwmac1000_ops = {
 	.core_init = dwmac1000_core_init,
 	.rx_ipc = dwmac1000_rx_ipc_enable,
@@ -413,6 +487,7 @@ static const struct stmmac_ops dwmac1000_ops = {
 	.set_eee_pls = dwmac1000_set_eee_pls,
 	.ctrl_ane = dwmac1000_ctrl_ane,
 	.get_adv = dwmac1000_get_adv,
+	.debug = dwmac1000_debug,
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
