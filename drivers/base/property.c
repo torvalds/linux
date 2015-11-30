@@ -37,14 +37,14 @@ void device_add_property_set(struct device *dev, struct property_set *pset)
 }
 EXPORT_SYMBOL_GPL(device_add_property_set);
 
-static inline bool is_pset(struct fwnode_handle *fwnode)
+static inline bool is_pset_node(struct fwnode_handle *fwnode)
 {
 	return fwnode && fwnode->type == FWNODE_PDATA;
 }
 
-static inline struct property_set *to_pset(struct fwnode_handle *fwnode)
+static inline struct property_set *to_pset_node(struct fwnode_handle *fwnode)
 {
-	return is_pset(fwnode) ?
+	return is_pset_node(fwnode) ?
 		container_of(fwnode, struct property_set, fwnode) : NULL;
 }
 
@@ -135,8 +135,8 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 		return of_property_read_bool(to_of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
 		return !acpi_node_prop_get(fwnode, propname, NULL);
-	else if (is_pset(fwnode))
-		return !!pset_prop_get(to_pset(fwnode), propname);
+	else if (is_pset_node(fwnode))
+		return !!pset_prop_get(to_pset_node(fwnode), propname);
 	return false;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_present);
@@ -323,8 +323,8 @@ EXPORT_SYMBOL_GPL(device_property_match_string);
 	else if (is_acpi_node(_fwnode_)) \
 		_ret_ = acpi_node_prop_read(_fwnode_, _propname_, _proptype_, \
 					    _val_, _nval_); \
-	else if (is_pset(_fwnode_)) \
-		_ret_ = pset_prop_read_array(to_pset(_fwnode_), _propname_, \
+	else if (is_pset_node(_fwnode_)) 						\
+		_ret_ = pset_prop_read_array(to_pset_node(_fwnode_), _propname_,	\
 					     _proptype_, _val_, _nval_); \
 	else \
 		_ret_ = -ENXIO; \
@@ -465,8 +465,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 	else if (is_acpi_node(fwnode))
 		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
 					   val, nval);
-	else if (is_pset(fwnode))
-		return pset_prop_read_array(to_pset(fwnode), propname,
+	else if (is_pset_node(fwnode))
+		return pset_prop_read_array(to_pset_node(fwnode), propname,
 					    DEV_PROP_STRING, val, nval);
 	return -ENXIO;
 }
@@ -495,8 +495,8 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 	else if (is_acpi_node(fwnode))
 		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
 					   val, 1);
-	else if (is_pset(fwnode))
-		return pset_prop_read_array(to_pset(fwnode), propname,
+	else if (is_pset_node(fwnode))
+		return pset_prop_read_array(to_pset_node(fwnode), propname,
 					    DEV_PROP_STRING, val, 1);
 	return -ENXIO;
 }
