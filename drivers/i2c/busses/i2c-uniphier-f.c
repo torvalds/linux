@@ -466,6 +466,11 @@ static int uniphier_fi2c_clk_init(struct device *dev,
 	if (of_property_read_u32(np, "clock-frequency", &bus_speed))
 		bus_speed = UNIPHIER_FI2C_DEFAULT_SPEED;
 
+	if (!bus_speed) {
+		dev_err(dev, "clock-freqyency should not be zero\n");
+		return -EINVAL;
+	}
+
 	if (bus_speed > UNIPHIER_FI2C_MAX_SPEED)
 		bus_speed = UNIPHIER_FI2C_MAX_SPEED;
 
