@@ -1343,7 +1343,7 @@ static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	int clock;
 
 	if (IS_PINEVIEW(dev))
-		clock = intel_hrawclk(dev);
+		clock = MHz(intel_hrawclk(dev));
 	else
 		clock = 1000 * dev_priv->display.get_display_clock_speed(dev);
 
