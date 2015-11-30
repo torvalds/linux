@@ -1002,9 +1002,9 @@ static const unsigned int vi_vip1_ext_pins[] = { 74, 75, 76, 77, 78, 79, 80,
 		81, 82, 83, 84, 108, 103, 104, 105, 106, 107, 102, 97, 98,
 		99, 100, };
 static const unsigned int vi_vip1_low8bit_pins[] = { 74, 75, 76, 77, 78, 79,
-		80, 81, };
-static const unsigned int vi_vip1_high8bit_pins[] = { 82, 83, 84, 108, 103,
-		104, 105, 106, };
+		80, 81, 82, 83, 84, };
+static const unsigned int vi_vip1_high8bit_pins[] = { 82, 83, 84, 103, 104,
+		105, 106, 107, 102, 97, 98, };
 
 /* definition of pin group table */
 struct atlas7_pin_group altas7_pin_groups[] = {
@@ -4294,6 +4294,9 @@ static struct atlas7_pad_mux vi_vip1_low8bit_grp_pad_mux[] = {
 	MUX(1, 79, 1, N, N, N, N),
 	MUX(1, 80, 1, N, N, N, N),
 	MUX(1, 81, 1, N, N, N, N),
+	MUX(1, 82, 1, N, N, N, N),
+	MUX(1, 83, 1, N, N, N, N),
+	MUX(1, 84, 1, N, N, N, N),
 };
 
 static struct atlas7_grp_mux vi_vip1_low8bit_grp_mux = {
@@ -4305,11 +4308,14 @@ static struct atlas7_pad_mux vi_vip1_high8bit_grp_pad_mux[] = {
 	MUX(1, 82, 1, N, N, N, N),
 	MUX(1, 83, 1, N, N, N, N),
 	MUX(1, 84, 1, N, N, N, N),
-	MUX(1, 108, 2, N, N, N, N),
 	MUX(1, 103, 2, N, N, N, N),
 	MUX(1, 104, 2, N, N, N, N),
 	MUX(1, 105, 2, N, N, N, N),
 	MUX(1, 106, 2, N, N, N, N),
+	MUX(1, 107, 2, N, N, N, N),
+	MUX(1, 102, 2, N, N, N, N),
+	MUX(1, 97, 2, N, N, N, N),
+	MUX(1, 98, 2, N, N, N, N),
 };
 
 static struct atlas7_grp_mux vi_vip1_high8bit_grp_mux = {
