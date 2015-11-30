@@ -3591,9 +3591,6 @@ static int mxcfb_remove(struct platform_device *pdev)
 	struct fb_info *fbi = platform_get_drvdata(pdev);
 	struct mxcfb_info *mxc_fbi = fbi->par;
 
-	if (!fbi)
-		return 0;
-
 	device_remove_file(fbi->dev, &dev_attr_fsl_disp_dev_property);
 	device_remove_file(fbi->dev, &dev_attr_fsl_disp_property);
 	mxcfb_blank(FB_BLANK_POWERDOWN, fbi);
