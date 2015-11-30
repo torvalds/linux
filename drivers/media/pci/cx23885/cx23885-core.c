@@ -968,6 +968,16 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	call_all(dev, core, s_power, 0);
 	cx23885_ir_init(dev);
 
+	if (dev->board == CX23885_BOARD_VIEWCAST_460E) {
+		/*
+		 * GPIOs 9/8 are input detection bits for the breakout video
+		 * (gpio 8) and audio (gpio 9) cables. When they're attached,
+		 * this gpios are pulled high. Make sure these GPIOs are marked
+		 * as inputs.
+		 */
+		cx23885_gpio_enable(dev, 0x300, 0);
+	}
+
 	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO) {
 		if (cx23885_video_register(dev) < 0) {
 			printk(KERN_ERR "%s() Failed to register analog "

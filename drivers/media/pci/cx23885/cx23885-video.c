@@ -263,7 +263,9 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255_22111) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850) ||
 		(dev->board == CX23885_BOARD_MYGICA_X8507) ||
-		(dev->board == CX23885_BOARD_AVERMEDIA_HC81R)) {
+		(dev->board == CX23885_BOARD_AVERMEDIA_HC81R) ||
+		(dev->board == CX23885_BOARD_VIEWCAST_260E) ||
+		(dev->board == CX23885_BOARD_VIEWCAST_460E)) {
 		/* Configure audio routing */
 		v4l2_subdev_call(dev->sd_cx25840, audio, s_routing,
 			INPUT(input)->amux, 0, 0);
