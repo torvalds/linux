@@ -110,8 +110,6 @@ static unsigned int v4l2_fmt_to_pxp_fmt(u32 v4l2_pix_fmt)
 		pxp_fmt = PXP_PIX_FMT_RGB565;
 	else if (v4l2_pix_fmt == V4L2_PIX_FMT_RGB555)
 		pxp_fmt = PXP_PIX_FMT_RGB555;
-	else if (v4l2_pix_fmt == V4L2_PIX_FMT_RGB555)
-		pxp_fmt = PXP_PIX_FMT_RGB555;
 	else if (v4l2_pix_fmt == V4L2_PIX_FMT_YUV420)
 		pxp_fmt = PXP_PIX_FMT_YUV420P;
 	else if (v4l2_pix_fmt == V4L2_PIX_FMT_YUV422P)
