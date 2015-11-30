@@ -147,15 +147,32 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
-	int gsi, idx;
+	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv_stimer *stimer;
+	int gsi, idx, stimers_pending;
 
 	vcpu_debug(vcpu, "Hyper-V SynIC acked sint %d\n", sint);
 
 	if (synic->msg_page & HV_SYNIC_SIMP_ENABLE)
 		synic_clear_sint_msg_pending(synic, sint);
 
+	/* Try to deliver pending Hyper-V SynIC timers messages */
+	stimers_pending = 0;
+	for (idx = 0; idx < ARRAY_SIZE(hv_vcpu->stimer); idx++) {
+		stimer = &hv_vcpu->stimer[idx];
+		if (stimer->msg_pending &&
+		    (stimer->config & HV_STIMER_ENABLE) &&
+		    HV_STIMER_SINT(stimer->config) == sint) {
+			set_bit(stimer->index,
+				hv_vcpu->stimer_pending_bitmap);
+			stimers_pending++;
+		}
+	}
+	if (stimers_pending)
+		kvm_make_request(KVM_REQ_HV_STIMER, vcpu);
+
 	idx = srcu_read_lock(&kvm->irq_srcu);
-	gsi = atomic_read(&vcpu_to_synic(vcpu)->sint_to_gsi[sint]);
+	gsi = atomic_read(&synic->sint_to_gsi[sint]);
 	if (gsi != -1)
 		kvm_notify_acked_gsi(kvm, gsi);
 	srcu_read_unlock(&kvm->irq_srcu, idx);
@@ -371,9 +388,268 @@ static u64 get_time_ref_counter(struct kvm *kvm)
 	return div_u64(get_kernel_ns() + kvm->arch.kvmclock_offset, 100);
 }
 
+static void stimer_mark_expired(struct kvm_vcpu_hv_stimer *stimer,
+				bool vcpu_kick)
+{
+	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
+
+	set_bit(stimer->index,
+		vcpu_to_hv_vcpu(vcpu)->stimer_pending_bitmap);
+	kvm_make_request(KVM_REQ_HV_STIMER, vcpu);
+	if (vcpu_kick)
+		kvm_vcpu_kick(vcpu);
+}
+
+static void stimer_stop(struct kvm_vcpu_hv_stimer *stimer)
+{
+	hrtimer_cancel(&stimer->timer);
+}
+
+static void stimer_cleanup(struct kvm_vcpu_hv_stimer *stimer)
+{
+	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
+
+	stimer_stop(stimer);
+	clear_bit(stimer->index,
+		  vcpu_to_hv_vcpu(vcpu)->stimer_pending_bitmap);
+	stimer->msg_pending = false;
+}
+
+static enum hrtimer_restart stimer_timer_callback(struct hrtimer *timer)
+{
+	struct kvm_vcpu_hv_stimer *stimer;
+
+	stimer = container_of(timer, struct kvm_vcpu_hv_stimer, timer);
+	stimer_mark_expired(stimer, true);
+
+	return HRTIMER_NORESTART;
+}
+
+static void stimer_restart(struct kvm_vcpu_hv_stimer *stimer)
+{
+	u64 time_now;
+	ktime_t ktime_now;
+	u64 remainder;
+
+	time_now = get_time_ref_counter(stimer_to_vcpu(stimer)->kvm);
+	ktime_now = ktime_get();
+
+	div64_u64_rem(time_now - stimer->exp_time, stimer->count, &remainder);
+	stimer->exp_time = time_now + (stimer->count - remainder);
+
+	hrtimer_start(&stimer->timer,
+		      ktime_add_ns(ktime_now,
+				   100 * (stimer->exp_time - time_now)),
+		      HRTIMER_MODE_ABS);
+}
+
+static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
+{
+	u64 time_now;
+	ktime_t ktime_now;
+
+	time_now = get_time_ref_counter(stimer_to_vcpu(stimer)->kvm);
+	ktime_now = ktime_get();
+
+	if (stimer->config & HV_STIMER_PERIODIC) {
+		if (stimer->count == 0)
+			return -EINVAL;
+
+		stimer->exp_time = time_now + stimer->count;
+		hrtimer_start(&stimer->timer,
+			      ktime_add_ns(ktime_now, 100 * stimer->count),
+			      HRTIMER_MODE_ABS);
+		return 0;
+	}
+	stimer->exp_time = stimer->count;
+	if (time_now >= stimer->count) {
+		/*
+		 * Expire timer according to Hypervisor Top-Level Functional
+		 * specification v4(15.3.1):
+		 * "If a one shot is enabled and the specified count is in
+		 * the past, it will expire immediately."
+		 */
+		stimer_mark_expired(stimer, false);
+		return 0;
+	}
+
+	hrtimer_start(&stimer->timer,
+		      ktime_add_ns(ktime_now, 100 * (stimer->count - time_now)),
+		      HRTIMER_MODE_ABS);
+	return 0;
+}
+
+static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
+			     bool host)
+{
+	if (stimer->count == 0 || HV_STIMER_SINT(config) == 0)
+		config &= ~HV_STIMER_ENABLE;
+	stimer->config = config;
+	stimer_cleanup(stimer);
+	if (stimer->config & HV_STIMER_ENABLE)
+		if (stimer_start(stimer))
+			return 1;
+	return 0;
+}
+
+static int stimer_set_count(struct kvm_vcpu_hv_stimer *stimer, u64 count,
+			    bool host)
+{
+	stimer->count = count;
+
+	stimer_cleanup(stimer);
+	if (stimer->count == 0)
+		stimer->config &= ~HV_STIMER_ENABLE;
+	else if (stimer->config & HV_STIMER_AUTOENABLE) {
+		stimer->config |= HV_STIMER_ENABLE;
+		if (stimer_start(stimer))
+			return 1;
+	}
+
+	return 0;
+}
+
+static int stimer_get_config(struct kvm_vcpu_hv_stimer *stimer, u64 *pconfig)
+{
+	*pconfig = stimer->config;
+	return 0;
+}
+
+static int stimer_get_count(struct kvm_vcpu_hv_stimer *stimer, u64 *pcount)
+{
+	*pcount = stimer->count;
+	return 0;
+}
+
+static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
+			     struct hv_message *src_msg)
+{
+	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
+	struct page *page;
+	gpa_t gpa;
+	struct hv_message *dst_msg;
+	int r;
+	struct hv_message_page *msg_page;
+
+	if (!(synic->msg_page & HV_SYNIC_SIMP_ENABLE))
+		return -ENOENT;
+
+	gpa = synic->msg_page & PAGE_MASK;
+	page = kvm_vcpu_gfn_to_page(vcpu, gpa >> PAGE_SHIFT);
+	if (is_error_page(page))
+		return -EFAULT;
+
+	msg_page = kmap_atomic(page);
+	dst_msg = &msg_page->sint_message[sint];
+	if (sync_cmpxchg(&dst_msg->header.message_type, HVMSG_NONE,
+			 src_msg->header.message_type) != HVMSG_NONE) {
+		dst_msg->header.message_flags.msg_pending = 1;
+		r = -EAGAIN;
+	} else {
+		memcpy(&dst_msg->u.payload, &src_msg->u.payload,
+		       src_msg->header.payload_size);
+		dst_msg->header.message_type = src_msg->header.message_type;
+		dst_msg->header.payload_size = src_msg->header.payload_size;
+		r = synic_set_irq(synic, sint);
+		if (r >= 1)
+			r = 0;
+		else if (r == 0)
+			r = -EFAULT;
+	}
+	kunmap_atomic(msg_page);
+	kvm_release_page_dirty(page);
+	kvm_vcpu_mark_page_dirty(vcpu, gpa >> PAGE_SHIFT);
+	return r;
+}
+
+static void stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
+{
+	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
+	struct hv_message *msg = &stimer->msg;
+	struct hv_timer_message_payload *payload =
+			(struct hv_timer_message_payload *)&msg->u.payload;
+	int r;
+
+	stimer->msg_pending = true;
+	payload->expiration_time = stimer->exp_time;
+	payload->delivery_time = get_time_ref_counter(vcpu->kvm);
+	r = synic_deliver_msg(vcpu_to_synic(vcpu),
+			      HV_STIMER_SINT(stimer->config), msg);
+	if (!r)
+		stimer->msg_pending = false;
+}
+
+static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
+{
+	stimer_send_msg(stimer);
+	if (!(stimer->config & HV_STIMER_PERIODIC))
+		stimer->config |= ~HV_STIMER_ENABLE;
+	else
+		stimer_restart(stimer);
+}
+
+void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv_stimer *stimer;
+	u64 time_now;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
+		if (test_and_clear_bit(i, hv_vcpu->stimer_pending_bitmap)) {
+			stimer = &hv_vcpu->stimer[i];
+			stimer_stop(stimer);
+			if (stimer->config & HV_STIMER_ENABLE) {
+				time_now = get_time_ref_counter(vcpu->kvm);
+				if (time_now >= stimer->exp_time)
+					stimer_expiration(stimer);
+			}
+		}
+}
+
+void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
+		stimer_cleanup(&hv_vcpu->stimer[i]);
+}
+
+static void stimer_prepare_msg(struct kvm_vcpu_hv_stimer *stimer)
+{
+	struct hv_message *msg = &stimer->msg;
+	struct hv_timer_message_payload *payload =
+			(struct hv_timer_message_payload *)&msg->u.payload;
+
+	memset(&msg->header, 0, sizeof(msg->header));
+	msg->header.message_type = HVMSG_TIMER_EXPIRED;
+	msg->header.payload_size = sizeof(*payload);
+
+	payload->timer_index = stimer->index;
+	payload->expiration_time = 0;
+	payload->delivery_time = 0;
+}
+
+static void stimer_init(struct kvm_vcpu_hv_stimer *stimer, int timer_index)
+{
+	memset(stimer, 0, sizeof(*stimer));
+	stimer->index = timer_index;
+	hrtimer_init(&stimer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	stimer->timer.function = stimer_timer_callback;
+	stimer_prepare_msg(stimer);
+}
+
 void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	synic_init(vcpu_to_synic(vcpu));
+	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	int i;
+
+	synic_init(&hv_vcpu->synic);
+
+	bitmap_zero(hv_vcpu->stimer_pending_bitmap, HV_SYNIC_STIMER_COUNT);
+	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
+		stimer_init(&hv_vcpu->stimer[i], i);
 }
 
 int kvm_hv_activate_synic(struct kvm_vcpu *vcpu)
@@ -590,6 +866,24 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 	case HV_X64_MSR_EOM:
 	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
 		return synic_set_msr(vcpu_to_synic(vcpu), msr, data, host);
+	case HV_X64_MSR_STIMER0_CONFIG:
+	case HV_X64_MSR_STIMER1_CONFIG:
+	case HV_X64_MSR_STIMER2_CONFIG:
+	case HV_X64_MSR_STIMER3_CONFIG: {
+		int timer_index = (msr - HV_X64_MSR_STIMER0_CONFIG)/2;
+
+		return stimer_set_config(vcpu_to_stimer(vcpu, timer_index),
+					 data, host);
+	}
+	case HV_X64_MSR_STIMER0_COUNT:
+	case HV_X64_MSR_STIMER1_COUNT:
+	case HV_X64_MSR_STIMER2_COUNT:
+	case HV_X64_MSR_STIMER3_COUNT: {
+		int timer_index = (msr - HV_X64_MSR_STIMER0_COUNT)/2;
+
+		return stimer_set_count(vcpu_to_stimer(vcpu, timer_index),
+					data, host);
+	}
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V uhandled wrmsr: 0x%x data 0x%llx\n",
 			    msr, data);
@@ -673,6 +967,24 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case HV_X64_MSR_EOM:
 	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
 		return synic_get_msr(vcpu_to_synic(vcpu), msr, pdata);
+	case HV_X64_MSR_STIMER0_CONFIG:
+	case HV_X64_MSR_STIMER1_CONFIG:
+	case HV_X64_MSR_STIMER2_CONFIG:
+	case HV_X64_MSR_STIMER3_CONFIG: {
+		int timer_index = (msr - HV_X64_MSR_STIMER0_CONFIG)/2;
+
+		return stimer_get_config(vcpu_to_stimer(vcpu, timer_index),
+					 pdata);
+	}
+	case HV_X64_MSR_STIMER0_COUNT:
+	case HV_X64_MSR_STIMER1_COUNT:
+	case HV_X64_MSR_STIMER2_COUNT:
+	case HV_X64_MSR_STIMER3_COUNT: {
+		int timer_index = (msr - HV_X64_MSR_STIMER0_COUNT)/2;
+
+		return stimer_get_count(vcpu_to_stimer(vcpu, timer_index),
+					pdata);
+	}
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;

@@ -379,6 +379,17 @@ struct kvm_mtrr {
 	struct list_head head;
 };
 
+/* Hyper-V SynIC timer */
+struct kvm_vcpu_hv_stimer {
+	struct hrtimer timer;
+	int index;
+	u64 config;
+	u64 count;
+	u64 exp_time;
+	struct hv_message msg;
+	bool msg_pending;
+};
+
 /* Hyper-V synthetic interrupt controller (SynIC)*/
 struct kvm_vcpu_hv_synic {
 	u64 version;
@@ -398,6 +409,8 @@ struct kvm_vcpu_hv {
 	s64 runtime_offset;
 	struct kvm_vcpu_hv_synic synic;
 	struct kvm_hyperv_exit exit;
+	struct kvm_vcpu_hv_stimer stimer[HV_SYNIC_STIMER_COUNT];
+	DECLARE_BITMAP(stimer_pending_bitmap, HV_SYNIC_STIMER_COUNT);
 };
 
 struct kvm_vcpu_arch {

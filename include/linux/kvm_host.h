@@ -144,6 +144,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_IOAPIC_EOI_EXIT   28
 #define KVM_REQ_HV_RESET          29
 #define KVM_REQ_HV_EXIT           30
+#define KVM_REQ_HV_STIMER         31
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
