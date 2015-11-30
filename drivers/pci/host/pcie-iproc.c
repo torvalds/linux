@@ -245,7 +245,7 @@ static int iproc_pcie_setup_ob(struct iproc_pcie *pcie, u64 axi_addr,
 
 	if (size > max_size) {
 		dev_err(pcie->dev,
-			"res size 0x%pap exceeds max supported size 0x%llx\n",
+			"res size %pap exceeds max supported size 0x%llx\n",
 			&size, max_size);
 		return -EINVAL;
 	}
