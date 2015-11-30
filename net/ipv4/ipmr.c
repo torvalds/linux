@@ -66,22 +66,7 @@
 #include <net/netlink.h>
 #include <net/fib_rules.h>
 #include <linux/netconf.h>
-
-struct mr_table {
-	struct list_head	list;
-	possible_net_t		net;
-	u32			id;
-	struct sock __rcu	*mroute_sk;
-	struct timer_list	ipmr_expire_timer;
-	struct list_head	mfc_unres_queue;
-	struct list_head	mfc_cache_array[MFC_LINES];
-	struct vif_device	vif_table[MAXVIFS];
-	int			maxvif;
-	atomic_t		cache_resolve_queue_len;
-	bool			mroute_do_assert;
-	bool			mroute_do_pim;
-	int			mroute_reg_vif_num;
-};
+#include <net/nexthop.h>
 
 struct ipmr_rule {
 	struct fib_rule		common;
@@ -91,11 +76,6 @@ struct ipmr_result {
 	struct mr_table		*mrt;
 };
 
-static inline bool pimsm_enabled(void)
-{
-	return IS_BUILTIN(CONFIG_IP_PIMSM_V1) || IS_BUILTIN(CONFIG_IP_PIMSM_V2);
-}
-
 /* Big lock, protecting vif table, mrt cache and mroute socket state.
  * Note that the changes are semaphored via rtnl_lock.
  */
@@ -103,8 +83,6 @@ static inline bool pimsm_enabled(void)
 static DEFINE_RWLOCK(mrt_lock);
 
 /* Multicast router control variables */
-
-#define VIF_EXISTS(_mrt, _idx) ((_mrt)->vif_table[_idx].dev != NULL)
 
 /* Special spinlock for queue of unresolved entries */
 static DEFINE_SPINLOCK(mfc_unres_lock);
@@ -769,7 +747,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 
 	switch (vifc->vifc_flags) {
 	case VIFF_REGISTER:
-		if (!pimsm_enabled())
+		if (!ipmr_pimsm_enabled())
 			return -EINVAL;
 		/* Special Purpose VIF in PIM
 		 * All the packets will be sent to the daemon
@@ -1307,12 +1285,14 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 
 	switch (optname) {
 	case MRT_INIT:
-		if (optlen != sizeof(int))
+		if (optlen != sizeof(int)) {
 			ret = -EINVAL;
-		if (rtnl_dereference(mrt->mroute_sk))
-			ret = -EADDRINUSE;
-		if (ret)
 			break;
+		}
+		if (rtnl_dereference(mrt->mroute_sk)) {
+			ret = -EADDRINUSE;
+			break;
+		}
 
 		ret = ip_ra_control(sk, 1, mrtsock_destruct);
 		if (ret == 0) {
@@ -1395,7 +1375,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 		mrt->mroute_do_assert = val;
 		break;
 	case MRT_PIM:
-		if (!pimsm_enabled()) {
+		if (!ipmr_pimsm_enabled()) {
 			ret = -ENOPROTOOPT;
 			break;
 		}
@@ -1469,7 +1449,7 @@ int ip_mroute_getsockopt(struct sock *sk, int optname, char __user *optval, int 
 		val = 0x0305;
 		break;
 	case MRT_PIM:
-		if (!pimsm_enabled())
+		if (!ipmr_pimsm_enabled())
 			return -ENOPROTOOPT;
 		val = mrt->mroute_do_pim;
 		break;
@@ -2199,8 +2179,6 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 	}
 
 	read_lock(&mrt_lock);
-	if (!nowait && (rtm->rtm_flags & RTM_F_NOTIFY))
-		cache->mfc_flags |= MFC_NOTIFY;
 	err = __ipmr_fill_mroute(mrt, skb, cache, rtm);
 	read_unlock(&mrt_lock);
 	rcu_read_unlock();
@@ -2360,6 +2338,130 @@ done:
 	cb->args[0] = t;
 
 	return skb->len;
+}
+
+static const struct nla_policy rtm_ipmr_policy[RTA_MAX + 1] = {
+	[RTA_SRC]	= { .type = NLA_U32 },
+	[RTA_DST]	= { .type = NLA_U32 },
+	[RTA_IIF]	= { .type = NLA_U32 },
+	[RTA_TABLE]	= { .type = NLA_U32 },
+	[RTA_MULTIPATH]	= { .len = sizeof(struct rtnexthop) },
+};
+
+static bool ipmr_rtm_validate_proto(unsigned char rtm_protocol)
+{
+	switch (rtm_protocol) {
+	case RTPROT_STATIC:
+	case RTPROT_MROUTED:
+		return true;
+	}
+	return false;
+}
+
+static int ipmr_nla_get_ttls(const struct nlattr *nla, struct mfcctl *mfcc)
+{
+	struct rtnexthop *rtnh = nla_data(nla);
+	int remaining = nla_len(nla), vifi = 0;
+
+	while (rtnh_ok(rtnh, remaining)) {
+		mfcc->mfcc_ttls[vifi] = rtnh->rtnh_hops;
+		if (++vifi == MAXVIFS)
+			break;
+		rtnh = rtnh_next(rtnh, &remaining);
+	}
+
+	return remaining > 0 ? -EINVAL : vifi;
+}
+
+/* returns < 0 on error, 0 for ADD_MFC and 1 for ADD_MFC_PROXY */
+static int rtm_to_ipmr_mfcc(struct net *net, struct nlmsghdr *nlh,
+			    struct mfcctl *mfcc, int *mrtsock,
+			    struct mr_table **mrtret)
+{
+	struct net_device *dev = NULL;
+	u32 tblid = RT_TABLE_DEFAULT;
+	struct mr_table *mrt;
+	struct nlattr *attr;
+	struct rtmsg *rtm;
+	int ret, rem;
+
+	ret = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipmr_policy);
+	if (ret < 0)
+		goto out;
+	rtm = nlmsg_data(nlh);
+
+	ret = -EINVAL;
+	if (rtm->rtm_family != RTNL_FAMILY_IPMR || rtm->rtm_dst_len != 32 ||
+	    rtm->rtm_type != RTN_MULTICAST ||
+	    rtm->rtm_scope != RT_SCOPE_UNIVERSE ||
+	    !ipmr_rtm_validate_proto(rtm->rtm_protocol))
+		goto out;
+
+	memset(mfcc, 0, sizeof(*mfcc));
+	mfcc->mfcc_parent = -1;
+	ret = 0;
+	nlmsg_for_each_attr(attr, nlh, sizeof(struct rtmsg), rem) {
+		switch (nla_type(attr)) {
+		case RTA_SRC:
+			mfcc->mfcc_origin.s_addr = nla_get_be32(attr);
+			break;
+		case RTA_DST:
+			mfcc->mfcc_mcastgrp.s_addr = nla_get_be32(attr);
+			break;
+		case RTA_IIF:
+			dev = __dev_get_by_index(net, nla_get_u32(attr));
+			if (!dev) {
+				ret = -ENODEV;
+				goto out;
+			}
+			break;
+		case RTA_MULTIPATH:
+			if (ipmr_nla_get_ttls(attr, mfcc) < 0) {
+				ret = -EINVAL;
+				goto out;
+			}
+			break;
+		case RTA_PREFSRC:
+			ret = 1;
+			break;
+		case RTA_TABLE:
+			tblid = nla_get_u32(attr);
+			break;
+		}
+	}
+	mrt = ipmr_get_table(net, tblid);
+	if (!mrt) {
+		ret = -ENOENT;
+		goto out;
+	}
+	*mrtret = mrt;
+	*mrtsock = rtm->rtm_protocol == RTPROT_MROUTED ? 1 : 0;
+	if (dev)
+		mfcc->mfcc_parent = ipmr_find_vif(mrt, dev);
+
+out:
+	return ret;
+}
+
+/* takes care of both newroute and delroute */
+static int ipmr_rtm_route(struct sk_buff *skb, struct nlmsghdr *nlh)
+{
+	struct net *net = sock_net(skb->sk);
+	int ret, mrtsock, parent;
+	struct mr_table *tbl;
+	struct mfcctl mfcc;
+
+	mrtsock = 0;
+	tbl = NULL;
+	ret = rtm_to_ipmr_mfcc(net, nlh, &mfcc, &mrtsock, &tbl);
+	if (ret < 0)
+		return ret;
+
+	parent = ret ? mfcc.mfcc_parent : -1;
+	if (nlh->nlmsg_type == RTM_NEWROUTE)
+		return ipmr_mfc_add(net, tbl, &mfcc, mrtsock, parent);
+	else
+		return ipmr_mfc_delete(tbl, &mfcc, parent);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -2715,6 +2817,10 @@ int __init ip_mr_init(void)
 #endif
 	rtnl_register(RTNL_FAMILY_IPMR, RTM_GETROUTE,
 		      NULL, ipmr_rtm_dumproute, NULL);
+	rtnl_register(RTNL_FAMILY_IPMR, RTM_NEWROUTE,
+		      ipmr_rtm_route, NULL, NULL);
+	rtnl_register(RTNL_FAMILY_IPMR, RTM_DELROUTE,
+		      ipmr_rtm_route, NULL, NULL);
 	return 0;
 
 #ifdef CONFIG_IP_PIMSM_V2

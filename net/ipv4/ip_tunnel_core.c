@@ -24,7 +24,6 @@
 #include <linux/netdevice.h>
 #include <linux/in.h>
 #include <linux/if_arp.h>
-#include <linux/mroute.h>
 #include <linux/init.h>
 #include <linux/in6.h>
 #include <linux/inetdevice.h>
