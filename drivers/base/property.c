@@ -72,7 +72,10 @@ static void *pset_prop_find(struct property_set *pset, const char *propname,
 	prop = pset_prop_get(pset, propname);
 	if (!prop)
 		return ERR_PTR(-EINVAL);
-	pointer = prop->value.raw_data;
+	if (prop->is_array)
+		pointer = prop->pointer.raw_data;
+	else
+		pointer = &prop->value.raw_data;
 	if (!pointer)
 		return ERR_PTR(-ENODATA);
 	if (length > prop->length)
@@ -164,6 +167,31 @@ static int pset_prop_read_string_array(struct property_set *pset,
 		return PTR_ERR(pointer);
 
 	memcpy(strings, pointer, length);
+	return 0;
+}
+
+static int pset_prop_read_string(struct property_set *pset,
+				 const char *propname, const char **strings)
+{
+	struct property_entry *prop;
+	const char **pointer;
+
+	prop = pset_prop_get(pset, propname);
+	if (!prop)
+		return -EINVAL;
+	if (!prop->is_string)
+		return -EILSEQ;
+	if (prop->is_array) {
+		pointer = prop->pointer.str;
+		if (!pointer)
+			return -ENODATA;
+	} else {
+		pointer = &prop->value.str;
+		if (*pointer && strnlen(*pointer, prop->length) >= prop->length)
+			return -EILSEQ;
+	}
+
+	*strings = *pointer;
 	return 0;
 }
 
@@ -566,8 +594,7 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
 					   val, 1);
 	else if (is_pset_node(fwnode))
-		return pset_prop_read_string_array(to_pset_node(fwnode),
-						   propname, val, 1);
+		return pset_prop_read_string(to_pset_node(fwnode), propname, val);
 	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
