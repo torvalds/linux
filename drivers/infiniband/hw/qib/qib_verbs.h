@@ -329,9 +329,9 @@ struct qib_sge {
 struct qib_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
-	struct qib_mregion mr;  /* must be last */
 	u64 *pages;
 	u32 npages;
+	struct qib_mregion mr;  /* must be last */
 };
 
 /*
