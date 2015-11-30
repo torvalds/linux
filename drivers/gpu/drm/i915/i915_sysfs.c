@@ -35,7 +35,8 @@
 #define dev_to_drm_minor(d) dev_get_drvdata((d))
 
 #ifdef CONFIG_PM
-static u32 calc_residency(struct drm_device *dev, const u32 reg)
+static u32 calc_residency(struct drm_device *dev,
+			  i915_reg_t reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u64 raw_time; /* 32b value may overflow during fixed point math */
