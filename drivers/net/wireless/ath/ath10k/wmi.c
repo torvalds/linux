@@ -2310,6 +2310,12 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
 
+	/* Firmware is guaranteed to report all essential management frames via
+	 * WMI while it can deliver some extra via HTT. Since there can be
+	 * duplicates split the reporting wrt monitor/sniffing.
+	 */
+	status->flag |= RX_FLAG_SKIP_MONITOR;
+
 	ath10k_wmi_handle_wep_reauth(ar, skb, status);
 
 	/* FW delivers WEP Shared Auth frame with Protected Bit set and

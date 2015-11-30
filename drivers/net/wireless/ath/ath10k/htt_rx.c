@@ -1078,20 +1078,25 @@ static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
 	hdr = (void *)msdu->data;
 
 	/* Tail */
-	skb_trim(msdu, msdu->len - ath10k_htt_rx_crypto_tail_len(ar, enctype));
+	if (status->flag & RX_FLAG_IV_STRIPPED)
+		skb_trim(msdu, msdu->len -
+			 ath10k_htt_rx_crypto_tail_len(ar, enctype));
 
 	/* MMIC */
-	if (!ieee80211_has_morefrags(hdr->frame_control) &&
+	if ((status->flag & RX_FLAG_MMIC_STRIPPED) &&
+	    !ieee80211_has_morefrags(hdr->frame_control) &&
 	    enctype == HTT_RX_MPDU_ENCRYPT_TKIP_WPA)
 		skb_trim(msdu, msdu->len - 8);
 
 	/* Head */
-	hdr_len = ieee80211_hdrlen(hdr->frame_control);
-	crypto_len = ath10k_htt_rx_crypto_param_len(ar, enctype);
+	if (status->flag & RX_FLAG_IV_STRIPPED) {
+		hdr_len = ieee80211_hdrlen(hdr->frame_control);
+		crypto_len = ath10k_htt_rx_crypto_param_len(ar, enctype);
 
-	memmove((void *)msdu->data + crypto_len,
-		(void *)msdu->data, hdr_len);
-	skb_pull(msdu, crypto_len);
+		memmove((void *)msdu->data + crypto_len,
+			(void *)msdu->data, hdr_len);
+		skb_pull(msdu, crypto_len);
+	}
 }
 
 static void ath10k_htt_rx_h_undecap_nwifi(struct ath10k *ar,
@@ -1345,6 +1350,7 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 	bool has_tkip_err;
 	bool has_peer_idx_invalid;
 	bool is_decrypted;
+	bool is_mgmt;
 	u32 attention;
 
 	if (skb_queue_empty(amsdu))
@@ -1352,6 +1358,9 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 
 	first = skb_peek(amsdu);
 	rxd = (void *)first->data - sizeof(*rxd);
+
+	is_mgmt = !!(rxd->attention.flags &
+		     __cpu_to_le32(RX_ATTENTION_FLAGS_MGMT_TYPE));
 
 	enctype = MS(__le32_to_cpu(rxd->mpdu_start.info0),
 		     RX_MPDU_START_INFO0_ENCRYPT_TYPE);
@@ -1394,6 +1403,7 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 			  RX_FLAG_MMIC_ERROR |
 			  RX_FLAG_DECRYPTED |
 			  RX_FLAG_IV_STRIPPED |
+			  RX_FLAG_ONLY_MONITOR |
 			  RX_FLAG_MMIC_STRIPPED);
 
 	if (has_fcs_err)
@@ -1402,10 +1412,21 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 	if (has_tkip_err)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
-	if (is_decrypted)
-		status->flag |= RX_FLAG_DECRYPTED |
-				RX_FLAG_IV_STRIPPED |
-				RX_FLAG_MMIC_STRIPPED;
+	/* Firmware reports all necessary management frames via WMI already.
+	 * They are not reported to monitor interfaces at all so pass the ones
+	 * coming via HTT to monitor interfaces instead. This simplifies
+	 * matters a lot.
+	 */
+	if (is_mgmt)
+		status->flag |= RX_FLAG_ONLY_MONITOR;
+
+	if (is_decrypted) {
+		status->flag |= RX_FLAG_DECRYPTED;
+
+		if (likely(!is_mgmt))
+			status->flag |= RX_FLAG_IV_STRIPPED |
+					RX_FLAG_MMIC_STRIPPED;
+}
 
 	skb_queue_walk(amsdu, msdu) {
 		ath10k_htt_rx_h_csum_offload(msdu);
@@ -1417,6 +1438,8 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 		 * it then remove the protected bit.
 		 */
 		if (!is_decrypted)
+			continue;
+		if (is_mgmt)
 			continue;
 
 		hdr = (void *)msdu->data;
@@ -1518,37 +1541,12 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 					struct sk_buff_head *amsdu,
 					struct ieee80211_rx_status *rx_status)
 {
-	struct sk_buff *msdu;
-	struct htt_rx_desc *rxd;
-	bool is_mgmt;
-	bool has_fcs_err;
-
-	msdu = skb_peek(amsdu);
-	rxd = (void *)msdu->data - sizeof(*rxd);
-
 	/* FIXME: It might be a good idea to do some fuzzy-testing to drop
 	 * invalid/dangerous frames.
 	 */
 
 	if (!rx_status->freq) {
 		ath10k_warn(ar, "no channel configured; ignoring frame(s)!\n");
-		return false;
-	}
-
-	is_mgmt = !!(rxd->attention.flags &
-		     __cpu_to_le32(RX_ATTENTION_FLAGS_MGMT_TYPE));
-	has_fcs_err = !!(rxd->attention.flags &
-			 __cpu_to_le32(RX_ATTENTION_FLAGS_FCS_ERR));
-
-	/* Management frames are handled via WMI events. The pros of such
-	 * approach is that channel is explicitly provided in WMI events
-	 * whereas HTT doesn't provide channel information for Rxed frames.
-	 *
-	 * However some firmware revisions don't report corrupted frames via
-	 * WMI so don't drop them.
-	 */
-	if (is_mgmt && !has_fcs_err) {
-		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx mgmt ctrl\n");
 		return false;
 	}
 
