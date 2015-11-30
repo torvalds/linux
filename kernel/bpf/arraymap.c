@@ -28,11 +28,17 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	    attr->value_size == 0)
 		return ERR_PTR(-EINVAL);
 
+	if (attr->value_size >= 1 << (KMALLOC_SHIFT_MAX - 1))
+		/* if value_size is bigger, the user space won't be able to
+		 * access the elements.
+		 */
+		return ERR_PTR(-E2BIG);
+
 	elem_size = round_up(attr->value_size, 8);
 
 	/* check round_up into zero and u32 overflow */
 	if (elem_size == 0 ||
-	    attr->max_entries > (U32_MAX - sizeof(*array)) / elem_size)
+	    attr->max_entries > (U32_MAX - PAGE_SIZE - sizeof(*array)) / elem_size)
 		return ERR_PTR(-ENOMEM);
 
 	array_size = sizeof(*array) + attr->max_entries * elem_size;
