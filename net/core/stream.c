@@ -39,7 +39,7 @@ void sk_stream_write_space(struct sock *sk)
 			wake_up_interruptible_poll(&wq->wait, POLLOUT |
 						POLLWRNORM | POLLWRBAND);
 		if (wq && wq->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
-			sock_wake_async(sock, SOCK_WAKE_SPACE, POLL_OUT);
+			sock_wake_async(wq, SOCK_WAKE_SPACE, POLL_OUT);
 		rcu_read_unlock();
 	}
 }
