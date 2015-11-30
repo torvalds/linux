@@ -214,12 +214,8 @@ bool device_property_present(struct device *dev, const char *propname)
 }
 EXPORT_SYMBOL_GPL(device_property_present);
 
-/**
- * fwnode_property_present - check if a property of a firmware node is present
- * @fwnode: Firmware node whose property to check
- * @propname: Name of the property
- */
-bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
+static bool __fwnode_property_present(struct fwnode_handle *fwnode,
+				      const char *propname)
 {
 	if (is_of_node(fwnode))
 		return of_property_read_bool(to_of_node(fwnode), propname);
@@ -228,6 +224,21 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 	else if (is_pset_node(fwnode))
 		return !!pset_prop_get(to_pset_node(fwnode), propname);
 	return false;
+}
+
+/**
+ * fwnode_property_present - check if a property of a firmware node is present
+ * @fwnode: Firmware node whose property to check
+ * @propname: Name of the property
+ */
+bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
+{
+	bool ret;
+
+	ret = __fwnode_property_present(fwnode, propname);
+	if (ret == false && fwnode->secondary)
+		ret = __fwnode_property_present(fwnode->secondary, propname);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_present);
 
@@ -408,7 +419,7 @@ EXPORT_SYMBOL_GPL(device_property_match_string);
 	(val) ? pset_prop_read_##type##_array((node), (propname), (val), (nval))	\
 	      : pset_prop_count_elems_of_size((node), (propname), sizeof(type))
 
-#define FWNODE_PROP_READ_ARRAY(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_)	\
+#define FWNODE_PROP_READ(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_)	\
 ({											\
 	int _ret_;									\
 	if (is_of_node(_fwnode_))							\
@@ -422,6 +433,17 @@ EXPORT_SYMBOL_GPL(device_property_match_string);
 					     _type_, _val_, _nval_);			\
 	else										\
 		_ret_ = -ENXIO;								\
+	_ret_;										\
+})
+
+#define FWNODE_PROP_READ_ARRAY(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_)	\
+({											\
+	int _ret_;									\
+	_ret_ = FWNODE_PROP_READ(_fwnode_, _propname_, _type_, _proptype_,		\
+				 _val_, _nval_);					\
+	if (_ret_ == -EINVAL && _fwnode_->secondary)					\
+		_ret_ = FWNODE_PROP_READ(_fwnode_->secondary, _propname_, _type_,	\
+				_proptype_, _val_, _nval_);				\
 	_ret_;										\
 })
 
@@ -529,6 +551,41 @@ int fwnode_property_read_u64_array(struct fwnode_handle *fwnode,
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_u64_array);
 
+static int __fwnode_property_read_string_array(struct fwnode_handle *fwnode,
+					       const char *propname,
+					       const char **val, size_t nval)
+{
+	if (is_of_node(fwnode))
+		return val ?
+			of_property_read_string_array(to_of_node(fwnode),
+						      propname, val, nval) :
+			of_property_count_strings(to_of_node(fwnode), propname);
+	else if (is_acpi_node(fwnode))
+		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+					   val, nval);
+	else if (is_pset_node(fwnode))
+		return val ?
+			pset_prop_read_string_array(to_pset_node(fwnode),
+						    propname, val, nval) :
+			pset_prop_count_elems_of_size(to_pset_node(fwnode),
+						      propname,
+						      sizeof(const char *));
+	return -ENXIO;
+}
+
+static int __fwnode_property_read_string(struct fwnode_handle *fwnode,
+					 const char *propname, const char **val)
+{
+	if (is_of_node(fwnode))
+		return of_property_read_string(to_of_node(fwnode), propname, val);
+	else if (is_acpi_node(fwnode))
+		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
+					   val, 1);
+	else if (is_pset_node(fwnode))
+		return pset_prop_read_string(to_pset_node(fwnode), propname, val);
+	return -ENXIO;
+}
+
 /**
  * fwnode_property_read_string_array - return string array property of a node
  * @fwnode: Firmware node to get the property of
@@ -551,22 +608,13 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 				      const char *propname, const char **val,
 				      size_t nval)
 {
-	if (is_of_node(fwnode))
-		return val ?
-			of_property_read_string_array(to_of_node(fwnode),
-						      propname, val, nval) :
-			of_property_count_strings(to_of_node(fwnode), propname);
-	else if (is_acpi_node(fwnode))
-		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
-					   val, nval);
-	else if (is_pset_node(fwnode))
-		return val ?
-			pset_prop_read_string_array(to_pset_node(fwnode),
-						    propname, val, nval) :
-			pset_prop_count_elems_of_size(to_pset_node(fwnode),
-						      propname,
-						      sizeof(const char *));
-	return -ENXIO;
+	int ret;
+
+	ret = __fwnode_property_read_string_array(fwnode, propname, val, nval);
+	if (ret == -EINVAL && fwnode->secondary)
+		ret = __fwnode_property_read_string_array(fwnode->secondary,
+							  propname, val, nval);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string_array);
 
@@ -588,14 +636,13 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_string_array);
 int fwnode_property_read_string(struct fwnode_handle *fwnode,
 				const char *propname, const char **val)
 {
-	if (is_of_node(fwnode))
-		return of_property_read_string(to_of_node(fwnode), propname, val);
-	else if (is_acpi_node(fwnode))
-		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
-					   val, 1);
-	else if (is_pset_node(fwnode))
-		return pset_prop_read_string(to_pset_node(fwnode), propname, val);
-	return -ENXIO;
+	int ret;
+
+	ret = __fwnode_property_read_string(fwnode, propname, val);
+	if (ret == -EINVAL && fwnode->secondary)
+		ret = __fwnode_property_read_string(fwnode->secondary,
+						    propname, val);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
 
