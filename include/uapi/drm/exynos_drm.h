@@ -15,7 +15,7 @@
 #ifndef _UAPI_EXYNOS_DRM_H_
 #define _UAPI_EXYNOS_DRM_H_
 
-#include <drm/drm.h>
+#include "drm.h"
 
 /**
  * User-desired buffer creation information structure.
