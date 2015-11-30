@@ -528,33 +528,6 @@ static void mixer_layer_update(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
 }
 
-static int mixer_setup_scale(const struct exynos_drm_plane *plane,
-		unsigned int *x_ratio, unsigned int *y_ratio)
-{
-	struct exynos_drm_plane_state *state =
-				to_exynos_plane_state(plane->base.state);
-
-	if (state->crtc.w != state->src.w) {
-		if (state->crtc.w == 2 * state->src.w)
-			*x_ratio = 1;
-		else
-			goto fail;
-	}
-
-	if (state->crtc.h != state->src.h) {
-		if (state->crtc.h == 2 * state->src.h)
-			*y_ratio = 1;
-		else
-			goto fail;
-	}
-
-	return 0;
-
-fail:
-	DRM_DEBUG_KMS("only 2x width/height scaling of plane supported\n");
-	return -ENOTSUPP;
-}
-
 static void mixer_graph_buffer(struct mixer_context *ctx,
 			       struct exynos_drm_plane *plane)
 {
@@ -594,9 +567,9 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 		return;
 	}
 
-	/* check if mixer supports requested scaling setup */
-	if (mixer_setup_scale(plane, &x_ratio, &y_ratio))
-		return;
+	/* ratio is already checked by common plane code */
+	x_ratio = state->h_ratio == (1 << 15);
+	y_ratio = state->v_ratio == (1 << 15);
 
 	dst_x_offset = state->crtc.x;
 	dst_y_offset = state->crtc.y;
