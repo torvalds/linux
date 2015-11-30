@@ -335,6 +335,11 @@ static void synic_init(struct kvm_vcpu_hv_synic *synic)
 	}
 }
 
+static u64 get_time_ref_counter(struct kvm *kvm)
+{
+	return div_u64(get_kernel_ns() + kvm->arch.kvmclock_offset, 100);
+}
+
 void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	synic_init(vcpu_to_synic(vcpu));
@@ -576,11 +581,9 @@ static int kvm_hv_get_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case HV_X64_MSR_HYPERCALL:
 		data = hv->hv_hypercall;
 		break;
-	case HV_X64_MSR_TIME_REF_COUNT: {
-		data =
-		     div_u64(get_kernel_ns() + kvm->arch.kvmclock_offset, 100);
+	case HV_X64_MSR_TIME_REF_COUNT:
+		data = get_time_ref_counter(kvm);
 		break;
-	}
 	case HV_X64_MSR_REFERENCE_TSC:
 		data = hv->hv_tsc_page;
 		break;
