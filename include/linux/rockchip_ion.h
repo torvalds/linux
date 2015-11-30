@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2014 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -22,19 +22,6 @@
 #include <linux/ion.h>
 #endif
 
-#define ROCKCHIP_ION_VERSION	"v1.1"
-
-/*
- * ion_heap_ids order by ion_heap_type
- */
-enum ion_heap_ids {
-       ION_VMALLOC_HEAP_ID = 0,
-       ION_CARVEOUT_HEAP_ID = 2,
-       ION_CMA_HEAP_ID = 4,
-};
-
-#define ION_HEAP(bit) (1 << (bit))
-
 struct ion_phys_data {
 	ion_user_handle_t handle;
 	unsigned long phys;
@@ -43,9 +30,10 @@ struct ion_phys_data {
 
 #define ION_IOC_ROCKCHIP_MAGIC 'R'
 
-/**
- * Get phys addr of the handle specified.
- */
+/* Get phys addr of the handle specified. */
 #define ION_IOC_GET_PHYS	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 0, \
 						struct ion_phys_data)
+
+struct ion_client *rockchip_ion_client_create(const char *name);
+
 #endif
