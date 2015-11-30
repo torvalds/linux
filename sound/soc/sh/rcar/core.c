@@ -191,6 +191,34 @@ int rsnd_io_is_working(struct rsnd_dai_stream *io)
 	return !!io->substream;
 }
 
+int rsnd_get_slot_rdai(struct rsnd_dai *rdai)
+{
+	return rdai->slots;
+}
+
+int rsnd_get_slot_runtime(struct rsnd_dai_stream *io)
+{
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	int chan = rsnd_get_slot_rdai(rdai);
+
+	if (runtime->channels < chan)
+		chan = runtime->channels;
+
+	return chan;
+}
+
+int rsnd_get_slot_extend(struct rsnd_dai_stream *io)
+{
+	int chan = rsnd_get_slot_runtime(io);
+
+	/* TDM Extend Mode needs 8ch */
+	if (chan == 6)
+		chan = 8;
+
+	return chan;
+}
+
 /*
  *	ADINR function
  */
@@ -611,6 +639,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 
 		rdai->playback.rdai		= rdai;
 		rdai->capture.rdai		= rdai;
+		rdai->slots			= 2; /* default */
 
 #define mod_parse(name)							\
 node = rsnd_##name##_of_node(priv);					\

@@ -285,6 +285,10 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 			void (*callback)(struct rsnd_mod *mod,
 					 struct rsnd_dai_stream *io));
 
+int rsnd_get_slot_rdai(struct rsnd_dai *rdai);
+int rsnd_get_slot_runtime(struct rsnd_dai_stream *io);
+int rsnd_get_slot_extend(struct rsnd_dai_stream *io);
+
 /*
  *	R-Car sound DAI
  */
@@ -320,6 +324,8 @@ struct rsnd_dai {
 	struct rsnd_dai_stream playback;
 	struct rsnd_dai_stream capture;
 	struct rsnd_priv *priv;
+
+	int slots;
 
 	unsigned int clk_master:1;
 	unsigned int bit_clk_inv:1;

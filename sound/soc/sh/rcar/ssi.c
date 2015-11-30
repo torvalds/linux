@@ -177,6 +177,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
 	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
+	int slots = rsnd_get_slot_extend(io);
 	int j, ret;
 	int ssi_clk_mul_table[] = {
 		1, 2, 4, 8, 16, 6, 12,
@@ -206,10 +207,10 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 
 		/*
 		 * this driver is assuming that
-		 * system word is 64fs (= 2 x 32bit)
+		 * system word is 32bit x slots
 		 * see rsnd_ssi_init()
 		 */
-		main_rate = rate * 32 * 2 * ssi_clk_mul_table[j];
+		main_rate = rate * 32 * slots * ssi_clk_mul_table[j];
 
 		ret = rsnd_adg_ssi_clk_try_start(mod, main_rate);
 		if (0 == ret) {
