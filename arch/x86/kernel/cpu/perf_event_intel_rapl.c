@@ -63,7 +63,7 @@
 #define INTEL_RAPL_PP1		0x4	/* pseudo-encoding */
 
 #define NR_RAPL_DOMAINS         0x4
-static const char *rapl_domain_names[NR_RAPL_DOMAINS] __initconst = {
+static const char *const rapl_domain_names[NR_RAPL_DOMAINS] __initconst = {
 	"pp0-core",
 	"package",
 	"dram",
