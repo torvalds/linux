@@ -641,9 +641,10 @@ static void fimd_atomic_flush(struct exynos_drm_crtc *crtc,
 static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane)
 {
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
 	struct fimd_context *ctx = crtc->ctx;
-	struct drm_plane_state *state = plane->base.state;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = state->base.fb;
 	dma_addr_t dma_addr;
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
@@ -654,8 +655,8 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	if (ctx->suspended)
 		return;
 
-	offset = plane->src_x * bpp;
-	offset += plane->src_y * pitch;
+	offset = state->src.x * bpp;
+	offset += state->src.y * pitch;
 
 	/* buffer start address */
 	dma_addr = exynos_drm_fb_dma_addr(fb, 0) + offset;
@@ -663,18 +664,18 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
-	size = pitch * plane->crtc_h;
+	size = pitch * state->crtc.h;
 	val = (unsigned long)(dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
 			(unsigned long)dma_addr, val, size);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			plane->crtc_w, plane->crtc_h);
+			state->crtc.w, state->crtc.h);
 
 	/* buffer size */
-	buf_offsize = pitch - (plane->crtc_w * bpp);
-	line_size = plane->crtc_w * bpp;
+	buf_offsize = pitch - (state->crtc.w * bpp);
+	line_size = state->crtc.w * bpp;
 	val = VIDW_BUF_SIZE_OFFSET(buf_offsize) |
 		VIDW_BUF_SIZE_PAGEWIDTH(line_size) |
 		VIDW_BUF_SIZE_OFFSET_E(buf_offsize) |
@@ -682,16 +683,16 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->regs + VIDWx_BUF_SIZE(win, 0));
 
 	/* OSD position */
-	val = VIDOSDxA_TOPLEFT_X(plane->crtc_x) |
-		VIDOSDxA_TOPLEFT_Y(plane->crtc_y) |
-		VIDOSDxA_TOPLEFT_X_E(plane->crtc_x) |
-		VIDOSDxA_TOPLEFT_Y_E(plane->crtc_y);
+	val = VIDOSDxA_TOPLEFT_X(state->crtc.x) |
+		VIDOSDxA_TOPLEFT_Y(state->crtc.y) |
+		VIDOSDxA_TOPLEFT_X_E(state->crtc.x) |
+		VIDOSDxA_TOPLEFT_Y_E(state->crtc.y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
-	last_x = plane->crtc_x + plane->crtc_w;
+	last_x = state->crtc.x + state->crtc.w;
 	if (last_x)
 		last_x--;
-	last_y = plane->crtc_y + plane->crtc_h;
+	last_y = state->crtc.y + state->crtc.h;
 	if (last_y)
 		last_y--;
 
@@ -701,14 +702,14 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->regs + VIDOSD_B(win));
 
 	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
-			plane->crtc_x, plane->crtc_y, last_x, last_y);
+			state->crtc.x, state->crtc.y, last_x, last_y);
 
 	/* OSD size */
 	if (win != 3 && win != 4) {
 		u32 offset = VIDOSD_D(win);
 		if (win == 0)
 			offset = VIDOSD_C(win);
-		val = plane->crtc_w * plane->crtc_h;
+		val = state->crtc.w * state->crtc.h;
 		writel(val, ctx->regs + offset);
 
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);

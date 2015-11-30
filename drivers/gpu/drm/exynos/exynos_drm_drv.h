@@ -38,22 +38,44 @@ enum exynos_drm_output_type {
 	EXYNOS_DISPLAY_TYPE_VIDI,
 };
 
+struct exynos_drm_rect {
+	unsigned int x, y;
+	unsigned int w, h;
+};
+
+/*
+ * Exynos drm plane state structure.
+ *
+ * @base: plane_state object (contains drm_framebuffer pointer)
+ * @src: rectangle of the source image data to be displayed (clipped to
+ *       visible part).
+ * @crtc: rectangle of the target image position on hardware screen
+ *       (clipped to visible part).
+ * @h_ratio: horizontal scaling ratio, 16.16 fixed point
+ * @v_ratio: vertical scaling ratio, 16.16 fixed point
+ *
+ * this structure consists plane state data that will be applied to hardware
+ * specific overlay info.
+ */
+
+struct exynos_drm_plane_state {
+	struct drm_plane_state base;
+	struct exynos_drm_rect crtc;
+	struct exynos_drm_rect src;
+	unsigned int h_ratio;
+	unsigned int v_ratio;
+};
+
+static inline struct exynos_drm_plane_state *
+to_exynos_plane_state(struct drm_plane_state *state)
+{
+	return container_of(state, struct exynos_drm_plane_state, base);
+}
+
 /*
  * Exynos drm common overlay structure.
  *
  * @base: plane object
- * @src_x: offset x on a framebuffer to be displayed.
- *	- the unit is screen coordinates.
- * @src_y: offset y on a framebuffer to be displayed.
- *	- the unit is screen coordinates.
- * @src_w: width of a partial image to be displayed from framebuffer.
- * @src_h: height of a partial image to be displayed from framebuffer.
- * @crtc_x: offset x on hardware screen.
- * @crtc_y: offset y on hardware screen.
- * @crtc_w: window width to be displayed (hardware screen).
- * @crtc_h: window height to be displayed (hardware screen).
- * @h_ratio: horizontal scaling ratio, 16.16 fixed point
- * @v_ratio: vertical scaling ratio, 16.16 fixed point
  * @zpos: order of overlay layer(z position).
  *
  * this structure is common to exynos SoC and its contents would be copied
@@ -62,16 +84,6 @@ enum exynos_drm_output_type {
 
 struct exynos_drm_plane {
 	struct drm_plane base;
-	unsigned int src_x;
-	unsigned int src_y;
-	unsigned int src_w;
-	unsigned int src_h;
-	unsigned int crtc_x;
-	unsigned int crtc_y;
-	unsigned int crtc_w;
-	unsigned int crtc_h;
-	unsigned int h_ratio;
-	unsigned int v_ratio;
 	unsigned int zpos;
 	struct drm_framebuffer *pending_fb;
 };

@@ -394,9 +394,10 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
 static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
 	struct decon_context *ctx = crtc->ctx;
-	struct drm_plane_state *state = plane->base.state;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = state->base.fb;
 	int padding;
 	unsigned long val, alpha;
 	unsigned int last_x;
@@ -429,22 +430,22 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	writel(fb->height, ctx->regs + VIDW_WHOLE_Y(win));
 
 	/* offset from the start of the buffer to read */
-	writel(plane->src_x, ctx->regs + VIDW_OFFSET_X(win));
-	writel(plane->src_y, ctx->regs + VIDW_OFFSET_Y(win));
+	writel(state->src.x, ctx->regs + VIDW_OFFSET_X(win));
+	writel(state->src.y, ctx->regs + VIDW_OFFSET_Y(win));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx\n",
 			(unsigned long)val);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
-			plane->crtc_w, plane->crtc_h);
+			state->crtc.w, state->crtc.h);
 
-	val = VIDOSDxA_TOPLEFT_X(plane->crtc_x) |
-		VIDOSDxA_TOPLEFT_Y(plane->crtc_y);
+	val = VIDOSDxA_TOPLEFT_X(state->crtc.x) |
+		VIDOSDxA_TOPLEFT_Y(state->crtc.y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
-	last_x = plane->crtc_x + plane->crtc_w;
+	last_x = state->crtc.x + state->crtc.w;
 	if (last_x)
 		last_x--;
-	last_y = plane->crtc_y + plane->crtc_h;
+	last_y = state->crtc.y + state->crtc.h;
 	if (last_y)
 		last_y--;
 
@@ -453,7 +454,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->regs + VIDOSD_B(win));
 
 	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
-			plane->crtc_x, plane->crtc_y, last_x, last_y);
+			state->crtc.x, state->crtc.y, last_x, last_y);
 
 	/* OSD alpha */
 	alpha = VIDOSDxC_ALPHA0_R_F(0x0) |

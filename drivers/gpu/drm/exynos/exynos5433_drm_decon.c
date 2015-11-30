@@ -260,9 +260,10 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
 static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
 	struct decon_context *ctx = crtc->ctx;
-	struct drm_plane_state *state = plane->base.state;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = state->base.fb;
 	unsigned int win = plane->zpos;
 	unsigned int bpp = fb->bits_per_pixel >> 3;
 	unsigned int pitch = fb->pitches[0];
@@ -272,11 +273,11 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	val = COORDINATE_X(plane->crtc_x) | COORDINATE_Y(plane->crtc_y);
+	val = COORDINATE_X(state->crtc.x) | COORDINATE_Y(state->crtc.y);
 	writel(val, ctx->addr + DECON_VIDOSDxA(win));
 
-	val = COORDINATE_X(plane->crtc_x + plane->crtc_w - 1) |
-		COORDINATE_Y(plane->crtc_y + plane->crtc_h - 1);
+	val = COORDINATE_X(state->crtc.x + state->crtc.w - 1) |
+		COORDINATE_Y(state->crtc.y + state->crtc.h - 1);
 	writel(val, ctx->addr + DECON_VIDOSDxB(win));
 
 	val = VIDOSD_Wx_ALPHA_R_F(0x0) | VIDOSD_Wx_ALPHA_G_F(0x0) |
@@ -289,15 +290,15 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(dma_addr, ctx->addr + DECON_VIDW0xADD0B0(win));
 
-	val = dma_addr + pitch * plane->crtc_h;
+	val = dma_addr + pitch * state->src.h;
 	writel(val, ctx->addr + DECON_VIDW0xADD1B0(win));
 
 	if (ctx->out_type != IFTYPE_HDMI)
-		val = BIT_VAL(pitch - plane->crtc_w * bpp, 27, 14)
-			| BIT_VAL(plane->crtc_w * bpp, 13, 0);
+		val = BIT_VAL(pitch - state->crtc.w * bpp, 27, 14)
+			| BIT_VAL(state->crtc.w * bpp, 13, 0);
 	else
-		val = BIT_VAL(pitch - plane->crtc_w * bpp, 29, 15)
-			| BIT_VAL(plane->crtc_w * bpp, 14, 0);
+		val = BIT_VAL(pitch - state->crtc.w * bpp, 29, 15)
+			| BIT_VAL(state->crtc.w * bpp, 14, 0);
 	writel(val, ctx->addr + DECON_VIDW0xADD2(win));
 
 	decon_win_set_pixfmt(ctx, win, fb);

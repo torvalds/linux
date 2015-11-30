@@ -400,10 +400,11 @@ static void mixer_stop(struct mixer_context *ctx)
 static void vp_video_buffer(struct mixer_context *ctx,
 			    struct exynos_drm_plane *plane)
 {
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
 	struct mixer_resources *res = &ctx->mixer_res;
-	struct drm_plane_state *state = plane->base.state;
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_display_mode *mode = &state->crtc->mode;
+	struct drm_framebuffer *fb = state->base.fb;
+	struct drm_display_mode *mode = &state->base.crtc->mode;
 	unsigned long flags;
 	dma_addr_t luma_addr[2], chroma_addr[2];
 	bool tiled_mode = false;
@@ -460,24 +461,24 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height / 2));
 
-	vp_reg_write(res, VP_SRC_WIDTH, plane->src_w);
-	vp_reg_write(res, VP_SRC_HEIGHT, plane->src_h);
+	vp_reg_write(res, VP_SRC_WIDTH, state->src.w);
+	vp_reg_write(res, VP_SRC_HEIGHT, state->src.h);
 	vp_reg_write(res, VP_SRC_H_POSITION,
-			VP_SRC_H_POSITION_VAL(plane->src_x));
-	vp_reg_write(res, VP_SRC_V_POSITION, plane->src_y);
+			VP_SRC_H_POSITION_VAL(state->src.x));
+	vp_reg_write(res, VP_SRC_V_POSITION, state->src.y);
 
-	vp_reg_write(res, VP_DST_WIDTH, plane->crtc_w);
-	vp_reg_write(res, VP_DST_H_POSITION, plane->crtc_x);
+	vp_reg_write(res, VP_DST_WIDTH, state->crtc.w);
+	vp_reg_write(res, VP_DST_H_POSITION, state->crtc.x);
 	if (ctx->interlace) {
-		vp_reg_write(res, VP_DST_HEIGHT, plane->crtc_h / 2);
-		vp_reg_write(res, VP_DST_V_POSITION, plane->crtc_y / 2);
+		vp_reg_write(res, VP_DST_HEIGHT, state->crtc.h / 2);
+		vp_reg_write(res, VP_DST_V_POSITION, state->crtc.y / 2);
 	} else {
-		vp_reg_write(res, VP_DST_HEIGHT, plane->crtc_h);
-		vp_reg_write(res, VP_DST_V_POSITION, plane->crtc_y);
+		vp_reg_write(res, VP_DST_HEIGHT, state->crtc.h);
+		vp_reg_write(res, VP_DST_V_POSITION, state->crtc.y);
 	}
 
-	vp_reg_write(res, VP_H_RATIO, plane->h_ratio);
-	vp_reg_write(res, VP_V_RATIO, plane->v_ratio);
+	vp_reg_write(res, VP_H_RATIO, state->h_ratio);
+	vp_reg_write(res, VP_V_RATIO, state->v_ratio);
 
 	vp_reg_write(res, VP_ENDIAN_MODE, VP_ENDIAN_MODE_LITTLE);
 
@@ -509,15 +510,18 @@ static void mixer_layer_update(struct mixer_context *ctx)
 static int mixer_setup_scale(const struct exynos_drm_plane *plane,
 		unsigned int *x_ratio, unsigned int *y_ratio)
 {
-	if (plane->crtc_w != plane->src_w) {
-		if (plane->crtc_w == 2 * plane->src_w)
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
+
+	if (state->crtc.w != state->src.w) {
+		if (state->crtc.w == 2 * state->src.w)
 			*x_ratio = 1;
 		else
 			goto fail;
 	}
 
-	if (plane->crtc_h != plane->src_h) {
-		if (plane->crtc_h == 2 * plane->src_h)
+	if (state->crtc.h != state->src.h) {
+		if (state->crtc.h == 2 * state->src.h)
 			*y_ratio = 1;
 		else
 			goto fail;
@@ -533,10 +537,11 @@ fail:
 static void mixer_graph_buffer(struct mixer_context *ctx,
 			       struct exynos_drm_plane *plane)
 {
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
 	struct mixer_resources *res = &ctx->mixer_res;
-	struct drm_plane_state *state = plane->base.state;
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_display_mode *mode = &state->crtc->mode;
+	struct drm_framebuffer *fb = state->base.fb;
+	struct drm_display_mode *mode = &state->base.crtc->mode;
 	unsigned long flags;
 	unsigned int win = plane->zpos;
 	unsigned int x_ratio = 0, y_ratio = 0;
@@ -572,13 +577,13 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	if (mixer_setup_scale(plane, &x_ratio, &y_ratio))
 		return;
 
-	dst_x_offset = plane->crtc_x;
-	dst_y_offset = plane->crtc_y;
+	dst_x_offset = state->crtc.x;
+	dst_y_offset = state->crtc.y;
 
 	/* converting dma address base and source offset */
 	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
-		+ (plane->src_x * fb->bits_per_pixel >> 3)
-		+ (plane->src_y * fb->pitches[0]);
+		+ (state->src.x * fb->bits_per_pixel >> 3)
+		+ (state->src.y * fb->pitches[0]);
 	src_x_offset = 0;
 	src_y_offset = 0;
 
@@ -606,8 +611,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 		mixer_reg_write(res, MXR_RESOLUTION, val);
 	}
 
-	val  = MXR_GRP_WH_WIDTH(plane->src_w);
-	val |= MXR_GRP_WH_HEIGHT(plane->src_h);
+	val  = MXR_GRP_WH_WIDTH(state->src.w);
+	val |= MXR_GRP_WH_HEIGHT(state->src.h);
 	val |= MXR_GRP_WH_H_SCALE(x_ratio);
 	val |= MXR_GRP_WH_V_SCALE(y_ratio);
 	mixer_reg_write(res, MXR_GRAPHIC_WH(win), val);
