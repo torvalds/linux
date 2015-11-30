@@ -604,6 +604,20 @@ struct spi_device *spi_new_device(struct spi_master *master,
 }
 EXPORT_SYMBOL_GPL(spi_new_device);
 
+/**
+ * spi_unregister_device - unregister a single SPI device
+ * @spi: spi_device to unregister
+ *
+ * Start making the passed SPI device vanish. Normally this would be handled
+ * by spi_unregister_master().
+ */
+void spi_unregister_device(struct spi_device *spi)
+{
+	if (spi)
+		device_unregister(&spi->dev);
+}
+EXPORT_SYMBOL_GPL(spi_unregister_device);
+
 static void spi_match_master_to_boardinfo(struct spi_master *master,
 				struct spi_board_info *bi)
 {
