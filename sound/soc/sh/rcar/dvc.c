@@ -64,7 +64,7 @@ static const char * const dvc_ramp_rate[] = {
 	"0.125 dB/8192 steps",	 /* 10111 */
 };
 
-static void rsnd_dvc_soft_reset(struct rsnd_mod *mod)
+static void rsnd_dvc_activation(struct rsnd_mod *mod)
 {
 	rsnd_mod_write(mod, DVC_SWRSR, 0);
 	rsnd_mod_write(mod, DVC_SWRSR, 1);
@@ -206,7 +206,7 @@ static int rsnd_dvc_init(struct rsnd_mod *mod,
 {
 	rsnd_mod_power_on(mod);
 
-	rsnd_dvc_soft_reset(mod);
+	rsnd_dvc_activation(mod);
 
 	rsnd_dvc_volume_init(io, mod);
 
