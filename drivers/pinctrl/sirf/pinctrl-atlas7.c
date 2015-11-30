@@ -894,6 +894,7 @@ static const unsigned int nd_df_basic_pins[] = { 44, 43, 42, 41, 40, 39, 38,
 static const unsigned int nd_df_wp_pins[] = { 124, };
 static const unsigned int nd_df_cs_pins[] = { 51, };
 static const unsigned int ps_pins[] = { 120, 119, 121, };
+static const unsigned int ps_no_dir_pins[] = { 119, };
 static const unsigned int pwc_core_on_pins[] = { 8, };
 static const unsigned int pwc_ext_on_pins[] = { 6, };
 static const unsigned int pwc_gpio3_clk_pins[] = { 3, };
@@ -1150,6 +1151,7 @@ struct atlas7_pin_group altas7_pin_groups[] = {
 	GROUP("nd_df_wp_grp", nd_df_wp_pins),
 	GROUP("nd_df_cs_grp", nd_df_cs_pins),
 	GROUP("ps_grp", ps_pins),
+	GROUP("ps_no_dir_grp", ps_no_dir_pins),
 	GROUP("pwc_core_on_grp", pwc_core_on_pins),
 	GROUP("pwc_ext_on_grp", pwc_ext_on_pins),
 	GROUP("pwc_gpio3_clk_grp", pwc_gpio3_clk_pins),
@@ -1430,6 +1432,7 @@ static const char * const nd_df_basic_grp[] = { "nd_df_basic_grp", };
 static const char * const nd_df_wp_grp[] = { "nd_df_wp_grp", };
 static const char * const nd_df_cs_grp[] = { "nd_df_cs_grp", };
 static const char * const ps_grp[] = { "ps_grp", };
+static const char * const ps_no_dir_grp[] = { "ps_no_dir_grp", };
 static const char * const pwc_core_on_grp[] = { "pwc_core_on_grp", };
 static const char * const pwc_ext_on_grp[] = { "pwc_ext_on_grp", };
 static const char * const pwc_gpio3_clk_grp[] = { "pwc_gpio3_clk_grp", };
@@ -3232,6 +3235,15 @@ static struct atlas7_grp_mux ps_grp_mux = {
 	.pad_mux_list = ps_grp_pad_mux,
 };
 
+static struct atlas7_pad_mux ps_no_dir_grp_pad_mux[] = {
+	MUX(1, 119, 2, N, N, N, N),
+};
+
+static struct atlas7_grp_mux ps_no_dir_grp_mux = {
+	.pad_mux_count = ARRAY_SIZE(ps_no_dir_grp_pad_mux),
+	.pad_mux_list = ps_no_dir_grp_pad_mux,
+};
+
 static struct atlas7_pad_mux pwc_core_on_grp_pad_mux[] = {
 	MUX(0, 8, 1, N, N, N, N),
 };
@@ -4606,6 +4618,7 @@ static struct atlas7_pmx_func atlas7_pmx_functions[] = {
 	FUNCTION("nd_df_wp", nd_df_wp_grp, &nd_df_wp_grp_mux),
 	FUNCTION("nd_df_cs", nd_df_cs_grp, &nd_df_cs_grp_mux),
 	FUNCTION("ps", ps_grp, &ps_grp_mux),
+	FUNCTION("ps_no_dir", ps_no_dir_grp, &ps_no_dir_grp_mux),
 	FUNCTION("pwc_core_on", pwc_core_on_grp, &pwc_core_on_grp_mux),
 	FUNCTION("pwc_ext_on", pwc_ext_on_grp, &pwc_ext_on_grp_mux),
 	FUNCTION("pwc_gpio3_clk", pwc_gpio3_clk_grp, &pwc_gpio3_clk_grp_mux),
