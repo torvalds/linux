@@ -21,6 +21,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
 
@@ -261,9 +262,11 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_plane_state *state = plane->base.state;
+	struct drm_framebuffer *fb = state->fb;
 	unsigned int win = plane->zpos;
-	unsigned int bpp = state->fb->bits_per_pixel >> 3;
-	unsigned int pitch = state->fb->pitches[0];
+	unsigned int bpp = fb->bits_per_pixel >> 3;
+	unsigned int pitch = fb->pitches[0];
+	dma_addr_t dma_addr = exynos_drm_fb_dma_addr(fb, 0);
 	u32 val;
 
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
@@ -284,9 +287,9 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 		VIDOSD_Wx_ALPHA_B_F(0x0);
 	writel(val, ctx->addr + DECON_VIDOSDxD(win));
 
-	writel(plane->dma_addr[0], ctx->addr + DECON_VIDW0xADD0B0(win));
+	writel(dma_addr, ctx->addr + DECON_VIDW0xADD0B0(win));
 
-	val = plane->dma_addr[0] + pitch * plane->crtc_h;
+	val = dma_addr + pitch * plane->crtc_h;
 	writel(val, ctx->addr + DECON_VIDW0xADD1B0(win));
 
 	if (ctx->out_type != IFTYPE_HDMI)
@@ -297,7 +300,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			| BIT_VAL(plane->crtc_w * bpp, 14, 0);
 	writel(val, ctx->addr + DECON_VIDW0xADD2(win));
 
-	decon_win_set_pixfmt(ctx, win, state->fb);
+	decon_win_set_pixfmt(ctx, win, fb);
 
 	/* window enable */
 	decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, ~0);

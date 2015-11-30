@@ -30,6 +30,7 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_drv.h"
+#include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_iommu.h"
 
@@ -395,13 +396,14 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_plane_state *state = plane->base.state;
+	struct drm_framebuffer *fb = state->fb;
 	int padding;
 	unsigned long val, alpha;
 	unsigned int last_x;
 	unsigned int last_y;
 	unsigned int win = plane->zpos;
-	unsigned int bpp = state->fb->bits_per_pixel >> 3;
-	unsigned int pitch = state->fb->pitches[0];
+	unsigned int bpp = fb->bits_per_pixel >> 3;
+	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)
 		return;
@@ -417,14 +419,14 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	 */
 
 	/* buffer start address */
-	val = (unsigned long)plane->dma_addr[0];
+	val = (unsigned long)exynos_drm_fb_dma_addr(fb, 0);
 	writel(val, ctx->regs + VIDW_BUF_START(win));
 
-	padding = (pitch / bpp) - state->fb->width;
+	padding = (pitch / bpp) - fb->width;
 
 	/* buffer size */
-	writel(state->fb->width + padding, ctx->regs + VIDW_WHOLE_X(win));
-	writel(state->fb->height, ctx->regs + VIDW_WHOLE_Y(win));
+	writel(fb->width + padding, ctx->regs + VIDW_WHOLE_X(win));
+	writel(fb->height, ctx->regs + VIDW_WHOLE_Y(win));
 
 	/* offset from the start of the buffer to read */
 	writel(plane->src_x, ctx->regs + VIDW_OFFSET_X(win));
@@ -466,7 +468,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(alpha, ctx->regs + VIDOSD_D(win));
 
-	decon_win_set_pixfmt(ctx, win, state->fb);
+	decon_win_set_pixfmt(ctx, win, fb);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)

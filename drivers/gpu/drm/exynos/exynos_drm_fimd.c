@@ -29,6 +29,7 @@
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
+#include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
@@ -642,12 +643,13 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 {
 	struct fimd_context *ctx = crtc->ctx;
 	struct drm_plane_state *state = plane->base.state;
+	struct drm_framebuffer *fb = state->fb;
 	dma_addr_t dma_addr;
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
 	unsigned int win = plane->zpos;
-	unsigned int bpp = state->fb->bits_per_pixel >> 3;
-	unsigned int pitch = state->fb->pitches[0];
+	unsigned int bpp = fb->bits_per_pixel >> 3;
+	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)
 		return;
@@ -656,7 +658,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	offset += plane->src_y * pitch;
 
 	/* buffer start address */
-	dma_addr = plane->dma_addr[0] + offset;
+	dma_addr = exynos_drm_fb_dma_addr(fb, 0) + offset;
 	val = (unsigned long)dma_addr;
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
@@ -712,7 +714,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
 	}
 
-	fimd_win_set_pixfmt(ctx, win, state->fb);
+	fimd_win_set_pixfmt(ctx, win, fb);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)

@@ -24,6 +24,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
 
@@ -125,12 +126,15 @@ static void vidi_disable_vblank(struct exynos_drm_crtc *crtc)
 static void vidi_update_plane(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane)
 {
+	struct drm_plane_state *state = plane->base.state;
 	struct vidi_context *ctx = crtc->ctx;
+	dma_addr_t addr;
 
 	if (ctx->suspended)
 		return;
 
-	DRM_DEBUG_KMS("dma_addr = %pad\n", plane->dma_addr);
+	addr = exynos_drm_fb_dma_addr(state->fb, 0);
+	DRM_DEBUG_KMS("dma_addr = %pad\n", &addr);
 
 	if (ctx->vblank_on)
 		schedule_work(&ctx->work);

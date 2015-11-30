@@ -37,6 +37,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
 
@@ -422,8 +423,8 @@ static void vp_video_buffer(struct mixer_context *ctx,
 		return;
 	}
 
-	luma_addr[0] = plane->dma_addr[0];
-	chroma_addr[0] = plane->dma_addr[1];
+	luma_addr[0] = exynos_drm_fb_dma_addr(fb, 0);
+	chroma_addr[0] = exynos_drm_fb_dma_addr(fb, 1);
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		ctx->interlace = true;
@@ -575,7 +576,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	dst_y_offset = plane->crtc_y;
 
 	/* converting dma address base and source offset */
-	dma_addr = plane->dma_addr[0]
+	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
 		+ (plane->src_x * fb->bits_per_pixel >> 3)
 		+ (plane->src_y * fb->pitches[0]);
 	src_x_offset = 0;
