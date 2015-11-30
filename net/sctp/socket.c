@@ -6458,7 +6458,7 @@ unsigned int sctp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	if (sctp_writeable(sk)) {
 		mask |= POLLOUT | POLLWRNORM;
 	} else {
-		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 		/*
 		 * Since the socket is not locked, the buffer
 		 * might be made available after the writeable check and

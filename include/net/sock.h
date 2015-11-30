@@ -2005,6 +2005,16 @@ static inline unsigned long sock_wspace(struct sock *sk)
 	return amt;
 }
 
+static inline void sk_set_bit(int nr, struct sock *sk)
+{
+	set_bit(nr, &sk->sk_socket->flags);
+}
+
+static inline void sk_clear_bit(int nr, struct sock *sk)
+{
+	clear_bit(nr, &sk->sk_socket->flags);
+}
+
 static inline void sk_wake_async(struct sock *sk, int how, int band)
 {
 	if (sock_flag(sk, SOCK_FASYNC))

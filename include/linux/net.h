@@ -34,8 +34,8 @@ struct inode;
 struct file;
 struct net;
 
-#define SOCK_ASYNC_NOSPACE	0
-#define SOCK_ASYNC_WAITDATA	1
+#define SOCKWQ_ASYNC_NOSPACE	0
+#define SOCKWQ_ASYNC_WAITDATA	1
 #define SOCK_NOSPACE		2
 #define SOCK_PASSCRED		3
 #define SOCK_PASSSEC		4
@@ -96,7 +96,7 @@ struct socket_wq {
  *  struct socket - general BSD socket
  *  @state: socket state (%SS_CONNECTED, etc)
  *  @type: socket type (%SOCK_STREAM, etc)
- *  @flags: socket flags (%SOCK_ASYNC_NOSPACE, etc)
+ *  @flags: socket flags (%SOCK_NOSPACE, etc)
  *  @ops: protocol specific socket operations
  *  @file: File back pointer for gc
  *  @sk: internal networking protocol agnostic socket representation

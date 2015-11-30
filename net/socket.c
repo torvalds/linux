@@ -1072,11 +1072,11 @@ int sock_wake_async(struct socket *sock, int how, int band)
 	}
 	switch (how) {
 	case SOCK_WAKE_WAITD:
-		if (test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
+		if (test_bit(SOCKWQ_ASYNC_WAITDATA, &sock->flags))
 			break;
 		goto call_kill;
 	case SOCK_WAKE_SPACE:
-		if (!test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags))
+		if (!test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &sock->flags))
 			break;
 		/* fall through */
 	case SOCK_WAKE_IO:

@@ -1815,7 +1815,7 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
 {
 	DEFINE_WAIT(wait);
 
-	clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 	for (;;) {
 		if (!timeo)
 			break;
@@ -1861,7 +1861,7 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 		if (sk_wmem_alloc_get(sk) < sk->sk_sndbuf)
 			break;
 
-		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 		err = -EAGAIN;
 		if (!timeo)
@@ -2048,9 +2048,9 @@ int sk_wait_data(struct sock *sk, long *timeo, const struct sk_buff *skb)
 	DEFINE_WAIT(wait);
 
 	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-	set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 	rc = sk_wait_event(sk, timeo, skb_peek_tail(&sk->sk_receive_queue) != skb);
-	clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 	finish_wait(sk_sleep(sk), &wait);
 	return rc;
 }
