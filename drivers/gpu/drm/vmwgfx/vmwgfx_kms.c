@@ -930,7 +930,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 
 static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 						 struct drm_file *file_priv,
-						 struct drm_mode_fb_cmd2 *mode_cmd2)
+						 const struct drm_mode_fb_cmd2 *mode_cmd2)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;

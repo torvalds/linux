@@ -147,6 +147,8 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 	list_for_each_entry(mode, &connector->modes, head)
 		mode->status = MODE_UNVERIFIED;
 
+	old_status = connector->status;
+
 	if (connector->force) {
 		if (connector->force == DRM_FORCE_ON ||
 		    connector->force == DRM_FORCE_ON_DIGITAL)
@@ -156,33 +158,31 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 		if (connector->funcs->force)
 			connector->funcs->force(connector);
 	} else {
-		old_status = connector->status;
-
 		connector->status = connector->funcs->detect(connector, true);
+	}
+
+	/*
+	 * Normally either the driver's hpd code or the poll loop should
+	 * pick up any changes and fire the hotplug event. But if
+	 * userspace sneaks in a probe, we might miss a change. Hence
+	 * check here, and if anything changed start the hotplug code.
+	 */
+	if (old_status != connector->status) {
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+			      connector->base.id,
+			      connector->name,
+			      old_status, connector->status);
 
 		/*
-		 * Normally either the driver's hpd code or the poll loop should
-		 * pick up any changes and fire the hotplug event. But if
-		 * userspace sneaks in a probe, we might miss a change. Hence
-		 * check here, and if anything changed start the hotplug code.
+		 * The hotplug event code might call into the fb
+		 * helpers, and so expects that we do not hold any
+		 * locks. Fire up the poll struct instead, it will
+		 * disable itself again.
 		 */
-		if (old_status != connector->status) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
-				      connector->base.id,
-				      connector->name,
-				      old_status, connector->status);
-
-			/*
-			 * The hotplug event code might call into the fb
-			 * helpers, and so expects that we do not hold any
-			 * locks. Fire up the poll struct instead, it will
-			 * disable itself again.
-			 */
-			dev->mode_config.delayed_event = true;
-			if (dev->mode_config.poll_enabled)
-				schedule_delayed_work(&dev->mode_config.output_poll_work,
-						      0);
-		}
+		dev->mode_config.delayed_event = true;
+		if (dev->mode_config.poll_enabled)
+			schedule_delayed_work(&dev->mode_config.output_poll_work,
+					      0);
 	}
 
 	/* Re-enable polling in case the global poll config changed. */

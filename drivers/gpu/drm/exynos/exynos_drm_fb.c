@@ -117,7 +117,7 @@ static struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
 
 struct drm_framebuffer *
 exynos_drm_framebuffer_init(struct drm_device *dev,
-			    struct drm_mode_fb_cmd2 *mode_cmd,
+			    const struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct exynos_drm_gem **exynos_gem,
 			    int count)
 {
@@ -154,7 +154,7 @@ err:
 
 static struct drm_framebuffer *
 exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
-		      struct drm_mode_fb_cmd2 *mode_cmd)
+		      const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct exynos_drm_gem *exynos_gem[MAX_FB_BUFFER];
 	struct drm_gem_object *obj;

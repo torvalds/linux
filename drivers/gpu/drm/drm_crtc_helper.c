@@ -818,7 +818,7 @@ EXPORT_SYMBOL(drm_helper_connector_dpms);
  * metadata fields.
  */
 void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
-				    struct drm_mode_fb_cmd2 *mode_cmd)
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	int i;
 

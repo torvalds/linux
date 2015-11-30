@@ -172,9 +172,9 @@ void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
 		uint32_t max_formats, enum omap_color_mode supported_modes);
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
-		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd);
+		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
-		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
+		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p);
 int omap_framebuffer_pin(struct drm_framebuffer *fb);
 void omap_framebuffer_unpin(struct drm_framebuffer *fb);
@@ -248,7 +248,7 @@ struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
 
 static inline int objects_lookup(struct drm_device *dev,
 		struct drm_file *filp, uint32_t pixel_format,
-		struct drm_gem_object **bos, uint32_t *handles)
+		struct drm_gem_object **bos, const uint32_t *handles)
 {
 	int i, n = drm_format_num_planes(pixel_format);
 

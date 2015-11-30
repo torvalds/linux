@@ -138,7 +138,7 @@ static struct fb_ops mgag200fb_ops = {
 };
 
 static int mgag200fb_create_object(struct mga_fbdev *afbdev,
-				   struct drm_mode_fb_cmd2 *mode_cmd,
+				   const struct drm_mode_fb_cmd2 *mode_cmd,
 				   struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = afbdev->helper.dev;

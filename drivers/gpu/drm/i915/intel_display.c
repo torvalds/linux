@@ -12281,7 +12281,7 @@ static bool intel_fuzzy_clock_check(int clock1, int clock2)
 	list_for_each_entry((intel_crtc), \
 			    &(dev)->mode_config.crtc_list, \
 			    base.head) \
-		if (mask & (1 <<(intel_crtc)->pipe))
+		for_each_if (mask & (1 <<(intel_crtc)->pipe))
 
 static bool
 intel_compare_m_n(unsigned int m, unsigned int n,
@@ -14377,7 +14377,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 intel_user_framebuffer_create(struct drm_device *dev,
 			      struct drm_file *filp,
-			      struct drm_mode_fb_cmd2 *user_mode_cmd)
+			      const struct drm_mode_fb_cmd2 *user_mode_cmd)
 {
 	struct drm_i915_gem_object *obj;
 	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;

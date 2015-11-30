@@ -1111,4 +1111,7 @@ static __inline__ bool drm_can_sleep(void)
 	return true;
 }
 
+/* helper for handling conditionals in various for_each macros */
+#define for_each_if(condition) if (!(condition)) {} else
+
 #endif

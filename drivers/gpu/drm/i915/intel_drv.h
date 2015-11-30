@@ -123,8 +123,6 @@ struct intel_framebuffer {
 struct intel_fbdev {
 	struct drm_fb_helper helper;
 	struct intel_framebuffer *fb;
-	struct list_head fbdev_list;
-	struct drm_display_mode *our_mode;
 	int preferred_bpp;
 };
 

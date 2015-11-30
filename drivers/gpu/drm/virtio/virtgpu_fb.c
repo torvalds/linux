@@ -32,7 +32,6 @@
 struct virtio_gpu_fbdev {
 	struct drm_fb_helper           helper;
 	struct virtio_gpu_framebuffer  vgfb;
-	struct list_head	       fbdev_list;
 	struct virtio_gpu_device       *vgdev;
 	struct delayed_work            work;
 };

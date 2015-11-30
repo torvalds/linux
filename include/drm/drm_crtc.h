@@ -85,7 +85,11 @@ static inline uint64_t I642U64(int64_t val)
 	return (uint64_t)*((uint64_t *)&val);
 }
 
-/* rotation property bits */
+/*
+ * Rotation property bits. DRM_ROTATE_<degrees> rotates the image by the
+ * specified amount in degrees in counter clockwise direction. DRM_REFLECT_X and
+ * DRM_REFLECT_Y reflects the image along the specified axis prior to rotation
+ */
 #define DRM_ROTATE_MASK 0x0f
 #define DRM_ROTATE_0	0
 #define DRM_ROTATE_90	1
@@ -992,7 +996,7 @@ struct drm_mode_set {
 struct drm_mode_config_funcs {
 	struct drm_framebuffer *(*fb_create)(struct drm_device *dev,
 					     struct drm_file *file_priv,
-					     struct drm_mode_fb_cmd2 *mode_cmd);
+					     const struct drm_mode_fb_cmd2 *mode_cmd);
 	void (*output_poll_changed)(struct drm_device *dev);
 
 	int (*atomic_check)(struct drm_device *dev,
@@ -1166,7 +1170,7 @@ struct drm_mode_config {
  */
 #define drm_for_each_plane_mask(plane, dev, plane_mask) \
 	list_for_each_entry((plane), &(dev)->mode_config.plane_list, head) \
-		if ((plane_mask) & (1 << drm_plane_index(plane)))
+		for_each_if ((plane_mask) & (1 << drm_plane_index(plane)))
 
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -1543,7 +1547,7 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 /* Plane list iterator for legacy (overlay only) planes. */
 #define drm_for_each_legacy_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head) \
-		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
+		for_each_if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 
 #define drm_for_each_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head)
