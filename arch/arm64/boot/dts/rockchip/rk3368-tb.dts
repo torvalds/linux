@@ -50,6 +50,16 @@
 	chosen {
 		bootargs = "console=uart,mmio32,0xff690000";
 	};
+
+	ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		system-heap {
+			rockchip,ion_heap = <0>;
+		};
+	};
 };
 
 &emmc {
