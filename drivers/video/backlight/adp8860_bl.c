@@ -566,11 +566,13 @@ static ssize_t adp8860_bl_ambient_light_level_show(struct device *dev,
 
 	mutex_lock(&data->lock);
 	error = adp8860_read(data->client, ADP8860_PH1LEVL, &reg_val);
-	ret_val = reg_val;
-	error |= adp8860_read(data->client, ADP8860_PH1LEVH, &reg_val);
+	if (!error) {
+		ret_val = reg_val;
+		error = adp8860_read(data->client, ADP8860_PH1LEVH, &reg_val);
+	}
 	mutex_unlock(&data->lock);
 
-	if (error < 0)
+	if (error)
 		return error;
 
 	/* Return 13-bit conversion value for the first light sensor */
