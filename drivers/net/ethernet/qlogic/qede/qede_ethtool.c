@@ -459,6 +459,34 @@ static int qede_set_channels(struct net_device *dev,
 	return 0;
 }
 
+static int qede_set_phys_id(struct net_device *dev,
+			    enum ethtool_phys_id_state state)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u8 led_state = 0;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return 1;	/* cycle on/off once per second */
+
+	case ETHTOOL_ID_ON:
+		led_state = QED_LED_MODE_ON;
+		break;
+
+	case ETHTOOL_ID_OFF:
+		led_state = QED_LED_MODE_OFF;
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		led_state = QED_LED_MODE_RESTORE;
+		break;
+	}
+
+	edev->ops->common->set_led(edev->cdev, led_state);
+
+	return 0;
+}
+
 static const struct ethtool_ops qede_ethtool_ops = {
 	.get_settings = qede_get_settings,
 	.set_settings = qede_set_settings,
@@ -469,6 +497,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_ringparam = qede_get_ringparam,
 	.set_ringparam = qede_set_ringparam,
 	.get_strings = qede_get_strings,
+	.set_phys_id = qede_set_phys_id,
 	.get_ethtool_stats = qede_get_ethtool_stats,
 	.get_sset_count = qede_get_sset_count,
 
