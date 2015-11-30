@@ -366,6 +366,57 @@ int qede_change_mtu(struct net_device *ndev, int new_mtu)
 	return 0;
 }
 
+static void qede_get_channels(struct net_device *dev,
+			      struct ethtool_channels *channels)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	channels->max_combined = QEDE_MAX_RSS_CNT(edev);
+	channels->combined_count = QEDE_RSS_CNT(edev);
+}
+
+static int qede_set_channels(struct net_device *dev,
+			     struct ethtool_channels *channels)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+		   "set-channels command parameters: rx = %d, tx = %d, other = %d, combined = %d\n",
+		   channels->rx_count, channels->tx_count,
+		   channels->other_count, channels->combined_count);
+
+	/* We don't support separate rx / tx, nor `other' channels. */
+	if (channels->rx_count || channels->tx_count ||
+	    channels->other_count || (channels->combined_count == 0) ||
+	    (channels->combined_count > QEDE_MAX_RSS_CNT(edev))) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "command parameters not supported\n");
+		return -EINVAL;
+	}
+
+	/* Check if there was a change in the active parameters */
+	if (channels->combined_count == QEDE_RSS_CNT(edev)) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "No change in active parameters\n");
+		return 0;
+	}
+
+	/* We need the number of queues to be divisible between the hwfns */
+	if (channels->combined_count % edev->dev_info.common.num_hwfns) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "Number of channels must be divisable by %04x\n",
+			   edev->dev_info.common.num_hwfns);
+		return -EINVAL;
+	}
+
+	/* Set number of queues and reload if necessary */
+	edev->req_rss = channels->combined_count;
+	if (netif_running(dev))
+		qede_reload(edev, NULL, NULL);
+
+	return 0;
+}
+
 static const struct ethtool_ops qede_ethtool_ops = {
 	.get_settings = qede_get_settings,
 	.set_settings = qede_set_settings,
@@ -377,6 +428,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_ethtool_stats = qede_get_ethtool_stats,
 	.get_sset_count = qede_get_sset_count,
 
+	.get_channels = qede_get_channels,
+	.set_channels = qede_set_channels,
 };
 
 void qede_set_ethtool_ops(struct net_device *dev)

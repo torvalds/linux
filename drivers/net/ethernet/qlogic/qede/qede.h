@@ -116,6 +116,7 @@ struct qede_dev {
 				 (edev)->dev_info.num_tc)
 
 	struct qede_fastpath		*fp_array;
+	u16				req_rss;
 	u16				num_rss;
 	u8				num_tc;
 #define QEDE_RSS_CNT(edev)		((edev)->num_rss)
