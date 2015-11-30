@@ -299,9 +299,14 @@ static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
 		uint64_t src = adev->gart.table_addr + (addr >> 12) * 8;
 		amdgpu_vm_copy_pte(adev, ib, pe, src, count);
 
-	} else if ((flags & AMDGPU_PTE_SYSTEM) || (count < 3)) {
-		amdgpu_vm_write_pte(adev, ib, pe, addr,
-				      count, incr, flags);
+	} else if (flags & AMDGPU_PTE_SYSTEM) {
+		dma_addr_t *pages_addr = adev->gart.pages_addr;
+		amdgpu_vm_write_pte(adev, ib, pages_addr, pe, addr,
+				    count, incr, flags);
+
+	} else if (count < 3) {
+		amdgpu_vm_write_pte(adev, ib, NULL, pe, addr,
+				    count, incr, flags);
 
 	} else {
 		amdgpu_vm_set_pte_pde(adev, ib, pe, addr,
@@ -378,24 +383,31 @@ error:
 }
 
 /**
- * amdgpu_vm_map_gart - get the physical address of a gart page
+ * amdgpu_vm_map_gart - Resolve gart mapping of addr
  *
- * @adev: amdgpu_device pointer
+ * @pages_addr: optional DMA address to use for lookup
  * @addr: the unmapped addr
  *
  * Look up the physical address of the page that the pte resolves
- * to (cayman+).
- * Returns the physical address of the page.
+ * to and return the pointer for the page table entry.
  */
-uint64_t amdgpu_vm_map_gart(struct amdgpu_device *adev, uint64_t addr)
+uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
 {
 	uint64_t result;
 
-	/* page table offset */
-	result = adev->gart.pages_addr[addr >> PAGE_SHIFT];
+	if (pages_addr) {
+		/* page table offset */
+		result = pages_addr[addr >> PAGE_SHIFT];
 
-	/* in case cpu page size != gpu page size*/
-	result |= addr & (~PAGE_MASK);
+		/* in case cpu page size != gpu page size*/
+		result |= addr & (~PAGE_MASK);
+
+	} else {
+		/* No mapping required */
+		result = addr;
+	}
+
+	result &= 0xFFFFFFFFFFFFF000ULL;
 
 	return result;
 }

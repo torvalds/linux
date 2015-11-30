@@ -772,7 +772,7 @@ static void sdma_v2_4_vm_copy_pte(struct amdgpu_ib *ib,
  * Update PTEs by writing them manually using sDMA (CIK).
  */
 static void sdma_v2_4_vm_write_pte(struct amdgpu_ib *ib,
-				   uint64_t pe,
+				   const dma_addr_t *pages_addr, uint64_t pe,
 				   uint64_t addr, unsigned count,
 				   uint32_t incr, uint32_t flags)
 {
@@ -791,14 +791,7 @@ static void sdma_v2_4_vm_write_pte(struct amdgpu_ib *ib,
 		ib->ptr[ib->length_dw++] = upper_32_bits(pe);
 		ib->ptr[ib->length_dw++] = ndw;
 		for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-			if (flags & AMDGPU_PTE_SYSTEM) {
-				value = amdgpu_vm_map_gart(ib->ring->adev, addr);
-				value &= 0xFFFFFFFFFFFFF000ULL;
-			} else if (flags & AMDGPU_PTE_VALID) {
-				value = addr;
-			} else {
-				value = 0;
-			}
+			value = amdgpu_vm_map_gart(pages_addr, addr);
 			addr += incr;
 			value |= flags;
 			ib->ptr[ib->length_dw++] = value;
