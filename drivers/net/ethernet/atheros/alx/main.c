@@ -577,7 +577,6 @@ static int alx_alloc_rings(struct alx_priv *alx)
 
 	alx->int_mask &= ~ALX_ISR_ALL_QUEUES;
 	alx->int_mask |= ALX_ISR_TX_Q0 | ALX_ISR_RX_Q0;
-	alx->tx_ringsz = alx->tx_ringsz;
 
 	netif_napi_add(alx->dev, &alx->napi, alx_poll, 64);
 
