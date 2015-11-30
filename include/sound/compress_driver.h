@@ -152,13 +152,18 @@ struct snd_compr {
 	unsigned int direction;
 	struct mutex lock;
 	int device;
+#ifdef CONFIG_SND_VERBOSE_PROCFS
+	char id[64];
+	struct snd_info_entry *proc_root;
+	struct snd_info_entry *proc_info_entry;
+#endif
 };
 
 /* compress device register APIs */
 int snd_compress_register(struct snd_compr *device);
 int snd_compress_deregister(struct snd_compr *device);
 int snd_compress_new(struct snd_card *card, int device,
-			int type, struct snd_compr *compr);
+			int type, const char *id, struct snd_compr *compr);
 
 /* dsp driver callback apis
  * For playback: driver should call snd_compress_fragment_elapsed() to let the
