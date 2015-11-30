@@ -175,6 +175,61 @@ struct property_entry {
 	};
 };
 
+#define PROPERTY_ENTRY_INTEGER_ARRAY(_name_, _type_, _val_)	\
+{								\
+	.name = _name_,						\
+	.length = ARRAY_SIZE(_val_) * sizeof(_type_),		\
+	.is_array = true,					\
+	.pointer._type_##_data = _val_,				\
+}
+
+#define PROPERTY_ENTRY_U8_ARRAY(_name_, _val_)			\
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u8, _val_)
+#define PROPERTY_ENTRY_U16_ARRAY(_name_, _val_)			\
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u16, _val_)
+#define PROPERTY_ENTRY_U32_ARRAY(_name_, _val_)			\
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u32, _val_)
+#define PROPERTY_ENTRY_U64_ARRAY(_name_, _val_)			\
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u64, _val_)
+
+#define PROPERTY_ENTRY_STRING_ARRAY(_name_, _val_)		\
+{								\
+	.name = _name_,						\
+	.length = ARRAY_SIZE(_val_) * sizeof(const char *),	\
+	.is_array = true,					\
+	.is_string = true,					\
+	.pointer.str = _val_,					\
+}
+
+#define PROPERTY_ENTRY_INTEGER(_name_, _type_, _val_)	\
+{							\
+	.name = _name_,					\
+	.length = sizeof(_type_),			\
+	.value._type_##_data = _val_,			\
+}
+
+#define PROPERTY_ENTRY_U8(_name_, _val_)		\
+	PROPERTY_ENTRY_INTEGER(_name_, u8, _val_)
+#define PROPERTY_ENTRY_U16(_name_, _val_)		\
+	PROPERTY_ENTRY_INTEGER(_name_, u16, _val_)
+#define PROPERTY_ENTRY_U32(_name_, _val_)		\
+	PROPERTY_ENTRY_INTEGER(_name_, u32, _val_)
+#define PROPERTY_ENTRY_U64(_name_, _val_)		\
+	PROPERTY_ENTRY_INTEGER(_name_, u64, _val_)
+
+#define PROPERTY_ENTRY_STRING(_name_, _val_)		\
+{							\
+	.name = _name_,					\
+	.length = sizeof(_val_),			\
+	.is_string = true,				\
+	.value.str = _val_,				\
+}
+
+#define PROPERTY_ENTRY_BOOL(_name_)		\
+{						\
+	.name = _name_,				\
+}
+
 /**
  * struct property_set - Collection of "built-in" device properties.
  * @fwnode: Handle to be pointed to by the fwnode field of struct device.
