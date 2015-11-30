@@ -399,6 +399,64 @@ static int qede_set_ringparam(struct net_device *dev,
 	return 0;
 }
 
+static void qede_get_pauseparam(struct net_device *dev,
+				struct ethtool_pauseparam *epause)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output current_link;
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+
+	if (current_link.pause_config & QED_LINK_PAUSE_AUTONEG_ENABLE)
+		epause->autoneg = true;
+	if (current_link.pause_config & QED_LINK_PAUSE_RX_ENABLE)
+		epause->rx_pause = true;
+	if (current_link.pause_config & QED_LINK_PAUSE_TX_ENABLE)
+		epause->tx_pause = true;
+
+	DP_VERBOSE(edev, QED_MSG_DEBUG,
+		   "ethtool_pauseparam: cmd %d  autoneg %d  rx_pause %d  tx_pause %d\n",
+		   epause->cmd, epause->autoneg, epause->rx_pause,
+		   epause->tx_pause);
+}
+
+static int qede_set_pauseparam(struct net_device *dev,
+			       struct ethtool_pauseparam *epause)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_params params;
+	struct qed_link_output current_link;
+
+	if (!edev->dev_info.common.is_mf) {
+		DP_INFO(edev,
+			"Pause parameters can not be updated in non-default mode\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+
+	memset(&params, 0, sizeof(params));
+	params.override_flags |= QED_LINK_OVERRIDE_PAUSE_CONFIG;
+	if (epause->autoneg) {
+		if (!(current_link.supported_caps & SUPPORTED_Autoneg)) {
+			DP_INFO(edev, "autoneg not supported\n");
+			return -EINVAL;
+		}
+		params.pause_config |= QED_LINK_PAUSE_AUTONEG_ENABLE;
+	}
+	if (epause->rx_pause)
+		params.pause_config |= QED_LINK_PAUSE_RX_ENABLE;
+	if (epause->tx_pause)
+		params.pause_config |= QED_LINK_PAUSE_TX_ENABLE;
+
+	params.link_up = true;
+	edev->ops->common->set_link(edev->cdev, &params);
+
+	return 0;
+}
+
 static void qede_update_mtu(struct qede_dev *edev, union qede_reload_args *args)
 {
 	edev->ndev->mtu = args->mtu;
@@ -521,6 +579,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_link = qede_get_link,
 	.get_ringparam = qede_get_ringparam,
 	.set_ringparam = qede_set_ringparam,
+	.get_pauseparam = qede_get_pauseparam,
+	.set_pauseparam = qede_set_pauseparam,
 	.get_strings = qede_get_strings,
 	.set_phys_id = qede_set_phys_id,
 	.get_ethtool_stats = qede_get_ethtool_stats,
