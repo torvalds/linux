@@ -1566,10 +1566,14 @@ static int mxcfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		bg_yres = var->yres;
 
 		fbi_tmp = found_registered_fb(MEM_BG_SYNC, mxc_fbi->ipu_id);
-		if (fbi_tmp) {
-			bg_xres = fbi_tmp->var.xres;
-			bg_yres = fbi_tmp->var.yres;
+		if (!fbi_tmp) {
+			dev_err(info->device,
+				"cannot find background fb for overlay fb\n");
+			return -EINVAL;
 		}
+
+		bg_xres = fbi_tmp->var.xres;
+		bg_yres = fbi_tmp->var.yres;
 
 		ipu_disp_get_window_pos(mxc_fbi->ipu, mxc_fbi->ipu_ch, &pos_x, &pos_y);
 
