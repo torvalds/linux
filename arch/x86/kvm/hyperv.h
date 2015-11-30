@@ -24,6 +24,19 @@
 #ifndef __ARCH_X86_KVM_HYPERV_H__
 #define __ARCH_X86_KVM_HYPERV_H__
 
+static inline struct kvm_vcpu_hv *vcpu_to_hv_vcpu(struct kvm_vcpu *vcpu)
+{
+	return &vcpu->arch.hyperv;
+}
+
+static inline struct kvm_vcpu *hv_vcpu_to_vcpu(struct kvm_vcpu_hv *hv_vcpu)
+{
+	struct kvm_vcpu_arch *arch;
+
+	arch = container_of(hv_vcpu, struct kvm_vcpu_arch, hyperv);
+	return container_of(arch, struct kvm_vcpu, arch);
+}
+
 static inline struct kvm_vcpu_hv_synic *vcpu_to_synic(struct kvm_vcpu *vcpu)
 {
 	return &vcpu->arch.hyperv.synic;
@@ -31,12 +44,7 @@ static inline struct kvm_vcpu_hv_synic *vcpu_to_synic(struct kvm_vcpu *vcpu)
 
 static inline struct kvm_vcpu *synic_to_vcpu(struct kvm_vcpu_hv_synic *synic)
 {
-	struct kvm_vcpu_hv *hv;
-	struct kvm_vcpu_arch *arch;
-
-	hv = container_of(synic, struct kvm_vcpu_hv, synic);
-	arch = container_of(hv, struct kvm_vcpu_arch, hyperv);
-	return container_of(arch, struct kvm_vcpu, arch);
+	return hv_vcpu_to_vcpu(container_of(synic, struct kvm_vcpu_hv, synic));
 }
 
 int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host);
