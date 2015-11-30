@@ -392,8 +392,10 @@ int vga_get(struct pci_dev *pdev, unsigned int rsrc, int interruptible)
 		set_current_state(interruptible ?
 				  TASK_INTERRUPTIBLE :
 				  TASK_UNINTERRUPTIBLE);
-		if (signal_pending(current)) {
-			rc = -EINTR;
+		if (interruptible && signal_pending(current)) {
+			__set_current_state(TASK_RUNNING);
+			remove_wait_queue(&vga_wait_queue, &wait);
+			rc = -ERESTARTSYS;
 			break;
 		}
 		schedule();
