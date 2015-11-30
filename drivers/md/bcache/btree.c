@@ -1741,6 +1741,7 @@ static void bch_btree_gc(struct cache_set *c)
 	do {
 		ret = btree_root(gc_root, c, &op, &writes, &stats);
 		closure_sync(&writes);
+		cond_resched();
 
 		if (ret && ret != -EAGAIN)
 			pr_warn("gc failed!");
