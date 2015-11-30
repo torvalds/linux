@@ -1390,8 +1390,14 @@ static int cx25840_set_fmt(struct v4l2_subdev *sd,
 
 	Vlines = fmt->height + (is_50Hz ? 4 : 7);
 
+	/*
+	 * We keep 1 margin for the Vsrc < Vlines check since the
+	 * cx23888 reports a Vsrc of 486 instead of 487 for the NTSC
+	 * height. Without that margin the cx23885 fails in this
+	 * check.
+	 */
 	if ((fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
-			(Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
+			(Vlines * 8 < Vsrc) || (Vsrc + 1 < Vlines)) {
 		v4l_err(client, "%dx%d is not a valid size!\n",
 				fmt->width, fmt->height);
 		return -ERANGE;
