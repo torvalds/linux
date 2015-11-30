@@ -70,6 +70,12 @@ static void rsnd_dvc_activation(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, DVC_SWRSR, 1);
 }
 
+static void rsnd_dvc_halt(struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, DVC_DVUIR, 1);
+	rsnd_mod_write(mod, DVC_SWRSR, 0);
+}
+
 #define rsnd_dvc_get_vrpdr(dvc) (dvc->rup.val << 8 | dvc->rdown.val)
 #define rsnd_dvc_get_vrdbr(dvc) (0x3ff - (dvc->volume.val[0] >> 13))
 
@@ -219,6 +225,8 @@ static int rsnd_dvc_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
+	rsnd_dvc_halt(mod);
+
 	rsnd_mod_power_off(mod);
 
 	return 0;
