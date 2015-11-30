@@ -62,8 +62,6 @@
 #define FTRACE_HASH_DEFAULT_BITS 10
 #define FTRACE_HASH_MAX_BITS 12
 
-#define FL_GLOBAL_CONTROL_MASK (FTRACE_OPS_FL_CONTROL)
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 #define INIT_OPS_HASH(opsname)	\
 	.func_hash		= &opsname.local_hash,			\
@@ -113,11 +111,9 @@ static int ftrace_disabled __read_mostly;
 
 static DEFINE_MUTEX(ftrace_lock);
 
-static struct ftrace_ops *ftrace_control_list __read_mostly = &ftrace_list_end;
 static struct ftrace_ops *ftrace_ops_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 static struct ftrace_ops global_ops;
-static struct ftrace_ops control_ops;
 
 static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
 				   struct ftrace_ops *op, struct pt_regs *regs);
@@ -203,7 +199,7 @@ void clear_ftrace_function(void)
 	ftrace_trace_function = ftrace_stub;
 }
 
-static void control_ops_disable_all(struct ftrace_ops *ops)
+static void per_cpu_ops_disable_all(struct ftrace_ops *ops)
 {
 	int cpu;
 
@@ -211,16 +207,19 @@ static void control_ops_disable_all(struct ftrace_ops *ops)
 		*per_cpu_ptr(ops->disabled, cpu) = 1;
 }
 
-static int control_ops_alloc(struct ftrace_ops *ops)
+static int per_cpu_ops_alloc(struct ftrace_ops *ops)
 {
 	int __percpu *disabled;
+
+	if (WARN_ON_ONCE(!(ops->flags & FTRACE_OPS_FL_PER_CPU)))
+		return -EINVAL;
 
 	disabled = alloc_percpu(int);
 	if (!disabled)
 		return -ENOMEM;
 
 	ops->disabled = disabled;
-	control_ops_disable_all(ops);
+	per_cpu_ops_disable_all(ops);
 	return 0;
 }
 
@@ -256,10 +255,11 @@ static inline void update_function_graph_func(void) { }
 static ftrace_func_t ftrace_ops_get_list_func(struct ftrace_ops *ops)
 {
 	/*
-	 * If this is a dynamic ops or we force list func,
+	 * If this is a dynamic, RCU, or per CPU ops, or we force list func,
 	 * then it needs to call the list anyway.
 	 */
-	if (ops->flags & FTRACE_OPS_FL_DYNAMIC || FTRACE_FORCE_LIST_FUNC)
+	if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_PER_CPU |
+			  FTRACE_OPS_FL_RCU) || FTRACE_FORCE_LIST_FUNC)
 		return ftrace_ops_list_func;
 
 	return ftrace_ops_get_func(ops);
@@ -383,26 +383,6 @@ static int remove_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
 	return 0;
 }
 
-static void add_ftrace_list_ops(struct ftrace_ops **list,
-				struct ftrace_ops *main_ops,
-				struct ftrace_ops *ops)
-{
-	int first = *list == &ftrace_list_end;
-	add_ftrace_ops(list, ops);
-	if (first)
-		add_ftrace_ops(&ftrace_ops_list, main_ops);
-}
-
-static int remove_ftrace_list_ops(struct ftrace_ops **list,
-				  struct ftrace_ops *main_ops,
-				  struct ftrace_ops *ops)
-{
-	int ret = remove_ftrace_ops(list, ops);
-	if (!ret && *list == &ftrace_list_end)
-		ret = remove_ftrace_ops(&ftrace_ops_list, main_ops);
-	return ret;
-}
-
 static void ftrace_update_trampoline(struct ftrace_ops *ops);
 
 static int __register_ftrace_function(struct ftrace_ops *ops)
@@ -430,14 +410,12 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 	if (!core_kernel_data((unsigned long)ops))
 		ops->flags |= FTRACE_OPS_FL_DYNAMIC;
 
-	if (ops->flags & FTRACE_OPS_FL_CONTROL) {
-		if (control_ops_alloc(ops))
+	if (ops->flags & FTRACE_OPS_FL_PER_CPU) {
+		if (per_cpu_ops_alloc(ops))
 			return -ENOMEM;
-		add_ftrace_list_ops(&ftrace_control_list, &control_ops, ops);
-		/* The control_ops needs the trampoline update */
-		ops = &control_ops;
-	} else
-		add_ftrace_ops(&ftrace_ops_list, ops);
+	}
+
+	add_ftrace_ops(&ftrace_ops_list, ops);
 
 	/* Always save the function, and reset at unregistering */
 	ops->saved_func = ops->func;
@@ -460,11 +438,7 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 	if (WARN_ON(!(ops->flags & FTRACE_OPS_FL_ENABLED)))
 		return -EBUSY;
 
-	if (ops->flags & FTRACE_OPS_FL_CONTROL) {
-		ret = remove_ftrace_list_ops(&ftrace_control_list,
-					     &control_ops, ops);
-	} else
-		ret = remove_ftrace_ops(&ftrace_ops_list, ops);
+	ret = remove_ftrace_ops(&ftrace_ops_list, ops);
 
 	if (ret < 0)
 		return ret;
@@ -2630,7 +2604,7 @@ void __weak arch_ftrace_trampoline_free(struct ftrace_ops *ops)
 {
 }
 
-static void control_ops_free(struct ftrace_ops *ops)
+static void per_cpu_ops_free(struct ftrace_ops *ops)
 {
 	free_percpu(ops->disabled);
 }
@@ -2731,13 +2705,13 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 
 	if (!command || !ftrace_enabled) {
 		/*
-		 * If these are control ops, they still need their
+		 * If these are per_cpu ops, they still need their
 		 * per_cpu field freed. Since, function tracing is
 		 * not currently active, we can just free them
 		 * without synchronizing all CPUs.
 		 */
-		if (ops->flags & FTRACE_OPS_FL_CONTROL)
-			control_ops_free(ops);
+		if (ops->flags & FTRACE_OPS_FL_PER_CPU)
+			per_cpu_ops_free(ops);
 		return 0;
 	}
 
@@ -2778,7 +2752,7 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	/*
 	 * Dynamic ops may be freed, we must make sure that all
 	 * callers are done before leaving this function.
-	 * The same goes for freeing the per_cpu data of the control
+	 * The same goes for freeing the per_cpu data of the per_cpu
 	 * ops.
 	 *
 	 * Again, normal synchronize_sched() is not good enough.
@@ -2789,13 +2763,13 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	 * infrastructure to do the synchronization, thus we must do it
 	 * ourselves.
 	 */
-	if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_CONTROL)) {
+	if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_PER_CPU)) {
 		schedule_on_each_cpu(ftrace_sync);
 
 		arch_ftrace_trampoline_free(ops);
 
-		if (ops->flags & FTRACE_OPS_FL_CONTROL)
-			control_ops_free(ops);
+		if (ops->flags & FTRACE_OPS_FL_PER_CPU)
+			per_cpu_ops_free(ops);
 	}
 
 	return 0;
@@ -5185,44 +5159,6 @@ void ftrace_reset_array_ops(struct trace_array *tr)
 	tr->ops->func = ftrace_stub;
 }
 
-static void
-ftrace_ops_control_func(unsigned long ip, unsigned long parent_ip,
-			struct ftrace_ops *op, struct pt_regs *regs)
-{
-	if (unlikely(trace_recursion_test(TRACE_CONTROL_BIT)))
-		return;
-
-	/*
-	 * Some of the ops may be dynamically allocated,
-	 * they must be freed after a synchronize_sched().
-	 */
-	preempt_disable_notrace();
-	trace_recursion_set(TRACE_CONTROL_BIT);
-
-	/*
-	 * Control funcs (perf) uses RCU. Only trace if
-	 * RCU is currently active.
-	 */
-	if (!rcu_is_watching())
-		goto out;
-
-	do_for_each_ftrace_op(op, ftrace_control_list) {
-		if (!(op->flags & FTRACE_OPS_FL_STUB) &&
-		    !ftrace_function_local_disabled(op) &&
-		    ftrace_ops_test(op, ip, regs))
-			op->func(ip, parent_ip, op, regs);
-	} while_for_each_ftrace_op(op);
- out:
-	trace_recursion_clear(TRACE_CONTROL_BIT);
-	preempt_enable_notrace();
-}
-
-static struct ftrace_ops control_ops = {
-	.func	= ftrace_ops_control_func,
-	.flags	= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_INITIALIZED,
-	INIT_OPS_HASH(control_ops)
-};
-
 static inline void
 __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *ignored, struct pt_regs *regs)
@@ -5239,8 +5175,22 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 	 * they must be freed after a synchronize_sched().
 	 */
 	preempt_disable_notrace();
+
 	do_for_each_ftrace_op(op, ftrace_ops_list) {
-		if (ftrace_ops_test(op, ip, regs)) {
+		/*
+		 * Check the following for each ops before calling their func:
+		 *  if RCU flag is set, then rcu_is_watching() must be true
+		 *  if PER_CPU is set, then ftrace_function_local_disable()
+		 *                          must be false
+		 *  Otherwise test if the ip matches the ops filter
+		 *
+		 * If any of the above fails then the op->func() is not executed.
+		 */
+		if ((!(op->flags & FTRACE_OPS_FL_RCU) || rcu_is_watching()) &&
+		    (!(op->flags & FTRACE_OPS_FL_PER_CPU) ||
+		     !ftrace_function_local_disabled(op)) &&
+		    ftrace_ops_test(op, ip, regs)) {
+		    
 			if (FTRACE_WARN_ON(!op->func)) {
 				pr_warn("op=%p %pS\n", op, op);
 				goto out;

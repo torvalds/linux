@@ -467,8 +467,6 @@ enum {
 	TRACE_INTERNAL_IRQ_BIT,
 	TRACE_INTERNAL_SIRQ_BIT,
 
-	TRACE_CONTROL_BIT,
-
 	TRACE_BRANCH_BIT,
 /*
  * Abuse of the trace_recursion.
