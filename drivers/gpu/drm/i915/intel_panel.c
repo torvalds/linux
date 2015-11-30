@@ -1308,7 +1308,7 @@ static u32 lpt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	else
 		mul = 128;
 
-	if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE)
+	if (HAS_PCH_LPT_H(dev_priv))
 		clock = MHz(135); /* LPT:H */
 	else
 		clock = MHz(24); /* LPT:LP */
