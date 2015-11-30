@@ -48,9 +48,6 @@ extern void edac_device_remove_sysfs(struct edac_device_ctl_info *edac_dev);
 
 /* edac core workqueue: single CPU mode */
 extern struct workqueue_struct *edac_workqueue;
-extern void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
-				    unsigned msec);
-extern void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev);
 extern void edac_device_reset_delay_period(struct edac_device_ctl_info
 					   *edac_dev, unsigned long value);
 extern void edac_mc_reset_delay_period(unsigned long value);

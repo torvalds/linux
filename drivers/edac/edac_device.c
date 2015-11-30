@@ -402,8 +402,8 @@ static void edac_device_workq_function(struct work_struct *work_req)
  *	initialize a workq item for this edac_device instance
  *	passing in the new delay period in msec
  */
-void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
-				unsigned msec)
+static void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
+				    unsigned msec)
 {
 	edac_dbg(0, "\n");
 
@@ -433,7 +433,7 @@ void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
  * edac_device_workq_teardown
  *	stop the workq processing on this edac_dev
  */
-void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev)
+static void edac_device_workq_teardown(struct edac_device_ctl_info *edac_dev)
 {
 	if (!edac_dev->edac_check)
 		return;
