@@ -241,7 +241,7 @@ struct sh_pfc_soc_info {
  *   - ipsr: IPSR field
  *   - fn: Function name, also referring to the IPSR field
  */
-#define PINMUX_IPSR_DATA(ipsr, fn)					\
+#define PINMUX_IPSR_GPSR(ipsr, fn)					\
 	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr)
 
 /*
