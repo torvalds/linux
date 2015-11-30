@@ -4977,7 +4977,7 @@ static void cx23888_std_setup(struct i2c_client *client)
 	cx25840_write4(client, 0x4b4, 0x20524030);
 	cx25840_write4(client, 0x47c, 0x010a8263);
 
-	if (std & V4L2_STD_NTSC) {
+	if (std & V4L2_STD_525_60) {
 		v4l_dbg(1, cx25840_debug, client, "%s() Selecting NTSC",
 			__func__);
 
@@ -5268,6 +5268,7 @@ static int cx25840_probe(struct i2c_client *client,
 	state->id = id;
 	state->rev = device_id;
 	state->vbi_regs_offset = id == CX23888_AV ? 0x500 - 0x424 : 0;
+	state->std = V4L2_STD_NTSC_M;
 	v4l2_ctrl_handler_init(&state->hdl, 9);
 	v4l2_ctrl_new_std(&state->hdl, &cx25840_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
