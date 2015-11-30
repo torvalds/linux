@@ -627,11 +627,6 @@ extern int cx23885_risc_databuffer(struct pci_dev *pci,
 /* ----------------------------------------------------------- */
 /* tv norms                                                    */
 
-static inline unsigned int norm_maxw(v4l2_std_id norm)
-{
-	return (norm & V4L2_STD_525_60) ? 720 : 768;
-}
-
 static inline unsigned int norm_maxh(v4l2_std_id norm)
 {
 	return (norm & V4L2_STD_525_60) ? 480 : 576;
