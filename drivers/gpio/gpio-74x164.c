@@ -20,10 +20,10 @@
 #define GEN_74X164_NUMBER_GPIOS	8
 
 struct gen_74x164_chip {
-	u8			*buffer;
 	struct gpio_chip	gpio_chip;
 	struct mutex		lock;
 	u32			registers;
+	u8			buffer[0];
 };
 
 static struct gen_74x164_chip *gpio_to_74x164_chip(struct gpio_chip *gc)
@@ -107,6 +107,7 @@ static int gen_74x164_direction_output(struct gpio_chip *gc,
 static int gen_74x164_probe(struct spi_device *spi)
 {
 	struct gen_74x164_chip *chip;
+	u32 nregs;
 	int ret;
 
 	/*
@@ -118,7 +119,14 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	chip = devm_kzalloc(&spi->dev, sizeof(*chip), GFP_KERNEL);
+	if (of_property_read_u32(spi->dev.of_node, "registers-number",
+				 &nregs)) {
+		dev_err(&spi->dev,
+			"Missing registers-number property in the DT.\n");
+		return -EINVAL;
+	}
+
+	chip = devm_kzalloc(&spi->dev, sizeof(*chip) + nregs, GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -130,17 +138,8 @@ static int gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.set = gen_74x164_set_value;
 	chip->gpio_chip.base = -1;
 
-	if (of_property_read_u32(spi->dev.of_node, "registers-number",
-				 &chip->registers)) {
-		dev_err(&spi->dev,
-			"Missing registers-number property in the DT.\n");
-		return -EINVAL;
-	}
-
+	chip->registers = nregs;
 	chip->gpio_chip.ngpio = GEN_74X164_NUMBER_GPIOS * chip->registers;
-	chip->buffer = devm_kzalloc(&spi->dev, chip->registers, GFP_KERNEL);
-	if (!chip->buffer)
-		return -ENOMEM;
 
 	chip->gpio_chip.can_sleep = true;
 	chip->gpio_chip.parent = &spi->dev;
