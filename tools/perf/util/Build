@@ -106,6 +106,8 @@ libperf-y += scripting-engines/
 libperf-$(CONFIG_ZLIB) += zlib.o
 libperf-$(CONFIG_LZMA) += lzma.o
 libperf-y += demangle-java.o
+libperf-$(CONFIG_LIBELF) += jitdump.o
+libperf-$(CONFIG_LIBELF) += genelf.o
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 
