@@ -1596,7 +1596,7 @@ static int ahash_export(struct ahash_request *req, void *out)
 		len = state->buflen_1;
 	} else {
 		buf = state->buf_0;
-		len = state->buflen_1;
+		len = state->buflen_0;
 	}
 
 	memcpy(export->buf, buf, len);
