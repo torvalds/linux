@@ -347,4 +347,12 @@ struct hv_message_page {
 	struct hv_message sint_message[HV_SYNIC_SINT_COUNT];
 };
 
+/* Define timer message payload structure. */
+struct hv_timer_message_payload {
+	__u32 timer_index;
+	__u32 reserved;
+	__u64 expiration_time;	/* When the timer expired */
+	__u64 delivery_time;	/* When the message was delivered */
+};
+
 #endif

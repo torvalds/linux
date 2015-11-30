@@ -136,15 +136,6 @@ union hv_timer_config {
 	};
 };
 
-
-/* Define timer message payload structure. */
-struct hv_timer_message_payload {
-	u32 timer_index;
-	u32 reserved;
-	u64 expiration_time;	/* When the timer expired */
-	u64 delivery_time;	/* When the message was delivered */
-};
-
 /* Define the number of message buffers associated with each port. */
 #define HV_PORT_MESSAGE_BUFFER_COUNT	(16)
 
