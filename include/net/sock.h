@@ -775,9 +775,9 @@ static inline int sk_memalloc_socks(void)
 
 #endif
 
-static inline gfp_t sk_gfp_atomic(const struct sock *sk, gfp_t gfp_mask)
+static inline gfp_t sk_gfp_mask(const struct sock *sk, gfp_t gfp_mask)
 {
-	return GFP_ATOMIC | (sk->sk_allocation & __GFP_MEMALLOC);
+	return gfp_mask | (sk->sk_allocation & __GFP_MEMALLOC);
 }
 
 static inline void sk_acceptq_removed(struct sock *sk)
