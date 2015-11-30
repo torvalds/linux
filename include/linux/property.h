@@ -144,14 +144,12 @@ static inline int fwnode_property_read_u64(struct fwnode_handle *fwnode,
 /**
  * struct property_entry - "Built-in" device property representation.
  * @name: Name of the property.
- * @type: Type of the property.
- * @nval: Number of items of type @type making up the value.
- * @value: Value of the property (an array of @nval items of type @type).
+ * @length: Length of data making up the value.
+ * @value: Value of the property (an array of items of the given type).
  */
 struct property_entry {
 	const char *name;
-	enum dev_prop_type type;
-	size_t nval;
+	size_t length;
 	union {
 		void *raw_data;
 		u8 *u8_data;
