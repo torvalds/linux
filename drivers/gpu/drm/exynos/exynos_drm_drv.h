@@ -89,6 +89,9 @@ struct exynos_drm_plane {
 	struct drm_framebuffer *pending_fb;
 };
 
+#define EXYNOS_DRM_PLANE_CAP_DOUBLE	(1 << 0)
+#define EXYNOS_DRM_PLANE_CAP_SCALE	(1 << 1)
+
 /*
  * Exynos DRM plane configuration structure.
  *

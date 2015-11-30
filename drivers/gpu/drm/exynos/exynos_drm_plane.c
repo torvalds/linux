@@ -173,6 +173,36 @@ static struct drm_plane_funcs exynos_plane_funcs = {
 	.atomic_destroy_state = exynos_drm_plane_destroy_state,
 };
 
+static int
+exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
+			    struct exynos_drm_plane_state *state)
+{
+	bool width_ok = false, height_ok = false;
+
+	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_SCALE)
+		return 0;
+
+	if (state->src.w == state->crtc.w)
+		width_ok = true;
+
+	if (state->src.h == state->crtc.h)
+		height_ok = true;
+
+	if ((config->capabilities & EXYNOS_DRM_PLANE_CAP_DOUBLE) &&
+	    state->h_ratio == (1 << 15))
+		width_ok = true;
+
+	if ((config->capabilities & EXYNOS_DRM_PLANE_CAP_DOUBLE) &&
+	    state->v_ratio == (1 << 15))
+		height_ok = true;
+
+	if (width_ok & height_ok)
+		return 0;
+
+	DRM_DEBUG_KMS("scaling mode is not supported");
+	return -ENOTSUPP;
+}
+
 static int exynos_plane_atomic_check(struct drm_plane *plane,
 				     struct drm_plane_state *state)
 {
@@ -187,6 +217,7 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	/* translate state into exynos_state */
 	exynos_plane_mode_set(exynos_state);
 
+	ret = exynos_drm_plane_check_size(exynos_plane->config, exynos_state);
 	return ret;
 }
 
