@@ -109,7 +109,7 @@ static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 		/* all elements already exist */
 		return -EEXIST;
 
-	memcpy(array->value + array->elem_size * index, value, array->elem_size);
+	memcpy(array->value + array->elem_size * index, value, map->value_size);
 	return 0;
 }
 
