@@ -69,6 +69,7 @@ struct rsnd_ssi {
 	u32 cr_own;
 	u32 cr_clk;
 	u32 cr_mode;
+	u32 wsr;
 	int chan;
 	int rate;
 	int err;
@@ -214,10 +215,9 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 		if (0 == ret) {
 			ssi->cr_clk	= FORCE | SWL_32 |
 				SCKD | SWSD | CKDV(j);
+			ssi->wsr = CONT;
 
 			ssi->rate = rate;
-
-			rsnd_mod_write(mod, SSIWSR, CONT);
 
 			dev_dbg(dev, "%s[%d] outputs %u Hz\n",
 				rsnd_mod_name(mod),
@@ -421,6 +421,7 @@ static int __rsnd_ssi_start(struct rsnd_mod *mod,
 		EN;
 
 	rsnd_mod_write(mod, SSICR, cr);
+	rsnd_mod_write(mod, SSIWSR, ssi->wsr);
 
 	return 0;
 }
