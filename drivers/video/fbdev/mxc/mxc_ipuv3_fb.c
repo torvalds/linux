@@ -2123,8 +2123,10 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			if (mem == NULL)
 				return -ENOMEM;
 
-			if (get_user(size, argp))
+			if (get_user(size, argp)) {
+				kfree(mem);
 				return -EFAULT;
+			}
 
 			mem->size = PAGE_ALIGN(size);
 
@@ -2138,11 +2140,18 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 
 			list_add(&mem->list, &fb_alloc_list);
 
+			if (put_user(mem->phy_addr, argp)) {
+				list_del(&mem->list);
+				dma_free_coherent(fbi->device,
+						  mem->size,
+						  mem->cpu_addr,
+						  mem->phy_addr);
+				kfree(mem);
+				return -EFAULT;
+			}
+
 			dev_dbg(fbi->device, "allocated %d bytes @ 0x%08X\n",
 				mem->size, mem->phy_addr);
-
-			if (put_user(mem->phy_addr, argp))
-				return -EFAULT;
 
 			break;
 		}
