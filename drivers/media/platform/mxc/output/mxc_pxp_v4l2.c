@@ -409,7 +409,7 @@ static int pxp_enumoutput(struct file *file, void *fh,
 {
 	struct pxps *pxp = video_get_drvdata(video_devdata(file));
 
-	if ((o->index < 0) || (o->index > 1))
+	if (o->index > 1)
 		return -EINVAL;
 
 	memset(o, 0, sizeof(struct v4l2_output));
@@ -445,7 +445,7 @@ static int pxp_s_output(struct file *file, void *fh,
 	u32 size;
 	int ret, bpp;
 
-	if ((i < 0) || (i > 1))
+	if (i > 1)
 		return -EINVAL;
 
 	/* Output buffer is same format as fbdev */
@@ -480,9 +480,9 @@ static int pxp_enum_fmt_video_output(struct file *file, void *fh,
 				struct v4l2_fmtdesc *fmt)
 {
 	enum v4l2_buf_type type = fmt->type;
-	int index = fmt->index;
+	unsigned int index = fmt->index;
 
-	if ((fmt->index < 0) || (fmt->index >= ARRAY_SIZE(pxp_s0_formats)))
+	if (fmt->index >= ARRAY_SIZE(pxp_s0_formats))
 		return -EINVAL;
 
 	memset(fmt, 0, sizeof(struct v4l2_fmtdesc));
