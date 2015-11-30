@@ -23,6 +23,13 @@ struct gen_74x164_chip {
 	struct gpio_chip	gpio_chip;
 	struct mutex		lock;
 	u32			registers;
+	/*
+	 * Since the registers are chained, every byte sent will make
+	 * the previous byte shift to the next register in the
+	 * chain. Thus, the first byte sent will end up in the last
+	 * register at the end of the transfer. So, to have a logical
+	 * numbering, store the bytes in reverse order.
+	 */
 	u8			buffer[0];
 };
 
@@ -33,43 +40,19 @@ static struct gen_74x164_chip *gpio_to_74x164_chip(struct gpio_chip *gc)
 
 static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
 {
-	struct spi_device *spi = to_spi_device(chip->gpio_chip.parent);
-	struct spi_message message;
-	struct spi_transfer *msg_buf;
-	int i, ret = 0;
+	struct spi_transfer xfer = {
+		.tx_buf = chip->buffer,
+		.len = chip->registers,
+	};
 
-	msg_buf = kzalloc(chip->registers * sizeof(struct spi_transfer),
-			GFP_KERNEL);
-	if (!msg_buf)
-		return -ENOMEM;
-
-	spi_message_init(&message);
-
-	/*
-	 * Since the registers are chained, every byte sent will make
-	 * the previous byte shift to the next register in the
-	 * chain. Thus, the first byte send will end up in the last
-	 * register at the end of the transfer. So, to have a logical
-	 * numbering, send the bytes in reverse order so that the last
-	 * byte of the buffer will end up in the last register.
-	 */
-	for (i = chip->registers - 1; i >= 0; i--) {
-		msg_buf[i].tx_buf = chip->buffer + i;
-		msg_buf[i].len = sizeof(u8);
-		spi_message_add_tail(msg_buf + i, &message);
-	}
-
-	ret = spi_sync(spi, &message);
-
-	kfree(msg_buf);
-
-	return ret;
+	return spi_sync_transfer(to_spi_device(chip->gpio_chip.parent),
+				 &xfer, 1);
 }
 
 static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 {
 	struct gen_74x164_chip *chip = gpio_to_74x164_chip(gc);
-	u8 bank = offset / 8;
+	u8 bank = chip->registers - 1 - offset / 8;
 	u8 pin = offset % 8;
 	int ret;
 
@@ -84,7 +67,7 @@ static void gen_74x164_set_value(struct gpio_chip *gc,
 		unsigned offset, int val)
 {
 	struct gen_74x164_chip *chip = gpio_to_74x164_chip(gc);
-	u8 bank = offset / 8;
+	u8 bank = chip->registers - 1 - offset / 8;
 	u8 pin = offset % 8;
 
 	mutex_lock(&chip->lock);
