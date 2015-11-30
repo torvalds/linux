@@ -1215,10 +1215,10 @@ static int gsc_clk_ctrl(struct gsc_context *ctx, bool enable)
 	DRM_DEBUG_KMS("enable[%d]\n", enable);
 
 	if (enable) {
-		clk_enable(ctx->gsc_clk);
+		clk_prepare_enable(ctx->gsc_clk);
 		ctx->suspended = false;
 	} else {
-		clk_disable(ctx->gsc_clk);
+		clk_disable_unprepare(ctx->gsc_clk);
 		ctx->suspended = true;
 	}
 
