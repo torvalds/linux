@@ -253,6 +253,55 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi,
 	rsnd_adg_ssi_clk_stop(mod);
 }
 
+static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
+				struct rsnd_dai_stream *io)
+{
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	u32 cr_own;
+	u32 cr_mode;
+
+	/*
+	 * always use 32bit system word.
+	 * see also rsnd_ssi_master_clk_enable()
+	 */
+	cr_own = FORCE | SWL_32 | PDTA;
+
+	if (rdai->bit_clk_inv)
+		cr_own |= SCKP;
+	if (rdai->frm_clk_inv)
+		cr_own |= SWSP;
+	if (rdai->data_alignment)
+		cr_own |= SDTA;
+	if (rdai->sys_delay)
+		cr_own |= DEL;
+	if (rsnd_io_is_play(io))
+		cr_own |= TRMD;
+
+	switch (runtime->sample_bits) {
+	case 16:
+		cr_own |= DWL_16;
+		break;
+	case 32:
+		cr_own |= DWL_24;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (rsnd_ssi_is_dma_mode(rsnd_mod_get(ssi))) {
+		cr_mode = UIEN | OIEN |	/* over/under run */
+			  DMEN;		/* DMA : enable DMA */
+	} else {
+		cr_mode = DIEN;		/* PIO : enable Data interrupt */
+	}
+
+	ssi->cr_own	= cr_own;
+	ssi->cr_mode	= cr_mode;
+
+	return 0;
+}
+
 /*
  *	SSI mod common functions
  */
@@ -261,9 +310,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 			 struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	u32 cr;
 	int ret;
 
 	ssi->usrcnt++;
@@ -277,49 +323,9 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	if (rsnd_ssi_is_parent(mod, io))
 		return 0;
 
-	cr = FORCE | PDTA;
-
-	/*
-	 * always use 32bit system word for easy clock calculation.
-	 * see also rsnd_ssi_master_clk_enable()
-	 */
-	cr |= SWL_32;
-
-	/*
-	 * init clock settings for SSICR
-	 */
-	switch (runtime->sample_bits) {
-	case 16:
-		cr |= DWL_16;
-		break;
-	case 32:
-		cr |= DWL_24;
-		break;
-	default:
-		return -EIO;
-	}
-
-	if (rdai->bit_clk_inv)
-		cr |= SCKP;
-	if (rdai->frm_clk_inv)
-		cr |= SWSP;
-	if (rdai->data_alignment)
-		cr |= SDTA;
-	if (rdai->sys_delay)
-		cr |= DEL;
-	if (rsnd_io_is_play(io))
-		cr |= TRMD;
-
-	ssi->cr_own	= cr;
-
-	if (rsnd_ssi_is_dma_mode(mod)) {
-		cr =	UIEN | OIEN |	/* over/under run */
-			DMEN;		/* DMA : enable DMA */
-	} else {
-		cr =	DIEN;		/* PIO : enable Data interrupt */
-	}
-
-	ssi->cr_mode	= cr;
+	ret = rsnd_ssi_config_init(ssi, io);
+	if (ret < 0)
+		return ret;
 
 	ssi->err	= -1; /* ignore 1st error */
 
