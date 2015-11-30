@@ -35,6 +35,11 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "netxeon,r89", "rockchip,rk3288";
 
+- Google Brain (dev-board):
+    Required root node properties:
+      - compatible = "google,veyron-brain-rev0", "google,veyron-brain",
+		     "google,veyron", "rockchip,rk3288";
+
 - Google Jaq (Haier Chromebook 11 and more):
     Required root node properties:
       - compatible = "google,veyron-jaq-rev5", "google,veyron-jaq-rev4",
