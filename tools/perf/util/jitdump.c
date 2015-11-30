@@ -63,7 +63,9 @@ jit_emit_elf(char *filename,
 	     const char *sym,
 	     uint64_t code_addr,
 	     const void *code,
-	     int csize)
+	     int csize,
+	     void *debug,
+	     int nr_debug_entries)
 {
 	int ret, fd;
 
@@ -76,7 +78,7 @@ jit_emit_elf(char *filename,
 		return -1;
 	}
 
-        ret = jit_write_elf(fd, code_addr, sym, (const void *)code, csize);
+        ret = jit_write_elf(fd, code_addr, sym, (const void *)code, csize, debug, nr_debug_entries);
 
         close(fd);
 
@@ -347,7 +349,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 
 	size = PERF_ALIGN(size, sizeof(u64));
 	uaddr = (uintptr_t)code;
-	ret = jit_emit_elf(filename, sym, addr, (const void *)uaddr, csize);
+	ret = jit_emit_elf(filename, sym, addr, (const void *)uaddr, csize, jd->debug_data, jd->nr_debug_entries);
 
 	if (jd->debug_data && jd->nr_debug_entries) {
 		free(jd->debug_data);

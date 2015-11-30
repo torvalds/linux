@@ -108,8 +108,11 @@ libperf-$(CONFIG_LZMA) += lzma.o
 libperf-y += demangle-java.o
 libperf-$(CONFIG_LIBELF) += jitdump.o
 libperf-$(CONFIG_LIBELF) += genelf.o
+libperf-$(CONFIG_LIBELF) += genelf_debug.o
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+# avoid compiler warnings in 32-bit mode
+CFLAGS_genelf_debug.o  += -Wno-packed
 
 $(OUTPUT)util/parse-events-flex.c: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
 	$(call rule_mkdir)

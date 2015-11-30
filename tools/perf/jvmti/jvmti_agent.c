@@ -374,20 +374,20 @@ jvmti_write_code(void *agent, char const *sym,
 
 int
 jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
-		       jvmtiAddrLocationMap const *map,
-		       jvmtiLineNumberEntry *li, jint num)
+		       jvmti_line_info_t *li, int nr_lines)
 {
-	static const char *prev_str = "\xff";
 	struct jr_code_debug_info rec;
 	size_t sret, len, size, flen;
 	size_t padding_count;
+	uint64_t addr;
+	const char *fn = file;
 	FILE *fp = agent;
 	int i;
 
 	/*
 	 * no entry to write
 	 */
-	if (!num)
+	if (!nr_lines)
 		return 0;
 
 	if (!fp) {
@@ -401,17 +401,18 @@ jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
 	size            = sizeof(rec);
 	rec.p.timestamp = perf_get_timestamp();
 	rec.code_addr   = (uint64_t)(uintptr_t)code;
-	rec.nr_entry    = num;
+	rec.nr_entry    = nr_lines;
 
 	/*
 	 * on disk source line info layout:
 	 * uint64_t : addr
 	 * int      : line number
+	 * int      : column discriminator
 	 * file[]   : source file name
 	 * padding  : pad to multiple of 8 bytes
 	 */
-	size += num * (sizeof(uint64_t) + sizeof(int));
-	size += flen + (num - 1) * 2;
+	size += nr_lines * sizeof(struct debug_entry);
+	size += flen * nr_lines;
 	/*
 	 * pad to 8 bytes
 	 */
@@ -429,28 +430,27 @@ jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
 	if (sret != 1)
 		goto error;
 
-	for (i = 0; i < num; i++) {
-		uint64_t addr;
+	for (i = 0; i < nr_lines; i++) {
 
-		addr = (uint64_t)map[i].start_address;
+		addr = (uint64_t)li[i].pc;
 		len  = sizeof(addr);
 		sret = fwrite_unlocked(&addr, len, 1, fp);
 		if (sret != 1)
 			goto error;
 
-		len  = sizeof(int);
+		len  = sizeof(li[0].line_number);
 		sret = fwrite_unlocked(&li[i].line_number, len, 1, fp);
 		if (sret != 1)
 			goto error;
 
-		if (i == 0) {
-			sret = fwrite_unlocked(file, flen, 1, fp);
-		} else {
-			sret = fwrite_unlocked(prev_str, 2, 1, fp);
-		}
+		len  = sizeof(li[0].discrim);
+		sret = fwrite_unlocked(&li[i].discrim, len, 1, fp);
 		if (sret != 1)
 			goto error;
 
+		sret = fwrite_unlocked(fn, flen, 1, fp);
+		if (sret != 1)
+			goto error;
 	}
 	if (padding_count)
 		sret = fwrite_unlocked(pad_bytes, padding_count, 1, fp);

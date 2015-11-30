@@ -4,12 +4,107 @@
 #include <stdlib.h>
 #include <err.h>
 #include <jvmti.h>
+#include <jvmticmlr.h>
 #include <limits.h>
 
 #include "jvmti_agent.h"
 
 static int has_line_numbers;
 void *jvmti_agent;
+
+static jvmtiError
+do_get_line_numbers(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
+		    jvmti_line_info_t *tab, jint *nr)
+{
+	jint i, lines = 0;
+	jint nr_lines = 0;
+	jvmtiLineNumberEntry *loc_tab = NULL;
+	jvmtiError ret;
+
+	ret = (*jvmti)->GetLineNumberTable(jvmti, m, &nr_lines, &loc_tab);
+	if (ret != JVMTI_ERROR_NONE)
+		return ret;
+
+	for (i = 0; i < nr_lines; i++) {
+		if (loc_tab[i].start_location < bci) {
+			tab[lines].pc = (unsigned long)pc;
+			tab[lines].line_number = loc_tab[i].line_number;
+			tab[lines].discrim = 0; /* not yet used */
+			lines++;
+		} else {
+			break;
+		}
+	}
+	(*jvmti)->Deallocate(jvmti, (unsigned char *)loc_tab);
+	*nr = lines;
+	return JVMTI_ERROR_NONE;
+}
+
+static jvmtiError
+get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **tab, int *nr_lines)
+{
+	const jvmtiCompiledMethodLoadRecordHeader *hdr;
+	jvmtiCompiledMethodLoadInlineRecord *rec;
+	jvmtiLineNumberEntry *lne = NULL;
+	PCStackInfo *c;
+	jint nr, ret;
+	int nr_total = 0;
+	int i, lines_total = 0;
+
+	if (!(tab && nr_lines))
+		return JVMTI_ERROR_NULL_POINTER;
+
+	/*
+	 * Phase 1 -- get the number of lines necessary
+	 */
+	for (hdr = compile_info; hdr != NULL; hdr = hdr->next) {
+		if (hdr->kind == JVMTI_CMLR_INLINE_INFO) {
+			rec = (jvmtiCompiledMethodLoadInlineRecord *)hdr;
+			for (i = 0; i < rec->numpcs; i++) {
+				c = rec->pcinfo + i;
+				nr = 0;
+				/*
+				 * unfortunately, need a tab to get the number of lines!
+				 */
+				ret = (*jvmti)->GetLineNumberTable(jvmti, c->methods[0], &nr, &lne);
+				if (ret == JVMTI_ERROR_NONE) {
+					/* free what was allocated for nothing */
+					(*jvmti)->Deallocate(jvmti, (unsigned char *)lne);
+					nr_total += (int)nr;
+				}
+			}
+		}
+	}
+
+	if (nr_total == 0)
+		return JVMTI_ERROR_NOT_FOUND;
+
+	/*
+	 * Phase 2 -- allocate big enough line table
+	 */
+	*tab = malloc(nr_total * sizeof(**tab));
+	if (!*tab)
+		return JVMTI_ERROR_OUT_OF_MEMORY;
+
+	for (hdr = compile_info; hdr != NULL; hdr = hdr->next) {
+		if (hdr->kind == JVMTI_CMLR_INLINE_INFO) {
+			rec = (jvmtiCompiledMethodLoadInlineRecord *)hdr;
+			for (i = 0; i < rec->numpcs; i++) {
+				c = rec->pcinfo + i;
+				nr = 0;
+				ret = do_get_line_numbers(jvmti, c->pc,
+							  c->methods[0],
+							  c->bcis[0],
+							  *tab + lines_total,
+							  &nr);
+				if (ret == JVMTI_ERROR_NONE)
+					lines_total += nr;
+			}
+		}
+	}
+	*nr_lines = lines_total;
+	return JVMTI_ERROR_NONE;
+}
 
 static void JNICALL
 compiled_method_load_cb(jvmtiEnv *jvmti,
@@ -18,9 +113,9 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 			void const *code_addr,
 			jint map_length,
 			jvmtiAddrLocationMap const *map,
-			void const *compile_info __unused)
+			const void *compile_info)
 {
-	jvmtiLineNumberEntry *tab = NULL;
+	jvmti_line_info_t *line_tab = NULL;
 	jclass decl_class;
 	char *class_sign = NULL;
 	char *func_name = NULL;
@@ -29,7 +124,7 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	char fn[PATH_MAX];
 	uint64_t addr = (uint64_t)(uintptr_t)code_addr;
 	jvmtiError ret;
-	jint nr_lines = 0;
+	int nr_lines = 0; /* in line_tab[] */
 	size_t len;
 
 	ret = (*jvmti)->GetMethodDeclaringClass(jvmti, method,
@@ -40,17 +135,17 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	}
 
 	if (has_line_numbers && map && map_length) {
-
-		ret = (*jvmti)->GetLineNumberTable(jvmti, method, &nr_lines, &tab);
+		ret = get_line_numbers(jvmti, compile_info, &line_tab, &nr_lines);
 		if (ret != JVMTI_ERROR_NONE) {
 			warnx("jvmti: cannot get line table for method");
-		} else {
-			ret = (*jvmti)->GetSourceFileName(jvmti, decl_class, &file_name);
-			if (ret != JVMTI_ERROR_NONE) {
-				warnx("jvmti: cannot get source filename ret=%d", ret);
-				nr_lines = 0;
-			}
+			nr_lines = 0;
 		}
+	}
+
+	ret = (*jvmti)->GetSourceFileName(jvmti, decl_class, &file_name);
+	if (ret != JVMTI_ERROR_NONE) {
+		warnx("jvmti: cannot get source filename ret=%d", ret);
+		goto error;
 	}
 
 	ret = (*jvmti)->GetClassSignature(jvmti, decl_class,
@@ -92,13 +187,14 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	/*
 	 * write source line info record if we have it
 	 */
-	if (jvmti_write_debug_info(jvmti_agent, addr, fn, map, tab, nr_lines))
+	if (jvmti_write_debug_info(jvmti_agent, addr, fn, line_tab, nr_lines))
 		warnx("jvmti: write_debug_info() failed");
 
 	len = strlen(func_name) + strlen(class_sign) + strlen(func_sign) + 2;
 	{
 		char str[len];
 		snprintf(str, len, "%s%s%s", class_sign, func_name, func_sign);
+
 		if (jvmti_write_code(jvmti_agent, str, addr, code_addr, code_size))
 			warnx("jvmti: write_code() failed");
 	}
@@ -106,8 +202,8 @@ error:
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)func_name);
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)func_sign);
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)class_sign);
-	(*jvmti)->Deallocate(jvmti, (unsigned char *)tab);
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)file_name);
+	free(line_tab);
 }
 
 static void JNICALL

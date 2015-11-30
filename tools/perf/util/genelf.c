@@ -156,7 +156,8 @@ gen_build_id(struct buildid_note *note, unsigned long load_addr, const void *cod
  */
 int
 jit_write_elf(int fd, uint64_t load_addr, const char *sym,
-	      const void *code, int csize)
+	      const void *code, int csize,
+	      void *debug, int nr_debug_entries)
 {
 	Elf *e;
 	Elf_Data *d;
@@ -385,9 +386,15 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	shdr->sh_size = sizeof(bnote);
 	shdr->sh_entsize = 0;
 
-	if (elf_update(e, ELF_C_WRITE) < 0) {
-		warnx("elf_update 4 failed");
-		goto error;
+	if (debug && nr_debug_entries) {
+		retval = jit_add_debug_info(e, load_addr, debug, nr_debug_entries);
+		if (retval)
+			goto error;
+	} else {
+		if (elf_update(e, ELF_C_WRITE) < 0) {
+			warnx("elf_update 4 failed");
+			goto error;
+		}
 	}
 
 	retval = 0;
