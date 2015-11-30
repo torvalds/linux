@@ -30,6 +30,12 @@ static void rsnd_mix_activation(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, MIX_SWRSR, 1);
 }
 
+static void rsnd_mix_halt(struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, MIX_MIXIR, 1);
+	rsnd_mod_write(mod, MIX_SWRSR, 0);
+}
+
 static void rsnd_mix_volume_parameter(struct rsnd_dai_stream *io,
 				      struct rsnd_mod *mod)
 {
@@ -96,6 +102,8 @@ static int rsnd_mix_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
+	rsnd_mix_halt(mod);
+
 	rsnd_mod_power_off(mod);
 
 	return 0;
