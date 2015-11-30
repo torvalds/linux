@@ -487,7 +487,7 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 
 
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
-				struct drm_framebuffer *fb)
+				uint32_t pixel_format, int width)
 {
 	unsigned long val;
 
@@ -498,11 +498,11 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 	 * So the request format is ARGB8888 then change it to XRGB8888.
 	 */
 	if (ctx->driver_data->has_limited_fmt && !win) {
-		if (fb->pixel_format == DRM_FORMAT_ARGB8888)
-			fb->pixel_format = DRM_FORMAT_XRGB8888;
+		if (pixel_format == DRM_FORMAT_ARGB8888)
+			pixel_format = DRM_FORMAT_XRGB8888;
 	}
 
-	switch (fb->pixel_format) {
+	switch (pixel_format) {
 	case DRM_FORMAT_C8:
 		val |= WINCON0_BPPMODE_8BPP_PALETTE;
 		val |= WINCONx_BURSTLEN_8WORD;
@@ -538,17 +538,15 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", fb->bits_per_pixel);
-
 	/*
-	 * In case of exynos, setting dma-burst to 16Word causes permanent
-	 * tearing for very small buffers, e.g. cursor buffer. Burst Mode
-	 * switching which is based on plane size is not recommended as
-	 * plane size varies alot towards the end of the screen and rapid
-	 * movement causes unstable DMA which results into iommu crash/tear.
+	 * Setting dma-burst to 16Word causes permanent tearing for very small
+	 * buffers, e.g. cursor buffer. Burst Mode switching which based on
+	 * plane size is not recommended as plane size varies alot towards the
+	 * end of the screen and rapid movement causes unstable DMA, but it is
+	 * still better to change dma-burst than displaying garbage.
 	 */
 
-	if (fb->width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
+	if (width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_4WORD;
 	}
@@ -723,7 +721,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
 	}
 
-	fimd_win_set_pixfmt(ctx, win, fb);
+	fimd_win_set_pixfmt(ctx, win, fb->pixel_format, state->src.w);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)
