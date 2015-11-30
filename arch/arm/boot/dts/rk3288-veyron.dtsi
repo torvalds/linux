@@ -340,6 +340,11 @@
 	i2c-scl-rising-time-ns = <1000>;
 };
 
+&power {
+	assigned-clocks = <&cru SCLK_EDP_24M>;
+	assigned-clock-parents = <&xin24m>;
+};
+
 &pwm1 {
 	status = "okay";
 };
