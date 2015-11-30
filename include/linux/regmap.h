@@ -1021,7 +1021,7 @@ static inline void regmap_async_complete(struct regmap *map)
 }
 
 static inline int regmap_register_patch(struct regmap *map,
-					const struct reg_default *regs,
+					const struct reg_sequence *regs,
 					int num_regs)
 {
 	WARN_ONCE(1, "regmap API is disabled");
