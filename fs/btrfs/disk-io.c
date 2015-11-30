@@ -3962,7 +3962,6 @@ static void __btrfs_btree_balance_dirty(struct btrfs_root *root,
 		balance_dirty_pages_ratelimited(
 				   root->fs_info->btree_inode->i_mapping);
 	}
-	return;
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root)

@@ -1642,7 +1642,6 @@ static void update_dev_time(char *path_name)
 		return;
 	file_update_time(filp);
 	filp_close(filp, NULL);
-	return;
 }
 
 static int btrfs_rm_dev_item(struct btrfs_root *root,

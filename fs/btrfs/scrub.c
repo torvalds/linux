@@ -1514,8 +1514,6 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 	if (sblock->no_io_error_seen)
 		scrub_recheck_block_checksum(sblock);
-
-	return;
 }
 
 static inline int scrub_check_fsid(u8 fsid[],
