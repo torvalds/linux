@@ -243,6 +243,7 @@
 #define MVNETA_VLAN_TAG_LEN             4
 
 #define MVNETA_CPU_D_CACHE_LINE_SIZE    32
+#define MVNETA_TX_CSUM_DEF_SIZE		1600
 #define MVNETA_TX_CSUM_MAX_SIZE		9800
 #define MVNETA_ACC_MODE_EXT		1
 
@@ -3256,6 +3257,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	char hw_mac_addr[ETH_ALEN];
 	const char *mac_from;
 	const char *managed;
+	int tx_csum_limit;
 	int phy_mode;
 	int err;
 	int cpu;
@@ -3356,8 +3358,21 @@ static int mvneta_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_device_is_compatible(dn, "marvell,armada-370-neta"))
-		pp->tx_csum_limit = 1600;
+	if (!of_property_read_u32(dn, "tx-csum-limit", &tx_csum_limit)) {
+		if (tx_csum_limit < 0 ||
+		    tx_csum_limit > MVNETA_TX_CSUM_MAX_SIZE) {
+			tx_csum_limit = MVNETA_TX_CSUM_DEF_SIZE;
+			dev_info(&pdev->dev,
+				 "Wrong TX csum limit in DT, set to %dB\n",
+				 MVNETA_TX_CSUM_DEF_SIZE);
+		}
+	} else if (of_device_is_compatible(dn, "marvell,armada-370-neta")) {
+		tx_csum_limit = MVNETA_TX_CSUM_DEF_SIZE;
+	} else {
+		tx_csum_limit = MVNETA_TX_CSUM_MAX_SIZE;
+	}
+
+	pp->tx_csum_limit = tx_csum_limit;
 
 	pp->tx_ring_size = MVNETA_MAX_TXD;
 	pp->rx_ring_size = MVNETA_MAX_RXD;
