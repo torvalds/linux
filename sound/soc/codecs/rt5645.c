@@ -3514,69 +3514,23 @@ static struct acpi_device_id rt5645_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
 #endif
 
-static struct rt5645_platform_data *rt5645_pdata;
-
-static struct rt5645_platform_data strago_platform_data = {
+static struct rt5645_platform_data general_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC1_DISABLE,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
 };
 
-static int strago_quirk_cb(const struct dmi_system_id *id)
-{
-	rt5645_pdata = &strago_platform_data;
-
-	return 1;
-}
-
 static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 	{
 		.ident = "Intel Strago",
-		.callback = strago_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Strago"),
 		},
 	},
 	{
-		.ident = "Google Celes",
-		.callback = strago_quirk_cb,
+		.ident = "Google Chrome",
 		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Celes"),
-		},
-	},
-	{
-		.ident = "Google Ultima",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Ultima"),
-		},
-	},
-	{
-		.ident = "Google Reks",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Reks"),
-		},
-	},
-	{
-		.ident = "Google Edgar",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Edgar"),
-		},
-	},
-	{
-		.ident = "Google Wizpig",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Wizpig"),
-		},
-	},
-	{
-		.ident = "Google Terra",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Terra"),
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 		},
 	},
 	{ }
@@ -3589,17 +3543,9 @@ static struct rt5645_platform_data buddy_platform_data = {
 	.jd_invert = true,
 };
 
-static int buddy_quirk_cb(const struct dmi_system_id *id)
-{
-	rt5645_pdata = &buddy_platform_data;
-
-	return 1;
-}
-
 static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{
 		.ident = "Chrome Buddy",
-		.callback = buddy_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Buddy"),
 		},
@@ -3607,6 +3553,16 @@ static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{ }
 };
 
+static bool rt5645_check_dp(struct device *dev)
+{
+	if (device_property_present(dev, "realtek,in2-differential") ||
+		device_property_present(dev, "realtek,dmic1-data-pin") ||
+		device_property_present(dev, "realtek,dmic2-data-pin") ||
+		device_property_present(dev, "realtek,jd-mode"))
+		return true;
+
+	return false;
+}
 
 static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 {
@@ -3641,11 +3597,12 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5645->pdata = *pdata;
-	else if (dmi_check_system(dmi_platform_intel_braswell) ||
-			dmi_check_system(dmi_platform_intel_broadwell))
-		rt5645->pdata = *rt5645_pdata;
-	else
+	else if (dmi_check_system(dmi_platform_intel_broadwell))
+		rt5645->pdata = buddy_platform_data;
+	else if (rt5645_check_dp(&i2c->dev))
 		rt5645_parse_dt(rt5645, &i2c->dev);
+	else if (dmi_check_system(dmi_platform_intel_braswell))
+		rt5645->pdata = general_platform_data;
 
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
 						       GPIOD_IN);
