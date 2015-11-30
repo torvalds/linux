@@ -49,6 +49,48 @@ struct vc4_dev {
 
 	/* Protects bo_cache and the BO stats. */
 	struct mutex bo_lock;
+
+	/* Sequence number for the last job queued in job_list.
+	 * Starts at 0 (no jobs emitted).
+	 */
+	uint64_t emit_seqno;
+
+	/* Sequence number for the last completed job on the GPU.
+	 * Starts at 0 (no jobs completed).
+	 */
+	uint64_t finished_seqno;
+
+	/* List of all struct vc4_exec_info for jobs to be executed.
+	 * The first job in the list is the one currently programmed
+	 * into ct0ca/ct1ca for execution.
+	 */
+	struct list_head job_list;
+	/* List of the finished vc4_exec_infos waiting to be freed by
+	 * job_done_work.
+	 */
+	struct list_head job_done_list;
+	/* Spinlock used to synchronize the job_list and seqno
+	 * accesses between the IRQ handler and GEM ioctls.
+	 */
+	spinlock_t job_lock;
+	wait_queue_head_t job_wait_queue;
+	struct work_struct job_done_work;
+
+	/* The binner overflow memory that's currently set up in
+	 * BPOA/BPOS registers.  When overflow occurs and a new one is
+	 * allocated, the previous one will be moved to
+	 * vc4->current_exec's free list.
+	 */
+	struct vc4_bo *overflow_mem;
+	struct work_struct overflow_mem_work;
+
+	struct {
+		uint32_t last_ct0ca, last_ct1ca;
+		struct timer_list timer;
+		struct work_struct reset_work;
+	} hangcheck;
+
+	struct semaphore async_modeset;
 };
 
 static inline struct vc4_dev *
@@ -59,6 +101,9 @@ to_vc4_dev(struct drm_device *dev)
 
 struct vc4_bo {
 	struct drm_gem_cma_object base;
+
+	/* seqno of the last job to render to this BO. */
+	uint64_t seqno;
 
 	/* List entry for the BO's position in either
 	 * vc4_exec_info->unref_list or vc4_dev->bo_cache.time_list
@@ -129,6 +174,101 @@ to_vc4_encoder(struct drm_encoder *encoder)
 #define V3D_WRITE(offset, val) writel(val, vc4->v3d->regs + offset)
 #define HVS_READ(offset) readl(vc4->hvs->regs + offset)
 #define HVS_WRITE(offset, val) writel(val, vc4->hvs->regs + offset)
+
+struct vc4_exec_info {
+	/* Sequence number for this bin/render job. */
+	uint64_t seqno;
+
+	/* Kernel-space copy of the ioctl arguments */
+	struct drm_vc4_submit_cl *args;
+
+	/* This is the array of BOs that were looked up at the start of exec.
+	 * Command validation will use indices into this array.
+	 */
+	struct drm_gem_cma_object **bo;
+	uint32_t bo_count;
+
+	/* Pointers for our position in vc4->job_list */
+	struct list_head head;
+
+	/* List of other BOs used in the job that need to be released
+	 * once the job is complete.
+	 */
+	struct list_head unref_list;
+
+	/* Current unvalidated indices into @bo loaded by the non-hardware
+	 * VC4_PACKET_GEM_HANDLES.
+	 */
+	uint32_t bo_index[2];
+
+	/* This is the BO where we store the validated command lists, shader
+	 * records, and uniforms.
+	 */
+	struct drm_gem_cma_object *exec_bo;
+
+	/**
+	 * This tracks the per-shader-record state (packet 64) that
+	 * determines the length of the shader record and the offset
+	 * it's expected to be found at.  It gets read in from the
+	 * command lists.
+	 */
+	struct vc4_shader_state {
+		uint32_t addr;
+		/* Maximum vertex index referenced by any primitive using this
+		 * shader state.
+		 */
+		uint32_t max_index;
+	} *shader_state;
+
+	/** How many shader states the user declared they were using. */
+	uint32_t shader_state_size;
+	/** How many shader state records the validator has seen. */
+	uint32_t shader_state_count;
+
+	bool found_tile_binning_mode_config_packet;
+	bool found_start_tile_binning_packet;
+	bool found_increment_semaphore_packet;
+	bool found_flush;
+	uint8_t bin_tiles_x, bin_tiles_y;
+	struct drm_gem_cma_object *tile_bo;
+	uint32_t tile_alloc_offset;
+
+	/**
+	 * Computed addresses pointing into exec_bo where we start the
+	 * bin thread (ct0) and render thread (ct1).
+	 */
+	uint32_t ct0ca, ct0ea;
+	uint32_t ct1ca, ct1ea;
+
+	/* Pointer to the unvalidated bin CL (if present). */
+	void *bin_u;
+
+	/* Pointers to the shader recs.  These paddr gets incremented as CL
+	 * packets are relocated in validate_gl_shader_state, and the vaddrs
+	 * (u and v) get incremented and size decremented as the shader recs
+	 * themselves are validated.
+	 */
+	void *shader_rec_u;
+	void *shader_rec_v;
+	uint32_t shader_rec_p;
+	uint32_t shader_rec_size;
+
+	/* Pointers to the uniform data.  These pointers are incremented, and
+	 * size decremented, as each batch of uniforms is uploaded.
+	 */
+	void *uniforms_u;
+	void *uniforms_v;
+	uint32_t uniforms_p;
+	uint32_t uniforms_size;
+};
+
+static inline struct vc4_exec_info *
+vc4_first_job(struct vc4_dev *vc4)
+{
+	if (list_empty(&vc4->job_list))
+		return NULL;
+	return list_first_entry(&vc4->job_list, struct vc4_exec_info, head);
+}
 
 /**
  * struct vc4_texture_sample_info - saves the offsets into the UBO for texture
@@ -231,9 +371,30 @@ void vc4_debugfs_cleanup(struct drm_minor *minor);
 /* vc4_drv.c */
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
 
+/* vc4_gem.c */
+void vc4_gem_init(struct drm_device *dev);
+void vc4_gem_destroy(struct drm_device *dev);
+int vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int vc4_wait_seqno_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+int vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv);
+void vc4_submit_next_job(struct drm_device *dev);
+int vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno,
+		       uint64_t timeout_ns, bool interruptible);
+void vc4_job_handle_completed(struct vc4_dev *vc4);
+
 /* vc4_hdmi.c */
 extern struct platform_driver vc4_hdmi_driver;
 int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused);
+
+/* vc4_irq.c */
+irqreturn_t vc4_irq(int irq, void *arg);
+void vc4_irq_preinstall(struct drm_device *dev);
+int vc4_irq_postinstall(struct drm_device *dev);
+void vc4_irq_uninstall(struct drm_device *dev);
+void vc4_irq_reset(struct drm_device *dev);
 
 /* vc4_hvs.c */
 extern struct platform_driver vc4_hvs_driver;
@@ -253,6 +414,27 @@ u32 vc4_plane_dlist_size(struct drm_plane_state *state);
 extern struct platform_driver vc4_v3d_driver;
 int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused);
 int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused);
+int vc4_v3d_set_power(struct vc4_dev *vc4, bool on);
+
+/* vc4_validate.c */
+int
+vc4_validate_bin_cl(struct drm_device *dev,
+		    void *validated,
+		    void *unvalidated,
+		    struct vc4_exec_info *exec);
+
+int
+vc4_validate_shader_recs(struct drm_device *dev, struct vc4_exec_info *exec);
+
+struct drm_gem_cma_object *vc4_use_bo(struct vc4_exec_info *exec,
+				      uint32_t hindex);
+
+int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec);
+
+bool vc4_check_tex_size(struct vc4_exec_info *exec,
+			struct drm_gem_cma_object *fbo,
+			uint32_t offset, uint8_t tiling_format,
+			uint32_t width, uint32_t height, uint8_t cpp);
 
 /* vc4_validate_shader.c */
 struct vc4_validated_shader_info *

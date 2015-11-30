@@ -144,6 +144,21 @@ int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 }
 #endif /* CONFIG_DEBUG_FS */
 
+/*
+ * Asks the firmware to turn on power to the V3D engine.
+ *
+ * This may be doable with just the clocks interface, though this
+ * packet does some other register setup from the firmware, too.
+ */
+int
+vc4_v3d_set_power(struct vc4_dev *vc4, bool on)
+{
+	if (on)
+		return pm_generic_poweroff(&vc4->v3d->pdev->dev);
+	else
+		return pm_generic_resume(&vc4->v3d->pdev->dev);
+}
+
 static void vc4_v3d_init_hw(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -161,6 +176,7 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_v3d *v3d = NULL;
+	int ret;
 
 	v3d = devm_kzalloc(&pdev->dev, sizeof(*v3d), GFP_KERNEL);
 	if (!v3d)
@@ -180,7 +196,19 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 		return -EINVAL;
 	}
 
+	/* Reset the binner overflow address/size at setup, to be sure
+	 * we don't reuse an old one.
+	 */
+	V3D_WRITE(V3D_BPOA, 0);
+	V3D_WRITE(V3D_BPOS, 0);
+
 	vc4_v3d_init_hw(drm);
+
+	ret = drm_irq_install(drm, platform_get_irq(pdev, 0));
+	if (ret) {
+		DRM_ERROR("Failed to install IRQ handler\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -190,6 +218,15 @@ static void vc4_v3d_unbind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
+
+	drm_irq_uninstall(drm);
+
+	/* Disable the binner's overflow memory address, so the next
+	 * driver probe (if any) doesn't try to reuse our old
+	 * allocation.
+	 */
+	V3D_WRITE(V3D_BPOA, 0);
+	V3D_WRITE(V3D_BPOS, 0);
 
 	vc4->v3d = NULL;
 }

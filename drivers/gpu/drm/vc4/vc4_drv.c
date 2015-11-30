@@ -74,6 +74,9 @@ static const struct file_operations vc4_drm_fops = {
 };
 
 static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(VC4_SUBMIT_CL, vc4_submit_cl_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(VC4_WAIT_SEQNO, vc4_wait_seqno_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(VC4_WAIT_BO, vc4_wait_bo_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(VC4_CREATE_BO, vc4_create_bo_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(VC4_MMAP_BO, vc4_mmap_bo_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(VC4_CREATE_SHADER_BO, vc4_create_shader_bo_ioctl, 0),
@@ -83,9 +86,15 @@ static struct drm_driver vc4_drm_driver = {
 	.driver_features = (DRIVER_MODESET |
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM |
+			    DRIVER_HAVE_IRQ |
 			    DRIVER_PRIME),
 	.lastclose = vc4_lastclose,
 	.preclose = vc4_drm_preclose,
+
+	.irq_handler = vc4_irq,
+	.irq_preinstall = vc4_irq_preinstall,
+	.irq_postinstall = vc4_irq_postinstall,
+	.irq_uninstall = vc4_irq_uninstall,
 
 	.enable_vblank = vc4_enable_vblank,
 	.disable_vblank = vc4_disable_vblank,
@@ -181,9 +190,11 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto unref;
 
+	vc4_gem_init(drm);
+
 	ret = component_bind_all(dev, drm);
 	if (ret)
-		goto unref;
+		goto gem_destroy;
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
@@ -207,6 +218,8 @@ unregister:
 	drm_dev_unregister(drm);
 unbind_all:
 	component_unbind_all(dev, drm);
+gem_destroy:
+	vc4_gem_destroy(drm);
 unref:
 	drm_dev_unref(drm);
 	vc4_bo_cache_destroy(drm);
