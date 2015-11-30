@@ -68,8 +68,8 @@ static u32 rsnd_adg_calculate_rbgx(unsigned long div)
 
 static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 {
-	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
-	int id = rsnd_mod_id(mod);
+	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+	int id = rsnd_mod_id(ssi_mod);
 	int ws = id;
 
 	if (rsnd_ssi_is_pin_sharing(io)) {
@@ -90,13 +90,13 @@ static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 	return (0x6 + ws) << 8;
 }
 
-int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *mod,
+int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *cmd_mod,
 				 struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(cmd_mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
-	int id = rsnd_mod_id(mod);
+	int id = rsnd_mod_id(cmd_mod);
 	int shift = (id % 2) ? 16 : 0;
 	u32 mask, val;
 
@@ -275,20 +275,16 @@ static void rsnd_adg_set_ssi_clk(struct rsnd_mod *ssi_mod, u32 val)
 	}
 }
 
-int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod)
+int rsnd_adg_ssi_clk_stop(struct rsnd_mod *ssi_mod)
 {
-	/*
-	 * "mod" = "ssi" here.
-	 * we can get "ssi id" from mod
-	 */
-	rsnd_adg_set_ssi_clk(mod, 0);
+	rsnd_adg_set_ssi_clk(ssi_mod, 0);
 
 	return 0;
 }
 
-int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
+int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
@@ -332,14 +328,10 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 
 found_clock:
 
-	/*
-	 * This "mod" = "ssi" here.
-	 * we can get "ssi id" from mod
-	 */
-	rsnd_adg_set_ssi_clk(mod, data);
+	rsnd_adg_set_ssi_clk(ssi_mod, data);
 
 	dev_dbg(dev, "ADG: %s[%d] selects 0x%x for %d\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+		rsnd_mod_name(ssi_mod), rsnd_mod_id(ssi_mod),
 		data, rate);
 
 	return 0;
