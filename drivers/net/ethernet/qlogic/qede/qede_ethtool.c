@@ -333,6 +333,48 @@ static u32 qede_get_link(struct net_device *dev)
 	return current_link.link_up;
 }
 
+static void qede_get_ringparam(struct net_device *dev,
+			       struct ethtool_ringparam *ering)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	ering->rx_max_pending = NUM_RX_BDS_MAX;
+	ering->rx_pending = edev->q_num_rx_buffers;
+	ering->tx_max_pending = NUM_TX_BDS_MAX;
+	ering->tx_pending = edev->q_num_tx_buffers;
+}
+
+static int qede_set_ringparam(struct net_device *dev,
+			      struct ethtool_ringparam *ering)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+		   "Set ring params command parameters: rx_pending = %d, tx_pending = %d\n",
+		   ering->rx_pending, ering->tx_pending);
+
+	/* Validate legality of configuration */
+	if (ering->rx_pending > NUM_RX_BDS_MAX ||
+	    ering->rx_pending < NUM_RX_BDS_MIN ||
+	    ering->tx_pending > NUM_TX_BDS_MAX ||
+	    ering->tx_pending < NUM_TX_BDS_MIN) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "Can only support Rx Buffer size [0%08x,...,0x%08x] and Tx Buffer size [0x%08x,...,0x%08x]\n",
+			   NUM_RX_BDS_MIN, NUM_RX_BDS_MAX,
+			   NUM_TX_BDS_MIN, NUM_TX_BDS_MAX);
+		return -EINVAL;
+	}
+
+	/* Change ring size and re-load */
+	edev->q_num_rx_buffers = ering->rx_pending;
+	edev->q_num_tx_buffers = ering->tx_pending;
+
+	if (netif_running(edev->ndev))
+		qede_reload(edev, NULL, NULL);
+
+	return 0;
+}
+
 static void qede_update_mtu(struct qede_dev *edev, union qede_reload_args *args)
 {
 	edev->ndev->mtu = args->mtu;
@@ -424,6 +466,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_msglevel = qede_get_msglevel,
 	.set_msglevel = qede_set_msglevel,
 	.get_link = qede_get_link,
+	.get_ringparam = qede_get_ringparam,
+	.set_ringparam = qede_set_ringparam,
 	.get_strings = qede_get_strings,
 	.get_ethtool_stats = qede_get_ethtool_stats,
 	.get_sset_count = qede_get_sset_count,

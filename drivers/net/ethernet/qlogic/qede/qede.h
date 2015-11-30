@@ -270,13 +270,13 @@ int qede_change_mtu(struct net_device *dev, int new_mtu);
 void qede_fill_by_demand_stats(struct qede_dev *edev);
 
 #define RX_RING_SIZE_POW	13
-#define RX_RING_SIZE		BIT(RX_RING_SIZE_POW)
+#define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))
 #define NUM_RX_BDS_MAX		(RX_RING_SIZE - 1)
 #define NUM_RX_BDS_MIN		128
 #define NUM_RX_BDS_DEF		NUM_RX_BDS_MAX
 
 #define TX_RING_SIZE_POW	13
-#define TX_RING_SIZE		BIT(TX_RING_SIZE_POW)
+#define TX_RING_SIZE		((u16)BIT(TX_RING_SIZE_POW))
 #define NUM_TX_BDS_MAX		(TX_RING_SIZE - 1)
 #define NUM_TX_BDS_MIN		128
 #define NUM_TX_BDS_DEF		NUM_TX_BDS_MAX
