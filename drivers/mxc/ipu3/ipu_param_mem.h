@@ -29,7 +29,8 @@ struct ipu_ch_param {
 	struct ipu_ch_param_word word[2];
 };
 
-#define ipu_ch_param_addr(ipu, ch) (((struct ipu_ch_param *)ipu->cpmem_base) + (ch))
+#define ipu_ch_param_addr(ipu, ch) \
+	(((struct ipu_ch_param *)(ipu)->cpmem_base) + (ch))
 
 #define _param_word(base, w) \
 	(((struct ipu_ch_param *)(base))->word[(w)].data)
@@ -37,9 +38,10 @@ struct ipu_ch_param {
 #define ipu_ch_param_set_field(base, w, bit, size, v) { \
 	int i = (bit) / 32; \
 	int off = (bit) % 32; \
-	_param_word(base, w)[i] |= (v) << off; \
+	_param_word((base), (w))[i] |= (v) << off; \
 	if (((bit)+(size)-1)/32 > i) { \
-		_param_word(base, w)[i + 1] |= (v) >> (off ? (32 - off) : 0); \
+		_param_word((base), (w))[i + 1] |= \
+			(v) >> (off ? (32 - off) : 0); \
 	} \
 }
 
@@ -48,30 +50,30 @@ struct ipu_ch_param {
 	int off = (bit) % 32; \
 	unsigned reg_offset; \
 	u32 temp; \
-	reg_offset = sizeof(struct ipu_ch_param_word) * w / 4; \
+	reg_offset = sizeof(struct ipu_ch_param_word) * (w) / 4; \
 	reg_offset += i; \
-	temp = readl((u32 *)base + reg_offset); \
+	temp = readl((u32 *)(base) + reg_offset); \
 	temp |= (v) << off; \
-	writel(temp, (u32 *)base + reg_offset); \
+	writel(temp, (u32 *)(base) + reg_offset); \
 	if (((bit)+(size)-1)/32 > i) { \
 		reg_offset++; \
-		temp = readl((u32 *)base + reg_offset); \
+		temp = readl((u32 *)(base) + reg_offset); \
 		temp |= (v) >> (off ? (32 - off) : 0); \
-		writel(temp, (u32 *)base + reg_offset); \
+		writel(temp, (u32 *)(base) + reg_offset); \
 	} \
 }
 
 #define ipu_ch_param_mod_field(base, w, bit, size, v) { \
 	int i = (bit) / 32; \
 	int off = (bit) % 32; \
-	u32 mask = (1UL << size) - 1; \
-	u32 temp = _param_word(base, w)[i]; \
+	u32 mask = (1UL << (size)) - 1; \
+	u32 temp = _param_word((base), (w))[i]; \
 	temp &= ~(mask << off); \
-	_param_word(base, w)[i] = temp | (v) << off; \
+	_param_word((base), (w))[i] = temp | (v) << off; \
 	if (((bit)+(size)-1)/32 > i) { \
-		temp = _param_word(base, w)[i + 1]; \
+		temp = _param_word((base), (w))[i + 1]; \
 		temp &= ~(mask >> (32 - off)); \
-		_param_word(base, w)[i + 1] = \
+		_param_word((base), (w))[i + 1] = \
 			temp | ((v) >> (off ? (32 - off) : 0)); \
 	} \
 }
@@ -79,21 +81,21 @@ struct ipu_ch_param {
 #define ipu_ch_param_mod_field_io(base, w, bit, size, v) { \
 	int i = (bit) / 32; \
 	int off = (bit) % 32; \
-	u32 mask = (1UL << size) - 1; \
+	u32 mask = (1UL << (size)) - 1; \
 	unsigned reg_offset; \
 	u32 temp; \
-	reg_offset = sizeof(struct ipu_ch_param_word) * w / 4; \
+	reg_offset = sizeof(struct ipu_ch_param_word) * (w) / 4; \
 	reg_offset += i; \
-	temp = readl((u32 *)base + reg_offset); \
+	temp = readl((u32 *)(base) + reg_offset); \
 	temp &= ~(mask << off); \
 	temp |= (v) << off; \
-	writel(temp, (u32 *)base + reg_offset); \
+	writel(temp, (u32 *)(base) + reg_offset); \
 	if (((bit)+(size)-1)/32 > i) { \
 		reg_offset++; \
-		temp = readl((u32 *)base + reg_offset); \
+		temp = readl((u32 *)(base) + reg_offset); \
 		temp &= ~(mask >> (32 - off)); \
 		temp |= ((v) >> (off ? (32 - off) : 0)); \
-		writel(temp, (u32 *)base + reg_offset); \
+		writel(temp, (u32 *)(base) + reg_offset); \
 	} \
 }
 
@@ -101,11 +103,11 @@ struct ipu_ch_param {
 	u32 temp2; \
 	int i = (bit) / 32; \
 	int off = (bit) % 32; \
-	u32 mask = (1UL << size) - 1; \
-	u32 temp1 = _param_word(base, w)[i]; \
+	u32 mask = (1UL << (size)) - 1; \
+	u32 temp1 = _param_word((base), (w))[i]; \
 	temp1 = mask & (temp1 >> off); \
 	if (((bit)+(size)-1)/32 > i) { \
-		temp2 = _param_word(base, w)[i + 1]; \
+		temp2 = _param_word((base), (w))[i + 1]; \
 		temp2 &= mask >> (off ? (32 - off) : 0); \
 		temp1 |= temp2 << (off ? (32 - off) : 0); \
 	} \
@@ -116,15 +118,15 @@ struct ipu_ch_param {
 	u32 temp1, temp2; \
 	int i = (bit) / 32; \
 	int off = (bit) % 32; \
-	u32 mask = (1UL << size) - 1; \
+	u32 mask = (1UL << (size)) - 1; \
 	unsigned reg_offset; \
-	reg_offset = sizeof(struct ipu_ch_param_word) * w / 4; \
+	reg_offset = sizeof(struct ipu_ch_param_word) * (w) / 4; \
 	reg_offset += i; \
-	temp1 = readl((u32 *)base + reg_offset); \
+	temp1 = readl((u32 *)(base) + reg_offset); \
 	temp1 = mask & (temp1 >> off); \
 	if (((bit)+(size)-1)/32 > i) { \
 		reg_offset++; \
-		temp2 = readl((u32 *)base + reg_offset); \
+		temp2 = readl((u32 *)(base) + reg_offset); \
 		temp2 &= mask >> (off ? (32 - off) : 0); \
 		temp1 |= temp2 << (off ? (32 - off) : 0); \
 	} \
