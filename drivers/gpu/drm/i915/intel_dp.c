@@ -681,7 +681,7 @@ static uint32_t i9xx_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * The clock divider is based off the hrawclk, and would like to run at
 	 * 2MHz.  So, take the hrawclk value and divide by 2 and use that
 	 */
-	return index ? 0 : intel_hrawclk(dev) / 2;
+	return index ? 0 : DIV_ROUND_CLOSEST(intel_hrawclk(dev), 2);
 }
 
 static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
@@ -694,10 +694,10 @@ static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 		return 0;
 
 	if (intel_dig_port->port == PORT_A) {
-		return DIV_ROUND_UP(dev_priv->cdclk_freq, 2000);
+		return DIV_ROUND_CLOSEST(dev_priv->cdclk_freq, 2000);
 
 	} else {
-		return DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
+		return DIV_ROUND_CLOSEST(intel_pch_rawclk(dev), 2);
 	}
 }
 
@@ -719,7 +719,7 @@ static uint32_t hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 		default: return 0;
 		}
 	} else  {
-		return index ? 0 : DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
+		return index ? 0 : DIV_ROUND_CLOSEST(intel_pch_rawclk(dev), 2);
 	}
 }
 
