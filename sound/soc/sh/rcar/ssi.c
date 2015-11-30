@@ -24,7 +24,9 @@
 #define	OIEN		(1 << 26)	/* Overflow Interrupt Enable */
 #define	IIEN		(1 << 25)	/* Idle Mode Interrupt Enable */
 #define	DIEN		(1 << 24)	/* Data Interrupt Enable */
-
+#define	CHNL_4		(1 << 22)	/* Channels */
+#define	CHNL_6		(2 << 22)	/* Channels */
+#define	CHNL_8		(3 << 22)	/* Channels */
 #define	DWL_8		(0 << 19)	/* Data Word Length */
 #define	DWL_16		(1 << 19)	/* Data Word Length */
 #define	DWL_18		(2 << 19)	/* Data Word Length */
@@ -57,6 +59,7 @@
  * SSIWSR
  */
 #define CONT		(1 << 8)	/* WS Continue Function */
+#define WS_MODE		(1 << 0)	/* WS Mode */
 
 #define SSI_NAME "ssi"
 
@@ -261,6 +264,7 @@ static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	u32 cr_own;
 	u32 cr_mode;
+	u32 wsr;
 
 	/*
 	 * always use 32bit system word.
@@ -297,8 +301,20 @@ static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
 		cr_mode = DIEN;		/* PIO : enable Data interrupt */
 	}
 
+	/*
+	 * TDM Extend Mode
+	 * see
+	 *	rsnd_ssiu_init_gen2()
+	 */
+	wsr = ssi->wsr;
+	if (rsnd_get_slot_runtime(io) >= 6) {
+		wsr	|= WS_MODE;
+		cr_own	|= CHNL_8;
+	}
+
 	ssi->cr_own	= cr_own;
 	ssi->cr_mode	= cr_mode;
+	ssi->wsr	= wsr;
 
 	return 0;
 }

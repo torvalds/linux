@@ -247,9 +247,9 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 chan = runtime->channels;
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	u32 chan = rsnd_get_slot_rdai(rdai);
 
 	switch (chan) {
 	case 1:
@@ -569,9 +569,31 @@ static int rsnd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
+				     u32 tx_mask, u32 rx_mask,
+				     int slots, int slot_width)
+{
+	struct rsnd_priv *priv = rsnd_dai_to_priv(dai);
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct device *dev = rsnd_priv_to_dev(priv);
+
+	switch (slots) {
+	case 6:
+		/* TDM Extend Mode */
+		rdai->slots = slots;
+		break;
+	default:
+		dev_err(dev, "unsupported TDM slots (%d)\n", slots);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.trigger	= rsnd_soc_dai_trigger,
 	.set_fmt	= rsnd_soc_dai_set_fmt,
+	.set_tdm_slot	= rsnd_soc_set_dai_tdm_slot,
 };
 
 static int rsnd_dai_probe(struct rsnd_priv *priv)
@@ -626,7 +648,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		drv->playback.rates		= RSND_RATES;
 		drv->playback.formats		= RSND_FMTS;
 		drv->playback.channels_min	= 2;
-		drv->playback.channels_max	= 2;
+		drv->playback.channels_max	= 6;
 		drv->playback.stream_name	= rdai->playback.name;
 
 		snprintf(rdai->capture.name, RSND_DAI_NAME_SIZE,
@@ -634,7 +656,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		drv->capture.rates		= RSND_RATES;
 		drv->capture.formats		= RSND_FMTS;
 		drv->capture.channels_min	= 2;
-		drv->capture.channels_max	= 2;
+		drv->capture.channels_max	= 6;
 		drv->capture.stream_name	= rdai->capture.name;
 
 		rdai->playback.rdai		= rdai;

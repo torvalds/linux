@@ -44,6 +44,7 @@
  */
 enum rsnd_reg {
 	/* SCU (SRC/SSIU/MIX/CTU/DVC) */
+	RSND_REG_SSI_MODE,		/* Gen2 only */
 	RSND_REG_SSI_MODE0,
 	RSND_REG_SSI_MODE1,
 	RSND_REG_SSI_CTRL,		/* Gen2 only */

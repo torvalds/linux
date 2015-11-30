@@ -78,6 +78,15 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
+	if (rsnd_get_slot_runtime(io) >= 6) {
+		/*
+		 * TDM Extend Mode
+		 * see
+		 *	rsnd_ssi_config_init()
+		 */
+		rsnd_mod_write(mod, SSI_MODE, 0x1);
+	}
+
 	if (rsnd_ssi_use_busif(io)) {
 		u32 val = rsnd_get_dalign(mod, io);
 
