@@ -17,6 +17,29 @@
 
 #include <asm/efi.h>
 
+int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
+{
+	pteval_t prot_val;
+
+	/*
+	 * Only regions of type EFI_RUNTIME_SERVICES_CODE need to be
+	 * executable, everything else can be mapped with the XN bits
+	 * set.
+	 */
+	if ((md->attribute & EFI_MEMORY_WB) == 0)
+		prot_val = PROT_DEVICE_nGnRE;
+	else if (md->type == EFI_RUNTIME_SERVICES_CODE ||
+		 !PAGE_ALIGNED(md->phys_addr))
+		prot_val = pgprot_val(PAGE_KERNEL_EXEC);
+	else
+		prot_val = pgprot_val(PAGE_KERNEL);
+
+	create_pgd_mapping(mm, md->phys_addr, md->virt_addr,
+			   md->num_pages << EFI_PAGE_SHIFT,
+			   __pgprot(prot_val | PTE_NG));
+	return 0;
+}
+
 static int __init arm64_dmi_init(void)
 {
 	/*

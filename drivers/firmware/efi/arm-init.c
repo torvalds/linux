@@ -57,7 +57,7 @@ static int __init uefi_init(void)
 {
 	efi_char16_t *c16;
 	void *config_tables;
-	u64 table_size;
+	size_t table_size;
 	char vendor[100] = "unknown";
 	int i, retval;
 
@@ -69,7 +69,8 @@ static int __init uefi_init(void)
 	}
 
 	set_bit(EFI_BOOT, &efi.flags);
-	set_bit(EFI_64BIT, &efi.flags);
+	if (IS_ENABLED(CONFIG_64BIT))
+		set_bit(EFI_64BIT, &efi.flags);
 
 	/*
 	 * Verify the EFI Table
@@ -107,7 +108,7 @@ static int __init uefi_init(void)
 		goto out;
 	}
 	retval = efi_config_parse_tables(config_tables, efi.systab->nr_tables,
-					 sizeof(efi_config_table_64_t), NULL);
+					 sizeof(efi_config_table_t), NULL);
 
 	early_memunmap(config_tables, table_size);
 out:
