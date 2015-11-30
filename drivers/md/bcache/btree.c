@@ -2162,8 +2162,10 @@ int bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
 		rw_lock(true, b, b->level);
 
 		if (b->key.ptr[0] != btree_ptr ||
-		    b->seq != seq + 1)
+                   b->seq != seq + 1) {
+                       op->lock = b->level;
 			goto out;
+               }
 	}
 
 	SET_KEY_PTRS(check_key, 1);
