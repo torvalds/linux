@@ -666,7 +666,7 @@ static void cx23885_initialize(struct i2c_client *client)
 	cx25840_write4(client, 0x404, 0x0010253e);
 
 	/* CC on  - Undocumented Register */
-	cx25840_write(client, 0x42f, 0x66);
+	cx25840_write(client, state->vbi_regs_offset + 0x42f, 0x66);
 
 	/* HVR-1250 / HVR1850 DIF related */
 	/* Power everything up */
@@ -1122,15 +1122,14 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 			else
 				cx25840_write4(client, 0x420, 0x001c8282);
 
-			cx25840_write4(client, 0x42c, 0x42600000);
-			cx25840_write4(client, 0x430, 0x0000039b);
-			cx25840_write4(client, 0x438, 0x00000000);
-
-			cx25840_write4(client, 0x440, 0xF8E3E824);
-			cx25840_write4(client, 0x444, 0x401040dc);
-			cx25840_write4(client, 0x448, 0xcd3f02a0);
-			cx25840_write4(client, 0x44c, 0x161f1000);
-			cx25840_write4(client, 0x450, 0x00000802);
+			cx25840_write4(client, state->vbi_regs_offset + 0x42c, 0x42600000);
+			cx25840_write4(client, state->vbi_regs_offset + 0x430, 0x0000039b);
+			cx25840_write4(client, state->vbi_regs_offset + 0x438, 0x00000000);
+			cx25840_write4(client, state->vbi_regs_offset + 0x440, 0xF8E3E824);
+			cx25840_write4(client, state->vbi_regs_offset + 0x444, 0x401040dc);
+			cx25840_write4(client, state->vbi_regs_offset + 0x448, 0xcd3f02a0);
+			cx25840_write4(client, state->vbi_regs_offset + 0x44c, 0x161f1000);
+			cx25840_write4(client, state->vbi_regs_offset + 0x450, 0x00000802);
 
 			cx25840_write4(client, 0x91c, 0x01000000);
 			cx25840_write4(client, 0x8e0, 0x03063870);
@@ -5264,6 +5263,7 @@ static int cx25840_probe(struct i2c_client *client,
 	state->vbi_line_offset = 8;
 	state->id = id;
 	state->rev = device_id;
+	state->vbi_regs_offset = id == CX23888_AV ? 0x500 - 0x424 : 0;
 	v4l2_ctrl_handler_init(&state->hdl, 9);
 	v4l2_ctrl_new_std(&state->hdl, &cx25840_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
