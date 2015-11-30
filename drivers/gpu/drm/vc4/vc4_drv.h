@@ -69,6 +69,11 @@ struct vc4_bo {
 
 	/* List entry for the BO's position in vc4_dev->bo_cache.size_list */
 	struct list_head size_head;
+
+	/* Struct for shader validation state, if created by
+	 * DRM_IOCTL_VC4_CREATE_SHADER_BO.
+	 */
+	struct vc4_validated_shader_info *validated_shader;
 };
 
 static inline struct vc4_bo *
@@ -118,6 +123,42 @@ to_vc4_encoder(struct drm_encoder *encoder)
 #define HVS_WRITE(offset, val) writel(val, vc4->hvs->regs + offset)
 
 /**
+ * struct vc4_texture_sample_info - saves the offsets into the UBO for texture
+ * setup parameters.
+ *
+ * This will be used at draw time to relocate the reference to the texture
+ * contents in p0, and validate that the offset combined with
+ * width/height/stride/etc. from p1 and p2/p3 doesn't sample outside the BO.
+ * Note that the hardware treats unprovided config parameters as 0, so not all
+ * of them need to be set up for every texure sample, and we'll store ~0 as
+ * the offset to mark the unused ones.
+ *
+ * See the VC4 3D architecture guide page 41 ("Texture and Memory Lookup Unit
+ * Setup") for definitions of the texture parameters.
+ */
+struct vc4_texture_sample_info {
+	bool is_direct;
+	uint32_t p_offset[4];
+};
+
+/**
+ * struct vc4_validated_shader_info - information about validated shaders that
+ * needs to be used from command list validation.
+ *
+ * For a given shader, each time a shader state record references it, we need
+ * to verify that the shader doesn't read more uniforms than the shader state
+ * record's uniform BO pointer can provide, and we need to apply relocations
+ * and validate the shader state record's uniforms that define the texture
+ * samples.
+ */
+struct vc4_validated_shader_info {
+	uint32_t uniforms_size;
+	uint32_t uniforms_src_size;
+	uint32_t num_texture_samples;
+	struct vc4_texture_sample_info *texture_samples;
+};
+
+/**
  * _wait_for - magic (register) wait macro
  *
  * Does the right thing for modeset paths when run under kdgb or similar atomic
@@ -157,8 +198,13 @@ struct dma_buf *vc4_prime_export(struct drm_device *dev,
 				 struct drm_gem_object *obj, int flags);
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv);
 int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
+int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
+int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
+void *vc4_prime_vmap(struct drm_gem_object *obj);
 void vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
 int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
@@ -194,3 +240,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				 enum drm_plane_type type);
 u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist);
 u32 vc4_plane_dlist_size(struct drm_plane_state *state);
+
+/* vc4_validate_shader.c */
+struct vc4_validated_shader_info *
+vc4_validate_shader(struct drm_gem_cma_object *shader_obj);

@@ -79,6 +79,12 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 	struct drm_gem_object *obj = &bo->base.base;
 	struct vc4_dev *vc4 = to_vc4_dev(obj->dev);
 
+	if (bo->validated_shader) {
+		kfree(bo->validated_shader->texture_samples);
+		kfree(bo->validated_shader);
+		bo->validated_shader = NULL;
+	}
+
 	vc4->bo_stats.num_allocated--;
 	vc4->bo_stats.size_allocated -= obj->size;
 	drm_gem_cma_free_object(obj);
@@ -315,6 +321,12 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 		goto out;
 	}
 
+	if (bo->validated_shader) {
+		kfree(bo->validated_shader->texture_samples);
+		kfree(bo->validated_shader);
+		bo->validated_shader = NULL;
+	}
+
 	bo->free_time = jiffies;
 	list_add(&bo->size_head, cache_list);
 	list_add(&bo->unref_head, &vc4->bo_cache.time_list);
@@ -345,6 +357,78 @@ static void vc4_bo_cache_time_timer(unsigned long data)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	schedule_work(&vc4->bo_cache.time_work);
+}
+
+struct dma_buf *
+vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
+{
+	struct vc4_bo *bo = to_vc4_bo(obj);
+
+	if (bo->validated_shader) {
+		DRM_ERROR("Attempting to export shader BO\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return drm_gem_prime_export(dev, obj, flags);
+}
+
+int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct drm_gem_object *gem_obj;
+	struct vc4_bo *bo;
+	int ret;
+
+	ret = drm_gem_mmap(filp, vma);
+	if (ret)
+		return ret;
+
+	gem_obj = vma->vm_private_data;
+	bo = to_vc4_bo(gem_obj);
+
+	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
+		DRM_ERROR("mmaping of shader BOs for writing not allowed.\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
+	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
+	 * the whole buffer.
+	 */
+	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_pgoff = 0;
+
+	ret = dma_mmap_writecombine(bo->base.base.dev->dev, vma,
+				    bo->base.vaddr, bo->base.paddr,
+				    vma->vm_end - vma->vm_start);
+	if (ret)
+		drm_gem_vm_close(vma);
+
+	return ret;
+}
+
+int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	struct vc4_bo *bo = to_vc4_bo(obj);
+
+	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
+		DRM_ERROR("mmaping of shader BOs for writing not allowed.\n");
+		return -EINVAL;
+	}
+
+	return drm_gem_cma_prime_mmap(obj, vma);
+}
+
+void *vc4_prime_vmap(struct drm_gem_object *obj)
+{
+	struct vc4_bo *bo = to_vc4_bo(obj);
+
+	if (bo->validated_shader) {
+		DRM_ERROR("mmaping of shader BOs not allowed.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return drm_gem_cma_prime_vmap(obj);
 }
 
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
@@ -385,6 +469,62 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 
 	drm_gem_object_unreference_unlocked(gem_obj);
 	return 0;
+}
+
+int
+vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv)
+{
+	struct drm_vc4_create_shader_bo *args = data;
+	struct vc4_bo *bo = NULL;
+	int ret;
+
+	if (args->size == 0)
+		return -EINVAL;
+
+	if (args->size % sizeof(u64) != 0)
+		return -EINVAL;
+
+	if (args->flags != 0) {
+		DRM_INFO("Unknown flags set: 0x%08x\n", args->flags);
+		return -EINVAL;
+	}
+
+	if (args->pad != 0) {
+		DRM_INFO("Pad set: 0x%08x\n", args->pad);
+		return -EINVAL;
+	}
+
+	bo = vc4_bo_create(dev, args->size, true);
+	if (!bo)
+		return -ENOMEM;
+
+	ret = copy_from_user(bo->base.vaddr,
+			     (void __user *)(uintptr_t)args->data,
+			     args->size);
+	if (ret != 0)
+		goto fail;
+	/* Clear the rest of the memory from allocating from the BO
+	 * cache.
+	 */
+	memset(bo->base.vaddr + args->size, 0,
+	       bo->base.base.size - args->size);
+
+	bo->validated_shader = vc4_validate_shader(&bo->base);
+	if (!bo->validated_shader) {
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	/* We have to create the handle after validation, to avoid
+	 * races for users to do doing things like mmap the shader BO.
+	 */
+	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
+
+ fail:
+	drm_gem_object_unreference_unlocked(&bo->base.base);
+
+	return ret;
 }
 
 void vc4_bo_cache_init(struct drm_device *dev)
