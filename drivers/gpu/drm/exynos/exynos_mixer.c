@@ -1167,6 +1167,9 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 		const uint32_t *formats;
 		unsigned int fcount;
 
+		if (zpos == VP_DEFAULT_WIN && !ctx->vp_enabled)
+			continue;
+
 		if (zpos < VP_DEFAULT_WIN) {
 			formats = mixer_formats;
 			fcount = ARRAY_SIZE(mixer_formats);
