@@ -85,22 +85,6 @@ enum PHM_BackEnd_Magic {
 	PHM_Cz_Magic          = 0x67DCBA25
 };
 
-enum PP_DAL_POWERLEVEL {
-	PP_DAL_POWERLEVEL_INVALID = 0,
-	PP_DAL_POWERLEVEL_ULTRALOW,
-	PP_DAL_POWERLEVEL_LOW,
-	PP_DAL_POWERLEVEL_NOMINAL,
-	PP_DAL_POWERLEVEL_PERFORMANCE,
-
-	PP_DAL_POWERLEVEL_0 = PP_DAL_POWERLEVEL_ULTRALOW,
-	PP_DAL_POWERLEVEL_1 = PP_DAL_POWERLEVEL_LOW,
-	PP_DAL_POWERLEVEL_2 = PP_DAL_POWERLEVEL_NOMINAL,
-	PP_DAL_POWERLEVEL_3 = PP_DAL_POWERLEVEL_PERFORMANCE,
-	PP_DAL_POWERLEVEL_4 = PP_DAL_POWERLEVEL_3+1,
-	PP_DAL_POWERLEVEL_5 = PP_DAL_POWERLEVEL_4+1,
-	PP_DAL_POWERLEVEL_6 = PP_DAL_POWERLEVEL_5+1,
-	PP_DAL_POWERLEVEL_7 = PP_DAL_POWERLEVEL_6+1,
-};
 
 #define PHM_PCIE_POWERGATING_TARGET_GFX            0
 #define PHM_PCIE_POWERGATING_TARGET_DDI            1
@@ -340,6 +324,8 @@ struct pp_hwmgr_func {
 	int (*store_cc6_data)(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 				bool cc6_disable, bool pstate_disable,
 				bool pstate_switch_disable);
+	int (*get_dal_power_level)(struct pp_hwmgr *hwmgr,
+			struct pp_dal_clock_info*info);
 };
 
 struct pp_table_func {

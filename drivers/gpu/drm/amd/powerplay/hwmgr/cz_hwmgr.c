@@ -1544,7 +1544,7 @@ static void cz_hw_print_display_cfg(
 			display_cfg->cpu_pstate_separation_time);
 }
 
-int cz_set_cpu_power_state(struct pp_hwmgr *hwmgr)
+ static int cz_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 	uint32_t data = 0;
@@ -1576,7 +1576,7 @@ int cz_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
+ static int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 			bool cc6_disable, bool pstate_disable, bool pstate_switch_disable)
 {
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
@@ -1594,6 +1594,28 @@ int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 
 	}
 	return 0;
+}
+
+ static int cz_get_dal_power_level(struct pp_hwmgr *hwmgr,
+		struct pp_dal_clock_info*info)
+{
+	uint32_t i;
+	const struct phm_clock_voltage_dependency_table * table =
+			hwmgr->dyn_state.vddc_dep_on_dal_pwrl;
+	const struct phm_clock_and_voltage_limits* limits =
+			&hwmgr->dyn_state.max_clock_voltage_on_ac;
+
+	info->engine_max_clock = limits->sclk;
+	info->memory_max_clock = limits->mclk;
+
+	for (i = table->count - 1; i > 0; i--) {
+
+		if (limits->vddc >= table->entries[i].v) {
+			info->level = table->entries[i].clk;
+			return 0;
+		}
+	}
+	return -EINVAL;
 }
 
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
@@ -1614,6 +1636,7 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.print_current_perforce_level = cz_print_current_perforce_level,
 	.set_cpu_power_state = cz_set_cpu_power_state,
 	.store_cc6_data = cz_store_cc6_data,
+	.get_dal_power_level= cz_get_dal_power_level,
 };
 
 int cz_hwmgr_init(struct pp_hwmgr *hwmgr)

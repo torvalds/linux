@@ -261,6 +261,15 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 
 }
 
+int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
+		struct pp_dal_clock_info*info)
+{
+	if (hwmgr == NULL || hwmgr->hwmgr_func->get_dal_power_level == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_dal_power_level(hwmgr,info);
+}
+
 int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr != NULL && hwmgr->hwmgr_func->set_cpu_power_state != NULL)

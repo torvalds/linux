@@ -323,6 +323,29 @@ struct phm_clocks {
 	uint32_t clock[MAX_NUM_CLOCKS];
 };
 
+enum PP_DAL_POWERLEVEL {
+	PP_DAL_POWERLEVEL_INVALID = 0,
+	PP_DAL_POWERLEVEL_ULTRALOW,
+	PP_DAL_POWERLEVEL_LOW,
+	PP_DAL_POWERLEVEL_NOMINAL,
+	PP_DAL_POWERLEVEL_PERFORMANCE,
+
+	PP_DAL_POWERLEVEL_0 = PP_DAL_POWERLEVEL_ULTRALOW,
+	PP_DAL_POWERLEVEL_1 = PP_DAL_POWERLEVEL_LOW,
+	PP_DAL_POWERLEVEL_2 = PP_DAL_POWERLEVEL_NOMINAL,
+	PP_DAL_POWERLEVEL_3 = PP_DAL_POWERLEVEL_PERFORMANCE,
+	PP_DAL_POWERLEVEL_4 = PP_DAL_POWERLEVEL_3+1,
+	PP_DAL_POWERLEVEL_5 = PP_DAL_POWERLEVEL_4+1,
+	PP_DAL_POWERLEVEL_6 = PP_DAL_POWERLEVEL_5+1,
+	PP_DAL_POWERLEVEL_7 = PP_DAL_POWERLEVEL_6+1,
+};
+
+struct pp_dal_clock_info {
+	uint32_t		engine_max_clock;/*dal validation clock on AC*/
+	uint32_t		memory_max_clock;/*dal validation clock on AC*/
+	enum PP_DAL_POWERLEVEL	level;	/*number of levels for the given clocks*/
+};
+
 extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate);
 extern int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate);
@@ -354,7 +377,10 @@ extern int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 				 bool *equal);
 
 extern int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
-		    const struct amd_pp_display_configuration *display_config);
+		const struct amd_pp_display_configuration *display_config);
+
+extern int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
+		struct pp_dal_clock_info*info);
 
 extern int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr);
 

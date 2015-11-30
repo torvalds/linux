@@ -138,6 +138,12 @@ struct amd_pp_display_configuration {
 	uint32_t cpu_pstate_separation_time;
 };
 
+struct amd_pp_dal_clock_info {
+	uint32_t	engine_max_clock;
+	uint32_t	memory_max_clock;
+	uint32_t	level;
+};
+
 enum {
 	PP_GROUP_UNKNOWN = 0,
 	PP_GROUP_GFX = 1,
@@ -211,5 +217,8 @@ int amd_powerplay_init(struct amd_pp_init *pp_init,
 int amd_powerplay_fini(void *handle);
 
 int amd_powerplay_display_configuration_change(void *handle, const void *input);
+
+int amd_powerplay_get_display_power_level(void *handle,  void *output);
+
 
 #endif /* _AMD_POWERPLAY_H_ */
