@@ -254,7 +254,8 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, SRC_SRCIR, 0);	/* cancel initialize */
 
 	rsnd_mod_write(mod, SRC_ROUTE_MODE0, route);
-	rsnd_mod_write(mod, SRC_BUSIF_MODE, 1);
+	rsnd_mod_write(mod, SRC_I_BUSIF_MODE, 1);
+	rsnd_mod_write(mod, SRC_O_BUSIF_MODE, 1);
 	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, rsnd_get_dalign(mod, io));
 
 	if (convert_rate)
