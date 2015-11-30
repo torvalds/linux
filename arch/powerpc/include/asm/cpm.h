@@ -5,7 +5,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/of.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 
 /*
  * SPI Parameter RAM common to QE and CPM.

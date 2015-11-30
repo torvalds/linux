@@ -14,6 +14,8 @@
  * option) any later version.
  */
 
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -26,8 +28,7 @@
 #include <linux/spinlock.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/prom.h>
-#include <asm/qe_ic.h>
+#include <soc/fsl/qe/qe_ic.h>
 
 #include "qe_ic.h"
 

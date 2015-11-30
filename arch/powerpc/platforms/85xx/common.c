@@ -9,7 +9,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 #include <sysdev/cpm2_pic.h>
 
 #include "mpc85xx.h"

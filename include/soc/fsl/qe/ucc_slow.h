@@ -17,10 +17,10 @@
 
 #include <linux/kernel.h>
 
-#include <asm/immap_qe.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/immap_qe.h>
+#include <soc/fsl/qe/qe.h>
 
-#include <asm/ucc.h>
+#include <soc/fsl/qe/ucc.h>
 
 /* transmit BD's status */
 #define T_R	0x80000000	/* ready bit */

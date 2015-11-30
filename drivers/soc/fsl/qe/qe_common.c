@@ -26,7 +26,7 @@
 #include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 
 static struct gen_pool *muram_pool;
 static spinlock_t cpm_muram_lock;

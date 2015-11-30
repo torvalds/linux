@@ -21,7 +21,7 @@
 #include <linux/ioport.h>
 
 #include <asm/io.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 #include <asm/prom.h>
 #include <sysdev/fsl_soc.h>
 
