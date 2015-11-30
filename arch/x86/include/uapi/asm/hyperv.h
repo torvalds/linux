@@ -269,4 +269,6 @@ typedef struct _HV_REFERENCE_TSC_PAGE {
 #define HV_SYNIC_SINT_AUTO_EOI		(1ULL << 17)
 #define HV_SYNIC_SINT_VECTOR_MASK	(0xFF)
 
+#define HV_SYNIC_STIMER_COUNT		(4)
+
 #endif

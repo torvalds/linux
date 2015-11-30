@@ -102,8 +102,6 @@ enum hv_message_type {
 	HVMSG_X64_LEGACY_FP_ERROR		= 0x80010005
 };
 
-#define HV_SYNIC_STIMER_COUNT		(4)
-
 /* Define invalid partition identifier. */
 #define HV_PARTITION_ID_INVALID		((u64)0x0)
 
