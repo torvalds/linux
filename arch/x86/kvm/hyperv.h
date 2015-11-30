@@ -24,14 +24,6 @@
 #ifndef __ARCH_X86_KVM_HYPERV_H__
 #define __ARCH_X86_KVM_HYPERV_H__
 
-int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host);
-int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
-bool kvm_hv_hypercall_enabled(struct kvm *kvm);
-int kvm_hv_hypercall(struct kvm_vcpu *vcpu);
-
-int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vcpu_id, u32 sint);
-void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector);
-
 static inline struct kvm_vcpu_hv_synic *vcpu_to_synic(struct kvm_vcpu *vcpu)
 {
 	return &vcpu->arch.hyperv.synic;
@@ -46,10 +38,18 @@ static inline struct kvm_vcpu *synic_to_vcpu(struct kvm_vcpu_hv_synic *synic)
 	arch = container_of(hv, struct kvm_vcpu_arch, hyperv);
 	return container_of(arch, struct kvm_vcpu, arch);
 }
+
+int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host);
+int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
+
+bool kvm_hv_hypercall_enabled(struct kvm *kvm);
+int kvm_hv_hypercall(struct kvm_vcpu *vcpu);
+
 void kvm_hv_irq_routing_update(struct kvm *kvm);
+int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vcpu_id, u32 sint);
+void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector);
+int kvm_hv_activate_synic(struct kvm_vcpu *vcpu);
 
 void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu);
-
-int kvm_hv_activate_synic(struct kvm_vcpu *vcpu);
 
 #endif
