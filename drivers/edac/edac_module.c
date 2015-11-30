@@ -43,9 +43,6 @@ module_param_call(edac_debug_level, edac_set_debug_level, param_get_int,
 MODULE_PARM_DESC(edac_debug_level, "EDAC debug level: [0-4], default: 2");
 #endif
 
-/* scope is to module level only */
-struct workqueue_struct *edac_workqueue;
-
 /*
  * edac_op_state_to_string()
  */
@@ -63,32 +60,6 @@ char *edac_op_state_to_string(int opstate)
 		return "OFFLINE";
 
 	return "UNKNOWN";
-}
-
-/*
- * edac_workqueue_setup
- *	initialize the edac work queue for polling operations
- */
-static int edac_workqueue_setup(void)
-{
-	edac_workqueue = create_singlethread_workqueue("edac-poller");
-	if (edac_workqueue == NULL)
-		return -ENODEV;
-	else
-		return 0;
-}
-
-/*
- * edac_workqueue_teardown
- *	teardown the edac workqueue
- */
-static void edac_workqueue_teardown(void)
-{
-	if (edac_workqueue) {
-		flush_workqueue(edac_workqueue);
-		destroy_workqueue(edac_workqueue);
-		edac_workqueue = NULL;
-	}
 }
 
 /*
