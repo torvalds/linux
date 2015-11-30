@@ -322,6 +322,30 @@ static void qede_set_msglevel(struct net_device *ndev, u32 level)
 					 dp_module, dp_level);
 }
 
+static int qede_nway_reset(struct net_device *dev)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output current_link;
+	struct qed_link_params link_params;
+
+	if (!netif_running(dev))
+		return 0;
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+	if (!current_link.link_up)
+		return 0;
+
+	/* Toggle the link */
+	memset(&link_params, 0, sizeof(link_params));
+	link_params.link_up = false;
+	edev->ops->common->set_link(edev->cdev, &link_params);
+	link_params.link_up = true;
+	edev->ops->common->set_link(edev->cdev, &link_params);
+
+	return 0;
+}
+
 static u32 qede_get_link(struct net_device *dev)
 {
 	struct qede_dev *edev = netdev_priv(dev);
@@ -493,6 +517,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_drvinfo = qede_get_drvinfo,
 	.get_msglevel = qede_get_msglevel,
 	.set_msglevel = qede_set_msglevel,
+	.nway_reset = qede_nway_reset,
 	.get_link = qede_get_link,
 	.get_ringparam = qede_get_ringparam,
 	.set_ringparam = qede_set_ringparam,
