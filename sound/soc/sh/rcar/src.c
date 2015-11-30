@@ -76,6 +76,12 @@ static void rsnd_src_activation(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, SRC_SWRSR, 1);
 }
 
+static void rsnd_src_halt(struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, SRC_SRCIR, 1);
+	rsnd_mod_write(mod, SRC_SWRSR, 0);
+}
+
 static struct dma_chan *rsnd_src_dma_req(struct rsnd_dai_stream *io,
 					 struct rsnd_mod *mod)
 {
@@ -405,6 +411,8 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 
 	/* stop both out/in */
 	rsnd_mod_write(mod, SRC_CTRL, 0);
+
+	rsnd_src_halt(mod);
 
 	rsnd_mod_power_off(mod);
 
