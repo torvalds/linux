@@ -2806,10 +2806,9 @@ void __clk_put(struct clk *clk)
  * re-enter into the clk framework by calling any top-level clk APIs;
  * this will cause a nested prepare_lock mutex.
  *
- * In all notification cases cases (pre, post and abort rate change) the
- * original clock rate is passed to the callback via struct
- * clk_notifier_data.old_rate and the new frequency is passed via struct
- * clk_notifier_data.new_rate.
+ * In all notification cases (pre, post and abort rate change) the original
+ * clock rate is passed to the callback via struct clk_notifier_data.old_rate
+ * and the new frequency is passed via struct clk_notifier_data.new_rate.
  *
  * clk_notifier_register() must be called from non-atomic context.
  * Returns -EINVAL if called with null arguments, -ENOMEM upon
