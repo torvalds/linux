@@ -1345,7 +1345,7 @@ static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	if (IS_PINEVIEW(dev))
 		clock = MHz(intel_hrawclk(dev));
 	else
-		clock = 1000 * dev_priv->display.get_display_clock_speed(dev);
+		clock = 1000 * dev_priv->cdclk_freq;
 
 	return clock / (pwm_freq_hz * 32);
 }
@@ -1364,7 +1364,7 @@ static u32 i965_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	if (IS_G4X(dev_priv))
 		clock = MHz(intel_hrawclk(dev));
 	else
-		clock = 1000 * dev_priv->display.get_display_clock_speed(dev);
+		clock = 1000 * dev_priv->cdclk_freq;
 
 	return clock / (pwm_freq_hz * 128);
 }
