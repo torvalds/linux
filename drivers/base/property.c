@@ -19,24 +19,6 @@
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
 
-/**
- * device_add_property_set - Add a collection of properties to a device object.
- * @dev: Device to add properties to.
- * @pset: Collection of properties to add.
- *
- * Associate a collection of device properties represented by @pset with @dev
- * as its secondary firmware node.
- */
-void device_add_property_set(struct device *dev, struct property_set *pset)
-{
-	if (!pset)
-		return;
-
-	pset->fwnode.type = FWNODE_PDATA;
-	set_secondary_fwnode(dev, &pset->fwnode);
-}
-EXPORT_SYMBOL_GPL(device_add_property_set);
-
 static inline bool is_pset_node(struct fwnode_handle *fwnode)
 {
 	return fwnode && fwnode->type == FWNODE_PDATA;
@@ -691,6 +673,179 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_match_string);
+
+/**
+ * pset_free_set - releases memory allocated for copied property set
+ * @pset: Property set to release
+ *
+ * Function takes previously copied property set and releases all the
+ * memory allocated to it.
+ */
+static void pset_free_set(struct property_set *pset)
+{
+	const struct property_entry *prop;
+	size_t i, nval;
+
+	if (!pset)
+		return;
+
+	for (prop = pset->properties; prop->name; prop++) {
+		if (prop->is_array) {
+			if (prop->is_string && prop->pointer.str) {
+				nval = prop->length / sizeof(const char *);
+				for (i = 0; i < nval; i++)
+					kfree(prop->pointer.str[i]);
+			}
+			kfree(prop->pointer.raw_data);
+		} else if (prop->is_string) {
+			kfree(prop->value.str);
+		}
+		kfree(prop->name);
+	}
+
+	kfree(pset->properties);
+	kfree(pset);
+}
+
+static int pset_copy_entry(struct property_entry *dst,
+			   const struct property_entry *src)
+{
+	const char **d, **s;
+	size_t i, nval;
+
+	dst->name = kstrdup(src->name, GFP_KERNEL);
+	if (!dst->name)
+		return -ENOMEM;
+
+	if (src->is_array) {
+		if (src->is_string) {
+			nval = src->length / sizeof(const char *);
+			dst->pointer.str = kcalloc(nval, sizeof(const char *),
+						   GFP_KERNEL);
+			if (!dst->pointer.str)
+				return -ENOMEM;
+
+			d = dst->pointer.str;
+			s = src->pointer.str;
+			for (i = 0; i < nval; i++) {
+				d[i] = kstrdup(s[i], GFP_KERNEL);
+				if (!d[i] && s[i])
+					return -ENOMEM;
+			}
+		} else {
+			dst->pointer.raw_data = kmemdup(src->pointer.raw_data,
+							src->length, GFP_KERNEL);
+			if (!dst->pointer.raw_data)
+				return -ENOMEM;
+		}
+	} else if (src->is_string) {
+		dst->value.str = kstrdup(src->value.str, GFP_KERNEL);
+		if (!dst->value.str && src->value.str)
+			return -ENOMEM;
+	} else {
+		dst->value.raw_data = src->value.raw_data;
+	}
+
+	dst->length = src->length;
+	dst->is_array = src->is_array;
+	dst->is_string = src->is_string;
+
+	return 0;
+}
+
+/**
+ * pset_copy_set - copies property set
+ * @pset: Property set to copy
+ *
+ * This function takes a deep copy of the given property set and returns
+ * pointer to the copy. Call device_free_property_set() to free resources
+ * allocated in this function.
+ *
+ * Return: Pointer to the new property set or error pointer.
+ */
+static struct property_set *pset_copy_set(const struct property_set *pset)
+{
+	const struct property_entry *entry;
+	struct property_set *p;
+	size_t i, n = 0;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return ERR_PTR(-ENOMEM);
+
+	while (pset->properties[n].name)
+		n++;
+
+	p->properties = kcalloc(n + 1, sizeof(*entry), GFP_KERNEL);
+	if (!p->properties) {
+		kfree(p);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	for (i = 0; i < n; i++) {
+		int ret = pset_copy_entry(&p->properties[i],
+					  &pset->properties[i]);
+		if (ret) {
+			pset_free_set(p);
+			return ERR_PTR(ret);
+		}
+	}
+
+	return p;
+}
+
+/**
+ * device_remove_property_set - Remove properties from a device object.
+ * @dev: Device whose properties to remove.
+ *
+ * The function removes properties previously associated to the device
+ * secondary firmware node with device_add_property_set(). Memory allocated
+ * to the properties will also be released.
+ */
+void device_remove_property_set(struct device *dev)
+{
+	struct fwnode_handle *fwnode;
+
+	fwnode = dev_fwnode(dev);
+	if (!fwnode)
+		return;
+	/*
+	 * Pick either primary or secondary node depending which one holds
+	 * the pset. If there is no real firmware node (ACPI/DT) primary
+	 * will hold the pset.
+	 */
+	if (!is_pset_node(fwnode))
+		fwnode = fwnode->secondary;
+	if (!IS_ERR(fwnode) && is_pset_node(fwnode))
+		pset_free_set(to_pset_node(fwnode));
+	set_secondary_fwnode(dev, NULL);
+}
+EXPORT_SYMBOL_GPL(device_remove_property_set);
+
+/**
+ * device_add_property_set - Add a collection of properties to a device object.
+ * @dev: Device to add properties to.
+ * @pset: Collection of properties to add.
+ *
+ * Associate a collection of device properties represented by @pset with @dev
+ * as its secondary firmware node. The function takes a copy of @pset.
+ */
+int device_add_property_set(struct device *dev, const struct property_set *pset)
+{
+	struct property_set *p;
+
+	if (!pset)
+		return -EINVAL;
+
+	p = pset_copy_set(pset);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
+	p->fwnode.type = FWNODE_PDATA;
+	set_secondary_fwnode(dev, &p->fwnode);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(device_add_property_set);
 
 /**
  * device_get_next_child_node - Return the next child node handle for a device
