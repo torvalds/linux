@@ -213,6 +213,8 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	 */
 	drm_dev->vblank_disable_allowed = true;
 
+	drm_mode_config_reset(drm_dev);
+
 	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)
 		goto err_vblank_cleanup;
@@ -276,7 +278,8 @@ const struct vm_operations_struct rockchip_drm_vm_ops = {
 };
 
 static struct drm_driver rockchip_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
+				  DRIVER_PRIME | DRIVER_ATOMIC,
 	.load			= rockchip_drm_load,
 	.unload			= rockchip_drm_unload,
 	.lastclose		= rockchip_drm_lastclose,
