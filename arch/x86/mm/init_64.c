@@ -52,6 +52,7 @@
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
 #include <asm/init.h>
+#include <asm/uv/uv.h>
 #include <asm/setup.h>
 
 #include "mm_internal.h"
@@ -1193,26 +1194,13 @@ int kern_addr_valid(unsigned long addr)
 
 static unsigned long probe_memory_block_size(void)
 {
-	/* start from 2g */
-	unsigned long bz = 1UL<<31;
+	unsigned long bz = MIN_MEMORY_BLOCK_SIZE;
 
-	if (totalram_pages >= (64ULL << (30 - PAGE_SHIFT))) {
-		pr_info("Using 2GB memory block size for large-memory system\n");
-		return 2UL * 1024 * 1024 * 1024;
-	}
+	/* if system is UV or has 64GB of RAM or more, use large blocks */
+	if (is_uv_system() || ((max_pfn << PAGE_SHIFT) >= (64UL << 30)))
+		bz = 2UL << 30; /* 2GB */
 
-	/* less than 64g installed */
-	if ((max_pfn << PAGE_SHIFT) < (16UL << 32))
-		return MIN_MEMORY_BLOCK_SIZE;
-
-	/* get the tail size */
-	while (bz > MIN_MEMORY_BLOCK_SIZE) {
-		if (!((max_pfn << PAGE_SHIFT) & (bz - 1)))
-			break;
-		bz >>= 1;
-	}
-
-	printk(KERN_DEBUG "memory block size : %ldMB\n", bz >> 20);
+	pr_info("x86/mm: Memory block size: %ldMB\n", bz >> 20);
 
 	return bz;
 }
