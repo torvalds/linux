@@ -1626,8 +1626,8 @@ static void le_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 		struct hci_request req;
 
 		hci_req_init(&req, hdev);
-		__hci_req_update_adv_data(&req, HCI_ADV_CURRENT);
-		__hci_req_update_scan_rsp_data(&req, HCI_ADV_CURRENT);
+		__hci_req_update_adv_data(&req, 0x00);
+		__hci_req_update_scan_rsp_data(&req, 0x00);
 		hci_req_run(&req, NULL);
 		hci_update_background_scan(hdev);
 	}
@@ -3006,7 +3006,7 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 	 * no need to udpate the advertising data here.
 	 */
 	if (lmp_le_capable(hdev))
-		__hci_req_update_scan_rsp_data(&req, HCI_ADV_CURRENT);
+		__hci_req_update_scan_rsp_data(&req, hdev->cur_adv_instance);
 
 	err = hci_req_run(&req, set_name_complete);
 	if (err < 0)
@@ -3799,6 +3799,7 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 		bool changed;
 
 		if (cp->val) {
+			hdev->cur_adv_instance = 0x00;
 			changed = !hci_dev_test_and_set_flag(hdev, HCI_ADVERTISING);
 			if (cp->val == 0x02)
 				hci_dev_set_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
@@ -3846,6 +3847,7 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 		 * We cannot use update_[adv|scan_rsp]_data() here as the
 		 * HCI_ADVERTISING flag is not yet set.
 		 */
+		hdev->cur_adv_instance = 0x00;
 		__hci_req_update_adv_data(&req, 0x00);
 		__hci_req_update_scan_rsp_data(&req, 0x00);
 		__hci_req_enable_advertising(&req);
@@ -4195,7 +4197,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	/* Since only the advertising data flags will change, there
 	 * is no need to update the scan response data.
 	 */
-	__hci_req_update_adv_data(&req, HCI_ADV_CURRENT);
+	__hci_req_update_adv_data(&req, hdev->cur_adv_instance);
 
 	err = hci_req_run(&req, set_bredr_complete);
 	if (err < 0)

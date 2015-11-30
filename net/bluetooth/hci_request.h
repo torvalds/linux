@@ -64,14 +64,12 @@ void __hci_req_update_eir(struct hci_request *req);
 void hci_req_add_le_scan_disable(struct hci_request *req);
 void hci_req_add_le_passive_scan(struct hci_request *req);
 
-#define HCI_ADV_CURRENT (-1)
-
 void hci_req_reenable_advertising(struct hci_dev *hdev);
 void __hci_req_enable_advertising(struct hci_request *req);
 void __hci_req_disable_advertising(struct hci_request *req);
-void __hci_req_update_adv_data(struct hci_request *req, int instance);
-int hci_req_update_adv_data(struct hci_dev *hdev, int instance);
-void __hci_req_update_scan_rsp_data(struct hci_request *req, int instance);
+void __hci_req_update_adv_data(struct hci_request *req, u8 instance);
+int hci_req_update_adv_data(struct hci_dev *hdev, u8 instance);
+void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance);
 
 int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 				    bool force);

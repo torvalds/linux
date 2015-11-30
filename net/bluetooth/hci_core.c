@@ -1769,7 +1769,7 @@ static void hci_update_scan_state(struct hci_dev *hdev, u8 scan)
 		hci_dev_set_flag(hdev, HCI_BREDR_ENABLED);
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED))
-			hci_req_update_adv_data(hdev, HCI_ADV_CURRENT);
+			hci_req_update_adv_data(hdev, hdev->cur_adv_instance);
 
 		mgmt_new_settings(hdev);
 	}
@@ -2610,9 +2610,12 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 
 	BT_DBG("%s removing %dMR", hdev->name, instance);
 
-	if (hdev->cur_adv_instance == instance && hdev->adv_instance_timeout) {
-		cancel_delayed_work(&hdev->adv_instance_expire);
-		hdev->adv_instance_timeout = 0;
+	if (hdev->cur_adv_instance == instance) {
+		if (hdev->adv_instance_timeout) {
+			cancel_delayed_work(&hdev->adv_instance_expire);
+			hdev->adv_instance_timeout = 0;
+		}
+		hdev->cur_adv_instance = 0x00;
 	}
 
 	list_del(&adv_instance->list);
@@ -2639,6 +2642,7 @@ void hci_adv_instances_clear(struct hci_dev *hdev)
 	}
 
 	hdev->adv_instance_cnt = 0;
+	hdev->cur_adv_instance = 0x00;
 }
 
 /* This function requires the caller holds hdev->lock */

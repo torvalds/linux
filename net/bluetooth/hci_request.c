@@ -815,23 +815,9 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 		    &enable_cp);
 }
 
-static u8 get_current_adv_instance(struct hci_dev *hdev)
-{
-	/* The "Set Advertising" setting supersedes the "Add Advertising"
-	 * setting. Here we set the advertising data based on which
-	 * setting was set. When neither apply, default to the global settings,
-	 * represented by instance "0".
-	 */
-	if (!list_empty(&hdev->adv_instances) &&
-	    !hci_dev_test_flag(hdev, HCI_ADVERTISING))
-		return hdev->cur_adv_instance;
-
-	return 0x00;
-}
-
 static u8 get_cur_adv_instance_scan_rsp_len(struct hci_dev *hdev)
 {
-	u8 instance = get_current_adv_instance(hdev);
+	u8 instance = hdev->cur_adv_instance;
 	struct adv_info *adv_instance;
 
 	/* Ignore instance 0 */
@@ -890,7 +876,6 @@ void __hci_req_enable_advertising(struct hci_request *req)
 	struct hci_cp_le_set_adv_param cp;
 	u8 own_addr_type, enable = 0x01;
 	bool connectable;
-	u8 instance;
 	u32 flags;
 
 	if (hci_conn_num(hdev, LE_LINK) > 0)
@@ -906,8 +891,7 @@ void __hci_req_enable_advertising(struct hci_request *req)
 	 */
 	hci_dev_clear_flag(hdev, HCI_LE_ADV);
 
-	instance = get_current_adv_instance(hdev);
-	flags = get_adv_instance_flags(hdev, instance);
+	flags = get_adv_instance_flags(hdev, hdev->cur_adv_instance);
 
 	/* If the "connectable" instance flag was not set, then choose between
 	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
@@ -985,7 +969,7 @@ static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
 	return adv_instance->scan_rsp_len;
 }
 
-static void update_inst_scan_rsp_data(struct hci_request *req, u8 instance)
+void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_scan_rsp_data cp;
@@ -1011,14 +995,6 @@ static void update_inst_scan_rsp_data(struct hci_request *req, u8 instance)
 	cp.length = len;
 
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_RSP_DATA, sizeof(cp), &cp);
-}
-
-void __hci_req_update_scan_rsp_data(struct hci_request *req, int instance)
-{
-	if (instance == HCI_ADV_CURRENT)
-		instance = get_current_adv_instance(req->hdev);
-
-	update_inst_scan_rsp_data(req, instance);
 }
 
 static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
@@ -1089,7 +1065,7 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 	return ad_len;
 }
 
-static void update_inst_adv_data(struct hci_request *req, u8 instance)
+void __hci_req_update_adv_data(struct hci_request *req, u8 instance)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_adv_data cp;
@@ -1115,15 +1091,7 @@ static void update_inst_adv_data(struct hci_request *req, u8 instance)
 	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 }
 
-void __hci_req_update_adv_data(struct hci_request *req, int instance)
-{
-	if (instance == HCI_ADV_CURRENT)
-		instance = get_current_adv_instance(req->hdev);
-
-	update_inst_adv_data(req, instance);
-}
-
-int hci_req_update_adv_data(struct hci_dev *hdev, int instance)
+int hci_req_update_adv_data(struct hci_dev *hdev, u8 instance)
 {
 	struct hci_request req;
 
@@ -1141,21 +1109,19 @@ static void adv_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 void hci_req_reenable_advertising(struct hci_dev *hdev)
 {
 	struct hci_request req;
-	u8 instance;
 
 	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING) &&
 	    list_empty(&hdev->adv_instances))
 		return;
 
-	instance = get_current_adv_instance(hdev);
-
 	hci_req_init(&req, hdev);
 
-	if (instance) {
-		__hci_req_schedule_adv_instance(&req, instance, true);
+	if (hdev->cur_adv_instance) {
+		__hci_req_schedule_adv_instance(&req, hdev->cur_adv_instance,
+						true);
 	} else {
-		__hci_req_update_adv_data(&req, HCI_ADV_CURRENT);
-		__hci_req_update_scan_rsp_data(&req, HCI_ADV_CURRENT);
+		__hci_req_update_adv_data(&req, 0x00);
+		__hci_req_update_scan_rsp_data(&req, 0x00);
 		__hci_req_enable_advertising(&req);
 	}
 
@@ -1176,7 +1142,7 @@ static void adv_timeout_expire(struct work_struct *work)
 
 	hdev->adv_instance_timeout = 0;
 
-	instance = get_current_adv_instance(hdev);
+	instance = hdev->cur_adv_instance;
 	if (instance == 0x00)
 		goto unlock;
 
@@ -1246,8 +1212,8 @@ int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 		return 0;
 
 	hdev->cur_adv_instance = instance;
-	__hci_req_update_adv_data(req, HCI_ADV_CURRENT);
-	__hci_req_update_scan_rsp_data(req, HCI_ADV_CURRENT);
+	__hci_req_update_adv_data(req, instance);
+	__hci_req_update_scan_rsp_data(req, instance);
 	__hci_req_enable_advertising(req);
 
 	return 0;
@@ -1301,7 +1267,6 @@ void hci_req_clear_adv_instance(struct hci_dev *hdev, struct hci_request *req,
 			if (!err)
 				mgmt_advertising_removed(NULL, hdev, rem_inst);
 		}
-		hdev->cur_adv_instance = 0x00;
 	} else {
 		adv_instance = hci_find_adv_instance(hdev, instance);
 
@@ -1317,9 +1282,6 @@ void hci_req_clear_adv_instance(struct hci_dev *hdev, struct hci_request *req,
 				mgmt_advertising_removed(NULL, hdev, instance);
 		}
 	}
-
-	if (list_empty(&hdev->adv_instances))
-		hdev->cur_adv_instance = 0x00;
 
 	if (!req || !hdev_is_powered(hdev) ||
 	    hci_dev_test_flag(hdev, HCI_ADVERTISING))
@@ -1518,7 +1480,7 @@ static int connectable_update(struct hci_request *req, unsigned long opt)
 	 * advertising flags.
 	 */
 	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-		__hci_req_update_adv_data(req, HCI_ADV_CURRENT);
+		__hci_req_update_adv_data(req, hdev->cur_adv_instance);
 
 	/* Update the advertising parameters if necessary */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
@@ -1627,7 +1589,7 @@ static int discoverable_update(struct hci_request *req, unsigned long opt)
 	 * only update AD if advertising was enabled using Set Advertising.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
-		__hci_req_update_adv_data(req, HCI_ADV_CURRENT);
+		__hci_req_update_adv_data(req, 0x00);
 
 	hci_dev_unlock(hdev);
 
