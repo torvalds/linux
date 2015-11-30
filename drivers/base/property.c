@@ -63,45 +63,107 @@ static struct property_entry *pset_prop_get(struct property_set *pset,
 	return NULL;
 }
 
-static int pset_prop_read_array(struct property_set *pset, const char *name,
-				enum dev_prop_type type, void *val, size_t nval)
+static void *pset_prop_find(struct property_set *pset, const char *propname,
+			    size_t length)
 {
 	struct property_entry *prop;
-	unsigned int item_size;
+	void *pointer;
 
-	prop = pset_prop_get(pset, name);
+	prop = pset_prop_get(pset, propname);
 	if (!prop)
-		return -ENODATA;
+		return ERR_PTR(-EINVAL);
+	pointer = prop->value.raw_data;
+	if (!pointer)
+		return ERR_PTR(-ENODATA);
+	if (length > prop->length)
+		return ERR_PTR(-EOVERFLOW);
+	return pointer;
+}
 
-	if (prop->type != type)
-		return -EPROTO;
+static int pset_prop_read_u8_array(struct property_set *pset,
+				   const char *propname,
+				   u8 *values, size_t nval)
+{
+	void *pointer;
+	size_t length = nval * sizeof(*values);
 
-	if (!val)
-		return prop->nval;
+	pointer = pset_prop_find(pset, propname, length);
+	if (IS_ERR(pointer))
+		return PTR_ERR(pointer);
 
-	if (prop->nval < nval)
-		return -EOVERFLOW;
+	memcpy(values, pointer, length);
+	return 0;
+}
 
-	switch (type) {
-	case DEV_PROP_U8:
-		item_size = sizeof(u8);
-		break;
-	case DEV_PROP_U16:
-		item_size = sizeof(u16);
-		break;
-	case DEV_PROP_U32:
-		item_size = sizeof(u32);
-		break;
-	case DEV_PROP_U64:
-		item_size = sizeof(u64);
-		break;
-	case DEV_PROP_STRING:
-		item_size = sizeof(const char *);
-		break;
-	default:
+static int pset_prop_read_u16_array(struct property_set *pset,
+				    const char *propname,
+				    u16 *values, size_t nval)
+{
+	void *pointer;
+	size_t length = nval * sizeof(*values);
+
+	pointer = pset_prop_find(pset, propname, length);
+	if (IS_ERR(pointer))
+		return PTR_ERR(pointer);
+
+	memcpy(values, pointer, length);
+	return 0;
+}
+
+static int pset_prop_read_u32_array(struct property_set *pset,
+				    const char *propname,
+				    u32 *values, size_t nval)
+{
+	void *pointer;
+	size_t length = nval * sizeof(*values);
+
+	pointer = pset_prop_find(pset, propname, length);
+	if (IS_ERR(pointer))
+		return PTR_ERR(pointer);
+
+	memcpy(values, pointer, length);
+	return 0;
+}
+
+static int pset_prop_read_u64_array(struct property_set *pset,
+				    const char *propname,
+				    u64 *values, size_t nval)
+{
+	void *pointer;
+	size_t length = nval * sizeof(*values);
+
+	pointer = pset_prop_find(pset, propname, length);
+	if (IS_ERR(pointer))
+		return PTR_ERR(pointer);
+
+	memcpy(values, pointer, length);
+	return 0;
+}
+
+static int pset_prop_count_elems_of_size(struct property_set *pset,
+					 const char *propname, size_t length)
+{
+	struct property_entry *prop;
+
+	prop = pset_prop_get(pset, propname);
+	if (!prop)
 		return -EINVAL;
-	}
-	memcpy(val, prop->value.raw_data, nval * item_size);
+
+	return prop->length / length;
+}
+
+static int pset_prop_read_string_array(struct property_set *pset,
+				       const char *propname,
+				       const char **strings, size_t nval)
+{
+	void *pointer;
+	size_t length = nval * sizeof(*strings);
+
+	pointer = pset_prop_find(pset, propname, length);
+	if (IS_ERR(pointer))
+		return PTR_ERR(pointer);
+
+	memcpy(strings, pointer, length);
 	return 0;
 }
 
@@ -314,6 +376,10 @@ EXPORT_SYMBOL_GPL(device_property_match_string);
 	(val) ? of_property_read_##type##_array((node), (propname), (val), (nval)) \
 	      : of_property_count_elems_of_size((node), (propname), sizeof(type))
 
+#define PSET_PROP_READ_ARRAY(node, propname, type, val, nval)				\
+	(val) ? pset_prop_read_##type##_array((node), (propname), (val), (nval))	\
+	      : pset_prop_count_elems_of_size((node), (propname), sizeof(type))
+
 #define FWNODE_PROP_READ_ARRAY(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_) \
 ({ \
 	int _ret_; \
@@ -324,8 +390,8 @@ EXPORT_SYMBOL_GPL(device_property_match_string);
 		_ret_ = acpi_node_prop_read(_fwnode_, _propname_, _proptype_, \
 					    _val_, _nval_); \
 	else if (is_pset_node(_fwnode_)) 						\
-		_ret_ = pset_prop_read_array(to_pset_node(_fwnode_), _propname_,	\
-					     _proptype_, _val_, _nval_); \
+		_ret_ = PSET_PROP_READ_ARRAY(to_pset_node(_fwnode_), _propname_,	\
+					     _type_, _val_, _nval_);			\
 	else \
 		_ret_ = -ENXIO; \
 	_ret_; \
@@ -466,8 +532,12 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
 					   val, nval);
 	else if (is_pset_node(fwnode))
-		return pset_prop_read_array(to_pset_node(fwnode), propname,
-					    DEV_PROP_STRING, val, nval);
+		return val ?
+			pset_prop_read_string_array(to_pset_node(fwnode),
+						    propname, val, nval) :
+			pset_prop_count_elems_of_size(to_pset_node(fwnode),
+						      propname,
+						      sizeof(const char *));
 	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string_array);
@@ -496,8 +566,8 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
 					   val, 1);
 	else if (is_pset_node(fwnode))
-		return pset_prop_read_array(to_pset_node(fwnode), propname,
-					    DEV_PROP_STRING, val, 1);
+		return pset_prop_read_string_array(to_pset_node(fwnode),
+						   propname, val, 1);
 	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
