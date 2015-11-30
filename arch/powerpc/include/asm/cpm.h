@@ -2,6 +2,7 @@
 #define __CPM_H
 
 #include <linux/compiler.h>
+#include <linux/genalloc.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/of.h>
@@ -161,6 +162,8 @@ int cpm_muram_init(void);
 unsigned long cpm_muram_alloc(unsigned long size, unsigned long align);
 int cpm_muram_free(unsigned long offset);
 unsigned long cpm_muram_alloc_fixed(unsigned long offset, unsigned long size);
+unsigned long cpm_muram_alloc_common(unsigned long size, genpool_algo_t algo,
+				     void *data);
 void __iomem *cpm_muram_addr(unsigned long offset);
 unsigned long cpm_muram_offset(void __iomem *addr);
 dma_addr_t cpm_muram_dma(void __iomem *addr);

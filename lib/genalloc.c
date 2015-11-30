@@ -576,7 +576,7 @@ unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
 	fixed_data = data;
 	order = pool->min_alloc_order;
 	offset_bit = fixed_data->offset >> order;
-	if (WARN_ON(fixed_data->offset & (1UL << order - 1)))
+	if (WARN_ON(fixed_data->offset & ((1UL << order) - 1)))
 		return size;
 
 	start_bit = bitmap_find_next_zero_area(map, size,

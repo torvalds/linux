@@ -17,6 +17,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/genalloc.h>
 #include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/spinlock.h>
@@ -27,7 +28,6 @@
 
 #include <asm/udbg.h>
 #include <asm/io.h>
-#include <asm/rheap.h>
 #include <asm/cpm.h>
 
 #include <mm/mmu_decl.h>
@@ -65,14 +65,22 @@ void __init udbg_init_cpm(void)
 }
 #endif
 
+static struct gen_pool *muram_pool;
 static spinlock_t cpm_muram_lock;
-static rh_block_t cpm_boot_muram_rh_block[16];
-static rh_info_t cpm_muram_info;
 static u8 __iomem *muram_vbase;
 static phys_addr_t muram_pbase;
 
-/* Max address size we deal with */
+struct muram_block {
+	struct list_head head;
+	unsigned long start;
+	int size;
+};
+
+static LIST_HEAD(muram_block_list);
+
+/* max address size we deal with */
 #define OF_MAX_ADDR_CELLS	4
+#define GENPOOL_OFFSET		(4096 * 8)
 
 int cpm_muram_init(void)
 {
@@ -87,50 +95,51 @@ int cpm_muram_init(void)
 		return 0;
 
 	spin_lock_init(&cpm_muram_lock);
-	/* initialize the info header */
-	rh_init(&cpm_muram_info, 1,
-	        sizeof(cpm_boot_muram_rh_block) /
-	        sizeof(cpm_boot_muram_rh_block[0]),
-	        cpm_boot_muram_rh_block);
-
 	np = of_find_compatible_node(NULL, NULL, "fsl,cpm-muram-data");
 	if (!np) {
 		/* try legacy bindings */
 		np = of_find_node_by_name(NULL, "data-only");
 		if (!np) {
-			printk(KERN_ERR "Cannot find CPM muram data node");
+			pr_err("Cannot find CPM muram data node");
 			ret = -ENODEV;
-			goto out;
+			goto out_muram;
 		}
 	}
 
+	muram_pool = gen_pool_create(0, -1);
 	muram_pbase = of_translate_address(np, zero);
 	if (muram_pbase == (phys_addr_t)OF_BAD_ADDR) {
-		printk(KERN_ERR "Cannot translate zero through CPM muram node");
+		pr_err("Cannot translate zero through CPM muram node");
 		ret = -ENODEV;
-		goto out;
+		goto out_pool;
 	}
 
 	while (of_address_to_resource(np, i++, &r) == 0) {
 		if (r.end > max)
 			max = r.end;
-
-		rh_attach_region(&cpm_muram_info, r.start - muram_pbase,
-				 resource_size(&r));
+		ret = gen_pool_add(muram_pool, r.start - muram_pbase +
+				   GENPOOL_OFFSET, resource_size(&r), -1);
+		if (ret) {
+			pr_err("QE: couldn't add muram to pool!\n");
+			goto out_pool;
+		}
 	}
 
 	muram_vbase = ioremap(muram_pbase, max - muram_pbase + 1);
 	if (!muram_vbase) {
-		printk(KERN_ERR "Cannot map CPM muram");
+		pr_err("Cannot map QE muram");
 		ret = -ENOMEM;
+		goto out_pool;
 	}
-
-out:
+	goto out_muram;
+out_pool:
+	gen_pool_destroy(muram_pool);
+out_muram:
 	of_node_put(np);
 	return ret;
 }
 
-/**
+/*
  * cpm_muram_alloc - allocate the requested size worth of multi-user ram
  * @size: number of bytes to allocate
  * @align: requested alignment, in bytes
@@ -143,14 +152,13 @@ unsigned long cpm_muram_alloc(unsigned long size, unsigned long align)
 {
 	unsigned long start;
 	unsigned long flags;
+	struct genpool_data_align muram_pool_data;
 
 	spin_lock_irqsave(&cpm_muram_lock, flags);
-	cpm_muram_info.alignment = align;
-	start = rh_alloc(&cpm_muram_info, size, "commproc");
-	if (!IS_ERR_VALUE(start))
-		memset_io(cpm_muram_addr(start), 0, size);
+	muram_pool_data.align = align;
+	start = cpm_muram_alloc_common(size, gen_pool_first_fit_align,
+				       &muram_pool_data);
 	spin_unlock_irqrestore(&cpm_muram_lock, flags);
-
 	return start;
 }
 EXPORT_SYMBOL(cpm_muram_alloc);
@@ -161,23 +169,31 @@ EXPORT_SYMBOL(cpm_muram_alloc);
  */
 int cpm_muram_free(unsigned long offset)
 {
-	int ret;
 	unsigned long flags;
+	int size;
+	struct muram_block *tmp;
 
+	size = 0;
 	spin_lock_irqsave(&cpm_muram_lock, flags);
-	ret = rh_free(&cpm_muram_info, offset);
+	list_for_each_entry(tmp, &muram_block_list, head) {
+		if (tmp->start == offset) {
+			size = tmp->size;
+			list_del(&tmp->head);
+			kfree(tmp);
+			break;
+		}
+	}
+	gen_pool_free(muram_pool, offset + GENPOOL_OFFSET, size);
 	spin_unlock_irqrestore(&cpm_muram_lock, flags);
-
-	return ret;
+	return size;
 }
 EXPORT_SYMBOL(cpm_muram_free);
 
-/**
+/*
  * cpm_muram_alloc_fixed - reserve a specific region of multi-user ram
- * @offset: the offset into the muram area to reserve
- * @size: the number of bytes to reserve
- *
- * This function returns "start" on success, -ENOMEM on failure.
+ * @offset: offset of allocation start address
+ * @size: number of bytes to allocate
+ * This function returns an offset into the muram area
  * Use cpm_dpram_addr() to get the virtual address of the area.
  * Use cpm_muram_free() to free the allocation.
  */
@@ -185,15 +201,49 @@ unsigned long cpm_muram_alloc_fixed(unsigned long offset, unsigned long size)
 {
 	unsigned long start;
 	unsigned long flags;
+	struct genpool_data_fixed muram_pool_data_fixed;
 
 	spin_lock_irqsave(&cpm_muram_lock, flags);
-	cpm_muram_info.alignment = 1;
-	start = rh_alloc_fixed(&cpm_muram_info, offset, size, "commproc");
+	muram_pool_data_fixed.offset = offset + GENPOOL_OFFSET;
+	start = cpm_muram_alloc_common(size, gen_pool_fixed_alloc,
+				       &muram_pool_data_fixed);
 	spin_unlock_irqrestore(&cpm_muram_lock, flags);
-
 	return start;
 }
 EXPORT_SYMBOL(cpm_muram_alloc_fixed);
+
+/*
+ * cpm_muram_alloc_common - cpm_muram_alloc common code
+ * @size: number of bytes to allocate
+ * @algo: algorithm for alloc.
+ * @data: data for genalloc's algorithm.
+ *
+ * This function returns an offset into the muram area.
+ */
+unsigned long cpm_muram_alloc_common(unsigned long size, genpool_algo_t algo,
+				     void *data)
+{
+	struct muram_block *entry;
+	unsigned long start;
+
+	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
+	if (!start)
+		goto out2;
+	start = start - GENPOOL_OFFSET;
+	memset_io(cpm_muram_addr(start), 0, size);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		goto out1;
+	entry->start = start;
+	entry->size = size;
+	list_add(&entry->head, &muram_block_list);
+
+	return start;
+out1:
+	gen_pool_free(muram_pool, start, size);
+out2:
+	return (unsigned long)-ENOMEM;
+}
 
 /**
  * cpm_muram_addr - turn a muram offset into a virtual address
