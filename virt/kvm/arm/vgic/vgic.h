@@ -73,4 +73,6 @@ static inline int vgic_register_redist_iodevs(struct kvm *kvm,
 }
 #endif
 
+void kvm_register_vgic_device(unsigned long type);
+
 #endif
