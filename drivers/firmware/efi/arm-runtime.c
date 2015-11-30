@@ -12,6 +12,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/mm_types.h>
 #include <linux/preempt.h>
@@ -23,18 +24,14 @@
 
 #include <asm/cacheflush.h>
 #include <asm/efi.h>
-#include <asm/tlbflush.h>
-#include <asm/mmu_context.h>
 #include <asm/mmu.h>
+#include <asm/pgalloc.h>
 #include <asm/pgtable.h>
-
-static pgd_t efi_pgd[PTRS_PER_PGD] __page_aligned_bss;
 
 extern u64 efi_system_table;
 
 static struct mm_struct efi_mm = {
 	.mm_rb			= RB_ROOT,
-	.pgd			= efi_pgd,
 	.mm_users		= ATOMIC_INIT(2),
 	.mm_count		= ATOMIC_INIT(1),
 	.mmap_sem		= __RWSEM_INITIALIZER(efi_mm.mmap_sem),
@@ -46,35 +43,27 @@ static bool __init efi_virtmap_init(void)
 {
 	efi_memory_desc_t *md;
 
+	efi_mm.pgd = pgd_alloc(&efi_mm);
 	init_new_context(NULL, &efi_mm);
 
 	for_each_efi_memory_desc(&memmap, md) {
-		pgprot_t prot;
+		phys_addr_t phys = md->phys_addr;
+		int ret;
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 		if (md->virt_addr == 0)
 			return false;
 
-		pr_info("  EFI remap 0x%016llx => %p\n",
-			md->phys_addr, (void *)md->virt_addr);
-
-		/*
-		 * Only regions of type EFI_RUNTIME_SERVICES_CODE need to be
-		 * executable, everything else can be mapped with the XN bits
-		 * set.
-		 */
-		if ((md->attribute & EFI_MEMORY_WB) == 0)
-			prot = __pgprot(PROT_DEVICE_nGnRE);
-		else if (md->type == EFI_RUNTIME_SERVICES_CODE ||
-			 !PAGE_ALIGNED(md->phys_addr))
-			prot = PAGE_KERNEL_EXEC;
-		else
-			prot = PAGE_KERNEL;
-
-		create_pgd_mapping(&efi_mm, md->phys_addr, md->virt_addr,
-				   md->num_pages << EFI_PAGE_SHIFT,
-				   __pgprot(pgprot_val(prot) | PTE_NG));
+		ret = efi_create_mapping(&efi_mm, md);
+		if  (!ret) {
+			pr_info("  EFI remap %pa => %p\n",
+				&phys, (void *)(unsigned long)md->virt_addr);
+		} else {
+			pr_warn("  EFI remap %pa: failed to create mapping (%d)\n",
+				&phys, ret);
+			return false;
+		}
 	}
 	return true;
 }
@@ -84,7 +73,7 @@ static bool __init efi_virtmap_init(void)
  * non-early mapping of the UEFI system table and virtual mappings for all
  * EFI_MEMORY_RUNTIME regions.
  */
-static int __init arm64_enable_runtime_services(void)
+static int __init arm_enable_runtime_services(void)
 {
 	u64 mapsize;
 
@@ -131,12 +120,7 @@ static int __init arm64_enable_runtime_services(void)
 
 	return 0;
 }
-early_initcall(arm64_enable_runtime_services);
-
-static void efi_set_pgd(struct mm_struct *mm)
-{
-	switch_mm(NULL, mm, NULL);
-}
+early_initcall(arm_enable_runtime_services);
 
 void efi_virtmap_load(void)
 {
