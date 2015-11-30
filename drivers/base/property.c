@@ -135,8 +135,9 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 		return of_property_read_bool(to_of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
 		return !acpi_node_prop_get(fwnode, propname, NULL);
-
-	return !!pset_prop_get(to_pset(fwnode), propname);
+	else if (is_pset(fwnode))
+		return !!pset_prop_get(to_pset(fwnode), propname);
+	return false;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_present);
 
@@ -494,9 +495,10 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 	else if (is_acpi_node(fwnode))
 		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
 					   val, 1);
-
-	return pset_prop_read_array(to_pset(fwnode), propname,
-				    DEV_PROP_STRING, val, 1);
+	else if (is_pset(fwnode))
+		return pset_prop_read_array(to_pset(fwnode), propname,
+					    DEV_PROP_STRING, val, 1);
+	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
 
