@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -25,14 +26,18 @@
 #define USB2_SPD_RSM_TIMSET	0x10c
 #define USB2_OC_TIMSET		0x110
 #define USB2_COMMCTRL		0x600
+#define USB2_OBINTSTA		0x604
+#define USB2_OBINTEN		0x608
 #define USB2_VBCTRL		0x60c
 #define USB2_LINECTRL1		0x610
 #define USB2_ADPCTRL		0x630
 
 /* INT_ENABLE */
+#define USB2_INT_ENABLE_UCOM_INTEN	BIT(3)
 #define USB2_INT_ENABLE_USBH_INTB_EN	BIT(2)
 #define USB2_INT_ENABLE_USBH_INTA_EN	BIT(1)
-#define USB2_INT_ENABLE_INIT		(USB2_INT_ENABLE_USBH_INTB_EN | \
+#define USB2_INT_ENABLE_INIT		(USB2_INT_ENABLE_UCOM_INTEN | \
+					 USB2_INT_ENABLE_USBH_INTB_EN | \
 					 USB2_INT_ENABLE_USBH_INTA_EN)
 
 /* USBCTR */
@@ -47,6 +52,12 @@
 
 /* COMMCTRL */
 #define USB2_COMMCTRL_OTG_PERI		BIT(31)	/* 1 = Peripheral mode */
+
+/* OBINTSTA and OBINTEN */
+#define USB2_OBINT_SESSVLDCHG		BIT(12)
+#define USB2_OBINT_IDDIGCHG		BIT(11)
+#define USB2_OBINT_BITS			(USB2_OBINT_SESSVLDCHG | \
+					 USB2_OBINT_IDDIGCHG)
 
 /* VBCTRL */
 #define USB2_VBCTRL_DRVVBUSSEL		BIT(8)
@@ -174,6 +185,9 @@ static void rcar_gen3_init_otg(struct rcar_gen3_chan *ch)
 
 	val = readl(usb2_base + USB2_VBCTRL);
 	writel(val | USB2_VBCTRL_DRVVBUSSEL, usb2_base + USB2_VBCTRL);
+	writel(USB2_OBINT_BITS, usb2_base + USB2_OBINTSTA);
+	val = readl(usb2_base + USB2_OBINTEN);
+	writel(val | USB2_OBINT_BITS, usb2_base + USB2_OBINTEN);
 	val = readl(usb2_base + USB2_ADPCTRL);
 	writel(val | USB2_ADPCTRL_IDPULLUP, usb2_base + USB2_ADPCTRL);
 	val = readl(usb2_base + USB2_LINECTRL1);
@@ -270,6 +284,23 @@ static struct phy_ops rcar_gen3_phy_usb2_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
+{
+	struct rcar_gen3_chan *ch = _ch;
+	void __iomem *usb2_base = ch->usb2.base;
+	u32 status = readl(usb2_base + USB2_OBINTSTA);
+	irqreturn_t ret = IRQ_NONE;
+
+	if (status & USB2_OBINT_BITS) {
+		dev_vdbg(&ch->phy->dev, "%s: %08x\n", __func__, status);
+		writel(USB2_OBINT_BITS, usb2_base + USB2_OBINTSTA);
+		rcar_gen3_device_recognition(ch);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
+
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
 	{ .compatible = "renesas,usb2-phy-r8a7795" },
 	{ }
@@ -302,9 +333,19 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 
 	/* To avoid error message by devm_ioremap_resource() */
 	if (res) {
+		int irq;
+
 		channel->hsusb.base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(channel->hsusb.base))
 			channel->hsusb.base = NULL;
+		/* call request_irq for OTG */
+		irq = platform_get_irq(pdev, 0);
+		if (irq >= 0)
+			irq = devm_request_irq(dev, irq, rcar_gen3_phy_usb2_irq,
+					       IRQF_SHARED, dev_name(dev),
+					       channel);
+		if (irq < 0)
+			dev_err(dev, "No irq handler (%d)\n", irq);
 	}
 
 	/* devm_phy_create() will call pm_runtime_enable(dev); */

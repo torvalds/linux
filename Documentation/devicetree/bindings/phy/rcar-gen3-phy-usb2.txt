@@ -18,6 +18,7 @@ properties. This is because HSUSB has registers to select USB 2.0 host or
 peripheral at that channel:
 - reg: offset and length of the partial HSUSB register block.
 - reg-names: must be "hsusb".
+- interrupts: interrupt specifier for the PHY.
 
 Example (R-Car H3):
 
@@ -25,6 +26,7 @@ Example (R-Car H3):
 		compatible = "renesas,usb2-phy-r8a7795";
 		reg = <0 0xee080200 0 0x700>, <0 0xe6590100 0 0x100>;
 		reg-names = "usb2_host", "hsusb";
+		interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7795_CLK_EHCI0>,
 			 <&mstp7_clks R8A7795_CLK_HSUSB>;
 	};
