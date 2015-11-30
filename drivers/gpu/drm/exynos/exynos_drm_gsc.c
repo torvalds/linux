@@ -1713,7 +1713,6 @@ static int gsc_probe(struct platform_device *pdev)
 	mutex_init(&ctx->lock);
 	platform_set_drvdata(pdev, ctx);
 
-	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
 	ret = exynos_drm_ippdrv_register(ippdrv);
