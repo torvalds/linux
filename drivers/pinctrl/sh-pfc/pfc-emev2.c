@@ -749,7 +749,7 @@ static const unsigned int cf_ctrl_mux[] = {
 };
 
 static const unsigned int cf_data8_pins[] = {
-	/* CF_D[0:8] */
+	/* CF_D[0:7] */
 	77, 78, 79, 80,
 	81, 82, 83, 84,
 };
