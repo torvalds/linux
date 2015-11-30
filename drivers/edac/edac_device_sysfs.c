@@ -237,11 +237,6 @@ int edac_device_register_sysfs_main_kobj(struct edac_device_ctl_info *edac_dev)
 
 	/* get the /sys/devices/system/edac reference */
 	edac_subsys = edac_get_sysfs_subsys();
-	if (edac_subsys == NULL) {
-		edac_dbg(1, "no edac_subsys error\n");
-		err = -ENODEV;
-		goto err_out;
-	}
 
 	/* Point to the 'edac_subsys' this instance 'reports' to */
 	edac_dev->edac_subsys = edac_subsys;

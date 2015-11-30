@@ -331,10 +331,7 @@ static struct kobj_type ktype_edac_pci_main_kobj = {
 };
 
 /**
- * edac_pci_main_kobj_setup()
- *
- *	setup the sysfs for EDAC PCI attributes
- *	assumes edac_subsys has already been initialized
+ * edac_pci_main_kobj_setup: Setup the sysfs for EDAC PCI attributes.
  */
 static int edac_pci_main_kobj_setup(void)
 {
@@ -351,11 +348,6 @@ static int edac_pci_main_kobj_setup(void)
 	 * controls and attributes
 	 */
 	edac_subsys = edac_get_sysfs_subsys();
-	if (edac_subsys == NULL) {
-		edac_dbg(1, "no edac_subsys\n");
-		err = -ENODEV;
-		goto decrement_count_fail;
-	}
 
 	/* Bump the reference count on this module to ensure the
 	 * modules isn't unloaded until we deconstruct the top
