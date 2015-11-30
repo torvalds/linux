@@ -27,6 +27,7 @@
 #include "hyperv.h"
 
 #include <linux/kvm_host.h>
+#include <linux/highmem.h>
 #include <asm/apicdef.h>
 #include <trace/events/kvm.h>
 
@@ -116,12 +117,42 @@ static struct kvm_vcpu_hv_synic *synic_get(struct kvm *kvm, u32 vcpu_id)
 	return (synic->active) ? synic : NULL;
 }
 
+static void synic_clear_sint_msg_pending(struct kvm_vcpu_hv_synic *synic,
+					u32 sint)
+{
+	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
+	struct page *page;
+	gpa_t gpa;
+	struct hv_message *msg;
+	struct hv_message_page *msg_page;
+
+	gpa = synic->msg_page & PAGE_MASK;
+	page = kvm_vcpu_gfn_to_page(vcpu, gpa >> PAGE_SHIFT);
+	if (is_error_page(page)) {
+		vcpu_err(vcpu, "Hyper-V SynIC can't get msg page, gpa 0x%llx\n",
+			 gpa);
+		return;
+	}
+	msg_page = kmap_atomic(page);
+
+	msg = &msg_page->sint_message[sint];
+	msg->header.message_flags.msg_pending = 0;
+
+	kunmap_atomic(msg_page);
+	kvm_release_page_dirty(page);
+	kvm_vcpu_mark_page_dirty(vcpu, gpa >> PAGE_SHIFT);
+}
+
 static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 {
 	struct kvm *kvm = vcpu->kvm;
+	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
 	int gsi, idx;
 
 	vcpu_debug(vcpu, "Hyper-V SynIC acked sint %d\n", sint);
+
+	if (synic->msg_page & HV_SYNIC_SIMP_ENABLE)
+		synic_clear_sint_msg_pending(synic, sint);
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = atomic_read(&vcpu_to_synic(vcpu)->sint_to_gsi[sint]);
