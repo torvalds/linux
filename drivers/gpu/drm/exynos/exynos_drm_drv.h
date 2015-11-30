@@ -84,8 +84,27 @@ to_exynos_plane_state(struct drm_plane_state *state)
 
 struct exynos_drm_plane {
 	struct drm_plane base;
+	const struct exynos_drm_plane_config *config;
 	unsigned int zpos;
 	struct drm_framebuffer *pending_fb;
+};
+
+/*
+ * Exynos DRM plane configuration structure.
+ *
+ * @zpos: z-position of the plane.
+ * @type: type of the plane (primary, cursor or overlay).
+ * @pixel_formats: supported pixel formats.
+ * @num_pixel_formats: number of elements in 'pixel_formats'.
+ * @capabilities: supported features (see EXYNOS_DRM_PLANE_CAP_*)
+ */
+
+struct exynos_drm_plane_config {
+	unsigned int zpos;
+	enum drm_plane_type type;
+	const uint32_t *pixel_formats;
+	unsigned int num_pixel_formats;
+	unsigned int capabilities;
 };
 
 /*

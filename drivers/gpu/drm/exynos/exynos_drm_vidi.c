@@ -30,7 +30,6 @@
 
 /* vidi has totally three virtual windows. */
 #define WINDOWS_NR		3
-#define CURSOR_WIN		2
 
 #define ctx_from_connector(c)	container_of(c, struct vidi_context, \
 					connector)
@@ -88,6 +87,12 @@ static const uint32_t formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_NV12,
+};
+
+static const enum drm_plane_type vidi_win_types[WINDOWS_NR] = {
+	DRM_PLANE_TYPE_PRIMARY,
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_CURSOR,
 };
 
 static int vidi_enable_vblank(struct exynos_drm_crtc *crtc)
@@ -443,17 +448,21 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &ctx->encoder;
 	struct exynos_drm_plane *exynos_plane;
-	enum drm_plane_type type;
-	unsigned int zpos;
+	struct exynos_drm_plane_config plane_config = { 0 };
+	unsigned int i;
 	int pipe, ret;
 
 	vidi_ctx_initialize(ctx, drm_dev);
 
-	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = exynos_plane_get_type(zpos, CURSOR_WIN);
-		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type, formats,
-					ARRAY_SIZE(formats), zpos);
+	plane_config.pixel_formats = formats;
+	plane_config.num_pixel_formats = ARRAY_SIZE(formats);
+
+	for (i = 0; i < WINDOWS_NR; i++) {
+		plane_config.zpos = i;
+		plane_config.type = vidi_win_types[i];
+
+		ret = exynos_plane_init(drm_dev, &ctx->planes[i],
+					1 << ctx->pipe, &plane_config);
 		if (ret)
 			return ret;
 	}

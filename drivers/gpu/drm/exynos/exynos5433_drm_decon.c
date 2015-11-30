@@ -26,7 +26,6 @@
 #include "exynos_drm_iommu.h"
 
 #define WINDOWS_NR	3
-#define CURSOR_WIN	2
 #define MIN_FB_WIDTH_FOR_16WORD_BURST	128
 
 static const char * const decon_clks_name[] = {
@@ -57,6 +56,7 @@ struct decon_context {
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
+	struct exynos_drm_plane_config	configs[WINDOWS_NR];
 	void __iomem			*addr;
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
 	int				pipe;
@@ -70,6 +70,12 @@ static const uint32_t decon_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
+};
+
+static const enum drm_plane_type decon_win_types[WINDOWS_NR] = {
+	DRM_PLANE_TYPE_PRIMARY,
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_CURSOR,
 };
 
 static inline void decon_set_bits(struct decon_context *ctx, u32 reg, u32 mask,
@@ -482,7 +488,6 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct exynos_drm_plane *exynos_plane;
 	enum exynos_drm_output_type out_type;
-	enum drm_plane_type type;
 	unsigned int win;
 	int ret;
 
@@ -492,10 +497,13 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	for (win = ctx->first_win; win < WINDOWS_NR; win++) {
 		int tmp = (win == ctx->first_win) ? 0 : win;
 
-		type = exynos_plane_get_type(tmp, CURSOR_WIN);
+		ctx->configs[win].pixel_formats = decon_formats;
+		ctx->configs[win].num_pixel_formats = ARRAY_SIZE(decon_formats);
+		ctx->configs[win].zpos = win;
+		ctx->configs[win].type = decon_win_types[tmp];
+
 		ret = exynos_plane_init(drm_dev, &ctx->planes[win],
-				1 << ctx->pipe, type, decon_formats,
-				ARRAY_SIZE(decon_formats), win);
+					1 << ctx->pipe, &ctx->configs[win]);
 		if (ret)
 			return ret;
 	}

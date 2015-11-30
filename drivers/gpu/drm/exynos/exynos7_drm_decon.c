@@ -41,13 +41,13 @@
 #define MIN_FB_WIDTH_FOR_16WORD_BURST 128
 
 #define WINDOWS_NR	2
-#define CURSOR_WIN	1
 
 struct decon_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
+	struct exynos_drm_plane_config	configs[WINDOWS_NR];
 	struct clk			*pclk;
 	struct clk			*aclk;
 	struct clk			*eclk;
@@ -80,6 +80,11 @@ static const uint32_t decon_formats[] = {
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_RGBA8888,
 	DRM_FORMAT_BGRA8888,
+};
+
+static const enum drm_plane_type decon_win_types[WINDOWS_NR] = {
+	DRM_PLANE_TYPE_PRIMARY,
+	DRM_PLANE_TYPE_CURSOR,
 };
 
 static void decon_wait_for_vblank(struct exynos_drm_crtc *crtc)
@@ -637,8 +642,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	struct decon_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_plane *exynos_plane;
-	enum drm_plane_type type;
-	unsigned int zpos;
+	unsigned int i;
 	int ret;
 
 	ret = decon_ctx_initialize(ctx, drm_dev);
@@ -647,11 +651,14 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = exynos_plane_get_type(zpos, CURSOR_WIN);
-		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type, decon_formats,
-					ARRAY_SIZE(decon_formats), zpos);
+	for (i = 0; i < WINDOWS_NR; i++) {
+		ctx->configs[i].pixel_formats = decon_formats;
+		ctx->configs[i].num_pixel_formats = ARRAY_SIZE(decon_formats);
+		ctx->configs[i].zpos = i;
+		ctx->configs[i].type = decon_win_types[i];
+
+		ret = exynos_plane_init(drm_dev, &ctx->planes[i],
+					1 << ctx->pipe, &ctx->configs[i]);
 		if (ret)
 			return ret;
 	}

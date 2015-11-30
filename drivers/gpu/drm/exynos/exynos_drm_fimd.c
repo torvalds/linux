@@ -88,7 +88,6 @@
 
 /* FIMD has totally five hardware windows. */
 #define WINDOWS_NR	5
-#define CURSOR_WIN	4
 
 struct fimd_driver_data {
 	unsigned int timing_base;
@@ -151,6 +150,7 @@ struct fimd_context {
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
+	struct exynos_drm_plane_config	configs[WINDOWS_NR];
 	struct clk			*bus_clk;
 	struct clk			*lcd_clk;
 	void __iomem			*regs;
@@ -187,6 +187,14 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
+
+static const enum drm_plane_type fimd_win_types[WINDOWS_NR] = {
+	DRM_PLANE_TYPE_PRIMARY,
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_CURSOR,
+};
 
 static const uint32_t fimd_formats[] = {
 	DRM_FORMAT_C8,
@@ -927,18 +935,19 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct exynos_drm_plane *exynos_plane;
-	enum drm_plane_type type;
-	unsigned int zpos;
+	unsigned int i;
 	int ret;
 
 	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
 
-	for (zpos = 0; zpos < WINDOWS_NR; zpos++) {
-		type = exynos_plane_get_type(zpos, CURSOR_WIN);
-		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type, fimd_formats,
-					ARRAY_SIZE(fimd_formats), zpos);
+	for (i = 0; i < WINDOWS_NR; i++) {
+		ctx->configs[i].pixel_formats = fimd_formats;
+		ctx->configs[i].num_pixel_formats = ARRAY_SIZE(fimd_formats);
+		ctx->configs[i].zpos = i;
+		ctx->configs[i].type = fimd_win_types[i];
+		ret = exynos_plane_init(drm_dev, &ctx->planes[i],
+					1 << ctx->pipe, &ctx->configs[i]);
 		if (ret)
 			return ret;
 	}

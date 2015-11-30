@@ -246,28 +246,20 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
 	drm_object_attach_property(&plane->base, prop, zpos);
 }
 
-enum drm_plane_type exynos_plane_get_type(unsigned int zpos,
-					  unsigned int cursor_win)
-{
-		if (zpos == DEFAULT_WIN)
-			return DRM_PLANE_TYPE_PRIMARY;
-		else if (zpos == cursor_win)
-			return DRM_PLANE_TYPE_CURSOR;
-		else
-			return DRM_PLANE_TYPE_OVERLAY;
-}
-
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane,
-		      unsigned long possible_crtcs, enum drm_plane_type type,
-		      const uint32_t *formats, unsigned int fcount,
-		      unsigned int zpos)
+		      unsigned long possible_crtcs,
+		      const struct exynos_drm_plane_config *config)
 {
 	int err;
 
-	err = drm_universal_plane_init(dev, &exynos_plane->base, possible_crtcs,
-				       &exynos_plane_funcs, formats, fcount,
-				       type);
+	err = drm_universal_plane_init(dev, &exynos_plane->base,
+				       possible_crtcs,
+				       &exynos_plane_funcs,
+				       config->pixel_formats,
+				       config->num_pixel_formats,
+				       config->type);
+
 	if (err) {
 		DRM_ERROR("failed to initialize plane\n");
 		return err;
@@ -275,10 +267,12 @@ int exynos_plane_init(struct drm_device *dev,
 
 	drm_plane_helper_add(&exynos_plane->base, &plane_helper_funcs);
 
-	exynos_plane->zpos = zpos;
+	exynos_plane->zpos = config->zpos;
+	exynos_plane->config = config;
 
-	if (type == DRM_PLANE_TYPE_OVERLAY)
-		exynos_plane_attach_zpos_property(&exynos_plane->base, zpos);
+	if (config->type == DRM_PLANE_TYPE_OVERLAY)
+		exynos_plane_attach_zpos_property(&exynos_plane->base,
+						  config->zpos);
 
 	return 0;
 }
