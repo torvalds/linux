@@ -394,7 +394,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
 	struct decon_context *ctx = crtc->ctx;
-	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
 	struct drm_plane_state *state = plane->base.state;
 	int padding;
 	unsigned long val, alpha;
@@ -435,15 +434,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			(unsigned long)val);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
 			plane->crtc_w, plane->crtc_h);
-
-	/*
-	 * OSD position.
-	 * In case the window layout goes of LCD layout, DECON fails.
-	 */
-	if ((plane->crtc_x + plane->crtc_w) > mode->hdisplay)
-		plane->crtc_x = mode->hdisplay - plane->crtc_w;
-	if ((plane->crtc_y + plane->crtc_h) > mode->vdisplay)
-		plane->crtc_y = mode->vdisplay - plane->crtc_h;
 
 	val = VIDOSDxA_TOPLEFT_X(plane->crtc_x) |
 		VIDOSDxA_TOPLEFT_Y(plane->crtc_y);
