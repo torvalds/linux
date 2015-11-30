@@ -415,6 +415,11 @@
 			soc_pinctrl: pin-controller {
 				compatible = "marvell,berlin2q-soc-pinctrl";
 
+				sd1_pmux: sd1-pmux {
+					groups = "G31";
+					function = "sd1";
+				};
+
 				twsi0_pmux: twsi0-pmux {
 					groups = "G6";
 					function = "twsi0";
