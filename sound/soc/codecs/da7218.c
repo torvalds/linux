@@ -3211,9 +3211,9 @@ static bool da7218_volatile_register(struct device *dev, unsigned int reg)
 	case DA7218_HPLDET_TEST:
 	case DA7218_EVENT_STATUS:
 	case DA7218_EVENT:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
