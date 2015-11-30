@@ -501,7 +501,7 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 			if (len == 0 || len > I2C_SMBUS_BLOCK_MAX)
 				return -EINVAL;
 			outb_p(len, SMBHSTDAT0);
-			i = inb_p(SMBHSTCNT);	/* Reset SMBBLKDAT */
+			inb_p(SMBHSTCNT);	/* Reset SMBBLKDAT */
 			for (i = 1; i <= len; i++)
 				outb_p(data->block[i], SMBBLKDAT);
 		}
@@ -534,7 +534,7 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		data->block[0] = inb_p(SMBHSTDAT0);
 		if (data->block[0] == 0 || data->block[0] > I2C_SMBUS_BLOCK_MAX)
 			return -EPROTO;
-		i = inb_p(SMBHSTCNT);	/* Reset SMBBLKDAT */
+		inb_p(SMBHSTCNT);	/* Reset SMBBLKDAT */
 		for (i = 1; i <= data->block[0]; i++)
 			data->block[i] = inb_p(SMBBLKDAT);
 		break;
