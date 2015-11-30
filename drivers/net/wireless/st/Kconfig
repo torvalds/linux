@@ -1,5 +1,5 @@
-config WLAN_VENDOR_MEDIATEK
-	bool "MediaTek devices"
+config WLAN_VENDOR_ST
+	bool "STMicroelectronics devices"
 	default y
 	---help---
 	  If you have a wireless card belonging to this class, say Y.
@@ -9,6 +9,8 @@ config WLAN_VENDOR_MEDIATEK
 	  the questions about  cards. If you say Y, you will be asked for
 	  your specific card in the following questions.
 
-if WLAN_VENDOR_MEDIATEK
-source "drivers/net/wireless/mediatek/mt7601u/Kconfig"
-endif # WLAN_VENDOR_MEDIATEK
+if WLAN_VENDOR_ST
+
+source "drivers/net/wireless/st/cw1200/Kconfig"
+
+endif # WLAN_VENDOR_ST

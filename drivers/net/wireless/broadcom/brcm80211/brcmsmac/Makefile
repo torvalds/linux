@@ -1,7 +1,7 @@
 #
-# Makefile fragment for Broadcom 802.11n Networking Device Driver Utilities
+# Makefile fragment for Broadcom 802.11n Networking Device Driver
 #
-# Copyright (c) 2011 Broadcom Corporation
+# Copyright (c) 2010 Broadcom Corporation
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,9 +15,34 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-ccflags-y :=				\
-	-Idrivers/net/wireless/brcm80211/brcmutil \
-	-Idrivers/net/wireless/brcm80211/include
+ccflags-y := \
+	-D__CHECK_ENDIAN__ \
+	-Idrivers/net/wireless/broadcom/brcm80211/brcmsmac \
+	-Idrivers/net/wireless/broadcom/brcm80211/brcmsmac/phy \
+	-Idrivers/net/wireless/broadcom/brcm80211/include
 
-obj-$(CONFIG_BRCMUTIL)	+= brcmutil.o
-brcmutil-objs	= utils.o d11.o
+brcmsmac-y := \
+	mac80211_if.o \
+	ucode_loader.o \
+	ampdu.o \
+	antsel.o \
+	channel.o \
+	main.o \
+	phy_shim.o \
+	pmu.o \
+	rate.o \
+	stf.o \
+	aiutils.o \
+	phy/phy_cmn.o \
+	phy/phy_lcn.o \
+	phy/phy_n.o \
+	phy/phytbl_lcn.o \
+	phy/phytbl_n.o \
+	phy/phy_qmath.o \
+	dma.o \
+	brcms_trace_events.o \
+	debug.o
+
+brcmsmac-$(CONFIG_BCMA_DRIVER_GPIO) += led.o
+
+obj-$(CONFIG_BRCMSMAC)	+= brcmsmac.o
