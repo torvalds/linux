@@ -97,10 +97,14 @@ static void rsnd_dvc_volume_init(struct rsnd_dai_stream *io,
 				 struct rsnd_mod *mod)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u32 adinr = 0;
 	u32 dvucr = 0;
 	u32 vrctr = 0;
 	u32 vrpdr = 0;
 	u32 vrdbr = 0;
+
+	adinr = rsnd_get_adinr_bit(mod, io) |
+		rsnd_get_adinr_chan(mod, io);
 
 	/* Enable Digital Volume, Zero Cross Mute Mode */
 	dvucr |= 0x101;
@@ -124,7 +128,7 @@ static void rsnd_dvc_volume_init(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, DVC_DVUIR, 1);
 
 	/* General Information */
-	rsnd_mod_write(mod, DVC_ADINR, rsnd_get_adinr_bit(mod, io));
+	rsnd_mod_write(mod, DVC_ADINR, adinr);
 	rsnd_mod_write(mod, DVC_DVUCR, dvucr);
 
 	/* Volume Ramp Parameter */
