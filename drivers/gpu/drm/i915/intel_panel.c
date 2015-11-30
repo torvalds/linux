@@ -1352,13 +1352,19 @@ static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 
 /*
  * Gen4: This value represents the period of the PWM stream in display core
- * clocks multiplied by 128.
+ * clocks ([DevCTG] HRAW clocks) multiplied by 128.
+ *
  */
 static u32 i965_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int clock = 1000 * dev_priv->display.get_display_clock_speed(dev);
+	int clock;
+
+	if (IS_G4X(dev_priv))
+		clock = MHz(intel_hrawclk(dev));
+	else
+		clock = 1000 * dev_priv->display.get_display_clock_speed(dev);
 
 	return clock / (pwm_freq_hz * 128);
 }
