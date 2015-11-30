@@ -18,6 +18,7 @@
 #define _ROCKCHIP_DRM_DRV_H
 
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem.h>
 
 #include <linux/module.h>
@@ -38,6 +39,7 @@ struct drm_connector;
 struct rockchip_crtc_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
+	void (*wait_for_update)(struct drm_crtc *crtc);
 };
 
 /*
@@ -63,5 +65,4 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev);
-
 #endif /* _ROCKCHIP_DRM_DRV_H_ */

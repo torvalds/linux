@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <drm/drm.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -166,9 +167,103 @@ static void rockchip_drm_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(fb_helper);
 }
 
+static void rockchip_crtc_wait_for_update(struct drm_crtc *crtc)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+	const struct rockchip_crtc_funcs *crtc_funcs = priv->crtc_funcs[pipe];
+
+	if (crtc_funcs && crtc_funcs->wait_for_update)
+		crtc_funcs->wait_for_update(crtc);
+}
+
+static void
+rockchip_atomic_wait_for_complete(struct drm_atomic_state *old_state)
+{
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc *crtc;
+	int i, ret;
+
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		/* No one cares about the old state, so abuse it for tracking
+		 * and store whether we hold a vblank reference (and should do a
+		 * vblank wait) in the ->enable boolean.
+		 */
+		old_crtc_state->enable = false;
+
+		if (!crtc->state->active)
+			continue;
+
+		ret = drm_crtc_vblank_get(crtc);
+		if (ret != 0)
+			continue;
+
+		old_crtc_state->enable = true;
+	}
+
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		if (!old_crtc_state->enable)
+			continue;
+
+		rockchip_crtc_wait_for_update(crtc);
+		drm_crtc_vblank_put(crtc);
+	}
+}
+
+int rockchip_drm_atomic_commit(struct drm_device *dev,
+			       struct drm_atomic_state *state,
+			       bool async)
+{
+	int ret;
+
+	if (async)
+		return -EBUSY;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	drm_atomic_helper_swap_state(dev, state);
+
+	/*
+	 * TODO: do fence wait here.
+	 */
+
+	/*
+	 * Rockchip crtc support runtime PM, can't update display planes
+	 * when crtc is disabled.
+	 *
+	 * drm_atomic_helper_commit comments detail that:
+	 *     For drivers supporting runtime PM the recommended sequence is
+	 *
+	 *     drm_atomic_helper_commit_modeset_disables(dev, state);
+	 *
+	 *     drm_atomic_helper_commit_modeset_enables(dev, state);
+	 *
+	 *     drm_atomic_helper_commit_planes(dev, state, true);
+	 *
+	 * See the kerneldoc entries for these three functions for more details.
+	 */
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	drm_atomic_helper_commit_planes(dev, state, true);
+
+	rockchip_atomic_wait_for_complete(state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
+
+	drm_atomic_state_free(state);
+
+	return 0;
+}
+
 static const struct drm_mode_config_funcs rockchip_drm_mode_config_funcs = {
 	.fb_create = rockchip_user_fb_create,
 	.output_poll_changed = rockchip_drm_output_poll_changed,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = rockchip_drm_atomic_commit,
 };
 
 struct drm_framebuffer *
