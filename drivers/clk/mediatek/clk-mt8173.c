@@ -1095,6 +1095,11 @@ static void __init mtk_apmixedsys_init(struct device_node *node)
 		clk_data->clks[cku->id] = clk;
 	}
 
+	clk = clk_register_divider(NULL, "hdmi_ref", "tvdpll_594m", 0,
+				   base + 0x40, 16, 3, CLK_DIVIDER_POWER_OF_TWO,
+				   NULL);
+	clk_data->clks[CLK_APMIXED_HDMI_REF] = clk;
+
 	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",
