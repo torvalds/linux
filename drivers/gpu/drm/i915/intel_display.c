@@ -14800,9 +14800,6 @@ static void intel_init_display(struct drm_device *dev)
 	else if (IS_I945GM(dev) || IS_845G(dev))
 		dev_priv->display.get_display_clock_speed =
 			i9xx_misc_get_display_clock_speed;
-	else if (IS_PINEVIEW(dev))
-		dev_priv->display.get_display_clock_speed =
-			pnv_get_display_clock_speed;
 	else if (IS_I915GM(dev))
 		dev_priv->display.get_display_clock_speed =
 			i915gm_get_display_clock_speed;
