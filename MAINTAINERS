@@ -3094,6 +3094,15 @@ S:	Maintained
 F:	crypto/ansi_cprng.c
 F:	crypto/rng.c
 
+CS3308 MEDIA DRIVER
+M:	Hans Verkuil <hverkuil@xs4all.nl>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+W:	http://linuxtv.org
+S:	Odd Fixes
+F:	drivers/media/i2c/cs3308.c
+F:	drivers/media/i2c/cs3308.h
+
 CS5535 Audio ALSA driver
 M:	Jaya Kumar <jayakumar.alsa@gmail.com>
 S:	Maintained
