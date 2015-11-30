@@ -400,29 +400,29 @@ int device_property_match_string(struct device *dev, const char *propname,
 }
 EXPORT_SYMBOL_GPL(device_property_match_string);
 
-#define OF_DEV_PROP_READ_ARRAY(node, propname, type, val, nval) \
-	(val) ? of_property_read_##type##_array((node), (propname), (val), (nval)) \
+#define OF_DEV_PROP_READ_ARRAY(node, propname, type, val, nval)				\
+	(val) ? of_property_read_##type##_array((node), (propname), (val), (nval))	\
 	      : of_property_count_elems_of_size((node), (propname), sizeof(type))
 
 #define PSET_PROP_READ_ARRAY(node, propname, type, val, nval)				\
 	(val) ? pset_prop_read_##type##_array((node), (propname), (val), (nval))	\
 	      : pset_prop_count_elems_of_size((node), (propname), sizeof(type))
 
-#define FWNODE_PROP_READ_ARRAY(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_) \
-({ \
-	int _ret_; \
-	if (is_of_node(_fwnode_)) \
-		_ret_ = OF_DEV_PROP_READ_ARRAY(to_of_node(_fwnode_), _propname_, \
-					       _type_, _val_, _nval_); \
-	else if (is_acpi_node(_fwnode_)) \
-		_ret_ = acpi_node_prop_read(_fwnode_, _propname_, _proptype_, \
-					    _val_, _nval_); \
+#define FWNODE_PROP_READ_ARRAY(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_)	\
+({											\
+	int _ret_;									\
+	if (is_of_node(_fwnode_))							\
+		_ret_ = OF_DEV_PROP_READ_ARRAY(to_of_node(_fwnode_), _propname_,	\
+					       _type_, _val_, _nval_);			\
+	else if (is_acpi_node(_fwnode_))						\
+		_ret_ = acpi_node_prop_read(_fwnode_, _propname_, _proptype_,		\
+					    _val_, _nval_);				\
 	else if (is_pset_node(_fwnode_)) 						\
 		_ret_ = PSET_PROP_READ_ARRAY(to_pset_node(_fwnode_), _propname_,	\
 					     _type_, _val_, _nval_);			\
-	else \
-		_ret_ = -ENXIO; \
-	_ret_; \
+	else										\
+		_ret_ = -ENXIO;								\
+	_ret_;										\
 })
 
 /**
