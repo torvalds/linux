@@ -95,11 +95,10 @@ static void edac_workqueue_teardown(void)
  * sysfs object: /sys/devices/system/edac
  *	need to export to other files
  */
-struct bus_type edac_subsys = {
+static struct bus_type edac_subsys = {
 	.name = "edac",
 	.dev_name = "edac",
 };
-EXPORT_SYMBOL_GPL(edac_subsys);
 
 static int edac_subsys_init(void)
 {
