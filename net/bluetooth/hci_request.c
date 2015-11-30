@@ -2181,7 +2181,6 @@ static void discov_off(struct work_struct *work)
 static int powered_update_hci(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct adv_info *adv_instance;
 	u8 link_sec;
 
 	hci_dev_lock(hdev);
@@ -2216,32 +2215,27 @@ static int powered_update_hci(struct hci_request *req, unsigned long opt)
 				    sizeof(cp), &cp);
 	}
 
-	if (lmp_le_capable(hdev)) {
+	if (hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
 		/* Make sure the controller has a good default for
 		 * advertising data. This also applies to the case
 		 * where BR/EDR was toggled during the AUTO_OFF phase.
 		 */
-		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED) &&
-		    (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-		     list_empty(&hdev->adv_instances))) {
-			__hci_req_update_adv_data(req, HCI_ADV_CURRENT);
-			__hci_req_update_scan_rsp_data(req, HCI_ADV_CURRENT);
-		}
+		if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
+		    list_empty(&hdev->adv_instances)) {
+			__hci_req_update_adv_data(req, 0x00);
+			__hci_req_update_scan_rsp_data(req, 0x00);
 
-		if (hdev->cur_adv_instance == 0x00 &&
-		    !list_empty(&hdev->adv_instances)) {
+			if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
+				__hci_req_enable_advertising(req);
+		} else if (!list_empty(&hdev->adv_instances)) {
+			struct adv_info *adv_instance;
+
 			adv_instance = list_first_entry(&hdev->adv_instances,
 							struct adv_info, list);
-			hdev->cur_adv_instance = adv_instance->instance;
-		}
-
-		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
-			__hci_req_enable_advertising(req);
-		else if (!list_empty(&hdev->adv_instances) &&
-			 hdev->cur_adv_instance)
 			__hci_req_schedule_adv_instance(req,
-							hdev->cur_adv_instance,
+							adv_instance->instance,
 							true);
+		}
 	}
 
 	link_sec = hci_dev_test_flag(hdev, HCI_LINK_SECURITY);
