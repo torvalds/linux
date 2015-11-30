@@ -174,7 +174,7 @@ union hv_message_flags {
 
 /* Define synthetic interrupt controller message header. */
 struct hv_message_header {
-	enum hv_message_type message_type;
+	u32 message_type;
 	u8 payload_size;
 	union hv_message_flags message_flags;
 	u8 reserved[2];
@@ -347,7 +347,7 @@ enum hv_call_code {
 struct hv_input_post_message {
 	union hv_connection_id connectionid;
 	u32 reserved;
-	enum hv_message_type message_type;
+	u32 message_type;
 	u32 payload_size;
 	u64 payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
 };
