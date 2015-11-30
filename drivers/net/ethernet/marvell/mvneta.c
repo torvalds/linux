@@ -1580,11 +1580,15 @@ static int mvneta_rx(struct mvneta_port *pp, int rx_todo,
 		}
 
 		skb = build_skb(data, pp->frag_size > PAGE_SIZE ? 0 : pp->frag_size);
-		if (!skb)
-			goto err_drop_frame;
 
+		/* After refill old buffer has to be unmapped regardless
+		 * the skb is successfully built or not.
+		 */
 		dma_unmap_single(dev->dev.parent, phys_addr,
 				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
+
+		if (!skb)
+			goto err_drop_frame;
 
 		rcvd_pkts++;
 		rcvd_bytes += rx_bytes;
