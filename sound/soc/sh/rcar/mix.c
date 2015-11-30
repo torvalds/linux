@@ -24,7 +24,7 @@ struct rsnd_mix {
 		     ((pos) = (struct rsnd_mix *)(priv)->mix + i);	\
 	     i++)
 
-static void rsnd_mix_soft_reset(struct rsnd_mod *mod)
+static void rsnd_mix_activation(struct rsnd_mod *mod)
 {
 	rsnd_mod_write(mod, MIX_SWRSR, 0);
 	rsnd_mod_write(mod, MIX_SWRSR, 1);
@@ -83,7 +83,7 @@ static int rsnd_mix_init(struct rsnd_mod *mod,
 {
 	rsnd_mod_power_on(mod);
 
-	rsnd_mix_soft_reset(mod);
+	rsnd_mix_activation(mod);
 
 	rsnd_mix_volume_init(io, mod);
 
