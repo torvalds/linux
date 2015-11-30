@@ -70,7 +70,7 @@ struct rsnd_src {
  *        |-----------------|
  */
 
-static void rsnd_src_soft_reset(struct rsnd_mod *mod)
+static void rsnd_src_activation(struct rsnd_mod *mod)
 {
 	rsnd_mod_write(mod, SRC_SWRSR, 0);
 	rsnd_mod_write(mod, SRC_SWRSR, 1);
@@ -378,7 +378,7 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 
 	rsnd_mod_power_on(mod);
 
-	rsnd_src_soft_reset(mod);
+	rsnd_src_activation(mod);
 
 	rsnd_src_set_convert_rate(io, mod);
 
