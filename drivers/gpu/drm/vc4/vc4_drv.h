@@ -76,6 +76,11 @@ struct vc4_dev {
 	wait_queue_head_t job_wait_queue;
 	struct work_struct job_done_work;
 
+	/* List of struct vc4_seqno_cb for callbacks to be made from a
+	 * workqueue when the given seqno is passed.
+	 */
+	struct list_head seqno_cb_list;
+
 	/* The binner overflow memory that's currently set up in
 	 * BPOA/BPOS registers.  When overflow occurs and a new one is
 	 * allocated, the previous one will be moved to
@@ -127,6 +132,12 @@ to_vc4_bo(struct drm_gem_object *bo)
 {
 	return (struct vc4_bo *)bo;
 }
+
+struct vc4_seqno_cb {
+	struct work_struct work;
+	uint64_t seqno;
+	void (*func)(struct vc4_seqno_cb *cb);
+};
 
 struct vc4_v3d {
 	struct platform_device *pdev;
@@ -384,6 +395,9 @@ void vc4_submit_next_job(struct drm_device *dev);
 int vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno,
 		       uint64_t timeout_ns, bool interruptible);
 void vc4_job_handle_completed(struct vc4_dev *vc4);
+int vc4_queue_seqno_cb(struct drm_device *dev,
+		       struct vc4_seqno_cb *cb, uint64_t seqno,
+		       void (*func)(struct vc4_seqno_cb *cb));
 
 /* vc4_hdmi.c */
 extern struct platform_driver vc4_hdmi_driver;
@@ -409,6 +423,8 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				 enum drm_plane_type type);
 u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist);
 u32 vc4_plane_dlist_size(struct drm_plane_state *state);
+void vc4_plane_async_set_fb(struct drm_plane *plane,
+			    struct drm_framebuffer *fb);
 
 /* vc4_v3d.c */
 extern struct platform_driver vc4_v3d_driver;
