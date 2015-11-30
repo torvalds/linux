@@ -46,6 +46,7 @@ FEATURE_TESTS_BASIC :=			\
 	libpython			\
 	libpython-version		\
 	libslang			\
+	libcrypto			\
 	libunwind			\
 	pthread-attr-setaffinity-np	\
 	stackprotector-all		\
@@ -87,6 +88,7 @@ FEATURE_DISPLAY ?=			\
 	libperl				\
 	libpython			\
 	libslang			\
+	libcrypto			\
 	libunwind			\
 	libdw-dwarf-unwind		\
 	zlib				\

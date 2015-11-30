@@ -404,6 +404,17 @@ ifndef NO_LIBAUDIT
   endif
 endif
 
+ifndef NO_LIBCRYPTO
+  ifneq ($(feature-libcrypto), 1)
+    msg := $(warning No libcrypto.h found, disables jitted code injection, please install libssl-devel or libssl-dev);
+    NO_LIBCRYPTO := 1
+  else
+    CFLAGS += -DHAVE_LIBCRYPTO_SUPPORT
+    EXTLIBS += -lcrypto
+    $(call detected,CONFIG_CRYPTO)
+  endif
+endif
+
 ifdef NO_NEWT
   NO_SLANG=1
 endif
