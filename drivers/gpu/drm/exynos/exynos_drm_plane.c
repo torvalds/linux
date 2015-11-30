@@ -85,24 +85,25 @@ static void exynos_plane_mode_set(struct exynos_drm_plane_state *exynos_state)
 	src_w = state->src_w >> 16;
 	src_h = state->src_h >> 16;
 
+	/* set ratio */
+	exynos_state->h_ratio = (src_w << 16) / crtc_w;
+	exynos_state->v_ratio = (src_h << 16) / crtc_h;
+
+	/* clip to visible area */
 	actual_w = exynos_plane_get_size(crtc_x, crtc_w, mode->hdisplay);
 	actual_h = exynos_plane_get_size(crtc_y, crtc_h, mode->vdisplay);
 
 	if (crtc_x < 0) {
 		if (actual_w)
-			src_x -= crtc_x;
+			src_x += ((-crtc_x) * exynos_state->h_ratio) >> 16;
 		crtc_x = 0;
 	}
 
 	if (crtc_y < 0) {
 		if (actual_h)
-			src_y -= crtc_y;
+			src_y += ((-crtc_y) * exynos_state->v_ratio) >> 16;
 		crtc_y = 0;
 	}
-
-	/* set ratio */
-	exynos_state->h_ratio = (src_w << 16) / crtc_w;
-	exynos_state->v_ratio = (src_h << 16) / crtc_h;
 
 	/* set drm framebuffer data. */
 	exynos_state->src.x = src_x;
