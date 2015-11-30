@@ -1078,6 +1078,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	 * little bit faster.
 	 */
 	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
+			!usb_endpoint_xfer_int(dep->endpoint.desc) &&
 			!(dep->flags & DWC3_EP_BUSY)) {
 		ret = __dwc3_gadget_kick_transfer(dep, 0, true);
 		goto out;
