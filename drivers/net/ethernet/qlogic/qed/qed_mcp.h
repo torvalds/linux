@@ -224,6 +224,19 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 struct qed_mcp_drv_version *p_ver);
 
+/**
+ * @brief Set LED status
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param mode - LED mode
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
+		    enum qed_led_mode mode);
+
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
  * TODO - this shouldn't really be in .h file, but until all fields
