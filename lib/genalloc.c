@@ -556,6 +556,38 @@ unsigned long gen_pool_first_fit_align(unsigned long *map, unsigned long size,
 EXPORT_SYMBOL(gen_pool_first_fit_align);
 
 /**
+ * gen_pool_fixed_alloc - reserve a specific region
+ * @map: The address to base the search on
+ * @size: The bitmap size in bits
+ * @start: The bitnumber to start searching at
+ * @nr: The number of zeroed bits we're looking for
+ * @data: data for alignment
+ * @pool: pool to get order from
+ */
+unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
+		unsigned long start, unsigned int nr, void *data,
+		struct gen_pool *pool)
+{
+	struct genpool_data_fixed *fixed_data;
+	int order;
+	unsigned long offset_bit;
+	unsigned long start_bit;
+
+	fixed_data = data;
+	order = pool->min_alloc_order;
+	offset_bit = fixed_data->offset >> order;
+	if (WARN_ON(fixed_data->offset & (1UL << order - 1)))
+		return size;
+
+	start_bit = bitmap_find_next_zero_area(map, size,
+			start + offset_bit, nr, 0);
+	if (start_bit != offset_bit)
+		start_bit = size;
+	return start_bit;
+}
+EXPORT_SYMBOL(gen_pool_fixed_alloc);
+
+/**
  * gen_pool_first_fit_order_align - find the first available region
  * of memory matching the size requirement. The region will be aligned
  * to the order of the size specified.
