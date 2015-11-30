@@ -246,7 +246,7 @@ config PINCTRL_ZYNQ
 	select PINMUX
 	select GENERIC_PINCONF
 	help
-	  This selectes the pinctrl driver for Xilinx Zynq.
+	  This selects the pinctrl driver for Xilinx Zynq.
 
 source "drivers/pinctrl/bcm/Kconfig"
 source "drivers/pinctrl/berlin/Kconfig"
