@@ -400,12 +400,18 @@ retry:
 
 static inline void vgic_process_maintenance_interrupt(struct kvm_vcpu *vcpu)
 {
-	vgic_v2_process_maintenance(vcpu);
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_process_maintenance(vcpu);
+	else
+		vgic_v3_process_maintenance(vcpu);
 }
 
 static inline void vgic_fold_lr_state(struct kvm_vcpu *vcpu)
 {
-	vgic_v2_fold_lr_state(vcpu);
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_fold_lr_state(vcpu);
+	else
+		vgic_v3_fold_lr_state(vcpu);
 }
 
 /* Requires the irq_lock to be held. */
@@ -414,17 +420,26 @@ static inline void vgic_populate_lr(struct kvm_vcpu *vcpu,
 {
 	DEBUG_SPINLOCK_BUG_ON(!spin_is_locked(&irq->irq_lock));
 
-	vgic_v2_populate_lr(vcpu, irq, lr);
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_populate_lr(vcpu, irq, lr);
+	else
+		vgic_v3_populate_lr(vcpu, irq, lr);
 }
 
 static inline void vgic_clear_lr(struct kvm_vcpu *vcpu, int lr)
 {
-	vgic_v2_clear_lr(vcpu, lr);
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_clear_lr(vcpu, lr);
+	else
+		vgic_v3_clear_lr(vcpu, lr);
 }
 
 static inline void vgic_set_underflow(struct kvm_vcpu *vcpu)
 {
-	vgic_v2_set_underflow(vcpu);
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_set_underflow(vcpu);
+	else
+		vgic_v3_set_underflow(vcpu);
 }
 
 /* Requires the ap_list_lock to be held. */

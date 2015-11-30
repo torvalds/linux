@@ -28,4 +28,33 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
 void vgic_v2_clear_lr(struct kvm_vcpu *vcpu, int lr);
 void vgic_v2_set_underflow(struct kvm_vcpu *vcpu);
 
+#ifdef CONFIG_KVM_ARM_VGIC_V3
+void vgic_v3_process_maintenance(struct kvm_vcpu *vcpu);
+void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu);
+void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
+void vgic_v3_clear_lr(struct kvm_vcpu *vcpu, int lr);
+void vgic_v3_set_underflow(struct kvm_vcpu *vcpu);
+#else
+static inline void vgic_v3_process_maintenance(struct kvm_vcpu *vcpu)
+{
+}
+
+static inline void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
+{
+}
+
+static inline void vgic_v3_populate_lr(struct kvm_vcpu *vcpu,
+				       struct vgic_irq *irq, int lr)
+{
+}
+
+static inline void vgic_v3_clear_lr(struct kvm_vcpu *vcpu, int lr)
+{
+}
+
+static inline void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
+{
+}
+#endif
+
 #endif
