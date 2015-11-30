@@ -356,20 +356,17 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		goto exit;
 	}
 
-	msm_host->byte_clk_src = devm_clk_get(dev, "byte_clk_src");
-	if (IS_ERR(msm_host->byte_clk_src)) {
-		ret = PTR_ERR(msm_host->byte_clk_src);
+	msm_host->byte_clk_src = clk_get_parent(msm_host->byte_clk);
+	if (!msm_host->byte_clk_src) {
+		ret = -ENODEV;
 		pr_err("%s: can't find byte_clk_src. ret=%d\n", __func__, ret);
-		msm_host->byte_clk_src = NULL;
 		goto exit;
 	}
 
-	msm_host->pixel_clk_src = devm_clk_get(dev, "pixel_clk_src");
-	if (IS_ERR(msm_host->pixel_clk_src)) {
-		ret = PTR_ERR(msm_host->pixel_clk_src);
+	msm_host->pixel_clk_src = clk_get_parent(msm_host->pixel_clk);
+	if (!msm_host->pixel_clk_src) {
+		ret = -ENODEV;
 		pr_err("%s: can't find pixel_clk_src. ret=%d\n", __func__, ret);
-		msm_host->pixel_clk_src = NULL;
-		goto exit;
 	}
 
 exit:
