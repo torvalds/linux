@@ -590,7 +590,25 @@ emit_cond_jmp:
 	case BPF_ST | BPF_MEM | BPF_H:
 	case BPF_ST | BPF_MEM | BPF_B:
 	case BPF_ST | BPF_MEM | BPF_DW:
-		goto notyet;
+		/* Load imm to a register then store it */
+		ctx->tmp_used = 1;
+		emit_a64_mov_i(1, tmp2, off, ctx);
+		emit_a64_mov_i(1, tmp, imm, ctx);
+		switch (BPF_SIZE(code)) {
+		case BPF_W:
+			emit(A64_STR32(tmp, dst, tmp2), ctx);
+			break;
+		case BPF_H:
+			emit(A64_STRH(tmp, dst, tmp2), ctx);
+			break;
+		case BPF_B:
+			emit(A64_STRB(tmp, dst, tmp2), ctx);
+			break;
+		case BPF_DW:
+			emit(A64_STR64(tmp, dst, tmp2), ctx);
+			break;
+		}
+		break;
 
 	/* STX: *(size *)(dst + off) = src */
 	case BPF_STX | BPF_MEM | BPF_W:
