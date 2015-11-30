@@ -202,6 +202,30 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
  */
 struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
 
+struct device;
+
+#ifdef CONFIG_RK_IOMMU
+int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
+		  struct ion_handle *handle, unsigned long *iova,
+		  unsigned long *size);
+
+void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
+		     struct ion_handle *handle);
+
+#else
+static inline int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
+		  struct ion_handle *handle, unsigned long *iova,
+		  unsigned long *size)
+{
+	return 0;
+}
+
+static inline void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
+		     struct ion_handle *handle)
+{
+}
+#endif
+
 void ion_handle_get(struct ion_handle *handle);
 
 int ion_handle_put(struct ion_handle *handle);
