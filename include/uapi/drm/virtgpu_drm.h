@@ -24,8 +24,7 @@
 #ifndef VIRTGPU_DRM_H
 #define VIRTGPU_DRM_H
 
-#include <stddef.h>
-#include "drm/drm.h"
+#include "drm.h"
 
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
