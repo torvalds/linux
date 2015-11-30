@@ -2087,6 +2087,284 @@ static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id)
 	mlxsw_reg_hpkt_ctrl_set(payload, MLXSW_REG_HPKT_CTRL_PACKET_DEFAULT);
 }
 
+/* MFCR - Management Fan Control Register
+ * --------------------------------------
+ * This register controls the settings of the Fan Speed PWM mechanism.
+ */
+#define MLXSW_REG_MFCR_ID 0x9001
+#define MLXSW_REG_MFCR_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_mfcr = {
+	.id = MLXSW_REG_MFCR_ID,
+	.len = MLXSW_REG_MFCR_LEN,
+};
+
+enum mlxsw_reg_mfcr_pwm_frequency {
+	MLXSW_REG_MFCR_PWM_FEQ_11HZ = 0x00,
+	MLXSW_REG_MFCR_PWM_FEQ_14_7HZ = 0x01,
+	MLXSW_REG_MFCR_PWM_FEQ_22_1HZ = 0x02,
+	MLXSW_REG_MFCR_PWM_FEQ_1_4KHZ = 0x40,
+	MLXSW_REG_MFCR_PWM_FEQ_5KHZ = 0x41,
+	MLXSW_REG_MFCR_PWM_FEQ_20KHZ = 0x42,
+	MLXSW_REG_MFCR_PWM_FEQ_22_5KHZ = 0x43,
+	MLXSW_REG_MFCR_PWM_FEQ_25KHZ = 0x44,
+};
+
+/* reg_mfcr_pwm_frequency
+ * Controls the frequency of the PWM signal.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mfcr, pwm_frequency, 0x00, 0, 6);
+
+#define MLXSW_MFCR_TACHOS_MAX 10
+
+/* reg_mfcr_tacho_active
+ * Indicates which of the tachometer is active (bit per tachometer).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfcr, tacho_active, 0x04, 16, MLXSW_MFCR_TACHOS_MAX);
+
+#define MLXSW_MFCR_PWMS_MAX 5
+
+/* reg_mfcr_pwm_active
+ * Indicates which of the PWM control is active (bit per PWM).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfcr, pwm_active, 0x04, 0, MLXSW_MFCR_PWMS_MAX);
+
+static inline void
+mlxsw_reg_mfcr_pack(char *payload,
+		    enum mlxsw_reg_mfcr_pwm_frequency pwm_frequency)
+{
+	MLXSW_REG_ZERO(mfcr, payload);
+	mlxsw_reg_mfcr_pwm_frequency_set(payload, pwm_frequency);
+}
+
+static inline void
+mlxsw_reg_mfcr_unpack(char *payload,
+		      enum mlxsw_reg_mfcr_pwm_frequency *p_pwm_frequency,
+		      u16 *p_tacho_active, u8 *p_pwm_active)
+{
+	*p_pwm_frequency = mlxsw_reg_mfcr_pwm_frequency_get(payload);
+	*p_tacho_active = mlxsw_reg_mfcr_tacho_active_get(payload);
+	*p_pwm_active = mlxsw_reg_mfcr_pwm_active_get(payload);
+}
+
+/* MFSC - Management Fan Speed Control Register
+ * --------------------------------------------
+ * This register controls the settings of the Fan Speed PWM mechanism.
+ */
+#define MLXSW_REG_MFSC_ID 0x9002
+#define MLXSW_REG_MFSC_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_mfsc = {
+	.id = MLXSW_REG_MFSC_ID,
+	.len = MLXSW_REG_MFSC_LEN,
+};
+
+/* reg_mfsc_pwm
+ * Fan pwm to control / monitor.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mfsc, pwm, 0x00, 24, 3);
+
+/* reg_mfsc_pwm_duty_cycle
+ * Controls the duty cycle of the PWM. Value range from 0..255 to
+ * represent duty cycle of 0%...100%.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mfsc, pwm_duty_cycle, 0x04, 0, 8);
+
+static inline void mlxsw_reg_mfsc_pack(char *payload, u8 pwm,
+				       u8 pwm_duty_cycle)
+{
+	MLXSW_REG_ZERO(mfsc, payload);
+	mlxsw_reg_mfsc_pwm_set(payload, pwm);
+	mlxsw_reg_mfsc_pwm_duty_cycle_set(payload, pwm_duty_cycle);
+}
+
+/* MFSM - Management Fan Speed Measurement
+ * ---------------------------------------
+ * This register controls the settings of the Tacho measurements and
+ * enables reading the Tachometer measurements.
+ */
+#define MLXSW_REG_MFSM_ID 0x9003
+#define MLXSW_REG_MFSM_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_mfsm = {
+	.id = MLXSW_REG_MFSM_ID,
+	.len = MLXSW_REG_MFSM_LEN,
+};
+
+/* reg_mfsm_tacho
+ * Fan tachometer index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mfsm, tacho, 0x00, 24, 4);
+
+/* reg_mfsm_rpm
+ * Fan speed (round per minute).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfsm, rpm, 0x04, 0, 16);
+
+static inline void mlxsw_reg_mfsm_pack(char *payload, u8 tacho)
+{
+	MLXSW_REG_ZERO(mfsm, payload);
+	mlxsw_reg_mfsm_tacho_set(payload, tacho);
+}
+
+/* MTCAP - Management Temperature Capabilities
+ * -------------------------------------------
+ * This register exposes the capabilities of the device and
+ * system temperature sensing.
+ */
+#define MLXSW_REG_MTCAP_ID 0x9009
+#define MLXSW_REG_MTCAP_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_mtcap = {
+	.id = MLXSW_REG_MTCAP_ID,
+	.len = MLXSW_REG_MTCAP_LEN,
+};
+
+/* reg_mtcap_sensor_count
+ * Number of sensors supported by the device.
+ * This includes the QSFP module sensors (if exists in the QSFP module).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtcap, sensor_count, 0x00, 0, 7);
+
+/* MTMP - Management Temperature
+ * -----------------------------
+ * This register controls the settings of the temperature measurements
+ * and enables reading the temperature measurements. Note that temperature
+ * is in 0.125 degrees Celsius.
+ */
+#define MLXSW_REG_MTMP_ID 0x900A
+#define MLXSW_REG_MTMP_LEN 0x20
+
+static const struct mlxsw_reg_info mlxsw_reg_mtmp = {
+	.id = MLXSW_REG_MTMP_ID,
+	.len = MLXSW_REG_MTMP_LEN,
+};
+
+/* reg_mtmp_sensor_index
+ * Sensors index to access.
+ * 64-127 of sensor_index are mapped to the SFP+/QSFP modules sequentially
+ * (module 0 is mapped to sensor_index 64).
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mtmp, sensor_index, 0x00, 0, 7);
+
+/* Convert to milli degrees Celsius */
+#define MLXSW_REG_MTMP_TEMP_TO_MC(val) (val * 125)
+
+/* reg_mtmp_temperature
+ * Temperature reading from the sensor. Reading is in 0.125 Celsius
+ * degrees units.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtmp, temperature, 0x04, 0, 16);
+
+/* reg_mtmp_mte
+ * Max Temperature Enable - enables measuring the max temperature on a sensor.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtmp, mte, 0x08, 31, 1);
+
+/* reg_mtmp_mtr
+ * Max Temperature Reset - clears the value of the max temperature register.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mtmp, mtr, 0x08, 30, 1);
+
+/* reg_mtmp_max_temperature
+ * The highest measured temperature from the sensor.
+ * When the bit mte is cleared, the field max_temperature is reserved.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtmp, max_temperature, 0x08, 0, 16);
+
+#define MLXSW_REG_MTMP_SENSOR_NAME_SIZE 8
+
+/* reg_mtmp_sensor_name
+ * Sensor Name
+ * Access: RO
+ */
+MLXSW_ITEM_BUF(reg, mtmp, sensor_name, 0x18, MLXSW_REG_MTMP_SENSOR_NAME_SIZE);
+
+static inline void mlxsw_reg_mtmp_pack(char *payload, u8 sensor_index,
+				       bool max_temp_enable,
+				       bool max_temp_reset)
+{
+	MLXSW_REG_ZERO(mtmp, payload);
+	mlxsw_reg_mtmp_sensor_index_set(payload, sensor_index);
+	mlxsw_reg_mtmp_mte_set(payload, max_temp_enable);
+	mlxsw_reg_mtmp_mtr_set(payload, max_temp_reset);
+}
+
+static inline void mlxsw_reg_mtmp_unpack(char *payload, unsigned int *p_temp,
+					 unsigned int *p_max_temp,
+					 char *sensor_name)
+{
+	u16 temp;
+
+	if (p_temp) {
+		temp = mlxsw_reg_mtmp_temperature_get(payload);
+		*p_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
+	}
+	if (p_max_temp) {
+		temp = mlxsw_reg_mtmp_temperature_get(payload);
+		*p_max_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
+	}
+	if (sensor_name)
+		mlxsw_reg_mtmp_sensor_name_memcpy_from(payload, sensor_name);
+}
+
+/* MLCR - Management LED Control Register
+ * --------------------------------------
+ * Controls the system LEDs.
+ */
+#define MLXSW_REG_MLCR_ID 0x902B
+#define MLXSW_REG_MLCR_LEN 0x0C
+
+static const struct mlxsw_reg_info mlxsw_reg_mlcr = {
+	.id = MLXSW_REG_MLCR_ID,
+	.len = MLXSW_REG_MLCR_LEN,
+};
+
+/* reg_mlcr_local_port
+ * Local port number.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mlcr, local_port, 0x00, 16, 8);
+
+#define MLXSW_REG_MLCR_DURATION_MAX 0xFFFF
+
+/* reg_mlcr_beacon_duration
+ * Duration of the beacon to be active, in seconds.
+ * 0x0 - Will turn off the beacon.
+ * 0xFFFF - Will turn on the beacon until explicitly turned off.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mlcr, beacon_duration, 0x04, 0, 16);
+
+/* reg_mlcr_beacon_remain
+ * Remaining duration of the beacon, in seconds.
+ * 0xFFFF indicates an infinite amount of time.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mlcr, beacon_remain, 0x08, 0, 16);
+
+static inline void mlxsw_reg_mlcr_pack(char *payload, u8 local_port,
+				       bool active)
+{
+	MLXSW_REG_ZERO(mlcr, payload);
+	mlxsw_reg_mlcr_local_port_set(payload, local_port);
+	mlxsw_reg_mlcr_beacon_duration_set(payload, active ?
+					   MLXSW_REG_MLCR_DURATION_MAX : 0);
+}
+
 /* SBPR - Shared Buffer Pools Register
  * -----------------------------------
  * The SBPR configures and retrieves the shared buffer pools and configuration.
@@ -2405,6 +2683,18 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "HTGT";
 	case MLXSW_REG_HPKT_ID:
 		return "HPKT";
+	case MLXSW_REG_MFCR_ID:
+		return "MFCR";
+	case MLXSW_REG_MFSC_ID:
+		return "MFSC";
+	case MLXSW_REG_MFSM_ID:
+		return "MFSM";
+	case MLXSW_REG_MTCAP_ID:
+		return "MTCAP";
+	case MLXSW_REG_MTMP_ID:
+		return "MTMP";
+	case MLXSW_REG_MLCR_ID:
+		return "MLCR";
 	case MLXSW_REG_SBPR_ID:
 		return "SBPR";
 	case MLXSW_REG_SBCM_ID:

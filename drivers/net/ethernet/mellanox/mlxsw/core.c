@@ -105,6 +105,7 @@ struct mlxsw_core {
 		struct debugfs_blob_wrapper vsd_blob;
 		struct debugfs_blob_wrapper psid_blob;
 	} dbg;
+	struct mlxsw_hwmon *hwmon;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
 };
@@ -822,6 +823,10 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_emad_init;
 
+	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
+	if (err)
+		goto err_hwmon_init;
+
 	err = mlxsw_driver->init(mlxsw_core->driver_priv, mlxsw_core,
 				 mlxsw_bus_info);
 	if (err)
@@ -836,6 +841,8 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 err_debugfs_init:
 	mlxsw_core->driver->fini(mlxsw_core->driver_priv);
 err_driver_init:
+	mlxsw_hwmon_fini(mlxsw_core->hwmon);
+err_hwmon_init:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
 	mlxsw_bus->fini(bus_priv);
@@ -855,6 +862,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core)
 
 	mlxsw_core_debugfs_fini(mlxsw_core);
 	mlxsw_core->driver->fini(mlxsw_core->driver_priv);
+	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 	mlxsw_emad_fini(mlxsw_core);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
 	free_percpu(mlxsw_core->pcpu_stats);
