@@ -26,7 +26,7 @@ static struct dentry *pe;
 
 static int __init pt_dump_debug_init(void)
 {
-	pe = debugfs_create_file("kernel_page_tables", 0600, NULL, NULL,
+	pe = debugfs_create_file("kernel_page_tables", S_IRUSR, NULL, NULL,
 				 &ptdump_fops);
 	if (!pe)
 		return -ENOMEM;
