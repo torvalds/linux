@@ -83,7 +83,7 @@ int cx23885_vbi_irq(struct cx23885_dev *dev, u32 status)
 	if (status & VID_BC_MSK_VBI_RISCI1) {
 		dprintk(1, "%s() VID_BC_MSK_VBI_RISCI1\n", __func__);
 		spin_lock(&dev->slock);
-		count = cx_read(VID_A_GPCNT);
+		count = cx_read(VBI_A_GPCNT);
 		cx23885_video_wakeup(dev, &dev->vbiq, count);
 		spin_unlock(&dev->slock);
 		handled++;
@@ -103,7 +103,6 @@ static int cx23885_start_vbi_dma(struct cx23885_dev    *dev,
 				VBI_LINE_LENGTH, buf->risc.dma);
 
 	/* reset counter */
-	cx_write(VID_A_GPCNT_CTL, 3);
 	cx_write(VID_A_VBI_CTRL, 3);
 	cx_write(VBI_A_GPCNT_CTL, 3);
 	q->count = 0;
