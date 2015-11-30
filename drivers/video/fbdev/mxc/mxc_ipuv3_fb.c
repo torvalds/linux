@@ -1647,6 +1647,7 @@ static int mxcfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		fr_h = var->yres_virtual;
 	}
 
+	tmp_fbi.device = info->device;
 	tmp_fbi.var = *var;
 	tmp_fbi.par = mxc_fbi;
 	if (ipu_pixel_format_is_gpu_tile(var->nonstd)) {
