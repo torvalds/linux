@@ -871,10 +871,14 @@ int rsnd_kctrl_new_m(struct rsnd_mod *mod,
 		     void (*update)(struct rsnd_dai_stream *io,
 				    struct rsnd_mod *mod),
 		     struct rsnd_kctrl_cfg_m *_cfg,
+		     int ch_size,
 		     u32 max)
 {
+	if (ch_size > RSND_DVC_CHANNELS)
+		return -EINVAL;
+
 	_cfg->cfg.max	= max;
-	_cfg->cfg.size	= RSND_DVC_CHANNELS;
+	_cfg->cfg.size	= ch_size;
 	_cfg->cfg.val	= _cfg->val;
 	return __rsnd_kctrl_new(mod, io, rtd, name, &_cfg->cfg, update);
 }

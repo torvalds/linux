@@ -277,6 +277,12 @@ static int rsnd_gen2_probe(struct rsnd_priv *priv)
 		RSND_GEN_M_REG(DVC_VRDBR,	0xe20,	0x100),
 		RSND_GEN_M_REG(DVC_VOL0R,	0xe28,	0x100),
 		RSND_GEN_M_REG(DVC_VOL1R,	0xe2c,	0x100),
+		RSND_GEN_M_REG(DVC_VOL2R,	0xe30,	0x100),
+		RSND_GEN_M_REG(DVC_VOL3R,	0xe34,	0x100),
+		RSND_GEN_M_REG(DVC_VOL4R,	0xe38,	0x100),
+		RSND_GEN_M_REG(DVC_VOL5R,	0xe3c,	0x100),
+		RSND_GEN_M_REG(DVC_VOL6R,	0xe40,	0x100),
+		RSND_GEN_M_REG(DVC_VOL7R,	0xe44,	0x100),
 		RSND_GEN_M_REG(DVC_DVUER,	0xe48,	0x100),
 	};
 	const static struct rsnd_regmap_field_conf conf_adg[] = {

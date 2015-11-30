@@ -97,6 +97,12 @@ static void rsnd_dvc_volume_parameter(struct rsnd_dai_stream *io,
 	/* Enable Digital Volume */
 	rsnd_mod_write(mod, DVC_VOL0R, val[0]);
 	rsnd_mod_write(mod, DVC_VOL1R, val[1]);
+	rsnd_mod_write(mod, DVC_VOL2R, val[2]);
+	rsnd_mod_write(mod, DVC_VOL3R, val[3]);
+	rsnd_mod_write(mod, DVC_VOL4R, val[4]);
+	rsnd_mod_write(mod, DVC_VOL5R, val[5]);
+	rsnd_mod_write(mod, DVC_VOL6R, val[6]);
+	rsnd_mod_write(mod, DVC_VOL7R, val[7]);
 }
 
 static void rsnd_dvc_volume_init(struct rsnd_dai_stream *io,
@@ -236,8 +242,10 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io,
 			    struct snd_soc_pcm_runtime *rtd)
 {
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	int is_play = rsnd_io_is_play(io);
+	int slots = rsnd_get_slot_rdai(rdai);
 	int ret;
 
 	/* Volume */
@@ -245,7 +253,8 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			is_play ?
 			"DVC Out Playback Volume" : "DVC In Capture Volume",
 			rsnd_dvc_volume_update,
-			&dvc->volume, 0x00800000 - 1);
+			&dvc->volume, slots,
+			0x00800000 - 1);
 	if (ret < 0)
 		return ret;
 
@@ -254,7 +263,8 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			is_play ?
 			"DVC Out Mute Switch" : "DVC In Mute Switch",
 			rsnd_dvc_volume_update,
-			&dvc->mute, 1);
+			&dvc->mute,  slots,
+			1);
 	if (ret < 0)
 		return ret;
 

@@ -101,6 +101,12 @@ enum rsnd_reg {
 	RSND_REG_DVC_ZCMCR,
 	RSND_REG_DVC_VOL0R,
 	RSND_REG_DVC_VOL1R,
+	RSND_REG_DVC_VOL2R,
+	RSND_REG_DVC_VOL3R,
+	RSND_REG_DVC_VOL4R,
+	RSND_REG_DVC_VOL5R,
+	RSND_REG_DVC_VOL6R,
+	RSND_REG_DVC_VOL7R,
 	RSND_REG_DVC_DVUER,
 	RSND_REG_DVC_VRCTR,		/* Gen2 only */
 	RSND_REG_DVC_VRPDR,		/* Gen2 only */
@@ -476,7 +482,7 @@ struct rsnd_kctrl_cfg {
 	struct snd_kcontrol *kctrl;
 };
 
-#define RSND_DVC_CHANNELS	2
+#define RSND_DVC_CHANNELS	8
 struct rsnd_kctrl_cfg_m {
 	struct rsnd_kctrl_cfg cfg;
 	u32 val[RSND_DVC_CHANNELS];
@@ -497,6 +503,7 @@ int rsnd_kctrl_new_m(struct rsnd_mod *mod,
 		     void (*update)(struct rsnd_dai_stream *io,
 				    struct rsnd_mod *mod),
 		     struct rsnd_kctrl_cfg_m *_cfg,
+		     int ch_size,
 		     u32 max);
 int rsnd_kctrl_new_s(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
