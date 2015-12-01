@@ -7364,6 +7364,13 @@ F:	include/net/netrom.h
 F:	include/uapi/linux/netrom.h
 F:	net/netrom/
 
+NETRONOME ETHERNET DRIVERS
+M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Rolf Neugebauer <rolf.neugebauer@netronome.com>
+L:	oss-drivers@netronome.com
+S:	Maintained
+F:	drivers/net/ethernet/netronome/
+
 NETWORK BLOCK DEVICE (NBD)
 M:	Markus Pargmann <mpa@pengutronix.de>
 S:	Maintained
