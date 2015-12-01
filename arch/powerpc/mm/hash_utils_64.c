@@ -653,7 +653,7 @@ static void __init htab_finish_init(void)
 	patch_branch(ht64_call_hpte_updatepp,
 		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
-#endif /* CONFIG_PPC_64K_PAGES */
+#else /* !CONFIG_PPC_64K_PAGES */
 
 	patch_branch(htab_call_hpte_insert1,
 		ppc_function_entry(ppc_md.hpte_insert),
@@ -667,6 +667,8 @@ static void __init htab_finish_init(void)
 	patch_branch(htab_call_hpte_updatepp,
 		ppc_function_entry(ppc_md.hpte_updatepp),
 		BRANCH_SET_LINK);
+#endif
+
 }
 
 static void __init htab_initialize(void)
