@@ -12,9 +12,9 @@
 
 /* Generic accessors to PTE bits */
 static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_RW);}
-static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
-static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
+static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY); }
+static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
+static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
 static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
 
@@ -47,36 +47,61 @@ static inline int pte_present(pte_t pte)
  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
  * long for now.
  */
-static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot) {
+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
+{
 	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
-		     pgprot_val(pgprot)); }
-static inline unsigned long pte_pfn(pte_t pte)	{
-	return pte_val(pte) >> PTE_RPN_SHIFT; }
+		     pgprot_val(pgprot));
+}
+
+static inline unsigned long pte_pfn(pte_t pte)
+{
+	return pte_val(pte) >> PTE_RPN_SHIFT;
+}
 
 /* Generic modifiers for PTE bits */
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	pte_val(pte) &= ~_PAGE_RW;
+	return __pte(pte_val(pte) & ~_PAGE_RW);
+}
+
+static inline pte_t pte_mkclean(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_DIRTY);
+}
+
+static inline pte_t pte_mkold(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_ACCESSED);
+}
+
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_RW);
+}
+
+static inline pte_t pte_mkdirty(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_DIRTY);
+}
+
+static inline pte_t pte_mkyoung(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_ACCESSED);
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_SPECIAL);
+}
+
+static inline pte_t pte_mkhuge(pte_t pte)
+{
 	return pte;
 }
-static inline pte_t pte_mkclean(pte_t pte) {
-	pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
-static inline pte_t pte_mkold(pte_t pte) {
-	pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mkwrite(pte_t pte) {
-	pte_val(pte) |= _PAGE_RW; return pte; }
-static inline pte_t pte_mkdirty(pte_t pte) {
-	pte_val(pte) |= _PAGE_DIRTY; return pte; }
-static inline pte_t pte_mkyoung(pte_t pte) {
-	pte_val(pte) |= _PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mkspecial(pte_t pte) {
-	pte_val(pte) |= _PAGE_SPECIAL; return pte; }
-static inline pte_t pte_mkhuge(pte_t pte) {
-	return pte; }
+
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	pte_val(pte) = (pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot);
-	return pte;
+	return __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot));
 }
 
 
@@ -159,22 +184,45 @@ extern int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long addre
 #define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE | \
 			 _PAGE_WRITETHRU)
 
-#define pgprot_noncached(prot)	  (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
-				            _PAGE_NO_CACHE | _PAGE_GUARDED))
+#define pgprot_noncached pgprot_noncached
+static inline pgprot_t pgprot_noncached(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
+			_PAGE_NO_CACHE | _PAGE_GUARDED);
+}
 
-#define pgprot_noncached_wc(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
-				            _PAGE_NO_CACHE))
+#define pgprot_noncached_wc pgprot_noncached_wc
+static inline pgprot_t pgprot_noncached_wc(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
+			_PAGE_NO_CACHE);
+}
 
-#define pgprot_cached(prot)       (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
-				            _PAGE_COHERENT))
+#define pgprot_cached pgprot_cached
+static inline pgprot_t pgprot_cached(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
+			_PAGE_COHERENT);
+}
 
-#define pgprot_cached_wthru(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
-				            _PAGE_COHERENT | _PAGE_WRITETHRU))
+#define pgprot_cached_wthru pgprot_cached_wthru
+static inline pgprot_t pgprot_cached_wthru(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
+			_PAGE_COHERENT | _PAGE_WRITETHRU);
+}
 
-#define pgprot_cached_noncoherent(prot) \
-		(__pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL))
+#define pgprot_cached_noncoherent pgprot_cached_noncoherent
+static inline pgprot_t pgprot_cached_noncoherent(pgprot_t prot)
+{
+	return __pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL);
+}
 
-#define pgprot_writecombine pgprot_noncached_wc
+#define pgprot_writecombine pgprot_writecombine
+static inline pgprot_t pgprot_writecombine(pgprot_t prot)
+{
+	return pgprot_noncached_wc(prot);
+}
 
 struct file;
 extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,

@@ -286,8 +286,11 @@ extern long long virt_phys_offset;
 
 /* PTE level */
 typedef struct { pte_basic_t pte; } pte_t;
-#define pte_val(x)	((x).pte)
 #define __pte(x)	((pte_t) { (x) })
+static inline pte_basic_t pte_val(pte_t x)
+{
+	return x.pte;
+}
 
 /* 64k pages additionally define a bigger "real PTE" type that gathers
  * the "second half" part of the PTE for pseudo 64k pages
@@ -329,8 +332,11 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  */
 
 typedef pte_basic_t pte_t;
-#define pte_val(x)	(x)
 #define __pte(x)	(x)
+static inline pte_basic_t pte_val(pte_t pte)
+{
+	return pte;
+}
 
 #if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC_STD_MMU_64)
 typedef struct { pte_t pte; unsigned long hidx; } real_pte_t;
