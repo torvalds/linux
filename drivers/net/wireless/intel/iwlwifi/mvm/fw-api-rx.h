@@ -316,6 +316,8 @@ enum iwl_rx_mpdu_sta_id_flags {
 	IWL_RX_MPDU_SIF_FILTER_STATUS_MASK	= 0xc0,
 };
 
+#define IWL_RX_REORDER_DATA_INVALID_BAID 0x7f
+
 enum iwl_rx_mpdu_reorder_data {
 	IWL_RX_MPDU_REORDER_NSSN_MASK		= 0x00000fff,
 	IWL_RX_MPDU_REORDER_SN_MASK		= 0x00fff000,

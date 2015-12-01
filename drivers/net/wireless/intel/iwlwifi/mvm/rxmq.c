@@ -370,3 +370,9 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, hdr, len, ampdu_status,
 					crypt_len, rxb);
 }
+
+void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb, int queue)
+{
+	/* TODO */
+}
