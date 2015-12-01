@@ -5896,6 +5896,23 @@ void init_qsfp(struct hfi1_pportdata *ppd)
 	}
 }
 
+/*
+ * Do a one-time initialize of the LCB block.
+ */
+static void init_lcb(struct hfi1_devdata *dd)
+{
+	/* the DC has been reset earlier in the driver load */
+
+	/* set LCB for cclk loopback on the port */
+	write_csr(dd, DC_LCB_CFG_TX_FIFOS_RESET, 0x01);
+	write_csr(dd, DC_LCB_CFG_LANE_WIDTH, 0x00);
+	write_csr(dd, DC_LCB_CFG_REINIT_AS_SLAVE, 0x00);
+	write_csr(dd, DC_LCB_CFG_CNT_FOR_SKIP_STALL, 0x110);
+	write_csr(dd, DC_LCB_CFG_CLK_CNTR, 0x08);
+	write_csr(dd, DC_LCB_CFG_LOOPBACK, 0x02);
+	write_csr(dd, DC_LCB_CFG_TX_FIFOS_RESET, 0x00);
+}
+
 int bringup_serdes(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
@@ -5916,6 +5933,9 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 	ppd->link_enabled = 1;
 	/* Set linkinit_reason on power up per OPA spec */
 	ppd->linkinit_reason = OPA_LINKINIT_REASON_LINKUP;
+
+	/* one-time init of the LCB */
+	init_lcb(dd);
 
 	if (loopback) {
 		ret = init_loopback(dd);
