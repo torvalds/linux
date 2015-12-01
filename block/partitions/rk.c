@@ -305,7 +305,10 @@ int rkpart_partition(struct parsed_partitions *state)
                 return 0;
 
         /* Fixme: parameter should be coherence with part table */
-	cmdline = strstr(saved_command_line, "mtdparts=") + 9;
+	cmdline = strstr(saved_command_line, "mtdparts=");
+	if (!cmdline)
+		return 0;
+	cmdline += 9;
 	cmdline_parsed = 0;
 
 	num_parts = parse_cmdline_partitions(n, &parts, 0);
