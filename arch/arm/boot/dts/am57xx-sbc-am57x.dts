@@ -89,4 +89,11 @@
 		reg = <0x50>;
 		pagesize = <16>;
 	};
+
+	pca9555: pca9555@20 {
+		compatible = "nxp,pca9555";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 };
