@@ -85,22 +85,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	 * Handle the subpage protection bits
 	 */
 	subpg_pte = new_pte & ~subpg_prot;
-	/*
-	 * PP bits. _PAGE_USER is already PP bit 0x2, so we only
-	 * need to add in 0x1 if it's a read-only user page
-	 */
-	rflags = subpg_pte & _PAGE_USER;
-	if ((subpg_pte & _PAGE_USER) && !((subpg_pte & _PAGE_RW) &&
-					(subpg_pte & _PAGE_DIRTY)))
-		rflags |= 0x1;
-	/*
-	 * _PAGE_EXEC -> HW_NO_EXEC since it's inverted
-	 */
-	rflags |= ((subpg_pte & _PAGE_EXEC) ? 0 : HPTE_R_N);
-	/*
-	 * Always add C and Memory coherence bit
-	 */
-	rflags |= HPTE_R_C | HPTE_R_M;
+	rflags = htab_convert_pte_flags(subpg_pte);
 	/*
 	 * Add in WIMG bits
 	 */
@@ -271,22 +256,8 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 			new_pte |= _PAGE_DIRTY;
 	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
 					  old_pte, new_pte));
-	/*
-	 * PP bits. _PAGE_USER is already PP bit 0x2, so we only
-	 * need to add in 0x1 if it's a read-only user page
-	 */
-	rflags = new_pte & _PAGE_USER;
-	if ((new_pte & _PAGE_USER) && !((new_pte & _PAGE_RW) &&
-					(new_pte & _PAGE_DIRTY)))
-		rflags |= 0x1;
-	/*
-	 * _PAGE_EXEC -> HW_NO_EXEC since it's inverted
-	 */
-	rflags |= ((new_pte & _PAGE_EXEC) ? 0 : HPTE_R_N);
-	/*
-	 * Always add C and Memory coherence bit
-	 */
-	rflags |= HPTE_R_C | HPTE_R_M;
+
+	rflags = htab_convert_pte_flags(new_pte);
 	/*
 	 * Add in WIMG bits
 	 */

@@ -159,20 +159,26 @@ static struct mmu_psize_def mmu_psize_defaults_gp[] = {
 	},
 };
 
-static unsigned long htab_convert_pte_flags(unsigned long pteflags)
+unsigned long htab_convert_pte_flags(unsigned long pteflags)
 {
-	unsigned long rflags = pteflags & 0x1fa;
+	unsigned long rflags = 0;
 
 	/* _PAGE_EXEC -> NOEXEC */
 	if ((pteflags & _PAGE_EXEC) == 0)
 		rflags |= HPTE_R_N;
-
-	/* PP bits. PAGE_USER is already PP bit 0x2, so we only
-	 * need to add in 0x1 if it's a read-only user page
+	/*
+	 * PP bits:
+	 * Linux use slb key 0 for kernel and 1 for user.
+	 * kernel areas are mapped by PP bits 00
+	 * and and there is no kernel RO (_PAGE_KERNEL_RO).
+	 * User area mapped by 0x2 and read only use by
+	 * 0x3.
 	 */
-	if ((pteflags & _PAGE_USER) && !((pteflags & _PAGE_RW) &&
-					 (pteflags & _PAGE_DIRTY)))
-		rflags |= 1;
+	if (pteflags & _PAGE_USER) {
+		rflags |= 0x2;
+		if (!((pteflags & _PAGE_RW) && (pteflags & _PAGE_DIRTY)))
+			rflags |= 0x1;
+	}
 	/*
 	 * Always add "C" bit for perf. Memory coherence is always enabled
 	 */

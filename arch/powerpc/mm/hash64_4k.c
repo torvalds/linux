@@ -53,18 +53,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	 * PP bits. _PAGE_USER is already PP bit 0x2, so we only
 	 * need to add in 0x1 if it's a read-only user page
 	 */
-	rflags = new_pte & _PAGE_USER;
-	if ((new_pte & _PAGE_USER) && !((new_pte & _PAGE_RW) &&
-					(new_pte & _PAGE_DIRTY)))
-		rflags |= 0x1;
-	/*
-	 * _PAGE_EXEC -> HW_NO_EXEC since it's inverted
-	 */
-	rflags |= ((new_pte & _PAGE_EXEC) ? 0 : HPTE_R_N);
-	/*
-	 * Always add C and Memory coherence bit
-	 */
-	rflags |= HPTE_R_C | HPTE_R_M;
+	rflags = htab_convert_pte_flags(new_pte);
 	/*
 	 * Add in WIMG bits
 	 */

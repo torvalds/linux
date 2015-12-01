@@ -236,6 +236,7 @@ extern unsigned long pmd_hugepage_update(struct mm_struct *mm,
 					 pmd_t *pmdp,
 					 unsigned long clr,
 					 unsigned long set);
+extern unsigned long htab_convert_pte_flags(unsigned long pteflags);
 /* Atomic PTE updates */
 static inline unsigned long pte_update(struct mm_struct *mm,
 				       unsigned long addr,

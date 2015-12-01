@@ -54,18 +54,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 			new_pmd |= _PAGE_DIRTY;
 	} while (old_pmd != __cmpxchg_u64((unsigned long *)pmdp,
 					  old_pmd, new_pmd));
-	/*
-	 * PP bits. _PAGE_USER is already PP bit 0x2, so we only
-	 * need to add in 0x1 if it's a read-only user page
-	 */
-	rflags = new_pmd & _PAGE_USER;
-	if ((new_pmd & _PAGE_USER) && !((new_pmd & _PAGE_RW) &&
-					   (new_pmd & _PAGE_DIRTY)))
-		rflags |= 0x1;
-	/*
-	 * _PAGE_EXEC -> HW_NO_EXEC since it's inverted
-	 */
-	rflags |= ((new_pmd & _PAGE_EXEC) ? 0 : HPTE_R_N);
+	rflags = htab_convert_pte_flags(new_pmd);
 
 #if 0
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {

@@ -59,10 +59,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 			new_pte |= _PAGE_DIRTY;
 	} while(old_pte != __cmpxchg_u64((unsigned long *)ptep,
 					 old_pte, new_pte));
+	rflags = htab_convert_pte_flags(new_pte);
 
-	rflags = 0x2 | (!(new_pte & _PAGE_RW));
-	/* _PAGE_EXEC -> HW_NO_EXEC since it's inverted */
-	rflags |= ((new_pte & _PAGE_EXEC) ? 0 : HPTE_R_N);
 	sz = ((1UL) << shift);
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		/* No CPU has hugepages but lacks no execute, so we
