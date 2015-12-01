@@ -17,6 +17,8 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <kvm/arm_vgic.h>
+#include <asm/kvm_mmu.h>
 
 #include "vgic.h"
 
@@ -202,4 +204,66 @@ void vgic_v2_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 			GICH_VMCR_BINPOINT_SHIFT;
 	vmcrp->pmr  = (vmcr & GICH_VMCR_PRIMASK_MASK) >>
 			GICH_VMCR_PRIMASK_SHIFT;
+}
+
+/**
+ * vgic_v2_probe - probe for a GICv2 compatible interrupt controller in DT
+ * @node:	pointer to the DT node
+ *
+ * Returns 0 if a GICv2 has been found, returns an error code otherwise
+ */
+int vgic_v2_probe(const struct gic_kvm_info *info)
+{
+	int ret;
+	u32 vtr;
+
+	if (!info->vctrl.start) {
+		kvm_err("GICH not present in the firmware table\n");
+		return -ENXIO;
+	}
+
+	if (!PAGE_ALIGNED(info->vcpu.start)) {
+		kvm_err("GICV physical address 0x%llx not page aligned\n",
+			(unsigned long long)info->vcpu.start);
+		return -ENXIO;
+	}
+
+	if (!PAGE_ALIGNED(resource_size(&info->vcpu))) {
+		kvm_err("GICV size 0x%llx not a multiple of page size 0x%lx\n",
+			(unsigned long long)resource_size(&info->vcpu),
+			PAGE_SIZE);
+		return -ENXIO;
+	}
+
+	kvm_vgic_global_state.vctrl_base = ioremap(info->vctrl.start,
+						   resource_size(&info->vctrl));
+	if (!kvm_vgic_global_state.vctrl_base) {
+		kvm_err("Cannot ioremap GICH\n");
+		return -ENOMEM;
+	}
+
+	vtr = readl_relaxed(kvm_vgic_global_state.vctrl_base + GICH_VTR);
+	kvm_vgic_global_state.nr_lr = (vtr & 0x3f) + 1;
+
+	ret = create_hyp_io_mappings(kvm_vgic_global_state.vctrl_base,
+				     kvm_vgic_global_state.vctrl_base +
+					 resource_size(&info->vctrl),
+				     info->vctrl.start);
+
+	if (ret) {
+		kvm_err("Cannot map VCTRL into hyp\n");
+		iounmap(kvm_vgic_global_state.vctrl_base);
+		return ret;
+	}
+
+	kvm_vgic_global_state.can_emulate_gicv2 = true;
+	kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
+
+	kvm_vgic_global_state.vcpu_base = info->vcpu.start;
+	kvm_vgic_global_state.type = VGIC_V2;
+	kvm_vgic_global_state.max_gic_vcpus = VGIC_V2_MAX_CPUS;
+
+	kvm_info("vgic-v2@%llx\n", info->vctrl.start);
+
+	return 0;
 }

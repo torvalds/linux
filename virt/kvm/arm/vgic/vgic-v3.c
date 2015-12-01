@@ -15,6 +15,9 @@
 #include <linux/irqchip/arm-gic-v3.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <kvm/arm_vgic.h>
+#include <asm/kvm_mmu.h>
+#include <asm/kvm_asm.h>
 
 #include "vgic.h"
 
@@ -181,4 +184,50 @@ void vgic_v3_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 	vmcrp->abpr = (vmcr & ICH_VMCR_BPR1_MASK) >> ICH_VMCR_BPR1_SHIFT;
 	vmcrp->bpr  = (vmcr & ICH_VMCR_BPR0_MASK) >> ICH_VMCR_BPR0_SHIFT;
 	vmcrp->pmr  = (vmcr & ICH_VMCR_PMR_MASK) >> ICH_VMCR_PMR_SHIFT;
+}
+
+/**
+ * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
+ * @node:	pointer to the DT node
+ *
+ * Returns 0 if a GICv3 has been found, returns an error code otherwise
+ */
+int vgic_v3_probe(const struct gic_kvm_info *info)
+{
+	u32 ich_vtr_el2 = kvm_call_hyp(__vgic_v3_get_ich_vtr_el2);
+
+	/*
+	 * The ListRegs field is 5 bits, but there is a architectural
+	 * maximum of 16 list registers. Just ignore bit 4...
+	 */
+	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
+	kvm_vgic_global_state.can_emulate_gicv2 = false;
+
+	if (!info->vcpu.start) {
+		kvm_info("GICv3: no GICV resource entry\n");
+		kvm_vgic_global_state.vcpu_base = 0;
+	} else if (!PAGE_ALIGNED(info->vcpu.start)) {
+		pr_warn("GICV physical address 0x%llx not page aligned\n",
+			(unsigned long long)info->vcpu.start);
+		kvm_vgic_global_state.vcpu_base = 0;
+	} else if (!PAGE_ALIGNED(resource_size(&info->vcpu))) {
+		pr_warn("GICV size 0x%llx not a multiple of page size 0x%lx\n",
+			(unsigned long long)resource_size(&info->vcpu),
+			PAGE_SIZE);
+		kvm_vgic_global_state.vcpu_base = 0;
+	} else {
+		kvm_vgic_global_state.vcpu_base = info->vcpu.start;
+		kvm_vgic_global_state.can_emulate_gicv2 = true;
+		kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
+		kvm_info("vgic-v2@%llx\n", info->vcpu.start);
+	}
+	if (kvm_vgic_global_state.vcpu_base == 0)
+		kvm_info("disabling GICv2 emulation\n");
+	kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V3);
+
+	kvm_vgic_global_state.vctrl_base = NULL;
+	kvm_vgic_global_state.type = VGIC_V3;
+	kvm_vgic_global_state.max_gic_vcpus = VGIC_V3_MAX_CPUS;
+
+	return 0;
 }
