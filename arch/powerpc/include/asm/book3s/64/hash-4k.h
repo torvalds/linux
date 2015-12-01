@@ -62,6 +62,7 @@
 /* shift to put page number into pte */
 #define PTE_RPN_SHIFT	(17)
 
+#define _PAGE_4K_PFN		0
 #ifndef __ASSEMBLY__
 /*
  * 4-level page tables related bits

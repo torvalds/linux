@@ -11,10 +11,7 @@
 #ifndef __ASSEMBLY__
 
 /* Generic accessors to PTE bits */
-static inline int pte_write(pte_t pte)
-{
-	return (pte_val(pte) & (_PAGE_RW | _PAGE_RO)) != _PAGE_RO;
-}
+static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_RW);}
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
@@ -57,15 +54,16 @@ static inline unsigned long pte_pfn(pte_t pte)	{
 	return pte_val(pte) >> PTE_RPN_SHIFT; }
 
 /* Generic modifiers for PTE bits */
-static inline pte_t pte_wrprotect(pte_t pte) {
-	pte_val(pte) &= ~(_PAGE_RW | _PAGE_HWWRITE);
-	pte_val(pte) |= _PAGE_RO; return pte; }
+static inline pte_t pte_wrprotect(pte_t pte)
+{
+	pte_val(pte) &= ~_PAGE_RW;
+	return pte;
+}
 static inline pte_t pte_mkclean(pte_t pte) {
-	pte_val(pte) &= ~(_PAGE_DIRTY | _PAGE_HWWRITE); return pte; }
+	pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkold(pte_t pte) {
 	pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte) {
-	pte_val(pte) &= ~_PAGE_RO;
 	pte_val(pte) |= _PAGE_RW; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte) {
 	pte_val(pte) |= _PAGE_DIRTY; return pte; }
