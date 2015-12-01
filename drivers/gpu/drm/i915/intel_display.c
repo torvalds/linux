@@ -14260,6 +14260,10 @@ static bool intel_crt_present(struct drm_device *dev)
 	if (HAS_PCH_LPT_H(dev) && I915_READ(SFUSE_STRAP) & SFUSE_STRAP_CRT_DISABLED)
 		return false;
 
+	/* DDI E can't be used if DDI A requires 4 lanes */
+	if (HAS_DDI(dev) && I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES)
+		return false;
+
 	if (IS_VALLEYVIEW(dev) && !dev_priv->vbt.int_crt_support)
 		return false;
 
