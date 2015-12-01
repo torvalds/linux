@@ -130,12 +130,85 @@ struct amd_pp_init {
 	uint32_t chip_id;
 	uint32_t rev_id;
 };
+enum amd_pp_display_config_type{
+	AMD_PP_DisplayConfigType_None = 0,
+	AMD_PP_DisplayConfigType_DP54 ,
+	AMD_PP_DisplayConfigType_DP432 ,
+	AMD_PP_DisplayConfigType_DP324 ,
+	AMD_PP_DisplayConfigType_DP27,
+	AMD_PP_DisplayConfigType_DP243,
+	AMD_PP_DisplayConfigType_DP216,
+	AMD_PP_DisplayConfigType_DP162,
+	AMD_PP_DisplayConfigType_HDMI6G ,
+	AMD_PP_DisplayConfigType_HDMI297 ,
+	AMD_PP_DisplayConfigType_HDMI162,
+	AMD_PP_DisplayConfigType_LVDS,
+	AMD_PP_DisplayConfigType_DVI,
+	AMD_PP_DisplayConfigType_WIRELESS,
+	AMD_PP_DisplayConfigType_VGA
+};
+
+struct single_display_configuration
+{
+	uint32_t controller_index;
+	uint32_t controller_id;
+	uint32_t signal_type;
+	uint32_t display_state;
+	/* phy id for the primary internal transmitter */
+	uint8_t primary_transmitter_phyi_d;
+	/* bitmap with the active lanes */
+	uint8_t primary_transmitter_active_lanemap;
+	/* phy id for the secondary internal transmitter (for dual-link dvi) */
+	uint8_t secondary_transmitter_phy_id;
+	/* bitmap with the active lanes */
+	uint8_t secondary_transmitter_active_lanemap;
+	/* misc phy settings for SMU. */
+	uint32_t config_flags;
+	uint32_t display_type;
+	uint32_t view_resolution_cx;
+	uint32_t view_resolution_cy;
+	enum amd_pp_display_config_type displayconfigtype;
+	uint32_t vertical_refresh; /* for active display */
+};
+
+#define MAX_NUM_DISPLAY 32
 
 struct amd_pp_display_configuration {
 	bool nb_pstate_switch_disable;/* controls NB PState switch */
 	bool cpu_cc6_disable; /* controls CPU CState switch ( on or off) */
 	bool cpu_pstate_disable;
 	uint32_t cpu_pstate_separation_time;
+
+	uint32_t num_display;  /* total number of display*/
+	uint32_t num_path_including_non_display;
+	uint32_t crossfire_display_index;
+	uint32_t min_mem_set_clock;
+	uint32_t min_core_set_clock;
+	/* unit 10KHz x bit*/
+	uint32_t min_bus_bandwidth;
+	/* minimum required stutter sclk, in 10khz uint32_t ulMinCoreSetClk;*/
+	uint32_t min_core_set_clock_in_sr;
+
+	struct single_display_configuration displays[MAX_NUM_DISPLAY];
+
+	uint32_t vrefresh; /* for active display*/
+
+	uint32_t min_vblank_time; /* for active display*/
+	bool multi_monitor_in_sync;
+	/* Controller Index of primary display - used in MCLK SMC switching hang
+	 * SW Workaround*/
+	uint32_t crtc_index;
+	/* htotal*1000/pixelclk - used in MCLK SMC switching hang SW Workaround*/
+	uint32_t line_time_in_us;
+	bool invalid_vblank_time;
+
+	uint32_t display_clk;
+	/*
+	 * for given display configuration if multimonitormnsync == false then
+	 * Memory clock DPMS with this latency or below is allowed, DPMS with
+	 * higher latency not allowed.
+	 */
+	uint32_t dce_tolerable_mclk_in_active_latency;
 };
 
 struct amd_pp_dal_clock_info {

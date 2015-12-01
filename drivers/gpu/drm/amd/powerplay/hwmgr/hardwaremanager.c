@@ -249,16 +249,21 @@ int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 		    const struct amd_pp_display_configuration *display_config)
 {
-	if (hwmgr == NULL || hwmgr->hwmgr_func->store_cc6_data == NULL)
+
+	if (hwmgr == NULL)
 		return -EINVAL;
 
+	hwmgr->display_config = *display_config;
 	/* to do pass other display configuration in furture */
-	return hwmgr->hwmgr_func->store_cc6_data(hwmgr,
-					display_config->cpu_pstate_separation_time,
-					display_config->cpu_cc6_disable,
-					display_config->cpu_pstate_disable,
-					display_config->nb_pstate_switch_disable);
 
+	if (hwmgr->hwmgr_func->store_cc6_data)
+		hwmgr->hwmgr_func->store_cc6_data(hwmgr,
+				display_config->cpu_pstate_separation_time,
+				display_config->cpu_cc6_disable,
+				display_config->cpu_pstate_disable,
+				display_config->nb_pstate_switch_disable);
+
+	return 0;
 }
 
 int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,

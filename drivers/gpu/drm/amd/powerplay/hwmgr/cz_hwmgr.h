@@ -176,6 +176,14 @@ struct cz_power_state {
 #define SMU_EnabledFeatureScoreboard_UvdDpmOn   0x00800000 /* bit 23 */
 #define SMU_EnabledFeatureScoreboard_VceDpmOn   0x01000000 /* bit 24 */
 
+struct cc6_settings {
+	bool cc6_setting_changed;
+	bool nb_pstate_switch_disable;/* controls NB PState switch */
+	bool cpu_cc6_disable; /* controls CPU CState switch ( on or off) */
+	bool cpu_pstate_disable;
+	uint32_t cpu_pstate_separation_time;
+};
+
 struct cz_hwmgr {
 	uint32_t activity_target[CZ_MAX_HARDWARE_POWERLEVELS];
 	uint32_t dpm_interval;
@@ -238,7 +246,7 @@ struct cz_hwmgr {
 	uint32_t highest_valid;
 	uint32_t high_voltage_threshold;
 	uint32_t is_nb_dpm_enabled;
-	struct amd_pp_display_configuration display_cfg; /* set by DAL */
+	struct cc6_settings cc6_settings;
 	uint32_t is_voltage_island_enabled;
 
 	bool pgacpinit;
@@ -304,7 +312,6 @@ struct cz_hwmgr {
 
 	uint32_t max_sclk_level;
 	uint32_t num_of_clk_entries;
-	bool cc6_setting_changed;
 };
 
 struct pp_hwmgr;

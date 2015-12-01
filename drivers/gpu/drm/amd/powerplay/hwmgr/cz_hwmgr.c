@@ -239,10 +239,10 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_DynamicUVDState);
 
-	cz_hwmgr->display_cfg.cpu_cc6_disable = false;
-	cz_hwmgr->display_cfg.cpu_pstate_disable = false;
-	cz_hwmgr->display_cfg.nb_pstate_switch_disable = false;
-	cz_hwmgr->display_cfg.cpu_pstate_separation_time = 0;
+	cz_hwmgr->cc6_settings.cpu_cc6_disable = false;
+	cz_hwmgr->cc6_settings.cpu_pstate_disable = false;
+	cz_hwmgr->cc6_settings.nb_pstate_switch_disable = false;
+	cz_hwmgr->cc6_settings.cpu_pstate_separation_time = 0;
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				   PHM_PlatformCaps_DisableVoltageIsland);
@@ -784,8 +784,11 @@ static int cz_tf_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr,
 					void *storage, int result)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				    PHM_PlatformCaps_SclkDeepSleep)) {
-		/* TO DO get from dal PECI_GetMinClockSettings(pHwMgr->pPECI, &clocks); */
+				PHM_PlatformCaps_SclkDeepSleep)) {
+		uint32_t clks = hwmgr->display_config.min_core_set_clock_in_sr;
+		if (clks == 0)
+			clks = CZ_MIN_DEEP_SLEEP_SCLK;
+
 		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					  PPSMC_MSG_SetMinDeepSleepSclk,
 						CZ_MIN_DEEP_SLEEP_SCLK);
@@ -873,8 +876,8 @@ static int cz_tf_update_low_mem_pstate(struct pp_hwmgr *hwmgr,
 	const struct cz_power_state *pnew_state = cast_const_PhwCzPowerState(states->pnew_state);
 
 	if (hw_data->sys_info.nb_dpm_enable) {
-		disable_switch = hw_data->display_cfg.nb_pstate_switch_disable ? true : false;
-		enable_low_mem_state = hw_data->display_cfg.nb_pstate_switch_disable ? false : true;
+		disable_switch = hw_data->cc6_settings.nb_pstate_switch_disable ? true : false;
+		enable_low_mem_state = hw_data->cc6_settings.nb_pstate_switch_disable ? false : true;
 
 		if (pnew_state->action == FORCE_HIGH)
 			cz_nbdpm_pstate_enable_disable(hwmgr, false, disable_switch);
@@ -1530,18 +1533,18 @@ cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 }
 
 static void cz_hw_print_display_cfg(
-	const struct amd_pp_display_configuration *display_cfg)
+	const struct cc6_settings *cc6_settings)
 {
 	PP_DBG_LOG("New Display Configuration:\n");
 
 	PP_DBG_LOG("   cpu_cc6_disable: %d\n",
-			display_cfg->cpu_cc6_disable);
+			cc6_settings->cpu_cc6_disable);
 	PP_DBG_LOG("   cpu_pstate_disable: %d\n",
-			display_cfg->cpu_pstate_disable);
+			cc6_settings->cpu_pstate_disable);
 	PP_DBG_LOG("   nb_pstate_switch_disable: %d\n",
-			display_cfg->nb_pstate_switch_disable);
+			cc6_settings->nb_pstate_switch_disable);
 	PP_DBG_LOG("   cpu_pstate_separation_time: %d\n\n",
-			display_cfg->cpu_pstate_separation_time);
+			cc6_settings->cpu_pstate_separation_time);
 }
 
  static int cz_set_cpu_power_state(struct pp_hwmgr *hwmgr)
@@ -1549,18 +1552,20 @@ static void cz_hw_print_display_cfg(
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 	uint32_t data = 0;
 
-	if (hw_data->cc6_setting_changed == true) {
+	if (hw_data->cc6_settings.cc6_setting_changed == true) {
 
-		cz_hw_print_display_cfg(&hw_data->display_cfg);
+		hw_data->cc6_settings.cc6_setting_changed = false;
 
-		data |= (hw_data->display_cfg.cpu_pstate_separation_time
+		cz_hw_print_display_cfg(&hw_data->cc6_settings);
+
+		data |= (hw_data->cc6_settings.cpu_pstate_separation_time
 			& PWRMGT_SEPARATION_TIME_MASK)
 			<< PWRMGT_SEPARATION_TIME_SHIFT;
 
-		data|= (hw_data->display_cfg.cpu_cc6_disable ? 0x1 : 0x0)
+		data|= (hw_data->cc6_settings.cpu_cc6_disable ? 0x1 : 0x0)
 			<< PWRMGT_DISABLE_CPU_CSTATES_SHIFT;
 
-		data|= (hw_data->display_cfg.cpu_pstate_disable ? 0x1 : 0x0)
+		data|= (hw_data->cc6_settings.cpu_pstate_disable ? 0x1 : 0x0)
 			<< PWRMGT_DISABLE_CPU_PSTATES_SHIFT;
 
 		PP_DBG_LOG("SetDisplaySizePowerParams data: 0x%X\n",
@@ -1569,30 +1574,39 @@ static void cz_hw_print_display_cfg(
 		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 						PPSMC_MSG_SetDisplaySizePowerParams,
 						data);
-
-		hw_data->cc6_setting_changed = false;
 	}
 
 	return 0;
 }
 
+
  static int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 			bool cc6_disable, bool pstate_disable, bool pstate_switch_disable)
-{
+ {
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 
-	if (separation_time != hw_data->display_cfg.cpu_pstate_separation_time
-	|| cc6_disable != hw_data->display_cfg.cpu_cc6_disable
-	|| pstate_disable != hw_data->display_cfg.cpu_pstate_disable
-	|| pstate_switch_disable != hw_data->display_cfg.nb_pstate_switch_disable) {
+	if (separation_time !=
+		hw_data->cc6_settings.cpu_pstate_separation_time
+		|| cc6_disable !=
+		hw_data->cc6_settings.cpu_cc6_disable
+		|| pstate_disable !=
+		hw_data->cc6_settings.cpu_pstate_disable
+		|| pstate_switch_disable !=
+		hw_data->cc6_settings.nb_pstate_switch_disable) {
 
-		hw_data->display_cfg.cpu_pstate_separation_time = separation_time;
-		hw_data->display_cfg.cpu_cc6_disable = cc6_disable;
-		hw_data->display_cfg.cpu_pstate_disable = pstate_disable;
-		hw_data->display_cfg.nb_pstate_switch_disable = pstate_switch_disable;
-		hw_data->cc6_setting_changed = true;
+		hw_data->cc6_settings.cc6_setting_changed = true;
+
+		hw_data->cc6_settings.cpu_pstate_separation_time =
+			separation_time;
+		hw_data->cc6_settings.cpu_cc6_disable =
+			cc6_disable;
+		hw_data->cc6_settings.cpu_pstate_disable =
+			pstate_disable;
+		hw_data->cc6_settings.nb_pstate_switch_disable =
+			pstate_switch_disable;
 
 	}
+
 	return 0;
 }
 
