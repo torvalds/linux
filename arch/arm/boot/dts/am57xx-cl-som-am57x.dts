@@ -50,6 +50,33 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	sound0: sound@0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "CL-SOM-AM57x-Sound-Card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&dailink0_master>;
+		simple-audio-card,frame-master = <&dailink0_master>;
+		simple-audio-card,widgets =
+					"Headphone", "Headphone Jack",
+					"Microphone", "Microphone Jack",
+					"Line", "Line Jack";
+		simple-audio-card,routing =
+					"Headphone Jack", "RHPOUT",
+					"Headphone Jack", "LHPOUT",
+					"LLINEIN", "Line Jack",
+					"MICIN", "Mic Bias",
+					"Mic Bias", "Microphone Jack";
+
+		dailink0_master: simple-audio-card,cpu {
+			sound-dai = <&mcasp3>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&wm8731>;
+			system-clock-frequency = <12000000>;
+		};
+	};
 };
 
 &dra7_pmx_core {
@@ -194,6 +221,24 @@
 	ads7846_pins: pinmux_ads7846_pins {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3464, PIN_INPUT_PULLDOWN | MUX_MODE14) /* gpmc_a9.gpio1_31 */
+		>;
+	};
+
+	mcasp3_pins_default: mcasp3_pins_default {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3724, PIN_INPUT_PULLDOWN | MUX_MODE0) /* mcasp3_aclkx.mcasp3_aclkx */
+			DRA7XX_CORE_IOPAD(0x3728, PIN_INPUT_PULLDOWN | MUX_MODE0) /* mcasp3_fsx.mcasp3_fsx */
+			DRA7XX_CORE_IOPAD(0x372c, PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* mcasp3_axr0.mcasp3_axr0 */
+			DRA7XX_CORE_IOPAD(0x3730, PIN_INPUT_PULLDOWN | MUX_MODE0) /* mcasp3_axr1.mcasp3_axr1 */
+		>;
+	};
+
+	mcasp3_pins_sleep: mcasp3_pins_sleep {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3724, PIN_INPUT | MUX_MODE15)
+			DRA7XX_CORE_IOPAD(0x3728, PIN_INPUT | MUX_MODE15)
+			DRA7XX_CORE_IOPAD(0x372c, PIN_INPUT | MUX_MODE15)
+			DRA7XX_CORE_IOPAD(0x3730, PIN_INPUT | MUX_MODE15)
 		>;
 	};
 };
@@ -392,6 +437,13 @@
 		reg = <0x50>;
 		pagesize = <16>;
 	};
+
+	wm8731: wm8731@1a {
+		#sound-dai-cells = <0>;
+		compatible = "wlf,wm8731";
+		reg = <0x1a>;
+		status = "okay";
+	};
 };
 
 &cpu0 {
@@ -537,4 +589,19 @@
 
 &usb2 {
 	dr_mode = "peripheral";
+};
+
+&mcasp3 {
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&mcasp3_pins_default>;
+	pinctrl-1 = <&mcasp3_pins_sleep>;
+	status = "okay";
+
+	op-mode = <0>;	/* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 4 serializers */
+	serial-dir = <	/* 0: INACTIVE, 1: TX, 2: RX */
+		1 2 0 0
+	>;
 };
