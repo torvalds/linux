@@ -184,13 +184,13 @@ static const struct rockchip_cpuclk_reg_data rk3368_cpuclkl_data = {
 
 #define RK3368_CLKSEL0(_offs, _aclkm)					\
 	{								\
-		.reg = RK3288_CLKSEL_CON(0 + _offs),			\
+		.reg = RK3368_CLKSEL_CON(0 + _offs),			\
 		.val = HIWORD_UPDATE(_aclkm, RK3368_DIV_ACLKM_MASK,	\
 				RK3368_DIV_ACLKM_SHIFT),		\
 	}
 #define RK3368_CLKSEL1(_offs, _atclk, _pdbg)				\
 	{								\
-		.reg = RK3288_CLKSEL_CON(1 + _offs),			\
+		.reg = RK3368_CLKSEL_CON(1 + _offs),			\
 		.val = HIWORD_UPDATE(_atclk, RK3368_DIV_ATCLK_MASK,	\
 				RK3368_DIV_ATCLK_SHIFT) |		\
 		       HIWORD_UPDATE(_pdbg, RK3368_DIV_PCLK_DBG_MASK,	\
