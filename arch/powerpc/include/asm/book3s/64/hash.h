@@ -481,6 +481,157 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW, 0);
 }
 
+/* Generic accessors to PTE bits */
+static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_RW);}
+static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY); }
+static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
+static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
+static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
+static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
+
+#ifdef CONFIG_NUMA_BALANCING
+/*
+ * These work without NUMA balancing but the kernel does not care. See the
+ * comment in include/asm-generic/pgtable.h . On powerpc, this will only
+ * work for user pages and always return true for kernel pages.
+ */
+static inline int pte_protnone(pte_t pte)
+{
+	return (pte_val(pte) &
+		(_PAGE_PRESENT | _PAGE_USER)) == _PAGE_PRESENT;
+}
+#endif /* CONFIG_NUMA_BALANCING */
+
+static inline int pte_present(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_PRESENT;
+}
+
+/* Conversion functions: convert a page and protection to a page entry,
+ * and a page entry and page directory to the page they refer to.
+ *
+ * Even if PTEs can be unsigned long long, a PFN is always an unsigned
+ * long for now.
+ */
+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
+{
+	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
+		     pgprot_val(pgprot));
+}
+
+static inline unsigned long pte_pfn(pte_t pte)
+{
+	return pte_val(pte) >> PTE_RPN_SHIFT;
+}
+
+/* Generic modifiers for PTE bits */
+static inline pte_t pte_wrprotect(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_RW);
+}
+
+static inline pte_t pte_mkclean(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_DIRTY);
+}
+
+static inline pte_t pte_mkold(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_ACCESSED);
+}
+
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_RW);
+}
+
+static inline pte_t pte_mkdirty(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_DIRTY);
+}
+
+static inline pte_t pte_mkyoung(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_ACCESSED);
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_SPECIAL);
+}
+
+static inline pte_t pte_mkhuge(pte_t pte)
+{
+	return pte;
+}
+
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+{
+	return __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot));
+}
+
+/* This low level function performs the actual PTE insertion
+ * Setting the PTE depends on the MMU type and other factors. It's
+ * an horrible mess that I'm not going to try to clean up now but
+ * I'm keeping it in one place rather than spread around
+ */
+static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
+				pte_t *ptep, pte_t pte, int percpu)
+{
+	/*
+	 * Anything else just stores the PTE normally. That covers all 64-bit
+	 * cases, and 32-bit non-hash with 32-bit PTEs.
+	 */
+	*ptep = pte;
+}
+
+/*
+ * Macro to mark a page protection value as "uncacheable".
+ */
+
+#define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE | \
+			 _PAGE_WRITETHRU)
+
+#define pgprot_noncached pgprot_noncached
+static inline pgprot_t pgprot_noncached(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
+			_PAGE_NO_CACHE | _PAGE_GUARDED);
+}
+
+#define pgprot_noncached_wc pgprot_noncached_wc
+static inline pgprot_t pgprot_noncached_wc(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
+			_PAGE_NO_CACHE);
+}
+
+#define pgprot_cached pgprot_cached
+static inline pgprot_t pgprot_cached(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
+			_PAGE_COHERENT);
+}
+
+#define pgprot_cached_wthru pgprot_cached_wthru
+static inline pgprot_t pgprot_cached_wthru(pgprot_t prot)
+{
+	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
+			_PAGE_COHERENT | _PAGE_WRITETHRU);
+}
+
+#define pgprot_cached_noncoherent pgprot_cached_noncoherent
+static inline pgprot_t pgprot_cached_noncoherent(pgprot_t prot)
+{
+	return __pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL);
+}
+
+#define pgprot_writecombine pgprot_writecombine
+static inline pgprot_t pgprot_writecombine(pgprot_t prot)
+{
+	return pgprot_noncached_wc(prot);
+}
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 				   pmd_t *pmdp, unsigned long old_pmd);
