@@ -262,24 +262,23 @@ static unsigned submit_stpg(struct alua_dh_data *h)
  * Examine the TPGS setting of the sdev to find out if ALUA
  * is supported.
  */
-static int alua_check_tpgs(struct scsi_device *sdev, struct alua_dh_data *h)
+static int alua_check_tpgs(struct scsi_device *sdev)
 {
-	int err = SCSI_DH_OK;
+	int tpgs = TPGS_MODE_NONE;
 
 	/*
 	 * ALUA support for non-disk devices is fraught with
 	 * difficulties, so disable it for now.
 	 */
 	if (sdev->type != TYPE_DISK) {
-		h->tpgs = TPGS_MODE_NONE;
 		sdev_printk(KERN_INFO, sdev,
 			    "%s: disable for non-disk devices\n",
 			    ALUA_DH_NAME);
-		return SCSI_DH_DEV_UNSUPP;
+		return tpgs;
 	}
 
-	h->tpgs = scsi_device_tpgs(sdev);
-	switch (h->tpgs) {
+	tpgs = scsi_device_tpgs(sdev);
+	switch (tpgs) {
 	case TPGS_MODE_EXPLICIT|TPGS_MODE_IMPLICIT:
 		sdev_printk(KERN_INFO, sdev,
 			    "%s: supports implicit and explicit TPGS\n",
@@ -296,18 +295,16 @@ static int alua_check_tpgs(struct scsi_device *sdev, struct alua_dh_data *h)
 	case TPGS_MODE_NONE:
 		sdev_printk(KERN_INFO, sdev, "%s: not supported\n",
 			    ALUA_DH_NAME);
-		err = SCSI_DH_DEV_UNSUPP;
 		break;
 	default:
 		sdev_printk(KERN_INFO, sdev,
 			    "%s: unsupported TPGS setting %d\n",
-			    ALUA_DH_NAME, h->tpgs);
-		h->tpgs = TPGS_MODE_NONE;
-		err = SCSI_DH_DEV_UNSUPP;
+			    ALUA_DH_NAME, tpgs);
+		tpgs = TPGS_MODE_NONE;
 		break;
 	}
 
-	return err;
+	return tpgs;
 }
 
 /*
@@ -627,10 +624,10 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h, int wait_
  */
 static int alua_initialize(struct scsi_device *sdev, struct alua_dh_data *h)
 {
-	int err;
+	int err = SCSI_DH_DEV_UNSUPP;
 
-	err = alua_check_tpgs(sdev, h);
-	if (err != SCSI_DH_OK)
+	h->tpgs = alua_check_tpgs(sdev);
+	if (h->tpgs == TPGS_MODE_NONE)
 		goto out;
 
 	err = alua_check_vpd(sdev, h);
