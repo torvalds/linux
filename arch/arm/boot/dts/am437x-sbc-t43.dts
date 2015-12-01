@@ -61,6 +61,12 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+
+	eeprom_base: at24@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
 };
 
 &i2c2 {
