@@ -540,6 +540,7 @@ struct nand_buffers {
 
 /**
  * struct nand_chip - NAND Private Flash Chip Data
+ * @mtd:		MTD device registered to the MTD framework
  * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the
  *			flash device
  * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the
@@ -640,6 +641,7 @@ struct nand_buffers {
  */
 
 struct nand_chip {
+	struct mtd_info mtd;
 	void __iomem *IO_ADDR_R;
 	void __iomem *IO_ADDR_W;
 
