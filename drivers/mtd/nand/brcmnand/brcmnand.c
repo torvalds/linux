@@ -176,7 +176,6 @@ struct brcmnand_cfg {
 
 struct brcmnand_host {
 	struct list_head	node;
-	struct device_node	*of_node;
 
 	struct nand_chip	chip;
 	struct mtd_info		mtd;
@@ -1902,10 +1901,9 @@ static int brcmnand_setup_dev(struct brcmnand_host *host)
 	return 0;
 }
 
-static int brcmnand_init_cs(struct brcmnand_host *host)
+static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 {
 	struct brcmnand_controller *ctrl = host->ctrl;
-	struct device_node *dn = host->of_node;
 	struct platform_device *pdev = host->pdev;
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
@@ -2239,9 +2237,8 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 			}
 			host->pdev = pdev;
 			host->ctrl = ctrl;
-			host->of_node = child;
 
-			ret = brcmnand_init_cs(host);
+			ret = brcmnand_init_cs(host, child);
 			if (ret) {
 				devm_kfree(dev, host);
 				continue; /* Try all chip-selects */
