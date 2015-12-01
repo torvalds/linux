@@ -713,6 +713,8 @@ struct hfi1_pportdata {
 	u64 link_downed;
 	/* number of times link retrained successfully */
 	u64 link_up;
+	/* number of times a link unknown frame was reported */
+	u64 unknown_frame_count;
 	/* port_ltp_crc_mode is returned in 'portinfo' MADs */
 	u16 port_ltp_crc_mode;
 	/* port_crc_mode_enabled is the crc we support */

@@ -1418,6 +1418,17 @@ static u64 access_sw_link_up_cnt(const struct cntr_entry *entry, void *context,
 	return read_write_sw(ppd->dd, &ppd->link_up, mode, data);
 }
 
+static u64 access_sw_unknown_frame_cnt(const struct cntr_entry *entry,
+				       void *context, int vl, int mode,
+				       u64 data)
+{
+	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+
+	if (vl != CNTR_INVALID_VL)
+		return 0;
+	return read_write_sw(ppd->dd, &ppd->unknown_frame_count, mode, data);
+}
+
 static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
 				    void *context, int vl, int mode, u64 data)
 {
@@ -4879,6 +4890,8 @@ static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
 			access_sw_link_dn_cnt),
 [C_SW_LINK_UP] = CNTR_ELEM("SwLinkUp", 0, 0, CNTR_SYNTH | CNTR_32BIT,
 			access_sw_link_up_cnt),
+[C_SW_UNKNOWN_FRAME] = CNTR_ELEM("UnknownFrame", 0, 0, CNTR_NORMAL,
+				 access_sw_unknown_frame_cnt),
 [C_SW_XMIT_DSCD] = CNTR_ELEM("XmitDscd", 0, 0, CNTR_SYNTH | CNTR_32BIT,
 			access_sw_xmit_discards),
 [C_SW_XMIT_DSCD_VL] = CNTR_ELEM("XmitDscdVl", 0, 0,
@@ -7234,6 +7247,11 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 						err & FAILED_LNI));
 			}
 			err &= ~(u64)FAILED_LNI;
+		}
+		/* unknown frames can happen durning LNI, just count */
+		if (err & UNKNOWN_FRAME) {
+			ppd->unknown_frame_count++;
+			err &= ~(u64)UNKNOWN_FRAME;
 		}
 		if (err) {
 			/* report remaining errors, but do not do anything */
