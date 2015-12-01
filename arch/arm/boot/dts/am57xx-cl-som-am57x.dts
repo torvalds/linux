@@ -605,3 +605,13 @@
 		1 2 0 0
 	>;
 };
+
+&gpio3 {
+	status = "okay";
+	ti,no-reset-on-init;
+};
+
+&gpio2 {
+	status = "okay";
+	ti,no-reset-on-init;
+};
