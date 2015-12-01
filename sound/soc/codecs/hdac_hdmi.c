@@ -409,17 +409,18 @@ static int hdac_hdmi_init_dai_map(struct hdac_ext_device *edev,
 static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev)
 {
 	hda_nid_t nid;
-	int i;
+	int i, num_nodes;
 	struct hdac_device *hdac = &edev->hdac;
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	int cvt_nid = 0, pin_nid = 0;
 
-	hdac->num_nodes = snd_hdac_get_sub_nodes(hdac, hdac->afg, &nid);
-	if (!nid || hdac->num_nodes < 0) {
+	num_nodes = snd_hdac_get_sub_nodes(hdac, hdac->afg, &nid);
+	if (!nid || num_nodes < 0) {
 		dev_warn(&hdac->dev, "HDMI: failed to get afg sub nodes\n");
 		return -EINVAL;
 	}
 
+	hdac->num_nodes = num_nodes;
 	hdac->start_nid = nid;
 
 	for (i = 0; i < hdac->num_nodes; i++, nid++) {
