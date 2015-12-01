@@ -26,6 +26,7 @@ for arg in "$@"; do
 		sudo find security/ -name '*.cmd' -delete
 	elif [[ "$arg" == '--clean' || "$arg" == '-clean' ]]; then
 		sudo make clean
+                sudo rm -rf debian
 	elif [[ "$arg" == '--nogrub' || "$arg" == '-nogrub' ]]; then
 		GRUB=0
 	elif [[ "$arg" == '--noreboot' || "$arg" == '-noreboot' ]]; then
@@ -44,7 +45,7 @@ sudo rm -rf ../linux-image-*.deb
 PROCESSORS=`cat /proc/cpuinfo | grep processor | wc -l`
 export CONCURRENCY_LEVEL=`expr $PROCESSORS + 1`
 #export CLEAN_SOURCE=no
-sudo make-kpkg --initrd --revision=1.2 --append_to_version medusa kernel_image
+fakeroot make-kpkg --initrd --revision=1.2 --append_to_version medusa kernel_image
 
 [ $? -ne 0 ] && exit 1
 
