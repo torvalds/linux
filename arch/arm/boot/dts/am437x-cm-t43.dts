@@ -51,6 +51,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;
 	clock-frequency = <100000>;
+
+	eeprom_module: at24@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
 };
 
 &gpio0 {
