@@ -109,11 +109,6 @@ struct sun4i_codec {
 
 static void sun4i_codec_start_playback(struct sun4i_codec *scodec)
 {
-	/*
-	 * FIXME: according to the BSP, we might need to drive a PA
-	 *        GPIO high here on some boards
-	 */
-
 	/* Flush TX FIFO */
 	regmap_update_bits(scodec->regmap, SUN4I_CODEC_DAC_FIFOC,
 			   BIT(SUN4I_CODEC_DAC_FIFOC_FIFO_FLUSH),
@@ -127,11 +122,6 @@ static void sun4i_codec_start_playback(struct sun4i_codec *scodec)
 
 static void sun4i_codec_stop_playback(struct sun4i_codec *scodec)
 {
-	/*
-	 * FIXME: according to the BSP, we might need to drive a PA
-	 *        GPIO low here on some boards
-	 */
-
 	/* Disable DAC DRQ */
 	regmap_update_bits(scodec->regmap, SUN4I_CODEC_DAC_FIFOC,
 			   BIT(SUN4I_CODEC_DAC_FIFOC_DAC_DRQ_EN),
@@ -140,11 +130,6 @@ static void sun4i_codec_stop_playback(struct sun4i_codec *scodec)
 
 static void sun4i_codec_start_capture(struct sun4i_codec *scodec)
 {
-	/*
-	 * FIXME: according to the BSP, we might need to drive a PA
-	 *        GPIO high here on some boards
-	 */
-
 	/* Enable ADC DRQ */
 	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
 			   BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN),
@@ -153,11 +138,6 @@ static void sun4i_codec_start_capture(struct sun4i_codec *scodec)
 
 static void sun4i_codec_stop_capture(struct sun4i_codec *scodec)
 {
-	/*
-	 * FIXME: according to the BSP, we might need to drive a PA
-	 *        GPIO low here on some boards
-	 */
-
 	/* Disable ADC DRQ */
 	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
 			   BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN), 0);
@@ -358,8 +338,6 @@ static int sun4i_codec_hw_params_capture(struct sun4i_codec *scodec,
 					 struct snd_pcm_hw_params *params,
 					 unsigned int hwrate)
 {
-	u32 val;
-
 	/* Set ADC sample rate */
 	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
 			   7 << SUN4I_CODEC_ADC_FIFOC_ADC_FS,
