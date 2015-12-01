@@ -1336,6 +1336,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret = 0, j, pidx, initfail;
 	struct hfi1_devdata *dd = NULL;
+	struct hfi1_pportdata *ppd;
 
 	/* First, lock the non-writable module parameters */
 	HFI1_CAP_LOCK();
@@ -1431,8 +1432,14 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (initfail || ret) {
 		stop_timers(dd);
 		flush_workqueue(ib_wq);
-		for (pidx = 0; pidx < dd->num_pports; ++pidx)
+		for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 			hfi1_quiet_serdes(dd->pport + pidx);
+			ppd = dd->pport + pidx;
+			if (ppd->hfi1_wq) {
+				destroy_workqueue(ppd->hfi1_wq);
+				ppd->hfi1_wq = NULL;
+			}
+		}
 		if (!j)
 			hfi1_device_remove(dd);
 		if (!ret)
