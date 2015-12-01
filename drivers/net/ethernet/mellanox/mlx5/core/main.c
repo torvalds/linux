@@ -462,42 +462,39 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 	return err;
 }
 
-static int mlx5_core_enable_hca(struct mlx5_core_dev *dev)
+int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
+	u32 out[MLX5_ST_SZ_DW(enable_hca_out)];
+	u32 in[MLX5_ST_SZ_DW(enable_hca_in)];
 	int err;
-	struct mlx5_enable_hca_mbox_in in;
-	struct mlx5_enable_hca_mbox_out out;
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_ENABLE_HCA);
+	memset(in, 0, sizeof(in));
+	MLX5_SET(enable_hca_in, in, opcode, MLX5_CMD_OP_ENABLE_HCA);
+	MLX5_SET(enable_hca_in, in, function_id, func_id);
+	memset(out, 0, sizeof(out));
+
 	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
 	if (err)
 		return err;
 
-	if (out.hdr.status)
-		return mlx5_cmd_status_to_err(&out.hdr);
-
-	return 0;
+	return mlx5_cmd_status_to_err_v2(out);
 }
 
-static int mlx5_core_disable_hca(struct mlx5_core_dev *dev)
+int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
+	u32 out[MLX5_ST_SZ_DW(disable_hca_out)];
+	u32 in[MLX5_ST_SZ_DW(disable_hca_in)];
 	int err;
-	struct mlx5_disable_hca_mbox_in in;
-	struct mlx5_disable_hca_mbox_out out;
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DISABLE_HCA);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	memset(in, 0, sizeof(in));
+	MLX5_SET(disable_hca_in, in, opcode, MLX5_CMD_OP_DISABLE_HCA);
+	MLX5_SET(disable_hca_in, in, function_id, func_id);
+	memset(out, 0, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
 		return err;
 
-	if (out.hdr.status)
-		return mlx5_cmd_status_to_err(&out.hdr);
-
-	return 0;
+	return mlx5_cmd_status_to_err_v2(out);
 }
 
 static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
@@ -942,7 +939,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	mlx5_pagealloc_init(dev);
 
-	err = mlx5_core_enable_hca(dev);
+	err = mlx5_core_enable_hca(dev, 0);
 	if (err) {
 		dev_err(&pdev->dev, "enable hca failed\n");
 		goto err_pagealloc_cleanup;
@@ -1106,7 +1103,7 @@ reclaim_boot_pages:
 	mlx5_reclaim_startup_pages(dev);
 
 err_disable_hca:
-	mlx5_core_disable_hca(dev);
+	mlx5_core_disable_hca(dev, 0);
 
 err_pagealloc_cleanup:
 	mlx5_pagealloc_cleanup(dev);
@@ -1149,7 +1146,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	}
 	mlx5_pagealloc_stop(dev);
 	mlx5_reclaim_startup_pages(dev);
-	mlx5_core_disable_hca(dev);
+	mlx5_core_disable_hca(dev, 0);
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_cmd_cleanup(dev);
 
