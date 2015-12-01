@@ -155,6 +155,87 @@ void vgic_mmio_write_cpending(struct kvm_vcpu *vcpu,
 	}
 }
 
+unsigned long vgic_mmio_read_active(struct kvm_vcpu *vcpu,
+				    gpa_t addr, unsigned int len)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
+	u32 value = 0;
+	int i;
+
+	/* Loop over all IRQs affected by this read */
+	for (i = 0; i < len * 8; i++) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		if (irq->active)
+			value |= (1U << i);
+	}
+
+	return value;
+}
+
+void vgic_mmio_write_cactive(struct kvm_vcpu *vcpu,
+			     gpa_t addr, unsigned int len,
+			     unsigned long val)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
+	int i;
+
+	kvm_arm_halt_guest(vcpu->kvm);
+	for_each_set_bit(i, &val, len * 8) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		spin_lock(&irq->irq_lock);
+		/*
+		 * If this virtual IRQ was written into a list register, we
+		 * have to make sure the CPU that runs the VCPU thread has
+		 * synced back LR state to the struct vgic_irq.  We can only
+		 * know this for sure, when either this irq is not assigned to
+		 * anyone's AP list anymore, or the VCPU thread is not
+		 * running on any CPUs.
+		 *
+		 * In the opposite case, we know the VCPU thread may be on its
+		 * way back from the guest and still has to sync back this
+		 * IRQ, so we release and re-acquire the spin_lock to let the
+		 * other thread sync back the IRQ.
+		 */
+		while (irq->vcpu && /* IRQ may have state in an LR somewhere */
+		       irq->vcpu->cpu != -1) /* VCPU thread is running */
+			cond_resched_lock(&irq->irq_lock);
+
+		irq->active = false;
+		spin_unlock(&irq->irq_lock);
+	}
+	kvm_arm_resume_guest(vcpu->kvm);
+}
+
+void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
+			     gpa_t addr, unsigned int len,
+			     unsigned long val)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
+	int i;
+
+	for_each_set_bit(i, &val, len * 8) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		spin_lock(&irq->irq_lock);
+
+		/*
+		 * If the IRQ was already active or there is no target VCPU
+		 * assigned at the moment, then just proceed.
+		 */
+		if (irq->active || !irq->target_vcpu) {
+			irq->active = true;
+
+			spin_unlock(&irq->irq_lock);
+			continue;
+		}
+
+		irq->active = true;
+		vgic_queue_irq_unlock(vcpu->kvm, irq);
+	}
+}
+
 static int match_region(const void *key, const void *elt)
 {
 	const unsigned int offset = (unsigned long)key;
