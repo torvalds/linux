@@ -1354,6 +1354,9 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 {
 	trace_i915_gem_request_retire(request);
 
+	if (i915.enable_execlists)
+		intel_lr_context_complete_check(request);
+
 	/* We know the GPU must have read the request to have
 	 * sent us the seqno + interrupt, so use the position
 	 * of tail of the request to update the last known position
@@ -2764,10 +2767,6 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 					struct drm_i915_gem_request,
 					execlist_link);
 			list_del(&submit_req->execlist_link);
-
-			if (submit_req->ctx != ring->default_context)
-				intel_lr_context_unpin(submit_req);
-
 			i915_gem_request_unreference(submit_req);
 		}
 		spin_unlock_irq(&ring->execlist_lock);

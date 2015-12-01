@@ -884,6 +884,7 @@ struct intel_context {
 	struct {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
+		bool dirty;
 		int pin_count;
 	} engine[I915_NUM_RINGS];
 
