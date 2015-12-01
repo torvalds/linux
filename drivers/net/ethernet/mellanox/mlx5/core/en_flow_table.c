@@ -502,6 +502,49 @@ add_eth_addr_rule_out:
 	return err;
 }
 
+static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
+{
+	struct net_device *ndev = priv->netdev;
+	int max_list_size;
+	int list_size;
+	u16 *vlans;
+	int vlan;
+	int err;
+	int i;
+
+	list_size = 0;
+	for_each_set_bit(vlan, priv->vlan.active_vlans, VLAN_N_VID)
+		list_size++;
+
+	max_list_size = 1 << MLX5_CAP_GEN(priv->mdev, log_max_vlan_list);
+
+	if (list_size > max_list_size) {
+		netdev_warn(ndev,
+			    "netdev vlans list size (%d) > (%d) max vport list size, some vlans will be dropped\n",
+			    list_size, max_list_size);
+		list_size = max_list_size;
+	}
+
+	vlans = kcalloc(list_size, sizeof(*vlans), GFP_KERNEL);
+	if (!vlans)
+		return -ENOMEM;
+
+	i = 0;
+	for_each_set_bit(vlan, priv->vlan.active_vlans, VLAN_N_VID) {
+		if (i >= list_size)
+			break;
+		vlans[i++] = vlan;
+	}
+
+	err = mlx5_modify_nic_vport_vlans(priv->mdev, vlans, list_size);
+	if (err)
+		netdev_err(ndev, "Failed to modify vport vlans list err(%d)\n",
+			   err);
+
+	kfree(vlans);
+	return err;
+}
+
 enum mlx5e_vlan_rule_type {
 	MLX5E_VLAN_RULE_TYPE_UNTAGGED,
 	MLX5E_VLAN_RULE_TYPE_ANY_VID,
@@ -552,6 +595,10 @@ static int mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 			 1);
 		break;
 	default: /* MLX5E_VLAN_RULE_TYPE_MATCH_VID */
+		err = mlx5e_vport_context_update_vlans(priv);
+		if (err)
+			goto add_vlan_rule_out;
+
 		ft_ix = &priv->vlan.active_vlans_ft_ix[vid];
 		MLX5_SET(fte_match_param, match_value, outer_headers.vlan_tag,
 			 1);
@@ -588,6 +635,7 @@ static void mlx5e_del_vlan_rule(struct mlx5e_priv *priv,
 	case MLX5E_VLAN_RULE_TYPE_MATCH_VID:
 		mlx5_del_flow_table_entry(priv->ft.vlan,
 					  priv->vlan.active_vlans_ft_ix[vid]);
+		mlx5e_vport_context_update_vlans(priv);
 		break;
 	}
 }
@@ -619,6 +667,8 @@ int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
+	set_bit(vid, priv->vlan.active_vlans);
+
 	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 }
 
@@ -626,6 +676,8 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	clear_bit(vid, priv->vlan.active_vlans);
 
 	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 
