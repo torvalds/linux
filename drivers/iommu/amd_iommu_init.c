@@ -2298,8 +2298,9 @@ static int __init early_amd_iommu_init(void)
 	if (ret)
 		goto out;
 
-	if (amd_iommu_irq_remap)
+/*	if (amd_iommu_irq_remap)
 		amd_iommu_irq_remap = check_ioapic_information();
+		*/
 
 	if (amd_iommu_irq_remap) {
 		/*
