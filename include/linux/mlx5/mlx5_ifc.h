@@ -2946,6 +2946,7 @@ struct mlx5_ifc_query_vport_state_out_bits {
 
 enum {
 	MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT  = 0x0,
+	MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT   = 0x1,
 };
 
 struct mlx5_ifc_query_vport_state_in_bits {
