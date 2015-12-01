@@ -276,6 +276,53 @@ void vgic_mmio_write_priority(struct kvm_vcpu *vcpu,
 	}
 }
 
+unsigned long vgic_mmio_read_config(struct kvm_vcpu *vcpu,
+				    gpa_t addr, unsigned int len)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 2);
+	u32 value = 0;
+	int i;
+
+	for (i = 0; i < len * 4; i++) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		if (irq->config == VGIC_CONFIG_EDGE)
+			value |= (2U << (i * 2));
+	}
+
+	return value;
+}
+
+void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
+			    gpa_t addr, unsigned int len,
+			    unsigned long val)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 2);
+	int i;
+
+	for (i = 0; i < len * 4; i++) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		/*
+		 * The configuration cannot be changed for SGIs in general,
+		 * for PPIs this is IMPLEMENTATION DEFINED. The arch timer
+		 * code relies on PPIs being level triggered, so we also
+		 * make them read-only here.
+		 */
+		if (intid + i < VGIC_NR_PRIVATE_IRQS)
+			continue;
+
+		spin_lock(&irq->irq_lock);
+		if (test_bit(i * 2 + 1, &val)) {
+			irq->config = VGIC_CONFIG_EDGE;
+		} else {
+			irq->config = VGIC_CONFIG_LEVEL;
+			irq->pending = irq->line_level | irq->soft_pending;
+		}
+		spin_unlock(&irq->irq_lock);
+	}
+}
+
 static int match_region(const void *key, const void *elt)
 {
 	const unsigned int offset = (unsigned long)key;
