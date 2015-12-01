@@ -217,6 +217,8 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
+	struct request_queue *q = NULL;
+
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
 		blk_mq_end_request(cmd->rq, 0);
@@ -227,27 +229,28 @@ static void end_cmd(struct nullb_cmd *cmd)
 		break;
 	case NULL_Q_BIO:
 		bio_endio(cmd->bio);
-		break;
+		goto free_cmd;
 	}
 
+	if (cmd->rq)
+		q = cmd->rq->q;
+
+	/* Restart queue if needed, as we are freeing a tag */
+	if (q && !q->mq_ops && blk_queue_stopped(q)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(q->queue_lock, flags);
+		if (blk_queue_stopped(q))
+			blk_start_queue(q);
+		spin_unlock_irqrestore(q->queue_lock, flags);
+	}
+free_cmd:
 	free_cmd(cmd);
 }
 
 static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 {
-	struct nullb_cmd *cmd = container_of(timer, struct nullb_cmd, timer);
-	struct request_queue *q = NULL;
-
-	if (cmd->rq)
-		q = cmd->rq->q;
-
-	if (q && !q->mq_ops && blk_queue_stopped(q)) {
-		spin_lock(q->queue_lock);
-		if (blk_queue_stopped(q))
-			blk_start_queue(q);
-		spin_unlock(q->queue_lock);
-	}
-	end_cmd(cmd);
+	end_cmd(container_of(timer, struct nullb_cmd, timer));
 
 	return HRTIMER_NORESTART;
 }
