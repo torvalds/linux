@@ -242,6 +242,11 @@
 			#gpio-cells = <2>;
 		};
 	};
+
+	rtc0: rtc@56 {
+		compatible = "emmicro,em3027";
+		reg = <0x56>;
+	};
 };
 
 &cpu0 {
