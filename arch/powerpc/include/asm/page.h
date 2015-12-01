@@ -387,45 +387,11 @@ typedef unsigned long pgprot_t;
 
 typedef struct { signed long pd; } hugepd_t;
 
-#ifdef CONFIG_HUGETLB_PAGE
-#ifdef CONFIG_PPC_BOOK3S_64
-#ifdef CONFIG_PPC_64K_PAGES
-/*
- * With 64k page size, we have hugepage ptes in the pgd and pmd entries. We don't
- * need to setup hugepage directory for them. Our pte and page directory format
- * enable us to have this enabled. But to avoid errors when implementing new
- * features disable hugepd for 64K. We enable a debug version here, So we catch
- * wrong usage.
- */
-#ifdef CONFIG_DEBUG_VM
-extern int hugepd_ok(hugepd_t hpd);
-#else
-#define hugepd_ok(x)	(0)
-#endif
-#else
-static inline int hugepd_ok(hugepd_t hpd)
-{
-	/*
-	 * hugepd pointer, bottom two bits == 00 and next 4 bits
-	 * indicate size of table
-	 */
-	return (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
-}
-#endif
-#else
-static inline int hugepd_ok(hugepd_t hpd)
-{
-	return (hpd.pd > 0);
-}
-#endif
-
-#define is_hugepd(hpd)               (hugepd_ok(hpd))
-#define pgd_huge pgd_huge
-int pgd_huge(pgd_t pgd);
-#else /* CONFIG_HUGETLB_PAGE */
-#define is_hugepd(pdep)			0
-#define pgd_huge(pgd)			0
+#ifndef CONFIG_HUGETLB_PAGE
+#define is_hugepd(pdep)		(0)
+#define pgd_huge(pgd)		(0)
 #endif /* CONFIG_HUGETLB_PAGE */
+
 #define __hugepd(x) ((hugepd_t) { (x) })
 
 struct page;
