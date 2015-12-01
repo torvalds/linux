@@ -791,6 +791,15 @@ static void nd_namespace_pmem_set_size(struct nd_region *nd_region,
 	res->end = nd_region->ndr_start + size - 1;
 }
 
+static bool uuid_not_set(const u8 *uuid, struct device *dev, const char *where)
+{
+	if (!uuid) {
+		dev_dbg(dev, "%s: uuid not set\n", where);
+		return true;
+	}
+	return false;
+}
+
 static ssize_t __size_store(struct device *dev, unsigned long long val)
 {
 	resource_size_t allocated = 0, available = 0;
@@ -820,8 +829,12 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 	 * We need a uuid for the allocation-label and dimm(s) on which
 	 * to store the label.
 	 */
-	if (!uuid || nd_region->ndr_mappings == 0)
+	if (uuid_not_set(uuid, dev, __func__))
 		return -ENXIO;
+	if (nd_region->ndr_mappings == 0) {
+		dev_dbg(dev, "%s: not associated with dimm(s)\n", __func__);
+		return -ENXIO;
+	}
 
 	div_u64_rem(val, SZ_4K * nd_region->ndr_mappings, &remainder);
 	if (remainder) {
@@ -1343,14 +1356,19 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 		struct nd_namespace_pmem *nspm;
 
 		nspm = to_nd_namespace_pmem(&ndns->dev);
-		if (!nspm->uuid) {
-			dev_dbg(&ndns->dev, "%s: uuid not set\n", __func__);
+		if (uuid_not_set(nspm->uuid, &ndns->dev, __func__))
 			return ERR_PTR(-ENODEV);
-		}
 	} else if (is_namespace_blk(&ndns->dev)) {
 		struct nd_namespace_blk *nsblk;
 
 		nsblk = to_nd_namespace_blk(&ndns->dev);
+		if (uuid_not_set(nsblk->uuid, &ndns->dev, __func__))
+			return ERR_PTR(-ENODEV);
+		if (!nsblk->lbasize) {
+			dev_dbg(&ndns->dev, "%s: sector size not set\n",
+				__func__);
+			return ERR_PTR(-ENODEV);
+		}
 		if (!nd_namespace_blk_validate(nsblk))
 			return ERR_PTR(-ENODEV);
 	}
