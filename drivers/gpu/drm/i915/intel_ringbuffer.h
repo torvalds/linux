@@ -93,6 +93,7 @@ struct intel_ring_hangcheck {
 	int score;
 	enum intel_ring_hangcheck_action action;
 	int deadlock;
+	u32 instdone[I915_NUM_INSTDONE_REG];
 };
 
 struct intel_ringbuffer {
