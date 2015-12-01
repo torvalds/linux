@@ -1393,14 +1393,18 @@ static u32 get_backlight_max_vbt(struct intel_connector *connector)
 	u16 pwm_freq_hz = dev_priv->vbt.backlight.pwm_freq_hz;
 	u32 pwm;
 
-	if (!pwm_freq_hz) {
-		DRM_DEBUG_KMS("backlight frequency not specified in VBT\n");
+	if (!panel->backlight.hz_to_pwm) {
+		DRM_DEBUG_KMS("backlight frequency conversion not supported\n");
 		return 0;
 	}
 
-	if (!panel->backlight.hz_to_pwm) {
-		DRM_DEBUG_KMS("backlight frequency setting from VBT currently not supported on this platform\n");
-		return 0;
+	if (pwm_freq_hz) {
+		DRM_DEBUG_KMS("VBT defined backlight frequency %u Hz\n",
+			      pwm_freq_hz);
+	} else {
+		pwm_freq_hz = 200;
+		DRM_DEBUG_KMS("default backlight frequency %u Hz\n",
+			      pwm_freq_hz);
 	}
 
 	pwm = panel->backlight.hz_to_pwm(connector, pwm_freq_hz);
@@ -1408,8 +1412,6 @@ static u32 get_backlight_max_vbt(struct intel_connector *connector)
 		DRM_DEBUG_KMS("backlight frequency conversion failed\n");
 		return 0;
 	}
-
-	DRM_DEBUG_KMS("backlight frequency %u Hz from VBT\n", pwm_freq_hz);
 
 	return pwm;
 }
