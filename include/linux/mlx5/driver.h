@@ -441,6 +441,8 @@ struct mlx5_irq_info {
 	char name[MLX5_MAX_IRQ_NAME];
 };
 
+struct mlx5_eswitch;
+
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
@@ -496,6 +498,8 @@ struct mlx5_priv {
 	struct list_head        dev_list;
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
+
+	struct mlx5_eswitch     *eswitch;
 	struct mlx5_core_sriov	sriov;
 	unsigned long		pci_dev_data;
 };

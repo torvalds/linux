@@ -251,6 +251,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_PAGE_REQUEST	   = 0xb,
 
 	MLX5_EVENT_TYPE_PAGE_FAULT	   = 0xc,
+	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE   = 0xd,
 };
 
 enum {
@@ -520,6 +521,12 @@ struct mlx5_eqe_page_fault {
 	__be32 flags_qpn;
 } __packed;
 
+struct mlx5_eqe_vport_change {
+	u8		rsvd0[2];
+	__be16		vport_num;
+	__be32		rsvd1[6];
+} __packed;
+
 union ev_data {
 	__be32				raw[7];
 	struct mlx5_eqe_cmd		cmd;
@@ -532,6 +539,7 @@ union ev_data {
 	struct mlx5_eqe_stall_vl	stall_vl;
 	struct mlx5_eqe_page_req	req_pages;
 	struct mlx5_eqe_page_fault	page_fault;
+	struct mlx5_eqe_vport_change	vport_change;
 } __packed;
 
 struct mlx5_eqe {
