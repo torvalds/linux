@@ -6487,7 +6487,6 @@ void handle_freeze(struct work_struct *work)
 	struct hfi1_devdata *dd = ppd->dd;
 
 	/* wait for freeze indicators on all affected blocks */
-	dd_dev_info(dd, "Entering SPC freeze\n");
 	wait_for_freeze_status(dd, 1);
 
 	/* SPC is now frozen */
@@ -6545,7 +6544,6 @@ void handle_freeze(struct work_struct *work)
 	wake_up(&dd->event_queue);
 
 	/* no longer frozen */
-	dd_dev_err(dd, "Exiting SPC freeze\n");
 }
 
 /*
