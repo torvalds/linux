@@ -9407,7 +9407,8 @@ u32 lrh_max_header_bytes(struct hfi1_devdata *dd)
 static void set_send_length(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
-	u32 max_hb = lrh_max_header_bytes(dd), maxvlmtu = 0, dcmtu;
+	u32 max_hb = lrh_max_header_bytes(dd), dcmtu;
+	u32 maxvlmtu = dd->vld[15].mtu;
 	u64 len1 = 0, len2 = (((dd->vld[15].mtu + max_hb) >> 2)
 			      & SEND_LEN_CHECK1_LEN_VL15_MASK) <<
 		SEND_LEN_CHECK1_LEN_VL15_SHIFT;
