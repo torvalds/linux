@@ -168,6 +168,17 @@ config XILINX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called of_xilinx_wdt.
 
+config ZIIRAVE_WATCHDOG
+	tristate "Zodiac RAVE Watchdog Timer"
+	depends on I2C
+	select WATCHDOG_CORE
+	help
+	  Watchdog driver for the Zodiac Aerospace RAVE Switch Watchdog
+	  Processor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ziirave_wdt.
+
 # ALPHA Architecture
 
 # ARM Architecture
