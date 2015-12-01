@@ -1702,6 +1702,23 @@ EXPORT_SYMBOL_GPL(musb_dma_completion);
 #define use_dma			0
 #endif
 
+static void (*musb_phy_callback)(enum musb_vbus_id_status status);
+
+/*
+ * musb_mailbox - optional phy notifier function
+ * @status phy state change
+ *
+ * Optionally gets called from the USB PHY. Note that the USB PHY must be
+ * disabled at the point the phy_callback is registered or unregistered.
+ */
+void musb_mailbox(enum musb_vbus_id_status status)
+{
+	if (musb_phy_callback)
+		musb_phy_callback(status);
+
+};
+EXPORT_SYMBOL_GPL(musb_mailbox);
+
 /*-------------------------------------------------------------------------*/
 
 static ssize_t
@@ -2114,6 +2131,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb->xceiv->io_ops = &musb_ulpi_access;
 	}
 
+	if (musb->ops->phy_callback)
+		musb_phy_callback = musb->ops->phy_callback;
+
 	pm_runtime_get_sync(musb->controller);
 
 	if (use_dma && dev->dma_mask) {
@@ -2292,6 +2312,7 @@ static int musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
+	musb_phy_callback = NULL;
 
 	if (musb->dma_controller)
 		musb_dma_controller_destroy(musb->dma_controller);
