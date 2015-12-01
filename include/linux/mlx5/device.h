@@ -1145,6 +1145,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_EOIB_OFFLOADS,
 	MLX5_CAP_FLOW_TABLE,
 	MLX5_CAP_ESWITCH_FLOW_TABLE,
+	MLX5_CAP_ESWITCH,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1195,6 +1196,14 @@ enum mlx5_cap_type {
 
 #define MLX5_CAP_ESW_FLOWTABLE_FDB_MAX(mdev, cap) \
 	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_nic_esw_fdb.cap)
+
+#define MLX5_CAP_ESW(mdev, cap) \
+	MLX5_GET(e_switch_cap, \
+		 mdev->hca_caps_cur[MLX5_CAP_ESWITCH], cap)
+
+#define MLX5_CAP_ESW_MAX(mdev, cap) \
+	MLX5_GET(e_switch_cap, \
+		 mdev->hca_caps_max[MLX5_CAP_ESWITCH], cap)
 
 #define MLX5_CAP_ODP(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->hca_caps_cur[MLX5_CAP_ODP], cap)

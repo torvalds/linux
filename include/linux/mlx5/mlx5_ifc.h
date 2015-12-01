@@ -459,6 +459,17 @@ struct mlx5_ifc_flow_table_eswitch_cap_bits {
 	u8      reserved_1[0x7800];
 };
 
+struct mlx5_ifc_e_switch_cap_bits {
+	u8         vport_svlan_strip[0x1];
+	u8         vport_cvlan_strip[0x1];
+	u8         vport_svlan_insert[0x1];
+	u8         vport_cvlan_insert_if_not_exist[0x1];
+	u8         vport_cvlan_insert_overwrite[0x1];
+	u8         reserved_0[0x1b];
+
+	u8         reserved_1[0x7e0];
+};
+
 struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         csum_cap[0x1];
 	u8         vlan_cap[0x1];
@@ -1860,6 +1871,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_per_protocol_networking_offload_caps_bits per_protocol_networking_offload_caps;
 	struct mlx5_ifc_flow_table_nic_cap_bits flow_table_nic_cap;
 	struct mlx5_ifc_flow_table_eswitch_cap_bits flow_table_eswitch_cap;
+	struct mlx5_ifc_e_switch_cap_bits e_switch_cap;
 	u8         reserved_0[0x8000];
 };
 
@@ -2303,6 +2315,26 @@ struct mlx5_ifc_hca_vport_context_bits {
 	u8         pkey_violation_counter[0x10];
 
 	u8         reserved_6[0xca0];
+};
+
+struct mlx5_ifc_esw_vport_context_bits {
+	u8         reserved_0[0x3];
+	u8         vport_svlan_strip[0x1];
+	u8         vport_cvlan_strip[0x1];
+	u8         vport_svlan_insert[0x1];
+	u8         vport_cvlan_insert[0x2];
+	u8         reserved_1[0x18];
+
+	u8         reserved_2[0x20];
+
+	u8         svlan_cfi[0x1];
+	u8         svlan_pcp[0x3];
+	u8         svlan_id[0xc];
+	u8         cvlan_cfi[0x1];
+	u8         cvlan_pcp[0x3];
+	u8         cvlan_id[0xc];
+
+	u8         reserved_3[0x7a0];
 };
 
 enum {
@@ -3741,6 +3773,64 @@ struct mlx5_ifc_query_flow_group_in_bits {
 	u8         group_id[0x20];
 
 	u8         reserved_5[0x120];
+};
+
+struct mlx5_ifc_query_esw_vport_context_out_bits {
+	u8         status[0x8];
+	u8         reserved_0[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_1[0x40];
+
+	struct mlx5_ifc_esw_vport_context_bits esw_vport_context;
+};
+
+struct mlx5_ifc_query_esw_vport_context_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_0[0x10];
+
+	u8         reserved_1[0x10];
+	u8         op_mod[0x10];
+
+	u8         other_vport[0x1];
+	u8         reserved_2[0xf];
+	u8         vport_number[0x10];
+
+	u8         reserved_3[0x20];
+};
+
+struct mlx5_ifc_modify_esw_vport_context_out_bits {
+	u8         status[0x8];
+	u8         reserved_0[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_1[0x40];
+};
+
+struct mlx5_ifc_esw_vport_context_fields_select_bits {
+	u8         reserved[0x1c];
+	u8         vport_cvlan_insert[0x1];
+	u8         vport_svlan_insert[0x1];
+	u8         vport_cvlan_strip[0x1];
+	u8         vport_svlan_strip[0x1];
+};
+
+struct mlx5_ifc_modify_esw_vport_context_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_0[0x10];
+
+	u8         reserved_1[0x10];
+	u8         op_mod[0x10];
+
+	u8         other_vport[0x1];
+	u8         reserved_2[0xf];
+	u8         vport_number[0x10];
+
+	struct mlx5_ifc_esw_vport_context_fields_select_bits field_select;
+
+	struct mlx5_ifc_esw_vport_context_bits esw_vport_context;
 };
 
 struct mlx5_ifc_query_eq_out_bits {
