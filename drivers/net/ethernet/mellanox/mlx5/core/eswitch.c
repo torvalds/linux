@@ -128,6 +128,116 @@ ex:
 	return err;
 }
 
+/* E-Switch vport context HW commands */
+static int query_esw_vport_context_cmd(struct mlx5_core_dev *mdev, u32 vport,
+				       u32 *out, int outlen)
+{
+	u32 in[MLX5_ST_SZ_DW(query_esw_vport_context_in)];
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(query_nic_vport_context_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT);
+
+	MLX5_SET(query_esw_vport_context_in, in, vport_number, vport);
+	if (vport)
+		MLX5_SET(query_esw_vport_context_in, in, other_vport, 1);
+
+	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in), out, outlen);
+}
+
+static int query_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
+				 u16 *vlan, u8 *qos)
+{
+	u32 out[MLX5_ST_SZ_DW(query_esw_vport_context_out)];
+	int err;
+	bool cvlan_strip;
+	bool cvlan_insert;
+
+	memset(out, 0, sizeof(out));
+
+	*vlan = 0;
+	*qos = 0;
+
+	if (!MLX5_CAP_ESW(dev, vport_cvlan_strip) ||
+	    !MLX5_CAP_ESW(dev, vport_cvlan_insert_if_not_exist))
+		return -ENOTSUPP;
+
+	err = query_esw_vport_context_cmd(dev, vport, out, sizeof(out));
+	if (err)
+		goto out;
+
+	cvlan_strip = MLX5_GET(query_esw_vport_context_out, out,
+			       esw_vport_context.vport_cvlan_strip);
+
+	cvlan_insert = MLX5_GET(query_esw_vport_context_out, out,
+				esw_vport_context.vport_cvlan_insert);
+
+	if (cvlan_strip || cvlan_insert) {
+		*vlan = MLX5_GET(query_esw_vport_context_out, out,
+				 esw_vport_context.cvlan_id);
+		*qos = MLX5_GET(query_esw_vport_context_out, out,
+				esw_vport_context.cvlan_pcp);
+	}
+
+	esw_debug(dev, "Query Vport[%d] cvlan: VLAN %d qos=%d\n",
+		  vport, *vlan, *qos);
+out:
+	return err;
+}
+
+static int modify_esw_vport_context_cmd(struct mlx5_core_dev *dev, u16 vport,
+					void *in, int inlen)
+{
+	u32 out[MLX5_ST_SZ_DW(modify_esw_vport_context_out)];
+
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(modify_esw_vport_context_in, in, vport_number, vport);
+	if (vport)
+		MLX5_SET(modify_esw_vport_context_in, in, other_vport, 1);
+
+	MLX5_SET(modify_esw_vport_context_in, in, opcode,
+		 MLX5_CMD_OP_MODIFY_ESW_VPORT_CONTEXT);
+
+	return mlx5_cmd_exec_check_status(dev, in, inlen,
+					  out, sizeof(out));
+}
+
+static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
+				  u16 vlan, u8 qos, bool set)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)];
+
+	memset(in, 0, sizeof(in));
+
+	if (!MLX5_CAP_ESW(dev, vport_cvlan_strip) ||
+	    !MLX5_CAP_ESW(dev, vport_cvlan_insert_if_not_exist))
+		return -ENOTSUPP;
+
+	esw_debug(dev, "Set Vport[%d] VLAN %d qos %d set=%d\n",
+		  vport, vlan, qos, set);
+
+	if (set) {
+		MLX5_SET(modify_esw_vport_context_in, in,
+			 esw_vport_context.vport_cvlan_strip, 1);
+		/* insert only if no vlan in packet */
+		MLX5_SET(modify_esw_vport_context_in, in,
+			 esw_vport_context.vport_cvlan_insert, 1);
+		MLX5_SET(modify_esw_vport_context_in, in,
+			 esw_vport_context.cvlan_pcp, qos);
+		MLX5_SET(modify_esw_vport_context_in, in,
+			 esw_vport_context.cvlan_id, vlan);
+	}
+
+	MLX5_SET(modify_esw_vport_context_in, in,
+		 field_select.vport_cvlan_strip, 1);
+	MLX5_SET(modify_esw_vport_context_in, in,
+		 field_select.vport_cvlan_insert, 1);
+
+	return modify_esw_vport_context_cmd(dev, vport, in, sizeof(in));
+}
+
 /* HW L2 Table (MPFS) management */
 static int set_l2_table_entry_cmd(struct mlx5_core_dev *dev, u32 index,
 				  u8 *mac, u8 vlan_valid, u16 vlan)
@@ -1065,6 +1175,9 @@ int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct ifla_vf_info *ivi)
 {
+	u16 vlan;
+	u8 qos;
+
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
 	if (!LEGAL_VPORT(esw, vport))
@@ -1077,9 +1190,26 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	ivi->linkstate = mlx5_query_vport_admin_state(esw->dev,
 						      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
 						      vport);
-	ivi->vlan = 0;
-	ivi->qos = 0;
+	query_esw_vport_cvlan(esw->dev, vport, &vlan, &qos);
+	ivi->vlan = vlan;
+	ivi->qos = qos;
 	ivi->spoofchk = 0;
 
 	return 0;
+}
+
+int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
+				int vport, u16 vlan, u8 qos)
+{
+	int set = 0;
+
+	if (!ESW_ALLOWED(esw))
+		return -EPERM;
+	if (!LEGAL_VPORT(esw, vport) || (vlan > 4095) || (qos > 7))
+		return -EINVAL;
+
+	if (vlan || qos)
+		set = 1;
+
+	return modify_esw_vport_cvlan(esw->dev, vport, vlan, qos, set);
 }
