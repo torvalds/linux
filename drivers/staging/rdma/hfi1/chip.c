@@ -6379,9 +6379,10 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	 * depending on how the link went down.  The 8051 firmware
 	 * will observe the needed wait time and only move to ready
 	 * when that is completed.  The largest of the quiet timeouts
-	 * is 2.5s, so wait that long and then a bit more.
+	 * is 6s, so wait that long and then at least 0.5s more for
+	 * other transitions, and another 0.5s for a buffer.
 	 */
-	ret = wait_fm_ready(dd, 3000);
+	ret = wait_fm_ready(dd, 7000);
 	if (ret) {
 		dd_dev_err(dd,
 			"After going offline, timed out waiting for the 8051 to become ready to accept host requests\n");
