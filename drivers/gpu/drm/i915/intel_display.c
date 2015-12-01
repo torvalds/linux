@@ -14257,6 +14257,9 @@ static bool intel_crt_present(struct drm_device *dev)
 	if (IS_CHERRYVIEW(dev))
 		return false;
 
+	if (HAS_PCH_LPT_H(dev) && I915_READ(SFUSE_STRAP) & SFUSE_STRAP_CRT_DISABLED)
+		return false;
+
 	if (IS_VALLEYVIEW(dev) && !dev_priv->vbt.int_crt_support)
 		return false;
 
