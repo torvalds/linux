@@ -505,17 +505,13 @@ retry:
 			ret = gmbus_xfer_write(dev_priv, &msgs[i]);
 		}
 
+		if (!ret)
+			ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_WAIT_PHASE,
+						   GMBUS_HW_WAIT_EN);
 		if (ret == -ETIMEDOUT)
 			goto timeout;
-		if (ret == -ENXIO)
+		else if (ret)
 			goto clear_err;
-
-		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_WAIT_PHASE,
-					   GMBUS_HW_WAIT_EN);
-		if (ret == -ENXIO)
-			goto clear_err;
-		if (ret)
-			goto timeout;
 	}
 
 	/* Generate a STOP condition on the bus. Note that gmbus can't generata
