@@ -5,11 +5,7 @@
  * the ppc64 hashed page table.
  */
 
-#ifdef CONFIG_PPC_64K_PAGES
-#include <asm/pgtable-ppc64-64k.h>
-#else
-#include <asm/pgtable-ppc64-4k.h>
-#endif
+#include <asm/book3s/64/hash.h>
 #include <asm/barrier.h>
 
 #define FIRST_USER_ADDRESS	0UL
