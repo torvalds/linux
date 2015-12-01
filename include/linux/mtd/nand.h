@@ -283,7 +283,7 @@ struct nand_onfi_params {
 	u8 input_pin_capacitance_max;
 	u8 driver_strength_support;
 	__le16 t_int_r;
-	__le16 t_ald;
+	__le16 t_adl;
 	u8 reserved4[8];
 
 	/* vendor */
@@ -407,7 +407,7 @@ struct nand_jedec_params {
 	__le16 input_pin_capacitance_typ;
 	__le16 clk_pin_capacitance_typ;
 	u8 driver_strength_support;
-	__le16 t_ald;
+	__le16 t_adl;
 	u8 reserved4[36];
 
 	/* ECC and endurance block */
