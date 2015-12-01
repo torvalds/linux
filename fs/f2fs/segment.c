@@ -1740,13 +1740,13 @@ int lookup_journal_in_cursum(struct f2fs_summary_block *sum, int type,
 			if (le32_to_cpu(nid_in_journal(sum, i)) == val)
 				return i;
 		}
-		if (alloc && nats_in_cursum(sum) < NAT_JOURNAL_ENTRIES)
+		if (alloc && __has_cursum_space(sum, 1, NAT_JOURNAL))
 			return update_nats_in_cursum(sum, 1);
 	} else if (type == SIT_JOURNAL) {
 		for (i = 0; i < sits_in_cursum(sum); i++)
 			if (le32_to_cpu(segno_in_journal(sum, i)) == val)
 				return i;
-		if (alloc && sits_in_cursum(sum) < SIT_JOURNAL_ENTRIES)
+		if (alloc && __has_cursum_space(sum, 1, SIT_JOURNAL))
 			return update_sits_in_cursum(sum, 1);
 	}
 	return -1;
