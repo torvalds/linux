@@ -86,10 +86,25 @@ struct l2addr_node {
 	kfree(ptr);                                         \
 })
 
+struct mlx5_flow_rule {
+	void             *ft;
+	u32              fi;
+	u8               match_criteria_enable;
+	u32              *match_criteria;
+	u32              *match_value;
+	u32              action;
+	u32              flow_tag;
+	bool             valid;
+	atomic_t         refcount;
+	struct mutex     mutex; /* protect flow rule updates */
+	struct list_head dest_list;
+};
+
 struct mlx5_vport {
 	struct mlx5_core_dev    *dev;
 	int                     vport;
 	struct hlist_head       uc_list[MLX5_L2_ADDR_HASH_SIZE];
+	struct hlist_head       mc_list[MLX5_L2_ADDR_HASH_SIZE];
 	struct work_struct      vport_change_handler;
 
 	/* This spinlock protects access to vport data, between
@@ -98,6 +113,7 @@ struct mlx5_vport {
 	 */
 	spinlock_t              lock; /* vport events sync */
 	bool                    enabled;
+	u16                     enabled_events;
 };
 
 struct mlx5_l2_table {
@@ -106,17 +122,26 @@ struct mlx5_l2_table {
 	unsigned long        *bitmap;
 };
 
+struct mlx5_eswitch_fdb {
+	void *fdb;
+};
+
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_l2_table    l2_table;
+	struct mlx5_eswitch_fdb fdb_table;
+	struct hlist_head       mc_table[MLX5_L2_ADDR_HASH_SIZE];
 	struct workqueue_struct *work_queue;
 	struct mlx5_vport       *vports;
 	int                     total_vports;
+	int                     enabled_vports;
 };
 
 /* E-Switch API */
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe);
+int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs);
+void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw);
 
 #endif /* __MLX5_ESWITCH_H__ */

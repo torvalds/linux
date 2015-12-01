@@ -36,6 +36,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/if_link.h>
 
 #define DRIVER_NAME "mlx5_core"
 #define DRIVER_VERSION "3.0-1"

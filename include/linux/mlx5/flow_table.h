@@ -41,6 +41,15 @@ struct mlx5_flow_table_group {
 	u32	match_criteria[MLX5_ST_SZ_DW(fte_match_param)];
 };
 
+struct mlx5_flow_destination {
+	enum mlx5_flow_destination_type	type;
+	union {
+		u32			tir_num;
+		void			*ft;
+		u32			vport_num;
+	};
+};
+
 void *mlx5_create_flow_table(struct mlx5_core_dev *dev, u8 level, u8 table_type,
 			     u16 num_groups,
 			     struct mlx5_flow_table_group *group);
