@@ -53,7 +53,7 @@ MODULE_PARM_DESC(buflen, "MIDI buffer length");
 
 static unsigned int qlen = 32;
 module_param(qlen, uint, S_IRUGO);
-MODULE_PARM_DESC(qlen, "USB read request queue length");
+MODULE_PARM_DESC(qlen, "USB read and write request queue length");
 
 static unsigned int in_ports = 1;
 module_param(in_ports, uint, S_IRUGO);
