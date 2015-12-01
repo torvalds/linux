@@ -48,6 +48,8 @@ allowed_warnings = set([
     "ks8851.c:421", # drivers/net/ethernet/micrel/ks8851.c:421:20: warning: 'rxb[0]' may be used uninitialized in this function
     "rockchip_drm_vop.c:581", # drivers/gpu/drm/rockchip/rockchip_drm_vop.c:581:49: warning: 'vskiplines' may be used uninitialized in this function
     "compat_binfmt_elf.c:58", # fs/compat_binfmt_elf.c:58:13: warning: 'cputime_to_compat_timeval' defined but not used
+    "cgroup.c:2132", # kernel/cgroup.c:2132:13: warning: 'root' may be used uninitialized in this function
+    "mdp5.xml.h:1038", # drivers/gpu/drm/msm/mdp/mdp5/mdp5.xml.h:1038:16: warning: 'uv_filter' may be used uninitialized in this function
  ])
 
 # Capture the name of the object file, can find it.
