@@ -665,7 +665,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_17[0x1];
 	u8         ets[0x1];
 	u8         nic_flow_table[0x1];
-	u8	   reserved_18_0;
+	u8         eswitch_flow_table[0x1];
 	u8	   early_vf_enable;
 	u8         reserved_18[0x2];
 	u8         local_ca_ack_delay[0x5];
@@ -789,22 +789,30 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_60[0x1b];
 	u8         log_max_wq_sz[0x5];
 
-	u8         reserved_61[0xa0];
-
+	u8         nic_vport_change_event[0x1];
+	u8         reserved_61[0xa];
+	u8         log_max_vlan_list[0x5];
 	u8         reserved_62[0x3];
+	u8         log_max_current_mc_list[0x5];
+	u8         reserved_63[0x3];
+	u8         log_max_current_uc_list[0x5];
+
+	u8         reserved_64[0x80];
+
+	u8         reserved_65[0x3];
 	u8         log_max_l2_table[0x5];
-	u8         reserved_63[0x8];
+	u8         reserved_66[0x8];
 	u8         log_uar_page_sz[0x10];
 
-	u8         reserved_64[0x100];
+	u8         reserved_67[0xe0];
 
-	u8         reserved_65[0x1f];
+	u8         reserved_68[0x1f];
 	u8         cqe_zip[0x1];
 
 	u8         cqe_zip_timeout[0x10];
 	u8         cqe_zip_max_num[0x10];
 
-	u8         reserved_66[0x220];
+	u8         reserved_69[0x220];
 };
 
 enum {
@@ -2133,10 +2141,6 @@ struct mlx5_ifc_rmpc_bits {
 	u8         reserved_3[0x140];
 
 	struct mlx5_ifc_wq_bits wq;
-};
-
-enum {
-	MLX5_NIC_VPORT_CONTEXT_ALLOWED_LIST_TYPE_CURRENT_UC_MAC_ADDRESS  = 0x0,
 };
 
 struct mlx5_ifc_nic_vport_context_bits {
