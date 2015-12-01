@@ -13,11 +13,15 @@ struct mm_struct;
 
 #endif /* !__ASSEMBLY__ */
 
+#ifdef CONFIG_PPC_BOOK3S
+#include <asm/book3s/pgtable.h>
+#else
 #if defined(CONFIG_PPC64)
 #  include <asm/pgtable-ppc64.h>
 #else
 #  include <asm/pgtable-ppc32.h>
 #endif
+#endif /* !CONFIG_PPC_BOOK3S */
 
 /*
  * We save the slot number & secondary bit in the second half of the
