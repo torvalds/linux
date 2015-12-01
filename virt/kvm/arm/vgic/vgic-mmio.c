@@ -478,6 +478,11 @@ int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 	case VGIC_V2:
 		len = vgic_v2_init_dist_iodev(io_device);
 		break;
+#ifdef CONFIG_KVM_ARM_VGIC_V3
+	case VGIC_V3:
+		len = vgic_v3_init_dist_iodev(io_device);
+		break;
+#endif
 	default:
 		BUG_ON(1);
 	}

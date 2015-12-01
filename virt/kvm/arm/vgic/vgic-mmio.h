@@ -145,4 +145,6 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 
 unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev);
 
+unsigned int vgic_v3_init_dist_iodev(struct vgic_io_device *dev);
+
 #endif
