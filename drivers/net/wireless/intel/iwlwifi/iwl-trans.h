@@ -889,38 +889,6 @@ iwl_trans_dump_data(struct iwl_trans *trans,
 	return trans->ops->dump_data(trans, trigger);
 }
 
-static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
-				     struct iwl_host_cmd *cmd)
-{
-	int ret;
-
-	if (unlikely(!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-		     test_bit(STATUS_RFKILL, &trans->status)))
-		return -ERFKILL;
-
-	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
-		return -EIO;
-
-	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return -EIO;
-	}
-
-	if (WARN_ON((cmd->flags & CMD_WANT_ASYNC_CALLBACK) &&
-		    !(cmd->flags & CMD_ASYNC)))
-		return -EINVAL;
-
-	if (!(cmd->flags & CMD_ASYNC))
-		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
-
-	ret = trans->ops->send_cmd(trans, cmd);
-
-	if (!(cmd->flags & CMD_ASYNC))
-		lock_map_release(&trans->sync_cmd_lockdep_map);
-
-	return ret;
-}
-
 static inline struct iwl_device_cmd *
 iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
 {
@@ -932,6 +900,8 @@ iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
 	return (struct iwl_device_cmd *)
 			(dev_cmd_ptr + trans->dev_cmd_headroom);
 }
+
+int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
 static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
 					 struct iwl_device_cmd *dev_cmd)

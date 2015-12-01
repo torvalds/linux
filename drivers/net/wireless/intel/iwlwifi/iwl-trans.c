@@ -61,6 +61,7 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
+#include "iwl-drv.h"
 #include "iwl-trans.h"
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
@@ -112,3 +113,35 @@ void iwl_trans_free(struct iwl_trans *trans)
 	kmem_cache_destroy(trans->dev_cmd_pool);
 	kfree(trans);
 }
+
+int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
+{
+	int ret;
+
+	if (unlikely(!(cmd->flags & CMD_SEND_IN_RFKILL) &&
+		     test_bit(STATUS_RFKILL, &trans->status)))
+		return -ERFKILL;
+
+	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
+		return -EIO;
+
+	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE)) {
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+		return -EIO;
+	}
+
+	if (WARN_ON((cmd->flags & CMD_WANT_ASYNC_CALLBACK) &&
+		    !(cmd->flags & CMD_ASYNC)))
+		return -EINVAL;
+
+	if (!(cmd->flags & CMD_ASYNC))
+		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
+
+	ret = trans->ops->send_cmd(trans, cmd);
+
+	if (!(cmd->flags & CMD_ASYNC))
+		lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_trans_send_cmd);
