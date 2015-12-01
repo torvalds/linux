@@ -398,6 +398,20 @@
 	status = "okay";
 };
 
+&tscadc {
+	status = "okay";
+	tsc {
+		ti,wires = <4>;
+		ti,x-plate-resistance = <200>;
+		ti,coordiante-readouts = <5>;
+		ti,wire-config = <0x00 0x11 0x22 0x33>;
+	};
+
+	adc {
+		ti,adc-channels = <4 5 6 7>;
+	};
+};
+
 &cpu {
 	cpu0-supply = <&dcdc2>;
 	operating-points = <1000000 1330000>,
