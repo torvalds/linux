@@ -54,11 +54,6 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	 * need to add in 0x1 if it's a read-only user page
 	 */
 	rflags = htab_convert_pte_flags(new_pte);
-	/*
-	 * Add in WIMG bits
-	 */
-	rflags |= (new_pte & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
-				_PAGE_COHERENT | _PAGE_GUARDED));
 
 	if (!cpu_has_feature(CPU_FTR_NOEXECUTE) &&
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
