@@ -500,7 +500,8 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (!num_pins) {
 		dev_err(pctldev->dev, "no pins found in node %s\n",
 			of_node_full_name(np));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	/*
@@ -514,19 +515,19 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	ret = pinctrl_utils_reserve_map(pctldev, map, reserved_maps, num_maps,
 					reserve);
 	if (ret < 0)
-		return ret;
+		goto exit;
 
 	for (i = 0; i < num_pins; i++) {
 		const char *group, *func;
 
 		ret = of_property_read_u32_index(np, "pinmux", i, &pinfunc);
 		if (ret)
-			return ret;
+			goto exit;
 
 		ret = atmel_pctl_xlate_pinfunc(pctldev, np, pinfunc, &group,
 					       &func);
 		if (ret)
-			return ret;
+			goto exit;
 
 		pinctrl_utils_add_map_mux(pctldev, map, reserved_maps, num_maps,
 					  group, func);
@@ -537,11 +538,13 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 					configs, num_configs,
 					PIN_MAP_TYPE_CONFIGS_GROUP);
 			if (ret < 0)
-				return ret;
+				goto exit;
 		}
 	}
 
-	return 0;
+exit:
+	kfree(configs);
+	return ret;
 }
 
 static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
