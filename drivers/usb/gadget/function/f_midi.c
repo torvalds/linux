@@ -75,6 +75,7 @@ struct f_midi {
 	struct usb_ep		*in_ep, *out_ep;
 	struct snd_card		*card;
 	struct snd_rawmidi	*rmidi;
+	u8			ms_id;
 
 	struct snd_rawmidi_substream *in_substream[MAX_PORTS];
 	struct snd_rawmidi_substream *out_substream[MAX_PORTS];
@@ -321,8 +322,8 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	unsigned i;
 	int err;
 
-	/* For Control Device interface we do nothing */
-	if (intf == 0)
+	/* we only set alt for MIDIStreaming interface */
+	if (intf != midi->ms_id)
 		return 0;
 
 	err = f_midi_start_ep(midi, f, midi->in_ep);
@@ -730,6 +731,7 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	ms_interface_desc.bInterfaceNumber = status;
 	ac_header_desc.baInterfaceNr[0] = status;
+	midi->ms_id = status;
 
 	status = -ENODEV;
 
