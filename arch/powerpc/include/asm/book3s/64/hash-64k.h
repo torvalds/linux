@@ -40,7 +40,8 @@
 #define _PAGE_COMBO_VALID	(_PAGE_F_GIX | _PAGE_F_SECOND)
 
 /* PTE flags to conserve for HPTE identification */
-#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | _PAGE_COMBO)
+#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_F_SECOND | \
+			 _PAGE_F_GIX | _PAGE_HASHPTE | _PAGE_COMBO)
 
 /* Shift to put page number into pte.
  *

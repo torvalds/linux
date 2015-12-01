@@ -633,28 +633,11 @@ extern u32 htab_call_hpte_insert1[];
 extern u32 htab_call_hpte_insert2[];
 extern u32 htab_call_hpte_remove[];
 extern u32 htab_call_hpte_updatepp[];
-extern u32 ht64_call_hpte_insert1[];
-extern u32 ht64_call_hpte_insert2[];
-extern u32 ht64_call_hpte_remove[];
-extern u32 ht64_call_hpte_updatepp[];
 
 static void __init htab_finish_init(void)
 {
-#ifdef CONFIG_PPC_64K_PAGES
-	patch_branch(ht64_call_hpte_insert1,
-		ppc_function_entry(ppc_md.hpte_insert),
-		BRANCH_SET_LINK);
-	patch_branch(ht64_call_hpte_insert2,
-		ppc_function_entry(ppc_md.hpte_insert),
-		BRANCH_SET_LINK);
-	patch_branch(ht64_call_hpte_remove,
-		ppc_function_entry(ppc_md.hpte_remove),
-		BRANCH_SET_LINK);
-	patch_branch(ht64_call_hpte_updatepp,
-		ppc_function_entry(ppc_md.hpte_updatepp),
-		BRANCH_SET_LINK);
-#else /* !CONFIG_PPC_64K_PAGES */
 
+#ifdef CONFIG_PPC_4K_PAGES
 	patch_branch(htab_call_hpte_insert1,
 		ppc_function_entry(ppc_md.hpte_insert),
 		BRANCH_SET_LINK);
