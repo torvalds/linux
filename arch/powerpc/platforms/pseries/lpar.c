@@ -396,6 +396,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
  * Limit iterations holding pSeries_lpar_tlbie_lock to 3. We also need
  * to make sure that we avoid bouncing the hypervisor tlbie lock.
@@ -494,6 +495,15 @@ static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
 		__pSeries_lpar_hugepage_invalidate(slot_array, vpn_array,
 						   index, psize, ssize);
 }
+#else
+static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
+					     unsigned long addr,
+					     unsigned char *hpte_slot_array,
+					     int psize, int ssize, int local)
+{
+	WARN(1, "%s called without THP support\n", __func__);
+}
+#endif
 
 static void pSeries_lpar_hpte_removebolted(unsigned long ea,
 					   int psize, int ssize)

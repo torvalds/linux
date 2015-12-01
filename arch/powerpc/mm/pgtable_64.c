@@ -359,7 +359,7 @@ struct page *pud_page(pud_t pud)
 struct page *pmd_page(pmd_t pmd)
 {
 	if (pmd_trans_huge(pmd) || pmd_huge(pmd))
-		return pfn_to_page(pmd_pfn(pmd));
+		return pte_page(pmd_pte(pmd));
 	return virt_to_page(pmd_page_vaddr(pmd));
 }
 
