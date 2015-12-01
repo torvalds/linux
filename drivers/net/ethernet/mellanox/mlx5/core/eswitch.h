@@ -33,6 +33,8 @@
 #ifndef __MLX5_ESWITCH_H__
 #define __MLX5_ESWITCH_H__
 
+#include <linux/if_ether.h>
+#include <linux/if_link.h>
 #include <linux/mlx5/device.h>
 
 #define MLX5_MAX_UC_PER_VPORT(dev) \
@@ -143,5 +145,11 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe);
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs);
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw);
+int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
+			       int vport, u8 mac[ETH_ALEN]);
+int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
+				 int vport, int link_state);
+int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
+				  int vport, struct ifla_vf_info *ivi);
 
 #endif /* __MLX5_ESWITCH_H__ */
