@@ -14,6 +14,7 @@
 #include <getopt.h>
 
 #include "cpufreq.h"
+#include "helpers/sysfs.h"
 #include "helpers/helpers.h"
 #include "helpers/bitmask.h"
 
@@ -647,11 +648,14 @@ int cmd_freq_info(int argc, char **argv)
 
 		if (!bitmask_isbitset(cpus_chosen, cpu))
 			continue;
-		if (cpufreq_cpu_exists(cpu)) {
-			printf(_("couldn't analyze CPU %d as it doesn't seem to be present\n"), cpu);
+
+		printf(_("analyzing CPU %d:\n"), cpu);
+
+		if (sysfs_is_cpu_online(cpu) != 1) {
+			printf(_(" *is offline\n"));
+			printf("\n");
 			continue;
 		}
-		printf(_("analyzing CPU %d:\n"), cpu);
 
 		switch (output_param) {
 		case 'b':
@@ -693,6 +697,7 @@ int cmd_freq_info(int argc, char **argv)
 		}
 		if (ret)
 			return ret;
+		printf("\n");
 	}
 	return ret;
 }
