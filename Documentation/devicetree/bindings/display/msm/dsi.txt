@@ -14,13 +14,13 @@ Required properties:
 - clocks: device clocks
   See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required:
-  * "bus_clk"
-  * "byte_clk"
-  * "core_clk"
-  * "core_mmss_clk"
-  * "iface_clk"
   * "mdp_core_clk"
+  * "iface_clk"
+  * "bus_clk"
+  * "core_mmss_clk"
+  * "byte_clk"
   * "pixel_clk"
+  * "core_clk"
 - vdd-supply: phandle to vdd regulator device node
 - vddio-supply: phandle to vdd-io regulator device node
 - vdda-supply: phandle to vdda regulator device node
