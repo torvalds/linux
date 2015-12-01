@@ -1524,6 +1524,9 @@ static int srp_map_idb(struct srp_rdma_ch *ch, struct srp_request *req,
 		state.sg_nents = 1;
 		sg_set_buf(idb_sg, req->indirect_desc, idb_len);
 		idb_sg->dma_address = req->indirect_dma_addr; /* hack! */
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		idb_sg->dma_length = idb_sg->length;	      /* hack^2 */
+#endif
 		ret = srp_map_finish_fr(&state, ch);
 		if (ret < 0)
 			return ret;
