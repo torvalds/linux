@@ -393,7 +393,8 @@ static int w8001_setup(struct w8001 *w8001)
 
 	msleep(250);	/* wait 250ms before querying the device */
 
-	dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	__set_bit(EV_KEY, dev->evbit);
+	__set_bit(EV_ABS, dev->evbit);
 	strlcat(w8001->name, "Wacom Serial", sizeof(w8001->name));
 
 	__set_bit(INPUT_PROP_DIRECT, dev->propbit);
