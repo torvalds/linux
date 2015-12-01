@@ -16,10 +16,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
-#include <linux/regulator/of_regulator.h>
 
 #include <linux/mfd/tps65086.h>
 
@@ -31,6 +30,7 @@ enum tps65086_regulators { BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, LDOA1,
 		.desc = {						\
 			.name			= _name,		\
 			.of_match		= of_match_ptr(_of),	\
+			.regulators_node	= "regulators",		\
 			.of_parse_cb		= tps65086_of_parse_cb,	\
 			.id			= _id,			\
 			.ops			= &reg_ops,		\
@@ -54,6 +54,7 @@ enum tps65086_regulators { BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, LDOA1,
 		.desc = {						\
 			.name			= _name,		\
 			.of_match		= of_match_ptr(_of),	\
+			.regulators_node	= "regulators",		\
 			.of_parse_cb		= tps65086_of_parse_cb,	\
 			.id			= _id,			\
 			.ops			= &switch_ops,		\
@@ -213,8 +214,8 @@ static int tps65086_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tps);
 
 	config.dev = &pdev->dev;
+	config.dev->of_node = tps->dev->of_node;
 	config.driver_data = tps;
-	config.of_node = pdev->dev.of_node;
 	config.regmap = tps->regmap;
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
