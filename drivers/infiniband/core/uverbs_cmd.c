@@ -2446,6 +2446,7 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 	int                             i, sg_ind;
 	int				is_ud;
 	ssize_t                         ret = -EINVAL;
+	size_t                          next_size;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
@@ -2490,7 +2491,8 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 				goto out_put;
 			}
 
-			ud = alloc_wr(sizeof(*ud), user_wr->num_sge);
+			next_size = sizeof(*ud);
+			ud = alloc_wr(next_size, user_wr->num_sge);
 			if (!ud) {
 				ret = -ENOMEM;
 				goto out_put;
@@ -2511,7 +2513,8 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 			   user_wr->opcode == IB_WR_RDMA_READ) {
 			struct ib_rdma_wr *rdma;
 
-			rdma = alloc_wr(sizeof(*rdma), user_wr->num_sge);
+			next_size = sizeof(*rdma);
+			rdma = alloc_wr(next_size, user_wr->num_sge);
 			if (!rdma) {
 				ret = -ENOMEM;
 				goto out_put;
@@ -2525,7 +2528,8 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 			   user_wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD) {
 			struct ib_atomic_wr *atomic;
 
-			atomic = alloc_wr(sizeof(*atomic), user_wr->num_sge);
+			next_size = sizeof(*atomic);
+			atomic = alloc_wr(next_size, user_wr->num_sge);
 			if (!atomic) {
 				ret = -ENOMEM;
 				goto out_put;
@@ -2540,7 +2544,8 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 		} else if (user_wr->opcode == IB_WR_SEND ||
 			   user_wr->opcode == IB_WR_SEND_WITH_IMM ||
 			   user_wr->opcode == IB_WR_SEND_WITH_INV) {
-			next = alloc_wr(sizeof(*next), user_wr->num_sge);
+			next_size = sizeof(*next);
+			next = alloc_wr(next_size, user_wr->num_sge);
 			if (!next) {
 				ret = -ENOMEM;
 				goto out_put;
@@ -2572,7 +2577,7 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 
 		if (next->num_sge) {
 			next->sg_list = (void *) next +
-				ALIGN(sizeof *next, sizeof (struct ib_sge));
+				ALIGN(next_size, sizeof(struct ib_sge));
 			if (copy_from_user(next->sg_list,
 					   buf + sizeof cmd +
 					   cmd.wr_count * cmd.wqe_size +
