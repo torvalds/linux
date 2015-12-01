@@ -488,7 +488,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	struct ib_qp *qp;
 	struct ib_fmr_pool *fmr_pool = NULL;
 	struct srp_fr_pool *fr_pool = NULL;
-	const int m = 1 + dev->use_fast_reg;
+	const int m = dev->use_fast_reg ? 3 : 1;
 	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
