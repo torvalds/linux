@@ -9,7 +9,6 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mfd/dbx500-prcmu.h>
-#include <linux/clksrc-dbx500-prcmu.h>
 #include <linux/sys_soc.h>
 #include <linux/err.h>
 #include <linux/slab.h>
