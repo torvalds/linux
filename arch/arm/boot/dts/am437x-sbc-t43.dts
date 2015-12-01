@@ -36,6 +36,18 @@
 			AM4372_IOPAD(0x97c, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE3)  /* uart1_rtsn.i2c2_scl */
 		>;
 	};
+
+	usb2_phy1_default: usb2_phy1_default {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0xac0, DS0_PULL_UP_DOWN_EN | PIN_INPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+
+	usb2_phy2_default: usb2_phy2_default {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0xac4, DS0_PULL_UP_DOWN_EN | PIN_INPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
 };
 
 &i2c1 {
@@ -53,4 +65,14 @@
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_default>;
+};
+
+&dwc3_1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_phy1_default>;
+};
+
+&dwc3_2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_phy2_default>;
 };
