@@ -910,6 +910,13 @@ struct mlx5_ifc_mac_address_layout_bits {
 	u8         mac_addr_31_0[0x20];
 };
 
+struct mlx5_ifc_vlan_layout_bits {
+	u8         reserved_0[0x14];
+	u8         vlan[0x0c];
+
+	u8         reserved_1[0x20];
+};
+
 struct mlx5_ifc_cong_control_r_roce_ecn_np_bits {
 	u8         reserved_0[0xa0];
 
