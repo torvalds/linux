@@ -322,36 +322,10 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h)
 {
 	unsigned char *d;
 	unsigned char __rcu *vpd_pg83;
+	int rel_port = -1, group_id;
 
-	rcu_read_lock();
-	if (!rcu_dereference(sdev->vpd_pg83)) {
-		rcu_read_unlock();
-		return SCSI_DH_DEV_UNSUPP;
-	}
-
-	/*
-	 * Look for the correct descriptor.
-	 */
-	vpd_pg83 = rcu_dereference(sdev->vpd_pg83);
-	d = vpd_pg83 + 4;
-	while (d < vpd_pg83 + sdev->vpd_pg83_len) {
-		switch (d[1] & 0xf) {
-		case 0x4:
-			/* Relative target port */
-			h->rel_port = get_unaligned_be16(&d[6]);
-			break;
-		case 0x5:
-			/* Target port group */
-			h->group_id = get_unaligned_be16(&d[6]);
-			break;
-		default:
-			break;
-		}
-		d += d[3] + 4;
-	}
-	rcu_read_unlock();
-
-	if (h->group_id == -1) {
+	group_id = scsi_vpd_tpg_id(sdev, &rel_port);
+	if (group_id < 0) {
 		/*
 		 * Internal error; TPGS supported but required
 		 * VPD identification descriptors not present.
@@ -360,10 +334,11 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h)
 		sdev_printk(KERN_INFO, sdev,
 			    "%s: No target port descriptors found\n",
 			    ALUA_DH_NAME);
-		h->state = TPGS_STATE_OPTIMIZED;
-		h->tpgs = TPGS_MODE_NONE;
 		return SCSI_DH_DEV_UNSUPP;
 	}
+	h->state = TPGS_STATE_OPTIMIZED;
+	h->group_id = group_id;
+
 	sdev_printk(KERN_INFO, sdev,
 		    "%s: port group %02x rel port %02x\n",
 		    ALUA_DH_NAME, h->group_id, h->rel_port);
