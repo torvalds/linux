@@ -415,6 +415,7 @@ static inline int scsi_execute_req(struct scsi_device *sdev,
 }
 extern void sdev_disable_disk_events(struct scsi_device *sdev);
 extern void sdev_enable_disk_events(struct scsi_device *sdev);
+extern int scsi_vpd_lun_id(struct scsi_device *, char *, size_t);
 
 #ifdef CONFIG_PM
 extern int scsi_autopm_get_device(struct scsi_device *);
