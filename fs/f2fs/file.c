@@ -686,6 +686,14 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 			 * larger than i_size.
 			 */
 			truncate_setsize(inode, attr->ia_size);
+
+			/* should convert inline inode here */
+			if (f2fs_has_inline_data(inode) &&
+					!f2fs_may_inline_data(inode)) {
+				err = f2fs_convert_inline_inode(inode);
+				if (err)
+					return err;
+			}
 			inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		}
 	}
