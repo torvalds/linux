@@ -887,21 +887,23 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->pen_input;
 	int idx = (features->type == INTUOS) ? (data[1] & 0x01) : 0;
 	unsigned char type = (data[1] >> 1) & 0x0F;
-	unsigned int t;
+	unsigned int x, y, distance, t;
 
 	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_CINTIQ &&
 		data[0] != WACOM_REPORT_INTUOS_PEN)
 		return 0;
 
-	if (features->type >= INTUOS3S) {
-		input_report_abs(input, ABS_X, (data[2] << 9) | (data[3] << 1) | ((data[9] >> 1) & 1));
-		input_report_abs(input, ABS_Y, (data[4] << 9) | (data[5] << 1) | (data[9] & 1));
-		input_report_abs(input, ABS_DISTANCE, ((data[9] >> 2) & 0x3f));
-	} else {
-		input_report_abs(input, ABS_X, be16_to_cpup((__be16 *)&data[2]));
-		input_report_abs(input, ABS_Y, be16_to_cpup((__be16 *)&data[4]));
-		input_report_abs(input, ABS_DISTANCE, ((data[9] >> 3) & 0x1f));
+	x = (be16_to_cpup((__be16 *)&data[2]) << 1) | ((data[9] >> 1) & 1);
+	y = (be16_to_cpup((__be16 *)&data[4]) << 1) | (data[9] & 1);
+	distance = data[9] >> 2;
+	if (features->type < INTUOS3S) {
+		x >>= 1;
+		y >>= 1;
+		distance >>= 1;
 	}
+	input_report_abs(input, ABS_X, x);
+	input_report_abs(input, ABS_Y, y);
+	input_report_abs(input, ABS_DISTANCE, distance);
 
 	switch (type) {
 	case 0x00:
@@ -909,10 +911,9 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	case 0x02:
 	case 0x03:
 		/* general pen packet */
-		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if (features->pressure_max == 2047) {
-			t = (t << 1) | (data[1] & 1);
-		}
+		t = (data[6] << 3) | ((data[7] & 0xC0) >> 5) | (data[1] & 1);
+		if (features->pressure_max < 2047)
+			t >>= 1;
 		input_report_abs(input, ABS_PRESSURE, t);
 		if (features->type != INTUOSHT2) {
 		    input_report_abs(input, ABS_TILT_X,
