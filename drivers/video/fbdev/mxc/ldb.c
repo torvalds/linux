@@ -323,9 +323,6 @@ static int ldb_init(struct mxc_dispdrv_handle *mddh,
 	chan->fbi = fbi;
 
 	fb_videomode_from_videomode(&chan->vm, &fb_vm);
-
-	INIT_LIST_HEAD(&fbi->modelist);
-	fb_add_videomode(&fb_vm, &fbi->modelist);
 	fb_videomode_to_var(&fbi->var, &fb_vm);
 
 	setting->crtc = chan->crtc;
