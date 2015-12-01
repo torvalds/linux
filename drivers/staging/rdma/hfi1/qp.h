@@ -211,7 +211,7 @@ int hfi1_qp_init(struct hfi1_ibdev *dev);
 void hfi1_qp_exit(struct hfi1_ibdev *dev);
 
 /**
- * hfi1_qp_waitup - wake up on the indicated event
+ * hfi1_qp_wakeup - wake up on the indicated event
  * @qp: the QP
  * @flag: flag the qp on which the qp is stalled
  */
@@ -222,19 +222,19 @@ struct sdma_engine *qp_to_sdma_engine(struct hfi1_qp *qp, u8 sc5);
 struct qp_iter;
 
 /**
- * qp_iter_init - wake up on the indicated event
+ * qp_iter_init - initialize the iterator for the qp hash list
  * @dev: the hfi1_ibdev
  */
 struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev);
 
 /**
- * qp_iter_next - wakeup on the indicated event
+ * qp_iter_next - Find the next qp in the hash list
  * @iter: the iterator for the qp hash list
  */
 int qp_iter_next(struct qp_iter *iter);
 
 /**
- * qp_iter_next - wake up on the indicated event
+ * qp_iter_print - print the qp information to seq_file
  * @s: the seq_file to emit the qp information on
  * @iter: the iterator for the qp hash list
  */
