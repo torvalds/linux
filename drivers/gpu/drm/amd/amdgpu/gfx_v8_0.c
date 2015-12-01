@@ -2555,13 +2555,7 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 
 static u32 gfx_v8_0_create_bitmask(u32 bit_width)
 {
-	u32 i, mask = 0;
-
-	for (i = 0; i < bit_width; i++) {
-		mask <<= 1;
-		mask |= 1;
-	}
-	return mask;
+	return (u32)((1ULL << bit_width) - 1);
 }
 
 void gfx_v8_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num)
