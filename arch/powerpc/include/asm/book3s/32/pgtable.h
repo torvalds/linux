@@ -3,18 +3,10 @@
 
 #include <asm-generic/pgtable-nopmd.h>
 
-#ifndef __ASSEMBLY__
-#include <linux/sched.h>
-#include <linux/threads.h>
-#include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
+#include <asm/book3s/32/hash.h>
 
-extern unsigned long ioremap_bot;
-
-#ifdef CONFIG_44x
-extern int icache_44x_need_flush;
-#endif
-
-#endif /* __ASSEMBLY__ */
+/* And here we include common definitions */
+#include <asm/pte-common.h>
 
 /*
  * The normal case is that PTEs are 32-bits and we have a 1-page
@@ -31,28 +23,11 @@ extern int icache_44x_need_flush;
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-/*
- * entries per page directory level: our page-table tree is two-level, so
- * we don't really have any PMD directory.
- */
-#ifndef __ASSEMBLY__
-#define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_SHIFT)
-#define PGD_TABLE_SIZE	(sizeof(pgd_t) << (32 - PGDIR_SHIFT))
-#endif	/* __ASSEMBLY__ */
-
 #define PTRS_PER_PTE	(1 << PTE_SHIFT)
 #define PTRS_PER_PMD	1
 #define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
-#define FIRST_USER_ADDRESS	0UL
-
-#define pte_ERROR(e) \
-	pr_err("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
-		(unsigned long long)pte_val(e))
-#define pgd_ERROR(e) \
-	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
-
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
  * value (for now) on others, from where we can start layout kernel
@@ -100,29 +75,29 @@ extern int icache_44x_need_flush;
 #endif
 #define VMALLOC_END	ioremap_bot
 
+#ifndef __ASSEMBLY__
+#include <linux/sched.h>
+#include <linux/threads.h>
+#include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
+
+extern unsigned long ioremap_bot;
+
+/*
+ * entries per page directory level: our page-table tree is two-level, so
+ * we don't really have any PMD directory.
+ */
+#define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_SHIFT)
+#define PGD_TABLE_SIZE	(sizeof(pgd_t) << (32 - PGDIR_SHIFT))
+
+#define pte_ERROR(e) \
+	pr_err("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
+		(unsigned long long)pte_val(e))
+#define pgd_ERROR(e) \
+	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 /*
  * Bits in a linux-style PTE.  These match the bits in the
  * (hardware-defined) PowerPC PTE as closely as possible.
  */
-
-#if defined(CONFIG_40x)
-#include <asm/pte-40x.h>
-#elif defined(CONFIG_44x)
-#include <asm/pte-44x.h>
-#elif defined(CONFIG_FSL_BOOKE) && defined(CONFIG_PTE_64BIT)
-#include <asm/pte-book3e.h>
-#elif defined(CONFIG_FSL_BOOKE)
-#include <asm/pte-fsl-booke.h>
-#elif defined(CONFIG_8xx)
-#include <asm/pte-8xx.h>
-#else /* CONFIG_6xx */
-#include <asm/book3s/32/hash.h>
-#endif
-
-/* And here we include common definitions */
-#include <asm/pte-common.h>
-
-#ifndef __ASSEMBLY__
 
 #define pte_clear(mm, addr, ptep) \
 	do { pte_update(ptep, ~_PAGE_HASHPTE, 0); } while (0)
@@ -167,7 +142,6 @@ static inline unsigned long pte_update(pte_t *p,
 				       unsigned long clr,
 				       unsigned long set)
 {
-#ifdef PTE_ATOMIC_UPDATES
 	unsigned long old, tmp;
 
 	__asm__ __volatile__("\
@@ -180,15 +154,7 @@ static inline unsigned long pte_update(pte_t *p,
 	: "=&r" (old), "=&r" (tmp), "=m" (*p)
 	: "r" (p), "r" (clr), "r" (set), "m" (*p)
 	: "cc" );
-#else /* PTE_ATOMIC_UPDATES */
-	unsigned long old = pte_val(*p);
-	*p = __pte((old & ~clr) | set);
-#endif /* !PTE_ATOMIC_UPDATES */
 
-#ifdef CONFIG_44x
-	if ((old & _PAGE_USER) && (old & _PAGE_EXEC))
-		icache_44x_need_flush = 1;
-#endif
 	return old;
 }
 #else /* CONFIG_PTE_64BIT */
@@ -196,7 +162,6 @@ static inline unsigned long long pte_update(pte_t *p,
 					    unsigned long clr,
 					    unsigned long set)
 {
-#ifdef PTE_ATOMIC_UPDATES
 	unsigned long long old;
 	unsigned long tmp;
 
@@ -211,15 +176,7 @@ static inline unsigned long long pte_update(pte_t *p,
 	: "=&r" (old), "=&r" (tmp), "=m" (*p)
 	: "r" (p), "r" ((unsigned long)(p) + 4), "r" (clr), "r" (set), "m" (*p)
 	: "cc" );
-#else /* PTE_ATOMIC_UPDATES */
-	unsigned long long old = pte_val(*p);
-	*p = __pte((old & ~(unsigned long long)clr) | set);
-#endif /* !PTE_ATOMIC_UPDATES */
 
-#ifdef CONFIG_44x
-	if ((old & _PAGE_USER) && (old & _PAGE_EXEC))
-		icache_44x_need_flush = 1;
-#endif
 	return old;
 }
 #endif /* CONFIG_PTE_64BIT */
@@ -233,12 +190,10 @@ static inline int __ptep_test_and_clear_young(unsigned int context, unsigned lon
 {
 	unsigned long old;
 	old = pte_update(ptep, _PAGE_ACCESSED, 0);
-#if _PAGE_HASHPTE != 0
 	if (old & _PAGE_HASHPTE) {
 		unsigned long ptephys = __pa(ptep) & PAGE_MASK;
 		flush_hash_pages(context, addr, ptephys, 1);
 	}
-#endif
 	return (old & _PAGE_ACCESSED) != 0;
 }
 #define ptep_test_and_clear_young(__vma, __addr, __ptep) \

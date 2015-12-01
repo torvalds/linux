@@ -7,4 +7,5 @@
 #include <asm/book3s/32/pgtable.h>
 #endif
 
+#define FIRST_USER_ADDRESS	0UL
 #endif
