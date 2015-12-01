@@ -858,6 +858,18 @@
 			#reset-cells = <1>;
 		};
 
+		r_ir: ir@08002000 {
+			compatible = "allwinner,sun5i-a13-ir";
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&r_ir_pins>;
+			clocks = <&apbs_gates 1>, <&r_ir_clk>;
+			clock-names = "apb", "ir";
+			resets = <&apbs_rst 1>;
+			reg = <0x08002000 0x40>;
+			status = "disabled";
+		};
+
 		r_uart: serial@08002800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x08002800 0x400>;
@@ -881,6 +893,13 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#gpio-cells = <3>;
+
+			r_ir_pins: r_ir {
+				allwinner,pins = "PL6";
+				allwinner,function = "s_cir_rx";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
 		};
 	};
 };
