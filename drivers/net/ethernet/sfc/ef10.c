@@ -181,13 +181,6 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 		MCDI_WORD(outbuf, GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID);
 
 	if (!(nic_data->datapath_caps &
-	      (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))) {
-		netif_err(efx, drv, efx->net_dev,
-			  "current firmware does not support TSO\n");
-		return -ENODEV;
-	}
-
-	if (!(nic_data->datapath_caps &
 	      (1 << MC_CMD_GET_CAPABILITIES_OUT_RX_PREFIX_LEN_14_LBN))) {
 		netif_err(efx, probe, efx->net_dev,
 			  "current firmware does not support an RX prefix\n");
@@ -1797,6 +1790,12 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 			     ESF_DZ_TX_OPTION_UDP_TCP_CSUM, csum_offload,
 			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload);
 	tx_queue->write_count = 1;
+
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN)) {
+		tx_queue->tso_version = 1;
+	}
+
 	wmb();
 	efx_ef10_push_tx_desc(tx_queue, txd);
 
