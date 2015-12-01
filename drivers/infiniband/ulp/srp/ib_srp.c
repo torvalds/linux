@@ -994,16 +994,16 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 
 	ret = srp_lookup_path(ch);
 	if (ret)
-		return ret;
+		goto out;
 
 	while (1) {
 		init_completion(&ch->done);
 		ret = srp_send_req(ch, multich);
 		if (ret)
-			return ret;
+			goto out;
 		ret = wait_for_completion_interruptible(&ch->done);
 		if (ret < 0)
-			return ret;
+			goto out;
 
 		/*
 		 * The CM event handling code will set status to
@@ -1011,15 +1011,16 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 		 * back, or SRP_DLID_REDIRECT if we get a lid/qp
 		 * redirect REJ back.
 		 */
-		switch (ch->status) {
+		ret = ch->status;
+		switch (ret) {
 		case 0:
 			ch->connected = true;
-			return 0;
+			goto out;
 
 		case SRP_PORT_REDIRECT:
 			ret = srp_lookup_path(ch);
 			if (ret)
-				return ret;
+				goto out;
 			break;
 
 		case SRP_DLID_REDIRECT:
@@ -1028,13 +1029,16 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 		case SRP_STALE_CONN:
 			shost_printk(KERN_ERR, target->scsi_host, PFX
 				     "giving up on stale connection\n");
-			ch->status = -ECONNRESET;
-			return ch->status;
+			ret = -ECONNRESET;
+			goto out;
 
 		default:
-			return ch->status;
+			goto out;
 		}
 	}
+
+out:
+	return ret <= 0 ? ret : -ENODEV;
 }
 
 static int srp_inv_rkey(struct srp_rdma_ch *ch, u32 rkey)
