@@ -576,3 +576,65 @@ int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_hca_vport_node_guid);
+
+int mlx5_query_nic_vport_promisc(struct mlx5_core_dev *mdev,
+				 u32 vport,
+				 int *promisc_uc,
+				 int *promisc_mc,
+				 int *promisc_all)
+{
+	u32 *out;
+	int outlen = MLX5_ST_SZ_BYTES(query_nic_vport_context_out);
+	int err;
+
+	out = kzalloc(outlen, GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	err = mlx5_query_nic_vport_context(mdev, vport, out, outlen);
+	if (err)
+		goto out;
+
+	*promisc_uc = MLX5_GET(query_nic_vport_context_out, out,
+			       nic_vport_context.promisc_uc);
+	*promisc_mc = MLX5_GET(query_nic_vport_context_out, out,
+			       nic_vport_context.promisc_mc);
+	*promisc_all = MLX5_GET(query_nic_vport_context_out, out,
+				nic_vport_context.promisc_all);
+
+out:
+	kfree(out);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_nic_vport_promisc);
+
+int mlx5_modify_nic_vport_promisc(struct mlx5_core_dev *mdev,
+				  int promisc_uc,
+				  int promisc_mc,
+				  int promisc_all)
+{
+	void *in;
+	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
+	int err;
+
+	in = mlx5_vzalloc(inlen);
+	if (!in) {
+		mlx5_core_err(mdev, "failed to allocate inbox\n");
+		return -ENOMEM;
+	}
+
+	MLX5_SET(modify_nic_vport_context_in, in, field_select.promisc, 1);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.promisc_uc, promisc_uc);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.promisc_mc, promisc_mc);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.promisc_all, promisc_all);
+
+	err = mlx5_modify_nic_vport_context(mdev, in, inlen);
+
+	kvfree(in);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_modify_nic_vport_promisc);

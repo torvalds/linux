@@ -68,5 +68,14 @@ int mlx5_modify_nic_vport_mac_list(struct mlx5_core_dev *dev,
 				   enum mlx5_list_type list_type,
 				   u8 addr_list[][ETH_ALEN],
 				   int list_size);
+int mlx5_query_nic_vport_promisc(struct mlx5_core_dev *mdev,
+				 u32 vport,
+				 int *promisc_uc,
+				 int *promisc_mc,
+				 int *promisc_all);
+int mlx5_modify_nic_vport_promisc(struct mlx5_core_dev *mdev,
+				  int promisc_uc,
+				  int promisc_mc,
+				  int promisc_all);
 
 #endif /* __MLX5_VPORT_H__ */
