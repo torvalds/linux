@@ -10645,9 +10645,9 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	/* insure num_vls isn't larger than number of sdma engines */
 	if (HFI1_CAP_IS_KSET(SDMA) && num_vls > dd->chip_sdma_engines) {
 		dd_dev_err(dd, "num_vls %u too large, using %u VLs\n",
-				num_vls, HFI1_MAX_VLS_SUPPORTED);
-		ppd->vls_supported = num_vls = HFI1_MAX_VLS_SUPPORTED;
-		ppd->vls_operational = ppd->vls_supported;
+			   num_vls, dd->chip_sdma_engines);
+		num_vls = dd->chip_sdma_engines;
+		ppd->vls_supported = dd->chip_sdma_engines;
 	}
 
 	/*
