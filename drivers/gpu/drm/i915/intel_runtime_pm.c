@@ -1911,6 +1911,11 @@ sanitize_disable_power_well_option(const struct drm_i915_private *dev_priv,
 	if (disable_power_well >= 0)
 		return !!disable_power_well;
 
+	if (IS_BROXTON(dev_priv)) {
+		DRM_DEBUG_KMS("Disabling display power well support\n");
+		return 0;
+	}
+
 	return 1;
 }
 
