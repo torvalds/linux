@@ -1520,7 +1520,8 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 		index_buf = area_data->index_buf;
 #if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
-			if (area_data->ion_handle != NULL)
+			if (area_data->ion_handle != NULL &&
+			    !IS_YUV_FMT(area_data->data_format))
 				ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client,
 						area_data->ion_handle);
 			freed_addr[freed_index++] = area_data->smem_start;
