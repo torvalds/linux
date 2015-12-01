@@ -71,7 +71,7 @@ struct scpi_ops {
 	int (*sensor_get_value)(u16, u32 *);
 };
 
-#if IS_ENABLED(CONFIG_ARM_SCPI_PROTOCOL)
+#if IS_REACHABLE(CONFIG_ARM_SCPI_PROTOCOL)
 struct scpi_ops *get_scpi_ops(void);
 #else
 static inline struct scpi_ops *get_scpi_ops(void) { return NULL; }
