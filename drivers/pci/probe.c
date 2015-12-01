@@ -1601,9 +1601,6 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	/* Enhanced Allocation */
 	pci_ea_init(dev);
 
-	/* MSI/MSI-X list */
-	pci_msi_init_pci_dev(dev);
-
 	/* Setup MSI caps & disable MSI/MSI-X interrupts */
 	pci_msi_setup_pci_dev(dev);
 
