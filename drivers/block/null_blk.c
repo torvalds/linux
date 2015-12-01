@@ -132,8 +132,8 @@ static const struct kernel_param_ops null_irqmode_param_ops = {
 device_param_cb(irqmode, &null_irqmode_param_ops, &irqmode, S_IRUGO);
 MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
 
-static int completion_nsec = 10000;
-module_param(completion_nsec, int, S_IRUGO);
+static unsigned long completion_nsec = 10000;
+module_param(completion_nsec, ulong, S_IRUGO);
 MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000ns");
 
 static int hw_queue_depth = 64;
