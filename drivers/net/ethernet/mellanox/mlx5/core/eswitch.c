@@ -1213,3 +1213,70 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 
 	return modify_esw_vport_cvlan(esw->dev, vport, vlan, qos, set);
 }
+
+int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
+				 int vport,
+				 struct ifla_vf_stats *vf_stats)
+{
+	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
+	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)];
+	int err = 0;
+	u32 *out;
+
+	if (!ESW_ALLOWED(esw))
+		return -EPERM;
+	if (!LEGAL_VPORT(esw, vport))
+		return -EINVAL;
+
+	out = mlx5_vzalloc(outlen);
+	if (!out)
+		return -ENOMEM;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(query_vport_counter_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_VPORT_COUNTER);
+	MLX5_SET(query_vport_counter_in, in, op_mod, 0);
+	MLX5_SET(query_vport_counter_in, in, vport_number, vport);
+	if (vport)
+		MLX5_SET(query_vport_counter_in, in, other_vport, 1);
+
+	memset(out, 0, outlen);
+	err = mlx5_cmd_exec(esw->dev, in, sizeof(in), out, outlen);
+	if (err)
+		goto free_out;
+
+	#define MLX5_GET_CTR(p, x) \
+		MLX5_GET64(query_vport_counter_out, p, x)
+
+	memset(vf_stats, 0, sizeof(*vf_stats));
+	vf_stats->rx_packets =
+		MLX5_GET_CTR(out, received_eth_unicast.packets) +
+		MLX5_GET_CTR(out, received_eth_multicast.packets) +
+		MLX5_GET_CTR(out, received_eth_broadcast.packets);
+
+	vf_stats->rx_bytes =
+		MLX5_GET_CTR(out, received_eth_unicast.octets) +
+		MLX5_GET_CTR(out, received_eth_multicast.octets) +
+		MLX5_GET_CTR(out, received_eth_broadcast.octets);
+
+	vf_stats->tx_packets =
+		MLX5_GET_CTR(out, transmitted_eth_unicast.packets) +
+		MLX5_GET_CTR(out, transmitted_eth_multicast.packets) +
+		MLX5_GET_CTR(out, transmitted_eth_broadcast.packets);
+
+	vf_stats->tx_bytes =
+		MLX5_GET_CTR(out, transmitted_eth_unicast.octets) +
+		MLX5_GET_CTR(out, transmitted_eth_multicast.octets) +
+		MLX5_GET_CTR(out, transmitted_eth_broadcast.octets);
+
+	vf_stats->multicast =
+		MLX5_GET_CTR(out, received_eth_multicast.packets);
+
+	vf_stats->broadcast =
+		MLX5_GET_CTR(out, received_eth_broadcast.packets);
+
+free_out:
+	kvfree(out);
+	return err;
+}

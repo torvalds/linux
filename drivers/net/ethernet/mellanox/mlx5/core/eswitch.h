@@ -153,5 +153,8 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				int vport, u16 vlan, u8 qos);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct ifla_vf_info *ivi);
+int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
+				 int vport,
+				 struct ifla_vf_stats *vf_stats);
 
 #endif /* __MLX5_ESWITCH_H__ */
