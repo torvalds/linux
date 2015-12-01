@@ -183,6 +183,10 @@
 	status = "okay";
 };
 
+&r_ir {
+	status = "okay";
+};
+
 &r_pio {
 	led_r_pins_optimus: led-pins@1 {
 		allwinner,pins = "PM15";
