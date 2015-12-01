@@ -25,12 +25,6 @@
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-/* Bits to mask out from a PMD to get to the PTE page */
-/* PMDs point to PTE table fragments which are 4K aligned.  */
-#define PMD_MASKED_BITS		0xfff
-/* Bits to mask out from a PGD/PUD to get to the PMD page */
-#define PUD_MASKED_BITS		0x1ff
-
 #define _PAGE_COMBO	0x00020000 /* this is a combo 4k page */
 #define _PAGE_4K_PFN	0x00040000 /* PFN is for a single 4k page */
 /*
@@ -49,6 +43,24 @@
  * of addressable physical space, or 46 bits for the special 4k PFNs.
  */
 #define PTE_RPN_SHIFT	(30)
+/*
+ * we support 16 fragments per PTE page of 64K size.
+ */
+#define PTE_FRAG_NR	16
+/*
+ * We use a 2K PTE page fragment and another 2K for storing
+ * real_pte_t hash index
+ */
+#define PTE_FRAG_SIZE_SHIFT  12
+#define PTE_FRAG_SIZE (1UL << PTE_FRAG_SIZE_SHIFT)
+
+/*
+ * Bits to mask out from a PMD to get to the PTE page
+ * PMDs point to PTE table fragments which are PTE_FRAG_SIZE aligned.
+ */
+#define PMD_MASKED_BITS		(PTE_FRAG_SIZE - 1)
+/* Bits to mask out from a PGD/PUD to get to the PMD page */
+#define PUD_MASKED_BITS		0x1ff
 
 #ifndef __ASSEMBLY__
 
@@ -112,8 +124,12 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 		remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,	\
 			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN)))
 
-#define PTE_TABLE_SIZE	(sizeof(real_pte_t) << PTE_INDEX_SIZE)
+#define PTE_TABLE_SIZE	PTE_FRAG_SIZE
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define PMD_TABLE_SIZE	((sizeof(pmd_t) << PMD_INDEX_SIZE) + (sizeof(unsigned long) << PMD_INDEX_SIZE))
+#else
 #define PMD_TABLE_SIZE	(sizeof(pmd_t) << PMD_INDEX_SIZE)
+#endif
 #define PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
 
 #define pgd_pte(pgd)	(pud_pte(((pud_t){ pgd })))

@@ -163,16 +163,6 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 }
 
 #else /* if CONFIG_PPC_64K_PAGES */
-/*
- * we support 16 fragments per PTE page.
- */
-#define PTE_FRAG_NR	16
-/*
- * We use a 2K PTE page fragment and another 2K for storing
- * real_pte_t hash index
- */
-#define PTE_FRAG_SIZE_SHIFT  12
-#define PTE_FRAG_SIZE (2 * PTRS_PER_PTE * sizeof(pte_t))
 
 extern pte_t *page_table_alloc(struct mm_struct *, unsigned long, int);
 extern void page_table_free(struct mm_struct *, unsigned long *, int);
