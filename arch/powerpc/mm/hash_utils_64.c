@@ -629,31 +629,6 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-extern u32 htab_call_hpte_insert1[];
-extern u32 htab_call_hpte_insert2[];
-extern u32 htab_call_hpte_remove[];
-extern u32 htab_call_hpte_updatepp[];
-
-static void __init htab_finish_init(void)
-{
-
-#ifdef CONFIG_PPC_4K_PAGES
-	patch_branch(htab_call_hpte_insert1,
-		ppc_function_entry(ppc_md.hpte_insert),
-		BRANCH_SET_LINK);
-	patch_branch(htab_call_hpte_insert2,
-		ppc_function_entry(ppc_md.hpte_insert),
-		BRANCH_SET_LINK);
-	patch_branch(htab_call_hpte_remove,
-		ppc_function_entry(ppc_md.hpte_remove),
-		BRANCH_SET_LINK);
-	patch_branch(htab_call_hpte_updatepp,
-		ppc_function_entry(ppc_md.hpte_updatepp),
-		BRANCH_SET_LINK);
-#endif
-
-}
-
 static void __init htab_initialize(void)
 {
 	unsigned long table;
@@ -800,7 +775,6 @@ static void __init htab_initialize(void)
 					 mmu_linear_psize, mmu_kernel_ssize));
 	}
 
-	htab_finish_init();
 
 	DBG(" <- htab_initialize()\n");
 }
