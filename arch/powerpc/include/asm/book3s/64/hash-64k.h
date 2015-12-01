@@ -130,25 +130,25 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 static inline int pmd_huge(pmd_t pmd)
 {
 	/*
-	 * leaf pte for huge page, bottom two bits != 00
+	 * leaf pte for huge page
 	 */
-	return ((pmd_val(pmd) & 0x3) != 0x0);
+	return !!(pmd_val(pmd) & _PAGE_PTE);
 }
 
 static inline int pud_huge(pud_t pud)
 {
 	/*
-	 * leaf pte for huge page, bottom two bits != 00
+	 * leaf pte for huge page
 	 */
-	return ((pud_val(pud) & 0x3) != 0x0);
+	return !!(pud_val(pud) & _PAGE_PTE);
 }
 
 static inline int pgd_huge(pgd_t pgd)
 {
 	/*
-	 * leaf pte for huge page, bottom two bits != 00
+	 * leaf pte for huge page
 	 */
-	return ((pgd_val(pgd) & 0x3) != 0x0);
+	return !!(pgd_val(pgd) & _PAGE_PTE);
 }
 #define pgd_huge pgd_huge
 
@@ -236,10 +236,8 @@ static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
  */
 static inline int pmd_trans_huge(pmd_t pmd)
 {
-	/*
-	 * leaf pte for huge page, bottom two bits != 00
-	 */
-	return (pmd_val(pmd) & 0x3) && (pmd_val(pmd) & _PAGE_THP_HUGE);
+	return !!((pmd_val(pmd) & (_PAGE_PTE | _PAGE_THP_HUGE)) ==
+		  (_PAGE_PTE | _PAGE_THP_HUGE));
 }
 
 static inline int pmd_trans_splitting(pmd_t pmd)
@@ -251,10 +249,7 @@ static inline int pmd_trans_splitting(pmd_t pmd)
 
 static inline int pmd_large(pmd_t pmd)
 {
-	/*
-	 * leaf pte for huge page, bottom two bits != 00
-	 */
-	return ((pmd_val(pmd) & 0x3) != 0x0);
+	return !!(pmd_val(pmd) & _PAGE_PTE);
 }
 
 static inline pmd_t pmd_mknotpresent(pmd_t pmd)

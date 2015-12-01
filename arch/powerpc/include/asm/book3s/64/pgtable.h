@@ -213,8 +213,7 @@ static inline int pmd_protnone(pmd_t pmd)
 
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
 {
-	/* Do nothing, mk_pmd() does this part.  */
-	return pmd;
+	return __pmd(pmd_val(pmd) | (_PAGE_PTE | _PAGE_THP_HUGE));
 }
 
 #define __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS

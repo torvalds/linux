@@ -765,13 +765,8 @@ static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
 pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 {
 	unsigned long pmdv;
-	/*
-	 * For a valid pte, we would have _PAGE_PRESENT always
-	 * set. We use this to check THP page at pmd level.
-	 * leaf pte for huge page, bottom two bits != 00
-	 */
+
 	pmdv = pfn << PTE_RPN_SHIFT;
-	pmdv |= _PAGE_THP_HUGE;
 	return pmd_set_protbits(__pmd(pmdv), pgprot);
 }
 

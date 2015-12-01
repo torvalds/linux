@@ -894,8 +894,8 @@ void flush_dcache_icache_hugepage(struct page *page)
  * We have 4 cases for pgds and pmds:
  * (1) invalid (all zeroes)
  * (2) pointer to next table, as normal; bottom 6 bits == 0
- * (3) leaf pte for huge page, bottom two bits != 00
- * (4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size of table
+ * (3) leaf pte for huge page _PAGE_PTE set
+ * (4) hugepd pointer, _PAGE_PTE = 0 and bits [2..6] indicate size of table
  *
  * So long as we atomically load page table pointers we are safe against teardown,
  * we can follow the address down to the the page and take a ref on it.

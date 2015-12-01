@@ -14,11 +14,12 @@
  * We could create separate kernel read-only if we used the 3 PP bits
  * combinations that newer processors provide but we currently don't.
  */
-#define _PAGE_PRESENT		0x00001 /* software: pte contains a translation */
-#define _PAGE_USER		0x00002 /* matches one of the PP bits */
+#define _PAGE_PTE		0x00001
+#define _PAGE_PRESENT		0x00002 /* software: pte contains a translation */
 #define _PAGE_BIT_SWAP_TYPE	2
-#define _PAGE_EXEC		0x00004 /* No execute on POWER4 and newer (we invert) */
-#define _PAGE_GUARDED		0x00008
+#define _PAGE_USER		0x00004 /* matches one of the PP bits */
+#define _PAGE_EXEC		0x00008 /* No execute on POWER4 and newer (we invert) */
+#define _PAGE_GUARDED		0x00010
 /* We can derive Memory coherence from _PAGE_NO_CACHE */
 #define _PAGE_COHERENT		0x0
 #define _PAGE_NO_CACHE		0x00020 /* I: cache inhibit */
@@ -49,7 +50,7 @@
  */
 #define _HPAGE_CHG_MASK (PTE_RPN_MASK | _PAGE_HPTEFLAGS |		\
 			 _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_SPLITTING | \
-			 _PAGE_THP_HUGE)
+			 _PAGE_THP_HUGE | _PAGE_PTE)
 
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/book3s/64/hash-64k.h>
@@ -135,7 +136,7 @@
  * pgprot changes
  */
 #define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
-			 _PAGE_ACCESSED | _PAGE_SPECIAL)
+			 _PAGE_ACCESSED | _PAGE_SPECIAL | _PAGE_PTE)
 /*
  * Mask of bits returned by pte_pgprot()
  */

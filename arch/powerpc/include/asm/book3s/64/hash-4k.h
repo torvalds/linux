@@ -116,10 +116,13 @@ static inline int pgd_huge(pgd_t pgd)
 static inline int hugepd_ok(hugepd_t hpd)
 {
 	/*
-	 * hugepd pointer, bottom two bits == 00 and next 4 bits
-	 * indicate size of table
+	 * if it is not a pte and have hugepd shift mask
+	 * set, then it is a hugepd directory pointer
 	 */
-	return (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
+	if (!(hpd.pd & _PAGE_PTE) &&
+	    ((hpd.pd & HUGEPD_SHIFT_MASK) != 0))
+		return true;
+	return false;
 }
 #define is_hugepd(hpd)		(hugepd_ok(hpd))
 #endif
