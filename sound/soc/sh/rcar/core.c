@@ -603,7 +603,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	struct device_node *playback, *capture;
 	struct rsnd_dai_stream *io_playback;
 	struct rsnd_dai_stream *io_capture;
-	struct snd_soc_dai_driver *drv;
+	struct snd_soc_dai_driver *rdrv, *drv;
 	struct rsnd_dai *rdai;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int nr, dai_i, io_i, np_i;
@@ -616,15 +616,15 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		goto rsnd_dai_probe_done;
 	}
 
-	drv  = devm_kzalloc(dev, sizeof(*drv)  * nr, GFP_KERNEL);
+	rdrv = devm_kzalloc(dev, sizeof(*rdrv) * nr, GFP_KERNEL);
 	rdai = devm_kzalloc(dev, sizeof(*rdai) * nr, GFP_KERNEL);
-	if (!drv || !rdai) {
+	if (!rdrv || !rdai) {
 		ret = -ENOMEM;
 		goto rsnd_dai_probe_done;
 	}
 
 	priv->rdai_nr	= nr;
-	priv->daidrv	= drv;
+	priv->daidrv	= rdrv;
 	priv->rdai	= rdai;
 
 	/*
@@ -633,7 +633,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	dai_i = 0;
 	for_each_child_of_node(dai_node, dai_np) {
 		rdai		= rsnd_rdai_get(priv, dai_i);
-		drv		= drv + dai_i;
+		drv		= rdrv + dai_i;
 		io_playback	= &rdai->playback;
 		io_capture	= &rdai->capture;
 
