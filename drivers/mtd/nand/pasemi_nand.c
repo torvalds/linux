@@ -45,7 +45,7 @@ static const char driver_name[] = "pasemi-nand";
 
 static void pasemi_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	while (len > 0x800) {
 		memcpy_fromio(buf, chip->IO_ADDR_R, 0x800);
@@ -57,7 +57,7 @@ static void pasemi_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 
 static void pasemi_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	while (len > 0x800) {
 		memcpy_toio(chip->IO_ADDR_R, buf, 0x800);
@@ -70,7 +70,7 @@ static void pasemi_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 static void pasemi_hwcontrol(struct mtd_info *mtd, int cmd,
 			     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	if (cmd == NAND_CMD_NONE)
 		return;
@@ -192,7 +192,7 @@ static int pasemi_nand_remove(struct platform_device *ofdev)
 	if (!pasemi_nand_mtd)
 		return 0;
 
-	chip = pasemi_nand_mtd->priv;
+	chip = mtd_to_nand(pasemi_nand_mtd);
 
 	/* Release resources, unregister device */
 	nand_release(pasemi_nand_mtd);

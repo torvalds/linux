@@ -48,7 +48,7 @@ static struct ndfc_controller ndfc_ctrl[NDFC_MAX_CS];
 static void ndfc_select_chip(struct mtd_info *mtd, int chip)
 {
 	uint32_t ccr;
-	struct nand_chip *nchip = mtd->priv;
+	struct nand_chip *nchip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = nchip->priv;
 
 	ccr = in_be32(ndfc->ndfcbase + NDFC_CCR);
@@ -62,7 +62,7 @@ static void ndfc_select_chip(struct mtd_info *mtd, int chip)
 
 static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = chip->priv;
 
 	if (cmd == NAND_CMD_NONE)
@@ -76,7 +76,7 @@ static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 
 static int ndfc_ready(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = chip->priv;
 
 	return in_be32(ndfc->ndfcbase + NDFC_STAT) & NDFC_STAT_IS_READY;
@@ -85,7 +85,7 @@ static int ndfc_ready(struct mtd_info *mtd)
 static void ndfc_enable_hwecc(struct mtd_info *mtd, int mode)
 {
 	uint32_t ccr;
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = chip->priv;
 
 	ccr = in_be32(ndfc->ndfcbase + NDFC_CCR);
@@ -97,7 +97,7 @@ static void ndfc_enable_hwecc(struct mtd_info *mtd, int mode)
 static int ndfc_calculate_ecc(struct mtd_info *mtd,
 			      const u_char *dat, u_char *ecc_code)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = chip->priv;
 	uint32_t ecc;
 	uint8_t *p = (uint8_t *)&ecc;
@@ -121,7 +121,7 @@ static int ndfc_calculate_ecc(struct mtd_info *mtd,
  */
 static void ndfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = chip->priv;
 	uint32_t *p = (uint32_t *) buf;
 
@@ -131,7 +131,7 @@ static void ndfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 
 static void ndfc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct ndfc_controller *ndfc = chip->priv;
 	uint32_t *p = (uint32_t *) buf;
 

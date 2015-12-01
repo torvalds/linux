@@ -82,7 +82,7 @@ static inline struct jz_nand *mtd_to_jz_nand(struct mtd_info *mtd)
 static void jz_nand_select_chip(struct mtd_info *mtd, int chipnr)
 {
 	struct jz_nand *nand = mtd_to_jz_nand(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	uint32_t ctrl;
 	int banknr;
 
@@ -104,7 +104,7 @@ static void jz_nand_select_chip(struct mtd_info *mtd, int chipnr)
 static void jz_nand_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
 {
 	struct jz_nand *nand = mtd_to_jz_nand(mtd);
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	uint32_t reg;
 	void __iomem *bank_base = nand->bank_base[nand->selected_bank];
 

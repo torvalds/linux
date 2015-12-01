@@ -45,7 +45,7 @@ static void socrates_nand_write_buf(struct mtd_info *mtd,
 		const uint8_t *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	struct socrates_nand_host *host = this->priv;
 
 	for (i = 0; i < len; i++) {
@@ -64,7 +64,7 @@ static void socrates_nand_write_buf(struct mtd_info *mtd,
 static void socrates_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	int i;
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	struct socrates_nand_host *host = this->priv;
 	uint32_t val;
 
@@ -105,7 +105,7 @@ static uint16_t socrates_nand_read_word(struct mtd_info *mtd)
 static void socrates_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		unsigned int ctrl)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct socrates_nand_host *host = nand_chip->priv;
 	uint32_t val;
 
@@ -130,7 +130,7 @@ static void socrates_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
  */
 static int socrates_nand_device_ready(struct mtd_info *mtd)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct socrates_nand_host *host = nand_chip->priv;
 
 	if (in_be32(host->io_base) & FPGA_NAND_BUSY)

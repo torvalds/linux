@@ -532,7 +532,7 @@ static void send_addr_v1_v2(struct mxc_nand_host *host, uint16_t addr, int islas
 
 static void send_page_v3(struct mtd_info *mtd, unsigned int ops)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	uint32_t tmp;
 
@@ -548,7 +548,7 @@ static void send_page_v3(struct mtd_info *mtd, unsigned int ops)
 
 static void send_page_v2(struct mtd_info *mtd, unsigned int ops)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 
 	/* NANDFC buffer 0 is used for page read/write */
@@ -562,7 +562,7 @@ static void send_page_v2(struct mtd_info *mtd, unsigned int ops)
 
 static void send_page_v1(struct mtd_info *mtd, unsigned int ops)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	int bufs, i;
 
@@ -663,7 +663,7 @@ static void mxc_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 static int mxc_nand_correct_data_v1(struct mtd_info *mtd, u_char *dat,
 				 u_char *read_ecc, u_char *calc_ecc)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 
 	/*
@@ -684,7 +684,7 @@ static int mxc_nand_correct_data_v1(struct mtd_info *mtd, u_char *dat,
 static int mxc_nand_correct_data_v2_v3(struct mtd_info *mtd, u_char *dat,
 				 u_char *read_ecc, u_char *calc_ecc)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	u32 ecc_stat, err;
 	int no_subpages = 1;
@@ -722,7 +722,7 @@ static int mxc_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 
 static u_char mxc_nand_read_byte(struct mtd_info *mtd)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	uint8_t ret;
 
@@ -746,7 +746,7 @@ static u_char mxc_nand_read_byte(struct mtd_info *mtd)
 
 static uint16_t mxc_nand_read_word(struct mtd_info *mtd)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	uint16_t ret;
 
@@ -762,7 +762,7 @@ static uint16_t mxc_nand_read_word(struct mtd_info *mtd)
 static void mxc_nand_write_buf(struct mtd_info *mtd,
 				const u_char *buf, int len)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	u16 col = host->buf_start;
 	int n = mtd->oobsize + mtd->writesize - col;
@@ -780,7 +780,7 @@ static void mxc_nand_write_buf(struct mtd_info *mtd,
  */
 static void mxc_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	u16 col = host->buf_start;
 	int n = mtd->oobsize + mtd->writesize - col;
@@ -796,7 +796,7 @@ static void mxc_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
  * deselect of the NAND chip */
 static void mxc_nand_select_chip_v1_v3(struct mtd_info *mtd, int chip)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 
 	if (chip == -1) {
@@ -817,7 +817,7 @@ static void mxc_nand_select_chip_v1_v3(struct mtd_info *mtd, int chip)
 
 static void mxc_nand_select_chip_v2(struct mtd_info *mtd, int chip)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 
 	if (chip == -1) {
@@ -850,7 +850,7 @@ static void mxc_nand_select_chip_v2(struct mtd_info *mtd, int chip)
  */
 static void copy_spare(struct mtd_info *mtd, bool bfrom)
 {
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = this->priv;
 	u16 i, oob_chunk_size;
 	u16 num_chunks = mtd->writesize / 512;
@@ -893,7 +893,7 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom)
  */
 static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 
 	/* Write out column address, if necessary */
@@ -979,7 +979,7 @@ static void ecc_8bit_layout_4k(struct nand_ecclayout *layout)
 
 static void preset_v1(struct mtd_info *mtd)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	uint16_t config1 = 0;
 
@@ -1007,7 +1007,7 @@ static void preset_v1(struct mtd_info *mtd)
 
 static void preset_v2(struct mtd_info *mtd)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 	uint16_t config1 = 0;
 
@@ -1053,7 +1053,7 @@ static void preset_v2(struct mtd_info *mtd)
 
 static void preset_v3(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = chip->priv;
 	uint32_t config2, config3;
 	int i, addr_phases;
@@ -1124,7 +1124,7 @@ static void preset_v3(struct mtd_info *mtd)
 static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 				int column, int page_addr)
 {
-	struct nand_chip *nand_chip = mtd->priv;
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_chip->priv;
 
 	pr_debug("mxc_nand_command (cmd = 0x%x, col = 0x%x, page = 0x%x)\n",

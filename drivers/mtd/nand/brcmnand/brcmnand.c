@@ -873,7 +873,7 @@ static struct nand_ecclayout *brcmstb_choose_ecc_layout(
 
 static void brcmnand_wp(struct mtd_info *mtd, int wp)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = chip->priv;
 	struct brcmnand_controller *ctrl = host->ctrl;
 
@@ -1039,7 +1039,7 @@ static void brcmnand_cmd_ctrl(struct mtd_info *mtd, int dat,
 
 static int brcmnand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = chip->priv;
 	struct brcmnand_controller *ctrl = host->ctrl;
 	unsigned long timeo = msecs_to_jiffies(100);
@@ -1113,7 +1113,7 @@ static int brcmnand_low_level_op(struct brcmnand_host *host,
 static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			     int column, int page_addr)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = chip->priv;
 	struct brcmnand_controller *ctrl = host->ctrl;
 	u64 addr = (u64)page_addr << chip->page_shift;
@@ -1219,7 +1219,7 @@ static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 static uint8_t brcmnand_read_byte(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = chip->priv;
 	struct brcmnand_controller *ctrl = host->ctrl;
 	uint8_t ret = 0;
@@ -1286,7 +1286,7 @@ static void brcmnand_write_buf(struct mtd_info *mtd, const uint8_t *buf,
 				   int len)
 {
 	int i;
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = chip->priv;
 
 	switch (host->last_cmd) {
@@ -2061,7 +2061,7 @@ static int brcmnand_resume(struct device *dev)
 
 	list_for_each_entry(host, &ctrl->host_list, node) {
 		struct mtd_info *mtd = &host->mtd;
-		struct nand_chip *chip = mtd->priv;
+		struct nand_chip *chip = mtd_to_nand(mtd);
 
 		brcmnand_save_restore_cs_config(host, 1);
 
