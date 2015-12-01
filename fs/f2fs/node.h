@@ -183,7 +183,7 @@ static inline pgoff_t current_nat_addr(struct f2fs_sb_info *sbi, nid_t start)
 
 	block_addr = (pgoff_t)(nm_i->nat_blkaddr +
 		(seg_off << sbi->log_blocks_per_seg << 1) +
-		(block_off & ((1 << sbi->log_blocks_per_seg) - 1)));
+		(block_off & (sbi->blocks_per_seg - 1)));
 
 	if (f2fs_test_bit(block_off, nm_i->nat_bitmap))
 		block_addr += sbi->blocks_per_seg;
