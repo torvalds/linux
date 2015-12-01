@@ -3322,7 +3322,7 @@ static int t_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "%ps", (void *)rec->ip);
 	if (iter->flags & FTRACE_ITER_ENABLED) {
-		struct ftrace_ops *ops = NULL;
+		struct ftrace_ops *ops;
 
 		seq_printf(m, " (%ld)%s%s",
 			   ftrace_rec_count(rec),
@@ -3335,13 +3335,14 @@ static int t_show(struct seq_file *m, void *v)
 					seq_printf(m, "\ttramp: %pS (%pS)",
 						   (void *)ops->trampoline,
 						   (void *)ops->func);
+					add_trampoline_func(m, ops, rec);
 					ops = ftrace_find_tramp_ops_next(rec, ops);
 				} while (ops);
 			} else
 				seq_puts(m, "\ttramp: ERROR!");
-
+		} else {
+			add_trampoline_func(m, NULL, rec);
 		}
-		add_trampoline_func(m, ops, rec);
 	}	
 
 	seq_putc(m, '\n');
