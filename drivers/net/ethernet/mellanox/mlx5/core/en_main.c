@@ -2028,7 +2028,7 @@ static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
-	mlx5_query_nic_vport_mac_address(priv->mdev, netdev->dev_addr);
+	mlx5_query_nic_vport_mac_address(priv->mdev, 0, netdev->dev_addr);
 }
 
 static void mlx5e_build_netdev(struct net_device *netdev)
