@@ -14264,7 +14264,7 @@ static bool intel_crt_present(struct drm_device *dev)
 	if (HAS_DDI(dev) && I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES)
 		return false;
 
-	if (IS_VALLEYVIEW(dev) && !dev_priv->vbt.int_crt_support)
+	if (!dev_priv->vbt.int_crt_support)
 		return false;
 
 	return true;
