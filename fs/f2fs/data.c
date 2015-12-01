@@ -494,10 +494,6 @@ alloc:
 	if (i_size_read(dn->inode) < ((loff_t)(fofs + 1) << PAGE_CACHE_SHIFT))
 		i_size_write(dn->inode,
 				((loff_t)(fofs + 1) << PAGE_CACHE_SHIFT));
-
-	/* direct IO doesn't use extent cache to maximize the performance */
-	f2fs_drop_largest_extent(dn->inode, fofs);
-
 	return 0;
 }
 

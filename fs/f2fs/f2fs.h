@@ -2078,7 +2078,6 @@ void f2fs_leave_shrinker(struct f2fs_sb_info *);
  * extent_cache.c
  */
 unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *, int);
-void f2fs_drop_largest_extent(struct inode *, pgoff_t);
 void f2fs_init_extent_tree(struct inode *, struct f2fs_extent *);
 unsigned int f2fs_destroy_extent_node(struct inode *);
 void f2fs_destroy_extent_tree(struct inode *);
