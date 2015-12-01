@@ -31,33 +31,13 @@
 /* Bits to mask out from a PGD/PUD to get to the PMD page */
 #define PUD_MASKED_BITS		0x1ff
 
-/* Additional PTE bits (don't change without checking asm in hash_low.S) */
-#define _PAGE_SPECIAL	0x00000400 /* software: special page */
-#define _PAGE_HPTE_SUB	0x0ffff000 /* combo only: sub pages HPTE bits */
-#define _PAGE_HPTE_SUB0	0x08000000 /* combo only: first sub page */
-#define _PAGE_COMBO	0x10000000 /* this is a combo 4k page */
-#define _PAGE_4K_PFN	0x20000000 /* PFN is for a single 4k page */
-
-/* For 64K page, we don't have a separate _PAGE_HASHPTE bit. Instead,
- * we set that to be the whole sub-bits mask. The C code will only
- * test this, so a multi-bit mask will work. For combo pages, this
- * is equivalent as effectively, the old _PAGE_HASHPTE was an OR of
- * all the sub bits. For real 64k pages, we now have the assembly set
- * _PAGE_HPTE_SUB0 in addition to setting the HIDX bits which overlap
- * that mask. This is fine as long as the HIDX bits are never set on
- * a PTE that isn't hashed, which is the case today.
- *
- * A little nit is for the huge page C code, which does the hashing
- * in C, we need to provide which bit to use.
+#define _PAGE_COMBO	0x00020000 /* this is a combo 4k page */
+#define _PAGE_4K_PFN	0x00040000 /* PFN is for a single 4k page */
+/*
+ * Used to track subpage group valid if _PAGE_COMBO is set
+ * This overloads _PAGE_F_GIX and _PAGE_F_SECOND
  */
-#define _PAGE_HASHPTE	_PAGE_HPTE_SUB
-
-/* Note the full page bits must be in the same location as for normal
- * 4k pages as the same assembly will be used to insert 64K pages
- * whether the kernel has CONFIG_PPC_64K_PAGES or not
- */
-#define _PAGE_F_SECOND  0x00008000 /* full page: hidx bits */
-#define _PAGE_F_GIX     0x00007000 /* full page: hidx bits */
+#define _PAGE_COMBO_VALID	(_PAGE_F_GIX | _PAGE_F_SECOND)
 
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | _PAGE_COMBO)
@@ -103,8 +83,7 @@ static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
 }
 
 #define __rpte_to_pte(r)	((r).pte)
-#define __rpte_sub_valid(rpte, index) \
-	(pte_val(rpte.pte) & (_PAGE_HPTE_SUB0 >> (index)))
+extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 /*
  * Trick: we set __end to va + 64k, which happens works for
  * a 16M page as well as we want only one iteration

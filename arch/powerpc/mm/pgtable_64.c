@@ -625,7 +625,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma,
 	"1:	ldarx	%0,0,%3\n\
 		andi.	%1,%0,%6\n\
 		bne-	1b \n\
-		ori	%1,%0,%4 \n\
+		oris	%1,%0,%4@h \n\
 		stdcx.	%1,0,%3 \n\
 		bne-	1b"
 	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)

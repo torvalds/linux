@@ -81,7 +81,12 @@
 #define _PAGE_DIRTY		0x0080 /* C: page changed */
 #define _PAGE_ACCESSED		0x0100 /* R: page referenced */
 #define _PAGE_RW		0x0200 /* software: user write access allowed */
+#define _PAGE_HASHPTE		0x0400 /* software: pte has an associated HPTE */
 #define _PAGE_BUSY		0x0800 /* software: PTE & hash are busy */
+#define _PAGE_F_GIX		0x7000 /* full page: hidx bits */
+#define _PAGE_F_GIX_SHIFT	12
+#define _PAGE_F_SECOND		0x8000 /* Whether to use secondary hash or not */
+#define _PAGE_SPECIAL		0x10000 /* software: special page */
 
 /* No separate kernel read-only */
 #define _PAGE_KERNEL_RW		(_PAGE_RW | _PAGE_DIRTY) /* user access blocked by key */
@@ -210,11 +215,6 @@
 
 #define PMD_BAD_BITS		(PTE_TABLE_SIZE-1)
 #define PUD_BAD_BITS		(PMD_TABLE_SIZE-1)
-/*
- * We save the slot number & secondary bit in the second half of the
- * PTE page. We use the 8 bytes per each pte entry.
- */
-#define PTE_PAGE_HIDX_OFFSET (PTRS_PER_PTE * 8)
 
 #ifndef __ASSEMBLY__
 #define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \

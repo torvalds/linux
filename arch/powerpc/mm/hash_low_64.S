@@ -285,7 +285,7 @@ htab_modify_pte:
 
 	/* Secondary group ? if yes, get a inverted hash value */
 	mr	r5,r28
-	andi.	r0,r31,_PAGE_SECONDARY
+	andi.	r0,r31,_PAGE_F_SECOND
 	beq	1f
 	not	r5,r5
 1:
@@ -473,11 +473,7 @@ ht64_insert_pte:
 	lis	r0,_PAGE_HPTEFLAGS@h
 	ori	r0,r0,_PAGE_HPTEFLAGS@l
 	andc	r30,r30,r0
-#ifdef CONFIG_PPC_64K_PAGES
-	oris	r30,r30,_PAGE_HPTE_SUB0@h
-#else
 	ori	r30,r30,_PAGE_HASHPTE
-#endif
 	/* Phyical address in r5 */
 	rldicl	r5,r31,64-PTE_RPN_SHIFT,PTE_RPN_SHIFT
 	sldi	r5,r5,PAGE_SHIFT

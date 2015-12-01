@@ -15,6 +15,35 @@
 #include <linux/mm.h>
 #include <asm/machdep.h>
 #include <asm/mmu.h>
+/*
+ * index from 0 - 15
+ */
+bool __rpte_sub_valid(real_pte_t rpte, unsigned long index)
+{
+	unsigned long g_idx;
+	unsigned long ptev = pte_val(rpte.pte);
+
+	g_idx = (ptev & _PAGE_COMBO_VALID) >> _PAGE_F_GIX_SHIFT;
+	index = index >> 2;
+	if (g_idx & (0x1 << index))
+		return true;
+	else
+		return false;
+}
+/*
+ * index from 0 - 15
+ */
+static unsigned long mark_subptegroup_valid(unsigned long ptev, unsigned long index)
+{
+	unsigned long g_idx;
+
+	if (!(ptev & _PAGE_COMBO))
+		return ptev;
+	index = index >> 2;
+	g_idx = 0x1 << index;
+
+	return ptev | (g_idx << _PAGE_F_GIX_SHIFT);
+}
 
 int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		   pte_t *ptep, unsigned long trap, unsigned long flags,
@@ -102,7 +131,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	 */
 	if (!(old_pte & _PAGE_COMBO)) {
 		flush_hash_page(vpn, rpte, MMU_PAGE_64K, ssize, flags);
-		old_pte &= ~_PAGE_HPTE_SUB;
+		old_pte &= ~_PAGE_HASHPTE | _PAGE_F_GIX | _PAGE_F_SECOND;
 		goto htab_insert_hpte;
 	}
 	/*
@@ -192,7 +221,8 @@ repeat:
 	/* __real_pte use pte_val() any idea why ? FIXME!! */
 	rpte.hidx &= ~(0xfUL << (subpg_index << 2));
 	*hidxp = rpte.hidx  | (slot << (subpg_index << 2));
-	new_pte |= (_PAGE_HPTE_SUB0 >> subpg_index);
+	new_pte = mark_subptegroup_valid(new_pte, subpg_index);
+	new_pte |=  _PAGE_HASHPTE;
 	/*
 	 * check __real_pte for details on matching smp_rmb()
 	 */
