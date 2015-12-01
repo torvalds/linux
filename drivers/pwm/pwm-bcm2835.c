@@ -206,6 +206,6 @@ static struct platform_driver bcm2835_pwm_driver = {
 };
 module_platform_driver(bcm2835_pwm_driver);
 
-MODULE_AUTHOR("Bart Tanghe <bart.tanghe@thomasmore.be");
+MODULE_AUTHOR("Bart Tanghe <bart.tanghe@thomasmore.be>");
 MODULE_DESCRIPTION("Broadcom BCM2835 PWM driver");
 MODULE_LICENSE("GPL v2");
