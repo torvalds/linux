@@ -18,12 +18,6 @@ struct mm_struct;
 #include <asm/pgtable-book3e.h>
 #endif /* !CONFIG_PPC_BOOK3S */
 
-/*
- * We save the slot number & secondary bit in the second half of the
- * PTE page. We use the 8 bytes per each pte entry.
- */
-#define PTE_PAGE_HIDX_OFFSET (PTRS_PER_PTE * 8)
-
 #ifndef __ASSEMBLY__
 
 #include <asm/tlbflush.h>
