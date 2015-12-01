@@ -1264,6 +1264,14 @@ static void intel_backlight_device_unregister(struct intel_connector *connector)
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
 /*
+ * BXT: PWM clock frequency = 19.2 MHz.
+ */
+static u32 bxt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
+{
+	return KHz(19200) / pwm_freq_hz;
+}
+
+/*
  * SPT: This value represents the period of the PWM stream in clock periods
  * multiplied by 16 (default increment) or 128 (alternate increment selected in
  * SCHICKEN_1 bit 0). PWM clock is 24 MHz.
@@ -1750,6 +1758,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		panel->backlight.disable = bxt_disable_backlight;
 		panel->backlight.set = bxt_set_backlight;
 		panel->backlight.get = bxt_get_backlight;
+		panel->backlight.hz_to_pwm = bxt_hz_to_pwm;
 	} else if (HAS_PCH_LPT(dev) || HAS_PCH_SPT(dev)) {
 		panel->backlight.setup = lpt_setup_backlight;
 		panel->backlight.enable = lpt_enable_backlight;
