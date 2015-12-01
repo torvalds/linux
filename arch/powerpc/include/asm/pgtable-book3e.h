@@ -1,13 +1,12 @@
-#ifndef _ASM_POWERPC_BOOK3S_PGTABLE_H
-#define _ASM_POWERPC_BOOK3S_PGTABLE_H
+#ifndef _ASM_POWERPC_PGTABLE_BOOK3E_H
+#define _ASM_POWERPC_PGTABLE_BOOK3E_H
 
-#ifdef CONFIG_PPC64
-#include <asm/book3s/64/pgtable.h>
+#if defined(CONFIG_PPC64)
+#include <asm/pgtable-ppc64.h>
 #else
-#include <asm/book3s/32/pgtable.h>
+#include <asm/pgtable-ppc32.h>
 #endif
 
-#define FIRST_USER_ADDRESS	0UL
 #ifndef __ASSEMBLY__
 
 /* Generic accessors to PTE bits */
@@ -123,8 +122,10 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      | (pte_val(pte) & ~_PAGE_HASHPTE));
 		return;
 	}
+#if _PAGE_HASHPTE != 0
 	if (pte_val(*ptep) & _PAGE_HASHPTE)
 		flush_hash_entry(mm, ptep, addr);
+#endif
 	__asm__ __volatile__("\
 		stw%U0%X0 %2,%0\n\
 		eieio\n\
@@ -146,6 +147,17 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * cases, and 32-bit non-hash with 32-bit PTEs.
 	 */
 	*ptep = pte;
+
+#ifdef CONFIG_PPC_BOOK3E_64
+	/*
+	 * With hardware tablewalk, a sync is needed to ensure that
+	 * subsequent accesses see the PTE we just wrote.  Unlike userspace
+	 * mappings, we can't tolerate spurious faults, so make sure
+	 * the new PTE will be seen the first time.
+	 */
+	if (is_kernel_addr(addr))
+		mb();
+#endif
 #endif
 }
 
