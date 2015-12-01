@@ -665,7 +665,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_17[0x1];
 	u8         ets[0x1];
 	u8         nic_flow_table[0x1];
-	u8         reserved_18[0x4];
+	u8	   reserved_18_0;
+	u8	   early_vf_enable;
+	u8         reserved_18[0x2];
 	u8         local_ca_ack_delay[0x5];
 	u8         reserved_19[0x6];
 	u8         port_type[0x2];

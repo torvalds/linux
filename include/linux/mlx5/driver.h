@@ -426,6 +426,16 @@ struct mlx5_mr_table {
 	struct radix_tree_root	tree;
 };
 
+struct mlx5_vf_context {
+	int	enabled;
+};
+
+struct mlx5_core_sriov {
+	struct mlx5_vf_context	*vfs_ctx;
+	int			num_vfs;
+	int			enabled_vfs;
+};
+
 struct mlx5_irq_info {
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
@@ -447,6 +457,7 @@ struct mlx5_priv {
 	int			fw_pages;
 	atomic_t		reg_pages;
 	struct list_head	free_list;
+	int			vfs_pages;
 
 	struct mlx5_core_health health;
 
@@ -485,6 +496,8 @@ struct mlx5_priv {
 	struct list_head        dev_list;
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
+	struct mlx5_core_sriov	sriov;
+	unsigned long		pci_dev_data;
 };
 
 enum mlx5_device_state {
@@ -739,6 +752,8 @@ void mlx5_pagealloc_init(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
 int mlx5_pagealloc_start(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev);
+int mlx5_sriov_init(struct mlx5_core_dev *dev);
+int mlx5_sriov_cleanup(struct mlx5_core_dev *dev);
 void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
 				 s32 npages);
 int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
@@ -883,6 +898,15 @@ struct mlx5_profile {
 		int	limit;
 	} mr_cache[MAX_MR_CACHE_ENTRIES];
 };
+
+enum {
+	MLX5_PCI_DEV_IS_VF		= 1 << 0,
+};
+
+static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
+{
+	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
+}
 
 static inline int mlx5_get_gid_table_len(u16 param)
 {
