@@ -106,6 +106,20 @@ extern unsigned long hfi1_cap_mask;
 #define HFI1_CTRL_CTXT    0
 
 /*
+ * Driver context will store software counters for each of the events
+ * associated with these status registers
+ */
+#define NUM_CCE_ERR_STATUS_COUNTERS 41
+#define NUM_RCV_ERR_STATUS_COUNTERS 64
+#define NUM_MISC_ERR_STATUS_COUNTERS 13
+#define NUM_SEND_PIO_ERR_STATUS_COUNTERS 36
+#define NUM_SEND_DMA_ERR_STATUS_COUNTERS 4
+#define NUM_SEND_EGRESS_ERR_STATUS_COUNTERS 64
+#define NUM_SEND_ERR_STATUS_COUNTERS 3
+#define NUM_SEND_CTXT_ERR_STATUS_COUNTERS 5
+#define NUM_SEND_DMA_ENG_ERR_STATUS_COUNTERS 24
+
+/*
  * per driver stats, either not device nor port-specific, or
  * summed over all of the devices and ports.
  * They are described by name via ipathfs filesystem, so layout
@@ -1045,6 +1059,26 @@ struct hfi1_devdata {
 
 	atomic_t drop_packet;
 	u8 do_drop;
+
+	/*
+	 * Software counters for the status bits defined by the
+	 * associated error status registers
+	 */
+	u64 cce_err_status_cnt[NUM_CCE_ERR_STATUS_COUNTERS];
+	u64 rcv_err_status_cnt[NUM_RCV_ERR_STATUS_COUNTERS];
+	u64 misc_err_status_cnt[NUM_MISC_ERR_STATUS_COUNTERS];
+	u64 send_pio_err_status_cnt[NUM_SEND_PIO_ERR_STATUS_COUNTERS];
+	u64 send_dma_err_status_cnt[NUM_SEND_DMA_ERR_STATUS_COUNTERS];
+	u64 send_egress_err_status_cnt[NUM_SEND_EGRESS_ERR_STATUS_COUNTERS];
+	u64 send_err_status_cnt[NUM_SEND_ERR_STATUS_COUNTERS];
+
+	/* Software counter that spans all contexts */
+	u64 sw_ctxt_err_status_cnt[NUM_SEND_CTXT_ERR_STATUS_COUNTERS];
+	/* Software counter that spans all DMA engines */
+	u64 sw_send_dma_eng_err_status_cnt[
+		NUM_SEND_DMA_ENG_ERR_STATUS_COUNTERS];
+	/* Software counter that aggregates all cce_err_status errors */
+	u64 sw_cce_err_status_aggregate;
 
 	/* receive interrupt functions */
 	rhf_rcv_function_ptr *rhf_rcv_function_map;
