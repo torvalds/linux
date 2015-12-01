@@ -379,6 +379,7 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 	pio_release_cb credit_cb = NULL;
 	void *credit_arg = NULL;
 	struct diagpkt_wait *wait = NULL;
+	int trycount = 0;
 
 	dd = hfi1_lookup(dp->unit);
 	if (!dd || !(dd->flags & HFI1_PRESENT) || !dd->kregbase) {
@@ -493,8 +494,15 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 		credit_arg = wait;
 	}
 
+retry:
 	pbuf = sc_buffer_alloc(sc, total_len, credit_cb, credit_arg);
 	if (!pbuf) {
+		if (trycount == 0) {
+			/* force a credit return and try again */
+			sc_return_credits(sc);
+			trycount = 1;
+			goto retry;
+		}
 		/*
 		 * No send buffer means no credit callback.  Undo
 		 * the wait set-up that was done above.  We free wait
