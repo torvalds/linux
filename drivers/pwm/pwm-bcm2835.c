@@ -65,7 +65,15 @@ static int bcm2835_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			      int duty_ns, int period_ns)
 {
 	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
-	unsigned long scaler = NSEC_PER_SEC / clk_get_rate(pc->clk);
+	unsigned long rate = clk_get_rate(pc->clk);
+	unsigned long scaler;
+
+	if (!rate) {
+		dev_err(pc->dev, "failed to get clock rate\n");
+		return -EINVAL;
+	}
+
+	scaler = NSEC_PER_SEC / rate;
 
 	if (period_ns <= MIN_PERIOD) {
 		dev_err(pc->dev, "period %d not supported, minimum %d\n",
