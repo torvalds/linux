@@ -666,7 +666,7 @@ static char *get_partition_name(int i)
  */
 static int init_nandsim(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim   *ns   = chip->priv;
 	int i, ret = 0;
 	uint64_t remains;
@@ -1908,7 +1908,7 @@ static void switch_state(struct nandsim *ns)
 
 static u_char ns_nand_read_byte(struct mtd_info *mtd)
 {
-	struct nandsim *ns = ((struct nand_chip *)mtd->priv)->priv;
+	struct nandsim *ns = mtd_to_nand(mtd)->priv;
 	u_char outb = 0x00;
 
 	/* Sanity and correctness checks */
@@ -1969,7 +1969,7 @@ static u_char ns_nand_read_byte(struct mtd_info *mtd)
 
 static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 {
-	struct nandsim *ns = ((struct nand_chip *)mtd->priv)->priv;
+	struct nandsim *ns = mtd_to_nand(mtd)->priv;
 
 	/* Sanity and correctness checks */
 	if (!ns->lines.ce) {
@@ -2123,7 +2123,7 @@ static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 
 static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
 {
-	struct nandsim *ns = ((struct nand_chip *)mtd->priv)->priv;
+	struct nandsim *ns = mtd_to_nand(mtd)->priv;
 
 	ns->lines.cle = bitmask & NAND_CLE ? 1 : 0;
 	ns->lines.ale = bitmask & NAND_ALE ? 1 : 0;
@@ -2141,7 +2141,7 @@ static int ns_device_ready(struct mtd_info *mtd)
 
 static uint16_t ns_nand_read_word(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	NS_DBG("read_word\n");
 
@@ -2150,7 +2150,7 @@ static uint16_t ns_nand_read_word(struct mtd_info *mtd)
 
 static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
-	struct nandsim *ns = ((struct nand_chip *)mtd->priv)->priv;
+	struct nandsim *ns = mtd_to_nand(mtd)->priv;
 
 	/* Check that chip is expecting data input */
 	if (!(ns->state & STATE_DATAIN_MASK)) {
@@ -2177,7 +2177,7 @@ static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 
 static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 {
-	struct nandsim *ns = ((struct nand_chip *)mtd->priv)->priv;
+	struct nandsim *ns = mtd_to_nand(mtd)->priv;
 
 	/* Sanity and correctness checks */
 	if (!ns->lines.ce) {
@@ -2198,7 +2198,7 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 		int i;
 
 		for (i = 0; i < len; i++)
-			buf[i] = ((struct nand_chip *)mtd->priv)->read_byte(mtd);
+			buf[i] = mtd_to_nand(mtd)->read_byte(mtd);
 
 		return;
 	}
@@ -2405,7 +2405,7 @@ module_init(ns_init_module);
  */
 static void __exit ns_cleanup_module(void)
 {
-	struct nandsim *ns = ((struct nand_chip *)nsmtd->priv)->priv;
+	struct nandsim *ns = mtd_to_nand(nsmtd)->priv;
 	int i;
 
 	nandsim_debugfs_remove(ns);
