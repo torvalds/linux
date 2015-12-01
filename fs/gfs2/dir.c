@@ -443,6 +443,27 @@ static int gfs2_dirent_last(const struct gfs2_dirent *dent,
 	return 0;
 }
 
+/* Look for the dirent that contains the offset specified in data. Once we
+ * find that dirent, there must be space available there for the new dirent */
+static int gfs2_dirent_find_offset(const struct gfs2_dirent *dent,
+				  const struct qstr *name,
+				  void *ptr)
+{
+	unsigned required = GFS2_DIRENT_SIZE(name->len);
+	unsigned actual = GFS2_DIRENT_SIZE(be16_to_cpu(dent->de_name_len));
+	unsigned totlen = be16_to_cpu(dent->de_rec_len);
+
+	if (ptr < (void *)dent || ptr >= (void *)dent + totlen)
+		return 0;
+	if (gfs2_dirent_sentinel(dent))
+		actual = 0;
+	if (ptr < (void *)dent + actual)
+		return -1;
+	if ((void *)dent + totlen >= ptr + required)
+		return 1;
+	return -1;
+}
+
 static int gfs2_dirent_find_space(const struct gfs2_dirent *dent,
 				  const struct qstr *name,
 				  void *opaque)
@@ -682,21 +703,17 @@ static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 	prev->de_rec_len = cpu_to_be16(prev_rec_len);
 }
 
-/*
- * Takes a dent from which to grab space as an argument. Returns the
- * newly created dent.
- */
-static struct gfs2_dirent *gfs2_init_dirent(struct inode *inode,
-					    struct gfs2_dirent *dent,
-					    const struct qstr *name,
-					    struct buffer_head *bh)
+
+static struct gfs2_dirent *do_init_dirent(struct inode *inode,
+					  struct gfs2_dirent *dent,
+					  const struct qstr *name,
+					  struct buffer_head *bh,
+					  unsigned offset)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_dirent *ndent;
-	unsigned offset = 0, totlen;
+	unsigned totlen;
 
-	if (!gfs2_dirent_sentinel(dent))
-		offset = GFS2_DIRENT_SIZE(be16_to_cpu(dent->de_name_len));
 	totlen = be16_to_cpu(dent->de_rec_len);
 	BUG_ON(offset + name->len > totlen);
 	gfs2_trans_add_meta(ip->i_gl, bh);
@@ -706,16 +723,35 @@ static struct gfs2_dirent *gfs2_init_dirent(struct inode *inode,
 	return ndent;
 }
 
-static struct gfs2_dirent *gfs2_dirent_alloc(struct inode *inode,
-					     struct buffer_head *bh,
-					     const struct qstr *name)
+
+/*
+ * Takes a dent from which to grab space as an argument. Returns the
+ * newly created dent.
+ */
+static struct gfs2_dirent *gfs2_init_dirent(struct inode *inode,
+					    struct gfs2_dirent *dent,
+					    const struct qstr *name,
+					    struct buffer_head *bh)
+{
+	unsigned offset = 0;
+
+	if (!gfs2_dirent_sentinel(dent))
+		offset = GFS2_DIRENT_SIZE(be16_to_cpu(dent->de_name_len));
+	return do_init_dirent(inode, dent, name, bh, offset);
+}
+
+static struct gfs2_dirent *gfs2_dirent_split_alloc(struct inode *inode,
+						   struct buffer_head *bh,
+						   const struct qstr *name,
+						   void *ptr)
 {
 	struct gfs2_dirent *dent;
 	dent = gfs2_dirent_scan(inode, bh->b_data, bh->b_size,
-				gfs2_dirent_find_space, name, NULL);
+				gfs2_dirent_find_offset, name, ptr);
 	if (!dent || IS_ERR(dent))
 		return dent;
-	return gfs2_init_dirent(inode, dent, name, bh);
+	return do_init_dirent(inode, dent, name, bh,
+			      (unsigned)(ptr - (void *)dent));
 }
 
 static int get_leaf(struct gfs2_inode *dip, u64 leaf_no,
@@ -1051,10 +1087,11 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 		if (!gfs2_dirent_sentinel(dent) &&
 		    be32_to_cpu(dent->de_hash) < divider) {
 			struct qstr str;
+			void *ptr = ((char *)dent - obh->b_data) + nbh->b_data;
 			str.name = (char*)(dent+1);
 			str.len = be16_to_cpu(dent->de_name_len);
 			str.hash = be32_to_cpu(dent->de_hash);
-			new = gfs2_dirent_alloc(inode, nbh, &str);
+			new = gfs2_dirent_split_alloc(inode, nbh, &str, ptr);
 			if (IS_ERR(new)) {
 				error = PTR_ERR(new);
 				break;
