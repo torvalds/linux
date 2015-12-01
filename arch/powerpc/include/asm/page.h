@@ -304,21 +304,30 @@ typedef struct { pte_t pte; } real_pte_t;
 /* PMD level */
 #ifdef CONFIG_PPC64
 typedef struct { unsigned long pmd; } pmd_t;
-#define pmd_val(x)	((x).pmd)
 #define __pmd(x)	((pmd_t) { (x) })
+static inline unsigned long pmd_val(pmd_t x)
+{
+	return x.pmd;
+}
 
 /* PUD level exusts only on 4k pages */
 #ifndef CONFIG_PPC_64K_PAGES
 typedef struct { unsigned long pud; } pud_t;
-#define pud_val(x)	((x).pud)
 #define __pud(x)	((pud_t) { (x) })
+static inline unsigned long pud_val(pud_t x)
+{
+	return x.pud;
+}
 #endif /* !CONFIG_PPC_64K_PAGES */
 #endif /* CONFIG_PPC64 */
 
 /* PGD level */
 typedef struct { unsigned long pgd; } pgd_t;
-#define pgd_val(x)	((x).pgd)
 #define __pgd(x)	((pgd_t) { (x) })
+static inline unsigned long pgd_val(pgd_t x)
+{
+	return x.pgd;
+}
 
 /* Page protection bits */
 typedef struct { unsigned long pgprot; } pgprot_t;
@@ -347,22 +356,31 @@ typedef pte_t real_pte_t;
 
 #ifdef CONFIG_PPC64
 typedef unsigned long pmd_t;
-#define pmd_val(x)	(x)
 #define __pmd(x)	(x)
+static inline unsigned long pmd_val(pmd_t pmd)
+{
+	return pmd;
+}
 
 #ifndef CONFIG_PPC_64K_PAGES
 typedef unsigned long pud_t;
-#define pud_val(x)	(x)
 #define __pud(x)	(x)
+static inline unsigned long pud_val(pud_t pud)
+{
+	return pud;
+}
 #endif /* !CONFIG_PPC_64K_PAGES */
 #endif /* CONFIG_PPC64 */
 
 typedef unsigned long pgd_t;
-#define pgd_val(x)	(x)
-#define pgprot_val(x)	(x)
+#define __pgd(x)	(x)
+static inline unsigned long pgd_val(pgd_t pgd)
+{
+	return pgd;
+}
 
 typedef unsigned long pgprot_t;
-#define __pgd(x)	(x)
+#define pgprot_val(x)	(x)
 #define __pgprot(x)	(x)
 
 #endif

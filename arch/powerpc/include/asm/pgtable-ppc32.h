@@ -128,7 +128,12 @@ extern int icache_44x_need_flush;
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
 #define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
-#define	pmd_clear(pmdp)		do { pmd_val(*(pmdp)) = 0; } while (0)
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	*pmdp = __pmd(0);
+}
+
+
 
 /*
  * When flushing the tlb entry for a page, we also need to flush the hash

@@ -236,21 +236,38 @@
 #define PMD_BAD_BITS		(PTE_TABLE_SIZE-1)
 #define PUD_BAD_BITS		(PMD_TABLE_SIZE-1)
 
-#define pmd_set(pmdp, pmdval)	(pmd_val(*(pmdp)) = (pmdval))
+static inline void pmd_set(pmd_t *pmdp, unsigned long val)
+{
+	*pmdp = __pmd(val);
+}
+
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	*pmdp = __pmd(0);
+}
+
+
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
 				 || (pmd_val(pmd) & PMD_BAD_BITS))
 #define	pmd_present(pmd)	(!pmd_none(pmd))
-#define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
 #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
 extern struct page *pmd_page(pmd_t pmd);
 
-#define pud_set(pudp, pudval)	(pud_val(*(pudp)) = (pudval))
+static inline void pud_set(pud_t *pudp, unsigned long val)
+{
+	*pudp = __pud(val);
+}
+
+static inline void pud_clear(pud_t *pudp)
+{
+	*pudp = __pud(0);
+}
+
 #define pud_none(pud)		(!pud_val(pud))
 #define	pud_bad(pud)		(!is_kernel_addr(pud_val(pud)) \
 				 || (pud_val(pud) & PUD_BAD_BITS))
 #define pud_present(pud)	(pud_val(pud) != 0)
-#define pud_clear(pudp)		(pud_val(*(pudp)) = 0)
 #define pud_page_vaddr(pud)	(pud_val(pud) & ~PUD_MASKED_BITS)
 
 extern struct page *pud_page(pud_t pud);
@@ -265,8 +282,11 @@ static inline pud_t pte_pud(pte_t pte)
 	return __pud(pte_val(pte));
 }
 #define pud_write(pud)		pte_write(pud_pte(pud))
-#define pgd_set(pgdp, pudp)	({pgd_val(*(pgdp)) = (unsigned long)(pudp);})
 #define pgd_write(pgd)		pte_write(pgd_pte(pgd))
+static inline void pgd_set(pgd_t *pgdp, unsigned long val)
+{
+	*pgdp = __pgd(val);
+}
 
 /*
  * Find an entry in a page-table-directory.  We combine the address region
@@ -588,14 +608,12 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
 
 static inline pmd_t pmd_mknotpresent(pmd_t pmd)
 {
-	pmd_val(pmd) &= ~_PAGE_PRESENT;
-	return pmd;
+	return __pmd(pmd_val(pmd) & ~_PAGE_PRESENT);
 }
 
 static inline pmd_t pmd_mksplitting(pmd_t pmd)
 {
-	pmd_val(pmd) |= _PAGE_SPLITTING;
-	return pmd;
+	return __pmd(pmd_val(pmd) | _PAGE_SPLITTING);
 }
 
 #define __HAVE_ARCH_PMD_SAME

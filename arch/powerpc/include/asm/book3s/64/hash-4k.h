@@ -71,8 +71,12 @@
 #define pgd_none(pgd)		(!pgd_val(pgd))
 #define pgd_bad(pgd)		(pgd_val(pgd) == 0)
 #define pgd_present(pgd)	(pgd_val(pgd) != 0)
-#define pgd_clear(pgdp)		(pgd_val(*(pgdp)) = 0)
 #define pgd_page_vaddr(pgd)	(pgd_val(pgd) & ~PGD_MASKED_BITS)
+
+static inline void pgd_clear(pgd_t *pgdp)
+{
+	*pgdp = __pgd(0);
+}
 
 static inline pte_t pgd_pte(pgd_t pgd)
 {
