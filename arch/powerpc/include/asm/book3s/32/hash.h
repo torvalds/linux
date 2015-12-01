@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PTE_HASH32_H
-#define _ASM_POWERPC_PTE_HASH32_H
+#ifndef _ASM_POWERPC_BOOK3S_32_HASH_H
+#define _ASM_POWERPC_BOOK3S_32_HASH_H
 #ifdef __KERNEL__
 
 /*
@@ -43,4 +43,4 @@
 #define PTE_ATOMIC_UPDATES	1
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_PTE_HASH32_H */
+#endif /* _ASM_POWERPC_BOOK3S_32_HASH_H */

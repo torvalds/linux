@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PTE_HASH64_H
-#define _ASM_POWERPC_PTE_HASH64_H
+#ifndef _ASM_POWERPC_BOOK3S_64_HASH_H
+#define _ASM_POWERPC_BOOK3S_64_HASH_H
 #ifdef __KERNEL__
 
 /*
@@ -45,10 +45,10 @@
 #define PTE_ATOMIC_UPDATES	1
 
 #ifdef CONFIG_PPC_64K_PAGES
-#include <asm/pte-hash64-64k.h>
+#include <asm/book3s/64/hash-64k.h>
 #else
-#include <asm/pte-hash64-4k.h>
+#include <asm/book3s/64/hash-4k.h>
 #endif
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_PTE_HASH64_H */
+#endif /* _ASM_POWERPC_BOOK3S_64_HASH_H */
