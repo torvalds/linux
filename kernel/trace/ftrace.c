@@ -115,9 +115,6 @@ static struct ftrace_ops *ftrace_ops_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 static struct ftrace_ops global_ops;
 
-static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
-				   struct ftrace_ops *op, struct pt_regs *regs);
-
 #if ARCH_SUPPORTS_FTRACE_OPS
 static void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 				 struct ftrace_ops *op, struct pt_regs *regs);
@@ -5231,20 +5228,29 @@ static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip)
 
 /*
  * If there's only one function registered but it does not support
- * recursion, this function will be called by the mcount trampoline.
- * This function will handle recursion protection.
+ * recursion, needs RCU protection and/or requires per cpu handling, then
+ * this function will be called by the mcount trampoline.
  */
-static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
+static void ftrace_ops_assist_func(unsigned long ip, unsigned long parent_ip,
 				   struct ftrace_ops *op, struct pt_regs *regs)
 {
 	int bit;
+
+	if ((op->flags & FTRACE_OPS_FL_RCU) && !rcu_is_watching())
+		return;
 
 	bit = trace_test_and_set_recursion(TRACE_LIST_START, TRACE_LIST_MAX);
 	if (bit < 0)
 		return;
 
-	op->func(ip, parent_ip, op, regs);
+	preempt_disable_notrace();
 
+	if (!(op->flags & FTRACE_OPS_FL_PER_CPU) ||
+	    !ftrace_function_local_disabled(op)) {
+		op->func(ip, parent_ip, op, regs);
+	}
+
+	preempt_enable_notrace();
 	trace_clear_recursion(bit);
 }
 
@@ -5262,12 +5268,12 @@ static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
 ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops)
 {
 	/*
-	 * If the func handles its own recursion, call it directly.
-	 * Otherwise call the recursion protected function that
-	 * will call the ftrace ops function.
+	 * If the function does not handle recursion, needs to be RCU safe,
+	 * or does per cpu logic, then we need to call the assist handler.
 	 */
-	if (!(ops->flags & FTRACE_OPS_FL_RECURSION_SAFE))
-		return ftrace_ops_recurs_func;
+	if (!(ops->flags & FTRACE_OPS_FL_RECURSION_SAFE) ||
+	    ops->flags & (FTRACE_OPS_FL_RCU | FTRACE_OPS_FL_PER_CPU))
+		return ftrace_ops_assist_func;
 
 	return ops->func;
 }
