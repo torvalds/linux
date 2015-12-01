@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PGTABLE_PPC64_64K_H
-#define _ASM_POWERPC_PGTABLE_PPC64_64K_H
+#ifndef _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H
+#define _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H
 
 #include <asm-generic/pgtable-nopud.h>
 
@@ -41,4 +41,4 @@
 #define pgd_pte(pgd)	(pud_pte(((pud_t){ pgd })))
 #define pte_pgd(pte)	((pgd_t)pte_pud(pte))
 
-#endif /* _ASM_POWERPC_PGTABLE_PPC64_64K_H */
+#endif /* _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H */

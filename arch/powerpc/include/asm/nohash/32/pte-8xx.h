@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PTE_8xx_H
-#define _ASM_POWERPC_PTE_8xx_H
+#ifndef _ASM_POWERPC_NOHASH_32_PTE_8xx_H
+#define _ASM_POWERPC_NOHASH_32_PTE_8xx_H
 #ifdef __KERNEL__
 
 /*
@@ -62,4 +62,4 @@
 				 _PAGE_HWWRITE | _PAGE_EXEC)
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_PTE_8xx_H */
+#endif /*  _ASM_POWERPC_NOHASH_32_PTE_8xx_H */

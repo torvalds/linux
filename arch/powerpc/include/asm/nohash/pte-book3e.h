@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PTE_BOOK3E_H
-#define _ASM_POWERPC_PTE_BOOK3E_H
+#ifndef _ASM_POWERPC_NOHASH_PTE_BOOK3E_H
+#define _ASM_POWERPC_NOHASH_PTE_BOOK3E_H
 #ifdef __KERNEL__
 
 /* PTE bit definitions for processors compliant to the Book3E
@@ -84,4 +84,4 @@
 #endif
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_PTE_FSL_BOOKE_H */
+#endif /*  _ASM_POWERPC_NOHASH_PTE_BOOK3E_H */

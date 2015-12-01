@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PGTABLE_PPC64_4K_H
-#define _ASM_POWERPC_PGTABLE_PPC64_4K_H
+#ifndef _ASM_POWERPC_NOHASH_64_PGTABLE_4K_H
+#define _ASM_POWERPC_NOHASH_64_PGTABLE_4K_H
 /*
  * Entries per page directory level.  The PTE level must use a 64b record
  * for each page table entry.  The PMD and PGD level use a 32b record for
@@ -89,4 +89,4 @@ extern struct page *pgd_page(pgd_t pgd);
 #define remap_4k_pfn(vma, addr, pfn, prot)	\
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE, (prot))
 
-#endif /* _ASM_POWERPC_PGTABLE_PPC64_4K_H */
+#endif /* _ _ASM_POWERPC_NOHASH_64_PGTABLE_4K_H */

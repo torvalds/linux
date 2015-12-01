@@ -1,10 +1,10 @@
-#ifndef _ASM_POWERPC_PGTABLE_BOOK3E_H
-#define _ASM_POWERPC_PGTABLE_BOOK3E_H
+#ifndef _ASM_POWERPC_NOHASH_PGTABLE_H
+#define _ASM_POWERPC_NOHASH_PGTABLE_H
 
 #if defined(CONFIG_PPC64)
-#include <asm/pgtable-ppc64.h>
+#include <asm/nohash/64/pgtable.h>
 #else
-#include <asm/pgtable-ppc32.h>
+#include <asm/nohash/32/pgtable.h>
 #endif
 
 #ifndef __ASSEMBLY__

@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PTE_40x_H
-#define _ASM_POWERPC_PTE_40x_H
+#ifndef _ASM_POWERPC_NOHASH_32_PTE_40x_H
+#define _ASM_POWERPC_NOHASH_32_PTE_40x_H
 #ifdef __KERNEL__
 
 /*
@@ -61,4 +61,4 @@
 #define PTE_ATOMIC_UPDATES	1
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_PTE_40x_H */
+#endif /*  _ASM_POWERPC_NOHASH_32_PTE_40x_H */

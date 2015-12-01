@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PTE_FSL_BOOKE_H
-#define _ASM_POWERPC_PTE_FSL_BOOKE_H
+#ifndef _ASM_POWERPC_NOHASH_32_PTE_FSL_BOOKE_H
+#define _ASM_POWERPC_NOHASH_32_PTE_FSL_BOOKE_H
 #ifdef __KERNEL__
 
 /* PTE bit definitions for Freescale BookE SW loaded TLB MMU based
@@ -37,4 +37,4 @@
 #define PTE_WIMGE_SHIFT (6)
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_PTE_FSL_BOOKE_H */
+#endif /*  _ASM_POWERPC_NOHASH_32_PTE_FSL_BOOKE_H */
