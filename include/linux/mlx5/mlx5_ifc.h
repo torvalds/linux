@@ -447,6 +447,18 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 	u8         reserved_3[0x7200];
 };
 
+struct mlx5_ifc_flow_table_eswitch_cap_bits {
+	u8     reserved_0[0x200];
+
+	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_esw_fdb;
+
+	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_esw_acl_ingress;
+
+	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_esw_acl_egress;
+
+	u8      reserved_1[0x7800];
+};
+
 struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         csum_cap[0x1];
 	u8         vlan_cap[0x1];
@@ -1846,6 +1858,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_roce_cap_bits roce_cap;
 	struct mlx5_ifc_per_protocol_networking_offload_caps_bits per_protocol_networking_offload_caps;
 	struct mlx5_ifc_flow_table_nic_cap_bits flow_table_nic_cap;
+	struct mlx5_ifc_flow_table_eswitch_cap_bits flow_table_eswitch_cap;
 	u8         reserved_0[0x8000];
 };
 
