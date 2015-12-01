@@ -472,9 +472,7 @@ gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
 }
 
 static int
-gmbus_xfer(struct i2c_adapter *adapter,
-	   struct i2c_msg *msgs,
-	   int num)
+do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
 	struct intel_gmbus *bus = container_of(adapter,
 					       struct intel_gmbus,
@@ -482,14 +480,6 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 	int i = 0, inc, try = 0;
 	int ret = 0;
-
-	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
-	mutex_lock(&dev_priv->gmbus_mutex);
-
-	if (bus->force_bit) {
-		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
-		goto out;
-	}
 
 retry:
 	I915_WRITE(GMBUS0, bus->reg0);
@@ -585,13 +575,34 @@ timeout:
 		 bus->adapter.name, bus->reg0 & 0xff);
 	I915_WRITE(GMBUS0, 0);
 
-	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
+	/*
+	 * Hardware may not support GMBUS over these pins? Try GPIO bitbanging
+	 * instead. Use EAGAIN to have i2c core retry.
+	 */
 	bus->force_bit = 1;
-	ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
+	ret = -EAGAIN;
 
 out:
-	mutex_unlock(&dev_priv->gmbus_mutex);
+	return ret;
+}
 
+static int
+gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
+{
+	struct intel_gmbus *bus = container_of(adapter, struct intel_gmbus,
+					       adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	int ret;
+
+	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	mutex_lock(&dev_priv->gmbus_mutex);
+
+	if (bus->force_bit)
+		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
+	else
+		ret = do_gmbus_xfer(adapter, msgs, num);
+
+	mutex_unlock(&dev_priv->gmbus_mutex);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 
 	return ret;
