@@ -12,12 +12,17 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
+#include <linux/cpumask.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/init.h>
 #include <linux/io.h>
+#include <linux/jiffies.h>
 #include <linux/of.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 
+#include <asm/cacheflush.h>
 #include <asm/smp.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
@@ -72,6 +77,36 @@ static int __init scu_a9_enable(void)
 	scu_enable(scu_base);
 
 	iounmap(scu_base);	/* That's the last we'll need of this */
+
+	return 0;
+}
+
+static int nsp_write_lut(void)
+{
+	void __iomem *sku_rom_lut;
+	phys_addr_t secondary_startup_phy;
+
+	if (!secondary_boot_addr) {
+		pr_warn("required secondary boot register not specified\n");
+		return -EINVAL;
+	}
+
+	sku_rom_lut = ioremap_nocache((phys_addr_t)secondary_boot_addr,
+						sizeof(secondary_boot_addr));
+	if (!sku_rom_lut) {
+		pr_warn("unable to ioremap SKU-ROM LUT register\n");
+		return -ENOMEM;
+	}
+
+	secondary_startup_phy = virt_to_phys(secondary_startup);
+	BUG_ON(secondary_startup_phy > (phys_addr_t)U32_MAX);
+
+	writel_relaxed(secondary_startup_phy, sku_rom_lut);
+
+	/* Ensure the write is visible to the secondary core */
+	smp_wmb();
+
+	iounmap(sku_rom_lut);
 
 	return 0;
 }
@@ -220,9 +255,36 @@ static int kona_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return -ENXIO;
 }
 
+static int nsp_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	int ret;
+
+	/*
+	 * After wake up, secondary core branches to the startup
+	 * address programmed at SKU ROM LUT location.
+	 */
+	ret = nsp_write_lut();
+	if (ret) {
+		pr_err("unable to write startup addr to SKU ROM LUT\n");
+		goto out;
+	}
+
+	/* Send a CPU wakeup interrupt to the secondary core */
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
+
+out:
+	return ret;
+}
+
 static struct smp_operations bcm_smp_ops __initdata = {
 	.smp_prepare_cpus	= bcm_smp_prepare_cpus,
 	.smp_boot_secondary	= kona_boot_secondary,
 };
 CPU_METHOD_OF_DECLARE(bcm_smp_bcm281xx, "brcm,bcm11351-cpu-method",
 			&bcm_smp_ops);
+
+struct smp_operations nsp_smp_ops __initdata = {
+	.smp_prepare_cpus	= bcm_smp_prepare_cpus,
+	.smp_boot_secondary	= nsp_boot_secondary,
+};
+CPU_METHOD_OF_DECLARE(bcm_smp_nsp, "brcm,bcm-nsp-smp", &nsp_smp_ops);
