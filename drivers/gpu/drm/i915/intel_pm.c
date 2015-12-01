@@ -66,6 +66,14 @@ static void bxt_init_clock_gating(struct drm_device *dev)
 	 */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ);
+
+	/*
+	 * Wa: Backlight PWM may stop in the asserted state, causing backlight
+	 * to stay fully on.
+	 */
+	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER))
+		I915_WRITE(GEN9_CLKGATE_DIS_0, I915_READ(GEN9_CLKGATE_DIS_0) |
+			   PWM1_GATING_DIS | PWM2_GATING_DIS);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
