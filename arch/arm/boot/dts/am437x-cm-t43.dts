@@ -1,0 +1,90 @@
+/*
+ * Copyright (C) 2015 CompuLab, Ltd. - http://www.compulab.co.il/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/pinctrl/am43xx.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "am4372.dtsi"
+
+/ {
+	model = "CompuLab CM-T43";
+	compatible = "compulab,am437x-cm-t43", "ti,am4372", "ti,am43";
+
+	leds {
+		compatible = "gpio-leds";
+
+		ledb {
+			label = "cm-t43:green";
+			gpios = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&am43xx_pinmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cm_t43_led_pins>;
+
+	cm_t43_led_pins: cm_t43_led_pins {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0xa78, MUX_MODE7)
+		>;
+	};
+
+	i2c0_pins: i2c0_pins {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x988, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)  /* i2c0_sda.i2c0_sda */
+			AM4372_IOPAD(0x98c, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)  /* i2c0_scl.i2c0_scl */
+		>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <100000>;
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&gpio3 {
+	status = "okay";
+};
+
+&gpio4 {
+	status = "okay";
+};
+
+&gpio5 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&cpu {
+	operating-points = <1000000 1330000>,
+			   <800000 1260000>,
+			   <720000 1200000>,
+			   <600000 1100000>,
+			   <300000 950000>;
+};

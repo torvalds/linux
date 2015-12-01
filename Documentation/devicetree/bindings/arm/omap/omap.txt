@@ -144,6 +144,12 @@ Boards:
 - OMAP5 EVM : Evaluation Module
   compatible = "ti,omap5-evm", "ti,omap5"
 
+- AM437x CM-T43
+  compatible = "compulab,am437x-cm-t43", "ti,am4372", "ti,am43"
+
+- AM437x SBC-T43
+  compatible = "compulab,am437x-sbc-t43", "compulab,am437x-cm-t43", "ti,am4372", "ti,am43"
+
 - AM43x EPOS EVM
   compatible = "ti,am43x-epos-evm", "ti,am4372", "ti,am43"
 
