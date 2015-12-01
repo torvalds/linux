@@ -34,6 +34,7 @@
 #define __MLX5_VPORT_H__
 
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/device.h>
 
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod);
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
@@ -54,5 +55,14 @@ int mlx5_query_hca_vport_system_image_guid(struct mlx5_core_dev *dev,
 					   u64 *sys_image_guid);
 int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
 				   u64 *node_guid);
+int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
+				  u32 vport,
+				  enum mlx5_list_type list_type,
+				  u8 addr_list[][ETH_ALEN],
+				  int *list_size);
+int mlx5_modify_nic_vport_mac_list(struct mlx5_core_dev *dev,
+				   enum mlx5_list_type list_type,
+				   u8 addr_list[][ETH_ALEN],
+				   int list_size);
 
 #endif /* __MLX5_VPORT_H__ */

@@ -150,6 +150,125 @@ int mlx5_modify_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 }
 EXPORT_SYMBOL(mlx5_modify_nic_vport_mac_address);
 
+int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
+				  u32 vport,
+				  enum mlx5_list_type list_type,
+				  u8 addr_list[][ETH_ALEN],
+				  int *list_size)
+{
+	u32 in[MLX5_ST_SZ_DW(query_nic_vport_context_in)];
+	void *nic_vport_ctx;
+	int max_list_size;
+	int req_list_size;
+	int out_sz;
+	void *out;
+	int err;
+	int i;
+
+	req_list_size = *list_size;
+
+	max_list_size = list_type == MLX5_NVPRT_LIST_TYPE_UC ?
+		1 << MLX5_CAP_GEN(dev, log_max_current_uc_list) :
+		1 << MLX5_CAP_GEN(dev, log_max_current_mc_list);
+
+	if (req_list_size > max_list_size) {
+		mlx5_core_warn(dev, "Requested list size (%d) > (%d) max_list_size\n",
+			       req_list_size, max_list_size);
+		req_list_size = max_list_size;
+	}
+
+	out_sz = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in) +
+			req_list_size * MLX5_ST_SZ_BYTES(mac_address_layout);
+
+	memset(in, 0, sizeof(in));
+	out = kzalloc(out_sz, GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	MLX5_SET(query_nic_vport_context_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_NIC_VPORT_CONTEXT);
+	MLX5_SET(query_nic_vport_context_in, in, allowed_list_type, list_type);
+	MLX5_SET(query_nic_vport_context_in, in, vport_number, vport);
+
+	if (vport)
+		MLX5_SET(query_nic_vport_context_in, in, other_vport, 1);
+
+	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, out_sz);
+	if (err)
+		goto out;
+
+	nic_vport_ctx = MLX5_ADDR_OF(query_nic_vport_context_out, out,
+				     nic_vport_context);
+	req_list_size = MLX5_GET(nic_vport_context, nic_vport_ctx,
+				 allowed_list_size);
+
+	*list_size = req_list_size;
+	for (i = 0; i < req_list_size; i++) {
+		u8 *mac_addr = MLX5_ADDR_OF(nic_vport_context,
+					nic_vport_ctx,
+					current_uc_mac_address[i]) + 2;
+		ether_addr_copy(addr_list[i], mac_addr);
+	}
+out:
+	kfree(out);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_nic_vport_mac_list);
+
+int mlx5_modify_nic_vport_mac_list(struct mlx5_core_dev *dev,
+				   enum mlx5_list_type list_type,
+				   u8 addr_list[][ETH_ALEN],
+				   int list_size)
+{
+	u32 out[MLX5_ST_SZ_DW(modify_nic_vport_context_out)];
+	void *nic_vport_ctx;
+	int max_list_size;
+	int in_sz;
+	void *in;
+	int err;
+	int i;
+
+	max_list_size = list_type == MLX5_NVPRT_LIST_TYPE_UC ?
+		 1 << MLX5_CAP_GEN(dev, log_max_current_uc_list) :
+		 1 << MLX5_CAP_GEN(dev, log_max_current_mc_list);
+
+	if (list_size > max_list_size)
+		return -ENOSPC;
+
+	in_sz = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in) +
+		list_size * MLX5_ST_SZ_BYTES(mac_address_layout);
+
+	memset(out, 0, sizeof(out));
+	in = kzalloc(in_sz, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_nic_vport_context_in, in, opcode,
+		 MLX5_CMD_OP_MODIFY_NIC_VPORT_CONTEXT);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 field_select.addresses_list, 1);
+
+	nic_vport_ctx = MLX5_ADDR_OF(modify_nic_vport_context_in, in,
+				     nic_vport_context);
+
+	MLX5_SET(nic_vport_context, nic_vport_ctx,
+		 allowed_list_type, list_type);
+	MLX5_SET(nic_vport_context, nic_vport_ctx,
+		 allowed_list_size, list_size);
+
+	for (i = 0; i < list_size; i++) {
+		u8 *curr_mac = MLX5_ADDR_OF(nic_vport_context,
+					    nic_vport_ctx,
+					    current_uc_mac_address[i]) + 2;
+		ether_addr_copy(curr_mac, addr_list[i]);
+	}
+
+	err = mlx5_cmd_exec_check_status(dev, in, in_sz, out, sizeof(out));
+	kfree(in);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_modify_nic_vport_mac_list);
+
 int mlx5_query_hca_vport_gid(struct mlx5_core_dev *dev, u8 other_vport,
 			     u8 port_num, u16  vf_num, u16 gid_index,
 			     union ib_gid *gid)
