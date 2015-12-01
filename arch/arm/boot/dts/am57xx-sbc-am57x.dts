@@ -15,6 +15,10 @@
 / {
 	model = "CompuLab CL-SOM-AM57x on SB-SOM-AM57x";
 	compatible = "compulab,sbc-am57x", "compulab,cl-som-am57x", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7";
+
+	aliases {
+		display0 = &lcd0;
+	};
 };
 
 &dra7_pmx_core {
@@ -48,6 +52,12 @@
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x36b4, PIN_INPUT| MUX_MODE10)	/* mcasp1_axr0.i2c5_sda */
 			DRA7XX_CORE_IOPAD(0x36b8, PIN_INPUT| MUX_MODE10)	/* mcasp1_axr1.i2c5_scl */
+		>;
+	};
+
+	lcd_pins_default: lcd_pins_default {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x3564, PIN_OUTPUT | MUX_MODE14)      /* vin2a_vsync0.gpio4_0 */
 		>;
 	};
 };
@@ -95,5 +105,33 @@
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
+	};
+};
+
+&dss {
+	status = "ok";
+
+	vdda_video-supply = <&ldoln_reg>;
+
+	port {
+		dpi_lcd_out: endpoint@0 {
+			remote-endpoint = <&lcd_in>;
+			data-lines = <24>;
+		};
+	};
+};
+
+&lcd0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_pins_default>;
+
+	enable-gpios = <&pca9555 14 GPIO_ACTIVE_HIGH
+			&gpio4 0 GPIO_ACTIVE_HIGH>;
+
+	port {
+		lcd_in: endpoint {
+			remote-endpoint = <&dpi_lcd_out>;
+			data-lines = <24>;
+		};
 	};
 };
