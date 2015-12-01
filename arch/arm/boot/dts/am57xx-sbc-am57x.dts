@@ -1,0 +1,36 @@
+/*
+ * Support for CompuLab SBC-AM57x single board computer
+ *
+ * Copyright (C) 2015 CompuLab Ltd. - http://www.compulab.co.il/
+ * Author: Dmitry Lifshitz <lifshitz@compulab.co.il>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published by
+ * the Free Software Foundation.
+ */
+
+#include "am57xx-cl-som-am57x.dts"
+#include "compulab-sb-som.dtsi"
+
+/ {
+	model = "CompuLab CL-SOM-AM57x on SB-SOM-AM57x";
+	compatible = "compulab,sbc-am57x", "compulab,cl-som-am57x", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7";
+};
+
+&dra7_pmx_core {
+	uart3_pins_default: uart3_pins_default {
+		pinctrl-single,pins = <
+			DRA7XX_CORE_IOPAD(0x37f8, PIN_INPUT_SLEW | MUX_MODE2)	/* uart2_ctsn.uart3_rxd */
+			DRA7XX_CORE_IOPAD(0x37fc, PIN_INPUT_SLEW | MUX_MODE1)	/* uart2_rtsn.uart3_txd */
+		>;
+	};
+};
+
+&uart3 {
+	status = "okay";
+	interrupts-extended = <&crossbar_mpu GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+			      <&dra7_pmx_core 0x3f8>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins_default>;
+};

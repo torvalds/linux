@@ -162,6 +162,9 @@ Boards:
 - AM57XX CL-SOM-AM57x
   compatible = "compulab,cl-som-am57x", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
 
+- AM57XX SBC-AM57x
+  compatible = "compulab,sbc-am57x", "compulab,cl-som-am57x", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
+
 - DRA742 EVM:  Software Development Board for DRA742
   compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7"
 
