@@ -236,6 +236,46 @@ void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
 	}
 }
 
+unsigned long vgic_mmio_read_priority(struct kvm_vcpu *vcpu,
+				      gpa_t addr, unsigned int len)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 8);
+	int i;
+	u64 val = 0;
+
+	for (i = 0; i < len; i++) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		val |= (u64)irq->priority << (i * 8);
+	}
+
+	return val;
+}
+
+/*
+ * We currently don't handle changing the priority of an interrupt that
+ * is already pending on a VCPU. If there is a need for this, we would
+ * need to make this VCPU exit and re-evaluate the priorities, potentially
+ * leading to this interrupt getting presented now to the guest (if it has
+ * been masked by the priority mask before).
+ */
+void vgic_mmio_write_priority(struct kvm_vcpu *vcpu,
+			      gpa_t addr, unsigned int len,
+			      unsigned long val)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 8);
+	int i;
+
+	for (i = 0; i < len; i++) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		spin_lock(&irq->irq_lock);
+		/* Narrow the priority range to what we actually support */
+		irq->priority = (val >> (i * 8)) & GENMASK(7, 8 - VGIC_PRI_BITS);
+		spin_unlock(&irq->irq_lock);
+	}
+}
+
 static int match_region(const void *key, const void *elt)
 {
 	const unsigned int offset = (unsigned long)key;
