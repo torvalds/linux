@@ -208,7 +208,9 @@ static int rsrc_card_parse_links(struct device_node *np,
 		dai_link->dynamic		= 1;
 		dai_link->dpcm_merged_format	= 1;
 		dai_link->cpu_of_node		= args.np;
-		snd_soc_of_get_dai_name(np, &dai_link->cpu_dai_name);
+		ret = snd_soc_of_get_dai_name(np, &dai_link->cpu_dai_name);
+		if (ret < 0)
+			return ret;
 
 		/* set dai_name */
 		snprintf(dai_props->dai_name, DAI_NAME_NUM, "fe.%s",
@@ -240,7 +242,9 @@ static int rsrc_card_parse_links(struct device_node *np,
 		dai_link->no_pcm		= 1;
 		dai_link->be_hw_params_fixup	= rsrc_card_be_hw_params_fixup;
 		dai_link->codec_of_node		= args.np;
-		snd_soc_of_get_dai_name(np, &dai_link->codec_dai_name);
+		ret = snd_soc_of_get_dai_name(np, &dai_link->codec_dai_name);
+		if (ret < 0)
+			return ret;
 
 		/* additional name prefix */
 		if (of_data) {
