@@ -562,6 +562,8 @@ struct gfs2_args {
 	unsigned int ar_errors:2;               /* errors=withdraw | panic */
 	unsigned int ar_nobarrier:1;            /* do not send barriers */
 	unsigned int ar_rgrplvb:1;		/* use lvbs for rgrp info */
+	unsigned int ar_loccookie:1;		/* use location based readdir
+						   cookies */
 	int ar_commit;				/* Commit interval */
 	int ar_statfs_quantum;			/* The fast statfs interval */
 	int ar_quota_quantum;			/* The quota interval */
@@ -689,6 +691,7 @@ struct gfs2_sbd {
 	u64 sd_heightsize[GFS2_MAX_META_HEIGHT + 1];
 	u32 sd_max_jheight; /* Max height of journaled file's meta tree */
 	u64 sd_jheightsize[GFS2_MAX_META_HEIGHT + 1];
+	u32 sd_max_dents_per_leaf; /* Max number of dirents in a leaf block */
 
 	struct gfs2_args sd_args;	/* Mount arguments */
 	struct gfs2_tune sd_tune;	/* Filesystem tuning structure */
