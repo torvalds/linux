@@ -185,12 +185,14 @@ static const char vkb_map_keys[VKB_ROWS][VKB_COLS] = {
 struct vkb_ctx_t {
 	int curx;
 	int cury;
+	int tty;
 };
 
 static void vkb_init(struct vkb_ctx_t *vkb)
 {
 	vkb->curx = VKB_COLS/2;
 	vkb->cury = VKB_ROWS/2;
+	vkb->tty = 1;
 }
 
 static void fbbot_draw_vkb(void __iomem *fb_base, const struct font_desc *font, int x, int y, const struct vkb_ctx_t *vkb)
@@ -203,7 +205,7 @@ static void fbbot_draw_vkb(void __iomem *fb_base, const struct font_desc *font, 
 		for (j = 0; j < VKB_COLS; j++) {
 			if (vkb_map_ascii[i][j]) {
 				dx += fbbot_draw_text(fb_base, font, dx, dy,
-					(vkb->curx == j && vkb->cury == i) ? YELLOW : WHITE,
+					(vkb->curx == j && vkb->cury == i) ? RED : WHITE,
 					vkb_map_ascii[i][j]) + font->width;
 			}
 		}
@@ -215,7 +217,7 @@ static void fbbot_draw_vkb(void __iomem *fb_base, const struct font_desc *font, 
 /***** Buttons *****/
 
 /* We poll keys - msecs */
-#define POLL_INTERVAL_DEFAULT	50
+#define POLL_INTERVAL_DEFAULT	25
 
 #define HID_INPUT_PA   (0x10146000)
 #define HID_INPUT_SIZE (4)
@@ -291,27 +293,55 @@ static void nintendo3ds_input_poll(struct input_polled_dev *pdev)
 				input_report_key(idev, KEY_SPACE,
 					BUTTON_PRESSED(buttons, BUTTON_X));
 				input_sync(idev);
+		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_Y)) {
+				input_report_key(idev, KEY_LEFTCTRL,
+					BUTTON_PRESSED(buttons, BUTTON_Y));
+				input_report_key(idev, KEY_LEFTALT,
+					BUTTON_PRESSED(buttons, BUTTON_Y));
+				input_report_key(idev, KEY_BACKSPACE,
+					BUTTON_PRESSED(buttons, BUTTON_Y));
+				input_report_key(idev, KEY_C,
+					BUTTON_PRESSED(buttons, BUTTON_Y));
+				input_sync(idev);
 		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_R1)) {
-				input_report_key(idev, KEY_DOWN,
+				if (BUTTON_PRESSED(buttons, BUTTON_R1))
+					vkb->tty++; if (vkb->tty > 10) vkb->tty = 1;
+				input_report_key(idev, KEY_LEFTCTRL,
+					BUTTON_PRESSED(buttons, BUTTON_R1));
+				input_report_key(idev, KEY_LEFTALT,
+					BUTTON_PRESSED(buttons, BUTTON_R1));
+				input_report_key(idev, KEY_F1 + vkb->tty - 1,
 					BUTTON_PRESSED(buttons, BUTTON_R1));
 				input_sync(idev);
 		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_L1)) {
-				input_report_key(idev, KEY_UP,
+				if (BUTTON_PRESSED(buttons, BUTTON_L1))
+					vkb->tty--; if (vkb->tty < 1) vkb->tty = 10;
+				input_report_key(idev, KEY_LEFTCTRL,
 					BUTTON_PRESSED(buttons, BUTTON_L1));
+				input_report_key(idev, KEY_LEFTALT,
+					BUTTON_PRESSED(buttons, BUTTON_L1));
+				input_report_key(idev, KEY_F1 + vkb->tty - 1,
+					BUTTON_PRESSED(buttons, BUTTON_L1));
+				input_sync(idev);
+		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_SELECT)) {
+				input_report_key(idev, KEY_LEFTSHIFT,
+					BUTTON_PRESSED(buttons, BUTTON_SELECT));
+				input_report_key(idev, KEY_BACKSLASH,
+					BUTTON_PRESSED(buttons, BUTTON_SELECT));
 				input_sync(idev);
 		} else {
 			if (BUTTON_PRESSED(buttons, BUTTON_UP)) {
 				if (--vkb->cury < 0)
-					vkb->cury = 0;
+					vkb->cury = VKB_ROWS - 1;
 			} else if (BUTTON_PRESSED(buttons, BUTTON_DOWN)) {
 				if (++vkb->cury > VKB_ROWS-1)
-					vkb->cury = VKB_ROWS - 1;
+					vkb->cury = 0;
 			} else if (BUTTON_PRESSED(buttons, BUTTON_LEFT)) {
 				if (--vkb->curx < 0)
-					vkb->curx = 0;
+					vkb->curx = VKB_COLS-1;
 			} else if (BUTTON_PRESSED(buttons, BUTTON_RIGHT)) {
 				if (++vkb->curx > VKB_COLS-1)
-					vkb->curx = VKB_COLS - 1;
+					vkb->curx = 0;
 			}
 
 			fbbot_draw_vkb(n3ds_input_dev->fbbot, n3ds_input_dev->font, 0, 0, &n3ds_input_dev->vkb);
@@ -407,11 +437,16 @@ static int nintendo3ds_input_probe(struct platform_device *plat_dev)
 	for (i = 0; i < sizeof(button_map)/sizeof(*button_map); i++) {
 		set_bit(button_map[i].code, idev->keybit);
 	}*/
+	/* Only VKB keys
 	for (i = 0; i < VKB_ROWS; i++) {
 		for (j = 0; j < VKB_COLS; j++) {
 			if (vkb_map_keys[i][j])
 				set_bit(vkb_map_keys[i][j], idev->keybit);
 		}
+	}*/
+	/* Enable all keys */
+	for (i = KEY_ESC; i < KEY_MICMUTE; i++) {
+		set_bit(i, idev->keybit);
 	}
 
 	input_set_capability(idev, EV_MSC, MSC_SCAN);

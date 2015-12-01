@@ -57,11 +57,6 @@
 			compatible = "arm,arm11mpcore";
 			reg = <0>;
 		};
-		cpu@1 {
-			device_type = "cpu";
-			compatible = "arm,arm11mpcore";
-			reg = <1>;
-		};
 	};
 
 	n3ds_input0: input@10146000 {
