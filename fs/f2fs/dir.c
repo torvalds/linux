@@ -867,16 +867,13 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 
 		make_dentry_ptr(inode, &d, (void *)dentry_blk, 1);
 
-		if (f2fs_fill_dentries(ctx, &d, n * NR_DENTRY_IN_BLOCK, &fstr))
-			goto stop;
+		if (f2fs_fill_dentries(ctx, &d, n * NR_DENTRY_IN_BLOCK, &fstr)) {
+			kunmap(dentry_page);
+			f2fs_put_page(dentry_page, 1);
+			break;
+		}
 
 		ctx->pos = (n + 1) * NR_DENTRY_IN_BLOCK;
-		kunmap(dentry_page);
-		f2fs_put_page(dentry_page, 1);
-		dentry_page = NULL;
-	}
-stop:
-	if (dentry_page && !IS_ERR(dentry_page)) {
 		kunmap(dentry_page);
 		f2fs_put_page(dentry_page, 1);
 	}
