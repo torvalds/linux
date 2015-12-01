@@ -443,7 +443,7 @@ static void wacom_intuos_schedule_prox_event(struct wacom_wac *wacom_wac)
 	struct hid_report_enum *re;
 
 	re = &(wacom->hdev->report_enum[HID_FEATURE_REPORT]);
-	r = re->report_id_hash[WACOM_REPORT_INTUOSREAD];
+	r = re->report_id_hash[WACOM_REPORT_INTUOS_ID1];
 	if (r) {
 		hid_hw_request(wacom->hdev, r, HID_REQ_GET_REPORT);
 	}
@@ -1027,8 +1027,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	int result;
 
 	if (data[0] != WACOM_REPORT_PENABLED &&
-	    data[0] != WACOM_REPORT_INTUOSREAD &&
-	    data[0] != WACOM_REPORT_INTUOSWRITE &&
+	    data[0] != WACOM_REPORT_INTUOS_ID1 &&
+	    data[0] != WACOM_REPORT_INTUOS_ID2 &&
 	    data[0] != WACOM_REPORT_INTUOSPAD &&
 	    data[0] != WACOM_REPORT_INTUOS_PEN &&
 	    data[0] != WACOM_REPORT_CINTIQ &&
