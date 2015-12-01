@@ -9808,6 +9808,7 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 		break;
 	case PORT_CLK_SEL_SPLL:
 		pipe_config->shared_dpll = DPLL_ID_SPLL;
+		break;
 	}
 }
 
