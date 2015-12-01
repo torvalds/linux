@@ -1662,7 +1662,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 			return ret;
 		req->nmdesc++;
 	} else {
-		idb_rkey = target->global_mr->rkey;
+		idb_rkey = cpu_to_be32(target->global_mr->rkey);
 	}
 
 	indirect_hdr->table_desc.va = cpu_to_be64(req->indirect_dma_addr);
