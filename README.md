@@ -1,4 +1,4 @@
-Medusa DS9 Security System
+Medusa Voyager Security System
 ==========================
 
 Medusa is a package that improves the overall security of the Linux OS by
