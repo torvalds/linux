@@ -54,6 +54,15 @@ Rockchip platforms device tree bindings
 		     "google,veyron-jerry-rev3", "google,veyron-jerry",
 		     "google,veyron", "rockchip,rk3288";
 
+- Google Mickey (Asus Chromebit CS10):
+    Required root node properties:
+      - compatible = "google,veyron-mickey-rev8", "google,veyron-mickey-rev7",
+		     "google,veyron-mickey-rev6", "google,veyron-mickey-rev5",
+		     "google,veyron-mickey-rev4", "google,veyron-mickey-rev3",
+		     "google,veyron-mickey-rev2", "google,veyron-mickey-rev1",
+		     "google,veyron-mickey-rev0", "google,veyron-mickey",
+		     "google,veyron", "rockchip,rk3288";
+
 - Google Minnie (Asus Chromebook Flip C100P):
     Required root node properties:
       - compatible = "google,veyron-minnie-rev4", "google,veyron-minnie-rev3",
