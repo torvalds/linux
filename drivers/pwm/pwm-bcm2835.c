@@ -29,7 +29,6 @@
 struct bcm2835_pwm {
 	struct pwm_chip chip;
 	struct device *dev;
-	unsigned long scaler;
 	void __iomem *base;
 	struct clk *clk;
 };
@@ -66,6 +65,7 @@ static int bcm2835_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			      int duty_ns, int period_ns)
 {
 	struct bcm2835_pwm *pc = to_bcm2835_pwm(chip);
+	unsigned long scaler = NSEC_PER_SEC / clk_get_rate(pc->clk);
 
 	if (period_ns <= MIN_PERIOD) {
 		dev_err(pc->dev, "period %d not supported, minimum %d\n",
@@ -73,8 +73,8 @@ static int bcm2835_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return -EINVAL;
 	}
 
-	writel(duty_ns / pc->scaler, pc->base + DUTY(pwm->hwpwm));
-	writel(period_ns / pc->scaler, pc->base + PERIOD(pwm->hwpwm));
+	writel(duty_ns / scaler, pc->base + DUTY(pwm->hwpwm));
+	writel(period_ns / scaler, pc->base + PERIOD(pwm->hwpwm));
 
 	return 0;
 }
@@ -155,8 +155,6 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(pc->clk);
 	if (ret)
 		return ret;
-
-	pc->scaler = NSEC_PER_SEC / clk_get_rate(pc->clk);
 
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &bcm2835_pwm_ops;
