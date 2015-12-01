@@ -488,8 +488,7 @@ out:
 	return err;
 }
 
-static int recover_data(struct f2fs_sb_info *sbi,
-				struct list_head *head, int type)
+static int recover_data(struct f2fs_sb_info *sbi, struct list_head *head)
 {
 	unsigned long long cp_ver = cur_cp_version(F2FS_CKPT(sbi));
 	struct curseg_info *curseg;
@@ -498,7 +497,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 	block_t blkaddr;
 
 	/* get node pages in the current segment */
-	curseg = CURSEG_I(sbi, type);
+	curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
 	blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
 	while (1) {
@@ -585,7 +584,7 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 	need_writecp = true;
 
 	/* step #2: recover data */
-	err = recover_data(sbi, &inode_list, CURSEG_WARM_NODE);
+	err = recover_data(sbi, &inode_list);
 	if (!err)
 		f2fs_bug_on(sbi, !list_empty(&inode_list));
 out:
