@@ -39,4 +39,11 @@
 			pixelclk-active = <1>;
 		};
 	};
+
+	hdmi_conn: connector@0 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+	};
 };
