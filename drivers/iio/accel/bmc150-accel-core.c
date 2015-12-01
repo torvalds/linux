@@ -1623,24 +1623,22 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		}
 	}
 
+	ret = pm_runtime_set_active(dev);
+	if (ret)
+		goto err_trigger_unregister;
+
+	pm_runtime_enable(dev);
+	pm_runtime_set_autosuspend_delay(dev, BMC150_AUTO_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
+
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(dev, "Unable to register iio device\n");
 		goto err_trigger_unregister;
 	}
 
-	ret = pm_runtime_set_active(dev);
-	if (ret)
-		goto err_iio_unregister;
-
-	pm_runtime_enable(dev);
-	pm_runtime_set_autosuspend_delay(dev, BMC150_AUTO_SUSPEND_DELAY_MS);
-	pm_runtime_use_autosuspend(dev);
-
 	return 0;
 
-err_iio_unregister:
-	iio_device_unregister(indio_dev);
 err_trigger_unregister:
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 err_buffer_cleanup:
@@ -1655,11 +1653,11 @@ int bmc150_accel_core_remove(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
+
 	pm_runtime_disable(data->dev);
 	pm_runtime_set_suspended(data->dev);
 	pm_runtime_put_noidle(data->dev);
-
-	iio_device_unregister(indio_dev);
 
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 
