@@ -26,6 +26,9 @@
 #ifndef OCFS2_NAMEI_H
 #define OCFS2_NAMEI_H
 
+#define OCFS2_DIO_ORPHAN_PREFIX "dio-"
+#define OCFS2_DIO_ORPHAN_PREFIX_LEN 4
+
 extern const struct inode_operations ocfs2_dir_iops;
 
 struct dentry *ocfs2_get_parent(struct dentry *child);

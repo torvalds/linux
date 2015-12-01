@@ -322,7 +322,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 		    bdev_logical_block_size(dm_snap_cow(ps->store->snap)->
 					    bdev) >> 9);
 		ps->store->chunk_mask = ps->store->chunk_size - 1;
-		ps->store->chunk_shift = ffs(ps->store->chunk_size) - 1;
+		ps->store->chunk_shift = __ffs(ps->store->chunk_size);
 		chunk_size_supplied = 0;
 	}
 

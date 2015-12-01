@@ -523,12 +523,12 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
 
 	case KGD_ENGINE_SDMA1:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->sdma[0].fw->data;
+							adev->sdma.instance[0].fw->data;
 		break;
 
 	case KGD_ENGINE_SDMA2:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->sdma[1].fw->data;
+							adev->sdma.instance[1].fw->data;
 		break;
 
 	default:

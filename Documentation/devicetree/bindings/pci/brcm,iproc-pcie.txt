@@ -17,6 +17,21 @@ Optional properties:
 - phys: phandle of the PCIe PHY device
 - phy-names: must be "pcie-phy"
 
+- brcm,pcie-ob: Some iProc SoCs do not have the outbound address mapping done
+by the ASIC after power on reset. In this case, SW needs to configure it
+
+If the brcm,pcie-ob property is present, the following properties become
+effective:
+
+Required:
+- brcm,pcie-ob-axi-offset: The offset from the AXI address to the internal
+address used by the iProc PCIe core (not the PCIe address)
+- brcm,pcie-ob-window-size: The outbound address mapping window size (in MB)
+
+Optional:
+- brcm,pcie-ob-oarr-size: Some iProc SoCs need the OARR size bit to be set to
+increase the outbound window size
+
 Example:
 	pcie0: pcie@18012000 {
 		compatible = "brcm,iproc-pcie";
@@ -38,6 +53,11 @@ Example:
 
 		phys = <&phy 0 5>;
 		phy-names = "pcie-phy";
+
+		brcm,pcie-ob;
+		brcm,pcie-ob-oarr-size;
+		brcm,pcie-ob-axi-offset = <0x00000000>;
+		brcm,pcie-ob-window-size = <256>;
 	};
 
 	pcie1: pcie@18013000 {

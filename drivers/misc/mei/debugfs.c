@@ -215,7 +215,7 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 	f = debugfs_create_file("active", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_active);
 	if (!f) {
-		dev_err(dev->dev, "meclients: registration failed\n");
+		dev_err(dev->dev, "active: registration failed\n");
 		goto err;
 	}
 	f = debugfs_create_file("devstate", S_IRUSR, dir,

@@ -200,6 +200,7 @@ static int change_xattr(struct ubifs_info *c, struct inode *host,
 	int err;
 	struct ubifs_inode *host_ui = ubifs_inode(host);
 	struct ubifs_inode *ui = ubifs_inode(inode);
+	void *buf = NULL;
 	struct ubifs_budget_req req = { .dirtied_ino = 2,
 		.dirtied_ino_d = ALIGN(size, 8) + ALIGN(host_ui->data_len, 8) };
 
@@ -208,14 +209,17 @@ static int change_xattr(struct ubifs_info *c, struct inode *host,
 	if (err)
 		return err;
 
-	kfree(ui->data);
-	ui->data = kmemdup(value, size, GFP_NOFS);
-	if (!ui->data) {
+	buf = kmemdup(value, size, GFP_NOFS);
+	if (!buf) {
 		err = -ENOMEM;
 		goto out_free;
 	}
+	mutex_lock(&ui->ui_mutex);
+	kfree(ui->data);
+	ui->data = buf;
 	inode->i_size = ui->ui_size = size;
 	ui->data_len = size;
+	mutex_unlock(&ui->ui_mutex);
 
 	mutex_lock(&host_ui->ui_mutex);
 	host->i_ctime = ubifs_current_time(host);
@@ -409,6 +413,7 @@ ssize_t ubifs_getxattr(struct dentry *dentry, const char *name, void *buf,
 	ubifs_assert(inode->i_size == ui->data_len);
 	ubifs_assert(ubifs_inode(host)->xattr_size > ui->data_len);
 
+	mutex_lock(&ui->ui_mutex);
 	if (buf) {
 		/* If @buf is %NULL we are supposed to return the length */
 		if (ui->data_len > size) {
@@ -423,6 +428,7 @@ ssize_t ubifs_getxattr(struct dentry *dentry, const char *name, void *buf,
 	err = ui->data_len;
 
 out_iput:
+	mutex_unlock(&ui->ui_mutex);
 	iput(inode);
 out_unlock:
 	kfree(xent);
@@ -581,46 +587,6 @@ out_free:
 	kfree(xent);
 	return err;
 }
-
-static size_t security_listxattr(struct dentry *d, char *list, size_t list_size,
-				 const char *name, size_t name_len, int flags)
-{
-	const int prefix_len = XATTR_SECURITY_PREFIX_LEN;
-	const size_t total_len = prefix_len + name_len + 1;
-
-	if (list && total_len <= list_size) {
-		memcpy(list, XATTR_SECURITY_PREFIX, prefix_len);
-		memcpy(list + prefix_len, name, name_len);
-		list[prefix_len + name_len] = '\0';
-	}
-
-	return total_len;
-}
-
-static int security_getxattr(struct dentry *d, const char *name, void *buffer,
-		      size_t size, int flags)
-{
-	return ubifs_getxattr(d, name, buffer, size);
-}
-
-static int security_setxattr(struct dentry *d, const char *name,
-			     const void *value, size_t size, int flags,
-			     int handler_flags)
-{
-	return ubifs_setxattr(d, name, value, size, flags);
-}
-
-static const struct xattr_handler ubifs_xattr_security_handler = {
-	.prefix = XATTR_SECURITY_PREFIX,
-	.list   = security_listxattr,
-	.get    = security_getxattr,
-	.set    = security_setxattr,
-};
-
-const struct xattr_handler *ubifs_xattr_handlers[] = {
-	&ubifs_xattr_security_handler,
-	NULL,
-};
 
 static int init_xattrs(struct inode *inode, const struct xattr *xattr_array,
 		      void *fs_info)

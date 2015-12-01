@@ -11,43 +11,59 @@ config DRM_EXYNOS
 	  Choose this option if you have a Samsung SoC EXYNOS chipset.
 	  If M is selected the module will be called exynosdrm.
 
+if DRM_EXYNOS
+
 config DRM_EXYNOS_IOMMU
 	bool
-	depends on DRM_EXYNOS && EXYNOS_IOMMU && ARM_DMA_USE_IOMMU
+	depends on EXYNOS_IOMMU && ARM_DMA_USE_IOMMU
 	default y
 
+comment "CRTCs"
+
 config DRM_EXYNOS_FIMD
-	bool "Exynos DRM FIMD"
-	depends on DRM_EXYNOS && !FB_S3C
+	bool "FIMD"
+	depends on !FB_S3C
 	select FB_MODE_HELPERS
 	select MFD_SYSCON
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
 
 config DRM_EXYNOS5433_DECON
-	bool "Exynos5433 DRM DECON"
-	depends on DRM_EXYNOS
+	bool "DECON on Exynos5433"
 	help
 	  Choose this option if you want to use Exynos5433 DECON for DRM.
 
 config DRM_EXYNOS7_DECON
-	bool "Exynos7 DRM DECON"
-	depends on DRM_EXYNOS && !FB_S3C
+	bool "DECON on Exynos7"
+	depends on !FB_S3C
 	select FB_MODE_HELPERS
 	help
 	  Choose this option if you want to use Exynos DECON for DRM.
 
+config DRM_EXYNOS_MIXER
+	bool "Mixer"
+	depends on !VIDEO_SAMSUNG_S5P_TV
+	help
+	  Choose this option if you want to use Exynos Mixer for DRM.
+
+config DRM_EXYNOS_VIDI
+	bool "Virtual Display"
+	help
+	  Choose this option if you want to use Exynos VIDI for DRM.
+
+comment "Encoders and Bridges"
+
 config DRM_EXYNOS_DPI
-	bool "EXYNOS DRM parallel output support"
-	depends on DRM_EXYNOS && (DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON)
+	bool "Parallel output"
+	depends on DRM_EXYNOS_FIMD
 	select DRM_PANEL
 	default n
 	help
 	  This enables support for Exynos parallel output.
 
 config DRM_EXYNOS_DSI
-	bool "EXYNOS DRM MIPI-DSI driver support"
-	depends on DRM_EXYNOS && (DRM_EXYNOS_FIMD || DRM_EXYNOS5433_DECON || DRM_EXYNOS7_DECON)
+	bool "MIPI-DSI host"
+	depends on DRM_EXYNOS_FIMD || DRM_EXYNOS5433_DECON || DRM_EXYNOS7_DECON
 	select DRM_MIPI_DSI
 	select DRM_PANEL
 	default n
@@ -55,58 +71,55 @@ config DRM_EXYNOS_DSI
 	  This enables support for Exynos MIPI-DSI device.
 
 config DRM_EXYNOS_DP
-	bool "EXYNOS DRM DP driver support"
-	depends on DRM_EXYNOS && (DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON)
+	bool "Display Port"
+	depends on DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON
 	default DRM_EXYNOS
 	select DRM_PANEL
 	help
 	  This enables support for DP device.
 
 config DRM_EXYNOS_HDMI
-	bool "Exynos DRM HDMI"
-	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_TV
+	bool "HDMI"
+	depends on !VIDEO_SAMSUNG_S5P_TV && (DRM_EXYNOS_MIXER || DRM_EXYNOS5433_DECON)
 	help
 	  Choose this option if you want to use Exynos HDMI for DRM.
 
-config DRM_EXYNOS_VIDI
-	bool "Exynos DRM Virtual Display"
-	depends on DRM_EXYNOS
+config DRM_EXYNOS_MIC
+	bool "Mobile Image Compressor"
+	depends on DRM_EXYNOS5433_DECON
 	help
-	  Choose this option if you want to use Exynos VIDI for DRM.
+	  Choose this option if you want to use Exynos MIC for DRM.
+
+comment "Sub-drivers"
 
 config DRM_EXYNOS_G2D
-	bool "Exynos DRM G2D"
-	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_G2D
+	bool "G2D"
+	depends on !VIDEO_SAMSUNG_S5P_G2D
 	select FRAME_VECTOR
 	help
 	  Choose this option if you want to use Exynos G2D for DRM.
 
 config DRM_EXYNOS_IPP
-	bool "Exynos DRM IPP"
-	depends on DRM_EXYNOS
+	bool "Image Post Processor"
 	help
 	  Choose this option if you want to use IPP feature for DRM.
 
 config DRM_EXYNOS_FIMC
-	bool "Exynos DRM FIMC"
+	bool "FIMC"
 	depends on DRM_EXYNOS_IPP && MFD_SYSCON
 	help
 	  Choose this option if you want to use Exynos FIMC for DRM.
 
 config DRM_EXYNOS_ROTATOR
-	bool "Exynos DRM Rotator"
+	bool "Rotator"
 	depends on DRM_EXYNOS_IPP
 	help
 	  Choose this option if you want to use Exynos Rotator for DRM.
 
 config DRM_EXYNOS_GSC
-	bool "Exynos DRM GSC"
+	bool "GScaler"
 	depends on DRM_EXYNOS_IPP && ARCH_EXYNOS5 && !ARCH_MULTIPLATFORM
 	help
 	  Choose this option if you want to use Exynos GSC for DRM.
 
-config DRM_EXYNOS_MIC
-	bool "Exynos DRM MIC"
-	depends on (DRM_EXYNOS && DRM_EXYNOS5433_DECON)
-	help
-	  Choose this option if you want to use Exynos MIC for DRM.
+endif

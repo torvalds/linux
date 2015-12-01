@@ -14,7 +14,7 @@
 struct ui_browser {
 	u64	      index, top_idx;
 	void	      *top, *entries;
-	u16	      y, x, width, height, rows;
+	u16	      y, x, width, height, rows, columns, horiz_scroll;
 	int	      current_color;
 	void	      *priv;
 	const char    *title;

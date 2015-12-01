@@ -224,7 +224,7 @@
 
 		interrupt-parent = <&gpio2>;
 		interrupts = <25 0>;		/* gpio_57 */
-		pendown-gpio = <&gpio2 25 0>;
+		pendown-gpio = <&gpio2 25 GPIO_ACTIVE_HIGH>;
 
 		ti,x-min = /bits/ 16 <0x0>;
 		ti,x-max = /bits/ 16 <0x0fff>;

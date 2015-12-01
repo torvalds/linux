@@ -202,7 +202,7 @@ struct at_desc {
 	size_t				src_hole;
 
 	/* Memset temporary buffer */
-	bool				memset;
+	bool				memset_buffer;
 	dma_addr_t			memset_paddr;
 	int				*memset_vaddr;
 };
@@ -385,9 +385,9 @@ static void vdbg_dump_regs(struct at_dma_chan *atchan) {}
 static void atc_dump_lli(struct at_dma_chan *atchan, struct at_lli *lli)
 {
 	dev_crit(chan2dev(&atchan->chan_common),
-		 "  desc: s0x%x d0x%x ctrl0x%x:0x%x l0x%x\n",
-		 lli->saddr, lli->daddr,
-		 lli->ctrla, lli->ctrlb, lli->dscr);
+		 "  desc: s%pad d%pad ctrl0x%x:0x%x l0x%pad\n",
+		 &lli->saddr, &lli->daddr,
+		 lli->ctrla, lli->ctrlb, &lli->dscr);
 }
 
 

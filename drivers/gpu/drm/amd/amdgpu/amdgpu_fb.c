@@ -207,6 +207,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	}
 
 	info->par = rfbdev;
+	info->skip_vt_switch = true;
 
 	ret = amdgpu_framebuffer_init(adev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
 	if (ret) {

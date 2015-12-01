@@ -96,6 +96,8 @@ static int atomic_dec_return_safe(atomic_t *v)
 #define RBD_MINORS_PER_MAJOR		256
 #define RBD_SINGLE_MAJOR_PART_SHIFT	4
 
+#define RBD_MAX_PARENT_CHAIN_LEN	16
+
 #define RBD_SNAP_DEV_NAME_PREFIX	"snap_"
 #define RBD_MAX_SNAP_NAME_LEN	\
 			(NAME_MAX - (sizeof (RBD_SNAP_DEV_NAME_PREFIX) - 1))
@@ -416,8 +418,6 @@ MODULE_PARM_DESC(single_major, "Use a single major number for all rbd devices (d
 
 static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
-static void rbd_dev_device_release(struct device *dev);
-
 static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
 static ssize_t rbd_remove(struct bus_type *bus, const char *buf,
@@ -426,7 +426,7 @@ static ssize_t rbd_add_single_major(struct bus_type *bus, const char *buf,
 				    size_t count);
 static ssize_t rbd_remove_single_major(struct bus_type *bus, const char *buf,
 				       size_t count);
-static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping);
+static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth);
 static void rbd_spec_put(struct rbd_spec *spec);
 
 static int rbd_dev_id_to_minor(int dev_id)
@@ -3778,6 +3778,9 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
 	q->limits.discard_zeroes_data = 1;
 
+	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
+		q->backing_dev_info.capabilities |= BDI_CAP_STABLE_WRITES;
+
 	disk->queue = q;
 
 	q->queuedata = rbd_dev;
@@ -3986,14 +3989,12 @@ static const struct attribute_group *rbd_attr_groups[] = {
 	NULL
 };
 
-static void rbd_sysfs_dev_release(struct device *dev)
-{
-}
+static void rbd_dev_release(struct device *dev);
 
 static struct device_type rbd_device_type = {
 	.name		= "rbd",
 	.groups		= rbd_attr_groups,
-	.release	= rbd_sysfs_dev_release,
+	.release	= rbd_dev_release,
 };
 
 static struct rbd_spec *rbd_spec_get(struct rbd_spec *spec)
@@ -4036,6 +4037,25 @@ static void rbd_spec_free(struct kref *kref)
 	kfree(spec);
 }
 
+static void rbd_dev_release(struct device *dev)
+{
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
+	bool need_put = !!rbd_dev->opts;
+
+	rbd_put_client(rbd_dev->rbd_client);
+	rbd_spec_put(rbd_dev->spec);
+	kfree(rbd_dev->opts);
+	kfree(rbd_dev);
+
+	/*
+	 * This is racy, but way better than putting module outside of
+	 * the release callback.  The race window is pretty small, so
+	 * doing something similar to dm (dm-builtin.c) is overkill.
+	 */
+	if (need_put)
+		module_put(THIS_MODULE);
+}
+
 static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 					 struct rbd_spec *spec,
 					 struct rbd_options *opts)
@@ -4052,6 +4072,11 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	INIT_LIST_HEAD(&rbd_dev->node);
 	init_rwsem(&rbd_dev->header_rwsem);
 
+	rbd_dev->dev.bus = &rbd_bus_type;
+	rbd_dev->dev.type = &rbd_device_type;
+	rbd_dev->dev.parent = &rbd_root_dev;
+	device_initialize(&rbd_dev->dev);
+
 	rbd_dev->rbd_client = rbdc;
 	rbd_dev->spec = spec;
 	rbd_dev->opts = opts;
@@ -4063,15 +4088,21 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	rbd_dev->layout.fl_object_size = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
 	rbd_dev->layout.fl_pg_pool = cpu_to_le32((u32) spec->pool_id);
 
+	/*
+	 * If this is a mapping rbd_dev (as opposed to a parent one),
+	 * pin our module.  We have a ref from do_rbd_add(), so use
+	 * __module_get().
+	 */
+	if (rbd_dev->opts)
+		__module_get(THIS_MODULE);
+
 	return rbd_dev;
 }
 
 static void rbd_dev_destroy(struct rbd_device *rbd_dev)
 {
-	rbd_put_client(rbd_dev->rbd_client);
-	rbd_spec_put(rbd_dev->spec);
-	kfree(rbd_dev->opts);
-	kfree(rbd_dev);
+	if (rbd_dev)
+		put_device(&rbd_dev->dev);
 }
 
 /*
@@ -4697,27 +4728,6 @@ static int rbd_dev_header_info(struct rbd_device *rbd_dev)
 	return rbd_dev_v2_header_info(rbd_dev);
 }
 
-static int rbd_bus_add_dev(struct rbd_device *rbd_dev)
-{
-	struct device *dev;
-	int ret;
-
-	dev = &rbd_dev->dev;
-	dev->bus = &rbd_bus_type;
-	dev->type = &rbd_device_type;
-	dev->parent = &rbd_root_dev;
-	dev->release = rbd_dev_device_release;
-	dev_set_name(dev, "%d", rbd_dev->dev_id);
-	ret = device_register(dev);
-
-	return ret;
-}
-
-static void rbd_bus_del_dev(struct rbd_device *rbd_dev)
-{
-	device_unregister(&rbd_dev->dev);
-}
-
 /*
  * Get a unique rbd identifier for the given new rbd_dev, and add
  * the rbd_dev to the global list.
@@ -5131,44 +5141,51 @@ out_err:
 	return ret;
 }
 
-static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
+/*
+ * @depth is rbd_dev_image_probe() -> rbd_dev_probe_parent() ->
+ * rbd_dev_image_probe() recursion depth, which means it's also the
+ * length of the already discovered part of the parent chain.
+ */
+static int rbd_dev_probe_parent(struct rbd_device *rbd_dev, int depth)
 {
 	struct rbd_device *parent = NULL;
-	struct rbd_spec *parent_spec;
-	struct rbd_client *rbdc;
 	int ret;
 
 	if (!rbd_dev->parent_spec)
 		return 0;
-	/*
-	 * We need to pass a reference to the client and the parent
-	 * spec when creating the parent rbd_dev.  Images related by
-	 * parent/child relationships always share both.
-	 */
-	parent_spec = rbd_spec_get(rbd_dev->parent_spec);
-	rbdc = __rbd_get_client(rbd_dev->rbd_client);
 
-	ret = -ENOMEM;
-	parent = rbd_dev_create(rbdc, parent_spec, NULL);
-	if (!parent)
+	if (++depth > RBD_MAX_PARENT_CHAIN_LEN) {
+		pr_info("parent chain is too long (%d)\n", depth);
+		ret = -EINVAL;
 		goto out_err;
-
-	ret = rbd_dev_image_probe(parent, false);
-	if (ret < 0)
-		goto out_err;
-	rbd_dev->parent = parent;
-	atomic_set(&rbd_dev->parent_ref, 1);
-
-	return 0;
-out_err:
-	if (parent) {
-		rbd_dev_unparent(rbd_dev);
-		rbd_dev_destroy(parent);
-	} else {
-		rbd_put_client(rbdc);
-		rbd_spec_put(parent_spec);
 	}
 
+	parent = rbd_dev_create(rbd_dev->rbd_client, rbd_dev->parent_spec,
+				NULL);
+	if (!parent) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	/*
+	 * Images related by parent/child relationships always share
+	 * rbd_client and spec/parent_spec, so bump their refcounts.
+	 */
+	__rbd_get_client(rbd_dev->rbd_client);
+	rbd_spec_get(rbd_dev->parent_spec);
+
+	ret = rbd_dev_image_probe(parent, depth);
+	if (ret < 0)
+		goto out_err;
+
+	rbd_dev->parent = parent;
+	atomic_set(&rbd_dev->parent_ref, 1);
+	return 0;
+
+out_err:
+	rbd_dev_unparent(rbd_dev);
+	if (parent)
+		rbd_dev_destroy(parent);
 	return ret;
 }
 
@@ -5213,7 +5230,8 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
 	set_disk_ro(rbd_dev->disk, rbd_dev->mapping.read_only);
 
-	ret = rbd_bus_add_dev(rbd_dev);
+	dev_set_name(&rbd_dev->dev, "%d", rbd_dev->dev_id);
+	ret = device_add(&rbd_dev->dev);
 	if (ret)
 		goto err_out_mapping;
 
@@ -5236,8 +5254,6 @@ err_out_blkdev:
 		unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
-	rbd_dev_mapping_clear(rbd_dev);
-
 	return ret;
 }
 
@@ -5286,7 +5302,7 @@ static void rbd_dev_image_release(struct rbd_device *rbd_dev)
  * parent), initiate a watch on its header object before using that
  * object to get detailed information about the rbd image.
  */
-static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
+static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 {
 	int ret;
 
@@ -5304,7 +5320,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 	if (ret)
 		goto err_out_format;
 
-	if (mapping) {
+	if (!depth) {
 		ret = rbd_dev_header_watch_sync(rbd_dev);
 		if (ret) {
 			if (ret == -ENOENT)
@@ -5325,7 +5341,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 	 * Otherwise this is a parent image, identified by pool, image
 	 * and snap ids - need to fill in names for those ids.
 	 */
-	if (mapping)
+	if (!depth)
 		ret = rbd_spec_fill_snap_id(rbd_dev);
 	else
 		ret = rbd_spec_fill_names(rbd_dev);
@@ -5347,12 +5363,12 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 		 * Need to warn users if this image is the one being
 		 * mapped and has a parent.
 		 */
-		if (mapping && rbd_dev->parent_spec)
+		if (!depth && rbd_dev->parent_spec)
 			rbd_warn(rbd_dev,
 				 "WARNING: kernel layering is EXPERIMENTAL!");
 	}
 
-	ret = rbd_dev_probe_parent(rbd_dev);
+	ret = rbd_dev_probe_parent(rbd_dev, depth);
 	if (ret)
 		goto err_out_probe;
 
@@ -5363,7 +5379,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 err_out_probe:
 	rbd_dev_unprobe(rbd_dev);
 err_out_watch:
-	if (mapping)
+	if (!depth)
 		rbd_dev_header_unwatch_sync(rbd_dev);
 out_header_name:
 	kfree(rbd_dev->header_name);
@@ -5385,7 +5401,7 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	struct rbd_spec *spec = NULL;
 	struct rbd_client *rbdc;
 	bool read_only;
-	int rc = -ENOMEM;
+	int rc;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
@@ -5393,7 +5409,7 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	/* parse add command */
 	rc = rbd_add_parse_args(buf, &ceph_opts, &rbd_opts, &spec);
 	if (rc < 0)
-		goto err_out_module;
+		goto out;
 
 	rbdc = rbd_get_client(ceph_opts);
 	if (IS_ERR(rbdc)) {
@@ -5420,13 +5436,15 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	}
 
 	rbd_dev = rbd_dev_create(rbdc, spec, rbd_opts);
-	if (!rbd_dev)
+	if (!rbd_dev) {
+		rc = -ENOMEM;
 		goto err_out_client;
+	}
 	rbdc = NULL;		/* rbd_dev now owns this */
 	spec = NULL;		/* rbd_dev now owns this */
 	rbd_opts = NULL;	/* rbd_dev now owns this */
 
-	rc = rbd_dev_image_probe(rbd_dev, true);
+	rc = rbd_dev_image_probe(rbd_dev, 0);
 	if (rc < 0)
 		goto err_out_rbd_dev;
 
@@ -5446,10 +5464,13 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 		 */
 		rbd_dev_header_unwatch_sync(rbd_dev);
 		rbd_dev_image_release(rbd_dev);
-		goto err_out_module;
+		goto out;
 	}
 
-	return count;
+	rc = count;
+out:
+	module_put(THIS_MODULE);
+	return rc;
 
 err_out_rbd_dev:
 	rbd_dev_destroy(rbd_dev);
@@ -5458,12 +5479,7 @@ err_out_client:
 err_out_args:
 	rbd_spec_put(spec);
 	kfree(rbd_opts);
-err_out_module:
-	module_put(THIS_MODULE);
-
-	dout("Error adding device %s\n", buf);
-
-	return (ssize_t)rc;
+	goto out;
 }
 
 static ssize_t rbd_add(struct bus_type *bus,
@@ -5483,17 +5499,15 @@ static ssize_t rbd_add_single_major(struct bus_type *bus,
 	return do_rbd_add(bus, buf, count);
 }
 
-static void rbd_dev_device_release(struct device *dev)
+static void rbd_dev_device_release(struct rbd_device *rbd_dev)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
-
 	rbd_free_disk(rbd_dev);
 	clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
+	device_del(&rbd_dev->dev);
 	rbd_dev_mapping_clear(rbd_dev);
 	if (!single_major)
 		unregister_blkdev(rbd_dev->major, rbd_dev->name);
 	rbd_dev_id_put(rbd_dev);
-	rbd_dev_mapping_clear(rbd_dev);
 }
 
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
@@ -5578,9 +5592,8 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	 * rbd_bus_del_dev() will race with rbd_watch_cb(), resulting
 	 * in a potential use after free of rbd_dev->disk or rbd_dev.
 	 */
-	rbd_bus_del_dev(rbd_dev);
+	rbd_dev_device_release(rbd_dev);
 	rbd_dev_image_release(rbd_dev);
-	module_put(THIS_MODULE);
 
 	return count;
 }
@@ -5651,10 +5664,8 @@ static int rbd_slab_init(void)
 	if (rbd_segment_name_cache)
 		return 0;
 out_err:
-	if (rbd_obj_request_cache) {
-		kmem_cache_destroy(rbd_obj_request_cache);
-		rbd_obj_request_cache = NULL;
-	}
+	kmem_cache_destroy(rbd_obj_request_cache);
+	rbd_obj_request_cache = NULL;
 
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;

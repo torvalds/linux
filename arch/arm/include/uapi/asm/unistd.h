@@ -416,6 +416,7 @@
 #define __NR_execveat			(__NR_SYSCALL_BASE+387)
 #define __NR_userfaultfd		(__NR_SYSCALL_BASE+388)
 #define __NR_membarrier			(__NR_SYSCALL_BASE+389)
+#define __NR_mlock2			(__NR_SYSCALL_BASE+390)
 
 /*
  * The following SWIs are ARM private.

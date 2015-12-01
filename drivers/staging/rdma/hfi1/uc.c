@@ -147,9 +147,9 @@ int hfi1_make_uc_req(struct hfi1_qp *qp)
 		case IB_WR_RDMA_WRITE:
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			ohdr->u.rc.reth.vaddr =
-				cpu_to_be64(wqe->wr.wr.rdma.remote_addr);
+				cpu_to_be64(wqe->rdma_wr.remote_addr);
 			ohdr->u.rc.reth.rkey =
-				cpu_to_be32(wqe->wr.wr.rdma.rkey);
+				cpu_to_be32(wqe->rdma_wr.rkey);
 			ohdr->u.rc.reth.length = cpu_to_be32(len);
 			hwords += sizeof(struct ib_reth) / 4;
 			if (len > pmtu) {

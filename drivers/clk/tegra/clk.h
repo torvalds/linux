@@ -157,7 +157,7 @@ struct div_nmp {
 };
 
 /**
- * struct clk_pll_params - PLL parameters
+ * struct tegra_clk_pll_params - PLL parameters
  *
  * @input_min:			Minimum input frequency
  * @input_max:			Maximum input frequency
@@ -168,9 +168,45 @@ struct div_nmp {
  * @base_reg:			PLL base reg offset
  * @misc_reg:			PLL misc reg offset
  * @lock_reg:			PLL lock reg offset
- * @lock_bit_idx:		Bit index for PLL lock status
+ * @lock_mask:			Bitmask for PLL lock status
  * @lock_enable_bit_idx:	Bit index to enable PLL lock
+ * @iddq_reg:			PLL IDDQ register offset
+ * @iddq_bit_idx:		Bit index to enable PLL IDDQ
+ * @aux_reg:			AUX register offset
+ * @dyn_ramp_reg:		Dynamic ramp control register offset
+ * @ext_misc_reg:		Miscellaneous control register offsets
+ * @pmc_divnm_reg:		n, m divider PMC override register offset (PLLM)
+ * @pmc_divp_reg:		p divider PMC override register offset (PLLM)
+ * @flags:			PLL flags
+ * @stepa_shift:		Dynamic ramp step A field shift
+ * @stepb_shift:		Dynamic ramp step B field shift
  * @lock_delay:			Delay in us if PLL lock is not used
+ * @max_p:			maximum value for the p divider
+ * @pdiv_tohw:			mapping of p divider to register values
+ * @div_nmp:			offsets and widths on n, m and p fields
+ * @freq_table:			array of frequencies supported by PLL
+ * @fixed_rate:			PLL rate if it is fixed
+ *
+ * Flags:
+ * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
+ *     PLL locking. If not set it will use lock_delay value to wait.
+ * TEGRA_PLL_HAS_CPCON - This flag indicates that CPCON value needs
+ *     to be programmed to change output frequency of the PLL.
+ * TEGRA_PLL_SET_LFCON - This flag indicates that LFCON value needs
+ *     to be programmed to change output frequency of the PLL.
+ * TEGRA_PLL_SET_DCCON - This flag indicates that DCCON value needs
+ *     to be programmed to change output frequency of the PLL.
+ * TEGRA_PLLU - PLLU has inverted post divider. This flags indicated
+ *     that it is PLLU and invert post divider value.
+ * TEGRA_PLLM - PLLM has additional override settings in PMC. This
+ *     flag indicates that it is PLLM and use override settings.
+ * TEGRA_PLL_FIXED - We are not supposed to change output frequency
+ *     of some plls.
+ * TEGRA_PLLE_CONFIGURE - Configure PLLE when enabling.
+ * TEGRA_PLL_LOCK_MISC - Lock bit is in the misc register instead of the
+ *     base register.
+ * TEGRA_PLL_BYPASS - PLL has bypass bit
+ * TEGRA_PLL_HAS_LOCK_ENABLE - PLL has bit to enable lock monitoring
  */
 struct tegra_clk_pll_params {
 	unsigned long	input_min;
@@ -203,49 +239,6 @@ struct tegra_clk_pll_params {
 	unsigned long	fixed_rate;
 };
 
-/**
- * struct tegra_clk_pll - Tegra PLL clock
- *
- * @hw:		handle between common and hardware-specifix interfaces
- * @clk_base:	address of CAR controller
- * @pmc:	address of PMC, required to read override bits
- * @freq_table:	array of frequencies supported by PLL
- * @params:	PLL parameters
- * @flags:	PLL flags
- * @fixed_rate:	PLL rate if it is fixed
- * @lock:	register lock
- *
- * Flags:
- * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
- *     PLL locking. If not set it will use lock_delay value to wait.
- * TEGRA_PLL_HAS_CPCON - This flag indicates that CPCON value needs
- *     to be programmed to change output frequency of the PLL.
- * TEGRA_PLL_SET_LFCON - This flag indicates that LFCON value needs
- *     to be programmed to change output frequency of the PLL.
- * TEGRA_PLL_SET_DCCON - This flag indicates that DCCON value needs
- *     to be programmed to change output frequency of the PLL.
- * TEGRA_PLLU - PLLU has inverted post divider. This flags indicated
- *     that it is PLLU and invert post divider value.
- * TEGRA_PLLM - PLLM has additional override settings in PMC. This
- *     flag indicates that it is PLLM and use override settings.
- * TEGRA_PLL_FIXED - We are not supposed to change output frequency
- *     of some plls.
- * TEGRA_PLLE_CONFIGURE - Configure PLLE when enabling.
- * TEGRA_PLL_LOCK_MISC - Lock bit is in the misc register instead of the
- *     base register.
- * TEGRA_PLL_BYPASS - PLL has bypass bit
- * TEGRA_PLL_HAS_LOCK_ENABLE - PLL has bit to enable lock monitoring
- */
-struct tegra_clk_pll {
-	struct clk_hw	hw;
-	void __iomem	*clk_base;
-	void __iomem	*pmc;
-	spinlock_t	*lock;
-	struct tegra_clk_pll_params	*params;
-};
-
-#define to_clk_pll(_hw) container_of(_hw, struct tegra_clk_pll, hw)
-
 #define TEGRA_PLL_USE_LOCK BIT(0)
 #define TEGRA_PLL_HAS_CPCON BIT(1)
 #define TEGRA_PLL_SET_LFCON BIT(2)
@@ -257,6 +250,40 @@ struct tegra_clk_pll {
 #define TEGRA_PLL_LOCK_MISC BIT(8)
 #define TEGRA_PLL_BYPASS BIT(9)
 #define TEGRA_PLL_HAS_LOCK_ENABLE BIT(10)
+
+/**
+ * struct tegra_clk_pll - Tegra PLL clock
+ *
+ * @hw:		handle between common and hardware-specifix interfaces
+ * @clk_base:	address of CAR controller
+ * @pmc:	address of PMC, required to read override bits
+ * @lock:	register lock
+ * @params:	PLL parameters
+ */
+struct tegra_clk_pll {
+	struct clk_hw	hw;
+	void __iomem	*clk_base;
+	void __iomem	*pmc;
+	spinlock_t	*lock;
+	struct tegra_clk_pll_params	*params;
+};
+
+#define to_clk_pll(_hw) container_of(_hw, struct tegra_clk_pll, hw)
+
+/**
+ * struct tegra_audio_clk_info - Tegra Audio Clk Information
+ *
+ * @name:	name for the audio pll
+ * @pll_params:	pll_params for audio pll
+ * @clk_id:	clk_ids for the audio pll
+ * @parent:	name of the parent of the audio pll
+ */
+struct tegra_audio_clk_info {
+	char *name;
+	struct tegra_clk_pll_params *pll_params;
+	int clk_id;
+	char *parent;
+};
 
 extern const struct clk_ops tegra_clk_pll_ops;
 extern const struct clk_ops tegra_clk_plle_ops;
@@ -610,7 +637,8 @@ void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
 void tegra_audio_clk_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
-			struct tegra_clk_pll_params *pll_params);
+			struct tegra_audio_clk_info *audio_info,
+			unsigned int num_plls);
 
 void tegra_periph_clk_init(void __iomem *clk_base, void __iomem *pmc_base,
 			struct tegra_clk *tegra_clks,

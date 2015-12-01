@@ -70,6 +70,7 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 					  const char *func, int line)
 {
 	unsigned long cur = jiffies;
+
 	while (1) {
 		if (spin_trylock(&lock->lock)) {
 			LASSERT(lock->task == NULL);
@@ -112,7 +113,6 @@ static inline void client_obd_list_unlock(client_obd_lock_t *lock)
 	lock->time = jiffies;
 	spin_unlock(&lock->lock);
 }
-
 
 static inline void client_obd_list_lock_init(client_obd_lock_t *lock)
 {

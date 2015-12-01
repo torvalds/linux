@@ -38,6 +38,7 @@ static inline struct nf_udp_net *udp_pernet(struct net *net)
 
 static bool udp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
+			     struct net *net,
 			     struct nf_conntrack_tuple *tuple)
 {
 	const struct udphdr *hp;

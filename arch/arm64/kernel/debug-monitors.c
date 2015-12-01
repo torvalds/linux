@@ -26,14 +26,16 @@
 #include <linux/stat.h>
 #include <linux/uaccess.h>
 
-#include <asm/debug-monitors.h>
+#include <asm/cpufeature.h>
 #include <asm/cputype.h>
+#include <asm/debug-monitors.h>
 #include <asm/system_misc.h>
 
 /* Determine debug architecture. */
 u8 debug_monitors_arch(void)
 {
-	return read_cpuid(ID_AA64DFR0_EL1) & 0xf;
+	return cpuid_feature_extract_field(read_system_reg(SYS_ID_AA64DFR0_EL1),
+						ID_AA64DFR0_DEBUGVER_SHIFT);
 }
 
 /*
@@ -58,7 +60,7 @@ static u32 mdscr_read(void)
  * Allow root to disable self-hosted debug from userspace.
  * This is useful if you want to connect an external JTAG debugger.
  */
-static u32 debug_enabled = 1;
+static bool debug_enabled = true;
 
 static int create_debug_debugfs_entry(void)
 {
@@ -69,7 +71,7 @@ fs_initcall(create_debug_debugfs_entry);
 
 static int __init early_debug_disable(char *buf)
 {
-	debug_enabled = 0;
+	debug_enabled = false;
 	return 0;
 }
 

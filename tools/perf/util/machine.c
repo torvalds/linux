@@ -35,6 +35,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->last_match = NULL;
 
 	machine->vdso_info = NULL;
+	machine->env = NULL;
 
 	machine->pid = pid;
 
@@ -90,6 +91,7 @@ static void dsos__purge(struct dsos *dsos)
 
 	list_for_each_entry_safe(pos, n, &dsos->head, node) {
 		RB_CLEAR_NODE(&pos->rb_node);
+		pos->root = NULL;
 		list_del_init(&pos->node);
 		dso__put(pos);
 	}
@@ -624,7 +626,7 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
 {
 	int i;
 	size_t printed = 0;
-	struct dso *kdso = machine->vmlinux_maps[MAP__FUNCTION]->dso;
+	struct dso *kdso = machine__kernel_map(machine)->dso;
 
 	if (kdso->has_build_id) {
 		char filename[PATH_MAX];
@@ -740,6 +742,7 @@ int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;
+		struct map *map;
 
 		machine->vmlinux_maps[type] = map__new2(start, kernel, type);
 		if (machine->vmlinux_maps[type] == NULL)
@@ -748,13 +751,13 @@ int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 		machine->vmlinux_maps[type]->map_ip =
 			machine->vmlinux_maps[type]->unmap_ip =
 				identity__map_ip;
-		kmap = map__kmap(machine->vmlinux_maps[type]);
+		map = __machine__kernel_map(machine, type);
+		kmap = map__kmap(map);
 		if (!kmap)
 			return -1;
 
 		kmap->kmaps = &machine->kmaps;
-		map_groups__insert(&machine->kmaps,
-				   machine->vmlinux_maps[type]);
+		map_groups__insert(&machine->kmaps, map);
 	}
 
 	return 0;
@@ -766,13 +769,13 @@ void machine__destroy_kernel_maps(struct machine *machine)
 
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;
+		struct map *map = __machine__kernel_map(machine, type);
 
-		if (machine->vmlinux_maps[type] == NULL)
+		if (map == NULL)
 			continue;
 
-		kmap = map__kmap(machine->vmlinux_maps[type]);
-		map_groups__remove(&machine->kmaps,
-				   machine->vmlinux_maps[type]);
+		kmap = map__kmap(map);
+		map_groups__remove(&machine->kmaps, map);
 		if (kmap && kmap->ref_reloc_sym) {
 			/*
 			 * ref_reloc_sym is shared among all maps, so free just
@@ -866,7 +869,7 @@ int machines__create_kernel_maps(struct machines *machines, pid_t pid)
 int machine__load_kallsyms(struct machine *machine, const char *filename,
 			   enum map_type type, symbol_filter_t filter)
 {
-	struct map *map = machine->vmlinux_maps[type];
+	struct map *map = machine__kernel_map(machine);
 	int ret = dso__load_kallsyms(map->dso, filename, map, filter);
 
 	if (ret > 0) {
@@ -885,7 +888,7 @@ int machine__load_kallsyms(struct machine *machine, const char *filename,
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 			       symbol_filter_t filter)
 {
-	struct map *map = machine->vmlinux_maps[type];
+	struct map *map = machine__kernel_map(machine);
 	int ret = dso__load_vmlinux_path(map->dso, map, filter);
 
 	if (ret > 0)
@@ -1243,8 +1246,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			/*
 			 * preload dso of guest kernel and modules
 			 */
-			dso__load(kernel, machine->vmlinux_maps[MAP__FUNCTION],
-				  NULL);
+			dso__load(kernel, machine__kernel_map(machine), NULL);
 		}
 	}
 	return 0;
@@ -1830,7 +1832,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	}
 
 check_calls:
-	if (chain->nr > PERF_MAX_STACK_DEPTH) {
+	if (chain->nr > PERF_MAX_STACK_DEPTH && (int)chain->nr > max_stack) {
 		pr_warning("corrupted callchain. skipping...\n");
 		return 0;
 	}
@@ -1996,7 +1998,7 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 
 int machine__get_kernel_start(struct machine *machine)
 {
-	struct map *map = machine__kernel_map(machine, MAP__FUNCTION);
+	struct map *map = machine__kernel_map(machine);
 	int err = 0;
 
 	/*

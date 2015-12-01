@@ -29,7 +29,7 @@
  */
 
 #include <media/v4l2-ioctl.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 #include "usbtv.h"
 
@@ -306,7 +306,7 @@ static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 
 	/* First available buffer. */
 	buf = list_first_entry(&usbtv->bufs, struct usbtv_buf, list);
-	frame = vb2_plane_vaddr(&buf->vb, 0);
+	frame = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
 	/* Copy the chunk data. */
 	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_no, odd);
@@ -314,17 +314,17 @@ static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 
 	/* Last chunk in a frame, signalling an end */
 	if (odd && chunk_no == usbtv->n_chunks-1) {
-		int size = vb2_plane_size(&buf->vb, 0);
+		int size = vb2_plane_size(&buf->vb.vb2_buf, 0);
 		enum vb2_buffer_state state = usbtv->chunks_done ==
 						usbtv->n_chunks ?
 						VB2_BUF_STATE_DONE :
 						VB2_BUF_STATE_ERROR;
 
-		buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
-		buf->vb.v4l2_buf.sequence = usbtv->sequence++;
-		v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-		vb2_set_plane_payload(&buf->vb, 0, size);
-		vb2_buffer_done(&buf->vb, state);
+		buf->vb.field = V4L2_FIELD_INTERLACED;
+		buf->vb.sequence = usbtv->sequence++;
+		v4l2_get_timestamp(&buf->vb.timestamp);
+		vb2_set_plane_payload(&buf->vb.vb2_buf, 0, size);
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
 
@@ -422,7 +422,7 @@ static void usbtv_stop(struct usbtv *usbtv)
 	while (!list_empty(&usbtv->bufs)) {
 		struct usbtv_buf *buf = list_first_entry(&usbtv->bufs,
 						struct usbtv_buf, list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		list_del(&buf->list);
 	}
 	spin_unlock_irqrestore(&usbtv->buflock, flags);
@@ -599,9 +599,10 @@ static struct v4l2_file_operations usbtv_fops = {
 };
 
 static int usbtv_queue_setup(struct vb2_queue *vq,
-	const struct v4l2_format *fmt, unsigned int *nbuffers,
+	const void *parg, unsigned int *nbuffers,
 	unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct usbtv *usbtv = vb2_get_drv_priv(vq);
 	unsigned size = USBTV_CHUNK * usbtv->n_chunks * 2 * sizeof(u32);
 
@@ -617,8 +618,9 @@ static int usbtv_queue_setup(struct vb2_queue *vq,
 
 static void usbtv_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct usbtv *usbtv = vb2_get_drv_priv(vb->vb2_queue);
-	struct usbtv_buf *buf = container_of(vb, struct usbtv_buf, vb);
+	struct usbtv_buf *buf = container_of(vbuf, struct usbtv_buf, vb);
 	unsigned long flags;
 
 	if (usbtv->udev == NULL) {

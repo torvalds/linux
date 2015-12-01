@@ -292,11 +292,7 @@ _no_romfs_in_flash:
 	;; For cramfs, partition starts with magic and length.
 	;; For jffs2, a jhead is prepended which contains with magic and length.
 	;; The jhead is not part of the jffs2 partition however.
-#ifndef CONFIG_ETRAXFS_SIM
 	move.d	__bss_start, $r0
-#else
-	move.d	__end, $r0
-#endif
 	move.d	[$r0], $r1
 	cmp.d	CRAMFS_MAGIC, $r1 ; cramfs magic?
 	beq	2f		  ; yes, jump

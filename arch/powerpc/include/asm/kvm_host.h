@@ -297,8 +297,6 @@ struct kvmppc_vcore {
 	u32 arch_compat;
 	ulong pcr;
 	ulong dpdes;		/* doorbell state (POWER8) */
-	void *mpp_buffer; /* Micro Partition Prefetch buffer */
-	bool mpp_buffer_is_valid;
 	ulong conferring_threads;
 };
 
@@ -718,5 +716,7 @@ static inline void kvm_arch_memslots_updated(struct kvm *kvm, struct kvm_memslot
 static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_exit(void) {}
+static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
 
 #endif /* __POWERPC_KVM_HOST_H__ */

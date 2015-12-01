@@ -591,6 +591,7 @@
 			cpts_clock_mult = <0x80000000>;
 			cpts_clock_shift = <29>;
 			ranges;
+			syscon = <&scm_conf>;
 
 			davinci_mdio: mdio@4a101000 {
 				compatible = "ti,am4372-mdio","ti,davinci_mdio";

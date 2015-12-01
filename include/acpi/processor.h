@@ -311,6 +311,20 @@ phys_cpuid_t acpi_get_phys_id(acpi_handle, int type, u32 acpi_id);
 int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id);
 int acpi_get_cpuid(acpi_handle, int type, u32 acpi_id);
 
+#ifdef CONFIG_ACPI_CPPC_LIB
+extern int acpi_cppc_processor_probe(struct acpi_processor *pr);
+extern void acpi_cppc_processor_exit(struct acpi_processor *pr);
+#else
+static inline int acpi_cppc_processor_probe(struct acpi_processor *pr)
+{
+	return 0;
+}
+static inline void acpi_cppc_processor_exit(struct acpi_processor *pr)
+{
+	return;
+}
+#endif	/* CONFIG_ACPI_CPPC_LIB */
+
 /* in processor_pdc.c */
 void acpi_processor_set_pdc(acpi_handle handle);
 

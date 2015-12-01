@@ -43,8 +43,6 @@
 #include <scsi/scsi_cmnd.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_fabric_configfs.h>
-#include <target/configfs_macros.h>
 
 #include "qla_def.h"
 #include "qla_target.h"
@@ -729,23 +727,23 @@ static int tcm_qla2xxx_init_nodeacl(struct se_node_acl *se_nacl,
 
 #define DEF_QLA_TPG_ATTRIB(name)					\
 									\
-static ssize_t tcm_qla2xxx_tpg_attrib_show_##name(			\
-	struct se_portal_group *se_tpg,					\
-	char *page)							\
+static ssize_t tcm_qla2xxx_tpg_attrib_##name##_show(			\
+		struct config_item *item, char *page)			\
 {									\
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);		\
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,		\
 			struct tcm_qla2xxx_tpg, se_tpg);		\
 									\
 	return sprintf(page, "%u\n", tpg->tpg_attrib.name);	\
 }									\
 									\
-static ssize_t tcm_qla2xxx_tpg_attrib_store_##name(			\
-	struct se_portal_group *se_tpg,					\
-	const char *page,						\
-	size_t count)							\
+static ssize_t tcm_qla2xxx_tpg_attrib_##name##_store(			\
+		struct config_item *item, const char *page, size_t count) \
 {									\
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);		\
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,		\
 			struct tcm_qla2xxx_tpg, se_tpg);		\
+	struct tcm_qla2xxx_tpg_attrib *a = &tpg->tpg_attrib;		\
 	unsigned long val;						\
 	int ret;							\
 									\
@@ -755,81 +753,39 @@ static ssize_t tcm_qla2xxx_tpg_attrib_store_##name(			\
 				" ret: %d\n", ret);			\
 		return -EINVAL;						\
 	}								\
-	ret = tcm_qla2xxx_set_attrib_##name(tpg, val);			\
-									\
-	return (!ret) ? count : -EINVAL;				\
-}
-
-#define DEF_QLA_TPG_ATTR_BOOL(_name)					\
-									\
-static int tcm_qla2xxx_set_attrib_##_name(				\
-	struct tcm_qla2xxx_tpg *tpg,					\
-	unsigned long val)						\
-{									\
-	struct tcm_qla2xxx_tpg_attrib *a = &tpg->tpg_attrib;		\
 									\
 	if ((val != 0) && (val != 1)) {					\
 		pr_err("Illegal boolean value %lu\n", val);		\
 		return -EINVAL;						\
 	}								\
 									\
-	a->_name = val;							\
-	return 0;							\
-}
+	a->name = val;							\
+									\
+	return count;							\
+}									\
+CONFIGFS_ATTR(tcm_qla2xxx_tpg_attrib_, name)
 
-#define QLA_TPG_ATTR(_name, _mode) \
-	TF_TPG_ATTRIB_ATTR(tcm_qla2xxx, _name, _mode);
-
-/*
- * Define tcm_qla2xxx_tpg_attrib_s_generate_node_acls
- */
-DEF_QLA_TPG_ATTR_BOOL(generate_node_acls);
 DEF_QLA_TPG_ATTRIB(generate_node_acls);
-QLA_TPG_ATTR(generate_node_acls, S_IRUGO | S_IWUSR);
-
-/*
- Define tcm_qla2xxx_attrib_s_cache_dynamic_acls
- */
-DEF_QLA_TPG_ATTR_BOOL(cache_dynamic_acls);
 DEF_QLA_TPG_ATTRIB(cache_dynamic_acls);
-QLA_TPG_ATTR(cache_dynamic_acls, S_IRUGO | S_IWUSR);
-
-/*
- * Define tcm_qla2xxx_tpg_attrib_s_demo_mode_write_protect
- */
-DEF_QLA_TPG_ATTR_BOOL(demo_mode_write_protect);
 DEF_QLA_TPG_ATTRIB(demo_mode_write_protect);
-QLA_TPG_ATTR(demo_mode_write_protect, S_IRUGO | S_IWUSR);
-
-/*
- * Define tcm_qla2xxx_tpg_attrib_s_prod_mode_write_protect
- */
-DEF_QLA_TPG_ATTR_BOOL(prod_mode_write_protect);
 DEF_QLA_TPG_ATTRIB(prod_mode_write_protect);
-QLA_TPG_ATTR(prod_mode_write_protect, S_IRUGO | S_IWUSR);
-
-/*
- * Define tcm_qla2xxx_tpg_attrib_s_demo_mode_login_only
- */
-DEF_QLA_TPG_ATTR_BOOL(demo_mode_login_only);
 DEF_QLA_TPG_ATTRIB(demo_mode_login_only);
-QLA_TPG_ATTR(demo_mode_login_only, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *tcm_qla2xxx_tpg_attrib_attrs[] = {
-	&tcm_qla2xxx_tpg_attrib_generate_node_acls.attr,
-	&tcm_qla2xxx_tpg_attrib_cache_dynamic_acls.attr,
-	&tcm_qla2xxx_tpg_attrib_demo_mode_write_protect.attr,
-	&tcm_qla2xxx_tpg_attrib_prod_mode_write_protect.attr,
-	&tcm_qla2xxx_tpg_attrib_demo_mode_login_only.attr,
+	&tcm_qla2xxx_tpg_attrib_attr_generate_node_acls,
+	&tcm_qla2xxx_tpg_attrib_attr_cache_dynamic_acls,
+	&tcm_qla2xxx_tpg_attrib_attr_demo_mode_write_protect,
+	&tcm_qla2xxx_tpg_attrib_attr_prod_mode_write_protect,
+	&tcm_qla2xxx_tpg_attrib_attr_demo_mode_login_only,
 	NULL,
 };
 
 /* End items for tcm_qla2xxx_tpg_attrib_cit */
 
-static ssize_t tcm_qla2xxx_tpg_show_enable(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t tcm_qla2xxx_tpg_enable_show(struct config_item *item,
+		char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
 			struct tcm_qla2xxx_tpg, se_tpg);
 
@@ -865,11 +821,10 @@ static void tcm_qla2xxx_undepend_tpg(struct work_struct *work)
 	complete(&base_tpg->tpg_base_comp);
 }
 
-static ssize_t tcm_qla2xxx_tpg_store_enable(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t tcm_qla2xxx_tpg_enable_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
 			struct tcm_qla2xxx_tpg, se_tpg);
 	unsigned long op;
@@ -909,22 +864,16 @@ static ssize_t tcm_qla2xxx_tpg_store_enable(
 	return count;
 }
 
-TF_TPG_BASE_ATTR(tcm_qla2xxx, enable, S_IRUGO | S_IWUSR);
-
-static ssize_t tcm_qla2xxx_tpg_show_dynamic_sessions(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t tcm_qla2xxx_tpg_dynamic_sessions_show(struct config_item *item,
+		char *page)
 {
-	return target_show_dynamic_sessions(se_tpg, page);
+	return target_show_dynamic_sessions(to_tpg(item), page);
 }
 
-TF_TPG_BASE_ATTR_RO(tcm_qla2xxx, dynamic_sessions);
-
-static ssize_t tcm_qla2xxx_tpg_store_fabric_prot_type(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t tcm_qla2xxx_tpg_fabric_prot_type_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
 				struct tcm_qla2xxx_tpg, se_tpg);
 	unsigned long val;
@@ -943,21 +892,24 @@ static ssize_t tcm_qla2xxx_tpg_store_fabric_prot_type(
 	return count;
 }
 
-static ssize_t tcm_qla2xxx_tpg_show_fabric_prot_type(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t tcm_qla2xxx_tpg_fabric_prot_type_show(struct config_item *item,
+		char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
 				struct tcm_qla2xxx_tpg, se_tpg);
 
 	return sprintf(page, "%d\n", tpg->tpg_attrib.fabric_prot_type);
 }
-TF_TPG_BASE_ATTR(tcm_qla2xxx, fabric_prot_type, S_IRUGO | S_IWUSR);
+
+CONFIGFS_ATTR(tcm_qla2xxx_tpg_, enable);
+CONFIGFS_ATTR_RO(tcm_qla2xxx_tpg_, dynamic_sessions);
+CONFIGFS_ATTR(tcm_qla2xxx_tpg_, fabric_prot_type);
 
 static struct configfs_attribute *tcm_qla2xxx_tpg_attrs[] = {
-	&tcm_qla2xxx_tpg_enable.attr,
-	&tcm_qla2xxx_tpg_dynamic_sessions.attr,
-	&tcm_qla2xxx_tpg_fabric_prot_type.attr,
+	&tcm_qla2xxx_tpg_attr_enable,
+	&tcm_qla2xxx_tpg_attr_dynamic_sessions,
+	&tcm_qla2xxx_tpg_attr_fabric_prot_type,
 	NULL,
 };
 
@@ -1030,18 +982,16 @@ static void tcm_qla2xxx_drop_tpg(struct se_portal_group *se_tpg)
 	kfree(tpg);
 }
 
-static ssize_t tcm_qla2xxx_npiv_tpg_show_enable(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t tcm_qla2xxx_npiv_tpg_enable_show(struct config_item *item,
+		char *page)
 {
-	return tcm_qla2xxx_tpg_show_enable(se_tpg, page);
+	return tcm_qla2xxx_tpg_enable_show(item, page);
 }
 
-static ssize_t tcm_qla2xxx_npiv_tpg_store_enable(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t tcm_qla2xxx_npiv_tpg_enable_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct se_wwn *se_wwn = se_tpg->se_tpg_wwn;
 	struct tcm_qla2xxx_lport *lport = container_of(se_wwn,
 			struct tcm_qla2xxx_lport, lport_wwn);
@@ -1077,10 +1027,10 @@ static ssize_t tcm_qla2xxx_npiv_tpg_store_enable(
 	return count;
 }
 
-TF_TPG_BASE_ATTR(tcm_qla2xxx_npiv, enable, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(tcm_qla2xxx_npiv_tpg_, enable);
 
 static struct configfs_attribute *tcm_qla2xxx_npiv_tpg_attrs[] = {
-        &tcm_qla2xxx_npiv_tpg_enable.attr,
+        &tcm_qla2xxx_npiv_tpg_attr_enable,
         NULL,
 };
 
@@ -1783,9 +1733,8 @@ static void tcm_qla2xxx_npiv_drop_lport(struct se_wwn *wwn)
 }
 
 
-static ssize_t tcm_qla2xxx_wwn_show_attr_version(
-	struct target_fabric_configfs *tf,
-	char *page)
+static ssize_t tcm_qla2xxx_wwn_version_show(struct config_item *item,
+		char *page)
 {
 	return sprintf(page,
 	    "TCM QLOGIC QLA2XXX NPIV capable fabric module %s on %s/%s on "
@@ -1793,10 +1742,10 @@ static ssize_t tcm_qla2xxx_wwn_show_attr_version(
 	    utsname()->machine);
 }
 
-TF_WWN_ATTR_RO(tcm_qla2xxx, version);
+CONFIGFS_ATTR_RO(tcm_qla2xxx_wwn_, version);
 
 static struct configfs_attribute *tcm_qla2xxx_wwn_attrs[] = {
-	&tcm_qla2xxx_wwn_version.attr,
+	&tcm_qla2xxx_wwn_attr_version,
 	NULL,
 };
 

@@ -689,13 +689,13 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	msg_set_hdr_sz(mhdr, MCAST_H_SIZE);
 
 new_mtu:
-	mtu = tipc_bclink_get_mtu();
+	mtu = tipc_bcast_get_mtu(net);
 	rc = tipc_msg_build(mhdr, msg, 0, dsz, mtu, pktchain);
 	if (unlikely(rc < 0))
 		return rc;
 
 	do {
-		rc = tipc_bclink_xmit(net, pktchain);
+		rc = tipc_bcast_xmit(net, pktchain);
 		if (likely(!rc))
 			return dsz;
 

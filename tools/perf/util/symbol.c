@@ -624,7 +624,7 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	 * symbols, setting length to 0, and rely on
 	 * symbols__fixup_end() to fix it up.
 	 */
-	sym = symbol__new(start, 0, kallsyms2elf_type(type), name);
+	sym = symbol__new(start, 0, kallsyms2elf_binding(type), name);
 	if (sym == NULL)
 		return -ENOMEM;
 	/*
@@ -654,18 +654,23 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 	struct map_groups *kmaps = map__kmaps(map);
 	struct map *curr_map;
 	struct symbol *pos;
-	int count = 0, moved = 0;
+	int count = 0;
+	struct rb_root old_root = dso->symbols[map->type];
 	struct rb_root *root = &dso->symbols[map->type];
 	struct rb_node *next = rb_first(root);
 
 	if (!kmaps)
 		return -1;
 
+	*root = RB_ROOT;
+
 	while (next) {
 		char *module;
 
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
+
+		rb_erase_init(&pos->rb_node, &old_root);
 
 		module = strchr(pos->name, '\t');
 		if (module)
@@ -674,28 +679,21 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 		curr_map = map_groups__find(kmaps, map->type, pos->start);
 
 		if (!curr_map || (filter && filter(curr_map, pos))) {
-			rb_erase_init(&pos->rb_node, root);
 			symbol__delete(pos);
-		} else {
-			pos->start -= curr_map->start - curr_map->pgoff;
-			if (pos->end)
-				pos->end -= curr_map->start - curr_map->pgoff;
-			if (curr_map != map) {
-				rb_erase_init(&pos->rb_node, root);
-				symbols__insert(
-					&curr_map->dso->symbols[curr_map->type],
-					pos);
-				++moved;
-			} else {
-				++count;
-			}
+			continue;
 		}
+
+		pos->start -= curr_map->start - curr_map->pgoff;
+		if (pos->end)
+			pos->end -= curr_map->start - curr_map->pgoff;
+		symbols__insert(&curr_map->dso->symbols[curr_map->type], pos);
+		++count;
 	}
 
 	/* Symbols have been adjusted */
 	dso->adjust_symbols = 1;
 
-	return count + moved;
+	return count;
 }
 
 /*
@@ -1406,6 +1404,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	struct symsrc ss_[2];
 	struct symsrc *syms_ss = NULL, *runtime_ss = NULL;
 	bool kmod;
+	unsigned char build_id[BUILD_ID_SIZE];
 
 	pthread_mutex_lock(&dso->lock);
 
@@ -1437,9 +1436,9 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		if (lstat(dso->name, &st) < 0)
 			goto out;
 
-		if (st.st_uid && (st.st_uid != geteuid())) {
+		if (!symbol_conf.force && st.st_uid && (st.st_uid != geteuid())) {
 			pr_warning("File %s not owned by current user or root, "
-				"ignoring it.\n", dso->name);
+				   "ignoring it (use -f to override).\n", dso->name);
 			goto out;
 		}
 
@@ -1460,6 +1459,14 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP ||
 		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE ||
 		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
+
+
+	/*
+	 * Read the build id if possible. This is required for
+	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work
+	 */
+	if (filename__read_build_id(dso->name, build_id, BUILD_ID_SIZE) > 0)
+		dso__set_build_id(dso, build_id);
 
 	/*
 	 * Iterate over candidate debug images.
@@ -1607,6 +1614,15 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 	int i, err = 0;
 	char *filename = NULL;
 
+	pr_debug("Looking at the vmlinux_path (%d entries long)\n",
+		 vmlinux_path__nr_entries + 1);
+
+	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
+		err = dso__load_vmlinux(dso, map, vmlinux_path[i], false, filter);
+		if (err > 0)
+			goto out;
+	}
+
 	if (!symbol_conf.ignore_vmlinux_buildid)
 		filename = dso__build_id_filename(dso, NULL, 0);
 	if (filename != NULL) {
@@ -1614,15 +1630,6 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 		if (err > 0)
 			goto out;
 		free(filename);
-	}
-
-	pr_debug("Looking at the vmlinux_path (%d entries long)\n",
-		 vmlinux_path__nr_entries + 1);
-
-	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
-		err = dso__load_vmlinux(dso, map, vmlinux_path[i], false, filter);
-		if (err > 0)
-			break;
 	}
 out:
 	return err;

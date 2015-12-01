@@ -347,6 +347,7 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 {
 	struct seccomp_filter *sfilter;
 	int ret;
+	const bool save_orig = config_enabled(CONFIG_CHECKPOINT_RESTORE);
 
 	if (fprog->len == 0 || fprog->len > BPF_MAXINSNS)
 		return ERR_PTR(-EINVAL);
@@ -370,7 +371,7 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 		return ERR_PTR(-ENOMEM);
 
 	ret = bpf_prog_create_from_user(&sfilter->prog, fprog,
-					seccomp_check_filter);
+					seccomp_check_filter, save_orig);
 	if (ret < 0) {
 		kfree(sfilter);
 		return ERR_PTR(ret);
@@ -469,7 +470,7 @@ void get_seccomp_filter(struct task_struct *tsk)
 static inline void seccomp_filter_free(struct seccomp_filter *filter)
 {
 	if (filter) {
-		bpf_prog_free(filter->prog);
+		bpf_prog_destroy(filter->prog);
 		kfree(filter);
 	}
 }
@@ -867,3 +868,76 @@ long prctl_set_seccomp(unsigned long seccomp_mode, char __user *filter)
 	/* prctl interface doesn't have flags, so they are always zero. */
 	return do_seccomp(op, 0, uargs);
 }
+
+#if defined(CONFIG_SECCOMP_FILTER) && defined(CONFIG_CHECKPOINT_RESTORE)
+long seccomp_get_filter(struct task_struct *task, unsigned long filter_off,
+			void __user *data)
+{
+	struct seccomp_filter *filter;
+	struct sock_fprog_kern *fprog;
+	long ret;
+	unsigned long count = 0;
+
+	if (!capable(CAP_SYS_ADMIN) ||
+	    current->seccomp.mode != SECCOMP_MODE_DISABLED) {
+		return -EACCES;
+	}
+
+	spin_lock_irq(&task->sighand->siglock);
+	if (task->seccomp.mode != SECCOMP_MODE_FILTER) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	filter = task->seccomp.filter;
+	while (filter) {
+		filter = filter->prev;
+		count++;
+	}
+
+	if (filter_off >= count) {
+		ret = -ENOENT;
+		goto out;
+	}
+	count -= filter_off;
+
+	filter = task->seccomp.filter;
+	while (filter && count > 1) {
+		filter = filter->prev;
+		count--;
+	}
+
+	if (WARN_ON(count != 1 || !filter)) {
+		/* The filter tree shouldn't shrink while we're using it. */
+		ret = -ENOENT;
+		goto out;
+	}
+
+	fprog = filter->prog->orig_prog;
+	if (!fprog) {
+		/* This must be a new non-cBPF filter, since we save every
+		 * every cBPF filter's orig_prog above when
+		 * CONFIG_CHECKPOINT_RESTORE is enabled.
+		 */
+		ret = -EMEDIUMTYPE;
+		goto out;
+	}
+
+	ret = fprog->len;
+	if (!data)
+		goto out;
+
+	get_seccomp_filter(task);
+	spin_unlock_irq(&task->sighand->siglock);
+
+	if (copy_to_user(data, fprog->filter, bpf_classic_proglen(fprog)))
+		ret = -EFAULT;
+
+	put_seccomp_filter(task);
+	return ret;
+
+out:
+	spin_unlock_irq(&task->sighand->siglock);
+	return ret;
+}
+#endif

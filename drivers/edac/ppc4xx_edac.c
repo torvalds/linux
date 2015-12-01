@@ -199,6 +199,7 @@ static const struct of_device_id ppc4xx_edac_match[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, ppc4xx_edac_match);
 
 static struct platform_driver ppc4xx_edac_driver = {
 	.probe			= ppc4xx_edac_probe,

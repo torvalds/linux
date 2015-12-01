@@ -144,6 +144,7 @@ int mdio_mux_init(struct device *dev,
 			dev_err(dev,
 				"Error: Failed to allocate memory for child\n");
 			ret_val = -ENOMEM;
+			of_node_put(child_bus_node);
 			break;
 		}
 		cb->bus_number = v;

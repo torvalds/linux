@@ -84,7 +84,15 @@ enum mx35_clks {
 
 static struct clk *clk[clk_max];
 
-int __init mx35_clocks_init(void)
+static struct clk ** const uart_clks[] __initconst = {
+	&clk[ipg],
+	&clk[uart1_gate],
+	&clk[uart2_gate],
+	&clk[uart3_gate],
+	NULL
+};
+
+static void __init _mx35_clocks_init(void)
 {
 	void __iomem *base;
 	u32 pdr0, consumer_sel, hsp_sel;
@@ -220,6 +228,32 @@ int __init mx35_clocks_init(void)
 
 	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
+	clk_prepare_enable(clk[spba_gate]);
+	clk_prepare_enable(clk[gpio1_gate]);
+	clk_prepare_enable(clk[gpio2_gate]);
+	clk_prepare_enable(clk[gpio3_gate]);
+	clk_prepare_enable(clk[iim_gate]);
+	clk_prepare_enable(clk[emi_gate]);
+	clk_prepare_enable(clk[max_gate]);
+	clk_prepare_enable(clk[iomuxc_gate]);
+
+	/*
+	 * SCC is needed to boot via mmc after a watchdog reset. The clock code
+	 * before conversion to common clk also enabled UART1 (which isn't
+	 * handled here and not needed for mmc) and IIM (which is enabled
+	 * unconditionally above).
+	 */
+	clk_prepare_enable(clk[scc_gate]);
+
+	imx_register_uart_clocks(uart_clks);
+
+	imx_print_silicon_rev("i.MX35", mx35_revision());
+}
+
+int __init mx35_clocks_init(void)
+{
+	_mx35_clocks_init();
+
 	clk_register_clkdev(clk[pata_gate], NULL, "pata_imx");
 	clk_register_clkdev(clk[can1_gate], NULL, "flexcan.0");
 	clk_register_clkdev(clk[can2_gate], NULL, "flexcan.1");
@@ -279,25 +313,6 @@ int __init mx35_clocks_init(void)
 	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");
 	clk_register_clkdev(clk[admux_gate], "audmux", NULL);
 
-	clk_prepare_enable(clk[spba_gate]);
-	clk_prepare_enable(clk[gpio1_gate]);
-	clk_prepare_enable(clk[gpio2_gate]);
-	clk_prepare_enable(clk[gpio3_gate]);
-	clk_prepare_enable(clk[iim_gate]);
-	clk_prepare_enable(clk[emi_gate]);
-	clk_prepare_enable(clk[max_gate]);
-	clk_prepare_enable(clk[iomuxc_gate]);
-
-	/*
-	 * SCC is needed to boot via mmc after a watchdog reset. The clock code
-	 * before conversion to common clk also enabled UART1 (which isn't
-	 * handled here and not needed for mmc) and IIM (which is enabled
-	 * unconditionally above).
-	 */
-	clk_prepare_enable(clk[scc_gate]);
-
-	imx_print_silicon_rev("i.MX35", mx35_revision());
-
 	mxc_timer_init(MX35_GPT1_BASE_ADDR, MX35_INT_GPT, GPT_TYPE_IMX31);
 
 	return 0;
@@ -305,10 +320,10 @@ int __init mx35_clocks_init(void)
 
 static void __init mx35_clocks_init_dt(struct device_node *ccm_node)
 {
+	_mx35_clocks_init();
+
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(ccm_node, of_clk_src_onecell_get, &clk_data);
-
-	mx35_clocks_init();
 }
 CLK_OF_DECLARE(imx35, "fsl,imx35-ccm", mx35_clocks_init_dt);

@@ -97,7 +97,9 @@ static void *
 nvkm_instobj_dtor(struct nvkm_memory *memory)
 {
 	struct nvkm_instobj *iobj = nvkm_instobj(memory);
+	spin_lock(&iobj->imem->lock);
 	list_del(&iobj->head);
+	spin_unlock(&iobj->imem->lock);
 	nvkm_memory_del(&iobj->parent);
 	return iobj;
 }
@@ -190,7 +192,9 @@ nvkm_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
 		nvkm_memory_ctor(&nvkm_instobj_func_slow, &iobj->memory);
 		iobj->parent = memory;
 		iobj->imem = imem;
+		spin_lock(&iobj->imem->lock);
 		list_add_tail(&iobj->head, &imem->list);
+		spin_unlock(&iobj->imem->lock);
 		memory = &iobj->memory;
 	}
 
@@ -309,5 +313,6 @@ nvkm_instmem_ctor(const struct nvkm_instmem_func *func,
 {
 	nvkm_subdev_ctor(&nvkm_instmem, device, index, 0, &imem->subdev);
 	imem->func = func;
+	spin_lock_init(&imem->lock);
 	INIT_LIST_HEAD(&imem->list);
 }

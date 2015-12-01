@@ -13,7 +13,6 @@
 
 unsigned long mpc5xxx_get_bus_frequency(struct device_node *node)
 {
-	struct device_node *np;
 	const unsigned int *p_bus_freq = NULL;
 
 	of_node_get(node);
@@ -22,9 +21,7 @@ unsigned long mpc5xxx_get_bus_frequency(struct device_node *node)
 		if (p_bus_freq)
 			break;
 
-		np = of_get_parent(node);
-		of_node_put(node);
-		node = np;
+		node = of_get_next_parent(node);
 	}
 	of_node_put(node);
 

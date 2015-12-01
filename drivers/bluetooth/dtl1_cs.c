@@ -357,8 +357,6 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 
 static int dtl1_hci_open(struct hci_dev *hdev)
 {
-	set_bit(HCI_RUNNING, &(hdev->flags));
-
 	return 0;
 }
 
@@ -376,9 +374,6 @@ static int dtl1_hci_flush(struct hci_dev *hdev)
 
 static int dtl1_hci_close(struct hci_dev *hdev)
 {
-	if (!test_and_clear_bit(HCI_RUNNING, &(hdev->flags)))
-		return 0;
-
 	dtl1_hci_flush(hdev);
 
 	return 0;

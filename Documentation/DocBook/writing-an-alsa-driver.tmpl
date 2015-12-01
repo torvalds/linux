@@ -2181,10 +2181,6 @@ struct _snd_pcm_runtime {
 	struct snd_pcm_hardware hw;
 	struct snd_pcm_hw_constraints hw_constraints;
 
-	/* -- interrupt callbacks -- */
-	void (*transfer_ack_begin)(struct snd_pcm_substream *substream);
-	void (*transfer_ack_end)(struct snd_pcm_substream *substream);
-
 	/* -- timer -- */
 	unsigned int timer_resolution;	/* timer resolution */
 
@@ -2209,9 +2205,8 @@ struct _snd_pcm_runtime {
 	  For the operators (callbacks) of each sound driver, most of
 	these records are supposed to be read-only.  Only the PCM
 	middle-layer changes / updates them.  The exceptions are
-	the hardware description (hw), interrupt callbacks
-	(transfer_ack_xxx), DMA buffer information, and the private
-	data.  Besides, if you use the standard buffer allocation
+	the hardware description (hw) DMA buffer information and the
+	private data.  Besides, if you use the standard buffer allocation
 	method via <function>snd_pcm_lib_malloc_pages()</function>,
 	you don't need to set the DMA buffer information by yourself.
 	</para>
@@ -2536,16 +2531,6 @@ struct _snd_pcm_runtime {
 	<link linkend="pcm-interface-operators-open-callback"><citetitle>
 	the close callback</citetitle></link>.
         </para>
-	</section>
-
-	<section id="pcm-interface-runtime-intr">
-	<title>Interrupt Callbacks</title>
-	<para>
-	The field <structfield>transfer_ack_begin</structfield> and
-	<structfield>transfer_ack_end</structfield> are called at
-	the beginning and at the end of
-	<function>snd_pcm_period_elapsed()</function>, respectively. 
-	</para>
 	</section>
 
     </section>

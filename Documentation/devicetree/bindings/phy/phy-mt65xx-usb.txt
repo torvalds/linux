@@ -1,0 +1,68 @@
+mt65xx USB3.0 PHY binding
+--------------------------
+
+This binding describes a usb3.0 phy for mt65xx platforms of Medaitek SoC.
+
+Required properties (controller (parent) node):
+ - compatible	: should be "mediatek,mt8173-u3phy"
+ - reg		: offset and length of register for phy, exclude port's
+		  register.
+ - clocks	: a list of phandle + clock-specifier pairs, one for each
+		  entry in clock-names
+ - clock-names	: must contain
+		  "u3phya_ref": for reference clock of usb3.0 analog phy.
+
+Required nodes	: a sub-node is required for each port the controller
+		  provides. Address range information including the usual
+		  'reg' property is used inside these nodes to describe
+		  the controller's topology.
+
+Required properties (port (child) node):
+- reg		: address and length of the register set for the port.
+- #phy-cells	: should be 1 (See second example)
+		  cell after port phandle is phy type from:
+			- PHY_TYPE_USB2
+			- PHY_TYPE_USB3
+
+Example:
+
+u3phy: usb-phy@11290000 {
+	compatible = "mediatek,mt8173-u3phy";
+	reg = <0 0x11290000 0 0x800>;
+	clocks = <&apmixedsys CLK_APMIXED_REF2USB_TX>;
+	clock-names = "u3phya_ref";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	ranges;
+	status = "okay";
+
+	phy_port0: port@11290800 {
+		reg = <0 0x11290800 0 0x800>;
+		#phy-cells = <1>;
+		status = "okay";
+	};
+
+	phy_port1: port@11291000 {
+		reg = <0 0x11291000 0 0x800>;
+		#phy-cells = <1>;
+		status = "okay";
+	};
+};
+
+Specifying phy control of devices
+---------------------------------
+
+Device nodes should specify the configuration required in their "phys"
+property, containing a phandle to the phy port node and a device type;
+phy-names for each port are optional.
+
+Example:
+
+#include <dt-bindings/phy/phy.h>
+
+usb30: usb@11270000 {
+	...
+	phys = <&phy_port0 PHY_TYPE_USB3>;
+	phy-names = "usb3-0";
+	...
+};

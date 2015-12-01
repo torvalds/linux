@@ -84,6 +84,7 @@ static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
 					  struct mask_info *socket,
 					  int one_socket_per_cpu)
 {
+	struct cpu_topology_s390 *topo;
 	unsigned int core;
 
 	for_each_set_bit(core, &tl_core->mask[0], TOPOLOGY_CORE_BITS) {
@@ -95,15 +96,16 @@ static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
 		if (lcpu < 0)
 			continue;
 		for (i = 0; i <= smp_cpu_mtid; i++) {
-			per_cpu(cpu_topology, lcpu + i).book_id = book->id;
-			per_cpu(cpu_topology, lcpu + i).core_id = rcore;
-			per_cpu(cpu_topology, lcpu + i).thread_id = lcpu + i;
+			topo = &per_cpu(cpu_topology, lcpu + i);
+			topo->book_id = book->id;
+			topo->core_id = rcore;
+			topo->thread_id = lcpu + i;
 			cpumask_set_cpu(lcpu + i, &book->mask);
 			cpumask_set_cpu(lcpu + i, &socket->mask);
 			if (one_socket_per_cpu)
-				per_cpu(cpu_topology, lcpu + i).socket_id = rcore;
+				topo->socket_id = rcore;
 			else
-				per_cpu(cpu_topology, lcpu + i).socket_id = socket->id;
+				topo->socket_id = socket->id;
 			smp_cpu_set_polarization(lcpu + i, tl_core->pp);
 		}
 		if (one_socket_per_cpu)
@@ -247,17 +249,19 @@ int topology_set_cpu_management(int fc)
 
 static void update_cpu_masks(void)
 {
+	struct cpu_topology_s390 *topo;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		per_cpu(cpu_topology, cpu).thread_mask = cpu_thread_map(cpu);
-		per_cpu(cpu_topology, cpu).core_mask = cpu_group_map(&socket_info, cpu);
-		per_cpu(cpu_topology, cpu).book_mask = cpu_group_map(&book_info, cpu);
+		topo = &per_cpu(cpu_topology, cpu);
+		topo->thread_mask = cpu_thread_map(cpu);
+		topo->core_mask = cpu_group_map(&socket_info, cpu);
+		topo->book_mask = cpu_group_map(&book_info, cpu);
 		if (!MACHINE_HAS_TOPOLOGY) {
-			per_cpu(cpu_topology, cpu).thread_id = cpu;
-			per_cpu(cpu_topology, cpu).core_id = cpu;
-			per_cpu(cpu_topology, cpu).socket_id = cpu;
-			per_cpu(cpu_topology, cpu).book_id = cpu;
+			topo->thread_id = cpu;
+			topo->core_id = cpu;
+			topo->socket_id = cpu;
+			topo->book_id = cpu;
 		}
 	}
 	numa_update_cpu_topology();

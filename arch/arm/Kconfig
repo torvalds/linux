@@ -76,6 +76,8 @@ config ARM
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_REL
 	select NO_BOOTMEM
+	select OF_EARLY_FLATTREE if OF
+	select OF_RESERVED_MEM if OF
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
 	select PERF_USE_VMALLOC
@@ -621,30 +623,9 @@ config ARCH_PXA
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
-config ARCH_SHMOBILE_LEGACY
-	bool "Renesas ARM SoCs (non-multiplatform)"
-	select ARCH_SHMOBILE
-	select ARM_PATCH_PHYS_VIRT if MMU
-	select CLKDEV_LOOKUP
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select MULTI_IRQ_HANDLER
-	select NO_IOPORT_MAP
-	select PINCTRL
-	select PM_GENERIC_DOMAINS if PM
-	select SH_CLK_CPG
-	select SPARSE_IRQ
-	help
-	  Support for Renesas ARM SoC platforms using a non-multiplatform
-	  kernel. This includes the SH-Mobile, R-Mobile, EMMA-Mobile, R-Car
-	  and RZ families.
-
 config ARCH_RPC
 	bool "RiscPC"
+	depends on MMU
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
@@ -736,7 +717,6 @@ config ARCH_DAVINCI
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
-	select TI_PRIV_EDMA
 	select USE_OF
 	select ZONE_DMA
 	help
@@ -819,6 +799,7 @@ config ARCH_VIRT
 	bool "Dummy Virtual Machine" if ARCH_MULTI_V7
 	select ARM_AMBA
 	select ARM_GIC
+	select ARM_GIC_V3
 	select ARM_PSCI
 	select HAVE_ARM_ARCH_TIMER
 
@@ -1410,7 +1391,6 @@ config HAVE_ARM_ARCH_TIMER
 
 config HAVE_ARM_TWD
 	bool
-	depends on SMP
 	select CLKSRC_OF if OF
 	help
 	  This options enables support for the ARM timer and watchdog unit
@@ -1470,6 +1450,8 @@ choice
 
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
+	config VMSPLIT_3G_OPT
+		bool "3G/1G user/kernel split (for full 1G low memory)"
 	config VMSPLIT_2G
 		bool "2G/2G user/kernel split"
 	config VMSPLIT_1G
@@ -1481,6 +1463,7 @@ config PAGE_OFFSET
 	default PHYS_OFFSET if !MMU
 	default 0x40000000 if VMSPLIT_1G
 	default 0x80000000 if VMSPLIT_2G
+	default 0xB0000000 if VMSPLIT_3G_OPT
 	default 0xC0000000
 
 config NR_CPUS
@@ -1534,7 +1517,6 @@ config HZ_FIXED
 	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default 128 if SOC_AT91RM9200
-	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE_LEGACY
 	default 0
 
 choice
@@ -1695,8 +1677,9 @@ config HIGHMEM
 	  If unsure, say n.
 
 config HIGHPTE
-	bool "Allocate 2nd-level pagetables from highmem"
+	bool "Allocate 2nd-level pagetables from highmem" if EXPERT
 	depends on HIGHMEM
+	default y
 	help
 	  The VM uses one page of physical memory for each page table.
 	  For systems with a lot of processes, this can use a lot of
@@ -1752,8 +1735,7 @@ config ARM_MODULE_PLTS
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
-	int "Maximum zone order" if ARCH_SHMOBILE_LEGACY
-	range 11 64 if ARCH_SHMOBILE_LEGACY
+	int "Maximum zone order"
 	default "12" if SOC_AM33XX
 	default "9" if SA1111 || ARCH_EFM32
 	default "11"
@@ -1842,8 +1824,6 @@ config USE_OF
 	bool "Flattened Device Tree support"
 	select IRQ_DOMAIN
 	select OF
-	select OF_EARLY_FLATTREE
-	select OF_RESERVED_MEM
 	help
 	  Include support for flattened device tree machine descriptions.
 

@@ -5,7 +5,7 @@
 #define _ASM_X86_FPU_SIGNAL_H
 
 #ifdef CONFIG_X86_64
-# include <asm/sigcontext32.h>
+# include <uapi/asm/sigcontext.h>
 # include <asm/user32.h>
 struct ksignal;
 int ia32_setup_rt_frame(int sig, struct ksignal *ksig,

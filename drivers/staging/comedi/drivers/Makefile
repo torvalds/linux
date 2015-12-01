@@ -90,7 +90,6 @@ obj-$(CONFIG_COMEDI_CONTEC_PCI_DIO)	+= contec_pci_dio.o
 obj-$(CONFIG_COMEDI_DAS08_PCI)		+= das08_pci.o
 obj-$(CONFIG_COMEDI_DT3000)		+= dt3000.o
 obj-$(CONFIG_COMEDI_DYNA_PCI10XX)	+= dyna_pci10xx.o
-obj-$(CONFIG_COMEDI_UNIOXX5)		+= unioxx5.o
 obj-$(CONFIG_COMEDI_GSC_HPDI)		+= gsc_hpdi.o
 obj-$(CONFIG_COMEDI_ICP_MULTI)		+= icp_multi.o
 obj-$(CONFIG_COMEDI_DAQBOARD2000)	+= daqboard2000.o

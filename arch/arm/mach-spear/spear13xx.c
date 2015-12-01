@@ -124,5 +124,5 @@ void __init spear13xx_timer_init(void)
 	clk_put(pclk);
 
 	spear_setup_of_timer();
-	clocksource_of_init();
+	clocksource_probe();
 }
