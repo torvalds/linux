@@ -664,8 +664,11 @@ static int omap2430_remove(struct platform_device *pdev)
 {
 	struct omap2430_glue		*glue = platform_get_drvdata(pdev);
 
+	pm_runtime_get_sync(glue->dev);
 	cancel_work_sync(&glue->omap_musb_mailbox_work);
 	platform_device_unregister(glue->musb);
+	pm_runtime_put_sync(glue->dev);
+	pm_runtime_disable(glue->dev);
 
 	return 0;
 }
