@@ -218,7 +218,6 @@ repeat:
 	 * nobody is undating hidx.
 	 */
 	hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
-	/* __real_pte use pte_val() any idea why ? FIXME!! */
 	rpte.hidx &= ~(0xfUL << (subpg_index << 2));
 	*hidxp = rpte.hidx  | (slot << (subpg_index << 2));
 	new_pte = mark_subptegroup_valid(new_pte, subpg_index);

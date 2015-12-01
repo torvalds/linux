@@ -61,6 +61,7 @@
 static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
 {
 	real_pte_t rpte;
+	unsigned long *hidxp;
 
 	rpte.pte = pte;
 	rpte.hidx = 0;
@@ -70,7 +71,8 @@ static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
 		 * check. The store side ordering is done in __hash_page_4K
 		 */
 		smp_rmb();
-		rpte.hidx = pte_val(*((ptep) + PTRS_PER_PTE));
+		hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
+		rpte.hidx = *hidxp;
 	}
 	return rpte;
 }
