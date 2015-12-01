@@ -434,8 +434,8 @@ static int get_latency(unsigned int cpu, unsigned int human)
 	unsigned long latency = cpufreq_get_transition_latency(cpu);
 
 	printf(_("  maximum transition latency: "));
-	if (!latency) {
-		printf(_(" Cannot determine latency.\n"));
+	if (!latency || latency == UINT_MAX) {
+		printf(_(" Cannot determine or is not supported.\n"));
 		return -EINVAL;
 	}
 
