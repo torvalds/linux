@@ -127,11 +127,11 @@ struct ndis_tcp_ip_checksum_info;
  */
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
-	u32 status;
+	u8 status;
 
-	bool is_data_pkt;
-	bool xmit_more; /* from skb */
-	bool cp_partial; /* partial copy into send buffer */
+	u8 is_data_pkt;
+	u8 xmit_more; /* from skb */
+	u8 cp_partial; /* partial copy into send buffer */
 
 	u16 vlan_tci;
 
@@ -147,13 +147,13 @@ struct hv_netvsc_packet {
 	/* This points to the memory after page_buf */
 	struct rndis_message *rndis_msg;
 
-	u32 rmsg_size; /* RNDIS header and PPI size */
-	u32 rmsg_pgcnt; /* page count of RNDIS header and PPI */
+	u8 rmsg_size; /* RNDIS header and PPI size */
+	u8 rmsg_pgcnt; /* page count of RNDIS header and PPI */
 
 	u32 total_data_buflen;
 	/* Points to the send/receive buffer where the ethernet frame is */
 	void *data;
-	u32 page_buf_cnt;
+	u8 page_buf_cnt;
 	struct hv_page_buffer *page_buf;
 };
 
