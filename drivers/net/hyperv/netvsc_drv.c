@@ -324,9 +324,10 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 }
 
 static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
-			   struct hv_netvsc_packet *packet)
+			   struct hv_netvsc_packet *packet,
+			   struct hv_page_buffer **page_buf)
 {
-	struct hv_page_buffer *pb = packet->page_buf;
+	struct hv_page_buffer *pb = *page_buf;
 	u32 slots_used = 0;
 	char *data = skb->data;
 	int frags = skb_shinfo(skb)->nr_frags;
@@ -437,6 +438,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	u32 hash;
 	u32 skb_length;
 	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
+	struct hv_page_buffer *pb = page_buf;
 	struct netvsc_stats *tx_stats = this_cpu_ptr(net_device_ctx->tx_stats);
 
 	/* We will atmost need two pages to describe the rndis
@@ -483,7 +485,6 @@ check_size:
 	packet->xmit_more = skb->xmit_more;
 
 	packet->vlan_tci = skb->vlan_tci;
-	packet->page_buf = page_buf;
 
 	packet->q_idx = skb_get_queue_mapping(skb);
 
@@ -622,9 +623,9 @@ do_send:
 	rndis_msg->msg_len += rndis_msg_size;
 	packet->total_data_buflen = rndis_msg->msg_len;
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
-					       skb, packet);
+					       skb, packet, &pb);
 
-	ret = netvsc_send(net_device_ctx->device_ctx, packet, rndis_msg);
+	ret = netvsc_send(net_device_ctx->device_ctx, packet, rndis_msg, &pb);
 
 drop:
 	if (ret == 0) {
