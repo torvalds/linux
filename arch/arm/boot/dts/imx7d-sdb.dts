@@ -508,7 +508,6 @@
 			fsl,pins = <
 				MX7D_PAD_UART3_CTS_B__GPIO4_IO7	0x14
 				MX7D_PAD_ECSPI2_SS0__GPIO4_IO23	 0x80000000  /* bt reg on */
-				MX7D_PAD_EPDC_DATA14__GPIO2_IO14 0x59	/* CAN_STBY */
 			>;
 		};
 
@@ -599,6 +598,7 @@
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO14__FLEXCAN2_RX	0x59
 				MX7D_PAD_GPIO1_IO15__FLEXCAN2_TX	0x59
+				MX7D_PAD_EPDC_DATA14__GPIO2_IO14 0x59	/* CAN_STBY */
 			>;
 		};
 
