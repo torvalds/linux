@@ -972,9 +972,9 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	void *filter_value = NULL;
 	long ret = 0;
 	int value = 0;
-	u8 physState = 0;
-	u8 linkState = 0;
-	u16 devState = 0;
+	u8 phys_state = 0;
+	u8 link_state = 0;
+	u16 dev_state = 0;
 	unsigned long flags = 0;
 	unsigned long *argp = NULL;
 	struct hfi1_packet_filter_command filter_cmd = {0};
@@ -1038,31 +1038,31 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			}
 
 			/* What we want to transition to */
-			physState = (value >> 4) & 0xF;
-			linkState = value & 0xF;
+			phys_state = (value >> 4) & 0xF;
+			link_state = value & 0xF;
 			snoop_dbg("Setting link state 0x%x", value);
 
-			switch (linkState) {
+			switch (link_state) {
 			case IB_PORT_NOP:
-				if (physState == 0)
+				if (phys_state == 0)
 					break;
 					/* fall through */
 			case IB_PORT_DOWN:
-				switch (physState) {
+				switch (phys_state) {
 				case 0:
-					devState = HLS_DN_DOWNDEF;
+					dev_state = HLS_DN_DOWNDEF;
 					break;
 				case 2:
-					devState = HLS_DN_POLL;
+					dev_state = HLS_DN_POLL;
 					break;
 				case 3:
-					devState = HLS_DN_DISABLE;
+					dev_state = HLS_DN_DISABLE;
 					break;
 				default:
 					ret = -EINVAL;
 					goto done;
 				}
-				ret = set_link_state(ppd, devState);
+				ret = set_link_state(ppd, dev_state);
 				break;
 			case IB_PORT_ARMED:
 				ret = set_link_state(ppd, HLS_UP_ARMED);
