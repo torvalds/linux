@@ -375,6 +375,60 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 }
 #endif
 
+#ifdef	CONFIG_DEBUG_FS
+
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+
+static int dbg_gpio_show(struct seq_file *s, void *unused)
+{
+	int i;
+	int j;
+
+	for (i = 0; i < tegra_gpio_bank_count; i++) {
+		for (j = 0; j < 4; j++) {
+			int gpio = tegra_gpio_compose(i, j, 0);
+			seq_printf(s,
+				"%d:%d %02x %02x %02x %02x %02x %02x %06x\n",
+				i, j,
+				tegra_gpio_readl(GPIO_CNF(gpio)),
+				tegra_gpio_readl(GPIO_OE(gpio)),
+				tegra_gpio_readl(GPIO_OUT(gpio)),
+				tegra_gpio_readl(GPIO_IN(gpio)),
+				tegra_gpio_readl(GPIO_INT_STA(gpio)),
+				tegra_gpio_readl(GPIO_INT_ENB(gpio)),
+				tegra_gpio_readl(GPIO_INT_LVL(gpio)));
+		}
+	}
+	return 0;
+}
+
+static int dbg_gpio_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dbg_gpio_show, &inode->i_private);
+}
+
+static const struct file_operations debug_fops = {
+	.open		= dbg_gpio_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void tegra_gpio_debuginit(void)
+{
+	(void) debugfs_create_file("tegra_gpio", S_IRUGO,
+					NULL, NULL, &debug_fops);
+}
+
+#else
+
+static inline void tegra_gpio_debuginit(void)
+{
+}
+
+#endif
+
 static struct irq_chip tegra_gpio_irq_chip = {
 	.name		= "GPIO",
 	.irq_ack	= tegra_gpio_irq_ack,
@@ -519,6 +573,8 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 			spin_lock_init(&bank->lvl_lock[j]);
 	}
 
+	tegra_gpio_debuginit();
+
 	return 0;
 }
 
@@ -536,52 +592,3 @@ static int __init tegra_gpio_init(void)
 	return platform_driver_register(&tegra_gpio_driver);
 }
 postcore_initcall(tegra_gpio_init);
-
-#ifdef	CONFIG_DEBUG_FS
-
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-
-static int dbg_gpio_show(struct seq_file *s, void *unused)
-{
-	int i;
-	int j;
-
-	for (i = 0; i < tegra_gpio_bank_count; i++) {
-		for (j = 0; j < 4; j++) {
-			int gpio = tegra_gpio_compose(i, j, 0);
-			seq_printf(s,
-				"%d:%d %02x %02x %02x %02x %02x %02x %06x\n",
-				i, j,
-				tegra_gpio_readl(GPIO_CNF(gpio)),
-				tegra_gpio_readl(GPIO_OE(gpio)),
-				tegra_gpio_readl(GPIO_OUT(gpio)),
-				tegra_gpio_readl(GPIO_IN(gpio)),
-				tegra_gpio_readl(GPIO_INT_STA(gpio)),
-				tegra_gpio_readl(GPIO_INT_ENB(gpio)),
-				tegra_gpio_readl(GPIO_INT_LVL(gpio)));
-		}
-	}
-	return 0;
-}
-
-static int dbg_gpio_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dbg_gpio_show, &inode->i_private);
-}
-
-static const struct file_operations debug_fops = {
-	.open		= dbg_gpio_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int __init tegra_gpio_debuginit(void)
-{
-	(void) debugfs_create_file("tegra_gpio", S_IRUGO,
-					NULL, NULL, &debug_fops);
-	return 0;
-}
-late_initcall(tegra_gpio_debuginit);
-#endif

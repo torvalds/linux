@@ -1122,8 +1122,6 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 	/* MPUIO is a bit different, reading IRQ status clears it */
 	if (bank->is_mpuio) {
 		irqc->irq_ack = dummy_irq_chip.irq_ack;
-		irqc->irq_mask = irq_gc_mask_set_bit;
-		irqc->irq_unmask = irq_gc_mask_clr_bit;
 		if (!bank->regs->wkup_en)
 			irqc->irq_set_wake = NULL;
 	}
