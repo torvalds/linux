@@ -739,7 +739,7 @@ static int exynos_adc_ts_init(struct exynos_adc *info)
 
 	disable_irq(info->tsirq);
 	ret = request_threaded_irq(info->tsirq, NULL, exynos_ts_isr,
-				   0, "touchscreen", info);
+				   IRQF_ONESHOT, "touchscreen", info);
 	if (ret)
 		input_unregister_device(info->input);
 
