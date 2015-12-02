@@ -2243,22 +2243,19 @@ static struct platform_driver n2_mau_driver = {
 	.remove		=	n2_mau_remove,
 };
 
+static struct platform_driver * const drivers[] = {
+	&n2_crypto_driver,
+	&n2_mau_driver,
+};
+
 static int __init n2_init(void)
 {
-	int err = platform_driver_register(&n2_crypto_driver);
-
-	if (!err) {
-		err = platform_driver_register(&n2_mau_driver);
-		if (err)
-			platform_driver_unregister(&n2_crypto_driver);
-	}
-	return err;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit n2_exit(void)
 {
-	platform_driver_unregister(&n2_mau_driver);
-	platform_driver_unregister(&n2_crypto_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_init(n2_init);
