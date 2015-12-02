@@ -14,6 +14,8 @@
 #ifndef __ASM_ARCH_ORION5X_H
 #define __ASM_ARCH_ORION5X_H
 
+#include <mach/irqs.h>
+
 /*****************************************************************************
  * Orion Address Maps
  *

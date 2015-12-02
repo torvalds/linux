@@ -12,6 +12,8 @@
 #ifndef __ASM_ARCH_MV78XX0_H
 #define __ASM_ARCH_MV78XX0_H
 
+#include "irqs.h"
+
 /*
  * Marvell MV78xx0 address maps.
  *

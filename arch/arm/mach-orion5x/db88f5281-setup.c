@@ -369,6 +369,7 @@ static void __init db88f5281_init(void)
 MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")
 	/* Maintainer: Tzachi Perelstein <tzachi@marvell.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= db88f5281_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

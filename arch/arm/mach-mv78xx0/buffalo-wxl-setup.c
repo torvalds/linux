@@ -146,6 +146,7 @@ subsys_initcall(wxl_pci_init);
 MACHINE_START(TERASTATION_WXL, "Buffalo Nas WXL")
 	/* Maintainer: Sebastien Requiem <sebastien@requiem.fr> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= MV78XX0_NR_IRQS,
 	.init_machine	= wxl_init,
 	.map_io		= mv78xx0_map_io,
 	.init_early	= mv78xx0_init_early,

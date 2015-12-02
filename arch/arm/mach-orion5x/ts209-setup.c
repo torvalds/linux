@@ -324,6 +324,7 @@ static void __init qnap_ts209_init(void)
 MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	/* Maintainer: Byron Bradley <byron.bbradley@gmail.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= qnap_ts209_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

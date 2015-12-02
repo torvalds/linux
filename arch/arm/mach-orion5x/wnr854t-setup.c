@@ -174,6 +174,7 @@ subsys_initcall(wnr854t_pci_init);
 MACHINE_START(WNR854T, "Netgear WNR854T")
 	/* Maintainer: Imre Kaloz <kaloz@openwrt.org> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= wnr854t_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

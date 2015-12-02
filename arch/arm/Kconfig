@@ -515,6 +515,7 @@ config ARCH_DOVE
 	select PINCTRL
 	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
+	select SPARSE_IRQ
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
@@ -527,6 +528,7 @@ config ARCH_MV78XX0
 	select MULTI_IRQ_HANDLER
 	select PCI
 	select PLAT_ORION_LEGACY
+	select SPARSE_IRQ
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:
 	  MV781x0, MV782x0.
@@ -542,6 +544,7 @@ config ARCH_ORION5X
 	select PCI
 	select PLAT_ORION_LEGACY
 	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),

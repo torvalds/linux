@@ -267,6 +267,7 @@ static void __init ls_hgl_init(void)
 MACHINE_START(LINKSTATION_LS_HGL, "Buffalo Linkstation LS-HGL")
 	/* Maintainer: Zhu Qingsen <zhuqs@cn.fujistu.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= ls_hgl_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

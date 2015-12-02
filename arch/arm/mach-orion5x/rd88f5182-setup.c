@@ -281,6 +281,7 @@ static void __init rd88f5182_init(void)
 MACHINE_START(RD88F5182, "Marvell Orion-NAS Reference Design")
 	/* Maintainer: Ronen Shitrit <rshitrit@marvell.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= rd88f5182_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

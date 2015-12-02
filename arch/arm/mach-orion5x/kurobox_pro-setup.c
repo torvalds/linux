@@ -383,6 +383,7 @@ static void __init kurobox_pro_init(void)
 MACHINE_START(KUROBOX_PRO, "Buffalo/Revogear Kurobox Pro")
 	/* Maintainer: Ronen Shitrit <rshitrit@marvell.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= kurobox_pro_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
@@ -397,6 +398,7 @@ MACHINE_END
 MACHINE_START(LINKSTATION_PRO, "Buffalo Linkstation Pro/Live")
 	/* Maintainer: Byron Bradley <byron.bbradley@gmail.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= ORION5X_NR_IRQS,
 	.init_machine	= kurobox_pro_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
