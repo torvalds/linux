@@ -710,6 +710,7 @@ void clear_work_bit(struct s5p_mfc_ctx *ctx);
 void set_work_bit(struct s5p_mfc_ctx *ctx);
 void clear_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
 void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
+int s5p_mfc_get_new_ctx(struct s5p_mfc_dev *dev);
 
 #define HAS_PORTNUM(dev)	(dev ? (dev->variant ? \
 				(dev->variant->port_num ? 1 : 0) : 0) : 0)

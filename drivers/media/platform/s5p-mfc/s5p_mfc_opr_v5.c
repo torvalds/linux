@@ -1153,27 +1153,6 @@ static int s5p_mfc_encode_one_frame_v5(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
-static int s5p_mfc_get_new_ctx(struct s5p_mfc_dev *dev)
-{
-	unsigned long flags;
-	int new_ctx;
-	int cnt;
-
-	spin_lock_irqsave(&dev->condlock, flags);
-	new_ctx = (dev->curr_ctx + 1) % MFC_NUM_CONTEXTS;
-	cnt = 0;
-	while (!test_bit(new_ctx, &dev->ctx_work_bits)) {
-		new_ctx = (new_ctx + 1) % MFC_NUM_CONTEXTS;
-		if (++cnt > MFC_NUM_CONTEXTS) {
-			/* No contexts to run */
-			spin_unlock_irqrestore(&dev->condlock, flags);
-			return -EAGAIN;
-		}
-	}
-	spin_unlock_irqrestore(&dev->condlock, flags);
-	return new_ctx;
-}
-
 static void s5p_mfc_run_res_change(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;

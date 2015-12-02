@@ -85,6 +85,26 @@ void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx)
 	spin_unlock_irqrestore(&dev->condlock, flags);
 }
 
+int s5p_mfc_get_new_ctx(struct s5p_mfc_dev *dev)
+{
+	unsigned long flags;
+	int ctx;
+
+	spin_lock_irqsave(&dev->condlock, flags);
+	ctx = dev->curr_ctx;
+	do {
+		ctx = (ctx + 1) % MFC_NUM_CONTEXTS;
+		if (ctx == dev->curr_ctx) {
+			if (!test_bit(ctx, &dev->ctx_work_bits))
+				ctx = -EAGAIN;
+			break;
+		}
+	} while (!test_bit(ctx, &dev->ctx_work_bits));
+	spin_unlock_irqrestore(&dev->condlock, flags);
+
+	return ctx;
+}
+
 /* Wake up context wait_queue */
 static void wake_up_ctx(struct s5p_mfc_ctx *ctx, unsigned int reason,
 			unsigned int err)
