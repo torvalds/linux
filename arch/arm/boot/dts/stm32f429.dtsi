@@ -58,6 +58,8 @@
 	};
 
 	soc {
+		dma-ranges = <0xc0000000 0x0 0x10000000>;
+
 		timer2: timer@40000000 {
 			compatible = "st,stm32-timer";
 			reg = <0x40000000 0x400>;
