@@ -27,6 +27,7 @@
 
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_drv.h"
+#include "fsl_tcon.h"
 
 static bool fsl_dcu_drm_is_volatile_reg(struct device *dev, unsigned int reg)
 {
@@ -218,6 +219,7 @@ static int fsl_dcu_drm_pm_suspend(struct device *dev)
 	drm_kms_helper_poll_disable(fsl_dev->drm);
 	regcache_cache_only(fsl_dev->regmap, true);
 	regcache_mark_dirty(fsl_dev->regmap);
+	fsl_tcon_suspend(fsl_dev->tcon);
 	clk_disable(fsl_dev->clk);
 	clk_unprepare(fsl_dev->clk);
 
@@ -243,6 +245,8 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 		dev_err(dev, "failed to prepare dcu clk\n");
 		return ret;
 	}
+
+	fsl_tcon_resume(fsl_dev->tcon);
 
 	drm_kms_helper_poll_enable(fsl_dev->drm);
 	regcache_cache_only(fsl_dev->regmap, false);
@@ -337,6 +341,8 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		dev_err(dev, "regmap init failed\n");
 		return PTR_ERR(fsl_dev->regmap);
 	}
+
+	fsl_dev->tcon = fsl_tcon_init(dev);
 
 	id = of_match_node(fsl_dcu_of_match, pdev->dev.of_node);
 	if (!id)
