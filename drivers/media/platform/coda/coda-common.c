@@ -1252,6 +1252,9 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct vb2_v4l2_buffer *buf;
 	int ret = 0;
 
+	if (count < 1)
+		return -EINVAL;
+
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		if (ctx->inst_type == CODA_INST_DECODER && ctx->use_bit) {
@@ -1264,20 +1267,10 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 				ret = -EINVAL;
 				goto err;
 			}
-		} else {
-			if (count < 1) {
-				ret = -EINVAL;
-				goto err;
-			}
 		}
 
 		ctx->streamon_out = 1;
 	} else {
-		if (count < 1) {
-			ret = -EINVAL;
-			goto err;
-		}
-
 		ctx->streamon_cap = 1;
 	}
 
