@@ -1790,7 +1790,7 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		 * not, we remain on the home node of the device
 		 */
 		if (nr_hw_queues > 1 && hctx->numa_node == NUMA_NO_NODE)
-			hctx->numa_node = cpu_to_node(i);
+			hctx->numa_node = local_memory_node(cpu_to_node(i));
 	}
 }
 
