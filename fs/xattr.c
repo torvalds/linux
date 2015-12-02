@@ -851,8 +851,22 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 	return ret;
 }
 
-static int __simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
-			      const void *value, size_t size, int flags)
+/**
+ * simple_xattr_set - xattr SET operation for in-memory/pseudo filesystems
+ * @xattrs: target simple_xattr list
+ * @name: name of the extended attribute
+ * @value: value of the xattr. If %NULL, will remove the attribute.
+ * @size: size of the new xattr
+ * @flags: %XATTR_{CREATE|REPLACE}
+ *
+ * %XATTR_CREATE is set, the xattr shouldn't exist already; otherwise fails
+ * with -EEXIST.  If %XATTR_REPLACE is set, the xattr should exist;
+ * otherwise, fails with -ENODATA.
+ *
+ * Returns 0 on success, -errno on failure.
+ */
+int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+		     const void *value, size_t size, int flags)
 {
 	struct simple_xattr *xattr;
 	struct simple_xattr *new_xattr = NULL;
@@ -900,36 +914,6 @@ out:
 	}
 	return err;
 
-}
-
-/**
- * simple_xattr_set - xattr SET operation for in-memory/pseudo filesystems
- * @xattrs: target simple_xattr list
- * @name: name of the new extended attribute
- * @value: value of the new xattr. If %NULL, will remove the attribute
- * @size: size of the new xattr
- * @flags: %XATTR_{CREATE|REPLACE}
- *
- * %XATTR_CREATE is set, the xattr shouldn't exist already; otherwise fails
- * with -EEXIST.  If %XATTR_REPLACE is set, the xattr should exist;
- * otherwise, fails with -ENODATA.
- *
- * Returns 0 on success, -errno on failure.
- */
-int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
-		     const void *value, size_t size, int flags)
-{
-	if (size == 0)
-		value = ""; /* empty EA, do not remove */
-	return __simple_xattr_set(xattrs, name, value, size, flags);
-}
-
-/*
- * xattr REMOVE operation for in-memory/pseudo filesystems
- */
-int simple_xattr_remove(struct simple_xattrs *xattrs, const char *name)
-{
-	return __simple_xattr_set(xattrs, name, NULL, 0, XATTR_REPLACE);
 }
 
 static bool xattr_is_trusted(const char *name)
