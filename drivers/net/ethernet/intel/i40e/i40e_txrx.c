@@ -2806,6 +2806,9 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	int tsyn;
 	int tso;
 
+	/* prefetch the data, we'll need it later */
+	prefetch(skb->data);
+
 	if (0 == i40e_xmit_descriptor_count(skb, tx_ring))
 		return NETDEV_TX_BUSY;
 

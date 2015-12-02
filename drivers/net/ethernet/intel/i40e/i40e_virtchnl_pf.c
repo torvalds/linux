@@ -565,7 +565,7 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 	}
 
 	/* program mac filter */
-	ret = i40e_sync_vsi_filters(vsi, false);
+	ret = i40e_sync_vsi_filters(vsi);
 	if (ret)
 		dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
 
@@ -1094,8 +1094,8 @@ static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 	/* single place to detect unsuccessful return values */
 	if (v_retval) {
 		vf->num_invalid_msgs++;
-		dev_err(&pf->pdev->dev, "Failed opcode %d Error: %d\n",
-			v_opcode, v_retval);
+		dev_err(&pf->pdev->dev, "VF %d failed opcode %d, error: %d\n",
+			vf->vf_id, v_opcode, v_retval);
 		if (vf->num_invalid_msgs >
 		    I40E_DEFAULT_NUM_INVALID_MSGS_ALLOWED) {
 			dev_err(&pf->pdev->dev,
@@ -1633,7 +1633,7 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	/* program the updated filter list */
-	if (i40e_sync_vsi_filters(vsi, false))
+	if (i40e_sync_vsi_filters(vsi))
 		dev_err(&pf->pdev->dev, "Unable to program VF %d MAC filters\n",
 			vf->vf_id);
 
@@ -1687,7 +1687,7 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
 	/* program the updated filter list */
-	if (i40e_sync_vsi_filters(vsi, false))
+	if (i40e_sync_vsi_filters(vsi))
 		dev_err(&pf->pdev->dev, "Unable to program VF %d MAC filters\n",
 			vf->vf_id);
 
@@ -2102,7 +2102,7 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 
 	dev_info(&pf->pdev->dev, "Setting MAC %pM on VF %d\n", mac, vf_id);
 	/* program mac filter */
-	if (i40e_sync_vsi_filters(vsi, false)) {
+	if (i40e_sync_vsi_filters(vsi)) {
 		dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
 		ret = -EIO;
 		goto error_param;

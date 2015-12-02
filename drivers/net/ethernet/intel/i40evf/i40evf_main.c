@@ -34,7 +34,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710/X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "1.3.33"
+#define DRV_VERSION "1.4.1"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2015 Intel Corporation.";
@@ -347,8 +347,8 @@ static irqreturn_t i40evf_msix_clean_rings(int irq, void *data)
 static void
 i40evf_map_vector_to_rxq(struct i40evf_adapter *adapter, int v_idx, int r_idx)
 {
-	struct i40e_q_vector *q_vector = adapter->q_vector[v_idx];
-	struct i40e_ring *rx_ring = adapter->rx_rings[r_idx];
+	struct i40e_q_vector *q_vector = &adapter->q_vectors[v_idx];
+	struct i40e_ring *rx_ring = &adapter->rx_rings[r_idx];
 
 	rx_ring->q_vector = q_vector;
 	rx_ring->next = q_vector->rx.ring;
@@ -368,8 +368,8 @@ i40evf_map_vector_to_rxq(struct i40evf_adapter *adapter, int v_idx, int r_idx)
 static void
 i40evf_map_vector_to_txq(struct i40evf_adapter *adapter, int v_idx, int t_idx)
 {
-	struct i40e_q_vector *q_vector = adapter->q_vector[v_idx];
-	struct i40e_ring *tx_ring = adapter->tx_rings[t_idx];
+	struct i40e_q_vector *q_vector = &adapter->q_vectors[v_idx];
+	struct i40e_ring *tx_ring = &adapter->tx_rings[t_idx];
 
 	tx_ring->q_vector = q_vector;
 	tx_ring->next = q_vector->tx.ring;
@@ -464,7 +464,7 @@ static void i40evf_netpoll(struct net_device *netdev)
 		return;
 
 	for (i = 0; i < q_vectors; i++)
-		i40evf_msix_clean_rings(0, adapter->q_vector[i]);
+		i40evf_msix_clean_rings(0, &adapter->q_vectors[i]);
 }
 
 #endif
@@ -486,7 +486,7 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 	q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
 	for (vector = 0; vector < q_vectors; vector++) {
-		struct i40e_q_vector *q_vector = adapter->q_vector[vector];
+		struct i40e_q_vector *q_vector = &adapter->q_vectors[vector];
 
 		if (q_vector->tx.ring && q_vector->rx.ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
@@ -531,7 +531,7 @@ free_queue_irqs:
 			adapter->msix_entries[vector + NONQ_VECS].vector,
 			NULL);
 		free_irq(adapter->msix_entries[vector + NONQ_VECS].vector,
-			 adapter->q_vector[vector]);
+			 &adapter->q_vectors[vector]);
 	}
 	return err;
 }
@@ -581,7 +581,7 @@ static void i40evf_free_traffic_irqs(struct i40evf_adapter *adapter)
 		irq_set_affinity_hint(adapter->msix_entries[i+1].vector,
 				      NULL);
 		free_irq(adapter->msix_entries[i+1].vector,
-			 adapter->q_vector[i]);
+			 &adapter->q_vectors[i]);
 	}
 }
 
@@ -610,7 +610,7 @@ static void i40evf_configure_tx(struct i40evf_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_active_queues; i++)
-		adapter->tx_rings[i]->tail = hw->hw_addr + I40E_QTX_TAIL1(i);
+		adapter->tx_rings[i].tail = hw->hw_addr + I40E_QTX_TAIL1(i);
 }
 
 /**
@@ -655,8 +655,8 @@ static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 	}
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
-		adapter->rx_rings[i]->tail = hw->hw_addr + I40E_QRX_TAIL1(i);
-		adapter->rx_rings[i]->rx_buf_len = rx_buf_len;
+		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
+		adapter->rx_rings[i].rx_buf_len = rx_buf_len;
 	}
 }
 
@@ -953,7 +953,7 @@ static void i40evf_napi_enable_all(struct i40evf_adapter *adapter)
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
 		struct napi_struct *napi;
 
-		q_vector = adapter->q_vector[q_idx];
+		q_vector = &adapter->q_vectors[q_idx];
 		napi = &q_vector->napi;
 		napi_enable(napi);
 	}
@@ -970,7 +970,7 @@ static void i40evf_napi_disable_all(struct i40evf_adapter *adapter)
 	int q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
-		q_vector = adapter->q_vector[q_idx];
+		q_vector = &adapter->q_vectors[q_idx];
 		napi_disable(&q_vector->napi);
 	}
 }
@@ -991,7 +991,7 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
 	adapter->aq_required |= I40EVF_FLAG_AQ_CONFIGURE_QUEUES;
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
-		struct i40e_ring *ring = adapter->rx_rings[i];
+		struct i40e_ring *ring = &adapter->rx_rings[i];
 
 		i40evf_alloc_rx_buffers_1buf(ring, ring->count);
 		ring->next_to_use = ring->count - 1;
@@ -1111,16 +1111,10 @@ i40evf_acquire_msix_vectors(struct i40evf_adapter *adapter, int vectors)
  **/
 static void i40evf_free_queues(struct i40evf_adapter *adapter)
 {
-	int i;
-
 	if (!adapter->vsi_res)
 		return;
-	for (i = 0; i < adapter->num_active_queues; i++) {
-		if (adapter->tx_rings[i])
-			kfree_rcu(adapter->tx_rings[i], rcu);
-		adapter->tx_rings[i] = NULL;
-		adapter->rx_rings[i] = NULL;
-	}
+	kfree(adapter->tx_rings);
+	kfree(adapter->rx_rings);
 }
 
 /**
@@ -1135,13 +1129,20 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 {
 	int i;
 
+	adapter->tx_rings = kcalloc(adapter->num_active_queues,
+				    sizeof(struct i40e_ring), GFP_KERNEL);
+	if (!adapter->tx_rings)
+		goto err_out;
+	adapter->rx_rings = kcalloc(adapter->num_active_queues,
+				    sizeof(struct i40e_ring), GFP_KERNEL);
+	if (!adapter->rx_rings)
+		goto err_out;
+
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		struct i40e_ring *tx_ring;
 		struct i40e_ring *rx_ring;
 
-		tx_ring = kzalloc(sizeof(*tx_ring) * 2, GFP_KERNEL);
-		if (!tx_ring)
-			goto err_out;
+		tx_ring = &adapter->tx_rings[i];
 
 		tx_ring->queue_index = i;
 		tx_ring->netdev = adapter->netdev;
@@ -1149,14 +1150,12 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 		tx_ring->count = adapter->tx_desc_count;
 		if (adapter->flags & I40E_FLAG_WB_ON_ITR_CAPABLE)
 			tx_ring->flags |= I40E_TXR_FLAGS_WB_ON_ITR;
-		adapter->tx_rings[i] = tx_ring;
 
-		rx_ring = &tx_ring[1];
+		rx_ring = &adapter->rx_rings[i];
 		rx_ring->queue_index = i;
 		rx_ring->netdev = adapter->netdev;
 		rx_ring->dev = &adapter->pdev->dev;
 		rx_ring->count = adapter->rx_desc_count;
-		adapter->rx_rings[i] = rx_ring;
 	}
 
 	return 0;
@@ -1211,110 +1210,267 @@ out:
 }
 
 /**
- * i40e_configure_rss_aq - Prepare for RSS using AQ commands
+ * i40e_config_rss_aq - Prepare for RSS using AQ commands
  * @vsi: vsi structure
  * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Return 0 on success, negative on failure
  **/
-static void i40evf_configure_rss_aq(struct i40e_vsi *vsi, const u8 *seed)
+static int i40evf_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
+				u8 *lut, u16 lut_size)
 {
-	struct i40e_aqc_get_set_rss_key_data rss_key;
 	struct i40evf_adapter *adapter = vsi->back;
 	struct i40e_hw *hw = &adapter->hw;
-	int ret = 0, i;
-	u8 *rss_lut;
+	int ret = 0;
 
 	if (!vsi->id)
-		return;
+		return -EINVAL;
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
 		dev_err(&adapter->pdev->dev, "Cannot confiure RSS, command %d pending\n",
 			adapter->current_op);
-		return;
+		return -EBUSY;
 	}
 
-	memset(&rss_key, 0, sizeof(rss_key));
-	memcpy(&rss_key, seed, sizeof(rss_key));
-
-	rss_lut = kzalloc(((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4), GFP_KERNEL);
-	if (!rss_lut)
-		return;
-
-	/* Populate the LUT with max no. PF queues in round robin fashion */
-	for (i = 0; i <= (I40E_VFQF_HLUT_MAX_INDEX * 4); i++)
-		rss_lut[i] = i % adapter->num_active_queues;
-
-	ret = i40evf_aq_set_rss_key(hw, vsi->id, &rss_key);
-	if (ret) {
-		dev_err(&adapter->pdev->dev,
-			"Cannot set RSS key, err %s aq_err %s\n",
-			i40evf_stat_str(hw, ret),
-			i40evf_aq_str(hw, hw->aq.asq_last_status));
-		return;
+	if (seed) {
+		struct i40e_aqc_get_set_rss_key_data *rss_key =
+			(struct i40e_aqc_get_set_rss_key_data *)seed;
+		ret = i40evf_aq_set_rss_key(hw, vsi->id, rss_key);
+		if (ret) {
+			dev_err(&adapter->pdev->dev, "Cannot set RSS key, err %s aq_err %s\n",
+				i40evf_stat_str(hw, ret),
+				i40evf_aq_str(hw, hw->aq.asq_last_status));
+			return ret;
+		}
 	}
 
-	ret = i40evf_aq_set_rss_lut(hw, vsi->id, false, rss_lut,
-				    (I40E_VFQF_HLUT_MAX_INDEX + 1) * 4);
-	if (ret)
-		dev_err(&adapter->pdev->dev,
-			"Cannot set RSS lut, err %s aq_err %s\n",
-			i40evf_stat_str(hw, ret),
-			i40evf_aq_str(hw, hw->aq.asq_last_status));
+	if (lut) {
+		ret = i40evf_aq_set_rss_lut(hw, vsi->id, false, lut, lut_size);
+		if (ret) {
+			dev_err(&adapter->pdev->dev,
+				"Cannot set RSS lut, err %s aq_err %s\n",
+				i40evf_stat_str(hw, ret),
+				i40evf_aq_str(hw, hw->aq.asq_last_status));
+			return ret;
+		}
+	}
+
+	return ret;
 }
 
 /**
- * i40e_configure_rss_reg - Prepare for RSS if used
- * @adapter: board private structure
+ * i40evf_config_rss_reg - Configure RSS keys and lut by writing registers
+ * @vsi: Pointer to vsi structure
  * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Returns 0 on success, negative on failure
  **/
-static void i40evf_configure_rss_reg(struct i40evf_adapter *adapter,
-				     const u8 *seed)
+static int i40evf_config_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
+				 const u8 *lut, u16 lut_size)
 {
+	struct i40evf_adapter *adapter = vsi->back;
 	struct i40e_hw *hw = &adapter->hw;
-	u32 *seed_dw = (u32 *)seed;
-	u32 cqueue = 0;
-	u32 lut = 0;
-	int i, j;
+	u16 i;
 
-	/* Fill out hash function seed */
-	for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
-		wr32(hw, I40E_VFQF_HKEY(i), seed_dw[i]);
+	if (seed) {
+		u32 *seed_dw = (u32 *)seed;
 
-	/* Populate the LUT with max no. PF queues in round robin fashion */
-	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
-		lut = 0;
-		for (j = 0; j < 4; j++) {
-			if (cqueue == adapter->num_active_queues)
-				cqueue = 0;
-			lut |= ((cqueue) << (8 * j));
-			cqueue++;
-		}
-		wr32(hw, I40E_VFQF_HLUT(i), lut);
+		for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
+			wr32(hw, I40E_VFQF_HKEY(i), seed_dw[i]);
+	}
+
+	if (lut) {
+		u32 *lut_dw = (u32 *)lut;
+
+		if (lut_size != I40EVF_HLUT_ARRAY_SIZE)
+			return -EINVAL;
+
+		for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++)
+			wr32(hw, I40E_VFQF_HLUT(i), lut_dw[i]);
 	}
 	i40e_flush(hw);
+
+	return 0;
 }
 
 /**
- * i40evf_configure_rss - Prepare for RSS
- * @adapter: board private structure
+ *  * i40evf_get_rss_aq - Get RSS keys and lut by using AQ commands
+ *  @vsi: Pointer to vsi structure
+ *  @seed: RSS hash seed
+ *  @lut: Lookup table
+ *  @lut_size: Lookup table size
+ *
+ *  Return 0 on success, negative on failure
  **/
-static void i40evf_configure_rss(struct i40evf_adapter *adapter)
+static int i40evf_get_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
+			     u8 *lut, u16 lut_size)
 {
+	struct i40evf_adapter *adapter = vsi->back;
+	struct i40e_hw *hw = &adapter->hw;
+	int ret = 0;
+
+	if (seed) {
+		ret = i40evf_aq_get_rss_key(hw, vsi->id,
+			(struct i40e_aqc_get_set_rss_key_data *)seed);
+		if (ret) {
+			dev_err(&adapter->pdev->dev,
+				"Cannot get RSS key, err %s aq_err %s\n",
+				i40evf_stat_str(hw, ret),
+				i40evf_aq_str(hw, hw->aq.asq_last_status));
+			return ret;
+		}
+	}
+
+	if (lut) {
+		ret = i40evf_aq_get_rss_lut(hw, vsi->id, seed, lut, lut_size);
+		if (ret) {
+			dev_err(&adapter->pdev->dev,
+				"Cannot get RSS lut, err %s aq_err %s\n",
+				i40evf_stat_str(hw, ret),
+				i40evf_aq_str(hw, hw->aq.asq_last_status));
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+/**
+ *  * i40evf_get_rss_reg - Get RSS keys and lut by reading registers
+ *  @vsi: Pointer to vsi structure
+ *  @seed: RSS hash seed
+ *  @lut: Lookup table
+ *  @lut_size: Lookup table size
+ *
+ *  Returns 0 on success, negative on failure
+ **/
+static int i40evf_get_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
+			      const u8 *lut, u16 lut_size)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+	struct i40e_hw *hw = &adapter->hw;
+	u16 i;
+
+	if (seed) {
+		u32 *seed_dw = (u32 *)seed;
+
+		for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
+			seed_dw[i] = rd32(hw, I40E_VFQF_HKEY(i));
+	}
+
+	if (lut) {
+		u32 *lut_dw = (u32 *)lut;
+
+		if (lut_size != I40EVF_HLUT_ARRAY_SIZE)
+			return -EINVAL;
+
+		for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++)
+			lut_dw[i] = rd32(hw, I40E_VFQF_HLUT(i));
+	}
+
+	return 0;
+}
+
+/**
+ * i40evf_config_rss - Configure RSS keys and lut
+ * @vsi: Pointer to vsi structure
+ * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Returns 0 on success, negative on failure
+ **/
+int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed,
+		      u8 *lut, u16 lut_size)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+
+	if (RSS_AQ(adapter))
+		return i40evf_config_rss_aq(vsi, seed, lut, lut_size);
+	else
+		return i40evf_config_rss_reg(vsi, seed, lut, lut_size);
+}
+
+/**
+ * i40evf_get_rss - Get RSS keys and lut
+ * @vsi: Pointer to vsi structure
+ * @seed: RSS hash seed
+ * @lut: Lookup table
+ * @lut_size: Lookup table size
+ *
+ * Returns 0 on success, negative on failure
+ **/
+int i40evf_get_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut, u16 lut_size)
+{
+	struct i40evf_adapter *adapter = vsi->back;
+
+	if (RSS_AQ(adapter))
+		return i40evf_get_rss_aq(vsi, seed, lut, lut_size);
+	else
+		return i40evf_get_rss_reg(vsi, seed, lut, lut_size);
+}
+
+/**
+ * i40evf_fill_rss_lut - Fill the lut with default values
+ * @lut: Lookup table to be filled with
+ * @rss_table_size: Lookup table size
+ * @rss_size: Range of queue number for hashing
+ **/
+static void i40evf_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size)
+{
+	u16 i;
+
+	for (i = 0; i < rss_table_size; i++)
+		lut[i] = i % rss_size;
+}
+
+/**
+ * i40evf_init_rss - Prepare for RSS
+ * @adapter: board private structure
+ *
+ * Return 0 on success, negative on failure
+ **/
+static int i40evf_init_rss(struct i40evf_adapter *adapter)
+{
+	struct i40e_vsi *vsi = &adapter->vsi;
 	struct i40e_hw *hw = &adapter->hw;
 	u8 seed[I40EVF_HKEY_ARRAY_SIZE];
 	u64 hena;
-
-	netdev_rss_key_fill((void *)seed, I40EVF_HKEY_ARRAY_SIZE);
+	u8 *lut;
+	int ret;
 
 	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
 	hena = I40E_DEFAULT_RSS_HENA;
 	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
-	if (RSS_AQ(adapter))
-		i40evf_configure_rss_aq(&adapter->vsi, seed);
+	lut = kzalloc(I40EVF_HLUT_ARRAY_SIZE, GFP_KERNEL);
+	if (!lut)
+		return -ENOMEM;
+
+	/* Use user configured lut if there is one, otherwise use default */
+	if (vsi->rss_lut_user)
+		memcpy(lut, vsi->rss_lut_user, I40EVF_HLUT_ARRAY_SIZE);
 	else
-		i40evf_configure_rss_reg(adapter, seed);
+		i40evf_fill_rss_lut(lut, I40EVF_HLUT_ARRAY_SIZE,
+				    adapter->num_active_queues);
+
+	/* Use user configured hash key if there is one, otherwise
+	 * user default.
+	 */
+	if (vsi->rss_hkey_user)
+		memcpy(seed, vsi->rss_hkey_user, I40EVF_HKEY_ARRAY_SIZE);
+	else
+		netdev_rss_key_fill((void *)seed, I40EVF_HKEY_ARRAY_SIZE);
+	ret = i40evf_config_rss(vsi, seed, lut, I40EVF_HLUT_ARRAY_SIZE);
+	kfree(lut);
+
+	return ret;
 }
 
 /**
@@ -1326,21 +1482,22 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
  **/
 static int i40evf_alloc_q_vectors(struct i40evf_adapter *adapter)
 {
-	int q_idx, num_q_vectors;
+	int q_idx = 0, num_q_vectors;
 	struct i40e_q_vector *q_vector;
 
 	num_q_vectors = adapter->num_msix_vectors - NONQ_VECS;
+	adapter->q_vectors = kcalloc(num_q_vectors, sizeof(*q_vector),
+				     GFP_KERNEL);
+	if (!adapter->q_vectors)
+		goto err_out;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		q_vector = kzalloc(sizeof(*q_vector), GFP_KERNEL);
-		if (!q_vector)
-			goto err_out;
+		q_vector = &adapter->q_vectors[q_idx];
 		q_vector->adapter = adapter;
 		q_vector->vsi = &adapter->vsi;
 		q_vector->v_idx = q_idx;
 		netif_napi_add(adapter->netdev, &q_vector->napi,
 			       i40evf_napi_poll, NAPI_POLL_WEIGHT);
-		adapter->q_vector[q_idx] = q_vector;
 	}
 
 	return 0;
@@ -1348,11 +1505,10 @@ static int i40evf_alloc_q_vectors(struct i40evf_adapter *adapter)
 err_out:
 	while (q_idx) {
 		q_idx--;
-		q_vector = adapter->q_vector[q_idx];
+		q_vector = &adapter->q_vectors[q_idx];
 		netif_napi_del(&q_vector->napi);
-		kfree(q_vector);
-		adapter->q_vector[q_idx] = NULL;
 	}
+	kfree(adapter->q_vectors);
 	return -ENOMEM;
 }
 
@@ -1373,13 +1529,11 @@ static void i40evf_free_q_vectors(struct i40evf_adapter *adapter)
 	napi_vectors = adapter->num_active_queues;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		struct i40e_q_vector *q_vector = adapter->q_vector[q_idx];
-
-		adapter->q_vector[q_idx] = NULL;
+		struct i40e_q_vector *q_vector = &adapter->q_vectors[q_idx];
 		if (q_idx < napi_vectors)
 			netif_napi_del(&q_vector->napi);
-		kfree(q_vector);
 	}
+	kfree(adapter->q_vectors);
 }
 
 /**
@@ -1435,6 +1589,22 @@ err_alloc_q_vectors:
 	i40evf_reset_interrupt_capability(adapter);
 err_set_interrupt:
 	return err;
+}
+
+/**
+ * i40evf_clear_rss_config_user - Clear user configurations of RSS
+ * @vsi: Pointer to VSI structure
+ **/
+static void i40evf_clear_rss_config_user(struct i40e_vsi *vsi)
+{
+	if (!vsi)
+		return;
+
+	kfree(vsi->rss_hkey_user);
+	vsi->rss_hkey_user = NULL;
+
+	kfree(vsi->rss_lut_user);
+	vsi->rss_lut_user = NULL;
 }
 
 /**
@@ -1564,7 +1734,7 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		 * PF, so we don't have to set current_op as we will
 		 * not get a response through the ARQ.
 		 */
-		i40evf_configure_rss(adapter);
+		i40evf_init_rss(adapter);
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_CONFIGURE_RSS;
 		goto watchdog_done;
 	}
@@ -1864,8 +2034,8 @@ void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_active_queues; i++)
-		if (adapter->tx_rings[i]->desc)
-			i40evf_free_tx_resources(adapter->tx_rings[i]);
+		if (adapter->tx_rings[i].desc)
+			i40evf_free_tx_resources(&adapter->tx_rings[i]);
 }
 
 /**
@@ -1883,8 +2053,8 @@ static int i40evf_setup_all_tx_resources(struct i40evf_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
-		adapter->tx_rings[i]->count = adapter->tx_desc_count;
-		err = i40evf_setup_tx_descriptors(adapter->tx_rings[i]);
+		adapter->tx_rings[i].count = adapter->tx_desc_count;
+		err = i40evf_setup_tx_descriptors(&adapter->tx_rings[i]);
 		if (!err)
 			continue;
 		dev_err(&adapter->pdev->dev,
@@ -1910,8 +2080,8 @@ static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
-		adapter->rx_rings[i]->count = adapter->rx_desc_count;
-		err = i40evf_setup_rx_descriptors(adapter->rx_rings[i]);
+		adapter->rx_rings[i].count = adapter->rx_desc_count;
+		err = i40evf_setup_rx_descriptors(&adapter->rx_rings[i]);
 		if (!err)
 			continue;
 		dev_err(&adapter->pdev->dev,
@@ -1932,8 +2102,8 @@ void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_active_queues; i++)
-		if (adapter->rx_rings[i]->desc)
-			i40evf_free_rx_resources(adapter->rx_rings[i]);
+		if (adapter->rx_rings[i].desc)
+			i40evf_free_rx_resources(&adapter->rx_rings[i]);
 }
 
 /**
@@ -2262,6 +2432,14 @@ static void i40evf_init_task(struct work_struct *work)
 		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
 			err = i40evf_send_vf_config_msg(adapter);
 			goto err;
+		} else if (err == I40E_ERR_PARAM) {
+			/* We only get ERR_PARAM if the device is in a very bad
+			 * state or if we've been disabled for previous bad
+			 * behavior. Either way, we're done now.
+			 */
+			i40evf_shutdown_adminq(hw);
+			dev_err(&pdev->dev, "Unable to get VF config due to PF error condition, not retrying\n");
+			return;
 		}
 		if (err) {
 			dev_err(&pdev->dev, "Unable to get VF config (%d)\n",
@@ -2312,7 +2490,7 @@ static void i40evf_init_task(struct work_struct *work)
 		    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
 		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
 	if (!RSS_AQ(adapter))
-		i40evf_configure_rss(adapter);
+		i40evf_init_rss(adapter);
 	err = i40evf_request_misc_irq(adapter);
 	if (err)
 		goto err_sw_init;
@@ -2342,7 +2520,7 @@ static void i40evf_init_task(struct work_struct *work)
 		adapter->aq_required |= I40EVF_FLAG_AQ_CONFIGURE_RSS;
 		mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
 	} else {
-		i40evf_configure_rss(adapter);
+		i40evf_init_rss(adapter);
 	}
 	return;
 restart:
@@ -2624,6 +2802,9 @@ static void i40evf_remove(struct pci_dev *pdev)
 		del_timer_sync(&adapter->watchdog_timer);
 
 	flush_scheduled_work();
+
+	/* Clear user configurations for RSS */
+	i40evf_clear_rss_config_user(&adapter->vsi);
 
 	if (hw->aq.asq.count)
 		i40evf_shutdown_adminq(hw);

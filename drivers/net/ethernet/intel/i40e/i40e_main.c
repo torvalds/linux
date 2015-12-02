@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 2
+#define DRV_VERSION_BUILD 4
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1552,9 +1552,11 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
 	}
 
-	i40e_sync_vsi_filters(vsi, false);
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
-
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
 	return 0;
 }
 
@@ -1630,7 +1632,8 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 
 			switch (vsi->type) {
 			case I40E_VSI_MAIN:
-				qcount = min_t(int, pf->rss_size, num_tc_qps);
+				qcount = min_t(int, pf->alloc_rss_size,
+					       num_tc_qps);
 				break;
 #ifdef I40E_FCOE
 			case I40E_VSI_FCOE:
@@ -1856,13 +1859,12 @@ static void i40e_cleanup_add_list(struct list_head *add_list)
 /**
  * i40e_sync_vsi_filters - Update the VSI filter list to the HW
  * @vsi: ptr to the VSI
- * @grab_rtnl: whether RTNL needs to be grabbed
  *
  * Push any outstanding VSI filter changes through the AdminQ.
  *
  * Returns 0 or error value
  **/
-int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
+int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 {
 	struct list_head tmp_del_list, tmp_add_list;
 	struct i40e_mac_filter *f, *ftmp, *fclone;
@@ -2117,12 +2119,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 			 */
 			if (pf->cur_promisc != cur_promisc) {
 				pf->cur_promisc = cur_promisc;
-				if (grab_rtnl)
-					i40e_do_reset_safe(pf,
-						BIT(__I40E_PF_RESET_REQUESTED));
-				else
-					i40e_do_reset(pf,
-						BIT(__I40E_PF_RESET_REQUESTED));
+				set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
 			}
 		} else {
 			ret = i40e_aq_set_vsi_unicast_promiscuous(
@@ -2171,8 +2168,15 @@ static void i40e_sync_filters_subtask(struct i40e_pf *pf)
 
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v] &&
-		    (pf->vsi[v]->flags & I40E_VSI_FLAG_FILTER_CHANGED))
-			i40e_sync_vsi_filters(pf->vsi[v], true);
+		    (pf->vsi[v]->flags & I40E_VSI_FLAG_FILTER_CHANGED)) {
+			int ret = i40e_sync_vsi_filters(pf->vsi[v]);
+
+			if (ret) {
+				/* come back and try again later */
+				pf->flags |= I40E_FLAG_FILTER_SYNC;
+				break;
+			}
+		}
 	}
 }
 
@@ -2382,16 +2386,13 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 		}
 	}
 
-	/* Make sure to release before sync_vsi_filter because that
-	 * function will lock/unlock as necessary
-	 */
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
-	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
-	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
-		return 0;
-
-	return i40e_sync_vsi_filters(vsi, false);
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
+	return 0;
 }
 
 /**
@@ -2464,16 +2465,13 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 		}
 	}
 
-	/* Make sure to release before sync_vsi_filter because that
-	 * function with lock/unlock as necessary
-	 */
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
-	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
-	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
-		return 0;
-
-	return i40e_sync_vsi_filters(vsi, false);
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
+	return 0;
 }
 
 /**
@@ -2716,6 +2714,11 @@ static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 		netif_set_xps_queue(ring->netdev, mask, ring->queue_index);
 		free_cpumask_var(mask);
 	}
+
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
 }
 
 /**
@@ -7301,6 +7304,23 @@ static void i40e_vsi_free_arrays(struct i40e_vsi *vsi, bool free_qvectors)
 }
 
 /**
+ * i40e_clear_rss_config_user - clear the user configured RSS hash keys
+ * and lookup table
+ * @vsi: Pointer to VSI structure
+ */
+static void i40e_clear_rss_config_user(struct i40e_vsi *vsi)
+{
+	if (!vsi)
+		return;
+
+	kfree(vsi->rss_hkey_user);
+	vsi->rss_hkey_user = NULL;
+
+	kfree(vsi->rss_lut_user);
+	vsi->rss_lut_user = NULL;
+}
+
+/**
  * i40e_vsi_clear - Deallocate the VSI provided
  * @vsi: the VSI being un-configured
  **/
@@ -7337,6 +7357,7 @@ static int i40e_vsi_clear(struct i40e_vsi *vsi)
 	i40e_put_lump(pf->irq_pile, vsi->base_vector, vsi->idx);
 
 	i40e_vsi_free_arrays(vsi, true);
+	i40e_clear_rss_config_user(vsi);
 
 	pf->vsi[vsi->idx] = NULL;
 	if (vsi->idx < pf->next_vsi)
@@ -7865,7 +7886,7 @@ static int i40e_vsi_config_rss(struct i40e_vsi *vsi)
 
 	i40e_fill_rss_lut(pf, lut, vsi->rss_table_size, vsi->rss_size);
 	netdev_rss_key_fill((void *)seed, I40E_HKEY_ARRAY_SIZE);
-	vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
+	vsi->rss_size = min_t(int, pf->alloc_rss_size, vsi->num_queue_pairs);
 	ret = i40e_config_rss_aq(vsi, seed, lut, vsi->rss_table_size);
 	kfree(lut);
 
@@ -8015,8 +8036,6 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
 
-	vsi->rss_size = min_t(int, pf->rss_size, vsi->num_queue_pairs);
-
 	/* Determine the RSS table size based on the hardware capabilities */
 	reg_val = rd32(hw, I40E_PFQF_CTL_0);
 	reg_val = (pf->rss_table_size == 512) ?
@@ -8024,15 +8043,29 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 			(reg_val & ~I40E_PFQF_CTL_0_HASHLUTSIZE_512);
 	wr32(hw, I40E_PFQF_CTL_0, reg_val);
 
+	/* Determine the RSS size of the VSI */
+	if (!vsi->rss_size)
+		vsi->rss_size = min_t(int, pf->alloc_rss_size,
+				      vsi->num_queue_pairs);
+
 	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
 	if (!lut)
 		return -ENOMEM;
 
-	i40e_fill_rss_lut(pf, lut, vsi->rss_table_size, vsi->rss_size);
+	/* Use user configured lut if there is one, otherwise use default */
+	if (vsi->rss_lut_user)
+		memcpy(lut, vsi->rss_lut_user, vsi->rss_table_size);
+	else
+		i40e_fill_rss_lut(pf, lut, vsi->rss_table_size, vsi->rss_size);
 
-	netdev_rss_key_fill((void *)seed, I40E_HKEY_ARRAY_SIZE);
+	/* Use user configured hash key if there is one, otherwise
+	 * use default.
+	 */
+	if (vsi->rss_hkey_user)
+		memcpy(seed, vsi->rss_hkey_user, I40E_HKEY_ARRAY_SIZE);
+	else
+		netdev_rss_key_fill((void *)seed, I40E_HKEY_ARRAY_SIZE);
 	ret = i40e_config_rss(vsi, seed, lut, vsi->rss_table_size);
-
 	kfree(lut);
 
 	return ret;
@@ -8060,13 +8093,28 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 		vsi->req_queue_pairs = queue_count;
 		i40e_prep_for_reset(pf);
 
-		pf->rss_size = new_rss_size;
+		pf->alloc_rss_size = new_rss_size;
 
 		i40e_reset_and_rebuild(pf, true);
+
+		/* Discard the user configured hash keys and lut, if less
+		 * queues are enabled.
+		 */
+		if (queue_count < vsi->rss_size) {
+			i40e_clear_rss_config_user(vsi);
+			dev_dbg(&pf->pdev->dev,
+				"discard user configured hash keys and lut\n");
+		}
+
+		/* Reset vsi->rss_size, as number of enabled queues changed */
+		vsi->rss_size = min_t(int, pf->alloc_rss_size,
+				      vsi->num_queue_pairs);
+
 		i40e_pf_config_rss(pf);
 	}
-	dev_info(&pf->pdev->dev, "RSS count:  %d\n", pf->rss_size);
-	return pf->rss_size;
+	dev_info(&pf->pdev->dev, "RSS count/HW max RSS count:  %d/%d\n",
+		 pf->alloc_rss_size, pf->rss_size_max);
+	return pf->alloc_rss_size;
 }
 
 /**
@@ -8237,13 +8285,14 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	 * maximum might end up larger than the available queues
 	 */
 	pf->rss_size_max = BIT(pf->hw.func_caps.rss_table_entry_width);
-	pf->rss_size = 1;
+	pf->alloc_rss_size = 1;
 	pf->rss_table_size = pf->hw.func_caps.rss_table_size;
 	pf->rss_size_max = min_t(int, pf->rss_size_max,
 				 pf->hw.func_caps.num_tx_qp);
 	if (pf->hw.func_caps.rss) {
 		pf->flags |= I40E_FLAG_RSS_ENABLED;
-		pf->rss_size = min_t(int, pf->rss_size_max, num_online_cpus());
+		pf->alloc_rss_size = min_t(int, pf->rss_size_max,
+					   num_online_cpus());
 	}
 
 	/* MFP mode enabled */
@@ -9176,7 +9225,7 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 				f->is_vf, f->is_netdev);
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
-	i40e_sync_vsi_filters(vsi, false);
+	i40e_sync_vsi_filters(vsi);
 
 	i40e_vsi_delete(vsi);
 	i40e_vsi_free_q_vectors(vsi);
@@ -10110,7 +10159,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 	    !(pf->flags & I40E_FLAG_MSIX_ENABLED)) {
 		/* one qp for PF, no queues for anything else */
 		queues_left = 0;
-		pf->rss_size = pf->num_lan_qps = 1;
+		pf->alloc_rss_size = pf->num_lan_qps = 1;
 
 		/* make sure all the fancies are disabled */
 		pf->flags &= ~(I40E_FLAG_RSS_ENABLED	|
@@ -10127,7 +10176,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 				  I40E_FLAG_FD_ATR_ENABLED |
 				  I40E_FLAG_DCB_CAPABLE))) {
 		/* one qp for PF */
-		pf->rss_size = pf->num_lan_qps = 1;
+		pf->alloc_rss_size = pf->num_lan_qps = 1;
 		queues_left -= pf->num_lan_qps;
 
 		pf->flags &= ~(I40E_FLAG_RSS_ENABLED	|
@@ -10197,8 +10246,9 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 		"qs_avail=%d FD SB=%d lan_qs=%d lan_tc0=%d vf=%d*%d vmdq=%d*%d, remaining=%d\n",
 		pf->hw.func_caps.num_tx_qp,
 		!!(pf->flags & I40E_FLAG_FD_SB_ENABLED),
-		pf->num_lan_qps, pf->rss_size, pf->num_req_vfs, pf->num_vf_qps,
-		pf->num_vmdq_vsis, pf->num_vmdq_qps, queues_left);
+		pf->num_lan_qps, pf->alloc_rss_size, pf->num_req_vfs,
+		pf->num_vf_qps, pf->num_vmdq_vsis, pf->num_vmdq_qps,
+		queues_left);
 #ifdef I40E_FCOE
 	dev_dbg(&pf->pdev->dev, "fcoe queues = %d\n", pf->num_fcoe_qps);
 #endif
@@ -10424,18 +10474,22 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pf->hw.fc.requested_mode = I40E_FC_NONE;
 
 	err = i40e_init_adminq(hw);
+	if (err) {
+		if (err == I40E_ERR_FIRMWARE_API_VERSION)
+			dev_info(&pdev->dev,
+				 "The driver for the device stopped because the NVM image is newer than expected. You must install the most recent version of the network driver.\n");
+		else
+			dev_info(&pdev->dev,
+				 "The driver for the device stopped because the device firmware failed to init. Try updating your NVM image.\n");
+
+		goto err_pf_reset;
+	}
 
 	/* provide nvm, fw, api versions */
 	dev_info(&pdev->dev, "fw %d.%d.%05d api %d.%d nvm %s\n",
 		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver, hw->aq.fw_build,
 		 hw->aq.api_maj_ver, hw->aq.api_min_ver,
 		 i40e_nvm_version_str(hw));
-
-	if (err) {
-		dev_info(&pdev->dev,
-			 "The driver for the device stopped because the NVM image is newer than expected. You must install the most recent version of the network driver.\n");
-		goto err_pf_reset;
-	}
 
 	if (hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
 	    hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR)

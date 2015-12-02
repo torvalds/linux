@@ -2651,10 +2651,8 @@ static int i40e_set_rxfh(struct net_device *netdev, const u32 *indir,
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
-	u8 seed_def[I40E_HKEY_ARRAY_SIZE];
-	u8 *lut, *seed = NULL;
+	u8 *seed = NULL;
 	u16 i;
-	int ret;
 
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
@@ -2663,18 +2661,27 @@ static int i40e_set_rxfh(struct net_device *netdev, const u32 *indir,
 		return 0;
 
 	if (key) {
-		memcpy(seed_def, key, I40E_HKEY_ARRAY_SIZE);
-		seed = seed_def;
+		if (!vsi->rss_hkey_user) {
+			vsi->rss_hkey_user = kzalloc(I40E_HKEY_ARRAY_SIZE,
+						     GFP_KERNEL);
+			if (!vsi->rss_hkey_user)
+				return -ENOMEM;
+		}
+		memcpy(vsi->rss_hkey_user, key, I40E_HKEY_ARRAY_SIZE);
+		seed = vsi->rss_hkey_user;
 	}
-	lut = kzalloc(I40E_HLUT_ARRAY_SIZE, GFP_KERNEL);
-	if (!lut)
-		return -ENOMEM;
-	for (i = 0; i < I40E_HLUT_ARRAY_SIZE; i++)
-		lut[i] = (u8)(indir[i]);
-	ret = i40e_config_rss(vsi, seed, lut, I40E_HLUT_ARRAY_SIZE);
-	kfree(lut);
+	if (!vsi->rss_lut_user) {
+		vsi->rss_lut_user = kzalloc(I40E_HLUT_ARRAY_SIZE, GFP_KERNEL);
+		if (!vsi->rss_lut_user)
+			return -ENOMEM;
+	}
 
-	return ret;
+	/* Each 32 bits pointed by 'indir' is stored with a lut entry */
+	for (i = 0; i < I40E_HLUT_ARRAY_SIZE; i++)
+		vsi->rss_lut_user[i] = (u8)(indir[i]);
+
+	return i40e_config_rss(vsi, seed, vsi->rss_lut_user,
+			       I40E_HLUT_ARRAY_SIZE);
 }
 
 /**
