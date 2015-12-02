@@ -480,22 +480,25 @@ free_svc_hotplug:
 static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 {
 	struct gb_svc *svc = op->connection->private;
-	struct gb_message *request = op->request;
+	struct gb_svc_intf_hotplug_request *request;
 	struct svc_hotplug *svc_hotplug;
 
-	if (request->payload_size < sizeof(svc_hotplug->data)) {
+	if (op->request->payload_size < sizeof(*request)) {
 		dev_warn(&svc->dev, "short hotplug request received (%zu < %zu)\n",
-				request->payload_size,
-				sizeof(svc_hotplug->data));
+				op->request->payload_size, sizeof(*request));
 		return -EINVAL;
 	}
+
+	request = op->request->payload;
+
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, request->intf_id);
 
 	svc_hotplug = kmalloc(sizeof(*svc_hotplug), GFP_KERNEL);
 	if (!svc_hotplug)
 		return -ENOMEM;
 
 	svc_hotplug->connection = op->connection;
-	memcpy(&svc_hotplug->data, op->request->payload, sizeof(svc_hotplug->data));
+	memcpy(&svc_hotplug->data, request, sizeof(svc_hotplug->data));
 
 	INIT_WORK(&svc_hotplug->work, svc_process_hotplug);
 	queue_work(system_unbound_wq, &svc_hotplug->work);
@@ -506,20 +509,21 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 {
 	struct gb_svc *svc = op->connection->private;
-	struct gb_message *request = op->request;
-	struct gb_svc_intf_hot_unplug_request *hot_unplug = request->payload;
+	struct gb_svc_intf_hot_unplug_request *request;
 	struct gb_host_device *hd = op->connection->hd;
 	struct gb_interface *intf;
 	u8 intf_id;
 
-	if (request->payload_size < sizeof(*hot_unplug)) {
+	if (op->request->payload_size < sizeof(*request)) {
 		dev_warn(&svc->dev, "short hot unplug request received (%zu < %zu)\n",
-				request->payload_size,
-				sizeof(*hot_unplug));
+				op->request->payload_size, sizeof(*request));
 		return -EINVAL;
 	}
 
-	intf_id = hot_unplug->intf_id;
+	request = op->request->payload;
+	intf_id = request->intf_id;
+
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
 
 	intf = gb_interface_find(hd, intf_id);
 	if (!intf) {
