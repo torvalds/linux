@@ -3756,6 +3756,11 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 		tmp = REG_SET_FIELD(tmp, CP_HQD_PERSISTENT_STATE, PRELOAD_SIZE, 0x53);
 		WREG32(mmCP_HQD_PERSISTENT_STATE, tmp);
 		mqd->cp_hqd_persistent_state = tmp;
+		if (adev->asic_type == CHIP_STONEY) {
+			tmp = RREG32(mmCP_ME1_PIPE3_INT_CNTL);
+			tmp = REG_SET_FIELD(tmp, CP_ME1_PIPE3_INT_CNTL, GENERIC2_INT_ENABLE, 1);
+			WREG32(mmCP_ME1_PIPE3_INT_CNTL, tmp);
+		}
 
 		/* activate the queue */
 		mqd->cp_hqd_active = 1;
