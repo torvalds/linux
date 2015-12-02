@@ -228,121 +228,83 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1, \
 	.has_fbc = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
-	.has_llc = 1
+	.has_llc = 1, \
+	GEN_DEFAULT_PIPEOFFSETS, \
+	IVB_CURSOR_OFFSETS
 
 static const struct intel_device_info intel_ivybridge_d_info = {
 	GEN7_FEATURES,
 	.is_ivybridge = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_ivybridge_m_info = {
 	GEN7_FEATURES,
 	.is_ivybridge = 1,
 	.is_mobile = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_ivybridge_q_info = {
 	GEN7_FEATURES,
 	.is_ivybridge = 1,
 	.num_pipes = 0, /* legal, last one wins */
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
+#define VLV_FEATURES  \
+	.gen = 7, .num_pipes = 2, \
+	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
+	.display_mmio_offset = VLV_DISPLAY_BASE, \
+	GEN_DEFAULT_PIPEOFFSETS, \
+	CURSOR_OFFSETS
+
 static const struct intel_device_info intel_valleyview_m_info = {
-	GEN7_FEATURES,
-	.is_mobile = 1,
-	.num_pipes = 2,
+	VLV_FEATURES,
 	.is_valleyview = 1,
-	.display_mmio_offset = VLV_DISPLAY_BASE,
-	.has_fbc = 0, /* legal, last one wins */
-	.has_llc = 0, /* legal, last one wins */
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	.is_mobile = 1,
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
-	GEN7_FEATURES,
-	.num_pipes = 2,
+	VLV_FEATURES,
 	.is_valleyview = 1,
-	.display_mmio_offset = VLV_DISPLAY_BASE,
-	.has_fbc = 0, /* legal, last one wins */
-	.has_llc = 0, /* legal, last one wins */
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
+#define HSW_FEATURES  \
+	GEN7_FEATURES, \
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
+	.has_ddi = 1, \
+	.has_fpga_dbg = 1
+
 static const struct intel_device_info intel_haswell_d_info = {
-	GEN7_FEATURES,
+	HSW_FEATURES,
 	.is_haswell = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
-	GEN7_FEATURES,
+	HSW_FEATURES,
 	.is_haswell = 1,
 	.is_mobile = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_broadwell_d_info = {
-	.gen = 8, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
-	.has_llc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
+	HSW_FEATURES,
+	.gen = 8,
 };
 
 static const struct intel_device_info intel_broadwell_m_info = {
-	.gen = 8, .is_mobile = 1, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
-	.has_llc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
+	HSW_FEATURES,
+	.gen = 8, .is_mobile = 1,
 };
 
 static const struct intel_device_info intel_broadwell_gt3d_info = {
-	.gen = 8, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
+	HSW_FEATURES,
+	.gen = 8,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
-	.has_llc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_broadwell_gt3m_info = {
-	.gen = 8, .is_mobile = 1, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
+	HSW_FEATURES,
+	.gen = 8, .is_mobile = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
-	.has_llc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_cherryview_info = {
@@ -356,29 +318,15 @@ static const struct intel_device_info intel_cherryview_info = {
 };
 
 static const struct intel_device_info intel_skylake_info = {
+	HSW_FEATURES,
 	.is_skylake = 1,
-	.gen = 9, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
-	.has_llc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
+	.gen = 9,
 };
 
 static const struct intel_device_info intel_skylake_gt3_info = {
 	.is_skylake = 1,
-	.gen = 9, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
+	.gen = 9,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
-	.has_llc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_broxton_info = {
@@ -396,33 +344,18 @@ static const struct intel_device_info intel_broxton_info = {
 };
 
 static const struct intel_device_info intel_kabylake_info = {
+	HSW_FEATURES,
 	.is_preliminary = 1,
 	.is_kabylake = 1,
 	.gen = 9,
-	.num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
-	.has_llc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_kabylake_gt3_info = {
+	HSW_FEATURES,
 	.is_preliminary = 1,
 	.is_kabylake = 1,
 	.gen = 9,
-	.num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
-	.has_llc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
 };
 
 /*
