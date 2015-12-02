@@ -115,7 +115,7 @@
 			label = "user_pb";
 			gpios = <&pioB 10 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

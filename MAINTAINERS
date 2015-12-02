@@ -1931,7 +1931,7 @@ S:	Supported
 F:	drivers/i2c/busses/i2c-at91.c
 
 ATMEL ISI DRIVER
-M:	Josh Wu <josh.wu@atmel.com>
+M:	Ludovic Desroches <ludovic.desroches@atmel.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/platform/soc_camera/atmel-isi.c
@@ -1950,7 +1950,8 @@ S:	Supported
 F:	drivers/net/ethernet/cadence/
 
 ATMEL NAND DRIVER
-M:	Josh Wu <josh.wu@atmel.com>
+M:	Wenyou Yang <wenyou.yang@atmel.com>
+M:	Josh Wu <rainyfeeling@outlook.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
 F:	drivers/mtd/nand/atmel_nand*
@@ -6366,6 +6367,7 @@ F:	arch/*/include/asm/pmem.h
 LIGHTNVM PLATFORM SUPPORT
 M:	Matias Bjorling <mb@lightnvm.io>
 W:	http://github/OpenChannelSSD
+L:	linux-block@vger.kernel.org
 S:	Maintained
 F:	drivers/lightnvm/
 F:	include/linux/lightnvm.h
