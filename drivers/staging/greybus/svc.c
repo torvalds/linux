@@ -458,6 +458,30 @@ destroy_interface:
 	gb_interface_remove(intf);
 }
 
+static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
+{
+	struct gb_svc *svc = operation->connection->private;
+	struct gb_svc_intf_hot_unplug_request *request;
+	struct gb_host_device *hd = operation->connection->hd;
+	struct gb_interface *intf;
+	u8 intf_id;
+
+	/* The request message size has already been verified. */
+	request = operation->request->payload;
+	intf_id = request->intf_id;
+
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
+
+	intf = gb_interface_find(hd, intf_id);
+	if (!intf) {
+		dev_warn(&svc->dev, "could not find hot-unplug interface %hhu\n",
+				intf_id);
+		return;
+	}
+
+	gb_svc_intf_remove(svc, intf);
+}
+
 static void gb_svc_process_deferred_request(struct work_struct *work)
 {
 	struct gb_svc_deferred_request *dr;
@@ -473,6 +497,9 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 	switch (type) {
 	case GB_SVC_TYPE_INTF_HOTPLUG:
 		gb_svc_process_intf_hotplug(operation);
+		break;
+	case GB_SVC_TYPE_INTF_HOT_UNPLUG:
+		gb_svc_process_intf_hot_unplug(operation);
 		break;
 	default:
 		dev_err(&svc->dev, "bad deferred request type: %02x\n", type);
@@ -531,9 +558,6 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 {
 	struct gb_svc *svc = op->connection->private;
 	struct gb_svc_intf_hot_unplug_request *request;
-	struct gb_host_device *hd = op->connection->hd;
-	struct gb_interface *intf;
-	u8 intf_id;
 
 	if (op->request->payload_size < sizeof(*request)) {
 		dev_warn(&svc->dev, "short hot unplug request received (%zu < %zu)\n",
@@ -542,20 +566,10 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 	}
 
 	request = op->request->payload;
-	intf_id = request->intf_id;
 
-	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, request->intf_id);
 
-	intf = gb_interface_find(hd, intf_id);
-	if (!intf) {
-		dev_warn(&svc->dev, "could not find hot-unplug interface %hhu\n",
-				intf_id);
-		return -EINVAL;
-	}
-
-	gb_svc_intf_remove(svc, intf);
-
-	return 0;
+	return gb_svc_queue_deferred_request(op);
 }
 
 static int gb_svc_intf_reset_recv(struct gb_operation *op)
