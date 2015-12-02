@@ -375,6 +375,23 @@ void __init dove_setup_cpu_wins(void)
 				    DOVE_SCRATCHPAD_SIZE);
 }
 
+static struct resource orion_wdt_resource[] = {
+		DEFINE_RES_MEM(TIMER_PHYS_BASE, 0x04),
+		DEFINE_RES_MEM(RSTOUTn_MASK_PHYS, 0x04),
+};
+
+static struct platform_device orion_wdt_device = {
+	.name		= "orion_wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(orion_wdt_resource),
+	.resource	= orion_wdt_resource,
+};
+
+static void __init __maybe_unused orion_wdt_init(void)
+{
+	platform_device_register(&orion_wdt_device);
+}
+
 void __init dove_init(void)
 {
 	pr_info("Dove 88AP510 SoC, TCLK = %d MHz.\n",
