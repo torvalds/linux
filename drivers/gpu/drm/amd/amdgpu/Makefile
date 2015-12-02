@@ -100,7 +100,7 @@ amdgpu-$(CONFIG_MMU_NOTIFIER) += amdgpu_mn.o
 
 ifneq ($(CONFIG_DRM_AMD_POWERPLAY),)
 
-include drivers/gpu/drm/amd/powerplay/Makefile
+include $(FULL_AMD_PATH)/powerplay/Makefile
 
 amdgpu-y += $(AMD_POWERPLAY_FILES)
 
