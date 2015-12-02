@@ -21,9 +21,9 @@
 #include <linux/ata_platform.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
+#include "orion5x.h"
 
 #define MV2120_NOR_BOOT_BASE	0xf4000000
 #define MV2120_NOR_BOOT_SIZE	SZ_512K

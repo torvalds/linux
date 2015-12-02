@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-orion5x/include/mach/uncompress.h
- *
  * Tzachi Perelstein <tzachi@marvell.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -9,8 +7,8 @@
  */
 
 #include <linux/serial_reg.h>
-#include <mach/orion5x.h>
 
+#define UART0_PHYS_BASE (0xf1000000 + 0x12000)
 #define SERIAL_BASE	((unsigned char *)UART0_PHYS_BASE)
 
 static void putc(const char c)

@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-orion5x/include/mach/orion5x.h
- *
  * Generic definitions of Orion SoC flavors:
  *  Orion-1, Orion-VoIP, Orion-NAS, Orion-2, and Orion-1-90.
  *
@@ -14,7 +12,7 @@
 #ifndef __ASM_ARCH_ORION5X_H
 #define __ASM_ARCH_ORION5X_H
 
-#include <mach/irqs.h>
+#include "irqs.h"
 
 /*****************************************************************************
  * Orion Address Maps

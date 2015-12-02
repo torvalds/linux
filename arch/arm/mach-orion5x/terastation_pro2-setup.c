@@ -22,9 +22,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * Terastation Pro 2/Live Info

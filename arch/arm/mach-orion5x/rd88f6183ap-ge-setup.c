@@ -22,8 +22,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
 #include "common.h"
+#include "orion5x.h"
 
 static struct mv643xx_eth_platform_data rd88f6183ap_ge_eth_data = {
 	.phy_addr	= -1,

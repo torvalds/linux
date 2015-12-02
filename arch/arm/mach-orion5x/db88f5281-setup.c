@@ -23,10 +23,10 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <mach/orion5x.h>
 #include <linux/platform_data/mtd-orion_nand.h>
 #include "common.h"
 #include "mpp.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * DB-88F5281 on board devices

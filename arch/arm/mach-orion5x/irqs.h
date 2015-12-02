@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-orion5x/include/mach/irqs.h
- *
  * IRQ definitions for Orion SoC
  *
  *  Maintainer: Tzachi Perelstein <tzachi@marvell.com>

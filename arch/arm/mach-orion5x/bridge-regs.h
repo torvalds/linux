@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-orion5x/include/mach/bridge-regs.h
- *
  * Orion CPU Bridge Registers
  *
  * This file is licensed under the terms of the GNU General Public
@@ -11,7 +9,7 @@
 #ifndef __ASM_ARCH_BRIDGE_REGS_H
 #define __ASM_ARCH_BRIDGE_REGS_H
 
-#include <mach/orion5x.h>
+#include "orion5x.h"
 
 #define CPU_CONF		(ORION5X_BRIDGE_VIRT_BASE + 0x100)
 

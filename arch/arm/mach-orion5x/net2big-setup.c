@@ -24,10 +24,10 @@
 #include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/orion5x.h>
 #include <plat/orion-gpio.h>
 #include "common.h"
 #include "mpp.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * LaCie 2Big Network Info
