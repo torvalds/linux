@@ -110,7 +110,7 @@ struct registry_priv {
 	u8	wifi_spec;/*  !turbo_mode */
 
 	u8	channel_plan;
-	bool	bAcceptAddbaReq;
+	bool	bAcceptAddbaReq; /* true = accept AP's Add BA req */
 
 	u8	antdiv_cfg;
 	u8	antdiv_type;

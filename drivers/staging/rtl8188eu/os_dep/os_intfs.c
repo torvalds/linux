@@ -101,8 +101,6 @@ static int rtw_rf_config = RF_819X_MAX_TYPE;  /* auto */
 static int rtw_low_power;
 static int rtw_wifi_spec;
 static int rtw_channel_plan = RT_CHANNEL_DOMAIN_MAX;
-/* 0:Reject AP's Add BA req, 1:Accept AP's Add BA req. */
-static int rtw_AcceptAddbaReq = true;
 
 static int rtw_antdiv_cfg = 2; /*  0:OFF , 1:ON, 2:decide by Efuse config */
 
@@ -593,7 +591,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->low_power = (u8)rtw_low_power;
 	registry_par->wifi_spec = (u8)rtw_wifi_spec;
 	registry_par->channel_plan = (u8)rtw_channel_plan;
-	registry_par->bAcceptAddbaReq = (u8)rtw_AcceptAddbaReq;
+	registry_par->bAcceptAddbaReq = true;
 	registry_par->antdiv_cfg = (u8)rtw_antdiv_cfg;
 	registry_par->antdiv_type = (u8)rtw_antdiv_type;
 	registry_par->hwpdn_mode = (u8)rtw_hwpdn_mode;
