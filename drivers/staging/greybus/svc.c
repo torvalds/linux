@@ -333,10 +333,8 @@ static int gb_svc_hello(struct gb_operation *op)
 	return 0;
 }
 
-static void svc_intf_remove(struct gb_connection *connection,
-			    struct gb_interface *intf)
+static void gb_svc_intf_remove(struct gb_svc *svc, struct gb_interface *intf)
 {
-	struct gb_svc *svc = connection->private;
 	u8 intf_id = intf->interface_id;
 	u8 device_id;
 
@@ -391,7 +389,7 @@ static void svc_process_hotplug(struct work_struct *work)
 		 */
 		dev_info(&svc->dev, "removing interface %hhu to add it again\n",
 				intf_id);
-		svc_intf_remove(connection, intf);
+		gb_svc_intf_remove(svc, intf);
 	}
 
 	intf = gb_interface_create(hd, intf_id);
@@ -533,7 +531,7 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	svc_intf_remove(op->connection, intf);
+	gb_svc_intf_remove(svc, intf);
 
 	return 0;
 }
