@@ -704,12 +704,14 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 				   u32 pend_size,
 				   struct hv_netvsc_packet *packet,
 				   struct rndis_message *rndis_msg,
-				   struct hv_page_buffer **pb)
+				   struct hv_page_buffer **pb,
+				   struct sk_buff *skb)
 {
 	char *start = net_device->send_buf;
 	char *dest = start + (section_index * net_device->send_section_size)
 		     + pend_size;
 	int i;
+	bool is_data_pkt = (skb != NULL) ? true : false;
 	u32 msg_size = 0;
 	u32 padding = 0;
 	u32 remain = packet->total_data_buflen % net_device->pkt_align;
@@ -717,7 +719,7 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 		packet->page_buf_cnt;
 
 	/* Add padding */
-	if (packet->is_data_pkt && packet->xmit_more && remain &&
+	if (is_data_pkt && packet->xmit_more && remain &&
 	    !packet->cp_partial) {
 		padding = net_device->pkt_align - remain;
 		rndis_msg->msg_len += padding;
@@ -758,7 +760,7 @@ static inline int netvsc_send_pkt(
 	u32 ring_avail = hv_ringbuf_avail_percent(&out_channel->outbound);
 
 	nvmsg.hdr.msg_type = NVSP_MSG1_TYPE_SEND_RNDIS_PKT;
-	if (packet->is_data_pkt) {
+	if (skb != NULL) {
 		/* 0 is RMC_DATA; */
 		nvmsg.msg.v1_msg.send_rndis_pkt.channel_type = 0;
 	} else {
@@ -868,7 +870,7 @@ int netvsc_send(struct hv_device *device,
 	if (msdp->pkt)
 		msd_len = msdp->pkt->total_data_buflen;
 
-	try_batch = packet->is_data_pkt && msd_len > 0 && msdp->count <
+	try_batch = (skb != NULL) && msd_len > 0 && msdp->count <
 		    net_device->max_pkt;
 
 	if (try_batch && msd_len + pktlen + net_device->pkt_align <
@@ -880,7 +882,7 @@ int netvsc_send(struct hv_device *device,
 		section_index = msdp->pkt->send_buf_index;
 		packet->cp_partial = true;
 
-	} else if (packet->is_data_pkt && pktlen + net_device->pkt_align <
+	} else if ((skb != NULL) && pktlen + net_device->pkt_align <
 		   net_device->send_section_size) {
 		section_index = netvsc_get_next_send_section(net_device);
 		if (section_index != NETVSC_INVALID_INDEX) {
@@ -894,7 +896,7 @@ int netvsc_send(struct hv_device *device,
 	if (section_index != NETVSC_INVALID_INDEX) {
 		netvsc_copy_to_send_buf(net_device,
 					section_index, msd_len,
-					packet, rndis_msg, pb);
+					packet, rndis_msg, pb, skb);
 
 		packet->send_buf_index = section_index;
 

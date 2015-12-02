@@ -215,7 +215,6 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	/* Setup the packet to send it */
 	packet = &req->pkt;
 
-	packet->is_data_pkt = false;
 	packet->total_data_buflen = req->request_msg.msg_len;
 	packet->page_buf_cnt = 1;
 

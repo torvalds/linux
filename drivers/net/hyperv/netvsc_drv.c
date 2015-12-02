@@ -478,7 +478,6 @@ check_size:
 
 	packet->q_idx = skb_get_queue_mapping(skb);
 
-	packet->is_data_pkt = true;
 	packet->total_data_buflen = skb->len;
 
 	rndis_msg = (struct rndis_message *)skb->head;
