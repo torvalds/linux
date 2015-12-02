@@ -29,7 +29,10 @@ struct sclp_ipl_info {
 
 struct sclp_core_entry {
 	u8 core_id;
-	u8 reserved0[2];
+	u8 reserved0;
+	u8 : 4;
+	u8 sief2 : 1;
+	u8 : 3;
 	u8 : 3;
 	u8 siif : 1;
 	u8 sigpif : 1;
@@ -53,6 +56,9 @@ struct sclp_info {
 	unsigned char has_sigpif : 1;
 	unsigned char has_core_type : 1;
 	unsigned char has_sprp : 1;
+	unsigned char has_hvs : 1;
+	unsigned char has_esca : 1;
+	unsigned char has_sief2 : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;

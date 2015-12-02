@@ -43,7 +43,10 @@ struct read_info_sccb {
 	u8	_pad_92[100 - 92];	/* 92-99 */
 	u32	rnsize2;		/* 100-103 */
 	u64	rnmax2;			/* 104-111 */
-	u8	_pad_112[120 - 112];	/* 112-119 */
+	u8	_pad_112[116 - 112];	/* 112-115 */
+	u8	fac116;			/* 116 */
+	u8	_pad_117[119 - 117];	/* 117-118 */
+	u8	fac119;			/* 119 */
 	u16	hcpua;			/* 120-121 */
 	u8	_pad_122[4096 - 122];	/* 122-4095 */
 } __packed __aligned(PAGE_SIZE);
@@ -108,6 +111,8 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	sclp.facilities = sccb->facilities;
 	sclp.has_sprp = !!(sccb->fac84 & 0x02);
 	sclp.has_core_type = !!(sccb->fac84 & 0x01);
+	sclp.has_esca = !!(sccb->fac116 & 0x08);
+	sclp.has_hvs = !!(sccb->fac119 & 0x80);
 	if (sccb->fac85 & 0x02)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
 	sclp.rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
@@ -131,6 +136,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 			continue;
 		sclp.has_siif = cpue->siif;
 		sclp.has_sigpif = cpue->sigpif;
+		sclp.has_sief2 = cpue->sief2;
 		break;
 	}
 
