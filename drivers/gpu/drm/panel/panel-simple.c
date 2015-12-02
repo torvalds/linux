@@ -930,6 +930,30 @@ static const struct panel_desc innolux_zj070na_01p = {
 	},
 };
 
+static const struct display_timing kyo_tcg121xglp_timing = {
+	.pixelclock = { 52000000, 65000000, 71000000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 2, 2, 2 },
+	.hback_porch = { 2, 2, 2 },
+	.hsync_len = { 86, 124, 244 },
+	.vactive = { 768, 768, 768 },
+	.vfront_porch = { 2, 2, 2 },
+	.vback_porch = { 2, 2, 2 },
+	.vsync_len = { 6, 34, 73 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc kyo_tcg121xglp = {
+	.timings = &kyo_tcg121xglp_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 246,
+		.height = 184,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode lg_lb070wv8_mode = {
 	.clock = 33246,
 	.hdisplay = 800,
@@ -1197,6 +1221,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "innolux,zj070na-01p",
 		.data = &innolux_zj070na_01p,
+	}, {
+		.compatible = "kyo,tcg121xglp",
+		.data = &kyo_tcg121xglp,
 	}, {
 		.compatible = "lg,lb070wv8",
 		.data = &lg_lb070wv8,
