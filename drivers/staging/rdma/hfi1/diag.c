@@ -135,7 +135,7 @@ static struct cdev diagpkt_cdev;
 static struct device *diagpkt_device;
 
 static ssize_t diagpkt_write(struct file *fp, const char __user *data,
-				 size_t count, loff_t *off);
+			     size_t count, loff_t *off);
 
 static const struct file_operations diagpkt_file_ops = {
 	.owner = THIS_MODULE,
@@ -202,12 +202,12 @@ struct hfi1_link_info {
 
 static int hfi1_snoop_open(struct inode *in, struct file *fp);
 static ssize_t hfi1_snoop_read(struct file *fp, char __user *data,
-				size_t pkt_len, loff_t *off);
+			       size_t pkt_len, loff_t *off);
 static ssize_t hfi1_snoop_write(struct file *fp, const char __user *data,
-				 size_t count, loff_t *off);
+				size_t count, loff_t *off);
 static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg);
 static unsigned int hfi1_snoop_poll(struct file *fp,
-					struct poll_table_struct *wait);
+				    struct poll_table_struct *wait);
 static int hfi1_snoop_release(struct inode *in, struct file *fp);
 
 struct hfi1_packet_filter_command {
@@ -394,7 +394,7 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 
 	if (dp->version != _DIAG_PKT_VERS) {
 		dd_dev_err(dd, "Invalid version %u for diagpkt_write\n",
-			    dp->version);
+			   dp->version);
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -553,7 +553,7 @@ bail:
 }
 
 static ssize_t diagpkt_write(struct file *fp, const char __user *data,
-				 size_t count, loff_t *off)
+			     size_t count, loff_t *off)
 {
 	struct hfi1_devdata *dd;
 	struct send_context *sc;
@@ -606,7 +606,7 @@ static int hfi1_snoop_add(struct hfi1_devdata *dd, const char *name)
 	if (ret) {
 		dd_dev_err(dd, "Couldn't create %s device: %d", name, ret);
 		hfi1_cdev_cleanup(&dd->hfi1_snoop.cdev,
-				 &dd->hfi1_snoop.class_dev);
+				  &dd->hfi1_snoop.class_dev);
 	}
 
 	return ret;
@@ -954,7 +954,7 @@ static ssize_t hfi1_snoop_read(struct file *fp, char __user *data,
 		spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
 		if (pkt_len >= packet->total_len) {
 			if (copy_to_user(data, packet->data,
-				packet->total_len))
+					 packet->total_len))
 				ret = -EFAULT;
 			else
 				ret = packet->total_len;
