@@ -208,25 +208,6 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 	return error;
 }
 
-/* Compare an extended attribute value with the given value */
-int vfs_xattr_cmp(struct dentry *dentry, const char *xattr_name,
-		  const char *value, size_t size, gfp_t flags)
-{
-	char *xattr_value = NULL;
-	int rc;
-
-	rc = vfs_getxattr_alloc(dentry, xattr_name, &xattr_value, 0, flags);
-	if (rc < 0)
-		return rc;
-
-	if ((rc != size) || (memcmp(xattr_value, value, rc) != 0))
-		rc = -EINVAL;
-	else
-		rc = 0;
-	kfree(xattr_value);
-	return rc;
-}
-
 ssize_t
 vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
 {
