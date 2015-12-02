@@ -519,20 +519,6 @@ config ARCH_DOVE
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
-config ARCH_MV78XX0
-	bool "Marvell MV78xx0"
-	select ARCH_REQUIRE_GPIOLIB
-	select CPU_FEROCEON
-	select GENERIC_CLOCKEVENTS
-	select MVEBU_MBUS
-	select MULTI_IRQ_HANDLER
-	select PCI
-	select PLAT_ORION_LEGACY
-	select SPARSE_IRQ
-	help
-	  Support for the following Marvell MV78xx0 series SoCs:
-	  MV781x0, MV782x0.
-
 config ARCH_ORION5X
 	bool "Marvell Orion"
 	depends on MMU
