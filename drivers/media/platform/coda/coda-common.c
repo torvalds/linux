@@ -293,7 +293,8 @@ static void coda_get_max_dimensions(struct coda_dev *dev,
 		*max_h = h;
 }
 
-const struct coda_video_device *to_coda_video_device(struct video_device *vdev)
+static const struct coda_video_device *to_coda_video_device(struct video_device
+							    *vdev)
 {
 	struct coda_dev *dev = video_get_drvdata(vdev);
 	unsigned int i = vdev - dev->vfd;
