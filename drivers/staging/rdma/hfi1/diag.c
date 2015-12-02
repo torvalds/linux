@@ -982,24 +982,28 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct hfi1_pportdata *ppd = NULL;
 	unsigned int index;
 	struct hfi1_link_info link_info;
+	int read_cmd, write_cmd, read_ok, write_ok;
 
 	dd = hfi1_dd_from_sc_inode(fp->f_inode);
 	if (!dd)
 		return -ENODEV;
 
 	mode_flag = dd->hfi1_snoop.mode_flag;
+	read_cmd = _IOC_DIR(cmd) & _IOC_READ;
+	write_cmd = _IOC_DIR(cmd) & _IOC_WRITE;
+	write_ok = access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+	read_ok = access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
 
-	if (((_IOC_DIR(cmd) & _IOC_READ)
-	    && !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd)))
-	    || ((_IOC_DIR(cmd) & _IOC_WRITE)
-	    && !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd)))) {
+	if ((read_cmd && !write_ok) || (write_cmd && !read_ok))
 		return -EFAULT;
-	} else if (!capable(CAP_SYS_ADMIN)) {
+
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	} else if ((mode_flag & HFI1_PORT_CAPTURE_MODE) &&
-		   (cmd != HFI1_SNOOP_IOCCLEARQUEUE) &&
-		   (cmd != HFI1_SNOOP_IOCCLEARFILTER) &&
-		   (cmd != HFI1_SNOOP_IOCSETFILTER)) {
+
+	if ((mode_flag & HFI1_PORT_CAPTURE_MODE) &&
+	    (cmd != HFI1_SNOOP_IOCCLEARQUEUE) &&
+	    (cmd != HFI1_SNOOP_IOCCLEARFILTER) &&
+	    (cmd != HFI1_SNOOP_IOCSETFILTER))
 		/* Capture devices are allowed only 3 operations
 		 * 1.Clear capture queue
 		 * 2.Clear capture filter
@@ -1007,7 +1011,6 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		 * Other are invalid.
 		 */
 		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&dd->hfi1_snoop.snoop_lock, flags);
 
