@@ -1008,6 +1008,7 @@ static void netvsc_receive(struct netvsc_device *net_device,
 	int i;
 	int count = 0;
 	struct net_device *ndev;
+	void *data;
 
 	ndev = net_device->ndev;
 
@@ -1047,13 +1048,13 @@ static void netvsc_receive(struct netvsc_device *net_device,
 	for (i = 0; i < count; i++) {
 		/* Initialize the netvsc packet */
 		netvsc_packet->status = NVSP_STAT_SUCCESS;
-		netvsc_packet->data = (void *)((unsigned long)net_device->
+		data = (void *)((unsigned long)net_device->
 			recv_buf + vmxferpage_packet->ranges[i].byte_offset);
 		netvsc_packet->total_data_buflen =
 					vmxferpage_packet->ranges[i].byte_count;
 
 		/* Pass it to the upper layer */
-		rndis_filter_receive(device, netvsc_packet, channel);
+		rndis_filter_receive(device, netvsc_packet, &data, channel);
 
 		if (netvsc_packet->status != NVSP_STAT_SUCCESS)
 			status = NVSP_STAT_FAIL;

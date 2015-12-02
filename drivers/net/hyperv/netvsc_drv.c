@@ -682,6 +682,7 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
  */
 int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet,
+				void **data,
 				struct ndis_tcp_ip_checksum_info *csum_info,
 				struct vmbus_channel *channel)
 {
@@ -710,7 +711,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	 * Copy to skb. This copy is needed here since the memory pointed by
 	 * hv_netvsc_packet cannot be deallocated
 	 */
-	memcpy(skb_put(skb, packet->total_data_buflen), packet->data,
+	memcpy(skb_put(skb, packet->total_data_buflen), *data,
 		packet->total_data_buflen);
 
 	skb->protocol = eth_type_trans(skb, net);

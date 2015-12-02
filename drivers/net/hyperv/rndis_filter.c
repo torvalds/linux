@@ -351,6 +351,7 @@ static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
 static void rndis_filter_receive_data(struct rndis_device *dev,
 				   struct rndis_message *msg,
 				   struct hv_netvsc_packet *pkt,
+				   void **data,
 				   struct vmbus_channel *channel)
 {
 	struct rndis_packet *rndis_pkt;
@@ -383,7 +384,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	 * the data packet to the stack, without the rndis trailer padding
 	 */
 	pkt->total_data_buflen = rndis_pkt->data_len;
-	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
+	*data = (void *)((unsigned long)(*data) + data_offset);
 
 	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO);
 	if (vlan) {
@@ -394,11 +395,12 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	}
 
 	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
-	netvsc_recv_callback(dev->net_dev->dev, pkt, csum_info, channel);
+	netvsc_recv_callback(dev->net_dev->dev, pkt, data, csum_info, channel);
 }
 
 int rndis_filter_receive(struct hv_device *dev,
 				struct hv_netvsc_packet	*pkt,
+				void **data,
 				struct vmbus_channel *channel)
 {
 	struct netvsc_device *net_dev = hv_get_drvdata(dev);
@@ -430,7 +432,7 @@ int rndis_filter_receive(struct hv_device *dev,
 		goto exit;
 	}
 
-	rndis_msg = pkt->data;
+	rndis_msg = *data;
 
 	if (netif_msg_rx_err(net_dev->nd_ctx))
 		dump_rndis_message(dev, rndis_msg);
@@ -438,7 +440,8 @@ int rndis_filter_receive(struct hv_device *dev,
 	switch (rndis_msg->ndis_msg_type) {
 	case RNDIS_MSG_PACKET:
 		/* data msg */
-		rndis_filter_receive_data(rndis_dev, rndis_msg, pkt, channel);
+		rndis_filter_receive_data(rndis_dev, rndis_msg, pkt,
+					  data, channel);
 		break;
 
 	case RNDIS_MSG_INIT_C:

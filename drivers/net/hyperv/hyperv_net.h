@@ -148,9 +148,6 @@ struct hv_netvsc_packet {
 	u64 send_completion_tid;
 	void *send_completion_ctx;
 	void (*send_completion)(void *context);
-
-	/* Points to the send/receive buffer where the ethernet frame is */
-	void *data;
 	struct hv_page_buffer *page_buf;
 };
 
@@ -195,6 +192,7 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 void netvsc_xmit_completion(void *context);
 int netvsc_recv_callback(struct hv_device *device_obj,
 			struct hv_netvsc_packet *packet,
+			void **data,
 			struct ndis_tcp_ip_checksum_info *csum_info,
 			struct vmbus_channel *channel);
 void netvsc_channel_cb(void *context);
@@ -205,6 +203,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 void rndis_filter_device_remove(struct hv_device *dev);
 int rndis_filter_receive(struct hv_device *dev,
 			struct hv_netvsc_packet *pkt,
+			void **data,
 			struct vmbus_channel *channel);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
