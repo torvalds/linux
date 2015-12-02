@@ -489,7 +489,7 @@ check_size:
 	memset(rndis_msg, 0, RNDIS_AND_PPI_SIZE);
 
 	/* Set the completion routine */
-	packet->send_completion = netvsc_xmit_completion;
+	packet->completion_func = 1;
 	packet->send_completion_ctx = packet;
 	packet->send_completion_tid = (unsigned long)skb;
 

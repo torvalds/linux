@@ -135,7 +135,7 @@ struct hv_netvsc_packet {
 	u8 rmsg_size; /* RNDIS header and PPI size */
 	u8 rmsg_pgcnt; /* page count of RNDIS header and PPI */
 	u8 page_buf_cnt;
-	u8 pad0;
+	u8 completion_func;
 
 	u16 vlan_tci;
 	u16 q_idx;
@@ -147,7 +147,6 @@ struct hv_netvsc_packet {
 
 	u64 send_completion_tid;
 	void *send_completion_ctx;
-	void (*send_completion)(void *context);
 	struct hv_page_buffer *page_buf;
 };
 
