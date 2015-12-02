@@ -3884,6 +3884,8 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 #endif
 }
 
+static int bnxt_cfg_rx_mode(struct bnxt *);
+
 static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 {
 	int rc = 0;
@@ -3950,11 +3952,9 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 		bp->vnic_info[0].rx_mask |=
 				CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
 
-	rc = bnxt_hwrm_cfa_l2_set_rx_mask(bp, 0);
-	if (rc) {
-		netdev_err(bp->dev, "HWRM cfa l2 rx mask failure rc: %x\n", rc);
+	rc = bnxt_cfg_rx_mode(bp);
+	if (rc)
 		goto err_out;
-	}
 
 	rc = bnxt_hwrm_set_coal(bp);
 	if (rc)
@@ -4869,7 +4869,7 @@ static void bnxt_set_rx_mode(struct net_device *dev)
 	}
 }
 
-static void bnxt_cfg_rx_mode(struct bnxt *bp)
+static int bnxt_cfg_rx_mode(struct bnxt *bp)
 {
 	struct net_device *dev = bp->dev;
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
@@ -4918,6 +4918,7 @@ static void bnxt_cfg_rx_mode(struct bnxt *bp)
 			netdev_err(bp->dev, "HWRM vnic filter failure rc: %x\n",
 				   rc);
 			vnic->uc_filter_count = i;
+			return rc;
 		}
 	}
 
@@ -4926,6 +4927,8 @@ skip_uc:
 	if (rc)
 		netdev_err(bp->dev, "HWRM cfa l2 rx mask failure rc: %x\n",
 			   rc);
+
+	return rc;
 }
 
 static netdev_features_t bnxt_fix_features(struct net_device *dev,
