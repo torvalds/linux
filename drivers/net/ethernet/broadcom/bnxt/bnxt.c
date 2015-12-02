@@ -3625,6 +3625,7 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		pf->fw_fid = le16_to_cpu(resp->fid);
 		pf->port_id = le16_to_cpu(resp->port_id);
 		memcpy(pf->mac_addr, resp->perm_mac_address, ETH_ALEN);
+		memcpy(bp->dev->dev_addr, pf->mac_addr, ETH_ALEN);
 		pf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
 		pf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
 		pf->max_tx_rings = le16_to_cpu(resp->max_tx_rings);
@@ -3648,8 +3649,11 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 
 		vf->fw_fid = le16_to_cpu(resp->fid);
 		memcpy(vf->mac_addr, resp->perm_mac_address, ETH_ALEN);
-		if (!is_valid_ether_addr(vf->mac_addr))
-			random_ether_addr(vf->mac_addr);
+		if (is_valid_ether_addr(vf->mac_addr))
+			/* overwrite netdev dev_adr with admin VF MAC */
+			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
+		else
+			random_ether_addr(bp->dev->dev_addr);
 
 		vf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
 		vf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
@@ -5218,6 +5222,11 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+#ifdef CONFIG_BNXT_SRIOV
+	if (BNXT_VF(bp) && is_valid_ether_addr(bp->vf.mac_addr))
+		return -EADDRNOTAVAIL;
+#endif
+
 	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
 		return 0;
 
@@ -5695,15 +5704,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 	dflt_rings = netif_get_num_default_rss_queues();
-	if (BNXT_PF(bp)) {
-		memcpy(dev->dev_addr, bp->pf.mac_addr, ETH_ALEN);
+	if (BNXT_PF(bp))
 		bp->pf.max_irqs = max_irqs;
-	} else {
 #if defined(CONFIG_BNXT_SRIOV)
-		memcpy(dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
+	else
 		bp->vf.max_irqs = max_irqs;
 #endif
-	}
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings);
 	bp->rx_nr_rings = min_t(int, dflt_rings, max_rx_rings);
 	bp->tx_nr_rings_per_tc = min_t(int, dflt_rings, max_tx_rings);
