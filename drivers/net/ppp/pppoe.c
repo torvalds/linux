@@ -1202,4 +1202,4 @@ module_exit(pppoe_exit);
 MODULE_AUTHOR("Michal Ostrowski <mostrows@speakeasy.net>");
 MODULE_DESCRIPTION("PPP over Ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_NETPROTO(PF_PPPOX);
+MODULE_ALIAS_NET_PF_PROTO(PF_PPPOX, PX_PROTO_OE);
