@@ -27,6 +27,7 @@
 
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_drv.h"
+#include "fsl_tcon.h"
 
 static bool fsl_dcu_drm_is_volatile_reg(struct device *dev, unsigned int reg)
 {
@@ -356,6 +357,8 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to enable pix clk\n");
 		goto unregister_pix_clk;
 	}
+
+	fsl_dev->tcon = fsl_tcon_init(dev);
 
 	drm = drm_dev_alloc(driver, dev);
 	if (!drm) {

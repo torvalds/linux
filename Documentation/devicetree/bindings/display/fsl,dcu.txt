@@ -14,6 +14,9 @@ Required properties:
 - big-endian		Boolean property, LS1021A DCU registers are big-endian.
 - fsl,panel:		The phandle to panel node.
 
+Optional properties:
+- fsl,tcon:		The phandle to the timing controller node.
+
 Examples:
 dcu: dcu@2ce0000 {
 	compatible = "fsl,ls1021a-dcu";
@@ -22,4 +25,5 @@ dcu: dcu@2ce0000 {
 	clock-names = "dcu", "pix";
 	big-endian;
 	fsl,panel = <&panel>;
+	fsl,tcon = <&tcon>;
 };
