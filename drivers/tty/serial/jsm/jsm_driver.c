@@ -70,7 +70,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out;
 	}
 
-	rc = pci_request_regions(pdev, "jsm");
+	rc = pci_request_regions(pdev, JSM_DRIVER_NAME);
 	if (rc) {
 		dev_err(&pdev->dev, "pci_request_region FAILED\n");
 		goto out_disable_device;
@@ -328,7 +328,7 @@ static struct pci_device_id jsm_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, jsm_pci_tbl);
 
 static struct pci_driver jsm_driver = {
-	.name		= "jsm",
+	.name		= JSM_DRIVER_NAME,
 	.id_table	= jsm_pci_tbl,
 	.probe		= jsm_probe_one,
 	.remove		= jsm_remove_one,
