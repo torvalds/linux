@@ -394,7 +394,7 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 	u8 badworden = 0x0F;
 	u8 tmpdata[8];
 
-	memset((void *)tmpdata, 0xff, PGPKT_DATA_SIZE);
+	memset(tmpdata, 0xff, PGPKT_DATA_SIZE);
 
 	if (!(word_en & BIT(0))) {
 		tmpaddr = start_addr;
@@ -500,8 +500,8 @@ int Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data)
 	if (offset > max_section)
 		return false;
 
-	memset((void *)data, 0xff, sizeof(u8) * PGPKT_DATA_SIZE);
-	memset((void *)tmpdata, 0xff, sizeof(u8) * PGPKT_DATA_SIZE);
+	memset(data, 0xff, sizeof(u8) * PGPKT_DATA_SIZE);
+	memset(tmpdata, 0xff, sizeof(u8) * PGPKT_DATA_SIZE);
 
 	/*  <Roger_TODO> Efuse has been pre-programmed dummy 5Bytes at the end of Efuse by CP. */
 	/*  Skip dummy parts to prevent unexpected data read from Efuse. */
@@ -572,7 +572,7 @@ static bool hal_EfuseFixHeaderProcess(struct adapter *pAdapter, u8 efuseType, st
 	u16	efuse_addr = *pAddr;
 	u32	PgWriteSuccess = 0;
 
-	memset((void *)originaldata, 0xff, 8);
+	memset(originaldata, 0xff, 8);
 
 	if (Efuse_PgPacketRead(pAdapter, pFixPkt->offset, originaldata)) {
 		/* check if data exist */
