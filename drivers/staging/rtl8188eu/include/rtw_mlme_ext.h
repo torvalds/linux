@@ -348,7 +348,7 @@ struct mlme_ext_info {
 	u8	candidate_tid_bitmap;
 	u8	dialogToken;
 	/*  Accept ADDBA Request */
-	bool bAcceptAddbaReq;
+	bool accept_addba_req;
 	u8	bwmode_updated;
 	u8	hidden_ssid_mode;
 

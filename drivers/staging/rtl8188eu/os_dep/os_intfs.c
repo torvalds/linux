@@ -591,7 +591,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->low_power = (u8)rtw_low_power;
 	registry_par->wifi_spec = (u8)rtw_wifi_spec;
 	registry_par->channel_plan = (u8)rtw_channel_plan;
-	registry_par->bAcceptAddbaReq = true;
+	registry_par->accept_addba_req = true;
 	registry_par->antdiv_cfg = (u8)rtw_antdiv_cfg;
 	registry_par->antdiv_type = (u8)rtw_antdiv_type;
 	registry_par->hwpdn_mode = (u8)rtw_hwpdn_mode;
