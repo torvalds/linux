@@ -694,13 +694,7 @@ struct mfc_control {
 
 /* Macro for making hardware specific calls */
 #define s5p_mfc_hw_call(f, op, args...) \
-	((f && f->op) ? f->op(args) : -ENODEV)
-
-#define s5p_mfc_hw_call_void(f, op, args...) \
-do { \
-	if (f && f->op) \
-		f->op(args); \
-} while (0)
+	((f && f->op) ? f->op(args) : (typeof(f->op(args)))(-ENODEV))
 
 #define fh_to_ctx(__fh) container_of(__fh, struct s5p_mfc_ctx, fh)
 #define ctrl_to_ctx(__ctrl) \
