@@ -2120,7 +2120,8 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 	 */
 	kvm_check_async_pf_completion(vcpu);
 
-	memcpy(&vcpu->arch.sie_block->gg14, &vcpu->run->s.regs.gprs[14], 16);
+	vcpu->arch.sie_block->gg14 = vcpu->run->s.regs.gprs[14];
+	vcpu->arch.sie_block->gg15 = vcpu->run->s.regs.gprs[15];
 
 	if (need_resched())
 		schedule();
@@ -2185,7 +2186,8 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 	if (guestdbg_enabled(vcpu))
 		kvm_s390_restore_guest_per_regs(vcpu);
 
-	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
+	vcpu->run->s.regs.gprs[14] = vcpu->arch.sie_block->gg14;
+	vcpu->run->s.regs.gprs[15] = vcpu->arch.sie_block->gg15;
 
 	if (vcpu->arch.sie_block->icptcode > 0) {
 		int rc = kvm_handle_sie_intercept(vcpu);
