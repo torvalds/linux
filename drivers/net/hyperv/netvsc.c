@@ -749,8 +749,8 @@ static inline int netvsc_send_pkt(
 	struct netvsc_device *net_device)
 {
 	struct nvsp_message nvmsg;
-	struct vmbus_channel *out_channel = get_channel(packet, net_device);
 	u16 q_idx = packet->q_idx;
+	struct vmbus_channel *out_channel = net_device->chn_table[q_idx];
 	struct net_device *ndev = net_device->ndev;
 	u64 req_id;
 	int ret;
@@ -859,8 +859,7 @@ int netvsc_send(struct hv_device *device,
 	if (!net_device)
 		return -ENODEV;
 
-	out_channel = get_channel(packet, net_device);
-	q_idx = packet->q_idx;
+	out_channel = net_device->chn_table[q_idx];
 
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
