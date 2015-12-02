@@ -511,6 +511,7 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 
 static int gb_svc_queue_deferred_request(struct gb_operation *operation)
 {
+	struct gb_svc *svc = operation->connection->private;
 	struct gb_svc_deferred_request *dr;
 
 	dr = kmalloc(sizeof(*dr), GFP_KERNEL);
@@ -522,7 +523,7 @@ static int gb_svc_queue_deferred_request(struct gb_operation *operation)
 	dr->operation = operation;
 	INIT_WORK(&dr->work, gb_svc_process_deferred_request);
 
-	queue_work(system_unbound_wq, &dr->work);
+	queue_work(svc->wq, &dr->work);
 
 	return 0;
 }
@@ -532,7 +533,7 @@ static int gb_svc_queue_deferred_request(struct gb_operation *operation)
  * initialization on the module side. Over that, we may also need to download
  * the firmware first and flash that on the module.
  *
- * In order to make other hotplug events to not wait for all this to finish,
+ * In order not to make other svc events wait for all this to finish,
  * handle most of module hotplug stuff outside of the hotplug callback, with
  * help of a workqueue.
  */
@@ -658,6 +659,7 @@ static void gb_svc_release(struct device *dev)
 	struct gb_svc *svc = to_gb_svc(dev);
 
 	ida_destroy(&svc->device_id_map);
+	destroy_workqueue(svc->wq);
 	kfree(svc);
 }
 
@@ -674,6 +676,12 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
 	if (!svc)
 		return -ENOMEM;
+
+	svc->wq = alloc_workqueue("%s:svc", WQ_UNBOUND, 1, dev_name(&hd->dev));
+	if (!svc->wq) {
+		kfree(svc);
+		return -ENOMEM;
+	}
 
 	svc->dev.parent = &hd->dev;
 	svc->dev.bus = &greybus_bus_type;

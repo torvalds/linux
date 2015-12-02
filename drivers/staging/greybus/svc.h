@@ -22,6 +22,7 @@ struct gb_svc {
 	struct gb_connection	*connection;
 	enum gb_svc_state	state;
 	struct ida		device_id_map;
+	struct workqueue_struct	*wq;
 
 	u16 endo_id;
 	u8 ap_intf_id;
