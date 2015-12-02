@@ -16,10 +16,9 @@
 #define CPORT_FLAGS_CSV_N       BIT(2)
 
 
-struct svc_hotplug {
+struct gb_svc_deferred_request {
 	struct work_struct work;
-	struct gb_connection *connection;
-	struct gb_svc_intf_hotplug_request data;
+	struct gb_operation *operation;
 };
 
 
@@ -349,16 +348,10 @@ static void gb_svc_intf_remove(struct gb_svc *svc, struct gb_interface *intf)
 	ida_simple_remove(&svc->device_id_map, device_id);
 }
 
-/*
- * 'struct svc_hotplug' should be freed by svc_process_hotplug() before it
- * returns, irrespective of success or Failure in bringing up the module.
- */
-static void svc_process_hotplug(struct work_struct *work)
+static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 {
-	struct svc_hotplug *svc_hotplug = container_of(work, struct svc_hotplug,
-						       work);
 	struct gb_svc_intf_hotplug_request *request;
-	struct gb_connection *connection = svc_hotplug->connection;
+	struct gb_connection *connection = operation->connection;
 	struct gb_svc *svc = connection->private;
 	struct gb_host_device *hd = connection->hd;
 	struct gb_interface *intf;
@@ -366,7 +359,7 @@ static void svc_process_hotplug(struct work_struct *work)
 	int ret;
 
 	/* The request message size has already been verified. */
-	request = &svc_hotplug->data;
+	request = operation->request->payload;
 	intf_id = request->intf_id;
 
 	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
@@ -396,7 +389,7 @@ static void svc_process_hotplug(struct work_struct *work)
 	if (!intf) {
 		dev_err(&svc->dev, "failed to create interface %hhu\n",
 				intf_id);
-		goto free_svc_hotplug;
+		return;
 	}
 
 	ret = gb_svc_read_and_clear_module_boot_status(intf);
@@ -450,7 +443,7 @@ static void svc_process_hotplug(struct work_struct *work)
 		goto destroy_route;
 	}
 
-	goto free_svc_hotplug;
+	return;
 
 destroy_route:
 	gb_svc_route_destroy(svc, svc->ap_intf_id, intf_id);
@@ -463,8 +456,48 @@ ida_put:
 	ida_simple_remove(&svc->device_id_map, device_id);
 destroy_interface:
 	gb_interface_remove(intf);
-free_svc_hotplug:
-	kfree(svc_hotplug);
+}
+
+static void gb_svc_process_deferred_request(struct work_struct *work)
+{
+	struct gb_svc_deferred_request *dr;
+	struct gb_operation *operation;
+	struct gb_svc *svc;
+	u8 type;
+
+	dr = container_of(work, struct gb_svc_deferred_request, work);
+	operation = dr->operation;
+	svc = operation->connection->private;
+	type = operation->request->header->type;
+
+	switch (type) {
+	case GB_SVC_TYPE_INTF_HOTPLUG:
+		gb_svc_process_intf_hotplug(operation);
+		break;
+	default:
+		dev_err(&svc->dev, "bad deferred request type: %02x\n", type);
+	}
+
+	gb_operation_put(operation);
+	kfree(dr);
+}
+
+static int gb_svc_queue_deferred_request(struct gb_operation *operation)
+{
+	struct gb_svc_deferred_request *dr;
+
+	dr = kmalloc(sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	gb_operation_get(operation);
+
+	dr->operation = operation;
+	INIT_WORK(&dr->work, gb_svc_process_deferred_request);
+
+	queue_work(system_unbound_wq, &dr->work);
+
+	return 0;
 }
 
 /*
@@ -480,7 +513,6 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 {
 	struct gb_svc *svc = op->connection->private;
 	struct gb_svc_intf_hotplug_request *request;
-	struct svc_hotplug *svc_hotplug;
 
 	if (op->request->payload_size < sizeof(*request)) {
 		dev_warn(&svc->dev, "short hotplug request received (%zu < %zu)\n",
@@ -492,17 +524,7 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 
 	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, request->intf_id);
 
-	svc_hotplug = kmalloc(sizeof(*svc_hotplug), GFP_KERNEL);
-	if (!svc_hotplug)
-		return -ENOMEM;
-
-	svc_hotplug->connection = op->connection;
-	memcpy(&svc_hotplug->data, request, sizeof(svc_hotplug->data));
-
-	INIT_WORK(&svc_hotplug->work, svc_process_hotplug);
-	queue_work(system_unbound_wq, &svc_hotplug->work);
-
-	return 0;
+	return gb_svc_queue_deferred_request(op);
 }
 
 static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
