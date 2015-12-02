@@ -1451,21 +1451,6 @@ static void s5p_mfc_try_run_v5(struct s5p_mfc_dev *dev)
 	}
 }
 
-
-static void s5p_mfc_cleanup_queue_v5(struct list_head *lh, struct vb2_queue *vq)
-{
-	struct s5p_mfc_buf *b;
-	int i;
-
-	while (!list_empty(lh)) {
-		b = list_entry(lh->next, struct s5p_mfc_buf, list);
-		for (i = 0; i < b->b->vb2_buf.num_planes; i++)
-			vb2_set_plane_payload(&b->b->vb2_buf, i, 0);
-		vb2_buffer_done(&b->b->vb2_buf, VB2_BUF_STATE_ERROR);
-		list_del(&b->list);
-	}
-}
-
 static void s5p_mfc_clear_int_flags_v5(struct s5p_mfc_dev *dev)
 {
 	mfc_write(dev, 0, S5P_FIMV_RISC_HOST_INT);
@@ -1677,7 +1662,6 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
 	.init_encode = s5p_mfc_init_encode_v5,
 	.encode_one_frame = s5p_mfc_encode_one_frame_v5,
 	.try_run = s5p_mfc_try_run_v5,
-	.cleanup_queue = s5p_mfc_cleanup_queue_v5,
 	.clear_int_flags = s5p_mfc_clear_int_flags_v5,
 	.write_info = s5p_mfc_write_info_v5,
 	.read_info = s5p_mfc_read_info_v5,

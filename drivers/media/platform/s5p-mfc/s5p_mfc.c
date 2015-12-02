@@ -125,6 +125,20 @@ static void wake_up_dev(struct s5p_mfc_dev *dev, unsigned int reason,
 	wake_up(&dev->queue);
 }
 
+void s5p_mfc_cleanup_queue(struct list_head *lh, struct vb2_queue *vq)
+{
+	struct s5p_mfc_buf *b;
+	int i;
+
+	while (!list_empty(lh)) {
+		b = list_entry(lh->next, struct s5p_mfc_buf, list);
+		for (i = 0; i < b->b->vb2_buf.num_planes; i++)
+			vb2_set_plane_payload(&b->b->vb2_buf, i, 0);
+		vb2_buffer_done(&b->b->vb2_buf, VB2_BUF_STATE_ERROR);
+		list_del(&b->list);
+	}
+}
+
 static void s5p_mfc_watchdog(unsigned long arg)
 {
 	struct s5p_mfc_dev *dev = (struct s5p_mfc_dev *)arg;
@@ -170,10 +184,8 @@ static void s5p_mfc_watchdog_worker(struct work_struct *work)
 		if (!ctx)
 			continue;
 		ctx->state = MFCINST_ERROR;
-		s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->dst_queue, &ctx->vq_dst);
-		s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->src_queue, &ctx->vq_src);
+		s5p_mfc_cleanup_queue(&ctx->dst_queue, &ctx->vq_dst);
+		s5p_mfc_cleanup_queue(&ctx->src_queue, &ctx->vq_src);
 		clear_work_bit(ctx);
 		wake_up_ctx(ctx, S5P_MFC_R2H_CMD_ERR_RET, 0);
 	}
@@ -471,11 +483,9 @@ static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
 			ctx->state = MFCINST_ERROR;
 			/* Mark all dst buffers as having an error */
 			spin_lock_irqsave(&dev->irqlock, flags);
-			s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->dst_queue, &ctx->vq_dst);
+			s5p_mfc_cleanup_queue(&ctx->dst_queue, &ctx->vq_dst);
 			/* Mark all src buffers as having an error */
-			s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->src_queue, &ctx->vq_src);
+			s5p_mfc_cleanup_queue(&ctx->src_queue, &ctx->vq_src);
 			spin_unlock_irqrestore(&dev->irqlock, flags);
 			wake_up_ctx(ctx, reason, err);
 			break;

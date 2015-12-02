@@ -296,8 +296,6 @@ struct s5p_mfc_hw_ops {
 	int (*init_encode)(struct s5p_mfc_ctx *ctx);
 	int (*encode_one_frame)(struct s5p_mfc_ctx *ctx);
 	void (*try_run)(struct s5p_mfc_dev *dev);
-	void (*cleanup_queue)(struct list_head *lh,
-			struct vb2_queue *vq);
 	void (*clear_int_flags)(struct s5p_mfc_dev *dev);
 	void (*write_info)(struct s5p_mfc_ctx *ctx, unsigned int data,
 			unsigned int ofs);
