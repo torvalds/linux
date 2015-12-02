@@ -63,6 +63,11 @@ int lower_bound(struct btree_node *n, uint64_t key)
 	return bsearch(n, key, 0);
 }
 
+static int upper_bound(struct btree_node *n, uint64_t key)
+{
+	return bsearch(n, key, 1);
+}
+
 void inc_children(struct dm_transaction_manager *tm, struct btree_node *n,
 		  struct dm_btree_value_type *vt)
 {
@@ -391,6 +396,82 @@ int dm_btree_lookup(struct dm_btree_info *info, dm_block_t root,
 	return r;
 }
 EXPORT_SYMBOL_GPL(dm_btree_lookup);
+
+static int dm_btree_lookup_next_single(struct dm_btree_info *info, dm_block_t root,
+				       uint64_t key, uint64_t *rkey, void *value_le)
+{
+	int r, i;
+	uint32_t flags, nr_entries;
+	struct dm_block *node;
+	struct btree_node *n;
+
+	r = bn_read_lock(info, root, &node);
+	if (r)
+		return r;
+
+	n = dm_block_data(node);
+	flags = le32_to_cpu(n->header.flags);
+	nr_entries = le32_to_cpu(n->header.nr_entries);
+
+	if (flags & INTERNAL_NODE) {
+		i = lower_bound(n, key);
+		if (i < 0 || i >= nr_entries) {
+			r = -ENODATA;
+			goto out;
+		}
+
+		r = dm_btree_lookup_next_single(info, value64(n, i), key, rkey, value_le);
+		if (r == -ENODATA && i < (nr_entries - 1)) {
+			i++;
+			r = dm_btree_lookup_next_single(info, value64(n, i), key, rkey, value_le);
+		}
+
+	} else {
+		i = upper_bound(n, key);
+		if (i < 0 || i >= nr_entries) {
+			r = -ENODATA;
+			goto out;
+		}
+
+		*rkey = le64_to_cpu(n->keys[i]);
+		memcpy(value_le, value_ptr(n, i), info->value_type.size);
+	}
+out:
+	dm_tm_unlock(info->tm, node);
+	return r;
+}
+
+int dm_btree_lookup_next(struct dm_btree_info *info, dm_block_t root,
+			 uint64_t *keys, uint64_t *rkey, void *value_le)
+{
+	unsigned level;
+	int r = -ENODATA;
+	__le64 internal_value_le;
+	struct ro_spine spine;
+
+	init_ro_spine(&spine, info);
+	for (level = 0; level < info->levels - 1u; level++) {
+		r = btree_lookup_raw(&spine, root, keys[level],
+				     lower_bound, rkey,
+				     &internal_value_le, sizeof(uint64_t));
+		if (r)
+			goto out;
+
+		if (*rkey != keys[level]) {
+			r = -ENODATA;
+			goto out;
+		}
+
+		root = le64_to_cpu(internal_value_le);
+	}
+
+	r = dm_btree_lookup_next_single(info, root, keys[level], rkey, value_le);
+out:
+	exit_ro_spine(&spine);
+	return r;
+}
+
+EXPORT_SYMBOL_GPL(dm_btree_lookup_next);
 
 /*
  * Splits a node by creating a sibling node and shifting half the nodes

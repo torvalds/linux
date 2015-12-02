@@ -1538,7 +1538,7 @@ static int __remove(struct dm_thin_device *td, dm_block_t block)
 static int __remove_range(struct dm_thin_device *td, dm_block_t begin, dm_block_t end)
 {
 	int r;
-	unsigned count;
+	unsigned count, total_count = 0;
 	struct dm_pool_metadata *pmd = td->pmd;
 	dm_block_t keys[1] = { td->id };
 	__le64 value;
@@ -1561,11 +1561,29 @@ static int __remove_range(struct dm_thin_device *td, dm_block_t begin, dm_block_
 	if (r)
 		return r;
 
-	r = dm_btree_remove_leaves(&pmd->bl_info, mapping_root, &begin, end, &mapping_root, &count);
-	if (r)
-		return r;
+	/*
+	 * Remove leaves stops at the first unmapped entry, so we have to
+	 * loop round finding mapped ranges.
+	 */
+	while (begin < end) {
+		r = dm_btree_lookup_next(&pmd->bl_info, mapping_root, &begin, &begin, &value);
+		if (r == -ENODATA)
+			break;
 
-	td->mapped_blocks -= count;
+		if (r)
+			return r;
+
+		if (begin >= end)
+			break;
+
+		r = dm_btree_remove_leaves(&pmd->bl_info, mapping_root, &begin, end, &mapping_root, &count);
+		if (r)
+			return r;
+
+		total_count += count;
+	}
+
+	td->mapped_blocks -= total_count;
 	td->changed = 1;
 
 	/*
