@@ -72,8 +72,8 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 	int order;
 	int ret;
 
-	for (; sg_dma_len(sg) < offset; sg = sg_next(sg))
-		offset -= sg_dma_len(sg);
+	for (; sg->length < offset; sg = sg_next(sg))
+		offset -= sg->length;
 
 	start_off = offset_in_page(sg_phys(sg) + offset);
 	size = PAGE_ALIGN(size + start_off);
@@ -98,15 +98,16 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 	addr = start;
 	do {
 		phys_addr_t phys;
+		struct scatterlist *sg_tmp;
 		size_t len;
 
 		phys = sg_phys(sg);
-		len = sg_dma_len(sg);
+		len = sg->length;
 
 		/* if back to back sg entries are contiguous consolidate them */
-		while (sg_next(sg) && sg_phys(sg) +
-		       sg_dma_len(sg) == sg_phys(sg_next(sg))) {
-			len += sg_dma_len(sg_next(sg));
+		sg_tmp = sg_next(sg);
+		while (sg_next(sg) && sg_phys(sg) + sg->length == sg_phys(sg_next(sg))) {
+			len += sg_tmp->length;
 			sg = sg_next(sg);
 		}
 
