@@ -1045,17 +1045,15 @@ static void netvsc_receive(struct netvsc_device *net_device,
 	/* Each range represents 1 RNDIS pkt that contains 1 ethernet frame */
 	for (i = 0; i < count; i++) {
 		/* Initialize the netvsc packet */
-		netvsc_packet->status = NVSP_STAT_SUCCESS;
 		data = (void *)((unsigned long)net_device->
 			recv_buf + vmxferpage_packet->ranges[i].byte_offset);
 		netvsc_packet->total_data_buflen =
 					vmxferpage_packet->ranges[i].byte_count;
 
 		/* Pass it to the upper layer */
-		rndis_filter_receive(device, netvsc_packet, &data, channel);
+		status = rndis_filter_receive(device, netvsc_packet, &data,
+					      channel);
 
-		if (netvsc_packet->status != NVSP_STAT_SUCCESS)
-			status = NVSP_STAT_FAIL;
 	}
 
 	netvsc_send_recv_completion(device, channel, net_device,

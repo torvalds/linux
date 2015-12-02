@@ -471,8 +471,6 @@ check_size:
 			FIELD_SIZEOF(struct sk_buff, cb));
 	packet = (struct hv_netvsc_packet *)skb->cb;
 
-	packet->status = 0;
-
 	packet->vlan_tci = skb->vlan_tci;
 
 	packet->q_idx = skb_get_queue_mapping(skb);
@@ -684,8 +682,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 
 	net = ((struct netvsc_device *)hv_get_drvdata(device_obj))->ndev;
 	if (!net || net->reg_state != NETREG_REGISTERED) {
-		packet->status = NVSP_STAT_FAIL;
-		return 0;
+		return NVSP_STAT_FAIL;
 	}
 	net_device_ctx = netdev_priv(net);
 	rx_stats = this_cpu_ptr(net_device_ctx->rx_stats);
@@ -694,8 +691,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	skb = netdev_alloc_skb_ip_align(net, packet->total_data_buflen);
 	if (unlikely(!skb)) {
 		++net->stats.rx_dropped;
-		packet->status = NVSP_STAT_FAIL;
-		return 0;
+		return NVSP_STAT_FAIL;
 	}
 
 	/*
