@@ -117,6 +117,18 @@
 	clock-frequency = <400000>;
 	i2c-scl-falling-time-ns = <50>;
 	i2c-scl-rising-time-ns = <300>;
+
+	touchscreen@10 {
+		compatible = "elan,ekth3500";
+		reg = <0x10>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <14 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_int &touch_rst>;
+		reset-gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
+		vcc33-supply = <&vcc33_touch>;
+		vccio-supply = <&vcc33_touch>;
+	};
 };
 
 &rk808 {
