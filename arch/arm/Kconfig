@@ -519,23 +519,6 @@ config ARCH_DOVE
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
-config ARCH_ORION5X
-	bool "Marvell Orion"
-	depends on MMU
-	select ARCH_REQUIRE_GPIOLIB
-	select CPU_FEROCEON
-	select GENERIC_CLOCKEVENTS
-	select MVEBU_MBUS
-	select MULTI_IRQ_HANDLER
-	select PCI
-	select PLAT_ORION_LEGACY
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
-	help
-	  Support for the following Marvell Orion 5x series SoCs:
-	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
-	  Orion-2 (5281), Orion-1-90 (6183).
-
 config ARCH_MMP
 	bool "Marvell PXA168/910/MMP2"
 	depends on MMU
