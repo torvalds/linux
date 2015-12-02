@@ -265,6 +265,9 @@ static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
 	u32 cr_own;
 	u32 cr_mode;
 	u32 wsr;
+	int is_tdm;
+
+	is_tdm = (rsnd_get_slot_runtime(io) >= 6) ? 1 : 0;
 
 	/*
 	 * always use 32bit system word.
@@ -274,7 +277,7 @@ static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
 
 	if (rdai->bit_clk_inv)
 		cr_own |= SCKP;
-	if (rdai->frm_clk_inv)
+	if (rdai->frm_clk_inv ^ is_tdm)
 		cr_own |= SWSP;
 	if (rdai->data_alignment)
 		cr_own |= SDTA;
@@ -307,7 +310,7 @@ static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
 	 *	rsnd_ssiu_init_gen2()
 	 */
 	wsr = ssi->wsr;
-	if (rsnd_get_slot_runtime(io) >= 6) {
+	if (is_tdm) {
 		wsr	|= WS_MODE;
 		cr_own	|= CHNL_8;
 	}
