@@ -160,8 +160,8 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 /* test availability of facility in a kvm instance */
 static inline int test_kvm_facility(struct kvm *kvm, unsigned long nr)
 {
-	return __test_facility(nr, kvm->arch.model.fac->mask) &&
-		__test_facility(nr, kvm->arch.model.fac->list);
+	return __test_facility(nr, kvm->arch.model.fac_mask) &&
+		__test_facility(nr, kvm->arch.model.fac_list);
 }
 
 static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)

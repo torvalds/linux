@@ -600,15 +600,11 @@ struct s390_io_adapter {
 #define S390_ARCH_FAC_MASK_SIZE_U64 \
 	(S390_ARCH_FAC_MASK_SIZE_BYTE / sizeof(u64))
 
-struct kvm_s390_fac {
-	/* facility list requested by guest */
-	__u64 list[S390_ARCH_FAC_LIST_SIZE_U64];
-	/* facility mask supported by kvm & hosting machine */
-	__u64 mask[S390_ARCH_FAC_LIST_SIZE_U64];
-};
-
 struct kvm_s390_cpu_model {
-	struct kvm_s390_fac *fac;
+	/* facility mask supported by kvm & hosting machine */
+	__u64 fac_mask[S390_ARCH_FAC_LIST_SIZE_U64];
+	/* facility list requested by guest (in dma page) */
+	__u64 *fac_list;
 	struct cpuid cpu_id;
 	unsigned short ibc;
 };
@@ -626,6 +622,16 @@ struct kvm_s390_crypto_cb {
 	__u8    aes_wrapping_key_mask[32];      /* 0x0060 */
 	__u8    reserved80[128];                /* 0x0080 */
 };
+
+/*
+ * sie_page2 has to be allocated as DMA because fac_list and crycb need
+ * 31bit addresses in the sie control block.
+ */
+struct sie_page2 {
+	__u64 fac_list[S390_ARCH_FAC_LIST_SIZE_U64];	/* 0x0000 */
+	struct kvm_s390_crypto_cb crycb;		/* 0x0800 */
+	u8 reserved900[0x1000 - 0x900];			/* 0x0900 */
+} __packed;
 
 struct kvm_arch{
 	void *sca;
@@ -647,6 +653,7 @@ struct kvm_arch{
 	int ipte_lock_count;
 	struct mutex ipte_mutex;
 	spinlock_t start_stop_lock;
+	struct sie_page2 *sie_page2;
 	struct kvm_s390_cpu_model model;
 	struct kvm_s390_crypto crypto;
 	u64 epoch;
