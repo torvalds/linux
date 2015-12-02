@@ -1639,7 +1639,8 @@ static void kvm_s390_vcpu_setup_model(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.cpu_id = model->cpu_id;
 	vcpu->arch.sie_block->ibc = model->ibc;
-	vcpu->arch.sie_block->fac = (int) (long) model->fac->list;
+	if (test_kvm_facility(vcpu->kvm, 7))
+		vcpu->arch.sie_block->fac = (int) (long) model->fac->list;
 }
 
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
