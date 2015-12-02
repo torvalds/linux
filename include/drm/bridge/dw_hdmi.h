@@ -92,6 +92,13 @@ enum dw_hdmi_phy_type {
 	DW_HDMI_PHY_VENDOR_PHY = 0xfe,
 };
 
+struct dw_hdmi_audio_tmds_n {
+	unsigned long tmds;
+	unsigned int n_32k;
+	unsigned int n_44k1;
+	unsigned int n_48k;
+};
+
 struct dw_hdmi_mpll_config {
 	unsigned long mpixelclock;
 	struct {
@@ -134,6 +141,7 @@ struct dw_hdmi_plat_data {
 	const char *phy_name;
 	void *phy_data;
 	unsigned int phy_force_vendor;
+        const struct dw_hdmi_audio_tmds_n *tmds_n_table;
 
 	/* Synopsys PHY support */
 	const struct dw_hdmi_mpll_config *mpll_cfg;
