@@ -33,15 +33,15 @@ static unsigned int timeout = 30;
 static int touch_vdso;
 struct timeval tv;
 
-static int touch_fp;
+static int touch_fp = 1;
 double fp;
 
-static int touch_vector;
+static int touch_vector = 1;
 typedef int v4si __attribute__ ((vector_size (16)));
 v4si a, b, c;
 
 #ifdef __powerpc__
-static int touch_altivec;
+static int touch_altivec = 1;
 
 static void __attribute__((__target__("no-vsx"))) altivec_touch_fn(void)
 {
@@ -354,11 +354,11 @@ static struct option options[] = {
 	{ "process", no_argument, &processes, 1 },
 	{ "timeout", required_argument, 0, 's' },
 	{ "vdso", no_argument, &touch_vdso, 1 },
-	{ "fp", no_argument, &touch_fp, 1 },
+	{ "no-fp", no_argument, &touch_fp, 0 },
 #ifdef __powerpc__
-	{ "altivec", no_argument, &touch_altivec, 1 },
+	{ "no-altivec", no_argument, &touch_altivec, 0 },
 #endif
-	{ "vector", no_argument, &touch_vector, 1 },
+	{ "no-vector", no_argument, &touch_vector, 0 },
 	{ 0, },
 };
 
