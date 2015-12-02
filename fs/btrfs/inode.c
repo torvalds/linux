@@ -3550,10 +3550,10 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 	int scanned = 0;
 
 	if (!xattr_access) {
-		xattr_access = btrfs_name_hash(POSIX_ACL_XATTR_ACCESS,
-					strlen(POSIX_ACL_XATTR_ACCESS));
-		xattr_default = btrfs_name_hash(POSIX_ACL_XATTR_DEFAULT,
-					strlen(POSIX_ACL_XATTR_DEFAULT));
+		xattr_access = btrfs_name_hash(XATTR_NAME_POSIX_ACL_ACCESS,
+					strlen(XATTR_NAME_POSIX_ACL_ACCESS));
+		xattr_default = btrfs_name_hash(XATTR_NAME_POSIX_ACL_DEFAULT,
+					strlen(XATTR_NAME_POSIX_ACL_DEFAULT));
 	}
 
 	slot++;

@@ -67,8 +67,8 @@ int v9fs_get_acl(struct inode *inode, struct p9_fid *fid)
 		return 0;
 	}
 	/* get the default/access acl values and cache them */
-	dacl = __v9fs_get_acl(fid, POSIX_ACL_XATTR_DEFAULT);
-	pacl = __v9fs_get_acl(fid, POSIX_ACL_XATTR_ACCESS);
+	dacl = __v9fs_get_acl(fid, XATTR_NAME_POSIX_ACL_DEFAULT);
+	pacl = __v9fs_get_acl(fid, XATTR_NAME_POSIX_ACL_ACCESS);
 
 	if (!IS_ERR(dacl) && !IS_ERR(pacl)) {
 		set_cached_acl(inode, ACL_TYPE_DEFAULT, dacl);
@@ -133,10 +133,10 @@ static int v9fs_set_acl(struct p9_fid *fid, int type, struct posix_acl *acl)
 		goto err_free_out;
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		name = POSIX_ACL_XATTR_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		BUG();
@@ -328,14 +328,14 @@ err_out:
 }
 
 const struct xattr_handler v9fs_xattr_acl_access_handler = {
-	.prefix	= POSIX_ACL_XATTR_ACCESS,
+	.prefix	= XATTR_NAME_POSIX_ACL_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.get	= v9fs_xattr_get_acl,
 	.set	= v9fs_xattr_set_acl,
 };
 
 const struct xattr_handler v9fs_xattr_acl_default_handler = {
-	.prefix	= POSIX_ACL_XATTR_DEFAULT,
+	.prefix	= XATTR_NAME_POSIX_ACL_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.get	= v9fs_xattr_get_acl,
 	.set	= v9fs_xattr_set_acl,

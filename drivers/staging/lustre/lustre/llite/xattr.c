@@ -60,10 +60,10 @@
 static
 int get_xattr_type(const char *name)
 {
-	if (!strcmp(name, POSIX_ACL_XATTR_ACCESS))
+	if (!strcmp(name, XATTR_NAME_POSIX_ACL_ACCESS))
 		return XATTR_ACL_ACCESS_T;
 
-	if (!strcmp(name, POSIX_ACL_XATTR_DEFAULT))
+	if (!strcmp(name, XATTR_NAME_POSIX_ACL_DEFAULT))
 		return XATTR_ACL_DEFAULT_T;
 
 	if (!strncmp(name, XATTR_USER_PREFIX,

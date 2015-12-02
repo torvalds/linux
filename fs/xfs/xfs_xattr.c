@@ -253,16 +253,16 @@ xfs_vn_listxattr(struct dentry *dentry, char *data, size_t size)
 	 * Then add the two synthetic ACL attributes.
 	 */
 	if (posix_acl_access_exists(inode)) {
-		error = list_one_attr(POSIX_ACL_XATTR_ACCESS,
-				strlen(POSIX_ACL_XATTR_ACCESS) + 1,
+		error = list_one_attr(XATTR_NAME_POSIX_ACL_ACCESS,
+				strlen(XATTR_NAME_POSIX_ACL_ACCESS) + 1,
 				data, size, &context.count);
 		if (error)
 			return error;
 	}
 
 	if (posix_acl_default_exists(inode)) {
-		error = list_one_attr(POSIX_ACL_XATTR_DEFAULT,
-				strlen(POSIX_ACL_XATTR_DEFAULT) + 1,
+		error = list_one_attr(XATTR_NAME_POSIX_ACL_DEFAULT,
+				strlen(XATTR_NAME_POSIX_ACL_DEFAULT) + 1,
 				data, size, &context.count);
 		if (error)
 			return error;
