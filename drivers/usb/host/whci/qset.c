@@ -395,7 +395,7 @@ static void urb_dequeue_work(struct work_struct *work)
 	struct whc *whc = qset->whc;
 	unsigned long flags;
 
-	if (wurb->is_async == true)
+	if (wurb->is_async)
 		asl_update(whc, WUSBCMD_ASYNC_UPDATED
 			   | WUSBCMD_ASYNC_SYNCED_DB
 			   | WUSBCMD_ASYNC_QSET_RM);
