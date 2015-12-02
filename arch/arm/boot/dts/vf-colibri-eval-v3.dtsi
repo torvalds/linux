@@ -18,6 +18,11 @@
 		clock-frequency = <16000000>;
 	};
 
+	panel: panel {
+		compatible = "edt,et057090dhu";
+		backlight = <&bl>;
+	};
+
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -51,6 +56,13 @@
 	brightness-levels = <0 4 8 16 32 64 128 255>;
 	default-brightness-level = <6>;
 	status  = "okay";
+};
+
+&dcu0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dcu0_1>;
+	fsl,panel = <&panel>;
+	status = "okay";
 };
 
 &dspi1 {
@@ -97,6 +109,10 @@
 };
 
 &pwm1 {
+	status = "okay";
+};
+
+&tcon0 {
 	status = "okay";
 };
 
