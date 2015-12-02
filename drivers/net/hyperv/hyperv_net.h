@@ -144,7 +144,6 @@ struct hv_netvsc_packet {
 	u32 total_data_buflen;
 	u32 pad1;
 
-	struct vmbus_channel *channel;
 
 	u64 send_completion_tid;
 	void *send_completion_ctx;
@@ -198,7 +197,8 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 void netvsc_xmit_completion(void *context);
 int netvsc_recv_callback(struct hv_device *device_obj,
 			struct hv_netvsc_packet *packet,
-			struct ndis_tcp_ip_checksum_info *csum_info);
+			struct ndis_tcp_ip_checksum_info *csum_info,
+			struct vmbus_channel *channel);
 void netvsc_channel_cb(void *context);
 int rndis_filter_open(struct hv_device *dev);
 int rndis_filter_close(struct hv_device *dev);
@@ -206,11 +206,11 @@ int rndis_filter_device_add(struct hv_device *dev,
 			void *additional_info);
 void rndis_filter_device_remove(struct hv_device *dev);
 int rndis_filter_receive(struct hv_device *dev,
-			struct hv_netvsc_packet *pkt);
+			struct hv_netvsc_packet *pkt,
+			struct vmbus_channel *channel);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
-
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
@@ -1273,6 +1273,20 @@ struct rndis_message {
 #define TRANSPORT_INFO_IPV4_UDP ((INFO_IPV4 << 16) | INFO_UDP)
 #define TRANSPORT_INFO_IPV6_TCP ((INFO_IPV6 << 16) | INFO_TCP)
 #define TRANSPORT_INFO_IPV6_UDP ((INFO_IPV6 << 16) | INFO_UDP)
+
+static inline struct vmbus_channel *get_channel(struct hv_netvsc_packet *packet,
+					struct netvsc_device *net_device)
+
+{
+	struct vmbus_channel *out_channel;
+
+	out_channel = net_device->chn_table[packet->q_idx];
+	if (!out_channel) {
+		out_channel = net_device->dev->channel;
+		packet->q_idx = 0;
+	}
+	return out_channel;
+}
 
 
 #endif /* _HYPERV_NET_H */

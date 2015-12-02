@@ -610,6 +610,7 @@ static inline void netvsc_free_send_slot(struct netvsc_device *net_device,
 }
 
 static void netvsc_send_completion(struct netvsc_device *net_device,
+				   struct vmbus_channel *incoming_channel,
 				   struct hv_device *device,
 				   struct vmpacket_descriptor *packet)
 {
@@ -651,7 +652,7 @@ static void netvsc_send_completion(struct netvsc_device *net_device,
 			if (send_index != NETVSC_INVALID_INDEX)
 				netvsc_free_send_slot(net_device, send_index);
 			q_idx = nvsc_packet->q_idx;
-			channel = nvsc_packet->channel;
+			channel = incoming_channel;
 			nvsc_packet->send_completion(nvsc_packet->
 						     send_completion_ctx);
 		}
@@ -748,7 +749,7 @@ static inline int netvsc_send_pkt(
 	struct netvsc_device *net_device)
 {
 	struct nvsp_message nvmsg;
-	struct vmbus_channel *out_channel = packet->channel;
+	struct vmbus_channel *out_channel = get_channel(packet, net_device);
 	u16 q_idx = packet->q_idx;
 	struct net_device *ndev = net_device->ndev;
 	u64 req_id;
@@ -857,13 +858,9 @@ int netvsc_send(struct hv_device *device,
 	if (!net_device)
 		return -ENODEV;
 
-	out_channel = net_device->chn_table[q_idx];
-	if (!out_channel) {
-		out_channel = device->channel;
-		q_idx = 0;
-		packet->q_idx = 0;
-	}
-	packet->channel = out_channel;
+	out_channel = get_channel(packet, net_device);
+	q_idx = packet->q_idx;
+
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
 
@@ -1043,7 +1040,6 @@ static void netvsc_receive(struct netvsc_device *net_device,
 	}
 
 	count = vmxferpage_packet->range_cnt;
-	netvsc_packet->channel = channel;
 
 	/* Each range represents 1 RNDIS pkt that contains 1 ethernet frame */
 	for (i = 0; i < count; i++) {
@@ -1055,7 +1051,7 @@ static void netvsc_receive(struct netvsc_device *net_device,
 					vmxferpage_packet->ranges[i].byte_count;
 
 		/* Pass it to the upper layer */
-		rndis_filter_receive(device, netvsc_packet);
+		rndis_filter_receive(device, netvsc_packet, channel);
 
 		if (netvsc_packet->status != NVSP_STAT_SUCCESS)
 			status = NVSP_STAT_FAIL;
@@ -1150,6 +1146,7 @@ void netvsc_channel_cb(void *context)
 				switch (desc->type) {
 				case VM_PKT_COMP:
 					netvsc_send_completion(net_device,
+								channel,
 								device, desc);
 					break;
 

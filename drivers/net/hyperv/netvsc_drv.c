@@ -683,7 +683,8 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
  */
 int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet,
-				struct ndis_tcp_ip_checksum_info *csum_info)
+				struct ndis_tcp_ip_checksum_info *csum_info,
+				struct vmbus_channel *channel)
 {
 	struct net_device *net;
 	struct net_device_context *net_device_ctx;
@@ -729,7 +730,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       packet->vlan_tci);
 
-	skb_record_rx_queue(skb, packet->channel->
+	skb_record_rx_queue(skb, channel->
 			    offermsg.offer.sub_channel_index);
 
 	u64_stats_update_begin(&rx_stats->syncp);
