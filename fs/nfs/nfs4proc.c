@@ -6253,9 +6253,6 @@ static int nfs4_xattr_set_nfs4_acl(const struct xattr_handler *handler,
 				   const void *buf, size_t buflen,
 				   int flags)
 {
-	if (strcmp(key, "") != 0)
-		return -EINVAL;
-
 	return nfs4_proc_set_acl(d_inode(dentry), buf, buflen);
 }
 
@@ -6263,9 +6260,6 @@ static int nfs4_xattr_get_nfs4_acl(const struct xattr_handler *handler,
 				   struct dentry *dentry, const char *key,
 				   void *buf, size_t buflen)
 {
-	if (strcmp(key, "") != 0)
-		return -EINVAL;
-
 	return nfs4_proc_get_acl(d_inode(dentry), buf, buflen);
 }
 
@@ -8834,7 +8828,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 };
 
 static const struct xattr_handler nfs4_xattr_nfs4_acl_handler = {
-	.prefix	= XATTR_NAME_NFSV4_ACL,
+	.name	= XATTR_NAME_NFSV4_ACL,
 	.list	= nfs4_xattr_list_nfs4_acl,
 	.get	= nfs4_xattr_get_nfs4_acl,
 	.set	= nfs4_xattr_set_nfs4_acl,

@@ -32,8 +32,6 @@ ext2_xattr_trusted_get(const struct xattr_handler *handler,
 		       struct dentry *dentry, const char *name,
 		       void *buffer, size_t size)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	return ext2_xattr_get(d_inode(dentry), EXT2_XATTR_INDEX_TRUSTED, name,
 			      buffer, size);
 }
@@ -43,8 +41,6 @@ ext2_xattr_trusted_set(const struct xattr_handler *handler,
 		       struct dentry *dentry, const char *name,
 		       const void *value, size_t size, int flags)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	return ext2_xattr_set(d_inode(dentry), EXT2_XATTR_INDEX_TRUSTED, name,
 			      value, size, flags);
 }

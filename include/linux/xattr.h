@@ -19,7 +19,13 @@
 struct inode;
 struct dentry;
 
+/*
+ * struct xattr_handler: When @name is set, match attributes with exactly that
+ * name.  When @prefix is set instead, match attributes with that prefix and
+ * with a non-empty suffix.
+ */
 struct xattr_handler {
+	const char *name;
 	const char *prefix;
 	int flags;      /* fs private flags */
 	size_t (*list)(const struct xattr_handler *, struct dentry *dentry,
@@ -53,6 +59,11 @@ int generic_setxattr(struct dentry *dentry, const char *name, const void *value,
 int generic_removexattr(struct dentry *dentry, const char *name);
 ssize_t vfs_getxattr_alloc(struct dentry *dentry, const char *name,
 			   char **xattr_value, size_t size, gfp_t flags);
+
+static inline const char *xattr_prefix(const struct xattr_handler *handler)
+{
+	return handler->prefix ?: handler->name;
+}
 
 struct simple_xattrs {
 	struct list_head head;

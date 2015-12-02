@@ -681,13 +681,20 @@ xattr_resolve_name(const struct xattr_handler **handlers, const char **name)
 		return NULL;
 
 	for_each_xattr_handler(handlers, handler) {
-		const char *n = strcmp_prefix(*name, handler->prefix);
+		const char *n;
+
+		n = strcmp_prefix(*name, xattr_prefix(handler));
 		if (n) {
+			if (!handler->prefix ^ !*n) {
+				if (*n)
+					continue;
+				return ERR_PTR(-EINVAL);
+			}
 			*name = n;
-			break;
+			return handler;
 		}
 	}
-	return handler;
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 /*
@@ -699,8 +706,8 @@ generic_getxattr(struct dentry *dentry, const char *name, void *buffer, size_t s
 	const struct xattr_handler *handler;
 
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
-	if (!handler)
-		return -EOPNOTSUPP;
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
 	return handler->get(handler, dentry, name, buffer, size);
 }
 
@@ -746,8 +753,8 @@ generic_setxattr(struct dentry *dentry, const char *name, const void *value, siz
 	if (size == 0)
 		value = "";  /* empty EA, do not remove */
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
-	if (!handler)
-		return -EOPNOTSUPP;
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
 	return handler->set(handler, dentry, name, value, size, flags);
 }
 
@@ -761,8 +768,8 @@ generic_removexattr(struct dentry *dentry, const char *name)
 	const struct xattr_handler *handler;
 
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
-	if (!handler)
-		return -EOPNOTSUPP;
+	if (IS_ERR(handler))
+		return PTR_ERR(handler);
 	return handler->set(handler, dentry, name, NULL, 0, XATTR_REPLACE);
 }
 
@@ -789,7 +796,7 @@ EXPORT_SYMBOL(generic_removexattr);
 const char *xattr_full_name(const struct xattr_handler *handler,
 			    const char *name)
 {
-	size_t prefix_len = strlen(handler->prefix);
+	size_t prefix_len = strlen(xattr_prefix(handler));
 
 	return name - prefix_len;
 }

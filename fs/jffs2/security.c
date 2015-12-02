@@ -52,9 +52,6 @@ static int jffs2_security_getxattr(const struct xattr_handler *handler,
 				   struct dentry *dentry, const char *name,
 				   void *buffer, size_t size)
 {
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
 	return do_jffs2_getxattr(d_inode(dentry), JFFS2_XPREFIX_SECURITY,
 				 name, buffer, size);
 }
@@ -63,9 +60,6 @@ static int jffs2_security_setxattr(const struct xattr_handler *handler,
 				   struct dentry *dentry, const char *name,
 				   const void *buffer, size_t size, int flags)
 {
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
 	return do_jffs2_setxattr(d_inode(dentry), JFFS2_XPREFIX_SECURITY,
 				 name, buffer, size, flags);
 }

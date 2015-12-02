@@ -756,7 +756,8 @@ find_xattr_handler_prefix(const struct xattr_handler **handlers,
 		return NULL;
 
 	for_each_xattr_handler(handlers, xah) {
-		if (strncmp(xah->prefix, name, strlen(xah->prefix)) == 0)
+		const char *prefix = xattr_prefix(xah);
+		if (strncmp(prefix, name, strlen(prefix)) == 0)
 			break;
 	}
 

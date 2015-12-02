@@ -544,8 +544,7 @@ static inline const char *ocfs2_xattr_prefix(int name_index)
 
 	if (name_index > 0 && name_index < OCFS2_XATTR_MAX)
 		handler = ocfs2_xattr_handler_map[name_index];
-
-	return handler ? handler->prefix : NULL;
+	return handler ? xattr_prefix(handler) : NULL;
 }
 
 static u32 ocfs2_xattr_name_hash(struct inode *inode,
@@ -7249,8 +7248,6 @@ static int ocfs2_xattr_security_get(const struct xattr_handler *handler,
 				    struct dentry *dentry, const char *name,
 				    void *buffer, size_t size)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	return ocfs2_xattr_get(d_inode(dentry), OCFS2_XATTR_INDEX_SECURITY,
 			       name, buffer, size);
 }
@@ -7259,9 +7256,6 @@ static int ocfs2_xattr_security_set(const struct xattr_handler *handler,
 				    struct dentry *dentry, const char *name,
 				    const void *value, size_t size, int flags)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
 	return ocfs2_xattr_set(d_inode(dentry), OCFS2_XATTR_INDEX_SECURITY,
 			       name, value, size, flags);
 }
@@ -7345,8 +7339,6 @@ static int ocfs2_xattr_trusted_get(const struct xattr_handler *handler,
 				   struct dentry *dentry, const char *name,
 				   void *buffer, size_t size)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	return ocfs2_xattr_get(d_inode(dentry), OCFS2_XATTR_INDEX_TRUSTED,
 			       name, buffer, size);
 }
@@ -7355,9 +7347,6 @@ static int ocfs2_xattr_trusted_set(const struct xattr_handler *handler,
 				   struct dentry *dentry, const char *name,
 				   const void *value, size_t size, int flags)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
 	return ocfs2_xattr_set(d_inode(dentry), OCFS2_XATTR_INDEX_TRUSTED,
 			       name, value, size, flags);
 }
@@ -7398,8 +7387,6 @@ static int ocfs2_xattr_user_get(const struct xattr_handler *handler,
 {
 	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
 		return -EOPNOTSUPP;
 	return ocfs2_xattr_get(d_inode(dentry), OCFS2_XATTR_INDEX_USER, name,
@@ -7412,8 +7399,6 @@ static int ocfs2_xattr_user_set(const struct xattr_handler *handler,
 {
 	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	if (osb->s_mount_opt & OCFS2_MOUNT_NOUSERXATTR)
 		return -EOPNOTSUPP;
 

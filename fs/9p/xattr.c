@@ -143,8 +143,6 @@ static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
 {
 	const char *full_name = xattr_full_name(handler, name);
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	return v9fs_xattr_get(dentry, full_name, buffer, size);
 }
 
@@ -154,8 +152,6 @@ static int v9fs_xattr_handler_set(const struct xattr_handler *handler,
 {
 	const char *full_name = xattr_full_name(handler, name);
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	return v9fs_xattr_set(dentry, full_name, value, size, flags);
 }
 

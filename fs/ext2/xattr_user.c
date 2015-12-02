@@ -34,8 +34,6 @@ ext2_xattr_user_get(const struct xattr_handler *handler,
 		    struct dentry *dentry, const char *name,
 		    void *buffer, size_t size)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	if (!test_opt(dentry->d_sb, XATTR_USER))
 		return -EOPNOTSUPP;
 	return ext2_xattr_get(d_inode(dentry), EXT2_XATTR_INDEX_USER,
@@ -47,8 +45,6 @@ ext2_xattr_user_set(const struct xattr_handler *handler,
 		    struct dentry *dentry, const char *name,
 		    const void *value, size_t size, int flags)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	if (!test_opt(dentry->d_sb, XATTR_USER))
 		return -EOPNOTSUPP;
 

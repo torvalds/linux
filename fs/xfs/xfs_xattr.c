@@ -39,9 +39,6 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *dentry,
 	struct xfs_inode *ip = XFS_I(d_inode(dentry));
 	int error, asize = size;
 
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
 	/* Convert Linux syscall to XFS internal ATTR flags */
 	if (!size) {
 		xflags |= ATTR_KERNOVAL;
@@ -83,9 +80,6 @@ xfs_xattr_set(const struct xattr_handler *handler, struct dentry *dentry,
 	int			xflags = handler->flags;
 	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
 	int			error;
-
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
 	if (flags & XATTR_CREATE)

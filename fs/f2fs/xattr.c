@@ -30,6 +30,7 @@ static size_t f2fs_xattr_generic_list(const struct xattr_handler *handler,
 		const char *name, size_t len)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dentry->d_sb);
+	const char *prefix;
 	int total_len, prefix_len;
 
 	switch (handler->flags) {
@@ -47,10 +48,11 @@ static size_t f2fs_xattr_generic_list(const struct xattr_handler *handler,
 		return -EINVAL;
 	}
 
-	prefix_len = strlen(handler->prefix);
+	prefix = xattr_prefix(handler);
+	prefix_len = strlen(prefix);
 	total_len = prefix_len + len + 1;
 	if (list && total_len <= list_size) {
-		memcpy(list, handler->prefix, prefix_len);
+		memcpy(list, prefix, prefix_len);
 		memcpy(list + prefix_len, name, len);
 		list[prefix_len + len] = '\0';
 	}
@@ -77,8 +79,6 @@ static int f2fs_xattr_generic_get(const struct xattr_handler *handler,
 	default:
 		return -EINVAL;
 	}
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	return f2fs_getxattr(d_inode(dentry), handler->flags, name,
 			     buffer, size, NULL);
 }
@@ -103,9 +103,6 @@ static int f2fs_xattr_generic_set(const struct xattr_handler *handler,
 	default:
 		return -EINVAL;
 	}
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-
 	return f2fs_setxattr(d_inode(dentry), handler->flags, name,
 					value, size, NULL, flags);
 }
@@ -114,7 +111,7 @@ static size_t f2fs_xattr_advise_list(const struct xattr_handler *handler,
 		struct dentry *dentry, char *list, size_t list_size,
 		const char *name, size_t len)
 {
-	const char *xname = F2FS_SYSTEM_ADVISE_PREFIX;
+	const char *xname = F2FS_SYSTEM_ADVISE_NAME;
 	size_t size;
 
 	size = strlen(xname) + 1;
@@ -129,9 +126,6 @@ static int f2fs_xattr_advise_get(const struct xattr_handler *handler,
 {
 	struct inode *inode = d_inode(dentry);
 
-	if (strcmp(name, "") != 0)
-		return -EINVAL;
-
 	if (buffer)
 		*((char *)buffer) = F2FS_I(inode)->i_advise;
 	return sizeof(char);
@@ -143,8 +137,6 @@ static int f2fs_xattr_advise_set(const struct xattr_handler *handler,
 {
 	struct inode *inode = d_inode(dentry);
 
-	if (strcmp(name, "") != 0)
-		return -EINVAL;
 	if (!inode_owner_or_capable(inode))
 		return -EPERM;
 	if (value == NULL)
@@ -197,7 +189,7 @@ const struct xattr_handler f2fs_xattr_trusted_handler = {
 };
 
 const struct xattr_handler f2fs_xattr_advise_handler = {
-	.prefix = F2FS_SYSTEM_ADVISE_PREFIX,
+	.name	= F2FS_SYSTEM_ADVISE_NAME,
 	.flags	= F2FS_XATTR_INDEX_ADVISE,
 	.list   = f2fs_xattr_advise_list,
 	.get    = f2fs_xattr_advise_get,
