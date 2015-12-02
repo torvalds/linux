@@ -1828,20 +1828,20 @@ static struct platform_driver at91_pinctrl_driver = {
 	.remove = at91_pinctrl_remove,
 };
 
+static struct platform_driver * const drivers[] = {
+	&at91_gpio_driver,
+	&at91_pinctrl_driver,
+};
+
 static int __init at91_pinctrl_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&at91_gpio_driver);
-	if (ret)
-		return ret;
-	return platform_driver_register(&at91_pinctrl_driver);
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 arch_initcall(at91_pinctrl_init);
 
 static void __exit at91_pinctrl_exit(void)
 {
-	platform_driver_unregister(&at91_pinctrl_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_exit(at91_pinctrl_exit);
