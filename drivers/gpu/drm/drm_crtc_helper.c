@@ -855,6 +855,12 @@ EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
  * due to slight differences in allocating shared resources when the
  * configuration is restored in a different order than when userspace set it up)
  * need to use their own restore logic.
+ *
+ * This function is deprecated. New drivers should implement atomic mode-
+ * setting and use the atomic suspend/resume helpers.
+ *
+ * See also:
+ * drm_atomic_helper_suspend(), drm_atomic_helper_resume()
  */
 void drm_helper_resume_force_mode(struct drm_device *dev)
 {
