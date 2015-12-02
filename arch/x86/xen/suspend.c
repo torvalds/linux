@@ -68,26 +68,16 @@ static void xen_pv_post_suspend(int suspend_cancelled)
 
 void xen_arch_pre_suspend(void)
 {
-	int cpu;
-
-	for_each_online_cpu(cpu)
-		xen_pmu_finish(cpu);
-
 	if (xen_pv_domain())
 		xen_pv_pre_suspend();
 }
 
 void xen_arch_post_suspend(int cancelled)
 {
-	int cpu;
-
 	if (xen_pv_domain())
 		xen_pv_post_suspend(cancelled);
 	else
 		xen_hvm_post_suspend(cancelled);
-
-	for_each_online_cpu(cpu)
-		xen_pmu_init(cpu);
 }
 
 static void xen_vcpu_notify_restore(void *data)
@@ -106,10 +96,20 @@ static void xen_vcpu_notify_suspend(void *data)
 
 void xen_arch_resume(void)
 {
+	int cpu;
+
 	on_each_cpu(xen_vcpu_notify_restore, NULL, 1);
+
+	for_each_online_cpu(cpu)
+		xen_pmu_init(cpu);
 }
 
 void xen_arch_suspend(void)
 {
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		xen_pmu_finish(cpu);
+
 	on_each_cpu(xen_vcpu_notify_suspend, NULL, 1);
 }
