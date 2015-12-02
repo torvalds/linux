@@ -510,6 +510,7 @@ config ARCH_DOVE
 	select CPU_PJ4
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
+	select MULTI_IRQ_HANDLER
 	select MVEBU_MBUS
 	select PINCTRL
 	select PINCTRL_DOVE
@@ -523,6 +524,7 @@ config ARCH_MV78XX0
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
 	select MVEBU_MBUS
+	select MULTI_IRQ_HANDLER
 	select PCI
 	select PLAT_ORION_LEGACY
 	help
@@ -536,6 +538,7 @@ config ARCH_ORION5X
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
 	select MVEBU_MBUS
+	select MULTI_IRQ_HANDLER
 	select PCI
 	select PLAT_ORION_LEGACY
 	select MULTI_IRQ_HANDLER

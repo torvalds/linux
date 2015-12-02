@@ -26,14 +26,6 @@ static int __initdata gpio0_irqs[4] = {
 	IRQ_ORION5X_GPIO_24_31,
 };
 
-#ifdef CONFIG_MULTI_IRQ_HANDLER
-/*
- * Compiling with both non-DT and DT support enabled, will
- * break asm irq handler used by non-DT boards. Therefore,
- * we provide a C-style irq handler even for non-DT boards,
- * if MULTI_IRQ_HANDLER is set.
- */
-
 asmlinkage void
 __exception_irq_entry orion5x_legacy_handle_irq(struct pt_regs *regs)
 {
@@ -47,15 +39,12 @@ __exception_irq_entry orion5x_legacy_handle_irq(struct pt_regs *regs)
 		return;
 	}
 }
-#endif
 
 void __init orion5x_init_irq(void)
 {
 	orion_irq_init(1, MAIN_IRQ_MASK);
 
-#ifdef CONFIG_MULTI_IRQ_HANDLER
 	set_handle_irq(orion5x_legacy_handle_irq);
-#endif
 
 	/*
 	 * Initialize gpiolib for GPIOs 0-31.
