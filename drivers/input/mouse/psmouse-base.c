@@ -699,7 +699,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.type		= PSMOUSE_PS2PP,
 		.name		= "PS2++",
 		.alias		= "logitech",
-		.detect		= ps2pp_init,
+		.detect		= ps2pp_detect,
 	},
 #endif
 	{
