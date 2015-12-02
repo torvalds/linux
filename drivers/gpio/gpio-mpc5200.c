@@ -360,15 +360,14 @@ static struct platform_driver mpc52xx_simple_gpiochip_driver = {
 	.remove = mpc52xx_gpiochip_remove,
 };
 
+static struct platform_driver * const drivers[] = {
+	&mpc52xx_wkup_gpiochip_driver,
+	&mpc52xx_simple_gpiochip_driver,
+};
+
 static int __init mpc52xx_gpio_init(void)
 {
-	if (platform_driver_register(&mpc52xx_wkup_gpiochip_driver))
-		printk(KERN_ERR "Unable to register wakeup GPIO driver\n");
-
-	if (platform_driver_register(&mpc52xx_simple_gpiochip_driver))
-		printk(KERN_ERR "Unable to register simple GPIO driver\n");
-
-	return 0;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 /* Make sure we get initialised before anyone else tries to use us */
@@ -376,9 +375,7 @@ subsys_initcall(mpc52xx_gpio_init);
 
 static void __exit mpc52xx_gpio_exit(void)
 {
-	platform_driver_unregister(&mpc52xx_wkup_gpiochip_driver);
-
-	platform_driver_unregister(&mpc52xx_simple_gpiochip_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(mpc52xx_gpio_exit);
 
