@@ -612,6 +612,8 @@ static void bgx_poll_for_link(struct work_struct *work)
 		lmac->last_duplex = 1;
 	} else {
 		lmac->link_up = 0;
+		lmac->last_speed = SPEED_UNKNOWN;
+		lmac->last_duplex = DUPLEX_UNKNOWN;
 	}
 
 	if (lmac->last_link != lmac->link_up) {
