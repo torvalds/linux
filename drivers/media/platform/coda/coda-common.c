@@ -921,6 +921,7 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
 	.vidioc_dqbuf		= v4l2_m2m_ioctl_dqbuf,
 	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
+	.vidioc_prepare_buf	= v4l2_m2m_ioctl_prepare_buf,
 
 	.vidioc_streamon	= v4l2_m2m_ioctl_streamon,
 	.vidioc_streamoff	= v4l2_m2m_ioctl_streamoff,
