@@ -5621,9 +5621,7 @@ F:	Documentation/trace/intel_th.txt
 F:	drivers/hwtracing/intel_th/
 
 INTEL(R) TRUSTED EXECUTION TECHNOLOGY (TXT)
-M:	Richard L Maliszewski <richard.l.maliszewski@intel.com>
-M:	Gang Wei <gang.wei@intel.com>
-M:	Shane Wang <shane.wang@intel.com>
+M:	Ning Sun <ning.sun@intel.com>
 L:	tboot-devel@lists.sourceforge.net
 W:	http://tboot.sourceforge.net
 T:	hg http://tboot.hg.sourceforge.net:8000/hgroot/tboot/tboot
