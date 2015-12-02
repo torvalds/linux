@@ -823,21 +823,10 @@ out:
 	return ret;
 }
 
-static size_t
-posix_acl_xattr_list(const struct xattr_handler *handler,
-		     struct dentry *dentry, char *list, size_t list_size,
-		     const char *name, size_t name_len)
+static bool
+posix_acl_xattr_list(struct dentry *dentry)
 {
-	const char *xname = handler->name;
-	size_t size;
-
-	if (!IS_POSIXACL(d_backing_inode(dentry)))
-		return 0;
-
-	size = strlen(xname) + 1;
-	if (list && size <= list_size)
-		memcpy(list, xname, size);
-	return size;
+	return IS_POSIXACL(d_backing_inode(dentry));
 }
 
 const struct xattr_handler posix_acl_access_xattr_handler = {
