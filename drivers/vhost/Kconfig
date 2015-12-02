@@ -47,3 +47,7 @@ config VHOST_CROSS_ENDIAN_LEGACY
 	  adds some overhead, it is disabled by default.
 
 	  If unsure, say "N".
+
+if STAGING
+source "drivers/vhost/Kconfig.vsock"
+endif
