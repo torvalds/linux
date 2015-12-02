@@ -48,15 +48,6 @@
 		usbphy1 = &usbphy2;
 	};
 
-	intc: interrupt-controller@00a01000 {
-		compatible = "arm,cortex-a9-gic";
-		#interrupt-cells = <3>;
-		interrupt-controller;
-		reg = <0x00a01000 0x1000>,
-		      <0x00a00100 0x100>;
-		interrupt-parent = <&intc>;
-	};
-
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -154,6 +145,15 @@
 			interrupts = <1 13 0xf01>;
 			interrupt-parent = <&intc>;
 			clocks = <&clks IMX6QDL_CLK_TWD>;
+		};
+
+		intc: interrupt-controller@00a01000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			reg = <0x00a01000 0x1000>,
+			      <0x00a00100 0x100>;
+			interrupt-parent = <&intc>;
 		};
 
 		L2: l2-cache@00a02000 {
