@@ -15,9 +15,9 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/ethtool.h>
 #include <linux/i2c.h>
-#include <mach/mv78xx0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include "mv78xx0.h"
 #include "common.h"
 
 static struct mv643xx_eth_platform_data db78x00_ge00_data = {

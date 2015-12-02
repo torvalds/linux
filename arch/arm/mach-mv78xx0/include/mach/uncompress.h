@@ -1,14 +1,12 @@
 /*
- * arch/arm/mach-mv78xx0/include/mach/uncompress.h
- *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
 #include <linux/serial_reg.h>
-#include <mach/mv78xx0.h>
 
+#define UART0_PHYS_BASE (0xf1000000 + 0x12000)
 #define SERIAL_BASE	((unsigned char *)UART0_PHYS_BASE)
 
 static void putc(const char c)

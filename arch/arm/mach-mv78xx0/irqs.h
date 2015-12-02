@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-mv78xx0/include/mach/irqs.h
- *
  * IRQ definitions for Marvell MV78xx0 SoCs
  *
  * This file is licensed under the terms of the GNU General Public

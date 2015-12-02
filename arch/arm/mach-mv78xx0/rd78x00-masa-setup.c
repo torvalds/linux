@@ -14,9 +14,9 @@
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ethtool.h>
-#include <mach/mv78xx0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include "mv78xx0.h"
 #include "common.h"
 
 static struct mv643xx_eth_platform_data rd78x00_masa_ge00_data = {

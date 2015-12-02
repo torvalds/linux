@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-mv78xx0/include/mach/mv78xx0.h
- *
  * Generic definitions for Marvell MV78xx0 SoC flavors:
  *  MV781x0 and MV782x0.
  *
