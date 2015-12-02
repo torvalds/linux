@@ -3064,7 +3064,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		if (ret == 0)
 			ret = __i915_wait_request(req[i], reset_counter, true,
 						  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
-						  file->driver_priv);
+						  to_rps_client(file));
 		i915_gem_request_unreference__unlocked(req[i]);
 	}
 	return ret;
