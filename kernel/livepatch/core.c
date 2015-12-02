@@ -135,13 +135,8 @@ struct klp_find_arg {
 	const char *objname;
 	const char *name;
 	unsigned long addr;
-	/*
-	 * If count == 0, the symbol was not found. If count == 1, a unique
-	 * match was found and addr is set.  If count > 1, there is
-	 * unresolvable ambiguity among "count" number of symbols with the same
-	 * name in the same object.
-	 */
 	unsigned long count;
+	unsigned long pos;
 };
 
 static int klp_find_callback(void *data, const char *name,
@@ -158,37 +153,48 @@ static int klp_find_callback(void *data, const char *name,
 	if (args->objname && strcmp(args->objname, mod->name))
 		return 0;
 
-	/*
-	 * args->addr might be overwritten if another match is found
-	 * but klp_find_object_symbol() handles this and only returns the
-	 * addr if count == 1.
-	 */
 	args->addr = addr;
 	args->count++;
+
+	/*
+	 * Finish the search when the symbol is found for the desired position
+	 * or the position is not defined for a non-unique symbol.
+	 */
+	if ((args->pos && (args->count == args->pos)) ||
+	    (!args->pos && (args->count > 1)))
+		return 1;
 
 	return 0;
 }
 
 static int klp_find_object_symbol(const char *objname, const char *name,
-				  unsigned long *addr)
+				  unsigned long sympos, unsigned long *addr)
 {
 	struct klp_find_arg args = {
 		.objname = objname,
 		.name = name,
 		.addr = 0,
-		.count = 0
+		.count = 0,
+		.pos = sympos,
 	};
 
 	mutex_lock(&module_mutex);
 	kallsyms_on_each_symbol(klp_find_callback, &args);
 	mutex_unlock(&module_mutex);
 
-	if (args.count == 0)
+	/*
+	 * Ensure an address was found. If sympos is 0, ensure symbol is unique;
+	 * otherwise ensure the symbol position count matches sympos.
+	 */
+	if (args.addr == 0)
 		pr_err("symbol '%s' not found in symbol table\n", name);
-	else if (args.count > 1)
+	else if (args.count > 1 && sympos == 0) {
 		pr_err("unresolvable ambiguity (%lu matches) on symbol '%s' in object '%s'\n",
 		       args.count, name, objname);
-	else {
+	} else if (sympos != args.count && sympos > 0) {
+		pr_err("symbol position %lu for symbol '%s' in object '%s' not found\n",
+		       sympos, name, objname ? objname : "vmlinux");
+	} else {
 		*addr = args.addr;
 		return 0;
 	}
@@ -236,27 +242,6 @@ static int klp_verify_vmlinux_symbol(const char *name, unsigned long addr)
 	return 0;
 }
 
-static int klp_find_verify_func_addr(struct klp_object *obj,
-				     struct klp_func *func)
-{
-	int ret;
-
-#if defined(CONFIG_RANDOMIZE_BASE)
-	/* If KASLR has been enabled, adjust old_addr accordingly */
-	if (kaslr_enabled() && func->old_addr)
-		func->old_addr += kaslr_offset();
-#endif
-
-	if (!func->old_addr || klp_is_module(obj))
-		ret = klp_find_object_symbol(obj->name, func->old_name,
-					     &func->old_addr);
-	else
-		ret = klp_verify_vmlinux_symbol(func->old_name,
-						func->old_addr);
-
-	return ret;
-}
-
 /*
  * external symbols are located outside the parent object (where the parent
  * object is either vmlinux or the kmod being patched).
@@ -276,8 +261,11 @@ static int klp_find_external_symbol(struct module *pmod, const char *name,
 	}
 	preempt_enable();
 
-	/* otherwise check if it's in another .o within the patch module */
-	return klp_find_object_symbol(pmod->name, name, addr);
+	/*
+	 * Check if it's in another .o within the patch module. This also
+	 * checks that the external symbol is unique.
+	 */
+	return klp_find_object_symbol(pmod->name, name, 0, addr);
 }
 
 static int klp_write_object_relocations(struct module *pmod,
@@ -313,7 +301,7 @@ static int klp_write_object_relocations(struct module *pmod,
 			else
 				ret = klp_find_object_symbol(obj->mod->name,
 							     reloc->name,
-							     &reloc->val);
+							     0, &reloc->val);
 			if (ret)
 				return ret;
 		}
@@ -756,7 +744,9 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 	}
 
 	klp_for_each_func(obj, func) {
-		ret = klp_find_verify_func_addr(obj, func);
+		ret = klp_find_object_symbol(obj->name, func->old_name,
+					     func->old_sympos,
+					     &func->old_addr);
 		if (ret)
 			return ret;
 	}

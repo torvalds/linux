@@ -37,8 +37,9 @@ enum klp_state {
  * struct klp_func - function structure for live patching
  * @old_name:	name of the function to be patched
  * @new_func:	pointer to the patched function code
- * @old_addr:	a hint conveying at what address the old function
- *		can be found (optional, vmlinux patches only)
+ * @old_sympos: a hint indicating which symbol position the old function
+ *		can be found (optional)
+ * @old_addr:	the address of the function being patched
  * @kobj:	kobject for sysfs resources
  * @state:	tracks function-level patch application state
  * @stack_node:	list node for klp_ops func_stack list
@@ -48,16 +49,16 @@ struct klp_func {
 	const char *old_name;
 	void *new_func;
 	/*
-	 * The old_addr field is optional and can be used to resolve
-	 * duplicate symbol names in the vmlinux object.  If this
-	 * information is not present, the symbol is located by name
-	 * with kallsyms. If the name is not unique and old_addr is
-	 * not provided, the patch application fails as there is no
-	 * way to resolve the ambiguity.
+	 * The old_sympos field is optional and can be used to resolve
+	 * duplicate symbol names in livepatch objects. If this field is zero,
+	 * it is expected the symbol is unique, otherwise patching fails. If
+	 * this value is greater than zero then that occurrence of the symbol
+	 * in kallsyms for the given object is used.
 	 */
-	unsigned long old_addr;
+	unsigned long old_sympos;
 
 	/* internal */
+	unsigned long old_addr;
 	struct kobject kobj;
 	enum klp_state state;
 	struct list_head stack_node;
