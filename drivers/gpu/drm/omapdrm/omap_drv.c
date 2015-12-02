@@ -928,35 +928,23 @@ static struct platform_driver pdev = {
 	.remove = pdev_remove,
 };
 
+static struct platform_driver * const drivers[] = {
+	&omap_dmm_driver,
+	&pdev,
+};
+
 static int __init omap_drm_init(void)
 {
-	int r;
-
 	DBG("init");
 
-	r = platform_driver_register(&omap_dmm_driver);
-	if (r) {
-		pr_err("DMM driver registration failed\n");
-		return r;
-	}
-
-	r = platform_driver_register(&pdev);
-	if (r) {
-		pr_err("omapdrm driver registration failed\n");
-		platform_driver_unregister(&omap_dmm_driver);
-		return r;
-	}
-
-	return 0;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit omap_drm_fini(void)
 {
 	DBG("fini");
 
-	platform_driver_unregister(&pdev);
-
-	platform_driver_unregister(&omap_dmm_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 /* need late_initcall() so we load after dss_driver's are loaded */
