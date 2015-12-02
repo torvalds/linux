@@ -27,7 +27,6 @@
 
 #include <linux/mtd/partitions.h>
 
-
 /*
  * This uses SPI to talk with an "AVR Butterfly", which is a $US20 card
  * with a battery powered AVR microcontroller and lots of goodies.  You
@@ -36,7 +35,6 @@
  * See Documentation/spi/butterfly for information about how to build
  * and use this custom parallel port cable.
  */
-
 
 /* DATA output bits (pins 2..9 == D0..D7) */
 #define	butterfly_nreset (1 << 1)		/* pin 3 */
@@ -52,13 +50,10 @@
 /* CONTROL output bits */
 #define	spi_cs_bit	PARPORT_CONTROL_SELECT	/* pin 17 */
 
-
-
 static inline struct butterfly *spidev_to_pp(struct spi_device *spi)
 {
 	return spi->controller_data;
 }
-
 
 struct butterfly {
 	/* REVISIT ... for now, this must be first */
@@ -140,7 +135,6 @@ static void butterfly_chipselect(struct spi_device *spi, int value)
 	parport_frob_control(pp->port, spi_cs_bit, value ? spi_cs_bit : 0);
 }
 
-
 /* we only needed to implement one mode here, and choose SPI_MODE_0 */
 
 #define spidelay(X)	do { } while (0)
@@ -185,7 +179,6 @@ static struct flash_platform_data flash = {
 	.parts		= partitions,
 	.nr_parts	= ARRAY_SIZE(partitions),
 };
-
 
 /* REVISIT remove this ugly global and its "only one" limitation */
 static struct butterfly *butterfly;
@@ -262,7 +255,6 @@ static void butterfly_attach(struct parport *p)
 	parport_write_data(pp->port, pp->lastbyte);
 	msleep(100);
 
-
 	/*
 	 * Start SPI ... for now, hide that we're two physical busses.
 	 */
@@ -333,7 +325,6 @@ static struct parport_driver butterfly_driver = {
 	.attach =	butterfly_attach,
 	.detach =	butterfly_detach,
 };
-
 
 static int __init butterfly_init(void)
 {
