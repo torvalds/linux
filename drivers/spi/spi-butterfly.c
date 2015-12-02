@@ -189,6 +189,7 @@ static void butterfly_attach(struct parport *p)
 	struct butterfly	*pp;
 	struct spi_master	*master;
 	struct device		*dev = p->physport->dev;
+	struct pardev_cb	butterfly_cb;
 
 	if (butterfly || !dev)
 		return;
@@ -221,9 +222,9 @@ static void butterfly_attach(struct parport *p)
 	 * parport hookup
 	 */
 	pp->port = p;
-	pd = parport_register_device(p, "spi_butterfly",
-				     NULL, NULL, NULL,
-				     0 /* FLAGS */, pp);
+	memset(&butterfly_cb, 0, sizeof(butterfly_cb));
+	butterfly_cb.private = pp;
+	pd = parport_register_dev_model(p, "spi_butterfly", &butterfly_cb, 0);
 	if (!pd) {
 		status = -ENOMEM;
 		goto clean0;
@@ -321,8 +322,9 @@ static void butterfly_detach(struct parport *p)
 
 static struct parport_driver butterfly_driver = {
 	.name =		"spi_butterfly",
-	.attach =	butterfly_attach,
+	.match_port =	butterfly_attach,
 	.detach =	butterfly_detach,
+	.devmodel = true,
 };
 
 static int __init butterfly_init(void)
