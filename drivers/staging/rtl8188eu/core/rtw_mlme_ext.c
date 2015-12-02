@@ -3739,10 +3739,10 @@ static unsigned int OnAction_back(struct adapter *padapter,
 			memcpy(&(pmlmeinfo->ADDBA_req), &(frame_body[2]), sizeof(struct ADDBA_request));
 			process_addba_req(padapter, (u8 *)&(pmlmeinfo->ADDBA_req), addr);
 
-			if (pmlmeinfo->accept_addba_req)
-				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 0);
-			else
-				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */
+			/* 37 = reject ADDBA Req */
+			issue_action_BA(padapter, addr,
+					RTW_WLAN_ACTION_ADDBA_RESP,
+					pmlmeinfo->accept_addba_req ? 0 : 37);
 			break;
 		case RTW_WLAN_ACTION_ADDBA_RESP: /* ADDBA response */
 			status = get_unaligned_le16(&frame_body[3]);
