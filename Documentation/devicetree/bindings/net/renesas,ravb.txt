@@ -7,6 +7,13 @@ Required properties:
 - compatible: "renesas,etheravb-r8a7790" if the device is a part of R8A7790 SoC.
 	      "renesas,etheravb-r8a7794" if the device is a part of R8A7794 SoC.
 	      "renesas,etheravb-r8a7795" if the device is a part of R8A7795 SoC.
+	      "renesas,etheravb-rcar-gen2" for generic R-Car Gen 2 compatible interface.
+	      "renesas,etheravb-rcar-gen3" for generic R-Car Gen 3 compatible interface.
+
+	      When compatible with the generic version, nodes must list the
+	      SoC-specific version corresponding to the platform first
+	      followed by the generic version.
+
 - reg: offset and length of (1) the register block and (2) the stream buffer.
 - interrupts: A list of interrupt-specifiers, one for each entry in
 	      interrupt-names.
@@ -37,7 +44,7 @@ Optional properties:
 Example:
 
 	ethernet@e6800000 {
-		compatible = "renesas,etheravb-r8a7795";
+		compatible = "renesas,etheravb-r8a7795", "renesas,etheravb-rcar-gen3";
 		reg = <0 0xe6800000 0 0x800>, <0 0xe6a00000 0 0x10000>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
