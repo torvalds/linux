@@ -6,6 +6,7 @@ all: $(TEST_PROGS)
 
 $(TEST_PROGS): ../harness.c
 
+context_switch: ../utils.c
 context_switch: LDLIBS += -lpthread
 
 include ../../lib.mk

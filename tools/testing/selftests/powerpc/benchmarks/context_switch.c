@@ -26,7 +26,9 @@
 #include <sys/shm.h>
 #include <linux/futex.h>
 
-static unsigned int timeout = INT_MAX;
+#include "../utils.h"
+
+static unsigned int timeout = 30;
 
 static int touch_vdso;
 struct timeval tv;
@@ -363,9 +365,9 @@ static struct option options[] = {
 static void usage(void)
 {
 	fprintf(stderr, "Usage: context_switch2 <options> CPU1 CPU2\n\n");
-	fprintf(stderr, "\t\t--test=X\tpipe, futex or yield\n");
+	fprintf(stderr, "\t\t--test=X\tpipe, futex or yield (default)\n");
 	fprintf(stderr, "\t\t--process\tUse processes (default threads)\n");
-	fprintf(stderr, "\t\t--timeout=X\tDuration in seconds to run\n");
+	fprintf(stderr, "\t\t--timeout=X\tDuration in seconds to run (default 30)\n");
 	fprintf(stderr, "\t\t--vdso\t\ttouch VDSO\n");
 	fprintf(stderr, "\t\t--fp\t\ttouch FP\n");
 #ifdef __powerpc__
@@ -377,7 +379,7 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
 	signed char c;
-	struct actions *actions = &pipe_actions;
+	struct actions *actions = &yield_actions;
 	int cpu1;
 	int cpu2;
 	static void (*start_fn)(void *(*fn)(void *), void *arg, unsigned long cpu);
@@ -428,17 +430,29 @@ int main(int argc, char *argv[])
 		start_fn = start_thread_on;
 
 	if (((argc - optind) != 2)) {
-		usage();
-		exit(1);
+		cpu1 = cpu2 = pick_online_cpu();
+	} else {
+		cpu1 = atoi(argv[optind++]);
+		cpu2 = atoi(argv[optind++]);
 	}
+
+	printf("Using %s with ", processes ? "processes" : "threads");
+
+	if (actions == &pipe_actions)
+		printf("pipe");
+	else if (actions == &yield_actions)
+		printf("yield");
+	else
+		printf("futex");
+
+	printf(" on cpus %d/%d touching FP:%s altivec:%s vector:%s vdso:%s\n",
+	       cpu1, cpu2, touch_fp ?  "yes" : "no", touch_altivec ? "yes" : "no",
+	       touch_vector ? "yes" : "no", touch_vdso ? "yes" : "no");
 
 	/* Create a new process group so we can signal everyone for exit */
 	setpgid(getpid(), getpid());
 
 	signal(SIGUSR1, sigusr1_handler);
-
-	cpu1 = atoi(argv[optind++]);
-	cpu2 = atoi(argv[optind++]);
 
 	actions->setup(cpu1, cpu2);
 
