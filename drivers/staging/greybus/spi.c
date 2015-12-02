@@ -107,13 +107,16 @@ gb_spi_operation_create(struct gb_connection *connection,
 		gb_xfer->delay_usecs = cpu_to_le16(xfer->delay_usecs);
 		gb_xfer->cs_change = xfer->cs_change;
 		gb_xfer->bits_per_word = xfer->bits_per_word;
-		gb_xfer++;
 
 		/* Copy tx data */
 		if (xfer->tx_buf) {
 			memcpy(tx_data, xfer->tx_buf, xfer->len);
 			tx_data += xfer->len;
+			gb_xfer->rdwr |= GB_SPI_XFER_WRITE;
 		}
+		if (xfer->rx_buf)
+			gb_xfer->rdwr |= GB_SPI_XFER_READ;
+		gb_xfer++;
 	}
 
 	return operation;
