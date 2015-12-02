@@ -472,7 +472,6 @@ check_size:
 	packet = (struct hv_netvsc_packet *)skb->cb;
 
 	packet->status = 0;
-	packet->xmit_more = skb->xmit_more;
 
 	packet->vlan_tci = skb->vlan_tci;
 

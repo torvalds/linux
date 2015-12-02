@@ -712,6 +712,7 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 		     + pend_size;
 	int i;
 	bool is_data_pkt = (skb != NULL) ? true : false;
+	bool xmit_more = (skb != NULL) ? skb->xmit_more : false;
 	u32 msg_size = 0;
 	u32 padding = 0;
 	u32 remain = packet->total_data_buflen % net_device->pkt_align;
@@ -719,7 +720,7 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 		packet->page_buf_cnt;
 
 	/* Add padding */
-	if (is_data_pkt && packet->xmit_more && remain &&
+	if (is_data_pkt && xmit_more && remain &&
 	    !packet->cp_partial) {
 		padding = net_device->pkt_align - remain;
 		rndis_msg->msg_len += padding;
@@ -758,6 +759,7 @@ static inline int netvsc_send_pkt(
 	int ret;
 	struct hv_page_buffer *pgbuf;
 	u32 ring_avail = hv_ringbuf_avail_percent(&out_channel->outbound);
+	bool xmit_more = (skb != NULL) ? skb->xmit_more : false;
 
 	nvmsg.hdr.msg_type = NVSP_MSG1_TYPE_SEND_RNDIS_PKT;
 	if (skb != NULL) {
@@ -789,7 +791,7 @@ static inline int netvsc_send_pkt(
 	 * unnecessarily.
 	 */
 	if (ring_avail < (RING_AVAIL_PERCENT_LOWATER + 1))
-		packet->xmit_more = false;
+		xmit_more = false;
 
 	if (packet->page_buf_cnt) {
 		pgbuf = packet->cp_partial ? (*pb) +
@@ -801,14 +803,14 @@ static inline int netvsc_send_pkt(
 						      sizeof(struct nvsp_message),
 						      req_id,
 						      VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED,
-						      !packet->xmit_more);
+						      !xmit_more);
 	} else {
 		ret = vmbus_sendpacket_ctl(out_channel, &nvmsg,
 					   sizeof(struct nvsp_message),
 					   req_id,
 					   VM_PKT_DATA_INBAND,
 					   VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED,
-					   !packet->xmit_more);
+					   !xmit_more);
 	}
 
 	if (ret == 0) {
@@ -854,6 +856,7 @@ int netvsc_send(struct hv_device *device,
 	struct multi_send_data *msdp;
 	struct hv_netvsc_packet *msd_send = NULL, *cur_send = NULL;
 	bool try_batch;
+	bool xmit_more = (skb != NULL) ? skb->xmit_more : false;
 
 	net_device = get_outbound_net_device(device);
 	if (!net_device)
@@ -911,7 +914,7 @@ int netvsc_send(struct hv_device *device,
 		if (msdp->pkt)
 			dev_kfree_skb_any(skb);
 
-		if (packet->xmit_more && !packet->cp_partial) {
+		if (xmit_more && !packet->cp_partial) {
 			msdp->pkt = packet;
 			msdp->count++;
 		} else {
