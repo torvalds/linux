@@ -78,8 +78,8 @@
 	hfi1_cdbg(SNOOP, fmt, ##__VA_ARGS__)
 
 /* Snoop option mask */
-#define SNOOP_DROP_SEND	(1 << 0)
-#define SNOOP_USE_METADATA	(1 << 1)
+#define SNOOP_DROP_SEND		BIT(0)
+#define SNOOP_USE_METADATA	BIT(1)
 
 static u8 snoop_flags;
 
