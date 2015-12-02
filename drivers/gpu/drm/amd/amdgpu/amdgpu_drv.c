@@ -82,6 +82,7 @@ int amdgpu_enable_scheduler = 1;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_enable_semaphores = 0;
+int amdgpu_powerplay = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);

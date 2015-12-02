@@ -65,6 +65,7 @@
 #include "oss/oss_2_0_sh_mask.h"
 
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_powerplay.h"
 
 /*
  * Indirect registers accessor
@@ -1953,7 +1954,7 @@ static const struct amdgpu_ip_block_version bonaire_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &ci_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -2021,7 +2022,7 @@ static const struct amdgpu_ip_block_version hawaii_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &ci_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -2089,7 +2090,7 @@ static const struct amdgpu_ip_block_version kabini_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &kv_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -2157,7 +2158,7 @@ static const struct amdgpu_ip_block_version mullins_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &kv_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -2225,7 +2226,7 @@ static const struct amdgpu_ip_block_version kaveri_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &kv_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,

@@ -52,6 +52,7 @@
 #include "amdgpu_irq.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_gds.h"
+#include "amd_powerplay.h"
 
 #include "gpu_scheduler.h"
 
@@ -85,6 +86,7 @@ extern int amdgpu_enable_scheduler;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
 extern int amdgpu_enable_semaphores;
+extern int amdgpu_powerplay;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
@@ -2035,6 +2037,9 @@ struct amdgpu_device {
 
 	/* interrupts */
 	struct amdgpu_irq		irq;
+
+	/* powerplay */
+	struct amd_powerplay		powerplay;
 
 	/* dpm */
 	struct amdgpu_pm		pm;
