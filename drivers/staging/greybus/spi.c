@@ -1,8 +1,8 @@
 /*
  * SPI bridge driver for the Greybus "generic" SPI module.
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -17,29 +17,19 @@
 
 struct gb_spi {
 	struct gb_connection	*connection;
-
-	/* Modes supported by spi controller */
 	u16			mode;
-	/* constraints of the spi controller */
 	u16			flags;
-
-	/*
-	 * copied from kernel:
-	 *
-	 * A mask indicating which values of bits_per_word are supported by the
-	 * controller. Bit n indicates that a bits_per_word n+1 is suported. If
-	 * set, the SPI core will reject any transfer with an unsupported
-	 * bits_per_word. If not set, this value is simply ignored, and it's up
-	 * to the individual driver to perform any validation.
-	 */
 	u32			bits_per_word_mask;
-
-	/*
-	 * chipselects will be integral to many controllers; some others might
-	 * use board-specific GPIOs.
-	 */
 	u16			num_chipselect;
+	u32			min_speed_hz;
+	u32			max_speed_hz;
+	struct spi_device	*spi_devices;
 };
+
+static struct spi_master *get_master_from_spi(struct gb_spi *spi)
+{
+	return spi->connection->private;
+}
 
 /* Routines to transfer data */
 static struct gb_operation *
@@ -181,7 +171,7 @@ static void gb_spi_cleanup(struct spi_device *spi)
 }
 
 
-/* Routines to get controller infomation */
+/* Routines to get controller information */
 
 /*
  * Map Greybus spi mode bits/flags/bpw into Linux ones.
@@ -190,103 +180,86 @@ static void gb_spi_cleanup(struct spi_device *spi)
 #define gb_spi_mode_map(mode) mode
 #define gb_spi_flags_map(flags) flags
 
-static int gb_spi_mode_operation(struct gb_spi *spi)
+static int gb_spi_get_master_config(struct gb_spi *spi)
 {
-	struct gb_spi_mode_response response;
-	u16 mode;
+	struct gb_spi_master_config_response response;
+	u16 mode, flags;
 	int ret;
 
-	ret = gb_operation_sync(spi->connection, GB_SPI_TYPE_MODE,
+	ret = gb_operation_sync(spi->connection, GB_SPI_TYPE_MASTER_CONFIG,
 				NULL, 0, &response, sizeof(response));
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	mode = le16_to_cpu(response.mode);
 	spi->mode = gb_spi_mode_map(mode);
 
-	return 0;
-}
-
-static int gb_spi_flags_operation(struct gb_spi *spi)
-{
-	struct gb_spi_flags_response response;
-	u16 flags;
-	int ret;
-
-	ret = gb_operation_sync(spi->connection, GB_SPI_TYPE_FLAGS,
-				NULL, 0, &response, sizeof(response));
-	if (ret)
-		return ret;
-
 	flags = le16_to_cpu(response.flags);
 	spi->flags = gb_spi_flags_map(flags);
 
-	return 0;
-}
-
-static int gb_spi_bpw_operation(struct gb_spi *spi)
-{
-	struct gb_spi_bpw_response response;
-	int ret;
-
-	ret = gb_operation_sync(spi->connection, GB_SPI_TYPE_BITS_PER_WORD_MASK,
-				NULL, 0, &response, sizeof(response));
-	if (ret)
-		return ret;
-
 	spi->bits_per_word_mask = le32_to_cpu(response.bits_per_word_mask);
-
-	return 0;
-}
-
-static int gb_spi_chipselect_operation(struct gb_spi *spi)
-{
-	struct gb_spi_chipselect_response response;
-	int ret;
-
-	ret = gb_operation_sync(spi->connection, GB_SPI_TYPE_NUM_CHIPSELECT,
-				NULL, 0, &response, sizeof(response));
-	if (ret)
-		return ret;
-
 	spi->num_chipselect = le16_to_cpu(response.num_chipselect);
 
+	spi->min_speed_hz = le32_to_cpu(response.min_speed_hz);
+	spi->max_speed_hz = le32_to_cpu(response.max_speed_hz);
+
 	return 0;
 }
 
-/*
- * Initialize the spi device. This includes verifying we can support it (based
- * on the protocol version it advertises). If that's OK, we get and cached its
- * mode bits & flags.
- */
+static int gb_spi_setup_device(struct gb_spi *spi, uint16_t cs)
+{
+	struct spi_master *master = get_master_from_spi(spi);
+	struct gb_spi_device_config_request request;
+	struct gb_spi_device_config_response response;
+	struct spi_board_info spi_board = { {0} };
+	struct spi_device *spidev = &spi->spi_devices[cs];
+	int ret;
+
+	request.chip_select = cpu_to_le16(cs);
+
+	ret = gb_operation_sync(spi->connection, GB_SPI_TYPE_DEVICE_CONFIG,
+				&request, sizeof(request),
+				&response, sizeof(response));
+	if (ret < 0)
+		return ret;
+
+	memcpy(spi_board.modalias, response.name, sizeof(spi_board.modalias));
+	spi_board.mode		= le16_to_cpu(response.mode);
+	spi_board.bus_num	= master->bus_num;
+	spi_board.chip_select	= cs;
+	spi_board.max_speed_hz	= le32_to_cpu(response.max_speed_hz);
+
+	spidev = spi_new_device(master, &spi_board);
+	if (!spidev)
+		ret = -EINVAL;
+
+	return 0;
+}
+
 static int gb_spi_init(struct gb_spi *spi)
 {
 	int ret;
 
-	/* mode never changes, just get it once */
-	ret = gb_spi_mode_operation(spi);
+	/* get master configuration */
+	ret = gb_spi_get_master_config(spi);
 	if (ret)
 		return ret;
 
-	/* flags never changes, just get it once */
-	ret = gb_spi_flags_operation(spi);
-	if (ret)
-		return ret;
+	spi->spi_devices = kcalloc(spi->num_chipselect,
+				   sizeof(struct spi_device), GFP_KERNEL);
+	if (!spi->spi_devices)
+		return -ENOMEM;
 
-	/* total number of chipselects never changes, just get it once */
-	ret = gb_spi_chipselect_operation(spi);
-	if (ret)
-		return ret;
-
-	/* bits-per-word-mask never changes, just get it once */
-	return gb_spi_bpw_operation(spi);
+	return ret;
 }
+
 
 static int gb_spi_connection_init(struct gb_connection *connection)
 {
 	struct gb_spi *spi;
 	struct spi_master *master;
 	int ret;
+	int i;
 
 	/* Allocate master with space for data */
 	master = spi_alloc_master(&connection->bundle->dev, sizeof(*spi));
@@ -315,8 +288,15 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 	master->transfer_one_message = gb_spi_transfer_one_message;
 
 	ret = spi_register_master(master);
-	if (!ret)
-		return 0;
+
+	/* now, fetch the devices configuration */
+	for (i = 0; i < spi->num_chipselect; i++) {
+		ret = gb_spi_setup_device(spi, i);
+		if (ret < 0)
+			break;
+	}
+
+	return ret;
 
 out_err:
 	spi_master_put(master);
