@@ -166,6 +166,10 @@ void ima_update_policy(void);
 void ima_update_policy_flag(void);
 ssize_t ima_parse_add_rule(char *);
 void ima_delete_rules(void);
+void *ima_policy_start(struct seq_file *m, loff_t *pos);
+void *ima_policy_next(struct seq_file *m, void *v, loff_t *pos);
+void ima_policy_stop(struct seq_file *m, void *v);
+int ima_policy_show(struct seq_file *m, void *v);
 
 /* Appraise integrity measurements */
 #define IMA_APPRAISE_ENFORCE	0x01
@@ -250,5 +254,12 @@ static inline int security_filter_rule_match(u32 secid, u32 field, u32 op,
 {
 	return -EINVAL;
 }
-#endif /* CONFIG_IMA_LSM_RULES */
-#endif
+#endif /* CONFIG_IMA_TRUSTED_KEYRING */
+
+#ifdef	CONFIG_IMA_READ_POLICY
+#define	POLICY_FILE_FLAGS	(S_IWUSR | S_IRUSR)
+#else
+#define	POLICY_FILE_FLAGS	S_IWUSR
+#endif /* CONFIG_IMA_WRITE_POLICY */
+
+#endif /* __LINUX_IMA_H */

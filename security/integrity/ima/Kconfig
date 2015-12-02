@@ -118,6 +118,16 @@ config IMA_WRITE_POLICY
 
 	  If unsure, say N.
 
+config IMA_READ_POLICY
+	bool "Enable reading back the current IMA policy"
+	depends on IMA
+	default y if IMA_WRITE_POLICY
+	default n if !IMA_WRITE_POLICY
+	help
+	   It is often useful to be able to read back the IMA policy.  It is
+	   even more important after introducing CONFIG_IMA_WRITE_POLICY.
+	   This option allows the root user to see the current policy rules.
+
 config IMA_APPRAISE
 	bool "Appraise integrity measurements"
 	depends on IMA

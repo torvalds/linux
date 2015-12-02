@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/rculist.h>
 #include <linux/genhd.h>
+#include <linux/seq_file.h>
 
 #include "ima.h"
 
@@ -458,8 +459,8 @@ enum {
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
 	Opt_func, Opt_mask, Opt_fsmagic,
-	Opt_uid, Opt_euid, Opt_fowner,
-	Opt_appraise_type, Opt_fsuuid, Opt_permit_directio
+	Opt_fsuuid, Opt_uid, Opt_euid, Opt_fowner,
+	Opt_appraise_type, Opt_permit_directio
 };
 
 static match_table_t policy_tokens = {
@@ -828,3 +829,205 @@ void ima_delete_rules(void)
 		kfree(entry);
 	}
 }
+
+#ifdef	CONFIG_IMA_READ_POLICY
+enum {
+	mask_exec = 0, mask_write, mask_read, mask_append
+};
+
+static char *mask_tokens[] = {
+	"MAY_EXEC",
+	"MAY_WRITE",
+	"MAY_READ",
+	"MAY_APPEND"
+};
+
+enum {
+	func_file = 0, func_mmap, func_bprm,
+	func_module, func_firmware, func_post
+};
+
+static char *func_tokens[] = {
+	"FILE_CHECK",
+	"MMAP_CHECK",
+	"BPRM_CHECK",
+	"MODULE_CHECK",
+	"FIRMWARE_CHECK",
+	"POST_SETATTR"
+};
+
+void *ima_policy_start(struct seq_file *m, loff_t *pos)
+{
+	loff_t l = *pos;
+	struct ima_rule_entry *entry;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, ima_rules, list) {
+		if (!l--) {
+			rcu_read_unlock();
+			return entry;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
+}
+
+void *ima_policy_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct ima_rule_entry *entry = v;
+
+	rcu_read_lock();
+	entry = list_entry_rcu(entry->list.next, struct ima_rule_entry, list);
+	rcu_read_unlock();
+	(*pos)++;
+
+	return (&entry->list == ima_rules) ? NULL : entry;
+}
+
+void ima_policy_stop(struct seq_file *m, void *v)
+{
+}
+
+#define pt(token)	policy_tokens[token + Opt_err].pattern
+#define mt(token)	mask_tokens[token]
+#define ft(token)	func_tokens[token]
+
+int ima_policy_show(struct seq_file *m, void *v)
+{
+	struct ima_rule_entry *entry = v;
+	int i = 0;
+	char tbuf[64] = {0,};
+
+	rcu_read_lock();
+
+	if (entry->action & MEASURE)
+		seq_puts(m, pt(Opt_measure));
+	if (entry->action & DONT_MEASURE)
+		seq_puts(m, pt(Opt_dont_measure));
+	if (entry->action & APPRAISE)
+		seq_puts(m, pt(Opt_appraise));
+	if (entry->action & DONT_APPRAISE)
+		seq_puts(m, pt(Opt_dont_appraise));
+	if (entry->action & AUDIT)
+		seq_puts(m, pt(Opt_audit));
+
+	seq_puts(m, " ");
+
+	if (entry->flags & IMA_FUNC) {
+		switch (entry->func) {
+		case FILE_CHECK:
+			seq_printf(m, pt(Opt_func), ft(func_file));
+			break;
+		case MMAP_CHECK:
+			seq_printf(m, pt(Opt_func), ft(func_mmap));
+			break;
+		case BPRM_CHECK:
+			seq_printf(m, pt(Opt_func), ft(func_bprm));
+			break;
+		case MODULE_CHECK:
+			seq_printf(m, pt(Opt_func), ft(func_module));
+			break;
+		case FIRMWARE_CHECK:
+			seq_printf(m, pt(Opt_func), ft(func_firmware));
+			break;
+		case POST_SETATTR:
+			seq_printf(m, pt(Opt_func), ft(func_post));
+			break;
+		default:
+			snprintf(tbuf, sizeof(tbuf), "%d", entry->func);
+			seq_printf(m, pt(Opt_func), tbuf);
+			break;
+		}
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_MASK) {
+		if (entry->mask & MAY_EXEC)
+			seq_printf(m, pt(Opt_mask), mt(mask_exec));
+		if (entry->mask & MAY_WRITE)
+			seq_printf(m, pt(Opt_mask), mt(mask_write));
+		if (entry->mask & MAY_READ)
+			seq_printf(m, pt(Opt_mask), mt(mask_read));
+		if (entry->mask & MAY_APPEND)
+			seq_printf(m, pt(Opt_mask), mt(mask_append));
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_FSMAGIC) {
+		snprintf(tbuf, sizeof(tbuf), "0x%lx", entry->fsmagic);
+		seq_printf(m, pt(Opt_fsmagic), tbuf);
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_FSUUID) {
+		seq_puts(m, "fsuuid=");
+		for (i = 0; i < ARRAY_SIZE(entry->fsuuid); ++i) {
+			switch (i) {
+			case 4:
+			case 6:
+			case 8:
+			case 10:
+				seq_puts(m, "-");
+			}
+			seq_printf(m, "%x", entry->fsuuid[i]);
+		}
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_UID) {
+		snprintf(tbuf, sizeof(tbuf), "%d", __kuid_val(entry->uid));
+		seq_printf(m, pt(Opt_uid), tbuf);
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_EUID) {
+		snprintf(tbuf, sizeof(tbuf), "%d", __kuid_val(entry->uid));
+		seq_printf(m, pt(Opt_euid), tbuf);
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_FOWNER) {
+		snprintf(tbuf, sizeof(tbuf), "%d", __kuid_val(entry->fowner));
+		seq_printf(m, pt(Opt_fowner), tbuf);
+		seq_puts(m, " ");
+	}
+
+	for (i = 0; i < MAX_LSM_RULES; i++) {
+		if (entry->lsm[i].rule) {
+			switch (i) {
+			case LSM_OBJ_USER:
+				seq_printf(m, pt(Opt_obj_user),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_OBJ_ROLE:
+				seq_printf(m, pt(Opt_obj_role),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_OBJ_TYPE:
+				seq_printf(m, pt(Opt_obj_type),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_SUBJ_USER:
+				seq_printf(m, pt(Opt_subj_user),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_SUBJ_ROLE:
+				seq_printf(m, pt(Opt_subj_role),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			case LSM_SUBJ_TYPE:
+				seq_printf(m, pt(Opt_subj_type),
+					   (char *)entry->lsm[i].args_p);
+				break;
+			}
+		}
+	}
+	if (entry->flags & IMA_DIGSIG_REQUIRED)
+		seq_puts(m, "appraise_type=imasig ");
+	if (entry->flags & IMA_PERMIT_DIRECTIO)
+		seq_puts(m, "permit_directio ");
+	rcu_read_unlock();
+	seq_puts(m, "\n");
+	return 0;
+}
+#endif	/* CONFIG_IMA_READ_POLICY */
