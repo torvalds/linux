@@ -613,22 +613,20 @@ static struct platform_driver lp8788_aldo_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&lp8788_dldo_driver,
+	&lp8788_aldo_driver,
+};
+
 static int __init lp8788_ldo_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&lp8788_dldo_driver);
-	if (ret)
-		return ret;
-
-	return platform_driver_register(&lp8788_aldo_driver);
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 subsys_initcall(lp8788_ldo_init);
 
 static void __exit lp8788_ldo_exit(void)
 {
-	platform_driver_unregister(&lp8788_aldo_driver);
-	platform_driver_unregister(&lp8788_dldo_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(lp8788_ldo_exit);
 
