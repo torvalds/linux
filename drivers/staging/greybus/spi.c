@@ -31,6 +31,51 @@ static struct spi_master *get_master_from_spi(struct gb_spi *spi)
 	return spi->connection->private;
 }
 
+static int tx_header_fit_operation(u32 tx_size, u32 count, size_t data_max)
+{
+	size_t headers_size;
+
+	data_max -= sizeof(struct gb_spi_transfer_request);
+	headers_size = (count + 1) * sizeof(struct gb_spi_transfer);
+
+	return tx_size + headers_size > data_max ? 0 : 1;
+}
+
+static size_t calc_rx_xfer_size(u32 rx_size, u32 *tx_xfer_size, u32 len,
+				size_t data_max)
+{
+	size_t rx_xfer_size;
+
+	data_max -= sizeof(struct gb_spi_transfer_response);
+
+	if (rx_size + len > data_max)
+		rx_xfer_size = data_max - rx_size;
+	else
+		rx_xfer_size = len;
+
+	/* if this is a write_read, for symmetry read the same as write */
+	if (*tx_xfer_size && rx_xfer_size > *tx_xfer_size)
+		rx_xfer_size = *tx_xfer_size;
+	if (*tx_xfer_size && rx_xfer_size < *tx_xfer_size)
+		*tx_xfer_size = rx_xfer_size;
+
+	return rx_xfer_size;
+}
+
+static size_t calc_tx_xfer_size(u32 tx_size, u32 count, size_t len,
+				size_t data_max)
+{
+	size_t headers_size;
+
+	data_max -= sizeof(struct gb_spi_transfer_request);
+	headers_size = (count + 1) * sizeof(struct gb_spi_transfer);
+
+	if (tx_size + headers_size + len > data_max)
+		return data_max - (tx_size + sizeof(struct gb_spi_transfer));
+
+	return len;
+}
+
 /* Routines to transfer data */
 static struct gb_operation *
 gb_spi_operation_create(struct gb_connection *connection,
@@ -41,8 +86,13 @@ gb_spi_operation_create(struct gb_connection *connection,
 	struct spi_transfer *xfer;
 	struct gb_spi_transfer *gb_xfer;
 	struct gb_operation *operation;
-	u32 tx_size = 0, rx_size = 0, count = 0, request_size;
+	struct spi_transfer *last_xfer = NULL;
+	u32 tx_size = 0, rx_size = 0, count = 0, xfer_len = 0, request_size;
+	u32 tx_xfer_size = 0, rx_xfer_size = 0, last_xfer_size = 0;
+	size_t data_max;
 	void *tx_data;
+
+	data_max = gb_operation_get_payload_size_max(connection);
 
 	/* Find number of transfers queued and tx/rx length in the message */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
@@ -51,21 +101,33 @@ gb_spi_operation_create(struct gb_connection *connection,
 				"bufferless transfer, length %u\n", xfer->len);
 			return NULL;
 		}
+		last_xfer = xfer;
 
-		if (xfer->tx_buf)
-			tx_size += xfer->len;
-		if (xfer->rx_buf)
-			rx_size += xfer->len;
+		tx_xfer_size = 0;
+		rx_xfer_size = 0;
 
-		*total_len += xfer->len;
+		if (xfer->tx_buf) {
+			if (!tx_header_fit_operation(tx_size, count, data_max))
+				break;
+			tx_xfer_size = calc_tx_xfer_size(tx_size, count,
+							 xfer->len, data_max);
+			last_xfer_size = tx_xfer_size;
+		}
+
+		if (xfer->rx_buf) {
+			rx_xfer_size = calc_rx_xfer_size(rx_size, &tx_xfer_size,
+							 xfer->len, data_max);
+			last_xfer_size = rx_xfer_size;
+		}
+
+		tx_size += tx_xfer_size;
+		rx_size += rx_xfer_size;
+
+		*total_len += last_xfer_size;
 		count++;
-	}
 
-	/* Too many transfers ? */
-	if (count > (u32)U16_MAX) {
-		dev_err(&connection->bundle->dev,
-			"transfer count (%u) too big\n", count);
-		return NULL;
+		if (xfer->len != last_xfer_size)
+			break;
 	}
 
 	/*
@@ -92,20 +154,30 @@ gb_spi_operation_create(struct gb_connection *connection,
 
 	/* Fill in the transfers array */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		if (last_xfer && xfer == last_xfer)
+			xfer_len = last_xfer_size;
+		else
+			xfer_len = xfer->len;
+
 		gb_xfer->speed_hz = cpu_to_le32(xfer->speed_hz);
-		gb_xfer->len = cpu_to_le32(xfer->len);
+		gb_xfer->len = cpu_to_le32(xfer_len);
 		gb_xfer->delay_usecs = cpu_to_le16(xfer->delay_usecs);
 		gb_xfer->cs_change = xfer->cs_change;
 		gb_xfer->bits_per_word = xfer->bits_per_word;
 
 		/* Copy tx data */
 		if (xfer->tx_buf) {
-			memcpy(tx_data, xfer->tx_buf, xfer->len);
-			tx_data += xfer->len;
 			gb_xfer->rdwr |= GB_SPI_XFER_WRITE;
+			memcpy(tx_data, xfer->tx_buf, xfer_len);
+			tx_data += xfer_len;
 		}
+
 		if (xfer->rx_buf)
 			gb_xfer->rdwr |= GB_SPI_XFER_READ;
+
+		if (last_xfer && xfer == last_xfer)
+			break;
+
 		gb_xfer++;
 	}
 
