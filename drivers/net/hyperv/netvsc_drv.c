@@ -471,7 +471,6 @@ check_size:
 			FIELD_SIZEOF(struct sk_buff, cb));
 	packet = (struct hv_netvsc_packet *)skb->cb;
 
-	packet->vlan_tci = skb->vlan_tci;
 
 	packet->q_idx = skb_get_queue_mapping(skb);
 
@@ -481,7 +480,7 @@ check_size:
 
 	memset(rndis_msg, 0, RNDIS_AND_PPI_SIZE);
 
-	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;
+	isvlan = skb->vlan_tci & VLAN_TAG_PRESENT;
 
 	/* Add the rndis header */
 	rndis_msg->ndis_msg_type = RNDIS_MSG_PACKET;
@@ -509,8 +508,8 @@ check_size:
 					IEEE_8021Q_INFO);
 		vlan = (struct ndis_pkt_8021q_info *)((void *)ppi +
 						ppi->ppi_offset);
-		vlan->vlanid = packet->vlan_tci & VLAN_VID_MASK;
-		vlan->pri = (packet->vlan_tci & VLAN_PRIO_MASK) >>
+		vlan->vlanid = skb->vlan_tci & VLAN_VID_MASK;
+		vlan->pri = (skb->vlan_tci & VLAN_PRIO_MASK) >>
 				VLAN_PRIO_SHIFT;
 	}
 
@@ -673,7 +672,8 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet,
 				void **data,
 				struct ndis_tcp_ip_checksum_info *csum_info,
-				struct vmbus_channel *channel)
+				struct vmbus_channel *channel,
+				u16 vlan_tci)
 {
 	struct net_device *net;
 	struct net_device_context *net_device_ctx;
@@ -713,9 +713,9 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 			skb->ip_summed = CHECKSUM_NONE;
 	}
 
-	if (packet->vlan_tci & VLAN_TAG_PRESENT)
+	if (vlan_tci & VLAN_TAG_PRESENT)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
-				       packet->vlan_tci);
+				       vlan_tci);
 
 	skb_record_rx_queue(skb, channel->
 			    offermsg.offer.sub_channel_index);

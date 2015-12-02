@@ -354,6 +354,7 @@ static int rndis_filter_receive_data(struct rndis_device *dev,
 	u32 data_offset;
 	struct ndis_pkt_8021q_info *vlan;
 	struct ndis_tcp_ip_checksum_info *csum_info;
+	u16 vlan_tci = 0;
 
 	rndis_pkt = &msg->msg.pkt;
 
@@ -384,15 +385,13 @@ static int rndis_filter_receive_data(struct rndis_device *dev,
 
 	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO);
 	if (vlan) {
-		pkt->vlan_tci = VLAN_TAG_PRESENT | vlan->vlanid |
+		vlan_tci = VLAN_TAG_PRESENT | vlan->vlanid |
 			(vlan->pri << VLAN_PRIO_SHIFT);
-	} else {
-		pkt->vlan_tci = 0;
 	}
 
 	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
 	return netvsc_recv_callback(dev->net_dev->dev, pkt, data,
-				    csum_info, channel);
+				    csum_info, channel, vlan_tci);
 }
 
 int rndis_filter_receive(struct hv_device *dev,

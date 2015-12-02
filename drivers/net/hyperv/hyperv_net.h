@@ -136,7 +136,6 @@ struct hv_netvsc_packet {
 	u8 rmsg_pgcnt; /* page count of RNDIS header and PPI */
 	u8 page_buf_cnt;
 
-	u16 vlan_tci;
 	u16 q_idx;
 	u32 send_buf_index;
 
@@ -187,7 +186,8 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 			struct hv_netvsc_packet *packet,
 			void **data,
 			struct ndis_tcp_ip_checksum_info *csum_info,
-			struct vmbus_channel *channel);
+			struct vmbus_channel *channel,
+			u16 vlan_tci);
 void netvsc_channel_cb(void *context);
 int rndis_filter_open(struct hv_device *dev);
 int rndis_filter_close(struct hv_device *dev);
