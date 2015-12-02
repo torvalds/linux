@@ -369,7 +369,7 @@ struct mvneta_port {
 	unsigned int duplex;
 	unsigned int speed;
 	unsigned int tx_csum_limit;
-	int use_inband_status:1;
+	unsigned int use_inband_status:1;
 
 	u64 ethtool_stats[ARRAY_SIZE(mvneta_statistics)];
 };
@@ -971,6 +971,44 @@ static void mvneta_set_other_mcast_table(struct mvneta_port *pp, int queue)
 		mvreg_write(pp, MVNETA_DA_FILT_OTH_MCAST + offset, val);
 }
 
+static void mvneta_set_autoneg(struct mvneta_port *pp, int enable)
+{
+	u32 val;
+
+	if (enable) {
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~(MVNETA_GMAC_FORCE_LINK_PASS |
+			 MVNETA_GMAC_FORCE_LINK_DOWN |
+			 MVNETA_GMAC_AN_FLOW_CTRL_EN);
+		val |= MVNETA_GMAC_INBAND_AN_ENABLE |
+		       MVNETA_GMAC_AN_SPEED_EN |
+		       MVNETA_GMAC_AN_DUPLEX_EN;
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+
+		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
+		val |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
+
+		val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+		val |= MVNETA_GMAC2_INBAND_AN_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
+	} else {
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~(MVNETA_GMAC_INBAND_AN_ENABLE |
+		       MVNETA_GMAC_AN_SPEED_EN |
+		       MVNETA_GMAC_AN_DUPLEX_EN);
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+
+		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
+		val &= ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
+
+		val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+		val &= ~MVNETA_GMAC2_INBAND_AN_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
+	}
+}
+
 /* This method sets defaults to the NETA port:
  *	Clears interrupt Cause and Mask registers.
  *	Clears all MAC tables.
@@ -1056,39 +1094,7 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 	val &= ~MVNETA_PHY_POLLING_ENABLE;
 	mvreg_write(pp, MVNETA_UNIT_CONTROL, val);
 
-	if (pp->use_inband_status) {
-		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-		val &= ~(MVNETA_GMAC_FORCE_LINK_PASS |
-			 MVNETA_GMAC_FORCE_LINK_DOWN |
-			 MVNETA_GMAC_AN_FLOW_CTRL_EN);
-		val |= MVNETA_GMAC_INBAND_AN_ENABLE |
-		       MVNETA_GMAC_AN_SPEED_EN |
-		       MVNETA_GMAC_AN_DUPLEX_EN;
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-
-		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
-		val |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
-
-		val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-		val |= MVNETA_GMAC2_INBAND_AN_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
-	} else {
-		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-		val &= ~(MVNETA_GMAC_INBAND_AN_ENABLE |
-		       MVNETA_GMAC_AN_SPEED_EN |
-		       MVNETA_GMAC_AN_DUPLEX_EN);
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-
-		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
-		val &= ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
-
-		val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-		val &= ~MVNETA_GMAC2_INBAND_AN_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
-	}
-
+	mvneta_set_autoneg(pp, pp->use_inband_status);
 	mvneta_set_ucast_table(pp, -1);
 	mvneta_set_special_mcast_table(pp, -1);
 	mvneta_set_other_mcast_table(pp, -1);
@@ -2950,9 +2956,42 @@ int mvneta_ethtool_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 int mvneta_ethtool_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
+	struct phy_device *phydev = pp->phy_dev;
 
-	if (!pp->phy_dev)
+	if (!phydev)
 		return -ENODEV;
+
+	if ((cmd->autoneg == AUTONEG_ENABLE) != pp->use_inband_status) {
+		u32 val;
+
+		mvneta_set_autoneg(pp, cmd->autoneg == AUTONEG_ENABLE);
+
+		if (cmd->autoneg == AUTONEG_DISABLE) {
+			val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+			val &= ~(MVNETA_GMAC_CONFIG_MII_SPEED |
+				 MVNETA_GMAC_CONFIG_GMII_SPEED |
+				 MVNETA_GMAC_CONFIG_FULL_DUPLEX);
+
+			if (phydev->duplex)
+				val |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+
+			if (phydev->speed == SPEED_1000)
+				val |= MVNETA_GMAC_CONFIG_GMII_SPEED;
+			else if (phydev->speed == SPEED_100)
+				val |= MVNETA_GMAC_CONFIG_MII_SPEED;
+
+			mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+		}
+
+		pp->use_inband_status = (cmd->autoneg == AUTONEG_ENABLE);
+		netdev_info(pp->dev, "autoneg status set to %i\n",
+			    pp->use_inband_status);
+
+		if (netif_running(dev)) {
+			mvneta_port_down(pp);
+			mvneta_port_up(pp);
+		}
+	}
 
 	return phy_ethtool_sset(pp->phy_dev, cmd);
 }
