@@ -4980,19 +4980,16 @@ void ftrace_release_mod(struct module *mod)
 	mutex_unlock(&ftrace_lock);
 }
 
-static void ftrace_init_module(struct module *mod,
-			       unsigned long *start, unsigned long *end)
-{
-	if (ftrace_disabled || start == end)
-		return;
-	ftrace_process_locs(mod, start, end);
-}
-
 void ftrace_module_init(struct module *mod)
 {
-	ftrace_init_module(mod, mod->ftrace_callsites,
-			   mod->ftrace_callsites +
-			   mod->num_ftrace_callsites);
+	unsigned long *start = mod->ftrace_callsites;
+	unsigned long *end = mod->ftrace_callsites +
+				mod->num_ftrace_callsites;
+
+	if (ftrace_disabled || start == end)
+		return;
+
+	ftrace_process_locs(mod, start, end);
 }
 
 static int ftrace_module_notify_exit(struct notifier_block *self,
