@@ -954,12 +954,14 @@ static ssize_t hfi1_snoop_read(struct file *fp, char __user *data,
 				ret = -EFAULT;
 			else
 				ret = packet->total_len;
-		} else
+		} else {
 			ret = -EINVAL;
+		}
 
 		kfree(packet);
-	} else
+	} else {
 		spin_unlock_irqrestore(&dd->hfi1_snoop.snoop_lock, flags);
+	}
 
 	return ret;
 }
