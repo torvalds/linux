@@ -279,16 +279,6 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 	return q_idx;
 }
 
-void netvsc_xmit_completion(void *context)
-{
-	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
-	struct sk_buff *skb = (struct sk_buff *)
-		(unsigned long)packet->send_completion_tid;
-
-	if (skb)
-		dev_kfree_skb_any(skb);
-}
-
 static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 			struct hv_page_buffer *pb)
 {
@@ -497,7 +487,6 @@ check_size:
 
 	/* Set the completion routine */
 	packet->completion_func = 1;
-	packet->send_completion_tid = (unsigned long)skb;
 
 	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;
 
@@ -625,7 +614,8 @@ do_send:
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
 					       skb, packet, &pb);
 
-	ret = netvsc_send(net_device_ctx->device_ctx, packet, rndis_msg, &pb);
+	ret = netvsc_send(net_device_ctx->device_ctx, packet,
+			  rndis_msg, &pb, skb);
 
 drop:
 	if (ret == 0) {
