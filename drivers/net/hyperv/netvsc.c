@@ -653,8 +653,7 @@ static void netvsc_send_completion(struct netvsc_device *net_device,
 				netvsc_free_send_slot(net_device, send_index);
 			q_idx = nvsc_packet->q_idx;
 			channel = incoming_channel;
-			netvsc_xmit_completion(nvsc_packet->
-					       send_completion_ctx);
+			netvsc_xmit_completion(nvsc_packet);
 		}
 
 		num_outstanding_sends =

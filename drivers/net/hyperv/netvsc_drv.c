@@ -490,7 +490,6 @@ check_size:
 
 	/* Set the completion routine */
 	packet->completion_func = 1;
-	packet->send_completion_ctx = packet;
 	packet->send_completion_tid = (unsigned long)skb;
 
 	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;

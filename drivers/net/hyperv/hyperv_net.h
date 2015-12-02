@@ -146,7 +146,6 @@ struct hv_netvsc_packet {
 
 
 	u64 send_completion_tid;
-	void *send_completion_ctx;
 	struct hv_page_buffer *page_buf;
 };
 
