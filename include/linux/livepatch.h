@@ -67,8 +67,7 @@ struct klp_func {
 /**
  * struct klp_reloc - relocation structure for live patching
  * @loc:	address where the relocation will be written
- * @val:	address of the referenced symbol (optional,
- *		vmlinux	patches only)
+ * @sympos:	position in kallsyms to disambiguate symbols (optional)
  * @type:	ELF relocation type
  * @name:	name of the referenced symbol (for lookup/verification)
  * @addend:	offset from the referenced symbol
@@ -76,7 +75,7 @@ struct klp_func {
  */
 struct klp_reloc {
 	unsigned long loc;
-	unsigned long val;
+	unsigned long sympos;
 	unsigned long type;
 	const char *name;
 	int addend;
