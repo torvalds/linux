@@ -87,6 +87,11 @@ struct machine *setup_fake_machine(struct machines *machines)
 		return NULL;
 	}
 
+	if (machine__create_kernel_maps(machine)) {
+		pr_debug("Not enough memory for machine setup\n");
+		goto out;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(fake_threads); i++) {
 		struct thread *thread;
 
