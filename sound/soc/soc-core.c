@@ -1260,6 +1260,12 @@ int snd_soc_add_dai_link(struct snd_soc_card *card,
 	}
 
 	lockdep_assert_held(&client_mutex);
+	/* Notify the machine driver for extra initialization
+	 * on the link created by topology.
+	 */
+	if (dai_link->dobj.type && card->add_dai_link)
+		card->add_dai_link(card, dai_link);
+
 	list_add_tail(&dai_link->list, &card->dai_link_list);
 	card->num_dai_links++;
 
@@ -1290,6 +1296,12 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 	}
 
 	lockdep_assert_held(&client_mutex);
+	/* Notify the machine driver for extra destruction
+	 * on the link created by topology.
+	 */
+	if (dai_link->dobj.type && card->remove_dai_link)
+		card->remove_dai_link(card, dai_link);
+
 	list_for_each_entry_safe(link, _link, &card->dai_link_list, list) {
 		if (link == dai_link) {
 			list_del(&link->list);
