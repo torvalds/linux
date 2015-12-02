@@ -246,7 +246,7 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 
 		/* Drop frames that do not start/end with a SOI/EOI markers */
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG &&
-		    !coda_jpeg_check_buffer(ctx, src_buf)) {
+		    !coda_jpeg_check_buffer(ctx, &src_buf->vb2_buf)) {
 			v4l2_err(&ctx->dev->v4l2_dev,
 				 "dropping invalid JPEG frame %d\n",
 				 ctx->qsequence);
