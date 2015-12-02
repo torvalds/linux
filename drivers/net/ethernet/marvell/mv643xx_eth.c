@@ -3257,25 +3257,20 @@ static struct platform_driver mv643xx_eth_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&mv643xx_eth_shared_driver,
+	&mv643xx_eth_driver,
+};
+
 static int __init mv643xx_eth_init_module(void)
 {
-	int rc;
-
-	rc = platform_driver_register(&mv643xx_eth_shared_driver);
-	if (!rc) {
-		rc = platform_driver_register(&mv643xx_eth_driver);
-		if (rc)
-			platform_driver_unregister(&mv643xx_eth_shared_driver);
-	}
-
-	return rc;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_init(mv643xx_eth_init_module);
 
 static void __exit mv643xx_eth_cleanup_module(void)
 {
-	platform_driver_unregister(&mv643xx_eth_driver);
-	platform_driver_unregister(&mv643xx_eth_shared_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(mv643xx_eth_cleanup_module);
 
