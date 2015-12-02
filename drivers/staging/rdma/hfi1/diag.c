@@ -1482,7 +1482,7 @@ static struct snoop_packet *allocate_snoop_packet(u32 hdr_len,
 {
 	struct snoop_packet *packet;
 
-	packet = kzalloc(sizeof(struct snoop_packet) + hdr_len + data_len
+	packet = kzalloc(sizeof(*packet) + hdr_len + data_len
 			 + md_len,
 			 GFP_ATOMIC | __GFP_NOWARN);
 	if (likely(packet))
