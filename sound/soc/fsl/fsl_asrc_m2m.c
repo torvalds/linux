@@ -827,7 +827,8 @@ static int fsl_asrc_open(struct inode *inode, struct file *file)
 	m2m = kzalloc(sizeof(struct fsl_asrc_m2m), GFP_KERNEL);
 	if (!m2m) {
 		dev_err(dev, "failed to allocate m2m resource\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	pair->private = m2m;
@@ -843,6 +844,10 @@ static int fsl_asrc_open(struct inode *inode, struct file *file)
 	pm_runtime_get_sync(dev);
 
 	return 0;
+out:
+	kfree(pair);
+
+	return ret;
 }
 
 static int fsl_asrc_close(struct inode *inode, struct file *file)
