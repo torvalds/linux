@@ -535,7 +535,7 @@ EXPORT_SYMBOL_GPL(klp_enable_patch);
  * /sys/kernel/livepatch/<patch>
  * /sys/kernel/livepatch/<patch>/enabled
  * /sys/kernel/livepatch/<patch>/<object>
- * /sys/kernel/livepatch/<patch>/<object>/<func>
+ * /sys/kernel/livepatch/<patch>/<object>/<function,sympos>
  */
 
 static ssize_t enabled_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -680,8 +680,14 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 	INIT_LIST_HEAD(&func->stack_node);
 	func->state = KLP_DISABLED;
 
+	/* The format for the sysfs directory is <function,sympos> where sympos
+	 * is the nth occurrence of this symbol in kallsyms for the patched
+	 * object. If the user selects 0 for old_sympos, then 1 will be used
+	 * since a unique symbol will be the first occurrence.
+	 */
 	return kobject_init_and_add(&func->kobj, &klp_ktype_func,
-				    &obj->kobj, "%s", func->old_name);
+				    &obj->kobj, "%s,%lu", func->old_name,
+				    func->old_sympos ? func->old_sympos : 1);
 }
 
 /* parts of the initialization that is done only when the object is loaded */
