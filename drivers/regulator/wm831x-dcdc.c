@@ -884,35 +884,22 @@ static struct platform_driver wm831x_epe_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&wm831x_buckv_driver,
+	&wm831x_buckp_driver,
+	&wm831x_boostp_driver,
+	&wm831x_epe_driver,
+};
+
 static int __init wm831x_dcdc_init(void)
 {
-	int ret;
-	ret = platform_driver_register(&wm831x_buckv_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM831x BUCKV driver: %d\n", ret);
-
-	ret = platform_driver_register(&wm831x_buckp_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM831x BUCKP driver: %d\n", ret);
-
-	ret = platform_driver_register(&wm831x_boostp_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM831x BOOST driver: %d\n", ret);
-
-	ret = platform_driver_register(&wm831x_epe_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM831x EPE driver: %d\n", ret);
-
-	return 0;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 subsys_initcall(wm831x_dcdc_init);
 
 static void __exit wm831x_dcdc_exit(void)
 {
-	platform_driver_unregister(&wm831x_epe_driver);
-	platform_driver_unregister(&wm831x_boostp_driver);
-	platform_driver_unregister(&wm831x_buckp_driver);
-	platform_driver_unregister(&wm831x_buckv_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(wm831x_dcdc_exit);
 
