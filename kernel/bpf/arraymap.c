@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/filter.h>
+#include <linux/perf_event.h>
 
 /* Called from syscall */
 static struct bpf_map *array_map_alloc(union bpf_attr *attr)
@@ -48,7 +49,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	array->map.key_size = attr->key_size;
 	array->map.value_size = attr->value_size;
 	array->map.max_entries = attr->max_entries;
-
+	array->map.pages = round_up(array_size, PAGE_SIZE) >> PAGE_SHIFT;
 	array->elem_size = elem_size;
 
 	return &array->map;
@@ -291,14 +292,23 @@ static void *perf_event_fd_array_get_ptr(struct bpf_map *map, int fd)
 
 	attr = perf_event_attrs(event);
 	if (IS_ERR(attr))
-		return (void *)attr;
+		goto err;
 
-	if (attr->type != PERF_TYPE_RAW &&
-	    attr->type != PERF_TYPE_HARDWARE) {
-		perf_event_release_kernel(event);
-		return ERR_PTR(-EINVAL);
-	}
-	return event;
+	if (attr->inherit)
+		goto err;
+
+	if (attr->type == PERF_TYPE_RAW)
+		return event;
+
+	if (attr->type == PERF_TYPE_HARDWARE)
+		return event;
+
+	if (attr->type == PERF_TYPE_SOFTWARE &&
+	    attr->config == PERF_COUNT_SW_BPF_OUTPUT)
+		return event;
+err:
+	perf_event_release_kernel(event);
+	return ERR_PTR(-EINVAL);
 }
 
 static void perf_event_fd_array_put_ptr(void *ptr)

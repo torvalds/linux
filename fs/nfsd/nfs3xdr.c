@@ -262,11 +262,11 @@ void fill_post_wcc(struct svc_fh *fhp)
 	err = fh_getattr(fhp, &fhp->fh_post_attr);
 	fhp->fh_post_change = d_inode(fhp->fh_dentry)->i_version;
 	if (err) {
-		fhp->fh_post_saved = 0;
+		fhp->fh_post_saved = false;
 		/* Grab the ctime anyway - set_change_info might use it */
 		fhp->fh_post_attr.ctime = d_inode(fhp->fh_dentry)->i_ctime;
 	} else
-		fhp->fh_post_saved = 1;
+		fhp->fh_post_saved = true;
 }
 
 /*

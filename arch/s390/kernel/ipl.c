@@ -17,6 +17,7 @@
 #include <linux/gfp.h>
 #include <linux/crash_dump.h>
 #include <linux/debug_locks.h>
+#include <asm/diag.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
 #include <asm/setup.h>
@@ -120,6 +121,7 @@ static char *dump_type_str(enum dump_type type)
  * Must be in data section since the bss section
  * is not cleared when these are accessed.
  */
+static u8 ipl_ssid __attribute__((__section__(".data"))) = 0;
 static u16 ipl_devno __attribute__((__section__(".data"))) = 0;
 u32 ipl_flags __attribute__((__section__(".data"))) = 0;
 
@@ -165,7 +167,7 @@ static struct ipl_parameter_block *dump_block_ccw;
 
 static struct sclp_ipl_info sclp_ipl_info;
 
-int diag308(unsigned long subcode, void *addr)
+static inline int __diag308(unsigned long subcode, void *addr)
 {
 	register unsigned long _addr asm("0") = (unsigned long) addr;
 	register unsigned long _rc asm("1") = 0;
@@ -178,6 +180,12 @@ int diag308(unsigned long subcode, void *addr)
 		: "d" (subcode) : "cc", "memory");
 	return _rc;
 }
+
+int diag308(unsigned long subcode, void *addr)
+{
+	diag_stat_inc(DIAG_STAT_X308);
+	return __diag308(subcode, addr);
+}
 EXPORT_SYMBOL_GPL(diag308);
 
 /* SYSFS */
@@ -189,6 +197,33 @@ static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
 {									\
 	return snprintf(page, PAGE_SIZE, _format, ##args);		\
 }
+
+#define IPL_ATTR_CCW_STORE_FN(_prefix, _name, _ipl_blk)			\
+static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
+		struct kobj_attribute *attr,				\
+		const char *buf, size_t len)				\
+{									\
+	unsigned long long ssid, devno;					\
+									\
+	if (sscanf(buf, "0.%llx.%llx\n", &ssid, &devno) != 2)		\
+		return -EINVAL;						\
+									\
+	if (ssid > __MAX_SSID || devno > __MAX_SUBCHANNEL)		\
+		return -EINVAL;						\
+									\
+	_ipl_blk.ssid = ssid;						\
+	_ipl_blk.devno = devno;						\
+	return len;							\
+}
+
+#define DEFINE_IPL_CCW_ATTR_RW(_prefix, _name, _ipl_blk)		\
+IPL_ATTR_SHOW_FN(_prefix, _name, "0.%x.%04x\n",				\
+		 _ipl_blk.ssid, _ipl_blk.devno);			\
+IPL_ATTR_CCW_STORE_FN(_prefix, _name, _ipl_blk);			\
+static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
+	__ATTR(_name, (S_IRUGO | S_IWUSR),				\
+	       sys_##_prefix##_##_name##_show,				\
+	       sys_##_prefix##_##_name##_store)				\
 
 #define DEFINE_IPL_ATTR_RO(_prefix, _name, _format, _value)		\
 IPL_ATTR_SHOW_FN(_prefix, _name, _format, _value)			\
@@ -388,7 +423,7 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
-		return sprintf(page, "0.0.%04x\n", ipl_devno);
+		return sprintf(page, "0.%x.%04x\n", ipl_ssid, ipl_devno);
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
 		return sprintf(page, "0.0.%04x\n", ipl->ipl_info.fcp.devno);
@@ -680,21 +715,14 @@ static ssize_t reipl_fcp_scpdata_write(struct file *filp, struct kobject *kobj,
 				       struct bin_attribute *attr,
 				       char *buf, loff_t off, size_t count)
 {
+	size_t scpdata_len = count;
 	size_t padding;
-	size_t scpdata_len;
 
-	if (off < 0)
+
+	if (off)
 		return -EINVAL;
 
-	if (off >= DIAG308_SCPDATA_SIZE)
-		return -ENOSPC;
-
-	if (count > DIAG308_SCPDATA_SIZE - off)
-		count = DIAG308_SCPDATA_SIZE - off;
-
-	memcpy(reipl_block_fcp->ipl_info.fcp.scp_data, buf + off, count);
-	scpdata_len = off + count;
-
+	memcpy(reipl_block_fcp->ipl_info.fcp.scp_data, buf, count);
 	if (scpdata_len % 8) {
 		padding = 8 - (scpdata_len % 8);
 		memset(reipl_block_fcp->ipl_info.fcp.scp_data + scpdata_len,
@@ -710,7 +738,7 @@ static ssize_t reipl_fcp_scpdata_write(struct file *filp, struct kobject *kobj,
 }
 static struct bin_attribute sys_reipl_fcp_scp_data_attr =
 	__BIN_ATTR(scp_data, (S_IRUGO | S_IWUSR), reipl_fcp_scpdata_read,
-		   reipl_fcp_scpdata_write, PAGE_SIZE);
+		   reipl_fcp_scpdata_write, DIAG308_SCPDATA_SIZE);
 
 static struct bin_attribute *reipl_fcp_bin_attrs[] = {
 	&sys_reipl_fcp_scp_data_attr,
@@ -807,9 +835,7 @@ static struct attribute_group reipl_fcp_attr_group = {
 };
 
 /* CCW reipl device attributes */
-
-DEFINE_IPL_ATTR_RW(reipl_ccw, device, "0.0.%04llx\n", "0.0.%llx\n",
-	reipl_block_ccw->ipl_info.ccw.devno);
+DEFINE_IPL_CCW_ATTR_RW(reipl_ccw, device, reipl_block_ccw->ipl_info.ccw);
 
 /* NSS wrapper */
 static ssize_t reipl_nss_loadparm_show(struct kobject *kobj,
@@ -1049,8 +1075,8 @@ static void __reipl_run(void *unused)
 
 	switch (reipl_method) {
 	case REIPL_METHOD_CCW_CIO:
+		devid.ssid  = reipl_block_ccw->ipl_info.ccw.ssid;
 		devid.devno = reipl_block_ccw->ipl_info.ccw.devno;
-		devid.ssid  = 0;
 		reipl_ccw_dev(&devid);
 		break;
 	case REIPL_METHOD_CCW_VM:
@@ -1185,6 +1211,7 @@ static int __init reipl_ccw_init(void)
 
 	reipl_block_ccw_init(reipl_block_ccw);
 	if (ipl_info.type == IPL_TYPE_CCW) {
+		reipl_block_ccw->ipl_info.ccw.ssid = ipl_ssid;
 		reipl_block_ccw->ipl_info.ccw.devno = ipl_devno;
 		reipl_block_ccw_fill_parms(reipl_block_ccw);
 	}
@@ -1329,9 +1356,7 @@ static struct attribute_group dump_fcp_attr_group = {
 };
 
 /* CCW dump device attributes */
-
-DEFINE_IPL_ATTR_RW(dump_ccw, device, "0.0.%04llx\n", "0.0.%llx\n",
-		   dump_block_ccw->ipl_info.ccw.devno);
+DEFINE_IPL_CCW_ATTR_RW(dump_ccw, device, dump_block_ccw->ipl_info.ccw);
 
 static struct attribute *dump_ccw_attrs[] = {
 	&sys_dump_ccw_device_attr.attr,
@@ -1411,8 +1436,8 @@ static void __dump_run(void *unused)
 
 	switch (dump_method) {
 	case DUMP_METHOD_CCW_CIO:
+		devid.ssid  = dump_block_ccw->ipl_info.ccw.ssid;
 		devid.devno = dump_block_ccw->ipl_info.ccw.devno;
-		devid.ssid  = 0;
 		reipl_ccw_dev(&devid);
 		break;
 	case DUMP_METHOD_CCW_VM:
@@ -1932,14 +1957,14 @@ void __init setup_ipl(void)
 	ipl_info.type = get_ipl_type();
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
+		ipl_info.data.ccw.dev_id.ssid = ipl_ssid;
 		ipl_info.data.ccw.dev_id.devno = ipl_devno;
-		ipl_info.data.ccw.dev_id.ssid = 0;
 		break;
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
+		ipl_info.data.fcp.dev_id.ssid = 0;
 		ipl_info.data.fcp.dev_id.devno =
 			IPL_PARMBLOCK_START->ipl_info.fcp.devno;
-		ipl_info.data.fcp.dev_id.ssid = 0;
 		ipl_info.data.fcp.wwpn = IPL_PARMBLOCK_START->ipl_info.fcp.wwpn;
 		ipl_info.data.fcp.lun = IPL_PARMBLOCK_START->ipl_info.fcp.lun;
 		break;
@@ -1971,6 +1996,7 @@ void __init ipl_save_parameters(void)
 	if (cio_get_iplinfo(&iplinfo))
 		return;
 
+	ipl_ssid = iplinfo.ssid;
 	ipl_devno = iplinfo.devno;
 	ipl_flags |= IPL_DEVNO_VALID;
 	if (!iplinfo.is_qdio)

@@ -25,6 +25,9 @@
 #include <net/nfc/nfc.h>
 #include <net/sock.h>
 
+#define NFC_TARGET_MODE_IDLE 0
+#define NFC_TARGET_MODE_SLEEP 1
+
 struct nfc_protocol {
 	int id;
 	struct proto *proto;
@@ -147,7 +150,7 @@ int nfc_dep_link_down(struct nfc_dev *dev);
 
 int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol);
 
-int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx);
+int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx, u8 mode);
 
 int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 		      data_exchange_cb_t cb, void *cb_context);

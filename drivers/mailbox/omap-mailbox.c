@@ -38,6 +38,8 @@
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
 
+#include "mailbox.h"
+
 #define MAILBOX_REVISION		0x000
 #define MAILBOX_MESSAGE(m)		(0x040 + 4 * (m))
 #define MAILBOX_FIFOSTATUS(m)		(0x080 + 4 * (m))
@@ -106,6 +108,7 @@ struct omap_mbox_fifo_info {
 	int rx_irq;
 
 	const char *name;
+	bool send_no_irq;
 };
 
 struct omap_mbox {
@@ -119,6 +122,7 @@ struct omap_mbox {
 	u32			ctx[OMAP4_MBOX_NR_REGS];
 	u32			intr_type;
 	struct mbox_chan	*chan;
+	bool			send_no_irq;
 };
 
 /* global variables for the mailbox devices */
@@ -418,6 +422,9 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 		goto fail_request_irq;
 	}
 
+	if (mbox->send_no_irq)
+		mbox->chan->txdone_method = TXDONE_BY_ACK;
+
 	_omap_mbox_enable_irq(mbox, IRQ_RX);
 
 	return 0;
@@ -586,13 +593,27 @@ static void omap_mbox_chan_shutdown(struct mbox_chan *chan)
 	mutex_unlock(&mdev->cfg_lock);
 }
 
-static int omap_mbox_chan_send_data(struct mbox_chan *chan, void *data)
+static int omap_mbox_chan_send_noirq(struct omap_mbox *mbox, void *data)
 {
-	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
 	int ret = -EBUSY;
 
-	if (!mbox)
-		return -EINVAL;
+	if (!mbox_fifo_full(mbox)) {
+		_omap_mbox_enable_irq(mbox, IRQ_RX);
+		mbox_fifo_write(mbox, (mbox_msg_t)data);
+		ret = 0;
+		_omap_mbox_disable_irq(mbox, IRQ_RX);
+
+		/* we must read and ack the interrupt directly from here */
+		mbox_fifo_read(mbox);
+		ack_mbox_irq(mbox, IRQ_RX);
+	}
+
+	return ret;
+}
+
+static int omap_mbox_chan_send(struct omap_mbox *mbox, void *data)
+{
+	int ret = -EBUSY;
 
 	if (!mbox_fifo_full(mbox)) {
 		mbox_fifo_write(mbox, (mbox_msg_t)data);
@@ -601,6 +622,22 @@ static int omap_mbox_chan_send_data(struct mbox_chan *chan, void *data)
 
 	/* always enable the interrupt */
 	_omap_mbox_enable_irq(mbox, IRQ_TX);
+	return ret;
+}
+
+static int omap_mbox_chan_send_data(struct mbox_chan *chan, void *data)
+{
+	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
+	int ret;
+
+	if (!mbox)
+		return -EINVAL;
+
+	if (mbox->send_no_irq)
+		ret = omap_mbox_chan_send_noirq(mbox, data);
+	else
+		ret = omap_mbox_chan_send(mbox, data);
+
 	return ret;
 }
 
@@ -732,6 +769,9 @@ static int omap_mbox_probe(struct platform_device *pdev)
 			finfo->rx_usr = tmp[2];
 
 			finfo->name = child->name;
+
+			if (of_find_property(child, "ti,mbox-send-noirq", NULL))
+				finfo->send_no_irq = true;
 		} else {
 			finfo->tx_id = info->tx_id;
 			finfo->rx_id = info->rx_id;
@@ -791,6 +831,7 @@ static int omap_mbox_probe(struct platform_device *pdev)
 		fifo->irqstatus = MAILBOX_IRQSTATUS(intr_type, finfo->rx_usr);
 		fifo->irqdisable = MAILBOX_IRQDISABLE(intr_type, finfo->rx_usr);
 
+		mbox->send_no_irq = finfo->send_no_irq;
 		mbox->intr_type = intr_type;
 
 		mbox->parent = mdev;

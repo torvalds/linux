@@ -104,7 +104,12 @@ Header notes:
 - The flags field (introduced in v3.17) is a little-endian 64-bit field
   composed as follows:
   Bit 0:	Kernel endianness.  1 if BE, 0 if LE.
-  Bits 1-63:	Reserved.
+  Bit 1-2:	Kernel Page size.
+			0 - Unspecified.
+			1 - 4K
+			2 - 16K
+			3 - 64K
+  Bits 3-63:	Reserved.
 
 - When image_size is zero, a bootloader should attempt to keep as much
   memory as possible free for use by the kernel immediately after the
@@ -173,13 +178,22 @@ Before jumping into the kernel, the following conditions must be met:
   the kernel image will be entered must be initialised by software at a
   higher exception level to prevent execution in an UNKNOWN state.
 
-  For systems with a GICv3 interrupt controller:
+  For systems with a GICv3 interrupt controller to be used in v3 mode:
   - If EL3 is present:
     ICC_SRE_EL3.Enable (bit 3) must be initialiased to 0b1.
     ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b1.
   - If the kernel is entered at EL1:
     ICC.SRE_EL2.Enable (bit 3) must be initialised to 0b1
     ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b1.
+  - The DT or ACPI tables must describe a GICv3 interrupt controller.
+
+  For systems with a GICv3 interrupt controller to be used in
+  compatibility (v2) mode:
+  - If EL3 is present:
+    ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b0.
+  - If the kernel is entered at EL1:
+    ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b0.
+  - The DT or ACPI tables must describe a GICv2 interrupt controller.
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must

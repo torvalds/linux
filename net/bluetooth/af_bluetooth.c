@@ -33,7 +33,7 @@
 
 #include "selftest.h"
 
-#define VERSION "2.20"
+#define VERSION "2.21"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
@@ -221,7 +221,7 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	BT_DBG("sock %p sk %p len %zu", sock, sk, len);
 
-	if (flags & (MSG_OOB))
+	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);

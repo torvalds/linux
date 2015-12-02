@@ -66,7 +66,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * presence of FP and SSE state.
 	 */
 	if (cpu_has_xsave)
-		fpu->state.xsave.header.xfeatures |= XSTATE_FPSSE;
+		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FPSSE;
 
 	return ret;
 }
@@ -326,7 +326,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * presence of FP.
 	 */
 	if (cpu_has_xsave)
-		fpu->state.xsave.header.xfeatures |= XSTATE_FP;
+		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FP;
 	return ret;
 }
 

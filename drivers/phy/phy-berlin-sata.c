@@ -276,6 +276,7 @@ static const struct of_device_id phy_berlin_sata_of_match[] = {
 	{ .compatible = "marvell,berlin2q-sata-phy" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, phy_berlin_sata_of_match);
 
 static struct platform_driver phy_berlin_sata_driver = {
 	.probe	= phy_berlin_sata_probe,

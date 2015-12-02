@@ -542,16 +542,17 @@ arch_initcall(etr_init);
  * Switch to local machine check. This is called when the last usable
  * ETR port goes inactive. After switch to local the clock is not in sync.
  */
-void etr_switch_to_local(void)
+int etr_switch_to_local(void)
 {
 	if (!etr_eacr.sl)
-		return;
+		return 0;
 	disable_sync_clock(NULL);
 	if (!test_and_set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events)) {
 		etr_eacr.es = etr_eacr.sl = 0;
 		etr_setr(&etr_eacr);
-		queue_work(time_sync_wq, &etr_work);
+		return 1;
 	}
+	return 0;
 }
 
 /*
@@ -560,16 +561,22 @@ void etr_switch_to_local(void)
  * After a ETR sync check the clock is not in sync. The machine check
  * is broadcasted to all cpus at the same time.
  */
-void etr_sync_check(void)
+int etr_sync_check(void)
 {
 	if (!etr_eacr.es)
-		return;
+		return 0;
 	disable_sync_clock(NULL);
 	if (!test_and_set_bit(ETR_EVENT_SYNC_CHECK, &etr_events)) {
 		etr_eacr.es = 0;
 		etr_setr(&etr_eacr);
-		queue_work(time_sync_wq, &etr_work);
+		return 1;
 	}
+	return 0;
+}
+
+void etr_queue_work(void)
+{
+	queue_work(time_sync_wq, &etr_work);
 }
 
 /*
@@ -1504,10 +1511,10 @@ static void stp_timing_alert(struct stp_irq_parm *intparm)
  * After a STP sync check the clock is not in sync. The machine check
  * is broadcasted to all cpus at the same time.
  */
-void stp_sync_check(void)
+int stp_sync_check(void)
 {
 	disable_sync_clock(NULL);
-	queue_work(time_sync_wq, &stp_work);
+	return 1;
 }
 
 /*
@@ -1516,12 +1523,16 @@ void stp_sync_check(void)
  * have matching CTN ids and have a valid stratum-1 configuration
  * but the configurations do not match.
  */
-void stp_island_check(void)
+int stp_island_check(void)
 {
 	disable_sync_clock(NULL);
-	queue_work(time_sync_wq, &stp_work);
+	return 1;
 }
 
+void stp_queue_work(void)
+{
+	queue_work(time_sync_wq, &stp_work);
+}
 
 static int stp_sync_clock(void *data)
 {

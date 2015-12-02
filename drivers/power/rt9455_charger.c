@@ -1760,5 +1760,4 @@ module_i2c_driver(rt9455_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Anda-Maria Nicolae <anda-maria.nicolae@intel.com>");
-MODULE_ALIAS("i2c:rt9455-charger");
 MODULE_DESCRIPTION("Richtek RT9455 Charger Driver");

@@ -1,4 +1,2 @@
 libapi-y += fs.o
-libapi-y += debugfs.o
-libapi-y += findfs.o
-libapi-y += tracefs.o
+libapi-y += tracing_path.o

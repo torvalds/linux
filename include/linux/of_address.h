@@ -57,6 +57,13 @@ extern int of_dma_get_range(struct device_node *np, u64 *dma_addr,
 				u64 *paddr, u64 *size);
 extern bool of_dma_is_coherent(struct device_node *np);
 #else /* CONFIG_OF_ADDRESS */
+
+static inline u64 of_translate_address(struct device_node *np,
+				       const __be32 *addr)
+{
+	return OF_BAD_ADDR;
+}
+
 static inline struct device_node *of_find_matching_node_by_address(
 					struct device_node *from,
 					const struct of_device_id *matches,

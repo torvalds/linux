@@ -173,42 +173,10 @@ static struct mv643xx_eth_platform_data dns323_eth_data = {
 	.phy_addr = MV643XX_ETH_PHY_ADDR(8),
 };
 
-/* dns323_parse_hex_*() taken from tsx09-common.c; should a common copy of these
- * functions be kept somewhere?
- */
-static int __init dns323_parse_hex_nibble(char n)
-{
-	if (n >= '0' && n <= '9')
-		return n - '0';
-
-	if (n >= 'A' && n <= 'F')
-		return n - 'A' + 10;
-
-	if (n >= 'a' && n <= 'f')
-		return n - 'a' + 10;
-
-	return -1;
-}
-
-static int __init dns323_parse_hex_byte(const char *b)
-{
-	int hi;
-	int lo;
-
-	hi = dns323_parse_hex_nibble(b[0]);
-	lo = dns323_parse_hex_nibble(b[1]);
-
-	if (hi < 0 || lo < 0)
-		return -1;
-
-	return (hi << 4) | lo;
-}
-
 static int __init dns323_read_mac_addr(void)
 {
 	u_int8_t addr[6];
-	int i;
-	char *mac_page;
+	void __iomem *mac_page;
 
 	/* MAC address is stored as a regular ol' string in /dev/mtdblock4
 	 * (0x007d0000-0x00800000) starting at offset 196480 (0x2ff80).
@@ -217,23 +185,8 @@ static int __init dns323_read_mac_addr(void)
 	if (!mac_page)
 		return -ENOMEM;
 
-	/* Sanity check the string we're looking at */
-	for (i = 0; i < 5; i++) {
-		if (*(mac_page + (i * 3) + 2) != ':') {
-			goto error_fail;
-		}
-	}
-
-	for (i = 0; i < 6; i++)	{
-		int byte;
-
-		byte = dns323_parse_hex_byte(mac_page + (i * 3));
-		if (byte < 0) {
-			goto error_fail;
-		}
-
-		addr[i] = byte;
-	}
+	if (!mac_pton((__force const char *) mac_page, addr))
+		goto error_fail;
 
 	iounmap(mac_page);
 	printk("DNS-323: Found ethernet MAC address: %pM\n", addr);

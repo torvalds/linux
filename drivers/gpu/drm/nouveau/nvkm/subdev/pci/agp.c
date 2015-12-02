@@ -35,6 +35,8 @@ static const struct nvkm_device_agp_quirk
 nvkm_device_agp_quirks[] = {
 	/* VIA Apollo PRO133x / GeForce FX 5600 Ultra - fdo#20341 */
 	{ PCI_VENDOR_ID_VIA, 0x0691, PCI_VENDOR_ID_NVIDIA, 0x0311, 2 },
+	/* SiS 761 does not support AGP cards, use PCI mode */
+	{ PCI_VENDOR_ID_SI, 0x0761, PCI_ANY_ID, PCI_ANY_ID, 0 },
 	{},
 };
 
@@ -137,8 +139,10 @@ nvkm_agp_ctor(struct nvkm_pci *pci)
 	while (quirk->hostbridge_vendor) {
 		if (info.device->vendor == quirk->hostbridge_vendor &&
 		    info.device->device == quirk->hostbridge_device &&
-		    pci->pdev->vendor == quirk->chip_vendor &&
-		    pci->pdev->device == quirk->chip_device) {
+		    (quirk->chip_vendor == (u16)PCI_ANY_ID ||
+		    pci->pdev->vendor == quirk->chip_vendor) &&
+		    (quirk->chip_device == (u16)PCI_ANY_ID ||
+		    pci->pdev->device == quirk->chip_device)) {
 			nvkm_info(subdev, "forcing default agp mode to %dX, "
 					  "use NvAGP=<mode> to override\n",
 				  quirk->mode);

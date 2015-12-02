@@ -560,12 +560,13 @@ EXPORT_SYMBOL_GPL(spmi_controller_remove);
  * This API will register the client driver with the SPMI framework.
  * It is typically called from the driver's module-init function.
  */
-int spmi_driver_register(struct spmi_driver *sdrv)
+int __spmi_driver_register(struct spmi_driver *sdrv, struct module *owner)
 {
 	sdrv->driver.bus = &spmi_bus_type;
+	sdrv->driver.owner = owner;
 	return driver_register(&sdrv->driver);
 }
-EXPORT_SYMBOL_GPL(spmi_driver_register);
+EXPORT_SYMBOL_GPL(__spmi_driver_register);
 
 static void __exit spmi_exit(void)
 {

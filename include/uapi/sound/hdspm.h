@@ -20,11 +20,7 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifdef __KERNEL__
 #include <linux/types.h>
-#else
-#include <stdint.h>
-#endif
 
 /* Maximum channels is 64 even on 56Mode you have 64playbacks to matrix */
 #define HDSPM_MAX_CHANNELS      64
@@ -46,15 +42,15 @@ enum hdspm_speed {
 /* -------------------- IOCTL Peak/RMS Meters -------------------- */
 
 struct hdspm_peak_rms {
-	uint32_t input_peaks[64];
-	uint32_t playback_peaks[64];
-	uint32_t output_peaks[64];
+	__u32 input_peaks[64];
+	__u32 playback_peaks[64];
+	__u32 output_peaks[64];
 
-	uint64_t input_rms[64];
-	uint64_t playback_rms[64];
-	uint64_t output_rms[64];
+	__u64 input_rms[64];
+	__u64 playback_rms[64];
+	__u64 output_rms[64];
 
-	uint8_t speed; /* enum {ss, ds, qs} */
+	__u8 speed; /* enum {ss, ds, qs} */
 	int status2;
 };
 
@@ -155,21 +151,21 @@ enum hdspm_syncsource {
 };
 
 struct hdspm_status {
-	uint8_t card_type; /* enum hdspm_io_type */
+	__u8 card_type; /* enum hdspm_io_type */
 	enum hdspm_syncsource autosync_source;
 
-	uint64_t card_clock;
-	uint32_t master_period;
+	__u64 card_clock;
+	__u32 master_period;
 
 	union {
 		struct {
-			uint8_t sync_wc; /* enum hdspm_sync */
-			uint8_t sync_madi; /* enum hdspm_sync */
-			uint8_t sync_tco; /* enum hdspm_sync */
-			uint8_t sync_in; /* enum hdspm_sync */
-			uint8_t madi_input; /* enum hdspm_madi_input */
-			uint8_t channel_format; /* enum hdspm_madi_channel_format */
-			uint8_t frame_format; /* enum hdspm_madi_frame_format */
+			__u8 sync_wc; /* enum hdspm_sync */
+			__u8 sync_madi; /* enum hdspm_sync */
+			__u8 sync_tco; /* enum hdspm_sync */
+			__u8 sync_in; /* enum hdspm_sync */
+			__u8 madi_input; /* enum hdspm_madi_input */
+			__u8 channel_format; /* enum hdspm_madi_channel_format */
+			__u8 frame_format; /* enum hdspm_madi_frame_format */
 		} madi;
 	} card_specific;
 };
@@ -184,7 +180,7 @@ struct hdspm_status {
 #define HDSPM_ADDON_TCO 1
 
 struct hdspm_version {
-	uint8_t card_type; /* enum hdspm_io_type */
+	__u8 card_type; /* enum hdspm_io_type */
 	char cardname[20];
 	unsigned int serial;
 	unsigned short firmware_rev;

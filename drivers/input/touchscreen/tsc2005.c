@@ -75,7 +75,6 @@ static int tsc2005_remove(struct spi_device *spi)
 static struct spi_driver tsc2005_driver = {
 	.driver	= {
 		.name	= "tsc2005",
-		.owner	= THIS_MODULE,
 		.pm	= &tsc200x_pm_ops,
 	},
 	.probe	= tsc2005_probe,

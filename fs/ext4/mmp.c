@@ -98,10 +98,12 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 	}
 
 	mmp = (struct mmp_struct *)((*bh)->b_data);
-	if (le32_to_cpu(mmp->mmp_magic) == EXT4_MMP_MAGIC &&
-	    ext4_mmp_csum_verify(sb, mmp))
+	if (le32_to_cpu(mmp->mmp_magic) != EXT4_MMP_MAGIC)
+		ret = -EFSCORRUPTED;
+	else if (!ext4_mmp_csum_verify(sb, mmp))
+		ret = -EFSBADCRC;
+	else
 		return 0;
-	ret = -EINVAL;
 
 warn_exit:
 	ext4_warning(sb, "Error %d while reading MMP block %llu",

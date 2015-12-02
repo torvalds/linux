@@ -58,7 +58,7 @@ static int rsnd_mix_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_mix_soft_reset(mod);
 
@@ -83,7 +83,7 @@ static int rsnd_mix_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
 {
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	return 0;
 }
@@ -99,7 +99,7 @@ struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_mix_nr(priv)))
 		id = 0;
 
-	return &((struct rsnd_mix *)(priv->mix) + id)->mod;
+	return rsnd_mod_get((struct rsnd_mix *)(priv->mix) + id);
 }
 
 static void rsnd_of_parse_mix(struct platform_device *pdev,
@@ -151,10 +151,8 @@ int rsnd_mix_probe(struct platform_device *pdev,
 	int i, nr, ret;
 
 	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv)) {
-		dev_warn(dev, "MIX is not supported on Gen1\n");
-		return -EINVAL;
-	}
+	if (rsnd_is_gen1(priv))
+		return 0;
 
 	rsnd_of_parse_mix(pdev, of_data, priv);
 
@@ -179,7 +177,7 @@ int rsnd_mix_probe(struct platform_device *pdev,
 
 		mix->info = &info->mix_info[i];
 
-		ret = rsnd_mod_init(priv, &mix->mod, &rsnd_mix_ops,
+		ret = rsnd_mod_init(priv, rsnd_mod_get(mix), &rsnd_mix_ops,
 				    clk, RSND_MOD_MIX, i);
 		if (ret)
 			return ret;
@@ -195,6 +193,6 @@ void rsnd_mix_remove(struct platform_device *pdev,
 	int i;
 
 	for_each_rsnd_mix(mix, priv, i) {
-		rsnd_mod_quit(&mix->mod);
+		rsnd_mod_quit(rsnd_mod_get(mix));
 	}
 }

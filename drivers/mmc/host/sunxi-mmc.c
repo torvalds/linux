@@ -873,6 +873,13 @@ static void sunxi_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock_irqrestore(&host->lock, iflags);
 }
 
+static int sunxi_mmc_card_busy(struct mmc_host *mmc)
+{
+	struct sunxi_mmc_host *host = mmc_priv(mmc);
+
+	return !!(mmc_readl(host, REG_STAS) & SDXC_CARD_DATA_BUSY);
+}
+
 static const struct of_device_id sunxi_mmc_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-mmc", },
 	{ .compatible = "allwinner,sun5i-a13-mmc", },
@@ -888,6 +895,7 @@ static struct mmc_host_ops sunxi_mmc_ops = {
 	.get_cd		 = mmc_gpio_get_cd,
 	.enable_sdio_irq = sunxi_mmc_enable_sdio_irq,
 	.hw_reset	 = sunxi_mmc_hw_reset,
+	.card_busy	 = sunxi_mmc_card_busy,
 };
 
 static const struct sunxi_mmc_clk_delay sunxi_mmc_clk_delays[] = {

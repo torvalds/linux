@@ -495,7 +495,7 @@ static int smp_ah(struct crypto_blkcipher *tfm, const u8 irk[16],
 	}
 
 	/* The output of the random address function ah is:
-	 *	ah(h, r) = e(k, r') mod 2^24
+	 *	ah(k, r) = e(k, r') mod 2^24
 	 * The output of the security function e is then truncated to 24 bits
 	 * by taking the least significant 24 bits of the output of e as the
 	 * result of ah.
@@ -811,7 +811,6 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason)
 		smp_send_cmd(conn, SMP_CMD_PAIRING_FAIL, sizeof(reason),
 			     &reason);
 
-	clear_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags);
 	mgmt_auth_failed(hcon, HCI_ERROR_AUTH_FAILURE);
 
 	if (chan->data)
@@ -1046,8 +1045,24 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	struct smp_cmd_pairing *rsp = (void *) &smp->prsp[1];
 	bool persistent;
 
+	if (hcon->type == ACL_LINK) {
+		if (hcon->key_type == HCI_LK_DEBUG_COMBINATION)
+			persistent = false;
+		else
+			persistent = !test_bit(HCI_CONN_FLUSH_KEY,
+					       &hcon->flags);
+	} else {
+		/* The LTKs, IRKs and CSRKs should be persistent only if
+		 * both sides had the bonding bit set in their
+		 * authentication requests.
+		 */
+		persistent = !!((req->auth_req & rsp->auth_req) &
+				SMP_AUTH_BONDING);
+	}
+
 	if (smp->remote_irk) {
-		mgmt_new_irk(hdev, smp->remote_irk);
+		mgmt_new_irk(hdev, smp->remote_irk, persistent);
+
 		/* Now that user space can be considered to know the
 		 * identity address track the connection based on it
 		 * from now on (assuming this is an LE link).
@@ -1074,21 +1089,6 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 			smp->remote_irk = NULL;
 		}
 	}
-
-	if (hcon->type == ACL_LINK) {
-		if (hcon->key_type == HCI_LK_DEBUG_COMBINATION)
-			persistent = false;
-		else
-			persistent = !test_bit(HCI_CONN_FLUSH_KEY,
-					       &hcon->flags);
-	} else {
-		/* The LTKs and CSRKs should be persistent only if both sides
-		 * had the bonding bit set in their authentication requests.
-		 */
-		persistent = !!((req->auth_req & rsp->auth_req) &
-				SMP_AUTH_BONDING);
-	}
-
 
 	if (smp->csrk) {
 		smp->csrk->bdaddr_type = hcon->dst_type;
@@ -2378,6 +2378,32 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 unlock:
 	l2cap_chan_unlock(chan);
 	return ret;
+}
+
+void smp_cancel_pairing(struct hci_conn *hcon)
+{
+	struct l2cap_conn *conn = hcon->l2cap_data;
+	struct l2cap_chan *chan;
+	struct smp_chan *smp;
+
+	if (!conn)
+		return;
+
+	chan = conn->smp;
+	if (!chan)
+		return;
+
+	l2cap_chan_lock(chan);
+
+	smp = chan->data;
+	if (smp) {
+		if (test_bit(SMP_FLAG_COMPLETE, &smp->flags))
+			smp_failure(conn, 0);
+		else
+			smp_failure(conn, SMP_UNSPECIFIED);
+	}
+
+	l2cap_chan_unlock(chan);
 }
 
 static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)

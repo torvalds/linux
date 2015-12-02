@@ -964,6 +964,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 			tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_SVLAN;
 		else if (vlan_proto == ETH_P_8021Q)
 			tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_CVLAN;
+		else
+			tx_desc->ctrl.ins_vlan = 0;
 
 		tx_desc->ctrl.fence_size = real_size;
 

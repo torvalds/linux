@@ -246,6 +246,10 @@ struct RGF_ICR {
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
 	#define JTAG_DEV_ID_SPARROW_B0	(0x2632072f)
 
+/* crash codes for FW/Ucode stored here */
+#define RGF_FW_ASSERT_CODE		(0x91f020)
+#define RGF_UCODE_ASSERT_CODE		(0x91f028)
+
 enum {
 	HW_VER_UNKNOWN,
 	HW_VER_SPARROW_B0, /* JTAG_DEV_ID_SPARROW_B0 */
@@ -398,13 +402,14 @@ struct vring_tx_data {
 };
 
 enum { /* for wil6210_priv.status */
-	wil_status_fwready = 0,
+	wil_status_fwready = 0, /* FW operational */
 	wil_status_fwconnecting,
 	wil_status_fwconnected,
 	wil_status_dontscan,
-	wil_status_reset_done,
+	wil_status_mbox_ready, /* MBOX structures ready */
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
+	wil_status_resetting, /* reset in progress */
 	wil_status_last /* keep last */
 };
 
@@ -465,6 +470,9 @@ struct wil_net_stats {
 	unsigned long	tx_bytes;
 	unsigned long	tx_errors;
 	unsigned long	rx_dropped;
+	unsigned long	rx_non_data_frame;
+	unsigned long	rx_short_frame;
+	unsigned long	rx_large_frame;
 	u16 last_mcs_rx;
 	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };
@@ -819,5 +827,7 @@ int wil_request_firmware(struct wil6210_priv *wil, const char *name);
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_resume(struct wil6210_priv *wil, bool is_runtime);
+
+void wil_fw_core_dump(struct wil6210_priv *wil);
 
 #endif /* __WIL6210_H__ */

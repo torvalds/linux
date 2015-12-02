@@ -4529,9 +4529,6 @@ static void cas_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(cp->pdev), sizeof(info->bus_info));
-	info->regdump_len = cp->casreg_len < CAS_MAX_REGS ?
-		cp->casreg_len : CAS_MAX_REGS;
-	info->n_stats = CAS_NUM_STAT_KEYS;
 }
 
 static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)

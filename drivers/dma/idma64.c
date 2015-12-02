@@ -65,9 +65,6 @@ static void idma64_chan_init(struct idma64 *idma64, struct idma64_chan *idma64c)
 	u32 cfghi = IDMA64C_CFGH_SRC_PER(1) | IDMA64C_CFGH_DST_PER(0);
 	u32 cfglo = 0;
 
-	/* Enforce FIFO drain when channel is suspended */
-	cfglo |= IDMA64C_CFGL_CH_DRAIN;
-
 	/* Set default burst alignment */
 	cfglo |= IDMA64C_CFGL_DST_BURST_ALIGN | IDMA64C_CFGL_SRC_BURST_ALIGN;
 
@@ -257,15 +254,15 @@ static u64 idma64_hw_desc_fill(struct idma64_hw_desc *hw,
 		dar = config->dst_addr;
 		ctllo |= IDMA64C_CTLL_DST_FIX | IDMA64C_CTLL_SRC_INC |
 			 IDMA64C_CTLL_FC_M2P;
-		src_width = min_t(u32, 2, __fls(sar | hw->len));
-		dst_width = __fls(config->dst_addr_width);
+		src_width = __ffs(sar | hw->len | 4);
+		dst_width = __ffs(config->dst_addr_width);
 	} else {	/* DMA_DEV_TO_MEM */
 		sar = config->src_addr;
 		dar = hw->phys;
 		ctllo |= IDMA64C_CTLL_DST_INC | IDMA64C_CTLL_SRC_FIX |
 			 IDMA64C_CTLL_FC_P2M;
-		src_width = __fls(config->src_addr_width);
-		dst_width = min_t(u32, 2, __fls(dar | hw->len));
+		src_width = __ffs(config->src_addr_width);
+		dst_width = __ffs(dar | hw->len | 4);
 	}
 
 	lli->sar = sar;
@@ -428,12 +425,17 @@ static int idma64_slave_config(struct dma_chan *chan,
 	return 0;
 }
 
-static void idma64_chan_deactivate(struct idma64_chan *idma64c)
+static void idma64_chan_deactivate(struct idma64_chan *idma64c, bool drain)
 {
 	unsigned short count = 100;
 	u32 cfglo;
 
 	cfglo = channel_readl(idma64c, CFG_LO);
+	if (drain)
+		cfglo |= IDMA64C_CFGL_CH_DRAIN;
+	else
+		cfglo &= ~IDMA64C_CFGL_CH_DRAIN;
+
 	channel_writel(idma64c, CFG_LO, cfglo | IDMA64C_CFGL_CH_SUSP);
 	do {
 		udelay(1);
@@ -456,7 +458,7 @@ static int idma64_pause(struct dma_chan *chan)
 
 	spin_lock_irqsave(&idma64c->vchan.lock, flags);
 	if (idma64c->desc && idma64c->desc->status == DMA_IN_PROGRESS) {
-		idma64_chan_deactivate(idma64c);
+		idma64_chan_deactivate(idma64c, false);
 		idma64c->desc->status = DMA_PAUSED;
 	}
 	spin_unlock_irqrestore(&idma64c->vchan.lock, flags);
@@ -486,7 +488,7 @@ static int idma64_terminate_all(struct dma_chan *chan)
 	LIST_HEAD(head);
 
 	spin_lock_irqsave(&idma64c->vchan.lock, flags);
-	idma64_chan_deactivate(idma64c);
+	idma64_chan_deactivate(idma64c, true);
 	idma64_stop_transfer(idma64c);
 	if (idma64c->desc) {
 		idma64_vdesc_free(&idma64c->desc->vdesc);

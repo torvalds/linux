@@ -45,11 +45,11 @@ int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u32 portid,
 void nfnl_lock(__u8 subsys_id);
 void nfnl_unlock(__u8 subsys_id);
 #ifdef CONFIG_PROVE_LOCKING
-int lockdep_nfnl_is_held(__u8 subsys_id);
+bool lockdep_nfnl_is_held(__u8 subsys_id);
 #else
-static inline int lockdep_nfnl_is_held(__u8 subsys_id)
+static inline bool lockdep_nfnl_is_held(__u8 subsys_id)
 {
-	return 1;
+	return true;
 }
 #endif /* CONFIG_PROVE_LOCKING */
 

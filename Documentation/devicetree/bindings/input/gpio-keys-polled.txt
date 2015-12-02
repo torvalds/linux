@@ -28,6 +28,7 @@ Optional subnode-properties:
 	- debounce-interval: Debouncing interval time in milliseconds.
 	  If not specified defaults to 5.
 	- wakeup-source: Boolean, button can wake-up the system.
+			 (Legacy property supported: "gpio-key,wakeup")
 
 Example nodes:
 

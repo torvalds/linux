@@ -1,7 +1,7 @@
 /*
  * BPF JIT compiler for ARM64
  *
- * Copyright (C) 2014 Zi Shen Lim <zlim.lnx@gmail.com>
+ * Copyright (C) 2014-2015 Zi Shen Lim <zlim.lnx@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -50,7 +50,7 @@ static const int bpf2a64[] = {
 	[BPF_REG_8] = A64_R(21),
 	[BPF_REG_9] = A64_R(22),
 	/* read-only frame pointer to access stack */
-	[BPF_REG_FP] = A64_FP,
+	[BPF_REG_FP] = A64_R(25),
 	/* temporary register for internal BPF JIT */
 	[TMP_REG_1] = A64_R(23),
 	[TMP_REG_2] = A64_R(24),
@@ -155,17 +155,48 @@ static void build_prologue(struct jit_ctx *ctx)
 	stack_size += 4; /* extra for skb_copy_bits buffer */
 	stack_size = STACK_ALIGN(stack_size);
 
+	/*
+	 * BPF prog stack layout
+	 *
+	 *                         high
+	 * original A64_SP =>   0:+-----+ BPF prologue
+	 *                        |FP/LR|
+	 * current A64_FP =>  -16:+-----+
+	 *                        | ... | callee saved registers
+	 *                        +-----+
+	 *                        |     | x25/x26
+	 * BPF fp register => -80:+-----+
+	 *                        |     |
+	 *                        | ... | BPF prog stack
+	 *                        |     |
+	 *                        |     |
+	 * current A64_SP =>      +-----+
+	 *                        |     |
+	 *                        | ... | Function call stack
+	 *                        |     |
+	 *                        +-----+
+	 *                          low
+	 *
+	 */
+
+	/* Save FP and LR registers to stay align with ARM64 AAPCS */
+	emit(A64_PUSH(A64_FP, A64_LR, A64_SP), ctx);
+	emit(A64_MOV(1, A64_FP, A64_SP), ctx);
+
 	/* Save callee-saved register */
 	emit(A64_PUSH(r6, r7, A64_SP), ctx);
 	emit(A64_PUSH(r8, r9, A64_SP), ctx);
 	if (ctx->tmp_used)
 		emit(A64_PUSH(tmp1, tmp2, A64_SP), ctx);
 
-	/* Set up BPF stack */
-	emit(A64_SUB_I(1, A64_SP, A64_SP, stack_size), ctx);
+	/* Save fp (x25) and x26. SP requires 16 bytes alignment */
+	emit(A64_PUSH(fp, A64_R(26), A64_SP), ctx);
 
-	/* Set up frame pointer */
+	/* Set up BPF prog stack base register (x25) */
 	emit(A64_MOV(1, fp, A64_SP), ctx);
+
+	/* Set up function call stack */
+	emit(A64_SUB_I(1, A64_SP, A64_SP, stack_size), ctx);
 
 	/* Clear registers A and X */
 	emit_a64_mov_i64(ra, 0, ctx);
@@ -190,14 +221,17 @@ static void build_epilogue(struct jit_ctx *ctx)
 	/* We're done with BPF stack */
 	emit(A64_ADD_I(1, A64_SP, A64_SP, stack_size), ctx);
 
+	/* Restore fs (x25) and x26 */
+	emit(A64_POP(fp, A64_R(26), A64_SP), ctx);
+
 	/* Restore callee-saved register */
 	if (ctx->tmp_used)
 		emit(A64_POP(tmp1, tmp2, A64_SP), ctx);
 	emit(A64_POP(r8, r9, A64_SP), ctx);
 	emit(A64_POP(r6, r7, A64_SP), ctx);
 
-	/* Restore frame pointer */
-	emit(A64_MOV(1, fp, A64_SP), ctx);
+	/* Restore FP/LR registers */
+	emit(A64_POP(A64_FP, A64_LR, A64_SP), ctx);
 
 	/* Set return value */
 	emit(A64_MOV(1, A64_R(0), r0), ctx);
@@ -224,6 +258,17 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	const bool is64 = BPF_CLASS(code) == BPF_ALU64;
 	u8 jmp_cond;
 	s32 jmp_offset;
+
+#define check_imm(bits, imm) do {				\
+	if ((((imm) > 0) && ((imm) >> (bits))) ||		\
+	    (((imm) < 0) && (~(imm) >> (bits)))) {		\
+		pr_info("[%2d] imm=%d(0x%x) out of range\n",	\
+			i, imm, imm);				\
+		return -EINVAL;					\
+	}							\
+} while (0)
+#define check_imm19(imm) check_imm(19, imm)
+#define check_imm26(imm) check_imm(26, imm)
 
 	switch (code) {
 	/* dst = src */
@@ -258,15 +303,33 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		break;
 	case BPF_ALU | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_DIV | BPF_X:
-		emit(A64_UDIV(is64, dst, dst, src), ctx);
-		break;
 	case BPF_ALU | BPF_MOD | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
-		ctx->tmp_used = 1;
-		emit(A64_UDIV(is64, tmp, dst, src), ctx);
-		emit(A64_MUL(is64, tmp, tmp, src), ctx);
-		emit(A64_SUB(is64, dst, dst, tmp), ctx);
+	{
+		const u8 r0 = bpf2a64[BPF_REG_0];
+
+		/* if (src == 0) return 0 */
+		jmp_offset = 3; /* skip ahead to else path */
+		check_imm19(jmp_offset);
+		emit(A64_CBNZ(is64, src, jmp_offset), ctx);
+		emit(A64_MOVZ(1, r0, 0, 0), ctx);
+		jmp_offset = epilogue_offset(ctx);
+		check_imm26(jmp_offset);
+		emit(A64_B(jmp_offset), ctx);
+		/* else */
+		switch (BPF_OP(code)) {
+		case BPF_DIV:
+			emit(A64_UDIV(is64, dst, dst, src), ctx);
+			break;
+		case BPF_MOD:
+			ctx->tmp_used = 1;
+			emit(A64_UDIV(is64, tmp, dst, src), ctx);
+			emit(A64_MUL(is64, tmp, tmp, src), ctx);
+			emit(A64_SUB(is64, dst, dst, tmp), ctx);
+			break;
+		}
 		break;
+	}
 	case BPF_ALU | BPF_LSH | BPF_X:
 	case BPF_ALU64 | BPF_LSH | BPF_X:
 		emit(A64_LSLV(is64, dst, dst, src), ctx);
@@ -392,17 +455,6 @@ emit_bswap_uxt:
 	case BPF_ALU64 | BPF_ARSH | BPF_K:
 		emit(A64_ASR(is64, dst, dst, imm), ctx);
 		break;
-
-#define check_imm(bits, imm) do {				\
-	if ((((imm) > 0) && ((imm) >> (bits))) ||		\
-	    (((imm) < 0) && (~(imm) >> (bits)))) {		\
-		pr_info("[%2d] imm=%d(0x%x) out of range\n",	\
-			i, imm, imm);				\
-		return -EINVAL;					\
-	}							\
-} while (0)
-#define check_imm19(imm) check_imm(19, imm)
-#define check_imm26(imm) check_imm(26, imm)
 
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
@@ -740,11 +792,11 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 	if (bpf_jit_enable > 1)
 		bpf_jit_dump(prog->len, image_size, 2, ctx.image);
 
-	bpf_flush_icache(ctx.image, ctx.image + ctx.idx);
+	bpf_flush_icache(header, ctx.image + ctx.idx);
 
 	set_memory_ro((unsigned long)header, header->pages);
 	prog->bpf_func = (void *)ctx.image;
-	prog->jited = true;
+	prog->jited = 1;
 out:
 	kfree(ctx.offset);
 }

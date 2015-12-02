@@ -34,8 +34,9 @@ Properties of the host controller node:
 - #size-cells    : Must be 2.
 
 - reg            : The Configuration Space base address and size, as accessed
-                   from the parent bus.
-
+                   from the parent bus.  The base address corresponds to
+                   the first bus in the "bus-range" property.  If no
+                   "bus-range" is specified, this will be bus 0 (the default).
 
 Properties of the /chosen node:
 

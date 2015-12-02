@@ -371,7 +371,8 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	return 0;
 }
 
-static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd, bool success)
+static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd, bool success,
+					   int *post_ret)
 {
 	unsigned char *buf, *addr;
 	struct scatterlist *sg;
@@ -437,7 +438,8 @@ sbc_execute_rw(struct se_cmd *cmd)
 			       cmd->data_direction);
 }
 
-static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success)
+static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
+					     int *post_ret)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -447,8 +449,10 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success)
 	 * sent to the backend driver.
 	 */
 	spin_lock_irq(&cmd->t_state_lock);
-	if ((cmd->transport_state & CMD_T_SENT) && !cmd->scsi_status)
+	if ((cmd->transport_state & CMD_T_SENT) && !cmd->scsi_status) {
 		cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
+		*post_ret = 1;
+	}
 	spin_unlock_irq(&cmd->t_state_lock);
 
 	/*
@@ -460,7 +464,8 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success)
 	return TCM_NO_SENSE;
 }
 
-static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool success)
+static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool success,
+						 int *post_ret)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *write_sg = NULL, *sg;
@@ -556,11 +561,11 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 
 		if (block_size < PAGE_SIZE) {
 			sg_set_page(&write_sg[i], m.page, block_size,
-				    block_size);
+				    m.piter.sg->offset + block_size);
 		} else {
 			sg_miter_next(&m);
 			sg_set_page(&write_sg[i], m.page, block_size,
-				    0);
+				    m.piter.sg->offset);
 		}
 		len -= block_size;
 		i++;

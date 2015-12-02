@@ -139,7 +139,7 @@ static struct usb_rx *get_rx_struct(struct rx_cxt *rx)
 
 	if (list_empty(&rx->free_list)) {
 		r = alloc_rx_struct(rx);
-		if (r == NULL)
+		if (!r)
 			return NULL;
 
 		list_add(&r->list, &rx->free_list);
@@ -224,7 +224,7 @@ static int init_usb(struct usbwm_dev *udev)
 	spin_lock_irqsave(&tx->lock, flags);
 	for (i = 0; i < MAX_NR_SDU_BUF; i++) {
 		t = alloc_tx_struct(tx);
-		if (t == NULL) {
+		if (!t) {
 			spin_unlock_irqrestore(&tx->lock, flags);
 			ret = -ENOMEM;
 			goto fail;
@@ -234,7 +234,7 @@ static int init_usb(struct usbwm_dev *udev)
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	r = alloc_rx_struct(rx);
-	if (r == NULL) {
+	if (!r) {
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -313,7 +313,7 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	cmd_evt = (pkt[0] << 8) | pkt[1];
 	if (cmd_evt == WIMAX_TX_SDU) {
 		t = get_tx_struct(tx, &no_spc);
-		if (t == NULL) {
+		if (!t) {
 			/* This case must not happen. */
 			spin_unlock_irqrestore(&tx->lock, flags);
 			return -ENOSPC;
@@ -321,7 +321,7 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 		list_add_tail(&t->list, &tx->sdu_list);
 	} else {
 		t = alloc_tx_struct(tx);
-		if (t == NULL) {
+		if (!t) {
 			spin_unlock_irqrestore(&tx->lock, flags);
 			return -ENOMEM;
 		}
@@ -478,7 +478,7 @@ static int gdm_usb_receive(void *priv_dev,
 	r = get_rx_struct(rx);
 	spin_unlock_irqrestore(&rx->lock, flags);
 
-	if (r == NULL)
+	if (!r)
 		return -ENOMEM;
 
 	r->callback = cb;
@@ -558,12 +558,12 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	}
 
 	phy_dev = kzalloc(sizeof(*phy_dev), GFP_KERNEL);
-	if (phy_dev == NULL) {
+	if (!phy_dev) {
 		ret = -ENOMEM;
 		goto out;
 	}
 	udev = kzalloc(sizeof(*udev), GFP_KERNEL);
-	if (udev == NULL) {
+	if (!udev) {
 		ret = -ENOMEM;
 		goto out;
 	}
