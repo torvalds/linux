@@ -240,7 +240,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	packet->send_completion = NULL;
 	packet->xmit_more = false;
 
-	ret = netvsc_send(dev->net_dev->dev, packet);
+	ret = netvsc_send(dev->net_dev->dev, packet, NULL);
 	return ret;
 }
 

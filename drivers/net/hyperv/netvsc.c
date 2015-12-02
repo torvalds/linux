@@ -706,7 +706,8 @@ static u32 netvsc_get_next_send_section(struct netvsc_device *net_device)
 static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 				   unsigned int section_index,
 				   u32 pend_size,
-				   struct hv_netvsc_packet *packet)
+				   struct hv_netvsc_packet *packet,
+				   struct rndis_message *rndis_msg)
 {
 	char *start = net_device->send_buf;
 	char *dest = start + (section_index * net_device->send_section_size)
@@ -722,7 +723,7 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 	if (packet->is_data_pkt && packet->xmit_more && remain &&
 	    !packet->cp_partial) {
 		padding = net_device->pkt_align - remain;
-		packet->rndis_msg->msg_len += padding;
+		rndis_msg->msg_len += padding;
 		packet->total_data_buflen += padding;
 	}
 
@@ -841,7 +842,8 @@ static inline int netvsc_send_pkt(
 }
 
 int netvsc_send(struct hv_device *device,
-		struct hv_netvsc_packet *packet)
+		struct hv_netvsc_packet *packet,
+		struct rndis_message *rndis_msg)
 {
 	struct netvsc_device *net_device;
 	int ret = 0, m_ret = 0;
@@ -897,7 +899,7 @@ int netvsc_send(struct hv_device *device,
 	if (section_index != NETVSC_INVALID_INDEX) {
 		netvsc_copy_to_send_buf(net_device,
 					section_index, msd_len,
-					packet);
+					packet, rndis_msg);
 
 		packet->send_buf_index = section_index;
 
