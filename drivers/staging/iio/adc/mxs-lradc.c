@@ -319,7 +319,7 @@ struct mxs_lradc {
 #define	LRADC_CH_VALUE_OFFSET			0
 
 #define	LRADC_DELAY(n)				(0xd0 + (0x10 * (n)))
-#define	LRADC_DELAY_TRIGGER_LRADCS_MASK		(0xff << 24)
+#define	LRADC_DELAY_TRIGGER_LRADCS_MASK		(0xffUL << 24)
 #define	LRADC_DELAY_TRIGGER_LRADCS_OFFSET	24
 #define	LRADC_DELAY_TRIGGER(x) \
 				(((x) << LRADC_DELAY_TRIGGER_LRADCS_OFFSET) & \
