@@ -5212,13 +5212,22 @@ init_err:
 static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
+	struct bnxt *bp = netdev_priv(dev);
+	int rc = 0;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
+		return 0;
 
-	return 0;
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	if (netif_running(dev)) {
+		bnxt_close_nic(bp, false, false);
+		rc = bnxt_open_nic(bp, false, false);
+	}
+
+	return rc;
 }
 
 /* rtnl_lock held */
