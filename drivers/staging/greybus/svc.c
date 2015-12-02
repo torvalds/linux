@@ -359,7 +359,7 @@ static void svc_process_hotplug(struct work_struct *work)
 {
 	struct svc_hotplug *svc_hotplug = container_of(work, struct svc_hotplug,
 						       work);
-	struct gb_svc_intf_hotplug_request *hotplug = &svc_hotplug->data;
+	struct gb_svc_intf_hotplug_request *request;
 	struct gb_connection *connection = svc_hotplug->connection;
 	struct gb_svc *svc = connection->private;
 	struct gb_host_device *hd = connection->hd;
@@ -367,10 +367,11 @@ static void svc_process_hotplug(struct work_struct *work)
 	u8 intf_id, device_id;
 	int ret;
 
-	/*
-	 * Grab the information we need.
-	 */
-	intf_id = hotplug->intf_id;
+	/* The request message size has already been verified. */
+	request = &svc_hotplug->data;
+	intf_id = request->intf_id;
+
+	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
 
 	intf = gb_interface_find(hd, intf_id);
 	if (intf) {
@@ -404,10 +405,10 @@ static void svc_process_hotplug(struct work_struct *work)
 	if (ret)
 		goto destroy_interface;
 
-	intf->unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
-	intf->unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
-	intf->vendor_id = le32_to_cpu(hotplug->data.ara_vend_id);
-	intf->product_id = le32_to_cpu(hotplug->data.ara_prod_id);
+	intf->unipro_mfg_id = le32_to_cpu(request->data.unipro_mfg_id);
+	intf->unipro_prod_id = le32_to_cpu(request->data.unipro_prod_id);
+	intf->vendor_id = le32_to_cpu(request->data.ara_vend_id);
+	intf->product_id = le32_to_cpu(request->data.ara_prod_id);
 
 	/*
 	 * Create a device id for the interface:
