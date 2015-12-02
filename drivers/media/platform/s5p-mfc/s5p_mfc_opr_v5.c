@@ -1554,11 +1554,6 @@ static int s5p_mfc_err_dec_v5(unsigned int err)
 	return (err & S5P_FIMV_ERR_DEC_MASK) >> S5P_FIMV_ERR_DEC_SHIFT;
 }
 
-static int s5p_mfc_err_dspl_v5(unsigned int err)
-{
-	return (err & S5P_FIMV_ERR_DSPL_MASK) >> S5P_FIMV_ERR_DSPL_SHIFT;
-}
-
 static int s5p_mfc_get_img_width_v5(struct s5p_mfc_dev *dev)
 {
 	return mfc_read(dev, S5P_FIMV_SI_HRESOL);
@@ -1600,26 +1595,6 @@ static int s5p_mfc_get_enc_dpb_count_v5(struct s5p_mfc_dev *dev)
 	return -1;
 }
 
-static int s5p_mfc_get_enc_pic_count_v5(struct s5p_mfc_dev *dev)
-{
-	return mfc_read(dev, S5P_FIMV_ENC_SI_PIC_CNT);
-}
-
-static int s5p_mfc_get_sei_avail_status_v5(struct s5p_mfc_ctx *ctx)
-{
-	return s5p_mfc_read_info_v5(ctx, FRAME_PACK_SEI_AVAIL);
-}
-
-static int s5p_mfc_get_mvc_num_views_v5(struct s5p_mfc_dev *dev)
-{
-	return -1;
-}
-
-static int s5p_mfc_get_mvc_view_id_v5(struct s5p_mfc_dev *dev)
-{
-	return -1;
-}
-
 static unsigned int s5p_mfc_get_pic_type_top_v5(struct s5p_mfc_ctx *ctx)
 {
 	return s5p_mfc_read_info_v5(ctx, PIC_TIME_TOP);
@@ -1652,19 +1627,11 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
 	.release_dev_context_buffer = s5p_mfc_release_dev_context_buffer_v5,
 	.dec_calc_dpb_size = s5p_mfc_dec_calc_dpb_size_v5,
 	.enc_calc_src_size = s5p_mfc_enc_calc_src_size_v5,
-	.set_dec_stream_buffer = s5p_mfc_set_dec_stream_buffer_v5,
-	.set_dec_frame_buffer = s5p_mfc_set_dec_frame_buffer_v5,
 	.set_enc_stream_buffer = s5p_mfc_set_enc_stream_buffer_v5,
 	.set_enc_frame_buffer = s5p_mfc_set_enc_frame_buffer_v5,
 	.get_enc_frame_buffer = s5p_mfc_get_enc_frame_buffer_v5,
-	.set_enc_ref_buffer = s5p_mfc_set_enc_ref_buffer_v5,
-	.init_decode = s5p_mfc_init_decode_v5,
-	.init_encode = s5p_mfc_init_encode_v5,
-	.encode_one_frame = s5p_mfc_encode_one_frame_v5,
 	.try_run = s5p_mfc_try_run_v5,
 	.clear_int_flags = s5p_mfc_clear_int_flags_v5,
-	.write_info = s5p_mfc_write_info_v5,
-	.read_info = s5p_mfc_read_info_v5,
 	.get_dspl_y_adr = s5p_mfc_get_dspl_y_adr_v5,
 	.get_dec_y_adr = s5p_mfc_get_dec_y_adr_v5,
 	.get_dspl_status = s5p_mfc_get_dspl_status_v5,
@@ -1675,7 +1642,6 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
 	.get_int_reason = s5p_mfc_get_int_reason_v5,
 	.get_int_err = s5p_mfc_get_int_err_v5,
 	.err_dec = s5p_mfc_err_dec_v5,
-	.err_dspl = s5p_mfc_err_dspl_v5,
 	.get_img_width = s5p_mfc_get_img_width_v5,
 	.get_img_height = s5p_mfc_get_img_height_v5,
 	.get_dpb_count = s5p_mfc_get_dpb_count_v5,
@@ -1684,10 +1650,6 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
 	.get_enc_strm_size = s5p_mfc_get_enc_strm_size_v5,
 	.get_enc_slice_type = s5p_mfc_get_enc_slice_type_v5,
 	.get_enc_dpb_count = s5p_mfc_get_enc_dpb_count_v5,
-	.get_enc_pic_count = s5p_mfc_get_enc_pic_count_v5,
-	.get_sei_avail_status = s5p_mfc_get_sei_avail_status_v5,
-	.get_mvc_num_views = s5p_mfc_get_mvc_num_views_v5,
-	.get_mvc_view_id = s5p_mfc_get_mvc_view_id_v5,
 	.get_pic_type_top = s5p_mfc_get_pic_type_top_v5,
 	.get_pic_type_bot = s5p_mfc_get_pic_type_bot_v5,
 	.get_crop_info_h = s5p_mfc_get_crop_info_h_v5,
