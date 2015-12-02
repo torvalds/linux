@@ -1912,21 +1912,21 @@ static struct platform_driver bfin_mac_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&bfin_mii_bus_driver,
+	&bfin_mac_driver,
+};
+
 static int __init bfin_mac_init(void)
 {
-	int ret;
-	ret = platform_driver_register(&bfin_mii_bus_driver);
-	if (!ret)
-		return platform_driver_register(&bfin_mac_driver);
-	return -ENODEV;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_init(bfin_mac_init);
 
 static void __exit bfin_mac_cleanup(void)
 {
-	platform_driver_unregister(&bfin_mac_driver);
-	platform_driver_unregister(&bfin_mii_bus_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_exit(bfin_mac_cleanup);
