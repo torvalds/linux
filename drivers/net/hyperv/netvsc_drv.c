@@ -484,9 +484,6 @@ check_size:
 
 	memset(rndis_msg, 0, RNDIS_AND_PPI_SIZE);
 
-	/* Set the completion routine */
-	packet->completion_func = 1;
-
 	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;
 
 	/* Add the rndis header */
