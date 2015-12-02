@@ -107,6 +107,17 @@ config IMA_DEFAULT_HASH
 	default "sha512" if IMA_DEFAULT_HASH_SHA512
 	default "wp512" if IMA_DEFAULT_HASH_WP512
 
+config IMA_WRITE_POLICY
+	bool "Enable multiple writes to the IMA policy"
+	depends on IMA
+	default n
+	help
+	  IMA policy can now be updated multiple times.  The new rules get
+	  appended to the original policy.  Have in mind that the rules are
+	  scanned in FIFO order so be careful when you design and add new ones.
+
+	  If unsure, say N.
+
 config IMA_APPRAISE
 	bool "Appraise integrity measurements"
 	depends on IMA

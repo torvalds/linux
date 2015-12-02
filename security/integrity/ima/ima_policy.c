@@ -16,6 +16,7 @@
 #include <linux/magic.h>
 #include <linux/parser.h>
 #include <linux/slab.h>
+#include <linux/rculist.h>
 #include <linux/genhd.h>
 
 #include "ima.h"
@@ -135,11 +136,11 @@ static struct ima_rule_entry default_appraise_rules[] = {
 
 static LIST_HEAD(ima_default_rules);
 static LIST_HEAD(ima_policy_rules);
+static LIST_HEAD(ima_temp_rules);
 static struct list_head *ima_rules;
 
-static DEFINE_MUTEX(ima_rules_mutex);
-
 static int ima_policy __initdata;
+
 static int __init default_measure_policy_setup(char *str)
 {
 	if (ima_policy)
@@ -171,21 +172,18 @@ static int __init default_appraise_policy_setup(char *str)
 __setup("ima_appraise_tcb", default_appraise_policy_setup);
 
 /*
- * Although the IMA policy does not change, the LSM policy can be
- * reloaded, leaving the IMA LSM based rules referring to the old,
- * stale LSM policy.
- *
- * Update the IMA LSM based rules to reflect the reloaded LSM policy.
- * We assume the rules still exist; and BUG_ON() if they don't.
+ * The LSM policy can be reloaded, leaving the IMA LSM based rules referring
+ * to the old, stale LSM policy.  Update the IMA LSM based rules to reflect
+ * the reloaded LSM policy.  We assume the rules still exist; and BUG_ON() if
+ * they don't.
  */
 static void ima_lsm_update_rules(void)
 {
-	struct ima_rule_entry *entry, *tmp;
+	struct ima_rule_entry *entry;
 	int result;
 	int i;
 
-	mutex_lock(&ima_rules_mutex);
-	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
+	list_for_each_entry(entry, &ima_policy_rules, list) {
 		for (i = 0; i < MAX_LSM_RULES; i++) {
 			if (!entry->lsm[i].rule)
 				continue;
@@ -196,7 +194,6 @@ static void ima_lsm_update_rules(void)
 			BUG_ON(!entry->lsm[i].rule);
 		}
 	}
-	mutex_unlock(&ima_rules_mutex);
 }
 
 /**
@@ -319,9 +316,9 @@ static int get_subaction(struct ima_rule_entry *rule, int func)
  * Measure decision based on func/mask/fsmagic and LSM(subj/obj/type)
  * conditions.
  *
- * (There is no need for locking when walking the policy list,
- * as elements in the list are never deleted, nor does the list
- * change.)
+ * Since the IMA policy may be updated multiple times we need to lock the
+ * list when walking it.  Reads are many orders of magnitude more numerous
+ * than writes so ima_match_policy() is classical RCU candidate.
  */
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		     int flags)
@@ -329,7 +326,8 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 	struct ima_rule_entry *entry;
 	int action = 0, actmask = flags | (flags << 1);
 
-	list_for_each_entry(entry, ima_rules, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, ima_rules, list) {
 
 		if (!(entry->action & actmask))
 			continue;
@@ -351,6 +349,7 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		if (!actmask)
 			break;
 	}
+	rcu_read_unlock();
 
 	return action;
 }
@@ -365,7 +364,6 @@ void ima_update_policy_flag(void)
 {
 	struct ima_rule_entry *entry;
 
-	ima_policy_flag = 0;
 	list_for_each_entry(entry, ima_rules, list) {
 		if (entry->action & IMA_DO_MASK)
 			ima_policy_flag |= entry->action;
@@ -419,12 +417,36 @@ void __init ima_init_policy(void)
  * ima_update_policy - update default_rules with new measure rules
  *
  * Called on file .release to update the default rules with a complete new
- * policy.  Once updated, the policy is locked, no additional rules can be
- * added to the policy.
+ * policy.  What we do here is to splice ima_policy_rules and ima_temp_rules so
+ * they make a queue.  The policy may be updated multiple times and this is the
+ * RCU updater.
+ *
+ * Policy rules are never deleted so ima_policy_flag gets zeroed only once when
+ * we switch from the default policy to user defined.
  */
 void ima_update_policy(void)
 {
-	ima_rules = &ima_policy_rules;
+	struct list_head *first, *last, *policy;
+
+	/* append current policy with the new rules */
+	first = (&ima_temp_rules)->next;
+	last = (&ima_temp_rules)->prev;
+	policy = &ima_policy_rules;
+
+	synchronize_rcu();
+
+	last->next = policy;
+	rcu_assign_pointer(list_next_rcu(policy->prev), first);
+	first->prev = policy->prev;
+	policy->prev = last;
+
+	/* prepare for the next policy rules addition */
+	INIT_LIST_HEAD(&ima_temp_rules);
+
+	if (ima_rules != policy) {
+		ima_policy_flag = 0;
+		ima_rules = policy;
+	}
 	ima_update_policy_flag();
 }
 
@@ -746,7 +768,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
  * ima_parse_add_rule - add a rule to ima_policy_rules
  * @rule - ima measurement policy rule
  *
- * Uses a mutex to protect the policy list from multiple concurrent writers.
+ * Avoid locking by allowing just one writer at a time in ima_write_policy()
  * Returns the length of the rule parsed, an error code on failure
  */
 ssize_t ima_parse_add_rule(char *rule)
@@ -782,26 +804,27 @@ ssize_t ima_parse_add_rule(char *rule)
 		return result;
 	}
 
-	mutex_lock(&ima_rules_mutex);
-	list_add_tail(&entry->list, &ima_policy_rules);
-	mutex_unlock(&ima_rules_mutex);
+	list_add_tail(&entry->list, &ima_temp_rules);
 
 	return len;
 }
 
-/* ima_delete_rules called to cleanup invalid policy */
+/**
+ * ima_delete_rules() called to cleanup invalid in-flight policy.
+ * We don't need locking as we operate on the temp list, which is
+ * different from the active one.  There is also only one user of
+ * ima_delete_rules() at a time.
+ */
 void ima_delete_rules(void)
 {
 	struct ima_rule_entry *entry, *tmp;
 	int i;
 
-	mutex_lock(&ima_rules_mutex);
-	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
+	list_for_each_entry_safe(entry, tmp, &ima_temp_rules, list) {
 		for (i = 0; i < MAX_LSM_RULES; i++)
 			kfree(entry->lsm[i].args_p);
 
 		list_del(&entry->list);
 		kfree(entry);
 	}
-	mutex_unlock(&ima_rules_mutex);
 }

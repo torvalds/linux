@@ -25,6 +25,8 @@
 
 #include "ima.h"
 
+static DEFINE_MUTEX(ima_write_mutex);
+
 static int valid_policy = 1;
 #define TMPBUFLEN 12
 static ssize_t ima_show_htable_value(char __user *buf, size_t count,
@@ -261,6 +263,11 @@ static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 {
 	char *data = NULL;
 	ssize_t result;
+	int res;
+
+	res = mutex_lock_interruptible(&ima_write_mutex);
+	if (res)
+		return res;
 
 	if (datalen >= PAGE_SIZE)
 		datalen = PAGE_SIZE - 1;
@@ -286,6 +293,8 @@ out:
 	if (result < 0)
 		valid_policy = 0;
 	kfree(data);
+	mutex_unlock(&ima_write_mutex);
+
 	return result;
 }
 
@@ -337,8 +346,12 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 		return 0;
 	}
 	ima_update_policy();
+#ifndef	CONFIG_IMA_WRITE_POLICY
 	securityfs_remove(ima_policy);
 	ima_policy = NULL;
+#else
+	clear_bit(IMA_FS_BUSY, &ima_fs_flags);
+#endif
 	return 0;
 }
 
