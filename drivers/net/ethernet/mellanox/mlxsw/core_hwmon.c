@@ -215,7 +215,7 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 			 "pwm%u", num + 1);
 		break;
 	default:
-		BUG();
+		WARN_ON(1);
 	}
 
 	mlxsw_hwmon_attr->type_index = type_index;
