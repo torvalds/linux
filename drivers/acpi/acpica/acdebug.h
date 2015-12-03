@@ -257,7 +257,7 @@ acpi_db_command_dispatch(char *input_buffer,
 
 void ACPI_SYSTEM_XFACE acpi_db_execute_thread(void *context);
 
-acpi_status acpi_db_user_commands(char prompt, union acpi_parse_object *op);
+acpi_status acpi_db_user_commands(void);
 
 char *acpi_db_get_next_token(char *string,
 			     char **next, acpi_object_type * return_type);

@@ -129,6 +129,25 @@ static inline u8 acpi_os_readable(void *pointer, acpi_size length)
 	return TRUE;
 }
 
+static inline acpi_status acpi_os_initialize_command_signals(void)
+{
+	return AE_OK;
+}
+
+static inline void acpi_os_terminate_command_signals(void)
+{
+}
+
+static inline acpi_status acpi_os_wait_command_ready(void)
+{
+	return AE_ERROR;
+}
+
+static inline acpi_status acpi_os_notify_command_complete(void)
+{
+	return AE_ERROR;
+}
+
 /*
  * OSL interfaces added by Linux
  */

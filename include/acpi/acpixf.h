@@ -264,6 +264,15 @@ ACPI_INIT_GLOBAL(u32, acpi_dbg_level, ACPI_DEBUG_DEFAULT);
 ACPI_INIT_GLOBAL(u32, acpi_dbg_layer, 0);
 
 /*
+ * Debugger command handshake globals. Host OSes need to access these
+ * variables to implement their own command handshake mechanism.
+ */
+#ifdef ACPI_DEBUGGER
+ACPI_INIT_GLOBAL(u8, acpi_gbl_method_executing, FALSE);
+ACPI_GLOBAL(char, acpi_gbl_db_line_buf[ACPI_DB_LINE_BUFFER_SIZE]);
+#endif
+
+/*
  * Other miscellaneous globals
  */
 ACPI_GLOBAL(struct acpi_table_fadt, acpi_gbl_FADT);
@@ -928,6 +937,8 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 					       acpi_object_handler handler,
 					       void **data,
 					       void (*callback)(void *)))
+
+void acpi_run_debugger(char *batch_buffer);
 
 void acpi_set_debugger_thread_id(acpi_thread_id thread_id);
 
