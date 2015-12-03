@@ -73,6 +73,8 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	struct drm_crtc *crtc = &amdgpuCrtc->base;
 	unsigned long flags;
 	unsigned i;
+	int vpos, hpos, stat, min_udelay;
+	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
 
 	amdgpu_flip_wait_fence(adev, &work->excl);
 	for (i = 0; i < work->shared_count; ++i)
@@ -80,6 +82,41 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 
 	/* We borrow the event spin lock for protecting flip_status */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+
+	/* If this happens to execute within the "virtually extended" vblank
+	 * interval before the start of the real vblank interval then it needs
+	 * to delay programming the mmio flip until the real vblank is entered.
+	 * This prevents completing a flip too early due to the way we fudge
+	 * our vblank counter and vblank timestamps in order to work around the
+	 * problem that the hw fires vblank interrupts before actual start of
+	 * vblank (when line buffer refilling is done for a frame). It
+	 * complements the fudging logic in amdgpu_get_crtc_scanoutpos() for
+	 * timestamping and amdgpu_get_vblank_counter_kms() for vblank counts.
+	 *
+	 * In practice this won't execute very often unless on very fast
+	 * machines because the time window for this to happen is very small.
+	 */
+	for (;;) {
+		/* GET_DISTANCE_TO_VBLANKSTART returns distance to real vblank
+		 * start in hpos, and to the "fudged earlier" vblank start in
+		 * vpos.
+		 */
+		stat = amdgpu_get_crtc_scanoutpos(adev->ddev, work->crtc_id,
+						  GET_DISTANCE_TO_VBLANKSTART,
+						  &vpos, &hpos, NULL, NULL,
+						  &crtc->hwmode);
+
+		if ((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
+		    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE) ||
+		    !(vpos >= 0 && hpos <= 0))
+			break;
+
+		/* Sleep at least until estimated real start of hw vblank */
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+		min_udelay = (-hpos + 1) * max(vblank->linedur_ns / 1000, 5);
+		usleep_range(min_udelay, 2 * min_udelay);
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	};
 
 	/* do the flip (mmio) */
 	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
@@ -712,6 +749,15 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * \param dev Device to query.
  * \param pipe Crtc to query.
  * \param flags Flags from caller (DRM_CALLED_FROM_VBLIRQ or 0).
+ *              For driver internal use only also supports these flags:
+ *
+ *              USE_REAL_VBLANKSTART to use the real start of vblank instead
+ *              of a fudged earlier start of vblank.
+ *
+ *              GET_DISTANCE_TO_VBLANKSTART to return distance to the
+ *              fudged earlier start of vblank in *vpos and the distance
+ *              to true start of vblank in *hpos.
+ *
  * \param *vpos Location where vertical scanout position should be stored.
  * \param *hpos Location where horizontal scanout position should go.
  * \param *stime Target location for timestamp taken immediately before
@@ -776,9 +822,39 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		vbl_end = 0;
 	}
 
+	/* Called from driver internal vblank counter query code? */
+	if (flags & GET_DISTANCE_TO_VBLANKSTART) {
+	    /* Caller wants distance from real vbl_start in *hpos */
+	    *hpos = *vpos - vbl_start;
+	}
+
+	/* Fudge vblank to start a few scanlines earlier to handle the
+	 * problem that vblank irqs fire a few scanlines before start
+	 * of vblank. Some driver internal callers need the true vblank
+	 * start to be used and signal this via the USE_REAL_VBLANKSTART flag.
+	 *
+	 * The cause of the "early" vblank irq is that the irq is triggered
+	 * by the line buffer logic when the line buffer read position enters
+	 * the vblank, whereas our crtc scanout position naturally lags the
+	 * line buffer read position.
+	 */
+	if (!(flags & USE_REAL_VBLANKSTART))
+		vbl_start -= adev->mode_info.crtcs[pipe]->lb_vblank_lead_lines;
+
 	/* Test scanout position against vblank region. */
 	if ((*vpos < vbl_start) && (*vpos >= vbl_end))
 		in_vbl = false;
+
+	/* In vblank? */
+	if (in_vbl)
+	    ret |= DRM_SCANOUTPOS_IN_VBLANK;
+
+	/* Called from driver internal vblank counter query code? */
+	if (flags & GET_DISTANCE_TO_VBLANKSTART) {
+		/* Caller wants distance from fudged earlier vbl_start */
+		*vpos -= vbl_start;
+		return ret;
+	}
 
 	/* Check if inside vblank area and apply corrective offsets:
 	 * vpos will then be >=0 in video scanout area, but negative
@@ -794,32 +870,6 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 
 	/* Correct for shifted end of vbl at vbl_end. */
 	*vpos = *vpos - vbl_end;
-
-	/* In vblank? */
-	if (in_vbl)
-		ret |= DRM_SCANOUTPOS_IN_VBLANK;
-
-	/* Is vpos outside nominal vblank area, but less than
-	 * 1/100 of a frame height away from start of vblank?
-	 * If so, assume this isn't a massively delayed vblank
-	 * interrupt, but a vblank interrupt that fired a few
-	 * microseconds before true start of vblank. Compensate
-	 * by adding a full frame duration to the final timestamp.
-	 * Happens, e.g., on ATI R500, R600.
-	 *
-	 * We only do this if DRM_CALLED_FROM_VBLIRQ.
-	 */
-	if ((flags & DRM_CALLED_FROM_VBLIRQ) && !in_vbl) {
-		vbl_start = mode->crtc_vdisplay;
-		vtotal = mode->crtc_vtotal;
-
-		if (vbl_start - *vpos < vtotal / 100) {
-			*vpos -= vtotal;
-
-			/* Signal this correction as "applied". */
-			ret |= 0x8;
-		}
-	}
 
 	return ret;
 }
