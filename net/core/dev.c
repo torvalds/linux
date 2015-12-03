@@ -5490,8 +5490,12 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 			goto rollback_lower_mesh;
 	}
 
-	call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
-				      &changeupper_info.info);
+	ret = call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
+					    &changeupper_info.info);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		goto rollback_lower_mesh;
+
 	return 0;
 
 rollback_lower_mesh:
