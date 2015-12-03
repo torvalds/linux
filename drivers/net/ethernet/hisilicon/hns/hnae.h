@@ -35,7 +35,7 @@
 #include <linux/phy.h>
 #include <linux/types.h>
 
-#define HNAE_DRIVER_VERSION "1.3.0"
+#define HNAE_DRIVER_VERSION "2.0"
 #define HNAE_DRIVER_NAME "hns"
 #define HNAE_COPYRIGHT "Copyright(c) 2015 Huawei Corporation."
 #define HNAE_DRIVER_STRING "Hisilicon Network Subsystem Driver"
@@ -63,6 +63,7 @@ do { \
 
 #define AE_VERSION_1 ('6' << 16 | '6' << 8 | '0')
 #define AE_VERSION_2 ('1' << 24 | '6' << 16 | '1' << 8 | '0')
+#define AE_IS_VER1(ver) ((ver) == AE_VERSION_1)
 #define AE_NAME_SIZE 16
 
 /* some said the RX and TX RCB format should not be the same in the future. But
@@ -144,23 +145,61 @@ enum hnae_led_state {
 #define HNS_RXD_ASID_S 24
 #define HNS_RXD_ASID_M (0xff << HNS_RXD_ASID_S)
 
+#define HNSV2_TXD_BUFNUM_S 0
+#define HNSV2_TXD_BUFNUM_M (0x7 << HNSV2_TXD_BUFNUM_S)
+#define HNSV2_TXD_RI_B   1
+#define HNSV2_TXD_L4CS_B   2
+#define HNSV2_TXD_L3CS_B   3
+#define HNSV2_TXD_FE_B   4
+#define HNSV2_TXD_VLD_B  5
+
+#define HNSV2_TXD_TSE_B   0
+#define HNSV2_TXD_VLAN_EN_B   1
+#define HNSV2_TXD_SNAP_B   2
+#define HNSV2_TXD_IPV6_B   3
+#define HNSV2_TXD_SCTP_B   4
+
 /* hardware spec ring buffer format */
 struct __packed hnae_desc {
 	__le64 addr;
 	union {
 		struct {
-			__le16 asid_bufnum_pid;
+			union {
+				__le16 asid_bufnum_pid;
+				__le16 asid;
+			};
 			__le16 send_size;
-			__le32 flag_ipoffset;
-			__le32 reserved_3[4];
+			union {
+				__le32 flag_ipoffset;
+				struct {
+					__u8 bn_pid;
+					__u8 ra_ri_cs_fe_vld;
+					__u8 ip_offset;
+					__u8 tse_vlan_snap_v6_sctp_nth;
+				};
+			};
+			__le16 mss;
+			__u8 l4_len;
+			__u8 reserved1;
+			__le16 paylen;
+			__u8 vmid;
+			__u8 qid;
+			__le32 reserved2[2];
 		} tx;
 
 		struct {
 			__le32 ipoff_bnum_pid_flag;
 			__le16 pkt_len;
 			__le16 size;
-			__le32 vlan_pri_asid;
-			__le32 reserved_2[3];
+			union {
+				__le32 vlan_pri_asid;
+				struct {
+					__le16 asid;
+					__le16 vlan_cfi_pri;
+				};
+			};
+			__le32 rss_hash;
+			__le32 reserved_1[2];
 		} rx;
 	};
 };

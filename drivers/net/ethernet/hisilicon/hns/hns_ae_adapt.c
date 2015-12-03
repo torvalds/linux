@@ -252,7 +252,7 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
 		return 0;
 
-	ret = hns_mac_set_multi(mac_cb, mac_cb->mac_id, mac_addr, ENABLE);
+	ret = hns_mac_set_multi(mac_cb, mac_cb->mac_id, mac_addr, true);
 	if (ret) {
 		dev_err(handle->owner_dev,
 			"mac add mul_mac:%pM port%d  fail, ret = %#x!\n",
@@ -261,7 +261,7 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 	}
 
 	ret = hns_mac_set_multi(mac_cb, DSAF_BASE_INNER_PORT_NUM,
-				mac_addr, ENABLE);
+				mac_addr, true);
 	if (ret)
 		dev_err(handle->owner_dev,
 			"mac add mul_mac:%pM port%d  fail, ret = %#x!\n",
@@ -282,7 +282,7 @@ static int hns_ae_start(struct hnae_handle *handle)
 	int ret;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
-	ret = hns_mac_vm_config_bc_en(mac_cb, 0, ENABLE);
+	ret = hns_mac_vm_config_bc_en(mac_cb, 0, true);
 	if (ret)
 		return ret;
 
@@ -309,7 +309,7 @@ void hns_ae_stop(struct hnae_handle *handle)
 
 	hns_ae_ring_enable_all(handle, 0);
 
-	(void)hns_mac_vm_config_bc_en(mac_cb, 0, DISABLE);
+	(void)hns_mac_vm_config_bc_en(mac_cb, 0, false);
 }
 
 static void hns_ae_reset(struct hnae_handle *handle)
@@ -338,8 +338,27 @@ void hns_ae_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
 	hns_rcb_int_ctrl_hw(ring->q, flag, mask);
 }
 
+static void hns_aev2_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
+{
+	u32 flag;
+
+	if (is_tx_ring(ring))
+		flag = RCB_INT_FLAG_TX;
+	else
+		flag = RCB_INT_FLAG_RX;
+
+	hns_rcbv2_int_ctrl_hw(ring->q, flag, mask);
+}
+
 static void hns_ae_toggle_queue_status(struct hnae_queue *queue, u32 val)
 {
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(queue->dev);
+
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+		hns_rcb_int_clr_hw(queue, RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
+	else
+		hns_rcbv2_int_clr_hw(queue, RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
+
 	hns_rcb_start(queue, val);
 }
 
@@ -771,6 +790,16 @@ int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev)
 {
 	struct hnae_ae_dev *ae_dev = &dsaf_dev->ae_dev;
 
+	switch (dsaf_dev->dsaf_ver) {
+	case AE_VERSION_1:
+		hns_dsaf_ops.toggle_ring_irq = hns_ae_toggle_ring_irq;
+		break;
+	case AE_VERSION_2:
+		hns_dsaf_ops.toggle_ring_irq = hns_aev2_toggle_ring_irq;
+		break;
+	default:
+		break;
+	}
 	ae_dev->ops = &hns_dsaf_ops;
 	ae_dev->dev = dsaf_dev->dev;
 
