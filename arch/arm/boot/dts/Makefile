@@ -373,6 +373,8 @@ dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-12x12-lpddr3-arm2-mqs.dtb \
 	imx7d-19x19-lpddr2-arm2.dtb \
 	imx7d-sdb.dtb \
+	imx7d-sdb-wm8960.dtb \
+	imx7d-sdb-hdmi-audio.dtb \
 	imx7d-sdb-epdc.dtb \
 	imx7d-sdb-gpmi-weim.dtb \
 	imx7d-sdb-qspi.dtb \
