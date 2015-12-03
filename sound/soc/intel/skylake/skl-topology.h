@@ -145,6 +145,11 @@ struct skl_algo_cfg {
 	char params[0];
 } __packed;
 
+struct skl_base_outfmt_cfg {
+	struct skl_base_cfg base_cfg;
+	struct skl_audio_data_format out_fmt;
+} __packed;
+
 enum skl_dma_type {
 	SKL_DMA_HDA_HOST_OUTPUT_CLASS = 0,
 	SKL_DMA_HDA_HOST_INPUT_CLASS = 1,

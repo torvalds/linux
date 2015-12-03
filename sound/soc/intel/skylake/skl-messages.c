@@ -410,6 +410,25 @@ static void skl_set_algo_format(struct skl_sst *ctx,
 
 }
 
+/*
+ * Mic select module allows selecting one or many input channels, thus
+ * acting as a demux.
+ *
+ * Mic select module take base module configuration and out-format
+ * configuration
+ */
+static void skl_set_base_outfmt_format(struct skl_sst *ctx,
+			struct skl_module_cfg *mconfig,
+			struct skl_base_outfmt_cfg *base_outfmt_mcfg)
+{
+	struct skl_audio_data_format *out_fmt = &base_outfmt_mcfg->out_fmt;
+	struct skl_base_cfg *base_cfg =
+				(struct skl_base_cfg *)base_outfmt_mcfg;
+
+	skl_set_base_module_format(ctx, mconfig, base_cfg);
+	skl_setup_out_format(ctx, mconfig, out_fmt);
+}
+
 static u16 skl_get_module_param_size(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig)
 {
@@ -431,6 +450,9 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 		param_size = sizeof(struct skl_base_cfg);
 		param_size += mconfig->formats_config.caps_size;
 		return param_size;
+
+	case SKL_MODULE_TYPE_BASE_OUTFMT:
+		return sizeof(struct skl_base_outfmt_cfg);
 
 	default:
 		/*
@@ -480,6 +502,10 @@ static int skl_set_module_format(struct skl_sst *ctx,
 
 	case SKL_MODULE_TYPE_ALGO:
 		skl_set_algo_format(ctx, module_config, *param_data);
+		break;
+
+	case SKL_MODULE_TYPE_BASE_OUTFMT:
+		skl_set_base_outfmt_format(ctx, module_config, *param_data);
 		break;
 
 	default:
