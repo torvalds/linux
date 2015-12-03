@@ -5,6 +5,7 @@ header_paths = [ "include/uapi/", "arch/lkl/include/uapi/",
                  "arch/lkl/include/generated/uapi/", "include/generated/" ]
 
 headers = set()
+includes = set()
 
 def find_headers(path):
     headers.add(path)
@@ -16,6 +17,7 @@ def find_headers(path):
             for p in header_paths:
                 if os.access(p + i, os.R_OK):
                     if p + i not in headers:
+                        includes.add(i)
                         headers.add(p + i)
                         find_headers(p + i)
         except:
@@ -71,8 +73,10 @@ def lkl_prefix(w):
 
 def replace(h):
     content = open(h).read()
-    content = re.sub("(#[ \t]*include[ \t]<)(.*>)", "\\1lkl/\\2", content,
-                     flags = re.MULTILINE)
+    for i in includes:
+        search_str = "(#[ \t]*include[ \t]*[<\"][ \t]*)" + i + "([ \t]*[>\"])"
+        replace_str = "\\1" + "lkl/" + i + "\\2"
+        content = re.sub(search_str, replace_str, content)
     for d in defines:
         search_str = "(\W)" + d + "(\W)"
         replace_str = "\\1" + lkl_prefix(d) + "\\2"
