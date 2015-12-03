@@ -129,6 +129,7 @@
 				dmas = <0>, <0>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c0_default>;
+				i2c-sda-hold-time-ns = <350>;
 				status = "okay";
 
 				pmic: act8865@5b {
