@@ -1232,10 +1232,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 
 		bit = find_first_bit((unsigned long *)&pebs_status,
 					x86_pmu.max_pebs_events);
-		if (WARN(bit >= x86_pmu.max_pebs_events,
-			 "PEBS record without PEBS event! status=%Lx pebs_enabled=%Lx active_mask=%Lx",
-			 (unsigned long long)p->status, (unsigned long long)cpuc->pebs_enabled,
-			 *(unsigned long long *)cpuc->active_mask))
+		if (bit >= x86_pmu.max_pebs_events)
 			continue;
 
 		/*
