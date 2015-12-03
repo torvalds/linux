@@ -865,6 +865,293 @@ static inline void mlxsw_reg_sftr_pack(char *payload,
 	mlxsw_reg_sftr_port_mask_set(payload, port, 1);
 }
 
+/* SLDR - Switch LAG Descriptor Register
+ * -----------------------------------------
+ * The switch LAG descriptor register is populated by LAG descriptors.
+ * Each LAG descriptor is indexed by lag_id. The LAG ID runs from 0 to
+ * max_lag-1.
+ */
+#define MLXSW_REG_SLDR_ID 0x2014
+#define MLXSW_REG_SLDR_LEN 0x0C /* counting in only one port in list */
+
+static const struct mlxsw_reg_info mlxsw_reg_sldr = {
+	.id = MLXSW_REG_SLDR_ID,
+	.len = MLXSW_REG_SLDR_LEN,
+};
+
+enum mlxsw_reg_sldr_op {
+	/* Indicates a creation of a new LAG-ID, lag_id must be valid */
+	MLXSW_REG_SLDR_OP_LAG_CREATE,
+	MLXSW_REG_SLDR_OP_LAG_DESTROY,
+	/* Ports that appear in the list have the Distributor enabled */
+	MLXSW_REG_SLDR_OP_LAG_ADD_PORT_LIST,
+	/* Removes ports from the disributor list */
+	MLXSW_REG_SLDR_OP_LAG_REMOVE_PORT_LIST,
+};
+
+/* reg_sldr_op
+ * Operation.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sldr, op, 0x00, 29, 3);
+
+/* reg_sldr_lag_id
+ * LAG identifier. The lag_id is the index into the LAG descriptor table.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sldr, lag_id, 0x00, 0, 10);
+
+static inline void mlxsw_reg_sldr_lag_create_pack(char *payload, u8 lag_id)
+{
+	MLXSW_REG_ZERO(sldr, payload);
+	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_CREATE);
+	mlxsw_reg_sldr_lag_id_set(payload, lag_id);
+}
+
+static inline void mlxsw_reg_sldr_lag_destroy_pack(char *payload, u8 lag_id)
+{
+	MLXSW_REG_ZERO(sldr, payload);
+	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_DESTROY);
+	mlxsw_reg_sldr_lag_id_set(payload, lag_id);
+}
+
+/* reg_sldr_num_ports
+ * The number of member ports of the LAG.
+ * Reserved for Create / Destroy operations
+ * For Add / Remove operations - indicates the number of ports in the list.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sldr, num_ports, 0x04, 24, 8);
+
+/* reg_sldr_system_port
+ * System port.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sldr, system_port, 0x08, 0, 16, 4, 0, false);
+
+static inline void mlxsw_reg_sldr_lag_add_port_pack(char *payload, u8 lag_id,
+						    u8 local_port)
+{
+	MLXSW_REG_ZERO(sldr, payload);
+	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_ADD_PORT_LIST);
+	mlxsw_reg_sldr_lag_id_set(payload, lag_id);
+	mlxsw_reg_sldr_num_ports_set(payload, 1);
+	mlxsw_reg_sldr_system_port_set(payload, 0, local_port);
+}
+
+static inline void mlxsw_reg_sldr_lag_remove_port_pack(char *payload, u8 lag_id,
+						       u8 local_port)
+{
+	MLXSW_REG_ZERO(sldr, payload);
+	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_REMOVE_PORT_LIST);
+	mlxsw_reg_sldr_lag_id_set(payload, lag_id);
+	mlxsw_reg_sldr_num_ports_set(payload, 1);
+	mlxsw_reg_sldr_system_port_set(payload, 0, local_port);
+}
+
+/* SLCR - Switch LAG Configuration 2 Register
+ * -------------------------------------------
+ * The Switch LAG Configuration register is used for configuring the
+ * LAG properties of the switch.
+ */
+#define MLXSW_REG_SLCR_ID 0x2015
+#define MLXSW_REG_SLCR_LEN 0x10
+
+static const struct mlxsw_reg_info mlxsw_reg_slcr = {
+	.id = MLXSW_REG_SLCR_ID,
+	.len = MLXSW_REG_SLCR_LEN,
+};
+
+enum mlxsw_reg_slcr_pp {
+	/* Global Configuration (for all ports) */
+	MLXSW_REG_SLCR_PP_GLOBAL,
+	/* Per port configuration, based on local_port field */
+	MLXSW_REG_SLCR_PP_PER_PORT,
+};
+
+/* reg_slcr_pp
+ * Per Port Configuration
+ * Note: Reading at Global mode results in reading port 1 configuration.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, slcr, pp, 0x00, 24, 1);
+
+/* reg_slcr_local_port
+ * Local port number
+ * Supported from CPU port
+ * Not supported from router port
+ * Reserved when pp = Global Configuration
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, slcr, local_port, 0x00, 16, 8);
+
+enum mlxsw_reg_slcr_type {
+	MLXSW_REG_SLCR_TYPE_CRC, /* default */
+	MLXSW_REG_SLCR_TYPE_XOR,
+	MLXSW_REG_SLCR_TYPE_RANDOM,
+};
+
+/* reg_slcr_type
+ * Hash type
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcr, type, 0x00, 0, 4);
+
+/* Ingress port */
+#define MLXSW_REG_SLCR_LAG_HASH_IN_PORT		BIT(0)
+/* SMAC - for IPv4 and IPv6 packets */
+#define MLXSW_REG_SLCR_LAG_HASH_SMAC_IP		BIT(1)
+/* SMAC - for non-IP packets */
+#define MLXSW_REG_SLCR_LAG_HASH_SMAC_NONIP	BIT(2)
+#define MLXSW_REG_SLCR_LAG_HASH_SMAC \
+	(MLXSW_REG_SLCR_LAG_HASH_SMAC_IP | \
+	 MLXSW_REG_SLCR_LAG_HASH_SMAC_NONIP)
+/* DMAC - for IPv4 and IPv6 packets */
+#define MLXSW_REG_SLCR_LAG_HASH_DMAC_IP		BIT(3)
+/* DMAC - for non-IP packets */
+#define MLXSW_REG_SLCR_LAG_HASH_DMAC_NONIP	BIT(4)
+#define MLXSW_REG_SLCR_LAG_HASH_DMAC \
+	(MLXSW_REG_SLCR_LAG_HASH_DMAC_IP | \
+	 MLXSW_REG_SLCR_LAG_HASH_DMAC_NONIP)
+/* Ethertype - for IPv4 and IPv6 packets */
+#define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_IP	BIT(5)
+/* Ethertype - for non-IP packets */
+#define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_NONIP	BIT(6)
+#define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE \
+	(MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_IP | \
+	 MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_NONIP)
+/* VLAN ID - for IPv4 and IPv6 packets */
+#define MLXSW_REG_SLCR_LAG_HASH_VLANID_IP	BIT(7)
+/* VLAN ID - for non-IP packets */
+#define MLXSW_REG_SLCR_LAG_HASH_VLANID_NONIP	BIT(8)
+#define MLXSW_REG_SLCR_LAG_HASH_VLANID \
+	(MLXSW_REG_SLCR_LAG_HASH_VLANID_IP | \
+	 MLXSW_REG_SLCR_LAG_HASH_VLANID_NONIP)
+/* Source IP address (can be IPv4 or IPv6) */
+#define MLXSW_REG_SLCR_LAG_HASH_SIP		BIT(9)
+/* Destination IP address (can be IPv4 or IPv6) */
+#define MLXSW_REG_SLCR_LAG_HASH_DIP		BIT(10)
+/* TCP/UDP source port */
+#define MLXSW_REG_SLCR_LAG_HASH_SPORT		BIT(11)
+/* TCP/UDP destination port*/
+#define MLXSW_REG_SLCR_LAG_HASH_DPORT		BIT(12)
+/* IPv4 Protocol/IPv6 Next Header */
+#define MLXSW_REG_SLCR_LAG_HASH_IPPROTO		BIT(13)
+/* IPv6 Flow label */
+#define MLXSW_REG_SLCR_LAG_HASH_FLOWLABEL	BIT(14)
+/* SID - FCoE source ID */
+#define MLXSW_REG_SLCR_LAG_HASH_FCOE_SID	BIT(15)
+/* DID - FCoE destination ID */
+#define MLXSW_REG_SLCR_LAG_HASH_FCOE_DID	BIT(16)
+/* OXID - FCoE originator exchange ID */
+#define MLXSW_REG_SLCR_LAG_HASH_FCOE_OXID	BIT(17)
+/* Destination QP number - for RoCE packets */
+#define MLXSW_REG_SLCR_LAG_HASH_ROCE_DQP	BIT(19)
+
+/* reg_slcr_lag_hash
+ * LAG hashing configuration. This is a bitmask, in which each set
+ * bit includes the corresponding item in the LAG hash calculation.
+ * The default lag_hash contains SMAC, DMAC, VLANID and
+ * Ethertype (for all packet types).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcr, lag_hash, 0x04, 0, 20);
+
+static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash)
+{
+	MLXSW_REG_ZERO(slcr, payload);
+	mlxsw_reg_slcr_pp_set(payload, MLXSW_REG_SLCR_PP_GLOBAL);
+	mlxsw_reg_slcr_type_set(payload, MLXSW_REG_SLCR_TYPE_XOR);
+	mlxsw_reg_slcr_lag_hash_set(payload, lag_hash);
+}
+
+/* SLCOR - Switch LAG Collector Register
+ * -------------------------------------
+ * The Switch LAG Collector register controls the Local Port membership
+ * in a LAG and enablement of the collector.
+ */
+#define MLXSW_REG_SLCOR_ID 0x2016
+#define MLXSW_REG_SLCOR_LEN 0x10
+
+static const struct mlxsw_reg_info mlxsw_reg_slcor = {
+	.id = MLXSW_REG_SLCOR_ID,
+	.len = MLXSW_REG_SLCOR_LEN,
+};
+
+enum mlxsw_reg_slcor_col {
+	/* Port is added with collector disabled */
+	MLXSW_REG_SLCOR_COL_LAG_ADD_PORT,
+	MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_ENABLED,
+	MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_DISABLED,
+	MLXSW_REG_SLCOR_COL_LAG_REMOVE_PORT,
+};
+
+/* reg_slcor_col
+ * Collector configuration
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcor, col, 0x00, 30, 2);
+
+/* reg_slcor_local_port
+ * Local port number
+ * Not supported for CPU port
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, slcor, local_port, 0x00, 16, 8);
+
+/* reg_slcor_lag_id
+ * LAG Identifier. Index into the LAG descriptor table.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, slcor, lag_id, 0x00, 0, 10);
+
+/* reg_slcor_port_index
+ * Port index in the LAG list. Only valid on Add Port to LAG col.
+ * Valid range is from 0 to cap_max_lag_members-1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcor, port_index, 0x04, 0, 10);
+
+static inline void mlxsw_reg_slcor_pack(char *payload,
+					u8 local_port, u16 lag_id,
+					enum mlxsw_reg_slcor_col col)
+{
+	MLXSW_REG_ZERO(slcor, payload);
+	mlxsw_reg_slcor_col_set(payload, col);
+	mlxsw_reg_slcor_local_port_set(payload, local_port);
+	mlxsw_reg_slcor_lag_id_set(payload, lag_id);
+}
+
+static inline void mlxsw_reg_slcor_port_add_pack(char *payload,
+						 u8 local_port, u16 lag_id,
+						 u8 port_index)
+{
+	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
+			     MLXSW_REG_SLCOR_COL_LAG_ADD_PORT);
+	mlxsw_reg_slcor_port_index_set(payload, port_index);
+}
+
+static inline void mlxsw_reg_slcor_port_remove_pack(char *payload,
+						    u8 local_port, u16 lag_id)
+{
+	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
+			     MLXSW_REG_SLCOR_COL_LAG_REMOVE_PORT);
+}
+
+static inline void mlxsw_reg_slcor_col_enable_pack(char *payload,
+						   u8 local_port, u16 lag_id)
+{
+	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
+			     MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_ENABLED);
+}
+
+static inline void mlxsw_reg_slcor_col_disable_pack(char *payload,
+						    u8 local_port, u16 lag_id)
+{
+	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
+			     MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_ENABLED);
+}
+
 /* SPMLR - Switch Port MAC Learning Register
  * -----------------------------------------
  * Controls the Switch MAC learning policy per port.
@@ -2653,6 +2940,12 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SFGC";
 	case MLXSW_REG_SFTR_ID:
 		return "SFTR";
+	case MLXSW_REG_SLDR_ID:
+		return "SLDR";
+	case MLXSW_REG_SLCR_ID:
+		return "SLCR";
+	case MLXSW_REG_SLCOR_ID:
+		return "SLCOR";
 	case MLXSW_REG_SPMLR_ID:
 		return "SPMLR";
 	case MLXSW_REG_SVFA_ID:
