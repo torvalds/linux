@@ -4025,7 +4025,6 @@ void btrfs_get_block_group_info(struct list_head *groups_list,
 void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
 			       struct btrfs_ioctl_balance_args *bargs);
 
-
 /* file.c */
 int btrfs_auto_defrag_init(void);
 void btrfs_auto_defrag_exit(void);
@@ -4058,6 +4057,8 @@ int btrfs_fdatawrite_range(struct inode *inode, loff_t start, loff_t end);
 ssize_t btrfs_copy_file_range(struct file *file_in, loff_t pos_in,
 			      struct file *file_out, loff_t pos_out,
 			      size_t len, unsigned int flags);
+int btrfs_clone_file_range(struct file *file_in, loff_t pos_in,
+			   struct file *file_out, loff_t pos_out, u64 len);
 
 /* tree-defrag.c */
 int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,

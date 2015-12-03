@@ -3906,49 +3906,10 @@ ssize_t btrfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	return ret;
 }
 
-static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
-				       u64 off, u64 olen, u64 destoff)
+int btrfs_clone_file_range(struct file *src_file, loff_t off,
+		struct file *dst_file, loff_t destoff, u64 len)
 {
-	struct fd src_file;
-	int ret;
-
-	/* the destination must be opened for writing */
-	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND))
-		return -EINVAL;
-
-	ret = mnt_want_write_file(file);
-	if (ret)
-		return ret;
-
-	src_file = fdget(srcfd);
-	if (!src_file.file) {
-		ret = -EBADF;
-		goto out_drop_write;
-	}
-
-	/* the src must be open for reading */
-	if (!(src_file.file->f_mode & FMODE_READ)) {
-		ret = -EINVAL;
-		goto out_fput;
-	}
-
-	ret = btrfs_clone_files(file, src_file.file, off, olen, destoff);
-
-out_fput:
-	fdput(src_file);
-out_drop_write:
-	mnt_drop_write_file(file);
-	return ret;
-}
-
-static long btrfs_ioctl_clone_range(struct file *file, void __user *argp)
-{
-	struct btrfs_ioctl_clone_range_args args;
-
-	if (copy_from_user(&args, argp, sizeof(args)))
-		return -EFAULT;
-	return btrfs_ioctl_clone(file, args.src_fd, args.src_offset,
-				 args.src_length, args.dest_offset);
+	return btrfs_clone_files(dst_file, src_file, off, len, destoff);
 }
 
 /*
@@ -5498,10 +5459,6 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_dev_info(root, argp);
 	case BTRFS_IOC_BALANCE:
 		return btrfs_ioctl_balance(file, NULL);
-	case BTRFS_IOC_CLONE:
-		return btrfs_ioctl_clone(file, arg, 0, 0, 0);
-	case BTRFS_IOC_CLONE_RANGE:
-		return btrfs_ioctl_clone_range(file, argp);
 	case BTRFS_IOC_TRANS_START:
 		return btrfs_ioctl_trans_start(file);
 	case BTRFS_IOC_TRANS_END:

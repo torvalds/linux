@@ -215,6 +215,29 @@ static int ioctl_fiemap(struct file *filp, unsigned long arg)
 	return error;
 }
 
+static long ioctl_file_clone(struct file *dst_file, unsigned long srcfd,
+			     u64 off, u64 olen, u64 destoff)
+{
+	struct fd src_file = fdget(srcfd);
+	int ret;
+
+	if (!src_file.file)
+		return -EBADF;
+	ret = vfs_clone_file_range(src_file.file, off, dst_file, destoff, olen);
+	fdput(src_file);
+	return ret;
+}
+
+static long ioctl_file_clone_range(struct file *file, void __user *argp)
+{
+	struct file_clone_range args;
+
+	if (copy_from_user(&args, argp, sizeof(args)))
+		return -EFAULT;
+	return ioctl_file_clone(file, args.src_fd, args.src_offset,
+				args.src_length, args.dest_offset);
+}
+
 #ifdef CONFIG_BLOCK
 
 static inline sector_t logical_to_blk(struct inode *inode, loff_t offset)
@@ -599,6 +622,12 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 
 	case FIGETBSZ:
 		return put_user(inode->i_sb->s_blocksize, argp);
+
+	case FICLONE:
+		return ioctl_file_clone(filp, arg, 0, 0, 0);
+
+	case FICLONERANGE:
+		return ioctl_file_clone_range(filp, argp);
 
 	default:
 		if (S_ISREG(inode->i_mode))

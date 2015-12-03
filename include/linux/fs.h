@@ -1629,7 +1629,10 @@ struct file_operations {
 #ifndef CONFIG_MMU
 	unsigned (*mmap_capabilities)(struct file *);
 #endif
-	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
+	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *,
+			loff_t, size_t, unsigned int);
+	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t,
+			u64);
 };
 
 struct inode_operations {
@@ -1683,6 +1686,8 @@ extern ssize_t vfs_writev(struct file *, const struct iovec __user *,
 		unsigned long, loff_t *);
 extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
 				   loff_t, size_t, unsigned int);
+extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
+		struct file *file_out, loff_t pos_out, u64 len);
 
 struct super_operations {
    	struct inode *(*alloc_inode)(struct super_block *sb);
