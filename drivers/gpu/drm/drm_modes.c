@@ -1184,30 +1184,30 @@ EXPORT_SYMBOL(drm_mode_sort);
 void drm_mode_connector_list_update(struct drm_connector *connector,
 				    bool merge_type_bits)
 {
-	struct drm_display_mode *mode;
 	struct drm_display_mode *pmode, *pt;
-	int found_it;
 
 	WARN_ON(!mutex_is_locked(&connector->dev->mode_config.mutex));
 
-	list_for_each_entry_safe(pmode, pt, &connector->probed_modes,
-				 head) {
-		found_it = 0;
+	list_for_each_entry_safe(pmode, pt, &connector->probed_modes, head) {
+		struct drm_display_mode *mode;
+		bool found_it = false;
+
 		/* go through current modes checking for the new probed mode */
 		list_for_each_entry(mode, &connector->modes, head) {
-			if (drm_mode_equal(pmode, mode)) {
-				found_it = 1;
-				/* if equal delete the probed mode */
-				mode->status = pmode->status;
-				/* Merge type bits together */
-				if (merge_type_bits)
-					mode->type |= pmode->type;
-				else
-					mode->type = pmode->type;
-				list_del(&pmode->head);
-				drm_mode_destroy(connector->dev, pmode);
-				break;
-			}
+			if (!drm_mode_equal(pmode, mode))
+				continue;
+
+			found_it = true;
+			/* if equal delete the probed mode */
+			mode->status = pmode->status;
+			/* Merge type bits together */
+			if (merge_type_bits)
+				mode->type |= pmode->type;
+			else
+				mode->type = pmode->type;
+			list_del(&pmode->head);
+			drm_mode_destroy(connector->dev, pmode);
+			break;
 		}
 
 		if (!found_it) {
