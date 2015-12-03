@@ -1246,9 +1246,6 @@ acpi_status acpi_db_user_commands(char prompt, union acpi_parse_object *op)
 			 * and wait for the command to complete.
 			 */
 			acpi_os_release_mutex(acpi_gbl_db_command_ready);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
 
 			status =
 			    acpi_os_acquire_mutex(acpi_gbl_db_command_complete,
