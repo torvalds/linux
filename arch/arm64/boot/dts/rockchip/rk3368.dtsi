@@ -45,6 +45,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/display/rk_fb.h>
 
 / {
 	compatible = "rockchip,rk3368";
@@ -67,6 +68,7 @@
 		spi0 = &spi0;
 		spi1 = &spi1;
 		spi2 = &spi2;
+		lcdc = &lcdc;
 	};
 
 	cpus {
@@ -1039,6 +1041,102 @@
 				rockchip,pins = <3 29 RK_FUNC_3 &pcfg_pull_none>;
 			};
 		};
+
+		lcdc {
+			lcdc_lcdc: lcdc-lcdc {
+				rockchip,pins =
+						<0 14 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D10
+						<0 15 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D11
+						<0 16 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D12
+						<0 17 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D13
+						<0 18 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D14
+						<0 18 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D15
+						<0 20 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D16
+						<0 21 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D17
+						<0 22 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D18
+						<0 23 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D19
+						<0 24 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D20
+						<0 25 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D21
+						<0 26 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D22
+						<0 27 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D23
+						<0 31 RK_FUNC_1 &pcfg_pull_none>,//DCLK
+						<0 30 RK_FUNC_1 &pcfg_pull_none>,//DEN
+						<0 28 RK_FUNC_1 &pcfg_pull_none>,//HSYNC
+						<0 29 RK_FUNC_1 &pcfg_pull_none>;//VSYN
+			};
+
+			lcdc_gpio: lcdc-gpio {
+				rockchip,pins =
+						<0 14 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D10
+						<0 15 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D11
+						<0 16 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D12
+						<0 17 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D13
+						<0 18 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D14
+						<0 19 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D15
+						<0 20 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D16
+						<0 21 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D17
+						<0 22 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D18
+						<0 23 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D19
+						<0 24 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D20
+						<0 25 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D21
+						<0 26 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D22
+						<0 27 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D23
+						<0 31 RK_FUNC_GPIO &pcfg_pull_none>,//DCLK
+						<0 30 RK_FUNC_GPIO &pcfg_pull_none>,//DEN
+						<0 28 RK_FUNC_GPIO &pcfg_pull_none>,//HSYNC
+						<0 29 RK_FUNC_GPIO &pcfg_pull_none>;//VSYN
+			};
+		};
+	};
+
+	fb: fb {
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <NO_DUAL>;
+	};
+
+	rk_screen: rk_screen {
+		compatible = "rockchip,screen";
+	};
+
+	lcdc: lcdc@ff930000 {
+		compatible = "rockchip,rk3368-lcdc";
+		rockchip,grf = <&grf>;
+		rockchip,pmugrf = <&pmugrf>;
+		rockchip,cru = <&cru>;
+		rockchip,prop = <PRMRY>;
+		rockchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <1>;
+		reg = <0x0 0xff930000 0x0 0x10000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
+		/*power-domains = <&power PD_VIO>;*/
+		resets = <&cru SRST_LCDC0_AXI>, <&cru SRST_LCDC0_AHB>, <&cru SRST_LCDC0_DCLK>;
+		reset-names = "axi", "ahb", "dclk";
+	};
+
+	lvds: lvds@ff968000 {
+		compatible = "rockchip,rk3368-lvds";
+		rockchip,grf = <&grf>;
+		reg = <0x0 0xff968000 0x0 0x4000>, <0x0 0xff9600a0 0x0 0x20>;
+		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
+		clocks = <&cru PCLK_DPHYTX0>, <&cru PCLK_MIPI_DSI0>;
+		clock-names = "pclk_lvds", "pclk_lvds_ctl";
+		/*power-domains = <&power PD_VIO>;*/
+		status = "disabled";
+	};
+
+	edp: edp@ff970000 {
+		compatible = "rockchip,rk32-edp";
+		reg = <0x0 0xff970000 0x0 0x4000>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_EDP>, <&cru SCLK_EDP_24M>, <&cru PCLK_EDP_CTRL>;
+		clock-names = "clk_edp", "clk_edp_24m", "pclk_edp";
+		/*power-domains = <&power PD_VIO>;*/
+		resets = <&cru SRST_EDP_24M>, <&cru SRST_EDP>;
+		reset-names = "edp_24m", "edp_apb";
 	};
 
 	iep_mmu {
