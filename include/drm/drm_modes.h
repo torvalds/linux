@@ -483,7 +483,7 @@ enum drm_mode_status drm_mode_validate_size(const struct drm_display_mode *mode,
 void drm_mode_prune_invalid(struct drm_device *dev,
 			    struct list_head *mode_list, bool verbose);
 void drm_mode_sort(struct list_head *mode_list);
-void drm_mode_connector_list_update(struct drm_connector *connector, bool merge_type_bits);
+void drm_mode_connector_list_update(struct drm_connector *connector);
 
 /* parsing cmdline modes */
 bool

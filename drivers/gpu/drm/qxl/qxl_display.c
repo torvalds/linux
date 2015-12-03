@@ -923,7 +923,7 @@ static void qxl_conn_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs qxl_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = qxl_conn_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes_nomerge,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = qxl_conn_set_property,
 	.destroy = qxl_conn_destroy,
 };

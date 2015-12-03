@@ -70,10 +70,6 @@ int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 extern int drm_helper_probe_single_connector_modes(struct drm_connector
 						   *connector, uint32_t maxX,
 						   uint32_t maxY);
-extern int drm_helper_probe_single_connector_modes_nomerge(struct drm_connector
-							   *connector,
-							   uint32_t maxX,
-							   uint32_t maxY);
 extern void drm_kms_helper_poll_init(struct drm_device *dev);
 extern void drm_kms_helper_poll_fini(struct drm_device *dev);
 extern bool drm_helper_hpd_irq_event(struct drm_device *dev);

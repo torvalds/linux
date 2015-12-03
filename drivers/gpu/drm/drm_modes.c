@@ -1172,7 +1172,6 @@ EXPORT_SYMBOL(drm_mode_sort);
 /**
  * drm_mode_connector_list_update - update the mode list for the connector
  * @connector: the connector to update
- * @merge_type_bits: whether to merge or overwrite type bits
  *
  * This moves the modes from the @connector probed_modes list
  * to the actual mode list. It compares the probed mode against the current
@@ -1181,8 +1180,7 @@ EXPORT_SYMBOL(drm_mode_sort);
  * This is just a helper functions doesn't validate any modes itself and also
  * doesn't prune any invalid modes. Callers need to do that themselves.
  */
-void drm_mode_connector_list_update(struct drm_connector *connector,
-				    bool merge_type_bits)
+void drm_mode_connector_list_update(struct drm_connector *connector)
 {
 	struct drm_display_mode *pmode, *pt;
 
@@ -1215,14 +1213,10 @@ void drm_mode_connector_list_update(struct drm_connector *connector,
 				drm_mode_copy(mode, pmode);
 			} else if ((mode->type & DRM_MODE_TYPE_PREFERRED) == 0 &&
 				   (pmode->type & DRM_MODE_TYPE_PREFERRED) != 0) {
-				if (merge_type_bits)
-					pmode->type |= mode->type;
+				pmode->type |= mode->type;
 				drm_mode_copy(mode, pmode);
 			} else {
-				if (merge_type_bits)
-					mode->type |= pmode->type;
-				else
-					mode->type = pmode->type;
+				mode->type |= pmode->type;
 			}
 
 			list_del(&pmode->head);
