@@ -113,7 +113,7 @@ void hns_ppe_get_regs(struct hns_ppe_cb *ppe_cb, void *data);
 
 void hns_ppe_get_strings(struct hns_ppe_cb *ppe_cb, int stringset, u8 *data);
 void hns_ppe_get_stats(struct hns_ppe_cb *ppe_cb, u64 *data);
-
+void hns_ppe_set_tso_enable(struct hns_ppe_cb *ppe_cb, u32 value);
 void hns_ppe_set_rss_key(struct hns_ppe_cb *ppe_cb,
 			 const u32 rss_key[HNS_PPEV2_RSS_KEY_NUM]);
 void hns_ppe_set_indir_table(struct hns_ppe_cb *ppe_cb,

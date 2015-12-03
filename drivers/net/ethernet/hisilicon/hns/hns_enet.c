@@ -223,6 +223,71 @@ static int hns_nic_maybe_stop_tx(
 	return 0;
 }
 
+static int hns_nic_maybe_stop_tso(
+	struct sk_buff **out_skb, int *bnum, struct hnae_ring *ring)
+{
+	int i;
+	int size;
+	int buf_num;
+	int frag_num;
+	struct sk_buff *skb = *out_skb;
+	struct sk_buff *new_skb = NULL;
+	struct skb_frag_struct *frag;
+
+	size = skb_headlen(skb);
+	buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+
+	frag_num = skb_shinfo(skb)->nr_frags;
+	for (i = 0; i < frag_num; i++) {
+		frag = &skb_shinfo(skb)->frags[i];
+		size = skb_frag_size(frag);
+		buf_num += (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+	}
+
+	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
+		buf_num = (skb->len + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+		if (ring_space(ring) < buf_num)
+			return -EBUSY;
+		/* manual split the send packet */
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+		if (!new_skb)
+			return -ENOMEM;
+		dev_kfree_skb_any(skb);
+		*out_skb = new_skb;
+
+	} else if (ring_space(ring) < buf_num) {
+		return -EBUSY;
+	}
+
+	*bnum = buf_num;
+	return 0;
+}
+
+static void fill_tso_desc(struct hnae_ring *ring, void *priv,
+			  int size, dma_addr_t dma, int frag_end,
+			  int buf_num, enum hns_desc_type type, int mtu)
+{
+	int frag_buf_num;
+	int sizeoflast;
+	int k;
+
+	frag_buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+	sizeoflast = size % BD_MAX_SEND_SIZE;
+	sizeoflast = sizeoflast ? sizeoflast : BD_MAX_SEND_SIZE;
+
+	/* when the frag size is bigger than hardware, split this frag */
+	for (k = 0; k < frag_buf_num; k++)
+		fill_v2_desc(ring, priv,
+			     (k == frag_buf_num - 1) ?
+					sizeoflast : BD_MAX_SEND_SIZE,
+			     dma + BD_MAX_SEND_SIZE * k,
+			     frag_end && (k == frag_buf_num - 1) ? 1 : 0,
+			     buf_num,
+			     (type == DESC_TYPE_SKB && !k) ?
+					DESC_TYPE_SKB : DESC_TYPE_PAGE,
+			     mtu);
+}
+
 int hns_nic_net_xmit_hw(struct net_device *ndev,
 			struct sk_buff *skb,
 			struct hns_nic_ring_data *ring_data)
@@ -1637,6 +1702,7 @@ static void hns_nic_uninit_ring_data(struct hns_nic_priv *priv)
 static void hns_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_handle *h = priv->ae_handle;
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		priv->ops.fill_desc = fill_desc;
@@ -1644,8 +1710,17 @@ static void hns_nic_set_priv_ops(struct net_device *netdev)
 		priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
 	} else {
 		priv->ops.get_rxd_bnum = get_v2rx_desc_bnum;
-		priv->ops.fill_desc = fill_v2_desc;
-		priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+		if ((netdev->features & NETIF_F_TSO) ||
+		    (netdev->features & NETIF_F_TSO6)) {
+			priv->ops.fill_desc = fill_tso_desc;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
+			/* This chip only support 7*4096 */
+			netif_set_gso_max_size(netdev, 7 * 4096);
+			h->dev->ops->set_tso_stats(h, 1);
+		} else {
+			priv->ops.fill_desc = fill_v2_desc;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+		}
 	}
 }
 
@@ -1758,9 +1833,10 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 
 	switch (priv->enet_ver) {
 	case AE_VERSION_2:
+		ndev->features |= NETIF_F_TSO | NETIF_F_TSO6;
 		ndev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
-			NETIF_F_GRO;
+			NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6;
 		break;
 	default:
 		break;

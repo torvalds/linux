@@ -277,6 +277,13 @@ static int hns_ae_set_mtu(struct hnae_handle *handle, int new_mtu)
 	return hns_mac_set_mtu(mac_cb, new_mtu);
 }
 
+static void hns_ae_set_tso_stats(struct hnae_handle *handle, int enable)
+{
+	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
+
+	hns_ppe_set_tso_enable(ppe_cb, enable);
+}
+
 static int hns_ae_start(struct hnae_handle *handle)
 {
 	int ret;
@@ -824,6 +831,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.set_mc_addr = hns_ae_set_multicast_one,
 	.set_mtu = hns_ae_set_mtu,
 	.update_stats = hns_ae_update_stats,
+	.set_tso_stats = hns_ae_set_tso_stats,
 	.get_stats = hns_ae_get_stats,
 	.get_strings = hns_ae_get_strings,
 	.get_sset_count = hns_ae_get_sset_count,

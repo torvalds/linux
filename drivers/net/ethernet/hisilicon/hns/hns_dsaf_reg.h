@@ -317,6 +317,7 @@
 #define PPE_CFG_TAG_GEN_REG			0x90
 #define PPE_CFG_PARSE_TAG_REG			0x94
 #define PPE_CFG_PRO_CHECK_EN_REG		0x98
+#define PPEV2_CFG_TSO_EN_REG                    0xA0
 #define PPE_INTEN_REG				0x100
 #define PPE_RINT_REG				0x104
 #define PPE_INTSTS_REG				0x108
