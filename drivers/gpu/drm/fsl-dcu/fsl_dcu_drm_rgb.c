@@ -171,14 +171,18 @@ int fsl_dcu_drm_connector_create(struct fsl_dcu_drm_device *fsl_dev,
 				      DRM_MODE_DPMS_OFF);
 
 	panel_node = of_parse_phandle(fsl_dev->np, "fsl,panel", 0);
-	if (panel_node) {
-		fsl_dev->connector.panel = of_drm_find_panel(panel_node);
-		if (!fsl_dev->connector.panel) {
-			ret = -EPROBE_DEFER;
-			goto err_sysfs;
-		}
-	of_node_put(panel_node);
+	if (!panel_node) {
+		dev_err(fsl_dev->dev, "fsl,panel property not found\n");
+		ret = -ENODEV;
+		goto err_sysfs;
 	}
+
+	fsl_dev->connector.panel = of_drm_find_panel(panel_node);
+	if (!fsl_dev->connector.panel) {
+		ret = -EPROBE_DEFER;
+		goto err_panel;
+	}
+	of_node_put(panel_node);
 
 	ret = drm_panel_attach(fsl_dev->connector.panel, connector);
 	if (ret) {
@@ -188,6 +192,8 @@ int fsl_dcu_drm_connector_create(struct fsl_dcu_drm_device *fsl_dev,
 
 	return 0;
 
+err_panel:
+	of_node_put(panel_node);
 err_sysfs:
 	drm_connector_unregister(connector);
 err_cleanup:
