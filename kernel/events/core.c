@@ -1766,6 +1766,20 @@ int __perf_event_disable(void *info)
 	return 0;
 }
 
+void ___perf_event_disable(void *info)
+{
+	struct perf_event *event = info;
+
+	/*
+	 * Since we have the lock this context can't be scheduled
+	 * in, so we can change the state safely.
+	 */
+	if (event->state == PERF_EVENT_STATE_INACTIVE) {
+		update_group_times(event);
+		event->state = PERF_EVENT_STATE_OFF;
+	}
+}
+
 /*
  * Disable a event.
  *
@@ -1782,43 +1796,16 @@ int __perf_event_disable(void *info)
 static void _perf_event_disable(struct perf_event *event)
 {
 	struct perf_event_context *ctx = event->ctx;
-	struct task_struct *task = ctx->task;
-
-	if (!task) {
-		/*
-		 * Disable the event on the cpu that it's on
-		 */
-		cpu_function_call(event->cpu, __perf_event_disable, event);
-		return;
-	}
-
-retry:
-	if (!task_function_call(task, __perf_event_disable, event))
-		return;
 
 	raw_spin_lock_irq(&ctx->lock);
-	/*
-	 * If the event is still active, we need to retry the cross-call.
-	 */
-	if (event->state == PERF_EVENT_STATE_ACTIVE) {
+	if (event->state <= PERF_EVENT_STATE_OFF) {
 		raw_spin_unlock_irq(&ctx->lock);
-		/*
-		 * Reload the task pointer, it might have been changed by
-		 * a concurrent perf_event_context_sched_out().
-		 */
-		task = ctx->task;
-		goto retry;
-	}
-
-	/*
-	 * Since we have the lock this context can't be scheduled
-	 * in, so we can change the state safely.
-	 */
-	if (event->state == PERF_EVENT_STATE_INACTIVE) {
-		update_group_times(event);
-		event->state = PERF_EVENT_STATE_OFF;
+		return;
 	}
 	raw_spin_unlock_irq(&ctx->lock);
+
+	event_function_call(event, __perf_event_disable,
+			    ___perf_event_disable, event);
 }
 
 /*
@@ -2269,6 +2256,11 @@ unlock:
 	return 0;
 }
 
+void ___perf_event_enable(void *info)
+{
+	__perf_event_mark_enabled((struct perf_event *)info);
+}
+
 /*
  * Enable a event.
  *
@@ -2281,58 +2273,26 @@ unlock:
 static void _perf_event_enable(struct perf_event *event)
 {
 	struct perf_event_context *ctx = event->ctx;
-	struct task_struct *task = ctx->task;
-
-	if (!task) {
-		/*
-		 * Enable the event on the cpu that it's on
-		 */
-		cpu_function_call(event->cpu, __perf_event_enable, event);
-		return;
-	}
 
 	raw_spin_lock_irq(&ctx->lock);
-	if (event->state >= PERF_EVENT_STATE_INACTIVE)
-		goto out;
+	if (event->state >= PERF_EVENT_STATE_INACTIVE) {
+		raw_spin_unlock_irq(&ctx->lock);
+		return;
+	}
 
 	/*
 	 * If the event is in error state, clear that first.
-	 * That way, if we see the event in error state below, we
-	 * know that it has gone back into error state, as distinct
-	 * from the task having been scheduled away before the
-	 * cross-call arrived.
+	 *
+	 * That way, if we see the event in error state below, we know that it
+	 * has gone back into error state, as distinct from the task having
+	 * been scheduled away before the cross-call arrived.
 	 */
 	if (event->state == PERF_EVENT_STATE_ERROR)
 		event->state = PERF_EVENT_STATE_OFF;
-
-retry:
-	if (!ctx->is_active) {
-		__perf_event_mark_enabled(event);
-		goto out;
-	}
-
 	raw_spin_unlock_irq(&ctx->lock);
 
-	if (!task_function_call(task, __perf_event_enable, event))
-		return;
-
-	raw_spin_lock_irq(&ctx->lock);
-
-	/*
-	 * If the context is active and the event is still off,
-	 * we need to retry the cross-call.
-	 */
-	if (ctx->is_active && event->state == PERF_EVENT_STATE_OFF) {
-		/*
-		 * task could have been flipped by a concurrent
-		 * perf_event_context_sched_out()
-		 */
-		task = ctx->task;
-		goto retry;
-	}
-
-out:
-	raw_spin_unlock_irq(&ctx->lock);
+	event_function_call(event, __perf_event_enable,
+			    ___perf_event_enable, event);
 }
 
 /*
