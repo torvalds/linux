@@ -197,6 +197,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	struct spi_lm70llp	*pp;
 	struct spi_master	*master;
 	int			status;
+	struct pardev_cb	lm70llp_cb;
 
 	if (lm70llp) {
 		printk(KERN_WARNING
@@ -228,9 +229,11 @@ static void spi_lm70llp_attach(struct parport *p)
 	 * Parport hookup
 	 */
 	pp->port = p;
-	pd = parport_register_device(p, DRVNAME,
-				     NULL, NULL, NULL,
-				     PARPORT_FLAG_EXCL, pp);
+	memset(&lm70llp_cb, 0, sizeof(lm70llp_cb));
+	lm70llp_cb.private = pp;
+	lm70llp_cb.flags = PARPORT_FLAG_EXCL;
+	pd = parport_register_dev_model(p, DRVNAME, &lm70llp_cb, 0);
+
 	if (!pd) {
 		status = -ENOMEM;
 		goto out_free_master;
@@ -322,8 +325,9 @@ static void spi_lm70llp_detach(struct parport *p)
 
 static struct parport_driver spi_lm70llp_drv = {
 	.name =		DRVNAME,
-	.attach =	spi_lm70llp_attach,
+	.match_port =	spi_lm70llp_attach,
 	.detach =	spi_lm70llp_detach,
+	.devmodel =	true,
 };
 
 static int __init init_spi_lm70llp(void)
