@@ -253,12 +253,9 @@ static void process_interval(void)
 
 static void handle_initial_delay(void)
 {
-	struct perf_evsel *counter;
-
 	if (initial_delay) {
 		usleep(initial_delay * 1000);
-		evlist__for_each(evsel_list, counter)
-			perf_evsel__enable(counter);
+		perf_evlist__enable(evsel_list);
 	}
 }
 
