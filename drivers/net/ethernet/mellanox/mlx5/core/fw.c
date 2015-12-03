@@ -160,6 +160,30 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 		if (err)
 			return err;
 	}
+
+	if (MLX5_CAP_GEN(dev, vport_group_manager) &&
+	    MLX5_CAP_GEN(dev, eswitch_flow_table)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH_FLOW_TABLE,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH_FLOW_TABLE,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, vport_group_manager)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 

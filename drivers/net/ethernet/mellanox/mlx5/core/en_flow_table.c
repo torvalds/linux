@@ -502,6 +502,49 @@ add_eth_addr_rule_out:
 	return err;
 }
 
+static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
+{
+	struct net_device *ndev = priv->netdev;
+	int max_list_size;
+	int list_size;
+	u16 *vlans;
+	int vlan;
+	int err;
+	int i;
+
+	list_size = 0;
+	for_each_set_bit(vlan, priv->vlan.active_vlans, VLAN_N_VID)
+		list_size++;
+
+	max_list_size = 1 << MLX5_CAP_GEN(priv->mdev, log_max_vlan_list);
+
+	if (list_size > max_list_size) {
+		netdev_warn(ndev,
+			    "netdev vlans list size (%d) > (%d) max vport list size, some vlans will be dropped\n",
+			    list_size, max_list_size);
+		list_size = max_list_size;
+	}
+
+	vlans = kcalloc(list_size, sizeof(*vlans), GFP_KERNEL);
+	if (!vlans)
+		return -ENOMEM;
+
+	i = 0;
+	for_each_set_bit(vlan, priv->vlan.active_vlans, VLAN_N_VID) {
+		if (i >= list_size)
+			break;
+		vlans[i++] = vlan;
+	}
+
+	err = mlx5_modify_nic_vport_vlans(priv->mdev, vlans, list_size);
+	if (err)
+		netdev_err(ndev, "Failed to modify vport vlans list err(%d)\n",
+			   err);
+
+	kfree(vlans);
+	return err;
+}
+
 enum mlx5e_vlan_rule_type {
 	MLX5E_VLAN_RULE_TYPE_UNTAGGED,
 	MLX5E_VLAN_RULE_TYPE_ANY_VID,
@@ -552,6 +595,10 @@ static int mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 			 1);
 		break;
 	default: /* MLX5E_VLAN_RULE_TYPE_MATCH_VID */
+		err = mlx5e_vport_context_update_vlans(priv);
+		if (err)
+			goto add_vlan_rule_out;
+
 		ft_ix = &priv->vlan.active_vlans_ft_ix[vid];
 		MLX5_SET(fte_match_param, match_value, outer_headers.vlan_tag,
 			 1);
@@ -588,6 +635,7 @@ static void mlx5e_del_vlan_rule(struct mlx5e_priv *priv,
 	case MLX5E_VLAN_RULE_TYPE_MATCH_VID:
 		mlx5_del_flow_table_entry(priv->ft.vlan,
 					  priv->vlan.active_vlans_ft_ix[vid]);
+		mlx5e_vport_context_update_vlans(priv);
 		break;
 	}
 }
@@ -619,6 +667,8 @@ int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
+	set_bit(vid, priv->vlan.active_vlans);
+
 	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 }
 
@@ -626,6 +676,8 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	clear_bit(vid, priv->vlan.active_vlans);
 
 	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 
@@ -669,6 +721,91 @@ static void mlx5e_sync_netdev_addr(struct mlx5e_priv *priv)
 		mlx5e_add_eth_addr_to_hash(priv->eth_addr.netdev_mc, ha->addr);
 
 	netif_addr_unlock_bh(netdev);
+}
+
+static void mlx5e_fill_addr_array(struct mlx5e_priv *priv, int list_type,
+				  u8 addr_array[][ETH_ALEN], int size)
+{
+	bool is_uc = (list_type == MLX5_NVPRT_LIST_TYPE_UC);
+	struct net_device *ndev = priv->netdev;
+	struct mlx5e_eth_addr_hash_node *hn;
+	struct hlist_head *addr_list;
+	struct hlist_node *tmp;
+	int i = 0;
+	int hi;
+
+	addr_list = is_uc ? priv->eth_addr.netdev_uc : priv->eth_addr.netdev_mc;
+
+	if (is_uc) /* Make sure our own address is pushed first */
+		ether_addr_copy(addr_array[i++], ndev->dev_addr);
+	else if (priv->eth_addr.broadcast_enabled)
+		ether_addr_copy(addr_array[i++], ndev->broadcast);
+
+	mlx5e_for_each_hash_node(hn, tmp, addr_list, hi) {
+		if (ether_addr_equal(ndev->dev_addr, hn->ai.addr))
+			continue;
+		if (i >= size)
+			break;
+		ether_addr_copy(addr_array[i++], hn->ai.addr);
+	}
+}
+
+static void mlx5e_vport_context_update_addr_list(struct mlx5e_priv *priv,
+						 int list_type)
+{
+	bool is_uc = (list_type == MLX5_NVPRT_LIST_TYPE_UC);
+	struct mlx5e_eth_addr_hash_node *hn;
+	u8 (*addr_array)[ETH_ALEN] = NULL;
+	struct hlist_head *addr_list;
+	struct hlist_node *tmp;
+	int max_size;
+	int size;
+	int err;
+	int hi;
+
+	size = is_uc ? 0 : (priv->eth_addr.broadcast_enabled ? 1 : 0);
+	max_size = is_uc ?
+		1 << MLX5_CAP_GEN(priv->mdev, log_max_current_uc_list) :
+		1 << MLX5_CAP_GEN(priv->mdev, log_max_current_mc_list);
+
+	addr_list = is_uc ? priv->eth_addr.netdev_uc : priv->eth_addr.netdev_mc;
+	mlx5e_for_each_hash_node(hn, tmp, addr_list, hi)
+		size++;
+
+	if (size > max_size) {
+		netdev_warn(priv->netdev,
+			    "netdev %s list size (%d) > (%d) max vport list size, some addresses will be dropped\n",
+			    is_uc ? "UC" : "MC", size, max_size);
+		size = max_size;
+	}
+
+	if (size) {
+		addr_array = kcalloc(size, ETH_ALEN, GFP_KERNEL);
+		if (!addr_array) {
+			err = -ENOMEM;
+			goto out;
+		}
+		mlx5e_fill_addr_array(priv, list_type, addr_array, size);
+	}
+
+	err = mlx5_modify_nic_vport_mac_list(priv->mdev, list_type, addr_array, size);
+out:
+	if (err)
+		netdev_err(priv->netdev,
+			   "Failed to modify vport %s list err(%d)\n",
+			   is_uc ? "UC" : "MC", err);
+	kfree(addr_array);
+}
+
+static void mlx5e_vport_context_update(struct mlx5e_priv *priv)
+{
+	struct mlx5e_eth_addr_db *ea = &priv->eth_addr;
+
+	mlx5e_vport_context_update_addr_list(priv, MLX5_NVPRT_LIST_TYPE_UC);
+	mlx5e_vport_context_update_addr_list(priv, MLX5_NVPRT_LIST_TYPE_MC);
+	mlx5_modify_nic_vport_promisc(priv->mdev, 0,
+				      ea->allmulti_enabled,
+				      ea->promisc_enabled);
 }
 
 static void mlx5e_apply_netdev_addr(struct mlx5e_priv *priv)
@@ -748,6 +885,8 @@ void mlx5e_set_rx_mode_work(struct work_struct *work)
 	ea->promisc_enabled   = promisc_enabled;
 	ea->allmulti_enabled  = allmulti_enabled;
 	ea->broadcast_enabled = broadcast_enabled;
+
+	mlx5e_vport_context_update(priv);
 }
 
 void mlx5e_init_eth_addr(struct mlx5e_priv *priv)
