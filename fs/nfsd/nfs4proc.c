@@ -1012,6 +1012,47 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 }
 
 static __be32
+nfsd4_clone(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		struct nfsd4_clone *clone)
+{
+	struct file *src, *dst;
+	__be32 status;
+
+	status = nfs4_preprocess_stateid_op(rqstp, cstate, &cstate->save_fh,
+					    &clone->cl_src_stateid, RD_STATE,
+					    &src, NULL);
+	if (status) {
+		dprintk("NFSD: %s: couldn't process src stateid!\n", __func__);
+		goto out;
+	}
+
+	status = nfs4_preprocess_stateid_op(rqstp, cstate, &cstate->current_fh,
+					    &clone->cl_dst_stateid, WR_STATE,
+					    &dst, NULL);
+	if (status) {
+		dprintk("NFSD: %s: couldn't process dst stateid!\n", __func__);
+		goto out_put_src;
+	}
+
+	/* fix up for NFS-specific error code */
+	if (!S_ISREG(file_inode(src)->i_mode) ||
+	    !S_ISREG(file_inode(dst)->i_mode)) {
+		status = nfserr_wrong_type;
+		goto out_put_dst;
+	}
+
+	status = nfsd4_clone_file_range(src, clone->cl_src_pos,
+			dst, clone->cl_dst_pos, clone->cl_count);
+
+out_put_dst:
+	fput(dst);
+out_put_src:
+	fput(src);
+out:
+	return status;
+}
+
+static __be32
 nfsd4_fallocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		struct nfsd4_fallocate *fallocate, int flags)
 {
@@ -2279,6 +2320,12 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_deallocate,
 		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
 		.op_name = "OP_DEALLOCATE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
+	},
+	[OP_CLONE] = {
+		.op_func = (nfsd4op_func)nfsd4_clone,
+		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
+		.op_name = "OP_CLONE",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_SEEK] = {
