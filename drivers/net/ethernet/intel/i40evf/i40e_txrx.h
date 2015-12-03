@@ -324,4 +324,19 @@ int i40evf_setup_rx_descriptors(struct i40e_ring *rx_ring);
 void i40evf_free_tx_resources(struct i40e_ring *tx_ring);
 void i40evf_free_rx_resources(struct i40e_ring *rx_ring);
 int i40evf_napi_poll(struct napi_struct *napi, int budget);
+u32 i40evf_get_tx_pending(struct i40e_ring *ring);
+
+/**
+ * i40e_get_head - Retrieve head from head writeback
+ * @tx_ring: Tx ring to fetch head of
+ *
+ * Returns value of Tx ring head based on value stored
+ * in head write-back location
+ **/
+static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
+{
+	void *head = (struct i40e_tx_desc *)tx_ring->desc + tx_ring->count;
+
+	return le32_to_cpu(*(volatile __le32 *)head);
+}
 #endif /* _I40E_TXRX_H_ */

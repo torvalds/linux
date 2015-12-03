@@ -51,11 +51,7 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 					    struct i40e_tx_buffer *tx_buffer)
 {
 	if (tx_buffer->skb) {
-		if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
-			kfree(tx_buffer->raw_buf);
-		else
-			dev_kfree_skb_any(tx_buffer->skb);
-
+		dev_kfree_skb_any(tx_buffer->skb);
 		if (dma_unmap_len(tx_buffer, len))
 			dma_unmap_single(ring->dev,
 					 dma_unmap_addr(tx_buffer, dma),
@@ -67,6 +63,10 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 			       dma_unmap_len(tx_buffer, len),
 			       DMA_TO_DEVICE);
 	}
+
+	if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
+		kfree(tx_buffer->raw_buf);
+
 	tx_buffer->next_to_watch = NULL;
 	tx_buffer->skb = NULL;
 	dma_unmap_len_set(tx_buffer, len, 0);
@@ -127,17 +127,24 @@ void i40evf_free_tx_resources(struct i40e_ring *tx_ring)
 }
 
 /**
- * i40e_get_head - Retrieve head from head writeback
- * @tx_ring:  tx ring to fetch head of
+ * i40evf_get_tx_pending - how many Tx descriptors not processed
+ * @tx_ring: the ring of descriptors
  *
- * Returns value of Tx ring head based on value stored
- * in head write-back location
+ * Since there is no access to the ring head register
+ * in XL710, we need to use our local copies
  **/
-static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
+u32 i40evf_get_tx_pending(struct i40e_ring *ring)
 {
-	void *head = (struct i40e_tx_desc *)tx_ring->desc + tx_ring->count;
+	u32 head, tail;
 
-	return le32_to_cpu(*(volatile __le32 *)head);
+	head = i40e_get_head(ring);
+	tail = readl(ring->tail);
+
+	if (head != tail)
+		return (head < tail) ?
+			tail - head : (tail + ring->count - head);
+
+	return 0;
 }
 
 #define WB_STRIDE 0x3
@@ -404,7 +411,7 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	return false;
 }
 
-/*
+/**
  * i40evf_setup_tx_descriptors - Allocate the Tx descriptors
  * @tx_ring: the tx ring to set up
  *
@@ -1252,10 +1259,12 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
 		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
 	}
+
 	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting)) {
 		tx = i40e_set_new_dynamic_itr(&q_vector->tx);
 		txval = i40e_buildreg_itr(I40E_TX_ITR, q_vector->tx.itr);
 	}
+
 	if (rx || tx) {
 		/* get the higher of the two ITR adjustments and
 		 * use the same value for both ITR registers
@@ -1291,7 +1300,6 @@ enable_int:
 		q_vector->itr_countdown--;
 	else
 		q_vector->itr_countdown = ITR_COUNTDOWN_START;
-
 }
 
 /**
@@ -1324,7 +1332,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	 */
 	i40e_for_each_ring(ring, q_vector->tx) {
 		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
-		arm_wb |= ring->arm_wb;
+		arm_wb = arm_wb || ring->arm_wb;
 		ring->arm_wb = false;
 	}
 
@@ -1545,7 +1553,6 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 			*tx_flags |= I40E_TX_FLAGS_IPV6;
 		}
 
-
 		if ((tx_ring->flags & I40E_TXR_FLAGS_OUTER_UDP_CSUM) &&
 		    (l4_tunnel == I40E_TXD_CTX_UDP_TUNNELING)        &&
 		    (*cd_tunneling & I40E_TXD_CTX_QW0_EXT_IP_MASK)) {
@@ -1644,7 +1651,7 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 	context_desc->type_cmd_tso_mss = cpu_to_le64(cd_type_cmd_tso_mss);
 }
 
- /**
+/**
  * i40e_chk_linearize - Check if there are more than 8 fragments per packet
  * @skb:      send buffer
  * @tx_flags: collected send information
@@ -1840,7 +1847,6 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		tx_bi = &tx_ring->tx_bi[i];
 	}
 
-#define WB_STRIDE 0x3
 	/* set next_to_watch value indicating a packet is present */
 	first->next_to_watch = tx_desc;
 
@@ -1867,12 +1873,6 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 *			update tail and set RS bit on every packet.
 	 *	if xmit_more is false and last_xmit_more was true
 	 *		update tail and set RS bit.
-	 * else (kernel < 3.18)
-	 *	if every packet spanned less than 4 desc
-	 *		then set RS bit on 4th packet and update tail
-	 *		on every packet
-	 *	else
-	 *		set RS bit on EOP for every packet and update tail
 	 *
 	 * Optimization: wmb to be issued only in case of tail update.
 	 * Also optimize the Descriptor WB path for RS bit with the same

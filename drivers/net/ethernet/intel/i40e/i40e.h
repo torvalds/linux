@@ -42,7 +42,6 @@
 #include <linux/string.h>
 #include <linux/in.h>
 #include <linux/ip.h>
-#include <linux/tcp.h>
 #include <linux/sctp.h>
 #include <linux/pkt_sched.h>
 #include <linux/ipv6.h>
@@ -104,6 +103,7 @@
 #define I40E_PRIV_FLAGS_LINKPOLL_FLAG	BIT(1)
 #define I40E_PRIV_FLAGS_FD_ATR		BIT(2)
 #define I40E_PRIV_FLAGS_VEB_STATS	BIT(3)
+#define I40E_PRIV_FLAGS_PS		BIT(4)
 
 #define I40E_NVM_VERSION_LO_SHIFT  0
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
@@ -281,7 +281,7 @@ struct i40e_pf {
 	u32 fd_atr_cnt;
 	u32 fd_tcp_rule;
 
-#ifdef CONFIG_I40E_VXLAN
+#if IS_ENABLED(CONFIG_VXLAN)
 	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
 	u16 pending_vxlan_bitmap;
 
@@ -322,9 +322,7 @@ struct i40e_pf {
 #define I40E_FLAG_FD_ATR_ENABLED		BIT_ULL(22)
 #define I40E_FLAG_PTP				BIT_ULL(25)
 #define I40E_FLAG_MFP_ENABLED			BIT_ULL(26)
-#ifdef CONFIG_I40E_VXLAN
 #define I40E_FLAG_VXLAN_FILTER_SYNC		BIT_ULL(27)
-#endif
 #define I40E_FLAG_PORT_ID_VALID			BIT_ULL(28)
 #define I40E_FLAG_DCB_CAPABLE			BIT_ULL(29)
 #define I40E_FLAG_RSS_AQ_CAPABLE		BIT_ULL(31)
@@ -579,6 +577,9 @@ struct i40e_q_vector {
 
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 
+#define I40E_Q_VECTOR_HUNG_DETECT 0 /* Bit Index for hung detection logic */
+	unsigned long hung_detected; /* Set/Reset for hung_detection logic */
+
 	cpumask_t affinity_mask;
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[I40E_INT_NAME_STR_LEN];
@@ -606,8 +607,8 @@ static inline char *i40e_nvm_version_str(struct i40e_hw *hw)
 
 	full_ver = hw->nvm.oem_ver;
 	ver = (u8)(full_ver >> I40E_OEM_VER_SHIFT);
-	build = (u16)((full_ver >> I40E_OEM_VER_BUILD_SHIFT)
-		 & I40E_OEM_VER_BUILD_MASK);
+	build = (u16)((full_ver >> I40E_OEM_VER_BUILD_SHIFT) &
+		 I40E_OEM_VER_BUILD_MASK);
 	patch = (u8)(full_ver & I40E_OEM_VER_PATCH_MASK);
 
 	snprintf(buf, sizeof(buf),
@@ -715,7 +716,7 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
 void i40e_veb_release(struct i40e_veb *veb);
 
 int i40e_veb_config_tc(struct i40e_veb *veb, u8 enabled_tc);
-i40e_status i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid);
+int i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid);
 void i40e_vsi_remove_pvid(struct i40e_vsi *vsi);
 void i40e_vsi_reset_stats(struct i40e_vsi *vsi);
 void i40e_pf_reset_stats(struct i40e_pf *pf);
