@@ -1198,26 +1198,43 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	return ret;
 }
 
-static int bond_master_upper_dev_link(struct net_device *bond_dev,
-				      struct net_device *slave_dev,
-				      struct slave *slave)
+static enum netdev_lag_tx_type bond_lag_tx_type(struct bonding *bond)
 {
+	switch (BOND_MODE(bond)) {
+	case BOND_MODE_ROUNDROBIN:
+		return NETDEV_LAG_TX_TYPE_ROUNDROBIN;
+	case BOND_MODE_ACTIVEBACKUP:
+		return NETDEV_LAG_TX_TYPE_ACTIVEBACKUP;
+	case BOND_MODE_BROADCAST:
+		return NETDEV_LAG_TX_TYPE_BROADCAST;
+	case BOND_MODE_XOR:
+	case BOND_MODE_8023AD:
+		return NETDEV_LAG_TX_TYPE_HASH;
+	default:
+		return NETDEV_LAG_TX_TYPE_UNKNOWN;
+	}
+}
+
+static int bond_master_upper_dev_link(struct bonding *bond, struct slave *slave)
+{
+	struct netdev_lag_upper_info lag_upper_info;
 	int err;
 
-	err = netdev_master_upper_dev_link(slave_dev, bond_dev, slave, NULL);
+	lag_upper_info.tx_type = bond_lag_tx_type(bond);
+	err = netdev_master_upper_dev_link(slave->dev, bond->dev, slave,
+					   &lag_upper_info);
 	if (err)
 		return err;
-	slave_dev->flags |= IFF_SLAVE;
-	rtmsg_ifinfo(RTM_NEWLINK, slave_dev, IFF_SLAVE, GFP_KERNEL);
+	slave->dev->flags |= IFF_SLAVE;
+	rtmsg_ifinfo(RTM_NEWLINK, slave->dev, IFF_SLAVE, GFP_KERNEL);
 	return 0;
 }
 
-static void bond_upper_dev_unlink(struct net_device *bond_dev,
-				  struct net_device *slave_dev)
+static void bond_upper_dev_unlink(struct bonding *bond, struct slave *slave)
 {
-	netdev_upper_dev_unlink(slave_dev, bond_dev);
-	slave_dev->flags &= ~IFF_SLAVE;
-	rtmsg_ifinfo(RTM_NEWLINK, slave_dev, IFF_SLAVE, GFP_KERNEL);
+	netdev_upper_dev_unlink(slave->dev, bond->dev);
+	slave->dev->flags &= ~IFF_SLAVE;
+	rtmsg_ifinfo(RTM_NEWLINK, slave->dev, IFF_SLAVE, GFP_KERNEL);
 }
 
 static struct slave *bond_alloc_slave(struct bonding *bond)
@@ -1662,7 +1679,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_detach;
 	}
 
-	res = bond_master_upper_dev_link(bond_dev, slave_dev, new_slave);
+	res = bond_master_upper_dev_link(bond, new_slave);
 	if (res) {
 		netdev_dbg(bond_dev, "Error %d calling bond_master_upper_dev_link\n", res);
 		goto err_unregister;
@@ -1698,7 +1715,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 /* Undo stages on error */
 err_upper_unlink:
-	bond_upper_dev_unlink(bond_dev, slave_dev);
+	bond_upper_dev_unlink(bond, new_slave);
 
 err_unregister:
 	netdev_rx_handler_unregister(slave_dev);
@@ -1804,7 +1821,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 	/* recompute stats just before removing the slave */
 	bond_get_stats(bond->dev, &bond->bond_stats);
 
-	bond_upper_dev_unlink(bond_dev, slave_dev);
+	bond_upper_dev_unlink(bond, slave);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
 	 */
