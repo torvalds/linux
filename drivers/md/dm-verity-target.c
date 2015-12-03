@@ -31,8 +31,9 @@
 
 #define DM_VERITY_OPT_LOGGING		"ignore_corruption"
 #define DM_VERITY_OPT_RESTART		"restart_on_corruption"
+#define DM_VERITY_OPT_IGN_ZEROES	"ignore_zero_blocks"
 
-#define DM_VERITY_OPTS_MAX		(1 + DM_VERITY_OPTS_FEC)
+#define DM_VERITY_OPTS_MAX		(2 + DM_VERITY_OPTS_FEC)
 
 static unsigned dm_verity_prefetch_cluster = DM_VERITY_DEFAULT_PREFETCH_SIZE;
 
@@ -309,10 +310,9 @@ release_ret_r:
  * of the hash tree if necessary.
  */
 int verity_hash_for_block(struct dm_verity *v, struct dm_verity_io *io,
-			  sector_t block, u8 *digest)
+			  sector_t block, u8 *digest, bool *is_zero)
 {
-	int i;
-	int r;
+	int r = 0, i;
 
 	if (likely(v->levels)) {
 		/*
@@ -324,7 +324,7 @@ int verity_hash_for_block(struct dm_verity *v, struct dm_verity_io *io,
 		 */
 		r = verity_verify_level(v, io, block, 0, true, digest);
 		if (likely(r <= 0))
-			return r;
+			goto out;
 	}
 
 	memcpy(digest, v->root_digest, v->digest_size);
@@ -332,10 +332,15 @@ int verity_hash_for_block(struct dm_verity *v, struct dm_verity_io *io,
 	for (i = v->levels - 1; i >= 0; i--) {
 		r = verity_verify_level(v, io, block, i, false, digest);
 		if (unlikely(r))
-			return r;
+			goto out;
 	}
+out:
+	if (!r && v->zero_digest)
+		*is_zero = !memcmp(v->zero_digest, digest, v->digest_size);
+	else
+		*is_zero = false;
 
-	return 0;
+	return r;
 }
 
 /*
@@ -382,11 +387,19 @@ static int verity_bv_hash_update(struct dm_verity *v, struct dm_verity_io *io,
 	return verity_hash_update(v, verity_io_hash_desc(v, io), data, len);
 }
 
+static int verity_bv_zero(struct dm_verity *v, struct dm_verity_io *io,
+			  u8 *data, size_t len)
+{
+	memset(data, 0, len);
+	return 0;
+}
+
 /*
  * Verify one "dm_verity_io" structure.
  */
 static int verity_verify_io(struct dm_verity_io *io)
 {
+	bool is_zero;
 	struct dm_verity *v = io->v;
 	struct bvec_iter start;
 	unsigned b;
@@ -396,9 +409,23 @@ static int verity_verify_io(struct dm_verity_io *io)
 		struct shash_desc *desc = verity_io_hash_desc(v, io);
 
 		r = verity_hash_for_block(v, io, io->block + b,
-					  verity_io_want_digest(v, io));
+					  verity_io_want_digest(v, io),
+					  &is_zero);
 		if (unlikely(r < 0))
 			return r;
+
+		if (is_zero) {
+			/*
+			 * If we expect a zero block, don't validate, just
+			 * return zeros.
+			 */
+			r = verity_for_bv_block(v, io, &io->iter,
+						verity_bv_zero);
+			if (unlikely(r < 0))
+				return r;
+
+			continue;
+		}
 
 		r = verity_hash_init(v, desc);
 		if (unlikely(r < 0))
@@ -604,6 +631,8 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 			args++;
 		if (verity_fec_is_enabled(v))
 			args += DM_VERITY_OPTS_FEC;
+		if (v->zero_digest)
+			args++;
 		if (!args)
 			return;
 		DMEMIT(" %u", args);
@@ -620,6 +649,8 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 				BUG();
 			}
 		}
+		if (v->zero_digest)
+			DMEMIT(" " DM_VERITY_OPT_IGN_ZEROES);
 		sz = verity_fec_status_table(v, sz, result, maxlen);
 		break;
 	}
@@ -671,6 +702,7 @@ static void verity_dtr(struct dm_target *ti)
 
 	kfree(v->salt);
 	kfree(v->root_digest);
+	kfree(v->zero_digest);
 
 	if (v->tfm)
 		crypto_free_shash(v->tfm);
@@ -686,6 +718,37 @@ static void verity_dtr(struct dm_target *ti)
 	verity_fec_dtr(v);
 
 	kfree(v);
+}
+
+static int verity_alloc_zero_digest(struct dm_verity *v)
+{
+	int r = -ENOMEM;
+	struct shash_desc *desc;
+	u8 *zero_data;
+
+	v->zero_digest = kmalloc(v->digest_size, GFP_KERNEL);
+
+	if (!v->zero_digest)
+		return r;
+
+	desc = kmalloc(v->shash_descsize, GFP_KERNEL);
+
+	if (!desc)
+		return r; /* verity_dtr will free zero_digest */
+
+	zero_data = kzalloc(1 << v->data_dev_block_bits, GFP_KERNEL);
+
+	if (!zero_data)
+		goto out;
+
+	r = verity_hash(v, desc, zero_data, 1 << v->data_dev_block_bits,
+			v->zero_digest);
+
+out:
+	kfree(desc);
+	kfree(zero_data);
+
+	return r;
 }
 
 static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v)
@@ -716,6 +779,14 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v)
 
 		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_RESTART)) {
 			v->mode = DM_VERITY_MODE_RESTART;
+			continue;
+
+		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_IGN_ZEROES)) {
+			r = verity_alloc_zero_digest(v);
+			if (r) {
+				ti->error = "Cannot allocate zero digest";
+				return r;
+			}
 			continue;
 
 		} else if (verity_is_fec_opt_arg(arg_name)) {
