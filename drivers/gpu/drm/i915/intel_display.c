@@ -2598,6 +2598,8 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	struct drm_plane_state *plane_state = primary->state;
 	struct drm_crtc_state *crtc_state = intel_crtc->base.state;
 	struct intel_plane *intel_plane = to_intel_plane(primary);
+	struct intel_plane_state *intel_state =
+		to_intel_plane_state(plane_state);
 	struct drm_framebuffer *fb;
 
 	if (!plane_config->fb)
@@ -2658,6 +2660,15 @@ valid_fb:
 	plane_state->crtc_y = 0;
 	plane_state->crtc_w = fb->width;
 	plane_state->crtc_h = fb->height;
+
+	intel_state->src.x1 = plane_state->src_x;
+	intel_state->src.y1 = plane_state->src_y;
+	intel_state->src.x2 = plane_state->src_x + plane_state->src_w;
+	intel_state->src.y2 = plane_state->src_y + plane_state->src_h;
+	intel_state->dst.x1 = plane_state->crtc_x;
+	intel_state->dst.y1 = plane_state->crtc_y;
+	intel_state->dst.x2 = plane_state->crtc_x + plane_state->crtc_w;
+	intel_state->dst.y2 = plane_state->crtc_y + plane_state->crtc_h;
 
 	obj = intel_fb_obj(fb);
 	if (obj->tiling_mode != I915_TILING_NONE)
