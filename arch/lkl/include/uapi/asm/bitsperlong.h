@@ -1,5 +1,5 @@
-#ifndef _ASM_UAPI_LKL_AUTOCONF_H
-#define _ASM_UAPI_LKL_AUTOCONF_H
+#ifndef _ASM_UAPI_LKL_BITSPERLONG_H
+#define _ASM_UAPI_LKL_BITSPERLONG_H
 
 #ifdef CONFIG_64BIT
 #define __BITS_PER_LONG 64
@@ -9,4 +9,4 @@
 
 #define __ARCH_WANT_STAT64
 
-#endif /* _ASM_UAPI_LKL_TARGET_H */
+#endif /* _ASM_UAPI_LKL_BITSPERLONG_H */
