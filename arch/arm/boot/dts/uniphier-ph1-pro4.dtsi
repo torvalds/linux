@@ -151,7 +151,7 @@
 			reg = <0x54006b00 0x40>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart3>;
-			interrupts = <0 29 4>;
+			interrupts = <0 177 4>;
 			clocks = <&uart_clk>;
 			fifo-size = <64>;
 		};
