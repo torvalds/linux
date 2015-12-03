@@ -159,7 +159,7 @@ static inline bool bbm_in_data_chunk(struct gpmi_nand_data *this,
 	struct mtd_info *mtd = &this->mtd;
 	unsigned int i, j;
 
-	if (geo->ecc_chunk0_size != geo->ecc_chunk0_size) {
+	if (geo->ecc_chunk0_size != geo->ecc_chunkn_size) {
 		dev_err(this->dev, "The size of chunk0 must equal to chunkn\n");
 		return false;
 	}
