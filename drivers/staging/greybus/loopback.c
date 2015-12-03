@@ -774,6 +774,8 @@ static int gb_loopback_fn(void *data)
 			mutex_unlock(&gb->mutex);
 			goto sleep;
 		}
+		mutex_unlock(&gb->mutex);
+
 		/* Else operations to perform */
 		gb->apbridge_latency_ts = 0;
 		gb->gpbridge_latency_ts = 0;
@@ -783,7 +785,6 @@ static int gb_loopback_fn(void *data)
 			error = gb_loopback_transfer(gb, size);
 		else if (type == GB_LOOPBACK_TYPE_SINK)
 			error = gb_loopback_sink(gb, size);
-		mutex_unlock(&gb->mutex);
 
 		mutex_lock(&gb_dev.mutex);
 		mutex_lock(&gb->mutex);
