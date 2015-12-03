@@ -433,7 +433,6 @@ enum {
 
 static int do_test_code_reading(bool try_kcore)
 {
-	struct machines machines;
 	struct machine *machine;
 	struct thread *thread;
 	struct record_opts opts = {
@@ -459,8 +458,7 @@ static int do_test_code_reading(bool try_kcore)
 
 	pid = getpid();
 
-	machines__init(&machines);
-	machine = &machines.host;
+	machine = machine__new_host();
 
 	ret = machine__create_kernel_maps(machine);
 	if (ret < 0) {
@@ -594,9 +592,8 @@ out_err:
 		cpu_map__put(cpus);
 		thread_map__put(threads);
 	}
-	machines__destroy_kernel_maps(&machines);
 	machine__delete_threads(machine);
-	machines__exit(&machines);
+	machine__delete(machine);
 
 	return err;
 }
