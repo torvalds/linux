@@ -858,6 +858,14 @@
 			#reset-cells = <1>;
 		};
 
+		nmi_intc: interrupt-controller@080015a0 {
+			compatible = "allwinner,sun9i-a80-nmi";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x080015a0 0xc>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		r_ir: ir@08002000 {
 			compatible = "allwinner,sun5i-a13-ir";
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
