@@ -25,8 +25,8 @@
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-#define _PAGE_COMBO	0x00020000 /* this is a combo 4k page */
-#define _PAGE_4K_PFN	0x00040000 /* PFN is for a single 4k page */
+#define _PAGE_COMBO	0x00040000 /* this is a combo 4k page */
+#define _PAGE_4K_PFN	0x00080000 /* PFN is for a single 4k page */
 /*
  * Used to track subpage group valid if _PAGE_COMBO is set
  * This overloads _PAGE_F_GIX and _PAGE_F_SECOND

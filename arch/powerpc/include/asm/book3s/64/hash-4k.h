@@ -52,7 +52,7 @@
 			 _PAGE_F_SECOND | _PAGE_F_GIX)
 
 /* shift to put page number into pte */
-#define PTE_RPN_SHIFT	(17)
+#define PTE_RPN_SHIFT	(18)
 
 #define _PAGE_4K_PFN		0
 #ifndef __ASSEMBLY__
