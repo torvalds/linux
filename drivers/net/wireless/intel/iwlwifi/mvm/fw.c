@@ -74,6 +74,7 @@
 #include "iwl-eeprom-parse.h"
 
 #include "mvm.h"
+#include "fw-dbg.h"
 #include "iwl-phy-db.h"
 
 #define MVM_UCODE_ALIVE_TIMEOUT	HZ
@@ -803,137 +804,6 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 	IWL_DEBUG_INFO(mvm, "SHARED MEM CFG: got memory offsets/sizes\n");
 
 	iwl_free_resp(&cmd);
-}
-
-int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
-				struct iwl_mvm_dump_desc *desc,
-				struct iwl_fw_dbg_trigger_tlv *trigger)
-{
-	unsigned int delay = 0;
-
-	if (trigger)
-		delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
-
-	if (test_and_set_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status))
-		return -EBUSY;
-
-	if (WARN_ON(mvm->fw_dump_desc))
-		iwl_mvm_free_fw_dump_desc(mvm);
-
-	IWL_WARN(mvm, "Collecting data: trigger %d fired.\n",
-		 le32_to_cpu(desc->trig_desc.type));
-
-	mvm->fw_dump_desc = desc;
-	mvm->fw_dump_trig = trigger;
-
-	queue_delayed_work(system_wq, &mvm->fw_dump_wk, delay);
-
-	return 0;
-}
-
-int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   const char *str, size_t len,
-			   struct iwl_fw_dbg_trigger_tlv *trigger)
-{
-	struct iwl_mvm_dump_desc *desc;
-
-	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
-	if (!desc)
-		return -ENOMEM;
-
-	desc->len = len;
-	desc->trig_desc.type = cpu_to_le32(trig);
-	memcpy(desc->trig_desc.data, str, len);
-
-	return iwl_mvm_fw_dbg_collect_desc(mvm, desc, trigger);
-}
-
-int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
-				struct iwl_fw_dbg_trigger_tlv *trigger,
-				const char *fmt, ...)
-{
-	u16 occurrences = le16_to_cpu(trigger->occurrences);
-	int ret, len = 0;
-	char buf[64];
-
-	if (!occurrences)
-		return 0;
-
-	if (fmt) {
-		va_list ap;
-
-		buf[sizeof(buf) - 1] = '\0';
-
-		va_start(ap, fmt);
-		vsnprintf(buf, sizeof(buf), fmt, ap);
-		va_end(ap);
-
-		/* check for truncation */
-		if (WARN_ON_ONCE(buf[sizeof(buf) - 1]))
-			buf[sizeof(buf) - 1] = '\0';
-
-		len = strlen(buf) + 1;
-	}
-
-	ret = iwl_mvm_fw_dbg_collect(mvm, le32_to_cpu(trigger->id), buf, len,
-				     trigger);
-
-	if (ret)
-		return ret;
-
-	trigger->occurrences = cpu_to_le16(occurrences - 1);
-	return 0;
-}
-
-static inline void iwl_mvm_restart_early_start(struct iwl_mvm *mvm)
-{
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000)
-		iwl_clear_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
-	else
-		iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, 1);
-}
-
-int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 conf_id)
-{
-	u8 *ptr;
-	int ret;
-	int i;
-
-	if (WARN_ONCE(conf_id >= ARRAY_SIZE(mvm->fw->dbg_conf_tlv),
-		      "Invalid configuration %d\n", conf_id))
-		return -EINVAL;
-
-	/* EARLY START - firmware's configuration is hard coded */
-	if ((!mvm->fw->dbg_conf_tlv[conf_id] ||
-	     !mvm->fw->dbg_conf_tlv[conf_id]->num_of_hcmds) &&
-	    conf_id == FW_DBG_START_FROM_ALIVE) {
-		iwl_mvm_restart_early_start(mvm);
-		return 0;
-	}
-
-	if (!mvm->fw->dbg_conf_tlv[conf_id])
-		return -EINVAL;
-
-	if (mvm->fw_dbg_conf != FW_DBG_INVALID)
-		IWL_WARN(mvm, "FW already configured (%d) - re-configuring\n",
-			 mvm->fw_dbg_conf);
-
-	/* Send all HCMDs for configuring the FW debug */
-	ptr = (void *)&mvm->fw->dbg_conf_tlv[conf_id]->hcmd;
-	for (i = 0; i < mvm->fw->dbg_conf_tlv[conf_id]->num_of_hcmds; i++) {
-		struct iwl_fw_dbg_conf_hcmd *cmd = (void *)ptr;
-
-		ret = iwl_mvm_send_cmd_pdu(mvm, cmd->id, 0,
-					   le16_to_cpu(cmd->len), cmd->data);
-		if (ret)
-			return ret;
-
-		ptr += sizeof(*cmd);
-		ptr += le16_to_cpu(cmd->len);
-	}
-
-	mvm->fw_dbg_conf = conf_id;
-	return ret;
 }
 
 static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)

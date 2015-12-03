@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +71,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL7260_UCODE_API_MAX	17
+#define IWL7260_UCODE_API_MAX	19
 
 /* Oldest version we won't warn about */
 #define IWL7260_UCODE_API_OK	13
@@ -265,6 +267,17 @@ static const struct iwl_ht_params iwl7265_ht_params = {
 
 const struct iwl_cfg iwl3165_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 3165",
+	.fw_name_pre = IWL7265D_FW_PRE,
+	IWL_DEVICE_7000,
+	.ht_params = &iwl7000_ht_params,
+	.nvm_ver = IWL3165_NVM_VERSION,
+	.nvm_calib_ver = IWL3165_TX_POWER_VERSION,
+	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
+	.dccm_len = IWL7265_DCCM_LEN,
+};
+
+const struct iwl_cfg iwl3168_2ac_cfg = {
+	.name = "Intel(R) Dual Band Wireless AC 3168",
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7000,
 	.ht_params = &iwl7000_ht_params,

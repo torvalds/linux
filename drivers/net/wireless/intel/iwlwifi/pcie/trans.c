@@ -1435,11 +1435,9 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 		memcpy(trans_pcie->no_reclaim_cmds, trans_cfg->no_reclaim_cmds,
 		       trans_pcie->n_no_reclaim_cmds * sizeof(u8));
 
-	trans_pcie->rx_buf_size_8k = trans_cfg->rx_buf_size_8k;
-	if (trans_pcie->rx_buf_size_8k)
-		trans_pcie->rx_page_order = get_order(8 * 1024);
-	else
-		trans_pcie->rx_page_order = get_order(4 * 1024);
+	trans_pcie->rx_buf_size = trans_cfg->rx_buf_size;
+	trans_pcie->rx_page_order =
+		iwl_trans_get_rb_size_order(trans_pcie->rx_buf_size);
 
 	trans_pcie->wide_cmd_header = trans_cfg->wide_cmd_header;
 	trans_pcie->command_names = trans_cfg->command_names;
@@ -2109,13 +2107,11 @@ DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_READ_FILE_OPS(tx_queue);
 DEBUGFS_WRITE_FILE_OPS(csr);
 
-/*
- * Create the debugfs files and directories
- *
- */
-static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
-					 struct dentry *dir)
+/* Create the debugfs files and directories */
+int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 {
+	struct dentry *dir = trans->dbgfs_dir;
+
 	DEBUGFS_ADD_FILE(rx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(interrupt, dir, S_IWUSR | S_IRUSR);
@@ -2126,12 +2122,6 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 err:
 	IWL_ERR(trans, "failed to create the trans debugfs entry\n");
 	return -ENOMEM;
-}
-#else
-static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
-					 struct dentry *dir)
-{
-	return 0;
 }
 #endif /*CONFIG_IWLWIFI_DEBUGFS */
 
@@ -2144,144 +2134,6 @@ static u32 iwl_trans_pcie_get_cmdlen(struct iwl_tfd *tfd)
 		cmdlen += iwl_pcie_tfd_tb_get_len(tfd, i);
 
 	return cmdlen;
-}
-
-static const struct {
-	u32 start, end;
-} iwl_prph_dump_addr[] = {
-	{ .start = 0x00a00000, .end = 0x00a00000 },
-	{ .start = 0x00a0000c, .end = 0x00a00024 },
-	{ .start = 0x00a0002c, .end = 0x00a0003c },
-	{ .start = 0x00a00410, .end = 0x00a00418 },
-	{ .start = 0x00a00420, .end = 0x00a00420 },
-	{ .start = 0x00a00428, .end = 0x00a00428 },
-	{ .start = 0x00a00430, .end = 0x00a0043c },
-	{ .start = 0x00a00444, .end = 0x00a00444 },
-	{ .start = 0x00a004c0, .end = 0x00a004cc },
-	{ .start = 0x00a004d8, .end = 0x00a004d8 },
-	{ .start = 0x00a004e0, .end = 0x00a004f0 },
-	{ .start = 0x00a00840, .end = 0x00a00840 },
-	{ .start = 0x00a00850, .end = 0x00a00858 },
-	{ .start = 0x00a01004, .end = 0x00a01008 },
-	{ .start = 0x00a01010, .end = 0x00a01010 },
-	{ .start = 0x00a01018, .end = 0x00a01018 },
-	{ .start = 0x00a01024, .end = 0x00a01024 },
-	{ .start = 0x00a0102c, .end = 0x00a01034 },
-	{ .start = 0x00a0103c, .end = 0x00a01040 },
-	{ .start = 0x00a01048, .end = 0x00a01094 },
-	{ .start = 0x00a01c00, .end = 0x00a01c20 },
-	{ .start = 0x00a01c58, .end = 0x00a01c58 },
-	{ .start = 0x00a01c7c, .end = 0x00a01c7c },
-	{ .start = 0x00a01c28, .end = 0x00a01c54 },
-	{ .start = 0x00a01c5c, .end = 0x00a01c5c },
-	{ .start = 0x00a01c60, .end = 0x00a01cdc },
-	{ .start = 0x00a01ce0, .end = 0x00a01d0c },
-	{ .start = 0x00a01d18, .end = 0x00a01d20 },
-	{ .start = 0x00a01d2c, .end = 0x00a01d30 },
-	{ .start = 0x00a01d40, .end = 0x00a01d5c },
-	{ .start = 0x00a01d80, .end = 0x00a01d80 },
-	{ .start = 0x00a01d98, .end = 0x00a01d9c },
-	{ .start = 0x00a01da8, .end = 0x00a01da8 },
-	{ .start = 0x00a01db8, .end = 0x00a01df4 },
-	{ .start = 0x00a01dc0, .end = 0x00a01dfc },
-	{ .start = 0x00a01e00, .end = 0x00a01e2c },
-	{ .start = 0x00a01e40, .end = 0x00a01e60 },
-	{ .start = 0x00a01e68, .end = 0x00a01e6c },
-	{ .start = 0x00a01e74, .end = 0x00a01e74 },
-	{ .start = 0x00a01e84, .end = 0x00a01e90 },
-	{ .start = 0x00a01e9c, .end = 0x00a01ec4 },
-	{ .start = 0x00a01ed0, .end = 0x00a01ee0 },
-	{ .start = 0x00a01f00, .end = 0x00a01f1c },
-	{ .start = 0x00a01f44, .end = 0x00a01ffc },
-	{ .start = 0x00a02000, .end = 0x00a02048 },
-	{ .start = 0x00a02068, .end = 0x00a020f0 },
-	{ .start = 0x00a02100, .end = 0x00a02118 },
-	{ .start = 0x00a02140, .end = 0x00a0214c },
-	{ .start = 0x00a02168, .end = 0x00a0218c },
-	{ .start = 0x00a021c0, .end = 0x00a021c0 },
-	{ .start = 0x00a02400, .end = 0x00a02410 },
-	{ .start = 0x00a02418, .end = 0x00a02420 },
-	{ .start = 0x00a02428, .end = 0x00a0242c },
-	{ .start = 0x00a02434, .end = 0x00a02434 },
-	{ .start = 0x00a02440, .end = 0x00a02460 },
-	{ .start = 0x00a02468, .end = 0x00a024b0 },
-	{ .start = 0x00a024c8, .end = 0x00a024cc },
-	{ .start = 0x00a02500, .end = 0x00a02504 },
-	{ .start = 0x00a0250c, .end = 0x00a02510 },
-	{ .start = 0x00a02540, .end = 0x00a02554 },
-	{ .start = 0x00a02580, .end = 0x00a025f4 },
-	{ .start = 0x00a02600, .end = 0x00a0260c },
-	{ .start = 0x00a02648, .end = 0x00a02650 },
-	{ .start = 0x00a02680, .end = 0x00a02680 },
-	{ .start = 0x00a026c0, .end = 0x00a026d0 },
-	{ .start = 0x00a02700, .end = 0x00a0270c },
-	{ .start = 0x00a02804, .end = 0x00a02804 },
-	{ .start = 0x00a02818, .end = 0x00a0281c },
-	{ .start = 0x00a02c00, .end = 0x00a02db4 },
-	{ .start = 0x00a02df4, .end = 0x00a02fb0 },
-	{ .start = 0x00a03000, .end = 0x00a03014 },
-	{ .start = 0x00a0301c, .end = 0x00a0302c },
-	{ .start = 0x00a03034, .end = 0x00a03038 },
-	{ .start = 0x00a03040, .end = 0x00a03048 },
-	{ .start = 0x00a03060, .end = 0x00a03068 },
-	{ .start = 0x00a03070, .end = 0x00a03074 },
-	{ .start = 0x00a0307c, .end = 0x00a0307c },
-	{ .start = 0x00a03080, .end = 0x00a03084 },
-	{ .start = 0x00a0308c, .end = 0x00a03090 },
-	{ .start = 0x00a03098, .end = 0x00a03098 },
-	{ .start = 0x00a030a0, .end = 0x00a030a0 },
-	{ .start = 0x00a030a8, .end = 0x00a030b4 },
-	{ .start = 0x00a030bc, .end = 0x00a030bc },
-	{ .start = 0x00a030c0, .end = 0x00a0312c },
-	{ .start = 0x00a03c00, .end = 0x00a03c5c },
-	{ .start = 0x00a04400, .end = 0x00a04454 },
-	{ .start = 0x00a04460, .end = 0x00a04474 },
-	{ .start = 0x00a044c0, .end = 0x00a044ec },
-	{ .start = 0x00a04500, .end = 0x00a04504 },
-	{ .start = 0x00a04510, .end = 0x00a04538 },
-	{ .start = 0x00a04540, .end = 0x00a04548 },
-	{ .start = 0x00a04560, .end = 0x00a0457c },
-	{ .start = 0x00a04590, .end = 0x00a04598 },
-	{ .start = 0x00a045c0, .end = 0x00a045f4 },
-};
-
-static u32 iwl_trans_pcie_dump_prph(struct iwl_trans *trans,
-				    struct iwl_fw_error_dump_data **data)
-{
-	struct iwl_fw_error_dump_prph *prph;
-	unsigned long flags;
-	u32 prph_len = 0, i;
-
-	if (!iwl_trans_grab_nic_access(trans, false, &flags))
-		return 0;
-
-	for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr); i++) {
-		/* The range includes both boundaries */
-		int num_bytes_in_chunk = iwl_prph_dump_addr[i].end -
-			 iwl_prph_dump_addr[i].start + 4;
-		int reg;
-		__le32 *val;
-
-		prph_len += sizeof(**data) + sizeof(*prph) + num_bytes_in_chunk;
-
-		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PRPH);
-		(*data)->len = cpu_to_le32(sizeof(*prph) +
-					num_bytes_in_chunk);
-		prph = (void *)(*data)->data;
-		prph->prph_start = cpu_to_le32(iwl_prph_dump_addr[i].start);
-		val = (void *)prph->data;
-
-		for (reg = iwl_prph_dump_addr[i].start;
-		     reg <= iwl_prph_dump_addr[i].end;
-		     reg += 4)
-			*val++ = cpu_to_le32(iwl_trans_pcie_read_prph(trans,
-								      reg));
-		*data = iwl_fw_error_next_data(*data);
-	}
-
-	iwl_trans_release_nic_access(trans, &flags);
-
-	return prph_len;
 }
 
 static u32 iwl_trans_pcie_dump_rbs(struct iwl_trans *trans,
@@ -2384,10 +2236,11 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 	if (!iwl_trans_grab_nic_access(trans, false, &flags))
 		return 0;
 
-	__iwl_write_prph(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
+	iwl_write_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
 	for (i = 0; i < buf_size_in_dwords; i++)
-		buffer[i] = __iwl_read_prph(trans, MON_DMARB_RD_DATA_ADDR);
-	__iwl_write_prph(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
+		buffer[i] = iwl_read_prph_no_grab(trans,
+				MON_DMARB_RD_DATA_ADDR);
+	iwl_write_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
 
 	iwl_trans_release_nic_access(trans, &flags);
 
@@ -2535,16 +2388,6 @@ static struct iwl_trans_dump_data
 	/* CSR registers */
 	len += sizeof(*data) + IWL_CSR_TO_DUMP;
 
-	/* PRPH registers */
-	for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr); i++) {
-		/* The range includes both boundaries */
-		int num_bytes_in_chunk = iwl_prph_dump_addr[i].end -
-			iwl_prph_dump_addr[i].start + 4;
-
-		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_prph) +
-		       num_bytes_in_chunk;
-	}
-
 	/* FH registers */
 	len += sizeof(*data) + (FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND);
 
@@ -2592,7 +2435,6 @@ static struct iwl_trans_dump_data
 	len += sizeof(*data);
 	data = iwl_fw_error_next_data(data);
 
-	len += iwl_trans_pcie_dump_prph(trans, &data);
 	len += iwl_trans_pcie_dump_csr(trans, &data);
 	len += iwl_trans_pcie_fh_regs_dump(trans, &data);
 	if (dump_rbs)
@@ -2622,8 +2464,6 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 	.txq_disable = iwl_trans_pcie_txq_disable,
 	.txq_enable = iwl_trans_pcie_txq_enable,
-
-	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,
 	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
@@ -2775,10 +2615,10 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 			u32 hw_step;
 
-			hw_step = __iwl_read_prph(trans, WFPM_CTRL_REG);
+			hw_step = iwl_read_prph_no_grab(trans, WFPM_CTRL_REG);
 			hw_step |= ENABLE_WFPM;
-			__iwl_write_prph(trans, WFPM_CTRL_REG, hw_step);
-			hw_step = __iwl_read_prph(trans, AUX_MISC_REG);
+			iwl_write_prph_no_grab(trans, WFPM_CTRL_REG, hw_step);
+			hw_step = iwl_read_prph_no_grab(trans, AUX_MISC_REG);
 			hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
 			if (hw_step == 0x3)
 				trans->hw_rev = (trans->hw_rev & 0xFFFFFFF3) |

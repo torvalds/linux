@@ -61,10 +61,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
+#include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include "iwl-trans.h"
 #include "mvm.h"
 #include "fw-api.h"
+#include "fw-dbg.h"
 
 /*
  * iwl_mvm_rx_rx_phy_cmd - REPLY_RX_PHY_CMD handler
@@ -261,7 +263,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_phy_info *phy_info;
 	struct iwl_rx_mpdu_res_start *rx_res;
-	struct ieee80211_sta *sta;
+	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u32 len;
 	u32 ampdu_status;
@@ -332,21 +334,32 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 			      (unsigned long long)rx_status->mactime);
 
 	rcu_read_lock();
-	/*
-	 * We have tx blocked stations (with CS bit). If we heard frames from
-	 * a blocked station on a new channel we can TX to it again.
-	 */
-	if (unlikely(mvm->csa_tx_block_bcn_timeout)) {
-		sta = ieee80211_find_sta(
-			rcu_dereference(mvm->csa_tx_blocked_vif), hdr->addr2);
-		if (sta)
-			iwl_mvm_sta_modify_disable_tx_ap(mvm, sta, false);
+	if (rx_pkt_status & RX_MPDU_RES_STATUS_SRC_STA_FOUND) {
+		u32 id = rx_pkt_status & RX_MPDU_RES_STATUS_STA_ID_MSK;
+
+		id >>= RX_MDPU_RES_STATUS_STA_ID_SHIFT;
+
+		if (!WARN_ON_ONCE(id >= IWL_MVM_STATION_COUNT)) {
+			sta = rcu_dereference(mvm->fw_id_to_mac_id[id]);
+			if (IS_ERR(sta))
+				sta = NULL;
+		}
+	} else if (!is_multicast_ether_addr(hdr->addr2)) {
+		/* This is fine since we prevent two stations with the same
+		 * address from being added.
+		 */
+		sta = ieee80211_find_sta_by_ifaddr(mvm->hw, hdr->addr2, NULL);
 	}
 
-	/* This is fine since we don't support multiple AP interfaces */
-	sta = ieee80211_find_sta_by_ifaddr(mvm->hw, hdr->addr2, NULL);
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+		/* We have tx blocked stations (with CS bit). If we heard
+		 * frames from a blocked station on a new channel we can
+		 * TX to it again.
+		 */
+		if (unlikely(mvm->csa_tx_block_bcn_timeout))
+			iwl_mvm_sta_modify_disable_tx_ap(mvm, sta, false);
 
 		rs_update_last_rssi(mvm, &mvmsta->lq_sta, rx_status);
 
@@ -368,11 +381,10 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 			if (trig_check && rx_status->signal < rssi)
 				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL);
 		}
+
+		if (ieee80211_is_data(hdr->frame_control))
+			iwl_mvm_rx_csum(sta, skb, rx_pkt_status);
 	}
-
-	if (sta && ieee80211_is_data(hdr->frame_control))
-		iwl_mvm_rx_csum(sta, skb, rx_pkt_status);
-
 	rcu_read_unlock();
 
 	/* set the preamble flag if appropriate */

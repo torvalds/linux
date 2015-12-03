@@ -26,7 +26,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -303,20 +303,6 @@ iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
 		return false;
 
 	return conf_tlv->usniffer;
-}
-
-#define iwl_fw_dbg_trigger_enabled(fw, id) ({			\
-	void *__dbg_trigger = (fw)->dbg_trigger_tlv[(id)];	\
-	unlikely(__dbg_trigger);				\
-})
-
-static inline struct iwl_fw_dbg_trigger_tlv*
-iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, u8 id)
-{
-	if (WARN_ON(id >= ARRAY_SIZE(fw->dbg_trigger_tlv)))
-		return NULL;
-
-	return fw->dbg_trigger_tlv[id];
 }
 
 #endif  /* __iwl_fw_h__ */

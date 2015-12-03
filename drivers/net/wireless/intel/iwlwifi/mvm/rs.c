@@ -1827,7 +1827,7 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 		rate->type = lq_sta->is_vht ? LQ_VHT_MIMO2 : LQ_HT_MIMO2;
 		rate_mask = lq_sta->active_mimo2_rate;
 	} else {
-		WARN_ON_ONCE("Bad column mode");
+		WARN_ONCE(1, "Bad column mode");
 	}
 
 	if (column->mode != RS_LEGACY) {
@@ -3454,14 +3454,8 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 	 * Tx Fifo so that it can start a transaction in the same TxOP. This
 	 * basically allows the firmware to send bursts.
 	 */
-	if (iwl_mvm_vif_low_latency(mvmvif)) {
+	if (iwl_mvm_vif_low_latency(mvmvif))
 		lq_cmd->agg_frame_cnt_limit--;
-
-		if (mvm->low_latency_agg_frame_limit)
-			lq_cmd->agg_frame_cnt_limit =
-				min(lq_cmd->agg_frame_cnt_limit,
-				    mvm->low_latency_agg_frame_limit);
-	}
 
 	if (mvmsta->vif->p2p)
 		lq_cmd->flags |= LQ_FLAG_USE_RTS_MSK;

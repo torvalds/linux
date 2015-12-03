@@ -423,6 +423,22 @@ enum iwl_trans_status {
 	STATUS_TRANS_DEAD,
 };
 
+static inline int
+iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
+{
+	switch (rb_size) {
+	case IWL_AMSDU_4K:
+		return get_order(4 * 1024);
+	case IWL_AMSDU_8K:
+		return get_order(8 * 1024);
+	case IWL_AMSDU_12K:
+		return get_order(12 * 1024);
+	default:
+		WARN_ON(1);
+		return -1;
+	}
+}
+
 /**
  * struct iwl_trans_config - transport configuration
  *
@@ -436,7 +452,7 @@ enum iwl_trans_status {
  *	list of such notifications to filter. Max length is
  *	%MAX_NO_RECLAIM_CMDS.
  * @n_no_reclaim_cmds: # of commands in list
- * @rx_buf_size_8k: 8 kB RX buffer size needed for A-MSDUs,
+ * @rx_buf_size: RX buffer size needed for A-MSDUs
  *	if unset 4k will be the RX buffer size
  * @bc_table_dword: set to true if the BC table expects the byte count to be
  *	in DWORD (as opposed to bytes)
@@ -456,7 +472,7 @@ struct iwl_trans_config {
 	const u8 *no_reclaim_cmds;
 	unsigned int n_no_reclaim_cmds;
 
-	bool rx_buf_size_8k;
+	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;
 	bool scd_set_active;
 	bool wide_cmd_header;
@@ -526,8 +542,6 @@ struct iwl_trans_txq_scd_cfg {
  * @wait_tx_queue_empty: wait until tx queues are empty. May sleep.
  * @freeze_txq_timer: prevents the timer of the queue from firing until the
  *	queue is set to awake. Must be atomic.
- * @dbgfs_register: add the dbgfs files under this directory. Files will be
- *	automatically deleted.
  * @write8: write a u8 to a register at offset ofs from the BAR
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
@@ -583,7 +597,6 @@ struct iwl_trans_ops {
 	void (*txq_disable)(struct iwl_trans *trans, int queue,
 			    bool configure_scd);
 
-	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
 				 bool freeze);
@@ -1004,12 +1017,6 @@ static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans,
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 
 	return trans->ops->wait_tx_queue_empty(trans, txqs);
-}
-
-static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
-					   struct dentry *dir)
-{
-	return trans->ops->dbgfs_register(trans, dir);
 }
 
 static inline void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)

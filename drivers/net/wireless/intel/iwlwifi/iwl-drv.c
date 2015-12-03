@@ -451,7 +451,9 @@ static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
 	int i;
 
 	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_API, 32)) {
-		IWL_ERR(drv, "api_index larger than supported by driver\n");
+		IWL_ERR(drv,
+			"api flags index %d larger than supported by driver\n",
+			api_index);
 		/* don't return an error so we can load FW that has more bits */
 		return 0;
 	}
@@ -473,7 +475,9 @@ static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
 	int i;
 
 	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_CAPA, 32)) {
-		IWL_ERR(drv, "api_index larger than supported by driver\n");
+		IWL_ERR(drv,
+			"capa flags index %d larger than supported by driver\n",
+			api_index);
 		/* don't return an error so we can load FW that has more bits */
 		return 0;
 	}
@@ -1323,6 +1327,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		sizeof(struct iwl_fw_dbg_trigger_time_event);
 	trigger_tlv_sz[FW_DBG_TRIGGER_BA] =
 		sizeof(struct iwl_fw_dbg_trigger_ba);
+	trigger_tlv_sz[FW_DBG_TRIGGER_TDLS] =
+		sizeof(struct iwl_fw_dbg_trigger_tdls);
 
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++) {
 		if (pieces->dbg_trigger_tlv[i]) {
@@ -1539,6 +1545,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
 	.d0i3_disable = true,
+	.d0i3_entry_delay = 1000,
 #ifndef CONFIG_IWLWIFI_UAPSD
 	.uapsd_disable = true,
 #endif /* CONFIG_IWLWIFI_UAPSD */
@@ -1637,9 +1644,9 @@ MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, S_IRUGO);
 MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: disable agg TX, 4: disable agg RX, 8 enable agg TX");
-module_param_named(amsdu_size_8K, iwlwifi_mod_params.amsdu_size_8K,
+module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size,
 		   int, S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0)");
+MODULE_PARM_DESC(amsdu_size, "amsdu size 0:4K 1:8K 2:12K (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, bool, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
@@ -1704,3 +1711,7 @@ MODULE_PARM_DESC(power_level,
 module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
 MODULE_PARM_DESC(fw_monitor,
 		 "firmware monitor - to debug FW (default: false - needs lots of memory)");
+
+module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_entry_delay,
+		   uint, S_IRUGO);
+MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");

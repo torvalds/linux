@@ -21,7 +21,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -55,9 +55,9 @@ u32 iwl_read_direct32(struct iwl_trans *trans, u32 reg);
 void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value);
 
 
-u32 __iwl_read_prph(struct iwl_trans *trans, u32 ofs);
+u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs);
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs);
-void __iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val);
+void iwl_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val);
 void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val);
 int iwl_poll_prph_bit(struct iwl_trans *trans, u32 addr,
 		      u32 bits, u32 mask, int timeout);

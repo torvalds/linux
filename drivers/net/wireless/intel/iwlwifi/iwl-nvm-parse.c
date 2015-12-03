@@ -26,7 +26,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -379,8 +379,19 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 	else
 		vht_cap->cap |= IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN;
 
-	if (iwlwifi_mod_params.amsdu_size_8K)
+	switch (iwlwifi_mod_params.amsdu_size) {
+	case IWL_AMSDU_4K:
+		vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
+		break;
+	case IWL_AMSDU_8K:
 		vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991;
+		break;
+	case IWL_AMSDU_12K:
+		vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
+		break;
+	default:
+		break;
+	}
 
 	vht_cap->vht_mcs.rx_mcs_map =
 		cpu_to_le16(IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
@@ -580,15 +591,13 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 	IWL_ERR_DEV(dev, "mac address is not found\n");
 }
 
-#define IWL_4165_DEVICE_ID 0x5501
-
 struct iwl_nvm_data *
 iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, const __le16 *phy_sku,
 		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported,
-		   u32 mac_addr0, u32 mac_addr1, u32 hw_id)
+		   u32 mac_addr0, u32 mac_addr1)
 {
 	struct iwl_nvm_data *data;
 	u32 sku;
@@ -626,17 +635,6 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	data->sku_cap_11ac_enable = data->sku_cap_11n_enable &&
 				    (sku & NVM_SKU_CAP_11AC_ENABLE);
 	data->sku_cap_mimo_disabled = sku & NVM_SKU_CAP_MIMO_DISABLE;
-
-	/*
-	 * OTP 0x52 bug work around
-	 * define antenna 1x1 according to MIMO disabled
-	 */
-	if (hw_id == IWL_4165_DEVICE_ID && data->sku_cap_mimo_disabled) {
-		data->valid_tx_ant = ANT_B;
-		data->valid_rx_ant = ANT_B;
-		tx_chains = ANT_B;
-		rx_chains = ANT_B;
-	}
 
 	data->n_hw_addrs = iwl_get_n_hw_addrs(cfg, nvm_sw);
 

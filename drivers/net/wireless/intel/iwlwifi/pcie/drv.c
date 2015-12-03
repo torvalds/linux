@@ -377,6 +377,10 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x3165, 0x8010, iwl3165_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x3165, 0x8110, iwl3165_2ac_cfg)},
 
+/* 3168 Series */
+	{IWL_PCI_DEVICE(0x24FB, 0x2110, iwl3168_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FB, 0x0000, iwl3168_2ac_cfg)},
+
 /* 7265 Series */
 	{IWL_PCI_DEVICE(0x095A, 0x5010, iwl7265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x095A, 0x5110, iwl7265_2ac_cfg)},
@@ -423,14 +427,21 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 /* 8000 Series */
 	{IWL_PCI_DEVICE(0x24F3, 0x0010, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x1010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0130, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1130, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0132, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1132, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0110, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x01F0, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0012, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1012, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x1110, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0050, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0250, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x1050, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0150, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1150, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F4, 0x0030, iwl8260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x24F4, 0x1130, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F4, 0x1030, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0xC010, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0xC110, iwl8260_2ac_cfg)},
@@ -438,18 +449,43 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x24F3, 0xC050, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0xD050, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x8010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8110, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x9010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9110, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F4, 0x8030, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F4, 0x9030, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8130, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9130, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8132, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9132, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x8050, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8150, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x9050, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9150, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0004, iwl8260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0044, iwl8260_2n_cfg)},
 	{IWL_PCI_DEVICE(0x24F5, 0x0010, iwl4165_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F6, 0x0030, iwl4165_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0810, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0910, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0850, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F3, 0x0950, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0930, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0000, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0010, iwl8265_2ac_cfg)},
+
+/* 9000 Series */
+	{IWL_PCI_DEVICE(0x9DF0, 0x2A10, iwl5165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x2010, iwl5165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0A10, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0010, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0000, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0310, iwl5165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0510, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0710, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0210, iwl5165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0410, iwl9260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0610, iwl9260_2ac_cfg)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
@@ -581,7 +617,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	set_dflt_pwr_limit(iwl_trans, pdev);
 
 	/* register transport layer debugfs here */
-	ret = iwl_trans_dbgfs_register(iwl_trans, iwl_trans->dbgfs_dir);
+	ret = iwl_trans_pcie_dbgfs_register(iwl_trans);
 	if (ret)
 		goto out_free_drv;
 
