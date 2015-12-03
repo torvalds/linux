@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/livepatch.h>
+#include <asm/cacheflush.h>
 
 /**
  * struct klp_ops - structure for tracking registered ftrace ops structs
@@ -232,7 +233,7 @@ static int klp_find_external_symbol(struct module *pmod, const char *name,
 static int klp_write_object_relocations(struct module *pmod,
 					struct klp_object *obj)
 {
-	int ret;
+	int ret = 0;
 	unsigned long val;
 	struct klp_reloc *reloc;
 
@@ -242,13 +243,16 @@ static int klp_write_object_relocations(struct module *pmod,
 	if (WARN_ON(!obj->relocs))
 		return -EINVAL;
 
+	module_disable_ro(pmod);
+
 	for (reloc = obj->relocs; reloc->name; reloc++) {
 		/* discover the address of the referenced symbol */
 		if (reloc->external) {
 			if (reloc->sympos > 0) {
 				pr_err("non-zero sympos for external reloc symbol '%s' is not supported\n",
 				       reloc->name);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto out;
 			}
 			ret = klp_find_external_symbol(pmod, reloc->name, &val);
 		} else
@@ -257,18 +261,20 @@ static int klp_write_object_relocations(struct module *pmod,
 						     reloc->sympos,
 						     &val);
 		if (ret)
-			return ret;
+			goto out;
 
 		ret = klp_write_module_reloc(pmod, reloc->type, reloc->loc,
 					     val + reloc->addend);
 		if (ret) {
 			pr_err("relocation failed for symbol '%s' at 0x%016lx (%d)\n",
 			       reloc->name, val, ret);
-			return ret;
+			goto out;
 		}
 	}
 
-	return 0;
+out:
+	module_enable_ro(pmod);
+	return ret;
 }
 
 static void notrace klp_ftrace_handler(unsigned long ip,
