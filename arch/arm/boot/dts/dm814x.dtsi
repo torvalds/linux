@@ -58,8 +58,10 @@
 		ti,hwmods = "l3_main";
 
 		/*
-		 * See TRM "Table 1-317. L4LS Instance Summary", just deduct
-		 * 0x1000 from the 1-317 addresses to get the device address
+		 * See TRM "Table 1-317. L4LS Instance Summary" for hints.
+		 * It shows the module target agent registers though, so the
+		 * actual device is typically 0x1000 before the target agent
+		 * except in cases where the module is larger than 0x1000.
 		 */
 		l4ls: l4ls@48000000 {
 			compatible = "ti,dm814-l4ls", "simple-bus";
@@ -183,10 +185,10 @@
 
 			control: control@140000 {
 				compatible = "ti,dm814-scm", "simple-bus";
-				reg = <0x140000 0x16d000>;
+				reg = <0x140000 0x20000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0 0x160000 0x16d000>;
+				ranges = <0 0x140000 0x20000>;
 
 				scm_conf: scm_conf@0 {
 					compatible = "syscon";
