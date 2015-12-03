@@ -8,6 +8,17 @@
 
 #include "dp.h"
 
+static void drm_dp_link_caps_reset(struct drm_dp_link_caps *caps)
+{
+	caps->enhanced_framing = false;
+}
+
+void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
+			   const struct drm_dp_link_caps *src)
+{
+	dest->enhanced_framing = src->enhanced_framing;
+}
+
 static void drm_dp_link_reset(struct drm_dp_link *link)
 {
 	if (!link)
@@ -16,7 +27,8 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
 	link->revision = 0;
 	link->max_rate = 0;
 	link->max_lanes = 0;
-	link->capabilities = 0;
+
+	drm_dp_link_caps_reset(&link->caps);
 
 	link->rate = 0;
 	link->lanes = 0;
@@ -49,7 +61,7 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	link->max_lanes = values[2] & DP_MAX_LANE_COUNT_MASK;
 
 	if (values[2] & DP_ENHANCED_FRAME_CAP)
-		link->capabilities |= DP_LINK_CAP_ENHANCED_FRAMING;
+		link->caps.enhanced_framing = true;
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
@@ -139,7 +151,7 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	values[0] = drm_dp_link_rate_to_bw_code(link->rate);
 	values[1] = link->lanes;
 
-	if (link->capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+	if (link->caps.enhanced_framing)
 		values[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 
 	err = drm_dp_dpcd_write(aux, DP_LINK_BW_SET, values, sizeof(values));

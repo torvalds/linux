@@ -977,7 +977,7 @@ static int tegra_sor_compute_config(struct tegra_sor *sor,
 	num = ((mode->htotal - mode->hdisplay) - 7) * link_rate;
 	config->hblank_symbols = div_u64(num, pclk);
 
-	if (link->capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+	if (link->caps.enhanced_framing)
 		config->hblank_symbols -= 3;
 
 	config->hblank_symbols -= 12 / link->lanes;
@@ -1918,7 +1918,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	value &= ~SOR_DP_LINKCTL_LANE_COUNT_MASK;
 	value |= SOR_DP_LINKCTL_LANE_COUNT(lanes);
 
-	if (link.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+	if (link.caps.enhanced_framing)
 		value |= SOR_DP_LINKCTL_ENHANCED_FRAME;
 
 	tegra_sor_writel(sor, value, SOR_DP_LINKCTL0);
