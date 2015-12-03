@@ -103,7 +103,8 @@ int test__perf_evsel__roundtrip_name_test(int subtest __maybe_unused)
 	if (err)
 		ret = err;
 
-	err = perf_evsel__name_array_test(perf_evsel__sw_names);
+	err = __perf_evsel__name_array_test(perf_evsel__sw_names,
+					    PERF_COUNT_SW_DUMMY + 1);
 	if (err)
 		ret = err;
 
