@@ -68,7 +68,7 @@ static const struct snd_soc_dapm_route skylake_rt286_map[] = {
 
 	/* digital mics */
 	{"DMIC1 Pin", NULL, "DMIC2"},
-	{"DMIC AIF", NULL, "SoC DMIC"},
+	{"DMic", NULL, "SoC DMIC"},
 
 	{"WoV Sink", NULL, "hwd_in sink"},
 
@@ -82,7 +82,7 @@ static const struct snd_soc_dapm_route skylake_rt286_map[] = {
 	{ "ssp0 Rx", NULL, "AIF1 Capture" },
 
 	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
-	{ "DMIC01 Rx", NULL, "Capture" },
+	{ "DMIC01 Rx", NULL, "DMIC AIF" },
 
 	{ "hif1", NULL, "iDisp Tx"},
 	{ "iDisp Tx", NULL, "iDisp_out"},
