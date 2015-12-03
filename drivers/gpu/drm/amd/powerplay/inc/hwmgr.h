@@ -29,6 +29,8 @@
 #include "hardwaremanager.h"
 #include "pp_power_source.h"
 #include "hwmgr_ppt.h"
+#include "ppatomctrl.h"
+#include "hwmgr_ppt.h"
 
 struct pp_instance;
 struct pp_hwmgr;
@@ -36,6 +38,28 @@ struct pp_hw_power_state;
 struct pp_power_state;
 struct PP_VCEState;
 struct phm_fan_speed_info;
+struct pp_atomctrl_voltage_table;
+
+
+enum DISPLAY_GAP {
+	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
+	DISPLAY_GAP_VBLANK       = 1,   /* Wait for vblank. */
+	DISPLAY_GAP_WATERMARK    = 2,   /* Wait for MCHG watermark. (Note that HW may deassert WM in VBI depending on DC_STUTTER_CNTL.) */
+	DISPLAY_GAP_IGNORE       = 3    /* Do not wait. */
+};
+typedef enum DISPLAY_GAP DISPLAY_GAP;
+
+
+struct vi_dpm_level {
+	bool enabled;
+	uint32_t value;
+	uint32_t param1;
+};
+
+struct vi_dpm_table {
+	uint32_t count;
+	struct vi_dpm_level dpm_level[1];
+};
 
 enum PP_Result {
 	PP_Result_TableImmediateExit = 0x13,
@@ -628,9 +652,27 @@ extern void phm_wait_for_indirect_register_unequal(
 				uint32_t value,
 				uint32_t mask);
 
-bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr);
-bool phm_cf_want_vce_power_gating(struct pp_hwmgr *hwmgr);
-bool phm_cf_want_microcode_fan_ctrl(struct pp_hwmgr *hwmgr);
+extern bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr);
+extern bool phm_cf_want_vce_power_gating(struct pp_hwmgr *hwmgr);
+extern bool phm_cf_want_microcode_fan_ctrl(struct pp_hwmgr *hwmgr);
+
+extern int phm_trim_voltage_table(struct pp_atomctrl_voltage_table *vol_table);
+extern int phm_get_svi2_mvdd_voltage_table(struct pp_atomctrl_voltage_table *vol_table, phm_ppt_v1_clock_voltage_dependency_table *dep_table);
+extern int phm_get_svi2_vddci_voltage_table(struct pp_atomctrl_voltage_table *vol_table, phm_ppt_v1_clock_voltage_dependency_table *dep_table);
+extern int phm_get_svi2_vdd_voltage_table(struct pp_atomctrl_voltage_table *vol_table, phm_ppt_v1_voltage_lookup_table *lookup_table);
+extern void phm_trim_voltage_table_to_fit_state_table(uint32_t max_vol_steps, struct pp_atomctrl_voltage_table *vol_table);
+extern int phm_reset_single_dpm_table(void *table, uint32_t count, int max);
+extern void phm_setup_pcie_table_entry(void *table, uint32_t index, uint32_t pcie_gen, uint32_t pcie_lanes);
+extern int32_t phm_get_dpm_level_enable_mask_value(void *table);
+extern uint8_t phm_get_voltage_index(struct phm_ppt_v1_voltage_lookup_table *lookup_table, uint16_t voltage);
+extern uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, uint16_t vddci);
+extern int phm_find_boot_level(void *table, uint32_t value, uint32_t *boot_level);
+extern int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr, phm_ppt_v1_voltage_lookup_table *lookup_table,
+								uint16_t virtual_voltage_id, int32_t *sclk);
+extern int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
+extern int phm_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
+extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
+
 
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 

@@ -91,12 +91,6 @@ enum DPM_EVENT_SRC {
     DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL = 4   /* Internal digital or external */
 };
 
-enum DISPLAY_GAP {
-	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
-	DISPLAY_GAP_VBLANK       = 1,   /* Wait for vblank. */
-	DISPLAY_GAP_WATERMARK    = 2,   /* Wait for MCHG watermark. */
-	DISPLAY_GAP_IGNORE       = 3    /* Do not wait. */
-};
 
 /* [2.5%,~2.5%] Clock stretched is multiple of 2.5% vs
  * not and [Fmin, Fmax, LDO_REFSEL, USE_FOR_LOW_FREQ]

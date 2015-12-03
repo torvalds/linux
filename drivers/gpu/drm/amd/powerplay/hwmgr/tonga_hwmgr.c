@@ -110,14 +110,6 @@ enum DPM_EVENT_SRC {
 };
 typedef enum DPM_EVENT_SRC DPM_EVENT_SRC;
 
-enum DISPLAY_GAP {
-	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
-	DISPLAY_GAP_VBLANK       = 1,   /* Wait for vblank. */
-	DISPLAY_GAP_WATERMARK    = 2,   /* Wait for MCHG watermark. (Note that HW may deassert WM in VBI depending on DC_STUTTER_CNTL.) */
-	DISPLAY_GAP_IGNORE       = 3    /* Do not wait. */
-};
-typedef enum DISPLAY_GAP DISPLAY_GAP;
-
 const unsigned long PhwTonga_Magic = (unsigned long)(PHM_VIslands_Magic);
 
 struct tonga_power_state *cast_phw_tonga_power_state(
