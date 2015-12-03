@@ -1037,7 +1037,7 @@ static const char ravb_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"rx_queue_1_mcast_packets",
 	"rx_queue_1_errors",
 	"rx_queue_1_crc_errors",
-	"rx_queue_1_frame_errors_",
+	"rx_queue_1_frame_errors",
 	"rx_queue_1_length_errors",
 	"rx_queue_1_missed_errors",
 	"rx_queue_1_over_errors",
