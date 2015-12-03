@@ -1230,6 +1230,18 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 		pebs_status = p->status & cpuc->pebs_enabled;
 		pebs_status &= (1ULL << x86_pmu.max_pebs_events) - 1;
 
+		/*
+		 * On some CPUs the PEBS status can be zero when PEBS is
+		 * racing with clearing of GLOBAL_STATUS.
+		 *
+		 * Normally we would drop that record, but in the
+		 * case when there is only a single active PEBS event
+		 * we can assume it's for that event.
+		 */
+		if (!pebs_status && cpuc->pebs_enabled &&
+			!(cpuc->pebs_enabled & (cpuc->pebs_enabled-1)))
+			pebs_status = cpuc->pebs_enabled;
+
 		bit = find_first_bit((unsigned long *)&pebs_status,
 					x86_pmu.max_pebs_events);
 		if (bit >= x86_pmu.max_pebs_events)
