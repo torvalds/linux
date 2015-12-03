@@ -1317,6 +1317,16 @@ void bond_queue_slave_event(struct slave *slave)
 	queue_delayed_work(slave->bond->wq, &nnw->work, 0);
 }
 
+void bond_lower_state_changed(struct slave *slave)
+{
+	struct netdev_lag_lower_state_info info;
+
+	info.link_up = slave->link == BOND_LINK_UP ||
+		       slave->link == BOND_LINK_FAIL;
+	info.tx_enabled = bond_is_active_slave(slave);
+	netdev_lower_state_changed(slave->dev, &info);
+}
+
 /* enslave device <slave> to bond device <master> */
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {

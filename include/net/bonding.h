@@ -247,6 +247,7 @@ struct bonding {
 	((struct slave *) rtnl_dereference(dev->rx_handler_data))
 
 void bond_queue_slave_event(struct slave *slave);
+void bond_lower_state_changed(struct slave *slave);
 
 struct bond_vlan_tag {
 	__be16		vlan_proto;
@@ -328,6 +329,7 @@ static inline void bond_set_active_slave(struct slave *slave)
 	if (slave->backup) {
 		slave->backup = 0;
 		bond_queue_slave_event(slave);
+		bond_lower_state_changed(slave);
 		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_ATOMIC);
 	}
 }
@@ -337,6 +339,7 @@ static inline void bond_set_backup_slave(struct slave *slave)
 	if (!slave->backup) {
 		slave->backup = 1;
 		bond_queue_slave_event(slave);
+		bond_lower_state_changed(slave);
 		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_ATOMIC);
 	}
 }
@@ -349,6 +352,7 @@ static inline void bond_set_slave_state(struct slave *slave,
 
 	slave->backup = slave_state;
 	if (notify) {
+		bond_lower_state_changed(slave);
 		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_ATOMIC);
 		bond_queue_slave_event(slave);
 		slave->should_notify = 0;
@@ -380,6 +384,7 @@ static inline void bond_slave_state_notify(struct bonding *bond)
 
 	bond_for_each_slave(bond, tmp, iter) {
 		if (tmp->should_notify) {
+			bond_lower_state_changed(tmp);
 			rtmsg_ifinfo(RTM_NEWLINK, tmp->dev, 0, GFP_ATOMIC);
 			tmp->should_notify = 0;
 		}
@@ -514,6 +519,7 @@ static inline void bond_set_slave_link_state(struct slave *slave, int state,
 	slave->link = state;
 	if (notify) {
 		bond_queue_slave_event(slave);
+		bond_lower_state_changed(slave);
 		slave->should_notify_link = 0;
 	} else {
 		if (slave->should_notify_link)
@@ -531,6 +537,7 @@ static inline void bond_slave_link_notify(struct bonding *bond)
 	bond_for_each_slave(bond, tmp, iter) {
 		if (tmp->should_notify_link) {
 			bond_queue_slave_event(tmp);
+			bond_lower_state_changed(tmp);
 			tmp->should_notify_link = 0;
 		}
 	}
