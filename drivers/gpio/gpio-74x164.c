@@ -33,11 +33,6 @@ struct gen_74x164_chip {
 	u8			buffer[0];
 };
 
-static struct gen_74x164_chip *gpio_to_74x164_chip(struct gpio_chip *gc)
-{
-	return container_of(gc, struct gen_74x164_chip, gpio_chip);
-}
-
 static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
 {
 	struct spi_transfer xfer = {
@@ -51,7 +46,7 @@ static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
 
 static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 {
-	struct gen_74x164_chip *chip = gpio_to_74x164_chip(gc);
+	struct gen_74x164_chip *chip = gpiochip_get_data(gc);
 	u8 bank = chip->registers - 1 - offset / 8;
 	u8 pin = offset % 8;
 	int ret;
@@ -66,7 +61,7 @@ static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 static void gen_74x164_set_value(struct gpio_chip *gc,
 		unsigned offset, int val)
 {
-	struct gen_74x164_chip *chip = gpio_to_74x164_chip(gc);
+	struct gen_74x164_chip *chip = gpiochip_get_data(gc);
 	u8 bank = chip->registers - 1 - offset / 8;
 	u8 pin = offset % 8;
 
@@ -136,7 +131,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 		goto exit_destroy;
 	}
 
-	ret = gpiochip_add(&chip->gpio_chip);
+	ret = gpiochip_add_data(&chip->gpio_chip, chip);
 	if (!ret)
 		return 0;
 
