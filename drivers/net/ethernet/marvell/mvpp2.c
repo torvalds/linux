@@ -4401,11 +4401,10 @@ static void mvpp2_txq_bufs_free(struct mvpp2_port *port,
 
 		mvpp2_txq_inc_get(txq_pcpu);
 
-		if (!skb)
-			continue;
-
 		dma_unmap_single(port->dev->dev.parent, buf_phys_addr,
 				 skb_headlen(skb), DMA_TO_DEVICE);
+		if (!skb)
+			continue;
 		dev_kfree_skb_any(skb);
 	}
 }
