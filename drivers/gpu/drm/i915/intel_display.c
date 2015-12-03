@@ -116,6 +116,7 @@ static void skylake_pfit_enable(struct intel_crtc *crtc);
 static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
 static void ironlake_pfit_enable(struct intel_crtc *crtc);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
+static void intel_pre_disable_primary(struct drm_crtc *crtc);
 
 typedef struct {
 	int	min, max;
@@ -2607,6 +2608,8 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	struct drm_i915_gem_object *obj;
 	struct drm_plane *primary = intel_crtc->base.primary;
 	struct drm_plane_state *plane_state = primary->state;
+	struct drm_crtc_state *crtc_state = intel_crtc->base.state;
+	struct intel_plane *intel_plane = to_intel_plane(primary);
 	struct drm_framebuffer *fb;
 
 	if (!plane_config->fb)
@@ -2642,6 +2645,18 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 			goto valid_fb;
 		}
 	}
+
+	/*
+	 * We've failed to reconstruct the BIOS FB.  Current display state
+	 * indicates that the primary plane is visible, but has a NULL FB,
+	 * which will lead to problems later if we don't fix it up.  The
+	 * simplest solution is to just disable the primary plane now and
+	 * pretend the BIOS never had it enabled.
+	 */
+	to_intel_plane_state(plane_state)->visible = false;
+	crtc_state->plane_mask &= ~(1 << drm_plane_index(primary));
+	intel_pre_disable_primary(&intel_crtc->base);
+	intel_plane->disable_plane(primary, &intel_crtc->base);
 
 	return;
 
