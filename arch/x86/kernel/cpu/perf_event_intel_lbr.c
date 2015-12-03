@@ -161,7 +161,7 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	 */
 	if (cpuc->lbr_sel)
 		lbr_select = cpuc->lbr_sel->config & x86_pmu.lbr_sel_mask;
-	if (!pmi)
+	if (!pmi && cpuc->lbr_sel)
 		wrmsrl(MSR_LBR_SELECT, lbr_select);
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
@@ -430,7 +430,7 @@ static void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
  */
 static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 {
-	bool need_info = !(cpuc->lbr_sel->config & LBR_NO_INFO);
+	bool need_info = false;
 	unsigned long mask = x86_pmu.lbr_nr - 1;
 	int lbr_format = x86_pmu.intel_cap.lbr_format;
 	u64 tos = intel_pmu_lbr_tos();
@@ -438,8 +438,11 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 	int out = 0;
 	int num = x86_pmu.lbr_nr;
 
-	if (cpuc->lbr_sel->config & LBR_CALL_STACK)
-		num = tos;
+	if (cpuc->lbr_sel) {
+		need_info = !(cpuc->lbr_sel->config & LBR_NO_INFO);
+		if (cpuc->lbr_sel->config & LBR_CALL_STACK)
+			num = tos;
+	}
 
 	for (i = 0; i < num; i++) {
 		unsigned long lbr_idx = (tos - i) & mask;
