@@ -3370,6 +3370,7 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.event_constraints = intel_gen_event_constraints;
 		x86_pmu.pebs_constraints = intel_atom_pebs_event_constraints;
+		x86_pmu.pebs_aliases = intel_pebs_aliases_core2;
 		pr_cont("Atom events, ");
 		break;
 
