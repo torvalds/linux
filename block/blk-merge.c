@@ -7,6 +7,8 @@
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
 
+#include <trace/events/block.h>
+
 #include "blk.h"
 
 static struct bio *blk_bio_discard_split(struct request_queue *q,
@@ -159,6 +161,7 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
 		split->bi_rw |= REQ_NOMERGE;
 
 		bio_chain(split, *bio);
+		trace_block_split(q, split, (*bio)->bi_iter.bi_sector);
 		generic_make_request(*bio);
 		*bio = split;
 	}
