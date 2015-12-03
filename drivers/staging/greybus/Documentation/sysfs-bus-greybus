@@ -6,7 +6,7 @@ Description:
 		The "root" greybus device for the Greybus device tree, or bus,
 		where N is a dynamically assigned 1-based id.
 
-What:		/sys/bus/greybus/device/N-svc/endo_id
+What:		/sys/bus/greybus/device/N-svc
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
