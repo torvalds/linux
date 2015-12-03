@@ -119,12 +119,14 @@ static inline void assertCS(struct spi_lm70llp *pp)
 static inline void clkHigh(struct spi_lm70llp *pp)
 {
 	u8 data = parport_read_data(pp->port);
+
 	parport_write_data(pp->port, data | SCLK);
 }
 
 static inline void clkLow(struct spi_lm70llp *pp)
 {
 	u8 data = parport_read_data(pp->port);
+
 	parport_write_data(pp->port, data & ~SCLK);
 }
 
@@ -163,8 +165,10 @@ static inline void setmosi(struct spi_device *s, int is_on)
 static inline int getmiso(struct spi_device *s)
 {
 	struct spi_lm70llp *pp = spidev_to_pp(s);
+
 	return ((SIO == (parport_read_status(pp->port) & SIO)) ? 0 : 1 );
 }
+
 /*--------------------------------------------------------------------*/
 
 #include "spi-bitbang-txrx.h"
