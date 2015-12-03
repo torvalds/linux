@@ -3126,6 +3126,11 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 		ret = iwl_mvm_update_quotas(mvm, false, NULL);
 		if (ret)
 			goto out_remove_binding;
+
+		ret = iwl_mvm_add_snif_sta(mvm, vif);
+		if (ret)
+			goto out_remove_binding;
+
 	}
 
 	/* Handle binding during CSA */
@@ -3199,6 +3204,7 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 	case NL80211_IFTYPE_MONITOR:
 		mvmvif->monitor_active = false;
 		mvmvif->ps_disabled = false;
+		iwl_mvm_rm_snif_sta(mvm, vif);
 		break;
 	case NL80211_IFTYPE_AP:
 		/* This part is triggered only during CSA */

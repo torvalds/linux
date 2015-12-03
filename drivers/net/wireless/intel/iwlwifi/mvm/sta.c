@@ -581,9 +581,9 @@ int iwl_mvm_rm_sta_id(struct iwl_mvm *mvm,
 	return ret;
 }
 
-static int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
-				    struct iwl_mvm_int_sta *sta,
-				    u32 qmask, enum nl80211_iftype iftype)
+int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
+			     struct iwl_mvm_int_sta *sta,
+			     u32 qmask, enum nl80211_iftype iftype)
 {
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		sta->sta_id = iwl_mvm_find_free_sta_id(mvm, iftype);
@@ -671,6 +671,33 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	if (ret)
 		iwl_mvm_dealloc_int_sta(mvm, &mvm->aux_sta);
 	return ret;
+}
+
+int iwl_mvm_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+	return iwl_mvm_add_int_sta_common(mvm, &mvm->snif_sta, vif->addr,
+					 mvmvif->id, 0);
+}
+
+int iwl_mvm_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_rm_sta_common(mvm, mvm->snif_sta.sta_id);
+	if (ret)
+		IWL_WARN(mvm, "Failed sending remove station\n");
+
+	return ret;
+}
+
+void iwl_mvm_dealloc_snif_sta(struct iwl_mvm *mvm)
+{
+	iwl_mvm_dealloc_int_sta(mvm, &mvm->snif_sta);
 }
 
 void iwl_mvm_del_aux_sta(struct iwl_mvm *mvm)

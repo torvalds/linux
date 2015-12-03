@@ -677,6 +677,7 @@ struct iwl_mvm {
 
 	/* Internal station */
 	struct iwl_mvm_int_sta aux_sta;
+	struct iwl_mvm_int_sta snif_sta;
 
 	bool last_ebs_successful;
 
