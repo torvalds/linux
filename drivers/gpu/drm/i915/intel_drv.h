@@ -247,6 +247,12 @@ struct intel_atomic_state {
 
 	unsigned int cdclk;
 
+	/*
+	 * Calculated device cdclk, can be different from cdclk
+	 * only when all crtc's are DPMS off.
+	 */
+	unsigned int dev_cdclk;
+
 	bool dpll_set, modeset;
 
 	unsigned int active_crtcs;

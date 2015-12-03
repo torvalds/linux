@@ -5370,6 +5370,7 @@ static void modeset_put_power_domains(struct drm_i915_private *dev_priv,
 
 static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 {
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long put_domains[I915_MAX_PIPES] = {};
@@ -5383,13 +5384,9 @@ static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 				modeset_get_crtc_power_domains(crtc);
 	}
 
-	if (dev_priv->display.modeset_commit_cdclk) {
-		unsigned int cdclk = to_intel_atomic_state(state)->cdclk;
-
-		if (cdclk != dev_priv->cdclk_freq &&
-		    !WARN_ON(!state->allow_modeset))
-			dev_priv->display.modeset_commit_cdclk(state);
-	}
+	if (dev_priv->display.modeset_commit_cdclk &&
+	    intel_state->dev_cdclk != dev_priv->cdclk_freq)
+		dev_priv->display.modeset_commit_cdclk(state);
 
 	for (i = 0; i < I915_MAX_PIPES; i++)
 		if (put_domains[i])
@@ -6096,12 +6093,17 @@ static int valleyview_modeset_calc_cdclk(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int max_pixclk = intel_mode_max_pixclk(dev, state);
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(state);
 
 	if (max_pixclk < 0)
 		return max_pixclk;
 
-	to_intel_atomic_state(state)->cdclk =
+	intel_state->cdclk = intel_state->dev_cdclk =
 		valleyview_calc_cdclk(dev_priv, max_pixclk);
+
+	if (!intel_state->active_crtcs)
+		intel_state->dev_cdclk = valleyview_calc_cdclk(dev_priv, 0);
 
 	return 0;
 }
@@ -6111,12 +6113,17 @@ static int broxton_modeset_calc_cdclk(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int max_pixclk = intel_mode_max_pixclk(dev, state);
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(state);
 
 	if (max_pixclk < 0)
 		return max_pixclk;
 
-	to_intel_atomic_state(state)->cdclk =
+	intel_state->cdclk = intel_state->dev_cdclk =
 		broxton_calc_cdclk(dev_priv, max_pixclk);
+
+	if (!intel_state->active_crtcs)
+		intel_state->dev_cdclk = broxton_calc_cdclk(dev_priv, 0);
 
 	return 0;
 }
@@ -6160,8 +6167,10 @@ static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
 static void valleyview_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
-	unsigned int req_cdclk = to_intel_atomic_state(old_state)->cdclk;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_atomic_state *old_intel_state =
+		to_intel_atomic_state(old_state);
+	unsigned req_cdclk = old_intel_state->dev_cdclk;
 
 	/*
 	 * FIXME: We can end up here with all power domains off, yet
@@ -9683,7 +9692,9 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 static void broxton_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
-	unsigned int req_cdclk = to_intel_atomic_state(old_state)->cdclk;
+	struct intel_atomic_state *old_intel_state =
+		to_intel_atomic_state(old_state);
+	unsigned int req_cdclk = old_intel_state->dev_cdclk;
 
 	broxton_set_cdclk(dev, req_cdclk);
 }
@@ -9809,6 +9820,7 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	int max_pixclk = ilk_max_pixel_rate(state);
 	int cdclk;
 
@@ -9831,7 +9843,9 @@ static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 		return -EINVAL;
 	}
 
-	to_intel_atomic_state(state)->cdclk = cdclk;
+	intel_state->cdclk = intel_state->dev_cdclk = cdclk;
+	if (!intel_state->active_crtcs)
+		intel_state->dev_cdclk = 337500;
 
 	return 0;
 }
@@ -9839,7 +9853,9 @@ static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 static void broadwell_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
-	unsigned int req_cdclk = to_intel_atomic_state(old_state)->cdclk;
+	struct intel_atomic_state *old_intel_state =
+		to_intel_atomic_state(old_state);
+	unsigned req_cdclk = old_intel_state->dev_cdclk;
 
 	broadwell_set_cdclk(dev, req_cdclk);
 }
@@ -13261,18 +13277,15 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	 * adjusted_mode bits in the crtc directly.
 	 */
 	if (dev_priv->display.modeset_calc_cdclk) {
-		unsigned int cdclk;
-
 		ret = dev_priv->display.modeset_calc_cdclk(state);
 
-		cdclk = to_intel_atomic_state(state)->cdclk;
-		if (!ret && cdclk != dev_priv->cdclk_freq)
+		if (!ret && intel_state->dev_cdclk != dev_priv->cdclk_freq)
 			ret = intel_modeset_all_pipes(state);
 
 		if (ret < 0)
 			return ret;
 	} else
-		to_intel_atomic_state(state)->cdclk = dev_priv->cdclk_freq;
+		to_intel_atomic_state(state)->cdclk = dev_priv->atomic_cdclk_freq;
 
 	intel_modeset_clear_plls(state);
 
@@ -13514,6 +13527,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		memcpy(dev_priv->min_pixclk, intel_state->min_pixclk,
 		       sizeof(intel_state->min_pixclk));
 		dev_priv->active_crtcs = intel_state->active_crtcs;
+		dev_priv->atomic_cdclk_freq = intel_state->cdclk;
 	}
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
@@ -15235,7 +15249,12 @@ static void i915_disable_vga(struct drm_device *dev)
 
 void intel_modeset_init_hw(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	intel_update_cdclk(dev);
+
+	dev_priv->atomic_cdclk_freq = dev_priv->cdclk_freq;
+
 	intel_prepare_ddi(dev);
 	intel_init_clock_gating(dev);
 	intel_enable_gt_powersave(dev);
