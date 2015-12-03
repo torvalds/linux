@@ -215,7 +215,10 @@
 
 			prcm: prcm@180000 {
 				compatible = "ti,dm814-prcm", "simple-bus";
-				reg = <0x180000 0x4000>;
+				reg = <0x180000 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x180000 0x2000>;
 
 				prcm_clocks: clocks {
 					#address-cells = <1>;
@@ -226,9 +229,13 @@
 				};
 			};
 
+			/* See TRM PLL_SUBSYS_BASE and "PLLSS Registers" */
 			pllss: pllss@1c5000 {
 				compatible = "ti,dm814-pllss", "simple-bus";
-				reg = <0x1c5000 0x2000>;
+				reg = <0x1c5000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1c5000 0x1000>;
 
 				pllss_clocks: clocks {
 					#address-cells = <1>;
