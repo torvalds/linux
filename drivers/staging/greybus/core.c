@@ -102,6 +102,11 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (add_uevent_var(env, "BUS=%u", hd->bus_id))
 		return -ENOMEM;
 
+	if (intf) {
+		if (add_uevent_var(env, "INTERFACE=%u", intf->interface_id))
+			return -ENOMEM;
+	}
+
 	if (bundle) {
 		// FIXME
 		// add a uevent that can "load" a bundle type
