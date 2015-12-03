@@ -5756,6 +5756,26 @@ int dev_get_nest_level(struct net_device *dev,
 }
 EXPORT_SYMBOL(dev_get_nest_level);
 
+/**
+ * netdev_lower_change - Dispatch event about lower device state change
+ * @lower_dev: device
+ * @lower_state_info: state to dispatch
+ *
+ * Send NETDEV_CHANGELOWERSTATE to netdev notifiers with info.
+ * The caller must hold the RTNL lock.
+ */
+void netdev_lower_state_changed(struct net_device *lower_dev,
+				void *lower_state_info)
+{
+	struct netdev_notifier_changelowerstate_info changelowerstate_info;
+
+	ASSERT_RTNL();
+	changelowerstate_info.lower_state_info = lower_state_info;
+	call_netdevice_notifiers_info(NETDEV_CHANGELOWERSTATE, lower_dev,
+				      &changelowerstate_info.info);
+}
+EXPORT_SYMBOL(netdev_lower_state_changed);
+
 static void dev_change_rx_flags(struct net_device *dev, int flags)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
