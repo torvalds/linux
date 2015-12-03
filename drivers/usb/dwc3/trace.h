@@ -117,6 +117,9 @@ DECLARE_EVENT_CLASS(dwc3_log_request,
 		__field(unsigned, actual)
 		__field(unsigned, length)
 		__field(int, status)
+		__field(int, zero)
+		__field(int, short_not_ok)
+		__field(int, no_interrupt)
 	),
 	TP_fast_assign(
 		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", req->dep->name);
@@ -124,9 +127,15 @@ DECLARE_EVENT_CLASS(dwc3_log_request,
 		__entry->actual = req->request.actual;
 		__entry->length = req->request.length;
 		__entry->status = req->request.status;
+		__entry->zero = req->request.zero;
+		__entry->short_not_ok = req->request.short_not_ok;
+		__entry->no_interrupt = req->request.no_interrupt;
 	),
-	TP_printk("%s: req %p length %u/%u ==> %d",
+	TP_printk("%s: req %p length %u/%u %s%s%s ==> %d",
 		__get_str(name), __entry->req, __entry->actual, __entry->length,
+		__entry->zero ? "Z" : "z",
+		__entry->short_not_ok ? "S" : "s",
+		__entry->no_interrupt ? "i" : "I",
 		__entry->status
 	)
 );
