@@ -320,8 +320,6 @@ static int alua_check_tpgs(struct scsi_device *sdev)
  */
 static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h)
 {
-	unsigned char *d;
-	unsigned char __rcu *vpd_pg83;
 	int rel_port = -1, group_id;
 
 	group_id = scsi_vpd_tpg_id(sdev, &rel_port);
