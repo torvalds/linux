@@ -209,7 +209,7 @@ static void pids_cancel_attach(struct cgroup_taskset *tset)
  * task_css_check(true) in pids_can_fork() and pids_cancel_fork() relies
  * on threadgroup_change_begin() held by the copy_process().
  */
-static int pids_can_fork(struct task_struct *task, void **priv_p)
+static int pids_can_fork(struct task_struct *task)
 {
 	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids;
@@ -219,7 +219,7 @@ static int pids_can_fork(struct task_struct *task, void **priv_p)
 	return pids_try_charge(pids, 1);
 }
 
-static void pids_cancel_fork(struct task_struct *task, void *priv)
+static void pids_cancel_fork(struct task_struct *task)
 {
 	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids;
