@@ -58,9 +58,9 @@ struct sst_dsp_device;
 
 #define SKL_ADSP_MMIO_LEN		0x10000
 
-#define SKL_ADSP_W0_STAT_SZ		0x800
+#define SKL_ADSP_W0_STAT_SZ		0x1000
 
-#define SKL_ADSP_W0_UP_SZ		0x800
+#define SKL_ADSP_W0_UP_SZ		0x1000
 
 #define SKL_ADSP_W1_SZ			0x1000
 
