@@ -205,6 +205,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			 u64 rsb, u64 target, unsigned block_offset,
 			 int *neras)
 {
+	bool is_zero;
 	int i, j, target_index = -1;
 	struct dm_buffer *buf;
 	struct dm_bufio_client *bufio;
@@ -264,7 +265,12 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 
 		/* locate erasures if the block is on the data device */
 		if (bufio == v->fec->data_bufio &&
-		    verity_hash_for_block(v, io, block, want_digest) == 0) {
+		    verity_hash_for_block(v, io, block, want_digest,
+					  &is_zero) == 0) {
+			/* skip known zero blocks entirely */
+			if (is_zero)
+				continue;
+
 			/*
 			 * skip if we have already found the theoretical
 			 * maximum number (i.e. fec->roots) of erasures
