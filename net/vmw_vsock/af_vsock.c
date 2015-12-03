@@ -223,6 +223,17 @@ static struct sock *__vsock_find_bound_socket(struct sockaddr_vm *addr)
 	return NULL;
 }
 
+static struct sock *__vsock_find_unbound_socket(struct sockaddr_vm *addr)
+{
+	struct vsock_sock *vsk;
+
+	list_for_each_entry(vsk, vsock_unbound_sockets, bound_table)
+		if (addr->svm_port == vsk->local_addr.svm_port)
+			return sk_vsock(vsk);
+
+	return NULL;
+}
+
 static struct sock *__vsock_find_connected_socket(struct sockaddr_vm *src,
 						  struct sockaddr_vm *dst)
 {
@@ -297,6 +308,21 @@ struct sock *vsock_find_bound_socket(struct sockaddr_vm *addr)
 	return sk;
 }
 EXPORT_SYMBOL_GPL(vsock_find_bound_socket);
+
+struct sock *vsock_find_unbound_socket(struct sockaddr_vm *addr)
+{
+	struct sock *sk;
+
+	spin_lock_bh(&vsock_table_lock);
+	sk = __vsock_find_unbound_socket(addr);
+	if (sk)
+		sock_hold(sk);
+
+	spin_unlock_bh(&vsock_table_lock);
+
+	return sk;
+}
+EXPORT_SYMBOL_GPL(vsock_find_unbound_socket);
 
 struct sock *vsock_find_connected_socket(struct sockaddr_vm *src,
 					 struct sockaddr_vm *dst)
@@ -531,6 +557,50 @@ static int __vsock_bind_stream(struct vsock_sock *vsk,
 
 	return 0;
 }
+
+int vsock_bind_dgram_generic(struct vsock_sock *vsk, struct sockaddr_vm *addr)
+{
+	static u32 port = LAST_RESERVED_PORT + 1;
+	struct sockaddr_vm new_addr;
+
+	vsock_addr_init(&new_addr, addr->svm_cid, addr->svm_port);
+
+	if (addr->svm_port == VMADDR_PORT_ANY) {
+		bool found = false;
+		unsigned int i;
+
+		for (i = 0; i < MAX_PORT_RETRIES; i++) {
+			if (port <= LAST_RESERVED_PORT)
+				port = LAST_RESERVED_PORT + 1;
+
+			new_addr.svm_port = port++;
+
+			if (!__vsock_find_unbound_socket(&new_addr)) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			return -EADDRNOTAVAIL;
+	} else {
+		/* If port is in reserved range, ensure caller
+		 * has necessary privileges.
+		 */
+		if (addr->svm_port <= LAST_RESERVED_PORT &&
+		    !capable(CAP_NET_BIND_SERVICE)) {
+			return -EACCES;
+		}
+
+		if (__vsock_find_unbound_socket(&new_addr))
+			return -EADDRINUSE;
+	}
+
+	vsock_addr_init(&vsk->local_addr, new_addr.svm_cid, new_addr.svm_port);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vsock_bind_dgram_generic);
 
 static int __vsock_bind_dgram(struct vsock_sock *vsk,
 			      struct sockaddr_vm *addr)
