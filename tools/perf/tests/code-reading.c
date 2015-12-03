@@ -547,6 +547,13 @@ static int do_test_code_reading(bool try_kcore)
 		if (ret < 0) {
 			if (!excl_kernel) {
 				excl_kernel = true;
+				/*
+				 * Both cpus and threads are now owned by evlist
+				 * and will be freed by following perf_evlist__set_maps
+				 * call. Getting refference to keep them alive.
+				 */
+				cpu_map__get(cpus);
+				thread_map__get(threads);
 				perf_evlist__set_maps(evlist, NULL, NULL);
 				perf_evlist__delete(evlist);
 				evlist = NULL;
