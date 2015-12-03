@@ -52,6 +52,7 @@ static const struct snd_soc_dapm_widget skylake_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("DMIC2", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
+	SND_SOC_DAPM_SINK("WoV Sink"),
 };
 
 static const struct snd_soc_dapm_route skylake_rt286_map[] = {
@@ -68,6 +69,8 @@ static const struct snd_soc_dapm_route skylake_rt286_map[] = {
 	/* digital mics */
 	{"DMIC1 Pin", NULL, "DMIC2"},
 	{"DMIC AIF", NULL, "SoC DMIC"},
+
+	{"WoV Sink", NULL, "hwd_in sink"},
 
 	/* CODEC BE connections */
 	{ "AIF1 Playback", NULL, "ssp0 Tx"},
