@@ -53,9 +53,6 @@ struct gb_loopback_device {
 	int ms_wait;
 	u32 error;
 
-	struct timeval start;
-	struct timeval end;
-
 	/* Overall stats */
 	struct gb_loopback_stats latency;
 	struct gb_loopback_stats throughput;
@@ -577,8 +574,6 @@ static void gb_loopback_reset_stats(struct gb_loopback_device *gb_dev)
 	}
 
 	/* Reset aggregate stats */
-	memset(&gb_dev->start, 0, sizeof(struct timeval));
-	memset(&gb_dev->end, 0, sizeof(struct timeval));
 	memcpy(&gb_dev->latency, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb_dev->throughput, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb_dev->requests_per_second, &reset,
