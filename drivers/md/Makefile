@@ -64,3 +64,7 @@ obj-$(CONFIG_DM_LOG_WRITES)	+= dm-log-writes.o
 ifeq ($(CONFIG_DM_UEVENT),y)
 dm-mod-objs			+= dm-uevent.o
 endif
+
+ifeq ($(CONFIG_DM_VERITY_FEC),y)
+dm-verity-objs			+= dm-verity-fec.o
+endif

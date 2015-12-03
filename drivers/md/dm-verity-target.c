@@ -15,6 +15,7 @@
  */
 
 #include "dm-verity.h"
+#include "dm-verity-fec.h"
 
 #include <linux/module.h>
 #include <linux/reboot.h>
@@ -31,7 +32,7 @@
 #define DM_VERITY_OPT_LOGGING		"ignore_corruption"
 #define DM_VERITY_OPT_RESTART		"restart_on_corruption"
 
-#define DM_VERITY_OPTS_MAX		1
+#define DM_VERITY_OPTS_MAX		(1 + DM_VERITY_OPTS_FEC)
 
 static unsigned dm_verity_prefetch_cluster = DM_VERITY_DEFAULT_PREFETCH_SIZE;
 
@@ -282,6 +283,10 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		if (likely(memcmp(verity_io_real_digest(v, io), want_digest,
 				  v->digest_size) == 0))
 			aux->hash_verified = 1;
+		else if (verity_fec_decode(v, io,
+					   DM_VERITY_BLOCK_TYPE_METADATA,
+					   hash_block, data, NULL) == 0)
+			aux->hash_verified = 1;
 		else if (verity_handle_err(v,
 					   DM_VERITY_BLOCK_TYPE_METADATA,
 					   hash_block)) {
@@ -411,8 +416,11 @@ static int verity_verify_io(struct dm_verity_io *io)
 		if (likely(memcmp(verity_io_real_digest(v, io),
 				  verity_io_want_digest(v, io), v->digest_size) == 0))
 			continue;
+		else if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA,
+					   io->block + b, NULL, &start) == 0)
+			continue;
 		else if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
-				io->block + b))
+					   io->block + b))
 			return -EIO;
 	}
 
@@ -430,6 +438,8 @@ static void verity_finish_io(struct dm_verity_io *io, int error)
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_error = error;
 
+	verity_fec_finish_io(io);
+
 	bio_endio(bio);
 }
 
@@ -444,7 +454,7 @@ static void verity_end_io(struct bio *bio)
 {
 	struct dm_verity_io *io = bio->bi_private;
 
-	if (bio->bi_error) {
+	if (bio->bi_error && !verity_fec_is_enabled(io->v)) {
 		verity_finish_io(io, bio->bi_error);
 		return;
 	}
@@ -547,6 +557,8 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	bio->bi_private = io;
 	io->iter = bio->bi_iter;
 
+	verity_fec_init_io(io);
+
 	verity_submit_prefetch(v, io);
 
 	generic_make_request(bio);
@@ -561,6 +573,7 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 			  unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct dm_verity *v = ti->private;
+	unsigned args = 0;
 	unsigned sz = 0;
 	unsigned x;
 
@@ -587,8 +600,15 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 		else
 			for (x = 0; x < v->salt_size; x++)
 				DMEMIT("%02x", v->salt[x]);
+		if (v->mode != DM_VERITY_MODE_EIO)
+			args++;
+		if (verity_fec_is_enabled(v))
+			args += DM_VERITY_OPTS_FEC;
+		if (!args)
+			return;
+		DMEMIT(" %u", args);
 		if (v->mode != DM_VERITY_MODE_EIO) {
-			DMEMIT(" 1 ");
+			DMEMIT(" ");
 			switch (v->mode) {
 			case DM_VERITY_MODE_LOGGING:
 				DMEMIT(DM_VERITY_OPT_LOGGING);
@@ -600,6 +620,7 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 				BUG();
 			}
 		}
+		sz = verity_fec_status_table(v, sz, result, maxlen);
 		break;
 	}
 }
@@ -662,6 +683,8 @@ static void verity_dtr(struct dm_target *ti)
 	if (v->data_dev)
 		dm_put_device(ti, v->data_dev);
 
+	verity_fec_dtr(v);
+
 	kfree(v);
 }
 
@@ -693,6 +716,12 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v)
 
 		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_RESTART)) {
 			v->mode = DM_VERITY_MODE_RESTART;
+			continue;
+
+		} else if (verity_is_fec_opt_arg(arg_name)) {
+			r = verity_fec_parse_opt_args(as, v, &argc, arg_name);
+			if (r)
+				return r;
 			continue;
 		}
 
@@ -735,6 +764,10 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	ti->private = v;
 	v->ti = ti;
+
+	r = verity_fec_ctr_alloc(v);
+	if (r)
+		goto bad;
 
 	if ((dm_table_get_mode(ti->table) & ~FMODE_READ)) {
 		ti->error = "Device must be readonly";
@@ -924,8 +957,6 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 
-	ti->per_bio_data_size = roundup(sizeof(struct dm_verity_io) + v->shash_descsize + v->digest_size * 2, __alignof__(struct dm_verity_io));
-
 	/* WQ_UNBOUND greatly improves performance when running on ramdisk */
 	v->verify_wq = alloc_workqueue("kverityd", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM | WQ_UNBOUND, num_online_cpus());
 	if (!v->verify_wq) {
@@ -933,6 +964,16 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		r = -ENOMEM;
 		goto bad;
 	}
+
+	ti->per_bio_data_size = sizeof(struct dm_verity_io) +
+				v->shash_descsize + v->digest_size * 2;
+
+	r = verity_fec_ctr(v);
+	if (r)
+		goto bad;
+
+	ti->per_bio_data_size = roundup(ti->per_bio_data_size,
+					__alignof__(struct dm_verity_io));
 
 	return 0;
 
@@ -944,7 +985,7 @@ bad:
 
 static struct target_type verity_target = {
 	.name		= "verity",
-	.version	= {1, 2, 0},
+	.version	= {1, 3, 0},
 	.module		= THIS_MODULE,
 	.ctr		= verity_ctr,
 	.dtr		= verity_dtr,
