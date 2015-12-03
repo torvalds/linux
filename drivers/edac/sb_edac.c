@@ -637,9 +637,18 @@ static inline int numcol(u32 mtr)
 	return 1 << cols;
 }
 
-static struct sbridge_dev *get_sbridge_dev(u8 bus)
+static struct sbridge_dev *get_sbridge_dev(u8 bus, int multi_bus)
 {
 	struct sbridge_dev *sbridge_dev;
+
+	/*
+	 * If we have devices scattered across several busses that pertain
+	 * to the same memory controller, we'll lump them all together.
+	 */
+	if (multi_bus) {
+		return list_first_entry_or_null(&sbridge_edac_list,
+				struct sbridge_dev, list);
+	}
 
 	list_for_each_entry(sbridge_dev, &sbridge_edac_list, list) {
 		if (sbridge_dev->bus == bus)
@@ -1588,7 +1597,8 @@ static void sbridge_put_all_devices(void)
 static int sbridge_get_onedevice(struct pci_dev **prev,
 				 u8 *num_mc,
 				 const struct pci_id_table *table,
-				 const unsigned devno)
+				 const unsigned devno,
+				 const int multi_bus)
 {
 	struct sbridge_dev *sbridge_dev;
 	const struct pci_id_descr *dev_descr = &table->descr[devno];
@@ -1624,7 +1634,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 	}
 	bus = pdev->bus->number;
 
-	sbridge_dev = get_sbridge_dev(bus);
+	sbridge_dev = get_sbridge_dev(bus, multi_bus);
 	if (!sbridge_dev) {
 		sbridge_dev = alloc_sbridge_dev(bus, table);
 		if (!sbridge_dev) {
@@ -1673,21 +1683,32 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
  * @num_mc: pointer to the memory controllers count, to be incremented in case
  *	    of success.
  * @table: model specific table
+ * @allow_dups: allow for multiple devices to exist with the same device id
+ *              (as implemented, this isn't expected to work correctly in the
+ *              multi-socket case).
+ * @multi_bus: don't assume devices on different buses belong to different
+ *             memory controllers.
  *
  * returns 0 in case of success or error code
  */
-static int sbridge_get_all_devices(u8 *num_mc,
-				   const struct pci_id_table *table)
+static int sbridge_get_all_devices_full(u8 *num_mc,
+					const struct pci_id_table *table,
+					int allow_dups,
+					int multi_bus)
 {
 	int i, rc;
 	struct pci_dev *pdev = NULL;
 
 	while (table && table->descr) {
 		for (i = 0; i < table->n_devs; i++) {
-			pdev = NULL;
+			if (!allow_dups || i == 0 ||
+					table->descr[i].dev_id !=
+						table->descr[i-1].dev_id) {
+				pdev = NULL;
+			}
 			do {
 				rc = sbridge_get_onedevice(&pdev, num_mc,
-							   table, i);
+							   table, i, multi_bus);
 				if (rc < 0) {
 					if (i == 0) {
 						i = table->n_devs;
@@ -1696,13 +1717,16 @@ static int sbridge_get_all_devices(u8 *num_mc,
 					sbridge_put_all_devices();
 					return -ENODEV;
 				}
-			} while (pdev);
+			} while (pdev && !allow_dups);
 		}
 		table++;
 	}
 
 	return 0;
 }
+
+#define sbridge_get_all_devices(num_mc, table) \
+		sbridge_get_all_devices_full(num_mc, table, 0, 0)
 
 static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 				 struct sbridge_dev *sbridge_dev)
