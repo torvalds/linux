@@ -252,20 +252,39 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 	od_tuners->sampling_rate = new_rate = max(new_rate,
 			dbs_data->min_sampling_rate);
 
+	/*
+	 * Lock governor so that governor start/stop can't execute in parallel.
+	 */
+	mutex_lock(&od_dbs_cdata.mutex);
+
 	for_each_online_cpu(cpu) {
 		struct cpufreq_policy *policy;
 		struct od_cpu_dbs_info_s *dbs_info;
+		struct cpu_dbs_info *cdbs;
+		struct cpu_common_dbs_info *shared;
 		unsigned long next_sampling, appointed_at;
 
-		policy = cpufreq_cpu_get(cpu);
-		if (!policy)
-			continue;
-		if (policy->governor != &cpufreq_gov_ondemand) {
-			cpufreq_cpu_put(policy);
-			continue;
-		}
 		dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
-		cpufreq_cpu_put(policy);
+		cdbs = &dbs_info->cdbs;
+		shared = cdbs->shared;
+
+		/*
+		 * A valid shared and shared->policy means governor hasn't
+		 * stopped or exited yet.
+		 */
+		if (!shared || !shared->policy)
+			continue;
+
+		policy = shared->policy;
+
+		/*
+		 * Update sampling rate for CPUs whose policy is governed by
+		 * dbs_data. In case of governor_per_policy, only a single
+		 * policy will be governed by dbs_data, otherwise there can be
+		 * multiple policies that are governed by the same dbs_data.
+		 */
+		if (dbs_data != policy->governor_data)
+			continue;
 
 		if (!delayed_work_pending(&dbs_info->cdbs.dwork))
 			continue;
@@ -281,6 +300,8 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 
 		}
 	}
+
+	mutex_unlock(&od_dbs_cdata.mutex);
 }
 
 static ssize_t store_sampling_rate(struct dbs_data *dbs_data, const char *buf,
