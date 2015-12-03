@@ -463,6 +463,9 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 	struct gb_loopback_transfer_response *response;
 	int retval;
 
+	gb->apbridge_latency_ts = 0;
+	gb->gpbridge_latency_ts = 0;
+
 	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
@@ -777,8 +780,6 @@ static int gb_loopback_fn(void *data)
 		mutex_unlock(&gb->mutex);
 
 		/* Else operations to perform */
-		gb->apbridge_latency_ts = 0;
-		gb->gpbridge_latency_ts = 0;
 		if (type == GB_LOOPBACK_TYPE_PING)
 			error = gb_loopback_ping(gb);
 		else if (type == GB_LOOPBACK_TYPE_TRANSFER)
