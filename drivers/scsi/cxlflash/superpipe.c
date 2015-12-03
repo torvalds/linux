@@ -1372,7 +1372,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	}
 
 	ctx = cxl_dev_context_init(cfg->dev);
-	if (unlikely(IS_ERR_OR_NULL(ctx))) {
+	if (IS_ERR_OR_NULL(ctx)) {
 		dev_err(dev, "%s: Could not initialize context %p\n",
 			__func__, ctx);
 		rc = -ENODEV;
@@ -1500,7 +1500,7 @@ static int recover_context(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 	struct afu *afu = cfg->afu;
 
 	ctx = cxl_dev_context_init(cfg->dev);
-	if (unlikely(IS_ERR_OR_NULL(ctx))) {
+	if (IS_ERR_OR_NULL(ctx)) {
 		dev_err(dev, "%s: Could not initialize context %p\n",
 			__func__, ctx);
 		rc = -ENODEV;
