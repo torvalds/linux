@@ -493,7 +493,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	dev->priv_flags |= IFF_BRIDGE_PORT;
 
-	err = netdev_master_upper_dev_link(dev, br->dev);
+	err = netdev_master_upper_dev_link(dev, br->dev, NULL);
 	if (err)
 		goto err5;
 
