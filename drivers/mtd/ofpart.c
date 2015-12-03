@@ -46,8 +46,13 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 
 	ofpart_node = of_get_child_by_name(mtd_node, "partitions");
 	if (!ofpart_node) {
-		pr_warn("%s: 'partitions' subnode not found on %s. Trying to parse direct subnodes as partitions.\n",
-			master->name, mtd_node->full_name);
+		/*
+		 * We might get here even when ofpart isn't used at all (e.g.,
+		 * when using another parser), so don't be louder than
+		 * KERN_DEBUG
+		 */
+		pr_debug("%s: 'partitions' subnode not found on %s. Trying to parse direct subnodes as partitions.\n",
+			 master->name, mtd_node->full_name);
 		ofpart_node = mtd_node;
 		dedicated = false;
 	}
