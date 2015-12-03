@@ -5099,7 +5099,8 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 		    struct mvpp2_rx_queue *rxq)
 {
 	struct net_device *dev = port->dev;
-	int rx_received, rx_filled, i;
+	int rx_received;
+	int rx_done = 0;
 	u32 rcvd_pkts = 0;
 	u32 rcvd_bytes = 0;
 
@@ -5108,17 +5109,18 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 	if (rx_todo > rx_received)
 		rx_todo = rx_received;
 
-	rx_filled = 0;
-	for (i = 0; i < rx_todo; i++) {
+	while (rx_done < rx_todo) {
 		struct mvpp2_rx_desc *rx_desc = mvpp2_rxq_next_desc_get(rxq);
 		struct mvpp2_bm_pool *bm_pool;
 		struct sk_buff *skb;
+		dma_addr_t phys_addr;
 		u32 bm, rx_status;
 		int pool, rx_bytes, err;
 
-		rx_filled++;
+		rx_done++;
 		rx_status = rx_desc->status;
 		rx_bytes = rx_desc->data_size - MVPP2_MH_SIZE;
+		phys_addr = rx_desc->buf_phys_addr;
 
 		bm = mvpp2_bm_cookie_build(rx_desc);
 		pool = mvpp2_bm_cookie_pool_get(bm);
@@ -5135,8 +5137,10 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 		 * comprised by the RX descriptor.
 		 */
 		if (rx_status & MVPP2_RXD_ERR_SUMMARY) {
+		err_drop_frame:
 			dev->stats.rx_errors++;
 			mvpp2_rx_error(port, rx_desc);
+			/* Return the buffer to the pool */
 			mvpp2_pool_refill(port, bm, rx_desc->buf_phys_addr,
 					  rx_desc->buf_cookie);
 			continue;
@@ -5144,7 +5148,13 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 
 		skb = (struct sk_buff *)rx_desc->buf_cookie;
 
-		dma_unmap_single(dev->dev.parent, rx_desc->buf_phys_addr,
+		err = mvpp2_rx_refill(port, bm_pool, bm, 0);
+		if (err) {
+			netdev_err(port->dev, "failed to refill BM pools\n");
+			goto err_drop_frame;
+		}
+
+		dma_unmap_single(dev->dev.parent, phys_addr,
 				 bm_pool->buf_size, DMA_FROM_DEVICE);
 
 		rcvd_pkts++;
@@ -5157,12 +5167,6 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 		mvpp2_rx_csum(port, rx_status, skb);
 
 		napi_gro_receive(&port->napi, skb);
-
-		err = mvpp2_rx_refill(port, bm_pool, bm, 0);
-		if (err) {
-			netdev_err(port->dev, "failed to refill BM pools\n");
-			rx_filled--;
-		}
 	}
 
 	if (rcvd_pkts) {
@@ -5176,7 +5180,7 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 
 	/* Update Rx queue management counters */
 	wmb();
-	mvpp2_rxq_status_update(port, rxq->id, rx_todo, rx_filled);
+	mvpp2_rxq_status_update(port, rxq->id, rx_done, rx_done);
 
 	return rx_todo;
 }
