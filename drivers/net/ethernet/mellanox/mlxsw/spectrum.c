@@ -2108,8 +2108,47 @@ static int mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
-static int mlxsw_sp_netdevice_port_event(struct net_device *dev,
-					 unsigned long event, void *ptr)
+static int mlxsw_sp_lag_dist_port_add(struct mlxsw_sp_port *mlxsw_sp_port,
+				      u16 lag_id)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char sldr_pl[MLXSW_REG_SLDR_LEN];
+
+	mlxsw_reg_sldr_lag_add_port_pack(sldr_pl, lag_id,
+					 mlxsw_sp_port->local_port);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sldr), sldr_pl);
+}
+
+static int mlxsw_sp_lag_dist_port_remove(struct mlxsw_sp_port *mlxsw_sp_port,
+					 u16 lag_id)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char sldr_pl[MLXSW_REG_SLDR_LEN];
+
+	mlxsw_reg_sldr_lag_remove_port_pack(sldr_pl, lag_id,
+					    mlxsw_sp_port->local_port);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sldr), sldr_pl);
+}
+
+static int mlxsw_sp_port_lag_tx_en_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				       bool lag_tx_enabled)
+{
+	if (lag_tx_enabled)
+		return mlxsw_sp_lag_dist_port_add(mlxsw_sp_port,
+						  mlxsw_sp_port->lag_id);
+	else
+		return mlxsw_sp_lag_dist_port_remove(mlxsw_sp_port,
+						     mlxsw_sp_port->lag_id);
+}
+
+static int mlxsw_sp_port_lag_changed(struct mlxsw_sp_port *mlxsw_sp_port,
+				     struct netdev_lag_lower_state_info *info)
+{
+	return mlxsw_sp_port_lag_tx_en_set(mlxsw_sp_port, info->tx_enabled);
+}
+
+static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
+					       unsigned long event, void *ptr)
 {
 	struct netdev_notifier_changeupper_info *info;
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -2171,6 +2210,44 @@ static int mlxsw_sp_netdevice_port_event(struct net_device *dev,
 			}
 		}
 		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static int mlxsw_sp_netdevice_port_lower_event(struct net_device *dev,
+					       unsigned long event, void *ptr)
+{
+	struct netdev_notifier_changelowerstate_info *info;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	int err;
+
+	mlxsw_sp_port = netdev_priv(dev);
+	info = ptr;
+
+	switch (event) {
+	case NETDEV_CHANGELOWERSTATE:
+		if (netif_is_lag_port(dev) && mlxsw_sp_port->lagged) {
+			err = mlxsw_sp_port_lag_changed(mlxsw_sp_port,
+							info->lower_state_info);
+			if (err)
+				netdev_err(dev, "Failed to reflect link aggregation lower state change\n");
+		}
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static int mlxsw_sp_netdevice_port_event(struct net_device *dev,
+					 unsigned long event, void *ptr)
+{
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+	case NETDEV_CHANGEUPPER:
+		return mlxsw_sp_netdevice_port_upper_event(dev, event, ptr);
+	case NETDEV_CHANGELOWERSTATE:
+		return mlxsw_sp_netdevice_port_lower_event(dev, event, ptr);
 	}
 
 	return NOTIFY_DONE;
