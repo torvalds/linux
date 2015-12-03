@@ -165,7 +165,8 @@ struct slave {
 	u8     backup:1,   /* indicates backup slave. Value corresponds with
 			      BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
 	       inactive:1, /* indicates inactive slave */
-	       should_notify:1; /* indicateds whether the state changed */
+	       should_notify:1, /* indicates whether the state changed */
+	       should_notify_link:1; /* indicates whether the link changed */
 	u8     duplex;
 	u32    original_mtu;
 	u32    link_failure_count;
@@ -504,10 +505,35 @@ static inline bool bond_is_slave_inactive(struct slave *slave)
 	return slave->inactive;
 }
 
-static inline void bond_set_slave_link_state(struct slave *slave, int state)
+static inline void bond_set_slave_link_state(struct slave *slave, int state,
+					     bool notify)
 {
+	if (slave->link == state)
+		return;
+
 	slave->link = state;
-	bond_queue_slave_event(slave);
+	if (notify) {
+		bond_queue_slave_event(slave);
+		slave->should_notify_link = 0;
+	} else {
+		if (slave->should_notify_link)
+			slave->should_notify_link = 0;
+		else
+			slave->should_notify_link = 1;
+	}
+}
+
+static inline void bond_slave_link_notify(struct bonding *bond)
+{
+	struct list_head *iter;
+	struct slave *tmp;
+
+	bond_for_each_slave(bond, tmp, iter) {
+		if (tmp->should_notify_link) {
+			bond_queue_slave_event(tmp);
+			tmp->should_notify_link = 0;
+		}
+	}
 }
 
 static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be32 local)
