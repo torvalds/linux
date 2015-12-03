@@ -85,6 +85,10 @@ def replace(h):
         search_str = "(\W?struct\s+)" + s + "(\W)"
         replace_str = "\\1" + lkl_prefix(s) + "\\2"
         content = re.sub(search_str, replace_str, content, flags = re.MULTILINE)
+    for s in unions:
+        search_str = "(\W?union\s+)" + s + "(\W)"
+        replace_str = "\\1" + lkl_prefix(s) + "\\2"
+        content = re.sub(search_str, replace_str, content, flags = re.MULTILINE)
     open(h, 'w').write(content)
 
 parser = argparse.ArgumentParser(description='install lkl headers')
@@ -97,6 +101,7 @@ headers.add("arch/lkl/include/uapi/asm/host_ops.h")
 
 defines = set()
 structs = set()
+unions = set()
 
 p = re.compile("#[ \t]*define[ \t]*(\w+)")
 find_symbols(p, defines)
@@ -106,6 +111,8 @@ p = re.compile("typedef\s+(struct|union)\s+\w*\s*{[^\}]*}\W*(\w+)\s*;", re.M|re.
 find_ml_symbols(p, defines)
 p = re.compile("struct\s+(\w+)\s*\{")
 find_symbols(p, structs)
+p = re.compile("union\s+(\w+)\s*\{")
+find_symbols(p, unions)
 
 def process_header(h):
     dir = os.path.dirname(h)
