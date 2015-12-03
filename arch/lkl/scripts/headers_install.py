@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import re, os, sys, argparse, multiprocessing
+import re, os, sys, argparse, multiprocessing, fnmatch
 
 header_paths = [ "include/uapi/", "arch/lkl/include/uapi/",
                  "arch/lkl/include/generated/uapi/", "include/generated/" ]
@@ -96,7 +96,7 @@ parser.add_argument('path', help='path to install to', )
 parser.add_argument('-j', '--jobs', help='number of parallel jobs', default=1, type=int)
 args = parser.parse_args()
 
-find_headers("arch/lkl/include/uapi/asm/unistd.h")
+find_headers("arch/lkl/include/uapi/asm/syscalls.h")
 headers.add("arch/lkl/include/uapi/asm/host_ops.h")
 
 defines = set()
@@ -117,6 +117,30 @@ structs.add("iovec")
 p = re.compile("union\s+(\w+)\s*\{")
 find_symbols(p, unions)
 
+def generate_syscalls(h):
+    syscalls = dict()
+    p = re.compile("[^_]SYSCALL_DEFINE[0-6]\((\w+)[^\)]*\)", flags = re.M|re.S)
+    for root, dirs, files in os.walk("."):
+        if root == '.' and 'arch' in dirs:
+            dirs.remove('arch')
+        for name in files:
+            if fnmatch.fnmatch(name, "*.c"):
+                path = os.path.join(root, name)
+                for i in p.finditer(open(path).read()):
+                    if "old_kernel_stat" in i.group(0):
+                        continue
+                    if "old_utsname" in i.group(0):
+                        continue
+                    syscalls[i.group(1)] = i.group(0)
+    f = open(h, "r+")
+    f.seek(-8, 2);
+    f.write("\n")
+    for s in syscalls:
+        f.write("#ifdef __lkl__NR_%s" % s)
+        f.write("%s\n" % syscalls[s])
+        f.write("#endif\n\n")
+    f.write("#endif\n")
+
 def process_header(h):
     dir = os.path.dirname(h)
     out_dir = args.path + "/" + re.sub("(arch/lkl/include/uapi/|arch/lkl/include/generated/uapi/|include/uapi/|include/generated/uapi/|include/generated)(.*)", "lkl/\\2", dir)
@@ -127,6 +151,8 @@ def process_header(h):
     print("  INSTALL\t%s" % (out_dir + "/" + os.path.basename(h)))
     os.system("scripts/headers_install.sh %s %s %s" % (out_dir, dir,
                                                        os.path.basename(h)))
+    if h == "arch/lkl/include/uapi/asm/syscalls.h":
+        generate_syscalls(out_dir + "/" + os.path.basename(h))
     replace(out_dir + "/" + os.path.basename(h))
 
 p = multiprocessing.Pool(args.jobs)

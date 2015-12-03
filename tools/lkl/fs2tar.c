@@ -139,7 +139,7 @@ static int add_link(const char *fsimg_path, const char *path,
 	return 0;
 }
 
-static inline void fsimg_copy_stat(struct stat *st, struct lkl_stat64 *fst)
+static inline void fsimg_copy_stat(struct stat *st, struct lkl_stat *fst)
 {
 	st->st_dev = fst->st_dev;
 	st->st_ino = fst->st_ino;
@@ -227,10 +227,10 @@ static int copy_xattr(const char *fsimg_path, const char *path,
 }
 
 static int do_entry(const char *fsimg_path, const char *path,
-		    const struct lkl_dirent64 *de)
+		    const struct lkl_linux_dirent64 *de)
 {
 	char fsimg_new_path[PATH_MAX], new_path[PATH_MAX];
-	struct lkl_stat64 fsimg_stat;
+	struct lkl_stat fsimg_stat;
 	struct stat stat;
 	struct archive_entry *entry;
 	int ftype;
@@ -240,9 +240,9 @@ static int do_entry(const char *fsimg_path, const char *path,
 	snprintf(fsimg_new_path, sizeof(fsimg_new_path), "%s/%s", fsimg_path,
 		 de->d_name);
 
-	ret = lkl_sys_lstat64(fsimg_new_path, &fsimg_stat);
+	ret = lkl_sys_lstat(fsimg_new_path, &fsimg_stat);
 	if (ret) {
-		fprintf(stderr, "fsimg fstat64(%s) error: %s\n",
+		fprintf(stderr, "fsimg lstat(%s) error: %s\n",
 			path, lkl_strerror(ret));
 		return ret;
 	}
@@ -306,9 +306,10 @@ static int searchdir(const char *fsimg_path, const char *path)
 	}
 
 	do {
-		struct lkl_dirent64 *de;
+		struct lkl_linux_dirent64 *de;
 
-		buf_len = lkl_sys_getdents64(fd, buf, sizeof(buf));
+		de = (struct lkl_linux_dirent64 *) buf;
+		buf_len = lkl_sys_getdents64(fd, de, sizeof(buf));
 		if (buf_len < 0) {
 			fprintf(stderr, "gentdents64 error: %s\n",
 				lkl_strerror(buf_len));
@@ -316,7 +317,7 @@ static int searchdir(const char *fsimg_path, const char *path)
 		}
 
 		for (pos = buf; pos - buf < buf_len; pos += de->d_reclen) {
-			de = (struct lkl_dirent64 *)pos;
+			de = (struct lkl_linux_dirent64 *)pos;
 
 			if (!strcmp(de->d_name, ".") ||
 			    !strcmp(de->d_name, ".."))

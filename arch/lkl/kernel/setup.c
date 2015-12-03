@@ -7,6 +7,7 @@
 #include <asm/host_ops.h>
 #include <asm/irq.h>
 #include <asm/unistd.h>
+#include <asm/syscalls.h>
 
 struct lkl_host_operations *lkl_ops;
 static char cmd_line[COMMAND_LINE_SIZE];

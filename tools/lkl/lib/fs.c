@@ -103,7 +103,7 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 		return err;
 	}
 
-	err = lkl_sys_mount(dev_str, mnt_str, fs_type, flags, data);
+	err = lkl_sys_mount(dev_str, mnt_str, (char*)fs_type, flags, data);
 	if (err < 0) {
 		lkl_sys_unlink(dev_str);
 		lkl_sys_rmdir(mnt_str);
@@ -187,9 +187,9 @@ int lkl_closedir(struct lkl_dir *dir)
 	return ret;
 }
 
-struct lkl_dirent64 *lkl_readdir(struct lkl_dir *dir)
+struct lkl_linux_dirent64 *lkl_readdir(struct lkl_dir *dir)
 {
-	struct lkl_dirent64 *de;
+	struct lkl_linux_dirent64 *de;
 
 	if (dir->len < 0)
 		return NULL;
@@ -198,14 +198,15 @@ struct lkl_dirent64 *lkl_readdir(struct lkl_dir *dir)
 		goto read_buf;
 
 return_de:
-	de = (struct lkl_dirent64 *)dir->pos;
+	de = (struct lkl_linux_dirent64 *)dir->pos;
 	dir->pos += de->d_reclen;
 
 	return de;
 
 read_buf:
 	dir->pos = NULL;
-	dir->len = lkl_sys_getdents64(dir->fd, dir->buf, sizeof(dir->buf));
+	de = (struct lkl_linux_dirent64 *)dir->buf;
+	dir->len = lkl_sys_getdents64(dir->fd, de, sizeof(dir->buf));
 	if (dir->len <= 0)
 		return NULL;
 

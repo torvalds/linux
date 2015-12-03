@@ -237,7 +237,7 @@ out:
 static int stat_src(const char *path, int *type, int *mode)
 {
 	struct stat stat;
-	struct lkl_stat64 lkl_stat;
+	struct lkl_stat lkl_stat;
 	int ret;
 
 	if (cptofs) {
@@ -245,13 +245,13 @@ static int stat_src(const char *path, int *type, int *mode)
 		*type = stat.st_mode & S_IFMT;
 		*mode = stat.st_mode & ~S_IFMT;
 	} else {
-		ret = lkl_sys_lstat64(path, &lkl_stat);
+		ret = lkl_sys_lstat(path, &lkl_stat);
 		*type = lkl_stat.st_mode & S_IFMT;
 		*mode = lkl_stat.st_mode & ~S_IFMT;
 	}
 
 	if (ret)
-		fprintf(stderr, "fsimg fstat64(%s) error: %s\n",
+		fprintf(stderr, "fsimg lstat(%s) error: %s\n",
 			path, cptofs ? strerror(errno) : lkl_strerror(ret));
 
 	return ret;
@@ -344,7 +344,7 @@ static const char *read_dir(DIR *dir, const char *path)
 		if (de)
 			name = de->d_name;
 	} else {
-		struct lkl_dirent64 *de = lkl_readdir(lkl_dir);
+		struct lkl_linux_dirent64 *de = lkl_readdir(lkl_dir);
 
 		if (de)
 			name = de->d_name;

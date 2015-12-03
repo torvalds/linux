@@ -213,13 +213,12 @@ int test_write(char *str, int len)
 int test_lseek(char *str, int len)
 {
 	long ret;
-	__lkl__kernel_loff_t res;
 
-	ret = lkl_sys_lseek(0, 0, &res, LKL_SEEK_SET);
+	ret = lkl_sys_lseek(0, 0, LKL_SEEK_SET);
 
-	snprintf(str, len, "%ld %lld", ret, res);
+	snprintf(str, len, "%zd ", ret);
 
-	if (ret == 0)
+	if (ret >= 0)
 		return 1;
 
 	return 0;
@@ -240,14 +239,14 @@ int test_read(char *str, int len)
 	return 0;
 }
 
-int test_fstat64(char *str, int len)
+int test_fstat(char *str, int len)
 {
-	struct lkl_stat64 stat;
+	struct lkl_stat stat;
 	long ret;
 
-	ret = lkl_sys_fstat64(0, &stat);
+	ret = lkl_sys_fstat(0, &stat);
 
-	snprintf(str, len, "%ld %o %lld", ret, stat.st_mode, stat.st_size);
+	snprintf(str, len, "%ld %o %zd", ret, stat.st_mode, stat.st_size);
 
 	if (ret == 0 && stat.st_size == sizeof(write_test) &&
 	    stat.st_mode == (access_rights | LKL_S_IFREG))
@@ -270,12 +269,12 @@ int test_mkdir(char *str, int len)
 	return 0;
 }
 
-int test_stat64(char *str, int len)
+int test_stat(char *str, int len)
 {
-	struct lkl_stat64 stat;
+	struct lkl_stat stat;
 	long ret;
 
-	ret = lkl_sys_stat64("/mnt", &stat);
+	ret = lkl_sys_stat("/mnt", &stat);
 
 	snprintf(str, len, "%ld %o", ret, stat.st_mode);
 
@@ -379,10 +378,11 @@ static int test_getdents64(char *str, int len)
 {
 	long ret;
 	char buf[1024], *pos;
-	struct lkl_dirent64 *de;
+	struct lkl_linux_dirent64 *de;
 	int wr;
 
-	ret = lkl_sys_getdents64(dir_fd, buf, sizeof(buf));
+	de = (struct lkl_linux_dirent64 *)buf;
+	ret = lkl_sys_getdents64(dir_fd, de, sizeof(buf));
 
 	wr = snprintf(str, len, "%d ", dir_fd);
 	str += wr;
@@ -392,7 +392,7 @@ static int test_getdents64(char *str, int len)
 		return 0;
 
 	for (pos = buf; pos - buf < ret; pos += de->d_reclen) {
-		de = (struct lkl_dirent64 *)pos;
+		de = (struct lkl_linux_dirent64 *)pos;
 
 		wr = snprintf(str, len, "%s ", de->d_name);
 		str += wr;
@@ -505,9 +505,9 @@ int main(int argc, char **argv)
 	TEST(write);
 	TEST(lseek);
 	TEST(read);
-	TEST(fstat64);
+	TEST(fstat);
 	TEST(mkdir);
-	TEST(stat64);
+	TEST(stat);
 #ifndef __MINGW32__
 	TEST(nanosleep);
 #endif

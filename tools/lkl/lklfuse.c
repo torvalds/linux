@@ -100,7 +100,7 @@ static int lklfuse_opt_proc(void *data, const char *arg, int key,
 	}
 }
 
-static void lklfuse_xlat_stat(const struct lkl_stat64 *in, struct stat *st)
+static void lklfuse_xlat_stat(const struct lkl_stat *in, struct stat *st)
 {
 	st->st_dev = in->st_dev;
 	st->st_ino = in->st_ino;
@@ -124,9 +124,9 @@ static int lklfuse_fgetattr(const char *path, struct stat *st,
 	                    struct fuse_file_info *fi)
 {
 	long ret;
-	struct lkl_stat64 lkl_stat;
+	struct lkl_stat lkl_stat;
 
-	ret = lkl_sys_fstat64(fi->fh, &lkl_stat);
+	ret = lkl_sys_fstat(fi->fh, &lkl_stat);
 	if (ret)
 		return ret;
 
@@ -137,9 +137,9 @@ static int lklfuse_fgetattr(const char *path, struct stat *st,
 static int lklfuse_getattr(const char *path, struct stat *st)
 {
 	long ret;
-	struct lkl_stat64 lkl_stat;
+	struct lkl_stat lkl_stat;
 
-	ret = lkl_sys_lstat64(path, &lkl_stat);
+	ret = lkl_sys_lstat(path, &lkl_stat);
 	if (ret)
 		return ret;
 
@@ -294,9 +294,9 @@ static int lklfuse_write(const char *path, const char *buf, size_t size,
 static int lklfuse_statfs(const char *path, struct statvfs *stat)
 {
 	long ret;
-	struct lkl_statfs64 lkl_statfs;
+	struct lkl_statfs lkl_statfs;
 
-	ret = lkl_sys_statfs64(path, sizeof(lkl_statfs), &lkl_statfs);
+	ret = lkl_sys_statfs(path, &lkl_statfs);
 	if (ret < 0)
 		return ret;
 
@@ -395,7 +395,7 @@ static int lklfuse_readdir(const char *path, void *buf, fuse_fill_dir_t fill,
 			 off_t off, struct fuse_file_info *fi)
 {
 	struct lkl_dir *dir = (struct lkl_dir *)(uintptr_t)fi->fh;
-	struct lkl_dirent64 *de;
+	struct lkl_linux_dirent64 *de;
 
 	while ((de = lkl_readdir(dir))) {
 		struct stat st = { 0, };

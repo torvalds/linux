@@ -1,16 +1,52 @@
 #ifndef _LKL_H
 #define _LKL_H
 
-#include <lkl/asm/unistd.h>
+#include <lkl/asm/syscalls.h>
 
+#if __LKL__BITS_PER_LONG == 64
+#define lkl_sys_stat lkl_sys_newstat
+#define lkl_sys_lstat lkl_sys_newlstat
+#define lkl_sys_fstatat lkl_sys_newfstatat
+#define lkl_sys_fstat lkl_sys_newfstat
+#else
+#define lkl_stat lkl_stat64
+#define lkl_sys_stat lkl_sys_stat64
+#define lkl_sys_lstat lkl_sys_lstat64
+#define lkl_sys_truncate lkl_sys_truncate64
+#define lkl_sys_ftruncate lkl_sys_ftruncate64
+#define lkl_sys_sendfile lkl_sys_sendfile64
+#define lkl_sys_fstatat lkl_sys_fstatat64
+#define lkl_sys_fstat lkl_sys_fstat64
+
+#define lkl_statfs lkl_statfs64
+
+static inline int lkl_sys_statfs(const char *path, struct lkl_statfs *buf)
+{
+	return lkl_sys_statfs64(path, sizeof(*buf), buf);
+}
+
+static inline int lkl_sys_fstatfs(unsigned int fd, struct lkl_statfs *buf)
+{
+	return lkl_sys_fstatfs64(fd, sizeof(*buf), buf);
+}
+
+#define lkl_sys_statfs lkl_sys_statsf64
+#define lkl_sys_fstatfs lkl_sys_fstatsf64
+#endif
+
+#ifdef __lkl__NR_llseek
 /**
  * lkl_sys_lseek - wrapper for lkl_sys_llseek
  */
-static inline long lkl_sys_lseek(unsigned int fd, __lkl__kernel_loff_t off,
-				 __lkl__kernel_loff_t *res, unsigned int whence)
+static inline long long lkl_sys_lseek(unsigned int fd, __lkl__kernel_loff_t off,
+				      unsigned int whence)
 {
-	return lkl_sys_llseek(fd, off >> 32, off & 0xffffffff, res, whence);
+	long long res;
+	long ret = lkl_sys_llseek(fd, off >> 32, off & 0xffffffff, &res, whence);
+
+	return ret < 0 ? ret : res;
 }
+#endif
 
 /**
  * lkl_strerror - returns a string describing the given error code
@@ -97,7 +133,7 @@ int lkl_closedir(struct lkl_dir *dir);
  * reached or if an error occurred; check lkl_errdir() to distinguish between
  * errors or end of the directory stream
  */
-struct lkl_dirent64 *lkl_readdir(struct lkl_dir *dir);
+struct lkl_linux_dirent64 *lkl_readdir(struct lkl_dir *dir);
 
 /**
  * lkl_errdir - checks if an error occurred during the last lkl_readdir call

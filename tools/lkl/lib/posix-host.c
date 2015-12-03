@@ -11,6 +11,7 @@
 #include <time.h>
 #include <stdint.h>
 #include <sys/uio.h>
+#undef sa_handler
 #include <lkl_host.h>
 #include "iomem.h"
 

@@ -1,4 +1,3 @@
-#include <linux/syscalls.h>
 #include <linux/stat.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
@@ -6,15 +5,21 @@
 #include <linux/jhash.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/syscalls.h>
 #include <linux/net.h>
 #include <linux/task_work.h>
-#include <asm/unistd.h>
+#include <linux/syscalls.h>
 #include <asm/host_ops.h>
+#include <asm/syscalls.h>
 
 typedef long (*syscall_handler_t)(long arg1, ...);
 
-syscall_handler_t syscall_table[NR_syscalls];
+#undef __SYSCALL
+#define __SYSCALL(nr, sym) [nr] = (syscall_handler_t)sym,
+
+syscall_handler_t syscall_table[__NR_syscalls] = {
+	[0 ... __NR_syscalls - 1] =  (syscall_handler_t)sys_ni_syscall,
+#include <asm/unistd.h>
+};
 
 static struct syscall_queue {
 	struct list_head list;
@@ -43,7 +48,7 @@ static long run_syscall(struct syscall *s)
 {
 	int ret;
 
-	if (s->no < 0 || s->no >= NR_syscalls || !syscall_table[s->no])
+	if (s->no < 0 || s->no >= __NR_syscalls)
 		ret = -ENOSYS;
 	else
 		ret = syscall_table[s->no](s->params[0], s->params[1],
@@ -135,81 +140,8 @@ ssize_t sys_lkl_pread64(unsigned int fd, char *buf, size_t count,
 	return sys_pread64(fd, buf, count, ((loff_t)pos_hi << 32) + pos_lo);
 }
 
-#define INIT_STE(x) syscall_table[__NR_##x] = (syscall_handler_t)sys_##x
-
-void init_syscall_table(void)
-{
-	int i;
-
-	for (i = 0; i < NR_syscalls; i++)
-		syscall_table[i] = (syscall_handler_t)sys_ni_syscall;
-
-	INIT_STE(sync);
-	INIT_STE(reboot);
-	INIT_STE(write);
-	INIT_STE(close);
-	INIT_STE(unlink);
-	INIT_STE(open);
-	INIT_STE(poll);
-	INIT_STE(read);
-	INIT_STE(rename);
-	INIT_STE(chmod);
-	INIT_STE(llseek);
-	INIT_STE(lstat64);
-	INIT_STE(fstat64);
-	INIT_STE(fstatat64);
-	INIT_STE(stat64);
-	INIT_STE(mkdir);
-	INIT_STE(rmdir);
-	INIT_STE(getdents64);
-	INIT_STE(utimes);
-	INIT_STE(utime);
-	INIT_STE(nanosleep);
-	INIT_STE(mknod);
-	INIT_STE(mount);
-	INIT_STE(umount);
-	INIT_STE(chdir);
-	INIT_STE(statfs64);
-	INIT_STE(chroot);
-	INIT_STE(getcwd);
-	INIT_STE(chown);
-	INIT_STE(umask);
-	INIT_STE(getuid);
-	INIT_STE(getgid);
-#ifdef CONFIG_NET
-	INIT_STE(socketcall);
-#endif
-	INIT_STE(ioctl);
-	INIT_STE(access);
-	INIT_STE(truncate);
-	INIT_STE(getpid);
-	INIT_STE(creat);
-	INIT_STE(llseek);
-	INIT_STE(readlink);
-	INIT_STE(listxattr);
-	INIT_STE(llistxattr);
-	INIT_STE(flistxattr);
-	INIT_STE(getxattr);
-	INIT_STE(lgetxattr);
-	INIT_STE(fgetxattr);
-	INIT_STE(setxattr);
-	INIT_STE(lsetxattr);
-	INIT_STE(fsetxattr);
-	INIT_STE(symlink);
-	INIT_STE(fallocate);
-	INIT_STE(link);
-	INIT_STE(pread64);
-	INIT_STE(pwrite64);
-	INIT_STE(fsync);
-	INIT_STE(fdatasync);
-	INIT_STE(removexattr);
-	INIT_STE(utimensat);
-}
-
 int __init syscall_init(void)
 {
-	init_syscall_table();
-
 	INIT_LIST_HEAD(&syscall_queue.list);
 	init_waitqueue_head(&syscall_queue.wqh);
 
