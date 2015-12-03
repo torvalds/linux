@@ -1640,8 +1640,8 @@ static int gfx_v8_0_sw_fini(void *handle)
 static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 {
 	uint32_t *modearray, *mod2array;
-	const u32 num_tile_mode_states = 32;
-	const u32 num_secondary_tile_mode_states = 16;
+	const u32 num_tile_mode_states = ARRAY_SIZE(adev->gfx.config.tile_mode_array);
+	const u32 num_secondary_tile_mode_states = ARRAY_SIZE(adev->gfx.config.macrotile_mode_array);
 	u32 reg_offset;
 
 	modearray = adev->gfx.config.tile_mode_array;
