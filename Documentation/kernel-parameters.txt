@@ -2575,8 +2575,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	notsc		[BUGS=X86-32] Disable Time Stamp Counter
 
-	nousb		[USB] Disable the USB subsystem
-
 	nowatchdog	[KNL] Disable both lockup detectors, i.e.
                         soft-lockup and NMI watchdog (hard-lockup).
 
@@ -3897,6 +3895,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[USB] Specifies timeout for the initial 64-byte
                         USB_REQ_GET_DESCRIPTOR request in milliseconds
 			(default 5000 = 5.0 seconds).
+
+	usbcore.nousb	[USB] Disable the USB subsystem
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
