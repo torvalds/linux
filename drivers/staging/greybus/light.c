@@ -681,9 +681,6 @@ static int __gb_lights_channel_torch_attach(struct gb_channel *channel,
 	kfree(channel->led->name);
 	channel->led->name = name;
 
-	/* free original torch channel resources */
-	gb_lights_channel_free(channel_torch);
-
 	channel_torch->led = channel->led;
 
 	return 0;
