@@ -2338,7 +2338,7 @@ int hswep_uncore_pci_init(void)
 }
 /* end of Haswell-EP uncore support */
 
-/* BDX-DE uncore support */
+/* BDX uncore support */
 
 static struct intel_uncore_type bdx_uncore_ubox = {
 	.name			= "ubox",
@@ -2360,13 +2360,14 @@ static struct event_constraint bdx_uncore_cbox_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x09, 0x3),
 	UNCORE_EVENT_CONSTRAINT(0x11, 0x1),
 	UNCORE_EVENT_CONSTRAINT(0x36, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x3e, 0x1),
 	EVENT_CONSTRAINT_END
 };
 
 static struct intel_uncore_type bdx_uncore_cbox = {
 	.name			= "cbox",
 	.num_counters		= 4,
-	.num_boxes		= 8,
+	.num_boxes		= 24,
 	.perf_ctr_bits		= 48,
 	.event_ctl		= HSWEP_C0_MSR_PMON_CTL0,
 	.perf_ctr		= HSWEP_C0_MSR_PMON_CTR0,
@@ -2379,9 +2380,24 @@ static struct intel_uncore_type bdx_uncore_cbox = {
 	.format_group		= &hswep_uncore_cbox_format_group,
 };
 
+static struct intel_uncore_type bdx_uncore_sbox = {
+	.name			= "sbox",
+	.num_counters		= 4,
+	.num_boxes		= 4,
+	.perf_ctr_bits		= 48,
+	.event_ctl		= HSWEP_S0_MSR_PMON_CTL0,
+	.perf_ctr		= HSWEP_S0_MSR_PMON_CTR0,
+	.event_mask		= HSWEP_S_MSR_PMON_RAW_EVENT_MASK,
+	.box_ctl		= HSWEP_S0_MSR_PMON_BOX_CTL,
+	.msr_offset		= HSWEP_SBOX_MSR_OFFSET,
+	.ops			= &hswep_uncore_sbox_msr_ops,
+	.format_group		= &hswep_uncore_sbox_format_group,
+};
+
 static struct intel_uncore_type *bdx_msr_uncores[] = {
 	&bdx_uncore_ubox,
 	&bdx_uncore_cbox,
+	&bdx_uncore_sbox,
 	&hswep_uncore_pcu,
 	NULL,
 };
@@ -2396,7 +2412,7 @@ void bdx_uncore_cpu_init(void)
 static struct intel_uncore_type bdx_uncore_ha = {
 	.name		= "ha",
 	.num_counters   = 4,
-	.num_boxes	= 1,
+	.num_boxes	= 2,
 	.perf_ctr_bits	= 48,
 	SNBEP_UNCORE_PCI_COMMON_INIT(),
 };
@@ -2404,7 +2420,7 @@ static struct intel_uncore_type bdx_uncore_ha = {
 static struct intel_uncore_type bdx_uncore_imc = {
 	.name		= "imc",
 	.num_counters   = 5,
-	.num_boxes	= 2,
+	.num_boxes	= 8,
 	.perf_ctr_bits	= 48,
 	.fixed_ctr_bits	= 48,
 	.fixed_ctr	= SNBEP_MC_CHy_PCI_PMON_FIXED_CTR,
@@ -2424,6 +2440,19 @@ static struct intel_uncore_type bdx_uncore_irp = {
 	.format_group		= &snbep_uncore_format_group,
 };
 
+static struct intel_uncore_type bdx_uncore_qpi = {
+	.name			= "qpi",
+	.num_counters		= 4,
+	.num_boxes		= 3,
+	.perf_ctr_bits		= 48,
+	.perf_ctr		= SNBEP_PCI_PMON_CTR0,
+	.event_ctl		= SNBEP_PCI_PMON_CTL0,
+	.event_mask		= SNBEP_QPI_PCI_PMON_RAW_EVENT_MASK,
+	.box_ctl		= SNBEP_PCI_PMON_BOX_CTL,
+	.num_shared_regs	= 1,
+	.ops			= &snbep_uncore_qpi_ops,
+	.format_group		= &snbep_uncore_qpi_format_group,
+};
 
 static struct event_constraint bdx_uncore_r2pcie_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x10, 0x3),
@@ -2432,6 +2461,8 @@ static struct event_constraint bdx_uncore_r2pcie_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x23, 0x1),
 	UNCORE_EVENT_CONSTRAINT(0x25, 0x1),
 	UNCORE_EVENT_CONSTRAINT(0x26, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x28, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2c, 0x3),
 	UNCORE_EVENT_CONSTRAINT(0x2d, 0x3),
 	EVENT_CONSTRAINT_END
 };
@@ -2445,18 +2476,65 @@ static struct intel_uncore_type bdx_uncore_r2pcie = {
 	SNBEP_UNCORE_PCI_COMMON_INIT(),
 };
 
+static struct event_constraint bdx_uncore_r3qpi_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x01, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x07, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x08, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x09, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x0a, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x0e, 0x7),
+	UNCORE_EVENT_CONSTRAINT(0x10, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x11, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x13, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x14, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x15, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x1f, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x20, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x21, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x22, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x23, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x25, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x26, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x28, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x29, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2c, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2d, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2e, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x2f, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x33, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x34, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x36, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x37, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x38, 0x3),
+	UNCORE_EVENT_CONSTRAINT(0x39, 0x3),
+	EVENT_CONSTRAINT_END
+};
+
+static struct intel_uncore_type bdx_uncore_r3qpi = {
+	.name		= "r3qpi",
+	.num_counters   = 3,
+	.num_boxes	= 3,
+	.perf_ctr_bits	= 48,
+	.constraints	= bdx_uncore_r3qpi_constraints,
+	SNBEP_UNCORE_PCI_COMMON_INIT(),
+};
+
 enum {
 	BDX_PCI_UNCORE_HA,
 	BDX_PCI_UNCORE_IMC,
 	BDX_PCI_UNCORE_IRP,
+	BDX_PCI_UNCORE_QPI,
 	BDX_PCI_UNCORE_R2PCIE,
+	BDX_PCI_UNCORE_R3QPI,
 };
 
 static struct intel_uncore_type *bdx_pci_uncores[] = {
 	[BDX_PCI_UNCORE_HA]	= &bdx_uncore_ha,
 	[BDX_PCI_UNCORE_IMC]	= &bdx_uncore_imc,
 	[BDX_PCI_UNCORE_IRP]	= &bdx_uncore_irp,
+	[BDX_PCI_UNCORE_QPI]	= &bdx_uncore_qpi,
 	[BDX_PCI_UNCORE_R2PCIE]	= &bdx_uncore_r2pcie,
+	[BDX_PCI_UNCORE_R3QPI]	= &bdx_uncore_r3qpi,
 	NULL,
 };
 
@@ -2464,6 +2542,10 @@ static const struct pci_device_id bdx_uncore_pci_ids[] = {
 	{ /* Home Agent 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f30),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_HA, 0),
+	},
+	{ /* Home Agent 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f38),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_HA, 1),
 	},
 	{ /* MC0 Channel 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fb0),
@@ -2473,13 +2555,73 @@ static const struct pci_device_id bdx_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fb1),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 1),
 	},
+	{ /* MC0 Channel 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fb4),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 2),
+	},
+	{ /* MC0 Channel 3 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fb5),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 3),
+	},
+	{ /* MC1 Channel 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fd0),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 4),
+	},
+	{ /* MC1 Channel 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fd1),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 5),
+	},
+	{ /* MC1 Channel 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fd4),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 6),
+	},
+	{ /* MC1 Channel 3 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6fd5),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IMC, 7),
+	},
 	{ /* IRP */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f39),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_IRP, 0),
 	},
+	{ /* QPI0 Port 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f32),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_QPI, 0),
+	},
+	{ /* QPI0 Port 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f33),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_QPI, 1),
+	},
+	{ /* QPI1 Port 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f3a),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_QPI, 2),
+	},
 	{ /* R2PCIe */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f34),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_R2PCIE, 0),
+	},
+	{ /* R3QPI0 Link 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f36),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_R3QPI, 0),
+	},
+	{ /* R3QPI0 Link 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f37),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_R3QPI, 1),
+	},
+	{ /* R3QPI1 Link 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f3e),
+		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_R3QPI, 2),
+	},
+	{ /* QPI Port 0 filter  */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f86),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 0),
+	},
+	{ /* QPI Port 1 filter  */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f96),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 1),
+	},
+	{ /* QPI Port 2 filter  */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f46),
+		.driver_data = UNCORE_PCI_DEV_DATA(UNCORE_EXTRA_PCI_DEV, 2),
 	},
 	{ /* end: all zeroes */ }
 };
@@ -2500,4 +2642,4 @@ int bdx_uncore_pci_init(void)
 	return 0;
 }
 
-/* end of BDX-DE uncore support */
+/* end of BDX uncore support */
