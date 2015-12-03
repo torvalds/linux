@@ -927,3 +927,16 @@ int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
 
 	return skl_ipc_set_large_config(&ctx->ipc, &msg, params);
 }
+
+int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
+			  u32 param_id, struct skl_module_cfg *mcfg)
+{
+	struct skl_ipc_large_config_msg msg;
+
+	msg.module_id = mcfg->id.module_id;
+	msg.instance_id = mcfg->id.instance_id;
+	msg.param_data_size = size;
+	msg.large_param_id = param_id;
+
+	return skl_ipc_get_large_config(&ctx->ipc, &msg, params);
+}

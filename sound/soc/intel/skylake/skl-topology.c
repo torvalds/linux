@@ -908,6 +908,13 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 	struct soc_bytes_ext *sb =
 			(struct soc_bytes_ext *)kcontrol->private_value;
 	struct skl_algo_data *bc = (struct skl_algo_data *)sb->dobj.private;
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct skl_module_cfg *mconfig = w->priv;
+	struct skl *skl = get_skl_ctx(w->dapm->dev);
+
+	if (w->power)
+		skl_get_module_params(skl->skl_sst, (u32 *)bc->params,
+				      bc->max, bc->param_id, mconfig);
 
 	if (bc->params) {
 		if (copy_to_user(data, &bc->param_id, sizeof(u32)))
