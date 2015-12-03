@@ -2783,6 +2783,26 @@ void decode_misc_enable_msr(void)
 			msr & (1 << 18) ? "MONITOR" : "");
 }
 
+/*
+ * Decode MSR_MISC_PWR_MGMT
+ *
+ * Decode the bits according to the Nehalem documentation
+ * bit[0] seems to continue to have same meaning going forward
+ * bit[1] less so...
+ */
+void decode_misc_pwr_mgmt_msr(void)
+{
+	unsigned long long msr;
+
+	if (!do_nhm_platform_info)
+		return;
+
+	if (!get_msr(base_cpu, MSR_MISC_PWR_MGMT, &msr))
+		fprintf(stderr, "cpu%d: MSR_MISC_PWR_MGMT: 0x%08llx (%sable-EIST_Coordination %sable-EPB)\n",
+			base_cpu, msr,
+			msr & (1 << 0) ? "DIS" : "EN",
+			msr & (1 << 1) ? "EN" : "DIS");
+}
 
 void process_cpuid()
 {
@@ -2935,6 +2955,9 @@ void process_cpuid()
 	do_skl_residency = has_skl_msrs(family, model);
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
+
+	if (debug)
+		decode_misc_pwr_mgmt_msr();
 
 	rapl_probe(family, model);
 	perf_limit_reasons_probe(family, model);
