@@ -65,15 +65,12 @@ static const u32 ibridge_dram_rule[] = {
 	0xd8, 0xe0, 0xe8, 0xf0, 0xf8,
 };
 
-#define SAD_LIMIT(reg)		((GET_BITFIELD(reg, 6, 25) << 26) | 0x3ffffff)
-#define DRAM_ATTR(reg)		GET_BITFIELD(reg, 2,  3)
-#define INTERLEAVE_MODE(reg)	GET_BITFIELD(reg, 1,  1)
 #define DRAM_RULE_ENABLE(reg)	GET_BITFIELD(reg, 0,  0)
 #define A7MODE(reg)		GET_BITFIELD(reg, 26, 26)
 
-static char *get_dram_attr(u32 reg)
+static char *show_dram_attr(u32 attr)
 {
-	switch(DRAM_ATTR(reg)) {
+	switch (attr) {
 		case 0:
 			return "DRAM";
 		case 1:
@@ -273,6 +270,10 @@ struct sbridge_info {
 	u64		(*get_tolm)(struct sbridge_pvt *pvt);
 	u64		(*get_tohm)(struct sbridge_pvt *pvt);
 	u64		(*rir_limit)(u32 reg);
+	u64		(*sad_limit)(u32 reg);
+	u32		(*interleave_mode)(u32 reg);
+	char*		(*show_interleave_mode)(u32 reg);
+	u32		(*dram_attr)(u32 reg);
 	const u32	*dram_rule;
 	const u32	*interleave_list;
 	const struct interleave_pkg *interleave_pkg;
@@ -718,6 +719,26 @@ static u64 rir_limit(u32 reg)
 	return ((u64)GET_BITFIELD(reg,  1, 10) << 29) | 0x1fffffff;
 }
 
+static u64 sad_limit(u32 reg)
+{
+	return (GET_BITFIELD(reg, 6, 25) << 26) | 0x3ffffff;
+}
+
+static u32 interleave_mode(u32 reg)
+{
+	return GET_BITFIELD(reg, 1, 1);
+}
+
+char *show_interleave_mode(u32 reg)
+{
+	return interleave_mode(reg) ? "8:6" : "[8:6]XOR[18:16]";
+}
+
+static u32 dram_attr(u32 reg)
+{
+	return GET_BITFIELD(reg, 2, 3);
+}
+
 static enum mem_type get_memory_type(struct sbridge_pvt *pvt)
 {
 	u32 reg;
@@ -1069,7 +1090,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 		/* SAD_LIMIT Address range is 45:26 */
 		pci_read_config_dword(pvt->pci_sad0, pvt->info.dram_rule[n_sads],
 				      &reg);
-		limit = SAD_LIMIT(reg);
+		limit = pvt->info.sad_limit(reg);
 
 		if (!DRAM_RULE_ENABLE(reg))
 			continue;
@@ -1081,10 +1102,10 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 		gb = div_u64_rem(tmp_mb, 1024, &mb);
 		edac_dbg(0, "SAD#%d %s up to %u.%03u GB (0x%016Lx) Interleave: %s reg=0x%08x\n",
 			 n_sads,
-			 get_dram_attr(reg),
+			 show_dram_attr(pvt->info.dram_attr(reg)),
 			 gb, (mb*1000)/1024,
 			 ((u64)tmp_mb) << 20L,
-			 INTERLEAVE_MODE(reg) ? "8:6" : "[8:6]XOR[18:16]",
+			 pvt->info.show_interleave_mode(reg),
 			 reg);
 		prv = limit;
 
@@ -1248,7 +1269,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		if (!DRAM_RULE_ENABLE(reg))
 			continue;
 
-		limit = SAD_LIMIT(reg);
+		limit = pvt->info.sad_limit(reg);
 		if (limit <= prv) {
 			sprintf(msg, "Can't discover the memory socket");
 			return -EINVAL;
@@ -1262,8 +1283,8 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		return -EINVAL;
 	}
 	dram_rule = reg;
-	*area_type = get_dram_attr(dram_rule);
-	interleave_mode = INTERLEAVE_MODE(dram_rule);
+	*area_type = show_dram_attr(pvt->info.dram_attr(dram_rule));
+	interleave_mode = pvt->info.interleave_mode(dram_rule);
 
 	pci_read_config_dword(pvt->pci_sad0, pvt->info.interleave_list[n_sads],
 			      &reg);
@@ -2401,6 +2422,10 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_memory_type = get_memory_type;
 		pvt->info.get_node_id = get_node_id;
 		pvt->info.rir_limit = rir_limit;
+		pvt->info.sad_limit = sad_limit;
+		pvt->info.interleave_mode = interleave_mode;
+		pvt->info.show_interleave_mode = show_interleave_mode;
+		pvt->info.dram_attr = dram_attr;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
@@ -2421,6 +2446,10 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_memory_type = get_memory_type;
 		pvt->info.get_node_id = get_node_id;
 		pvt->info.rir_limit = rir_limit;
+		pvt->info.sad_limit = sad_limit;
+		pvt->info.interleave_mode = interleave_mode;
+		pvt->info.show_interleave_mode = show_interleave_mode;
+		pvt->info.dram_attr = dram_attr;
 		pvt->info.max_sad = ARRAY_SIZE(sbridge_dram_rule);
 		pvt->info.interleave_list = sbridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
@@ -2441,6 +2470,10 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_memory_type = haswell_get_memory_type;
 		pvt->info.get_node_id = haswell_get_node_id;
 		pvt->info.rir_limit = haswell_rir_limit;
+		pvt->info.sad_limit = sad_limit;
+		pvt->info.interleave_mode = interleave_mode;
+		pvt->info.show_interleave_mode = show_interleave_mode;
+		pvt->info.dram_attr = dram_attr;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
@@ -2461,6 +2494,10 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.get_memory_type = haswell_get_memory_type;
 		pvt->info.get_node_id = haswell_get_node_id;
 		pvt->info.rir_limit = haswell_rir_limit;
+		pvt->info.sad_limit = sad_limit;
+		pvt->info.interleave_mode = interleave_mode;
+		pvt->info.show_interleave_mode = show_interleave_mode;
+		pvt->info.dram_attr = dram_attr;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
