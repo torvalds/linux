@@ -749,6 +749,53 @@ int hns_ae_get_regs_len(struct hnae_handle *handle)
 	return total_num;
 }
 
+static u32 hns_ae_get_rss_key_size(struct hnae_handle *handle)
+{
+	return HNS_PPEV2_RSS_KEY_SIZE;
+}
+
+static u32 hns_ae_get_rss_indir_size(struct hnae_handle *handle)
+{
+	return HNS_PPEV2_RSS_IND_TBL_SIZE;
+}
+
+static int hns_ae_get_rss(struct hnae_handle *handle, u32 *indir, u8 *key,
+			  u8 *hfunc)
+{
+	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
+
+	/* currently we support only one type of hash function i.e. Toep hash */
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+
+	/* get the RSS Key required by the user */
+	if (key)
+		memcpy(key, ppe_cb->rss_key, HNS_PPEV2_RSS_KEY_SIZE);
+
+	/* update the current hash->queue mappings from the shadow RSS table */
+	memcpy(indir, ppe_cb->rss_indir_table, HNS_PPEV2_RSS_IND_TBL_SIZE);
+
+	return 0;
+}
+
+static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
+			  const u8 *key, const u8 hfunc)
+{
+	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
+
+	/* set the RSS Hash Key if specififed by the user */
+	if (key)
+		hns_ppe_set_rss_key(ppe_cb, (int *)key);
+
+	/* update the shadow RSS table with user specified qids */
+	memcpy(ppe_cb->rss_indir_table, indir, HNS_PPEV2_RSS_IND_TBL_SIZE);
+
+	/* now update the hardware */
+	hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
+
+	return 0;
+}
+
 static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_handle = hns_ae_get_handle,
 	.put_handle = hns_ae_put_handle,
@@ -783,7 +830,11 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.update_led_status = hns_ae_update_led_status,
 	.set_led_id = hns_ae_cpld_set_led_id,
 	.get_regs = hns_ae_get_regs,
-	.get_regs_len = hns_ae_get_regs_len
+	.get_regs_len = hns_ae_get_regs_len,
+	.get_rss_key_size = hns_ae_get_rss_key_size,
+	.get_rss_indir_size = hns_ae_get_rss_indir_size,
+	.get_rss = hns_ae_get_rss,
+	.set_rss = hns_ae_set_rss
 };
 
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev)

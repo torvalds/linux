@@ -485,6 +485,12 @@ struct hnae_ae_ops {
 			  enum hnae_led_state status);
 	void (*get_regs)(struct hnae_handle *handle, void *data);
 	int (*get_regs_len)(struct hnae_handle *handle);
+	u32	(*get_rss_key_size)(struct hnae_handle *handle);
+	u32	(*get_rss_indir_size)(struct hnae_handle *handle);
+	int	(*get_rss)(struct hnae_handle *handle, u32 *indir, u8 *key,
+			   u8 *hfunc);
+	int	(*set_rss)(struct hnae_handle *handle, const u32 *indir,
+			   const u8 *key, const u8 hfunc);
 };
 
 struct hnae_ae_dev {
