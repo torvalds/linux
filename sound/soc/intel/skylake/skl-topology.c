@@ -331,7 +331,7 @@ static int skl_tplg_set_module_params(struct snd_soc_dapm_widget *w,
 	struct skl_specific_cfg *sp_cfg;
 
 	if (mconfig->formats_config.caps_size > 0 &&
-		mconfig->formats_config.set_params) {
+		mconfig->formats_config.set_params == SKL_PARAM_SET) {
 		sp_cfg = &mconfig->formats_config;
 		ret = skl_set_module_params(ctx, sp_cfg->caps,
 					sp_cfg->caps_size,
@@ -346,7 +346,7 @@ static int skl_tplg_set_module_params(struct snd_soc_dapm_widget *w,
 			sb = (void *) k->private_value;
 			bc = (struct skl_algo_data *)sb->dobj.private;
 
-			if (bc->set_params) {
+			if (bc->set_params == SKL_PARAM_SET) {
 				ret = skl_set_module_params(ctx,
 						(u32 *)bc->params, bc->max,
 						bc->param_id, mconfig);
@@ -379,7 +379,7 @@ static int skl_tplg_set_module_init_data(struct snd_soc_dapm_widget *w)
 			sb = (struct soc_bytes_ext *)k->private_value;
 			bc = (struct skl_algo_data *)sb->dobj.private;
 
-			if (bc->set_params)
+			if (bc->set_params != SKL_PARAM_INIT)
 				continue;
 
 			mconfig->formats_config.caps = (u32 *)&bc->params;
