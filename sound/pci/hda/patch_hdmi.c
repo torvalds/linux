@@ -2357,6 +2357,9 @@ static void intel_pin_eld_notify(void *audio_ptr, int port)
 	 */
 	if (snd_power_get_state(codec->card) != SNDRV_CTL_POWER_D0)
 		return;
+	/* ditto during suspend/resume process itself */
+	if (atomic_read(&(codec)->core.in_pm))
+		return;
 
 	check_presence_and_report(codec, pin_nid);
 }

@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/math64.h>
 #include <linux/string.h>
+#include <linux/compat.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/pcm.h>
@@ -2648,7 +2649,11 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 
 #ifdef CONFIG_COMPAT
 /* all compatible */
-#define snd_pcm_oss_ioctl_compat	snd_pcm_oss_ioctl
+static long snd_pcm_oss_ioctl_compat(struct file *file, unsigned int cmd,
+				     unsigned long arg)
+{
+	return snd_pcm_oss_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
 #else
 #define snd_pcm_oss_ioctl_compat	NULL
 #endif
