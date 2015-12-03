@@ -2469,15 +2469,15 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	if (!HAS_GUC_SCHED(dev_priv->dev))
 		return 0;
 
+	if (mutex_lock_interruptible(&dev->struct_mutex))
+		return 0;
+
 	/* Take a local copy of the GuC data, so we can dump it at leisure */
-	spin_lock(&dev_priv->guc.host2guc_lock);
 	guc = dev_priv->guc;
-	if (guc.execbuf_client) {
-		spin_lock(&guc.execbuf_client->wq_lock);
+	if (guc.execbuf_client)
 		client = *guc.execbuf_client;
-		spin_unlock(&guc.execbuf_client->wq_lock);
-	}
-	spin_unlock(&dev_priv->guc.host2guc_lock);
+
+	mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "GuC total action count: %llu\n", guc.action_count);
 	seq_printf(m, "GuC action failure count: %u\n", guc.action_fail);
