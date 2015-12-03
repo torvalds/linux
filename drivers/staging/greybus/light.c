@@ -456,6 +456,8 @@ static void gb_lights_led_operations_set(struct gb_channel *channel,
 
 #ifdef V4L2_HAVE_FLASH
 /* V4L2 specific helpers */
+static const struct v4l2_flash_ops v4l2_flash_ops;
+
 static void __gb_lights_channel_v4l2_config(struct led_flash_setting *channel_s,
 					    struct led_flash_setting *v4l2_s)
 {
@@ -507,7 +509,7 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 		LED_FAULT_LED_OVER_TEMPERATURE;
 
 	light->v4l2_flash = v4l2_flash_init(dev, NULL, fled, iled,
-					    NULL, sd_cfg);
+					    &v4l2_flash_ops, sd_cfg);
 	if (IS_ERR_OR_NULL(light->v4l2_flash)) {
 		ret = PTR_ERR(light->v4l2_flash);
 		goto out_free;
