@@ -519,8 +519,12 @@ MLXSW_ITEM32_INDEXED(reg, sfn, rec_swid, MLXSW_REG_SFN_BASE_LEN, 24, 8,
 enum mlxsw_reg_sfn_rec_type {
 	/* MAC addresses learned on a regular port. */
 	MLXSW_REG_SFN_REC_TYPE_LEARNED_MAC = 0x5,
-	/* Aged-out MAC address on a regular port */
+	/* MAC addresses learned on a LAG port. */
+	MLXSW_REG_SFN_REC_TYPE_LEARNED_MAC_LAG = 0x6,
+	/* Aged-out MAC address on a regular port. */
 	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC = 0x7,
+	/* Aged-out MAC address on a LAG port. */
+	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC_LAG = 0x8,
 };
 
 /* reg_sfn_rec_type
@@ -566,6 +570,22 @@ static inline void mlxsw_reg_sfn_mac_unpack(char *payload, int rec_index,
 	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
 	*p_vid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
 	*p_local_port = mlxsw_reg_sfn_mac_system_port_get(payload, rec_index);
+}
+
+/* reg_sfn_mac_lag_lag_id
+ * LAG ID (pointer into the LAG descriptor table).
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, mac_lag_lag_id, MLXSW_REG_SFN_BASE_LEN, 0, 10,
+		     MLXSW_REG_SFN_REC_LEN, 0x0C, false);
+
+static inline void mlxsw_reg_sfn_mac_lag_unpack(char *payload, int rec_index,
+						char *mac, u16 *p_vid,
+						u16 *p_lag_id)
+{
+	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
+	*p_vid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
+	*p_lag_id = mlxsw_reg_sfn_mac_lag_lag_id_get(payload, rec_index);
 }
 
 /* SPMS - Switch Port MSTP/RSTP State Register
