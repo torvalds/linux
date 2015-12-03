@@ -294,7 +294,7 @@ out_off_and_release:
 out_parport_unreg:
 	parport_unregister_device(pd);
 out_free_master:
-	(void) spi_master_put(master);
+	spi_master_put(master);
 out_fail:
 	pr_info("%s: spi_lm70llp probe fail, status %d\n", DRVNAME, status);
 }
@@ -315,7 +315,7 @@ static void spi_lm70llp_detach(struct parport *p)
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);
 
-	(void) spi_master_put(pp->bitbang.master);
+	spi_master_put(pp->bitbang.master);
 
 	lm70llp = NULL;
 }
