@@ -155,10 +155,10 @@ static void freezer_css_free(struct cgroup_subsys_state *css)
  * @freezer->lock.  freezer_attach() makes the new tasks conform to the
  * current state and all following state changes can see the new tasks.
  */
-static void freezer_attach(struct cgroup_subsys_state *new_css,
-			   struct cgroup_taskset *tset)
+static void freezer_attach(struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
+	struct cgroup_subsys_state *new_css;
 
 	mutex_lock(&freezer_mutex);
 
@@ -172,7 +172,7 @@ static void freezer_attach(struct cgroup_subsys_state *new_css,
 	 * current state before executing the following - !frozen tasks may
 	 * be visible in a FROZEN cgroup and frozen tasks in a THAWED one.
 	 */
-	cgroup_taskset_for_each(task, tset) {
+	cgroup_taskset_for_each(task, new_css, tset) {
 		struct freezer *freezer = css_freezer(new_css);
 
 		if (!(freezer->state & CGROUP_FREEZING)) {

@@ -67,14 +67,15 @@ static int update_classid(const void *v, struct file *file, unsigned n)
 	return 0;
 }
 
-static void cgrp_attach(struct cgroup_subsys_state *css,
-			struct cgroup_taskset *tset)
+static void cgrp_attach(struct cgroup_taskset *tset)
 {
-	struct cgroup_cls_state *cs = css_cls_state(css);
-	void *v = (void *)(unsigned long)cs->classid;
 	struct task_struct *p;
+	struct cgroup_subsys_state *css;
 
-	cgroup_taskset_for_each(p, tset) {
+	cgroup_taskset_for_each(p, css, tset) {
+		struct cgroup_cls_state *cs = css_cls_state(css);
+		void *v = (void *)(unsigned long)cs->classid;
+
 		task_lock(p);
 		iterate_fd(p->files, 0, update_classid, v);
 		task_unlock(p);
