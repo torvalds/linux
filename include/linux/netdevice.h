@@ -3897,6 +3897,11 @@ static inline bool netif_is_team_master(struct net_device *dev)
 	return dev->priv_flags & IFF_TEAM;
 }
 
+static inline bool netif_is_team_port(struct net_device *dev)
+{
+	return dev->priv_flags & IFF_TEAM_PORT;
+}
+
 /* This device needs to keep skb dst for qdisc enqueue or ndo_start_xmit() */
 static inline void netif_keep_dst(struct net_device *dev)
 {
