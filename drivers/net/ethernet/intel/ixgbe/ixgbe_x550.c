@@ -1444,7 +1444,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 				IXGBE_MDIO_GLOBAL_ALARM_1_INT)))
 		return status;
 
-	/* High temperature failure alarm triggered */
+	/* Global alarm triggered */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_ALARM_1,
 				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
 				      &reg);
@@ -1457,6 +1457,21 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 		/* power down the PHY in case the PHY FW didn't already */
 		ixgbe_set_copper_phy_power(hw, false);
 		return IXGBE_ERR_OVERTEMP;
+	}
+	if (reg & IXGBE_MDIO_GLOBAL_ALM_1_DEV_FAULT) {
+		/*  device fault alarm triggered */
+		status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_FAULT_MSG,
+					  IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+					  &reg);
+		if (status)
+			return status;
+
+		/* if device fault was due to high temp alarm handle and exit */
+		if (reg == IXGBE_MDIO_GLOBAL_FAULT_MSG_HI_TMP) {
+			/* power down the PHY in case the PHY FW didn't */
+			ixgbe_set_copper_phy_power(hw, false);
+			return IXGBE_ERR_OVERTEMP;
+		}
 	}
 
 	/* Vendor alarm 2 triggered */
@@ -1511,14 +1526,15 @@ static s32 ixgbe_enable_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	/* Enables high temperature failure alarm */
+	/* Enable high temperature failure and global fault alarms */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_INT_MASK,
 				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
 				      &reg);
 	if (status)
 		return status;
 
-	reg |= IXGBE_MDIO_GLOBAL_INT_HI_TEMP_EN;
+	reg |= (IXGBE_MDIO_GLOBAL_INT_HI_TEMP_EN |
+		IXGBE_MDIO_GLOBAL_INT_DEV_FAULT_EN);
 
 	status = hw->phy.ops.write_reg(hw, IXGBE_MDIO_GLOBAL_INT_MASK,
 				       IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
@@ -1727,6 +1743,12 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_copper)
 		return IXGBE_ERR_CONFIG;
 
+	if (hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE) {
+		speed = IXGBE_LINK_SPEED_10GB_FULL |
+			IXGBE_LINK_SPEED_1GB_FULL;
+		return ixgbe_setup_kr_speed_x550em(hw, speed);
+	}
+
 	/* If link is not up, then there is no setup necessary so return  */
 	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
 	if (status)
@@ -1931,7 +1953,6 @@ static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 {
 	struct ixgbe_phy_info *phy = &hw->phy;
-	ixgbe_link_speed speed;
 	s32 ret_val;
 
 	hw->mac.ops.set_lan_id(hw);
@@ -1944,10 +1965,6 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		 * to determine internal PHY mode.
 		 */
 		phy->nw_mng_if_sel = IXGBE_READ_REG(hw, IXGBE_NW_MNG_IF_SEL);
-		if (phy->nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE) {
-			speed = IXGBE_LINK_SPEED_10GB_FULL |
-				IXGBE_LINK_SPEED_1GB_FULL;
-		}
 	}
 
 	/* Identify the PHY or SFP module */
@@ -1979,14 +1996,8 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		/* If internal link mode is XFI, then setup iXFI internal link,
 		 * else setup KR now.
 		 */
-		if (!(phy->nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE)) {
-			phy->ops.setup_internal_link =
-					ixgbe_setup_internal_phy_t_x550em;
-		} else {
-			speed = IXGBE_LINK_SPEED_10GB_FULL |
-				IXGBE_LINK_SPEED_1GB_FULL;
-			ret_val = ixgbe_setup_kr_speed_x550em(hw, speed);
-		}
+		phy->ops.setup_internal_link =
+					      ixgbe_setup_internal_phy_t_x550em;
 
 		/* setup SW LPLU only for first revision */
 		if (!(IXGBE_FUSES0_REV1 & IXGBE_READ_REG(hw,
@@ -2135,13 +2146,14 @@ mac_reset_top:
 	ctrl |= IXGBE_READ_REG(hw, IXGBE_CTRL);
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
 	IXGBE_WRITE_FLUSH(hw);
+	usleep_range(1000, 1200);
 
 	/* Poll for reset bit to self-clear meaning reset is complete */
 	for (i = 0; i < 10; i++) {
-		udelay(1);
 		ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
 		if (!(ctrl & IXGBE_CTRL_RST_MASK))
 			break;
+		udelay(1);
 	}
 
 	if (ctrl & IXGBE_CTRL_RST_MASK) {
