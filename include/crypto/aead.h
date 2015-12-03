@@ -128,6 +128,7 @@ struct aead_request {
  * @exit: Deinitialize the cryptographic transformation object. This is a
  *	  counterpart to @init, used to remove various changes set in
  *	  @init.
+ * @base: Definition of a generic crypto cipher algorithm.
  *
  * All fields except @ivsize is mandatory and must be filled.
  */
