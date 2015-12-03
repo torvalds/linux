@@ -109,7 +109,7 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 	} else
 		DRM_ERROR("failed to reserve buffer after flip\n");
 
-	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
+	amdgpu_bo_unref(&work->old_rbo);
 	kfree(work->shared);
 	kfree(work);
 }
@@ -148,8 +148,8 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	obj = old_amdgpu_fb->obj;
 
 	/* take a reference to the old object */
-	drm_gem_object_reference(obj);
 	work->old_rbo = gem_to_amdgpu_bo(obj);
+	amdgpu_bo_ref(work->old_rbo);
 
 	new_amdgpu_fb = to_amdgpu_framebuffer(fb);
 	obj = new_amdgpu_fb->obj;
@@ -222,7 +222,7 @@ pflip_cleanup:
 	amdgpu_bo_unreserve(new_rbo);
 
 cleanup:
-	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
+	amdgpu_bo_unref(&work->old_rbo);
 	fence_put(work->excl);
 	for (i = 0; i < work->shared_count; ++i)
 		fence_put(work->shared[i]);
