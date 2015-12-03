@@ -4793,6 +4793,8 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 static void intel_post_plane_update(struct intel_crtc *crtc)
 {
 	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc->base.state);
 	struct drm_device *dev = crtc->base.dev;
 
 	if (atomic->wait_vblank)
@@ -4802,7 +4804,7 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 
 	crtc->wm.cxsr_allowed = true;
 
-	if (crtc->atomic.update_wm_post)
+	if (pipe_config->wm_changed)
 		intel_update_watermarks(&crtc->base);
 
 	if (atomic->update_fbc)
@@ -4835,6 +4837,9 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 		crtc->wm.cxsr_allowed = false;
 		intel_set_memory_cxsr(dev_priv, false);
 	}
+
+	if (!needs_modeset(&pipe_config->base) && pipe_config->wm_changed)
+		intel_update_watermarks(&crtc->base);
 }
 
 static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask)
@@ -11696,9 +11701,14 @@ static bool intel_wm_need_update(struct drm_plane *plane,
 	struct intel_plane_state *cur = to_intel_plane_state(plane->state);
 
 	/* Update watermarks on tiling or size changes. */
-	if (!plane->state->fb || !state->fb ||
-	    plane->state->fb->modifier[0] != state->fb->modifier[0] ||
-	    plane->state->rotation != state->rotation ||
+	if (new->visible != cur->visible)
+		return true;
+
+	if (!cur->base.fb || !new->base.fb)
+		return false;
+
+	if (cur->base.fb->modifier[0] != new->base.fb->modifier[0] ||
+	    cur->base.rotation != new->base.rotation ||
 	    drm_rect_width(&new->src) != drm_rect_width(&cur->src) ||
 	    drm_rect_height(&new->src) != drm_rect_height(&cur->src) ||
 	    drm_rect_width(&new->dst) != drm_rect_width(&cur->dst) ||
@@ -11768,17 +11778,9 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			 plane->base.id, was_visible, visible,
 			 turn_off, turn_on, mode_changed);
 
-	if (turn_on) {
-		intel_crtc->atomic.update_wm_pre = true;
-		/* must disable cxsr around plane enable/disable */
-		if (plane->type != DRM_PLANE_TYPE_CURSOR) {
-			pipe_config->disable_cxsr = true;
-			/* to potentially re-enable cxsr */
-			intel_crtc->atomic.wait_vblank = true;
-			intel_crtc->atomic.update_wm_post = true;
-		}
-	} else if (turn_off) {
-		intel_crtc->atomic.update_wm_post = true;
+	if (turn_on || turn_off) {
+		pipe_config->wm_changed = true;
+
 		/* must disable cxsr around plane enable/disable */
 		if (plane->type != DRM_PLANE_TYPE_CURSOR) {
 			if (is_crtc_enabled)
@@ -11786,7 +11788,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			pipe_config->disable_cxsr = true;
 		}
 	} else if (intel_wm_need_update(plane, plane_state)) {
-		intel_crtc->atomic.update_wm_pre = true;
+		pipe_config->wm_changed = true;
 	}
 
 	if (visible || was_visible)
@@ -11931,7 +11933,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	if (mode_changed && !crtc_state->active)
-		intel_crtc->atomic.update_wm_post = true;
+		pipe_config->wm_changed = true;
 
 	if (mode_changed && crtc_state->enable &&
 	    dev_priv->display.crtc_compute_clock &&
@@ -13853,9 +13855,6 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 	struct intel_crtc_state *old_intel_state =
 		to_intel_crtc_state(old_crtc_state);
 	bool modeset = needs_modeset(crtc->state);
-
-	if (intel_crtc->atomic.update_wm_pre)
-		intel_update_watermarks(crtc);
 
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(intel_crtc);
