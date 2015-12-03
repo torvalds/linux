@@ -5421,7 +5421,7 @@ static void __netdev_adjacent_dev_unlink_neighbour(struct net_device *dev,
 
 static int __netdev_upper_dev_link(struct net_device *dev,
 				   struct net_device *upper_dev, bool master,
-				   void *upper_priv)
+				   void *upper_priv, void *upper_info)
 {
 	struct netdev_notifier_changeupper_info changeupper_info;
 	struct netdev_adjacent *i, *j, *to_i, *to_j;
@@ -5445,6 +5445,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	changeupper_info.upper_dev = upper_dev;
 	changeupper_info.master = master;
 	changeupper_info.linking = true;
+	changeupper_info.upper_info = upper_info;
 
 	ret = call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER, dev,
 					    &changeupper_info.info);
@@ -5549,7 +5550,7 @@ rollback_mesh:
 int netdev_upper_dev_link(struct net_device *dev,
 			  struct net_device *upper_dev)
 {
-	return __netdev_upper_dev_link(dev, upper_dev, false, NULL);
+	return __netdev_upper_dev_link(dev, upper_dev, false, NULL, NULL);
 }
 EXPORT_SYMBOL(netdev_upper_dev_link);
 
@@ -5558,6 +5559,7 @@ EXPORT_SYMBOL(netdev_upper_dev_link);
  * @dev: device
  * @upper_dev: new upper device
  * @upper_priv: upper device private
+ * @upper_info: upper info to be passed down via notifier
  *
  * Adds a link to device which is upper to this one. In this case, only
  * one master upper device can be linked, although other non-master devices
@@ -5567,9 +5569,10 @@ EXPORT_SYMBOL(netdev_upper_dev_link);
  */
 int netdev_master_upper_dev_link(struct net_device *dev,
 				 struct net_device *upper_dev,
-				 void *upper_priv)
+				 void *upper_priv, void *upper_info)
 {
-	return __netdev_upper_dev_link(dev, upper_dev, true, upper_priv);
+	return __netdev_upper_dev_link(dev, upper_dev, true,
+				       upper_priv, upper_info);
 }
 EXPORT_SYMBOL(netdev_master_upper_dev_link);
 

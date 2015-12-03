@@ -465,7 +465,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
 	ret = netdev_master_upper_dev_link(hard_iface->net_dev,
-					   soft_iface, NULL);
+					   soft_iface, NULL, NULL);
 	if (ret)
 		goto err_dev;
 

@@ -1083,7 +1083,7 @@ static int team_upper_dev_link(struct net_device *dev,
 {
 	int err;
 
-	err = netdev_master_upper_dev_link(port_dev, dev, NULL);
+	err = netdev_master_upper_dev_link(port_dev, dev, NULL, NULL);
 	if (err)
 		return err;
 	port_dev->priv_flags |= IFF_TEAM_PORT;
