@@ -1208,6 +1208,11 @@ static void __init mpc85xx_mc_clear_rfxe(void *data)
 }
 #endif
 
+static struct platform_driver * const drivers[] = {
+	&mpc85xx_mc_err_driver,
+	&mpc85xx_l2_err_driver,
+};
+
 static int __init mpc85xx_mc_init(void)
 {
 	int res = 0;
@@ -1226,13 +1231,9 @@ static int __init mpc85xx_mc_init(void)
 		break;
 	}
 
-	res = platform_driver_register(&mpc85xx_mc_err_driver);
+	res = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (res)
-		printk(KERN_WARNING EDAC_MOD_STR "MC fails to register\n");
-
-	res = platform_driver_register(&mpc85xx_l2_err_driver);
-	if (res)
-		printk(KERN_WARNING EDAC_MOD_STR "L2 fails to register\n");
+		printk(KERN_WARNING EDAC_MOD_STR "drivers fail to register\n");
 
 #ifdef CONFIG_FSL_SOC_BOOKE
 	pvr = mfspr(SPRN_PVR);
@@ -1270,8 +1271,7 @@ static void __exit mpc85xx_mc_exit(void)
 		on_each_cpu(mpc85xx_mc_restore_hid1, NULL, 0);
 	}
 #endif
-	platform_driver_unregister(&mpc85xx_l2_err_driver);
-	platform_driver_unregister(&mpc85xx_mc_err_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_exit(mpc85xx_mc_exit);
