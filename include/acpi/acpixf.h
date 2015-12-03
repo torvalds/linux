@@ -375,6 +375,29 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 
 #endif				/* ACPI_APPLICATION */
 
+/*
+ * Debugger prototypes
+ *
+ * All interfaces used by debugger will be configured
+ * out of the ACPICA build unless the ACPI_DEBUGGER
+ * flag is defined.
+ */
+#ifdef ACPI_DEBUGGER
+#define ACPI_DBR_DEPENDENT_RETURN_OK(prototype) \
+	ACPI_EXTERNAL_RETURN_OK(prototype)
+
+#define ACPI_DBR_DEPENDENT_RETURN_VOID(prototype) \
+	ACPI_EXTERNAL_RETURN_VOID(prototype)
+
+#else
+#define ACPI_DBR_DEPENDENT_RETURN_OK(prototype) \
+	static ACPI_INLINE prototype {return(AE_OK);}
+
+#define ACPI_DBR_DEPENDENT_RETURN_VOID(prototype) \
+	static ACPI_INLINE prototype {return;}
+
+#endif				/* ACPI_DEBUGGER */
+
 /*****************************************************************************
  *
  * ACPICA public interface prototypes

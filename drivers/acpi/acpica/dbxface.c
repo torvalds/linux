@@ -119,6 +119,36 @@ error_exit:
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_db_signal_break_point
+ *
+ * PARAMETERS:  walk_state      - Current walk
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Called for AML_BREAK_POINT_OP
+ *
+ ******************************************************************************/
+
+void acpi_db_signal_break_point(struct acpi_walk_state *walk_state)
+{
+
+#ifndef ACPI_APPLICATION
+	if (acpi_gbl_db_thread_id != acpi_os_get_thread_id()) {
+		return;
+	}
+#endif
+
+	/*
+	 * Set the single-step flag. This will cause the debugger (if present)
+	 * to break to the console within the AML debugger at the start of the
+	 * next AML instruction.
+	 */
+	acpi_gbl_cm_single_step = TRUE;
+	acpi_os_printf("**break** Executed AML BreakPoint opcode\n");
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_db_single_step
  *
  * PARAMETERS:  walk_state      - Current walk
