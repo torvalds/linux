@@ -58,8 +58,9 @@ config ACPI_CCA_REQUIRED
 	bool
 
 config ACPI_DEBUGGER
-	bool "AML debugger interface (EXPERIMENTAL)"
+	bool "AML debugger interface"
 	select ACPI_DEBUG
+	depends on DEBUG_FS
 	help
 	  Enable in-kernel debugging of AML facilities: statistics, internal
 	  object dump, single step control method execution.
