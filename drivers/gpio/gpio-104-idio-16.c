@@ -72,14 +72,9 @@ static int idio_16_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static struct idio_16_gpio *to_idio16gpio(struct gpio_chip *gc)
-{
-	return container_of(gc, struct idio_16_gpio, chip);
-}
-
 static int idio_16_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct idio_16_gpio *const idio16gpio = to_idio16gpio(chip);
+	struct idio_16_gpio *const idio16gpio = gpiochip_get_data(chip);
 	const unsigned mask = BIT(offset-16);
 
 	if (offset < 16)
@@ -93,7 +88,7 @@ static int idio_16_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void idio_16_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct idio_16_gpio *const idio16gpio = to_idio16gpio(chip);
+	struct idio_16_gpio *const idio16gpio = gpiochip_get_data(chip);
 	const unsigned mask = BIT(offset);
 	unsigned long flags;
 
@@ -122,7 +117,7 @@ static void idio_16_irq_ack(struct irq_data *data)
 static void idio_16_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
-	struct idio_16_gpio *const idio16gpio = to_idio16gpio(chip);
+	struct idio_16_gpio *const idio16gpio = gpiochip_get_data(chip);
 	const unsigned long mask = BIT(irqd_to_hwirq(data));
 	unsigned long flags;
 
@@ -140,7 +135,7 @@ static void idio_16_irq_mask(struct irq_data *data)
 static void idio_16_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
-	struct idio_16_gpio *const idio16gpio = to_idio16gpio(chip);
+	struct idio_16_gpio *const idio16gpio = gpiochip_get_data(chip);
 	const unsigned long mask = BIT(irqd_to_hwirq(data));
 	const unsigned long prev_irq_mask = idio16gpio->irq_mask;
 	unsigned long flags;
@@ -232,7 +227,7 @@ static int __init idio_16_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, idio16gpio);
 
-	err = gpiochip_add(&idio16gpio->chip);
+	err = gpiochip_add_data(&idio16gpio->chip, idio16gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		goto err_gpio_register;
