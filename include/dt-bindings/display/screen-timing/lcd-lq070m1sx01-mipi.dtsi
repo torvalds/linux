@@ -1,0 +1,128 @@
+/*
+ * Copyright (C) 2014 ROCKCHIP, Inc.
+ * arch/arm/boot/dts/lcd-lq070m1sx01-mipi.dtsi
+ * author: libing@rock-chips.com
+ * create date: 2014-04-15
+ * lcd model: lq070m1sx01
+ * resolution: 1920 X 1200
+ * mipi channel: dual
+ */
+
+/* about mipi */
+disp_mipi_init: mipi_dsi_init{
+			compatible = "rockchip,mipi_dsi_init";
+			rockchip,screen_init	= <1>;
+			rockchip,dsi_lane		= <2>;
+			rockchip,dsi_hs_clk		= <1000>;
+			rockchip,mipi_dsi_num	= <2>;
+};
+disp_mipi_power_ctr: mipi_power_ctr {
+			compatible = "rockchip,mipi_power_ctr";
+			mipi_lcd_rst:mipi_lcd_rst{
+					compatible = "rockchip,lcd_rst";
+					rockchip,gpios = <&gpio2 GPIO_B7 GPIO_ACTIVE_HIGH>;
+					rockchip,delay = <10>;
+			};
+			mipi_lcd_en:mipi_lcd_en {
+					compatible = "rockchip,lcd_en";
+					rockchip,gpios = <&gpio0 GPIO_C1 GPIO_ACTIVE_HIGH>;
+					rockchip,delay = <10>;
+			};
+};
+disp_mipi_init_cmds: screen-on-cmds {
+			rockchip,cmd_debug = <0>;
+			compatible = "rockchip,screen-on-cmds";
+			rockchip,on-cmds1 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x15 0xb0 0x02>;
+					rockchip,cmd_delay = <0>;
+			};
+
+			rockchip,on-cmds2 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x15 0xb1 0x21>;
+					rockchip,cmd_delay = <0>;
+			};
+			rockchip,on-cmds3 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x15 0xb0 0x06>;
+					rockchip,cmd_delay = <0>;
+			};
+			rockchip,on-cmds4 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x15 0xb1 0x21>;
+					rockchip,cmd_delay = <0>;
+			};
+			rockchip,on-cmds5 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x15 0xb4 0x15>;
+					rockchip,cmd_delay = <0>;
+			};
+			rockchip,on-cmds6 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x15 0xb9 0x40>;
+					rockchip,cmd_delay = <0>;
+			};
+			rockchip,on-cmds7 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x15 0xb0 0x00>;
+					rockchip,cmd_delay = <0>;
+			};
+			rockchip,on-cmds8 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x05 dcs_set_display_on>;
+					rockchip,cmd_delay = <10>;
+			};
+			rockchip,on-cmds9 {
+					compatible = "rockchip,on-cmds";
+					rockchip,cmd_type = <LPDT>;
+					rockchip,data_type = <DATA_TYPE_DCS>;
+					rockchip,dsi_id = <2>;
+					rockchip,cmd = <0x05 dcs_exit_sleep_mode>;
+					rockchip,cmd_delay = <10>;
+			};
+};
+
+disp_timings: display-timings {
+        native-mode = <&timing0>;
+        compatible = "rockchip,display-timings";
+        timing0: timing0 {
+		screen-type = <SCREEN_DUAL_MIPI>;
+		lvds-format = <LVDS_8BIT_2>;
+		out-face    = <OUT_P888>;
+		clock-frequency = <150000000>;
+		hactive = <1200>;
+		vactive = <1920>;
+		hsync-len = <8>;
+		hback-porch = <32>;
+		hfront-porch = <156>;
+
+		vsync-len = <2>;
+		vback-porch = <6>;
+		vfront-porch = <12>;
+
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+	};
+};

@@ -1,0 +1,73 @@
+/*
+ * RockChip. VGA timing
+ *
+ */
+
+disp_timings: display-timings {
+	native-mode = <&timing1>;
+	timing0: timing0 {
+		screen-type = <SCREEN_RGB>;
+		lvds-format = <LVDS_8BIT_2>;
+		out-face = <OUT_D888_P666>;
+		clock-frequency = <65000000>;
+		hactive = <1024>;
+		vactive = <768>;
+		hback-porch = <160>;
+		hfront-porch = <24>;
+		vback-porch = <29>;
+		vfront-porch = <3>;
+		hsync-len = <136>;
+		vsync-len = <6>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <1>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+	};
+
+	timing1: timing1 {
+		screen-type = <SCREEN_RGB>;
+		out-face = <OUT_D888_P666>;
+		lvds-format = <LVDS_8BIT_2>;
+		clock-frequency = <88750000>;
+		hactive = <1440>;
+		vactive = <900>;
+		hback-porch = <80>;
+		hfront-porch = <48>;
+		vback-porch = <17>;
+		vfront-porch = <3>;
+		hsync-len = <32>;
+		vsync-len = <6>;
+		hsync-active = <1>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <1>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+	};
+
+	timing2: timing2 {
+		screen-type = <SCREEN_RGB>;
+		out-face = <OUT_D888_P666>;
+		lvds-format = <LVDS_8BIT_2>;
+		clock-frequency = <106500000>;
+		hactive = <1440>;
+		vactive = <900>;
+		hback-porch = <232>;
+		hfront-porch = <80>;
+		vback-porch = <25>;
+		vfront-porch = <3>;
+		hsync-len = <152>;
+		vsync-len = <6>;
+		hsync-active = <0>;
+		vsync-active = <1>;
+		de-active = <0>;
+		pixelclk-active = <1>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+	};
+};

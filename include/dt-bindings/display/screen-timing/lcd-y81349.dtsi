@@ -1,0 +1,29 @@
+/*
+ * RockChip. LCD_Y81349 FOR 86V
+ *
+ */
+
+
+disp_timings: display-timings {
+        native-mode = <&timing0>;
+        timing0: timing0 {
+		screen-type = <SCREEN_RGB>;
+		out-face    = <OUT_P666>;
+		clock-frequency = <33000000>;
+		hactive = <800>;
+		vactive = <480>;
+		hback-porch = <10>;
+		hfront-porch = <210>;
+		vback-porch = <10>;
+		vfront-porch = <22>;
+		hsync-len = <30>;
+		vsync-len = <13>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+	};
+};

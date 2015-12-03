@@ -1,0 +1,29 @@
+/*
+ * RockChip. LCD_TD043MGEA1 FOR FPGA
+ *
+ */
+
+
+disp_timings: display-timings {
+        native-mode = <&timing0>;
+        timing0: timing0 {
+		screen-type = <SCREEN_RGB>;
+		out-face    = <OUT_P888>;
+		clock-frequency = <27000000>;
+		hactive = <800>;
+		vactive = <480>;
+		hback-porch = <206>;
+		hfront-porch = <40>;
+		vback-porch = <25>;
+		vfront-porch = <10>;
+		hsync-len = <10>;
+		vsync-len = <10>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+	};
+};
