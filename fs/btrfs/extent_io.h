@@ -357,7 +357,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 		      int mirror_num);
 int clean_io_failure(struct inode *inode, u64 start, struct page *page,
 		     unsigned int pg_offset);
-int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
+void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 			 int mirror_num);
 
