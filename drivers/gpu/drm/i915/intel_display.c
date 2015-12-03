@@ -15276,6 +15276,78 @@ void intel_modeset_init_hw(struct drm_device *dev)
 	intel_enable_gt_powersave(dev);
 }
 
+/*
+ * Calculate what we think the watermarks should be for the state we've read
+ * out of the hardware and then immediately program those watermarks so that
+ * we ensure the hardware settings match our internal state.
+ *
+ * We can calculate what we think WM's should be by creating a duplicate of the
+ * current state (which was constructed during hardware readout) and running it
+ * through the atomic check code to calculate new watermark values in the
+ * state object.
+ */
+static void sanitize_watermarks(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_atomic_state *state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *cstate;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
+	int i;
+
+	/* Only supported on platforms that use atomic watermark design */
+	if (!dev_priv->display.program_watermarks)
+		return;
+
+	/*
+	 * We need to hold connection_mutex before calling duplicate_state so
+	 * that the connector loop is protected.
+	 */
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	} else if (WARN_ON(ret)) {
+		return;
+	}
+
+	state = drm_atomic_helper_duplicate_state(dev, &ctx);
+	if (WARN_ON(IS_ERR(state)))
+		return;
+
+	ret = intel_atomic_check(dev, state);
+	if (ret) {
+		/*
+		 * If we fail here, it means that the hardware appears to be
+		 * programmed in a way that shouldn't be possible, given our
+		 * understanding of watermark requirements.  This might mean a
+		 * mistake in the hardware readout code or a mistake in the
+		 * watermark calculations for a given platform.  Raise a WARN
+		 * so that this is noticeable.
+		 *
+		 * If this actually happens, we'll have to just leave the
+		 * BIOS-programmed watermarks untouched and hope for the best.
+		 */
+		WARN(true, "Could not determine valid watermarks for inherited state\n");
+		return;
+	}
+
+	/* Write calculated watermark values back */
+	to_i915(dev)->wm.config = to_intel_atomic_state(state)->wm_config;
+	for_each_crtc_in_state(state, crtc, cstate, i) {
+		struct intel_crtc_state *cs = to_intel_crtc_state(cstate);
+
+		dev_priv->display.program_watermarks(cs);
+	}
+
+	drm_atomic_state_free(state);
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+}
+
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -15396,6 +15468,13 @@ void intel_modeset_init(struct drm_device *dev)
 		 */
 		intel_find_initial_plane_obj(crtc, &plane_config);
 	}
+
+	/*
+	 * Make sure hardware watermarks really match the state we read out.
+	 * Note that we need to do this after reconstructing the BIOS fb's
+	 * since the watermark calculation done here will use pstate->fb.
+	 */
+	sanitize_watermarks(dev);
 }
 
 static void intel_enable_pipe_a(struct drm_device *dev)
