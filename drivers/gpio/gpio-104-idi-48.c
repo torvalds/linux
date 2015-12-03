@@ -64,14 +64,9 @@ static int idi_48_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static struct idi_48_gpio *to_idi48gpio(struct gpio_chip *gc)
-{
-	return container_of(gc, struct idi_48_gpio, chip);
-}
-
 static int idi_48_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct idi_48_gpio *const idi48gpio = to_idi48gpio(chip);
+	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
 	unsigned i;
 	const unsigned register_offset[6] = { 0, 1, 2, 4, 5, 6 };
 	unsigned base_offset;
@@ -96,7 +91,7 @@ static void idi_48_irq_ack(struct irq_data *data)
 static void idi_48_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
-	struct idi_48_gpio *const idi48gpio = to_idi48gpio(chip);
+	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
 	const unsigned offset = irqd_to_hwirq(data);
 	unsigned i;
 	unsigned mask;
@@ -127,7 +122,7 @@ static void idi_48_irq_mask(struct irq_data *data)
 static void idi_48_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
-	struct idi_48_gpio *const idi48gpio = to_idi48gpio(chip);
+	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
 	const unsigned offset = irqd_to_hwirq(data);
 	unsigned i;
 	unsigned mask;
@@ -255,7 +250,7 @@ static int __init idi_48_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, idi48gpio);
 
-	err = gpiochip_add(&idi48gpio->chip);
+	err = gpiochip_add_data(&idi48gpio->chip, idi48gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		goto err_gpio_register;
