@@ -130,6 +130,11 @@
 #define IPC_SRC_QUEUE_MASK		0x7
 #define IPC_SRC_QUEUE(x)		(((x) & IPC_SRC_QUEUE_MASK) \
 					<< IPC_SRC_QUEUE_SHIFT)
+/* Load Module count */
+#define IPC_LOAD_MODULE_SHIFT		0
+#define IPC_LOAD_MODULE_MASK		0xFF
+#define IPC_LOAD_MODULE_CNT(x)		(((x) & IPC_LOAD_MODULE_MASK) \
+					<< IPC_LOAD_MODULE_SHIFT)
 
 /* Save pipeline messgae extension register */
 #define IPC_DMA_ID_SHIFT		0
@@ -727,6 +732,54 @@ int skl_ipc_bind_unbind(struct sst_generic_ipc *ipc,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(skl_ipc_bind_unbind);
+
+/*
+ * In order to load a module we need to send IPC to initiate that. DMA will
+ * performed to load the module memory. The FW supports multiple module load
+ * at single shot, so we can send IPC with N modules represented by
+ * module_cnt
+ */
+int skl_ipc_load_modules(struct sst_generic_ipc *ipc,
+				u8 module_cnt, void *data)
+{
+	struct skl_ipc_header header = {0};
+	u64 *ipc_header = (u64 *)(&header);
+	int ret;
+
+	header.primary = IPC_MSG_TARGET(IPC_FW_GEN_MSG);
+	header.primary |= IPC_MSG_DIR(IPC_MSG_REQUEST);
+	header.primary |= IPC_GLB_TYPE(IPC_GLB_LOAD_MULTIPLE_MODS);
+	header.primary |= IPC_LOAD_MODULE_CNT(module_cnt);
+
+	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, data,
+				(sizeof(u16) * module_cnt), NULL, 0);
+	if (ret < 0)
+		dev_err(ipc->dev, "ipc: load modules failed :%d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(skl_ipc_load_modules);
+
+int skl_ipc_unload_modules(struct sst_generic_ipc *ipc, u8 module_cnt,
+							void *data)
+{
+	struct skl_ipc_header header = {0};
+	u64 *ipc_header = (u64 *)(&header);
+	int ret;
+
+	header.primary = IPC_MSG_TARGET(IPC_FW_GEN_MSG);
+	header.primary |= IPC_MSG_DIR(IPC_MSG_REQUEST);
+	header.primary |= IPC_GLB_TYPE(IPC_GLB_UNLOAD_MULTIPLE_MODS);
+	header.primary |= IPC_LOAD_MODULE_CNT(module_cnt);
+
+	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, data,
+				(sizeof(u16) * module_cnt), NULL, 0);
+	if (ret < 0)
+		dev_err(ipc->dev, "ipc: unload modules failed :%d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(skl_ipc_unload_modules);
 
 int skl_ipc_set_large_config(struct sst_generic_ipc *ipc,
 		struct skl_ipc_large_config_msg *msg, u32 *param)

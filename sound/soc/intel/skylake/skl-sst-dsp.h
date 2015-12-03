@@ -114,6 +114,9 @@ struct skl_dsp_fw_ops {
 	int (*set_state_D0)(struct sst_dsp *ctx);
 	int (*set_state_D3)(struct sst_dsp *ctx);
 	unsigned int (*get_fw_errcode)(struct sst_dsp *ctx);
+	int (*load_mod)(struct sst_dsp *ctx, u16 mod_id, char *mod_name);
+	int (*unload_mod)(struct sst_dsp *ctx, u16 mod_id);
+
 };
 
 struct skl_dsp_loader_ops {
@@ -121,6 +124,17 @@ struct skl_dsp_loader_ops {
 		struct snd_dma_buffer *dmab, size_t size);
 	int (*free_dma_buf)(struct device *dev,
 		struct snd_dma_buffer *dmab);
+};
+
+struct skl_load_module_info {
+	u16 mod_id;
+	const struct firmware *fw;
+};
+
+struct skl_module_table {
+	struct skl_load_module_info *mod_info;
+	unsigned int usage_cnt;
+	struct list_head list;
 };
 
 void skl_cldma_process_intr(struct sst_dsp *ctx);

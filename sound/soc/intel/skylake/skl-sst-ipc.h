@@ -108,6 +108,12 @@ int skl_ipc_init_instance(struct sst_generic_ipc *sst_ipc,
 int skl_ipc_bind_unbind(struct sst_generic_ipc *sst_ipc,
 		struct skl_ipc_bind_unbind_msg *msg);
 
+int skl_ipc_load_modules(struct sst_generic_ipc *ipc,
+				u8 module_cnt, void *data);
+
+int skl_ipc_unload_modules(struct sst_generic_ipc *ipc,
+				u8 module_cnt, void *data);
+
 int skl_ipc_set_dx(struct sst_generic_ipc *ipc,
 		u8 instance_id, u16 module_id, struct skl_ipc_dxstate_info *dx);
 

@@ -26,6 +26,8 @@
 #include "skl-topology.h"
 #include "skl.h"
 #include "skl-tplg-interface.h"
+#include "../common/sst-dsp.h"
+#include "../common/sst-dsp-priv.h"
 
 #define SKL_CH_FIXUP_MASK		(1 << 0)
 #define SKL_RATE_FIXUP_MASK		(1 << 1)
@@ -412,6 +414,13 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (!skl_tplg_alloc_pipe_mcps(skl, mconfig))
 			return -ENOMEM;
 
+		if (mconfig->is_loadable && ctx->dsp->fw_ops.load_mod) {
+			ret = ctx->dsp->fw_ops.load_mod(ctx->dsp,
+				mconfig->id.module_id, mconfig->guid);
+			if (ret < 0)
+				return ret;
+		}
+
 		/*
 		 * apply fix/conversion to module params based on
 		 * FE/BE params
@@ -428,6 +437,24 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 			return ret;
 	}
 
+	return 0;
+}
+
+static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
+	 struct skl_pipe *pipe)
+{
+	struct skl_pipe_module *w_module = NULL;
+	struct skl_module_cfg *mconfig = NULL;
+
+	list_for_each_entry(w_module, &pipe->w_list, node) {
+		mconfig  = w_module->w->priv;
+
+		if (mconfig->is_loadable && ctx->dsp->fw_ops.unload_mod)
+			return ctx->dsp->fw_ops.unload_mod(ctx->dsp,
+						mconfig->id.module_id);
+	}
+
+	/* no modules to unload in this path, so return */
 	return 0;
 }
 
@@ -755,7 +782,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 
 	ret = skl_delete_pipe(ctx, mconfig->pipe);
 
-	return ret;
+	return skl_tplg_unload_pipe_modules(ctx, s_pipe);
 }
 
 /*
