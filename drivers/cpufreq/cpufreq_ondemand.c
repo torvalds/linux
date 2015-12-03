@@ -286,9 +286,6 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 		if (dbs_data != policy->governor_data)
 			continue;
 
-		if (!delayed_work_pending(&dbs_info->cdbs.dwork))
-			continue;
-
 		next_sampling = jiffies + usecs_to_jiffies(new_rate);
 		appointed_at = dbs_info->cdbs.dwork.timer.expires;
 
