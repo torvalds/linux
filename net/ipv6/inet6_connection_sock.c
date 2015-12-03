@@ -111,14 +111,6 @@ void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
 EXPORT_SYMBOL_GPL(inet6_csk_addr2sockaddr);
 
 static inline
-void __inet6_csk_dst_store(struct sock *sk, struct dst_entry *dst,
-			   const struct in6_addr *daddr,
-			   const struct in6_addr *saddr)
-{
-	__ip6_dst_store(sk, dst, daddr, saddr);
-}
-
-static inline
 struct dst_entry *__inet6_csk_dst_check(struct sock *sk, u32 cookie)
 {
 	return __sk_dst_check(sk, cookie);
@@ -153,7 +145,7 @@ static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 		dst = ip6_dst_lookup_flow(sk, fl6, final_p);
 
 		if (!IS_ERR(dst))
-			__inet6_csk_dst_store(sk, dst, NULL, NULL);
+			ip6_dst_store(sk, dst, NULL, NULL);
 	}
 	return dst;
 }
