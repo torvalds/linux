@@ -253,7 +253,7 @@ static void dbs_timer(struct work_struct *work)
 	if (!need_load_eval(cdbs->shared, sampling_rate))
 		modify_all = false;
 
-	delay = dbs_data->cdata->gov_dbs_timer(cdbs, dbs_data, modify_all);
+	delay = dbs_data->cdata->gov_dbs_timer(policy, modify_all);
 	gov_queue_work(dbs_data, policy, delay, modify_all);
 
 unlock:

@@ -209,8 +209,7 @@ struct common_dbs_data {
 
 	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
 	void *(*get_cpu_dbs_info_s)(int cpu);
-	unsigned int (*gov_dbs_timer)(struct cpu_dbs_info *cdbs,
-				      struct dbs_data *dbs_data,
+	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy,
 				      bool modify_all);
 	void (*gov_check_cpu)(int cpu, unsigned int load);
 	int (*init)(struct dbs_data *dbs_data, bool notify);

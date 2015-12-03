@@ -191,10 +191,9 @@ static void od_check_cpu(int cpu, unsigned int load)
 	}
 }
 
-static unsigned int od_dbs_timer(struct cpu_dbs_info *cdbs,
-				 struct dbs_data *dbs_data, bool modify_all)
+static unsigned int od_dbs_timer(struct cpufreq_policy *policy, bool modify_all)
 {
-	struct cpufreq_policy *policy = cdbs->shared->policy;
+	struct dbs_data *dbs_data = policy->governor_data;
 	unsigned int cpu = policy->cpu;
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info,
 			cpu);
