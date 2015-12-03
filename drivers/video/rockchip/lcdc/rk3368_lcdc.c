@@ -81,6 +81,16 @@ static struct rk_lcdc_win lcdc_win[] = {
 
 static int rk3368_lcdc_set_bcsh(struct rk_lcdc_driver *dev_drv, bool enable);
 
+void __weak rk_pwm_set(int bl_pwm_period, int bl_pwm_duty)
+{
+	pr_info("If you want to use CABC, this func need implement at pwm\n");
+}
+
+void __weak rk_pwm_get(int *bl_pwm_period, int *bl_pwm_duty)
+{
+	pr_info("If you want to use CABC, this func need implement at pwm\n");
+}
+
 /*#define WAIT_FOR_SYNC 1*/
 u32 rk3368_get_hard_ware_vskiplines(u32 srch, u32 dsth)
 {
@@ -153,7 +163,8 @@ static int rk3368_lcdc_clk_enable(struct lcdc_device *lcdc_dev)
 		clk_prepare_enable(lcdc_dev->hclk);
 		clk_prepare_enable(lcdc_dev->dclk);
 		clk_prepare_enable(lcdc_dev->aclk);
-		clk_prepare_enable(lcdc_dev->pd);
+		if (lcdc_dev->pd)
+			clk_prepare_enable(lcdc_dev->pd);
 		spin_lock(&lcdc_dev->reg_lock);
 		lcdc_dev->clk_on = 1;
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -176,7 +187,8 @@ static int rk3368_lcdc_clk_disable(struct lcdc_device *lcdc_dev)
 		clk_disable_unprepare(lcdc_dev->dclk);
 		clk_disable_unprepare(lcdc_dev->hclk);
 		clk_disable_unprepare(lcdc_dev->aclk);
-		clk_disable_unprepare(lcdc_dev->pd);
+		if (lcdc_dev->pd)
+			clk_disable_unprepare(lcdc_dev->pd);
 	}
 
 	return 0;
@@ -429,13 +441,19 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	lcdc_dev->hclk = devm_clk_get(lcdc_dev->dev, "hclk_lcdc");
 	lcdc_dev->aclk = devm_clk_get(lcdc_dev->dev, "aclk_lcdc");
 	lcdc_dev->dclk = devm_clk_get(lcdc_dev->dev, "dclk_lcdc");
-	lcdc_dev->pd = devm_clk_get(lcdc_dev->dev, "pd_lcdc");
-
-	if (IS_ERR(lcdc_dev->pd) || (IS_ERR(lcdc_dev->aclk)) ||
-	    (IS_ERR(lcdc_dev->dclk)) || (IS_ERR(lcdc_dev->hclk))) {
+	if ((IS_ERR(lcdc_dev->aclk)) || (IS_ERR(lcdc_dev->dclk)) ||
+	    (IS_ERR(lcdc_dev->hclk))) {
 		dev_err(lcdc_dev->dev, "failed to get lcdc%d clk source\n",
 			lcdc_dev->id);
 	}
+
+	lcdc_dev->pd = devm_clk_get(lcdc_dev->dev, "pd_lcdc");
+	if (IS_ERR(lcdc_dev->pd)) {
+		dev_err(lcdc_dev->dev, "failed to get lcdc%d pdclk source\n",
+			lcdc_dev->id);
+		lcdc_dev->pd = NULL;
+	}
+
 	if (!support_uboot_display())
 		rk_disp_pwr_enable(dev_drv);
 	rk3368_lcdc_clk_enable(lcdc_dev);
@@ -1545,7 +1563,7 @@ static int __maybe_unused rk3368_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 	if (dev_drv->iommu_enabled) {
 		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
 			if (likely(lcdc_dev->clk_on)) {
@@ -2213,7 +2231,7 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		rk3368_lcdc_pre_init(dev_drv);
 		rk3368_lcdc_clk_enable(lcdc_dev);
 		rk3368_lcdc_enable_irq(dev_drv);
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (!dev_drv->mmu_dev) {
 				dev_drv->mmu_dev =
@@ -2263,7 +2281,7 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	/*if ((!open) && (!lcdc_dev->atv_layer_cnt)) {
 	   rk3368_lcdc_disable_irq(lcdc_dev);
 	   rk3368_lcdc_reg_update(dev_drv);
-	   #if defined(CONFIG_ROCKCHIP_IOMMU)
+	   #if defined(CONFIG_RK_IOMMU)
 	   if (dev_drv->iommu_enabled) {
 	   if (dev_drv->mmu_dev)
 	   rockchip_iovmm_deactivate(dev_drv->dev);
@@ -4771,9 +4789,6 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 			complete(&(lcdc_dev->driver.frame_done));
 			spin_unlock(&(lcdc_dev->driver.cpl_lock));
 		}
-#ifdef CONFIG_DRM_ROCKCHIP
-		lcdc_dev->driver.irq_call_back(&lcdc_dev->driver);
-#endif
 		lcdc_dev->driver.vsync_info.timestamp = timestamp;
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 		if ((screen->mode.vmode & FB_VMODE_NONINTERLACED) ||
@@ -4907,7 +4922,7 @@ static int rk3368_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 		dev_drv->bcsh.cos_hue = (val >> 8) & 0xff;
 	}
 
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 	if (of_property_read_u32(np, "rockchip,iommu-enabled", &val))
 		dev_drv->iommu_enabled = 0;
 	else
@@ -4974,7 +4989,7 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 		syscon_regmap_lookup_by_phandle(np, "rockchip,cru");
 	if (IS_ERR(lcdc_dev->cru_base)) {
 		dev_err(&pdev->dev, "can't find lcdc cru_base property\n");
-		return PTR_ERR(lcdc_dev->cru_base);
+		lcdc_dev->cru_base = NULL;
 	}
 
 	lcdc_dev->id = 0;
@@ -4996,7 +5011,7 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(dev, lcdc_dev->irq, rk3368_lcdc_isr,
-			       IRQF_DISABLED | IRQF_SHARED,
+			       IRQF_SHARED,
 			       dev_name(dev), lcdc_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot requeset irq %d - err %d\n",

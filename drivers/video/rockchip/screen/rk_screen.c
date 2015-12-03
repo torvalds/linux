@@ -1,4 +1,4 @@
-
+#include <linux/module.h>
 #include <linux/rk_fb.h>
 #include <linux/device.h>
 #include "lcd.h"

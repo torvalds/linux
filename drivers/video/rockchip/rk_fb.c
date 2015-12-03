@@ -48,7 +48,6 @@
 #include <linux/of_gpio.h>
 #include <video/of_display_timing.h>
 #include <video/display_timing.h>
-#include <dt-bindings/rkfb/rk_fb.h>
 #endif
 
 #if defined(CONFIG_ION_ROCKCHIP)
@@ -82,7 +81,7 @@ static int rk_fb_iommu_debug;
 module_param(rk_fb_debug_lvl, int, S_IRUGO | S_IWUSR);
 module_param(rk_fb_iommu_debug, int, S_IRUGO | S_IWUSR);
 
-#define fb_dbg(level, x...) do {		\
+#define rk_fb_dbg(level, x...) do {		\
 	if (unlikely(rk_fb_debug_lvl >= level))	\
 		printk(KERN_INFO x);		\
 	} while (0)
@@ -1197,7 +1196,7 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 	Rga_Request.clip.ymin = 0;
 	Rga_Request.clip.ymax = dst_win->area[0].yact - 1;
 	Rga_Request.scale_mode = 0;
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 	if (iommu_en) {
 		Rga_Request.mmu_info.mmu_en = 1;
 		Rga_Request.mmu_info.mmu_flag = 1;
@@ -1457,7 +1456,7 @@ static int rk_fb_copy_from_loader(struct fb_info *info)
 	return 0;
 }
 #endif
-#ifdef CONFIG_ROCKCHIP_IOMMU
+#ifdef CONFIG_RK_IOMMU
 static int g_last_addr[5][4];
 static int g_now_config_addr[5][4];
 static int g_last_state[5][4];
@@ -1519,7 +1518,7 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 	for (i = 0; i < reg_win_data->area_num; i++) {
 		area_data = &reg_win_data->reg_area_data[i];
 		index_buf = area_data->index_buf;
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (area_data->ion_handle != NULL)
 				ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client,
@@ -1649,7 +1648,7 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 				win->area[i].y_vir_stride =
 				    reg_win_data->reg_area_data[i].y_vir_stride;
 				win->area[i].state = 1;
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 				if (dev_drv->iommu_enabled) {
 					g_now_config_addr[win->id][i] =
 						win->area[i].smem_start +
@@ -1659,7 +1658,7 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 #endif
 			} else {
 				win->area[i].state = 0;
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 				if (dev_drv->iommu_enabled) {
 					g_now_config_addr[win->id][i] = 0;
 					g_now_config_state[win->id][i] = 0;
@@ -1828,7 +1827,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			win->state = 0;
 			for (j = 0; j < 4; j++)
 				win->area[j].state = 0;
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 			if (dev_drv->iommu_enabled) {
 				for (j = 0; j < 4; j++) {
 					g_now_config_addr[i][j] = 0;
@@ -1863,7 +1862,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 #endif
 
 	if (dev_drv->front_regs) {
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->ops->mmu_en)
 				dev_drv->ops->mmu_en(dev_drv);
@@ -1882,7 +1881,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 
 		mutex_unlock(&dev_drv->front_lock);
 
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled)
 			freed_addr[freed_index] = 0xfefefefe;
 #endif
@@ -1955,43 +1954,43 @@ static int rk_fb_config_debug(struct rk_lcdc_driver *dev_drv,
 	struct rk_fb_reg_win_data *reg_win_data;
 	struct rk_fb_reg_area_data *area_data;
 
-	fb_dbg(cmd, "-------------frame start-------------\n");
-	fb_dbg(cmd, "user config:\n");
+	rk_fb_dbg(cmd, "-------------frame start-------------\n");
+	rk_fb_dbg(cmd, "user config:\n");
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		win_par = &(win_data->win_par[i]);
 		if ((win_par->area_par[0].ion_fd <= 0) &&
 		    (win_par->area_par[0].phy_addr <= 0))
 			continue;
-		fb_dbg(cmd, "win[%d]:z_order=%d,galhpa_v=%d\n",
-		       win_par->win_id, win_par->z_order,
-		       win_par->g_alpha_val);
+		rk_fb_dbg(cmd, "win[%d]:z_order=%d,galhpa_v=%d\n",
+			  win_par->win_id, win_par->z_order,
+			  win_par->g_alpha_val);
 		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
 			area_par = &(win_par->area_par[j]);
 			if (((j > 0) && (dev_drv->area_support[i] == 1)) ||
 			    ((win_par->area_par[j].ion_fd <= 0) &&
 			     (win_par->area_par[j].phy_addr <= 0)))
 				continue;
-			fb_dbg(cmd, " area[%d]:fmt=%d,ion_fd=%d,phy_add=0x%x,xoff=%d,yoff=%d\n",
-			       j, area_par->data_format, area_par->ion_fd,
-			       area_par->phy_addr, area_par->x_offset,
-			       area_par->y_offset);
-			fb_dbg(cmd, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
+			rk_fb_dbg(cmd, " area[%d]:fmt=%d,ion_fd=%d,phy_add=0x%x,xoff=%d,yoff=%d\n",
+				  j, area_par->data_format, area_par->ion_fd,
+				  area_par->phy_addr, area_par->x_offset,
+				  area_par->y_offset);
+			rk_fb_dbg(cmd, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
 			       area_par->xpos, area_par->ypos,
 			       area_par->xsize, area_par->ysize);
-			fb_dbg(cmd, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
-			       area_par->xact, area_par->yact,
-			       area_par->xvir, area_par->yvir);
+			rk_fb_dbg(cmd, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
+				  area_par->xact, area_par->yact,
+				  area_par->xvir, area_par->yvir);
 		}
 	}
 
-	fb_dbg(cmd, "regs data:\n");
-	fb_dbg(cmd, "win_num=%d,buf_num=%d\n",
+	rk_fb_dbg(cmd, "regs data:\n");
+	rk_fb_dbg(cmd, "win_num=%d,buf_num=%d\n",
 	       regs->win_num, regs->buf_num);
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		reg_win_data = &(regs->reg_win_data[i]);
 		if (reg_win_data->reg_area_data[0].smem_start <= 0)
 			continue;
-		fb_dbg(cmd, "win[%d]:z_order=%d,area_num=%d,area_buf_num=%d\n",
+		rk_fb_dbg(cmd, "win[%d]:z_order=%d,area_num=%d,area_buf_num=%d\n",
 		       reg_win_data->win_id, reg_win_data->z_order,
 		       reg_win_data->area_num, reg_win_data->area_buf_num);
 		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
@@ -1999,20 +1998,20 @@ static int rk_fb_config_debug(struct rk_lcdc_driver *dev_drv,
 			if (((j > 0) && (dev_drv->area_support[i] == 1)) ||
 			    (area_data->smem_start <= 0))
 				continue;
-			fb_dbg(cmd, " area[%d]:fmt=%d,ion=%p,smem_star=0x%lx,cbr_star=0x%lx\n",
+			rk_fb_dbg(cmd, " area[%d]:fmt=%d,ion=%p,smem_star=0x%lx,cbr_star=0x%lx\n",
 			       j, area_data->data_format, area_data->ion_handle,
 			       area_data->smem_start, area_data->cbr_start);
-			fb_dbg(cmd, " 	   yoff=0x%x,coff=0x%x,area_data->buff_len=%x\n",
+			rk_fb_dbg(cmd, " 	   yoff=0x%x,coff=0x%x,area_data->buff_len=%x\n",
 			       area_data->y_offset, area_data->c_offset,area_data->buff_len);
-			fb_dbg(cmd, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
+			rk_fb_dbg(cmd, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
 			       area_data->xpos, area_data->ypos,
 			       area_data->xsize, area_data->ysize);
-			fb_dbg(cmd, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
+			rk_fb_dbg(cmd, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
 			       area_data->xact, area_data->yact,
 			       area_data->xvir, area_data->yvir);
 		}
 	}
-	fb_dbg(cmd, "-------------frame end---------------\n");
+	rk_fb_dbg(cmd, "-------------frame end---------------\n");
 
 	return 0;
 }
@@ -2088,7 +2087,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 					break;
 				}
 				reg_win_data->reg_area_data[i].ion_handle = hdl;
-#ifndef CONFIG_ROCKCHIP_IOMMU
+#ifndef CONFIG_RK_IOMMU
 				ret = ion_phys(rk_fb->ion_client, hdl, &phy_addr,
 						&len);
 #else
@@ -2429,7 +2428,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 
 	dev_drv->timeline_max++;
 #ifdef H_USE_FENCE
-	win_data->ret_fence_fd = get_unused_fd();
+	win_data->ret_fence_fd = get_unused_fd_flags(0);
 	if (win_data->ret_fence_fd < 0) {
 		pr_err("ret_fence_fd=%d\n", win_data->ret_fence_fd);
 		win_data->ret_fence_fd = -1;
@@ -2439,7 +2438,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	for (i = 0; i < RK_MAX_BUF_NUM; i++) {
 		if (i < regs->buf_num) {
 			sprintf(fence_name, "fence%d", i);
-			win_data->rel_fence_fd[i] = get_unused_fd();
+			win_data->rel_fence_fd[i] = get_unused_fd_flags(0);
 			if (win_data->rel_fence_fd[i] < 0) {
 				printk(KERN_INFO "rel_fence_fd=%d\n",
 				       win_data->rel_fence_fd[i]);
@@ -2577,7 +2576,7 @@ int rk_get_real_fps(int before)
 EXPORT_SYMBOL(rk_get_real_fps);
 
 #endif
-#ifdef CONFIG_ROCKCHIP_IOMMU
+#ifdef CONFIG_RK_IOMMU
 #define ION_MAX 10
 static struct ion_handle *ion_hanle[ION_MAX];
 static struct ion_handle *ion_hwc[1];
@@ -2609,11 +2608,11 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		u32 hwc_phy[1];
 		if (copy_from_user(hwc_phy, argp, 4))
 			return -EFAULT;
-#ifdef CONFIG_ROCKCHIP_IOMMU
+#ifdef CONFIG_RK_IOMMU
 		if (!dev_drv->iommu_enabled) {
 #endif
 			fix->smem_start = hwc_phy[0];
-#ifdef CONFIG_ROCKCHIP_IOMMU
+#ifdef CONFIG_RK_IOMMU
 		} else {
 			int usr_fd;
 			struct ion_handle *hdl;
@@ -2660,12 +2659,12 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 			if (copy_from_user(yuv_phy, argp, 8))
 				return -EFAULT;
-			#ifdef CONFIG_ROCKCHIP_IOMMU
+			#ifdef CONFIG_RK_IOMMU
 			if (!dev_drv->iommu_enabled || !strcmp(info->fix.id, "fb0")) {
 			#endif
 				fix->smem_start = yuv_phy[0];
 				fix->mmio_start = yuv_phy[1];
-			#ifdef CONFIG_ROCKCHIP_IOMMU
+			#ifdef CONFIG_RK_IOMMU
 			} else {
 				int usr_fd, offset, tmp;
 				struct ion_handle *hdl;
@@ -3686,13 +3685,12 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 	ion_phys_addr_t phy_addr;
 	size_t len;
 	int ret = 0;
-
 	if (dev_drv->iommu_enabled)
 		handle = ion_alloc(rk_fb->ion_client, (size_t) fb_mem_size, 0,
-				   ION_HEAP(ION_VMALLOC_HEAP_ID), 0);
+				   ION_HEAP_SYSTEM_MASK, 0);
 	else
 		handle = ion_alloc(rk_fb->ion_client, (size_t) fb_mem_size, 0,
-				   ION_HEAP(ION_CMA_HEAP_ID), 0);
+				   ION_HEAP_TYPE_DMA_MASK, 0);
 	if (IS_ERR(handle)) {
 		dev_err(fbi->device, "failed to ion_alloc:%ld\n",
 			PTR_ERR(handle));
@@ -3708,7 +3706,7 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 	win->area[0].ion_hdl = handle;
         if (dev_drv->prop == PRMRY)
 	        fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
-#ifdef CONFIG_ROCKCHIP_IOMMU
+#ifdef CONFIG_RK_IOMMU
 	if (dev_drv->iommu_enabled && dev_drv->mmu_dev)
 		ret = ion_map_iommu(dev_drv->dev, rk_fb->ion_client, handle,
 					(unsigned long *)&phy_addr,
@@ -3795,7 +3793,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 						       fb_par->ion_hdl);
 				dev_drv->win[win_id]->area[0].ion_hdl =
 					fb_par->ion_hdl;
-	#ifdef CONFIG_ROCKCHIP_IOMMU
+#ifdef CONFIG_RK_IOMMU
 				if (dev_drv->mmu_dev)
 					ret = ion_map_iommu(dev_drv->dev,
 							    rk_fb->ion_client,
@@ -3806,7 +3804,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 					ret = ion_phys(rk_fb->ion_client,
 						       fb_par->ion_hdl,
 						       &phy_addr, &len);
-	#endif
+#endif
 				if (ret < 0) {
 					dev_err(fbi->dev, "ion map to get phy addr failed\n");
 					return -ENOMEM;
@@ -3993,6 +3991,10 @@ bool is_prmry_rk_lcdc_registered(void)
 		return false;
 }
 
+__weak phys_addr_t uboot_logo_base;
+__weak phys_addr_t uboot_logo_size;
+__weak phys_addr_t uboot_logo_offset;
+
 int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		   struct rk_lcdc_win *win, int id)
 {
@@ -4117,7 +4119,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		struct fb_info *main_fbi = rk_fb->fb[0];
 		main_fbi->fbops->fb_open(main_fbi, 1);
 		main_fbi->var.pixclock = dev_drv->pixclock;
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
 				rockchip_iovmm_set_fault_handler(dev_drv->dev,
@@ -4268,7 +4270,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
                 struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
                 extend_fbi->var.pixclock = rk_fb->fb[0]->var.pixclock;
 		extend_fbi->fbops->fb_open(extend_fbi, 1);
-#if defined(CONFIG_ROCKCHIP_IOMMU)
+#if defined(CONFIG_RK_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
 				rockchip_iovmm_set_fault_handler(dev_drv->dev,

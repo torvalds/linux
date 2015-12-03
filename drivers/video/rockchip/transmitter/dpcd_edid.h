@@ -1,6 +1,6 @@
 #ifndef __DPCD_EDID_H
 #define __DPCD_EDID_H
-#include "../../edid.h"
+#include "../../fbdev/edid.h"
 
 #define DPCD_REV					0x00
 #define DPCD_MAX_LINK_RATE				0x01

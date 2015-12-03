@@ -551,10 +551,10 @@ static ssize_t set_dsp_buffer(struct device *dev,
 	mem_size = width * height * 4 * frame_num;
 	if (dev_drv->iommu_enabled)
 		handle = ion_alloc(rk_fb->ion_client, mem_size, 0,
-				   ION_HEAP(ION_VMALLOC_HEAP_ID), 0);
+				   ION_HEAP_SYSTEM_MASK, 0);
 	else
 		handle = ion_alloc(rk_fb->ion_client, mem_size, 0,
-				   ION_HEAP(ION_CMA_HEAP_ID), 0);
+				   ION_HEAP_TYPE_DMA_MASK, 0);
 	if (IS_ERR(handle)) {
 		pr_err("failed to ion_alloc:%ld\n", PTR_ERR(handle));
 		return -ENOMEM;

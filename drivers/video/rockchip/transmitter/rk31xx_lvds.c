@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  *
  */
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -60,9 +61,9 @@ static int rk31xx_lvds_clk_init(struct rk_lvds_device *lvds)
 		}
 	} else {
                 lvds->pd = devm_clk_get(lvds->dev, "pd_lvds");
-                if (IS_ERR(lvds->pd)) {
-                        dev_err(lvds->dev, "get pd_lvds failed\n");
-                        return PTR_ERR(lvds->pd);
+		if (IS_ERR(lvds->pd)) {
+			dev_err(lvds->dev, "get pd_lvds failed\n");
+			lvds->pd = NULL;
                 }
         }
 
@@ -76,8 +77,8 @@ static int rk31xx_lvds_clk_enable(struct rk_lvds_device *lvds)
 		clk_prepare_enable(lvds->ctrl_pclk);
 		if (lvds->data->soc_type == LVDS_SOC_RK312X)
 			clk_prepare_enable(lvds->ctrl_hclk);
-	        else
-	                clk_prepare_enable(lvds->pd);
+		if (lvds->pd)
+			clk_prepare_enable(lvds->pd);
 		lvds->clk_on = true;
 	}
 
@@ -90,7 +91,7 @@ static int rk31xx_lvds_clk_disable(struct rk_lvds_device *lvds)
 		clk_disable_unprepare(lvds->pclk);
 		if (lvds->data->soc_type == LVDS_SOC_RK312X)
 			clk_disable_unprepare(lvds->ctrl_hclk);
-		else
+		if (lvds->pd)
 		        clk_disable_unprepare(lvds->pd);
 		clk_disable_unprepare(lvds->ctrl_pclk);
 		lvds->clk_on = false;

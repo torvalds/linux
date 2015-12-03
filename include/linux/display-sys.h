@@ -4,7 +4,7 @@
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/list.h>
-#include <dt-bindings/rkfb/rk_fb.h>
+#include <dt-bindings/display/rk_fb.h>
 
 struct rk_display_device;
 

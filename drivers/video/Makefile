@@ -4,6 +4,7 @@ obj-$(CONFIG_HDMI)                += hdmi.o
 obj-$(CONFIG_VT)		  += console/
 obj-$(CONFIG_LOGO)		  += logo/
 obj-y				  += backlight/
+obj-$(CONFIG_FB_ROCKCHIP)	  += rockchip/
 
 obj-y				  += fbdev/
 

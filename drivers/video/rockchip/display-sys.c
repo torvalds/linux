@@ -8,7 +8,7 @@
 static struct list_head main_display_device_list;
 static struct list_head aux_display_device_list;
 
-static ssize_t display_show_name(struct device *dev,
+static ssize_t display_name_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -16,7 +16,9 @@ static ssize_t display_show_name(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", dsp->name);
 }
 
-static ssize_t display_show_type(struct device *dev,
+static DEVICE_ATTR_RO(display_name);
+
+static ssize_t display_type_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -24,7 +26,9 @@ static ssize_t display_show_type(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", dsp->type);
 }
 
-static ssize_t display_show_property(struct device *dev,
+static DEVICE_ATTR_RO(display_type);
+
+static ssize_t display_property_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -32,7 +36,9 @@ static ssize_t display_show_property(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", dsp->property);
 }
 
-static ssize_t display_show_enable(struct device *dev,
+static DEVICE_ATTR_RO(display_property);
+
+static ssize_t display_enable_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -45,7 +51,7 @@ static ssize_t display_show_enable(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", enable);
 }
 
-static ssize_t display_store_enable(struct device *dev,
+static ssize_t display_enable_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t size)
 {
@@ -59,7 +65,9 @@ static ssize_t display_store_enable(struct device *dev,
 	return size;
 }
 
-static ssize_t display_show_connect(struct device *dev,
+static DEVICE_ATTR_RW(display_enable);
+
+static ssize_t display_connect_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -71,6 +79,8 @@ static ssize_t display_show_connect(struct device *dev,
 		return 0;
 	return snprintf(buf, PAGE_SIZE, "%d\n", connect);
 }
+
+static DEVICE_ATTR_RO(display_connect);
 
 static int mode_string(char *buf, unsigned int offset,
 		       const struct fb_videomode *mode)
@@ -105,7 +115,7 @@ static int mode_string(char *buf, unsigned int offset,
 				mode->xres, mode->yres, v, mode->refresh);
 }
 
-static ssize_t display_show_modes(struct device *dev,
+static ssize_t display_modes_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -139,7 +149,9 @@ static ssize_t display_show_modes(struct device *dev,
 	return i;
 }
 
-static ssize_t display_show_mode(struct device *dev,
+static DEVICE_ATTR_RO(display_modes);
+
+static ssize_t display_mode_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -151,7 +163,7 @@ static ssize_t display_show_mode(struct device *dev,
 	return 0;
 }
 
-static ssize_t display_store_mode(struct device *dev,
+static ssize_t display_mode_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
@@ -195,7 +207,9 @@ static ssize_t display_store_mode(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t display_show_scale(struct device *dev,
+static DEVICE_ATTR_RW(display_mode);
+
+static ssize_t display_scale_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
@@ -213,7 +227,7 @@ static ssize_t display_show_scale(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t display_store_scale(struct device *dev,
+static ssize_t display_scale_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
@@ -246,7 +260,9 @@ static ssize_t display_store_scale(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t display_show_3dmode(struct device *dev,
+static DEVICE_ATTR_RW(display_scale);
+
+static ssize_t display_3dmode_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -312,7 +328,7 @@ static ssize_t display_show_3dmode(struct device *dev,
 	return i;
 }
 
-static ssize_t display_store_3dmode(struct device *dev,
+static ssize_t display_3dmode_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -330,7 +346,9 @@ static ssize_t display_store_3dmode(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t display_show_color(struct device *dev,
+static DEVICE_ATTR_RW(display_3dmode);
+
+static ssize_t display_color_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -343,7 +361,7 @@ static ssize_t display_show_color(struct device *dev,
 	return ret;
 }
 
-static ssize_t display_store_color(struct device *dev,
+static ssize_t display_color_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
@@ -360,7 +378,9 @@ static ssize_t display_store_color(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t display_show_sinkaudioinfo(struct device *dev,
+static DEVICE_ATTR_RW(display_color);
+
+static ssize_t display_sinkaudioinfo_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
@@ -380,7 +400,9 @@ static ssize_t display_show_sinkaudioinfo(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t display_show_monspecs(struct device *dev,
+static DEVICE_ATTR_RO(display_sinkaudioinfo);
+
+static ssize_t display_monspecs_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -400,7 +422,9 @@ static ssize_t display_show_monspecs(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t display_show_debug(struct device *dev,
+static DEVICE_ATTR_RO(display_monspecs);
+
+static ssize_t display_debug_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
@@ -413,7 +437,7 @@ static ssize_t display_show_debug(struct device *dev,
 	return ret;
 }
 
-static ssize_t display_store_debug(struct device *dev,
+static ssize_t display_debug_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
@@ -430,22 +454,26 @@ static ssize_t display_store_debug(struct device *dev,
 	return ret;
 }
 
-static struct device_attribute display_attrs[] = {
-	__ATTR(name, S_IRUGO, display_show_name, NULL),
-	__ATTR(type, S_IRUGO, display_show_type, NULL),
-	__ATTR(property, S_IRUGO, display_show_property, NULL),
-	__ATTR(enable, 0666, display_show_enable, display_store_enable),
-	__ATTR(connect, S_IRUGO, display_show_connect, NULL),
-	__ATTR(modes, S_IRUGO, display_show_modes, NULL),
-	__ATTR(mode, 0666, display_show_mode, display_store_mode),
-	__ATTR(scale, 0666, display_show_scale, display_store_scale),
-	__ATTR(3dmode, 0666, display_show_3dmode, display_store_3dmode),
-	__ATTR(color, 0666, display_show_color, display_store_color),
-	__ATTR(audioinfo, S_IRUGO, display_show_sinkaudioinfo, NULL),
-	__ATTR(monspecs, S_IRUGO, display_show_monspecs, NULL),
-	__ATTR(debug, 0664, display_show_debug, display_store_debug),
-	__ATTR_NULL
+static DEVICE_ATTR_RW(display_debug);
+
+static struct attribute *display_device_attrs[] = {
+	&dev_attr_display_name.attr,
+	&dev_attr_display_type.attr,
+	&dev_attr_display_property.attr,
+	&dev_attr_display_enable.attr,
+	&dev_attr_display_connect.attr,
+	&dev_attr_display_modes.attr,
+	&dev_attr_display_mode.attr,
+	&dev_attr_display_scale.attr,
+	&dev_attr_display_3dmode.attr,
+	&dev_attr_display_color.attr,
+	&dev_attr_display_sinkaudioinfo.attr,
+	&dev_attr_display_monspecs.attr,
+	&dev_attr_display_debug.attr,
+	NULL,
 };
+
+ATTRIBUTE_GROUPS(display_device);
 
 static int display_suspend(struct device *dev, pm_message_t state)
 {
@@ -733,7 +761,7 @@ static int __init rk_display_class_init(void)
 		display_class = NULL;
 		return -EINVAL;
 	}
-	display_class->dev_attrs = display_attrs;
+	display_class->dev_groups = display_device_groups;
 	display_class->suspend = display_suspend;
 	display_class->resume = display_resume;
 	mutex_init(&allocated_dsp_lock);

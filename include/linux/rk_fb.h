@@ -23,7 +23,7 @@
 #include <asm/atomic.h>
 #include <linux/rk_screen.h>
 #if defined(CONFIG_OF)
-#include <dt-bindings/rkfb/rk_fb.h>
+#include <dt-bindings/display/rk_fb.h>
 #endif
 #include "../../drivers/staging/android/sw_sync.h"
 #include <linux/file.h>
