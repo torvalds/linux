@@ -103,6 +103,7 @@ Netdevice notifier events which can be failed are:
  * NETDEV_POST_INIT
  * NETDEV_PRECHANGEMTU
  * NETDEV_PRECHANGEUPPER
+ * NETDEV_CHANGEUPPER
 
 Example: Inject netdevice mtu change error (-22 == -EINVAL)
 
