@@ -1230,8 +1230,6 @@ static struct omap_hwmod_ocp_if dm81xx_tptc3__alwon_l3_fast = {
 
 /*
  * REVISIT: Test and enable the following once clocks work:
- * dm81xx_l4_ls__gpio1
- * dm81xx_l4_ls__gpio2
  * dm81xx_l4_ls__mailbox
  * dm81xx_alwon_l3_slow__gpmc
  * dm81xx_default_l3_slow__usbss
@@ -1250,6 +1248,8 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_l4_ls__wd_timer1,
 	&dm81xx_l4_ls__i2c1,
 	&dm81xx_l4_ls__i2c2,
+	&dm81xx_l4_ls__gpio1,
+	&dm81xx_l4_ls__gpio2,
 	&dm81xx_l4_ls__elm,
 	&dm81xx_l4_ls__mcspi1,
 	&dm81xx_alwon_l3_fast__tpcc,
