@@ -1672,6 +1672,9 @@ uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
 		if (pipe_h < pfit_h)
 			pipe_h = pfit_h;
 
+		if (WARN_ON(!pfit_w || !pfit_h))
+			return pixel_rate;
+
 		pixel_rate = div_u64((uint64_t) pixel_rate * pipe_w * pipe_h,
 				     pfit_w * pfit_h);
 	}
@@ -1703,6 +1706,8 @@ static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 
 	if (WARN(latency == 0, "Latency value missing\n"))
 		return UINT_MAX;
+	if (WARN_ON(!pipe_htotal))
+		return UINT_MAX;
 
 	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
 	ret = (ret + 1) * horiz_pixels * bytes_per_pixel;
@@ -1713,6 +1718,17 @@ static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 static uint32_t ilk_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
 			   uint8_t bytes_per_pixel)
 {
+	/*
+	 * Neither of these should be possible since this function shouldn't be
+	 * called if the CRTC is off or the plane is invisible.  But let's be
+	 * extra paranoid to avoid a potential divide-by-zero if we screw up
+	 * elsewhere in the driver.
+	 */
+	if (WARN_ON(!bytes_per_pixel))
+		return 0;
+	if (WARN_ON(!horiz_pixels))
+		return 0;
+
 	return DIV_ROUND_UP(pri_val * 64, horiz_pixels * bytes_per_pixel) + 2;
 }
 
