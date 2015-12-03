@@ -334,18 +334,60 @@ int verity_hash_for_block(struct dm_verity *v, struct dm_verity_io *io,
 }
 
 /*
+ * Calls function process for 1 << v->data_dev_block_bits bytes in the bio_vec
+ * starting from iter.
+ */
+int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,
+			struct bvec_iter *iter,
+			int (*process)(struct dm_verity *v,
+				       struct dm_verity_io *io, u8 *data,
+				       size_t len))
+{
+	unsigned todo = 1 << v->data_dev_block_bits;
+	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_bio_data_size);
+
+	do {
+		int r;
+		u8 *page;
+		unsigned len;
+		struct bio_vec bv = bio_iter_iovec(bio, *iter);
+
+		page = kmap_atomic(bv.bv_page);
+		len = bv.bv_len;
+
+		if (likely(len >= todo))
+			len = todo;
+
+		r = process(v, io, page + bv.bv_offset, len);
+		kunmap_atomic(page);
+
+		if (r < 0)
+			return r;
+
+		bio_advance_iter(bio, iter, len);
+		todo -= len;
+	} while (todo);
+
+	return 0;
+}
+
+static int verity_bv_hash_update(struct dm_verity *v, struct dm_verity_io *io,
+				 u8 *data, size_t len)
+{
+	return verity_hash_update(v, verity_io_hash_desc(v, io), data, len);
+}
+
+/*
  * Verify one "dm_verity_io" structure.
  */
 static int verity_verify_io(struct dm_verity_io *io)
 {
 	struct dm_verity *v = io->v;
-	struct bio *bio = dm_bio_from_per_bio_data(io,
-						   v->ti->per_bio_data_size);
+	struct bvec_iter start;
 	unsigned b;
 
 	for (b = 0; b < io->n_blocks; b++) {
 		int r;
-		unsigned todo;
 		struct shash_desc *desc = verity_io_hash_desc(v, io);
 
 		r = verity_hash_for_block(v, io, io->block + b,
@@ -357,26 +399,10 @@ static int verity_verify_io(struct dm_verity_io *io)
 		if (unlikely(r < 0))
 			return r;
 
-		todo = 1 << v->data_dev_block_bits;
-		do {
-			u8 *page;
-			unsigned len;
-			struct bio_vec bv = bio_iter_iovec(bio, io->iter);
-
-			page = kmap_atomic(bv.bv_page);
-			len = bv.bv_len;
-			if (likely(len >= todo))
-				len = todo;
-			r = verity_hash_update(v, desc,  page + bv.bv_offset,
-					       len);
-			kunmap_atomic(page);
-
-			if (unlikely(r < 0))
-				return r;
-
-			bio_advance_iter(bio, &io->iter, len);
-			todo -= len;
-		} while (todo);
+		start = io->iter;
+		r = verity_for_bv_block(v, io, &io->iter, verity_bv_hash_update);
+		if (unlikely(r < 0))
+			return r;
 
 		r = verity_hash_final(v, desc, verity_io_real_digest(v, io));
 		if (unlikely(r < 0))
