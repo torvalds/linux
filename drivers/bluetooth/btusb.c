@@ -1646,13 +1646,8 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	struct sk_buff *skb;
 	const struct firmware *fw;
 	const u8 *fw_ptr;
-	int disable_patch;
+	int disable_patch, err;
 	struct intel_version *ver;
-
-	const u8 mfg_enable[] = { 0x01, 0x00 };
-	const u8 mfg_disable[] = { 0x00, 0x00 };
-	const u8 mfg_reset_deactivate[] = { 0x00, 0x01 };
-	const u8 mfg_reset_activate[] = { 0x00, 0x02 };
 
 	BT_DBG("%s", hdev->name);
 
@@ -1725,21 +1720,15 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 
 	kfree_skb(skb);
 
-	/* This Intel specific command enables the manufacturer mode of the
-	 * controller.
-	 *
+	/* Enable the manufacturer mode of the controller.
 	 * Only while this mode is enabled, the driver can download the
 	 * firmware patch data and configuration parameters.
 	 */
-	skb = __hci_cmd_sync(hdev, 0xfc11, 2, mfg_enable, HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		BT_ERR("%s entering Intel manufacturer mode failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+	err = btintel_enter_mfg(hdev);
+	if (err) {
 		release_firmware(fw);
-		return PTR_ERR(skb);
+		return err;
 	}
-
-	kfree_skb(skb);
 
 	disable_patch = 1;
 
@@ -1780,14 +1769,9 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	/* Patching completed successfully and disable the manufacturer mode
 	 * with reset and activate the downloaded firmware patches.
 	 */
-	skb = __hci_cmd_sync(hdev, 0xfc11, sizeof(mfg_reset_activate),
-			     mfg_reset_activate, HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		BT_ERR("%s exiting Intel manufacturer mode failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
-		return PTR_ERR(skb);
-	}
-	kfree_skb(skb);
+	err = btintel_exit_mfg(hdev, true, true);
+	if (err)
+		return err;
 
 	BT_INFO("%s: Intel Bluetooth firmware patch completed and activated",
 		hdev->name);
@@ -1796,14 +1780,9 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 
 exit_mfg_disable:
 	/* Disable the manufacturer mode without reset */
-	skb = __hci_cmd_sync(hdev, 0xfc11, sizeof(mfg_disable), mfg_disable,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		BT_ERR("%s exiting Intel manufacturer mode failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
-		return PTR_ERR(skb);
-	}
-	kfree_skb(skb);
+	err = btintel_exit_mfg(hdev, false, false);
+	if (err)
+		return err;
 
 	BT_INFO("%s: Intel Bluetooth firmware patch completed", hdev->name);
 
@@ -1815,14 +1794,9 @@ exit_mfg_deactivate:
 	/* Patching failed. Disable the manufacturer mode with reset and
 	 * deactivate the downloaded firmware patches.
 	 */
-	skb = __hci_cmd_sync(hdev, 0xfc11, sizeof(mfg_reset_deactivate),
-			     mfg_reset_deactivate, HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		BT_ERR("%s exiting Intel manufacturer mode failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
-		return PTR_ERR(skb);
-	}
-	kfree_skb(skb);
+	err = btintel_exit_mfg(hdev, true, false);
+	if (err)
+		return err;
 
 	BT_INFO("%s: Intel Bluetooth firmware patch completed and deactivated",
 		hdev->name);
