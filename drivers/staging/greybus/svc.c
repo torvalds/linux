@@ -709,6 +709,8 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 	if (device_is_registered(&svc->dev))
 		device_del(&svc->dev);
 
+	flush_workqueue(svc->wq);
+
 	connection->hd->svc = NULL;
 	connection->private = NULL;
 
