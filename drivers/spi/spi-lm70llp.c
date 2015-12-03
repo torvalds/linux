@@ -166,7 +166,7 @@ static inline int getmiso(struct spi_device *s)
 {
 	struct spi_lm70llp *pp = spidev_to_pp(s);
 
-	return ((SIO == (parport_read_status(pp->port) & SIO)) ? 0 : 1 );
+	return ((SIO == (parport_read_status(pp->port) & SIO)) ? 0 : 1);
 }
 
 /*--------------------------------------------------------------------*/
