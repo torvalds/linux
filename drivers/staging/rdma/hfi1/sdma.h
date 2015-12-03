@@ -774,10 +774,13 @@ static inline int _sdma_txadd_daddr(
 	tx->tlen -= len;
 	/* special cases for last */
 	if (!tx->tlen) {
-		if (tx->packet_len & (sizeof(u32) - 1))
+		if (tx->packet_len & (sizeof(u32) - 1)) {
 			rval = _pad_sdma_tx_descs(dd, tx);
-		else
+			if (rval)
+				return rval;
+		} else {
 			_sdma_close_tx(dd, tx);
+		}
 	}
 	tx->num_desc++;
 	return rval;

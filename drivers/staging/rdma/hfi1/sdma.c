@@ -2731,22 +2731,21 @@ static int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 			tx->coalesce_buf = kmalloc(tx->tlen + sizeof(u32),
 						   GFP_ATOMIC);
 			if (!tx->coalesce_buf)
-				return -ENOMEM;
-
+				goto enomem;
 			tx->coalesce_idx = 0;
 		}
 		return 0;
 	}
 
 	if (unlikely(tx->num_desc == MAX_DESC))
-		return -ENOMEM;
+		goto enomem;
 
 	tx->descp = kmalloc_array(
 			MAX_DESC,
 			sizeof(struct sdma_desc),
 			GFP_ATOMIC);
 	if (!tx->descp)
-		return -ENOMEM;
+		goto enomem;
 
 	/* reserve last descriptor for coalescing */
 	tx->desc_limit = MAX_DESC - 1;
@@ -2754,6 +2753,9 @@ static int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 	for (i = 0; i < tx->num_desc; i++)
 		tx->descp[i] = tx->descs[i];
 	return 0;
+enomem:
+	sdma_txclean(dd, tx);
+	return -ENOMEM;
 }
 
 /*
