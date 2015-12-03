@@ -23,6 +23,7 @@ struct seq_file;
  * @parent: optional parent device providing the GPIOs
  * @cdev: class device used by sysfs interface (may be NULL)
  * @owner: helps prevent removal of modules exporting active GPIOs
+ * @data: per-instance data assigned by the driver
  * @list: links gpio_chips together for traversal
  * @request: optional hook for chip-specific activation, such as
  *	enabling module power and clock; may sleep
@@ -91,6 +92,7 @@ struct gpio_chip {
 	struct device		*parent;
 	struct device		*cdev;
 	struct module		*owner;
+	void			*data;
 	struct list_head        list;
 
 	int			(*request)(struct gpio_chip *chip,
@@ -165,7 +167,11 @@ extern const char *gpiochip_is_requested(struct gpio_chip *chip,
 			unsigned offset);
 
 /* add/remove chips */
-extern int gpiochip_add(struct gpio_chip *chip);
+extern int gpiochip_add_data(struct gpio_chip *chip, void *data);
+static inline int gpiochip_add(struct gpio_chip *chip)
+{
+	return gpiochip_add_data(chip, NULL);
+}
 extern void gpiochip_remove(struct gpio_chip *chip);
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
@@ -173,6 +179,12 @@ extern struct gpio_chip *gpiochip_find(void *data,
 /* lock/unlock as IRQ */
 int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
 void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
+
+/* get driver data */
+static inline void *gpiochip_get_data(struct gpio_chip *chip)
+{
+	return chip->data;
+}
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 
