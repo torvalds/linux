@@ -70,11 +70,11 @@ def replace(h):
     content = re.sub("(#[ \t]*include[ \t]<)(.*>)", "\\1lkl/\\2", content,
                      flags = re.MULTILINE)
     for d in defines:
-        search_str = "([^_a-zA-Z0-9]+)" + d + "([^_a-zA-Z0-9]+)"
+        search_str = "(\W)" + d + "(\W)"
         replace_str = "\\1" + lkl_prefix(d) + "\\2"
         content = re.sub(search_str, replace_str, content, flags = re.MULTILINE)
     for s in structs:
-        search_str = "([^_a-zA-Z0-9]*struct\s+)" + s + "([^_a-zA-Z0-9]+)"
+        search_str = "(\W?struct\s+)" + s + "(\W)"
         replace_str = "\\1" + lkl_prefix(s) + "\\2"
         content = re.sub(search_str, replace_str, content, flags = re.MULTILINE)
     open(h, 'w').write(content)
