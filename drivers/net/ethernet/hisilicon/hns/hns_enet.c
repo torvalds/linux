@@ -1384,6 +1384,51 @@ static int hns_nic_change_mtu(struct net_device *ndev, int new_mtu)
 	return ret;
 }
 
+static int hns_nic_set_features(struct net_device *netdev,
+				netdev_features_t features)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_handle *h = priv->ae_handle;
+
+	switch (priv->enet_ver) {
+	case AE_VERSION_1:
+		if (features & (NETIF_F_TSO | NETIF_F_TSO6))
+			netdev_info(netdev, "enet v1 do not support tso!\n");
+		break;
+	default:
+		if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
+			priv->ops.fill_desc = fill_tso_desc;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
+			/* The chip only support 7*4096 */
+			netif_set_gso_max_size(netdev, 7 * 4096);
+			h->dev->ops->set_tso_stats(h, 1);
+		} else {
+			priv->ops.fill_desc = fill_v2_desc;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+			h->dev->ops->set_tso_stats(h, 0);
+		}
+		break;
+	}
+	netdev->features = features;
+	return 0;
+}
+
+static netdev_features_t hns_nic_fix_features(
+		struct net_device *netdev, netdev_features_t features)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+
+	switch (priv->enet_ver) {
+	case AE_VERSION_1:
+		features &= ~(NETIF_F_TSO | NETIF_F_TSO6 |
+				NETIF_F_HW_VLAN_CTAG_FILTER);
+		break;
+	default:
+		break;
+	}
+	return features;
+}
+
 /**
  * nic_set_multicast_list - set mutl mac address
  * @netdev: net device
@@ -1479,6 +1524,8 @@ static const struct net_device_ops hns_nic_netdev_ops = {
 	.ndo_set_mac_address = hns_nic_net_set_mac_address,
 	.ndo_change_mtu = hns_nic_change_mtu,
 	.ndo_do_ioctl = hns_nic_do_ioctl,
+	.ndo_set_features = hns_nic_set_features,
+	.ndo_fix_features = hns_nic_fix_features,
 	.ndo_get_stats64 = hns_nic_get_stats64,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = hns_nic_poll_controller,
