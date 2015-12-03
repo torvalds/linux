@@ -27,7 +27,7 @@ core-y += arch/lkl/kernel/
 all: lkl.o
 
 lkl.o: vmlinux
-	$(OBJCOPY) $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) vmlinux lkl.o
+	$(OBJCOPY) -R .eh_frame $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) vmlinux lkl.o
 
 install: lkl.o __headers
 	@echo "  INSTALL	$(INSTALL_PATH)/lib/lkl.o"
