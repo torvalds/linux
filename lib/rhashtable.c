@@ -389,33 +389,31 @@ static bool rhashtable_check_elasticity(struct rhashtable *ht,
 	return false;
 }
 
-int rhashtable_insert_rehash(struct rhashtable *ht)
+int rhashtable_insert_rehash(struct rhashtable *ht,
+			     struct bucket_table *tbl)
 {
 	struct bucket_table *old_tbl;
 	struct bucket_table *new_tbl;
-	struct bucket_table *tbl;
 	unsigned int size;
 	int err;
 
 	old_tbl = rht_dereference_rcu(ht->tbl, ht);
-	tbl = rhashtable_last_table(ht, old_tbl);
 
 	size = tbl->size;
+
+	err = -EBUSY;
 
 	if (rht_grow_above_75(ht, tbl))
 		size *= 2;
 	/* Do not schedule more than one rehash */
 	else if (old_tbl != tbl)
-		return -EBUSY;
+		goto fail;
+
+	err = -ENOMEM;
 
 	new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC);
-	if (new_tbl == NULL) {
-		/* Schedule async resize/rehash to try allocation
-		 * non-atomic context.
-		 */
-		schedule_work(&ht->run_work);
-		return -ENOMEM;
-	}
+	if (new_tbl == NULL)
+		goto fail;
 
 	err = rhashtable_rehash_attach(ht, tbl, new_tbl);
 	if (err) {
@@ -426,12 +424,24 @@ int rhashtable_insert_rehash(struct rhashtable *ht)
 		schedule_work(&ht->run_work);
 
 	return err;
+
+fail:
+	/* Do not fail the insert if someone else did a rehash. */
+	if (likely(rcu_dereference_raw(tbl->future_tbl)))
+		return 0;
+
+	/* Schedule async rehash to retry allocation in process context. */
+	if (err == -ENOMEM)
+		schedule_work(&ht->run_work);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(rhashtable_insert_rehash);
 
-int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
-			   struct rhash_head *obj,
-			   struct bucket_table *tbl)
+struct bucket_table *rhashtable_insert_slow(struct rhashtable *ht,
+					    const void *key,
+					    struct rhash_head *obj,
+					    struct bucket_table *tbl)
 {
 	struct rhash_head *head;
 	unsigned int hash;
@@ -467,7 +477,12 @@ int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 exit:
 	spin_unlock(rht_bucket_lock(tbl, hash));
 
-	return err;
+	if (err == 0)
+		return NULL;
+	else if (err == -EAGAIN)
+		return tbl;
+	else
+		return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
 
