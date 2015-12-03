@@ -190,8 +190,8 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 			}
 
 			bip = bio_integrity_alloc(bio, GFP_KERNEL, 1);
-			if (!bip) {
-				ret = -ENOMEM;
+			if (IS_ERR(bip)) {
+				ret = PTR_ERR(bip);
 				goto out_free_meta;
 			}
 

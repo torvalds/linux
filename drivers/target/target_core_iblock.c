@@ -613,9 +613,9 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio)
 	}
 
 	bip = bio_integrity_alloc(bio, GFP_NOIO, cmd->t_prot_nents);
-	if (!bip) {
+	if (IS_ERR(bip)) {
 		pr_err("Unable to allocate bio_integrity_payload\n");
-		return -ENOMEM;
+		return PTR_ERR(bip);
 	}
 
 	bip->bip_iter.bi_size = (cmd->data_length / dev->dev_attrib.block_size) *
