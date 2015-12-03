@@ -11,12 +11,14 @@
 static void drm_dp_link_caps_reset(struct drm_dp_link_caps *caps)
 {
 	caps->enhanced_framing = false;
+	caps->fast_training = false;
 }
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
 			   const struct drm_dp_link_caps *src)
 {
 	dest->enhanced_framing = src->enhanced_framing;
+	dest->fast_training = src->fast_training;
 }
 
 static void drm_dp_link_reset(struct drm_dp_link *link)
@@ -61,6 +63,7 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	link->max_lanes = drm_dp_max_lane_count(dpcd);
 
 	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(dpcd);
+	link->caps.fast_training = drm_dp_fast_training_cap(dpcd);
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;

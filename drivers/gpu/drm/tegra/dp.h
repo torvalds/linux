@@ -21,6 +21,13 @@ struct drm_dp_link_caps {
 	 * enhanced framing capability (mandatory as of DP 1.2)
 	 */
 	bool enhanced_framing;
+
+	/**
+	 * @fast_training:
+	 *
+	 * AUX CH handshake not required for link training
+	 */
+	bool fast_training;
 };
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
