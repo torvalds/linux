@@ -169,16 +169,40 @@ static int skl_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct skl *skl  = ebus_to_skl(ebus);
 
-	return _skl_suspend(ebus);
+	/*
+	 * Do not suspend if streams which are marked ignore suspend are
+	 * running, we need to save the state for these and continue
+	 */
+	if (skl->supend_active) {
+		pci_save_state(pci);
+		pci_disable_device(pci);
+		return 0;
+	} else {
+		return _skl_suspend(ebus);
+	}
 }
 
 static int skl_resume(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct skl *skl  = ebus_to_skl(ebus);
+	int ret;
 
-	return _skl_resume(ebus);
+	/*
+	 * resume only when we are not in suspend active, otherwise need to
+	 * restore the device
+	 */
+	if (skl->supend_active) {
+		pci_restore_state(pci);
+		ret = pci_enable_device(pci);
+	} else {
+		ret = _skl_resume(ebus);
+	}
+
+	return ret;
 }
 #endif /* CONFIG_PM_SLEEP */
 
