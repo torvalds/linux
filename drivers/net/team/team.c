@@ -2422,9 +2422,13 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 	struct nlattr *nl_option;
 	LIST_HEAD(opt_inst_list);
 
+	rtnl_lock();
+
 	team = team_nl_team_get(info);
-	if (!team)
-		return -EINVAL;
+	if (!team) {
+		err = -EINVAL;
+		goto rtnl_unlock;
+	}
 
 	err = -EINVAL;
 	if (!info->attrs[TEAM_ATTR_LIST_OPTION]) {
@@ -2551,7 +2555,8 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 
 team_put:
 	team_nl_team_put(team);
-
+rtnl_unlock:
+	rtnl_unlock();
 	return err;
 }
 
