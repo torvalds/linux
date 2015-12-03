@@ -158,9 +158,7 @@ static void freezer_css_free(struct cgroup_subsys_state *css)
 static void freezer_attach(struct cgroup_subsys_state *new_css,
 			   struct cgroup_taskset *tset)
 {
-	struct freezer *freezer = css_freezer(new_css);
 	struct task_struct *task;
-	bool clear_frozen = false;
 
 	mutex_lock(&freezer_mutex);
 
@@ -175,19 +173,18 @@ static void freezer_attach(struct cgroup_subsys_state *new_css,
 	 * be visible in a FROZEN cgroup and frozen tasks in a THAWED one.
 	 */
 	cgroup_taskset_for_each(task, tset) {
+		struct freezer *freezer = css_freezer(new_css);
+
 		if (!(freezer->state & CGROUP_FREEZING)) {
 			__thaw_task(task);
 		} else {
 			freeze_task(task);
-			freezer->state &= ~CGROUP_FROZEN;
-			clear_frozen = true;
+			/* clear FROZEN and propagate upwards */
+			while (freezer && (freezer->state & CGROUP_FROZEN)) {
+				freezer->state &= ~CGROUP_FROZEN;
+				freezer = parent_freezer(freezer);
+			}
 		}
-	}
-
-	/* propagate FROZEN clearing upwards */
-	while (clear_frozen && (freezer = parent_freezer(freezer))) {
-		freezer->state &= ~CGROUP_FROZEN;
-		clear_frozen = freezer->state & CGROUP_FREEZING;
 	}
 
 	mutex_unlock(&freezer_mutex);
