@@ -23,10 +23,8 @@
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 
-
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
-
 
 /*
  * The LM70 communicates with a host processor using a 3-wire variant of
@@ -87,7 +85,6 @@ struct spi_lm70llp {
 
 /* REVISIT : ugly global ; provides "exclusive open" facility */
 static struct spi_lm70llp *lm70llp;
-
 
 /*-------------------------------------------------------------------*/
 
@@ -318,7 +315,6 @@ static void spi_lm70llp_detach(struct parport *p)
 
 	lm70llp = NULL;
 }
-
 
 static struct parport_driver spi_lm70llp_drv = {
 	.name =		DRVNAME,
