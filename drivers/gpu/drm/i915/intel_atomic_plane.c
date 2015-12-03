@@ -152,9 +152,9 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_state->clip.x1 = 0;
 	intel_state->clip.y1 = 0;
 	intel_state->clip.x2 =
-		crtc_state->base.active ? crtc_state->pipe_src_w : 0;
+		crtc_state->base.enable ? crtc_state->pipe_src_w : 0;
 	intel_state->clip.y2 =
-		crtc_state->base.active ? crtc_state->pipe_src_h : 0;
+		crtc_state->base.enable ? crtc_state->pipe_src_h : 0;
 
 	if (state->fb && intel_rotation_90_or_270(state->rotation)) {
 		if (!(state->fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||

@@ -11873,8 +11873,13 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	if (!was_crtc_enabled && WARN_ON(was_visible))
 		was_visible = false;
 
-	if (!is_crtc_enabled && WARN_ON(visible))
-		visible = false;
+	/*
+	 * Visibility is calculated as if the crtc was on, but
+	 * after scaler setup everything depends on it being off
+	 * when the crtc isn't active.
+	 */
+	if (!is_crtc_enabled)
+		to_intel_plane_state(plane_state)->visible = visible = false;
 
 	if (!was_visible && !visible)
 		return 0;
