@@ -1998,14 +1998,19 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 }
 
 static uint32_t
-hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
+hsw_compute_linetime_wm(struct drm_device *dev,
+			struct intel_crtc_state *cstate)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode =
+		&cstate->base.adjusted_mode;
 	u32 linetime, ips_linetime;
 
-	if (!intel_crtc->active)
+	if (!cstate->base.active)
+		return 0;
+	if (WARN_ON(adjusted_mode->crtc_clock == 0))
+		return 0;
+	if (WARN_ON(dev_priv->cdclk_freq == 0))
 		return 0;
 
 	/* The WM are computed with base on how long it takes to fill a single
@@ -2313,8 +2318,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		pipe_wm->linetime = hsw_compute_linetime_wm(dev,
-							    &intel_crtc->base);
+		pipe_wm->linetime = hsw_compute_linetime_wm(dev, cstate);
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
 	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
