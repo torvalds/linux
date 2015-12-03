@@ -212,6 +212,7 @@ static void skl_set_base_module_format(struct skl_sst *ctx,
 	base_cfg->cps = mconfig->mcps;
 	base_cfg->ibs = mconfig->ibs;
 	base_cfg->obs = mconfig->obs;
+	base_cfg->is_pages = mconfig->mem_pages;
 }
 
 /*

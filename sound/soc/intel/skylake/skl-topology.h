@@ -277,6 +277,7 @@ struct skl_module_cfg {
 	u32 params_fixup;
 	u32 converter;
 	u32 vbus_id;
+	u32 mem_pages;
 	struct skl_module_pin *m_in_pin;
 	struct skl_module_pin *m_out_pin;
 	enum skl_module_type m_type;
