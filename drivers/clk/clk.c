@@ -3079,6 +3079,9 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 		}
 		count++;
 	}
+	/* We went off the end of 'clock-indices' without finding it */
+	if (prop && !vp)
+		return NULL;
 
 	if (of_property_read_string_index(clkspec.np, "clock-output-names",
 					  index,
