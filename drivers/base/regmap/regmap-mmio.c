@@ -247,7 +247,6 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 		min_stride = 8;
 		break;
 #endif
-		break;
 	default:
 		return ERR_PTR(-EINVAL);
 	}
