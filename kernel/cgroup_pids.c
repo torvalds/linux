@@ -106,7 +106,7 @@ static void pids_uncharge(struct pids_cgroup *pids, int num)
 {
 	struct pids_cgroup *p;
 
-	for (p = pids; p; p = parent_pids(p))
+	for (p = pids; parent_pids(p); p = parent_pids(p))
 		pids_cancel(p, num);
 }
 
@@ -123,7 +123,7 @@ static void pids_charge(struct pids_cgroup *pids, int num)
 {
 	struct pids_cgroup *p;
 
-	for (p = pids; p; p = parent_pids(p))
+	for (p = pids; parent_pids(p); p = parent_pids(p))
 		atomic64_add(num, &p->counter);
 }
 
@@ -140,7 +140,7 @@ static int pids_try_charge(struct pids_cgroup *pids, int num)
 {
 	struct pids_cgroup *p, *q;
 
-	for (p = pids; p; p = parent_pids(p)) {
+	for (p = pids; parent_pids(p); p = parent_pids(p)) {
 		int64_t new = atomic64_add_return(num, &p->counter);
 
 		/*
@@ -298,6 +298,7 @@ static struct cftype pids_files[] = {
 	{
 		.name = "current",
 		.read_s64 = pids_current_read,
+		.flags = CFTYPE_NOT_ON_ROOT,
 	},
 	{ }	/* terminate */
 };
