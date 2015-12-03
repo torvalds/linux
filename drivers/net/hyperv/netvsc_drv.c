@@ -273,17 +273,10 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 		skb_set_hash(skb, hash, PKT_HASH_TYPE_L3);
 	}
 
+	if (!nvsc_dev->chn_table[q_idx])
+		q_idx = 0;
+
 	return q_idx;
-}
-
-void netvsc_xmit_completion(void *context)
-{
-	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
-	struct sk_buff *skb = (struct sk_buff *)
-		(unsigned long)packet->send_completion_tid;
-
-	if (skb)
-		dev_kfree_skb_any(skb);
 }
 
 static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
@@ -321,9 +314,10 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 }
 
 static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
-			   struct hv_netvsc_packet *packet)
+			   struct hv_netvsc_packet *packet,
+			   struct hv_page_buffer **page_buf)
 {
-	struct hv_page_buffer *pb = packet->page_buf;
+	struct hv_page_buffer *pb = *page_buf;
 	u32 slots_used = 0;
 	char *data = skb->data;
 	int frags = skb_shinfo(skb)->nr_frags;
@@ -433,8 +427,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	u32 net_trans_info;
 	u32 hash;
 	u32 skb_length;
-	u32 pkt_sz;
 	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
+	struct hv_page_buffer *pb = page_buf;
 	struct netvsc_stats *tx_stats = this_cpu_ptr(net_device_ctx->tx_stats);
 
 	/* We will atmost need two pages to describe the rndis
@@ -461,42 +455,34 @@ check_size:
 		goto check_size;
 	}
 
-	pkt_sz = sizeof(struct hv_netvsc_packet) + RNDIS_AND_PPI_SIZE;
-
-	ret = skb_cow_head(skb, pkt_sz);
+	/*
+	 * Place the rndis header in the skb head room and
+	 * the skb->cb will be used for hv_netvsc_packet
+	 * structure.
+	 */
+	ret = skb_cow_head(skb, RNDIS_AND_PPI_SIZE);
 	if (ret) {
 		netdev_err(net, "unable to alloc hv_netvsc_packet\n");
 		ret = -ENOMEM;
 		goto drop;
 	}
-	/* Use the headroom for building up the packet */
-	packet = (struct hv_netvsc_packet *)skb->head;
+	/* Use the skb control buffer for building up the packet */
+	BUILD_BUG_ON(sizeof(struct hv_netvsc_packet) >
+			FIELD_SIZEOF(struct sk_buff, cb));
+	packet = (struct hv_netvsc_packet *)skb->cb;
 
-	packet->status = 0;
-	packet->xmit_more = skb->xmit_more;
-
-	packet->vlan_tci = skb->vlan_tci;
-	packet->page_buf = page_buf;
 
 	packet->q_idx = skb_get_queue_mapping(skb);
 
-	packet->is_data_pkt = true;
 	packet->total_data_buflen = skb->len;
 
-	packet->rndis_msg = (struct rndis_message *)((unsigned long)packet +
-				sizeof(struct hv_netvsc_packet));
+	rndis_msg = (struct rndis_message *)skb->head;
 
-	memset(packet->rndis_msg, 0, RNDIS_AND_PPI_SIZE);
+	memset(rndis_msg, 0, RNDIS_AND_PPI_SIZE);
 
-	/* Set the completion routine */
-	packet->send_completion = netvsc_xmit_completion;
-	packet->send_completion_ctx = packet;
-	packet->send_completion_tid = (unsigned long)skb;
-
-	isvlan = packet->vlan_tci & VLAN_TAG_PRESENT;
+	isvlan = skb->vlan_tci & VLAN_TAG_PRESENT;
 
 	/* Add the rndis header */
-	rndis_msg = packet->rndis_msg;
 	rndis_msg->ndis_msg_type = RNDIS_MSG_PACKET;
 	rndis_msg->msg_len = packet->total_data_buflen;
 	rndis_pkt = &rndis_msg->msg.pkt;
@@ -522,8 +508,8 @@ check_size:
 					IEEE_8021Q_INFO);
 		vlan = (struct ndis_pkt_8021q_info *)((void *)ppi +
 						ppi->ppi_offset);
-		vlan->vlanid = packet->vlan_tci & VLAN_VID_MASK;
-		vlan->pri = (packet->vlan_tci & VLAN_PRIO_MASK) >>
+		vlan->vlanid = skb->vlan_tci & VLAN_VID_MASK;
+		vlan->pri = (skb->vlan_tci & VLAN_PRIO_MASK) >>
 				VLAN_PRIO_SHIFT;
 	}
 
@@ -618,9 +604,10 @@ do_send:
 	rndis_msg->msg_len += rndis_msg_size;
 	packet->total_data_buflen = rndis_msg->msg_len;
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
-					       skb, packet);
+					       skb, packet, &pb);
 
-	ret = netvsc_send(net_device_ctx->device_ctx, packet);
+	ret = netvsc_send(net_device_ctx->device_ctx, packet,
+			  rndis_msg, &pb, skb);
 
 drop:
 	if (ret == 0) {
@@ -683,7 +670,10 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
  */
 int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet,
-				struct ndis_tcp_ip_checksum_info *csum_info)
+				void **data,
+				struct ndis_tcp_ip_checksum_info *csum_info,
+				struct vmbus_channel *channel,
+				u16 vlan_tci)
 {
 	struct net_device *net;
 	struct net_device_context *net_device_ctx;
@@ -692,8 +682,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 
 	net = ((struct netvsc_device *)hv_get_drvdata(device_obj))->ndev;
 	if (!net || net->reg_state != NETREG_REGISTERED) {
-		packet->status = NVSP_STAT_FAIL;
-		return 0;
+		return NVSP_STAT_FAIL;
 	}
 	net_device_ctx = netdev_priv(net);
 	rx_stats = this_cpu_ptr(net_device_ctx->rx_stats);
@@ -702,15 +691,14 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	skb = netdev_alloc_skb_ip_align(net, packet->total_data_buflen);
 	if (unlikely(!skb)) {
 		++net->stats.rx_dropped;
-		packet->status = NVSP_STAT_FAIL;
-		return 0;
+		return NVSP_STAT_FAIL;
 	}
 
 	/*
 	 * Copy to skb. This copy is needed here since the memory pointed by
 	 * hv_netvsc_packet cannot be deallocated
 	 */
-	memcpy(skb_put(skb, packet->total_data_buflen), packet->data,
+	memcpy(skb_put(skb, packet->total_data_buflen), *data,
 		packet->total_data_buflen);
 
 	skb->protocol = eth_type_trans(skb, net);
@@ -725,11 +713,11 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 			skb->ip_summed = CHECKSUM_NONE;
 	}
 
-	if (packet->vlan_tci & VLAN_TAG_PRESENT)
+	if (vlan_tci & VLAN_TAG_PRESENT)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
-				       packet->vlan_tci);
+				       vlan_tci);
 
-	skb_record_rx_queue(skb, packet->channel->
+	skb_record_rx_queue(skb, channel->
 			    offermsg.offer.sub_channel_index);
 
 	u64_stats_update_begin(&rx_stats->syncp);
@@ -1118,15 +1106,11 @@ static int netvsc_probe(struct hv_device *dev,
 	struct netvsc_device_info device_info;
 	struct netvsc_device *nvdev;
 	int ret;
-	u32 max_needed_headroom;
 
 	net = alloc_etherdev_mq(sizeof(struct net_device_context),
 				num_online_cpus());
 	if (!net)
 		return -ENOMEM;
-
-	max_needed_headroom = sizeof(struct hv_netvsc_packet) +
-			      RNDIS_AND_PPI_SIZE;
 
 	netif_carrier_off(net);
 
@@ -1165,13 +1149,6 @@ static int netvsc_probe(struct hv_device *dev,
 
 	net->ethtool_ops = &ethtool_ops;
 	SET_NETDEV_DEV(net, &dev->device);
-
-	/*
-	 * Request additional head room in the skb.
-	 * We will use this space to build the rndis
-	 * heaser and other state we need to maintain.
-	 */
-	net->needed_headroom = max_needed_headroom;
 
 	/* Notify the netvsc driver of the new device */
 	memset(&device_info, 0, sizeof(device_info));
