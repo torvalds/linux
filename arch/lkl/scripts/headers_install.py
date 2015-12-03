@@ -24,7 +24,7 @@ def find_headers(path):
 
 def has_lkl_prefix(w):
     return w.startswith("lkl") or w.startswith("_lkl") or w.startswith("LKL") or \
-        w.startswith("_LKL")
+        w.startswith("_LKL") or w.startswith("__LKL")
 
 def find_symbols(regexp, store):
     for h in headers:
