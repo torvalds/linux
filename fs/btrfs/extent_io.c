@@ -1347,11 +1347,6 @@ int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	return err;
 }
 
-int lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
-{
-	return lock_extent_bits(tree, start, end, NULL);
-}
-
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 {
 	int err;
