@@ -8,6 +8,17 @@
 
 #include "dp.h"
 
+static void drm_dp_link_reset(struct drm_dp_link *link)
+{
+	if (!link)
+		return;
+
+	link->revision = 0;
+	link->rate = 0;
+	link->num_lanes = 0;
+	link->capabilities = 0;
+}
+
 /**
  * drm_dp_link_probe() - probe a DisplayPort link for capabilities
  * @aux: DisplayPort AUX channel
@@ -24,7 +35,7 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	u8 values[3];
 	int err;
 
-	memset(link, 0, sizeof(*link));
+	drm_dp_link_reset(link);
 
 	err = drm_dp_dpcd_read(aux, DP_DPCD_REV, values, sizeof(values));
 	if (err < 0)
