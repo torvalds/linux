@@ -668,8 +668,16 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 
 	conn->state = BT_CLOSED;
 
-	mgmt_connect_failed(hdev, &conn->dst, conn->type, conn->dst_type,
-			    status);
+	/* If the status indicates successful cancellation of
+	 * the attempt (i.e. Unkown Connection Id) there's no point of
+	 * notifying failure since we'll go back to keep trying to
+	 * connect. The only exception is explicit connect requests
+	 * where a timeout + cancel does indicate an actual failure.
+	 */
+	if (status != HCI_ERROR_UNKNOWN_CONN_ID ||
+	    (params && params->explicit_connect))
+		mgmt_connect_failed(hdev, &conn->dst, conn->type,
+				    conn->dst_type, status);
 
 	hci_connect_cfm(conn, status);
 
