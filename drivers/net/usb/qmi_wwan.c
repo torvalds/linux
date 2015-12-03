@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
+#include <linux/if_arp.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
@@ -48,9 +49,91 @@
 struct qmi_wwan_state {
 	struct usb_driver *subdriver;
 	atomic_t pmcount;
-	unsigned long unused;
+	unsigned long flags;
 	struct usb_interface *control;
 	struct usb_interface *data;
+};
+
+enum qmi_wwan_flags {
+	QMI_WWAN_FLAG_RAWIP = 1 << 0,
+};
+
+static void qmi_wwan_netdev_setup(struct net_device *net)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct qmi_wwan_state *info = (void *)&dev->data;
+
+	if (info->flags & QMI_WWAN_FLAG_RAWIP) {
+		net->header_ops      = NULL;  /* No header */
+		net->type            = ARPHRD_NONE;
+		net->hard_header_len = 0;
+		net->addr_len        = 0;
+		net->flags           = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
+		netdev_dbg(net, "mode: raw IP\n");
+	} else if (!net->header_ops) { /* don't bother if already set */
+		ether_setup(net);
+		netdev_dbg(net, "mode: Ethernet\n");
+	}
+
+	/* recalculate buffers after changing hard_header_len */
+	usbnet_change_mtu(net, net->mtu);
+}
+
+static ssize_t raw_ip_show(struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct qmi_wwan_state *info = (void *)&dev->data;
+
+	return sprintf(buf, "%c\n", info->flags & QMI_WWAN_FLAG_RAWIP ? 'Y' : 'N');
+}
+
+static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct qmi_wwan_state *info = (void *)&dev->data;
+	bool enable;
+	int err;
+
+	if (strtobool(buf, &enable))
+		return -EINVAL;
+
+	/* no change? */
+	if (enable == (info->flags & QMI_WWAN_FLAG_RAWIP))
+		return len;
+
+	/* we don't want to modify a running netdev */
+	if (netif_running(dev->net)) {
+		netdev_err(dev->net, "Cannot change a running device\n");
+		return -EBUSY;
+	}
+
+	/* let other drivers deny the change */
+	err = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE, dev->net);
+	err = notifier_to_errno(err);
+	if (err) {
+		netdev_err(dev->net, "Type change was refused\n");
+		return err;
+	}
+
+	if (enable)
+		info->flags |= QMI_WWAN_FLAG_RAWIP;
+	else
+		info->flags &= ~QMI_WWAN_FLAG_RAWIP;
+	qmi_wwan_netdev_setup(dev->net);
+	call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev->net);
+	return len;
+}
+
+static DEVICE_ATTR_RW(raw_ip);
+
+static struct attribute *qmi_wwan_sysfs_attrs[] = {
+	&dev_attr_raw_ip.attr,
+	NULL,
+};
+
+static struct attribute_group qmi_wwan_sysfs_attr_group = {
+	.name = "qmi",
+	.attrs = qmi_wwan_sysfs_attrs,
 };
 
 /* default ethernet address used by the modem */
@@ -80,6 +163,8 @@ static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
  */
 static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
+	struct qmi_wwan_state *info = (void *)&dev->data;
+	bool rawip = info->flags & QMI_WWAN_FLAG_RAWIP;
 	__be16 proto;
 
 	/* This check is no longer done by usbnet */
@@ -94,15 +179,25 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		proto = htons(ETH_P_IPV6);
 		break;
 	case 0x00:
+		if (rawip)
+			return 0;
 		if (is_multicast_ether_addr(skb->data))
 			return 1;
 		/* possibly bogus destination - rewrite just in case */
 		skb_reset_mac_header(skb);
 		goto fix_dest;
 	default:
+		if (rawip)
+			return 0;
 		/* pass along other packets without modifications */
 		return 1;
 	}
+	if (rawip) {
+		skb->dev = dev->net; /* normally set by eth_type_trans */
+		skb->protocol = proto;
+		return 1;
+	}
+
 	if (skb_headroom(skb) < ETH_HLEN)
 		return 0;
 	skb_push(skb, ETH_HLEN);
@@ -326,6 +421,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->net->dev_addr[0] &= 0xbf;	/* clear "IP" bit */
 	}
 	dev->net->netdev_ops = &qmi_wwan_netdev_ops;
+	dev->net->sysfs_groups[0] = &qmi_wwan_sysfs_attr_group;
 err:
 	return status;
 }
