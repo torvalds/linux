@@ -1597,7 +1597,7 @@ static void cz_hw_print_display_cfg(
 }
 
  static int cz_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct pp_dal_clock_info*info)
+		struct amd_pp_dal_clock_info*info)
 {
 	uint32_t i;
 	const struct phm_clock_voltage_dependency_table * table =

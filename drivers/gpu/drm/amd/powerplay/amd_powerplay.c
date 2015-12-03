@@ -620,7 +620,8 @@ int amd_powerplay_display_configuration_change(void *handle, const void *input)
 	return 0;
 }
 
-int amd_powerplay_get_display_power_level(void *handle,  void *output)
+int amd_powerplay_get_display_power_level(void *handle,
+		struct amd_pp_dal_clock_info *output)
 {
 	struct pp_hwmgr  *hwmgr;
 
@@ -629,6 +630,5 @@ int amd_powerplay_get_display_power_level(void *handle,  void *output)
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	return phm_get_dal_power_level(hwmgr,
-			(struct pp_dal_clock_info *)output);
+	return phm_get_dal_power_level(hwmgr, output);
 }

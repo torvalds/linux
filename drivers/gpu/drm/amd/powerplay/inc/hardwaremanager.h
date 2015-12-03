@@ -340,11 +340,6 @@ enum PP_DAL_POWERLEVEL {
 	PP_DAL_POWERLEVEL_7 = PP_DAL_POWERLEVEL_6+1,
 };
 
-struct pp_dal_clock_info {
-	uint32_t		engine_max_clock;/*dal validation clock on AC*/
-	uint32_t		memory_max_clock;/*dal validation clock on AC*/
-	enum PP_DAL_POWERLEVEL	level;	/*number of levels for the given clocks*/
-};
 
 extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate);
@@ -380,7 +375,7 @@ extern int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 		const struct amd_pp_display_configuration *display_config);
 
 extern int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct pp_dal_clock_info*info);
+		struct amd_pp_dal_clock_info*info);
 
 extern int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr);
 

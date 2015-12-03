@@ -218,7 +218,8 @@ int amd_powerplay_fini(void *handle);
 
 int amd_powerplay_display_configuration_change(void *handle, const void *input);
 
-int amd_powerplay_get_display_power_level(void *handle,  void *output);
+int amd_powerplay_get_display_power_level(void *handle,
+		struct amd_pp_dal_clock_info *output);
 
 
 #endif /* _AMD_POWERPLAY_H_ */
