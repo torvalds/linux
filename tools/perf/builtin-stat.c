@@ -173,16 +173,19 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	 * either manually by us or by kernel via enable_on_exec
 	 * set later.
 	 */
-	if (perf_evsel__is_group_leader(evsel))
+	if (perf_evsel__is_group_leader(evsel)) {
 		attr->disabled = 1;
+
+		/*
+		 * In case of initial_delay we enable tracee
+		 * events manually.
+		 */
+		if (target__none(&target) && !initial_delay)
+			attr->enable_on_exec = 1;
+	}
 
 	if (target__has_cpu(&target))
 		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
-
-	if (!target__has_task(&target) && perf_evsel__is_group_leader(evsel)) {
-		if (!initial_delay)
-			attr->enable_on_exec = 1;
-	}
 
 	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
 }
