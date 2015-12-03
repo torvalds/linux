@@ -30,20 +30,24 @@ def find_symbols(regexp, store):
     for h in headers:
         f = open(h)
         for l in f.readlines():
-            m = re.search(regexp, l)
-            try:
-                e = m.group(1)
-                if not has_lkl_prefix(e):
-                    store.add(e)
-            except:
-                pass
+            m = regexp.search(l)
+            if not m:
+                continue
+            for e in reversed(m.groups()):
+                if e:
+                    if not has_lkl_prefix(e):
+                        store.add(e)
+                    break
         f.close()
 
 def find_ml_symbols(regexp, store):
     for h in headers:
-        for i in re.finditer(regexp, open(h).read(), re.MULTILINE|re.DOTALL):
-            for j in i.groups():
-                store.add(j)
+        for i in regexp.finditer(open(h).read()):
+            for j in reversed(i.groups()):
+                if j:
+                    if not has_lkl_prefix(j):
+                        store.add(j)
+                    break
 
 def lkl_prefix(w):
     r = ""
@@ -90,10 +94,14 @@ headers.add("arch/lkl/include/uapi/asm/host_ops.h")
 defines = set()
 structs = set()
 
-find_symbols("#[ \t]*define[ \t]*([_a-zA-Z]+[_a-zA-Z0-9]*)[^_a-zA-Z0-9]", defines)
-find_symbols("typedef.*\s+([_a-zA-Z]+[_a-zA-Z0-9]*)\s*;", defines)
-find_ml_symbols("typedef\s+struct\s*\{.*\}\s*([_a-zA-Z]+[_a-zA-Z0-9]*)\s*;", defines)
-find_symbols("struct\s+([_a-zA-Z]+[_a-zA-Z0-9]*)\s*\{", structs)
+p = re.compile("#[ \t]*define[ \t]*(\w+)")
+find_symbols(p, defines)
+p = re.compile("typedef.*(\(\*(\w+)\)\(.*\)\s*|\W+(\w+)\s*|\s+(\w+)\(.*\)\s*);")
+find_symbols(p, defines)
+p = re.compile("typedef\s+(struct|union)\s+\w*\s*{[^\}]*}\W*(\w+)\s*;", re.M|re.S)
+find_ml_symbols(p, defines)
+p = re.compile("struct\s+(\w+)\s*\{")
+find_symbols(p, structs)
 
 def process_header(h):
     dir = os.path.dirname(h)
