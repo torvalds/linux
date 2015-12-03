@@ -47,21 +47,20 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
  */
 int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 {
-	u8 values[3];
+	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	int err;
 
 	drm_dp_link_reset(link);
 
-	err = drm_dp_dpcd_read(aux, DP_DPCD_REV, values, sizeof(values));
+	err = drm_dp_dpcd_read(aux, DP_DPCD_REV, dpcd, sizeof(dpcd));
 	if (err < 0)
 		return err;
 
-	link->revision = values[0];
-	link->max_rate = drm_dp_bw_code_to_link_rate(values[1]);
-	link->max_lanes = values[2] & DP_MAX_LANE_COUNT_MASK;
+	link->revision = dpcd[DP_DPCD_REV];
+	link->max_rate = drm_dp_max_link_rate(dpcd);
+	link->max_lanes = drm_dp_max_lane_count(dpcd);
 
-	if (values[2] & DP_ENHANCED_FRAME_CAP)
-		link->caps.enhanced_framing = true;
+	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(dpcd);
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
