@@ -55,6 +55,9 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 			 master->name, mtd_node->full_name);
 		ofpart_node = mtd_node;
 		dedicated = false;
+	} else if (!of_device_is_compatible(ofpart_node, "fixed-partitions")) {
+		/* The 'partitions' subnode might be used by another parser */
+		return 0;
 	}
 
 	/* First count the subnodes */
