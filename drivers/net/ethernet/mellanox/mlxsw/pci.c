@@ -690,7 +690,9 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (mlxsw_pci_cqe_lag_get(cqe))
 		goto drop;
 
-	rx_info.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
+	rx_info.is_lag = false;
+	rx_info.u.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
+
 	rx_info.trap_id = mlxsw_pci_cqe_trap_id_get(cqe);
 
 	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
