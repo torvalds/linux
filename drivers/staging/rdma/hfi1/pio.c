@@ -1565,6 +1565,7 @@ void sc_release_update(struct send_context *sc)
 	u64 hw_free;
 	u32 head, tail;
 	unsigned long old_free;
+	unsigned long free;
 	unsigned long extra;
 	unsigned long flags;
 	int code;
@@ -1579,7 +1580,7 @@ void sc_release_update(struct send_context *sc)
 	extra = (((hw_free & CR_COUNTER_SMASK) >> CR_COUNTER_SHIFT)
 			- (old_free & CR_COUNTER_MASK))
 				& CR_COUNTER_MASK;
-	sc->free = old_free + extra;
+	free = old_free + extra;
 	trace_hfi1_piofree(sc, extra);
 
 	/* call sent buffer callbacks */
@@ -1589,7 +1590,7 @@ void sc_release_update(struct send_context *sc)
 	while (head != tail) {
 		pbuf = &sc->sr[tail].pbuf;
 
-		if (sent_before(sc->free, pbuf->sent_at)) {
+		if (sent_before(free, pbuf->sent_at)) {
 			/* not sent yet */
 			break;
 		}
@@ -1603,8 +1604,10 @@ void sc_release_update(struct send_context *sc)
 		if (tail >= sc->sr_size)
 			tail = 0;
 	}
-	/* update tail, in case we moved it */
 	sc->sr_tail = tail;
+	/* make sure tail is updated before free */
+	smp_wmb();
+	sc->free = free;
 	spin_unlock_irqrestore(&sc->release_lock, flags);
 	sc_piobufavail(sc);
 }
