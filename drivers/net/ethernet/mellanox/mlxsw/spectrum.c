@@ -417,6 +417,10 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+static void mlxsw_sp_set_rx_mode(struct net_device *dev)
+{
+}
+
 static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
@@ -725,6 +729,7 @@ static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_open		= mlxsw_sp_port_open,
 	.ndo_stop		= mlxsw_sp_port_stop,
 	.ndo_start_xmit		= mlxsw_sp_port_xmit,
+	.ndo_set_rx_mode	= mlxsw_sp_set_rx_mode,
 	.ndo_set_mac_address	= mlxsw_sp_port_set_mac_address,
 	.ndo_change_mtu		= mlxsw_sp_port_change_mtu,
 	.ndo_get_stats64	= mlxsw_sp_port_get_stats64,
