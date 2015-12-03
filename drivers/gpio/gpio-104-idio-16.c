@@ -117,15 +117,6 @@ static void idio_16_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static void idio_16_irq_ack(struct irq_data *data)
 {
-	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
-	struct idio_16_gpio *const idio16gpio = to_idio16gpio(chip);
-	unsigned long flags;
-
-	spin_lock_irqsave(&idio16gpio->lock, flags);
-
-	outb(0, idio16gpio->base + 1);
-
-	spin_unlock_irqrestore(&idio16gpio->lock, flags);
 }
 
 static void idio_16_irq_mask(struct irq_data *data)
@@ -159,7 +150,6 @@ static void idio_16_irq_unmask(struct irq_data *data)
 	if (!prev_irq_mask) {
 		spin_lock_irqsave(&idio16gpio->lock, flags);
 
-		outb(0, idio16gpio->base + 1);
 		inb(idio16gpio->base + 2);
 
 		spin_unlock_irqrestore(&idio16gpio->lock, flags);
@@ -192,6 +182,12 @@ static irqreturn_t idio_16_irq_handler(int irq, void *dev_id)
 
 	for_each_set_bit(gpio, &idio16gpio->irq_mask, chip->ngpio)
 		generic_handle_irq(irq_find_mapping(chip->irqdomain, gpio));
+
+	spin_lock(&idio16gpio->lock);
+
+	outb(0, idio16gpio->base + 1);
+
+	spin_unlock(&idio16gpio->lock);
 
 	return IRQ_HANDLED;
 }
@@ -244,6 +240,7 @@ static int __init idio_16_probe(struct platform_device *pdev)
 
 	/* Disable IRQ by default */
 	outb(0, base + 2);
+	outb(0, base + 1);
 
 	err = gpiochip_irqchip_add(&idio16gpio->chip, &idio_16_irqchip, 0,
 		handle_edge_irq, IRQ_TYPE_NONE);
