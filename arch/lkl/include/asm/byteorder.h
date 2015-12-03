@@ -1,10 +1,6 @@
 #ifndef _ASM_LKL_BYTEORDER_H
 #define _ASM_LKL_BYTEORDER_H
 
-#if defined(CONFIG_BIG_ENDIAN)
-#include <linux/byteorder/big_endian.h>
-#else
-#include <linux/byteorder/little_endian.h>
-#endif
+#include <uapi/asm/byteorder.h>
 
 #endif /* _ASM_LKL_BYTEORDER_H */
