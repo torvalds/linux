@@ -205,12 +205,15 @@ struct drv_priv {
 static int r871x_suspend(struct usb_interface *pusb_intf, pm_message_t state)
 {
 	struct net_device *pnetdev = usb_get_intfdata(pusb_intf);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	netdev_info(pnetdev, "Suspending...\n");
 	if (!pnetdev || !netif_running(pnetdev)) {
 		netdev_info(pnetdev, "Unable to suspend\n");
 		return 0;
 	}
+	padapter->bSuspended = true;
+	rtl871x_intf_stop(padapter);
 	if (pnetdev->netdev_ops->ndo_stop)
 		pnetdev->netdev_ops->ndo_stop(pnetdev);
 	mdelay(10);
@@ -218,9 +221,16 @@ static int r871x_suspend(struct usb_interface *pusb_intf, pm_message_t state)
 	return 0;
 }
 
+void rtl871x_intf_resume(struct _adapter *padapter)
+{
+	if (padapter->dvobjpriv.inirp_init)
+		padapter->dvobjpriv.inirp_init(padapter);
+}
+
 static int r871x_resume(struct usb_interface *pusb_intf)
 {
 	struct net_device *pnetdev = usb_get_intfdata(pusb_intf);
+	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	netdev_info(pnetdev,  "Resuming...\n");
 	if (!pnetdev || !netif_running(pnetdev)) {
@@ -230,6 +240,8 @@ static int r871x_resume(struct usb_interface *pusb_intf)
 	netif_device_attach(pnetdev);
 	if (pnetdev->netdev_ops->ndo_open)
 		pnetdev->netdev_ops->ndo_open(pnetdev);
+	padapter->bSuspended = false;
+	rtl871x_intf_resume(padapter);
 	return 0;
 }
 
