@@ -246,6 +246,7 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 		unsigned int new_rate)
 {
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
+	struct cpumask cpumask;
 	int cpu;
 
 	od_tuners->sampling_rate = new_rate = max(new_rate,
@@ -256,7 +257,9 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 	 */
 	mutex_lock(&od_dbs_cdata.mutex);
 
-	for_each_online_cpu(cpu) {
+	cpumask_copy(&cpumask, cpu_online_mask);
+
+	for_each_cpu(cpu, &cpumask) {
 		struct cpufreq_policy *policy;
 		struct od_cpu_dbs_info_s *dbs_info;
 		struct cpu_dbs_info *cdbs;
@@ -276,6 +279,9 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 
 		policy = shared->policy;
 
+		/* clear all CPUs of this policy */
+		cpumask_andnot(&cpumask, &cpumask, policy->cpus);
+
 		/*
 		 * Update sampling rate for CPUs whose policy is governed by
 		 * dbs_data. In case of governor_per_policy, only a single
@@ -285,6 +291,10 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 		if (dbs_data != policy->governor_data)
 			continue;
 
+		/*
+		 * Checking this for any CPU should be fine, timers for all of
+		 * them are scheduled together.
+		 */
 		next_sampling = jiffies + usecs_to_jiffies(new_rate);
 		appointed_at = dbs_info->cdbs.timer.expires;
 
