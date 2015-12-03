@@ -3907,6 +3907,11 @@ static inline bool netif_is_lag_master(struct net_device *dev)
 	return netif_is_bond_master(dev) || netif_is_team_master(dev);
 }
 
+static inline bool netif_is_lag_port(struct net_device *dev)
+{
+	return netif_is_bond_slave(dev) || netif_is_team_port(dev);
+}
+
 /* This device needs to keep skb dst for qdisc enqueue or ndo_start_xmit() */
 static inline void netif_keep_dst(struct net_device *dev)
 {
