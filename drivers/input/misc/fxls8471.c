@@ -496,7 +496,7 @@ int fxls8471_driver_init(struct fxls8471_data *pdata)
 	result = misc_register(&fxls8471_device);
 	if (result != 0) {
 		printk(KERN_ERR "register acc miscdevice error");
-		goto err_regsiter_misc;
+		goto err_out;
 	}
 
 	result =
@@ -548,8 +548,6 @@ err_alloc_input_device:
 			   &fxls8471_attr_group);
 err_create_sysfs:
 	misc_deregister(&fxls8471_device);
-err_regsiter_misc:
-	kfree(pdata);
 err_out:
 	return result;
 }
@@ -559,8 +557,7 @@ int fxls8471_driver_remove(struct fxls8471_data *pdata)
 {
 	fxls8471_change_mode(pdata, STANDBY);
 	misc_deregister(&fxls8471_device);
-	if (pdata != NULL)
-		kfree(pdata);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fxls8471_driver_remove);
