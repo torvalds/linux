@@ -1214,7 +1214,7 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	unsigned int reg;
 	unsigned int mask = ARIZONA_SYSCLK_FREQ_MASK | ARIZONA_SYSCLK_SRC_MASK;
 	unsigned int val = source << ARIZONA_SYSCLK_SRC_SHIFT;
-	unsigned int *clk;
+	int *clk;
 
 	switch (clk_id) {
 	case ARIZONA_CLK_SYSCLK:
