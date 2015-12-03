@@ -521,6 +521,11 @@
 					  <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names	= "ack", "err", "wakeup";
 
+			rpmcc: clock-controller {
+				compatible	= "qcom,rpmcc-apq8064", "qcom,rpmcc";
+				#clock-cells = <1>;
+			};
+
 			regulators {
 				compatible = "qcom,rpm-pm8921-regulators";
 
