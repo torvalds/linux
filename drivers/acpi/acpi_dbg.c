@@ -21,7 +21,7 @@
 #include <linux/proc_fs.h>
 #include <linux/debugfs.h>
 #include <linux/circ_buf.h>
-#include <linux/acpi_dbg.h>
+#include <linux/acpi.h>
 #include "internal.h"
 
 #define ACPI_AML_BUF_ALIGN	(sizeof (acpi_size))
@@ -307,7 +307,7 @@ static int acpi_aml_readb_kern(void)
  * the debugger output and store the output into the debugger interface
  * buffer. Return the size of stored logs or errno.
  */
-ssize_t acpi_aml_write_log(const char *msg)
+static ssize_t acpi_aml_write_log(const char *msg)
 {
 	int ret = 0;
 	int count = 0, size = 0;
@@ -337,7 +337,6 @@ again:
 	}
 	return size > 0 ? size : ret;
 }
-EXPORT_SYMBOL(acpi_aml_write_log);
 
 /*
  * acpi_aml_read_cmd() - Capture debugger input
@@ -348,7 +347,7 @@ EXPORT_SYMBOL(acpi_aml_write_log);
  * the debugger input commands and store the input commands into the
  * debugger interface buffer. Return the size of stored commands or errno.
  */
-ssize_t acpi_aml_read_cmd(char *msg, size_t count)
+static ssize_t acpi_aml_read_cmd(char *msg, size_t count)
 {
 	int ret = 0;
 	int size = 0;
@@ -390,7 +389,6 @@ again:
 	}
 	return size > 0 ? size : ret;
 }
-EXPORT_SYMBOL(acpi_aml_read_cmd);
 
 static int acpi_aml_thread(void *unsed)
 {
@@ -427,7 +425,7 @@ static int acpi_aml_thread(void *unsed)
  * This function should be used to implement acpi_os_execute() which is
  * used by the ACPICA debugger to create the debugger thread.
  */
-int acpi_aml_create_thread(acpi_osd_exec_callback function, void *context)
+static int acpi_aml_create_thread(acpi_osd_exec_callback function, void *context)
 {
 	struct task_struct *t;
 
@@ -449,30 +447,27 @@ int acpi_aml_create_thread(acpi_osd_exec_callback function, void *context)
 	mutex_unlock(&acpi_aml_io.lock);
 	return 0;
 }
-EXPORT_SYMBOL(acpi_aml_create_thread);
 
-int acpi_aml_wait_command_ready(void)
+static int acpi_aml_wait_command_ready(bool single_step,
+				       char *buffer, size_t length)
 {
 	acpi_status status;
 
-	if (!acpi_gbl_method_executing)
-		acpi_os_printf("\n%1c ", ACPI_DEBUGGER_COMMAND_PROMPT);
-	else
+	if (single_step)
 		acpi_os_printf("\n%1c ", ACPI_DEBUGGER_EXECUTE_PROMPT);
+	else
+		acpi_os_printf("\n%1c ", ACPI_DEBUGGER_COMMAND_PROMPT);
 
-	status = acpi_os_get_line(acpi_gbl_db_line_buf,
-				  ACPI_DB_LINE_BUFFER_SIZE, NULL);
+	status = acpi_os_get_line(buffer, length, NULL);
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
 	return 0;
 }
-EXPORT_SYMBOL(acpi_aml_wait_command_ready);
 
-int acpi_aml_notify_command_complete(void)
+static int acpi_aml_notify_command_complete(void)
 {
 	return 0;
 }
-EXPORT_SYMBOL(acpi_aml_notify_command_complete);
 
 static int acpi_aml_open(struct inode *inode, struct file *file)
 {
@@ -746,10 +741,23 @@ static const struct file_operations acpi_aml_operations = {
 	.llseek		= generic_file_llseek,
 };
 
+static const struct acpi_debugger_ops acpi_aml_debugger = {
+	.create_thread		 = acpi_aml_create_thread,
+	.read_cmd		 = acpi_aml_read_cmd,
+	.write_log		 = acpi_aml_write_log,
+	.wait_command_ready	 = acpi_aml_wait_command_ready,
+	.notify_command_complete = acpi_aml_notify_command_complete,
+};
+
 int __init acpi_aml_init(void)
 {
-	if (!acpi_debugfs_dir)
-		return -ENOENT;
+	int ret = 0;
+
+	if (!acpi_debugfs_dir) {
+		ret = -ENOENT;
+		goto err_exit;
+	}
+
 	/* Initialize AML IO interface */
 	mutex_init(&acpi_aml_io.lock);
 	init_waitqueue_head(&acpi_aml_io.wait);
@@ -759,21 +767,39 @@ int __init acpi_aml_init(void)
 					      S_IFREG | S_IRUGO | S_IWUSR,
 					      acpi_debugfs_dir, NULL,
 					      &acpi_aml_operations);
-	if (acpi_aml_dentry == NULL)
-		return -ENODEV;
+	if (acpi_aml_dentry == NULL) {
+		ret = -ENODEV;
+		goto err_exit;
+	}
+	ret = acpi_register_debugger(THIS_MODULE, &acpi_aml_debugger);
+	if (ret)
+		goto err_fs;
 	acpi_aml_initialized = true;
-	return 0;
+
+err_fs:
+	if (ret) {
+		debugfs_remove(acpi_aml_dentry);
+		acpi_aml_dentry = NULL;
+	}
+err_exit:
+	return ret;
 }
 
-#if 0
 void __exit acpi_aml_exit(void)
 {
-	/* TODO: Stop the in kernel debugger */
-	if (acpi_aml_dentry)
-		debugfs_remove(acpi_aml_dentry);
-	acpi_aml_initialized = false;
+	if (acpi_aml_initialized) {
+		acpi_unregister_debugger(&acpi_aml_debugger);
+		if (acpi_aml_dentry) {
+			debugfs_remove(acpi_aml_dentry);
+			acpi_aml_dentry = NULL;
+		}
+		acpi_aml_initialized = false;
+	}
 }
 
 module_init(acpi_aml_init);
 module_exit(acpi_aml_exit);
-#endif
+
+MODULE_AUTHOR("Lv Zheng");
+MODULE_DESCRIPTION("ACPI debugger userspace IO driver");
+MODULE_LICENSE("GPL");

@@ -40,7 +40,6 @@
 #include <linux/list.h>
 #include <linux/jiffies.h>
 #include <linux/semaphore.h>
-#include <linux/acpi_dbg.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -221,6 +220,7 @@ void acpi_os_printf(const char *fmt, ...)
 	acpi_os_vprintf(fmt, args);
 	va_end(args);
 }
+EXPORT_SYMBOL(acpi_os_printf);
 
 void acpi_os_vprintf(const char *fmt, va_list args)
 {
@@ -235,7 +235,7 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 		printk(KERN_CONT "%s", buffer);
 	}
 #else
-	if (acpi_aml_write_log(buffer) < 0)
+	if (acpi_debugger_write_log(buffer) < 0)
 		printk(KERN_CONT "%s", buffer);
 #endif
 }
@@ -1103,6 +1103,200 @@ static void acpi_os_execute_deferred(struct work_struct *work)
 	kfree(dpc);
 }
 
+#ifdef CONFIG_ACPI_DEBUGGER
+static struct acpi_debugger acpi_debugger;
+static bool acpi_debugger_initialized;
+
+int acpi_register_debugger(struct module *owner,
+			   const struct acpi_debugger_ops *ops)
+{
+	int ret = 0;
+
+	mutex_lock(&acpi_debugger.lock);
+	if (acpi_debugger.ops) {
+		ret = -EBUSY;
+		goto err_lock;
+	}
+
+	acpi_debugger.owner = owner;
+	acpi_debugger.ops = ops;
+
+err_lock:
+	mutex_unlock(&acpi_debugger.lock);
+	return ret;
+}
+EXPORT_SYMBOL(acpi_register_debugger);
+
+void acpi_unregister_debugger(const struct acpi_debugger_ops *ops)
+{
+	mutex_lock(&acpi_debugger.lock);
+	if (ops == acpi_debugger.ops) {
+		acpi_debugger.ops = NULL;
+		acpi_debugger.owner = NULL;
+	}
+	mutex_unlock(&acpi_debugger.lock);
+}
+EXPORT_SYMBOL(acpi_unregister_debugger);
+
+int acpi_debugger_create_thread(acpi_osd_exec_callback function, void *context)
+{
+	int ret;
+	int (*func)(acpi_osd_exec_callback, void *);
+	struct module *owner;
+
+	if (!acpi_debugger_initialized)
+		return -ENODEV;
+	mutex_lock(&acpi_debugger.lock);
+	if (!acpi_debugger.ops) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	if (!try_module_get(acpi_debugger.owner)) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	func = acpi_debugger.ops->create_thread;
+	owner = acpi_debugger.owner;
+	mutex_unlock(&acpi_debugger.lock);
+
+	ret = func(function, context);
+
+	mutex_lock(&acpi_debugger.lock);
+	module_put(owner);
+err_lock:
+	mutex_unlock(&acpi_debugger.lock);
+	return ret;
+}
+
+ssize_t acpi_debugger_write_log(const char *msg)
+{
+	ssize_t ret;
+	ssize_t (*func)(const char *);
+	struct module *owner;
+
+	if (!acpi_debugger_initialized)
+		return -ENODEV;
+	mutex_lock(&acpi_debugger.lock);
+	if (!acpi_debugger.ops) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	if (!try_module_get(acpi_debugger.owner)) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	func = acpi_debugger.ops->write_log;
+	owner = acpi_debugger.owner;
+	mutex_unlock(&acpi_debugger.lock);
+
+	ret = func(msg);
+
+	mutex_lock(&acpi_debugger.lock);
+	module_put(owner);
+err_lock:
+	mutex_unlock(&acpi_debugger.lock);
+	return ret;
+}
+
+ssize_t acpi_debugger_read_cmd(char *buffer, size_t buffer_length)
+{
+	ssize_t ret;
+	ssize_t (*func)(char *, size_t);
+	struct module *owner;
+
+	if (!acpi_debugger_initialized)
+		return -ENODEV;
+	mutex_lock(&acpi_debugger.lock);
+	if (!acpi_debugger.ops) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	if (!try_module_get(acpi_debugger.owner)) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	func = acpi_debugger.ops->read_cmd;
+	owner = acpi_debugger.owner;
+	mutex_unlock(&acpi_debugger.lock);
+
+	ret = func(buffer, buffer_length);
+
+	mutex_lock(&acpi_debugger.lock);
+	module_put(owner);
+err_lock:
+	mutex_unlock(&acpi_debugger.lock);
+	return ret;
+}
+
+int acpi_debugger_wait_command_ready(void)
+{
+	int ret;
+	int (*func)(bool, char *, size_t);
+	struct module *owner;
+
+	if (!acpi_debugger_initialized)
+		return -ENODEV;
+	mutex_lock(&acpi_debugger.lock);
+	if (!acpi_debugger.ops) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	if (!try_module_get(acpi_debugger.owner)) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	func = acpi_debugger.ops->wait_command_ready;
+	owner = acpi_debugger.owner;
+	mutex_unlock(&acpi_debugger.lock);
+
+	ret = func(acpi_gbl_method_executing,
+		   acpi_gbl_db_line_buf, ACPI_DB_LINE_BUFFER_SIZE);
+
+	mutex_lock(&acpi_debugger.lock);
+	module_put(owner);
+err_lock:
+	mutex_unlock(&acpi_debugger.lock);
+	return ret;
+}
+
+int acpi_debugger_notify_command_complete(void)
+{
+	int ret;
+	int (*func)(void);
+	struct module *owner;
+
+	if (!acpi_debugger_initialized)
+		return -ENODEV;
+	mutex_lock(&acpi_debugger.lock);
+	if (!acpi_debugger.ops) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	if (!try_module_get(acpi_debugger.owner)) {
+		ret = -ENODEV;
+		goto err_lock;
+	}
+	func = acpi_debugger.ops->notify_command_complete;
+	owner = acpi_debugger.owner;
+	mutex_unlock(&acpi_debugger.lock);
+
+	ret = func();
+
+	mutex_lock(&acpi_debugger.lock);
+	module_put(owner);
+err_lock:
+	mutex_unlock(&acpi_debugger.lock);
+	return ret;
+}
+
+int __init acpi_debugger_init(void)
+{
+	mutex_init(&acpi_debugger.lock);
+	acpi_debugger_initialized = true;
+	return 0;
+}
+#endif
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_os_execute
@@ -1130,7 +1324,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 			  function, context));
 
 	if (type == OSL_DEBUGGER_MAIN_THREAD) {
-		ret = acpi_aml_create_thread(function, context);
+		ret = acpi_debugger_create_thread(function, context);
 		if (ret) {
 			pr_err("Call to kthread_create() failed.\n");
 			status = AE_ERROR;
@@ -1380,7 +1574,7 @@ acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read)
 #else
 	int ret;
 
-	ret = acpi_aml_read_cmd(buffer, buffer_length);
+	ret = acpi_debugger_read_cmd(buffer, buffer_length);
 	if (ret < 0)
 		return AE_ERROR;
 	if (bytes_read)
@@ -1389,12 +1583,13 @@ acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read)
 
 	return AE_OK;
 }
+EXPORT_SYMBOL(acpi_os_get_line);
 
 acpi_status acpi_os_wait_command_ready(void)
 {
 	int ret;
 
-	ret = acpi_aml_wait_command_ready();
+	ret = acpi_debugger_wait_command_ready();
 	if (ret < 0)
 		return AE_ERROR;
 	return AE_OK;
@@ -1404,7 +1599,7 @@ acpi_status acpi_os_notify_command_complete(void)
 {
 	int ret;
 
-	ret = acpi_aml_notify_command_complete();
+	ret = acpi_debugger_notify_command_complete();
 	if (ret < 0)
 		return AE_ERROR;
 	return AE_OK;
