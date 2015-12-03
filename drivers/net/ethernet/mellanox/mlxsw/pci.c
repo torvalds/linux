@@ -686,11 +686,15 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in RDQ\n");
 
-	/* We do not support lag now */
-	if (mlxsw_pci_cqe_lag_get(cqe))
-		goto drop;
+	if (mlxsw_pci_cqe_lag_get(cqe)) {
+		rx_info.is_lag = true;
+		rx_info.u.lag_id = mlxsw_pci_cqe_lag_id_get(cqe);
+		rx_info.lag_port_index = mlxsw_pci_cqe_lag_port_index_get(cqe);
+	} else {
+		rx_info.is_lag = false;
+		rx_info.u.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
+	}
 
-	rx_info.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
 	rx_info.trap_id = mlxsw_pci_cqe_trap_id_get(cqe);
 
 	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
@@ -699,7 +703,6 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	skb_put(skb, byte_count);
 	mlxsw_core_skb_receive(mlxsw_pci->core, skb, &rx_info);
 
-put_new_skb:
 	memset(wqe, 0, q->elem_size);
 	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
 	if (err)
@@ -708,10 +711,6 @@ put_new_skb:
 	q->producer_counter++;
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
 	return;
-
-drop:
-	dev_kfree_skb_any(skb);
-	goto put_new_skb;
 }
 
 static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)

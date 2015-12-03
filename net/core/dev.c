@@ -5421,7 +5421,7 @@ static void __netdev_adjacent_dev_unlink_neighbour(struct net_device *dev,
 
 static int __netdev_upper_dev_link(struct net_device *dev,
 				   struct net_device *upper_dev, bool master,
-				   void *private)
+				   void *upper_priv, void *upper_info)
 {
 	struct netdev_notifier_changeupper_info changeupper_info;
 	struct netdev_adjacent *i, *j, *to_i, *to_j;
@@ -5445,6 +5445,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	changeupper_info.upper_dev = upper_dev;
 	changeupper_info.master = master;
 	changeupper_info.linking = true;
+	changeupper_info.upper_info = upper_info;
 
 	ret = call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER, dev,
 					    &changeupper_info.info);
@@ -5452,7 +5453,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	ret = __netdev_adjacent_dev_link_neighbour(dev, upper_dev, private,
+	ret = __netdev_adjacent_dev_link_neighbour(dev, upper_dev, upper_priv,
 						   master);
 	if (ret)
 		return ret;
@@ -5490,8 +5491,12 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 			goto rollback_lower_mesh;
 	}
 
-	call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
-				      &changeupper_info.info);
+	ret = call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
+					    &changeupper_info.info);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		goto rollback_lower_mesh;
+
 	return 0;
 
 rollback_lower_mesh:
@@ -5545,7 +5550,7 @@ rollback_mesh:
 int netdev_upper_dev_link(struct net_device *dev,
 			  struct net_device *upper_dev)
 {
-	return __netdev_upper_dev_link(dev, upper_dev, false, NULL);
+	return __netdev_upper_dev_link(dev, upper_dev, false, NULL, NULL);
 }
 EXPORT_SYMBOL(netdev_upper_dev_link);
 
@@ -5553,6 +5558,8 @@ EXPORT_SYMBOL(netdev_upper_dev_link);
  * netdev_master_upper_dev_link - Add a master link to the upper device
  * @dev: device
  * @upper_dev: new upper device
+ * @upper_priv: upper device private
+ * @upper_info: upper info to be passed down via notifier
  *
  * Adds a link to device which is upper to this one. In this case, only
  * one master upper device can be linked, although other non-master devices
@@ -5561,19 +5568,13 @@ EXPORT_SYMBOL(netdev_upper_dev_link);
  * counts are adjusted and the function returns zero.
  */
 int netdev_master_upper_dev_link(struct net_device *dev,
-				 struct net_device *upper_dev)
+				 struct net_device *upper_dev,
+				 void *upper_priv, void *upper_info)
 {
-	return __netdev_upper_dev_link(dev, upper_dev, true, NULL);
+	return __netdev_upper_dev_link(dev, upper_dev, true,
+				       upper_priv, upper_info);
 }
 EXPORT_SYMBOL(netdev_master_upper_dev_link);
-
-int netdev_master_upper_dev_link_private(struct net_device *dev,
-					 struct net_device *upper_dev,
-					 void *private)
-{
-	return __netdev_upper_dev_link(dev, upper_dev, true, private);
-}
-EXPORT_SYMBOL(netdev_master_upper_dev_link_private);
 
 /**
  * netdev_upper_dev_unlink - Removes a link to upper device
@@ -5754,6 +5755,26 @@ int dev_get_nest_level(struct net_device *dev,
 	return max_nest;
 }
 EXPORT_SYMBOL(dev_get_nest_level);
+
+/**
+ * netdev_lower_change - Dispatch event about lower device state change
+ * @lower_dev: device
+ * @lower_state_info: state to dispatch
+ *
+ * Send NETDEV_CHANGELOWERSTATE to netdev notifiers with info.
+ * The caller must hold the RTNL lock.
+ */
+void netdev_lower_state_changed(struct net_device *lower_dev,
+				void *lower_state_info)
+{
+	struct netdev_notifier_changelowerstate_info changelowerstate_info;
+
+	ASSERT_RTNL();
+	changelowerstate_info.lower_state_info = lower_state_info;
+	call_netdevice_notifiers_info(NETDEV_CHANGELOWERSTATE, lower_dev,
+				      &changelowerstate_info.info);
+}
+EXPORT_SYMBOL(netdev_lower_state_changed);
 
 static void dev_change_rx_flags(struct net_device *dev, int flags)
 {

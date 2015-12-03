@@ -624,7 +624,7 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 		goto out_fail;
 	}
 
-	ret = netdev_master_upper_dev_link(port_dev, dev);
+	ret = netdev_master_upper_dev_link(port_dev, dev, NULL, NULL);
 	if (ret < 0)
 		goto out_unregister;
 
