@@ -256,12 +256,9 @@ static void handle_initial_delay(void)
 	struct perf_evsel *counter;
 
 	if (initial_delay) {
-		const int ncpus = cpu_map__nr(evsel_list->cpus),
-			nthreads = thread_map__nr(evsel_list->threads);
-
 		usleep(initial_delay * 1000);
 		evlist__for_each(evsel_list, counter)
-			perf_evsel__enable(counter, ncpus, nthreads);
+			perf_evsel__enable(counter);
 	}
 }
 
