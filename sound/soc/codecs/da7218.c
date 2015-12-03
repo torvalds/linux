@@ -2202,6 +2202,16 @@ int da7218_hpldet(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 }
 EXPORT_SYMBOL_GPL(da7218_hpldet);
 
+static void da7218_micldet_irq(struct snd_soc_codec *codec)
+{
+	char *envp[] = {
+		"EVENT=MIC_LEVEL_DETECT",
+		NULL,
+	};
+
+	kobject_uevent_env(&codec->dev->kobj, KOBJ_CHANGE, envp);
+}
+
 static void da7218_hpldet_irq(struct snd_soc_codec *codec)
 {
 	struct da7218_priv *da7218 = snd_soc_codec_get_drvdata(codec);
@@ -2231,6 +2241,10 @@ static irqreturn_t da7218_irq_thread(int irq, void *data)
 	status = snd_soc_read(codec, DA7218_EVENT);
 	if (!status)
 		return IRQ_NONE;
+
+	/* Mic level detect */
+	if (status & DA7218_LVL_DET_EVENT_MASK)
+		da7218_micldet_irq(codec);
 
 	/* HP detect */
 	if (status & DA7218_HPLDET_JACK_EVENT_MASK)
@@ -2936,11 +2950,6 @@ static int da7218_probe(struct snd_soc_codec *codec)
 	}
 
 	if (da7218->irq) {
-		/* Mask off mic level events, currently not handled */
-		snd_soc_update_bits(codec, DA7218_EVENT_MASK,
-				    DA7218_LVL_DET_EVENT_MSK_MASK,
-				    DA7218_LVL_DET_EVENT_MSK_MASK);
-
 		ret = devm_request_threaded_irq(codec->dev, da7218->irq, NULL,
 						da7218_irq_thread,
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
