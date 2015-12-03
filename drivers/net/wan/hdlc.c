@@ -266,8 +266,8 @@ struct net_device *alloc_hdlcdev(void *priv)
 void unregister_hdlc_device(struct net_device *dev)
 {
 	rtnl_lock();
-	unregister_netdevice(dev);
 	detach_hdlc_protocol(dev);
+	unregister_netdevice(dev);
 	rtnl_unlock();
 }
 
