@@ -4776,7 +4776,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 		vmcs_write16(GUEST_INTR_STATUS, 0);
 
-		vmcs_write64(POSTED_INTR_NV, POSTED_INTR_VECTOR);
+		vmcs_write16(POSTED_INTR_NV, POSTED_INTR_VECTOR);
 		vmcs_write64(POSTED_INTR_DESC_ADDR, __pa((&vmx->pi_desc)));
 	}
 
@@ -9498,7 +9498,7 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		 */
 		vmx->nested.posted_intr_nv = vmcs12->posted_intr_nv;
 		vmx->nested.pi_pending = false;
-		vmcs_write64(POSTED_INTR_NV, POSTED_INTR_VECTOR);
+		vmcs_write16(POSTED_INTR_NV, POSTED_INTR_VECTOR);
 		vmcs_write64(POSTED_INTR_DESC_ADDR,
 			page_to_phys(vmx->nested.pi_desc_page) +
 			(unsigned long)(vmcs12->posted_intr_desc_addr &
