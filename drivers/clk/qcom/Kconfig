@@ -2,12 +2,23 @@ config QCOM_GDSC
 	bool
 	select PM_GENERIC_DOMAINS if PM
 
+config QCOM_RPMCC
+	bool
+
 config COMMON_CLK_QCOM
 	tristate "Support for Qualcomm's clock controllers"
 	depends on OF
 	depends on ARCH_QCOM || COMPILE_TEST
 	select REGMAP_MMIO
 	select RESET_CONTROLLER
+
+config QCOM_CLK_SMD_RPM
+	tristate "RPM over SMD based Clock Controller"
+	depends on COMMON_CLK_QCOM && QCOM_SMD_RPM
+	select QCOM_RPMCC
+	help
+	  Support for the clocks exposed by the Resource Power Manager
+	  processor on devices like apq8016, apq8084 and msm8974.
 
 config APQ_GCC_8084
 	tristate "APQ8084 Global Clock Controller"
