@@ -825,19 +825,19 @@ static int si2165_set_frontend_dvbt(struct dvb_frontend *fe)
 	struct si2165_state *state = fe->demodulator_priv;
 	u32 dvb_rate = 0;
 	u16 bw10k;
+	u32 bw_hz = p->bandwidth_hz;
 
 	dprintk("%s: called\n", __func__);
 
 	if (!state->has_dvbt)
 		return -EINVAL;
 
-	if (p->bandwidth_hz > 0) {
-		dvb_rate = p->bandwidth_hz * 8 / 7;
-		bw10k = p->bandwidth_hz / 10000;
-	} else {
-		dvb_rate = 8 * 8 / 7;
-		bw10k = 800;
-	}
+	/* no bandwidth auto-detection */
+	if (bw_hz == 0)
+		return -EINVAL;
+
+	dvb_rate = bw_hz * 8 / 7;
+	bw10k = bw_hz / 10000;
 
 	ret = si2165_adjust_pll_divl(state, 12);
 	if (ret < 0)
