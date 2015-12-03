@@ -7909,10 +7909,10 @@ static void dump_vmcs(void)
 	if ((secondary_exec_control & SECONDARY_EXEC_ENABLE_EPT) &&
 	    (cr4 & X86_CR4_PAE) && !(efer & EFER_LMA))
 	{
-		pr_err("PDPTR0 = 0x%016lx  PDPTR1 = 0x%016lx\n",
-		       vmcs_readl(GUEST_PDPTR0), vmcs_readl(GUEST_PDPTR1));
-		pr_err("PDPTR2 = 0x%016lx  PDPTR3 = 0x%016lx\n",
-		       vmcs_readl(GUEST_PDPTR2), vmcs_readl(GUEST_PDPTR3));
+		pr_err("PDPTR0 = 0x%016llx  PDPTR1 = 0x%016llx\n",
+		       vmcs_read64(GUEST_PDPTR0), vmcs_read64(GUEST_PDPTR1));
+		pr_err("PDPTR2 = 0x%016llx  PDPTR3 = 0x%016llx\n",
+		       vmcs_read64(GUEST_PDPTR2), vmcs_read64(GUEST_PDPTR3));
 	}
 	pr_err("RSP = 0x%016lx  RIP = 0x%016lx\n",
 	       vmcs_readl(GUEST_RSP), vmcs_readl(GUEST_RIP));
@@ -7933,16 +7933,16 @@ static void dump_vmcs(void)
 	vmx_dump_sel("TR:  ", GUEST_TR_SELECTOR);
 	if ((vmexit_ctl & (VM_EXIT_SAVE_IA32_PAT | VM_EXIT_SAVE_IA32_EFER)) ||
 	    (vmentry_ctl & (VM_ENTRY_LOAD_IA32_PAT | VM_ENTRY_LOAD_IA32_EFER)))
-		pr_err("EFER =     0x%016llx  PAT = 0x%016lx\n",
-		       efer, vmcs_readl(GUEST_IA32_PAT));
-	pr_err("DebugCtl = 0x%016lx  DebugExceptions = 0x%016lx\n",
-	       vmcs_readl(GUEST_IA32_DEBUGCTL),
+		pr_err("EFER =     0x%016llx  PAT = 0x%016llx\n",
+		       efer, vmcs_read64(GUEST_IA32_PAT));
+	pr_err("DebugCtl = 0x%016llx  DebugExceptions = 0x%016lx\n",
+	       vmcs_read64(GUEST_IA32_DEBUGCTL),
 	       vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS));
 	if (vmentry_ctl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
-		pr_err("PerfGlobCtl = 0x%016lx\n",
-		       vmcs_readl(GUEST_IA32_PERF_GLOBAL_CTRL));
+		pr_err("PerfGlobCtl = 0x%016llx\n",
+		       vmcs_read64(GUEST_IA32_PERF_GLOBAL_CTRL));
 	if (vmentry_ctl & VM_ENTRY_LOAD_BNDCFGS)
-		pr_err("BndCfgS = 0x%016lx\n", vmcs_readl(GUEST_BNDCFGS));
+		pr_err("BndCfgS = 0x%016llx\n", vmcs_read64(GUEST_BNDCFGS));
 	pr_err("Interruptibility = %08x  ActivityState = %08x\n",
 	       vmcs_read32(GUEST_INTERRUPTIBILITY_INFO),
 	       vmcs_read32(GUEST_ACTIVITY_STATE));
@@ -7971,11 +7971,12 @@ static void dump_vmcs(void)
 	       vmcs_read32(HOST_IA32_SYSENTER_CS),
 	       vmcs_readl(HOST_IA32_SYSENTER_EIP));
 	if (vmexit_ctl & (VM_EXIT_LOAD_IA32_PAT | VM_EXIT_LOAD_IA32_EFER))
-		pr_err("EFER = 0x%016lx  PAT = 0x%016lx\n",
-		       vmcs_readl(HOST_IA32_EFER), vmcs_readl(HOST_IA32_PAT));
+		pr_err("EFER = 0x%016llx  PAT = 0x%016llx\n",
+		       vmcs_read64(HOST_IA32_EFER),
+		       vmcs_read64(HOST_IA32_PAT));
 	if (vmexit_ctl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
-		pr_err("PerfGlobCtl = 0x%016lx\n",
-		       vmcs_readl(HOST_IA32_PERF_GLOBAL_CTRL));
+		pr_err("PerfGlobCtl = 0x%016llx\n",
+		       vmcs_read64(HOST_IA32_PERF_GLOBAL_CTRL));
 
 	pr_err("*** Control State ***\n");
 	pr_err("PinBased=%08x CPUBased=%08x SecondaryExec=%08x\n",
@@ -7998,16 +7999,16 @@ static void dump_vmcs(void)
 	pr_err("IDTVectoring: info=%08x errcode=%08x\n",
 	       vmcs_read32(IDT_VECTORING_INFO_FIELD),
 	       vmcs_read32(IDT_VECTORING_ERROR_CODE));
-	pr_err("TSC Offset = 0x%016lx\n", vmcs_readl(TSC_OFFSET));
+	pr_err("TSC Offset = 0x%016llx\n", vmcs_read64(TSC_OFFSET));
 	if (secondary_exec_control & SECONDARY_EXEC_TSC_SCALING)
-		pr_err("TSC Multiplier = 0x%016lx\n",
-		       vmcs_readl(TSC_MULTIPLIER));
+		pr_err("TSC Multiplier = 0x%016llx\n",
+		       vmcs_read64(TSC_MULTIPLIER));
 	if (cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW)
 		pr_err("TPR Threshold = 0x%02x\n", vmcs_read32(TPR_THRESHOLD));
 	if (pin_based_exec_ctrl & PIN_BASED_POSTED_INTR)
 		pr_err("PostedIntrVec = 0x%02x\n", vmcs_read16(POSTED_INTR_NV));
 	if ((secondary_exec_control & SECONDARY_EXEC_ENABLE_EPT))
-		pr_err("EPT pointer = 0x%016lx\n", vmcs_readl(EPT_POINTER));
+		pr_err("EPT pointer = 0x%016llx\n", vmcs_read64(EPT_POINTER));
 	n = vmcs_read32(CR3_TARGET_COUNT);
 	for (i = 0; i + 1 < n; i += 4)
 		pr_err("CR3 target%u=%016lx target%u=%016lx\n",
