@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
-#include <execinfo.h>
 #include <stdint.h>
 #include <sys/uio.h>
 #include <lkl_host.h>
