@@ -3413,16 +3413,23 @@ static void mvpp2_bm_pool_bufsize_set(struct mvpp2 *priv,
 }
 
 /* Free all buffers from the pool */
-static void mvpp2_bm_bufs_free(struct mvpp2 *priv, struct mvpp2_bm_pool *bm_pool)
+static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
+			       struct mvpp2_bm_pool *bm_pool)
 {
 	int i;
 
 	for (i = 0; i < bm_pool->buf_num; i++) {
+		dma_addr_t buf_phys_addr;
 		u32 vaddr;
 
 		/* Get buffer virtual address (indirect access) */
-		mvpp2_read(priv, MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
+		buf_phys_addr = mvpp2_read(priv,
+					   MVPP2_BM_PHY_ALLOC_REG(bm_pool->id));
 		vaddr = mvpp2_read(priv, MVPP2_BM_VIRT_ALLOC_REG);
+
+		dma_unmap_single(dev, buf_phys_addr,
+				 bm_pool->buf_size, DMA_FROM_DEVICE);
+
 		if (!vaddr)
 			break;
 		dev_kfree_skb_any((struct sk_buff *)vaddr);
@@ -3439,7 +3446,7 @@ static int mvpp2_bm_pool_destroy(struct platform_device *pdev,
 {
 	u32 val;
 
-	mvpp2_bm_bufs_free(priv, bm_pool);
+	mvpp2_bm_bufs_free(&pdev->dev, priv, bm_pool);
 	if (bm_pool->buf_num) {
 		WARN(1, "cannot free all buffers in pool %d\n", bm_pool->id);
 		return 0;
@@ -3692,7 +3699,8 @@ mvpp2_bm_pool_use(struct mvpp2_port *port, int pool, enum mvpp2_bm_type type,
 				   MVPP2_BM_LONG_BUF_NUM :
 				   MVPP2_BM_SHORT_BUF_NUM;
 		else
-			mvpp2_bm_bufs_free(port->priv, new_pool);
+			mvpp2_bm_bufs_free(port->dev->dev.parent,
+					   port->priv, new_pool);
 
 		new_pool->pkt_size = pkt_size;
 
@@ -3756,7 +3764,7 @@ static int mvpp2_bm_update_mtu(struct net_device *dev, int mtu)
 	int pkt_size = MVPP2_RX_PKT_SIZE(mtu);
 
 	/* Update BM pool with new buffer size */
-	mvpp2_bm_bufs_free(port->priv, port_pool);
+	mvpp2_bm_bufs_free(dev->dev.parent, port->priv, port_pool);
 	if (port_pool->buf_num) {
 		WARN(1, "cannot free all buffers in pool %d\n", port_pool->id);
 		return -EIO;
@@ -5135,6 +5143,9 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 		}
 
 		skb = (struct sk_buff *)rx_desc->buf_cookie;
+
+		dma_unmap_single(dev->dev.parent, rx_desc->buf_phys_addr,
+				 bm_pool->buf_size, DMA_FROM_DEVICE);
 
 		rcvd_pkts++;
 		rcvd_bytes += rx_bytes;
