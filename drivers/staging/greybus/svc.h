@@ -19,6 +19,7 @@ enum gb_svc_state {
 struct gb_svc {
 	struct device		dev;
 
+	struct gb_host_device	*hd;
 	struct gb_connection	*connection;
 	enum gb_svc_state	state;
 	struct ida		device_id_map;
