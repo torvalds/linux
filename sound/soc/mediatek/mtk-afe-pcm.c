@@ -175,8 +175,17 @@ static snd_pcm_uframes_t mtk_afe_pcm_pointer
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct mtk_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
 	struct mtk_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
+	unsigned int hw_ptr;
+	int ret;
 
-	return bytes_to_frames(substream->runtime, memif->hw_ptr);
+	ret = regmap_read(afe->regmap, memif->data->reg_ofs_cur, &hw_ptr);
+	if (ret || hw_ptr == 0) {
+		dev_err(afe->dev, "%s hw_ptr err\n", __func__);
+		hw_ptr = memif->phys_buf_addr;
+	}
+
+	return bytes_to_frames(substream->runtime,
+			       hw_ptr - memif->phys_buf_addr);
 }
 
 static const struct snd_pcm_ops mtk_afe_pcm_ops = {
@@ -602,7 +611,6 @@ static int mtk_afe_dais_hw_params(struct snd_pcm_substream *substream,
 
 	memif->phys_buf_addr = substream->runtime->dma_addr;
 	memif->buffer_size = substream->runtime->dma_bytes;
-	memif->hw_ptr = 0;
 
 	/* start */
 	regmap_write(afe->regmap,
@@ -737,7 +745,6 @@ static int mtk_afe_dais_trigger(struct snd_pcm_substream *substream, int cmd,
 		/* and clear pending IRQ */
 		regmap_write(afe->regmap, AFE_IRQ_CLR,
 			     1 << memif->data->irq_clr_shift);
-		memif->hw_ptr = 0;
 		return 0;
 	default:
 		return -EINVAL;
@@ -1081,7 +1088,7 @@ static const struct regmap_config mtk_afe_regmap_config = {
 static irqreturn_t mtk_afe_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_afe *afe = dev_id;
-	unsigned int reg_value, hw_ptr;
+	unsigned int reg_value;
 	int i, ret;
 
 	ret = regmap_read(afe->regmap, AFE_IRQ_STATUS, &reg_value);
@@ -1097,13 +1104,6 @@ static irqreturn_t mtk_afe_irq_handler(int irq, void *dev_id)
 		if (!(reg_value & (1 << memif->data->irq_clr_shift)))
 			continue;
 
-		ret = regmap_read(afe->regmap, memif->data->reg_ofs_cur,
-				  &hw_ptr);
-		if (ret || hw_ptr == 0) {
-			dev_err(afe->dev, "%s hw_ptr err\n", __func__);
-			hw_ptr = memif->phys_buf_addr;
-		}
-		memif->hw_ptr = hw_ptr - memif->phys_buf_addr;
 		snd_pcm_period_elapsed(memif->substream);
 	}
 
