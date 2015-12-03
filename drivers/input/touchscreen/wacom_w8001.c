@@ -385,7 +385,7 @@ static int w8001_setup(struct w8001 *w8001)
 	struct input_dev *dev = w8001->dev;
 	struct w8001_coord coord;
 	struct w8001_touch_query touch;
-	int error;
+	int error, err_pen, err_touch;
 
 	error = w8001_command(w8001, W8001_CMD_STOP, false);
 	if (error)
@@ -400,8 +400,8 @@ static int w8001_setup(struct w8001 *w8001)
 	__set_bit(INPUT_PROP_DIRECT, dev->propbit);
 
 	/* penabled? */
-	error = w8001_command(w8001, W8001_CMD_QUERY, true);
-	if (!error) {
+	err_pen = w8001_command(w8001, W8001_CMD_QUERY, true);
+	if (!err_pen) {
 		__set_bit(BTN_TOUCH, dev->keybit);
 		__set_bit(BTN_TOOL_PEN, dev->keybit);
 		__set_bit(BTN_TOOL_RUBBER, dev->keybit);
@@ -426,13 +426,12 @@ static int w8001_setup(struct w8001 *w8001)
 	}
 
 	/* Touch enabled? */
-	error = w8001_command(w8001, W8001_CMD_TOUCHQUERY, true);
+	err_touch = w8001_command(w8001, W8001_CMD_TOUCHQUERY, true);
 
-	/*
-	 * Some non-touch devices may reply to the touch query. But their
-	 * second byte is empty, which indicates touch is not supported.
-	 */
-	if (!error && w8001->response[1]) {
+	if (!err_touch && !w8001->response[1])
+		err_touch = -ENXIO;
+
+	if (!err_touch) {
 		__set_bit(BTN_TOUCH, dev->keybit);
 		__set_bit(BTN_TOOL_FINGER, dev->keybit);
 
@@ -491,7 +490,7 @@ static int w8001_setup(struct w8001 *w8001)
 
 	strlcat(w8001->name, " Touchscreen", sizeof(w8001->name));
 
-	return 0;
+	return !err_pen || !err_touch ? 0 : -ENXIO;
 }
 
 /*
