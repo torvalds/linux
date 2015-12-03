@@ -20,6 +20,14 @@ config QCOM_CLK_SMD_RPM
 	  Support for the clocks exposed by the Resource Power Manager
 	  processor on devices like apq8016, apq8084 and msm8974.
 
+config QCOM_CLK_RPM
+	tristate "RPM based Clock Controller"
+	depends on COMMON_CLK_QCOM
+	select QCOM_RPMCC
+	help
+	  Support for the clocks exposed by the Resource Power Manager
+	  processor on devices like apq8064.
+
 config APQ_GCC_8084
 	tristate "APQ8084 Global Clock Controller"
 	select QCOM_GDSC
