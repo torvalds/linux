@@ -916,7 +916,7 @@
 			};
 
 			i2c0: i2c@f8014000 {
-				compatible = "atmel,at91sam9x5-i2c";
+				compatible = "atmel,sama5d4-i2c";
 				reg = <0xf8014000 0x4000>;
 				interrupts = <32 IRQ_TYPE_LEVEL_HIGH 6>;
 				dmas = <&dma1
@@ -935,7 +935,7 @@
 			};
 
 			i2c1: i2c@f8018000 {
-				compatible = "atmel,at91sam9x5-i2c";
+				compatible = "atmel,sama5d4-i2c";
 				reg = <0xf8018000 0x4000>;
 				interrupts = <33 IRQ_TYPE_LEVEL_HIGH 6>;
 				dmas = <&dma1
@@ -975,7 +975,7 @@
 			};
 
 			i2c2: i2c@f8024000 {
-				compatible = "atmel,at91sam9x5-i2c";
+				compatible = "atmel,sama5d4-i2c";
 				reg = <0xf8024000 0x4000>;
 				interrupts = <34 IRQ_TYPE_LEVEL_HIGH 6>;
 				dmas = <&dma1
