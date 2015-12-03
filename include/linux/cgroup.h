@@ -120,8 +120,10 @@ struct cgroup_subsys_state *css_rightmost_descendant(struct cgroup_subsys_state 
 struct cgroup_subsys_state *css_next_descendant_post(struct cgroup_subsys_state *pos,
 						     struct cgroup_subsys_state *css);
 
-struct task_struct *cgroup_taskset_first(struct cgroup_taskset *tset);
-struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset);
+struct task_struct *cgroup_taskset_first(struct cgroup_taskset *tset,
+					 struct cgroup_subsys_state **dst_cssp);
+struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset,
+					struct cgroup_subsys_state **dst_cssp);
 
 void css_task_iter_start(struct cgroup_subsys_state *css,
 			 struct css_task_iter *it);
@@ -236,30 +238,39 @@ void css_task_iter_end(struct css_task_iter *it);
 /**
  * cgroup_taskset_for_each - iterate cgroup_taskset
  * @task: the loop cursor
+ * @dst_css: the destination css
  * @tset: taskset to iterate
  *
  * @tset may contain multiple tasks and they may belong to multiple
- * processes.  When there are multiple tasks in @tset, if a task of a
- * process is in @tset, all tasks of the process are in @tset.  Also, all
- * are guaranteed to share the same source and destination csses.
+ * processes.
+ *
+ * On the v2 hierarchy, there may be tasks from multiple processes and they
+ * may not share the source or destination csses.
+ *
+ * On traditional hierarchies, when there are multiple tasks in @tset, if a
+ * task of a process is in @tset, all tasks of the process are in @tset.
+ * Also, all are guaranteed to share the same source and destination csses.
  *
  * Iteration is not in any specific order.
  */
-#define cgroup_taskset_for_each(task, tset)				\
-	for ((task) = cgroup_taskset_first((tset)); (task);		\
-	     (task) = cgroup_taskset_next((tset)))
+#define cgroup_taskset_for_each(task, dst_css, tset)			\
+	for ((task) = cgroup_taskset_first((tset), &(dst_css));		\
+	     (task);							\
+	     (task) = cgroup_taskset_next((tset), &(dst_css)))
 
 /**
  * cgroup_taskset_for_each_leader - iterate group leaders in a cgroup_taskset
  * @leader: the loop cursor
+ * @dst_css: the destination css
  * @tset: takset to iterate
  *
  * Iterate threadgroup leaders of @tset.  For single-task migrations, @tset
  * may not contain any.
  */
-#define cgroup_taskset_for_each_leader(leader, tset)			\
-	for ((leader) = cgroup_taskset_first((tset)); (leader);		\
-	     (leader) = cgroup_taskset_next((tset)))			\
+#define cgroup_taskset_for_each_leader(leader, dst_css, tset)		\
+	for ((leader) = cgroup_taskset_first((tset), &(dst_css));	\
+	     (leader);							\
+	     (leader) = cgroup_taskset_next((tset), &(dst_css)))	\
 		if ((leader) != (leader)->group_leader)			\
 			;						\
 		else
