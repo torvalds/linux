@@ -702,6 +702,7 @@ static int __gb_lights_flash_led_register(struct gb_channel *channel)
 	fset->min = channel->intensity_uA.min;
 	fset->max = channel->intensity_uA.max;
 	fset->step = channel->intensity_uA.step;
+	fset->val = channel->intensity_uA.max;
 
 	/* Only the flash mode have the timeout constraints settings */
 	if (channel->mode & GB_CHANNEL_MODE_FLASH) {
@@ -709,6 +710,7 @@ static int __gb_lights_flash_led_register(struct gb_channel *channel)
 		fset->min = channel->timeout_us.min;
 		fset->max = channel->timeout_us.max;
 		fset->step = channel->timeout_us.step;
+		fset->val = channel->timeout_us.max;
 	}
 
 	/*
