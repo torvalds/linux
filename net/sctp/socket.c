@@ -7167,6 +7167,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	newsk->sk_type = sk->sk_type;
 	newsk->sk_bound_dev_if = sk->sk_bound_dev_if;
 	newsk->sk_flags = sk->sk_flags;
+	newsk->sk_tsflags = sk->sk_tsflags;
 	newsk->sk_no_check_tx = sk->sk_no_check_tx;
 	newsk->sk_no_check_rx = sk->sk_no_check_rx;
 	newsk->sk_reuse = sk->sk_reuse;
