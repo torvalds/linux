@@ -112,7 +112,9 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 		// add a uevent that can "load" a bundle type
 		// This is what we need to bind a driver to so use the info
 		// in gmod here as well
-		return 0;
+
+		if (add_uevent_var(env, "BUNDLE=%u", bundle->id))
+			return -ENOMEM;
 	}
 
 	return 0;
