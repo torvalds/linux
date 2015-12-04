@@ -729,7 +729,7 @@ static void tegra_pmc_init(struct tegra_pmc *pmc)
 	tegra_pmc_writel(value, PMC_CNTRL);
 }
 
-void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
+static void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
 {
 	static const char disabled[] = "emergency thermal reset disabled";
 	u32 pmu_addr, ctrl_id, reg_addr, reg_data, pinmux;
