@@ -1,7 +1,12 @@
 define valgrind_test
-	VALGRIND_CMD="valgrind --xml=yes --xml-file=valgrind-$1.xml" \
+	VALGRIND_CMD="valgrind --suppressions=valgrind.supp --leak-check=full --show-leak-kinds=all --xml=yes --xml-file=valgrind-$1.xml" \
 	./boot.sh -t $1 ;					     \
 	./valgrind2xunit.py valgrind-$1.xml
+endef
+
+define valgrind_test_text
+	VALGRIND_CMD="valgrind --suppressions=valgrind.supp --leak-check=full --show-leak-kinds=all" \
+	./boot.sh -t $1
 endef
 
 all:
