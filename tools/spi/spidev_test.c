@@ -150,7 +150,7 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 
 		ret = write(out_fd, rx, len);
 		if (ret != len)
-			pabort("not all bytes written to utput file");
+			pabort("not all bytes written to output file");
 
 		close(out_fd);
 	}
