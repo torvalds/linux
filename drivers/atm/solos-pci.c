@@ -347,8 +347,8 @@ static char *next_string(struct sk_buff *skb)
  */       
 static int process_status(struct solos_card *card, int port, struct sk_buff *skb)
 {
-	char *str, *end, *state_str, *snr, *attn;
-	int ver, rate_up, rate_down;
+	char *str, *state_str, *snr, *attn;
+	int ver, rate_up, rate_down, err;
 
 	if (!card->atmdev[port])
 		return -ENODEV;
@@ -357,7 +357,11 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	if (!str)
 		return -EIO;
 
-	ver = simple_strtol(str, NULL, 10);
+	err = kstrtoint(str, 10, &ver);
+	if (err) {
+		dev_warn(&card->dev->dev, "Unexpected status interrupt version\n");
+		return err;
+	}
 	if (ver < 1) {
 		dev_warn(&card->dev->dev, "Unexpected status interrupt version %d\n",
 			 ver);
@@ -373,16 +377,16 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 		return 0;
 	}
 
-	rate_down = simple_strtol(str, &end, 10);
-	if (*end)
-		return -EIO;
+	err = kstrtoint(str, 10, &rate_down);
+	if (err)
+		return err;
 
 	str = next_string(skb);
 	if (!str)
 		return -EIO;
-	rate_up = simple_strtol(str, &end, 10);
-	if (*end)
-		return -EIO;
+	err = kstrtoint(str, 10, &rate_up);
+	if (err)
+		return err;
 
 	state_str = next_string(skb);
 	if (!state_str)
@@ -417,7 +421,7 @@ static int process_command(struct solos_card *card, int port, struct sk_buff *sk
 	struct solos_param *prm;
 	unsigned long flags;
 	int cmdpid;
-	int found = 0;
+	int found = 0, err;
 
 	if (skb->len < 7)
 		return 0;
@@ -428,7 +432,9 @@ static int process_command(struct solos_card *card, int port, struct sk_buff *sk
 	    skb->data[6] != '\n')
 		return 0;
 
-	cmdpid = simple_strtol(&skb->data[1], NULL, 10);
+	err = kstrtoint(&skb->data[1], 10, &cmdpid);
+	if (err)
+		return err;
 
 	spin_lock_irqsave(&card->param_queue_lock, flags);
 	list_for_each_entry(prm, &card->param_queue, list) {
