@@ -1353,7 +1353,6 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 	unsigned long fcr31;
 	unsigned int cpid;
 	int status, err;
-	unsigned long __maybe_unused flags;
 	int sig;
 
 	prev_state = exception_enter();
