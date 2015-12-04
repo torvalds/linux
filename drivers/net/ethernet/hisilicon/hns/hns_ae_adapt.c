@@ -252,7 +252,7 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
 		return 0;
 
-	ret = hns_mac_set_multi(mac_cb, mac_cb->mac_id, mac_addr, ENABLE);
+	ret = hns_mac_set_multi(mac_cb, mac_cb->mac_id, mac_addr, true);
 	if (ret) {
 		dev_err(handle->owner_dev,
 			"mac add mul_mac:%pM port%d  fail, ret = %#x!\n",
@@ -261,7 +261,7 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 	}
 
 	ret = hns_mac_set_multi(mac_cb, DSAF_BASE_INNER_PORT_NUM,
-				mac_addr, ENABLE);
+				mac_addr, true);
 	if (ret)
 		dev_err(handle->owner_dev,
 			"mac add mul_mac:%pM port%d  fail, ret = %#x!\n",
@@ -277,12 +277,19 @@ static int hns_ae_set_mtu(struct hnae_handle *handle, int new_mtu)
 	return hns_mac_set_mtu(mac_cb, new_mtu);
 }
 
+static void hns_ae_set_tso_stats(struct hnae_handle *handle, int enable)
+{
+	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
+
+	hns_ppe_set_tso_enable(ppe_cb, enable);
+}
+
 static int hns_ae_start(struct hnae_handle *handle)
 {
 	int ret;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
-	ret = hns_mac_vm_config_bc_en(mac_cb, 0, ENABLE);
+	ret = hns_mac_vm_config_bc_en(mac_cb, 0, true);
 	if (ret)
 		return ret;
 
@@ -309,7 +316,7 @@ void hns_ae_stop(struct hnae_handle *handle)
 
 	hns_ae_ring_enable_all(handle, 0);
 
-	(void)hns_mac_vm_config_bc_en(mac_cb, 0, DISABLE);
+	(void)hns_mac_vm_config_bc_en(mac_cb, 0, false);
 }
 
 static void hns_ae_reset(struct hnae_handle *handle)
@@ -338,8 +345,27 @@ void hns_ae_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
 	hns_rcb_int_ctrl_hw(ring->q, flag, mask);
 }
 
+static void hns_aev2_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
+{
+	u32 flag;
+
+	if (is_tx_ring(ring))
+		flag = RCB_INT_FLAG_TX;
+	else
+		flag = RCB_INT_FLAG_RX;
+
+	hns_rcbv2_int_ctrl_hw(ring->q, flag, mask);
+}
+
 static void hns_ae_toggle_queue_status(struct hnae_queue *queue, u32 val)
 {
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(queue->dev);
+
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+		hns_rcb_int_clr_hw(queue, RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
+	else
+		hns_rcbv2_int_clr_hw(queue, RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
+
 	hns_rcb_start(queue, val);
 }
 
@@ -730,6 +756,53 @@ int hns_ae_get_regs_len(struct hnae_handle *handle)
 	return total_num;
 }
 
+static u32 hns_ae_get_rss_key_size(struct hnae_handle *handle)
+{
+	return HNS_PPEV2_RSS_KEY_SIZE;
+}
+
+static u32 hns_ae_get_rss_indir_size(struct hnae_handle *handle)
+{
+	return HNS_PPEV2_RSS_IND_TBL_SIZE;
+}
+
+static int hns_ae_get_rss(struct hnae_handle *handle, u32 *indir, u8 *key,
+			  u8 *hfunc)
+{
+	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
+
+	/* currently we support only one type of hash function i.e. Toep hash */
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+
+	/* get the RSS Key required by the user */
+	if (key)
+		memcpy(key, ppe_cb->rss_key, HNS_PPEV2_RSS_KEY_SIZE);
+
+	/* update the current hash->queue mappings from the shadow RSS table */
+	memcpy(indir, ppe_cb->rss_indir_table, HNS_PPEV2_RSS_IND_TBL_SIZE);
+
+	return 0;
+}
+
+static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
+			  const u8 *key, const u8 hfunc)
+{
+	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
+
+	/* set the RSS Hash Key if specififed by the user */
+	if (key)
+		hns_ppe_set_rss_key(ppe_cb, (int *)key);
+
+	/* update the shadow RSS table with user specified qids */
+	memcpy(ppe_cb->rss_indir_table, indir, HNS_PPEV2_RSS_IND_TBL_SIZE);
+
+	/* now update the hardware */
+	hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
+
+	return 0;
+}
+
 static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_handle = hns_ae_get_handle,
 	.put_handle = hns_ae_put_handle,
@@ -758,19 +831,34 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.set_mc_addr = hns_ae_set_multicast_one,
 	.set_mtu = hns_ae_set_mtu,
 	.update_stats = hns_ae_update_stats,
+	.set_tso_stats = hns_ae_set_tso_stats,
 	.get_stats = hns_ae_get_stats,
 	.get_strings = hns_ae_get_strings,
 	.get_sset_count = hns_ae_get_sset_count,
 	.update_led_status = hns_ae_update_led_status,
 	.set_led_id = hns_ae_cpld_set_led_id,
 	.get_regs = hns_ae_get_regs,
-	.get_regs_len = hns_ae_get_regs_len
+	.get_regs_len = hns_ae_get_regs_len,
+	.get_rss_key_size = hns_ae_get_rss_key_size,
+	.get_rss_indir_size = hns_ae_get_rss_indir_size,
+	.get_rss = hns_ae_get_rss,
+	.set_rss = hns_ae_set_rss
 };
 
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev)
 {
 	struct hnae_ae_dev *ae_dev = &dsaf_dev->ae_dev;
 
+	switch (dsaf_dev->dsaf_ver) {
+	case AE_VERSION_1:
+		hns_dsaf_ops.toggle_ring_irq = hns_ae_toggle_ring_irq;
+		break;
+	case AE_VERSION_2:
+		hns_dsaf_ops.toggle_ring_irq = hns_aev2_toggle_ring_irq;
+		break;
+	default:
+		break;
+	}
 	ae_dev->ops = &hns_dsaf_ops;
 	ae_dev->dev = dsaf_dev->dev;
 
