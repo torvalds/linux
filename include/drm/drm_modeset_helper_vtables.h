@@ -62,9 +62,6 @@ enum mode_set_atomic;
  * @load_lut: load color palette
  * @disable: disable CRTC when no longer in use
  * @enable: enable CRTC
- * @atomic_check: check for validity of an atomic state
- * @atomic_begin: begin atomic update
- * @atomic_flush: flush atomic update
  *
  * The helper operations are called by the mid-layer CRTC helper.
  *
@@ -108,11 +105,96 @@ struct drm_crtc_helper_funcs {
 	void (*disable)(struct drm_crtc *crtc);
 	void (*enable)(struct drm_crtc *crtc);
 
-	/* atomic helpers */
+	/**
+	 * @atomic_check:
+	 *
+	 * Drivers should check plane-update related CRTC constraints in this
+	 * hook. They can also check mode related limitations but need to be
+	 * aware of the calling order, since this hook is used by
+	 * drm_atomic_helper_check_planes() whereas the preparations needed to
+	 * check output routing and the display mode is done in
+	 * drm_atomic_helper_check_modeset(). Therefore drivers that want to
+	 * check output routing and display mode constraints in this callback
+	 * must ensure that drm_atomic_helper_check_modeset() has been called
+	 * beforehand. This is calling order used by the default helper
+	 * implementation in drm_atomic_helper_check().
+	 *
+	 * When using drm_atomic_helper_check_planes() CRTCs' ->atomic_check()
+	 * hooks are called after the ones for planes, which allows drivers to
+	 * assign shared resources requested by planes in the CRTC callback
+	 * here. For more complicated dependencies the driver can call the provided
+	 * check helpers multiple times until the computed state has a final
+	 * configuration and everything has been checked.
+	 *
+	 * This function is also allowed to inspect any other object's state and
+	 * can add more state objects to the atomic commit if needed. Care must
+	 * be taken though to ensure that state check&compute functions for
+	 * these added states are all called, and derived state in other objects
+	 * all updated. Again the recommendation is to just call check helpers
+	 * until a maximal configuration is reached.
+	 *
+	 * This callback is used by the atomic modeset helpers and by the
+	 * transitional plane helpers, but it is optional.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the check phase of an atomic update. The
+	 * driver is not allowed to change anything outside of the free-standing
+	 * state objects passed-in or assembled in the overall &drm_atomic_state
+	 * update tracking structure.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success, -EINVAL if the state or the transition can't be
+	 * supported, -ENOMEM on memory allocation failure and -EDEADLK if an
+	 * attempt to obtain another state object ran into a &drm_modeset_lock
+	 * deadlock.
+	 */
 	int (*atomic_check)(struct drm_crtc *crtc,
 			    struct drm_crtc_state *state);
+
+	/**
+	 * @atomic_begin:
+	 *
+	 * Drivers should prepare for an atomic update of multiple planes on
+	 * a CRTC in this hook. Depending upon hardware this might be vblank
+	 * evasion, blocking updates by setting bits or doing preparatory work
+	 * for e.g. manual update display.
+	 *
+	 * This hook is called before any plane commit functions are called.
+	 *
+	 * Note that the power state of the display pipe when this function is
+	 * called depends upon the exact helpers and calling sequence the driver
+	 * has picked. See drm_atomic_commit_planes() for a discussion of the
+	 * tradeoffs and variants of plane commit helpers.
+	 *
+	 * This callback is used by the atomic modeset helpers and by the
+	 * transitional plane helpers, but it is optional.
+	 */
 	void (*atomic_begin)(struct drm_crtc *crtc,
 			     struct drm_crtc_state *old_crtc_state);
+	/**
+	 * @atomic_flush:
+	 *
+	 * Drivers should finalize an atomic update of multiple planes on
+	 * a CRTC in this hook. Depending upon hardware this might include
+	 * checking that vblank evasion was successful, unblocking updates by
+	 * setting bits or setting the GO bit to flush out all updates.
+	 *
+	 * Simple hardware or hardware with special requirements can commit and
+	 * flush out all updates for all planes from this hook and forgo all the
+	 * other commit hooks for plane updates.
+	 *
+	 * This hook is called after any plane commit functions are called.
+	 *
+	 * Note that the power state of the display pipe when this function is
+	 * called depends upon the exact helpers and calling sequence the driver
+	 * has picked. See drm_atomic_commit_planes() for a discussion of the
+	 * tradeoffs and variants of plane commit helpers.
+	 *
+	 * This callback is used by the atomic modeset helpers and by the
+	 * transitional plane helpers, but it is optional.
+	 */
 	void (*atomic_flush)(struct drm_crtc *crtc,
 			     struct drm_crtc_state *old_crtc_state);
 };
@@ -216,25 +298,131 @@ static inline void drm_connector_helper_add(struct drm_connector *connector,
 }
 
 /**
- * struct drm_plane_helper_funcs - helper operations for CRTCs
- * @prepare_fb: prepare a framebuffer for use by the plane
- * @cleanup_fb: cleanup a framebuffer when it's no longer used by the plane
- * @atomic_check: check that a given atomic state is valid and can be applied
- * @atomic_update: apply an atomic state to the plane (mandatory)
- * @atomic_disable: disable the plane
+ * struct drm_plane_helper_funcs - helper operations for planes
  *
- * The helper operations are called by the mid-layer CRTC helper.
+ * These functions are used by the atomic helpers and by the transitional plane
+ * helpers.
  */
 struct drm_plane_helper_funcs {
+	/**
+	 * @prepare_fb:
+	 *
+	 * This hook is to prepare a framebuffer for scanout by e.g. pinning
+	 * it's backing storage or relocating it into a contiguous block of
+	 * VRAM. Other possible preparatory work includes flushing caches.
+	 *
+	 * This function must not block for outstanding rendering, since it is
+	 * called in the context of the atomic IOCTL even for async commits to
+	 * be able to return any errors to userspace. Instead the recommended
+	 * way is to fill out the fence member of the passed-in
+	 * &drm_plane_state. If the driver doesn't support native fences then
+	 * equivalent functionality should be implemented through private
+	 * members in the plane structure.
+	 *
+	 * The helpers will call @cleanup_fb with matching arguments for every
+	 * successful call to this hook.
+	 *
+	 * This callback is used by the atomic modeset helpers and by the
+	 * transitional plane helpers, but it is optional.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or one of the following negative error codes allowed by
+	 * the atomic_commit hook in &drm_mode_config_funcs. When using helpers
+	 * this callback is the only one which can fail an atomic commit,
+	 * everything else must complete successfully.
+	 */
 	int (*prepare_fb)(struct drm_plane *plane,
 			  const struct drm_plane_state *new_state);
+	/**
+	 * @cleanup_fb:
+	 *
+	 * This hook is called to clean up any resources allocated for the given
+	 * framebuffer and plane configuration in @prepare_fb.
+	 *
+	 * This callback is used by the atomic modeset helpers and by the
+	 * transitional plane helpers, but it is optional.
+	 */
 	void (*cleanup_fb)(struct drm_plane *plane,
 			   const struct drm_plane_state *old_state);
 
+	/**
+	 * @atomic_check:
+	 *
+	 * Drivers should check plane specific constraints in this hook.
+	 *
+	 * When using drm_atomic_helper_check_planes() plane's ->atomic_check()
+	 * hooks are called before the ones for CRTCs, which allows drivers to
+	 * request shared resources that the CRTC controls here. For more
+	 * complicated dependencies the driver can call the provided check helpers
+	 * multiple times until the computed state has a final configuration and
+	 * everything has been checked.
+	 *
+	 * This function is also allowed to inspect any other object's state and
+	 * can add more state objects to the atomic commit if needed. Care must
+	 * be taken though to ensure that state check&compute functions for
+	 * these added states are all called, and derived state in other objects
+	 * all updated. Again the recommendation is to just call check helpers
+	 * until a maximal configuration is reached.
+	 *
+	 * This callback is used by the atomic modeset helpers and by the
+	 * transitional plane helpers, but it is optional.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the check phase of an atomic update. The
+	 * driver is not allowed to change anything outside of the free-standing
+	 * state objects passed-in or assembled in the overall &drm_atomic_state
+	 * update tracking structure.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success, -EINVAL if the state or the transition can't be
+	 * supported, -ENOMEM on memory allocation failure and -EDEADLK if an
+	 * attempt to obtain another state object ran into a &drm_modeset_lock
+	 * deadlock.
+	 */
 	int (*atomic_check)(struct drm_plane *plane,
 			    struct drm_plane_state *state);
+
+	/**
+	 * @atomic_update:
+	 *
+	 * Drivers should use this function to update the plane state.  This
+	 * hook is called in-between the ->atomic_begin() and
+	 * ->atomic_flush() of &drm_crtc_helper_funcs.
+	 *
+	 * Note that the power state of the display pipe when this function is
+	 * called depends upon the exact helpers and calling sequence the driver
+	 * has picked. See drm_atomic_commit_planes() for a discussion of the
+	 * tradeoffs and variants of plane commit helpers.
+	 *
+	 * This callback is used by the atomic modeset helpers and by the
+	 * transitional plane helpers, but it is optional.
+	 */
 	void (*atomic_update)(struct drm_plane *plane,
 			      struct drm_plane_state *old_state);
+	/**
+	 * @atomic_disable:
+	 *
+	 * Drivers should use this function to unconditionally disable a plane.
+	 * This hook is called in-between the ->atomic_begin() and
+	 * ->atomic_flush() of &drm_crtc_helper_funcs. It is an alternative to
+	 * @atomic_update, which will be called for disabling planes, too, if
+	 * the @atomic_disable hook isn't implemented.
+	 *
+	 * This hook is also useful to disable planes in preparation of a modeset,
+	 * by calling drm_atomic_helper_disable_planes_on_crtc() from the
+	 * ->disable() hook in &drm_crtc_helper_funcs.
+	 *
+	 * Note that the power state of the display pipe when this function is
+	 * called depends upon the exact helpers and calling sequence the driver
+	 * has picked. See drm_atomic_commit_planes() for a discussion of the
+	 * tradeoffs and variants of plane commit helpers.
+	 *
+	 * This callback is used by the atomic modeset helpers and by the
+	 * transitional plane helpers, but it is optional.
+	 */
 	void (*atomic_disable)(struct drm_plane *plane,
 			       struct drm_plane_state *old_state);
 };
