@@ -41,9 +41,6 @@ typedef struct irq_chip *(*gpio_get_irq_chip_cb_t)(unsigned int irq);
 
 #define BINTEN	0x8 /* GPIO Interrupt Per-Bank Enable Register */
 
-#define chip2controller(chip)	\
-	container_of(chip, struct davinci_gpio_controller, chip)
-
 static void __iomem *gpio_base;
 
 static struct davinci_gpio_regs __iomem *gpio2regs(unsigned gpio)
@@ -82,7 +79,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev);
 static inline int __davinci_direction(struct gpio_chip *chip,
 			unsigned offset, bool out, int value)
 {
-	struct davinci_gpio_controller *d = chip2controller(chip);
+	struct davinci_gpio_controller *d = gpiochip_get_data(chip);
 	struct davinci_gpio_regs __iomem *g = d->regs;
 	unsigned long flags;
 	u32 temp;
@@ -122,7 +119,7 @@ davinci_direction_out(struct gpio_chip *chip, unsigned offset, int value)
  */
 static int davinci_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct davinci_gpio_controller *d = chip2controller(chip);
+	struct davinci_gpio_controller *d = gpiochip_get_data(chip);
 	struct davinci_gpio_regs __iomem *g = d->regs;
 
 	return !!((1 << offset) & readl_relaxed(&g->in_data));
@@ -134,7 +131,7 @@ static int davinci_gpio_get(struct gpio_chip *chip, unsigned offset)
 static void
 davinci_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct davinci_gpio_controller *d = chip2controller(chip);
+	struct davinci_gpio_controller *d = gpiochip_get_data(chip);
 	struct davinci_gpio_regs __iomem *g = d->regs;
 
 	writel_relaxed((1 << offset), value ? &g->set_data : &g->clr_data);
@@ -265,7 +262,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		chips[i].clr_data = &regs->clr_data;
 		chips[i].in_data = &regs->in_data;
 
-		gpiochip_add(&chips[i].chip);
+		gpiochip_add_data(&chips[i].chip, &chips[i]);
 	}
 
 	platform_set_drvdata(pdev, chips);
@@ -368,7 +365,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 
 static int gpio_to_irq_banked(struct gpio_chip *chip, unsigned offset)
 {
-	struct davinci_gpio_controller *d = chip2controller(chip);
+	struct davinci_gpio_controller *d = gpiochip_get_data(chip);
 
 	if (d->irq_domain)
 		return irq_create_mapping(d->irq_domain, d->chip.base + offset);
@@ -378,7 +375,7 @@ static int gpio_to_irq_banked(struct gpio_chip *chip, unsigned offset)
 
 static int gpio_to_irq_unbanked(struct gpio_chip *chip, unsigned offset)
 {
-	struct davinci_gpio_controller *d = chip2controller(chip);
+	struct davinci_gpio_controller *d = gpiochip_get_data(chip);
 
 	/*
 	 * NOTE:  we assume for now that only irqs in the first gpio_chip
