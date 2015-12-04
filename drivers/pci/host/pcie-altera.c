@@ -166,7 +166,7 @@ static bool altera_pcie_valid_config(struct altera_pcie *pcie,
 
 static int tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 {
-	u8 loop;
+	int i;
 	bool sop = 0;
 	u32 ctrl;
 	u32 reg0, reg1;
@@ -175,7 +175,7 @@ static int tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 	 * Minimum 2 loops to read TLP headers and 1 loop to read data
 	 * payload.
 	 */
-	for (loop = 0; loop < TLP_LOOP; loop++) {
+	for (i = 0; i < TLP_LOOP; i++) {
 		ctrl = cra_readl(pcie, RP_RXCPL_STATUS);
 		if ((ctrl & RP_RXCPL_SOP) || (ctrl & RP_RXCPL_EOP) || sop) {
 			reg0 = cra_readl(pcie, RP_RXCPL_REG0);
