@@ -429,11 +429,20 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 }
 EXPORT_SYMBOL(drm_atomic_crtc_set_property);
 
-/*
+/**
+ * drm_atomic_crtc_get_property - get property value from CRTC state
+ * @crtc: the drm CRTC to set a property on
+ * @state: the state object to get the property value from
+ * @property: the property to set
+ * @val: return location for the property value
+ *
  * This function handles generic/core properties and calls out to
  * driver's ->atomic_get_property() for driver properties.  To ensure
  * consistent behavior you must call this function rather than the
  * driver hook directly.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
  */
 static int
 drm_atomic_crtc_get_property(struct drm_crtc *crtc,
@@ -616,11 +625,20 @@ int drm_atomic_plane_set_property(struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_atomic_plane_set_property);
 
-/*
+/**
+ * drm_atomic_plane_get_property - get property value from plane state
+ * @plane: the drm plane to set a property on
+ * @state: the state object to get the property value from
+ * @property: the property to set
+ * @val: return location for the property value
+ *
  * This function handles generic/core properties and calls out to
  * driver's ->atomic_get_property() for driver properties.  To ensure
  * consistent behavior you must call this function rather than the
  * driver hook directly.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
  */
 static int
 drm_atomic_plane_get_property(struct drm_plane *plane,
@@ -872,11 +890,20 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_atomic_connector_set_property);
 
-/*
+/**
+ * drm_atomic_connector_get_property - get property value from connector state
+ * @connector: the drm connector to set a property on
+ * @state: the state object to get the property value from
+ * @property: the property to set
+ * @val: return location for the property value
+ *
  * This function handles generic/core properties and calls out to
  * driver's ->atomic_get_property() for driver properties.  To ensure
  * consistent behavior you must call this function rather than the
  * driver hook directly.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
  */
 static int
 drm_atomic_connector_get_property(struct drm_connector *connector,
