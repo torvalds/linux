@@ -687,7 +687,7 @@ int add_mtd_partitions(struct mtd_info *master,
 static DEFINE_SPINLOCK(part_parser_lock);
 static LIST_HEAD(part_parsers);
 
-static struct mtd_part_parser *get_partition_parser(const char *name)
+static struct mtd_part_parser *mtd_part_parser_get(const char *name)
 {
 	struct mtd_part_parser *p, *ret = NULL;
 
@@ -704,7 +704,10 @@ static struct mtd_part_parser *get_partition_parser(const char *name)
 	return ret;
 }
 
-#define put_partition_parser(p) do { module_put((p)->owner); } while (0)
+static inline void mtd_part_parser_put(const struct mtd_part_parser *p)
+{
+	module_put(p->owner);
+}
 
 int __register_mtd_parser(struct mtd_part_parser *p, struct module *owner)
 {
@@ -768,9 +771,9 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 
 	for ( ; *types; types++) {
 		pr_debug("%s: parsing partitions %s\n", master->name, *types);
-		parser = get_partition_parser(*types);
+		parser = mtd_part_parser_get(*types);
 		if (!parser && !request_module("%s", *types))
-			parser = get_partition_parser(*types);
+			parser = mtd_part_parser_get(*types);
 		pr_debug("%s: got parser %s\n", master->name,
 			 parser ? parser->name : NULL);
 		if (!parser)
@@ -778,7 +781,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 		ret = (*parser->parse_fn)(master, pparts, data);
 		pr_debug("%s: parser %s: %i\n",
 			 master->name, parser->name, ret);
-		put_partition_parser(parser);
+		mtd_part_parser_put(parser);
 		if (ret > 0) {
 			printk(KERN_NOTICE "%d %s partitions found on MTD device %s\n",
 			       ret, parser->name, master->name);
