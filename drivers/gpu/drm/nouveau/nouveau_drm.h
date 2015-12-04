@@ -39,6 +39,7 @@
 
 #include <nvif/client.h>
 #include <nvif/device.h>
+#include <nvif/ioctl.h>
 
 #include <drmP.h>
 
@@ -65,9 +66,10 @@ struct nouveau_drm_tile {
 };
 
 enum nouveau_drm_object_route {
-	NVDRM_OBJECT_NVIF = 0,
+	NVDRM_OBJECT_NVIF = NVIF_IOCTL_V0_OWNER_NVIF,
 	NVDRM_OBJECT_USIF,
 	NVDRM_OBJECT_ABI16,
+	NVDRM_OBJECT_ANY = NVIF_IOCTL_V0_OWNER_ANY,
 };
 
 enum nouveau_drm_notify_route {

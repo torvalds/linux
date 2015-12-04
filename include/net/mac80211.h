@@ -2003,8 +2003,10 @@ enum ieee80211_hw_flags {
  *	it shouldn't be set.
  *
  * @max_tx_aggregation_subframes: maximum number of subframes in an
- *	aggregate an HT driver will transmit, used by the peer as a
- *	hint to size its reorder buffer.
+ *	aggregate an HT driver will transmit. Though ADDBA will advertise
+ *	a constant value of 64 as some older APs can crash if the window
+ *	size is smaller (an example is LinkSys WRT120N with FW v1.0.07
+ *	build 002 Jun 18 2012).
  *
  * @offchannel_tx_hw_queue: HW queue ID to use for offchannel TX
  *	(if %IEEE80211_HW_QUEUE_CONTROL is set)
