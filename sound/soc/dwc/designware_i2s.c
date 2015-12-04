@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <sound/designware_i2s.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -394,6 +395,23 @@ static const struct snd_soc_component_driver dw_i2s_component = {
 };
 
 #ifdef CONFIG_PM
+static int dw_i2s_runtime_suspend(struct device *dev)
+{
+	struct dw_i2s_dev *dw_dev = dev_get_drvdata(dev);
+
+	if (dw_dev->capability & DW_I2S_MASTER)
+		clk_disable(dw_dev->clk);
+	return 0;
+}
+
+static int dw_i2s_runtime_resume(struct device *dev)
+{
+	struct dw_i2s_dev *dw_dev = dev_get_drvdata(dev);
+
+	if (dw_dev->capability & DW_I2S_MASTER)
+		clk_enable(dw_dev->clk);
+	return 0;
+}
 
 static int dw_i2s_suspend(struct snd_soc_dai *dai)
 {
@@ -649,7 +667,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 			goto err_clk_disable;
 		}
 	}
-
+	pm_runtime_enable(&pdev->dev);
 	return 0;
 
 err_clk_disable:
@@ -665,6 +683,7 @@ static int dw_i2s_remove(struct platform_device *pdev)
 	if (dev->capability & DW_I2S_MASTER)
 		clk_disable_unprepare(dev->clk);
 
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
 
@@ -677,12 +696,17 @@ static const struct of_device_id dw_i2s_of_match[] = {
 MODULE_DEVICE_TABLE(of, dw_i2s_of_match);
 #endif
 
+static const struct dev_pm_ops dwc_pm_ops = {
+	SET_RUNTIME_PM_OPS(dw_i2s_runtime_suspend, dw_i2s_runtime_resume, NULL)
+};
+
 static struct platform_driver dw_i2s_driver = {
 	.probe		= dw_i2s_probe,
 	.remove		= dw_i2s_remove,
 	.driver		= {
 		.name	= "designware-i2s",
 		.of_match_table = of_match_ptr(dw_i2s_of_match),
+		.pm = &dwc_pm_ops,
 	},
 };
 
