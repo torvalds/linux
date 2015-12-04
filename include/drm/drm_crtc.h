@@ -320,8 +320,6 @@ struct drm_crtc_state {
 
 /**
  * struct drm_crtc_funcs - control CRTCs for a given device
- * @save: save CRTC state
- * @restore: restore CRTC state
  * @cursor_set: setup the cursor
  * @cursor_set2: setup the cursor with hotspot, superseeds @cursor_set if set
  * @cursor_move: move the cursor
@@ -339,11 +337,6 @@ struct drm_crtc_state {
  * bus accessors.
  */
 struct drm_crtc_funcs {
-	/* Save CRTC state */
-	void (*save)(struct drm_crtc *crtc); /* suspend? */
-	/* Restore CRTC state */
-	void (*restore)(struct drm_crtc *crtc); /* resume? */
-
 	/**
 	 * @reset:
 	 *
@@ -625,8 +618,6 @@ struct drm_connector_state {
 /**
  * struct drm_connector_funcs - control connectors on a given device
  * @dpms: set power state
- * @save: save connector state
- * @restore: restore connector state
  * @detect: is this connector active?
  * @fill_modes: fill mode list for this connector
  * @force: notify the driver that the connector is forced on
@@ -637,8 +628,6 @@ struct drm_connector_state {
  */
 struct drm_connector_funcs {
 	int (*dpms)(struct drm_connector *connector, int mode);
-	void (*save)(struct drm_connector *connector);
-	void (*restore)(struct drm_connector *connector);
 
 	/**
 	 * @reset:
