@@ -44,7 +44,7 @@ struct sys_reg_desc {
 
 	/* Trapped access from guest, if non-NULL. */
 	bool (*access)(struct kvm_vcpu *,
-		       const struct sys_reg_params *,
+		       struct sys_reg_params *,
 		       const struct sys_reg_desc *);
 
 	/* Initialization for vcpu. */
@@ -77,7 +77,7 @@ static inline bool ignore_write(struct kvm_vcpu *vcpu,
 }
 
 static inline bool read_zero(struct kvm_vcpu *vcpu,
-			     const struct sys_reg_params *p)
+			     struct sys_reg_params *p)
 {
 	*vcpu_reg(vcpu, p->Rt) = 0;
 	return true;
