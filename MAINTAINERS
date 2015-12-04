@@ -9224,7 +9224,9 @@ F:	drivers/clk/clk-s2mps11.c
 F:	drivers/rtc/rtc-s5m.c
 F:	include/linux/mfd/samsung/
 F:	Documentation/devicetree/bindings/regulator/s5m8767-regulator.txt
-F:	Documentation/devicetree/bindings/mfd/s2mp*.txt
+F:	Documentation/devicetree/bindings/mfd/samsung,sec-core.txt
+F:	Documentation/devicetree/bindings/regulator/samsung,s2m*.txt
+F:	Documentation/devicetree/bindings/clock/samsung,s2mps11.txt
 
 SAMSUNG S5P/EXYNOS4 SOC SERIES CAMERA SUBSYSTEM DRIVERS
 M:	Kyungmin Park <kyungmin.park@samsung.com>
