@@ -8562,6 +8562,67 @@ static void lpt_disable_clkout_dp(struct drm_device *dev)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
+#define BEND_IDX(steps) ((50 + (steps)) / 5)
+
+static const uint16_t sscdivintphase[] = {
+	[BEND_IDX( 50)] = 0x3B23,
+	[BEND_IDX( 45)] = 0x3B23,
+	[BEND_IDX( 40)] = 0x3C23,
+	[BEND_IDX( 35)] = 0x3C23,
+	[BEND_IDX( 30)] = 0x3D23,
+	[BEND_IDX( 25)] = 0x3D23,
+	[BEND_IDX( 20)] = 0x3E23,
+	[BEND_IDX( 15)] = 0x3E23,
+	[BEND_IDX( 10)] = 0x3F23,
+	[BEND_IDX(  5)] = 0x3F23,
+	[BEND_IDX(  0)] = 0x0025,
+	[BEND_IDX( -5)] = 0x0025,
+	[BEND_IDX(-10)] = 0x0125,
+	[BEND_IDX(-15)] = 0x0125,
+	[BEND_IDX(-20)] = 0x0225,
+	[BEND_IDX(-25)] = 0x0225,
+	[BEND_IDX(-30)] = 0x0325,
+	[BEND_IDX(-35)] = 0x0325,
+	[BEND_IDX(-40)] = 0x0425,
+	[BEND_IDX(-45)] = 0x0425,
+	[BEND_IDX(-50)] = 0x0525,
+};
+
+/*
+ * Bend CLKOUT_DP
+ * steps -50 to 50 inclusive, in steps of 5
+ * < 0 slow down the clock, > 0 speed up the clock, 0 == no bend (135MHz)
+ * change in clock period = -(steps / 10) * 5.787 ps
+ */
+static void lpt_bend_clkout_dp(struct drm_i915_private *dev_priv, int steps)
+{
+	uint32_t tmp;
+	int idx = BEND_IDX(steps);
+
+	if (WARN_ON(steps % 5 != 0))
+		return;
+
+	if (WARN_ON(idx >= ARRAY_SIZE(sscdivintphase)))
+		return;
+
+	mutex_lock(&dev_priv->sb_lock);
+
+	if (steps % 10 != 0)
+		tmp = 0xAAAAAAAB;
+	else
+		tmp = 0x00000000;
+	intel_sbi_write(dev_priv, SBI_SSCDITHPHASE, tmp, SBI_ICLK);
+
+	tmp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE, SBI_ICLK);
+	tmp &= 0xffff0000;
+	tmp |= sscdivintphase[idx];
+	intel_sbi_write(dev_priv, SBI_SSCDIVINTPHASE, tmp, SBI_ICLK);
+
+	mutex_unlock(&dev_priv->sb_lock);
+}
+
+#undef BEND_IDX
+
 static void lpt_init_pch_refclk(struct drm_device *dev)
 {
 	struct intel_encoder *encoder;
@@ -8577,10 +8638,12 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 		}
 	}
 
-	if (has_vga)
+	if (has_vga) {
+		lpt_bend_clkout_dp(to_i915(dev), 0);
 		lpt_enable_clkout_dp(dev, true, true);
-	else
+	} else {
 		lpt_disable_clkout_dp(dev);
+	}
 }
 
 /*
