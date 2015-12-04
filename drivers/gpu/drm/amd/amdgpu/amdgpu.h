@@ -956,6 +956,8 @@ struct amdgpu_vm {
 	struct amdgpu_vm_id	ids[AMDGPU_MAX_RINGS];
 	/* for interval tree */
 	spinlock_t		it_lock;
+	/* protecting freed */
+	spinlock_t		freed_lock;
 };
 
 struct amdgpu_vm_manager {
