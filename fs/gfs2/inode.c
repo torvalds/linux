@@ -594,7 +594,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	struct gfs2_inode *dip = GFS2_I(dir), *ip;
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_glock *io_gl;
-	int error, free_vfs_inode = 0;
+	int error, free_vfs_inode = 1;
 	u32 aflags = 0;
 	unsigned blocks = 1;
 	struct gfs2_diradd da = { .bh = NULL, .save_loc = 1, };
@@ -651,7 +651,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 
 	error = posix_acl_create(dir, &mode, &default_acl, &acl);
 	if (error)
-		goto fail_free_vfs_inode;
+		goto fail_gunlock;
 
 	ip = GFS2_I(inode);
 	error = gfs2_rsqa_alloc(ip);
@@ -739,6 +739,9 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	gfs2_set_iop(inode);
 	insert_inode_hash(inode);
 
+	free_vfs_inode = 0; /* After this point, the inode is no longer
+			       considered free. Any failures need to undo
+			       the gfs2 structures. */
 	if (default_acl) {
 		error = gfs2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
@@ -772,11 +775,8 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	return error;
 
 fail_gunlock3:
-	gfs2_glock_dq_uninit(ghs + 1);
-	if (ip->i_gl)
-		gfs2_glock_put(ip->i_gl);
-	goto fail_gunlock;
-
+	gfs2_glock_dq_uninit(&ip->i_iopen_gh);
+	gfs2_glock_put(io_gl);
 fail_gunlock2:
 	gfs2_glock_dq_uninit(ghs + 1);
 fail_free_inode:
@@ -788,8 +788,6 @@ fail_free_acls:
 		posix_acl_release(default_acl);
 	if (acl)
 		posix_acl_release(acl);
-fail_free_vfs_inode:
-	free_vfs_inode = 1;
 fail_gunlock:
 	gfs2_dir_no_add(&da);
 	gfs2_glock_dq_uninit(ghs);
