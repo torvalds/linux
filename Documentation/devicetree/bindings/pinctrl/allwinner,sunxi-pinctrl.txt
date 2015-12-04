@@ -18,6 +18,7 @@ Required properties:
   "allwinner,sun8i-a23-r-pinctrl"
   "allwinner,sun8i-a33-pinctrl"
   "allwinner,sun8i-a83t-pinctrl"
+  "allwinner,sun8i-h3-pinctrl"
 
 - reg: Should contain the register physical address and length for the
   pin controller.
