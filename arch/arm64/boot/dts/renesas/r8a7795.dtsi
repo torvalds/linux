@@ -35,10 +35,28 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		/* 1 core only at this point */
 		a57_0: cpu@0 {
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x0>;
+			device_type = "cpu";
+			enable-method = "psci";
+		};
+
+		a57_1: cpu@1 {
+			compatible = "arm,cortex-a57","arm,armv8";
+			reg = <0x1>;
+			device_type = "cpu";
+			enable-method = "psci";
+		};
+		a57_2: cpu@2 {
+			compatible = "arm,cortex-a57","arm,armv8";
+			reg = <0x2>;
+			device_type = "cpu";
+			enable-method = "psci";
+		};
+		a57_3: cpu@3 {
+			compatible = "arm,cortex-a57","arm,armv8";
+			reg = <0x3>;
 			device_type = "cpu";
 			enable-method = "psci";
 		};
@@ -84,6 +102,7 @@
 	soc {
 		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
+
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -96,7 +115,7 @@
 			reg = <0x0 0xf1010000 0 0x1000>,
 			      <0x0 0xf1020000 0 0x2000>;
 			interrupts = <GIC_PPI 9
-					(GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
+					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
 		gpio0: gpio@e6050000 {
@@ -214,13 +233,13 @@
 		timer {
 			compatible = "arm,armv8-timer";
 			interrupts = <GIC_PPI 13
-					(GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
+					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 				     <GIC_PPI 14
-					(GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
+					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 				     <GIC_PPI 11
-					(GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
+					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 				     <GIC_PPI 10
-					(GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>;
+					(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		};
 
 		cpg: clock-controller@e6150000 {
