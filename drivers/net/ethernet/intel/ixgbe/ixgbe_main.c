@@ -1483,7 +1483,7 @@ static inline void ixgbe_rx_checksum(struct ixgbe_ring *ring,
 			return;
 
 		if (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_ERR_OUTERIPER)) {
-			ring->rx_stats.csum_err++;
+			skb->ip_summed = CHECKSUM_NONE;
 			return;
 		}
 		/* If we checked the outer header let the stack know */
