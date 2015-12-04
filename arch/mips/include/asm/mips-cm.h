@@ -509,7 +509,7 @@ extern void mips_cm_unlock_other(void);
 
 #else /* !CONFIG_MIPS_CM */
 
-static inline void mips_cm_lock_other(unsigned int core) { }
+static inline void mips_cm_lock_other(unsigned int core, unsigned int vp) { }
 static inline void mips_cm_unlock_other(void) { }
 
 #endif /* !CONFIG_MIPS_CM */
