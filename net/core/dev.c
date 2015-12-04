@@ -5734,7 +5734,7 @@ EXPORT_SYMBOL(netdev_lower_dev_get_private);
 
 
 int dev_get_nest_level(struct net_device *dev,
-		       bool (*type_check)(struct net_device *dev))
+		       bool (*type_check)(const struct net_device *dev))
 {
 	struct net_device *lower = NULL;
 	struct list_head *iter;
