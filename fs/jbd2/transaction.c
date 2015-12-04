@@ -1009,7 +1009,8 @@ out:
 }
 
 /* Fast check whether buffer is already attached to the required transaction */
-static bool jbd2_write_access_granted(handle_t *handle, struct buffer_head *bh)
+static bool jbd2_write_access_granted(handle_t *handle, struct buffer_head *bh,
+							bool undo)
 {
 	struct journal_head *jh;
 	bool ret = false;
@@ -1035,6 +1036,9 @@ static bool jbd2_write_access_granted(handle_t *handle, struct buffer_head *bh)
 	/* This should be bh2jh() but that doesn't work with inline functions */
 	jh = READ_ONCE(bh->b_private);
 	if (!jh)
+		goto out;
+	/* For undo access buffer must have data copied */
+	if (undo && !jh->b_committed_data)
 		goto out;
 	if (jh->b_transaction != handle->h_transaction &&
 	    jh->b_next_transaction != handle->h_transaction)
@@ -1073,7 +1077,7 @@ int jbd2_journal_get_write_access(handle_t *handle, struct buffer_head *bh)
 	struct journal_head *jh;
 	int rc;
 
-	if (jbd2_write_access_granted(handle, bh))
+	if (jbd2_write_access_granted(handle, bh, false))
 		return 0;
 
 	jh = jbd2_journal_add_journal_head(bh);
@@ -1210,7 +1214,7 @@ int jbd2_journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
 	char *committed_data = NULL;
 
 	JBUFFER_TRACE(jh, "entry");
-	if (jbd2_write_access_granted(handle, bh))
+	if (jbd2_write_access_granted(handle, bh, true))
 		return 0;
 
 	jh = jbd2_journal_add_journal_head(bh);
