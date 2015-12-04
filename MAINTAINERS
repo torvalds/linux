@@ -11181,6 +11181,13 @@ L:	linux-usb@vger.kernel.org
 S:	Supported
 F:	drivers/usb/class/usblp.c
 
+USB QMI WWAN NETWORK DRIVER
+M:	Bjørn Mork <bjorn@mork.no>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-class-net-qmi
+F:	drivers/net/usb/qmi_wwan.c
+
 USB RTL8150 DRIVER
 M:	Petko Manolov <petkan@nucleusys.com>
 L:	linux-usb@vger.kernel.org
