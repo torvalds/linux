@@ -39,7 +39,7 @@ nv04_display_create(struct drm_device *dev)
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
-	struct drm_crtc *crtc;
+	struct nouveau_crtc *crtc;
 	struct nv04_display *disp;
 	int i, ret;
 
@@ -107,8 +107,8 @@ nv04_display_create(struct drm_device *dev)
 	}
 
 	/* Save previous state */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		crtc->funcs->save(crtc);
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
+		crtc->save(&crtc->base);
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		const struct drm_encoder_helper_funcs *func = encoder->helper_private;
@@ -128,6 +128,7 @@ nv04_display_destroy(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
+	struct nouveau_crtc *nv_crtc;
 
 	/* Turn every CRTC off. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -145,8 +146,8 @@ nv04_display_destroy(struct drm_device *dev)
 		func->restore(encoder);
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		crtc->funcs->restore(crtc);
+	list_for_each_entry(nv_crtc, &dev->mode_config.crtc_list, base.head)
+		nv_crtc->restore(&nv_crtc->base);
 
 	nouveau_hw_save_vga_fonts(dev, 0);
 
