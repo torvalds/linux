@@ -574,6 +574,17 @@ static void acpi_lpss_restore_ctx(struct device *dev,
 {
 	unsigned int i;
 
+	for (i = 0; i < LPSS_PRV_REG_COUNT; i++) {
+		unsigned long offset = i * sizeof(u32);
+
+		__lpss_reg_write(pdata->prv_reg_ctx[i], pdata, offset);
+		dev_dbg(dev, "restoring 0x%08x to LPSS reg at offset 0x%02lx\n",
+			pdata->prv_reg_ctx[i], offset);
+	}
+}
+
+static void acpi_lpss_d3_to_d0_delay(struct lpss_private_data *pdata)
+{
 	/*
 	 * The following delay is needed or the subsequent write operations may
 	 * fail. The LPSS devices are actually PCI devices and the PCI spec
@@ -586,14 +597,6 @@ static void acpi_lpss_restore_ctx(struct device *dev,
 		delay = 0;
 
 	msleep(delay);
-
-	for (i = 0; i < LPSS_PRV_REG_COUNT; i++) {
-		unsigned long offset = i * sizeof(u32);
-
-		__lpss_reg_write(pdata->prv_reg_ctx[i], pdata, offset);
-		dev_dbg(dev, "restoring 0x%08x to LPSS reg at offset 0x%02lx\n",
-			pdata->prv_reg_ctx[i], offset);
-	}
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -620,6 +623,8 @@ static int acpi_lpss_resume_early(struct device *dev)
 	ret = acpi_dev_resume_early(dev);
 	if (ret)
 		return ret;
+
+	acpi_lpss_d3_to_d0_delay(pdata);
 
 	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
 		acpi_lpss_restore_ctx(dev, pdata);
@@ -651,6 +656,8 @@ static int acpi_lpss_runtime_resume(struct device *dev)
 	ret = acpi_dev_runtime_resume(dev);
 	if (ret)
 		return ret;
+
+	acpi_lpss_d3_to_d0_delay(pdata);
 
 	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
 		acpi_lpss_restore_ctx(dev, pdata);
