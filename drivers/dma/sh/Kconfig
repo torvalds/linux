@@ -47,12 +47,6 @@ config RCAR_DMAC
 	  This driver supports the general purpose DMA controller found in the
 	  Renesas R-Car second generation SoCs.
 
-config RCAR_HPB_DMAE
-	tristate "Renesas R-Car HPB DMAC support"
-	depends on SH_DMAE_BASE
-	help
-	  Enable support for the Renesas R-Car series DMA controllers.
-
 config RENESAS_USB_DMAC
 	tristate "Renesas USB-DMA Controller"
 	depends on ARCH_SHMOBILE || COMPILE_TEST
