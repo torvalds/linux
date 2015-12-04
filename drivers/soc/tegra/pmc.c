@@ -113,8 +113,10 @@ struct tegra_pmc_soc {
 
 /**
  * struct tegra_pmc - NVIDIA Tegra PMC
+ * @dev: pointer to PMC device structure
  * @base: pointer to I/O remapped register region
  * @clk: pointer to pclk clock
+ * @soc: pointer to SoC data structure
  * @rate: currently configured rate of pclk
  * @suspend_mode: lowest suspend mode available
  * @cpu_good_time: CPU power good time (in microseconds)
