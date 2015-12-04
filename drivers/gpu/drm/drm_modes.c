@@ -1198,13 +1198,33 @@ void drm_mode_connector_list_update(struct drm_connector *connector,
 				continue;
 
 			found_it = true;
-			/* if equal delete the probed mode */
-			mode->status = pmode->status;
-			/* Merge type bits together */
-			if (merge_type_bits)
-				mode->type |= pmode->type;
-			else
-				mode->type = pmode->type;
+
+			/*
+			 * If the old matching mode is stale (ie. left over
+			 * from a previous probe) just replace it outright.
+			 * Otherwise just merge the type bits between all
+			 * equal probed modes.
+			 *
+			 * If two probed modes are considered equal, pick the
+			 * actual timings from the one that's marked as
+			 * preferred (in case the match isn't 100%). If
+			 * multiple or zero preferred modes are present, favor
+			 * the mode added to the probed_modes list first.
+			 */
+			if (mode->status == MODE_STALE) {
+				drm_mode_copy(mode, pmode);
+			} else if ((mode->type & DRM_MODE_TYPE_PREFERRED) == 0 &&
+				   (pmode->type & DRM_MODE_TYPE_PREFERRED) != 0) {
+				if (merge_type_bits)
+					pmode->type |= mode->type;
+				drm_mode_copy(mode, pmode);
+			} else {
+				if (merge_type_bits)
+					mode->type |= pmode->type;
+				else
+					mode->type = pmode->type;
+			}
+
 			list_del(&pmode->head);
 			drm_mode_destroy(connector->dev, pmode);
 			break;
