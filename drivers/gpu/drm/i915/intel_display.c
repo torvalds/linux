@@ -3978,7 +3978,7 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 		u32 iclk_pi_range = 64;
 		u32 desired_divisor, msb_divisor_value, pi_value;
 
-		desired_divisor = (iclk_virtual_root_freq / clock);
+		desired_divisor = DIV_ROUND_CLOSEST(iclk_virtual_root_freq, clock);
 		msb_divisor_value = desired_divisor / iclk_pi_range;
 		pi_value = desired_divisor % iclk_pi_range;
 
