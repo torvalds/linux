@@ -5542,24 +5542,6 @@ const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
 	.set_powergating_state = gfx_v7_0_set_powergating_state,
 };
 
-/**
- * gfx_v7_0_ring_is_lockup - check if the 3D engine is locked up
- *
- * @adev: amdgpu_device pointer
- * @ring: amdgpu_ring structure holding ring information
- *
- * Check if the 3D engine is locked up (CIK).
- * Returns true if the engine is locked, false if not.
- */
-static bool gfx_v7_0_ring_is_lockup(struct amdgpu_ring *ring)
-{
-	if (gfx_v7_0_is_idle(ring->adev)) {
-		amdgpu_ring_lockup_update(ring);
-		return false;
-	}
-	return amdgpu_ring_test_lockup(ring);
-}
-
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.get_rptr = gfx_v7_0_ring_get_rptr_gfx,
 	.get_wptr = gfx_v7_0_ring_get_wptr_gfx,
@@ -5573,7 +5555,6 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.emit_hdp_flush = gfx_v7_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
-	.is_lockup = gfx_v7_0_ring_is_lockup,
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 
@@ -5590,7 +5571,6 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.emit_hdp_flush = gfx_v7_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
-	.is_lockup = gfx_v7_0_ring_is_lockup,
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 

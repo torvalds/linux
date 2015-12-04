@@ -10,19 +10,6 @@
 #include "stih407-family.dtsi"
 / {
 	soc {
-		/* Display */
-		vtg_main: sti-vtg-main@8d02800 {
-			compatible = "st,vtg";
-			reg = <0x8d02800 0x200>;
-			interrupts = <GIC_SPI 108 IRQ_TYPE_NONE>;
-		};
-
-		vtg_aux: sti-vtg-aux@8d00200 {
-			compatible = "st,vtg";
-			reg = <0x8d00200 0x100>;
-			interrupts = <GIC_SPI 109 IRQ_TYPE_NONE>;
-		};
-
 		sti-display-subsystem {
 			compatible = "st,sti-display-subsystem";
 			#address-cells = <1>;

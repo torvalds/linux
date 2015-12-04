@@ -129,6 +129,7 @@ static void cl_lock_trace0(int level, const struct lu_env *env,
 			   const char *func, const int line)
 {
 	struct cl_object_header *h = cl_object_header(lock->cll_descr.cld_obj);
+
 	CDEBUG(level, "%s: %p@(%d %p %d %d %d %d %d %lx)(%p/%d/%d) at %s():%d\n",
 	       prefix, lock, atomic_read(&lock->cll_ref),
 	       lock->cll_guarder, lock->cll_depth,
@@ -137,6 +138,7 @@ static void cl_lock_trace0(int level, const struct lu_env *env,
 	       env, h->coh_nesting, cl_lock_nr_mutexed(env),
 	       func, line);
 }
+
 #define cl_lock_trace(level, env, prefix, lock)			 \
 	cl_lock_trace0(level, env, prefix, lock, __func__, __LINE__)
 
@@ -268,7 +270,7 @@ static void cl_lock_free(const struct lu_env *env, struct cl_lock *lock)
 	lu_ref_fini(&lock->cll_reference);
 	lu_ref_fini(&lock->cll_holders);
 	mutex_destroy(&lock->cll_guard);
-	OBD_SLAB_FREE_PTR(lock, cl_lock_kmem);
+	kmem_cache_free(cl_lock_kmem, lock);
 }
 
 /**
@@ -359,7 +361,7 @@ static struct cl_lock *cl_lock_alloc(const struct lu_env *env,
 	struct cl_lock	  *lock;
 	struct lu_object_header *head;
 
-	OBD_SLAB_ALLOC_PTR_GFP(lock, cl_lock_kmem, GFP_NOFS);
+	lock = kmem_cache_alloc(cl_lock_kmem, GFP_NOFS | __GFP_ZERO);
 	if (lock != NULL) {
 		atomic_set(&lock->cll_ref, 1);
 		lock->cll_descr = *descr;
@@ -403,8 +405,8 @@ static struct cl_lock *cl_lock_alloc(const struct lu_env *env,
  * \post state: CLS_INTRANSIT
  * \see CLS_INTRANSIT
  */
-enum cl_lock_state cl_lock_intransit(const struct lu_env *env,
-				     struct cl_lock *lock)
+static enum cl_lock_state cl_lock_intransit(const struct lu_env *env,
+					    struct cl_lock *lock)
 {
 	enum cl_lock_state state = lock->cll_state;
 
@@ -418,13 +420,12 @@ enum cl_lock_state cl_lock_intransit(const struct lu_env *env,
 	cl_lock_hold_add(env, lock, "intransit", current);
 	return state;
 }
-EXPORT_SYMBOL(cl_lock_intransit);
 
 /**
  *  Exit the intransit state and restore the lock state to the original state
  */
-void cl_lock_extransit(const struct lu_env *env, struct cl_lock *lock,
-		       enum cl_lock_state state)
+static void cl_lock_extransit(const struct lu_env *env, struct cl_lock *lock,
+			      enum cl_lock_state state)
 {
 	LASSERT(cl_lock_is_mutexed(lock));
 	LASSERT(lock->cll_state == CLS_INTRANSIT);
@@ -435,7 +436,6 @@ void cl_lock_extransit(const struct lu_env *env, struct cl_lock *lock,
 	cl_lock_state_set(env, lock, state);
 	cl_lock_unhold(env, lock, "intransit", current);
 }
-EXPORT_SYMBOL(cl_lock_extransit);
 
 /**
  * Checking whether the lock is intransit state
@@ -1100,6 +1100,7 @@ int cl_use_try(const struct lu_env *env, struct cl_lock *lock, int atomic)
 		/* @atomic means back-off-on-failure. */
 		if (atomic) {
 			int rc;
+
 			rc = cl_unuse_try_internal(env, lock);
 			/* Vet the results. */
 			if (rc < 0 && result > 0)
@@ -1274,32 +1275,6 @@ static int cl_enqueue_locked(const struct lu_env *env, struct cl_lock *lock,
 		     lock->cll_state == CLS_HELD));
 	return result;
 }
-
-/**
- * Enqueues a lock.
- *
- * \pre current thread or io owns a hold on lock.
- *
- * \post ergo(result == 0, lock->users increased)
- * \post ergo(result == 0, lock->cll_state == CLS_ENQUEUED ||
- *			 lock->cll_state == CLS_HELD)
- */
-int cl_enqueue(const struct lu_env *env, struct cl_lock *lock,
-	       struct cl_io *io, __u32 enqflags)
-{
-	int result;
-
-	cl_lock_lockdep_acquire(env, lock, enqflags);
-	cl_lock_mutex_get(env, lock);
-	result = cl_enqueue_locked(env, lock, io, enqflags);
-	cl_lock_mutex_put(env, lock);
-	if (result != 0)
-		cl_lock_lockdep_release(env, lock);
-	LASSERT(ergo(result == 0, lock->cll_state == CLS_ENQUEUED ||
-		     lock->cll_state == CLS_HELD));
-	return result;
-}
-EXPORT_SYMBOL(cl_enqueue);
 
 /**
  * Tries to unlock a lock.
@@ -2027,7 +2002,7 @@ static struct cl_lock *cl_lock_hold_mutex(const struct lu_env *env,
 		cl_lock_mutex_get(env, lock);
 		if (lock->cll_state < CLS_FREEING &&
 		    !(lock->cll_flags & CLF_CANCELLED)) {
-			cl_lock_hold_mod(env, lock, +1);
+			cl_lock_hold_mod(env, lock, 1);
 			lu_ref_add(&lock->cll_holders, scope, source);
 			lu_ref_add(&lock->cll_reference, scope, source);
 			break;
@@ -2115,7 +2090,7 @@ void cl_lock_hold_add(const struct lu_env *env, struct cl_lock *lock,
 	LINVRNT(cl_lock_invariant(env, lock));
 	LASSERT(lock->cll_state != CLS_FREEING);
 
-	cl_lock_hold_mod(env, lock, +1);
+	cl_lock_hold_mod(env, lock, 1);
 	cl_lock_get(lock);
 	lu_ref_add(&lock->cll_holders, scope, source);
 	lu_ref_add(&lock->cll_reference, scope, source);
@@ -2157,7 +2132,7 @@ void cl_lock_user_add(const struct lu_env *env, struct cl_lock *lock)
 	LINVRNT(cl_lock_is_mutexed(lock));
 	LINVRNT(cl_lock_invariant(env, lock));
 
-	cl_lock_used_mod(env, lock, +1);
+	cl_lock_used_mod(env, lock, 1);
 }
 EXPORT_SYMBOL(cl_lock_user_add);
 

@@ -702,6 +702,7 @@ static bool hp_bnb2011_with_dock(struct hda_codec *codec)
 static bool hp_blike_system(u32 subsystem_id)
 {
 	switch (subsystem_id) {
+	case 0x103c1473: /* HP ProBook 6550b */
 	case 0x103c1520:
 	case 0x103c1521:
 	case 0x103c1523:
@@ -3109,6 +3110,29 @@ static void stac92hd71bxx_fixup_hp_hdx(struct hda_codec *codec,
 	spec->gpio_led = 0x08;
 }
 
+static bool is_hp_output(struct hda_codec *codec, hda_nid_t pin)
+{
+	unsigned int pin_cfg = snd_hda_codec_get_pincfg(codec, pin);
+
+	/* count line-out, too, as BIOS sets often so */
+	return get_defcfg_connect(pin_cfg) != AC_JACK_PORT_NONE &&
+		(get_defcfg_device(pin_cfg) == AC_JACK_LINE_OUT ||
+		 get_defcfg_device(pin_cfg) == AC_JACK_HP_OUT);
+}
+
+static void fixup_hp_headphone(struct hda_codec *codec, hda_nid_t pin)
+{
+	unsigned int pin_cfg = snd_hda_codec_get_pincfg(codec, pin);
+
+	/* It was changed in the BIOS to just satisfy MS DTM.
+	 * Lets turn it back into slaved HP
+	 */
+	pin_cfg = (pin_cfg & (~AC_DEFCFG_DEVICE)) |
+		(AC_JACK_HP_OUT << AC_DEFCFG_DEVICE_SHIFT);
+	pin_cfg = (pin_cfg & (~(AC_DEFCFG_DEF_ASSOC | AC_DEFCFG_SEQUENCE))) |
+		0x1f;
+	snd_hda_codec_set_pincfg(codec, pin, pin_cfg);
+}
 
 static void stac92hd71bxx_fixup_hp(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
@@ -3118,22 +3142,12 @@ static void stac92hd71bxx_fixup_hp(struct hda_codec *codec,
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
 
-	if (hp_blike_system(codec->core.subsystem_id)) {
-		unsigned int pin_cfg = snd_hda_codec_get_pincfg(codec, 0x0f);
-		if (get_defcfg_device(pin_cfg) == AC_JACK_LINE_OUT ||
-			get_defcfg_device(pin_cfg) == AC_JACK_SPEAKER  ||
-			get_defcfg_device(pin_cfg) == AC_JACK_HP_OUT) {
-			/* It was changed in the BIOS to just satisfy MS DTM.
-			 * Lets turn it back into slaved HP
-			 */
-			pin_cfg = (pin_cfg & (~AC_DEFCFG_DEVICE))
-					| (AC_JACK_HP_OUT <<
-						AC_DEFCFG_DEVICE_SHIFT);
-			pin_cfg = (pin_cfg & (~(AC_DEFCFG_DEF_ASSOC
-							| AC_DEFCFG_SEQUENCE)))
-								| 0x1f;
-			snd_hda_codec_set_pincfg(codec, 0x0f, pin_cfg);
-		}
+	/* when both output A and F are assigned, these are supposedly
+	 * dock and built-in headphones; fix both pin configs
+	 */
+	if (is_hp_output(codec, 0x0a) && is_hp_output(codec, 0x0f)) {
+		fixup_hp_headphone(codec, 0x0a);
+		fixup_hp_headphone(codec, 0x0f);
 	}
 
 	if (find_mute_led_cfg(codec, 1))
@@ -5012,121 +5026,119 @@ static int patch_stac9872(struct hda_codec *codec)
 /*
  * patch entries
  */
-static const struct hda_codec_preset snd_hda_preset_sigmatel[] = {
- 	{ .id = 0x83847690, .name = "STAC9200", .patch = patch_stac9200 },
- 	{ .id = 0x83847882, .name = "STAC9220 A1", .patch = patch_stac922x },
- 	{ .id = 0x83847680, .name = "STAC9221 A1", .patch = patch_stac922x },
- 	{ .id = 0x83847880, .name = "STAC9220 A2", .patch = patch_stac922x },
- 	{ .id = 0x83847681, .name = "STAC9220D/9223D A2", .patch = patch_stac922x },
- 	{ .id = 0x83847682, .name = "STAC9221 A2", .patch = patch_stac922x },
- 	{ .id = 0x83847683, .name = "STAC9221D A2", .patch = patch_stac922x },
- 	{ .id = 0x83847618, .name = "STAC9227", .patch = patch_stac927x },
- 	{ .id = 0x83847619, .name = "STAC9227", .patch = patch_stac927x },
- 	{ .id = 0x83847616, .name = "STAC9228", .patch = patch_stac927x },
- 	{ .id = 0x83847617, .name = "STAC9228", .patch = patch_stac927x },
- 	{ .id = 0x83847614, .name = "STAC9229", .patch = patch_stac927x },
- 	{ .id = 0x83847615, .name = "STAC9229", .patch = patch_stac927x },
- 	{ .id = 0x83847620, .name = "STAC9274", .patch = patch_stac927x },
- 	{ .id = 0x83847621, .name = "STAC9274D", .patch = patch_stac927x },
- 	{ .id = 0x83847622, .name = "STAC9273X", .patch = patch_stac927x },
- 	{ .id = 0x83847623, .name = "STAC9273D", .patch = patch_stac927x },
- 	{ .id = 0x83847624, .name = "STAC9272X", .patch = patch_stac927x },
- 	{ .id = 0x83847625, .name = "STAC9272D", .patch = patch_stac927x },
- 	{ .id = 0x83847626, .name = "STAC9271X", .patch = patch_stac927x },
- 	{ .id = 0x83847627, .name = "STAC9271D", .patch = patch_stac927x },
- 	{ .id = 0x83847628, .name = "STAC9274X5NH", .patch = patch_stac927x },
- 	{ .id = 0x83847629, .name = "STAC9274D5NH", .patch = patch_stac927x },
-	{ .id = 0x83847632, .name = "STAC9202",  .patch = patch_stac925x },
-	{ .id = 0x83847633, .name = "STAC9202D", .patch = patch_stac925x },
-	{ .id = 0x83847634, .name = "STAC9250", .patch = patch_stac925x },
-	{ .id = 0x83847635, .name = "STAC9250D", .patch = patch_stac925x },
-	{ .id = 0x83847636, .name = "STAC9251", .patch = patch_stac925x },
-	{ .id = 0x83847637, .name = "STAC9250D", .patch = patch_stac925x },
-	{ .id = 0x83847645, .name = "92HD206X", .patch = patch_stac927x },
-	{ .id = 0x83847646, .name = "92HD206D", .patch = patch_stac927x },
- 	/* The following does not take into account .id=0x83847661 when subsys =
- 	 * 104D0C00 which is STAC9225s. Because of this, some SZ Notebooks are
- 	 * currently not fully supported.
- 	 */
- 	{ .id = 0x83847661, .name = "CXD9872RD/K", .patch = patch_stac9872 },
- 	{ .id = 0x83847662, .name = "STAC9872AK", .patch = patch_stac9872 },
- 	{ .id = 0x83847664, .name = "CXD9872AKD", .patch = patch_stac9872 },
-	{ .id = 0x83847698, .name = "STAC9205", .patch = patch_stac9205 },
- 	{ .id = 0x838476a0, .name = "STAC9205", .patch = patch_stac9205 },
- 	{ .id = 0x838476a1, .name = "STAC9205D", .patch = patch_stac9205 },
- 	{ .id = 0x838476a2, .name = "STAC9204", .patch = patch_stac9205 },
- 	{ .id = 0x838476a3, .name = "STAC9204D", .patch = patch_stac9205 },
- 	{ .id = 0x838476a4, .name = "STAC9255", .patch = patch_stac9205 },
- 	{ .id = 0x838476a5, .name = "STAC9255D", .patch = patch_stac9205 },
- 	{ .id = 0x838476a6, .name = "STAC9254", .patch = patch_stac9205 },
- 	{ .id = 0x838476a7, .name = "STAC9254D", .patch = patch_stac9205 },
-	{ .id = 0x111d7603, .name = "92HD75B3X5", .patch = patch_stac92hd71bxx},
-	{ .id = 0x111d7604, .name = "92HD83C1X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76d4, .name = "92HD83C1C5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7605, .name = "92HD81B1X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76d5, .name = "92HD81B1C5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76d1, .name = "92HD87B1/3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76d9, .name = "92HD87B2/4", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7666, .name = "92HD88B3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7667, .name = "92HD88B1", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7668, .name = "92HD88B2", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7669, .name = "92HD88B4", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d7608, .name = "92HD75B2X5", .patch = patch_stac92hd71bxx},
-	{ .id = 0x111d7674, .name = "92HD73D1X5", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d7675, .name = "92HD73C1X5", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d7676, .name = "92HD73E1X5", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d7695, .name = "92HD95", .patch = patch_stac92hd95 },
-	{ .id = 0x111d76b0, .name = "92HD71B8X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b1, .name = "92HD71B8X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b2, .name = "92HD71B7X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b3, .name = "92HD71B7X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b4, .name = "92HD71B6X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b5, .name = "92HD71B6X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b6, .name = "92HD71B5X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76b7, .name = "92HD71B5X", .patch = patch_stac92hd71bxx },
-	{ .id = 0x111d76c0, .name = "92HD89C3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c1, .name = "92HD89C2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c2, .name = "92HD89C1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c3, .name = "92HD89B3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c4, .name = "92HD89B2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c5, .name = "92HD89B1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c6, .name = "92HD89E3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c7, .name = "92HD89E2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c8, .name = "92HD89E1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76c9, .name = "92HD89D3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76ca, .name = "92HD89D2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76cb, .name = "92HD89D1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76cc, .name = "92HD89F3", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76cd, .name = "92HD89F2", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76ce, .name = "92HD89F1", .patch = patch_stac92hd73xx },
-	{ .id = 0x111d76df, .name = "92HD93BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e0, .name = "92HD91BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e3, .name = "92HD98BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e5, .name = "92HD99BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e7, .name = "92HD90BXX", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e8, .name = "92HD66B1X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76e9, .name = "92HD66B2X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ea, .name = "92HD66B3X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76eb, .name = "92HD66C1X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ec, .name = "92HD66C2X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ed, .name = "92HD66C3X5", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ee, .name = "92HD66B1X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76ef, .name = "92HD66B2X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76f0, .name = "92HD66B3X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76f1, .name = "92HD66C1X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76f2, .name = "92HD66C2X3", .patch = patch_stac92hd83xxx},
-	{ .id = 0x111d76f3, .name = "92HD66C3/65", .patch = patch_stac92hd83xxx},
+static const struct hda_device_id snd_hda_id_sigmatel[] = {
+	HDA_CODEC_ENTRY(0x83847690, "STAC9200", patch_stac9200),
+	HDA_CODEC_ENTRY(0x83847882, "STAC9220 A1", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847680, "STAC9221 A1", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847880, "STAC9220 A2", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847681, "STAC9220D/9223D A2", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847682, "STAC9221 A2", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847683, "STAC9221D A2", patch_stac922x),
+	HDA_CODEC_ENTRY(0x83847618, "STAC9227", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847619, "STAC9227", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847616, "STAC9228", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847617, "STAC9228", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847614, "STAC9229", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847615, "STAC9229", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847620, "STAC9274", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847621, "STAC9274D", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847622, "STAC9273X", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847623, "STAC9273D", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847624, "STAC9272X", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847625, "STAC9272D", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847626, "STAC9271X", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847627, "STAC9271D", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847628, "STAC9274X5NH", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847629, "STAC9274D5NH", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847632, "STAC9202",  patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847633, "STAC9202D", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847634, "STAC9250", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847635, "STAC9250D", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847636, "STAC9251", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847637, "STAC9250D", patch_stac925x),
+	HDA_CODEC_ENTRY(0x83847645, "92HD206X", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847646, "92HD206D", patch_stac927x),
+	/* The following does not take into account .id=0x83847661 when subsys =
+	 * 104D0C00 which is STAC9225s. Because of this, some SZ Notebooks are
+	 * currently not fully supported.
+	 */
+	HDA_CODEC_ENTRY(0x83847661, "CXD9872RD/K", patch_stac9872),
+	HDA_CODEC_ENTRY(0x83847662, "STAC9872AK", patch_stac9872),
+	HDA_CODEC_ENTRY(0x83847664, "CXD9872AKD", patch_stac9872),
+	HDA_CODEC_ENTRY(0x83847698, "STAC9205", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a0, "STAC9205", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a1, "STAC9205D", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a2, "STAC9204", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a3, "STAC9204D", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a4, "STAC9255", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a5, "STAC9255D", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a6, "STAC9254", patch_stac9205),
+	HDA_CODEC_ENTRY(0x838476a7, "STAC9254D", patch_stac9205),
+	HDA_CODEC_ENTRY(0x111d7603, "92HD75B3X5", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d7604, "92HD83C1X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76d4, "92HD83C1C5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7605, "92HD81B1X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76d5, "92HD81B1C5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76d1, "92HD87B1/3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76d9, "92HD87B2/4", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7666, "92HD88B3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7667, "92HD88B1", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7668, "92HD88B2", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7669, "92HD88B4", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d7608, "92HD75B2X5", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d7674, "92HD73D1X5", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d7675, "92HD73C1X5", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d7676, "92HD73E1X5", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d7695, "92HD95", patch_stac92hd95),
+	HDA_CODEC_ENTRY(0x111d76b0, "92HD71B8X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b1, "92HD71B8X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b2, "92HD71B7X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b3, "92HD71B7X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b4, "92HD71B6X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b5, "92HD71B6X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b6, "92HD71B5X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76b7, "92HD71B5X", patch_stac92hd71bxx),
+	HDA_CODEC_ENTRY(0x111d76c0, "92HD89C3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c1, "92HD89C2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c2, "92HD89C1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c3, "92HD89B3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c4, "92HD89B2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c5, "92HD89B1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c6, "92HD89E3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c7, "92HD89E2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c8, "92HD89E1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76c9, "92HD89D3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76ca, "92HD89D2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76cb, "92HD89D1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76cc, "92HD89F3", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76cd, "92HD89F2", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76ce, "92HD89F1", patch_stac92hd73xx),
+	HDA_CODEC_ENTRY(0x111d76df, "92HD93BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e0, "92HD91BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e3, "92HD98BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e5, "92HD99BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e7, "92HD90BXX", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e8, "92HD66B1X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76e9, "92HD66B2X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ea, "92HD66B3X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76eb, "92HD66C1X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ec, "92HD66C2X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ed, "92HD66C3X5", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ee, "92HD66B1X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76ef, "92HD66B2X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76f0, "92HD66B3X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76f1, "92HD66C1X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76f2, "92HD66C2X3", patch_stac92hd83xxx),
+	HDA_CODEC_ENTRY(0x111d76f3, "92HD66C3/65", patch_stac92hd83xxx),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:8384*");
-MODULE_ALIAS("snd-hda-codec-id:111d*");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_sigmatel);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IDT/Sigmatel HD-audio codec");
 
 static struct hda_codec_driver sigmatel_driver = {
-	.preset = snd_hda_preset_sigmatel,
+	.id = snd_hda_id_sigmatel,
 };
 
 module_hda_codec_driver(sigmatel_driver);

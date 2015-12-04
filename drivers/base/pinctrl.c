@@ -42,9 +42,20 @@ int pinctrl_bind_pins(struct device *dev)
 		goto cleanup_get;
 	}
 
-	ret = pinctrl_select_state(dev->pins->p, dev->pins->default_state);
+	dev->pins->init_state = pinctrl_lookup_state(dev->pins->p,
+					PINCTRL_STATE_INIT);
+	if (IS_ERR(dev->pins->init_state)) {
+		/* Not supplying this state is perfectly legal */
+		dev_dbg(dev, "no init pinctrl state\n");
+
+		ret = pinctrl_select_state(dev->pins->p,
+					   dev->pins->default_state);
+	} else {
+		ret = pinctrl_select_state(dev->pins->p, dev->pins->init_state);
+	}
+
 	if (ret) {
-		dev_dbg(dev, "failed to activate default pinctrl state\n");
+		dev_dbg(dev, "failed to activate initial pinctrl state\n");
 		goto cleanup_get;
 	}
 

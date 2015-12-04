@@ -126,7 +126,7 @@ int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
 			u64 rs_offset,
 			bool last)
 {
-	struct ib_send_wr read_wr;
+	struct ib_rdma_wr read_wr;
 	int pages_needed = PAGE_ALIGN(*page_offset + rs_length) >> PAGE_SHIFT;
 	struct svc_rdma_op_ctxt *ctxt = svc_rdma_get_context(xprt);
 	int ret, read, pno;
@@ -180,16 +180,16 @@ int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
 		clear_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
 
 	memset(&read_wr, 0, sizeof(read_wr));
-	read_wr.wr_id = (unsigned long)ctxt;
-	read_wr.opcode = IB_WR_RDMA_READ;
-	ctxt->wr_op = read_wr.opcode;
-	read_wr.send_flags = IB_SEND_SIGNALED;
-	read_wr.wr.rdma.rkey = rs_handle;
-	read_wr.wr.rdma.remote_addr = rs_offset;
-	read_wr.sg_list = ctxt->sge;
-	read_wr.num_sge = pages_needed;
+	read_wr.wr.wr_id = (unsigned long)ctxt;
+	read_wr.wr.opcode = IB_WR_RDMA_READ;
+	ctxt->wr_op = read_wr.wr.opcode;
+	read_wr.wr.send_flags = IB_SEND_SIGNALED;
+	read_wr.rkey = rs_handle;
+	read_wr.remote_addr = rs_offset;
+	read_wr.wr.sg_list = ctxt->sge;
+	read_wr.wr.num_sge = pages_needed;
 
-	ret = svc_rdma_send(xprt, &read_wr);
+	ret = svc_rdma_send(xprt, &read_wr.wr);
 	if (ret) {
 		pr_err("svcrdma: Error %d posting RDMA_READ\n", ret);
 		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
@@ -219,14 +219,14 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 			 u64 rs_offset,
 			 bool last)
 {
-	struct ib_send_wr read_wr;
+	struct ib_rdma_wr read_wr;
 	struct ib_send_wr inv_wr;
-	struct ib_send_wr fastreg_wr;
+	struct ib_reg_wr reg_wr;
 	u8 key;
-	int pages_needed = PAGE_ALIGN(*page_offset + rs_length) >> PAGE_SHIFT;
+	int nents = PAGE_ALIGN(*page_offset + rs_length) >> PAGE_SHIFT;
 	struct svc_rdma_op_ctxt *ctxt = svc_rdma_get_context(xprt);
 	struct svc_rdma_fastreg_mr *frmr = svc_rdma_get_frmr(xprt);
-	int ret, read, pno;
+	int ret, read, pno, dma_nents, n;
 	u32 pg_off = *page_offset;
 	u32 pg_no = *page_no;
 
@@ -235,17 +235,14 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 
 	ctxt->direction = DMA_FROM_DEVICE;
 	ctxt->frmr = frmr;
-	pages_needed = min_t(int, pages_needed, xprt->sc_frmr_pg_list_len);
-	read = min_t(int, (pages_needed << PAGE_SHIFT) - *page_offset,
-		     rs_length);
+	nents = min_t(unsigned int, nents, xprt->sc_frmr_pg_list_len);
+	read = min_t(int, (nents << PAGE_SHIFT) - *page_offset, rs_length);
 
-	frmr->kva = page_address(rqstp->rq_arg.pages[pg_no]);
 	frmr->direction = DMA_FROM_DEVICE;
 	frmr->access_flags = (IB_ACCESS_LOCAL_WRITE|IB_ACCESS_REMOTE_WRITE);
-	frmr->map_len = pages_needed << PAGE_SHIFT;
-	frmr->page_list_len = pages_needed;
+	frmr->sg_nents = nents;
 
-	for (pno = 0; pno < pages_needed; pno++) {
+	for (pno = 0; pno < nents; pno++) {
 		int len = min_t(int, rs_length, PAGE_SIZE - pg_off);
 
 		head->arg.pages[pg_no] = rqstp->rq_arg.pages[pg_no];
@@ -253,17 +250,12 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 		head->arg.len += len;
 		if (!pg_off)
 			head->count++;
+
+		sg_set_page(&frmr->sg[pno], rqstp->rq_arg.pages[pg_no],
+			    len, pg_off);
+
 		rqstp->rq_respages = &rqstp->rq_arg.pages[pg_no+1];
 		rqstp->rq_next_page = rqstp->rq_respages + 1;
-		frmr->page_list->page_list[pno] =
-			ib_dma_map_page(xprt->sc_cm_id->device,
-					head->arg.pages[pg_no], 0,
-					PAGE_SIZE, DMA_FROM_DEVICE);
-		ret = ib_dma_mapping_error(xprt->sc_cm_id->device,
-					   frmr->page_list->page_list[pno]);
-		if (ret)
-			goto err;
-		atomic_inc(&xprt->sc_dma_used);
 
 		/* adjust offset and wrap to next page if needed */
 		pg_off += len;
@@ -279,43 +271,57 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	else
 		clear_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
 
+	dma_nents = ib_dma_map_sg(xprt->sc_cm_id->device,
+				  frmr->sg, frmr->sg_nents,
+				  frmr->direction);
+	if (!dma_nents) {
+		pr_err("svcrdma: failed to dma map sg %p\n",
+		       frmr->sg);
+		return -ENOMEM;
+	}
+	atomic_inc(&xprt->sc_dma_used);
+
+	n = ib_map_mr_sg(frmr->mr, frmr->sg, frmr->sg_nents, PAGE_SIZE);
+	if (unlikely(n != frmr->sg_nents)) {
+		pr_err("svcrdma: failed to map mr %p (%d/%d elements)\n",
+		       frmr->mr, n, frmr->sg_nents);
+		return n < 0 ? n : -EINVAL;
+	}
+
 	/* Bump the key */
 	key = (u8)(frmr->mr->lkey & 0x000000FF);
 	ib_update_fast_reg_key(frmr->mr, ++key);
 
-	ctxt->sge[0].addr = (unsigned long)frmr->kva + *page_offset;
+	ctxt->sge[0].addr = frmr->mr->iova;
 	ctxt->sge[0].lkey = frmr->mr->lkey;
-	ctxt->sge[0].length = read;
+	ctxt->sge[0].length = frmr->mr->length;
 	ctxt->count = 1;
 	ctxt->read_hdr = head;
 
-	/* Prepare FASTREG WR */
-	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
-	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
-	fastreg_wr.send_flags = IB_SEND_SIGNALED;
-	fastreg_wr.wr.fast_reg.iova_start = (unsigned long)frmr->kva;
-	fastreg_wr.wr.fast_reg.page_list = frmr->page_list;
-	fastreg_wr.wr.fast_reg.page_list_len = frmr->page_list_len;
-	fastreg_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
-	fastreg_wr.wr.fast_reg.length = frmr->map_len;
-	fastreg_wr.wr.fast_reg.access_flags = frmr->access_flags;
-	fastreg_wr.wr.fast_reg.rkey = frmr->mr->lkey;
-	fastreg_wr.next = &read_wr;
+	/* Prepare REG WR */
+	reg_wr.wr.opcode = IB_WR_REG_MR;
+	reg_wr.wr.wr_id = 0;
+	reg_wr.wr.send_flags = IB_SEND_SIGNALED;
+	reg_wr.wr.num_sge = 0;
+	reg_wr.mr = frmr->mr;
+	reg_wr.key = frmr->mr->lkey;
+	reg_wr.access = frmr->access_flags;
+	reg_wr.wr.next = &read_wr.wr;
 
 	/* Prepare RDMA_READ */
 	memset(&read_wr, 0, sizeof(read_wr));
-	read_wr.send_flags = IB_SEND_SIGNALED;
-	read_wr.wr.rdma.rkey = rs_handle;
-	read_wr.wr.rdma.remote_addr = rs_offset;
-	read_wr.sg_list = ctxt->sge;
-	read_wr.num_sge = 1;
+	read_wr.wr.send_flags = IB_SEND_SIGNALED;
+	read_wr.rkey = rs_handle;
+	read_wr.remote_addr = rs_offset;
+	read_wr.wr.sg_list = ctxt->sge;
+	read_wr.wr.num_sge = 1;
 	if (xprt->sc_dev_caps & SVCRDMA_DEVCAP_READ_W_INV) {
-		read_wr.opcode = IB_WR_RDMA_READ_WITH_INV;
-		read_wr.wr_id = (unsigned long)ctxt;
-		read_wr.ex.invalidate_rkey = ctxt->frmr->mr->lkey;
+		read_wr.wr.opcode = IB_WR_RDMA_READ_WITH_INV;
+		read_wr.wr.wr_id = (unsigned long)ctxt;
+		read_wr.wr.ex.invalidate_rkey = ctxt->frmr->mr->lkey;
 	} else {
-		read_wr.opcode = IB_WR_RDMA_READ;
-		read_wr.next = &inv_wr;
+		read_wr.wr.opcode = IB_WR_RDMA_READ;
+		read_wr.wr.next = &inv_wr;
 		/* Prepare invalidate */
 		memset(&inv_wr, 0, sizeof(inv_wr));
 		inv_wr.wr_id = (unsigned long)ctxt;
@@ -323,10 +329,10 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 		inv_wr.send_flags = IB_SEND_SIGNALED | IB_SEND_FENCE;
 		inv_wr.ex.invalidate_rkey = frmr->mr->lkey;
 	}
-	ctxt->wr_op = read_wr.opcode;
+	ctxt->wr_op = read_wr.wr.opcode;
 
 	/* Post the chain */
-	ret = svc_rdma_send(xprt, &fastreg_wr);
+	ret = svc_rdma_send(xprt, &reg_wr.wr);
 	if (ret) {
 		pr_err("svcrdma: Error %d posting RDMA_READ\n", ret);
 		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
@@ -340,7 +346,8 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	atomic_inc(&rdma_stat_read);
 	return ret;
  err:
-	svc_rdma_unmap_dma(ctxt);
+	ib_dma_unmap_sg(xprt->sc_cm_id->device,
+			frmr->sg, frmr->sg_nents, frmr->direction);
 	svc_rdma_put_context(ctxt, 0);
 	svc_rdma_put_frmr(xprt, frmr);
 	return ret;
@@ -533,7 +540,7 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.page_base = head->arg.page_base;
 
 	/* rq_respages starts after the last arg page */
-	rqstp->rq_respages = &rqstp->rq_arg.pages[page_no];
+	rqstp->rq_respages = &rqstp->rq_pages[page_no];
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* Rebuild rq_arg head and tail. */

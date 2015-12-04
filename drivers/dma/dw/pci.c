@@ -15,12 +15,6 @@
 
 #include "internal.h"
 
-static struct dw_dma_platform_data dw_pci_pdata = {
-	.is_private = 1,
-	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
-	.chan_priority = CHAN_PRIORITY_ASCENDING,
-};
-
 static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	struct dw_dma_chip *chip;
@@ -101,19 +95,19 @@ static const struct dev_pm_ops dw_pci_dev_pm_ops = {
 
 static const struct pci_device_id dw_pci_id_table[] = {
 	/* Medfield */
-	{ PCI_VDEVICE(INTEL, 0x0827), (kernel_ulong_t)&dw_pci_pdata },
-	{ PCI_VDEVICE(INTEL, 0x0830), (kernel_ulong_t)&dw_pci_pdata },
+	{ PCI_VDEVICE(INTEL, 0x0827) },
+	{ PCI_VDEVICE(INTEL, 0x0830) },
 
 	/* BayTrail */
-	{ PCI_VDEVICE(INTEL, 0x0f06), (kernel_ulong_t)&dw_pci_pdata },
-	{ PCI_VDEVICE(INTEL, 0x0f40), (kernel_ulong_t)&dw_pci_pdata },
+	{ PCI_VDEVICE(INTEL, 0x0f06) },
+	{ PCI_VDEVICE(INTEL, 0x0f40) },
 
 	/* Braswell */
-	{ PCI_VDEVICE(INTEL, 0x2286), (kernel_ulong_t)&dw_pci_pdata },
-	{ PCI_VDEVICE(INTEL, 0x22c0), (kernel_ulong_t)&dw_pci_pdata },
+	{ PCI_VDEVICE(INTEL, 0x2286) },
+	{ PCI_VDEVICE(INTEL, 0x22c0) },
 
 	/* Haswell */
-	{ PCI_VDEVICE(INTEL, 0x9c60), (kernel_ulong_t)&dw_pci_pdata },
+	{ PCI_VDEVICE(INTEL, 0x9c60) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dw_pci_id_table);

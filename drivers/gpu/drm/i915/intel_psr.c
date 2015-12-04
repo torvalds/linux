@@ -73,14 +73,14 @@ static bool vlv_is_psr_active_on_pipe(struct drm_device *dev, int pipe)
 }
 
 static void intel_psr_write_vsc(struct intel_dp *intel_dp,
-				    struct edp_vsc_psr *vsc_psr)
+				const struct edp_vsc_psr *vsc_psr)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
-	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(crtc->config->cpu_transcoder);
-	u32 data_reg = HSW_TVIDEO_DIP_VSC_DATA(crtc->config->cpu_transcoder);
+	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
+	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(cpu_transcoder);
 	uint32_t *data = (uint32_t *) vsc_psr;
 	unsigned int i;
 
@@ -90,12 +90,14 @@ static void intel_psr_write_vsc(struct intel_dp *intel_dp,
 	I915_WRITE(ctl_reg, 0);
 	POSTING_READ(ctl_reg);
 
-	for (i = 0; i < VIDEO_DIP_VSC_DATA_SIZE; i += 4) {
-		if (i < sizeof(struct edp_vsc_psr))
-			I915_WRITE(data_reg + i, *data++);
-		else
-			I915_WRITE(data_reg + i, 0);
+	for (i = 0; i < sizeof(*vsc_psr); i += 4) {
+		I915_WRITE(HSW_TVIDEO_DIP_VSC_DATA(cpu_transcoder,
+						   i >> 2), *data);
+		data++;
 	}
+	for (; i < VIDEO_DIP_VSC_DATA_SIZE; i += 4)
+		I915_WRITE(HSW_TVIDEO_DIP_VSC_DATA(cpu_transcoder,
+						   i >> 2), 0);
 
 	I915_WRITE(ctl_reg, VIDEO_DIP_ENABLE_VSC_HSW);
 	POSTING_READ(ctl_reg);

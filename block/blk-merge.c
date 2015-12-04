@@ -11,12 +11,15 @@
 
 static struct bio *blk_bio_discard_split(struct request_queue *q,
 					 struct bio *bio,
-					 struct bio_set *bs)
+					 struct bio_set *bs,
+					 unsigned *nsegs)
 {
 	unsigned int max_discard_sectors, granularity;
 	int alignment;
 	sector_t tmp;
 	unsigned split_sectors;
+
+	*nsegs = 1;
 
 	/* Zero-sector (unknown) and one-sector granularities are the same.  */
 	granularity = max(q->limits.discard_granularity >> 9, 1U);
@@ -51,8 +54,11 @@ static struct bio *blk_bio_discard_split(struct request_queue *q,
 
 static struct bio *blk_bio_write_same_split(struct request_queue *q,
 					    struct bio *bio,
-					    struct bio_set *bs)
+					    struct bio_set *bs,
+					    unsigned *nsegs)
 {
+	*nsegs = 1;
+
 	if (!q->limits.max_write_same_sectors)
 		return NULL;
 
@@ -64,11 +70,15 @@ static struct bio *blk_bio_write_same_split(struct request_queue *q,
 
 static struct bio *blk_bio_segment_split(struct request_queue *q,
 					 struct bio *bio,
-					 struct bio_set *bs)
+					 struct bio_set *bs,
+					 unsigned *segs)
 {
 	struct bio_vec bv, bvprv, *bvprvp = NULL;
 	struct bvec_iter iter;
 	unsigned seg_size = 0, nsegs = 0, sectors = 0;
+	unsigned front_seg_size = bio->bi_seg_front_size;
+	bool do_split = true;
+	struct bio *new = NULL;
 
 	bio_for_each_segment(bv, bio, iter) {
 		if (sectors + (bv.bv_len >> 9) > queue_max_sectors(q))
@@ -91,7 +101,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 
 			seg_size += bv.bv_len;
 			bvprv = bv;
-			bvprvp = &bv;
+			bvprvp = &bvprv;
 			sectors += bv.bv_len >> 9;
 			continue;
 		}
@@ -101,29 +111,53 @@ new_segment:
 
 		nsegs++;
 		bvprv = bv;
-		bvprvp = &bv;
+		bvprvp = &bvprv;
 		seg_size = bv.bv_len;
 		sectors += bv.bv_len >> 9;
+
+		if (nsegs == 1 && seg_size > front_seg_size)
+			front_seg_size = seg_size;
 	}
 
-	return NULL;
+	do_split = false;
 split:
-	return bio_split(bio, sectors, GFP_NOIO, bs);
+	*segs = nsegs;
+
+	if (do_split) {
+		new = bio_split(bio, sectors, GFP_NOIO, bs);
+		if (new)
+			bio = new;
+	}
+
+	bio->bi_seg_front_size = front_seg_size;
+	if (seg_size > bio->bi_seg_back_size)
+		bio->bi_seg_back_size = seg_size;
+
+	return do_split ? new : NULL;
 }
 
 void blk_queue_split(struct request_queue *q, struct bio **bio,
 		     struct bio_set *bs)
 {
-	struct bio *split;
+	struct bio *split, *res;
+	unsigned nsegs;
 
 	if ((*bio)->bi_rw & REQ_DISCARD)
-		split = blk_bio_discard_split(q, *bio, bs);
+		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
 	else if ((*bio)->bi_rw & REQ_WRITE_SAME)
-		split = blk_bio_write_same_split(q, *bio, bs);
+		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
 	else
-		split = blk_bio_segment_split(q, *bio, q->bio_split);
+		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
+
+	/* physical segments can be figured out during splitting */
+	res = split ? split : *bio;
+	res->bi_phys_segments = nsegs;
+	bio_set_flag(res, BIO_SEG_VALID);
 
 	if (split) {
+		/* there isn't chance to merge the splitted bio */
+		split->bi_rw |= REQ_NOMERGE;
+
 		bio_chain(split, *bio);
 		generic_make_request(*bio);
 		*bio = split;
@@ -393,6 +427,12 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 
 	if (sg)
 		sg_mark_end(sg);
+
+	/*
+	 * Something must have been wrong if the figured number of
+	 * segment is bigger than number of req's physical segments
+	 */
+	WARN_ON(nsegs > rq->nr_phys_segments);
 
 	return nsegs;
 }

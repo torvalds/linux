@@ -18,6 +18,7 @@ enum fwnode_type {
 	FWNODE_ACPI,
 	FWNODE_ACPI_DATA,
 	FWNODE_PDATA,
+	FWNODE_IRQCHIP,
 };
 
 struct fwnode_handle {

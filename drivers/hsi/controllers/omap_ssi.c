@@ -295,27 +295,14 @@ static int __init ssi_get_iomem(struct platform_device *pd,
 		const char *name, void __iomem **pbase, dma_addr_t *phy)
 {
 	struct resource *mem;
-	struct resource *ioarea;
 	void __iomem *base;
 	struct hsi_controller *ssi = platform_get_drvdata(pd);
 
 	mem = platform_get_resource_byname(pd, IORESOURCE_MEM, name);
-	if (!mem) {
-		dev_err(&pd->dev, "IO memory region missing (%s)\n", name);
-		return -ENXIO;
-	}
-	ioarea = devm_request_mem_region(&ssi->device, mem->start,
-					resource_size(mem), dev_name(&pd->dev));
-	if (!ioarea) {
-		dev_err(&pd->dev, "%s IO memory region request failed\n",
-								mem->name);
-		return -ENXIO;
-	}
-	base = devm_ioremap(&ssi->device, mem->start, resource_size(mem));
-	if (!base) {
-		dev_err(&pd->dev, "%s IO remap failed\n", mem->name);
-		return -ENXIO;
-	}
+	base = devm_ioremap_resource(&ssi->device, mem);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
 	*pbase = base;
 
 	if (phy)

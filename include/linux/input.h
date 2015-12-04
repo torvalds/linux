@@ -469,6 +469,8 @@ int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke);
 int input_set_keycode(struct input_dev *dev,
 		      const struct input_keymap_entry *ke);
 
+void input_enable_softrepeat(struct input_dev *dev, int delay, int period);
+
 extern struct class input_class;
 
 /**

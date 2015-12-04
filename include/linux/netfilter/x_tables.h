@@ -13,6 +13,7 @@
  * @target:	the target extension
  * @matchinfo:	per-match data
  * @targetinfo:	per-target data
+ * @net		network namespace through which the action was invoked
  * @in:		input netdevice
  * @out:	output netdevice
  * @fragoff:	packet is a fragment, this is the data offset
@@ -24,7 +25,6 @@
  * Fields written to by extensions:
  *
  * @hotdrop:	drop packet if we had inspection problems
- * Network namespace obtainable using dev_net(in/out)
  */
 struct xt_action_param {
 	union {
@@ -34,6 +34,7 @@ struct xt_action_param {
 	union {
 		const void *matchinfo, *targinfo;
 	};
+	struct net *net;
 	const struct net_device *in, *out;
 	int fragoff;
 	unsigned int thoff;

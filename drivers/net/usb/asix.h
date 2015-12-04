@@ -168,7 +168,7 @@ struct asix_data {
 struct asix_rx_fixup_info {
 	struct sk_buff *ax_skb;
 	u32 header;
-	u16 size;
+	u16 remaining;
 	bool split_head;
 };
 

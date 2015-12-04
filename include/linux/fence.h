@@ -280,6 +280,22 @@ fence_is_signaled(struct fence *fence)
 }
 
 /**
+ * fence_is_later - return if f1 is chronologically later than f2
+ * @f1:	[in]	the first fence from the same context
+ * @f2:	[in]	the second fence from the same context
+ *
+ * Returns true if f1 is chronologically later than f2. Both fences must be
+ * from the same context, since a seqno is not re-used across contexts.
+ */
+static inline bool fence_is_later(struct fence *f1, struct fence *f2)
+{
+	if (WARN_ON(f1->context != f2->context))
+		return false;
+
+	return f1->seqno - f2->seqno < INT_MAX;
+}
+
+/**
  * fence_later - return the chronologically later fence
  * @f1:	[in]	the first fence from the same context
  * @f2:	[in]	the second fence from the same context
@@ -298,14 +314,15 @@ static inline struct fence *fence_later(struct fence *f1, struct fence *f2)
 	 * set if enable_signaling wasn't called, and enabling that here is
 	 * overkill.
 	 */
-	if (f2->seqno - f1->seqno <= INT_MAX)
-		return fence_is_signaled(f2) ? NULL : f2;
-	else
+	if (fence_is_later(f1, f2))
 		return fence_is_signaled(f1) ? NULL : f1;
+	else
+		return fence_is_signaled(f2) ? NULL : f2;
 }
 
 signed long fence_wait_timeout(struct fence *, bool intr, signed long timeout);
-
+signed long fence_wait_any_timeout(struct fence **fences, uint32_t count,
+				   bool intr, signed long timeout);
 
 /**
  * fence_wait - sleep until the fence gets signaled

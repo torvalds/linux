@@ -49,7 +49,7 @@ struct asymmetric_key_subtype {
 static inline
 struct asymmetric_key_subtype *asymmetric_key_subtype(const struct key *key)
 {
-	return key->type_data.p[0];
+	return key->payload.data[asym_subtype];
 }
 
 #endif /* _KEYS_ASYMMETRIC_SUBTYPE_H */

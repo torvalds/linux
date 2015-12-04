@@ -131,6 +131,7 @@ struct registry_priv {
 	u8	if2name[16];
 
 	u8	notch_filter;
+	bool	monitor_enable;
 };
 
 /* For registry parameters */
@@ -209,6 +210,7 @@ struct adapter {
 	void (*intf_start)(struct adapter *adapter);
 	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
+	struct  net_device *pmondev;
 
 	/*  used by rtw_rereg_nd_name related function */
 	struct rereg_nd_name_data {

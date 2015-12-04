@@ -28,49 +28,46 @@ static const struct xt_table nf_nat_ipv4_table = {
 	.af		= NFPROTO_IPV4,
 };
 
-static unsigned int iptable_nat_do_chain(const struct nf_hook_ops *ops,
+static unsigned int iptable_nat_do_chain(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state,
 					 struct nf_conn *ct)
 {
-	struct net *net = nf_ct_net(ct);
-
-	return ipt_do_table(skb, ops->hooknum, state, net->ipv4.nat_table);
+	return ipt_do_table(skb, state, state->net->ipv4.nat_table);
 }
 
-static unsigned int iptable_nat_ipv4_fn(const struct nf_hook_ops *ops,
+static unsigned int iptable_nat_ipv4_fn(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state)
 {
-	return nf_nat_ipv4_fn(ops, skb, state, iptable_nat_do_chain);
+	return nf_nat_ipv4_fn(priv, skb, state, iptable_nat_do_chain);
 }
 
-static unsigned int iptable_nat_ipv4_in(const struct nf_hook_ops *ops,
+static unsigned int iptable_nat_ipv4_in(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state)
 {
-	return nf_nat_ipv4_in(ops, skb, state, iptable_nat_do_chain);
+	return nf_nat_ipv4_in(priv, skb, state, iptable_nat_do_chain);
 }
 
-static unsigned int iptable_nat_ipv4_out(const struct nf_hook_ops *ops,
+static unsigned int iptable_nat_ipv4_out(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
-	return nf_nat_ipv4_out(ops, skb, state, iptable_nat_do_chain);
+	return nf_nat_ipv4_out(priv, skb, state, iptable_nat_do_chain);
 }
 
-static unsigned int iptable_nat_ipv4_local_fn(const struct nf_hook_ops *ops,
+static unsigned int iptable_nat_ipv4_local_fn(void *priv,
 					      struct sk_buff *skb,
 					      const struct nf_hook_state *state)
 {
-	return nf_nat_ipv4_local_fn(ops, skb, state, iptable_nat_do_chain);
+	return nf_nat_ipv4_local_fn(priv, skb, state, iptable_nat_do_chain);
 }
 
 static struct nf_hook_ops nf_nat_ipv4_ops[] __read_mostly = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= iptable_nat_ipv4_in,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_NAT_DST,
@@ -78,7 +75,6 @@ static struct nf_hook_ops nf_nat_ipv4_ops[] __read_mostly = {
 	/* After packet filtering, change source */
 	{
 		.hook		= iptable_nat_ipv4_out,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_NAT_SRC,
@@ -86,7 +82,6 @@ static struct nf_hook_ops nf_nat_ipv4_ops[] __read_mostly = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= iptable_nat_ipv4_local_fn,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP_PRI_NAT_DST,
@@ -94,7 +89,6 @@ static struct nf_hook_ops nf_nat_ipv4_ops[] __read_mostly = {
 	/* After packet filtering, change source */
 	{
 		.hook		= iptable_nat_ipv4_fn,
-		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_NAT_SRC,

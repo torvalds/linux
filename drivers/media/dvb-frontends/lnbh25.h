@@ -43,7 +43,7 @@ struct dvb_frontend *lnbh25_attach(
 	struct lnbh25_config *cfg,
 	struct i2c_adapter *i2c);
 #else
-static inline dvb_frontend *lnbh25_attach(
+static inline struct dvb_frontend *lnbh25_attach(
 	struct dvb_frontend *fe,
 	struct lnbh25_config *cfg,
 	struct i2c_adapter *i2c)

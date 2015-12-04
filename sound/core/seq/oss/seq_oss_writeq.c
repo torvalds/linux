@@ -138,9 +138,7 @@ snd_seq_oss_writeq_wakeup(struct seq_oss_writeq *q, abstime_t time)
 	spin_lock_irqsave(&q->sync_lock, flags);
 	q->sync_time = time;
 	q->sync_event_put = 0;
-	if (waitqueue_active(&q->sync_sleep)) {
-		wake_up(&q->sync_sleep);
-	}
+	wake_up(&q->sync_sleep);
 	spin_unlock_irqrestore(&q->sync_lock, flags);
 }
 

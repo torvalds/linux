@@ -372,7 +372,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	set_bit(XGBE_DOWN, &pdata->dev_state);
 
 	/* Check if we should use ACPI or DT */
-	pdata->use_acpi = (!pdata->adev || acpi_disabled) ? 0 : 1;
+	pdata->use_acpi = dev->of_node ? 0 : 1;
 
 	phy_pdev = xgbe_get_phy_pdev(pdata);
 	if (!phy_pdev) {

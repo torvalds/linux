@@ -27,6 +27,14 @@
 			};
 		};
 
+		pwm0: pwm@9810000 {
+			status = "okay";
+		};
+
+		pwm1: pwm@9510000 {
+			status = "okay";
+		};
+
 		i2c@9842000 {
 			status = "okay";
 		};
@@ -79,5 +87,11 @@
 			status = "okay";
 		};
 
+		ethernet0: dwmac@9630000 {
+			st,tx-retime-src = "clkgen";
+			status = "okay";
+			phy-mode = "rgmii";
+			fixed-link = <0 1 1000 0 0>;
+		};
 	};
 };

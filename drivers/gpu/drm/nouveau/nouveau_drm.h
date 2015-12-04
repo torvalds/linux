@@ -10,7 +10,7 @@
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		3
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_PATCHLEVEL	1
 
 /*
  * 1.1.1:
@@ -33,10 +33,13 @@
  * 1.3.0:
  *      - NVIF ABI modified, safe because only (current) users are test
  *        programs that get directly linked with NVKM.
+ * 1.3.1:
+ *      - implemented limited ABI16/NVIF interop
  */
 
 #include <nvif/client.h>
 #include <nvif/device.h>
+#include <nvif/ioctl.h>
 
 #include <drmP.h>
 
@@ -63,9 +66,10 @@ struct nouveau_drm_tile {
 };
 
 enum nouveau_drm_object_route {
-	NVDRM_OBJECT_NVIF = 0,
+	NVDRM_OBJECT_NVIF = NVIF_IOCTL_V0_OWNER_NVIF,
 	NVDRM_OBJECT_USIF,
 	NVDRM_OBJECT_ABI16,
+	NVDRM_OBJECT_ANY = NVIF_IOCTL_V0_OWNER_ANY,
 };
 
 enum nouveau_drm_notify_route {
@@ -74,11 +78,6 @@ enum nouveau_drm_notify_route {
 };
 
 enum nouveau_drm_handle {
-	NVDRM_CLIENT  = 0xffffffff,
-	NVDRM_DEVICE  = 0xdddddddd,
-	NVDRM_CONTROL = 0xdddddddc,
-	NVDRM_DISPLAY = 0xd1500000,
-	NVDRM_PUSH    = 0xbbbb0000, /* |= client chid */
 	NVDRM_CHAN    = 0xcccc0000, /* |= client chid */
 	NVDRM_NVSW    = 0x55550000,
 };
@@ -183,8 +182,11 @@ nouveau_drm(struct drm_device *dev)
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
 
+#include <nvkm/core/tegra.h>
+
 struct drm_device *
-nouveau_platform_device_create(struct platform_device *, struct nvkm_device **);
+nouveau_platform_device_create(const struct nvkm_device_tegra_func *,
+			       struct platform_device *, struct nvkm_device **);
 void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \

@@ -55,3 +55,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 
 void hci_update_background_scan(struct hci_dev *hdev);
 void __hci_update_background_scan(struct hci_request *req);
+
+int hci_abort_conn(struct hci_conn *conn, u8 reason);
+void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
+		      u8 reason);

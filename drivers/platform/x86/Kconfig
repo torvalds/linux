@@ -309,8 +309,8 @@ config COMPAL_LAPTOP
 	  This is a driver for laptops built by Compal, and some models by
 	  other brands (e.g. Dell, Toshiba).
 
-	  It adds support for rfkill, Bluetooth, WLAN and LCD brightness
-	  control.
+	  It adds support for rfkill, Bluetooth, WLAN, LCD brightness, hwmon
+	  and battery charging level control.
 
 	  For a (possibly incomplete) list of supported laptops, please refer
 	  to: Documentation/platform/x86-laptop-drivers.txt
@@ -345,6 +345,7 @@ config IDEAPAD_LAPTOP
 	depends on SERIO_I8042
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on ACPI_WMI || ACPI_WMI = n
 	select INPUT_SPARSEKMAP
 	help
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
@@ -700,6 +701,24 @@ config TOSHIBA_HAPS
 	  If you have a recent Toshiba laptop with a built-in accelerometer
 	  device, say Y.
 
+config TOSHIBA_WMI
+	tristate "Toshiba WMI Hotkeys Driver (EXPERIMENTAL)"
+	default n
+	depends on ACPI_WMI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	---help---
+	  This driver adds hotkey monitoring support to some Toshiba models
+	  that manage the hotkeys via WMI events.
+
+	  WARNING: This driver is incomplete as it lacks a proper keymap and the
+	  *notify function only prints the ACPI event type value. Be warned that
+	  you will need to provide some information if you have a Toshiba model
+	  with WMI event hotkeys and want to help with the develpment of this
+	  driver.
+
+	  If you have a WMI-based hotkeys Toshiba laptop, say Y or M here.
+
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
 	depends on X86 && ACPI
@@ -914,6 +933,7 @@ config PVPANIC
 
 config INTEL_PMC_IPC
 	tristate "Intel PMC IPC Driver"
+	depends on ACPI
 	---help---
 	This driver provides support for PMC control on some Intel platforms.
 	The PMC is an ARC processor which defines IPC commands for communication
