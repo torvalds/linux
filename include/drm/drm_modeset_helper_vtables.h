@@ -131,8 +131,6 @@ static inline void drm_crtc_helper_add(struct drm_crtc *crtc,
 /**
  * struct drm_encoder_helper_funcs - helper operations for encoders
  * @dpms: set power state
- * @save: save connector state
- * @restore: restore connector state
  * @mode_fixup: try to fixup proposed mode for this connector
  * @prepare: part of the disable sequence, called before the CRTC modeset
  * @commit: called after the CRTC modeset
@@ -154,8 +152,6 @@ static inline void drm_crtc_helper_add(struct drm_crtc *crtc,
  */
 struct drm_encoder_helper_funcs {
 	void (*dpms)(struct drm_encoder *encoder, int mode);
-	void (*save)(struct drm_encoder *encoder);
-	void (*restore)(struct drm_encoder *encoder);
 
 	bool (*mode_fixup)(struct drm_encoder *encoder,
 			   const struct drm_display_mode *mode,

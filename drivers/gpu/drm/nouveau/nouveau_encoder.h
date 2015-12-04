@@ -63,6 +63,9 @@ struct nouveau_encoder {
 			u32 datarate;
 		} dp;
 	};
+
+	void (*enc_save)(struct drm_encoder *encoder);
+	void (*enc_restore)(struct drm_encoder *encoder);
 };
 
 struct nouveau_encoder *
