@@ -269,6 +269,7 @@
 			clock-frequency = <0>;	/* Updated by bootloader */
 			voltage-ranges = <1800 1800 3300 3300>;
 			sdhci,auto-cmd12;
+			little-endian;
 			bus-width = <4>;
 		};
 
