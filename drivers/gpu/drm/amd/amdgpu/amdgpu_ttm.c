@@ -801,11 +801,12 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 	if (mem && mem->mem_type != TTM_PL_SYSTEM)
 		flags |= AMDGPU_PTE_VALID;
 
-	if (mem && mem->mem_type == TTM_PL_TT)
+	if (mem && mem->mem_type == TTM_PL_TT) {
 		flags |= AMDGPU_PTE_SYSTEM;
 
-	if (!ttm || ttm->caching_state == tt_cached)
-		flags |= AMDGPU_PTE_SNOOPED;
+		if (ttm->caching_state == tt_cached)
+			flags |= AMDGPU_PTE_SNOOPED;
+	}
 
 	if (adev->asic_type >= CHIP_TOPAZ)
 		flags |= AMDGPU_PTE_EXECUTABLE;
