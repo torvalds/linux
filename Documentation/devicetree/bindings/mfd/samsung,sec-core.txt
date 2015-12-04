@@ -14,6 +14,7 @@ addressed by the host system using different I2C slave addresses.
 This document describes bindings for main device node. Optional sub-blocks
 must be a sub-nodes to it. Bindings for them can be found in:
  - bindings/regulator/samsung,s2mps11.txt
+ - bindings/regulator/samsung,s5m8767.txt
  - bindings/clock/samsung,s2mps11.txt
 
 
@@ -23,7 +24,8 @@ Required properties:
 	- "samsung,s2mps13-pmic",
 	- "samsung,s2mps14-pmic",
 	- "samsung,s2mps15-pmic",
-	- "samsung,s2mpu02-pmic".
+	- "samsung,s2mpu02-pmic",
+	- "samsung,s5m8767-pmic".
  - reg: Specifies the I2C slave address of the pmic block. It should be 0x66.
 
 Optional properties:
