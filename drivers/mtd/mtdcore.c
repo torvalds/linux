@@ -532,7 +532,7 @@ out_error:
 }
 
 static int mtd_add_device_partitions(struct mtd_info *mtd,
-				     struct mtd_partition *real_parts,
+				     const struct mtd_partition *real_parts,
 				     int nbparts)
 {
 	int ret;
@@ -589,16 +589,12 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      int nr_parts)
 {
 	int ret;
-	struct mtd_partition *real_parts = NULL;
+	const struct mtd_partition *real_parts = NULL;
 
 	ret = parse_mtd_partitions(mtd, types, &real_parts, parser_data);
 	if (ret <= 0 && nr_parts && parts) {
-		real_parts = kmemdup(parts, sizeof(*parts) * nr_parts,
-				     GFP_KERNEL);
-		if (!real_parts)
-			ret = -ENOMEM;
-		else
-			ret = nr_parts;
+		real_parts = parts;
+		ret = nr_parts;
 	}
 	/* Didn't come up with either parsed OR fallback partitions */
 	if (ret < 0) {
@@ -628,7 +624,9 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	}
 
 out:
-	kfree(real_parts);
+	/* Cleanup any parsed partitions */
+	if (real_parts != parts)
+		kfree(real_parts);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_device_parse_register);

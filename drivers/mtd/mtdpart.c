@@ -760,7 +760,7 @@ static const char * const default_mtd_part_types[] = {
  *   point to an array containing this number of &struct mtd_info objects.
  */
 int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
-			 struct mtd_partition **pparts,
+			 const struct mtd_partition **pparts,
 			 struct mtd_part_parser_data *data)
 {
 	struct mtd_part_parser *parser;
