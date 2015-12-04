@@ -320,12 +320,6 @@ struct drm_crtc_state {
 
 /**
  * struct drm_crtc_funcs - control CRTCs for a given device
- * @cursor_set: setup the cursor
- * @cursor_set2: setup the cursor with hotspot, superseeds @cursor_set if set
- * @cursor_move: move the cursor
- * @gamma_set: specify color ramp for CRTC
- * @set_config: apply a new CRTC configuration
- * @page_flip: initiate a page flip
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -349,15 +343,86 @@ struct drm_crtc_funcs {
 	 */
 	void (*reset)(struct drm_crtc *crtc);
 
-	/* cursor controls */
+	/**
+	 * @cursor_set:
+	 *
+	 * Update the cursor image. The cursor position is relative to the CRTC
+	 * and can be partially or fully outside of the visible area.
+	 *
+	 * Note that contrary to all other KMS functions the legacy cursor entry
+	 * points don't take a framebuffer object, but instead take directly a
+	 * raw buffer object id from the driver's buffer manager (which is
+	 * either GEM or TTM for current drivers).
+	 *
+	 * This entry point is deprecated, drivers should instead implement
+	 * universal plane support and register a proper cursor plane using
+	 * drm_crtc_init_with_planes().
+	 *
+	 * This callback is optional
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*cursor_set)(struct drm_crtc *crtc, struct drm_file *file_priv,
 			  uint32_t handle, uint32_t width, uint32_t height);
+
+	/**
+	 * @cursor_set2:
+	 *
+	 * Update the cursor image, including hotspot information. The hotspot
+	 * must not affect the cursor position in CRTC coordinates, but is only
+	 * meant as a hint for virtualized display hardware to coordinate the
+	 * guests and hosts cursor position. The cursor hotspot is relative to
+	 * the cursor image. Otherwise this works exactly like @cursor_set.
+	 *
+	 * This entry point is deprecated, drivers should instead implement
+	 * universal plane support and register a proper cursor plane using
+	 * drm_crtc_init_with_planes().
+	 *
+	 * This callback is optional.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*cursor_set2)(struct drm_crtc *crtc, struct drm_file *file_priv,
 			   uint32_t handle, uint32_t width, uint32_t height,
 			   int32_t hot_x, int32_t hot_y);
+
+	/**
+	 * @cursor_move:
+	 *
+	 * Update the cursor position. The cursor does not need to be visible
+	 * when this hook is called.
+	 *
+	 * This entry point is deprecated, drivers should instead implement
+	 * universal plane support and register a proper cursor plane using
+	 * drm_crtc_init_with_planes().
+	 *
+	 * This callback is optional.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*cursor_move)(struct drm_crtc *crtc, int x, int y);
 
-	/* Set gamma on the CRTC */
+	/**
+	 * @gamma_set:
+	 *
+	 * Set gamma on the CRTC.
+	 *
+	 * This callback is optional.
+	 *
+	 * NOTE:
+	 *
+	 * Drivers that support gamma tables and also fbdev emulation through
+	 * the provided helper library need to take care to fill out the gamma
+	 * hooks for both. Currently there's a bit an unfortunate duplication
+	 * going on, which should eventually be unified to just one set of
+	 * hooks.
+	 */
 	void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 			  uint32_t start, uint32_t size);
 
@@ -370,16 +435,83 @@ struct drm_crtc_funcs {
 	 */
 	void (*destroy)(struct drm_crtc *crtc);
 
+	/**
+	 * @set_config:
+	 *
+	 * This is the main legacy entry point to change the modeset state on a
+	 * CRTC. All the details of the desired configuration are passed in a
+	 * struct &drm_mode_set - see there for details.
+	 *
+	 * Drivers implementing atomic modeset should use
+	 * drm_atomic_helper_set_config() to implement this hook.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*set_config)(struct drm_mode_set *set);
 
-	/*
-	 * Flip to the given framebuffer.  This implements the page
-	 * flip ioctl described in drm_mode.h, specifically, the
-	 * implementation must return immediately and block all
-	 * rendering to the current fb until the flip has completed.
-	 * If userspace set the event flag in the ioctl, the event
-	 * argument will point to an event to send back when the flip
-	 * completes, otherwise it will be NULL.
+	/**
+	 * @page_flip:
+	 *
+	 * Legacy entry point to schedule a flip to the given framebuffer.
+	 *
+	 * Page flipping is a synchronization mechanism that replaces the frame
+	 * buffer being scanned out by the CRTC with a new frame buffer during
+	 * vertical blanking, avoiding tearing (except when requested otherwise
+	 * through the DRM_MODE_PAGE_FLIP_ASYNC flag). When an application
+	 * requests a page flip the DRM core verifies that the new frame buffer
+	 * is large enough to be scanned out by the CRTC in the currently
+	 * configured mode and then calls the CRTC ->page_flip() operation with a
+	 * pointer to the new frame buffer.
+	 *
+	 * The driver must wait for any pending rendering to the new framebuffer
+	 * to complete before executing the flip. It should also wait for any
+	 * pending rendering from other drivers if the underlying buffer is a
+	 * shared dma-buf.
+	 *
+	 * An application can request to be notified when the page flip has
+	 * completed. The drm core will supply a struct &drm_event in the event
+	 * parameter in this case. This can be handled by the
+	 * drm_crtc_send_vblank_event() function, which the driver should call on
+	 * the provided event upon completion of the flip. Note that if
+	 * the driver supports vblank signalling and timestamping the vblank
+	 * counters and timestamps must agree with the ones returned from page
+	 * flip events. With the current vblank helper infrastructure this can
+	 * be achieved by holding a vblank reference while the page flip is
+	 * pending, acquired through drm_crtc_vblank_get() and released with
+	 * drm_crtc_vblank_put(). Drivers are free to implement their own vblank
+	 * counter and timestamp tracking though, e.g. if they have accurate
+	 * timestamp registers in hardware.
+	 *
+	 * FIXME:
+	 *
+	 * Up to that point drivers need to manage events themselves and can use
+	 * even->base.list freely for that. Specifically they need to ensure
+	 * that they don't send out page flip (or vblank) events for which the
+	 * corresponding drm file has been closed already. The drm core
+	 * unfortunately does not (yet) take care of that. Therefore drivers
+	 * currently must clean up and release pending events in their
+	 * ->preclose driver function.
+	 *
+	 * This callback is optional.
+	 *
+	 * NOTE:
+	 *
+	 * Very early versions of the KMS ABI mandated that the driver must
+	 * block (but not reject) any rendering to the old framebuffer until the
+	 * flip operation has completed and the old framebuffer is no longer
+	 * visible. This requirement has been lifted, and userspace is instead
+	 * expected to request delivery of an event and wait with recycling old
+	 * buffers until such has been received.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure. Note that if a
+	 * ->page_flip() operation is already pending the callback should return
+	 * -EBUSY. Pageflips on a disabled CRTC (either by setting a NULL mode
+	 * or just runtime disabled through DPMS respectively the new atomic
+	 * "ACTIVE" state) should result in an -EINVAL error code.
 	 */
 	int (*page_flip)(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
