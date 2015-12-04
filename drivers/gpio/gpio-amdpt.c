@@ -31,11 +31,9 @@ struct pt_gpio_chip {
 	spinlock_t               lock;
 };
 
-#define to_pt_gpio(c)	container_of(c, struct pt_gpio_chip, gc)
-
 static int pt_gpio_request(struct gpio_chip *gc, unsigned offset)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 using_pins;
 
@@ -60,7 +58,7 @@ static int pt_gpio_request(struct gpio_chip *gc, unsigned offset)
 
 static void pt_gpio_free(struct gpio_chip *gc, unsigned offset)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 using_pins;
 
@@ -77,7 +75,7 @@ static void pt_gpio_free(struct gpio_chip *gc, unsigned offset)
 
 static void pt_gpio_set_value(struct gpio_chip *gc, unsigned offset, int value)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 data;
 
@@ -97,7 +95,7 @@ static void pt_gpio_set_value(struct gpio_chip *gc, unsigned offset, int value)
 
 static int pt_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 data;
 
@@ -124,7 +122,7 @@ static int pt_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 
 static int pt_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 data;
 
@@ -144,7 +142,7 @@ static int pt_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 static int pt_gpio_direction_output(struct gpio_chip *gc,
 					unsigned offset, int value)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 data;
 
@@ -214,7 +212,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 #if defined(CONFIG_OF_GPIO)
 	pt_gpio->gc.of_node          = pdev->dev.of_node;
 #endif
-	ret = gpiochip_add(&pt_gpio->gc);
+	ret = gpiochip_add_data(&pt_gpio->gc, pt_gpio);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register GPIO lib\n");
 		return ret;
