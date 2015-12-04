@@ -684,23 +684,13 @@ size_t spu_ibox_read(struct spu_context *ctx, u32 *data)
 	return ctx->ops->ibox_read(ctx, data);
 }
 
-static int spufs_ibox_fasync(int fd, struct file *file, int on)
-{
-	struct spu_context *ctx = file->private_data;
-
-	return fasync_helper(fd, file, on, &ctx->ibox_fasync);
-}
-
 /* interrupt-level ibox callback function. */
 void spufs_ibox_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
 
-	if (!ctx)
-		return;
-
-	wake_up_all(&ctx->ibox_wq);
-	kill_fasync(&ctx->ibox_fasync, SIGIO, POLLIN);
+	if (ctx)
+		wake_up_all(&ctx->ibox_wq);
 }
 
 /*
@@ -795,7 +785,6 @@ static const struct file_operations spufs_ibox_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_ibox_read,
 	.poll	= spufs_ibox_poll,
-	.fasync	= spufs_ibox_fasync,
 	.llseek = no_llseek,
 };
 
@@ -833,26 +822,13 @@ size_t spu_wbox_write(struct spu_context *ctx, u32 data)
 	return ctx->ops->wbox_write(ctx, data);
 }
 
-static int spufs_wbox_fasync(int fd, struct file *file, int on)
-{
-	struct spu_context *ctx = file->private_data;
-	int ret;
-
-	ret = fasync_helper(fd, file, on, &ctx->wbox_fasync);
-
-	return ret;
-}
-
 /* interrupt-level wbox callback function. */
 void spufs_wbox_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
 
-	if (!ctx)
-		return;
-
-	wake_up_all(&ctx->wbox_wq);
-	kill_fasync(&ctx->wbox_fasync, SIGIO, POLLOUT);
+	if (ctx)
+		wake_up_all(&ctx->wbox_wq);
 }
 
 /*
@@ -945,7 +921,6 @@ static const struct file_operations spufs_wbox_fops = {
 	.open	= spufs_pipe_open,
 	.write	= spufs_wbox_write,
 	.poll	= spufs_wbox_poll,
-	.fasync	= spufs_wbox_fasync,
 	.llseek = no_llseek,
 };
 
@@ -1521,28 +1496,8 @@ void spufs_mfc_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
 
-	if (!ctx)
-		return;
-
-	wake_up_all(&ctx->mfc_wq);
-
-	pr_debug("%s %s\n", __func__, spu->name);
-	if (ctx->mfc_fasync) {
-		u32 free_elements, tagstatus;
-		unsigned int mask;
-
-		/* no need for spu_acquire in interrupt context */
-		free_elements = ctx->ops->get_mfc_free_elements(ctx);
-		tagstatus = ctx->ops->read_mfc_tagstatus(ctx);
-
-		mask = 0;
-		if (free_elements & 0xffff)
-			mask |= POLLOUT;
-		if (tagstatus & ctx->tagwait)
-			mask |= POLLIN;
-
-		kill_fasync(&ctx->mfc_fasync, SIGIO, mask);
-	}
+	if (ctx)
+		wake_up_all(&ctx->mfc_wq);
 }
 
 static int spufs_read_mfc_tagstatus(struct spu_context *ctx, u32 *status)
@@ -1804,13 +1759,6 @@ static int spufs_mfc_fsync(struct file *file, loff_t start, loff_t end, int data
 	return err;
 }
 
-static int spufs_mfc_fasync(int fd, struct file *file, int on)
-{
-	struct spu_context *ctx = file->private_data;
-
-	return fasync_helper(fd, file, on, &ctx->mfc_fasync);
-}
-
 static const struct file_operations spufs_mfc_fops = {
 	.open	 = spufs_mfc_open,
 	.release = spufs_mfc_release,
@@ -1819,7 +1767,6 @@ static const struct file_operations spufs_mfc_fops = {
 	.poll	 = spufs_mfc_poll,
 	.flush	 = spufs_mfc_flush,
 	.fsync	 = spufs_mfc_fsync,
-	.fasync	 = spufs_mfc_fasync,
 	.mmap	 = spufs_mfc_mmap,
 	.llseek  = no_llseek,
 };
