@@ -1789,7 +1789,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 			continue;
 		*last_unlinked = block;
 
-		error = gfs2_glock_get(sdp, block, &gfs2_inode_glops, CREATE, &gl);
+		error = gfs2_glock_get(sdp, block, &gfs2_iopen_glops, CREATE, &gl);
 		if (error)
 			continue;
 
