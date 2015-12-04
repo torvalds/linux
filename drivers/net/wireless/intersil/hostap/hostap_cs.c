@@ -473,7 +473,7 @@ static int prism2_config(struct pcmcia_device *link)
 	struct net_device *dev;
 	struct hostap_interface *iface;
 	local_info_t *local;
-	int ret = 1;
+	int ret;
 	struct hostap_cs_priv *hw_priv;
 	unsigned long flags;
 
@@ -502,8 +502,10 @@ static int prism2_config(struct pcmcia_device *link)
 	/* Need to allocate net_device before requesting IRQ handler */
 	dev = prism2_init_local_data(&prism2_pccard_funcs, 0,
 				     &link->dev);
-	if (dev == NULL)
+	if (!dev) {
+		ret = -ENOMEM;
 		goto failed;
+	}
 	link->priv = dev;
 
 	iface = netdev_priv(dev);
