@@ -51,58 +51,236 @@ enum mode_set_atomic;
 
 /**
  * struct drm_crtc_helper_funcs - helper operations for CRTCs
- * @dpms: set power state
- * @prepare: prepare the CRTC, called before @mode_set
- * @commit: commit changes to CRTC, called after @mode_set
- * @mode_fixup: try to fixup proposed mode for this CRTC
- * @mode_set: set this mode
- * @mode_set_nofb: set mode only (no scanout buffer attached)
- * @mode_set_base: update the scanout buffer
- * @mode_set_base_atomic: non-blocking mode set (used for kgdb support)
- * @load_lut: load color palette
- * @disable: disable CRTC when no longer in use
- * @enable: enable CRTC
  *
- * The helper operations are called by the mid-layer CRTC helper.
- *
- * Note that with atomic helpers @dpms, @prepare and @commit hooks are
- * deprecated. Used @enable and @disable instead exclusively.
- *
- * With legacy crtc helpers there's a big semantic difference between @disable
- * and the other hooks: @disable also needs to release any resources acquired in
- * @mode_set (like shared PLLs).
+ * These hooks are used by the legacy CRTC helpers, the transitional plane
+ * helpers and the new atomic modesetting helpers.
  */
 struct drm_crtc_helper_funcs {
-	/*
-	 * Control power levels on the CRTC.  If the mode passed in is
-	 * unsupported, the provider must use the next lowest power level.
+	/**
+	 * @dpms:
+	 *
+	 * Callback to control power levels on the CRTC.  If the mode passed in
+	 * is unsupported, the provider must use the next lowest power level.
+	 * This is used by the legacy CRTC helpers to implement DPMS
+	 * functionality in drm_helper_connector_dpms().
+	 *
+	 * This callback is also used to disable a CRTC by calling it with
+	 * DRM_MODE_DPMS_OFF if the @disable hook isn't used.
+	 *
+	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
+	 * also support using this hook for enabling and disabling a CRTC to
+	 * facilitate transitions to atomic, but it is deprecated. Instead
+	 * @enable and @disable should be used.
 	 */
 	void (*dpms)(struct drm_crtc *crtc, int mode);
+
+	/**
+	 * @prepare:
+	 *
+	 * This callback should prepare the CRTC for a subsequent modeset, which
+	 * in practice means the driver should disable the CRTC if it is
+	 * running. Most drivers ended up implementing this by calling their
+	 * @dpms hook with DRM_MODE_DPMS_OFF.
+	 *
+	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
+	 * also support using this hook for disabling a CRTC to facilitate
+	 * transitions to atomic, but it is deprecated. Instead @disable should
+	 * be used.
+	 */
 	void (*prepare)(struct drm_crtc *crtc);
+
+	/**
+	 * @commit:
+	 *
+	 * This callback should commit the new mode on the CRTC after a modeset,
+	 * which in practice means the driver should enable the CRTC.  Most
+	 * drivers ended up implementing this by calling their @dpms hook with
+	 * DRM_MODE_DPMS_ON.
+	 *
+	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
+	 * also support using this hook for enabling a CRTC to facilitate
+	 * transitions to atomic, but it is deprecated. Instead @enable should
+	 * be used.
+	 */
 	void (*commit)(struct drm_crtc *crtc);
 
-	/* Provider can fixup or change mode timings before modeset occurs */
+	/**
+	 * @mode_fixup:
+	 *
+	 * This callback is used to validate a mode. The parameter mode is the
+	 * display mode that userspace requested, adjusted_mode is the mode the
+	 * encoders need to be fed with. Note that this is the inverse semantics
+	 * of the meaning for the &drm_encoder and &drm_bridge
+	 * ->mode_fixup() functions. If the CRTC cannot support the requested
+	 * conversion from mode to adjusted_mode it should reject the modeset.
+	 *
+	 * This function is used by both legacy CRTC helpers and atomic helpers.
+	 * With atomic helpers it is optional.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the check phase of atomic modesets, which
+	 * can be aborted for any reason (including on userspace's request to
+	 * just check whether a configuration would be possible). Atomic drivers
+	 * MUST NOT touch any persistent state (hardware or software) or data
+	 * structures except the passed in adjusted_mode parameter.
+	 *
+	 * This is in contrast to the legacy CRTC helpers where this was
+	 * allowed.
+	 *
+	 * Atomic drivers which need to inspect and adjust more state should
+	 * instead use the @atomic_check callback.
+	 *
+	 * RETURNS:
+	 *
+	 * True if an acceptable configuration is possible, false if the modeset
+	 * operation should be rejected.
+	 */
 	bool (*mode_fixup)(struct drm_crtc *crtc,
 			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
-	/* Actually set the mode */
+
+	/**
+	 * @mode_set:
+	 *
+	 * This callback is used by the legacy CRTC helpers to set a new mode,
+	 * position and framebuffer. Since it ties the primary plane to every
+	 * mode change it is incompatible with universal plane support. And
+	 * since it can't update other planes it's incompatible with atomic
+	 * modeset support.
+	 *
+	 * This callback is only used by CRTC helpers and deprecated.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			struct drm_display_mode *adjusted_mode, int x, int y,
 			struct drm_framebuffer *old_fb);
-	/* Actually set the mode for atomic helpers, optional */
+
+	/**
+	 * @mode_set_nofb:
+	 *
+	 * This callback is used to update the display mode of a CRTC without
+	 * changing anything of the primary plane configuration. This fits the
+	 * requirement of atomic and hence is used by the atomic helpers. It is
+	 * also used by the transitional plane helpers to implement a
+	 * @mode_set hook in drm_helper_crtc_mode_set().
+	 *
+	 * Note that the display pipe is completely off when this function is
+	 * called. Atomic drivers which need hardware to be running before they
+	 * program the new display mode (e.g. because they implement runtime PM)
+	 * should not use this hook. This is because the helper library calls
+	 * this hook only once per mode change and not every time the display
+	 * pipeline is suspended using either DPMS or the new "ACTIVE" property.
+	 * Which means register values set in this callback might get reset when
+	 * the CRTC is suspended, but not restored.  Such drivers should instead
+	 * move all their CRTC setup into the @enable callback.
+	 *
+	 * This callback is optional.
+	 */
 	void (*mode_set_nofb)(struct drm_crtc *crtc);
 
-	/* Move the crtc on the current fb to the given position *optional* */
+	/**
+	 * @mode_set_base:
+	 *
+	 * This callback is used by the legacy CRTC helpers to set a new
+	 * framebuffer and scanout position. It is optional and used as an
+	 * optimized fast-path instead of a full mode set operation with all the
+	 * resulting flickering. Since it can't update other planes it's
+	 * incompatible with atomic modeset support.
+	 *
+	 * This callback is only used by the CRTC helpers and deprecated.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
+
+	/**
+	 * @mode_set_base_atomic:
+	 *
+	 * This callback is used by the fbdev helpers to set a new framebuffer
+	 * and scanout without sleeping, i.e. from an atomic calling context. It
+	 * is only used to implement kgdb support.
+	 *
+	 * This callback is optional and only needed for kgdb support in the fbdev
+	 * helpers.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*mode_set_base_atomic)(struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb, int x, int y,
 				    enum mode_set_atomic);
 
-	/* reload the current crtc LUT */
+	/**
+	 * @load_lut:
+	 *
+	 * Load a LUT prepared with the @gamma_set functions from
+	 * &drm_fb_helper_funcs.
+	 *
+	 * This callback is optional and is only used by the fbdev emulation
+	 * helpers.
+	 *
+	 * FIXME:
+	 *
+	 * This callback is functionally redundant with the core gamma table
+	 * support and simply exists because the fbdev hasn't yet been
+	 * refactored to use the core gamma table interfaces.
+	 */
 	void (*load_lut)(struct drm_crtc *crtc);
 
+	/**
+	 * @disable:
+	 *
+	 * This callback should be used to disable the CRTC. With the atomic
+	 * drivers it is called after all encoders connected to this CRTC have
+	 * been shut off already using their own ->disable hook. If that
+	 * sequence is too simple drivers can just add their own hooks and call
+	 * it from this CRTC callback here by looping over all encoders
+	 * connected to it using for_each_encoder_on_crtc().
+	 *
+	 * This hook is used both by legacy CRTC helpers and atomic helpers.
+	 * Atomic drivers don't need to implement it if there's no need to
+	 * disable anything at the CRTC level. To ensure that runtime PM
+	 * handling (using either DPMS or the new "ACTIVE" property) works
+	 * @disable must be the inverse of @enable for atomic drivers.
+	 *
+	 * NOTE:
+	 *
+	 * With legacy CRTC helpers there's a big semantic difference between
+	 * @disable and other hooks (like @prepare or @dpms) used to shut down a
+	 * CRTC: @disable is only called when also logically disabling the
+	 * display pipeline and needs to release any resources acquired in
+	 * @mode_set (like shared PLLs, or again release pinned framebuffers).
+	 *
+	 * Therefore @disable must be the inverse of @mode_set plus @commit for
+	 * drivers still using legacy CRTC helpers, which is different from the
+	 * rules under atomic.
+	 */
 	void (*disable)(struct drm_crtc *crtc);
+
+	/**
+	 * @enable:
+	 *
+	 * This callback should be used to enable the CRTC. With the atomic
+	 * drivers it is called before all encoders connected to this CRTC are
+	 * enabled through the encoder's own ->enable hook.  If that sequence is
+	 * too simple drivers can just add their own hooks and call it from this
+	 * CRTC callback here by looping over all encoders connected to it using
+	 * for_each_encoder_on_crtc().
+	 *
+	 * This hook is used only by atomic helpers, for symmetry with @disable.
+	 * Atomic drivers don't need to implement it if there's no need to
+	 * enable anything at the CRTC level. To ensure that runtime PM handling
+	 * (using either DPMS or the new "ACTIVE" property) works
+	 * @enable must be the inverse of @disable for atomic drivers.
+	 */
 	void (*enable)(struct drm_crtc *crtc);
 
 	/**
@@ -212,53 +390,228 @@ static inline void drm_crtc_helper_add(struct drm_crtc *crtc,
 
 /**
  * struct drm_encoder_helper_funcs - helper operations for encoders
- * @dpms: set power state
- * @mode_fixup: try to fixup proposed mode for this connector
- * @prepare: part of the disable sequence, called before the CRTC modeset
- * @commit: called after the CRTC modeset
- * @mode_set: set this mode, optional for atomic helpers
- * @get_crtc: return CRTC that the encoder is currently attached to
- * @detect: connection status detection
- * @disable: disable encoder when not in use (overrides DPMS off)
- * @enable: enable encoder
- * @atomic_check: check for validity of an atomic update
  *
- * The helper operations are called by the mid-layer CRTC helper.
- *
- * Note that with atomic helpers @dpms, @prepare and @commit hooks are
- * deprecated. Used @enable and @disable instead exclusively.
- *
- * With legacy crtc helpers there's a big semantic difference between @disable
- * and the other hooks: @disable also needs to release any resources acquired in
- * @mode_set (like shared PLLs).
+ * These hooks are used by the legacy CRTC helpers, the transitional plane
+ * helpers and the new atomic modesetting helpers.
  */
 struct drm_encoder_helper_funcs {
+	/**
+	 * @dpms:
+	 *
+	 * Callback to control power levels on the encoder.  If the mode passed in
+	 * is unsupported, the provider must use the next lowest power level.
+	 * This is used by the legacy encoder helpers to implement DPMS
+	 * functionality in drm_helper_connector_dpms().
+	 *
+	 * This callback is also used to disable an encoder by calling it with
+	 * DRM_MODE_DPMS_OFF if the @disable hook isn't used.
+	 *
+	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
+	 * also support using this hook for enabling and disabling an encoder to
+	 * facilitate transitions to atomic, but it is deprecated. Instead
+	 * @enable and @disable should be used.
+	 */
 	void (*dpms)(struct drm_encoder *encoder, int mode);
 
+	/**
+	 * @mode_fixup:
+	 *
+	 * This callback is used to validate and adjust a mode. The parameter
+	 * mode is the display mode that should be fed to the next element in
+	 * the display chain, either the final &drm_connector or a &drm_bridge.
+	 * The parameter adjusted_mode is the input mode the encoder requires. It
+	 * can be modified by this callback and does not need to match mode.
+	 *
+	 * This function is used by both legacy CRTC helpers and atomic helpers.
+	 * With atomic helpers it is optional.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the check phase of atomic modesets, which
+	 * can be aborted for any reason (including on userspace's request to
+	 * just check whether a configuration would be possible). Atomic drivers
+	 * MUST NOT touch any persistent state (hardware or software) or data
+	 * structures except the passed in adjusted_mode parameter.
+	 *
+	 * This is in contrast to the legacy CRTC helpers where this was
+	 * allowed.
+	 *
+	 * Atomic drivers which need to inspect and adjust more state should
+	 * instead use the @atomic_check callback.
+	 *
+	 * RETURNS:
+	 *
+	 * True if an acceptable configuration is possible, false if the modeset
+	 * operation should be rejected.
+	 */
 	bool (*mode_fixup)(struct drm_encoder *encoder,
 			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
+
+	/**
+	 * @prepare:
+	 *
+	 * This callback should prepare the encoder for a subsequent modeset,
+	 * which in practice means the driver should disable the encoder if it
+	 * is running. Most drivers ended up implementing this by calling their
+	 * @dpms hook with DRM_MODE_DPMS_OFF.
+	 *
+	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
+	 * also support using this hook for disabling an encoder to facilitate
+	 * transitions to atomic, but it is deprecated. Instead @disable should
+	 * be used.
+	 */
 	void (*prepare)(struct drm_encoder *encoder);
+
+	/**
+	 * @commit:
+	 *
+	 * This callback should commit the new mode on the encoder after a modeset,
+	 * which in practice means the driver should enable the encoder.  Most
+	 * drivers ended up implementing this by calling their @dpms hook with
+	 * DRM_MODE_DPMS_ON.
+	 *
+	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
+	 * also support using this hook for enabling an encoder to facilitate
+	 * transitions to atomic, but it is deprecated. Instead @enable should
+	 * be used.
+	 */
 	void (*commit)(struct drm_encoder *encoder);
+
+	/**
+	 * @mode_set:
+	 *
+	 * This callback is used to update the display mode of an encoder.
+	 *
+	 * Note that the display pipe is completely off when this function is
+	 * called. Drivers which need hardware to be running before they program
+	 * the new display mode (because they implement runtime PM) should not
+	 * use this hook, because the helper library calls it only once and not
+	 * every time the display pipeline is suspend using either DPMS or the
+	 * new "ACTIVE" property. Such drivers should instead move all their
+	 * encoder setup into the ->enable() callback.
+	 *
+	 * This callback is used both by the legacy CRTC helpers and the atomic
+	 * modeset helpers. It is optional in the atomic helpers.
+	 */
 	void (*mode_set)(struct drm_encoder *encoder,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode);
+
+	/**
+	 * @get_crtc:
+	 *
+	 * This callback is used by the legacy CRTC helpers to work around
+	 * deficiencies in its own book-keeping.
+	 *
+	 * Do not use, use atomic helpers instead, which get the book keeping
+	 * right.
+	 *
+	 * FIXME:
+	 *
+	 * Currently only nouveau is using this, and as soon as nouveau is
+	 * atomic we can ditch this hook.
+	 */
 	struct drm_crtc *(*get_crtc)(struct drm_encoder *encoder);
-	/* detect for DAC style encoders */
+
+	/**
+	 * @detect:
+	 *
+	 * This callback can be used by drivers who want to do detection on the
+	 * encoder object instead of in connector functions.
+	 *
+	 * It is not used by any helper and therefore has purely driver-specific
+	 * semantics. New drivers shouldn't use this and instead just implement
+	 * their own private callbacks.
+	 *
+	 * FIXME:
+	 *
+	 * This should just be converted into a pile of driver vfuncs.
+	 * Currently radeon, amdgpu and nouveau are using it.
+	 */
 	enum drm_connector_status (*detect)(struct drm_encoder *encoder,
 					    struct drm_connector *connector);
+
+	/**
+	 * @disable:
+	 *
+	 * This callback should be used to disable the encoder. With the atomic
+	 * drivers it is called before this encoder's CRTC has been shut off
+	 * using the CRTC's own ->disable hook.  If that sequence is too simple
+	 * drivers can just add their own driver private encoder hooks and call
+	 * them from CRTC's callback by looping over all encoders connected to
+	 * it using for_each_encoder_on_crtc().
+	 *
+	 * This hook is used both by legacy CRTC helpers and atomic helpers.
+	 * Atomic drivers don't need to implement it if there's no need to
+	 * disable anything at the encoder level. To ensure that runtime PM
+	 * handling (using either DPMS or the new "ACTIVE" property) works
+	 * @disable must be the inverse of @enable for atomic drivers.
+	 *
+	 * NOTE:
+	 *
+	 * With legacy CRTC helpers there's a big semantic difference between
+	 * @disable and other hooks (like @prepare or @dpms) used to shut down a
+	 * encoder: @disable is only called when also logically disabling the
+	 * display pipeline and needs to release any resources acquired in
+	 * @mode_set (like shared PLLs, or again release pinned framebuffers).
+	 *
+	 * Therefore @disable must be the inverse of @mode_set plus @commit for
+	 * drivers still using legacy CRTC helpers, which is different from the
+	 * rules under atomic.
+	 */
 	void (*disable)(struct drm_encoder *encoder);
 
+	/**
+	 * @enable:
+	 *
+	 * This callback should be used to enable the encoder. With the atomic
+	 * drivers it is called after this encoder's CRTC has been enabled using
+	 * the CRTC's own ->enable hook.  If that sequence is too simple drivers
+	 * can just add their own driver private encoder hooks and call them
+	 * from CRTC's callback by looping over all encoders connected to it
+	 * using for_each_encoder_on_crtc().
+	 *
+	 * This hook is used only by atomic helpers, for symmetry with @disable.
+	 * Atomic drivers don't need to implement it if there's no need to
+	 * enable anything at the encoder level. To ensure that runtime PM handling
+	 * (using either DPMS or the new "ACTIVE" property) works
+	 * @enable must be the inverse of @disable for atomic drivers.
+	 */
 	void (*enable)(struct drm_encoder *encoder);
 
-	/* atomic helpers */
+	/**
+	 * @atomic_check:
+	 *
+	 * This callback is used to validate encoder state for atomic drivers.
+	 * Since the encoder is the object connecting the CRTC and connector it
+	 * gets passed both states, to be able to validate interactions and
+	 * update the CRTC to match what the encoder needs for the requested
+	 * connector.
+	 *
+	 * This function is used by the atomic helpers, but it is optional.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the check phase of an atomic update. The
+	 * driver is not allowed to change anything outside of the free-standing
+	 * state objects passed-in or assembled in the overall &drm_atomic_state
+	 * update tracking structure.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success, -EINVAL if the state or the transition can't be
+	 * supported, -ENOMEM on memory allocation failure and -EDEADLK if an
+	 * attempt to obtain another state object ran into a &drm_modeset_lock
+	 * deadlock.
+	 */
 	int (*atomic_check)(struct drm_encoder *encoder,
 			    struct drm_crtc_state *crtc_state,
 			    struct drm_connector_state *conn_state);
 };
 
 /**
- * drm_encoder_helper_add - sets the helper vtable for a encoder
+ * drm_encoder_helper_add - sets the helper vtable for an encoder
  * @encoder: DRM encoder
  * @funcs: helper vtable to set for @encoder
  */
