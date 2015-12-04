@@ -318,7 +318,7 @@ M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
 S:	Supported
-F:	drivers/acpi/video.c
+F:	drivers/acpi/acpi_video.c
 
 ACPI WMI DRIVER
 L:	platform-driver-x86@vger.kernel.org
