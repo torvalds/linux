@@ -9,8 +9,8 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-bufmap.h"
+#include "orangefs-kernel.h"
+#include "orangefs-bufmap.h"
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
 

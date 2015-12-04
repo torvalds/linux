@@ -53,7 +53,7 @@
 
 #include <asm/unaligned.h>
 
-#include "pvfs2-dev-proto.h"
+#include "orangefs-dev-proto.h"
 
 #ifdef ORANGEFS_KERNEL_DEBUG
 #define ORANGEFS_DEFAULT_OP_TIMEOUT_SECS       10

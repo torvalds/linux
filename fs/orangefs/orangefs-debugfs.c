@@ -39,9 +39,9 @@
 
 #include <linux/uaccess.h>
 
-#include "pvfs2-debugfs.h"
+#include "orangefs-debugfs.h"
 #include "protocol.h"
-#include "pvfs2-kernel.h"
+#include "orangefs-kernel.h"
 
 static int orangefs_debug_disabled = 1;
 

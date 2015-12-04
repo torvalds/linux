@@ -5,8 +5,8 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-bufmap.h"
+#include "orangefs-kernel.h"
+#include "orangefs-bufmap.h"
 
 struct readdir_handle_s {
 	int buffer_index;

@@ -130,7 +130,7 @@ typedef __s64 ORANGEFS_offset;
 /* Bits 6 - 0 are reserved for the actual error code. */
 #define ORANGEFS_ERROR_NUMBER_BITS 0x7f
 
-/* Encoded errno values are decoded by PINT_errno_mapping in pvfs2-utils.c. */
+/* Encoded errno values decoded by PINT_errno_mapping in orangefs-utils.c. */
 
 /* Our own ORANGEFS protocol error codes. */
 #define ORANGEFS_ECANCEL    (1|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
@@ -352,7 +352,7 @@ struct dev_mask2_info_s {
 __s32 ORANGEFS_util_translate_mode(int mode);
 
 /* pvfs2-debug.h ************************************************************/
-#include "pvfs2-debug.h"
+#include "orangefs-debug.h"
 
 /* pvfs2-internal.h *********************************************************/
 #define llu(x) (unsigned long long)(x)
@@ -402,7 +402,7 @@ enum {
 
 /*
  * describes memory regions to map in the ORANGEFS_DEV_MAP ioctl.
- * NOTE: See devpvfs2-req.c for 32 bit compat structure.
+ * NOTE: See devorangefs-req.c for 32 bit compat structure.
  * Since this structure has a variable-sized layout that is different
  * on 32 and 64 bit platforms, we need to normalize to a 64 bit layout
  * on such systems before servicing ioctl calls from user-space binaries

@@ -9,7 +9,7 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
+#include "orangefs-kernel.h"
 
 /*
  * Get a newly allocated inode to go with a negative dentry.

@@ -8,9 +8,9 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-debugfs.h"
-#include "pvfs2-sysfs.h"
+#include "orangefs-kernel.h"
+#include "orangefs-debugfs.h"
+#include "orangefs-sysfs.h"
 
 /* ORANGEFS_VERSION is a ./configure define */
 #ifndef ORANGEFS_VERSION
@@ -152,7 +152,7 @@ static int __init orangefs_init(void)
 	if (ret  < 0)
 		goto cleanup_inode;
 
-	/* Initialize the pvfsdev subsystem. */
+	/* Initialize the orangefsdev subsystem. */
 	ret = orangefs_dev_init();
 	if (ret < 0) {
 		gossip_err("orangefs: could not initialize device subsystem %d!\n",

@@ -9,8 +9,8 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-bufmap.h"
+#include "orangefs-kernel.h"
+#include "orangefs-bufmap.h"
 
 static int read_one_page(struct page *page)
 {
@@ -125,7 +125,7 @@ static int orangefs_releasepage(struct page *page, gfp_t foo)
  * AIO. Modeled after NFS, they do this too.
  */
 /*
- * static ssize_t pvfs2_direct_IO(int rw,
+ * static ssize_t orangefs_direct_IO(int rw,
  *			struct kiocb *iocb,
  *			struct iov_iter *iter,
  *			loff_t offset)
@@ -150,7 +150,7 @@ const struct address_space_operations orangefs_address_operations = {
 	.readpages = orangefs_readpages,
 	.invalidatepage = orangefs_invalidatepage,
 	.releasepage = orangefs_releasepage,
-/*	.direct_IO = pvfs2_direct_IO */
+/*	.direct_IO = orangefs_direct_IO */
 };
 
 static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)

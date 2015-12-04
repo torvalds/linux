@@ -4,9 +4,9 @@
  * See COPYING in top-level directory.
  */
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-dev-proto.h"
-#include "pvfs2-bufmap.h"
+#include "orangefs-kernel.h"
+#include "orangefs-dev-proto.h"
+#include "orangefs-bufmap.h"
 
 __s32 fsid_of_op(struct orangefs_kernel_op_s *op)
 {

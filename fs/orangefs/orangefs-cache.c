@@ -5,7 +5,7 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
+#include "orangefs-kernel.h"
 
 /* tags assigned to kernel upcall operations */
 static __u64 next_tag_value;

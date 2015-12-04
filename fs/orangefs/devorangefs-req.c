@@ -8,9 +8,9 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-dev-proto.h"
-#include "pvfs2-bufmap.h"
+#include "orangefs-kernel.h"
+#include "orangefs-dev-proto.h"
+#include "orangefs-bufmap.h"
 
 #include <linux/debugfs.h>
 #include <linux/slab.h>

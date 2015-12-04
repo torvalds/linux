@@ -99,8 +99,8 @@
 #include <linux/init.h>
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-sysfs.h"
+#include "orangefs-kernel.h"
+#include "orangefs-sysfs.h"
 
 #define ORANGEFS_KOBJ_ID "orangefs"
 #define ACACHE_KOBJ_ID "acache"

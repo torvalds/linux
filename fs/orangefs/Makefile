@@ -4,7 +4,7 @@
 
 obj-$(CONFIG_ORANGEFS_FS) += orangefs.o
 
-orangefs-objs := acl.o file.o pvfs2-cache.o pvfs2-utils.o xattr.o dcache.o \
-		 inode.o pvfs2-sysfs.o pvfs2-mod.o super.o devpvfs2-req.o \
-		 namei.o symlink.o dir.o pvfs2-bufmap.o \
-		 pvfs2-debugfs.o waitqueue.o
+orangefs-objs := acl.o file.o orangefs-cache.o orangefs-utils.o xattr.o \
+		 dcache.o inode.o orangefs-sysfs.o orangefs-mod.o super.o \
+		 devorangefs-req.o namei.o symlink.o dir.o orangefs-bufmap.o \
+		 orangefs-debugfs.o waitqueue.o

@@ -5,8 +5,8 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-bufmap.h"
+#include "orangefs-kernel.h"
+#include "orangefs-bufmap.h"
 
 static const char *orangefs_follow_link(struct dentry *dentry, void **cookie)
 {

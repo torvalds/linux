@@ -9,8 +9,8 @@
  */
 
 #include "protocol.h"
-#include "pvfs2-kernel.h"
-#include "pvfs2-bufmap.h"
+#include "orangefs-kernel.h"
+#include "orangefs-bufmap.h"
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
@@ -186,7 +186,7 @@ populate_shared_memory:
 	}
 
 	if (ret < 0) {
-		handle_io_error(); /* defined in pvfs2-kernel.h */
+		handle_io_error();
 		/*
 		 * don't write an error to syslog on signaled operation
 		 * termination unless we've got debugging turned on, as
