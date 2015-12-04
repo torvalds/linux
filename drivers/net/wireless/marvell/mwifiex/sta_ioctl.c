@@ -923,9 +923,8 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		if (encrypt_key->key_disable) {
 			memset(&priv->wep_key[index], 0,
 			       sizeof(struct mwifiex_wep_key));
-			if (wep_key->key_length)
-				goto done;
-			}
+			goto done;
+		}
 
 		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 			enc_key = encrypt_key;
