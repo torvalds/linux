@@ -49,6 +49,8 @@
 #define PA6_RG_U2_ISO_EN		BIT(31)
 #define PA6_RG_U2_BC11_SW_EN		BIT(23)
 #define PA6_RG_U2_OTG_VBUSCMP_EN	BIT(20)
+#define PA6_RG_U2_SQTH		GENMASK(3, 0)
+#define PA6_RG_U2_SQTH_VAL(x)	(0xf & (x))
 
 #define U3P_U2PHYACR4		(SSUSB_SIFSLV_U2PHY_COM_BASE + 0x0020)
 #define P2C_RG_USB20_GPIO_CTL		BIT(9)
@@ -165,9 +167,10 @@ static void phy_instance_init(struct mt65xx_u3phy *u3phy,
 		writel(tmp, port_base + U3P_U2PHYDTM0);
 	}
 
-	/* DP/DM BC1.1 path Disable */
 	tmp = readl(port_base + U3P_USBPHYACR6);
-	tmp &= ~PA6_RG_U2_BC11_SW_EN;
+	tmp &= ~PA6_RG_U2_BC11_SW_EN;	/* DP/DM BC1.1 path Disable */
+	tmp &= ~PA6_RG_U2_SQTH;
+	tmp |= PA6_RG_U2_SQTH_VAL(2);
 	writel(tmp, port_base + U3P_USBPHYACR6);
 
 	tmp = readl(port_base + U3P_U3PHYA_DA_REG0);
