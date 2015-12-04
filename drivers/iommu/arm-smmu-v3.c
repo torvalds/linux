@@ -857,15 +857,17 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 	};
 
 	dev_err(smmu->dev, "CMDQ error (cons 0x%08x): %s\n", cons,
-		cerror_str[idx]);
+		idx < ARRAY_SIZE(cerror_str) ?  cerror_str[idx] : "Unknown");
 
 	switch (idx) {
-	case CMDQ_ERR_CERROR_ILL_IDX:
-		break;
 	case CMDQ_ERR_CERROR_ABT_IDX:
 		dev_err(smmu->dev, "retrying command fetch\n");
 	case CMDQ_ERR_CERROR_NONE_IDX:
 		return;
+	case CMDQ_ERR_CERROR_ILL_IDX:
+		/* Fallthrough */
+	default:
+		break;
 	}
 
 	/*
