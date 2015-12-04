@@ -374,16 +374,6 @@ static const struct drm_connector_helper_funcs virtio_gpu_conn_helper_funcs = {
 	.best_encoder = virtio_gpu_best_encoder,
 };
 
-static void virtio_gpu_conn_save(struct drm_connector *connector)
-{
-	DRM_DEBUG("\n");
-}
-
-static void virtio_gpu_conn_restore(struct drm_connector *connector)
-{
-	DRM_DEBUG("\n");
-}
-
 static enum drm_connector_status virtio_gpu_conn_detect(
 			struct drm_connector *connector,
 			bool force)
@@ -409,8 +399,6 @@ static void virtio_gpu_conn_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_funcs virtio_gpu_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
-	.save = virtio_gpu_conn_save,
-	.restore = virtio_gpu_conn_restore,
 	.detect = virtio_gpu_conn_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes_nomerge,
 	.destroy = virtio_gpu_conn_destroy,
