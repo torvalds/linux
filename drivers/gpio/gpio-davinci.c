@@ -254,7 +254,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF_GPIO
 		chips[i].chip.of_gpio_n_cells = 2;
 		chips[i].chip.of_xlate = davinci_gpio_of_xlate;
-		chips[i].chip.dev = dev;
+		chips[i].chip.parent = dev;
 		chips[i].chip.of_node = dev->of_node;
 #endif
 		spin_lock_init(&chips[i].lock);
