@@ -117,6 +117,7 @@ struct tegra_pmc_soc {
  * @base: pointer to I/O remapped register region
  * @clk: pointer to pclk clock
  * @soc: pointer to SoC data structure
+ * @debugfs: pointer to debugfs entry
  * @rate: currently configured rate of pclk
  * @suspend_mode: lowest suspend mode available
  * @cpu_good_time: CPU power good time (in microseconds)
@@ -136,6 +137,7 @@ struct tegra_pmc {
 	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
+	struct dentry *debugfs;
 
 	const struct tegra_pmc_soc *soc;
 
@@ -447,11 +449,9 @@ static const struct file_operations powergate_fops = {
 
 static int tegra_powergate_debugfs_init(void)
 {
-	struct dentry *d;
-
-	d = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
-				&powergate_fops);
-	if (!d)
+	pmc->debugfs = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
+					   &powergate_fops);
+	if (!pmc->debugfs)
 		return -ENOMEM;
 
 	return 0;
@@ -844,6 +844,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	err = register_restart_handler(&tegra_pmc_restart_handler);
 	if (err) {
+		debugfs_remove(pmc->debugfs);
 		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
 			err);
 		return err;
