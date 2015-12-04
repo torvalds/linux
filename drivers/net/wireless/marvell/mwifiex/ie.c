@@ -140,7 +140,7 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP)
 		return mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
 					HostCmd_ACT_GEN_SET,
-					UAP_CUSTOM_IE_I, ie_list, false);
+					UAP_CUSTOM_IE_I, ie_list, true);
 
 	return 0;
 }

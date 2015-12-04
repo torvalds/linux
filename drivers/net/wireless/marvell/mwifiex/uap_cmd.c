@@ -848,9 +848,9 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
 			     HostCmd_ACT_GEN_SET,
-			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
+			     UAP_BSS_PARAMS_I, bss_cfg, true)) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "Failed to set the SSID\n");
+			    "Failed to set AP configuration\n");
 		return -1;
 	}
 
@@ -865,7 +865,7 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 	}
 
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_START,
-			     HostCmd_ACT_GEN_SET, 0, NULL, false)) {
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "Failed to start the BSS\n");
 		return -1;
