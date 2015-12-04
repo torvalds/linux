@@ -94,7 +94,7 @@ int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 	if (result) {
 		dev_err(&svc->dev, "UniPro error while getting DME attribute (%hhu %hx %hu): %hu\n",
 				intf_id, attr, selector, result);
-		return -EINVAL;
+		return -EIO;
 	}
 
 	if (value)
@@ -130,7 +130,7 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 	if (result) {
 		dev_err(&svc->dev, "UniPro error while setting DME attribute (%hhu %hx %hu %u): %hu\n",
 				intf_id, attr, selector, value, result);
-		return -EINVAL;
+		return -EIO;
 	}
 
 	return 0;
