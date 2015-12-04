@@ -75,7 +75,6 @@ static int gennvm_block_bb(struct ppa_addr ppa, int nr_blocks, u8 *blks,
 	struct nvm_block *blk;
 	int i;
 
-	ppa = dev_to_generic_addr(gn->dev, ppa);
 	lun = &gn->luns[(dev->nr_luns * ppa.g.ch) + ppa.g.lun];
 
 	for (i = 0; i < nr_blocks; i++) {
@@ -187,7 +186,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 			ppa.g.lun = lun->vlun.id;
 			ppa = generic_to_dev_addr(dev, ppa);
 
-			ret = dev->ops->get_bb_tbl(dev->q, ppa,
+			ret = dev->ops->get_bb_tbl(dev, ppa,
 						dev->blks_per_lun,
 						gennvm_block_bb, gn);
 			if (ret)
@@ -205,6 +204,14 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	}
 
 	return 0;
+}
+
+static void gennvm_free(struct nvm_dev *dev)
+{
+	gennvm_blocks_free(dev);
+	gennvm_luns_free(dev);
+	kfree(dev->mp);
+	dev->mp = NULL;
 }
 
 static int gennvm_register(struct nvm_dev *dev)
@@ -234,16 +241,13 @@ static int gennvm_register(struct nvm_dev *dev)
 
 	return 1;
 err:
-	kfree(gn);
+	gennvm_free(dev);
 	return ret;
 }
 
 static void gennvm_unregister(struct nvm_dev *dev)
 {
-	gennvm_blocks_free(dev);
-	gennvm_luns_free(dev);
-	kfree(dev->mp);
-	dev->mp = NULL;
+	gennvm_free(dev);
 }
 
 static struct nvm_block *gennvm_get_blk(struct nvm_dev *dev,

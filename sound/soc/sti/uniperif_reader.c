@@ -316,7 +316,7 @@ static int uni_reader_parse_dt(struct platform_device *pdev,
 	if (!info)
 		return -ENOMEM;
 
-	if (of_property_read_u32(node, "version", &reader->ver) ||
+	if (of_property_read_u32(node, "st,version", &reader->ver) ||
 	    reader->ver == SND_ST_UNIPERIF_VERSION_UNKNOWN) {
 		dev_err(&pdev->dev, "Unknown uniperipheral version ");
 		return -EINVAL;
@@ -346,7 +346,6 @@ int uni_reader_init(struct platform_device *pdev,
 	reader->hw = &uni_reader_pcm_hw;
 	reader->dai_ops = &uni_reader_dai_ops;
 
-	dev_err(reader->dev, "%s: enter\n", __func__);
 	ret = uni_reader_parse_dt(pdev, reader);
 	if (ret < 0) {
 		dev_err(reader->dev, "Failed to parse DeviceTree");

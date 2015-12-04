@@ -69,7 +69,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL7260_UCODE_API_MAX	17
+#define IWL7260_UCODE_API_MAX	19
 
 /* Oldest version we won't warn about */
 #define IWL7260_UCODE_API_OK	13

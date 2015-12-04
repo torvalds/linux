@@ -22,8 +22,6 @@
 
 #include "nvme.h"
 
-#ifdef CONFIG_NVM
-
 #include <linux/nvme.h>
 #include <linux/bitops.h>
 #include <linux/lightnvm.h>
@@ -357,10 +355,11 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_get_bb_tbl(struct request_queue *q, struct ppa_addr ppa,
+static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 				int nr_blocks, nvm_bb_update_fn *update_bbtbl,
 				void *priv)
 {
+	struct request_queue *q = nvmdev->q;
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
@@ -404,6 +403,7 @@ static int nvme_nvm_get_bb_tbl(struct request_queue *q, struct ppa_addr ppa,
 		goto out;
 	}
 
+	ppa = dev_to_generic_addr(nvmdev, ppa);
 	ret = update_bbtbl(ppa, nr_blocks, bb_tbl->blk, priv);
 	if (ret) {
 		ret = -EINTR;
@@ -571,31 +571,27 @@ void nvme_nvm_unregister(struct request_queue *q, char *disk_name)
 	nvm_unregister(disk_name);
 }
 
+/* move to shared place when used in multiple places. */
+#define PCI_VENDOR_ID_CNEX 0x1d1d
+#define PCI_DEVICE_ID_CNEX_WL 0x2807
+#define PCI_DEVICE_ID_CNEX_QEMU 0x1f1f
+
 int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
 	struct nvme_dev *dev = ns->dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	/* QEMU NVMe simulator - PCI ID + Vendor specific bit */
-	if (pdev->vendor == PCI_VENDOR_ID_INTEL && pdev->device == 0x5845 &&
+	if (pdev->vendor == PCI_VENDOR_ID_CNEX &&
+				pdev->device == PCI_DEVICE_ID_CNEX_QEMU &&
 							id->vs[0] == 0x1)
 		return 1;
 
 	/* CNEX Labs - PCI ID + Vendor specific bit */
-	if (pdev->vendor == 0x1d1d && pdev->device == 0x2807 &&
+	if (pdev->vendor == PCI_VENDOR_ID_CNEX &&
+				pdev->device == PCI_DEVICE_ID_CNEX_WL &&
 							id->vs[0] == 0x1)
 		return 1;
 
 	return 0;
 }
-#else
-int nvme_nvm_register(struct request_queue *q, char *disk_name)
-{
-	return 0;
-}
-void nvme_nvm_unregister(struct request_queue *q, char *disk_name) {};
-int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
-{
-	return 0;
-}
-#endif /* CONFIG_NVM */

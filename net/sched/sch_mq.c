@@ -63,7 +63,7 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt)
 		if (qdisc == NULL)
 			goto err;
 		priv->qdiscs[ntx] = qdisc;
-		qdisc->flags |= TCQ_F_ONETXQUEUE;
+		qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
 	}
 
 	sch->flags |= TCQ_F_MQROOT;
@@ -156,7 +156,7 @@ static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 
 	*old = dev_graft_qdisc(dev_queue, new);
 	if (new)
-		new->flags |= TCQ_F_ONETXQUEUE;
+		new->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
 	if (dev->flags & IFF_UP)
 		dev_activate(dev);
 	return 0;
