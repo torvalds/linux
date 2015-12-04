@@ -254,6 +254,11 @@ struct drm_plane;
 struct drm_bridge;
 struct drm_atomic_state;
 
+struct drm_crtc_helper_funcs;
+struct drm_encoder_helper_funcs;
+struct drm_connector_helper_funcs;
+struct drm_plane_helper_funcs;
+
 /**
  * struct drm_crtc_state - mutable CRTC state
  * @crtc: backpointer to the CRTC
@@ -467,7 +472,7 @@ struct drm_crtc {
 	uint16_t *gamma_store;
 
 	/* if you are using the helper */
-	const void *helper_private;
+	const struct drm_crtc_helper_funcs *helper_private;
 
 	struct drm_object_properties properties;
 
@@ -597,7 +602,7 @@ struct drm_encoder {
 	struct drm_crtc *crtc;
 	struct drm_bridge *bridge;
 	const struct drm_encoder_funcs *funcs;
-	const void *helper_private;
+	const struct drm_encoder_helper_funcs *helper_private;
 };
 
 /* should we poll this connector for connects and disconnects */
@@ -702,7 +707,7 @@ struct drm_connector {
 	/* requested DPMS state */
 	int dpms;
 
-	const void *helper_private;
+	const struct drm_connector_helper_funcs *helper_private;
 
 	/* forced on connector */
 	struct drm_cmdline_mode cmdline_mode;
@@ -870,7 +875,7 @@ struct drm_plane {
 
 	enum drm_plane_type type;
 
-	const void *helper_private;
+	const struct drm_plane_helper_funcs *helper_private;
 
 	struct drm_plane_state *state;
 };
