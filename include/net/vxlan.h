@@ -79,7 +79,7 @@ struct vxlanhdr {
 };
 
 /* VXLAN header flags. */
-#define VXLAN_HF_RCO BIT(24)
+#define VXLAN_HF_RCO BIT(21)
 #define VXLAN_HF_VNI BIT(27)
 #define VXLAN_HF_GBP BIT(31)
 
