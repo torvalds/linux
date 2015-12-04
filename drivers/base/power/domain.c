@@ -1775,10 +1775,10 @@ int genpd_dev_pm_attach(struct device *dev)
 	}
 
 	pd = of_genpd_get_from_provider(&pd_args);
+	of_node_put(pd_args.np);
 	if (IS_ERR(pd)) {
 		dev_dbg(dev, "%s() failed to find PM domain: %ld\n",
 			__func__, PTR_ERR(pd));
-		of_node_put(dev->of_node);
 		return -EPROBE_DEFER;
 	}
 
@@ -1796,7 +1796,6 @@ int genpd_dev_pm_attach(struct device *dev)
 	if (ret < 0) {
 		dev_err(dev, "failed to add to PM domain %s: %d",
 			pd->name, ret);
-		of_node_put(dev->of_node);
 		goto out;
 	}
 
