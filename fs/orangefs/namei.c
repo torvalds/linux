@@ -113,7 +113,7 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 	if (!new_op)
 		return ERR_PTR(-ENOMEM);
 
-	new_op->upcall.req.lookup.sym_follow = flags & LOOKUP_FOLLOW;
+	new_op->upcall.req.lookup.sym_follow = PVFS2_LOOKUP_LINK_NO_FOLLOW;
 
 	gossip_debug(GOSSIP_NAME_DEBUG, "%s:%s:%d using parent %pU\n",
 		     __FILE__,
