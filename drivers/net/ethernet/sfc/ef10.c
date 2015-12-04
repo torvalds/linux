@@ -2374,8 +2374,19 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 				    1 << MC_CMD_WORKAROUND_EXT_OUT_FLR_DONE_LBN) {
 					netif_info(efx, drv, efx->net_dev,
 						   "other functions on NIC have been reset\n");
-					/* MC's boot count has incremented */
-					++nic_data->warm_boot_count;
+
+					/* With MCFW v4.6.x and earlier, the
+					 * boot count will have incremented,
+					 * so re-read the warm_boot_count
+					 * value now to ensure this function
+					 * doesn't think it has changed next
+					 * time it checks.
+					 */
+					rc = efx_ef10_get_warm_boot_count(efx);
+					if (rc >= 0) {
+						nic_data->warm_boot_count = rc;
+						rc = 0;
+					}
 				}
 				nic_data->workaround_26807 = true;
 			} else if (rc == -EPERM) {
