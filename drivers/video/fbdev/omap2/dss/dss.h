@@ -343,7 +343,8 @@ u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 #else
 static inline u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 {
-	WARN("%s: DSI not compiled in, returning pixel_size as 0\n", __func__);
+	WARN(1, "%s: DSI not compiled in, returning pixel_size as 0\n",
+	     __func__);
 	return 0;
 }
 #endif
