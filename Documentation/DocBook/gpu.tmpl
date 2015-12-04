@@ -1279,26 +1279,10 @@ int max_width, max_height;</synopsis>
           <title>Miscellaneous</title>
           <itemizedlist>
             <listitem>
-              <synopsis>void (*set_property)(struct drm_crtc *crtc,
-                     struct drm_property *property, uint64_t value);</synopsis>
-              <para>
-                Set the value of the given CRTC property to
-                <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
-                for more information about properties.
-              </para>
-            </listitem>
-            <listitem>
               <synopsis>void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
                         uint32_t start, uint32_t size);</synopsis>
               <para>
                 Apply a gamma table to the device. The operation is optional.
-              </para>
-            </listitem>
-            <listitem>
-              <synopsis>void (*destroy)(struct drm_crtc *crtc);</synopsis>
-              <para>
-                Destroy the CRTC when not needed anymore. See
-                <xref linkend="drm-kms-init"/>.
               </para>
             </listitem>
           </itemizedlist>
@@ -1357,52 +1341,6 @@ int max_width, max_height;</synopsis>
           primary plane with standard capabilities.
         </para>
       </sect3>
-      <sect3>
-        <title>Plane Operations</title>
-        <itemizedlist>
-          <listitem>
-            <synopsis>int (*update_plane)(struct drm_plane *plane, struct drm_crtc *crtc,
-                        struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-                        unsigned int crtc_w, unsigned int crtc_h,
-                        uint32_t src_x, uint32_t src_y,
-                        uint32_t src_w, uint32_t src_h);</synopsis>
-            <para>
-              Enable and configure the plane to use the given CRTC and frame buffer.
-            </para>
-            <para>
-              The source rectangle in frame buffer memory coordinates is given by
-              the <parameter>src_x</parameter>, <parameter>src_y</parameter>,
-              <parameter>src_w</parameter> and <parameter>src_h</parameter>
-              parameters (as 16.16 fixed point values). Devices that don't support
-              subpixel plane coordinates can ignore the fractional part.
-            </para>
-            <para>
-              The destination rectangle in CRTC coordinates is given by the
-              <parameter>crtc_x</parameter>, <parameter>crtc_y</parameter>,
-              <parameter>crtc_w</parameter> and <parameter>crtc_h</parameter>
-              parameters (as integer values). Devices scale the source rectangle to
-              the destination rectangle. If scaling is not supported, and the source
-              rectangle size doesn't match the destination rectangle size, the
-              driver must return a -<errorname>EINVAL</errorname> error.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>int (*disable_plane)(struct drm_plane *plane);</synopsis>
-            <para>
-              Disable the plane. The DRM core calls this method in response to a
-              DRM_IOCTL_MODE_SETPLANE ioctl call with the frame buffer ID set to 0.
-              Disabled planes must not be processed by the CRTC.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>void (*destroy)(struct drm_plane *plane);</synopsis>
-            <para>
-              Destroy the plane when not needed anymore. See
-              <xref linkend="drm-kms-init"/>.
-            </para>
-          </listitem>
-        </itemizedlist>
-      </sect3>
     </sect2>
     <sect2>
       <title>Encoders (struct <structname>drm_encoder</structname>)</title>
@@ -1458,27 +1396,6 @@ int max_width, max_height;</synopsis>
           compatibility layer when implemented) are responsible for attaching the
           encoders they want to use to a CRTC.
         </para>
-      </sect3>
-      <sect3>
-        <title>Encoder Operations</title>
-        <itemizedlist>
-          <listitem>
-            <synopsis>void (*destroy)(struct drm_encoder *encoder);</synopsis>
-            <para>
-              Called to destroy the encoder when not needed anymore. See
-              <xref linkend="drm-kms-init"/>.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>void (*set_property)(struct drm_plane *plane,
-                     struct drm_property *property, uint64_t value);</synopsis>
-            <para>
-              Set the value of the given plane property to
-              <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
-              for more information about properties.
-            </para>
-          </listitem>
-        </itemizedlist>
       </sect3>
     </sect2>
     <sect2>
@@ -1682,27 +1599,6 @@ int max_width, max_height;</synopsis>
             the connection status, or failed connection status probes, should return
             connector_status_unknown.
           </para>
-        </sect4>
-        <sect4>
-          <title>Miscellaneous</title>
-          <itemizedlist>
-            <listitem>
-              <synopsis>void (*set_property)(struct drm_connector *connector,
-                     struct drm_property *property, uint64_t value);</synopsis>
-              <para>
-                Set the value of the given connector property to
-                <parameter>value</parameter>. See <xref linkend="drm-kms-properties"/>
-                for more information about properties.
-              </para>
-            </listitem>
-            <listitem>
-              <synopsis>void (*destroy)(struct drm_connector *connector);</synopsis>
-              <para>
-                Destroy the connector when not needed anymore. See
-                <xref linkend="drm-kms-init"/>.
-              </para>
-            </listitem>
-          </itemizedlist>
         </sect4>
       </sect3>
     </sect2>

@@ -322,21 +322,12 @@ struct drm_crtc_state {
  * struct drm_crtc_funcs - control CRTCs for a given device
  * @save: save CRTC state
  * @restore: restore CRTC state
- * @reset: reset CRTC after state has been invalidated (e.g. resume)
  * @cursor_set: setup the cursor
  * @cursor_set2: setup the cursor with hotspot, superseeds @cursor_set if set
  * @cursor_move: move the cursor
  * @gamma_set: specify color ramp for CRTC
- * @destroy: deinit and free object
- * @set_property: called when a property is changed
  * @set_config: apply a new CRTC configuration
  * @page_flip: initiate a page flip
- * @atomic_duplicate_state: duplicate the atomic state for this CRTC
- * @atomic_destroy_state: destroy an atomic state for this CRTC
- * @atomic_set_property: set a property on an atomic state for this CRTC
- *    (do not call directly, use drm_atomic_crtc_set_property())
- * @atomic_get_property: get a property on an atomic state for this CRTC
- *    (do not call directly, use drm_atomic_crtc_get_property())
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -352,7 +343,17 @@ struct drm_crtc_funcs {
 	void (*save)(struct drm_crtc *crtc); /* suspend? */
 	/* Restore CRTC state */
 	void (*restore)(struct drm_crtc *crtc); /* resume? */
-	/* Reset CRTC state */
+
+	/**
+	 * @reset:
+	 *
+	 * Reset CRTC hardware and software state to off. This function isn't
+	 * called by the core directly, only through drm_mode_config_reset().
+	 * It's not a helper hook only for historical reasons.
+	 *
+	 * Atomic drivers can use drm_atomic_helper_crtc_reset() to reset
+	 * atomic state using this hook.
+	 */
 	void (*reset)(struct drm_crtc *crtc);
 
 	/* cursor controls */
@@ -366,7 +367,14 @@ struct drm_crtc_funcs {
 	/* Set gamma on the CRTC */
 	void (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 			  uint32_t start, uint32_t size);
-	/* Object destroy routine */
+
+	/**
+	 * @destroy:
+	 *
+	 * Clean up plane resources. This is only called at driver unload time
+	 * through drm_mode_config_cleanup() since a CRTC cannot be hotplugged
+	 * in DRM.
+	 */
 	void (*destroy)(struct drm_crtc *crtc);
 
 	int (*set_config)(struct drm_mode_set *set);
@@ -385,17 +393,129 @@ struct drm_crtc_funcs {
 			 struct drm_pending_vblank_event *event,
 			 uint32_t flags);
 
+	/**
+	 * @set_property:
+	 *
+	 * This is the legacy entry point to update a property attached to the
+	 * CRTC.
+	 *
+	 * Drivers implementing atomic modeset should use
+	 * drm_atomic_helper_crtc_set_property() to implement this hook.
+	 *
+	 * This callback is optional if the driver does not support any legacy
+	 * driver-private properties.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*set_property)(struct drm_crtc *crtc,
 			    struct drm_property *property, uint64_t val);
 
-	/* atomic update handling */
+	/**
+	 * @atomic_duplicate_state:
+	 *
+	 * Duplicate the current atomic state for this CRTC and return it.
+	 * The core and helpers gurantee that any atomic state duplicated with
+	 * this hook and still owned by the caller (i.e. not transferred to the
+	 * driver by calling ->atomic_commit() from struct
+	 * &drm_mode_config_funcs) will be cleaned up by calling the
+	 * @atomic_destroy_state hook in this structure.
+	 *
+	 * Atomic drivers which don't subclass struct &drm_crtc should use
+	 * drm_atomic_helper_crtc_duplicate_state(). Drivers that subclass the
+	 * state structure to extend it with driver-private state should use
+	 * __drm_atomic_helper_crtc_duplicate_state() to make sure shared state is
+	 * duplicated in a consistent fashion across drivers.
+	 *
+	 * It is an error to call this hook before crtc->state has been
+	 * initialized correctly.
+	 *
+	 * NOTE:
+	 *
+	 * If the duplicate state references refcounted resources this hook must
+	 * acquire a reference for each of them. The driver must release these
+	 * references again in @atomic_destroy_state.
+	 *
+	 * RETURNS:
+	 *
+	 * Duplicated atomic state or NULL when the allocation failed.
+	 */
 	struct drm_crtc_state *(*atomic_duplicate_state)(struct drm_crtc *crtc);
+
+	/**
+	 * @atomic_destroy_state:
+	 *
+	 * Destroy a state duplicated with @atomic_duplicate_state and release
+	 * or unreference all resources it references
+	 */
 	void (*atomic_destroy_state)(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state);
+
+	/**
+	 * @atomic_set_property:
+	 *
+	 * Decode a driver-private property value and store the decoded value
+	 * into the passed-in state structure. Since the atomic core decodes all
+	 * standardized properties (even for extensions beyond the core set of
+	 * properties which might not be implemented by all drivers) this
+	 * requires drivers to subclass the state structure.
+	 *
+	 * Such driver-private properties should really only be implemented for
+	 * truly hardware/vendor specific state. Instead it is preferred to
+	 * standardize atomic extension and decode the properties used to expose
+	 * such an extension in the core.
+	 *
+	 * Do not call this function directly, use
+	 * drm_atomic_crtc_set_property() instead.
+	 *
+	 * This callback is optional if the driver does not support any
+	 * driver-private atomic properties.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the state assembly phase of atomic
+	 * modesets, which can be aborted for any reason (including on
+	 * userspace's request to just check whether a configuration would be
+	 * possible). Drivers MUST NOT touch any persistent state (hardware or
+	 * software) or data structures except the passed in @state parameter.
+	 *
+	 * Also since userspace controls in which order properties are set this
+	 * function must not do any input validation (since the state update is
+	 * incomplete and hence likely inconsistent). Instead any such input
+	 * validation must be done in the various atomic_check callbacks.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 if the property has been found, -EINVAL if the property isn't
+	 * implemented by the driver (which should never happen, the core only
+	 * asks for properties attached to this CRTC). No other validation is
+	 * allowed by the driver. The core already checks that the property
+	 * value is within the range (integer, valid enum value, ...) the driver
+	 * set when registering the property.
+	 */
 	int (*atomic_set_property)(struct drm_crtc *crtc,
 				   struct drm_crtc_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	/**
+	 * @atomic_get_property:
+	 *
+	 * Reads out the decoded driver-private property. This is used to
+	 * implement the GETCRTC ioctl.
+	 *
+	 * Do not call this function directly, use
+	 * drm_atomic_crtc_get_property() instead.
+	 *
+	 * This callback is optional if the driver does not support any
+	 * driver-private atomic properties.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success, -EINVAL if the property isn't implemented by the
+	 * driver (which should never happen, the core only asks for
+	 * properties attached to this CRTC).
+	 */
 	int (*atomic_get_property)(struct drm_crtc *crtc,
 				   const struct drm_crtc_state *state,
 				   struct drm_property *property,
@@ -507,18 +627,9 @@ struct drm_connector_state {
  * @dpms: set power state
  * @save: save connector state
  * @restore: restore connector state
- * @reset: reset connector after state has been invalidated (e.g. resume)
  * @detect: is this connector active?
  * @fill_modes: fill mode list for this connector
- * @set_property: property for this connector may need an update
- * @destroy: make object go away
  * @force: notify the driver that the connector is forced on
- * @atomic_duplicate_state: duplicate the atomic state for this connector
- * @atomic_destroy_state: destroy an atomic state for this connector
- * @atomic_set_property: set a property on an atomic state for this connector
- *    (do not call directly, use drm_atomic_connector_set_property())
- * @atomic_get_property: get a property on an atomic state for this connector
- *    (do not call directly, use drm_atomic_connector_get_property())
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
@@ -528,6 +639,17 @@ struct drm_connector_funcs {
 	int (*dpms)(struct drm_connector *connector, int mode);
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
+
+	/**
+	 * @reset:
+	 *
+	 * Reset connector hardware and software state to off. This function isn't
+	 * called by the core directly, only through drm_mode_config_reset().
+	 * It's not a helper hook only for historical reasons.
+	 *
+	 * Atomic drivers can use drm_atomic_helper_connector_reset() to reset
+	 * atomic state using this hook.
+	 */
 	void (*reset)(struct drm_connector *connector);
 
 	/* Check to see if anything is attached to the connector.
@@ -539,19 +661,142 @@ struct drm_connector_funcs {
 	enum drm_connector_status (*detect)(struct drm_connector *connector,
 					    bool force);
 	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
+
+	/**
+	 * @set_property:
+	 *
+	 * This is the legacy entry point to update a property attached to the
+	 * connector.
+	 *
+	 * Drivers implementing atomic modeset should use
+	 * drm_atomic_helper_connector_set_property() to implement this hook.
+	 *
+	 * This callback is optional if the driver does not support any legacy
+	 * driver-private properties.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*set_property)(struct drm_connector *connector, struct drm_property *property,
 			     uint64_t val);
+
+	/**
+	 * @destroy:
+	 *
+	 * Clean up connector resources. This is called at driver unload time
+	 * through drm_mode_config_cleanup(). It can also be called at runtime
+	 * when a connector is being hot-unplugged for drivers that support
+	 * connector hotplugging (e.g. DisplayPort MST).
+	 */
 	void (*destroy)(struct drm_connector *connector);
 	void (*force)(struct drm_connector *connector);
 
-	/* atomic update handling */
+	/**
+	 * @atomic_duplicate_state:
+	 *
+	 * Duplicate the current atomic state for this connector and return it.
+	 * The core and helpers gurantee that any atomic state duplicated with
+	 * this hook and still owned by the caller (i.e. not transferred to the
+	 * driver by calling ->atomic_commit() from struct
+	 * &drm_mode_config_funcs) will be cleaned up by calling the
+	 * @atomic_destroy_state hook in this structure.
+	 *
+	 * Atomic drivers which don't subclass struct &drm_connector_state should use
+	 * drm_atomic_helper_connector_duplicate_state(). Drivers that subclass the
+	 * state structure to extend it with driver-private state should use
+	 * __drm_atomic_helper_connector_duplicate_state() to make sure shared state is
+	 * duplicated in a consistent fashion across drivers.
+	 *
+	 * It is an error to call this hook before connector->state has been
+	 * initialized correctly.
+	 *
+	 * NOTE:
+	 *
+	 * If the duplicate state references refcounted resources this hook must
+	 * acquire a reference for each of them. The driver must release these
+	 * references again in @atomic_destroy_state.
+	 *
+	 * RETURNS:
+	 *
+	 * Duplicated atomic state or NULL when the allocation failed.
+	 */
 	struct drm_connector_state *(*atomic_duplicate_state)(struct drm_connector *connector);
+
+	/**
+	 * @atomic_destroy_state:
+	 *
+	 * Destroy a state duplicated with @atomic_duplicate_state and release
+	 * or unreference all resources it references
+	 */
 	void (*atomic_destroy_state)(struct drm_connector *connector,
 				     struct drm_connector_state *state);
+
+	/**
+	 * @atomic_set_property:
+	 *
+	 * Decode a driver-private property value and store the decoded value
+	 * into the passed-in state structure. Since the atomic core decodes all
+	 * standardized properties (even for extensions beyond the core set of
+	 * properties which might not be implemented by all drivers) this
+	 * requires drivers to subclass the state structure.
+	 *
+	 * Such driver-private properties should really only be implemented for
+	 * truly hardware/vendor specific state. Instead it is preferred to
+	 * standardize atomic extension and decode the properties used to expose
+	 * such an extension in the core.
+	 *
+	 * Do not call this function directly, use
+	 * drm_atomic_connector_set_property() instead.
+	 *
+	 * This callback is optional if the driver does not support any
+	 * driver-private atomic properties.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the state assembly phase of atomic
+	 * modesets, which can be aborted for any reason (including on
+	 * userspace's request to just check whether a configuration would be
+	 * possible). Drivers MUST NOT touch any persistent state (hardware or
+	 * software) or data structures except the passed in @state parameter.
+	 *
+	 * Also since userspace controls in which order properties are set this
+	 * function must not do any input validation (since the state update is
+	 * incomplete and hence likely inconsistent). Instead any such input
+	 * validation must be done in the various atomic_check callbacks.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 if the property has been found, -EINVAL if the property isn't
+	 * implemented by the driver (which shouldn't ever happen, the core only
+	 * asks for properties attached to this connector). No other validation
+	 * is allowed by the driver. The core already checks that the property
+	 * value is within the range (integer, valid enum value, ...) the driver
+	 * set when registering the property.
+	 */
 	int (*atomic_set_property)(struct drm_connector *connector,
 				   struct drm_connector_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+
+	/**
+	 * @atomic_get_property:
+	 *
+	 * Reads out the decoded driver-private property. This is used to
+	 * implement the GETCONNECTOR ioctl.
+	 *
+	 * Do not call this function directly, use
+	 * drm_atomic_connector_get_property() instead.
+	 *
+	 * This callback is optional if the driver does not support any
+	 * driver-private atomic properties.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success, -EINVAL if the property isn't implemented by the
+	 * driver (which shouldn't ever happen, the core only asks for
+	 * properties attached to this connector).
+	 */
 	int (*atomic_get_property)(struct drm_connector *connector,
 				   const struct drm_connector_state *state,
 				   struct drm_property *property,
@@ -560,13 +805,26 @@ struct drm_connector_funcs {
 
 /**
  * struct drm_encoder_funcs - encoder controls
- * @reset: reset state (e.g. at init or resume time)
- * @destroy: cleanup and free associated data
  *
  * Encoders sit between CRTCs and connectors.
  */
 struct drm_encoder_funcs {
+	/**
+	 * @reset:
+	 *
+	 * Reset encoder hardware and software state to off. This function isn't
+	 * called by the core directly, only through drm_mode_config_reset().
+	 * It's not a helper hook only for historical reasons.
+	 */
 	void (*reset)(struct drm_encoder *encoder);
+
+	/**
+	 * @destroy:
+	 *
+	 * Clean up encoder resources. This is only called at driver unload time
+	 * through drm_mode_config_cleanup() since an encoder cannot be
+	 * hotplugged in DRM.
+	 */
 	void (*destroy)(struct drm_encoder *encoder);
 };
 
@@ -787,40 +1045,203 @@ struct drm_plane_state {
 
 /**
  * struct drm_plane_funcs - driver plane control functions
- * @update_plane: update the plane configuration
- * @disable_plane: shut down the plane
- * @destroy: clean up plane resources
- * @reset: reset plane after state has been invalidated (e.g. resume)
- * @set_property: called when a property is changed
- * @atomic_duplicate_state: duplicate the atomic state for this plane
- * @atomic_destroy_state: destroy an atomic state for this plane
- * @atomic_set_property: set a property on an atomic state for this plane
- *    (do not call directly, use drm_atomic_plane_set_property())
- * @atomic_get_property: get a property on an atomic state for this plane
- *    (do not call directly, use drm_atomic_plane_get_property())
  */
 struct drm_plane_funcs {
+	/**
+	 * @update_plane:
+	 *
+	 * This is the legacy entry point to enable and configure the plane for
+	 * the given CRTC and framebuffer. It is never called to disable the
+	 * plane, i.e. the passed-in crtc and fb paramters are never NULL.
+	 *
+	 * The source rectangle in frame buffer memory coordinates is given by
+	 * the src_x, src_y, src_w and src_h parameters (as 16.16 fixed point
+	 * values). Devices that don't support subpixel plane coordinates can
+	 * ignore the fractional part.
+	 *
+	 * The destination rectangle in CRTC coordinates is given by the
+	 * crtc_x, crtc_y, crtc_w and crtc_h parameters (as integer values).
+	 * Devices scale the source rectangle to the destination rectangle. If
+	 * scaling is not supported, and the source rectangle size doesn't match
+	 * the destination rectangle size, the driver must return a
+	 * -<errorname>EINVAL</errorname> error.
+	 *
+	 * Drivers implementing atomic modeset should use
+	 * drm_atomic_helper_update_plane() to implement this hook.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*update_plane)(struct drm_plane *plane,
 			    struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			    int crtc_x, int crtc_y,
 			    unsigned int crtc_w, unsigned int crtc_h,
 			    uint32_t src_x, uint32_t src_y,
 			    uint32_t src_w, uint32_t src_h);
+
+	/**
+	 * @disable_plane:
+	 *
+	 * This is the legacy entry point to disable the plane. The DRM core
+	 * calls this method in response to a DRM_IOCTL_MODE_SETPLANE ioctl call
+	 * with the frame buffer ID set to 0.  Disabled planes must not be
+	 * processed by the CRTC.
+	 *
+	 * Drivers implementing atomic modeset should use
+	 * drm_atomic_helper_disable_plane() to implement this hook.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*disable_plane)(struct drm_plane *plane);
+
+	/**
+	 * @destroy:
+	 *
+	 * Clean up plane resources. This is only called at driver unload time
+	 * through drm_mode_config_cleanup() since a plane cannot be hotplugged
+	 * in DRM.
+	 */
 	void (*destroy)(struct drm_plane *plane);
+
+	/**
+	 * @reset:
+	 *
+	 * Reset plane hardware and software state to off. This function isn't
+	 * called by the core directly, only through drm_mode_config_reset().
+	 * It's not a helper hook only for historical reasons.
+	 *
+	 * Atomic drivers can use drm_atomic_helper_plane_reset() to reset
+	 * atomic state using this hook.
+	 */
 	void (*reset)(struct drm_plane *plane);
 
+	/**
+	 * @set_property:
+	 *
+	 * This is the legacy entry point to update a property attached to the
+	 * plane.
+	 *
+	 * Drivers implementing atomic modeset should use
+	 * drm_atomic_helper_plane_set_property() to implement this hook.
+	 *
+	 * This callback is optional if the driver does not support any legacy
+	 * driver-private properties.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*set_property)(struct drm_plane *plane,
 			    struct drm_property *property, uint64_t val);
 
-	/* atomic update handling */
+	/**
+	 * @atomic_duplicate_state:
+	 *
+	 * Duplicate the current atomic state for this plane and return it.
+	 * The core and helpers gurantee that any atomic state duplicated with
+	 * this hook and still owned by the caller (i.e. not transferred to the
+	 * driver by calling ->atomic_commit() from struct
+	 * &drm_mode_config_funcs) will be cleaned up by calling the
+	 * @atomic_destroy_state hook in this structure.
+	 *
+	 * Atomic drivers which don't subclass struct &drm_plane_state should use
+	 * drm_atomic_helper_plane_duplicate_state(). Drivers that subclass the
+	 * state structure to extend it with driver-private state should use
+	 * __drm_atomic_helper_plane_duplicate_state() to make sure shared state is
+	 * duplicated in a consistent fashion across drivers.
+	 *
+	 * It is an error to call this hook before plane->state has been
+	 * initialized correctly.
+	 *
+	 * NOTE:
+	 *
+	 * If the duplicate state references refcounted resources this hook must
+	 * acquire a reference for each of them. The driver must release these
+	 * references again in @atomic_destroy_state.
+	 *
+	 * RETURNS:
+	 *
+	 * Duplicated atomic state or NULL when the allocation failed.
+	 */
 	struct drm_plane_state *(*atomic_duplicate_state)(struct drm_plane *plane);
+
+	/**
+	 * @atomic_destroy_state:
+	 *
+	 * Destroy a state duplicated with @atomic_duplicate_state and release
+	 * or unreference all resources it references
+	 */
 	void (*atomic_destroy_state)(struct drm_plane *plane,
 				     struct drm_plane_state *state);
+
+	/**
+	 * @atomic_set_property:
+	 *
+	 * Decode a driver-private property value and store the decoded value
+	 * into the passed-in state structure. Since the atomic core decodes all
+	 * standardized properties (even for extensions beyond the core set of
+	 * properties which might not be implemented by all drivers) this
+	 * requires drivers to subclass the state structure.
+	 *
+	 * Such driver-private properties should really only be implemented for
+	 * truly hardware/vendor specific state. Instead it is preferred to
+	 * standardize atomic extension and decode the properties used to expose
+	 * such an extension in the core.
+	 *
+	 * Do not call this function directly, use
+	 * drm_atomic_plane_set_property() instead.
+	 *
+	 * This callback is optional if the driver does not support any
+	 * driver-private atomic properties.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the state assembly phase of atomic
+	 * modesets, which can be aborted for any reason (including on
+	 * userspace's request to just check whether a configuration would be
+	 * possible). Drivers MUST NOT touch any persistent state (hardware or
+	 * software) or data structures except the passed in @state parameter.
+	 *
+	 * Also since userspace controls in which order properties are set this
+	 * function must not do any input validation (since the state update is
+	 * incomplete and hence likely inconsistent). Instead any such input
+	 * validation must be done in the various atomic_check callbacks.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 if the property has been found, -EINVAL if the property isn't
+	 * implemented by the driver (which shouldn't ever happen, the core only
+	 * asks for properties attached to this plane). No other validation is
+	 * allowed by the driver. The core already checks that the property
+	 * value is within the range (integer, valid enum value, ...) the driver
+	 * set when registering the property.
+	 */
 	int (*atomic_set_property)(struct drm_plane *plane,
 				   struct drm_plane_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+
+	/**
+	 * @atomic_get_property:
+	 *
+	 * Reads out the decoded driver-private property. This is used to
+	 * implement the GETPLANE ioctl.
+	 *
+	 * Do not call this function directly, use
+	 * drm_atomic_plane_get_property() instead.
+	 *
+	 * This callback is optional if the driver does not support any
+	 * driver-private atomic properties.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success, -EINVAL if the property isn't implemented by the
+	 * driver (which should never happen, the core only asks for
+	 * properties attached to this plane).
+	 */
 	int (*atomic_get_property)(struct drm_plane *plane,
 				   const struct drm_plane_state *state,
 				   struct drm_property *property,
@@ -832,6 +1253,7 @@ enum drm_plane_type {
 	DRM_PLANE_TYPE_PRIMARY,
 	DRM_PLANE_TYPE_CURSOR,
 };
+
 
 /**
  * struct drm_plane - central DRM plane control structure
@@ -907,7 +1329,7 @@ struct drm_bridge_funcs {
 	 * can be aborted for any reason (including on userspace's request to
 	 * just check whether a configuration would be possible). Drivers MUST
 	 * NOT touch any persistent state (hardware or software) or data
-	 * structures except the passed in adjusted_mode parameter.
+	 * structures except the passed in @state parameter.
 	 *
 	 * RETURNS:
 	 *
