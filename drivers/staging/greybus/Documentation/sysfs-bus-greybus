@@ -6,46 +6,6 @@ Description:
 		The "root" greybus device for the Greybus device tree, or bus,
 		where N is a dynamically assigned 1-based id.
 
-What:		/sys/bus/greybus/device/N-svc
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The singleton SVC device of bus N.
-
-What:		/sys/bus/greybus/device/N-svc/endo_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The Endo ID, which is a 2-byte hexadecimal value
-		defined by the Endo layout scheme, documented in
-		the ARA Module Developer Kit.
-
-What:		/sys/bus/greybus/device/N-svc/ap_intf_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The AP interface ID, a 1-byte non-zero integer which
-		defines the position of the AP module on the frame.
-		The interface positions are defined in the ARA
-		Module Developer Kit.
-
-What:		/sys/bus/greybus/device/N-svc/unique_id
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The unique ID, or serial number, of the SVC device
-
-What:		/sys/bus/greybus/device/N-svc/version
-Date:		October 2015
-KernelVersion:	4.XX
-Contact:	Greg Kroah-Hartman <greg@kroah.com>
-Description:
-		The version number of the firmware in the SVC device.
-
 What:		/sys/bus/greybus/device/N-I
 Date:		October 2015
 KernelVersion:	4.XX
@@ -123,3 +83,43 @@ Description:
 		process watching the file will be woken up, and the new
 		value can be read. It's a "poor-man's IPC", yes, but
 		simplifies the Android userspace code immensely.
+
+What:		/sys/bus/greybus/device/N-svc
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The singleton SVC device of bus N.
+
+What:		/sys/bus/greybus/device/N-svc/ap_intf_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The AP interface ID, a 1-byte non-zero integer which
+		defines the position of the AP module on the frame.
+		The interface positions are defined in the ARA
+		Module Developer Kit.
+
+What:		/sys/bus/greybus/device/N-svc/endo_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The Endo ID, which is a 2-byte hexadecimal value
+		defined by the Endo layout scheme, documented in
+		the ARA Module Developer Kit.
+
+What:		/sys/bus/greybus/device/N-svc/unique_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The unique ID, or serial number, of the SVC device
+
+What:		/sys/bus/greybus/device/N-svc/version
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The version number of the firmware in the SVC device.
