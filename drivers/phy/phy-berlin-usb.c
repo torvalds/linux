@@ -9,11 +9,9 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
