@@ -361,31 +361,31 @@ int radeon_vce_get_create_msg(struct radeon_device *rdev, int ring,
 
 	/* stitch together an VCE create msg */
 	ib.length_dw = 0;
-	ib.ptr[ib.length_dw++] = 0x0000000c; /* len */
-	ib.ptr[ib.length_dw++] = 0x00000001; /* session cmd */
-	ib.ptr[ib.length_dw++] = handle;
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x0000000c); /* len */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000001); /* session cmd */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(handle);
 
-	ib.ptr[ib.length_dw++] = 0x00000030; /* len */
-	ib.ptr[ib.length_dw++] = 0x01000001; /* create cmd */
-	ib.ptr[ib.length_dw++] = 0x00000000;
-	ib.ptr[ib.length_dw++] = 0x00000042;
-	ib.ptr[ib.length_dw++] = 0x0000000a;
-	ib.ptr[ib.length_dw++] = 0x00000001;
-	ib.ptr[ib.length_dw++] = 0x00000080;
-	ib.ptr[ib.length_dw++] = 0x00000060;
-	ib.ptr[ib.length_dw++] = 0x00000100;
-	ib.ptr[ib.length_dw++] = 0x00000100;
-	ib.ptr[ib.length_dw++] = 0x0000000c;
-	ib.ptr[ib.length_dw++] = 0x00000000;
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000030); /* len */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x01000001); /* create cmd */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000000);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000042);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x0000000a);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000001);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000080);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000060);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000100);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000100);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x0000000c);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000000);
 
-	ib.ptr[ib.length_dw++] = 0x00000014; /* len */
-	ib.ptr[ib.length_dw++] = 0x05000005; /* feedback buffer */
-	ib.ptr[ib.length_dw++] = upper_32_bits(dummy);
-	ib.ptr[ib.length_dw++] = dummy;
-	ib.ptr[ib.length_dw++] = 0x00000001;
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000014); /* len */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x05000005); /* feedback buffer */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(upper_32_bits(dummy));
+	ib.ptr[ib.length_dw++] = cpu_to_le32(dummy);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000001);
 
 	for (i = ib.length_dw; i < ib_size_dw; ++i)
-		ib.ptr[i] = 0x0;
+		ib.ptr[i] = cpu_to_le32(0x0);
 
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
@@ -428,21 +428,21 @@ int radeon_vce_get_destroy_msg(struct radeon_device *rdev, int ring,
 
 	/* stitch together an VCE destroy msg */
 	ib.length_dw = 0;
-	ib.ptr[ib.length_dw++] = 0x0000000c; /* len */
-	ib.ptr[ib.length_dw++] = 0x00000001; /* session cmd */
-	ib.ptr[ib.length_dw++] = handle;
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x0000000c); /* len */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000001); /* session cmd */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(handle);
 
-	ib.ptr[ib.length_dw++] = 0x00000014; /* len */
-	ib.ptr[ib.length_dw++] = 0x05000005; /* feedback buffer */
-	ib.ptr[ib.length_dw++] = upper_32_bits(dummy);
-	ib.ptr[ib.length_dw++] = dummy;
-	ib.ptr[ib.length_dw++] = 0x00000001;
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000014); /* len */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x05000005); /* feedback buffer */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(upper_32_bits(dummy));
+	ib.ptr[ib.length_dw++] = cpu_to_le32(dummy);
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000001);
 
-	ib.ptr[ib.length_dw++] = 0x00000008; /* len */
-	ib.ptr[ib.length_dw++] = 0x02000001; /* destroy cmd */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x00000008); /* len */
+	ib.ptr[ib.length_dw++] = cpu_to_le32(0x02000001); /* destroy cmd */
 
 	for (i = ib.length_dw; i < ib_size_dw; ++i)
-		ib.ptr[i] = 0x0;
+		ib.ptr[i] = cpu_to_le32(0x0);
 
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
