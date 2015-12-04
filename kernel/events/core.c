@@ -4225,7 +4225,14 @@ retry:
 		goto retry;
 	}
 
-	__perf_event_period(&pe);
+	if (event->attr.freq) {
+		event->attr.sample_freq = value;
+	} else {
+		event->attr.sample_period = value;
+		event->hw.sample_period = value;
+	}
+
+	local64_set(&event->hw.period_left, 0);
 	raw_spin_unlock_irq(&ctx->lock);
 
 	return 0;
@@ -5676,6 +5683,17 @@ perf_event_aux_ctx(struct perf_event_context *ctx,
 }
 
 static void
+perf_event_aux_task_ctx(perf_event_aux_output_cb output, void *data,
+			struct perf_event_context *task_ctx)
+{
+	rcu_read_lock();
+	preempt_disable();
+	perf_event_aux_ctx(task_ctx, output, data);
+	preempt_enable();
+	rcu_read_unlock();
+}
+
+static void
 perf_event_aux(perf_event_aux_output_cb output, void *data,
 	       struct perf_event_context *task_ctx)
 {
@@ -5684,14 +5702,23 @@ perf_event_aux(perf_event_aux_output_cb output, void *data,
 	struct pmu *pmu;
 	int ctxn;
 
+	/*
+	 * If we have task_ctx != NULL we only notify
+	 * the task context itself. The task_ctx is set
+	 * only for EXIT events before releasing task
+	 * context.
+	 */
+	if (task_ctx) {
+		perf_event_aux_task_ctx(output, data, task_ctx);
+		return;
+	}
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
 		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
 		if (cpuctx->unique_pmu != pmu)
 			goto next;
 		perf_event_aux_ctx(&cpuctx->ctx, output, data);
-		if (task_ctx)
-			goto next;
 		ctxn = pmu->task_ctx_nr;
 		if (ctxn < 0)
 			goto next;
@@ -5700,12 +5727,6 @@ perf_event_aux(perf_event_aux_output_cb output, void *data,
 			perf_event_aux_ctx(ctx, output, data);
 next:
 		put_cpu_ptr(pmu->pmu_cpu_context);
-	}
-
-	if (task_ctx) {
-		preempt_disable();
-		perf_event_aux_ctx(task_ctx, output, data);
-		preempt_enable();
 	}
 	rcu_read_unlock();
 }
@@ -8796,10 +8817,8 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	struct perf_event_context *child_ctx, *clone_ctx = NULL;
 	unsigned long flags;
 
-	if (likely(!child->perf_event_ctxp[ctxn])) {
-		perf_event_task(child, NULL, 0);
+	if (likely(!child->perf_event_ctxp[ctxn]))
 		return;
-	}
 
 	local_irq_save(flags);
 	/*
@@ -8883,6 +8902,14 @@ void perf_event_exit_task(struct task_struct *child)
 
 	for_each_task_context_nr(ctxn)
 		perf_event_exit_task_context(child, ctxn);
+
+	/*
+	 * The perf_event_exit_task_context calls perf_event_task
+	 * with child's task_ctx, which generates EXIT events for
+	 * child contexts and sets child->perf_event_ctxp[] to NULL.
+	 * At this point we need to send EXIT events to cpu contexts.
+	 */
+	perf_event_task(child, NULL, 0);
 }
 
 static void perf_free_event(struct perf_event *event,
