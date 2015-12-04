@@ -29,12 +29,11 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new,
 
 	/*
 	 * Note:
-	 * Due to modules and __init, code can disappear and change,
-	 * we need to protect against faulting as well as code changing.
-	 * We do this by aarch64_insn_*() which use the probe_kernel_*().
-	 *
-	 * No lock is held here because all the modifications are run
-	 * through stop_machine().
+	 * We are paranoid about modifying text, as if a bug were to happen, it
+	 * could cause us to read or write to someplace that could cause harm.
+	 * Carefully read and modify the code with aarch64_insn_*() which uses
+	 * probe_kernel_*(), and make sure what we read is what we expected it
+	 * to be before modifying it.
 	 */
 	if (validate) {
 		if (aarch64_insn_read((void *)pc, &replaced))
