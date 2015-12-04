@@ -57,6 +57,7 @@
 #define TLP_REQ_ID(bus, devfn)		(((bus) << 8) | (devfn))
 #define TLP_HDR_SIZE			3
 #define TLP_LOOP			500
+#define RP_DEVFN			0
 
 #define INTX_NUM			4
 
@@ -233,7 +234,7 @@ static int tlp_cfg_dword_read(struct altera_pcie *pcie, u8 bus, u32 devfn,
 	else
 		headers[0] = TLP_CFG_DW0(TLP_FMTTYPE_CFGRD1);
 
-	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, devfn),
+	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, RP_DEVFN),
 					TLP_READ_TAG, byte_en);
 	headers[2] = TLP_CFG_DW2(bus, devfn, where);
 
@@ -253,7 +254,7 @@ static int tlp_cfg_dword_write(struct altera_pcie *pcie, u8 bus, u32 devfn,
 	else
 		headers[0] = TLP_CFG_DW0(TLP_FMTTYPE_CFGWR1);
 
-	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, devfn),
+	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, RP_DEVFN),
 					TLP_WRITE_TAG, byte_en);
 	headers[2] = TLP_CFG_DW2(bus, devfn, where);
 
