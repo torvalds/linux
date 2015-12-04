@@ -8,6 +8,7 @@
 #include <linux/irqdomain.h>
 #include <linux/lockdep.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/kconfig.h>
 
 struct device;
 struct gpio_desc;
@@ -65,6 +66,23 @@ struct seq_file;
  *	registers.
  * @irq_not_threaded: flag must be set if @can_sleep is set but the
  *	IRQs don't need to be threaded
+ * @read_reg: reader function for generic GPIO
+ * @write_reg: writer function for generic GPIO
+ * @pin2mask: some generic GPIO controllers work with the big-endian bits
+ *	notation, e.g. in a 8-bits register, GPIO7 is the least significant
+ *	bit. This callback assigns the right bit mask.
+ * @reg_dat: data (in) register for generic GPIO
+ * @reg_set: output set register (out=high) for generic GPIO
+ * @reg_clk: output clear register (out=low) for generic GPIO
+ * @reg_dir: direction setting register for generic GPIO
+ * @bgpio_bits: number of register bits used for a generic GPIO i.e.
+ *	<register width> * 8
+ * @bgpio_lock: used to lock chip->bgpio_data. Also, this is needed to keep
+ *	shadowed and real data registers writes together.
+ * @bgpio_data:	shadowed data register for generic GPIO to clear/set bits
+ *	safely.
+ * @bgpio_dir: shadowed direction register for generic GPIO to clear/set
+ *	direction safely.
  * @irqchip: GPIO IRQ chip impl, provided by GPIO driver
  * @irqdomain: Interrupt translation domain; responsible for mapping
  *	between GPIO hwirq number and linux irq number
@@ -128,6 +146,20 @@ struct gpio_chip {
 	bool			can_sleep;
 	bool			irq_not_threaded;
 
+#if IS_ENABLED(CONFIG_GPIO_GENERIC)
+	unsigned long (*read_reg)(void __iomem *reg);
+	void (*write_reg)(void __iomem *reg, unsigned long data);
+	unsigned long (*pin2mask)(struct gpio_chip *gc, unsigned int pin);
+	void __iomem *reg_dat;
+	void __iomem *reg_set;
+	void __iomem *reg_clr;
+	void __iomem *reg_dir;
+	int bgpio_bits;
+	spinlock_t bgpio_lock;
+	unsigned long bgpio_data;
+	unsigned long bgpio_dir;
+#endif
+
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 	/*
 	 * With CONFIG_GPIOLIB_IRQCHIP we get an irqchip inside the gpiolib
@@ -187,6 +219,28 @@ static inline void *gpiochip_get_data(struct gpio_chip *chip)
 }
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
+
+#if IS_ENABLED(CONFIG_GPIO_GENERIC)
+
+struct bgpio_pdata {
+	const char *label;
+	int base;
+	int ngpio;
+};
+
+int bgpio_init(struct gpio_chip *gc, struct device *dev,
+	       unsigned long sz, void __iomem *dat, void __iomem *set,
+	       void __iomem *clr, void __iomem *dirout, void __iomem *dirin,
+	       unsigned long flags);
+
+#define BGPIOF_BIG_ENDIAN		BIT(0)
+#define BGPIOF_UNREADABLE_REG_SET	BIT(1) /* reg_set is unreadable */
+#define BGPIOF_UNREADABLE_REG_DIR	BIT(2) /* reg_dir is unreadable */
+#define BGPIOF_BIG_ENDIAN_BYTE_ORDER	BIT(3)
+#define BGPIOF_READ_OUTPUT_REG_SET	BIT(4) /* reg_set stores output value */
+#define BGPIOF_NO_OUTPUT		BIT(5) /* only input */
+
+#endif
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 

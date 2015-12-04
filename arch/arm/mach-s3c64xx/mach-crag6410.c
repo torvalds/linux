@@ -29,7 +29,7 @@
 #include <linux/pwm_backlight.h>
 #include <linux/dm9000.h>
 #include <linux/gpio_keys.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/spi/spi.h>
 
 #include <linux/platform_data/pca953x.h>
