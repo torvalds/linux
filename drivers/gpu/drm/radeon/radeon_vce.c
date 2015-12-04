@@ -699,12 +699,12 @@ bool radeon_vce_semaphore_emit(struct radeon_device *rdev,
 {
 	uint64_t addr = semaphore->gpu_addr;
 
-	radeon_ring_write(ring, VCE_CMD_SEMAPHORE);
-	radeon_ring_write(ring, (addr >> 3) & 0x000FFFFF);
-	radeon_ring_write(ring, (addr >> 23) & 0x000FFFFF);
-	radeon_ring_write(ring, 0x01003000 | (emit_wait ? 1 : 0));
+	radeon_ring_write(ring, cpu_to_le32(VCE_CMD_SEMAPHORE));
+	radeon_ring_write(ring, cpu_to_le32((addr >> 3) & 0x000FFFFF));
+	radeon_ring_write(ring, cpu_to_le32((addr >> 23) & 0x000FFFFF));
+	radeon_ring_write(ring, cpu_to_le32(0x01003000 | (emit_wait ? 1 : 0)));
 	if (!emit_wait)
-		radeon_ring_write(ring, VCE_CMD_END);
+		radeon_ring_write(ring, cpu_to_le32(VCE_CMD_END));
 
 	return true;
 }
@@ -719,10 +719,10 @@ bool radeon_vce_semaphore_emit(struct radeon_device *rdev,
 void radeon_vce_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
-	radeon_ring_write(ring, VCE_CMD_IB);
-	radeon_ring_write(ring, ib->gpu_addr);
-	radeon_ring_write(ring, upper_32_bits(ib->gpu_addr));
-	radeon_ring_write(ring, ib->length_dw);
+	radeon_ring_write(ring, cpu_to_le32(VCE_CMD_IB));
+	radeon_ring_write(ring, cpu_to_le32(ib->gpu_addr));
+	radeon_ring_write(ring, cpu_to_le32(upper_32_bits(ib->gpu_addr)));
+	radeon_ring_write(ring, cpu_to_le32(ib->length_dw));
 }
 
 /**
@@ -738,12 +738,12 @@ void radeon_vce_fence_emit(struct radeon_device *rdev,
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 	uint64_t addr = rdev->fence_drv[fence->ring].gpu_addr;
 
-	radeon_ring_write(ring, VCE_CMD_FENCE);
-	radeon_ring_write(ring, addr);
-	radeon_ring_write(ring, upper_32_bits(addr));
-	radeon_ring_write(ring, fence->seq);
-	radeon_ring_write(ring, VCE_CMD_TRAP);
-	radeon_ring_write(ring, VCE_CMD_END);
+	radeon_ring_write(ring, cpu_to_le32(VCE_CMD_FENCE));
+	radeon_ring_write(ring, cpu_to_le32(addr));
+	radeon_ring_write(ring, cpu_to_le32(upper_32_bits(addr)));
+	radeon_ring_write(ring, cpu_to_le32(fence->seq));
+	radeon_ring_write(ring, cpu_to_le32(VCE_CMD_TRAP));
+	radeon_ring_write(ring, cpu_to_le32(VCE_CMD_END));
 }
 
 /**
@@ -765,7 +765,7 @@ int radeon_vce_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 			  ring->idx, r);
 		return r;
 	}
-	radeon_ring_write(ring, VCE_CMD_END);
+	radeon_ring_write(ring, cpu_to_le32(VCE_CMD_END));
 	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
