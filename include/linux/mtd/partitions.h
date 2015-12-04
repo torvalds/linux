@@ -73,6 +73,13 @@ struct mtd_part_parser {
 			struct mtd_part_parser_data *);
 };
 
+/* Container for passing around a set of parsed partitions */
+struct mtd_partitions {
+	const struct mtd_partition *parts;
+	int nr_parts;
+	const struct mtd_part_parser *parser;
+};
+
 extern int __register_mtd_parser(struct mtd_part_parser *parser,
 				 struct module *owner);
 #define register_mtd_parser(parser) __register_mtd_parser(parser, THIS_MODULE)
