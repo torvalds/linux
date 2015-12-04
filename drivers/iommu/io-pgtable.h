@@ -131,6 +131,8 @@ struct io_pgtable {
 	struct io_pgtable_ops	ops;
 };
 
+#define io_pgtable_ops_to_pgtable(x) container_of((x), struct io_pgtable, ops)
+
 /**
  * struct io_pgtable_init_fns - Alloc/free a set of page tables for a
  *                              particular format.

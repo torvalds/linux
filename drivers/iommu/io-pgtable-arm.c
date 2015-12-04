@@ -38,9 +38,6 @@
 #define io_pgtable_to_data(x)						\
 	container_of((x), struct arm_lpae_io_pgtable, iop)
 
-#define io_pgtable_ops_to_pgtable(x)					\
-	container_of((x), struct io_pgtable, ops)
-
 #define io_pgtable_ops_to_data(x)					\
 	io_pgtable_to_data(io_pgtable_ops_to_pgtable(x))
 
