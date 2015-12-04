@@ -653,6 +653,10 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
 		if (port == intel_dig_port->port) {
 			crtc = to_intel_crtc(intel_encoder->base.crtc);
+			if (!crtc) {
+				DRM_DEBUG_KMS("%s: crtc is NULL\n", __func__);
+				continue;
+			}
 			pipe = crtc->pipe;
 			break;
 		}
