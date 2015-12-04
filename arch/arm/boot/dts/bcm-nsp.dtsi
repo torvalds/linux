@@ -169,6 +169,18 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		gpioa: gpio@0020 {
+			compatible = "brcm,nsp-gpio-a";
+			reg = <0x0020 0x70>,
+			      <0x3f1c4 0x1c>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			ngpios = <32>;
+			interrupt-controller;
+			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-ranges = <&pinctrl 0 0 32>;
+		};
+
 		uart0: serial@0300 {
 			compatible = "ns16550a";
 			reg = <0x0300 0x100>;
