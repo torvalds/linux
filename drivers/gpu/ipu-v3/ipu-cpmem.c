@@ -161,7 +161,7 @@ static u32 ipu_ch_param_read_field(struct ipuv3_channel *ch, u32 wbs)
  * The DRM pixel formats and IPU internal representation are ordered the other
  * way around, with the first named component ordered at the most significant
  * bits. Further, V4L2 formats are not well defined:
- *     http://linuxtv.org/downloads/v4l-dvb-apis/packed-rgb.html
+ *     https://linuxtv.org/downloads/v4l-dvb-apis/packed-rgb.html
  * We choose the interpretation which matches GStreamer behavior.
  */
 static int v4l2_pix_fmt_to_drm_fourcc(u32 pixelformat)
