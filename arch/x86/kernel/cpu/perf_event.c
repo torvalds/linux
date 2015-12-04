@@ -482,6 +482,9 @@ int x86_pmu_hw_config(struct perf_event *event)
 			/* Support for IP fixup */
 			if (x86_pmu.lbr_nr || x86_pmu.intel_cap.pebs_format >= 2)
 				precise++;
+
+			if (x86_pmu.pebs_prec_dist)
+				precise++;
 		}
 
 		if (event->attr.precise_ip > precise)

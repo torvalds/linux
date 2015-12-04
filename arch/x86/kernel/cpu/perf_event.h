@@ -583,7 +583,8 @@ struct x86_pmu {
 			bts_active	:1,
 			pebs		:1,
 			pebs_active	:1,
-			pebs_broken	:1;
+			pebs_broken	:1,
+			pebs_prec_dist	:1;
 	int		pebs_record_size;
 	void		(*drain_pebs)(struct pt_regs *regs);
 	struct event_constraint *pebs_constraints;
