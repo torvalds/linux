@@ -120,8 +120,9 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) ||
 	    gfp != GFP_KERNEL)
 		tbl = kzalloc(size, gfp | __GFP_NOWARN | __GFP_NORETRY);
-	if (tbl == NULL && gfp == GFP_KERNEL)
-		tbl = vzalloc(size);
+	if (tbl == NULL)
+		tbl = __vmalloc(size, gfp | __GFP_HIGHMEM | __GFP_ZERO,
+				PAGE_KERNEL);
 	if (tbl == NULL)
 		return NULL;
 
