@@ -28,7 +28,7 @@ struct sys_reg_params {
 	u8	CRn;
 	u8	CRm;
 	u8	Op2;
-	u8	Rt;
+	u64	regval;
 	bool	is_write;
 	bool	is_aarch32;
 	bool	is_32bit;	/* Only valid if is_aarch32 is true */
@@ -79,7 +79,7 @@ static inline bool ignore_write(struct kvm_vcpu *vcpu,
 static inline bool read_zero(struct kvm_vcpu *vcpu,
 			     struct sys_reg_params *p)
 {
-	*vcpu_reg(vcpu, p->Rt) = 0;
+	p->regval = 0;
 	return true;
 }
 
