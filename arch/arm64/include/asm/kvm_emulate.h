@@ -100,15 +100,10 @@ static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
 }
 
 /*
- * vcpu_reg should always be passed a register number coming from a
- * read of ESR_EL2. Otherwise, it may give the wrong result on AArch32
- * with banked registers.
+ * vcpu_get_reg and vcpu_set_reg should always be passed a register number
+ * coming from a read of ESR_EL2. Otherwise, it may give the wrong result on
+ * AArch32 with banked registers.
  */
-static inline unsigned long *vcpu_reg(const struct kvm_vcpu *vcpu, u8 reg_num)
-{
-	return (unsigned long *)&vcpu_gp_regs(vcpu)->regs.regs[reg_num];
-}
-
 static inline unsigned long vcpu_get_reg(const struct kvm_vcpu *vcpu,
 					 u8 reg_num)
 {
