@@ -1516,7 +1516,7 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * @sg_nents:      number of entries in sg
  * @set_page:      driver page assignment function pointer
  *
- * Core service helper for drivers to covert the largest
+ * Core service helper for drivers to convert the largest
  * prefix of given sg list to a page vector. The sg list
  * prefix converted is the prefix that meet the requirements
  * of ib_map_mr_sg.
@@ -1533,7 +1533,7 @@ int ib_sg_to_pages(struct ib_mr *mr,
 	u64 last_end_dma_addr = 0, last_page_addr = 0;
 	unsigned int last_page_off = 0;
 	u64 page_mask = ~((u64)mr->page_size - 1);
-	int i;
+	int i, ret;
 
 	mr->iova = sg_dma_address(&sgl[0]);
 	mr->length = 0;
@@ -1544,27 +1544,29 @@ int ib_sg_to_pages(struct ib_mr *mr,
 		u64 end_dma_addr = dma_addr + dma_len;
 		u64 page_addr = dma_addr & page_mask;
 
-		if (i && page_addr != dma_addr) {
-			if (last_end_dma_addr != dma_addr) {
-				/* gap */
-				goto done;
+		/*
+		 * For the second and later elements, check whether either the
+		 * end of element i-1 or the start of element i is not aligned
+		 * on a page boundary.
+		 */
+		if (i && (last_page_off != 0 || page_addr != dma_addr)) {
+			/* Stop mapping if there is a gap. */
+			if (last_end_dma_addr != dma_addr)
+				break;
 
-			} else if (last_page_off + dma_len <= mr->page_size) {
-				/* chunk this fragment with the last */
-				mr->length += dma_len;
-				last_end_dma_addr += dma_len;
-				last_page_off += dma_len;
-				continue;
-			} else {
-				/* map starting from the next page */
-				page_addr = last_page_addr + mr->page_size;
-				dma_len -= mr->page_size - last_page_off;
-			}
+			/*
+			 * Coalesce this element with the last. If it is small
+			 * enough just update mr->length. Otherwise start
+			 * mapping from the next page.
+			 */
+			goto next_page;
 		}
 
 		do {
-			if (unlikely(set_page(mr, page_addr)))
-				goto done;
+			ret = set_page(mr, page_addr);
+			if (unlikely(ret < 0))
+				return i ? : ret;
+next_page:
 			page_addr += mr->page_size;
 		} while (page_addr < end_dma_addr);
 
@@ -1574,7 +1576,6 @@ int ib_sg_to_pages(struct ib_mr *mr,
 		last_page_off = end_dma_addr & ~page_mask;
 	}
 
-done:
 	return i;
 }
 EXPORT_SYMBOL(ib_sg_to_pages);
