@@ -2911,15 +2911,15 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 				"%s: timeout DIEPINT.NAKEFF\n", __func__);
 	} else {
 		/* Clear any pending nak effect interrupt */
-		dwc2_writel(GINTSTS_GINNAKEFF, hsotg->regs + GINTSTS);
+		dwc2_writel(GINTSTS_GOUTNAKEFF, hsotg->regs + GINTSTS);
 
-		__orr32(hsotg->regs + DCTL, DCTL_SGNPINNAK);
+		__orr32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
 
 		/* Wait for global nak to take effect */
 		if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
-						GINTSTS_GINNAKEFF, 100))
+						GINTSTS_GOUTNAKEFF, 100))
 			dev_warn(hsotg->dev,
-				"%s: timeout GINTSTS.GINNAKEFF\n", __func__);
+				"%s: timeout GINTSTS.GOUTNAKEFF\n", __func__);
 	}
 
 	/* Disable ep */
@@ -2944,7 +2944,7 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 		/* TODO: Flush shared tx fifo */
 	} else {
 		/* Remove global NAKs */
-		__bic32(hsotg->regs + DCTL, DCTL_SGNPINNAK);
+		__bic32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
 	}
 }
 
