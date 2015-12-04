@@ -48,8 +48,10 @@ static unsigned long timer16_get_counter(struct timer16_priv *p)
 	} while (unlikely((o1 != o2) || (v1 > v2 && v1 < v3)
 			  || (v2 > v3 && v2 < v1) || (v3 > v1 && v3 < v2)));
 
-	v2 |= 0x10000;
-	return v2;
+	if (likely(!o1))
+		return v2;
+	else
+		return v2 + 0x10000;
 }
 
 
