@@ -34,8 +34,12 @@ struct inode;
 struct file;
 struct net;
 
-#define SOCK_ASYNC_NOSPACE	0
-#define SOCK_ASYNC_WAITDATA	1
+/* Historically, SOCKWQ_ASYNC_NOSPACE & SOCKWQ_ASYNC_WAITDATA were located
+ * in sock->flags, but moved into sk->sk_wq->flags to be RCU protected.
+ * Eventually all flags will be in sk->sk_wq_flags.
+ */
+#define SOCKWQ_ASYNC_NOSPACE	0
+#define SOCKWQ_ASYNC_WAITDATA	1
 #define SOCK_NOSPACE		2
 #define SOCK_PASSCRED		3
 #define SOCK_PASSSEC		4
@@ -89,6 +93,7 @@ struct socket_wq {
 	/* Note: wait MUST be first field of socket_wq */
 	wait_queue_head_t	wait;
 	struct fasync_struct	*fasync_list;
+	unsigned long		flags; /* %SOCKWQ_ASYNC_NOSPACE, etc */
 	struct rcu_head		rcu;
 } ____cacheline_aligned_in_smp;
 
@@ -96,7 +101,7 @@ struct socket_wq {
  *  struct socket - general BSD socket
  *  @state: socket state (%SS_CONNECTED, etc)
  *  @type: socket type (%SOCK_STREAM, etc)
- *  @flags: socket flags (%SOCK_ASYNC_NOSPACE, etc)
+ *  @flags: socket flags (%SOCK_NOSPACE, etc)
  *  @ops: protocol specific socket operations
  *  @file: File back pointer for gc
  *  @sk: internal networking protocol agnostic socket representation
@@ -202,7 +207,7 @@ enum {
 	SOCK_WAKE_URG,
 };
 
-int sock_wake_async(struct socket *sk, int how, int band);
+int sock_wake_async(struct socket_wq *sk_wq, int how, int band);
 int sock_register(const struct net_proto_family *fam);
 void sock_unregister(int family);
 int __sock_create(struct net *net, int family, int type, int proto,

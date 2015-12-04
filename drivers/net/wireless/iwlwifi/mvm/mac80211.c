@@ -2941,6 +2941,7 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
+	u8 key_offset;
 
 	if (iwlwifi_mod_params.sw_crypto) {
 		IWL_DEBUG_MAC80211(mvm, "leave - hwcrypto disabled\n");
@@ -3006,10 +3007,14 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			break;
 		}
 
+		/* in HW restart reuse the index, otherwise request a new one */
+		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+			key_offset = key->hw_key_idx;
+		else
+			key_offset = STA_KEY_IDX_INVALID;
+
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
-		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key,
-					  test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
-						   &mvm->status));
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, key_offset);
 		if (ret) {
 			IWL_WARN(mvm, "set key failed\n");
 			/*
