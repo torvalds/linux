@@ -28,14 +28,9 @@ struct arizona_gpio {
 	struct gpio_chip gpio_chip;
 };
 
-static inline struct arizona_gpio *to_arizona_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct arizona_gpio, gpio_chip);
-}
-
 static int arizona_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 
 	return regmap_update_bits(arizona->regmap, ARIZONA_GPIO1_CTRL + offset,
@@ -44,7 +39,7 @@ static int arizona_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 
 static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 	unsigned int val;
 	int ret;
@@ -62,7 +57,7 @@ static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int arizona_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 
 	if (value)
@@ -74,7 +69,7 @@ static int arizona_gpio_direction_out(struct gpio_chip *chip,
 
 static void arizona_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 
 	if (value)
@@ -133,7 +128,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	else
 		arizona_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&arizona_gpio->gpio_chip);
+	ret = gpiochip_add_data(&arizona_gpio->gpio_chip, arizona_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
 			ret);
