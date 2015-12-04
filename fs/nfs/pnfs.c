@@ -2026,15 +2026,13 @@ static void pnfs_writehdr_free(struct nfs_pgio_header *hdr)
 int
 pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
-
 	struct nfs_pgio_header *hdr;
 	int ret;
 
 	hdr = nfs_pgio_header_alloc(desc->pg_rw_ops);
 	if (!hdr) {
-		desc->pg_completion_ops->error_cleanup(&mirror->pg_list);
-		return -ENOMEM;
+		desc->pg_error = -ENOMEM;
+		return desc->pg_error;
 	}
 	nfs_pgheader_init(desc, hdr, pnfs_writehdr_free);
 
@@ -2157,15 +2155,13 @@ static void pnfs_readhdr_free(struct nfs_pgio_header *hdr)
 int
 pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
-
 	struct nfs_pgio_header *hdr;
 	int ret;
 
 	hdr = nfs_pgio_header_alloc(desc->pg_rw_ops);
 	if (!hdr) {
-		desc->pg_completion_ops->error_cleanup(&mirror->pg_list);
-		return -ENOMEM;
+		desc->pg_error = -ENOMEM;
+		return desc->pg_error;
 	}
 	nfs_pgheader_init(desc, hdr, pnfs_readhdr_free);
 	hdr->lseg = pnfs_get_lseg(desc->pg_lseg);
