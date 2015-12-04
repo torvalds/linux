@@ -617,16 +617,28 @@ struct drm_connector_state {
 
 /**
  * struct drm_connector_funcs - control connectors on a given device
- * @dpms: set power state
- * @detect: is this connector active?
- * @fill_modes: fill mode list for this connector
- * @force: notify the driver that the connector is forced on
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
  * etc.
  */
 struct drm_connector_funcs {
+	/**
+	 * @dpms:
+	 *
+	 * Legacy entry point to set the per-connector DPMS state. Legacy DPMS
+	 * is exposed as a standard property on the connector, but diverted to
+	 * this callback in the drm core. Note that atomic drivers don't
+	 * implement the 4 level DPMS support on the connector any more, but
+	 * instead only have an on/off "ACTIVE" property on the CRTC object.
+	 *
+	 * Drivers implementing atomic modeset should use
+	 * drm_atomic_helper_connector_dpms() to implement this hook.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*dpms)(struct drm_connector *connector, int mode);
 
 	/**
@@ -641,14 +653,67 @@ struct drm_connector_funcs {
 	 */
 	void (*reset)(struct drm_connector *connector);
 
-	/* Check to see if anything is attached to the connector.
-	 * @force is set to false whilst polling, true when checking the
-	 * connector due to user request. @force can be used by the driver
-	 * to avoid expensive, destructive operations during automated
-	 * probing.
+	/**
+	 * @detect:
+	 *
+	 * Check to see if anything is attached to the connector. The parameter
+	 * force is set to false whilst polling, true when checking the
+	 * connector due to a user request. force can be used by the driver to
+	 * avoid expensive, destructive operations during automated probing.
+	 *
+	 * FIXME:
+	 *
+	 * Note that this hook is only called by the probe helper. It's not in
+	 * the helper library vtable purely for historical reasons. The only DRM
+	 * core	entry point to probe connector state is @fill_modes.
+	 *
+	 * RETURNS:
+	 *
+	 * drm_connector_status indicating the connector's status.
 	 */
 	enum drm_connector_status (*detect)(struct drm_connector *connector,
 					    bool force);
+
+	/**
+	 * @force:
+	 *
+	 * This function is called to update internal encoder state when the
+	 * connector is forced to a certain state by userspace, either through
+	 * the sysfs interfaces or on the kernel cmdline. In that case the
+	 * @detect callback isn't called.
+	 *
+	 * FIXME:
+	 *
+	 * Note that this hook is only called by the probe helper. It's not in
+	 * the helper library vtable purely for historical reasons. The only DRM
+	 * core	entry point to probe connector state is @fill_modes.
+	 */
+	void (*force)(struct drm_connector *connector);
+
+	/**
+	 * @fill_modes:
+	 *
+	 * Entry point for output detection and basic mode validation. The
+	 * driver should reprobe the output if needed (e.g. when hotplug
+	 * handling is unreliable), add all detected modes to connector->modes
+	 * and filter out any the device can't support in any configuration. It
+	 * also needs to filter out any modes wider or higher than the
+	 * parameters max_width and max_height indicate.
+	 *
+	 * The drivers must also prune any modes no longer valid from
+	 * connector->modes. Furthermore it must update connector->status and
+	 * connector->edid.  If no EDID has been received for this output
+	 * connector->edid must be NULL.
+	 *
+	 * Drivers using the probe helpers should use
+	 * drm_helper_probe_single_connector_modes() or
+	 * drm_helper_probe_single_connector_modes_nomerge() to implement this
+	 * function.
+	 *
+	 * RETURNS:
+	 *
+	 * The number of modes detected and filled into connector->modes.
+	 */
 	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
 
 	/**
@@ -679,7 +744,6 @@ struct drm_connector_funcs {
 	 * connector hotplugging (e.g. DisplayPort MST).
 	 */
 	void (*destroy)(struct drm_connector *connector);
-	void (*force)(struct drm_connector *connector);
 
 	/**
 	 * @atomic_duplicate_state:
