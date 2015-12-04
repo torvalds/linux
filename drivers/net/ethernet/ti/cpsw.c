@@ -2047,7 +2047,7 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 			if (!pd)
 				return -ENODEV;
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
-				 PHY_ID_FMT, pd->bus->id, pd->phy_id);
+				 PHY_ID_FMT, pd->bus->id, pd->addr);
 			goto no_phy_slave;
 		}
 		parp = of_get_property(slave_node, "phy_id", &lenp);
