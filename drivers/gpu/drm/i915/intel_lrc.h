@@ -91,7 +91,6 @@ void intel_lr_context_reset(struct drm_device *dev,
 			struct intel_context *ctx);
 uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 				     struct intel_engine_cs *ring);
-void intel_lr_context_complete_check(struct drm_i915_gem_request *req);
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
