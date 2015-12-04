@@ -1830,83 +1830,7 @@ void intel_crt_init(struct drm_device *dev)
       entities.
     </para>
     <sect2>
-      <title>Helper Functions</title>
-      <itemizedlist>
-        <listitem>
-          <synopsis>int drm_crtc_helper_set_config(struct drm_mode_set *set);</synopsis>
-          <para>
-            The <function>drm_crtc_helper_set_config</function> helper function
-            is a CRTC <methodname>set_config</methodname> implementation. It
-            first tries to locate the best encoder for each connector by calling
-            the connector <methodname>best_encoder</methodname> helper
-            operation.
-          </para>
-          <para>
-            After locating the appropriate encoders, the helper function will
-            call the <methodname>mode_fixup</methodname> encoder and CRTC helper
-            operations to adjust the requested mode, or reject it completely in
-            which case an error will be returned to the application. If the new
-            configuration after mode adjustment is identical to the current
-            configuration the helper function will return without performing any
-            other operation.
-          </para>
-          <para>
-            If the adjusted mode is identical to the current mode but changes to
-            the frame buffer need to be applied, the
-            <function>drm_crtc_helper_set_config</function> function will call
-            the CRTC <methodname>mode_set_base</methodname> helper operation. If
-            the adjusted mode differs from the current mode, or if the
-            <methodname>mode_set_base</methodname> helper operation is not
-            provided, the helper function performs a full mode set sequence by
-            calling the <methodname>prepare</methodname>,
-            <methodname>mode_set</methodname> and
-            <methodname>commit</methodname> CRTC and encoder helper operations,
-            in that order.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>void drm_helper_connector_dpms(struct drm_connector *connector, int mode);</synopsis>
-          <para>
-            The <function>drm_helper_connector_dpms</function> helper function
-            is a connector <methodname>dpms</methodname> implementation that
-            tracks power state of connectors. To use the function, drivers must
-            provide <methodname>dpms</methodname> helper operations for CRTCs
-            and encoders to apply the DPMS state to the device.
-          </para>
-          <para>
-            The mid-layer doesn't track the power state of CRTCs and encoders.
-            The <methodname>dpms</methodname> helper operations can thus be
-            called with a mode identical to the currently active mode.
-          </para>
-        </listitem>
-        <listitem>
-          <synopsis>int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
-                                            uint32_t maxX, uint32_t maxY);</synopsis>
-          <para>
-            The <function>drm_helper_probe_single_connector_modes</function> helper
-            function is a connector <methodname>fill_modes</methodname>
-            implementation that updates the connection status for the connector
-            and then retrieves a list of modes by calling the connector
-            <methodname>get_modes</methodname> helper operation.
-          </para>
-         <para>
-            If the helper operation returns no mode, and if the connector status
-            is connector_status_connected, standard VESA DMT modes up to
-            1024x768 are automatically added to the modes list by a call to
-            <function>drm_add_modes_noedid</function>.
-          </para>
-          <para>
-            The function then filters out modes larger than
-            <parameter>max_width</parameter> and <parameter>max_height</parameter>
-            if specified. It finally calls the optional connector
-            <methodname>mode_valid</methodname> helper operation for each mode in
-            the probed list to check whether the mode is valid for the connector.
-          </para>
-        </listitem>
-      </itemizedlist>
-    </sect2>
-    <sect2>
-      <title>CRTC Helper Operations</title>
+      <title>Legacy CRTC Helper Operations</title>
       <itemizedlist>
         <listitem id="drm-helper-crtc-mode-fixup">
           <synopsis>bool (*mode_fixup)(struct drm_crtc *crtc,
@@ -2308,7 +2232,7 @@ void intel_crt_init(struct drm_device *dev)
 !Pinclude/drm/drm_modeset_helper_vtables.h overview
     </sect2>
     <sect2>
-      <title>Modeset Helper Functions Reference</title>
+      <title>Legacy CRTC/Modeset Helper Functions Reference</title>
 !Edrivers/gpu/drm/drm_crtc_helper.c
 !Pdrivers/gpu/drm/drm_crtc_helper.c overview
     </sect2>

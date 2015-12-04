@@ -273,14 +273,27 @@ prune:
  * @maxX: max width for modes
  * @maxY: max height for modes
  *
- * Based on the helper callbacks implemented by @connector try to detect all
- * valid modes.  Modes will first be added to the connector's probed_modes list,
- * then culled (based on validity and the @maxX, @maxY parameters) and put into
- * the normal modes list.
+ * Based on the helper callbacks implemented by @connector in struct
+ * &drm_connector_helper_funcs try to detect all valid modes.  Modes will first
+ * be added to the connector's probed_modes list, then culled (based on validity
+ * and the @maxX, @maxY parameters) and put into the normal modes list.
  *
- * Intended to be use as a generic implementation of the ->fill_modes()
- * @connector vfunc for drivers that use the crtc helpers for output mode
+ * Intended to be used as a generic implementation of the ->fill_modes()
+ * @connector vfunc for drivers that use the CRTC helpers for output mode
  * filtering and detection.
+ *
+ * If the helper operation returns no mode, and if the connector status is
+ * connector_status_connected, standard VESA DMT modes up to 1024x768 are
+ * automatically added to the modes list by a call to
+ * drm_add_modes_noedid().
+ *
+ * The function then filters out modes larger than @maxX and maxY if specified.
+ * It finally calls the optional connector ->mode_valid() helper operation for each
+ * mode in the probed list to check whether the mode is valid for the connector.
+ *
+ * Compared to drm_helper_probe_single_connector_modes_nomerge() this function
+ * merged the mode bits for the preferred mode, as a hack to work around some
+ * quirky issues on funky hardware.
  *
  * Returns:
  * The number of modes found on @connector.
@@ -298,8 +311,11 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  * @maxX: max width for modes
  * @maxY: max height for modes
  *
- * This operates like drm_hehlper_probe_single_connector_modes except it
+ * This operates like drm_hehlper_probe_single_connector_modes() except it
  * replaces the mode bits instead of merging them for preferred modes.
+ *
+ * Returns:
+ * The number of modes found on @connector.
  */
 int drm_helper_probe_single_connector_modes_nomerge(struct drm_connector *connector,
 					    uint32_t maxX, uint32_t maxY)
