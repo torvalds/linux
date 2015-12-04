@@ -34,6 +34,11 @@ struct drm_fb_helper;
 
 #include <linux/kgdb.h>
 
+enum mode_set_atomic {
+	LEAVE_ATOMIC_MODE_SET,
+	ENTER_ATOMIC_MODE_SET,
+};
+
 struct drm_fb_offset {
 	int x, y;
 };
