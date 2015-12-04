@@ -15,6 +15,20 @@
 #define _PCIE_IPROC_H
 
 /**
+ * iProc PCIe interface type
+ *
+ * PAXB is the wrapper used in root complex that can be connected to an
+ * external endpoint device.
+ *
+ * PAXC is the wrapper used in root complex dedicated for internal emulated
+ * endpoint devices.
+ */
+enum iproc_pcie_type {
+	IPROC_PCIE_PAXB = 0,
+	IPROC_PCIE_PAXC,
+};
+
+/**
  * iProc PCIe outbound mapping
  * @set_oarr_size: indicates the OARR size bit needs to be set
  * @axi_offset: offset from the AXI address to the internal address used by
@@ -29,7 +43,10 @@ struct iproc_pcie_ob {
 
 /**
  * iProc PCIe device
+ *
  * @dev: pointer to device data structure
+ * @type: iProc PCIe interface type
+ * @reg_offsets: register offsets
  * @base: PCIe host controller I/O register base
  * @sysdata: Per PCI controller data (ARM-specific)
  * @root_bus: pointer to root bus
@@ -41,6 +58,8 @@ struct iproc_pcie_ob {
  */
 struct iproc_pcie {
 	struct device *dev;
+	enum iproc_pcie_type type;
+	const u16 *reg_offsets;
 	void __iomem *base;
 #ifdef CONFIG_ARM
 	struct pci_sys_data sysdata;
