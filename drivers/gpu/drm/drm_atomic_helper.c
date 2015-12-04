@@ -2405,6 +2405,12 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_dpms);
  * The simpler solution is to just reset the software state to everything off,
  * which is easiest to do by calling drm_mode_config_reset(). To facilitate this
  * the atomic helpers provide default reset implementations for all hooks.
+ *
+ * On the upside the precise state tracking of atomic simplifies system suspend
+ * and resume a lot. For drivers using drm_mode_config_reset() a complete recipe
+ * is implemented in drm_atomic_helper_suspend() and drm_atomic_helper_resume().
+ * For other drivers the building blocks are split out, see the documentation
+ * for these functions.
  */
 
 /**
