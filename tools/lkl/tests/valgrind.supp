@@ -1,0 +1,130 @@
+{
+   <unfinished thread>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:thread_create
+   fun:copy_thread
+   fun:copy_thread_tls
+   ...
+   fun:kthreadd
+   fun:thread_bootstrap
+   fun:start_thread
+}
+
+{
+   <unfinished timer 1>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:__start_helper_thread
+   fun:pthread_once
+   fun:timer_create@@GLIBC_2.3.3
+   fun:timer_alloc
+   fun:clockevent_set_state_oneshot
+   ...
+   fun:__clockevents_switch_state
+   fun:clockevents_switch_state
+   fun:tick_setup_periodic
+   ...
+}
+
+{
+   <kernel thread>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:thread_create
+   fun:copy_thread
+   fun:copy_thread_tls
+   ...
+   fun:rest_init
+   fun:start_kernel
+   fun:lkl_run_kernel
+}
+
+{
+   <master thread>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:thread_create
+   fun:lkl_start_kernel
+   fun:main
+}
+
+{
+   <master timer thread>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:timer_helper_thread
+   ...
+}
+
+{
+   <unfinished timer 2>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:timer_create@@GLIBC_2.3.3
+   fun:timer_alloc
+   fun:clockevent_set_state_oneshot
+   ...
+   fun:clockevents_switch_state
+   fun:tick_setup_periodic
+   ...
+   fun:tick_check_new_device
+   fun:clockevents_register_device
+   fun:clockevents_config_and_register
+   fun:time_init
+   ...
+}
+
+{
+   <test boot.c ignore 1>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:lkl_disk_add
+   fun:test_disk_add
+   fun:do_test
+   fun:main
+}
+
+{
+   <test boot.c ignore 2>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:virtio_dev_setup
+   fun:lkl_disk_add
+   fun:test_disk_add
+   fun:do_test
+   fun:main
+}
+
+{
+   <test boot.c ignore 3>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:register_iomem
+   fun:virtio_dev_setup
+   fun:lkl_disk_add
+   fun:test_disk_add
+   fun:do_test
+   fun:main
+}
+
+{
+   <test boot.c ignore 4>
+   Memcheck:Param
+   unlink(pathname)
+   fun:unlink
+   fun:main
+}
