@@ -563,8 +563,6 @@ static void vmw_sou_connector_destroy(struct drm_connector *connector)
 
 static struct drm_connector_funcs vmw_sou_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
-	.detect = vmw_du_connector_detect,
-	.fill_modes = vmw_du_connector_fill_modes,
 	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_sou_connector_destroy,
 };

@@ -270,8 +270,6 @@ static const struct drm_connector_helper_funcs
 
 static const struct drm_connector_funcs cdv_hdmi_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = cdv_hdmi_save,
-	.restore = cdv_hdmi_restore,
 	.detect = cdv_hdmi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = cdv_hdmi_set_property,
@@ -306,6 +304,9 @@ void cdv_hdmi_init(struct drm_device *dev,
 
 	connector = &gma_connector->base;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
+	gma_connector->save = cdv_hdmi_save;
+	gma_connector->restore = cdv_hdmi_restore;
+
 	encoder = &gma_encoder->base;
 	drm_connector_init(dev, connector,
 			   &cdv_hdmi_connector_funcs,
