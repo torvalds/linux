@@ -79,6 +79,13 @@ config USB_XHCI_TEGRA
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in NVIDIA Tegra124 and later SoCs.
 
+config USB_XHCI_AEOLIA
+	tristate "xHCI support for Sony PS4 (Aeolia)"
+	depends on X86_PS4
+	---help---
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in the Sony PlayStation 4.
+
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
