@@ -193,7 +193,6 @@ static int phy_berlin_usb_probe(struct platform_device *pdev)
 		return PTR_ERR(phy);
 	}
 
-	platform_set_drvdata(pdev, priv);
 	phy_set_drvdata(phy, priv);
 
 	phy_provider =
