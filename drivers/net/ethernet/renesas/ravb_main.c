@@ -115,12 +115,15 @@ static void ravb_read_mac_address(struct net_device *ndev, const u8 *mac)
 	if (mac) {
 		ether_addr_copy(ndev->dev_addr, mac);
 	} else {
-		ndev->dev_addr[0] = (ravb_read(ndev, MAHR) >> 24);
-		ndev->dev_addr[1] = (ravb_read(ndev, MAHR) >> 16) & 0xFF;
-		ndev->dev_addr[2] = (ravb_read(ndev, MAHR) >> 8) & 0xFF;
-		ndev->dev_addr[3] = (ravb_read(ndev, MAHR) >> 0) & 0xFF;
-		ndev->dev_addr[4] = (ravb_read(ndev, MALR) >> 8) & 0xFF;
-		ndev->dev_addr[5] = (ravb_read(ndev, MALR) >> 0) & 0xFF;
+		u32 mahr = ravb_read(ndev, MAHR);
+		u32 malr = ravb_read(ndev, MALR);
+
+		ndev->dev_addr[0] = (mahr >> 24) & 0xFF;
+		ndev->dev_addr[1] = (mahr >> 16) & 0xFF;
+		ndev->dev_addr[2] = (mahr >>  8) & 0xFF;
+		ndev->dev_addr[3] = (mahr >>  0) & 0xFF;
+		ndev->dev_addr[4] = (malr >>  8) & 0xFF;
+		ndev->dev_addr[5] = (malr >>  0) & 0xFF;
 	}
 }
 
