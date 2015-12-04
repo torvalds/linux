@@ -55,6 +55,7 @@ extern int pp_fiji_thermal_initialize(struct pp_hwmgr *hwmgr);
 extern int fiji_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int fiji_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed);
 extern int fiji_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed);
+extern int fiji_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr);
 extern uint32_t tonga_get_xclk(struct pp_hwmgr *hwmgr);
 
 #endif
