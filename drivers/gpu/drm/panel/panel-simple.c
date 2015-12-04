@@ -44,6 +44,10 @@ struct panel_desc {
 
 	unsigned int bpc;
 
+	/**
+	 * @width: width (in millimeters) of the panel's active display area
+	 * @height: height (in millimeters) of the panel's active display area
+	 */
 	struct {
 		unsigned int width;
 		unsigned int height;
