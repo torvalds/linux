@@ -69,7 +69,7 @@ struct mtd_part_parser {
 	struct list_head list;
 	struct module *owner;
 	const char *name;
-	int (*parse_fn)(struct mtd_info *, struct mtd_partition **,
+	int (*parse_fn)(struct mtd_info *, const struct mtd_partition **,
 			struct mtd_part_parser_data *);
 };
 

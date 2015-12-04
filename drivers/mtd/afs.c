@@ -162,7 +162,7 @@ afs_read_iis_v1(struct mtd_info *mtd, struct image_info_v1 *iis, u_int ptr)
 }
 
 static int parse_afs_partitions(struct mtd_info *mtd,
-				struct mtd_partition **pparts,
+				const struct mtd_partition **pparts,
 				struct mtd_part_parser_data *data)
 {
 	struct mtd_partition *parts;

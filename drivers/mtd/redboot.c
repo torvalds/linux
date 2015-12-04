@@ -57,7 +57,7 @@ static inline int redboot_checksum(struct fis_image_desc *img)
 }
 
 static int parse_redboot_partitions(struct mtd_info *master,
-				    struct mtd_partition **pparts,
+				    const struct mtd_partition **pparts,
 				    struct mtd_part_parser_data *data)
 {
 	int nrparts = 0;

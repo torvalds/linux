@@ -26,7 +26,7 @@ static bool node_has_compatible(struct device_node *pp)
 }
 
 static int parse_ofpart_partitions(struct mtd_info *master,
-				   struct mtd_partition **pparts,
+				   const struct mtd_partition **pparts,
 				   struct mtd_part_parser_data *data)
 {
 	struct mtd_partition *parts;
@@ -145,7 +145,7 @@ static struct mtd_part_parser ofpart_parser = {
 };
 
 static int parse_ofoldpart_partitions(struct mtd_info *master,
-				      struct mtd_partition **pparts,
+				      const struct mtd_partition **pparts,
 				      struct mtd_part_parser_data *data)
 {
 	struct mtd_partition *parts;
