@@ -1331,14 +1331,6 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 	return 0;
 }
 
-void vmw_du_crtc_save(struct drm_crtc *crtc)
-{
-}
-
-void vmw_du_crtc_restore(struct drm_crtc *crtc)
-{
-}
-
 void vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
 			   u16 *r, u16 *g, u16 *b,
 			   uint32_t start, uint32_t size)
@@ -1358,14 +1350,6 @@ void vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
 int vmw_du_connector_dpms(struct drm_connector *connector, int mode)
 {
 	return 0;
-}
-
-void vmw_du_connector_save(struct drm_connector *connector)
-{
-}
-
-void vmw_du_connector_restore(struct drm_connector *connector)
-{
 }
 
 enum drm_connector_status
