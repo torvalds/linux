@@ -4,7 +4,7 @@ Binding for Samsung S2M and S5M family multi-function device
 This is a part of device tree bindings for S2M and S5M family multi-function
 devices.
 
-The Samsung S2MPS11/13/14/15, S2MPU02 and S5M8767 is a family
+The Samsung S2MPA01, S2MPS11/13/14/15, S2MPU02 and S5M8767 is a family
 of multi-function devices which include voltage and current regulators, RTC,
 charger controller, clock outputs and other sub-blocks. It is interfaced
 to the host controller using an I2C interface. Each sub-block is usually
@@ -13,6 +13,7 @@ addressed by the host system using different I2C slave addresses.
 
 This document describes bindings for main device node. Optional sub-blocks
 must be a sub-nodes to it. Bindings for them can be found in:
+ - bindings/regulator/samsung,s2mpa01.txt
  - bindings/regulator/samsung,s2mps11.txt
  - bindings/regulator/samsung,s5m8767.txt
  - bindings/clock/samsung,s2mps11.txt
@@ -20,6 +21,7 @@ must be a sub-nodes to it. Bindings for them can be found in:
 
 Required properties:
  - compatible: Should be one of the following
+	- "samsung,s2mpa01-pmic",
 	- "samsung,s2mps11-pmic",
 	- "samsung,s2mps13-pmic",
 	- "samsung,s2mps14-pmic",
