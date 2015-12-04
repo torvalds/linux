@@ -55,6 +55,7 @@
 #define TLP_CFG_DW2(bus, devfn, offset)	\
 				(((bus) << 24) | ((devfn) << 16) | (offset))
 #define TLP_REQ_ID(bus, devfn)		(((bus) << 8) | (devfn))
+#define TLP_COMP_STATUS(s)		(((s) >> 12) & 7)
 #define TLP_HDR_SIZE			3
 #define TLP_LOOP			500
 #define RP_DEVFN			0
@@ -171,6 +172,7 @@ static int tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 	bool sop = 0;
 	u32 ctrl;
 	u32 reg0, reg1;
+	u32 comp_status = 1;
 
 	/*
 	 * Minimum 2 loops to read TLP headers and 1 loop to read data
@@ -182,19 +184,25 @@ static int tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 			reg0 = cra_readl(pcie, RP_RXCPL_REG0);
 			reg1 = cra_readl(pcie, RP_RXCPL_REG1);
 
-			if (ctrl & RP_RXCPL_SOP)
+			if (ctrl & RP_RXCPL_SOP) {
 				sop = true;
+				comp_status = TLP_COMP_STATUS(reg1);
+			}
 
 			if (ctrl & RP_RXCPL_EOP) {
+				if (comp_status)
+					return PCIBIOS_DEVICE_NOT_FOUND;
+
 				if (value)
 					*value = reg0;
+
 				return PCIBIOS_SUCCESSFUL;
 			}
 		}
 		udelay(5);
 	}
 
-	return -ENOENT;
+	return PCIBIOS_DEVICE_NOT_FOUND;
 }
 
 static void tlp_write_packet(struct altera_pcie *pcie, u32 *headers,
