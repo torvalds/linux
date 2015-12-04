@@ -24,12 +24,10 @@ struct ath79_gpio_ctrl {
 	spinlock_t lock;
 };
 
-#define to_ath79_gpio_ctrl(c) container_of(c, struct ath79_gpio_ctrl, chip)
-
 static void ath79_gpio_set_value(struct gpio_chip *chip,
 				unsigned gpio, int value)
 {
-	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	struct ath79_gpio_ctrl *ctrl = gpiochip_get_data(chip);
 
 	if (value)
 		__raw_writel(BIT(gpio), ctrl->base + AR71XX_GPIO_REG_SET);
@@ -39,7 +37,7 @@ static void ath79_gpio_set_value(struct gpio_chip *chip,
 
 static int ath79_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 {
-	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	struct ath79_gpio_ctrl *ctrl = gpiochip_get_data(chip);
 
 	return (__raw_readl(ctrl->base + AR71XX_GPIO_REG_IN) >> gpio) & 1;
 }
@@ -47,7 +45,7 @@ static int ath79_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 static int ath79_gpio_direction_input(struct gpio_chip *chip,
 				       unsigned offset)
 {
-	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	struct ath79_gpio_ctrl *ctrl = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctrl->lock, flags);
@@ -64,7 +62,7 @@ static int ath79_gpio_direction_input(struct gpio_chip *chip,
 static int ath79_gpio_direction_output(struct gpio_chip *chip,
 					unsigned offset, int value)
 {
-	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	struct ath79_gpio_ctrl *ctrl = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctrl->lock, flags);
@@ -85,7 +83,7 @@ static int ath79_gpio_direction_output(struct gpio_chip *chip,
 
 static int ar934x_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	struct ath79_gpio_ctrl *ctrl = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctrl->lock, flags);
@@ -102,7 +100,7 @@ static int ar934x_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int ar934x_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 					int value)
 {
-	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	struct ath79_gpio_ctrl *ctrl = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctrl->lock, flags);
@@ -184,7 +182,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		ctrl->chip.direction_output = ar934x_gpio_direction_output;
 	}
 
-	err = gpiochip_add(&ctrl->chip);
+	err = gpiochip_add_data(&ctrl->chip, ctrl);
 	if (err) {
 		dev_err(&pdev->dev,
 			"cannot add AR71xx GPIO chip, error=%d", err);
