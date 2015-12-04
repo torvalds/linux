@@ -140,7 +140,7 @@ static int identify_descriptor(struct gb_interface *intf,
 		break;
 	case GREYBUS_TYPE_INVALID:
 	default:
-		pr_err("invalid descriptor type (%hhu)\n", desc_header->type);
+		pr_err("invalid descriptor type (%u)\n", desc_header->type);
 		return -EINVAL;
 	}
 
@@ -440,14 +440,14 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	header = &manifest->header;
 	manifest_size = le16_to_cpu(header->size);
 	if (manifest_size != size) {
-		pr_err("manifest size mismatch (%zu != %hu)\n",
+		pr_err("manifest size mismatch (%zu != %u)\n",
 			size, manifest_size);
 		return false;
 	}
 
 	/* Validate major/minor number */
 	if (header->version_major > GREYBUS_VERSION_MAJOR) {
-		pr_err("manifest version too new (%hhu.%hhu > %hhu.%hhu)\n",
+		pr_err("manifest version too new (%u.%u > %u.%u)\n",
 		       header->version_major, header->version_minor,
 		       GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR);
 		return false;

@@ -411,7 +411,7 @@ static int gb_hid_init(struct gb_hid *ghid)
 //	hid->bus = BUS_GREYBUS; /* Need a bustype for GREYBUS in <linux/input.h> */
 
 	/* Set HID device's name */
-	snprintf(hid->name, sizeof(hid->name), "%s %04hX:%04hX",
+	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X",
 		 dev_name(&ghid->connection->bundle->dev),
 		 hid->vendor, hid->product);
 

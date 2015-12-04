@@ -229,7 +229,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 		status = protocol->request_recv(operation->type, operation);
 	} else {
 		dev_err(&connection->hd->dev,
-			"%s: unexpected incoming request of type 0x%02hhx\n",
+			"%s: unexpected incoming request of type 0x%02x\n",
 			connection->name, operation->type);
 
 		status = -EPROTONOSUPPORT;
@@ -238,7 +238,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 	ret = gb_operation_response_send(operation, status);
 	if (ret) {
 		dev_err(&connection->hd->dev,
-			"%s: failed to send response %d for type 0x%02hhx: %d\n",
+			"%s: failed to send response %d for type 0x%02x: %d\n",
 			connection->name, status, operation->type, ret);
 			return;
 	}
@@ -797,7 +797,7 @@ void greybus_message_sent(struct gb_host_device *hd,
 	if (message == operation->response) {
 		if (status) {
 			dev_err(&connection->hd->dev,
-				"%s: error sending response 0x%02hhx: %d\n",
+				"%s: error sending response 0x%02x: %d\n",
 				connection->name, operation->type, status);
 		}
 		gb_operation_put_active(operation);
@@ -868,7 +868,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	operation = gb_operation_find_outgoing(connection, operation_id);
 	if (!operation) {
 		dev_err(&connection->hd->dev,
-			"%s: unexpected response id 0x%04hx received\n",
+			"%s: unexpected response id 0x%04x received\n",
 			connection->name, operation_id);
 		return;
 	}
@@ -877,7 +877,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	message_size = sizeof(*message->header) + message->payload_size;
 	if (!errno && size != message_size) {
 		dev_err(&connection->hd->dev,
-			"%s: malformed response 0x%02hhx received (%zu != %zu)\n",
+			"%s: malformed response 0x%02x received (%zu != %zu)\n",
 			connection->name, message->header->type, size,
 			message_size);
 		errno = -EMSGSIZE;
@@ -926,7 +926,7 @@ void gb_connection_recv(struct gb_connection *connection,
 	msg_size = le16_to_cpu(header.size);
 	if (size < msg_size) {
 		dev_err(dev,
-			"%s: incomplete message 0x%04hx of type 0x%02hhx received (%zu < %zu)\n",
+			"%s: incomplete message 0x%04x of type 0x%02x received (%zu < %zu)\n",
 			connection->name, le16_to_cpu(header.operation_id),
 			header.type, size, msg_size);
 		return;		/* XXX Should still complete operation */
@@ -1036,7 +1036,7 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 	ret = gb_operation_request_send_sync_timeout(operation, timeout);
 	if (ret) {
 		dev_err(&connection->hd->dev,
-			"%s: synchronous operation of type 0x%02hhx failed: %d\n",
+			"%s: synchronous operation of type 0x%02x failed: %d\n",
 			connection->name, type, ret);
 	} else {
 		if (response_size) {

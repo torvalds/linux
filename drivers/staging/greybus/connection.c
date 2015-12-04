@@ -89,7 +89,7 @@ static void gb_connection_init_name(struct gb_connection *connection)
 	}
 
 	snprintf(connection->name, sizeof(connection->name),
-			"%hu/%hhu:%hu", hd_cport_id, intf_id, cport_id);
+			"%u/%u:%u", hd_cport_id, intf_id, cport_id);
 }
 
 /*
@@ -129,7 +129,7 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	 * about holding the connection lock.
 	 */
 	if (bundle && gb_connection_intf_find(bundle->intf, cport_id)) {
-		dev_err(&bundle->dev, "cport 0x%04hx already connected\n",
+		dev_err(&bundle->dev, "cport 0x%04x already connected\n",
 				cport_id);
 		return NULL;
 	}
@@ -534,7 +534,7 @@ int gb_connection_bind_protocol(struct gb_connection *connection)
 				   connection->minor);
 	if (!protocol) {
 		dev_warn(&connection->hd->dev,
-				"protocol 0x%02hhx version %hhu.%hhu not found\n",
+				"protocol 0x%02x version %u.%u not found\n",
 				connection->protocol_id,
 				connection->major, connection->minor);
 		return 0;

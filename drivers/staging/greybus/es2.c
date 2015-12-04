@@ -442,7 +442,7 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 				 USB_RECIP_INTERFACE, cport_id, 0,
 				 NULL, 0, ES2_TIMEOUT);
 	if (retval < 0) {
-		dev_err(&udev->dev, "failed to reset cport %hu: %d\n", cport_id,
+		dev_err(&udev->dev, "failed to reset cport %u: %d\n", cport_id,
 			retval);
 		return retval;
 	}
@@ -890,7 +890,7 @@ static int ap_probe(struct usb_interface *interface,
 				endpoint->bEndpointAddress;
 		} else {
 			dev_err(&udev->dev,
-				"Unknown endpoint type found, address %x\n",
+				"Unknown endpoint type found, address %02x\n",
 				endpoint->bEndpointAddress);
 		}
 	}

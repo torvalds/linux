@@ -487,7 +487,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 
 		return 0;
 	default:
-		dev_err(dev, "unsupported request: %hhu\n", type);
+		dev_err(dev, "unsupported request: %u\n", type);
 		return -EINVAL;
 	}
 }

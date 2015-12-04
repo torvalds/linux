@@ -85,14 +85,14 @@ int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 				&request, sizeof(request),
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->dev, "failed to get DME attribute (%hhu %hx %hu): %d\n",
+		dev_err(&svc->dev, "failed to get DME attribute (%u %04x %u): %d\n",
 				intf_id, attr, selector, ret);
 		return ret;
 	}
 
 	result = le16_to_cpu(response.result_code);
 	if (result) {
-		dev_err(&svc->dev, "UniPro error while getting DME attribute (%hhu %hx %hu): %hu\n",
+		dev_err(&svc->dev, "UniPro error while getting DME attribute (%u %04x %u): %u\n",
 				intf_id, attr, selector, result);
 		return -EIO;
 	}
@@ -121,14 +121,14 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 				&request, sizeof(request),
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->dev, "failed to set DME attribute (%hhu %hx %hu %u): %d\n",
+		dev_err(&svc->dev, "failed to set DME attribute (%u %04x %u %u): %d\n",
 				intf_id, attr, selector, value, ret);
 		return ret;
 	}
 
 	result = le16_to_cpu(response.result_code);
 	if (result) {
-		dev_err(&svc->dev, "UniPro error while setting DME attribute (%hhu %hx %hu %u): %hu\n",
+		dev_err(&svc->dev, "UniPro error while setting DME attribute (%u %04x %u %u): %u\n",
 				intf_id, attr, selector, value, result);
 		return -EIO;
 	}
@@ -232,7 +232,7 @@ void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 	ret = gb_operation_sync(connection, GB_SVC_TYPE_CONN_DESTROY,
 				&request, sizeof(request), NULL, 0);
 	if (ret) {
-		dev_err(&svc->dev, "failed to destroy connection (%hhu:%hu %hhu:%hu): %d\n",
+		dev_err(&svc->dev, "failed to destroy connection (%u:%u %u:%u): %d\n",
 				intf1_id, cport1_id, intf2_id, cport2_id, ret);
 	}
 }
@@ -265,7 +265,7 @@ static void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
 	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_ROUTE_DESTROY,
 				&request, sizeof(request), NULL, 0);
 	if (ret) {
-		dev_err(&svc->dev, "failed to destroy route (%hhu %hhu): %d\n",
+		dev_err(&svc->dev, "failed to destroy route (%u %u): %d\n",
 				intf1_id, intf2_id, ret);
 	}
 }
@@ -287,7 +287,7 @@ static int gb_svc_version_request(struct gb_operation *op)
 	request = op->request->payload;
 
 	if (request->major > GB_SVC_VERSION_MAJOR) {
-		dev_warn(&svc->dev, "unsupported major version (%hhu > %hhu)\n",
+		dev_warn(&svc->dev, "unsupported major version (%u > %u)\n",
 				request->major, GB_SVC_VERSION_MAJOR);
 		return -ENOTSUPP;
 	}
@@ -380,14 +380,14 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		 * Remove the interface and add it again, and let user know
 		 * about this with a print message.
 		 */
-		dev_info(&svc->dev, "removing interface %hhu to add it again\n",
+		dev_info(&svc->dev, "removing interface %u to add it again\n",
 				intf_id);
 		gb_svc_intf_remove(svc, intf);
 	}
 
 	intf = gb_interface_create(hd, intf_id);
 	if (!intf) {
-		dev_err(&svc->dev, "failed to create interface %hhu\n",
+		dev_err(&svc->dev, "failed to create interface %u\n",
 				intf_id);
 		return;
 	}
@@ -413,14 +413,14 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 				   GB_DEVICE_ID_MODULES_START, 0, GFP_KERNEL);
 	if (device_id < 0) {
 		ret = device_id;
-		dev_err(&svc->dev, "failed to allocate device id for interface %hhu: %d\n",
+		dev_err(&svc->dev, "failed to allocate device id for interface %u: %d\n",
 				intf_id, ret);
 		goto destroy_interface;
 	}
 
 	ret = gb_svc_intf_device_id(svc, intf_id, device_id);
 	if (ret) {
-		dev_err(&svc->dev, "failed to set device id %hhu for interface %hhu: %d\n",
+		dev_err(&svc->dev, "failed to set device id %u for interface %u: %d\n",
 				device_id, intf_id, ret);
 		goto ida_put;
 	}
@@ -431,14 +431,14 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	ret = gb_svc_route_create(svc, svc->ap_intf_id, GB_DEVICE_ID_AP,
 				  intf_id, device_id);
 	if (ret) {
-		dev_err(&svc->dev, "failed to create route to interface %hhu (device id %hhu): %d\n",
+		dev_err(&svc->dev, "failed to create route to interface %u (device id %u): %d\n",
 				intf_id, device_id, ret);
 		goto svc_id_free;
 	}
 
 	ret = gb_interface_init(intf, device_id);
 	if (ret) {
-		dev_err(&svc->dev, "failed to initialize interface %hhu (device id %hhu): %d\n",
+		dev_err(&svc->dev, "failed to initialize interface %u (device id %u): %d\n",
 				intf_id, device_id, ret);
 		goto destroy_route;
 	}
@@ -474,7 +474,7 @@ static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
 
 	intf = gb_interface_find(hd, intf_id);
 	if (!intf) {
-		dev_warn(&svc->dev, "could not find hot-unplug interface %hhu\n",
+		dev_warn(&svc->dev, "could not find hot-unplug interface %u\n",
 				intf_id);
 		return;
 	}

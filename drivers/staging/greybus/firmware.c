@@ -210,7 +210,7 @@ static int gb_firmware_request_recv(u8 type, struct gb_operation *op)
 		return gb_firmware_ready_to_boot(op);
 	default:
 		dev_err(&op->connection->bundle->dev,
-			"unsupported request: %hhu\n", type);
+			"unsupported request: %u\n", type);
 		return -EINVAL;
 	}
 }

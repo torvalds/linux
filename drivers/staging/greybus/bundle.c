@@ -128,7 +128,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	 * the interface bundle list locked here.
 	 */
 	if (gb_bundle_find(intf, bundle_id)) {
-		pr_err("duplicate bundle id 0x%02hhx\n", bundle_id);
+		pr_err("duplicate bundle id 0x%02x\n", bundle_id);
 		return NULL;
 	}
 
@@ -152,7 +152,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 
 	retval = device_add(&bundle->dev);
 	if (retval) {
-		pr_err("failed to add bundle device for id 0x%02hhx\n",
+		pr_err("failed to add bundle device for id 0x%02x\n",
 			bundle_id);
 		put_device(&bundle->dev);
 		return NULL;

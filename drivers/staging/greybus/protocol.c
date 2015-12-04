@@ -166,7 +166,7 @@ int gb_protocol_get_version(struct gb_connection *connection)
 
 	if (response.major > connection->protocol->major) {
 		dev_err(&connection->hd->dev,
-			"%s: unsupported major version (%hhu > %hhu)\n",
+			"%s: unsupported major version (%u > %u)\n",
 			connection->name, response.major,
 			connection->protocol->major);
 		return -ENOTSUPP;
@@ -176,7 +176,7 @@ int gb_protocol_get_version(struct gb_connection *connection)
 	connection->module_minor = response.minor;
 
 	dev_dbg(&connection->hd->dev,
-		"%s: %s (0x%02hhx) v%hhu.%hhu\n", connection->name,
+		"%s: %s (0x%02x) v%u.%u\n", connection->name,
 		protocol->name, protocol->id, response.major, response.minor);
 
 	return 0;
