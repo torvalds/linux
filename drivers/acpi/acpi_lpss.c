@@ -599,6 +599,34 @@ static void acpi_lpss_d3_to_d0_delay(struct lpss_private_data *pdata)
 	msleep(delay);
 }
 
+static int acpi_lpss_activate(struct device *dev)
+{
+	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
+	int ret;
+
+	ret = acpi_dev_runtime_resume(dev);
+	if (ret)
+		return ret;
+
+	acpi_lpss_d3_to_d0_delay(pdata);
+
+	/*
+	 * This is called only on ->probe() stage where a device is either in
+	 * known state defined by BIOS or most likely powered off. Due to this
+	 * we have to deassert reset line to be sure that ->probe() will
+	 * recognize the device.
+	 */
+	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
+		lpss_deassert_reset(pdata);
+
+	return 0;
+}
+
+static void acpi_lpss_dismiss(struct device *dev)
+{
+	acpi_dev_runtime_suspend(dev);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int acpi_lpss_suspend_late(struct device *dev)
 {
@@ -667,6 +695,10 @@ static int acpi_lpss_runtime_resume(struct device *dev)
 #endif /* CONFIG_PM */
 
 static struct dev_pm_domain acpi_lpss_pm_domain = {
+#ifdef CONFIG_PM
+	.activate = acpi_lpss_activate,
+	.dismiss = acpi_lpss_dismiss,
+#endif
 	.ops = {
 #ifdef CONFIG_PM
 #ifdef CONFIG_PM_SLEEP
