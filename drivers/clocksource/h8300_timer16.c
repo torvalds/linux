@@ -19,6 +19,9 @@
 #define TCR	0
 #define TCNT	2
 
+#define bset(b, a) iowrite8(ioread8(a) | (1 << (b)), (a))
+#define bclr(b, a) iowrite8(ioread8(a) & ~(1 << (b)), (a))
+
 struct timer16_priv {
 	struct clocksource cs;
 	unsigned long total_cycles;
@@ -28,23 +31,22 @@ struct timer16_priv {
 	unsigned char enb;
 	unsigned char ovf;
 	unsigned char ovie;
-	struct clk *clk;
 };
 
 static unsigned long timer16_get_counter(struct timer16_priv *p)
 {
-	unsigned long v1, v2, v3;
-	int o1, o2;
+	unsigned short v1, v2, v3;
+	unsigned char  o1, o2;
 
-	o1 = readb(p->mapcommon + TISRC) & p->ovf;
+	o1 = ioread8(p->mapcommon + TISRC) & p->ovf;
 
 	/* Make sure the timer value is stable. Stolen from acpi_pm.c */
 	do {
 		o2 = o1;
-		v1 = readw(p->mapbase + TCNT);
-		v2 = readw(p->mapbase + TCNT);
-		v3 = readw(p->mapbase + TCNT);
-		o1 = readb(p->mapcommon + TISRC) & p->ovf;
+		v1 = ioread16be(p->mapbase + TCNT);
+		v2 = ioread16be(p->mapbase + TCNT);
+		v3 = ioread16be(p->mapbase + TCNT);
+		o1 = ioread8(p->mapcommon + TISRC) & p->ovf;
 	} while (unlikely((o1 != o2) || (v1 > v2 && v1 < v3)
 			  || (v2 > v3 && v2 < v1) || (v3 > v1 && v3 < v2)));
 
@@ -59,8 +61,7 @@ static irqreturn_t timer16_interrupt(int irq, void *dev_id)
 {
 	struct timer16_priv *p = (struct timer16_priv *)dev_id;
 
-	writeb(readb(p->mapcommon + TISRC) & ~p->ovf,
-		  p->mapcommon + TISRC);
+	bclr(p->ovf, p->mapcommon + TISRC);
 	p->total_cycles += 0x10000;
 
 	return IRQ_HANDLED;
@@ -89,12 +90,10 @@ static int timer16_enable(struct clocksource *cs)
 	WARN_ON(p->cs_enabled);
 
 	p->total_cycles = 0;
-	writew(0x0000, p->mapbase + TCNT);
-	writeb(0x83, p->mapbase + TCR);
-	writeb(readb(p->mapcommon + TSTR) | p->enb,
-		  p->mapcommon + TSTR);
-	writeb(readb(p->mapcommon + TISRC) | p->ovie,
-		  p->mapcommon + TSTR);
+	iowrite16be(0x0000, p->mapbase + TCNT);
+	iowrite8(0x83, p->mapbase + TCR);
+	bset(p->ovie, p->mapcommon + TISRC);
+	bset(p->enb, p->mapcommon + TSTR);
 
 	p->cs_enabled = true;
 	return 0;
@@ -106,8 +105,8 @@ static void timer16_disable(struct clocksource *cs)
 
 	WARN_ON(!p->cs_enabled);
 
-	writeb(readb(p->mapcommon + TSTR) & ~p->enb,
-		  p->mapcommon + TSTR);
+	bclr(p->ovie, p->mapcommon + TISRC);
+	bclr(p->enb, p->mapcommon + TSTR);
 
 	p->cs_enabled = false;
 }
@@ -162,9 +161,9 @@ static void __init h8300_16timer_init(struct device_node *node)
 
 	timer16_priv.mapbase = base[REG_CH];
 	timer16_priv.mapcommon = base[REG_COMM];
-	timer16_priv.enb = 1 << ch;
-	timer16_priv.ovf = 1 << ch;
-	timer16_priv.ovie = 1 << (4 + ch);
+	timer16_priv.enb = ch;
+	timer16_priv.ovf = ch;
+	timer16_priv.ovie = 4 + ch;
 
 	ret = request_irq(irq, timer16_interrupt,
 			  IRQF_TIMER, timer16_priv.cs.name, &timer16_priv);
@@ -174,7 +173,7 @@ static void __init h8300_16timer_init(struct device_node *node)
 	}
 
 	clocksource_register_hz(&timer16_priv.cs,
-				clk_get_rate(timer16_priv.clk) / 8);
+				clk_get_rate(clk) / 8);
 	return;
 
 unmap_comm:

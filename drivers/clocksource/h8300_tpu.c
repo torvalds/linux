@@ -19,6 +19,8 @@
 #define TSR	0x5
 #define TCNT	0x6
 
+#define TCFV	0x10
+
 struct tpu_priv {
 	struct clocksource cs;
 	void __iomem *mapbase1;
@@ -31,8 +33,8 @@ static inline unsigned long read_tcnt32(struct tpu_priv *p)
 {
 	unsigned long tcnt;
 
-	tcnt = readw(p->mapbase1 + TCNT) << 16;
-	tcnt |= readw(p->mapbase2 + TCNT);
+	tcnt = ioread16be(p->mapbase1 + TCNT) << 16;
+	tcnt |= ioread16be(p->mapbase2 + TCNT);
 	return tcnt;
 }
 
@@ -41,7 +43,7 @@ static int tpu_get_counter(struct tpu_priv *p, unsigned long long *val)
 	unsigned long v1, v2, v3;
 	int o1, o2;
 
-	o1 = readb(p->mapbase1 + TSR) & 0x10;
+	o1 = ioread8(p->mapbase1 + TSR) & TCFV;
 
 	/* Make sure the timer value is stable. Stolen from acpi_pm.c */
 	do {
@@ -49,7 +51,7 @@ static int tpu_get_counter(struct tpu_priv *p, unsigned long long *val)
 		v1 = read_tcnt32(p);
 		v2 = read_tcnt32(p);
 		v3 = read_tcnt32(p);
-		o1 = readb(p->mapbase1 + TSR) & 0x10;
+		o1 = ioread8(p->mapbase1 + TSR) & TCFV;
 	} while (unlikely((o1 != o2) || (v1 > v2 && v1 < v3)
 			  || (v2 > v3 && v2 < v1) || (v3 > v1 && v3 < v2)));
 
@@ -82,10 +84,10 @@ static int tpu_clocksource_enable(struct clocksource *cs)
 
 	WARN_ON(p->cs_enabled);
 
-	writew(0, p->mapbase1 + TCNT);
-	writew(0, p->mapbase2 + TCNT);
-	writeb(0x0f, p->mapbase1 + TCR);
-	writeb(0x03, p->mapbase2 + TCR);
+	iowrite16be(0, p->mapbase1 + TCNT);
+	iowrite16be(0, p->mapbase2 + TCNT);
+	iowrite8(0x0f, p->mapbase1 + TCR);
+	iowrite8(0x03, p->mapbase2 + TCR);
 
 	p->cs_enabled = true;
 	return 0;
@@ -97,8 +99,8 @@ static void tpu_clocksource_disable(struct clocksource *cs)
 
 	WARN_ON(!p->cs_enabled);
 
-	writeb(0, p->mapbase1 + TCR);
-	writeb(0, p->mapbase2 + TCR);
+	iowrite8(0, p->mapbase1 + TCR);
+	iowrite8(0, p->mapbase2 + TCR);
 	p->cs_enabled = false;
 }
 

@@ -24,9 +24,15 @@
 #define TCORB	6
 #define _8TCNT	8
 
+#define CMIEA	6
+#define CMFA	6
+
 #define FLAG_STARTED (1 << 3)
 
 #define SCALE 64
+
+#define bset(b, a) iowrite8(ioread8(a) | (1 << (b)), (a))
+#define bclr(b, a) iowrite8(ioread8(a) & ~(1 << (b)), (a))
 
 struct timer8_priv {
 	struct clock_event_device ced;
@@ -40,12 +46,11 @@ static irqreturn_t timer8_interrupt(int irq, void *dev_id)
 	struct timer8_priv *p = dev_id;
 
 	if (clockevent_state_oneshot(&p->ced))
-		writew(0x0000, p->mapbase + _8TCR);
+		iowrite16be(0x0000, p->mapbase + _8TCR);
 
 	p->ced.event_handler(&p->ced);
 
-	writeb(readb(p->mapbase + _8TCSR) & ~0x40,
-		  p->mapbase + _8TCSR);
+	bclr(CMFA, p->mapbase + _8TCSR);
 
 	return IRQ_HANDLED;
 }
@@ -54,17 +59,18 @@ static void timer8_set_next(struct timer8_priv *p, unsigned long delta)
 {
 	if (delta >= 0x10000)
 		pr_warn("delta out of range\n");
-	writeb(readb(p->mapbase + _8TCR) & ~0x40, p->mapbase + _8TCR);
-	writew(0, p->mapbase + _8TCNT);
-	writew(delta, p->mapbase + TCORA);
-	writeb(readb(p->mapbase + _8TCR) | 0x40, p->mapbase + _8TCR);
+	bclr(CMIEA, p->mapbase + _8TCR);
+	iowrite16be(delta, p->mapbase + TCORA);
+	iowrite16be(0x0000, p->mapbase + _8TCNT);
+	bclr(CMFA, p->mapbase + _8TCSR);
+	bset(CMIEA, p->mapbase + _8TCR);
 }
 
 static int timer8_enable(struct timer8_priv *p)
 {
-	writew(0xffff, p->mapbase + TCORA);
-	writew(0x0000, p->mapbase + _8TCNT);
-	writew(0x0c02, p->mapbase + _8TCR);
+	iowrite16be(0xffff, p->mapbase + TCORA);
+	iowrite16be(0x0000, p->mapbase + _8TCNT);
+	iowrite16be(0x0c02, p->mapbase + _8TCR);
 
 	return 0;
 }
@@ -85,7 +91,7 @@ static int timer8_start(struct timer8_priv *p)
 
 static void timer8_stop(struct timer8_priv *p)
 {
-	writew(0x0000, p->mapbase + _8TCR);
+	iowrite16be(0x0000, p->mapbase + _8TCR);
 }
 
 static inline struct timer8_priv *ced_to_priv(struct clock_event_device *ced)
