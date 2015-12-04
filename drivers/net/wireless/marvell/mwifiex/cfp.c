@@ -168,7 +168,7 @@ struct region_code_mapping {
 static struct region_code_mapping region_code_mapping_t[] = {
 	{ 0x10, "US " }, /* US FCC */
 	{ 0x20, "CA " }, /* IC Canada */
-	{ 0x30, "EU " }, /* ETSI */
+	{ 0x30, "FR " }, /* France */
 	{ 0x31, "ES " }, /* Spain */
 	{ 0x32, "FR " }, /* France */
 	{ 0x40, "JP " }, /* Japan */
