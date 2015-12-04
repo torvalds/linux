@@ -55,6 +55,7 @@ extern int pp_tonga_thermal_initialize(struct pp_hwmgr *hwmgr);
 extern int tonga_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int tonga_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed);
 extern int tonga_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed);
+extern int tonga_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr);
 
 #endif
 

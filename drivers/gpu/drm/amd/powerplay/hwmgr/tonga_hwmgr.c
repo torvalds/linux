@@ -5983,6 +5983,30 @@ int tonga_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_st
 	return 0;
 }
 
+static int tonga_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+{
+	if (mode) {
+		/* stop auto-manage */
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_MicrocodeFanControl))
+			tonga_fan_ctrl_stop_smc_fan_control(hwmgr);
+		tonga_fan_ctrl_set_static_mode(hwmgr, mode);
+	} else
+		/* restart auto-manage */
+		tonga_fan_ctrl_reset_fan_speed_to_default(hwmgr);
+
+	return 0;
+}
+
+static int tonga_get_fan_control_mode(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr->fan_ctrl_is_in_default_mode)
+		return hwmgr->fan_ctrl_default_mode;
+	else
+		return PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+				CG_FDO_CTRL2, FDO_PWM_MODE);
+}
+
 static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.backend_init = &tonga_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -6018,6 +6042,8 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.register_internal_thermal_interrupt = tonga_register_internal_thermal_interrupt,
 	.check_smc_update_required_for_display_configuration = tonga_check_smc_update_required_for_display_configuration,
 	.check_states_equal = tonga_check_states_equal,
+	.set_fan_control_mode = tonga_set_fan_control_mode,
+	.get_fan_control_mode = tonga_get_fan_control_mode,
 };
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
