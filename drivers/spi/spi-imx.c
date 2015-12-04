@@ -244,6 +244,9 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 #define MX51_ECSPI_STAT		0x18
 #define MX51_ECSPI_STAT_RR		(1 <<  3)
 
+#define MX51_ECSPI_TESTREG	0x20
+#define MX51_ECSPI_TESTREG_LBC	BIT(31)
+
 /* MX51 eCSPI */
 static unsigned int mx51_ecspi_clkdiv(unsigned int fin, unsigned int fspi,
 				      unsigned int *fres)
@@ -313,7 +316,7 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 {
 	u32 ctrl = MX51_ECSPI_CTRL_ENABLE, cfg = 0, dma = 0;
 	u32 tx_wml_cfg, rx_wml_cfg, rxt_wml_cfg;
-	u32 clk = config->speed_hz, delay;
+	u32 clk = config->speed_hz, delay, reg;
 
 	/*
 	 * The hardware seems to have a race condition when changing modes. The
@@ -350,6 +353,13 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 		cfg |= MX51_ECSPI_CONFIG_SSBPOL(config->cs);
 	else
 		cfg &= ~MX51_ECSPI_CONFIG_SSBPOL(config->cs);
+
+	reg = readl(spi_imx->base + MX51_ECSPI_TESTREG);
+	if (config->mode & SPI_LOOP)
+		reg |= MX51_ECSPI_TESTREG_LBC;
+	else
+		reg &= ~MX51_ECSPI_TESTREG_LBC;
+	writel(reg, spi_imx->base + MX51_ECSPI_TESTREG);
 
 	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
 	writel(cfg, spi_imx->base + MX51_ECSPI_CONFIG);
@@ -1141,7 +1151,8 @@ static int spi_imx_probe(struct platform_device *pdev)
 	spi_imx->bitbang.master->cleanup = spi_imx_cleanup;
 	spi_imx->bitbang.master->prepare_message = spi_imx_prepare_message;
 	spi_imx->bitbang.master->unprepare_message = spi_imx_unprepare_message;
-	spi_imx->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	spi_imx->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH |
+					     SPI_LOOP;
 
 	init_completion(&spi_imx->xfer_done);
 
