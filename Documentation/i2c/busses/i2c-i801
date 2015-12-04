@@ -32,6 +32,7 @@ Supported adapters:
   * Intel Sunrise Point-LP (PCH)
   * Intel DNV (SOC)
   * Intel Broxton (SOC)
+  * Intel Lewisburg (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller
