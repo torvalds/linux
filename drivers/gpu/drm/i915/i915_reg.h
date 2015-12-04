@@ -7714,7 +7714,7 @@ enum skl_disp_power_wells {
 #define BXT_DSI_PLL_RATIO_MAX		0x7D
 #define BXT_DSI_PLL_RATIO_MIN		0x22
 #define BXT_DSI_PLL_RATIO_MASK		0xFF
-#define BXT_REF_CLOCK_KHZ		19500
+#define BXT_REF_CLOCK_KHZ		19200
 
 #define BXT_DSI_PLL_ENABLE		_MMIO(0x46080)
 #define  BXT_DSI_PLL_DO_ENABLE		(1 << 31)
