@@ -2666,7 +2666,7 @@ is useful to display images captured with V4L2 devices.</para>
         <para>V4L2 does not support digital terrestrial, cable or
 satellite broadcast. A separate project aiming at digital receivers
 exists. You can find its homepage at <ulink
-url="http://linuxtv.org">http://linuxtv.org</ulink>. The Linux DVB API
+url="https://linuxtv.org">https://linuxtv.org</ulink>. The Linux DVB API
 has no connection to the V4L2 API except that drivers for hybrid
 hardware may support both.</para>
       </section>

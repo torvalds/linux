@@ -20,7 +20,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * The project's page is at http://www.linuxtv.org
+ * The project's page is at https://linuxtv.org
  */
 
 #ifndef TDHD1_H
