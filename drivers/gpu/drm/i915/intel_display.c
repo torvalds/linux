@@ -3940,6 +3940,21 @@ static int intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	return 0;
 }
 
+static void lpt_disable_iclkip(struct drm_i915_private *dev_priv)
+{
+	u32 temp;
+
+	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_GATE);
+
+	mutex_lock(&dev_priv->sb_lock);
+
+	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK);
+	temp |= SBI_SSCCTL_DISABLE;
+	intel_sbi_write(dev_priv, SBI_SSCCTL6, temp, SBI_ICLK);
+
+	mutex_unlock(&dev_priv->sb_lock);
+}
+
 /* Program iCLKIP clock to the desired frequency */
 static void lpt_program_iclkip(struct drm_crtc *crtc)
 {
@@ -3949,18 +3964,7 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 	u32 divsel, phaseinc, auxdiv, phasedir = 0;
 	u32 temp;
 
-	mutex_lock(&dev_priv->sb_lock);
-
-	/* It is necessary to ungate the pixclk gate prior to programming
-	 * the divisors, and gate it back when it is done.
-	 */
-	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_GATE);
-
-	/* Disable SSCCTL */
-	intel_sbi_write(dev_priv, SBI_SSCCTL6,
-			intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK) |
-				SBI_SSCCTL_DISABLE,
-			SBI_ICLK);
+	lpt_disable_iclkip(dev_priv);
 
 	/* 20MHz is a corner case which is out of range for the 7-bit divisor */
 	if (clock == 20000) {
@@ -4000,6 +4004,8 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 			phasedir,
 			phaseinc);
 
+	mutex_lock(&dev_priv->sb_lock);
+
 	/* Program SSCDIVINTPHASE6 */
 	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6, SBI_ICLK);
 	temp &= ~SBI_SSCDIVINTPHASE_DIVSEL_MASK;
@@ -4021,12 +4027,12 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 	temp &= ~SBI_SSCCTL_DISABLE;
 	intel_sbi_write(dev_priv, SBI_SSCCTL6, temp, SBI_ICLK);
 
+	mutex_unlock(&dev_priv->sb_lock);
+
 	/* Wait for initialization time */
 	udelay(24);
 
 	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_UNGATE);
-
-	mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void ironlake_pch_transcoder_set_timings(struct intel_crtc *crtc,
