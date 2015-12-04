@@ -556,12 +556,18 @@ static void sdma_v3_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		f32_cntl = RREG32(mmSDMA0_CNTL + sdma_offsets[i]);
-		if (enable)
+		if (enable) {
 			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
 					AUTO_CTXSW_ENABLE, 1);
-		else
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					ATC_L1_ENABLE, 1);
+		} else {
 			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
 					AUTO_CTXSW_ENABLE, 0);
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					ATC_L1_ENABLE, 1);
+		}
+
 		WREG32(mmSDMA0_CNTL + sdma_offsets[i], f32_cntl);
 	}
 }
