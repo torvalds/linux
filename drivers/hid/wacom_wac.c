@@ -2421,7 +2421,7 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 		features->quirks |= WACOM_QUIRK_BATTERY;
 
 	/* quirk for bamboo touch with 2 low res touches */
-	if (features->type == BAMBOO_PT &&
+	if ((features->type == BAMBOO_PT || features->type == BAMBOO_TOUCH) &&
 	    features->pktlen == WACOM_PKGLEN_BBTOUCH) {
 		features->x_max <<= 5;
 		features->y_max <<= 5;
