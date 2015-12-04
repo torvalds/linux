@@ -162,23 +162,55 @@ struct drm_tile_group {
 	u8 group_data[8];
 };
 
+/**
+ * struct drm_framebuffer_funcs - framebuffer hooks
+ */
 struct drm_framebuffer_funcs {
-	/* note: use drm_framebuffer_remove() */
+	/**
+	 * @destroy:
+	 *
+	 * Clean up framebuffer resources, specifically also unreference the
+	 * backing storage. The core guarantees to call this function for every
+	 * framebuffer successfully created by ->fb_create() in
+	 * &drm_mode_config_funcs.
+	 */
 	void (*destroy)(struct drm_framebuffer *framebuffer);
+
+	/**
+	 * @create_handle:
+	 *
+	 * Create a buffer handle in the driver-specific buffer manager (either
+	 * GEM or TTM) valid for the passed-in struct &drm_file. This is used by
+	 * the core to implement the GETFB IOCTL, which returns (for
+	 * sufficiently priviledged user) also a native buffer handle. This can
+	 * be used for seamless transitions between modesetting clients by
+	 * copying the current screen contents to a private buffer and blending
+	 * between that and the new contents.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*create_handle)(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
 			     unsigned int *handle);
-	/*
-	 * Optional callback for the dirty fb ioctl.
+	/**
+	 * @dirty:
 	 *
-	 * Userspace can notify the driver via this callback
-	 * that a area of the framebuffer has changed and should
-	 * be flushed to the display hardware.
+	 * Optional callback for the dirty fb IOCTL.
 	 *
-	 * See documentation in drm_mode.h for the struct
-	 * drm_mode_fb_dirty_cmd for more information as all
-	 * the semantics and arguments have a one to one mapping
-	 * on this function.
+	 * Userspace can notify the driver via this callback that an area of the
+	 * framebuffer has changed and should be flushed to the display
+	 * hardware. This can also be used internally, e.g. by the fbdev
+	 * emulation, though that's not the case currently.
+	 *
+	 * See documentation in drm_mode.h for the struct drm_mode_fb_dirty_cmd
+	 * for more information as all the semantics and arguments have a one to
+	 * one mapping on this function.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
 	 */
 	int (*dirty)(struct drm_framebuffer *framebuffer,
 		     struct drm_file *file_priv, unsigned flags,
@@ -627,7 +659,7 @@ struct drm_crtc_funcs {
 	 * @atomic_get_property:
 	 *
 	 * Reads out the decoded driver-private property. This is used to
-	 * implement the GETCRTC ioctl.
+	 * implement the GETCRTC IOCTL.
 	 *
 	 * Do not call this function directly, use
 	 * drm_atomic_crtc_get_property() instead.
@@ -670,7 +702,7 @@ struct drm_crtc_funcs {
  * @properties: property tracking for this CRTC
  * @state: current atomic state for this CRTC
  * @acquire_ctx: per-CRTC implicit acquire context used by atomic drivers for
- * 	legacy ioctls
+ * 	legacy IOCTLs
  *
  * Each CRTC may have one or more connectors associated with it.  This structure
  * allows the CRTC to be controlled.
@@ -724,7 +756,7 @@ struct drm_crtc {
 	struct drm_crtc_state *state;
 
 	/*
-	 * For legacy crtc ioctls so that atomic drivers can get at the locking
+	 * For legacy crtc IOCTLs so that atomic drivers can get at the locking
 	 * acquire context.
 	 */
 	struct drm_modeset_acquire_ctx *acquire_ctx;
@@ -968,7 +1000,7 @@ struct drm_connector_funcs {
 	 * @atomic_get_property:
 	 *
 	 * Reads out the decoded driver-private property. This is used to
-	 * implement the GETCONNECTOR ioctl.
+	 * implement the GETCONNECTOR IOCTL.
 	 *
 	 * Do not call this function directly, use
 	 * drm_atomic_connector_get_property() instead.
@@ -1269,7 +1301,7 @@ struct drm_plane_funcs {
 	 * @disable_plane:
 	 *
 	 * This is the legacy entry point to disable the plane. The DRM core
-	 * calls this method in response to a DRM_IOCTL_MODE_SETPLANE ioctl call
+	 * calls this method in response to a DRM_IOCTL_MODE_SETPLANE IOCTL call
 	 * with the frame buffer ID set to 0.  Disabled planes must not be
 	 * processed by the CRTC.
 	 *
@@ -1413,7 +1445,7 @@ struct drm_plane_funcs {
 	 * @atomic_get_property:
 	 *
 	 * Reads out the decoded driver-private property. This is used to
-	 * implement the GETPLANE ioctl.
+	 * implement the GETPLANE IOCTL.
 	 *
 	 * Do not call this function directly, use
 	 * drm_atomic_plane_get_property() instead.
@@ -1628,7 +1660,7 @@ struct drm_bridge {
  * struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
- * @legacy_cursor_update: hint to enforce legacy cursor ioctl semantics
+ * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
  * @planes: pointer to array of plane pointers
  * @plane_states: pointer to array of plane states pointers
  * @crtcs: pointer to array of CRTC pointers
@@ -1716,7 +1748,7 @@ struct drm_mode_config_funcs {
  * @mutex: mutex protecting KMS related lists and structures
  * @connection_mutex: ww mutex protecting connector state and routing
  * @acquire_ctx: global implicit acquire context used by atomic drivers for
- * 	legacy ioctls
+ * 	legacy IOCTLs
  * @idr_mutex: mutex for KMS ID allocation and management
  * @crtc_idr: main KMS ID tracking object
  * @fb_lock: mutex to protect fb state and lists
