@@ -168,7 +168,11 @@
 	};
 
 	act8846: act8846@5a {
-		compatible = "active-semi,act8846";
+		/*
+		 * Note: u-boot ONLY match old compatible,
+		 * it's better to add both instances here.
+		 */
+		compatible = "act,act8846", "active-semi,act8846";
 		reg = <0x5a>;
 		status = "okay";
 		system-power-controller;
