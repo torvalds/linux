@@ -676,8 +676,14 @@ int ntp_validate_timex(struct timex *txc)
 			return -EINVAL;
 	}
 
-	if ((txc->modes & ADJ_SETOFFSET) && (!capable(CAP_SYS_TIME)))
-		return -EPERM;
+	if (txc->modes & ADJ_SETOFFSET) {
+		/* In order to inject time, you gotta be super-user! */
+		if (!capable(CAP_SYS_TIME))
+			return -EPERM;
+
+		if (!timeval_inject_offset_valid(&txc->time))
+			return -EINVAL;
+	}
 
 	/*
 	 * Check for potential multiplication overflows that can
