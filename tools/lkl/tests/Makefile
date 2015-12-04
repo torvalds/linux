@@ -14,6 +14,7 @@ all:
 	./boot.sh -t btrfs
 	./boot.sh -t vfat
 	./boot.sh -t xfs
+	./hijack-test.sh
 
 valgrind:
 	$(call valgrind_test,ext4)

@@ -6357,6 +6357,7 @@ F:	drivers/*/*/*pasemi*
 
 LINUX KERNEL LIBRARY
 M:	Octavian Purdila <octavian.purdila@intel.com>
+M:	Hajime Tazaki <thehajime@gmail.com>
 S:	Maintained
 F:	arch/lkl/
 F:	tools/lkl/

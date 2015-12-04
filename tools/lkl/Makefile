@@ -21,6 +21,7 @@ CFLAGS += -fPIC
 LDFLAGS += -lpthread -lrt
 execs =  cpfromfs
 lib += lib/liblkl.so
+lib += lib/liblkl-hijack.so
 else ifeq ($(OUTPUT_FORMAT),pe-i386)
 lib_source = $(filter-out virtio_net.c,$(lib_source))
 lib_source += lib/nt-host.c
@@ -37,6 +38,13 @@ lib_objs = $(patsubst %.c,%.o, $(lib_source))
 objs = $(patsubst %.c,%.o, $(source))
 execs += $(patsubst %.c,%, $(source))
 
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64))
+lib += lib/liblkl_hijack.so
+hijack_objs = $(patsubst %.c,%.o,$(wildcard lib/hijack/*.c))
+objs += $(hijack_objs)
+endif
+
+
 all: $(lib) $(execs)
 
 lib/liblkl.a: $(lib_objs) lib/lkl.o
@@ -44,6 +52,15 @@ lib/liblkl.a: $(lib_objs) lib/lkl.o
 
 lib/liblkl.so: $(lib_objs) lib/lkl.o
 	$(CC) -o $@ -shared $^
+
+lib/liblkl_hijack.so: LDFLAGS += -ldl
+lib/liblkl_hijack.so: $(hijack_objs) lib/liblkl.a
+	$(CC) -o $@ -shared $^  $(LDFLAGS)
+
+# order of -lxxx again really matters for LD_PRELOAD
+lib/liblkl-hijack.so: $(hijack_objs) Makefile lib/liblkl.so
+	$(CC) -shared -nodefaultlibs $(lib_objs) -Llib -llkl $(hijack_objs) \
+	-ldl -lpthread -lrt -o $@
 
 lib/lkl.o:
 	$(MAKE) -C ../.. ARCH=lkl defconfig
