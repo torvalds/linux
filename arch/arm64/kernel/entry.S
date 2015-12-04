@@ -27,6 +27,7 @@
 #include <asm/cpufeature.h>
 #include <asm/errno.h>
 #include <asm/esr.h>
+#include <asm/irq.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 
@@ -175,6 +176,42 @@ alternative_endif
 	mrs	\rd, sp_el0
 	.endm
 
+	.macro	irq_stack_entry, dummy_lr
+	mov	x19, sp			// preserve the original sp
+
+	adr_l	x25, irq_stack
+	mrs	x26, tpidr_el1
+	add	x25, x25, x26
+
+	/*
+	 * Check the lowest address on irq_stack for the irq_count value,
+	 * incremented by do_softirq_own_stack if we have re-enabled irqs
+	 * while on the irq_stack.
+	 */
+	ldr	x26, [x25]
+	cbnz	x26, 9998f		// recursive use?
+
+	/* switch to the irq stack */
+	mov	x26, #IRQ_STACK_START_SP
+	add	x26, x25, x26
+	mov	sp, x26
+
+	/* Add a dummy stack frame */
+	stp     x29, \dummy_lr, [sp, #-16]!           // dummy stack frame
+	mov	x29, sp
+	stp     xzr, x19, [sp, #-16]!
+
+9998:
+	.endm
+
+	/*
+	 * x19 should be preserved between irq_stack_entry and
+	 * irq_stack_exit.
+	 */
+	.macro	irq_stack_exit
+	mov	sp, x19
+	.endm
+
 /*
  * These are the registers used in the syscall handler, and allow us to
  * have in theory up to 7 arguments to a function - x0 to x6.
@@ -190,10 +227,11 @@ tsk	.req	x28		// current thread_info
  * Interrupt handling.
  */
 	.macro	irq_handler
-	adrp	x1, handle_arch_irq
-	ldr	x1, [x1, #:lo12:handle_arch_irq]
+	ldr_l	x1, handle_arch_irq
 	mov	x0, sp
+	irq_stack_entry x22
 	blr	x1
+	irq_stack_exit
 	.endm
 
 	.text
