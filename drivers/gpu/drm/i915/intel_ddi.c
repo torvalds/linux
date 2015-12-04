@@ -675,15 +675,16 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		temp = I915_READ(DP_TP_STATUS(PORT_E));
 		if (temp & DP_TP_STATUS_AUTOTRAIN_DONE) {
 			DRM_DEBUG_KMS("FDI link training done on step %d\n", i);
+			break;
+		}
 
-			/* Enable normal pixel sending for FDI */
-			I915_WRITE(DP_TP_CTL(PORT_E),
-				   DP_TP_CTL_FDI_AUTOTRAIN |
-				   DP_TP_CTL_LINK_TRAIN_NORMAL |
-				   DP_TP_CTL_ENHANCED_FRAME_ENABLE |
-				   DP_TP_CTL_ENABLE);
-
-			return;
+		/*
+		 * Leave things enabled even if we failed to train FDI.
+		 * Results in less fireworks from the state checker.
+		 */
+		if (i == ARRAY_SIZE(hsw_ddi_translations_fdi) * 2 - 1) {
+			DRM_ERROR("FDI link training failed!\n");
+			break;
 		}
 
 		temp = I915_READ(DDI_BUF_CTL(PORT_E));
@@ -712,7 +713,12 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		POSTING_READ(FDI_RX_MISC(PIPE_A));
 	}
 
-	DRM_ERROR("FDI link training failed!\n");
+	/* Enable normal pixel sending for FDI */
+	I915_WRITE(DP_TP_CTL(PORT_E),
+		   DP_TP_CTL_FDI_AUTOTRAIN |
+		   DP_TP_CTL_LINK_TRAIN_NORMAL |
+		   DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+		   DP_TP_CTL_ENABLE);
 }
 
 void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
