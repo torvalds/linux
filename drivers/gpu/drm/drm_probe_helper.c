@@ -53,6 +53,9 @@
  * This helper library can be used independently of the modeset helper library.
  * Drivers can also overwrite different parts e.g. use their own hotplug
  * handling code to avoid probing unrelated outputs.
+ *
+ * The probe helpers share the function table structures with other display
+ * helper libraries. See struct &drm_connector_helper_funcs for the details.
  */
 
 static bool drm_kms_helper_poll = true;

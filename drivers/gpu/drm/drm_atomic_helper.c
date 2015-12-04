@@ -52,6 +52,12 @@
  * drm_atomic_helper_disable_plane(), drm_atomic_helper_disable_plane() and the
  * various functions to implement set_property callbacks. New drivers must not
  * implement these functions themselves but must use the provided helpers.
+ *
+ * The atomic helper uses the same function table structures as all other
+ * modesetting helpers. See the documentation for struct &drm_crtc_helper_funcs,
+ * struct &drm_encoder_helper_funcs and struct &drm_connector_helper_funcs. It
+ * also shares the struct &drm_plane_helper_funcs function table with the plane
+ * helpers.
  */
 static void
 drm_atomic_helper_plane_changed(struct drm_atomic_state *state,

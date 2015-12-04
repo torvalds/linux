@@ -62,6 +62,11 @@
  * converting to the plane helpers). New drivers must not use these functions
  * but need to implement the atomic interface instead, potentially using the
  * atomic helpers for that.
+ *
+ * These legacy modeset helpers use the same function table structures as
+ * all other modesetting helpers. See the documentation for struct
+ * &drm_crtc_helper_funcs, struct &drm_encoder_helper_funcs and struct
+ * &drm_connector_helper_funcs.
  */
 MODULE_AUTHOR("David Airlie, Jesse Barnes");
 MODULE_DESCRIPTION("DRM KMS helper");
