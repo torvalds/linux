@@ -890,7 +890,7 @@ static int ap_probe(struct usb_interface *interface,
 				endpoint->bEndpointAddress;
 		} else {
 			dev_err(&udev->dev,
-				"Unknown endpoint type found, address %02x\n",
+				"Unknown endpoint type found, address 0x%02x\n",
 				endpoint->bEndpointAddress);
 		}
 	}

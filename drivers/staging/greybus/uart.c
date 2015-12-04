@@ -122,7 +122,7 @@ static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 		break;
 	default:
 		dev_err(&connection->bundle->dev,
-			"unsupported unsolicited request: %02x\n", type);
+			"unsupported unsolicited request: 0x%02x\n", type);
 		ret = -EINVAL;
 	}
 

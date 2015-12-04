@@ -398,7 +398,7 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 		cmd_flags = GB_SDIO_RSP_R3_R4;
 		break;
 	default:
-		dev_err(mmc_dev(host->mmc), "cmd flag invalid %04x\n",
+		dev_err(mmc_dev(host->mmc), "cmd flag invalid 0x%04x\n",
 			mmc_resp_type(cmd));
 		ret = -EINVAL;
 		goto out;
@@ -418,7 +418,7 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 		cmd_type = GB_SDIO_CMD_ADTC;
 		break;
 	default:
-		dev_err(mmc_dev(host->mmc), "cmd type invalid %04x\n",
+		dev_err(mmc_dev(host->mmc), "cmd type invalid 0x%04x\n",
 			mmc_cmd_type(cmd));
 		ret = -EINVAL;
 		goto out;

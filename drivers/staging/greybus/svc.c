@@ -85,14 +85,14 @@ int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 				&request, sizeof(request),
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->dev, "failed to get DME attribute (%u %04x %u): %d\n",
+		dev_err(&svc->dev, "failed to get DME attribute (%u 0x%04x %u): %d\n",
 				intf_id, attr, selector, ret);
 		return ret;
 	}
 
 	result = le16_to_cpu(response.result_code);
 	if (result) {
-		dev_err(&svc->dev, "UniPro error while getting DME attribute (%u %04x %u): %u\n",
+		dev_err(&svc->dev, "UniPro error while getting DME attribute (%u 0x%04x %u): %u\n",
 				intf_id, attr, selector, result);
 		return -EIO;
 	}
@@ -121,14 +121,14 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 				&request, sizeof(request),
 				&response, sizeof(response));
 	if (ret) {
-		dev_err(&svc->dev, "failed to set DME attribute (%u %04x %u %u): %d\n",
+		dev_err(&svc->dev, "failed to set DME attribute (%u 0x%04x %u %u): %d\n",
 				intf_id, attr, selector, value, ret);
 		return ret;
 	}
 
 	result = le16_to_cpu(response.result_code);
 	if (result) {
-		dev_err(&svc->dev, "UniPro error while setting DME attribute (%u %04x %u %u): %u\n",
+		dev_err(&svc->dev, "UniPro error while setting DME attribute (%u 0x%04x %u %u): %u\n",
 				intf_id, attr, selector, value, result);
 		return -EIO;
 	}
@@ -502,7 +502,7 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 		gb_svc_process_intf_hot_unplug(operation);
 		break;
 	default:
-		dev_err(&svc->dev, "bad deferred request type: %02x\n", type);
+		dev_err(&svc->dev, "bad deferred request type: 0x%02x\n", type);
 	}
 
 	gb_operation_put(operation);
