@@ -705,9 +705,10 @@ static int acpi_lpss_platform_notify(struct notifier_block *nb,
 	}
 
 	switch (action) {
-	case BUS_NOTIFY_BOUND_DRIVER:
+	case BUS_NOTIFY_BIND_DRIVER:
 		pdev->dev.pm_domain = &acpi_lpss_pm_domain;
 		break;
+	case BUS_NOTIFY_DRIVER_NOT_BOUND:
 	case BUS_NOTIFY_UNBOUND_DRIVER:
 		pdev->dev.pm_domain = NULL;
 		break;
