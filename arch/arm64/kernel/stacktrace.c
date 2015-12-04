@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 
+#include <asm/irq.h>
 #include <asm/stacktrace.h>
 
 /*
@@ -39,16 +40,40 @@ int notrace unwind_frame(struct stackframe *frame)
 {
 	unsigned long high, low;
 	unsigned long fp = frame->fp;
+	unsigned long irq_stack_ptr;
+
+	/*
+	 * Use raw_smp_processor_id() to avoid false-positives from
+	 * CONFIG_DEBUG_PREEMPT. get_wchan() calls unwind_frame() on sleeping
+	 * task stacks, we can be pre-empted in this case, so
+	 * {raw_,}smp_processor_id() may give us the wrong value. Sleeping
+	 * tasks can't ever be on an interrupt stack, so regardless of cpu,
+	 * the checks will always fail.
+	 */
+	irq_stack_ptr = IRQ_STACK_PTR(raw_smp_processor_id());
 
 	low  = frame->sp;
-	high = ALIGN(low, THREAD_SIZE);
+	/* irq stacks are not THREAD_SIZE aligned */
+	if (on_irq_stack(frame->sp, raw_smp_processor_id()))
+		high = irq_stack_ptr;
+	else
+		high = ALIGN(low, THREAD_SIZE) - 0x20;
 
-	if (fp < low || fp > high - 0x18 || fp & 0xf)
+	if (fp < low || fp > high || fp & 0xf)
 		return -EINVAL;
 
 	frame->sp = fp + 0x10;
 	frame->fp = *(unsigned long *)(fp);
 	frame->pc = *(unsigned long *)(fp + 8);
+
+	/*
+	 * Check whether we are going to walk through from interrupt stack
+	 * to task stack.
+	 * If we reach the end of the stack - and its an interrupt stack,
+	 * read the original task stack pointer from the dummy frame.
+	 */
+	if (frame->sp == irq_stack_ptr)
+		frame->sp = IRQ_STACK_TO_TASK_STACK(irq_stack_ptr);
 
 	return 0;
 }
