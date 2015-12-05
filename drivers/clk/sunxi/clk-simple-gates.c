@@ -160,3 +160,15 @@ CLK_OF_DECLARE(sun5i_a13_ahb, "allwinner,sun5i-a13-ahb-gates-clk",
 	       sun4i_a10_ahb_init);
 CLK_OF_DECLARE(sun7i_a20_ahb, "allwinner,sun7i-a20-ahb-gates-clk",
 	       sun4i_a10_ahb_init);
+
+static const int sun4i_a10_dram_critical_clocks[] __initconst = {
+	15,	/* dram_output */
+};
+
+static void __init sun4i_a10_dram_init(struct device_node *node)
+{
+	sunxi_simple_gates_setup(node, sun4i_a10_dram_critical_clocks,
+				 ARRAY_SIZE(sun4i_a10_dram_critical_clocks));
+}
+CLK_OF_DECLARE(sun4i_a10_dram, "allwinner,sun4i-a10-dram-gates-clk",
+	       sun4i_a10_dram_init);
