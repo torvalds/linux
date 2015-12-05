@@ -56,3 +56,14 @@ config CRYPTO_DEV_QAT_DH895xCCVF
 
 	  To compile this as a module, choose M here: the module
 	  will be called qat_dh895xccvf.
+
+config CRYPTO_DEV_QAT_C3XXXVF
+	tristate "Support for Intel(R) C3XXX Virtual Function"
+	depends on X86 && PCI
+	select CRYPTO_DEV_QAT
+	help
+	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Technology
+	  Virtual Function for accelerating crypto and compression workloads.
+
+	  To compile this as a module, choose M here: the module
+	  will be called qat_c3xxxvf.
