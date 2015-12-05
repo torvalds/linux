@@ -122,7 +122,7 @@ int adf_send_message(struct adf_etr_ring_data *ring, uint32_t *msg)
 		return -EAGAIN;
 	}
 	spin_lock_bh(&ring->lock);
-	memcpy(ring->base_addr + ring->tail, msg,
+	memcpy((void *)((uintptr_t)ring->base_addr + ring->tail), msg,
 	       ADF_MSG_SIZE_TO_BYTES(ring->msg_size));
 
 	ring->tail = adf_modulo(ring->tail +
@@ -137,7 +137,7 @@ int adf_send_message(struct adf_etr_ring_data *ring, uint32_t *msg)
 static int adf_handle_response(struct adf_etr_ring_data *ring)
 {
 	uint32_t msg_counter = 0;
-	uint32_t *msg = (uint32_t *)(ring->base_addr + ring->head);
+	uint32_t *msg = (uint32_t *)((uintptr_t)ring->base_addr + ring->head);
 
 	while (*msg != ADF_RING_EMPTY_SIG) {
 		ring->callback((uint32_t *)msg);
@@ -146,7 +146,7 @@ static int adf_handle_response(struct adf_etr_ring_data *ring)
 					ADF_MSG_SIZE_TO_BYTES(ring->msg_size),
 					ADF_RING_SIZE_MODULO(ring->ring_size));
 		msg_counter++;
-		msg = (uint32_t *)(ring->base_addr + ring->head);
+		msg = (uint32_t *)((uintptr_t)ring->base_addr + ring->head);
 	}
 	if (msg_counter > 0) {
 		WRITE_CSR_RING_HEAD(ring->bank->csr_addr,
@@ -342,18 +342,7 @@ static void adf_ring_response_handler(struct adf_etr_bank_data *bank)
 	}
 }
 
-/**
- * adf_response_handler() - Bottom half handler response handler
- * @bank_addr:  Address of a ring bank for with the BH was scheduled.
- *
- * Function is the bottom half handler for the response from acceleration
- * device. There is one handler for every ring bank. Function checks all
- * communication rings in the bank.
- * To be used by QAT device specific drivers.
- *
- * Return: void
- */
-void adf_response_handler(unsigned long bank_addr)
+void adf_response_handler(uintptr_t bank_addr)
 {
 	struct adf_etr_bank_data *bank = (void *)bank_addr;
 
@@ -362,7 +351,6 @@ void adf_response_handler(unsigned long bank_addr)
 	WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr, bank->bank_number,
 				   bank->irq_mask);
 }
-EXPORT_SYMBOL_GPL(adf_response_handler);
 
 static inline int adf_get_cfg_int(struct adf_accel_dev *accel_dev,
 				  const char *section, const char *format,

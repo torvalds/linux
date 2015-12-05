@@ -8,6 +8,8 @@ clean-files += qat_rsaprivkey-asn1.c qat_rsaprivkey-asn1.h
 
 obj-$(CONFIG_CRYPTO_DEV_QAT) += intel_qat.o
 intel_qat-objs := adf_cfg.o \
+	adf_isr.o \
+	adf_vf_isr.o \
 	adf_ctl_drv.o \
 	adf_dev_mgr.o \
 	adf_init.o \

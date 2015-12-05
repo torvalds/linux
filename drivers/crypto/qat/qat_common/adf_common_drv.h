@@ -54,7 +54,7 @@
 #include "icp_qat_hal.h"
 
 #define ADF_MAJOR_VERSION	0
-#define ADF_MINOR_VERSION	2
+#define ADF_MINOR_VERSION	6
 #define ADF_BUILD_VERSION	0
 #define ADF_DRV_VERSION		__stringify(ADF_MAJOR_VERSION) "." \
 				__stringify(ADF_MINOR_VERSION) "." \
@@ -143,6 +143,7 @@ int adf_ae_stop(struct adf_accel_dev *accel_dev);
 
 int adf_enable_aer(struct adf_accel_dev *accel_dev, struct pci_driver *adf);
 void adf_disable_aer(struct adf_accel_dev *accel_dev);
+void adf_dev_restore(struct adf_accel_dev *accel_dev);
 int adf_init_aer(void);
 void adf_exit_aer(void);
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev);
@@ -159,6 +160,7 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev);
 void adf_cleanup_etr_data(struct adf_accel_dev *accel_dev);
 int qat_crypto_register(void);
 int qat_crypto_unregister(void);
+int qat_crypto_dev_config(struct adf_accel_dev *accel_dev);
 struct qat_crypto_instance *qat_crypto_get_instance_node(int node);
 void qat_crypto_put_instance(struct qat_crypto_instance *inst);
 void qat_alg_callback(void *resp);
@@ -167,6 +169,11 @@ int qat_algs_register(void);
 void qat_algs_unregister(void);
 int qat_asym_algs_register(void);
 void qat_asym_algs_unregister(void);
+
+int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
+void adf_isr_resource_free(struct adf_accel_dev *accel_dev);
+int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
+void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
 
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);

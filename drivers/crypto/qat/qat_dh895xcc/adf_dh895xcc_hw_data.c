@@ -48,7 +48,6 @@
 #include <adf_pf2vf_msg.h>
 #include <adf_common_drv.h>
 #include "adf_dh895xcc_hw_data.h"
-#include "adf_drv.h"
 
 /* Worker thread to service arbiter mappings based on dev SKUs */
 static const uint32_t thrd_to_arb_map_sku4[] = {
@@ -143,8 +142,8 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 	return DEV_SKU_UNKNOWN;
 }
 
-void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
-			     uint32_t const **arb_map_config)
+static void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
+				    u32 const **arb_map_config)
 {
 	switch (accel_dev->accel_pci_dev.sku) {
 	case DEV_SKU_1:

@@ -198,7 +198,7 @@ static int adf_copy_key_value_data(struct adf_accel_dev *accel_dev,
 			goto out_err;
 		}
 
-		params_head = section_head->params;
+		params_head = section.params;
 
 		while (params_head) {
 			if (copy_from_user(&key_val, (void __user *)params_head,
@@ -342,12 +342,10 @@ static int adf_ctl_ioctl_dev_start(struct file *fp, unsigned int cmd,
 	if (ret)
 		return ret;
 
+	ret = -ENODEV;
 	accel_dev = adf_devmgr_get_dev_by_id(ctl_data->device_id);
-	if (!accel_dev) {
-		pr_err("QAT: Device %d not found\n", ctl_data->device_id);
-		ret = -ENODEV;
+	if (!accel_dev)
 		goto out;
-	}
 
 	if (!adf_dev_started(accel_dev)) {
 		dev_info(&GET_DEV(accel_dev),
