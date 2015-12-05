@@ -1252,6 +1252,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 	 */
 
 	sack_a_rwnd = ntohl(sack->a_rwnd);
+	asoc->peer.zero_window_announced = !sack_a_rwnd;
 	outstanding = q->outstanding_bytes;
 
 	if (outstanding < sack_a_rwnd)
