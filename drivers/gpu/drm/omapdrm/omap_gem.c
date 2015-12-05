@@ -1406,7 +1406,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		if (ret)
 			goto err_free;
 
-		mapping = file_inode(obj->filp)->i_mapping;
+		mapping = obj->filp->f_mapping;
 		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
 	}
 

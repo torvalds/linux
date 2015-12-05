@@ -729,7 +729,7 @@ struct page *get_cache_page(nfs_readdir_descriptor_t *desc)
 	struct page *page;
 
 	for (;;) {
-		page = read_cache_page(file_inode(desc->file)->i_mapping,
+		page = read_cache_page(desc->file->f_mapping,
 			desc->page_index, (filler_t *)nfs_readdir_filler, desc);
 		if (IS_ERR(page) || grab_page(page))
 			break;
