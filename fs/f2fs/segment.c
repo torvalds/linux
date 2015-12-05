@@ -132,47 +132,37 @@ static unsigned long __find_rev_next_zero_bit(const unsigned long *addr,
 			unsigned long size, unsigned long offset)
 {
 	const unsigned long *p = addr + BIT_WORD(offset);
-	unsigned long result = offset & ~(BITS_PER_LONG - 1);
+	unsigned long result = size;
 	unsigned long tmp;
 
 	if (offset >= size)
 		return size;
 
-	size -= result;
+	size -= (offset & ~(BITS_PER_LONG - 1));
 	offset %= BITS_PER_LONG;
-	if (!offset)
-		goto aligned;
 
-	tmp = __reverse_ulong((unsigned char *)p);
-	tmp |= ~((~0UL << offset) >> offset);
+	while (1) {
+		if (*p == ~0UL)
+			goto pass;
 
-	if (size < BITS_PER_LONG)
-		goto found_first;
-	if (tmp != ~0UL)
-		goto found_middle;
-
-	size -= BITS_PER_LONG;
-	result += BITS_PER_LONG;
-	p++;
-aligned:
-	while (size & ~(BITS_PER_LONG - 1)) {
 		tmp = __reverse_ulong((unsigned char *)p);
+
+		if (offset)
+			tmp |= ~0UL << (BITS_PER_LONG - offset);
+		if (size < BITS_PER_LONG)
+			tmp |= ~0UL >> size;
 		if (tmp != ~0UL)
-			goto found_middle;
-		result += BITS_PER_LONG;
+			goto found;
+pass:
+		if (size <= BITS_PER_LONG)
+			break;
 		size -= BITS_PER_LONG;
+		offset = 0;
 		p++;
 	}
-	if (!size)
-		return result;
-
-	tmp = __reverse_ulong((unsigned char *)p);
-found_first:
-	tmp |= ~(~0UL << (BITS_PER_LONG - size));
-	if (tmp == ~0UL)	/* Are any bits zero? */
-		return result + size;   /* Nope. */
-found_middle:
-	return result + __reverse_ffz(tmp);
+	return result;
+found:
+	return result - size + __reverse_ffz(tmp);
 }
 
 void register_inmem_page(struct inode *inode, struct page *page)
