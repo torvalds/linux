@@ -244,7 +244,10 @@ static const struct usb_ehci_pdata ehci_pdata = {
 static const struct usb_ohci_pdata ohci_pdata = {
 };
 
-static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev, bool ohci, u32 addr)
+static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev,
+						    const char *name, u32 addr,
+						    const void *data,
+						    size_t size)
 {
 	struct platform_device *hci_dev;
 	struct resource hci_res[2];
@@ -259,8 +262,7 @@ static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev, boo
 	hci_res[1].start = dev->irq;
 	hci_res[1].flags = IORESOURCE_IRQ;
 
-	hci_dev = platform_device_alloc(ohci ? "ohci-platform" :
-					"ehci-platform" , 0);
+	hci_dev = platform_device_alloc(name, 0);
 	if (!hci_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -271,12 +273,8 @@ static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev, boo
 					    ARRAY_SIZE(hci_res));
 	if (ret)
 		goto err_alloc;
-	if (ohci)
-		ret = platform_device_add_data(hci_dev, &ohci_pdata,
-					       sizeof(ohci_pdata));
-	else
-		ret = platform_device_add_data(hci_dev, &ehci_pdata,
-					       sizeof(ehci_pdata));
+	if (data)
+		ret = platform_device_add_data(hci_dev, data, size);
 	if (ret)
 		goto err_alloc;
 	ret = platform_device_add(hci_dev);
@@ -333,11 +331,15 @@ static int bcma_hcd_probe(struct bcma_device *dev)
 	    && chipinfo->rev == 0)
 		ohci_addr = 0x18009000;
 
-	usb_dev->ohci_dev = bcma_hcd_create_pdev(dev, true, ohci_addr);
+	usb_dev->ohci_dev = bcma_hcd_create_pdev(dev, "ohci-platform",
+						 ohci_addr, &ohci_pdata,
+						 sizeof(ohci_pdata));
 	if (IS_ERR(usb_dev->ohci_dev))
 		return PTR_ERR(usb_dev->ohci_dev);
 
-	usb_dev->ehci_dev = bcma_hcd_create_pdev(dev, false, dev->addr);
+	usb_dev->ehci_dev = bcma_hcd_create_pdev(dev, "ehci-platform",
+						 dev->addr, &ehci_pdata,
+						 sizeof(ehci_pdata));
 	if (IS_ERR(usb_dev->ehci_dev)) {
 		err = PTR_ERR(usb_dev->ehci_dev);
 		goto err_unregister_ohci_dev;
