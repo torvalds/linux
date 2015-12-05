@@ -376,6 +376,7 @@ static void spi_drv_shutdown(struct device *dev)
 
 /**
  * __spi_register_driver - register a SPI driver
+ * @owner: owner module of the driver to register
  * @sdrv: the driver to register
  * Context: can sleep
  *
@@ -2130,6 +2131,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 	 * Set transfer tx_nbits and rx_nbits as single transfer default
 	 * (SPI_NBITS_SINGLE) if it is not set for this transfer.
 	 */
+	message->frame_length = 0;
 	list_for_each_entry(xfer, &message->transfers, transfer_list) {
 		message->frame_length += xfer->len;
 		if (!xfer->bits_per_word)
