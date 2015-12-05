@@ -47,32 +47,55 @@
 #ifndef __ICP_QAT_UCLO_H__
 #define __ICP_QAT_UCLO_H__
 
-#define ICP_QAT_AC_C_CPU_TYPE     0x00400000
+#define ICP_QAT_AC_895XCC_DEV_TYPE 0x00400000
+#define ICP_QAT_AC_C62X_DEV_TYPE   0x01000000
+#define ICP_QAT_AC_C3XXX_DEV_TYPE  0x02000000
 #define ICP_QAT_UCLO_MAX_AE       12
 #define ICP_QAT_UCLO_MAX_CTX      8
 #define ICP_QAT_UCLO_MAX_UIMAGE   (ICP_QAT_UCLO_MAX_AE * ICP_QAT_UCLO_MAX_CTX)
 #define ICP_QAT_UCLO_MAX_USTORE   0x4000
 #define ICP_QAT_UCLO_MAX_XFER_REG 128
 #define ICP_QAT_UCLO_MAX_GPR_REG  128
-#define ICP_QAT_UCLO_MAX_NN_REG   128
 #define ICP_QAT_UCLO_MAX_LMEM_REG 1024
 #define ICP_QAT_UCLO_AE_ALL_CTX   0xff
 #define ICP_QAT_UOF_OBJID_LEN     8
 #define ICP_QAT_UOF_FID 0xc6c2
 #define ICP_QAT_UOF_MAJVER 0x4
 #define ICP_QAT_UOF_MINVER 0x11
-#define ICP_QAT_UOF_NN_MODE_NOTCARE   0xff
 #define ICP_QAT_UOF_OBJS        "UOF_OBJS"
 #define ICP_QAT_UOF_STRT        "UOF_STRT"
-#define ICP_QAT_UOF_GTID        "UOF_GTID"
 #define ICP_QAT_UOF_IMAG        "UOF_IMAG"
 #define ICP_QAT_UOF_IMEM        "UOF_IMEM"
-#define ICP_QAT_UOF_MSEG        "UOF_MSEG"
 #define ICP_QAT_UOF_LOCAL_SCOPE     1
 #define ICP_QAT_UOF_INIT_EXPR               0
 #define ICP_QAT_UOF_INIT_REG                1
 #define ICP_QAT_UOF_INIT_REG_CTX            2
 #define ICP_QAT_UOF_INIT_EXPR_ENDIAN_SWAP   3
+#define ICP_QAT_SUOF_OBJ_ID_LEN             8
+#define ICP_QAT_SUOF_FID  0x53554f46
+#define ICP_QAT_SUOF_MAJVER 0x0
+#define ICP_QAT_SUOF_MINVER 0x1
+#define ICP_QAT_SIMG_AE_INIT_SEQ_LEN    (50 * sizeof(unsigned long long))
+#define ICP_QAT_SIMG_AE_INSTS_LEN       (0x4000 * sizeof(unsigned long long))
+#define ICP_QAT_CSS_FWSK_MODULUS_LEN    256
+#define ICP_QAT_CSS_FWSK_EXPONENT_LEN   4
+#define ICP_QAT_CSS_FWSK_PAD_LEN        252
+#define ICP_QAT_CSS_FWSK_PUB_LEN   (ICP_QAT_CSS_FWSK_MODULUS_LEN + \
+				    ICP_QAT_CSS_FWSK_EXPONENT_LEN + \
+				    ICP_QAT_CSS_FWSK_PAD_LEN)
+#define ICP_QAT_CSS_SIGNATURE_LEN   256
+#define ICP_QAT_CSS_AE_IMG_LEN     (sizeof(struct icp_qat_simg_ae_mode) + \
+				    ICP_QAT_SIMG_AE_INIT_SEQ_LEN +         \
+				    ICP_QAT_SIMG_AE_INSTS_LEN)
+#define ICP_QAT_CSS_AE_SIMG_LEN    (sizeof(struct icp_qat_css_hdr) + \
+				    ICP_QAT_CSS_FWSK_PUB_LEN + \
+				    ICP_QAT_CSS_SIGNATURE_LEN + \
+				    ICP_QAT_CSS_AE_IMG_LEN)
+#define ICP_QAT_AE_IMG_OFFSET	   (sizeof(struct icp_qat_css_hdr) + \
+				    ICP_QAT_CSS_FWSK_MODULUS_LEN + \
+				    ICP_QAT_CSS_FWSK_EXPONENT_LEN + \
+				    ICP_QAT_CSS_SIGNATURE_LEN)
+#define ICP_QAT_CSS_MAX_IMAGE_LEN   0x40000
 
 #define ICP_QAT_CTX_MODE(ae_mode) ((ae_mode) & 0xf)
 #define ICP_QAT_NN_MODE(ae_mode) (((ae_mode) >> 0x4) & 0xf)
@@ -110,6 +133,11 @@ enum icp_qat_uof_regtype {
 	ICP_LMEM0,
 	ICP_LMEM1,
 	ICP_NEIGH_REL,
+};
+
+enum icp_qat_css_fwtype {
+	CSS_AE_FIRMWARE = 0,
+	CSS_MMP_FIRMWARE = 1
 };
 
 struct icp_qat_uclo_page {
@@ -235,7 +263,7 @@ struct icp_qat_uof_filechunkhdr {
 };
 
 struct icp_qat_uof_objhdr {
-	unsigned int cpu_type;
+	unsigned int ac_dev_type;
 	unsigned short min_cpu_ver;
 	unsigned short max_cpu_ver;
 	short max_chunks;
@@ -326,7 +354,7 @@ struct icp_qat_uof_image {
 	unsigned int img_name;
 	unsigned int ae_assigned;
 	unsigned int ctx_assigned;
-	unsigned int cpu_type;
+	unsigned int ac_dev_type;
 	unsigned int entry_address;
 	unsigned int fill_pattern[2];
 	unsigned int reloadable_size;
@@ -373,5 +401,128 @@ struct icp_qat_uof_batch_init {
 	unsigned int *value;
 	unsigned int size;
 	struct icp_qat_uof_batch_init *next;
+};
+
+struct icp_qat_suof_img_hdr {
+	char          *simg_buf;
+	unsigned long simg_len;
+	char          *css_header;
+	char          *css_key;
+	char          *css_signature;
+	char          *css_simg;
+	unsigned long simg_size;
+	unsigned int  ae_num;
+	unsigned int  ae_mask;
+	unsigned int  fw_type;
+	unsigned long simg_name;
+	unsigned long appmeta_data;
+};
+
+struct icp_qat_suof_img_tbl {
+	unsigned int num_simgs;
+	struct icp_qat_suof_img_hdr *simg_hdr;
+};
+
+struct icp_qat_suof_handle {
+	unsigned int  file_id;
+	unsigned int  check_sum;
+	char          min_ver;
+	char          maj_ver;
+	char          fw_type;
+	char          *suof_buf;
+	unsigned int  suof_size;
+	char          *sym_str;
+	unsigned int  sym_size;
+	struct icp_qat_suof_img_tbl img_table;
+};
+
+struct icp_qat_fw_auth_desc {
+	unsigned int   img_len;
+	unsigned int   reserved;
+	unsigned int   css_hdr_high;
+	unsigned int   css_hdr_low;
+	unsigned int   img_high;
+	unsigned int   img_low;
+	unsigned int   signature_high;
+	unsigned int   signature_low;
+	unsigned int   fwsk_pub_high;
+	unsigned int   fwsk_pub_low;
+	unsigned int   img_ae_mode_data_high;
+	unsigned int   img_ae_mode_data_low;
+	unsigned int   img_ae_init_data_high;
+	unsigned int   img_ae_init_data_low;
+	unsigned int   img_ae_insts_high;
+	unsigned int   img_ae_insts_low;
+};
+
+struct icp_qat_auth_chunk {
+	struct icp_qat_fw_auth_desc fw_auth_desc;
+	u64 chunk_size;
+	u64 chunk_bus_addr;
+};
+
+struct icp_qat_css_hdr {
+	unsigned int module_type;
+	unsigned int header_len;
+	unsigned int header_ver;
+	unsigned int module_id;
+	unsigned int module_vendor;
+	unsigned int date;
+	unsigned int size;
+	unsigned int key_size;
+	unsigned int module_size;
+	unsigned int exponent_size;
+	unsigned int fw_type;
+	unsigned int reserved[21];
+};
+
+struct icp_qat_simg_ae_mode {
+	unsigned int     file_id;
+	unsigned short   maj_ver;
+	unsigned short   min_ver;
+	unsigned int     dev_type;
+	unsigned short   devmax_ver;
+	unsigned short   devmin_ver;
+	unsigned int     ae_mask;
+	unsigned int     ctx_enables;
+	char             fw_type;
+	char             ctx_mode;
+	char             nn_mode;
+	char             lm0_mode;
+	char             lm1_mode;
+	char             scs_mode;
+	char             lm2_mode;
+	char             lm3_mode;
+	char             tindex_mode;
+	unsigned char    reserved[7];
+	char             simg_name[256];
+	char             appmeta_data[256];
+};
+
+struct icp_qat_suof_filehdr {
+	unsigned int     file_id;
+	unsigned int     check_sum;
+	char             min_ver;
+	char             maj_ver;
+	char             fw_type;
+	char             reserved;
+	unsigned short   max_chunks;
+	unsigned short   num_chunks;
+};
+
+struct icp_qat_suof_chunk_hdr {
+	char chunk_id[ICP_QAT_SUOF_OBJ_ID_LEN];
+	u64 offset;
+	u64 size;
+};
+
+struct icp_qat_suof_strtable {
+	unsigned int tab_length;
+	unsigned int strings;
+};
+
+struct icp_qat_suof_objhdr {
+	unsigned int img_length;
+	unsigned int reserved;
 };
 #endif

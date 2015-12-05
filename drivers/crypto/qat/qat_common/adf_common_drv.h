@@ -178,6 +178,8 @@ void qat_hal_reset(struct icp_qat_fw_loader_handle *handle);
 int qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle);
 void qat_hal_set_live_ctx(struct icp_qat_fw_loader_handle *handle,
 			  unsigned char ae, unsigned int ctx_mask);
+int qat_hal_check_ae_active(struct icp_qat_fw_loader_handle *handle,
+			    unsigned int ae);
 int qat_hal_set_ae_lm_mode(struct icp_qat_fw_loader_handle *handle,
 			   unsigned char ae, enum icp_qat_uof_regtype lm_type,
 			   unsigned char mode);
@@ -216,10 +218,10 @@ int qat_hal_wr_lm(struct icp_qat_fw_loader_handle *handle,
 		  unsigned char ae, unsigned short lm_addr, unsigned int value);
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle);
 void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle);
-int qat_uclo_map_uof_obj(struct icp_qat_fw_loader_handle *handle,
-			 void *addr_ptr, int mem_size);
-void qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
-			void *addr_ptr, int mem_size);
+int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle, void *addr_ptr,
+		       int mem_size);
+int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
+		     void *addr_ptr, int mem_size);
 #if defined(CONFIG_PCI_IOV)
 int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
 void adf_disable_sriov(struct adf_accel_dev *accel_dev);
