@@ -521,13 +521,13 @@ static bool atomctrl_lookup_gpio_pin(
 				pin_assignment->ucGpioPinBitShift;
 			gpio_pin_assignment->us_gpio_pin_aindex =
 				le16_to_cpu(pin_assignment->usGpioPin_AIndex);
-			return 0;
+			return false;
 		}
 
 		offset += offsetof(ATOM_GPIO_PIN_ASSIGNMENT, ucGPIO_ID) + 1;
 	}
 
-	return 1;
+	return true;
 }
 
 /**
