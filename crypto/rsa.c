@@ -13,6 +13,7 @@
 #include <crypto/internal/rsa.h>
 #include <crypto/internal/akcipher.h>
 #include <crypto/akcipher.h>
+#include <crypto/algapi.h>
 
 /*
  * RSAEP function [RFC3447 sec 5.1.1]
@@ -315,11 +316,24 @@ static struct akcipher_alg rsa = {
 
 static int rsa_init(void)
 {
-	return crypto_register_akcipher(&rsa);
+	int err;
+
+	err = crypto_register_akcipher(&rsa);
+	if (err)
+		return err;
+
+	err = crypto_register_template(&rsa_pkcs1pad_tmpl);
+	if (err) {
+		crypto_unregister_akcipher(&rsa);
+		return err;
+	}
+
+	return 0;
 }
 
 static void rsa_exit(void)
 {
+	crypto_unregister_template(&rsa_pkcs1pad_tmpl);
 	crypto_unregister_akcipher(&rsa);
 }
 
