@@ -35,6 +35,7 @@ MODULE_DESCRIPTION("Common USB driver for BCMA Bus");
 MODULE_LICENSE("GPL");
 
 struct bcma_hcd_device {
+	struct bcma_device *core;
 	struct platform_device *ehci_dev;
 	struct platform_device *ohci_dev;
 	struct gpio_desc *gpio_desc;
@@ -288,30 +289,15 @@ err_alloc:
 	return ERR_PTR(ret);
 }
 
-static int bcma_hcd_probe(struct bcma_device *dev)
+static int bcma_hcd_usb20_init(struct bcma_hcd_device *usb_dev)
 {
-	int err;
+	struct bcma_device *dev = usb_dev->core;
+	struct bcma_chipinfo *chipinfo = &dev->bus->chipinfo;
 	u32 ohci_addr;
-	struct bcma_hcd_device *usb_dev;
-	struct bcma_chipinfo *chipinfo;
-
-	chipinfo = &dev->bus->chipinfo;
-
-	/* TODO: Probably need checks here; is the core connected? */
+	int err;
 
 	if (dma_set_mask_and_coherent(dev->dma_dev, DMA_BIT_MASK(32)))
 		return -EOPNOTSUPP;
-
-	usb_dev = devm_kzalloc(&dev->dev, sizeof(struct bcma_hcd_device),
-			       GFP_KERNEL);
-	if (!usb_dev)
-		return -ENOMEM;
-
-	if (dev->dev.of_node)
-		usb_dev->gpio_desc = devm_get_gpiod_from_child(&dev->dev, "vcc",
-							       &dev->dev.of_node->fwnode);
-	if (!IS_ERR_OR_NULL(usb_dev->gpio_desc))
-		gpiod_direction_output(usb_dev->gpio_desc, 1);
 
 	switch (dev->id.id) {
 	case BCMA_CORE_NS_USB20:
@@ -345,12 +331,45 @@ static int bcma_hcd_probe(struct bcma_device *dev)
 		goto err_unregister_ohci_dev;
 	}
 
-	bcma_set_drvdata(dev, usb_dev);
 	return 0;
 
 err_unregister_ohci_dev:
 	platform_device_unregister(usb_dev->ohci_dev);
 	return err;
+}
+
+static int bcma_hcd_probe(struct bcma_device *core)
+{
+	int err;
+	struct bcma_hcd_device *usb_dev;
+
+	/* TODO: Probably need checks here; is the core connected? */
+
+	usb_dev = devm_kzalloc(&core->dev, sizeof(struct bcma_hcd_device),
+			       GFP_KERNEL);
+	if (!usb_dev)
+		return -ENOMEM;
+	usb_dev->core = core;
+
+	if (core->dev.of_node)
+		usb_dev->gpio_desc = devm_get_gpiod_from_child(&core->dev, "vcc",
+							       &core->dev.of_node->fwnode);
+	if (!IS_ERR_OR_NULL(usb_dev->gpio_desc))
+		gpiod_direction_output(usb_dev->gpio_desc, 1);
+
+	switch (core->id.id) {
+	case BCMA_CORE_USB20_HOST:
+	case BCMA_CORE_NS_USB20:
+		err = bcma_hcd_usb20_init(usb_dev);
+		if (err)
+			return err;
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	bcma_set_drvdata(core, usb_dev);
+	return 0;
 }
 
 static void bcma_hcd_remove(struct bcma_device *dev)
