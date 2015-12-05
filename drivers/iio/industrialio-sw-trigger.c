@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 
 #include <linux/iio/sw_trigger.h>
+#include <linux/iio/configfs.h>
 #include <linux/configfs.h>
 
 static struct config_group *iio_triggers_group;

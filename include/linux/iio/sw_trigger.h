@@ -20,7 +20,6 @@
 	module_driver(__iio_sw_trigger_type, iio_register_sw_trigger_type, \
 		      iio_unregister_sw_trigger_type)
 
-extern struct configfs_subsystem iio_configfs_subsys;
 struct iio_sw_trigger_ops;
 
 struct iio_sw_trigger_type {
