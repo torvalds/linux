@@ -101,7 +101,7 @@ netdev_tx_t hdlc_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
 			 size_t size);
 /* May be used by hardware driver to gain control over HDLC device */
-void detach_hdlc_protocol(struct net_device *dev);
+int detach_hdlc_protocol(struct net_device *dev);
 
 static __inline__ __be16 hdlc_type_trans(struct sk_buff *skb,
 					 struct net_device *dev)
