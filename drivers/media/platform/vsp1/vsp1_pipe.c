@@ -368,7 +368,7 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 	 * pipelines twice, first to set them all to the stopping state, and
 	 * then to wait for the stop to complete.
 	 */
-	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
 
@@ -385,7 +385,7 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 		spin_unlock_irqrestore(&pipe->irqlock, flags);
 	}
 
-	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
 
@@ -409,7 +409,7 @@ void vsp1_pipelines_resume(struct vsp1_device *vsp1)
 	unsigned int i;
 
 	/* Resume pipeline all running pipelines. */
-	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
 

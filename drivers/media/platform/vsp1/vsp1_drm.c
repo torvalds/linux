@@ -285,7 +285,7 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 	unsigned long flags;
 	int ret;
 
-	if (rpf_index >= vsp1->pdata.rpf_count)
+	if (rpf_index >= vsp1->info->rpf_count)
 		return -EINVAL;
 
 	rpf = vsp1->rpf[rpf_index];
@@ -519,7 +519,7 @@ int vsp1_drm_create_links(struct vsp1_device *vsp1)
 	if (!vsp1->bru || !vsp1->lif)
 		return -ENXIO;
 
-	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
+	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		struct vsp1_rwpf *rpf = vsp1->rpf[i];
 
 		ret = media_create_pad_link(&rpf->entity.subdev.entity,
@@ -572,7 +572,7 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	pipe->frame_end = vsp1_drm_pipeline_frame_end;
 
 	/* The DRM pipeline is static, add entities manually. */
-	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
+	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		struct vsp1_rwpf *input = vsp1->rpf[i];
 
 		list_add_tail(&input->entity.list_pipe, &pipe->entities);

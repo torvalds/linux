@@ -416,7 +416,7 @@ struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
 	bru->entity.type = VSP1_ENTITY_BRU;
 
 	ret = vsp1_entity_init(vsp1, &bru->entity,
-			       vsp1->pdata.num_bru_inputs + 1);
+			       vsp1->info->num_bru_inputs + 1);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

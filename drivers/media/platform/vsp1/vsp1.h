@@ -47,7 +47,8 @@ struct vsp1_uds;
 #define VSP1_HAS_SRU		(1 << 2)
 #define VSP1_HAS_BRU		(1 << 3)
 
-struct vsp1_platform_data {
+struct vsp1_device_info {
+	u32 version;
 	unsigned int features;
 	unsigned int rpf_count;
 	unsigned int uds_count;
@@ -58,7 +59,7 @@ struct vsp1_platform_data {
 
 struct vsp1_device {
 	struct device *dev;
-	struct vsp1_platform_data pdata;
+	const struct vsp1_device_info *info;
 
 	void __iomem *mmio;
 	struct clk *clock;

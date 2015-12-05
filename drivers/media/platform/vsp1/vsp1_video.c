@@ -324,7 +324,7 @@ static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
 	/* Follow links downstream for each input and make sure the graph
 	 * contains no loop and that all branches end at the output WPF.
 	 */
-	for (i = 0; i < video->vsp1->pdata.rpf_count; ++i) {
+	for (i = 0; i < video->vsp1->info->rpf_count; ++i) {
 		if (!pipe->inputs[i])
 			continue;
 
@@ -456,7 +456,7 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	unsigned int i;
 
 	/* Complete buffers on all video nodes. */
-	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
+	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		if (!pipe->inputs[i])
 			continue;
 

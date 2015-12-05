@@ -98,7 +98,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	 * inputs as sub-layers and select the virtual RPF as the master
 	 * layer.
 	 */
-	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
+	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		struct vsp1_rwpf *input = pipe->inputs[i];
 
 		if (!input)
@@ -155,11 +155,11 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	/* Take the control handler lock to ensure that the PDV value won't be
 	 * changed behind our back by a set control operation.
 	 */
-	if (vsp1->pdata.uapi)
+	if (vsp1->info->uapi)
 		mutex_lock(wpf->ctrls.lock);
 	outfmt |= wpf->alpha->cur.val << VI6_WPF_OUTFMT_PDV_SHIFT;
 	vsp1_wpf_write(wpf, VI6_WPF_OUTFMT, outfmt);
-	if (vsp1->pdata.uapi)
+	if (vsp1->info->uapi)
 		mutex_unlock(wpf->ctrls.lock);
 
 	vsp1_mod_write(&wpf->entity, VI6_DPR_WPF_FPORCH(wpf->entity.index),

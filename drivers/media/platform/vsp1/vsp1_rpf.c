@@ -151,12 +151,12 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
 				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
 
-	if (vsp1->pdata.uapi)
+	if (vsp1->info->uapi)
 		mutex_lock(rpf->ctrls.lock);
 	vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
 		       rpf->alpha->cur.val << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
 	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, rpf->alpha->cur.val);
-	if (vsp1->pdata.uapi)
+	if (vsp1->info->uapi)
 		mutex_unlock(rpf->ctrls.lock);
 
 	vsp1_rpf_write(rpf, VI6_RPF_MSK_CTRL, 0);
