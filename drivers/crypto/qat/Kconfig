@@ -33,6 +33,17 @@ config CRYPTO_DEV_QAT_C3XXX
 	  To compile this as a module, choose M here: the module
 	  will be called qat_c3xxx.
 
+config CRYPTO_DEV_QAT_C62X
+	tristate "Support for Intel(R) C62X"
+	depends on X86 && PCI
+	select CRYPTO_DEV_QAT
+	help
+	  Support for Intel(R) C62x with Intel(R) QuickAssist Technology
+	  for accelerating crypto and compression workloads.
+
+	  To compile this as a module, choose M here: the module
+	  will be called qat_c62x.
+
 config CRYPTO_DEV_QAT_DH895xCCVF
 	tristate "Support for Intel(R) DH895xCC Virtual Function"
 	depends on X86 && PCI

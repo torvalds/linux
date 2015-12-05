@@ -1,4 +1,5 @@
 obj-$(CONFIG_CRYPTO_DEV_QAT) += qat_common/
 obj-$(CONFIG_CRYPTO_DEV_QAT_DH895xCC) += qat_dh895xcc/
 obj-$(CONFIG_CRYPTO_DEV_QAT_C3XXX) += qat_c3xxx/
+obj-$(CONFIG_CRYPTO_DEV_QAT_C62X) += qat_c62x/
 obj-$(CONFIG_CRYPTO_DEV_QAT_DH895xCCVF) += qat_dh895xccvf/
