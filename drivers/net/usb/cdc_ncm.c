@@ -955,9 +955,17 @@ static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_
 	* NTH16 header as we would normally do. NDP isn't written to the SKB yet, and
 	* the wNdpIndex field in the header is actually not consistent with reality. It will be later.
 	*/
-	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END)
+	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END) {
 		if (ctx->delayed_ndp16->dwSignature == sign)
 			return ctx->delayed_ndp16;
+
+		/* We can only push a single NDP to the end. Return
+		 * NULL to send what we've already got and queue this
+		 * skb for later.
+		 */
+		else if (ctx->delayed_ndp16->dwSignature)
+			return NULL;
+	}
 
 	/* follow the chain of NDPs, looking for a match */
 	while (ndpoffset) {
