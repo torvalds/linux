@@ -59,7 +59,7 @@ DOCUMENTATION:
 INSTALLING the kernel source:
 
  - If you install the full sources, put the kernel tarball in a
-   directory where you have permissions (eg. your home directory) and
+   directory where you have permissions (e.g. your home directory) and
    unpack it:
 
      xz -cd linux-4.X.tar.xz | tar xvf -
@@ -125,7 +125,7 @@ BUILD directory for the kernel:
 
    When compiling the kernel, all output files will per default be
    stored together with the kernel source code.
-   Using the option "make O=output/dir" allow you to specify an alternate
+   Using the option "make O=output/dir" allows you to specify an alternate
    place for the output files (including .config).
    Example:
 
@@ -159,9 +159,9 @@ CONFIGURING the kernel:
 
      "make nconfig"     Enhanced text based color menus.
 
-     "make xconfig"     X windows (Qt) based configuration tool.
+     "make xconfig"     Qt based configuration tool.
 
-     "make gconfig"     X windows (GTK+) based configuration tool.
+     "make gconfig"     GTK+ based configuration tool.
 
      "make oldconfig"   Default all questions based on the contents of
                         your existing ./.config file and asking about
@@ -268,8 +268,8 @@ COMPILING the kernel:
    Normally, the kernel build system runs in a fairly quiet mode (but not
    totally silent).  However, sometimes you or other kernel developers need
    to see compile, link, or other commands exactly as they are executed.
-   For this, use "verbose" build mode.  This is done by inserting
-   "V=1" in the "make" command.  E.g.:
+   For this, use "verbose" build mode.  This is done by passing
+   "V=1" to the "make" command, e.g.
 
      make V=1 all
 
@@ -300,7 +300,7 @@ COMPILING the kernel:
    kernel image file is usually /vmlinuz, /boot/vmlinuz, /bzImage or
    /boot/bzImage.  To use the new kernel, save a copy of the old image
    and copy the new image over the old one.  Then, you MUST RERUN LILO
-   to update the loading map!! If you don't, you won't be able to boot
+   to update the loading map! If you don't, you won't be able to boot
    the new kernel image.
 
    Reinstalling LILO is usually a matter of running /sbin/lilo. 
