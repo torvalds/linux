@@ -904,18 +904,9 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 		lseg = nfs4_proc_layoutget(lgp, gfp_flags);
 	} while (lseg == ERR_PTR(-EAGAIN));
 
-	if (IS_ERR(lseg)) {
-		switch (PTR_ERR(lseg)) {
-		case -ERESTARTSYS:
-		case -EIO:
-		case -ENOSPC:
-		case -EROFS:
-		case -E2BIG:
-			break;
-		default:
-			return NULL;
-		}
-	} else
+	if (IS_ERR(lseg) && !nfs_error_is_fatal(PTR_ERR(lseg)))
+		lseg = NULL;
+	else
 		pnfs_layout_clear_fail_bit(lo,
 				pnfs_iomode_to_fail_bit(range->iomode));
 

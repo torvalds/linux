@@ -545,6 +545,15 @@ try_again:
 	return head;
 }
 
+static void nfs_write_error_remove_page(struct nfs_page *req)
+{
+	nfs_unlock_request(req);
+	nfs_end_page_writeback(req);
+	nfs_release_request(req);
+	generic_error_remove_page(page_file_mapping(req->wb_page),
+				  req->wb_page);
+}
+
 /*
  * Find an associated nfs write request, and prepare to flush it out
  * May return an error if the user signalled nfs_wait_on_request().
@@ -567,8 +576,19 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 
 	ret = 0;
 	if (!nfs_pageio_add_request(pgio, req)) {
-		nfs_redirty_request(req);
 		ret = pgio->pg_error;
+		/*
+		 * Remove the problematic req upon fatal errors,
+		 * while other dirty pages can still be around
+		 * until they get flushed.
+		 */
+		if (nfs_error_is_fatal(ret)) {
+			nfs_context_set_write_error(req->wb_context, ret);
+			nfs_write_error_remove_page(req);
+		} else {
+			nfs_redirty_request(req);
+			ret = -EAGAIN;
+		}
 	} else
 		nfs_add_stats(page_file_mapping(page)->host,
 				NFSIOS_WRITEPAGES, 1);
