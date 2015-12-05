@@ -192,7 +192,7 @@ static irqreturn_t em_gio_irq_handler(int irq, void *dev_id)
 
 static inline struct em_gio_priv *gpio_to_priv(struct gpio_chip *chip)
 {
-	return container_of(chip, struct em_gio_priv, gpio_chip);
+	return gpiochip_get_data(chip);
 }
 
 static int em_gio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -368,7 +368,7 @@ static int em_gio_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	ret = gpiochip_add(gpio_chip);
+	ret = gpiochip_add_data(gpio_chip, p);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add GPIO controller\n");
 		goto err1;
