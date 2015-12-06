@@ -83,7 +83,7 @@ static int lpc32xx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	u32 val;
 	int ret;
 
-	ret = clk_enable(lpc32xx->clk);
+	ret = clk_prepare_enable(lpc32xx->clk);
 	if (ret)
 		return ret;
 
@@ -103,7 +103,7 @@ static void lpc32xx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	val &= ~PWM_ENABLE;
 	writel(val, lpc32xx->base + (pwm->hwpwm << 2));
 
-	clk_disable(lpc32xx->clk);
+	clk_disable_unprepare(lpc32xx->clk);
 }
 
 static const struct pwm_ops lpc32xx_pwm_ops = {
