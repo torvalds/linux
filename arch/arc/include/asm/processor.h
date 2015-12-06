@@ -121,7 +121,25 @@ extern unsigned int get_wchan(struct task_struct *p);
 
 #define USER_KERNEL_GUTTER    (VMALLOC_START - TASK_SIZE)
 
+#ifdef CONFIG_ARC_PLAT_EZNPS
+/* NPS architecture defines special window of 129M in user address space for
+ * special memory areas, when accessing this window the MMU do not use TLB.
+ * Instead MMU direct the access to:
+ * 0x57f00000:0x57ffffff -- 1M of closely coupled memory (aka CMEM)
+ * 0x58000000:0x5fffffff -- 16 huge pages, 8M each, with fixed map (aka FMTs)
+ *
+ * CMEM - is the fastest memory we got and its size is 16K.
+ * FMT  - is used to map either to internal/external memory.
+ * Internal memory is the second fast memory and its size is 16M
+ * External memory is the biggest memory (16G) and also the slowest.
+ *
+ * STACK_TOP need to be PMD align (21bit) that is why we supply 0x57e00000.
+ */
+#define STACK_TOP       0x57e00000
+#else
 #define STACK_TOP       TASK_SIZE
+#endif
+
 #define STACK_TOP_MAX   STACK_TOP
 
 /* This decides where the kernel will search for a free chunk of vm
