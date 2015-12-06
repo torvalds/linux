@@ -224,7 +224,11 @@ static unsigned long ieee80211_end_finished_rocs(struct ieee80211_local *local,
 			    msecs_to_jiffies(roc->duration) -
 			    now;
 
-		if (roc->abort || remaining <= 0)
+		/* In case of HW ROC, it is possible that the HW finished the
+		 * ROC session before the actual requested time. In such a case
+		 * end the ROC session (disregarding the remaining time).
+		 */
+		if (roc->abort || roc->hw_begun || remaining <= 0)
 			ieee80211_roc_notify_destroy(roc);
 		else
 			remaining_dur_min = min(remaining_dur_min, remaining);
