@@ -807,19 +807,19 @@ static int complete_walk(struct nameidata *nd)
 
 static void set_root(struct nameidata *nd)
 {
-	get_fs_root(current->fs, &nd->root);
-}
-
-static void set_root_rcu(struct nameidata *nd)
-{
 	struct fs_struct *fs = current->fs;
-	unsigned seq;
 
-	do {
-		seq = read_seqcount_begin(&fs->seq);
-		nd->root = fs->root;
-		nd->root_seq = __read_seqcount_begin(&nd->root.dentry->d_seq);
-	} while (read_seqcount_retry(&fs->seq, seq));
+	if (nd->flags & LOOKUP_RCU) {
+		unsigned seq;
+
+		do {
+			seq = read_seqcount_begin(&fs->seq);
+			nd->root = fs->root;
+			nd->root_seq = __read_seqcount_begin(&nd->root.dentry->d_seq);
+		} while (read_seqcount_retry(&fs->seq, seq));
+	} else {
+		get_fs_root(fs, &nd->root);
+	}
 }
 
 static void path_put_conditional(struct path *path, struct nameidata *nd)
@@ -1015,10 +1015,10 @@ const char *get_link(struct nameidata *nd)
 		}
 	}
 	if (*res == '/') {
+		if (!nd->root.mnt)
+			set_root(nd);
 		if (nd->flags & LOOKUP_RCU) {
 			struct dentry *d;
-			if (!nd->root.mnt)
-				set_root_rcu(nd);
 			nd->path = nd->root;
 			d = nd->path.dentry;
 			nd->inode = d->d_inode;
@@ -1026,8 +1026,6 @@ const char *get_link(struct nameidata *nd)
 			if (unlikely(read_seqcount_retry(&d->d_seq, nd->seq)))
 				return ERR_PTR(-ECHILD);
 		} else {
-			if (!nd->root.mnt)
-				set_root(nd);
 			path_put(&nd->path);
 			nd->path = nd->root;
 			path_get(&nd->root);
@@ -1294,8 +1292,6 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 static int follow_dotdot_rcu(struct nameidata *nd)
 {
 	struct inode *inode = nd->inode;
-	if (!nd->root.mnt)
-		set_root_rcu(nd);
 
 	while (1) {
 		if (path_equal(&nd->path, &nd->root))
@@ -1415,9 +1411,6 @@ static void follow_mount(struct path *path)
 
 static int follow_dotdot(struct nameidata *nd)
 {
-	if (!nd->root.mnt)
-		set_root(nd);
-
 	while(1) {
 		struct dentry *old = nd->path.dentry;
 
@@ -1655,6 +1648,8 @@ static inline int may_lookup(struct nameidata *nd)
 static inline int handle_dots(struct nameidata *nd, int type)
 {
 	if (type == LAST_DOTDOT) {
+		if (!nd->root.mnt)
+			set_root(nd);
 		if (nd->flags & LOOKUP_RCU) {
 			return follow_dotdot_rcu(nd);
 		} else
@@ -2023,15 +2018,16 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 
 	nd->m_seq = read_seqbegin(&mount_lock);
 	if (*s == '/') {
-		if (flags & LOOKUP_RCU) {
+		if (flags & LOOKUP_RCU)
 			rcu_read_lock();
-			set_root_rcu(nd);
+		set_root(nd);
+		if (flags & LOOKUP_RCU) {
 			nd->seq = nd->root_seq;
+			nd->path = nd->root;
 		} else {
-			set_root(nd);
 			path_get(&nd->root);
+			nd->path = nd->root;
 		}
-		nd->path = nd->root;
 	} else if (nd->dfd == AT_FDCWD) {
 		if (flags & LOOKUP_RCU) {
 			struct fs_struct *fs = current->fs;
