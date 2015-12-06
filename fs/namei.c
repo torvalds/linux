@@ -2028,6 +2028,15 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 			path_get(&nd->root);
 			nd->path = nd->root;
 		}
+		nd->inode = nd->path.dentry->d_inode;
+		if (!(flags & LOOKUP_RCU))
+			return s;
+		if (likely(!read_seqcount_retry(&nd->path.dentry->d_seq, nd->seq)))
+			return s;
+		if (!(nd->flags & LOOKUP_ROOT))
+			nd->root.mnt = NULL;
+		rcu_read_unlock();
+		return ERR_PTR(-ECHILD);
 	} else if (nd->dfd == AT_FDCWD) {
 		if (flags & LOOKUP_RCU) {
 			struct fs_struct *fs = current->fs;
@@ -2038,11 +2047,14 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 			do {
 				seq = read_seqcount_begin(&fs->seq);
 				nd->path = fs->pwd;
+				nd->inode = nd->path.dentry->d_inode;
 				nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
 			} while (read_seqcount_retry(&fs->seq, seq));
 		} else {
 			get_fs_pwd(current->fs, &nd->path);
+			nd->inode = nd->path.dentry->d_inode;
 		}
+		return s;
 	} else {
 		/* Caller must check execute permissions on the starting path component */
 		struct fd f = fdget_raw(nd->dfd);
@@ -2072,16 +2084,6 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 		fdput(f);
 		return s;
 	}
-
-	nd->inode = nd->path.dentry->d_inode;
-	if (!(flags & LOOKUP_RCU))
-		return s;
-	if (likely(!read_seqcount_retry(&nd->path.dentry->d_seq, nd->seq)))
-		return s;
-	if (!(nd->flags & LOOKUP_ROOT))
-		nd->root.mnt = NULL;
-	rcu_read_unlock();
-	return ERR_PTR(-ECHILD);
 }
 
 static const char *trailing_symlink(struct nameidata *nd)
