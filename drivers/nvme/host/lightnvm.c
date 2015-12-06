@@ -455,7 +455,7 @@ static void nvme_nvm_end_io(struct request *rq, int error)
 	struct nvm_rq *rqd = rq->end_io_data;
 	struct nvm_dev *dev = rqd->dev;
 
-	if (dev->mt->end_io(rqd, error))
+	if (dev->mt && dev->mt->end_io(rqd, error))
 		pr_err("nvme: err status: %x result: %lx\n",
 				rq->errors, (unsigned long)rq->special);
 
