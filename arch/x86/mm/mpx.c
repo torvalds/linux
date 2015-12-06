@@ -101,19 +101,19 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 	switch (type) {
 	case REG_TYPE_RM:
 		regno = X86_MODRM_RM(insn->modrm.value);
-		if (X86_REX_B(insn->rex_prefix.value) == 1)
+		if (X86_REX_B(insn->rex_prefix.value))
 			regno += 8;
 		break;
 
 	case REG_TYPE_INDEX:
 		regno = X86_SIB_INDEX(insn->sib.value);
-		if (X86_REX_X(insn->rex_prefix.value) == 1)
+		if (X86_REX_X(insn->rex_prefix.value))
 			regno += 8;
 		break;
 
 	case REG_TYPE_BASE:
 		regno = X86_SIB_BASE(insn->sib.value);
-		if (X86_REX_B(insn->rex_prefix.value) == 1)
+		if (X86_REX_B(insn->rex_prefix.value))
 			regno += 8;
 		break;
 
