@@ -1201,7 +1201,7 @@ static void rcu_check_gp_kthread_starvation(struct rcu_state *rsp)
 		       rsp->name, j - gpa,
 		       rsp->gpnum, rsp->completed,
 		       rsp->gp_flags, rsp->gp_state,
-		       rsp->gp_kthread ? rsp->gp_kthread->state : 0);
+		       rsp->gp_kthread ? rsp->gp_kthread->state : ~0);
 }
 
 /*
