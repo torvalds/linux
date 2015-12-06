@@ -262,14 +262,11 @@ static struct nvm_block *gennvm_get_blk(struct nvm_dev *dev,
 	if (list_empty(&lun->free_list)) {
 		pr_err_ratelimited("gennvm: lun %u have no free pages available",
 								lun->vlun.id);
-		spin_unlock(&vlun->lock);
 		goto out;
 	}
 
-	while (!is_gc && lun->vlun.nr_free_blocks < lun->reserved_blocks) {
-		spin_unlock(&vlun->lock);
+	if (!is_gc && lun->vlun.nr_free_blocks < lun->reserved_blocks)
 		goto out;
-	}
 
 	blk = list_first_entry(&lun->free_list, struct nvm_block, list);
 	list_move_tail(&blk->list, &lun->used_list);
@@ -278,8 +275,8 @@ static struct nvm_block *gennvm_get_blk(struct nvm_dev *dev,
 	lun->vlun.nr_free_blocks--;
 	lun->vlun.nr_inuse_blocks++;
 
-	spin_unlock(&vlun->lock);
 out:
+	spin_unlock(&vlun->lock);
 	return blk;
 }
 
