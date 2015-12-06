@@ -305,6 +305,42 @@ static inline void list_splice_init_rcu(struct list_head *list,
 		pos = list_entry_rcu(pos->member.next, typeof(*pos), member))
 
 /**
+ * list_entry_lockless - get the struct for this entry
+ * @ptr:        the &struct list_head pointer.
+ * @type:       the type of the struct this is embedded in.
+ * @member:     the name of the list_head within the struct.
+ *
+ * This primitive may safely run concurrently with the _rcu list-mutation
+ * primitives such as list_add_rcu(), but requires some implicit RCU
+ * read-side guarding.  One example is running within a special
+ * exception-time environment where preemption is disabled and where
+ * lockdep cannot be invoked (in which case updaters must use RCU-sched,
+ * as in synchronize_sched(), call_rcu_sched(), and friends).  Another
+ * example is when items are added to the list, but never deleted.
+ */
+#define list_entry_lockless(ptr, type, member) \
+	container_of((typeof(ptr))lockless_dereference(ptr), type, member)
+
+/**
+ * list_for_each_entry_lockless - iterate over rcu list of given type
+ * @pos:	the type * to use as a loop cursor.
+ * @head:	the head for your list.
+ * @member:	the name of the list_struct within the struct.
+ *
+ * This primitive may safely run concurrently with the _rcu list-mutation
+ * primitives such as list_add_rcu(), but requires some implicit RCU
+ * read-side guarding.  One example is running within a special
+ * exception-time environment where preemption is disabled and where
+ * lockdep cannot be invoked (in which case updaters must use RCU-sched,
+ * as in synchronize_sched(), call_rcu_sched(), and friends).  Another
+ * example is when items are added to the list, but never deleted.
+ */
+#define list_for_each_entry_lockless(pos, head, member) \
+	for (pos = list_entry_lockless((head)->next, typeof(*pos), member); \
+	     &pos->member != (head); \
+	     pos = list_entry_lockless(pos->member.next, typeof(*pos), member))
+
+/**
  * list_for_each_entry_continue_rcu - continue iteration over list of given type
  * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
