@@ -161,6 +161,12 @@ config COMMON_CLK_KEYSTONE
           Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
 
+config COMMON_CLK_NXP
+	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
+	select REGMAP_MMIO if ARCH_LPC32XX
+	---help---
+	  Support for clock providers on NXP platforms.
+
 config COMMON_CLK_PALMAS
 	tristate "Clock driver for TI Palmas devices"
 	depends on MFD_PALMAS
