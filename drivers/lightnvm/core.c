@@ -74,7 +74,7 @@ EXPORT_SYMBOL(nvm_unregister_target);
 void *nvm_dev_dma_alloc(struct nvm_dev *dev, gfp_t mem_flags,
 							dma_addr_t *dma_handler)
 {
-	return dev->ops->dev_dma_alloc(dev->q, dev->ppalist_pool, mem_flags,
+	return dev->ops->dev_dma_alloc(dev, dev->ppalist_pool, mem_flags,
 								dma_handler);
 }
 EXPORT_SYMBOL(nvm_dev_dma_alloc);
@@ -246,7 +246,7 @@ static int nvm_init(struct nvm_dev *dev)
 	if (!dev->q || !dev->ops)
 		return ret;
 
-	if (dev->ops->identity(dev->q, &dev->identity)) {
+	if (dev->ops->identity(dev, &dev->identity)) {
 		pr_err("nvm: device could not be identified\n");
 		goto err;
 	}
@@ -326,8 +326,7 @@ int nvm_register(struct request_queue *q, char *disk_name,
 	}
 
 	if (dev->ops->max_phys_sect > 1) {
-		dev->ppalist_pool = dev->ops->create_dma_pool(dev->q,
-								"ppalist");
+		dev->ppalist_pool = dev->ops->create_dma_pool(dev, "ppalist");
 		if (!dev->ppalist_pool) {
 			pr_err("nvm: could not create ppa pool\n");
 			ret = -ENOMEM;

@@ -1016,7 +1016,7 @@ static int rrpc_map_init(struct rrpc *rrpc)
 		return 0;
 
 	/* Bring up the mapping table from device */
-	ret = dev->ops->get_l2p_tbl(dev->q, 0, dev->total_pages,
+	ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_pages,
 							rrpc_l2p_update, rrpc);
 	if (ret) {
 		pr_err("nvm: rrpc: could not read L2P table.\n");

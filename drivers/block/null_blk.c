@@ -444,8 +444,9 @@ static void null_lnvm_end_io(struct request *rq, int error)
 	blk_put_request(rq);
 }
 
-static int null_lnvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
+static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
+	struct request_queue *q = dev->q;
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
@@ -470,7 +471,7 @@ static int null_lnvm_submit_io(struct request_queue *q, struct nvm_rq *rqd)
 	return 0;
 }
 
-static int null_lnvm_id(struct request_queue *q, struct nvm_id *id)
+static int null_lnvm_id(struct nvm_dev *dev, struct nvm_id *id)
 {
 	sector_t size = gb * 1024 * 1024 * 1024ULL;
 	sector_t blksize;
@@ -523,7 +524,7 @@ static int null_lnvm_id(struct request_queue *q, struct nvm_id *id)
 	return 0;
 }
 
-static void *null_lnvm_create_dma_pool(struct request_queue *q, char *name)
+static void *null_lnvm_create_dma_pool(struct nvm_dev *dev, char *name)
 {
 	mempool_t *virtmem_pool;
 
@@ -541,7 +542,7 @@ static void null_lnvm_destroy_dma_pool(void *pool)
 	mempool_destroy(pool);
 }
 
-static void *null_lnvm_dev_dma_alloc(struct request_queue *q, void *pool,
+static void *null_lnvm_dev_dma_alloc(struct nvm_dev *dev, void *pool,
 				gfp_t mem_flags, dma_addr_t *dma_handler)
 {
 	return mempool_alloc(pool, mem_flags);
