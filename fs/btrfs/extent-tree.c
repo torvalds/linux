@@ -4882,7 +4882,7 @@ static int flush_space(struct btrfs_root *root,
 				     btrfs_get_alloc_profile(root, 0),
 				     CHUNK_ALLOC_NO_FORCE);
 		btrfs_end_transaction(trans, root);
-		if (ret == -ENOSPC)
+		if (ret > 0 || ret == -ENOSPC)
 			ret = 0;
 		break;
 	case COMMIT_TRANS:
