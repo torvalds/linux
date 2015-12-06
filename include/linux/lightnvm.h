@@ -50,9 +50,16 @@ enum {
 	NVM_IO_DUAL_ACCESS	= 0x1,
 	NVM_IO_QUAD_ACCESS	= 0x2,
 
+	/* NAND Access Modes */
 	NVM_IO_SUSPEND		= 0x80,
 	NVM_IO_SLC_MODE		= 0x100,
 	NVM_IO_SCRAMBLE_DISABLE	= 0x200,
+
+	/* Block Types */
+	NVM_BLK_T_FREE		= 0x0,
+	NVM_BLK_T_BAD		= 0x1,
+	NVM_BLK_T_DEV		= 0x2,
+	NVM_BLK_T_HOST		= 0x4,
 };
 
 struct nvm_id_group {
