@@ -1205,26 +1205,11 @@ err_out:
 
 static loff_t dev_mem_seek(struct file *file, loff_t offset, int orig)
 {
-	loff_t ret;
-
 	/* only requests of dword-aligned size and offset are supported */
 	if (offset % 4)
 		return -EINVAL;
 
-	switch (orig) {
-	case SEEK_SET:
-		file->f_pos = offset;
-		ret = file->f_pos;
-		break;
-	case SEEK_CUR:
-		file->f_pos += offset;
-		ret = file->f_pos;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
+	return no_seek_end_llseek(file, offset, orig);
 }
 
 static const struct file_operations dev_mem_ops = {

@@ -171,6 +171,45 @@ loff_t fixed_size_llseek(struct file *file, loff_t offset, int whence, loff_t si
 EXPORT_SYMBOL(fixed_size_llseek);
 
 /**
+ * no_seek_end_llseek - llseek implementation for fixed-sized devices
+ * @file:	file structure to seek on
+ * @offset:	file offset to seek to
+ * @whence:	type of seek
+ *
+ */
+loff_t no_seek_end_llseek(struct file *file, loff_t offset, int whence)
+{
+	switch (whence) {
+	case SEEK_SET: case SEEK_CUR:
+		return generic_file_llseek_size(file, offset, whence,
+						~0ULL, 0);
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(no_seek_end_llseek);
+
+/**
+ * no_seek_end_llseek_size - llseek implementation for fixed-sized devices
+ * @file:	file structure to seek on
+ * @offset:	file offset to seek to
+ * @whence:	type of seek
+ * @size:	maximal offset allowed
+ *
+ */
+loff_t no_seek_end_llseek_size(struct file *file, loff_t offset, int whence, loff_t size)
+{
+	switch (whence) {
+	case SEEK_SET: case SEEK_CUR:
+		return generic_file_llseek_size(file, offset, whence,
+						size, 0);
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(no_seek_end_llseek_size);
+
+/**
  * noop_llseek - No Operation Performed llseek implementation
  * @file:	file structure to seek on
  * @offset:	file offset to seek to

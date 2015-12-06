@@ -385,18 +385,7 @@ static loff_t zcore_lseek(struct file *file, loff_t offset, int orig)
 	loff_t rc;
 
 	mutex_lock(&zcore_mutex);
-	switch (orig) {
-	case 0:
-		file->f_pos = offset;
-		rc = file->f_pos;
-		break;
-	case 1:
-		file->f_pos += offset;
-		rc = file->f_pos;
-		break;
-	default:
-		rc = -EINVAL;
-	}
+	rc = no_seek_end_llseek(file, offset, orig);
 	mutex_unlock(&zcore_mutex);
 	return rc;
 }
