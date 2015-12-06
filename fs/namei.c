@@ -841,6 +841,26 @@ static inline void path_to_nameidata(const struct path *path,
 	nd->path.dentry = path->dentry;
 }
 
+static int nd_jump_root(struct nameidata *nd)
+{
+	if (nd->flags & LOOKUP_RCU) {
+		struct dentry *d;
+		nd->path = nd->root;
+		d = nd->path.dentry;
+		nd->inode = d->d_inode;
+		nd->seq = nd->root_seq;
+		if (unlikely(read_seqcount_retry(&d->d_seq, nd->seq)))
+			return -ECHILD;
+	} else {
+		path_put(&nd->path);
+		nd->path = nd->root;
+		path_get(&nd->path);
+		nd->inode = nd->path.dentry->d_inode;
+	}
+	nd->flags |= LOOKUP_JUMPED;
+	return 0;
+}
+
 /*
  * Helper to directly jump to a known parsed path from ->follow_link,
  * caller must have taken a reference to path beforehand.
@@ -1017,21 +1037,8 @@ const char *get_link(struct nameidata *nd)
 	if (*res == '/') {
 		if (!nd->root.mnt)
 			set_root(nd);
-		if (nd->flags & LOOKUP_RCU) {
-			struct dentry *d;
-			nd->path = nd->root;
-			d = nd->path.dentry;
-			nd->inode = d->d_inode;
-			nd->seq = nd->root_seq;
-			if (unlikely(read_seqcount_retry(&d->d_seq, nd->seq)))
-				return ERR_PTR(-ECHILD);
-		} else {
-			path_put(&nd->path);
-			nd->path = nd->root;
-			path_get(&nd->root);
-			nd->inode = nd->path.dentry->d_inode;
-		}
-		nd->flags |= LOOKUP_JUMPED;
+		if (unlikely(nd_jump_root(nd)))
+			return ERR_PTR(-ECHILD);
 		while (unlikely(*++res == '/'))
 			;
 	}
@@ -2015,26 +2022,17 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	}
 
 	nd->root.mnt = NULL;
+	nd->path.mnt = NULL;
+	nd->path.dentry = NULL;
 
 	nd->m_seq = read_seqbegin(&mount_lock);
 	if (*s == '/') {
 		if (flags & LOOKUP_RCU)
 			rcu_read_lock();
 		set_root(nd);
-		if (flags & LOOKUP_RCU) {
-			nd->seq = nd->root_seq;
-			nd->path = nd->root;
-		} else {
-			path_get(&nd->root);
-			nd->path = nd->root;
-		}
-		nd->inode = nd->path.dentry->d_inode;
-		if (!(flags & LOOKUP_RCU))
+		if (likely(!nd_jump_root(nd)))
 			return s;
-		if (likely(!read_seqcount_retry(&nd->path.dentry->d_seq, nd->seq)))
-			return s;
-		if (!(nd->flags & LOOKUP_ROOT))
-			nd->root.mnt = NULL;
+		nd->root.mnt = NULL;
 		rcu_read_unlock();
 		return ERR_PTR(-ECHILD);
 	} else if (nd->dfd == AT_FDCWD) {
