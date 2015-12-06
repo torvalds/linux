@@ -219,6 +219,9 @@ static int gennvm_register(struct nvm_dev *dev)
 	struct gen_nvm *gn;
 	int ret;
 
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
 	gn = kzalloc(sizeof(struct gen_nvm), GFP_KERNEL);
 	if (!gn)
 		return -ENOMEM;
@@ -242,12 +245,14 @@ static int gennvm_register(struct nvm_dev *dev)
 	return 1;
 err:
 	gennvm_free(dev);
+	module_put(THIS_MODULE);
 	return ret;
 }
 
 static void gennvm_unregister(struct nvm_dev *dev)
 {
 	gennvm_free(dev);
+	module_put(THIS_MODULE);
 }
 
 static struct nvm_block *gennvm_get_blk(struct nvm_dev *dev,
