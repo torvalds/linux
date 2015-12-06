@@ -2568,6 +2568,9 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			       struct ieee80211_key_conf *key)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_sta *mvmsta;
+	struct iwl_mvm_key_pn *ptk_pn;
+	int keyidx = key->keyidx;
 	int ret;
 	u8 key_offset;
 
@@ -2635,6 +2638,36 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			break;
 		}
 
+		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+		    sta && iwl_mvm_has_new_rx_api(mvm) &&
+		    key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
+		    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||
+		     key->cipher == WLAN_CIPHER_SUITE_GCMP)) {
+			struct ieee80211_key_seq seq;
+			int tid, q;
+
+			mvmsta = iwl_mvm_sta_from_mac80211(sta);
+			WARN_ON(rcu_access_pointer(mvmsta->ptk_pn[keyidx]));
+			ptk_pn = kzalloc(sizeof(*ptk_pn) +
+					 mvm->trans->num_rx_queues *
+						sizeof(ptk_pn->q[0]),
+					 GFP_KERNEL);
+			if (!ptk_pn) {
+				ret = -ENOMEM;
+				break;
+			}
+
+			for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+				ieee80211_get_key_rx_seq(key, tid, &seq);
+				for (q = 0; q < mvm->trans->num_rx_queues; q++)
+					memcpy(ptk_pn->q[q].pn[tid],
+					       seq.ccmp.pn,
+					       IEEE80211_CCMP_PN_LEN);
+			}
+
+			rcu_assign_pointer(mvmsta->ptk_pn[keyidx], ptk_pn);
+		}
+
 		/* in HW restart reuse the index, otherwise request a new one */
 		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 			key_offset = key->hw_key_idx;
@@ -2658,6 +2691,19 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		if (key->hw_key_idx == STA_KEY_IDX_INVALID) {
 			ret = 0;
 			break;
+		}
+
+		if (sta && iwl_mvm_has_new_rx_api(mvm) &&
+		    key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
+		    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||
+		     key->cipher == WLAN_CIPHER_SUITE_GCMP)) {
+			mvmsta = iwl_mvm_sta_from_mac80211(sta);
+			ptk_pn = rcu_dereference_protected(
+						mvmsta->ptk_pn[keyidx],
+						lockdep_is_held(&mvm->mutex));
+			RCU_INIT_POINTER(mvmsta->ptk_pn[keyidx], NULL);
+			if (ptk_pn)
+				kfree_rcu(ptk_pn, rcu_head);
 		}
 
 		IWL_DEBUG_MAC80211(mvm, "disable hwcrypto key\n");
