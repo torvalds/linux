@@ -16,6 +16,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/mii.h>
+#include <linux/rtnetlink.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
@@ -92,7 +93,7 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 	struct usbnet *dev = netdev_priv(to_net_dev(d));
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	bool enable;
-	int err;
+	int ret;
 
 	if (strtobool(buf, &enable))
 		return -EINVAL;
@@ -101,18 +102,22 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 	if (enable == (info->flags & QMI_WWAN_FLAG_RAWIP))
 		return len;
 
+	if (!rtnl_trylock())
+		return restart_syscall();
+
 	/* we don't want to modify a running netdev */
 	if (netif_running(dev->net)) {
 		netdev_err(dev->net, "Cannot change a running device\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto err;
 	}
 
 	/* let other drivers deny the change */
-	err = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE, dev->net);
-	err = notifier_to_errno(err);
-	if (err) {
+	ret = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE, dev->net);
+	ret = notifier_to_errno(ret);
+	if (ret) {
 		netdev_err(dev->net, "Type change was refused\n");
-		return err;
+		goto err;
 	}
 
 	if (enable)
@@ -121,7 +126,10 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 		info->flags &= ~QMI_WWAN_FLAG_RAWIP;
 	qmi_wwan_netdev_setup(dev->net);
 	call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev->net);
-	return len;
+	ret = len;
+err:
+	rtnl_unlock();
+	return ret;
 }
 
 static DEVICE_ATTR_RW(raw_ip);
