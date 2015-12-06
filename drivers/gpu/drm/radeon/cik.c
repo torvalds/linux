@@ -8472,7 +8472,7 @@ restart_ih:
 	if (queue_dp)
 		schedule_work(&rdev->dp_work);
 	if (queue_hotplug)
-		schedule_work(&rdev->hotplug_work);
+		schedule_delayed_work(&rdev->hotplug_work, 0);
 	if (queue_reset) {
 		rdev->needs_reset = true;
 		wake_up_all(&rdev->fence_queue);
@@ -9630,6 +9630,9 @@ static void dce8_program_watermarks(struct radeon_device *rdev,
 		    (rdev->disp_priority == 2)) {
 			DRM_DEBUG_KMS("force priority to high\n");
 		}
+
+		/* Save number of lines the linebuffer leads before the scanout */
+		radeon_crtc->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode->crtc_hdisplay);
 	}
 
 	/* select wm A */

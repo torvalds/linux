@@ -611,13 +611,59 @@ void amdgpu_driver_preclose_kms(struct drm_device *dev,
 u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 {
 	struct amdgpu_device *adev = dev->dev_private;
+	int vpos, hpos, stat;
+	u32 count;
 
 	if (pipe >= adev->mode_info.num_crtc) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
-	return amdgpu_display_vblank_get_counter(adev, pipe);
+	/* The hw increments its frame counter at start of vsync, not at start
+	 * of vblank, as is required by DRM core vblank counter handling.
+	 * Cook the hw count here to make it appear to the caller as if it
+	 * incremented at start of vblank. We measure distance to start of
+	 * vblank in vpos. vpos therefore will be >= 0 between start of vblank
+	 * and start of vsync, so vpos >= 0 means to bump the hw frame counter
+	 * result by 1 to give the proper appearance to caller.
+	 */
+	if (adev->mode_info.crtcs[pipe]) {
+		/* Repeat readout if needed to provide stable result if
+		 * we cross start of vsync during the queries.
+		 */
+		do {
+			count = amdgpu_display_vblank_get_counter(adev, pipe);
+			/* Ask amdgpu_get_crtc_scanoutpos to return vpos as
+			 * distance to start of vblank, instead of regular
+			 * vertical scanout pos.
+			 */
+			stat = amdgpu_get_crtc_scanoutpos(
+				dev, pipe, GET_DISTANCE_TO_VBLANKSTART,
+				&vpos, &hpos, NULL, NULL,
+				&adev->mode_info.crtcs[pipe]->base.hwmode);
+		} while (count != amdgpu_display_vblank_get_counter(adev, pipe));
+
+		if (((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
+		    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE))) {
+			DRM_DEBUG_VBL("Query failed! stat %d\n", stat);
+		} else {
+			DRM_DEBUG_VBL("crtc %d: dist from vblank start %d\n",
+				      pipe, vpos);
+
+			/* Bump counter if we are at >= leading edge of vblank,
+			 * but before vsync where vpos would turn negative and
+			 * the hw counter really increments.
+			 */
+			if (vpos >= 0)
+				count++;
+		}
+	} else {
+		/* Fallback to use value as is. */
+		count = amdgpu_display_vblank_get_counter(adev, pipe);
+		DRM_DEBUG_VBL("NULL mode info! Returned count may be wrong.\n");
+	}
+
+	return count;
 }
 
 /**
