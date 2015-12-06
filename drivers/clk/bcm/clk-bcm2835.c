@@ -807,6 +807,16 @@ static const struct bcm2835_clock_data bcm2835_clock_emmc_data = {
 	.frac_bits = 8,
 };
 
+static const struct bcm2835_clock_data bcm2835_clock_pwm_data = {
+	.name = "pwm",
+	.num_mux_parents = ARRAY_SIZE(bcm2835_clock_per_parents),
+	.parents = bcm2835_clock_per_parents,
+	.ctl_reg = CM_PWMCTL,
+	.div_reg = CM_PWMDIV,
+	.int_bits = 12,
+	.frac_bits = 12,
+};
+
 struct bcm2835_pll {
 	struct clk_hw hw;
 	struct bcm2835_cprman *cprman;
@@ -1583,6 +1593,9 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 				  CLK_IGNORE_UNUSED | CLK_SET_RATE_GATE,
 				  cprman->regs + CM_PERIICTL, CM_GATE_BIT,
 				  0, &cprman->regs_lock);
+
+	clks[BCM2835_CLOCK_PWM] =
+		bcm2835_register_clock(cprman, &bcm2835_clock_pwm_data);
 
 	return of_clk_add_provider(dev->of_node, of_clk_src_onecell_get,
 				   &cprman->onecell);
