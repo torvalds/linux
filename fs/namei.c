@@ -534,10 +534,8 @@ static void restore_nameidata(void)
 	current->nameidata = old;
 	if (old)
 		old->total_link_count = now->total_link_count;
-	if (now->stack != now->internal) {
+	if (now->stack != now->internal)
 		kfree(now->stack);
-		now->stack = now->internal;
-	}
 }
 
 static int __nd_alloc_stack(struct nameidata *nd)
