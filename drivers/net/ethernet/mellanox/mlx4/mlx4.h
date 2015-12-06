@@ -1385,6 +1385,8 @@ int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave, int port);
 int mlx4_get_vf_indx(struct mlx4_dev *dev, int slave);
 int mlx4_config_mad_demux(struct mlx4_dev *dev);
 int mlx4_do_bond(struct mlx4_dev *dev, bool enable);
+int mlx4_bond_fs_rules(struct mlx4_dev *dev);
+int mlx4_unbond_fs_rules(struct mlx4_dev *dev);
 
 enum mlx4_zone_flags {
 	MLX4_ZONE_ALLOW_ALLOC_FROM_LOWER_PRIO	= 1UL << 0,
