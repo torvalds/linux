@@ -182,7 +182,7 @@ static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 	struct nvm_block *blk;
 	struct rrpc_block *rblk;
 
-	blk = nvm_get_blk(rrpc->dev, rlun->parent, 0);
+	blk = nvm_get_blk(rrpc->dev, rlun->parent, flags);
 	if (!blk)
 		return NULL;
 
