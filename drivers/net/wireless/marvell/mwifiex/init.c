@@ -95,7 +95,7 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->curr_pkt_filter = HostCmd_ACT_MAC_RX_ON | HostCmd_ACT_MAC_TX_ON |
 				HostCmd_ACT_MAC_ETHERNETII_ENABLE;
 
-	priv->beacon_period = 100; /* beacon interval */ ;
+	priv->beacon_period = 100; /* beacon interval */
 	priv->attempted_bss_desc = NULL;
 	memset(&priv->curr_bss_params, 0, sizeof(priv->curr_bss_params));
 	priv->listen_interval = MWIFIEX_DEFAULT_LISTEN_INTERVAL;
