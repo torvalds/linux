@@ -27,6 +27,7 @@
  *
  */
 
+#include <linux/log2.h>
 #include <drm/drmP.h>
 #include "i915_drv.h"
 #include <drm/i915_drm.h>
@@ -995,7 +996,7 @@ static int skl_tune_iz_hashing(struct intel_engine_cs *ring)
 		 * Only consider slices where one, and only one, subslice has 7
 		 * EUs
 		 */
-		if (hweight8(dev_priv->info.subslice_7eu[i]) != 1)
+		if (!is_power_of_2(dev_priv->info.subslice_7eu[i]))
 			continue;
 
 		/*
