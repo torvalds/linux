@@ -1013,11 +1013,11 @@ static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 		}
 
 		ret = msm_gem_get_iova_locked(msm_host->tx_gem_obj, 0, &iova);
+		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			pr_err("%s: failed to get iova, %d\n", __func__, ret);
 			return ret;
 		}
-		mutex_unlock(&dev->struct_mutex);
 
 		if (iova & 0x07) {
 			pr_err("%s: buf NOT 8 bytes aligned\n", __func__);
