@@ -177,8 +177,8 @@ static bool brcms_c_country_valid(const char *ccode)
 	 * only allow ascii alpha uppercase for the first 2
 	 * chars.
 	 */
-	if (!((0x80 & ccode[0]) == 0 && ccode[0] >= 0x41 && ccode[0] <= 0x5A &&
-	      (0x80 & ccode[1]) == 0 && ccode[1] >= 0x41 && ccode[1] <= 0x5A))
+	if (!((ccode[0] & 0x80) == 0 && ccode[0] >= 0x41 && ccode[0] <= 0x5A &&
+	      (ccode[1] & 0x80) == 0 && ccode[1] >= 0x41 && ccode[1] <= 0x5A))
 		return false;
 
 	/*
