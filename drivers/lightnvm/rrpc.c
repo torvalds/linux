@@ -202,6 +202,20 @@ static void rrpc_put_blk(struct rrpc *rrpc, struct rrpc_block *rblk)
 	nvm_put_blk(rrpc->dev, rblk->parent);
 }
 
+static void rrpc_put_blks(struct rrpc *rrpc)
+{
+	struct rrpc_lun *rlun;
+	int i;
+
+	for (i = 0; i < rrpc->nr_luns; i++) {
+		rlun = &rrpc->luns[i];
+		if (rlun->cur)
+			rrpc_put_blk(rrpc, rlun->cur);
+		if (rlun->gc_cur)
+			rrpc_put_blk(rrpc, rlun->gc_cur);
+	}
+}
+
 static struct rrpc_lun *get_next_lun(struct rrpc *rrpc)
 {
 	int next = atomic_inc_return(&rrpc->next_lun);
@@ -1224,18 +1238,21 @@ static int rrpc_luns_configure(struct rrpc *rrpc)
 
 		rblk = rrpc_get_blk(rrpc, rlun, 0);
 		if (!rblk)
-			return -EINVAL;
+			goto err;
 
 		rrpc_set_lun_cur(rlun, rblk);
 
 		/* Emergency gc block */
 		rblk = rrpc_get_blk(rrpc, rlun, 1);
 		if (!rblk)
-			return -EINVAL;
+			goto err;
 		rlun->gc_cur = rblk;
 	}
 
 	return 0;
+err:
+	rrpc_put_blks(rrpc);
+	return -EINVAL;
 }
 
 static struct nvm_tgt_type tt_rrpc;
