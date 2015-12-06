@@ -35,6 +35,7 @@
 #ifndef _AHCI_H
 #define _AHCI_H
 
+#include <linux/pci.h>
 #include <linux/clk.h>
 #include <linux/libata.h>
 #include <linux/phy/phy.h>
@@ -237,12 +238,18 @@ enum {
 	AHCI_HFLAG_DELAY_ENGINE		= (1 << 15), /* do not start engine on
 						        port start (wait until
 						        error-handling stage) */
-	AHCI_HFLAG_MULTI_MSI		= (1 << 16), /* multiple PCI MSIs */
 	AHCI_HFLAG_NO_DEVSLP		= (1 << 17), /* no device sleep */
 	AHCI_HFLAG_NO_FBS		= (1 << 18), /* no FBS */
 	AHCI_HFLAG_EDGE_IRQ		= (1 << 19), /* HOST_IRQ_STAT behaves as
 							Edge Triggered */
-	AHCI_HFLAG_MULTI_MSIX		= (1 << 20), /* per-port MSI-X */
+#ifdef CONFIG_PCI_MSI
+	AHCI_HFLAG_MULTI_MSI		= (1 << 20), /* multiple PCI MSIs */
+	AHCI_HFLAG_MULTI_MSIX		= (1 << 21), /* per-port MSI-X */
+#else
+	/* compile out MSI infrastructure */
+	AHCI_HFLAG_MULTI_MSI		= 0,
+	AHCI_HFLAG_MULTI_MSIX		= 0,
+#endif
 
 	/* ap->flags bits */
 
@@ -354,6 +361,21 @@ struct ahci_host_priv {
 	 */
 	void			(*start_engine)(struct ata_port *ap);
 };
+
+#ifdef CONFIG_PCI_MSI
+static inline int ahci_irq_vector(struct ahci_host_priv *hpriv, int port)
+{
+	if (hpriv->flags & AHCI_HFLAG_MULTI_MSIX)
+		return hpriv->msix[port].vector;
+	else
+		return hpriv->irq + port;
+}
+#else
+static inline int ahci_irq_vector(struct ahci_host_priv *hpriv, int port)
+{
+	return hpriv->irq;
+}
+#endif
 
 extern int ahci_ignore_sss;
 

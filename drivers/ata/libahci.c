@@ -2469,12 +2469,7 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host,
 	 */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ahci_port_priv *pp = host->ports[i]->private_data;
-		int irq;
-
-		if (hpriv->flags & AHCI_HFLAG_MULTI_MSIX)
-			irq = hpriv->msix[i].vector;
-		else
-			irq = hpriv->irq + i;
+		int irq = ahci_irq_vector(hpriv, i);
 
 		/* Do not receive interrupts sent by dummy ports */
 		if (!pp) {
