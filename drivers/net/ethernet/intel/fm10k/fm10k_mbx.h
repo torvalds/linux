@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -291,8 +291,10 @@ struct fm10k_mbx_info {
 	u64 tx_dropped;
 	u64 tx_messages;
 	u64 tx_dwords;
+	u64 tx_mbmem_pulled;
 	u64 rx_messages;
 	u64 rx_dwords;
+	u64 rx_mbmem_pushed;
 	u64 rx_parse_err;
 
 	/* Buffer to store messages */

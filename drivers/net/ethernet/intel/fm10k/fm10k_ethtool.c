@@ -111,12 +111,14 @@ static const struct fm10k_stats fm10k_gstrings_pf_stats[] = {
 
 static const struct fm10k_stats fm10k_gstrings_mbx_stats[] = {
 	FM10K_MBX_STAT("mbx_tx_busy", tx_busy),
-	FM10K_MBX_STAT("mbx_tx_oversized", tx_dropped),
+	FM10K_MBX_STAT("mbx_tx_dropped", tx_dropped),
 	FM10K_MBX_STAT("mbx_tx_messages", tx_messages),
 	FM10K_MBX_STAT("mbx_tx_dwords", tx_dwords),
+	FM10K_MBX_STAT("mbx_tx_mbmem_pulled", tx_mbmem_pulled),
 	FM10K_MBX_STAT("mbx_rx_messages", rx_messages),
 	FM10K_MBX_STAT("mbx_rx_dwords", rx_dwords),
 	FM10K_MBX_STAT("mbx_rx_parse_err", rx_parse_err),
+	FM10K_MBX_STAT("mbx_rx_mbmem_pushed", rx_mbmem_pushed),
 };
 
 #define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_global_stats)
@@ -699,12 +701,10 @@ static int fm10k_get_coalesce(struct net_device *dev,
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 
-	ec->use_adaptive_tx_coalesce =
-		!!(interface->tx_itr & FM10K_ITR_ADAPTIVE);
+	ec->use_adaptive_tx_coalesce = ITR_IS_ADAPTIVE(interface->tx_itr);
 	ec->tx_coalesce_usecs = interface->tx_itr & ~FM10K_ITR_ADAPTIVE;
 
-	ec->use_adaptive_rx_coalesce =
-		!!(interface->rx_itr & FM10K_ITR_ADAPTIVE);
+	ec->use_adaptive_rx_coalesce = ITR_IS_ADAPTIVE(interface->rx_itr);
 	ec->rx_coalesce_usecs = interface->rx_itr & ~FM10K_ITR_ADAPTIVE;
 
 	return 0;
@@ -729,10 +729,10 @@ static int fm10k_set_coalesce(struct net_device *dev,
 
 	/* set initial values for adaptive ITR */
 	if (ec->use_adaptive_tx_coalesce)
-		tx_itr = FM10K_ITR_ADAPTIVE | FM10K_ITR_10K;
+		tx_itr = FM10K_ITR_ADAPTIVE | FM10K_TX_ITR_DEFAULT;
 
 	if (ec->use_adaptive_rx_coalesce)
-		rx_itr = FM10K_ITR_ADAPTIVE | FM10K_ITR_20K;
+		rx_itr = FM10K_ITR_ADAPTIVE | FM10K_RX_ITR_DEFAULT;
 
 	/* update interface */
 	interface->tx_itr = tx_itr;

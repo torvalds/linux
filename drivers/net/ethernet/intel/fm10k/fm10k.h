@@ -164,14 +164,20 @@ struct fm10k_ring_container {
 	unsigned int total_packets;	/* total packets processed this int */
 	u16 work_limit;			/* total work allowed per interrupt */
 	u16 itr;			/* interrupt throttle rate value */
+	u8 itr_scale;			/* ITR adjustment scaler based on PCI speed */
 	u8 count;			/* total number of rings in vector */
 };
 
 #define FM10K_ITR_MAX		0x0FFF	/* maximum value for ITR */
 #define FM10K_ITR_10K		100	/* 100us */
 #define FM10K_ITR_20K		50	/* 50us */
+#define FM10K_ITR_40K		25	/* 25us */
 #define FM10K_ITR_ADAPTIVE	0x8000	/* adaptive interrupt moderation flag */
 
+#define ITR_IS_ADAPTIVE(itr) (!!(itr & FM10K_ITR_ADAPTIVE))
+
+#define FM10K_TX_ITR_DEFAULT	FM10K_ITR_40K
+#define FM10K_RX_ITR_DEFAULT	FM10K_ITR_20K
 #define FM10K_ITR_ENABLE	(FM10K_ITR_AUTOMASK | FM10K_ITR_MASK_CLEAR)
 
 static inline struct netdev_queue *txring_txq(const struct fm10k_ring *ring)
@@ -484,7 +490,7 @@ void fm10k_netpoll(struct net_device *netdev);
 #endif
 
 /* Netdev */
-struct net_device *fm10k_alloc_netdev(void);
+struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info);
 int fm10k_setup_rx_resources(struct fm10k_ring *);
 int fm10k_setup_tx_resources(struct fm10k_ring *);
 void fm10k_free_rx_resources(struct fm10k_ring *);
