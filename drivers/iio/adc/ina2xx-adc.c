@@ -116,6 +116,7 @@ struct ina2xx_chip_info {
 	s64 prev_ns;	/* track buffer capture time, check for underruns*/
 	int int_time_vbus; /* Bus voltage integration time uS */
 	int int_time_vshunt; /* Shunt voltage integration time uS */
+	bool allow_async_readout;
 };
 
 static const struct ina2xx_config ina2xx_config[] = {
@@ -322,6 +323,33 @@ _err:
 }
 
 
+static ssize_t ina2xx_allow_async_readout_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct ina2xx_chip_info *chip = iio_priv(dev_to_iio_dev(dev));
+
+	return sprintf(buf, "%d\n", chip->allow_async_readout);
+}
+
+static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t len)
+{
+	struct ina2xx_chip_info *chip = iio_priv(dev_to_iio_dev(dev));
+	bool val;
+	int ret;
+
+	ret = strtobool((const char *) buf, &val);
+	if (ret)
+		return ret;
+
+	chip->allow_async_readout = val;
+
+	return len;
+}
+
+
 #define INA2XX_CHAN(_type, _index, _address) { \
 	.type = (_type), \
 	.address = (_address), \
@@ -390,16 +418,17 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	 * GPIO a triggered buffer could be used instead.
 	 * For now, we pay for that extra read of the ALERT register
 	 */
-	do {
-		ret = regmap_read(chip->regmap, INA226_ALERT_MASK,
-				  &alert);
-		if (ret < 0)
-			return ret;
+	if (!chip->allow_async_readout)
+		do {
+			ret = regmap_read(chip->regmap, INA226_ALERT_MASK,
+					  &alert);
+			if (ret < 0)
+				return ret;
 
-		alert &= INA266_CVRF;
-		trace_printk("Conversion ready: %d\n", !!alert);
+			alert &= INA266_CVRF;
+			trace_printk("Conversion ready: %d\n", !!alert);
 
-	} while (!alert);
+		} while (!alert);
 
 	/*
 	 * Single register reads: bulk_read will not work with ina226
@@ -444,7 +473,8 @@ static int ina2xx_capture_thread(void *data)
 	 * Poll a bit faster than the chip internal Fs, in case
 	 * we wish to sync with the conversion ready flag.
 	 */
-	sampling_us -= 200;
+	if (!chip->allow_async_readout)
+		sampling_us -= 200;
 
 	do {
 		buffer_us = ina2xx_work_buffer(indio_dev);
@@ -469,6 +499,7 @@ static int ina2xx_buffer_enable(struct iio_dev *indio_dev)
 		     1000000/sampling_us, chip->avg);
 
 	trace_printk("Expected work period: %u us\n", sampling_us);
+	trace_printk("Async readout mode: %d\n", chip->allow_async_readout);
 
 	chip->prev_ns = iio_get_time_ns();
 
@@ -510,7 +541,12 @@ static int ina2xx_debug_reg(struct iio_dev *indio_dev,
 static IIO_CONST_ATTR_INT_TIME_AVAIL \
  ("0.000140 0.000204 0.000332 0.000588 0.001100 0.002116 0.004156 0.008244");
 
+static IIO_DEVICE_ATTR(in_allow_async_readout, S_IRUGO | S_IWUSR,
+		       ina2xx_allow_async_readout_show,
+		       ina2xx_allow_async_readout_store, 0);
+
 static struct attribute *ina2xx_attributes[] = {
+	&iio_dev_attr_in_allow_async_readout.dev_attr.attr,
 	&iio_const_attr_integration_time_available.dev_attr.attr,
 	NULL,
 };
