@@ -1591,14 +1591,18 @@ static int f2fs_ioc_get_encryption_pwsalt(struct file *filp, unsigned long arg)
 		return err;
 
 	/* update superblock with uuid */
+	lock_buffer(sbi->raw_super_buf);
 	generate_random_uuid(sbi->raw_super->encrypt_pw_salt);
+	unlock_buffer(sbi->raw_super_buf);
 
 	err = f2fs_commit_super(sbi, false);
 
 	mnt_drop_write_file(filp);
 	if (err) {
 		/* undo new data */
+		lock_buffer(sbi->raw_super_buf);
 		memset(sbi->raw_super->encrypt_pw_salt, 0, 16);
+		unlock_buffer(sbi->raw_super_buf);
 		return err;
 	}
 got_it:
