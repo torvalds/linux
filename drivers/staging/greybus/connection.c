@@ -537,11 +537,11 @@ static int gb_connection_bind_protocol(struct gb_connection *connection)
 				   connection->major,
 				   connection->minor);
 	if (!protocol) {
-		dev_warn(&connection->hd->dev,
+		dev_err(&connection->hd->dev,
 				"protocol 0x%02x version %u.%u not found\n",
 				connection->protocol_id,
 				connection->major, connection->minor);
-		return 0;
+		return -EPROTONOSUPPORT;
 	}
 	connection->protocol = protocol;
 
