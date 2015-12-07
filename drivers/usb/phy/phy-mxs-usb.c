@@ -452,9 +452,12 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct mxs_phy *mxs_phy;
 	int ret;
-	const struct of_device_id *of_id =
-			of_match_device(mxs_phy_dt_ids, &pdev->dev);
+	const struct of_device_id *of_id;
 	struct device_node *np = pdev->dev.of_node;
+
+	of_id = of_match_device(mxs_phy_dt_ids, &pdev->dev);
+	if (!of_id)
+		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);

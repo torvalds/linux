@@ -509,6 +509,17 @@ END(irq_entries_start)
 	 * tracking that we're in kernel mode.
 	 */
 	SWAPGS
+
+	/*
+	 * We need to tell lockdep that IRQs are off.  We can't do this until
+	 * we fix gsbase, and we should do it before enter_from_user_mode
+	 * (which can take locks).  Since TRACE_IRQS_OFF idempotent,
+	 * the simplest way to handle it is to just call it twice if
+	 * we enter from user mode.  There's no reason to optimize this since
+	 * TRACE_IRQS_OFF is a no-op if lockdep is off.
+	 */
+	TRACE_IRQS_OFF
+
 #ifdef CONFIG_CONTEXT_TRACKING
 	call enter_from_user_mode
 #endif
@@ -1049,12 +1060,18 @@ ENTRY(error_entry)
 	SWAPGS
 
 .Lerror_entry_from_usermode_after_swapgs:
+	/*
+	 * We need to tell lockdep that IRQs are off.  We can't do this until
+	 * we fix gsbase, and we should do it before enter_from_user_mode
+	 * (which can take locks).
+	 */
+	TRACE_IRQS_OFF
 #ifdef CONFIG_CONTEXT_TRACKING
 	call enter_from_user_mode
 #endif
+	ret
 
 .Lerror_entry_done:
-
 	TRACE_IRQS_OFF
 	ret
 
