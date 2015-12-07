@@ -24,9 +24,9 @@ MODULE_DESCRIPTION("Xtables: process control group matching");
 MODULE_ALIAS("ipt_cgroup");
 MODULE_ALIAS("ip6t_cgroup");
 
-static int cgroup_mt_check(const struct xt_mtchk_param *par)
+static int cgroup_mt_check_v0(const struct xt_mtchk_param *par)
 {
-	struct xt_cgroup_info *info = par->matchinfo;
+	struct xt_cgroup_info_v0 *info = par->matchinfo;
 
 	if (info->invert & ~1)
 		return -EINVAL;
@@ -35,9 +35,9 @@ static int cgroup_mt_check(const struct xt_mtchk_param *par)
 }
 
 static bool
-cgroup_mt(const struct sk_buff *skb, struct xt_action_param *par)
+cgroup_mt_v0(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	const struct xt_cgroup_info *info = par->matchinfo;
+	const struct xt_cgroup_info_v0 *info = par->matchinfo;
 
 	if (skb->sk == NULL || !sk_fullsock(skb->sk))
 		return false;
@@ -46,27 +46,29 @@ cgroup_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		info->invert;
 }
 
-static struct xt_match cgroup_mt_reg __read_mostly = {
-	.name       = "cgroup",
-	.revision   = 0,
-	.family     = NFPROTO_UNSPEC,
-	.checkentry = cgroup_mt_check,
-	.match      = cgroup_mt,
-	.matchsize  = sizeof(struct xt_cgroup_info),
-	.me         = THIS_MODULE,
-	.hooks      = (1 << NF_INET_LOCAL_OUT) |
-		      (1 << NF_INET_POST_ROUTING) |
-		      (1 << NF_INET_LOCAL_IN),
+static struct xt_match cgroup_mt_reg[] __read_mostly = {
+	{
+		.name		= "cgroup",
+		.revision	= 0,
+		.family		= NFPROTO_UNSPEC,
+		.checkentry	= cgroup_mt_check_v0,
+		.match		= cgroup_mt_v0,
+		.matchsize	= sizeof(struct xt_cgroup_info_v0),
+		.me		= THIS_MODULE,
+		.hooks		= (1 << NF_INET_LOCAL_OUT) |
+				  (1 << NF_INET_POST_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN),
+	},
 };
 
 static int __init cgroup_mt_init(void)
 {
-	return xt_register_match(&cgroup_mt_reg);
+	return xt_register_matches(cgroup_mt_reg, ARRAY_SIZE(cgroup_mt_reg));
 }
 
 static void __exit cgroup_mt_exit(void)
 {
-	xt_unregister_match(&cgroup_mt_reg);
+	xt_unregister_matches(cgroup_mt_reg, ARRAY_SIZE(cgroup_mt_reg));
 }
 
 module_init(cgroup_mt_init);
