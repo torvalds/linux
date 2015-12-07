@@ -211,7 +211,7 @@ config MFD_DA9062
 	  of the device.
 
 config MFD_DA9063
-	bool "Dialog Semiconductor DA9063 PMIC Support"
+	tristate "Dialog Semiconductor DA9063 PMIC Support"
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
