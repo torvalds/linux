@@ -52,9 +52,6 @@
 #define ZEVIO_GPIO_INPUT			0x18
 #define ZEVIO_GPIO_INT_STICKY		0x20
 
-#define to_zevio_gpio(chip) container_of(to_of_mm_gpio_chip(chip), \
-				struct zevio_gpio, chip)
-
 /* Bit number of GPIO in its section */
 #define ZEVIO_GPIO_BIT(gpio) (gpio&7)
 
@@ -80,7 +77,7 @@ static inline void zevio_gpio_port_set(struct zevio_gpio *c, unsigned pin,
 /* Functions for struct gpio_chip */
 static int zevio_gpio_get(struct gpio_chip *chip, unsigned pin)
 {
-	struct zevio_gpio *controller = to_zevio_gpio(chip);
+	struct zevio_gpio *controller = gpiochip_get_data(chip);
 	u32 val, dir;
 
 	spin_lock(&controller->lock);
@@ -96,7 +93,7 @@ static int zevio_gpio_get(struct gpio_chip *chip, unsigned pin)
 
 static void zevio_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 {
-	struct zevio_gpio *controller = to_zevio_gpio(chip);
+	struct zevio_gpio *controller = gpiochip_get_data(chip);
 	u32 val;
 
 	spin_lock(&controller->lock);
@@ -112,7 +109,7 @@ static void zevio_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 
 static int zevio_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
 {
-	struct zevio_gpio *controller = to_zevio_gpio(chip);
+	struct zevio_gpio *controller = gpiochip_get_data(chip);
 	u32 val;
 
 	spin_lock(&controller->lock);
@@ -129,7 +126,7 @@ static int zevio_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
 static int zevio_gpio_direction_output(struct gpio_chip *chip,
 				       unsigned pin, int value)
 {
-	struct zevio_gpio *controller = to_zevio_gpio(chip);
+	struct zevio_gpio *controller = gpiochip_get_data(chip);
 	u32 val;
 
 	spin_lock(&controller->lock);
@@ -187,7 +184,9 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	controller->chip.gc = zevio_gpio_chip;
 	controller->chip.gc.parent = &pdev->dev;
 
-	status = of_mm_gpiochip_add(pdev->dev.of_node, &(controller->chip));
+	status = of_mm_gpiochip_add_data(pdev->dev.of_node,
+					 &(controller->chip),
+					 controller);
 	if (status) {
 		dev_err(&pdev->dev, "failed to add gpiochip: %d\n", status);
 		return status;
