@@ -29,6 +29,7 @@
 #include "pp_instance.h"
 #include "power_state.h"
 #include "eventmanager.h"
+#include "pp_debug.h"
 
 #define PP_CHECK(handle)						\
 	do {								\
@@ -777,3 +778,83 @@ int amd_powerplay_get_display_power_level(void *handle,
 
 	return phm_get_dal_power_level(hwmgr, output);
 }
+
+int amd_powerplay_get_current_clocks(void *handle,
+		void *output)
+{
+	struct pp_hwmgr  *hwmgr;
+	struct amd_pp_simple_clock_info simple_clocks;
+	struct pp_clock_info hw_clocks;
+	struct amd_pp_clock_info *clocks = (struct amd_pp_clock_info *)output;
+
+	if (handle == NULL || output == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	phm_get_dal_power_level(hwmgr, &simple_clocks);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PowerContainment)) {
+		if (0 != phm_get_clock_info(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks, PHM_PerformanceLevelDesignation_PowerContainment))
+			PP_ASSERT_WITH_CODE(0, "Error in PHM_GetPowerContainmentClockInfo", return -1);
+	} else {
+		if (0 != phm_get_clock_info(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks, PHM_PerformanceLevelDesignation_Activity))
+			PP_ASSERT_WITH_CODE(0, "Error in PHM_GetClockInfo", return -1);
+	}
+
+	clocks->min_engine_clock = hw_clocks.min_eng_clk;
+	clocks->max_engine_clock = hw_clocks.max_eng_clk;
+	clocks->min_memory_clock = hw_clocks.min_mem_clk;
+	clocks->max_memory_clock = hw_clocks.max_mem_clk;
+	clocks->min_bus_bandwidth = hw_clocks.min_bus_bandwidth;
+	clocks->max_bus_bandwidth = hw_clocks.max_bus_bandwidth;
+
+	clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
+	clocks->min_engine_clock_in_sr = hw_clocks.min_eng_clk;
+
+	clocks->max_clocks_state = simple_clocks.level;
+
+	if (0 == phm_get_current_shallow_sleep_clocks(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks)) {
+		clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
+		clocks->min_engine_clock_in_sr = hw_clocks.min_eng_clk;
+	}
+
+	return 0;
+
+}
+
+int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks)
+{
+	int result = -1;
+
+	struct pp_hwmgr *hwmgr;
+
+	if (handle == NULL || clocks == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	result = phm_get_clock_by_type(hwmgr, type, clocks);
+
+	return result;
+}
+
+int amd_powerplay_get_display_mode_validation_clocks(void *handle, const void *input,
+							void *output)
+{
+	int result = -1;
+
+	struct amd_pp_simple_clock_info *clocks = output;
+	struct pp_hwmgr  *hwmgr;
+
+	if (handle == NULL || clocks == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DynamicPatchPowerState))
+		result = phm_get_max_high_clocks(hwmgr, clocks);
+
+	return result;
+}
+

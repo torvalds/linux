@@ -29,6 +29,7 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
+
 enum amd_pp_event {
 	AMD_PP_EVENT_INITIALIZE = 0,
 	AMD_PP_EVENT_UNINITIALIZE,
@@ -219,6 +220,49 @@ struct amd_pp_simple_clock_info {
 	uint32_t	level;
 };
 
+enum PP_DAL_POWERLEVEL {
+	PP_DAL_POWERLEVEL_INVALID = 0,
+	PP_DAL_POWERLEVEL_ULTRALOW,
+	PP_DAL_POWERLEVEL_LOW,
+	PP_DAL_POWERLEVEL_NOMINAL,
+	PP_DAL_POWERLEVEL_PERFORMANCE,
+
+	PP_DAL_POWERLEVEL_0 = PP_DAL_POWERLEVEL_ULTRALOW,
+	PP_DAL_POWERLEVEL_1 = PP_DAL_POWERLEVEL_LOW,
+	PP_DAL_POWERLEVEL_2 = PP_DAL_POWERLEVEL_NOMINAL,
+	PP_DAL_POWERLEVEL_3 = PP_DAL_POWERLEVEL_PERFORMANCE,
+	PP_DAL_POWERLEVEL_4 = PP_DAL_POWERLEVEL_3+1,
+	PP_DAL_POWERLEVEL_5 = PP_DAL_POWERLEVEL_4+1,
+	PP_DAL_POWERLEVEL_6 = PP_DAL_POWERLEVEL_5+1,
+	PP_DAL_POWERLEVEL_7 = PP_DAL_POWERLEVEL_6+1,
+};
+
+struct amd_pp_clock_info {
+	uint32_t min_engine_clock;
+	uint32_t max_engine_clock;
+	uint32_t min_memory_clock;
+	uint32_t max_memory_clock;
+	uint32_t min_bus_bandwidth;
+	uint32_t max_bus_bandwidth;
+	uint32_t max_engine_clock_in_sr;
+	uint32_t min_engine_clock_in_sr;
+	enum PP_DAL_POWERLEVEL max_clocks_state;
+};
+
+enum amd_pp_clock_type {
+	amd_pp_disp_clock = 1,
+	amd_pp_sys_clock,
+	amd_pp_mem_clock
+};
+
+#define MAX_NUM_CLOCKS 16
+
+struct amd_pp_clocks {
+	uint32_t count;
+	uint32_t clock[MAX_NUM_CLOCKS];
+};
+
+
 enum {
 	PP_GROUP_UNKNOWN = 0,
 	PP_GROUP_GFX = 1,
@@ -312,5 +356,11 @@ int amd_powerplay_display_configuration_change(void *handle, const void *input);
 int amd_powerplay_get_display_power_level(void *handle,
 		struct amd_pp_simple_clock_info *output);
 
+int amd_powerplay_get_current_clocks(void *handle, void *output);
+
+int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
+
+int amd_powerplay_get_display_mode_validation_clocks(void *handle, const void *input,
+							void *output);
 
 #endif /* _AMD_POWERPLAY_H_ */
