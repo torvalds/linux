@@ -902,6 +902,8 @@ void intel_pmu_lbr_init_hsw(void);
 
 void intel_pmu_lbr_init_skl(void);
 
+void intel_pmu_lbr_init_knl(void);
+
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 
 void intel_pt_interrupt(void);

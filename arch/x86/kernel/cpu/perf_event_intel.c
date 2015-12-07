@@ -185,6 +185,14 @@ struct event_constraint intel_skl_event_constraints[] = {
 	EVENT_CONSTRAINT_END
 };
 
+static struct extra_reg intel_knl_extra_regs[] __read_mostly = {
+	INTEL_UEVENT_EXTRA_REG(0x01b7,
+			       MSR_OFFCORE_RSP_0, 0x7f9ffbffffull, RSP_0),
+	INTEL_UEVENT_EXTRA_REG(0x02b7,
+			       MSR_OFFCORE_RSP_1, 0x3f9ffbffffull, RSP_1),
+	EVENT_EXTRA_END
+};
+
 static struct extra_reg intel_snb_extra_regs[] __read_mostly = {
 	/* must define OFFCORE_RSP_X first, see intel_fixup_er() */
 	INTEL_UEVENT_EXTRA_REG(0x01b7, MSR_OFFCORE_RSP_0, 0x3f807f8fffull, RSP_0),
@@ -1455,6 +1463,42 @@ static __initconst const u64 slm_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = -1,
 	},
  },
+};
+
+#define KNL_OT_L2_HITE		BIT_ULL(19) /* Other Tile L2 Hit */
+#define KNL_OT_L2_HITF		BIT_ULL(20) /* Other Tile L2 Hit */
+#define KNL_MCDRAM_LOCAL	BIT_ULL(21)
+#define KNL_MCDRAM_FAR		BIT_ULL(22)
+#define KNL_DDR_LOCAL		BIT_ULL(23)
+#define KNL_DDR_FAR		BIT_ULL(24)
+#define KNL_DRAM_ANY		(KNL_MCDRAM_LOCAL | KNL_MCDRAM_FAR | \
+				    KNL_DDR_LOCAL | KNL_DDR_FAR)
+#define KNL_L2_READ		SLM_DMND_READ
+#define KNL_L2_WRITE		SLM_DMND_WRITE
+#define KNL_L2_PREFETCH		SLM_DMND_PREFETCH
+#define KNL_L2_ACCESS		SLM_LLC_ACCESS
+#define KNL_L2_MISS		(KNL_OT_L2_HITE | KNL_OT_L2_HITF | \
+				   KNL_DRAM_ANY | SNB_SNP_ANY | \
+						  SNB_NON_DRAM)
+
+static __initconst const u64 knl_hw_cache_extra_regs
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = KNL_L2_READ | KNL_L2_ACCESS,
+			[C(RESULT_MISS)]   = 0,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)] = KNL_L2_WRITE | KNL_L2_ACCESS,
+			[C(RESULT_MISS)]   = KNL_L2_WRITE | KNL_L2_MISS,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)] = KNL_L2_PREFETCH | KNL_L2_ACCESS,
+			[C(RESULT_MISS)]   = KNL_L2_PREFETCH | KNL_L2_MISS,
+		},
+	},
 };
 
 /*
@@ -3551,6 +3595,24 @@ __init int intel_pmu_init(void)
 		x86_pmu.cpu_events = hsw_events_attrs;
 		x86_pmu.limit_period = bdw_limit_period;
 		pr_cont("Broadwell events, ");
+		break;
+
+	case 87: /* Knights Landing Xeon Phi */
+		memcpy(hw_cache_event_ids,
+		       slm_hw_cache_event_ids, sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs,
+		       knl_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
+		intel_pmu_lbr_init_knl();
+
+		x86_pmu.event_constraints = intel_slm_event_constraints;
+		x86_pmu.pebs_constraints = intel_slm_pebs_event_constraints;
+		x86_pmu.extra_regs = intel_knl_extra_regs;
+
+		/* all extra regs are per-cpu when HT is on */
+		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
+		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
+
+		pr_cont("Knights Landing events, ");
 		break;
 
 	case 78: /* 14nm Skylake Mobile */

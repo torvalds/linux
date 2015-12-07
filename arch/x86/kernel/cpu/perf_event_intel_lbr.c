@@ -1046,3 +1046,17 @@ void __init intel_pmu_lbr_init_atom(void)
 	 */
 	pr_cont("8-deep LBR, ");
 }
+
+/* Knights Landing */
+void intel_pmu_lbr_init_knl(void)
+{
+	x86_pmu.lbr_nr	   = 8;
+	x86_pmu.lbr_tos    = MSR_LBR_TOS;
+	x86_pmu.lbr_from   = MSR_LBR_NHM_FROM;
+	x86_pmu.lbr_to     = MSR_LBR_NHM_TO;
+
+	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
+	x86_pmu.lbr_sel_map  = snb_lbr_sel_map;
+
+	pr_cont("8-deep LBR, ");
+}
