@@ -180,6 +180,12 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 		return -ENOMEM;
 	}
 
+	ret = gb_connection_init(connection);
+	if (ret) {
+		gb_connection_destroy(connection);
+		return ret;
+	}
+
 	/* Get manifest size using control protocol on CPort */
 	size = gb_control_get_manifest_size_operation(intf);
 	if (size <= 0) {

@@ -14,7 +14,6 @@
 
 static int gb_connection_bind_protocol(struct gb_connection *connection);
 static void gb_connection_unbind_protocol(struct gb_connection *connection);
-static int gb_connection_init(struct gb_connection *connection);
 
 
 static DEFINE_SPINLOCK(gb_connections_lock);
@@ -125,7 +124,6 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	struct gb_connection *connection;
 	struct ida *id_map = &hd->cport_id_map;
 	int ida_start, ida_end;
-	int retval;
 	u8 major = 0;
 	u8 minor = 1;
 
@@ -193,14 +191,6 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 		INIT_LIST_HEAD(&connection->bundle_links);
 
 	spin_unlock_irq(&gb_connections_lock);
-
-	retval = gb_connection_init(connection);
-	if (retval) {
-		dev_err(&hd->dev, "%s: failed to initialize connection: %d\n",
-			connection->name, retval);
-		gb_connection_destroy(connection);
-		return NULL;
-	}
 
 	return connection;
 
@@ -396,7 +386,7 @@ static int gb_connection_protocol_get_version(struct gb_connection *connection)
 	return 0;
 }
 
-static int gb_connection_init(struct gb_connection *connection)
+int gb_connection_init(struct gb_connection *connection)
 {
 	int ret;
 

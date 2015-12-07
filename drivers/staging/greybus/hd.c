@@ -124,6 +124,13 @@ int gb_hd_add(struct gb_host_device *hd)
 		return ret;
 	}
 
+	ret = gb_connection_init(hd->svc_connection);
+	if (ret) {
+		gb_connection_destroy(hd->svc_connection);
+		device_del(&hd->dev);
+		return ret;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gb_hd_add);
