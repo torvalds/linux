@@ -234,24 +234,20 @@ void tick_nohz_full_kick_cpu(int cpu)
 	irq_work_queue_on(&per_cpu(nohz_full_kick_work, cpu), cpu);
 }
 
-static void nohz_full_kick_ipi(void *info)
-{
-	/* Empty, the tick restart happens on tick_nohz_irq_exit() */
-}
-
 /*
  * Kick all full dynticks CPUs in order to force these to re-evaluate
  * their dependency on the tick and restart it if necessary.
  */
 void tick_nohz_full_kick_all(void)
 {
+	int cpu;
+
 	if (!tick_nohz_full_running)
 		return;
 
 	preempt_disable();
-	smp_call_function_many(tick_nohz_full_mask,
-			       nohz_full_kick_ipi, NULL, false);
-	tick_nohz_full_kick();
+	for_each_cpu_and(cpu, tick_nohz_full_mask, cpu_online_mask)
+		tick_nohz_full_kick_cpu(cpu);
 	preempt_enable();
 }
 
