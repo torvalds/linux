@@ -48,8 +48,10 @@
 
 #include <asm/barrier.h>
 
+#ifndef CONFIG_TINY_RCU
 extern int rcu_expedited; /* for sysctl */
 extern int rcu_normal;    /* also for sysctl */
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
@@ -327,13 +329,18 @@ static inline int rcu_preempt_depth(void)
 
 /* Internal to kernel */
 void rcu_init(void);
-void rcu_end_inkernel_boot(void);
 void rcu_sched_qs(void);
 void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
 struct notifier_block;
 int rcu_cpu_notify(struct notifier_block *self,
 		   unsigned long action, void *hcpu);
+
+#ifndef CONFIG_TINY_RCU
+void rcu_end_inkernel_boot(void);
+#else /* #ifndef CONFIG_TINY_RCU */
+static inline void rcu_end_inkernel_boot(void) { }
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_RCU_STALL_COMMON
 void rcu_sysrq_start(void);

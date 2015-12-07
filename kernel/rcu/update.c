@@ -60,11 +60,12 @@ MODULE_ALIAS("rcupdate");
 #endif
 #define MODULE_PARAM_PREFIX "rcupdate."
 
+#ifndef CONFIG_TINY_RCU
 module_param(rcu_expedited, int, 0);
 module_param(rcu_normal, int, 0);
-
 static int rcu_normal_after_boot;
 module_param(rcu_normal_after_boot, int, 0);
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_PREEMPT_COUNT)
 /**
@@ -172,8 +173,6 @@ void rcu_unexpedite_gp(void)
 }
 EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
 
-#endif /* #ifndef CONFIG_TINY_RCU */
-
 /*
  * Inform RCU of the end of the in-kernel boot sequence.
  */
@@ -184,6 +183,8 @@ void rcu_end_inkernel_boot(void)
 	if (rcu_normal_after_boot)
 		WRITE_ONCE(rcu_normal, 1);
 }
+
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_PREEMPT_RCU
 
