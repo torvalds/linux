@@ -723,16 +723,6 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 
 		map_bh(bh, inode->i_sb, map.m_pblk);
 		bh->b_state = (bh->b_state & ~EXT4_MAP_FLAGS) | map.m_flags;
-		if (IS_DAX(inode) && buffer_unwritten(bh)) {
-			/*
-			 * dgc: I suspect unwritten conversion on ext4+DAX is
-			 * fundamentally broken here when there are concurrent
-			 * read/write in progress on this inode.
-			 */
-			WARN_ON_ONCE(io_end);
-			bh->b_assoc_map = inode->i_mapping;
-			bh->b_private = (void *)(unsigned long)iblock;
-		}
 		if (io_end && io_end->flag & EXT4_IO_END_UNWRITTEN)
 			set_buffer_defer_completion(bh);
 		bh->b_size = inode->i_sb->s_blocksize * map.m_len;
@@ -3097,17 +3087,79 @@ static int ext4_get_block_overwrite(struct inode *inode, sector_t iblock,
 	return ret;
 }
 
-int ext4_get_block_dax(struct inode *inode, sector_t iblock,
-		   struct buffer_head *bh_result, int create)
+#ifdef CONFIG_FS_DAX
+int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
+			    struct buffer_head *bh_result, int create)
 {
-	int flags = EXT4_GET_BLOCKS_PRE_IO | EXT4_GET_BLOCKS_UNWRIT_EXT;
+	int ret, err;
+	int credits;
+	struct ext4_map_blocks map;
+	handle_t *handle = NULL;
+	int flags = 0;
 
-	if (create)
-		flags |= EXT4_GET_BLOCKS_CREATE;
-	ext4_debug("ext4_get_block_dax: inode %lu, create flag %d\n",
+	ext4_debug("ext4_dax_mmap_get_block: inode %lu, create flag %d\n",
 		   inode->i_ino, create);
-	return _ext4_get_block(inode, iblock, bh_result, flags);
+	map.m_lblk = iblock;
+	map.m_len = bh_result->b_size >> inode->i_blkbits;
+	credits = ext4_chunk_trans_blocks(inode, map.m_len);
+	if (create) {
+		flags |= EXT4_GET_BLOCKS_PRE_IO | EXT4_GET_BLOCKS_CREATE_ZERO;
+		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			return ret;
+		}
+	}
+
+	ret = ext4_map_blocks(handle, inode, &map, flags);
+	if (create) {
+		err = ext4_journal_stop(handle);
+		if (ret >= 0 && err < 0)
+			ret = err;
+	}
+	if (ret <= 0)
+		goto out;
+	if (map.m_flags & EXT4_MAP_UNWRITTEN) {
+		int err2;
+
+		/*
+		 * We are protected by i_mmap_sem so we know block cannot go
+		 * away from under us even though we dropped i_data_sem.
+		 * Convert extent to written and write zeros there.
+		 *
+		 * Note: We may get here even when create == 0.
+		 */
+		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			goto out;
+		}
+
+		err = ext4_map_blocks(handle, inode, &map,
+		      EXT4_GET_BLOCKS_CONVERT | EXT4_GET_BLOCKS_CREATE_ZERO);
+		if (err < 0)
+			ret = err;
+		err2 = ext4_journal_stop(handle);
+		if (err2 < 0 && ret > 0)
+			ret = err2;
+	}
+out:
+	WARN_ON_ONCE(ret == 0 && create);
+	if (ret > 0) {
+		map_bh(bh_result, inode->i_sb, map.m_pblk);
+		bh_result->b_state = (bh_result->b_state & ~EXT4_MAP_FLAGS) |
+					map.m_flags;
+		/*
+		 * At least for now we have to clear BH_New so that DAX code
+		 * doesn't attempt to zero blocks again in a racy way.
+		 */
+		bh_result->b_state &= ~(1 << BH_New);
+		bh_result->b_size = map.m_len << inode->i_blkbits;
+		ret = 0;
+	}
+	return ret;
 }
+#endif
 
 static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 			    ssize_t size, void *private)
