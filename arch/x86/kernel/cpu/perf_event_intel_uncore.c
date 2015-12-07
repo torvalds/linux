@@ -884,6 +884,15 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	 * each box has a different function id.
 	 */
 	pmu = &type->pmus[UNCORE_PCI_DEV_IDX(id->driver_data)];
+	/* Knights Landing uses a common PCI device ID for multiple instances of
+	 * an uncore PMU device type. There is only one entry per device type in
+	 * the knl_uncore_pci_ids table inspite of multiple devices present for
+	 * some device types. Hence PCI device idx would be 0 for all devices.
+	 * So increment pmu pointer to point to an unused array element.
+	 */
+	if (boot_cpu_data.x86_model == 87)
+		while (pmu->func_id >= 0)
+			pmu++;
 	if (pmu->func_id < 0)
 		pmu->func_id = pdev->devfn;
 	else
@@ -982,6 +991,9 @@ static int __init uncore_pci_init(void)
 		break;
 	case 61: /* Broadwell */
 		ret = bdw_uncore_pci_init();
+		break;
+	case 87: /* Knights Landing */
+		ret = knl_uncore_pci_init();
 		break;
 	default:
 		return 0;
@@ -1291,6 +1303,9 @@ static int __init uncore_cpu_init(void)
 	case 79: /* BDX-EP */
 	case 86: /* BDX-DE */
 		bdx_uncore_cpu_init();
+		break;
+	case 87: /* Knights Landing */
+		knl_uncore_cpu_init();
 		break;
 	default:
 		return 0;
