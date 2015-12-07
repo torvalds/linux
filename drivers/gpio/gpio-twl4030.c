@@ -76,11 +76,6 @@ struct gpio_twl4030_priv {
 
 /*----------------------------------------------------------------------*/
 
-static inline struct gpio_twl4030_priv *to_gpio_twl4030(struct gpio_chip *chip)
-{
-	return container_of(chip, struct gpio_twl4030_priv, gpio_chip);
-}
-
 /*
  * To configure TWL4030 GPIO module registers
  */
@@ -205,7 +200,7 @@ static int twl4030_get_gpio_datain(int gpio)
 
 static int twl_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
+	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
 	int status = 0;
 
 	mutex_lock(&priv->mutex);
@@ -273,7 +268,7 @@ done:
 
 static void twl_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
+	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
 
 	mutex_lock(&priv->mutex);
 	if (offset >= TWL4030_GPIO_MAX) {
@@ -293,7 +288,7 @@ out:
 
 static int twl_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
+	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
 	int ret;
 
 	mutex_lock(&priv->mutex);
@@ -312,7 +307,7 @@ static int twl_direction_in(struct gpio_chip *chip, unsigned offset)
 
 static int twl_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
+	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
 	int ret;
 	int status = 0;
 
@@ -335,7 +330,7 @@ out:
 
 static void twl_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
+	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
 
 	mutex_lock(&priv->mutex);
 	if (offset < TWL4030_GPIO_MAX)
@@ -353,7 +348,7 @@ static void twl_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int twl_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
+	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
 	int ret = 0;
 
 	mutex_lock(&priv->mutex);
@@ -379,7 +374,7 @@ static int twl_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 
 static int twl_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_twl4030_priv *priv = to_gpio_twl4030(chip);
+	struct gpio_twl4030_priv *priv = gpiochip_get_data(chip);
 
 	return (priv->irq_base && (offset < TWL4030_GPIO_MAX))
 		? (priv->irq_base + offset)
@@ -544,7 +539,7 @@ no_irqs:
 	if (pdata->use_leds)
 		priv->gpio_chip.ngpio += 2;
 
-	ret = gpiochip_add(&priv->gpio_chip);
+	ret = gpiochip_add_data(&priv->gpio_chip, priv);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
 		priv->gpio_chip.ngpio = 0;
