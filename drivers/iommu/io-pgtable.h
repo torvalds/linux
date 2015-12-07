@@ -26,8 +26,8 @@ enum io_pgtable_fmt {
  */
 struct iommu_gather_ops {
 	void (*tlb_flush_all)(void *cookie);
-	void (*tlb_add_flush)(unsigned long iova, size_t size, bool leaf,
-			      void *cookie);
+	void (*tlb_add_flush)(unsigned long iova, size_t size, size_t granule,
+			      bool leaf, void *cookie);
 	void (*tlb_sync)(void *cookie);
 };
 
