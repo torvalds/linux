@@ -280,6 +280,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_rxq_dup_data *dup_data;
 	int i, ret, sta_id;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -326,6 +327,16 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		mvm_sta->tid_data[i].seq_number = seq;
 	}
 	mvm_sta->agg_tids = 0;
+
+	if (iwl_mvm_has_new_rx_api(mvm) &&
+	    !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		dup_data = kcalloc(mvm->trans->num_rx_queues,
+				   sizeof(*dup_data),
+				   GFP_KERNEL);
+		if (!dup_data)
+			return -ENOMEM;
+		mvm_sta->dup_data = dup_data;
+	}
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
@@ -507,6 +518,9 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (iwl_mvm_has_new_rx_api(mvm))
+		kfree(mvm_sta->dup_data);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvmvif->ap_sta_id == mvm_sta->sta_id) {

@@ -285,6 +285,66 @@ static void iwl_mvm_rx_csum(struct ieee80211_sta *sta,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
+/*
+ * returns true if a packet outside BA session is a duplicate and
+ * should be dropped
+ */
+static bool iwl_mvm_is_nonagg_dup(struct ieee80211_sta *sta, int queue,
+				  struct ieee80211_rx_status *rx_status,
+				  struct ieee80211_hdr *hdr,
+				  struct iwl_rx_mpdu_desc *desc)
+{
+	struct iwl_mvm_sta *mvm_sta;
+	struct iwl_mvm_rxq_dup_data *dup_data;
+	u8 baid, tid, sub_frame_idx;
+
+	if (WARN_ON(IS_ERR_OR_NULL(sta)))
+		return false;
+
+	baid = (le32_to_cpu(desc->reorder_data) &
+		IWL_RX_MPDU_REORDER_BAID_MASK) >>
+		IWL_RX_MPDU_REORDER_BAID_SHIFT;
+
+	if (baid != IWL_RX_REORDER_DATA_INVALID_BAID)
+		return false;
+
+	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	dup_data = &mvm_sta->dup_data[queue];
+
+	/*
+	 * Drop duplicate 802.11 retransmissions
+	 * (IEEE 802.11-2012: 9.3.2.10 "Duplicate detection and recovery")
+	 */
+	if (ieee80211_is_ctl(hdr->frame_control) ||
+	    ieee80211_is_qos_nullfunc(hdr->frame_control) ||
+	    is_multicast_ether_addr(hdr->addr1)) {
+		rx_status->flag |= RX_FLAG_DUP_VALIDATED;
+		return false;
+	}
+
+	if (ieee80211_is_data_qos(hdr->frame_control))
+		/* frame has qos control */
+		tid = *ieee80211_get_qos_ctl(hdr) &
+			IEEE80211_QOS_CTL_TID_MASK;
+	else
+		tid = IWL_MAX_TID_COUNT;
+
+	/* If this wasn't a part of an A-MSDU the sub-frame index will be 0 */
+	sub_frame_idx = desc->amsdu_info & IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
+
+	if (unlikely(ieee80211_has_retry(hdr->frame_control) &&
+		     dup_data->last_seq[tid] == hdr->seq_ctrl &&
+		     dup_data->last_sub_frame[tid] >= sub_frame_idx))
+		return true;
+
+	dup_data->last_seq[tid] = hdr->seq_ctrl;
+	dup_data->last_sub_frame[tid] = sub_frame_idx;
+
+	rx_status->flag |= RX_FLAG_DUP_VALIDATED;
+
+	return false;
+}
+
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue)
 {
@@ -389,6 +449,12 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 		if (ieee80211_is_data(hdr->frame_control))
 			iwl_mvm_rx_csum(sta, skb, desc);
+
+		if (iwl_mvm_is_nonagg_dup(sta, queue, rx_status, hdr, desc)) {
+			kfree_skb(skb);
+			rcu_read_unlock();
+			return;
+		}
 	}
 
 	/*

@@ -296,6 +296,16 @@ struct iwl_mvm_key_pn {
 };
 
 /**
+ * struct iwl_mvm_rxq_dup_data - per station per rx queue data
+ * @last_seq: last sequence per tid for duplicate packet detection
+ * @last_sub_frame: last subframe packet
+ */
+struct iwl_mvm_rxq_dup_data {
+	__le16 last_seq[IWL_MAX_TID_COUNT + 1];
+	u8 last_sub_frame[IWL_MAX_TID_COUNT + 1];
+} ____cacheline_aligned_in_smp;
+
+/**
  * struct iwl_mvm_sta - representation of a station in the driver
  * @sta_id: the index of the station in the fw (will be replaced by id_n_color)
  * @tfd_queue_msk: the tfd queues used by the station
@@ -321,6 +331,7 @@ struct iwl_mvm_key_pn {
  *	we are sending frames from an AMPDU queue and there was a hole in
  *	the BA window. To be used for UAPSD only.
  * @ptk_pn: per-queue PTK PN data structures
+ * @dup_data: per queue duplicate packet detection data
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -340,8 +351,8 @@ struct iwl_mvm_sta {
 	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT];
 	struct iwl_lq_sta lq_sta;
 	struct ieee80211_vif *vif;
-
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
+	struct iwl_mvm_rxq_dup_data *dup_data;
 
 	/* Temporary, until the new TLC will control the Tx protection */
 	s8 tx_protection;
