@@ -137,7 +137,7 @@ static int i2c_read_le16(struct i2c_client *client)
 
 static int pcf857x_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
+	struct pcf857x	*gpio = gpiochip_get_data(chip);
 	int		status;
 
 	mutex_lock(&gpio->lock);
@@ -150,7 +150,7 @@ static int pcf857x_input(struct gpio_chip *chip, unsigned offset)
 
 static int pcf857x_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
+	struct pcf857x	*gpio = gpiochip_get_data(chip);
 	int		value;
 
 	value = gpio->read(gpio->client);
@@ -159,7 +159,7 @@ static int pcf857x_get(struct gpio_chip *chip, unsigned offset)
 
 static int pcf857x_output(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct pcf857x	*gpio = container_of(chip, struct pcf857x, chip);
+	struct pcf857x	*gpio = gpiochip_get_data(chip);
 	unsigned	bit = 1 << offset;
 	int		status;
 
@@ -372,7 +372,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	gpio->out = ~n_latch;
 	gpio->status = gpio->out;
 
-	status = gpiochip_add(&gpio->chip);
+	status = gpiochip_add_data(&gpio->chip, gpio);
 	if (status < 0)
 		goto fail;
 
