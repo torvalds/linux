@@ -794,7 +794,7 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 		info->num_pipes = 0;
 	} else if (info->num_pipes > 0 &&
 		   (INTEL_INFO(dev)->gen == 7 || INTEL_INFO(dev)->gen == 8) &&
-		   !(IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))) {
+		   HAS_PCH_SPLIT(dev)) {
 		u32 fuse_strap = I915_READ(FUSE_STRAP);
 		u32 sfuse_strap = I915_READ(SFUSE_STRAP);
 
