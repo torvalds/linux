@@ -86,7 +86,7 @@ struct gb_loopback {
 	u32 size;
 	u32 iteration_max;
 	u32 iteration_count;
-	int ms_wait;
+	int us_wait;
 	u32 error;
 	u32 requests_completed;
 	u32 requests_timedout;
@@ -112,7 +112,7 @@ module_param(kfifo_depth, uint, 0444);
 /* Maximum size of any one send data buffer we support */
 #define MAX_PACKET_SIZE (PAGE_SIZE * 2)
 
-#define GB_LOOPBACK_MS_WAIT_MAX				1000
+#define GB_LOOPBACK_US_WAIT_MAX				1000000
 
 /* interface sysfs attributes */
 #define gb_loopback_ro_attr(field)				\
@@ -237,8 +237,8 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb);
 static void gb_loopback_check_attr(struct gb_loopback *gb,
 				   struct gb_bundle *bundle)
 {
-	if (gb->ms_wait > GB_LOOPBACK_MS_WAIT_MAX)
-		gb->ms_wait = GB_LOOPBACK_MS_WAIT_MAX;
+	if (gb->us_wait > GB_LOOPBACK_US_WAIT_MAX)
+		gb->us_wait = GB_LOOPBACK_US_WAIT_MAX;
 	if (gb->size > gb_dev.size_max)
 		gb->size = gb_dev.size_max;
 	gb->requests_timedout = 0;
@@ -306,7 +306,7 @@ gb_dev_loopback_rw_attr(type, d);
 /* Size of transfer message payload: 0-4096 bytes */
 gb_dev_loopback_rw_attr(size, u);
 /* Time to wait between two messages: 0-1000 ms */
-gb_dev_loopback_rw_attr(ms_wait, d);
+gb_dev_loopback_rw_attr(us_wait, d);
 /* Maximum iterations for a given operation: 1-(2^32-1), 0 implies infinite */
 gb_dev_loopback_rw_attr(iteration_max, u);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
@@ -336,7 +336,7 @@ static struct attribute *loopback_attrs[] = {
 	&dev_attr_gpbridge_firmware_latency_avg.attr,
 	&dev_attr_type.attr,
 	&dev_attr_size.attr,
-	&dev_attr_ms_wait.attr,
+	&dev_attr_us_wait.attr,
 	&dev_attr_iteration_count.attr,
 	&dev_attr_iteration_max.attr,
 	&dev_attr_mask.attr,
@@ -925,7 +925,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 static int gb_loopback_fn(void *data)
 {
 	int error = 0;
-	int ms_wait = 0;
+	int us_wait = 0;
 	int type;
 	u32 size;
 	u32 send_count = 0;
@@ -951,7 +951,7 @@ static int gb_loopback_fn(void *data)
 			continue;
 		}
 		size = gb->size;
-		ms_wait = gb->ms_wait;
+		us_wait = gb->us_wait;
 		type = gb->type;
 		mutex_unlock(&gb->mutex);
 
@@ -983,8 +983,8 @@ static int gb_loopback_fn(void *data)
 			gb_loopback_calculate_stats(gb);
 		}
 		send_count++;
-		if (ms_wait)
-			msleep(ms_wait);
+		if (us_wait)
+			udelay(us_wait);
 	}
 	return 0;
 }
