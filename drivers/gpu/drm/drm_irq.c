@@ -980,7 +980,8 @@ static void send_vblank_event(struct drm_device *dev,
 		struct drm_pending_vblank_event *e,
 		unsigned long seq, struct timeval *now)
 {
-	WARN_ON_SMP(!spin_is_locked(&dev->event_lock));
+	assert_spin_locked(&dev->event_lock);
+
 	e->event.sequence = seq;
 	e->event.tv_sec = now->tv_sec;
 	e->event.tv_usec = now->tv_usec;
@@ -991,6 +992,57 @@ static void send_vblank_event(struct drm_device *dev,
 	trace_drm_vblank_event_delivered(e->base.pid, e->pipe,
 					 e->event.sequence);
 }
+
+/**
+ * drm_arm_vblank_event - arm vblank event after pageflip
+ * @dev: DRM device
+ * @pipe: CRTC index
+ * @e: the event to prepare to send
+ *
+ * A lot of drivers need to generate vblank events for the very next vblank
+ * interrupt. For example when the page flip interrupt happens when the page
+ * flip gets armed, but not when it actually executes within the next vblank
+ * period. This helper function implements exactly the required vblank arming
+ * behaviour.
+ *
+ * Caller must hold event lock. Caller must also hold a vblank reference for
+ * the event @e, which will be dropped when the next vblank arrives.
+ *
+ * This is the legacy version of drm_crtc_arm_vblank_event().
+ */
+void drm_arm_vblank_event(struct drm_device *dev, unsigned int pipe,
+			  struct drm_pending_vblank_event *e)
+{
+	assert_spin_locked(&dev->event_lock);
+
+	e->pipe = pipe;
+	e->event.sequence = drm_vblank_count(dev, pipe);
+	list_add_tail(&e->base.link, &dev->vblank_event_list);
+}
+EXPORT_SYMBOL(drm_arm_vblank_event);
+
+/**
+ * drm_crtc_arm_vblank_event - arm vblank event after pageflip
+ * @crtc: the source CRTC of the vblank event
+ * @e: the event to send
+ *
+ * A lot of drivers need to generate vblank events for the very next vblank
+ * interrupt. For example when the page flip interrupt happens when the page
+ * flip gets armed, but not when it actually executes within the next vblank
+ * period. This helper function implements exactly the required vblank arming
+ * behaviour.
+ *
+ * Caller must hold event lock. Caller must also hold a vblank reference for
+ * the event @e, which will be dropped when the next vblank arrives.
+ *
+ * This is the native KMS version of drm_arm_vblank_event().
+ */
+void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
+			       struct drm_pending_vblank_event *e)
+{
+	drm_arm_vblank_event(crtc->dev, drm_crtc_index(crtc), e);
+}
+EXPORT_SYMBOL(drm_crtc_arm_vblank_event);
 
 /**
  * drm_send_vblank_event - helper to send vblank event after pageflip

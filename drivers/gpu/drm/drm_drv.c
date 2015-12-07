@@ -160,6 +160,11 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
+	if (!file_priv->allowed_master) {
+		ret = drm_new_set_master(dev, file_priv);
+		goto out_unlock;
+	}
+
 	file_priv->minor->master = drm_master_get(file_priv->master);
 	file_priv->is_master = 1;
 	if (dev->driver->master_set) {
