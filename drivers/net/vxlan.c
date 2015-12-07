@@ -2419,9 +2419,30 @@ static int vxlan_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 				  vxlan->cfg.port_max, true);
 	dport = info->key.tp_dst ? : vxlan->cfg.dst_port;
 
-	if (ip_tunnel_info_af(info) == AF_INET)
+	if (ip_tunnel_info_af(info) == AF_INET) {
+		if (!vxlan->vn4_sock)
+			return -EINVAL;
 		return egress_ipv4_tun_info(dev, skb, info, sport, dport);
-	return -EINVAL;
+	} else {
+#if IS_ENABLED(CONFIG_IPV6)
+		struct dst_entry *ndst;
+
+		if (!vxlan->vn6_sock)
+			return -EINVAL;
+		ndst = vxlan6_get_route(vxlan, skb, 0,
+					&info->key.u.ipv6.dst,
+					&info->key.u.ipv6.src);
+		if (IS_ERR(ndst))
+			return PTR_ERR(ndst);
+		dst_release(ndst);
+
+		info->key.tp_src = sport;
+		info->key.tp_dst = dport;
+#else /* !CONFIG_IPV6 */
+		return -EPFNOSUPPORT;
+#endif
+	}
+	return 0;
 }
 
 static const struct net_device_ops vxlan_netdev_ops = {
