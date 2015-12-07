@@ -269,7 +269,7 @@ static const struct mcp23s08_ops mcp23s17_ops = {
 
 static int mcp23s08_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct mcp23s08	*mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	int status;
 
 	mutex_lock(&mcp->lock);
@@ -281,7 +281,7 @@ static int mcp23s08_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int mcp23s08_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct mcp23s08	*mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	int status;
 
 	mutex_lock(&mcp->lock);
@@ -312,7 +312,7 @@ static int __mcp23s08_set(struct mcp23s08 *mcp, unsigned mask, int value)
 
 static void mcp23s08_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct mcp23s08	*mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	unsigned mask = 1 << offset;
 
 	mutex_lock(&mcp->lock);
@@ -323,7 +323,7 @@ static void mcp23s08_set(struct gpio_chip *chip, unsigned offset, int value)
 static int
 mcp23s08_direction_output(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct mcp23s08	*mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	unsigned mask = 1 << offset;
 	int status;
 
@@ -377,7 +377,7 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 
 static int mcp23s08_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct mcp23s08 *mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08 *mcp = gpiochip_get_data(chip);
 
 	return irq_find_mapping(mcp->irq_domain, offset);
 }
@@ -544,7 +544,7 @@ static void mcp23s08_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	int		t;
 	unsigned	mask;
 
-	mcp = container_of(chip, struct mcp23s08, chip);
+	mcp = gpiochip_get_data(chip);
 
 	/* NOTE: we only handle one bank for now ... */
 	bank = '0' + ((mcp->addr >> 1) & 0x7);
@@ -704,7 +704,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			goto fail;
 	}
 
-	status = gpiochip_add(&mcp->chip);
+	status = gpiochip_add_data(&mcp->chip, mcp);
 	if (status < 0)
 		goto fail;
 
