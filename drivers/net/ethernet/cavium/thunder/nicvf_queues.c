@@ -1234,84 +1234,9 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 	return skb;
 }
 
-/* Enable interrupt */
-void nicvf_enable_intr(struct nicvf *nic, int int_type, int q_idx)
+static u64 nicvf_int_type_to_mask(int int_type, int q_idx)
 {
 	u64 reg_val;
-
-	reg_val = nicvf_reg_read(nic, NIC_VF_ENA_W1S);
-
-	switch (int_type) {
-	case NICVF_INTR_CQ:
-		reg_val |= ((1ULL << q_idx) << NICVF_INTR_CQ_SHIFT);
-		break;
-	case NICVF_INTR_SQ:
-		reg_val |= ((1ULL << q_idx) << NICVF_INTR_SQ_SHIFT);
-		break;
-	case NICVF_INTR_RBDR:
-		reg_val |= ((1ULL << q_idx) << NICVF_INTR_RBDR_SHIFT);
-		break;
-	case NICVF_INTR_PKT_DROP:
-		reg_val |= (1ULL << NICVF_INTR_PKT_DROP_SHIFT);
-		break;
-	case NICVF_INTR_TCP_TIMER:
-		reg_val |= (1ULL << NICVF_INTR_TCP_TIMER_SHIFT);
-		break;
-	case NICVF_INTR_MBOX:
-		reg_val |= (1ULL << NICVF_INTR_MBOX_SHIFT);
-		break;
-	case NICVF_INTR_QS_ERR:
-		reg_val |= (1ULL << NICVF_INTR_QS_ERR_SHIFT);
-		break;
-	default:
-		netdev_err(nic->netdev,
-			   "Failed to enable interrupt: unknown type\n");
-		break;
-	}
-
-	nicvf_reg_write(nic, NIC_VF_ENA_W1S, reg_val);
-}
-
-/* Disable interrupt */
-void nicvf_disable_intr(struct nicvf *nic, int int_type, int q_idx)
-{
-	u64 reg_val = 0;
-
-	switch (int_type) {
-	case NICVF_INTR_CQ:
-		reg_val |= ((1ULL << q_idx) << NICVF_INTR_CQ_SHIFT);
-		break;
-	case NICVF_INTR_SQ:
-		reg_val |= ((1ULL << q_idx) << NICVF_INTR_SQ_SHIFT);
-		break;
-	case NICVF_INTR_RBDR:
-		reg_val |= ((1ULL << q_idx) << NICVF_INTR_RBDR_SHIFT);
-		break;
-	case NICVF_INTR_PKT_DROP:
-		reg_val |= (1ULL << NICVF_INTR_PKT_DROP_SHIFT);
-		break;
-	case NICVF_INTR_TCP_TIMER:
-		reg_val |= (1ULL << NICVF_INTR_TCP_TIMER_SHIFT);
-		break;
-	case NICVF_INTR_MBOX:
-		reg_val |= (1ULL << NICVF_INTR_MBOX_SHIFT);
-		break;
-	case NICVF_INTR_QS_ERR:
-		reg_val |= (1ULL << NICVF_INTR_QS_ERR_SHIFT);
-		break;
-	default:
-		netdev_err(nic->netdev,
-			   "Failed to disable interrupt: unknown type\n");
-		break;
-	}
-
-	nicvf_reg_write(nic, NIC_VF_ENA_W1C, reg_val);
-}
-
-/* Clear interrupt */
-void nicvf_clear_intr(struct nicvf *nic, int int_type, int q_idx)
-{
-	u64 reg_val = 0;
 
 	switch (int_type) {
 	case NICVF_INTR_CQ:
@@ -1333,54 +1258,69 @@ void nicvf_clear_intr(struct nicvf *nic, int int_type, int q_idx)
 		reg_val = (1ULL << NICVF_INTR_MBOX_SHIFT);
 		break;
 	case NICVF_INTR_QS_ERR:
-		reg_val |= (1ULL << NICVF_INTR_QS_ERR_SHIFT);
+		reg_val = (1ULL << NICVF_INTR_QS_ERR_SHIFT);
 		break;
 	default:
-		netdev_err(nic->netdev,
-			   "Failed to clear interrupt: unknown type\n");
-		break;
+		reg_val = 0;
 	}
 
-	nicvf_reg_write(nic, NIC_VF_INT, reg_val);
+	return reg_val;
+}
+
+/* Enable interrupt */
+void nicvf_enable_intr(struct nicvf *nic, int int_type, int q_idx)
+{
+	u64 mask = nicvf_int_type_to_mask(int_type, q_idx);
+
+	if (!mask) {
+		netdev_dbg(nic->netdev,
+			   "Failed to enable interrupt: unknown type\n");
+		return;
+	}
+	nicvf_reg_write(nic, NIC_VF_ENA_W1S,
+			nicvf_reg_read(nic, NIC_VF_ENA_W1S) | mask);
+}
+
+/* Disable interrupt */
+void nicvf_disable_intr(struct nicvf *nic, int int_type, int q_idx)
+{
+	u64 mask = nicvf_int_type_to_mask(int_type, q_idx);
+
+	if (!mask) {
+		netdev_dbg(nic->netdev,
+			   "Failed to disable interrupt: unknown type\n");
+		return;
+	}
+
+	nicvf_reg_write(nic, NIC_VF_ENA_W1C, mask);
+}
+
+/* Clear interrupt */
+void nicvf_clear_intr(struct nicvf *nic, int int_type, int q_idx)
+{
+	u64 mask = nicvf_int_type_to_mask(int_type, q_idx);
+
+	if (!mask) {
+		netdev_dbg(nic->netdev,
+			   "Failed to clear interrupt: unknown type\n");
+		return;
+	}
+
+	nicvf_reg_write(nic, NIC_VF_INT, mask);
 }
 
 /* Check if interrupt is enabled */
 int nicvf_is_intr_enabled(struct nicvf *nic, int int_type, int q_idx)
 {
-	u64 reg_val;
-	u64 mask = 0xff;
-
-	reg_val = nicvf_reg_read(nic, NIC_VF_ENA_W1S);
-
-	switch (int_type) {
-	case NICVF_INTR_CQ:
-		mask = ((1ULL << q_idx) << NICVF_INTR_CQ_SHIFT);
-		break;
-	case NICVF_INTR_SQ:
-		mask = ((1ULL << q_idx) << NICVF_INTR_SQ_SHIFT);
-		break;
-	case NICVF_INTR_RBDR:
-		mask = ((1ULL << q_idx) << NICVF_INTR_RBDR_SHIFT);
-		break;
-	case NICVF_INTR_PKT_DROP:
-		mask = NICVF_INTR_PKT_DROP_MASK;
-		break;
-	case NICVF_INTR_TCP_TIMER:
-		mask = NICVF_INTR_TCP_TIMER_MASK;
-		break;
-	case NICVF_INTR_MBOX:
-		mask = NICVF_INTR_MBOX_MASK;
-		break;
-	case NICVF_INTR_QS_ERR:
-		mask = NICVF_INTR_QS_ERR_MASK;
-		break;
-	default:
-		netdev_err(nic->netdev,
+	u64 mask = nicvf_int_type_to_mask(int_type, q_idx);
+	/* If interrupt type is unknown, we treat it disabled. */
+	if (!mask) {
+		netdev_dbg(nic->netdev,
 			   "Failed to check interrupt enable: unknown type\n");
-		break;
+		return 0;
 	}
 
-	return (reg_val & mask);
+	return mask & nicvf_reg_read(nic, NIC_VF_ENA_W1S);
 }
 
 void nicvf_update_rq_stats(struct nicvf *nic, int rq_idx)
