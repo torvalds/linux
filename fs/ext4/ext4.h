@@ -2241,7 +2241,8 @@ void ext4_restore_control_page(struct page *data_page);
 struct page *ext4_encrypt(struct inode *inode,
 			  struct page *plaintext_page);
 int ext4_decrypt(struct page *page);
-int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex);
+int ext4_encrypted_zeroout(struct inode *inode, ext4_lblk_t lblk,
+			   ext4_fsblk_t pblk, ext4_lblk_t len);
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 int ext4_init_crypto(void);
@@ -2495,6 +2496,8 @@ extern int ext4_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern void ext4_da_update_reserve_space(struct inode *inode,
 					int used, int quota_claim);
+extern int ext4_issue_zeroout(struct inode *inode, ext4_lblk_t lblk,
+			      ext4_fsblk_t pblk, ext4_lblk_t len);
 
 /* indirect.c */
 extern int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
