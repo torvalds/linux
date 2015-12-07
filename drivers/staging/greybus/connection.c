@@ -13,6 +13,7 @@
 
 
 static int gb_connection_bind_protocol(struct gb_connection *connection);
+static int gb_connection_init(struct gb_connection *connection);
 
 
 static DEFINE_SPINLOCK(gb_connections_lock);
@@ -192,9 +193,9 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 
 	spin_unlock_irq(&gb_connections_lock);
 
-	retval = gb_connection_bind_protocol(connection);
+	retval = gb_connection_init(connection);
 	if (retval) {
-		dev_err(&hd->dev, "%s: failed to bind protocol: %d\n",
+		dev_err(&hd->dev, "%s: failed to initialize connection: %d\n",
 			connection->name, retval);
 		gb_connection_destroy(connection);
 		return NULL;
@@ -396,8 +397,11 @@ static int gb_connection_protocol_get_version(struct gb_connection *connection)
 
 static int gb_connection_init(struct gb_connection *connection)
 {
-	struct gb_protocol *protocol = connection->protocol;
 	int ret;
+
+	ret = gb_connection_bind_protocol(connection);
+	if (ret)
+		return ret;
 
 	ret = gb_connection_hd_cport_enable(connection);
 	if (ret)
@@ -420,7 +424,7 @@ static int gb_connection_init(struct gb_connection *connection)
 	if (ret)
 		goto err_disconnect;
 
-	ret = protocol->connection_init(connection);
+	ret = connection->protocol->connection_init(connection);
 	if (ret)
 		goto err_disconnect;
 
@@ -527,7 +531,6 @@ EXPORT_SYMBOL_GPL(gb_connection_latency_tag_disable);
 static int gb_connection_bind_protocol(struct gb_connection *connection)
 {
 	struct gb_protocol *protocol;
-	int ret;
 
 	/* If we already have a protocol bound here, just return */
 	if (connection->protocol)
@@ -544,13 +547,6 @@ static int gb_connection_bind_protocol(struct gb_connection *connection)
 		return -EPROTONOSUPPORT;
 	}
 	connection->protocol = protocol;
-
-	ret = gb_connection_init(connection);
-	if (ret) {
-		gb_protocol_put(protocol);
-		connection->protocol = NULL;
-		return ret;
-	}
 
 	return 0;
 }
