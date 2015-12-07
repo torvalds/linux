@@ -1015,35 +1015,20 @@ struct bb_info {
 	void *addr;
 };
 
-/* PHY bit set */
-static void bb_set(void *addr, u32 msk)
-{
-	iowrite32(ioread32(addr) | msk, addr);
-}
-
-/* PHY bit clear */
-static void bb_clr(void *addr, u32 msk)
-{
-	iowrite32((ioread32(addr) & ~msk), addr);
-}
-
-/* PHY bit read */
-static int bb_read(void *addr, u32 msk)
-{
-	return (ioread32(addr) & msk) != 0;
-}
-
 static void sh_mdio_ctrl(struct mdiobb_ctrl *ctrl, u32 mask, int set)
 {
 	struct bb_info *bitbang = container_of(ctrl, struct bb_info, ctrl);
+	u32 pir;
 
 	if (bitbang->set_gate)
 		bitbang->set_gate(bitbang->addr);
 
+	pir = ioread32(bitbang->addr);
 	if (set)
-		bb_set(bitbang->addr, mask);
+		pir |=  mask;
 	else
-		bb_clr(bitbang->addr, mask);
+		pir &= ~mask;
+	iowrite32(pir, bitbang->addr);
 }
 
 /* Data I/O pin control */
@@ -1066,7 +1051,7 @@ static int sh_get_mdio(struct mdiobb_ctrl *ctrl)
 	if (bitbang->set_gate)
 		bitbang->set_gate(bitbang->addr);
 
-	return bb_read(bitbang->addr, PIR_MDI);
+	return (ioread32(bitbang->addr) & PIR_MDI) != 0;
 }
 
 /* MDC pin control */
