@@ -1321,11 +1321,15 @@ struct ieee80211_channel_switch {
  *	interface. This flag should be set during interface addition,
  *	but may be set/cleared as late as authentication to an AP. It is
  *	only valid for managed/station mode interfaces.
+ * @IEEE80211_VIF_GET_NOA_UPDATE: request to handle NOA attributes
+ *	and send P2P_PS notification to the driver if NOA changed, even
+ *	this is not pure P2P vif.
  */
 enum ieee80211_vif_flags {
 	IEEE80211_VIF_BEACON_FILTER		= BIT(0),
 	IEEE80211_VIF_SUPPORTS_CQM_RSSI		= BIT(1),
 	IEEE80211_VIF_SUPPORTS_UAPSD		= BIT(2),
+	IEEE80211_VIF_GET_NOA_UPDATE		= BIT(3),
 };
 
 /**
@@ -1901,6 +1905,11 @@ struct ieee80211_txq {
  * @IEEE80211_HW_BEACON_TX_STATUS: The device/driver provides TX status
  *	for sent beacons.
  *
+ * @IEEE80211_HW_NEEDS_UNIQUE_STA_ADDR: Hardware (or driver) requires that each
+ *	station has a unique address, i.e. each station entry can be identified
+ *	by just its MAC address; this prevents, for example, the same station
+ *	from connecting to two virtual AP interfaces at the same time.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -1936,6 +1945,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_TDLS_WIDER_BW,
 	IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU,
 	IEEE80211_HW_BEACON_TX_STATUS,
+	IEEE80211_HW_NEEDS_UNIQUE_STA_ADDR,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -4863,6 +4873,28 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 void ieee80211_sta_eosp(struct ieee80211_sta *pubsta);
 
 /**
+ * ieee80211_send_eosp_nullfunc - ask mac80211 to send NDP with EOSP
+ * @pubsta: the station
+ * @tid: the tid of the NDP
+ *
+ * Sometimes the device understands that it needs to close
+ * the Service Period unexpectedly. This can happen when
+ * sending frames that are filling holes in the BA window.
+ * In this case, the device can ask mac80211 to send a
+ * Nullfunc frame with EOSP set. When that happens, the
+ * driver must have called ieee80211_sta_set_buffered() to
+ * let mac80211 know that there are no buffered frames any
+ * more, otherwise mac80211 will get the more_data bit wrong.
+ * The low level driver must have made sure that the frame
+ * will be sent despite the station being in power-save.
+ * Mac80211 won't call allow_buffered_frames().
+ * Note that calling this function, doesn't exempt the driver
+ * from closing the EOSP properly, it will still have to call
+ * ieee80211_sta_eosp when the NDP is sent.
+ */
+void ieee80211_send_eosp_nullfunc(struct ieee80211_sta *pubsta, int tid);
+
+/**
  * ieee80211_iter_keys - iterate keys programmed into the device
  * @hw: pointer obtained from ieee80211_alloc_hw()
  * @vif: virtual interface to iterate, may be %NULL for all
@@ -4888,6 +4920,30 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 				      struct ieee80211_key_conf *key,
 				      void *data),
 			 void *iter_data);
+
+/**
+ * ieee80211_iter_keys_rcu - iterate keys programmed into the device
+ * @hw: pointer obtained from ieee80211_alloc_hw()
+ * @vif: virtual interface to iterate, may be %NULL for all
+ * @iter: iterator function that will be called for each key
+ * @iter_data: custom data to pass to the iterator function
+ *
+ * This function can be used to iterate all the keys known to
+ * mac80211, even those that weren't previously programmed into
+ * the device. Note that due to locking reasons, keys of station
+ * in removal process will be skipped.
+ *
+ * This function requires being called in an RCU critical section,
+ * and thus iter must be atomic.
+ */
+void ieee80211_iter_keys_rcu(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     void (*iter)(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_sta *sta,
+					  struct ieee80211_key_conf *key,
+					  void *data),
+			     void *iter_data);
 
 /**
  * ieee80211_iter_chan_contexts_atomic - iterate channel contexts
