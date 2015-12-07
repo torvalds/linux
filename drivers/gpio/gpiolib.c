@@ -688,7 +688,7 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
  * gpiochip, providing an irq domain to translate the local IRQs to
  * global irqs in the gpiolib core, and making sure that the gpiochip
  * is passed as chip data to all related functions. Driver callbacks
- * need to use container_of() to get their local state containers back
+ * need to use gpiochip_get_data() to get their local state containers back
  * from the gpiochip passed as chip data. An irqdomain will be stored
  * in the gpiochip that shall be used by the driver to handle IRQ number
  * translation. The gpiochip will need to be initialized and registered
