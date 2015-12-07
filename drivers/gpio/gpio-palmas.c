@@ -35,14 +35,9 @@ struct palmas_device_data {
 	int ngpio;
 };
 
-static inline struct palmas_gpio *to_palmas_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct palmas_gpio, gpio_chip);
-}
-
 static int palmas_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
-	struct palmas_gpio *pg = to_palmas_gpio(gc);
+	struct palmas_gpio *pg = gpiochip_get_data(gc);
 	struct palmas *palmas = pg->palmas;
 	unsigned int val;
 	int ret;
@@ -74,7 +69,7 @@ static int palmas_gpio_get(struct gpio_chip *gc, unsigned offset)
 static void palmas_gpio_set(struct gpio_chip *gc, unsigned offset,
 			int value)
 {
-	struct palmas_gpio *pg = to_palmas_gpio(gc);
+	struct palmas_gpio *pg = gpiochip_get_data(gc);
 	struct palmas *palmas = pg->palmas;
 	int ret;
 	unsigned int reg;
@@ -96,7 +91,7 @@ static void palmas_gpio_set(struct gpio_chip *gc, unsigned offset,
 static int palmas_gpio_output(struct gpio_chip *gc, unsigned offset,
 				int value)
 {
-	struct palmas_gpio *pg = to_palmas_gpio(gc);
+	struct palmas_gpio *pg = gpiochip_get_data(gc);
 	struct palmas *palmas = pg->palmas;
 	int ret;
 	unsigned int reg;
@@ -118,7 +113,7 @@ static int palmas_gpio_output(struct gpio_chip *gc, unsigned offset,
 
 static int palmas_gpio_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct palmas_gpio *pg = to_palmas_gpio(gc);
+	struct palmas_gpio *pg = gpiochip_get_data(gc);
 	struct palmas *palmas = pg->palmas;
 	int ret;
 	unsigned int reg;
@@ -136,7 +131,7 @@ static int palmas_gpio_input(struct gpio_chip *gc, unsigned offset)
 
 static int palmas_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
-	struct palmas_gpio *pg = to_palmas_gpio(gc);
+	struct palmas_gpio *pg = gpiochip_get_data(gc);
 	struct palmas *palmas = pg->palmas;
 
 	return palmas_irq_get_virq(palmas, PALMAS_GPIO_0_IRQ + offset);
@@ -200,7 +195,7 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	else
 		palmas_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&palmas_gpio->gpio_chip);
+	ret = gpiochip_add_data(&palmas_gpio->gpio_chip, palmas_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		return ret;
