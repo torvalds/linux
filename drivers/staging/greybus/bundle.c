@@ -65,6 +65,19 @@ static struct attribute *bundle_attrs[] = {
 
 ATTRIBUTE_GROUPS(bundle);
 
+static struct gb_bundle *gb_bundle_find(struct gb_interface *intf,
+							u8 bundle_id)
+{
+	struct gb_bundle *bundle;
+
+	list_for_each_entry(bundle, &intf->bundles, links) {
+		if (bundle->id == bundle_id)
+			return bundle;
+	}
+
+	return NULL;
+}
+
 static void gb_bundle_release(struct device *dev)
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
@@ -77,9 +90,6 @@ struct device_type greybus_bundle_type = {
 	.name =		"greybus_bundle",
 	.release =	gb_bundle_release,
 };
-
-/* XXX This could be per-host device or per-module */
-static DEFINE_SPINLOCK(gb_bundles_lock);
 
 /*
  * Create a gb_bundle structure to represent a discovered
@@ -127,9 +137,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 		return NULL;
 	}
 
-	spin_lock_irq(&gb_bundles_lock);
 	list_add(&bundle->links, &intf->bundles);
-	spin_unlock_irq(&gb_bundles_lock);
 
 	return bundle;
 }
@@ -149,25 +157,10 @@ static void gb_bundle_connections_exit(struct gb_bundle *bundle)
  */
 void gb_bundle_destroy(struct gb_bundle *bundle)
 {
-	spin_lock_irq(&gb_bundles_lock);
 	list_del(&bundle->links);
-	spin_unlock_irq(&gb_bundles_lock);
 
 	gb_bundle_connections_exit(bundle);
 	device_unregister(&bundle->dev);
 }
 
-struct gb_bundle *gb_bundle_find(struct gb_interface *intf, u8 bundle_id)
-{
-	struct gb_bundle *bundle;
 
-	spin_lock_irq(&gb_bundles_lock);
-	list_for_each_entry(bundle, &intf->bundles, links)
-		if (bundle->id == bundle_id)
-			goto found;
-	bundle = NULL;
-found:
-	spin_unlock_irq(&gb_bundles_lock);
-
-	return bundle;
-}

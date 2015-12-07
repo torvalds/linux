@@ -33,6 +33,4 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 				   u8 class);
 void gb_bundle_destroy(struct gb_bundle *bundle);
 
-struct gb_bundle *gb_bundle_find(struct gb_interface *intf, u8 bundle_id);
-
 #endif /* __BUNDLE_H */
