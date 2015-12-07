@@ -70,4 +70,6 @@ then
 		summary="$summary  Stalls: $n_stalls"
 	fi
 	print_warning Summary: $summary
+else
+	rm $1.diags
 fi
