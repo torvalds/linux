@@ -1534,6 +1534,7 @@ static void __init filter_events(struct attribute **attrs)
 {
 	struct device_attribute *d;
 	struct perf_pmu_events_attr *pmu_attr;
+	int offset = 0;
 	int i, j;
 
 	for (i = 0; attrs[i]; i++) {
@@ -1542,7 +1543,7 @@ static void __init filter_events(struct attribute **attrs)
 		/* str trumps id */
 		if (pmu_attr->event_str)
 			continue;
-		if (x86_pmu.event_map(i))
+		if (x86_pmu.event_map(i + offset))
 			continue;
 
 		for (j = i; attrs[j]; j++)
@@ -1550,6 +1551,14 @@ static void __init filter_events(struct attribute **attrs)
 
 		/* Check the shifted attr. */
 		i--;
+
+		/*
+		 * event_map() is index based, the attrs array is organized
+		 * by increasing event index. If we shift the events, then
+		 * we need to compensate for the event_map(), otherwise
+		 * we are looking up the wrong event in the map
+		 */
+		offset++;
 	}
 }
 
