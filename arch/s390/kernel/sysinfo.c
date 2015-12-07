@@ -111,8 +111,7 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 
 static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 {
-	static int max_mnest;
-	int i, rc;
+	int i;
 
 	seq_putc(m, '\n');
 	if (!MACHINE_HAS_TOPOLOGY)
