@@ -81,6 +81,13 @@ static struct gb_bundle *gb_bundle_find(struct gb_interface *intf,
 static void gb_bundle_release(struct device *dev)
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
+	struct gb_connection *connection;
+	struct gb_connection *tmp;
+
+	list_for_each_entry_safe(connection, tmp, &bundle->connections,
+								bundle_links) {
+		gb_connection_destroy(connection);
+	}
 
 	kfree(bundle->state);
 	kfree(bundle);
@@ -145,11 +152,9 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 static void gb_bundle_connections_exit(struct gb_bundle *bundle)
 {
 	struct gb_connection *connection;
-	struct gb_connection *next;
 
-	list_for_each_entry_safe(connection, next, &bundle->connections,
-				 bundle_links)
-		gb_connection_destroy(connection);
+	list_for_each_entry(connection, &bundle->connections, bundle_links)
+		gb_connection_exit(connection);
 }
 
 /*
