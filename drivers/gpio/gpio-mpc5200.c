@@ -71,8 +71,7 @@ static inline void
 __mpc52xx_wkup_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
-			struct mpc52xx_gpiochip, mmchip);
+	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
 	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
 
 	if (val)
@@ -100,8 +99,7 @@ mpc52xx_wkup_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 static int mpc52xx_wkup_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
-			struct mpc52xx_gpiochip, mmchip);
+	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
 	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
 	unsigned long flags;
 
@@ -125,8 +123,7 @@ mpc52xx_wkup_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct mpc52xx_gpio_wkup __iomem *regs = mm_gc->regs;
-	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
-			struct mpc52xx_gpiochip, mmchip);
+	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -169,7 +166,7 @@ static int mpc52xx_wkup_gpiochip_probe(struct platform_device *ofdev)
 	gc->get              = mpc52xx_wkup_gpio_get;
 	gc->set              = mpc52xx_wkup_gpio_set;
 
-	ret = of_mm_gpiochip_add(ofdev->dev.of_node, &chip->mmchip);
+	ret = of_mm_gpiochip_add_data(ofdev->dev.of_node, &chip->mmchip, chip);
 	if (ret)
 		return ret;
 
@@ -236,8 +233,7 @@ static inline void
 __mpc52xx_simple_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
-			struct mpc52xx_gpiochip, mmchip);
+	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
 	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
 
 	if (val)
@@ -264,8 +260,7 @@ mpc52xx_simple_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 static int mpc52xx_simple_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
-			struct mpc52xx_gpiochip, mmchip);
+	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
 	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
 	unsigned long flags;
 
@@ -288,8 +283,7 @@ static int
 mpc52xx_simple_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpiochip *chip = container_of(mm_gc,
-			struct mpc52xx_gpiochip, mmchip);
+	struct mpc52xx_gpiochip *chip = gpiochip_get_data(gc);
 	struct mpc52xx_gpio __iomem *regs = mm_gc->regs;
 	unsigned long flags;
 
@@ -334,7 +328,7 @@ static int mpc52xx_simple_gpiochip_probe(struct platform_device *ofdev)
 	gc->get              = mpc52xx_simple_gpio_get;
 	gc->set              = mpc52xx_simple_gpio_set;
 
-	ret = of_mm_gpiochip_add(ofdev->dev.of_node, &chip->mmchip);
+	ret = of_mm_gpiochip_add_data(ofdev->dev.of_node, &chip->mmchip, chip);
 	if (ret)
 		return ret;
 
