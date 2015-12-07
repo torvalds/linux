@@ -972,7 +972,7 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 
 		machine = machines__find(machines, pid);
 		if (!machine)
-			machine = machines__find(machines, DEFAULT_GUEST_KERNEL_ID);
+			machine = machines__findnew(machines, DEFAULT_GUEST_KERNEL_ID);
 		return machine;
 	}
 
