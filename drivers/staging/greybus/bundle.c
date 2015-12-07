@@ -107,7 +107,6 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 				   u8 class)
 {
 	struct gb_bundle *bundle;
-	int retval;
 
 	/*
 	 * Reject any attempt to reuse a bundle id.  We initialize
@@ -128,8 +127,6 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	bundle->class = class;
 	INIT_LIST_HEAD(&bundle->connections);
 
-	/* Build up the bundle device structures and register it with the
-	 * driver core */
 	bundle->dev.parent = &intf->dev;
 	bundle->dev.bus = &greybus_bus_type;
 	bundle->dev.type = &greybus_bundle_type;
@@ -137,16 +134,22 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	device_initialize(&bundle->dev);
 	dev_set_name(&bundle->dev, "%s.%d", dev_name(&intf->dev), bundle_id);
 
-	retval = device_add(&bundle->dev);
-	if (retval) {
-		pr_err("failed to add bundle device for id %u\n", bundle_id);
-		put_device(&bundle->dev);
-		return NULL;
-	}
-
 	list_add(&bundle->links, &intf->bundles);
 
 	return bundle;
+}
+
+int gb_bundle_add(struct gb_bundle *bundle)
+{
+	int ret;
+
+	ret = device_add(&bundle->dev);
+	if (ret) {
+		dev_err(&bundle->dev, "failed to register bundle: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void gb_bundle_connections_exit(struct gb_bundle *bundle)
@@ -162,10 +165,12 @@ static void gb_bundle_connections_exit(struct gb_bundle *bundle)
  */
 void gb_bundle_destroy(struct gb_bundle *bundle)
 {
+	gb_bundle_connections_exit(bundle);
+
+	if (device_is_registered(&bundle->dev))
+		device_del(&bundle->dev);
+
 	list_del(&bundle->links);
 
-	gb_bundle_connections_exit(bundle);
-	device_unregister(&bundle->dev);
+	put_device(&bundle->dev);
 }
-
-
