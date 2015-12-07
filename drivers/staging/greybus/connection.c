@@ -133,7 +133,7 @@ gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	 * about holding the connection lock.
 	 */
 	if (bundle && gb_connection_intf_find(bundle->intf, cport_id)) {
-		dev_err(&bundle->dev, "cport 0x%04x already connected\n",
+		dev_err(&bundle->dev, "cport %u already connected\n",
 				cport_id);
 		return NULL;
 	}

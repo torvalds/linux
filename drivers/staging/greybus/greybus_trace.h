@@ -41,7 +41,7 @@ DECLARE_EVENT_CLASS(gb_message,
 		__entry->payload_size = message->payload_size;
 	),
 
-	TP_printk("greybus:%s op=%04x if_id=%04x hd_id=%04x l=%zu",
+	TP_printk("greybus:%s op=%04x if_id=%u hd_id=%u l=%zu",
 		  __get_str(name), __entry->op_id, __entry->intf_cport_id,
 		  __entry->hd_cport_id, __entry->payload_size)
 );
@@ -125,7 +125,7 @@ DECLARE_EVENT_CLASS(gb_host_device,
 		__entry->payload_size = payload_size;
 	),
 
-	TP_printk("greybus:%s if_id=%04x l=%zu", __get_str(name),
+	TP_printk("greybus:%s if_id=%u l=%zu", __get_str(name),
 		  __entry->intf_cport_id, __entry->payload_size)
 );
 

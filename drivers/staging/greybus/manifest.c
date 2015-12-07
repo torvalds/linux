@@ -323,7 +323,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		/* Nothing else should have its class set to control class */
 		if (class == GREYBUS_CLASS_CONTROL) {
 			dev_err(&intf->dev,
-				"bundle 0x%02x cannot use control class\n",
+				"bundle %u cannot use control class\n",
 				bundle_id);
 			goto cleanup;
 		}
