@@ -61,7 +61,7 @@ struct pl061_gpio {
 
 static int pl061_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 	unsigned char gpiodir;
 
@@ -80,7 +80,7 @@ static int pl061_direction_input(struct gpio_chip *gc, unsigned offset)
 static int pl061_direction_output(struct gpio_chip *gc, unsigned offset,
 		int value)
 {
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 	unsigned char gpiodir;
 
@@ -105,14 +105,14 @@ static int pl061_direction_output(struct gpio_chip *gc, unsigned offset,
 
 static int pl061_get_value(struct gpio_chip *gc, unsigned offset)
 {
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 
 	return !!readb(chip->base + (BIT(offset + 2)));
 }
 
 static void pl061_set_value(struct gpio_chip *gc, unsigned offset, int value)
 {
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 
 	writeb(!!value << offset, chip->base + (BIT(offset + 2)));
 }
@@ -120,7 +120,7 @@ static void pl061_set_value(struct gpio_chip *gc, unsigned offset, int value)
 static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 	int offset = irqd_to_hwirq(d);
 	unsigned long flags;
 	u8 gpiois, gpioibe, gpioiev;
@@ -210,7 +210,7 @@ static void pl061_irq_handler(struct irq_desc *desc)
 	unsigned long pending;
 	int offset;
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 
 	chained_irq_enter(irqchip, desc);
@@ -228,7 +228,7 @@ static void pl061_irq_handler(struct irq_desc *desc)
 static void pl061_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 	u8 mask = BIT(irqd_to_hwirq(d) % PL061_GPIO_NR);
 	u8 gpioie;
 
@@ -241,7 +241,7 @@ static void pl061_irq_mask(struct irq_data *d)
 static void pl061_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 	u8 mask = BIT(irqd_to_hwirq(d) % PL061_GPIO_NR);
 	u8 gpioie;
 
@@ -262,7 +262,7 @@ static void pl061_irq_unmask(struct irq_data *d)
 static void pl061_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 	u8 mask = BIT(irqd_to_hwirq(d) % PL061_GPIO_NR);
 
 	spin_lock(&chip->lock);
@@ -328,7 +328,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	chip->gc.parent = dev;
 	chip->gc.owner = THIS_MODULE;
 
-	ret = gpiochip_add(&chip->gc);
+	ret = gpiochip_add_data(&chip->gc, chip);
 	if (ret)
 		return ret;
 
