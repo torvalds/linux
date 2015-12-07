@@ -179,8 +179,7 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 	/* Get manifest size using control protocol on CPort */
 	size = gb_control_get_manifest_size_operation(intf);
 	if (size <= 0) {
-		dev_err(&intf->dev, "%s: Failed to get manifest size (%d)\n",
-			__func__, size);
+		dev_err(&intf->dev, "failed to get manifest size: %d\n", size);
 		if (size)
 			return size;
 		else
@@ -194,7 +193,7 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 	/* Get manifest using control protocol on CPort */
 	ret = gb_control_get_manifest_operation(intf, manifest, size);
 	if (ret) {
-		dev_err(&intf->dev, "%s: Failed to get manifest\n", __func__);
+		dev_err(&intf->dev, "failed to get manifest: %d\n", ret);
 		goto free_manifest;
 	}
 
@@ -203,7 +202,7 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 	 * what's in it.
 	 */
 	if (!gb_manifest_parse(intf, manifest, size)) {
-		dev_err(&intf->dev, "%s: Failed to parse manifest\n", __func__);
+		dev_err(&intf->dev, "failed to parse manifest\n");
 		ret = -EINVAL;
 		goto free_manifest;
 	}
