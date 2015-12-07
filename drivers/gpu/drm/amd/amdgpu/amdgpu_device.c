@@ -1214,12 +1214,14 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		} else {
 			if (adev->ip_blocks[i].funcs->early_init) {
 				r = adev->ip_blocks[i].funcs->early_init((void *)adev);
-				if (r == -ENOENT)
+				if (r == -ENOENT) {
 					adev->ip_block_status[i].valid = false;
-				else if (r)
+				} else if (r) {
+					DRM_ERROR("early_init %d failed %d\n", i, r);
 					return r;
-				else
+				} else {
 					adev->ip_block_status[i].valid = true;
+				}
 			} else {
 				adev->ip_block_status[i].valid = true;
 			}
@@ -1237,20 +1239,28 @@ static int amdgpu_init(struct amdgpu_device *adev)
 		if (!adev->ip_block_status[i].valid)
 			continue;
 		r = adev->ip_blocks[i].funcs->sw_init((void *)adev);
-		if (r)
+		if (r) {
+			DRM_ERROR("sw_init %d failed %d\n", i, r);
 			return r;
+		}
 		adev->ip_block_status[i].sw = true;
 		/* need to do gmc hw init early so we can allocate gpu mem */
 		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) {
 			r = amdgpu_vram_scratch_init(adev);
-			if (r)
+			if (r) {
+				DRM_ERROR("amdgpu_vram_scratch_init failed %d\n", r);
 				return r;
+			}
 			r = adev->ip_blocks[i].funcs->hw_init((void *)adev);
-			if (r)
+			if (r) {
+				DRM_ERROR("hw_init %d failed %d\n", i, r);
 				return r;
+			}
 			r = amdgpu_wb_init(adev);
-			if (r)
+			if (r) {
+				DRM_ERROR("amdgpu_wb_init failed %d\n", r);
 				return r;
+			}
 			adev->ip_block_status[i].hw = true;
 		}
 	}
@@ -1262,8 +1272,10 @@ static int amdgpu_init(struct amdgpu_device *adev)
 		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC)
 			continue;
 		r = adev->ip_blocks[i].funcs->hw_init((void *)adev);
-		if (r)
+		if (r) {
+			DRM_ERROR("hw_init %d failed %d\n", i, r);
 			return r;
+		}
 		adev->ip_block_status[i].hw = true;
 	}
 
@@ -1280,12 +1292,16 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 		/* enable clockgating to save power */
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
 								    AMD_CG_STATE_GATE);
-		if (r)
+		if (r) {
+			DRM_ERROR("set_clockgating_state(gate) %d failed %d\n", i, r);
 			return r;
+		}
 		if (adev->ip_blocks[i].funcs->late_init) {
 			r = adev->ip_blocks[i].funcs->late_init((void *)adev);
-			if (r)
+			if (r) {
+				DRM_ERROR("late_init %d failed %d\n", i, r);
 				return r;
+			}
 		}
 	}
 
@@ -1306,10 +1322,15 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 		/* ungate blocks before hw fini so that we can shutdown the blocks safely */
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
 								    AMD_CG_STATE_UNGATE);
-		if (r)
+		if (r) {
+			DRM_ERROR("set_clockgating_state(ungate) %d failed %d\n", i, r);
 			return r;
+		}
 		r = adev->ip_blocks[i].funcs->hw_fini((void *)adev);
 		/* XXX handle errors */
+		if (r) {
+			DRM_DEBUG("hw_fini %d failed %d\n", i, r);
+		}
 		adev->ip_block_status[i].hw = false;
 	}
 
@@ -1318,6 +1339,9 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 			continue;
 		r = adev->ip_blocks[i].funcs->sw_fini((void *)adev);
 		/* XXX handle errors */
+		if (r) {
+			DRM_DEBUG("sw_fini %d failed %d\n", i, r);
+		}
 		adev->ip_block_status[i].sw = false;
 		adev->ip_block_status[i].valid = false;
 	}
@@ -1335,9 +1359,15 @@ static int amdgpu_suspend(struct amdgpu_device *adev)
 		/* ungate blocks so that suspend can properly shut them down */
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
 								    AMD_CG_STATE_UNGATE);
+		if (r) {
+			DRM_ERROR("set_clockgating_state(ungate) %d failed %d\n", i, r);
+		}
 		/* XXX handle errors */
 		r = adev->ip_blocks[i].funcs->suspend(adev);
 		/* XXX handle errors */
+		if (r) {
+			DRM_ERROR("suspend %d failed %d\n", i, r);
+		}
 	}
 
 	return 0;
@@ -1351,8 +1381,10 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 		if (!adev->ip_block_status[i].valid)
 			continue;
 		r = adev->ip_blocks[i].funcs->resume(adev);
-		if (r)
+		if (r) {
+			DRM_ERROR("resume %d failed %d\n", i, r);
 			return r;
+		}
 	}
 
 	return 0;
@@ -1484,8 +1516,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 	r = amdgpu_atombios_init(adev);
-	if (r)
+	if (r) {
+		dev_err(adev->dev, "amdgpu_atombios_init failed\n");
 		return r;
+	}
 
 	/* Post card if necessary */
 	if (!amdgpu_card_posted(adev)) {
@@ -1499,21 +1533,26 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	/* Initialize clocks */
 	r = amdgpu_atombios_get_clock_info(adev);
-	if (r)
+	if (r) {
+		dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
 		return r;
+	}
 	/* init i2c buses */
 	amdgpu_atombios_i2c_init(adev);
 
 	/* Fence driver */
 	r = amdgpu_fence_driver_init(adev);
-	if (r)
+	if (r) {
+		dev_err(adev->dev, "amdgpu_fence_driver_init failed\n");
 		return r;
+	}
 
 	/* init the mode config */
 	drm_mode_config_init(adev->ddev);
 
 	r = amdgpu_init(adev);
 	if (r) {
+		dev_err(adev->dev, "amdgpu_init failed\n");
 		amdgpu_fini(adev);
 		return r;
 	}
@@ -1570,8 +1609,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	 * explicit gating rather than handling it automatically.
 	 */
 	r = amdgpu_late_init(adev);
-	if (r)
+	if (r) {
+		dev_err(adev->dev, "amdgpu_late_init failed\n");
 		return r;
+	}
 
 	return 0;
 }
