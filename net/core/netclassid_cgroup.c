@@ -61,9 +61,12 @@ static int update_classid_sock(const void *v, struct file *file, unsigned n)
 	int err;
 	struct socket *sock = sock_from_file(file, &err);
 
-	if (sock)
+	if (sock) {
+		spin_lock(&cgroup_sk_update_lock);
 		sock_cgroup_set_classid(&sock->sk->sk_cgrp_data,
 					(unsigned long)v);
+		spin_unlock(&cgroup_sk_update_lock);
+	}
 	return 0;
 }
 
@@ -97,6 +100,8 @@ static int write_classid(struct cgroup_subsys_state *css, struct cftype *cft,
 			 u64 value)
 {
 	struct cgroup_cls_state *cs = css_cls_state(css);
+
+	cgroup_sk_alloc_disable();
 
 	cs->classid = (u32)value;
 

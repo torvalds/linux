@@ -578,4 +578,45 @@ static inline int cgroup_init(void) { return 0; }
 
 #endif /* !CONFIG_CGROUPS */
 
+/*
+ * sock->sk_cgrp_data handling.  For more info, see sock_cgroup_data
+ * definition in cgroup-defs.h.
+ */
+#ifdef CONFIG_SOCK_CGROUP_DATA
+
+#if defined(CONFIG_CGROUP_NET_PRIO) || defined(CONFIG_CGROUP_NET_CLASSID)
+extern spinlock_t cgroup_sk_update_lock;
+#endif
+
+void cgroup_sk_alloc_disable(void);
+void cgroup_sk_alloc(struct sock_cgroup_data *skcd);
+void cgroup_sk_free(struct sock_cgroup_data *skcd);
+
+static inline struct cgroup *sock_cgroup_ptr(struct sock_cgroup_data *skcd)
+{
+#if defined(CONFIG_CGROUP_NET_PRIO) || defined(CONFIG_CGROUP_NET_CLASSID)
+	unsigned long v;
+
+	/*
+	 * @skcd->val is 64bit but the following is safe on 32bit too as we
+	 * just need the lower ulong to be written and read atomically.
+	 */
+	v = READ_ONCE(skcd->val);
+
+	if (v & 1)
+		return &cgrp_dfl_root.cgrp;
+
+	return (struct cgroup *)(unsigned long)v ?: &cgrp_dfl_root.cgrp;
+#else
+	return (struct cgroup *)(unsigned long)skcd->val;
+#endif
+}
+
+#else	/* CONFIG_CGROUP_DATA */
+
+static inline void cgroup_sk_alloc(struct sock_cgroup_data *skcd) {}
+static inline void cgroup_sk_free(struct sock_cgroup_data *skcd) {}
+
+#endif	/* CONFIG_CGROUP_DATA */
+
 #endif /* _LINUX_CGROUP_H */
