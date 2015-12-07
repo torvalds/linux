@@ -13,6 +13,7 @@ if NET_VENDOR_AURORA
 
 config AURORA_NB8800
 	tristate "Aurora AU-NB8800 support"
+	depends on HAS_DMA
 	select PHYLIB
 	help
 	 Support for the AU-NB8800 gigabit Ethernet controller.
