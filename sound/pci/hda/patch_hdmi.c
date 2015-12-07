@@ -152,6 +152,8 @@ struct hdmi_spec {
 	struct i915_audio_component_audio_ops i915_audio_ops;
 };
 
+#define codec_has_acomp(codec) \
+	((codec)->bus->core.audio_component != NULL)
 
 struct hdmi_audio_infoframe {
 	u8 type; /* 0x84 */
@@ -2218,7 +2220,7 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx;
 
-	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
+	if (codec_has_acomp(codec))
 		snd_hdac_i915_register_notifier(NULL);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
@@ -2390,7 +2392,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 			is_broxton(codec))
 		codec->core.link_power_control = 1;
 
-	if (is_haswell_plus(codec) || is_valleyview_plus(codec)) {
+	if (codec_has_acomp(codec)) {
 		codec->depop_delay = 0;
 		spec->i915_audio_ops.audio_ptr = codec;
 		spec->i915_audio_ops.pin_eld_notify = intel_pin_eld_notify;
