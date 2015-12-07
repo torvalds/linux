@@ -40,6 +40,7 @@
 #define AUDIT		0x0040
 
 int ima_policy_flag;
+static int temp_ima_appraise;
 
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
@@ -370,6 +371,7 @@ void ima_update_policy_flag(void)
 			ima_policy_flag |= entry->action;
 	}
 
+	ima_appraise |= temp_ima_appraise;
 	if (!ima_appraise)
 		ima_policy_flag &= ~IMA_APPRAISE;
 }
@@ -757,9 +759,9 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 	if (!result && (entry->action == UNKNOWN))
 		result = -EINVAL;
 	else if (entry->func == MODULE_CHECK)
-		ima_appraise |= IMA_APPRAISE_MODULES;
+		temp_ima_appraise |= IMA_APPRAISE_MODULES;
 	else if (entry->func == FIRMWARE_CHECK)
-		ima_appraise |= IMA_APPRAISE_FIRMWARE;
+		temp_ima_appraise |= IMA_APPRAISE_FIRMWARE;
 	audit_log_format(ab, "res=%d", !result);
 	audit_log_end(ab);
 	return result;
@@ -821,6 +823,7 @@ void ima_delete_rules(void)
 	struct ima_rule_entry *entry, *tmp;
 	int i;
 
+	temp_ima_appraise = 0;
 	list_for_each_entry_safe(entry, tmp, &ima_temp_rules, list) {
 		for (i = 0; i < MAX_LSM_RULES; i++)
 			kfree(entry->lsm[i].args_p);
