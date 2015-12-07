@@ -4044,6 +4044,14 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 	}
 	/* IO end_io complete, convert the filled extent to written */
 	if (flags & EXT4_GET_BLOCKS_CONVERT) {
+		if (flags & EXT4_GET_BLOCKS_ZERO) {
+			if (allocated > map->m_len)
+				allocated = map->m_len;
+			err = ext4_issue_zeroout(inode, map->m_lblk, newblock,
+						 allocated);
+			if (err < 0)
+				goto out2;
+		}
 		ret = ext4_convert_unwritten_extents_endio(handle, inode, map,
 							   ppath);
 		if (ret >= 0) {
