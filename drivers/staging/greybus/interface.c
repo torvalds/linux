@@ -85,7 +85,6 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 					 u8 interface_id)
 {
 	struct gb_interface *intf;
-	int retval;
 
 	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
 	if (!intf)
@@ -107,21 +106,11 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%d-%d", hd->bus_id, interface_id);
 
-	retval = device_add(&intf->dev);
-	if (retval) {
-		pr_err("failed to add interface %u\n", interface_id);
-		goto free_intf;
-	}
-
 	spin_lock_irq(&gb_interfaces_lock);
 	list_add(&intf->links, &hd->interfaces);
 	spin_unlock_irq(&gb_interfaces_lock);
 
 	return intf;
-
-free_intf:
-	put_device(&intf->dev);
-	return NULL;
 }
 
 /*
@@ -132,17 +121,20 @@ void gb_interface_remove(struct gb_interface *intf)
 	struct gb_bundle *bundle;
 	struct gb_bundle *next;
 
-	spin_lock_irq(&gb_interfaces_lock);
-	list_del(&intf->links);
-	spin_unlock_irq(&gb_interfaces_lock);
-
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
+
+	if (device_is_registered(&intf->dev))
+		device_del(&intf->dev);
 
 	if (intf->control)
 		gb_connection_destroy(intf->control->connection);
 
-	device_unregister(&intf->dev);
+	spin_lock_irq(&gb_interfaces_lock);
+	list_del(&intf->links);
+	spin_unlock_irq(&gb_interfaces_lock);
+
+	put_device(&intf->dev);
 }
 
 void gb_interfaces_remove(struct gb_host_device *hd)
@@ -216,7 +208,13 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 		goto free_manifest;
 	}
 
-	/* Register the interface bundles. */
+	/* Register the interface and its bundles. */
+	ret = device_add(&intf->dev);
+	if (ret) {
+		dev_err(&intf->dev, "failed to register interface: %d\n", ret);
+		goto free_manifest;
+	}
+
 	list_for_each_entry_safe_reverse(bundle, tmp, &intf->bundles, links) {
 		ret = gb_bundle_add(bundle);
 		if (ret) {
