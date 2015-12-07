@@ -132,9 +132,6 @@ void gb_interface_remove(struct gb_interface *intf)
 	struct gb_bundle *bundle;
 	struct gb_bundle *next;
 
-	if (WARN_ON(!intf))
-		return;
-
 	spin_lock_irq(&gb_interfaces_lock);
 	list_del(&intf->links);
 	spin_unlock_irq(&gb_interfaces_lock);
