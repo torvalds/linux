@@ -1419,6 +1419,7 @@ static int __init nfnetlink_queue_init(void)
 
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
+	unregister_pernet_subsys(&nfnl_queue_net_ops);
 out:
 	return status;
 }
