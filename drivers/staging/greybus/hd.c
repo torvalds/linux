@@ -72,20 +72,12 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	if (!hd)
 		return ERR_PTR(-ENOMEM);
 
-	hd->dev.parent = parent;
-	hd->dev.bus = &greybus_bus_type;
-	hd->dev.type = &greybus_hd_type;
-	hd->dev.dma_mask = hd->dev.parent->dma_mask;
-	device_initialize(&hd->dev);
-
 	ret = ida_simple_get(&gb_hd_bus_id_map, 1, 0, GFP_KERNEL);
 	if (ret < 0) {
 		kfree(hd);
 		return ERR_PTR(ret);
 	}
-
 	hd->bus_id = ret;
-	dev_set_name(&hd->dev, "greybus%d", hd->bus_id);
 
 	hd->driver = driver;
 	INIT_LIST_HEAD(&hd->interfaces);
@@ -93,6 +85,13 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	ida_init(&hd->cport_id_map);
 	hd->buffer_size_max = buffer_size_max;
 	hd->num_cports = num_cports;
+
+	hd->dev.parent = parent;
+	hd->dev.bus = &greybus_bus_type;
+	hd->dev.type = &greybus_hd_type;
+	hd->dev.dma_mask = hd->dev.parent->dma_mask;
+	device_initialize(&hd->dev);
+	dev_set_name(&hd->dev, "greybus%d", hd->bus_id);
 
 	return hd;
 }
