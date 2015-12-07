@@ -117,13 +117,6 @@ struct dsa_switch_tree {
 	s8			cpu_port;
 
 	/*
-	 * Link state polling.
-	 */
-	int			link_poll_needed;
-	struct work_struct	link_poll_work;
-	struct timer_list	link_poll_timer;
-
-	/*
 	 * Data for the individual switch chips.
 	 */
 	struct dsa_switch	*ds[DSA_MAX_SWITCHES];
@@ -230,11 +223,6 @@ struct dsa_switch_driver {
 	int	(*phy_read)(struct dsa_switch *ds, int port, int regnum);
 	int	(*phy_write)(struct dsa_switch *ds, int port,
 			     int regnum, u16 val);
-
-	/*
-	 * Link state polling and IRQ handling.
-	 */
-	void	(*poll_link)(struct dsa_switch *ds);
 
 	/*
 	 * Link state adjustment (called from libphy)
