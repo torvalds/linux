@@ -1607,9 +1607,6 @@ static void vlv_enable_pll(struct intel_crtc *crtc,
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
-	/* No really, not for ILK+ */
-	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev));
-
 	/* PLL is protected by panel, make sure we can write it */
 	if (IS_MOBILE(dev_priv->dev))
 		assert_panel_unlocked(dev_priv, crtc->pipe);
@@ -1646,8 +1643,6 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 	u32 tmp;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
-
-	BUG_ON(!IS_CHERRYVIEW(dev_priv->dev));
 
 	mutex_lock(&dev_priv->sb_lock);
 
