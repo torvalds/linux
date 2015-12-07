@@ -78,7 +78,6 @@
 #define BL_ALL_UNLOCKED    0
 
 struct spinand_info {
-	struct nand_ecclayout *ecclayout;
 	struct spi_device *spi;
 	void *priv;
 };
