@@ -883,9 +883,9 @@ static int cz_tf_update_low_mem_pstate(struct pp_hwmgr *hwmgr,
 
 		if (pnew_state->action == FORCE_HIGH)
 			cz_nbdpm_pstate_enable_disable(hwmgr, false, disable_switch);
-		else if(pnew_state->action == CANCEL_FORCE_HIGH)
+		else if (pnew_state->action == CANCEL_FORCE_HIGH)
 			cz_nbdpm_pstate_enable_disable(hwmgr, false, disable_switch);
-		else 
+		else
 			cz_nbdpm_pstate_enable_disable(hwmgr, enable_low_mem_state, disable_switch);
 	}
 	return 0;
@@ -1630,10 +1630,10 @@ static void cz_hw_print_display_cfg(
 			& PWRMGT_SEPARATION_TIME_MASK)
 			<< PWRMGT_SEPARATION_TIME_SHIFT;
 
-		data|= (hw_data->cc6_settings.cpu_cc6_disable ? 0x1 : 0x0)
+		data |= (hw_data->cc6_settings.cpu_cc6_disable ? 0x1 : 0x0)
 			<< PWRMGT_DISABLE_CPU_CSTATES_SHIFT;
 
-		data|= (hw_data->cc6_settings.cpu_pstate_disable ? 0x1 : 0x0)
+		data |= (hw_data->cc6_settings.cpu_pstate_disable ? 0x1 : 0x0)
 			<< PWRMGT_DISABLE_CPU_PSTATES_SHIFT;
 
 		PP_DBG_LOG("SetDisplaySizePowerParams data: 0x%X\n",
@@ -1648,9 +1648,9 @@ static void cz_hw_print_display_cfg(
 }
 
 
- static int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
+static int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 			bool cc6_disable, bool pstate_disable, bool pstate_switch_disable)
- {
+{
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 
 	if (separation_time !=
@@ -1678,20 +1678,19 @@ static void cz_hw_print_display_cfg(
 	return 0;
 }
 
- static int cz_get_dal_power_level(struct pp_hwmgr *hwmgr,
+static int cz_get_dal_power_level(struct pp_hwmgr *hwmgr,
 		struct amd_pp_simple_clock_info *info)
 {
 	uint32_t i;
 	const struct phm_clock_voltage_dependency_table *table =
 			hwmgr->dyn_state.vddc_dep_on_dal_pwrl;
-	const struct phm_clock_and_voltage_limits* limits =
+	const struct phm_clock_and_voltage_limits *limits =
 			&hwmgr->dyn_state.max_clock_voltage_on_ac;
 
 	info->engine_max_clock = limits->sclk;
 	info->memory_max_clock = limits->mclk;
 
 	for (i = table->count - 1; i > 0; i--) {
-
 		if (limits->vddc >= table->entries[i].v) {
 			info->level = table->entries[i].clk;
 			return 0;
@@ -1748,6 +1747,108 @@ static int cz_print_clock_levels(struct pp_hwmgr *hwmgr,
 	return size;
 }
 
+static int cz_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
+				PHM_PerformanceLevelDesignation designation, uint32_t index,
+				PHM_PerformanceLevel *level)
+{
+	const struct cz_power_state *ps;
+	struct cz_hwmgr *data;
+	uint32_t level_index;
+	uint32_t i;
+
+	if (level == NULL || hwmgr == NULL || state == NULL)
+		return -EINVAL;
+
+	data = (struct cz_hwmgr *)(hwmgr->backend);
+	ps = cast_const_PhwCzPowerState(state);
+	level->coreClock  = ps->levels[index].engineClock;
+	level_index = index > ps->level - 1 ? ps->level - 1 : index;
+
+	if (designation == PHM_PerformanceLevelDesignation_PowerContainment) {
+		for (i = 1; i < ps->level; i++) {
+			if (ps->levels[i].engineClock > data->dce_slow_sclk_threshold) {
+				level->coreClock = ps->levels[i].engineClock;
+				break;
+			}
+		}
+	}
+
+	if (index == 0)
+		level->memory_clock = data->sys_info.nbp_memory_clock[CZ_NUM_NBPMEMORYCLOCK - 1];
+	else
+		level->memory_clock = data->sys_info.nbp_memory_clock[0];
+
+	level->vddc = (cz_convert_8Bit_index_to_voltage(hwmgr, ps->levels[index].vddcIndex) + 2) / 4;
+	level->nonLocalMemoryFreq = 0;
+	level->nonLocalMemoryWidth = 0;
+
+	return 0;
+}
+
+static int cz_get_current_shallow_sleep_clocks(struct pp_hwmgr *hwmgr,
+	const struct pp_hw_power_state *state, struct pp_clock_info *clock_info)
+{
+	const struct cz_power_state *ps = cast_const_PhwCzPowerState(state);
+
+	clock_info->min_eng_clk = ps->levels[0].engineClock / (1 << (ps->levels[0].ssDividerIndex));
+	clock_info->max_eng_clk = ps->levels[ps->level - 1].engineClock / (1 << (ps->levels[ps->level - 1].ssDividerIndex));
+
+	return 0;
+}
+
+static int cz_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type,
+						struct amd_pp_clocks *clocks)
+{
+	struct cz_hwmgr *data = (struct cz_hwmgr *)(hwmgr->backend);
+	int i;
+	struct phm_clock_voltage_dependency_table *table;
+
+	clocks->count = cz_get_max_sclk_level(hwmgr);
+	switch (type) {
+	case amd_pp_disp_clock:
+		for (i = 0; i < clocks->count; i++)
+			clocks->clock[i] = data->sys_info.display_clock[i];
+		break;
+	case amd_pp_sys_clock:
+		table = hwmgr->dyn_state.vddc_dependency_on_sclk;
+		for (i = 0; i < clocks->count; i++)
+			clocks->clock[i] = table->entries[i].clk;
+		break;
+	case amd_pp_mem_clock:
+		clocks->count = CZ_NUM_NBPMEMORYCLOCK;
+		for (i = 0; i < clocks->count; i++)
+			clocks->clock[i] = data->sys_info.nbp_memory_clock[clocks->count - 1 - i];
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+static int cz_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks)
+{
+	struct phm_clock_voltage_dependency_table *table =
+					hwmgr->dyn_state.vddc_dependency_on_sclk;
+	unsigned long level;
+	const struct phm_clock_and_voltage_limits *limits =
+			&hwmgr->dyn_state.max_clock_voltage_on_ac;
+
+	if ((NULL == table) || (table->count <= 0) || (clocks == NULL))
+		return -EINVAL;
+
+	level = cz_get_max_sclk_level(hwmgr) - 1;
+
+	if (level < table->count)
+		clocks->engine_max_clock = table->entries[level].clk;
+	else
+		clocks->engine_max_clock = table->entries[table->count - 1].clk;
+
+	clocks->memory_max_clock = limits->mclk;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
 	.backend_fini = cz_hwmgr_backend_fini,
@@ -1766,10 +1867,13 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.print_current_perforce_level = cz_print_current_perforce_level,
 	.set_cpu_power_state = cz_set_cpu_power_state,
 	.store_cc6_data = cz_store_cc6_data,
-	.get_dal_power_level= cz_get_dal_power_level,
 	.force_clock_level = cz_force_clock_level,
 	.print_clock_levels = cz_print_clock_levels,
-
+	.get_dal_power_level = cz_get_dal_power_level,
+	.get_performance_level = cz_get_performance_level,
+	.get_current_shallow_sleep_clocks = cz_get_current_shallow_sleep_clocks,
+	.get_clock_by_type = cz_get_clock_by_type,
+	.get_max_high_clocks = cz_get_max_high_clocks,
 };
 
 int cz_hwmgr_init(struct pp_hwmgr *hwmgr)
