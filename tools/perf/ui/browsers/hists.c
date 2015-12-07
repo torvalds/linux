@@ -298,6 +298,9 @@ static bool hist_browser__toggle_fold(struct hist_browser *browser)
 	struct callchain_list *cl = container_of(ms, struct callchain_list, ms);
 	bool has_children;
 
+	if (!he || !ms)
+		return false;
+
 	if (ms == &he->ms)
 		has_children = hist_entry__toggle_fold(he);
 	else
