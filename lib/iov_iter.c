@@ -849,3 +849,4 @@ int import_single_range(int rw, void __user *buf, size_t len,
 	iov_iter_init(i, rw, iov, 1, len);
 	return 0;
 }
+EXPORT_SYMBOL(import_single_range);
