@@ -108,7 +108,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 	 * the interface bundle list locked here.
 	 */
 	if (gb_bundle_find(intf, bundle_id)) {
-		pr_err("duplicate bundle id %u\n", bundle_id);
+		dev_err(&intf->dev, "duplicate bundle id %u\n", bundle_id);
 		return NULL;
 	}
 
