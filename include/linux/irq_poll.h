@@ -7,9 +7,7 @@ typedef int (irq_poll_fn)(struct irq_poll *, int);
 struct irq_poll {
 	struct list_head list;
 	unsigned long state;
-	unsigned long data;
 	int weight;
-	int max;
 	irq_poll_fn *poll;
 };
 
