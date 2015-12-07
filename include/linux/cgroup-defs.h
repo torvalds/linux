@@ -225,6 +225,14 @@ struct cgroup {
 	int id;
 
 	/*
+	 * The depth this cgroup is at.  The root is at depth zero and each
+	 * step down the hierarchy increments the level.  This along with
+	 * ancestor_ids[] can determine whether a given cgroup is a
+	 * descendant of another without traversing the hierarchy.
+	 */
+	int level;
+
+	/*
 	 * Each non-empty css_set associated with this cgroup contributes
 	 * one to populated_cnt.  All children with non-zero popuplated_cnt
 	 * of their own contribute one.  The count is zero iff there's no
@@ -279,6 +287,9 @@ struct cgroup {
 
 	/* used to schedule release agent */
 	struct work_struct release_agent_work;
+
+	/* ids of the ancestors at each level including self */
+	int ancestor_ids[];
 };
 
 /*
@@ -297,6 +308,9 @@ struct cgroup_root {
 
 	/* The root cgroup.  Root is destroyed on its release. */
 	struct cgroup cgrp;
+
+	/* for cgrp->ancestor_ids[0] */
+	int cgrp_ancestor_id_storage;
 
 	/* Number of cgroups in the hierarchy, used only for /proc/cgroups */
 	atomic_t nr_cgrps;
