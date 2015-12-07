@@ -315,8 +315,9 @@ static u64 snbep_uncore_pci_read_counter(struct intel_uncore_box *box, struct pe
 static void snbep_uncore_pci_init_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
+	int box_ctl = uncore_pci_box_ctl(box);
 
-	pci_write_config_dword(pdev, SNBEP_PCI_PMON_BOX_CTL, SNBEP_PMON_BOX_CTL_INT);
+	pci_write_config_dword(pdev, box_ctl, SNBEP_PMON_BOX_CTL_INT);
 }
 
 static void snbep_uncore_msr_disable_box(struct intel_uncore_box *box)
