@@ -121,6 +121,19 @@ static int amdgpu_pp_early_init(void *handle)
 	return ret;
 }
 
+
+static int amdgpu_pp_late_init(void *handle)
+{
+	int ret = 0;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->powerplay.ip_funcs->late_init)
+		ret = adev->powerplay.ip_funcs->late_init(
+					adev->powerplay.pp_handle);
+
+	return ret;
+}
+
 static int amdgpu_pp_sw_init(void *handle)
 {
 	int ret = 0;
@@ -282,7 +295,7 @@ static void amdgpu_pp_print_status(void *handle)
 
 const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
 	.early_init = amdgpu_pp_early_init,
-	.late_init = NULL,
+	.late_init = amdgpu_pp_late_init,
 	.sw_init = amdgpu_pp_sw_init,
 	.sw_fini = amdgpu_pp_sw_fini,
 	.hw_init = amdgpu_pp_hw_init,
