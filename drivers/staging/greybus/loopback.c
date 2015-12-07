@@ -19,6 +19,7 @@
 #include <linux/kfifo.h>
 #include <linux/debugfs.h>
 #include <linux/list_sort.h>
+#include <linux/spinlock.h>
 
 #include <asm/div64.h>
 
@@ -39,7 +40,8 @@ struct gb_loopback_device {
 	u32 count;
 	size_t size_max;
 
-	struct mutex mutex;
+	/* We need to take a lock in atomic context */
+	spinlock_t lock;
 	struct list_head list;
 };
 
@@ -731,6 +733,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	struct gb_loopback *gb;
 	int retval;
 	char name[DEBUGFS_NAMELEN];
+	unsigned long flags;
 
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
 	if (!gb)
@@ -739,14 +742,13 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	init_waitqueue_head(&gb->wq);
 	gb_loopback_reset_stats(gb);
 
-	mutex_lock(&gb_dev.mutex);
 	if (!gb_dev.count) {
 		/* Calculate maximum payload */
 		gb_dev.size_max = gb_operation_get_payload_size_max(connection);
 		if (gb_dev.size_max <=
 			sizeof(struct gb_loopback_transfer_request)) {
 			retval = -EINVAL;
-			goto out_sysfs;
+			goto out_kzalloc;
 		}
 		gb_dev.size_max -= sizeof(struct gb_loopback_transfer_request);
 	}
@@ -783,10 +785,12 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		goto out_kfifo1;
 	}
 
+	spin_lock_irqsave(&gb_dev.lock, flags);
 	gb_loopback_insert_id(gb);
-	gb_connection_latency_tag_enable(connection);
 	gb_dev.count++;
-	mutex_unlock(&gb_dev.mutex);
+	spin_unlock_irqrestore(&gb_dev.lock, flags);
+
+	gb_connection_latency_tag_enable(connection);
 	return 0;
 
 out_kfifo1:
@@ -798,7 +802,7 @@ out_sysfs_conn:
 out_sysfs:
 	debugfs_remove(gb->file);
 	connection->bundle->private = NULL;
-	mutex_unlock(&gb_dev.mutex);
+out_kzalloc:
 	kfree(gb);
 
 	return retval;
@@ -807,22 +811,24 @@ out_sysfs:
 static void gb_loopback_connection_exit(struct gb_connection *connection)
 {
 	struct gb_loopback *gb = connection->bundle->private;
+	unsigned long flags;
 
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
-
-	mutex_lock(&gb_dev.mutex);
 
 	connection->bundle->private = NULL;
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
 	gb_connection_latency_tag_disable(connection);
-	gb_dev.count--;
 	sysfs_remove_groups(&connection->bundle->dev.kobj,
 			    loopback_groups);
 	debugfs_remove(gb->file);
+
+	spin_lock_irqsave(&gb_dev.lock, flags);
+	gb_dev.count--;
 	list_del(&gb->entry);
-	mutex_unlock(&gb_dev.mutex);
+	spin_unlock_irqrestore(&gb_dev.lock, flags);
+
 	kfree(gb);
 }
 
@@ -841,7 +847,7 @@ static int loopback_init(void)
 	int retval;
 
 	INIT_LIST_HEAD(&gb_dev.list);
-	mutex_init(&gb_dev.mutex);
+	spin_lock_init(&gb_dev.lock);
 	gb_dev.root = debugfs_create_dir("gb_loopback", NULL);
 
 	retval = gb_protocol_register(&loopback_protocol);
