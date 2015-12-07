@@ -1033,32 +1033,29 @@ static int bb_read(void *addr, u32 msk)
 	return (ioread32(addr) & msk) != 0;
 }
 
-/* Data I/O pin control */
-static void sh_mmd_ctrl(struct mdiobb_ctrl *ctrl, int bit)
+static void sh_mdio_ctrl(struct mdiobb_ctrl *ctrl, u32 mask, int set)
 {
 	struct bb_info *bitbang = container_of(ctrl, struct bb_info, ctrl);
 
 	if (bitbang->set_gate)
 		bitbang->set_gate(bitbang->addr);
 
-	if (bit)
-		bb_set(bitbang->addr, PIR_MMD);
+	if (set)
+		bb_set(bitbang->addr, mask);
 	else
-		bb_clr(bitbang->addr, PIR_MMD);
+		bb_clr(bitbang->addr, mask);
+}
+
+/* Data I/O pin control */
+static void sh_mmd_ctrl(struct mdiobb_ctrl *ctrl, int bit)
+{
+	sh_mdio_ctrl(ctrl, PIR_MMD, bit);
 }
 
 /* Set bit data*/
 static void sh_set_mdio(struct mdiobb_ctrl *ctrl, int bit)
 {
-	struct bb_info *bitbang = container_of(ctrl, struct bb_info, ctrl);
-
-	if (bitbang->set_gate)
-		bitbang->set_gate(bitbang->addr);
-
-	if (bit)
-		bb_set(bitbang->addr, PIR_MDO);
-	else
-		bb_clr(bitbang->addr, PIR_MDO);
+	sh_mdio_ctrl(ctrl, PIR_MDO, bit);
 }
 
 /* Get bit data*/
@@ -1075,15 +1072,7 @@ static int sh_get_mdio(struct mdiobb_ctrl *ctrl)
 /* MDC pin control */
 static void sh_mdc_ctrl(struct mdiobb_ctrl *ctrl, int bit)
 {
-	struct bb_info *bitbang = container_of(ctrl, struct bb_info, ctrl);
-
-	if (bitbang->set_gate)
-		bitbang->set_gate(bitbang->addr);
-
-	if (bit)
-		bb_set(bitbang->addr, PIR_MDC);
-	else
-		bb_clr(bitbang->addr, PIR_MDC);
+	sh_mdio_ctrl(ctrl, PIR_MDC, bit);
 }
 
 /* mdio bus control struct */
