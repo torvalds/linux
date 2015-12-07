@@ -92,8 +92,7 @@ static inline int xgpio_offset(struct xgpio_instance *chip, int gpio)
 static int xgpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct xgpio_instance *chip =
-	    container_of(mm_gc, struct xgpio_instance, mmchip);
+	struct xgpio_instance *chip = gpiochip_get_data(gc);
 	u32 val;
 
 	val = xgpio_readreg(mm_gc->regs + XGPIO_DATA_OFFSET +
@@ -115,8 +114,7 @@ static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	unsigned long flags;
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct xgpio_instance *chip =
-	    container_of(mm_gc, struct xgpio_instance, mmchip);
+	struct xgpio_instance *chip = gpiochip_get_data(gc);
 	int index =  xgpio_index(chip, gpio);
 	int offset =  xgpio_offset(chip, gpio);
 
@@ -147,8 +145,7 @@ static int xgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	unsigned long flags;
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct xgpio_instance *chip =
-	    container_of(mm_gc, struct xgpio_instance, mmchip);
+	struct xgpio_instance *chip = gpiochip_get_data(gc);
 	int index =  xgpio_index(chip, gpio);
 	int offset =  xgpio_offset(chip, gpio);
 
@@ -180,8 +177,7 @@ static int xgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	unsigned long flags;
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct xgpio_instance *chip =
-	    container_of(mm_gc, struct xgpio_instance, mmchip);
+	struct xgpio_instance *chip = gpiochip_get_data(gc);
 	int index =  xgpio_index(chip, gpio);
 	int offset =  xgpio_offset(chip, gpio);
 
@@ -211,8 +207,7 @@ static int xgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
  */
 static void xgpio_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct xgpio_instance *chip =
-	    container_of(mm_gc, struct xgpio_instance, mmchip);
+	struct xgpio_instance *chip = gpiochip_get_data(&mm_gc->gc);
 
 	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET,	chip->gpio_state[0]);
 	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET, chip->gpio_dir[0]);
@@ -314,7 +309,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	chip->mmchip.save_regs = xgpio_save_regs;
 
 	/* Call the OF gpio helper to setup and register the GPIO device */
-	status = of_mm_gpiochip_add(np, &chip->mmchip);
+	status = of_mm_gpiochip_add_data(np, &chip->mmchip, chip);
 	if (status) {
 		pr_err("%s: error in probe function with status %d\n",
 		       np->full_name, status);
