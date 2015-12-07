@@ -54,10 +54,10 @@ int mpls_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	unsigned int ttl;
 
 	/* Obtain the ttl */
-	if (skb->protocol == htons(ETH_P_IP)) {
+	if (dst->ops->family == AF_INET) {
 		ttl = ip_hdr(skb)->ttl;
 		rt = (struct rtable *)dst;
-	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+	} else if (dst->ops->family == AF_INET6) {
 		ttl = ipv6_hdr(skb)->hop_limit;
 		rt6 = (struct rt6_info *)dst;
 	} else {
