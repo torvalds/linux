@@ -919,8 +919,10 @@ static int dsa_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dst);
 
 	ret = dsa_setup_dst(dst, dev, &pdev->dev, pd);
-	if (ret)
+	if (ret) {
+		dev_put(dev);
 		goto out;
+	}
 
 	return 0;
 
@@ -940,6 +942,8 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 		if (ds)
 			dsa_switch_destroy(ds);
 	}
+
+	dev_put(dst->master_netdev);
 }
 
 static int dsa_remove(struct platform_device *pdev)
