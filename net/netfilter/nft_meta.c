@@ -174,7 +174,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		sk = skb_to_full_sk(skb);
 		if (!sk || !sk_fullsock(sk))
 			goto err;
-		*dest = sk->sk_classid;
+		*dest = sock_cgroup_classid(&sk->sk_cgrp_data);
 		break;
 #endif
 	default:

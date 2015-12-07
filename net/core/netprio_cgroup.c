@@ -223,7 +223,8 @@ static int update_netprio(const void *v, struct file *file, unsigned n)
 	int err;
 	struct socket *sock = sock_from_file(file, &err);
 	if (sock)
-		sock->sk->sk_cgrp_prioidx = (u32)(unsigned long)v;
+		sock_cgroup_set_prioidx(&sock->sk->sk_cgrp_data,
+					(unsigned long)v);
 	return 0;
 }
 
