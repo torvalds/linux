@@ -84,8 +84,7 @@ Throttling/Upper Limit policy
 
 - Run dd to read a file and see if rate is throttled to 1MB/s or not.
 
-		# dd if=/mnt/common/zerofile of=/dev/null bs=4K count=1024
-		# iflag=direct
+        # dd iflag=direct if=/mnt/common/zerofile of=/dev/null bs=4K count=1024
         1024+0 records in
         1024+0 records out
         4194304 bytes (4.2 MB) copied, 4.0001 s, 1.0 MB/s
