@@ -179,7 +179,7 @@ static int msic_irq_type(struct irq_data *data, unsigned type)
 
 static int msic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct msic_gpio *mg = container_of(chip, struct msic_gpio, chip);
+	struct msic_gpio *mg = gpiochip_get_data(chip);
 	return mg->irq_base + offset;
 }
 
@@ -297,7 +297,7 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 
 	mutex_init(&mg->buslock);
 
-	retval = gpiochip_add(&mg->chip);
+	retval = gpiochip_add_data(&mg->chip, mg);
 	if (retval) {
 		dev_err(dev, "Adding MSIC gpio chip failed\n");
 		goto err;
