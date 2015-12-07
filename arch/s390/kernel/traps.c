@@ -260,10 +260,7 @@ void vector_exception(struct pt_regs *regs)
 
 void data_exception(struct pt_regs *regs)
 {
-	__u16 __user *location;
 	int signal = 0;
-
-	location = get_trap_ip(regs);
 
 	save_fpu_regs();
 	if (current->thread.fpu.fpc & FPC_DXC_MASK)
