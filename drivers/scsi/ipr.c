@@ -5692,8 +5692,7 @@ static irqreturn_t ipr_isr_mhrrq(int irq, void *devp)
 	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
 		if ((be32_to_cpu(*hrrq->hrrq_curr) & IPR_HRRQ_TOGGLE_BIT) ==
 		       hrrq->toggle_bit) {
-			if (!irq_poll_sched_prep(&hrrq->iopoll))
-				irq_poll_sched(&hrrq->iopoll);
+			irq_poll_sched(&hrrq->iopoll);
 			spin_unlock_irqrestore(hrrq->lock, hrrq_flags);
 			return IRQ_HANDLED;
 		}

@@ -910,8 +910,7 @@ static irqreturn_t be_isr_msix(int irq, void *dev_id)
 	num_eq_processed = 0;
 	while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32]
 				& EQE_VALID_MASK) {
-		if (!irq_poll_sched_prep(&pbe_eq->iopoll))
-			irq_poll_sched(&pbe_eq->iopoll);
+		irq_poll_sched(&pbe_eq->iopoll);
 
 		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
 		queue_tail_inc(eq);
@@ -972,8 +971,7 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 			spin_unlock_irqrestore(&phba->isr_lock, flags);
 			num_mcceq_processed++;
 		} else {
-			if (!irq_poll_sched_prep(&pbe_eq->iopoll))
-				irq_poll_sched(&pbe_eq->iopoll);
+			irq_poll_sched(&pbe_eq->iopoll);
 			num_ioeq_processed++;
 		}
 		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);

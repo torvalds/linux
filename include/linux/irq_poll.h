@@ -18,19 +18,6 @@ enum {
 	IRQ_POLL_F_DISABLE	= 1,
 };
 
-/*
- * Returns 0 if we successfully set the IRQ_POLL_F_SCHED bit, indicating
- * that we were the first to acquire this iop for scheduling. If this iop
- * is currently disabled, return "failure".
- */
-static inline int irq_poll_sched_prep(struct irq_poll *iop)
-{
-	if (!test_bit(IRQ_POLL_F_DISABLE, &iop->state))
-		return test_and_set_bit(IRQ_POLL_F_SCHED, &iop->state);
-
-	return 1;
-}
-
 static inline int irq_poll_disable_pending(struct irq_poll *iop)
 {
 	return test_bit(IRQ_POLL_F_DISABLE, &iop->state);

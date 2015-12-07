@@ -21,12 +21,16 @@ static DEFINE_PER_CPU(struct list_head, blk_cpu_iopoll);
  *
  * Description:
  *     Add this irq_poll structure to the pending poll list and trigger the
- *     raise of the blk iopoll softirq. The driver must already have gotten a
- *     successful return from irq_poll_sched_prep() before calling this.
+ *     raise of the blk iopoll softirq.
  **/
 void irq_poll_sched(struct irq_poll *iop)
 {
 	unsigned long flags;
+
+	if (test_bit(IRQ_POLL_F_DISABLE, &iop->state))
+		return;
+	if (!test_and_set_bit(IRQ_POLL_F_SCHED, &iop->state))
+		return;
 
 	local_irq_save(flags);
 	list_add_tail(&iop->list, this_cpu_ptr(&blk_cpu_iopoll));
@@ -58,7 +62,7 @@ EXPORT_SYMBOL(__irq_poll_complete);
  * Description:
  *     If a driver consumes less than the assigned budget in its run of the
  *     iopoll handler, it'll end the polled mode by calling this function. The
- *     iopoll handler will not be invoked again before irq_poll_sched_prep()
+ *     iopoll handler will not be invoked again before irq_poll_sched()
  *     is called.
  **/
 void irq_poll_complete(struct irq_poll *iop)
