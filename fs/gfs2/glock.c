@@ -572,6 +572,12 @@ static void delete_work_func(struct work_struct *work)
 	struct inode *inode;
 	u64 no_addr = gl->gl_name.ln_number;
 
+	/* If someone's using this glock to create a new dinode, the block must
+	   have been freed by another node, then re-used, in which case our
+	   iopen callback is too late after the fact. Ignore it. */
+	if (test_bit(GLF_INODE_CREATING, &gl->gl_flags))
+		goto out;
+
 	ip = gl->gl_object;
 	/* Note: Unsafe to dereference ip as we don't hold right refs/locks */
 
@@ -583,6 +589,7 @@ static void delete_work_func(struct work_struct *work)
 		d_prune_aliases(inode);
 		iput(inode);
 	}
+out:
 	gfs2_glock_put(gl);
 }
 
