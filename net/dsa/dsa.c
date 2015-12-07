@@ -456,8 +456,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 		if (!ds->ports[port])
 			continue;
 
-		unregister_netdev(ds->ports[port]);
-		free_netdev(ds->ports[port]);
+		dsa_slave_destroy(ds->ports[port]);
 	}
 
 	mdiobus_unregister(ds->slave_mii_bus);
@@ -507,33 +506,6 @@ static int dsa_switch_resume(struct dsa_switch *ds)
 	return 0;
 }
 #endif
-
-
-/* link polling *************************************************************/
-static void dsa_link_poll_work(struct work_struct *ugly)
-{
-	struct dsa_switch_tree *dst;
-	int i;
-
-	dst = container_of(ugly, struct dsa_switch_tree, link_poll_work);
-
-	for (i = 0; i < dst->pd->nr_chips; i++) {
-		struct dsa_switch *ds = dst->ds[i];
-
-		if (ds != NULL && ds->drv->poll_link != NULL)
-			ds->drv->poll_link(ds);
-	}
-
-	mod_timer(&dst->link_poll_timer, round_jiffies(jiffies + HZ));
-}
-
-static void dsa_link_poll_timer(unsigned long _dst)
-{
-	struct dsa_switch_tree *dst = (void *)_dst;
-
-	schedule_work(&dst->link_poll_work);
-}
-
 
 /* platform driver init and cleanup *****************************************/
 static int dev_is_class(struct device *dev, void *class)
@@ -877,8 +849,6 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 		}
 
 		dst->ds[i] = ds;
-		if (ds->drv->poll_link != NULL)
-			dst->link_poll_needed = 1;
 
 		++configured;
 	}
@@ -896,15 +866,6 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	 */
 	wmb();
 	dev->dsa_ptr = (void *)dst;
-
-	if (dst->link_poll_needed) {
-		INIT_WORK(&dst->link_poll_work, dsa_link_poll_work);
-		init_timer(&dst->link_poll_timer);
-		dst->link_poll_timer.data = (unsigned long)dst;
-		dst->link_poll_timer.function = dsa_link_poll_timer;
-		dst->link_poll_timer.expires = round_jiffies(jiffies + HZ);
-		add_timer(&dst->link_poll_timer);
-	}
 
 	return 0;
 }
@@ -957,8 +918,10 @@ static int dsa_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dst);
 
 	ret = dsa_setup_dst(dst, dev, &pdev->dev, pd);
-	if (ret)
+	if (ret) {
+		dev_put(dev);
 		goto out;
+	}
 
 	return 0;
 
@@ -972,17 +935,14 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 {
 	int i;
 
-	if (dst->link_poll_needed)
-		del_timer_sync(&dst->link_poll_timer);
-
-	flush_work(&dst->link_poll_work);
-
 	for (i = 0; i < dst->pd->nr_chips; i++) {
 		struct dsa_switch *ds = dst->ds[i];
 
 		if (ds)
 			dsa_switch_destroy(ds);
 	}
+
+	dev_put(dst->master_netdev);
 }
 
 static int dsa_remove(struct platform_device *pdev)
@@ -1027,6 +987,14 @@ static int dsa_suspend(struct device *d)
 	struct platform_device *pdev = to_platform_device(d);
 	struct dsa_switch_tree *dst = platform_get_drvdata(pdev);
 	int i, ret = 0;
+
+	dst->master_netdev->dsa_ptr = NULL;
+
+	/* If we used a tagging format that doesn't have an ethertype
+	 * field, make sure that all packets from this point get sent
+	 * without the tag and go through the regular receive path.
+	 */
+	wmb();
 
 	for (i = 0; i < dst->pd->nr_chips; i++) {
 		struct dsa_switch *ds = dst->ds[i];
