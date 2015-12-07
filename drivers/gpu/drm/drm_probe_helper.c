@@ -168,10 +168,11 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 	 * check here, and if anything changed start the hotplug code.
 	 */
 	if (old_status != connector->status) {
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
 			      connector->name,
-			      old_status, connector->status);
+			      drm_get_connector_status_name(old_status),
+			      drm_get_connector_status_name(connector->status));
 
 		/*
 		 * The hotplug event code might call into the fb
