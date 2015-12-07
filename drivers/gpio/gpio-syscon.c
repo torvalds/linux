@@ -59,14 +59,9 @@ struct syscon_gpio_priv {
 	u32				dir_reg_offset;
 };
 
-static inline struct syscon_gpio_priv *to_syscon_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct syscon_gpio_priv, chip);
-}
-
 static int syscon_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+	struct syscon_gpio_priv *priv = gpiochip_get_data(chip);
 	unsigned int val, offs;
 	int ret;
 
@@ -82,7 +77,7 @@ static int syscon_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void syscon_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+	struct syscon_gpio_priv *priv = gpiochip_get_data(chip);
 	unsigned int offs;
 
 	offs = priv->dreg_offset + priv->data->dat_bit_offset + offset;
@@ -95,7 +90,7 @@ static void syscon_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 
 static int syscon_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+	struct syscon_gpio_priv *priv = gpiochip_get_data(chip);
 
 	if (priv->data->flags & GPIO_SYSCON_FEAT_DIR) {
 		unsigned int offs;
@@ -113,7 +108,7 @@ static int syscon_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
 
 static int syscon_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+	struct syscon_gpio_priv *priv = gpiochip_get_data(chip);
 
 	if (priv->data->flags & GPIO_SYSCON_FEAT_DIR) {
 		unsigned int offs;
@@ -144,7 +139,7 @@ static const struct syscon_gpio_data clps711x_mctrl_gpio = {
 
 static void keystone_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct syscon_gpio_priv *priv = to_syscon_gpio(chip);
+	struct syscon_gpio_priv *priv = gpiochip_get_data(chip);
 	unsigned int offs;
 	int ret;
 
@@ -243,7 +238,7 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	return gpiochip_add(&priv->chip);
+	return gpiochip_add_data(&priv->chip, priv);
 }
 
 static int syscon_gpio_remove(struct platform_device *pdev)
