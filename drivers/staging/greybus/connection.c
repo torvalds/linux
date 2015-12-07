@@ -437,7 +437,7 @@ err_unbind_protocol:
 	return ret;
 }
 
-static void gb_connection_exit(struct gb_connection *connection)
+void gb_connection_exit(struct gb_connection *connection)
 {
 	spin_lock_irq(&connection->lock);
 	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
