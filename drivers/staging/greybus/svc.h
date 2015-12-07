@@ -30,6 +30,11 @@ struct gb_svc {
 };
 #define to_gb_svc(d) container_of(d, struct gb_svc, d)
 
+struct gb_svc *gb_svc_create(struct gb_host_device *hd);
+int gb_svc_add(struct gb_svc *svc);
+void gb_svc_del(struct gb_svc *svc);
+void gb_svc_put(struct gb_svc *svc);
+
 int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id);
 int gb_svc_connection_create(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			     u8 intf2_id, u16 cport2_id, bool boot_over_unipro);

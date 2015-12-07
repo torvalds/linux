@@ -661,6 +661,8 @@ static void gb_svc_release(struct device *dev)
 {
 	struct gb_svc *svc = to_gb_svc(dev);
 
+	if (svc->connection)
+		gb_connection_destroy(svc->connection);
 	ida_destroy(&svc->device_id_map);
 	destroy_workqueue(svc->wq);
 	kfree(svc);
@@ -671,19 +673,18 @@ struct device_type greybus_svc_type = {
 	.release	= gb_svc_release,
 };
 
-static int gb_svc_connection_init(struct gb_connection *connection)
+struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 {
-	struct gb_host_device *hd = connection->hd;
 	struct gb_svc *svc;
 
 	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
 	if (!svc)
-		return -ENOMEM;
+		return NULL;
 
 	svc->wq = alloc_workqueue("%s:svc", WQ_UNBOUND, 1, dev_name(&hd->dev));
 	if (!svc->wq) {
 		kfree(svc);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	svc->dev.parent = &hd->dev;
@@ -697,11 +698,60 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 
 	ida_init(&svc->device_id_map);
 	svc->state = GB_SVC_STATE_RESET;
-	svc->connection = connection;
 	svc->hd = hd;
-	connection->private = svc;
 
-	hd->svc = svc;
+	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
+							GREYBUS_PROTOCOL_SVC);
+	if (!svc->connection) {
+		dev_err(&svc->dev, "failed to create connection\n");
+		put_device(&svc->dev);
+		return NULL;
+	}
+
+	svc->connection->private = svc;
+
+	return svc;
+}
+
+int gb_svc_add(struct gb_svc *svc)
+{
+	int ret;
+
+	/*
+	 * The SVC protocol is currently driven by the SVC, so the SVC device
+	 * is added from the connection request handler when enough
+	 * information has been received.
+	 */
+	ret = gb_connection_init(svc->connection);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+void gb_svc_del(struct gb_svc *svc)
+{
+	/*
+	 * The SVC device may have been registered from the request handler.
+	 */
+	if (device_is_registered(&svc->dev))
+		device_del(&svc->dev);
+
+	gb_connection_exit(svc->connection);
+
+	flush_workqueue(svc->wq);
+}
+
+void gb_svc_put(struct gb_svc *svc)
+{
+	put_device(&svc->dev);
+}
+
+static int gb_svc_connection_init(struct gb_connection *connection)
+{
+	struct gb_svc *svc = connection->private;
+
+	dev_dbg(&svc->dev, "%s\n", __func__);
 
 	return 0;
 }
@@ -710,15 +760,7 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
 
-	if (device_is_registered(&svc->dev))
-		device_del(&svc->dev);
-
-	flush_workqueue(svc->wq);
-
-	connection->hd->svc = NULL;
-	connection->private = NULL;
-
-	put_device(&svc->dev);
+	dev_dbg(&svc->dev, "%s\n", __func__);
 }
 
 static struct gb_protocol svc_protocol = {

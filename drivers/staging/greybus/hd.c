@@ -21,8 +21,8 @@ static void gb_hd_release(struct device *dev)
 {
 	struct gb_host_device *hd = to_gb_host_device(dev);
 
-	if (hd->svc_connection)
-		gb_connection_destroy(hd->svc_connection);
+	if (hd->svc)
+		gb_svc_put(hd->svc);
 	ida_simple_remove(&gb_hd_bus_id_map, hd->bus_id);
 	ida_destroy(&hd->cport_id_map);
 	kfree(hd);
@@ -95,10 +95,9 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	device_initialize(&hd->dev);
 	dev_set_name(&hd->dev, "greybus%d", hd->bus_id);
 
-	hd->svc_connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
-							GREYBUS_PROTOCOL_SVC);
-	if (!hd->svc_connection) {
-		dev_err(&hd->dev, "failed to create svc connection\n");
+	hd->svc = gb_svc_create(hd);
+	if (!hd->svc) {
+		dev_err(&hd->dev, "failed to create svc\n");
 		put_device(&hd->dev);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -115,7 +114,7 @@ int gb_hd_add(struct gb_host_device *hd)
 	if (ret)
 		return ret;
 
-	ret = gb_connection_init(hd->svc_connection);
+	ret = gb_svc_add(hd->svc);
 	if (ret) {
 		device_del(&hd->dev);
 		return ret;
@@ -129,7 +128,7 @@ void gb_hd_del(struct gb_host_device *hd)
 {
 	gb_interfaces_remove(hd);
 
-	gb_connection_exit(hd->svc_connection);
+	gb_svc_del(hd->svc);
 
 	device_del(&hd->dev);
 }
