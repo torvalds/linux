@@ -18,11 +18,6 @@ enum {
 	IRQ_POLL_F_DISABLE	= 1,
 };
 
-static inline int irq_poll_disable_pending(struct irq_poll *iop)
-{
-	return test_bit(IRQ_POLL_F_DISABLE, &iop->state);
-}
-
 extern void irq_poll_sched(struct irq_poll *);
 extern void irq_poll_init(struct irq_poll *, int, irq_poll_fn *);
 extern void irq_poll_complete(struct irq_poll *);

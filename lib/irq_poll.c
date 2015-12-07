@@ -122,7 +122,7 @@ static void irq_poll_softirq(struct softirq_action *h)
 		 * move the instance around on the list at-will.
 		 */
 		if (work >= weight) {
-			if (irq_poll_disable_pending(iop))
+			if (test_bit(IRQ_POLL_F_DISABLE, &iop->state))
 				__irq_poll_complete(iop);
 			else
 				list_move_tail(&iop->list, list);
