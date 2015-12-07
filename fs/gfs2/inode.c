@@ -191,7 +191,8 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 fail_refresh:
 	ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 	ip->i_iopen_gh.gh_gl->gl_object = NULL;
-	gfs2_glock_dq_uninit(&ip->i_iopen_gh);
+	gfs2_glock_dq_wait(&ip->i_iopen_gh);
+	gfs2_holder_uninit(&ip->i_iopen_gh);
 fail_iopen:
 	if (io_gl)
 		gfs2_glock_put(io_gl);
