@@ -1148,6 +1148,8 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	case CHIP_TOPAZ:
 	case CHIP_TONGA:
 	case CHIP_FIJI:
+	case CHIP_BAFFIN:
+	case CHIP_ELLESMERE:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		if (adev->asic_type == CHIP_CARRIZO || adev->asic_type == CHIP_STONEY)

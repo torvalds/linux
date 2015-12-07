@@ -276,6 +276,8 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 						 stoney_mgcg_cgcg_init,
 						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
 		break;
+	case CHIP_BAFFIN:
+	case CHIP_ELLESMERE:
 	default:
 		break;
 	}
@@ -537,6 +539,8 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 		break;
 	case CHIP_FIJI:
 	case CHIP_TONGA:
+	case CHIP_BAFFIN:
+	case CHIP_ELLESMERE:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		asic_register_table = cz_allowed_read_registers;
@@ -907,6 +911,74 @@ static const struct amdgpu_ip_block_version fiji_ip_blocks[] =
 	},
 };
 
+static const struct amdgpu_ip_block_version baffin_ip_blocks[] =
+{
+	/* ORDER MATTERS! */
+	{
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
+		.major = 2,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &vi_common_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_GMC,
+		.major = 8,
+		.minor = 1,
+		.rev = 0,
+		.funcs = &gmc_v8_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_IH,
+		.major = 3,
+		.minor = 1,
+		.rev = 0,
+		.funcs = &tonga_ih_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_SMC,
+		.major = 7,
+		.minor = 2,
+		.rev = 0,
+		.funcs = &amdgpu_pp_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_DCE,
+		.major = 11,
+		.minor = 2,
+		.rev = 0,
+		.funcs = &dce_v11_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_GFX,
+		.major = 8,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &gfx_v8_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
+		.major = 3,
+		.minor = 1,
+		.rev = 0,
+		.funcs = &sdma_v3_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 6,
+		.minor = 3,
+		.rev = 0,
+		.funcs = &uvd_v6_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_VCE,
+		.major = 3,
+		.minor = 4,
+		.rev = 0,
+		.funcs = &vce_v3_0_ip_funcs,
+	},
+};
+
 static const struct amdgpu_ip_block_version cz_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
@@ -998,6 +1070,11 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 	case CHIP_TONGA:
 		adev->ip_blocks = tonga_ip_blocks;
 		adev->num_ip_blocks = ARRAY_SIZE(tonga_ip_blocks);
+		break;
+	case CHIP_BAFFIN:
+	case CHIP_ELLESMERE:
+		adev->ip_blocks = baffin_ip_blocks;
+		adev->num_ip_blocks = ARRAY_SIZE(baffin_ip_blocks);
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
@@ -1099,6 +1176,16 @@ static int vi_common_early_init(void *handle)
 		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x14;
+		break;
+	case CHIP_BAFFIN:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x5A;
+		break;
+	case CHIP_ELLESMERE:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
 	case CHIP_CARRIZO:
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
