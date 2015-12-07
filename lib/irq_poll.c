@@ -47,13 +47,12 @@ EXPORT_SYMBOL(irq_poll_sched);
  *     See irq_poll_complete(). This function must be called with interrupts
  *     disabled.
  **/
-void __irq_poll_complete(struct irq_poll *iop)
+static void __irq_poll_complete(struct irq_poll *iop)
 {
 	list_del(&iop->list);
 	smp_mb__before_atomic();
 	clear_bit_unlock(IRQ_POLL_F_SCHED, &iop->state);
 }
-EXPORT_SYMBOL(__irq_poll_complete);
 
 /**
  * irq_poll_complete - Mark this @iop as un-polled again
