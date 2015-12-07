@@ -155,14 +155,15 @@ static struct pxa_gpio_id pxa1928_id = {
 
 static inline struct pxa_gpio_chip *chip_to_pxachip(struct gpio_chip *c)
 {
-	struct pxa_gpio_chip *pxa_chip =
-		container_of(c, struct pxa_gpio_chip, chip);
+	struct pxa_gpio_chip *pxa_chip = gpiochip_get_data(c);
 
 	return pxa_chip;
 }
+
 static inline void __iomem *gpio_bank_base(struct gpio_chip *c, int gpio)
 {
-	struct pxa_gpio_bank *bank = chip_to_pxachip(c)->banks + (gpio / 32);
+	struct pxa_gpio_chip *p = gpiochip_get_data(c);
+	struct pxa_gpio_bank *bank = p->banks + (gpio / 32);
 
 	return bank->regbase;
 }
@@ -370,7 +371,7 @@ static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
 		bank->regbase = regbase + BANK_OFF(i);
 	}
 
-	return gpiochip_add(&pchip->chip);
+	return gpiochip_add_data(&pchip->chip, pchip);
 }
 
 /* Update only those GRERx and GFERx edge detection register bits if those
