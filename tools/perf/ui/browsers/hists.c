@@ -1033,6 +1033,9 @@ static void ui_browser__hists_seek(struct ui_browser *browser,
 	 * and stop when we printed enough lines to fill the screen.
 	 */
 do_offset:
+	if (!nd)
+		return;
+
 	if (offset > 0) {
 		do {
 			h = rb_entry(nd, struct hist_entry, rb_node);
