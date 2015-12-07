@@ -1,5 +1,5 @@
-#ifndef RK3228_LCDC_H_
-#define RK3228_LCDC_H_
+#ifndef RK322X_LCDC_H_
+#define RK322X_LCDC_H_
 
 #include<linux/rk_fb.h>
 #include<linux/io.h>

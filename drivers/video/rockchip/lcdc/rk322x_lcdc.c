@@ -1,5 +1,5 @@
 /*
- * drivers/video/rockchip/lcdc/rk3228_lcdc.c
+ * drivers/video/rockchip/lcdc/rk322x_lcdc.c
  *
  * Copyright (C) 2015 ROCKCHIP, Inc.
  * Author: Mark Yao <mark.yao@rock-chips.com>
@@ -35,7 +35,7 @@
 #include <linux/rockchip/common.h>
 #include <dt-bindings/clock/rk_system_status.h>
 
-#include "rk3228_lcdc.h"
+#include "rk322x_lcdc.h"
 
 /*#define CONFIG_RK_FPGA 1*/
 
@@ -3554,7 +3554,7 @@ static void vop_shutdown(struct platform_device *pdev)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id vop_dt_ids[] = {
-	{.compatible = "rockchip,rk3228-lcdc",},
+	{.compatible = "rockchip,rk322x-lcdc",},
 	{}
 };
 #endif
@@ -3563,7 +3563,7 @@ static struct platform_driver vop_driver = {
 	.probe = vop_probe,
 	.remove = vop_remove,
 	.driver = {
-		   .name = "rk3228-lcdc",
+		   .name = "rk322x-lcdc",
 		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(vop_dt_ids),
 		   },

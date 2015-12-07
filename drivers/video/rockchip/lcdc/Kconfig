@@ -51,8 +51,8 @@ config LCDC_RK3368
 	help
 	  Driver for rk3368 lcdc.There are one lcd controllers on rk3368
 
-config LCDC_RK3228
-	bool "rk3228 lcdc support"
+config LCDC_RK322X
+	bool "rk322x lcdc support"
 	depends on FB_ROCKCHIP
 	help
-	  Driver for rk3228 lcdc.There are one lcd controllers on rk3228
+	  Driver for rk322x lcdc.There are one lcd controllers on rk322x
