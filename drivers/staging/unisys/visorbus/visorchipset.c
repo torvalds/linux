@@ -537,8 +537,8 @@ static ssize_t toolaction_show(struct device *dev,
 	u8 tool_action;
 
 	visorchannel_read(controlvm_channel,
-		offsetof(struct spar_controlvm_channel_protocol,
-			 tool_action), &tool_action, sizeof(u8));
+			  offsetof(struct spar_controlvm_channel_protocol,
+				   tool_action), &tool_action, sizeof(u8));
 	return scnprintf(buf, PAGE_SIZE, "%u\n", tool_action);
 }
 
