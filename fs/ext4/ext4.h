@@ -555,10 +555,8 @@ enum {
 #define EXT4_GET_BLOCKS_NO_NORMALIZE		0x0040
 	/* Request will not result in inode size update (user for fallocate) */
 #define EXT4_GET_BLOCKS_KEEP_SIZE		0x0080
-	/* Do not take i_data_sem locking in ext4_map_blocks */
-#define EXT4_GET_BLOCKS_NO_LOCK			0x0100
 	/* Convert written extents to unwritten */
-#define EXT4_GET_BLOCKS_CONVERT_UNWRITTEN	0x0200
+#define EXT4_GET_BLOCKS_CONVERT_UNWRITTEN	0x0100
 
 /*
  * The bit position of these flags must not overlap with any of the
