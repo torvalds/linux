@@ -4673,8 +4673,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	/* 2b: Program RC6 thresholds.*/
 
 	/* WaRsDoubleRc6WrlWithCoarsePowerGating: Doubling WRL only when CPG is enabled */
-	if (IS_SKYLAKE(dev) && !((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) &&
-				 IS_SKL_REVID(dev, 0, SKL_REVID_E0)))
+	if (IS_SKYLAKE(dev))
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 108 << 16);
 	else
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16);
