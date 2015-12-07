@@ -88,8 +88,7 @@ static int vprbrd_gpioa_get(struct gpio_chip *chip,
 		unsigned offset)
 {
 	int ret, answer, error = 0;
-	struct vprbrd_gpio *gpio =
-			container_of(chip, struct vprbrd_gpio, gpioa);
+	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 	struct vprbrd_gpioa_msg *gamsg = (struct vprbrd_gpioa_msg *)vb->buf;
 
@@ -139,8 +138,7 @@ static void vprbrd_gpioa_set(struct gpio_chip *chip,
 		unsigned offset, int value)
 {
 	int ret;
-	struct vprbrd_gpio *gpio =
-			container_of(chip, struct vprbrd_gpio, gpioa);
+	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 	struct vprbrd_gpioa_msg *gamsg = (struct vprbrd_gpioa_msg *)vb->buf;
 
@@ -181,8 +179,7 @@ static int vprbrd_gpioa_direction_input(struct gpio_chip *chip,
 			unsigned offset)
 {
 	int ret;
-	struct vprbrd_gpio *gpio =
-			container_of(chip, struct vprbrd_gpio, gpioa);
+	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 	struct vprbrd_gpioa_msg *gamsg = (struct vprbrd_gpioa_msg *)vb->buf;
 
@@ -219,8 +216,7 @@ static int vprbrd_gpioa_direction_output(struct gpio_chip *chip,
 			unsigned offset, int value)
 {
 	int ret;
-	struct vprbrd_gpio *gpio =
-			container_of(chip, struct vprbrd_gpio, gpioa);
+	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 	struct vprbrd_gpioa_msg *gamsg = (struct vprbrd_gpioa_msg *)vb->buf;
 
@@ -287,8 +283,7 @@ static int vprbrd_gpiob_get(struct gpio_chip *chip,
 {
 	int ret;
 	u16 val;
-	struct vprbrd_gpio *gpio =
-			container_of(chip, struct vprbrd_gpio, gpiob);
+	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 	struct vprbrd_gpiob_msg *gbmsg = (struct vprbrd_gpiob_msg *)vb->buf;
 
@@ -319,8 +314,7 @@ static void vprbrd_gpiob_set(struct gpio_chip *chip,
 		unsigned offset, int value)
 {
 	int ret;
-	struct vprbrd_gpio *gpio =
-			container_of(chip, struct vprbrd_gpio, gpiob);
+	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 	struct vprbrd_gpiob_msg *gbmsg = (struct vprbrd_gpiob_msg *)vb->buf;
 
@@ -353,8 +347,7 @@ static int vprbrd_gpiob_direction_input(struct gpio_chip *chip,
 			unsigned offset)
 {
 	int ret;
-	struct vprbrd_gpio *gpio =
-			container_of(chip, struct vprbrd_gpio, gpiob);
+	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 
 	gpio->gpiob_out &= ~(1 << offset);
@@ -375,8 +368,7 @@ static int vprbrd_gpiob_direction_output(struct gpio_chip *chip,
 			unsigned offset, int value)
 {
 	int ret;
-	struct vprbrd_gpio *gpio =
-			container_of(chip, struct vprbrd_gpio, gpiob);
+	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
 	struct vprbrd *vb = gpio->vb;
 
 	gpio->gpiob_out |= (1 << offset);
@@ -418,7 +410,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	vb_gpio->gpioa.get = vprbrd_gpioa_get;
 	vb_gpio->gpioa.direction_input = vprbrd_gpioa_direction_input;
 	vb_gpio->gpioa.direction_output = vprbrd_gpioa_direction_output;
-	ret = gpiochip_add(&vb_gpio->gpioa);
+	ret = gpiochip_add_data(&vb_gpio->gpioa, vb_gpio);
 	if (ret < 0) {
 		dev_err(vb_gpio->gpioa.parent, "could not add gpio a");
 		goto err_gpioa;
@@ -435,7 +427,7 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	vb_gpio->gpiob.get = vprbrd_gpiob_get;
 	vb_gpio->gpiob.direction_input = vprbrd_gpiob_direction_input;
 	vb_gpio->gpiob.direction_output = vprbrd_gpiob_direction_output;
-	ret = gpiochip_add(&vb_gpio->gpiob);
+	ret = gpiochip_add_data(&vb_gpio->gpiob, vb_gpio);
 	if (ret < 0) {
 		dev_err(vb_gpio->gpiob.parent, "could not add gpio b");
 		goto err_gpiob;
