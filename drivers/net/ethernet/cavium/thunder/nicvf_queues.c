@@ -18,14 +18,6 @@
 #include "q_struct.h"
 #include "nicvf_queues.h"
 
-struct rbuf_info {
-	struct page *page;
-	void	*data;
-	u64	offset;
-};
-
-#define GET_RBUF_INFO(x) ((struct rbuf_info *)(x - NICVF_RCV_BUF_ALIGN_BYTES))
-
 /* Poll a register for a specific value */
 static int nicvf_poll_reg(struct nicvf *nic, int qidx,
 			  u64 reg, int bit_pos, int bits, int val)
@@ -86,8 +78,6 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 					 u32 buf_len, u64 **rbuf)
 {
-	u64 data;
-	struct rbuf_info *rinfo;
 	int order = get_order(buf_len);
 
 	/* Check if request can be accomodated in previous allocated page */
@@ -113,46 +103,28 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 		nic->rb_page_offset = 0;
 	}
 
-	data = (u64)page_address(nic->rb_page) + nic->rb_page_offset;
+	*rbuf = (u64 *)((u64)page_address(nic->rb_page) + nic->rb_page_offset);
 
-	/* Align buffer addr to cache line i.e 128 bytes */
-	rinfo = (struct rbuf_info *)(data + NICVF_RCV_BUF_ALIGN_LEN(data));
-	/* Save page address for reference updation */
-	rinfo->page = nic->rb_page;
-	/* Store start address for later retrieval */
-	rinfo->data = (void *)data;
-	/* Store alignment offset */
-	rinfo->offset = NICVF_RCV_BUF_ALIGN_LEN(data);
-
-	data += rinfo->offset;
-
-	/* Give next aligned address to hw for DMA */
-	*rbuf = (u64 *)(data + NICVF_RCV_BUF_ALIGN_BYTES);
 	return 0;
 }
 
-/* Retrieve actual buffer start address and build skb for received packet */
+/* Build skb around receive buffer */
 static struct sk_buff *nicvf_rb_ptr_to_skb(struct nicvf *nic,
 					   u64 rb_ptr, int len)
 {
+	void *data;
 	struct sk_buff *skb;
-	struct rbuf_info *rinfo;
 
-	rb_ptr = (u64)phys_to_virt(rb_ptr);
-	/* Get buffer start address and alignment offset */
-	rinfo = GET_RBUF_INFO(rb_ptr);
+	data = phys_to_virt(rb_ptr);
 
 	/* Now build an skb to give to stack */
-	skb = build_skb(rinfo->data, RCV_FRAG_LEN);
+	skb = build_skb(data, RCV_FRAG_LEN);
 	if (!skb) {
-		put_page(rinfo->page);
+		put_page(virt_to_page(data));
 		return NULL;
 	}
 
-	/* Set correct skb->data */
-	skb_reserve(skb, rinfo->offset + NICVF_RCV_BUF_ALIGN_BYTES);
-
-	prefetch((void *)rb_ptr);
+	prefetch(skb->data);
 	return skb;
 }
 
@@ -196,7 +168,6 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	int head, tail;
 	u64 buf_addr;
 	struct rbdr_entry_t *desc;
-	struct rbuf_info *rinfo;
 
 	if (!rbdr)
 		return;
@@ -212,16 +183,14 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	while (head != tail) {
 		desc = GET_RBDR_DESC(rbdr, head);
 		buf_addr = desc->buf_addr << NICVF_RCV_BUF_ALIGN;
-		rinfo = GET_RBUF_INFO((u64)phys_to_virt(buf_addr));
-		put_page(rinfo->page);
+		put_page(virt_to_page(phys_to_virt(buf_addr)));
 		head++;
 		head &= (rbdr->dmem.q_len - 1);
 	}
 	/* Free SKB of tail desc */
 	desc = GET_RBDR_DESC(rbdr, tail);
 	buf_addr = desc->buf_addr << NICVF_RCV_BUF_ALIGN;
-	rinfo = GET_RBUF_INFO((u64)phys_to_virt(buf_addr));
-	put_page(rinfo->page);
+	put_page(virt_to_page(phys_to_virt(buf_addr)));
 
 	/* Free RBDR ring */
 	nicvf_free_q_desc_mem(nic, &rbdr->dmem);
