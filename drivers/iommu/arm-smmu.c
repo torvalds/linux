@@ -597,12 +597,18 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 		if (!IS_ENABLED(CONFIG_64BIT) || smmu->version == ARM_SMMU_V1) {
 			iova &= ~12UL;
 			iova |= ARM_SMMU_CB_ASID(cfg);
-			writel_relaxed(iova, reg);
+			do {
+				writel_relaxed(iova, reg);
+				iova += granule;
+			} while (size -= granule);
 #ifdef CONFIG_64BIT
 		} else {
 			iova >>= 12;
 			iova |= (u64)ARM_SMMU_CB_ASID(cfg) << 48;
-			writeq_relaxed(iova, reg);
+			do {
+				writeq_relaxed(iova, reg);
+				iova += granule >> 12;
+			} while (size -= granule);
 #endif
 		}
 #ifdef CONFIG_64BIT
@@ -610,7 +616,11 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 		reg = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 		reg += leaf ? ARM_SMMU_CB_S2_TLBIIPAS2L :
 			      ARM_SMMU_CB_S2_TLBIIPAS2;
-		writeq_relaxed(iova >> 12, reg);
+		iova >>= 12;
+		do {
+			writeq_relaxed(iova, reg);
+			iova += granule >> 12;
+		} while (size -= granule);
 #endif
 	} else {
 		reg = ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_TLBIVMID;
