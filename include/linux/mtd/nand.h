@@ -902,7 +902,6 @@ extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
  * @chip_delay:		R/B delay value in us
  * @options:		Option flags, e.g. 16bit buswidth
  * @bbt_options:	BBT option flags, e.g. NAND_BBT_USE_FLASH
- * @ecclayout:		ECC layout info structure
  * @part_probe_types:	NULL-terminated array of probe types
  */
 struct platform_nand_chip {
@@ -910,7 +909,6 @@ struct platform_nand_chip {
 	int chip_offset;
 	int nr_partitions;
 	struct mtd_partition *partitions;
-	struct nand_ecclayout *ecclayout;
 	int chip_delay;
 	unsigned int options;
 	unsigned int bbt_options;
