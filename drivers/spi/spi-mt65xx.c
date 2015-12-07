@@ -410,7 +410,7 @@ static int mtk_spi_setup(struct spi_device *spi)
 	if (!spi->controller_data)
 		spi->controller_data = (void *)&mtk_default_chip_info;
 
-	if (mdata->dev_comp->need_pad_sel)
+	if (mdata->dev_comp->need_pad_sel && gpio_is_valid(spi->cs_gpio))
 		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 
 	return 0;
@@ -632,13 +632,23 @@ static int mtk_spi_probe(struct platform_device *pdev)
 			goto err_put_master;
 		}
 
-		for (i = 0; i < master->num_chipselect; i++) {
-			ret = devm_gpio_request(&pdev->dev, master->cs_gpios[i],
-						dev_name(&pdev->dev));
-			if (ret) {
-				dev_err(&pdev->dev,
-					"can't get CS GPIO %i\n", i);
-				goto err_put_master;
+		if (!master->cs_gpios && master->num_chipselect > 1) {
+			dev_err(&pdev->dev,
+				"cs_gpios not specified and num_chipselect > 1\n");
+			ret = -EINVAL;
+			goto err_put_master;
+		}
+
+		if (master->cs_gpios) {
+			for (i = 0; i < master->num_chipselect; i++) {
+				ret = devm_gpio_request(&pdev->dev,
+							master->cs_gpios[i],
+							dev_name(&pdev->dev));
+				if (ret) {
+					dev_err(&pdev->dev,
+						"can't get CS GPIO %i\n", i);
+					goto err_put_master;
+				}
 			}
 		}
 	}
