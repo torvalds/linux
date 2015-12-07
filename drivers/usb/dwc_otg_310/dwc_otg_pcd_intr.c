@@ -4908,12 +4908,10 @@ exit_xfercompl:
 				deptsiz.d32 =
 				    DWC_READ_REG32(&core_if->dev_if->
 						   out_ep_regs[0]->doeptsiz);
-				if ((core_if->dma_desc_enable)
-				    || (core_if->dma_enable
-					&& core_if->snpsid >=
-					OTG_CORE_REV_3_00a)) {
+				if (core_if->dma_desc_enable) {
 					do_setup_in_status_phase(pcd);
 				}
+
 			}
 
 			/* Endpoint disable      */
