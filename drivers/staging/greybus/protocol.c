@@ -90,12 +90,6 @@ int __gb_protocol_register(struct gb_protocol *protocol, struct module *module)
 
 	pr_info("Registered %s protocol.\n", protocol->name);
 
-	/*
-	 * Go try to bind any unbound connections, as we have a
-	 * new protocol in the system
-	 */
-	gb_bundle_bind_protocols();
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__gb_protocol_register);

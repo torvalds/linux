@@ -11,6 +11,10 @@
 
 #include "greybus.h"
 
+
+static int gb_connection_bind_protocol(struct gb_connection *connection);
+
+
 static DEFINE_SPINLOCK(gb_connections_lock);
 
 /* This is only used at initialization time; no locking is required. */
@@ -520,7 +524,7 @@ void gb_connection_latency_tag_disable(struct gb_connection *connection)
 }
 EXPORT_SYMBOL_GPL(gb_connection_latency_tag_disable);
 
-int gb_connection_bind_protocol(struct gb_connection *connection)
+static int gb_connection_bind_protocol(struct gb_connection *connection)
 {
 	struct gb_protocol *protocol;
 	int ret;
