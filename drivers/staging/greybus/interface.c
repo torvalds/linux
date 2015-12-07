@@ -162,6 +162,7 @@ void gb_interfaces_remove(struct gb_host_device *hd)
  */
 int gb_interface_init(struct gb_interface *intf, u8 device_id)
 {
+	struct gb_bundle *bundle, *tmp;
 	struct gb_connection *connection;
 	int ret, size;
 	void *manifest;
@@ -215,14 +216,25 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 		goto free_manifest;
 	}
 
-	/*
-	 * XXX
-	 * We've successfully parsed the manifest.  Now we need to
-	 * allocate CPort Id's for connecting to the CPorts found on
-	 * other modules.  For each of these, establish a connection
-	 * between the local and remote CPorts (including
-	 * configuring the switch to allow them to communicate).
-	 */
+	/* Register the interface bundles. */
+	list_for_each_entry_safe_reverse(bundle, tmp, &intf->bundles, links) {
+		ret = gb_bundle_add(bundle);
+		if (ret) {
+			gb_bundle_destroy(bundle);
+			continue;
+		}
+
+		list_for_each_entry(connection, &bundle->connections,
+							bundle_links) {
+			ret = gb_connection_init(connection);
+			if (ret)
+				break;
+		}
+		if (ret)
+			gb_bundle_destroy(bundle);
+	}
+
+	ret = 0;
 
 free_manifest:
 	kfree(manifest);

@@ -286,14 +286,12 @@ exit:
  */
 static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 {
-	struct gb_connection *connection;
 	struct manifest_desc *desc;
 	struct gb_bundle *bundle;
 	struct gb_bundle *bundle_next;
 	u32 count = 0;
 	u8 bundle_id;
 	u8 class;
-	int ret;
 
 	while ((desc = get_next_bundle_desc(intf))) {
 		struct greybus_descriptor_bundle *desc_bundle;
@@ -345,23 +343,6 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		 * bundle which needs the cport, gets destroyed properly.
 		 */
 		if (!gb_manifest_parse_cports(bundle)) {
-			gb_bundle_destroy(bundle);
-			continue;
-		}
-
-		ret = gb_bundle_add(bundle);
-		if (ret) {
-			gb_bundle_destroy(bundle);
-			continue;
-		}
-
-		list_for_each_entry(connection, &bundle->connections,
-							bundle_links) {
-			ret = gb_connection_init(connection);
-			if (ret)
-				break;
-		}
-		if (ret) {
 			gb_bundle_destroy(bundle);
 			continue;
 		}
