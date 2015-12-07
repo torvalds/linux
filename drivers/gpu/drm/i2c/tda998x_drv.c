@@ -855,18 +855,6 @@ static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 	priv->dpms = mode;
 }
 
-static void
-tda998x_encoder_save(struct drm_encoder *encoder)
-{
-	DBG("");
-}
-
-static void
-tda998x_encoder_restore(struct drm_encoder *encoder)
-{
-	DBG("");
-}
-
 static bool
 tda998x_encoder_mode_fixup(struct drm_encoder *encoder,
 			  const struct drm_display_mode *mode,
@@ -1351,8 +1339,6 @@ static void tda998x_encoder_commit(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs tda998x_encoder_helper_funcs = {
 	.dpms = tda998x_encoder_dpms,
-	.save = tda998x_encoder_save,
-	.restore = tda998x_encoder_restore,
 	.mode_fixup = tda998x_encoder_mode_fixup,
 	.prepare = tda998x_encoder_prepare,
 	.commit = tda998x_encoder_commit,
