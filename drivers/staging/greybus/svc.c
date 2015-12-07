@@ -393,8 +393,11 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	}
 
 	ret = gb_svc_read_and_clear_module_boot_status(intf);
-	if (ret)
+	if (ret) {
+		dev_err(&svc->dev, "failed to clear boot status of interface %u: %d\n",
+				intf_id, ret);
 		goto destroy_interface;
+	}
 
 	intf->unipro_mfg_id = le32_to_cpu(request->data.unipro_mfg_id);
 	intf->unipro_prod_id = le32_to_cpu(request->data.unipro_prod_id);
