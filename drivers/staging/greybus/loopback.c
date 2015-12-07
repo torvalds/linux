@@ -837,19 +837,9 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 	memcpy(&gb->gpbridge_firmware_latency, &reset,
 	       sizeof(struct gb_loopback_stats));
 
-	/* Set values to report min/max timeout to user-space */
-	gb->timeout_min = jiffies_to_usecs(GB_LOOPBACK_TIMEOUT_MIN);
-	gb->timeout_max = jiffies_to_usecs(GB_LOOPBACK_TIMEOUT_MAX);
-
-	/* Reset aggregate stats */
-	memcpy(&gb->latency, &reset, sizeof(struct gb_loopback_stats));
-	memcpy(&gb->throughput, &reset, sizeof(struct gb_loopback_stats));
-	memcpy(&gb->requests_per_second, &reset,
-	       sizeof(struct gb_loopback_stats));
-	memcpy(&gb->apbridge_unipro_latency, &reset,
-	       sizeof(struct gb_loopback_stats));
-	memcpy(&gb->gpbridge_firmware_latency, &reset,
-	       sizeof(struct gb_loopback_stats));
+	/* Should be initialized at least once per transaction set */
+	gb->apbridge_latency_ts = 0;
+	gb->gpbridge_latency_ts = 0;
 }
 
 static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u32 val)
