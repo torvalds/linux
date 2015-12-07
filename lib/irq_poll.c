@@ -170,8 +170,7 @@ EXPORT_SYMBOL(irq_poll_enable);
  * @poll_fn:  The handler to invoke
  *
  * Description:
- *     Initialize this irq_poll structure. Before being actively used, the
- *     driver must call irq_poll_enable().
+ *     Initialize and enable this irq_poll structure.
  **/
 void irq_poll_init(struct irq_poll *iop, int weight, irq_poll_fn *poll_fn)
 {
@@ -179,7 +178,6 @@ void irq_poll_init(struct irq_poll *iop, int weight, irq_poll_fn *poll_fn)
 	INIT_LIST_HEAD(&iop->list);
 	iop->weight = weight;
 	iop->poll = poll_fn;
-	set_bit(IRQ_POLL_F_SCHED, &iop->state);
 }
 EXPORT_SYMBOL(irq_poll_init);
 

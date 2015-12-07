@@ -5581,7 +5581,6 @@ static void beiscsi_eeh_resume(struct pci_dev *pdev)
 		pbe_eq = &phwi_context->be_eq[i];
 		irq_poll_init(&pbe_eq->iopoll, be_iopoll_budget,
 				be_iopoll);
-		irq_poll_enable(&pbe_eq->iopoll);
 	}
 
 	i = (phba->msix_enabled) ? i : 0;
@@ -5754,7 +5753,6 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		pbe_eq = &phwi_context->be_eq[i];
 		irq_poll_init(&pbe_eq->iopoll, be_iopoll_budget,
 				be_iopoll);
-		irq_poll_enable(&pbe_eq->iopoll);
 	}
 
 	i = (phba->msix_enabled) ? i : 0;

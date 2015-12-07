@@ -3708,7 +3708,6 @@ static ssize_t ipr_store_iopoll_weight(struct device *dev,
 		for (i = 1; i < ioa_cfg->hrrq_num; i++) {
 			irq_poll_init(&ioa_cfg->hrrq[i].iopoll,
 					ioa_cfg->iopoll_weight, ipr_iopoll);
-			irq_poll_enable(&ioa_cfg->hrrq[i].iopoll);
 		}
 	}
 	spin_unlock_irqrestore(shost->host_lock, lock_flags);
@@ -10407,7 +10406,6 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 		for (i = 1; i < ioa_cfg->hrrq_num; i++) {
 			irq_poll_init(&ioa_cfg->hrrq[i].iopoll,
 					ioa_cfg->iopoll_weight, ipr_iopoll);
-			irq_poll_enable(&ioa_cfg->hrrq[i].iopoll);
 		}
 	}
 
