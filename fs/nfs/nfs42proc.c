@@ -204,6 +204,8 @@ static void
 nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
+	struct inode *inode = data->inode;
+	struct pnfs_layout_hdr *lo;
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return;
@@ -211,12 +213,35 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	switch (task->tk_status) {
 	case 0:
 		break;
+	case -NFS4ERR_EXPIRED:
+	case -NFS4ERR_STALE_STATEID:
+	case -NFS4ERR_OLD_STATEID:
+	case -NFS4ERR_BAD_STATEID:
+		spin_lock(&inode->i_lock);
+		lo = NFS_I(inode)->layout;
+		if (lo && nfs4_stateid_match(&data->args.stateid,
+					     &lo->plh_stateid)) {
+			LIST_HEAD(head);
+
+			/*
+			 * Mark the bad layout state as invalid, then retry
+			 * with the current stateid.
+			 */
+			set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL);
+			spin_unlock(&inode->i_lock);
+			pnfs_free_lseg_list(&head);
+		} else
+			spin_unlock(&inode->i_lock);
+		break;
 	case -ENOTSUPP:
 	case -EOPNOTSUPP:
-		NFS_SERVER(data->inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
+		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
 	default:
-		dprintk("%s server returns %d\n", __func__, task->tk_status);
+		break;
 	}
+
+	dprintk("%s server returns %d\n", __func__, task->tk_status);
 }
 
 static void
