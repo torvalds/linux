@@ -61,9 +61,7 @@ static void ltq_mm_apply(struct ltq_mm *chip)
  */
 static void ltq_mm_set(struct gpio_chip *gc, unsigned offset, int value)
 {
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct ltq_mm *chip =
-		container_of(mm_gc, struct ltq_mm, mmchip);
+	struct ltq_mm *chip = gpiochip_get_data(gc);
 
 	if (value)
 		chip->shadow |= (1 << offset);
@@ -93,8 +91,7 @@ static int ltq_mm_dir_out(struct gpio_chip *gc, unsigned offset, int value)
  */
 static void ltq_mm_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct ltq_mm *chip =
-		container_of(mm_gc, struct ltq_mm, mmchip);
+	struct ltq_mm *chip = gpiochip_get_data(&mm_gc->gc);
 
 	/* tell the ebu controller which memory address we will be using */
 	ltq_ebu_w32(CPHYSADDR(chip->mmchip.regs) | 0x1, LTQ_EBU_ADDRSEL1);
@@ -122,7 +119,7 @@ static int ltq_mm_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,shadow", &shadow))
 		chip->shadow = shadow;
 
-	return of_mm_gpiochip_add(pdev->dev.of_node, &chip->mmchip);
+	return of_mm_gpiochip_add_data(pdev->dev.of_node, &chip->mmchip, chip);
 }
 
 static int ltq_mm_remove(struct platform_device *pdev)
