@@ -13,6 +13,7 @@
 
 
 static int gb_connection_bind_protocol(struct gb_connection *connection);
+static void gb_connection_unbind_protocol(struct gb_connection *connection);
 static int gb_connection_init(struct gb_connection *connection);
 
 
@@ -405,7 +406,7 @@ static int gb_connection_init(struct gb_connection *connection)
 
 	ret = gb_connection_hd_cport_enable(connection);
 	if (ret)
-		return ret;
+		goto err_unbind_protocol;
 
 	ret = gb_connection_svc_connection_create(connection);
 	if (ret)
@@ -440,15 +441,14 @@ err_svc_destroy:
 	gb_connection_svc_connection_destroy(connection);
 err_hd_cport_disable:
 	gb_connection_hd_cport_disable(connection);
+err_unbind_protocol:
+	gb_connection_unbind_protocol(connection);
 
 	return ret;
 }
 
 static void gb_connection_exit(struct gb_connection *connection)
 {
-	if (!connection->protocol)
-		return;
-
 	spin_lock_irq(&connection->lock);
 	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
 		spin_unlock_irq(&connection->lock);
@@ -463,6 +463,7 @@ static void gb_connection_exit(struct gb_connection *connection)
 	gb_connection_control_disconnected(connection);
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
+	gb_connection_unbind_protocol(connection);
 }
 
 /*
@@ -481,10 +482,6 @@ void gb_connection_destroy(struct gb_connection *connection)
 	list_del(&connection->bundle_links);
 	list_del(&connection->hd_links);
 	spin_unlock_irq(&gb_connections_lock);
-
-	if (connection->protocol)
-		gb_protocol_put(connection->protocol);
-	connection->protocol = NULL;
 
 	id_map = &connection->hd->cport_id_map;
 	ida_simple_remove(id_map, connection->hd_cport_id);
@@ -532,10 +529,6 @@ static int gb_connection_bind_protocol(struct gb_connection *connection)
 {
 	struct gb_protocol *protocol;
 
-	/* If we already have a protocol bound here, just return */
-	if (connection->protocol)
-		return 0;
-
 	protocol = gb_protocol_get(connection->protocol_id,
 				   connection->major,
 				   connection->minor);
@@ -549,4 +542,13 @@ static int gb_connection_bind_protocol(struct gb_connection *connection)
 	connection->protocol = protocol;
 
 	return 0;
+}
+
+static void gb_connection_unbind_protocol(struct gb_connection *connection)
+{
+	struct gb_protocol *protocol = connection->protocol;
+
+	gb_protocol_put(protocol);
+
+	connection->protocol = NULL;
 }
