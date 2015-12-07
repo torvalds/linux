@@ -377,8 +377,6 @@ static void decon_swreset(struct decon_context *ctx)
 static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
-	int ret;
-	int i;
 
 	if (!test_and_clear_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
