@@ -2258,7 +2258,7 @@ static inline int da7218_of_get_id(struct device *dev)
 	const struct of_device_id *id = of_match_device(da7218_of_match, dev);
 
 	if (id)
-		return (int) id->data;
+		return (uintptr_t)id->data;
 	else
 		return -EINVAL;
 }
