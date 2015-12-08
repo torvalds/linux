@@ -17,7 +17,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -1036,7 +1036,7 @@ static SIMPLE_DEV_PM_OPS(max310x_pm_ops, max310x_suspend, max310x_resume);
 static int max310x_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	unsigned int val;
-	struct max310x_port *s = container_of(chip, struct max310x_port, gpio);
+	struct max310x_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[offset / 4].port;
 
 	val = max310x_port_read(port, MAX310X_GPIODATA_REG);
@@ -1046,7 +1046,7 @@ static int max310x_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void max310x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct max310x_port *s = container_of(chip, struct max310x_port, gpio);
+	struct max310x_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[offset / 4].port;
 
 	max310x_port_update(port, MAX310X_GPIODATA_REG, 1 << (offset % 4),
@@ -1055,7 +1055,7 @@ static void max310x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int max310x_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct max310x_port *s = container_of(chip, struct max310x_port, gpio);
+	struct max310x_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[offset / 4].port;
 
 	max310x_port_update(port, MAX310X_GPIOCFG_REG, 1 << (offset % 4), 0);
@@ -1066,7 +1066,7 @@ static int max310x_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int max310x_gpio_direction_output(struct gpio_chip *chip,
 					 unsigned offset, int value)
 {
-	struct max310x_port *s = container_of(chip, struct max310x_port, gpio);
+	struct max310x_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[offset / 4].port;
 
 	max310x_port_update(port, MAX310X_GPIODATA_REG, 1 << (offset % 4),
@@ -1183,7 +1183,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	s->gpio.base		= -1;
 	s->gpio.ngpio		= devtype->nr * 4;
 	s->gpio.can_sleep	= 1;
-	ret = gpiochip_add(&s->gpio);
+	ret = gpiochip_add_data(&s->gpio, s);
 	if (ret)
 		goto out_uart;
 #endif
