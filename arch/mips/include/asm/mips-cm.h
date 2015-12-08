@@ -290,8 +290,8 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_GIC_BASE_GICEN_MSK		(_ULCAST_(0x1) << 0)
 
 /* GCR_CPC_BASE register fields */
-#define CM_GCR_CPC_BASE_CPCBASE_SHF		17
-#define CM_GCR_CPC_BASE_CPCBASE_MSK		(_ULCAST_(0x7fff) << 17)
+#define CM_GCR_CPC_BASE_CPCBASE_SHF		15
+#define CM_GCR_CPC_BASE_CPCBASE_MSK		(_ULCAST_(0x1ffff) << 15)
 #define CM_GCR_CPC_BASE_CPCEN_SHF		0
 #define CM_GCR_CPC_BASE_CPCEN_MSK		(_ULCAST_(0x1) << 0)
 
