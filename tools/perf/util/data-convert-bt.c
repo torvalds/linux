@@ -63,6 +63,7 @@ struct ctf_writer {
 			struct bt_ctf_field_type	*s32;
 			struct bt_ctf_field_type	*u32;
 			struct bt_ctf_field_type	*string;
+			struct bt_ctf_field_type	*u32_hex;
 			struct bt_ctf_field_type	*u64_hex;
 		};
 		struct bt_ctf_field_type *array[6];
@@ -982,6 +983,7 @@ do {							\
 	CREATE_INT_TYPE(cw->data.u64, 64, false, false);
 	CREATE_INT_TYPE(cw->data.s32, 32, true,  false);
 	CREATE_INT_TYPE(cw->data.u32, 32, false, false);
+	CREATE_INT_TYPE(cw->data.u32_hex, 32, false, true);
 	CREATE_INT_TYPE(cw->data.u64_hex, 64, false, true);
 
 	cw->data.string  = bt_ctf_field_type_string_create();
