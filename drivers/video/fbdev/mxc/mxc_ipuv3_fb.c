@@ -2338,7 +2338,7 @@ static int mxcfb_blank(int blank, struct fb_info *info)
 	case FB_BLANK_UNBLANK:
 		info->var.activate = (info->var.activate & ~FB_ACTIVATE_MASK) |
 				FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
-		ret = mxcfb_set_par(info);
+		ret = fb_set_var(info, &info->var);
 		break;
 	}
 	if (!ret)
