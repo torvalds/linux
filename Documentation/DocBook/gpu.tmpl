@@ -986,10 +986,7 @@ int max_width, max_height;</synopsis>
 !Idrivers/gpu/drm/drm_atomic.c
     </sect2>
     <sect2>
-      <title>Frame Buffer Creation</title>
-      <synopsis>struct drm_framebuffer *(*fb_create)(struct drm_device *dev,
-				     struct drm_file *file_priv,
-				     struct drm_mode_fb_cmd2 *mode_cmd);</synopsis>
+      <title>Frame Buffer Abstraction</title>
       <para>
         Frame buffers are abstract memory objects that provide a source of
         pixels to scanout to a CRTC. Applications explicitly request the
@@ -1006,73 +1003,6 @@ int max_width, max_height;</synopsis>
 	handle.  Drivers are however free to use their own backing storage object
 	handles, e.g. vmwgfx directly exposes special TTM handles to userspace
 	and so expects TTM handles in the create ioctl and not GEM handles.
-      </para>
-      <para>
-        Drivers must first validate the requested frame buffer parameters passed
-        through the mode_cmd argument. In particular this is where invalid
-        sizes, pixel formats or pitches can be caught.
-      </para>
-      <para>
-        If the parameters are deemed valid, drivers then create, initialize and
-        return an instance of struct <structname>drm_framebuffer</structname>.
-        If desired the instance can be embedded in a larger driver-specific
-	structure. Drivers must fill its <structfield>width</structfield>,
-	<structfield>height</structfield>, <structfield>pitches</structfield>,
-        <structfield>offsets</structfield>, <structfield>depth</structfield>,
-        <structfield>bits_per_pixel</structfield> and
-        <structfield>pixel_format</structfield> fields from the values passed
-        through the <parameter>drm_mode_fb_cmd2</parameter> argument. They
-        should call the <function>drm_helper_mode_fill_fb_struct</function>
-        helper function to do so.
-      </para>
-
-      <para>
-	The initialization of the new framebuffer instance is finalized with a
-	call to <function>drm_framebuffer_init</function> which takes a pointer
-	to DRM frame buffer operations (struct
-	<structname>drm_framebuffer_funcs</structname>). Note that this function
-	publishes the framebuffer and so from this point on it can be accessed
-	concurrently from other threads. Hence it must be the last step in the
-	driver's framebuffer initialization sequence. Frame buffer operations
-	are
-        <itemizedlist>
-          <listitem>
-            <synopsis>int (*create_handle)(struct drm_framebuffer *fb,
-		     struct drm_file *file_priv, unsigned int *handle);</synopsis>
-            <para>
-              Create a handle to the frame buffer underlying memory object. If
-              the frame buffer uses a multi-plane format, the handle will
-              reference the memory object associated with the first plane.
-            </para>
-            <para>
-              Drivers call <function>drm_gem_handle_create</function> to create
-              the handle.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>void (*destroy)(struct drm_framebuffer *framebuffer);</synopsis>
-            <para>
-              Destroy the frame buffer object and frees all associated
-              resources. Drivers must call
-              <function>drm_framebuffer_cleanup</function> to free resources
-              allocated by the DRM core for the frame buffer object, and must
-              make sure to unreference all memory objects associated with the
-              frame buffer. Handles created by the
-              <methodname>create_handle</methodname> operation are released by
-              the DRM core.
-            </para>
-          </listitem>
-          <listitem>
-            <synopsis>int (*dirty)(struct drm_framebuffer *framebuffer,
-	     struct drm_file *file_priv, unsigned flags, unsigned color,
-	     struct drm_clip_rect *clips, unsigned num_clips);</synopsis>
-            <para>
-              This optional operation notifies the driver that a region of the
-              frame buffer has changed in response to a DRM_IOCTL_MODE_DIRTYFB
-              ioctl call.
-            </para>
-          </listitem>
-        </itemizedlist>
       </para>
       <para>
 	The lifetime of a drm framebuffer is controlled with a reference count,

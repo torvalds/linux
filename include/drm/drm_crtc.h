@@ -172,7 +172,9 @@ struct drm_framebuffer_funcs {
 	 * Clean up framebuffer resources, specifically also unreference the
 	 * backing storage. The core guarantees to call this function for every
 	 * framebuffer successfully created by ->fb_create() in
-	 * &drm_mode_config_funcs.
+	 * &drm_mode_config_funcs. Drivers must also call
+	 * drm_framebuffer_cleanup() to release DRM core resources for this
+	 * framebuffer.
 	 */
 	void (*destroy)(struct drm_framebuffer *framebuffer);
 
@@ -186,6 +188,9 @@ struct drm_framebuffer_funcs {
 	 * be used for seamless transitions between modesetting clients by
 	 * copying the current screen contents to a private buffer and blending
 	 * between that and the new contents.
+	 *
+	 * GEM based drivers should call drm_gem_handle_create() to create the
+	 * handle.
 	 *
 	 * RETURNS:
 	 *
@@ -1730,6 +1735,17 @@ struct drm_mode_config_funcs {
 	 * Create a new framebuffer object. The core does basic checks on the
 	 * requested metadata, but most of that is left to the driver. See
 	 * struct &drm_mode_fb_cmd2 for details.
+	 *
+	 * If the parameters are deemed valid and the backing storage objects in
+	 * the underlying memory manager all exist, then the driver allocates
+	 * a new &drm_framebuffer structure, subclassed to contain
+	 * driver-specific information (like the internal native buffer object
+	 * references). It also needs to fill out all relevant metadata, which
+	 * should be done by calling drm_helper_mode_fill_fb_struct().
+	 *
+	 * The initialization is finalized by calling drm_framebuffer_init(),
+	 * which registers the framebuffer and makes it accessible to other
+	 * threads.
 	 *
 	 * RETURNS:
 	 *
