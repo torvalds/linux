@@ -368,13 +368,16 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_TIMER_SP804
 	select ARM_VIC
-	select CLKDEV_LOOKUP
+	select CLKSRC_VERSATILE
+	select COMMON_CLK
+	select COMMON_CLK_VERSATILE
+	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
-	select HAVE_MACH_CLKDEV
 	select ICST
 	select PLAT_VERSATILE
-	select PLAT_VERSATILE_CLOCK
-	select PLAT_VERSATILE_SCHED_CLOCK
+	select MIGHT_HAVE_PCI
+	select SPARSE_IRQ
+	select USE_OF
 	select VERSATILE_FPGA_IRQ
 	help
 	  This enables support for ARM Ltd Versatile board.
@@ -925,8 +928,6 @@ source "arch/arm/mach-u300/Kconfig"
 source "arch/arm/mach-uniphier/Kconfig"
 
 source "arch/arm/mach-ux500/Kconfig"
-
-source "arch/arm/mach-versatile/Kconfig"
 
 source "arch/arm/mach-vexpress/Kconfig"
 source "arch/arm/plat-versatile/Kconfig"

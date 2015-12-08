@@ -24,12 +24,6 @@
 
 #include <asm/sizes.h>
 
-/*
- * PCI space virtual addresses
- */
-#define VERSATILE_PCI_VIRT_BASE		(void __iomem *)0xe8000000ul
-#define VERSATILE_PCI_CFG_VIRT_BASE	(void __iomem *)0xe9000000ul
-
 /* macro to get at MMIO space when running virtually */
 #define IO_ADDRESS(x)		(((x) & 0x0fffffff) + (((x) >> 4) & 0x0f000000) + 0xf0000000)
 
