@@ -563,24 +563,24 @@ static const struct fm10k_msg_data fm10k_msg_data_vf[] = {
 };
 
 static struct fm10k_mac_ops mac_ops_vf = {
-	.get_bus_info		= &fm10k_get_bus_info_generic,
-	.reset_hw		= &fm10k_reset_hw_vf,
-	.init_hw		= &fm10k_init_hw_vf,
-	.start_hw		= &fm10k_start_hw_generic,
-	.stop_hw		= &fm10k_stop_hw_vf,
-	.update_vlan		= &fm10k_update_vlan_vf,
-	.read_mac_addr		= &fm10k_read_mac_addr_vf,
-	.update_uc_addr		= &fm10k_update_uc_addr_vf,
-	.update_mc_addr		= &fm10k_update_mc_addr_vf,
-	.update_xcast_mode	= &fm10k_update_xcast_mode_vf,
-	.update_int_moderator	= &fm10k_update_int_moderator_vf,
-	.update_lport_state	= &fm10k_update_lport_state_vf,
-	.update_hw_stats	= &fm10k_update_hw_stats_vf,
-	.rebind_hw_stats	= &fm10k_rebind_hw_stats_vf,
-	.configure_dglort_map	= &fm10k_configure_dglort_map_vf,
-	.get_host_state		= &fm10k_get_host_state_generic,
-	.adjust_systime		= &fm10k_adjust_systime_vf,
-	.read_systime		= &fm10k_read_systime_vf,
+	.get_bus_info		= fm10k_get_bus_info_generic,
+	.reset_hw		= fm10k_reset_hw_vf,
+	.init_hw		= fm10k_init_hw_vf,
+	.start_hw		= fm10k_start_hw_generic,
+	.stop_hw		= fm10k_stop_hw_vf,
+	.update_vlan		= fm10k_update_vlan_vf,
+	.read_mac_addr		= fm10k_read_mac_addr_vf,
+	.update_uc_addr		= fm10k_update_uc_addr_vf,
+	.update_mc_addr		= fm10k_update_mc_addr_vf,
+	.update_xcast_mode	= fm10k_update_xcast_mode_vf,
+	.update_int_moderator	= fm10k_update_int_moderator_vf,
+	.update_lport_state	= fm10k_update_lport_state_vf,
+	.update_hw_stats	= fm10k_update_hw_stats_vf,
+	.rebind_hw_stats	= fm10k_rebind_hw_stats_vf,
+	.configure_dglort_map	= fm10k_configure_dglort_map_vf,
+	.get_host_state		= fm10k_get_host_state_generic,
+	.adjust_systime		= fm10k_adjust_systime_vf,
+	.read_systime		= fm10k_read_systime_vf,
 };
 
 static s32 fm10k_get_invariants_vf(struct fm10k_hw *hw)
@@ -592,6 +592,6 @@ static s32 fm10k_get_invariants_vf(struct fm10k_hw *hw)
 
 struct fm10k_info fm10k_vf_info = {
 	.mac		= fm10k_mac_vf,
-	.get_invariants	= &fm10k_get_invariants_vf,
+	.get_invariants	= fm10k_get_invariants_vf,
 	.mac_ops	= &mac_ops_vf,
 };
