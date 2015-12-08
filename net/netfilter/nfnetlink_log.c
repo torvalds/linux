@@ -293,24 +293,20 @@ nfulnl_set_nlbufsiz(struct nfulnl_instance *inst, u_int32_t nlbufsiz)
 	return status;
 }
 
-static int
+static void
 nfulnl_set_timeout(struct nfulnl_instance *inst, u_int32_t timeout)
 {
 	spin_lock_bh(&inst->lock);
 	inst->flushtimeout = timeout;
 	spin_unlock_bh(&inst->lock);
-
-	return 0;
 }
 
-static int
+static void
 nfulnl_set_qthresh(struct nfulnl_instance *inst, u_int32_t qthresh)
 {
 	spin_lock_bh(&inst->lock);
 	inst->qthreshold = qthresh;
 	spin_unlock_bh(&inst->lock);
-
-	return 0;
 }
 
 static int
