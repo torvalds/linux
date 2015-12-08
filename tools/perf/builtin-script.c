@@ -130,6 +130,18 @@ static struct {
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
+
+	[PERF_TYPE_BREAKPOINT] = {
+		.user_set = false,
+
+		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
+			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
+			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
+			      PERF_OUTPUT_PERIOD,
+
+		.invalid_fields = PERF_OUTPUT_TRACE,
+	},
 };
 
 static bool output_set_by_user(void)
@@ -1129,6 +1141,8 @@ static int parse_output_fields(const struct option *opt __maybe_unused,
 			type = PERF_TYPE_TRACEPOINT;
 		else if (!strcmp(str, "raw"))
 			type = PERF_TYPE_RAW;
+		else if (!strcmp(str, "break"))
+			type = PERF_TYPE_BREAKPOINT;
 		else {
 			fprintf(stderr, "Invalid event type in field string.\n");
 			rc = -EINVAL;
