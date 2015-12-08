@@ -841,6 +841,7 @@ static int ap_probe(struct usb_interface *interface,
 	int retval = -ENOMEM;
 	int i;
 	int num_cports;
+	int cport_id;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
@@ -858,6 +859,14 @@ static int ap_probe(struct usb_interface *interface,
 		usb_put_dev(udev);
 		return PTR_ERR(hd);
 	}
+
+	/*
+	 * CPorts 16 and 17 are reserved for CDSI0 and CDSI1, make sure they
+	 * won't be allocated dynamically.
+	 */
+	do {
+		cport_id = ida_simple_get(&hd->cport_id_map, 16, 18, GFP_KERNEL);
+	} while (cport_id > 0);
 
 	es2 = hd_to_es2(hd);
 	es2->hd = hd;
