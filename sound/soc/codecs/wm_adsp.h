@@ -59,9 +59,10 @@ struct wm_adsp {
 
 	struct work_struct boot_work;
 
+	struct mutex pwr_lock;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
-	struct mutex debugfs_lock;
 	char *wmfw_file_name;
 	char *bin_file_name;
 #endif
