@@ -356,6 +356,9 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	else
 		cfg &= ~MX51_ECSPI_CONFIG_SSBPOL(config->cs);
 
+	/* CTRL register always go first to bring out controller from reset */
+	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
+
 	reg = readl(spi_imx->base + MX51_ECSPI_TESTREG);
 	if (config->mode & SPI_LOOP)
 		reg |= MX51_ECSPI_TESTREG_LBC;
@@ -363,7 +366,6 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 		reg &= ~MX51_ECSPI_TESTREG_LBC;
 	writel(reg, spi_imx->base + MX51_ECSPI_TESTREG);
 
-	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
 	writel(cfg, spi_imx->base + MX51_ECSPI_CONFIG);
 
 	/*
