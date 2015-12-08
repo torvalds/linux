@@ -768,6 +768,13 @@ static void pci_acpi_root_add_resources(struct acpi_pci_root_info *info)
 		else
 			continue;
 
+		/*
+		 * Some legacy x86 host bridge drivers use iomem_resource and
+		 * ioport_resource as default resource pool, skip it.
+		 */
+		if (res == root)
+			continue;
+
 		conflict = insert_resource_conflict(root, res);
 		if (conflict) {
 			dev_info(&info->bridge->dev,
