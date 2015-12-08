@@ -1496,6 +1496,8 @@ struct drm_plane {
 	struct drm_device *dev;
 	struct list_head head;
 
+	char *name;
+
 	struct drm_modeset_lock mutex;
 
 	struct drm_mode_object base;

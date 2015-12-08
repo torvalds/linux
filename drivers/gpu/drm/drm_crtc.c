@@ -1181,6 +1181,18 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 }
 EXPORT_SYMBOL(drm_encoder_cleanup);
 
+static unsigned int drm_num_planes(struct drm_device *dev)
+{
+	unsigned int num = 0;
+	struct drm_plane *tmp;
+
+	drm_for_each_plane(tmp, dev) {
+		num++;
+	}
+
+	return num;
+}
+
 /**
  * drm_universal_plane_init - Initialize a new universal plane object
  * @dev: DRM device
@@ -1220,6 +1232,22 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 					    GFP_KERNEL);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
+		drm_mode_object_put(dev, &plane->base);
+		return -ENOMEM;
+	}
+
+	if (name) {
+		va_list ap;
+
+		va_start(ap, name);
+		plane->name = kvasprintf(GFP_KERNEL, name, ap);
+		va_end(ap);
+	} else {
+		plane->name = kasprintf(GFP_KERNEL, "plane-%d",
+					drm_num_planes(dev));
+	}
+	if (!plane->name) {
+		kfree(plane->format_types);
 		drm_mode_object_put(dev, &plane->base);
 		return -ENOMEM;
 	}
@@ -1313,6 +1341,8 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
 	if (plane->state && plane->funcs->atomic_destroy_state)
 		plane->funcs->atomic_destroy_state(plane, plane->state);
+
+	kfree(plane->name);
 
 	memset(plane, 0, sizeof(*plane));
 }

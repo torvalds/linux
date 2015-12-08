@@ -549,8 +549,8 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	state->planes[index] = plane;
 	plane_state->state = state;
 
-	DRM_DEBUG_ATOMIC("Added [PLANE:%d] %p state to %p\n",
-			 plane->base.id, plane_state, state);
+	DRM_DEBUG_ATOMIC("Added [PLANE:%d:%s] %p state to %p\n",
+			 plane->base.id, plane->name, plane_state, state);
 
 	if (plane_state->crtc) {
 		struct drm_crtc_state *crtc_state;
@@ -770,8 +770,8 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	}
 
 	if (plane_switching_crtc(state->state, plane, state)) {
-		DRM_DEBUG_ATOMIC("[PLANE:%d] switching CRTC directly\n",
-				 plane->base.id);
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] switching CRTC directly\n",
+				 plane->base.id, plane->name);
 		return -EINVAL;
 	}
 
@@ -1248,8 +1248,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		ret = drm_atomic_plane_check(plane, plane_state);
 		if (ret) {
-			DRM_DEBUG_ATOMIC("[PLANE:%d] atomic core check failed\n",
-					 plane->base.id);
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] atomic core check failed\n",
+					 plane->base.id, plane->name);
 			return ret;
 		}
 	}
