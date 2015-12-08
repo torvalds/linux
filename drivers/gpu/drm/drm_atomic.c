@@ -508,6 +508,22 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
+	/*
+	 * Reject event generation for when a CRTC is off and stays off.
+	 * It wouldn't be hard to implement this, but userspace has a track
+	 * record of happily burning through 100% cpu (or worse, crash) when the
+	 * display pipe is suspended. To avoid all that fun just reject updates
+	 * that ask for events since likely that indicates a bug in the
+	 * compositor's drawing loop. This is consistent with the vblank IOCTL
+	 * and legacy page_flip IOCTL which also reject service on a disabled
+	 * pipe.
+	 */
+	if (state->event && !state->active && !crtc->state->active) {
+		DRM_DEBUG_ATOMIC("[CRTC:%d] requesting event but off\n",
+				 crtc->base.id);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

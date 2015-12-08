@@ -551,7 +551,8 @@ struct drm_crtc_funcs {
 	 * ->page_flip() operation is already pending the callback should return
 	 * -EBUSY. Pageflips on a disabled CRTC (either by setting a NULL mode
 	 * or just runtime disabled through DPMS respectively the new atomic
-	 * "ACTIVE" state) should result in an -EINVAL error code.
+	 * "ACTIVE" state) should result in an -EINVAL error code. Note that
+	 * drm_atomic_helper_page_flip() checks this already for atomic drivers.
 	 */
 	int (*page_flip)(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,

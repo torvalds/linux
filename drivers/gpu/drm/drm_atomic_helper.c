@@ -2284,6 +2284,15 @@ retry:
 		goto fail;
 	drm_atomic_set_fb_for_plane(plane_state, fb);
 
+	/* Make sure we don't accidentally do a full modeset. */
+	state->allow_modeset = false;
+	if (!crtc_state->active) {
+		DRM_DEBUG_ATOMIC("[CRTC:%d] disabled, rejecting legacy flip\n",
+				 crtc->base.id);
+		ret = -EINVAL;
+		goto fail;
+	}
+
 	ret = drm_atomic_async_commit(state);
 	if (ret != 0)
 		goto fail;
