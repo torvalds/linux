@@ -257,7 +257,6 @@ static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc,
 
 	roc->start_time = start_time;
 	roc->started = true;
-	roc->hw_begun = true;
 
 	if (roc->mgmt_tx_cookie) {
 		if (!WARN_ON(!roc->frame)) {
@@ -286,6 +285,7 @@ static void ieee80211_hw_roc_start(struct work_struct *work)
 		if (!roc->started)
 			break;
 
+		roc->hw_begun = true;
 		ieee80211_handle_roc_started(roc, local->hw_roc_start_time);
 	}
 
@@ -529,8 +529,10 @@ ieee80211_coalesce_hw_started_roc(struct ieee80211_local *local,
 	 * begin, otherwise they'll both be marked properly by the work
 	 * struct that runs once the driver notifies us of the beginning
 	 */
-	if (cur_roc->hw_begun)
+	if (cur_roc->hw_begun) {
+		new_roc->hw_begun = true;
 		ieee80211_handle_roc_started(new_roc, now);
+	}
 
 	return true;
 }
