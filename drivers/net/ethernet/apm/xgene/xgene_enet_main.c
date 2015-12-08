@@ -682,7 +682,7 @@ static void xgene_enet_napi_disable(struct xgene_enet_pdata *pdata)
 static int xgene_enet_open(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
-	struct xgene_mac_ops *mac_ops = pdata->mac_ops;
+	const struct xgene_mac_ops *mac_ops = pdata->mac_ops;
 	int ret;
 
 	mac_ops->tx_enable(pdata);
@@ -706,7 +706,7 @@ static int xgene_enet_open(struct net_device *ndev)
 static int xgene_enet_close(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
-	struct xgene_mac_ops *mac_ops = pdata->mac_ops;
+	const struct xgene_mac_ops *mac_ops = pdata->mac_ops;
 
 	netif_stop_queue(ndev);
 
@@ -1416,7 +1416,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct xgene_enet_pdata *pdata;
 	struct device *dev = &pdev->dev;
-	struct xgene_mac_ops *mac_ops;
+	const struct xgene_mac_ops *mac_ops;
 	const struct of_device_id *of_id;
 	int ret;
 
@@ -1503,7 +1503,7 @@ err:
 static int xgene_enet_remove(struct platform_device *pdev)
 {
 	struct xgene_enet_pdata *pdata;
-	struct xgene_mac_ops *mac_ops;
+	const struct xgene_mac_ops *mac_ops;
 	struct net_device *ndev;
 
 	pdata = platform_get_drvdata(pdev);

@@ -69,7 +69,7 @@
 #define XG_ENET_SPARE_CFG_REG_1_ADDR	0x0410
 #define XGENET_RX_DV_GATE_REG_0_ADDR	0x0804
 
-extern struct xgene_mac_ops xgene_xgmac_ops;
-extern struct xgene_port_ops xgene_xgport_ops;
+extern const struct xgene_mac_ops xgene_xgmac_ops;
+extern const struct xgene_port_ops xgene_xgport_ops;
 
 #endif /* __XGENE_ENET_XGMAC_H__ */

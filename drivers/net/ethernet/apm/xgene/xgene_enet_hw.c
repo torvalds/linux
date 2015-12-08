@@ -869,7 +869,7 @@ void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata)
 	pdata->mdio_bus = NULL;
 }
 
-struct xgene_mac_ops xgene_gmac_ops = {
+const struct xgene_mac_ops xgene_gmac_ops = {
 	.init = xgene_gmac_init,
 	.reset = xgene_gmac_reset,
 	.rx_enable = xgene_gmac_rx_enable,
@@ -879,7 +879,7 @@ struct xgene_mac_ops xgene_gmac_ops = {
 	.set_mac_addr = xgene_gmac_set_mac_addr,
 };
 
-struct xgene_port_ops xgene_gport_ops = {
+const struct xgene_port_ops xgene_gport_ops = {
 	.reset = xgene_enet_reset,
 	.cle_bypass = xgene_enet_cle_bypass,
 	.shutdown = xgene_gport_shutdown,
