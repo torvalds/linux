@@ -66,6 +66,7 @@ static DEFINE_PER_CPU(struct cpu *, cpu_device);
 struct pcpu {
 	struct _lowcore *lowcore;	/* lowcore page(s) for the cpu */
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
+	unsigned long ec_clk;		/* sigp timestamp for ec_xxx */
 	signed char state;		/* physical cpu state */
 	signed char polarization;	/* physical polarization */
 	u16 address;			/* physical cpu address */
@@ -174,6 +175,7 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 	if (test_and_set_bit(ec_bit, &pcpu->ec_mask))
 		return;
 	order = pcpu_running(pcpu) ? SIGP_EXTERNAL_CALL : SIGP_EMERGENCY_SIGNAL;
+	pcpu->ec_clk = get_tod_clock_fast();
 	pcpu_sigp_retry(pcpu, order, 0);
 }
 
