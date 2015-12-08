@@ -2252,6 +2252,5 @@ int ehca_init_qp_cache(void)
 
 void ehca_cleanup_qp_cache(void)
 {
-	if (qp_cache)
-		kmem_cache_destroy(qp_cache);
+	kmem_cache_destroy(qp_cache);
 }

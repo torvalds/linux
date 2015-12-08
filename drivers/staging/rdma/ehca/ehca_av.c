@@ -275,6 +275,5 @@ int ehca_init_av_cache(void)
 
 void ehca_cleanup_av_cache(void)
 {
-	if (av_cache)
-		kmem_cache_destroy(av_cache);
+	kmem_cache_destroy(av_cache);
 }
