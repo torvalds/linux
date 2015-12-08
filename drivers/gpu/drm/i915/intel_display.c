@@ -13902,13 +13902,15 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 
 	/* For framebuffer backed by dmabuf, wait for fence */
 	if (obj && obj->base.dma_buf) {
-		ret = reservation_object_wait_timeout_rcu(obj->base.dma_buf->resv,
-							  false, true,
-							  MAX_SCHEDULE_TIMEOUT);
-		if (ret == -ERESTARTSYS)
-			return ret;
+		long lret;
 
-		WARN_ON(ret < 0);
+		lret = reservation_object_wait_timeout_rcu(obj->base.dma_buf->resv,
+							   false, true,
+							   MAX_SCHEDULE_TIMEOUT);
+		if (lret == -ERESTARTSYS)
+			return lret;
+
+		WARN(lret < 0, "waiting returns %li\n", lret);
 	}
 
 	if (!obj) {
