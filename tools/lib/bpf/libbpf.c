@@ -195,6 +195,7 @@ struct bpf_object {
 		Elf *elf;
 		GElf_Ehdr ehdr;
 		Elf_Data *symbols;
+		size_t strtabidx;
 		struct {
 			GElf_Shdr shdr;
 			Elf_Data *data;
@@ -547,7 +548,7 @@ bpf_object__init_maps_name(struct bpf_object *obj, int maps_shndx)
 			continue;
 
 		map_name = elf_strptr(obj->efile.elf,
-				      obj->efile.ehdr.e_shstrndx,
+				      obj->efile.strtabidx,
 				      sym.st_name);
 		map_idx = sym.st_value / sizeof(struct bpf_map_def);
 		if (map_idx >= obj->nr_maps) {
@@ -630,8 +631,10 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				pr_warning("bpf: multiple SYMTAB in %s\n",
 					   obj->path);
 				err = -LIBBPF_ERRNO__FORMAT;
-			} else
+			} else {
 				obj->efile.symbols = data;
+				obj->efile.strtabidx = sh.sh_link;
+			}
 		} else if ((sh.sh_type == SHT_PROGBITS) &&
 			   (sh.sh_flags & SHF_EXECINSTR) &&
 			   (data->d_size > 0)) {
@@ -667,6 +670,10 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			goto out;
 	}
 
+	if (!obj->efile.strtabidx || obj->efile.strtabidx >= idx) {
+		pr_warning("Corrupted ELF file: index of strtab invalid\n");
+		return LIBBPF_ERRNO__FORMAT;
+	}
 	if (maps_shndx >= 0)
 		err = bpf_object__init_maps_name(obj, maps_shndx);
 out:
