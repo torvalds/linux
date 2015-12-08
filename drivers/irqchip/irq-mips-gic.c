@@ -47,6 +47,7 @@ static void __iomem *gic_base;
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
+static struct irq_domain *gic_dev_domain;
 static struct irq_domain *gic_ipi_domain;
 static int gic_shared_intrs;
 static int gic_vpes;
@@ -793,25 +794,6 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return gic_shared_irq_domain_map(d, virq, hw, 0);
 }
 
-static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
-				const u32 *intspec, unsigned int intsize,
-				irq_hw_number_t *out_hwirq,
-				unsigned int *out_type)
-{
-	if (intsize != 3)
-		return -EINVAL;
-
-	if (intspec[0] == GIC_SHARED)
-		*out_hwirq = GIC_SHARED_TO_HWIRQ(intspec[1]);
-	else if (intspec[0] == GIC_LOCAL)
-		*out_hwirq = GIC_LOCAL_TO_HWIRQ(intspec[1]);
-	else
-		return -EINVAL;
-	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
-
-	return 0;
-}
-
 static int gic_irq_domain_alloc(struct irq_domain *d, unsigned int virq,
 				unsigned int nr_irqs, void *arg)
 {
@@ -881,11 +863,86 @@ void gic_irq_domain_free(struct irq_domain *d, unsigned int virq,
 	bitmap_set(ipi_resrv, base_hwirq, nr_irqs);
 }
 
+int gic_irq_domain_match(struct irq_domain *d, struct device_node *node,
+			 enum irq_domain_bus_token bus_token)
+{
+	/* this domain should'nt be accessed directly */
+	return 0;
+}
+
 static const struct irq_domain_ops gic_irq_domain_ops = {
 	.map = gic_irq_domain_map,
-	.xlate = gic_irq_domain_xlate,
 	.alloc = gic_irq_domain_alloc,
 	.free = gic_irq_domain_free,
+	.match = gic_irq_domain_match,
+};
+
+static int gic_dev_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+				const u32 *intspec, unsigned int intsize,
+				irq_hw_number_t *out_hwirq,
+				unsigned int *out_type)
+{
+	if (intsize != 3)
+		return -EINVAL;
+
+	if (intspec[0] == GIC_SHARED)
+		*out_hwirq = GIC_SHARED_TO_HWIRQ(intspec[1]);
+	else if (intspec[0] == GIC_LOCAL)
+		*out_hwirq = GIC_LOCAL_TO_HWIRQ(intspec[1]);
+	else
+		return -EINVAL;
+	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
+
+	return 0;
+}
+
+static int gic_dev_domain_alloc(struct irq_domain *d, unsigned int virq,
+				unsigned int nr_irqs, void *arg)
+{
+	struct irq_fwspec *fwspec = arg;
+	struct gic_irq_spec spec = {
+		.type = GIC_DEVICE,
+		.hwirq = fwspec->param[1],
+	};
+	int i, ret;
+	bool is_shared = fwspec->param[0] == GIC_SHARED;
+
+	if (is_shared) {
+		ret = irq_domain_alloc_irqs_parent(d, virq, nr_irqs, &spec);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < nr_irqs; i++) {
+		irq_hw_number_t hwirq;
+
+		if (is_shared)
+			hwirq = GIC_SHARED_TO_HWIRQ(spec.hwirq + i);
+		else
+			hwirq = GIC_LOCAL_TO_HWIRQ(spec.hwirq + i);
+
+		ret = irq_domain_set_hwirq_and_chip(d, virq + i,
+						    hwirq,
+						    &gic_level_irq_controller,
+						    NULL);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+void gic_dev_domain_free(struct irq_domain *d, unsigned int virq,
+			 unsigned int nr_irqs)
+{
+	/* no real allocation is done for dev irqs, so no need to free anything */
+	return;
+}
+
+static struct irq_domain_ops gic_dev_domain_ops = {
+	.xlate = gic_dev_domain_xlate,
+	.alloc = gic_dev_domain_alloc,
+	.free = gic_dev_domain_free,
 };
 
 static int gic_ipi_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
@@ -1025,6 +1082,12 @@ static void __init __gic_init(unsigned long gic_base_addr,
 					       &gic_irq_domain_ops, NULL);
 	if (!gic_irq_domain)
 		panic("Failed to add GIC IRQ domain");
+
+	gic_dev_domain = irq_domain_add_hierarchy(gic_irq_domain, 0,
+						  GIC_NUM_LOCAL_INTRS + gic_shared_intrs,
+						  node, &gic_dev_domain_ops, NULL);
+	if (!gic_dev_domain)
+		panic("Failed to add GIC DEV domain");
 
 	gic_ipi_domain = irq_domain_add_hierarchy(gic_irq_domain,
 						  IRQ_DOMAIN_FLAG_IPI_PER_CPU,
