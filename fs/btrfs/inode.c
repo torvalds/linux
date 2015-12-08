@@ -77,7 +77,6 @@ static const struct file_operations btrfs_dir_file_operations;
 static struct extent_io_ops btrfs_extent_io_ops;
 
 static struct kmem_cache *btrfs_inode_cachep;
-static struct kmem_cache *btrfs_delalloc_work_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_transaction_cachep;
 struct kmem_cache *btrfs_path_cachep;
@@ -9159,8 +9158,6 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_path_cachep);
 	if (btrfs_free_space_cachep)
 		kmem_cache_destroy(btrfs_free_space_cachep);
-	if (btrfs_delalloc_work_cachep)
-		kmem_cache_destroy(btrfs_delalloc_work_cachep);
 }
 
 int btrfs_init_cachep(void)
@@ -9193,13 +9190,6 @@ int btrfs_init_cachep(void)
 			sizeof(struct btrfs_free_space), 0,
 			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_free_space_cachep)
-		goto fail;
-
-	btrfs_delalloc_work_cachep = kmem_cache_create("btrfs_delalloc_work",
-			sizeof(struct btrfs_delalloc_work), 0,
-			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
-			NULL);
-	if (!btrfs_delalloc_work_cachep)
 		goto fail;
 
 	return 0;
@@ -9446,7 +9436,7 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 {
 	struct btrfs_delalloc_work *work;
 
-	work = kmem_cache_zalloc(btrfs_delalloc_work_cachep, GFP_NOFS);
+	work = kmalloc(sizeof(*work), GFP_NOFS);
 	if (!work)
 		return NULL;
 
@@ -9465,7 +9455,7 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work)
 {
 	wait_for_completion(&work->completion);
-	kmem_cache_free(btrfs_delalloc_work_cachep, work);
+	kfree(work);
 }
 
 /*
