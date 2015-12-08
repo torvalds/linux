@@ -770,10 +770,10 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 		gen8_ppgtt_clear_pte_range(vm, &ppgtt->pdp, start, length,
 					   scratch_pte);
 	} else {
-		uint64_t templ4, pml4e;
+		uint64_t pml4e;
 		struct i915_page_directory_pointer *pdp;
 
-		gen8_for_each_pml4e(pdp, &ppgtt->pml4, start, length, templ4, pml4e) {
+		gen8_for_each_pml4e(pdp, &ppgtt->pml4, start, length, pml4e) {
 			gen8_ppgtt_clear_pte_range(vm, pdp, start, length,
 						   scratch_pte);
 		}
@@ -839,10 +839,10 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 					      cache_level);
 	} else {
 		struct i915_page_directory_pointer *pdp;
-		uint64_t templ4, pml4e;
+		uint64_t pml4e;
 		uint64_t length = (uint64_t)pages->orig_nents << PAGE_SHIFT;
 
-		gen8_for_each_pml4e(pdp, &ppgtt->pml4, start, length, templ4, pml4e) {
+		gen8_for_each_pml4e(pdp, &ppgtt->pml4, start, length, pml4e) {
 			gen8_ppgtt_insert_pte_entries(vm, pdp, &sg_iter,
 						      start, cache_level);
 		}
@@ -1020,10 +1020,9 @@ static int gen8_ppgtt_alloc_pagetabs(struct i915_address_space *vm,
 {
 	struct drm_device *dev = vm->dev;
 	struct i915_page_table *pt;
-	uint64_t temp;
 	uint32_t pde;
 
-	gen8_for_each_pde(pt, pd, start, length, temp, pde) {
+	gen8_for_each_pde(pt, pd, start, length, pde) {
 		/* Don't reallocate page tables */
 		if (test_bit(pde, pd->used_pdes)) {
 			/* Scratch is never allocated this way */
@@ -1082,13 +1081,12 @@ gen8_ppgtt_alloc_page_directories(struct i915_address_space *vm,
 {
 	struct drm_device *dev = vm->dev;
 	struct i915_page_directory *pd;
-	uint64_t temp;
 	uint32_t pdpe;
 	uint32_t pdpes = I915_PDPES_PER_PDP(dev);
 
 	WARN_ON(!bitmap_empty(new_pds, pdpes));
 
-	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		if (test_bit(pdpe, pdp->used_pdpes))
 			continue;
 
@@ -1136,12 +1134,11 @@ gen8_ppgtt_alloc_page_dirpointers(struct i915_address_space *vm,
 {
 	struct drm_device *dev = vm->dev;
 	struct i915_page_directory_pointer *pdp;
-	uint64_t temp;
 	uint32_t pml4e;
 
 	WARN_ON(!bitmap_empty(new_pdps, GEN8_PML4ES_PER_PML4));
 
-	gen8_for_each_pml4e(pdp, pml4, start, length, temp, pml4e) {
+	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 		if (!test_bit(pml4e, pml4->used_pml4es)) {
 			pdp = alloc_pdp(dev);
 			if (IS_ERR(pdp))
@@ -1225,7 +1222,6 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 	struct i915_page_directory *pd;
 	const uint64_t orig_start = start;
 	const uint64_t orig_length = length;
-	uint64_t temp;
 	uint32_t pdpe;
 	uint32_t pdpes = I915_PDPES_PER_PDP(dev);
 	int ret;
@@ -1252,7 +1248,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 	}
 
 	/* For every page directory referenced, allocate page tables */
-	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		ret = gen8_ppgtt_alloc_pagetabs(vm, pd, start, length,
 						new_page_tables + pdpe * BITS_TO_LONGS(I915_PDES));
 		if (ret)
@@ -1264,7 +1260,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 
 	/* Allocations have completed successfully, so set the bitmaps, and do
 	 * the mappings. */
-	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		gen8_pde_t *const page_directory = kmap_px(pd);
 		struct i915_page_table *pt;
 		uint64_t pd_len = length;
@@ -1274,7 +1270,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 		/* Every pd should be allocated, we just did that above. */
 		WARN_ON(!pd);
 
-		gen8_for_each_pde(pt, pd, pd_start, pd_len, temp, pde) {
+		gen8_for_each_pde(pt, pd, pd_start, pd_len, pde) {
 			/* Same reasoning as pd */
 			WARN_ON(!pt);
 			WARN_ON(!pd_len);
@@ -1311,6 +1307,8 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 
 err_out:
 	while (pdpe--) {
+		unsigned long temp;
+
 		for_each_set_bit(temp, new_page_tables + pdpe *
 				BITS_TO_LONGS(I915_PDES), I915_PDES)
 			free_pt(dev, pdp->page_directory[pdpe]->page_table[temp]);
@@ -1333,7 +1331,7 @@ static int gen8_alloc_va_range_4lvl(struct i915_address_space *vm,
 	struct i915_hw_ppgtt *ppgtt =
 			container_of(vm, struct i915_hw_ppgtt, base);
 	struct i915_page_directory_pointer *pdp;
-	uint64_t temp, pml4e;
+	uint64_t pml4e;
 	int ret = 0;
 
 	/* Do the pml4 allocations first, so we don't need to track the newly
@@ -1352,7 +1350,7 @@ static int gen8_alloc_va_range_4lvl(struct i915_address_space *vm,
 	     "The allocation has spanned more than 512GB. "
 	     "It is highly likely this is incorrect.");
 
-	gen8_for_each_pml4e(pdp, pml4, start, length, temp, pml4e) {
+	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 		WARN_ON(!pdp);
 
 		ret = gen8_alloc_va_range_3lvl(vm, pdp, start, length);
@@ -1392,10 +1390,9 @@ static void gen8_dump_pdp(struct i915_page_directory_pointer *pdp,
 			  struct seq_file *m)
 {
 	struct i915_page_directory *pd;
-	uint64_t temp;
 	uint32_t pdpe;
 
-	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		struct i915_page_table *pt;
 		uint64_t pd_len = length;
 		uint64_t pd_start = start;
@@ -1405,7 +1402,7 @@ static void gen8_dump_pdp(struct i915_page_directory_pointer *pdp,
 			continue;
 
 		seq_printf(m, "\tPDPE #%d\n", pdpe);
-		gen8_for_each_pde(pt, pd, pd_start, pd_len, temp, pde) {
+		gen8_for_each_pde(pt, pd, pd_start, pd_len, pde) {
 			uint32_t  pte;
 			gen8_pte_t *pt_vaddr;
 
@@ -1455,11 +1452,11 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	if (!USES_FULL_48BIT_PPGTT(vm->dev)) {
 		gen8_dump_pdp(&ppgtt->pdp, start, length, scratch_pte, m);
 	} else {
-		uint64_t templ4, pml4e;
+		uint64_t pml4e;
 		struct i915_pml4 *pml4 = &ppgtt->pml4;
 		struct i915_page_directory_pointer *pdp;
 
-		gen8_for_each_pml4e(pdp, pml4, start, length, templ4, pml4e) {
+		gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 			if (!test_bit(pml4e, pml4->used_pml4es))
 				continue;
 
