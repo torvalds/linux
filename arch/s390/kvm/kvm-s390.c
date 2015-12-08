@@ -1185,7 +1185,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
-	KVM_EVENT(3, "vm 0x%p created by pid %u", kvm, current->pid);
+	KVM_EVENT(3, "vm 0x%pK created by pid %u", kvm, current->pid);
 
 	return 0;
 out_err:
@@ -1245,7 +1245,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		gmap_free(kvm->arch.gmap);
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
-	KVM_EVENT(3, "vm 0x%p destroyed", kvm);
+	KVM_EVENT(3, "vm 0x%pK destroyed", kvm);
 }
 
 /* Section: vcpu related */
@@ -1349,7 +1349,8 @@ static int sca_switch_to_extended(struct kvm *kvm)
 
 	free_page((unsigned long)old_sca);
 
-	VM_EVENT(kvm, 2, "Switched to ESCA (%p -> %p)", old_sca, kvm->arch.sca);
+	VM_EVENT(kvm, 2, "Switched to ESCA (0x%pK -> 0x%pK)",
+		 old_sca, kvm->arch.sca);
 	return 0;
 }
 
@@ -1624,7 +1625,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
 		goto out_free_sie_block;
-	VM_EVENT(kvm, 3, "create cpu %d at %p, sie block at %p", id, vcpu,
+	VM_EVENT(kvm, 3, "create cpu %d at 0x%pK, sie block at 0x%pK", id, vcpu,
 		 vcpu->arch.sie_block);
 	trace_kvm_s390_create_vcpu(id, vcpu, vcpu->arch.sie_block);
 
