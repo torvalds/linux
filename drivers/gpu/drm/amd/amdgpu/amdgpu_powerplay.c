@@ -131,6 +131,10 @@ static int amdgpu_pp_late_init(void *handle)
 		ret = adev->powerplay.ip_funcs->late_init(
 					adev->powerplay.pp_handle);
 
+#ifdef CONFIG_DRM_AMD_POWERPLAY
+	if (adev->pp_enabled)
+		amdgpu_pm_sysfs_init(adev);
+#endif
 	return ret;
 }
 
@@ -145,7 +149,6 @@ static int amdgpu_pp_sw_init(void *handle)
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
 	if (adev->pp_enabled) {
-		amdgpu_pm_sysfs_init(adev);
 		if (amdgpu_dpm == 0)
 			adev->pm.dpm_enabled = false;
 		else
