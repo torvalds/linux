@@ -342,7 +342,7 @@ struct sti_hqvdp {
 	struct notifier_block vtg_nb;
 	bool btm_field_pending;
 	void *hqvdp_cmd;
-	dma_addr_t hqvdp_cmd_paddr;
+	u32 hqvdp_cmd_paddr;
 	struct sti_vtg *vtg;
 	bool xp70_initialized;
 };
@@ -365,8 +365,8 @@ static const uint32_t hqvdp_supported_formats[] = {
  */
 static int sti_hqvdp_get_free_cmd(struct sti_hqvdp *hqvdp)
 {
-	int curr_cmd, next_cmd;
-	dma_addr_t cmd = hqvdp->hqvdp_cmd_paddr;
+	u32 curr_cmd, next_cmd;
+	u32 cmd = hqvdp->hqvdp_cmd_paddr;
 	int i;
 
 	curr_cmd = readl(hqvdp->regs + HQVDP_MBX_CURRENT_CMD);
@@ -393,8 +393,8 @@ static int sti_hqvdp_get_free_cmd(struct sti_hqvdp *hqvdp)
  */
 static int sti_hqvdp_get_curr_cmd(struct sti_hqvdp *hqvdp)
 {
-	int curr_cmd;
-	dma_addr_t cmd = hqvdp->hqvdp_cmd_paddr;
+	u32 curr_cmd;
+	u32 cmd = hqvdp->hqvdp_cmd_paddr;
 	unsigned int i;
 
 	curr_cmd = readl(hqvdp->regs + HQVDP_MBX_CURRENT_CMD);
@@ -846,19 +846,21 @@ int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *data)
 static void sti_hqvdp_init(struct sti_hqvdp *hqvdp)
 {
 	int size;
+	dma_addr_t dma_addr;
 
 	hqvdp->vtg_nb.notifier_call = sti_hqvdp_vtg_cb;
 
 	/* Allocate memory for the VDP commands */
 	size = NB_VDP_CMD * sizeof(struct sti_hqvdp_cmd);
 	hqvdp->hqvdp_cmd = dma_alloc_writecombine(hqvdp->dev, size,
-					 &hqvdp->hqvdp_cmd_paddr,
+					 &dma_addr,
 					 GFP_KERNEL | GFP_DMA);
 	if (!hqvdp->hqvdp_cmd) {
 		DRM_ERROR("Failed to allocate memory for VDP cmd\n");
 		return;
 	}
 
+	hqvdp->hqvdp_cmd_paddr = (u32)dma_addr;
 	memset(hqvdp->hqvdp_cmd, 0, size);
 }
 
