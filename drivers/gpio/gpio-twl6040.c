@@ -100,7 +100,7 @@ static int gpo_twl6040_probe(struct platform_device *pdev)
 	twl6040gpo_chip.of_node = twl6040_core_dev->of_node;
 #endif
 
-	ret = gpiochip_add(&twl6040gpo_chip);
+	ret = gpiochip_add_data(&twl6040gpo_chip, NULL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
 		twl6040gpo_chip.ngpio = 0;

@@ -544,7 +544,7 @@ static int giu_probe(struct platform_device *pdev)
 
 	vr41xx_gpio_chip.parent = &pdev->dev;
 
-	ret = gpiochip_add(&vr41xx_gpio_chip);
+	ret = gpiochip_add_data(&vr41xx_gpio_chip, NULL);
 	if (!ret) {
 		iounmap(giu_base);
 		return -ENODEV;

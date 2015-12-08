@@ -182,7 +182,7 @@ static int ttl_probe(struct platform_device *pdev)
 	gpio->base = -1;
 	gpio->ngpio = 20;
 
-	ret = gpiochip_add(gpio);
+	ret = gpiochip_add_data(gpio, NULL);
 	if (ret) {
 		dev_err(dev, "unable to add GPIO chip\n");
 		return ret;

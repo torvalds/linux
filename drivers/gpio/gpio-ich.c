@@ -499,7 +499,7 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 
 init:
 	ichx_gpiolib_setup(&ichx_priv.chip);
-	err = gpiochip_add(&ichx_priv.chip);
+	err = gpiochip_add_data(&ichx_priv.chip, NULL);
 	if (err) {
 		pr_err("Failed to register GPIOs\n");
 		goto add_err;
