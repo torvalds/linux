@@ -1118,6 +1118,7 @@ static int netlink_insert(struct sock *sk, u32 portid)
 		if (err == -EEXIST)
 			err = -EADDRINUSE;
 		sock_put(sk);
+		goto err;
 	}
 
 	/* We need to ensure that the socket is hashed and visible. */
