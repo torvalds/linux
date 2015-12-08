@@ -14,7 +14,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -95,7 +95,7 @@ static void mtk_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	unsigned int reg_addr;
 	unsigned int bit;
-	struct mtk_pinctrl *pctl = dev_get_drvdata(chip->parent);
+	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
 
 	reg_addr = mtk_get_port(pctl, offset) + pctl->devdata->dout_offset;
 	bit = BIT(offset & 0xf);
@@ -742,7 +742,7 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	unsigned int bit;
 	unsigned int read_val = 0;
 
-	struct mtk_pinctrl *pctl = dev_get_drvdata(chip->parent);
+	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
 
 	reg_addr =  mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
 	bit = BIT(offset & 0xf);
@@ -755,7 +755,7 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned int reg_addr;
 	unsigned int bit;
 	unsigned int read_val = 0;
-	struct mtk_pinctrl *pctl = dev_get_drvdata(chip->parent);
+	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
 
 	reg_addr = mtk_get_port(pctl, offset) +
 		pctl->devdata->din_offset;
@@ -768,7 +768,7 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int mtk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	const struct mtk_desc_pin *pin;
-	struct mtk_pinctrl *pctl = dev_get_drvdata(chip->parent);
+	struct mtk_pinctrl *pctl = gpiochip_get_data(chip);
 	int irq;
 
 	pin = pctl->devdata->pins + offset;
@@ -1348,7 +1348,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	pctl->chip->parent = &pdev->dev;
 	pctl->chip->base = -1;
 
-	ret = gpiochip_add(pctl->chip);
+	ret = gpiochip_add_data(pctl->chip, pctl);
 	if (ret) {
 		ret = -EINVAL;
 		goto pctrl_error;
