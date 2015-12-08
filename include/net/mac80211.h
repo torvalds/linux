@@ -3020,9 +3020,11 @@ enum ieee80211_reconfig_type {
  * 	ieee80211_ampdu_mlme_action. Starting sequence number (@ssn)
  * 	is the first frame we expect to perform the action on. Notice
  * 	that TX/RX_STOP can pass NULL for this parameter.
- *	The @buf_size parameter is only valid when the action is set to
- *	%IEEE80211_AMPDU_TX_OPERATIONAL and indicates the peer's reorder
- *	buffer size (number of subframes) for this session -- the driver
+ *	The @buf_size parameter is valid only when the action is set to
+ *	%IEEE80211_AMPDU_RX_START or %IEEE80211_AMPDU_TX_OPERATIONAL and
+ *	indicates the reorder buffer size (number of subframes) for this
+ *	session.
+ *	When the action is set to %IEEE80211_AMPDU_TX_OPERATIONAL the driver
  *	may neither send aggregates containing more subframes than this
  *	nor send aggregates in a way that lost frames would exceed the
  *	buffer size. If just limiting the aggregate size, this would be
