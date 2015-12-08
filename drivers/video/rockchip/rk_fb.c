@@ -3535,9 +3535,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 			win = dev_drv->win[win_id];
 			if (win && fb_par->state) {
-				mutex_lock(&dev_drv->win_config);
 				dev_drv->ops->load_screen(dev_drv, 1);
-				mutex_unlock(&dev_drv->win_config);
 
 				info->var.activate |= FB_ACTIVATE_FORCE;
 				if (rk_fb->disp_mode == ONE_DUAL) {
