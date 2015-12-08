@@ -135,3 +135,37 @@ void irq_destroy_ipi(unsigned int irq)
 
 	irq_domain_free_irqs(irq, nr_irqs);
 }
+
+/**
+ * ipi_get_hwirq - Get the hwirq associated with an IPI to a cpu
+ * @irq:	linux irq number
+ * @cpu:	the target cpu
+ *
+ * When dealing with coprocessors IPI, we need to inform the coprocessor of
+ * the hwirq it needs to use to receive and send IPIs.
+ *
+ * Returns hwirq value on success and INVALID_HWIRQ on failure.
+ */
+irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu)
+{
+	struct irq_data *data = irq_get_irq_data(irq);
+	struct cpumask *ipimask = data ? irq_data_get_affinity_mask(data) : NULL;
+
+	if (!data || !ipimask || cpu > nr_cpu_ids)
+		return INVALID_HWIRQ;
+
+	if (!cpumask_test_cpu(cpu, ipimask))
+		return INVALID_HWIRQ;
+
+	/*
+	 * Get the real hardware irq number if the underlying implementation
+	 * uses a seperate irq per cpu. If the underlying implementation uses
+	 * a single hardware irq for all cpus then the IPI send mechanism
+	 * needs to take care of this.
+	 */
+	if (irq_domain_is_ipi_per_cpu(data->domain))
+		data = irq_get_irq_data(irq + cpu - data->common->ipi_offset);
+
+	return data ? irqd_to_hwirq(data) : INVALID_HWIRQ;
+}
+EXPORT_SYMBOL_GPL(ipi_get_hwirq);
