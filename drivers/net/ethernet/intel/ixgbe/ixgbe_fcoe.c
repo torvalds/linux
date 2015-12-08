@@ -996,8 +996,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		return -EINVAL;
 
 	/* Don't return information on unsupported devices */
-	if (hw->mac.type != ixgbe_mac_82599EB &&
-	    hw->mac.type != ixgbe_mac_X540)
+	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		return -EINVAL;
 
 	/* Manufacturer */
@@ -1043,6 +1042,10 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		snprintf(info->model,
 			 sizeof(info->model),
 			 "Intel 82599");
+	} else if (hw->mac.type == ixgbe_mac_X550) {
+		snprintf(info->model,
+			 sizeof(info->model),
+			 "Intel X550");
 	} else {
 		snprintf(info->model,
 			 sizeof(info->model),
