@@ -231,9 +231,6 @@ static int rhashtable_rehash_attach(struct rhashtable *ht,
 	 */
 	rcu_assign_pointer(old_tbl->future_tbl, new_tbl);
 
-	/* Ensure the new table is visible to readers. */
-	smp_wmb();
-
 	spin_unlock_bh(old_tbl->locks);
 
 	return 0;
