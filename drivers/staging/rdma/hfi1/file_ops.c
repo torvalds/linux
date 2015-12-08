@@ -1663,8 +1663,8 @@ static int exp_tid_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 		 * Now that we know how many free RcvArray entries we have,
 		 * we can pin that many user pages.
 		 */
-		ret = hfi1_get_user_pages(vaddr + (mapped * PAGE_SIZE),
-					  pinned, pages);
+		ret = hfi1_acquire_user_pages(vaddr + (mapped * PAGE_SIZE),
+					      pinned, true, pages);
 		if (ret) {
 			/*
 			 * We can't continue because the pages array won't be
@@ -1833,7 +1833,7 @@ static int exp_tid_free(struct file *fp, struct hfi1_tid_info *tinfo)
 				}
 			}
 			flush_wc();
-			hfi1_release_user_pages(pshadow, pcount);
+			hfi1_release_user_pages(pshadow, pcount, true);
 			clear_bit(bitidx, &uctxt->tidusemap[idx]);
 			map &= ~(1ULL<<bitidx);
 		}
@@ -1862,7 +1862,7 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt)
 		uctxt->physshadow[tid] = 0;
 		uctxt->tid_pg_list[tid] = NULL;
 		pci_unmap_page(dd->pcidev, phys, PAGE_SIZE, PCI_DMA_FROMDEVICE);
-		hfi1_release_user_pages(&p, 1);
+		hfi1_release_user_pages(&p, 1, true);
 	}
 }
 

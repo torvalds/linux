@@ -1587,8 +1587,8 @@ void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int val);
  */
 #define DEFAULT_RCVHDR_ENTSIZE 32
 
-int hfi1_get_user_pages(unsigned long, size_t, struct page **);
-void hfi1_release_user_pages(struct page **, size_t);
+int hfi1_acquire_user_pages(unsigned long, size_t, bool, struct page **);
+void hfi1_release_user_pages(struct page **, size_t, bool);
 
 static inline void clear_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 {
