@@ -731,8 +731,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 
 	flush_wc();
 	/* drain user sdma queue */
-	if (fdata->pq)
-		hfi1_user_sdma_free_queues(fdata);
+	hfi1_user_sdma_free_queues(fdata);
 
 	/*
 	 * Clear any left over, unhandled events so the next process that
