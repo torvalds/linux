@@ -2630,7 +2630,7 @@ static void gfx_v8_0_setup_rb(struct amdgpu_device *adev,
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < se_num; i++) {
 		gfx_v8_0_select_se_sh(adev, i, 0xffffffff);
-		data = 0;
+		data = RREG32(mmPA_SC_RASTER_CONFIG);
 		for (j = 0; j < sh_per_se; j++) {
 			switch (enabled_rbs & 3) {
 			case 0:
