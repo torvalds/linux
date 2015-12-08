@@ -766,7 +766,9 @@ out:
 
 static int __init null_init(void)
 {
+	int ret = 0;
 	unsigned int i;
+	struct nullb *nullb;
 
 	if (bs > PAGE_SIZE) {
 		pr_warn("null_blk: invalid block size\n");
@@ -808,22 +810,29 @@ static int __init null_init(void)
 								0, 0, NULL);
 		if (!ppa_cache) {
 			pr_err("null_blk: unable to create ppa cache\n");
-			return -ENOMEM;
-		}
-	}
-
-	for (i = 0; i < nr_devices; i++) {
-		if (null_add_dev()) {
-			unregister_blkdev(null_major, "nullb");
+			ret = -ENOMEM;
 			goto err_ppa;
 		}
 	}
 
+	for (i = 0; i < nr_devices; i++) {
+		ret = null_add_dev();
+		if (ret)
+			goto err_dev;
+	}
+
 	pr_info("null: module loaded\n");
 	return 0;
-err_ppa:
+
+err_dev:
+	while (!list_empty(&nullb_list)) {
+		nullb = list_entry(nullb_list.next, struct nullb, list);
+		null_del_dev(nullb);
+	}
 	kmem_cache_destroy(ppa_cache);
-	return -EINVAL;
+err_ppa:
+	unregister_blkdev(null_major, "nullb");
+	return ret;
 }
 
 static void __exit null_exit(void)
