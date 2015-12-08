@@ -167,7 +167,7 @@ static int visor_thread_start(struct visor_thread_info *thrinfo,
 {
 	/* used to stop the thread */
 	init_completion(&thrinfo->has_stopped);
-	thrinfo->task = kthread_run(threadfn, thrcontext, name);
+	thrinfo->task = kthread_run(threadfn, thrcontext, "%s", name);
 	if (IS_ERR(thrinfo->task)) {
 		thrinfo->id = 0;
 		return PTR_ERR(thrinfo->task);
