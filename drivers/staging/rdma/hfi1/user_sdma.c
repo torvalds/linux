@@ -497,15 +497,13 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 		   "[%u:%u:%u] First vector not big enough for header %lu/%lu",
 		   dd->unit, uctxt->ctxt, fd->subctxt,
 		   iovec[idx].iov_len, sizeof(info) + sizeof(req->hdr));
-		ret = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 	ret = copy_from_user(&info, iovec[idx].iov_base, sizeof(info));
 	if (ret) {
 		hfi1_cdbg(SDMA, "[%u:%u:%u] Failed to copy info QW (%d)",
 			  dd->unit, uctxt->ctxt, fd->subctxt, ret);
-		ret = -EFAULT;
-		goto done;
+		return -EFAULT;
 	}
 	trace_hfi1_sdma_user_reqinfo(dd, uctxt->ctxt, fd->subctxt,
 				     (u16 *)&info);
@@ -513,15 +511,13 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 		hfi1_cdbg(SDMA, "[%u:%u:%u] Entry %u is in QUEUED state",
 			  dd->unit, uctxt->ctxt, fd->subctxt,
 			  info.comp_idx);
-		ret = -EBADSLT;
-		goto done;
+		return -EBADSLT;
 	}
 	if (!info.fragsize) {
 		hfi1_cdbg(SDMA,
 			  "[%u:%u:%u:%u] Request does not specify fragsize",
 			  dd->unit, uctxt->ctxt, fd->subctxt, info.comp_idx);
-		ret = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 	/*
 	 * We've done all the safety checks that we can up to this point,
@@ -550,8 +546,7 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	if (!info.npkts || req->data_iovs > MAX_VECTORS_PER_REQ) {
 		SDMA_DBG(req, "Too many vectors (%u/%u)", req->data_iovs,
 			 MAX_VECTORS_PER_REQ);
-		ret = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 	/* Copy the header from the user buffer */
 	ret = copy_from_user(&req->hdr, iovec[idx].iov_base + sizeof(info),
@@ -774,10 +769,8 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 	struct hfi1_user_sdma_pkt_q *pq = NULL;
 	struct user_sdma_iovec *iovec = NULL;
 
-	if (!req->pq) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!req->pq)
+		return -EINVAL;
 
 	pq = req->pq;
 
@@ -787,7 +780,7 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 	if (unlikely(req->seqnum == req->info.npkts)) {
 		if (!list_empty(&req->txps))
 			goto dosend;
-		goto done;
+		return ret;
 	}
 
 	if (!maxpkts || maxpkts > req->info.npkts - req->seqnum)
@@ -804,15 +797,13 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		 */
 		if (test_bit(SDMA_REQ_HAS_ERROR, &req->flags)) {
 			set_bit(SDMA_REQ_DONE_ERROR, &req->flags);
-			ret = -EFAULT;
-			goto done;
+			return -EFAULT;
 		}
 
 		tx = kmem_cache_alloc(pq->txreq_cache, GFP_KERNEL);
-		if (!tx) {
-			ret = -ENOMEM;
-			goto done;
-		}
+		if (!tx)
+			return -ENOMEM;
+
 		tx->flags = 0;
 		tx->req = req;
 		tx->busycount = 0;
@@ -1013,12 +1004,12 @@ dosend:
 			if (test_bit(SDMA_REQ_HAVE_AHG, &req->flags))
 				sdma_ahg_free(req->sde, req->ahg_idx);
 		}
-	goto done;
+	return ret;
+
 free_txreq:
 	sdma_txclean(pq->dd, &tx->txreq);
 free_tx:
 	kmem_cache_free(pq->txreq_cache, tx);
-done:
 	return ret;
 }
 
