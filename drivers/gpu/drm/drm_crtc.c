@@ -1101,9 +1101,17 @@ int drm_encoder_init(struct drm_device *dev,
 	encoder->dev = dev;
 	encoder->encoder_type = encoder_type;
 	encoder->funcs = funcs;
-	encoder->name = kasprintf(GFP_KERNEL, "%s-%d",
-				  drm_encoder_enum_list[encoder_type].name,
-				  encoder->base.id);
+	if (name) {
+		va_list ap;
+
+		va_start(ap, name);
+		encoder->name = kvasprintf(GFP_KERNEL, name, ap);
+		va_end(ap);
+	} else {
+		encoder->name = kasprintf(GFP_KERNEL, "%s-%d",
+					  drm_encoder_enum_list[encoder_type].name,
+					  encoder->base.id);
+	}
 	if (!encoder->name) {
 		ret = -ENOMEM;
 		goto out_put;
