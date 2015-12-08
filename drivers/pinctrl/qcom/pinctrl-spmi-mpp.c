@@ -178,11 +178,6 @@ static const char *const pmic_mpp_functions[] = {
 	"digital", "analog", "sink"
 };
 
-static inline struct pmic_mpp_state *to_mpp_state(struct gpio_chip *chip)
-{
-	return container_of(chip, struct pmic_mpp_state, chip);
-};
-
 static int pmic_mpp_read(struct pmic_mpp_state *state,
 			 struct pmic_mpp_pad *pad, unsigned int addr)
 {
@@ -556,7 +551,7 @@ static const struct pinconf_ops pmic_mpp_pinconf_ops = {
 
 static int pmic_mpp_direction_input(struct gpio_chip *chip, unsigned pin)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	unsigned long config;
 
 	config = pinconf_to_config_packed(PIN_CONFIG_INPUT_ENABLE, 1);
@@ -567,7 +562,7 @@ static int pmic_mpp_direction_input(struct gpio_chip *chip, unsigned pin)
 static int pmic_mpp_direction_output(struct gpio_chip *chip,
 				     unsigned pin, int val)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	unsigned long config;
 
 	config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT, val);
@@ -577,7 +572,7 @@ static int pmic_mpp_direction_output(struct gpio_chip *chip,
 
 static int pmic_mpp_get(struct gpio_chip *chip, unsigned pin)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	struct pmic_mpp_pad *pad;
 	int ret;
 
@@ -596,7 +591,7 @@ static int pmic_mpp_get(struct gpio_chip *chip, unsigned pin)
 
 static void pmic_mpp_set(struct gpio_chip *chip, unsigned pin, int value)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	unsigned long config;
 
 	config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT, value);
@@ -619,7 +614,7 @@ static int pmic_mpp_of_xlate(struct gpio_chip *chip,
 
 static int pmic_mpp_to_irq(struct gpio_chip *chip, unsigned pin)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	struct pmic_mpp_pad *pad;
 
 	pad = state->ctrl->desc->pins[pin].drv_data;
@@ -629,7 +624,7 @@ static int pmic_mpp_to_irq(struct gpio_chip *chip, unsigned pin)
 
 static void pmic_mpp_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
-	struct pmic_mpp_state *state = to_mpp_state(chip);
+	struct pmic_mpp_state *state = gpiochip_get_data(chip);
 	unsigned i;
 
 	for (i = 0; i < chip->ngpio; i++) {
@@ -873,7 +868,7 @@ static int pmic_mpp_probe(struct platform_device *pdev)
 	if (IS_ERR(state->ctrl))
 		return PTR_ERR(state->ctrl);
 
-	ret = gpiochip_add(&state->chip);
+	ret = gpiochip_add_data(&state->chip, state);
 	if (ret) {
 		dev_err(state->dev, "can't add gpio chip\n");
 		goto err_chip;
