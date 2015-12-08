@@ -1866,7 +1866,7 @@ static const struct fm10k_msg_data fm10k_msg_data_pf[] = {
 	FM10K_TLV_MSG_ERROR_HANDLER(fm10k_tlv_msg_error),
 };
 
-static struct fm10k_mac_ops mac_ops_pf = {
+static const struct fm10k_mac_ops mac_ops_pf = {
 	.get_bus_info		= fm10k_get_bus_info_generic,
 	.reset_hw		= fm10k_reset_hw_pf,
 	.init_hw		= fm10k_init_hw_pf,
@@ -1889,7 +1889,7 @@ static struct fm10k_mac_ops mac_ops_pf = {
 	.read_systime		= fm10k_read_systime_pf,
 };
 
-static struct fm10k_iov_ops iov_ops_pf = {
+static const struct fm10k_iov_ops iov_ops_pf = {
 	.assign_resources		= fm10k_iov_assign_resources_pf,
 	.configure_tc			= fm10k_iov_configure_tc_pf,
 	.assign_int_moderator		= fm10k_iov_assign_int_moderator_pf,
@@ -1908,7 +1908,7 @@ static s32 fm10k_get_invariants_pf(struct fm10k_hw *hw)
 	return fm10k_sm_mbx_init(hw, &hw->mbx, fm10k_msg_data_pf);
 }
 
-struct fm10k_info fm10k_pf_info = {
+const struct fm10k_info fm10k_pf_info = {
 	.mac		= fm10k_mac_pf,
 	.get_invariants	= fm10k_get_invariants_pf,
 	.mac_ops	= &mac_ops_pf,

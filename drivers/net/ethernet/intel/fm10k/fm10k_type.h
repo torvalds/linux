@@ -660,10 +660,10 @@ enum fm10k_devices {
 };
 
 struct fm10k_info {
-	enum fm10k_mac_type	mac;
-	s32			(*get_invariants)(struct fm10k_hw *);
-	struct fm10k_mac_ops	*mac_ops;
-	struct fm10k_iov_ops	*iov_ops;
+	enum fm10k_mac_type		mac;
+	s32				(*get_invariants)(struct fm10k_hw *);
+	const struct fm10k_mac_ops	*mac_ops;
+	const struct fm10k_iov_ops	*iov_ops;
 };
 
 struct fm10k_hw {
