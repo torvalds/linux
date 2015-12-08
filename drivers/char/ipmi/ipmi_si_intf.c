@@ -1144,13 +1144,13 @@ static int smi_start_processing(void       *send_info,
 
 	new_smi->intf = intf;
 
-	/* Try to claim any interrupts. */
-	if (new_smi->irq_setup)
-		new_smi->irq_setup(new_smi);
-
 	/* Set up the timer that drives the interface. */
 	setup_timer(&new_smi->si_timer, smi_timeout, (long)new_smi);
 	smi_mod_timer(new_smi, jiffies + SI_TIMEOUT_JIFFIES);
+
+	/* Try to claim any interrupts. */
+	if (new_smi->irq_setup)
+		new_smi->irq_setup(new_smi);
 
 	/*
 	 * Check if the user forcefully enabled the daemon.
