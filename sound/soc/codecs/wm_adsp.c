@@ -597,14 +597,19 @@ static int wm_coeff_put(struct snd_kcontrol *kctl,
 {
 	struct wm_coeff_ctl *ctl = (struct wm_coeff_ctl *)kctl->private_value;
 	char *p = ucontrol->value.bytes.data;
+	int ret = 0;
+
+	mutex_lock(&ctl->dsp->pwr_lock);
 
 	memcpy(ctl->cache, p, ctl->len);
 
 	ctl->set = 1;
-	if (!ctl->enabled)
-		return 0;
+	if (ctl->enabled)
+		ret = wm_coeff_write_control(ctl, p, ctl->len);
 
-	return wm_coeff_write_control(ctl, p, ctl->len);
+	mutex_unlock(&ctl->dsp->pwr_lock);
+
+	return ret;
 }
 
 static int wm_coeff_read_control(struct wm_coeff_ctl *ctl,
@@ -651,17 +656,22 @@ static int wm_coeff_get(struct snd_kcontrol *kctl,
 {
 	struct wm_coeff_ctl *ctl = (struct wm_coeff_ctl *)kctl->private_value;
 	char *p = ucontrol->value.bytes.data;
+	int ret = 0;
+
+	mutex_lock(&ctl->dsp->pwr_lock);
 
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE) {
 		if (ctl->enabled)
-			return wm_coeff_read_control(ctl, p, ctl->len);
+			ret = wm_coeff_read_control(ctl, p, ctl->len);
 		else
-			return -EPERM;
+			ret = -EPERM;
+	} else {
+		memcpy(p, ctl->cache, ctl->len);
 	}
 
-	memcpy(p, ctl->cache, ctl->len);
+	mutex_unlock(&ctl->dsp->pwr_lock);
 
-	return 0;
+	return ret;
 }
 
 struct wmfw_ctl_work {
