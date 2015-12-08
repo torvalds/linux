@@ -919,9 +919,9 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 	if (bc->params) {
 		if (copy_to_user(data, &bc->param_id, sizeof(u32)))
 			return -EFAULT;
-		if (copy_to_user(data + sizeof(u32), &size, sizeof(u32)))
+		if (copy_to_user(data + 1, &size, sizeof(u32)))
 			return -EFAULT;
-		if (copy_to_user(data + 2 * sizeof(u32), bc->params, size))
+		if (copy_to_user(data + 2, bc->params, size))
 			return -EFAULT;
 	}
 
