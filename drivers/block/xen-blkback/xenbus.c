@@ -159,6 +159,7 @@ static int xen_blkif_alloc_rings(struct xen_blkif *blkif)
 		init_waitqueue_head(&ring->pending_free_wq);
 		init_waitqueue_head(&ring->shutdown_wq);
 		ring->blkif = blkif;
+		ring->st_print = jiffies;
 		xen_blkif_get(blkif);
 	}
 
@@ -179,7 +180,6 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	atomic_set(&blkif->refcnt, 1);
 	init_completion(&blkif->drain_complete);
 	INIT_WORK(&blkif->free_work, xen_blkif_deferred_free);
-	blkif->st_print = jiffies;
 
 	return blkif;
 }
@@ -329,25 +329,38 @@ int __init xen_blkif_interface_init(void)
  *  sysfs interface for VBD I/O requests
  */
 
-#define VBD_SHOW(name, format, args...)					\
+#define VBD_SHOW_ALLRING(name, format)					\
 	static ssize_t show_##name(struct device *_dev,			\
 				   struct device_attribute *attr,	\
 				   char *buf)				\
 	{								\
 		struct xenbus_device *dev = to_xenbus_device(_dev);	\
 		struct backend_info *be = dev_get_drvdata(&dev->dev);	\
+		struct xen_blkif *blkif = be->blkif;			\
+		unsigned int i;						\
+		unsigned long long result = 0;				\
 									\
-		return sprintf(buf, format, ##args);			\
+		if (!blkif->rings)				\
+			goto out;					\
+									\
+		for (i = 0; i < blkif->nr_rings; i++) {		\
+			struct xen_blkif_ring *ring = &blkif->rings[i];	\
+									\
+			result += ring->st_##name;			\
+		}							\
+									\
+out:									\
+		return sprintf(buf, format, result);			\
 	}								\
 	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
 
-VBD_SHOW(oo_req,  "%llu\n", be->blkif->st_oo_req);
-VBD_SHOW(rd_req,  "%llu\n", be->blkif->st_rd_req);
-VBD_SHOW(wr_req,  "%llu\n", be->blkif->st_wr_req);
-VBD_SHOW(f_req,  "%llu\n", be->blkif->st_f_req);
-VBD_SHOW(ds_req,  "%llu\n", be->blkif->st_ds_req);
-VBD_SHOW(rd_sect, "%llu\n", be->blkif->st_rd_sect);
-VBD_SHOW(wr_sect, "%llu\n", be->blkif->st_wr_sect);
+VBD_SHOW_ALLRING(oo_req,  "%llu\n");
+VBD_SHOW_ALLRING(rd_req,  "%llu\n");
+VBD_SHOW_ALLRING(wr_req,  "%llu\n");
+VBD_SHOW_ALLRING(f_req,  "%llu\n");
+VBD_SHOW_ALLRING(ds_req,  "%llu\n");
+VBD_SHOW_ALLRING(rd_sect, "%llu\n");
+VBD_SHOW_ALLRING(wr_sect, "%llu\n");
 
 static struct attribute *xen_vbdstat_attrs[] = {
 	&dev_attr_oo_req.attr,
@@ -364,6 +377,18 @@ static struct attribute_group xen_vbdstat_group = {
 	.name = "statistics",
 	.attrs = xen_vbdstat_attrs,
 };
+
+#define VBD_SHOW(name, format, args...)					\
+	static ssize_t show_##name(struct device *_dev,			\
+				   struct device_attribute *attr,	\
+				   char *buf)				\
+	{								\
+		struct xenbus_device *dev = to_xenbus_device(_dev);	\
+		struct backend_info *be = dev_get_drvdata(&dev->dev);	\
+									\
+		return sprintf(buf, format, ##args);			\
+	}								\
+	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
 
 VBD_SHOW(physical_device, "%x:%x\n", be->major, be->minor);
 VBD_SHOW(mode, "%s\n", be->mode);

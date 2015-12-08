@@ -587,20 +587,18 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 
 static void print_stats(struct xen_blkif_ring *ring)
 {
-	struct xen_blkif *blkif = ring->blkif;
-
 	pr_info("(%s): oo %3llu  |  rd %4llu  |  wr %4llu  |  f %4llu"
 		 "  |  ds %4llu | pg: %4u/%4d\n",
-		 current->comm, blkif->st_oo_req,
-		 blkif->st_rd_req, blkif->st_wr_req,
-		 blkif->st_f_req, blkif->st_ds_req,
+		 current->comm, ring->st_oo_req,
+		 ring->st_rd_req, ring->st_wr_req,
+		 ring->st_f_req, ring->st_ds_req,
 		 ring->persistent_gnt_c,
 		 xen_blkif_max_pgrants);
-	blkif->st_print = jiffies + msecs_to_jiffies(10 * 1000);
-	blkif->st_rd_req = 0;
-	blkif->st_wr_req = 0;
-	blkif->st_oo_req = 0;
-	blkif->st_ds_req = 0;
+	ring->st_print = jiffies + msecs_to_jiffies(10 * 1000);
+	ring->st_rd_req = 0;
+	ring->st_wr_req = 0;
+	ring->st_oo_req = 0;
+	ring->st_ds_req = 0;
 }
 
 int xen_blkif_schedule(void *arg)
@@ -656,7 +654,7 @@ purge_gnt_list:
 		/* Shrink if we have more than xen_blkif_max_buffer_pages */
 		shrink_free_pagepool(ring, xen_blkif_max_buffer_pages);
 
-		if (log_stats && time_after(jiffies, ring->blkif->st_print))
+		if (log_stats && time_after(jiffies, ring->st_print))
 			print_stats(ring);
 	}
 
@@ -1018,7 +1016,7 @@ static int dispatch_discard_io(struct xen_blkif_ring *ring,
 			preq.sector_number + preq.nr_sects, blkif->vbd.pdevice);
 		goto fail_response;
 	}
-	blkif->st_ds_req++;
+	ring->st_ds_req++;
 
 	secure = (blkif->vbd.discard_secure &&
 		 (req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
@@ -1145,7 +1143,7 @@ __do_block_io_op(struct xen_blkif_ring *ring)
 
 		pending_req = alloc_req(ring);
 		if (NULL == pending_req) {
-			ring->blkif->st_oo_req++;
+			ring->st_oo_req++;
 			more_to_do = 1;
 			break;
 		}
@@ -1243,17 +1241,17 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 
 	switch (req_operation) {
 	case BLKIF_OP_READ:
-		ring->blkif->st_rd_req++;
+		ring->st_rd_req++;
 		operation = READ;
 		break;
 	case BLKIF_OP_WRITE:
-		ring->blkif->st_wr_req++;
+		ring->st_wr_req++;
 		operation = WRITE_ODIRECT;
 		break;
 	case BLKIF_OP_WRITE_BARRIER:
 		drain = true;
 	case BLKIF_OP_FLUSH_DISKCACHE:
-		ring->blkif->st_f_req++;
+		ring->st_f_req++;
 		operation = WRITE_FLUSH;
 		break;
 	default:
@@ -1395,9 +1393,9 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	blk_finish_plug(&plug);
 
 	if (operation == READ)
-		ring->blkif->st_rd_sect += preq.nr_sects;
+		ring->st_rd_sect += preq.nr_sects;
 	else if (operation & WRITE)
-		ring->blkif->st_wr_sect += preq.nr_sects;
+		ring->st_wr_sect += preq.nr_sects;
 
 	return 0;
 

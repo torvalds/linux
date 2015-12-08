@@ -298,6 +298,16 @@ struct xen_blkif_ring {
 	atomic_t		persistent_gnt_in_use;
 	unsigned long           next_lru;
 
+	/* Statistics. */
+	unsigned long		st_print;
+	unsigned long long	st_rd_req;
+	unsigned long long	st_wr_req;
+	unsigned long long	st_oo_req;
+	unsigned long long	st_f_req;
+	unsigned long long	st_ds_req;
+	unsigned long long	st_rd_sect;
+	unsigned long long	st_wr_sect;
+
 	/* Used by the kworker that offload work from the persistent purge. */
 	struct list_head	persistent_purge_list;
 	struct work_struct	persistent_purge_work;
@@ -327,16 +337,6 @@ struct xen_blkif {
 	/* for barrier (drain) requests */
 	struct completion	drain_complete;
 	atomic_t		drain;
-
-	/* statistics */
-	unsigned long		st_print;
-	unsigned long long			st_rd_req;
-	unsigned long long			st_wr_req;
-	unsigned long long			st_oo_req;
-	unsigned long long			st_f_req;
-	unsigned long long			st_ds_req;
-	unsigned long long			st_rd_sect;
-	unsigned long long			st_wr_sect;
 
 	struct work_struct	free_work;
 	unsigned int 		nr_ring_pages;
