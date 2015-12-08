@@ -3282,6 +3282,33 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
 	bool init_hdmi, init_dp;
+	int max_lanes;
+
+	if (I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES) {
+		switch (port) {
+		case PORT_A:
+			max_lanes = 4;
+			break;
+		case PORT_E:
+			max_lanes = 0;
+			break;
+		default:
+			max_lanes = 4;
+			break;
+		}
+	} else {
+		switch (port) {
+		case PORT_A:
+			max_lanes = 2;
+			break;
+		case PORT_E:
+			max_lanes = 2;
+			break;
+		default:
+			max_lanes = 4;
+			break;
+		}
+	}
 
 	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
 		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
@@ -3291,6 +3318,15 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 			      port_name(port));
 		return;
 	}
+
+	if (WARN(max_lanes == 0,
+		 "No lanes for port %c\n", port_name(port)))
+		return;
+
+	if (WARN(init_hdmi && max_lanes < 4,
+		 "Not enough lanes (%d) for HDMI on port %c\n",
+		 max_lanes, port_name(port)))
+		init_hdmi = false;
 
 	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
