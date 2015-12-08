@@ -387,7 +387,7 @@ static int adp5589_write(struct i2c_client *client, u8 reg, u8 val)
 #ifdef CONFIG_GPIOLIB
 static int adp5589_gpio_get_value(struct gpio_chip *chip, unsigned off)
 {
-	struct adp5589_kpad *kpad = container_of(chip, struct adp5589_kpad, gc);
+	struct adp5589_kpad *kpad = gpiochip_get_data(chip);
 	unsigned int bank = kpad->var->bank(kpad->gpiomap[off]);
 	unsigned int bit = kpad->var->bit(kpad->gpiomap[off]);
 
@@ -399,7 +399,7 @@ static int adp5589_gpio_get_value(struct gpio_chip *chip, unsigned off)
 static void adp5589_gpio_set_value(struct gpio_chip *chip,
 				   unsigned off, int val)
 {
-	struct adp5589_kpad *kpad = container_of(chip, struct adp5589_kpad, gc);
+	struct adp5589_kpad *kpad = gpiochip_get_data(chip);
 	unsigned int bank = kpad->var->bank(kpad->gpiomap[off]);
 	unsigned int bit = kpad->var->bit(kpad->gpiomap[off]);
 
@@ -418,7 +418,7 @@ static void adp5589_gpio_set_value(struct gpio_chip *chip,
 
 static int adp5589_gpio_direction_input(struct gpio_chip *chip, unsigned off)
 {
-	struct adp5589_kpad *kpad = container_of(chip, struct adp5589_kpad, gc);
+	struct adp5589_kpad *kpad = gpiochip_get_data(chip);
 	unsigned int bank = kpad->var->bank(kpad->gpiomap[off]);
 	unsigned int bit = kpad->var->bit(kpad->gpiomap[off]);
 	int ret;
@@ -438,7 +438,7 @@ static int adp5589_gpio_direction_input(struct gpio_chip *chip, unsigned off)
 static int adp5589_gpio_direction_output(struct gpio_chip *chip,
 					 unsigned off, int val)
 {
-	struct adp5589_kpad *kpad = container_of(chip, struct adp5589_kpad, gc);
+	struct adp5589_kpad *kpad = gpiochip_get_data(chip);
 	unsigned int bank = kpad->var->bank(kpad->gpiomap[off]);
 	unsigned int bit = kpad->var->bit(kpad->gpiomap[off]);
 	int ret;
@@ -525,9 +525,9 @@ static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 
 	mutex_init(&kpad->gpio_lock);
 
-	error = gpiochip_add(&kpad->gc);
+	error = gpiochip_add_data(&kpad->gc, kpad);
 	if (error) {
-		dev_err(dev, "gpiochip_add failed, err: %d\n", error);
+		dev_err(dev, "gpiochip_add_data() failed, err: %d\n", error);
 		return error;
 	}
 
