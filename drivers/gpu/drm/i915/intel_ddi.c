@@ -348,75 +348,63 @@ intel_dig_port_supports_hdmi(const struct intel_digital_port *intel_dig_port)
 	return i915_mmio_reg_valid(intel_dig_port->hdmi.hdmi_reg);
 }
 
-static const struct ddi_buf_trans *skl_get_buf_trans_dp(struct drm_device *dev,
-							int *n_entries)
+static const struct ddi_buf_trans *
+skl_get_buf_trans_dp(struct drm_device *dev, int *n_entries)
 {
-	const struct ddi_buf_trans *ddi_translations;
-
 	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
-		ddi_translations = skl_y_ddi_translations_dp;
 		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
+		return skl_y_ddi_translations_dp;
 	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
-		ddi_translations = skl_u_ddi_translations_dp;
 		*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
+		return skl_u_ddi_translations_dp;
 	} else {
-		ddi_translations = skl_ddi_translations_dp;
 		*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
+		return skl_ddi_translations_dp;
 	}
-
-	return ddi_translations;
-}
-
-static const struct ddi_buf_trans *skl_get_buf_trans_edp(struct drm_device *dev,
-							 int *n_entries)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct ddi_buf_trans *ddi_translations;
-
-	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
-		if (dev_priv->edp_low_vswing) {
-			ddi_translations = skl_y_ddi_translations_edp;
-			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
-		} else {
-			ddi_translations = skl_y_ddi_translations_dp;
-			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
-		}
-	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
-		if (dev_priv->edp_low_vswing) {
-			ddi_translations = skl_u_ddi_translations_edp;
-			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
-		} else {
-			ddi_translations = skl_u_ddi_translations_dp;
-			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
-		}
-	} else {
-		if (dev_priv->edp_low_vswing) {
-			ddi_translations = skl_ddi_translations_edp;
-			*n_entries = ARRAY_SIZE(skl_ddi_translations_edp);
-		} else {
-			ddi_translations = skl_ddi_translations_dp;
-			*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
-		}
-	}
-
-	return ddi_translations;
 }
 
 static const struct ddi_buf_trans *
-skl_get_buf_trans_hdmi(struct drm_device *dev,
-		       int *n_entries)
+skl_get_buf_trans_edp(struct drm_device *dev, int *n_entries)
 {
-	const struct ddi_buf_trans *ddi_translations;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
-		ddi_translations = skl_y_ddi_translations_hdmi;
-		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_hdmi);
+		if (dev_priv->edp_low_vswing) {
+			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
+			return skl_y_ddi_translations_edp;
+		} else {
+			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
+			return skl_y_ddi_translations_dp;
+		}
+	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
+		if (dev_priv->edp_low_vswing) {
+			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
+			return skl_u_ddi_translations_edp;
+		} else {
+			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
+			return skl_u_ddi_translations_dp;
+		}
 	} else {
-		ddi_translations = skl_ddi_translations_hdmi;
-		*n_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
+		if (dev_priv->edp_low_vswing) {
+			*n_entries = ARRAY_SIZE(skl_ddi_translations_edp);
+			return skl_ddi_translations_edp;
+		} else {
+			*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
+			return skl_ddi_translations_dp;
+		}
 	}
+}
 
-	return ddi_translations;
+static const struct ddi_buf_trans *
+skl_get_buf_trans_hdmi(struct drm_device *dev, int *n_entries)
+{
+	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
+		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_hdmi);
+		return skl_y_ddi_translations_hdmi;
+	} else {
+		*n_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
+		return skl_ddi_translations_hdmi;
+	}
 }
 
 /*
