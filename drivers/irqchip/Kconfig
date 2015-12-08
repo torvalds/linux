@@ -209,6 +209,7 @@ config KEYSTONE_IRQ
 
 config MIPS_GIC
 	bool
+	select IRQ_DOMAIN_HIERARCHY
 	select MIPS_CM
 
 config INGENIC_IRQ
