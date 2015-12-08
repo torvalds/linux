@@ -194,7 +194,7 @@ static void pppopns_xmit_core(struct work_struct *delivery_work)
 			.msg_iovlen = 1,
 			.msg_flags = MSG_NOSIGNAL | MSG_DONTWAIT,
 		};
-		sk_raw->sk_prot->sendmsg(NULL, sk_raw, &msg, skb->len);
+		sk_raw->sk_prot->sendmsg(sk_raw, &msg, skb->len);
 		kfree_skb(skb);
 	}
 	set_fs(old_fs);
