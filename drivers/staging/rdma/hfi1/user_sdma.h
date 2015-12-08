@@ -68,6 +68,8 @@ struct hfi1_user_sdma_pkt_q {
 	struct user_sdma_request *reqs;
 	struct iowait busy;
 	unsigned state;
+	wait_queue_head_t wait;
+	struct mm_struct *user_mm;
 };
 
 struct hfi1_user_sdma_comp_q {
