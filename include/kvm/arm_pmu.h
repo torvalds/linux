@@ -23,6 +23,8 @@
 #include <linux/perf_event.h>
 #include <asm/perf_event.h>
 
+#define ARMV8_PMU_CYCLE_IDX		(ARMV8_PMU_MAX_COUNTERS - 1)
+
 struct kvm_pmc {
 	u8 idx;	/* index into the pmu->pmc array */
 	struct perf_event *perf_event;
@@ -36,11 +38,20 @@ struct kvm_pmu {
 };
 
 #define kvm_arm_pmu_v3_ready(v)		((v)->arch.pmu.ready)
+u64 kvm_pmu_get_counter_value(struct kvm_vcpu *vcpu, u64 select_idx);
+void kvm_pmu_set_counter_value(struct kvm_vcpu *vcpu, u64 select_idx, u64 val);
 #else
 struct kvm_pmu {
 };
 
 #define kvm_arm_pmu_v3_ready(v)		(false)
+static inline u64 kvm_pmu_get_counter_value(struct kvm_vcpu *vcpu,
+					    u64 select_idx)
+{
+	return 0;
+}
+static inline void kvm_pmu_set_counter_value(struct kvm_vcpu *vcpu,
+					     u64 select_idx, u64 val) {}
 #endif
 
 #endif
