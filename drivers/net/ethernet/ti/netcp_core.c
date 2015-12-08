@@ -1145,8 +1145,8 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 	p_info.ts_context = NULL;
 	p_info.txtstamp_complete = NULL;
 	p_info.epib = desc->epib;
-	p_info.psdata = desc->psdata;
-	memset(p_info.epib, 0, KNAV_DMA_NUM_EPIB_WORDS * sizeof(u32));
+	p_info.psdata = (u32 __force *)desc->psdata;
+	memset(p_info.epib, 0, KNAV_DMA_NUM_EPIB_WORDS * sizeof(__le32));
 
 	/* Find out where to inject the packet for transmission */
 	list_for_each_entry(tx_hook, &netcp->txhook_list_head, list) {
@@ -1170,11 +1170,12 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 
 	/* update descriptor */
 	if (p_info.psdata_len) {
-		u32 *psdata = p_info.psdata;
+		/* psdata points to both native-endian and device-endian data */
+		__le32 *psdata = (void __force *)p_info.psdata;
 
 		memmove(p_info.psdata, p_info.psdata + p_info.psdata_len,
 			p_info.psdata_len);
-		set_words(psdata, p_info.psdata_len, psdata);
+		set_words(p_info.psdata, p_info.psdata_len, psdata);
 		tmp |= (p_info.psdata_len & KNAV_DMA_DESC_PSLEN_MASK) <<
 			KNAV_DMA_DESC_PSLEN_SHIFT;
 	}
