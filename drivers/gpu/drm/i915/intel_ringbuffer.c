@@ -34,23 +34,6 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
-bool
-intel_ring_initialized(struct intel_engine_cs *ring)
-{
-	struct drm_device *dev = ring->dev;
-
-	if (!dev)
-		return false;
-
-	if (i915.enable_execlists) {
-		struct intel_context *dctx = ring->default_context;
-		struct intel_ringbuffer *ringbuf = dctx->engine[ring->id].ringbuf;
-
-		return ringbuf->obj;
-	} else
-		return ring->buffer && ring->buffer->obj;
-}
-
 int __intel_ring_space(int head, int tail, int size)
 {
 	int space = head - tail;
@@ -2168,8 +2151,10 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	init_waitqueue_head(&ring->irq_queue);
 
 	ringbuf = intel_engine_create_ringbuffer(ring, 32 * PAGE_SIZE);
-	if (IS_ERR(ringbuf))
-		return PTR_ERR(ringbuf);
+	if (IS_ERR(ringbuf)) {
+		ret = PTR_ERR(ringbuf);
+		goto error;
+	}
 	ring->buffer = ringbuf;
 
 	if (I915_NEED_GFX_HWS(dev)) {
@@ -2198,8 +2183,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	return 0;
 
 error:
-	intel_ringbuffer_free(ringbuf);
-	ring->buffer = NULL;
+	intel_cleanup_ring_buffer(ring);
 	return ret;
 }
 
@@ -2212,12 +2196,14 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 
 	dev_priv = to_i915(ring->dev);
 
-	intel_stop_ring_buffer(ring);
-	WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);
+	if (ring->buffer) {
+		intel_stop_ring_buffer(ring);
+		WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);
 
-	intel_unpin_ringbuffer_obj(ring->buffer);
-	intel_ringbuffer_free(ring->buffer);
-	ring->buffer = NULL;
+		intel_unpin_ringbuffer_obj(ring->buffer);
+		intel_ringbuffer_free(ring->buffer);
+		ring->buffer = NULL;
+	}
 
 	if (ring->cleanup)
 		ring->cleanup(ring);
@@ -2226,6 +2212,7 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 
 	i915_cmd_parser_fini_ring(ring);
 	i915_gem_batch_pool_fini(&ring->batch_pool);
+	ring->dev = NULL;
 }
 
 static int ring_wait_for_space(struct intel_engine_cs *ring, int n)

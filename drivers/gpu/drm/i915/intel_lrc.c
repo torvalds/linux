@@ -1894,8 +1894,10 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 
 	dev_priv = ring->dev->dev_private;
 
-	intel_logical_ring_stop(ring);
-	WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+	if (ring->buffer) {
+		intel_logical_ring_stop(ring);
+		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+	}
 
 	if (ring->cleanup)
 		ring->cleanup(ring);
@@ -1909,6 +1911,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 	}
 
 	lrc_destroy_wa_ctx_obj(ring);
+	ring->dev = NULL;
 }
 
 static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *ring)
@@ -1931,11 +1934,11 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 
 	ret = i915_cmd_parser_init_ring(ring);
 	if (ret)
-		return ret;
+		goto error;
 
 	ret = intel_lr_context_deferred_alloc(ring->default_context, ring);
 	if (ret)
-		return ret;
+		goto error;
 
 	/* As this is the default context, always pin it */
 	ret = intel_lr_context_do_pin(
@@ -1946,9 +1949,13 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 		DRM_ERROR(
 			"Failed to pin and map ringbuffer %s: %d\n",
 			ring->name, ret);
-		return ret;
+		goto error;
 	}
 
+	return 0;
+
+error:
+	intel_logical_ring_cleanup(ring);
 	return ret;
 }
 
