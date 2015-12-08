@@ -82,7 +82,6 @@ struct gb_loopback {
 
 	int type;
 	int async;
-	u32 mask;
 	u32 size;
 	u32 iteration_max;
 	u32 iteration_count;
@@ -311,8 +310,6 @@ gb_dev_loopback_rw_attr(us_wait, d);
 gb_dev_loopback_rw_attr(iteration_max, u);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
 gb_dev_loopback_ro_attr(iteration_count, false);
-/* A bit-mask of destination connections to include in the test run */
-gb_dev_loopback_rw_attr(mask, u);
 /* A flag to indicate synchronous or asynchronous operations */
 gb_dev_loopback_rw_attr(async, u);
 /* Timeout of an individual asynchronous request */
@@ -339,7 +336,6 @@ static struct attribute *loopback_attrs[] = {
 	&dev_attr_us_wait.attr,
 	&dev_attr_iteration_count.attr,
 	&dev_attr_iteration_max.attr,
-	&dev_attr_mask.attr,
 	&dev_attr_async.attr,
 	&dev_attr_error.attr,
 	&dev_attr_requests_completed.attr,
