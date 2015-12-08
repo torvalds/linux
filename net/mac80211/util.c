@@ -1641,6 +1641,29 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 	drv_stop(local);
 }
 
+static void ieee80211_flush_completed_scan(struct ieee80211_local *local,
+					   bool aborted)
+{
+	/* It's possible that we don't handle the scan completion in
+	 * time during suspend, so if it's still marked as completed
+	 * here, queue the work and flush it to clean things up.
+	 * Instead of calling the worker function directly here, we
+	 * really queue it to avoid potential races with other flows
+	 * scheduling the same work.
+	 */
+	if (test_bit(SCAN_COMPLETED, &local->scanning)) {
+		/* If coming from reconfiguration failure, abort the scan so
+		 * we don't attempt to continue a partial HW scan - which is
+		 * possible otherwise if (e.g.) the 2.4 GHz portion was the
+		 * completed scan, and a 5 GHz portion is still pending.
+		 */
+		if (aborted)
+			set_bit(SCAN_ABORTED, &local->scanning);
+		ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
+		flush_delayed_work(&local->scan_work);
+	}
+}
+
 static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
@@ -1659,6 +1682,8 @@ static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 	local->resuming = false;
 	local->suspended = false;
 	local->in_reconfig = false;
+
+	ieee80211_flush_completed_scan(local, true);
 
 	/* scheduled scan clearly can't be running any more, but tell
 	 * cfg80211 and clear local state
@@ -2074,17 +2099,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mb();
 	local->resuming = false;
 
-	/* It's possible that we don't handle the scan completion in
-	 * time during suspend, so if it's still marked as completed
-	 * here, queue the work and flush it to clean things up.
-	 * Instead of calling the worker function directly here, we
-	 * really queue it to avoid potential races with other flows
-	 * scheduling the same work.
-	 */
-	if (test_bit(SCAN_COMPLETED, &local->scanning)) {
-		ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
-		flush_delayed_work(&local->scan_work);
-	}
+	ieee80211_flush_completed_scan(local, false);
 
 	if (local->open_count && !reconfig_due_to_wowlan)
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_SUSPEND);
