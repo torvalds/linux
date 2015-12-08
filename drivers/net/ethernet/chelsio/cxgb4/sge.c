@@ -1029,6 +1029,30 @@ static void inline_tx_skb(const struct sk_buff *skb, const struct sge_txq *q,
 		*p = 0;
 }
 
+static void *inline_tx_skb_header(const struct sk_buff *skb,
+				  const struct sge_txq *q,  void *pos,
+				  int length)
+{
+	u64 *p;
+	int left = (void *)q->stat - pos;
+
+	if (likely(length <= left)) {
+		memcpy(pos, skb->data, length);
+		pos += length;
+	} else {
+		memcpy(pos, skb->data, left);
+		memcpy(q->desc, skb->data + left, length - left);
+		pos = (void *)q->desc + (length - left);
+	}
+	/* 0-pad to multiple of 16 */
+	p = PTR_ALIGN(pos, 8);
+	if ((uintptr_t)p & 8) {
+		*p = 0;
+		return p + 1;
+	}
+	return p;
+}
+
 /*
  * Figure out what HW csum a packet wants and return the appropriate control
  * bits.
@@ -1561,9 +1585,11 @@ static void ofldtxq_stop(struct sge_ofld_txq *q, struct sk_buff *skb)
  */
 static void service_ofldq(struct sge_ofld_txq *q)
 {
-	u64 *pos;
+	u64 *pos, *before, *end;
 	int credits;
 	struct sk_buff *skb;
+	struct sge_txq *txq;
+	unsigned int left;
 	unsigned int written = 0;
 	unsigned int flits, ndesc;
 
@@ -1607,9 +1633,32 @@ static void service_ofldq(struct sge_ofld_txq *q)
 		} else {
 			int last_desc, hdr_len = skb_transport_offset(skb);
 
-			memcpy(pos, skb->data, hdr_len);
-			write_sgl(skb, &q->q, (void *)pos + hdr_len,
-				  pos + flits, hdr_len,
+			/* The WR headers  may not fit within one descriptor.
+			 * So we need to deal with wrap-around here.
+			 */
+			before = (u64 *)pos;
+			end = (u64 *)pos + flits;
+			txq = &q->q;
+			pos = (void *)inline_tx_skb_header(skb, &q->q,
+							   (void *)pos,
+							   hdr_len);
+			if (before > (u64 *)pos) {
+				left = (u8 *)end - (u8 *)txq->stat;
+				end = (void *)txq->desc + left;
+			}
+
+			/* If current position is already at the end of the
+			 * ofld queue, reset the current to point to
+			 * start of the queue and update the end ptr as well.
+			 */
+			if (pos == (u64 *)txq->stat) {
+				left = (u8 *)end - (u8 *)txq->stat;
+				end = (void *)txq->desc + left;
+				pos = (void *)txq->desc;
+			}
+
+			write_sgl(skb, &q->q, (void *)pos,
+				  end, hdr_len,
 				  (dma_addr_t *)skb->head);
 #ifdef CONFIG_NEED_DMA_MAP_STATE
 			skb->dev = q->adap->port[0];
