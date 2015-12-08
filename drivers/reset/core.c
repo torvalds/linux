@@ -152,7 +152,7 @@ EXPORT_SYMBOL_GPL(reset_control_status);
 struct reset_control *of_reset_control_get_by_index(struct device_node *node,
 					   int index)
 {
-	struct reset_control *rstc = ERR_PTR(-EPROBE_DEFER);
+	struct reset_control *rstc;
 	struct reset_controller_dev *r, *rcdev;
 	struct of_phandle_args args;
 	int rstc_id;
