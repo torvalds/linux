@@ -252,8 +252,6 @@ static bool ieee80211_recalc_sw_work(struct ieee80211_local *local,
 static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc,
 					 unsigned long start_time)
 {
-	struct ieee80211_local *local = roc->sdata->local;
-
 	if (WARN_ON(roc->notified))
 		return;
 
@@ -274,9 +272,6 @@ static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc,
 	}
 
 	roc->notified = true;
-
-	if (!local->ops->remain_on_channel)
-		ieee80211_recalc_sw_work(local, start_time);
 }
 
 static void ieee80211_hw_roc_start(struct work_struct *work)
@@ -658,6 +653,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 			queued = true;
 			roc->on_channel = tmp->on_channel;
 			ieee80211_handle_roc_started(roc, now);
+			ieee80211_recalc_sw_work(local, now);
 			break;
 		}
 
