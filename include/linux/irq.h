@@ -133,7 +133,9 @@ struct irq_domain;
  *			Use accessor functions to deal with it
  * @node:		node index useful for balancing
  * @handler_data:	per-IRQ data for the irq_chip methods
- * @affinity:		IRQ affinity on SMP
+ * @affinity:		IRQ affinity on SMP. If this is an IPI
+ *			related irq, then this is the mask of the
+ *			CPUs to which an IPI can be sent.
  * @msi_desc:		MSI descriptor
  */
 struct irq_common_data {
