@@ -526,6 +526,7 @@
 			interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 931>;
 			power-domains = <&cpg>;
+			i2c-scl-internal-delay-ns = <110>;
 			status = "disabled";
 		};
 
@@ -537,6 +538,7 @@
 			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 930>;
 			power-domains = <&cpg>;
+			i2c-scl-internal-delay-ns = <6>;
 			status = "disabled";
 		};
 
@@ -548,6 +550,7 @@
 			interrupts = <GIC_SPI 286 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 929>;
 			power-domains = <&cpg>;
+			i2c-scl-internal-delay-ns = <6>;
 			status = "disabled";
 		};
 
@@ -559,6 +562,7 @@
 			interrupts = <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 928>;
 			power-domains = <&cpg>;
+			i2c-scl-internal-delay-ns = <110>;
 			status = "disabled";
 		};
 
@@ -570,6 +574,7 @@
 			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 927>;
 			power-domains = <&cpg>;
+			i2c-scl-internal-delay-ns = <110>;
 			status = "disabled";
 		};
 
@@ -581,6 +586,7 @@
 			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 919>;
 			power-domains = <&cpg>;
+			i2c-scl-internal-delay-ns = <110>;
 			status = "disabled";
 		};
 
@@ -592,6 +598,7 @@
 			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 918>;
 			power-domains = <&cpg>;
+			i2c-scl-internal-delay-ns = <6>;
 			status = "disabled";
 		};
 
