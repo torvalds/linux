@@ -130,18 +130,18 @@
 #define SAHARA_REG_IDAR		0x20
 
 struct sahara_hw_desc {
-	u32		hdr;
-	u32		len1;
-	dma_addr_t	p1;
-	u32		len2;
-	dma_addr_t	p2;
-	dma_addr_t	next;
+	u32	hdr;
+	u32	len1;
+	u32	p1;
+	u32	len2;
+	u32	p2;
+	u32	next;
 };
 
 struct sahara_hw_link {
-	u32		len;
-	dma_addr_t	p;
-	dma_addr_t	next;
+	u32	len;
+	u32	p;
+	u32	next;
 };
 
 struct sahara_ctx {
