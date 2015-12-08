@@ -435,7 +435,7 @@ static bool __parse_nid_path(struct hda_codec *codec,
 	return true;
 }
 
-/**
+/*
  * snd_hda_parse_nid_path - parse the widget path from the given nid to
  * the target nid
  * @codec: the HDA codec
@@ -454,7 +454,7 @@ static bool __parse_nid_path(struct hda_codec *codec,
  * with the negative of given value are excluded, only other paths are chosen.
  * when @anchor_nid is zero, no special handling about path selection.
  */
-bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
+static bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
 			    hda_nid_t to_nid, int anchor_nid,
 			    struct nid_path *path)
 {
@@ -465,7 +465,6 @@ bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
 	}
 	return false;
 }
-EXPORT_SYMBOL_GPL(snd_hda_parse_nid_path);
 
 /**
  * snd_hda_add_new_path - parse the path between the given NIDs and
