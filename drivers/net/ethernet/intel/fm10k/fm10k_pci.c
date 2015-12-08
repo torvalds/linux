@@ -912,7 +912,7 @@ static irqreturn_t fm10k_msix_mbx_vf(int __always_unused irq, void *data)
 		fm10k_mbx_unlock(interface);
 	}
 
-	hw->mac.get_host_state = 1;
+	hw->mac.get_host_state = true;
 	fm10k_service_event_schedule(interface);
 
 	return IRQ_HANDLED;
@@ -1128,7 +1128,7 @@ static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 	}
 
 	/* we should validate host state after interrupt event */
-	hw->mac.get_host_state = 1;
+	hw->mac.get_host_state = true;
 
 	/* validate host state, and handle VF mailboxes in the service task */
 	fm10k_service_event_schedule(interface);
@@ -1635,7 +1635,7 @@ void fm10k_up(struct fm10k_intfc *interface)
 	netif_tx_start_all_queues(interface->netdev);
 
 	/* kick off the service timer now */
-	hw->mac.get_host_state = 1;
+	hw->mac.get_host_state = true;
 	mod_timer(&interface->service_timer, jiffies);
 }
 
