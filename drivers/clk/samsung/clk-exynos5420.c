@@ -677,8 +677,8 @@ static struct samsung_mux_clock exynos5x_mux_clks[] __initdata = {
 			SRC_TOP5, 20, 1),
 	MUX(CLK_MOUT_USER_ACLK300_DISP1, "mout_user_aclk300_disp1",
 			mout_user_aclk300_disp1_p, SRC_TOP5, 24, 1),
-	MUX(0, "mout_user_aclk300_gscl", mout_user_aclk300_gscl_p,
-			SRC_TOP5, 28, 1),
+	MUX(CLK_MOUT_USER_ACLK300_GSCL, "mout_user_aclk300_gscl",
+			mout_user_aclk300_gscl_p, SRC_TOP5, 28, 1),
 
 	MUX(0, "mout_sclk_mpll", mout_mpll_p, SRC_TOP6, 0, 1),
 	MUX(CLK_MOUT_VPLL, "mout_sclk_vpll", mout_vpll_p, SRC_TOP6, 4, 1),
@@ -729,8 +729,8 @@ static struct samsung_mux_clock exynos5x_mux_clks[] __initdata = {
 			SRC_TOP12, 20, 1),
 	MUX(CLK_MOUT_SW_ACLK300, "mout_sw_aclk300_disp1",
 			mout_sw_aclk300_disp1_p, SRC_TOP12, 24, 1),
-	MUX(0, "mout_sw_aclk300_gscl", mout_sw_aclk300_gscl_p,
-			SRC_TOP12, 28, 1),
+	MUX(CLK_MOUT_SW_ACLK300_GSCL, "mout_sw_aclk300_gscl",
+			mout_sw_aclk300_gscl_p, SRC_TOP12, 28, 1),
 
 	/* DISP1 Block */
 	MUX(0, "mout_mipi1", mout_group2_p, SRC_DISP10, 16, 3),
