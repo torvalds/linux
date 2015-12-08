@@ -11,6 +11,8 @@
 #include <linux/err.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/gpio/driver.h>
+/* FIXME: consumer API required for gpio_set_value() etc, get rid of this */
 #include <linux/gpio.h>
 #include <linux/irq.h>
 
@@ -1197,7 +1199,7 @@ static struct gpio_chip bfin_chip = {
 
 static int __init bfin_gpiolib_setup(void)
 {
-	return gpiochip_add(&bfin_chip);
+	return gpiochip_add_data(&bfin_chip, NULL);
 }
 arch_initcall(bfin_gpiolib_setup);
 #endif
