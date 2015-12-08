@@ -77,10 +77,12 @@ def replace(h):
         search_str = "(#[ \t]*include[ \t]*[<\"][ \t]*)" + i + "([ \t]*[>\"])"
         replace_str = "\\1" + "lkl/" + i + "\\2"
         content = re.sub(search_str, replace_str, content)
-    for d in defines:
-        search_str = "(\W)" + d + "(\W)"
-        replace_str = "\\1" + lkl_prefix(d) + "\\2"
-        content = re.sub(search_str, replace_str, content, flags = re.MULTILINE)
+    tmp = ""
+    for w in re.split("(\W+)", content):
+        if w in defines:
+            w = lkl_prefix(w)
+        tmp += w
+    content = tmp
     for s in structs:
         search_str = "(\W?struct\s+)" + s + "(\W)"
         replace_str = "\\1" + lkl_prefix(s) + "\\2"
