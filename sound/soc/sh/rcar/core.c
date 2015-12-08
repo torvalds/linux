@@ -272,12 +272,21 @@ u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
  */
 u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 {
-	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
-	struct rsnd_mod *target = src ? src : ssi;
+	struct rsnd_mod *target;
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	u32 val = 0x76543210;
 	u32 mask = ~0;
+
+	if (rsnd_io_is_play(io)) {
+		struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+
+		target = src ? src : ssi;
+	} else {
+		struct rsnd_mod *cmd = rsnd_io_to_mod_cmd(io);
+
+		target = cmd ? cmd : ssi;
+	}
 
 	mask <<= runtime->channels * 4;
 	val = val & mask;
