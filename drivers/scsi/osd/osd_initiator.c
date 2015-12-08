@@ -170,10 +170,7 @@ static int _osd_get_print_system_info(struct osd_dev *od,
 
 	/* FIXME: Where are the time utilities */
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("CLOCK                  [0x%02x%02x%02x%02x%02x%02x]\n",
-		((char *)pFirst)[0], ((char *)pFirst)[1],
-		((char *)pFirst)[2], ((char *)pFirst)[3],
-		((char *)pFirst)[4], ((char *)pFirst)[5]);
+	OSD_INFO("CLOCK                  [0x%6phN]\n", pFirst);
 
 	if (a < nelem) { /* IBM-OSD-SIM bug, Might not have it */
 		unsigned len = get_attrs[a].len;
