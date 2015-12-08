@@ -239,7 +239,7 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 	}
 
 	mask = x86_pmu.lbr_nr - 1;
-	tos = intel_pmu_lbr_tos();
+	tos = task_ctx->tos;
 	for (i = 0; i < tos; i++) {
 		lbr_idx = (tos - i) & mask;
 		wrmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
@@ -247,6 +247,7 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			wrmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
 	}
+	wrmsrl(x86_pmu.lbr_tos, tos);
 	task_ctx->lbr_stack_state = LBR_NONE;
 }
 
@@ -270,6 +271,7 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			rdmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
 	}
+	task_ctx->tos = tos;
 	task_ctx->lbr_stack_state = LBR_VALID;
 }
 
