@@ -6,7 +6,6 @@ libperf-y += config.o
 libperf-y += ctype.o
 libperf-y += db-export.o
 libperf-y += env.o
-libperf-y += environment.o
 libperf-y += event.o
 libperf-y += evlist.o
 libperf-y += evsel.o
