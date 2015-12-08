@@ -116,9 +116,9 @@ static struct gpio_chip bf538_porte_chip = {
 
 static int __init bf538_extgpio_setup(void)
 {
-	return gpiochip_add(&bf538_portc_chip) |
-		gpiochip_add(&bf538_portd_chip) |
-		gpiochip_add(&bf538_porte_chip);
+	return gpiochip_add_data(&bf538_portc_chip, NULL) |
+		gpiochip_add_data(&bf538_portd_chip, NULL) |
+		gpiochip_add_data(&bf538_porte_chip, NULL);
 }
 arch_initcall(bf538_extgpio_setup);
 
