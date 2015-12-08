@@ -7411,25 +7411,21 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 			btrfs_start_ordered_extent(inode, ordered, 1);
 			btrfs_put_ordered_extent(ordered);
 		} else {
-			/* Screw you mmap */
-			ret = btrfs_fdatawrite_range(inode, lockstart, lockend);
-			if (ret)
-				break;
-			ret = filemap_fdatawait_range(inode->i_mapping,
-						      lockstart,
-						      lockend);
-			if (ret)
-				break;
-
 			/*
-			 * If we found a page that couldn't be invalidated just
-			 * fall back to buffered.
+			 * We could trigger writeback for this range (and wait
+			 * for it to complete) and then invalidate the pages for
+			 * this range (through invalidate_inode_pages2_range()),
+			 * but that can lead us to a deadlock with a concurrent
+			 * call to readpages() (a buffered read or a defrag call
+			 * triggered a readahead) on a page lock due to an
+			 * ordered dio extent we created before but did not have
+			 * yet a corresponding bio submitted (whence it can not
+			 * complete), which makes readpages() wait for that
+			 * ordered extent to complete while holding a lock on
+			 * that page.
 			 */
-			ret = invalidate_inode_pages2_range(inode->i_mapping,
-					lockstart >> PAGE_CACHE_SHIFT,
-					lockend >> PAGE_CACHE_SHIFT);
-			if (ret)
-				break;
+			ret = -ENOTBLK;
+			break;
 		}
 
 		cond_resched();
