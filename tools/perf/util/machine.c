@@ -576,7 +576,7 @@ static void dso__adjust_kmod_long_name(struct dso *dso, const char *filename)
 	if (!dup_filename)
 		return;
 
-	dso__set_long_name(dso, filename, true);
+	dso__set_long_name(dso, dup_filename, true);
 }
 
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,

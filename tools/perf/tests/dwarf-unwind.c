@@ -160,14 +160,11 @@ static int krava_1(struct thread *thread)
 
 int test__dwarf_unwind(int subtest __maybe_unused)
 {
-	struct machines machines;
 	struct machine *machine;
 	struct thread *thread;
 	int err = -1;
 
-	machines__init(&machines);
-
-	machine = machines__find(&machines, HOST_KERNEL_ID);
+	machine = machine__new_host();
 	if (!machine) {
 		pr_err("Could not get machine\n");
 		return -1;
@@ -199,7 +196,6 @@ int test__dwarf_unwind(int subtest __maybe_unused)
 
  out:
 	machine__delete_threads(machine);
-	machine__exit(machine);
-	machines__exit(&machines);
+	machine__delete(machine);
 	return err;
 }

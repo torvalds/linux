@@ -168,14 +168,24 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	attr->sample_period = 0;
 	attr->sample_type   = 0;
 
-	if (target__has_cpu(&target))
-		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
-
-	if (!target__has_task(&target) && perf_evsel__is_group_leader(evsel)) {
+	/*
+	 * Disabling all counters initially, they will be enabled
+	 * either manually by us or by kernel via enable_on_exec
+	 * set later.
+	 */
+	if (perf_evsel__is_group_leader(evsel)) {
 		attr->disabled = 1;
-		if (!initial_delay)
+
+		/*
+		 * In case of initial_delay we enable tracee
+		 * events manually.
+		 */
+		if (target__none(&target) && !initial_delay)
 			attr->enable_on_exec = 1;
 	}
+
+	if (target__has_cpu(&target))
+		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
 
 	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
 }
@@ -251,18 +261,18 @@ static void process_interval(void)
 	print_counters(&rs, 0, NULL);
 }
 
-static void handle_initial_delay(void)
+static void enable_counters(void)
 {
-	struct perf_evsel *counter;
-
-	if (initial_delay) {
-		const int ncpus = cpu_map__nr(evsel_list->cpus),
-			nthreads = thread_map__nr(evsel_list->threads);
-
+	if (initial_delay)
 		usleep(initial_delay * 1000);
-		evlist__for_each(evsel_list, counter)
-			perf_evsel__enable(counter, ncpus, nthreads);
-	}
+
+	/*
+	 * We need to enable counters only if:
+	 * - we don't have tracee (attaching to task or cpu)
+	 * - we have initial delay configured
+	 */
+	if (!target__none(&target) || initial_delay)
+		perf_evlist__enable(evsel_list);
 }
 
 static volatile int workload_exec_errno;
@@ -359,7 +369,7 @@ static int __run_perf_stat(int argc, const char **argv)
 
 	if (forks) {
 		perf_evlist__start_workload(evsel_list);
-		handle_initial_delay();
+		enable_counters();
 
 		if (interval) {
 			while (!waitpid(child_pid, &status, WNOHANG)) {
@@ -378,7 +388,7 @@ static int __run_perf_stat(int argc, const char **argv)
 		if (WIFSIGNALED(status))
 			psignal(WTERMSIG(status), argv[0]);
 	} else {
-		handle_initial_delay();
+		enable_counters();
 		while (!done) {
 			nanosleep(&ts, NULL);
 			if (interval)
