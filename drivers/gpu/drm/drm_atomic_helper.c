@@ -88,8 +88,7 @@ drm_atomic_helper_plane_changed(struct drm_atomic_state *state,
 
 static bool
 check_pending_encoder_assignment(struct drm_atomic_state *state,
-				 struct drm_encoder *new_encoder,
-				 struct drm_connector *new_connector)
+				 struct drm_encoder *new_encoder)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
@@ -257,7 +256,7 @@ update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 		return 0;
 	}
 
-	if (!check_pending_encoder_assignment(state, new_encoder, connector)) {
+	if (!check_pending_encoder_assignment(state, new_encoder)) {
 		DRM_DEBUG_ATOMIC("Encoder for [CONNECTOR:%d:%s] already assigned\n",
 				 connector->base.id,
 				 connector->name);
