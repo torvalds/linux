@@ -22,7 +22,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -32,13 +31,7 @@
 
 #include "ohci.h"
 
-
 #include <mach/hardware.h>
-#include <asm/mach-types.h>
-#include <asm/io.h>
-
-#include <mach/platform.h>
-#include <mach/irqs.h>
 
 #define USB_CONFIG_BASE		0x31020000
 #define PWRMAN_BASE		0x40004000
