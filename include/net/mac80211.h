@@ -298,6 +298,7 @@ struct ieee80211_vif_chanctx_switch {
  *	note that this is only called when it changes after the channel
  *	context had been assigned.
  * @BSS_CHANGED_OCB: OCB join status changed
+ * @BSS_CHANGED_MU_GROUPS: VHT MU-MIMO group id or user position changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -323,6 +324,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_BEACON_INFO		= 1<<20,
 	BSS_CHANGED_BANDWIDTH		= 1<<21,
 	BSS_CHANGED_OCB                 = 1<<22,
+	BSS_CHANGED_MU_GROUPS		= 1<<23,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -436,6 +438,19 @@ struct ieee80211_event {
 };
 
 /**
+ * struct ieee80211_mu_group_data - STA's VHT MU-MIMO group data
+ *
+ * This structure describes the group id data of VHT MU-MIMO
+ *
+ * @membership: 64 bits array - a bit is set if station is member of the group
+ * @position: 2 bits per group id indicating the position in the group
+ */
+struct ieee80211_mu_group_data {
+	u8 membership[WLAN_MEMBERSHIP_LEN];
+	u8 position[WLAN_USER_POSITION_LEN];
+};
+
+/**
  * struct ieee80211_bss_conf - holds the BSS's changing parameters
  *
  * This structure keeps information about a BSS (and an association
@@ -477,6 +492,7 @@ struct ieee80211_event {
  * @enable_beacon: whether beaconing should be enabled or not
  * @chandef: Channel definition for this BSS -- the hardware might be
  *	configured a higher bandwidth than this BSS uses, for example.
+ * @mu_group: VHT MU-MIMO group membership data
  * @ht_operation_mode: HT operation mode like in &struct ieee80211_ht_operation.
  *	This field is only valid when the channel is a wide HT/VHT channel.
  *	Note that with TDLS this can be the case (channel is HT, protection must
@@ -535,6 +551,7 @@ struct ieee80211_bss_conf {
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
 	struct cfg80211_chan_def chandef;
+	struct ieee80211_mu_group_data mu_group;
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
 	int arp_addr_cnt;
 	bool qos;

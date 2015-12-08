@@ -2079,6 +2079,13 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	memset(&ifmgd->ht_capa_mask, 0, sizeof(ifmgd->ht_capa_mask));
 	memset(&ifmgd->vht_capa, 0, sizeof(ifmgd->vht_capa));
 	memset(&ifmgd->vht_capa_mask, 0, sizeof(ifmgd->vht_capa_mask));
+
+	/* reset MU-MIMO ownership and group data */
+	memset(sdata->vif.bss_conf.mu_group.membership, 0,
+	       sizeof(sdata->vif.bss_conf.mu_group.membership));
+	memset(sdata->vif.bss_conf.mu_group.position, 0,
+	       sizeof(sdata->vif.bss_conf.mu_group.position));
+	changed |= BSS_CHANGED_MU_GROUPS;
 	sdata->flags &= ~IEEE80211_SDATA_MU_MIMO_OWNER;
 
 	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;

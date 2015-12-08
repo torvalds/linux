@@ -1271,6 +1271,16 @@ static void ieee80211_iface_work(struct work_struct *work)
 				}
 			}
 			mutex_unlock(&local->sta_mtx);
+		} else if (ieee80211_is_action(mgmt->frame_control) &&
+			   mgmt->u.action.category == WLAN_CATEGORY_VHT) {
+			switch (mgmt->u.action.u.vht_group_notif.action_code) {
+			case WLAN_VHT_ACTION_GROUPID_MGMT:
+				ieee80211_process_mu_groups(sdata, mgmt);
+				break;
+			default:
+				WARN_ON(1);
+				break;
+			}
 		} else if (ieee80211_is_data_qos(mgmt->frame_control)) {
 			struct ieee80211_hdr *hdr = (void *)mgmt;
 			/*

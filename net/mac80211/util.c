@@ -1928,6 +1928,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_IDLE |
 			  BSS_CHANGED_TXPOWER;
 
+		if (sdata->flags & IEEE80211_SDATA_MU_MIMO_OWNER)
+			changed |= BSS_CHANGED_MU_GROUPS;
+
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
 			changed |= BSS_CHANGED_ASSOC |

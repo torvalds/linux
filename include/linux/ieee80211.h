@@ -843,6 +843,8 @@ enum ieee80211_vht_opmode_bits {
 };
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
+#define WLAN_MEMBERSHIP_LEN 8
+#define WLAN_USER_POSITION_LEN 16
 
 /**
  * struct ieee80211_tpc_report_ie
@@ -989,6 +991,11 @@ struct ieee80211_mgmt {
 					u8 action_code;
 					u8 operating_mode;
 				} __packed vht_opmode_notif;
+				struct {
+					u8 action_code;
+					u8 membership[WLAN_MEMBERSHIP_LEN];
+					u8 position[WLAN_USER_POSITION_LEN];
+				} __packed vht_group_notif;
 				struct {
 					u8 action_code;
 					u8 dialog_token;
