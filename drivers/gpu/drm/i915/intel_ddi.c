@@ -368,31 +368,20 @@ skl_get_buf_trans_edp(struct drm_device *dev, int *n_entries)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
-		if (dev_priv->edp_low_vswing) {
+	if (dev_priv->edp_low_vswing) {
+		if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
 			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
 			return skl_y_ddi_translations_edp;
-		} else {
-			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
-			return skl_y_ddi_translations_dp;
-		}
-	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
-		if (dev_priv->edp_low_vswing) {
+		} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
 			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
 			return skl_u_ddi_translations_edp;
 		} else {
-			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
-			return skl_u_ddi_translations_dp;
-		}
-	} else {
-		if (dev_priv->edp_low_vswing) {
 			*n_entries = ARRAY_SIZE(skl_ddi_translations_edp);
 			return skl_ddi_translations_edp;
-		} else {
-			*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
-			return skl_ddi_translations_dp;
 		}
 	}
+
+	return skl_get_buf_trans_dp(dev, n_entries);
 }
 
 static const struct ddi_buf_trans *
