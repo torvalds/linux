@@ -379,7 +379,7 @@ static const struct attribute_group ad7879_attr_group = {
 static int ad7879_gpio_direction_input(struct gpio_chip *chip,
 					unsigned gpio)
 {
-	struct ad7879 *ts = container_of(chip, struct ad7879, gc);
+	struct ad7879 *ts = gpiochip_get_data(chip);
 	int err;
 
 	mutex_lock(&ts->mutex);
@@ -393,7 +393,7 @@ static int ad7879_gpio_direction_input(struct gpio_chip *chip,
 static int ad7879_gpio_direction_output(struct gpio_chip *chip,
 					unsigned gpio, int level)
 {
-	struct ad7879 *ts = container_of(chip, struct ad7879, gc);
+	struct ad7879 *ts = gpiochip_get_data(chip);
 	int err;
 
 	mutex_lock(&ts->mutex);
@@ -412,7 +412,7 @@ static int ad7879_gpio_direction_output(struct gpio_chip *chip,
 
 static int ad7879_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 {
-	struct ad7879 *ts = container_of(chip, struct ad7879, gc);
+	struct ad7879 *ts = gpiochip_get_data(chip);
 	u16 val;
 
 	mutex_lock(&ts->mutex);
@@ -425,7 +425,7 @@ static int ad7879_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 static void ad7879_gpio_set_value(struct gpio_chip *chip,
 				  unsigned gpio, int value)
 {
-	struct ad7879 *ts = container_of(chip, struct ad7879, gc);
+	struct ad7879 *ts = gpiochip_get_data(chip);
 
 	mutex_lock(&ts->mutex);
 	if (value)
@@ -456,7 +456,7 @@ static int ad7879_gpio_add(struct ad7879 *ts,
 		ts->gc.owner = THIS_MODULE;
 		ts->gc.parent = ts->dev;
 
-		ret = gpiochip_add(&ts->gc);
+		ret = gpiochip_add_data(&ts->gc, ts);
 		if (ret)
 			dev_err(ts->dev, "failed to register gpio %d\n",
 				ts->gc.base);
