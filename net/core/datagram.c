@@ -275,7 +275,7 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 		if (skb)
 			return skb;
 
-		if (*err != EAGAIN)
+		if (*err != -EAGAIN)
 			break;
 	} while (timeo &&
 		!__skb_wait_for_more_packets(sk, err, &timeo, last));
