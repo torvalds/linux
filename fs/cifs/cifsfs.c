@@ -921,7 +921,6 @@ static int cifs_clone_file_range(struct file *src_file, loff_t off,
 	struct inode *target_inode = file_inode(dst_file);
 	struct cifsFileInfo *smb_file_src = src_file->private_data;
 	struct cifsFileInfo *smb_file_target = dst_file->private_data;
-	struct cifs_tcon *src_tcon = tlink_tcon(smb_file_src->tlink);
 	struct cifs_tcon *target_tcon = tlink_tcon(smb_file_target->tlink);
 	unsigned int xid;
 	int rc;
@@ -960,7 +959,6 @@ static int cifs_clone_file_range(struct file *src_file, loff_t off,
 	/* force revalidate of size and timestamps of target file now
 	   that target is updated on the server */
 	CIFS_I(target_inode)->time = 0;
-out_unlock:
 	/* although unlocking in the reverse order from locking is not
 	   strictly necessary here it is a little cleaner to be consistent */
 	unlock_two_nondirectories(src_inode, target_inode);
