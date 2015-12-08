@@ -1122,9 +1122,6 @@ next_cqe:
 	bnx2x_update_rx_prod(bp, fp, bd_prod_fw, sw_comp_prod,
 			     fp->rx_sge_prod);
 
-	fp->rx_pkt += rx_pkt;
-	fp->rx_calls++;
-
 	return rx_pkt;
 }
 
@@ -4433,7 +4430,6 @@ static int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 	/* Limit the CQE producer by the CQE ring size */
 	fp->rx_comp_prod = min_t(u16, NUM_RCQ_RINGS*RCQ_DESC_CNT,
 			       cqe_ring_prod);
-	fp->rx_pkt = fp->rx_calls = 0;
 
 	bnx2x_fp_stats(bp, fp)->eth_q_stats.rx_skb_alloc_failed += failure_cnt;
 

@@ -590,8 +590,6 @@ struct bnx2x_fastpath {
 	/* The last maximal completed SGE */
 	u16			last_max_sge;
 	__le16			*rx_cons_sb;
-	unsigned long		rx_pkt,
-				rx_calls;
 
 	/* TPA related */
 	struct bnx2x_agg_info	*tpa_info;
