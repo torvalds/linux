@@ -179,7 +179,7 @@ typedef int (nvm_bb_update_fn)(struct ppa_addr, int, u8 *, void *);
 typedef int (nvm_id_fn)(struct request_queue *, struct nvm_id *);
 typedef int (nvm_get_l2p_tbl_fn)(struct request_queue *, u64, u32,
 				nvm_l2p_update_fn *, void *);
-typedef int (nvm_op_bb_tbl_fn)(struct request_queue *, struct ppa_addr, int,
+typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, int,
 				nvm_bb_update_fn *, void *);
 typedef int (nvm_op_set_bb_fn)(struct request_queue *, struct nvm_rq *, int);
 typedef int (nvm_submit_io_fn)(struct request_queue *, struct nvm_rq *);

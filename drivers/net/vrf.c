@@ -907,7 +907,6 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 		       struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_vrf *vrf = netdev_priv(dev);
-	int err;
 
 	if (!data || !data[IFLA_VRF_TABLE])
 		return -EINVAL;
@@ -916,15 +915,7 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 
 	dev->priv_flags |= IFF_L3MDEV_MASTER;
 
-	err = register_netdevice(dev);
-	if (err < 0)
-		goto out_fail;
-
-	return 0;
-
-out_fail:
-	free_netdev(dev);
-	return err;
+	return register_netdevice(dev);
 }
 
 static size_t vrf_nl_getsize(const struct net_device *dev)
