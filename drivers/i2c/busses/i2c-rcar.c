@@ -162,15 +162,11 @@ static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
 	return -EBUSY;
 }
 
-static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
-				    u32 bus_speed,
-				    struct device *dev)
+static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv, u32 bus_speed)
 {
-	u32 scgd, cdf;
-	u32 round, ick;
-	u32 scl;
-	u32 cdf_width;
+	u32 scgd, cdf, round, ick, scl, cdf_width;
 	unsigned long rate;
+	struct device *dev = rcar_i2c_priv_to_dev(priv);
 
 	switch (priv->devtype) {
 	case I2C_RCAR_GEN1:
@@ -610,21 +606,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->io))
 		return PTR_ERR(priv->io);
 
-	bus_speed = 100000; /* default 100 kHz */
-	of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed);
-
 	priv->devtype = (enum rcar_i2c_type)of_match_device(rcar_i2c_dt_ids, dev)->data;
-
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
-	ret = rcar_i2c_clock_calculate(priv, bus_speed, dev);
-	if (ret < 0)
-		goto out_pm_put;
-
-	rcar_i2c_init(priv);
-	pm_runtime_put(dev);
-
-	irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&priv->wait);
 
 	adap = &priv->adap;
@@ -637,8 +619,20 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adap, priv);
 	strlcpy(adap->name, pdev->name, sizeof(adap->name));
 
-	ret = devm_request_irq(dev, irq, rcar_i2c_irq, 0,
-			       dev_name(dev), priv);
+	bus_speed = 100000; /* default 100 kHz */
+	of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed);
+
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+	ret = rcar_i2c_clock_calculate(priv, bus_speed);
+	if (ret < 0)
+		goto out_pm_put;
+
+	rcar_i2c_init(priv);
+	pm_runtime_put(dev);
+
+	irq = platform_get_irq(pdev, 0);
+	ret = devm_request_irq(dev, irq, rcar_i2c_irq, 0, dev_name(dev), priv);
 	if (ret < 0) {
 		dev_err(dev, "cannot get irq %d\n", irq);
 		goto out_pm_disable;
