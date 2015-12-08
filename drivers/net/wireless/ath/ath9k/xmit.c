@@ -2915,7 +2915,7 @@ int ath9k_tx99_send(struct ath_softc *sc, struct sk_buff *skb,
 		if (skb_headroom(skb) < padsize) {
 			ath_dbg(common, XMIT,
 				"tx99 padding failed\n");
-		return -EINVAL;
+			return -EINVAL;
 		}
 
 		skb_push(skb, padsize);
