@@ -416,8 +416,8 @@ static void sahara_dump_descriptors(struct sahara_dev *dev)
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_DESC; i++) {
-		dev_dbg(dev->device, "Descriptor (%d) (0x%08x):\n",
-			i, dev->hw_phys_desc[i]);
+		dev_dbg(dev->device, "Descriptor (%d) (%pad):\n",
+			i, &dev->hw_phys_desc[i]);
 		dev_dbg(dev->device, "\thdr = 0x%08x\n", dev->hw_desc[i]->hdr);
 		dev_dbg(dev->device, "\tlen1 = %u\n", dev->hw_desc[i]->len1);
 		dev_dbg(dev->device, "\tp1 = 0x%08x\n", dev->hw_desc[i]->p1);
@@ -437,8 +437,8 @@ static void sahara_dump_links(struct sahara_dev *dev)
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_LINK; i++) {
-		dev_dbg(dev->device, "Link (%d) (0x%08x):\n",
-			i, dev->hw_phys_link[i]);
+		dev_dbg(dev->device, "Link (%d) (%pad):\n",
+			i, &dev->hw_phys_link[i]);
 		dev_dbg(dev->device, "\tlen = %u\n", dev->hw_link[i]->len);
 		dev_dbg(dev->device, "\tp = 0x%08x\n", dev->hw_link[i]->p);
 		dev_dbg(dev->device, "\tnext = 0x%08x\n",
