@@ -272,13 +272,8 @@ static int mknod_ptmx(struct super_block *sb)
 	struct dentry *root = sb->s_root;
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
-	kuid_t root_uid;
-	kgid_t root_gid;
-
-	root_uid = make_kuid(current_user_ns(), 0);
-	root_gid = make_kgid(current_user_ns(), 0);
-	if (!uid_valid(root_uid) || !gid_valid(root_gid))
-		return -EINVAL;
+	kuid_t ptmx_uid = current_fsuid();
+	kgid_t ptmx_gid = current_fsgid();
 
 	inode_lock(d_inode(root));
 
@@ -309,8 +304,8 @@ static int mknod_ptmx(struct super_block *sb)
 
 	mode = S_IFCHR|opts->ptmxmode;
 	init_special_inode(inode, mode, MKDEV(TTYAUX_MAJOR, 2));
-	inode->i_uid = root_uid;
-	inode->i_gid = root_gid;
+	inode->i_uid = ptmx_uid;
+	inode->i_gid = ptmx_gid;
 
 	d_add(dentry, inode);
 
