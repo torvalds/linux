@@ -451,6 +451,7 @@ static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct wm_adsp *dsp = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
 
 	if (ucontrol->value.integer.value[0] == dsp[e->shift_l].fw)
 		return 0;
@@ -458,12 +459,16 @@ static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.integer.value[0] >= WM_ADSP_NUM_FW)
 		return -EINVAL;
 
+	mutex_lock(&dsp[e->shift_l].pwr_lock);
+
 	if (dsp[e->shift_l].running)
-		return -EBUSY;
+		ret = -EBUSY;
+	else
+		dsp[e->shift_l].fw = ucontrol->value.integer.value[0];
 
-	dsp[e->shift_l].fw = ucontrol->value.integer.value[0];
+	mutex_unlock(&dsp[e->shift_l].pwr_lock);
 
-	return 0;
+	return ret;
 }
 
 static const struct soc_enum wm_adsp_fw_enum[] = {
