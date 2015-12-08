@@ -774,6 +774,12 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 
 	pq = req->pq;
 
+	/* If tx completion has reported an error, we are done. */
+	if (test_bit(SDMA_REQ_HAS_ERROR, &req->flags)) {
+		set_bit(SDMA_REQ_DONE_ERROR, &req->flags);
+		return -EFAULT;
+	}
+
 	/*
 	 * Check if we might have sent the entire request already
 	 */
