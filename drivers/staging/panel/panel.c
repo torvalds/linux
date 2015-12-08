@@ -947,7 +947,8 @@ static void lcd_clear_fast_s(void)
 		lcd_send_serial(0x5F);	/* R/W=W, RS=1 */
 		lcd_send_serial(' ' & 0x0F);
 		lcd_send_serial((' ' >> 4) & 0x0F);
-		usleep_range(40, 100);	/* the shortest data takes at least 40 us */
+		/* the shortest data takes at least 40 us */
+		usleep_range(40, 100);
 	}
 	spin_unlock_irq(&pprt_lock);
 
