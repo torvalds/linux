@@ -288,8 +288,8 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 	state->crtcs[index] = crtc;
 	crtc_state->state = state;
 
-	DRM_DEBUG_ATOMIC("Added [CRTC:%d] %p state to %p\n",
-			 crtc->base.id, crtc_state, state);
+	DRM_DEBUG_ATOMIC("Added [CRTC:%d:%s] %p state to %p\n",
+			 crtc->base.id, crtc->name, crtc_state, state);
 
 	return crtc_state;
 }
@@ -486,8 +486,8 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 */
 
 	if (state->active && !state->enable) {
-		DRM_DEBUG_ATOMIC("[CRTC:%d] active without enabled\n",
-				 crtc->base.id);
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] active without enabled\n",
+				 crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 
@@ -496,15 +496,15 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * be able to trigger. */
 	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
 	    WARN_ON(state->enable && !state->mode_blob)) {
-		DRM_DEBUG_ATOMIC("[CRTC:%d] enabled without mode blob\n",
-				 crtc->base.id);
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] enabled without mode blob\n",
+				 crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 
 	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
 	    WARN_ON(!state->enable && state->mode_blob)) {
-		DRM_DEBUG_ATOMIC("[CRTC:%d] disabled with mode blob\n",
-				 crtc->base.id);
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] disabled with mode blob\n",
+				 crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 
@@ -1004,8 +1004,8 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 	}
 
 	if (crtc)
-		DRM_DEBUG_ATOMIC("Link plane state %p to [CRTC:%d]\n",
-				 plane_state, crtc->base.id);
+		DRM_DEBUG_ATOMIC("Link plane state %p to [CRTC:%d:%s]\n",
+				 plane_state, crtc->base.id, crtc->name);
 	else
 		DRM_DEBUG_ATOMIC("Link plane state %p to [NOCRTC]\n",
 				 plane_state);
@@ -1072,8 +1072,8 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 	conn_state->crtc = crtc;
 
 	if (crtc)
-		DRM_DEBUG_ATOMIC("Link connector state %p to [CRTC:%d]\n",
-				 conn_state, crtc->base.id);
+		DRM_DEBUG_ATOMIC("Link connector state %p to [CRTC:%d:%s]\n",
+				 conn_state, crtc->base.id, crtc->name);
 	else
 		DRM_DEBUG_ATOMIC("Link connector state %p to [NOCRTC]\n",
 				 conn_state);
@@ -1112,8 +1112,8 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	if (ret)
 		return ret;
 
-	DRM_DEBUG_ATOMIC("Adding all current connectors for [CRTC:%d] to %p\n",
-			 crtc->base.id, state);
+	DRM_DEBUG_ATOMIC("Adding all current connectors for [CRTC:%d:%s] to %p\n",
+			 crtc->base.id, crtc->name, state);
 
 	/*
 	 * Changed connectors are already in @state, so only need to look at the
@@ -1193,8 +1193,9 @@ drm_atomic_connectors_for_crtc(struct drm_atomic_state *state,
 			num_connected_connectors++;
 	}
 
-	DRM_DEBUG_ATOMIC("State %p has %i connectors for [CRTC:%d]\n",
-			 state, num_connected_connectors, crtc->base.id);
+	DRM_DEBUG_ATOMIC("State %p has %i connectors for [CRTC:%d:%s]\n",
+			 state, num_connected_connectors,
+			 crtc->base.id, crtc->name);
 
 	return num_connected_connectors;
 }
@@ -1256,8 +1257,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		ret = drm_atomic_crtc_check(crtc, crtc_state);
 		if (ret) {
-			DRM_DEBUG_ATOMIC("[CRTC:%d] atomic core check failed\n",
-					 crtc->base.id);
+			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic core check failed\n",
+					 crtc->base.id, crtc->name);
 			return ret;
 		}
 	}
@@ -1268,8 +1269,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	if (!state->allow_modeset) {
 		for_each_crtc_in_state(state, crtc, crtc_state, i) {
 			if (drm_atomic_crtc_needs_modeset(crtc_state)) {
-				DRM_DEBUG_ATOMIC("[CRTC:%d] requires full modeset\n",
-						 crtc->base.id);
+				DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requires full modeset\n",
+						 crtc->base.id, crtc->name);
 				return -EINVAL;
 			}
 		}

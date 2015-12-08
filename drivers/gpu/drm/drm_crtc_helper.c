@@ -339,7 +339,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
 		goto done;
 	}
-	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	crtc->hwmode = *adjusted_mode;
 
@@ -519,11 +519,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		set->fb = NULL;
 
 	if (set->fb) {
-		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",
-				set->crtc->base.id, set->fb->base.id,
-				(int)set->num_connectors, set->x, set->y);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] [FB:%d] #connectors=%d (x y) (%i %i)\n",
+			      set->crtc->base.id, set->crtc->name,
+			      set->fb->base.id,
+			      (int)set->num_connectors, set->x, set->y);
 	} else {
-		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] [NOFB]\n",
+			      set->crtc->base.id, set->crtc->name);
 		drm_crtc_helper_disable(set->crtc);
 		return 0;
 	}
@@ -663,12 +665,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			connector->encoder->crtc = new_crtc;
 		}
 		if (new_crtc) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
-				connector->base.id, connector->name,
-				new_crtc->base.id);
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d:%s]\n",
+				      connector->base.id, connector->name,
+				      new_crtc->base.id, new_crtc->name);
 		} else {
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
-				connector->base.id, connector->name);
+				      connector->base.id, connector->name);
 		}
 	}
 
@@ -685,8 +687,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
 						      save_set.fb)) {
-				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
-					  set->crtc->base.id);
+				DRM_ERROR("failed to set mode on [CRTC:%d:%s]\n",
+					  set->crtc->base.id, set->crtc->name);
 				set->crtc->primary->fb = save_set.fb;
 				ret = -EINVAL;
 				goto fail;
