@@ -5164,18 +5164,17 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	if (!intel_crtc->config->has_dsi_encoder)
 		intel_ddi_disable_pipe_clock(intel_crtc);
 
-	if (intel_crtc->config->has_pch_encoder) {
-		lpt_disable_pch_transcoder(dev_priv);
-		intel_ddi_fdi_disable(crtc);
-	}
-
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	if (intel_crtc->config->has_pch_encoder)
+	if (intel_crtc->config->has_pch_encoder) {
+		lpt_disable_pch_transcoder(dev_priv);
+		intel_ddi_fdi_disable(crtc);
+
 		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
 						      true);
+	}
 
 	intel_fbc_disable_crtc(intel_crtc);
 }
