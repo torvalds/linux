@@ -341,7 +341,6 @@ void hns_ae_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
 	else
 		flag = RCB_INT_FLAG_RX;
 
-	hns_rcb_int_clr_hw(ring->q, flag);
 	hns_rcb_int_ctrl_hw(ring->q, flag, mask);
 }
 

@@ -341,7 +341,8 @@ struct hnae_queue {
 	void __iomem *io_base;
 	phys_addr_t phy_base;
 	struct hnae_ae_dev *dev;	/* the device who use this queue */
-	struct hnae_ring rx_ring, tx_ring;
+	struct hnae_ring rx_ring ____cacheline_internodealigned_in_smp;
+	struct hnae_ring tx_ring ____cacheline_internodealigned_in_smp;
 	struct hnae_handle *handle;
 };
 
@@ -597,11 +598,9 @@ static inline void hnae_replace_buffer(struct hnae_ring *ring, int i,
 				       struct hnae_desc_cb *res_cb)
 {
 	struct hnae_buf_ops *bops = ring->q->handle->bops;
-	struct hnae_desc_cb tmp_cb = ring->desc_cb[i];
 
 	bops->unmap_buffer(ring, &ring->desc_cb[i]);
 	ring->desc_cb[i] = *res_cb;
-	*res_cb = tmp_cb;
 	ring->desc[i].addr = (__le64)ring->desc_cb[i].dma;
 	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
 }
