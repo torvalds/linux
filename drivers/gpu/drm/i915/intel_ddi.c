@@ -3319,15 +3319,6 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 		return;
 	}
 
-	if (WARN(max_lanes == 0,
-		 "No lanes for port %c\n", port_name(port)))
-		return;
-
-	if (WARN(init_hdmi && max_lanes < 4,
-		 "Not enough lanes (%d) for HDMI on port %c\n",
-		 max_lanes, port_name(port)))
-		init_hdmi = false;
-
 	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
 		return;
@@ -3351,6 +3342,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
 					  (DDI_BUF_PORT_REVERSAL |
 					   DDI_A_4_LANES);
+	intel_dig_port->max_lanes = max_lanes;
 
 	/*
 	 * Bspec says that DDI_A_4_LANES is the only supported configuration

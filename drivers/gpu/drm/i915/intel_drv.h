@@ -845,6 +845,7 @@ struct intel_digital_port {
 	struct intel_hdmi hdmi;
 	enum irqreturn (*hpd_pulse)(struct intel_digital_port *, bool);
 	bool release_cl2_override;
+	uint8_t max_lanes;
 	/* for communication with audio component; protected by av_mutex */
 	const struct drm_connector *audio_connector;
 };

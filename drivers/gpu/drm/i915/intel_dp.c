@@ -157,14 +157,9 @@ intel_dp_max_link_bw(struct intel_dp  *intel_dp)
 static u8 intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
 	u8 source_max, sink_max;
 
-	source_max = 4;
-	if (HAS_DDI(dev) && intel_dig_port->port == PORT_A &&
-	    (intel_dig_port->saved_port_bits & DDI_A_4_LANES) == 0)
-		source_max = 2;
-
+	source_max = intel_dig_port->max_lanes;
 	sink_max = drm_dp_max_lane_count(intel_dp->dpcd);
 
 	return min(source_max, sink_max);
@@ -5839,6 +5834,11 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	enum port port = intel_dig_port->port;
 	int type, ret;
 
+	if (WARN(intel_dig_port->max_lanes < 1,
+		 "Not enough lanes (%d) for DP on port %c\n",
+		 intel_dig_port->max_lanes, port_name(port)))
+		return false;
+
 	intel_dp->pps_pipe = INVALID_PIPE;
 
 	/* intel_dp vfuncs */
@@ -6037,6 +6037,7 @@ intel_dp_init(struct drm_device *dev,
 	intel_dig_port->port = port;
 	dev_priv->dig_port_map[port] = intel_encoder;
 	intel_dig_port->dp.output_reg = output_reg;
+	intel_dig_port->max_lanes = 4;
 
 	intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 	if (IS_CHERRYVIEW(dev)) {
