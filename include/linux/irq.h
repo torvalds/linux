@@ -948,5 +948,9 @@ static inline u32 irq_reg_readl(struct irq_chip_generic *gc,
 /* Contrary to Linux irqs, for hardware irqs the irq number 0 is valid */
 #define INVALID_HWIRQ	(~0UL)
 irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu);
+int __ipi_send_single(struct irq_desc *desc, unsigned int cpu);
+int __ipi_send_mask(struct irq_desc *desc, const struct cpumask *dest);
+int ipi_send_single(unsigned int virq, unsigned int cpu);
+int ipi_send_mask(unsigned int virq, const struct cpumask *dest);
 
 #endif /* _LINUX_IRQ_H */

@@ -161,7 +161,7 @@ irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu)
 	 * Get the real hardware irq number if the underlying implementation
 	 * uses a seperate irq per cpu. If the underlying implementation uses
 	 * a single hardware irq for all cpus then the IPI send mechanism
-	 * needs to take care of this.
+	 * needs to take care of the cpu destinations.
 	 */
 	if (irq_domain_is_ipi_per_cpu(data->domain))
 		data = irq_get_irq_data(irq + cpu - data->common->ipi_offset);
@@ -169,3 +169,158 @@ irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu)
 	return data ? irqd_to_hwirq(data) : INVALID_HWIRQ;
 }
 EXPORT_SYMBOL_GPL(ipi_get_hwirq);
+
+static int ipi_send_verify(struct irq_chip *chip, struct irq_data *data,
+			   const struct cpumask *dest, unsigned int cpu)
+{
+	struct cpumask *ipimask = irq_data_get_affinity_mask(data);
+
+	if (!chip || !ipimask)
+		return -EINVAL;
+
+	if (!chip->ipi_send_single && !chip->ipi_send_mask)
+		return -EINVAL;
+
+	if (cpu > nr_cpu_ids)
+		return -EINVAL;
+
+	if (dest) {
+		if (!cpumask_subset(dest, ipimask))
+			return -EINVAL;
+	} else {
+		if (!cpumask_test_cpu(cpu, ipimask))
+			return -EINVAL;
+	}
+	return 0;
+}
+
+/**
+ * __ipi_send_single - send an IPI to a target Linux SMP CPU
+ * @desc:	pointer to irq_desc of the IRQ
+ * @cpu:	destination CPU, must in the destination mask passed to
+ *		irq_reserve_ipi()
+ *
+ * This function is for architecture or core code to speed up IPI sending. Not
+ * usable from driver code.
+ *
+ * Returns zero on success and negative error number on failure.
+ */
+int __ipi_send_single(struct irq_desc *desc, unsigned int cpu)
+{
+	struct irq_data *data = irq_desc_get_irq_data(desc);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+
+#ifdef DEBUG
+	/*
+	 * Minimise the overhead by omitting the checks for Linux SMP IPIs.
+	 * Since the callers should be arch or core code which is generally
+	 * trusted, only check for errors when debugging.
+	 */
+	if (WARN_ON_ONCE(ipi_send_verify(chip, data, NULL, cpu)))
+		return -EINVAL;
+#endif
+	if (!chip->ipi_send_single) {
+		chip->ipi_send_mask(data, cpumask_of(cpu));
+		return 0;
+	}
+
+	/* FIXME: Store this information in irqdata flags */
+	if (irq_domain_is_ipi_per_cpu(data->domain) &&
+	    cpu != data->common->ipi_offset) {
+		/* use the correct data for that cpu */
+		unsigned irq = data->irq + cpu - data->common->ipi_offset;
+
+		data = irq_get_irq_data(irq);
+	}
+	chip->ipi_send_single(data, cpu);
+	return 0;
+}
+
+/**
+ * ipi_send_mask - send an IPI to target Linux SMP CPU(s)
+ * @desc:	pointer to irq_desc of the IRQ
+ * @dest:	dest CPU(s), must be a subset of the mask passed to
+ *		irq_reserve_ipi()
+ *
+ * This function is for architecture or core code to speed up IPI sending. Not
+ * usable from driver code.
+ *
+ * Returns zero on success and negative error number on failure.
+ */
+int __ipi_send_mask(struct irq_desc *desc, const struct cpumask *dest)
+{
+	struct irq_data *data = irq_desc_get_irq_data(desc);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+	unsigned int cpu;
+
+#ifdef DEBUG
+	/*
+	 * Minimise the overhead by omitting the checks for Linux SMP IPIs.
+	 * Since the callers should be arch or core code which is generally
+	 * trusted, only check for errors when debugging.
+	 */
+	if (WARN_ON_ONCE(ipi_send_verify(chip, data, dest, 0)))
+		return -EINVAL;
+#endif
+	if (chip->ipi_send_mask) {
+		chip->ipi_send_mask(data, dest);
+		return 0;
+	}
+
+	if (irq_domain_is_ipi_per_cpu(data->domain)) {
+		unsigned int base = data->irq;
+
+		for_each_cpu(cpu, dest) {
+			unsigned irq = base + cpu - data->common->ipi_offset;
+
+			data = irq_get_irq_data(irq);
+			chip->ipi_send_single(data, cpu);
+		}
+	} else {
+		for_each_cpu(cpu, dest)
+			chip->ipi_send_single(data, cpu);
+	}
+	return 0;
+}
+
+/**
+ * ipi_send_single - Send an IPI to a single CPU
+ * @virq:	linux irq number from irq_reserve_ipi()
+ * @cpu:	destination CPU, must in the destination mask passed to
+ *		irq_reserve_ipi()
+ *
+ * Returns zero on success and negative error number on failure.
+ */
+int ipi_send_single(unsigned int virq, unsigned int cpu)
+{
+	struct irq_desc *desc = irq_to_desc(virq);
+	struct irq_data *data = desc ? irq_desc_get_irq_data(desc) : NULL;
+	struct irq_chip *chip = data ? irq_data_get_irq_chip(data) : NULL;
+
+	if (WARN_ON_ONCE(ipi_send_verify(chip, data, NULL, cpu)))
+		return -EINVAL;
+
+	return __ipi_send_single(desc, cpu);
+}
+EXPORT_SYMBOL_GPL(ipi_send_single);
+
+/**
+ * ipi_send_mask - Send an IPI to target CPU(s)
+ * @virq:	linux irq number from irq_reserve_ipi()
+ * @dest:	dest CPU(s), must be a subset of the mask passed to
+ *		irq_reserve_ipi()
+ *
+ * Returns zero on success and negative error number on failure.
+ */
+int ipi_send_mask(unsigned int virq, const struct cpumask *dest)
+{
+	struct irq_desc *desc = irq_to_desc(virq);
+	struct irq_data *data = desc ? irq_desc_get_irq_data(desc) : NULL;
+	struct irq_chip *chip = data ? irq_data_get_irq_chip(data) : NULL;
+
+	if (WARN_ON_ONCE(ipi_send_verify(chip, data, dest, 0)))
+		return -EINVAL;
+
+	return __ipi_send_mask(desc, dest);
+}
+EXPORT_SYMBOL_GPL(ipi_send_mask);
