@@ -49,7 +49,7 @@ static int brcmf_debug_psm_watchdog_notify(struct brcmf_if *ifp,
 					   const struct brcmf_event_msg *evtmsg,
 					   void *data)
 {
-	brcmf_dbg(TRACE, "enter: idx=%d\n", ifp->bssidx);
+	brcmf_dbg(TRACE, "enter: bsscfgidx=%d\n", ifp->bsscfgidx);
 
 	return brcmf_debug_create_memdump(ifp->drvr->bus_if, data,
 					  evtmsg->datalen);

@@ -308,6 +308,7 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan
  * @IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE: extended DTS measurement
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
+ * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -334,6 +335,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)31,
 	IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE		= (__force iwl_ucode_tlv_capa_t)64,
 	IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS		= (__force iwl_ucode_tlv_capa_t)65,
+	IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)67,
 
 	NUM_IWL_UCODE_TLV_CAPA
 #ifdef __CHECKER__
@@ -720,6 +722,19 @@ struct iwl_fw_dbg_trigger_ba {
 	__le16 rx_bar;
 	__le16 tx_bar;
 	__le16 frame_timeout;
+} __packed;
+
+/**
+ * struct iwl_fw_dbg_trigger_tdls - configures trigger for TDLS events.
+ * @action_bitmap: the TDLS action to trigger the collection upon
+ * @peer_mode: trigger on specific peer or all
+ * @peer: the TDLS peer to trigger the collection on
+ */
+struct iwl_fw_dbg_trigger_tdls {
+	u8 action_bitmap;
+	u8 peer_mode;
+	u8 peer[ETH_ALEN];
+	u8 reserved[4];
 } __packed;
 
 /**

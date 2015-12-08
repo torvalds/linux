@@ -137,7 +137,7 @@ struct brcmf_bus {
 	bool always_use_fws_queue;
 	bool wowl_supported;
 
-	struct brcmf_bus_ops *ops;
+	const struct brcmf_bus_ops *ops;
 	struct brcmf_bus_msgbuf *msgbuf;
 };
 

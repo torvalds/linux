@@ -1411,13 +1411,7 @@ static void iwlagn_mac_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (WARN_ON(ctx->vif != vif)) {
-		struct iwl_rxon_context *tmp;
-		IWL_ERR(priv, "ctx->vif = %p, vif = %p\n", ctx->vif, vif);
-		for_each_context(priv, tmp)
-			IWL_ERR(priv, "\tID = %d:\tctx = %p\tctx->vif = %p\n",
-				tmp->ctxid, tmp, tmp->vif);
-	}
+	WARN_ON(ctx->vif != vif);
 	ctx->vif = NULL;
 
 	iwl_teardown_interface(priv, vif, false);

@@ -163,7 +163,6 @@ do {                                            			\
 #define IWL_DL_FW		0x00010000
 #define IWL_DL_RF_KILL		0x00020000
 #define IWL_DL_FW_ERRORS	0x00040000
-#define IWL_DL_LED		0x00080000
 /* 0x00F00000 - 0x00100000 */
 #define IWL_DL_RATE		0x00100000
 #define IWL_DL_CALIB		0x00200000
@@ -189,7 +188,6 @@ do {                                            			\
 #define IWL_DEBUG_RX(p, f, a...)	IWL_DEBUG(p, IWL_DL_RX, f, ## a)
 #define IWL_DEBUG_TX(p, f, a...)	IWL_DEBUG(p, IWL_DL_TX, f, ## a)
 #define IWL_DEBUG_ISR(p, f, a...)	IWL_DEBUG(p, IWL_DL_ISR, f, ## a)
-#define IWL_DEBUG_LED(p, f, a...)	IWL_DEBUG(p, IWL_DL_LED, f, ## a)
 #define IWL_DEBUG_WEP(p, f, a...)	IWL_DEBUG(p, IWL_DL_WEP, f, ## a)
 #define IWL_DEBUG_HC(p, f, a...)	IWL_DEBUG(p, IWL_DL_HCMD, f, ## a)
 #define IWL_DEBUG_QUOTA(p, f, a...)	IWL_DEBUG(p, IWL_DL_QUOTA, f, ## a)

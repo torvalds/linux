@@ -72,6 +72,7 @@
 #include "fw-api.h"
 #include "mvm.h"
 #include "time-event.h"
+#include "fw-dbg.h"
 
 const u8 iwl_mvm_ac_to_tx_fifo[] = {
 	IWL_MVM_TX_FIFO_VO,

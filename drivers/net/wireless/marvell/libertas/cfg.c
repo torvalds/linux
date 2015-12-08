@@ -1108,7 +1108,7 @@ static int lbs_associate(struct lbs_private *priv,
 	size_t len, resp_ie_len;
 	int status;
 	int ret;
-	u8 *pos = &(cmd->iebuf[0]);
+	u8 *pos;
 	u8 *tmp;
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
@@ -1117,6 +1117,7 @@ static int lbs_associate(struct lbs_private *priv,
 		ret = -ENOMEM;
 		goto done;
 	}
+	pos = &cmd->iebuf[0];
 
 	/*
 	 * cmd              50 00

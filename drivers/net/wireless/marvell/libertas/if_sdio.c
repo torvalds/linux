@@ -228,7 +228,7 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 	memcpy(priv->resp_buf[i], buffer, size);
 	lbs_notify_command_response(priv, i);
 
-	spin_unlock_irqrestore(&card->priv->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	ret = 0;
 

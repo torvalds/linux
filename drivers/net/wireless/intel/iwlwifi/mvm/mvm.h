@@ -643,6 +643,7 @@ struct iwl_mvm {
 	unsigned int scan_status;
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
+	bool scan_fragmented;
 
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
@@ -731,7 +732,6 @@ struct iwl_mvm {
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 
 	/* sched scan settings for net detect */
-	struct cfg80211_sched_scan_request *nd_config;
 	struct ieee80211_scan_ies nd_ies;
 	struct cfg80211_match_set *nd_match_sets;
 	int n_nd_match_sets;
@@ -812,8 +812,6 @@ struct iwl_mvm {
 
 	bool lar_regdom_set;
 	enum iwl_mcc_source mcc_src;
-
-	u8 low_latency_agg_frame_limit;
 
 	/* TDLS channel switch data */
 	struct {
@@ -915,11 +913,9 @@ iwl_mvm_sta_from_staid_protected(struct iwl_mvm *mvm, u8 sta_id)
 
 static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 {
-	return mvm->trans->cfg->d0i3 &&
-	       mvm->trans->d0i3_mode != IWL_D0I3_MODE_OFF &&
-	       !iwlwifi_mod_params.d0i3_disable &&
-	       fw_has_capa(&mvm->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
+	return !iwlwifi_mod_params.d0i3_disable &&
+		fw_has_capa(&mvm->fw->ucode_capa,
+			    IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
 static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
@@ -973,6 +969,13 @@ static inline bool iwl_mvm_is_csum_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT);
+}
+
+static inline bool iwl_mvm_is_mplut_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT) &&
+		IWL_MVM_BT_COEX_MPLUT;
 }
 
 static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
@@ -1246,6 +1249,10 @@ static inline void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
 /* D3 (WoWLAN, NetDetect) */
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
 int iwl_mvm_resume(struct ieee80211_hw *hw);
+int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     bool configure_keys,
+				     u32 cmd_flags);
 void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
@@ -1376,6 +1383,15 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			 u8 tid, u8 flags);
 int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 minq, u8 maxq);
 
+/* Return a bitmask with all the hw supported queues, except for the
+ * command queue, which can't be flushed.
+ */
+static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
+{
+	return ((BIT(mvm->cfg->base_params->num_of_queues) - 1) &
+		~BIT(IWL_MVM_CMD_QUEUE));
+}
+
 static inline
 void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			   u8 fifo, u16 ssn, unsigned int wdg_timeout)
@@ -1468,68 +1484,10 @@ void iwl_mvm_tdls_ch_switch_work(struct work_struct *work);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
-void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
-
-int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 id);
-int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   const char *str, size_t len,
-			   struct iwl_fw_dbg_trigger_tlv *trigger);
-int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
-				struct iwl_mvm_dump_desc *desc,
-				struct iwl_fw_dbg_trigger_tlv *trigger);
-void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm);
-int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
-				struct iwl_fw_dbg_trigger_tlv *trigger,
-				const char *fmt, ...) __printf(3, 4);
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    bool tdls, bool cmd_q);
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     const char *errmsg);
-static inline bool
-iwl_fw_dbg_trigger_vif_match(struct iwl_fw_dbg_trigger_tlv *trig,
-			     struct ieee80211_vif *vif)
-{
-	u32 trig_vif = le32_to_cpu(trig->vif_type);
-
-	return trig_vif == IWL_FW_DBG_CONF_VIF_ANY || vif->type == trig_vif;
-}
-
-static inline bool
-iwl_fw_dbg_trigger_stop_conf_match(struct iwl_mvm *mvm,
-				   struct iwl_fw_dbg_trigger_tlv *trig)
-{
-	return ((trig->mode & IWL_FW_DBG_TRIGGER_STOP) &&
-		(mvm->fw_dbg_conf == FW_DBG_INVALID ||
-		(BIT(mvm->fw_dbg_conf) & le32_to_cpu(trig->stop_conf_ids))));
-}
-
-static inline bool
-iwl_fw_dbg_trigger_check_stop(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif,
-			      struct iwl_fw_dbg_trigger_tlv *trig)
-{
-	if (vif && !iwl_fw_dbg_trigger_vif_match(trig, vif))
-		return false;
-
-	return iwl_fw_dbg_trigger_stop_conf_match(mvm, trig);
-}
-
-static inline void
-iwl_fw_dbg_trigger_simple_stop(struct iwl_mvm *mvm,
-			       struct ieee80211_vif *vif,
-			       enum iwl_fw_dbg_trigger trig)
-{
-	struct iwl_fw_dbg_trigger_tlv *trigger;
-
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, trig))
-		return;
-
-	trigger = iwl_fw_dbg_get_trigger(mvm->fw, trig);
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trigger))
-		return;
-
-	iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
-}
 
 #endif /* __IWL_MVM_H__ */

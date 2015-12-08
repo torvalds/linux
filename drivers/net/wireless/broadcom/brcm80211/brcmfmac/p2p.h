@@ -112,7 +112,6 @@ struct afx_hdl {
  * @int_addr: P2P interface address.
  * @bss_idx: informate for P2P bss types.
  * @listen_timer: timer for @WL_P2P_DISC_ST_LISTEN discover state.
- * @ssid: ssid for P2P GO.
  * @listen_channel: channel for @WL_P2P_DISC_ST_LISTEN discover state.
  * @remain_on_channel: contains copy of struct used by cfg80211.
  * @remain_on_channel_cookie: cookie counter for remain on channel cmd
@@ -133,7 +132,6 @@ struct brcmf_p2p_info {
 	u8 int_addr[ETH_ALEN];
 	struct p2p_bss bss_idx[P2PAPI_BSSCFG_MAX];
 	struct timer_list listen_timer;
-	struct brcmf_ssid ssid;
 	u8 listen_channel;
 	struct ieee80211_channel remain_on_channel;
 	u32 remain_on_channel_cookie;

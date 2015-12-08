@@ -333,6 +333,13 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 	struct iwl_periodic_scan_complete *scan_notif = (void *)pkt->data;
 	bool aborted = (scan_notif->status == IWL_SCAN_OFFLOAD_ABORTED);
 
+	/* If this happens, the firmware has mistakenly sent an LMAC
+	 * notification during UMAC scans -- warn and ignore it.
+	 */
+	if (WARN_ON_ONCE(fw_has_capa(&mvm->fw->ucode_capa,
+				     IWL_UCODE_TLV_CAPA_UMAC_SCAN)))
+		return;
+
 	/* scan status must be locked for proper checking */
 	lockdep_assert_held(&mvm->mutex);
 
@@ -920,6 +927,8 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	if (!scan_config)
 		return -ENOMEM;
 
+	mvm->scan_fragmented = iwl_mvm_low_latency(mvm);
+
 	scan_config->flags = cpu_to_le32(SCAN_CONFIG_FLAG_ACTIVATE |
 					 SCAN_CONFIG_FLAG_ALLOW_CHUB_REQS |
 					 SCAN_CONFIG_FLAG_SET_TX_CHAINS |
@@ -928,7 +937,10 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 					 SCAN_CONFIG_FLAG_SET_LEGACY_RATES |
 					 SCAN_CONFIG_FLAG_SET_MAC_ADDR |
 					 SCAN_CONFIG_FLAG_SET_CHANNEL_FLAGS|
-					 SCAN_CONFIG_N_CHANNELS(num_channels));
+					 SCAN_CONFIG_N_CHANNELS(num_channels) |
+					 (mvm->scan_fragmented ?
+					  SCAN_CONFIG_FLAG_SET_FRAGMENTED :
+					  SCAN_CONFIG_FLAG_CLEAR_FRAGMENTED));
 	scan_config->tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
 	scan_config->rx_chains = cpu_to_le32(iwl_mvm_scan_rx_ant(mvm));
 	scan_config->legacy_rates = iwl_mvm_scan_config_rates(mvm);
@@ -1150,7 +1162,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 	case IWL_MVM_SCAN_SCHED:
 		if (mvm->scan_status & IWL_MVM_SCAN_SCHED_MASK)
 			return -EBUSY;
-		iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
+		return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
 	case IWL_MVM_SCAN_NETDETECT:
 		/* No need to stop anything for net-detect since the
 		 * firmware is restarted anyway.  This way, any sched

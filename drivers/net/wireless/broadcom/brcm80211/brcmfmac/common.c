@@ -29,7 +29,6 @@
 
 const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-#define BRCMF_DEFAULT_BCN_TIMEOUT	3
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
 #define BRCMF_DEFAULT_SCAN_UNASSOC_TIME	40
 
@@ -107,26 +106,6 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		goto done;
 	}
 
-	/*
-	 * Setup timeout if Beacons are lost and roam is off to report
-	 * link down
-	 */
-	err = brcmf_fil_iovar_int_set(ifp, "bcn_timeout",
-				      BRCMF_DEFAULT_BCN_TIMEOUT);
-	if (err) {
-		brcmf_err("bcn_timeout error (%d)\n", err);
-		goto done;
-	}
-
-	/* Enable/Disable build-in roaming to allowed ext supplicant to take
-	 * of romaing
-	 */
-	err = brcmf_fil_iovar_int_set(ifp, "roam_off", 1);
-	if (err) {
-		brcmf_err("roam_off error (%d)\n", err);
-		goto done;
-	}
-
 	/* Setup join_pref to select target by RSSI(with boost on 5GHz) */
 	join_pref_params[0].type = BRCMF_JOIN_PREF_RSSI_DELTA;
 	join_pref_params[0].len = 2;
@@ -173,6 +152,9 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 			  err);
 		goto done;
 	}
+
+	/* Enable tx beamforming, errors can be ignored (not supported) */
+	(void)brcmf_fil_iovar_int_set(ifp, "txbf", 1);
 
 	/* do bus specific preinit here */
 	err = brcmf_bus_preinit(ifp->drvr->bus_if);

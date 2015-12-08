@@ -1227,7 +1227,21 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.op_mode = op_mode;
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
-	trans_cfg.rx_buf_size_8k = iwlwifi_mod_params.amsdu_size_8K;
+
+	switch (iwlwifi_mod_params.amsdu_size) {
+	case IWL_AMSDU_4K:
+		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+		break;
+	case IWL_AMSDU_8K:
+		trans_cfg.rx_buf_size = IWL_AMSDU_8K;
+		break;
+	case IWL_AMSDU_12K:
+	default:
+		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+		pr_err("Unsupported amsdu_size: %d\n",
+		       iwlwifi_mod_params.amsdu_size);
+	}
+
 	trans_cfg.cmd_q_wdg_timeout = IWL_WATCHDOG_DISABLED;
 
 	trans_cfg.command_names = iwl_dvm_cmd_strings;

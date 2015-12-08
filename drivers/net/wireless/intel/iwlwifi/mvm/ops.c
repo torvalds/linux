@@ -82,6 +82,7 @@
 #include "rs.h"
 #include "fw-api-scan.h"
 #include "time-event.h"
+#include "fw-dbg.h"
 
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
@@ -309,6 +310,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX + 1] = {
 	CMD(WEP_KEY),
 	CMD(REPLY_RX_PHY_CMD),
 	CMD(REPLY_RX_MPDU_CMD),
+	CMD(FRAME_RELEASE),
 	CMD(BEACON_NOTIFICATION),
 	CMD(BEACON_TEMPLATE_CMD),
 	CMD(STATISTICS_CMD),
@@ -362,6 +364,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX + 1] = {
 	CMD(TDLS_CONFIG_CMD),
 	CMD(MCC_UPDATE_CMD),
 	CMD(SCAN_ITERATION_COMPLETE_UMAC),
+	CMD(LDBG_CONFIG_CMD),
 };
 #undef CMD
 
@@ -452,7 +455,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		mvm->first_agg_queue = 12;
 	}
 	mvm->sf_state = SF_UNINIT;
-	mvm->low_latency_agg_frame_limit = 6;
 	mvm->cur_ucode = IWL_UCODE_INIT;
 
 	mutex_init(&mvm->mutex);
@@ -485,7 +487,21 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.op_mode = op_mode;
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
-	trans_cfg.rx_buf_size_8k = iwlwifi_mod_params.amsdu_size_8K;
+	switch (iwlwifi_mod_params.amsdu_size) {
+	case IWL_AMSDU_4K:
+		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+		break;
+	case IWL_AMSDU_8K:
+		trans_cfg.rx_buf_size = IWL_AMSDU_8K;
+		break;
+	case IWL_AMSDU_12K:
+		trans_cfg.rx_buf_size = IWL_AMSDU_12K;
+		break;
+	default:
+		pr_err("%s: Unsupported amsdu_size: %d\n", KBUILD_MODNAME,
+		       iwlwifi_mod_params.amsdu_size);
+		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+	}
 	trans_cfg.wide_cmd_header = fw_has_api(&mvm->fw->ucode_capa,
 					       IWL_UCODE_TLV_API_WIDE_CMD_HDR);
 
@@ -628,12 +644,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
 	kfree(mvm->d3_resume_sram);
-	if (mvm->nd_config) {
-		kfree(mvm->nd_config->match_sets);
-		kfree(mvm->nd_config->scan_plans);
-		kfree(mvm->nd_config);
-		mvm->nd_config = NULL;
-	}
 #endif
 
 	iwl_trans_op_mode_leave(mvm->trans);
@@ -1195,6 +1205,11 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	/* make sure we have no running tx while configuring the seqno */
 	synchronize_net();
+
+	/* Flush the hw queues, in case something got queued during entry */
+	ret = iwl_mvm_flush_tx_path(mvm, iwl_mvm_flushable_queues(mvm), flags);
+	if (ret)
+		return ret;
 
 	/* configure wowlan configuration only if needed */
 	if (mvm->d0i3_ap_sta_id != IWL_MVM_STATION_COUNT) {

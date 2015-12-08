@@ -302,7 +302,7 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @ucode_write_waitq: wait queue for uCode load
  * @cmd_queue - command queue number
- * @rx_buf_size_8k: 8 kB RX buffer size
+ * @rx_buf_size: Rx buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @wide_cmd_header: true when ucode supports wide command header format
@@ -356,7 +356,7 @@ struct iwl_trans_pcie {
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 
-	bool rx_buf_size_8k;
+	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;
 	bool scd_set_active;
 	bool wide_cmd_header;
@@ -378,8 +378,11 @@ struct iwl_trans_pcie {
 	u32 fw_mon_size;
 };
 
-#define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
-	((struct iwl_trans_pcie *) ((_iwl_trans)->trans_specific))
+static inline struct iwl_trans_pcie *
+IWL_TRANS_GET_PCIE_TRANS(struct iwl_trans *trans)
+{
+	return (void *)trans->trans_specific;
+}
 
 static inline struct iwl_trans *
 iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
@@ -565,5 +568,14 @@ static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
 }
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
+#else
+static inline int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
+{
+	return 0;
+}
+#endif
 
 #endif /* __iwl_trans_int_pcie_h__ */

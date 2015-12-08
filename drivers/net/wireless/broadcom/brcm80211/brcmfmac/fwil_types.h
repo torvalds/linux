@@ -121,6 +121,11 @@
 
 #define BRCMF_MAX_ASSOCLIST		128
 
+#define BRCMF_TXBF_SU_BFE_CAP		BIT(0)
+#define BRCMF_TXBF_MU_BFE_CAP		BIT(1)
+#define BRCMF_TXBF_SU_BFR_CAP		BIT(0)
+#define BRCMF_TXBF_MU_BFR_CAP		BIT(1)
+
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
 	BRCMF_JOIN_PREF_RSSI = 1,
@@ -170,7 +175,7 @@ struct brcmf_fil_af_params_le {
 };
 
 struct brcmf_fil_bss_enable_le {
-	__le32 bsscfg_idx;
+	__le32 bsscfgidx;
 	__le32 enable;
 };
 
@@ -282,14 +287,9 @@ struct brcm_rateset_le {
 	u8 rates[BRCMF_MAXRATES_IN_SET];
 };
 
-struct brcmf_ssid {
-	u32 SSID_len;
-	unsigned char SSID[32];
-};
-
 struct brcmf_ssid_le {
 	__le32 SSID_len;
-	unsigned char SSID[32];
+	unsigned char SSID[IEEE80211_MAX_SSID_LEN];
 };
 
 struct brcmf_scan_params_le {
@@ -632,6 +632,18 @@ struct brcmf_rev_info_le {
 struct brcmf_assoclist_le {
 	__le32 count;
 	u8 mac[BRCMF_MAX_ASSOCLIST][ETH_ALEN];
+};
+
+/**
+ * struct brcmf_wowl_wakeind_le - Wakeup indicators
+ *	Note: note both fields contain same information.
+ *
+ * @pci_wakeind: Whether PCI PMECSR PMEStatus bit was set.
+ * @ucode_wakeind: What wakeup-event indication was set by ucode
+ */
+struct brcmf_wowl_wakeind_le {
+	__le32 pci_wakeind;
+	__le32 ucode_wakeind;
 };
 
 #endif /* FWIL_TYPES_H_ */

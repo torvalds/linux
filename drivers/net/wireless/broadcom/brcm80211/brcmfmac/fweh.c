@@ -182,8 +182,8 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	bool is_p2pdev;
 	int err = 0;
 
-	brcmf_dbg(EVENT, "action: %u idx: %u bsscfg: %u flags: %u role: %u\n",
-		  ifevent->action, ifevent->ifidx, ifevent->bssidx,
+	brcmf_dbg(EVENT, "action: %u ifidx: %u bsscfgidx: %u flags: %u role: %u\n",
+		  ifevent->action, ifevent->ifidx, ifevent->bsscfgidx,
 		  ifevent->flags, ifevent->role);
 
 	/* The P2P Device interface event must not be ignored contrary to what
@@ -204,12 +204,12 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 		return;
 	}
 
-	ifp = drvr->iflist[ifevent->bssidx];
+	ifp = drvr->iflist[ifevent->bsscfgidx];
 
 	if (ifevent->action == BRCMF_E_IF_ADD) {
 		brcmf_dbg(EVENT, "adding %s (%pM)\n", emsg->ifname,
 			  emsg->addr);
-		ifp = brcmf_add_if(drvr, ifevent->bssidx, ifevent->ifidx,
+		ifp = brcmf_add_if(drvr, ifevent->bsscfgidx, ifevent->ifidx,
 				   is_p2pdev, emsg->ifname, emsg->addr);
 		if (IS_ERR(ifp))
 			return;

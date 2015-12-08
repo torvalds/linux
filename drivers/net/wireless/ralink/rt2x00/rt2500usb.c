@@ -229,7 +229,10 @@ static void _rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 				     const unsigned int offset,
 				     u32 *value)
 {
-	rt2500usb_register_read(rt2x00dev, offset, (u16 *)value);
+	u16 tmp;
+
+	rt2500usb_register_read(rt2x00dev, offset, &tmp);
+	*value = tmp;
 }
 
 static void _rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,

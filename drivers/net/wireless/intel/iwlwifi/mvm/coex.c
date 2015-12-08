@@ -443,11 +443,8 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	if (iwl_mvm_bt_is_plcr_supported(mvm))
 		bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_CORUN_ENABLED);
 
-	if (IWL_MVM_BT_COEX_MPLUT) {
+	if (iwl_mvm_is_mplut_supported(mvm))
 		bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_MPLUT_ENABLED);
-		bt_cmd.enabled_modules |=
-			cpu_to_le32(BT_COEX_MPLUT_BOOST_ENABLED);
-	}
 
 	bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_HIGH_BAND_RET);
 
@@ -904,6 +901,7 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac)
 {
 	__le16 fc = hdr->frame_control;
+	bool mplut_enabled = iwl_mvm_is_mplut_supported(mvm);
 
 	if (info->band != IEEE80211_BAND_2GHZ)
 		return 0;
@@ -911,22 +909,27 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 	if (unlikely(mvm->bt_tx_prio))
 		return mvm->bt_tx_prio - 1;
 
-	/* High prio packet (wrt. BT coex) if it is EAPOL, MCAST or MGMT */
-	if (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO ||
-	     is_multicast_ether_addr(hdr->addr1) ||
-	     ieee80211_is_ctl(fc) || ieee80211_is_mgmt(fc) ||
-	     ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc))
+	if (likely(ieee80211_is_data(fc))) {
+		if (likely(ieee80211_is_data_qos(fc))) {
+			switch (ac) {
+			case IEEE80211_AC_BE:
+				return mplut_enabled ? 1 : 0;
+			case IEEE80211_AC_VI:
+				return mplut_enabled ? 2 : 3;
+			case IEEE80211_AC_VO:
+				return 3;
+			default:
+				return 0;
+			}
+		} else if (is_multicast_ether_addr(hdr->addr1)) {
+			return 3;
+		} else
+			return 0;
+	} else if (ieee80211_is_mgmt(fc)) {
+		return ieee80211_is_disassoc(fc) ? 0 : 3;
+	} else if (ieee80211_is_ctl(fc)) {
+		/* ignore cfend and cfendack frames as we never send those */
 		return 3;
-
-	switch (ac) {
-	case IEEE80211_AC_BE:
-		return 1;
-	case IEEE80211_AC_VO:
-		return 3;
-	case IEEE80211_AC_VI:
-		return 2;
-	default:
-		break;
 	}
 
 	return 0;

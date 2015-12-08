@@ -28,7 +28,6 @@
 #define WL_EXTRA_BUF_MAX		2048
 #define WL_ROAM_TRIGGER_LEVEL		-75
 #define WL_ROAM_DELTA			20
-#define WL_BEACON_TIMEOUT		3
 
 #define WL_SCAN_CHANNEL_TIME		40
 #define WL_SCAN_UNASSOC_TIME		40
@@ -77,6 +76,9 @@
 
 #define BRCMF_MAX_DEFAULT_KEYS		4
 
+/* beacon loss timeout defaults */
+#define BRCMF_DEFAULT_BCN_TIMEOUT_ROAM_ON	2
+#define BRCMF_DEFAULT_BCN_TIMEOUT_ROAM_OFF	4
 
 /**
  * enum brcmf_scan_status - scan engine status
@@ -124,13 +126,11 @@ struct brcmf_cfg80211_security {
 /**
  * struct brcmf_cfg80211_profile - profile information.
  *
- * @ssid: ssid of associated/associating ap.
  * @bssid: bssid of joined/joining ibss.
  * @sec: security information.
  * @key: key information
  */
 struct brcmf_cfg80211_profile {
-	struct brcmf_ssid ssid;
 	u8 bssid[ETH_ALEN];
 	struct brcmf_cfg80211_security sec;
 	struct brcmf_wsec_key key[BRCMF_MAX_DEFAULT_KEYS];
@@ -180,7 +180,6 @@ struct vif_saved_ie {
  * @ifp: lower layer interface pointer
  * @wdev: wireless device.
  * @profile: profile information.
- * @roam_off: roaming state.
  * @sme_state: SME state using enum brcmf_vif_status bits.
  * @pm_block: power-management blocked.
  * @list: linked list.
@@ -191,7 +190,6 @@ struct brcmf_cfg80211_vif {
 	struct brcmf_if *ifp;
 	struct wireless_dev wdev;
 	struct brcmf_cfg80211_profile profile;
-	s32 roam_off;
 	unsigned long sme_state;
 	bool pm_block;
 	struct vif_saved_ie saved_ie;
@@ -233,7 +231,7 @@ struct escan_info {
 	struct wiphy *wiphy;
 	struct brcmf_if *ifp;
 	s32 (*run)(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
-		   struct cfg80211_scan_request *request, u16 action);
+		   struct cfg80211_scan_request *request);
 };
 
 /**

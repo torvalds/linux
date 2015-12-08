@@ -26,7 +26,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -288,6 +288,9 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TRIGGER_TIME_EVENT: trigger log collection upon time events related
  *	events.
  * @FW_DBG_TRIGGER_BA: trigger log collection upon BlockAck related events.
+ * @FW_DBG_TX_LATENCY: trigger log collection when the tx latency goes above a
+ *	threshold.
+ * @FW_DBG_TDLS: trigger log collection upon TDLS related events.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -302,6 +305,8 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_TXQ_TIMERS,
 	FW_DBG_TRIGGER_TIME_EVENT,
 	FW_DBG_TRIGGER_BA,
+	FW_DBG_TRIGGER_TX_LATENCY,
+	FW_DBG_TRIGGER_TDLS,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

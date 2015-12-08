@@ -187,7 +187,8 @@ retry:
 		goto retry;
 	if (id != bcdc->reqid) {
 		brcmf_err("%s: unexpected request id %d (expected %d)\n",
-			  brcmf_ifname(drvr, ifidx), id, bcdc->reqid);
+			  brcmf_ifname(brcmf_get_ifp(drvr, ifidx)), id,
+			  bcdc->reqid);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -234,7 +235,8 @@ brcmf_proto_bcdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	if (id != bcdc->reqid) {
 		brcmf_err("%s: unexpected request id %d (expected %d)\n",
-			  brcmf_ifname(drvr, ifidx), id, bcdc->reqid);
+			  brcmf_ifname(brcmf_get_ifp(drvr, ifidx)), id,
+			  bcdc->reqid);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -298,13 +300,13 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 	if (((h->flags & BCDC_FLAG_VER_MASK) >> BCDC_FLAG_VER_SHIFT) !=
 	    BCDC_PROTO_VER) {
 		brcmf_err("%s: non-BCDC packet received, flags 0x%x\n",
-			  brcmf_ifname(drvr, tmp_if->ifidx), h->flags);
+			  brcmf_ifname(tmp_if), h->flags);
 		return -EBADE;
 	}
 
 	if (h->flags & BCDC_FLAG_SUM_GOOD) {
 		brcmf_dbg(BCDC, "%s: BDC rcv, good checksum, flags 0x%x\n",
-			  brcmf_ifname(drvr, tmp_if->ifidx), h->flags);
+			  brcmf_ifname(tmp_if), h->flags);
 		pktbuf->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 

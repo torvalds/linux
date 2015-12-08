@@ -719,7 +719,7 @@ static void brcmf_fws_macdesc_init(struct brcmf_fws_mac_descriptor *desc,
 	desc->state = BRCMF_FWS_STATE_OPEN;
 	desc->requested_credit = 0;
 	desc->requested_packet = 0;
-	/* depending on use may need ifp->bssidx instead */
+	/* depending on use may need ifp->bsscfgidx instead */
 	desc->interface_id = ifidx;
 	desc->ac_bitmap = 0xff; /* update this when handling APSD */
 	if (addr)
@@ -1938,7 +1938,7 @@ void brcmf_fws_reset_interface(struct brcmf_if *ifp)
 {
 	struct brcmf_fws_mac_descriptor *entry = ifp->fws_desc;
 
-	brcmf_dbg(TRACE, "enter: idx=%d\n", ifp->bssidx);
+	brcmf_dbg(TRACE, "enter: bsscfgidx=%d\n", ifp->bsscfgidx);
 	if (!entry)
 		return;
 
