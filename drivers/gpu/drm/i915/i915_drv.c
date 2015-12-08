@@ -1077,7 +1077,6 @@ static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
 	 */
 	broxton_init_cdclk(dev);
 	broxton_ddi_phy_init(dev);
-	intel_prepare_ddi(dev);
 
 	return 0;
 }

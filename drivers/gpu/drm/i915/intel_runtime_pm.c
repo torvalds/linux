@@ -626,7 +626,6 @@ void skl_disable_dc6(struct drm_i915_private *dev_priv)
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			struct i915_power_well *power_well, bool enable)
 {
-	struct drm_device *dev = dev_priv->dev;
 	uint32_t tmp, fuse_status;
 	uint32_t req_mask, state_mask;
 	bool is_enabled, enable_requested, check_fuse_status = false;
@@ -670,17 +669,6 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 				!I915_READ(HSW_PWR_WELL_BIOS),
 				"Invalid for power well status to be enabled, unless done by the BIOS, \
 				when request is to disable!\n");
-			if (power_well->data == SKL_DISP_PW_2) {
-				/*
-				 * DDI buffer programming unnecessary during
-				 * driver-load/resume as it's already done
-				 * during modeset initialization then. It's
-				 * also invalid here as encoder list is still
-				 * uninitialized.
-				 */
-				if (!dev_priv->power_domains.initializing)
-					intel_prepare_ddi(dev);
-			}
 			I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
 		}
 

@@ -184,6 +184,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	intel_mst->port = found->port;
 
 	if (intel_dp->active_mst_links == 0) {
+		intel_prepare_ddi_buffer(&intel_dig_port->base);
+
 		intel_ddi_clk_select(&intel_dig_port->base, intel_crtc->config);
 
 		intel_dp_set_link_params(intel_dp, intel_crtc->config);

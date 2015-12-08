@@ -342,12 +342,6 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 	return port;
 }
 
-static bool
-intel_dig_port_supports_hdmi(const struct intel_digital_port *intel_dig_port)
-{
-	return i915_mmio_reg_valid(intel_dig_port->hdmi.hdmi_reg);
-}
-
 static const struct ddi_buf_trans *
 skl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 {
@@ -401,28 +395,34 @@ skl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
  */
-static void intel_prepare_ddi_buffers(struct drm_i915_private *dev_priv,
-				      enum port port, bool supports_hdmi)
+void intel_prepare_ddi_buffer(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 iboost_bit = 0;
 	int i, n_hdmi_entries, n_dp_entries, n_edp_entries, hdmi_default_entry,
 	    size;
-	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
+	int hdmi_level;
+	enum port port;
 	const struct ddi_buf_trans *ddi_translations_fdi;
 	const struct ddi_buf_trans *ddi_translations_dp;
 	const struct ddi_buf_trans *ddi_translations_edp;
 	const struct ddi_buf_trans *ddi_translations_hdmi;
 	const struct ddi_buf_trans *ddi_translations;
 
+	port = intel_ddi_get_encoder_port(encoder);
+	hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
+
 	if (IS_BROXTON(dev_priv)) {
-		if (!supports_hdmi)
+		if (encoder->type != INTEL_OUTPUT_HDMI)
 			return;
 
 		/* Vswing programming for HDMI */
 		bxt_ddi_vswing_sequence(dev_priv, hdmi_level, port,
 					INTEL_OUTPUT_HDMI);
 		return;
-	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	}
+
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		ddi_translations_fdi = NULL;
 		ddi_translations_dp =
 				skl_get_buf_trans_dp(dev_priv, &n_dp_entries);
@@ -468,30 +468,18 @@ static void intel_prepare_ddi_buffers(struct drm_i915_private *dev_priv,
 		hdmi_default_entry = 7;
 	}
 
-	switch (port) {
-	case PORT_A:
+	switch (encoder->type) {
+	case INTEL_OUTPUT_EDP:
 		ddi_translations = ddi_translations_edp;
 		size = n_edp_entries;
 		break;
-	case PORT_B:
-	case PORT_C:
+	case INTEL_OUTPUT_DISPLAYPORT:
+	case INTEL_OUTPUT_HDMI:
 		ddi_translations = ddi_translations_dp;
 		size = n_dp_entries;
 		break;
-	case PORT_D:
-		if (intel_dp_is_edp(dev_priv->dev, PORT_D)) {
-			ddi_translations = ddi_translations_edp;
-			size = n_edp_entries;
-		} else {
-			ddi_translations = ddi_translations_dp;
-			size = n_dp_entries;
-		}
-		break;
-	case PORT_E:
-		if (ddi_translations_fdi)
-			ddi_translations = ddi_translations_fdi;
-		else
-			ddi_translations = ddi_translations_dp;
+	case INTEL_OUTPUT_ANALOG:
+		ddi_translations = ddi_translations_fdi;
 		size = n_dp_entries;
 		break;
 	default:
@@ -505,7 +493,7 @@ static void intel_prepare_ddi_buffers(struct drm_i915_private *dev_priv,
 			   ddi_translations[i].trans2);
 	}
 
-	if (!supports_hdmi)
+	if (encoder->type != INTEL_OUTPUT_HDMI)
 		return;
 
 	/* Choose a good default if VBT is badly populated */
@@ -518,37 +506,6 @@ static void intel_prepare_ddi_buffers(struct drm_i915_private *dev_priv,
 		   ddi_translations_hdmi[hdmi_level].trans1 | iboost_bit);
 	I915_WRITE(DDI_BUF_TRANS_HI(port, i),
 		   ddi_translations_hdmi[hdmi_level].trans2);
-}
-
-/* Program DDI buffers translations for DP. By default, program ports A-D in DP
- * mode and port E for FDI.
- */
-void intel_prepare_ddi(struct drm_device *dev)
-{
-	struct intel_encoder *intel_encoder;
-	bool visited[I915_MAX_PORTS] = { 0, };
-
-	if (!HAS_DDI(dev))
-		return;
-
-	for_each_intel_encoder(dev, intel_encoder) {
-		struct intel_digital_port *intel_dig_port;
-		enum port port;
-		bool supports_hdmi;
-
-		if (intel_encoder->type == INTEL_OUTPUT_DSI)
-			continue;
-
-		ddi_get_encoder_port(intel_encoder, &intel_dig_port, &port);
-		if (visited[port])
-			continue;
-
-		supports_hdmi = intel_dig_port &&
-				intel_dig_port_supports_hdmi(intel_dig_port);
-
-		intel_prepare_ddi_buffers(to_i915(dev), port, supports_hdmi);
-		visited[port] = true;
-	}
 }
 
 static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
@@ -579,7 +536,13 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *encoder;
 	u32 temp, i, rx_ctl_val;
+
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		WARN_ON(encoder->type != INTEL_OUTPUT_ANALOG);
+		intel_prepare_ddi_buffer(encoder);
+	}
 
 	/* Set the FDI_RX_MISC pwrdn lanes and the 2 workarounds listed at the
 	 * mode set "sequence for CRT port" document:
@@ -2306,12 +2269,12 @@ void intel_ddi_clk_select(struct intel_encoder *encoder,
 static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
-	int hdmi_level;
+
+	intel_prepare_ddi_buffer(intel_encoder);
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -2329,17 +2292,11 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
-		if (port != PORT_A || INTEL_INFO(dev)->gen >= 9)
+		if (port != PORT_A || INTEL_INFO(dev_priv)->gen >= 9)
 			intel_dp_stop_link_train(intel_dp);
 	} else if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
-		if (IS_BROXTON(dev)) {
-			hdmi_level = dev_priv->vbt.
-				ddi_port_info[port].hdmi_level_shift;
-			bxt_ddi_vswing_sequence(dev_priv, hdmi_level, port,
-						INTEL_OUTPUT_HDMI);
-		}
 		intel_hdmi->set_infoframes(encoder,
 					   crtc->config->has_hdmi_sink,
 					   &crtc->config->base.adjusted_mode);
