@@ -1108,6 +1108,8 @@ enum mac80211_rx_vht_flags {
  *	it but can store it and pass it back to the driver for synchronisation
  * @band: the active band when this frame was received
  * @freq: frequency the radio was tuned to when receiving this frame, in MHz
+ *	This field must be set for management frames, but isn't strictly needed
+ *	for data (other) frames - for those it only affects radiotap reporting.
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
