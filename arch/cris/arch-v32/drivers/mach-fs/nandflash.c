@@ -51,7 +51,7 @@ static void crisv32_hwcontrol(struct mtd_info *mtd, int cmd,
 {
 	unsigned long flags;
 	reg_gio_rw_pa_dout dout;
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 
 	local_irq_save(flags);
 
