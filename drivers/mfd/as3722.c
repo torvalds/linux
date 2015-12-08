@@ -424,7 +424,7 @@ static int as3722_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static int as3722_i2c_suspend(struct device *dev)
+static int __maybe_unused as3722_i2c_suspend(struct device *dev)
 {
 	struct as3722 *as3722 = dev_get_drvdata(dev);
 
@@ -435,7 +435,7 @@ static int as3722_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int as3722_i2c_resume(struct device *dev)
+static int __maybe_unused as3722_i2c_resume(struct device *dev)
 {
 	struct as3722 *as3722 = dev_get_drvdata(dev);
 
