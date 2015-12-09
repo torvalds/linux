@@ -261,6 +261,11 @@
 
 #define MVNETA_TX_MTU_MAX		0x3ffff
 
+/* The RSS lookup table actually has 256 entries but we do not use
+ * them yet
+ */
+#define MVNETA_RSS_LU_TABLE_SIZE	1
+
 /* TSO header size */
 #define TSO_HEADER_SIZE 128
 
@@ -382,6 +387,8 @@ struct mvneta_port {
 	unsigned int use_inband_status:1;
 
 	u64 ethtool_stats[ARRAY_SIZE(mvneta_statistics)];
+
+	u32 indir[MVNETA_RSS_LU_TABLE_SIZE];
 };
 
 /* The mvneta_tx_desc and mvneta_rx_desc structures describe the
@@ -1067,7 +1074,7 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 			if ((rxq % max_cpu) == cpu)
 				rxq_map |= MVNETA_CPU_RXQ_ACCESS(rxq);
 
-		if (cpu == rxq_def)
+		if (cpu == pp->rxq_def)
 			txq_map = MVNETA_CPU_TXQ_ACCESS_ALL_MASK;
 
 		mvreg_write(pp, MVNETA_CPU_MAP(cpu), rxq_map | txq_map);
@@ -2508,6 +2515,18 @@ static void mvneta_percpu_unmask_interrupt(void *arg)
 		    MVNETA_MISCINTR_INTR_MASK);
 }
 
+static void mvneta_percpu_mask_interrupt(void *arg)
+{
+	struct mvneta_port *pp = arg;
+
+	/* All the queue are masked, but actually only the ones
+	 * maped to this CPU will be masked
+	 */
+	mvreg_write(pp, MVNETA_INTR_NEW_MASK, 0);
+	mvreg_write(pp, MVNETA_INTR_OLD_MASK, 0);
+	mvreg_write(pp, MVNETA_INTR_MISC_MASK, 0);
+}
+
 static void mvneta_start_dev(struct mvneta_port *pp)
 {
 	unsigned int cpu;
@@ -3231,6 +3250,106 @@ static int mvneta_ethtool_get_sset_count(struct net_device *dev, int sset)
 	return -EOPNOTSUPP;
 }
 
+static u32 mvneta_ethtool_get_rxfh_indir_size(struct net_device *dev)
+{
+	return MVNETA_RSS_LU_TABLE_SIZE;
+}
+
+static int mvneta_ethtool_get_rxnfc(struct net_device *dev,
+				    struct ethtool_rxnfc *info,
+				    u32 *rules __always_unused)
+{
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data =  rxq_number;
+		return 0;
+	case ETHTOOL_GRXFH:
+		return -EOPNOTSUPP;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int  mvneta_config_rss(struct mvneta_port *pp)
+{
+	int cpu;
+	u32 val;
+
+	netif_tx_stop_all_queues(pp->dev);
+
+	for_each_online_cpu(cpu)
+		smp_call_function_single(cpu, mvneta_percpu_mask_interrupt,
+					 pp, true);
+
+	/* We have to synchronise on the napi of each CPU */
+	for_each_online_cpu(cpu) {
+		struct mvneta_pcpu_port *pcpu_port =
+			per_cpu_ptr(pp->ports, cpu);
+
+		napi_synchronize(&pcpu_port->napi);
+		napi_disable(&pcpu_port->napi);
+	}
+
+	pp->rxq_def = pp->indir[0];
+
+	/* Update unicast mapping */
+	mvneta_set_rx_mode(pp->dev);
+
+	/* Update val of portCfg register accordingly with all RxQueue types */
+	val = MVNETA_PORT_CONFIG_DEFL_VALUE(pp->rxq_def);
+	mvreg_write(pp, MVNETA_PORT_CONFIG, val);
+
+	/* Update the elected CPU matching the new rxq_def */
+	mvneta_percpu_elect(pp);
+
+	/* We have to synchronise on the napi of each CPU */
+	for_each_online_cpu(cpu) {
+		struct mvneta_pcpu_port *pcpu_port =
+			per_cpu_ptr(pp->ports, cpu);
+
+		napi_enable(&pcpu_port->napi);
+	}
+
+	netif_tx_start_all_queues(pp->dev);
+
+	return 0;
+}
+
+static int mvneta_ethtool_set_rxfh(struct net_device *dev, const u32 *indir,
+				   const u8 *key, const u8 hfunc)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+	/* We require at least one supported parameter to be changed
+	 * and no change in any of the unsupported parameters
+	 */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+
+	if (!indir)
+		return 0;
+
+	memcpy(pp->indir, indir, MVNETA_RSS_LU_TABLE_SIZE);
+
+	return mvneta_config_rss(pp);
+}
+
+static int mvneta_ethtool_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
+				   u8 *hfunc)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+
+	if (!indir)
+		return 0;
+
+	memcpy(indir, pp->indir, MVNETA_RSS_LU_TABLE_SIZE);
+
+	return 0;
+}
+
 static const struct net_device_ops mvneta_netdev_ops = {
 	.ndo_open            = mvneta_open,
 	.ndo_stop            = mvneta_stop,
@@ -3255,6 +3374,10 @@ const struct ethtool_ops mvneta_eth_tool_ops = {
 	.get_strings	= mvneta_ethtool_get_strings,
 	.get_ethtool_stats = mvneta_ethtool_get_stats,
 	.get_sset_count	= mvneta_ethtool_get_sset_count,
+	.get_rxfh_indir_size = mvneta_ethtool_get_rxfh_indir_size,
+	.get_rxnfc	= mvneta_ethtool_get_rxnfc,
+	.get_rxfh	= mvneta_ethtool_get_rxfh,
+	.set_rxfh	= mvneta_ethtool_set_rxfh,
 };
 
 /* Initialize hw */
@@ -3445,6 +3568,8 @@ static int mvneta_probe(struct platform_device *pdev)
 	pp->cpu_notifier.notifier_call = mvneta_percpu_notifier;
 
 	pp->rxq_def = rxq_def;
+
+	pp->indir[0] = rxq_def;
 
 	pp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pp->clk)) {
