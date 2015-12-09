@@ -2091,7 +2091,7 @@ static int mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = mlxsw_sp_lag_col_port_disable(mlxsw_sp_port, lag_id);
 	if (err)
 		return err;
-	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
+	err = mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
 	if (err)
 		return err;
 
