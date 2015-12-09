@@ -508,8 +508,10 @@ static void nvec_rx_completed(struct nvec_chip *nvec)
 
 	spin_lock(&nvec->rx_lock);
 
-	/* add the received data to the work list
-	   and move the ring buffer pointer to the next entry */
+	/*
+	 * Add the received data to the work list and move the ring buffer
+	 * pointer to the next entry.
+	 */
 	list_add_tail(&nvec->rx->node, &nvec->rx_data);
 
 	spin_unlock(&nvec->rx_lock);
