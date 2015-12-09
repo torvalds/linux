@@ -1,6 +1,3 @@
-config OMAP2_VRFB
-	bool
-
 if ARCH_OMAP2PLUS
 
 source "drivers/video/fbdev/omap2/dss/Kconfig"
