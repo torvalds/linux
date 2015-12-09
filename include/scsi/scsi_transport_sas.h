@@ -10,6 +10,15 @@ struct scsi_transport_template;
 struct sas_rphy;
 struct request;
 
+#if !IS_ENABLED(CONFIG_SCSI_SAS_ATTRS)
+static inline int is_sas_attached(struct scsi_device *sdev)
+{
+	return 0;
+}
+#else
+extern int is_sas_attached(struct scsi_device *sdev);
+#endif
+
 static inline int sas_protocol_ata(enum sas_protocol proto)
 {
 	return ((proto & SAS_PROTOCOL_SATA) ||
