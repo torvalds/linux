@@ -750,12 +750,12 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 	ipg = of_clk_get(dev->of_node, pu_clks);
 
 	/* Get disp domain clks */
-	for (k = 0, i = pu_clks + ipg_clks; i < pu_clks + ipg_clks + disp_clks;
-		i++, k++) {
+	for (i = pu_clks + ipg_clks; i < pu_clks + ipg_clks + disp_clks;
+		i++) {
 		clk = of_clk_get(dev->of_node, i);
 		if (IS_ERR(clk))
 			break;
-		imx6s_display_domain.clk[k] = clk;
+		imx6s_display_domain.clk[k++] = clk;
 	}
 	imx6s_display_domain.num_clks = k;
 
@@ -797,7 +797,9 @@ static int imx_gpc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	of_property_read_u32(pdev->dev.of_node, "fsl,ldo-bypass", &bypass);
+	if (of_property_read_u32(pdev->dev.of_node, "fsl,ldo-bypass", &bypass))
+		dev_warn(&pdev->dev,
+			"no fsl,ldo-bypass found!\n");
 	/* We only bypass pu since arm and soc has been set in u-boot */
 	if (pu_reg && bypass)
 		regulator_allow_bypass(pu_reg, true);
