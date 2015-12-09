@@ -1059,7 +1059,8 @@ static int __init iser_init(void)
 	release_wq = alloc_workqueue("release workqueue", 0, 0);
 	if (!release_wq) {
 		iser_err("failed to allocate release workqueue\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_alloc_wq;
 	}
 
 	iscsi_iser_scsi_transport = iscsi_register_transport(
@@ -1067,12 +1068,14 @@ static int __init iser_init(void)
 	if (!iscsi_iser_scsi_transport) {
 		iser_err("iscsi_register_transport failed\n");
 		err = -EINVAL;
-		goto register_transport_failure;
+		goto err_reg;
 	}
 
 	return 0;
 
-register_transport_failure:
+err_reg:
+	destroy_workqueue(release_wq);
+err_alloc_wq:
 	kmem_cache_destroy(ig.desc_cache);
 
 	return err;
