@@ -89,8 +89,3 @@ void g2d_set_flip(struct g2d_dev *d, u32 r);
 void g2d_set_v41_stretch(struct g2d_dev *d,
 			struct g2d_frame *src, struct g2d_frame *dst);
 void g2d_set_cmd(struct g2d_dev *d, u32 c);
-
-static inline struct g2d_variant *g2d_get_drv_data(struct platform_device *pdev)
-{
-	return (struct g2d_variant *)platform_get_device_id(pdev)->driver_data;
-}
