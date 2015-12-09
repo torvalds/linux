@@ -59,4 +59,10 @@ config 6LOWPAN_NHC_UDP
 	---help---
 	  6LoWPAN IPv6 UDP Header compression according to RFC6282.
 
+config 6LOWPAN_GHC_EXT_HDR_HOP
+	tristate "GHC Hop-by-Hop Options Header Support"
+	---help---
+	  6LoWPAN IPv6 Hop-by-Hop option generic header compression according
+	  to RFC7400.
+
 endif
