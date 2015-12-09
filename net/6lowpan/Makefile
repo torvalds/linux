@@ -13,3 +13,4 @@ obj-$(CONFIG_6LOWPAN_NHC_UDP) += nhc_udp.o
 
 #rfc7400 ghcs
 obj-$(CONFIG_6LOWPAN_GHC_EXT_HDR_HOP) += nhc_ghc_ext_hop.o
+obj-$(CONFIG_6LOWPAN_GHC_UDP) += nhc_ghc_udp.o
