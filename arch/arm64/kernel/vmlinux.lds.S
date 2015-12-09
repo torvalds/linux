@@ -145,9 +145,6 @@ SECTIONS
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
 
-	. = ALIGN(PAGE_SIZE);
-	__init_end = .;
-
 	. = ALIGN(4);
 	.altinstructions : {
 		__alt_instructions = .;
@@ -159,6 +156,8 @@ SECTIONS
 	}
 
 	. = ALIGN(PAGE_SIZE);
+	__init_end = .;
+
 	_data = .;
 	_sdata = .;
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
