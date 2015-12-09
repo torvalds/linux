@@ -967,15 +967,6 @@ static struct gsc_driverdata gsc_v_100_drvdata = {
 	.lclk_frequency = 266000000UL,
 };
 
-static const struct platform_device_id gsc_driver_ids[] = {
-	{
-		.name		= "exynos-gsc",
-		.driver_data	= (unsigned long)&gsc_v_100_drvdata,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(platform, gsc_driver_ids);
-
 static const struct of_device_id exynos_gsc_match[] = {
 	{
 		.compatible = "samsung,exynos5-gsc",
@@ -988,17 +979,11 @@ MODULE_DEVICE_TABLE(of, exynos_gsc_match);
 static void *gsc_get_drv_data(struct platform_device *pdev)
 {
 	struct gsc_driverdata *driver_data = NULL;
+	const struct of_device_id *match;
 
-	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_node(exynos_gsc_match,
-					pdev->dev.of_node);
-		if (match)
-			driver_data = (struct gsc_driverdata *)match->data;
-	} else {
-		driver_data = (struct gsc_driverdata *)
-			platform_get_device_id(pdev)->driver_data;
-	}
+	match = of_match_node(exynos_gsc_match, pdev->dev.of_node);
+	if (match)
+		driver_data = (struct gsc_driverdata *)match->data;
 
 	return driver_data;
 }
@@ -1084,19 +1069,14 @@ static int gsc_probe(struct platform_device *pdev)
 	if (!gsc)
 		return -ENOMEM;
 
-	if (dev->of_node)
-		gsc->id = of_alias_get_id(pdev->dev.of_node, "gsc");
-	else
-		gsc->id = pdev->id;
-
-	if (gsc->id >= drv_data->num_entities) {
+	gsc->id = of_alias_get_id(pdev->dev.of_node, "gsc");
+	if (gsc->id >= drv_data->num_entities || gsc->id < 0) {
 		dev_err(dev, "Invalid platform device id: %d\n", gsc->id);
 		return -EINVAL;
 	}
 
 	gsc->variant = drv_data->variant[gsc->id];
 	gsc->pdev = pdev;
-	gsc->pdata = dev->platform_data;
 
 	init_waitqueue_head(&gsc->irq_queue);
 	spin_lock_init(&gsc->slock);
@@ -1253,7 +1233,6 @@ static const struct dev_pm_ops gsc_pm_ops = {
 static struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
 	.remove		= gsc_remove,
-	.id_table	= gsc_driver_ids,
 	.driver = {
 		.name	= GSC_MODULE_NAME,
 		.pm	= &gsc_pm_ops,
