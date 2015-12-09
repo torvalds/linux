@@ -353,10 +353,10 @@ static const struct ddi_buf_trans *skl_get_buf_trans_dp(struct drm_device *dev,
 {
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_SKL_ULX(dev)) {
+	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
 		ddi_translations = skl_y_ddi_translations_dp;
 		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
-	} else if (IS_SKL_ULT(dev)) {
+	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
 		ddi_translations = skl_u_ddi_translations_dp;
 		*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
 	} else {
@@ -373,7 +373,7 @@ static const struct ddi_buf_trans *skl_get_buf_trans_edp(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_SKL_ULX(dev)) {
+	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
 		if (dev_priv->edp_low_vswing) {
 			ddi_translations = skl_y_ddi_translations_edp;
 			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_edp);
@@ -381,7 +381,7 @@ static const struct ddi_buf_trans *skl_get_buf_trans_edp(struct drm_device *dev,
 			ddi_translations = skl_y_ddi_translations_dp;
 			*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
 		}
-	} else if (IS_SKL_ULT(dev)) {
+	} else if (IS_SKL_ULT(dev) || IS_KBL_ULT(dev)) {
 		if (dev_priv->edp_low_vswing) {
 			ddi_translations = skl_u_ddi_translations_edp;
 			*n_entries = ARRAY_SIZE(skl_u_ddi_translations_edp);
@@ -408,7 +408,7 @@ skl_get_buf_trans_hdmi(struct drm_device *dev,
 {
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_SKL_ULX(dev)) {
+	if (IS_SKL_ULX(dev) || IS_KBL_ULX(dev)) {
 		ddi_translations = skl_y_ddi_translations_hdmi;
 		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_hdmi);
 	} else {

@@ -2488,6 +2488,14 @@ struct drm_i915_cmd_table {
 #define IS_SKL_ULX(dev)		(INTEL_DEVID(dev) == 0x190E || \
 				 INTEL_DEVID(dev) == 0x1915 || \
 				 INTEL_DEVID(dev) == 0x191E)
+#define IS_KBL_ULT(dev)		(INTEL_DEVID(dev) == 0x5906 || \
+				 INTEL_DEVID(dev) == 0x5913 || \
+				 INTEL_DEVID(dev) == 0x5916 || \
+				 INTEL_DEVID(dev) == 0x5921 || \
+				 INTEL_DEVID(dev) == 0x5926)
+#define IS_KBL_ULX(dev)		(INTEL_DEVID(dev) == 0x590E || \
+				 INTEL_DEVID(dev) == 0x5915 || \
+				 INTEL_DEVID(dev) == 0x591E)
 #define IS_SKL_GT3(dev)		(IS_SKYLAKE(dev) && \
 				 (INTEL_DEVID(dev) & 0x00F0) == 0x0020)
 #define IS_SKL_GT4(dev)		(IS_SKYLAKE(dev) && \
