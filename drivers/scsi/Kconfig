@@ -194,6 +194,7 @@ config CHR_DEV_SCH
 config SCSI_ENCLOSURE
 	tristate "SCSI Enclosure Support"
 	depends on SCSI && ENCLOSURE_SERVICES
+	depends on m || SCSI_SAS_ATTRS != m
 	help
 	  Enclosures are devices sitting on or in SCSI backplanes that
 	  manage devices.  If you have a disk cage, the chances are that
