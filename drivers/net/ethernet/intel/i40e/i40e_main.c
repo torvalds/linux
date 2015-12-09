@@ -82,7 +82,6 @@ static int i40e_veb_get_bw_info(struct i40e_veb *veb);
 static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_XL710), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QEMU), 0},
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_A), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_B), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_C), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_A), 0},
