@@ -265,7 +265,7 @@ iser_alloc_reg_res(struct ib_device *ib_device,
 		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
 		return ret;
 	}
-	res->mr_valid = 1;
+	res->mr_valid = 0;
 
 	return 0;
 }
@@ -302,7 +302,7 @@ iser_alloc_pi_ctx(struct ib_device *ib_device,
 		ret = PTR_ERR(pi_ctx->sig_mr);
 		goto sig_mr_failure;
 	}
-	pi_ctx->sig_mr_valid = 1;
+	pi_ctx->sig_mr_valid = 0;
 	desc->pi_ctx->sig_protected = 0;
 
 	return 0;
