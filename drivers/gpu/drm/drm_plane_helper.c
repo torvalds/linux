@@ -394,7 +394,8 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	struct drm_plane *primary;
 
 	primary = create_primary_plane(dev);
-	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs);
+	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs,
+					 NULL);
 }
 EXPORT_SYMBOL(drm_crtc_init);
 

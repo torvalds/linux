@@ -153,7 +153,7 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	private->crtc[pipe] = crtc;
 
 	ret = drm_crtc_init_with_planes(drm_dev, crtc, plane, NULL,
-					&exynos_crtc_funcs);
+					&exynos_crtc_funcs, NULL);
 	if (ret < 0)
 		goto err_crtc;
 

@@ -1492,7 +1492,7 @@ static int vop_create_crtc(struct vop *vop)
 	}
 
 	ret = drm_crtc_init_with_planes(drm_dev, crtc, primary, cursor,
-					&vop_crtc_funcs);
+					&vop_crtc_funcs, NULL);
 	if (ret)
 		return ret;
 

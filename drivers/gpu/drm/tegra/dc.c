@@ -1732,7 +1732,7 @@ static int tegra_dc_init(struct host1x_client *client)
 	}
 
 	err = drm_crtc_init_with_planes(drm, &dc->base, primary, cursor,
-					&tegra_crtc_funcs);
+					&tegra_crtc_funcs, NULL);
 	if (err < 0)
 		goto cleanup;
 

@@ -606,7 +606,7 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	drm_crtc_init_with_planes(drm, crtc, primary_plane, cursor_plane,
-				  &vc4_crtc_funcs);
+				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
 	primary_plane->crtc = crtc;
 	cursor_plane->crtc = crtc;

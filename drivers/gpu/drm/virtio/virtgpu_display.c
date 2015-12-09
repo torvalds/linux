@@ -443,7 +443,7 @@ static int vgdev_output_init(struct virtio_gpu_device *vgdev, int index)
 	if (IS_ERR(plane))
 		return PTR_ERR(plane);
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL,
-				  &virtio_gpu_crtc_funcs);
+				  &virtio_gpu_crtc_funcs, NULL);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 	drm_crtc_helper_add(crtc, &virtio_gpu_crtc_helper_funcs);
 	plane->crtc = crtc;

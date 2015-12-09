@@ -657,6 +657,7 @@ DEFINE_WW_CLASS(crtc_ww_class);
  * @primary: Primary plane for CRTC
  * @cursor: Cursor plane for CRTC
  * @funcs: callbacks for the new CRTC
+ * @name: printf style format string for the CRTC name, or NULL for default name
  *
  * Inits a new object created as base part of a driver crtc object.
  *
@@ -666,7 +667,8 @@ DEFINE_WW_CLASS(crtc_ww_class);
 int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 			      struct drm_plane *primary,
 			      struct drm_plane *cursor,
-			      const struct drm_crtc_funcs *funcs)
+			      const struct drm_crtc_funcs *funcs,
+			      const char *name, ...)
 {
 	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
