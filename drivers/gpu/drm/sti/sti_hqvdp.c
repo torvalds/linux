@@ -580,7 +580,7 @@ int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *data)
 		btm_cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 		top_cmd_offest = sti_hqvdp_get_curr_cmd(hqvdp);
 		if ((btm_cmd_offset == -1) || (top_cmd_offest == -1)) {
-			DRM_ERROR("Cannot get cmds, skip btm field\n");
+			DRM_DEBUG_DRIVER("Warning: no cmd, will skip field\n");
 			return -EBUSY;
 		}
 
@@ -810,7 +810,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 
 	cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 	if (cmd_offset == -1) {
-		DRM_ERROR("No available hqvdp_cmd now\n");
+		DRM_DEBUG_DRIVER("Warning: no cmd, will skip frame\n");
 		return;
 	}
 	cmd = hqvdp->hqvdp_cmd + cmd_offset;
