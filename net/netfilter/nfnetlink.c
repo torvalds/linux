@@ -381,7 +381,7 @@ replay:
 				goto ack;
 
 			if (nc->call_batch) {
-				err = nc->call_batch(net->nfnl, skb, nlh,
+				err = nc->call_batch(net, net->nfnl, skb, nlh,
 						     (const struct nlattr **)cda);
 			}
 
