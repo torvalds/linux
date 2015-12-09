@@ -2449,7 +2449,9 @@ F:	drivers/firmware/broadcom/*
 
 BROADCOM STB NAND FLASH DRIVER
 M:	Brian Norris <computersforpeace@gmail.com>
+M:	Kamal Dasu <kdasu.kdev@gmail.com>
 L:	linux-mtd@lists.infradead.org
+L:	bcm-kernel-feedback-list@broadcom.com
 S:	Maintained
 F:	drivers/mtd/nand/brcmnand/
 
