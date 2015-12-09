@@ -103,11 +103,8 @@ int __init early_init_dt_scan_opal(unsigned long node,
 		powerpc_firmware_features |= FW_FEATURE_OPALv2;
 		powerpc_firmware_features |= FW_FEATURE_OPALv3;
 		pr_info("OPAL V3 detected !\n");
-	} else if (of_flat_dt_is_compatible(node, "ibm,opal-v2")) {
-		powerpc_firmware_features |= FW_FEATURE_OPALv2;
-		pr_info("OPAL V2 detected !\n");
 	} else {
-		pr_info("OPAL V1 detected !\n");
+		panic("OPAL != V3 detected, no longer supported.\n");
 	}
 
 	/* Reinit all cores with the right endian */
