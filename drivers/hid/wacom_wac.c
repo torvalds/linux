@@ -545,12 +545,12 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 			          ((data[6] & 0x0F) << 4)  |
 			          (data[5] & 0x0F);
 		}
-		strip1 = (data[1] << 8) || data[2];
-		strip2 = (data[3] << 8) || data[4];
+		strip1 = (data[1] << 8) | data[2];
+		strip2 = (data[3] << 8) | data[4];
 	}
 
-	prox = (buttons & ~(~0 << nbuttons)) || (keys & ~(~0 << nkeys)) ||
-	       (ring1 & 0x80) || (ring2 & 0x80) || strip1 || strip2;
+	prox = (buttons & ~(~0 << nbuttons)) | (keys & ~(~0 << nkeys)) |
+	       (ring1 & 0x80) | (ring2 & 0x80) | strip1 | strip2;
 
 	wacom_report_numbered_buttons(input, nbuttons, buttons);
 
