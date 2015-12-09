@@ -340,6 +340,7 @@ struct i40e_pf {
 #define I40E_FLAG_GENEVE_OFFLOAD_CAPABLE	BIT_ULL(41)
 #define I40E_FLAG_NO_PCI_LINK_CHECK		BIT_ULL(42)
 #define I40E_FLAG_100M_SGMII_CAPABLE		BIT_ULL(43)
+#define I40E_FLAG_RESTART_AUTONEG		BIT_ULL(44)
 #define I40E_FLAG_PF_MAC			BIT_ULL(50)
 
 	/* tracks features that get auto disabled by errors */
