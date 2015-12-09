@@ -4779,23 +4779,18 @@ static void mem_cgroup_clear_mc(void)
 	spin_unlock(&mc.lock);
 }
 
-static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
-				 struct cgroup_taskset *tset)
+static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+	struct cgroup_subsys_state *css;
+	struct mem_cgroup *memcg;
 	struct mem_cgroup *from;
 	struct task_struct *leader, *p;
 	struct mm_struct *mm;
 	unsigned long move_flags;
 	int ret = 0;
 
-	/*
-	 * We are now commited to this value whatever it is. Changes in this
-	 * tunable will only affect upcoming migrations, not the current one.
-	 * So we need to save it, and keep it going.
-	 */
-	move_flags = READ_ONCE(memcg->move_charge_at_immigrate);
-	if (!move_flags)
+	/* charge immigration isn't supported on the default hierarchy */
+	if (cgroup_subsys_on_dfl(memory_cgrp_subsys))
 		return 0;
 
 	/*
@@ -4805,11 +4800,21 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
 	 * multiple.
 	 */
 	p = NULL;
-	cgroup_taskset_for_each_leader(leader, tset) {
+	cgroup_taskset_for_each_leader(leader, css, tset) {
 		WARN_ON_ONCE(p);
 		p = leader;
+		memcg = mem_cgroup_from_css(css);
 	}
 	if (!p)
+		return 0;
+
+	/*
+	 * We are now commited to this value whatever it is. Changes in this
+	 * tunable will only affect upcoming migrations, not the current one.
+	 * So we need to save it, and keep it going.
+	 */
+	move_flags = READ_ONCE(memcg->move_charge_at_immigrate);
+	if (!move_flags)
 		return 0;
 
 	from = mem_cgroup_from_task(p);
@@ -4842,8 +4847,7 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
 	return ret;
 }
 
-static void mem_cgroup_cancel_attach(struct cgroup_subsys_state *css,
-				     struct cgroup_taskset *tset)
+static void mem_cgroup_cancel_attach(struct cgroup_taskset *tset)
 {
 	if (mc.to)
 		mem_cgroup_clear_mc();
@@ -4985,10 +4989,10 @@ retry:
 	atomic_dec(&mc.from->moving_account);
 }
 
-static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
-				 struct cgroup_taskset *tset)
+static void mem_cgroup_move_task(struct cgroup_taskset *tset)
 {
-	struct task_struct *p = cgroup_taskset_first(tset);
+	struct cgroup_subsys_state *css;
+	struct task_struct *p = cgroup_taskset_first(tset, &css);
 	struct mm_struct *mm = get_task_mm(p);
 
 	if (mm) {
@@ -5000,17 +5004,14 @@ static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
 		mem_cgroup_clear_mc();
 }
 #else	/* !CONFIG_MMU */
-static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
-				 struct cgroup_taskset *tset)
+static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
 {
 	return 0;
 }
-static void mem_cgroup_cancel_attach(struct cgroup_subsys_state *css,
-				     struct cgroup_taskset *tset)
+static void mem_cgroup_cancel_attach(struct cgroup_taskset *tset)
 {
 }
-static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
-				 struct cgroup_taskset *tset)
+static void mem_cgroup_move_task(struct cgroup_taskset *tset)
 {
 }
 #endif

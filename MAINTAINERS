@@ -8286,7 +8286,7 @@ F:	include/linux/delayacct.h
 F:	kernel/delayacct.c
 
 PERFORMANCE EVENTS SUBSYSTEM
-M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
+M:	Peter Zijlstra <peterz@infradead.org>
 M:	Ingo Molnar <mingo@redhat.com>
 M:	Arnaldo Carvalho de Melo <acme@kernel.org>
 L:	linux-kernel@vger.kernel.org
