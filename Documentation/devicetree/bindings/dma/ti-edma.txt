@@ -56,9 +56,8 @@ edma: edma@49000000 {
 
 	/* Channel 20 and 21 is allocated for memcpy */
 	ti,edma-memcpy-channels = <20 21>;
-	/* The following PaRAM slots are reserved: 35-45 and 100-110 */
-	ti,edma-reserved-slot-ranges = /bits/ 16 <35 10>,
-				       /bits/ 16 <100 10>;
+	/* The following PaRAM slots are reserved: 35-44 and 100-109 */
+	ti,edma-reserved-slot-ranges = <35 10>, <100 10>;
 };
 
 edma_tptc0: tptc@49800000 {

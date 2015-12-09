@@ -2015,31 +2015,50 @@ static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
 				&sz);
 	if (prop) {
 		const char pname[] = "ti,edma-reserved-slot-ranges";
+		u32 (*tmp)[2];
 		s16 (*rsv_slots)[2];
-		size_t nelm = sz / sizeof(*rsv_slots);
+		size_t nelm = sz / sizeof(*tmp);
 		struct edma_rsv_info *rsv_info;
+		int i;
 
 		if (!nelm)
 			return info;
 
-		rsv_info = devm_kzalloc(dev, sizeof(*rsv_info), GFP_KERNEL);
-		if (!rsv_info)
+		tmp = kcalloc(nelm, sizeof(*tmp), GFP_KERNEL);
+		if (!tmp)
 			return ERR_PTR(-ENOMEM);
+
+		rsv_info = devm_kzalloc(dev, sizeof(*rsv_info), GFP_KERNEL);
+		if (!rsv_info) {
+			kfree(tmp);
+			return ERR_PTR(-ENOMEM);
+		}
 
 		rsv_slots = devm_kcalloc(dev, nelm + 1, sizeof(*rsv_slots),
 					 GFP_KERNEL);
-		if (!rsv_slots)
+		if (!rsv_slots) {
+			kfree(tmp);
 			return ERR_PTR(-ENOMEM);
+		}
 
-		ret = of_property_read_u16_array(dev->of_node, pname,
-						 (u16 *)rsv_slots, nelm * 2);
-		if (ret)
+		ret = of_property_read_u32_array(dev->of_node, pname,
+						 (u32 *)tmp, nelm * 2);
+		if (ret) {
+			kfree(tmp);
 			return ERR_PTR(ret);
+		}
 
+		for (i = 0; i < nelm; i++) {
+			rsv_slots[i][0] = tmp[i][0];
+			rsv_slots[i][1] = tmp[i][1];
+		}
 		rsv_slots[nelm][0] = -1;
 		rsv_slots[nelm][1] = -1;
+
 		info->rsv = rsv_info;
 		info->rsv->rsv_slots = (const s16 (*)[2])rsv_slots;
+
+		kfree(tmp);
 	}
 
 	return info;
