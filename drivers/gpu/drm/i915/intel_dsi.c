@@ -885,21 +885,12 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 			I915_WRITE(MIPI_CTRL(port), tmp |
 					READ_REQUEST_PRIORITY_HIGH);
 		} else if (IS_BROXTON(dev)) {
-			/*
-			 * FIXME:
-			 * BXT can connect any PIPE to any MIPI port.
-			 * Select the pipe based on the MIPI port read from
-			 * VBT for now. Pick PIPE A for MIPI port A and C
-			 * for port C.
-			 */
+			enum pipe pipe = intel_crtc->pipe;
+
 			tmp = I915_READ(MIPI_CTRL(port));
 			tmp &= ~BXT_PIPE_SELECT_MASK;
 
-			if (port == PORT_A)
-				tmp |= BXT_PIPE_SELECT_A;
-			else if (port == PORT_C)
-				tmp |= BXT_PIPE_SELECT_C;
-
+			tmp |= BXT_PIPE_SELECT(pipe);
 			I915_WRITE(MIPI_CTRL(port), tmp);
 		}
 
