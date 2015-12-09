@@ -606,8 +606,7 @@ static int cxd2820r_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 static int cxd2820r_gpio_direction_output(struct gpio_chip *chip, unsigned nr,
 		int val)
 {
-	struct cxd2820r_priv *priv =
-			container_of(chip, struct cxd2820r_priv, gpio_chip);
+	struct cxd2820r_priv *priv = gpiochip_get_data(chip);
 	u8 gpio[GPIO_COUNT];
 
 	dev_dbg(&priv->i2c->dev, "%s: nr=%d val=%d\n", __func__, nr, val);
@@ -620,8 +619,7 @@ static int cxd2820r_gpio_direction_output(struct gpio_chip *chip, unsigned nr,
 
 static void cxd2820r_gpio_set(struct gpio_chip *chip, unsigned nr, int val)
 {
-	struct cxd2820r_priv *priv =
-			container_of(chip, struct cxd2820r_priv, gpio_chip);
+	struct cxd2820r_priv *priv = gpiochip_get_data(chip);
 	u8 gpio[GPIO_COUNT];
 
 	dev_dbg(&priv->i2c->dev, "%s: nr=%d val=%d\n", __func__, nr, val);
@@ -636,8 +634,7 @@ static void cxd2820r_gpio_set(struct gpio_chip *chip, unsigned nr, int val)
 
 static int cxd2820r_gpio_get(struct gpio_chip *chip, unsigned nr)
 {
-	struct cxd2820r_priv *priv =
-			container_of(chip, struct cxd2820r_priv, gpio_chip);
+	struct cxd2820r_priv *priv = gpiochip_get_data(chip);
 
 	dev_dbg(&priv->i2c->dev, "%s: nr=%d\n", __func__, nr);
 
@@ -731,7 +728,7 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 		priv->gpio_chip.base = -1; /* dynamic allocation */
 		priv->gpio_chip.ngpio = GPIO_COUNT;
 		priv->gpio_chip.can_sleep = 1;
-		ret = gpiochip_add(&priv->gpio_chip);
+		ret = gpiochip_add_data(&priv->gpio_chip, priv);
 		if (ret)
 			goto error;
 
