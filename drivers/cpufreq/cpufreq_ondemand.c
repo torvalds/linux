@@ -286,13 +286,11 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 			continue;
 
 		next_sampling = jiffies + usecs_to_jiffies(new_rate);
-		appointed_at = dbs_info->cdbs.dwork.timer.expires;
+		appointed_at = dbs_info->cdbs.timer.expires;
 
 		if (time_before(next_sampling, appointed_at)) {
-			cancel_delayed_work_sync(&dbs_info->cdbs.dwork);
-
-			gov_queue_work(dbs_data, policy,
-				       usecs_to_jiffies(new_rate), true);
+			gov_cancel_work(shared);
+			gov_add_timers(policy, usecs_to_jiffies(new_rate));
 
 		}
 	}
