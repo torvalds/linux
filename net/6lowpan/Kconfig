@@ -5,6 +5,14 @@ menuconfig 6LOWPAN
 	  This enables IPv6 over Low power Wireless Personal Area Network -
 	  "6LoWPAN" which is supported by IEEE 802.15.4 or Bluetooth stacks.
 
+config 6LOWPAN_DEBUGFS
+	bool "6LoWPAN debugfs support"
+	depends on 6LOWPAN
+	depends on DEBUG_FS
+	---help---
+	  This enables 6LoWPAN debugfs support. For example to manipulate
+	  IPHC context information at runtime.
+
 menuconfig 6LOWPAN_NHC
 	tristate "Next Header and Generic Header Compression Support"
 	depends on 6LOWPAN

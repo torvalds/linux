@@ -53,6 +53,8 @@
 #ifndef __6LOWPAN_H__
 #define __6LOWPAN_H__
 
+#include <linux/debugfs.h>
+
 #include <net/ipv6.h>
 #include <net/net_namespace.h>
 
@@ -98,6 +100,7 @@ enum lowpan_lltypes {
 
 struct lowpan_priv {
 	enum lowpan_lltypes lltype;
+	struct dentry *iface_debugfs;
 
 	/* must be last */
 	u8 priv[0] __aligned(sizeof(void *));
