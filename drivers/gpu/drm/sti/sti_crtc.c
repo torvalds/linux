@@ -367,7 +367,7 @@ int sti_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
 	int res;
 
 	res = drm_crtc_init_with_planes(drm_dev, crtc, primary, cursor,
-					&sti_crtc_funcs);
+					&sti_crtc_funcs, NULL);
 	if (res) {
 		DRM_ERROR("Can't initialze CRTC\n");
 		return -EINVAL;

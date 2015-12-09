@@ -1223,7 +1223,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	}
 
 	ret = drm_crtc_init_with_planes(drm, &dcrtc->crtc, &primary->base, NULL,
-					&armada_crtc_funcs);
+					&armada_crtc_funcs, NULL);
 	if (ret)
 		goto err_crtc_init;
 

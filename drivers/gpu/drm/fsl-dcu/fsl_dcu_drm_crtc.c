@@ -175,7 +175,7 @@ int fsl_dcu_drm_crtc_create(struct fsl_dcu_drm_device *fsl_dev)
 
 	primary = fsl_dcu_drm_primary_create_plane(fsl_dev->drm);
 	ret = drm_crtc_init_with_planes(fsl_dev->drm, crtc, primary, NULL,
-					&fsl_dcu_drm_crtc_funcs);
+					&fsl_dcu_drm_crtc_funcs, NULL);
 	if (ret < 0)
 		return ret;
 

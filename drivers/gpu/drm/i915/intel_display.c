@@ -14120,7 +14120,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		goto fail;
 
 	ret = drm_crtc_init_with_planes(dev, &intel_crtc->base, primary,
-					cursor, &intel_crtc_funcs);
+					cursor, &intel_crtc_funcs, NULL);
 	if (ret)
 		goto fail;
 
