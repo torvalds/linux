@@ -4865,15 +4865,25 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 #if IS_ENABLED(CONFIG_IPV6)
-	adapter->clipt = t4_init_clip_tbl(adapter->clipt_start,
-					  adapter->clipt_end);
-	if (!adapter->clipt) {
-		/* We tolerate a lack of clip_table, giving up
-		 * some functionality
+	if ((CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) &&
+	    (!(t4_read_reg(adapter, LE_DB_CONFIG_A) & ASLIPCOMPEN_F))) {
+		/* CLIP functionality is not present in hardware,
+		 * hence disable all offload features
 		 */
 		dev_warn(&pdev->dev,
-			 "could not allocate Clip table, continuing\n");
+			 "CLIP not enabled in hardware, continuing\n");
 		adapter->params.offload = 0;
+	} else {
+		adapter->clipt = t4_init_clip_tbl(adapter->clipt_start,
+						  adapter->clipt_end);
+		if (!adapter->clipt) {
+			/* We tolerate a lack of clip_table, giving up
+			 * some functionality
+			 */
+			dev_warn(&pdev->dev,
+				 "could not allocate Clip table, continuing\n");
+			adapter->params.offload = 0;
+		}
 	}
 #endif
 	if (is_offload(adapter) && tid_init(&adapter->tids) < 0) {
