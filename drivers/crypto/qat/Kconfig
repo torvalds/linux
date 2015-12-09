@@ -60,6 +60,7 @@ config CRYPTO_DEV_QAT_DH895xCCVF
 config CRYPTO_DEV_QAT_C3XXXVF
 	tristate "Support for Intel(R) C3XXX Virtual Function"
 	depends on X86 && PCI
+	select PCI_IOV
 	select CRYPTO_DEV_QAT
 	help
 	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Technology
@@ -71,6 +72,7 @@ config CRYPTO_DEV_QAT_C3XXXVF
 config CRYPTO_DEV_QAT_C62XVF
 	tristate "Support for Intel(R) C62X Virtual Function"
 	depends on X86 && PCI
+	select PCI_IOV
 	select CRYPTO_DEV_QAT
 	help
 	  Support for Intel(R) C62x with Intel(R) QuickAssist Technology
