@@ -3602,7 +3602,7 @@ il_is_ht40_tx_allowed(struct il_priv *il, struct ieee80211_sta_ht_cap *ht_cap)
 }
 EXPORT_SYMBOL(il_is_ht40_tx_allowed);
 
-static u16
+static u16 noinline
 il_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 {
 	u16 new_val;
