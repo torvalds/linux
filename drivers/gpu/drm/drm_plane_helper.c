@@ -367,7 +367,7 @@ static struct drm_plane *create_primary_plane(struct drm_device *dev)
 				       &drm_primary_helper_funcs,
 				       safe_modeset_formats,
 				       ARRAY_SIZE(safe_modeset_formats),
-				       DRM_PLANE_TYPE_PRIMARY);
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		kfree(primary);
 		primary = NULL;

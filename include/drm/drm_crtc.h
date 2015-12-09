@@ -1253,13 +1253,15 @@ static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
 }
 
-extern int drm_universal_plane_init(struct drm_device *dev,
-				    struct drm_plane *plane,
-				    unsigned long possible_crtcs,
-				    const struct drm_plane_funcs *funcs,
-				    const uint32_t *formats,
-				    unsigned int format_count,
-				    enum drm_plane_type type);
+extern __printf(8, 9)
+int drm_universal_plane_init(struct drm_device *dev,
+			     struct drm_plane *plane,
+			     unsigned long possible_crtcs,
+			     const struct drm_plane_funcs *funcs,
+			     const uint32_t *formats,
+			     unsigned int format_count,
+			     enum drm_plane_type type,
+			     const char *name, ...);
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
 			  unsigned long possible_crtcs,

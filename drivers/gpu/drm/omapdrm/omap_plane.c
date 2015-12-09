@@ -366,7 +366,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	ret = drm_universal_plane_init(dev, plane, (1 << priv->num_crtcs) - 1,
 				       &omap_plane_funcs, omap_plane->formats,
-				       omap_plane->nformats, type);
+				       omap_plane->nformats, type, NULL);
 	if (ret < 0)
 		goto error;
 

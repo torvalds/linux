@@ -317,7 +317,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	ret = drm_universal_plane_init(dev, plane, 0xff,
 				       &vc4_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
-				       type);
+				       type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
