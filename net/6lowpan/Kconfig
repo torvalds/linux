@@ -87,4 +87,10 @@ config 6LOWPAN_GHC_EXT_HDR_FRAG
 	  6LoWPAN IPv6 fragmentation option generic header compression
 	  according to RFC7400.
 
+config 6LOWPAN_GHC_EXT_HDR_ROUTE
+	tristate "GHC Routing Options Header Support"
+	---help---
+	  6LoWPAN IPv6 routing option generic header compression according
+	  to RFC7400.
+
 endif
