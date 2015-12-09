@@ -2325,6 +2325,8 @@ do { \
 		TL("TxMapErr:", mapping_err);
 		RL("FLAllocErr:", fl.alloc_failed);
 		RL("FLLrgAlcErr:", fl.large_alloc_failed);
+		RL("FLMapErr:", fl.mapping_err);
+		RL("FLLow:", fl.low);
 		RL("FLStarving:", fl.starving);
 
 	} else if (iscsi_idx < iscsi_entries) {
@@ -2359,6 +2361,8 @@ do { \
 		RL("RxNoMem:", stats.nomem);
 		RL("FLAllocErr:", fl.alloc_failed);
 		RL("FLLrgAlcErr:", fl.large_alloc_failed);
+		RL("FLMapErr:", fl.mapping_err);
+		RL("FLLow:", fl.low);
 		RL("FLStarving:", fl.starving);
 
 	} else if (rdma_idx < rdma_entries) {
@@ -2388,6 +2392,8 @@ do { \
 		RL("RxNoMem:", stats.nomem);
 		RL("FLAllocErr:", fl.alloc_failed);
 		RL("FLLrgAlcErr:", fl.large_alloc_failed);
+		RL("FLMapErr:", fl.mapping_err);
+		RL("FLLow:", fl.low);
 		RL("FLStarving:", fl.starving);
 
 	} else if (ciq_idx < ciq_entries) {
