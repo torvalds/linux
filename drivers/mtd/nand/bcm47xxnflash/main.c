@@ -49,6 +49,8 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	platform_set_drvdata(pdev, b47n);
+
 	err = mtd_device_parse_register(&b47n->mtd, probes, NULL, NULL, 0);
 	if (err) {
 		pr_err("Failed to register MTD device: %d\n", err);
@@ -60,10 +62,9 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 
 static int bcm47xxnflash_remove(struct platform_device *pdev)
 {
-	struct bcma_nflash *nflash = dev_get_platdata(&pdev->dev);
+	struct bcm47xxnflash *nflash = platform_get_drvdata(pdev);
 
-	if (nflash->mtd)
-		mtd_device_unregister(nflash->mtd);
+	nand_release(&nflash->mtd);
 
 	return 0;
 }
