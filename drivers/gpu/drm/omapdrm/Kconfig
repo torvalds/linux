@@ -1,4 +1,3 @@
-
 config DRM_OMAP
 	tristate "OMAP DRM"
 	depends on DRM
@@ -24,3 +23,5 @@ config DRM_OMAP_NUM_CRTCS
 	  Select the number of video overlays which can be used as framebuffers.
 	  The remaining overlays are reserved for video.
 
+source "drivers/gpu/drm/omapdrm/dss/Kconfig"
+source "drivers/gpu/drm/omapdrm/displays/Kconfig"

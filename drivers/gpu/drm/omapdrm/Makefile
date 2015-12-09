@@ -3,6 +3,9 @@
 # Direct Rendering Infrastructure (DRI)
 #
 
+obj-y += dss/
+obj-y += displays/
+
 ccflags-y := -Iinclude/drm -Werror
 omapdrm-y := omap_drv.o \
 	omap_irq.o \
