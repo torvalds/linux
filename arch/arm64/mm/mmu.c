@@ -280,7 +280,7 @@ static void __init create_mapping(phys_addr_t phys, unsigned long virt,
 			&phys, virt);
 		return;
 	}
-	__create_mapping(&init_mm, pgd_offset_k(virt & PAGE_MASK), phys, virt,
+	__create_mapping(&init_mm, pgd_offset_k(virt), phys, virt,
 			 size, prot, early_alloc);
 }
 
@@ -301,7 +301,7 @@ static void create_mapping_late(phys_addr_t phys, unsigned long virt,
 		return;
 	}
 
-	return __create_mapping(&init_mm, pgd_offset_k(virt & PAGE_MASK),
+	return __create_mapping(&init_mm, pgd_offset_k(virt),
 				phys, virt, size, prot, late_alloc);
 }
 
