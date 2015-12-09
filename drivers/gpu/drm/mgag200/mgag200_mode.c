@@ -1538,7 +1538,7 @@ static struct drm_encoder *mga_encoder_init(struct drm_device *dev)
 	encoder->possible_crtcs = 0x1;
 
 	drm_encoder_init(dev, encoder, &mga_encoder_encoder_funcs,
-			 DRM_MODE_ENCODER_DAC);
+			 DRM_MODE_ENCODER_DAC, NULL);
 	drm_encoder_helper_add(encoder, &mga_encoder_helper_funcs);
 
 	return encoder;

@@ -312,7 +312,7 @@ void cdv_hdmi_init(struct drm_device *dev,
 			   DRM_MODE_CONNECTOR_DVID);
 
 	drm_encoder_init(dev, encoder, &psb_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 	gma_encoder->type = INTEL_OUTPUT_HDMI;

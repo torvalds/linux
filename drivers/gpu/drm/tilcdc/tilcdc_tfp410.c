@@ -138,7 +138,7 @@ static struct drm_encoder *tfp410_encoder_create(struct drm_device *dev,
 	encoder->possible_crtcs = 1;
 
 	ret = drm_encoder_init(dev, encoder, &tfp410_encoder_funcs,
-			DRM_MODE_ENCODER_TMDS);
+			DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret < 0)
 		goto fail;
 

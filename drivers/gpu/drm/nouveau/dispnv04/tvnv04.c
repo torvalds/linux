@@ -225,7 +225,8 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	/* Initialize the common members */
 	encoder = to_drm_encoder(nv_encoder);
 
-	drm_encoder_init(dev, encoder, &nv04_tv_funcs, DRM_MODE_ENCODER_TVDAC);
+	drm_encoder_init(dev, encoder, &nv04_tv_funcs, DRM_MODE_ENCODER_TVDAC,
+			 NULL);
 	drm_encoder_helper_add(encoder, &nv04_tv_helper_funcs);
 
 	encoder->possible_crtcs = entry->heads;

@@ -652,7 +652,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 
 	drm_encoder_init(dev, encoder,
 			 &cdv_intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);

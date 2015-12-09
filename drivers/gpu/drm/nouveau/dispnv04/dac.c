@@ -550,7 +550,8 @@ nv04_dac_create(struct drm_connector *connector, struct dcb_output *entry)
 	else
 		helper = &nv04_dac_helper_funcs;
 
-	drm_encoder_init(dev, encoder, &nv04_dac_funcs, DRM_MODE_ENCODER_DAC);
+	drm_encoder_init(dev, encoder, &nv04_dac_funcs, DRM_MODE_ENCODER_DAC,
+			 NULL);
 	drm_encoder_helper_add(encoder, helper);
 
 	encoder->possible_crtcs = entry->heads;

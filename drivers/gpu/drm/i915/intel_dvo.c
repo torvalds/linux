@@ -434,7 +434,7 @@ void intel_dvo_init(struct drm_device *dev)
 
 	intel_encoder = &intel_dvo->base;
 	drm_encoder_init(dev, &intel_encoder->base,
-			 &intel_dvo_enc_funcs, encoder_type);
+			 &intel_dvo_enc_funcs, encoder_type, NULL);
 
 	intel_encoder->disable = intel_disable_dvo;
 	intel_encoder->enable = intel_enable_dvo;

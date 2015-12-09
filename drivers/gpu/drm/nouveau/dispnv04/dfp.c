@@ -706,7 +706,7 @@ nv04_dfp_create(struct drm_connector *connector, struct dcb_output *entry)
 	nv_encoder->dcb = entry;
 	nv_encoder->or = ffs(entry->or) - 1;
 
-	drm_encoder_init(connector->dev, encoder, &nv04_dfp_funcs, type);
+	drm_encoder_init(connector->dev, encoder, &nv04_dfp_funcs, type, NULL);
 	drm_encoder_helper_add(encoder, helper);
 
 	encoder->possible_crtcs = entry->heads;

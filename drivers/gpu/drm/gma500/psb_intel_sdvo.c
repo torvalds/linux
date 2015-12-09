@@ -2525,7 +2525,8 @@ bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	/* encoder type will be decided later */
 	gma_encoder = &psb_intel_sdvo->base;
 	gma_encoder->type = INTEL_OUTPUT_SDVO;
-	drm_encoder_init(dev, &gma_encoder->base, &psb_intel_sdvo_enc_funcs, 0);
+	drm_encoder_init(dev, &gma_encoder->base, &psb_intel_sdvo_enc_funcs,
+			 0, NULL);
 
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {

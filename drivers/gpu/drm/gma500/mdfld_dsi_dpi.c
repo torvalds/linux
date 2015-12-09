@@ -994,7 +994,7 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 	drm_encoder_init(dev,
 			encoder,
 			p_funcs->encoder_funcs,
-			DRM_MODE_ENCODER_LVDS);
+			DRM_MODE_ENCODER_LVDS, NULL);
 	drm_encoder_helper_add(encoder,
 				p_funcs->encoder_helper_funcs);
 

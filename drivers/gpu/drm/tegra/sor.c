@@ -2178,7 +2178,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	sor->output.connector.dpms = DRM_MODE_DPMS_OFF;
 
 	drm_encoder_init(drm, &sor->output.encoder, &tegra_sor_encoder_funcs,
-			 encoder);
+			 encoder, NULL);
 	drm_encoder_helper_add(&sor->output.encoder, helpers);
 
 	drm_mode_connector_attach_encoder(&sor->output.connector,

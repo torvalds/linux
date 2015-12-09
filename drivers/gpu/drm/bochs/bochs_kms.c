@@ -196,7 +196,7 @@ static void bochs_encoder_init(struct drm_device *dev)
 
 	encoder->possible_crtcs = 0x1;
 	drm_encoder_init(dev, encoder, &bochs_encoder_encoder_funcs,
-			 DRM_MODE_ENCODER_DAC);
+			 DRM_MODE_ENCODER_DAC, NULL);
 	drm_encoder_helper_add(encoder, &bochs_encoder_helper_funcs);
 }
 

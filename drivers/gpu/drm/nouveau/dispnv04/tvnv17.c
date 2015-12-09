@@ -816,7 +816,8 @@ nv17_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	tv_enc->base.dcb = entry;
 	tv_enc->base.or = ffs(entry->or) - 1;
 
-	drm_encoder_init(dev, encoder, &nv17_tv_funcs, DRM_MODE_ENCODER_TVDAC);
+	drm_encoder_init(dev, encoder, &nv17_tv_funcs, DRM_MODE_ENCODER_TVDAC,
+			 NULL);
 	drm_encoder_helper_add(encoder, &nv17_tv_helper_funcs);
 	to_encoder_slave(encoder)->slave_funcs = &nv17_tv_slave_funcs;
 

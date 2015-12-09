@@ -295,7 +295,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	drm_encoder_helper_add(encoder, &dw_hdmi_rockchip_encoder_helper_funcs);
 	drm_encoder_init(drm, encoder, &dw_hdmi_rockchip_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	return dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
 }

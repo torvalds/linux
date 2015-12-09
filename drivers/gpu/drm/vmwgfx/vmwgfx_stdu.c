@@ -1149,7 +1149,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	connector->status = vmw_du_connector_detect(connector, false);
 
 	drm_encoder_init(dev, encoder, &vmw_stdu_encoder_funcs,
-			 DRM_MODE_ENCODER_VIRTUAL);
+			 DRM_MODE_ENCODER_VIRTUAL, NULL);
 	drm_mode_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
