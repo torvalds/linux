@@ -316,10 +316,12 @@ static int hdac_hdmi_query_pin_connlist(struct hdac_ext_device *hdac,
 
 	pin->num_mux_nids = snd_hdac_get_connections(&hdac->hdac, pin->nid,
 			pin->mux_nids, HDA_MAX_CONNECTIONS);
-	if (pin->num_mux_nids == 0) {
-		dev_err(&hdac->hdac.dev, "No connections found\n");
-		return -ENODEV;
-	}
+	if (pin->num_mux_nids == 0)
+		dev_warn(&hdac->hdac.dev, "No connections found for pin: %d\n",
+								pin->nid);
+
+	dev_dbg(&hdac->hdac.dev, "num_mux_nids %d for pin: %d\n",
+			pin->num_mux_nids, pin->nid);
 
 	return pin->num_mux_nids;
 }
