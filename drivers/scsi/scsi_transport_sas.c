@@ -383,6 +383,20 @@ void sas_remove_host(struct Scsi_Host *shost)
 EXPORT_SYMBOL(sas_remove_host);
 
 /**
+ * sas_get_address - return the SAS address of the device
+ * @sdev: scsi device
+ *
+ * Returns the SAS address of the scsi device
+ */
+u64 sas_get_address(struct scsi_device *sdev)
+{
+	struct sas_end_device *rdev = sas_sdev_to_rdev(sdev);
+
+	return rdev->rphy.identify.sas_address;
+}
+EXPORT_SYMBOL(sas_get_address);
+
+/**
  * sas_tlr_supported - checking TLR bit in vpd 0x90
  * @sdev: scsi device struct
  *
