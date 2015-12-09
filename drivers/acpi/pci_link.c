@@ -4,6 +4,7 @@
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (C) 2002       Dominik Brodowski <devel@brodo.de>
+ *  Copyright (c) 2015, The Linux Foundation. All rights reserved.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -437,7 +438,6 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
  * enabled system.
  */
 
-#define ACPI_MAX_IRQS		256
 #define ACPI_MAX_ISA_IRQ	16
 
 #define PIRQ_PENALTY_PCI_AVAILABLE	(0)
@@ -447,7 +447,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 #define PIRQ_PENALTY_ISA_USED		(16*16*16*16*16)
 #define PIRQ_PENALTY_ISA_ALWAYS		(16*16*16*16*16*16)
 
-static int acpi_irq_penalty[ACPI_MAX_IRQS] = {
+static int acpi_irq_isa_penalty[ACPI_MAX_ISA_IRQ] = {
 	PIRQ_PENALTY_ISA_ALWAYS,	/* IRQ0 timer */
 	PIRQ_PENALTY_ISA_ALWAYS,	/* IRQ1 keyboard */
 	PIRQ_PENALTY_ISA_ALWAYS,	/* IRQ2 cascade */
@@ -464,8 +464,67 @@ static int acpi_irq_penalty[ACPI_MAX_IRQS] = {
 	PIRQ_PENALTY_ISA_USED,		/* IRQ13 fpe, sometimes */
 	PIRQ_PENALTY_ISA_USED,		/* IRQ14 ide0 */
 	PIRQ_PENALTY_ISA_USED,		/* IRQ15 ide1 */
-	/* >IRQ15 */
 };
+
+struct irq_penalty_info {
+	int irq;
+	int penalty;
+	struct list_head node;
+};
+
+static LIST_HEAD(acpi_irq_penalty_list);
+
+static int acpi_irq_get_penalty(int irq)
+{
+	struct irq_penalty_info *irq_info;
+
+	if (irq < ACPI_MAX_ISA_IRQ)
+		return acpi_irq_isa_penalty[irq];
+
+	list_for_each_entry(irq_info, &acpi_irq_penalty_list, node) {
+		if (irq_info->irq == irq)
+			return irq_info->penalty;
+	}
+
+	return 0;
+}
+
+static int acpi_irq_set_penalty(int irq, int new_penalty)
+{
+	struct irq_penalty_info *irq_info;
+
+	/* see if this is a ISA IRQ */
+	if (irq < ACPI_MAX_ISA_IRQ) {
+		acpi_irq_isa_penalty[irq] = new_penalty;
+		return 0;
+	}
+
+	/* next, try to locate from the dynamic list */
+	list_for_each_entry(irq_info, &acpi_irq_penalty_list, node) {
+		if (irq_info->irq == irq) {
+			irq_info->penalty  = new_penalty;
+			return 0;
+		}
+	}
+
+	/* nope, let's allocate a slot for this IRQ */
+	irq_info = kzalloc(sizeof(*irq_info), GFP_KERNEL);
+	if (!irq_info)
+		return -ENOMEM;
+
+	irq_info->irq = irq;
+	irq_info->penalty = new_penalty;
+	list_add_tail(&irq_info->node, &acpi_irq_penalty_list);
+
+	return 0;
+}
+
+static void acpi_irq_add_penalty(int irq, int penalty)
+{
+	int curpen = acpi_irq_get_penalty(irq);
+
+	acpi_irq_set_penalty(irq, curpen + penalty);
+}
 
 int __init acpi_irq_penalty_init(void)
 {
@@ -487,15 +546,16 @@ int __init acpi_irq_penalty_init(void)
 			    link->irq.possible_count;
 
 			for (i = 0; i < link->irq.possible_count; i++) {
-				if (link->irq.possible[i] < ACPI_MAX_ISA_IRQ)
-					acpi_irq_penalty[link->irq.
-							 possible[i]] +=
-					    penalty;
+				if (link->irq.possible[i] < ACPI_MAX_ISA_IRQ) {
+					int irqpos = link->irq.possible[i];
+
+					acpi_irq_add_penalty(irqpos, penalty);
+				}
 			}
 
 		} else if (link->irq.active) {
-			acpi_irq_penalty[link->irq.active] +=
-			    PIRQ_PENALTY_PCI_POSSIBLE;
+			acpi_irq_add_penalty(link->irq.active,
+					     PIRQ_PENALTY_PCI_POSSIBLE);
 		}
 	}
 
@@ -547,12 +607,12 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 		 * the use of IRQs 9, 10, 11, and >15.
 		 */
 		for (i = (link->irq.possible_count - 1); i >= 0; i--) {
-			if (acpi_irq_penalty[irq] >
-			    acpi_irq_penalty[link->irq.possible[i]])
+			if (acpi_irq_get_penalty(irq) >
+			    acpi_irq_get_penalty(link->irq.possible[i]))
 				irq = link->irq.possible[i];
 		}
 	}
-	if (acpi_irq_penalty[irq] >= PIRQ_PENALTY_ISA_ALWAYS) {
+	if (acpi_irq_get_penalty(irq) >= PIRQ_PENALTY_ISA_ALWAYS) {
 		printk(KERN_ERR PREFIX "No IRQ available for %s [%s]. "
 			    "Try pci=noacpi or acpi=off\n",
 			    acpi_device_name(link->device),
@@ -568,7 +628,8 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 			    acpi_device_bid(link->device));
 		return -ENODEV;
 	} else {
-		acpi_irq_penalty[link->irq.active] += PIRQ_PENALTY_PCI_USING;
+		acpi_irq_add_penalty(link->irq.active, PIRQ_PENALTY_PCI_USING);
+
 		printk(KERN_WARNING PREFIX "%s [%s] enabled at IRQ %d\n",
 		       acpi_device_name(link->device),
 		       acpi_device_bid(link->device), link->irq.active);
@@ -778,7 +839,7 @@ static void acpi_pci_link_remove(struct acpi_device *device)
 }
 
 /*
- * modify acpi_irq_penalty[] from cmdline
+ * modify penalty from cmdline
  */
 static int __init acpi_irq_penalty_update(char *str, int used)
 {
@@ -796,13 +857,10 @@ static int __init acpi_irq_penalty_update(char *str, int used)
 		if (irq < 0)
 			continue;
 
-		if (irq >= ARRAY_SIZE(acpi_irq_penalty))
-			continue;
-
 		if (used)
-			acpi_irq_penalty[irq] += PIRQ_PENALTY_ISA_USED;
+			acpi_irq_add_penalty(irq, PIRQ_PENALTY_ISA_USED);
 		else
-			acpi_irq_penalty[irq] = PIRQ_PENALTY_PCI_AVAILABLE;
+			acpi_irq_set_penalty(irq, PIRQ_PENALTY_PCI_AVAILABLE);
 
 		if (retval != 2)	/* no next number */
 			break;
@@ -819,18 +877,23 @@ static int __init acpi_irq_penalty_update(char *str, int used)
  */
 void acpi_penalize_isa_irq(int irq, int active)
 {
-	if (irq >= 0 && irq < ARRAY_SIZE(acpi_irq_penalty)) {
-		if (active)
-			acpi_irq_penalty[irq] += PIRQ_PENALTY_ISA_USED;
-		else
-			acpi_irq_penalty[irq] += PIRQ_PENALTY_PCI_USING;
-	}
+	int penalty;
+
+	if (irq < 0)
+		return;
+
+	if (active)
+		penalty = PIRQ_PENALTY_ISA_USED;
+	else
+		penalty = PIRQ_PENALTY_PCI_USING;
+
+	acpi_irq_add_penalty(irq, penalty);
 }
 
 bool acpi_isa_irq_available(int irq)
 {
-	return irq >= 0 && (irq >= ARRAY_SIZE(acpi_irq_penalty) ||
-			    acpi_irq_penalty[irq] < PIRQ_PENALTY_ISA_ALWAYS);
+	return irq >= 0 &&
+		(acpi_irq_get_penalty(irq) < PIRQ_PENALTY_ISA_ALWAYS);
 }
 
 /*
@@ -840,13 +903,18 @@ bool acpi_isa_irq_available(int irq)
  */
 void acpi_penalize_sci_irq(int irq, int trigger, int polarity)
 {
-	if (irq >= 0 && irq < ARRAY_SIZE(acpi_irq_penalty)) {
-		if (trigger != ACPI_MADT_TRIGGER_LEVEL ||
-		    polarity != ACPI_MADT_POLARITY_ACTIVE_LOW)
-			acpi_irq_penalty[irq] += PIRQ_PENALTY_ISA_ALWAYS;
-		else
-			acpi_irq_penalty[irq] += PIRQ_PENALTY_PCI_USING;
-	}
+	int penalty;
+
+	if (irq < 0)
+		return;
+
+	if (trigger != ACPI_MADT_TRIGGER_LEVEL ||
+	    polarity != ACPI_MADT_POLARITY_ACTIVE_LOW)
+		penalty = PIRQ_PENALTY_ISA_ALWAYS;
+	else
+		penalty = PIRQ_PENALTY_PCI_USING;
+
+	acpi_irq_add_penalty(irq, penalty);
 }
 
 /*
