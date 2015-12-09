@@ -53,6 +53,8 @@ struct ovs_conntrack_info {
 	struct md_labels labels;
 };
 
+static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info);
+
 static u16 key_to_nfproto(const struct sw_flow_key *key)
 {
 	switch (ntohs(key->eth.type)) {
@@ -708,7 +710,7 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	nf_conntrack_get(&ct_info.ct->ct_general);
 	return 0;
 err_free_ct:
-	nf_conntrack_free(ct_info.ct);
+	__ovs_ct_free_action(&ct_info);
 	return err;
 }
 
@@ -750,6 +752,11 @@ void ovs_ct_free_action(const struct nlattr *a)
 {
 	struct ovs_conntrack_info *ct_info = nla_data(a);
 
+	__ovs_ct_free_action(ct_info);
+}
+
+static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
+{
 	if (ct_info->helper)
 		module_put(ct_info->helper->me);
 	if (ct_info->ct)
