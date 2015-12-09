@@ -575,7 +575,7 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
 	return res_chunk_list;
 
 out_free_res:
-	for (i--; i > 0; i--)
+	for (i--; i >= 0; i--)
 		usnic_vnic_put_resources(res_chunk_list[i]);
 	kfree(res_chunk_list);
 	return ERR_PTR(err);
