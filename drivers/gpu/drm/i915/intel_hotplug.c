@@ -407,7 +407,7 @@ void intel_hpd_irq_handler(struct drm_device *dev,
 			 * hotplug bits itself. So only WARN about unexpected
 			 * interrupts on saner platforms.
 			 */
-			WARN_ONCE(INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev),
+			WARN_ONCE(!HAS_GMCH_DISPLAY(dev),
 				  "Received HPD interrupt on pin %d although disabled\n", i);
 			continue;
 		}

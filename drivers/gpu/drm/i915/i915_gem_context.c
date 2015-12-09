@@ -190,7 +190,7 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	 * would make the object snooped which might have a
 	 * negative performance impact.
 	 */
-	if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
 		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
 		if (WARN_ON(ret)) {

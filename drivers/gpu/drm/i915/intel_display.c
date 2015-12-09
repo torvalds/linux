@@ -187,7 +187,7 @@ int intel_hrawclk(struct drm_device *dev)
 	uint32_t clkcfg;
 
 	/* There is no CLKCFG reg in Valleyview. VLV hrawclk is 200 MHz */
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		return 200;
 
 	clkcfg = I915_READ(CLKCFG);
@@ -215,7 +215,7 @@ int intel_hrawclk(struct drm_device *dev)
 
 static void intel_update_czclk(struct drm_i915_private *dev_priv)
 {
-	if (!IS_VALLEYVIEW(dev_priv))
+	if (!(IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)))
 		return;
 
 	dev_priv->czclk_freq = vlv_get_cck_clock_hpll(dev_priv, "czclk",
@@ -716,11 +716,12 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 	if (clock->m1  < limit->m1.min  || limit->m1.max  < clock->m1)
 		INTELPllInvalid("m1 out of range\n");
 
-	if (!IS_PINEVIEW(dev) && !IS_VALLEYVIEW(dev) && !IS_BROXTON(dev))
+	if (!IS_PINEVIEW(dev) && !IS_VALLEYVIEW(dev) &&
+	    !IS_CHERRYVIEW(dev) && !IS_BROXTON(dev))
 		if (clock->m1 <= clock->m2)
 			INTELPllInvalid("m1 <= m2\n");
 
-	if (!IS_VALLEYVIEW(dev) && !IS_BROXTON(dev)) {
+	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) && !IS_BROXTON(dev)) {
 		if (clock->p < limit->p.min || limit->p.max < clock->p)
 			INTELPllInvalid("p out of range\n");
 		if (clock->m < limit->m.min || limit->m.max < clock->m)
@@ -1305,7 +1306,7 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 		    I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT)
 			panel_pipe = PIPE_B;
 		/* XXX: else fix for eDP */
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		/* presumably write lock depends on pipe, not port select */
 		pp_reg = VLV_PIPE_PP_CONTROL(pipe);
 		panel_pipe = pipe;
@@ -1423,7 +1424,7 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 			     "plane %d assertion failure, should be off on pipe %c but is still active\n",
 			     sprite, pipe_name(pipe));
 		}
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		for_each_sprite(dev_priv, pipe, sprite) {
 			u32 val = I915_READ(SPCNTR(pipe, sprite));
 			I915_STATE_WARN(val & SP_ENABLE,
@@ -2319,7 +2320,7 @@ static unsigned int intel_linear_alignment(struct drm_i915_private *dev_priv)
 	if (INTEL_INFO(dev_priv)->gen >= 9)
 		return 256 * 1024;
 	else if (IS_BROADWATER(dev_priv) || IS_CRESTLINE(dev_priv) ||
-		 IS_VALLEYVIEW(dev_priv))
+		 IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return 128 * 1024;
 	else if (INTEL_INFO(dev_priv)->gen >= 4)
 		return 4 * 1024;
@@ -5461,7 +5462,7 @@ static void intel_update_cdclk(struct drm_device *dev)
 	 * BSpec erroneously claims we should aim for 4MHz, but
 	 * in fact 1MHz is the correct frequency.
 	 */
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		/*
 		 * Program the gmbus_freq based on the cdclk frequency.
 		 * BSpec erroneously claims we should aim for 4MHz, but
@@ -7186,7 +7187,7 @@ static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
 
 	WARN_ON(!crtc_state->base.state);
 
-	if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev) || IS_BROXTON(dev)) {
 		refclk = 100000;
 	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
@@ -7885,7 +7886,7 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		pipeconf |= PIPECONF_DOUBLE_WIDE;
 
 	/* only g4x and later have fancy bpc/dither controls */
-	if (IS_G4X(dev) || IS_VALLEYVIEW(dev)) {
+	if (IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		/* Bspec claims that we can't use dithering for 30bpp pipes. */
 		if (intel_crtc->config->dither && intel_crtc->config->pipe_bpp != 30)
 			pipeconf |= PIPECONF_DITHER_EN |
@@ -7925,7 +7926,8 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 	} else
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
-	if (IS_VALLEYVIEW(dev) && intel_crtc->config->limited_color_range)
+	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	     intel_crtc->config->limited_color_range)
 		pipeconf |= PIPECONF_COLOR_RANGE_SELECT;
 
 	I915_WRITE(PIPECONF(intel_crtc->pipe), pipeconf);
@@ -8172,7 +8174,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
 
-	if (IS_G4X(dev) || IS_VALLEYVIEW(dev)) {
+	if (IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		switch (tmp & PIPECONF_BPC_MASK) {
 		case PIPECONF_6BPC:
 			pipe_config->pipe_bpp = 18;
@@ -8188,7 +8190,8 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		}
 	}
 
-	if (IS_VALLEYVIEW(dev) && (tmp & PIPECONF_COLOR_RANGE_SELECT))
+	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	    (tmp & PIPECONF_COLOR_RANGE_SELECT))
 		pipe_config->limited_color_range = true;
 
 	if (INTEL_INFO(dev)->gen < 4)
@@ -8216,7 +8219,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->pixel_multiplier = 1;
 	}
 	pipe_config->dpll_hw_state.dpll = I915_READ(DPLL(crtc->pipe));
-	if (!IS_VALLEYVIEW(dev)) {
+	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
 		/*
 		 * DPLL_DVO_2X_MODE must be enabled for both DPLLs
 		 * on 830. Filter it out here so that we don't
@@ -11606,7 +11609,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
 		work->flip_count = I915_READ(PIPE_FLIPCOUNT_G4X(pipe)) + 1;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		ring = &dev_priv->ring[BCS];
 		if (obj->tiling_mode != intel_fb_obj(work->old_fb)->tiling_mode)
 			/* vlv: DISPLAY_FLIP fails to change tiling */
@@ -12085,7 +12088,7 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 	struct drm_connector_state *connector_state;
 	int bpp, i;
 
-	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)))
+	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)))
 		bpp = 10*3;
 	else if (INTEL_INFO(dev)->gen >= 5)
 		bpp = 12*3;
@@ -12696,7 +12699,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_I(pixel_multiplier);
 	PIPE_CONF_CHECK_I(has_hdmi_sink);
 	if ((INTEL_INFO(dev)->gen < 8 && !IS_HASWELL(dev)) ||
-	    IS_VALLEYVIEW(dev))
+	    IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		PIPE_CONF_CHECK_I(limited_color_range);
 	PIPE_CONF_CHECK_I(has_infoframe);
 
@@ -14448,7 +14451,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		/*
 		 * The DP_DETECTED bit is the latched state of the DDC
 		 * SDA pin at boot. However since eDP doesn't require DDC
@@ -14597,7 +14600,7 @@ u32 intel_fb_pitch_limit(struct drm_device *dev, uint64_t fb_modifier,
 		 *  pixels and 32K bytes."
 		 */
 		 return min(8192*drm_format_plane_cpp(pixel_format, 0), 32768);
-	} else if (gen >= 5 && !IS_VALLEYVIEW(dev)) {
+	} else if (gen >= 5 && !IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
 		return 32*1024;
 	} else if (gen >= 4) {
 		if (fb_modifier == I915_FORMAT_MOD_X_TILED)
@@ -14701,7 +14704,8 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		}
 		break;
 	case DRM_FORMAT_ABGR8888:
-		if (!IS_VALLEYVIEW(dev) && INTEL_INFO(dev)->gen < 9) {
+		if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
+		    INTEL_INFO(dev)->gen < 9) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 				  drm_get_format_name(mode_cmd->pixel_format));
 			return -EINVAL;
@@ -14717,7 +14721,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		}
 		break;
 	case DRM_FORMAT_ABGR2101010:
-		if (!IS_VALLEYVIEW(dev)) {
+		if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 				  drm_get_format_name(mode_cmd->pixel_format));
 			return -EINVAL;
@@ -14845,7 +14849,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
 		dev_priv->display.update_primary_plane =
 			ironlake_update_primary_plane;
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			i9xx_get_initial_plane_config;
@@ -14878,7 +14882,7 @@ static void intel_init_display(struct drm_device *dev)
 	else if (IS_HASWELL(dev))
 		dev_priv->display.get_display_clock_speed =
 			haswell_get_display_clock_speed;
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		dev_priv->display.get_display_clock_speed =
 			valleyview_get_display_clock_speed;
 	else if (IS_GEN5(dev))
@@ -14936,7 +14940,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.modeset_calc_cdclk =
 				broadwell_modeset_calc_cdclk;
 		}
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->display.modeset_commit_cdclk =
 			valleyview_modeset_commit_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
@@ -15710,7 +15714,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 		pll->on = false;
 	}
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		vlv_wm_get_hw_state(dev);
 	else if (IS_GEN9(dev))
 		skl_wm_get_hw_state(dev);

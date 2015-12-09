@@ -581,7 +581,7 @@ i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 {
 	u32 enable_mask;
 
-	if (IS_VALLEYVIEW(dev_priv->dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
 							   status_mask);
 	else
@@ -595,7 +595,7 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 {
 	u32 enable_mask;
 
-	if (IS_VALLEYVIEW(dev_priv->dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
 							   status_mask);
 	else
@@ -1723,7 +1723,7 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 	 */
 	POSTING_READ(PORT_HOTPLUG_STAT);
 
-	if (IS_G4X(dev) || IS_VALLEYVIEW(dev)) {
+	if (IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
 
 		if (hotplug_trigger) {
@@ -4412,7 +4412,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 
 	/* Let's track the enabled rps events */
-	if (IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv))
 		/* WaGsvRC0ResidencyMethod:vlv */
 		dev_priv->pm_rps_events = GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED;
 	else

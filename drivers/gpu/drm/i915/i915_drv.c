@@ -311,7 +311,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.gen = 8, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
-	.is_valleyview = 1,
+	.is_cherryview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_CHV_PIPEOFFSETS,
 	CURSOR_OFFSETS,
@@ -802,7 +802,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	if (IS_VALLEYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, false);
 	if (ret)
 		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
@@ -1533,7 +1533,7 @@ static int intel_runtime_resume(struct device *device)
 		ret = bxt_resume_prepare(dev_priv);
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
-	else if (IS_VALLEYVIEW(dev_priv))
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, true);
 
 	/*
@@ -1550,7 +1550,7 @@ static int intel_runtime_resume(struct device *device)
 	 * power well, so hpd is reinitialized from there. For
 	 * everyone else do it here.
 	 */
-	if (!IS_VALLEYVIEW(dev_priv))
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_init(dev_priv);
 
 	intel_enable_gt_powersave(dev);
@@ -1575,7 +1575,7 @@ static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 		ret = bxt_suspend_complete(dev_priv);
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		ret = hsw_suspend_complete(dev_priv);
-	else if (IS_VALLEYVIEW(dev_priv))
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = vlv_suspend_complete(dev_priv);
 	else
 		ret = 0;

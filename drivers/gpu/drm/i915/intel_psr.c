@@ -326,8 +326,8 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	if (!IS_VALLEYVIEW(dev) && ((dev_priv->vbt.psr.full_link) ||
-				    (dig_port->port != PORT_A))) {
+	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
+	    ((dev_priv->vbt.psr.full_link) || (dig_port->port != PORT_A))) {
 		DRM_DEBUG_KMS("PSR condition failed: Link Standby requested/needed but not supported on this platform\n");
 		return false;
 	}
@@ -644,7 +644,7 @@ void intel_psr_single_frame_update(struct drm_device *dev,
 	 * Single frame update is already supported on BDW+ but it requires
 	 * many W/A and it isn't really needed.
 	 */
-	if (!IS_VALLEYVIEW(dev))
+	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev))
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);

@@ -763,6 +763,7 @@ struct intel_csr {
 	func(is_crestline) sep \
 	func(is_ivybridge) sep \
 	func(is_valleyview) sep \
+	func(is_cherryview) sep \
 	func(is_haswell) sep \
 	func(is_skylake) sep \
 	func(is_broxton) sep \
@@ -2455,9 +2456,9 @@ struct drm_i915_cmd_table {
 				 INTEL_DEVID(dev) == 0x0152 || \
 				 INTEL_DEVID(dev) == 0x015a)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
-#define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
+#define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_cherryview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
-#define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
+#define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_cherryview && IS_GEN8(dev))
 #define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
 #define IS_BROXTON(dev)		(INTEL_INFO(dev)->is_broxton)
 #define IS_KABYLAKE(dev)	(INTEL_INFO(dev)->is_kabylake)
@@ -2592,7 +2593,8 @@ struct drm_i915_cmd_table {
 				 IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 #define HAS_RUNTIME_PM(dev)	(IS_GEN6(dev) || IS_HASWELL(dev) || \
 				 IS_BROADWELL(dev) || IS_VALLEYVIEW(dev) || \
-				 IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+				 IS_CHERRYVIEW(dev) || IS_SKYLAKE(dev) || \
+				 IS_KABYLAKE(dev))
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
 
@@ -2605,7 +2607,8 @@ struct drm_i915_cmd_table {
 				    INTEL_INFO(dev)->gen >= 8)
 
 #define HAS_CORE_RING_FREQ(dev)	(INTEL_INFO(dev)->gen >= 6 && \
-				 !IS_VALLEYVIEW(dev) && !IS_BROXTON(dev))
+				 !IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) && \
+				 !IS_BROXTON(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
@@ -2628,7 +2631,8 @@ struct drm_i915_cmd_table {
 #define HAS_PCH_NOP(dev) (INTEL_PCH_TYPE(dev) == PCH_NOP)
 #define HAS_PCH_SPLIT(dev) (INTEL_PCH_TYPE(dev) != PCH_NONE)
 
-#define HAS_GMCH_DISPLAY(dev) (INTEL_INFO(dev)->gen < 5 || IS_VALLEYVIEW(dev))
+#define HAS_GMCH_DISPLAY(dev) (INTEL_INFO(dev)->gen < 5 || \
+			       IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
@@ -3521,7 +3525,7 @@ __raw_write(64, q)
 
 static inline i915_reg_t i915_vgacntrl_reg(struct drm_device *dev)
 {
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		return VLV_VGACNTRL;
 	else if (INTEL_INFO(dev)->gen >= 5)
 		return CPU_VGACNTRL;

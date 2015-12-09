@@ -4854,7 +4854,7 @@ int i915_gem_init(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		/* VLVA0 (potential hack), BIOS isn't actually waking us */
 		I915_WRITE(VLV_GTLC_WAKE_CTRL, VLV_GTLC_ALLOWWAKEREQ);
 		if (wait_for((I915_READ(VLV_GTLC_PW_STATUS) &
@@ -4979,7 +4979,7 @@ i915_gem_load(struct drm_device *dev)
 
 	dev_priv->relative_constants_mode = I915_EXEC_CONSTANTS_REL_GENERAL;
 
-	if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev))
 		dev_priv->num_fence_regs = 32;
 	else if (INTEL_INFO(dev)->gen >= 4 || IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 		dev_priv->num_fence_regs = 16;

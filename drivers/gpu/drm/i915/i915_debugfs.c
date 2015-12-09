@@ -1142,8 +1142,34 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   MEMSTAT_VID_SHIFT);
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
-	} else if (IS_GEN6(dev) || (IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) ||
-		   IS_BROADWELL(dev) || IS_GEN9(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		u32 freq_sts;
+
+		mutex_lock(&dev_priv->rps.hw_lock);
+		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
+		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
+
+		seq_printf(m, "actual GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
+
+		seq_printf(m, "current GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
+
+		seq_printf(m, "max GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+
+		seq_printf(m, "min GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
+
+		seq_printf(m, "idle GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
+
+		seq_printf(m,
+			   "efficient (RPe) frequency: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
+		mutex_unlock(&dev_priv->rps.hw_lock);
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		u32 rp_state_limits;
 		u32 gt_perf_status;
 		u32 rp_state_cap;
@@ -1284,33 +1310,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
-	} else if (IS_VALLEYVIEW(dev)) {
-		u32 freq_sts;
-
-		mutex_lock(&dev_priv->rps.hw_lock);
-		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
-		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
-
-		seq_printf(m, "actual GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
-
-		seq_printf(m, "current GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
-
-		seq_printf(m, "max GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
-
-		seq_printf(m, "min GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
-
-		seq_printf(m, "idle GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
-
-		seq_printf(m,
-			   "efficient (RPe) frequency: %d MHz\n",
-			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
-		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		seq_puts(m, "no P-state info available\n");
 	}
@@ -1602,7 +1601,7 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		return vlv_drpc_info(m);
 	else if (INTEL_INFO(dev)->gen >= 6)
 		return gen6_drpc_info(m);
@@ -1743,7 +1742,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 		sr_enabled = I915_READ(INSTPM) & INSTPM_SELF_EN;
 	else if (IS_PINEVIEW(dev))
 		sr_enabled = I915_READ(DSPFW3) & PINEVIEW_SELF_REFRESH_EN;
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		sr_enabled = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 
 	intel_runtime_pm_put(dev_priv);
@@ -3999,7 +3998,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		ret = i8xx_pipe_crc_ctl_reg(&source, &val);
 	else if (INTEL_INFO(dev)->gen < 5)
 		ret = i9xx_pipe_crc_ctl_reg(dev, pipe, &source, &val);
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		ret = vlv_pipe_crc_ctl_reg(dev, pipe, &source, &val);
 	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ret = ilk_pipe_crc_ctl_reg(&source, &val);
@@ -4068,7 +4067,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 
 		if (IS_G4X(dev))
 			g4x_undo_pipe_scramble_reset(dev, pipe);
-		else if (IS_VALLEYVIEW(dev))
+		else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 			vlv_undo_pipe_scramble_reset(dev, pipe);
 		else if (IS_HASWELL(dev) && pipe == PIPE_A)
 			hsw_trans_edp_pipe_A_crc_wa(dev, false);
@@ -4458,7 +4457,8 @@ static void wm_latency_show(struct seq_file *m, const uint16_t wm[8])
 		 * - WM1+ latency values in 0.5us units
 		 * - latencies are in us on gen9/vlv/chv
 		 */
-		if (INTEL_INFO(dev)->gen >= 9 || IS_VALLEYVIEW(dev))
+		if (INTEL_INFO(dev)->gen >= 9 || IS_VALLEYVIEW(dev) ||
+		    IS_CHERRYVIEW(dev))
 			latency *= 10;
 		else if (level > 0)
 			latency *= 5;

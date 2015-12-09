@@ -1115,7 +1115,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 		d->val_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
 	}
 
-	if (IS_VALLEYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		d->reg_post = FORCEWAKE_ACK_VLV;
 	else if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv) || IS_GEN8(dev_priv))
 		d->reg_post = ECOBUS;
@@ -1148,7 +1148,7 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 			       FORCEWAKE_ACK_BLITTER_GEN9);
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_MEDIA,
 			       FORCEWAKE_MEDIA_GEN9, FORCEWAKE_ACK_MEDIA_GEN9);
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
 		if (!IS_CHERRYVIEW(dev))
 			dev_priv->uncore.funcs.force_wake_put =

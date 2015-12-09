@@ -376,7 +376,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		aud_config = IBX_AUD_CFG(pipe);
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
-	} else if (IS_VALLEYVIEW(dev_priv)) {
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		aud_config = VLV_AUD_CFG(pipe);
 		aud_cntrl_st2 = VLV_AUD_CNTL_ST2;
 	} else {
@@ -436,7 +436,8 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 		aud_config = IBX_AUD_CFG(pipe);
 		aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
-	} else if (IS_VALLEYVIEW(connector->dev)) {
+	} else if (IS_VALLEYVIEW(connector->dev) ||
+		   IS_CHERRYVIEW(connector->dev)) {
 		hdmiw_hdmiedid = VLV_HDMIW_HDMIEDID(pipe);
 		aud_config = VLV_AUD_CFG(pipe);
 		aud_cntl_st = VLV_AUD_CNTL_ST(pipe);
@@ -562,7 +563,7 @@ void intel_init_audio(struct drm_device *dev)
 	if (IS_G4X(dev)) {
 		dev_priv->display.audio_codec_enable = g4x_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = g4x_audio_codec_disable;
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
 	} else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8) {

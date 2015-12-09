@@ -1784,7 +1784,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		panel->backlight.set = pch_set_backlight;
 		panel->backlight.get = pch_get_backlight;
 		panel->backlight.hz_to_pwm = pch_hz_to_pwm;
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		if (dev_priv->vbt.has_mipi) {
 			panel->backlight.setup = pwm_setup_backlight;
 			panel->backlight.enable = pwm_enable_backlight;
