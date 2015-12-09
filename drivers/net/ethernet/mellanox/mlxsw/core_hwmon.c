@@ -169,7 +169,7 @@ static ssize_t mlxsw_hwmon_pwm_store(struct device *dev,
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to write PWM\n");
 		return err;
 	}
-	return err ? err : len;
+	return len;
 }
 
 enum mlxsw_hwmon_attr_type {
