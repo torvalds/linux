@@ -941,7 +941,7 @@ atmel_hlcdc_plane_create(struct drm_device *dev,
 	ret = drm_universal_plane_init(dev, &plane->base, 0,
 				       &layer_plane_funcs,
 				       desc->formats->formats,
-				       desc->formats->nformats, type);
+				       desc->formats->nformats, type, NULL);
 	if (ret)
 		return ERR_PTR(ret);
 

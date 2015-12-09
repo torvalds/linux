@@ -13904,7 +13904,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	drm_universal_plane_init(dev, &primary->base, 0,
 				 &intel_plane_funcs,
 				 intel_primary_formats, num_formats,
-				 DRM_PLANE_TYPE_PRIMARY);
+				 DRM_PLANE_TYPE_PRIMARY, NULL);
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		intel_create_rotation_property(dev, primary);
@@ -14043,7 +14043,7 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 				 &intel_plane_funcs,
 				 intel_cursor_formats,
 				 ARRAY_SIZE(intel_cursor_formats),
-				 DRM_PLANE_TYPE_CURSOR);
+				 DRM_PLANE_TYPE_CURSOR, NULL);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		if (!dev->mode_config.rotation_property)
