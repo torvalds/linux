@@ -3,6 +3,8 @@
 #include <linux/in6.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
+#include <scsi/iser.h>
+
 
 #define DRV_NAME	"isert"
 #define PFX		DRV_NAME ": "
@@ -56,7 +58,7 @@ enum iser_conn_state {
 };
 
 struct iser_rx_desc {
-	struct iser_hdr iser_header;
+	struct iser_ctrl iser_header;
 	struct iscsi_hdr iscsi_header;
 	char		data[ISER_RECV_DATA_SEG_LEN];
 	u64		dma_addr;
@@ -65,7 +67,7 @@ struct iser_rx_desc {
 } __packed;
 
 struct iser_tx_desc {
-	struct iser_hdr iser_header;
+	struct iser_ctrl iser_header;
 	struct iscsi_hdr iscsi_header;
 	enum isert_desc_type type;
 	u64		dma_addr;

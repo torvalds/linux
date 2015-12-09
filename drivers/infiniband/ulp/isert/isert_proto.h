@@ -1,16 +1,7 @@
 /* From iscsi_iser.h */
 
-struct iser_hdr {
-	u8	flags;
-	u8	rsvd[3];
-	__be32	write_stag; /* write rkey */
-	__be64	write_va;
-	__be32	read_stag;  /* read rkey */
-	__be64	read_va;
-} __packed;
-
-/*Constant PDU lengths calculations */
-#define ISER_HEADERS_LEN  (sizeof(struct iser_hdr) + sizeof(struct iscsi_hdr))
+/* Constant PDU lengths calculations */
+#define ISER_HEADERS_LEN  (sizeof(struct iser_ctrl) + sizeof(struct iscsi_hdr))
 
 #define ISER_RECV_DATA_SEG_LEN  8192
 #define ISER_RX_PAYLOAD_SIZE    (ISER_HEADERS_LEN + ISER_RECV_DATA_SEG_LEN)
@@ -38,10 +29,3 @@ struct iser_hdr {
 
 #define ISER_RX_PAD_SIZE	(ISER_RECV_DATA_SEG_LEN + 4096 - \
 		(ISER_RX_PAYLOAD_SIZE + sizeof(u64) + sizeof(struct ib_sge)))
-
-#define ISER_VER	0x10
-#define ISER_WSV	0x08
-#define ISER_RSV	0x04
-#define ISCSI_CTRL	0x10
-#define ISER_HELLO	0x20
-#define ISER_HELLORPLY	0x30

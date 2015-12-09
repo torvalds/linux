@@ -51,7 +51,7 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	struct iser_mem_reg *mem_reg;
 	int err;
-	struct iser_hdr *hdr = &iser_task->desc.iser_header;
+	struct iser_ctrl *hdr = &iser_task->desc.iser_header;
 	struct iser_data_buf *buf_in = &iser_task->data[ISER_DIR_IN];
 
 	err = iser_dma_map_task_data(iser_task,
@@ -104,7 +104,7 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	struct iser_mem_reg *mem_reg;
 	int err;
-	struct iser_hdr *hdr = &iser_task->desc.iser_header;
+	struct iser_ctrl *hdr = &iser_task->desc.iser_header;
 	struct iser_data_buf *buf_out = &iser_task->data[ISER_DIR_OUT];
 	struct ib_sge *tx_dsg = &iser_task->desc.tx_sg[1];
 
@@ -167,7 +167,7 @@ static void iser_create_send_desc(struct iser_conn	*iser_conn,
 	ib_dma_sync_single_for_cpu(device->ib_device,
 		tx_desc->dma_addr, ISER_HEADERS_LEN, DMA_TO_DEVICE);
 
-	memset(&tx_desc->iser_header, 0, sizeof(struct iser_hdr));
+	memset(&tx_desc->iser_header, 0, sizeof(struct iser_ctrl));
 	tx_desc->iser_header.flags = ISER_VER;
 	tx_desc->num_sge = 1;
 }
@@ -574,7 +574,7 @@ void iser_login_rsp(struct ib_cq *cq, struct ib_wc *wc)
 				   desc->rsp_dma, ISER_RX_LOGIN_SIZE,
 				   DMA_FROM_DEVICE);
 
-	hdr = desc->rsp + sizeof(struct iser_hdr);
+	hdr = desc->rsp + sizeof(struct iser_ctrl);
 	data = desc->rsp + ISER_HEADERS_LEN;
 	length = wc->byte_len - ISER_HEADERS_LEN;
 

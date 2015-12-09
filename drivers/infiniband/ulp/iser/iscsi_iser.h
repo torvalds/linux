@@ -48,6 +48,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
+#include <scsi/iser.h>
 
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -153,40 +154,8 @@
 
 #define ISER_SIGNAL_CMD_COUNT 32
 
-#define ISER_VER			0x10
-#define ISER_WSV			0x08
-#define ISER_RSV			0x04
-
-/**
- * struct iser_hdr - iSER header
- *
- * @flags:        flags support (zbva, remote_inv)
- * @rsvd:         reserved
- * @write_stag:   write rkey
- * @write_va:     write virtual address
- * @reaf_stag:    read rkey
- * @read_va:      read virtual address
- */
-struct iser_hdr {
-	u8      flags;
-	u8      rsvd[3];
-	__be32  write_stag;
-	__be64  write_va;
-	__be32  read_stag;
-	__be64  read_va;
-} __attribute__((packed));
-
-
-#define ISER_ZBVA_NOT_SUPPORTED		0x80
-#define ISER_SEND_W_INV_NOT_SUPPORTED	0x40
-
-struct iser_cm_hdr {
-	u8      flags;
-	u8      rsvd[3];
-} __packed;
-
 /* Constant PDU lengths calculations */
-#define ISER_HEADERS_LEN  (sizeof(struct iser_hdr) + sizeof(struct iscsi_hdr))
+#define ISER_HEADERS_LEN	(sizeof(struct iser_ctrl) + sizeof(struct iscsi_hdr))
 
 #define ISER_RECV_DATA_SEG_LEN	128
 #define ISER_RX_PAYLOAD_SIZE	(ISER_HEADERS_LEN + ISER_RECV_DATA_SEG_LEN)
@@ -283,7 +252,7 @@ enum iser_desc_type {
  * @sig_attrs:     Signature attributes
  */
 struct iser_tx_desc {
-	struct iser_hdr              iser_header;
+	struct iser_ctrl             iser_header;
 	struct iscsi_hdr             iscsi_header;
 	enum   iser_desc_type        type;
 	u64		             dma_addr;
@@ -316,7 +285,7 @@ struct iser_tx_desc {
  * @pad:           for sense data TODO: Modify to maximum sense length supported
  */
 struct iser_rx_desc {
-	struct iser_hdr              iser_header;
+	struct iser_ctrl             iser_header;
 	struct iscsi_hdr             iscsi_header;
 	char		             data[ISER_RECV_DATA_SEG_LEN];
 	u64		             dma_addr;
