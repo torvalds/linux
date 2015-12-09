@@ -542,9 +542,9 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 			time->tv_nsec = 0;
 		}
 		*buf = kmemdup(buff + hdr_size, length, GFP_KERNEL);
+		kfree(buff);
 		if (*buf == NULL)
 			return -ENOMEM;
-		kfree(buff);
 
 		*ecc_notice_size = 0;
 		if (err_type == ERR_TYPE_KERNEL_PANIC_GZ)
