@@ -65,10 +65,10 @@ static int pnv_smp_kick_cpu(int nr)
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
 	/*
-	 * If we already started or OPALv2 is not supported, we just
+	 * If we already started or OPALv3 is not supported, we just
 	 * kick the CPU via the PACA
 	 */
-	if (paca[nr].cpu_start || !firmware_has_feature(FW_FEATURE_OPALv2))
+	if (paca[nr].cpu_start || !firmware_has_feature(FW_FEATURE_OPALv3))
 		goto kick;
 
 	/*
