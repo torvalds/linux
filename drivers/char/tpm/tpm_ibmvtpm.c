@@ -90,7 +90,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		return 0;
 	}
 
-	sig = wait_event_interruptible(ibmvtpm->wq, ibmvtpm->res_len != 0);
+	sig = wait_event_interruptible(ibmvtpm->wq, !ibmvtpm->tpm_processing_cmd);
 	if (sig)
 		return -EINTR;
 
@@ -125,7 +125,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	struct ibmvtpm_dev *ibmvtpm;
 	struct ibmvtpm_crq crq;
 	__be64 *word = (__be64 *)&crq;
-	int rc;
+	int rc, sig;
 
 	ibmvtpm = (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 
@@ -141,18 +141,35 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -EIO;
 	}
 
+	if (ibmvtpm->tpm_processing_cmd) {
+		dev_info(ibmvtpm->dev,
+		         "Need to wait for TPM to finish\n");
+		/* wait for previous command to finish */
+		sig = wait_event_interruptible(ibmvtpm->wq, !ibmvtpm->tpm_processing_cmd);
+		if (sig)
+			return -EINTR;
+	}
+
 	spin_lock(&ibmvtpm->rtce_lock);
+	ibmvtpm->res_len = 0;
 	memcpy((void *)ibmvtpm->rtce_buf, (void *)buf, count);
 	crq.valid = (u8)IBMVTPM_VALID_CMD;
 	crq.msg = (u8)VTPM_TPM_COMMAND;
 	crq.len = cpu_to_be16(count);
 	crq.data = cpu_to_be32(ibmvtpm->rtce_dma_handle);
 
+	/*
+	 * set the processing flag before the Hcall, since we may get the
+	 * result (interrupt) before even being able to check rc.
+	 */
+	ibmvtpm->tpm_processing_cmd = true;
+
 	rc = ibmvtpm_send_crq(ibmvtpm->vdev, be64_to_cpu(word[0]),
 			      be64_to_cpu(word[1]));
 	if (rc != H_SUCCESS) {
 		dev_err(ibmvtpm->dev, "tpm_ibmvtpm_send failed rc=%d\n", rc);
 		rc = 0;
+		ibmvtpm->tpm_processing_cmd = false;
 	} else
 		rc = count;
 
@@ -515,6 +532,7 @@ static void ibmvtpm_crq_process(struct ibmvtpm_crq *crq,
 		case VTPM_TPM_COMMAND_RES:
 			/* len of the data in rtce buffer */
 			ibmvtpm->res_len = be16_to_cpu(crq->len);
+			ibmvtpm->tpm_processing_cmd = false;
 			wake_up_interruptible(&ibmvtpm->wq);
 			return;
 		default:
