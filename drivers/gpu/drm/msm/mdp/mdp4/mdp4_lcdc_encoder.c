@@ -460,7 +460,7 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 	encoder = &mdp4_lcdc_encoder->base;
 
 	drm_encoder_init(dev, encoder, &mdp4_lcdc_encoder_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_LVDS, NULL);
 	drm_encoder_helper_add(encoder, &mdp4_lcdc_encoder_helper_funcs);
 
 	/* TODO: do we need different pll in other cases? */

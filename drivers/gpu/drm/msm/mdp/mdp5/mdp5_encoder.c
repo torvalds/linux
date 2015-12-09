@@ -354,7 +354,7 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 
 	spin_lock_init(&mdp5_encoder->intf_lock);
 
-	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs, enc_type);
+	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs, enc_type, NULL);
 
 	drm_encoder_helper_add(encoder, &mdp5_encoder_helper_funcs);
 

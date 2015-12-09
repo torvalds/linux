@@ -508,7 +508,7 @@ static int imx_tve_register(struct drm_device *drm, struct imx_tve *tve)
 
 	drm_encoder_helper_add(&tve->encoder, &imx_tve_encoder_helper_funcs);
 	drm_encoder_init(drm, &tve->encoder, &imx_tve_encoder_funcs,
-			 encoder_type);
+			 encoder_type, NULL);
 
 	drm_connector_helper_add(&tve->connector,
 			&imx_tve_connector_helper_funcs);
