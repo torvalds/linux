@@ -75,4 +75,10 @@ config 6LOWPAN_GHC_ICMPV6
 	---help---
 	  6LoWPAN IPv6 ICMPv6 generic header compression according to RFC7400.
 
+config 6LOWPAN_GHC_EXT_HDR_DEST
+	tristate "GHC Destination Options Header Support"
+	---help---
+	  6LoWPAN IPv6 destination option generic header compression according
+	  to RFC7400.
+
 endif
