@@ -71,6 +71,7 @@ struct mtd_part_parser {
 	const char *name;
 	int (*parse_fn)(struct mtd_info *, const struct mtd_partition **,
 			struct mtd_part_parser_data *);
+	void (*cleanup)(const struct mtd_partition *pparts, int nr_parts);
 };
 
 /* Container for passing around a set of parsed partitions */

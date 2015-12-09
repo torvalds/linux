@@ -709,9 +709,22 @@ static inline void mtd_part_parser_put(const struct mtd_part_parser *p)
 	module_put(p->owner);
 }
 
+/*
+ * Many partition parsers just expected the core to kfree() all their data in
+ * one chunk. Do that by default.
+ */
+static void mtd_part_parser_cleanup_default(const struct mtd_partition *pparts,
+					    int nr_parts)
+{
+	kfree(pparts);
+}
+
 int __register_mtd_parser(struct mtd_part_parser *p, struct module *owner)
 {
 	p->owner = owner;
+
+	if (!p->cleanup)
+		p->cleanup = &mtd_part_parser_cleanup_default;
 
 	spin_lock(&part_parser_lock);
 	list_add(&p->list, &part_parsers);
@@ -756,7 +769,9 @@ static const char * const default_mtd_part_types[] = {
  * This function may return:
  * o a negative error code in case of failure
  * o zero otherwise, and @pparts will describe the partitions, number of
- *   partitions, and the parser which parsed them
+ *   partitions, and the parser which parsed them. Caller must release
+ *   resources with mtd_part_parser_cleanup() when finished with the returned
+ *   data.
  */
 int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			 struct mtd_partitions *pparts,
@@ -780,7 +795,6 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 		ret = (*parser->parse_fn)(master, &pparts->parts, data);
 		pr_debug("%s: parser %s: %i\n",
 			 master->name, parser->name, ret);
-		mtd_part_parser_put(parser);
 		if (ret > 0) {
 			printk(KERN_NOTICE "%d %s partitions found on MTD device %s\n",
 			       ret, parser->name, master->name);
@@ -788,6 +802,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			pparts->parser = parser;
 			return 0;
 		}
+		mtd_part_parser_put(parser);
 		/*
 		 * Stash the first error we see; only report it if no parser
 		 * succeeds
@@ -796,6 +811,22 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			err = ret;
 	}
 	return err;
+}
+
+void mtd_part_parser_cleanup(struct mtd_partitions *parts)
+{
+	const struct mtd_part_parser *parser;
+
+	if (!parts)
+		return;
+
+	parser = parts->parser;
+	if (parser) {
+		if (parser->cleanup)
+			parser->cleanup(parts->parts, parts->nr_parts);
+
+		mtd_part_parser_put(parser);
+	}
 }
 
 int mtd_is_partition(const struct mtd_info *mtd)

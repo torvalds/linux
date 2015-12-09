@@ -630,8 +630,7 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 
 out:
 	/* Cleanup any parsed partitions */
-	if (parsed.parser)
-		kfree(parsed.parts);
+	mtd_part_parser_cleanup(&parsed);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_device_parse_register);
