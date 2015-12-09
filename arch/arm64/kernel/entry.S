@@ -199,7 +199,7 @@ alternative_endif
 	/* Add a dummy stack frame */
 	stp     x29, \dummy_lr, [sp, #-16]!           // dummy stack frame
 	mov	x29, sp
-	stp     xzr, x19, [sp, #-16]!
+	stp     x19, xzr, [sp, #-16]!
 
 9998:
 	.endm
