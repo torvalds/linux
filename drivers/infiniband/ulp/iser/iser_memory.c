@@ -194,7 +194,11 @@ iser_reg_dma(struct iser_device *device, struct iser_data_buf *mem,
 	struct scatterlist *sg = mem->sg;
 
 	reg->sge.lkey = device->pd->local_dma_lkey;
-	reg->rkey = device->mr->rkey;
+	/*
+	 * FIXME: rework the registration code path to differentiate
+	 * rkey/lkey use cases
+	 */
+	reg->rkey = device->mr ? device->mr->rkey : 0;
 	reg->sge.addr = ib_sg_dma_address(device->ib_device, &sg[0]);
 	reg->sge.length = ib_sg_dma_len(device->ib_device, &sg[0]);
 
@@ -503,7 +507,8 @@ iser_reg_data_sg(struct iscsi_iser_task *task,
 }
 
 int iser_reg_rdma_mem(struct iscsi_iser_task *task,
-		      enum iser_data_dir dir)
+		      enum iser_data_dir dir,
+		      bool all_imm)
 {
 	struct ib_conn *ib_conn = &task->iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
@@ -514,8 +519,8 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 	bool use_dma_key;
 	int err;
 
-	use_dma_key = (mem->dma_nents == 1 && !iser_always_reg &&
-		       scsi_get_prot_op(task->sc) == SCSI_PROT_NORMAL);
+	use_dma_key = mem->dma_nents == 1 && (all_imm || !iser_always_reg) &&
+		      scsi_get_prot_op(task->sc) == SCSI_PROT_NORMAL;
 
 	if (!use_dma_key) {
 		desc = device->reg_ops->reg_desc_get(ib_conn);

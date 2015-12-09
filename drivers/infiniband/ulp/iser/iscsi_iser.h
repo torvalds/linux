@@ -658,7 +658,8 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 				     enum iser_data_dir cmd_dir);
 
 int iser_reg_rdma_mem(struct iscsi_iser_task *task,
-		      enum iser_data_dir dir);
+		      enum iser_data_dir dir,
+		      bool all_imm);
 void iser_unreg_rdma_mem(struct iscsi_iser_task *task,
 			 enum iser_data_dir dir);
 
