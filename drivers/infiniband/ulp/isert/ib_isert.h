@@ -163,6 +163,7 @@ struct isert_cmd {
 	uint32_t		write_stag;
 	uint64_t		read_va;
 	uint64_t		write_va;
+	uint32_t		inv_rkey;
 	u64			pdu_buf_dma;
 	u32			pdu_buf_len;
 	struct isert_conn	*conn;
@@ -210,6 +211,7 @@ struct isert_conn {
 	struct work_struct	release_work;
 	struct ib_recv_wr       beacon;
 	bool                    logout_posted;
+	bool                    snd_w_inv;
 };
 
 #define ISERT_MAX_CQ 64
