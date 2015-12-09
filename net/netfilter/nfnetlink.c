@@ -295,8 +295,6 @@ replay:
 	if (!skb)
 		return netlink_ack(oskb, nlh, -ENOMEM);
 
-	skb->sk = oskb->sk;
-
 	nfnl_lock(subsys_id);
 	ss = rcu_dereference_protected(table[subsys_id].subsys,
 				       lockdep_is_held(&table[subsys_id].mutex));
