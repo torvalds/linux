@@ -1462,6 +1462,8 @@ static int intel_runtime_suspend(struct device *device)
 	i915_gem_release_all_mmaps(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
+	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
+
 	intel_guc_suspend(dev);
 
 	intel_suspend_gt_powersave(dev);
@@ -1475,7 +1477,6 @@ static int intel_runtime_suspend(struct device *device)
 		return ret;
 	}
 
-	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	intel_uncore_forcewake_reset(dev, false);
 	dev_priv->pm.suspended = true;
 
