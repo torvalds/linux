@@ -5379,35 +5379,33 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		 * target drive.
 		 */
 		for (i = 0; i < tmp_num_stripes; i++) {
-			if (tmp_bbio->stripes[i].dev->devid == srcdev_devid) {
-				/*
-				 * In case of DUP, in order to keep it
-				 * simple, only add the mirror with the
-				 * lowest physical address
-				 */
-				if (found &&
-				    physical_of_found <=
-				     tmp_bbio->stripes[i].physical)
-					continue;
-				index_srcdev = i;
-				found = 1;
-				physical_of_found =
-					tmp_bbio->stripes[i].physical;
-			}
-		}
+			if (tmp_bbio->stripes[i].dev->devid != srcdev_devid)
+				continue;
 
-		if (found) {
-			mirror_num = index_srcdev + 1;
-			patch_the_first_stripe_for_dev_replace = 1;
-			physical_to_patch_in_first_stripe = physical_of_found;
-		} else {
-			WARN_ON(1);
-			ret = -EIO;
-			btrfs_put_bbio(tmp_bbio);
-			goto out;
+			/*
+			 * In case of DUP, in order to keep it simple, only add
+			 * the mirror with the lowest physical address
+			 */
+			if (found &&
+			    physical_of_found <= tmp_bbio->stripes[i].physical)
+				continue;
+
+			index_srcdev = i;
+			found = 1;
+			physical_of_found = tmp_bbio->stripes[i].physical;
 		}
 
 		btrfs_put_bbio(tmp_bbio);
+
+		if (!found) {
+			WARN_ON(1);
+			ret = -EIO;
+			goto out;
+		}
+
+		mirror_num = index_srcdev + 1;
+		patch_the_first_stripe_for_dev_replace = 1;
+		physical_to_patch_in_first_stripe = physical_of_found;
 	} else if (mirror_num > map->num_stripes) {
 		mirror_num = 0;
 	}
