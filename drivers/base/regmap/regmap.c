@@ -2581,7 +2581,9 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 				 * we assume that the values are native
 				 * endian.
 				 */
+#ifdef CONFIG_64BIT
 				u64 *u64 = val;
+#endif
 				u32 *u32 = val;
 				u16 *u16 = val;
 				u8 *u8 = val;
