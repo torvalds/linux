@@ -368,14 +368,12 @@ struct omap_video_timings {
 	enum omap_dss_signal_edge sync_pclk_edge;
 };
 
-#ifdef CONFIG_OMAP2_DSS_VENC
 /* Hardcoded timings for tv modes. Venc only uses these to
  * identify the mode, and does not actually use the configs
  * itself. However, the configs should be something that
  * a normal monitor can also show */
 extern const struct omap_video_timings omap_dss_pal_timings;
 extern const struct omap_video_timings omap_dss_ntsc_timings;
-#endif
 
 struct omap_dss_cpr_coefs {
 	s16 rr, rg, rb;
