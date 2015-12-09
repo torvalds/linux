@@ -135,7 +135,6 @@ static void pwm_lpss_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 }
 
 static const struct pwm_ops pwm_lpss_ops = {
-	.free = pwm_lpss_disable,
 	.config = pwm_lpss_config,
 	.enable = pwm_lpss_enable,
 	.disable = pwm_lpss_disable,
