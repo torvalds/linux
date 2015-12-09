@@ -376,13 +376,14 @@ static int tilcdc_irq_postinstall(struct drm_device *dev)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
 	/* enable FIFO underflow irq: */
-	if (priv->rev == 1)
+	if (priv->rev == 1) {
 		tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_UNDERFLOW_INT_ENA);
-	else
-		tilcdc_set(dev, LCDC_INT_ENABLE_SET_REG,
+	} else {
+		tilcdc_write(dev, LCDC_INT_ENABLE_SET_REG,
 			   LCDC_V2_UNDERFLOW_INT_ENA |
 			   LCDC_V2_END_OF_FRAME0_INT_ENA |
 			   LCDC_FRAME_DONE);
+	}
 
 	return 0;
 }
@@ -397,7 +398,7 @@ static void tilcdc_irq_uninstall(struct drm_device *dev)
 				LCDC_V1_UNDERFLOW_INT_ENA | LCDC_V1_PL_INT_ENA);
 		tilcdc_clear(dev, LCDC_DMA_CTRL_REG, LCDC_V1_END_OF_FRAME_INT_ENA);
 	} else {
-		tilcdc_clear(dev, LCDC_INT_ENABLE_SET_REG,
+		tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
 			LCDC_V2_UNDERFLOW_INT_ENA | LCDC_V2_PL_INT_ENA |
 			LCDC_V2_END_OF_FRAME0_INT_ENA |
 			LCDC_FRAME_DONE);
@@ -442,7 +443,7 @@ static const struct {
 		REG(2, false, LCDC_INT_ENABLE_CLR_REG),
 		REG(2, false, LCDC_END_OF_INT_IND_REG),
 		REG(2, true,  LCDC_CLK_ENABLE_REG),
-		REG(2, true,  LCDC_INT_ENABLE_SET_REG),
+		REG(2, true, LCDC_INT_ENABLE_SET_REG),
 #undef REG
 };
 
