@@ -348,6 +348,7 @@ struct usb_xpad {
 	struct urb *irq_out;		/* urb for interrupt out report */
 	bool irq_out_active;		/* we must not use an active URB */
 	unsigned char *odata;		/* output data */
+	u8 odata_serial;		/* serial number for xbox one protocol */
 	dma_addr_t odata_dma;
 	spinlock_t odata_lock;
 
@@ -923,7 +924,10 @@ static int xpad_start_xbox_one(struct usb_xpad *xpad)
 	/* Xbox one controller needs to be initialized. */
 	packet->data[0] = 0x05;
 	packet->data[1] = 0x20;
-	packet->len = 2;
+	packet->data[2] = xpad->odata_serial++; /* packet serial */
+	packet->data[3] = 0x01; /* rumble bit enable?  */
+	packet->data[4] = 0x00;
+	packet->len = 5;
 	packet->pending = true;
 
 	/* Reset the sequence so we send out start packet first */
@@ -998,17 +1002,18 @@ static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect 
 	case XTYPE_XBOXONE:
 		packet->data[0] = 0x09; /* activate rumble */
 		packet->data[1] = 0x08;
-		packet->data[2] = 0x00;
+		packet->data[2] = xpad->odata_serial++;
 		packet->data[3] = 0x08; /* continuous effect */
 		packet->data[4] = 0x00; /* simple rumble mode */
 		packet->data[5] = 0x03; /* L and R actuator only */
 		packet->data[6] = 0x00; /* TODO: LT actuator */
 		packet->data[7] = 0x00; /* TODO: RT actuator */
-		packet->data[8] = strong / 256;	/* left actuator */
-		packet->data[9] = weak / 256;	/* right actuator */
+		packet->data[8] = strong / 512;	/* left actuator */
+		packet->data[9] = weak / 512;	/* right actuator */
 		packet->data[10] = 0x80;	/* length of pulse */
 		packet->data[11] = 0x00;	/* stop period of pulse */
-		packet->len = 12;
+		packet->data[12] = 0x00;
+		packet->len = 13;
 		packet->pending = true;
 		break;
 
