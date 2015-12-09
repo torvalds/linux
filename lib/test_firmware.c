@@ -54,10 +54,9 @@ static ssize_t trigger_request_store(struct device *dev,
 	int rc;
 	char *name;
 
-	name = kzalloc(count + 1, GFP_KERNEL);
+	name = kstrndup(buf, count, GFP_KERNEL);
 	if (!name)
 		return -ENOSPC;
-	memcpy(name, buf, count);
 
 	pr_info("loading '%s'\n", name);
 
