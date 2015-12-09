@@ -29,7 +29,6 @@
 #include <target/iscsi/iscsi_transport.h>
 #include <linux/semaphore.h>
 
-#include "isert_proto.h"
 #include "ib_isert.h"
 
 #define	ISERT_MAX_CONN		8
