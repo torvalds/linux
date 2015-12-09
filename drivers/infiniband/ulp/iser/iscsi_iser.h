@@ -585,9 +585,8 @@ struct iscsi_iser_task {
 
 struct iser_page_vec {
 	u64 *pages;
-	int length;
-	int offset;
-	int data_size;
+	int npages;
+	struct ib_mr fake_mr;
 };
 
 /**
