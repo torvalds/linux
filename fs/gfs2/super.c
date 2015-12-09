@@ -851,10 +851,6 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	gfs2_quota_sync(sdp->sd_vfs, 0);
 	gfs2_statfs_sync(sdp->sd_vfs, 0);
 
-	down_write(&sdp->sd_log_flush_lock);
-	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
-	up_write(&sdp->sd_log_flush_lock);
-
 	gfs2_log_flush(sdp, NULL, SHUTDOWN_FLUSH);
 	wait_event(sdp->sd_reserving_log_wait, atomic_read(&sdp->sd_reserving_log) == 0);
 	gfs2_assert_warn(sdp, atomic_read(&sdp->sd_log_blks_free) == sdp->sd_jdesc->jd_blocks);
