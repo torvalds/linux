@@ -700,9 +700,9 @@ void media_entity_remove_links(struct media_entity *entity)
 	if (entity->graph_obj.mdev == NULL)
 		return;
 
-	mutex_lock(&entity->graph_obj.mdev->graph_mutex);
+	spin_lock(&entity->graph_obj.mdev->lock);
 	__media_entity_remove_links(entity);
-	mutex_unlock(&entity->graph_obj.mdev->graph_mutex);
+	spin_unlock(&entity->graph_obj.mdev->lock);
 }
 EXPORT_SYMBOL_GPL(media_entity_remove_links);
 
@@ -792,9 +792,9 @@ int media_entity_setup_link(struct media_link *link, u32 flags)
 {
 	int ret;
 
-	mutex_lock(&link->source->entity->graph_obj.mdev->graph_mutex);
+	spin_lock(&link->source->entity->graph_obj.mdev->lock);
 	ret = __media_entity_setup_link(link, flags);
-	mutex_unlock(&link->source->entity->graph_obj.mdev->graph_mutex);
+	spin_unlock(&link->source->entity->graph_obj.mdev->lock);
 
 	return ret;
 }
@@ -932,9 +932,9 @@ EXPORT_SYMBOL_GPL(__media_remove_intf_link);
 
 void media_remove_intf_link(struct media_link *link)
 {
-	mutex_lock(&link->graph_obj.mdev->graph_mutex);
+	spin_lock(&link->graph_obj.mdev->lock);
 	__media_remove_intf_link(link);
-	mutex_unlock(&link->graph_obj.mdev->graph_mutex);
+	spin_unlock(&link->graph_obj.mdev->lock);
 }
 EXPORT_SYMBOL_GPL(media_remove_intf_link);
 
@@ -954,8 +954,8 @@ void media_remove_intf_links(struct media_interface *intf)
 	if (intf->graph_obj.mdev == NULL)
 		return;
 
-	mutex_lock(&intf->graph_obj.mdev->graph_mutex);
+	spin_lock(&intf->graph_obj.mdev->lock);
 	__media_remove_intf_links(intf);
-	mutex_unlock(&intf->graph_obj.mdev->graph_mutex);
+	spin_unlock(&intf->graph_obj.mdev->lock);
 }
 EXPORT_SYMBOL_GPL(media_remove_intf_links);

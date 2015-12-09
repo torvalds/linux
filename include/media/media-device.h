@@ -88,7 +88,7 @@ struct media_device {
 	struct list_head pads;
 	struct list_head links;
 
-	/* Protects the entities list */
+	/* Protects the graph objects creation/removal */
 	spinlock_t lock;
 	/* Serializes graph operations. */
 	struct mutex graph_mutex;
