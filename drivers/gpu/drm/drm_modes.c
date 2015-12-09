@@ -708,7 +708,8 @@ void drm_mode_set_name(struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_mode_set_name);
 
-/** drm_mode_hsync - get the hsync of a mode
+/**
+ * drm_mode_hsync - get the hsync of a mode
  * @mode: mode
  *
  * Returns:
