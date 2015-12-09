@@ -141,6 +141,7 @@ static int adf_handle_response(struct adf_etr_ring_data *ring)
 
 	while (*msg != ADF_RING_EMPTY_SIG) {
 		ring->callback((uint32_t *)msg);
+		atomic_dec(ring->inflights);
 		*msg = ADF_RING_EMPTY_SIG;
 		ring->head = adf_modulo(ring->head +
 					ADF_MSG_SIZE_TO_BYTES(ring->msg_size),
@@ -148,12 +149,10 @@ static int adf_handle_response(struct adf_etr_ring_data *ring)
 		msg_counter++;
 		msg = (uint32_t *)((uintptr_t)ring->base_addr + ring->head);
 	}
-	if (msg_counter > 0) {
+	if (msg_counter > 0)
 		WRITE_CSR_RING_HEAD(ring->bank->csr_addr,
 				    ring->bank->bank_number,
 				    ring->ring_number, ring->head);
-		atomic_sub(msg_counter, ring->inflights);
-	}
 	return 0;
 }
 
