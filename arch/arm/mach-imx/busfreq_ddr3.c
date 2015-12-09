@@ -343,8 +343,8 @@ int update_ddr_freq_imx_smp(int ddr_rate)
 	__cpuc_flush_dcache_area(&iram_tlb_phys_addr,
 		sizeof(iram_tlb_phys_addr));
 	if (cpu_is_imx6())
-		outer_clean_range(virt_to_phys(&iram_tlb_phys_addr),
-			virt_to_phys(&iram_tlb_phys_addr + 1));
+		outer_clean_range(__pa(&iram_tlb_phys_addr),
+			__pa(&iram_tlb_phys_addr + 1));
 
 	ttbr1 = save_ttbr1();
 	/* Now we can change the DDR frequency. */
