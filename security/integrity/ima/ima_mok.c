@@ -16,7 +16,7 @@
 #include <linux/sched.h>
 #include <linux/cred.h>
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <keys/asymmetric-type.h>
 
 
@@ -52,5 +52,4 @@ __init int ima_mok_init(void)
 	set_bit(KEY_FLAG_KEEP, &ima_blacklist_keyring->flags);
 	return 0;
 }
-
-module_init(ima_mok_init);
+device_initcall(ima_mok_init);
