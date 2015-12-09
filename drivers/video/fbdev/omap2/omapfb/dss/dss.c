@@ -793,12 +793,12 @@ void dss_runtime_put(void)
 }
 
 /* DEBUGFS */
-#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
+#if defined(CONFIG_FB_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s)
 {
 	dss_dump_clocks(s);
 	dispc_dump_clocks(s);
-#ifdef CONFIG_OMAP2_DSS_DSI
+#ifdef CONFIG_FB_OMAP2_DSS_DSI
 	dsi_dump_clocks(s);
 #endif
 }
@@ -1144,7 +1144,7 @@ static int dss_bind(struct device *dev)
 
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 
-#ifdef CONFIG_OMAP2_DSS_VENC
+#ifdef CONFIG_FB_OMAP2_DSS_VENC
 	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
 	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
 	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */

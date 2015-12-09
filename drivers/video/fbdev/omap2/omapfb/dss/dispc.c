@@ -3721,8 +3721,8 @@ bool dispc_div_calc(unsigned long dispc,
 	unsigned min_fck_per_pck;
 	unsigned long fck;
 
-#ifdef CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK
-	min_fck_per_pck = CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK;
+#ifdef CONFIG_FB_OMAP2_DSS_MIN_FCK_PER_PCK
+	min_fck_per_pck = CONFIG_FB_OMAP2_DSS_MIN_FCK_PER_PCK;
 #else
 	min_fck_per_pck = 0;
 #endif

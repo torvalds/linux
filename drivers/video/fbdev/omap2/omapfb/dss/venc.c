@@ -388,7 +388,7 @@ static void venc_reset(void)
 		}
 	}
 
-#ifdef CONFIG_OMAP2_DSS_SLEEP_AFTER_VENC_RESET
+#ifdef CONFIG_FB_OMAP2_DSS_SLEEP_AFTER_VENC_RESET
 	/* the magical sleep that makes things work */
 	/* XXX more info? What bug this circumvents? */
 	msleep(20);

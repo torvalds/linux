@@ -369,7 +369,7 @@ struct dsi_data {
 	int debug_read;
 	int debug_write;
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	spinlock_t irq_stats_lock;
 	struct dsi_irq_stats irq_stats;
 #endif
@@ -698,7 +698,7 @@ static void print_irq_status_cio(u32 status)
 #undef PIS
 }
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 static void dsi_collect_irq_stats(struct platform_device *dsidev, u32 irqstatus,
 		u32 *vcstatus, u32 ciostatus)
 {
@@ -1551,7 +1551,7 @@ void dsi_dump_clocks(struct seq_file *s)
 	}
 }
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 static void dsi_dump_dsidev_irqs(struct platform_device *dsidev,
 		struct seq_file *s)
 {
@@ -5296,7 +5296,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	spin_lock_init(&dsi->errors_lock);
 	dsi->errors = 0;
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	spin_lock_init(&dsi->irq_stats_lock);
 	dsi->irq_stats.last_reset = jiffies;
 #endif
@@ -5468,7 +5468,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	else if (dsi->module_id == 1)
 		dss_debugfs_create_file("dsi2_regs", dsi2_dump_regs);
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	if (dsi->module_id == 0)
 		dss_debugfs_create_file("dsi1_irqs", dsi1_dump_irqs);
 	else if (dsi->module_id == 1)

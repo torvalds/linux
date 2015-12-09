@@ -278,7 +278,7 @@ void dss_video_pll_uninit(struct dss_pll *pll);
 struct device_node *dss_of_port_get_parent_device(struct device_node *port);
 u32 dss_of_port_get_port_number(struct device_node *port);
 
-#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
+#if defined(CONFIG_FB_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
 
@@ -311,7 +311,7 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void);
 
-#ifdef CONFIG_OMAP2_DSS_SDI
+#ifdef CONFIG_FB_OMAP2_DSS_SDI
 int sdi_init_port(struct platform_device *pdev, struct device_node *port);
 void sdi_uninit_port(struct device_node *port);
 #else
@@ -327,7 +327,7 @@ static inline void sdi_uninit_port(struct device_node *port)
 
 /* DSI */
 
-#ifdef CONFIG_OMAP2_DSS_DSI
+#ifdef CONFIG_FB_OMAP2_DSS_DSI
 
 struct dentry;
 struct file_operations;
@@ -353,7 +353,7 @@ static inline u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 int dpi_init_platform_driver(void) __init;
 void dpi_uninit_platform_driver(void);
 
-#ifdef CONFIG_OMAP2_DSS_DPI
+#ifdef CONFIG_FB_OMAP2_DSS_DPI
 int dpi_init_port(struct platform_device *pdev, struct device_node *port);
 void dpi_uninit_port(struct device_node *port);
 #else
@@ -428,7 +428,7 @@ int rfbi_init_platform_driver(void) __init;
 void rfbi_uninit_platform_driver(void);
 
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 static inline void dss_collect_irq_stats(u32 irqstatus, unsigned *irq_arr)
 {
 	int b;

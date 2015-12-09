@@ -1,17 +1,13 @@
-config OMAP2_DSS_INIT
+config FB_OMAP2_DSS_INIT
 	bool
 
-menuconfig OMAP2_DSS
-        tristate "OMAP2+ Display Subsystem support"
+config FB_OMAP2_DSS
+        tristate
 	select VIDEOMODE_HELPERS
-	select OMAP2_DSS_INIT
+	select FB_OMAP2_DSS_INIT
 	select HDMI
-        help
-	  OMAP2+ Display Subsystem support.
 
-if OMAP2_DSS
-
-config OMAP2_DSS_DEBUG
+config FB_OMAP2_DSS_DEBUG
 	bool "Debug support"
 	default n
 	help
@@ -19,7 +15,7 @@ config OMAP2_DSS_DEBUG
 	  can also be enabled by setting CONFIG_DYNAMIC_DEBUG and then setting
 	  appropriate flags in <debugfs>/dynamic_debug/control.
 
-config OMAP2_DSS_DEBUGFS
+config FB_OMAP2_DSS_DEBUGFS
 	bool "Debugfs filesystem support"
 	depends on DEBUG_FS
 	default n
@@ -28,9 +24,9 @@ config OMAP2_DSS_DEBUGFS
 	  querying about clock configuration and register configuration of dss,
 	  dispc, dsi, hdmi and rfbi.
 
-config OMAP2_DSS_COLLECT_IRQ_STATS
+config FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	bool "Collect DSS IRQ statistics"
-	depends on OMAP2_DSS_DEBUGFS
+	depends on FB_OMAP2_DSS_DEBUGFS
 	default n
 	help
 	  Collect DSS IRQ statistics, printable via debugfs.
@@ -39,13 +35,13 @@ config OMAP2_DSS_COLLECT_IRQ_STATS
 	  <debugfs>/omapdss/dispc_irq for DISPC interrupts, and
 	  <debugfs>/omapdss/dsi_irq for DSI interrupts.
 
-config OMAP2_DSS_DPI
+config FB_OMAP2_DSS_DPI
 	bool "DPI support"
 	default y
 	help
 	  DPI Interface. This is the Parallel Display Interface.
 
-config OMAP2_DSS_RFBI
+config FB_OMAP2_DSS_RFBI
 	bool "RFBI support"
 	depends on BROKEN
         default n
@@ -58,32 +54,32 @@ config OMAP2_DSS_RFBI
 
 	  See http://www.mipi.org/ for DBI specifications.
 
-config OMAP2_DSS_VENC
+config FB_OMAP2_DSS_VENC
 	bool "VENC support"
         default y
 	help
 	  OMAP Video Encoder support for S-Video and composite TV-out.
 
-config OMAP2_DSS_HDMI_COMMON
+config FB_OMAP2_DSS_HDMI_COMMON
 	bool
 
-config OMAP4_DSS_HDMI
+config FB_OMAP4_DSS_HDMI
 	bool "HDMI support for OMAP4"
         default y
-	select OMAP2_DSS_HDMI_COMMON
+	select FB_OMAP2_DSS_HDMI_COMMON
 	help
 	  HDMI support for OMAP4 based SoCs.
 
-config OMAP5_DSS_HDMI
+config FB_OMAP5_DSS_HDMI
 	bool "HDMI support for OMAP5"
 	default n
-	select OMAP2_DSS_HDMI_COMMON
+	select FB_OMAP2_DSS_HDMI_COMMON
 	help
 	  HDMI Interface for OMAP5 and similar cores. This adds the High
 	  Definition Multimedia Interface. See http://www.hdmi.org/ for HDMI
 	  specification.
 
-config OMAP2_DSS_SDI
+config FB_OMAP2_DSS_SDI
 	bool "SDI support"
         default n
 	help
@@ -92,7 +88,7 @@ config OMAP2_DSS_SDI
 	  SDI is a high speed one-way display serial bus between the host
 	  processor and a display.
 
-config OMAP2_DSS_DSI
+config FB_OMAP2_DSS_DSI
 	bool "DSI support"
         default n
 	help
@@ -103,7 +99,7 @@ config OMAP2_DSS_DSI
 
 	  See http://www.mipi.org/ for DSI specifications.
 
-config OMAP2_DSS_MIN_FCK_PER_PCK
+config FB_OMAP2_DSS_MIN_FCK_PER_PCK
 	int "Minimum FCK/PCK ratio (for scaling)"
 	range 0 32
 	default 0
@@ -121,7 +117,7 @@ config OMAP2_DSS_MIN_FCK_PER_PCK
 	  Max FCK is 173MHz, so this doesn't work if your PCK
 	  is very high.
 
-config OMAP2_DSS_SLEEP_AFTER_VENC_RESET
+config FB_OMAP2_DSS_SLEEP_AFTER_VENC_RESET
 	bool "Sleep 20ms after VENC reset"
 	default y
 	help
@@ -131,5 +127,3 @@ config OMAP2_DSS_SLEEP_AFTER_VENC_RESET
 
 	  This option enables the sleep, and is enabled by default. You can
 	  disable the sleep if it doesn't cause problems on your platform.
-
-endif

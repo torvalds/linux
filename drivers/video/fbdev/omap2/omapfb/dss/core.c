@@ -98,7 +98,7 @@ int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
 		return 0;
 }
 
-#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
+#if defined(CONFIG_FB_OMAP2_DSS_DEBUGFS)
 static int dss_debug_show(struct seq_file *s, void *unused)
 {
 	void (*func)(struct seq_file *) = s->private;
@@ -150,7 +150,7 @@ int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 
 	return PTR_ERR_OR_ZERO(d);
 }
-#else /* CONFIG_OMAP2_DSS_DEBUGFS */
+#else /* CONFIG_FB_OMAP2_DSS_DEBUGFS */
 static inline int dss_initialize_debugfs(void)
 {
 	return 0;
@@ -162,7 +162,7 @@ int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 {
 	return 0;
 }
-#endif /* CONFIG_OMAP2_DSS_DEBUGFS */
+#endif /* CONFIG_FB_OMAP2_DSS_DEBUGFS */
 
 /* PLATFORM DEVICE */
 static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
@@ -247,49 +247,49 @@ static struct platform_driver omap_dss_driver = {
 static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
 	dss_init_platform_driver,
 	dispc_init_platform_driver,
-#ifdef CONFIG_OMAP2_DSS_DSI
+#ifdef CONFIG_FB_OMAP2_DSS_DSI
 	dsi_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_DPI
+#ifdef CONFIG_FB_OMAP2_DSS_DPI
 	dpi_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_SDI
+#ifdef CONFIG_FB_OMAP2_DSS_SDI
 	sdi_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
+#ifdef CONFIG_FB_OMAP2_DSS_RFBI
 	rfbi_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_VENC
+#ifdef CONFIG_FB_OMAP2_DSS_VENC
 	venc_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP4_DSS_HDMI
+#ifdef CONFIG_FB_OMAP4_DSS_HDMI
 	hdmi4_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP5_DSS_HDMI
+#ifdef CONFIG_FB_OMAP5_DSS_HDMI
 	hdmi5_init_platform_driver,
 #endif
 };
 
 static void (*dss_output_drv_unreg_funcs[])(void) = {
-#ifdef CONFIG_OMAP5_DSS_HDMI
+#ifdef CONFIG_FB_OMAP5_DSS_HDMI
 	hdmi5_uninit_platform_driver,
 #endif
-#ifdef CONFIG_OMAP4_DSS_HDMI
+#ifdef CONFIG_FB_OMAP4_DSS_HDMI
 	hdmi4_uninit_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_VENC
+#ifdef CONFIG_FB_OMAP2_DSS_VENC
 	venc_uninit_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
+#ifdef CONFIG_FB_OMAP2_DSS_RFBI
 	rfbi_uninit_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_SDI
+#ifdef CONFIG_FB_OMAP2_DSS_SDI
 	sdi_uninit_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_DPI
+#ifdef CONFIG_FB_OMAP2_DSS_DPI
 	dpi_uninit_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_DSI
+#ifdef CONFIG_FB_OMAP2_DSS_DSI
 	dsi_uninit_platform_driver,
 #endif
 	dispc_uninit_platform_driver,

@@ -120,7 +120,7 @@ static ssize_t display_timings_store(struct omap_dss_device *dssdev,
 		return -ENOENT;
 
 	found = 0;
-#ifdef CONFIG_OMAP2_DSS_VENC
+#ifdef CONFIG_FB_OMAP2_DSS_VENC
 	if (strncmp("pal", buf, 3) == 0) {
 		t = omap_dss_pal_timings;
 		found = 1;

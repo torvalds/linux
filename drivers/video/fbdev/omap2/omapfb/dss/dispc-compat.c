@@ -60,14 +60,14 @@ static struct {
 	u32 error_irqs;
 	struct work_struct error_work;
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	spinlock_t irq_stats_lock;
 	struct dispc_irq_stats irq_stats;
 #endif
 } dispc_compat;
 
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 static void dispc_dump_irqs(struct seq_file *s)
 {
 	unsigned long flags;
@@ -279,7 +279,7 @@ static irqreturn_t omap_dispc_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 	}
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	spin_lock(&dispc_compat.irq_stats_lock);
 	dispc_compat.irq_stats.irq_count++;
 	dss_collect_irq_stats(irqstatus, dispc_compat.irq_stats.irqs);
@@ -416,7 +416,7 @@ int dss_dispc_initialize_irq(void)
 {
 	int r;
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+#ifdef CONFIG_FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	spin_lock_init(&dispc_compat.irq_stats_lock);
 	dispc_compat.irq_stats.last_reset = jiffies;
 	dss_debugfs_create_file("dispc_irq", dispc_dump_irqs);
