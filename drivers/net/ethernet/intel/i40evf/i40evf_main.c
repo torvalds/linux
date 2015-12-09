@@ -1122,7 +1122,9 @@ static void i40evf_free_queues(struct i40evf_adapter *adapter)
 	if (!adapter->vsi_res)
 		return;
 	kfree(adapter->tx_rings);
+	adapter->tx_rings = NULL;
 	kfree(adapter->rx_rings);
+	adapter->rx_rings = NULL;
 }
 
 /**
