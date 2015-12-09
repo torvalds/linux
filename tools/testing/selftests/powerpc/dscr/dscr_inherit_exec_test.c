@@ -60,14 +60,6 @@ int dscr_inherit_exec(void)
 		else
 			set_dscr(dscr);
 
-		/*
-		 * XXX: Force a context switch out so that DSCR
-		 * current value is copied into the thread struct
-		 * which is required for the child to inherit the
-		 * changed value.
-		 */
-		sleep(1);
-
 		pid = fork();
 		if (pid == -1) {
 			perror("fork() failed");
