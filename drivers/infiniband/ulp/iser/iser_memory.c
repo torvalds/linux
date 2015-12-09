@@ -362,21 +362,16 @@ iser_set_prot_checks(struct scsi_cmnd *sc, u8 *mask)
 		*mask |= ISER_CHECK_GUARD;
 }
 
-static void
+static inline void
 iser_inv_rkey(struct ib_send_wr *inv_wr,
 	      struct ib_mr *mr,
 	      struct ib_cqe *cqe)
 {
-	u32 rkey;
-
 	inv_wr->opcode = IB_WR_LOCAL_INV;
 	inv_wr->wr_cqe = cqe;
 	inv_wr->ex.invalidate_rkey = mr->rkey;
 	inv_wr->send_flags = 0;
 	inv_wr->num_sge = 0;
-
-	rkey = ib_inc_rkey(mr->rkey);
-	ib_update_fast_reg_key(mr, rkey);
 }
 
 static int
@@ -390,6 +385,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	struct ib_sig_attrs *sig_attrs = &tx_desc->sig_attrs;
 	struct ib_cqe *cqe = &iser_task->iser_conn->ib_conn.reg_cqe;
 	struct ib_sig_handover_wr *wr;
+	struct ib_mr *mr = pi_ctx->sig_mr;
 	int ret;
 
 	memset(sig_attrs, 0, sizeof(*sig_attrs));
@@ -400,7 +396,9 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	iser_set_prot_checks(iser_task->sc, &sig_attrs->check_mask);
 
 	if (pi_ctx->sig_mr_valid)
-		iser_inv_rkey(iser_tx_next_wr(tx_desc), pi_ctx->sig_mr, cqe);
+		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr, cqe);
+
+	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
 	wr = sig_handover_wr(iser_tx_next_wr(tx_desc));
 	wr->wr.opcode = IB_WR_REG_SIG_MR;
@@ -409,7 +407,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	wr->wr.num_sge = 1;
 	wr->wr.send_flags = 0;
 	wr->sig_attrs = sig_attrs;
-	wr->sig_mr = pi_ctx->sig_mr;
+	wr->sig_mr = mr;
 	if (scsi_prot_sg_count(iser_task->sc))
 		wr->prot = &prot_reg->sge;
 	else
@@ -419,8 +417,8 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 			   IB_ACCESS_REMOTE_WRITE;
 	pi_ctx->sig_mr_valid = 1;
 
-	sig_reg->sge.lkey = pi_ctx->sig_mr->lkey;
-	sig_reg->rkey = pi_ctx->sig_mr->rkey;
+	sig_reg->sge.lkey = mr->lkey;
+	sig_reg->rkey = mr->rkey;
 	sig_reg->sge.addr = 0;
 	sig_reg->sge.length = scsi_transfer_length(iser_task->sc);
 
@@ -444,6 +442,8 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 
 	if (rsc->mr_valid)
 		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr, cqe);
+
+	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
 	n = ib_map_mr_sg(mr, mem->sg, mem->size, SIZE_4K);
 	if (unlikely(n != mem->size)) {
