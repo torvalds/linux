@@ -4679,7 +4679,9 @@ int bnxt_close_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	bnxt_tx_disable(bp);
 
 	clear_bit(BNXT_STATE_OPEN, &bp->state);
-	cancel_work_sync(&bp->sp_task);
+	smp_mb__after_atomic();
+	while (test_bit(BNXT_STATE_IN_SP_TASK, &bp->state))
+		msleep(20);
 
 	/* Flush rings before disabling interrupts */
 	bnxt_shutdown_nic(bp, irq_re_init);
@@ -5080,8 +5082,12 @@ static void bnxt_sp_task(struct work_struct *work)
 	struct bnxt *bp = container_of(work, struct bnxt, sp_task);
 	int rc;
 
-	if (!test_bit(BNXT_STATE_OPEN, &bp->state))
+	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+	smp_mb__after_atomic();
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
+		clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 		return;
+	}
 
 	if (test_and_clear_bit(BNXT_RX_MASK_SP_EVENT, &bp->sp_event))
 		bnxt_cfg_rx_mode(bp);
@@ -5107,6 +5113,9 @@ static void bnxt_sp_task(struct work_struct *work)
 	}
 	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
 		bnxt_reset_task(bp);
+
+	smp_mb__before_atomic();
+	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 }
 
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
