@@ -28,8 +28,7 @@
 static LIST_HEAD(trigger_commands);
 static DEFINE_MUTEX(trigger_cmd_mutex);
 
-static void
-trigger_data_free(struct event_trigger_data *data)
+void trigger_data_free(struct event_trigger_data *data)
 {
 	if (data->cmd_ops->set_filter)
 		data->cmd_ops->set_filter(NULL, data, NULL);
@@ -306,7 +305,7 @@ const struct file_operations event_trigger_fops = {
  * Currently we only register event commands from __init, so mark this
  * __init too.
  */
-static __init int register_event_command(struct event_command *cmd)
+__init int register_event_command(struct event_command *cmd)
 {
 	struct event_command *p;
 	int ret = 0;
@@ -395,9 +394,8 @@ event_trigger_print(const char *name, struct seq_file *m,
  *
  * Return: 0 on success, errno otherwise
  */
-static int
-event_trigger_init(struct event_trigger_ops *ops,
-		   struct event_trigger_data *data)
+int event_trigger_init(struct event_trigger_ops *ops,
+		       struct event_trigger_data *data)
 {
 	data->ref++;
 	return 0;
@@ -425,8 +423,8 @@ event_trigger_free(struct event_trigger_ops *ops,
 		trigger_data_free(data);
 }
 
-static int trace_event_trigger_enable_disable(struct trace_event_file *file,
-					      int trigger_enable)
+int trace_event_trigger_enable_disable(struct trace_event_file *file,
+				       int trigger_enable)
 {
 	int ret = 0;
 
@@ -483,7 +481,7 @@ clear_event_triggers(struct trace_array *tr)
  * its TRIGGER_COND bit set, otherwise the TRIGGER_COND bit should be
  * cleared.
  */
-static void update_cond_flag(struct trace_event_file *file)
+void update_cond_flag(struct trace_event_file *file)
 {
 	struct event_trigger_data *data;
 	bool set_cond = false;
@@ -560,9 +558,9 @@ out:
  * Usually used directly as the @unreg method in event command
  * implementations.
  */
-static void unregister_trigger(char *glob, struct event_trigger_ops *ops,
-			       struct event_trigger_data *test,
-			       struct trace_event_file *file)
+void unregister_trigger(char *glob, struct event_trigger_ops *ops,
+			struct event_trigger_data *test,
+			struct trace_event_file *file)
 {
 	struct event_trigger_data *data;
 	bool unregistered = false;
@@ -696,9 +694,9 @@ event_trigger_callback(struct event_command *cmd_ops,
  *
  * Return: 0 on success, errno otherwise
  */
-static int set_trigger_filter(char *filter_str,
-			      struct event_trigger_data *trigger_data,
-			      struct trace_event_file *file)
+int set_trigger_filter(char *filter_str,
+		       struct event_trigger_data *trigger_data,
+		       struct trace_event_file *file)
 {
 	struct event_trigger_data *data = trigger_data;
 	struct event_filter *filter = NULL, *tmp;
