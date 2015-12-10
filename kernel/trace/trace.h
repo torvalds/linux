@@ -1292,6 +1292,12 @@ struct event_trigger_ops {
  *	itself logs to the trace buffer, this flag should be set,
  *	otherwise it can be left unspecified.
  *
+ * @needs_rec: A flag that says whether or not this command needs
+ *	access to the trace record in order to perform its function,
+ *	regardless of whether or not it has a filter associated with
+ *	it (filters make a trigger require access to the trace record
+ *	but are not always present).
+ *
  * All the methods below, except for @set_filter(), must be
  * implemented.
  *
@@ -1332,6 +1338,7 @@ struct event_command {
 	char			*name;
 	enum event_trigger_type	trigger_type;
 	bool			post_trigger;
+	bool			needs_rec;
 	int			(*func)(struct event_command *cmd_ops,
 					struct trace_event_file *file,
 					char *glob, char *cmd, char *params);

@@ -493,7 +493,8 @@ void update_cond_flag(struct trace_event_file *file)
 	bool set_cond = false;
 
 	list_for_each_entry_rcu(data, &file->triggers, list) {
-		if (data->filter || data->cmd_ops->post_trigger) {
+		if (data->filter || data->cmd_ops->post_trigger ||
+		    data->cmd_ops->needs_rec) {
 			set_cond = true;
 			break;
 		}
