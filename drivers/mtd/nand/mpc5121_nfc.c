@@ -118,7 +118,6 @@
 #define NFC_TIMEOUT		(HZ / 10)	/* 1/10 s */
 
 struct mpc5121_nfc_prv {
-	struct mtd_info		mtd;
 	struct nand_chip	chip;
 	int			irq;
 	void __iomem		*regs;
@@ -654,8 +653,8 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	if (!prv)
 		return -ENOMEM;
 
-	mtd = &prv->mtd;
 	chip = &prv->chip;
+	mtd = nand_to_mtd(chip);
 
 	mtd->priv = chip;
 	mtd->dev.parent = dev;
