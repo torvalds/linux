@@ -97,7 +97,7 @@
 	};
 
 	soc {
-		busfreq {
+		busfreq: busfreq {
 			compatible = "fsl,imx_busfreq";
 			clocks = <&clks 171>, <&clks 6>, <&clks 11>, <&clks 104>, <&clks 172>, <&clks 58>,
 				<&clks 18>, <&clks 60>, <&clks 20>, <&clks 3>;
