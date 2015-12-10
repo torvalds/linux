@@ -180,6 +180,16 @@
 	status = "okay";
 };
 
+&mmc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc3_pins_a>, <&mmc3_cd_pin_olimex_som_evb>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <4>;
+	cd-gpios = <&pio 7 0 GPIO_ACTIVE_HIGH>; /* PH0 */
+	cd-inverted;
+	status = "okay";
+};
+
 &ohci0 {
 	status = "okay";
 };
@@ -201,6 +211,13 @@
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	mmc3_cd_pin_olimex_som_evb: mmc3_cd_pin@0 {
+		allwinner,pins = "PH0";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 };
 
