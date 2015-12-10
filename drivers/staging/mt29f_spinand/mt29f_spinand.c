@@ -903,9 +903,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 	chip->options	|= NAND_CACHEPRG;
 	chip->select_chip = spinand_select_chip;
 
-	mtd = devm_kzalloc(&spi_nand->dev, sizeof(struct mtd_info), GFP_KERNEL);
-	if (!mtd)
-		return -ENOMEM;
+	mtd = nand_to_mtd(chip);
 
 	dev_set_drvdata(&spi_nand->dev, mtd);
 
