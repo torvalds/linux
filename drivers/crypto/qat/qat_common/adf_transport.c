@@ -345,7 +345,7 @@ void adf_response_handler(uintptr_t bank_addr)
 {
 	struct adf_etr_bank_data *bank = (void *)bank_addr;
 
-	/* Handle all the responses nad reenable IRQs */
+	/* Handle all the responses and reenable IRQs */
 	adf_ring_response_handler(bank);
 	WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr, bank->bank_number,
 				   bank->irq_mask);
@@ -434,6 +434,7 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 		goto err;
 	}
 
+	WRITE_CSR_INT_FLAG(csr_addr, bank_num, ADF_BANK_INT_FLAG_CLEAR_MASK);
 	WRITE_CSR_INT_SRCSEL(csr_addr, bank_num);
 	return 0;
 err:
