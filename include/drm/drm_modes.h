@@ -73,7 +73,7 @@
  * @MODE_ONE_SIZE: only one resolution is supported
  * @MODE_NO_REDUCED: monitor doesn't accept reduced blanking
  * @MODE_NO_STEREO: stereo modes not supported
- * @MODE_UNVERIFIED: mode needs to reverified
+ * @MODE_STALE: mode has become stale
  * @MODE_BAD: unspecified reason
  * @MODE_ERROR: error condition
  *
@@ -117,7 +117,7 @@ enum drm_mode_status {
 	MODE_ONE_SIZE,
 	MODE_NO_REDUCED,
 	MODE_NO_STEREO,
-	MODE_UNVERIFIED = -3,
+	MODE_STALE = -3,
 	MODE_BAD = -2,
 	MODE_ERROR = -1
 };

@@ -146,9 +146,9 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 			connector->name);
-	/* set all modes to the unverified state */
+	/* set all old modes to the stale state */
 	list_for_each_entry(mode, &connector->modes, head)
-		mode->status = MODE_UNVERIFIED;
+		mode->status = MODE_STALE;
 
 	old_status = connector->status;
 
