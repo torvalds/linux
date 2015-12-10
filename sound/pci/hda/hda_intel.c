@@ -288,11 +288,11 @@ enum {
 	(AZX_DCAPS_NO_ALIGN_BUFSIZE | AZX_DCAPS_COUNT_LPIB_DELAY |\
 	 AZX_DCAPS_REVERSE_ASSIGN | AZX_DCAPS_SNOOP_TYPE(SCH))
 
-/* PCH up to IVB; bound with i915 audio component for HDMI, no runtime PM */
+/* PCH up to IVB; no runtime PM */
 #define AZX_DCAPS_INTEL_PCH_NOPM \
-	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_I915_POWERWELL)
+	(AZX_DCAPS_INTEL_PCH_BASE)
 
-/* PCH for HSW/BDW; with runtime PM, but no i915 binding */
+/* PCH for HSW/BDW; with runtime PM */
 #define AZX_DCAPS_INTEL_PCH \
 	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME)
 

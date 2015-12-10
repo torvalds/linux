@@ -150,6 +150,7 @@ struct hdmi_spec {
 
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
 	struct i915_audio_component_audio_ops i915_audio_ops;
+	bool i915_bound; /* was i915 bound in this driver? */
 };
 
 #ifdef CONFIG_SND_HDA_I915
@@ -2234,6 +2235,8 @@ static void generic_hdmi_free(struct hda_codec *codec)
 		eld_proc_free(per_pin);
 	}
 
+	if (spec->i915_bound)
+		snd_hdac_i915_exit(&codec->bus->core);
 	hdmi_array_free(spec);
 	kfree(spec);
 }
@@ -2381,6 +2384,12 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
 
+	/* Try to bind with i915 for any Intel codecs (if not done yet) */
+	if (!codec_has_acomp(codec) &&
+	    (codec->core.vendor_id >> 16) == 0x8086)
+		if (!snd_hdac_i915_init(&codec->bus->core))
+			spec->i915_bound = true;
+
 	if (is_haswell_plus(codec)) {
 		intel_haswell_enable_all_pins(codec, true);
 		intel_haswell_fixup_enable_dp12(codec);
@@ -2404,6 +2413,8 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	}
 
 	if (hdmi_parse_codec(codec) < 0) {
+		if (spec->i915_bound)
+			snd_hdac_i915_exit(&codec->bus->core);
 		codec->spec = NULL;
 		kfree(spec);
 		return -EINVAL;
