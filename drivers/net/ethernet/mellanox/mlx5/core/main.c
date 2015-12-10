@@ -49,6 +49,7 @@
 #include <linux/delay.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
+#include "fs_core.h"
 #ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
 #endif
@@ -1055,6 +1056,11 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_init_srq_table(dev);
 	mlx5_init_mr_table(dev);
 
+	err = mlx5_init_fs(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init flow steering\n");
+		goto err_fs;
+	}
 #ifdef CONFIG_MLX5_CORE_EN
 	err = mlx5_eswitch_init(dev);
 	if (err) {
@@ -1093,6 +1099,8 @@ err_sriov:
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 #endif
 err_reg_dev:
+	mlx5_cleanup_fs(dev);
+err_fs:
 	mlx5_cleanup_mr_table(dev);
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
@@ -1165,6 +1173,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 #endif
 
+	mlx5_cleanup_fs(dev);
 	mlx5_cleanup_mr_table(dev);
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);

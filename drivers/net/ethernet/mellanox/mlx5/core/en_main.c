@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <linux/mlx5/flow_table.h>
+#include <linux/mlx5/fs.h>
 #include "en.h"
 #include "eswitch.h"
 

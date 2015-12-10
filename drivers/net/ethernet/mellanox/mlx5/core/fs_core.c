@@ -436,9 +436,9 @@ static struct mlx5_flow_table *alloc_flow_table(int level, int max_fte,
 	return ft;
 }
 
-static struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
-						      int prio,
-						      int max_fte)
+struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
+					       int prio,
+					       int max_fte)
 {
 	struct mlx5_flow_table *ft;
 	int err;
@@ -491,8 +491,8 @@ unlock_prio:
 	return ERR_PTR(err);
 }
 
-static struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
-						      u32 *fg_in)
+struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
+					       u32 *fg_in)
 {
 	struct mlx5_flow_group *fg;
 	struct mlx5_core_dev *dev = get_dev(&ft->node);
@@ -669,7 +669,7 @@ unlock_fg:
 	return rule;
 }
 
-static struct mlx5_flow_rule *
+struct mlx5_flow_rule *
 mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   u8 match_criteria_enable,
 		   u32 *match_criteria,
@@ -699,12 +699,12 @@ put:
 	return rule;
 }
 
-static void mlx5_del_flow_rule(struct mlx5_flow_rule *rule)
+void mlx5_del_flow_rule(struct mlx5_flow_rule *rule)
 {
 	tree_remove_node(&rule->node);
 }
 
-static int mlx5_destroy_flow_table(struct mlx5_flow_table *ft)
+int mlx5_destroy_flow_table(struct mlx5_flow_table *ft)
 {
 	if (tree_remove_node(&ft->node))
 		mlx5_core_warn(get_dev(&ft->node), "Flow table %d wasn't destroyed, refcount > 1\n",
@@ -713,15 +713,15 @@ static int mlx5_destroy_flow_table(struct mlx5_flow_table *ft)
 	return 0;
 }
 
-static void mlx5_destroy_flow_group(struct mlx5_flow_group *fg)
+void mlx5_destroy_flow_group(struct mlx5_flow_group *fg)
 {
 	if (tree_remove_node(&fg->node))
 		mlx5_core_warn(get_dev(&fg->node), "Flow group %d wasn't destroyed, refcount > 1\n",
 			       fg->id);
 }
 
-static struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
-							   enum mlx5_flow_namespace_type type)
+struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
+						    enum mlx5_flow_namespace_type type)
 {
 	struct mlx5_flow_root_namespace *root_ns = dev->priv.root_ns;
 	int prio;
@@ -867,7 +867,7 @@ static struct mlx5_flow_root_namespace *create_root_ns(struct mlx5_core_dev *dev
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_namespace *ns;
 
-	/* create the root namespace */
+	/* Create the root namespace */
 	root_ns = mlx5_vzalloc(sizeof(*root_ns));
 	if (!root_ns)
 		return NULL;
@@ -1018,7 +1018,7 @@ static int init_fdb_root_ns(struct mlx5_core_dev *dev)
 	if (!dev->priv.fdb_root_ns)
 		return -ENOMEM;
 
-	/* create 1 prio*/
+	/* Create single prio */
 	prio = fs_create_prio(&dev->priv.fdb_root_ns->ns, 0, 1, 0);
 	if (IS_ERR(prio)) {
 		cleanup_single_prio_root_ns(dev, dev->priv.fdb_root_ns);
