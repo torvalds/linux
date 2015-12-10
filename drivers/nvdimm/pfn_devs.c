@@ -241,10 +241,6 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 	if (!is_nd_pmem(nd_pfn->dev.parent))
 		return -ENODEV;
 
-	/* section alignment for simple hotplug */
-	if (nvdimm_namespace_capacity(ndns) < ND_PFN_ALIGN)
-		return -ENODEV;
-
 	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb)))
 		return -ENXIO;
 
@@ -286,12 +282,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 	 */
 	offset = le64_to_cpu(pfn_sb->dataoff);
 	nsio = to_nd_namespace_io(&ndns->dev);
-	if (nsio->res.start & ND_PFN_MASK) {
-		dev_err(&nd_pfn->dev,
-				"init failed: %s not section aligned\n",
-				dev_name(&ndns->dev));
-		return -EBUSY;
-	} else if (offset >= resource_size(&nsio->res)) {
+	if (offset >= resource_size(&nsio->res)) {
 		dev_err(&nd_pfn->dev, "pfn array size exceeds capacity of %s\n",
 				dev_name(&ndns->dev));
 		return -EBUSY;

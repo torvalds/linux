@@ -241,11 +241,6 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	if (rc == 0 || rc == -EBUSY)
 		return rc;
 
-	/* section alignment for simple hotplug */
-	if (nvdimm_namespace_capacity(ndns) < ND_PFN_ALIGN
-			|| pmem->phys_addr & ND_PFN_MASK)
-		return -ENODEV;
-
 	nd_region = to_nd_region(nd_pfn->dev.parent);
 	if (nd_region->ro) {
 		dev_info(&nd_pfn->dev,
@@ -325,16 +320,6 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
 	rc = nd_pfn_init(nd_pfn);
 	if (rc)
 		return rc;
-
-	if (PAGE_SIZE != SZ_4K) {
-		dev_err(dev, "only supported on systems with 4K PAGE_SIZE\n");
-		return -ENXIO;
-	}
-	if (nsio->res.start & ND_PFN_MASK) {
-		dev_err(dev, "%s not memory hotplug section aligned\n",
-				dev_name(&ndns->dev));
-		return -ENXIO;
-	}
 
 	pfn_sb = nd_pfn->pfn_sb;
 	offset = le64_to_cpu(pfn_sb->dataoff);
