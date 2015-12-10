@@ -173,7 +173,6 @@ struct mxc_nand_devtype_data {
 };
 
 struct mxc_nand_host {
-	struct mtd_info		mtd;
 	struct nand_chip	nand;
 	struct device		*dev;
 
@@ -1514,7 +1513,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	host->dev = &pdev->dev;
 	/* structures must be linked */
 	this = &host->nand;
-	mtd = &host->mtd;
+	mtd = nand_to_mtd(this);
 	mtd->priv = this;
 	mtd->dev.parent = &pdev->dev;
 	mtd->name = DRIVER_NAME;
@@ -1702,7 +1701,7 @@ static int mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
 
-	nand_release(&host->mtd);
+	nand_release(nand_to_mtd(&host->nand));
 	if (host->clk_act)
 		clk_disable_unprepare(host->clk);
 
