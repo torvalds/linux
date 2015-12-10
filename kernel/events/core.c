@@ -3154,15 +3154,16 @@ static int event_enable_on_exec(struct perf_event *event,
  * Enable all of a task's events that have been marked enable-on-exec.
  * This expects task == current.
  */
-static void perf_event_enable_on_exec(struct perf_event_context *ctx)
+static void perf_event_enable_on_exec(int ctxn)
 {
-	struct perf_event_context *clone_ctx = NULL;
+	struct perf_event_context *ctx, *clone_ctx = NULL;
 	struct perf_event *event;
 	unsigned long flags;
 	int enabled = 0;
 	int ret;
 
 	local_irq_save(flags);
+	ctx = current->perf_event_ctxp[ctxn];
 	if (!ctx || !ctx->nr_events)
 		goto out;
 
@@ -3205,17 +3206,11 @@ out:
 
 void perf_event_exec(void)
 {
-	struct perf_event_context *ctx;
 	int ctxn;
 
 	rcu_read_lock();
-	for_each_task_context_nr(ctxn) {
-		ctx = current->perf_event_ctxp[ctxn];
-		if (!ctx)
-			continue;
-
-		perf_event_enable_on_exec(ctx);
-	}
+	for_each_task_context_nr(ctxn)
+		perf_event_enable_on_exec(ctxn);
 	rcu_read_unlock();
 }
 
