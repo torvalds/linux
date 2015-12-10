@@ -79,6 +79,7 @@
 #define GPC_PGC_C0	0x800
 #define GPC_PGC_FM	0xa00
 #define ANADIG_SNVS_MISC_CTRL	0x380
+#define ANADIG_DIGPROG	0x800
 #define DDRC_STAT	0x4
 #define DDRC_PWRCTL	0x30
 #define DDRC_PSTAT	0x3fc
@@ -298,6 +299,18 @@
 	orr	r7, r7, #(1 << 3)
 	str	r7, [r11, #DDRC_PWRCTL]
 
+	ldr	r11, [r0, #PM_INFO_MX7_ANATOP_V_OFFSET]
+	ldr	r7, [r11, #ANADIG_DIGPROG]
+	and	r7, r7, #0x11
+	cmp	r7, #0x10
+	beq	10f
+
+	/* TO 1.1 */
+	ldr	r11, [r0, #PM_INFO_MX7_IOMUXC_GPR_V_OFFSET]
+	ldr	r7, =0x38000000
+	str	r7, [r11]
+	b	11f
+10:
 	/* reset ddr_phy  */
 	ldr	r11, [r0, #PM_INFO_MX7_ANATOP_V_OFFSET]
 	ldr	r7, =0x0
@@ -316,6 +329,12 @@
 	ldr	r11, [r0, #PM_INFO_MX7_ANATOP_V_OFFSET]
 	ldr	r7, =(0x1 << 29)
 	str	r7, [r11, #ANADIG_SNVS_MISC_CTRL]
+11:
+	ldr	r11, [r0, #PM_INFO_MX7_SRC_V_OFFSET]
+	ldr	r6, =0x1000
+	ldr	r7, [r11, r6]
+	orr	r7, r7, #0x1
+	str	r7, [r11, r6]
 
 	.endm
 
@@ -342,9 +361,6 @@
 	ldr	r6, =50
 	wait_delay
 
-	ldr	r7, =0x0
-	str	r7, [r1, #ANADIG_SNVS_MISC_CTRL]
-
 	/* clear ddr_phy reset */
 	ldr	r6, =0x1000
 	ldr	r7, [r2, r6]
@@ -353,16 +369,16 @@
 	ldr	r7, [r2, r6]
 	bic	r7, r7, #0x1
 	str	r7, [r2, r6]
-
+13:
 	ldr	r6, [r0, #PM_INFO_DDRC_REG_NUM_OFFSET]
 	ldr	r7, =PM_INFO_DDRC_REG_OFFSET
 	add	r7, r7, r0
-9:
+14:
 	ldr	r8, [r7], #0x4
 	ldr	r9, [r7], #0x4
 	str	r9, [r3, r8]
 	subs	r6, r6, #0x1
-	bne	9b
+	bne	14b
 	ldr	r7, =0x20
 	str	r7, [r3, #DDRC_PWRCTL]
 	ldr	r7, =0x0
@@ -374,6 +390,23 @@
 	bic	r7, r7, #0x2
 	str	r7, [r2, r6]
 
+	ldr	r7, [r1, #ANADIG_DIGPROG]
+	and	r7, r7, #0x11
+	cmp	r7, #0x10
+	beq	12f
+
+	/*
+	 * TKT262940:
+	 * System hang when press RST for DDR PAD is
+	 * in retention mode, fixed on TO1.1
+	 */
+	ldr	r7, [r11]
+	bic	r7, r7, #(1 << 27)
+	str	r7, [r11]
+	ldr	r7, [r11]
+	bic	r7, r7, #(1 << 29)
+	str	r7, [r11]
+12:
 	ldr	r7, =(0x1 << 30)
 	str	r7, [r1, #ANADIG_SNVS_MISC_CTRL]
 
@@ -385,12 +418,12 @@
 	ldr	r7, =PM_INFO_DDRC_PHY_REG_OFFSET
 	add	r7, r7, r0
 
-10:
+15:
 	ldr	r8, [r7], #0x4
 	ldr	r9, [r7], #0x4
 	str	r9, [r4, r8]
 	subs	r6, r6, #0x1
-	bne	10b
+	bne	15b
 
 	ldr	r7, =0x0
 	add	r9, r10, #0x4000
@@ -408,42 +441,42 @@
 	str	r7, [r4, #DDRPHY_LP_CON0]
 
 	/* wait until self-refresh mode entered */
-11:
+16:
 	ldr	r7, [r3, #DDRC_STAT]
 	and	r7, r7, #0x3
 	cmp	r7, #0x3
-	bne	11b
+	bne	16b
 	ldr	r7, =0x0
 	str	r7, [r3, #DDRC_SWCTL]
 	ldr	r7, =0x1
 	str	r7, [r3, #DDRC_DFIMISC]
 	ldr	r7, =0x1
 	str	r7, [r3, #DDRC_SWCTL]
-12:
+17:
 	ldr	r7, [r3, #DDRC_SWSTAT]
 	and	r7, r7, #0x1
 	cmp	r7, #0x1
-	bne	12b
-13:
+	bne	17b
+18:
 	ldr	r7, [r3, #DDRC_STAT]
 	and	r7, r7, #0x20
 	cmp	r7, #0x20
-	bne	13b
+	bne	18b
 
 	/* let DDR out of self-refresh */
 	ldr	r7, =0x0
 	str	r7, [r3, #DDRC_PWRCTL]
-14:
+19:
 	ldr	r7, [r3, #DDRC_STAT]
 	and	r7, r7, #0x30
 	cmp	r7, #0x0
-	bne	14b
+	bne	19b
 
-15:
+20:
 	ldr	r7, [r3, #DDRC_STAT]
 	and	r7, r7, #0x3
 	cmp	r7, #0x1
-	bne	15b
+	bne	20b
 
 	/* enable port */
 	ldr	r7, =0x1
