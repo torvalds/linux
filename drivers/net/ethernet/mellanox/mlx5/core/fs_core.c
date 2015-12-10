@@ -114,3 +114,96 @@ static int tree_remove_node(struct fs_node *node)
 	tree_put_node(node);
 	return 0;
 }
+
+static struct fs_prio *find_prio(struct mlx5_flow_namespace *ns,
+				 unsigned int prio)
+{
+	struct fs_prio *iter_prio;
+
+	fs_for_each_prio(iter_prio, ns) {
+		if (iter_prio->prio == prio)
+			return iter_prio;
+	}
+
+	return NULL;
+}
+
+static unsigned int find_next_free_level(struct fs_prio *prio)
+{
+	if (!list_empty(&prio->node.children)) {
+		struct mlx5_flow_table *ft;
+
+		ft = list_last_entry(&prio->node.children,
+				     struct mlx5_flow_table,
+				     node.list);
+		return ft->level + 1;
+	}
+	return prio->start_level;
+}
+
+static bool masked_memcmp(void *mask, void *val1, void *val2, size_t size)
+{
+	unsigned int i;
+
+	for (i = 0; i < size; i++, mask++, val1++, val2++)
+		if ((*((u8 *)val1) & (*(u8 *)mask)) !=
+		    ((*(u8 *)val2) & (*(u8 *)mask)))
+			return false;
+
+	return true;
+}
+
+static bool compare_match_value(struct mlx5_flow_group_mask *mask,
+				void *fte_param1, void *fte_param2)
+{
+	if (mask->match_criteria_enable &
+	    1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_OUTER_HEADERS) {
+		void *fte_match1 = MLX5_ADDR_OF(fte_match_param,
+						fte_param1, outer_headers);
+		void *fte_match2 = MLX5_ADDR_OF(fte_match_param,
+						fte_param2, outer_headers);
+		void *fte_mask = MLX5_ADDR_OF(fte_match_param,
+					      mask->match_criteria, outer_headers);
+
+		if (!masked_memcmp(fte_mask, fte_match1, fte_match2,
+				   MLX5_ST_SZ_BYTES(fte_match_set_lyr_2_4)))
+			return false;
+	}
+
+	if (mask->match_criteria_enable &
+	    1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_MISC_PARAMETERS) {
+		void *fte_match1 = MLX5_ADDR_OF(fte_match_param,
+						fte_param1, misc_parameters);
+		void *fte_match2 = MLX5_ADDR_OF(fte_match_param,
+						fte_param2, misc_parameters);
+		void *fte_mask = MLX5_ADDR_OF(fte_match_param,
+					  mask->match_criteria, misc_parameters);
+
+		if (!masked_memcmp(fte_mask, fte_match1, fte_match2,
+				   MLX5_ST_SZ_BYTES(fte_match_set_misc)))
+			return false;
+	}
+
+	if (mask->match_criteria_enable &
+	    1 << MLX5_CREATE_FLOW_GROUP_IN_MATCH_CRITERIA_ENABLE_INNER_HEADERS) {
+		void *fte_match1 = MLX5_ADDR_OF(fte_match_param,
+						fte_param1, inner_headers);
+		void *fte_match2 = MLX5_ADDR_OF(fte_match_param,
+						fte_param2, inner_headers);
+		void *fte_mask = MLX5_ADDR_OF(fte_match_param,
+					  mask->match_criteria, inner_headers);
+
+		if (!masked_memcmp(fte_mask, fte_match1, fte_match2,
+				   MLX5_ST_SZ_BYTES(fte_match_set_lyr_2_4)))
+			return false;
+	}
+	return true;
+}
+
+static bool compare_match_criteria(u8 match_criteria_enable1,
+				   u8 match_criteria_enable2,
+				   void *mask1, void *mask2)
+{
+	return match_criteria_enable1 == match_criteria_enable2 &&
+		!memcmp(mask1, mask2, MLX5_ST_SZ_BYTES(fte_match_param));
+}

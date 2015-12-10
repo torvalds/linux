@@ -72,6 +72,7 @@ struct mlx5_flow_rule {
 struct mlx5_flow_table {
 	struct fs_node			node;
 	u32				id;
+	unsigned int			level;
 	enum fs_flow_table_type		type;
 };
 
@@ -83,5 +84,45 @@ struct fs_fte {
 	u32				index;
 	u32				action;
 };
+
+struct fs_prio {
+	struct fs_node			node;
+	unsigned int			max_ft;
+	unsigned int			start_level;
+	unsigned int			prio;
+};
+
+struct mlx5_flow_namespace {
+	/* parent == NULL => root ns */
+	struct	fs_node			node;
+};
+
+struct mlx5_flow_group_mask {
+	u8	match_criteria_enable;
+	u32	match_criteria[MLX5_ST_SZ_DW(fte_match_param)];
+};
+
+#define fs_get_obj(v, _node)  {v = container_of((_node), typeof(*v), node); }
+
+#define fs_list_for_each_entry(pos, root)		\
+	list_for_each_entry(pos, root, node.list)
+
+#define fs_for_each_ns_or_ft_reverse(pos, prio)				\
+	list_for_each_entry_reverse(pos, &(prio)->node.children, list)
+
+#define fs_for_each_ns_or_ft(pos, prio)					\
+	list_for_each_entry(pos, (&(prio)->node.children), list)
+
+#define fs_for_each_prio(pos, ns)			\
+	fs_list_for_each_entry(pos, &(ns)->node.children)
+
+#define fs_for_each_fg(pos, ft)			\
+	fs_list_for_each_entry(pos, &(ft)->node.children)
+
+#define fs_for_each_fte(pos, fg)			\
+	fs_list_for_each_entry(pos, &(fg)->node.children)
+
+#define fs_for_each_dst(pos, fte)			\
+	fs_list_for_each_entry(pos, &(fte)->node.children)
 
 #endif
