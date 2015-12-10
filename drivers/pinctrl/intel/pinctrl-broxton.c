@@ -28,7 +28,6 @@
 		.padcfglock_offset = BXT_PADCFGLOCK,	\
 		.hostown_offset = BXT_HOSTSW_OWN,	\
 		.ie_offset = BXT_GPI_IE,		\
-		.gpp_size = 32,                         \
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
 	}
