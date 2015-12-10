@@ -1201,7 +1201,8 @@ extern int register_event_command(struct event_command *cmd);
  * @func: The trigger 'probe' function called when the triggering
  *	event occurs.  The data passed into this callback is the data
  *	that was supplied to the event_command @reg() function that
- *	registered the trigger (see struct event_command).
+ *	registered the trigger (see struct event_command) along with
+ *	the trace record, rec.
  *
  * @init: An optional initialization function called for the trigger
  *	when the trigger is registered (via the event_command reg()
@@ -1226,7 +1227,8 @@ extern int register_event_command(struct event_command *cmd);
  *	(see trace_event_triggers.c).
  */
 struct event_trigger_ops {
-	void			(*func)(struct event_trigger_data *data);
+	void			(*func)(struct event_trigger_data *data,
+					void *rec);
 	int			(*init)(struct event_trigger_ops *ops,
 					struct event_trigger_data *data);
 	void			(*free)(struct event_trigger_ops *ops,

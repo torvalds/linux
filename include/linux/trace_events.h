@@ -430,7 +430,8 @@ extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
 extern enum event_trigger_type event_triggers_call(struct trace_event_file *file,
 						   void *rec);
 extern void event_triggers_post_call(struct trace_event_file *file,
-				     enum event_trigger_type tt);
+				     enum event_trigger_type tt,
+				     void *rec);
 
 bool trace_event_ignore_this_pid(struct trace_event_file *trace_file);
 
@@ -517,7 +518,7 @@ event_trigger_unlock_commit(struct trace_event_file *file,
 		trace_buffer_unlock_commit(file->tr, buffer, event, irq_flags, pc);
 
 	if (tt)
-		event_triggers_post_call(file, tt);
+		event_triggers_post_call(file, tt, entry);
 }
 
 /**
@@ -550,7 +551,7 @@ event_trigger_unlock_commit_regs(struct trace_event_file *file,
 						irq_flags, pc, regs);
 
 	if (tt)
-		event_triggers_post_call(file, tt);
+		event_triggers_post_call(file, tt, entry);
 }
 
 #ifdef CONFIG_BPF_EVENTS
