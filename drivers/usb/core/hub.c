@@ -124,6 +124,10 @@ struct usb_hub *usb_hub_to_struct_hub(struct usb_device *hdev)
 
 int usb_device_supports_lpm(struct usb_device *udev)
 {
+	/* Some devices have trouble with LPM */
+	if (udev->quirks & USB_QUIRK_NO_LPM)
+		return 0;
+
 	/* USB 2.1 (and greater) devices indicate LPM support through
 	 * their USB 2.0 Extended Capabilities BOS descriptor.
 	 */
@@ -4512,6 +4516,8 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 		goto fail;
 	}
 
+	usb_detect_quirks(udev);
+
 	if (udev->wusb == 0 && le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0201) {
 		retval = usb_get_bos_descriptor(udev);
 		if (!retval) {
@@ -4710,7 +4716,6 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 		if (status < 0)
 			goto loop;
 
-		usb_detect_quirks(udev);
 		if (udev->quirks & USB_QUIRK_DELAY_INIT)
 			msleep(1000);
 
