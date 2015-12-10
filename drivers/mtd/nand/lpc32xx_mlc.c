@@ -275,7 +275,7 @@ static void lpc32xx_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 				  unsigned int ctrl)
 {
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct lpc32xx_nand_host *host = nand_chip->priv;
+	struct lpc32xx_nand_host *host = nand_get_controller_data(nand_chip);
 
 	if (cmd != NAND_CMD_NONE) {
 		if (ctrl & NAND_CLE)
@@ -291,7 +291,7 @@ static void lpc32xx_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 static int lpc32xx_nand_device_ready(struct mtd_info *mtd)
 {
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct lpc32xx_nand_host *host = nand_chip->priv;
+	struct lpc32xx_nand_host *host = nand_get_controller_data(nand_chip);
 
 	if ((readb(MLC_ISR(host->io_base)) &
 	     (MLCISR_CONTROLLER_READY | MLCISR_NAND_READY)) ==
@@ -317,7 +317,7 @@ static irqreturn_t lpc3xxx_nand_irq(int irq, struct lpc32xx_nand_host *host)
 
 static int lpc32xx_waitfunc_nand(struct mtd_info *mtd, struct nand_chip *chip)
 {
-	struct lpc32xx_nand_host *host = chip->priv;
+	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	if (readb(MLC_ISR(host->io_base)) & MLCISR_NAND_READY)
 		goto exit;
@@ -337,7 +337,7 @@ exit:
 static int lpc32xx_waitfunc_controller(struct mtd_info *mtd,
 				       struct nand_chip *chip)
 {
-	struct lpc32xx_nand_host *host = chip->priv;
+	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	if (readb(MLC_ISR(host->io_base)) & MLCISR_CONTROLLER_READY)
 		goto exit;
@@ -389,7 +389,7 @@ static int lpc32xx_xmit_dma(struct mtd_info *mtd, void *mem, int len,
 			    enum dma_transfer_direction dir)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct lpc32xx_nand_host *host = chip->priv;
+	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	struct dma_async_tx_descriptor *desc;
 	int flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 	int res;
@@ -430,7 +430,7 @@ out1:
 static int lpc32xx_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			     uint8_t *buf, int oob_required, int page)
 {
-	struct lpc32xx_nand_host *host = chip->priv;
+	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	int i, j;
 	uint8_t *oobbuf = chip->oob_poi;
 	uint32_t mlc_isr;
@@ -497,7 +497,7 @@ static int lpc32xx_write_page_lowlevel(struct mtd_info *mtd,
 				       const uint8_t *buf, int oob_required,
 				       int page)
 {
-	struct lpc32xx_nand_host *host = chip->priv;
+	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	const uint8_t *oobbuf = chip->oob_poi;
 	uint8_t *dma_buf = (uint8_t *)buf;
 	int res;
@@ -542,7 +542,7 @@ static int lpc32xx_write_page_lowlevel(struct mtd_info *mtd,
 static int lpc32xx_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			    int page)
 {
-	struct lpc32xx_nand_host *host = chip->priv;
+	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
 	/* Read whole page - necessary with MLC controller! */
 	lpc32xx_read_page(mtd, chip, host->dummy_buf, 1, page);
@@ -679,7 +679,8 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	host->pdata = dev_get_platdata(&pdev->dev);
 
-	nand_chip->priv = host;		/* link the private data structures */
+	/* link the private data structures */
+	nand_set_controller_data(nand_chip, host);
 	nand_set_flash_node(nand_chip, pdev->dev.of_node);
 	mtd->dev.parent = &pdev->dev;
 

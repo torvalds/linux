@@ -385,7 +385,7 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 	struct nand_chip *this = mtd_to_nand(mtd);
 	unsigned long cur;
 
-	nmtd = this->priv;
+	nmtd = nand_get_controller_data(this);
 	info = nmtd->info;
 
 	if (chip != -1)
@@ -794,7 +794,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	chip->read_buf     = s3c2410_nand_read_buf;
 	chip->select_chip  = s3c2410_nand_select_chip;
 	chip->chip_delay   = 50;
-	chip->priv	   = nmtd;
+	nand_set_controller_data(chip, nmtd);
 	chip->options	   = set->options;
 	chip->controller   = &info->controller;
 

@@ -65,7 +65,7 @@ static inline void r852_write_reg_dword(struct r852_device *dev,
 static inline struct r852_device *r852_get_dev(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	return chip->priv;
+	return nand_get_controller_data(chip);
 }
 
 
@@ -361,7 +361,7 @@ static void r852_cmdctl(struct mtd_info *mtd, int dat, unsigned int ctrl)
  */
 static int r852_wait(struct mtd_info *mtd, struct nand_chip *chip)
 {
-	struct r852_device *dev = chip->priv;
+	struct r852_device *dev = nand_get_controller_data(chip);
 
 	unsigned long timeout;
 	int status;
@@ -879,7 +879,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	if (!dev)
 		goto error5;
 
-	chip->priv = dev;
+	nand_set_controller_data(chip, dev);
 	dev->chip = chip;
 	dev->pci_dev = pci_dev;
 	pci_set_drvdata(pci_dev, dev);

@@ -45,7 +45,7 @@ static void socrates_nand_write_buf(struct mtd_info *mtd,
 {
 	int i;
 	struct nand_chip *this = mtd_to_nand(mtd);
-	struct socrates_nand_host *host = this->priv;
+	struct socrates_nand_host *host = nand_get_controller_data(this);
 
 	for (i = 0; i < len; i++) {
 		out_be32(host->io_base, FPGA_NAND_ENABLE |
@@ -64,7 +64,7 @@ static void socrates_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	int i;
 	struct nand_chip *this = mtd_to_nand(mtd);
-	struct socrates_nand_host *host = this->priv;
+	struct socrates_nand_host *host = nand_get_controller_data(this);
 	uint32_t val;
 
 	val = FPGA_NAND_ENABLE | FPGA_NAND_CMD_READ;
@@ -105,7 +105,7 @@ static void socrates_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		unsigned int ctrl)
 {
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct socrates_nand_host *host = nand_chip->priv;
+	struct socrates_nand_host *host = nand_get_controller_data(nand_chip);
 	uint32_t val;
 
 	if (cmd == NAND_CMD_NONE)
@@ -130,7 +130,7 @@ static void socrates_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 static int socrates_nand_device_ready(struct mtd_info *mtd)
 {
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct socrates_nand_host *host = nand_chip->priv;
+	struct socrates_nand_host *host = nand_get_controller_data(nand_chip);
 
 	if (in_be32(host->io_base) & FPGA_NAND_BUSY)
 		return 0; /* busy */
@@ -162,7 +162,8 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	mtd = nand_to_mtd(nand_chip);
 	host->dev = &ofdev->dev;
 
-	nand_chip->priv = host;		/* link the private data structures */
+	/* link the private data structures */
+	nand_set_controller_data(nand_chip, host);
 	nand_set_flash_node(nand_chip, ofdev->dev.of_node);
 	mtd->name = "socrates_nand";
 	mtd->dev.parent = &ofdev->dev;

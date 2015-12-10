@@ -34,7 +34,7 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 	if (!b47n)
 		return -ENOMEM;
 
-	b47n->nand_chip.priv = b47n;
+	nand_set_controller_data(&b47n->nand_chip, b47n);
 	mtd = nand_to_mtd(&b47n->nand_chip);
 	mtd->dev.parent = &pdev->dev;
 	b47n->cc = container_of(nflash, struct bcma_drv_cc, nflash);

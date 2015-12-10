@@ -26,7 +26,7 @@
 static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
 	struct nand_chip *nc = mtd_to_nand(mtd);
-	struct orion_nand_data *board = nc->priv;
+	struct orion_nand_data *board = nand_get_controller_data(nc);
 	u32 offs;
 
 	if (cmd == NAND_CMD_NONE)
@@ -124,7 +124,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	mtd->dev.parent = &pdev->dev;
 
-	nc->priv = board;
+	nand_set_controller_data(nc, board);
 	nand_set_flash_node(nc, pdev->dev.of_node);
 	nc->IO_ADDR_R = nc->IO_ADDR_W = io_base;
 	nc->cmd_ctrl = orion_nand_cmd_ctrl;

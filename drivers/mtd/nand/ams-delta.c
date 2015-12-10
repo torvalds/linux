@@ -65,7 +65,7 @@ static struct mtd_partition partition_info[] = {
 static void ams_delta_write_byte(struct mtd_info *mtd, u_char byte)
 {
 	struct nand_chip *this = mtd_to_nand(mtd);
-	void __iomem *io_base = this->priv;
+	void __iomem *io_base = (void __iomem *)nand_get_controller_data(this);
 
 	writew(0, io_base + OMAP_MPUIO_IO_CNTL);
 	writew(byte, this->IO_ADDR_W);
@@ -78,7 +78,7 @@ static u_char ams_delta_read_byte(struct mtd_info *mtd)
 {
 	u_char res;
 	struct nand_chip *this = mtd_to_nand(mtd);
-	void __iomem *io_base = this->priv;
+	void __iomem *io_base = (void __iomem *)nand_get_controller_data(this);
 
 	gpio_set_value(AMS_DELTA_GPIO_PIN_NAND_NRE, 0);
 	ndelay(40);
@@ -206,7 +206,7 @@ static int ams_delta_init(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	this->priv = io_base;
+	nand_set_controller_data(this, (void *)io_base);
 
 	/* Set address of NAND IO lines */
 	this->IO_ADDR_R = io_base + OMAP_MPUIO_INPUT_LATCH;

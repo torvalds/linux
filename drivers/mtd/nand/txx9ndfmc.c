@@ -79,7 +79,7 @@ struct txx9ndfmc_drvdata {
 static struct platform_device *mtd_to_platdev(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct txx9ndfmc_priv *txx9_priv = chip->priv;
+	struct txx9ndfmc_priv *txx9_priv = nand_get_controller_data(chip);
 	return txx9_priv->dev;
 }
 
@@ -135,7 +135,7 @@ static void txx9ndfmc_cmd_ctrl(struct mtd_info *mtd, int cmd,
 			       unsigned int ctrl)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct txx9ndfmc_priv *txx9_priv = chip->priv;
+	struct txx9ndfmc_priv *txx9_priv = nand_get_controller_data(chip);
 	struct platform_device *dev = txx9_priv->dev;
 	struct txx9ndfmc_platform_data *plat = dev_get_platdata(&dev->dev);
 
@@ -340,7 +340,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		chip->chip_delay = 100;
 		chip->controller = &drvdata->hw_control;
 
-		chip->priv = txx9_priv;
+		nand_set_controller_data(chip, txx9_priv);
 		txx9_priv->dev = dev;
 
 		if (plat->ch_mask != 1) {
@@ -389,7 +389,7 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 		if (!mtd)
 			continue;
 		chip = mtd_to_nand(mtd);
-		txx9_priv = chip->priv;
+		txx9_priv = nand_get_controller_data(chip);
 
 		nand_release(mtd);
 		kfree(txx9_priv->mtdname);

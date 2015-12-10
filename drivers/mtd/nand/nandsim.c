@@ -667,7 +667,7 @@ static char *get_partition_name(int i)
 static int init_nandsim(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct nandsim   *ns   = chip->priv;
+	struct nandsim   *ns   = nand_get_controller_data(chip);
 	int i, ret = 0;
 	uint64_t remains;
 	uint64_t next_offset;
@@ -2244,7 +2244,7 @@ static int __init ns_init_module(void)
 	}
 	nsmtd       = nand_to_mtd(chip);
 	nand        = (struct nandsim *)(chip + 1);
-	chip->priv  = (void *)nand;
+	nand_set_controller_data(chip, (void *)nand);
 
 	/*
 	 * Register simulator's callbacks.
