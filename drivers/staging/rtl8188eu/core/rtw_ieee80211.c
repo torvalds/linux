@@ -935,8 +935,8 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 		}
 		break;
 	default:
-		DBG_88E("unknown vendor specific information element ignored (vendor OUI %02x:%02x:%02x len=%lu)\n",
-			pos[0], pos[1], pos[2], (unsigned long)elen);
+		DBG_88E("unknown vendor specific information element ignored (vendor OUI %3phC len=%lu)\n",
+			pos, (unsigned long)elen);
 		return -1;
 	}
 	return 0;
