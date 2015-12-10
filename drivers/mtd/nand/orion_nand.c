@@ -85,11 +85,11 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	u32 val = 0;
 
 	nc = devm_kzalloc(&pdev->dev,
-			sizeof(struct nand_chip) + sizeof(struct mtd_info),
+			sizeof(struct nand_chip),
 			GFP_KERNEL);
 	if (!nc)
 		return -ENOMEM;
-	mtd = (struct mtd_info *)(nc + 1);
+	mtd = nand_to_mtd(nc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	io_base = devm_ioremap_resource(&pdev->dev, res);
