@@ -91,6 +91,10 @@
 #define BRCMF_SCAN_JOIN_PASSIVE_DWELL_TIME_MS	400
 #define BRCMF_SCAN_JOIN_PROBE_INTERVAL_MS	20
 
+#define BRCMF_SCAN_CHANNEL_TIME		40
+#define BRCMF_SCAN_UNASSOC_TIME		40
+#define BRCMF_SCAN_PASSIVE_TIME		120
+
 #define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
 	(sizeof(struct brcmf_assoc_params_le) - sizeof(u16))
 
@@ -5357,37 +5361,27 @@ roam_setup_done:
 }
 
 static s32
-brcmf_dongle_scantime(struct brcmf_if *ifp, s32 scan_assoc_time,
-		      s32 scan_unassoc_time, s32 scan_passive_time)
+brcmf_dongle_scantime(struct brcmf_if *ifp)
 {
 	s32 err = 0;
 
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCAN_CHANNEL_TIME,
-				    scan_assoc_time);
+				    BRCMF_SCAN_CHANNEL_TIME);
 	if (err) {
-		if (err == -EOPNOTSUPP)
-			brcmf_dbg(INFO, "Scan assoc time is not supported\n");
-		else
-			brcmf_err("Scan assoc time error (%d)\n", err);
+		brcmf_err("Scan assoc time error (%d)\n", err);
 		goto dongle_scantime_out;
 	}
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCAN_UNASSOC_TIME,
-				    scan_unassoc_time);
+				    BRCMF_SCAN_UNASSOC_TIME);
 	if (err) {
-		if (err == -EOPNOTSUPP)
-			brcmf_dbg(INFO, "Scan unassoc time is not supported\n");
-		else
-			brcmf_err("Scan unassoc time error (%d)\n", err);
+		brcmf_err("Scan unassoc time error (%d)\n", err);
 		goto dongle_scantime_out;
 	}
 
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_SCAN_PASSIVE_TIME,
-				    scan_passive_time);
+				    BRCMF_SCAN_PASSIVE_TIME);
 	if (err) {
-		if (err == -EOPNOTSUPP)
-			brcmf_dbg(INFO, "Scan passive time is not supported\n");
-		else
-			brcmf_err("Scan passive time error (%d)\n", err);
+		brcmf_err("Scan passive time error (%d)\n", err);
 		goto dongle_scantime_out;
 	}
 
@@ -6089,8 +6083,7 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 	/* make sure RF is ready for work */
 	brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 0);
 
-	brcmf_dongle_scantime(ifp, WL_SCAN_CHANNEL_TIME,
-			      WL_SCAN_UNASSOC_TIME, WL_SCAN_PASSIVE_TIME);
+	brcmf_dongle_scantime(ifp);
 
 	power_mode = cfg->pwr_save ? PM_FAST : PM_OFF;
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, power_mode);

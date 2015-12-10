@@ -29,10 +29,6 @@
 #define WL_ROAM_TRIGGER_LEVEL		-75
 #define WL_ROAM_DELTA			20
 
-#define WL_SCAN_CHANNEL_TIME		40
-#define WL_SCAN_UNASSOC_TIME		40
-#define WL_SCAN_PASSIVE_TIME		120
-
 #define WL_ESCAN_BUF_SIZE		(1024 * 64)
 #define WL_ESCAN_TIMER_INTERVAL_MS	10000 /* E-Scan timeout */
 
