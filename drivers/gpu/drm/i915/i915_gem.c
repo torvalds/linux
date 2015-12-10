@@ -5225,6 +5225,7 @@ i915_gem_object_create_from_data(struct drm_device *dev,
 	i915_gem_object_pin_pages(obj);
 	sg = obj->pages;
 	bytes = sg_copy_from_buffer(sg->sgl, sg->nents, (void *)data, size);
+	obj->dirty = 1;		/* Backing store is now out of date */
 	i915_gem_object_unpin_pages(obj);
 
 	if (WARN_ON(bytes != size)) {
