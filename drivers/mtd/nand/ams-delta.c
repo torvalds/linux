@@ -193,9 +193,6 @@ static int ams_delta_init(struct platform_device *pdev)
 	ams_delta_mtd = nand_to_mtd(this);
 	ams_delta_mtd->owner = THIS_MODULE;
 
-	/* Link the private data with the MTD structure */
-	ams_delta_mtd->priv = this;
-
 	/*
 	 * Don't try to request the memory region from here,
 	 * it should have been already requested from the

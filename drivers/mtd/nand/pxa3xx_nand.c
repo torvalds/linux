@@ -1709,7 +1709,6 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		info->host[cs] = host;
 		host->cs = cs;
 		host->info_data = info;
-		mtd->priv = chip;
 		mtd->dev.parent = &pdev->dev;
 		/* FIXME: all chips use the same device tree partitions */
 		nand_set_flash_node(chip, np);

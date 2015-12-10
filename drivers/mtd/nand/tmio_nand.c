@@ -382,7 +382,6 @@ static int tmio_probe(struct platform_device *dev)
 	platform_set_drvdata(dev, tmio);
 	nand_chip = &tmio->chip;
 	mtd = nand_to_mtd(nand_chip);
-	mtd->priv = nand_chip;
 	mtd->name = "tmio-nand";
 	mtd->dev.parent = &dev->dev;
 

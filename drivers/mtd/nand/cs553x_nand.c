@@ -206,7 +206,6 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	new_mtd = nand_to_mtd(this);
 
 	/* Link the private data with the MTD structure */
-	new_mtd->priv = this;
 	new_mtd->owner = THIS_MODULE;
 
 	/* map physical address */

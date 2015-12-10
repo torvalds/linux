@@ -679,7 +679,6 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	chip = &nfc->chip;
 	mtd = nand_to_mtd(chip);
 
-	mtd->priv = chip;
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = nfc->dev;
 	mtd->name = DRV_NAME;

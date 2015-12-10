@@ -1569,7 +1569,6 @@ static int __init doc_probe(unsigned long physadr)
 	nand->bbt_td		= (struct nand_bbt_descr *) (doc + 1);
 	nand->bbt_md		= nand->bbt_td + 1;
 
-	mtd->priv		= nand;
 	mtd->owner		= THIS_MODULE;
 
 	nand->priv		= doc;

@@ -746,7 +746,6 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 	dev_dbg(priv->dev, "eLBC Set Information for bank %d\n", priv->bank);
 
 	/* Fill in fsl_elbc_mtd structure */
-	mtd->priv = chip;
 	mtd->dev.parent = priv->dev;
 	nand_set_flash_node(chip, priv->dev->of_node);
 

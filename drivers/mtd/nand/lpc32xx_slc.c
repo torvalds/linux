@@ -802,7 +802,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	mtd = nand_to_mtd(chip);
 	chip->priv = host;
 	nand_set_flash_node(chip, pdev->dev.of_node);
-	mtd->priv = chip;
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
 

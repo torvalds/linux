@@ -122,7 +122,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		board = dev_get_platdata(&pdev->dev);
 	}
 
-	mtd->priv = nc;
 	mtd->dev.parent = &pdev->dev;
 
 	nc->priv = board;

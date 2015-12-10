@@ -278,7 +278,6 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	chip->cmd_ctrl		= gpio_nand_cmd_ctrl;
 
 	mtd			= nand_to_mtd(chip);
-	mtd->priv		= chip;
 	mtd->dev.parent		= &pdev->dev;
 
 	platform_set_drvdata(pdev, gpiomtd);

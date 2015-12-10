@@ -685,7 +685,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->vaddr		= vaddr;
 
 	mtd			= nand_to_mtd(&info->chip);
-	mtd->priv		= &info->chip;
 	mtd->dev.parent		= &pdev->dev;
 	nand_set_flash_node(&info->chip, pdev->dev.of_node);
 

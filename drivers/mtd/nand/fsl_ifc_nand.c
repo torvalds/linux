@@ -881,7 +881,6 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	u32 csor;
 
 	/* Fill in fsl_ifc_mtd structure */
-	mtd->priv = chip;
 	mtd->dev.parent = priv->dev;
 	nand_set_flash_node(chip, priv->dev->of_node);
 

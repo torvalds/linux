@@ -245,7 +245,6 @@ static int nuc900_nand_probe(struct platform_device *pdev)
 	chip = &(nuc900_nand->chip);
 	mtd = nand_to_mtd(chip);
 
-	mtd->priv		= chip;
 	mtd->dev.parent		= &pdev->dev;
 	spin_lock_init(&nuc900_nand->lock);
 

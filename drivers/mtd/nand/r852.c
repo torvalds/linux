@@ -638,7 +638,6 @@ static int r852_register_nand_device(struct r852_device *dev)
 
 	WARN_ON(dev->card_registred);
 
-	mtd->priv = dev->chip;
 	mtd->dev.parent = &dev->pci_dev->dev;
 
 	if (dev->readonly)

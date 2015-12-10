@@ -1893,7 +1893,6 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	this->current_chip	= -1;
 
 	/* init the MTD data structures */
-	mtd->priv		= chip;
 	mtd->name		= "gpmi-nand";
 	mtd->dev.parent		= this->dev;
 

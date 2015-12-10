@@ -1009,7 +1009,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	/* Link all private pointers */
 	mtd = nand_to_mtd(&host->nand);
 	nand = &host->nand;
-	mtd->priv = nand;
 	nand->priv = host;
 	nand_set_flash_node(nand, np);
 

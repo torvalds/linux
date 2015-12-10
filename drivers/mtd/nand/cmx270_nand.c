@@ -177,7 +177,6 @@ static int __init cmx270_init(void)
 
 	/* Link the private data with the MTD structure */
 	cmx270_nand_mtd->owner = THIS_MODULE;
-	cmx270_nand_mtd->priv = this;
 
 	/* insert callbacks */
 	this->IO_ADDR_R = cmx270_nand_io;

@@ -782,7 +782,6 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 	chip->chip_delay   = 0;
 
 	/* initialise mtd info data struct */
-	mtd->priv	= chip;
 	mtd->dev.parent = &pdev->dev;
 
 	/* initialise the hardware */

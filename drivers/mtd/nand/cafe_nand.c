@@ -611,7 +611,6 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	mtd = nand_to_mtd(&cafe->nand);
 	mtd->dev.parent = &pdev->dev;
-	mtd->priv = &cafe->nand;
 	cafe->nand.priv = cafe;
 
 	cafe->pdev = pdev;

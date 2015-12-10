@@ -441,7 +441,6 @@ static int au1550nd_probe(struct platform_device *pdev)
 
 	this = &ctx->chip;
 	mtd = nand_to_mtd(this);
-	mtd->priv = this;
 	mtd->dev.parent = &pdev->dev;
 
 	/* figure out which CS# r->start belongs to */

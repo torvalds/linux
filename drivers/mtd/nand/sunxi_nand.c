@@ -1337,7 +1337,6 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 
 	mtd = nand_to_mtd(nand);
 	mtd->dev.parent = dev;
-	mtd->priv = nand;
 
 	ret = nand_scan_ident(mtd, nsels, NULL);
 	if (ret)

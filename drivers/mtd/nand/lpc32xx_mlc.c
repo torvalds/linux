@@ -681,7 +681,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	nand_chip->priv = host;		/* link the private data structures */
 	nand_set_flash_node(nand_chip, pdev->dev.of_node);
-	mtd->priv = nand_chip;
 	mtd->dev.parent = &pdev->dev;
 
 	/* Get NAND clock */

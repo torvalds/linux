@@ -433,7 +433,6 @@ static int jz_nand_probe(struct platform_device *pdev)
 
 	chip		= &nand->chip;
 	mtd		= nand_to_mtd(chip);
-	mtd->priv	= chip;
 	mtd->dev.parent = &pdev->dev;
 	mtd->name	= "jz4740-nand";
 

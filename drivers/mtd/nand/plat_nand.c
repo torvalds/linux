@@ -59,7 +59,6 @@ static int plat_nand_probe(struct platform_device *pdev)
 	data->chip.priv = &data;
 	nand_set_flash_node(&data->chip, pdev->dev.of_node);
 	mtd = nand_to_mtd(&data->chip);
-	mtd->priv = &data->chip;
 	mtd->dev.parent = &pdev->dev;
 
 	data->chip.IO_ADDR_R = data->io_base;

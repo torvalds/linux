@@ -121,7 +121,6 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	pasemi_nand_mtd = nand_to_mtd(chip);
 
 	/* Link the private data with the MTD structure */
-	pasemi_nand_mtd->priv = chip;
 	pasemi_nand_mtd->dev.parent = &ofdev->dev;
 
 	chip->IO_ADDR_R = of_iomap(np, 0);

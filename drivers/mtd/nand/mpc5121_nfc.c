@@ -656,7 +656,6 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip = &prv->chip;
 	mtd = nand_to_mtd(chip);
 
-	mtd->priv = chip;
 	mtd->dev.parent = dev;
 	chip->priv = prv;
 	nand_set_flash_node(chip, dn);

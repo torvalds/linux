@@ -735,7 +735,6 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 
-	mtd->priv		= chip;
 	mtd->name		= "hisi_nand";
 	mtd->dev.parent         = &pdev->dev;
 

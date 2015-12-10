@@ -2128,7 +2128,6 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	nand_chip->priv = host;		/* link the private data structures */
-	mtd->priv = nand_chip;
 	mtd->dev.parent = &pdev->dev;
 
 	/* Set address of NAND IO lines */

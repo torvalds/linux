@@ -2243,7 +2243,6 @@ static int __init ns_init_module(void)
 		return -ENOMEM;
 	}
 	nsmtd       = nand_to_mtd(chip);
-        nsmtd->priv = (void *)chip;
 	nand        = (struct nandsim *)(chip + 1);
 	chip->priv  = (void *)nand;
 
