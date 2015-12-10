@@ -801,6 +801,16 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	perf_config(report__config, &report);
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
+	if (argc) {
+		/*
+		 * Special case: if there's an argument left then assume that
+		 * it's a symbol filter:
+		 */
+		if (argc > 1)
+			usage_with_options(report_usage, options);
+
+		report.symbol_filter_str = argv[0];
+	}
 
 	if (symbol_conf.vmlinux_name &&
 	    access(symbol_conf.vmlinux_name, R_OK)) {
@@ -945,17 +955,6 @@ repeat:
 
 	if (symbol__init(&session->header.env) < 0)
 		goto error;
-
-	if (argc) {
-		/*
-		 * Special case: if there's an argument left then assume that
-		 * it's a symbol filter:
-		 */
-		if (argc > 1)
-			usage_with_options(report_usage, options);
-
-		report.symbol_filter_str = argv[0];
-	}
 
 	sort__setup_elide(stdout);
 
