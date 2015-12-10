@@ -35,6 +35,13 @@
 
 #include <linux/mlx5/mlx5_ifc.h>
 
+#define MLX5_FS_DEFAULT_FLOW_TAG 0x0
+
+enum mlx5_flow_namespace_type {
+	MLX5_FLOW_NAMESPACE_KERNEL,
+	MLX5_FLOW_NAMESPACE_FDB,
+};
+
 struct mlx5_flow_table;
 
 struct mlx5_flow_destination {
@@ -42,6 +49,7 @@ struct mlx5_flow_destination {
 	union {
 		u32			tir_num;
 		struct mlx5_flow_table	*ft;
+		u32			vport_num;
 	};
 };
 #endif

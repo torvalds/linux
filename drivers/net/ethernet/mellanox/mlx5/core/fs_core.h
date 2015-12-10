@@ -46,6 +46,7 @@ enum fs_node_type {
 
 enum fs_flow_table_type {
 	FS_FT_NIC_RX	 = 0x0,
+	FS_FT_FDB	 = 0X4,
 };
 
 enum fs_fte_status {
@@ -124,6 +125,9 @@ struct mlx5_flow_root_namespace {
 	enum   fs_flow_table_type	table_type;
 	struct mlx5_core_dev		*dev;
 };
+
+int mlx5_init_fs(struct mlx5_core_dev *dev);
+void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
 #define fs_get_obj(v, _node)  {v = container_of((_node), typeof(*v), node); }
 

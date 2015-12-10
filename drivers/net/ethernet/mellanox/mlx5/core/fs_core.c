@@ -37,6 +37,54 @@
 #include "fs_core.h"
 #include "fs_cmd.h"
 
+#define INIT_TREE_NODE_ARRAY_SIZE(...)	(sizeof((struct init_tree_node[]){__VA_ARGS__}) /\
+					 sizeof(struct init_tree_node))
+
+#define INIT_PRIO(min_level_val, max_ft_val,\
+		  start_level_val, ...) {.type = FS_TYPE_PRIO,\
+	.min_ft_level = min_level_val,\
+	.start_level = start_level_val,\
+	.max_ft = max_ft_val,\
+	.children = (struct init_tree_node[]) {__VA_ARGS__},\
+	.ar_size = INIT_TREE_NODE_ARRAY_SIZE(__VA_ARGS__) \
+}
+
+#define ADD_PRIO(min_level_val, max_ft_val, start_level_val, ...)\
+	INIT_PRIO(min_level_val, max_ft_val, start_level_val,\
+		  __VA_ARGS__)\
+
+#define ADD_FT_PRIO(max_ft_val, start_level_val, ...)\
+	INIT_PRIO(0, max_ft_val, start_level_val,\
+		  __VA_ARGS__)\
+
+#define ADD_NS(...) {.type = FS_TYPE_NAMESPACE,\
+	.children = (struct init_tree_node[]) {__VA_ARGS__},\
+	.ar_size = INIT_TREE_NODE_ARRAY_SIZE(__VA_ARGS__) \
+}
+
+#define KERNEL_START_LEVEL 0
+#define KERNEL_P0_START_LEVEL KERNEL_START_LEVEL
+#define KERNEL_MAX_FT 2
+#define KENREL_MIN_LEVEL 2
+static struct init_tree_node {
+	enum fs_node_type	type;
+	struct init_tree_node *children;
+	int ar_size;
+	int min_ft_level;
+	int prio;
+	int max_ft;
+	int start_level;
+} root_fs = {
+	.type = FS_TYPE_NAMESPACE,
+	.ar_size = 1,
+	.children = (struct init_tree_node[]) {
+		ADD_PRIO(KENREL_MIN_LEVEL, KERNEL_MAX_FT,
+			 KERNEL_START_LEVEL,
+			 ADD_NS(ADD_FT_PRIO(KERNEL_MAX_FT,
+					    KERNEL_P0_START_LEVEL))),
+	}
+};
+
 static void del_rule(struct fs_node *node);
 static void del_flow_table(struct fs_node *node);
 static void del_flow_group(struct fs_node *node);
@@ -670,4 +718,330 @@ static void mlx5_destroy_flow_group(struct mlx5_flow_group *fg)
 	if (tree_remove_node(&fg->node))
 		mlx5_core_warn(get_dev(&fg->node), "Flow group %d wasn't destroyed, refcount > 1\n",
 			       fg->id);
+}
+
+static struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
+							   enum mlx5_flow_namespace_type type)
+{
+	struct mlx5_flow_root_namespace *root_ns = dev->priv.root_ns;
+	int prio;
+	static struct fs_prio *fs_prio;
+	struct mlx5_flow_namespace *ns;
+
+	if (!root_ns)
+		return NULL;
+
+	switch (type) {
+	case MLX5_FLOW_NAMESPACE_KERNEL:
+		prio = 0;
+		break;
+	case MLX5_FLOW_NAMESPACE_FDB:
+		if (dev->priv.fdb_root_ns)
+			return &dev->priv.fdb_root_ns->ns;
+		else
+			return NULL;
+	default:
+		return NULL;
+	}
+
+	fs_prio = find_prio(&root_ns->ns, prio);
+	if (!fs_prio)
+		return NULL;
+
+	ns = list_first_entry(&fs_prio->node.children,
+			      typeof(*ns),
+			      node.list);
+
+	return ns;
+}
+
+static struct fs_prio *fs_create_prio(struct mlx5_flow_namespace *ns,
+				      unsigned prio, int max_ft,
+				      int start_level)
+{
+	struct fs_prio *fs_prio;
+
+	fs_prio = kzalloc(sizeof(*fs_prio), GFP_KERNEL);
+	if (!fs_prio)
+		return ERR_PTR(-ENOMEM);
+
+	fs_prio->node.type = FS_TYPE_PRIO;
+	tree_init_node(&fs_prio->node, 1, NULL);
+	tree_add_node(&fs_prio->node, &ns->node);
+	fs_prio->max_ft = max_ft;
+	fs_prio->prio = prio;
+	fs_prio->start_level = start_level;
+	list_add_tail(&fs_prio->node.list, &ns->node.children);
+
+	return fs_prio;
+}
+
+static struct mlx5_flow_namespace *fs_init_namespace(struct mlx5_flow_namespace
+						     *ns)
+{
+	ns->node.type = FS_TYPE_NAMESPACE;
+
+	return ns;
+}
+
+static struct mlx5_flow_namespace *fs_create_namespace(struct fs_prio *prio)
+{
+	struct mlx5_flow_namespace	*ns;
+
+	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
+	if (!ns)
+		return ERR_PTR(-ENOMEM);
+
+	fs_init_namespace(ns);
+	tree_init_node(&ns->node, 1, NULL);
+	tree_add_node(&ns->node, &prio->node);
+	list_add_tail(&ns->node.list, &prio->node.children);
+
+	return ns;
+}
+
+static int init_root_tree_recursive(int max_ft_level, struct init_tree_node *init_node,
+				    struct fs_node *fs_parent_node,
+				    struct init_tree_node *init_parent_node,
+				    int index)
+{
+	struct mlx5_flow_namespace *fs_ns;
+	struct fs_prio *fs_prio;
+	struct fs_node *base;
+	int i;
+	int err;
+
+	if (init_node->type == FS_TYPE_PRIO) {
+		if (init_node->min_ft_level > max_ft_level)
+			return -ENOTSUPP;
+
+		fs_get_obj(fs_ns, fs_parent_node);
+		fs_prio = fs_create_prio(fs_ns, index, init_node->max_ft,
+					 init_node->start_level);
+		if (IS_ERR(fs_prio))
+			return PTR_ERR(fs_prio);
+		base = &fs_prio->node;
+	} else if (init_node->type == FS_TYPE_NAMESPACE) {
+		fs_get_obj(fs_prio, fs_parent_node);
+		fs_ns = fs_create_namespace(fs_prio);
+		if (IS_ERR(fs_ns))
+			return PTR_ERR(fs_ns);
+		base = &fs_ns->node;
+	} else {
+		return -EINVAL;
+	}
+	for (i = 0; i < init_node->ar_size; i++) {
+		err = init_root_tree_recursive(max_ft_level,
+					       &init_node->children[i], base,
+					       init_node, i);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int init_root_tree(int max_ft_level, struct init_tree_node *init_node,
+			  struct fs_node *fs_parent_node)
+{
+	int i;
+	struct mlx5_flow_namespace *fs_ns;
+	int err;
+
+	fs_get_obj(fs_ns, fs_parent_node);
+	for (i = 0; i < init_node->ar_size; i++) {
+		err = init_root_tree_recursive(max_ft_level,
+					       &init_node->children[i],
+					       &fs_ns->node,
+					       init_node, i);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static struct mlx5_flow_root_namespace *create_root_ns(struct mlx5_core_dev *dev,
+						       enum fs_flow_table_type
+						       table_type)
+{
+	struct mlx5_flow_root_namespace *root_ns;
+	struct mlx5_flow_namespace *ns;
+
+	/* create the root namespace */
+	root_ns = mlx5_vzalloc(sizeof(*root_ns));
+	if (!root_ns)
+		return NULL;
+
+	root_ns->dev = dev;
+	root_ns->table_type = table_type;
+
+	ns = &root_ns->ns;
+	fs_init_namespace(ns);
+	tree_init_node(&ns->node, 1, NULL);
+	tree_add_node(&ns->node, NULL);
+
+	return root_ns;
+}
+
+static int init_root_ns(struct mlx5_core_dev *dev)
+{
+	int max_ft_level = MLX5_CAP_FLOWTABLE(dev,
+					      flow_table_properties_nic_receive.
+					      max_ft_level);
+
+	dev->priv.root_ns = create_root_ns(dev, FS_FT_NIC_RX);
+	if (IS_ERR_OR_NULL(dev->priv.root_ns))
+		goto cleanup;
+
+	if (init_root_tree(max_ft_level, &root_fs, &dev->priv.root_ns->ns.node))
+		goto cleanup;
+
+	return 0;
+
+cleanup:
+	mlx5_cleanup_fs(dev);
+	return -ENOMEM;
+}
+
+static void cleanup_single_prio_root_ns(struct mlx5_core_dev *dev,
+					struct mlx5_flow_root_namespace *root_ns)
+{
+	struct fs_node *prio;
+
+	if (!root_ns)
+		return;
+
+	if (!list_empty(&root_ns->ns.node.children)) {
+		prio = list_first_entry(&root_ns->ns.node.children,
+					struct fs_node,
+				 list);
+		if (tree_remove_node(prio))
+			mlx5_core_warn(dev,
+				       "Flow steering priority wasn't destroyed, refcount > 1\n");
+	}
+	if (tree_remove_node(&root_ns->ns.node))
+		mlx5_core_warn(dev,
+			       "Flow steering namespace wasn't destroyed, refcount > 1\n");
+	root_ns = NULL;
+}
+
+static void cleanup_root_ns(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_root_namespace *root_ns = dev->priv.root_ns;
+	struct fs_prio *iter_prio;
+
+	if (!MLX5_CAP_GEN(dev, nic_flow_table))
+		return;
+
+	if (!root_ns)
+		return;
+
+	/* stage 1 */
+	fs_for_each_prio(iter_prio, &root_ns->ns) {
+		struct fs_node *node;
+		struct mlx5_flow_namespace *iter_ns;
+
+		fs_for_each_ns_or_ft(node, iter_prio) {
+			if (node->type == FS_TYPE_FLOW_TABLE)
+				continue;
+			fs_get_obj(iter_ns, node);
+			while (!list_empty(&iter_ns->node.children)) {
+				struct fs_prio *obj_iter_prio2;
+				struct fs_node *iter_prio2 =
+					list_first_entry(&iter_ns->node.children,
+							 struct fs_node,
+							 list);
+
+				fs_get_obj(obj_iter_prio2, iter_prio2);
+				if (tree_remove_node(iter_prio2)) {
+					mlx5_core_warn(dev,
+						       "Priority %d wasn't destroyed, refcount > 1\n",
+						       obj_iter_prio2->prio);
+					return;
+				}
+			}
+		}
+	}
+
+	/* stage 2 */
+	fs_for_each_prio(iter_prio, &root_ns->ns) {
+		while (!list_empty(&iter_prio->node.children)) {
+			struct fs_node *iter_ns =
+				list_first_entry(&iter_prio->node.children,
+						 struct fs_node,
+						 list);
+			if (tree_remove_node(iter_ns)) {
+				mlx5_core_warn(dev,
+					       "Namespace wasn't destroyed, refcount > 1\n");
+				return;
+			}
+		}
+	}
+
+	/* stage 3 */
+	while (!list_empty(&root_ns->ns.node.children)) {
+		struct fs_prio *obj_prio_node;
+		struct fs_node *prio_node =
+			list_first_entry(&root_ns->ns.node.children,
+					 struct fs_node,
+					 list);
+
+		fs_get_obj(obj_prio_node, prio_node);
+		if (tree_remove_node(prio_node)) {
+			mlx5_core_warn(dev,
+				       "Priority %d wasn't destroyed, refcount > 1\n",
+				       obj_prio_node->prio);
+			return;
+		}
+	}
+
+	if (tree_remove_node(&root_ns->ns.node)) {
+		mlx5_core_warn(dev,
+			       "root namespace wasn't destroyed, refcount > 1\n");
+		return;
+	}
+
+	dev->priv.root_ns = NULL;
+}
+
+void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
+{
+	cleanup_root_ns(dev);
+	cleanup_single_prio_root_ns(dev, dev->priv.fdb_root_ns);
+}
+
+static int init_fdb_root_ns(struct mlx5_core_dev *dev)
+{
+	struct fs_prio *prio;
+
+	dev->priv.fdb_root_ns = create_root_ns(dev, FS_FT_FDB);
+	if (!dev->priv.fdb_root_ns)
+		return -ENOMEM;
+
+	/* create 1 prio*/
+	prio = fs_create_prio(&dev->priv.fdb_root_ns->ns, 0, 1, 0);
+	if (IS_ERR(prio)) {
+		cleanup_single_prio_root_ns(dev, dev->priv.fdb_root_ns);
+		return PTR_ERR(prio);
+	} else {
+		return 0;
+	}
+}
+
+int mlx5_init_fs(struct mlx5_core_dev *dev)
+{
+	int err = 0;
+
+	if (MLX5_CAP_GEN(dev, nic_flow_table)) {
+		err = init_root_ns(dev);
+		if (err)
+			return err;
+	}
+	if (MLX5_CAP_GEN(dev, eswitch_flow_table)) {
+		err = init_fdb_root_ns(dev);
+		if (err)
+			cleanup_root_ns(dev);
+	}
+
+	return err;
 }
