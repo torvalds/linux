@@ -44,6 +44,8 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->comm_exec = false;
 	machine->kernel_start = 0;
 
+	memset(machine->vmlinux_maps, 0, sizeof(machine->vmlinux_maps));
+
 	machine->root_dir = strdup(root_dir);
 	if (machine->root_dir == NULL)
 		return -ENOMEM;
@@ -769,6 +771,9 @@ int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 {
 	enum map_type type;
 	u64 start = machine__get_running_kernel_start(machine, NULL);
+
+	/* In case of renewal the kernel map, destroy previous one */
+	machine__destroy_kernel_maps(machine);
 
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;

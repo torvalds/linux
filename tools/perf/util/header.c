@@ -724,7 +724,7 @@ static int write_numa_topology(int fd, struct perf_header *h __maybe_unused,
 done:
 	free(buf);
 	fclose(fp);
-	free(node_map);
+	cpu_map__put(node_map);
 	return ret;
 }
 
