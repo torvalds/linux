@@ -116,7 +116,6 @@ static struct atmel_nfc	nand_nfc;
 
 struct atmel_nand_host {
 	struct nand_chip	nand_chip;
-	struct mtd_info		mtd;
 	void __iomem		*io_base;
 	dma_addr_t		io_phys;
 	struct atmel_nand_data	board;
@@ -317,8 +316,10 @@ static int nfc_set_sram_bank(struct atmel_nand_host *host, unsigned int bank)
 		return -EINVAL;
 
 	if (bank) {
+		struct mtd_info *mtd = nand_to_mtd(&host->nand_chip);
+
 		/* Only for a 2k-page or lower flash, NFC can handle 2 banks */
-		if (host->mtd.writesize > 2048)
+		if (mtd->writesize > 2048)
 			return -EINVAL;
 		nfc_writel(host->nfc->hsmc_regs, BANK, ATMEL_HSMC_NFC_BANK1);
 	} else {
@@ -1159,8 +1160,8 @@ static uint16_t *create_lookup_table(struct device *dev, int sector_size)
 static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 					 struct atmel_nand_host *host)
 {
-	struct mtd_info *mtd = &host->mtd;
 	struct nand_chip *nand_chip = &host->nand_chip;
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct resource *regs, *regs_pmerr, *regs_rom;
 	uint16_t *galois_table;
 	int cap, sector_size, err_no;
@@ -1586,8 +1587,8 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 static int atmel_hw_nand_init_params(struct platform_device *pdev,
 					 struct atmel_nand_host *host)
 {
-	struct mtd_info *mtd = &host->mtd;
 	struct nand_chip *nand_chip = &host->nand_chip;
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct resource		*regs;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -2112,8 +2113,8 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	}
 	host->io_phys = (dma_addr_t)mem->start;
 
-	mtd = &host->mtd;
 	nand_chip = &host->nand_chip;
+	mtd = nand_to_mtd(nand_chip);
 	host->dev = &pdev->dev;
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
 		nand_set_flash_node(nand_chip, pdev->dev.of_node);
@@ -2283,7 +2284,7 @@ err_nand_ioremap:
 static int atmel_nand_remove(struct platform_device *pdev)
 {
 	struct atmel_nand_host *host = platform_get_drvdata(pdev);
-	struct mtd_info *mtd = &host->mtd;
+	struct mtd_info *mtd = nand_to_mtd(&host->nand_chip);
 
 	nand_release(mtd);
 
