@@ -65,6 +65,9 @@ do {									\
 		(__dev)->priv.name, __func__, __LINE__, current->pid,	\
 		##__VA_ARGS__)
 
+#define mlx5_core_info(__dev, format, ...)				\
+	dev_info(&(__dev)->pdev->dev, format, ##__VA_ARGS__)
+
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
 	MLX5_CMD_TIME, /* print command execution time */
