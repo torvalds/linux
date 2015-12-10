@@ -12270,18 +12270,22 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	struct intel_encoder *encoder;
 	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
 	unsigned int used_ports = 0;
-	int i;
 
 	/*
 	 * Walk the connector list instead of the encoder
 	 * list to detect the problem on ddi platforms
 	 * where there's just one encoder per digital port.
 	 */
-	for_each_connector_in_state(state, connector, connector_state, i) {
+	drm_for_each_connector(connector, dev) {
+		struct drm_connector_state *connector_state;
+		struct intel_encoder *encoder;
+
+		connector_state = drm_atomic_get_existing_connector_state(state, connector);
+		if (!connector_state)
+			connector_state = connector->state;
+
 		if (!connector_state->best_encoder)
 			continue;
 
