@@ -853,11 +853,11 @@ static unsigned int get_paca_psize(unsigned long addr)
 	unsigned long index, mask_index;
 
 	if (addr < SLICE_LOW_TOP) {
-		lpsizes = get_paca()->context.low_slices_psize;
+		lpsizes = get_paca()->mm_ctx_low_slices_psize;
 		index = GET_LOW_SLICE_INDEX(addr);
 		return (lpsizes >> (index * 4)) & 0xF;
 	}
-	hpsizes = get_paca()->context.high_slices_psize;
+	hpsizes = get_paca()->mm_ctx_high_slices_psize;
 	index = GET_HIGH_SLICE_INDEX(addr);
 	mask_index = index & 0x1;
 	return (hpsizes[index >> 1] >> (mask_index * 4)) & 0xF;

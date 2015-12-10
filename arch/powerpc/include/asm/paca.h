@@ -16,6 +16,7 @@
 
 #ifdef CONFIG_PPC64
 
+#include <linux/string.h>
 #include <asm/types.h>
 #include <asm/lppaca.h>
 #include <asm/mmu.h>
@@ -132,7 +133,13 @@ struct paca_struct {
 #endif /* CONFIG_PPC_BOOK3E */
 
 #ifdef CONFIG_PPC_BOOK3S
-	mm_context_t context;
+	mm_context_id_t mm_ctx_id;
+#ifdef CONFIG_PPC_MM_SLICES
+	u64 mm_ctx_low_slices_psize;
+	unsigned char mm_ctx_high_slices_psize[SLICE_ARRAY_SIZE];
+#else
+	u16 mm_ctx_sllp;
+#endif
 #endif
 
 	/*
@@ -199,7 +206,14 @@ struct paca_struct {
 #ifdef CONFIG_PPC_BOOK3S
 static inline void copy_mm_to_paca(mm_context_t *context)
 {
-	get_paca()->context = *context;
+	get_paca()->mm_ctx_id = context->id;
+#ifdef CONFIG_PPC_MM_SLICES
+	get_paca()->mm_ctx_low_slices_psize = context->low_slices_psize;
+	memcpy(&get_paca()->mm_ctx_high_slices_psize,
+	       &context->high_slices_psize, SLICE_ARRAY_SIZE);
+#else
+	get_paca()->mm_ctx_sllp = context->sllp;
+#endif
 }
 #else
 static inline void copy_mm_to_paca(mm_context_t *context){}
