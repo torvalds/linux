@@ -477,33 +477,33 @@ static int davinci_spi_check_error(struct davinci_spi *dspi, int int_status)
 	struct device *sdev = dspi->bitbang.master->dev.parent;
 
 	if (int_status & SPIFLG_TIMEOUT_MASK) {
-		dev_dbg(sdev, "SPI Time-out Error\n");
+		dev_err(sdev, "SPI Time-out Error\n");
 		return -ETIMEDOUT;
 	}
 	if (int_status & SPIFLG_DESYNC_MASK) {
-		dev_dbg(sdev, "SPI Desynchronization Error\n");
+		dev_err(sdev, "SPI Desynchronization Error\n");
 		return -EIO;
 	}
 	if (int_status & SPIFLG_BITERR_MASK) {
-		dev_dbg(sdev, "SPI Bit error\n");
+		dev_err(sdev, "SPI Bit error\n");
 		return -EIO;
 	}
 
 	if (dspi->version == SPI_VERSION_2) {
 		if (int_status & SPIFLG_DLEN_ERR_MASK) {
-			dev_dbg(sdev, "SPI Data Length Error\n");
+			dev_err(sdev, "SPI Data Length Error\n");
 			return -EIO;
 		}
 		if (int_status & SPIFLG_PARERR_MASK) {
-			dev_dbg(sdev, "SPI Parity Error\n");
+			dev_err(sdev, "SPI Parity Error\n");
 			return -EIO;
 		}
 		if (int_status & SPIFLG_OVRRUN_MASK) {
-			dev_dbg(sdev, "SPI Data Overrun error\n");
+			dev_err(sdev, "SPI Data Overrun error\n");
 			return -EIO;
 		}
 		if (int_status & SPIFLG_BUF_INIT_ACTIVE_MASK) {
-			dev_dbg(sdev, "SPI Buffer Init Active\n");
+			dev_err(sdev, "SPI Buffer Init Active\n");
 			return -EBUSY;
 		}
 	}
