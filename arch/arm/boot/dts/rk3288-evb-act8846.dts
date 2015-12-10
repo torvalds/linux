@@ -65,10 +65,6 @@
 	};
 };
 
-&cpu0 {
-	cpu0-supply = <&vdd_cpu>;
-};
-
 &i2c0 {
 	clock-frequency = <400000>;
 
