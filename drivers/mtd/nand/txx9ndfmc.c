@@ -63,7 +63,6 @@
 struct txx9ndfmc_priv {
 	struct platform_device *dev;
 	struct nand_chip chip;
-	struct mtd_info mtd;
 	int cs;
 	const char *mtdname;
 };
@@ -322,7 +321,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		if (!txx9_priv)
 			continue;
 		chip = &txx9_priv->chip;
-		mtd = &txx9_priv->mtd;
+		mtd = nand_to_mtd(chip);
 		mtd->dev.parent = &dev->dev;
 
 		mtd->priv = chip;
