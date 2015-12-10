@@ -867,6 +867,14 @@ int netvsc_send(struct hv_device *device,
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
 
+	/* Send control message directly without accessing msd (Multi-Send
+	 * Data) field which may be changed during data packet processing.
+	 */
+	if (!skb) {
+		cur_send = packet;
+		goto send_now;
+	}
+
 	msdp = &net_device->msd[q_idx];
 
 	/* batch packets in send buffer if possible */
@@ -939,6 +947,7 @@ int netvsc_send(struct hv_device *device,
 		}
 	}
 
+send_now:
 	if (cur_send)
 		ret = netvsc_send_pkt(cur_send, net_device, pb, skb);
 
