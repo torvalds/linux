@@ -1274,32 +1274,25 @@ static int validate_recv_frame(struct adapter *adapter,
 	/* Dump rx packets */
 	rtw_hal_get_def_var(adapter, HAL_DEF_DBG_DUMP_RXPKT, &(bDumpRxPkt));
 	if (bDumpRxPkt == 1) {/* dump all rx packets */
-		int i;
-		DBG_88E("#############################\n");
-
-		for (i = 0; i < 64; i += 8)
-			DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
-				*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
-		DBG_88E("#############################\n");
+		if (_drv_err_ <= GlobalDebugLevel) {
+			pr_info(DRIVER_PREFIX "#############################\n");
+			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
+					16, 1, ptr, 64, false);
+			pr_info(DRIVER_PREFIX "#############################\n");
+		}
 	} else if (bDumpRxPkt == 2) {
-		if (type == WIFI_MGT_TYPE) {
-			int i;
-			DBG_88E("#############################\n");
-
-			for (i = 0; i < 64; i += 8)
-				DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
-					*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
-			DBG_88E("#############################\n");
+		if ((_drv_err_ <= GlobalDebugLevel) && (type == WIFI_MGT_TYPE)) {
+			pr_info(DRIVER_PREFIX "#############################\n");
+			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
+					16, 1, ptr, 64, false);
+			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	} else if (bDumpRxPkt == 3) {
-		if (type == WIFI_DATA_TYPE) {
-			int i;
-			DBG_88E("#############################\n");
-
-			for (i = 0; i < 64; i += 8)
-				DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
-					*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
-			DBG_88E("#############################\n");
+		if ((_drv_err_ <= GlobalDebugLevel) && (type == WIFI_DATA_TYPE)) {
+			pr_info(DRIVER_PREFIX "#############################\n");
+			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
+					16, 1, ptr, 64, false);
+			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	}
 	switch (type) {
