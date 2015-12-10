@@ -308,5 +308,5 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
 	drm_atomic_state_default_clear(&state->base);
-	state->dpll_set = false;
+	state->dpll_set = state->modeset = false;
 }

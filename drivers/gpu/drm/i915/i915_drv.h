@@ -1819,8 +1819,13 @@ struct drm_i915_private {
 	struct intel_pipe_crc pipe_crc[I915_MAX_PIPES];
 #endif
 
+	/* dpll and cdclk state is protected by connection_mutex */
 	int num_shared_dpll;
 	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
+
+	unsigned int active_crtcs;
+	unsigned int min_pixclk[I915_MAX_PIPES];
+
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 
 	struct i915_workarounds workarounds;

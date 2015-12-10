@@ -246,7 +246,12 @@ struct intel_atomic_state {
 	struct drm_atomic_state base;
 
 	unsigned int cdclk;
-	bool dpll_set;
+
+	bool dpll_set, modeset;
+
+	unsigned int active_crtcs;
+	unsigned int min_pixclk[I915_MAX_PIPES];
+
 	struct intel_shared_dpll_config shared_dpll[I915_NUM_PLLS];
 	struct intel_wm_config wm_config;
 };
