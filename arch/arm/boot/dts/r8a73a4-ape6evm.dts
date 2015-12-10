@@ -110,7 +110,7 @@
 			gpios = <&pfc 324 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_0>;
 			label = "S16";
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		menu-key {

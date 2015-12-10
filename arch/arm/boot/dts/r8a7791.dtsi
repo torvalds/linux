@@ -100,7 +100,7 @@
 		interrupts = <0 5 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
-		gpio-ranges = <&pfc 0 32 32>;
+		gpio-ranges = <&pfc 0 32 26>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		clocks = <&mstp9_clks R8A7791_CLK_GPIO1>;
@@ -255,7 +255,7 @@
 	};
 
 	dmac0: dma-controller@e6700000 {
-		compatible = "renesas,rcar-dmac";
+		compatible = "renesas,dmac-r8a7791", "renesas,rcar-dmac";
 		reg = <0 0xe6700000 0 0x20000>;
 		interrupts = <0 197 IRQ_TYPE_LEVEL_HIGH
 			      0 200 IRQ_TYPE_LEVEL_HIGH
@@ -286,7 +286,7 @@
 	};
 
 	dmac1: dma-controller@e6720000 {
-		compatible = "renesas,rcar-dmac";
+		compatible = "renesas,dmac-r8a7791", "renesas,rcar-dmac";
 		reg = <0 0xe6720000 0 0x20000>;
 		interrupts = <0 220 IRQ_TYPE_LEVEL_HIGH
 			      0 216 IRQ_TYPE_LEVEL_HIGH
@@ -317,7 +317,7 @@
 	};
 
 	audma0: dma-controller@ec700000 {
-		compatible = "renesas,rcar-dmac";
+		compatible = "renesas,dmac-r8a7791", "renesas,rcar-dmac";
 		reg = <0 0xec700000 0 0x10000>;
 		interrupts =	<0 346 IRQ_TYPE_LEVEL_HIGH
 				 0 320 IRQ_TYPE_LEVEL_HIGH
@@ -346,7 +346,7 @@
 	};
 
 	audma1: dma-controller@ec720000 {
-		compatible = "renesas,rcar-dmac";
+		compatible = "renesas,dmac-r8a7791", "renesas,rcar-dmac";
 		reg = <0 0xec720000 0 0x10000>;
 		interrupts =	<0 347 IRQ_TYPE_LEVEL_HIGH
 				 0 333 IRQ_TYPE_LEVEL_HIGH
@@ -1162,14 +1162,6 @@
 			clock-div = <8>;
 			clock-mult = <1>;
 			clock-output-names = "m2";
-		};
-		imp_clk: imp_clk {
-			compatible = "fixed-factor-clock";
-			clocks = <&cpg_clocks R8A7791_CLK_PLL1>;
-			#clock-cells = <0>;
-			clock-div = <4>;
-			clock-mult = <1>;
-			clock-output-names = "imp";
 		};
 		rclk_clk: rclk_clk {
 			compatible = "fixed-factor-clock";
