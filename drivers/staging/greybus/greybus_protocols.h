@@ -662,11 +662,11 @@ struct gb_spi_master_config_response {
 	__le32	max_speed_hz;
 	__le16	mode;
 	__le16	flags;
-	__le16	num_chipselect;
+	__u8	num_chipselect;
 } __packed;
 
 struct gb_spi_device_config_request {
-	__le16	chip_select;
+	__u8	chip_select;
 } __packed;
 
 struct gb_spi_device_config_response {

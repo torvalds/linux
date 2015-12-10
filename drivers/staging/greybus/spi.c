@@ -20,7 +20,7 @@ struct gb_spi {
 	u16			mode;
 	u16			flags;
 	u32			bits_per_word_mask;
-	u16			num_chipselect;
+	u8			num_chipselect;
 	u32			min_speed_hz;
 	u32			max_speed_hz;
 	struct spi_device	*spi_devices;
@@ -270,7 +270,7 @@ static int gb_spi_get_master_config(struct gb_spi *spi)
 	spi->flags = gb_spi_flags_map(flags);
 
 	spi->bits_per_word_mask = le32_to_cpu(response.bits_per_word_mask);
-	spi->num_chipselect = le16_to_cpu(response.num_chipselect);
+	spi->num_chipselect = response.num_chipselect;
 
 	spi->min_speed_hz = le32_to_cpu(response.min_speed_hz);
 	spi->max_speed_hz = le32_to_cpu(response.max_speed_hz);
@@ -278,7 +278,7 @@ static int gb_spi_get_master_config(struct gb_spi *spi)
 	return 0;
 }
 
-static int gb_spi_setup_device(struct gb_spi *spi, uint16_t cs)
+static int gb_spi_setup_device(struct gb_spi *spi, u8 cs)
 {
 	struct spi_master *master = get_master_from_spi(spi);
 	struct gb_spi_device_config_request request;
@@ -287,7 +287,7 @@ static int gb_spi_setup_device(struct gb_spi *spi, uint16_t cs)
 	struct spi_device *spidev = &spi->spi_devices[cs];
 	int ret;
 
-	request.chip_select = cpu_to_le16(cs);
+	request.chip_select = cs;
 
 	ret = gb_operation_sync(spi->connection, GB_SPI_TYPE_DEVICE_CONFIG,
 				&request, sizeof(request),
@@ -331,7 +331,7 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 	struct gb_spi *spi;
 	struct spi_master *master;
 	int ret;
-	int i;
+	u8 i;
 
 	/* Allocate master with space for data */
 	master = spi_alloc_master(&connection->bundle->dev, sizeof(*spi));
