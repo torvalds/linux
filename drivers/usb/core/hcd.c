@@ -668,8 +668,14 @@ nongeneric:
 		/* non-generic request */
 		switch (typeReq) {
 		case GetHubStatus:
-		case GetPortStatus:
 			len = 4;
+			break;
+		case GetPortStatus:
+			if (wValue == HUB_PORT_STATUS)
+				len = 4;
+			else
+				/* other port status types return 8 bytes */
+				len = 8;
 			break;
 		case GetHubDescriptor:
 			len = sizeof (struct usb_hub_descriptor);
