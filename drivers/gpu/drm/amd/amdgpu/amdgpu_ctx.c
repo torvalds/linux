@@ -56,7 +56,6 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, enum amd_sched_priority pri,
 			for (j = 0; j < i; j++)
 				amd_sched_entity_fini(&adev->rings[j]->sched,
 						      &ctx->rings[j].entity);
-			kfree(ctx);
 			return r;
 		}
 	}
@@ -103,8 +102,12 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 	}
 	*id = (uint32_t)r;
 	r = amdgpu_ctx_init(adev, AMD_SCHED_PRIORITY_NORMAL, ctx);
+	if (r) {
+		idr_remove(&mgr->ctx_handles, *id);
+		*id = 0;
+		kfree(ctx);
+	}
 	mutex_unlock(&mgr->lock);
-
 	return r;
 }
 
