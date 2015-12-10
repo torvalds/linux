@@ -126,6 +126,8 @@
 #define BRCMF_TXBF_SU_BFR_CAP		BIT(0)
 #define BRCMF_TXBF_MU_BFR_CAP		BIT(1)
 
+#define	BRCMF_MAXPMKID			16	/* max # PMKID cache entries */
+
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
 	BRCMF_JOIN_PREF_RSSI = 1,
@@ -644,6 +646,28 @@ struct brcmf_assoclist_le {
 struct brcmf_wowl_wakeind_le {
 	__le32 pci_wakeind;
 	__le32 ucode_wakeind;
+};
+
+/**
+ * struct brcmf_pmksa - PMK Security Association
+ *
+ * @bssid: The AP's BSSID.
+ * @pmkid: he PMK material itself.
+ */
+struct brcmf_pmksa {
+	u8 bssid[ETH_ALEN];
+	u8 pmkid[WLAN_PMKID_LEN];
+};
+
+/**
+ * struct brcmf_pmk_list_le - List of pmksa's.
+ *
+ * @npmk: Number of pmksa's.
+ * @pmk: PMK SA information.
+ */
+struct brcmf_pmk_list_le {
+	__le32 npmk;
+	struct brcmf_pmksa pmk[BRCMF_MAXPMKID];
 };
 
 #endif /* FWIL_TYPES_H_ */

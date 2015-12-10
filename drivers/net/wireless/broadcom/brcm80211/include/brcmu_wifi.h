@@ -237,9 +237,6 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 #define WPA2_AUTH_RESERVED4	0x0400
 #define WPA2_AUTH_RESERVED5	0x0800
 
-/* pmkid */
-#define	MAXPMKID		16
-
 #define DOT11_DEFAULT_RTS_LEN		2347
 #define DOT11_DEFAULT_FRAG_LEN		2346
 
@@ -250,25 +247,5 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 
 #define HT_CAP_RX_STBC_NO		0x0
 #define HT_CAP_RX_STBC_ONE_STREAM	0x1
-
-struct pmkid {
-	u8 BSSID[ETH_ALEN];
-	u8 PMKID[WLAN_PMKID_LEN];
-};
-
-struct pmkid_list {
-	__le32 npmkid;
-	struct pmkid pmkid[1];
-};
-
-struct pmkid_cand {
-	u8 BSSID[ETH_ALEN];
-	u8 preauth;
-};
-
-struct pmkid_cand_list {
-	u32 npmkid_cand;
-	struct pmkid_cand pmkid_cand[1];
-};
 
 #endif				/* _BRCMU_WIFI_H_ */

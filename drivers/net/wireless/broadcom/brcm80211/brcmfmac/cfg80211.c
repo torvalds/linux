@@ -3223,26 +3223,22 @@ exit:
 }
 
 static __used s32
-brcmf_update_pmklist(struct net_device *ndev,
-		     struct brcmf_cfg80211_pmk_list *pmk_list, s32 err)
+brcmf_update_pmklist(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp)
 {
-	int i, j;
-	u32 pmkid_len;
+	struct brcmf_pmk_list_le *pmk_list;
+	int i;
+	u32 npmk;
+	s32 err;
 
-	pmkid_len = le32_to_cpu(pmk_list->pmkids.npmkid);
+	pmk_list = &cfg->pmk_list;
+	npmk = le32_to_cpu(pmk_list->npmk);
 
-	brcmf_dbg(CONN, "No of elements %d\n", pmkid_len);
-	for (i = 0; i < pmkid_len; i++) {
-		brcmf_dbg(CONN, "PMKID[%d]: %pM =\n", i,
-			  &pmk_list->pmkids.pmkid[i].BSSID);
-		for (j = 0; j < WLAN_PMKID_LEN; j++)
-			brcmf_dbg(CONN, "%02x\n",
-				  pmk_list->pmkids.pmkid[i].PMKID[j]);
-	}
+	brcmf_dbg(CONN, "No of elements %d\n", npmk);
+	for (i = 0; i < npmk; i++)
+		brcmf_dbg(CONN, "PMK[%d]: %pM\n", i, &pmk_list->pmk[i].bssid);
 
-	if (!err)
-		brcmf_fil_iovar_data_set(netdev_priv(ndev), "pmkid_info",
-					 (char *)pmk_list, sizeof(*pmk_list));
+	err = brcmf_fil_iovar_data_set(ifp, "pmkid_info", pmk_list,
+				       sizeof(*pmk_list));
 
 	return err;
 }
@@ -3253,34 +3249,37 @@ brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct pmkid_list *pmkids = &cfg->pmk_list->pmkids;
-	s32 err = 0;
-	u32 pmkid_len, i;
+	struct brcmf_pmksa *pmk = &cfg->pmk_list.pmk[0];
+	s32 err;
+	u32 npmk, i;
 
 	brcmf_dbg(TRACE, "Enter\n");
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
-	pmkid_len = le32_to_cpu(pmkids->npmkid);
-	for (i = 0; i < pmkid_len; i++)
-		if (!memcmp(pmksa->bssid, pmkids->pmkid[i].BSSID, ETH_ALEN))
+	npmk = le32_to_cpu(cfg->pmk_list.npmk);
+	for (i = 0; i < npmk; i++)
+		if (!memcmp(pmksa->bssid, pmk[i].bssid, ETH_ALEN))
 			break;
-	if (i < WL_NUM_PMKIDS_MAX) {
-		memcpy(pmkids->pmkid[i].BSSID, pmksa->bssid, ETH_ALEN);
-		memcpy(pmkids->pmkid[i].PMKID, pmksa->pmkid, WLAN_PMKID_LEN);
-		if (i == pmkid_len) {
-			pmkid_len++;
-			pmkids->npmkid = cpu_to_le32(pmkid_len);
+	if (i < BRCMF_MAXPMKID) {
+		memcpy(pmk[i].bssid, pmksa->bssid, ETH_ALEN);
+		memcpy(pmk[i].pmkid, pmksa->pmkid, WLAN_PMKID_LEN);
+		if (i == npmk) {
+			npmk++;
+			cfg->pmk_list.npmk = cpu_to_le32(npmk);
 		}
-	} else
-		err = -EINVAL;
+	} else {
+		brcmf_err("Too many PMKSA entries cached %d\n", npmk);
+		return -EINVAL;
+	}
 
-	brcmf_dbg(CONN, "set_pmksa,IW_PMKSA_ADD - PMKID: %pM =\n",
-		  pmkids->pmkid[pmkid_len].BSSID);
-	for (i = 0; i < WLAN_PMKID_LEN; i++)
-		brcmf_dbg(CONN, "%02x\n", pmkids->pmkid[pmkid_len].PMKID[i]);
+	brcmf_dbg(CONN, "set_pmksa - PMK bssid: %pM =\n", pmk[npmk].bssid);
+	for (i = 0; i < WLAN_PMKID_LEN; i += 4)
+		brcmf_dbg(CONN, "%02x %02x %02x %02x\n", pmk[npmk].pmkid[i],
+			  pmk[npmk].pmkid[i + 1], pmk[npmk].pmkid[i + 2],
+			  pmk[npmk].pmkid[i + 3]);
 
-	err = brcmf_update_pmklist(ndev, cfg->pmk_list, err);
+	err = brcmf_update_pmklist(cfg, ifp);
 
 	brcmf_dbg(TRACE, "Exit\n");
 	return err;
@@ -3288,50 +3287,39 @@ brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 
 static s32
 brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *ndev,
-		      struct cfg80211_pmksa *pmksa)
+			 struct cfg80211_pmksa *pmksa)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct pmkid_list pmkid;
-	s32 err = 0;
-	u32 pmkid_len, i;
+	struct brcmf_pmksa *pmk = &cfg->pmk_list.pmk[0];
+	s32 err;
+	u32 npmk, i;
 
 	brcmf_dbg(TRACE, "Enter\n");
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
-	memcpy(&pmkid.pmkid[0].BSSID, pmksa->bssid, ETH_ALEN);
-	memcpy(&pmkid.pmkid[0].PMKID, pmksa->pmkid, WLAN_PMKID_LEN);
+	brcmf_dbg(CONN, "del_pmksa - PMK bssid = %pM\n", &pmksa->bssid);
 
-	brcmf_dbg(CONN, "del_pmksa,IW_PMKSA_REMOVE - PMKID: %pM =\n",
-		  &pmkid.pmkid[0].BSSID);
-	for (i = 0; i < WLAN_PMKID_LEN; i++)
-		brcmf_dbg(CONN, "%02x\n", pmkid.pmkid[0].PMKID[i]);
-
-	pmkid_len = le32_to_cpu(cfg->pmk_list->pmkids.npmkid);
-	for (i = 0; i < pmkid_len; i++)
-		if (!memcmp
-		    (pmksa->bssid, &cfg->pmk_list->pmkids.pmkid[i].BSSID,
-		     ETH_ALEN))
+	npmk = le32_to_cpu(cfg->pmk_list.npmk);
+	for (i = 0; i < npmk; i++)
+		if (!memcmp(&pmksa->bssid, &pmk[i].bssid, ETH_ALEN))
 			break;
 
-	if ((pmkid_len > 0)
-	    && (i < pmkid_len)) {
-		memset(&cfg->pmk_list->pmkids.pmkid[i], 0,
-		       sizeof(struct pmkid));
-		for (; i < (pmkid_len - 1); i++) {
-			memcpy(&cfg->pmk_list->pmkids.pmkid[i].BSSID,
-			       &cfg->pmk_list->pmkids.pmkid[i + 1].BSSID,
-			       ETH_ALEN);
-			memcpy(&cfg->pmk_list->pmkids.pmkid[i].PMKID,
-			       &cfg->pmk_list->pmkids.pmkid[i + 1].PMKID,
+	if ((npmk > 0) && (i < npmk)) {
+		for (; i < (npmk - 1); i++) {
+			memcpy(&pmk[i].bssid, &pmk[i + 1].bssid, ETH_ALEN);
+			memcpy(&pmk[i].pmkid, &pmk[i + 1].pmkid,
 			       WLAN_PMKID_LEN);
 		}
-		cfg->pmk_list->pmkids.npmkid = cpu_to_le32(pmkid_len - 1);
-	} else
-		err = -EINVAL;
+		memset(&pmk[i], 0, sizeof(*pmk));
+		cfg->pmk_list.npmk = cpu_to_le32(npmk - 1);
+	} else {
+		brcmf_err("Cache entry not found\n");
+		return -EINVAL;
+	}
 
-	err = brcmf_update_pmklist(ndev, cfg->pmk_list, err);
+	err = brcmf_update_pmklist(cfg, ifp);
 
 	brcmf_dbg(TRACE, "Exit\n");
 	return err;
@@ -3343,14 +3331,14 @@ brcmf_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *ndev)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	s32 err = 0;
+	s32 err;
 
 	brcmf_dbg(TRACE, "Enter\n");
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
-	memset(cfg->pmk_list, 0, sizeof(*cfg->pmk_list));
-	err = brcmf_update_pmklist(ndev, cfg->pmk_list, err);
+	memset(&cfg->pmk_list, 0, sizeof(cfg->pmk_list));
+	err = brcmf_update_pmklist(cfg, ifp);
 
 	brcmf_dbg(TRACE, "Exit\n");
 	return err;
@@ -5249,8 +5237,6 @@ static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
 	cfg->escan_ioctl_buf = NULL;
 	kfree(cfg->extra_buf);
 	cfg->extra_buf = NULL;
-	kfree(cfg->pmk_list);
-	cfg->pmk_list = NULL;
 }
 
 static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
@@ -5263,9 +5249,6 @@ static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
 		goto init_priv_mem_out;
 	cfg->extra_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
 	if (!cfg->extra_buf)
-		goto init_priv_mem_out;
-	cfg->pmk_list = kzalloc(sizeof(*cfg->pmk_list), GFP_KERNEL);
-	if (!cfg->pmk_list)
 		goto init_priv_mem_out;
 
 	return 0;
@@ -5971,7 +5954,7 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 
 	wiphy->max_scan_ssids = WL_NUM_SCAN_MAX;
 	wiphy->max_scan_ie_len = BRCMF_SCAN_IE_LEN_MAX;
-	wiphy->max_num_pmkids = WL_NUM_PMKIDS_MAX;
+	wiphy->max_num_pmkids = BRCMF_MAXPMKID;
 
 	err = brcmf_setup_ifmodes(wiphy, ifp);
 	if (err)

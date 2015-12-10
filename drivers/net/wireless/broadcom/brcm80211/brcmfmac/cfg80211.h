@@ -21,7 +21,6 @@
 #include <brcmu_d11.h>
 
 #define WL_NUM_SCAN_MAX			10
-#define WL_NUM_PMKIDS_MAX		MAXPMKID
 #define WL_TLV_INFO_MAX			1024
 #define WL_BSS_INFO_MAX			2048
 #define WL_ASSOC_INFO_MAX		512	/* assoc related fil max buf */
@@ -196,12 +195,6 @@ struct brcmf_cfg80211_assoc_ielen_le {
 	__le32 resp_len;
 };
 
-/* wpa2 pmk list */
-struct brcmf_cfg80211_pmk_list {
-	struct pmkid_list pmkids;
-	struct pmkid foo[MAXPMKID - 1];
-};
-
 /* dongle escan state */
 enum wl_escan_state {
 	WL_ESCAN_STATE_IDLE,
@@ -359,7 +352,7 @@ struct brcmf_cfg80211_info {
 	struct mutex usr_sync;
 	struct wl_cfg80211_bss_info *bss_info;
 	struct brcmf_cfg80211_connect_info conn_info;
-	struct brcmf_cfg80211_pmk_list *pmk_list;
+	struct brcmf_pmk_list_le pmk_list;
 	unsigned long scan_status;
 	struct brcmf_pub *pub;
 	u32 channel;
