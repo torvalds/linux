@@ -396,7 +396,8 @@ static void dvb_register_media_device(struct dvb_device *dvbdev,
 	if (!dvbdev->entity || !dvbdev->intf_devnode)
 		return;
 
-	media_create_intf_link(dvbdev->entity, &dvbdev->intf_devnode->intf, 0);
+	media_create_intf_link(dvbdev->entity, &dvbdev->intf_devnode->intf,
+			       MEDIA_LNK_FL_ENABLED);
 
 #endif
 }
@@ -583,20 +584,24 @@ void dvb_create_media_graph(struct dvb_adapter *adap)
 	/* Create indirect interface links for FE->tuner, DVR->demux and CA->ca */
 	media_device_for_each_intf(intf, mdev) {
 		if (intf->type == MEDIA_INTF_T_DVB_CA && ca)
-			media_create_intf_link(ca, intf, 0);
+			media_create_intf_link(ca, intf, MEDIA_LNK_FL_ENABLED);
 
 		if (intf->type == MEDIA_INTF_T_DVB_FE && tuner)
-			media_create_intf_link(tuner, intf, 0);
+			media_create_intf_link(tuner, intf,
+					       MEDIA_LNK_FL_ENABLED);
 
 		if (intf->type == MEDIA_INTF_T_DVB_DVR && demux)
-			media_create_intf_link(demux, intf, 0);
+			media_create_intf_link(demux, intf,
+					       MEDIA_LNK_FL_ENABLED);
 
 		media_device_for_each_entity(entity, mdev) {
 			if (entity->type == MEDIA_ENT_T_DVB_TSOUT) {
 				if (!strcmp(entity->name, DVR_TSOUT))
-					media_create_intf_link(entity, intf, 0);
+					media_create_intf_link(entity, intf,
+							       MEDIA_LNK_FL_ENABLED);
 				if (!strcmp(entity->name, DEMUX_TSOUT))
-					media_create_intf_link(entity, intf, 0);
+					media_create_intf_link(entity, intf,
+							       MEDIA_LNK_FL_ENABLED);
 				break;
 			}
 		}
