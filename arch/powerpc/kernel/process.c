@@ -181,8 +181,10 @@ void enable_kernel_fp(void)
 
 	msr_check_and_set(MSR_FP);
 
-	if (current->thread.regs && (current->thread.regs->msr & MSR_FP))
+	if (current->thread.regs && (current->thread.regs->msr & MSR_FP)) {
+		check_if_tm_restore_required(current);
 		__giveup_fpu(current);
+	}
 }
 EXPORT_SYMBOL(enable_kernel_fp);
 #endif /* CONFIG_PPC_FPU */
@@ -204,8 +206,10 @@ void enable_kernel_altivec(void)
 
 	msr_check_and_set(MSR_VEC);
 
-	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC))
+	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC)) {
+		check_if_tm_restore_required(current);
 		__giveup_altivec(current);
+	}
 }
 EXPORT_SYMBOL(enable_kernel_altivec);
 
@@ -249,6 +253,7 @@ void enable_kernel_vsx(void)
 	msr_check_and_set(MSR_FP|MSR_VEC|MSR_VSX);
 
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VSX)) {
+		check_if_tm_restore_required(current);
 		if (current->thread.regs->msr & MSR_FP)
 			__giveup_fpu(current);
 		if (current->thread.regs->msr & MSR_VEC)
@@ -289,8 +294,10 @@ void enable_kernel_spe(void)
 
 	msr_check_and_set(MSR_SPE);
 
-	if (current->thread.regs && (current->thread.regs->msr & MSR_SPE))
+	if (current->thread.regs && (current->thread.regs->msr & MSR_SPE)) {
+		check_if_tm_restore_required(current);
 		__giveup_spe(current);
+	}
 }
 EXPORT_SYMBOL(enable_kernel_spe);
 
