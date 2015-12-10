@@ -1351,6 +1351,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!encode_rcv_header_entry_size(hfi1_hdrq_entsize)) {
 		hfi1_early_err(&pdev->dev, "Invalid HdrQ Entry size %u\n",
 			       hfi1_hdrq_entsize);
+		ret = -EINVAL;
 		goto bail;
 	}
 
