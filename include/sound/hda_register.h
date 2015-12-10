@@ -93,6 +93,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_HSW_EM4			0x100c
 #define AZX_REG_HSW_EM5			0x1010
 
+/* Skylake/Broxton display HD-A controller Extended Mode registers */
+#define AZX_REG_SKL_EM4L		0x1040
+
 /* PCI space */
 #define AZX_PCIREG_TCSEL		0x44
 
