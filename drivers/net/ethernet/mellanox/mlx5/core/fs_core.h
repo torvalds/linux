@@ -69,13 +69,16 @@ struct mlx5_flow_rule {
 	struct mlx5_flow_destination		dest_attr;
 };
 
+/* Type of children is mlx5_flow_group */
 struct mlx5_flow_table {
 	struct fs_node			node;
 	u32				id;
+	unsigned int			max_fte;
 	unsigned int			level;
 	enum fs_flow_table_type		type;
 };
 
+/* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
 	u32				val[MLX5_ST_SZ_DW(fte_match_param)];
@@ -83,15 +86,19 @@ struct fs_fte {
 	u32				flow_tag;
 	u32				index;
 	u32				action;
+	enum fs_fte_status		status;
 };
 
+/* Type of children is mlx5_flow_table/namespace */
 struct fs_prio {
 	struct fs_node			node;
 	unsigned int			max_ft;
 	unsigned int			start_level;
 	unsigned int			prio;
+	unsigned int			num_ft;
 };
 
+/* Type of children is fs_prio */
 struct mlx5_flow_namespace {
 	/* parent == NULL => root ns */
 	struct	fs_node			node;
@@ -100,6 +107,22 @@ struct mlx5_flow_namespace {
 struct mlx5_flow_group_mask {
 	u8	match_criteria_enable;
 	u32	match_criteria[MLX5_ST_SZ_DW(fte_match_param)];
+};
+
+/* Type of children is fs_fte */
+struct mlx5_flow_group {
+	struct fs_node			node;
+	struct mlx5_flow_group_mask	mask;
+	u32				start_index;
+	u32				max_ftes;
+	u32				num_ftes;
+	u32				id;
+};
+
+struct mlx5_flow_root_namespace {
+	struct mlx5_flow_namespace	ns;
+	enum   fs_flow_table_type	table_type;
+	struct mlx5_core_dev		*dev;
 };
 
 #define fs_get_obj(v, _node)  {v = container_of((_node), typeof(*v), node); }
