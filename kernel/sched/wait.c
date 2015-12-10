@@ -583,18 +583,18 @@ EXPORT_SYMBOL(wake_up_atomic_t);
 
 __sched int bit_wait(struct wait_bit_key *word)
 {
-	if (signal_pending_state(current->state, current))
-		return 1;
 	schedule();
+	if (signal_pending(current))
+		return -EINTR;
 	return 0;
 }
 EXPORT_SYMBOL(bit_wait);
 
 __sched int bit_wait_io(struct wait_bit_key *word)
 {
-	if (signal_pending_state(current->state, current))
-		return 1;
 	io_schedule();
+	if (signal_pending(current))
+		return -EINTR;
 	return 0;
 }
 EXPORT_SYMBOL(bit_wait_io);
@@ -602,11 +602,11 @@ EXPORT_SYMBOL(bit_wait_io);
 __sched int bit_wait_timeout(struct wait_bit_key *word)
 {
 	unsigned long now = READ_ONCE(jiffies);
-	if (signal_pending_state(current->state, current))
-		return 1;
 	if (time_after_eq(now, word->timeout))
 		return -EAGAIN;
 	schedule_timeout(word->timeout - now);
+	if (signal_pending(current))
+		return -EINTR;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bit_wait_timeout);
@@ -614,11 +614,11 @@ EXPORT_SYMBOL_GPL(bit_wait_timeout);
 __sched int bit_wait_io_timeout(struct wait_bit_key *word)
 {
 	unsigned long now = READ_ONCE(jiffies);
-	if (signal_pending_state(current->state, current))
-		return 1;
 	if (time_after_eq(now, word->timeout))
 		return -EAGAIN;
 	io_schedule_timeout(word->timeout - now);
+	if (signal_pending(current))
+		return -EINTR;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bit_wait_io_timeout);

@@ -74,7 +74,7 @@ static struct drm_framebuffer_funcs drm_fb_cma_funcs = {
 };
 
 static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
-	struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_cma_object **obj,
+	const const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_cma_object **obj,
 	unsigned int num_planes)
 {
 	struct drm_fb_cma *fb_cma;
@@ -107,7 +107,7 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
  * checked before calling this function.
  */
 struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
-	struct drm_file *file_priv, struct drm_mode_fb_cmd2 *mode_cmd)
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_fb_cma *fb_cma;
 	struct drm_gem_cma_object *objs[4];

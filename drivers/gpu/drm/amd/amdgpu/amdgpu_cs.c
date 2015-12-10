@@ -222,6 +222,8 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 				}
 
 				p->uf.bo = gem_to_amdgpu_bo(gobj);
+				amdgpu_bo_ref(p->uf.bo);
+				drm_gem_object_unreference_unlocked(gobj);
 				p->uf.offset = fence_data->offset;
 			} else {
 				ret = -EINVAL;
@@ -487,7 +489,7 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 			amdgpu_ib_free(parser->adev, &parser->ibs[i]);
 	kfree(parser->ibs);
 	if (parser->uf.bo)
-		drm_gem_object_unreference_unlocked(&parser->uf.bo->gem_base);
+		amdgpu_bo_unref(&parser->uf.bo);
 }
 
 static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
@@ -776,7 +778,7 @@ static int amdgpu_cs_free_job(struct amdgpu_job *job)
 			amdgpu_ib_free(job->adev, &job->ibs[i]);
 	kfree(job->ibs);
 	if (job->uf.bo)
-		drm_gem_object_unreference_unlocked(&job->uf.bo->gem_base);
+		amdgpu_bo_unref(&job->uf.bo);
 	return 0;
 }
 
@@ -784,8 +786,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
 	union drm_amdgpu_cs *cs = data;
-	struct amdgpu_fpriv *fpriv = filp->driver_priv;
-	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_cs_parser parser = {};
 	bool reserved_buffers = false;
 	int i, r;
@@ -803,7 +803,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		r = amdgpu_cs_handle_lockup(adev, r);
 		return r;
 	}
-	mutex_lock(&vm->mutex);
 	r = amdgpu_cs_parser_relocs(&parser);
 	if (r == -ENOMEM)
 		DRM_ERROR("Not enough memory for command submission!\n");
@@ -888,7 +887,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 out:
 	amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
-	mutex_unlock(&vm->mutex);
 	r = amdgpu_cs_handle_lockup(adev, r);
 	return r;
 }

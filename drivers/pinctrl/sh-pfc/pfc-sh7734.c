@@ -31,11 +31,11 @@
 	PORT_GP_12(5, fn, sfx)
 
 #undef _GP_DATA
-#define _GP_DATA(bank, pin, name, sfx)					\
+#define _GP_DATA(bank, pin, name, sfx, cfg)				\
 	PINMUX_DATA(name##_DATA, name##_FN, name##_IN, name##_OUT)
 
-#define _GP_INOUTSEL(bank, pin, name, sfx)	name##_IN, name##_OUT
-#define _GP_INDT(bank, pin, name, sfx)		name##_DATA
+#define _GP_INOUTSEL(bank, pin, name, sfx, cfg)	name##_IN, name##_OUT
+#define _GP_INDT(bank, pin, name, sfx, cfg)	name##_DATA
 #define GP_INOUTSEL(bank)	PORT_GP_32_REV(bank, _GP_INOUTSEL, unused)
 #define GP_INDT(bank)		PORT_GP_32_REV(bank, _GP_INDT, unused)
 

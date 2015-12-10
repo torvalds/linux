@@ -29,7 +29,7 @@ static const struct drm_framebuffer_funcs mga_fb_funcs = {
 
 int mgag200_framebuffer_init(struct drm_device *dev,
 			     struct mga_framebuffer *gfb,
-			     struct drm_mode_fb_cmd2 *mode_cmd,
+			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj)
 {
 	int ret;
@@ -47,7 +47,7 @@ int mgag200_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 mgag200_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *filp,
-				struct drm_mode_fb_cmd2 *mode_cmd)
+				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct mga_framebuffer *mga_fb;

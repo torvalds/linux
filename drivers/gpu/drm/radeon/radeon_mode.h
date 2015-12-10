@@ -367,6 +367,7 @@ struct radeon_crtc {
 	u32 line_time;
 	u32 wm_low;
 	u32 wm_high;
+	u32 lb_vblank_lead_lines;
 	struct drm_display_mode hw_mode;
 	enum radeon_output_csc output_csc;
 };
@@ -553,6 +554,7 @@ struct radeon_connector {
 	void *con_priv;
 	bool dac_load_detect;
 	bool detected_by_load; /* if the connection status was determined by load */
+	bool detected_hpd_without_ddc; /* if an HPD signal was detected on DVI, but ddc probing failed */
 	uint16_t connector_object_id;
 	struct radeon_hpd hpd;
 	struct radeon_router router;
@@ -686,6 +688,9 @@ struct atom_voltage_table
 	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
 };
 
+/* Driver internal use only flags of radeon_get_crtc_scanoutpos() */
+#define USE_REAL_VBLANKSTART 		(1 << 30)
+#define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
 extern void
 radeon_add_atom_connector(struct drm_device *dev,
@@ -929,7 +934,7 @@ extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green
 				     u16 *blue, int regno);
 int radeon_framebuffer_init(struct drm_device *dev,
 			     struct radeon_framebuffer *rfb,
-			     struct drm_mode_fb_cmd2 *mode_cmd,
+			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);

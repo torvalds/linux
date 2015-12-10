@@ -627,8 +627,10 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 		/* verify the skb head is not shared */
 		err = skb_cow_head(skb, 0);
-		if (err)
+		if (err) {
+			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
+		}
 
 		/* locate vlan header */
 		vhdr = (struct vlan_hdr *)(skb->data + ETH_HLEN);

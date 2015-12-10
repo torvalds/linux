@@ -49,8 +49,10 @@ struct imx_drm_crtc {
 	struct imx_drm_crtc_helper_funcs	imx_drm_helper_funcs;
 };
 
+#if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
 static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
+#endif
 
 int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
 {
@@ -60,26 +62,19 @@ EXPORT_SYMBOL_GPL(imx_drm_crtc_id);
 
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
-#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	struct imx_drm_device *imxdrm = drm->dev_private;
 
-	if (imxdrm->fbhelper)
-		drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
-#endif
+	drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
 }
 
 static int imx_drm_driver_unload(struct drm_device *drm)
 {
-#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	struct imx_drm_device *imxdrm = drm->dev_private;
-#endif
 
 	drm_kms_helper_poll_fini(drm);
 
-#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	if (imxdrm->fbhelper)
 		drm_fbdev_cma_fini(imxdrm->fbhelper);
-#endif
 
 	component_unbind_all(drm->dev, drm);
 
@@ -215,11 +210,9 @@ EXPORT_SYMBOL_GPL(imx_drm_encoder_destroy);
 
 static void imx_drm_output_poll_changed(struct drm_device *drm)
 {
-#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	struct imx_drm_device *imxdrm = drm->dev_private;
 
 	drm_fbdev_cma_hotplug_event(imxdrm->fbhelper);
-#endif
 }
 
 static struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
@@ -308,7 +301,7 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 * The fb helper takes copies of key hardware information, so the
 	 * crtcs/connectors/encoders must not change after this point.
 	 */
-#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
+#if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
 	if (legacyfb_depth != 16 && legacyfb_depth != 32) {
 		dev_warn(drm->dev, "Invalid legacyfb_depth.  Defaulting to 16bpp\n");
 		legacyfb_depth = 16;
@@ -340,7 +333,7 @@ err_kms:
  * imx_drm_add_crtc - add a new crtc
  */
 int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
-		struct imx_drm_crtc **new_crtc,
+		struct imx_drm_crtc **new_crtc, struct drm_plane *primary_plane,
 		const struct imx_drm_crtc_helper_funcs *imx_drm_helper_funcs,
 		struct device_node *port)
 {
@@ -379,7 +372,7 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 	drm_crtc_helper_add(crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
 
-	drm_crtc_init(drm, crtc,
+	drm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
 
 	return 0;

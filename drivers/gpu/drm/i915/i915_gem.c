@@ -1210,8 +1210,16 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	if (i915_gem_request_completed(req, true))
 		return 0;
 
-	timeout_expire = timeout ?
-		jiffies + nsecs_to_jiffies_timeout((u64)*timeout) : 0;
+	timeout_expire = 0;
+	if (timeout) {
+		if (WARN_ON(*timeout < 0))
+			return -EINVAL;
+
+		if (*timeout == 0)
+			return -ETIME;
+
+		timeout_expire = jiffies + nsecs_to_jiffies_timeout(*timeout);
+	}
 
 	if (INTEL_INFO(dev_priv)->gen >= 6)
 		gen6_rps_boost(dev_priv, rps, req->emitted_jiffies);
@@ -2737,6 +2745,8 @@ static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
 static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 					struct intel_engine_cs *ring)
 {
+	struct intel_ringbuffer *buffer;
+
 	while (!list_empty(&ring->active_list)) {
 		struct drm_i915_gem_object *obj;
 
@@ -2752,18 +2762,23 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 	 * are the ones that keep the context and ringbuffer backing objects
 	 * pinned in place.
 	 */
-	while (!list_empty(&ring->execlist_queue)) {
-		struct drm_i915_gem_request *submit_req;
 
-		submit_req = list_first_entry(&ring->execlist_queue,
-				struct drm_i915_gem_request,
-				execlist_link);
-		list_del(&submit_req->execlist_link);
+	if (i915.enable_execlists) {
+		spin_lock_irq(&ring->execlist_lock);
+		while (!list_empty(&ring->execlist_queue)) {
+			struct drm_i915_gem_request *submit_req;
 
-		if (submit_req->ctx != ring->default_context)
-			intel_lr_context_unpin(submit_req);
+			submit_req = list_first_entry(&ring->execlist_queue,
+					struct drm_i915_gem_request,
+					execlist_link);
+			list_del(&submit_req->execlist_link);
 
-		i915_gem_request_unreference(submit_req);
+			if (submit_req->ctx != ring->default_context)
+				intel_lr_context_unpin(submit_req);
+
+			i915_gem_request_unreference(submit_req);
+		}
+		spin_unlock_irq(&ring->execlist_lock);
 	}
 
 	/*
@@ -2781,6 +2796,18 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 					   list);
 
 		i915_gem_request_retire(request);
+	}
+
+	/* Having flushed all requests from all queues, we know that all
+	 * ringbuffers must now be empty. However, since we do not reclaim
+	 * all space when retiring the request (to prevent HEADs colliding
+	 * with rapid ringbuffer wraparound) the amount of available space
+	 * upon reset is less than when we start. Do one more pass over
+	 * all the ringbuffers to reset last_retired_head.
+	 */
+	list_for_each_entry(buffer, &ring->buffers, link) {
+		buffer->last_retired_head = buffer->tail;
+		intel_ring_update_space(buffer);
 	}
 }
 
@@ -3826,7 +3853,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		 * cacheline, whereas normally such cachelines would get
 		 * invalidated.
 		 */
-		if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0)
+		if (IS_BXT_REVID(dev, 0, BXT_REVID_A1))
 			return -ENODEV;
 
 		level = I915_CACHE_LLC;
@@ -3869,16 +3896,10 @@ rpm_put:
 int
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     struct intel_engine_cs *pipelined,
-				     struct drm_i915_gem_request **pipelined_request,
 				     const struct i915_ggtt_view *view)
 {
 	u32 old_read_domains, old_write_domain;
 	int ret;
-
-	ret = i915_gem_object_sync(obj, pipelined, pipelined_request);
-	if (ret)
-		return ret;
 
 	/* Mark the pin_display early so that we account for the
 	 * display coherency whilst setting up the cache domains.
@@ -4476,10 +4497,8 @@ struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma;
 	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (i915_is_ggtt(vma->vm) &&
-		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
-			continue;
-		if (vma->vm == vm)
+		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL &&
+		    vma->vm == vm)
 			return vma;
 	}
 	return NULL;
@@ -4568,7 +4587,6 @@ int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
 	struct intel_engine_cs *ring = req->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg_base = GEN7_L3LOG_BASE + (slice * 0x200);
 	u32 *remap_info = dev_priv->l3_parity.remap_info[slice];
 	int i, ret;
 
@@ -4584,10 +4602,10 @@ int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
 	 * here because no other code should access these registers other than
 	 * at initialization time.
 	 */
-	for (i = 0; i < GEN7_L3LOG_SIZE; i += 4) {
+	for (i = 0; i < GEN7_L3LOG_SIZE / 4; i++) {
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit(ring, reg_base + i);
-		intel_ring_emit(ring, remap_info[i/4]);
+		intel_ring_emit_reg(ring, GEN7_L3LOG(slice, i));
+		intel_ring_emit(ring, remap_info[i]);
 	}
 
 	intel_ring_advance(ring);
@@ -4755,18 +4773,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (HAS_GUC_UCODE(dev)) {
 		ret = intel_guc_ucode_load(dev);
 		if (ret) {
-			/*
-			 * If we got an error and GuC submission is enabled, map
-			 * the error to -EIO so the GPU will be declared wedged.
-			 * OTOH, if we didn't intend to use the GuC anyway, just
-			 * discard the error and carry on.
-			 */
-			DRM_ERROR("Failed to initialize GuC, error %d%s\n", ret,
-				  i915.enable_guc_submission ? "" :
-				  " (ignored)");
-			ret = i915.enable_guc_submission ? -EIO : 0;
-			if (ret)
-				goto out;
+			DRM_ERROR("Failed to initialize GuC, error %d\n", ret);
+			ret = -EIO;
+			goto out;
 		}
 	}
 
