@@ -251,6 +251,6 @@ struct adf_accel_dev {
 		} vf;
 	};
 	bool is_vf;
-	uint8_t accel_id;
+	u32 accel_id;
 } __packed;
 #endif
