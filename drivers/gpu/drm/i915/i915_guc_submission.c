@@ -568,7 +568,7 @@ static void lr_context_update(struct drm_i915_gem_request *rq)
 	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj));
 	WARN_ON(!i915_gem_obj_is_pinned(rb_obj));
 
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
+	page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
 	reg_state = kmap_atomic(page);
 
 	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(rb_obj);

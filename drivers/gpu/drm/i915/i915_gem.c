@@ -5185,6 +5185,21 @@ bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj)
 	return false;
 }
 
+/* Like i915_gem_object_get_page(), but mark the returned page dirty */
+struct page *
+i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj, int n)
+{
+	struct page *page;
+
+	/* Only default objects have per-page dirty tracking */
+	if (WARN_ON(obj->ops != &i915_gem_object_ops))
+		return NULL;
+
+	page = i915_gem_object_get_page(obj, n);
+	set_page_dirty(page);
+	return page;
+}
+
 /* Allocate a new GEM object and fill it with the supplied data */
 struct drm_i915_gem_object *
 i915_gem_object_create_from_data(struct drm_device *dev,

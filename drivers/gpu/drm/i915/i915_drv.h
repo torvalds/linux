@@ -2907,6 +2907,9 @@ static inline int __sg_page_count(struct scatterlist *sg)
 	return sg->length >> PAGE_SHIFT;
 }
 
+struct page *
+i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj, int n);
+
 static inline struct page *
 i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
 {
