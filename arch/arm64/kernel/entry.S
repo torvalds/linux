@@ -179,9 +179,7 @@ alternative_endif
 	.macro	irq_stack_entry, dummy_lr
 	mov	x19, sp			// preserve the original sp
 
-	adr_l	x25, irq_stack
-	mrs	x26, tpidr_el1
-	add	x25, x25, x26
+	this_cpu_ptr irq_stack, x25, x26
 
 	/*
 	 * Check the lowest address on irq_stack for the irq_count value,
