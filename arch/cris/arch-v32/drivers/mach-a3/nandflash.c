@@ -149,9 +149,6 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	this = &wrapper->chip;
 	crisv32_mtd = nand_to_mtd(this);
 
-	/* Link the private data with the MTD structure */
-	crisv32_mtd->priv = this;
-
 	/* Set address of NAND IO lines */
 	this->IO_ADDR_R = read_cs;
 	this->IO_ADDR_W = write_cs;
