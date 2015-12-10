@@ -152,7 +152,7 @@
 				regulator-always-on;
 			};
 
-			vcca_tp: REG8 {
+			vcc_tp: REG8 {
 				regulator-name = "VCCA_TP";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
