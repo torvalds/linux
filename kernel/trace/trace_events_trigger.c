@@ -72,6 +72,8 @@ event_triggers_call(struct trace_event_file *file, void *rec)
 		return tt;
 
 	list_for_each_entry_rcu(data, &file->triggers, list) {
+		if (data->paused)
+			continue;
 		if (!rec) {
 			data->ops->func(data, rec);
 			continue;
@@ -110,6 +112,8 @@ event_triggers_post_call(struct trace_event_file *file,
 	struct event_trigger_data *data;
 
 	list_for_each_entry_rcu(data, &file->triggers, list) {
+		if (data->paused)
+			continue;
 		if (data->cmd_ops->trigger_type & tt)
 			data->ops->func(data, rec);
 	}

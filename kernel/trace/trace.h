@@ -1172,6 +1172,7 @@ struct event_trigger_data {
 	struct event_filter __rcu	*filter;
 	char				*filter_str;
 	void				*private_data;
+	bool				paused;
 	struct list_head		list;
 };
 
