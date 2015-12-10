@@ -343,6 +343,16 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		return ret;
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
+	if (argc) {
+		/*
+		 * Special case: if there's an argument left then assume that
+		 * it's a symbol filter:
+		 */
+		if (argc > 1)
+			usage_with_options(annotate_usage, options);
+
+		annotate.sym_hist_filter = argv[0];
+	}
 
 	if (annotate.use_stdio)
 		use_browser = 0;
@@ -368,17 +378,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (setup_sorting() < 0)
 		usage_with_options(annotate_usage, options);
-
-	if (argc) {
-		/*
-		 * Special case: if there's an argument left then assume that
-		 * it's a symbol filter:
-		 */
-		if (argc > 1)
-			usage_with_options(annotate_usage, options);
-
-		annotate.sym_hist_filter = argv[0];
-	}
 
 	ret = __cmd_annotate(&annotate);
 
