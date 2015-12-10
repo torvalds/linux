@@ -83,8 +83,7 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
-	if (ddata->enable_gpio)
-		gpiod_set_value_cansleep(ddata->enable_gpio, 1);
+	gpiod_set_value_cansleep(ddata->enable_gpio, 1);
 
 	if (gpio_is_valid(ddata->backlight_gpio))
 		gpio_set_value_cansleep(ddata->backlight_gpio, 1);
@@ -105,8 +104,7 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 	if (gpio_is_valid(ddata->backlight_gpio))
 		gpio_set_value_cansleep(ddata->backlight_gpio, 0);
 
-	if (ddata->enable_gpio)
-		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
+	gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 
 	in->ops.dpi->disable(in);
 
