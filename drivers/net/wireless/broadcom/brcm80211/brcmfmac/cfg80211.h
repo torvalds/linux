@@ -99,11 +99,6 @@ struct brcmf_cfg80211_conf {
 	struct ieee80211_channel channel;
 };
 
-/* basic structure of scan request */
-struct brcmf_cfg80211_scan_req {
-	struct brcmf_ssid_le ssid_le;
-};
-
 /* basic structure of information element */
 struct brcmf_cfg80211_ie {
 	u16 offset;
@@ -337,7 +332,6 @@ struct brcmf_cfg80211_vif_event {
  * @scan_request: cfg80211 scan request object.
  * @usr_sync: mainly for dongle up/down synchronization.
  * @bss_list: bss_list holding scanned ap information.
- * @scan_req_int: internal scan request object.
  * @bss_info: bss information for cfg80211 layer.
  * @ie: information element object for internal purpose.
  * @conn_info: association info.
@@ -372,7 +366,6 @@ struct brcmf_cfg80211_info {
 	struct brcmf_btcoex_info *btcoex;
 	struct cfg80211_scan_request *scan_request;
 	struct mutex usr_sync;
-	struct brcmf_cfg80211_scan_req scan_req_int;
 	struct wl_cfg80211_bss_info *bss_info;
 	struct brcmf_cfg80211_ie ie;
 	struct brcmf_cfg80211_connect_info conn_info;

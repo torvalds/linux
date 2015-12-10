@@ -1031,11 +1031,11 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 	struct brcmf_if *ifp = vif->ifp;
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct cfg80211_ssid *ssids;
-	struct brcmf_cfg80211_scan_req *sr = &cfg->scan_req_int;
 	u32 passive_scan;
 	bool escan_req;
 	bool spec_scan;
 	s32 err;
+	struct brcmf_ssid_le ssid_le;
 	u32 SSID_len;
 
 	brcmf_dbg(SCAN, "START ESCAN\n");
@@ -1088,13 +1088,13 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 	} else {
 		brcmf_dbg(SCAN, "ssid \"%s\", ssid_len (%d)\n",
 			  ssids->ssid, ssids->ssid_len);
-		memset(&sr->ssid_le, 0, sizeof(sr->ssid_le));
-		SSID_len = min_t(u8, sizeof(sr->ssid_le.SSID), ssids->ssid_len);
-		sr->ssid_le.SSID_len = cpu_to_le32(0);
+		memset(&ssid_le, 0, sizeof(ssid_le));
+		SSID_len = min_t(u8, sizeof(ssid_le.SSID), ssids->ssid_len);
+		ssid_le.SSID_len = cpu_to_le32(0);
 		spec_scan = false;
 		if (SSID_len) {
-			memcpy(sr->ssid_le.SSID, ssids->ssid, SSID_len);
-			sr->ssid_le.SSID_len = cpu_to_le32(SSID_len);
+			memcpy(ssid_le.SSID, ssids->ssid, SSID_len);
+			ssid_le.SSID_len = cpu_to_le32(SSID_len);
 			spec_scan = true;
 		} else
 			brcmf_dbg(SCAN, "Broadcast scan\n");
@@ -1107,12 +1107,12 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 			goto scan_out;
 		}
 		brcmf_scan_config_mpc(ifp, 0);
-		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SCAN,
-					     &sr->ssid_le, sizeof(sr->ssid_le));
+		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SCAN, &ssid_le,
+					     sizeof(ssid_le));
 		if (err) {
 			if (err == -EBUSY)
 				brcmf_dbg(INFO, "BUSY: scan for \"%s\" canceled\n",
-					  sr->ssid_le.SSID);
+					  ssid_le.SSID);
 			else
 				brcmf_err("WLC_SCAN error (%d)\n", err);
 
