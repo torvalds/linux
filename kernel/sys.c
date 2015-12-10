@@ -2092,7 +2092,7 @@ static int prctl_update_vma_anon_name(struct vm_area_struct *vma,
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
 	*prev = vma_merge(mm, *prev, start, end, vma->vm_flags, vma->anon_vma,
 				vma->vm_file, pgoff, vma_policy(vma),
-				name_addr);
+				vma->vm_userfaultfd_ctx, name_addr);
 	if (*prev) {
 		vma = *prev;
 		goto success;
