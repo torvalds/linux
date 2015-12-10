@@ -1086,6 +1086,7 @@ static int omap_des_probe(struct platform_device *pdev)
 	dd->phys_base = res->start;
 
 	pm_runtime_enable(dev);
+	pm_runtime_irq_safe(dev);
 	err = pm_runtime_get_sync(dev);
 	if (err < 0) {
 		pm_runtime_put_noidle(dev);
