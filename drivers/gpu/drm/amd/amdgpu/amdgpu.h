@@ -1023,11 +1023,9 @@ int amdgpu_vm_free_job(struct amdgpu_job *job);
  * context related structures
  */
 
-#define AMDGPU_CTX_MAX_CS_PENDING	16
-
 struct amdgpu_ctx_ring {
 	uint64_t		sequence;
-	struct fence		*fences[AMDGPU_CTX_MAX_CS_PENDING];
+	struct fence		**fences;
 	struct amd_sched_entity	entity;
 };
 
@@ -1036,6 +1034,7 @@ struct amdgpu_ctx {
 	struct amdgpu_device    *adev;
 	unsigned		reset_counter;
 	spinlock_t		ring_lock;
+	struct fence            **fences;
 	struct amdgpu_ctx_ring	rings[AMDGPU_MAX_RINGS];
 };
 
