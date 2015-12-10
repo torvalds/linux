@@ -258,9 +258,9 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	 * ->direct_access() to those that are included in the memmap.
 	 */
 	if (nd_pfn->mode == PFN_MODE_PMEM)
-		offset = ALIGN(SZ_8K + 64 * npfns, PMD_SIZE);
+		offset = ALIGN(SZ_8K + 64 * npfns, nd_pfn->align);
 	else if (nd_pfn->mode == PFN_MODE_RAM)
-		offset = SZ_8K;
+		offset = ALIGN(SZ_8K, nd_pfn->align);
 	else
 		goto err;
 
@@ -325,7 +325,7 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
 	offset = le64_to_cpu(pfn_sb->dataoff);
 	nd_pfn->mode = le32_to_cpu(nd_pfn->pfn_sb->mode);
 	if (nd_pfn->mode == PFN_MODE_RAM) {
-		if (offset != SZ_8K)
+		if (offset < SZ_8K)
 			return -EINVAL;
 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
 		altmap = NULL;

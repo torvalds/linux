@@ -146,6 +146,7 @@ struct nd_pfn {
 	int id;
 	u8 *uuid;
 	struct device dev;
+	unsigned long align;
 	unsigned long npfns;
 	enum nd_pfn_mode mode;
 	struct nd_pfn_sb *pfn_sb;

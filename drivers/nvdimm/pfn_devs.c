@@ -103,6 +103,52 @@ static ssize_t mode_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(mode);
 
+static ssize_t align_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+
+	return sprintf(buf, "%lx\n", nd_pfn->align);
+}
+
+static ssize_t __align_store(struct nd_pfn *nd_pfn, const char *buf)
+{
+	unsigned long val;
+	int rc;
+
+	rc = kstrtoul(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	if (!is_power_of_2(val) || val < PAGE_SIZE || val > SZ_1G)
+		return -EINVAL;
+
+	if (nd_pfn->dev.driver)
+		return -EBUSY;
+	else
+		nd_pfn->align = val;
+
+	return 0;
+}
+
+static ssize_t align_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+	ssize_t rc;
+
+	device_lock(dev);
+	nvdimm_bus_lock(dev);
+	rc = __align_store(nd_pfn, buf);
+	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
+			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
+	nvdimm_bus_unlock(dev);
+	device_unlock(dev);
+
+	return rc ? rc : len;
+}
+static DEVICE_ATTR_RW(align);
+
 static ssize_t uuid_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -164,6 +210,7 @@ static struct attribute *nd_pfn_attributes[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_namespace.attr,
 	&dev_attr_uuid.attr,
+	&dev_attr_align.attr,
 	NULL,
 };
 
@@ -199,6 +246,7 @@ static struct device *__nd_pfn_create(struct nd_region *nd_region,
 	}
 
 	nd_pfn->mode = PFN_MODE_NONE;
+	nd_pfn->align = HPAGE_SIZE;
 	dev = &nd_pfn->dev;
 	dev_set_name(dev, "pfn%d.%d", nd_region->id, nd_pfn->id);
 	dev->parent = &nd_region->dev;
@@ -269,6 +317,12 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 			return -EINVAL;
 	}
 
+	if (nd_pfn->align > nvdimm_namespace_capacity(ndns)) {
+		dev_err(&nd_pfn->dev, "alignment: %lx exceeds capacity %llx\n",
+				nd_pfn->align, nvdimm_namespace_capacity(ndns));
+		return -EINVAL;
+	}
+
 	/*
 	 * These warnings are verbose because they can only trigger in
 	 * the case where the physical address alignment of the
@@ -281,6 +335,13 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 		dev_err(&nd_pfn->dev, "pfn array size exceeds capacity of %s\n",
 				dev_name(&ndns->dev));
 		return -EBUSY;
+	}
+
+	nd_pfn->align = 1UL << ilog2(offset);
+	if (!is_power_of_2(offset) || offset < PAGE_SIZE) {
+		dev_err(&nd_pfn->dev, "bad offset: %#llx dax disabled\n",
+				offset);
+		return -ENXIO;
 	}
 
 	return 0;
