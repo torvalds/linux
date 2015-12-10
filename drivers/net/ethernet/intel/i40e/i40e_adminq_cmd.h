@@ -422,6 +422,7 @@ struct i40e_aqc_list_capabilities_element_resp {
 #define I40E_AQ_CAP_ID_LED		0x0061
 #define I40E_AQ_CAP_ID_SDP		0x0062
 #define I40E_AQ_CAP_ID_MDIO		0x0063
+#define I40E_AQ_CAP_ID_WSR_PROT		0x0064
 #define I40E_AQ_CAP_ID_FLEX10		0x00F1
 #define I40E_AQ_CAP_ID_CEM		0x00F2
 
