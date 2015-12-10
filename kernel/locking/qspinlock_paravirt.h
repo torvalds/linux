@@ -400,6 +400,11 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 	if (READ_ONCE(pn->state) == vcpu_hashed)
 		lp = (struct qspinlock **)1;
 
+	/*
+	 * Tracking # of slowpath locking operations
+	 */
+	qstat_inc(qstat_pv_lock_slowpath, true);
+
 	for (;; waitcnt++) {
 		/*
 		 * Set correct vCPU state to be used by queue node wait-early
