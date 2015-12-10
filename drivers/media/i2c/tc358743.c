@@ -859,15 +859,16 @@ static void tc358743_format_change(struct v4l2_subdev *sd)
 	if (tc358743_get_detected_timings(sd, &timings)) {
 		enable_stream(sd, false);
 
-		v4l2_dbg(1, debug, sd, "%s: Format changed. No signal\n",
+		v4l2_dbg(1, debug, sd, "%s: No signal\n",
 				__func__);
 	} else {
 		if (!v4l2_match_dv_timings(&state->timings, &timings, 0, false))
 			enable_stream(sd, false);
 
-		v4l2_print_dv_timings(sd->name,
-				"tc358743_format_change: Format changed. New format: ",
-				&timings, false);
+		if (debug)
+			v4l2_print_dv_timings(sd->name,
+					"tc358743_format_change: New format: ",
+					&timings, false);
 	}
 
 	if (sd->devnode)
