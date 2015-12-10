@@ -152,8 +152,12 @@ struct hdmi_spec {
 	struct i915_audio_component_audio_ops i915_audio_ops;
 };
 
+#ifdef CONFIG_SND_HDA_I915
 #define codec_has_acomp(codec) \
 	((codec)->bus->core.audio_component != NULL)
+#else
+#define codec_has_acomp(codec)	false
+#endif
 
 struct hdmi_audio_infoframe {
 	u8 type; /* 0x84 */
