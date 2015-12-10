@@ -668,7 +668,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = false;
 	gc->ngpio = val;
 	gc->label = dev_name(dev);
-	gc->dev = dev;
+	gc->parent = dev;
 	gc->of_node = dev->of_node;
 	gc->request = nsp_gpio_request;
 	gc->free = nsp_gpio_free;
