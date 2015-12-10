@@ -105,9 +105,6 @@ static int bcm6368_nand_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev,
 		IORESOURCE_MEM, "nand-int-base");
-	if (!res)
-		return -EINVAL;
-
 	priv->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
