@@ -279,19 +279,6 @@ static inline void __pv_wait(u8 *ptr, u8 val)
 #define pv_kick(c)	__pv_kick(c)
 #define pv_wait(p, v)	__pv_wait(p, v)
 
-/*
- * PV unfair trylock count tracking function
- */
-static inline int qstat_spin_steal_lock(struct qspinlock *lock)
-{
-	int ret = pv_queued_spin_steal_lock(lock);
-
-	qstat_inc(qstat_pv_lock_stealing, ret);
-	return ret;
-}
-#undef  queued_spin_trylock
-#define queued_spin_trylock(l)	qstat_spin_steal_lock(l)
-
 #else /* CONFIG_QUEUED_LOCK_STAT */
 
 static inline void qstat_inc(enum qlock_stats stat, bool cond)	{ }
