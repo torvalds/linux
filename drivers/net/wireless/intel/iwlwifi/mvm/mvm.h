@@ -294,6 +294,7 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_EXIT_WORK,
 	IWL_MVM_REF_PROTECT_CSA,
 	IWL_MVM_REF_FW_DBG_COLLECT,
+	IWL_MVM_REF_INIT_UCODE,
 
 	/* update debugfs.c when changing this */
 
