@@ -25,6 +25,7 @@
  * WOWL: Wake-On-WLAN.
  * P2P: peer-to-peer
  * RSDB: Real Simultaneous Dual Band
+ * TDLS: Tunneled Direct Link Setup
  */
 #define BRCMF_FEAT_LIST \
 	BRCMF_FEAT_DEF(MBSS) \
@@ -32,7 +33,8 @@
 	BRCMF_FEAT_DEF(PNO) \
 	BRCMF_FEAT_DEF(WOWL) \
 	BRCMF_FEAT_DEF(P2P) \
-	BRCMF_FEAT_DEF(RSDB)
+	BRCMF_FEAT_DEF(RSDB) \
+	BRCMF_FEAT_DEF(TDLS)
 
 /*
  * Quirks:

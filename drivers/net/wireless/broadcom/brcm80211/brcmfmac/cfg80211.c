@@ -5983,8 +5983,9 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 	wiphy->n_cipher_suites = ARRAY_SIZE(__wl_cipher_suites);
 	wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT |
 			WIPHY_FLAG_OFFCHAN_TX |
-			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			WIPHY_FLAG_SUPPORTS_TDLS;
+			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_TDLS))
+		wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 	if (!brcmf_roamoff)
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM;
 	wiphy->mgmt_stypes = brcmf_txrx_stypes;
@@ -6376,13 +6377,15 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		goto wiphy_unreg_out;
 	}
 
-	err = brcmf_fil_iovar_int_set(ifp, "tdls_enable", 1);
-	if (err) {
-		brcmf_dbg(INFO, "TDLS not enabled (%d)\n", err);
-		wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_TDLS;
-	} else {
-		brcmf_fweh_register(cfg->pub, BRCMF_E_TDLS_PEER_EVENT,
-				    brcmf_notify_tdls_peer_event);
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_TDLS)) {
+		err = brcmf_fil_iovar_int_set(ifp, "tdls_enable", 1);
+		if (err) {
+			brcmf_dbg(INFO, "TDLS not enabled (%d)\n", err);
+			wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_TDLS;
+		} else {
+			brcmf_fweh_register(cfg->pub, BRCMF_E_TDLS_PEER_EVENT,
+					    brcmf_notify_tdls_peer_event);
+		}
 	}
 
 	/* (re-) activate FWEH event handling */
