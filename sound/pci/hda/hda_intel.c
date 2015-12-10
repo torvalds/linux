@@ -1490,6 +1490,15 @@ static void azx_probe_work(struct work_struct *work)
 
 static int default_bdl_pos_adj(struct azx *chip)
 {
+	/* some exceptions: Atoms seem problematic with value 1 */
+	if (chip->pci->vendor == PCI_VENDOR_ID_INTEL) {
+		switch (chip->pci->device) {
+		case 0x0f04: /* Baytrail */
+		case 0x2284: /* Braswell */
+			return 32;
+		}
+	}
+
 	switch (chip->driver_type) {
 	case AZX_DRIVER_ICH:
 	case AZX_DRIVER_PCH:
