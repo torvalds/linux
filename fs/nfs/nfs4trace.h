@@ -1442,6 +1442,62 @@ DEFINE_NFS4_INODE_STATEID_EVENT(nfs4_layoutcommit);
 DEFINE_NFS4_INODE_STATEID_EVENT(nfs4_layoutreturn);
 DEFINE_NFS4_INODE_EVENT(nfs4_layoutreturn_on_close);
 
+#define show_pnfs_update_layout_reason(reason)				\
+	__print_symbolic(reason,					\
+		{ PNFS_UPDATE_LAYOUT_UNKNOWN, "unknown" },		\
+		{ PNFS_UPDATE_LAYOUT_NO_PNFS, "no pnfs" },		\
+		{ PNFS_UPDATE_LAYOUT_RD_ZEROLEN, "read+zerolen" },	\
+		{ PNFS_UPDATE_LAYOUT_MDSTHRESH, "mdsthresh" },		\
+		{ PNFS_UPDATE_LAYOUT_NOMEM, "nomem" },			\
+		{ PNFS_UPDATE_LAYOUT_BULK_RECALL, "bulk recall" },	\
+		{ PNFS_UPDATE_LAYOUT_IO_TEST_FAIL, "io test fail" },	\
+		{ PNFS_UPDATE_LAYOUT_FOUND_CACHED, "found cached" },	\
+		{ PNFS_UPDATE_LAYOUT_RETURN, "layoutreturn" },		\
+		{ PNFS_UPDATE_LAYOUT_BLOCKED, "layouts blocked" },	\
+		{ PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET, "sent layoutget" })
+
+TRACE_EVENT(pnfs_update_layout,
+		TP_PROTO(struct inode *inode,
+			loff_t pos,
+			u64 count,
+			enum pnfs_iomode iomode,
+			struct pnfs_layout_segment *lseg,
+			enum pnfs_update_layout_reason reason
+		),
+		TP_ARGS(inode, pos, count, iomode, lseg, reason),
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u64, fileid)
+			__field(u32, fhandle)
+			__field(loff_t, pos)
+			__field(u64, count)
+			__field(enum pnfs_iomode, iomode)
+			__field(struct pnfs_layout_segment *, lseg)
+			__field(enum pnfs_update_layout_reason, reason)
+		),
+		TP_fast_assign(
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->pos = pos;
+			__entry->count = count;
+			__entry->iomode = iomode;
+			__entry->lseg = lseg;
+			__entry->reason = reason;
+		),
+		TP_printk(
+			"fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"iomode=%s pos=%llu count=%llu lseg=%p (%s)",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			show_pnfs_iomode(__entry->iomode),
+			(unsigned long long)__entry->pos,
+			(unsigned long long)__entry->count, __entry->lseg,
+			show_pnfs_update_layout_reason(__entry->reason)
+		)
+);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* _TRACE_NFS4_H */
