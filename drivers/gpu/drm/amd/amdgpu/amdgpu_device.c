@@ -949,6 +949,15 @@ static bool amdgpu_check_pot_argument(int arg)
  */
 static void amdgpu_check_arguments(struct amdgpu_device *adev)
 {
+	if (amdgpu_sched_jobs < 4) {
+		dev_warn(adev->dev, "sched jobs (%d) must be at least 4\n",
+			 amdgpu_sched_jobs);
+		amdgpu_sched_jobs = 4;
+	} else if (!amdgpu_check_pot_argument(amdgpu_sched_jobs)){
+		dev_warn(adev->dev, "sched jobs (%d) must be a power of 2\n",
+			 amdgpu_sched_jobs);
+		amdgpu_sched_jobs = roundup_pow_of_two(amdgpu_sched_jobs);
+	}
 	/* vramlimit must be a power of two */
 	if (!amdgpu_check_pot_argument(amdgpu_vram_limit)) {
 		dev_warn(adev->dev, "vram limit (%d) must be a power of 2\n",

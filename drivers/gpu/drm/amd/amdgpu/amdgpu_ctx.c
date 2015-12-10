@@ -252,7 +252,7 @@ uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 	unsigned idx = 0;
 	struct fence *other = NULL;
 
-	idx = seq % amdgpu_sched_jobs;
+	idx = seq & (amdgpu_sched_jobs - 1);
 	other = cring->fences[idx];
 	if (other) {
 		signed long r;
@@ -292,7 +292,7 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 		return NULL;
 	}
 
-	fence = fence_get(cring->fences[seq % amdgpu_sched_jobs]);
+	fence = fence_get(cring->fences[seq & (amdgpu_sched_jobs - 1)]);
 	spin_unlock(&ctx->ring_lock);
 
 	return fence;
