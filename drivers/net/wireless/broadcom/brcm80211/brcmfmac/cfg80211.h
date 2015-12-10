@@ -95,14 +95,6 @@ struct brcmf_cfg80211_conf {
 	u32 rts_threshold;
 	u32 retry_short;
 	u32 retry_long;
-	s32 tx_power;
-	struct ieee80211_channel channel;
-};
-
-/* basic structure of information element */
-struct brcmf_cfg80211_ie {
-	u16 offset;
-	u8 buf[WL_TLV_INFO_MAX];
 };
 
 /* security information with currently associated ap */
@@ -333,7 +325,6 @@ struct brcmf_cfg80211_vif_event {
  * @usr_sync: mainly for dongle up/down synchronization.
  * @bss_list: bss_list holding scanned ap information.
  * @bss_info: bss information for cfg80211 layer.
- * @ie: information element object for internal purpose.
  * @conn_info: association info.
  * @pmk_list: wpa2 pmk list.
  * @scan_status: scan activity on the dongle.
@@ -367,7 +358,6 @@ struct brcmf_cfg80211_info {
 	struct cfg80211_scan_request *scan_request;
 	struct mutex usr_sync;
 	struct wl_cfg80211_bss_info *bss_info;
-	struct brcmf_cfg80211_ie ie;
 	struct brcmf_cfg80211_connect_info conn_info;
 	struct brcmf_cfg80211_pmk_list *pmk_list;
 	unsigned long scan_status;
