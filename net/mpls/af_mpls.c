@@ -1235,7 +1235,9 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		    nla_put_labels(skb, RTA_NEWDST, nh->nh_labels,
 				   nh->nh_label))
 			goto nla_put_failure;
-		if (nla_put_via(skb, nh->nh_via_table, mpls_nh_via(rt, nh),
+		if ((nh->nh_via_table != NEIGH_ARP_TABLE ||
+		     nh->nh_via_alen != 0) &&
+		    nla_put_via(skb, nh->nh_via_table, mpls_nh_via(rt, nh),
 				nh->nh_via_alen))
 			goto nla_put_failure;
 		dev = rtnl_dereference(nh->nh_dev);
@@ -1323,7 +1325,9 @@ static inline size_t lfib_nlmsg_size(struct mpls_route *rt)
 
 		if (nh->nh_dev)
 			payload += nla_total_size(4); /* RTA_OIF */
-		payload += nla_total_size(2 + nh->nh_via_alen); /* RTA_VIA */
+		if (nh->nh_via_table != NEIGH_ARP_TABLE ||
+		    nh->nh_via_alen != 0) /* RTA_VIA */
+			payload += nla_total_size(2 + nh->nh_via_alen);
 		if (nh->nh_labels) /* RTA_NEWDST */
 			payload += nla_total_size(nh->nh_labels * 4);
 	} else {
