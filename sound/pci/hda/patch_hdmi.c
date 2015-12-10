@@ -1605,6 +1605,7 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	 */
 	int present;
 	bool ret;
+	bool do_repoll = false;
 
 	snd_hda_power_up_pm(codec);
 	present = snd_hda_pin_sense(codec, pin_nid);
@@ -1629,9 +1630,11 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 						    eld->eld_size) < 0)
 				eld->eld_valid = false;
 		}
+		if (!eld->eld_valid && repoll)
+			do_repoll = true;
 	}
 
-	if (!eld->eld_valid && repoll)
+	if (do_repoll)
 		schedule_delayed_work(&per_pin->work, msecs_to_jiffies(300));
 	else
 		update_eld(codec, per_pin, eld);
