@@ -1112,6 +1112,18 @@ struct filter_pred {
 	unsigned short		right;
 };
 
+static inline bool is_string_field(struct ftrace_event_field *field)
+{
+	return field->filter_type == FILTER_DYN_STRING ||
+	       field->filter_type == FILTER_STATIC_STRING ||
+	       field->filter_type == FILTER_PTR_STRING;
+}
+
+static inline bool is_function_field(struct ftrace_event_field *field)
+{
+	return field->filter_type == FILTER_TRACE_FN;
+}
+
 extern enum regex_type
 filter_parse_regex(char *buff, int len, char **search, int *not);
 extern void print_event_filter(struct trace_event_file *file,
