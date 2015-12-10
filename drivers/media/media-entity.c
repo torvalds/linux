@@ -662,13 +662,13 @@ static void __media_entity_remove_link(struct media_entity *entity,
 		if (link->source->entity == entity)
 			remote->num_backlinks--;
 
-		if (--remote->num_links == 0)
-			break;
-
 		/* Remove the remote link */
 		list_del(&rlink->list);
 		media_gobj_remove(&rlink->graph_obj);
 		kfree(rlink);
+
+		if (--remote->num_links == 0)
+			break;
 	}
 	list_del(&link->list);
 	media_gobj_remove(&link->graph_obj);
