@@ -193,6 +193,19 @@ static int event_trigger_regex_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
+	if ((file->f_mode & FMODE_WRITE) &&
+	    (file->f_flags & O_TRUNC)) {
+		struct trace_event_file *event_file;
+		struct event_command *p;
+
+		event_file = event_file_data(file);
+
+		list_for_each_entry(p, &trigger_commands, list) {
+			if (p->unreg_all)
+				p->unreg_all(event_file);
+		}
+	}
+
 	if (file->f_mode & FMODE_READ) {
 		ret = seq_open(file, &event_triggers_seq_ops);
 		if (!ret) {

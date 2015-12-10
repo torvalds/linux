@@ -1298,8 +1298,8 @@ struct event_trigger_ops {
  *	it (filters make a trigger require access to the trace record
  *	but are not always present).
  *
- * All the methods below, except for @set_filter(), must be
- * implemented.
+ * All the methods below, except for @set_filter() and @unreg_all(),
+ * must be implemented.
  *
  * @func: The callback function responsible for parsing and
  *	registering the trigger written to the 'trigger' file by the
@@ -1323,6 +1323,10 @@ struct event_trigger_ops {
  *	initializing it (via the event_trigger_ops @free() function).
  *	This is usually implemented by the generic utility function
  *	@unregister_trigger() (see trace_event_triggers.c).
+ *
+ * @unreg_all: An optional function called to remove all the triggers
+ *	from the list of triggers associated with the event.  Called
+ *	when a trigger file is opened in truncate mode.
  *
  * @set_filter: An optional function called to parse and set a filter
  *	for the trigger.  If no @set_filter() method is set for the
@@ -1350,6 +1354,7 @@ struct event_command {
 					 struct event_trigger_ops *ops,
 					 struct event_trigger_data *data,
 					 struct trace_event_file *file);
+	void			(*unreg_all)(struct trace_event_file *file);
 	int			(*set_filter)(char *filter_str,
 					      struct event_trigger_data *data,
 					      struct trace_event_file *file);
