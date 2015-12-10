@@ -297,8 +297,16 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		BUG_ON(ring->free_pages_num != 0);
 		BUG_ON(ring->persistent_gnt_c != 0);
 		WARN_ON(i != (XEN_BLKIF_REQS_PER_PAGE * blkif->nr_ring_pages));
+		xen_blkif_put(blkif);
 	}
 	blkif->nr_ring_pages = 0;
+	/*
+	 * blkif->rings was allocated in connect_ring, so we should free it in
+	 * here.
+	 */
+	kfree(blkif->rings);
+	blkif->rings = NULL;
+	blkif->nr_rings = 0;
 
 	return 0;
 }
@@ -310,7 +318,6 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 	xen_vbd_free(&blkif->vbd);
 
 	/* Make sure everything is drained before shutting down */
-	kfree(blkif->rings);
 	kmem_cache_free(xen_blkif_cachep, blkif);
 }
 
@@ -484,7 +491,6 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 static int xen_blkbk_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
-	unsigned int i;
 
 	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
@@ -499,12 +505,11 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 
 	dev_set_drvdata(&dev->dev, NULL);
 
-	if (be->blkif) {
+	if (be->blkif)
 		xen_blkif_disconnect(be->blkif);
-		for (i = 0; i < be->blkif->nr_rings; i++)
-			xen_blkif_put(be->blkif);
-	}
 
+	/* Put the reference we set in xen_blkif_alloc(). */
+	xen_blkif_put(be->blkif);
 	kfree(be->mode);
 	kfree(be);
 	return 0;
