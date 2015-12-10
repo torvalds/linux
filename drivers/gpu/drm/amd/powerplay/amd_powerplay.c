@@ -764,7 +764,7 @@ int amd_powerplay_display_configuration_change(void *handle, const void *input)
 }
 
 int amd_powerplay_get_display_power_level(void *handle,
-		struct amd_pp_dal_clock_info *output)
+		struct amd_pp_simple_clock_info *output)
 {
 	struct pp_hwmgr  *hwmgr;
 

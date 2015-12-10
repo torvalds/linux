@@ -325,7 +325,7 @@ struct pp_hwmgr_func {
 				bool cc6_disable, bool pstate_disable,
 				bool pstate_switch_disable);
 	int (*get_dal_power_level)(struct pp_hwmgr *hwmgr,
-				   struct amd_pp_dal_clock_info *info);
+				   struct amd_pp_simple_clock_info *info);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
 	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);

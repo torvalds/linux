@@ -213,7 +213,7 @@ struct amd_pp_display_configuration {
 	uint32_t dce_tolerable_mclk_in_active_latency;
 };
 
-struct amd_pp_dal_clock_info {
+struct amd_pp_simple_clock_info {
 	uint32_t	engine_max_clock;
 	uint32_t	memory_max_clock;
 	uint32_t	level;
@@ -310,7 +310,7 @@ int amd_powerplay_fini(void *handle);
 int amd_powerplay_display_configuration_change(void *handle, const void *input);
 
 int amd_powerplay_get_display_power_level(void *handle,
-		struct amd_pp_dal_clock_info *output);
+		struct amd_pp_simple_clock_info *output);
 
 
 #endif /* _AMD_POWERPLAY_H_ */

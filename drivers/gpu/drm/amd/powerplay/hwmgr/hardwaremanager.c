@@ -313,7 +313,7 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 }
 
 int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct amd_pp_dal_clock_info *info)
+		struct amd_pp_simple_clock_info *info)
 {
 	PHM_FUNC_CHECK(hwmgr);
 

@@ -1679,10 +1679,10 @@ static void cz_hw_print_display_cfg(
 }
 
  static int cz_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct amd_pp_dal_clock_info*info)
+		struct amd_pp_simple_clock_info *info)
 {
 	uint32_t i;
-	const struct phm_clock_voltage_dependency_table * table =
+	const struct phm_clock_voltage_dependency_table *table =
 			hwmgr->dyn_state.vddc_dep_on_dal_pwrl;
 	const struct phm_clock_and_voltage_limits* limits =
 			&hwmgr->dyn_state.max_clock_voltage_on_ac;
