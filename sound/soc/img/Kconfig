@@ -42,3 +42,11 @@ config SND_SOC_IMG_SPDIF_OUT
 	help
 	  Say Y or M if you want to add support for SPDIF out driver for
 	  Imagination Technologies SPDIF out device.
+
+
+config SND_SOC_IMG_PISTACHIO_INTERNAL_DAC
+	tristate "Support for Pistachio SoC Internal DAC Driver"
+	depends on SND_SOC_IMG
+	help
+	  Say Y or M if you want to add support for Pistachio internal DAC
+	  driver for Imagination Technologies Pistachio internal DAC device.
