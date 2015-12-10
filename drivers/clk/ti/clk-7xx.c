@@ -289,6 +289,7 @@ static struct ti_dt_clk dra7xx_clks[] = {
 	DT_CLK("usbhs_omap", "usbtll_fck", "dummy_ck"),
 	DT_CLK("omap_wdt", "ick", "dummy_ck"),
 	DT_CLK(NULL, "timer_32k_ck", "sys_32k_ck"),
+	DT_CLK(NULL, "sys_clkin_ck", "timer_sys_clk_div"),
 	DT_CLK("4ae18000.timer", "timer_sys_ck", "timer_sys_clk_div"),
 	DT_CLK("48032000.timer", "timer_sys_ck", "timer_sys_clk_div"),
 	DT_CLK("48034000.timer", "timer_sys_ck", "timer_sys_clk_div"),
