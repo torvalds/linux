@@ -61,6 +61,18 @@ MODULE_PARM_DESC(send_queue_size, "Size of send queue in number of work requests
 module_param_named(recv_queue_size, mad_recvq_size, int, 0444);
 MODULE_PARM_DESC(recv_queue_size, "Size of receive queue in number of work requests");
 
+/*
+ * Define a limit on the number of completions which will be processed by the
+ * worker thread in a single work item.  This ensures that other work items
+ * (potentially from other users) are processed fairly.
+ *
+ * The number of completions was derived from the default queue sizes above.
+ * We use a value which is double the larger of the 2 queues (receive @ 512)
+ * but keep it fixed such that an increase in that value does not introduce
+ * unfairness.
+ */
+#define MAD_COMPLETION_PROC_LIMIT 1024
+
 static struct list_head ib_mad_port_list;
 static u32 ib_mad_client_id = 0;
 
@@ -2555,6 +2567,7 @@ static void ib_mad_completion_handler(struct work_struct *work)
 {
 	struct ib_mad_port_private *port_priv;
 	struct ib_wc wc;
+	int count = 0;
 
 	port_priv = container_of(work, struct ib_mad_port_private, work);
 	ib_req_notify_cq(port_priv->cq, IB_CQ_NEXT_COMP);
@@ -2574,6 +2587,11 @@ static void ib_mad_completion_handler(struct work_struct *work)
 			}
 		} else
 			mad_error_handler(port_priv, &wc);
+
+		if (++count > MAD_COMPLETION_PROC_LIMIT) {
+			queue_work(port_priv->wq, &port_priv->work);
+			break;
+		}
 	}
 }
 
