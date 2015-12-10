@@ -5031,8 +5031,10 @@ static void bnxt_dbg_dump_states(struct bnxt *bp)
 static void bnxt_reset_task(struct bnxt *bp)
 {
 	bnxt_dbg_dump_states(bp);
-	if (netif_running(bp->dev))
-		bnxt_tx_disable(bp); /* prevent tx timout again */
+	if (netif_running(bp->dev)) {
+		bnxt_close_nic(bp, false, false);
+		bnxt_open_nic(bp, false, false);
+	}
 }
 
 static void bnxt_tx_timeout(struct net_device *dev)
@@ -5111,8 +5113,16 @@ static void bnxt_sp_task(struct work_struct *work)
 		bnxt_hwrm_tunnel_dst_port_free(
 			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN);
 	}
-	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
+	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event)) {
+		/* bnxt_reset_task() calls bnxt_close_nic() which waits
+		 * for BNXT_STATE_IN_SP_TASK to clear.
+		 */
+		clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+		rtnl_lock();
 		bnxt_reset_task(bp);
+		set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+		rtnl_unlock();
+	}
 
 	smp_mb__before_atomic();
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
