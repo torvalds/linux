@@ -473,8 +473,7 @@ static int brcmf_msgbuf_ioctl_resp_wait(struct brcmf_msgbuf *msgbuf)
 static void brcmf_msgbuf_ioctl_resp_wake(struct brcmf_msgbuf *msgbuf)
 {
 	msgbuf->ctl_completed = true;
-	if (waitqueue_active(&msgbuf->ioctl_resp_wait))
-		wake_up(&msgbuf->ioctl_resp_wait);
+	wake_up(&msgbuf->ioctl_resp_wait);
 }
 
 
