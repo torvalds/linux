@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/usb.h>
 
 #include "usb.h"
@@ -155,7 +156,6 @@ int usb_register_dev(struct usb_interface *intf,
 	int minor_base = class_driver->minor_base;
 	int minor;
 	char name[20];
-	char *temp;
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 	/*
@@ -192,14 +192,9 @@ int usb_register_dev(struct usb_interface *intf,
 
 	/* create a usb class device for this usb interface */
 	snprintf(name, sizeof(name), class_driver->name, minor - minor_base);
-	temp = strrchr(name, '/');
-	if (temp && (temp[1] != '\0'))
-		++temp;
-	else
-		temp = name;
 	intf->usb_dev = device_create(usb_class->class, &intf->dev,
 				      MKDEV(USB_MAJOR, minor), class_driver,
-				      "%s", temp);
+				      "%s", kbasename(name));
 	if (IS_ERR(intf->usb_dev)) {
 		down_write(&minor_rwsem);
 		usb_minors[minor] = NULL;
