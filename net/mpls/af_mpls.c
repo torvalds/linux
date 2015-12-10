@@ -27,6 +27,8 @@
  */
 #define MAX_MP_SELECT_LABELS 4
 
+#define MPLS_NEIGH_TABLE_UNSPEC (NEIGH_LINK_TABLE + 1)
+
 static int zero = 0;
 static int label_limit = (1 << 20) - 1;
 
@@ -317,7 +319,13 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	err = neigh_xmit(nh->nh_via_table, out_dev, mpls_nh_via(rt, nh), skb);
+	/* If via wasn't specified then send out using device address */
+	if (nh->nh_via_table == MPLS_NEIGH_TABLE_UNSPEC)
+		err = neigh_xmit(NEIGH_LINK_TABLE, out_dev,
+				 out_dev->dev_addr, skb);
+	else
+		err = neigh_xmit(nh->nh_via_table, out_dev,
+				 mpls_nh_via(rt, nh), skb);
 	if (err)
 		net_dbg_ratelimited("%s: packet transmission failed: %d\n",
 				    __func__, err);
@@ -1122,6 +1130,7 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 
 	cfg->rc_label		= LABEL_NOT_SPECIFIED;
 	cfg->rc_protocol	= rtm->rtm_protocol;
+	cfg->rc_via_table	= MPLS_NEIGH_TABLE_UNSPEC;
 	cfg->rc_nlflags		= nlh->nlmsg_flags;
 	cfg->rc_nlinfo.portid	= NETLINK_CB(skb).portid;
 	cfg->rc_nlinfo.nlh	= nlh;
@@ -1235,8 +1244,7 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		    nla_put_labels(skb, RTA_NEWDST, nh->nh_labels,
 				   nh->nh_label))
 			goto nla_put_failure;
-		if ((nh->nh_via_table != NEIGH_ARP_TABLE ||
-		     nh->nh_via_alen != 0) &&
+		if (nh->nh_via_table != MPLS_NEIGH_TABLE_UNSPEC &&
 		    nla_put_via(skb, nh->nh_via_table, mpls_nh_via(rt, nh),
 				nh->nh_via_alen))
 			goto nla_put_failure;
@@ -1325,8 +1333,7 @@ static inline size_t lfib_nlmsg_size(struct mpls_route *rt)
 
 		if (nh->nh_dev)
 			payload += nla_total_size(4); /* RTA_OIF */
-		if (nh->nh_via_table != NEIGH_ARP_TABLE ||
-		    nh->nh_via_alen != 0) /* RTA_VIA */
+		if (nh->nh_via_table != MPLS_NEIGH_TABLE_UNSPEC) /* RTA_VIA */
 			payload += nla_total_size(2 + nh->nh_via_alen);
 		if (nh->nh_labels) /* RTA_NEWDST */
 			payload += nla_total_size(nh->nh_labels * 4);
