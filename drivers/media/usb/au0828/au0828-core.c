@@ -178,8 +178,6 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	*/
 	dev->dev_state = DEV_DISCONNECTED;
 
-	au0828_unregister_media_device(dev);
-
 	au0828_rc_unregister(dev);
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
@@ -193,6 +191,10 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 		au0828_analog_unregister(dev);
 		v4l2_device_disconnect(&dev->v4l2_dev);
 		v4l2_device_put(&dev->v4l2_dev);
+		/*
+		 * No need to call au0828_usb_release() if V4L2 is enabled,
+		 * as this is already called via au0828_usb_v4l2_release()
+		 */
 		return;
 	}
 #endif
