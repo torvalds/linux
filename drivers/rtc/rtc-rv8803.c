@@ -61,7 +61,7 @@ static irqreturn_t rv8803_handle_irq(int irq, void *dev_id)
 	struct i2c_client *client = dev_id;
 	struct rv8803_data *rv8803 = i2c_get_clientdata(client);
 	unsigned long events = 0;
-	u8 flags;
+	int flags;
 
 	spin_lock(&rv8803->flags_lock);
 
