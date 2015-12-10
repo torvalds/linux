@@ -26,6 +26,8 @@
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nft_meta.h>
 
+#include <uapi/linux/netfilter_bridge.h> /* NF_BR_PRE_ROUTING */
+
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -190,6 +192,13 @@ err:
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_eval);
 
+/* don't change or set _LOOPBACK, _USER, etc. */
+static bool pkt_type_ok(u32 p)
+{
+	return p == PACKET_HOST || p == PACKET_BROADCAST ||
+	       p == PACKET_MULTICAST || p == PACKET_OTHERHOST;
+}
+
 void nft_meta_set_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
@@ -204,6 +213,11 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 		break;
 	case NFT_META_PRIORITY:
 		skb->priority = value;
+		break;
+	case NFT_META_PKTTYPE:
+		if (skb->pkt_type != value &&
+		    pkt_type_ok(value) && pkt_type_ok(skb->pkt_type))
+			skb->pkt_type = value;
 		break;
 	case NFT_META_NFTRACE:
 		skb->nf_trace = 1;
@@ -273,6 +287,24 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_init);
 
+static int nft_meta_set_init_pkttype(const struct nft_ctx *ctx)
+{
+	unsigned int hooks;
+
+	switch (ctx->afi->family) {
+	case NFPROTO_BRIDGE:
+		hooks = 1 << NF_BR_PRE_ROUTING;
+		break;
+	case NFPROTO_NETDEV:
+		hooks = 1 << NF_NETDEV_INGRESS;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return nft_chain_validate_hooks(ctx->chain, hooks);
+}
+
 int nft_meta_set_init(const struct nft_ctx *ctx,
 		      const struct nft_expr *expr,
 		      const struct nlattr * const tb[])
@@ -288,6 +320,12 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 		len = sizeof(u32);
 		break;
 	case NFT_META_NFTRACE:
+		len = sizeof(u8);
+		break;
+	case NFT_META_PKTTYPE:
+		err = nft_meta_set_init_pkttype(ctx);
+		if (err)
+			return err;
 		len = sizeof(u8);
 		break;
 	default:
