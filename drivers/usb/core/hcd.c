@@ -2778,8 +2778,10 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		rhdev->speed = USB_SPEED_WIRELESS;
 		break;
 	case HCD_USB3:
-	case HCD_USB31:
 		rhdev->speed = USB_SPEED_SUPER;
+		break;
+	case HCD_USB31:
+		rhdev->speed = USB_SPEED_SUPER_PLUS;
 		break;
 	default:
 		retval = -EINVAL;
