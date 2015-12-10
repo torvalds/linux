@@ -245,12 +245,10 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	}
 
 	r = i2c_dw_probe(dev);
-	if (r) {
+	if (r && !dev->pm_runtime_disabled)
 		pm_runtime_disable(&pdev->dev);
-		return r;
-	}
 
-	return 0;
+	return r;
 }
 
 static int dw_i2c_plat_remove(struct platform_device *pdev)
@@ -265,7 +263,8 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
+	if (!dev->pm_runtime_disabled)
+		pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
