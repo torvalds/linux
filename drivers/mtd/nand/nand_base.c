@@ -3945,9 +3945,6 @@ static int nand_dt_init(struct nand_chip *chip)
 	if (!dn)
 		return 0;
 
-	/* MTD can automatically handle DT partitions, etc. */
-	mtd_set_of_node(nand_to_mtd(chip), dn);
-
 	if (of_get_nand_bus_width(dn) == 16)
 		chip->options |= NAND_BUSWIDTH_16;
 
