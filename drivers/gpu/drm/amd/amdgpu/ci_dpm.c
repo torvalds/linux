@@ -50,7 +50,9 @@
 #include "gmc/gmc_7_1_sh_mask.h"
 
 MODULE_FIRMWARE("radeon/bonaire_smc.bin");
+MODULE_FIRMWARE("radeon/bonaire_k_smc.bin");
 MODULE_FIRMWARE("radeon/hawaii_smc.bin");
+MODULE_FIRMWARE("radeon/hawaii_k_smc.bin");
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -5754,10 +5756,18 @@ static int ci_dpm_init_microcode(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
-		chip_name = "bonaire";
+		if ((adev->pdev->revision == 0x80) ||
+		    (adev->pdev->revision == 0x81) ||
+		    (adev->pdev->device == 0x665f))
+			chip_name = "bonaire_k";
+		else
+			chip_name = "bonaire";
 		break;
 	case CHIP_HAWAII:
-		chip_name = "hawaii";
+		if (adev->pdev->revision == 0x80)
+			chip_name = "hawaii_k";
+		else
+			chip_name = "hawaii";
 		break;
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
