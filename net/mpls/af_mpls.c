@@ -604,10 +604,14 @@ static int mpls_nh_build(struct net *net, struct mpls_route *rt,
 			goto errout;
 	}
 
-	err = nla_get_via(via, &nh->nh_via_alen, &nh->nh_via_table,
-			  __mpls_nh_via(rt, nh));
-	if (err)
-		goto errout;
+	if (via) {
+		err = nla_get_via(via, &nh->nh_via_alen, &nh->nh_via_table,
+				  __mpls_nh_via(rt, nh));
+		if (err)
+			goto errout;
+	} else {
+		nh->nh_via_table = MPLS_NEIGH_TABLE_UNSPEC;
+	}
 
 	err = mpls_nh_assign_dev(net, rt, nh, oif);
 	if (err)
@@ -688,9 +692,6 @@ static int mpls_nh_build_multi(struct mpls_route_config *cfg,
 			nla_via = nla_find(attrs, attrlen, RTA_VIA);
 			nla_newdst = nla_find(attrs, attrlen, RTA_NEWDST);
 		}
-
-		if (!nla_via)
-			goto errout;
 
 		err = mpls_nh_build(cfg->rc_nlinfo.nl_net, rt, nh,
 				    rtnh->rtnh_ifindex, nla_via,
@@ -1271,7 +1272,8 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 							    nh->nh_labels,
 							    nh->nh_label))
 				goto nla_put_failure;
-			if (nla_put_via(skb, nh->nh_via_table,
+			if (nh->nh_via_table != MPLS_NEIGH_TABLE_UNSPEC &&
+			    nla_put_via(skb, nh->nh_via_table,
 					mpls_nh_via(rt, nh),
 					nh->nh_via_alen))
 				goto nla_put_failure;
@@ -1343,7 +1345,9 @@ static inline size_t lfib_nlmsg_size(struct mpls_route *rt)
 
 		for_nexthops(rt) {
 			nhsize += nla_total_size(sizeof(struct rtnexthop));
-			nhsize += nla_total_size(2 + nh->nh_via_alen);
+			/* RTA_VIA */
+			if (nh->nh_via_table != MPLS_NEIGH_TABLE_UNSPEC)
+				nhsize += nla_total_size(2 + nh->nh_via_alen);
 			if (nh->nh_labels)
 				nhsize += nla_total_size(nh->nh_labels * 4);
 		} endfor_nexthops(rt);
