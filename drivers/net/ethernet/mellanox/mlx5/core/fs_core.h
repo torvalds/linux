@@ -56,6 +56,12 @@ struct fs_node {
 	struct list_head	list;
 	struct list_head	children;
 	enum fs_node_type	type;
+	struct fs_node		*parent;
+	struct fs_node		*root;
+	/* lock the node for writing and traversing */
+	struct mutex		lock;
+	atomic_t		refcount;
+	void			(*remove_func)(struct fs_node *);
 };
 
 struct mlx5_flow_rule {
