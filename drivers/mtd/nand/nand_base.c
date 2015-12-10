@@ -3937,10 +3937,16 @@ ident_done:
 	return type;
 }
 
-static int nand_dt_init(struct mtd_info *mtd, struct nand_chip *chip,
-			struct device_node *dn)
+static int nand_dt_init(struct nand_chip *chip)
 {
+	struct device_node *dn = nand_get_flash_node(chip);
 	int ecc_mode, ecc_strength, ecc_step;
+
+	if (!dn)
+		return 0;
+
+	/* MTD can automatically handle DT partitions, etc. */
+	mtd_set_of_node(nand_to_mtd(chip), dn);
 
 	if (of_get_nand_bus_width(dn) == 16)
 		chip->options |= NAND_BUSWIDTH_16;
@@ -3989,14 +3995,9 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	struct nand_flash_dev *type;
 	int ret;
 
-	if (nand_get_flash_node(chip)) {
-		/* MTD can automatically handle DT partitions, etc. */
-		mtd_set_of_node(mtd, nand_get_flash_node(chip));
-
-		ret = nand_dt_init(mtd, chip, nand_get_flash_node(chip));
-		if (ret)
-			return ret;
-	}
+	ret = nand_dt_init(chip);
+	if (ret)
+		return ret;
 
 	/* Set the default functions */
 	nand_set_defaults(chip, chip->options & NAND_BUSWIDTH_16);
