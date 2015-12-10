@@ -43,7 +43,7 @@ lib/liblkl.a: $(lib_objs) lib/lkl.o
 	$(AR) -rc $@ $^
 
 lib/liblkl.so: $(lib_objs) lib/lkl.o
-	gcc -o $@ -shared $^
+	$(CC) -o $@ -shared $^
 
 lib/lkl.o:
 	$(MAKE) -C ../.. ARCH=lkl defconfig
