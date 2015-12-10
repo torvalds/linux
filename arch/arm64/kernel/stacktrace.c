@@ -71,9 +71,17 @@ int notrace unwind_frame(struct stackframe *frame)
 	 * to task stack.
 	 * If we reach the end of the stack - and its an interrupt stack,
 	 * read the original task stack pointer from the dummy frame.
+	 *
+	 * Check the frame->fp we read from the bottom of the irq_stack,
+	 * and the original task stack pointer are both in current->stack.
 	 */
-	if (frame->sp == irq_stack_ptr)
-		frame->sp = IRQ_STACK_TO_TASK_STACK(irq_stack_ptr);
+	if (frame->sp == irq_stack_ptr) {
+		unsigned long orig_sp = IRQ_STACK_TO_TASK_STACK(irq_stack_ptr);
+
+		if(object_is_on_stack((void *)orig_sp) &&
+		   object_is_on_stack((void *)frame->fp))
+			frame->sp = orig_sp;
+	}
 
 	return 0;
 }
