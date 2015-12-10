@@ -15,25 +15,6 @@
 #include "core.h"
 #include "sh_pfc.h"
 
-#define PORT_GP_26(bank, fn, sfx)					\
-	PORT_GP_1(bank, 0,  fn, sfx), PORT_GP_1(bank, 1,  fn, sfx),	\
-	PORT_GP_1(bank, 2,  fn, sfx), PORT_GP_1(bank, 3,  fn, sfx),	\
-	PORT_GP_1(bank, 4,  fn, sfx), PORT_GP_1(bank, 5,  fn, sfx),	\
-	PORT_GP_1(bank, 6,  fn, sfx), PORT_GP_1(bank, 7,  fn, sfx),	\
-	PORT_GP_1(bank, 8,  fn, sfx), PORT_GP_1(bank, 9,  fn, sfx),	\
-	PORT_GP_1(bank, 10, fn, sfx), PORT_GP_1(bank, 11, fn, sfx),	\
-	PORT_GP_1(bank, 12, fn, sfx), PORT_GP_1(bank, 13, fn, sfx),	\
-	PORT_GP_1(bank, 14, fn, sfx), PORT_GP_1(bank, 15, fn, sfx),	\
-	PORT_GP_1(bank, 16, fn, sfx), PORT_GP_1(bank, 17, fn, sfx),	\
-	PORT_GP_1(bank, 18, fn, sfx), PORT_GP_1(bank, 19, fn, sfx),	\
-	PORT_GP_1(bank, 20, fn, sfx), PORT_GP_1(bank, 21, fn, sfx),	\
-	PORT_GP_1(bank, 22, fn, sfx), PORT_GP_1(bank, 23, fn, sfx),	\
-	PORT_GP_1(bank, 24, fn, sfx), PORT_GP_1(bank, 25, fn, sfx)
-
-#define PORT_GP_28(bank, fn, sfx)					\
-	PORT_GP_26(bank, fn, sfx),					\
-	PORT_GP_1(bank, 26, fn, sfx), PORT_GP_1(bank, 27, fn, sfx)
-
 #define CPU_ALL_PORT(fn, sfx)						\
 	PORT_GP_32(0, fn, sfx),						\
 	PORT_GP_26(1, fn, sfx),						\
@@ -618,28 +599,28 @@ enum {
 static const u16 pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(), /* PINMUX_DATA(GP_M_N_DATA, GP_M_N_FN...), */
 
-	PINMUX_DATA(A2_MARK, FN_A2),
-	PINMUX_DATA(WE0_N_MARK, FN_WE0_N),
-	PINMUX_DATA(WE1_N_MARK, FN_WE1_N),
-	PINMUX_DATA(DACK0_MARK, FN_DACK0),
-	PINMUX_DATA(USB0_PWEN_MARK, FN_USB0_PWEN),
-	PINMUX_DATA(USB0_OVC_MARK, FN_USB0_OVC),
-	PINMUX_DATA(USB1_PWEN_MARK, FN_USB1_PWEN),
-	PINMUX_DATA(USB1_OVC_MARK, FN_USB1_OVC),
-	PINMUX_DATA(SD0_CLK_MARK, FN_SD0_CLK),
-	PINMUX_DATA(SD0_CMD_MARK, FN_SD0_CMD),
-	PINMUX_DATA(SD0_DATA0_MARK, FN_SD0_DATA0),
-	PINMUX_DATA(SD0_DATA1_MARK, FN_SD0_DATA1),
-	PINMUX_DATA(SD0_DATA2_MARK, FN_SD0_DATA2),
-	PINMUX_DATA(SD0_DATA3_MARK, FN_SD0_DATA3),
-	PINMUX_DATA(SD0_CD_MARK, FN_SD0_CD),
-	PINMUX_DATA(SD0_WP_MARK, FN_SD0_WP),
-	PINMUX_DATA(SD1_CLK_MARK, FN_SD1_CLK),
-	PINMUX_DATA(SD1_CMD_MARK, FN_SD1_CMD),
-	PINMUX_DATA(SD1_DATA0_MARK, FN_SD1_DATA0),
-	PINMUX_DATA(SD1_DATA1_MARK, FN_SD1_DATA1),
-	PINMUX_DATA(SD1_DATA2_MARK, FN_SD1_DATA2),
-	PINMUX_DATA(SD1_DATA3_MARK, FN_SD1_DATA3),
+	PINMUX_SINGLE(A2),
+	PINMUX_SINGLE(WE0_N),
+	PINMUX_SINGLE(WE1_N),
+	PINMUX_SINGLE(DACK0),
+	PINMUX_SINGLE(USB0_PWEN),
+	PINMUX_SINGLE(USB0_OVC),
+	PINMUX_SINGLE(USB1_PWEN),
+	PINMUX_SINGLE(USB1_OVC),
+	PINMUX_SINGLE(SD0_CLK),
+	PINMUX_SINGLE(SD0_CMD),
+	PINMUX_SINGLE(SD0_DATA0),
+	PINMUX_SINGLE(SD0_DATA1),
+	PINMUX_SINGLE(SD0_DATA2),
+	PINMUX_SINGLE(SD0_DATA3),
+	PINMUX_SINGLE(SD0_CD),
+	PINMUX_SINGLE(SD0_WP),
+	PINMUX_SINGLE(SD1_CLK),
+	PINMUX_SINGLE(SD1_CMD),
+	PINMUX_SINGLE(SD1_DATA0),
+	PINMUX_SINGLE(SD1_DATA1),
+	PINMUX_SINGLE(SD1_DATA2),
+	PINMUX_SINGLE(SD1_DATA3),
 
 	/* IPSR0 */
 	PINMUX_IPSR_DATA(IP0_0, SD1_CD),
