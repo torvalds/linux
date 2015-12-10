@@ -31,7 +31,6 @@
 #define BY_BIT 7
 
 struct mtd_info_wrapper {
-	struct mtd_info info;
 	struct nand_chip chip;
 };
 
@@ -129,7 +128,7 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 
 	/* Get pointer to private data */
 	this = &wrapper->chip;
-	crisv32_mtd = &wrapper->info;
+	crisv32_mtd = nand_to_mtd(this);
 
 	pa_oe.oe |= 1 << CE_BIT;
 	pa_oe.oe |= 1 << ALE_BIT;

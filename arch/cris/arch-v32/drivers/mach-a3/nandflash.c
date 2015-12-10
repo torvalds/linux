@@ -36,7 +36,6 @@
 #define CE_BIT 12
 
 struct mtd_info_wrapper {
-	struct mtd_info info;
 	struct nand_chip chip;
 };
 
@@ -148,7 +147,7 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 
 	/* Get pointer to private data */
 	this = &wrapper->chip;
-	crisv32_mtd = &wrapper->info;
+	crisv32_mtd = nand_to_mtd(this);
 
 	/* Link the private data with the MTD structure */
 	crisv32_mtd->priv = this;
