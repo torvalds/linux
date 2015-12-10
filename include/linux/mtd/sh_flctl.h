@@ -143,7 +143,6 @@ enum flctl_ecc_res_t {
 struct dma_chan;
 
 struct sh_flctl {
-	struct mtd_info		mtd;
 	struct nand_chip	chip;
 	struct platform_device	*pdev;
 	struct dev_pm_qos_request pm_qos;
@@ -186,7 +185,7 @@ struct sh_flctl_platform_data {
 
 static inline struct sh_flctl *mtd_to_flctl(struct mtd_info *mtdinfo)
 {
-	return container_of(mtdinfo, struct sh_flctl, mtd);
+	return container_of(mtd_to_nand(mtdinfo), struct sh_flctl, chip);
 }
 
 #endif	/* __SH_FLCTL_H__ */
