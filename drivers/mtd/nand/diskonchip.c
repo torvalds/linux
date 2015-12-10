@@ -1556,15 +1556,15 @@ static int __init doc_probe(unsigned long physadr)
 
 	printk(KERN_NOTICE "DiskOnChip found at 0x%lx\n", physadr);
 
-	len = sizeof(struct mtd_info) +
-	    sizeof(struct nand_chip) + sizeof(struct doc_priv) + (2 * sizeof(struct nand_bbt_descr));
-	mtd = kzalloc(len, GFP_KERNEL);
-	if (!mtd) {
+	len = sizeof(struct nand_chip) + sizeof(struct doc_priv) +
+	      (2 * sizeof(struct nand_bbt_descr));
+	nand = kzalloc(len, GFP_KERNEL);
+	if (!nand) {
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	nand			= (struct nand_chip *) (mtd + 1);
+	mtd			= nand_to_mtd(nand);
 	doc			= (struct doc_priv *) (nand + 1);
 	nand->bbt_td		= (struct nand_bbt_descr *) (doc + 1);
 	nand->bbt_md		= nand->bbt_td + 1;
@@ -1615,7 +1615,7 @@ static int __init doc_probe(unsigned long physadr)
 		   haven't yet added it.  This is handled without incident by
 		   mtd_device_unregister, as far as I can tell. */
 		nand_release(mtd);
-		kfree(mtd);
+		kfree(nand);
 		goto fail;
 	}
 
@@ -1650,7 +1650,7 @@ static void release_nanddoc(void)
 		nand_release(mtd);
 		iounmap(doc->virtadr);
 		release_mem_region(doc->physadr, DOC_IOREMAP_LEN);
-		kfree(mtd);
+		kfree(nand);
 	}
 }
 
