@@ -21,6 +21,7 @@
 #include <linux/mmc/sdio_ids.h>
 
 #define BRCM_USB_VENDOR_ID_BROADCOM	0x0a5c
+#define BRCM_USB_VENDOR_ID_LG		0x043e
 #define BRCM_PCIE_VENDOR_ID_BROADCOM	PCI_VENDOR_ID_BROADCOM
 
 /* Chipcommon Core Chip IDs */
@@ -57,6 +58,7 @@
 #define BRCM_USB_43143_DEVICE_ID	0xbd1e
 #define BRCM_USB_43236_DEVICE_ID	0xbd17
 #define BRCM_USB_43242_DEVICE_ID	0xbd1f
+#define BRCM_USB_43242_LG_DEVICE_ID	0x3101
 #define BRCM_USB_43569_DEVICE_ID	0xbd27
 #define BRCM_USB_BCMFW_DEVICE_ID	0x0bdc
 
