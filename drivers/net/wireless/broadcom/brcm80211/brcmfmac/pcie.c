@@ -1875,7 +1875,7 @@ static int brcmf_pcie_pm_enter_D3(struct device *dev)
 	struct brcmf_pciedev_info *devinfo;
 	struct brcmf_bus *bus;
 
-	brcmf_err("Enter\n");
+	brcmf_dbg(PCIE, "Enter\n");
 
 	bus = dev_get_drvdata(dev);
 	devinfo = bus->bus_priv.pcie->devinfo;
@@ -1906,7 +1906,7 @@ static int brcmf_pcie_pm_leave_D3(struct device *dev)
 	struct pci_dev *pdev;
 	int err;
 
-	brcmf_err("Enter\n");
+	brcmf_dbg(PCIE, "Enter\n");
 
 	bus = dev_get_drvdata(dev);
 	devinfo = bus->bus_priv.pcie->devinfo;
