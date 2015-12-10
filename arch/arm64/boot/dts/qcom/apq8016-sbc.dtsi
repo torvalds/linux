@@ -28,6 +28,7 @@
 
 	soc {
 		serial@78af000 {
+			label = "LS-UART0";
 			status = "okay";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp1_uart1_default>;
@@ -35,6 +36,7 @@
 		};
 
 		serial@78b0000 {
+			label = "LS-UART1";
 			status = "okay";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&blsp1_uart2_default>;
@@ -43,26 +45,31 @@
 
 		i2c@78b6000 {
 		/* On Low speed expansion */
+			label = "LS-I2C0";
 			status = "okay";
 		};
 
 		i2c@78b8000 {
 		/* On High speed expansion */
+			label = "HS-I2C2";
 			status = "okay";
 		};
 
 		i2c@78ba000 {
 		/* On Low speed expansion */
+			label = "LS-I2C1";
 			status = "okay";
 		};
 
 		spi@78b7000 {
 		/* On High speed expansion */
+			label = "HS-SPI1";
 			status = "okay";
 		};
 
 		spi@78b9000 {
 		/* On Low speed expansion */
+			label = "LS-SPI0";
 			status = "okay";
 		};
 
