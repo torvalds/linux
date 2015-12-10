@@ -1279,8 +1279,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (target__none(target))
 		target->system_wide = true;
 
-	if (perf_evlist__create_maps(top.evlist, target) < 0)
-		usage_with_options(top_usage, options);
+	if (perf_evlist__create_maps(top.evlist, target) < 0) {
+		ui__error("Couldn't create thread/CPU maps: %s\n",
+			  errno == ENOENT ? "No such process" : strerror_r(errno, errbuf, sizeof(errbuf)));
+		goto out_delete_evlist;
+	}
 
 	if (!top.evlist->nr_entries &&
 	    perf_evlist__add_default(top.evlist) < 0) {
