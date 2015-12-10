@@ -4198,21 +4198,10 @@ static void alc_fixup_tpt440_dock(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->shutup = alc_no_shutup; /* reduce click noise */
 		spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
 		codec->power_save_node = 0; /* avoid click noises */
 		snd_hda_apply_pincfgs(codec, pincfgs);
-	}
-}
-
-/* additional fixup for Thinkpad T440s noise problem */
-static void alc_fixup_tpt440(struct hda_codec *codec,
-				  const struct hda_fixup *fix, int action)
-{
-	struct alc_spec *spec = codec->spec;
-
-	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		spec->shutup = alc_no_shutup; /* reduce click noise */
-		spec->gen.mixer_nid = 0; /* reduce background noise */
 	}
 }
 
@@ -5067,7 +5056,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC292_FIXUP_TPT440] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_tpt440,
+		.v.func = alc_fixup_disable_aamix,
 		.chained = true,
 		.chain_id = ALC292_FIXUP_TPT440_DOCK,
 	},
