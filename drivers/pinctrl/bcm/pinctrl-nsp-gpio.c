@@ -18,7 +18,7 @@
  * through the interaction with the NSP IOMUX controller.
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -80,11 +80,6 @@ enum base_type {
 	REG,
 	IO_CTRL
 };
-
-static inline struct nsp_gpio *to_nsp_gpio(struct gpio_chip *gc)
-{
-	return container_of(gc, struct nsp_gpio, gc);
-}
 
 /*
  * Mapping from PINCONF pins to GPIO pins is 1-to-1
@@ -297,7 +292,7 @@ static void nsp_gpio_free(struct gpio_chip *gc, unsigned offset)
 
 static int nsp_gpio_direction_input(struct gpio_chip *gc, unsigned gpio)
 {
-	struct nsp_gpio *chip = to_nsp_gpio(gc);
+	struct nsp_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->lock, flags);
@@ -311,7 +306,7 @@ static int nsp_gpio_direction_input(struct gpio_chip *gc, unsigned gpio)
 static int nsp_gpio_direction_output(struct gpio_chip *gc, unsigned gpio,
 				     int val)
 {
-	struct nsp_gpio *chip = to_nsp_gpio(gc);
+	struct nsp_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->lock, flags);
@@ -325,7 +320,7 @@ static int nsp_gpio_direction_output(struct gpio_chip *gc, unsigned gpio,
 
 static void nsp_gpio_set(struct gpio_chip *gc, unsigned gpio, int val)
 {
-	struct nsp_gpio *chip = to_nsp_gpio(gc);
+	struct nsp_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->lock, flags);
@@ -337,14 +332,14 @@ static void nsp_gpio_set(struct gpio_chip *gc, unsigned gpio, int val)
 
 static int nsp_gpio_get(struct gpio_chip *gc, unsigned gpio)
 {
-	struct nsp_gpio *chip = to_nsp_gpio(gc);
+	struct nsp_gpio *chip = gpiochip_get_data(gc);
 
 	return !!(readl(chip->base + NSP_GPIO_DATA_IN) & BIT(gpio));
 }
 
 static int nsp_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
-	struct nsp_gpio *chip = to_nsp_gpio(gc);
+	struct nsp_gpio *chip = gpiochip_get_data(gc);
 
 	return irq_linear_revmap(chip->irq_domain, offset);
 }
@@ -713,7 +708,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 		writel(val, (chip->base + NSP_CHIP_A_INT_MASK));
 	}
 
-	ret = gpiochip_add(gc);
+	ret = gpiochip_add_data(gc, chip);
 	if (ret < 0) {
 		dev_err(dev, "unable to add GPIO chip\n");
 		return ret;
