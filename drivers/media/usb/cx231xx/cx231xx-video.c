@@ -119,7 +119,7 @@ static int cx231xx_enable_analog_tuner(struct cx231xx *dev)
 	 * this should be enough for the actual needs.
 	 */
 	media_device_for_each_entity(entity, mdev) {
-		if (entity->function == MEDIA_ENT_T_V4L2_SUBDEV_DECODER) {
+		if (entity->function == MEDIA_ENT_F_ATV_DECODER) {
 			decoder = entity;
 			break;
 		}

@@ -831,7 +831,7 @@ static int as3645a_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto done;
 
-	flash->subdev.entity.function = MEDIA_ENT_T_V4L2_SUBDEV_FLASH;
+	flash->subdev.entity.function = MEDIA_ENT_F_FLASH;
 
 	mutex_init(&flash->power_lock);
 

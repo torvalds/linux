@@ -698,7 +698,7 @@ register_client:
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	t->pad[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
 	t->pad[TUNER_PAD_IF_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
-	t->sd.entity.function = MEDIA_ENT_T_V4L2_SUBDEV_TUNER;
+	t->sd.entity.function = MEDIA_ENT_F_TUNER;
 	t->sd.entity.name = t->name;
 
 	ret = media_entity_init(&t->sd.entity, TUNER_NUM_PADS, &t->pad[0]);

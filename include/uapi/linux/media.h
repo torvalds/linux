@@ -46,87 +46,93 @@ struct media_device_info {
  * Initial value to be used when a new entity is created
  * Drivers should change it to something useful
  */
-#define MEDIA_ENT_T_UNKNOWN	0x00000000
+#define MEDIA_ENT_F_UNKNOWN	0x00000000
 
 /*
- * Base numbers for entity types
+ * Base number ranges for entity functions
  *
- * Please notice that the huge gap of 16 bits for each base is overkill!
- * 8 bits is more than enough to avoid starving entity types for each
- * subsystem.
+ * NOTE: those ranges and entity function number are phased just to
+ * make it easier to maintain this file. Userspace should not rely on
+ * the ranges to identify a group of function types, as newer
+ * functions can be added with any name within the full u32 range.
+ */
+#define MEDIA_ENT_F_BASE		0x00000000
+#define MEDIA_ENT_F_OLD_BASE		0x00010000
+#define MEDIA_ENT_F_OLD_SUBDEV_BASE	0x00020000
+
+/*
+ * DVB entities
+ */
+#define MEDIA_ENT_F_DTV_DEMOD		(MEDIA_ENT_F_BASE + 1)
+#define MEDIA_ENT_F_TS_DEMUX		(MEDIA_ENT_F_BASE + 2)
+#define MEDIA_ENT_F_DTV_CA		(MEDIA_ENT_F_BASE + 3)
+#define MEDIA_ENT_F_DTV_NET_DECAP	(MEDIA_ENT_F_BASE + 4)
+
+/*
+ * Connectors
+ */
+#define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 21)
+#define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 22)
+#define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 23)
+	/* For internal test signal generators and other debug connectors */
+#define MEDIA_ENT_F_CONN_TEST		(MEDIA_ENT_F_BASE + 24)
+
+/*
+ * I/O entities
+ */
+#define MEDIA_ENT_F_IO_DTV  		(MEDIA_ENT_F_BASE + 31)
+#define MEDIA_ENT_F_IO_VBI  		(MEDIA_ENT_F_BASE + 32)
+#define MEDIA_ENT_F_IO_SWRADIO		(MEDIA_ENT_F_BASE + 33)
+
+/*
+ * Don't touch on those. The ranges MEDIA_ENT_F_OLD_BASE and
+ * MEDIA_ENT_F_OLD_SUBDEV_BASE are kept to keep backward compatibility
+ * with the legacy v1 API.The number range is out of range by purpose:
+ * several previously reserved numbers got excluded from this range.
  *
- * However, It is kept this way just to avoid binary breakages with the
- * namespace provided on legacy versions of this header.
- */
-#define MEDIA_ENT_T_DVB_BASE		0x00000000
-#define MEDIA_ENT_T_V4L2_BASE		0x00010000
-#define MEDIA_ENT_T_V4L2_SUBDEV_BASE	0x00020000
-#define MEDIA_ENT_T_CONNECTOR_BASE	0x00030000
-
-/*
- * V4L2 entities - Those are used for DMA (mmap/DMABUF) and
- *	read()/write() data I/O associated with the V4L2 devnodes.
- */
-#define MEDIA_ENT_T_V4L2_VIDEO		(MEDIA_ENT_T_V4L2_BASE + 1)
-	/*
-	 * Please notice that numbers between MEDIA_ENT_T_V4L2_BASE + 2 and
-	 * MEDIA_ENT_T_V4L2_BASE + 4 can't be used, as those values used
-	 * to be declared for FB, ALSA and DVB entities.
-	 * As those values were never actually used in practice, we're just
-	 * adding them as backward compatibility macros and keeping the
-	 * numberspace clean here. This way, we avoid breaking compilation,
-	 * in the case of having some userspace application using the old
-	 * symbols.
-	 */
-#define MEDIA_ENT_T_V4L2_VBI		(MEDIA_ENT_T_V4L2_BASE + 5)
-#define MEDIA_ENT_T_V4L2_SWRADIO	(MEDIA_ENT_T_V4L2_BASE + 6)
-
-/* V4L2 Sub-device entities */
-
-/*
  * Subdevs are initialized with MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN,
  * in order to preserve backward compatibility.
  * Drivers should change to the proper subdev type before
  * registering the entity.
  */
-#define MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN	MEDIA_ENT_T_V4L2_SUBDEV_BASE
 
-#define MEDIA_ENT_T_V4L2_SUBDEV_SENSOR	(MEDIA_ENT_T_V4L2_SUBDEV_BASE + 1)
-#define MEDIA_ENT_T_V4L2_SUBDEV_FLASH	(MEDIA_ENT_T_V4L2_SUBDEV_BASE + 2)
-#define MEDIA_ENT_T_V4L2_SUBDEV_LENS	(MEDIA_ENT_T_V4L2_SUBDEV_BASE + 3)
-	/* A converter of analogue video to its digital representation. */
-#define MEDIA_ENT_T_V4L2_SUBDEV_DECODER	(MEDIA_ENT_T_V4L2_SUBDEV_BASE + 4)
-	/* Tuner entity is actually both V4L2 and DVB subdev */
-#define MEDIA_ENT_T_V4L2_SUBDEV_TUNER	(MEDIA_ENT_T_V4L2_SUBDEV_BASE + 5)
+#define MEDIA_ENT_F_IO_V4L  		(MEDIA_ENT_F_OLD_BASE + 1)
 
-/* DVB entities */
-#define MEDIA_ENT_T_DVB_DEMOD		(MEDIA_ENT_T_DVB_BASE + 1)
-#define MEDIA_ENT_T_DVB_DEMUX		(MEDIA_ENT_T_DVB_BASE + 2)
-#define MEDIA_ENT_T_DVB_TSOUT		(MEDIA_ENT_T_DVB_BASE + 3)
-#define MEDIA_ENT_T_DVB_CA		(MEDIA_ENT_T_DVB_BASE + 4)
-#define MEDIA_ENT_T_DVB_NET_DECAP	(MEDIA_ENT_T_DVB_BASE + 5)
+#define MEDIA_ENT_F_CAM_SENSOR		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 1)
+#define MEDIA_ENT_F_FLASH		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 2)
+#define MEDIA_ENT_F_LENS		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 3)
+#define MEDIA_ENT_F_ATV_DECODER		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 4)
+#define MEDIA_ENT_F_TUNER		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 5)
 
-/* Connectors */
-#define MEDIA_ENT_T_CONN_RF		(MEDIA_ENT_T_CONNECTOR_BASE + 1)
-#define MEDIA_ENT_T_CONN_SVIDEO		(MEDIA_ENT_T_CONNECTOR_BASE + 2)
-#define MEDIA_ENT_T_CONN_COMPOSITE	(MEDIA_ENT_T_CONNECTOR_BASE + 3)
-/* For internal test signal generators and other debug connectors */
-#define MEDIA_ENT_T_CONN_TEST		(MEDIA_ENT_T_CONNECTOR_BASE + 4)
+#define MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN	MEDIA_ENT_F_OLD_SUBDEV_BASE
 
 #ifndef __KERNEL__
-/* Legacy symbols used to avoid userspace compilation breakages */
+
+/*
+ * Legacy symbols used to avoid userspace compilation breakages
+ *
+ * Those symbols map the entity function into types and should be
+ * used only on legacy programs for legacy hardware. Don't rely
+ * on those for MEDIA_IOC_G_TOPOLOGY.
+ */
 #define MEDIA_ENT_TYPE_SHIFT		16
 #define MEDIA_ENT_TYPE_MASK		0x00ff0000
 #define MEDIA_ENT_SUBTYPE_MASK		0x0000ffff
 
-#define MEDIA_ENT_T_DEVNODE		MEDIA_ENT_T_V4L2_BASE
-#define MEDIA_ENT_T_V4L2_SUBDEV		MEDIA_ENT_T_V4L2_SUBDEV_BASE
-
-#define MEDIA_ENT_T_DEVNODE_V4L		MEDIA_ENT_T_V4L2_VIDEO
-
+#define MEDIA_ENT_T_DEVNODE		MEDIA_ENT_F_OLD_BASE
+#define MEDIA_ENT_T_DEVNODE_V4L		MEDIA_ENT_F_IO_V4L
 #define MEDIA_ENT_T_DEVNODE_FB		(MEDIA_ENT_T_DEVNODE + 2)
 #define MEDIA_ENT_T_DEVNODE_ALSA	(MEDIA_ENT_T_DEVNODE + 3)
 #define MEDIA_ENT_T_DEVNODE_DVB		(MEDIA_ENT_T_DEVNODE + 4)
+
+#define MEDIA_ENT_T_UNKNOWN		MEDIA_ENT_F_UNKNOWN
+#define MEDIA_ENT_T_V4L2_VIDEO		MEDIA_ENT_F_IO_V4L
+#define MEDIA_ENT_T_V4L2_SUBDEV		MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN
+#define MEDIA_ENT_T_V4L2_SUBDEV_SENSOR	MEDIA_ENT_F_CAM_SENSOR
+#define MEDIA_ENT_T_V4L2_SUBDEV_FLASH	MEDIA_ENT_F_FLASH
+#define MEDIA_ENT_T_V4L2_SUBDEV_LENS	MEDIA_ENT_F_LENS
+#define MEDIA_ENT_T_V4L2_SUBDEV_DECODER	MEDIA_ENT_F_ATV_DECODER
+#define MEDIA_ENT_T_V4L2_SUBDEV_TUNER	MEDIA_ENT_F_TUNER
 #endif
 
 /* Entity flags */

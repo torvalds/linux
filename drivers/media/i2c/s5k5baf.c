@@ -408,7 +408,7 @@ static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 
 static inline bool s5k5baf_is_cis_subdev(struct v4l2_subdev *sd)
 {
-	return sd->entity.function == MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
+	return sd->entity.function == MEDIA_ENT_F_CAM_SENSOR;
 }
 
 static inline struct s5k5baf *to_s5k5baf(struct v4l2_subdev *sd)
@@ -1904,7 +1904,7 @@ static int s5k5baf_configure_subdevs(struct s5k5baf *state,
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	state->cis_pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.function = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_init(&sd->entity, NUM_CIS_PADS, &state->cis_pad);
 	if (ret < 0)
 		goto err;
@@ -1919,7 +1919,7 @@ static int s5k5baf_configure_subdevs(struct s5k5baf *state,
 
 	state->pads[PAD_CIS].flags = MEDIA_PAD_FL_SINK;
 	state->pads[PAD_OUT].flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.function = MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN;
+	sd->entity.function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
 	ret = media_entity_init(&sd->entity, NUM_ISP_PADS, state->pads);
 
 	if (!ret)

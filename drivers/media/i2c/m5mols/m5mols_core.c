@@ -978,7 +978,7 @@ static int m5mols_probe(struct i2c_client *client,
 	ret = media_entity_init(&sd->entity, 1, &info->pad);
 	if (ret < 0)
 		return ret;
-	sd->entity.function = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	init_waitqueue_head(&info->irq_waitq);
 	mutex_init(&info->lock);

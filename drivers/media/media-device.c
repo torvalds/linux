@@ -611,8 +611,8 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 {
 	int i;
 
-	if (entity->function == MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN ||
-	    entity->function == MEDIA_ENT_T_UNKNOWN)
+	if (entity->function == MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN ||
+	    entity->function == MEDIA_ENT_F_UNKNOWN)
 		dev_warn(mdev->dev,
 			 "Entity type for entity %s was not initialized!\n",
 			 entity->name);

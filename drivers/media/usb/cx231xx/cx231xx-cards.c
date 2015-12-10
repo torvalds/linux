@@ -1250,10 +1250,10 @@ static int cx231xx_create_media_graph(struct cx231xx *dev)
 
 	media_device_for_each_entity(entity, mdev) {
 		switch (entity->function) {
-		case MEDIA_ENT_T_V4L2_SUBDEV_TUNER:
+		case MEDIA_ENT_F_TUNER:
 			tuner = entity;
 			break;
-		case MEDIA_ENT_T_V4L2_SUBDEV_DECODER:
+		case MEDIA_ENT_F_ATV_DECODER:
 			decoder = entity;
 			break;
 		}
