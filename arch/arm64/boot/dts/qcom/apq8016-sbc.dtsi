@@ -27,6 +27,13 @@
 	};
 
 	soc {
+		serial@78af000 {
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_uart1_default>;
+			pinctrl-1 = <&blsp1_uart1_sleep>;
+		};
+
 		serial@78b0000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
