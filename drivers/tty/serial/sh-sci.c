@@ -2635,7 +2635,7 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 	if (!IS_ENABLED(CONFIG_OF) || !np)
 		return NULL;
 
-	match = of_match_node(of_sci_match, pdev->dev.of_node);
+	match = of_match_node(of_sci_match, np);
 	if (!match)
 		return NULL;
 
