@@ -219,6 +219,16 @@ config ARM_SPEAR_CPUFREQ
 	help
 	  This adds the CPUFreq driver support for SPEAr SOCs.
 
+config ARM_STI_CPUFREQ
+	tristate "STi CPUFreq support"
+	depends on SOC_STIH407
+	help
+	  This driver uses the generic OPP framework to match the running
+	  platform with a predefined set of suitable values.  If not provided
+	  we will fall-back so safe-values contained in Device Tree.  Enable
+	  this config option if you wish to add CPUFreq support for STi based
+	  SoCs.
+
 config ARM_TEGRA20_CPUFREQ
 	bool "Tegra20 CPUFreq support"
 	depends on ARCH_TEGRA
