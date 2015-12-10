@@ -534,6 +534,10 @@ static int mpls_nh_assign_dev(struct net *net, struct mpls_route *rt,
 	if (!mpls_dev_get(dev))
 		goto errout;
 
+	if ((nh->nh_via_table == NEIGH_LINK_TABLE) &&
+	    (dev->addr_len != nh->nh_via_alen))
+		goto errout;
+
 	RCU_INIT_POINTER(nh->nh_dev, dev);
 
 	return 0;
