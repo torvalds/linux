@@ -605,11 +605,11 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	mtd = kzalloc(sizeof(*mtd) + sizeof(struct cafe_priv), GFP_KERNEL);
-	if (!mtd)
+	cafe = kzalloc(sizeof(*cafe), GFP_KERNEL);
+	if (!cafe)
 		return  -ENOMEM;
-	cafe = (void *)(&mtd[1]);
 
+	mtd = nand_to_mtd(&cafe->nand);
 	mtd->dev.parent = &pdev->dev;
 	mtd->priv = &cafe->nand;
 	cafe->nand.priv = cafe;
@@ -792,7 +792,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
  out_ior:
 	pci_iounmap(pdev, cafe->mmio);
  out_free_mtd:
-	kfree(mtd);
+	kfree(cafe);
  out:
 	return err;
 }
@@ -813,7 +813,7 @@ static void cafe_nand_remove(struct pci_dev *pdev)
 			2112 + sizeof(struct nand_buffers) +
 			mtd->writesize + mtd->oobsize,
 			cafe->dmabuf, cafe->dmaaddr);
-	kfree(mtd);
+	kfree(cafe);
 }
 
 static const struct pci_device_id cafe_nand_tbl[] = {
