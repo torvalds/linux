@@ -41,15 +41,34 @@
  * the original PLL becomes stable at target frequency.
  */
 struct mtk_cpu_dvfs_info {
+	struct cpumask cpus;
 	struct device *cpu_dev;
 	struct regulator *proc_reg;
 	struct regulator *sram_reg;
 	struct clk *cpu_clk;
 	struct clk *inter_clk;
 	struct thermal_cooling_device *cdev;
+	struct list_head list_head;
 	int intermediate_voltage;
 	bool need_voltage_tracking;
 };
+
+static LIST_HEAD(dvfs_info_list);
+
+static struct mtk_cpu_dvfs_info *mtk_cpu_dvfs_info_lookup(int cpu)
+{
+	struct mtk_cpu_dvfs_info *info;
+	struct list_head *list;
+
+	list_for_each(list, &dvfs_info_list) {
+		info = list_entry(list, struct mtk_cpu_dvfs_info, list_head);
+
+		if (cpumask_test_cpu(cpu, &info->cpus))
+			return info;
+	}
+
+	return NULL;
+}
 
 static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 					int new_vproc)
@@ -402,6 +421,9 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	 */
 	info->need_voltage_tracking = !IS_ERR(sram_reg);
 
+	/* CPUs in the same cluster share a clock and power domain. */
+	cpumask_copy(&info->cpus, &cpu_topology[cpu].core_sibling);
+
 	return 0;
 
 out_free_opp_table:
@@ -440,22 +462,18 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 	struct cpufreq_frequency_table *freq_table;
 	int ret;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	ret = mtk_cpu_dvfs_info_init(info, policy->cpu);
-	if (ret) {
-		pr_err("%s failed to initialize dvfs info for cpu%d\n",
-		       __func__, policy->cpu);
-		goto out_free_dvfs_info;
+	info = mtk_cpu_dvfs_info_lookup(policy->cpu);
+	if (!info) {
+		pr_err("dvfs info for cpu%d is not initialized.\n",
+		       policy->cpu);
+		return -EINVAL;
 	}
 
 	ret = dev_pm_opp_init_cpufreq_table(info->cpu_dev, &freq_table);
 	if (ret) {
 		pr_err("failed to init cpufreq table for cpu%d: %d\n",
 		       policy->cpu, ret);
-		goto out_release_dvfs_info;
+		return ret;
 	}
 
 	ret = cpufreq_table_validate_and_show(policy, freq_table);
@@ -464,8 +482,7 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 		goto out_free_cpufreq_table;
 	}
 
-	/* CPUs in the same cluster share a clock and power domain. */
-	cpumask_copy(policy->cpus, &cpu_topology[policy->cpu].core_sibling);
+	cpumask_copy(policy->cpus, &info->cpus);
 	policy->driver_data = info;
 	policy->clk = info->cpu_clk;
 
@@ -473,13 +490,6 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 
 out_free_cpufreq_table:
 	dev_pm_opp_free_cpufreq_table(info->cpu_dev, &freq_table);
-
-out_release_dvfs_info:
-	mtk_cpu_dvfs_info_release(info);
-
-out_free_dvfs_info:
-	kfree(info);
-
 	return ret;
 }
 
@@ -489,8 +499,6 @@ static int mtk_cpufreq_exit(struct cpufreq_policy *policy)
 
 	cpufreq_cooling_unregister(info->cdev);
 	dev_pm_opp_free_cpufreq_table(info->cpu_dev, &policy->freq_table);
-	mtk_cpu_dvfs_info_release(info);
-	kfree(info);
 
 	return 0;
 }
@@ -510,11 +518,47 @@ static struct cpufreq_driver mt8173_cpufreq_driver = {
 
 static int mt8173_cpufreq_probe(struct platform_device *pdev)
 {
-	int ret;
+	struct mtk_cpu_dvfs_info *info;
+	struct list_head *list, *tmp;
+	int cpu, ret;
+
+	for_each_possible_cpu(cpu) {
+		info = mtk_cpu_dvfs_info_lookup(cpu);
+		if (info)
+			continue;
+
+		info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+		if (!info) {
+			ret = -ENOMEM;
+			goto release_dvfs_info_list;
+		}
+
+		ret = mtk_cpu_dvfs_info_init(info, cpu);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"failed to initialize dvfs info for cpu%d\n",
+				cpu);
+			goto release_dvfs_info_list;
+		}
+
+		list_add(&info->list_head, &dvfs_info_list);
+	}
 
 	ret = cpufreq_register_driver(&mt8173_cpufreq_driver);
-	if (ret)
-		pr_err("failed to register mtk cpufreq driver\n");
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register mtk cpufreq driver\n");
+		goto release_dvfs_info_list;
+	}
+
+	return 0;
+
+release_dvfs_info_list:
+	list_for_each_safe(list, tmp, &dvfs_info_list) {
+		info = list_entry(list, struct mtk_cpu_dvfs_info, list_head);
+
+		mtk_cpu_dvfs_info_release(info);
+		list_del(list);
+	}
 
 	return ret;
 }
