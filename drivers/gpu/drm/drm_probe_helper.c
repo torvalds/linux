@@ -233,17 +233,16 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 		goto prune;
 	}
 
-#ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
-	count = drm_load_edid_firmware(connector);
-	if (count == 0)
-#endif
-	{
-		if (connector->override_edid) {
-			struct edid *edid = (struct edid *) connector->edid_blob_ptr->data;
+	if (connector->override_edid) {
+		struct edid *edid = (struct edid *) connector->edid_blob_ptr->data;
 
-			count = drm_add_edid_modes(connector, edid);
-			drm_edid_to_eld(connector, edid);
-		} else
+		count = drm_add_edid_modes(connector, edid);
+		drm_edid_to_eld(connector, edid);
+	} else {
+#ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
+		count = drm_load_edid_firmware(connector);
+		if (count == 0)
+#endif
 			count = (*connector_funcs->get_modes)(connector);
 	}
 
