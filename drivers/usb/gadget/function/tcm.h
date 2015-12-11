@@ -129,4 +129,4 @@ struct f_uas {
 
 extern struct usbg_tpg *the_only_tpg_I_currently_have;
 
-#endif
+#endif /* __TARGET_USB_GADGET_H__ */
