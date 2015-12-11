@@ -1031,6 +1031,14 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
  *	is stored in the @ampdu_delimiter_crc field)
  * @RX_FLAG_LDPC: LDPC was used
+ * @RX_FLAG_ONLY_MONITOR: Report frame only to monitor interfaces without
+ *	processing it in any regular way.
+ *	This is useful if drivers offload some frames but still want to report
+ *	them for sniffing purposes.
+ * @RX_FLAG_SKIP_MONITOR: Process and report frame to all interfaces except
+ *	monitor interfaces.
+ *	This is useful if drivers offload some frames but still want to report
+ *	them for sniffing purposes.
  * @RX_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
  * @RX_FLAG_10MHZ: 10 MHz (half channel) was used
  * @RX_FLAG_5MHZ: 5 MHz (quarter channel) was used
@@ -1071,6 +1079,8 @@ enum mac80211_rx_flags {
 	RX_FLAG_MACTIME_END		= BIT(21),
 	RX_FLAG_VHT			= BIT(22),
 	RX_FLAG_LDPC			= BIT(23),
+	RX_FLAG_ONLY_MONITOR		= BIT(24),
+	RX_FLAG_SKIP_MONITOR		= BIT(25),
 	RX_FLAG_STBC_MASK		= BIT(26) | BIT(27),
 	RX_FLAG_10MHZ			= BIT(28),
 	RX_FLAG_5MHZ			= BIT(29),
@@ -1089,6 +1099,7 @@ enum mac80211_rx_flags {
  * @RX_VHT_FLAG_160MHZ: 160 MHz was used
  * @RX_VHT_FLAG_BF: packet was beamformed
  */
+
 enum mac80211_rx_vht_flags {
 	RX_VHT_FLAG_80MHZ		= BIT(0),
 	RX_VHT_FLAG_160MHZ		= BIT(1),
