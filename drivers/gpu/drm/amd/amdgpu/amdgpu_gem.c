@@ -460,7 +460,7 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	tv.shared = true;
 	list_add(&tv.head, &list);
 
-	vm_bos = amdgpu_vm_get_bos(adev, bo_va->vm, &list);
+	vm_bos = amdgpu_vm_get_bos(adev, bo_va->vm, &list, &duplicates);
 	if (!vm_bos)
 		return;
 

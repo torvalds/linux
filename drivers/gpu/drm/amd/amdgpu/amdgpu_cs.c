@@ -386,13 +386,13 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 		amdgpu_cs_buckets_get_list(&buckets, &p->validated);
 	}
 
+	INIT_LIST_HEAD(&duplicates);
 	p->vm_bos = amdgpu_vm_get_bos(p->adev, &fpriv->vm,
-				      &p->validated);
+				      &p->validated, &duplicates);
 
 	if (need_mmap_lock)
 		down_read(&current->mm->mmap_sem);
 
-	INIT_LIST_HEAD(&duplicates);
 	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true, &duplicates);
 	if (unlikely(r != 0))
 		goto error_reserve;

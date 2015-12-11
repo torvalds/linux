@@ -78,14 +78,16 @@ static unsigned amdgpu_vm_directory_size(struct amdgpu_device *adev)
  * amdgpu_vm_get_bos - add the vm BOs to a validation list
  *
  * @vm: vm providing the BOs
- * @head: head of validation list
+ * @validated: head of validation list
+ * @duplicates: head of duplicates list
  *
  * Add the page directory to the list of BOs to
  * validate for command submission (cayman+).
  */
 struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
-					  struct amdgpu_vm *vm,
-					  struct list_head *head)
+					       struct amdgpu_vm *vm,
+					       struct list_head *validated,
+					       struct list_head *duplicates)
 {
 	struct amdgpu_bo_list_entry *list;
 	unsigned i, idx;
@@ -103,7 +105,7 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 	list[0].priority = 0;
 	list[0].tv.bo = &vm->page_directory->tbo;
 	list[0].tv.shared = true;
-	list_add(&list[0].tv.head, head);
+	list_add(&list[0].tv.head, validated);
 
 	for (i = 0, idx = 1; i <= vm->max_pde_used; i++) {
 		if (!vm->page_tables[i].bo)
@@ -115,7 +117,7 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 		list[idx].priority = 0;
 		list[idx].tv.bo = &list[idx].robj->tbo;
 		list[idx].tv.shared = true;
-		list_add(&list[idx++].tv.head, head);
+		list_add(&list[idx++].tv.head, duplicates);
 	}
 
 	return list;
