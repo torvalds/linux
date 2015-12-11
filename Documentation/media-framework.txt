@@ -110,10 +110,10 @@ If no pads are needed, drivers could directly fill entity->num_pads
 with 0 and entity->pads with NULL or to call the above function that
 will do the same.
 
-The media_entity name, type, flags, revision and group_id fields should be
-initialized before calling media_device_register_entity(). Entities embedded
-in higher-level standard structures can have some of those fields set by the
-higher-level framework.
+The media_entity name, type and flags fields should be initialized before
+calling media_device_register_entity(). Entities embedded in higher-level
+standard structures can have some of those fields set by the higher-level
+framework.
 
 As the number of pads is known in advance, the pads array is not allocated
 dynamically but is managed by the entity driver. Most drivers will embed the
@@ -164,9 +164,7 @@ Entities have flags that describe the entity capabilities and state.
 
 Logical entity groups can be defined by setting the group ID of all member
 entities to the same non-zero value. An entity group serves no purpose in the
-kernel, but is reported to userspace during entities enumeration. The group_id
-field belongs to the media device driver and must not by touched by entity
-drivers.
+kernel, but is reported to userspace during entities enumeration.
 
 Media device drivers should define groups if several entities are logically
 bound together. Example usages include reporting

@@ -59,15 +59,6 @@
     <para>Entity IDs can be non-contiguous. Applications must
     <emphasis>not</emphasis> try to enumerate entities by calling
     MEDIA_IOC_ENUM_ENTITIES with increasing id's until they get an error.</para>
-    <para>Two or more entities that share a common non-zero
-    <structfield>group_id</structfield> value are considered as logically
-    grouped. Groups are used to report
-    <itemizedlist>
-      <listitem><para>ALSA, VBI and video nodes that carry the same media
-      stream</para></listitem>
-      <listitem><para>lens and flash controllers associated with a sensor</para></listitem>
-    </itemizedlist>
-    </para>
 
     <table pgwide="1" frame="none" id="media-entity-desc">
       <title>struct <structname>media_entity_desc</structname></title>
@@ -106,7 +97,7 @@
 	    <entry><structfield>revision</structfield></entry>
 	    <entry></entry>
 	    <entry></entry>
-	    <entry>Entity revision in a driver/hardware specific format.</entry>
+	    <entry>Entity revision. Always zero (obsolete)</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -120,7 +111,7 @@
 	    <entry><structfield>group_id</structfield></entry>
 	    <entry></entry>
 	    <entry></entry>
-	    <entry>Entity group ID</entry>
+	    <entry>Entity group ID. Always zero (obsolete)</entry>
 	  </row>
 	  <row>
 	    <entry>__u16</entry>

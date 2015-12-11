@@ -109,9 +109,9 @@ static long media_device_enum_entities(struct media_device *mdev,
 	if (ent->name)
 		strlcpy(u_ent.name, ent->name, sizeof(u_ent.name));
 	u_ent.type = ent->function;
-	u_ent.revision = ent->revision;
+	u_ent.revision = 0;		/* Unused */
 	u_ent.flags = ent->flags;
-	u_ent.group_id = ent->group_id;
+	u_ent.group_id = 0;		/* Unused */
 	u_ent.pads = ent->num_pads;
 	u_ent.links = ent->num_links - ent->num_backlinks;
 	memcpy(&u_ent.raw, &ent->info, sizeof(ent->info));

@@ -153,9 +153,7 @@ struct media_entity_operations {
  * @name:	Entity name.
  * @function:	Entity main function, as defined in uapi/media.h
  *		(MEDIA_ENT_F_*)
- * @revision:	Entity revision - OBSOLETE - should be removed soon.
  * @flags:	Entity flags, as defined in uapi/media.h (MEDIA_ENT_FL_*)
- * @group_id:	Entity group ID - OBSOLETE - should be removed soon.
  * @num_pads:	Number of sink and source pads.
  * @num_links:	Total number of links, forward and back, enabled and disabled.
  * @num_backlinks: Number of backlinks
@@ -180,9 +178,7 @@ struct media_entity {
 	struct media_gobj graph_obj;	/* must be first field in struct */
 	const char *name;
 	u32 function;
-	u32 revision;
 	unsigned long flags;
-	u32 group_id;
 
 	u16 num_pads;
 	u16 num_links;
