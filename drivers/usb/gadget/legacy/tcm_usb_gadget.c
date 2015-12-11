@@ -24,6 +24,7 @@
 USB_GADGET_COMPOSITE_OPTIONS();
 
 /* #include to be removed when new function registration interface is used  */
+#define USBF_TCM_INCLUDED
 #include "../function/f_tcm.c"
 
 #define UAS_VENDOR_ID	0x0525	/* NetChip */

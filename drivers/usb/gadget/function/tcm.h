@@ -39,6 +39,8 @@ struct usbg_tpg {
 	u32 gadget_connect;
 	struct tcm_usbg_nexus *tpg_nexus;
 	atomic_t tpg_port_count;
+
+	struct usb_function_instance *fi;
 };
 
 struct usbg_tport {

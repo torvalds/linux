@@ -199,6 +199,9 @@ config USB_F_HID
 config USB_F_PRINTER
 	tristate
 
+config USB_F_TCM
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
