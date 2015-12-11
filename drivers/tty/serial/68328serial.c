@@ -659,9 +659,9 @@ static void rs_flush_chars(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-extern void console_printn(const char * b, int count);
+extern void console_printn(const char *b, int count);
 
-static int rs_write(struct tty_struct * tty,
+static int rs_write(struct tty_struct *tty,
 		    const unsigned char *buf, int count)
 {
 	int	c, total = 0;
@@ -767,7 +767,7 @@ static void rs_flush_buffer(struct tty_struct *tty)
  * incoming characters should be throttled.
  * ------------------------------------------------------------
  */
-static void rs_throttle(struct tty_struct * tty)
+static void rs_throttle(struct tty_struct *tty)
 {
 	struct m68k_serial *info = (struct m68k_serial *)tty->driver_data;
 
@@ -780,7 +780,7 @@ static void rs_throttle(struct tty_struct * tty)
 	/* Turn off RTS line (do this atomic) */
 }
 
-static void rs_unthrottle(struct tty_struct * tty)
+static void rs_unthrottle(struct tty_struct *tty)
 {
 	struct m68k_serial *info = (struct m68k_serial *)tty->driver_data;
 
@@ -803,8 +803,8 @@ static void rs_unthrottle(struct tty_struct * tty)
  * ------------------------------------------------------------
  */
 
-static int get_serial_info(struct m68k_serial * info,
-			   struct serial_struct * retinfo)
+static int get_serial_info(struct m68k_serial *info,
+			   struct serial_struct *retinfo)
 {
 	struct serial_struct tmp;
   
@@ -827,7 +827,7 @@ static int get_serial_info(struct m68k_serial * info,
 }
 
 static int set_serial_info(struct m68k_serial *info, struct tty_struct *tty,
-			   struct serial_struct * new_info)
+			   struct serial_struct *new_info)
 {
 	struct tty_port *port = &info->tport;
 	struct serial_struct new_serial;
@@ -883,7 +883,7 @@ check_and_exit:
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space. 
  */
-static int get_lsr_info(struct m68k_serial * info, unsigned int *value)
+static int get_lsr_info(struct m68k_serial *info, unsigned int *value)
 {
 #ifdef CONFIG_SERIAL_68328_RTS_CTS
 	m68328_uart *uart = &uart_addr[info->line];
@@ -904,7 +904,7 @@ static int get_lsr_info(struct m68k_serial * info, unsigned int *value)
 /*
  * This routine sends a break character out the serial port.
  */
-static void send_break(struct m68k_serial * info, unsigned int duration)
+static void send_break(struct m68k_serial *info, unsigned int duration)
 {
 	m68328_uart *uart = &uart_addr[info->line];
         unsigned long flags;
@@ -922,7 +922,7 @@ static void send_break(struct m68k_serial * info, unsigned int duration)
 static int rs_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
-	struct m68k_serial * info = (struct m68k_serial *)tty->driver_data;
+	struct m68k_serial *info = (struct m68k_serial *)tty->driver_data;
 	int retval;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
@@ -992,9 +992,9 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  * that IRQ if nothing is left in the chain.
  * ------------------------------------------------------------
  */
-static void rs_close(struct tty_struct *tty, struct file * filp)
+static void rs_close(struct tty_struct *tty, struct file *filp)
 {
-	struct m68k_serial * info = (struct m68k_serial *)tty->driver_data;
+	struct m68k_serial *info = (struct m68k_serial *)tty->driver_data;
 	struct tty_port *port = &info->tport;
 	m68328_uart *uart = &uart_addr[info->line];
 	unsigned long flags;
@@ -1079,7 +1079,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
  */
 void rs_hangup(struct tty_struct *tty)
 {
-	struct m68k_serial * info = (struct m68k_serial *)tty->driver_data;
+	struct m68k_serial *info = (struct m68k_serial *)tty->driver_data;
 	
 	if (serial_paranoia_check(info, tty->name, "rs_hangup"))
 		return;
@@ -1098,7 +1098,7 @@ void rs_hangup(struct tty_struct *tty)
  * the IRQ chain.   It also performs the serial-specific
  * initialization for the tty structure.
  */
-int rs_open(struct tty_struct *tty, struct file * filp)
+int rs_open(struct tty_struct *tty, struct file *filp)
 {
 	struct m68k_serial	*info;
 	int retval;
