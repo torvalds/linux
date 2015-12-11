@@ -371,6 +371,15 @@ ADDRESS SPACE LAYOUT RANDOMIZATION (ASLR)
 M:	Jiri Kosina <jikos@kernel.org>
 S:	Maintained
 
+ADF7242 IEEE 802.15.4 RADIO DRIVER
+M:	Michael Hennerich <michael.hennerich@analog.com>
+W:	https://wiki.analog.com/ADF7242
+W:	http://ez.analog.com/community/linux-device-drivers
+L:	linux-wpan@vger.kernel.org
+S:	Supported
+F:	drivers/net/ieee802154/adf7242.c
+F:	Documentation/devicetree/bindings/net/ieee802154/adf7242.txt
+
 ADM1025 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	lm-sensors@lm-sensors.org
