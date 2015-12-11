@@ -1505,10 +1505,14 @@ static ssize_t tcm_usbg_tpg_enable_store(struct config_item *item,
 	if (op > 1)
 		return -EINVAL;
 
-	if (op && tpg->gadget_connect)
+	if (op && tpg->gadget_connect) {
+		ret = -EINVAL;
 		goto out;
-	if (!op && !tpg->gadget_connect)
+	}
+	if (!op && !tpg->gadget_connect) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	if (op) {
 		ret = usbg_attach(tpg);
@@ -1518,8 +1522,10 @@ static ssize_t tcm_usbg_tpg_enable_store(struct config_item *item,
 		usbg_detach(tpg);
 	}
 	tpg->gadget_connect = op;
-out:
+
 	return count;
+out:
+	return ret;
 }
 
 static ssize_t tcm_usbg_tpg_nexus_show(struct config_item *item, char *page)
