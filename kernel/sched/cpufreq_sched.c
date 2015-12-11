@@ -119,9 +119,9 @@ static int cpufreq_sched_thread(void *data)
 	}
 
 	do {
-		set_current_state(TASK_INTERRUPTIBLE);
 		new_request = gd->requested_freq;
 		if (new_request == last_request) {
+			set_current_state(TASK_INTERRUPTIBLE);
 			schedule();
 		} else {
 			/*
