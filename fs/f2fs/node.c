@@ -1063,12 +1063,13 @@ repeat:
 	if (err < 0) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(err);
-	} else if (err != LOCKED_PAGE) {
-		lock_page(page);
+	} else if (err == LOCKED_PAGE) {
+		goto page_hit;
 	}
 
-	if (unlikely(!PageUptodate(page) || nid != nid_of_node(page))) {
-		ClearPageUptodate(page);
+	lock_page(page);
+
+	if (unlikely(!PageUptodate(page))) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
@@ -1076,6 +1077,8 @@ repeat:
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
+page_hit:
+	f2fs_bug_on(sbi, nid != nid_of_node(page));
 	return page;
 }
 
@@ -1114,24 +1117,25 @@ repeat:
 	end = start + MAX_RA_NODE;
 	end = min(end, NIDS_PER_BLOCK);
 	for (i = start + 1; i < end; i++) {
-		nid = get_nid(parent, i, false);
-		if (!nid)
+		nid_t tnid = get_nid(parent, i, false);
+		if (!tnid)
 			continue;
-		ra_node_page(sbi, nid);
+		ra_node_page(sbi, tnid);
 	}
 
 	blk_finish_plug(&plug);
 
 	lock_page(page);
+	if (unlikely(!PageUptodate(page))) {
+		f2fs_put_page(page, 1);
+		return ERR_PTR(-EIO);
+	}
 	if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
 page_hit:
-	if (unlikely(!PageUptodate(page))) {
-		f2fs_put_page(page, 1);
-		return ERR_PTR(-EIO);
-	}
+	f2fs_bug_on(sbi, nid != nid_of_node(page));
 	return page;
 }
 
