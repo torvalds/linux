@@ -45,7 +45,6 @@ extern u8 pvclock_page
 
 #include <linux/kernel.h>
 #include <asm/vsyscall.h>
-#include <asm/fixmap.h>
 #include <asm/pvclock.h>
 
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
