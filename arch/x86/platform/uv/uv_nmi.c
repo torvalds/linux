@@ -28,6 +28,7 @@
 #include <linux/nmi.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/clocksource.h>
 
 #include <asm/apic.h>
 #include <asm/current.h>
