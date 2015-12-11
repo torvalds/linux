@@ -109,6 +109,12 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		return 0;
 	}
 
+	if (config->reg_defaults && !config->num_reg_defaults) {
+		dev_err(map->dev,
+			 "Register defaults are set without the number!\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < config->num_reg_defaults; i++)
 		if (config->reg_defaults[i].reg % map->reg_stride)
 			return -EINVAL;
@@ -142,8 +148,6 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	 * a copy of it.
 	 */
 	if (config->reg_defaults) {
-		if (!map->num_reg_defaults)
-			return -EINVAL;
 		tmp_buf = kmemdup(config->reg_defaults, map->num_reg_defaults *
 				  sizeof(struct reg_default), GFP_KERNEL);
 		if (!tmp_buf)
