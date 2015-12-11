@@ -27,9 +27,12 @@ core-y += arch/lkl/kernel/
 all: lkl.o
 
 lkl.o: vmlinux
-	$(OBJCOPY) -R .eh_frame $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) vmlinux lkl.o
+	$(OBJCOPY) -R .eh_frame -R .syscall_defs $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) vmlinux lkl.o
 
-install: lkl.o __headers
+arch/lkl/include/generated/uapi/asm/syscall_defs.h: vmlinux
+	$(OBJCOPY) -j .syscall_defs -O binary --set-section-flags .syscall_defs=alloc $< $@
+
+install: lkl.o __headers arch/lkl/include/generated/uapi/asm/syscall_defs.h
 	@echo "  INSTALL	$(INSTALL_PATH)/lib/lkl.o"
 	@cp lkl.o $(INSTALL_PATH)/lib/
 	@arch/lkl/scripts/headers_install.py \

@@ -151,18 +151,18 @@ long lkl_sys_halt(void);
 #define __SC_DECL(t, a) t a
 
 #define LKL_SYSCALL0(name)					       \
-	static inline long lkl_sys_##name(void)			       \
+	static inline long lkl_sys##name(void)			       \
 	{							       \
 		long params[6];					       \
-		return lkl_syscall(__lkl__NR_##name, params);	       \
+		return lkl_syscall(__lkl__NR##name, params);	       \
 	}
 
 #define LKL_SYSCALLx(x, name, ...)				       \
        	static inline						       \
-	long lkl_sys_##name(__MAP(x, __SC_DECL, __VA_ARGS__))	       \
+	long lkl_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__))	       \
 	{							       \
 		long params[6] = { __MAP(x, __SC_LONG, __VA_ARGS__) }; \
-		return lkl_syscall(__lkl__NR_##name, params);	       \
+		return lkl_syscall(__lkl__NR##name, params);	       \
 	}
 
 #define SYSCALL_DEFINE0(name, ...) LKL_SYSCALL0(name)
@@ -172,5 +172,7 @@ long lkl_sys_halt(void);
 #define SYSCALL_DEFINE4(name, ...) LKL_SYSCALLx(4, name, __VA_ARGS__)
 #define SYSCALL_DEFINE5(name, ...) LKL_SYSCALLx(5, name, __VA_ARGS__)
 #define SYSCALL_DEFINE6(name, ...) LKL_SYSCALLx(6, name, __VA_ARGS__)
+
+#include <asm/syscall_defs.h>
 
 #endif
