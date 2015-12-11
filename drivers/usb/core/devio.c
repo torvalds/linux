@@ -1378,11 +1378,10 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 		number_of_packets = uurb->number_of_packets;
 		isofrmlen = sizeof(struct usbdevfs_iso_packet_desc) *
 				   number_of_packets;
-		isopkt = kmalloc(isofrmlen, GFP_KERNEL);
-		if (!isopkt)
-			return -ENOMEM;
-		if (copy_from_user(isopkt, iso_frame_desc, isofrmlen)) {
-			ret = -EFAULT;
+		isopkt = memdup_user(iso_frame_desc, isofrmlen);
+		if (IS_ERR(isopkt)) {
+			ret = PTR_ERR(isopkt);
+			isopkt = NULL;
 			goto error;
 		}
 		for (totlen = u = 0; u < number_of_packets; u++) {
