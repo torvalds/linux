@@ -76,11 +76,12 @@ static int orangefs_devreq_open(struct inode *inode, struct file *file)
 	int ret = -EINVAL;
 
 	if (!(file->f_flags & O_NONBLOCK)) {
-		gossip_err("orangefs: device cannot be opened in blocking mode\n");
+		gossip_err("%s: device cannot be opened in blocking mode\n",
+			   __func__);
 		goto out;
 	}
 	ret = -EACCES;
-	gossip_debug(GOSSIP_DEV_DEBUG, "pvfs2-client-core: opening device\n");
+	gossip_debug(GOSSIP_DEV_DEBUG, "client-core: opening device\n");
 	mutex_lock(&devreq_mutex);
 
 	if (open_access_count == 0) {
@@ -100,6 +101,7 @@ out:
 	return ret;
 }
 
+/* Function for read() callers into the device */
 static ssize_t orangefs_devreq_read(struct file *file,
 				 char __user *buf,
 				 size_t count, loff_t *offset)
@@ -112,7 +114,8 @@ static ssize_t orangefs_devreq_read(struct file *file,
 
 	/* We do not support blocking IO. */
 	if (!(file->f_flags & O_NONBLOCK)) {
-		gossip_err("orangefs: blocking reads are not supported! (pvfs2-client-core bug)\n");
+		gossip_err("%s: blocking read from client-core.\n",
+			   __func__);
 		return -EINVAL;
 	}
 
@@ -143,12 +146,16 @@ static ssize_t orangefs_devreq_read(struct file *file,
 				    llu(op->tag), get_opname_string(op));
 				spin_unlock(&op->lock);
 				continue;
-			/* Skip ops whose filesystem we don't know about unless
-			 * it is being mounted. */
+			/*
+			 * Skip ops whose filesystem we don't know about unless
+			 * it is being mounted.
+			 */
 			/* XXX: is there a better way to detect this? */
 			} else if (ret == -1 &&
-				   !(op->upcall.type == ORANGEFS_VFS_OP_FS_MOUNT ||
-				     op->upcall.type == ORANGEFS_VFS_OP_GETATTR)) {
+				   !(op->upcall.type ==
+					ORANGEFS_VFS_OP_FS_MOUNT ||
+				     op->upcall.type ==
+					ORANGEFS_VFS_OP_GETATTR)) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
 				    "orangefs: skipping op tag %llu %s\n",
 				    llu(op->tag), get_opname_string(op));
@@ -237,7 +244,11 @@ error:
 	return -EFAULT;
 }
 
-/* Function for writev() callers into the device */
+/*
+ * Function for writev() callers into the device. Readdir related
+ * operations have an extra iovec containing info about objects
+ * contained in directories.
+ */
 static ssize_t orangefs_devreq_writev(struct file *file,
 				   const struct iovec *iov,
 				   size_t count,
@@ -247,27 +258,43 @@ static ssize_t orangefs_devreq_writev(struct file *file,
 	void *buffer = NULL;
 	void *ptr = NULL;
 	unsigned long i = 0;
-	static int max_downsize = MAX_ALIGNED_DEV_REQ_DOWNSIZE;
-	int ret = 0, num_remaining = max_downsize;
-	int notrailer_count = 4; /* num elements in iovec without trailer */
+	int num_remaining = MAX_ALIGNED_DEV_REQ_DOWNSIZE;
+	int ret = 0;
+	/* num elements in iovec without trailer */
+	int notrailer_count = 4;
+	/*
+	 * If there's a trailer, its iov index will be equal to
+	 * notrailer_count.
+	 */
+	int trailer_index = notrailer_count;
 	int payload_size = 0;
+	int returned_downcall_size = 0;
 	__s32 magic = 0;
 	__s32 proto_ver = 0;
 	__u64 tag = 0;
 	ssize_t total_returned_size = 0;
 
-	/* Either there is a trailer or there isn't */
+	/*
+	 * There will always be at least notrailer_count iovecs, and
+	 * when there's a trailer, one more than notrailer_count. Check
+	 * count's sanity.
+	 */
 	if (count != notrailer_count && count != (notrailer_count + 1)) {
-		gossip_err("Error: Number of iov vectors is (%zu) and notrailer count is %d\n",
+		gossip_err("%s: count:%zu: notrailer_count :%d:\n",
+			__func__,
 			count,
 			notrailer_count);
 		return -EPROTO;
 	}
-	buffer = dev_req_alloc();
-	if (!buffer)
-		return -ENOMEM;
-	ptr = buffer;
 
+
+	/* Copy the non-trailer iovec data into a device request buffer. */
+	buffer = dev_req_alloc();
+	if (!buffer) {
+		gossip_err("%s: dev_req_alloc failed.\n", __func__);
+		return -ENOMEM;
+	}
+	ptr = buffer;
 	for (i = 0; i < notrailer_count; i++) {
 		if (iov[i].iov_len > num_remaining) {
 			gossip_err
@@ -292,7 +319,7 @@ static ssize_t orangefs_devreq_writev(struct file *file,
 	 * make it 8 bytes big, or use get_unaligned when asigning.
 	 */
 	ptr = buffer;
-	proto_ver = *((__s32 *) ptr);
+	proto_ver = *((__s32 *) ptr); /* unused */
 	ptr += sizeof(__s32);
 
 	magic = *((__s32 *) ptr);
@@ -307,82 +334,114 @@ static ssize_t orangefs_devreq_writev(struct file *file,
 		return -EPROTO;
 	}
 
-	/*
-	 * proto_ver = 20902 for 2.9.2
-	 */
-
 	op = orangefs_devreq_remove_op(tag);
 	if (op) {
 		/* Increase ref count! */
 		get_op(op);
-		/* cut off magic and tag from payload size */
-		payload_size -= (2 * sizeof(__s32) + sizeof(__u64));
-		if (payload_size <= sizeof(struct orangefs_downcall_s))
-			/* copy the passed in downcall into the op */
+
+		/* calculate the size of the returned downcall. */
+		returned_downcall_size =
+			payload_size - (2 * sizeof(__s32) + sizeof(__u64));
+
+		/* copy the passed in downcall into the op */
+		if (returned_downcall_size ==
+			sizeof(struct orangefs_downcall_s)) {
 			memcpy(&op->downcall,
 			       ptr,
 			       sizeof(struct orangefs_downcall_s));
-		else
-			gossip_debug(GOSSIP_DEV_DEBUG,
-				     "writev: Ignoring %d bytes\n",
-				     payload_size);
-
-		/* Do not allocate needlessly if client-core forgets
-		 * to reset trailer size on op errors.
-		 */
-		if (op->downcall.status == 0 && op->downcall.trailer_size > 0) {
-			__u64 trailer_size = op->downcall.trailer_size;
-			size_t size;
-			gossip_debug(GOSSIP_DEV_DEBUG,
-				     "writev: trailer size %ld\n",
-				     (unsigned long)trailer_size);
-			if (count != (notrailer_count + 1)) {
-				gossip_err("Error: trailer size (%ld) is non-zero, no trailer elements though? (%zu)\n", (unsigned long)trailer_size, count);
-				dev_req_release(buffer);
-				put_op(op);
-				return -EPROTO;
-			}
-			size = iov[notrailer_count].iov_len;
-			if (size > trailer_size) {
-				gossip_err("writev error: trailer size (%ld) != iov_len (%zd)\n", (unsigned long)trailer_size, size);
-				dev_req_release(buffer);
-				put_op(op);
-				return -EMSGSIZE;
-			}
-			/* Allocate a buffer large enough to hold the
-			 * trailer bytes.
-			 */
-			op->downcall.trailer_buf = vmalloc(trailer_size);
-			if (op->downcall.trailer_buf != NULL) {
-				gossip_debug(GOSSIP_DEV_DEBUG, "vmalloc: %p\n",
-					     op->downcall.trailer_buf);
-				ret = copy_from_user(op->downcall.trailer_buf,
-						     iov[notrailer_count].
-						     iov_base,
-						     size);
-				if (ret) {
-					gossip_err("Failed to copy trailer data from user space\n");
-					dev_req_release(buffer);
-					gossip_debug(GOSSIP_DEV_DEBUG,
-						     "vfree: %p\n",
-						     op->downcall.trailer_buf);
-					vfree(op->downcall.trailer_buf);
-					op->downcall.trailer_buf = NULL;
-					put_op(op);
-					return -EIO;
-				}
-				memset(op->downcall.trailer_buf + size, 0,
-				       trailer_size - size);
-			} else {
-				/* Change downcall status */
-				op->downcall.status = -ENOMEM;
-				gossip_err("writev: could not vmalloc for trailer!\n");
-			}
+		} else {
+			gossip_err("%s: returned downcall size:%d: \n",
+				   __func__,
+				   returned_downcall_size);
+			dev_req_release(buffer);
+			put_op(op);
+			return -EMSGSIZE;
 		}
 
-		/* if this operation is an I/O operation and if it was
-		 * initiated on behalf of a *synchronous* VFS I/O operation,
-		 * only then we need to wait
+		/* Don't tolerate an unexpected trailer iovec. */
+		if ((op->downcall.trailer_size == 0) &&
+		    (count != notrailer_count)) {
+			gossip_err("%s: unexpected trailer iovec.\n",
+				   __func__);
+			dev_req_release(buffer);
+			put_op(op);
+			return -EPROTO;
+		}
+
+		/* Don't consider the trailer if there's a bad status. */
+		if (op->downcall.status != 0)
+			goto no_trailer;
+
+		/* get the trailer if there is one. */
+		if (op->downcall.trailer_size == 0)
+			goto no_trailer;
+
+		gossip_debug(GOSSIP_DEV_DEBUG,
+			     "%s: op->downcall.trailer_size %lld\n",
+			     __func__,
+			     op->downcall.trailer_size);
+
+		/*
+		 * Bail if we think think there should be a trailer, but
+		 * there's no iovec for it.
+		 */
+		if (count != (notrailer_count + 1)) {
+			gossip_err("%s: trailer_size:%lld: count:%zu:\n",
+				   __func__,
+				   op->downcall.trailer_size,
+				   count);
+			dev_req_release(buffer);
+			put_op(op);
+			return -EPROTO;
+		}
+
+		/* Verify that trailer_size is accurate. */
+		if (op->downcall.trailer_size != iov[trailer_index].iov_len) {
+			gossip_err("%s: trailer_size:%lld: != iov_len:%zd:\n",
+				   __func__,
+				   op->downcall.trailer_size,
+				   iov[trailer_index].iov_len);
+			dev_req_release(buffer);
+			put_op(op);
+			return -EMSGSIZE;
+		}
+
+		total_returned_size += iov[trailer_index].iov_len;
+
+		/*
+		 * Allocate a buffer, copy the trailer bytes into it and
+		 * attach it to the downcall.
+		 */
+		op->downcall.trailer_buf = vmalloc(iov[trailer_index].iov_len);
+		if (op->downcall.trailer_buf != NULL) {
+			gossip_debug(GOSSIP_DEV_DEBUG, "vmalloc: %p\n",
+				     op->downcall.trailer_buf);
+			ret = copy_from_user(op->downcall.trailer_buf,
+					     iov[trailer_index].iov_base,
+					     iov[trailer_index].iov_len);
+			if (ret) {
+				gossip_err("%s: Failed to copy trailer.\n",
+					   __func__);
+				dev_req_release(buffer);
+				gossip_debug(GOSSIP_DEV_DEBUG,
+					     "vfree: %p\n",
+					     op->downcall.trailer_buf);
+				vfree(op->downcall.trailer_buf);
+				op->downcall.trailer_buf = NULL;
+				put_op(op);
+				return -EIO;
+			}
+		} else {
+			/* Change downcall status */
+			gossip_err("writev: could not vmalloc for trailer!\n");
+			dev_req_release(buffer);
+			put_op(op);
+			return -ENOMEM;
+		}
+
+no_trailer:
+
+		/* if this operation is an I/O operation we need to wait
 		 * for all data to be copied before we can return to avoid
 		 * buffer corruption and races that can pull the buffers
 		 * out from under us.
@@ -392,12 +451,12 @@ static ssize_t orangefs_devreq_writev(struct file *file,
 		 * application reading/writing this device to return until
 		 * the buffers are done being used.
 		 */
-		if (op->upcall.type == ORANGEFS_VFS_OP_FILE_IO &&
-		    op->upcall.req.io.async_vfs_io == ORANGEFS_VFS_SYNC_IO) {
+		if (op->upcall.type == ORANGEFS_VFS_OP_FILE_IO) {
 			int timed_out = 0;
 			DECLARE_WAITQUEUE(wait_entry, current);
 
-			/* tell the vfs op waiting on a waitqueue
+			/*
+			 * tell the vfs op waiting on a waitqueue
 			 * that this op is done
 			 */
 			spin_lock(&op->lock);
@@ -423,14 +482,18 @@ static ssize_t orangefs_devreq_writev(struct file *file,
 					    MSECS_TO_JIFFIES(1000 *
 							     op_timeout_secs);
 					if (!schedule_timeout(timeout)) {
-						gossip_debug(GOSSIP_DEV_DEBUG, "*** I/O wait time is up\n");
+						gossip_debug(GOSSIP_DEV_DEBUG,
+							"%s: timed out.\n",
+							__func__);
 						timed_out = 1;
 						break;
 					}
 					continue;
 				}
 
-				gossip_debug(GOSSIP_DEV_DEBUG, "*** signal on I/O wait -- aborting\n");
+				gossip_debug(GOSSIP_DEV_DEBUG,
+					"%s: signal on I/O wait, aborting\n",
+					__func__);
 				break;
 			}
 
@@ -468,6 +531,7 @@ static ssize_t orangefs_devreq_writev(struct file *file,
 			     "WARNING: No one's waiting for tag %llu\n",
 			     llu(tag));
 	}
+	/* put_op? */
 	dev_req_release(buffer);
 
 	return total_returned_size;
@@ -632,7 +696,8 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		return ret ? -EIO : orangefs_bufmap_initialize(&user_desc);
 	case ORANGEFS_DEV_REMOUNT_ALL:
 		gossip_debug(GOSSIP_DEV_DEBUG,
-			     "orangefs_devreq_ioctl: got ORANGEFS_DEV_REMOUNT_ALL\n");
+			     "%s: got ORANGEFS_DEV_REMOUNT_ALL\n",
+			     __func__);
 
 		/*
 		 * remount all mounted orangefs volumes to regain the lost
@@ -647,13 +712,17 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		if (ret < 0)
 			return ret;
 		gossip_debug(GOSSIP_DEV_DEBUG,
-			     "orangefs_devreq_ioctl: priority remount in progress\n");
+			     "%s: priority remount in progress\n",
+			     __func__);
 		list_for_each(tmp, &orangefs_superblocks) {
 			orangefs_sb =
-				list_entry(tmp, struct orangefs_sb_info_s, list);
+				list_entry(tmp,
+					   struct orangefs_sb_info_s,
+					   list);
 			if (orangefs_sb && (orangefs_sb->sb)) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
-					     "Remounting SB %p\n",
+					     "%s: Remounting SB %p\n",
+					     __func__,
 					     orangefs_sb);
 
 				ret = orangefs_remount(orangefs_sb->sb);
@@ -661,12 +730,13 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 					gossip_debug(GOSSIP_DEV_DEBUG,
 						     "SB %p remount failed\n",
 						     orangefs_sb);
-						break;
+					break;
 				}
 			}
 		}
 		gossip_debug(GOSSIP_DEV_DEBUG,
-			     "orangefs_devreq_ioctl: priority remount complete\n");
+			     "%s: priority remount complete\n",
+			     __func__);
 		mutex_unlock(&request_mutex);
 		return ret;
 
@@ -704,15 +774,12 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				     (void __user *)arg,
 				     ORANGEFS_MAX_DEBUG_STRING_LEN);
 		if (ret != 0) {
-			pr_info("%s: "
-				"ORANGEFS_DEV_CLIENT_STRING: copy_from_user failed"
-				"\n",
+			pr_info("%s: CLIENT_STRING: copy_from_user failed\n",
 				__func__);
 			return -EIO;
 		}
 
-		pr_info("%s: client debug array string has been been received."
-			"\n",
+		pr_info("%s: client debug array string has been received.\n",
 			__func__);
 
 		if (!help_string_initialized) {
@@ -722,9 +789,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 
 			/* build a proper debug help string */
 			if (orangefs_prepare_debugfs_help_string(0)) {
-				gossip_err("%s: "
-					   "prepare_debugfs_help_string failed"
-					   "\n",
+				gossip_err("%s: no debug help string \n",
 					   __func__);
 				return -EIO;
 			}
@@ -781,15 +846,17 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 			debug_mask_to_string(&mask_info.mask_value,
 					     mask_info.mask_type);
 			gossip_debug_mask = mask_info.mask_value;
-			pr_info("ORANGEFS: kernel debug mask has been modified to "
+			pr_info("%s: kernel debug mask has been modified to "
 				":%s: :%llx:\n",
+				__func__,
 				kernel_debug_string,
 				(unsigned long long)gossip_debug_mask);
 		} else if (mask_info.mask_type == CLIENT_MASK) {
 			debug_mask_to_string(&mask_info.mask_value,
 					     mask_info.mask_type);
-			pr_info("ORANGEFS: client debug mask has been modified to"
+			pr_info("%s: client debug mask has been modified to"
 				":%s: :%llx:\n",
+				__func__,
 				client_debug_string,
 				llu(mask_info.mask_value));
 		} else {
