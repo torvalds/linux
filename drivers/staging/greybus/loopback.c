@@ -580,8 +580,8 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	operation = gb_operation_create(gb->connection, type, request_size,
 					response_size, GFP_KERNEL);
 	if (!operation) {
-		ret = -ENOMEM;
-		goto error;
+		kfree(op_async);
+		return -ENOMEM;
 	}
 
 	if (request_size)
