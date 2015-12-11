@@ -94,7 +94,7 @@ int test_nanosleep(char *str, int len)
 	ret = lkl_sys_nanosleep(&ts, NULL);
 	clock_gettime(CLOCK_MONOTONIC, &stop);
 
-	delta = (stop.tv_sec - start.tv_sec) +
+	delta = 1e9*(stop.tv_sec - start.tv_sec) +
 		(stop.tv_nsec - start.tv_nsec);
 
 	snprintf(str, len, "%ld", delta);
