@@ -151,24 +151,25 @@ static long __media_device_enum_links(struct media_device *mdev,
 	}
 
 	if (links->links) {
-		struct media_link *ent_link;
-		struct media_link_desc __user *ulink = links->links;
+		struct media_link *link;
+		struct media_link_desc __user *ulink_desc = links->links;
 
-		list_for_each_entry(ent_link, &entity->links, list) {
-			struct media_link_desc link;
+		list_for_each_entry(link, &entity->links, list) {
+			struct media_link_desc klink_desc;
 
 			/* Ignore backlinks. */
-			if (ent_link->source->entity != entity)
+			if (link->source->entity != entity)
 				continue;
-			memset(&link, 0, sizeof(link));
-			media_device_kpad_to_upad(ent_link->source,
-						  &link.source);
-			media_device_kpad_to_upad(ent_link->sink,
-						  &link.sink);
-			link.flags = ent_link->flags;
-			if (copy_to_user(ulink, &link, sizeof(*ulink)))
+			memset(&klink_desc, 0, sizeof(klink_desc));
+			media_device_kpad_to_upad(link->source,
+						  &klink_desc.source);
+			media_device_kpad_to_upad(link->sink,
+						  &klink_desc.sink);
+			klink_desc.flags = link->flags;
+			if (copy_to_user(ulink_desc, &klink_desc,
+					 sizeof(*ulink_desc)))
 				return -EFAULT;
-			ulink++;
+			ulink_desc++;
 		}
 	}
 
