@@ -1146,14 +1146,57 @@ static bool missed_irq(struct drm_i915_private *dev_priv,
 	return test_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings);
 }
 
+static unsigned long local_clock_us(unsigned *cpu)
+{
+	unsigned long t;
+
+	/* Cheaply and approximately convert from nanoseconds to microseconds.
+	 * The result and subsequent calculations are also defined in the same
+	 * approximate microseconds units. The principal source of timing
+	 * error here is from the simple truncation.
+	 *
+	 * Note that local_clock() is only defined wrt to the current CPU;
+	 * the comparisons are no longer valid if we switch CPUs. Instead of
+	 * blocking preemption for the entire busywait, we can detect the CPU
+	 * switch and use that as indicator of system load and a reason to
+	 * stop busywaiting, see busywait_stop().
+	 */
+	*cpu = get_cpu();
+	t = local_clock() >> 10;
+	put_cpu();
+
+	return t;
+}
+
+static bool busywait_stop(unsigned long timeout, unsigned cpu)
+{
+	unsigned this_cpu;
+
+	if (time_after(local_clock_us(&this_cpu), timeout))
+		return true;
+
+	return this_cpu != cpu;
+}
+
 static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
 {
 	unsigned long timeout;
+	unsigned cpu;
+
+	/* When waiting for high frequency requests, e.g. during synchronous
+	 * rendering split between the CPU and GPU, the finite amount of time
+	 * required to set up the irq and wait upon it limits the response
+	 * rate. By busywaiting on the request completion for a short while we
+	 * can service the high frequency waits as quick as possible. However,
+	 * if it is a slow request, we want to sleep as quickly as possible.
+	 * The tradeoff between waiting and sleeping is roughly the time it
+	 * takes to sleep on a request, on the order of a microsecond.
+	 */
 
 	if (i915_gem_request_get_ring(req)->irq_refcount)
 		return -EBUSY;
 
-	timeout = jiffies + 1;
+	timeout = local_clock_us(&cpu) + 5;
 	while (!need_resched()) {
 		if (i915_gem_request_completed(req, true))
 			return 0;
@@ -1161,7 +1204,7 @@ static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
 		if (signal_pending_state(state, current))
 			break;
 
-		if (time_after_eq(jiffies, timeout))
+		if (busywait_stop(timeout, cpu))
 			break;
 
 		cpu_relax_lowlatency();
