@@ -278,7 +278,7 @@ EXPORT_SYMBOL(target_depend_item);
 
 void target_undepend_item(struct config_item *item)
 {
-	return configfs_undepend_item(&target_core_fabrics, item);
+	return configfs_undepend_item(item);
 }
 EXPORT_SYMBOL(target_undepend_item);
 
