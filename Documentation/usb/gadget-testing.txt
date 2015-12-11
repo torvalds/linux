@@ -434,7 +434,7 @@ On host: serialc -v <vendorID> -p <productID> -i<interface#> -a1 -s1024 \
 
 where seriald and serialc are Felipe's utilities found here:
 
-https://git.gitorious.org/usb/usb-tools.git master
+https://github.com/felipebalbi/usb-tools.git master
 
 12. PHONET function
 ===================
