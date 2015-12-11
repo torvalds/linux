@@ -1144,7 +1144,7 @@ static int csi2_link_setup(struct media_entity *entity,
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct isp_csi2_device *csi2 = v4l2_get_subdevdata(sd);
 	struct isp_csi2_ctrl_cfg *ctrl = &csi2->ctrl;
-	int index = local->index;
+	unsigned int index = local->index;
 
 	/*
 	 * The ISP core doesn't support pipelines with multiple video outputs.

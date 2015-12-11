@@ -885,7 +885,7 @@ ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct vpfe_device *vpfe = to_vpfe_device(ipipeif);
-	int index = local->index;
+	unsigned int index = local->index;
 
 	/* FIXME: this is actually a hack! */
 	if (is_media_entity_v4l2_subdev(remote->entity))

@@ -2513,7 +2513,7 @@ static int ccdc_link_setup(struct media_entity *entity,
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct isp_ccdc_device *ccdc = v4l2_get_subdevdata(sd);
 	struct isp_device *isp = to_isp_device(ccdc);
-	int index = local->index;
+	unsigned int index = local->index;
 
 	/* FIXME: this is actually a hack! */
 	if (is_media_entity_v4l2_subdev(remote->entity))

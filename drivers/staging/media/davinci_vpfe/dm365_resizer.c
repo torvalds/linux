@@ -1648,7 +1648,7 @@ static int resizer_link_setup(struct media_entity *entity,
 	struct vpfe_device *vpfe_dev = to_vpfe_device(resizer);
 	u16 ipipeif_source = vpfe_dev->vpfe_ipipeif.output;
 	u16 ipipe_source = vpfe_dev->vpfe_ipipe.output;
-	int index = local->index;
+	unsigned int index = local->index;
 
 	/* FIXME: this is actually a hack! */
 	if (is_media_entity_v4l2_subdev(remote->entity))
