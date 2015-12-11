@@ -7941,8 +7941,10 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 	if (nla_get_flag(info->attrs[NL80211_ATTR_USE_RRM])) {
 		if (!(rdev->wiphy.features &
 		      NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES) ||
-		    !(rdev->wiphy.features & NL80211_FEATURE_QUIET))
+		    !(rdev->wiphy.features & NL80211_FEATURE_QUIET)) {
+			kzfree(connkeys);
 			return -EINVAL;
+		}
 		connect.flags |= ASSOC_REQ_USE_RRM;
 	}
 
