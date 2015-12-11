@@ -80,6 +80,8 @@
 };
 
 &du {
+	pinctrl-0 = <&du_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	clocks = <&mstp7_clks R8A7794_CLK_DU0>,
@@ -101,6 +103,11 @@
 };
 
 &pfc {
+	du_pins: du {
+		renesas,groups = "du1_rgb666", "du1_sync", "du1_disp", "du1_dotclkout0";
+		renesas,function = "du";
+	};
+
 	scif2_pins: serial2 {
 		renesas,groups = "scif2_data";
 		renesas,function = "scif2";
@@ -111,9 +118,9 @@
 		renesas,function = "eth";
 	};
 
-	ether_b_pins: ether {
-		renesas,groups = "eth_link_b", "eth_mdio_b", "eth_rmii_b";
-		renesas,function = "eth";
+	phy1_pins: phy1 {
+		renesas,groups = "intc_irq8";
+		renesas,function = "intc";
 	};
 
 	i2c1_pins: i2c1 {
@@ -132,6 +139,9 @@
 };
 
 &ether {
+	pinctrl-0 = <&ether_pins &phy1_pins>;
+	pinctrl-names = "default";
+
 	phy-handle = <&phy1>;
 	renesas,ether-link-active-low;
 	status = "okay";
@@ -182,5 +192,8 @@
 };
 
 &scif2 {
+	pinctrl-0 = <&scif2_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
