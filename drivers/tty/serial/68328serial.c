@@ -274,8 +274,8 @@ static void receive_chars(struct m68k_serial *info, unsigned short rx)
 #endif	
 		ch = GET_FIELD(rx, URX_RXDATA);
 	
-		if(info->is_cons) {
-			if(URX_BREAK & rx) { /* whee, break received */
+		if (info->is_cons) {
+			if (URX_BREAK & rx) { /* whee, break received */
 				return;
 #ifdef CONFIG_MAGIC_SYSRQ
 			} else if (ch == 0x10) { /* ^P */
@@ -302,7 +302,7 @@ static void receive_chars(struct m68k_serial *info, unsigned short rx)
 
 		tty_insert_flip_char(&info->tport, ch, flag);
 #ifndef CONFIG_XCOPILOT_BUGS
-	} while((rx = uart->urx.w) & URX_DATA_READY);
+	} while ((rx = uart->urx.w) & URX_DATA_READY);
 #endif
 
 	tty_schedule_flip(&info->tport);
@@ -330,7 +330,7 @@ static void transmit_chars(struct m68k_serial *info, struct tty_struct *tty)
 	info->xmit_tail = info->xmit_tail & (SERIAL_XMIT_SIZE-1);
 	info->xmit_cnt--;
 
-	if(info->xmit_cnt <= 0) {
+	if (info->xmit_cnt <= 0) {
 		/* All done for now... TX ints off */
 		uart->ustcnt &= ~USTCNT_TX_INTR_MASK;
 		goto clear_and_return;
@@ -452,45 +452,45 @@ struct {
 }
 #ifndef CONFIG_M68VZ328
  hw_baud_table[18] = {
-	{0,0}, /* 0 */
-	{0,0}, /* 50 */
-	{0,0}, /* 75 */
-	{0,0}, /* 110 */
-	{0,0}, /* 134 */
-	{0,0}, /* 150 */
-	{0,0}, /* 200 */
-	{7,0x26}, /* 300 */
-	{6,0x26}, /* 600 */
-	{5,0x26}, /* 1200 */
-	{0,0}, /* 1800 */
-	{4,0x26}, /* 2400 */
-	{3,0x26}, /* 4800 */
-	{2,0x26}, /* 9600 */
-	{1,0x26}, /* 19200 */
-	{0,0x26}, /* 38400 */
-	{1,0x38}, /* 57600 */
-	{0,0x38}, /* 115200 */
+	{0, 0}, /* 0 */
+	{0, 0}, /* 50 */
+	{0, 0}, /* 75 */
+	{0, 0}, /* 110 */
+	{0, 0}, /* 134 */
+	{0, 0}, /* 150 */
+	{0, 0}, /* 200 */
+	{7, 0x26}, /* 300 */
+	{6, 0x26}, /* 600 */
+	{5, 0x26}, /* 1200 */
+	{0, 0}, /* 1800 */
+	{4, 0x26}, /* 2400 */
+	{3, 0x26}, /* 4800 */
+	{2, 0x26}, /* 9600 */
+	{1, 0x26}, /* 19200 */
+	{0, 0x26}, /* 38400 */
+	{1, 0x38}, /* 57600 */
+	{0, 0x38}, /* 115200 */
 };
 #else
  hw_baud_table[18] = {
-                 {0,0}, /* 0 */
-                 {0,0}, /* 50 */
-                 {0,0}, /* 75 */
-                 {0,0}, /* 110 */
-                 {0,0}, /* 134 */
-                 {0,0}, /* 150 */
-                 {0,0}, /* 200 */
-                 {0,0}, /* 300 */
-                 {7,0x26}, /* 600 */
-                 {6,0x26}, /* 1200 */
-                 {0,0}, /* 1800 */
-                 {5,0x26}, /* 2400 */
-                 {4,0x26}, /* 4800 */
-                 {3,0x26}, /* 9600 */
-                 {2,0x26}, /* 19200 */
-                 {1,0x26}, /* 38400 */
-                 {0,0x26}, /* 57600 */
-                 {1,0x38}, /* 115200 */
+                 {0, 0}, /* 0 */
+                 {0, 0}, /* 50 */
+                 {0, 0}, /* 75 */
+                 {0, 0}, /* 110 */
+                 {0, 0}, /* 134 */
+                 {0, 0}, /* 150 */
+                 {0, 0}, /* 200 */
+                 {0, 0}, /* 300 */
+                 {7, 0x26}, /* 600 */
+                 {6, 0x26}, /* 1200 */
+                 {0, 0}, /* 1800 */
+                 {5, 0x26}, /* 2400 */
+                 {4, 0x26}, /* 4800 */
+                 {3, 0x26}, /* 9600 */
+                 {2, 0x26}, /* 19200 */
+                 {1, 0x26}, /* 38400 */
+                 {0, 0x26}, /* 57600 */
+                 {1, 0x38}, /* 115200 */
 }; 
 #endif
 /* rate = 1036800 / ((65 - prescale) * (1<<divider)) */
@@ -591,8 +591,8 @@ void console_print_68328(const char *p)
 {
 	char c;
 	
-	while((c=*(p++)) != 0) {
-		if(c == '\n')
+	while ((c = *(p++)) != 0) {
+		if (c == '\n')
 			rs_put_char('\r');
 		rs_put_char(c);
 	}
@@ -624,7 +624,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	if (serial_paranoia_check(info, tty->name, "rs_flush_chars"))
 		return;
 #ifndef USE_INTS
-	for(;;) {
+	for (;;) {
 #endif
 
 	/* Enable transmitter */
@@ -700,7 +700,7 @@ static int rs_write(struct tty_struct * tty,
 		/* Enable transmitter */
 		local_irq_disable();		
 #ifndef USE_INTS
-		while(info->xmit_cnt) {
+		while (info->xmit_cnt) {
 #endif
 
 		uart->ustcnt |= USTCNT_TXEN;
@@ -1180,7 +1180,7 @@ rs68328_init(void)
 
 	local_irq_save(flags);
 
-	for(i=0;i<NR_PORTS;i++) {
+	for (i = 0; i < NR_PORTS; i++) {
 
 	    info = &m68k_soft[i];
 	    tty_port_init(&info->tport);
@@ -1263,7 +1263,7 @@ int m68328_console_setup(struct console *cp, char *arg)
 		return(-1);
 
 	if (arg)
-		n = simple_strtoul(arg,NULL,0);
+		n = simple_strtoul(arg, NULL, 0);
 
 	for (i = 0; i < ARRAY_SIZE(baud_table); i++)
 		if (baud_table[i] == n)
