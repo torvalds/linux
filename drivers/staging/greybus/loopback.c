@@ -526,9 +526,6 @@ static void gb_loopback_async_operation_work(struct work_struct *work)
 	struct gb_loopback_async_operation *op_async;
 
 	op_async = container_of(work, struct gb_loopback_async_operation, work);
-	if (!op_async)
-		return;
-
 	gb = op_async->gb;
 	operation = op_async->operation;
 
