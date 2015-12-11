@@ -1171,6 +1171,79 @@ void configfs_undepend_item(struct config_item *target)
 }
 EXPORT_SYMBOL(configfs_undepend_item);
 
+/*
+ * caller_subsys is a caller's subsystem not target's. This is used to
+ * determine if we should lock root and check subsys or not. When we are
+ * in the same subsystem as our target there is no need to do locking as
+ * we know that subsys is valid and is not unregistered during this function
+ * as we are called from callback of one of his children and VFS holds a lock
+ * on some inode. Otherwise we have to lock our root to  ensure that target's
+ * subsystem it is not unregistered during this function.
+ */
+int configfs_depend_item_unlocked(struct configfs_subsystem *caller_subsys,
+				  struct config_item *target)
+{
+	struct configfs_subsystem *target_subsys;
+	struct config_group *root, *parent;
+	struct configfs_dirent *subsys_sd;
+	int ret = -ENOENT;
+
+	/* Disallow this function for configfs root */
+	if (configfs_is_root(target))
+		return -EINVAL;
+
+	parent = target->ci_group;
+	/*
+	 * This may happen when someone is trying to depend root
+	 * directory of some subsystem
+	 */
+	if (configfs_is_root(&parent->cg_item)) {
+		target_subsys = to_configfs_subsystem(to_config_group(target));
+		root = parent;
+	} else {
+		target_subsys = parent->cg_subsys;
+		/* Find a cofnigfs root as we may need it for locking */
+		for (root = parent; !configfs_is_root(&root->cg_item);
+		     root = root->cg_item.ci_group)
+			;
+	}
+
+	if (target_subsys != caller_subsys) {
+		/*
+		 * We are in other configfs subsystem, so we have to do
+		 * additional locking to prevent other subsystem from being
+		 * unregistered
+		 */
+		mutex_lock(&d_inode(root->cg_item.ci_dentry)->i_mutex);
+
+		/*
+		 * As we are trying to depend item from other subsystem
+		 * we have to check if this subsystem is still registered
+		 */
+		subsys_sd = configfs_find_subsys_dentry(
+				root->cg_item.ci_dentry->d_fsdata,
+				&target_subsys->su_group.cg_item);
+		if (!subsys_sd)
+			goto out_root_unlock;
+	} else {
+		subsys_sd = target_subsys->su_group.cg_item.ci_dentry->d_fsdata;
+	}
+
+	/* Now we can execute core of depend item */
+	ret = configfs_do_depend_item(subsys_sd->s_dentry, target);
+
+	if (target_subsys != caller_subsys)
+out_root_unlock:
+		/*
+		 * We were called from subsystem other than our target so we
+		 * took some locks so now it's time to release them
+		 */
+		mutex_unlock(&d_inode(root->cg_item.ci_dentry)->i_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(configfs_depend_item_unlocked);
+
 static int configfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int ret = 0;

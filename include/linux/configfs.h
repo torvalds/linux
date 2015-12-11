@@ -213,4 +213,20 @@ int configfs_depend_item(struct configfs_subsystem *subsys,
 			 struct config_item *target);
 void configfs_undepend_item(struct config_item *target);
 
+/*
+ * These functions can sleep and can alloc with GFP_KERNEL
+ * NOTE: These should be called only underneath configfs callbacks.
+ * NOTE: First parameter is a caller's subsystem, not target's.
+ * WARNING: These cannot be called on newly created item
+ *        (in make_group()/make_item() callback)
+ */
+int configfs_depend_item_unlocked(struct configfs_subsystem *caller_subsys,
+				  struct config_item *target);
+
+
+static inline void configfs_undepend_item_unlocked(struct config_item *target)
+{
+	configfs_undepend_item(target);
+}
+
 #endif /* _CONFIGFS_H_ */
