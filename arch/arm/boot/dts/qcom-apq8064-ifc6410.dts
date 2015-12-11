@@ -164,7 +164,7 @@
 
 		gsbi@16500000 {
 			status = "ok";
-			qcom,mode = <GSBI_PROT_I2C_UART>;
+			qcom,mode = <GSBI_PROT_UART_W_FC>;
 
 			serial@16540000 {
 				status = "ok";
