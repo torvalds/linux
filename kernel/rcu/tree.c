@@ -1173,14 +1173,15 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
 			smp_mb(); /* ->cond_resched_completed before *rcrmp. */
 			WRITE_ONCE(*rcrmp,
 				   READ_ONCE(*rcrmp) + rdp->rsp->flavor_mask);
-			resched_cpu(rdp->cpu);  /* Force CPU into scheduler. */
-			rdp->rsp->jiffies_resched += 5; /* Enable beating. */
-		} else if (ULONG_CMP_GE(jiffies, rdp->rsp->jiffies_resched)) {
-			/* Time to beat on that CPU again! */
-			resched_cpu(rdp->cpu);  /* Force CPU into scheduler. */
-			rdp->rsp->jiffies_resched += 5; /* Re-enable beating. */
 		}
+		rdp->rsp->jiffies_resched += 5; /* Re-enable beating. */
 	}
+
+	/* And if it has been a really long time, kick the CPU as well. */
+	if (ULONG_CMP_GE(jiffies,
+			 rdp->rsp->gp_start + 2 * jiffies_till_sched_qs) ||
+	    ULONG_CMP_GE(jiffies, rdp->rsp->gp_start + jiffies_till_sched_qs))
+		resched_cpu(rdp->cpu);  /* Force CPU into scheduler. */
 
 	return 0;
 }
