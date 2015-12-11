@@ -463,8 +463,6 @@ struct media_device *media_device_find_devres(struct device *dev);
 /* Iterate over all links. */
 #define media_device_for_each_link(link, mdev)			\
 	list_for_each_entry(link, &(mdev)->links, graph_obj.list)
-
-
 #else
 static inline int media_device_register(struct media_device *mdev)
 {

@@ -310,7 +310,6 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_start);
 
-
 /**
  * media_entity_graph_walk_next - Get the next entity in the graph
  * @graph: Media graph structure
@@ -850,7 +849,6 @@ struct media_pad *media_entity_remote_pad(struct media_pad *pad)
 }
 EXPORT_SYMBOL_GPL(media_entity_remote_pad);
 
-
 static void media_interface_init(struct media_device *mdev,
 				 struct media_interface *intf,
 				 u32 gobj_type,
@@ -914,7 +912,6 @@ struct media_link *media_create_intf_link(struct media_entity *entity,
 	return link;
 }
 EXPORT_SYMBOL_GPL(media_create_intf_link);
-
 
 void __media_remove_intf_link(struct media_link *link)
 {
