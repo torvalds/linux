@@ -715,7 +715,6 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 	unsigned long clock = 0;
 	unsigned long level;
 	unsigned long stable_pstate_sclk;
-	struct PP_Clocks clocks;
 	unsigned long percentage;
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = table->entries[0].clk;
@@ -726,8 +725,9 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 	else
 		cz_hwmgr->sclk_dpm.soft_max_clk  = table->entries[table->count - 1].clk;
 
-	/*PECI_GetMinClockSettings(pHwMgr->pPECI, &clocks);*/
-	clock = clocks.engineClock;
+	clock = hwmgr->display_config.min_core_set_clock;
+	if (clock == 0)
+		printk(KERN_ERR "[ powerplay ] min_core_set_clock not set\n");
 
 	if (cz_hwmgr->sclk_dpm.hard_min_clk != clock) {
 		cz_hwmgr->sclk_dpm.hard_min_clk = clock;
