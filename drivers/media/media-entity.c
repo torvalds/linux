@@ -588,7 +588,38 @@ static struct media_link *media_add_link(struct list_head *head)
 }
 
 static void __media_entity_remove_link(struct media_entity *entity,
-				       struct media_link *link);
+				       struct media_link *link)
+{
+	struct media_link *rlink, *tmp;
+	struct media_entity *remote;
+	unsigned int r = 0;
+
+	if (link->source->entity == entity)
+		remote = link->sink->entity;
+	else
+		remote = link->source->entity;
+
+	list_for_each_entry_safe(rlink, tmp, &remote->links, list) {
+		if (rlink != link->reverse) {
+			r++;
+			continue;
+		}
+
+		if (link->source->entity == entity)
+			remote->num_backlinks--;
+
+		/* Remove the remote link */
+		list_del(&rlink->list);
+		media_gobj_remove(&rlink->graph_obj);
+		kfree(rlink);
+
+		if (--remote->num_links == 0)
+			break;
+	}
+	list_del(&link->list);
+	media_gobj_remove(&link->graph_obj);
+	kfree(link);
+}
 
 int
 media_create_pad_link(struct media_entity *source, u16 source_pad,
@@ -641,40 +672,6 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(media_create_pad_link);
-
-static void __media_entity_remove_link(struct media_entity *entity,
-				       struct media_link *link)
-{
-	struct media_link *rlink, *tmp;
-	struct media_entity *remote;
-	unsigned int r = 0;
-
-	if (link->source->entity == entity)
-		remote = link->sink->entity;
-	else
-		remote = link->source->entity;
-
-	list_for_each_entry_safe(rlink, tmp, &remote->links, list) {
-		if (rlink != link->reverse) {
-			r++;
-			continue;
-		}
-
-		if (link->source->entity == entity)
-			remote->num_backlinks--;
-
-		/* Remove the remote link */
-		list_del(&rlink->list);
-		media_gobj_remove(&rlink->graph_obj);
-		kfree(rlink);
-
-		if (--remote->num_links == 0)
-			break;
-	}
-	list_del(&link->list);
-	media_gobj_remove(&link->graph_obj);
-	kfree(link);
-}
 
 void __media_entity_remove_links(struct media_entity *entity)
 {
