@@ -789,9 +789,11 @@ static int cz_tf_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr,
 		if (clks == 0)
 			clks = CZ_MIN_DEEP_SLEEP_SCLK;
 
+		PP_DBG_LOG("Setting Deep Sleep Clock: %d\n", clks);
+
 		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-					  PPSMC_MSG_SetMinDeepSleepSclk,
-						CZ_MIN_DEEP_SLEEP_SCLK);
+				PPSMC_MSG_SetMinDeepSleepSclk,
+				clks);
 	}
 
 	return 0;
