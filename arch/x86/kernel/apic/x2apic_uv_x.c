@@ -889,7 +889,10 @@ void __init uv_system_init(void)
 		return;
 	}
 	pr_info("UV: Found %s hub\n", hub);
-	map_low_mmrs();
+
+	/* We now only need to map the MMRs on UV1 */
+	if (is_uv1_hub())
+		map_low_mmrs();
 
 	m_n_config.v = uv_read_local_mmr(UVH_RH_GAM_CONFIG_MMR );
 	m_val = m_n_config.s.m_skt;
