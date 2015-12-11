@@ -27,6 +27,7 @@
 #include "processpptables.h"
 #include <atom-types.h>
 #include <atombios.h>
+#include "pp_debug.h"
 #include "pptable.h"
 #include "power_state.h"
 #include "hwmgr.h"
@@ -1539,25 +1540,40 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 	result = init_powerplay_tables(hwmgr, powerplay_table);
 
-	if (0 == result)
-		result = set_platform_caps(hwmgr,
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_powerplay_tables failed", return result);
+
+	result = set_platform_caps(hwmgr,
 				le32_to_cpu(powerplay_table->ulPlatformCaps));
 
-	if (0 == result)
-		result = init_thermal_controller(hwmgr, powerplay_table);
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "set_platform_caps failed", return result);
 
-	if (0 == result)
-		result = init_overdrive_limits(hwmgr, powerplay_table);
+	result = init_thermal_controller(hwmgr, powerplay_table);
 
-	if (0 == result)
-		result = init_clock_voltage_dependency(hwmgr,
-						powerplay_table);
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_thermal_controller failed", return result);
 
-	if (0 == result)
-		result = init_dpm2_parameters(hwmgr, powerplay_table);
+	result = init_overdrive_limits(hwmgr, powerplay_table);
 
-	if (0 == result)
-		result = init_phase_shedding_table(hwmgr, powerplay_table);
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_overdrive_limits failed", return result);
+
+	result = init_clock_voltage_dependency(hwmgr,
+					       powerplay_table);
+
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_clock_voltage_dependency failed", return result);
+
+	result = init_dpm2_parameters(hwmgr, powerplay_table);
+
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_dpm2_parameters failed", return result);
+
+	result = init_phase_shedding_table(hwmgr, powerplay_table);
+
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_phase_shedding_table failed", return result);
 
 	return result;
 }
