@@ -1054,6 +1054,31 @@ out:
 	return ret;
 }
 
+static int configfs_do_depend_item(struct dentry *subsys_dentry,
+				   struct config_item *target)
+{
+	struct configfs_dirent *p;
+	int ret;
+
+	spin_lock(&configfs_dirent_lock);
+	/* Scan the tree, return 0 if found */
+	ret = configfs_depend_prep(subsys_dentry, target);
+	if (ret)
+		goto out_unlock_dirent_lock;
+
+	/*
+	 * We are sure that the item is not about to be removed by rmdir(), and
+	 * not in the middle of attachment by mkdir().
+	 */
+	p = target->ci_dentry->d_fsdata;
+	p->s_dependent_count += 1;
+
+out_unlock_dirent_lock:
+	spin_unlock(&configfs_dirent_lock);
+
+	return ret;
+}
+
 int configfs_depend_item(struct configfs_subsystem *subsys,
 			 struct config_item *target)
 {
@@ -1094,22 +1119,8 @@ int configfs_depend_item(struct configfs_subsystem *subsys,
 	}
 
 	/* Ok, now we can trust subsys/s_item */
+	ret = configfs_do_depend_item(subsys_sd->s_dentry, target);
 
-	spin_lock(&configfs_dirent_lock);
-	/* Scan the tree, return 0 if found */
-	ret = configfs_depend_prep(subsys_sd->s_dentry, target);
-	if (ret)
-		goto out_unlock_dirent_lock;
-
-	/*
-	 * We are sure that the item is not about to be removed by rmdir(), and
-	 * not in the middle of attachment by mkdir().
-	 */
-	p = target->ci_dentry->d_fsdata;
-	p->s_dependent_count += 1;
-
-out_unlock_dirent_lock:
-	spin_unlock(&configfs_dirent_lock);
 out_unlock_fs:
 	mutex_unlock(&d_inode(root)->i_mutex);
 
