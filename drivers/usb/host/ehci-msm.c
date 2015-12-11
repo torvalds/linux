@@ -220,6 +220,7 @@ MODULE_DEVICE_TABLE(of, msm_ehci_dt_match);
 static struct platform_driver ehci_msm_driver = {
 	.probe	= ehci_msm_probe,
 	.remove	= ehci_msm_remove,
+	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		   .name = "msm_hsusb_host",
 		   .pm = &ehci_msm_dev_pm_ops,
