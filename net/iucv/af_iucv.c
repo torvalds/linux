@@ -1031,7 +1031,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	struct sock *sk = sock->sk;
 	struct iucv_sock *iucv = iucv_sk(sk);
 	struct sk_buff *skb;
-	struct iucv_message txmsg;
+	struct iucv_message txmsg = {0};
 	struct cmsghdr *cmsg;
 	int cmsg_done;
 	long timeo;
