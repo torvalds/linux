@@ -4995,7 +4995,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	enum intel_display_power_domain power_domain;
 	enum irqreturn ret = IRQ_NONE;
 
-	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
+	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP &&
+	    intel_dig_port->base.type != INTEL_OUTPUT_HDMI)
 		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
 
 	if (long_hpd && intel_dig_port->base.type == INTEL_OUTPUT_EDP) {
@@ -6036,6 +6037,7 @@ intel_dp_init(struct drm_device *dev,
 	}
 
 	intel_dig_port->port = port;
+	dev_priv->dig_port_map[port] = intel_encoder;
 	intel_dig_port->dp.output_reg = output_reg;
 
 	intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;

@@ -89,7 +89,6 @@ static struct vport_ops ovs_gre_vport_ops = {
 	.create		= gre_create,
 	.send		= dev_queue_xmit,
 	.destroy	= ovs_netdev_tunnel_destroy,
-	.owner		= THIS_MODULE,
 };
 
 static int __init ovs_gre_tnl_init(void)

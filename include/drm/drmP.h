@@ -309,6 +309,11 @@ struct drm_file {
 	unsigned universal_planes:1;
 	/* true if client understands atomic properties */
 	unsigned atomic:1;
+	/*
+	 * This client is allowed to gain master privileges for @master.
+	 * Protected by struct drm_device::master_mutex.
+	 */
+	unsigned allowed_master:1;
 
 	struct pid *pid;
 	kuid_t uid;
@@ -343,6 +348,8 @@ struct drm_file {
 	wait_queue_head_t event_wait;
 	struct list_head event_list;
 	int event_space;
+
+	struct mutex event_read_lock;
 
 	struct drm_prime_file_private prime;
 };
@@ -910,6 +917,7 @@ extern int drm_open(struct inode *inode, struct file *filp);
 extern ssize_t drm_read(struct file *filp, char __user *buffer,
 			size_t count, loff_t *offset);
 extern int drm_release(struct inode *inode, struct file *filp);
+extern int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv);
 
 				/* Mapping support (drm_vm.h) */
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
@@ -947,6 +955,10 @@ extern void drm_send_vblank_event(struct drm_device *dev, unsigned int pipe,
 				  struct drm_pending_vblank_event *e);
 extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 				       struct drm_pending_vblank_event *e);
+extern void drm_arm_vblank_event(struct drm_device *dev, unsigned int pipe,
+				 struct drm_pending_vblank_event *e);
+extern void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
+				      struct drm_pending_vblank_event *e);
 extern bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe);
 extern bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
 extern int drm_vblank_get(struct drm_device *dev, unsigned int pipe);
@@ -1110,5 +1122,8 @@ static __inline__ bool drm_can_sleep(void)
 		return false;
 	return true;
 }
+
+/* helper for handling conditionals in various for_each macros */
+#define for_each_if(condition) if (!(condition)) {} else
 
 #endif

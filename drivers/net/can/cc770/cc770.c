@@ -578,7 +578,7 @@ static int cc770_err(struct net_device *dev, u8 status)
 				cf->data[2] |= CAN_ERR_PROT_BIT0;
 				break;
 			case STAT_LEC_CRC:
-				cf->data[3] |= CAN_ERR_PROT_LOC_CRC_SEQ;
+				cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
 				break;
 			}
 		}

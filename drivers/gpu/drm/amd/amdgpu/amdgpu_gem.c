@@ -115,12 +115,9 @@ int amdgpu_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_pri
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va *bo_va;
 	int r;
-	mutex_lock(&vm->mutex);
 	r = amdgpu_bo_reserve(rbo, false);
-	if (r) {
-		mutex_unlock(&vm->mutex);
+	if (r)
 		return r;
-	}
 
 	bo_va = amdgpu_vm_bo_find(vm, rbo);
 	if (!bo_va) {
@@ -129,7 +126,6 @@ int amdgpu_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_pri
 		++bo_va->ref_count;
 	}
 	amdgpu_bo_unreserve(rbo);
-	mutex_unlock(&vm->mutex);
 	return 0;
 }
 
@@ -142,10 +138,8 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va *bo_va;
 	int r;
-	mutex_lock(&vm->mutex);
 	r = amdgpu_bo_reserve(rbo, true);
 	if (r) {
-		mutex_unlock(&vm->mutex);
 		dev_err(adev->dev, "leaking bo va because "
 			"we fail to reserve bo (%d)\n", r);
 		return;
@@ -157,7 +151,6 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 		}
 	}
 	amdgpu_bo_unreserve(rbo);
-	mutex_unlock(&vm->mutex);
 }
 
 static int amdgpu_gem_handle_lockup(struct amdgpu_device *adev, int r)
@@ -242,8 +235,9 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	    AMDGPU_GEM_USERPTR_REGISTER))
 		return -EINVAL;
 
-	if (!(args->flags & AMDGPU_GEM_USERPTR_ANONONLY) ||
-		   !(args->flags & AMDGPU_GEM_USERPTR_REGISTER)) {
+	if (!(args->flags & AMDGPU_GEM_USERPTR_READONLY) && (
+	     !(args->flags & AMDGPU_GEM_USERPTR_ANONONLY) ||
+	     !(args->flags & AMDGPU_GEM_USERPTR_REGISTER))) {
 
 		/* if we want to write to it we must require anonymous
 		   memory and install a MMU notifier */
@@ -553,7 +547,6 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL)
 		return -ENOENT;
-	mutex_lock(&fpriv->vm.mutex);
 	rbo = gem_to_amdgpu_bo(gobj);
 	INIT_LIST_HEAD(&list);
 	INIT_LIST_HEAD(&duplicates);
@@ -568,7 +561,6 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
 	if (r) {
-		mutex_unlock(&fpriv->vm.mutex);
 		drm_gem_object_unreference_unlocked(gobj);
 		return r;
 	}
@@ -577,7 +569,6 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	if (!bo_va) {
 		ttm_eu_backoff_reservation(&ticket, &list);
 		drm_gem_object_unreference_unlocked(gobj);
-		mutex_unlock(&fpriv->vm.mutex);
 		return -ENOENT;
 	}
 
@@ -602,7 +593,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	ttm_eu_backoff_reservation(&ticket, &list);
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE))
 		amdgpu_gem_va_update_vm(adev, bo_va, args->operation);
-	mutex_unlock(&fpriv->vm.mutex);
+
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
 }

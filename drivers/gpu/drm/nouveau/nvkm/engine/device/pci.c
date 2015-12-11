@@ -279,6 +279,12 @@ nvkm_device_pci_10de_0fe3[] = {
 };
 
 static const struct nvkm_device_pci_vendor
+nvkm_device_pci_10de_0fe4[] = {
+	{ 0x144d, 0xc740, NULL, { .War00C800_0 = true } },
+	{}
+};
+
+static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_104b[] = {
 	{ 0x1043, 0x844c, "GeForce GT 625" },
 	{ 0x1043, 0x846b, "GeForce GT 625" },
@@ -685,6 +691,12 @@ static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_1199[] = {
 	{ 0x1458, 0xd001, "GeForce GTX 760" },
 	{ 0x1462, 0x1106, "GeForce GTX 780M", { .War00C800_0 = true } }, /* Medion Erazer X7827 */
+	{}
+};
+
+static const struct nvkm_device_pci_vendor
+nvkm_device_pci_10de_11e0[] = {
+	{ 0x1558, 0x5106, NULL, { .War00C800_0 = true } },
 	{}
 };
 
@@ -1370,7 +1382,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x0fe1, "GeForce GT 730M" },
 	{ 0x0fe2, "GeForce GT 745M" },
 	{ 0x0fe3, "GeForce GT 745M", nvkm_device_pci_10de_0fe3 },
-	{ 0x0fe4, "GeForce GT 750M" },
+	{ 0x0fe4, "GeForce GT 750M", nvkm_device_pci_10de_0fe4 },
 	{ 0x0fe9, "GeForce GT 750M" },
 	{ 0x0fea, "GeForce GT 755M" },
 	{ 0x0fec, "GeForce 710A" },
@@ -1485,7 +1497,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x11c6, "GeForce GTX 650 Ti" },
 	{ 0x11c8, "GeForce GTX 650" },
 	{ 0x11cb, "GeForce GT 740" },
-	{ 0x11e0, "GeForce GTX 770M" },
+	{ 0x11e0, "GeForce GTX 770M", nvkm_device_pci_10de_11e0 },
 	{ 0x11e1, "GeForce GTX 765M" },
 	{ 0x11e2, "GeForce GTX 765M" },
 	{ 0x11e3, "GeForce GTX 760M", nvkm_device_pci_10de_11e3 },

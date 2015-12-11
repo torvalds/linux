@@ -126,6 +126,60 @@ static int drm_cpu_valid(void)
 }
 
 /**
+ * drm_new_set_master - Allocate a new master object and become master for the
+ * associated master realm.
+ *
+ * @dev: The associated device.
+ * @fpriv: File private identifying the client.
+ *
+ * This function must be called with dev::struct_mutex held.
+ * Returns negative error code on failure. Zero on success.
+ */
+int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
+{
+	struct drm_master *old_master;
+	int ret;
+
+	lockdep_assert_held_once(&dev->master_mutex);
+
+	/* create a new master */
+	fpriv->minor->master = drm_master_create(fpriv->minor);
+	if (!fpriv->minor->master)
+		return -ENOMEM;
+
+	/* take another reference for the copy in the local file priv */
+	old_master = fpriv->master;
+	fpriv->master = drm_master_get(fpriv->minor->master);
+
+	if (dev->driver->master_create) {
+		ret = dev->driver->master_create(dev, fpriv->master);
+		if (ret)
+			goto out_err;
+	}
+	if (dev->driver->master_set) {
+		ret = dev->driver->master_set(dev, fpriv, true);
+		if (ret)
+			goto out_err;
+	}
+
+	fpriv->is_master = 1;
+	fpriv->allowed_master = 1;
+	fpriv->authenticated = 1;
+	if (old_master)
+		drm_master_put(&old_master);
+
+	return 0;
+
+out_err:
+	/* drop both references and restore old master on failure */
+	drm_master_put(&fpriv->minor->master);
+	drm_master_put(&fpriv->master);
+	fpriv->master = old_master;
+
+	return ret;
+}
+
+/**
  * Called whenever a process opens /dev/drm.
  *
  * \param filp file pointer.
@@ -172,6 +226,8 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
 
+	mutex_init(&priv->event_read_lock);
+
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_open(dev, priv);
 
@@ -189,35 +245,9 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	mutex_lock(&dev->master_mutex);
 	if (drm_is_primary_client(priv) && !priv->minor->master) {
 		/* create a new master */
-		priv->minor->master = drm_master_create(priv->minor);
-		if (!priv->minor->master) {
-			ret = -ENOMEM;
+		ret = drm_new_set_master(dev, priv);
+		if (ret)
 			goto out_close;
-		}
-
-		priv->is_master = 1;
-		/* take another reference for the copy in the local file priv */
-		priv->master = drm_master_get(priv->minor->master);
-		priv->authenticated = 1;
-
-		if (dev->driver->master_create) {
-			ret = dev->driver->master_create(dev, priv->master);
-			if (ret) {
-				/* drop both references if this fails */
-				drm_master_put(&priv->minor->master);
-				drm_master_put(&priv->master);
-				goto out_close;
-			}
-		}
-		if (dev->driver->master_set) {
-			ret = dev->driver->master_set(dev, priv, true);
-			if (ret) {
-				/* drop both references if this fails */
-				drm_master_put(&priv->minor->master);
-				drm_master_put(&priv->master);
-				goto out_close;
-			}
-		}
 	} else if (drm_is_primary_client(priv)) {
 		/* get a reference to the master */
 		priv->master = drm_master_get(priv->minor->master);
@@ -483,14 +513,28 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
-	ssize_t ret = 0;
+	ssize_t ret;
 
 	if (!access_ok(VERIFY_WRITE, buffer, count))
 		return -EFAULT;
 
-	spin_lock_irq(&dev->event_lock);
+	ret = mutex_lock_interruptible(&file_priv->event_read_lock);
+	if (ret)
+		return ret;
+
 	for (;;) {
-		if (list_empty(&file_priv->event_list)) {
+		struct drm_pending_event *e = NULL;
+
+		spin_lock_irq(&dev->event_lock);
+		if (!list_empty(&file_priv->event_list)) {
+			e = list_first_entry(&file_priv->event_list,
+					struct drm_pending_event, link);
+			file_priv->event_space += e->event->length;
+			list_del(&e->link);
+		}
+		spin_unlock_irq(&dev->event_lock);
+
+		if (e == NULL) {
 			if (ret)
 				break;
 
@@ -499,36 +543,36 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 				break;
 			}
 
-			spin_unlock_irq(&dev->event_lock);
+			mutex_unlock(&file_priv->event_read_lock);
 			ret = wait_event_interruptible(file_priv->event_wait,
 						       !list_empty(&file_priv->event_list));
-			spin_lock_irq(&dev->event_lock);
-			if (ret < 0)
-				break;
-
-			ret = 0;
+			if (ret >= 0)
+				ret = mutex_lock_interruptible(&file_priv->event_read_lock);
+			if (ret)
+				return ret;
 		} else {
-			struct drm_pending_event *e;
+			unsigned length = e->event->length;
 
-			e = list_first_entry(&file_priv->event_list,
-					     struct drm_pending_event, link);
-			if (e->event->length + ret > count)
-				break;
-
-			if (__copy_to_user_inatomic(buffer + ret,
-						    e->event, e->event->length)) {
-				if (ret == 0)
-					ret = -EFAULT;
+			if (length > count - ret) {
+put_back_event:
+				spin_lock_irq(&dev->event_lock);
+				file_priv->event_space -= length;
+				list_add(&e->link, &file_priv->event_list);
+				spin_unlock_irq(&dev->event_lock);
 				break;
 			}
 
-			file_priv->event_space += e->event->length;
-			ret += e->event->length;
-			list_del(&e->link);
+			if (copy_to_user(buffer + ret, e->event, length)) {
+				if (ret == 0)
+					ret = -EFAULT;
+				goto put_back_event;
+			}
+
+			ret += length;
 			e->destroy(e);
 		}
 	}
-	spin_unlock_irq(&dev->event_lock);
+	mutex_unlock(&file_priv->event_read_lock);
 
 	return ret;
 }

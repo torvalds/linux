@@ -78,7 +78,8 @@ static __be32 *read_buf(struct xdr_stream *xdr, int nbytes)
 
 	p = xdr_inline_decode(xdr, nbytes);
 	if (unlikely(p == NULL))
-		printk(KERN_WARNING "NFS: NFSv4 callback reply buffer overflowed!\n");
+		printk(KERN_WARNING "NFS: NFSv4 callback reply buffer overflowed "
+							"or truncated request.\n");
 	return p;
 }
 
@@ -889,6 +890,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	struct cb_compound_hdr_arg hdr_arg = { 0 };
 	struct cb_compound_hdr_res hdr_res = { NULL };
 	struct xdr_stream xdr_in, xdr_out;
+	struct xdr_buf *rq_arg = &rqstp->rq_arg;
 	__be32 *p, status;
 	struct cb_process_state cps = {
 		.drc_status = 0,
@@ -900,7 +902,8 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 
 	dprintk("%s: start\n", __func__);
 
-	xdr_init_decode(&xdr_in, &rqstp->rq_arg, rqstp->rq_arg.head[0].iov_base);
+	rq_arg->len = rq_arg->head[0].iov_len + rq_arg->page_len;
+	xdr_init_decode(&xdr_in, rq_arg, rq_arg->head[0].iov_base);
 
 	p = (__be32*)((char *)rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len);
 	xdr_init_encode(&xdr_out, &rqstp->rq_res, p);

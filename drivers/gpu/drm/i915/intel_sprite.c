@@ -817,8 +817,8 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		hscale = drm_rect_calc_hscale(src, dst, min_scale, max_scale);
 		if (hscale < 0) {
 			DRM_DEBUG_KMS("Horizontal scaling factor out of limits\n");
-			drm_rect_debug_print(src, true);
-			drm_rect_debug_print(dst, false);
+			drm_rect_debug_print("src: ", src, true);
+			drm_rect_debug_print("dst: ", dst, false);
 
 			return hscale;
 		}
@@ -826,8 +826,8 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		vscale = drm_rect_calc_vscale(src, dst, min_scale, max_scale);
 		if (vscale < 0) {
 			DRM_DEBUG_KMS("Vertical scaling factor out of limits\n");
-			drm_rect_debug_print(src, true);
-			drm_rect_debug_print(dst, false);
+			drm_rect_debug_print("src: ", src, true);
+			drm_rect_debug_print("dst: ", dst, false);
 
 			return vscale;
 		}

@@ -123,8 +123,6 @@ struct intel_framebuffer {
 struct intel_fbdev {
 	struct drm_fb_helper helper;
 	struct intel_framebuffer *fb;
-	struct list_head fbdev_list;
-	struct drm_display_mode *our_mode;
 	int preferred_bpp;
 };
 
@@ -820,6 +818,8 @@ struct intel_digital_port {
 	struct intel_hdmi hdmi;
 	enum irqreturn (*hpd_pulse)(struct intel_digital_port *, bool);
 	bool release_cl2_override;
+	/* for communication with audio component; protected by av_mutex */
+	const struct drm_connector *audio_connector;
 };
 
 struct intel_dp_mst_encoder {

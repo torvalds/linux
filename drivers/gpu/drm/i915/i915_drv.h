@@ -286,7 +286,7 @@ struct i915_hotplug {
 	list_for_each_entry(intel_plane,				\
 			    &(dev)->mode_config.plane_list,		\
 			    base.head)					\
-		if ((intel_plane)->pipe == (intel_crtc)->pipe)
+		for_each_if ((intel_plane)->pipe == (intel_crtc)->pipe)
 
 #define for_each_intel_crtc(dev, intel_crtc) \
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
@@ -303,15 +303,15 @@ struct i915_hotplug {
 
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
-		if ((intel_encoder)->base.crtc == (__crtc))
+		for_each_if ((intel_encoder)->base.crtc == (__crtc))
 
 #define for_each_connector_on_encoder(dev, __encoder, intel_connector) \
 	list_for_each_entry((intel_connector), &(dev)->mode_config.connector_list, base.head) \
-		if ((intel_connector)->base.encoder == (__encoder))
+		for_each_if ((intel_connector)->base.encoder == (__encoder))
 
 #define for_each_power_domain(domain, mask)				\
 	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
-		if ((1 << (domain)) & (mask))
+		for_each_if ((1 << (domain)) & (mask))
 
 struct drm_i915_private;
 struct i915_mm_struct;
@@ -730,7 +730,7 @@ struct intel_uncore {
 	for ((i__) = 0, (domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
 	     (i__) < FW_DOMAIN_ID_COUNT; \
 	     (i__)++, (domain__) = &(dev_priv__)->uncore.fw_domain[i__]) \
-		if (((mask__) & (dev_priv__)->uncore.fw_domains) & (1 << (i__)))
+		for_each_if (((mask__) & (dev_priv__)->uncore.fw_domains) & (1 << (i__)))
 
 #define for_each_fw_domain(domain__, dev_priv__, i__) \
 	for_each_fw_domain_mask(domain__, FORCEWAKE_ALL, dev_priv__, i__)
@@ -1945,6 +1945,8 @@ struct drm_i915_private {
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
 
+	struct intel_encoder *dig_port_map[I915_MAX_PORTS];
+
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
@@ -1969,7 +1971,7 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 /* Iterate over initialised rings */
 #define for_each_ring(ring__, dev_priv__, i__) \
 	for ((i__) = 0; (i__) < I915_NUM_RINGS; (i__)++) \
-		if (((ring__) = &(dev_priv__)->ring[(i__)]), intel_ring_initialized((ring__)))
+		for_each_if ((((ring__) = &(dev_priv__)->ring[(i__)]), intel_ring_initialized((ring__))))
 
 enum hdmi_force_audio {
 	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */

@@ -177,6 +177,7 @@ static struct irq_chip imx_gpc_chip = {
 	.irq_unmask		= imx_gpc_irq_unmask,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.irq_set_wake		= imx_gpc_irq_set_wake,
+	.irq_set_type           = irq_chip_set_type_parent,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 #endif
