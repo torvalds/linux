@@ -48,6 +48,12 @@
 		};
 	};
 
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "omap3logic";
+		ti,mcbsp = <&mcbsp2>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -65,6 +71,30 @@
 			linux,default-trigger = "none";
 		};
 	};
+};
+
+&vaux1 {
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+};
+
+&vaux4 {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&vaux1 {
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+};
+
+&vaux4 {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&mcbsp2 {
+	status = "okay";
 };
 
 &charger {

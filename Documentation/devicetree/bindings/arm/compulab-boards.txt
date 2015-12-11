@@ -1,0 +1,5 @@
+CompuLab SB-SOM is a multi-module baseboard capable of carrying CM-T43, CM-T54,
+and CM-QS600 modules with minor modifications to the SB-SOM assembly.
+
+Required root node properties:
+    - compatible = should be "compulab,sb-som"

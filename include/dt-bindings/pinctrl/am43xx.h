@@ -31,5 +31,11 @@
 #define PIN_INPUT_PULLUP	(INPUT_EN | PULL_UP)
 #define PIN_INPUT_PULLDOWN	(INPUT_EN)
 
+/*
+ * Macro to allow using the absolute physical address instead of the
+ * padconf registers instead of the offset from padconf base.
+ */
+#define AM4372_IOPAD(pa, val)	(((pa) & 0xffff) - 0x0800) (val)
+
 #endif
 

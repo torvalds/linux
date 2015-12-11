@@ -37,26 +37,26 @@
 &am33xx_pinmux {
 	usb1_drvvbus: usb1_drvvbus {
 		pinctrl-single,pins = <
-			0x234 (PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* usb1_drvvbus.usb1_drvvbus */
+			AM33XX_IOPAD(0xa34, PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* usb1_drvvbus.usb1_drvvbus */
 		>;
 	};
 
 	sd_pins: pinmux_sd_card {
 		pinctrl-single,pins = <
-			0xf0 (PIN_INPUT | MUX_MODE0) /* mmc0_dat0.mmc0_dat0 */
-			0xf4 (PIN_INPUT | MUX_MODE0) /* mmc0_dat1.mmc0_dat1 */
-			0xf8 (PIN_INPUT | MUX_MODE0) /* mmc0_dat2.mmc0_dat2 */
-			0xfc (PIN_INPUT | MUX_MODE0) /* mmc0_dat3.mmc0_dat3 */
-			0x100 (PIN_INPUT | MUX_MODE0) /* mmc0_clk.mmc0_clk */
-			0x104 (PIN_INPUT | MUX_MODE0) /* mmc0_cmd.mmc0_cmd */
-			0x160 (PIN_INPUT | MUX_MODE7) /* spi0_cs1.gpio0_6 */
+			AM33XX_IOPAD(0x8f0, PIN_INPUT | MUX_MODE0) /* mmc0_dat0.mmc0_dat0 */
+			AM33XX_IOPAD(0x8f4, PIN_INPUT | MUX_MODE0) /* mmc0_dat1.mmc0_dat1 */
+			AM33XX_IOPAD(0x8f8, PIN_INPUT | MUX_MODE0) /* mmc0_dat2.mmc0_dat2 */
+			AM33XX_IOPAD(0x8fc, PIN_INPUT | MUX_MODE0) /* mmc0_dat3.mmc0_dat3 */
+			AM33XX_IOPAD(0x900, PIN_INPUT | MUX_MODE0) /* mmc0_clk.mmc0_clk */
+			AM33XX_IOPAD(0x904, PIN_INPUT | MUX_MODE0) /* mmc0_cmd.mmc0_cmd */
+			AM33XX_IOPAD(0x960, PIN_INPUT | MUX_MODE7) /* spi0_cs1.gpio0_6 */
 		>;
 	};
 
 	led_gpio_pins: led_gpio_pins {
 		pinctrl-single,pins = <
-			0x1e4 (PIN_OUTPUT | MUX_MODE7) /* emu0.gpio3_7 */
-			0x1e8 (PIN_OUTPUT | MUX_MODE7) /* emu1.gpio3_8 */
+			AM33XX_IOPAD(0x9e4, PIN_OUTPUT | MUX_MODE7) /* emu0.gpio3_7 */
+			AM33XX_IOPAD(0x9e8, PIN_OUTPUT | MUX_MODE7) /* emu1.gpio3_8 */
 		>;
 	};
 };

@@ -41,6 +41,7 @@
 		ethernet1 = &cpsw_emac1;
 		d_can0 = &dcan1;
 		d_can1 = &dcan2;
+		spi0 = &qspi;
 	};
 
 	timer {
