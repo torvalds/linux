@@ -36,6 +36,11 @@ static notrace cycle_t vread_hpet(void)
 }
 #endif
 
+#ifdef CONFIG_PARAVIRT_CLOCK
+extern u8 pvclock_page
+	__attribute__((visibility("hidden")));
+#endif
+
 #ifndef BUILD_VDSO32
 
 #include <linux/kernel.h>
@@ -62,23 +67,14 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
 
 #ifdef CONFIG_PARAVIRT_CLOCK
 
-static notrace const struct pvclock_vsyscall_time_info *get_pvti(int cpu)
+static notrace const struct pvclock_vsyscall_time_info *get_pvti0(void)
 {
-	const struct pvclock_vsyscall_time_info *pvti_base;
-	int idx = cpu / (PAGE_SIZE/PVTI_SIZE);
-	int offset = cpu % (PAGE_SIZE/PVTI_SIZE);
-
-	BUG_ON(PVCLOCK_FIXMAP_BEGIN + idx > PVCLOCK_FIXMAP_END);
-
-	pvti_base = (struct pvclock_vsyscall_time_info *)
-		    __fix_to_virt(PVCLOCK_FIXMAP_BEGIN+idx);
-
-	return &pvti_base[offset];
+	return (const struct pvclock_vsyscall_time_info *)&pvclock_page;
 }
 
 static notrace cycle_t vread_pvclock(int *mode)
 {
-	const struct pvclock_vcpu_time_info *pvti = &get_pvti(0)->pvti;
+	const struct pvclock_vcpu_time_info *pvti = &get_pvti0()->pvti;
 	cycle_t ret;
 	u64 tsc, pvti_tsc;
 	u64 last, delta, pvti_system_time;

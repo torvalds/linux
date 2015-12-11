@@ -22,6 +22,7 @@ struct vdso_image {
 
 	long sym_vvar_page;
 	long sym_hpet_page;
+	long sym_pvclock_page;
 	long sym_VDSO32_NOTE_MASK;
 	long sym___kernel_sigreturn;
 	long sym___kernel_rt_sigreturn;
