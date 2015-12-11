@@ -88,7 +88,7 @@ int lkl_disk_add(union lkl_disk_backstore backstore);
  * @flags - mount flags
  * @data - additional filesystem specific mount data
  * @mnt_str - a string that will be filled by this function with the path where
- * the filisystem has been mounted
+ * the filesystem has been mounted
  * @mnt_str_len - size of mnt_str
  * @returns - 0 on success, a negative value on error
  */
