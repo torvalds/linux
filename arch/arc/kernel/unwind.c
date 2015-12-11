@@ -170,6 +170,23 @@ static struct unwind_table *find_table(unsigned long pc)
 
 static unsigned long read_pointer(const u8 **pLoc,
 				  const void *end, signed ptrType);
+static void init_unwind_hdr(struct unwind_table *table,
+			    void *(*alloc) (unsigned long));
+
+/*
+ * wrappers for header alloc (vs. calling one vs. other at call site)
+ * to elide section mismatches warnings
+ */
+static void *__init unw_hdr_alloc_early(unsigned long sz)
+{
+	return __alloc_bootmem_nopanic(sz, sizeof(unsigned int),
+				       MAX_DMA_ADDRESS);
+}
+
+static void *unw_hdr_alloc(unsigned long sz)
+{
+	return kmalloc(sz, GFP_KERNEL);
+}
 
 static void init_unwind_table(struct unwind_table *table, const char *name,
 			      const void *core_start, unsigned long core_size,
@@ -209,6 +226,8 @@ void __init arc_unwind_init(void)
 			  __start_unwind, __end_unwind - __start_unwind,
 			  NULL, 0);
 	  /*__start_unwind_hdr, __end_unwind_hdr - __start_unwind_hdr);*/
+
+	init_unwind_hdr(&root_table, unw_hdr_alloc_early);
 }
 
 static const u32 bad_cie, not_fde;
@@ -241,8 +260,8 @@ static void swap_eh_frame_hdr_table_entries(void *p1, void *p2, int size)
 	e2->fde = v;
 }
 
-static void __init setup_unwind_table(struct unwind_table *table,
-				      void *(*alloc) (unsigned long))
+static void init_unwind_hdr(struct unwind_table *table,
+			    void *(*alloc) (unsigned long))
 {
 	const u8 *ptr;
 	unsigned long tableSize = table->size, hdrSize;
@@ -300,9 +319,11 @@ static void __init setup_unwind_table(struct unwind_table *table,
 
 	hdrSize = 4 + sizeof(unsigned long) + sizeof(unsigned int)
 	    + 2 * n * sizeof(unsigned long);
+
 	header = alloc(hdrSize);
 	if (!header)
 		return;
+
 	header->version = 1;
 	header->eh_frame_ptr_enc = DW_EH_PE_abs | DW_EH_PE_native;
 	header->fde_count_enc = DW_EH_PE_abs | DW_EH_PE_data4;
@@ -342,18 +363,6 @@ static void __init setup_unwind_table(struct unwind_table *table,
 	table->header = (const void *)header;
 }
 
-static void *__init balloc(unsigned long sz)
-{
-	return __alloc_bootmem_nopanic(sz,
-				       sizeof(unsigned int),
-				       __pa(MAX_DMA_ADDRESS));
-}
-
-void __init arc_unwind_setup(void)
-{
-	setup_unwind_table(&root_table, balloc);
-}
-
 #ifdef CONFIG_MODULES
 
 static struct unwind_table *last_table;
@@ -376,6 +385,8 @@ void *unwind_add_table(struct module *module, const void *table_start,
 			  module->module_init, module->init_size,
 			  table_start, table_size,
 			  NULL, 0);
+
+	init_unwind_hdr(table, unw_hdr_alloc);
 
 #ifdef UNWIND_DEBUG
 	unw_debug("Table added for [%s] %lx %lx\n",
@@ -439,6 +450,7 @@ void unwind_remove_table(void *handle, int init_only)
 	info.init_only = init_only;
 
 	unlink_table(&info); /* XXX: SMP */
+	kfree(table->header);
 	kfree(table);
 }
 
