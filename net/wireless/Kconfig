@@ -61,19 +61,6 @@ config CFG80211_DEVELOPER_WARNINGS
 	  on it (or mac80211).
 
 
-config CFG80211_REG_DEBUG
-	bool "cfg80211 regulatory debugging"
-	depends on CFG80211
-	default n
-	---help---
-	  You can enable this if you want to debug regulatory changes.
-	  For more information on cfg80211 regulatory refer to the wireless
-	  wiki:
-
-	  http://wireless.kernel.org/en/developers/Regulatory
-
-	  If unsure, say N.
-
 config CFG80211_CERTIFICATION_ONUS
 	bool "cfg80211 certification onus"
 	depends on CFG80211 && EXPERT
