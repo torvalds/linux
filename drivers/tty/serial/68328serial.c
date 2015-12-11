@@ -157,7 +157,7 @@ static void change_speed(struct m68k_serial *info, struct tty_struct *tty);
 #endif
 
 
-static int m68328_console_initted = 0;
+static int m68328_console_initted;
 static int m68328_console_baud    = CONSOLE_BAUD_RATE;
 static int m68328_console_cbaud   = DEFAULT_CBAUD;
 
