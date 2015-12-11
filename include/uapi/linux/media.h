@@ -92,7 +92,7 @@ struct media_device_info {
  *
  * Subdevs are initialized with MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN,
  * in order to preserve backward compatibility.
- * Drivers should change to the proper subdev type before
+ * Drivers must change to the proper subdev type before
  * registering the entity.
  */
 

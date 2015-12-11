@@ -423,6 +423,10 @@ void media_device_unregister(struct media_device *mdev);
  * %MEDIA_ENT_FL_DEFAULT indicates the default entity for a given type.
  *	This can be used to report the default audio and video devices or the
  *	default camera sensor.
+ *
+ * NOTE: Drivers should set the entity function before calling this function.
+ * Please notice that the values %MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN and
+ * %MEDIA_ENT_F_UNKNOWN should not be used by the drivers.
  */
 int __must_check media_device_register_entity(struct media_device *mdev,
 					      struct media_entity *entity);
