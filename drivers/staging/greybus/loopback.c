@@ -98,6 +98,7 @@ struct gb_loopback {
 	u32 jiffy_timeout;
 	u32 timeout_min;
 	u32 timeout_max;
+	u32 outstanding_operations_max;
 	u32 lbid;
 	u64 elapsed_nsecs;
 	u32 apbridge_latency_ts;
@@ -311,6 +312,8 @@ gb_dev_loopback_ro_attr(iteration_count, false);
 gb_dev_loopback_rw_attr(async, u);
 /* Timeout of an individual asynchronous request */
 gb_dev_loopback_rw_attr(timeout, u);
+/* Maximum number of in-flight operations before back-off */
+gb_dev_loopback_rw_attr(outstanding_operations_max, u);
 
 static struct attribute *loopback_attrs[] = {
 	&dev_attr_latency_min.attr,
@@ -338,6 +341,7 @@ static struct attribute *loopback_attrs[] = {
 	&dev_attr_requests_completed.attr,
 	&dev_attr_requests_timedout.attr,
 	&dev_attr_timeout.attr,
+	&dev_attr_outstanding_operations_max.attr,
 	&dev_attr_timeout_min.attr,
 	&dev_attr_timeout_max.attr,
 	NULL,
@@ -911,6 +915,16 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 				 gb->gpbridge_latency_ts);
 }
 
+static void gb_loopback_async_wait_to_send(struct gb_loopback *gb)
+{
+	if (!(gb->async && gb->outstanding_operations_max))
+		return;
+	wait_event_interruptible(gb->wq_completion,
+				 (atomic_read(&gb->outstanding_operations) <
+				  gb->outstanding_operations_max) ||
+				  kthread_should_stop());
+}
+
 static int gb_loopback_fn(void *data)
 {
 	int error = 0;
@@ -924,7 +938,11 @@ static int gb_loopback_fn(void *data)
 		if (!gb->type)
 			wait_event_interruptible(gb->wq, gb->type ||
 						 kthread_should_stop());
+		if (kthread_should_stop())
+			break;
 
+		/* Limit the maximum number of in-flight async operations */
+		gb_loopback_async_wait_to_send(gb);
 		if (kthread_should_stop())
 			break;
 
