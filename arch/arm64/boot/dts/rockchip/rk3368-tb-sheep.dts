@@ -51,3 +51,12 @@
 &syr827 {
 	status = "okay";
 };
+
+&mipi {
+	status = "okay";
+};
+
+&rk_screen {
+	status = "okay";
+	#include <dt-bindings/display/screen-timing/lcd-tv080wum-mipi.dtsi>
+};

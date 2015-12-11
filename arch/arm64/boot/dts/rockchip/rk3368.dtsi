@@ -1118,6 +1118,18 @@
 		status = "disabled";
 	};
 
+	mipi: mipi@ff960000 {
+		compatible = "rockchip,rk3368-dsi";
+		rockchip,prop = <0>;
+		reg = <0x0 0xff960000 0x0 0x4000>, <0x0 0xff968000 0x0 0x4000>;
+		reg-names = "mipi_dsi_host" ,"mipi_dsi_phy";
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>, <&cru PCLK_MIPI_DSI0>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pclk_mipi_dsi_host";
+		/*power-domains = <&power PD_VIO>;*/
+		status = "disabled";
+	};
+
 	lvds: lvds@ff968000 {
 		compatible = "rockchip,rk3368-lvds";
 		rockchip,grf = <&grf>;
