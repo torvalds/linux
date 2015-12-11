@@ -5,6 +5,19 @@
 #include "../hdmi/rockchip-hdmi.h"
 
 static struct rk_screen *rk_screen;
+
+int rk_fb_get_extern_screen(struct rk_screen *screen)
+{
+	if (unlikely(!rk_screen) || unlikely(!screen))
+		return -1;
+
+	memcpy(screen, rk_screen, sizeof(struct rk_screen));
+	screen->dsp_lut = NULL;
+	screen->cabc_lut = NULL;
+
+	return 0;
+}
+
 int  rk_fb_get_prmry_screen(struct rk_screen *screen)
 {
 	if (unlikely(!rk_screen) || unlikely(!screen))
