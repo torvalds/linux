@@ -1384,7 +1384,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	while (!live_status && --retry) {
 		live_status = intel_digital_port_connected(dev_priv,
 				hdmi_to_dig_port(intel_hdmi));
-		mdelay(10);
+		msleep(10);
 	}
 
 	if (!live_status)
