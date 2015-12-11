@@ -21,6 +21,7 @@
 #include <linux/list_sort.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/atomic.h>
 
 #include <asm/div64.h>
 
@@ -73,6 +74,8 @@ struct gb_loopback {
 	struct list_head entry;
 	struct device *dev;
 	wait_queue_head_t wq;
+	wait_queue_head_t wq_completion;
+	atomic_t outstanding_operations;
 
 	/* Per connection stats */
 	struct gb_loopback_stats latency;
@@ -433,6 +436,8 @@ static void __gb_loopback_async_operation_destroy(struct kref *kref)
 	list_del(&op_async->entry);
 	if (op_async->operation)
 		gb_operation_put(op_async->operation);
+	atomic_dec(&op_async->gb->outstanding_operations);
+	wake_up(&op_async->gb->wq_completion);
 	kfree(op_async);
 }
 
@@ -470,6 +475,12 @@ static struct gb_loopback_async_operation *
 	spin_unlock_irqrestore(&gb_dev.lock, flags);
 
 	return found ? op_async : NULL;
+}
+
+static void gb_loopback_async_wait_all(struct gb_loopback *gb)
+{
+	wait_event(gb->wq_completion,
+		   !atomic_read(&gb->outstanding_operations));
 }
 
 static void gb_loopback_async_operation_callback(struct gb_operation *operation)
@@ -597,6 +608,7 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 
 	do_gettimeofday(&op_async->ts);
 	op_async->pending = true;
+	atomic_inc(&gb->outstanding_operations);
 	ret = gb_operation_request_send(operation,
 					gb_loopback_async_operation_callback,
 					GFP_KERNEL);
@@ -1063,6 +1075,8 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 
 	init_waitqueue_head(&gb->wq);
+	init_waitqueue_head(&gb->wq_completion);
+	atomic_set(&gb->outstanding_operations, 0);
 	gb_loopback_reset_stats(gb);
 
 	/* Reported values to user-space for min/max timeouts */
@@ -1162,6 +1176,7 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 	kfifo_free(&gb->kfifo_ts);
 	gb_connection_latency_tag_disable(connection);
 	debugfs_remove(gb->file);
+	gb_loopback_async_wait_all(gb);
 
 	spin_lock_irqsave(&gb_dev.lock, flags);
 	gb_dev.count--;
