@@ -338,17 +338,43 @@ struct media_entity_graph {
 #define intf_to_devnode(intf) \
 		container_of(intf, struct media_intf_devnode, intf)
 
+/**
+ *  media_gobj_create - Initialize a graph object
+ *
+ * @mdev:	Pointer to the media_device that contains the object
+ * @type:	Type of the object
+ * @gobj:	Pointer to the graph object
+ *
+ * This routine initializes the embedded struct media_gobj inside a
+ * media graph object. It is called automatically if media_*_create()
+ * calls are used. However, if the object (entity, link, pad, interface)
+ * is embedded on some other object, this function should be called before
+ * registering the object at the media controller.
+ */
 void media_gobj_create(struct media_device *mdev,
 		    enum media_gobj_type type,
 		    struct media_gobj *gobj);
+
+/**
+ *  media_gobj_destroy - Stop using a graph object on a media device
+ *
+ * @gobj:	Pointer to the graph object
+ *
+ * This should be called by all routines like media_device_unregister()
+ * that remove/destroy media graph objects.
+ */
 void media_gobj_destroy(struct media_gobj *gobj);
 
 /**
  * media_entity_pads_init() - Initialize the entity pads
  *
  * @entity:	entity where the pads belong
- * @num_pads:	number of pads to be initialized
- * @pads:	pads array
+ * @num_pads:	total number of sink and source pads
+ * @pads:	Array of @num_pads pads.
+ *
+ * The pads array is managed by the entity driver and passed to
+ * media_entity_pads_init() where its pointer will be stored in the entity
+ * structure.
  *
  * If no pads are needed, drivers could either directly fill
  * &media_entity->@num_pads with 0 and &media_entity->@pads with NULL or call
@@ -413,6 +439,20 @@ void __media_entity_remove_links(struct media_entity *entity);
  */
 void media_entity_remove_links(struct media_entity *entity);
 
+/**
+ * __media_entity_setup_link - Configure a media link without locking
+ * @link: The link being configured
+ * @flags: Link configuration flags
+ *
+ * The bulk of link setup is handled by the two entities connected through the
+ * link. This function notifies both entities of the link configuration change.
+ *
+ * If the link is immutable or if the current and new configuration are
+ * identical, return immediately.
+ *
+ * The user is expected to hold link->source->parent->mutex. If not,
+ * media_entity_setup_link() should be used instead.
+ */
 int __media_entity_setup_link(struct media_link *link, u32 flags);
 
 /**
@@ -450,19 +490,111 @@ int __media_entity_setup_link(struct media_link *link, u32 flags);
  * on media_create_intf_link(), for interface to entity links.
  */
 int media_entity_setup_link(struct media_link *link, u32 flags);
+
+/**
+ * media_entity_find_link - Find a link between two pads
+ * @source: Source pad
+ * @sink: Sink pad
+ *
+ * Return a pointer to the link between the two entities. If no such link
+ * exists, return NULL.
+ */
 struct media_link *media_entity_find_link(struct media_pad *source,
 		struct media_pad *sink);
+
+/**
+ * media_entity_remote_pad - Find the pad at the remote end of a link
+ * @pad: Pad at the local end of the link
+ *
+ * Search for a remote pad connected to the given pad by iterating over all
+ * links originating or terminating at that pad until an enabled link is found.
+ *
+ * Return a pointer to the pad at the remote end of the first found enabled
+ * link, or NULL if no enabled link has been found.
+ */
 struct media_pad *media_entity_remote_pad(struct media_pad *pad);
 
+/**
+ * media_entity_get - Get a reference to the parent module
+ *
+ * @entity: The entity
+ *
+ * Get a reference to the parent media device module.
+ *
+ * The function will return immediately if @entity is NULL.
+ *
+ * Return a pointer to the entity on success or NULL on failure.
+ */
 struct media_entity *media_entity_get(struct media_entity *entity);
+
+/**
+ * media_entity_put - Release the reference to the parent module
+ *
+ * @entity: The entity
+ *
+ * Release the reference count acquired by media_entity_get().
+ *
+ * The function will return immediately if @entity is NULL.
+ */
 void media_entity_put(struct media_entity *entity);
 
+/**
+ * media_entity_graph_walk_start - Start walking the media graph at a given entity
+ * @graph: Media graph structure that will be used to walk the graph
+ * @entity: Starting entity
+ *
+ * This function initializes the graph traversal structure to walk the entities
+ * graph starting at the given entity. The traversal structure must not be
+ * modified by the caller during graph traversal. When done the structure can
+ * safely be freed.
+ */
 void media_entity_graph_walk_start(struct media_entity_graph *graph,
 		struct media_entity *entity);
+
+/**
+ * media_entity_graph_walk_next - Get the next entity in the graph
+ * @graph: Media graph structure
+ *
+ * Perform a depth-first traversal of the given media entities graph.
+ *
+ * The graph structure must have been previously initialized with a call to
+ * media_entity_graph_walk_start().
+ *
+ * Return the next entity in the graph or NULL if the whole graph have been
+ * traversed.
+ */
 struct media_entity *
 media_entity_graph_walk_next(struct media_entity_graph *graph);
+
+/**
+ * media_entity_pipeline_start - Mark a pipeline as streaming
+ * @entity: Starting entity
+ * @pipe: Media pipeline to be assigned to all entities in the pipeline.
+ *
+ * Mark all entities connected to a given entity through enabled links, either
+ * directly or indirectly, as streaming. The given pipeline object is assigned to
+ * every entity in the pipeline and stored in the media_entity pipe field.
+ *
+ * Calls to this function can be nested, in which case the same number of
+ * media_entity_pipeline_stop() calls will be required to stop streaming. The
+ * pipeline pointer must be identical for all nested calls to
+ * media_entity_pipeline_start().
+ */
 __must_check int media_entity_pipeline_start(struct media_entity *entity,
 					     struct media_pipeline *pipe);
+
+/**
+ * media_entity_pipeline_stop - Mark a pipeline as not streaming
+ * @entity: Starting entity
+ *
+ * Mark all entities connected to a given entity through enabled links, either
+ * directly or indirectly, as not streaming. The media_entity pipe field is
+ * reset to NULL.
+ *
+ * If multiple calls to media_entity_pipeline_start() have been made, the same
+ * number of calls to this function are required to mark the pipeline as not
+ * streaming.
+ */
 void media_entity_pipeline_stop(struct media_entity *entity);
 
 /**
