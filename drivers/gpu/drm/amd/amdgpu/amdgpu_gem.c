@@ -448,6 +448,7 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 {
 	struct ttm_validate_buffer tv, *entry;
 	struct amdgpu_bo_list_entry *vm_bos;
+	struct amdgpu_bo_list_entry vm_pd;
 	struct ww_acquire_ctx ticket;
 	struct list_head list, duplicates;
 	unsigned domain;
@@ -460,14 +461,18 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	tv.shared = true;
 	list_add(&tv.head, &list);
 
-	vm_bos = amdgpu_vm_get_bos(adev, bo_va->vm, &list, &duplicates);
-	if (!vm_bos)
-		return;
+	amdgpu_vm_get_pd_bo(bo_va->vm, &list, &vm_pd);
 
 	/* Provide duplicates to avoid -EALREADY */
 	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
 	if (r)
-		goto error_free;
+		goto error_print;
+
+	vm_bos = amdgpu_vm_get_pt_bos(bo_va->vm, &duplicates);
+	if (!vm_bos) {
+		r = -ENOMEM;
+		goto error_unreserve;
+	}
 
 	list_for_each_entry(entry, &list, head) {
 		domain = amdgpu_mem_type_to_domain(entry->bo->mem.mem_type);
@@ -489,10 +494,9 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 
 error_unreserve:
 	ttm_eu_backoff_reservation(&ticket, &list);
-
-error_free:
 	drm_free_large(vm_bos);
 
+error_print:
 	if (r && r != -ERESTARTSYS)
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 }

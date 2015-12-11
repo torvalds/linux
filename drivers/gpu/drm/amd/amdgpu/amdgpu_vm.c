@@ -75,39 +75,50 @@ static unsigned amdgpu_vm_directory_size(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_vm_get_bos - add the vm BOs to a validation list
+ * amdgpu_vm_get_pd_bo - add the VM PD to a validation list
  *
  * @vm: vm providing the BOs
  * @validated: head of validation list
+ * @entry: entry to add
+ *
+ * Add the page directory to the list of BOs to
+ * validate for command submission.
+ */
+void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
+			 struct list_head *validated,
+			 struct amdgpu_bo_list_entry *entry)
+{
+	entry->robj = vm->page_directory;
+	entry->prefered_domains = AMDGPU_GEM_DOMAIN_VRAM;
+	entry->allowed_domains = AMDGPU_GEM_DOMAIN_VRAM;
+	entry->priority = 0;
+	entry->tv.bo = &vm->page_directory->tbo;
+	entry->tv.shared = true;
+	list_add(&entry->tv.head, validated);
+}
+
+/**
+ * amdgpu_vm_get_bos - add the vm BOs to a validation list
+ *
+ * @vm: vm providing the BOs
  * @duplicates: head of duplicates list
  *
  * Add the page directory to the list of BOs to
  * validate for command submission (cayman+).
  */
-struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
-					       struct amdgpu_vm *vm,
-					       struct list_head *validated,
-					       struct list_head *duplicates)
+struct amdgpu_bo_list_entry *amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm,
+						  struct list_head *duplicates)
 {
 	struct amdgpu_bo_list_entry *list;
 	unsigned i, idx;
 
-	list = drm_malloc_ab(vm->max_pde_used + 2,
+	list = drm_malloc_ab(vm->max_pde_used + 1,
 			     sizeof(struct amdgpu_bo_list_entry));
-	if (!list) {
+	if (!list)
 		return NULL;
-	}
 
 	/* add the vm page table to the list */
-	list[0].robj = vm->page_directory;
-	list[0].prefered_domains = AMDGPU_GEM_DOMAIN_VRAM;
-	list[0].allowed_domains = AMDGPU_GEM_DOMAIN_VRAM;
-	list[0].priority = 0;
-	list[0].tv.bo = &vm->page_directory->tbo;
-	list[0].tv.shared = true;
-	list_add(&list[0].tv.head, validated);
-
-	for (i = 0, idx = 1; i <= vm->max_pde_used; i++) {
+	for (i = 0, idx = 0; i <= vm->max_pde_used; i++) {
 		if (!vm->page_tables[i].bo)
 			continue;
 
