@@ -352,13 +352,18 @@ static void machine__update_thread_pid(struct machine *machine,
 	}
 
 	th->mg = map_groups__get(leader->mg);
-
+out_put:
+	thread__put(leader);
 	return;
-
 out_err:
 	pr_err("Failed to join map groups for %d:%d\n", th->pid_, th->tid);
+	goto out_put;
 }
 
+/*
+ * Caller must eventually drop thread->refcnt returned with a successfull
+ * lookup/new thread inserted.
+ */
 static struct thread *____machine__findnew_thread(struct machine *machine,
 						  pid_t pid, pid_t tid,
 						  bool create)
@@ -376,7 +381,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	if (th != NULL) {
 		if (th->tid == tid) {
 			machine__update_thread_pid(machine, th, pid);
-			return th;
+			return thread__get(th);
 		}
 
 		machine->last_match = NULL;
@@ -389,7 +394,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		if (th->tid == tid) {
 			machine->last_match = th;
 			machine__update_thread_pid(machine, th, pid);
-			return th;
+			return thread__get(th);
 		}
 
 		if (tid < th->tid)
@@ -417,7 +422,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		if (thread__init_map_groups(th, machine)) {
 			rb_erase_init(&th->rb_node, &machine->threads);
 			RB_CLEAR_NODE(&th->rb_node);
-			thread__delete(th);
+			thread__put(th);
 			return NULL;
 		}
 		/*
@@ -441,7 +446,7 @@ struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
 	struct thread *th;
 
 	pthread_rwlock_wrlock(&machine->threads_lock);
-	th = thread__get(__machine__findnew_thread(machine, pid, tid));
+	th = __machine__findnew_thread(machine, pid, tid);
 	pthread_rwlock_unlock(&machine->threads_lock);
 	return th;
 }
@@ -451,7 +456,7 @@ struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 {
 	struct thread *th;
 	pthread_rwlock_rdlock(&machine->threads_lock);
-	th =  thread__get(____machine__findnew_thread(machine, pid, tid, false));
+	th =  ____machine__findnew_thread(machine, pid, tid, false);
 	pthread_rwlock_unlock(&machine->threads_lock);
 	return th;
 }
