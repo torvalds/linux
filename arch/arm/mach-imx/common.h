@@ -153,12 +153,12 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6q_set_int_mem_clk_lpm(bool enable);
 void imx6sl_set_wait_clk(bool enter);
 void imx6_enet_mac_init(const char *enet_compat, const char *ocotp_compat);
-#ifdef CONFIG_HAVE_MMDC
+#ifdef CONFIG_HAVE_IMX_MMDC
 int imx_mmdc_get_ddr_type(void);
 #else
 static inline int imx_mmdc_get_ddr_type(void) { return 0; }
 #endif
-#ifdef CONFIG_HAVE_DDRC
+#ifdef CONFIG_HAVE_IMX_DDRC
 int imx_ddrc_get_ddr_type(void);
 #else
 static inline int imx_ddrc_get_ddr_type(void) { return 0; }
