@@ -375,7 +375,7 @@
 	};
 
 	usb_dmac0: dma-controller@e65a0000 {
-		compatible = "renesas,usb-dmac";
+		compatible = "renesas,r8a7791-usb-dmac", "renesas,usb-dmac";
 		reg = <0 0xe65a0000 0 0x100>;
 		interrupts = <0 109 IRQ_TYPE_LEVEL_HIGH
 			      0 109 IRQ_TYPE_LEVEL_HIGH>;
@@ -387,7 +387,7 @@
 	};
 
 	usb_dmac1: dma-controller@e65b0000 {
-		compatible = "renesas,usb-dmac";
+		compatible = "renesas,r8a7791-usb-dmac", "renesas,usb-dmac";
 		reg = <0 0xe65b0000 0 0x100>;
 		interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH
 			      0 110 IRQ_TYPE_LEVEL_HIGH>;
