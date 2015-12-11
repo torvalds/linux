@@ -187,6 +187,8 @@ static int skylake_nau8825_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	nau8825_enable_jack_detect(codec, &skylake_headset);
 
+	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
+
 	return ret;
 }
 
@@ -285,7 +287,6 @@ static struct snd_soc_dai_link skylake_dais[] = {
 			SND_SOC_DAIFMT_IB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.init = skylake_ssm4567_codec_init,
-		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.dpcm_playback = 1,
@@ -302,7 +303,6 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.init = skylake_nau8825_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
-		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.ops = &skylake_nau8825_ops,
