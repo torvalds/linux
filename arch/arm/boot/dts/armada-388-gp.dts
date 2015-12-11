@@ -303,16 +303,6 @@
 		gpio = <&expander0 4 GPIO_ACTIVE_HIGH>;
 	};
 
-	reg_usb2_1_vbus: v5-vbus1 {
-		compatible = "regulator-fixed";
-		regulator-name = "v5.0-vbus1";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		regulator-always-on;
-		gpio = <&expander0 4 GPIO_ACTIVE_HIGH>;
-	};
-
 	reg_sata0: pwr-sata0 {
 		compatible = "regulator-fixed";
 		regulator-name = "pwr_en_sata0";
