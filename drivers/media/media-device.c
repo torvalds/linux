@@ -577,12 +577,18 @@ EXPORT_SYMBOL_GPL(__media_device_register);
  * media_device_unregister - unregister a media device
  * @mdev:	The media device
  *
+ * It is safe to call this function on an unregistered
+ * (but initialised) media device.
  */
 void media_device_unregister(struct media_device *mdev)
 {
 	struct media_entity *entity;
 	struct media_entity *next;
 	struct media_interface *intf, *tmp_intf;
+
+	/* Check if mdev was ever registered at all */
+	if (!media_devnode_is_registered(&mdev->devnode))
+		return;
 
 	/* Remove all entities from the media device */
 	list_for_each_entry_safe(entity, next, &mdev->entities, graph_obj.list)
