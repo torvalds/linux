@@ -19,6 +19,9 @@ Required properties:
 	Optional elements: 'tx_clk'
 - clocks: Phandles to input clocks.
 
+Optional properties:
+- phy-reset-gpios : Should specify the gpio for phy reset
+
 Examples:
 
 	macb0: ethernet@fffc4000 {
