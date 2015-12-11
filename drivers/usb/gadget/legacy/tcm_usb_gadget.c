@@ -1423,11 +1423,14 @@ static struct se_portal_group *usbg_make_tpg(
 	return &tpg->se_tpg;
 }
 
+static int tcm_usbg_drop_nexus(struct usbg_tpg *);
+
 static void usbg_drop_tpg(struct se_portal_group *se_tpg)
 {
 	struct usbg_tpg *tpg = container_of(se_tpg,
 				struct usbg_tpg, se_tpg);
 
+	tcm_usbg_drop_nexus(tpg);
 	core_tpg_deregister(se_tpg);
 	destroy_workqueue(tpg->workqueue);
 	kfree(tpg);
