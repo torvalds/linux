@@ -665,6 +665,10 @@ int __must_check __media_device_register(struct media_device *mdev,
 	mdev->devnode.fops = &media_device_fops;
 	mdev->devnode.parent = mdev->dev;
 	mdev->devnode.release = media_device_release;
+
+	/* Set version 0 to indicate user-space that the graph is static */
+	mdev->topology_version = 0;
+
 	ret = media_devnode_register(&mdev->devnode, owner);
 	if (ret < 0)
 		return ret;
