@@ -499,6 +499,10 @@ void readdir_index_put(struct orangefs_bufmap *bufmap, int buffer_index)
 	orangefs_bufmap_unref(bufmap);
 }
 
+/*
+ * we've been handed an iovec, we need to copy it to 
+ * the shared memory descriptor at "buffer_index".
+ */
 int orangefs_bufmap_copy_from_iovec(struct orangefs_bufmap *bufmap,
 				struct iov_iter *iter,
 				int buffer_index,
@@ -527,9 +531,8 @@ int orangefs_bufmap_copy_from_iovec(struct orangefs_bufmap *bufmap,
 }
 
 /*
- * Iterate through the array of pages containing the bytes from
- * a file being read.
- *
+ * we've been handed an iovec, we need to fill it from
+ * the shared memory descriptor at "buffer_index".
  */
 int orangefs_bufmap_copy_to_iovec(struct orangefs_bufmap *bufmap,
 				    struct iov_iter *iter,
