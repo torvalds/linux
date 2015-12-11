@@ -33,6 +33,7 @@
 #include <linux/usb/msm_hsusb_hw.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/acpi.h>
 
 #include "ehci.h"
 
@@ -202,6 +203,12 @@ static const struct dev_pm_ops ehci_msm_dev_pm_ops = {
 	.resume          = ehci_msm_pm_resume,
 };
 
+static const struct acpi_device_id msm_ehci_acpi_ids[] = {
+	{ "QCOM8040", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, msm_ehci_acpi_ids);
+
 static const struct of_device_id msm_ehci_dt_match[] = {
 	{ .compatible = "qcom,ehci-host", },
 	{}
@@ -215,6 +222,7 @@ static struct platform_driver ehci_msm_driver = {
 		   .name = "msm_hsusb_host",
 		   .pm = &ehci_msm_dev_pm_ops,
 		   .of_match_table = msm_ehci_dt_match,
+		   .acpi_match_table = ACPI_PTR(msm_ehci_acpi_ids),
 	},
 };
 
