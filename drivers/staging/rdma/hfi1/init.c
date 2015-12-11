@@ -82,10 +82,10 @@
  * Number of user receive contexts we are configured to use (to allow for more
  * pio buffers per ctxt, etc.)  Zero means use one user context per CPU.
  */
-uint num_rcv_contexts;
-module_param_named(num_rcv_contexts, num_rcv_contexts, uint, S_IRUGO);
+int num_user_contexts = -1;
+module_param_named(num_user_contexts, num_user_contexts, uint, S_IRUGO);
 MODULE_PARM_DESC(
-	num_rcv_contexts, "Set max number of user receive contexts to use");
+	num_user_contexts, "Set max number of user contexts to use");
 
 u8 krcvqs[RXE_NUM_DATA_VL];
 int krcvqsset;

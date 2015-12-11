@@ -1665,7 +1665,7 @@ void update_sge(struct hfi1_sge_state *ss, u32 length);
 extern unsigned int hfi1_max_mtu;
 extern unsigned int hfi1_cu;
 extern unsigned int user_credit_return_threshold;
-extern uint num_rcv_contexts;
+extern int num_user_contexts;
 extern unsigned n_krcvqs;
 extern u8 krcvqs[];
 extern int krcvqsset;

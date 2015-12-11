@@ -12426,7 +12426,6 @@ fail:
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
 	int num_kernel_contexts;
-	int num_user_contexts;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
@@ -12463,12 +12462,10 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	}
 	/*
 	 * User contexts: (to be fixed later)
-	 *	- set to num_rcv_contexts if non-zero
-	 *	- default to 1 user context per CPU
+	 *	- default to 1 user context per CPU if num_user_contexts is
+	 *	  negative
 	 */
-	if (num_rcv_contexts)
-		num_user_contexts = num_rcv_contexts;
-	else
+	if (num_user_contexts < 0)
 		num_user_contexts = num_online_cpus();
 
 	total_contexts = num_kernel_contexts + num_user_contexts;
