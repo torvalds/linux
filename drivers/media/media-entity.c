@@ -592,7 +592,6 @@ static void __media_entity_remove_link(struct media_entity *entity,
 {
 	struct media_link *rlink, *tmp;
 	struct media_entity *remote;
-	unsigned int r = 0;
 
 	if (link->source->entity == entity)
 		remote = link->sink->entity;
@@ -600,10 +599,8 @@ static void __media_entity_remove_link(struct media_entity *entity,
 		remote = link->source->entity;
 
 	list_for_each_entry_safe(rlink, tmp, &remote->links, list) {
-		if (rlink != link->reverse) {
-			r++;
+		if (rlink != link->reverse)
 			continue;
-		}
 
 		if (link->source->entity == entity)
 			remote->num_backlinks--;
