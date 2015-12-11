@@ -1990,13 +1990,13 @@ static struct usb_device_descriptor usbg_device_desc = {
 	.bNumConfigurations =   1,
 };
 
+#define USB_G_STR_CONFIG USB_GADGET_FIRST_AVAIL_IDX
+
 static struct usb_string	usbg_us_strings[] = {
 	[USB_GADGET_MANUFACTURER_IDX].s	= "Target Manufactor",
 	[USB_GADGET_PRODUCT_IDX].s	= "Target Product",
 	[USB_GADGET_SERIAL_IDX].s	= "000000000001",
 	[USB_G_STR_CONFIG].s		= "default config",
-	[USB_G_STR_INT_UAS].s		= "USB Attached SCSI",
-	[USB_G_STR_INT_BBB].s		= "Bulk Only Transport",
 	{ },
 };
 
@@ -2007,6 +2007,22 @@ static struct usb_gadget_strings usbg_stringtab = {
 
 static struct usb_gadget_strings *usbg_strings[] = {
 	&usbg_stringtab,
+	NULL,
+};
+
+static struct usb_string	tcm_us_strings[] = {
+	[USB_G_STR_INT_UAS].s		= "USB Attached SCSI",
+	[USB_G_STR_INT_BBB].s		= "Bulk Only Transport",
+	{ },
+};
+
+static struct usb_gadget_strings tcm_stringtab = {
+	.language = 0x0409,
+	.strings = tcm_us_strings,
+};
+
+static struct usb_gadget_strings *tcm_strings[] = {
+	&tcm_stringtab,
 	NULL,
 };
 
@@ -2174,10 +2190,11 @@ static int usbg_cfg_bind(struct usb_configuration *c)
 	fu->function.set_alt = usbg_set_alt;
 	fu->function.setup = usbg_setup;
 	fu->function.disable = usbg_disable;
+	fu->function.strings = tcm_strings;
 	fu->tpg = the_only_tpg_I_currently_have;
 
-	bot_intf_desc.iInterface = usbg_us_strings[USB_G_STR_INT_BBB].id;
-	uasp_intf_desc.iInterface = usbg_us_strings[USB_G_STR_INT_UAS].id;
+	bot_intf_desc.iInterface = tcm_us_strings[USB_G_STR_INT_BBB].id;
+	uasp_intf_desc.iInterface = tcm_us_strings[USB_G_STR_INT_UAS].id;
 
 	ret = usb_add_function(c, &fu->function);
 	if (ret)
