@@ -748,7 +748,7 @@ static int ipipeif_init_entities(struct iss_ipipeif_device *ipipeif)
 	pads[IPIPEIF_PAD_SOURCE_VP].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ipipeif_media_ops;
-	ret = media_entity_init(me, IPIPEIF_PADS_NUM, pads);
+	ret = media_entity_pads_init(me, IPIPEIF_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 

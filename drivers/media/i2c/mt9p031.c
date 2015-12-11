@@ -1112,7 +1112,7 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->subdev.internal_ops = &mt9p031_subdev_internal_ops;
 
 	mt9p031->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&mt9p031->subdev.entity, 1, &mt9p031->pad);
+	ret = media_entity_pads_init(&mt9p031->subdev.entity, 1, &mt9p031->pad);
 	if (ret < 0)
 		goto done;
 

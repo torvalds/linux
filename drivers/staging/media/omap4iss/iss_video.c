@@ -1101,7 +1101,7 @@ int omap4iss_video_init(struct iss_video *video, const char *name)
 		return -EINVAL;
 	}
 
-	ret = media_entity_init(&video->video.entity, 1, &video->pad);
+	ret = media_entity_pads_init(&video->video.entity, 1, &video->pad);
 	if (ret < 0)
 		return ret;
 

@@ -838,7 +838,7 @@ static int xtpg_probe(struct platform_device *pdev)
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	subdev->entity.ops = &xtpg_media_ops;
 
-	ret = media_entity_init(&subdev->entity, xtpg->npads, xtpg->pads);
+	ret = media_entity_pads_init(&subdev->entity, xtpg->npads, xtpg->pads);
 	if (ret < 0)
 		goto error;
 

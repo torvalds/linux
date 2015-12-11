@@ -827,7 +827,7 @@ static int as3645a_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto done;
 
-	ret = media_entity_init(&flash->subdev.entity, 0, NULL);
+	ret = media_entity_pads_init(&flash->subdev.entity, 0, NULL);
 	if (ret < 0)
 		goto done;
 

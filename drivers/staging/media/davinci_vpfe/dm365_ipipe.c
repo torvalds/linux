@@ -1843,7 +1843,7 @@ vpfe_ipipe_init(struct vpfe_ipipe_device *ipipe, struct platform_device *pdev)
 	v4l2_ctrl_handler_setup(&ipipe->ctrls);
 	sd->ctrl_handler = &ipipe->ctrls;
 
-	return media_entity_init(me, IPIPE_PADS_NUM, pads);
+	return media_entity_pads_init(me, IPIPE_PADS_NUM, pads);
 }
 
 /*

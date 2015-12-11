@@ -1158,7 +1158,7 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->rgb_quantization_range_ctrl->is_private = true;
 
 	state->pad.flags = MEDIA_PAD_FL_SINK;
-	err = media_entity_init(&sd->entity, 1, &state->pad);
+	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (err)
 		goto err_hdl;
 

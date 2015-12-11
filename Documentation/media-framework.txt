@@ -101,14 +101,18 @@ include/media/media-entity.h. The structure is usually embedded into a
 higher-level structure, such as a v4l2_subdev or video_device instance,
 although drivers can allocate entities directly.
 
-Drivers initialize entities by calling
+Drivers initialize entity pads by calling
 
-	media_entity_init(struct media_entity *entity, u16 num_pads,
+	media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 			  struct media_pad *pads);
 
-The media_entity name, type, flags, revision and group_id fields can be
-initialized before or after calling media_entity_init. Entities embedded in
-higher-level standard structures can have some of those fields set by the
+If no pads are needed, drivers could directly fill entity->num_pads
+with 0 and entity->pads with NULL or to call the above function that
+will do the same.
+
+The media_entity name, type, flags, revision and group_id fields should be
+initialized before calling media_device_register_entity(). Entities embedded
+in higher-level standard structures can have some of those fields set by the
 higher-level framework.
 
 As the number of pads is known in advance, the pads array is not allocated
@@ -116,10 +120,10 @@ dynamically but is managed by the entity driver. Most drivers will embed the
 pads array in a driver-specific structure, avoiding dynamic allocation.
 
 Drivers must set the direction of every pad in the pads array before calling
-media_entity_init. The function will initialize the other pads fields.
+media_entity_pads_init. The function will initialize the other pads fields.
 
 Unlike the number of pads, the total number of links isn't always known in
-advance by the entity driver. As an initial estimate, media_entity_init
+advance by the entity driver. As an initial estimate, media_entity_pads_init
 pre-allocates a number of links equal to the number of pads. The links array
 will be reallocated if it grows beyond the initial estimate.
 

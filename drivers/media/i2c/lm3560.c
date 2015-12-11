@@ -365,7 +365,7 @@ static int lm3560_subdev_init(struct lm3560_flash *flash,
 	rval = lm3560_init_controls(flash, led_no);
 	if (rval)
 		goto err_out;
-	rval = media_entity_init(&flash->subdev_led[led_no].entity, 0, NULL);
+	rval = media_entity_pads_init(&flash->subdev_led[led_no].entity, 0, NULL);
 	if (rval < 0)
 		goto err_out;
 	flash->subdev_led[led_no].entity.function = MEDIA_ENT_F_FLASH;

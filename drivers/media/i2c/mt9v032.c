@@ -1046,7 +1046,7 @@ static int mt9v032_probe(struct i2c_client *client,
 	mt9v032->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	mt9v032->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&mt9v032->subdev.entity, 1, &mt9v032->pad);
+	ret = media_entity_pads_init(&mt9v032->subdev.entity, 1, &mt9v032->pad);
 	if (ret < 0)
 		goto err;
 

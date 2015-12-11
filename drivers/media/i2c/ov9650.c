@@ -1501,7 +1501,7 @@ static int ov965x_probe(struct i2c_client *client,
 
 	ov965x->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &ov965x->pad);
+	ret = media_entity_pads_init(&sd->entity, 1, &ov965x->pad);
 	if (ret < 0)
 		return ret;
 

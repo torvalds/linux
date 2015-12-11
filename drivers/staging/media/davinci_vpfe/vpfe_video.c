@@ -1599,7 +1599,7 @@ int vpfe_video_init(struct vpfe_video_device *video, const char *name)
 	spin_lock_init(&video->irqlock);
 	spin_lock_init(&video->dma_queue_lock);
 	mutex_init(&video->lock);
-	ret = media_entity_init(&video->video_dev.entity,
+	ret = media_entity_pads_init(&video->video_dev.entity,
 				1, &video->pad);
 	if (ret < 0)
 		return ret;

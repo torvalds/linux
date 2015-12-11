@@ -623,6 +623,8 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	WARN_ON(entity->graph_obj.mdev != NULL);
 	entity->graph_obj.mdev = mdev;
 	INIT_LIST_HEAD(&entity->links);
+	entity->num_links = 0;
+	entity->num_backlinks = 0;
 
 	spin_lock(&mdev->lock);
 	/* Initialize media_gobj embedded at the entity */

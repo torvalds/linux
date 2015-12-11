@@ -975,7 +975,7 @@ static int m5mols_probe(struct i2c_client *client,
 
 	sd->internal_ops = &m5mols_subdev_internal_ops;
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, 1, &info->pad);
+	ret = media_entity_pads_init(&sd->entity, 1, &info->pad);
 	if (ret < 0)
 		return ret;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;

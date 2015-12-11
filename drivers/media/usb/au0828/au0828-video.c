@@ -1810,12 +1810,12 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 
 	/* Initialize Video and VBI pads */
 	dev->video_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&dev->vdev.entity, 1, &dev->video_pad);
+	ret = media_entity_pads_init(&dev->vdev.entity, 1, &dev->video_pad);
 	if (ret < 0)
 		pr_err("failed to initialize video media entity!\n");
 
 	dev->vbi_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&dev->vbi_dev.entity, 1, &dev->vbi_pad);
+	ret = media_entity_pads_init(&dev->vbi_dev.entity, 1, &dev->vbi_pad);
 	if (ret < 0)
 		pr_err("failed to initialize vbi media entity!\n");
 
@@ -1847,7 +1847,7 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 			break;
 		}
 
-		ret = media_entity_init(ent, 1, &dev->input_pad[i]);
+		ret = media_entity_pads_init(ent, 1, &dev->input_pad[i]);
 		if (ret < 0)
 			pr_err("failed to initialize input pad[%d]!\n", i);
 

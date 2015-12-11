@@ -2057,7 +2057,7 @@ int vpfe_isif_init(struct vpfe_isif_device *isif, struct platform_device *pdev)
 	isif->input = ISIF_INPUT_NONE;
 	isif->output = ISIF_OUTPUT_NONE;
 	me->ops = &isif_media_ops;
-	status = media_entity_init(me, ISIF_PADS_NUM, pads);
+	status = media_entity_pads_init(me, ISIF_PADS_NUM, pads);
 	if (status)
 		goto isif_fail;
 	isif->video_out.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

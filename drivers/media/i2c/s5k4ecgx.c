@@ -962,7 +962,7 @@ static int s5k4ecgx_probe(struct i2c_client *client,
 
 	priv->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &priv->pad);
+	ret = media_entity_pads_init(&sd->entity, 1, &priv->pad);
 	if (ret)
 		return ret;
 

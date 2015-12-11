@@ -282,7 +282,7 @@ static int lm3646_subdev_init(struct lm3646_flash *flash)
 	rval = lm3646_init_controls(flash);
 	if (rval)
 		goto err_out;
-	rval = media_entity_init(&flash->subdev_led.entity, 0, NULL);
+	rval = media_entity_pads_init(&flash->subdev_led.entity, 0, NULL);
 	if (rval < 0)
 		goto err_out;
 	flash->subdev_led.entity.function = MEDIA_ENT_F_FLASH;

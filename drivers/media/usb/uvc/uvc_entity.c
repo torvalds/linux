@@ -94,10 +94,10 @@ static int uvc_mc_init_entity(struct uvc_entity *entity)
 		strlcpy(entity->subdev.name, entity->name,
 			sizeof(entity->subdev.name));
 
-		ret = media_entity_init(&entity->subdev.entity,
+		ret = media_entity_pads_init(&entity->subdev.entity,
 					entity->num_pads, entity->pads);
 	} else if (entity->vdev != NULL) {
-		ret = media_entity_init(&entity->vdev->entity,
+		ret = media_entity_pads_init(&entity->vdev->entity,
 					entity->num_pads, entity->pads);
 		if (entity->flags & UVC_ENTITY_FLAG_DEFAULT)
 			entity->vdev->entity.flags |= MEDIA_ENT_FL_DEFAULT;

@@ -1097,7 +1097,7 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	decoder->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	decoder->sd.entity.flags |= MEDIA_ENT_F_ATV_DECODER;
 
-	ret = media_entity_init(&decoder->sd.entity, 1, &decoder->pad);
+	ret = media_entity_pads_init(&decoder->sd.entity, 1, &decoder->pad);
 	if (ret < 0) {
 		v4l2_err(sd, "%s decoder driver failed to register !!\n",
 			 sd->name);

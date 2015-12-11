@@ -616,7 +616,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	vdev->lock = &isp->video_lock;
 
 	iv->pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vdev->entity, 1, &iv->pad);
+	ret = media_entity_pads_init(&vdev->entity, 1, &iv->pad);
 	if (ret < 0)
 		return ret;
 

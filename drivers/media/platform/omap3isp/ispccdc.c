@@ -2655,7 +2655,7 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 	pads[CCDC_PAD_SOURCE_OF].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ccdc_media_ops;
-	ret = media_entity_init(me, CCDC_PADS_NUM, pads);
+	ret = media_entity_pads_init(me, CCDC_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 

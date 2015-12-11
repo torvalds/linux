@@ -5213,7 +5213,7 @@ static int cx25840_probe(struct i2c_client *client,
 	state->pads[CX25840_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_ATV_DECODER;
 
-	ret = media_entity_init(&sd->entity, ARRAY_SIZE(state->pads),
+	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(state->pads),
 				state->pads);
 	if (ret < 0) {
 		v4l_info(client, "failed to initialize media entity!\n");

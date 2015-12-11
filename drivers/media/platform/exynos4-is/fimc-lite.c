@@ -1314,7 +1314,7 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 		return ret;
 
 	fimc->vd_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vfd->entity, 1, &fimc->vd_pad);
+	ret = media_entity_pads_init(&vfd->entity, 1, &fimc->vd_pad);
 	if (ret < 0)
 		return ret;
 
@@ -1428,7 +1428,7 @@ static int fimc_lite_create_capture_subdev(struct fimc_lite *fimc)
 	fimc->subdev_pads[FLITE_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	fimc->subdev_pads[FLITE_SD_PAD_SOURCE_DMA].flags = MEDIA_PAD_FL_SOURCE;
 	fimc->subdev_pads[FLITE_SD_PAD_SOURCE_ISP].flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, FLITE_SD_PADS_NUM,
+	ret = media_entity_pads_init(&sd->entity, FLITE_SD_PADS_NUM,
 				fimc->subdev_pads);
 	if (ret)
 		return ret;

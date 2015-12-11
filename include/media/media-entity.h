@@ -347,7 +347,7 @@ void media_gobj_init(struct media_device *mdev,
 		    struct media_gobj *gobj);
 void media_gobj_remove(struct media_gobj *gobj);
 
-int media_entity_init(struct media_entity *entity, u16 num_pads,
+int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 		      struct media_pad *pads);
 void media_entity_cleanup(struct media_entity *entity);
 

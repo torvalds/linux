@@ -3309,7 +3309,7 @@ static int adv7842_probe(struct i2c_client *client,
 			adv7842_delayed_work_enable_hotplug);
 
 	state->pad.flags = MEDIA_PAD_FL_SOURCE;
-	err = media_entity_init(&sd->entity, 1, &state->pad);
+	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (err)
 		goto err_work_queues;
 

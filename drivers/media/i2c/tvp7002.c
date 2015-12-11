@@ -1014,7 +1014,7 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 	device->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	device->sd.entity.flags |= MEDIA_ENT_F_ATV_DECODER;
 
-	error = media_entity_init(&device->sd.entity, 1, &device->pad);
+	error = media_entity_pads_init(&device->sd.entity, 1, &device->pad);
 	if (error < 0)
 		return error;
 #endif
