@@ -538,7 +538,7 @@ static void change_speed(struct m68k_serial *info, struct tty_struct *tty)
 	
 #ifdef CONFIG_SERIAL_68328_RTS_CTS
 	if (cflag & CRTSCTS) {
-		uart->utx.w &= ~ UTX_NOCTS;
+		uart->utx.w &= ~UTX_NOCTS;
 	} else {
 		uart->utx.w |= UTX_NOCTS;
 	}
@@ -1198,7 +1198,7 @@ rs68328_init(void)
 	    printk(" is a builtin MC68328 UART\n");
 	    
 #ifdef CONFIG_M68VZ328
-		if (i > 0 )
+		if (i > 0)
 			PJSEL &= 0xCF;  /* PSW enable second port output */
 #endif
 
@@ -1298,7 +1298,7 @@ void m68328_console_write (struct console *co, const char *str,
     while (count--) {
         if (*str == '\n')
            rs_put_char('\r');
-        rs_put_char( *str++ );
+        rs_put_char(*str++);
     }
 }
 
