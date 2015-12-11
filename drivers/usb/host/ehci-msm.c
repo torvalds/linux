@@ -56,6 +56,8 @@ static int ehci_msm_reset(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
+	/* select ULPI phy and clear other status/control bits in PORTSC */
+	writel(PORTSC_PTS_ULPI, USB_PORTSC);
 	/* bursts of unspecified length. */
 	writel(0, USB_AHBBURST);
 	/* Use the AHB transactor, allow posted data writes */
