@@ -19,6 +19,12 @@ static inline int paravirt_enabled(void)
 	return pv_info.paravirt_enabled;
 }
 
+static inline int paravirt_has_feature(unsigned int feature)
+{
+	WARN_ON_ONCE(!pv_info.paravirt_enabled);
+	return (pv_info.features & feature);
+}
+
 static inline void load_sp0(struct tss_struct *tss,
 			     struct thread_struct *thread)
 {
