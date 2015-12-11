@@ -6,10 +6,16 @@ RK3xxx SoCs.
 Required properties :
 
  - reg : Offset and length of the register set for the device
- - compatible : should be "rockchip,rk3066-i2c", "rockchip,rk3188-i2c" or
-		"rockchip,rk3288-i2c".
+ - compatible: should be one of the followings
+   - "rockchip,rk3066-i2c": for rk3066
+   - "rockchip,rk3188-i2c": for rk3188
+   - "rockchip,rk3288-i2c": for rk3288
+   - "rockchip,rk3399-i2c": for rk3399
  - interrupts : interrupt number
- - clocks : parent clock
+ - clocks:
+   - clk(function): APB clock and function clock is the same clock for rk3066,
+		    rk3188 and rk3288. but separated at rk3399.
+   - pclk(APB): It is just required for rk3399.
 
 Required on RK3066, RK3188 :
 
@@ -32,6 +38,8 @@ Optional properties :
  - i2c-sda-falling-time-ns : Number of nanoseconds the SDA signal takes to fall
 	(t(f) in the I2C specification). If not specified we'll use the SCL
 	value since they are the same in nearly all cases.
+ - input-clk-rate : frequency rate of function clock used(in Hz). If omitted,
+	the default clock rate is used. It is just used at rk3399 soc.
 
 Example:
 
@@ -39,6 +47,7 @@ aliases {
 	i2c0 = &i2c0;
 }
 
+rk3066, rk3188 and rk3288:
 i2c0: i2c@2002d000 {
 	compatible = "rockchip,rk3188-i2c";
 	reg = <0x2002d000 0x1000>;
@@ -53,4 +62,21 @@ i2c0: i2c@2002d000 {
 
 	i2c-scl-rising-time-ns = <800>;
 	i2c-scl-falling-time-ns = <100>;
+};
+
+rk3399:
+i2c0: i2c@2002d000 {
+	compatible = "rockchip,rk3399-i2c";
+	reg = <0x2002d000 0x1000>;
+	interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	clock-names = "i2c", "pclk";
+	clocks = <&cru SCLK_I2C0_PMU>, <&cru PCLK_I2C0_PMU>;
+	input-clk-rate = <200000000>;
+
+	i2c-scl-rising-time-ns = <50>;
+	i2c-scl-falling-time-ns = <20>;
+	clock-frequency = <1700000>;
 };
