@@ -24,8 +24,6 @@
 #include "tcm.h"
 #include "u_tcm.h"
 
-#ifndef USBF_TCM_INCLUDED
-
 #define TPG_INSTANCES		1
 
 struct tpg_instance {
@@ -36,7 +34,6 @@ struct tpg_instance {
 static struct tpg_instance tpg_instances[TPG_INSTANCES];
 
 static DEFINE_MUTEX(tpg_instances_lock);
-#endif
 
 static inline struct f_uas *to_f_uas(struct usb_function *f)
 {
@@ -1386,10 +1383,8 @@ static struct se_portal_group *usbg_make_tpg(
 	struct usbg_tpg *tpg;
 	unsigned long tpgt;
 	int ret;
-#ifndef USBF_TCM_INCLUDED
 	struct f_tcm_opts *opts;
 	unsigned i;
-#endif
 
 	if (strstr(name, "tpgt_") != name)
 		return ERR_PTR(-EINVAL);
@@ -1400,7 +1395,6 @@ static struct se_portal_group *usbg_make_tpg(
 		pr_err("gadgets, you can't do this here.\n");
 		return ERR_PTR(-EBUSY);
 	}
-#ifndef USBF_TCM_INCLUDED
 	ret = -ENODEV;
 	mutex_lock(&tpg_instances_lock);
 	for (i = 0; i < TPG_INSTANCES; ++i)
@@ -1417,26 +1411,16 @@ static struct se_portal_group *usbg_make_tpg(
 
 	if (opts->has_dep && !try_module_get(opts->dependent))
 		goto unlock_dep;
-#endif
 
 	tpg = kzalloc(sizeof(struct usbg_tpg), GFP_KERNEL);
 	ret = -ENOMEM;
 	if (!tpg)
-#ifdef USBF_TCM_INCLUDED
-		return ERR_PTR(-ENOMEM);
-#else
 		goto unref_dep;
-#endif
 	mutex_init(&tpg->tpg_mutex);
 	atomic_set(&tpg->tpg_port_count, 0);
 	tpg->workqueue = alloc_workqueue("tcm_usb_gadget", 0, 1);
-	if (!tpg->workqueue) {
-#ifndef USBF_TCM_INCLUDED
+	if (!tpg->workqueue)
 		goto free_tpg;
-#endif
-		kfree(tpg);
-		return NULL;
-	}
 
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
@@ -1446,23 +1430,16 @@ static struct se_portal_group *usbg_make_tpg(
 	 * pretend to be SAS..
 	 */
 	ret = core_tpg_register(wwn, &tpg->se_tpg, SCSI_PROTOCOL_SAS);
-	if (ret < 0) {
-#ifndef USBF_TCM_INCLUDED
+	if (ret < 0)
 		goto free_workqueue;
-#endif
-		destroy_workqueue(tpg->workqueue);
-		kfree(tpg);
-		return NULL;
-	}
-#ifndef USBF_TCM_INCLUDED
+
 	tpg_instances[i].tpg = tpg;
 	tpg->fi = tpg_instances[i].func_inst;
 	mutex_unlock(&opts->dep_lock);
 	mutex_unlock(&tpg_instances_lock);
-#endif
 	the_only_tpg_I_currently_have = tpg;
 	return &tpg->se_tpg;
-#ifndef USBF_TCM_INCLUDED
+
 free_workqueue:
 	destroy_workqueue(tpg->workqueue);
 free_tpg:
@@ -1475,7 +1452,6 @@ unlock_inst:
 	mutex_unlock(&tpg_instances_lock);
 
 	return ERR_PTR(ret);
-#endif
 }
 
 static int tcm_usbg_drop_nexus(struct usbg_tpg *);
@@ -1484,16 +1460,13 @@ static void usbg_drop_tpg(struct se_portal_group *se_tpg)
 {
 	struct usbg_tpg *tpg = container_of(se_tpg,
 				struct usbg_tpg, se_tpg);
-#ifndef USBF_TCM_INCLUDED
 	unsigned i;
 	struct f_tcm_opts *opts;
-#endif
 
 	tcm_usbg_drop_nexus(tpg);
 	core_tpg_deregister(se_tpg);
 	destroy_workqueue(tpg->workqueue);
 
-#ifndef USBF_TCM_INCLUDED
 	mutex_lock(&tpg_instances_lock);
 	for (i = 0; i < TPG_INSTANCES; ++i)
 		if (tpg_instances[i].tpg == tpg)
@@ -1506,7 +1479,7 @@ static void usbg_drop_tpg(struct se_portal_group *se_tpg)
 	module_put(opts->dependent);
 	mutex_unlock(&opts->dep_lock);
 	mutex_unlock(&tpg_instances_lock);
-#endif
+
 	kfree(tpg);
 	the_only_tpg_I_currently_have = NULL;
 }
@@ -2066,13 +2039,10 @@ static int tcm_bind(struct usb_configuration *c, struct usb_function *f)
 	struct f_uas		*fu = to_f_uas(f);
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	struct usb_ep		*ep;
-#ifndef USBF_TCM_INCLUDED
 	struct f_tcm_opts	*opts;
-#endif
 	int			iface;
 	int			ret;
 
-#ifndef USBF_TCM_INCLUDED
 	opts = container_of(f->fi, struct f_tcm_opts, func_inst);
 
 	mutex_lock(&opts->dep_lock);
@@ -2081,7 +2051,7 @@ static int tcm_bind(struct usb_configuration *c, struct usb_function *f)
 		return -ENODEV;
 	}
 	mutex_unlock(&opts->dep_lock);
-#endif
+
 	if (tcm_us_strings[0].id == 0) {
 		ret = usb_string_ids_tab(c->cdev, tcm_us_strings);
 		if (ret < 0)
@@ -2148,18 +2118,6 @@ ep_fail:
 
 	return -ENOTSUPP;
 }
-
-#ifdef USBF_TCM_INCLUDED
-
-static void tcm_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct f_uas *fu = to_f_uas(f);
-
-	usb_free_all_descriptors(f);
-	kfree(fu);
-}
-
-#endif
 
 struct guas_setup_wq {
 	struct work_struct work;
@@ -2228,37 +2186,6 @@ static int tcm_setup(struct usb_function *f,
 
 	return usbg_bot_setup(f, ctrl);
 }
-
-#ifdef USBF_TCM_INCLUDED
-
-static int tcm_bind_config(struct usb_configuration *c)
-{
-	struct f_uas *fu;
-	int ret;
-
-	fu = kzalloc(sizeof(*fu), GFP_KERNEL);
-	if (!fu)
-		return -ENOMEM;
-	fu->function.name = "Target Function";
-	fu->function.bind = tcm_bind;
-	fu->function.unbind = tcm_old_unbind;
-	fu->function.set_alt = tcm_set_alt;
-	fu->function.setup = tcm_setup;
-	fu->function.disable = tcm_disable;
-	fu->function.strings = tcm_strings;
-	fu->tpg = the_only_tpg_I_currently_have;
-
-	ret = usb_add_function(c, &fu->function);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
-	kfree(fu);
-	return ret;
-}
-
-#else
 
 static void tcm_free_inst(struct usb_function_instance *f)
 {
@@ -2417,5 +2344,3 @@ module_exit(tcm_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sebastian Andrzej Siewior");
-
-#endif
