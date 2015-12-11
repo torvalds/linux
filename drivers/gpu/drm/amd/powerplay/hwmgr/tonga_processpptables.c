@@ -942,8 +942,8 @@ int tonga_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 	hwmgr->pptable = kzalloc(sizeof(struct phm_ppt_v1_information), GFP_KERNEL);
 
-	if (NULL == hwmgr->pptable)
-		return -1;
+	PP_ASSERT_WITH_CODE((NULL != hwmgr->pptable),
+			    "Failed to allocate hwmgr->pptable!", return -1);
 
 	memset(hwmgr->pptable, 0x00, sizeof(struct phm_ppt_v1_information));
 
@@ -954,21 +954,34 @@ int tonga_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 	result = check_powerplay_tables(hwmgr, powerplay_table);
 
-	if (0 == result)
-		result = set_platform_caps(hwmgr,
-			le32_to_cpu(powerplay_table->ulPlatformCaps));
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "check_powerplay_tables failed", return result);
 
-	if (0 == result)
-		result = init_thermal_controller(hwmgr, powerplay_table);
+	result = set_platform_caps(hwmgr,
+				   le32_to_cpu(powerplay_table->ulPlatformCaps));
 
-	if (0 == result)
-		result = init_over_drive_limits(hwmgr, powerplay_table);
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "set_platform_caps failed", return result);
 
-	if (0 == result)
-		result = init_clock_voltage_dependency(hwmgr, powerplay_table);
+	result = init_thermal_controller(hwmgr, powerplay_table);
 
-	if (0 == result)
-		result = init_dpm_2_parameters(hwmgr, powerplay_table);
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_thermal_controller failed", return result);
+
+	result = init_over_drive_limits(hwmgr, powerplay_table);
+
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_over_drive_limits failed", return result);
+
+	result = init_clock_voltage_dependency(hwmgr, powerplay_table);
+
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_clock_voltage_dependency failed", return result);
+
+	result = init_dpm_2_parameters(hwmgr, powerplay_table);
+
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "init_dpm_2_parameters failed", return result);
 
 	return result;
 }
