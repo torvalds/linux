@@ -17,8 +17,10 @@
 #include <asm/vvar.h>
 #include <asm/unistd.h>
 #include <asm/msr.h>
+#include <asm/pvclock.h>
 #include <linux/math64.h>
 #include <linux/time.h>
+#include <linux/kernel.h>
 
 #define gtod (&VVAR(vsyscall_gtod_data))
 
@@ -43,10 +45,6 @@ extern u8 pvclock_page
 
 #ifndef BUILD_VDSO32
 
-#include <linux/kernel.h>
-#include <asm/vsyscall.h>
-#include <asm/pvclock.h>
-
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {
 	long ret;
@@ -64,8 +62,42 @@ notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
 	return ret;
 }
 
-#ifdef CONFIG_PARAVIRT_CLOCK
 
+#else
+
+notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
+{
+	long ret;
+
+	asm(
+		"mov %%ebx, %%edx \n"
+		"mov %2, %%ebx \n"
+		"call __kernel_vsyscall \n"
+		"mov %%edx, %%ebx \n"
+		: "=a" (ret)
+		: "0" (__NR_clock_gettime), "g" (clock), "c" (ts)
+		: "memory", "edx");
+	return ret;
+}
+
+notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
+{
+	long ret;
+
+	asm(
+		"mov %%ebx, %%edx \n"
+		"mov %2, %%ebx \n"
+		"call __kernel_vsyscall \n"
+		"mov %%edx, %%ebx \n"
+		: "=a" (ret)
+		: "0" (__NR_gettimeofday), "g" (tv), "c" (tz)
+		: "memory", "edx");
+	return ret;
+}
+
+#endif
+
+#ifdef CONFIG_PARAVIRT_CLOCK
 static notrace const struct pvclock_vsyscall_time_info *get_pvti0(void)
 {
 	return (const struct pvclock_vsyscall_time_info *)&pvclock_page;
@@ -109,9 +141,9 @@ static notrace cycle_t vread_pvclock(int *mode)
 	do {
 		version = pvti->version;
 
-		/* This is also a read barrier, so we'll read version first. */
-		tsc = rdtsc_ordered();
+		smp_rmb();
 
+		tsc = rdtsc_ordered();
 		pvti_tsc_to_system_mul = pvti->tsc_to_system_mul;
 		pvti_tsc_shift = pvti->tsc_shift;
 		pvti_system_time = pvti->system_time;
@@ -126,7 +158,7 @@ static notrace cycle_t vread_pvclock(int *mode)
 		pvclock_scale_delta(delta, pvti_tsc_to_system_mul,
 				    pvti_tsc_shift);
 
-	/* refer to tsc.c read_tsc() comment for rationale */
+	/* refer to vread_tsc() comment for rationale */
 	last = gtod->cycle_last;
 
 	if (likely(ret >= last))
@@ -134,49 +166,6 @@ static notrace cycle_t vread_pvclock(int *mode)
 
 	return last;
 }
-#endif
-
-#else
-
-notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
-{
-	long ret;
-
-	asm(
-		"mov %%ebx, %%edx \n"
-		"mov %2, %%ebx \n"
-		"call __kernel_vsyscall \n"
-		"mov %%edx, %%ebx \n"
-		: "=a" (ret)
-		: "0" (__NR_clock_gettime), "g" (clock), "c" (ts)
-		: "memory", "edx");
-	return ret;
-}
-
-notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
-{
-	long ret;
-
-	asm(
-		"mov %%ebx, %%edx \n"
-		"mov %2, %%ebx \n"
-		"call __kernel_vsyscall \n"
-		"mov %%edx, %%ebx \n"
-		: "=a" (ret)
-		: "0" (__NR_gettimeofday), "g" (tv), "c" (tz)
-		: "memory", "edx");
-	return ret;
-}
-
-#ifdef CONFIG_PARAVIRT_CLOCK
-
-static notrace cycle_t vread_pvclock(int *mode)
-{
-	*mode = VCLOCK_NONE;
-	return 0;
-}
-#endif
-
 #endif
 
 notrace static cycle_t vread_tsc(void)
