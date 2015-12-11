@@ -24,8 +24,8 @@
 #include <linux/export.h>
 #include <linux/ioctl.h>
 #include <linux/media.h>
-#include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 
 #include <media/media-device.h>
 #include <media/media-devnode.h>
