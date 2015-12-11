@@ -9,6 +9,8 @@
 #ifndef DRM_ARMADA_IOCTL_H
 #define DRM_ARMADA_IOCTL_H
 
+#include "drm.h"
+
 #define DRM_ARMADA_GEM_CREATE		0x00
 #define DRM_ARMADA_GEM_MMAP		0x02
 #define DRM_ARMADA_GEM_PWRITE		0x03

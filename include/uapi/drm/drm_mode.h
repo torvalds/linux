@@ -27,7 +27,7 @@
 #ifndef _DRM_MODE_H
 #define _DRM_MODE_H
 
-#include <linux/types.h>
+#include "drm.h"
 
 #define DRM_DISPLAY_INFO_LEN	32
 #define DRM_CONNECTOR_NAME_LEN	32
@@ -526,14 +526,14 @@ struct drm_mode_crtc_page_flip {
 
 /* create a dumb scanout buffer */
 struct drm_mode_create_dumb {
-	uint32_t height;
-	uint32_t width;
-	uint32_t bpp;
-	uint32_t flags;
+	__u32 height;
+	__u32 width;
+	__u32 bpp;
+	__u32 flags;
 	/* handle, pitch, size will be returned */
-	uint32_t handle;
-	uint32_t pitch;
-	uint64_t size;
+	__u32 handle;
+	__u32 pitch;
+	__u64 size;
 };
 
 /* set up for mmap of a dumb scanout buffer */
@@ -550,7 +550,7 @@ struct drm_mode_map_dumb {
 };
 
 struct drm_mode_destroy_dumb {
-	uint32_t handle;
+	__u32 handle;
 };
 
 /* page-flip flags are valid, plus: */
