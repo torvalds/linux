@@ -849,7 +849,7 @@
 				rockchip,pins = <2 10 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
-			sdmmc_cd: sdmcc-cd {
+			sdmmc_cd: sdmmc-cd {
 				rockchip,pins = <2 11 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
