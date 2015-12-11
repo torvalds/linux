@@ -270,6 +270,8 @@ static void hists__delete_entry(struct hists *hists, struct hist_entry *he)
 
 	if (sort__need_collapse)
 		rb_erase(&he->rb_node_in, &hists->entries_collapsed);
+	else
+		rb_erase(&he->rb_node_in, hists->entries_in);
 
 	--hists->nr_entries;
 	if (!he->filtered)
@@ -1567,11 +1569,33 @@ static int hists_evsel__init(struct perf_evsel *evsel)
 	return 0;
 }
 
+static void hists__delete_remaining_entries(struct rb_root *root)
+{
+	struct rb_node *node;
+	struct hist_entry *he;
+
+	while (!RB_EMPTY_ROOT(root)) {
+		node = rb_first(root);
+		rb_erase(node, root);
+
+		he = rb_entry(node, struct hist_entry, rb_node_in);
+		hist_entry__delete(he);
+	}
+}
+
+static void hists__delete_all_entries(struct hists *hists)
+{
+	hists__delete_entries(hists);
+	hists__delete_remaining_entries(&hists->entries_in_array[0]);
+	hists__delete_remaining_entries(&hists->entries_in_array[1]);
+	hists__delete_remaining_entries(&hists->entries_collapsed);
+}
+
 static void hists_evsel__exit(struct perf_evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 
-	hists__delete_entries(hists);
+	hists__delete_all_entries(hists);
 }
 
 /*

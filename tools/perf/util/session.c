@@ -1311,17 +1311,20 @@ struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 	return machine__findnew_thread(&session->machines.host, -1, pid);
 }
 
-struct thread *perf_session__register_idle_thread(struct perf_session *session)
+int perf_session__register_idle_thread(struct perf_session *session)
 {
 	struct thread *thread;
+	int err = 0;
 
 	thread = machine__findnew_thread(&session->machines.host, 0, 0);
 	if (thread == NULL || thread__set_comm(thread, "swapper", 0)) {
 		pr_err("problem inserting idle task.\n");
-		thread = NULL;
+		err = -1;
 	}
 
-	return thread;
+	/* machine__findnew_thread() got the thread, so put it */
+	thread__put(thread);
+	return err;
 }
 
 static void perf_session__warn_about_errors(const struct perf_session *session)
@@ -1676,7 +1679,7 @@ int perf_session__process_events(struct perf_session *session)
 	u64 size = perf_data_file__size(session->file);
 	int err;
 
-	if (perf_session__register_idle_thread(session) == NULL)
+	if (perf_session__register_idle_thread(session) < 0)
 		return -ENOMEM;
 
 	if (!perf_data_file__is_pipe(session->file))

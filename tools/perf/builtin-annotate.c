@@ -343,17 +343,18 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		return ret;
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
+	if (argc) {
+		/*
+		 * Special case: if there's an argument left then assume that
+		 * it's a symbol filter:
+		 */
+		if (argc > 1)
+			usage_with_options(annotate_usage, options);
 
-	if (annotate.use_stdio)
-		use_browser = 0;
-	else if (annotate.use_tui)
-		use_browser = 1;
-	else if (annotate.use_gtk)
-		use_browser = 2;
+		annotate.sym_hist_filter = argv[0];
+	}
 
 	file.path  = input_name;
-
-	setup_browser(true);
 
 	annotate.session = perf_session__new(&file, false, &annotate.tool);
 	if (annotate.session == NULL)
@@ -369,16 +370,14 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (setup_sorting() < 0)
 		usage_with_options(annotate_usage, options);
 
-	if (argc) {
-		/*
-		 * Special case: if there's an argument left then assume that
-		 * it's a symbol filter:
-		 */
-		if (argc > 1)
-			usage_with_options(annotate_usage, options);
+	if (annotate.use_stdio)
+		use_browser = 0;
+	else if (annotate.use_tui)
+		use_browser = 1;
+	else if (annotate.use_gtk)
+		use_browser = 2;
 
-		annotate.sym_hist_filter = argv[0];
-	}
+	setup_browser(true);
 
 	ret = __cmd_annotate(&annotate);
 

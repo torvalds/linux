@@ -304,6 +304,7 @@ out:
 
 out_free_threads:
 	zfree(&threads);
+	strlist__delete(slist);
 	goto out;
 }
 
