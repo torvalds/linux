@@ -225,7 +225,7 @@ static void stack_push(struct media_entity_graph *graph,
 		return;
 	}
 	graph->top++;
-	graph->stack[graph->top].link = (&entity->links)->next;
+	graph->stack[graph->top].link = entity->links.next;
 	graph->stack[graph->top].entity = entity;
 }
 
@@ -268,7 +268,7 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 	 * top of the stack until no more entities on the level can be
 	 * found.
 	 */
-	while (link_top(graph) != &(stack_top(graph)->links)) {
+	while (link_top(graph) != &stack_top(graph)->links) {
 		struct media_entity *entity = stack_top(graph);
 		struct media_link *link;
 		struct media_entity *next;
