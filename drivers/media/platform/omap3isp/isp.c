@@ -2365,7 +2365,7 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 		}
 	}
 
-	return v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
+	return v4l2_device_register_subdev_nodes(v4l2_dev);
 }
 
 /*
