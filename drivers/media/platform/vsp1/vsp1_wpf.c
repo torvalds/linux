@@ -285,13 +285,13 @@ error:
 }
 
 /*
- * vsp1_wpf_create_pads_links_create_pads_links() - RPF pads links creation
+ * vsp1_wpf_create_links() - RPF pads links creation
  * @vsp1: Pointer to VSP1 device
  * @entity: Pointer to VSP1 entity
  *
  * return negative error code or zero on success
  */
-int vsp1_wpf_create_pads_links(struct vsp1_device *vsp1,
+int vsp1_wpf_create_links(struct vsp1_device *vsp1,
 			       struct vsp1_entity *entity)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);

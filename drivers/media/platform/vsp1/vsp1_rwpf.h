@@ -50,9 +50,9 @@ static inline struct vsp1_rwpf *to_rwpf(struct v4l2_subdev *subdev)
 struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index);
 struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index);
 
-int vsp1_rpf_create_pads_links(struct vsp1_device *vsp1,
+int vsp1_rpf_create_links(struct vsp1_device *vsp1,
 			       struct vsp1_entity *entity);
-int vsp1_wpf_create_pads_links(struct vsp1_device *vsp1,
+int vsp1_wpf_create_links(struct vsp1_device *vsp1,
 			       struct vsp1_entity *entity);
 
 int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,

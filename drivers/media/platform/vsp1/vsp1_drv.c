@@ -261,14 +261,14 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	/* Create links. */
 	list_for_each_entry(entity, &vsp1->entities, list_dev) {
 		if (entity->type == VSP1_ENTITY_LIF) {
-			ret = vsp1_wpf_create_pads_links(vsp1, entity);
+			ret = vsp1_wpf_create_links(vsp1, entity);
 			if (ret < 0)
 				goto done;
 			continue;
 		}
 
 		if (entity->type == VSP1_ENTITY_RPF) {
-			ret = vsp1_rpf_create_pads_links(vsp1, entity);
+			ret = vsp1_rpf_create_links(vsp1, entity);
 			if (ret < 0)
 				goto done;
 			continue;
