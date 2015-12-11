@@ -1496,14 +1496,12 @@ static ssize_t tcm_usbg_tpg_enable_store(struct config_item *item,
 {
 	struct se_portal_group *se_tpg = to_tpg(item);
 	struct usbg_tpg  *tpg = container_of(se_tpg, struct usbg_tpg, se_tpg);
-	unsigned long op;
+	bool op;
 	ssize_t ret;
 
-	ret = kstrtoul(page, 0, &op);
-	if (ret < 0)
-		return -EINVAL;
-	if (op > 1)
-		return -EINVAL;
+	ret = strtobool(page, &op);
+	if (ret)
+		return ret;
 
 	if (op && tpg->gadget_connect) {
 		ret = -EINVAL;
