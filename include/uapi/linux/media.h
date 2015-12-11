@@ -74,10 +74,11 @@ struct media_device_info {
 /*
  * Connectors
  */
+/* It is a responsibility of the entity drivers to add connectors and links */
 #define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 21)
 #define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 22)
 #define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 23)
-	/* For internal test signal generators and other debug connectors */
+/* For internal test signal generators and other debug connectors */
 #define MEDIA_ENT_F_CONN_TEST		(MEDIA_ENT_F_BASE + 24)
 
 /*
@@ -105,6 +106,10 @@ struct media_device_info {
 #define MEDIA_ENT_F_FLASH		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 2)
 #define MEDIA_ENT_F_LENS		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 3)
 #define MEDIA_ENT_F_ATV_DECODER		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 4)
+/*
+ * It is a responsibility of the entity drivers to add connectors and links
+ *	for the tuner entities.
+ */
 #define MEDIA_ENT_F_TUNER		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 5)
 
 #define MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN	MEDIA_ENT_F_OLD_SUBDEV_BASE
