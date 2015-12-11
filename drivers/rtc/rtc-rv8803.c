@@ -502,6 +502,7 @@ static int rv8803_remove(struct i2c_client *client)
 
 static const struct i2c_device_id rv8803_id[] = {
 	{ "rv8803", 0 },
+	{ "rx8900", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rv8803_id);
