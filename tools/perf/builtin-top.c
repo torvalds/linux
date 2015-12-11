@@ -189,8 +189,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	if (ui__has_annotation())
-		err = hist_entry__inc_addr_samples(he, counter, ip);
+	err = hist_entry__inc_addr_samples(he, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 
