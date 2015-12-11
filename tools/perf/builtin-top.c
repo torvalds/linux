@@ -175,15 +175,14 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 					int counter, u64 ip)
 {
 	struct annotation *notes;
-	struct symbol *sym;
+	struct symbol *sym = he->ms.sym;
 	int err = 0;
 
-	if (he == NULL || he->ms.sym == NULL ||
-	    ((top->sym_filter_entry == NULL ||
-	      top->sym_filter_entry->ms.sym != he->ms.sym) && use_browser != 1))
+	if (sym == NULL || (use_browser == 0 &&
+			    (top->sym_filter_entry == NULL ||
+			     top->sym_filter_entry->ms.sym != sym)))
 		return;
 
-	sym = he->ms.sym;
 	notes = symbol__annotation(sym);
 
 	if (pthread_mutex_trylock(&notes->lock))
