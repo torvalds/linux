@@ -1371,8 +1371,6 @@ static int usbg_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
 	return 0;
 }
 
-struct usbg_tpg *the_only_tpg_I_currently_have;
-
 static struct se_portal_group *usbg_make_tpg(
 	struct se_wwn *wwn,
 	struct config_group *group,
@@ -1390,11 +1388,6 @@ static struct se_portal_group *usbg_make_tpg(
 		return ERR_PTR(-EINVAL);
 	if (kstrtoul(name + 5, 0, &tpgt) || tpgt > UINT_MAX)
 		return ERR_PTR(-EINVAL);
-	if (the_only_tpg_I_currently_have) {
-		pr_err("Until the gadget framework can't handle multiple\n");
-		pr_err("gadgets, you can't do this here.\n");
-		return ERR_PTR(-EBUSY);
-	}
 	ret = -ENODEV;
 	mutex_lock(&tpg_instances_lock);
 	for (i = 0; i < TPG_INSTANCES; ++i)
@@ -1437,7 +1430,6 @@ static struct se_portal_group *usbg_make_tpg(
 	tpg->fi = tpg_instances[i].func_inst;
 	mutex_unlock(&opts->dep_lock);
 	mutex_unlock(&tpg_instances_lock);
-	the_only_tpg_I_currently_have = tpg;
 	return &tpg->se_tpg;
 
 free_workqueue:
@@ -1481,7 +1473,6 @@ static void usbg_drop_tpg(struct se_portal_group *se_tpg)
 	mutex_unlock(&tpg_instances_lock);
 
 	kfree(tpg);
-	the_only_tpg_I_currently_have = NULL;
 }
 
 static struct se_wwn *usbg_make_tport(

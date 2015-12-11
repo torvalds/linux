@@ -129,6 +129,4 @@ struct f_uas {
 	struct usb_request	*bot_req_out;
 };
 
-extern struct usbg_tpg *the_only_tpg_I_currently_have;
-
 #endif /* __TARGET_USB_GADGET_H__ */
