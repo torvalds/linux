@@ -242,7 +242,7 @@ static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon *mlxsw_hwmon)
 	}
 	sensor_count = mlxsw_reg_mtcap_sensor_count_get(mtcap_pl);
 	for (i = 0; i < sensor_count; i++) {
-		mlxsw_reg_mtmp_pack(mtmp_pl, 0, true, true);
+		mlxsw_reg_mtmp_pack(mtmp_pl, i, true, true);
 		err = mlxsw_reg_write(mlxsw_hwmon->core,
 				      MLXSW_REG(mtmp), mtmp_pl);
 		if (err) {
