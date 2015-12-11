@@ -236,6 +236,9 @@ static int run_test(struct test *test, int subtest)
 				dup2(STDOUT_FILENO, STDERR_FILENO);
 				close(nullfd);
 			}
+		} else {
+			signal(SIGSEGV, sighandler_dump_stack);
+			signal(SIGFPE, sighandler_dump_stack);
 		}
 
 		err = test->func(subtest);
