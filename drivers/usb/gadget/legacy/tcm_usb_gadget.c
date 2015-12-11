@@ -1657,7 +1657,7 @@ static ssize_t tcm_usbg_tpg_nexus_store(struct config_item *item,
 	if (i_port[strlen(i_port) - 1] == '\n')
 		i_port[strlen(i_port) - 1] = '\0';
 
-	ret = tcm_usbg_make_nexus(tpg, &i_port[4]);
+	ret = tcm_usbg_make_nexus(tpg, &i_port[0]);
 	if (ret < 0)
 		return ret;
 	return count;
