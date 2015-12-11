@@ -1,0 +1,62 @@
+/*
+ * Device Tree Source for the Salvator-X board
+ *
+ * Copyright (C) 2015 Renesas Electronics Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "r8a7795.dtsi"
+
+/ {
+	model = "Renesas Salvator-X board based on r8a7795";
+	compatible = "renesas,salvator-x", "renesas,r8a7795";
+
+	aliases {
+		serial0 = &scif2;
+		serial1 = &scif1;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@48000000 {
+		device_type = "memory";
+		/* first 128MB is reserved for secure area. */
+		reg = <0x0 0x48000000 0x0 0x38000000>;
+	};
+};
+
+&extal_clk {
+	clock-frequency = <16666666>;
+};
+
+&pfc {
+	scif1_pins: scif1 {
+		renesas,groups = "scif1_data_a", "scif1_ctrl";
+		renesas,function = "scif1";
+	};
+	scif2_pins: scif2 {
+		renesas,groups = "scif2_data_a";
+		renesas,function = "scif2";
+	};
+};
+
+&scif1 {
+	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&scif2 {
+	pinctrl-0 = <&scif2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
