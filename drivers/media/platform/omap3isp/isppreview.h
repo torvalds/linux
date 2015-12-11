@@ -148,7 +148,6 @@ struct isp_prev_device {
 struct isp_device;
 
 int omap3isp_preview_init(struct isp_device *isp);
-int omap3isp_preview_create_pads_links(struct isp_device *isp);
 void omap3isp_preview_cleanup(struct isp_device *isp);
 
 int omap3isp_preview_register_entities(struct isp_prev_device *prv,

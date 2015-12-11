@@ -1940,37 +1940,51 @@ static int isp_create_pads_links(struct isp_device *isp)
 {
 	int ret;
 
-	ret = omap3isp_csi2_create_pads_links(isp);
-	if (ret < 0) {
-		dev_err(isp->dev, "CSI2 pads links creation failed\n");
+	/* Create links between entities and video nodes. */
+	ret = media_create_pad_link(
+			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
+			&isp->isp_csi2a.video_out.video.entity, 0, 0);
+	if (ret < 0)
 		return ret;
-	}
 
-	ret = omap3isp_ccp2_create_pads_links(isp);
-	if (ret < 0) {
-		dev_err(isp->dev, "CCP2 pads links creation failed\n");
+	ret = media_create_pad_link(
+			&isp->isp_ccp2.video_in.video.entity, 0,
+			&isp->isp_ccp2.subdev.entity, CCP2_PAD_SINK, 0);
+	if (ret < 0)
 		return ret;
-	}
 
-	ret = omap3isp_ccdc_create_pads_links(isp);
-	if (ret < 0) {
-		dev_err(isp->dev, "CCDC pads links creation failed\n");
+	ret = media_create_pad_link(
+			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_OF,
+			&isp->isp_ccdc.video_out.video.entity, 0, 0);
+	if (ret < 0)
 		return ret;
-	}
 
-	ret = omap3isp_preview_create_pads_links(isp);
-	if (ret < 0) {
-		dev_err(isp->dev, "Preview pads links creation failed\n");
+	ret = media_create_pad_link(
+			&isp->isp_prev.video_in.video.entity, 0,
+			&isp->isp_prev.subdev.entity, PREV_PAD_SINK, 0);
+	if (ret < 0)
 		return ret;
-	}
 
-	ret = omap3isp_resizer_create_pads_links(isp);
-	if (ret < 0) {
-		dev_err(isp->dev, "Resizer pads links creation failed\n");
+	ret = media_create_pad_link(
+			&isp->isp_prev.subdev.entity, PREV_PAD_SOURCE,
+			&isp->isp_prev.video_out.video.entity, 0, 0);
+	if (ret < 0)
 		return ret;
-	}
 
-	/* Connect the submodules. */
+	ret = media_create_pad_link(
+			&isp->isp_res.video_in.video.entity, 0,
+			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = media_create_pad_link(
+			&isp->isp_res.subdev.entity, RESZ_PAD_SOURCE,
+			&isp->isp_res.video_out.video.entity, 0, 0);
+
+	if (ret < 0)
+		return ret;
+
+	/* Create links between entities. */
 	ret = media_create_pad_link(
 			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
 			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);

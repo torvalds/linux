@@ -163,7 +163,6 @@ struct isp_ccdc_device {
 struct isp_device;
 
 int omap3isp_ccdc_init(struct isp_device *isp);
-int omap3isp_ccdc_create_pads_links(struct isp_device *isp);
 void omap3isp_ccdc_cleanup(struct isp_device *isp);
 int omap3isp_ccdc_register_entities(struct isp_ccdc_device *ccdc,
 	struct v4l2_device *vdev);

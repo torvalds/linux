@@ -2718,20 +2718,6 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 }
 
 /*
- * omap3isp_ccdc_create_pads_links - CCDC pads links creation
- * @isp : Pointer to ISP device
- * return negative error code or zero on success
- */
-int omap3isp_ccdc_create_pads_links(struct isp_device *isp)
-{
-	struct isp_ccdc_device *ccdc = &isp->isp_ccdc;
-
-	/* Connect the CCDC subdev to the video node. */
-	return media_create_pad_link(&ccdc->subdev.entity, CCDC_PAD_SOURCE_OF,
-				     &ccdc->video_out.video.entity, 0, 0);
-}
-
-/*
  * omap3isp_ccdc_cleanup - CCDC module cleanup.
  * @isp: Device pointer specific to the OMAP3 ISP.
  */

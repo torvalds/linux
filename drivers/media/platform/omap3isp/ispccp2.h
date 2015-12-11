@@ -79,7 +79,6 @@ struct isp_ccp2_device {
 
 /* Function declarations */
 int omap3isp_ccp2_init(struct isp_device *isp);
-int omap3isp_ccp2_create_pads_links(struct isp_device *isp);
 void omap3isp_ccp2_cleanup(struct isp_device *isp);
 int omap3isp_ccp2_register_entities(struct isp_ccp2_device *ccp2,
 			struct v4l2_device *vdev);

@@ -1785,26 +1785,6 @@ int omap3isp_resizer_init(struct isp_device *isp)
 	return resizer_init_entities(res);
 }
 
-/*
- * omap3isp_resizer_create_pads_links - Resizer pads links creation
- * @isp : Pointer to ISP device
- * return negative error code or zero on success
- */
-int omap3isp_resizer_create_pads_links(struct isp_device *isp)
-{
-	struct isp_res_device *res = &isp->isp_res;
-	int ret;
-
-	/* Connect the video nodes to the resizer subdev. */
-	ret = media_create_pad_link(&res->video_in.video.entity, 0,
-				    &res->subdev.entity, RESZ_PAD_SINK, 0);
-	if (ret < 0)
-		return ret;
-
-	return media_create_pad_link(&res->subdev.entity, RESZ_PAD_SOURCE,
-				     &res->video_out.video.entity, 0, 0);
-}
-
 void omap3isp_resizer_cleanup(struct isp_device *isp)
 {
 	struct isp_res_device *res = &isp->isp_res;

@@ -1311,20 +1311,6 @@ int omap3isp_csi2_init(struct isp_device *isp)
 }
 
 /*
- * omap3isp_csi2_create_pads_links - CSI2 pads links creation
- * @isp : Pointer to ISP device
- * return negative error code or zero on success
- */
-int omap3isp_csi2_create_pads_links(struct isp_device *isp)
-{
-	struct isp_csi2_device *csi2a = &isp->isp_csi2a;
-
-	/* Connect the CSI2 subdev to the video node. */
-	return media_create_pad_link(&csi2a->subdev.entity, CSI2_PAD_SOURCE,
-				     &csi2a->video_out.video.entity, 0, 0);
-}
-
-/*
  * omap3isp_csi2_cleanup - Routine for module driver cleanup
  */
 void omap3isp_csi2_cleanup(struct isp_device *isp)

@@ -2341,26 +2341,6 @@ int omap3isp_preview_init(struct isp_device *isp)
 	return preview_init_entities(prev);
 }
 
-/*
- * omap3isp_preview_create_pads_links - Previewer pads links creation
- * @isp : Pointer to ISP device
- * return negative error code or zero on success
- */
-int omap3isp_preview_create_pads_links(struct isp_device *isp)
-{
-	struct isp_prev_device *prev = &isp->isp_prev;
-	int ret;
-
-	/* Connect the video nodes to the previewer subdev. */
-	ret = media_create_pad_link(&prev->video_in.video.entity, 0,
-			&prev->subdev.entity, PREV_PAD_SINK, 0);
-	if (ret < 0)
-		return ret;
-
-	return media_create_pad_link(&prev->subdev.entity, PREV_PAD_SOURCE,
-				     &prev->video_out.video.entity, 0, 0);
-}
-
 void omap3isp_preview_cleanup(struct isp_device *isp)
 {
 	struct isp_prev_device *prev = &isp->isp_prev;
