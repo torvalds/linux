@@ -345,7 +345,8 @@ void media_gobj_remove(struct media_gobj *gobj);
 
 int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 		      struct media_pad *pads);
-void media_entity_cleanup(struct media_entity *entity);
+
+static inline void media_entity_cleanup(struct media_entity *entity) {};
 
 __must_check int media_create_pad_link(struct media_entity *source,
 			u16 source_pad, struct media_entity *sink,

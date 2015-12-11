@@ -246,12 +246,6 @@ media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 }
 EXPORT_SYMBOL_GPL(media_entity_pads_init);
 
-void
-media_entity_cleanup(struct media_entity *entity)
-{
-}
-EXPORT_SYMBOL_GPL(media_entity_cleanup);
-
 /* -----------------------------------------------------------------------------
  * Graph traversal
  */
