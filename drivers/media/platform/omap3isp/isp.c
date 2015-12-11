@@ -1932,11 +1932,15 @@ done:
 }
 
 /*
- * isp_create_pads_links - Pads links creation for the subdevices
+ * isp_create_links() - Create links for internal and external ISP entities
  * @isp : Pointer to ISP device
- * return negative error code or zero on success
+ *
+ * This function creates all links between ISP internal and external entities.
+ *
+ * Return: A negative error code on failure or zero on success. Possible error
+ * codes are those returned by media_create_pad_link().
  */
-static int isp_create_pads_links(struct isp_device *isp)
+static int isp_create_links(struct isp_device *isp)
 {
 	int ret;
 
@@ -2527,7 +2531,7 @@ static int isp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_modules;
 
-	ret = isp_create_pads_links(isp);
+	ret = isp_create_links(isp);
 	if (ret < 0)
 		goto error_register_entities;
 
