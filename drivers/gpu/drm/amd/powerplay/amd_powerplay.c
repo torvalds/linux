@@ -433,7 +433,10 @@ enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 	case PP_StateUILabel_Performance:
 		return POWER_STATE_TYPE_PERFORMANCE;
 	default:
-		return POWER_STATE_TYPE_DEFAULT;
+		if (state->classification.flags & PP_StateClassificationFlag_Boot)
+			return  POWER_STATE_TYPE_INTERNAL_BOOT;
+		else
+			return POWER_STATE_TYPE_DEFAULT;
 	}
 }
 
@@ -535,6 +538,112 @@ static int pp_dpm_get_temperature(void *handle)
 	return hwmgr->hwmgr_func->get_temperature(hwmgr);
 }
 
+static int pp_dpm_get_pp_num_states(void *handle,
+		struct pp_states_info *data)
+{
+	struct pp_hwmgr *hwmgr;
+	int i;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->ps == NULL)
+		return -EINVAL;
+
+	data->nums = hwmgr->num_ps;
+
+	for (i = 0; i < hwmgr->num_ps; i++) {
+		struct pp_power_state *state = (struct pp_power_state *)
+				((unsigned long)hwmgr->ps + i * hwmgr->ps_size);
+		switch (state->classification.ui_label) {
+		case PP_StateUILabel_Battery:
+			data->states[i] = POWER_STATE_TYPE_BATTERY;
+			break;
+		case PP_StateUILabel_Balanced:
+			data->states[i] = POWER_STATE_TYPE_BALANCED;
+			break;
+		case PP_StateUILabel_Performance:
+			data->states[i] = POWER_STATE_TYPE_PERFORMANCE;
+			break;
+		default:
+			if (state->classification.flags & PP_StateClassificationFlag_Boot)
+				data->states[i] = POWER_STATE_TYPE_INTERNAL_BOOT;
+			else
+				data->states[i] = POWER_STATE_TYPE_DEFAULT;
+		}
+	}
+
+	return 0;
+}
+
+static int pp_dpm_get_pp_table(void *handle, char **table)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+		hwmgr->hwmgr_func->get_pp_table == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_pp_table(hwmgr, table);
+}
+
+static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+		hwmgr->hwmgr_func->set_pp_table == NULL)
+			return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_pp_table(hwmgr, buf, size);
+}
+
+static int pp_dpm_force_clock_level(void *handle,
+		enum pp_clock_type type, int level)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+			hwmgr->hwmgr_func->force_clock_level == NULL)
+				return -EINVAL;
+
+	return hwmgr->hwmgr_func->force_clock_level(hwmgr, type, level);
+}
+
+static int pp_dpm_print_clock_levels(void *handle,
+		enum pp_clock_type type, char *buf)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+			hwmgr->hwmgr_func->print_clock_levels == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
+}
+
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
@@ -552,6 +661,11 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
+	.get_pp_num_states = pp_dpm_get_pp_num_states,
+	.get_pp_table = pp_dpm_get_pp_table,
+	.set_pp_table = pp_dpm_set_pp_table,
+	.force_clock_level = pp_dpm_force_clock_level,
+	.print_clock_levels = pp_dpm_print_clock_levels,
 };
 
 static int amd_pp_instance_init(struct amd_pp_init *pp_init,

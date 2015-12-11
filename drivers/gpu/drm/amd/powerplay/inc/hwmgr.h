@@ -327,6 +327,10 @@ struct pp_hwmgr_func {
 	int (*get_dal_power_level)(struct pp_hwmgr *hwmgr,
 				   struct amd_pp_dal_clock_info *info);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
+	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
+	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);
+	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, int level);
+	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
 };
 
 struct pp_table_func {

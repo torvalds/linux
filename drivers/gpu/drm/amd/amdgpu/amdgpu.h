@@ -1503,6 +1503,7 @@ enum amdgpu_dpm_forced_level {
 	AMDGPU_DPM_FORCED_LEVEL_AUTO = 0,
 	AMDGPU_DPM_FORCED_LEVEL_LOW = 1,
 	AMDGPU_DPM_FORCED_LEVEL_HIGH = 2,
+	AMDGPU_DPM_FORCED_LEVEL_MANUAL = 3,
 };
 
 struct amdgpu_vce_state {
@@ -2014,6 +2015,7 @@ struct amdgpu_device {
 	/* powerplay */
 	struct amd_powerplay		powerplay;
 	bool				pp_enabled;
+	bool				pp_force_state_enabled;
 
 	/* dpm */
 	struct amdgpu_pm		pm;
@@ -2300,6 +2302,21 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 
 #define amdgpu_dpm_get_performance_level(adev) \
 	(adev)->powerplay.pp_funcs->get_performance_level((adev)->powerplay.pp_handle)
+
+#define amdgpu_dpm_get_pp_num_states(adev, data) \
+	(adev)->powerplay.pp_funcs->get_pp_num_states((adev)->powerplay.pp_handle, data)
+
+#define amdgpu_dpm_get_pp_table(adev, table) \
+	(adev)->powerplay.pp_funcs->get_pp_table((adev)->powerplay.pp_handle, table)
+
+#define amdgpu_dpm_set_pp_table(adev, buf, size) \
+	(adev)->powerplay.pp_funcs->set_pp_table((adev)->powerplay.pp_handle, buf, size)
+
+#define amdgpu_dpm_print_clock_levels(adev, type, buf) \
+	(adev)->powerplay.pp_funcs->print_clock_levels((adev)->powerplay.pp_handle, type, buf)
+
+#define amdgpu_dpm_force_clock_level(adev, type, level) \
+		(adev)->powerplay.pp_funcs->force_clock_level((adev)->powerplay.pp_handle, type, level)
 
 #define amdgpu_dpm_dispatch_task(adev, event_id, input, output)		\
 	(adev)->powerplay.pp_funcs->dispatch_tasks((adev)->powerplay.pp_handle, (event_id), (input), (output))

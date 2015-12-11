@@ -123,6 +123,7 @@ enum amd_dpm_forced_level {
 	AMD_DPM_FORCED_LEVEL_AUTO = 0,
 	AMD_DPM_FORCED_LEVEL_LOW = 1,
 	AMD_DPM_FORCED_LEVEL_HIGH = 2,
+	AMD_DPM_FORCED_LEVEL_MANUAL = 3,
 };
 
 struct amd_pp_init {
@@ -225,6 +226,17 @@ enum {
 	PP_GROUP_MAX
 };
 
+enum pp_clock_type {
+	PP_SCLK,
+	PP_MCLK,
+	PP_PCIE,
+};
+
+struct pp_states_info {
+	uint32_t nums;
+	uint32_t states[16];
+};
+
 #define PP_GROUP_MASK        0xF0000000
 #define PP_GROUP_SHIFT       28
 
@@ -278,6 +290,11 @@ struct amd_powerplay_funcs {
 	int (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
 	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
+	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
+	int (*get_pp_table)(void *handle, char **table);
+	int (*set_pp_table)(void *handle, const char *buf, size_t size);
+	int (*force_clock_level)(void *handle, enum pp_clock_type type, int level);
+	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
 };
 
 struct amd_powerplay {
