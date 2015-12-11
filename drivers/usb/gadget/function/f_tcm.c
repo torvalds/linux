@@ -23,6 +23,7 @@
 
 #include "tcm.h"
 #include "u_tcm.h"
+#include "configfs.h"
 
 #define TPG_INSTANCES		1
 
@@ -1402,8 +1403,16 @@ static struct se_portal_group *usbg_make_tpg(
 	if (!opts->ready)
 		goto unlock_dep;
 
-	if (opts->has_dep && !try_module_get(opts->dependent))
-		goto unlock_dep;
+	if (opts->has_dep) {
+		if (!try_module_get(opts->dependent))
+			goto unlock_dep;
+	} else {
+		ret = configfs_depend_item_unlocked(
+			group->cg_subsys,
+			&opts->func_inst.group.cg_item);
+		if (ret)
+			goto unlock_dep;
+	}
 
 	tpg = kzalloc(sizeof(struct usbg_tpg), GFP_KERNEL);
 	ret = -ENOMEM;
@@ -1437,7 +1446,10 @@ free_workqueue:
 free_tpg:
 	kfree(tpg);
 unref_dep:
-	module_put(opts->dependent);
+	if (opts->has_dep)
+		module_put(opts->dependent);
+	else
+		configfs_undepend_item_unlocked(&opts->func_inst.group.cg_item);
 unlock_dep:
 	mutex_unlock(&opts->dep_lock);
 unlock_inst:
@@ -1468,7 +1480,10 @@ static void usbg_drop_tpg(struct se_portal_group *se_tpg)
 	opts = container_of(tpg_instances[i].func_inst,
 		struct f_tcm_opts, func_inst);
 	mutex_lock(&opts->dep_lock);
-	module_put(opts->dependent);
+	if (opts->has_dep)
+		module_put(opts->dependent);
+	else
+		configfs_undepend_item_unlocked(&opts->func_inst.group.cg_item);
 	mutex_unlock(&opts->dep_lock);
 	mutex_unlock(&tpg_instances_lock);
 
@@ -2175,6 +2190,28 @@ static int tcm_setup(struct usb_function *f,
 	return usbg_bot_setup(f, ctrl);
 }
 
+static inline struct f_tcm_opts *to_f_tcm_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_tcm_opts,
+		func_inst.group);
+}
+
+static void tcm_attr_release(struct config_item *item)
+{
+	struct f_tcm_opts *opts = to_f_tcm_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations tcm_item_ops = {
+	.release		= tcm_attr_release,
+};
+
+static struct config_item_type tcm_func_type = {
+	.ct_item_ops	= &tcm_item_ops,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void tcm_free_inst(struct usb_function_instance *f)
 {
 	struct f_tcm_opts *opts;
@@ -2191,6 +2228,28 @@ static void tcm_free_inst(struct usb_function_instance *f)
 	mutex_unlock(&tpg_instances_lock);
 
 	kfree(opts);
+}
+
+static int tcm_register_callback(struct usb_function_instance *f)
+{
+	struct f_tcm_opts *opts = container_of(f, struct f_tcm_opts, func_inst);
+
+	mutex_lock(&opts->dep_lock);
+	opts->can_attach = true;
+	mutex_unlock(&opts->dep_lock);
+
+	return 0;
+}
+
+static void tcm_unregister_callback(struct usb_function_instance *f)
+{
+	struct f_tcm_opts *opts = container_of(f, struct f_tcm_opts, func_inst);
+
+	mutex_lock(&opts->dep_lock);
+	unregister_gadget_item(opts->
+		func_inst.group.cg_item.ci_parent->ci_parent);
+	opts->can_attach = false;
+	mutex_unlock(&opts->dep_lock);
 }
 
 static int usbg_attach(struct usbg_tpg *tpg)
@@ -2252,6 +2311,11 @@ static struct usb_function_instance *tcm_alloc_inst(void)
 	mutex_init(&opts->dep_lock);
 	opts->func_inst.set_inst_name = tcm_set_name;
 	opts->func_inst.free_func_inst = tcm_free_inst;
+	opts->tcm_register_callback = tcm_register_callback;
+	opts->tcm_unregister_callback = tcm_unregister_callback;
+
+	config_group_init_type_name(&opts->func_inst.group, "",
+			&tcm_func_type);
 
 	return &opts->func_inst;
 }
