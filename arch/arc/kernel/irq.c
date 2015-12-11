@@ -60,14 +60,17 @@ void arc_request_percpu_irq(int irq, int cpu,
 	if (!cpu) {
 		int rc;
 
+#ifdef CONFIG_ISA_ARCOMPACT
 		/*
-		 * These 2 calls are essential to making percpu IRQ APIs work
-		 * Ideally these details could be hidden in irq chip map function
-		 * but the issue is IPIs IRQs being static (non-DT) and platform
-		 * specific, so we can't identify them there.
+		 * A subsequent request_percpu_irq() fails if percpu_devid is
+		 * not set. That in turns sets NOAUTOEN, meaning each core needs
+		 * to call enable_percpu_irq()
+		 *
+		 * For ARCv2, this is done in irq map function since we know
+		 * which irqs are strictly per cpu
 		 */
 		irq_set_percpu_devid(irq);
-		irq_modify_status(irq, IRQ_NOAUTOEN, 0);  /* @irq, @clr, @set */
+#endif
 
 		rc = request_percpu_irq(irq, isr, irq_nm, percpu_dev);
 		if (rc)
