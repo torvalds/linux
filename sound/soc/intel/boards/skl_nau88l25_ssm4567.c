@@ -108,22 +108,22 @@ static const struct snd_soc_dapm_route skylake_map[] = {
 
 	/* other jacks */
 	{"MIC", NULL, "Headset Mic"},
-	{"DMIC AIF", NULL, "SoC DMIC"},
+	{"DMic", NULL, "SoC DMIC"},
 
 	/* CODEC BE connections */
 	{ "Left Playback", NULL, "ssp0 Tx"},
 	{ "Right Playback", NULL, "ssp0 Tx"},
 	{ "ssp0 Tx", NULL, "codec0_out"},
 
-	{ "AIF1 Playback", NULL, "ssp1 Tx"},
+	{ "Playback", NULL, "ssp1 Tx"},
 	{ "ssp1 Tx", NULL, "codec1_out"},
 
 	{ "codec0_in", NULL, "ssp1 Rx" },
-	{ "ssp1 Rx", NULL, "AIF1 Capture" },
+	{ "ssp1 Rx", NULL, "Capture" },
 
 	/* DMIC */
 	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
-	{ "DMIC01 Rx", NULL, "Capture" },
+	{ "DMIC01 Rx", NULL, "DMIC AIF" },
 	{ "Headphone Jack", NULL, "Platform Clock" },
 	{ "Headset Mic", NULL, "Platform Clock" },
 };
@@ -336,6 +336,7 @@ static struct snd_soc_card skylake_audio_card = {
 	.num_dapm_routes = ARRAY_SIZE(skylake_map),
 	.codec_conf = ssm4567_codec_conf,
 	.num_configs = ARRAY_SIZE(ssm4567_codec_conf),
+	.fully_routed = true,
 };
 
 static int skylake_audio_probe(struct platform_device *pdev)
