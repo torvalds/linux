@@ -344,6 +344,7 @@ static const unsigned int mch_quirk_devices[] = {
 	0x0154,	/* Ivy Bridge */
 	0x0a04, /* Haswell-ULT */
 	0x0c00,	/* Haswell */
+	0x1604, /* Broadwell */
 };
 
 static struct pci_dev *get_intel_host(void)
