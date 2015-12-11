@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -133,190 +133,6 @@ typedef struct _gcsUSER_MEMORY_DESC *   gcsUSER_MEMORY_DESC_PTR;
         (gcoOS_ReleaseMutex(gcvNULL, Obj->sharedLock));\
     }\
 }
-
-#if defined(ANDROID)
-typedef struct _gcoOS_SymbolsList gcoOS_SymbolsList;
-#endif
-
-/******************************************************************************\
-******************************* Process local storage *************************
-\******************************************************************************/
-
-typedef struct _gcsPLS * gcsPLS_PTR;
-
-#if gcdENABLE_3D
-/******************************************************************************
-**
-** Patch defines which should be moved to dedicate file later
-**
-** !!! ALWAYS ADD new ID in the TAIL, otherwise will break exising TRACE FILE
-*******************************************************************************/
-typedef enum _gcePATCH_ID
-{
-    gcvPATCH_NOTINIT = -1,
-    gcvPATCH_INVALID = 0,
-
-#if gcdDEBUG_OPTION
-    gcvPATCH_DEBUG,
-#endif
-
-    gcvPATCH_GTFES30,
-    gcvPATCH_CTGL11,
-    gcvPATCH_CTGL20,
-    gcvPATCH_GLBM11,
-    gcvPATCH_GLBM21,
-    gcvPATCH_GLBM25,
-    gcvPATCH_GLBM27,
-    gcvPATCH_GLBMGUI,
-    gcvPATCH_GFXBENCH,
-    gcvPATCH_ANTUTU,        /* Antutu 3.x */
-    gcvPATCH_ANTUTU4X,      /* Antutu 4.x */
-    gcvPATCH_QUADRANT,
-    gcvPATCH_GPUBENCH,
-    gcvPATCH_DUOKAN,
-    gcvPATCH_GLOFTSXHM,
-    gcvPATCH_XRUNNER,
-    gcvPATCH_BUSPARKING3D,
-    gcvPATCH_SIEGECRAFT,
-    gcvPATCH_PREMIUM,
-    gcvPATCH_RACEILLEGAL,
-    gcvPATCH_MEGARUN,
-    gcvPATCH_BMGUI,
-    gcvPATCH_NENAMARK,
-    gcvPATCH_NENAMARK2,
-    gcvPATCH_FISHNOODLE,
-    gcvPATCH_MM06,
-    gcvPATCH_MM07,
-    gcvPATCH_BM21,
-    gcvPATCH_SMARTBENCH,
-    gcvPATCH_JPCT,
-    gcvPATCH_NEOCORE,
-    gcvPATCH_RTESTVA,
-    gcvPATCH_NBA2013,
-    gcvPATCH_BARDTALE,
-    gcvPATCH_F18,
-    gcvPATCH_CARPARK,
-    gcvPATCH_CARCHALLENGE,
-    gcvPATCH_HEROESCALL,
-    gcvPATCH_GLOFTF3HM,
-    gcvPATCH_CRAZYRACING,
-    gcvPATCH_FIREFOX,
-    gcvPATCH_CHROME,
-    gcvPATCH_MONOPOLY,
-    gcvPATCH_SNOWCOLD,
-    gcvPATCH_BM3,
-    gcvPATCH_BASEMARKX,
-    gcvPATCH_DEQP,
-    gcvPATCH_SF4,
-    gcePATCH_MGOHEAVEN2,
-    gcePATCH_SILIBILI,
-    gcePATCH_ELEMENTSDEF,
-    gcePATCH_GLOFTKRHM,
-    gcvPATCH_OCLCTS,
-    gcvPATCH_A8HP,
-    gcvPATCH_A8CN,
-    gcvPATCH_WISTONESG,
-    gcvPATCH_SPEEDRACE,
-    gcvPATCH_FSBHAWAIIF,
-    gcvPATCH_AIRNAVY,
-    gcvPATCH_F18NEW,
-    gcvPATCH_CKZOMBIES2,
-    gcvPATCH_EADGKEEPER,
-    gcvPATCH_BASEMARK2V2,
-    gcvPATCH_RIPTIDEGP2,
-    gcvPATCH_OESCTS,
-    gcvPATCH_GANGSTAR,
-    gcvPATCH_WHRKYZIXOVAN,
-    gcvPATCH_NAMESGAS,
-    gcvPATCH_AFTERBURNER,
-    gcvPATCH_UIMARK,
-    gcvPATCH_FM_OES_PLAYER,
-    gcvPATCH_SUMSUNG_BENCH,
-    gcvPATCH_ROCKSTAR_MAXPAYNE,
-    gcvPATCH_TITANPACKING,
-    gcvPATCH_OES20SFT,
-    gcvPATCH_OES30SFT,
-    gcvPATCH_BASEMARKOSIICN,
-    gcvPATCH_FRUITNINJA,
-    gcvPATCH_ANDROID_WEBGL,
-#if defined(ANDROID)
-    gcePATCH_ANDROID_CTS_MEDIA_PRESENTATIONTIME,
-#endif
-    gcvPATCH_ANDROID_COMPOSITOR,
-    gcvPATCH_CTS_TEXTUREVIEW,
-    gcvPATCH_WATER2_CHUKONG,
-    gcvPATCH_GOOGLEEARTH,
-    gcvPATCH_LEANBACK,
-    gcvPATCH_ANGRYBIRDS,
-    gcvPATCH_REALRACING,
-    gcvPATCH_CLASHOFCLAN,
-    gcvPATCH_TEMPLERUN,
-    gcvPATCH_SBROWSER,
-
-    gcvPATCH_COUNT
-} gcePATCH_ID;
-#endif /* gcdENABLE_3D */
-
-#if gcdENABLE_3D
-#define gcdPROC_IS_WEBGL(patchId) ((patchId) == gcvPATCH_CHROME || (patchId) == gcvPATCH_FIREFOX || (patchId) == gcvPATCH_ANDROID_WEBGL)
-#endif /* gcdENABLE_3D */
-
-typedef void (* gctPLS_DESTRUCTOR) (
-    gcsPLS_PTR
-    );
-
-typedef struct _gcsPLS
-{
-    /* Global objects. */
-    gcoOS                       os;
-    gcoHAL                      hal;
-
-    /* Internal memory pool. */
-    gctSIZE_T                   internalSize;
-    gctPHYS_ADDR                internalPhysical;
-    gctPOINTER                  internalLogical;
-
-    /* External memory pool. */
-    gctSIZE_T                   externalSize;
-    gctPHYS_ADDR                externalPhysical;
-    gctPOINTER                  externalLogical;
-
-    /* Contiguous memory pool. */
-    gctSIZE_T                   contiguousSize;
-    gctPHYS_ADDR                contiguousPhysical;
-    gctPOINTER                  contiguousLogical;
-
-    /* EGL-specific process-wide objects. */
-    gctPOINTER                  eglDisplayInfo;
-    gctPOINTER                  eglSurfaceInfo;
-    gceSURF_FORMAT              eglConfigFormat;
-
-    /* PLS reference count */
-    gcsATOM_PTR                 reference;
-
-    /* PorcessID of the constrcutor process */
-    gctUINT32                   processID;
-
-    /* ThreadID of the constrcutor process. */
-    gctSIZE_T                   threadID;
-    /* Flag for calling module destructor. */
-    gctBOOL                     exiting;
-
-    gctBOOL                     bNeedSupportNP2Texture;
-
-    gctPLS_DESTRUCTOR           destructor;
-    /* Mutex to guard PLS access. currently it's for EGL.
-    ** We can use this mutex for every PLS access.
-    */
-    gctPOINTER                  accessLock;
-#if gcdENABLE_3D
-    /* Global patchID to overwrite the detection */
-    gcePATCH_ID                 patchID;
-#endif
-}
-gcsPLS;
-
-extern gcsPLS gcPLS;
 
 #if gcdENABLE_3D
 #define gcPLS_INITIALIZER \
@@ -967,26 +783,6 @@ gcoHAL_GetDump(
     OUT gcoDUMP * Dump
     );
 
-#if gcdENABLE_3D
-gceSTATUS
-gcoHAL_SetPatchID(
-    IN  gcoHAL Hal,
-    IN  gcePATCH_ID PatchID
-    );
-
-/* Get Patch ID based on process name */
-gceSTATUS
-gcoHAL_GetPatchID(
-    IN  gcoHAL Hal,
-    OUT gcePATCH_ID * PatchID
-    );
-
-gceSTATUS
-gcoHAL_SetGlobalPatchID(
-    IN  gcoHAL Hal,
-    IN  gcePATCH_ID PatchID
-    );
-#endif /* gcdENABLE_3D */
 /* Call the kernel HAL layer. */
 gceSTATUS
 gcoHAL_Call(
@@ -1746,24 +1542,6 @@ gcoOS_QueryCurrentProcessName(
     OUT gctSTRING Name,
     IN gctSIZE_T Size
     );
-
-/* Detect if the current process is the executable specified. */
-gceSTATUS
-gcoOS_DetectProcessByName(
-    IN gctCONST_STRING Name
-    );
-
-gceSTATUS
-gcoOS_DetectProcessByEncryptedName(
-    IN gctCONST_STRING Name
-    );
-
-#if defined(ANDROID)
-gceSTATUS
-gcoOS_DetectProgrameByEncryptedSymbols(
-    IN gcoOS_SymbolsList Symbols
-    );
-#endif
 
 /*----------------------------------------------------------------------------*/
 /*----- Atoms ----------------------------------------------------------------*/
@@ -2682,6 +2460,14 @@ gcoSURF_Lock(
     IN gcoSURF Surface,
     IN OUT gctUINT32 * Address,
     IN OUT gctPOINTER * Memory
+    );
+
+gceSTATUS
+gcoSURF_LockEx(
+    IN gcoSURF Surface,
+    OPTIONAL OUT gctUINT32 * Address,
+    OPTIONAL OUT gctPOINTER * Memory,
+    OPTIONAL OUT gctPHYS_ADDR_T *BusAddress
     );
 
 /* Unlock the surface. */
@@ -4949,15 +4735,6 @@ gcGetUserDebugOption(
     void
     );
 
-#if defined(ANDROID)
-struct _gcoOS_SymbolsList
-{
-#if gcdENABLE_3D
-    gcePATCH_ID patchId;
-#endif
-    const char * symList[10];
-};
-#endif
 
 #if gcdHAS_ELLIPSIS
 #define gcmUSER_DEBUG_MSG(level, ...) \

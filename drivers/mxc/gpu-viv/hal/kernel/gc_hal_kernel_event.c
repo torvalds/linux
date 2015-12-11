@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -1775,6 +1775,14 @@ gckEVENT_Submit(
             gcmkVERIFY_OK(_QueryFlush(Event, Event->queues[id].head, &flush));
 
 #if gcdNULL_DRIVER
+#if gcdINTERRUPT_STATISTIC
+            gcmkVERIFY_OK(gckOS_AtomIncrement(
+                Event->os,
+                Event->interruptCount,
+                &oldValue
+                ));
+#endif
+
             /* Notify immediately on infinite hardware. */
             gcmkONERROR(gckEVENT_Interrupt(Event, 1 << id));
 
@@ -1862,6 +1870,14 @@ gckEVENT_Submit(
                 ));
 #endif
 
+#if gcdINTERRUPT_STATISTIC
+            gcmkVERIFY_OK(gckOS_AtomIncrement(
+                Event->os,
+                Event->interruptCount,
+                &oldValue
+                ));
+#endif
+
 #if gcdSECURITY
             gckKERNEL_SecurityExecute(
                 Event->kernel,
@@ -1873,14 +1889,6 @@ gckEVENT_Submit(
             gcmkONERROR(gckCOMMAND_Execute(command, executeBytes));
 #endif
 #endif
-#if gcdINTERRUPT_STATISTIC
-            gcmkVERIFY_OK(gckOS_AtomIncrement(
-                Event->os,
-                Event->interruptCount,
-                &oldValue
-                ));
-#endif
-
         }
 
         /* Release the command queue. */

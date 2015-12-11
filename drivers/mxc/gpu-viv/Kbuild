@@ -2,7 +2,7 @@
 #
 #    The MIT License (MIT)
 #
-#    Copyright (c) 2014 Vivante Corporation
+#    Copyright (c) 2014 - 2015 Vivante Corporation
 #
 #    Permission is hereby granted, free of charge, to any person obtaining a
 #    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 #
 #    The GPL License (GPL)
 #
-#    Copyright (C) 2014  Vivante Corporation
+#    Copyright (C) 2014 - 2015 Vivante Corporation
 #
 #    This program is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU General Public License
@@ -56,7 +56,6 @@
 #
 # Linux build file for kernel HAL driver.
 #
-
 AQROOT := $(srctree)/drivers/mxc/gpu-viv
 
 include $(AQROOT)/config
@@ -161,15 +160,16 @@ ifeq ($(KERNELRELEASE), )
 
 # Define targets.
 all:
-	@make V=$(V) ARCH=$(ARCH_TYPE) -C $(KERNEL_DIR) SUBDIRS=`pwd` modules
+	@$(MAKE) V=$(V) ARCH=$(ARCH_TYPE) -C $(KERNEL_DIR) SUBDIRS=`pwd` modules
 
 clean:
 	@rm -rf $(OBJS)
-	@rm -rf modules.order Module.symvers
+	@rm -rf modules.order Module.symvers .tmp_versions
 	@find $(AQROOT) -name ".gc_*.cmd" | xargs rm -f
 
 install: all
 	@mkdir -p $(SDK_DIR)/drivers
+	@cp $(MODULE_NAME).ko $(SDK_DIR)/drivers
 
 else
 
@@ -306,8 +306,8 @@ endif
 
 EXTRA_CFLAGS += -DHOST=\"$(HOST)\"
 
-obj-$(CONFIG_MXC_GPU_VIV) += galcore.o
+obj-m = $(MODULE_NAME).o
 
-galcore-objs  := $(OBJS)
+$(MODULE_NAME)-objs  = $(OBJS)
 
 endif

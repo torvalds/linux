@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -71,12 +71,6 @@ typedef enum kernel_packet_command {
     KERNEL_EXECUTE,                       /* Execute a command buffer. */
 } kernel_packet_command_t;
 
-/*!
- @brief gckCOMMAND Object requests TrustZone to start FE.
- @discussion
- DMA enabled register can only be written in TrustZone to avoid GPU from jumping to a hacked code.
- Kernel module need use these command to ask TrustZone start command parser.
- */
 struct kernel_start_command {
     kernel_packet_command_t command;      /*! The command (always needs to be the first entry in a structure). */
     gctUINT8       gpu;                    /*! Which GPU. */

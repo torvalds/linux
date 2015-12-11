@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -725,8 +725,16 @@ _DefaultPhysical(
     OUT gctPHYS_ADDR_T * Physical
     )
 {
-    gcmkASSERT(Mdl->pagedMem && !Mdl->contiguous);
-    *Physical = _NonContiguousToPhys(Mdl->u.nonContiguousPages, Offset);
+    gcmkASSERT(Mdl->pagedMem);
+
+    if (Mdl->contiguous)
+    {
+        *Physical = page_to_phys(nth_page(Mdl->u.contiguousPages, Offset));
+    }
+    else
+    {
+        *Physical = _NonContiguousToPhys(Mdl->u.nonContiguousPages, Offset);
+    }
 
     return gcvSTATUS_OK;
 }

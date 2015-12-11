@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -143,6 +143,12 @@
 #define gcdNOWARN __GFP_NOWARN
 #else
 #define gcdNOWARN 0
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (4, 1, 0)
+#define gcdIRQF_FLAG   (0)
+#else
+#define gcdIRQF_FLAG   (IRQF_DISABLED)
 #endif
 
 /******************************************************************************\
@@ -296,6 +302,7 @@ typedef struct _gcsPageInfo
 #if gcdPROCESS_ADDRESS_SPACE
     gckMMU mmu;
 #endif
+    gctBOOL *ref;
 }
 gcsPageInfo;
 

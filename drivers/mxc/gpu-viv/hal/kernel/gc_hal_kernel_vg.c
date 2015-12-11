@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -137,7 +137,7 @@ gceSTATUS gckVGKERNEL_Construct(
 
         /* Construct the gckVGMMU object. */
         gcmkERR_BREAK(gckVGMMU_Construct(
-            kernel, gcmMB2BYTES(1), &kernel->mmu
+            kernel, gcmKB2BYTES(gcdGC355_VGMMU_MEMORY_SIZE_KB), &kernel->mmu
             ));
 
         /* Return pointer to the gckKERNEL object. */
@@ -563,18 +563,22 @@ gceSTATUS gckVGKERNEL_Dispatch(
             Kernel, processID,
             (gctUINT32)kernelInterface->u.ReleaseVideoMemory.node
             ));
-        {
-            gckVIDMEM_NODE nodeObject;
+    {
+        gckVIDMEM_NODE nodeObject;
 
-            /* Remove record from process db. */
-            gcmkERR_BREAK(
-                gckKERNEL_RemoveProcessDB(Kernel, processID, gcvDB_VIDEO_MEMORY_LOCKED, (gctPOINTER)kernelInterface->u.ReleaseVideoMemory.node));
+        /* Remove record from process db. */
+        gcmkERR_BREAK(
+            gckKERNEL_RemoveProcessDB(Kernel, processID,
+                                      gcvDB_VIDEO_MEMORY_LOCKED,
+                                      (gctPOINTER)kernelInterface->u.ReleaseVideoMemory.node));
 
-            gcmkERR_BREAK(
-                gckVIDMEM_HANDLE_Lookup(Kernel, processID, (gctUINT32)kernelInterface->u.ReleaseVideoMemory.node, &nodeObject));
+        gcmkERR_BREAK(
+            gckVIDMEM_HANDLE_Lookup(Kernel, processID,
+                                    (gctUINT32)kernelInterface->u.ReleaseVideoMemory.node, &nodeObject));
 
-            gckVIDMEM_NODE_Dereference(Kernel, nodeObject);
-        }
+        gckVIDMEM_NODE_Dereference(Kernel, nodeObject);
+    }
+
 
         break;
 
@@ -853,6 +857,9 @@ gceSTATUS gckVGKERNEL_Dispatch(
 #endif
         break;
 
+    case gcvHAL_EVENT_COMMIT:
+        gcmkERR_BREAK(gcvSTATUS_NOT_SUPPORTED);
+        break;
 
     default:
         /* Invalid command. */

@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -93,8 +93,14 @@ typedef struct _DFBPixmap *  HALNativePixmapType;
 
 /* Wayland platform. */
 #include <wayland-egl.h>
+#include <pthread.h>
+
 
 #define WL_COMPOSITOR_SIGNATURE (0x31415926)
+
+#define WL_CLIENT_SIGNATURE     (0x27182818)
+
+#define WL_LOCAL_DISPLAY_SIGNATURE      (0x27182991)
 
 typedef struct _gcsWL_VIV_BUFFER
 {
@@ -114,6 +120,12 @@ typedef struct _gcsWL_EGL_DISPLAY
    gctINT file;
 } gcsWL_EGL_DISPLAY;
 
+typedef struct _gcsWL_LOCAL_DISPLAY
+{
+   gctUINT wl_signature;
+   gctPOINTER localInfo;
+} gcsWL_LOCAL_DISPLAY;
+
 typedef struct _gcsWL_EGL_BUFFER_INFO
 {
    gctINT32 width;
@@ -125,16 +137,17 @@ typedef struct _gcsWL_EGL_BUFFER_INFO
    gcePOOL pool;
    gctUINT bytes;
    gcoSURF surface;
-   gcoSURF attached_surface;
    gctINT32 invalidate;
    gctBOOL locked;
 } gcsWL_EGL_BUFFER_INFO;
 
 typedef struct _gcsWL_EGL_BUFFER
 {
-   struct wl_buffer* wl_buffer;
+   gctUINT wl_signature;
    gcsWL_EGL_BUFFER_INFO info;
+   struct wl_buffer* wl_buffer;
    struct wl_callback* frame_callback;
+   struct wl_list link;
 } gcsWL_EGL_BUFFER;
 
 typedef struct _gcsWL_EGL_WINDOW_INFO
@@ -151,13 +164,17 @@ typedef struct _gcsWL_EGL_WINDOW_INFO
 
 struct wl_egl_window
 {
+   gctUINT wl_signature;
    gcsWL_EGL_DISPLAY* display;
    gcsWL_EGL_BUFFER **backbuffers;
    gcsWL_EGL_WINDOW_INFO* info;
    gctINT  noResolve;
    gctINT32 attached_width;
    gctINT32 attached_height;
+   gcsATOM_PTR reference;
+   pthread_mutex_t window_mutex;
    struct wl_surface* surface;
+   struct wl_list link;
 };
 
 typedef void*   HALNativeDisplayType;
@@ -677,8 +694,8 @@ gcoOS_ResizeWindow(
     IN gctPOINTER localDisplay,
     IN HALNativeWindowType Drawable,
     IN gctUINT Width,
-    IN gctUINT Height)
-    ;
+    IN gctUINT Height
+    );
 
 #ifdef USE_FREESCALE_EGL_ACCEL
 gceSTATUS

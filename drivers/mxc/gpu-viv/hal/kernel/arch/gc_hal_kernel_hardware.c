@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -348,6 +348,7 @@ _IdentifyHardware(
                                            || (Identity->chipRevision == 0x5039)
                                            || (Identity->chipRevision >= 0x5040)))
     || ((Identity->chipModel == gcv800) && (Identity->chipRevision == 0x4612))
+	|| ((Identity->chipModel == gcv880) && (Identity->chipRevision == 0x5124))
     || ((Identity->chipModel == gcv600) && (Identity->chipRevision >= 0x4650))
     || ((Identity->chipModel == gcv860) && (Identity->chipRevision == 0x4647))
     || ((Identity->chipModel == gcv400) && (Identity->chipRevision >= 0x4633)))
@@ -1154,8 +1155,7 @@ gckHARDWARE_Construct(
             ? 0x0100
             : 0x0000;
 
-    /* VIV: Don't do sftware reset here for 0x2000, 0xfff5450 to workaround #12789. */
-    if (!(_IsHardwareMatch(hardware, gcv3000, 0x5450)))
+    if (!(_IsHardwareMatch(hardware, gcv3000, 0x5450) && (hardware->identity.chipFlags & gcvCHIP_FLAG_GC2000_R2)))
     {
         /* _ResetGPU need powerBaseAddress. */
         status = _ResetGPU(hardware, Os, Core);
@@ -7018,6 +7018,9 @@ gckHARDWARE_Reset(
         gcmkONERROR(_ResetGPU(Hardware, Hardware->os, Hardware->core));
     }
 
+    /* Force the command queue to reload the next context. */
+    Hardware->kernel->command->currContext = gcvNULL;
+
     /* Initialize hardware. */
     gcmkONERROR(gckHARDWARE_InitializeHardware(Hardware));
 
@@ -7336,8 +7339,8 @@ gckHARDWARE_IsFeatureAvailable(
         break;
 
     case gcvFEATURE_MMU:
-        available= ((((gctUINT32) (Hardware->identity.chipMinorFeatures1)) >> (0 ? 28:28) & ((gctUINT32) ((((1 ? 28:28) - (0 ? 28:28) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 28:28) - (0 ? 28:28) + 1)))))) == (0x1 & ((gctUINT32) ((((1 ? 28:28) - (0 ? 28:28) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 28:28) - (0 ? 28:28) + 1)))))));
-	break;
+        available = ((((gctUINT32) (Hardware->identity.chipMinorFeatures1)) >> (0 ? 28:28) & ((gctUINT32) ((((1 ? 28:28) - (0 ? 28:28) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 28:28) - (0 ? 28:28) + 1)))))) == (0x1 & ((gctUINT32) ((((1 ? 28:28) - (0 ? 28:28) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 28:28) - (0 ? 28:28) + 1)))))));
+        break;
 
     default:
         gcmkFATAL("Invalid feature has been requested.");

@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -1069,6 +1069,20 @@ gceSTATUS
 gco2D_Commit(
     IN gco2D Engine,
     IN gctBOOL Stall
+    );
+
+gceSTATUS
+gco2D_NatureRotateTranslation(
+    IN gctBOOL IsSrcRot,
+    IN gce2D_NATURE_ROTATION NatureRotation,
+    IN gctINT32 SrcSurfaceWidth,
+    IN gctINT32 SrcSurfaceHeight,
+    IN gctINT32 DstSurfaceWidth,
+    IN gctINT32 DstSurfaceHeight,
+    IN OUT gcsRECT_PTR SrcRect,
+    IN OUT gcsRECT_PTR DstRect,
+    OUT gceSURF_ROTATION * SrcRotation,
+    OUT gceSURF_ROTATION * DstRotation
     );
 
 #ifdef __cplusplus

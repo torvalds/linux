@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -435,6 +435,10 @@
 #endif
 #endif
 
+#ifndef gcdGC355_VGMMU_MEMORY_SIZE_KB
+#   define gcdGC355_VGMMU_MEMORY_SIZE_KB   32
+#endif
+
 /*
     gcdSECURE_USER
 
@@ -532,12 +536,28 @@
 #ifndef gcdGPU_TIMEOUT
 #if gcdFPGA_BUILD
 #       define gcdGPU_TIMEOUT                   0
-#       define gcdGPU_2D_TIMEOUT                0
 #   else
 #       define gcdGPU_TIMEOUT                   20000
-#       define gcdGPU_2D_TIMEOUT                20000
 #   endif
 #endif
+
+/*
+    gcdGPU_2D_TIMEOUT
+
+        This define specified the number of milliseconds the system will wait
+        before it broadcasts the 2D GPU is stuck.  In other words, it will define
+        the timeout of any operation that needs to wait for the GPU.
+
+        If the value is 0, no timeout will be checked for.
+*/
+#ifndef gcdGPU_2D_TIMEOUT
+#if gcdFPGA_BUILD
+#       define gcdGPU_2D_TIMEOUT                0
+#   else
+#       define gcdGPU_2D_TIMEOUT                4000
+#   endif
+#endif
+
 
 /*
     gcdGPU_ADVANCETIMER

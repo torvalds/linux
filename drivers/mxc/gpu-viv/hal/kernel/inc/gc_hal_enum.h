@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 Vivante Corporation
+*    Copyright (c) 2014 - 2015 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014  Vivante Corporation
+*    Copyright (C) 2014 - 2015 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -237,10 +237,14 @@ typedef enum _gceFEATURE
     gcvFEATURE_2D_OPF_YUV_OUTPUT,
     gcvFEATURE_2D_FILTERBLIT_A8_ALPHA,
     gcvFEATURE_2D_MULTI_SRC_BLT_TO_UNIFIED_DST_RECT,
+    gcvFEATURE_2D_MULTI_SRC_BLT_BILINEAR_FILTER,
     gcvFEATURE_V2_COMPRESSION_Z16_FIX,
 
     gcvFEATURE_VERTEX_INST_ID_AS_INTEGER,
     gcvFEATURE_2D_YUV_MODE,
+    gcvFEATURE_2D_CACHE_128B256BPERLINE,
+    gcvFEATURE_2D_MAJOR_SUPER_TILE,
+    gcvFEATURE_2D_V4COMPRESSION,
     gcvFEATURE_ACE,
     gcvFEATURE_COLOR_COMPRESSION,
 
@@ -315,6 +319,8 @@ typedef enum _gceFEATURE
     gcvFEATURE_MSAA_FRAGMENT_OPERATION,
     gcvFEATURE_ZERO_ATTRIB_SUPPORT,
     gcvFEATURE_TEX_CACHE_FLUSH_FIX,
+    gcvFEATURE_PE_DITHER_FIX2,
+    gcvFEATURE_LOD_FIX_FOR_BASELEVEL,
 
     /* Insert features above this comment only. */
     gcvFEATURE_COUNT                /* Not a feature. */
@@ -1093,6 +1099,19 @@ typedef enum _gce2D_YUV_COLOR_MODE
 }
 gce2D_YUV_COLOR_MODE;
 
+/* Nature rotation rules. */
+typedef enum _gce2D_NATURE_ROTATION
+{
+    gcvNR_0_DEGREE = 0,
+    gcvNR_LEFT_90_DEGREE,
+    gcvNR_RIGHT_90_DEGREE,
+    gcvNR_180_DEGREE,
+    gcvNR_FLIP_X,
+    gcvNR_FLIP_Y,
+    gcvNR_TOTAL_RULE,
+}
+gce2D_NATURE_ROTATION;
+
 typedef enum _gce2D_COMMAND
 {
     gcv2D_CLEAR = 0,
@@ -1118,6 +1137,9 @@ typedef enum _gce2D_TILE_STATUS_CONFIG
     gcv2D_TSC_DEC_COMPRESSED = 0x00000020,
     gcv2D_TSC_DEC_TPC        = 0x00000040,
     gcv2D_TSC_DEC_TPC_COMPRESSED = 0x00000080,
+
+    gcv2D_TSC_V4_COMPRESSED      = 0x00000100,
+    gcv2D_TSC_V4_COMPRESSED_256B = 0x00000200 | gcv2D_TSC_V4_COMPRESSED,
 
     gcv2D_TSC_DEC_TPC_TILED  = gcv2D_TSC_DEC_COMPRESSED | gcv2D_TSC_DEC_TPC,
     gcv2D_TSC_DEC_TPC_TILED_COMPRESSED = gcv2D_TSC_DEC_TPC_TILED | gcv2D_TSC_DEC_TPC_COMPRESSED,
@@ -1148,6 +1170,7 @@ typedef enum _gce2D_STATE
     gcv2D_STATE_EN_GAMMA,
     gcv2D_STATE_DE_GAMMA,
     gcv2D_STATE_MULTI_SRC_BLIT_UNIFIED_DST_RECT,
+    gcv2D_STATE_MULTI_SRC_BLIT_BILINEAR_FILTER,
     gcv2D_STATE_PROFILE_ENABLE,
     gcv2D_STATE_XRGB_ENABLE,
 
@@ -1259,6 +1282,7 @@ typedef enum _gceTILING
 
     /* Tiling special layouts. */
     gcvTILING_SPLIT_BUFFER = 0x100,
+    gcvTILING_Y_MAJOR      = 0x200,
 
     /* Tiling combination layouts. */
     gcvMULTI_TILED      = gcvTILED
@@ -1266,6 +1290,9 @@ typedef enum _gceTILING
 
     gcvMULTI_SUPERTILED = gcvSUPERTILED
                         | gcvTILING_SPLIT_BUFFER,
+
+    gcvYMAJOR_SUPERTILED = gcvSUPERTILED
+                        | gcvTILING_Y_MAJOR,
 }
 gceTILING;
 
