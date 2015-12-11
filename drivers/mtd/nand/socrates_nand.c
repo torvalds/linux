@@ -30,7 +30,6 @@
 
 struct socrates_nand_host {
 	struct nand_chip	nand_chip;
-	struct mtd_info		mtd;
 	void __iomem		*io_base;
 	struct device		*dev;
 };
@@ -159,8 +158,8 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 		return -EIO;
 	}
 
-	mtd = &host->mtd;
 	nand_chip = &host->nand_chip;
+	mtd = nand_to_mtd(nand_chip);
 	host->dev = &ofdev->dev;
 
 	nand_chip->priv = host;		/* link the private data structures */
@@ -216,7 +215,7 @@ out:
 static int socrates_nand_remove(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host = dev_get_drvdata(&ofdev->dev);
-	struct mtd_info *mtd = &host->mtd;
+	struct mtd_info *mtd = nand_to_mtd(&host->nand_chip);
 
 	nand_release(mtd);
 
