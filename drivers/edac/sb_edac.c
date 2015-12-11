@@ -924,6 +924,12 @@ out:
 	return mtype;
 }
 
+static enum dev_type knl_get_width(struct sbridge_pvt *pvt, u32 mtr)
+{
+	/* for KNL value is fixed */
+	return DEV_X16;
+}
+
 static enum dev_type sbridge_get_width(struct sbridge_pvt *pvt, u32 mtr)
 {
 	/* there's no way to figure out */
@@ -3393,7 +3399,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.interleave_list = knl_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(knl_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
-		pvt->info.get_width = ibridge_get_width;
+		pvt->info.get_width = knl_get_width;
 		mci->ctl_name = kasprintf(GFP_KERNEL,
 			"Knights Landing Socket#%d", mci->mc_idx);
 
