@@ -28,6 +28,12 @@
 #include "amd_acpi.h"
 #include "amd_powerplay.h"
 
+#define PHM_FUNC_CHECK(hw) \
+	do {							\
+		if ((hw) == NULL || (hw)->hwmgr_func == NULL)	\
+			return -EINVAL;				\
+	} while (0)
+
 void phm_init_dynamic_caps(struct pp_hwmgr *hwmgr)
 {
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableVoltageTransition);
@@ -70,6 +76,8 @@ int phm_block_hw_access(struct pp_hwmgr *hwmgr, bool block)
 
 int phm_setup_asic(struct pp_hwmgr *hwmgr)
 {
+	PHM_FUNC_CHECK(hwmgr);
+
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_TablelessHardwareInterface)) {
 		if (NULL != hwmgr->hwmgr_func->asic_setup)
@@ -88,6 +96,8 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 {
 	struct phm_set_power_state_input states;
 
+	PHM_FUNC_CHECK(hwmgr);
+
 	states.pcurrent_state = pcurrent_state;
 	states.pnew_state = pnew_power_state;
 
@@ -104,6 +114,8 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
+	PHM_FUNC_CHECK(hwmgr);
+
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_TablelessHardwareInterface)) {
 		if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
@@ -118,6 +130,8 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 
 int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level)
 {
+	PHM_FUNC_CHECK(hwmgr);
+
 	if (hwmgr->hwmgr_func->force_dpm_level != NULL)
 		return hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
 
@@ -128,6 +142,8 @@ int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				   struct pp_power_state *adjusted_ps,
 			     const struct pp_power_state *current_ps)
 {
+	PHM_FUNC_CHECK(hwmgr);
+
 	if (hwmgr->hwmgr_func->apply_state_adjust_rules != NULL)
 		return hwmgr->hwmgr_func->apply_state_adjust_rules(
 									hwmgr,
@@ -138,6 +154,8 @@ int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
+	PHM_FUNC_CHECK(hwmgr);
+
 	if (hwmgr->hwmgr_func->powerdown_uvd != NULL)
 		return hwmgr->hwmgr_func->powerdown_uvd(hwmgr);
 	return 0;
@@ -145,6 +163,8 @@ int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 
 int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate)
 {
+	PHM_FUNC_CHECK(hwmgr);
+
 	if (hwmgr->hwmgr_func->powergate_uvd != NULL)
 		return hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
 	return 0;
@@ -152,6 +172,8 @@ int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate)
 
 int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate)
 {
+	PHM_FUNC_CHECK(hwmgr);
+
 	if (hwmgr->hwmgr_func->powergate_vce != NULL)
 		return hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
 	return 0;
@@ -159,6 +181,8 @@ int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate)
 
 int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
+	PHM_FUNC_CHECK(hwmgr);
+
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_TablelessHardwareInterface)) {
 		if (NULL != hwmgr->hwmgr_func->enable_clock_power_gating)
@@ -171,8 +195,7 @@ int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 
 int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr == NULL)
-		return -EINVAL;
+	PHM_FUNC_CHECK(hwmgr);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				 PHM_PlatformCaps_TablelessHardwareInterface)) {
@@ -185,8 +208,7 @@ int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 
 int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr == NULL)
-		return -EINVAL;
+	PHM_FUNC_CHECK(hwmgr);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				 PHM_PlatformCaps_TablelessHardwareInterface))
@@ -198,7 +220,9 @@ int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 
 int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr == NULL || hwmgr->hwmgr_func->stop_thermal_controller == NULL)
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->stop_thermal_controller == NULL)
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->stop_thermal_controller(hwmgr);
@@ -206,7 +230,9 @@ int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 
 int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
 {
-	if (hwmgr == NULL || hwmgr->hwmgr_func->register_internal_thermal_interrupt == NULL)
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->register_internal_thermal_interrupt == NULL)
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->register_internal_thermal_interrupt(hwmgr, info);
@@ -228,7 +254,9 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRa
 
 bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr == NULL || hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration == NULL)
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration == NULL)
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration(hwmgr);
@@ -240,7 +268,9 @@ int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 				 const struct pp_hw_power_state *pstate2,
 				 bool *equal)
 {
-	if (hwmgr == NULL || hwmgr->hwmgr_func->check_states_equal == NULL)
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->check_states_equal == NULL)
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->check_states_equal(hwmgr, pstate1, pstate2, equal);
@@ -249,8 +279,9 @@ int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 		    const struct amd_pp_display_configuration *display_config)
 {
+	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr == NULL)
+	if (hwmgr->hwmgr_func->store_cc6_data == NULL)
 		return -EINVAL;
 
 	hwmgr->display_config = *display_config;
@@ -267,10 +298,11 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 }
 
 int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct amd_pp_dal_clock_info*info)
+		struct amd_pp_dal_clock_info *info)
 {
-	if (info == NULL || hwmgr == NULL ||
-			hwmgr->hwmgr_func->get_dal_power_level == NULL)
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (info == NULL || hwmgr->hwmgr_func->get_dal_power_level == NULL)
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->get_dal_power_level(hwmgr, info);
@@ -278,7 +310,9 @@ int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
 
 int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr != NULL && hwmgr->hwmgr_func->set_cpu_power_state != NULL)
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->set_cpu_power_state != NULL)
 		return hwmgr->hwmgr_func->set_cpu_power_state(hwmgr);
 
 	return 0;
