@@ -32,7 +32,7 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 	return v4l2_device_register_subdev(&chain->dev->vdev, &entity->subdev);
 }
 
-static int uvc_mc_create_pads_links(struct uvc_video_chain *chain,
+static int uvc_mc_create_links(struct uvc_video_chain *chain,
 				    struct uvc_entity *entity)
 {
 	const u32 flags = MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE;
@@ -131,9 +131,9 @@ int uvc_mc_register_entities(struct uvc_video_chain *chain)
 	}
 
 	list_for_each_entry(entity, &chain->entities, chain) {
-		ret = uvc_mc_create_pads_links(chain, entity);
+		ret = uvc_mc_create_links(chain, entity);
 		if (ret < 0) {
-			uvc_printk(KERN_INFO, "Failed to create pads links for "
+			uvc_printk(KERN_INFO, "Failed to create links for "
 				   "entity %u\n", entity->id);
 			return ret;
 		}
