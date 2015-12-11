@@ -163,22 +163,22 @@ static unsigned long tick_dep_mask;
 static void trace_tick_dependency(unsigned long dep)
 {
 	if (dep & TICK_DEP_MASK_POSIX_TIMER) {
-		trace_tick_stop(0, "posix timers running\n");
+		trace_tick_stop(0, TICK_DEP_MASK_POSIX_TIMER);
 		return;
 	}
 
 	if (dep & TICK_DEP_MASK_PERF_EVENTS) {
-		trace_tick_stop(0, "perf events running\n");
+		trace_tick_stop(0, TICK_DEP_MASK_PERF_EVENTS);
 		return;
 	}
 
 	if (dep & TICK_DEP_MASK_SCHED) {
-		trace_tick_stop(0, "more than 1 task in runqueue\n");
+		trace_tick_stop(0, TICK_DEP_MASK_SCHED);
 		return;
 	}
 
 	if (dep & TICK_DEP_MASK_CLOCK_UNSTABLE)
-		trace_tick_stop(0, "unstable sched clock\n");
+		trace_tick_stop(0, TICK_DEP_MASK_CLOCK_UNSTABLE);
 }
 
 static bool can_stop_full_tick(struct tick_sched *ts)
@@ -206,17 +206,17 @@ static bool can_stop_full_tick(struct tick_sched *ts)
 	}
 
 	if (!sched_can_stop_tick()) {
-		trace_tick_stop(0, "more than 1 task in runqueue\n");
+		trace_tick_stop(0, TICK_DEP_MASK_SCHED);
 		return false;
 	}
 
 	if (!posix_cpu_timers_can_stop_tick(current)) {
-		trace_tick_stop(0, "posix timers running\n");
+		trace_tick_stop(0, TICK_DEP_MASK_POSIX_TIMER);
 		return false;
 	}
 
 	if (!perf_event_can_stop_tick()) {
-		trace_tick_stop(0, "perf events running\n");
+		trace_tick_stop(0, TICK_DEP_MASK_PERF_EVENTS);
 		return false;
 	}
 
@@ -228,7 +228,7 @@ static bool can_stop_full_tick(struct tick_sched *ts)
 	 * sched_clock_stable is set.
 	 */
 	if (!sched_clock_stable()) {
-		trace_tick_stop(0, "unstable sched clock\n");
+		trace_tick_stop(0, TICK_DEP_MASK_CLOCK_UNSTABLE);
 		/*
 		 * Don't allow the user to think they can get
 		 * full NO_HZ with this machine.
@@ -821,7 +821,7 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 
 		ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
 		ts->tick_stopped = 1;
-		trace_tick_stop(1, " ");
+		trace_tick_stop(1, TICK_DEP_MASK_NONE);
 	}
 
 	/*
