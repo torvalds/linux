@@ -1279,7 +1279,7 @@ int m68328_console_setup(struct console *cp, char *arg)
 	}
 
 	m68328_set_baud(); /* make sure baud rate changes */
-	return(0);
+	return 0;
 }
 
 
