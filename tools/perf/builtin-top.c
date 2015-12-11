@@ -194,21 +194,23 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 
 	pthread_mutex_unlock(&notes->lock);
 
-	/*
-	 * This function is now called with he->hists->lock held.
-	 * Release it before going to sleep.
-	 */
-	pthread_mutex_unlock(&he->hists->lock);
+	if (unlikely(err)) {
+		/*
+		 * This function is now called with he->hists->lock held.
+		 * Release it before going to sleep.
+		 */
+		pthread_mutex_unlock(&he->hists->lock);
 
-	if (err == -ERANGE && !he->ms.map->erange_warned)
-		ui__warn_map_erange(he->ms.map, sym, ip);
-	else if (err == -ENOMEM) {
-		pr_err("Not enough memory for annotating '%s' symbol!\n",
-		       sym->name);
-		sleep(1);
+		if (err == -ERANGE && !he->ms.map->erange_warned)
+			ui__warn_map_erange(he->ms.map, sym, ip);
+		else if (err == -ENOMEM) {
+			pr_err("Not enough memory for annotating '%s' symbol!\n",
+			       sym->name);
+			sleep(1);
+		}
+
+		pthread_mutex_lock(&he->hists->lock);
 	}
-
-	pthread_mutex_lock(&he->hists->lock);
 }
 
 static void perf_top__show_details(struct perf_top *top)
