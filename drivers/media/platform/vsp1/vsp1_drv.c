@@ -264,19 +264,15 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 			ret = vsp1_wpf_create_links(vsp1, entity);
 			if (ret < 0)
 				goto done;
-			continue;
-		}
-
-		if (entity->type == VSP1_ENTITY_RPF) {
+		} else if (entity->type == VSP1_ENTITY_RPF) {
 			ret = vsp1_rpf_create_links(vsp1, entity);
 			if (ret < 0)
 				goto done;
-			continue;
+		} else {
+			ret = vsp1_create_links(vsp1, entity);
+			if (ret < 0)
+				goto done;
 		}
-
-		ret = vsp1_create_links(vsp1, entity);
-		if (ret < 0)
-			goto done;
 	}
 
 	if (vsp1->pdata.features & VSP1_HAS_LIF) {
