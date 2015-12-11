@@ -540,7 +540,8 @@ static int ina2xx_buffer_enable(struct iio_dev *indio_dev)
 	chip->prev_ns = iio_get_time_ns();
 
 	chip->task = kthread_run(ina2xx_capture_thread, (void *)indio_dev,
-				 "ina2xx-%uus", sampling_us);
+				 "%s:%d-%uus", indio_dev->name, indio_dev->id,
+				 sampling_us);
 
 	return PTR_ERR_OR_ZERO(chip->task);
 }
