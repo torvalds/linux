@@ -33,6 +33,8 @@
 #define PM_INFO_MX7D_ANATOP_V_OFFSET		0x40
 #define PM_INFO_MX7D_SRC_P_OFFSET		0x44
 #define PM_INFO_MX7D_SRC_V_OFFSET		0x48
+#define PM_INFO_MX7D_IOMUXC_GPR_P_OFFSET	0x4c
+#define PM_INFO_MX7D_IOMUXC_GPR_V_OFFSET	0x50
 
 #define MX7D_SRC_GPR1	0x74
 #define MX7D_SRC_GPR2	0x78
@@ -248,10 +250,30 @@
 	orr	r7, r7, #(1 << 3)
 	str	r7, [r10, #DDRC_PWRCTL]
 
+	ldr	r10, [r0, #PM_INFO_MX7D_IOMUXC_GPR_V_OFFSET]
+	ldr	r7, =0xf0000
+	str	r7, [r10]
+
+	ldr	r7, =0x10000
+11:
+	subs	r7, r7, #0x1
+	bne	11b
+
 	.endm
 
 	/* r10 must be DDRC base address */
 	.macro ddrc_exit_self_refresh
+
+	cmp	r5, #0x1
+	ldreq	r10, [r0, #PM_INFO_MX7D_IOMUXC_GPR_P_OFFSET]
+	ldrne	r10, [r0, #PM_INFO_MX7D_IOMUXC_GPR_V_OFFSET]
+	ldr	r7, =0x0
+	str	r7, [r10]
+
+	ldr	r7, =0x10000
+12:
+	subs	r7, r7, #0x1
+	bne	12b
 
 	cmp	r5, #0x1
 	ldreq	r10, [r0, #PM_INFO_MX7D_DDRC_P_OFFSET]
