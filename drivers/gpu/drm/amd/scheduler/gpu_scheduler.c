@@ -47,6 +47,8 @@ static void amd_sched_rq_init(struct amd_sched_rq *rq)
 static void amd_sched_rq_add_entity(struct amd_sched_rq *rq,
 				    struct amd_sched_entity *entity)
 {
+	if (!list_empty(&entity->list))
+		return;
 	spin_lock(&rq->lock);
 	list_add_tail(&entity->list, &rq->entities);
 	spin_unlock(&rq->lock);
@@ -55,6 +57,8 @@ static void amd_sched_rq_add_entity(struct amd_sched_rq *rq,
 static void amd_sched_rq_remove_entity(struct amd_sched_rq *rq,
 				       struct amd_sched_entity *entity)
 {
+	if (list_empty(&entity->list))
+		return;
 	spin_lock(&rq->lock);
 	list_del_init(&entity->list);
 	if (rq->current_entity == entity)
@@ -137,9 +141,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 
 	atomic_set(&entity->fence_seq, 0);
 	entity->fence_context = fence_context_alloc(1);
-
-	/* Add the entity to the run queue */
-	amd_sched_rq_add_entity(rq, entity);
 
 	return 0;
 }
@@ -302,9 +303,11 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 	spin_unlock(&entity->queue_lock);
 
 	/* first job wakes up scheduler */
-	if (first)
+	if (first) {
+		/* Add the entity to the run queue */
+		amd_sched_rq_add_entity(entity->rq, entity);
 		amd_sched_wakeup(sched);
-
+	}
 	return added;
 }
 
