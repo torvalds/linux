@@ -1140,10 +1140,9 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 						dev->gadget->ep0, dev->req,
 						GFP_KERNEL);
 				}
+				spin_lock_irq(&dev->lock);
 				if (retval < 0) {
-					spin_lock_irq (&dev->lock);
 					clean_req (dev->gadget->ep0, dev->req);
-					spin_unlock_irq (&dev->lock);
 				} else
 					retval = len;
 
