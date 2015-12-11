@@ -526,7 +526,7 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 
 	link->source = &source->pads[source_pad];
 	link->sink = &sink->pads[sink_pad];
-	link->flags = flags;
+	link->flags = flags & ~MEDIA_LNK_FL_INTERFACE_LINK;
 
 	/* Initialize graph object embedded at the new link */
 	media_gobj_create(source->graph_obj.mdev, MEDIA_GRAPH_LINK,
@@ -756,7 +756,7 @@ struct media_link *media_create_intf_link(struct media_entity *entity,
 
 	link->intf = intf;
 	link->entity = entity;
-	link->flags = flags;
+	link->flags = flags | MEDIA_LNK_FL_INTERFACE_LINK;
 
 	/* Initialize graph object embedded at the new link */
 	media_gobj_create(intf->graph_obj.mdev, MEDIA_GRAPH_LINK,

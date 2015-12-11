@@ -361,9 +361,6 @@ static long __media_device_get_topology(struct media_device *mdev,
 		klink.sink_id = link->gobj1->id;
 		klink.flags = link->flags;
 
-		if (media_type(link->gobj0) != MEDIA_GRAPH_PAD)
-			klink.flags |= MEDIA_LNK_FL_INTERFACE_LINK;
-
 		if (copy_to_user(ulink, &klink, sizeof(klink)))
 			ret = -EFAULT;
 		ulink++;
