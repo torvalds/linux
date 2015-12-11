@@ -179,7 +179,6 @@ static const struct attribute_group *nd_pfn_attribute_groups[] = {
 };
 
 static struct device *__nd_pfn_create(struct nd_region *nd_region,
-		u8 *uuid, enum nd_pfn_mode mode,
 		struct nd_namespace_common *ndns)
 {
 	struct nd_pfn *nd_pfn;
@@ -199,10 +198,7 @@ static struct device *__nd_pfn_create(struct nd_region *nd_region,
 		return NULL;
 	}
 
-	nd_pfn->mode = mode;
-	if (uuid)
-		uuid = kmemdup(uuid, 16, GFP_KERNEL);
-	nd_pfn->uuid = uuid;
+	nd_pfn->mode = PFN_MODE_NONE;
 	dev = &nd_pfn->dev;
 	dev_set_name(dev, "pfn%d.%d", nd_region->id, nd_pfn->id);
 	dev->parent = &nd_region->dev;
@@ -220,8 +216,7 @@ static struct device *__nd_pfn_create(struct nd_region *nd_region,
 
 struct device *nd_pfn_create(struct nd_region *nd_region)
 {
-	struct device *dev = __nd_pfn_create(nd_region, NULL, PFN_MODE_NONE,
-			NULL);
+	struct device *dev = __nd_pfn_create(nd_region, NULL);
 
 	if (dev)
 		__nd_device_register(dev);
@@ -304,7 +299,7 @@ int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
 		return -ENODEV;
 
 	nvdimm_bus_lock(&ndns->dev);
-	dev = __nd_pfn_create(nd_region, NULL, PFN_MODE_NONE, ndns);
+	dev = __nd_pfn_create(nd_region, ndns);
 	nvdimm_bus_unlock(&ndns->dev);
 	if (!dev)
 		return -ENOMEM;
