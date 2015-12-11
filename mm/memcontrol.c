@@ -2128,7 +2128,7 @@ done_restock:
 	 */
 	do {
 		if (page_counter_read(&memcg->memory) > memcg->high) {
-			current->memcg_nr_pages_over_high += nr_pages;
+			current->memcg_nr_pages_over_high += batch;
 			set_notify_resume(current);
 			break;
 		}
