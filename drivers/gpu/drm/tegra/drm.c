@@ -991,7 +991,6 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	if (!drm)
 		return -ENOMEM;
 
-	drm_dev_set_unique(drm, dev_name(&dev->dev));
 	dev_set_drvdata(&dev->dev, drm);
 
 	err = drm_dev_register(drm, 0);

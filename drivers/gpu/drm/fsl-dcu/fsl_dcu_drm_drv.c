@@ -363,7 +363,6 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	fsl_dev->np = dev->of_node;
 	drm->dev_private = fsl_dev;
 	dev_set_drvdata(dev, fsl_dev);
-	drm_dev_set_unique(drm, dev_name(dev));
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
