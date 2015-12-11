@@ -4557,6 +4557,8 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	/* Initalize Dynamic State Adjustment Rule Settings*/
 	result = tonga_initializa_dynamic_state_adjustment_rule_settings(hwmgr);
+	if (result)
+		printk(KERN_ERR "[ powerplay ] tonga_initializa_dynamic_state_adjustment_rule_settings failed!\n");
 	data->uvd_enabled = 0;
 
 	table = &(data->smc_state_table);
