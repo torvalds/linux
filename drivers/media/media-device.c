@@ -616,7 +616,7 @@ EXPORT_SYMBOL_GPL(media_device_unregister_entity);
 
 
 /**
- * media_device_register - register a media device
+ * media_device_init() - initialize a media device
  * @mdev:	The media device
  *
  * The caller is responsible for initializing the media device before
@@ -625,20 +625,41 @@ EXPORT_SYMBOL_GPL(media_device_unregister_entity);
  * - dev must point to the parent device
  * - model must be filled with the device model name
  */
-int __must_check __media_device_register(struct media_device *mdev,
-					 struct module *owner)
+void media_device_init(struct media_device *mdev)
 {
-	int ret;
-
-	if (WARN_ON(mdev->dev == NULL || mdev->model[0] == 0))
-		return -EINVAL;
-
 	INIT_LIST_HEAD(&mdev->entities);
 	INIT_LIST_HEAD(&mdev->interfaces);
 	INIT_LIST_HEAD(&mdev->pads);
 	INIT_LIST_HEAD(&mdev->links);
 	spin_lock_init(&mdev->lock);
 	mutex_init(&mdev->graph_mutex);
+
+	dev_dbg(mdev->dev, "Media device initialized\n");
+}
+EXPORT_SYMBOL_GPL(media_device_init);
+
+/**
+ * media_device_cleanup() - Cleanup a media device
+ * @mdev:	The media device
+ *
+ */
+void media_device_cleanup(struct media_device *mdev)
+{
+	mutex_destroy(&mdev->graph_mutex);
+}
+EXPORT_SYMBOL_GPL(media_device_cleanup);
+
+/**
+ * __media_device_register() - register a media device
+ * @mdev:	The media device
+ * @owner:	The module owner
+ *
+ * returns zero on success or a negative error code.
+ */
+int __must_check __media_device_register(struct media_device *mdev,
+					 struct module *owner)
+{
+	int ret;
 
 	/* Register the device node. */
 	mdev->devnode.fops = &media_device_fops;

@@ -617,6 +617,7 @@ static void smsdvb_media_device_unregister(struct smsdvb_client_t *client)
 	if (!coredev->media_dev)
 		return;
 	media_device_unregister(coredev->media_dev);
+	media_device_cleanup(coredev->media_dev);
 	kfree(coredev->media_dev);
 	coredev->media_dev = NULL;
 #endif

@@ -95,13 +95,12 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return dvb_usb_ctrl_feed(dvbdmxfeed, 0);
 }
 
-static void dvb_usb_media_device_register(struct dvb_usb_adapter *adap)
+static void dvb_usb_media_device_init(struct dvb_usb_adapter *adap)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	struct media_device *mdev;
 	struct dvb_usb_device *d = adap->dev;
 	struct usb_device *udev = d->udev;
-	int ret;
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
@@ -115,17 +114,18 @@ static void dvb_usb_media_device_register(struct dvb_usb_adapter *adap)
 	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
 	mdev->driver_version = LINUX_VERSION_CODE;
 
-	ret = media_device_register(mdev);
-	if (ret) {
-		dev_err(&d->udev->dev,
-			"Couldn't create a media device. Error: %d\n",
-			ret);
-		kfree(mdev);
-		return;
-	}
+	media_device_init(mdev);
+
 	dvb_register_media_controller(&adap->dvb_adap, mdev);
 
 	dev_info(&d->udev->dev, "media controller created\n");
+#endif
+}
+
+static void dvb_usb_media_device_register(struct dvb_usb_adapter *adap)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	media_device_register(adap->dvb_adap.mdev);
 #endif
 }
 
@@ -136,6 +136,7 @@ static void dvb_usb_media_device_unregister(struct dvb_usb_adapter *adap)
 		return;
 
 	media_device_unregister(adap->dvb_adap.mdev);
+	media_device_cleanup(adap->dvb_adap.mdev);
 	kfree(adap->dvb_adap.mdev);
 	adap->dvb_adap.mdev = NULL;
 #endif
@@ -154,7 +155,7 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap, short *adapter_nums)
 	}
 	adap->dvb_adap.priv = adap;
 
-	dvb_usb_media_device_register(adap);
+	dvb_usb_media_device_init(adap);
 
 	if (adap->dev->props.read_mac_address) {
 		if (adap->dev->props.read_mac_address(adap->dev, adap->dvb_adap.proposed_mac) == 0)
@@ -322,6 +323,8 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		return ret;
 
 	ret = dvb_create_media_graph(&adap->dvb_adap);
+
+	dvb_usb_media_device_register(adap);
 
 	return ret;
 }

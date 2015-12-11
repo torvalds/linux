@@ -127,6 +127,7 @@ static void vsp1_destroy_entities(struct vsp1_device *vsp1)
 
 	v4l2_device_unregister(&vsp1->v4l2_dev);
 	media_device_unregister(&vsp1->media_dev);
+	media_device_cleanup(&vsp1->media_dev);
 }
 
 static int vsp1_create_entities(struct vsp1_device *vsp1)
@@ -141,12 +142,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	strlcpy(mdev->model, "VSP1", sizeof(mdev->model));
 	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
 		 dev_name(mdev->dev));
-	ret = media_device_register(mdev);
-	if (ret < 0) {
-		dev_err(vsp1->dev, "media device registration failed (%d)\n",
-			ret);
-		return ret;
-	}
+	media_device_init(mdev);
 
 	vdev->mdev = mdev;
 	ret = v4l2_device_register(vsp1->dev, vdev);
@@ -284,6 +280,10 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
+	if (ret < 0)
+		goto done;
+
+	ret = media_device_register(mdev);
 
 done:
 	if (ret < 0)

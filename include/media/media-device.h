@@ -338,6 +338,32 @@ struct media_device {
 #define to_media_device(node) container_of(node, struct media_device, devnode)
 
 /**
+ * media_device_init() - Initializes a media device element
+ *
+ * @mdev:	pointer to struct &media_device
+ *
+ * This function initializes the media device prior to its registration.
+ * The media device initialization and registration is split in two functions
+ * to avoid race conditions and make the media device available to user-space
+ * before the media graph has been completed.
+ *
+ * So drivers need to first initialize the media device, register any entity
+ * within the media device, create pad to pad links and then finally register
+ * the media device by calling media_device_register() as a final step.
+ */
+void media_device_init(struct media_device *mdev);
+
+/**
+ * media_device_cleanup() - Cleanups a media device element
+ *
+ * @mdev:	pointer to struct &media_device
+ *
+ * This function that will destroy the graph_mutex that is
+ * initialized in media_device_init().
+ */
+void media_device_cleanup(struct media_device *mdev);
+
+/**
  * __media_device_register() - Registers a media device element
  *
  * @mdev:	pointer to struct &media_device

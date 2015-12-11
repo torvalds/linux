@@ -136,6 +136,7 @@ static void au0828_unregister_media_device(struct au0828_dev *dev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 	if (dev->media_dev) {
 		media_device_unregister(dev->media_dev);
+		media_device_cleanup(dev->media_dev);
 		kfree(dev->media_dev);
 		dev->media_dev = NULL;
 	}
@@ -216,12 +217,11 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	au0828_usb_release(dev);
 }
 
-static void au0828_media_device_register(struct au0828_dev *dev,
-					  struct usb_device *udev)
+static void au0828_media_device_init(struct au0828_dev *dev,
+				     struct usb_device *udev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
-	int ret;
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
@@ -239,14 +239,7 @@ static void au0828_media_device_register(struct au0828_dev *dev,
 	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
 	mdev->driver_version = LINUX_VERSION_CODE;
 
-	ret = media_device_register(mdev);
-	if (ret) {
-		pr_err(
-			"Couldn't create a media device. Error: %d\n",
-			ret);
-		kfree(mdev);
-		return;
-	}
+	media_device_init(mdev);
 
 	dev->media_dev = mdev;
 #endif
@@ -374,8 +367,8 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	dev->boardnr = id->driver_info;
 	dev->board = au0828_boards[dev->boardnr];
 
-	/* Register the media controller */
-	au0828_media_device_register(dev, usbdev);
+	/* Initialize the media controller */
+	au0828_media_device_init(dev, usbdev);
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
 	dev->v4l2_dev.release = au0828_usb_v4l2_release;
@@ -446,8 +439,16 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	if (retval) {
 		pr_err("%s() au0282_dev_register failed to create graph\n",
 		       __func__);
-		au0828_usb_disconnect(interface);
+		goto done;
 	}
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	retval = media_device_register(dev->media_dev);
+#endif
+
+done:
+	if (retval < 0)
+		au0828_usb_disconnect(interface);
 
 	return retval;
 }

@@ -1172,6 +1172,7 @@ static void cx231xx_unregister_media_device(struct cx231xx *dev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 	if (dev->media_dev) {
 		media_device_unregister(dev->media_dev);
+		media_device_cleanup(dev->media_dev);
 		kfree(dev->media_dev);
 		dev->media_dev = NULL;
 	}
@@ -1205,12 +1206,11 @@ void cx231xx_release_resources(struct cx231xx *dev)
 	clear_bit(dev->devno, &cx231xx_devused);
 }
 
-static void cx231xx_media_device_register(struct cx231xx *dev,
-					  struct usb_device *udev)
+static void cx231xx_media_device_init(struct cx231xx *dev,
+				      struct usb_device *udev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
-	int ret;
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
@@ -1224,14 +1224,7 @@ static void cx231xx_media_device_register(struct cx231xx *dev,
 	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
 	mdev->driver_version = LINUX_VERSION_CODE;
 
-	ret = media_device_register(mdev);
-	if (ret) {
-		dev_err(dev->dev,
-			"Couldn't create a media device. Error: %d\n",
-			ret);
-		kfree(mdev);
-		return;
-	}
+	media_device_init(mdev);
 
 	dev->media_dev = mdev;
 #endif
@@ -1669,8 +1662,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-	/* Register the media controller */
-	cx231xx_media_device_register(dev, udev);
+	/* Initialize the media controller */
+	cx231xx_media_device_init(dev, udev);
 
 	/* Create v4l2 device */
 #ifdef CONFIG_MEDIA_CONTROLLER
@@ -1742,11 +1735,18 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	request_modules(dev);
 
 	retval = cx231xx_create_media_graph(dev);
-	if (retval < 0) {
-		cx231xx_release_resources(dev);
-	}
+	if (retval < 0)
+		goto done;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	retval = media_device_register(dev->media_dev);
+#endif
+
+done:
+	if (retval < 0)
+		cx231xx_release_resources(dev);
 	return retval;
+
 err_video_alt:
 	/* cx231xx_uninit_dev: */
 	cx231xx_close_extension(dev);
