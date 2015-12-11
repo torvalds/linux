@@ -352,7 +352,7 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 		screen->lcd_en_gpio = INVALID_GPIO;
 		MIPI_SCREEN_DBG("%s: Can not get child => mipi_power_ctr.\n", __func__);
 	} else {
-		grandchildnode = of_get_child_by_name(childnode, "mipi_lcd_rst");
+		grandchildnode = of_find_node_by_name(childnode, "mipi_lcd_rst");
 		if (!grandchildnode) {
 			screen->lcd_rst_gpio = INVALID_GPIO;
 			MIPI_SCREEN_DBG("%s: Can not read property: mipi_lcd_rst.\n", __func__);
@@ -383,7 +383,7 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 			MIPI_SCREEN_DBG("lcd->lcd_rst_gpio=%d,dsi->lcd_rst_atv_val=%d\n", screen->lcd_rst_gpio, screen->lcd_rst_atv_val);
 		}
 
-		grandchildnode = of_get_child_by_name(childnode, "mipi_lcd_en");
+		grandchildnode = of_find_node_by_name(childnode, "mipi_lcd_en");
 		if (!grandchildnode) {
 			screen->lcd_en_gpio = INVALID_GPIO;
 			MIPI_SCREEN_DBG("%s: Can not read property: mipi_lcd_en.\n", __func__);

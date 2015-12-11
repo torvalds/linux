@@ -217,7 +217,6 @@ static int rk32_phy_power_up(struct dsi *dsi)
 	/* enable ref clock */
 	clk_prepare_enable(dsi->phy.refclk);
 	clk_prepare_enable(dsi->dsi_pclk);
-	clk_prepare_enable(dsi->dsi_pd);
 	udelay(10);
 
 	switch (dsi->host.lane) {
@@ -461,9 +460,7 @@ static int rk312x_phy_power_up(struct dsi *dsi)
 	clk_prepare_enable(dsi->dsi_host_pclk);
 	if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
 		clk_prepare_enable(dsi->h2p_hclk);
-		clk_prepare_enable(dsi->dsi_pd);
-	} else
-		clk_prepare_enable(dsi->dsi_pd);
+	}
 
 	udelay(10);
 
@@ -509,7 +506,6 @@ static int rk32_phy_power_down(struct dsi *dsi)
 	rk32_dsi_set_bits(dsi, 0, phy_shutdownz);
 	clk_disable_unprepare(dsi->phy.refclk);
 	clk_disable_unprepare(dsi->dsi_pclk);
-	clk_disable_unprepare(dsi->dsi_pd);
 	return 0;
 }
 
@@ -524,9 +520,7 @@ static int rk312x_phy_power_down(struct dsi *dsi)
 
 	if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
 		clk_disable_unprepare(dsi->h2p_hclk);
-		clk_disable_unprepare(dsi->dsi_pd);
-	} else
-		clk_disable_unprepare(dsi->dsi_pd);
+	}
 	return 0;
 }
 
@@ -1736,24 +1730,24 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	printk(KERN_INFO "%s\n", data->label);
 	if (dsi->ops.id == DWC_DSI_VERSION) {
 		res_host = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		dsi->host.membase = devm_request_and_ioremap(&pdev->dev, res_host);
-		if (!dsi->host.membase) {
+		dsi->host.membase = devm_ioremap_resource(&pdev->dev, res_host);
+		if (IS_ERR(dsi->host.membase)) {
 			dev_err(&pdev->dev, "get resource mipi host membase fail!\n");
-			return -ENOMEM;
+			return PTR_ERR(dsi->host.membase);
 		}
 	} else if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
 			dsi->ops.id == DWC_DSI_VERSION_RK3368) {
 		res_host = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mipi_dsi_host");
-		dsi->host.membase = devm_request_and_ioremap(&pdev->dev, res_host);
-		if (!dsi->host.membase) {
+		dsi->host.membase = devm_ioremap_resource(&pdev->dev, res_host);
+		if (IS_ERR(dsi->host.membase)) {
 			dev_err(&pdev->dev, "get resource mipi host membase fail!\n");
-			return -ENOMEM;
+			return PTR_ERR(dsi->host.membase);
 		}
 		res_phy = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mipi_dsi_phy");
-		dsi->phy.membase = devm_request_and_ioremap(&pdev->dev, res_phy);
-		if (!dsi->phy.membase) {
+		dsi->phy.membase = devm_ioremap_resource(&pdev->dev, res_phy);
+		if (IS_ERR(dsi->phy.membase)) {
 			dev_err(&pdev->dev, "get resource mipi phy membase fail!\n");
-			return -ENOMEM;
+			return PTR_ERR(dsi->phy.membase);
 		}
 	}
 
@@ -1777,12 +1771,6 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "get pclk_mipi_dsi_host clock fail\n");
 			return PTR_ERR(dsi->dsi_host_pclk);
 		}
-
-		dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
-		if (unlikely(IS_ERR(dsi->dsi_pd))) {
-			dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
-			return PTR_ERR(dsi->dsi_pd);
-		}
 	}
 
 	if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
@@ -1798,21 +1786,8 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "get hclk_vio_h2p clock fail\n");
 			return PTR_ERR(dsi->h2p_hclk);
 		}
-
-		dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
-		if (unlikely(IS_ERR(dsi->dsi_pd))) {
-			dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
-			return PTR_ERR(dsi->dsi_pd);
-		}
 	}
 
-	if (dsi->ops.id == DWC_DSI_VERSION) {
-		dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
-		if (unlikely(IS_ERR(dsi->dsi_pd))) {
-			dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
-			return PTR_ERR(dsi->dsi_pd);
-		}
-	}
 	dsi->host.irq = platform_get_irq(pdev, 0);
 	if (dsi->host.irq < 0) {
 		dev_err(&pdev->dev, "no irq resource?\n");
@@ -1917,7 +1892,6 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 		} else if (dsi->ops.id == DWC_DSI_VERSION_RK3368)
 			clk_prepare_enable(dsi->dsi_host_pclk);
 
-		clk_prepare_enable(dsi->dsi_pd);
 		dsi->clk_on = 1;
 		udelay(10);
 	}

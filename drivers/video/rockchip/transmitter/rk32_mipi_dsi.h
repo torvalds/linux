@@ -307,7 +307,6 @@ struct dsi {
 	struct clk	*dsi_pclk; /* for mipi phy */
 	struct clk	*dsi_host_pclk; /* for mipi host */
 	struct clk	*h2p_hclk;
-	struct clk	*dsi_pd;
 #endif
 	struct dentry *debugfs_dir;
 	struct platform_device *pdev;
