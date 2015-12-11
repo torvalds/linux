@@ -1673,19 +1673,16 @@ static irq_handler_t fatal_interrupts[HISI_SAS_MAX_QUEUES] = {
 
 static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct platform_device *pdev = hisi_hba->pdev;
+	struct device *dev = &pdev->dev;
 	int i, j, irq, rc, idx;
-
-	if (!np)
-		return -ENOENT;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
 
 		idx = i * HISI_SAS_PHY_INT_NR;
 		for (j = 0; j < HISI_SAS_PHY_INT_NR; j++, idx++) {
-			irq = irq_of_parse_and_map(np, idx);
+			irq = platform_get_irq(pdev, idx);
 			if (!irq) {
 				dev_err(dev,
 					"irq init: fail map phy interrupt %d\n",
@@ -1706,7 +1703,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 
 	idx = hisi_hba->n_phy * HISI_SAS_PHY_INT_NR;
 	for (i = 0; i < hisi_hba->queue_count; i++, idx++) {
-		irq = irq_of_parse_and_map(np, idx);
+		irq = platform_get_irq(pdev, idx);
 		if (!irq) {
 			dev_err(dev, "irq init: could not map cq interrupt %d\n",
 				idx);
@@ -1724,7 +1721,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 
 	idx = (hisi_hba->n_phy * HISI_SAS_PHY_INT_NR) + hisi_hba->queue_count;
 	for (i = 0; i < HISI_SAS_FATAL_INT_NR; i++, idx++) {
-		irq = irq_of_parse_and_map(np, idx);
+		irq = platform_get_irq(pdev, idx);
 		if (!irq) {
 			dev_err(dev, "irq init: could not map fatal interrupt %d\n",
 				idx);
