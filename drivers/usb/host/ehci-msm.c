@@ -106,9 +106,9 @@ static int ehci_msm_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * OTG driver takes care of PHY initialization, clock management,
-	 * powering up VBUS, mapping of registers address space and power
-	 * management.
+	 * If there is an OTG driver, let it take care of PHY initialization,
+	 * clock management, powering up VBUS, mapping of registers address
+	 * space and power management.
 	 */
 	if (pdev->dev.of_node)
 		phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
@@ -116,27 +116,35 @@ static int ehci_msm_probe(struct platform_device *pdev)
 		phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 
 	if (IS_ERR(phy)) {
-		dev_err(&pdev->dev, "unable to find transceiver\n");
-		ret = -EPROBE_DEFER;
-		goto put_hcd;
-	}
-
-	ret = otg_set_host(phy->otg, &hcd->self);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "unable to register with transceiver\n");
-		goto put_hcd;
+		if (PTR_ERR(phy) == -EPROBE_DEFER) {
+			dev_err(&pdev->dev, "unable to find transceiver\n");
+			ret = -EPROBE_DEFER;
+			goto put_hcd;
+		}
+		phy = NULL;
 	}
 
 	hcd->usb_phy = phy;
 	device_init_wakeup(&pdev->dev, 1);
-	/*
-	 * OTG device parent of HCD takes care of putting
-	 * hardware into low power mode.
-	 */
-	pm_runtime_no_callbacks(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
 
-	/* FIXME: need to call usb_add_hcd() here? */
+	if (phy && phy->otg) {
+		/*
+		 * MSM OTG driver takes care of adding the HCD and
+		 * placing hardware into low power mode via runtime PM.
+		 */
+		ret = otg_set_host(phy->otg, &hcd->self);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "unable to register with transceiver\n");
+			goto put_hcd;
+		}
+
+		pm_runtime_no_callbacks(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+	} else {
+		ret = usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
+		if (ret)
+			goto put_hcd;
+	}
 
 	return 0;
 
@@ -154,9 +162,10 @@ static int ehci_msm_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
-	otg_set_host(hcd->usb_phy->otg, NULL);
-
-	/* FIXME: need to call usb_remove_hcd() here? */
+	if (hcd->usb_phy && hcd->usb_phy->otg)
+		otg_set_host(hcd->usb_phy->otg, NULL);
+	else
+		usb_remove_hcd(hcd);
 
 	usb_put_hcd(hcd);
 
