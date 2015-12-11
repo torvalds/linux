@@ -28,6 +28,7 @@
 #include <linux/of_address.h>
 #include <linux/clk.h>
 #include <linux/regmap.h>
+#include <linux/gpio/consumer.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -103,6 +104,7 @@ struct sun4i_codec {
 	struct regmap	*regmap;
 	struct clk	*clk_apb;
 	struct clk	*clk_module;
+	struct gpio_desc *gpio_pa;
 
 	struct snd_dmaengine_dai_dma_data	capture_dma_data;
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
@@ -709,6 +711,26 @@ static struct snd_soc_dai_link *sun4i_codec_create_link(struct device *dev,
 	return link;
 };
 
+static int sun4i_codec_spk_event(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *k, int event)
+{
+	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(w->dapm->card);
+
+	if (scodec->gpio_pa)
+		gpiod_set_value_cansleep(scodec->gpio_pa,
+					 !!SND_SOC_DAPM_EVENT_ON(event));
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget sun4i_codec_card_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("Speaker", sun4i_codec_spk_event),
+};
+
+static const struct snd_soc_dapm_route sun4i_codec_card_dapm_routes[] = {
+	{ "Speaker", NULL, "Power Amplifier" },
+};
+
 static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
 {
 	struct snd_soc_card *card;
@@ -723,6 +745,10 @@ static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
 
 	card->dev		= dev;
 	card->name		= "sun4i-codec";
+	card->dapm_widgets	= sun4i_codec_card_dapm_widgets;
+	card->num_dapm_widgets	= ARRAY_SIZE(sun4i_codec_card_dapm_widgets);
+	card->dapm_routes	= sun4i_codec_card_dapm_routes;
+	card->num_dapm_routes	= ARRAY_SIZE(sun4i_codec_card_dapm_routes);
 
 	return card;
 };
@@ -772,6 +798,15 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	if (clk_prepare_enable(scodec->clk_apb)) {
 		dev_err(&pdev->dev, "Failed to enable the APB clock\n");
 		return -EINVAL;
+	}
+
+	scodec->gpio_pa = devm_gpiod_get_optional(&pdev->dev, "allwinner,pa",
+						  GPIOD_OUT_LOW);
+	if (IS_ERR(scodec->gpio_pa)) {
+		ret = PTR_ERR(scodec->gpio_pa);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Failed to get pa gpio: %d\n", ret);
+		return ret;
 	}
 
 	/* DMA configuration for TX FIFO */
