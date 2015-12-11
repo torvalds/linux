@@ -23,6 +23,9 @@
 #ifndef __LINUX_MEDIA_H
 #define __LINUX_MEDIA_H
 
+#ifndef __KERNEL__
+#include <stdint.h>
+#endif
 #include <linux/ioctl.h>
 #include <linux/types.h>
 #include <linux/version.h>
@@ -320,26 +323,25 @@ struct media_v2_link {
 };
 
 struct media_v2_topology {
-	__u32 topology_version;
+	__u64 topology_version;
 
-	__u32 num_entities;
-	struct media_v2_entity *entities;
+	__u64 num_entities;
+	__u64 ptr_entities;
 
-	__u32 num_interfaces;
-	struct media_v2_interface *interfaces;
+	__u64 num_interfaces;
+	__u64 ptr_interfaces;
 
-	__u32 num_pads;
-	struct media_v2_pad *pads;
+	__u64 num_pads;
+	__u64 ptr_pads;
 
-	__u32 num_links;
-	struct media_v2_link *links;
-
-	struct {
-		__u32 reserved_num;
-		void *reserved_ptr;
-	} reserved_types[16];
-	__u32 reserved[8];
+	__u64 num_links;
+	__u64 ptr_links;
 };
+
+static inline void __user *media_get_uptr(__u64 arg)
+{
+	return (void __user *)(uintptr_t)arg;
+}
 
 /* ioctls */
 
