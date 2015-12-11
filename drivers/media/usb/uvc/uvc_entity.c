@@ -19,19 +19,6 @@
 
 #include "uvcvideo.h"
 
-/* ------------------------------------------------------------------------
- * Video subdevices registration and unregistration
- */
-
-static int uvc_mc_register_entity(struct uvc_video_chain *chain,
-	struct uvc_entity *entity)
-{
-	if (UVC_ENTITY_TYPE(entity) == UVC_TT_STREAMING)
-		return 0;
-
-	return v4l2_device_register_subdev(&chain->dev->vdev, &entity->subdev);
-}
-
 static int uvc_mc_create_links(struct uvc_video_chain *chain,
 				    struct uvc_entity *entity)
 {
@@ -85,7 +72,8 @@ void uvc_mc_cleanup_entity(struct uvc_entity *entity)
 		media_entity_cleanup(&entity->vdev->entity);
 }
 
-static int uvc_mc_init_entity(struct uvc_entity *entity)
+static int uvc_mc_init_entity(struct uvc_video_chain *chain,
+			      struct uvc_entity *entity)
 {
 	int ret;
 
@@ -96,6 +84,12 @@ static int uvc_mc_init_entity(struct uvc_entity *entity)
 
 		ret = media_entity_pads_init(&entity->subdev.entity,
 					entity->num_pads, entity->pads);
+
+		if (ret < 0)
+			return ret;
+
+		ret = v4l2_device_register_subdev(&chain->dev->vdev,
+						  &entity->subdev);
 	} else if (entity->vdev != NULL) {
 		ret = media_entity_pads_init(&entity->vdev->entity,
 					entity->num_pads, entity->pads);
@@ -113,18 +107,9 @@ int uvc_mc_register_entities(struct uvc_video_chain *chain)
 	int ret;
 
 	list_for_each_entry(entity, &chain->entities, chain) {
-		ret = uvc_mc_init_entity(entity);
+		ret = uvc_mc_init_entity(chain, entity);
 		if (ret < 0) {
 			uvc_printk(KERN_INFO, "Failed to initialize entity for "
-				   "entity %u\n", entity->id);
-			return ret;
-		}
-	}
-
-	list_for_each_entry(entity, &chain->entities, chain) {
-		ret = uvc_mc_register_entity(chain, entity);
-		if (ret < 0) {
-			uvc_printk(KERN_INFO, "Failed to register entity for "
 				   "entity %u\n", entity->id);
 			return ret;
 		}
