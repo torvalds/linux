@@ -2684,7 +2684,7 @@ static inline void mlxsw_reg_mtmp_unpack(char *payload, unsigned int *p_temp,
 		*p_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
 	}
 	if (p_max_temp) {
-		temp = mlxsw_reg_mtmp_temperature_get(payload);
+		temp = mlxsw_reg_mtmp_max_temperature_get(payload);
 		*p_max_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
 	}
 	if (sensor_name)
