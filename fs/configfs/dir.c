@@ -1079,11 +1079,30 @@ out_unlock_dirent_lock:
 	return ret;
 }
 
+static inline struct configfs_dirent *
+configfs_find_subsys_dentry(struct configfs_dirent *root_sd,
+			    struct config_item *subsys_item)
+{
+	struct configfs_dirent *p;
+	struct configfs_dirent *ret = NULL;
+
+	list_for_each_entry(p, &root_sd->s_children, s_sibling) {
+		if (p->s_type & CONFIGFS_DIR &&
+		    p->s_element == subsys_item) {
+			ret = p;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+
 int configfs_depend_item(struct configfs_subsystem *subsys,
 			 struct config_item *target)
 {
 	int ret;
-	struct configfs_dirent *p, *root_sd, *subsys_sd = NULL;
+	struct configfs_dirent *subsys_sd;
 	struct config_item *s_item = &subsys->su_group.cg_item;
 	struct dentry *root;
 
@@ -1102,17 +1121,7 @@ int configfs_depend_item(struct configfs_subsystem *subsys,
 	 */
 	mutex_lock(&d_inode(root)->i_mutex);
 
-	root_sd = root->d_fsdata;
-
-	list_for_each_entry(p, &root_sd->s_children, s_sibling) {
-		if (p->s_type & CONFIGFS_DIR) {
-			if (p->s_element == s_item) {
-				subsys_sd = p;
-				break;
-			}
-		}
-	}
-
+	subsys_sd = configfs_find_subsys_dentry(root->d_fsdata, s_item);
 	if (!subsys_sd) {
 		ret = -ENOENT;
 		goto out_unlock_fs;
