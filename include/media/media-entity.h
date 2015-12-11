@@ -343,18 +343,112 @@ void media_gobj_init(struct media_device *mdev,
 		    struct media_gobj *gobj);
 void media_gobj_remove(struct media_gobj *gobj);
 
+/**
+ * media_entity_pads_init() - Initialize the entity pads
+ *
+ * @entity:	entity where the pads belong
+ * @num_pads:	number of pads to be initialized
+ * @pads:	pads array
+ *
+ * If no pads are needed, drivers could either directly fill
+ * &media_entity->@num_pads with 0 and &media_entity->@pads with NULL or call
+ * this function that will do the same.
+ *
+ * As the number of pads is known in advance, the pads array is not allocated
+ * dynamically but is managed by the entity driver. Most drivers will embed the
+ * pads array in a driver-specific structure, avoiding dynamic allocation.
+ *
+ * Drivers must set the direction of every pad in the pads array before calling
+ * media_entity_pads_init(). The function will initialize the other pads fields.
+ */
 int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 		      struct media_pad *pads);
 
+/**
+ * media_entity_cleanup() - free resources associated with an entity
+ *
+ * @entity:	entity where the pads belong
+ *
+ * This function must be called during the cleanup phase after unregistering
+ * the entity (currently, it does nothing).
+ */
 static inline void media_entity_cleanup(struct media_entity *entity) {};
 
+/**
+ * media_create_pad_link() - creates a link between two entities.
+ *
+ * @source:	pointer to &media_entity of the source pad.
+ * @source_pad:	number of the source pad in the pads array
+ * @sink:	pointer to &media_entity of the sink pad.
+ * @sink_pad:	number of the sink pad in the pads array.
+ * @flags:	Link flags, as defined in include/uapi/linux/media.h.
+ *
+ * Valid values for flags:
+ * A %MEDIA_LNK_FL_ENABLED flag indicates that the link is enabled and can be
+ *	used to transfer media data. When two or more links target a sink pad,
+ *	only one of them can be enabled at a time.
+ *
+ * A %MEDIA_LNK_FL_IMMUTABLE flag indicates that the link enabled state can't
+ *	be modified at runtime. If %MEDIA_LNK_FL_IMMUTABLE is set, then
+ *	%MEDIA_LNK_FL_ENABLED must also be set since an immutable link is
+ *	always enabled.
+ *
+ * NOTE:
+ *
+ * Before calling this function, media_entity_pads_init() and
+ * media_device_register_entity() should be called previously for both ends.
+ */
 __must_check int media_create_pad_link(struct media_entity *source,
 			u16 source_pad, struct media_entity *sink,
 			u16 sink_pad, u32 flags);
 void __media_entity_remove_links(struct media_entity *entity);
+
+/**
+ * media_entity_remove_links() - remove all links associated with an entity
+ *
+ * @entity:	pointer to &media_entity
+ *
+ * Note: this is called automatically when an entity is unregistered via
+ * media_device_register_entity().
+ */
 void media_entity_remove_links(struct media_entity *entity);
 
 int __media_entity_setup_link(struct media_link *link, u32 flags);
+
+/**
+ * media_entity_setup_link() - changes the link flags properties in runtime
+ *
+ * @link:	pointer to &media_link
+ * @flags:	the requested new link flags
+ *
+ * The only configurable property is the %MEDIA_LNK_FL_ENABLED link flag
+ * flag to enable/disable a link. Links marked with the
+ * %MEDIA_LNK_FL_IMMUTABLE link flag can not be enabled or disabled.
+ *
+ * When a link is enabled or disabled, the media framework calls the
+ * link_setup operation for the two entities at the source and sink of the
+ * link, in that order. If the second link_setup call fails, another
+ * link_setup call is made on the first entity to restore the original link
+ * flags.
+ *
+ * Media device drivers can be notified of link setup operations by setting the
+ * media_device::link_notify pointer to a callback function. If provided, the
+ * notification callback will be called before enabling and after disabling
+ * links.
+ *
+ * Entity drivers must implement the link_setup operation if any of their links
+ * is non-immutable. The operation must either configure the hardware or store
+ * the configuration information to be applied later.
+ *
+ * Link configuration must not have any side effect on other links. If an
+ * enabled link at a sink pad prevents another link at the same pad from
+ * being enabled, the link_setup operation must return -EBUSY and can't
+ * implicitly disable the first enabled link.
+ *
+ * NOTE: the valid values of the flags for the link is the same as described
+ * on media_create_pad_link(), for pad to pad links or the same as described
+ * on media_create_intf_link(), for interface to entity links.
+ */
 int media_entity_setup_link(struct media_link *link, u32 flags);
 struct media_link *media_entity_find_link(struct media_pad *source,
 		struct media_pad *sink);
@@ -371,18 +465,72 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 					     struct media_pipeline *pipe);
 void media_entity_pipeline_stop(struct media_entity *entity);
 
+/**
+ * media_devnode_create() - creates and initializes a device node interface
+ *
+ * @mdev:	pointer to struct &media_device
+ * @type:	type of the interface, as given by MEDIA_INTF_T_* macros
+ *		as defined in the uapi/media/media.h header.
+ * @flags:	Interface flags as defined in uapi/media/media.h.
+ * @major:	Device node major number.
+ * @minor:	Device node minor number.
+ *
+ * Return: if succeeded, returns a pointer to the newly allocated
+ *	&media_intf_devnode pointer.
+ */
 struct media_intf_devnode *
 __must_check media_devnode_create(struct media_device *mdev,
 				  u32 type, u32 flags,
 				  u32 major, u32 minor);
+/**
+ * media_devnode_remove() - removes a device node interface
+ *
+ * @devnode:	pointer to &media_intf_devnode to be freed.
+ *
+ * When a device node interface is removed, all links to it are automatically
+ * removed.
+ */
 void media_devnode_remove(struct media_intf_devnode *devnode);
 struct media_link *
+
+/**
+ * media_create_intf_link() - creates a link between an entity and an interface
+ *
+ * @entity:	pointer to %media_entity
+ * @intf:	pointer to %media_interface
+ * @flags:	Link flags, as defined in include/uapi/linux/media.h.
+ *
+ *
+ * Valid values for flags:
+ * The %MEDIA_LNK_FL_ENABLED flag indicates that the interface is connected to
+ *	the entity hardware. That's the default value for interfaces. An
+ *	interface may be disabled if the hardware is busy due to the usage
+ *	of some other interface that it is currently controlling the hardware.
+ *	A typical example is an hybrid TV device that handle only one type of
+ *	stream on a given time. So, when the digital TV is streaming,
+ *	the V4L2 interfaces won't be enabled, as such device is not able to
+ *	also stream analog TV or radio.
+ *
+ * Note:
+ *
+ * Before calling this function, media_devnode_create() should be called for
+ * the interface and media_device_register_entity() should be called for the
+ * interface that will be part of the link.
+ */
 __must_check media_create_intf_link(struct media_entity *entity,
 				    struct media_interface *intf,
 				    u32 flags);
 void __media_remove_intf_link(struct media_link *link);
 void media_remove_intf_link(struct media_link *link);
 void __media_remove_intf_links(struct media_interface *intf);
+/**
+ * media_remove_intf_links() - remove all links associated with an interface
+ *
+ * @intf:	pointer to &media_interface
+ *
+ * Note: this is called automatically when an entity is unregistered via
+ * media_device_register_entity() and by media_devnode_remove().
+ */
 void media_remove_intf_links(struct media_interface *intf);
 
 
