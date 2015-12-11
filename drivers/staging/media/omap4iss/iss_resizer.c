@@ -857,12 +857,12 @@ int omap4iss_resizer_init(struct iss_device *iss)
 }
 
 /*
- * omap4iss_resizer_create_pads_links() - RESIZER pads links creation
+ * omap4iss_resizer_create_links() - RESIZER pads links creation
  * @iss: Pointer to ISS device
  *
  * return negative error code or zero on success
  */
-int omap4iss_resizer_create_pads_links(struct iss_device *iss)
+int omap4iss_resizer_create_links(struct iss_device *iss)
 {
 	struct iss_resizer_device *resizer = &iss->resizer;
 

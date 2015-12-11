@@ -1273,28 +1273,28 @@ done:
 }
 
 /*
- * iss_create_pads_links() - Pads links creation for the subdevices
+ * iss_create_links() - Pads links creation for the subdevices
  * @iss : Pointer to ISS device
  *
  * return negative error code or zero on success
  */
-static int iss_create_pads_links(struct iss_device *iss)
+static int iss_create_links(struct iss_device *iss)
 {
 	int ret;
 
-	ret = omap4iss_csi2_create_pads_links(iss);
+	ret = omap4iss_csi2_create_links(iss);
 	if (ret < 0) {
 		dev_err(iss->dev, "CSI2 pads links creation failed\n");
 		return ret;
 	}
 
-	ret = omap4iss_ipipeif_create_pads_links(iss);
+	ret = omap4iss_ipipeif_create_links(iss);
 	if (ret < 0) {
 		dev_err(iss->dev, "ISP IPIPEIF pads links creation failed\n");
 		return ret;
 	}
 
-	ret = omap4iss_resizer_create_pads_links(iss);
+	ret = omap4iss_resizer_create_links(iss);
 	if (ret < 0) {
 		dev_err(iss->dev, "ISP RESIZER pads links creation failed\n");
 		return ret;
@@ -1491,7 +1491,7 @@ static int iss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_modules;
 
-	ret = iss_create_pads_links(iss);
+	ret = iss_create_links(iss);
 	if (ret < 0)
 		goto error_entities;
 

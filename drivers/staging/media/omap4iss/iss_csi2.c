@@ -1339,12 +1339,12 @@ int omap4iss_csi2_init(struct iss_device *iss)
 }
 
 /*
- * omap4iss_csi2_create_pads_links() - CSI2 pads links creation
+ * omap4iss_csi2_create_links() - CSI2 pads links creation
  * @iss: Pointer to ISS device
  *
  * return negative error code or zero on success
  */
-int omap4iss_csi2_create_pads_links(struct iss_device *iss)
+int omap4iss_csi2_create_links(struct iss_device *iss)
 {
 	struct iss_csi2_device *csi2a = &iss->csi2a;
 	struct iss_csi2_device *csi2b = &iss->csi2b;
