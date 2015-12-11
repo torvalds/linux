@@ -591,7 +591,7 @@ void media_device_unregister(struct media_device *mdev)
 	list_for_each_entry_safe(intf, tmp_intf, &mdev->interfaces,
 				 graph_obj.list) {
 		__media_remove_intf_links(intf);
-		media_gobj_remove(&intf->graph_obj);
+		media_gobj_destroy(&intf->graph_obj);
 		kfree(intf);
 	}
 	spin_unlock(&mdev->lock);
@@ -628,11 +628,11 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 
 	spin_lock(&mdev->lock);
 	/* Initialize media_gobj embedded at the entity */
-	media_gobj_init(mdev, MEDIA_GRAPH_ENTITY, &entity->graph_obj);
+	media_gobj_create(mdev, MEDIA_GRAPH_ENTITY, &entity->graph_obj);
 
 	/* Initialize objects at the pads */
 	for (i = 0; i < entity->num_pads; i++)
-		media_gobj_init(mdev, MEDIA_GRAPH_PAD,
+		media_gobj_create(mdev, MEDIA_GRAPH_PAD,
 			       &entity->pads[i].graph_obj);
 
 	spin_unlock(&mdev->lock);
@@ -673,10 +673,10 @@ void media_device_unregister_entity(struct media_entity *entity)
 
 	/* Remove all pads that belong to this entity */
 	for (i = 0; i < entity->num_pads; i++)
-		media_gobj_remove(&entity->pads[i].graph_obj);
+		media_gobj_destroy(&entity->pads[i].graph_obj);
 
 	/* Remove the entity */
-	media_gobj_remove(&entity->graph_obj);
+	media_gobj_destroy(&entity->graph_obj);
 
 	spin_unlock(&mdev->lock);
 	entity->graph_obj.mdev = NULL;

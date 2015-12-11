@@ -134,7 +134,7 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 }
 
 /**
- *  media_gobj_init - Initialize a graph object
+ *  media_gobj_create - Initialize a graph object
  *
  * @mdev:	Pointer to the media_device that contains the object
  * @type:	Type of the object
@@ -146,7 +146,7 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
  * is embedded on some other object, this function should be called before
  * registering the object at the media controller.
  */
-void media_gobj_init(struct media_device *mdev,
+void media_gobj_create(struct media_device *mdev,
 			   enum media_gobj_type type,
 			   struct media_gobj *gobj)
 {
@@ -180,13 +180,13 @@ void media_gobj_init(struct media_device *mdev,
 }
 
 /**
- *  media_gobj_remove - Stop using a graph object on a media device
+ *  media_gobj_destroy - Stop using a graph object on a media device
  *
  * @graph_obj:	Pointer to the object
  *
  * This should be called at media_device_unregister_*() routines
  */
-void media_gobj_remove(struct media_gobj *gobj)
+void media_gobj_destroy(struct media_gobj *gobj)
 {
 	dev_dbg_obj(__func__, gobj);
 
@@ -235,7 +235,7 @@ media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 		pads[i].entity = entity;
 		pads[i].index = i;
 		if (mdev)
-			media_gobj_init(mdev, MEDIA_GRAPH_PAD,
+			media_gobj_create(mdev, MEDIA_GRAPH_PAD,
 					&entity->pads[i].graph_obj);
 	}
 
@@ -607,14 +607,14 @@ static void __media_entity_remove_link(struct media_entity *entity,
 
 		/* Remove the remote link */
 		list_del(&rlink->list);
-		media_gobj_remove(&rlink->graph_obj);
+		media_gobj_destroy(&rlink->graph_obj);
 		kfree(rlink);
 
 		if (--remote->num_links == 0)
 			break;
 	}
 	list_del(&link->list);
-	media_gobj_remove(&link->graph_obj);
+	media_gobj_destroy(&link->graph_obj);
 	kfree(link);
 }
 
@@ -638,7 +638,7 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	link->flags = flags;
 
 	/* Initialize graph object embedded at the new link */
-	media_gobj_init(source->graph_obj.mdev, MEDIA_GRAPH_LINK,
+	media_gobj_create(source->graph_obj.mdev, MEDIA_GRAPH_LINK,
 			&link->graph_obj);
 
 	/* Create the backlink. Backlinks are used to help graph traversal and
@@ -656,7 +656,7 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	backlink->is_backlink = true;
 
 	/* Initialize graph object embedded at the new link */
-	media_gobj_init(sink->graph_obj.mdev, MEDIA_GRAPH_LINK,
+	media_gobj_create(sink->graph_obj.mdev, MEDIA_GRAPH_LINK,
 			&backlink->graph_obj);
 
 	link->reverse = backlink;
@@ -852,7 +852,7 @@ static void media_interface_init(struct media_device *mdev,
 	intf->flags = flags;
 	INIT_LIST_HEAD(&intf->links);
 
-	media_gobj_init(mdev, gobj_type, &intf->graph_obj);
+	media_gobj_create(mdev, gobj_type, &intf->graph_obj);
 }
 
 /* Functions related to the media interface via device nodes */
@@ -880,7 +880,7 @@ EXPORT_SYMBOL_GPL(media_devnode_create);
 void media_devnode_remove(struct media_intf_devnode *devnode)
 {
 	media_remove_intf_links(&devnode->intf);
-	media_gobj_remove(&devnode->intf.graph_obj);
+	media_gobj_destroy(&devnode->intf.graph_obj);
 	kfree(devnode);
 }
 EXPORT_SYMBOL_GPL(media_devnode_remove);
@@ -900,7 +900,7 @@ struct media_link *media_create_intf_link(struct media_entity *entity,
 	link->flags = flags;
 
 	/* Initialize graph object embedded at the new link */
-	media_gobj_init(intf->graph_obj.mdev, MEDIA_GRAPH_LINK,
+	media_gobj_create(intf->graph_obj.mdev, MEDIA_GRAPH_LINK,
 			&link->graph_obj);
 
 	return link;
@@ -910,7 +910,7 @@ EXPORT_SYMBOL_GPL(media_create_intf_link);
 void __media_remove_intf_link(struct media_link *link)
 {
 	list_del(&link->list);
-	media_gobj_remove(&link->graph_obj);
+	media_gobj_destroy(&link->graph_obj);
 	kfree(link);
 }
 EXPORT_SYMBOL_GPL(__media_remove_intf_link);
