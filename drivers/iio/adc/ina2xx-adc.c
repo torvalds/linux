@@ -111,7 +111,7 @@ struct ina2xx_chip_info {
 	struct task_struct *task;
 	const struct ina2xx_config *config;
 	struct mutex state_lock;
-	long rshunt;
+	unsigned int shunt_resistor;
 	int avg;
 	s64 prev_ns;	/* track buffer capture time, check for underruns*/
 	int int_time_vbus; /* Bus voltage integration time uS */
@@ -349,6 +349,42 @@ static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
 	return len;
 }
 
+static int set_shunt_resistor(struct ina2xx_chip_info *chip, unsigned int val)
+{
+	if (val <= 0 || val > chip->config->calibration_factor)
+		return -EINVAL;
+
+	chip->shunt_resistor = val;
+	return 0;
+}
+
+static ssize_t ina2xx_shunt_resistor_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct ina2xx_chip_info *chip = iio_priv(dev_to_iio_dev(dev));
+
+	return sprintf(buf, "%d\n", chip->shunt_resistor);
+}
+
+static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t len)
+{
+	struct ina2xx_chip_info *chip = iio_priv(dev_to_iio_dev(dev));
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul((const char *) buf, 10, &val);
+	if (ret)
+		return ret;
+
+	ret = set_shunt_resistor(chip, val);
+	if (ret)
+		return ret;
+
+	return len;
+}
 
 #define INA2XX_CHAN(_type, _index, _address) { \
 	.type = (_type), \
@@ -545,9 +581,14 @@ static IIO_DEVICE_ATTR(in_allow_async_readout, S_IRUGO | S_IWUSR,
 		       ina2xx_allow_async_readout_show,
 		       ina2xx_allow_async_readout_store, 0);
 
+static IIO_DEVICE_ATTR(in_shunt_resistor, S_IRUGO | S_IWUSR,
+		       ina2xx_shunt_resistor_show,
+		       ina2xx_shunt_resistor_store, 0);
+
 static struct attribute *ina2xx_attributes[] = {
 	&iio_dev_attr_in_allow_async_readout.dev_attr.attr,
 	&iio_const_attr_integration_time_available.dev_attr.attr,
+	&iio_dev_attr_in_shunt_resistor.dev_attr.attr,
 	NULL,
 };
 
@@ -579,7 +620,7 @@ static int ina2xx_init(struct ina2xx_chip_info *chip, unsigned int config)
 	 * to the user for now.
 	 */
 	regval = DIV_ROUND_CLOSEST(chip->config->calibration_factor,
-			    chip->rshunt);
+			    chip->shunt_resistor);
 
 	return regmap_write(chip->regmap, INA2XX_CALIBRATION, regval);
 }
@@ -612,10 +653,9 @@ static int ina2xx_probe(struct i2c_client *client,
 			val = INA2XX_RSHUNT_DEFAULT;
 	}
 
-	if (val <= 0 || val > chip->config->calibration_factor)
-		return -ENODEV;
-
-	chip->rshunt = val;
+	ret = set_shunt_resistor(chip, val);
+	if (ret)
+		return ret;
 
 	mutex_init(&chip->state_lock);
 
