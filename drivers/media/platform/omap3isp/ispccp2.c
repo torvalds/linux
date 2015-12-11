@@ -1102,11 +1102,11 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 
 	ret = omap3isp_video_init(&ccp2->video_in, "CCP2");
 	if (ret < 0)
-		goto error_video;
+		goto error;
 
 	return 0;
 
-error_video:
+error:
 	media_entity_cleanup(&ccp2->subdev.entity);
 	return ret;
 }

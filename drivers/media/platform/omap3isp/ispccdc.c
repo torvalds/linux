@@ -2669,11 +2669,11 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 
 	ret = omap3isp_video_init(&ccdc->video_out, "CCDC");
 	if (ret < 0)
-		goto error_video;
+		goto error;
 
 	return 0;
 
-error_video:
+error:
 	media_entity_cleanup(me);
 	return ret;
 }
