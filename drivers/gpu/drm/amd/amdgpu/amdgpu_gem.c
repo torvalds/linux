@@ -447,7 +447,6 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 				    struct amdgpu_bo_va *bo_va, uint32_t operation)
 {
 	struct ttm_validate_buffer tv, *entry;
-	struct amdgpu_bo_list_entry *vm_bos;
 	struct amdgpu_bo_list_entry vm_pd;
 	struct ww_acquire_ctx ticket;
 	struct list_head list, duplicates;
@@ -468,12 +467,7 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	if (r)
 		goto error_print;
 
-	vm_bos = amdgpu_vm_get_pt_bos(bo_va->vm, &duplicates);
-	if (!vm_bos) {
-		r = -ENOMEM;
-		goto error_unreserve;
-	}
-
+	amdgpu_vm_get_pt_bos(bo_va->vm, &duplicates);
 	list_for_each_entry(entry, &list, head) {
 		domain = amdgpu_mem_type_to_domain(entry->bo->mem.mem_type);
 		/* if anything is swapped out don't swap it in here,
@@ -494,7 +488,6 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 
 error_unreserve:
 	ttm_eu_backoff_reservation(&ticket, &list);
-	drm_free_large(vm_bos);
 
 error_print:
 	if (r && r != -ERESTARTSYS)

@@ -396,11 +396,7 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 	if (unlikely(r != 0))
 		goto error_reserve;
 
-	p->vm_bos = amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
-	if (!p->vm_bos) {
-		r = -ENOMEM;
-		goto error_validate;
-	}
+	amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
 
 	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
 	if (r)
@@ -483,7 +479,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 	if (parser->bo_list)
 		amdgpu_bo_list_put(parser->bo_list);
 
-	drm_free_large(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);

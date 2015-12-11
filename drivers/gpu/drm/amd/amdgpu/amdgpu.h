@@ -917,8 +917,8 @@ struct amdgpu_ring {
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
 struct amdgpu_vm_pt {
-	struct amdgpu_bo	*bo;
-	uint64_t		addr;
+	struct amdgpu_bo_list_entry	entry;
+	uint64_t			addr;
 };
 
 struct amdgpu_vm_id {
@@ -983,8 +983,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct list_head *validated,
 			 struct amdgpu_bo_list_entry *entry);
-struct amdgpu_bo_list_entry *amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm,
-						  struct list_head *duplicates);
+void amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm, struct list_head *duplicates);
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync);
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
@@ -1255,7 +1254,6 @@ struct amdgpu_cs_parser {
 	struct amdgpu_cs_chunk	*chunks;
 	/* relocations */
 	struct amdgpu_bo_list_entry	vm_pd;
-	struct amdgpu_bo_list_entry	*vm_bos;
 	struct list_head	validated;
 	struct fence		*fence;
 
