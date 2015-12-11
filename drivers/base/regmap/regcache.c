@@ -100,14 +100,18 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	int i;
 	void *tmp_buf;
 
-	for (i = 0; i < config->num_reg_defaults; i++)
-		if (config->reg_defaults[i].reg % map->reg_stride)
-			return -EINVAL;
-
 	if (map->cache_type == REGCACHE_NONE) {
+		if (config->reg_defaults || config->num_reg_defaults_raw)
+			dev_warn(map->dev,
+				 "No cache used with register defaults set!\n");
+
 		map->cache_bypass = true;
 		return 0;
 	}
+
+	for (i = 0; i < config->num_reg_defaults; i++)
+		if (config->reg_defaults[i].reg % map->reg_stride)
+			return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(cache_types); i++)
 		if (cache_types[i]->type == map->cache_type)
