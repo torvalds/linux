@@ -250,20 +250,20 @@ static void regmap_format_64_be(void *buf, unsigned int val, unsigned int shift)
 {
 	__be64 *b = buf;
 
-	b[0] = cpu_to_be64(val << shift);
+	b[0] = cpu_to_be64((u64)val << shift);
 }
 
 static void regmap_format_64_le(void *buf, unsigned int val, unsigned int shift)
 {
 	__le64 *b = buf;
 
-	b[0] = cpu_to_le64(val << shift);
+	b[0] = cpu_to_le64((u64)val << shift);
 }
 
 static void regmap_format_64_native(void *buf, unsigned int val,
 				    unsigned int shift)
 {
-	*(u64 *)buf = val << shift;
+	*(u64 *)buf = (u64)val << shift;
 }
 #endif
 
