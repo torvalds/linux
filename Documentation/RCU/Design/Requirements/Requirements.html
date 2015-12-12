@@ -1,5 +1,5 @@
 <!-- DO NOT HAND EDIT. -->
-<!-- Instead, edit Documentation/RCU/Design/Requirements/Requirements.htmlx and run 'sh htmlqqz.sh Documentation/RCU/Design/Requirements/Requirements' -->
+<!-- Instead, edit Requirements.htmlx and run 'sh htmlqqz.sh Requirements' -->
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
         "http://www.w3.org/TR/html4/loose.dtd">
         <html>
@@ -2169,6 +2169,14 @@ applies to even the largest systems [PDF]</a>,
 up to and including systems with 4096 CPUs.
 This real-time requirement motivated the grace-period kthread, which
 also simplified handling of a number of race conditions.
+
+<p>
+RCU must avoid degrading real-time response for CPU-bound threads, whether
+executing in usermode (which is one use case for
+<tt>CONFIG_NO_HZ_FULL=y</tt>) or in the kernel.
+That said, CPU-bound loops in the kernel must execute
+<tt>cond_resched_rcu_qs()</tt> at least once per few tens of milliseconds
+in order to avoid receiving an IPI from RCU.
 
 <p>
 Finally, RCU's status as a synchronization primitive means that

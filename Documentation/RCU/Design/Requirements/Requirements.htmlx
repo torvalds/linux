@@ -2338,6 +2338,14 @@ This real-time requirement motivated the grace-period kthread, which
 also simplified handling of a number of race conditions.
 
 <p>
+RCU must avoid degrading real-time response for CPU-bound threads, whether
+executing in usermode (which is one use case for
+<tt>CONFIG_NO_HZ_FULL=y</tt>) or in the kernel.
+That said, CPU-bound loops in the kernel must execute
+<tt>cond_resched_rcu_qs()</tt> at least once per few tens of milliseconds
+in order to avoid receiving an IPI from RCU.
+
+<p>
 Finally, RCU's status as a synchronization primitive means that
 any RCU failure can result in arbitrary memory corruption that can be
 extremely difficult to debug.
