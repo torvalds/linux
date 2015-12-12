@@ -50,10 +50,28 @@
 		device_type = "memory";
 		reg = <0x000000000 0x80000000 0x00000000 0x40000000>;
 	};
+};
 
-	soc: soc {
-		uart3: serial@66130000 {
-			status = "ok";
-		};
+&i2c0 {
+	status = "ok";
+};
+
+&i2c1 {
+	status = "ok";
+};
+
+&uart3 {
+	status = "ok";
+};
+
+&nand {
+	nandcs@0 {
+		compatible = "brcm,nandcs";
+		reg = <0>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <8>;
+		nand-ecc-step-size = <512>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 	};
 };
