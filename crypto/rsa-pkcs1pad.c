@@ -110,21 +110,32 @@ static int pkcs1pad_encrypt_sign_complete(struct akcipher_request *req, int err)
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct pkcs1pad_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct pkcs1pad_request *req_ctx = akcipher_request_ctx(req);
-	uint8_t zeros[ctx->key_size - req_ctx->child_req.dst_len];
+	size_t pad_len = ctx->key_size - req_ctx->child_req.dst_len;
+	size_t chunk_len, pad_left;
+	struct sg_mapping_iter miter;
 
 	if (!err) {
-		if (req_ctx->child_req.dst_len < ctx->key_size) {
-			memset(zeros, 0, sizeof(zeros));
-			sg_copy_from_buffer(req->dst,
-					sg_nents_for_len(req->dst,
-						sizeof(zeros)),
-					zeros, sizeof(zeros));
+		if (pad_len) {
+			sg_miter_start(&miter, req->dst,
+					sg_nents_for_len(req->dst, pad_len),
+					SG_MITER_ATOMIC | SG_MITER_TO_SG);
+
+			pad_left = pad_len;
+			while (pad_left) {
+				sg_miter_next(&miter);
+
+				chunk_len = min(miter.length, pad_left);
+				memset(miter.addr, 0, chunk_len);
+				pad_left -= chunk_len;
+			}
+
+			sg_miter_stop(&miter);
 		}
 
 		sg_pcopy_from_buffer(req->dst,
 				sg_nents_for_len(req->dst, ctx->key_size),
 				req_ctx->out_buf, req_ctx->child_req.dst_len,
-				sizeof(zeros));
+				pad_len);
 	}
 	req->dst_len = ctx->key_size;
 
