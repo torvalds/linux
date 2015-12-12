@@ -33,7 +33,7 @@
 	    <entry>Digital TV demodulator entity.</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_F_MPEG_TS_DEMUX</constant></entry>
+	    <entry><constant>MEDIA_ENT_F_TS_DEMUX</constant></entry>
 	    <entry>MPEG Transport stream demux entity. Could be implemented on hardware or in Kernelspace by the Linux DVB subsystem.</entry>
 	  </row>
 	  <row>
@@ -101,6 +101,10 @@
 	    <entry>Default entity for its type. Used to discover the default
 	    audio, VBI and video devices, the default camera sensor, ...</entry>
 	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_FL_CONNECTOR</constant></entry>
+	    <entry>The entity represents a data conector</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
@@ -158,6 +162,15 @@
 	    <entry><constant>MEDIA_LNK_FL_DYNAMIC</constant></entry>
 	    <entry>The link enabled state can be modified during streaming. This
 	    flag is set by drivers and is read-only for applications.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_LNK_FL_LINK_TYPE</constant></entry>
+	    <entry><para>This is a bitmask that defines the type of the link.
+		   Currently, two types of links are supported:</para>
+	    <para><constant>MEDIA_LNK_FL_DATA_LINK</constant>
+	    if the link is between two pads</para>
+	    <para><constant>MEDIA_LNK_FL_INTERFACE_LINK</constant>
+	    if the link is between an interface and an entity</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
