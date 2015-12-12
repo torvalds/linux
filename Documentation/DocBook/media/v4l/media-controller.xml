@@ -98,6 +98,7 @@
   &sub-media-func-ioctl;
   <!-- All ioctls go here. -->
   &sub-media-ioc-device-info;
+  &sub-media-ioc-g-topology;
   &sub-media-ioc-enum-entities;
   &sub-media-ioc-enum-links;
   &sub-media-ioc-setup-link;
