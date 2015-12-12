@@ -844,6 +844,7 @@ struct regmap *__regmap_init(struct device *dev,
 		}
 		break;
 #ifdef CONFIG_64BIT
+	case 64:
 		switch (val_endian) {
 		case REGMAP_ENDIAN_BIG:
 			map->format.format_val = regmap_format_64_be;
