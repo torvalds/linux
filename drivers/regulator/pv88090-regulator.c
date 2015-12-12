@@ -392,17 +392,17 @@ static int pv88090_i2c_probe(struct i2c_client *i2c,
 			if (ret < 0)
 				return ret;
 
-			conf2 = ((conf2 >> PV88090_BUCK_VDAC_RANGE_SHIFT)
-				&& PV88090_BUCK_VDAC_RANGE_MASK);
+			conf2 = (conf2 >> PV88090_BUCK_VDAC_RANGE_SHIFT) &
+				PV88090_BUCK_VDAC_RANGE_MASK;
 
 			ret = regmap_read(chip->regmap,
 				PV88090_REG_BUCK_FOLD_RANGE, &range);
 			if (ret < 0)
 				return ret;
 
-			range = ((range
-				>> (PV88080_BUCK_VRANGE_GAIN_SHIFT + i - 1))
-				&& PV88080_BUCK_VRANGE_GAIN_MASK);
+			range = (range >>
+				 (PV88080_BUCK_VRANGE_GAIN_SHIFT + i - 1)) &
+				PV88080_BUCK_VRANGE_GAIN_MASK;
 			index = ((range << 1) | conf2);
 
 			pv88090_regulator_info[i].desc.min_uV
