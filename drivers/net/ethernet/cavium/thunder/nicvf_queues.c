@@ -299,7 +299,7 @@ static int nicvf_init_cmp_queue(struct nicvf *nic,
 		return err;
 
 	cq->desc = cq->dmem.base;
-	cq->thresh = CMP_QUEUE_CQE_THRESH;
+	cq->thresh = pass1_silicon(nic->pdev) ? 0 : CMP_QUEUE_CQE_THRESH;
 	nic->cq_coalesce_usecs = (CMP_QUEUE_TIMER_THRESH * 0.05) - 1;
 
 	return 0;
@@ -925,7 +925,7 @@ static int nicvf_sq_subdesc_required(struct nicvf *nic, struct sk_buff *skb)
 {
 	int subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT;
 
-	if (skb_shinfo(skb)->gso_size) {
+	if (skb_shinfo(skb)->gso_size && !nic->hw_tso) {
 		subdesc_cnt = nicvf_tso_count_subdescs(skb);
 		return subdesc_cnt;
 	}
@@ -940,7 +940,7 @@ static int nicvf_sq_subdesc_required(struct nicvf *nic, struct sk_buff *skb)
  * First subdescriptor for every send descriptor.
  */
 static inline void
-nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
+nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 			 int subdesc_cnt, struct sk_buff *skb, int len)
 {
 	int proto;
@@ -975,6 +975,15 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 			hdr->csum_l4 = SEND_L4_CSUM_SCTP;
 			break;
 		}
+	}
+
+	if (nic->hw_tso && skb_shinfo(skb)->gso_size) {
+		hdr->tso = 1;
+		hdr->tso_start = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr->tso_max_paysize = skb_shinfo(skb)->gso_size;
+		/* For non-tunneled pkts, point this to L2 ethertype */
+		hdr->inner_l3_offset = skb_network_offset(skb) - 2;
+		nic->drv_stats.tx_tso++;
 	}
 }
 
@@ -1045,7 +1054,7 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 			data_left -= size;
 			tso_build_data(skb, &tso, size);
 		}
-		nicvf_sq_add_hdr_subdesc(sq, hdr_qentry,
+		nicvf_sq_add_hdr_subdesc(nic, sq, hdr_qentry,
 					 seg_subdescs - 1, skb, seg_len);
 		sq->skbuff[hdr_qentry] = (u64)NULL;
 		qentry = nicvf_get_nxt_sqentry(sq, qentry);
@@ -1098,11 +1107,12 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb)
 	qentry = nicvf_get_sq_desc(sq, subdesc_cnt);
 
 	/* Check if its a TSO packet */
-	if (skb_shinfo(skb)->gso_size)
+	if (skb_shinfo(skb)->gso_size && !nic->hw_tso)
 		return nicvf_sq_append_tso(nic, sq, sq_num, qentry, skb);
 
 	/* Add SQ header subdesc */
-	nicvf_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, skb, skb->len);
+	nicvf_sq_add_hdr_subdesc(nic, sq, qentry, subdesc_cnt - 1,
+				 skb, skb->len);
 
 	/* Add SQ gather subdescs */
 	qentry = nicvf_get_nxt_sqentry(sq, qentry);
