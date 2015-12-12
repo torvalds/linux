@@ -375,6 +375,72 @@ void __init early_print(const char *str, ...)
 	printk("%s", buf);
 }
 
+#ifdef CONFIG_ARM_PATCH_IDIV
+
+static inline u32 __attribute_const__ sdiv_instruction(void)
+{
+	if (IS_ENABLED(CONFIG_THUMB2_KERNEL)) {
+		/* "sdiv r0, r0, r1" */
+		u32 insn = __opcode_thumb32_compose(0xfb90, 0xf0f1);
+		return __opcode_to_mem_thumb32(insn);
+	}
+
+	/* "sdiv r0, r0, r1" */
+	return __opcode_to_mem_arm(0xe710f110);
+}
+
+static inline u32 __attribute_const__ udiv_instruction(void)
+{
+	if (IS_ENABLED(CONFIG_THUMB2_KERNEL)) {
+		/* "udiv r0, r0, r1" */
+		u32 insn = __opcode_thumb32_compose(0xfbb0, 0xf0f1);
+		return __opcode_to_mem_thumb32(insn);
+	}
+
+	/* "udiv r0, r0, r1" */
+	return __opcode_to_mem_arm(0xe730f110);
+}
+
+static inline u32 __attribute_const__ bx_lr_instruction(void)
+{
+	if (IS_ENABLED(CONFIG_THUMB2_KERNEL)) {
+		/* "bx lr; nop" */
+		u32 insn = __opcode_thumb32_compose(0x4770, 0x46c0);
+		return __opcode_to_mem_thumb32(insn);
+	}
+
+	/* "bx lr" */
+	return __opcode_to_mem_arm(0xe12fff1e);
+}
+
+static void __init patch_aeabi_idiv(void)
+{
+	extern void __aeabi_uidiv(void);
+	extern void __aeabi_idiv(void);
+	uintptr_t fn_addr;
+	unsigned int mask;
+
+	mask = IS_ENABLED(CONFIG_THUMB2_KERNEL) ? HWCAP_IDIVT : HWCAP_IDIVA;
+	if (!(elf_hwcap & mask))
+		return;
+
+	pr_info("CPU: div instructions available: patching division code\n");
+
+	fn_addr = ((uintptr_t)&__aeabi_uidiv) & ~1;
+	((u32 *)fn_addr)[0] = udiv_instruction();
+	((u32 *)fn_addr)[1] = bx_lr_instruction();
+	flush_icache_range(fn_addr, fn_addr + 8);
+
+	fn_addr = ((uintptr_t)&__aeabi_idiv) & ~1;
+	((u32 *)fn_addr)[0] = sdiv_instruction();
+	((u32 *)fn_addr)[1] = bx_lr_instruction();
+	flush_icache_range(fn_addr, fn_addr + 8);
+}
+
+#else
+static inline void patch_aeabi_idiv(void) { }
+#endif
+
 static void __init cpuid_init_hwcaps(void)
 {
 	int block;
@@ -642,6 +708,7 @@ static void __init setup_processor(void)
 	elf_hwcap = list->elf_hwcap;
 
 	cpuid_init_hwcaps();
+	patch_aeabi_idiv();
 
 #ifndef CONFIG_ARM_THUMB
 	elf_hwcap &= ~(HWCAP_THUMB | HWCAP_IDIVT);
