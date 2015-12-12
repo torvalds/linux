@@ -12,6 +12,7 @@
 
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/of.h>
 #include <linux/reset-controller.h>
