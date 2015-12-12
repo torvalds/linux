@@ -19,6 +19,8 @@
 /* IOSF SB read/write opcodes */
 #define MBI_MMIO_READ		0x00
 #define MBI_MMIO_WRITE		0x01
+#define MBI_CFG_READ		0x04
+#define MBI_CFG_WRITE		0x05
 #define MBI_CR_READ		0x06
 #define MBI_CR_WRITE		0x07
 #define MBI_REG_READ		0x10
