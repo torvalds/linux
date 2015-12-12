@@ -88,20 +88,6 @@ struct l2addr_node {
 	kfree(ptr);                                         \
 })
 
-struct mlx5_flow_rule {
-	void             *ft;
-	u32              fi;
-	u8               match_criteria_enable;
-	u32              *match_criteria;
-	u32              *match_value;
-	u32              action;
-	u32              flow_tag;
-	bool             valid;
-	atomic_t         refcount;
-	struct mutex     mutex; /* protect flow rule updates */
-	struct list_head dest_list;
-};
-
 struct mlx5_vport {
 	struct mlx5_core_dev    *dev;
 	int                     vport;
@@ -126,6 +112,7 @@ struct mlx5_l2_table {
 
 struct mlx5_eswitch_fdb {
 	void *fdb;
+	struct mlx5_flow_group *addr_grp;
 };
 
 struct mlx5_eswitch {

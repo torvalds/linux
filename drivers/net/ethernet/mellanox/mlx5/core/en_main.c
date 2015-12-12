@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <linux/mlx5/flow_table.h>
+#include <linux/mlx5/fs.h>
 #include "en.h"
 #include "eswitch.h"
 
@@ -2103,6 +2103,11 @@ static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
 	mlx5_query_nic_vport_mac_address(priv->mdev, 0, netdev->dev_addr);
+	if (is_zero_ether_addr(netdev->dev_addr) &&
+	    !MLX5_CAP_GEN(priv->mdev, vport_group_manager)) {
+		eth_hw_addr_random(netdev);
+		mlx5_core_info(priv->mdev, "Assigned random MAC address %pM\n", netdev->dev_addr);
+	}
 }
 
 static void mlx5e_build_netdev(struct net_device *netdev)

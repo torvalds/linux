@@ -34,7 +34,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #include <linux/mlx5/vport.h>
-#include <linux/mlx5/flow_table.h>
+#include <linux/mlx5/fs.h>
 #include "mlx5_core.h"
 #include "eswitch.h"
 
@@ -321,220 +321,6 @@ static void del_l2_table_entry(struct mlx5_core_dev *dev, u32 index)
 	free_l2_table_index(l2_table, index);
 }
 
-/* E-Switch FDB flow steering */
-struct dest_node {
-	struct list_head list;
-	struct mlx5_flow_destination dest;
-};
-
-static int _mlx5_flow_rule_apply(struct mlx5_flow_rule *fr)
-{
-	bool was_valid = fr->valid;
-	struct dest_node *dest_n;
-	u32 dest_list_size = 0;
-	void *in_match_value;
-	u32 *flow_context;
-	u32 flow_index;
-	int err;
-	int i;
-
-	if (list_empty(&fr->dest_list)) {
-		if (fr->valid)
-			mlx5_del_flow_table_entry(fr->ft, fr->fi);
-		fr->valid = false;
-		return 0;
-	}
-
-	list_for_each_entry(dest_n, &fr->dest_list, list)
-		dest_list_size++;
-
-	flow_context = mlx5_vzalloc(MLX5_ST_SZ_BYTES(flow_context) +
-				    MLX5_ST_SZ_BYTES(dest_format_struct) *
-				    dest_list_size);
-	if (!flow_context)
-		return -ENOMEM;
-
-	MLX5_SET(flow_context, flow_context, flow_tag, fr->flow_tag);
-	MLX5_SET(flow_context, flow_context, action, fr->action);
-	MLX5_SET(flow_context, flow_context, destination_list_size,
-		 dest_list_size);
-
-	i = 0;
-	list_for_each_entry(dest_n, &fr->dest_list, list) {
-		void *dest_addr = MLX5_ADDR_OF(flow_context, flow_context,
-					       destination[i++]);
-
-		MLX5_SET(dest_format_struct, dest_addr, destination_type,
-			 dest_n->dest.type);
-		MLX5_SET(dest_format_struct, dest_addr, destination_id,
-			 dest_n->dest.vport_num);
-	}
-
-	in_match_value = MLX5_ADDR_OF(flow_context, flow_context, match_value);
-	memcpy(in_match_value, fr->match_value, MLX5_ST_SZ_BYTES(fte_match_param));
-
-	err = mlx5_add_flow_table_entry(fr->ft, fr->match_criteria_enable,
-					fr->match_criteria, flow_context,
-					&flow_index);
-	if (!err) {
-		if (was_valid)
-			mlx5_del_flow_table_entry(fr->ft, fr->fi);
-		fr->fi = flow_index;
-		fr->valid = true;
-	}
-	kfree(flow_context);
-	return err;
-}
-
-static int mlx5_flow_rule_add_dest(struct mlx5_flow_rule *fr,
-				   struct mlx5_flow_destination *new_dest)
-{
-	struct dest_node *dest_n;
-	int err;
-
-	dest_n = kzalloc(sizeof(*dest_n), GFP_KERNEL);
-	if (!dest_n)
-		return -ENOMEM;
-
-	memcpy(&dest_n->dest, new_dest, sizeof(dest_n->dest));
-	mutex_lock(&fr->mutex);
-	list_add(&dest_n->list, &fr->dest_list);
-	err = _mlx5_flow_rule_apply(fr);
-	if (err) {
-		list_del(&dest_n->list);
-		kfree(dest_n);
-	}
-	mutex_unlock(&fr->mutex);
-	return err;
-}
-
-static int mlx5_flow_rule_del_dest(struct mlx5_flow_rule *fr,
-				   struct mlx5_flow_destination *dest)
-{
-	struct dest_node *dest_n;
-	struct dest_node *n;
-	int err;
-
-	mutex_lock(&fr->mutex);
-	list_for_each_entry_safe(dest_n, n, &fr->dest_list, list) {
-		if (dest->vport_num == dest_n->dest.vport_num)
-			goto found;
-	}
-	mutex_unlock(&fr->mutex);
-	return -ENOENT;
-
-found:
-	list_del(&dest_n->list);
-	err = _mlx5_flow_rule_apply(fr);
-	mutex_unlock(&fr->mutex);
-	kfree(dest_n);
-
-	return err;
-}
-
-static struct mlx5_flow_rule *find_fr(struct mlx5_eswitch *esw,
-				      u8 match_criteria_enable,
-				      u32 *match_value)
-{
-	struct hlist_head *hash = esw->mc_table;
-	struct esw_mc_addr *esw_mc;
-	u8 *dmac_v;
-
-	dmac_v = MLX5_ADDR_OF(fte_match_param, match_value,
-			      outer_headers.dmac_47_16);
-
-	/* UNICAST FULL MATCH */
-	if (!is_multicast_ether_addr(dmac_v))
-		return NULL;
-
-	/* MULTICAST FULL MATCH */
-	esw_mc = l2addr_hash_find(hash, dmac_v, struct esw_mc_addr);
-
-	return esw_mc ? esw_mc->uplink_rule : NULL;
-}
-
-static struct mlx5_flow_rule *alloc_fr(void *ft,
-				       u8 match_criteria_enable,
-				       u32 *match_criteria,
-				       u32 *match_value,
-				       u32 action,
-				       u32 flow_tag)
-{
-	struct mlx5_flow_rule *fr = kzalloc(sizeof(*fr), GFP_KERNEL);
-
-	if (!fr)
-		return NULL;
-
-	fr->match_criteria = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
-	fr->match_value = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
-	if (!fr->match_criteria || !fr->match_value) {
-		kfree(fr->match_criteria);
-		kfree(fr->match_value);
-		kfree(fr);
-		return NULL;
-	}
-
-	memcpy(fr->match_criteria, match_criteria, MLX5_ST_SZ_BYTES(fte_match_param));
-	memcpy(fr->match_value, match_value, MLX5_ST_SZ_BYTES(fte_match_param));
-	fr->match_criteria_enable = match_criteria_enable;
-	fr->flow_tag = flow_tag;
-	fr->action = action;
-
-	mutex_init(&fr->mutex);
-	INIT_LIST_HEAD(&fr->dest_list);
-	atomic_set(&fr->refcount, 0);
-	fr->ft = ft;
-	return fr;
-}
-
-static void deref_fr(struct mlx5_flow_rule *fr)
-{
-	if (!atomic_dec_and_test(&fr->refcount))
-		return;
-
-	kfree(fr->match_criteria);
-	kfree(fr->match_value);
-	kfree(fr);
-}
-
-static struct mlx5_flow_rule *
-mlx5_add_flow_rule(struct mlx5_eswitch *esw,
-		   u8 match_criteria_enable,
-		   u32 *match_criteria,
-		   u32 *match_value,
-		   u32 action,
-		   u32 flow_tag,
-		   struct mlx5_flow_destination *dest)
-{
-	struct mlx5_flow_rule *fr;
-	int err;
-
-	fr = find_fr(esw, match_criteria_enable, match_value);
-	fr = fr ? fr : alloc_fr(esw->fdb_table.fdb, match_criteria_enable, match_criteria,
-				match_value, action, flow_tag);
-	if (!fr)
-		return NULL;
-
-	atomic_inc(&fr->refcount);
-
-	err = mlx5_flow_rule_add_dest(fr, dest);
-	if (err) {
-		deref_fr(fr);
-		return NULL;
-	}
-
-	return fr;
-}
-
-static void mlx5_del_flow_rule(struct mlx5_flow_rule *fr, u32 vport)
-{
-	struct mlx5_flow_destination dest;
-
-	dest.vport_num = vport;
-	mlx5_flow_rule_del_dest(fr, &dest);
-	deref_fr(fr);
-}
-
 /* E-Switch FDB */
 static struct mlx5_flow_rule *
 esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
@@ -569,7 +355,7 @@ esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
 		  "\tFDB add rule dmac_v(%pM) dmac_c(%pM) -> vport(%d)\n",
 		  dmac_v, dmac_c, vport);
 	flow_rule =
-		mlx5_add_flow_rule(esw,
+		mlx5_add_flow_rule(esw->fdb_table.fdb,
 				   match_header,
 				   match_c,
 				   match_v,
@@ -589,33 +375,61 @@ out:
 
 static int esw_create_fdb_table(struct mlx5_eswitch *esw, int nvports)
 {
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_core_dev *dev = esw->dev;
-	struct mlx5_flow_table_group g;
+	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *fdb;
+	struct mlx5_flow_group *g;
+	void *match_criteria;
+	int table_size;
+	u32 *flow_group_in;
 	u8 *dmac;
+	int err = 0;
 
 	esw_debug(dev, "Create FDB log_max_size(%d)\n",
 		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
-	memset(&g, 0, sizeof(g));
-	/* UC MC Full match rules*/
-	g.log_sz = MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size);
-	g.match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
-	dmac = MLX5_ADDR_OF(fte_match_param, g.match_criteria,
-			    outer_headers.dmac_47_16);
-	/* Match criteria mask */
-	memset(dmac, 0xff, 6);
+	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
+	if (!root_ns) {
+		esw_warn(dev, "Failed to get FDB flow namespace\n");
+		return -ENOMEM;
+	}
 
-	fdb = mlx5_create_flow_table(dev, 0,
-				     MLX5_FLOW_TABLE_TYPE_ESWITCH,
-				     1, &g);
-	if (fdb)
-		esw_debug(dev, "ESW: FDB Table created fdb->id %d\n", mlx5_get_flow_table_id(fdb));
-	else
-		esw_warn(dev, "ESW: Failed to create FDB Table\n");
+	flow_group_in = mlx5_vzalloc(inlen);
+	if (!flow_group_in)
+		return -ENOMEM;
+	memset(flow_group_in, 0, inlen);
 
+	table_size = BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
+	fdb = mlx5_create_flow_table(root_ns, 0, table_size);
+	if (IS_ERR_OR_NULL(fdb)) {
+		err = PTR_ERR(fdb);
+		esw_warn(dev, "Failed to create FDB Table err %d\n", err);
+		goto out;
+	}
+
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
+		 MLX5_MATCH_OUTER_HEADERS);
+	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
+	dmac = MLX5_ADDR_OF(fte_match_param, match_criteria, outer_headers.dmac_47_16);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, table_size - 1);
+	eth_broadcast_addr(dmac);
+
+	g = mlx5_create_flow_group(fdb, flow_group_in);
+	if (IS_ERR_OR_NULL(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create flow group err(%d)\n", err);
+		goto out;
+	}
+
+	esw->fdb_table.addr_grp = g;
 	esw->fdb_table.fdb = fdb;
-	return fdb ? 0 : -ENOMEM;
+out:
+	kfree(flow_group_in);
+	if (err && !IS_ERR_OR_NULL(fdb))
+		mlx5_destroy_flow_table(fdb);
+	return err;
 }
 
 static void esw_destroy_fdb_table(struct mlx5_eswitch *esw)
@@ -623,10 +437,11 @@ static void esw_destroy_fdb_table(struct mlx5_eswitch *esw)
 	if (!esw->fdb_table.fdb)
 		return;
 
-	esw_debug(esw->dev, "Destroy FDB Table fdb(%d)\n",
-		  mlx5_get_flow_table_id(esw->fdb_table.fdb));
+	esw_debug(esw->dev, "Destroy FDB Table\n");
+	mlx5_destroy_flow_group(esw->fdb_table.addr_grp);
 	mlx5_destroy_flow_table(esw->fdb_table.fdb);
 	esw->fdb_table.fdb = NULL;
+	esw->fdb_table.addr_grp = NULL;
 }
 
 /* E-Switch vport UC/MC lists management */
@@ -689,7 +504,7 @@ static int esw_del_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	del_l2_table_entry(esw->dev, esw_uc->table_index);
 
 	if (vaddr->flow_rule)
-		mlx5_del_flow_rule(vaddr->flow_rule, vport);
+		mlx5_del_flow_rule(vaddr->flow_rule);
 	vaddr->flow_rule = NULL;
 
 	l2addr_hash_del(esw_uc);
@@ -750,14 +565,14 @@ static int esw_del_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 		  esw_mc->uplink_rule);
 
 	if (vaddr->flow_rule)
-		mlx5_del_flow_rule(vaddr->flow_rule, vport);
+		mlx5_del_flow_rule(vaddr->flow_rule);
 	vaddr->flow_rule = NULL;
 
 	if (--esw_mc->refcnt)
 		return 0;
 
 	if (esw_mc->uplink_rule)
-		mlx5_del_flow_rule(esw_mc->uplink_rule, UPLINK_VPORT);
+		mlx5_del_flow_rule(esw_mc->uplink_rule);
 
 	l2addr_hash_del(esw_mc);
 	return 0;

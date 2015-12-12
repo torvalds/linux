@@ -256,25 +256,27 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 
 struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         ft_support[0x1];
-	u8         reserved_0[0x1f];
+	u8         reserved_0[0x2];
+	u8	   flow_modify_en[0x1];
+	u8         reserved_1[0x1c];
 
-	u8         reserved_1[0x2];
+	u8         reserved_2[0x2];
 	u8         log_max_ft_size[0x6];
-	u8         reserved_2[0x10];
+	u8         reserved_3[0x10];
 	u8         max_ft_level[0x8];
 
-	u8         reserved_3[0x20];
-
-	u8         reserved_4[0x18];
-	u8         log_max_ft_num[0x8];
+	u8         reserved_4[0x20];
 
 	u8         reserved_5[0x18];
-	u8         log_max_destination[0x8];
+	u8         log_max_ft_num[0x8];
 
 	u8         reserved_6[0x18];
+	u8         log_max_destination[0x8];
+
+	u8         reserved_7[0x18];
 	u8         log_max_flow[0x8];
 
-	u8         reserved_7[0x40];
+	u8         reserved_8[0x40];
 
 	struct mlx5_ifc_flow_table_fields_supported_bits ft_field_support;
 
@@ -2843,6 +2845,13 @@ struct mlx5_ifc_set_hca_cap_in_bits {
 	union mlx5_ifc_hca_cap_union_bits capability;
 };
 
+enum {
+	MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION    = 0x0,
+	MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_TAG  = 0x1,
+	MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST    = 0x2,
+	MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS    = 0x3
+};
+
 struct mlx5_ifc_set_fte_out_bits {
 	u8         status[0x8];
 	u8         reserved_0[0x18];
@@ -2867,11 +2876,14 @@ struct mlx5_ifc_set_fte_in_bits {
 	u8         reserved_4[0x8];
 	u8         table_id[0x18];
 
-	u8         reserved_5[0x40];
+	u8         reserved_5[0x18];
+	u8         modify_enable_mask[0x8];
+
+	u8         reserved_6[0x20];
 
 	u8         flow_index[0x20];
 
-	u8         reserved_6[0xe0];
+	u8         reserved_7[0xe0];
 
 	struct mlx5_ifc_flow_context_bits flow_context;
 };
