@@ -292,7 +292,7 @@ static int pxa2xx_build_functions(struct pxa_pinctrl *pctl)
 	if (!pctl->functions)
 		return -ENOMEM;
 
-	kfree(functions);
+	devm_kfree(pctl->dev, functions);
 	return 0;
 }
 
@@ -328,7 +328,7 @@ static int pxa2xx_build_groups(struct pxa_pinctrl *pctl)
 		memcpy(func->groups, gtmp, ngroups * sizeof(*gtmp));
 	}
 
-	kfree(gtmp);
+	devm_kfree(pctl->dev, gtmp);
 	return 0;
 }
 
