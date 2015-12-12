@@ -21,7 +21,7 @@
 #ifdef CONFIG_BNXT_SRIOV
 static int bnxt_vf_ndo_prep(struct bnxt *bp, int vf_id)
 {
-	if (bp->state != BNXT_STATE_OPEN) {
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
 		netdev_err(bp->dev, "vf ndo called though PF is down\n");
 		return -EINVAL;
 	}
