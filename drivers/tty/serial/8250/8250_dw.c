@@ -182,6 +182,24 @@ static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
 	return dw8250_modify_msr(p, offset, value);
 }
 
+static void dw8250_serial_out32be(struct uart_port *p, int offset, int value)
+{
+	struct dw8250_data *d = p->private_data;
+
+	iowrite32be(value, p->membase + (offset << p->regshift));
+
+	if (offset == UART_LCR && !d->uart_16550_compatible)
+		dw8250_check_lcr(p, value);
+}
+
+static unsigned int dw8250_serial_in32be(struct uart_port *p, int offset)
+{
+       unsigned int value = ioread32be(p->membase + (offset << p->regshift));
+
+       return dw8250_modify_msr(p, offset, value);
+}
+
+
 static int dw8250_handle_irq(struct uart_port *p)
 {
 	struct dw8250_data *d = p->private_data;
@@ -276,6 +294,11 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 			data->skip_autocfg = true;
 		}
 #endif
+		if (of_device_is_big_endian(p->dev->of_node)) {
+			p->iotype = UPIO_MEM32BE;
+			p->serial_in = dw8250_serial_in32be;
+			p->serial_out = dw8250_serial_out32be;
+		}
 	} else if (has_acpi_companion(p->dev)) {
 		p->iotype = UPIO_MEM32;
 		p->regshift = 2;
