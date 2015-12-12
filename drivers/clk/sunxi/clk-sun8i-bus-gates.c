@@ -40,7 +40,7 @@ static void __init sun8i_h3_bus_gates_init(struct device_node *node)
 	const __be32 *p;
 	int number, i;
 	u8 clk_bit;
-	u32 index;
+	int index;
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg))
