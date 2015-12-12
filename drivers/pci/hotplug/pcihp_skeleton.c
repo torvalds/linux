@@ -321,17 +321,14 @@ error:
 
 static void __exit cleanup_slots(void)
 {
-	struct list_head *tmp;
-	struct list_head *next;
-	struct slot *slot;
+	struct slot *slot, *next;
 
 	/*
 	 * Unregister all of our slots with the pci_hotplug subsystem.
 	 * Memory will be freed in release_slot() callback after slot's
 	 * lifespan is finished.
 	 */
-	list_for_each_safe(tmp, next, &slot_list) {
-		slot = list_entry(tmp, struct slot, slot_list);
+	list_for_each_entry_safe(slot, next, &slot_list, slot_list) {
 		list_del(&slot->slot_list);
 		pci_hp_deregister(slot->hotplug_slot);
 	}

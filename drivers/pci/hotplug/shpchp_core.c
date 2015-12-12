@@ -178,12 +178,9 @@ error:
 
 void cleanup_slots(struct controller *ctrl)
 {
-	struct list_head *tmp;
-	struct list_head *next;
-	struct slot *slot;
+	struct slot *slot, *next;
 
-	list_for_each_safe(tmp, next, &ctrl->slot_list) {
-		slot = list_entry(tmp, struct slot, slot_list);
+	list_for_each_entry_safe(slot, next, &ctrl->slot_list, slot_list) {
 		list_del(&slot->slot_list);
 		cancel_delayed_work(&slot->work);
 		destroy_workqueue(slot->wq);

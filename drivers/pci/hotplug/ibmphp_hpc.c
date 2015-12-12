@@ -537,7 +537,6 @@ int ibmphp_hpc_readslot (struct slot *pslot, u8 cmd, u8 *pstatus)
 {
 	void __iomem *wpg_bbar = NULL;
 	struct controller *ctlr_ptr;
-	struct list_head *pslotlist;
 	u8 index, status;
 	int rc = 0;
 	int busindex;
@@ -628,8 +627,8 @@ int ibmphp_hpc_readslot (struct slot *pslot, u8 cmd, u8 *pstatus)
 
 			// Not used
 		case READ_ALLSLOT:
-			list_for_each (pslotlist, &ibmphp_slot_head) {
-				pslot = list_entry (pslotlist, struct slot, ibm_slot_list);
+			list_for_each_entry(pslot, &ibmphp_slot_head,
+					    ibm_slot_list) {
 				index = pslot->ctlr_index;
 				rc = hpc_wait_ctlr_notworking (HPC_CTLR_WORKING_TOUT, ctlr_ptr,
 								wpg_bbar, &status);
@@ -820,7 +819,6 @@ static int poll_hpc(void *data)
 {
 	struct slot myslot;
 	struct slot *pslot = NULL;
-	struct list_head *pslotlist;
 	int rc;
 	int poll_state = POLL_LATCH_REGISTER;
 	u8 oldlatchlow = 0x00;
@@ -838,10 +836,10 @@ static int poll_hpc(void *data)
 		case POLL_LATCH_REGISTER:
 			oldlatchlow = curlatchlow;
 			ctrl_count = 0x00;
-			list_for_each (pslotlist, &ibmphp_slot_head) {
+			list_for_each_entry(pslot, &ibmphp_slot_head,
+					    ibm_slot_list) {
 				if (ctrl_count >= ibmphp_get_total_controllers())
 					break;
-				pslot = list_entry (pslotlist, struct slot, ibm_slot_list);
 				if (pslot->ctrl->ctlr_relative_id == ctrl_count) {
 					ctrl_count++;
 					if (READ_SLOT_LATCH (pslot->ctrl)) {
@@ -859,8 +857,8 @@ static int poll_hpc(void *data)
 			poll_state = POLL_SLEEP;
 			break;
 		case POLL_SLOTS:
-			list_for_each (pslotlist, &ibmphp_slot_head) {
-				pslot = list_entry (pslotlist, struct slot, ibm_slot_list);
+			list_for_each_entry(pslot, &ibmphp_slot_head,
+					    ibm_slot_list) {
 				// make a copy of the old status
 				memcpy ((void *) &myslot, (void *) pslot,
 					sizeof (struct slot));
@@ -870,10 +868,10 @@ static int poll_hpc(void *data)
 					process_changeinstatus (pslot, &myslot);
 			}
 			ctrl_count = 0x00;
-			list_for_each (pslotlist, &ibmphp_slot_head) {
+			list_for_each_entry(pslot, &ibmphp_slot_head,
+					    ibm_slot_list) {
 				if (ctrl_count >= ibmphp_get_total_controllers())
 					break;
-				pslot = list_entry (pslotlist, struct slot, ibm_slot_list);
 				if (pslot->ctrl->ctlr_relative_id == ctrl_count) {
 					ctrl_count++;
 					if (READ_SLOT_LATCH (pslot->ctrl))

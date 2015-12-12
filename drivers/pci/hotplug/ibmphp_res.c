@@ -203,15 +203,13 @@ int __init ibmphp_rsrc_init (void)
 	struct bus_node *newbus = NULL;
 	struct bus_node *bus_cur;
 	struct bus_node *bus_prev;
-	struct list_head *tmp;
 	struct resource_node *new_io = NULL;
 	struct resource_node *new_mem = NULL;
 	struct resource_node *new_pfmem = NULL;
 	int rc;
-	struct list_head *tmp_ebda;
 
-	list_for_each (tmp_ebda, &ibmphp_ebda_pci_rsrc_head) {
-		curr = list_entry (tmp_ebda, struct ebda_pci_rsrc, ebda_pci_rsrc_list);
+	list_for_each_entry(curr, &ibmphp_ebda_pci_rsrc_head,
+			    ebda_pci_rsrc_list) {
 		if (!(curr->rsrc_type & PCIDEVMASK)) {
 			/* EBDA still lists non PCI devices, so ignore... */
 			debug ("this is not a PCI DEVICE in rsrc_init, please take care\n");
@@ -369,8 +367,7 @@ int __init ibmphp_rsrc_init (void)
 		}
 	}
 
-	list_for_each (tmp, &gbuses) {
-		bus_cur = list_entry (tmp, struct bus_node, bus_list);
+	list_for_each_entry(bus_cur, &gbuses, bus_list) {
 		/* This is to get info about PPB resources, since EBDA doesn't put this info into the primary bus info */
 		rc = update_bridge_ranges (&bus_cur);
 		if (rc)
@@ -1571,19 +1568,16 @@ int ibmphp_find_resource (struct bus_node *bus, u32 start_address, struct resour
  ***********************************************************************/
 void ibmphp_free_resources (void)
 {
-	struct bus_node *bus_cur = NULL;
+	struct bus_node *bus_cur = NULL, *next;
 	struct bus_node *bus_tmp;
 	struct range_node *range_cur;
 	struct range_node *range_tmp;
 	struct resource_node *res_cur;
 	struct resource_node *res_tmp;
-	struct list_head *tmp;
-	struct list_head *next;
 	int i = 0;
 	flags = 1;
 
-	list_for_each_safe (tmp, next, &gbuses) {
-		bus_cur = list_entry (tmp, struct bus_node, bus_list);
+	list_for_each_entry_safe(bus_cur, next, &gbuses, bus_list) {
 		if (bus_cur->noIORanges) {
 			range_cur = bus_cur->rangeIO;
 			for (i = 0; i < bus_cur->noIORanges; i++) {
@@ -1691,10 +1685,8 @@ static int __init once_over (void)
 	struct resource_node *pfmem_prev;
 	struct resource_node *mem;
 	struct bus_node *bus_cur;
-	struct list_head *tmp;
 
-	list_for_each (tmp, &gbuses) {
-		bus_cur = list_entry (tmp, struct bus_node, bus_list);
+	list_for_each_entry(bus_cur, &gbuses, bus_list) {
 		if ((!bus_cur->rangePFMem) && (bus_cur->firstPFMem)) {
 			for (pfmem_cur = bus_cur->firstPFMem, pfmem_prev = NULL; pfmem_cur; pfmem_prev = pfmem_cur, pfmem_cur = pfmem_cur->next) {
 				pfmem_cur->fromMem = 1;
@@ -1767,14 +1759,10 @@ struct bus_node *ibmphp_find_res_bus (u8 bus_number)
 static struct bus_node *find_bus_wprev (u8 bus_number, struct bus_node **prev, u8 flag)
 {
 	struct bus_node *bus_cur;
-	struct list_head *tmp;
-	struct list_head *tmp_prev;
 
-	list_for_each (tmp, &gbuses) {
-		tmp_prev = tmp->prev;
-		bus_cur = list_entry (tmp, struct bus_node, bus_list);
+	list_for_each_entry(bus_cur, &gbuses, bus_list) {
 		if (flag)
-			*prev = list_entry (tmp_prev, struct bus_node, bus_list);
+			*prev = list_prev_entry(bus_cur, bus_list);
 		if (bus_cur->busno == bus_number)
 			return bus_cur;
 	}
@@ -1788,7 +1776,6 @@ void ibmphp_print_test (void)
 	struct bus_node *bus_cur = NULL;
 	struct range_node *range;
 	struct resource_node *res;
-	struct list_head *tmp;
 
 	debug_pci ("*****************START**********************\n");
 
@@ -1797,8 +1784,7 @@ void ibmphp_print_test (void)
 		return;
 	}
 
-	list_for_each (tmp, &gbuses) {
-		bus_cur = list_entry (tmp, struct bus_node, bus_list);
+	list_for_each_entry(bus_cur, &gbuses, bus_list) {
 		debug_pci ("This is bus # %d.  There are\n", bus_cur->busno);
 		debug_pci ("IORanges = %d\t", bus_cur->noIORanges);
 		debug_pci ("MemRanges = %d\t", bus_cur->noMemRanges);

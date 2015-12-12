@@ -1117,25 +1117,21 @@ int ibmphp_get_bus_index (u8 num)
 
 void ibmphp_free_bus_info_queue (void)
 {
-	struct bus_info *bus_info;
-	struct list_head *list;
-	struct list_head *next;
+	struct bus_info *bus_info, *next;
 
-	list_for_each_safe (list, next, &bus_info_head ) {
-		bus_info = list_entry (list, struct bus_info, bus_info_list);
+	list_for_each_entry_safe(bus_info, next, &bus_info_head,
+				 bus_info_list) {
 		kfree (bus_info);
 	}
 }
 
 void ibmphp_free_ebda_hpc_queue (void)
 {
-	struct controller *controller = NULL;
-	struct list_head *list;
-	struct list_head *next;
+	struct controller *controller = NULL, *next;
 	int pci_flag = 0;
 
-	list_for_each_safe (list, next, &ebda_hpc_head) {
-		controller = list_entry (list, struct controller, ebda_hpc_list);
+	list_for_each_entry_safe(controller, next, &ebda_hpc_head,
+				 ebda_hpc_list) {
 		if (controller->ctlr_type == 0)
 			release_region (controller->u.isa_ctlr.io_start, (controller->u.isa_ctlr.io_end - controller->u.isa_ctlr.io_start + 1));
 		else if ((controller->ctlr_type == 1) && (!pci_flag)) {
@@ -1148,12 +1144,10 @@ void ibmphp_free_ebda_hpc_queue (void)
 
 void ibmphp_free_ebda_pci_rsrc_queue (void)
 {
-	struct ebda_pci_rsrc *resource;
-	struct list_head *list;
-	struct list_head *next;
+	struct ebda_pci_rsrc *resource, *next;
 
-	list_for_each_safe (list, next, &ibmphp_ebda_pci_rsrc_head) {
-		resource = list_entry (list, struct ebda_pci_rsrc, ebda_pci_rsrc_list);
+	list_for_each_entry_safe(resource, next, &ibmphp_ebda_pci_rsrc_head,
+				 ebda_pci_rsrc_list) {
 		kfree (resource);
 		resource = NULL;
 	}
