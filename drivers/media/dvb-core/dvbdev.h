@@ -120,6 +120,11 @@ struct dvb_adapter {
  * @entity:	pointer to struct media_entity associated with the device node
  * @pads:	pointer to struct media_pad associated with @entity;
  * @priv:	private data
+ * @intf_devnode: Pointer to media_intf_devnode. Used by the dvbdev core to
+ *		store the MC device node interface
+ * @tsout_num_entities: Number of Transport Stream output entities
+ * @tsout_entity: array with MC entities associated to each TS output node
+ * @tsout_pads: array with the source pads for each @tsout_entity
  *
  * This structure is used by the DVB core (frontend, CA, net, demux) in
  * order to create the device nodes. Usually, driver should not initialize
@@ -188,8 +193,11 @@ int dvb_unregister_adapter(struct dvb_adapter *adap);
  *		stored
  * @template:	Template used to create &pdvbdev;
  * @priv:	private data
- * @type:	type of the device: DVB_DEVICE_SEC, DVB_DEVICE_FRONTEND,
- *		DVB_DEVICE_DEMUX, DVB_DEVICE_DVR, DVB_DEVICE_CA, DVB_DEVICE_NET
+ * @type:	type of the device: %DVB_DEVICE_SEC, %DVB_DEVICE_FRONTEND,
+ *		%DVB_DEVICE_DEMUX, %DVB_DEVICE_DVR, %DVB_DEVICE_CA,
+ *		%DVB_DEVICE_NET
+ * @demux_sink_pads: Number of demux outputs, to be used to create the TS
+ *		outputs via the Media Controller.
  */
 int dvb_register_device(struct dvb_adapter *adap,
 			struct dvb_device **pdvbdev,
