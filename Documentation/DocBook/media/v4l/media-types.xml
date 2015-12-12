@@ -109,6 +109,67 @@
       </tgroup>
     </table>
 
+    <table frame="none" pgwide="1" id="media-intf-type">
+      <title>Media interface types</title>
+      <tgroup cols="3">
+	<colspec colname="c1"/>
+	<colspec colname="c2"/>
+	<colspec colname="c3"/>
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_DVB_FE</constant></entry>
+	    <entry>Device node interface for the Digital TV frontend</entry>
+	    <entry>typically, /dev/dvb/adapter?/frontend?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_DVB_DEMUX</constant></entry>
+	    <entry>Device node interface for the Digital TV demux</entry>
+	    <entry>typically, /dev/dvb/adapter?/demux?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_DVB_DVR</constant></entry>
+	    <entry>Device node interface for the Digital TV DVR</entry>
+	    <entry>typically, /dev/dvb/adapter?/dvr?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_DVB_CA</constant></entry>
+	    <entry>Device node interface for the Digital TV Conditional Access</entry>
+	    <entry>typically, /dev/dvb/adapter?/ca?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_DVB_FE</constant></entry>
+	    <entry>Device node interface for the Digital TV network control</entry>
+	    <entry>typically, /dev/dvb/adapter?/net?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_V4L_VIDEO</constant></entry>
+	    <entry>Device node interface for video (V4L)</entry>
+	    <entry>typically, /dev/video?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_V4L_VBI</constant></entry>
+	    <entry>Device node interface for VBI (V4L)</entry>
+	    <entry>typically, /dev/vbi?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_V4L_RADIO</constant></entry>
+	    <entry>Device node interface for radio (V4L)</entry>
+	    <entry>typically, /dev/vbi?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_V4L_SUBDEV</constant></entry>
+	    <entry>Device node interface for a V4L subdevice</entry>
+	    <entry>typically, /dev/v4l-subdev?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_V4L_SWRADIO</constant></entry>
+	    <entry>Device node interface for Software Defined Radio (V4L)</entry>
+	    <entry>typically, /dev/swradio?</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
     <table frame="none" pgwide="1" id="media-pad-flag">
       <title>Media pad flags</title>
       <tgroup cols="2">
