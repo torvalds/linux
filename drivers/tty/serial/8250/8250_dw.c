@@ -114,6 +114,8 @@ static void dw8250_check_lcr(struct uart_port *p, int value)
 #else
 		if (p->iotype == UPIO_MEM32)
 			writel(value, offset);
+		else if (p->iotype == UPIO_MEM32BE)
+			iowrite32be(value, offset);
 		else
 			writeb(value, offset);
 #endif
@@ -327,14 +329,20 @@ static void dw8250_setup_port(struct uart_port *p)
 	 * If the Component Version Register returns zero, we know that
 	 * ADDITIONAL_FEATURES are not enabled. No need to go any further.
 	 */
-	reg = readl(p->membase + DW_UART_UCV);
+	if (p->iotype == UPIO_MEM32BE)
+		reg = ioread32be(p->membase + DW_UART_UCV);
+	else
+		reg = readl(p->membase + DW_UART_UCV);
 	if (!reg)
 		return;
 
 	dev_dbg(p->dev, "Designware UART version %c.%c%c\n",
 		(reg >> 24) & 0xff, (reg >> 16) & 0xff, (reg >> 8) & 0xff);
 
-	reg = readl(p->membase + DW_UART_CPR);
+	if (p->iotype == UPIO_MEM32BE)
+		reg = ioread32be(p->membase + DW_UART_CPR);
+	else
+		reg = readl(p->membase + DW_UART_CPR);
 	if (!reg)
 		return;
 
