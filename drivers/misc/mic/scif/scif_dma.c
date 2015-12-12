@@ -271,13 +271,10 @@ static struct scif_mmu_notif *
 scif_find_mmu_notifier(struct mm_struct *mm, struct scif_endpt_rma_info *rma)
 {
 	struct scif_mmu_notif *mmn;
-	struct list_head *item;
 
-	list_for_each(item, &rma->mmn_list) {
-		mmn = list_entry(item, struct scif_mmu_notif, list);
+	list_for_each_entry(mmn, &rma->mmn_list, list)
 		if (mmn->mm == mm)
 			return mmn;
-	}
 	return NULL;
 }
 
@@ -288,13 +285,12 @@ scif_add_mmu_notifier(struct mm_struct *mm, struct scif_endpt *ep)
 		 = kzalloc(sizeof(*mmn), GFP_KERNEL);
 
 	if (!mmn)
-		return ERR_PTR(ENOMEM);
+		return ERR_PTR(-ENOMEM);
 
 	scif_init_mmu_notifier(mmn, current->mm, ep);
-	if (mmu_notifier_register(&mmn->ep_mmu_notifier,
-				  current->mm)) {
+	if (mmu_notifier_register(&mmn->ep_mmu_notifier, current->mm)) {
 		kfree(mmn);
-		return ERR_PTR(EBUSY);
+		return ERR_PTR(-EBUSY);
 	}
 	list_add(&mmn->list, &ep->rma_info.mmn_list);
 	return mmn;
@@ -1725,7 +1721,7 @@ static int scif_rma_copy(scif_epd_t epd, off_t loffset, unsigned long addr,
 		mutex_lock(&ep->rma_info.mmn_lock);
 		mmn = scif_find_mmu_notifier(current->mm, &ep->rma_info);
 		if (!mmn)
-			scif_add_mmu_notifier(current->mm, ep);
+			mmn = scif_add_mmu_notifier(current->mm, ep);
 		mutex_unlock(&ep->rma_info.mmn_lock);
 		if (IS_ERR(mmn)) {
 			scif_put_peer_dev(spdev);
