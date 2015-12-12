@@ -85,6 +85,9 @@
     Kernel interface and an entity.m</para></listitem>
     </itemizedlist>
   </section>
+
+  <!-- All non-ioctl specific data types go here. -->
+  &sub-media-types;
 </chapter>
 
 <appendix id="media-user-func">
