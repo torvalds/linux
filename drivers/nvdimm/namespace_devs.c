@@ -1707,6 +1707,18 @@ void nd_region_create_blk_seed(struct nd_region *nd_region)
 		nd_device_register(nd_region->ns_seed);
 }
 
+void nd_region_create_pfn_seed(struct nd_region *nd_region)
+{
+	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
+	nd_region->pfn_seed = nd_pfn_create(nd_region);
+	/*
+	 * Seed creation failures are not fatal, provisioning is simply
+	 * disabled until memory becomes available
+	 */
+	if (!nd_region->pfn_seed)
+		dev_err(&nd_region->dev, "failed to create pfn namespace\n");
+}
+
 void nd_region_create_btt_seed(struct nd_region *nd_region)
 {
 	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));

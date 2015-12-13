@@ -490,6 +490,13 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 			nd_region_create_blk_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
+	if (is_nd_pfn(dev) && probe) {
+		nd_region = to_nd_region(dev->parent);
+		nvdimm_bus_lock(dev);
+		if (nd_region->pfn_seed == dev)
+			nd_region_create_pfn_seed(nd_region);
+		nvdimm_bus_unlock(dev);
+	}
 }
 
 void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev)
