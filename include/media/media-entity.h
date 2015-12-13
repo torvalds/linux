@@ -238,11 +238,21 @@ struct media_intf_devnode {
 	u32				minor;
 };
 
+/**
+ * media_entity_id() - return the media entity graph object id
+ *
+ * @entity:	pointer to entity
+ */
 static inline u32 media_entity_id(struct media_entity *entity)
 {
 	return entity->graph_obj.id;
 }
 
+/**
+ * media_type() - return the media object type
+ *
+ * @gobj:	pointer to the media graph object
+ */
 static inline enum media_gobj_type media_type(struct media_gobj *gobj)
 {
 	return gobj->id >> MEDIA_BITS_PER_LOCAL_ID;
@@ -263,6 +273,15 @@ static inline u32 media_gobj_gen_id(enum media_gobj_type type, u32 local_id)
 	return id;
 }
 
+/**
+ * is_media_entity_v4l2_io() - identify if the entity main function
+ *			       is a V4L2 I/O
+ *
+ * @entity:	pointer to entity
+ *
+ * Return: true if the entity main function is one of the V4L2 I/O types
+ *	(video, VBI or SDR radio); false otherwise.
+ */
 static inline bool is_media_entity_v4l2_io(struct media_entity *entity)
 {
 	if (!entity)
@@ -278,6 +297,16 @@ static inline bool is_media_entity_v4l2_io(struct media_entity *entity)
 	}
 }
 
+/**
+ * is_media_entity_v4l2_subdev - return true if the entity main function is
+ *				 associated with the V4L2 API subdev usage
+ *
+ * @entity:	pointer to entity
+ *
+ * This is an ancillary function used by subdev-based V4L2 drivers.
+ * It checks if the entity function is one of functions used by a V4L2 subdev,
+ * e. g. camera-relatef functions, analog TV decoder, TV tuner, V4L2 DSPs.
+ */
 static inline bool is_media_entity_v4l2_subdev(struct media_entity *entity)
 {
 	if (!entity)
@@ -652,16 +681,43 @@ struct media_link *
 __must_check media_create_intf_link(struct media_entity *entity,
 				    struct media_interface *intf,
 				    u32 flags);
+/**
+ * __media_remove_intf_link() - remove a single interface link
+ *
+ * @link:	pointer to &media_link.
+ *
+ * Note: this is an unlocked version of media_remove_intf_link()
+ */
 void __media_remove_intf_link(struct media_link *link);
+
+/**
+ * media_remove_intf_link() - remove a single interface link
+ *
+ * @link:	pointer to &media_link.
+ *
+ * Note: prefer to use this one, instead of __media_remove_intf_link()
+ */
 void media_remove_intf_link(struct media_link *link);
+
+/**
+ * __media_remove_intf_links() - remove all links associated with an interface
+ *
+ * @intf:	pointer to &media_interface
+ *
+ * Note: this is an unlocked version of media_remove_intf_links().
+ */
 void __media_remove_intf_links(struct media_interface *intf);
 /**
  * media_remove_intf_links() - remove all links associated with an interface
  *
  * @intf:	pointer to &media_interface
  *
- * Note: this is called automatically when an entity is unregistered via
+ * Notes:
+ *
+ * this is called automatically when an entity is unregistered via
  * media_device_register_entity() and by media_devnode_remove().
+ *
+ * Prefer to use this one, instead of __media_remove_intf_links().
  */
 void media_remove_intf_links(struct media_interface *intf);
 
