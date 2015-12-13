@@ -2396,8 +2396,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	txdesc = &mdp->tx_ring[entry];
 	/* soft swap. */
 	if (!mdp->cd->hw_swap)
-		sh_eth_soft_swap(phys_to_virt(ALIGN(txdesc->addr, 4)),
-				 skb->len + 2);
+		sh_eth_soft_swap(PTR_ALIGN(skb->data, 4), skb->len + 2);
 	txdesc->addr = dma_map_single(&ndev->dev, skb->data, skb->len,
 				      DMA_TO_DEVICE);
 	if (dma_mapping_error(&ndev->dev, txdesc->addr)) {
