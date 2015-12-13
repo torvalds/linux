@@ -28,6 +28,11 @@
 	"DWV-S0", \
 }
 
+/* Extended flash address, needs to be subtracted
+ * from bcm_tag flash image offsets.
+ */
+#define BCM963XX_EXTENDED_SIZE	0xBFC00000
+
 /*
  * The broadcom firmware assumes the rootfs starts the image,
  * therefore uses the rootfs start (flash_image_address)

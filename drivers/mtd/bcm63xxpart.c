@@ -37,8 +37,6 @@
 #include <asm/mach-bcm63xx/bcm63xx_nvram.h>
 #include <asm/mach-bcm63xx/board_bcm963xx.h>
 
-#define BCM63XX_EXTENDED_SIZE	0xBFC00000	/* Extended flash address */
-
 #define BCM63XX_CFE_BLOCK_SIZE	SZ_64K		/* always at least 64KiB */
 
 #define BCM63XX_CFE_MAGIC_OFFSET 0x4e0
@@ -123,8 +121,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		pr_info("CFE boot tag found with version %s and board type %s\n",
 			tagversion, boardid);
 
-		kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
-		rootfsaddr = rootfsaddr - BCM63XX_EXTENDED_SIZE;
+		kerneladdr = kerneladdr - BCM963XX_EXTENDED_SIZE;
+		rootfsaddr = rootfsaddr - BCM963XX_EXTENDED_SIZE;
 		spareaddr = roundup(totallen, master->erasesize) + cfelen;
 
 		if (rootfsaddr < kerneladdr) {
