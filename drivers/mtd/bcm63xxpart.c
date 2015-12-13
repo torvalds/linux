@@ -124,13 +124,11 @@ static int bcm63xx_read_image_tag(struct mtd_info *master, const char *name,
 	return 1;
 }
 
-static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
-					const struct mtd_partition **pparts,
-					struct mtd_part_parser_data *data)
+static int bcm63xx_parse_cfe_nor_partitions(struct mtd_info *master,
+	const struct mtd_partition **pparts, struct bcm963xx_nvram *nvram)
 {
 	/* CFE, NVRAM and global Linux are always present */
 	int nrparts = 3, curpart = 0;
-	struct bcm963xx_nvram *nvram = NULL;
 	struct bcm_tag *buf = NULL;
 	struct mtd_partition *parts;
 	int ret;
@@ -141,17 +139,6 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	int i;
 	bool rootfs_first = false;
 
-	if (bcm63xx_detect_cfe(master))
-		return -EINVAL;
-
-	nvram = vzalloc(sizeof(*nvram));
-	if (!nvram)
-		return -ENOMEM;
-
-	ret = bcm63xx_read_nvram(master, nvram);
-	if (ret)
-		goto out;
-
 	cfe_erasesize = max_t(uint32_t, master->erasesize,
 			      BCM963XX_CFE_BLOCK_SIZE);
 
@@ -159,12 +146,9 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	nvramlen = nvram->psi_size * SZ_1K;
 	nvramlen = roundup(nvramlen, cfe_erasesize);
 
-	/* Allocate memory for buffer */
 	buf = vmalloc(sizeof(struct bcm_tag));
-	if (!buf) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!buf)
+		return -ENOMEM;
 
 	/* Get the tag */
 	ret = bcm63xx_read_image_tag(master, "rootfs", cfelen, buf);
@@ -234,7 +218,6 @@ invalid_tag:
 	if (kernellen > 0)
 		nrparts++;
 
-	/* Ask kernel for more memory */
 	parts = kzalloc(sizeof(*parts) * nrparts + 10 * nrparts, GFP_KERNEL);
 	if (!parts) {
 		ret = -ENOMEM;
@@ -292,13 +275,40 @@ invalid_tag:
 	ret = 0;
 
 out:
-	vfree(nvram);
 	vfree(buf);
 
 	if (ret)
 		return ret;
 
 	return nrparts;
+}
+
+static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
+					const struct mtd_partition **pparts,
+					struct mtd_part_parser_data *data)
+{
+	struct bcm963xx_nvram *nvram = NULL;
+	int ret;
+
+	if (bcm63xx_detect_cfe(master))
+		return -EINVAL;
+
+	nvram = vzalloc(sizeof(*nvram));
+	if (!nvram)
+		return -ENOMEM;
+
+	ret = bcm63xx_read_nvram(master, nvram);
+	if (ret)
+		goto out;
+
+	if (!mtd_type_is_nand(master))
+		ret = bcm63xx_parse_cfe_nor_partitions(master, pparts, nvram);
+	else
+		ret = -EINVAL;
+
+out:
+	vfree(nvram);
+	return ret;
 };
 
 static struct mtd_part_parser bcm63xx_cfe_parser = {
