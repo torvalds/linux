@@ -14,3 +14,14 @@
 	model = "CompuLab CM-T335 on SB-T335";
 	compatible = "compulab,sbc-t335", "compulab,cm-t335", "ti,am33xx";
 };
+
+&i2c0 {
+	/* GPIO extender */
+	gpio_ext: pca9555@26 {
+		compatible = "nxp,pca9555";
+		pinctrl-names = "default";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x26>;
+	};
+};
