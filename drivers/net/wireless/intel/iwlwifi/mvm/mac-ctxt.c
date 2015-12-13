@@ -1012,9 +1012,12 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 						TX_CMD_FLG_BT_PRIO_POS;
 	beacon_cmd.tx.tx_flags = cpu_to_le32(tx_flags);
 
-	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
-				     mvm->mgmt_last_antenna_idx);
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION)) {
+		mvm->mgmt_last_antenna_idx =
+			iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
+					     mvm->mgmt_last_antenna_idx);
+	}
 
 	beacon_cmd.tx.rate_n_flags =
 		cpu_to_le32(BIT(mvm->mgmt_last_antenna_idx) <<
