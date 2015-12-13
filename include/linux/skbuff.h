@@ -833,7 +833,7 @@ struct sk_buff_fclones {
  *	skb_fclone_busy - check if fclone is busy
  *	@skb: buffer
  *
- * Returns true is skb is a fast clone, and its clone is not freed.
+ * Returns true if skb is a fast clone, and its clone is not freed.
  * Some drivers call skb_orphan() in their ndo_start_xmit(),
  * so we also check that this didnt happen.
  */
