@@ -178,8 +178,10 @@
 				compatible = "fsl,vf610-sai";
 				reg = <0x40031000 0x1000>;
 				interrupts = <86 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks VF610_CLK_SAI2>;
-				clock-names = "sai";
+				clocks = <&clks VF610_CLK_SAI2>,
+					<&clks VF610_CLK_SAI2_DIV>,
+					<&clks 0>, <&clks 0>;
+				clock-names = "bus", "mclk1", "mclk2", "mclk3";
 				dma-names = "tx", "rx";
 				dmas = <&edma0 0 21>,
 					<&edma0 0 20>;
