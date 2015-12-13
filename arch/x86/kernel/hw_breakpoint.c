@@ -444,7 +444,7 @@ EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
 static int hw_breakpoint_handler(struct die_args *args)
 {
 	int i, cpu, rc = NOTIFY_STOP;
-	struct perf_event *bp;
+	struct perf_event *bp = NULL;
 	unsigned long dr7, dr6;
 	unsigned long *dr6_p;
 
@@ -475,6 +475,13 @@ static int hw_breakpoint_handler(struct die_args *args)
 	for (i = 0; i < HBP_NUM; ++i) {
 		if (likely(!(dr6 & (DR_TRAP0 << i))))
 			continue;
+		/*
+		* check if we got an execute breakpoint
+		* from the dr7 register.  if we did, set
+		* the resume flag to avoid int1 recursion.
+		*/
+		if ((dr7 & (3 << ((i * 4) + 16))) == 0)
+			args->regs->flags |= X86_EFLAGS_RF;
 
 		/*
 		 * The counter may be concurrently released but that can only
@@ -503,7 +510,9 @@ static int hw_breakpoint_handler(struct die_args *args)
 
 		/*
 		 * Set up resume flag to avoid breakpoint recursion when
-		 * returning back to origin.
+		 * returning back to origin.  Perform the check
+		* twice in case the event handler altered the
+		* system flags.
 		 */
 		if (bp->hw.info.type == X86_BREAKPOINT_EXECUTE)
 			args->regs->flags |= X86_EFLAGS_RF;
@@ -518,6 +527,18 @@ static int hw_breakpoint_handler(struct die_args *args)
 	if ((current->thread.debugreg6 & DR_TRAP_BITS) ||
 	    (dr6 & (~DR_TRAP_BITS)))
 		rc = NOTIFY_DONE;
+
+	/*
+	* if we are about to signal to
+	* do_debug() to stop further processing
+	* and we have not ascertained the source
+	* of the breakpoint, log it as spurious.
+	*/
+	if (rc == NOTIFY_STOP && !bp) {
+		printk_ratelimited(KERN_INFO
+				"INFO: spurious INT1 exception dr6: 0x%lX dr7: 0x%lX\n",
+				dr6, dr7);
+	}
 
 	set_debugreg(dr7, 7);
 	put_cpu();
