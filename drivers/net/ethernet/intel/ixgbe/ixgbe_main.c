@@ -3702,6 +3702,9 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	/* Map PF MAC address in RAR Entry 0 to first pool following VFs */
 	hw->mac.ops.set_vmdq(hw, 0, VMDQ_P(0));
 
+	/* clear VLAN promisc flag so VFTA will be updated if necessary */
+	adapter->flags2 &= ~IXGBE_FLAG2_VLAN_PROMISC;
+
 	/*
 	 * Set up VF register offsets for selected VT Mode,
 	 * i.e. 32 or 64 VFs for SR-IOV
@@ -3899,10 +3902,54 @@ static int ixgbe_vlan_rx_add_vid(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* add VID to filter table */
-	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), true);
+	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), true, true);
 	set_bit(vid, adapter->active_vlans);
 
 	return 0;
+}
+
+static int ixgbe_find_vlvf_entry(struct ixgbe_hw *hw, u32 vlan)
+{
+	u32 vlvf;
+	int idx;
+
+	/* short cut the special case */
+	if (vlan == 0)
+		return 0;
+
+	/* Search for the vlan id in the VLVF entries */
+	for (idx = IXGBE_VLVF_ENTRIES; --idx;) {
+		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(idx));
+		if ((vlvf & VLAN_VID_MASK) == vlan)
+			break;
+	}
+
+	return idx;
+}
+
+void ixgbe_update_pf_promisc_vlvf(struct ixgbe_adapter *adapter, u32 vid)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 bits, word;
+	int idx;
+
+	idx = ixgbe_find_vlvf_entry(hw, vid);
+	if (!idx)
+		return;
+
+	/* See if any other pools are set for this VLAN filter
+	 * entry other than the PF.
+	 */
+	word = idx * 2 + (VMDQ_P(0) / 32);
+	bits = ~(1 << (VMDQ_P(0)) % 32);
+	bits &= IXGBE_READ_REG(hw, IXGBE_VLVFB(word));
+
+	/* Disable the filter so this falls into the default pool. */
+	if (!bits && !IXGBE_READ_REG(hw, IXGBE_VLVFB(word ^ 1))) {
+		if (!(adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
+			IXGBE_WRITE_REG(hw, IXGBE_VLVFB(word), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VLVF(idx), 0);
+	}
 }
 
 static int ixgbe_vlan_rx_kill_vid(struct net_device *netdev,
@@ -3912,7 +3959,11 @@ static int ixgbe_vlan_rx_kill_vid(struct net_device *netdev,
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* remove VID from filter table */
-	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), false);
+	if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC)
+		ixgbe_update_pf_promisc_vlvf(adapter, vid);
+	else
+		hw->mac.ops.set_vfta(hw, vid, VMDQ_P(0), false, true);
+
 	clear_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -3988,6 +4039,129 @@ static void ixgbe_vlan_strip_enable(struct ixgbe_adapter *adapter)
 	default:
 		break;
 	}
+}
+
+static void ixgbe_vlan_promisc_enable(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vlnctrl, i;
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+	default:
+		if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED)
+			break;
+		/* fall through */
+	case ixgbe_mac_82598EB:
+		/* legacy case, we can just disable VLAN filtering */
+		vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
+		vlnctrl &= ~(IXGBE_VLNCTRL_VFE | IXGBE_VLNCTRL_CFIEN);
+		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
+		return;
+	}
+
+	/* We are already in VLAN promisc, nothing to do */
+	if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC)
+		return;
+
+	/* Set flag so we don't redo unnecessary work */
+	adapter->flags2 |= IXGBE_FLAG2_VLAN_PROMISC;
+
+	/* Add PF to all active pools */
+	for (i = IXGBE_VLVF_ENTRIES; --i;) {
+		u32 reg_offset = IXGBE_VLVFB(i * 2 + VMDQ_P(0) / 32);
+		u32 vlvfb = IXGBE_READ_REG(hw, reg_offset);
+
+		vlvfb |= 1 << (VMDQ_P(0) % 32);
+		IXGBE_WRITE_REG(hw, reg_offset, vlvfb);
+	}
+
+	/* Set all bits in the VLAN filter table array */
+	for (i = hw->mac.vft_size; i--;)
+		IXGBE_WRITE_REG(hw, IXGBE_VFTA(i), ~0U);
+}
+
+#define VFTA_BLOCK_SIZE 8
+static void ixgbe_scrub_vfta(struct ixgbe_adapter *adapter, u32 vfta_offset)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vfta[VFTA_BLOCK_SIZE] = { 0 };
+	u32 vid_start = vfta_offset * 32;
+	u32 vid_end = vid_start + (VFTA_BLOCK_SIZE * 32);
+	u32 i, vid, word, bits;
+
+	for (i = IXGBE_VLVF_ENTRIES; --i;) {
+		u32 vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(i));
+
+		/* pull VLAN ID from VLVF */
+		vid = vlvf & VLAN_VID_MASK;
+
+		/* only concern outselves with a certain range */
+		if (vid < vid_start || vid >= vid_end)
+			continue;
+
+		if (vlvf) {
+			/* record VLAN ID in VFTA */
+			vfta[(vid - vid_start) / 32] |= 1 << (vid % 32);
+
+			/* if PF is part of this then continue */
+			if (test_bit(vid, adapter->active_vlans))
+				continue;
+		}
+
+		/* remove PF from the pool */
+		word = i * 2 + VMDQ_P(0) / 32;
+		bits = ~(1 << (VMDQ_P(0) % 32));
+		bits &= IXGBE_READ_REG(hw, IXGBE_VLVFB(word));
+		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(word), bits);
+	}
+
+	/* extract values from active_vlans and write back to VFTA */
+	for (i = VFTA_BLOCK_SIZE; i--;) {
+		vid = (vfta_offset + i) * 32;
+		word = vid / BITS_PER_LONG;
+		bits = vid % BITS_PER_LONG;
+
+		vfta[i] |= adapter->active_vlans[word] >> bits;
+
+		IXGBE_WRITE_REG(hw, IXGBE_VFTA(vfta_offset + i), vfta[i]);
+	}
+}
+
+static void ixgbe_vlan_promisc_disable(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vlnctrl, i;
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+	default:
+		if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED)
+			break;
+		/* fall through */
+	case ixgbe_mac_82598EB:
+		vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
+		vlnctrl &= ~IXGBE_VLNCTRL_CFIEN;
+		vlnctrl |= IXGBE_VLNCTRL_VFE;
+		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
+		return;
+	}
+
+	/* We are not in VLAN promisc, nothing to do */
+	if (!(adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
+		return;
+
+	/* Set flag so we don't redo unnecessary work */
+	adapter->flags2 &= ~IXGBE_FLAG2_VLAN_PROMISC;
+
+	for (i = 0; i < hw->mac.vft_size; i += VFTA_BLOCK_SIZE)
+		ixgbe_scrub_vfta(adapter, i);
 }
 
 static void ixgbe_restore_vlan(struct ixgbe_adapter *adapter)
@@ -4246,12 +4420,10 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 fctrl, vmolr = IXGBE_VMOLR_BAM | IXGBE_VMOLR_AUPE;
-	u32 vlnctrl;
 	int count;
 
 	/* Check for Promiscuous and All Multicast modes */
 	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
-	vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
 
 	/* set all bits that we expect to always be set */
 	fctrl &= ~IXGBE_FCTRL_SBP; /* disable store-bad-packets */
@@ -4261,25 +4433,18 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 
 	/* clear the bits we are changing the status of */
 	fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
-	vlnctrl &= ~(IXGBE_VLNCTRL_VFE | IXGBE_VLNCTRL_CFIEN);
 	if (netdev->flags & IFF_PROMISC) {
 		hw->addr_ctrl.user_set_promisc = true;
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 		vmolr |= IXGBE_VMOLR_MPE;
-		/* Only disable hardware filter vlans in promiscuous mode
-		 * if SR-IOV and VMDQ are disabled - otherwise ensure
-		 * that hardware VLAN filters remain enabled.
-		 */
-		if (adapter->flags & (IXGBE_FLAG_VMDQ_ENABLED |
-				      IXGBE_FLAG_SRIOV_ENABLED))
-			vlnctrl |= (IXGBE_VLNCTRL_VFE | IXGBE_VLNCTRL_CFIEN);
+		ixgbe_vlan_promisc_enable(adapter);
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			fctrl |= IXGBE_FCTRL_MPE;
 			vmolr |= IXGBE_VMOLR_MPE;
 		}
-		vlnctrl |= IXGBE_VLNCTRL_VFE;
 		hw->addr_ctrl.user_set_promisc = false;
+		ixgbe_vlan_promisc_disable(adapter);
 	}
 
 	/*
@@ -4323,7 +4488,6 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 		/* NOTE:  VLAN filtering is disabled by setting PROMISC */
 	}
 
-	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
 
 	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -5381,6 +5545,8 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->mac_table = kzalloc(sizeof(struct ixgbe_mac_addr) *
 				     hw->mac.num_rar_entries,
 				     GFP_ATOMIC);
+	if (!adapter->mac_table)
+		return -ENOMEM;
 
 	/* Set MAC specific capability flags and exceptions */
 	switch (hw->mac.type) {

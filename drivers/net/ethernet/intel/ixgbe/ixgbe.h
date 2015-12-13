@@ -664,6 +664,7 @@ struct ixgbe_adapter {
 #ifdef CONFIG_IXGBE_VXLAN
 #define IXGBE_FLAG2_VXLAN_REREG_NEEDED		BIT(12)
 #endif
+#define IXGBE_FLAG2_VLAN_PROMISC		BIT(13)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -897,6 +898,7 @@ int ixgbe_add_mac_filter(struct ixgbe_adapter *adapter,
 			 const u8 *addr, u16 queue);
 int ixgbe_del_mac_filter(struct ixgbe_adapter *adapter,
 			 const u8 *addr, u16 queue);
+void ixgbe_update_pf_promisc_vlvf(struct ixgbe_adapter *adapter, u32 vid);
 void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter);
 netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *, struct ixgbe_adapter *,
 				  struct ixgbe_ring *);
