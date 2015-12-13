@@ -1714,6 +1714,18 @@ struct ieee80211_sta_rates {
  * @tdls_initiator: indicates the STA is an initiator of the TDLS link. Only
  *	valid if the STA is a TDLS peer in the first place.
  * @mfp: indicates whether the STA uses management frame protection or not.
+ * @max_amsdu_subframes: indicates the maximal number of MSDUs in a single
+ *	A-MSDU. Taken from the Extended Capabilities element. 0 means
+ *	unlimited.
+ * @max_amsdu_len: indicates the maximal length of an A-MSDU in bytes. This
+ *	field is always valid for packets with a VHT preamble. For packets
+ *	with a HT preamble, additional limits apply:
+ *		+ If the skb is transmitted as part of a BA agreement, the
+ *		  A-MSDU maximal size is min(max_amsdu_len, 4065) bytes.
+ *		+ If the skb is not part of a BA aggreement, the A-MSDU maximal
+ *		  size is min(max_amsdu_len, 7935) bytes.
+ *	Both additional HT limits must be enforced by the low level driver.
+ *	This is defined by the spec (IEEE 802.11-2012 section 8.3.2.2 NOTE 2).
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
  */
 struct ieee80211_sta {
@@ -1732,6 +1744,8 @@ struct ieee80211_sta {
 	bool tdls;
 	bool tdls_initiator;
 	bool mfp;
+	u8 max_amsdu_subframes;
+	u16 max_amsdu_len;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS];
 
