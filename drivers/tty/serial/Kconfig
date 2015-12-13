@@ -576,6 +576,7 @@ config SERIAL_IMX
 	depends on ARCH_MXC || COMPILE_TEST
 	select SERIAL_CORE
 	select RATIONAL
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  If you have a machine based on a Motorola IMX CPU you
 	  can enable its onboard serial port by enabling this option.
