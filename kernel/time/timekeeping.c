@@ -845,6 +845,19 @@ time64_t ktime_get_real_seconds(void)
 }
 EXPORT_SYMBOL_GPL(ktime_get_real_seconds);
 
+/**
+ * __ktime_get_real_seconds - The same as ktime_get_real_seconds
+ * but without the sequence counter protect. This internal function
+ * is called just when timekeeping lock is already held.
+ */
+time64_t __ktime_get_real_seconds(void)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+
+	return tk->xtime_sec;
+}
+
+
 #ifdef CONFIG_NTP_PPS
 
 /**

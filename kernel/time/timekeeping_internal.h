@@ -26,4 +26,6 @@ static inline cycle_t clocksource_delta(cycle_t now, cycle_t last, cycle_t mask)
 }
 #endif
 
+extern time64_t __ktime_get_real_seconds(void);
+
 #endif /* _TIMEKEEPING_INTERNAL_H */
