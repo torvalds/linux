@@ -345,7 +345,7 @@ static void spi_test_print_hex_dump(char *pre, const void *ptr, size_t len)
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       ptr, 512, 0);
 	/* print tail */
-	pr_info("%s truncated - continuing at offset %04x\n",
+	pr_info("%s truncated - continuing at offset %04zx\n",
 		pre, len - 512);
 	print_hex_dump(KERN_INFO, pre,
 		       DUMP_PREFIX_OFFSET, 16, 1,
@@ -525,7 +525,7 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 
 mismatch_error:
 	dev_err(&spi->dev,
-		"loopback strangeness - transfer missmatch on byte %04x - expected 0x%02x, but got 0x%02x\n",
+		"loopback strangeness - transfer missmatch on byte %04zx - expected 0x%02x, but got 0x%02x\n",
 		i, txb, rxb);
 
 	return -EINVAL;
@@ -777,7 +777,7 @@ static int spi_test_run_iter(struct spi_device *spi,
 		dev_info(&spi->dev, "Running test %s\n", test.description);
 	} else {
 		dev_info(&spi->dev,
-			 "  with iteration values: len = %i, tx_off = %i, rx_off = %i\n",
+			 "  with iteration values: len = %zu, tx_off = %zu, rx_off = %zu\n",
 			 len, tx_off, rx_off);
 	}
 
