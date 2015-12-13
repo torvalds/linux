@@ -134,7 +134,7 @@ static void pids_charge(struct pids_cgroup *pids, int num)
  *
  * This function follows the set limit. It will fail if the charge would cause
  * the new value to exceed the hierarchical limit. Returns 0 if the charge
- * succeded, otherwise -EAGAIN.
+ * succeeded, otherwise -EAGAIN.
  */
 static int pids_try_charge(struct pids_cgroup *pids, int num)
 {
