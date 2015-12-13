@@ -1,5 +1,7 @@
-#ifndef __BCM963XX_TAG_H
-#define __BCM963XX_TAG_H
+#ifndef __LINUX_BCM963XX_TAG_H__
+#define __LINUX_BCM963XX_TAG_H__
+
+#include <linux/types.h>
 
 #define TAGVER_LEN		4	/* Length of Tag Version */
 #define TAGLAYOUT_LEN		4	/* Length of FlashLayoutVer */
@@ -93,4 +95,4 @@ struct bcm_tag {
 	char reserved2[16];
 };
 
-#endif /* __BCM63XX_TAG_H */
+#endif /* __LINUX_BCM63XX_TAG_H__ */
