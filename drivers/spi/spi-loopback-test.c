@@ -260,7 +260,7 @@ static struct spi_test spi_tests[] = {
 		.fill_option	= FILL_COUNT_8,
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
-		.iterate_transfer_mask = BIT(0),
+		.iterate_transfer_mask = BIT(1),
 		.transfers		= {
 			{
 				.len = 1,
