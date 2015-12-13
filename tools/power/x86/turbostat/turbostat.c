@@ -1544,25 +1544,25 @@ dump_config_tdp(void)
 
 	get_msr(base_cpu, MSR_CONFIG_TDP_NOMINAL, &msr);
 	fprintf(outf, "cpu%d: MSR_CONFIG_TDP_NOMINAL: 0x%08llx", base_cpu, msr);
-	fprintf(outf, " (base_ratio=%d)\n", (unsigned int)msr & 0xEF);
+	fprintf(outf, " (base_ratio=%d)\n", (unsigned int)msr & 0xFF);
 
 	get_msr(base_cpu, MSR_CONFIG_TDP_LEVEL_1, &msr);
 	fprintf(outf, "cpu%d: MSR_CONFIG_TDP_LEVEL_1: 0x%08llx (", base_cpu, msr);
 	if (msr) {
-		fprintf(outf, "PKG_MIN_PWR_LVL1=%d ", (unsigned int)(msr >> 48) & 0xEFFF);
-		fprintf(outf, "PKG_MAX_PWR_LVL1=%d ", (unsigned int)(msr >> 32) & 0xEFFF);
-		fprintf(outf, "LVL1_RATIO=%d ", (unsigned int)(msr >> 16) & 0xEF);
-		fprintf(outf, "PKG_TDP_LVL1=%d", (unsigned int)(msr) & 0xEFFF);
+		fprintf(outf, "PKG_MIN_PWR_LVL1=%d ", (unsigned int)(msr >> 48) & 0x7FFF);
+		fprintf(outf, "PKG_MAX_PWR_LVL1=%d ", (unsigned int)(msr >> 32) & 0x7FFF);
+		fprintf(outf, "LVL1_RATIO=%d ", (unsigned int)(msr >> 16) & 0xFF);
+		fprintf(outf, "PKG_TDP_LVL1=%d", (unsigned int)(msr) & 0x7FFF);
 	}
 	fprintf(outf, ")\n");
 
 	get_msr(base_cpu, MSR_CONFIG_TDP_LEVEL_2, &msr);
 	fprintf(outf, "cpu%d: MSR_CONFIG_TDP_LEVEL_2: 0x%08llx (", base_cpu, msr);
 	if (msr) {
-		fprintf(outf, "PKG_MIN_PWR_LVL2=%d ", (unsigned int)(msr >> 48) & 0xEFFF);
-		fprintf(outf, "PKG_MAX_PWR_LVL2=%d ", (unsigned int)(msr >> 32) & 0xEFFF);
-		fprintf(outf, "LVL2_RATIO=%d ", (unsigned int)(msr >> 16) & 0xEF);
-		fprintf(outf, "PKG_TDP_LVL2=%d", (unsigned int)(msr) & 0xEFFF);
+		fprintf(outf, "PKG_MIN_PWR_LVL2=%d ", (unsigned int)(msr >> 48) & 0x7FFF);
+		fprintf(outf, "PKG_MAX_PWR_LVL2=%d ", (unsigned int)(msr >> 32) & 0x7FFF);
+		fprintf(outf, "LVL2_RATIO=%d ", (unsigned int)(msr >> 16) & 0xFF);
+		fprintf(outf, "PKG_TDP_LVL2=%d", (unsigned int)(msr) & 0x7FFF);
 	}
 	fprintf(outf, ")\n");
 
@@ -1575,7 +1575,7 @@ dump_config_tdp(void)
 
 	get_msr(base_cpu, MSR_TURBO_ACTIVATION_RATIO, &msr);
 	fprintf(outf, "cpu%d: MSR_TURBO_ACTIVATION_RATIO: 0x%08llx (", base_cpu, msr);
-	fprintf(outf, "MAX_NON_TURBO_RATIO=%d", (unsigned int)(msr) & 0x7F);
+	fprintf(outf, "MAX_NON_TURBO_RATIO=%d", (unsigned int)(msr) & 0xFF);
 	fprintf(outf, " lock=%d", (unsigned int)(msr >> 31) & 1);
 	fprintf(outf, ")\n");
 }
