@@ -1038,7 +1038,7 @@ static int w90p910_ether_probe(struct platform_device *pdev)
 
 	error = register_netdev(dev);
 	if (error != 0) {
-		dev_err(&pdev->dev, "Regiter EMC w90p910 FAILED\n");
+		dev_err(&pdev->dev, "Register EMC w90p910 FAILED\n");
 		error = -ENODEV;
 		goto failed_put_rmiiclk;
 	}
