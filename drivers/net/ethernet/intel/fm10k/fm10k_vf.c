@@ -103,7 +103,12 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	s32 err;
 	u16 i;
 
-	/* assume we always have at least 1 queue */
+	/* verify we have at least 1 queue */
+	if (!~fm10k_read_reg(hw, FM10K_TXQCTL(0)) ||
+	    !~fm10k_read_reg(hw, FM10K_RXQCTL(0)))
+		return FM10K_ERR_NO_RESOURCES;
+
+	/* determine how many queues we have */
 	for (i = 1; tqdloc0 && (i < FM10K_MAX_QUEUES_POOL); i++) {
 		/* verify the Descriptor cache offsets are increasing */
 		tqdloc = ~fm10k_read_reg(hw, FM10K_TQDLOC(i));

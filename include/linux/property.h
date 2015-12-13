@@ -27,6 +27,12 @@ enum dev_prop_type {
 	DEV_PROP_MAX,
 };
 
+enum dev_dma_attr {
+	DEV_DMA_NOT_SUPPORTED,
+	DEV_DMA_NON_COHERENT,
+	DEV_DMA_COHERENT,
+};
+
 bool device_property_present(struct device *dev, const char *propname);
 int device_property_read_u8_array(struct device *dev, const char *propname,
 				  u8 *val, size_t nval);
@@ -168,7 +174,9 @@ struct property_set {
 
 void device_add_property_set(struct device *dev, struct property_set *pset);
 
-bool device_dma_is_coherent(struct device *dev);
+bool device_dma_supported(struct device *dev);
+
+enum dev_dma_attr device_get_dma_attr(struct device *dev);
 
 int device_get_phy_mode(struct device *dev);
 

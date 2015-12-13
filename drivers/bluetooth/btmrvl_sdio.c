@@ -698,7 +698,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	case HCI_ACLDATA_PKT:
 	case HCI_SCODATA_PKT:
 	case HCI_EVENT_PKT:
-		bt_cb(skb)->pkt_type = type;
+		hci_skb_pkt_type(skb) = type;
 		skb_put(skb, buf_len);
 		skb_pull(skb, SDIO_HEADER_LEN);
 
@@ -713,7 +713,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 		break;
 
 	case MRVL_VENDOR_PKT:
-		bt_cb(skb)->pkt_type = HCI_VENDOR_PKT;
+		hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
 		skb_put(skb, buf_len);
 		skb_pull(skb, SDIO_HEADER_LEN);
 

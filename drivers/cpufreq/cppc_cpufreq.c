@@ -166,8 +166,7 @@ static int __init cppc_cpufreq_init(void)
 
 out:
 	for_each_possible_cpu(i)
-		if (all_cpu_data[i])
-			kfree(all_cpu_data[i]);
+		kfree(all_cpu_data[i]);
 
 	kfree(all_cpu_data);
 	return -ENODEV;

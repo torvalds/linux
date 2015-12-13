@@ -124,6 +124,10 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 		align = dt_mem_next_cell(dt_root_addr_cells, &prop);
 	}
 
+	/* Need adjust the alignment to satisfy the CMA requirement */
+	if (IS_ENABLED(CONFIG_CMA) && of_flat_dt_is_compatible(node, "shared-dma-pool"))
+		align = max(align, (phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
+
 	prop = of_get_flat_dt_prop(node, "alloc-ranges", &len);
 	if (prop) {
 
@@ -226,10 +230,9 @@ static void __init __rmem_check_for_overlap(void)
 
 			this_end = this->base + this->size;
 			next_end = next->base + next->size;
-			WARN(1,
-			     "Reserved memory: OVERLAP DETECTED!\n%s (%pa--%pa) overlaps with %s (%pa--%pa)\n",
-			     this->name, &this->base, &this_end,
-			     next->name, &next->base, &next_end);
+			pr_err("Reserved memory: OVERLAP DETECTED!\n%s (%pa--%pa) overlaps with %s (%pa--%pa)\n",
+			       this->name, &this->base, &this_end,
+			       next->name, &next->base, &next_end);
 		}
 	}
 }

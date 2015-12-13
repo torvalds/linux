@@ -2469,7 +2469,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &cpsw_netdev_ops;
 	ndev->ethtool_ops = &cpsw_ethtool_ops;
 	netif_napi_add(ndev, &priv->napi_rx, cpsw_rx_poll, CPSW_POLL_WEIGHT);
-	netif_napi_add(ndev, &priv->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
+	netif_tx_napi_add(ndev, &priv->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
 
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, &pdev->dev);

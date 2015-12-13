@@ -390,39 +390,6 @@ struct acpi_data_node {
 	struct completion kobj_done;
 };
 
-static inline bool acpi_check_dma(struct acpi_device *adev, bool *coherent)
-{
-	bool ret = false;
-
-	if (!adev)
-		return ret;
-
-	/**
-	 * Currently, we only support _CCA=1 (i.e. coherent_dma=1)
-	 * This should be equivalent to specifyig dma-coherent for
-	 * a device in OF.
-	 *
-	 * For the case when _CCA=0 (i.e. coherent_dma=0 && cca_seen=1),
-	 * There are two cases:
-	 * case 1. Do not support and disable DMA.
-	 * case 2. Support but rely on arch-specific cache maintenance for
-	 *         non-coherence DMA operations.
-	 * Currently, we implement case 1 above.
-	 *
-	 * For the case when _CCA is missing (i.e. cca_seen=0) and
-	 * platform specifies ACPI_CCA_REQUIRED, we do not support DMA,
-	 * and fallback to arch-specific default handling.
-	 *
-	 * See acpi_init_coherency() for more info.
-	 */
-	if (adev->flags.coherent_dma) {
-		ret = true;
-		if (coherent)
-			*coherent = adev->flags.coherent_dma;
-	}
-	return ret;
-}
-
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
 	return fwnode && (fwnode->type == FWNODE_ACPI
@@ -594,6 +561,9 @@ struct acpi_pci_root {
 };
 
 /* helper */
+
+bool acpi_dma_supported(struct acpi_device *adev);
+enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
 
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 					   u64 address, bool check_children);

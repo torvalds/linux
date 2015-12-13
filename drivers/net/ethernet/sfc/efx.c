@@ -2059,7 +2059,6 @@ static void efx_init_napi_channel(struct efx_channel *channel)
 	channel->napi_dev = efx->net_dev;
 	netif_napi_add(channel->napi_dev, &channel->napi_str,
 		       efx_poll, napi_weight);
-	napi_hash_add(&channel->napi_str);
 	efx_channel_busy_poll_init(channel);
 }
 
@@ -3422,7 +3421,7 @@ out:
  * with our request for slot reset the mmio_enabled callback will never be
  * called, and the link_reset callback is not used by AER or EEH mechanisms.
  */
-static struct pci_error_handlers efx_err_handlers = {
+static const struct pci_error_handlers efx_err_handlers = {
 	.error_detected = efx_io_error_detected,
 	.slot_reset	= efx_io_slot_reset,
 	.resume		= efx_io_resume,

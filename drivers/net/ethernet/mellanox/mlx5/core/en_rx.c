@@ -33,6 +33,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
+#include <net/busy_poll.h>
 #include "en.h"
 
 static inline int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq,
@@ -215,16 +216,16 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 				       be16_to_cpu(cqe->vlan_info));
 }
 
-bool mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
+int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
-	int i;
+	int work_done;
 
 	/* avoid accessing cq (dma coherent memory) if not needed */
 	if (!test_and_clear_bit(MLX5E_CQ_HAS_CQES, &cq->flags))
-		return false;
+		return 0;
 
-	for (i = 0; i < budget; i++) {
+	for (work_done = 0; work_done < budget; work_done++) {
 		struct mlx5e_rx_wqe *wqe;
 		struct mlx5_cqe64 *cqe;
 		struct sk_buff *skb;
@@ -269,10 +270,8 @@ wq_ll_pop:
 	/* ensure cq space is freed before enabling more cqes */
 	wmb();
 
-	if (i == budget) {
+	if (work_done == budget)
 		set_bit(MLX5E_CQ_HAS_CQES, &cq->flags);
-		return true;
-	}
 
-	return false;
+	return work_done;
 }

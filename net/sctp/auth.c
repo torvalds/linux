@@ -809,8 +809,8 @@ int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
 	if (!has_sha1)
 		return -EINVAL;
 
-	memcpy(ep->auth_hmacs_list->hmac_ids, &hmacs->shmac_idents[0],
-		hmacs->shmac_num_idents * sizeof(__u16));
+	for (i = 0; i < hmacs->shmac_num_idents; i++)
+		ep->auth_hmacs_list->hmac_ids[i] = htons(hmacs->shmac_idents[i]);
 	ep->auth_hmacs_list->param_hdr.length = htons(sizeof(sctp_paramhdr_t) +
 				hmacs->shmac_num_idents * sizeof(__u16));
 	return 0;

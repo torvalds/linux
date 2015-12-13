@@ -863,6 +863,9 @@ void phy_state_machine(struct work_struct *work)
 			needs_aneg = true;
 		break;
 	case PHY_NOLINK:
+		if (phy_interrupt_is_valid(phydev))
+			break;
+
 		err = phy_read_status(phydev);
 		if (err)
 			break;

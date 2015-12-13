@@ -738,7 +738,6 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	struct gfar_private *priv = NULL;
 	struct device_node *np = ofdev->dev.of_node;
 	struct device_node *child = NULL;
-	struct property *stash;
 	u32 stash_len = 0;
 	u32 stash_idx = 0;
 	unsigned int num_tx_qs, num_rx_qs;
@@ -854,9 +853,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 			goto err_grp_init;
 	}
 
-	stash = of_find_property(np, "bd-stash", NULL);
-
-	if (stash) {
+	if (of_property_read_bool(np, "bd-stash")) {
 		priv->device_flags |= FSL_GIANFAR_DEV_HAS_BD_STASHING;
 		priv->bd_stash_en = 1;
 	}
@@ -1347,12 +1344,12 @@ static int gfar_probe(struct platform_device *ofdev)
 		if (priv->poll_mode == GFAR_SQ_POLLING) {
 			netif_napi_add(dev, &priv->gfargrp[i].napi_rx,
 				       gfar_poll_rx_sq, GFAR_DEV_WEIGHT);
-			netif_napi_add(dev, &priv->gfargrp[i].napi_tx,
+			netif_tx_napi_add(dev, &priv->gfargrp[i].napi_tx,
 				       gfar_poll_tx_sq, 2);
 		} else {
 			netif_napi_add(dev, &priv->gfargrp[i].napi_rx,
 				       gfar_poll_rx, GFAR_DEV_WEIGHT);
-			netif_napi_add(dev, &priv->gfargrp[i].napi_tx,
+			netif_tx_napi_add(dev, &priv->gfargrp[i].napi_tx,
 				       gfar_poll_tx, 2);
 		}
 	}

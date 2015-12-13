@@ -25,6 +25,7 @@
 #include <linux/power_supply.h>
 #include <linux/power/jz4740-battery.h>
 #include <linux/power/gpio-charger.h>
+#include <linux/pwm.h>
 
 #include <asm/mach-jz4740/gpio.h>
 #include <asm/mach-jz4740/jz4740_fb.h>
@@ -33,8 +34,6 @@
 
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
-
-#include <linux/leds_pwm.h>
 
 #include <asm/mach-jz4740/platform.h>
 
@@ -399,13 +398,15 @@ static struct platform_device avt2_usb_regulator_device = {
 	}
 };
 
+static struct pwm_lookup qi_lb60_pwm_lookup[] = {
+	PWM_LOOKUP("jz4740-pwm", 4, "pwm-beeper", NULL, 0,
+		   PWM_POLARITY_NORMAL),
+};
+
 /* beeper */
 static struct platform_device qi_lb60_pwm_beeper = {
 	.name = "pwm-beeper",
 	.id = -1,
-	.dev = {
-		.platform_data = (void *)4,
-	},
 };
 
 /* charger */
@@ -490,6 +491,8 @@ static int __init qi_lb60_init_platform_devices(void)
 		platform_device_register(&avt2_usb_regulator_device);
 		platform_device_register(&jz4740_usb_ohci_device);
 	}
+
+	pwm_add_table(qi_lb60_pwm_lookup, ARRAY_SIZE(qi_lb60_pwm_lookup));
 
 	return platform_add_devices(jz_platform_devices,
 					ARRAY_SIZE(jz_platform_devices));

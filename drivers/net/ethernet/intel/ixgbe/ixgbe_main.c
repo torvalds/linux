@@ -65,9 +65,6 @@
 #include "ixgbe_common.h"
 #include "ixgbe_dcb_82599.h"
 #include "ixgbe_sriov.h"
-#ifdef CONFIG_IXGBE_VXLAN
-#include <net/vxlan.h>
-#endif
 
 char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
@@ -1659,6 +1656,7 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
 			 struct sk_buff *skb)
 {
+	skb_mark_napi_id(skb, &q_vector->napi);
 	if (ixgbe_qv_busy_polling(q_vector))
 		netif_receive_skb(skb);
 	else
@@ -2123,7 +2121,6 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		}
 
 #endif /* IXGBE_FCOE */
-		skb_mark_napi_id(skb, &q_vector->napi);
 		ixgbe_rx_skb(q_vector, skb);
 
 		/* update budget accounting */
@@ -2757,7 +2754,7 @@ static irqreturn_t ixgbe_msix_clean_rings(int irq, void *data)
 	/* EIAM disabled interrupts (on this vector) for us */
 
 	if (q_vector->rx.ring || q_vector->tx.ring)
-		napi_schedule(&q_vector->napi);
+		napi_schedule_irqoff(&q_vector->napi);
 
 	return IRQ_HANDLED;
 }
@@ -2786,7 +2783,8 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 	ixgbe_for_each_ring(ring, q_vector->tx)
 		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring);
 
-	if (!ixgbe_qv_lock_napi(q_vector))
+	/* Exit if we are called by netpoll or busy polling is active */
+	if ((budget <= 0) || !ixgbe_qv_lock_napi(q_vector))
 		return budget;
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
@@ -2950,7 +2948,7 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 		ixgbe_ptp_check_pps_event(adapter, eicr);
 
 	/* would disable interrupts here but EIAM disabled it */
-	napi_schedule(&q_vector->napi);
+	napi_schedule_irqoff(&q_vector->napi);
 
 	/*
 	 * re-enable link(maybe) and non-queue interrupts, no flush.
@@ -3315,8 +3313,7 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 }
 
 /**
- * Return a number of entries in the RSS indirection table
- *
+ * ixgbe_rss_indir_tbl_entries - Return RSS indirection table entries
  * @adapter: device handle
  *
  *  - 82598/82599/X540:     128
@@ -3334,8 +3331,7 @@ u32 ixgbe_rss_indir_tbl_entries(struct ixgbe_adapter *adapter)
 }
 
 /**
- * Write the RETA table to HW
- *
+ * ixgbe_store_reta - Write the RETA table to HW
  * @adapter: device handle
  *
  * Write the RSS redirection table stored in adapter.rss_indir_tbl[] to HW.
@@ -3374,8 +3370,7 @@ void ixgbe_store_reta(struct ixgbe_adapter *adapter)
 }
 
 /**
- * Write the RETA table to HW (for x550 devices in SRIOV mode)
- *
+ * ixgbe_store_vfreta - Write the RETA table to HW (x550 devices in SRIOV mode)
  * @adapter: device handle
  *
  * Write the RSS redirection table stored in adapter.rss_indir_tbl[] to HW.

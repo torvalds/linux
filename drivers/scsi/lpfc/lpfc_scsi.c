@@ -5914,7 +5914,6 @@ struct scsi_host_template lpfc_template_s3 = {
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
 	.change_queue_depth	= scsi_change_queue_depth,
-	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
 };
 
@@ -5940,7 +5939,6 @@ struct scsi_host_template lpfc_template = {
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
 	.change_queue_depth	= scsi_change_queue_depth,
-	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
 };
 
@@ -5964,6 +5962,5 @@ struct scsi_host_template lpfc_vport_template = {
 	.shost_attrs		= lpfc_vport_attrs,
 	.max_sectors		= 0xFFFF,
 	.change_queue_depth	= scsi_change_queue_depth,
-	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
 };

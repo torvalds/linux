@@ -616,9 +616,17 @@ int drm_control(struct drm_device *dev, void *data,
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode)
 {
-	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = drm_crtc_index(crtc);
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	int linedur_ns = 0, framedur_ns = 0;
 	int dotclock = mode->crtc_clock;
+
+	if (!dev->num_crtcs)
+		return;
+
+	if (WARN_ON(pipe >= dev->num_crtcs))
+		return;
 
 	/* Valid dotclock? */
 	if (dotclock > 0) {

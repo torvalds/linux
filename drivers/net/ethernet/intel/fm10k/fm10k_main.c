@@ -1428,6 +1428,10 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	fm10k_for_each_ring(ring, q_vector->tx)
 		clean_complete &= fm10k_clean_tx_irq(q_vector, ring);
 
+	/* Handle case where we are called by netpoll with a budget of 0 */
+	if (budget <= 0)
+		return budget;
+
 	/* attempt to distribute budget to each queue fairly, but don't
 	 * allow the budget to go below 1 because we'll exit polling
 	 */

@@ -16,6 +16,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/ethtool.h>
@@ -64,6 +65,13 @@ struct dsa_chip_data {
 	 * NULL if there is only one switch chip.
 	 */
 	s8		*rtable;
+
+	/*
+	 * A switch may have a GPIO line tied to its reset pin. Parse
+	 * this from the device tree, and use it before performing
+	 * switch soft reset.
+	 */
+	struct gpio_desc *reset;
 };
 
 struct dsa_platform_data {

@@ -10279,22 +10279,25 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		block_group = list_first_entry(&fs_info->unused_bgs,
 					       struct btrfs_block_group_cache,
 					       bg_list);
-		space_info = block_group->space_info;
 		list_del_init(&block_group->bg_list);
+
+		space_info = block_group->space_info;
+
 		if (ret || btrfs_mixed_space_info(space_info)) {
 			btrfs_put_block_group(block_group);
 			continue;
 		}
 		spin_unlock(&fs_info->unused_bgs_lock);
 
-		mutex_lock(&root->fs_info->delete_unused_bgs_mutex);
+		mutex_lock(&fs_info->delete_unused_bgs_mutex);
 
 		/* Don't want to race with allocators so take the groups_sem */
 		down_write(&space_info->groups_sem);
 		spin_lock(&block_group->lock);
 		if (block_group->reserved ||
 		    btrfs_block_group_used(&block_group->item) ||
-		    block_group->ro) {
+		    block_group->ro ||
+		    list_is_singular(&block_group->list)) {
 			/*
 			 * We want to bail if we made new allocations or have
 			 * outstanding allocations in this block group.  We do
@@ -10410,7 +10413,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 end_trans:
 		btrfs_end_transaction(trans, root);
 next:
-		mutex_unlock(&root->fs_info->delete_unused_bgs_mutex);
+		mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 		btrfs_put_block_group(block_group);
 		spin_lock(&fs_info->unused_bgs_lock);
 	}

@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -27,7 +29,7 @@
  */
 static LIST_HEAD(dev_opp_list);
 /* Lock to allow exclusive modification to the device and opp lists */
-static DEFINE_MUTEX(dev_opp_list_lock);
+DEFINE_MUTEX(dev_opp_list_lock);
 
 #define opp_rcu_lockdep_assert()					\
 do {									\
@@ -79,13 +81,17 @@ static struct device_opp *_managed_opp(const struct device_node *np)
  * Return: pointer to 'struct device_opp' if found, otherwise -ENODEV or
  * -EINVAL based on type of error.
  *
- * Locking: This function must be called under rcu_read_lock(). device_opp
- * is a RCU protected pointer. This means that device_opp is valid as long
- * as we are under RCU lock.
+ * Locking: For readers, this function must be called under rcu_read_lock().
+ * device_opp is a RCU protected pointer, which means that device_opp is valid
+ * as long as we are under RCU lock.
+ *
+ * For Writers, this function must be called with dev_opp_list_lock held.
  */
 struct device_opp *_find_device_opp(struct device *dev)
 {
 	struct device_opp *dev_opp;
+
+	opp_rcu_lockdep_assert();
 
 	if (IS_ERR_OR_NULL(dev)) {
 		pr_err("%s: Invalid parameters\n", __func__);
@@ -100,7 +106,7 @@ struct device_opp *_find_device_opp(struct device *dev)
 }
 
 /**
- * dev_pm_opp_get_voltage() - Gets the voltage corresponding to an available opp
+ * dev_pm_opp_get_voltage() - Gets the voltage corresponding to an opp
  * @opp:	opp for which voltage has to be returned for
  *
  * Return: voltage in micro volt corresponding to the opp, else
@@ -122,7 +128,7 @@ unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 	opp_rcu_lockdep_assert();
 
 	tmp_opp = rcu_dereference(opp);
-	if (IS_ERR_OR_NULL(tmp_opp) || !tmp_opp->available)
+	if (IS_ERR_OR_NULL(tmp_opp))
 		pr_err("%s: Invalid parameters\n", __func__);
 	else
 		v = tmp_opp->u_volt;
@@ -701,7 +707,7 @@ static int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 }
 
 /**
- * _opp_add_dynamic() - Allocate a dynamic OPP.
+ * _opp_add_v1() - Allocate a OPP based on v1 bindings.
  * @dev:	device for which we do this operation
  * @freq:	Frequency in Hz for this OPP
  * @u_volt:	Voltage in uVolts for this OPP
@@ -727,8 +733,8 @@ static int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
  * -ENOMEM	Memory allocation failure
  */
-static int _opp_add_dynamic(struct device *dev, unsigned long freq,
-			    long u_volt, bool dynamic)
+static int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
+		       bool dynamic)
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *new_opp;
@@ -770,9 +776,10 @@ unlock:
 }
 
 /* TODO: Support multiple regulators */
-static int opp_get_microvolt(struct dev_pm_opp *opp, struct device *dev)
+static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev)
 {
 	u32 microvolt[3] = {0};
+	u32 val;
 	int count, ret;
 
 	/* Missing property isn't a problem, but an invalid entry is */
@@ -804,6 +811,9 @@ static int opp_get_microvolt(struct dev_pm_opp *opp, struct device *dev)
 	opp->u_volt = microvolt[0];
 	opp->u_volt_min = microvolt[1];
 	opp->u_volt_max = microvolt[2];
+
+	if (!of_property_read_u32(opp->np, "opp-microamp", &val))
+		opp->u_amp = val;
 
 	return 0;
 }
@@ -869,12 +879,9 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	if (!of_property_read_u32(np, "clock-latency-ns", &val))
 		new_opp->clock_latency_ns = val;
 
-	ret = opp_get_microvolt(new_opp, dev);
+	ret = opp_parse_supplies(new_opp, dev);
 	if (ret)
 		goto free_opp;
-
-	if (!of_property_read_u32(new_opp->np, "opp-microamp", &val))
-		new_opp->u_amp = val;
 
 	ret = _opp_add(dev, new_opp, dev_opp);
 	if (ret)
@@ -939,7 +946,7 @@ unlock:
  */
 int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 {
-	return _opp_add_dynamic(dev, freq, u_volt, true);
+	return _opp_add_v1(dev, freq, u_volt, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_add);
 
@@ -1172,13 +1179,17 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 	struct device_opp *dev_opp;
 	int ret = 0, count = 0;
 
+	mutex_lock(&dev_opp_list_lock);
+
 	dev_opp = _managed_opp(opp_np);
 	if (dev_opp) {
 		/* OPPs are already managed */
 		if (!_add_list_dev(dev, dev_opp))
 			ret = -ENOMEM;
+		mutex_unlock(&dev_opp_list_lock);
 		return ret;
 	}
+	mutex_unlock(&dev_opp_list_lock);
 
 	/* We have opp-list node now, iterate over it and add OPPs */
 	for_each_available_child_of_node(opp_np, np) {
@@ -1196,14 +1207,19 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 	if (WARN_ON(!count))
 		return -ENOENT;
 
+	mutex_lock(&dev_opp_list_lock);
+
 	dev_opp = _find_device_opp(dev);
 	if (WARN_ON(IS_ERR(dev_opp))) {
 		ret = PTR_ERR(dev_opp);
+		mutex_unlock(&dev_opp_list_lock);
 		goto free_table;
 	}
 
 	dev_opp->np = opp_np;
 	dev_opp->shared_opp = of_property_read_bool(opp_np, "opp-shared");
+
+	mutex_unlock(&dev_opp_list_lock);
 
 	return 0;
 
@@ -1241,7 +1257,7 @@ static int _of_add_opp_table_v1(struct device *dev)
 		unsigned long freq = be32_to_cpup(val++) * 1000;
 		unsigned long volt = be32_to_cpup(val++);
 
-		if (_opp_add_dynamic(dev, freq, volt, false))
+		if (_opp_add_v1(dev, freq, volt, false))
 			dev_warn(dev, "%s: Failed to add OPP %ld\n",
 				 __func__, freq);
 		nr -= 2;

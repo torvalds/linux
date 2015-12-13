@@ -387,7 +387,7 @@ __CMPXCHG_CASE(x,  ,  mb_8, al, "memory")
 #define __LL_SC_CMPXCHG_DBL(op)	__LL_SC_CALL(__cmpxchg_double##op)
 
 #define __CMPXCHG_DBL(name, mb, cl...)					\
-static inline int __cmpxchg_double##name(unsigned long old1,		\
+static inline long __cmpxchg_double##name(unsigned long old1,		\
 					 unsigned long old2,		\
 					 unsigned long new1,		\
 					 unsigned long new2,		\

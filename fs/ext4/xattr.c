@@ -405,10 +405,9 @@ ext4_xattr_list_entries(struct dentry *dentry, struct ext4_xattr_entry *entry,
 			ext4_xattr_handler(entry->e_name_index);
 
 		if (handler) {
-			size_t size = handler->list(dentry, buffer, rest,
-						    entry->e_name,
-						    entry->e_name_len,
-						    handler->flags);
+			size_t size = handler->list(handler, dentry, buffer,
+						    rest, entry->e_name,
+						    entry->e_name_len);
 			if (buffer) {
 				if (size > rest)
 					return -ERANGE;

@@ -2302,7 +2302,7 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
 	now = curr->se.sum_exec_runtime;
 	period = (u64)curr->numa_scan_period * NSEC_PER_MSEC;
 
-	if (now - curr->node_stamp > period) {
+	if (now > curr->node_stamp + period) {
 		if (!curr->node_stamp)
 			curr->numa_scan_period = task_scan_min(curr);
 		curr->node_stamp += period;

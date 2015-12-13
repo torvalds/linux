@@ -3400,6 +3400,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	u32 count_data = 0;
 	u32 count_meta = 0;
 	u32 count_sys = 0;
+	int chunk_reserved = 0;
 
 	/* step one make some room on all the devices */
 	devices = &fs_info->fs_devices->devices;
@@ -3501,6 +3502,7 @@ again:
 
 		ret = should_balance_chunk(chunk_root, leaf, chunk,
 					   found_key.offset);
+
 		btrfs_release_path(path);
 		if (!ret) {
 			mutex_unlock(&fs_info->delete_unused_bgs_mutex);
@@ -3535,6 +3537,25 @@ again:
 					count_sys < bctl->sys.limit_min)) {
 			mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 			goto loop;
+		}
+
+		if ((chunk_type & BTRFS_BLOCK_GROUP_DATA) && !chunk_reserved) {
+			trans = btrfs_start_transaction(chunk_root, 0);
+			if (IS_ERR(trans)) {
+				mutex_unlock(&fs_info->delete_unused_bgs_mutex);
+				ret = PTR_ERR(trans);
+				goto error;
+			}
+
+			ret = btrfs_force_chunk_alloc(trans, chunk_root,
+						      BTRFS_BLOCK_GROUP_DATA);
+			if (ret < 0) {
+				mutex_unlock(&fs_info->delete_unused_bgs_mutex);
+				goto error;
+			}
+
+			btrfs_end_transaction(trans, chunk_root);
+			chunk_reserved = 1;
 		}
 
 		ret = btrfs_relocate_chunk(chunk_root,

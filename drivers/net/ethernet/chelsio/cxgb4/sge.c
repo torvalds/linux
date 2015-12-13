@@ -1864,7 +1864,6 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->truesize += skb->data_len;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
-	skb_mark_napi_id(skb, &rxq->rspq.napi);
 	pi = netdev_priv(skb->dev);
 	if (pi->rxtstamp)
 		cxgb4_sgetim_to_hwtstamp(adapter, skb_hwtstamps(skb),
@@ -2528,7 +2527,6 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		goto err;
 
 	netif_napi_add(dev, &iq->napi, napi_rx_handler, 64);
-	napi_hash_add(&iq->napi);
 	iq->cur_desc = iq->desc;
 	iq->cidx = 0;
 	iq->gen = 1;

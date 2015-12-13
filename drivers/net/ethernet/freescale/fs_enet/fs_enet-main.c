@@ -1050,7 +1050,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	ndev->netdev_ops = &fs_enet_netdev_ops;
 	ndev->watchdog_timeo = 2 * HZ;
 	netif_napi_add(ndev, &fep->napi, fs_enet_rx_napi, fpi->napi_weight);
-	netif_napi_add(ndev, &fep->napi_tx, fs_enet_tx_napi, 2);
+	netif_tx_napi_add(ndev, &fep->napi_tx, fs_enet_tx_napi, 2);
 
 	ndev->ethtool_ops = &fs_ethtool_ops;
 

@@ -217,8 +217,7 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 		break;
 	}
 
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 }
 
 static void

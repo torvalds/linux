@@ -1308,6 +1308,48 @@ void acpi_free_pnp_ids(struct acpi_device_pnp *pnp)
 	kfree(pnp->unique_id);
 }
 
+/**
+ * acpi_dma_supported - Check DMA support for the specified device.
+ * @adev: The pointer to acpi device
+ *
+ * Return false if DMA is not supported. Otherwise, return true
+ */
+bool acpi_dma_supported(struct acpi_device *adev)
+{
+	if (!adev)
+		return false;
+
+	if (adev->flags.cca_seen)
+		return true;
+
+	/*
+	* Per ACPI 6.0 sec 6.2.17, assume devices can do cache-coherent
+	* DMA on "Intel platforms".  Presumably that includes all x86 and
+	* ia64, and other arches will set CONFIG_ACPI_CCA_REQUIRED=y.
+	*/
+	if (!IS_ENABLED(CONFIG_ACPI_CCA_REQUIRED))
+		return true;
+
+	return false;
+}
+
+/**
+ * acpi_get_dma_attr - Check the supported DMA attr for the specified device.
+ * @adev: The pointer to acpi device
+ *
+ * Return enum dev_dma_attr.
+ */
+enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
+{
+	if (!acpi_dma_supported(adev))
+		return DEV_DMA_NOT_SUPPORTED;
+
+	if (adev->flags.coherent_dma)
+		return DEV_DMA_COHERENT;
+	else
+		return DEV_DMA_NON_COHERENT;
+}
+
 static void acpi_init_coherency(struct acpi_device *adev)
 {
 	unsigned long long cca = 0;

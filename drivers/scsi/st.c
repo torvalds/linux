@@ -4452,11 +4452,41 @@ static ssize_t version_show(struct device_driver *ddd, char *buf)
 }
 static DRIVER_ATTR_RO(version);
 
+#if DEBUG
+static ssize_t debug_flag_store(struct device_driver *ddp,
+	const char *buf, size_t count)
+{
+/* We only care what the first byte of the data is the rest is unused.
+ * if it's a '1' we turn on debug and if it's a '0' we disable it. All
+ * other values have -EINVAL returned if they are passed in.
+ */
+	if (count > 0) {
+		if (buf[0] == '0') {
+			debugging = NO_DEBUG;
+			return count;
+		} else if (buf[0] == '1') {
+			debugging = 1;
+			return count;
+		}
+	}
+	return -EINVAL;
+}
+
+static ssize_t debug_flag_show(struct device_driver *ddp, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", debugging);
+}
+static DRIVER_ATTR_RW(debug_flag);
+#endif
+
 static struct attribute *st_drv_attrs[] = {
 	&driver_attr_try_direct_io.attr,
 	&driver_attr_fixed_buffer_size.attr,
 	&driver_attr_max_sg_segs.attr,
 	&driver_attr_version.attr,
+#if DEBUG
+	&driver_attr_debug_flag.attr,
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(st_drv);

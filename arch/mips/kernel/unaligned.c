@@ -85,6 +85,7 @@
 #include <asm/branch.h>
 #include <asm/byteorder.h>
 #include <asm/cop2.h>
+#include <asm/debug.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
@@ -2295,7 +2296,6 @@ sigbus:
 }
 
 #ifdef CONFIG_DEBUG_FS
-extern struct dentry *mips_debugfs_dir;
 static int __init debugfs_unaligned(void)
 {
 	struct dentry *d;

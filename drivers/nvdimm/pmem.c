@@ -105,22 +105,11 @@ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
 {
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 	resource_size_t offset = sector * 512 + pmem->data_offset;
-	resource_size_t size;
 
-	if (pmem->data_offset) {
-		/*
-		 * Limit the direct_access() size to what is covered by
-		 * the memmap
-		 */
-		size = (pmem->size - offset) & ~ND_PFN_MASK;
-	} else
-		size = pmem->size - offset;
-
-	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
 	*kaddr = pmem->virt_addr + offset;
 	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
 
-	return size;
+	return pmem->size - offset;
 }
 
 static const struct block_device_operations pmem_fops = {

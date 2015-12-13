@@ -60,6 +60,14 @@ struct xfs_ifork;
 #define	XFS_SB_VERSION_MOREBITSBIT	0x8000
 
 /*
+ * The size of a single extended attribute on disk is limited by
+ * the size of index values within the attribute entries themselves.
+ * These are be16 fields, so we can only support attribute data
+ * sizes up to 2^16 bytes in length.
+ */
+#define XFS_XATTR_SIZE_MAX (1 << 16)
+
+/*
  * Supported feature bit list is just all bits in the versionnum field because
  * we've used them all up and understand them all. Except, of course, for the
  * shared superblock bit, which nobody knows what it does and so is unsupported.
@@ -1483,13 +1491,17 @@ struct xfs_acl {
  */
 #define XFS_ACL_MAX_ENTRIES(mp)	\
 	(xfs_sb_version_hascrc(&mp->m_sb) \
-		?  (XATTR_SIZE_MAX - sizeof(struct xfs_acl)) / \
+		?  (XFS_XATTR_SIZE_MAX - sizeof(struct xfs_acl)) / \
 						sizeof(struct xfs_acl_entry) \
 		: 25)
 
-#define XFS_ACL_MAX_SIZE(mp) \
+#define XFS_ACL_SIZE(cnt) \
 	(sizeof(struct xfs_acl) + \
-		sizeof(struct xfs_acl_entry) * XFS_ACL_MAX_ENTRIES((mp)))
+		sizeof(struct xfs_acl_entry) * cnt)
+
+#define XFS_ACL_MAX_SIZE(mp) \
+	XFS_ACL_SIZE(XFS_ACL_MAX_ENTRIES((mp)))
+
 
 /* On-disk XFS extended attribute names */
 #define SGI_ACL_FILE		"SGI_ACL_FILE"

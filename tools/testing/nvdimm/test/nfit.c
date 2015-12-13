@@ -1135,7 +1135,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	memdev->interleave_ways = 1;
 	memdev->flags = ACPI_NFIT_MEM_SAVE_FAILED | ACPI_NFIT_MEM_RESTORE_FAILED
 		| ACPI_NFIT_MEM_FLUSH_FAILED | ACPI_NFIT_MEM_HEALTH_OBSERVED
-		| ACPI_NFIT_MEM_ARMED;
+		| ACPI_NFIT_MEM_NOT_ARMED;
 
 	offset += sizeof(*memdev);
 	/* dcr-descriptor0 */

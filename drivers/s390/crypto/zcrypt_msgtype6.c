@@ -1119,6 +1119,7 @@ static long zcrypt_msgtype6_rng(struct zcrypt_device *zdev,
  */
 static struct zcrypt_ops zcrypt_msgtype6_norng_ops = {
 	.owner = THIS_MODULE,
+	.name = MSGTYPE06_NAME,
 	.variant = MSGTYPE06_VARIANT_NORNG,
 	.rsa_modexpo = zcrypt_msgtype6_modexpo,
 	.rsa_modexpo_crt = zcrypt_msgtype6_modexpo_crt,
@@ -1127,6 +1128,7 @@ static struct zcrypt_ops zcrypt_msgtype6_norng_ops = {
 
 static struct zcrypt_ops zcrypt_msgtype6_ops = {
 	.owner = THIS_MODULE,
+	.name = MSGTYPE06_NAME,
 	.variant = MSGTYPE06_VARIANT_DEFAULT,
 	.rsa_modexpo = zcrypt_msgtype6_modexpo,
 	.rsa_modexpo_crt = zcrypt_msgtype6_modexpo_crt,
@@ -1136,6 +1138,7 @@ static struct zcrypt_ops zcrypt_msgtype6_ops = {
 
 static struct zcrypt_ops zcrypt_msgtype6_ep11_ops = {
 	.owner = THIS_MODULE,
+	.name = MSGTYPE06_NAME,
 	.variant = MSGTYPE06_VARIANT_EP11,
 	.rsa_modexpo = NULL,
 	.rsa_modexpo_crt = NULL,

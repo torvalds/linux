@@ -1090,7 +1090,6 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 			continue;
 		}
 #endif
-		skb_mark_napi_id(skb, &rx_ring->q_vector->napi);
 		i40e_receive_skb(rx_ring, skb, vlan_tag);
 
 		rx_desc->wb.qword1.status_error_len = 0;

@@ -180,7 +180,7 @@ config-clean:
 clean:
 	$(call QUIET_CLEAN, libbpf) $(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d \
 		$(RM) LIBBPF-CFLAGS
-	$(call QUIET_CLEAN, core-gen) $(RM) $(OUTPUT)FEATURE-DUMP
+	$(call QUIET_CLEAN, core-gen) $(RM) $(OUTPUT)FEATURE-DUMP.libbpf
 
 
 

@@ -241,13 +241,11 @@ static u32 lancer_cmd_get_file_len(struct be_adapter *adapter, u8 *file_name)
 	u32 data_read = 0, eof;
 	u8 addn_status;
 	struct be_dma_mem data_len_cmd;
-	int status;
 
 	memset(&data_len_cmd, 0, sizeof(data_len_cmd));
 	/* data_offset and data_size should be 0 to get reg len */
-	status = lancer_cmd_read_object(adapter, &data_len_cmd, 0, 0,
-					file_name, &data_read, &eof,
-					&addn_status);
+	lancer_cmd_read_object(adapter, &data_len_cmd, 0, 0, file_name,
+			       &data_read, &eof, &addn_status);
 
 	return data_read;
 }
@@ -1062,9 +1060,7 @@ static int be_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 static int be_set_rss_hash_opts(struct be_adapter *adapter,
 				struct ethtool_rxnfc *cmd)
 {
-	struct be_rx_obj *rxo;
-	int status = 0, i, j;
-	u8 rsstable[128];
+	int status;
 	u32 rss_flags = adapter->rss_info.rss_flags;
 
 	if (cmd->data != L3_RSS_FLAGS &&
@@ -1113,20 +1109,11 @@ static int be_set_rss_hash_opts(struct be_adapter *adapter,
 	}
 
 	if (rss_flags == adapter->rss_info.rss_flags)
-		return status;
-
-	if (be_multi_rxq(adapter)) {
-		for (j = 0; j < 128; j += adapter->num_rss_qs) {
-			for_all_rss_queues(adapter, rxo, i) {
-				if ((j + i) >= 128)
-					break;
-				rsstable[j + i] = rxo->rss_id;
-			}
-		}
-	}
+		return 0;
 
 	status = be_cmd_rss_config(adapter, adapter->rss_info.rsstable,
-				   rss_flags, 128, adapter->rss_info.rss_hkey);
+				   rss_flags, RSS_INDIR_TABLE_LEN,
+				   adapter->rss_info.rss_hkey);
 	if (!status)
 		adapter->rss_info.rss_flags = rss_flags;
 

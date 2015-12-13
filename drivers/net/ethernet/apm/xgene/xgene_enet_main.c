@@ -1084,7 +1084,7 @@ static const struct net_device_ops xgene_ndev_ops = {
 };
 
 #ifdef CONFIG_ACPI
-static int xgene_get_port_id_acpi(struct device *dev,
+static void xgene_get_port_id_acpi(struct device *dev,
 				  struct xgene_enet_pdata *pdata)
 {
 	acpi_status status;
@@ -1097,24 +1097,19 @@ static int xgene_get_port_id_acpi(struct device *dev,
 		pdata->port_id = temp;
 	}
 
-	return 0;
+	return;
 }
 #endif
 
-static int xgene_get_port_id_dt(struct device *dev, struct xgene_enet_pdata *pdata)
+static void xgene_get_port_id_dt(struct device *dev, struct xgene_enet_pdata *pdata)
 {
 	u32 id = 0;
-	int ret;
 
-	ret = of_property_read_u32(dev->of_node, "port-id", &id);
-	if (ret) {
-		pdata->port_id = 0;
-		ret = 0;
-	} else {
-		pdata->port_id = id & BIT(0);
-	}
+	of_property_read_u32(dev->of_node, "port-id", &id);
 
-	return ret;
+	pdata->port_id = id & BIT(0);
+
+	return;
 }
 
 static int xgene_get_tx_delay(struct xgene_enet_pdata *pdata)
@@ -1209,13 +1204,11 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	}
 
 	if (dev->of_node)
-		ret = xgene_get_port_id_dt(dev, pdata);
+		xgene_get_port_id_dt(dev, pdata);
 #ifdef CONFIG_ACPI
 	else
-		ret = xgene_get_port_id_acpi(dev, pdata);
+		xgene_get_port_id_acpi(dev, pdata);
 #endif
-	if (ret)
-		return ret;
 
 	if (!device_get_mac_address(dev, ndev->dev_addr, ETH_ALEN))
 		eth_hw_addr_random(ndev);

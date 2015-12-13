@@ -403,12 +403,25 @@ static void vfio_remove_dma(struct vfio_iommu *iommu, struct vfio_dma *dma)
 static unsigned long vfio_pgsize_bitmap(struct vfio_iommu *iommu)
 {
 	struct vfio_domain *domain;
-	unsigned long bitmap = PAGE_MASK;
+	unsigned long bitmap = ULONG_MAX;
 
 	mutex_lock(&iommu->lock);
 	list_for_each_entry(domain, &iommu->domain_list, next)
 		bitmap &= domain->domain->ops->pgsize_bitmap;
 	mutex_unlock(&iommu->lock);
+
+	/*
+	 * In case the IOMMU supports page sizes smaller than PAGE_SIZE
+	 * we pretend PAGE_SIZE is supported and hide sub-PAGE_SIZE sizes.
+	 * That way the user will be able to map/unmap buffers whose size/
+	 * start address is aligned with PAGE_SIZE. Pinning code uses that
+	 * granularity while iommu driver can use the sub-PAGE_SIZE size
+	 * to map the buffer.
+	 */
+	if (bitmap & ~PAGE_MASK) {
+		bitmap &= PAGE_MASK;
+		bitmap |= PAGE_SIZE;
+	}
 
 	return bitmap;
 }

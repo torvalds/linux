@@ -1749,7 +1749,8 @@ kvmppc_hdsi:
 	beq	3f
 	clrrdi	r0, r4, 28
 	PPC_SLBFEE_DOT(R5, R0)		/* if so, look up SLB */
-	bne	1f			/* if no SLB entry found */
+	li	r0, BOOK3S_INTERRUPT_DATA_SEGMENT
+	bne	7f			/* if no SLB entry found */
 4:	std	r4, VCPU_FAULT_DAR(r9)
 	stw	r6, VCPU_FAULT_DSISR(r9)
 
@@ -1768,14 +1769,15 @@ kvmppc_hdsi:
 	cmpdi	r3, -2			/* MMIO emulation; need instr word */
 	beq	2f
 
-	/* Synthesize a DSI for the guest */
+	/* Synthesize a DSI (or DSegI) for the guest */
 	ld	r4, VCPU_FAULT_DAR(r9)
 	mr	r6, r3
-1:	mtspr	SPRN_DAR, r4
+1:	li	r0, BOOK3S_INTERRUPT_DATA_STORAGE
 	mtspr	SPRN_DSISR, r6
+7:	mtspr	SPRN_DAR, r4
 	mtspr	SPRN_SRR0, r10
 	mtspr	SPRN_SRR1, r11
-	li	r10, BOOK3S_INTERRUPT_DATA_STORAGE
+	mr	r10, r0
 	bl	kvmppc_msr_interrupt
 fast_interrupt_c_return:
 6:	ld	r7, VCPU_CTR(r9)
@@ -1823,7 +1825,8 @@ kvmppc_hisi:
 	beq	3f
 	clrrdi	r0, r10, 28
 	PPC_SLBFEE_DOT(R5, R0)		/* if so, look up SLB */
-	bne	1f			/* if no SLB entry found */
+	li	r0, BOOK3S_INTERRUPT_INST_SEGMENT
+	bne	7f			/* if no SLB entry found */
 4:
 	/* Search the hash table. */
 	mr	r3, r9			/* vcpu pointer */
@@ -1840,11 +1843,12 @@ kvmppc_hisi:
 	cmpdi	r3, -1			/* handle in kernel mode */
 	beq	guest_exit_cont
 
-	/* Synthesize an ISI for the guest */
+	/* Synthesize an ISI (or ISegI) for the guest */
 	mr	r11, r3
-1:	mtspr	SPRN_SRR0, r10
+1:	li	r0, BOOK3S_INTERRUPT_INST_STORAGE
+7:	mtspr	SPRN_SRR0, r10
 	mtspr	SPRN_SRR1, r11
-	li	r10, BOOK3S_INTERRUPT_INST_STORAGE
+	mr	r10, r0
 	bl	kvmppc_msr_interrupt
 	b	fast_interrupt_c_return
 

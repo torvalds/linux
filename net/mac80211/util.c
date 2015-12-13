@@ -288,10 +288,13 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	if (!test_bit(reason, &local->queue_stop_reasons[queue]))
 		return;
 
-	if (!refcounted)
+	if (!refcounted) {
 		local->q_stop_reasons[queue][reason] = 0;
-	else
+	} else {
 		local->q_stop_reasons[queue][reason]--;
+		if (WARN_ON(local->q_stop_reasons[queue][reason] < 0))
+			local->q_stop_reasons[queue][reason] = 0;
+	}
 
 	if (local->q_stop_reasons[queue][reason] == 0)
 		__clear_bit(reason, &local->queue_stop_reasons[queue]);

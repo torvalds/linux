@@ -1082,9 +1082,6 @@ static inline void skb_copy_hash(struct sk_buff *to, const struct sk_buff *from)
 
 static inline void skb_sender_cpu_clear(struct sk_buff *skb)
 {
-#ifdef CONFIG_XPS
-	skb->sender_cpu = 0;
-#endif
 }
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET

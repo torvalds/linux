@@ -681,7 +681,7 @@ solution for a couple of reasons:
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
-    connect(s, (struct sockaddr *)&addr, sizeof(addr))
+    connect(s, (struct sockaddr *)&addr, sizeof(addr));
 
     (..)
 

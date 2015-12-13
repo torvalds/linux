@@ -22,6 +22,9 @@ TMON_LIBS += $(shell pkg-config --libs $(STATIC) panelw ncursesw 2> /dev/null ||
 		     pkg-config --libs $(STATIC) panel ncurses 2> /dev/null || \
 		     echo -lpanel -lncurses)
 
+CFLAGS    += $(shell pkg-config --cflags $(STATIC) panelw ncursesw 2> /dev/null || \
+		     pkg-config --cflags $(STATIC) panel ncurses 2> /dev/null)
+
 OBJS = tmon.o tui.o sysfs.o pid.o
 OBJS +=
 

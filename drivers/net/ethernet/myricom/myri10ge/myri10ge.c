@@ -1488,7 +1488,6 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 	}
 	myri10ge_vlan_rx(mgp->dev, va, skb);
 	skb_record_rx_queue(skb, ss - &mgp->ss[0]);
-	skb_mark_napi_id(skb, &ss->napi);
 
 	if (polling) {
 		int hlen;
@@ -1506,6 +1505,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 		skb->data_len -= hlen;
 		skb->tail += hlen;
 		skb->protocol = eth_type_trans(skb, dev);
+		skb_mark_napi_id(skb, &ss->napi);
 		netif_receive_skb(skb);
 	}
 	else
@@ -3814,7 +3814,6 @@ static int myri10ge_alloc_slices(struct myri10ge_priv *mgp)
 		ss->dev = mgp->dev;
 		netif_napi_add(ss->dev, &ss->napi, myri10ge_poll,
 			       myri10ge_napi_weight);
-		napi_hash_add(&ss->napi);
 	}
 	return 0;
 abort:

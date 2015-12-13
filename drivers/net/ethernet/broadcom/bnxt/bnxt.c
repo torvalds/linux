@@ -4227,12 +4227,10 @@ static void bnxt_init_napi(struct bnxt *bp)
 			bnapi = bp->bnapi[i];
 			netif_napi_add(bp->dev, &bnapi->napi,
 				       bnxt_poll, 64);
-			napi_hash_add(&bnapi->napi);
 		}
 	} else {
 		bnapi = bp->bnapi[0];
 		netif_napi_add(bp->dev, &bnapi->napi, bnxt_poll, 64);
-		napi_hash_add(&bnapi->napi);
 	}
 }
 

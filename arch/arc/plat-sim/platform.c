@@ -10,7 +10,6 @@
 
 #include <linux/init.h>
 #include <asm/mach_desc.h>
-#include <asm/mcip.h>
 
 /*----------------------- Machine Descriptions ------------------------------
  *

@@ -2184,7 +2184,6 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 		skb_set_hash(skb, rxcp->rss_hash, PKT_HASH_TYPE_L3);
 
 	skb->csum_level = rxcp->tunneled;
-	skb_mark_napi_id(skb, napi);
 
 	if (rxcp->vlanf)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rxcp->vlan_tag);
@@ -2631,7 +2630,6 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 				eqo->affinity_mask);
 		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
 			       BE_NAPI_WEIGHT);
-		napi_hash_add(&eqo->napi);
 	}
 	return 0;
 }
@@ -3518,7 +3516,7 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 
 	netdev_rss_key_fill(rss_key, RSS_HASH_KEY_LEN);
 	rc = be_cmd_rss_config(adapter, rss->rsstable, rss->rss_flags,
-			       128, rss_key);
+			       RSS_INDIR_TABLE_LEN, rss_key);
 	if (rc) {
 		rss->rss_flags = RSS_ENABLE_NONE;
 		return rc;

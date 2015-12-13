@@ -2210,6 +2210,7 @@ F:	drivers/leds/leds-blinkm.c
 
 BLOCK LAYER
 M:	Jens Axboe <axboe@kernel.dk>
+L:	linux-block@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
 S:	Maintained
 F:	block/
@@ -2545,7 +2546,7 @@ F:	arch/c6x/
 
 CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
-L:	linux-cachefs@redhat.com
+L:	linux-cachefs@redhat.com (moderated for non-subscribers)
 S:	Supported
 F:	Documentation/filesystems/caching/cachefiles.txt
 F:	fs/cachefiles/
@@ -4558,7 +4559,7 @@ F:	include/linux/frontswap.h
 
 FS-CACHE: LOCAL CACHING FOR NETWORK FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
-L:	linux-cachefs@redhat.com
+L:	linux-cachefs@redhat.com (moderated for non-subscribers)
 S:	Supported
 F:	Documentation/filesystems/caching/
 F:	fs/fscache/
@@ -5505,7 +5506,8 @@ S:	Supported
 F:	drivers/idle/intel_idle.c
 
 INTEL PSTATE DRIVER
-M:	Kristen Carlson Accardi <kristen@linux.intel.com>
+M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
+M:	Len Brown <lenb@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/cpufreq/intel_pstate.c
@@ -5708,13 +5710,6 @@ IP MASQUERADING
 M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
 S:	Maintained
 F:	net/ipv4/netfilter/ipt_MASQUERADE.c
-
-IP1000A 10/100/1000 GIGABIT ETHERNET DRIVER
-M:	Francois Romieu <romieu@fr.zoreil.com>
-M:	Sorbica Shieh <sorbica@icplus.com.tw>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/icplus/ipg.*
 
 IPATH DRIVER
 M:	Mike Marciniszyn <infinipath@intel.com>
@@ -6921,12 +6916,20 @@ F:	drivers/scsi/megaraid.*
 F:	drivers/scsi/megaraid/
 
 MELLANOX ETHERNET DRIVER (mlx4_en)
-M:	Amir Vadai <amirv@mellanox.com>
+M: 	Eugenia Emantayev <eugenia@mellanox.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlx4/en_*
+
+MELLANOX ETHERNET DRIVER (mlx5e)
+M:	Saeed Mahameed <saeedm@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+W:	http://www.mellanox.com
+Q:	http://patchwork.ozlabs.org/project/netdev/list/
+F:	drivers/net/ethernet/mellanox/mlx5/core/en_*
 
 MELLANOX ETHERNET SWITCH DRIVERS
 M:	Jiri Pirko <jiri@mellanox.com>
@@ -10298,7 +10301,7 @@ F:	include/net/switchdev.h
 
 SYNOPSYS ARC ARCHITECTURE
 M:	Vineet Gupta <vgupta@synopsys.com>
-L:	linux-snps-arc@lists.infraded.org
+L:	linux-snps-arc@lists.infradead.org
 S:	Supported
 F:	arch/arc/
 F:	Documentation/devicetree/bindings/arc/*

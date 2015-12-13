@@ -196,7 +196,7 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 	if (len)
 		memcpy(skb_put(skb, len), param, len);
 
-	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
+	hci_skb_pkt_type(skb) = MRVL_VENDOR_PKT;
 
 	skb_queue_head(&priv->adapter->tx_queue, skb);
 
@@ -387,7 +387,7 @@ static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 	skb->data[0] = (skb->len & 0x0000ff);
 	skb->data[1] = (skb->len & 0x00ff00) >> 8;
 	skb->data[2] = (skb->len & 0xff0000) >> 16;
-	skb->data[3] = bt_cb(skb)->pkt_type;
+	skb->data[3] = hci_skb_pkt_type(skb);
 
 	if (priv->hw_host_to_card)
 		ret = priv->hw_host_to_card(priv, skb->data, skb->len);
@@ -434,9 +434,9 @@ static int btmrvl_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 
-	BT_DBG("type=%d, len=%d", skb->pkt_type, skb->len);
+	BT_DBG("type=%d, len=%d", hci_skb_pkt_type(skb), skb->len);
 
-	switch (bt_cb(skb)->pkt_type) {
+	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;

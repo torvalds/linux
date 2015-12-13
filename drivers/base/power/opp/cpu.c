@@ -10,6 +10,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
@@ -124,12 +127,12 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
 	struct device *dev;
 	int cpu, ret = 0;
 
-	rcu_read_lock();
+	mutex_lock(&dev_opp_list_lock);
 
 	dev_opp = _find_device_opp(cpu_dev);
 	if (IS_ERR(dev_opp)) {
 		ret = -EINVAL;
-		goto out_rcu_read_unlock;
+		goto unlock;
 	}
 
 	for_each_cpu(cpu, cpumask) {
@@ -150,10 +153,10 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
 			continue;
 		}
 	}
-out_rcu_read_unlock:
-	rcu_read_unlock();
+unlock:
+	mutex_unlock(&dev_opp_list_lock);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
 

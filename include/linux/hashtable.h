@@ -16,6 +16,10 @@
 	struct hlist_head name[1 << (bits)] =					\
 			{ [0 ... ((1 << (bits)) - 1)] = HLIST_HEAD_INIT }
 
+#define DEFINE_READ_MOSTLY_HASHTABLE(name, bits)				\
+	struct hlist_head name[1 << (bits)] __read_mostly =			\
+			{ [0 ... ((1 << (bits)) - 1)] = HLIST_HEAD_INIT }
+
 #define DECLARE_HASHTABLE(name, bits)                                   	\
 	struct hlist_head name[1 << (bits)]
 

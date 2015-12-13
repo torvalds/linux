@@ -718,8 +718,21 @@ generates appropriate diffstats by default.)
 See more details on the proper patch format in the following
 references.
 
+15) Explicit In-Reply-To headers
+--------------------------------
 
-15) Sending "git pull" requests
+It can be helpful to manually add In-Reply-To: headers to a patch
+(e.g., when using "git send email") to associate the patch with
+previous relevant discussion, e.g. to link a bug fix to the email with
+the bug report.  However, for a multi-patch series, it is generally
+best to avoid using In-Reply-To: to link to older versions of the
+series.  This way multiple versions of the patch don't become an
+unmanageable forest of references in email clients.  If a link is
+helpful, you can use the https://lkml.kernel.org/ redirector (e.g., in
+the cover email text) to link to an earlier version of the patch series.
+
+
+16) Sending "git pull" requests
 -------------------------------
 
 If you have a series of patches, it may be most convenient to have the
