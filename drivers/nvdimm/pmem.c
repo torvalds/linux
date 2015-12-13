@@ -238,7 +238,9 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 
 	nd_pfn->pfn_sb = pfn_sb;
 	rc = nd_pfn_validate(nd_pfn);
-	if (rc == 0 || rc == -EBUSY)
+	if (rc == -ENODEV)
+		/* no info block, do init */;
+	else
 		return rc;
 
 	nd_region = to_nd_region(nd_pfn->dev.parent);
