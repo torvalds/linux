@@ -273,10 +273,11 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 
 int nd_pfn_validate(struct nd_pfn *nd_pfn)
 {
-	struct nd_namespace_common *ndns = nd_pfn->ndns;
-	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
-	struct nd_namespace_io *nsio;
 	u64 checksum, offset;
+	struct nd_namespace_io *nsio;
+	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+	struct nd_namespace_common *ndns = nd_pfn->ndns;
+	const u8 *parent_uuid = nd_dev_to_uuid(&ndns->dev);
 
 	if (!pfn_sb || !ndns)
 		return -ENODEV;
@@ -295,6 +296,9 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 	if (checksum != nd_sb_checksum((struct nd_gen_sb *) pfn_sb))
 		return -ENODEV;
 	pfn_sb->checksum = cpu_to_le64(checksum);
+
+	if (memcmp(pfn_sb->parent_uuid, parent_uuid, 16) != 0)
+		return -ENODEV;
 
 	switch (le32_to_cpu(pfn_sb->mode)) {
 	case PFN_MODE_RAM:

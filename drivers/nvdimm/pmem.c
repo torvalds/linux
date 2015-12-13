@@ -270,6 +270,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	pfn_sb->npfns = cpu_to_le64(npfns);
 	memcpy(pfn_sb->signature, PFN_SIG, PFN_SIG_LEN);
 	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
+	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
 	pfn_sb->version_major = cpu_to_le16(1);
 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
 	pfn_sb->checksum = cpu_to_le64(checksum);
