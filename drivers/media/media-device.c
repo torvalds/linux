@@ -689,10 +689,6 @@ static void media_device_release_devres(struct device *dev, void *res)
 {
 }
 
-/*
- * media_device_get_devres() -	get media device as device resource
- *				creates if one doesn't exist
-*/
 struct media_device *media_device_get_devres(struct device *dev)
 {
 	struct media_device *mdev;
@@ -709,9 +705,6 @@ struct media_device *media_device_get_devres(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(media_device_get_devres);
 
-/*
- * media_device_find_devres() - find media device as device resource
-*/
 struct media_device *media_device_find_devres(struct device *dev)
 {
 	return devres_find(dev, media_device_release_devres, NULL, NULL);
