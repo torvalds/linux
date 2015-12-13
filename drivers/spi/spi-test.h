@@ -20,7 +20,7 @@
 
 #define SPI_TEST_MAX_TRANSFERS 4
 #define SPI_TEST_MAX_SIZE (32 * PAGE_SIZE)
-#define SPI_TEST_MAX_ITERATE 16
+#define SPI_TEST_MAX_ITERATE 32
 
 /* the "dummy" start addresses used in spi_test
  * these addresses get translated at a later stage
@@ -127,9 +127,10 @@ int spi_test_run_tests(struct spi_device *spi,
 		       struct spi_test *tests);
 
 /* some of the default @spi_transfer.len to test */
-#define ITERATE_LEN 16, 32, 64, 128, 256, 1024, PAGE_SIZE, 65536
+#define ITERATE_LEN 2, 3, 7, 11, 16, 31, 32, 64, 97, 128, 251, 256, \
+		1021, 1024, 1031, 4093, PAGE_SIZE, 4099, 65536, 65537
 
-#define ITERATE_MAX_LEN ITERATE_LEN, SPI_TEST_MAX_SIZE
+#define ITERATE_MAX_LEN ITERATE_LEN, SPI_TEST_MAX_SIZE - 1, SPI_TEST_MAX_SIZE
 
 /* the default alignment to test */
 #define ITERATE_ALIGN sizeof(int)
