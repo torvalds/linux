@@ -14,7 +14,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/export.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/platform_data/cpuidle-exynos.h>
@@ -142,5 +142,4 @@ static struct platform_driver exynos_cpuidle_driver = {
 		.name = "exynos_cpuidle",
 	},
 };
-
-module_platform_driver(exynos_cpuidle_driver);
+builtin_platform_driver(exynos_cpuidle_driver);
