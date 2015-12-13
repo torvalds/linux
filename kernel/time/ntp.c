@@ -18,6 +18,8 @@
 #include <linux/rtc.h>
 
 #include "ntp_internal.h"
+#include "timekeeping_internal.h"
+
 
 /*
  * NTP timekeeping variables:
@@ -70,7 +72,7 @@ static long			time_esterror = NTP_PHASE_LIMIT;
 static s64			time_freq;
 
 /* time at last adjustment (secs):					*/
-static long			time_reftime;
+static time64_t		time_reftime;
 
 static long			time_adjust;
 
@@ -313,11 +315,11 @@ static void ntp_update_offset(long offset)
 	 * Select how the frequency is to be controlled
 	 * and in which mode (PLL or FLL).
 	 */
-	secs = get_seconds() - time_reftime;
+	secs = (long)(__ktime_get_real_seconds() - time_reftime);
 	if (unlikely(time_status & STA_FREQHOLD))
 		secs = 0;
 
-	time_reftime = get_seconds();
+	time_reftime = __ktime_get_real_seconds();
 
 	offset64    = offset;
 	freq_adj    = ntp_update_offset_fll(offset64, secs);
@@ -592,7 +594,7 @@ static inline void process_adj_status(struct timex *txc, struct timespec64 *ts)
 	 * reference time to current time.
 	 */
 	if (!(time_status & STA_PLL) && (txc->status & STA_PLL))
-		time_reftime = get_seconds();
+		time_reftime = __ktime_get_real_seconds();
 
 	/* only set allowed bits */
 	time_status &= STA_RONLY;
