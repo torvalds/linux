@@ -473,6 +473,8 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
+	pdev->dev.platform_data = pdata;
+
 	if (!of_property_read_u32(np, "num-ports", &ports))
 		pdata->ports = ports;
 
@@ -483,6 +485,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 		 */
 		if (i >= pdata->ports) {
 			pdata->vbus_pin[i] = -EINVAL;
+			pdata->overcurrent_pin[i] = -EINVAL;
 			continue;
 		}
 
@@ -513,10 +516,8 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	}
 
 	at91_for_each_port(i) {
-		if (i >= pdata->ports) {
-			pdata->overcurrent_pin[i] = -EINVAL;
-			continue;
-		}
+		if (i >= pdata->ports)
+			break;
 
 		pdata->overcurrent_pin[i] =
 			of_get_named_gpio_flags(np, "atmel,oc-gpio", i, &flags);
@@ -551,8 +552,6 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 				"can't get gpio IRQ for overcurrent\n");
 		}
 	}
-
-	pdev->dev.platform_data = pdata;
 
 	device_init_wakeup(&pdev->dev, 1);
 	return usb_hcd_at91_probe(&ohci_at91_hc_driver, pdev);
