@@ -24,6 +24,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/bcm963xx_nvram.h>
 #include <linux/bcm963xx_tag.h>
 #include <linux/crc32.h>
 #include <linux/module.h>
@@ -34,12 +35,11 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/mach-bcm63xx/bcm63xx_nvram.h>
-#include <asm/mach-bcm63xx/board_bcm963xx.h>
+#define BCM963XX_CFE_BLOCK_SIZE		SZ_64K	/* always at least 64KiB */
 
-#define BCM63XX_CFE_BLOCK_SIZE	SZ_64K		/* always at least 64KiB */
-
-#define BCM63XX_CFE_MAGIC_OFFSET 0x4e0
+#define BCM963XX_CFE_MAGIC_OFFSET	0x4e0
+#define BCM963XX_CFE_VERSION_OFFSET	0x570
+#define BCM963XX_NVRAM_OFFSET		0x580
 
 static int bcm63xx_detect_cfe(struct mtd_info *master)
 {
@@ -58,11 +58,35 @@ static int bcm63xx_detect_cfe(struct mtd_info *master)
 		return 0;
 
 	/* very old CFE's do not have the cfe-v string, so check for magic */
-	ret = mtd_read(master, BCM63XX_CFE_MAGIC_OFFSET, 8, &retlen,
+	ret = mtd_read(master, BCM963XX_CFE_MAGIC_OFFSET, 8, &retlen,
 		       (void *)buf);
 	buf[retlen] = 0;
 
 	return strncmp("CFE1CFE1", buf, 8);
+}
+
+static int bcm63xx_read_nvram(struct mtd_info *master,
+	struct bcm963xx_nvram *nvram)
+{
+	u32 actual_crc, expected_crc;
+	size_t retlen;
+	int ret;
+
+	/* extract nvram data */
+	ret = mtd_read(master, BCM963XX_NVRAM_OFFSET, BCM963XX_NVRAM_V5_SIZE,
+			&retlen, (void *)nvram);
+	if (ret)
+		return ret;
+
+	ret = bcm963xx_nvram_checksum(nvram, &expected_crc, &actual_crc);
+	if (ret)
+		pr_warn("nvram checksum failed, contents may be invalid (expected %08x, got %08x)\n",
+			expected_crc, actual_crc);
+
+	if (!nvram->psi_size)
+		nvram->psi_size = BCM963XX_DEFAULT_PSI_SIZE;
+
+	return 0;
 }
 
 static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
@@ -71,7 +95,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 {
 	/* CFE, NVRAM and global Linux are always present */
 	int nrparts = 3, curpart = 0;
-	struct bcm_tag *buf;
+	struct bcm963xx_nvram *nvram = NULL;
+	struct bcm_tag *buf = NULL;
 	struct mtd_partition *parts;
 	int ret;
 	size_t retlen;
@@ -86,25 +111,35 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	if (bcm63xx_detect_cfe(master))
 		return -EINVAL;
 
+	nvram = vzalloc(sizeof(*nvram));
+	if (!nvram)
+		return -ENOMEM;
+
+	ret = bcm63xx_read_nvram(master, nvram);
+	if (ret)
+		goto out;
+
 	cfe_erasesize = max_t(uint32_t, master->erasesize,
-			      BCM63XX_CFE_BLOCK_SIZE);
+			      BCM963XX_CFE_BLOCK_SIZE);
 
 	cfelen = cfe_erasesize;
-	nvramlen = bcm63xx_nvram_get_psi_size() * SZ_1K;
+	nvramlen = nvram->psi_size * SZ_1K;
 	nvramlen = roundup(nvramlen, cfe_erasesize);
 
 	/* Allocate memory for buffer */
 	buf = vmalloc(sizeof(struct bcm_tag));
-	if (!buf)
-		return -ENOMEM;
+	if (!buf) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/* Get the tag */
 	ret = mtd_read(master, cfelen, sizeof(struct bcm_tag), &retlen,
 		       (void *)buf);
 
 	if (retlen != sizeof(struct bcm_tag)) {
-		vfree(buf);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	computed_crc = crc32_le(IMAGETAG_CRC_START, (u8 *)buf,
@@ -154,8 +189,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	/* Ask kernel for more memory */
 	parts = kzalloc(sizeof(*parts) * nrparts + 10 * nrparts, GFP_KERNEL);
 	if (!parts) {
-		vfree(buf);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	/* Start building partition list */
@@ -206,7 +241,14 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		sparelen);
 
 	*pparts = parts;
+	ret = 0;
+
+out:
+	vfree(nvram);
 	vfree(buf);
+
+	if (ret)
+		return ret;
 
 	return nrparts;
 };
