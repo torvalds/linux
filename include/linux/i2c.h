@@ -655,7 +655,7 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 }
 
 /**
- * module_i2c_driver() - Helper macro for registering a I2C driver
+ * module_i2c_driver() - Helper macro for registering a modular I2C driver
  * @__i2c_driver: i2c_driver struct
  *
  * Helper macro for I2C drivers which do not do anything special in module
@@ -665,6 +665,17 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 #define module_i2c_driver(__i2c_driver) \
 	module_driver(__i2c_driver, i2c_add_driver, \
 			i2c_del_driver)
+
+/**
+ * builtin_i2c_driver() - Helper macro for registering a builtin I2C driver
+ * @__i2c_driver: i2c_driver struct
+ *
+ * Helper macro for I2C drivers which do not do anything special in their
+ * init. This eliminates a lot of boilerplate. Each driver may only
+ * use this macro once, and calling it replaces device_initcall().
+ */
+#define builtin_i2c_driver(__i2c_driver) \
+	builtin_driver(__i2c_driver, i2c_add_driver)
 
 #endif /* I2C */
 
