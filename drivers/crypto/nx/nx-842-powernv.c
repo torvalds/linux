@@ -442,6 +442,14 @@ static int nx842_powernv_function(const unsigned char *in, unsigned int inlen,
 			     (unsigned int)ccw,
 			     (unsigned int)be32_to_cpu(crb->ccw));
 
+	/*
+	 * NX842 coprocessor sets 3rd bit in CR register with XER[S0].
+	 * XER[S0] is the integer summary overflow bit which is nothing
+	 * to do NX. Since this bit can be set with other return values,
+	 * mask this bit.
+	 */
+	ret &= ~ICSWX_XERS0;
+
 	switch (ret) {
 	case ICSWX_INITIATED:
 		ret = wait_for_csb(wmem, csb);
@@ -452,10 +460,6 @@ static int nx842_powernv_function(const unsigned char *in, unsigned int inlen,
 		break;
 	case ICSWX_REJECTED:
 		pr_err_ratelimited("ICSWX rejected\n");
-		ret = -EPROTO;
-		break;
-	default:
-		pr_err_ratelimited("Invalid ICSWX return code %x\n", ret);
 		ret = -EPROTO;
 		break;
 	}
