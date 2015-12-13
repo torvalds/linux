@@ -157,7 +157,9 @@ int i40evf_send_vf_config_msg(struct i40evf_adapter *adapter)
 	       I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ |
 	       I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG |
 	       I40E_VIRTCHNL_VF_OFFLOAD_VLAN |
-	       I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR;
+	       I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR |
+	       I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2;
+
 	adapter->current_op = I40E_VIRTCHNL_OP_GET_VF_RESOURCES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_GET_CONFIG;
 	if (PF_IS_V11(adapter))

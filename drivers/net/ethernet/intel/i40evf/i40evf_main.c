@@ -34,7 +34,15 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710/X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "1.4.3"
+#define DRV_KERN "-k"
+
+#define DRV_VERSION_MAJOR 1
+#define DRV_VERSION_MINOR 4
+#define DRV_VERSION_BUILD 4
+#define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
+	     __stringify(DRV_VERSION_MINOR) "." \
+	     __stringify(DRV_VERSION_BUILD) \
+	     DRV_KERN
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2015 Intel Corporation.";
@@ -2034,6 +2042,9 @@ void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter)
 {
 	int i;
 
+	if (!adapter->tx_rings)
+		return;
+
 	for (i = 0; i < adapter->num_active_queues; i++)
 		if (adapter->tx_rings[i].desc)
 			i40evf_free_tx_resources(&adapter->tx_rings[i]);
@@ -2101,6 +2112,9 @@ static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter)
 void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
 {
 	int i;
+
+	if (!adapter->rx_rings)
+		return;
 
 	for (i = 0; i < adapter->num_active_queues; i++)
 		if (adapter->rx_rings[i].desc)

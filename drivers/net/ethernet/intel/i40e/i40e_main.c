@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 7
+#define DRV_VERSION_BUILD 8
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1259,6 +1259,42 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 }
 
 /**
+ * i40e_del_mac_all_vlan - Remove a MAC filter from all VLANS
+ * @vsi: the VSI to be searched
+ * @macaddr: the mac address to be removed
+ * @is_vf: true if it is a VF
+ * @is_netdev: true if it is a netdev
+ *
+ * Removes a given MAC address from a VSI, regardless of VLAN
+ *
+ * Returns 0 for success, or error
+ **/
+int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
+			  bool is_vf, bool is_netdev)
+{
+	struct i40e_mac_filter *f = NULL;
+	int changed = 0;
+
+	WARN(!spin_is_locked(&vsi->mac_filter_list_lock),
+	     "Missing mac_filter_list_lock\n");
+	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+		if ((ether_addr_equal(macaddr, f->macaddr)) &&
+		    (is_vf == f->is_vf) &&
+		    (is_netdev == f->is_netdev)) {
+			f->counter--;
+			f->changed = true;
+			changed = 1;
+		}
+	}
+	if (changed) {
+		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
+		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
+		return 0;
+	}
+	return -ENOENT;
+}
+
+/**
  * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
  * @vsi: the PF Main VSI - inappropriate for any other VSI
  * @macaddr: the MAC address
@@ -1531,7 +1567,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	if (enabled_tc && (vsi->back->flags & I40E_FLAG_DCB_ENABLED)) {
 		/* Find numtc from enabled TC bitmap */
 		for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-			if (enabled_tc & BIT_ULL(i)) /* TC is enabled */
+			if (enabled_tc & BIT(i)) /* TC is enabled */
 				numtc++;
 		}
 		if (!numtc) {
@@ -1560,7 +1596,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	/* Setup queue offset/count for all TCs for given VSI */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
 		/* See if the given TC is enabled for the given VSI */
-		if (vsi->tc_config.enabled_tc & BIT_ULL(i)) {
+		if (vsi->tc_config.enabled_tc & BIT(i)) {
 			/* TC is enabled */
 			int pow, num_qps;
 
@@ -1880,11 +1916,13 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 	/* Now process 'del_list' outside the lock */
 	if (!list_empty(&tmp_del_list)) {
+		int del_list_size;
+
 		filter_list_len = pf->hw.aq.asq_buf_size /
 			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
-		del_list = kcalloc(filter_list_len,
-			    sizeof(struct i40e_aqc_remove_macvlan_element_data),
-			    GFP_KERNEL);
+		del_list_size = filter_list_len *
+			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
+		del_list = kzalloc(del_list_size, GFP_KERNEL);
 		if (!del_list) {
 			i40e_cleanup_add_list(&tmp_add_list);
 
@@ -1919,7 +1957,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 								NULL);
 				aq_err = pf->hw.aq.asq_last_status;
 				num_del = 0;
-				memset(del_list, 0, sizeof(*del_list));
+				memset(del_list, 0, del_list_size);
 
 				if (aq_ret && aq_err != I40E_AQ_RC_ENOENT) {
 					retval = -EIO;
@@ -1955,13 +1993,14 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	}
 
 	if (!list_empty(&tmp_add_list)) {
+		int add_list_size;
 
 		/* do all the adds now */
 		filter_list_len = pf->hw.aq.asq_buf_size /
 			       sizeof(struct i40e_aqc_add_macvlan_element_data),
-		add_list = kcalloc(filter_list_len,
-			       sizeof(struct i40e_aqc_add_macvlan_element_data),
-			       GFP_KERNEL);
+		add_list_size = filter_list_len *
+			       sizeof(struct i40e_aqc_add_macvlan_element_data);
+		add_list = kzalloc(add_list_size, GFP_KERNEL);
 		if (!add_list) {
 			/* Purge element from temporary lists */
 			i40e_cleanup_add_list(&tmp_add_list);
@@ -2000,7 +2039,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 				if (aq_ret)
 					break;
-				memset(add_list, 0, sizeof(*add_list));
+				memset(add_list, 0, add_list_size);
 			}
 			/* Entries from tmp_add_list were cloned from MAC
 			 * filter list, hence clean those cloned entries
@@ -4433,7 +4472,7 @@ static u8 i40e_get_iscsi_tc_map(struct i40e_pf *pf)
 		if (app.selector == I40E_APP_SEL_TCPIP &&
 		    app.protocolid == I40E_APP_PROTOID_ISCSI) {
 			tc = dcbcfg->etscfg.prioritytable[app.priority];
-			enabled_tc |= BIT_ULL(tc);
+			enabled_tc |= BIT(tc);
 			break;
 		}
 	}
@@ -4517,7 +4556,7 @@ static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 	/* At least have TC0 */
 	enabled_tc = (enabled_tc ? enabled_tc : 0x1);
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & BIT_ULL(i))
+		if (enabled_tc & BIT(i))
 			num_tc++;
 	}
 	return num_tc;
@@ -4539,7 +4578,7 @@ static u8 i40e_pf_get_default_tc(struct i40e_pf *pf)
 
 	/* Find the first enabled TC */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & BIT_ULL(i))
+		if (enabled_tc & BIT(i))
 			break;
 	}
 
@@ -4699,7 +4738,7 @@ static void i40e_vsi_config_netdev_tc(struct i40e_vsi *vsi, u8 enabled_tc)
 		 * will set the numtc for netdev as 2 that will be
 		 * referenced by the netdev layer as TC 0 and 1.
 		 */
-		if (vsi->tc_config.enabled_tc & BIT_ULL(i))
+		if (vsi->tc_config.enabled_tc & BIT(i))
 			netdev_set_tc_queue(netdev,
 					vsi->tc_config.tc_info[i].netdev_tc,
 					vsi->tc_config.tc_info[i].qcount,
@@ -4761,7 +4800,7 @@ static int i40e_vsi_config_tc(struct i40e_vsi *vsi, u8 enabled_tc)
 
 	/* Enable ETS TCs with equal BW Share for now across all VSIs */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & BIT_ULL(i))
+		if (enabled_tc & BIT(i))
 			bw_share[i] = 1;
 	}
 
@@ -4835,7 +4874,7 @@ int i40e_veb_config_tc(struct i40e_veb *veb, u8 enabled_tc)
 
 	/* Enable ETS TCs with equal BW Share for now */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & BIT_ULL(i))
+		if (enabled_tc & BIT(i))
 			bw_data.tc_bw_share_credits[i] = 1;
 	}
 
@@ -5232,7 +5271,7 @@ static int i40e_setup_tc(struct net_device *netdev, u8 tc)
 
 	/* Generate TC map for number of tc requested */
 	for (i = 0; i < tc; i++)
-		enabled_tc |= BIT_ULL(i);
+		enabled_tc |= BIT(i);
 
 	/* Requesting same TC configuration as already enabled */
 	if (enabled_tc == vsi->tc_config.enabled_tc)
@@ -6096,23 +6135,23 @@ static void i40e_reset_subtask(struct i40e_pf *pf)
 
 	rtnl_lock();
 	if (test_bit(__I40E_REINIT_REQUESTED, &pf->state)) {
-		reset_flags |= BIT_ULL(__I40E_REINIT_REQUESTED);
+		reset_flags |= BIT(__I40E_REINIT_REQUESTED);
 		clear_bit(__I40E_REINIT_REQUESTED, &pf->state);
 	}
 	if (test_bit(__I40E_PF_RESET_REQUESTED, &pf->state)) {
-		reset_flags |= BIT_ULL(__I40E_PF_RESET_REQUESTED);
+		reset_flags |= BIT(__I40E_PF_RESET_REQUESTED);
 		clear_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
 	}
 	if (test_bit(__I40E_CORE_RESET_REQUESTED, &pf->state)) {
-		reset_flags |= BIT_ULL(__I40E_CORE_RESET_REQUESTED);
+		reset_flags |= BIT(__I40E_CORE_RESET_REQUESTED);
 		clear_bit(__I40E_CORE_RESET_REQUESTED, &pf->state);
 	}
 	if (test_bit(__I40E_GLOBAL_RESET_REQUESTED, &pf->state)) {
-		reset_flags |= BIT_ULL(__I40E_GLOBAL_RESET_REQUESTED);
+		reset_flags |= BIT(__I40E_GLOBAL_RESET_REQUESTED);
 		clear_bit(__I40E_GLOBAL_RESET_REQUESTED, &pf->state);
 	}
 	if (test_bit(__I40E_DOWN_REQUESTED, &pf->state)) {
-		reset_flags |= BIT_ULL(__I40E_DOWN_REQUESTED);
+		reset_flags |= BIT(__I40E_DOWN_REQUESTED);
 		clear_bit(__I40E_DOWN_REQUESTED, &pf->state);
 	}
 
@@ -6183,15 +6222,18 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	val = rd32(&pf->hw, pf->hw.aq.arq.len);
 	oldval = val;
 	if (val & I40E_PF_ARQLEN_ARQVFE_MASK) {
-		dev_info(&pf->pdev->dev, "ARQ VF Error detected\n");
+		if (hw->debug_mask & I40E_DEBUG_AQ)
+			dev_info(&pf->pdev->dev, "ARQ VF Error detected\n");
 		val &= ~I40E_PF_ARQLEN_ARQVFE_MASK;
 	}
 	if (val & I40E_PF_ARQLEN_ARQOVFL_MASK) {
-		dev_info(&pf->pdev->dev, "ARQ Overflow Error detected\n");
+		if (hw->debug_mask & I40E_DEBUG_AQ)
+			dev_info(&pf->pdev->dev, "ARQ Overflow Error detected\n");
 		val &= ~I40E_PF_ARQLEN_ARQOVFL_MASK;
 	}
 	if (val & I40E_PF_ARQLEN_ARQCRIT_MASK) {
-		dev_info(&pf->pdev->dev, "ARQ Critical Error detected\n");
+		if (hw->debug_mask & I40E_DEBUG_AQ)
+			dev_info(&pf->pdev->dev, "ARQ Critical Error detected\n");
 		val &= ~I40E_PF_ARQLEN_ARQCRIT_MASK;
 	}
 	if (oldval != val)
@@ -6200,15 +6242,18 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	val = rd32(&pf->hw, pf->hw.aq.asq.len);
 	oldval = val;
 	if (val & I40E_PF_ATQLEN_ATQVFE_MASK) {
-		dev_info(&pf->pdev->dev, "ASQ VF Error detected\n");
+		if (pf->hw.debug_mask & I40E_DEBUG_AQ)
+			dev_info(&pf->pdev->dev, "ASQ VF Error detected\n");
 		val &= ~I40E_PF_ATQLEN_ATQVFE_MASK;
 	}
 	if (val & I40E_PF_ATQLEN_ATQOVFL_MASK) {
-		dev_info(&pf->pdev->dev, "ASQ Overflow Error detected\n");
+		if (pf->hw.debug_mask & I40E_DEBUG_AQ)
+			dev_info(&pf->pdev->dev, "ASQ Overflow Error detected\n");
 		val &= ~I40E_PF_ATQLEN_ATQOVFL_MASK;
 	}
 	if (val & I40E_PF_ATQLEN_ATQCRIT_MASK) {
-		dev_info(&pf->pdev->dev, "ASQ Critical Error detected\n");
+		if (pf->hw.debug_mask & I40E_DEBUG_AQ)
+			dev_info(&pf->pdev->dev, "ASQ Critical Error detected\n");
 		val &= ~I40E_PF_ATQLEN_ATQCRIT_MASK;
 	}
 	if (oldval != val)
@@ -6259,6 +6304,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 			break;
 		case i40e_aqc_opc_nvm_erase:
 		case i40e_aqc_opc_nvm_update:
+		case i40e_aqc_opc_oem_post_update:
 			i40e_debug(&pf->hw, I40E_DEBUG_NVM, "ARQ NVM operation completed\n");
 			break;
 		default:
@@ -10567,7 +10613,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* NVM bit on means WoL disabled for the port */
 	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);
-	if ((1 << hw->port) & wol_nvm_bits || hw->partition_id != 1)
+	if (BIT (hw->port) & wol_nvm_bits || hw->partition_id != 1)
 		pf->wol_en = false;
 	else
 		pf->wol_en = true;
