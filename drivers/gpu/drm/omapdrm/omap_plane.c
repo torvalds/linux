@@ -248,11 +248,10 @@ static void omap_plane_reset(struct drm_plane *plane)
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct omap_plane_state *omap_state;
 
-	if (plane->state && plane->state->fb)
-		drm_framebuffer_unreference(plane->state->fb);
-
-	kfree(plane->state);
-	plane->state = NULL;
+	if (plane->state) {
+		omap_plane_atomic_destroy_state(plane, plane->state);
+		plane->state = NULL;
+	}
 
 	omap_state = kzalloc(sizeof(*omap_state), GFP_KERNEL);
 	if (omap_state == NULL)
