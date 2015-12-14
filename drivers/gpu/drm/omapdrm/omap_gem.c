@@ -1352,7 +1352,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj;
-	struct drm_gem_object *obj = NULL;
+	struct drm_gem_object *obj;
 	struct address_space *mapping;
 	size_t size;
 	int ret;
@@ -1360,7 +1360,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	if (flags & OMAP_BO_TILED) {
 		if (!priv->usergart) {
 			dev_err(dev->dev, "Tiled buffers require DMM\n");
-			goto fail;
+			return NULL;
 		}
 
 		/* tiled buffers are always shmem paged backed.. when they are
@@ -1431,9 +1431,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	return obj;
 
 fail:
-	if (obj)
-		omap_gem_free_object(obj);
-
+	omap_gem_free_object(obj);
 	return NULL;
 }
 
