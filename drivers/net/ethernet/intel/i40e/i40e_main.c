@@ -5339,6 +5339,9 @@ int i40e_open(struct net_device *netdev)
 #ifdef CONFIG_I40E_VXLAN
 	vxlan_get_rx_port(netdev);
 #endif
+#ifdef CONFIG_I40E_GENEVE
+	geneve_get_rx_port(netdev);
+#endif
 
 	return 0;
 }
