@@ -93,6 +93,16 @@ static inline struct msm_dsi_pll *msm_dsi_pll_28nm_init(
 	return ERR_PTR(-ENODEV);
 }
 #endif
+#ifdef CONFIG_DRM_MSM_DSI_28NM_8960_PHY
+struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(struct platform_device *pdev,
+					       int id);
+#else
+struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(struct platform_device *pdev,
+					       int id)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 
 #endif /* __DSI_PLL_H__ */
 

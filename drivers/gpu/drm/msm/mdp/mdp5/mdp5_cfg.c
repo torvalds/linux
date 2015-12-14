@@ -553,9 +553,7 @@ fail:
 static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev)
 {
 	static struct mdp5_cfg_platform config = {};
-#ifdef CONFIG_OF
-	/* TODO */
-#endif
+
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
 
 	return &config;
