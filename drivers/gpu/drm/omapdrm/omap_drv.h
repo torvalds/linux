@@ -36,6 +36,8 @@
 
 #define MODULE_NAME     "omapdrm"
 
+struct omap_drm_usergart;
+
 /* max # of mapper-id's that can be assigned.. todo, come up with a better
  * (but still inexpensive) way to store/access per-buffer mapper private
  * data..
@@ -97,6 +99,7 @@ struct omap_drm_private {
 	/* list of GEM objects: */
 	struct list_head obj_list;
 
+	struct omap_drm_usergart *usergart;
 	bool has_dmm;
 
 	/* properties: */

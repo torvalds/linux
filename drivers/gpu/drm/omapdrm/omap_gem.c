@@ -124,21 +124,22 @@ struct omap_gem_object {
  * for later..
  */
 #define NUM_USERGART_ENTRIES 2
-struct usergart_entry {
+struct omap_drm_usergart_entry {
 	struct tiler_block *block;	/* the reserved tiler block */
 	dma_addr_t paddr;
 	struct drm_gem_object *obj;	/* the current pinned obj */
 	pgoff_t obj_pgoff;		/* page offset of obj currently
 					   mapped in */
 };
-static struct {
-	struct usergart_entry entry[NUM_USERGART_ENTRIES];
+
+struct omap_drm_usergart {
+	struct omap_drm_usergart_entry entry[NUM_USERGART_ENTRIES];
 	int height;				/* height in rows */
 	int height_shift;		/* ilog2(height in rows) */
 	int slot_shift;			/* ilog2(width per slot) */
 	int stride_pfn;			/* stride in pages */
 	int last;				/* index of last used entry */
-} *usergart;
+};
 
 /* -----------------------------------------------------------------------------
  * Helpers
@@ -181,10 +182,11 @@ static inline bool is_shmem(struct drm_gem_object *obj)
  */
 
 static void evict_entry(struct drm_gem_object *obj,
-		enum tiler_fmt fmt, struct usergart_entry *entry)
+		enum tiler_fmt fmt, struct omap_drm_usergart_entry *entry)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	int n = usergart[fmt].height;
+	struct omap_drm_private *priv = obj->dev->dev_private;
+	int n = priv->usergart[fmt].height;
 	size_t size = PAGE_SIZE * n;
 	loff_t off = mmap_offset(obj) +
 			(entry->obj_pgoff << PAGE_SHIFT);
@@ -210,16 +212,19 @@ static void evict_entry(struct drm_gem_object *obj,
 static void evict(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	struct omap_drm_private *priv = obj->dev->dev_private;
 
 	if (omap_obj->flags & OMAP_BO_TILED) {
 		enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
 		int i;
 
-		if (!usergart)
+		if (!priv->usergart)
 			return;
 
 		for (i = 0; i < NUM_USERGART_ENTRIES; i++) {
-			struct usergart_entry *entry = &usergart[fmt].entry[i];
+			struct omap_drm_usergart_entry *entry =
+				&priv->usergart[fmt].entry[i];
+
 			if (entry->obj == obj)
 				evict_entry(obj, fmt, entry);
 		}
@@ -408,7 +413,8 @@ static int fault_2d(struct drm_gem_object *obj,
 		struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	struct usergart_entry *entry;
+	struct omap_drm_private *priv = obj->dev->dev_private;
+	struct omap_drm_usergart_entry *entry;
 	enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
 	struct page *pages[64];  /* XXX is this too much to have on stack? */
 	unsigned long pfn;
@@ -421,8 +427,8 @@ static int fault_2d(struct drm_gem_object *obj,
 	 * that need to be mapped in to fill 4kb wide CPU page.  If the slot
 	 * height is 64, then 64 pages fill a 4kb wide by 64 row region.
 	 */
-	const int n = usergart[fmt].height;
-	const int n_shift = usergart[fmt].height_shift;
+	const int n = priv->usergart[fmt].height;
+	const int n_shift = priv->usergart[fmt].height_shift;
 
 	/*
 	 * If buffer width in bytes > PAGE_SIZE then the virtual stride is
@@ -443,11 +449,11 @@ static int fault_2d(struct drm_gem_object *obj,
 	base_pgoff = round_down(pgoff, m << n_shift);
 
 	/* figure out buffer width in slots */
-	slots = omap_obj->width >> usergart[fmt].slot_shift;
+	slots = omap_obj->width >> priv->usergart[fmt].slot_shift;
 
 	vaddr = vmf->virtual_address - ((pgoff - base_pgoff) << PAGE_SHIFT);
 
-	entry = &usergart[fmt].entry[usergart[fmt].last];
+	entry = &priv->usergart[fmt].entry[priv->usergart[fmt].last];
 
 	/* evict previous buffer using this usergart entry, if any: */
 	if (entry->obj)
@@ -494,12 +500,13 @@ static int fault_2d(struct drm_gem_object *obj,
 
 	for (i = n; i > 0; i--) {
 		vm_insert_mixed(vma, (unsigned long)vaddr, pfn);
-		pfn += usergart[fmt].stride_pfn;
+		pfn += priv->usergart[fmt].stride_pfn;
 		vaddr += PAGE_SIZE * m;
 	}
 
 	/* simple round-robin: */
-	usergart[fmt].last = (usergart[fmt].last + 1) % NUM_USERGART_ENTRIES;
+	priv->usergart[fmt].last = (priv->usergart[fmt].last + 1)
+				 % NUM_USERGART_ENTRIES;
 
 	return 0;
 }
@@ -1353,7 +1360,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	int ret;
 
 	if (flags & OMAP_BO_TILED) {
-		if (!usergart) {
+		if (!priv->usergart) {
 			dev_err(dev->dev, "Tiled buffers require DMM\n");
 			goto fail;
 		}
@@ -1464,6 +1471,7 @@ int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 void omap_gem_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
+	struct omap_drm_usergart *usergart;
 	const enum tiler_fmt fmts[] = {
 			TILFMT_8BIT, TILFMT_16BIT, TILFMT_32BIT
 	};
@@ -1492,10 +1500,11 @@ void omap_gem_init(struct drm_device *dev)
 		usergart[i].stride_pfn = tiler_stride(fmts[i], 0) >> PAGE_SHIFT;
 		usergart[i].slot_shift = ilog2((PAGE_SIZE / h) >> i);
 		for (j = 0; j < NUM_USERGART_ENTRIES; j++) {
-			struct usergart_entry *entry = &usergart[i].entry[j];
-			struct tiler_block *block =
-					tiler_reserve_2d(fmts[i], w, h,
-							PAGE_SIZE);
+			struct omap_drm_usergart_entry *entry;
+			struct tiler_block *block;
+
+			entry = &usergart[i].entry[j];
+			block = tiler_reserve_2d(fmts[i], w, h, PAGE_SIZE);
 			if (IS_ERR(block)) {
 				dev_err(dev->dev,
 						"reserve failed: %d, %d, %ld\n",
@@ -1511,13 +1520,16 @@ void omap_gem_init(struct drm_device *dev)
 		}
 	}
 
+	priv->usergart = usergart;
 	priv->has_dmm = true;
 }
 
 void omap_gem_deinit(struct drm_device *dev)
 {
+	struct omap_drm_private *priv = dev->dev_private;
+
 	/* I believe we can rely on there being no more outstanding GEM
 	 * objects which could depend on usergart/dmm at this point.
 	 */
-	kfree(usergart);
+	kfree(priv->usergart);
 }
