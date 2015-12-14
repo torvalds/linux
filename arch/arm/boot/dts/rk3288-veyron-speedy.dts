@@ -89,6 +89,10 @@
 	};
 };
 
+&backlight {
+	power-supply = <&backlight_regulator>;
+};
+
 &cpu_alert0 {
 	temperature = <65000>;
 };
@@ -102,6 +106,10 @@
 	/delete-property/pinctrl-0;
 
 	force-hpd;
+};
+
+&panel {
+	power-supply= <&panel_regulator>;
 };
 
 &rk808 {

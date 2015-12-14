@@ -88,6 +88,14 @@
 	};
 };
 
+&backlight {
+	power-supply = <&backlight_regulator>;
+};
+
+&panel {
+	power-supply= <&panel_regulator>;
+};
+
 &rk808 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pmic_int_l>;
