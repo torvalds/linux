@@ -238,8 +238,12 @@ static int us5182d_als_enable(struct us5182d_data *data)
 	int ret;
 	u8 mode;
 
-	if (data->power_mode == US5182D_ONESHOT)
-		return us5182d_set_opmode(data, US5182D_ALS_ONLY);
+	if (data->power_mode == US5182D_ONESHOT) {
+		ret = us5182d_set_opmode(data, US5182D_ALS_ONLY);
+		if (ret < 0)
+			return ret;
+		data->px_enabled = false;
+	}
 
 	if (data->als_enabled)
 		return 0;
@@ -260,8 +264,12 @@ static int us5182d_px_enable(struct us5182d_data *data)
 	int ret;
 	u8 mode;
 
-	if (data->power_mode == US5182D_ONESHOT)
-		return us5182d_set_opmode(data, US5182D_PX_ONLY);
+	if (data->power_mode == US5182D_ONESHOT) {
+		ret = us5182d_set_opmode(data, US5182D_PX_ONLY);
+		if (ret < 0)
+			return ret;
+		data->als_enabled = false;
+	}
 
 	if (data->px_enabled)
 		return 0;
