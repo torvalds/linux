@@ -1319,8 +1319,6 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	list_del(&omap_obj->mm_list);
 	spin_unlock(&priv->list_lock);
 
-	drm_gem_free_mmap_offset(obj);
-
 	/* this means the object is still pinned.. which really should
 	 * not happen.  I think..
 	 */
