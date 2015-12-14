@@ -360,6 +360,7 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 	priv->dvc	= dvc;
 
 	i = 0;
+	ret = 0;
 	for_each_child_of_node(node, np) {
 		dvc = rsnd_dvc_get(priv, i);
 
