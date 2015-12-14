@@ -9910,14 +9910,14 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	return true;
 }
 
-static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
+static void i845_update_cursor(struct drm_crtc *crtc, u32 base, bool on)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t cntl = 0, size = 0;
 
-	if (base) {
+	if (on) {
 		unsigned int width = intel_crtc->base.cursor->state->crtc_w;
 		unsigned int height = intel_crtc->base.cursor->state->crtc_h;
 		unsigned int stride = roundup_pow_of_two(width) * 4;
@@ -9972,16 +9972,15 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 	}
 }
 
-static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
+static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base, bool on)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	uint32_t cntl;
+	uint32_t cntl = 0;
 
-	cntl = 0;
-	if (base) {
+	if (on) {
 		cntl = MCURSOR_GAMMA_ENABLE;
 		switch (intel_crtc->base.cursor->state->crtc_w) {
 			case 64:
@@ -10032,18 +10031,17 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	int y = cursor_state->crtc_y;
 	u32 base = 0, pos = 0;
 
-	if (on)
-		base = intel_crtc->cursor_addr;
+	base = intel_crtc->cursor_addr;
 
 	if (x >= intel_crtc->config->pipe_src_w)
-		base = 0;
+		on = false;
 
 	if (y >= intel_crtc->config->pipe_src_h)
-		base = 0;
+		on = false;
 
 	if (x < 0) {
 		if (x + cursor_state->crtc_w <= 0)
-			base = 0;
+			on = false;
 
 		pos |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
 		x = -x;
@@ -10052,15 +10050,12 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 
 	if (y < 0) {
 		if (y + cursor_state->crtc_h <= 0)
-			base = 0;
+			on = false;
 
 		pos |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
 		y = -y;
 	}
 	pos |= y << CURSOR_Y_SHIFT;
-
-	if (base == 0 && intel_crtc->cursor_base == 0)
-		return;
 
 	I915_WRITE(CURPOS(pipe), pos);
 
@@ -10072,9 +10067,9 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	}
 
 	if (IS_845G(dev) || IS_I865G(dev))
-		i845_update_cursor(crtc, base);
+		i845_update_cursor(crtc, base, on);
 	else
-		i9xx_update_cursor(crtc, base);
+		i9xx_update_cursor(crtc, base, on);
 }
 
 static bool cursor_size_ok(struct drm_device *dev,
