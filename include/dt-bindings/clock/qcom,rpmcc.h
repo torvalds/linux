@@ -41,5 +41,23 @@
 #define RPM_RF_CLK1_A_PIN			23
 #define RPM_RF_CLK2_PIN				24
 #define RPM_RF_CLK2_A_PIN			25
+#define RPM_AGGR1_NOC_CLK			26
+#define RPM_AGGR1_NOC_A_CLK			27
+#define RPM_AGGR2_NOC_CLK			28
+#define RPM_AGGR2_NOC_A_CLK			29
+#define RPM_CNOC_CLK				30
+#define RPM_CNOC_A_CLK				31
+#define RPM_MMAXI_CLK				32
+#define RPM_MMAXI_A_CLK				33
+#define RPM_IPA_CLK				34
+#define RPM_IPA_A_CLK				35
+#define RPM_CE1_CLK				36
+#define RPM_CE1_A_CLK				37
+#define RPM_DIV_CLK1				38
+#define RPM_DIV_CLK1_AO				39
+#define RPM_DIV_CLK2				40
+#define RPM_DIV_CLK2_AO				41
+#define RPM_DIV_CLK3				42
+#define RPM_DIV_CLK3_AO				43
 
 #endif
