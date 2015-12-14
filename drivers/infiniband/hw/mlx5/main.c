@@ -65,6 +65,10 @@ static char mlx5_version[] =
 	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver v"
 	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
 
+enum {
+	MLX5_ATOMIC_SIZE_QP_8BYTES = 1 << 3,
+};
+
 static enum rdma_link_layer
 mlx5_port_type_cap_to_rdma_ll(int port_type_cap)
 {
@@ -296,6 +300,28 @@ static int mlx5_get_vport_access_method(struct ib_device *ibdev)
 	return MLX5_VPORT_ACCESS_METHOD_HCA;
 }
 
+static void get_atomic_caps(struct mlx5_ib_dev *dev,
+			    struct ib_device_attr *props)
+{
+	u8 tmp;
+	u8 atomic_operations = MLX5_CAP_ATOMIC(dev->mdev, atomic_operations);
+	u8 atomic_size_qp = MLX5_CAP_ATOMIC(dev->mdev, atomic_size_qp);
+	u8 atomic_req_8B_endianness_mode =
+		MLX5_CAP_ATOMIC(dev->mdev, atomic_req_8B_endianess_mode);
+
+	/* Check if HW supports 8 bytes standard atomic operations and capable
+	 * of host endianness respond
+	 */
+	tmp = MLX5_ATOMIC_OPS_CMP_SWAP | MLX5_ATOMIC_OPS_FETCH_ADD;
+	if (((atomic_operations & tmp) == tmp) &&
+	    (atomic_size_qp & MLX5_ATOMIC_SIZE_QP_8BYTES) &&
+	    (atomic_req_8B_endianness_mode)) {
+		props->atomic_cap = IB_ATOMIC_HCA;
+	} else {
+		props->atomic_cap = IB_ATOMIC_NONE;
+	}
+}
+
 static int mlx5_query_system_image_guid(struct ib_device *ibdev,
 					__be64 *sys_image_guid)
 {
@@ -496,7 +522,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->max_res_rd_atom	   = props->max_qp_rd_atom * props->max_qp;
 	props->max_srq_sge	   = max_rq_sg - 1;
 	props->max_fast_reg_page_list_len = (unsigned int)-1;
-	props->atomic_cap	   = IB_ATOMIC_NONE;
+	get_atomic_caps(dev, props);
 	props->masked_atomic_cap   = IB_ATOMIC_NONE;
 	props->max_mcast_grp	   = 1 << MLX5_CAP_GEN(mdev, log_max_mcg);
 	props->max_mcast_qp_attach = MLX5_CAP_GEN(mdev, max_qp_mcg);

@@ -115,6 +115,11 @@ enum {
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
 };
 
+enum {
+	MLX5_ATOMIC_OPS_CMP_SWAP	= 1 << 0,
+	MLX5_ATOMIC_OPS_FETCH_ADD	= 1 << 1,
+};
+
 enum mlx5_page_fault_resume_flags {
 	MLX5_PAGE_FAULT_RESUME_REQUESTOR = 1 << 0,
 	MLX5_PAGE_FAULT_RESUME_WRITE	 = 1 << 1,
