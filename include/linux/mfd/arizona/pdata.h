@@ -171,7 +171,7 @@ struct arizona_pdata {
 	int inmode[ARIZONA_MAX_INPUT];
 
 	/** Mode for outputs */
-	bool out_mono[ARIZONA_MAX_OUTPUT];
+	int out_mono[ARIZONA_MAX_OUTPUT];
 
 	/** PDM speaker mute setting */
 	unsigned int spk_mute[ARIZONA_MAX_PDM_SPK];
