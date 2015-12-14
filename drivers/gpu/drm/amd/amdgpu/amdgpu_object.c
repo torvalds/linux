@@ -211,6 +211,69 @@ static void amdgpu_fill_placement_to_bo(struct amdgpu_bo *bo,
 	bo->placement.busy_placement = bo->placements;
 }
 
+/**
+ * amdgpu_bo_create_kernel - create BO for kernel use
+ *
+ * @adev: amdgpu device object
+ * @size: size for the new BO
+ * @align: alignment for the new BO
+ * @domain: where to place it
+ * @bo_ptr: resulting BO
+ * @gpu_addr: GPU addr of the pinned BO
+ * @cpu_addr: optional CPU address mapping
+ *
+ * Allocates and pins a BO for kernel internal use.
+ *
+ * Returns 0 on success, negative error code otherwise.
+ */
+int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
+			    unsigned long size, int align,
+			    u32 domain, struct amdgpu_bo **bo_ptr,
+			    u64 *gpu_addr, void **cpu_addr)
+{
+	int r;
+
+	r = amdgpu_bo_create(adev, size, align, true, domain,
+			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			     NULL, NULL, bo_ptr);
+	if (r) {
+		dev_err(adev->dev, "(%d) failed to allocate kernel bo\n", r);
+		return r;
+	}
+
+	r = amdgpu_bo_reserve(*bo_ptr, false);
+	if (r) {
+		dev_err(adev->dev, "(%d) failed to reserve kernel bo\n", r);
+		goto error_free;
+	}
+
+	r = amdgpu_bo_pin(*bo_ptr, domain, gpu_addr);
+	if (r) {
+		dev_err(adev->dev, "(%d) kernel bo pin failed\n", r);
+		goto error_unreserve;
+	}
+
+	if (cpu_addr) {
+		r = amdgpu_bo_kmap(*bo_ptr, cpu_addr);
+		if (r) {
+			dev_err(adev->dev, "(%d) kernel bo map failed\n", r);
+			goto error_unreserve;
+		}
+	}
+
+	amdgpu_bo_unreserve(*bo_ptr);
+
+	return 0;
+
+error_unreserve:
+	amdgpu_bo_unreserve(*bo_ptr);
+
+error_free:
+	amdgpu_bo_unref(bo_ptr);
+
+	return r;
+}
+
 int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 				unsigned long size, int byte_align,
 				bool kernel, u32 domain, u64 flags,
