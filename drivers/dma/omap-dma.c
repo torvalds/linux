@@ -1203,6 +1203,10 @@ static int omap_dma_probe(struct platform_device *pdev)
 			return rc;
 	}
 
+	od->ddev.filter.map = od->plat->slave_map;
+	od->ddev.filter.mapcnt = od->plat->slavecnt;
+	od->ddev.filter.fn = omap_dma_filter_fn;
+
 	rc = dma_async_device_register(&od->ddev);
 	if (rc) {
 		pr_warn("OMAP-DMA: failed to register slave DMA engine device: %d\n",
