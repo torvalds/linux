@@ -527,8 +527,6 @@ static void omap_des_finish_req(struct omap_des_dev *dd, int err)
 
 static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
 {
-	int err = 0;
-
 	pr_debug("total: %d\n", dd->total);
 
 	omap_des_dma_stop(dd);
@@ -536,7 +534,7 @@ static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
 	dmaengine_terminate_all(dd->dma_lch_in);
 	dmaengine_terminate_all(dd->dma_lch_out);
 
-	return err;
+	return 0;
 }
 
 static int omap_des_copy_needed(struct scatterlist *sg)
