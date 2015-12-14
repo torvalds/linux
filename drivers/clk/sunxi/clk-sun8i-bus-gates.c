@@ -47,12 +47,12 @@ static void __init sun8i_h3_bus_gates_init(struct device_node *node)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(names); i++) {
-		index = of_property_match_string(node, "clock-names",
-						 names[i]);
-		if (index < 0)
+		int idx = of_property_match_string(node, "clock-names",
+						   names[i]);
+		if (idx < 0)
 			return;
 
-		parents[i] = of_clk_get_parent_name(node, index);
+		parents[i] = of_clk_get_parent_name(node, idx);
 	}
 
 	clk_data = kmalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
