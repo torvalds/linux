@@ -1273,20 +1273,46 @@ mwifiex_get_priv(struct mwifiex_adapter *adapter,
 }
 
 /*
+ * This function checks available bss_num when adding new interface or
+ * changing interface type.
+ */
+static inline u8
+mwifiex_get_unused_bss_num(struct mwifiex_adapter *adapter, u8 bss_type)
+{
+	u8 i, j;
+	int index[MWIFIEX_MAX_BSS_NUM];
+
+	memset(index, 0, sizeof(index));
+	for (i = 0; i < adapter->priv_num; i++)
+		if (adapter->priv[i]) {
+			if (adapter->priv[i]->bss_type == bss_type &&
+			    !(adapter->priv[i]->bss_mode ==
+			      NL80211_IFTYPE_UNSPECIFIED)) {
+				index[adapter->priv[i]->bss_num] = 1;
+			}
+		}
+	for (j = 0; j < MWIFIEX_MAX_BSS_NUM; j++)
+		if (!index[j])
+			return j;
+	return -1;
+}
+
+/*
  * This function returns the first available unused private structure pointer.
  */
 static inline struct mwifiex_private *
-mwifiex_get_unused_priv(struct mwifiex_adapter *adapter)
+mwifiex_get_unused_priv_by_bss_type(struct mwifiex_adapter *adapter,
+				    u8 bss_type)
 {
-	int i;
+	u8 i;
 
-	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			if (adapter->priv[i]->bss_mode ==
-			    NL80211_IFTYPE_UNSPECIFIED)
-				break;
+	for (i = 0; i < adapter->priv_num; i++)
+		if (adapter->priv[i]->bss_mode ==
+		   NL80211_IFTYPE_UNSPECIFIED) {
+			adapter->priv[i]->bss_num =
+			mwifiex_get_unused_bss_num(adapter, bss_type);
+			break;
 		}
-	}
 
 	return ((i < adapter->priv_num) ? adapter->priv[i] : NULL);
 }

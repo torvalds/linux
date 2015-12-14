@@ -825,18 +825,26 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
+		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
+			 MWIFIEX_BSS_TYPE_STA);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_STA;
 		priv->bss_type = MWIFIEX_BSS_TYPE_STA;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
+		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
+			 MWIFIEX_BSS_TYPE_P2P);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_STA;
 		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
+		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
+			 MWIFIEX_BSS_TYPE_P2P);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_UAP;
 		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
 		break;
 	case NL80211_IFTYPE_AP:
+		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
+			 MWIFIEX_BSS_TYPE_UAP);
 		priv->bss_type = MWIFIEX_BSS_TYPE_UAP;
 		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
 		break;
@@ -2606,7 +2614,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 			return ERR_PTR(-EINVAL);
 		}
 
-		priv = mwifiex_get_unused_priv(adapter);
+		priv = mwifiex_get_unused_priv_by_bss_type(
+						adapter, MWIFIEX_BSS_TYPE_STA);
 		if (!priv) {
 			mwifiex_dbg(adapter, ERROR,
 				    "could not get free private struct\n");
@@ -2625,7 +2634,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
 		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
-		priv->bss_num = adapter->curr_iface_comb.sta_intf;
 
 		break;
 	case NL80211_IFTYPE_AP:
@@ -2636,7 +2644,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 			return ERR_PTR(-EINVAL);
 		}
 
-		priv = mwifiex_get_unused_priv(adapter);
+		priv = mwifiex_get_unused_priv_by_bss_type(
+						adapter, MWIFIEX_BSS_TYPE_UAP);
 		if (!priv) {
 			mwifiex_dbg(adapter, ERROR,
 				    "could not get free private struct\n");
@@ -2651,7 +2660,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
 		priv->bss_started = 0;
-		priv->bss_num = adapter->curr_iface_comb.uap_intf;
 		priv->bss_mode = type;
 
 		break;
@@ -2663,7 +2671,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 			return ERR_PTR(-EINVAL);
 		}
 
-		priv = mwifiex_get_unused_priv(adapter);
+		priv = mwifiex_get_unused_priv_by_bss_type(
+						adapter, MWIFIEX_BSS_TYPE_P2P);
 		if (!priv) {
 			mwifiex_dbg(adapter, ERROR,
 				    "could not get free private struct\n");
@@ -2687,7 +2696,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->bss_priority = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_started = 0;
-		priv->bss_num = adapter->curr_iface_comb.p2p_intf;
 
 		if (mwifiex_cfg80211_init_p2p_client(priv)) {
 			memset(&priv->wdev, 0, sizeof(priv->wdev));
