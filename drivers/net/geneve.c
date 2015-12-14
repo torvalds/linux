@@ -1109,6 +1109,30 @@ static struct device_type geneve_type = {
 	.name = "geneve",
 };
 
+/* Calls the ndo_add_geneve_port of the caller in order to
+ * supply the listening GENEVE udp ports. Callers are expected
+ * to implement the ndo_add_geneve_port.
+ */
+void geneve_get_rx_port(struct net_device *dev)
+{
+	struct net *net = dev_net(dev);
+	struct geneve_net *gn = net_generic(net, geneve_net_id);
+	struct geneve_sock *gs;
+	sa_family_t sa_family;
+	struct sock *sk;
+	__be16 port;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(gs, &gn->sock_list, list) {
+		sk = gs->sock->sk;
+		sa_family = sk->sk_family;
+		port = inet_sk(sk)->inet_sport;
+		dev->netdev_ops->ndo_add_geneve_port(dev, sa_family, port);
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(geneve_get_rx_port);
+
 /* Initialize the device structure. */
 static void geneve_setup(struct net_device *dev)
 {
