@@ -750,10 +750,10 @@ int amd_powerplay_fini(void *handle)
 
 /* export this function to DAL */
 
-int amd_powerplay_display_configuration_change(void *handle, const void *input)
+int amd_powerplay_display_configuration_change(void *handle,
+	const struct amd_pp_display_configuration *display_config)
 {
 	struct pp_hwmgr  *hwmgr;
-	const struct amd_pp_display_configuration *display_config = input;
 
 	PP_CHECK((struct pp_instance *)handle);
 
@@ -780,14 +780,13 @@ int amd_powerplay_get_display_power_level(void *handle,
 }
 
 int amd_powerplay_get_current_clocks(void *handle,
-		void *output)
+		struct amd_pp_clock_info *clocks)
 {
 	struct pp_hwmgr  *hwmgr;
 	struct amd_pp_simple_clock_info simple_clocks;
 	struct pp_clock_info hw_clocks;
-	struct amd_pp_clock_info *clocks = (struct amd_pp_clock_info *)output;
 
-	if (handle == NULL || output == NULL)
+	if (handle == NULL || clocks == NULL)
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
@@ -839,12 +838,10 @@ int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, s
 	return result;
 }
 
-int amd_powerplay_get_display_mode_validation_clocks(void *handle, const void *input,
-							void *output)
+int amd_powerplay_get_display_mode_validation_clocks(void *handle,
+		struct amd_pp_simple_clock_info *clocks)
 {
 	int result = -1;
-
-	struct amd_pp_simple_clock_info *clocks = output;
 	struct pp_hwmgr  *hwmgr;
 
 	if (handle == NULL || clocks == NULL)

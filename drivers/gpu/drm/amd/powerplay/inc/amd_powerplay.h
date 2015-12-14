@@ -349,18 +349,23 @@ struct amd_powerplay {
 
 int amd_powerplay_init(struct amd_pp_init *pp_init,
 		       struct amd_powerplay *amd_pp);
+
 int amd_powerplay_fini(void *handle);
 
-int amd_powerplay_display_configuration_change(void *handle, const void *input);
+int amd_powerplay_display_configuration_change(void *handle,
+		const struct amd_pp_display_configuration *input);
 
 int amd_powerplay_get_display_power_level(void *handle,
 		struct amd_pp_simple_clock_info *output);
 
-int amd_powerplay_get_current_clocks(void *handle, void *output);
+int amd_powerplay_get_current_clocks(void *handle,
+		struct amd_pp_clock_info *output);
 
-int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
+int amd_powerplay_get_clock_by_type(void *handle,
+		enum amd_pp_clock_type type,
+		struct amd_pp_clocks *clocks);
 
-int amd_powerplay_get_display_mode_validation_clocks(void *handle, const void *input,
-							void *output);
+int amd_powerplay_get_display_mode_validation_clocks(void *handle,
+		struct amd_pp_simple_clock_info *output);
 
 #endif /* _AMD_POWERPLAY_H_ */
