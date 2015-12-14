@@ -300,7 +300,6 @@ static void var_mtrr_range(struct kvm_mtrr_range *range, u64 *start, u64 *end)
 	*start = range->base & PAGE_MASK;
 
 	mask = range->mask & PAGE_MASK;
-	mask |= ~0ULL << boot_cpu_data.x86_phys_bits;
 
 	/* This cannot overflow because writing to the reserved bits of
 	 * variable MTRRs causes a #GP.
@@ -356,10 +355,14 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	if (var_mtrr_range_is_valid(cur))
 		list_del(&mtrr_state->var_ranges[index].node);
 
+	/* Extend the mask with all 1 bits to the left, since those
+	 * bits must implicitly be 0.  The bits are then cleared
+	 * when reading them.
+	 */
 	if (!is_mtrr_mask)
 		cur->base = data;
 	else
-		cur->mask = data;
+		cur->mask = data | (-1LL << cpuid_maxphyaddr(vcpu));
 
 	/* add it to the list if it's enabled. */
 	if (var_mtrr_range_is_valid(cur)) {
@@ -426,6 +429,8 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 			*pdata = vcpu->arch.mtrr_state.var_ranges[index].base;
 		else
 			*pdata = vcpu->arch.mtrr_state.var_ranges[index].mask;
+
+		*pdata &= (1ULL << cpuid_maxphyaddr(vcpu)) - 1;
 	}
 
 	return 0;
