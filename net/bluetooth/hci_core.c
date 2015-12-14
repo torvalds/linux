@@ -1399,10 +1399,10 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		    !hci_dev_test_flag(hdev, HCI_CONFIG) &&
 		    !hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
 		    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
+		    hci_dev_test_flag(hdev, HCI_MGMT) &&
 		    hdev->dev_type == HCI_BREDR) {
-			hci_dev_lock(hdev);
-			mgmt_powered(hdev, 1);
-			hci_dev_unlock(hdev);
+			ret = __hci_req_hci_power_on(hdev);
+			mgmt_power_on(hdev, ret);
 		}
 	} else {
 		/* Init failed, cleanup */
@@ -1537,7 +1537,6 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	flush_work(&hdev->rx_work);
 
 	if (hdev->discov_timeout > 0) {
-		cancel_delayed_work(&hdev->discov_off);
 		hdev->discov_timeout = 0;
 		hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
 		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
@@ -1548,11 +1547,6 @@ int hci_dev_do_close(struct hci_dev *hdev)
 
 	if (hci_dev_test_flag(hdev, HCI_MGMT))
 		cancel_delayed_work_sync(&hdev->rpa_expired);
-
-	if (hdev->adv_instance_timeout) {
-		cancel_delayed_work_sync(&hdev->adv_instance_expire);
-		hdev->adv_instance_timeout = 0;
-	}
 
 	/* Avoid potential lockdep warnings from the *_flush() calls by
 	 * ensuring the workqueue is empty up front.
@@ -1565,8 +1559,9 @@ int hci_dev_do_close(struct hci_dev *hdev)
 
 	auto_off = hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF);
 
-	if (!auto_off && hdev->dev_type == HCI_BREDR)
-		mgmt_powered(hdev, 0);
+	if (!auto_off && hdev->dev_type == HCI_BREDR &&
+	    hci_dev_test_flag(hdev, HCI_MGMT))
+		__mgmt_power_off(hdev);
 
 	hci_inquiry_cache_flush(hdev);
 	hci_pend_le_actions_clear(hdev);
@@ -1774,7 +1769,7 @@ static void hci_update_scan_state(struct hci_dev *hdev, u8 scan)
 		hci_dev_set_flag(hdev, HCI_BREDR_ENABLED);
 
 		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED))
-			mgmt_update_adv_data(hdev);
+			hci_req_update_adv_data(hdev, hdev->cur_adv_instance);
 
 		mgmt_new_settings(hdev);
 	}
@@ -2019,6 +2014,16 @@ static void hci_power_on(struct work_struct *work)
 
 	BT_DBG("%s", hdev->name);
 
+	if (test_bit(HCI_UP, &hdev->flags) &&
+	    hci_dev_test_flag(hdev, HCI_MGMT) &&
+	    hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
+		hci_req_sync_lock(hdev);
+		err = __hci_req_hci_power_on(hdev);
+		hci_req_sync_unlock(hdev);
+		mgmt_power_on(hdev, err);
+		return;
+	}
+
 	err = hci_dev_do_open(hdev);
 	if (err < 0) {
 		hci_dev_lock(hdev);
@@ -2099,28 +2104,6 @@ static void hci_error_reset(struct work_struct *work)
 		return;
 
 	hci_dev_do_open(hdev);
-}
-
-static void hci_discov_off(struct work_struct *work)
-{
-	struct hci_dev *hdev;
-
-	hdev = container_of(work, struct hci_dev, discov_off.work);
-
-	BT_DBG("%s", hdev->name);
-
-	mgmt_discoverable_timeout(hdev);
-}
-
-static void hci_adv_timeout_expire(struct work_struct *work)
-{
-	struct hci_dev *hdev;
-
-	hdev = container_of(work, struct hci_dev, adv_instance_expire.work);
-
-	BT_DBG("%s", hdev->name);
-
-	mgmt_adv_timeout_expired(hdev);
 }
 
 void hci_uuids_clear(struct hci_dev *hdev)
@@ -2627,9 +2610,12 @@ int hci_remove_adv_instance(struct hci_dev *hdev, u8 instance)
 
 	BT_DBG("%s removing %dMR", hdev->name, instance);
 
-	if (hdev->cur_adv_instance == instance && hdev->adv_instance_timeout) {
-		cancel_delayed_work(&hdev->adv_instance_expire);
-		hdev->adv_instance_timeout = 0;
+	if (hdev->cur_adv_instance == instance) {
+		if (hdev->adv_instance_timeout) {
+			cancel_delayed_work(&hdev->adv_instance_expire);
+			hdev->adv_instance_timeout = 0;
+		}
+		hdev->cur_adv_instance = 0x00;
 	}
 
 	list_del(&adv_instance->list);
@@ -2656,6 +2642,7 @@ void hci_adv_instances_clear(struct hci_dev *hdev)
 	}
 
 	hdev->adv_instance_cnt = 0;
+	hdev->cur_adv_instance = 0x00;
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -3002,8 +2989,6 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_WORK(&hdev->error_reset, hci_error_reset);
 
 	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
-	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
-	INIT_DELAYED_WORK(&hdev->adv_instance_expire, hci_adv_timeout_expire);
 
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);

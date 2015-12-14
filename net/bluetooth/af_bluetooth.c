@@ -186,8 +186,8 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 
 		/* FIXME: Is this check still needed */
 		if (sk->sk_state == BT_CLOSED) {
-			release_sock(sk);
 			bt_accept_unlink(sk);
+			release_sock(sk);
 			continue;
 		}
 
