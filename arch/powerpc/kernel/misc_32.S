@@ -743,6 +743,8 @@ relocate_new_kernel:
 	/* Check for 47x cores */
 	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
+	cmplwi	cr0,r3,PVR_476FPE@h
+	beq	setup_map_47x
 	cmplwi	cr0,r3,PVR_476@h
 	beq	setup_map_47x
 	cmplwi	cr0,r3,PVR_476_ISS@h
