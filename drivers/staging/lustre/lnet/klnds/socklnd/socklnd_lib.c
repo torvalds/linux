@@ -69,7 +69,7 @@ ksocknal_lib_zc_capable(ksock_conn_t *conn)
 
 	/* ZC if the socket supports scatter/gather and doesn't need software
 	 * checksums */
-	return ((caps & NETIF_F_SG) != 0 && (caps & NETIF_F_ALL_CSUM) != 0);
+	return ((caps & NETIF_F_SG) != 0 && (caps & NETIF_F_CSUM_MASK) != 0);
 }
 
 int

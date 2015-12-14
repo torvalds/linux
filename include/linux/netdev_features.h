@@ -149,7 +149,12 @@ enum {
 #define NETIF_F_GEN_CSUM	NETIF_F_HW_CSUM
 #define NETIF_F_V4_CSUM		(NETIF_F_GEN_CSUM | NETIF_F_IP_CSUM)
 #define NETIF_F_V6_CSUM		(NETIF_F_GEN_CSUM | NETIF_F_IPV6_CSUM)
-#define NETIF_F_ALL_CSUM	(NETIF_F_V4_CSUM | NETIF_F_V6_CSUM)
+
+/* List of IP checksum features. Note that NETIF_HW_CSUM should not be
+ * set in features when NETIF_F_IP_CSUM or NETIF_F_IPV6_CSUM are set--
+ * this would be contradictory
+ */
+#define NETIF_F_CSUM_MASK	(NETIF_F_V4_CSUM | NETIF_F_V6_CSUM)
 
 #define NETIF_F_ALL_TSO 	(NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
