@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "util.h"
 #include "strbuf.h"
+#include "pager.h"
 #include "../perf.h"
 #include "../ui/ui.h"
 
@@ -27,10 +28,6 @@ extern u64 perf_config_u64(const char *, const char *);
 extern int perf_config_bool(const char *, const char *);
 extern int config_error_nonbool(const char *);
 extern const char *perf_config_dirname(const char *, const char *);
-
-/* pager.c */
-extern void setup_pager(void);
-extern int pager_in_use(void);
 
 char *alias_lookup(const char *alias);
 int split_cmdline(char *cmdline, const char ***argv);
