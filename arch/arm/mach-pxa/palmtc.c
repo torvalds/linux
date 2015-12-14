@@ -169,7 +169,7 @@ static inline void palmtc_keys_init(void) {}
 #if defined(CONFIG_BACKLIGHT_PWM) || defined(CONFIG_BACKLIGHT_PWM_MODULE)
 static struct pwm_lookup palmtc_pwm_lookup[] = {
 	PWM_LOOKUP("pxa25x-pwm.1", 0, "pwm-backlight.0", NULL, PALMTC_PERIOD_NS,
-		   PWM_PERIOD_NORMAL),
+		   PWM_POLARITY_NORMAL),
 };
 
 static struct platform_pwm_backlight_data palmtc_backlight_data = {

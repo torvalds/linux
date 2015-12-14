@@ -144,6 +144,7 @@ static struct omap_hwmod dm81xx_l4_ls_hwmod = {
 	.name		= "l4_ls",
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.class		= &l4_hwmod_class,
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /*
@@ -155,6 +156,7 @@ static struct omap_hwmod dm81xx_l4_hs_hwmod = {
 	.name		= "l4_hs",
 	.clkdm_name	= "alwon_l3_med_clkdm",
 	.class		= &l4_hwmod_class,
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* L3 slow -> L4 ls peripheral interface running at 125MHz */
@@ -850,6 +852,7 @@ static struct omap_hwmod dm816x_emac0_hwmod = {
 	.name		= "emac0",
 	.clkdm_name	= "alwon_ethernet_clkdm",
 	.class		= &dm816x_emac_hwmod_class,
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 static struct omap_hwmod_ocp_if dm81xx_l4_hs__emac0 = {

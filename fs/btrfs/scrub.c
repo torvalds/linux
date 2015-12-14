@@ -3432,7 +3432,9 @@ out:
 static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 					  struct btrfs_device *scrub_dev,
 					  u64 chunk_offset, u64 length,
-					  u64 dev_offset, int is_dev_replace)
+					  u64 dev_offset,
+					  struct btrfs_block_group_cache *cache,
+					  int is_dev_replace)
 {
 	struct btrfs_mapping_tree *map_tree =
 		&sctx->dev_root->fs_info->mapping_tree;
@@ -3445,8 +3447,18 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 	em = lookup_extent_mapping(&map_tree->map_tree, chunk_offset, 1);
 	read_unlock(&map_tree->map_tree.lock);
 
-	if (!em)
-		return -EINVAL;
+	if (!em) {
+		/*
+		 * Might have been an unused block group deleted by the cleaner
+		 * kthread or relocation.
+		 */
+		spin_lock(&cache->lock);
+		if (!cache->removed)
+			ret = -EINVAL;
+		spin_unlock(&cache->lock);
+
+		return ret;
+	}
 
 	map = (struct map_lookup *)em->bdev;
 	if (em->start != chunk_offset)
@@ -3483,6 +3495,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	u64 length;
 	u64 chunk_offset;
 	int ret = 0;
+	int ro_set;
 	int slot;
 	struct extent_buffer *l;
 	struct btrfs_key key;
@@ -3568,7 +3581,21 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		scrub_pause_on(fs_info);
 		ret = btrfs_inc_block_group_ro(root, cache);
 		scrub_pause_off(fs_info);
-		if (ret) {
+
+		if (ret == 0) {
+			ro_set = 1;
+		} else if (ret == -ENOSPC) {
+			/*
+			 * btrfs_inc_block_group_ro return -ENOSPC when it
+			 * failed in creating new chunk for metadata.
+			 * It is not a problem for scrub/replace, because
+			 * metadata are always cowed, and our scrub paused
+			 * commit_transactions.
+			 */
+			ro_set = 0;
+		} else {
+			btrfs_warn(fs_info, "failed setting block group ro, ret=%d\n",
+				   ret);
 			btrfs_put_block_group(cache);
 			break;
 		}
@@ -3577,7 +3604,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
 		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
-				  found_key.offset, is_dev_replace);
+				  found_key.offset, cache, is_dev_replace);
 
 		/*
 		 * flush, submit all pending read and write bios, afterwards
@@ -3611,7 +3638,30 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		scrub_pause_off(fs_info);
 
-		btrfs_dec_block_group_ro(root, cache);
+		if (ro_set)
+			btrfs_dec_block_group_ro(root, cache);
+
+		/*
+		 * We might have prevented the cleaner kthread from deleting
+		 * this block group if it was already unused because we raced
+		 * and set it to RO mode first. So add it back to the unused
+		 * list, otherwise it might not ever be deleted unless a manual
+		 * balance is triggered or it becomes used and unused again.
+		 */
+		spin_lock(&cache->lock);
+		if (!cache->removed && !cache->ro && cache->reserved == 0 &&
+		    btrfs_block_group_used(&cache->item) == 0) {
+			spin_unlock(&cache->lock);
+			spin_lock(&fs_info->unused_bgs_lock);
+			if (list_empty(&cache->bg_list)) {
+				btrfs_get_block_group(cache);
+				list_add_tail(&cache->bg_list,
+					      &fs_info->unused_bgs);
+			}
+			spin_unlock(&fs_info->unused_bgs_lock);
+		} else {
+			spin_unlock(&cache->lock);
+		}
 
 		btrfs_put_block_group(cache);
 		if (ret)

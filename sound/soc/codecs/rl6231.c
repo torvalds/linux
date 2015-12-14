@@ -80,8 +80,10 @@ int rl6231_calc_dmic_clk(int rate)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(div); i++) {
-		/* find divider that gives DMIC frequency below 3MHz */
-		if (3000000 * div[i] >= rate)
+		if ((div[i] % 3) == 0)
+			continue;
+		/* find divider that gives DMIC frequency below 3.072MHz */
+		if (3072000 * div[i] >= rate)
 			return i;
 	}
 

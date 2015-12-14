@@ -2021,8 +2021,7 @@ static int replace_map_fd_with_map_ptr(struct verifier_env *env)
 			 * will be used by the valid program until it's unloaded
 			 * and all maps are released in free_bpf_prog_info()
 			 */
-			atomic_inc(&map->refcnt);
-
+			bpf_map_inc(map, false);
 			fdput(f);
 next_insn:
 			insn++;
