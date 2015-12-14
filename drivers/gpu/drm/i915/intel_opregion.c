@@ -46,6 +46,7 @@
 #define OPREGION_SWSCI_OFFSET  0x200
 #define OPREGION_ASLE_OFFSET   0x300
 #define OPREGION_VBT_OFFSET    0x400
+#define OPREGION_ASLE_EXT_OFFSET	0x1C00
 
 #define OPREGION_SIGNATURE "IntelGraphicsMem"
 #define MBOX_ACPI      (1<<0)
@@ -123,6 +124,13 @@ struct opregion_asle {
 	u64 rvda;	/* Physical address of raw vbt data */
 	u32 rvds;	/* Size of raw vbt data */
 	u8 rsvd[58];
+} __packed;
+
+/* OpRegion mailbox #5: ASLE ext */
+struct opregion_asle_ext {
+	u32 phed;	/* Panel Header */
+	u8 bddc[256];	/* Panel EDID */
+	u8 rsvd[764];
 } __packed;
 
 /* Driver readiness indicator */
@@ -909,6 +917,7 @@ int intel_opregion_setup(struct drm_device *dev)
 	BUILD_BUG_ON(sizeof(struct opregion_acpi) != 0x100);
 	BUILD_BUG_ON(sizeof(struct opregion_swsci) != 0x100);
 	BUILD_BUG_ON(sizeof(struct opregion_asle) != 0x100);
+	BUILD_BUG_ON(sizeof(struct opregion_asle_ext) != 0x400);
 
 	pci_read_config_dword(dev->pdev, PCI_ASLS, &asls);
 	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
@@ -948,12 +957,16 @@ int intel_opregion_setup(struct drm_device *dev)
 		opregion->swsci = base + OPREGION_SWSCI_OFFSET;
 		swsci_setup(dev);
 	}
+
 	if (mboxes & MBOX_ASLE) {
 		DRM_DEBUG_DRIVER("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
 
 		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
 	}
+
+	if (mboxes & MBOX_ASLE_EXT)
+		DRM_DEBUG_DRIVER("ASLE extension supported\n");
 
 	return 0;
 
