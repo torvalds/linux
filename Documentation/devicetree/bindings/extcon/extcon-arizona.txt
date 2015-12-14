@@ -37,5 +37,13 @@ Optional properties:
     milliseconds.
   - wlf,micd-force-micbias : Force MICBIAS continuously on during microphone
     detection.
+  - wlf,micd-configs : Headset polarity configurations (generally used for
+    detection of CTIA / OMTP headsets), the field can be of variable length
+    but should always be a multiple of 3 cells long, each three cell group
+    represents one polarity configuration.
+    The first cell defines the accessory detection pin, zero will use MICDET1
+    and all other values will use MICDET2.
+    The second cell represents the MICBIAS to be used.
+    The third cell represents the value of the micd-pol-gpio pin.
 
   - wlf,gpsw : Settings for the general purpose switch
