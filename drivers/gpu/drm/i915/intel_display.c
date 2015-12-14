@@ -2151,6 +2151,17 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 
 	I915_WRITE(reg, val | PIPECONF_ENABLE);
 	POSTING_READ(reg);
+
+	/*
+	 * Until the pipe starts DSL will read as 0, which would cause
+	 * an apparent vblank timestamp jump, which messes up also the
+	 * frame count when it's derived from the timestamps. So let's
+	 * wait for the pipe to start properly before we call
+	 * drm_crtc_vblank_on()
+	 */
+	if (dev->max_vblank_count == 0 &&
+	    wait_for(intel_get_crtc_scanline(crtc) != crtc->scanline_offset, 50))
+		DRM_ERROR("pipe %c didn't start\n", pipe_name(pipe));
 }
 
 /**
