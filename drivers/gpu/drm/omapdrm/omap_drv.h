@@ -195,6 +195,8 @@ void omap_gem_deinit(struct drm_device *dev);
 
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		union omap_gem_size gsize, uint32_t flags);
+struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
+		struct sg_table *sgt);
 int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		union omap_gem_size gsize, uint32_t flags, uint32_t *handle);
 void omap_gem_free_object(struct drm_gem_object *obj);

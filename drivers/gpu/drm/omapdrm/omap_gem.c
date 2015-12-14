@@ -34,6 +34,7 @@
 #define OMAP_BO_MEM_DMA_API	0x01000000	/* memory allocated with the dma_alloc_* API */
 #define OMAP_BO_MEM_SHMEM	0x02000000	/* memory allocated through shmem backing */
 #define OMAP_BO_MEM_EXT		0x04000000	/* memory allocated externally */
+#define OMAP_BO_MEM_DMABUF	0x08000000	/* memory imported from a dmabuf */
 #define OMAP_BO_EXT_SYNC	0x10000000	/* externally allocated sync object */
 
 struct omap_gem_object {
@@ -50,17 +51,25 @@ struct omap_gem_object {
 	uint32_t roll;
 
 	/**
-	 * If buffer is allocated physically contiguous, the OMAP_BO_MEM_DMA_API
-	 * flag is set and the paddr is valid.  Also if the buffer is remapped
-	 * in TILER and paddr_cnt > 0, then paddr is valid. But if you are using
-	 * the physical address and OMAP_BO_MEM_DMA_API is not set, then you
-	 * should be going thru omap_gem_{get,put}_paddr() to ensure the mapping
-	 * is not removed from under your feet.
+	 * paddr contains the buffer DMA address. It is valid for
 	 *
-	 * Note that OMAP_BO_SCANOUT is a hint from userspace that DMA capable
-	 * buffer is requested, but doesn't mean that it is. Use the
-	 * OMAP_BO_MEM_DMA_API flag to determine if the buffer has a DMA capable
-	 * physical address.
+	 * - buffers allocated through the DMA mapping API (with the
+	 *   OMAP_BO_MEM_DMA_API flag set)
+	 *
+	 * - buffers imported from dmabuf (with the OMAP_BO_MEM_DMABUF flag set)
+	 *   if they are physically contiguous (when sgt->orig_nents == 1)
+	 *
+	 * - buffers mapped through the TILER when paddr_cnt is not zero, in
+	 *   which case the DMA address points to the TILER aperture
+	 *
+	 * Physically contiguous buffers have their DMA address equal to the
+	 * physical address as we don't remap those buffers through the TILER.
+	 *
+	 * Buffers mapped to the TILER have their DMA address pointing to the
+	 * TILER aperture. As TILER mappings are refcounted (through paddr_cnt)
+	 * the DMA address must be accessed through omap_get_get_paddr() to
+	 * ensure that the mapping won't disappear unexpectedly. References must
+	 * be released with omap_gem_put_paddr().
 	 */
 	dma_addr_t paddr;
 
@@ -68,6 +77,12 @@ struct omap_gem_object {
 	 * # of users of paddr
 	 */
 	uint32_t paddr_cnt;
+
+	/**
+	 * If the buffer has been imported from a dmabuf the OMAP_DB_DMABUF flag
+	 * is set and the sgt field is valid.
+	 */
+	struct sg_table *sgt;
 
 	/**
 	 * tiler block used when buffer is remapped in DMM/TILER.
@@ -165,6 +180,17 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	}
 
 	return drm_vma_node_offset_addr(&obj->vma_node);
+}
+
+static bool is_contiguous(struct omap_gem_object *omap_obj)
+{
+	if (omap_obj->flags & OMAP_BO_MEM_DMA_API)
+		return true;
+
+	if ((omap_obj->flags & OMAP_BO_MEM_DMABUF) && omap_obj->sgt->nents == 1)
+		return true;
+
+	return false;
 }
 
 /* -----------------------------------------------------------------------------
@@ -400,7 +426,7 @@ static int fault_1d(struct drm_gem_object *obj,
 		omap_gem_cpu_sync(obj, pgoff);
 		pfn = page_to_pfn(omap_obj->pages[pgoff]);
 	} else {
-		BUG_ON(!(omap_obj->flags & OMAP_BO_MEM_DMA_API));
+		BUG_ON(!is_contiguous(omap_obj));
 		pfn = (omap_obj->paddr >> PAGE_SHIFT) + pgoff;
 	}
 
@@ -803,8 +829,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 
 	mutex_lock(&obj->dev->struct_mutex);
 
-	if (!(omap_obj->flags & OMAP_BO_MEM_DMA_API) &&
-	    remap && priv->has_dmm) {
+	if (!is_contiguous(omap_obj) && remap && priv->has_dmm) {
 		if (omap_obj->paddr_cnt == 0) {
 			struct page **pages;
 			uint32_t npages = obj->size >> PAGE_SHIFT;
@@ -851,7 +876,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 		omap_obj->paddr_cnt++;
 
 		*paddr = omap_obj->paddr;
-	} else if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
+	} else if (is_contiguous(omap_obj)) {
 		*paddr = omap_obj->paddr;
 	} else {
 		ret = -EINVAL;
@@ -1319,9 +1344,6 @@ unlock:
  * Constructor & Destructor
  */
 
-/* don't call directly.. called from GEM core when it is time to actually
- * free the object..
- */
 void omap_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
@@ -1343,14 +1365,20 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	/* don't free externally allocated backing memory */
 	if (!(omap_obj->flags & OMAP_BO_MEM_EXT)) {
-		if (omap_obj->pages)
-			omap_gem_detach_pages(obj);
+		if (omap_obj->pages) {
+			if (omap_obj->flags & OMAP_BO_MEM_DMABUF)
+				kfree(omap_obj->pages);
+			else
+				omap_gem_detach_pages(obj);
+		}
 
 		if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
 			dma_free_writecombine(dev->dev, obj->size,
 					omap_obj->vaddr, omap_obj->paddr);
 		} else if (omap_obj->vaddr) {
 			vunmap(omap_obj->vaddr);
+		} else if (obj->import_attach) {
+			drm_prime_gem_destroy(obj, omap_obj->sgt);
 		}
 	}
 
@@ -1396,14 +1424,15 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		flags |= tiler_get_cpu_cache_flags();
 	} else if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
 		/*
-		 * Use contiguous memory if we don't have DMM to remap
-		 * discontiguous buffers.
+		 * OMAP_BO_SCANOUT hints that the buffer doesn't need to be
+		 * tiled. However, to lower the pressure on memory allocation,
+		 * use contiguous memory only if no TILER is available.
 		 */
 		flags |= OMAP_BO_MEM_DMA_API;
-	} else if (!(flags & OMAP_BO_MEM_EXT)) {
+	} else if (!(flags & (OMAP_BO_MEM_EXT | OMAP_BO_MEM_DMABUF))) {
 		/*
-		 * All other buffers not backed with external memory are
-		 * shmem-backed.
+		 * All other buffers not backed by external memory or dma_buf
+		 * are shmem-backed.
 		 */
 		flags |= OMAP_BO_MEM_SHMEM;
 	}
@@ -1463,6 +1492,67 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 fail:
 	omap_gem_free_object(obj);
 	return NULL;
+}
+
+struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
+					   struct sg_table *sgt)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	struct omap_gem_object *omap_obj;
+	struct drm_gem_object *obj;
+	union omap_gem_size gsize;
+
+	/* Without a DMM only physically contiguous buffers can be supported. */
+	if (sgt->orig_nents != 1 && !priv->has_dmm)
+		return ERR_PTR(-EINVAL);
+
+	mutex_lock(&dev->struct_mutex);
+
+	gsize.bytes = PAGE_ALIGN(size);
+	obj = omap_gem_new(dev, gsize, OMAP_BO_MEM_DMABUF | OMAP_BO_WC);
+	if (!obj) {
+		obj = ERR_PTR(-ENOMEM);
+		goto done;
+	}
+
+	omap_obj = to_omap_bo(obj);
+	omap_obj->sgt = sgt;
+
+	if (sgt->orig_nents == 1) {
+		omap_obj->paddr = sg_dma_address(sgt->sgl);
+	} else {
+		/* Create pages list from sgt */
+		struct sg_page_iter iter;
+		struct page **pages;
+		unsigned int npages;
+		unsigned int i = 0;
+
+		npages = DIV_ROUND_UP(size, PAGE_SIZE);
+		pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
+		if (!pages) {
+			omap_gem_free_object(obj);
+			obj = ERR_PTR(-ENOMEM);
+			goto done;
+		}
+
+		omap_obj->pages = pages;
+
+		for_each_sg_page(sgt->sgl, &iter, sgt->orig_nents, 0) {
+			pages[i++] = sg_page_iter_page(&iter);
+			if (i > npages)
+				break;
+		}
+
+		if (WARN_ON(i != npages)) {
+			omap_gem_free_object(obj);
+			obj = ERR_PTR(-ENOMEM);
+			goto done;
+		}
+	}
+
+done:
+	mutex_unlock(&dev->struct_mutex);
+	return obj;
 }
 
 /* convenience method to construct a GEM buffer object, and userspace handle */
