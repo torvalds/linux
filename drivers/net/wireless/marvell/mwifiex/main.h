@@ -84,7 +84,7 @@ enum {
 
 #define MWIFIEX_KEY_BUFFER_SIZE			16
 #define MWIFIEX_DEFAULT_LISTEN_INTERVAL 10
-#define MWIFIEX_MAX_REGION_CODE         8
+#define MWIFIEX_MAX_REGION_CODE         9
 
 #define DEFAULT_BCN_AVG_FACTOR          8
 #define DEFAULT_DATA_AVG_FACTOR         8
