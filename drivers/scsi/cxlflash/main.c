@@ -2585,8 +2585,7 @@ static struct pci_driver cxlflash_driver = {
  */
 static int __init init_cxlflash(void)
 {
-	pr_info("%s: IBM Power CXL Flash Adapter: %s\n",
-		__func__, CXLFLASH_DRIVER_DATE);
+	pr_info("%s: %s\n", __func__, CXLFLASH_ADAPTER_NAME);
 
 	cxlflash_list_init();
 
