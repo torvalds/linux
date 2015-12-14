@@ -360,8 +360,8 @@ static void check_typos(const char *arg, const struct option *options)
 	}
 }
 
-void parse_options_start(struct parse_opt_ctx_t *ctx,
-			 int argc, const char **argv, int flags)
+static void parse_options_start(struct parse_opt_ctx_t *ctx,
+				int argc, const char **argv, int flags)
 {
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->argc = argc - 1;
@@ -378,9 +378,9 @@ static int usage_with_options_internal(const char * const *,
 				       const struct option *, int,
 				       struct parse_opt_ctx_t *);
 
-int parse_options_step(struct parse_opt_ctx_t *ctx,
-		       const struct option *options,
-		       const char * const usagestr[])
+static int parse_options_step(struct parse_opt_ctx_t *ctx,
+			      const struct option *options,
+			      const char * const usagestr[])
 {
 	int internal_help = !(ctx->flags & PARSE_OPT_NO_INTERNAL_HELP);
 	int excl_short_opt = 1;
@@ -489,7 +489,7 @@ exclusive:
 	return PARSE_OPT_HELP;
 }
 
-int parse_options_end(struct parse_opt_ctx_t *ctx)
+static int parse_options_end(struct parse_opt_ctx_t *ctx)
 {
 	memmove(ctx->out + ctx->cpidx, ctx->argv, ctx->argc * sizeof(*ctx->out));
 	ctx->out[ctx->cpidx + ctx->argc] = NULL;
@@ -717,9 +717,9 @@ static bool option__in_argv(const struct option *opt, const struct parse_opt_ctx
 	return false;
 }
 
-int usage_with_options_internal(const char * const *usagestr,
-				const struct option *opts, int full,
-				struct parse_opt_ctx_t *ctx)
+static int usage_with_options_internal(const char * const *usagestr,
+				       const struct option *opts, int full,
+				       struct parse_opt_ctx_t *ctx)
 {
 	struct option *ordered;
 
