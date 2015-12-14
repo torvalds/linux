@@ -127,7 +127,7 @@ static const struct fm10k_stats fm10k_gstrings_mbx_stats[] = {
 #define FM10K_MBX_STATS_LEN ARRAY_SIZE(fm10k_gstrings_mbx_stats)
 
 #define FM10K_QUEUE_STATS_LEN(_n) \
-	( (_n) * 2 * (sizeof(struct fm10k_queue_stats) / sizeof(u64)))
+	((_n) * 2 * (sizeof(struct fm10k_queue_stats) / sizeof(u64)))
 
 #define FM10K_STATIC_STATS_LEN (FM10K_GLOBAL_STATS_LEN + \
 				FM10K_NETDEV_STATS_LEN + \
@@ -259,7 +259,8 @@ static int fm10k_get_sset_count(struct net_device *dev, int sset)
 			stats_len += FM10K_DEBUG_STATS_LEN;
 
 			if (iov_data)
-				stats_len += FM10K_MBX_STATS_LEN * iov_data->num_vfs;
+				stats_len += FM10K_MBX_STATS_LEN *
+					iov_data->num_vfs;
 		}
 
 		return stats_len;
@@ -298,14 +299,16 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 
 	if (interface->flags & FM10K_FLAG_DEBUG_STATS) {
 		for (i = 0; i < FM10K_DEBUG_STATS_LEN; i++) {
-			p = (char *)interface + fm10k_gstrings_debug_stats[i].stat_offset;
+			p = (char *)interface +
+				fm10k_gstrings_debug_stats[i].stat_offset;
 			*(data++) = (fm10k_gstrings_debug_stats[i].sizeof_stat ==
 				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 		}
 	}
 
 	for (i = 0; i < FM10K_MBX_STATS_LEN; i++) {
-		p = (char *)&interface->hw.mbx + fm10k_gstrings_mbx_stats[i].stat_offset;
+		p = (char *)&interface->hw.mbx +
+			fm10k_gstrings_mbx_stats[i].stat_offset;
 		*(data++) = (fm10k_gstrings_mbx_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
@@ -322,6 +325,7 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 	if ((interface->flags & FM10K_FLAG_DEBUG_STATS) && iov_data) {
 		for (i = 0; i < iov_data->num_vfs; i++) {
 			struct fm10k_vf_info *vf_info;
+
 			vf_info = &iov_data->vf_info[i];
 
 			/* skip stats if we don't have a vf info */
@@ -331,7 +335,8 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 			}
 
 			for (j = 0; j < FM10K_MBX_STATS_LEN; j++) {
-				p = (char *)&vf_info->mbx + fm10k_gstrings_mbx_stats[j].stat_offset;
+				p = (char *)&vf_info->mbx +
+					fm10k_gstrings_mbx_stats[j].stat_offset;
 				*(data++) = (fm10k_gstrings_mbx_stats[j].sizeof_stat ==
 					     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 			}
@@ -1019,7 +1024,6 @@ static int fm10k_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 
 	return 0;
 }
-
 
 static u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
 {

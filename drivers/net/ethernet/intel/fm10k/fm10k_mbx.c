@@ -903,7 +903,7 @@ static void fm10k_mbx_create_disconnect_hdr(struct fm10k_mbx_info *mbx)
 }
 
 /**
- *  fm10k_mbx_create_fake_disconnect_hdr - Generate a false disconnect mailbox header
+ *  fm10k_mbx_create_fake_disconnect_hdr - Generate a false disconnect mbox hdr
  *  @mbx: pointer to mailbox
  *
  *  This function creates a fake disconnect header for loading into remote
@@ -2140,6 +2140,7 @@ s32 fm10k_sm_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
 {
 	mbx->mbx_reg = FM10K_GMBX;
 	mbx->mbmem_reg = FM10K_MBMEM_PF(0);
+
 	/* start out in closed state */
 	mbx->state = FM10K_STATE_CLOSED;
 
