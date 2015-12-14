@@ -67,6 +67,11 @@ enum {
 };
 
 enum {
+	MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE        = 0x0,
+	MLX5_SET_HCA_CAP_OP_MOD_ATOMIC                = 0x3,
+};
+
+enum {
 	MLX5_CMD_OP_QUERY_HCA_CAP                 = 0x100,
 	MLX5_CMD_OP_QUERY_ADAPTER                 = 0x101,
 	MLX5_CMD_OP_INIT_HCA                      = 0x102,
@@ -527,21 +532,24 @@ enum {
 struct mlx5_ifc_atomic_caps_bits {
 	u8         reserved_0[0x40];
 
-	u8         atomic_req_endianness[0x1];
-	u8         reserved_1[0x1f];
+	u8         atomic_req_8B_endianess_mode[0x2];
+	u8         reserved_1[0x4];
+	u8         supported_atomic_req_8B_endianess_mode_1[0x1];
 
-	u8         reserved_2[0x20];
+	u8         reserved_2[0x19];
 
-	u8         reserved_3[0x10];
-	u8         atomic_operations[0x10];
+	u8         reserved_3[0x20];
 
 	u8         reserved_4[0x10];
-	u8         atomic_size_qp[0x10];
+	u8         atomic_operations[0x10];
 
 	u8         reserved_5[0x10];
+	u8         atomic_size_qp[0x10];
+
+	u8         reserved_6[0x10];
 	u8         atomic_size_dc[0x10];
 
-	u8         reserved_6[0x720];
+	u8         reserved_7[0x720];
 };
 
 struct mlx5_ifc_odp_cap_bits {
