@@ -164,6 +164,8 @@ struct vop_ctrl {
 	struct vop_reg vact_st_end;
 	struct vop_reg hpost_st_end;
 	struct vop_reg vpost_st_end;
+
+	struct vop_reg cfg_done;
 };
 
 struct vop_scl_regs {
@@ -333,6 +335,7 @@ static const struct vop_ctrl ctrl_data = {
 	.vact_st_end = VOP_REG(DSP_VACT_ST_END, 0x1fff1fff, 0),
 	.hpost_st_end = VOP_REG(POST_DSP_HACT_INFO, 0x1fff1fff, 0),
 	.vpost_st_end = VOP_REG(POST_DSP_VACT_INFO, 0x1fff1fff, 0),
+	.cfg_done = VOP_REG(REG_CFG_DONE, 0x1, 0),
 };
 
 static const struct vop_reg_data vop_init_reg_table[] = {
@@ -393,11 +396,6 @@ static inline uint32_t vop_read_reg(struct vop *vop, uint32_t base,
 	return (vop_readl(vop, base + reg->offset) >> reg->shift) & reg->mask;
 }
 
-static inline void vop_cfg_done(struct vop *vop)
-{
-	writel(0x01, vop->regs + REG_CFG_DONE);
-}
-
 static inline void vop_mask_write(struct vop *vop, uint32_t offset,
 				  uint32_t mask, uint32_t v)
 {
@@ -420,6 +418,11 @@ static inline void vop_mask_write_relaxed(struct vop *vop, uint32_t offset,
 		writel_relaxed(cached_val, vop->regs + offset);
 		vop->regsbak[offset >> 2] = cached_val;
 	}
+}
+
+static inline void vop_cfg_done(struct vop *vop)
+{
+	VOP_CTRL_SET(vop, cfg_done, 1);
 }
 
 static bool has_rb_swapped(uint32_t format)
