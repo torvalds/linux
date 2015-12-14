@@ -2128,7 +2128,7 @@ done_restock:
 	 */
 	do {
 		if (page_counter_read(&memcg->memory) > memcg->high) {
-			current->memcg_nr_pages_over_high += nr_pages;
+			current->memcg_nr_pages_over_high += batch;
 			set_notify_resume(current);
 			break;
 		}
@@ -5512,11 +5512,11 @@ void mem_cgroup_uncharge_list(struct list_head *page_list)
  * mem_cgroup_replace_page - migrate a charge to another page
  * @oldpage: currently charged page
  * @newpage: page to transfer the charge to
- * @lrucare: either or both pages might be on the LRU already
  *
  * Migrate the charge from @oldpage to @newpage.
  *
  * Both pages must be locked, @newpage->mapping must be set up.
+ * Either or both pages might be on the LRU already.
  */
 void mem_cgroup_replace_page(struct page *oldpage, struct page *newpage)
 {
