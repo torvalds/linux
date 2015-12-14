@@ -2921,6 +2921,12 @@ mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq,
 					dont_care_byte = true;
 			}
 
+			/* wildcard bytes record as the offset
+			 * before the valid byte
+			 */
+			if (!valid_byte_cnt && !dont_care_byte)
+				pat->pkt_offset++;
+
 			if (valid_byte_cnt > max_byte_seq)
 				return false;
 		}
