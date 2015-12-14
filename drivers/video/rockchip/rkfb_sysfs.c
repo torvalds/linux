@@ -104,8 +104,10 @@ static ssize_t show_screen_info(struct device *dev,
 
 	if (ft > 0)
 		fps = div64_u64(1000000000000llu, ft);
-	return snprintf(buf, PAGE_SIZE, "xres:%d\nyres:%d\nfps:%d\n",
-			screen->mode.xres, screen->mode.yres, fps);
+	return snprintf(buf, PAGE_SIZE,
+			"xres:%d\nyres:%d\nfps:%d\ntype:%d\ninterlace:%d\n",
+			screen->mode.xres, screen->mode.yres,
+			fps, screen->type, screen->mode.vmode);
 }
 
 static ssize_t show_disp_info(struct device *dev,
