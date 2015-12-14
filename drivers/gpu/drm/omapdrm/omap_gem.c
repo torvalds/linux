@@ -1452,8 +1452,7 @@ int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 	ret = drm_gem_handle_create(file, obj, handle);
 	if (ret) {
-		drm_gem_object_release(obj);
-		kfree(obj); /* TODO isn't there a dtor to call? just copying i915 */
+		omap_gem_free_object(obj);
 		return ret;
 	}
 
