@@ -1,0 +1,30 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6sx-sdb.dts"
+
+/*
+ * The eMMC chip on imx6sx sdb board is DNP by default.
+ * Need do hw rework to burn the eMMC4.5 chip on the eMMC socket on uSDHC4
+ * and connect eMMC signals as well as disconnect BOOT SD CARD slot signals
+ */
+&usdhc4 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc4_1>;
+	pinctrl-1 = <&pinctrl_usdhc4_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc4_1_200mhz>;
+	bus-width = <8>;
+	/*
+	 * overwrite cd-gpios and wp-gpios since they are reused as eMMC DATA
+	 * signals after rework
+	 */
+	cd-gpios = <>;
+	wp-gpios = <>;
+	non-removable;
+	status = "okay";
+};
