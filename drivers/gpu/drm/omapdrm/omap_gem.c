@@ -218,9 +218,6 @@ static void evict(struct drm_gem_object *obj)
 		enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
 		int i;
 
-		if (!priv->usergart)
-			return;
-
 		for (i = 0; i < NUM_USERGART_ENTRIES; i++) {
 			struct omap_drm_usergart_entry *entry =
 				&priv->usergart[fmt].entry[i];
