@@ -1157,7 +1157,10 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
-	if (bdb->version < 195) {
+	if (bdb->version < 109) {
+		expected_size = 27;
+	} else if (bdb->version < 195) {
+		BUILD_BUG_ON(sizeof(struct old_child_dev_config) != 33);
 		expected_size = sizeof(struct old_child_dev_config);
 	} else if (bdb->version == 195) {
 		expected_size = 37;
@@ -1170,17 +1173,17 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 				 bdb->version, expected_size);
 	}
 
-	/* The legacy sized child device config is the minimum we need. */
-	if (p_defs->child_dev_size < sizeof(struct old_child_dev_config)) {
-		DRM_ERROR("Child device config size %u is too small.\n",
-			  p_defs->child_dev_size);
-		return;
-	}
-
 	/* Flag an error for unexpected size, but continue anyway. */
 	if (p_defs->child_dev_size != expected_size)
 		DRM_ERROR("Unexpected child device config size %u (expected %u for VBT version %u)\n",
 			  p_defs->child_dev_size, expected_size, bdb->version);
+
+	/* The legacy sized child device config is the minimum we need. */
+	if (p_defs->child_dev_size < sizeof(struct old_child_dev_config)) {
+		DRM_DEBUG_KMS("Child device config size %u is too small.\n",
+			      p_defs->child_dev_size);
+		return;
+	}
 
 	/* get the block size of general definitions */
 	block_size = get_blocksize(p_defs);
