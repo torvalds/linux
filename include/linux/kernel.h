@@ -446,6 +446,26 @@ extern int sysctl_panic_on_stackoverflow;
 extern bool crash_kexec_post_notifiers;
 
 /*
+ * panic_cpu is used for synchronizing panic() and crash_kexec() execution. It
+ * holds a CPU number which is executing panic() currently. A value of
+ * PANIC_CPU_INVALID means no CPU has entered panic() or crash_kexec().
+ */
+extern atomic_t panic_cpu;
+#define PANIC_CPU_INVALID	-1
+
+/*
+ * A variant of panic() called from NMI context. We return if we've already
+ * panicked on this CPU.
+ */
+#define nmi_panic(fmt, ...)						\
+do {									\
+	int cpu = raw_smp_processor_id();				\
+									\
+	if (atomic_cmpxchg(&panic_cpu, PANIC_CPU_INVALID, cpu) != cpu)	\
+		panic(fmt, ##__VA_ARGS__);				\
+} while (0)
+
+/*
  * Only to be used by arch init code. If the user over-wrote the default
  * CONFIG_PANIC_TIMEOUT, honor it.
  */
