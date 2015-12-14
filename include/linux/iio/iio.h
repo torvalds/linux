@@ -636,6 +636,8 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 }
 #endif
 
+ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
+
 int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,
 	int *fract);
 
