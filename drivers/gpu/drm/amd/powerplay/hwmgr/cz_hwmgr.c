@@ -1110,9 +1110,10 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				cast_const_PhwCzPowerState(&pcurrent_ps->hardware);
 
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
-	struct PP_Clocks clocks;
+	struct PP_Clocks clocks = {0, 0, 0, 0};
 	bool force_high;
-	unsigned long  num_of_active_displays = 4;
+	uint32_t  num_of_active_displays = 0;
+	struct cgs_display_info info = {0};
 
 	cz_ps->evclk = hwmgr->vce_arbiter.evclk;
 	cz_ps->ecclk = hwmgr->vce_arbiter.ecclk;
@@ -1124,12 +1125,15 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	cz_hwmgr->battery_state = (PP_StateUILabel_Battery == prequest_ps->classification.ui_label);
 
-	/* to do PECI_GetMinClockSettings(pHwMgr->pPECI, &clocks); */
-	/* PECI_GetNumberOfActiveDisplays(pHwMgr->pPECI, &numOfActiveDisplays); */
+	clocks.memoryClock = hwmgr->display_config.min_core_set_clock != 0 ?
+				hwmgr->display_config.min_core_set_clock :
+				cz_hwmgr->sys_info.nbp_memory_clock[1];
+
+	cgs_get_active_displays_info(hwmgr->device, &info);
+	num_of_active_displays = info.display_count;
+
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
 		clocks.memoryClock = hwmgr->dyn_state.max_clock_voltage_on_ac.mclk;
-	else
-		clocks.memoryClock = 0;
 
 	if (clocks.memoryClock < hwmgr->gfx_arbiter.mclk)
 		clocks.memoryClock = hwmgr->gfx_arbiter.mclk;
@@ -1199,6 +1203,7 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		printk(KERN_ERR "[ powerplay ] Fail to construct set_power_state\n");
 		return result;
 	}
+	hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =  CZ_MAX_HARDWARE_POWERLEVELS;
 
 	result = phm_construct_table(hwmgr, &cz_phm_enable_clock_power_gatings_master, &(hwmgr->enable_clock_power_gatings));
 	if (result != 0) {
@@ -1761,8 +1766,10 @@ static int cz_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_p
 
 	data = (struct cz_hwmgr *)(hwmgr->backend);
 	ps = cast_const_PhwCzPowerState(state);
-	level->coreClock  = ps->levels[index].engineClock;
+
 	level_index = index > ps->level - 1 ? ps->level - 1 : index;
+
+	level->coreClock  = ps->levels[level_index].engineClock;
 
 	if (designation == PHM_PerformanceLevelDesignation_PowerContainment) {
 		for (i = 1; i < ps->level; i++) {
@@ -1773,12 +1780,12 @@ static int cz_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_p
 		}
 	}
 
-	if (index == 0)
+	if (level_index == 0)
 		level->memory_clock = data->sys_info.nbp_memory_clock[CZ_NUM_NBPMEMORYCLOCK - 1];
 	else
 		level->memory_clock = data->sys_info.nbp_memory_clock[0];
 
-	level->vddc = (cz_convert_8Bit_index_to_voltage(hwmgr, ps->levels[index].vddcIndex) + 2) / 4;
+	level->vddc = (cz_convert_8Bit_index_to_voltage(hwmgr, ps->levels[level_index].vddcIndex) + 2) / 4;
 	level->nonLocalMemoryFreq = 0;
 	level->nonLocalMemoryWidth = 0;
 
