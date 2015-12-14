@@ -537,7 +537,7 @@ enum P2P_MODES {
 #define EVENT_GET_BSS_TYPE(event_cause)         \
 	(((event_cause) >> 24) & 0x00ff)
 
-#define MWIFIEX_MAX_PATTERN_LEN		20
+#define MWIFIEX_MAX_PATTERN_LEN		40
 #define MWIFIEX_MAX_OFFSET_LEN		100
 #define STACK_NBYTES			100
 #define TYPE_DNUM			1
