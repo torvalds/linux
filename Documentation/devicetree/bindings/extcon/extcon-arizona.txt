@@ -47,3 +47,29 @@ Optional properties:
     The third cell represents the value of the micd-pol-gpio pin.
 
   - wlf,gpsw : Settings for the general purpose switch
+
+Example:
+
+codec: wm8280@0 {
+	compatible = "wlf,wm8280";
+	reg = <0>;
+	...
+
+	wlf,use-jd2;
+	wlf,use-jd2-nopull;
+	wlf,jd-invert;
+
+	wlf,micd-software-compare;
+	wlf,micd-detect-debounce = <0>;
+	wlf,micd-pol-gpio = <&codec 2 0>;
+	wlf,micd-rate = <ARIZONA_MICD_TIME_8MS>;
+	wlf,micd-dbtime = <4>;
+	wlf,micd-timeout-ms = <100>;
+	wlf,micd-force-micbias;
+	wlf,micd-configs = <
+		0 1 0 /* MICDET1 MICBIAS1 GPIO=low */
+		1 2 1 /* MICDET2 MICBIAS2 GPIO=high */
+	>;
+
+	wlf,gpsw = <0>;
+};
