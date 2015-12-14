@@ -162,7 +162,7 @@ static int goldfish_tty_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-static struct tty_port_operations goldfish_port_ops = {
+static const struct tty_port_operations goldfish_port_ops = {
 	.activate = goldfish_tty_activate,
 	.shutdown = goldfish_tty_shutdown
 };
