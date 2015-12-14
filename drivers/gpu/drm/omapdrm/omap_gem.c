@@ -31,9 +31,10 @@
  */
 
 /* note: we use upper 8 bits of flags for driver-internal flags: */
-#define OMAP_BO_DMA		0x01000000	/* actually is physically contiguous */
-#define OMAP_BO_EXT_SYNC	0x02000000	/* externally allocated sync object */
-#define OMAP_BO_EXT_MEM		0x04000000	/* externally allocated memory */
+#define OMAP_BO_MEM_DMA_API	0x01000000	/* memory allocated with the dma_alloc_* API */
+#define OMAP_BO_MEM_SHMEM	0x02000000	/* memory allocated through shmem backing */
+#define OMAP_BO_MEM_EXT		0x04000000	/* memory allocated externally */
+#define OMAP_BO_EXT_SYNC	0x10000000	/* externally allocated sync object */
 
 struct omap_gem_object {
 	struct drm_gem_object base;
@@ -49,16 +50,16 @@ struct omap_gem_object {
 	uint32_t roll;
 
 	/**
-	 * If buffer is allocated physically contiguous, the OMAP_BO_DMA flag
-	 * is set and the paddr is valid.  Also if the buffer is remapped in
-	 * TILER and paddr_cnt > 0, then paddr is valid.  But if you are using
-	 * the physical address and OMAP_BO_DMA is not set, then you should
-	 * be going thru omap_gem_{get,put}_paddr() to ensure the mapping is
-	 * not removed from under your feet.
+	 * If buffer is allocated physically contiguous, the OMAP_BO_MEM_DMA_API
+	 * flag is set and the paddr is valid.  Also if the buffer is remapped
+	 * in TILER and paddr_cnt > 0, then paddr is valid. But if you are using
+	 * the physical address and OMAP_BO_MEM_DMA_API is not set, then you
+	 * should be going thru omap_gem_{get,put}_paddr() to ensure the mapping
+	 * is not removed from under your feet.
 	 *
 	 * Note that OMAP_BO_SCANOUT is a hint from userspace that DMA capable
-	 * buffer is requested, but doesn't mean that it is.  Use the
-	 * OMAP_BO_DMA flag to determine if the buffer has a DMA capable
+	 * buffer is requested, but doesn't mean that it is. Use the
+	 * OMAP_BO_MEM_DMA_API flag to determine if the buffer has a DMA capable
 	 * physical address.
 	 */
 	dma_addr_t paddr;
@@ -164,18 +165,6 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	}
 
 	return drm_vma_node_offset_addr(&obj->vma_node);
-}
-
-/* GEM objects can either be allocated from contiguous memory (in which
- * case obj->filp==NULL), or w/ shmem backing (obj->filp!=NULL).  But non
- * contiguous buffers can be remapped in TILER/DMM if they need to be
- * contiguous... but we don't do this all the time to reduce pressure
- * on TILER/DMM space when we know at allocation time that the buffer
- * will need to be scanned out.
- */
-static inline bool is_shmem(struct drm_gem_object *obj)
-{
-	return obj->filp != NULL;
 }
 
 /* -----------------------------------------------------------------------------
@@ -307,7 +296,7 @@ static int get_pages(struct drm_gem_object *obj, struct page ***pages)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = 0;
 
-	if (is_shmem(obj) && !omap_obj->pages) {
+	if ((omap_obj->flags & OMAP_BO_MEM_SHMEM) && !omap_obj->pages) {
 		ret = omap_gem_attach_pages(obj);
 		if (ret) {
 			dev_err(obj->dev->dev, "could not attach pages\n");
@@ -411,7 +400,7 @@ static int fault_1d(struct drm_gem_object *obj,
 		omap_gem_cpu_sync(obj, pgoff);
 		pfn = page_to_pfn(omap_obj->pages[pgoff]);
 	} else {
-		BUG_ON(!(omap_obj->flags & OMAP_BO_DMA));
+		BUG_ON(!(omap_obj->flags & OMAP_BO_MEM_DMA_API));
 		pfn = (omap_obj->paddr >> PAGE_SHIFT) + pgoff;
 	}
 
@@ -743,7 +732,8 @@ fail:
 static inline bool is_cached_coherent(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	return is_shmem(obj) &&
+
+	return (omap_obj->flags & OMAP_BO_MEM_SHMEM) &&
 		((omap_obj->flags & OMAP_BO_CACHE_MASK) == OMAP_BO_CACHED);
 }
 
@@ -813,7 +803,8 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 
 	mutex_lock(&obj->dev->struct_mutex);
 
-	if (remap && is_shmem(obj) && priv->has_dmm) {
+	if (!(omap_obj->flags & OMAP_BO_MEM_DMA_API) &&
+	    remap && priv->has_dmm) {
 		if (omap_obj->paddr_cnt == 0) {
 			struct page **pages;
 			uint32_t npages = obj->size >> PAGE_SHIFT;
@@ -860,7 +851,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 		omap_obj->paddr_cnt++;
 
 		*paddr = omap_obj->paddr;
-	} else if (omap_obj->flags & OMAP_BO_DMA) {
+	} else if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
 		*paddr = omap_obj->paddr;
 	} else {
 		ret = -EINVAL;
@@ -1351,11 +1342,11 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	WARN_ON(omap_obj->paddr_cnt > 0);
 
 	/* don't free externally allocated backing memory */
-	if (!(omap_obj->flags & OMAP_BO_EXT_MEM)) {
+	if (!(omap_obj->flags & OMAP_BO_MEM_EXT)) {
 		if (omap_obj->pages)
 			omap_gem_detach_pages(obj);
 
-		if (!is_shmem(obj)) {
+		if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
 			dma_free_writecombine(dev->dev, obj->size,
 					omap_obj->vaddr, omap_obj->paddr);
 		} else if (omap_obj->vaddr) {
@@ -1429,7 +1420,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 			return NULL;
 		}
 
-		flags |= OMAP_BO_DMA;
+		flags |= OMAP_BO_MEM_DMA_API;
 	}
 
 	spin_lock(&priv->list_lock);
@@ -1443,7 +1434,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		omap_obj->height = gsize.tiled.height;
 	}
 
-	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM)) {
+	if (flags & (OMAP_BO_MEM_DMA_API | OMAP_BO_MEM_EXT)) {
 		drm_gem_private_object_init(dev, obj, size);
 	} else {
 		ret = drm_gem_object_init(dev, obj, size);
@@ -1452,6 +1443,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 		mapping = file_inode(obj->filp)->i_mapping;
 		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
+
+		omap_obj->flags |= OMAP_BO_MEM_SHMEM;
 	}
 
 	return obj;
