@@ -1374,67 +1374,80 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	size_t size;
 	int ret;
 
+	/* Validate the flags and compute the memory and cache flags. */
 	if (flags & OMAP_BO_TILED) {
 		if (!priv->usergart) {
 			dev_err(dev->dev, "Tiled buffers require DMM\n");
 			return NULL;
 		}
 
-		/* tiled buffers are always shmem paged backed.. when they are
-		 * scanned out, they are remapped into DMM/TILER
+		/*
+		 * Tiled buffers are always shmem paged backed. When they are
+		 * scanned out, they are remapped into DMM/TILER.
 		 */
 		flags &= ~OMAP_BO_SCANOUT;
+		flags |= OMAP_BO_MEM_SHMEM;
 
-		/* currently don't allow cached buffers.. there is some caching
-		 * stuff that needs to be handled better
+		/*
+		 * Currently don't allow cached buffers. There is some caching
+		 * stuff that needs to be handled better.
 		 */
 		flags &= ~(OMAP_BO_CACHED|OMAP_BO_WC|OMAP_BO_UNCACHED);
 		flags |= tiler_get_cpu_cache_flags();
-
-		/* align dimensions to slot boundaries... */
-		tiler_align(gem2fmt(flags),
-				&gsize.tiled.width, &gsize.tiled.height);
-
-		/* ...and calculate size based on aligned dimensions */
-		size = tiler_size(gem2fmt(flags),
-				gsize.tiled.width, gsize.tiled.height);
-	} else {
-		size = PAGE_ALIGN(gsize.bytes);
+	} else if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
+		/*
+		 * Use contiguous memory if we don't have DMM to remap
+		 * discontiguous buffers.
+		 */
+		flags |= OMAP_BO_MEM_DMA_API;
+	} else if (!(flags & OMAP_BO_MEM_EXT)) {
+		/*
+		 * All other buffers not backed with external memory are
+		 * shmem-backed.
+		 */
+		flags |= OMAP_BO_MEM_SHMEM;
 	}
 
+	/* Allocate the initialize the OMAP GEM object. */
 	omap_obj = kzalloc(sizeof(*omap_obj), GFP_KERNEL);
 	if (!omap_obj)
 		return NULL;
 
 	obj = &omap_obj->base;
+	omap_obj->flags = flags;
 
-	if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
-		/* attempt to allocate contiguous memory if we don't
-		 * have DMM for remappign discontiguous buffers
+	if (flags & OMAP_BO_TILED) {
+		/*
+		 * For tiled buffers align dimensions to slot boundaries and
+		 * calculate size based on aligned dimensions.
 		 */
-		omap_obj->vaddr =  dma_alloc_writecombine(dev->dev, size,
-				&omap_obj->paddr, GFP_KERNEL);
-		if (!omap_obj->vaddr) {
-			kfree(omap_obj);
+		tiler_align(gem2fmt(flags), &gsize.tiled.width,
+			    &gsize.tiled.height);
 
-			return NULL;
-		}
+		size = tiler_size(gem2fmt(flags), gsize.tiled.width,
+				  gsize.tiled.height);
 
-		flags |= OMAP_BO_MEM_DMA_API;
+		omap_obj->width = gsize.tiled.width;
+		omap_obj->height = gsize.tiled.height;
+	} else {
+		size = PAGE_ALIGN(gsize.bytes);
 	}
 
 	spin_lock(&priv->list_lock);
 	list_add(&omap_obj->mm_list, &priv->obj_list);
 	spin_unlock(&priv->list_lock);
 
-	omap_obj->flags = flags;
-
-	if (flags & OMAP_BO_TILED) {
-		omap_obj->width = gsize.tiled.width;
-		omap_obj->height = gsize.tiled.height;
+	/* Allocate memory if needed. */
+	if (flags & OMAP_BO_MEM_DMA_API) {
+		omap_obj->vaddr = dma_alloc_writecombine(dev->dev, size,
+							 &omap_obj->paddr,
+							 GFP_KERNEL);
+		if (!omap_obj->vaddr)
+			goto fail;
 	}
 
-	if (flags & (OMAP_BO_MEM_DMA_API | OMAP_BO_MEM_EXT)) {
+	/* Initialize the GEM object. */
+	if (!(flags & OMAP_BO_MEM_SHMEM)) {
 		drm_gem_private_object_init(dev, obj, size);
 	} else {
 		ret = drm_gem_object_init(dev, obj, size);
@@ -1443,8 +1456,6 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 		mapping = file_inode(obj->filp)->i_mapping;
 		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
-
-		omap_obj->flags |= OMAP_BO_MEM_SHMEM;
 	}
 
 	return obj;
