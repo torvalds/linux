@@ -850,12 +850,18 @@ static int ov5642_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov5642_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
+static int ov5642_set_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5642 *priv = to_ov5642(client);
-	struct v4l2_rect rect = a->c;
+	struct v4l2_rect rect = sel->r;
 	int ret;
+
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
+	    sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
 	v4l_bound_align_image(&rect.width, 48, OV5642_MAX_WIDTH, 1,
 			      &rect.height, 32, OV5642_MAX_HEIGHT, 1, 0);
@@ -878,32 +884,30 @@ static int ov5642_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	return ret;
 }
 
-static int ov5642_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int ov5642_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5642 *priv = to_ov5642(client);
-	struct v4l2_rect *rect = &a->c;
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	*rect = priv->crop_rect;
-
-	return 0;
-}
-
-static int ov5642_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= OV5642_MAX_WIDTH;
-	a->bounds.height		= OV5642_MAX_HEIGHT;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = OV5642_MAX_WIDTH;
+		sel->r.height = OV5642_MAX_HEIGHT;
+		return 0;
+	case V4L2_SEL_TGT_CROP:
+		sel->r = priv->crop_rect;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int ov5642_g_mbus_config(struct v4l2_subdev *sd,
@@ -940,14 +944,13 @@ static int ov5642_s_power(struct v4l2_subdev *sd, int on)
 }
 
 static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
-	.s_crop		= ov5642_s_crop,
-	.g_crop		= ov5642_g_crop,
-	.cropcap	= ov5642_cropcap,
 	.g_mbus_config	= ov5642_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov5642_subdev_pad_ops = {
 	.enum_mbus_code = ov5642_enum_mbus_code,
+	.get_selection	= ov5642_get_selection,
+	.set_selection	= ov5642_set_selection,
 	.get_fmt	= ov5642_get_fmt,
 	.set_fmt	= ov5642_set_fmt,
 };

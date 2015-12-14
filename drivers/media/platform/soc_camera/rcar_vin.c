@@ -515,7 +515,7 @@ struct rcar_vin_cam {
 	unsigned int out_width;
 	unsigned int out_height;
 	/*
-	 * User window from S_CROP / G_CROP, produced by client cropping and
+	 * User window from S_SELECTION / G_SELECTION, produced by client cropping and
 	 * scaling, VIN scaling and VIN cropping, mapped back onto the client
 	 * input window
 	 */
@@ -1471,16 +1471,15 @@ static void rcar_vin_put_formats(struct soc_camera_device *icd)
 	icd->host_priv = NULL;
 }
 
-static int rcar_vin_set_crop(struct soc_camera_device *icd,
-			     const struct v4l2_crop *a)
+static int rcar_vin_set_selection(struct soc_camera_device *icd,
+				  struct v4l2_selection *sel)
 {
-	struct v4l2_crop a_writable = *a;
-	const struct v4l2_rect *rect = &a_writable.c;
+	const struct v4l2_rect *rect = &sel->r;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
-	struct v4l2_crop cam_crop;
+	struct v4l2_selection cam_sel;
 	struct rcar_vin_cam *cam = icd->host_priv;
-	struct v4l2_rect *cam_rect = &cam_crop.c;
+	struct v4l2_rect *cam_rect = &cam_sel.r;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
 	struct v4l2_subdev_format fmt = {
@@ -1490,15 +1489,15 @@ static int rcar_vin_set_crop(struct soc_camera_device *icd,
 	u32 vnmc;
 	int ret, i;
 
-	dev_dbg(dev, "S_CROP(%ux%u@%u:%u)\n", rect->width, rect->height,
+	dev_dbg(dev, "S_SELECTION(%ux%u@%u:%u)\n", rect->width, rect->height,
 		rect->left, rect->top);
 
 	/* During camera cropping its output window can change too, stop VIN */
 	capture_stop_preserve(priv, &vnmc);
 	dev_dbg(dev, "VNMC_REG 0x%x\n", vnmc);
 
-	/* Apply iterative camera S_CROP for new input window. */
-	ret = soc_camera_client_s_crop(sd, &a_writable, &cam_crop,
+	/* Apply iterative camera S_SELECTION for new input window. */
+	ret = soc_camera_client_s_selection(sd, sel, &cam_sel,
 				       &cam->rect, &cam->subrect);
 	if (ret < 0)
 		return ret;
@@ -1551,13 +1550,12 @@ static int rcar_vin_set_crop(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int rcar_vin_get_crop(struct soc_camera_device *icd,
-			     struct v4l2_crop *a)
+static int rcar_vin_get_selection(struct soc_camera_device *icd,
+				  struct v4l2_selection *sel)
 {
 	struct rcar_vin_cam *cam = icd->host_priv;
 
-	a->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->c = cam->subrect;
+	sel->r = cam->subrect;
 
 	return 0;
 }
@@ -1824,8 +1822,8 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 	.remove		= rcar_vin_remove_device,
 	.get_formats	= rcar_vin_get_formats,
 	.put_formats	= rcar_vin_put_formats,
-	.get_crop	= rcar_vin_get_crop,
-	.set_crop	= rcar_vin_set_crop,
+	.get_selection	= rcar_vin_get_selection,
+	.set_selection	= rcar_vin_set_selection,
 	.try_fmt	= rcar_vin_try_fmt,
 	.set_fmt	= rcar_vin_set_fmt,
 	.poll		= rcar_vin_poll,

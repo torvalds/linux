@@ -134,7 +134,7 @@ struct sh_mobile_ceu_cam {
 	unsigned int width;
 	unsigned int height;
 	/*
-	 * User window from S_CROP / G_CROP, produced by client cropping and
+	 * User window from S_SELECTION / G_SELECTION, produced by client cropping and
 	 * scaling, CEU scaling and CEU cropping, mapped back onto the client
 	 * input window
 	 */
@@ -1109,17 +1109,16 @@ static void sh_mobile_ceu_put_formats(struct soc_camera_device *icd)
  * Documentation/video4linux/sh_mobile_ceu_camera.txt for a description of
  * scaling and cropping algorithms and for the meaning of referenced here steps.
  */
-static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
-				  const struct v4l2_crop *a)
+static int sh_mobile_ceu_set_selection(struct soc_camera_device *icd,
+				       struct v4l2_selection *sel)
 {
-	struct v4l2_crop a_writable = *a;
-	const struct v4l2_rect *rect = &a_writable.c;
+	struct v4l2_rect *rect = &sel->r;
 	struct device *dev = icd->parent;
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	struct v4l2_crop cam_crop;
+	struct v4l2_selection cam_sel;
 	struct sh_mobile_ceu_cam *cam = icd->host_priv;
-	struct v4l2_rect *cam_rect = &cam_crop.c;
+	struct v4l2_rect *cam_rect = &cam_sel.r;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -1131,7 +1130,7 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	u32 capsr, cflcr;
 	int ret;
 
-	dev_geo(dev, "S_CROP(%ux%u@%u:%u)\n", rect->width, rect->height,
+	dev_geo(dev, "S_SELECTION(%ux%u@%u:%u)\n", rect->width, rect->height,
 		rect->left, rect->top);
 
 	/* During camera cropping its output window can change too, stop CEU */
@@ -1139,10 +1138,10 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	dev_dbg(dev, "CAPSR 0x%x, CFLCR 0x%x\n", capsr, pcdev->cflcr);
 
 	/*
-	 * 1. - 2. Apply iterative camera S_CROP for new input window, read back
+	 * 1. - 2. Apply iterative camera S_SELECTION for new input window, read back
 	 * actual camera rectangle.
 	 */
-	ret = soc_camera_client_s_crop(sd, &a_writable, &cam_crop,
+	ret = soc_camera_client_s_selection(sd, sel, &cam_sel,
 				       &cam->rect, &cam->subrect);
 	if (ret < 0)
 		return ret;
@@ -1251,13 +1250,12 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int sh_mobile_ceu_get_crop(struct soc_camera_device *icd,
-				  struct v4l2_crop *a)
+static int sh_mobile_ceu_get_selection(struct soc_camera_device *icd,
+				       struct v4l2_selection *sel)
 {
 	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 
-	a->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->c = cam->subrect;
+	sel->r = cam->subrect;
 
 	return 0;
 }
@@ -1499,8 +1497,8 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int sh_mobile_ceu_set_livecrop(struct soc_camera_device *icd,
-				      const struct v4l2_crop *a)
+static int sh_mobile_ceu_set_liveselection(struct soc_camera_device *icd,
+					   struct v4l2_selection *sel)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -1519,7 +1517,7 @@ static int sh_mobile_ceu_set_livecrop(struct soc_camera_device *icd,
 			 "Client failed to stop the stream: %d\n", ret);
 	else
 		/* Do the crop, if it fails, there's nothing more we can do */
-		sh_mobile_ceu_set_crop(icd, a);
+		sh_mobile_ceu_set_selection(icd, sel);
 
 	dev_geo(icd->parent, "Output after crop: %ux%u\n", icd->user_width, icd->user_height);
 
@@ -1600,9 +1598,9 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.clock_stop	= sh_mobile_ceu_clock_stop,
 	.get_formats	= sh_mobile_ceu_get_formats,
 	.put_formats	= sh_mobile_ceu_put_formats,
-	.get_crop	= sh_mobile_ceu_get_crop,
-	.set_crop	= sh_mobile_ceu_set_crop,
-	.set_livecrop	= sh_mobile_ceu_set_livecrop,
+	.get_selection	= sh_mobile_ceu_get_selection,
+	.set_selection	= sh_mobile_ceu_set_selection,
+	.set_liveselection	= sh_mobile_ceu_set_liveselection,
 	.set_fmt	= sh_mobile_ceu_set_fmt,
 	.try_fmt	= sh_mobile_ceu_try_fmt,
 	.poll		= sh_mobile_ceu_poll,

@@ -1280,10 +1280,10 @@ static int pxa_camera_check_frame(u32 width, u32 height)
 		(width & 0x01);
 }
 
-static int pxa_camera_set_crop(struct soc_camera_device *icd,
-			       const struct v4l2_crop *a)
+static int pxa_camera_set_selection(struct soc_camera_device *icd,
+				    struct v4l2_selection *sel)
 {
-	const struct v4l2_rect *rect = &a->c;
+	const struct v4l2_rect *rect = &sel->r;
 	struct device *dev = icd->parent;
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct pxa_camera_dev *pcdev = ici->priv;
@@ -1298,13 +1298,19 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	struct pxa_cam *cam = icd->host_priv;
 	u32 fourcc = icd->current_fmt->host_fmt->fourcc;
+	struct v4l2_subdev_selection sdsel = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.target = sel->target,
+		.flags = sel->flags,
+		.r = sel->r,
+	};
 	int ret;
 
 	/* If PCLK is used to latch data from the sensor, check sense */
 	if (pcdev->platform_flags & PXA_CAMERA_PCLK_EN)
 		icd->sense = &sense;
 
-	ret = v4l2_subdev_call(sd, video, s_crop, a);
+	ret = v4l2_subdev_call(sd, pad, set_selection, NULL, &sdsel);
 
 	icd->sense = NULL;
 
@@ -1313,6 +1319,7 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 			 rect->width, rect->height, rect->left, rect->top);
 		return ret;
 	}
+	sel->r = sdsel.r;
 
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
@@ -1592,7 +1599,7 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.remove		= pxa_camera_remove_device,
 	.clock_start	= pxa_camera_clock_start,
 	.clock_stop	= pxa_camera_clock_stop,
-	.set_crop	= pxa_camera_set_crop,
+	.set_selection	= pxa_camera_set_selection,
 	.get_formats	= pxa_camera_get_formats,
 	.put_formats	= pxa_camera_put_formats,
 	.set_fmt	= pxa_camera_set_fmt,

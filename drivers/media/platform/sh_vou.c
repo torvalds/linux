@@ -937,7 +937,10 @@ static int sh_vou_s_selection(struct file *file, void *fh,
 {
 	struct v4l2_rect *rect = &sel->r;
 	struct sh_vou_device *vou_dev = video_drvdata(file);
-	struct v4l2_crop sd_crop = {.type = V4L2_BUF_TYPE_VIDEO_OUTPUT};
+	struct v4l2_subdev_selection sd_sel = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.target = V4L2_SEL_TGT_COMPOSE,
+	};
 	struct v4l2_pix_format *pix = &vou_dev->pix;
 	struct sh_vou_geometry geo;
 	struct v4l2_subdev_format format = {
@@ -978,14 +981,14 @@ static int sh_vou_s_selection(struct file *file, void *fh,
 	geo.in_height = pix->height;
 
 	/* Configure the encoder one-to-one, position at 0, ignore errors */
-	sd_crop.c.width = geo.output.width;
-	sd_crop.c.height = geo.output.height;
+	sd_sel.r.width = geo.output.width;
+	sd_sel.r.height = geo.output.height;
 	/*
-	 * We first issue a S_CROP, so that the subsequent S_FMT delivers the
+	 * We first issue a S_SELECTION, so that the subsequent S_FMT delivers the
 	 * final encoder configuration.
 	 */
-	v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, video,
-				   s_crop, &sd_crop);
+	v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
+				   set_selection, NULL, &sd_sel);
 	format.format.width = geo.output.width;
 	format.format.height = geo.output.height;
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
