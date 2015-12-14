@@ -598,7 +598,6 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
 		if (test_and_clear_bit(i, hv_vcpu->stimer_pending_bitmap)) {
 			stimer = &hv_vcpu->stimer[i];
-			stimer_stop(stimer);
 			if (stimer->config & HV_STIMER_ENABLE) {
 				time_now = get_time_ref_counter(vcpu->kvm);
 				if (time_now >= stimer->exp_time)
