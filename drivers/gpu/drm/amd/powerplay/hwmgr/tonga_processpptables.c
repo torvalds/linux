@@ -797,7 +797,7 @@ static int init_thermal_controller(
 		  );
 
 	if (0 == powerplay_table->usFanTableOffset)
-		return -1;
+		return 0;
 
 	fan_table = (const PPTable_Generic_SubTable_Header *)
 		(((unsigned long)powerplay_table) +
