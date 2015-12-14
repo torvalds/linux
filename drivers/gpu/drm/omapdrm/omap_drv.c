@@ -547,14 +547,19 @@ static int ioctl_set_param(struct drm_device *dev, void *data,
 	return 0;
 }
 
+#define OMAP_BO_USER_MASK	0x00ffffff	/* flags settable by userspace */
+
 static int ioctl_gem_new(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
 {
 	struct drm_omap_gem_new *args = data;
+	u32 flags = args->flags & OMAP_BO_USER_MASK;
+
 	VERB("%p:%p: size=0x%08x, flags=%08x", dev, file_priv,
-			args->size.bytes, args->flags);
-	return omap_gem_new_handle(dev, file_priv, args->size,
-			args->flags, &args->handle);
+	     args->size.bytes, flags);
+
+	return omap_gem_new_handle(dev, file_priv, args->size, flags,
+				   &args->handle);
 }
 
 static int ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
