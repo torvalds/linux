@@ -48,7 +48,17 @@ static int mwifiex_11n_dispatch_amsdu_pkt(struct mwifiex_private *priv,
 					 priv->wdev.iftype, 0, false);
 
 		while (!skb_queue_empty(&list)) {
+			struct rx_packet_hdr *rx_hdr;
+
 			rx_skb = __skb_dequeue(&list);
+			rx_hdr = (struct rx_packet_hdr *)rx_skb->data;
+			if (ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+			    ntohs(rx_hdr->eth803_hdr.h_proto) == ETH_P_TDLS) {
+				mwifiex_process_tdls_action_frame(priv,
+								  (u8 *)rx_hdr,
+								  skb->len);
+			}
+
 			ret = mwifiex_recv_packet(priv, rx_skb);
 			if (ret == -1)
 				mwifiex_dbg(priv->adapter, ERROR,
