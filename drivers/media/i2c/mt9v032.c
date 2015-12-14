@@ -348,7 +348,8 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 	if (ret < 0)
 		return ret;
 
-	return regmap_write(map, MT9V032_CHIP_CONTROL, 0);
+	return regmap_write(map, MT9V032_CHIP_CONTROL,
+			    MT9V032_CHIP_CONTROL_MASTER_MODE);
 }
 
 static void mt9v032_power_off(struct mt9v032 *mt9v032)
@@ -420,8 +421,7 @@ __mt9v032_get_pad_crop(struct mt9v032 *mt9v032, struct v4l2_subdev_pad_config *c
 
 static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 {
-	const u16 mode = MT9V032_CHIP_CONTROL_MASTER_MODE
-		       | MT9V032_CHIP_CONTROL_DOUT_ENABLE
+	const u16 mode = MT9V032_CHIP_CONTROL_DOUT_ENABLE
 		       | MT9V032_CHIP_CONTROL_SEQUENTIAL;
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
 	struct v4l2_rect *crop = &mt9v032->crop;
