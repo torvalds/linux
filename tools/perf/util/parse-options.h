@@ -41,6 +41,8 @@ enum parse_opt_option_flags {
 	PARSE_OPT_DISABLED = 32,
 	PARSE_OPT_EXCLUSIVE = 64,
 	PARSE_OPT_NOEMPTY  = 128,
+	PARSE_OPT_NOBUILD  = 256,
+	PARSE_OPT_CANSKIP  = 512,
 };
 
 struct option;
@@ -96,6 +98,7 @@ struct option {
 	void *value;
 	const char *argh;
 	const char *help;
+	const char *build_opt;
 
 	int flags;
 	parse_opt_cb *callback;
@@ -217,4 +220,6 @@ extern int parse_opt_verbosity_cb(const struct option *, const char *, int);
 extern const char *parse_options_fix_filename(const char *prefix, const char *file);
 
 void set_option_flag(struct option *opts, int sopt, const char *lopt, int flag);
+void set_option_nobuild(struct option *opts, int shortopt, const char *longopt,
+			const char *build_opt, bool can_skip);
 #endif /* __PERF_PARSE_OPTIONS_H */

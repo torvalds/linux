@@ -18,20 +18,34 @@ static int opterror(const struct option *opt, const char *reason, int flags)
 	return error("option `%s' %s", opt->long_name, reason);
 }
 
+static void optwarning(const struct option *opt, const char *reason, int flags)
+{
+	if (flags & OPT_SHORT)
+		warning("switch `%c' %s", opt->short_name, reason);
+	else if (flags & OPT_UNSET)
+		warning("option `no-%s' %s", opt->long_name, reason);
+	else
+		warning("option `%s' %s", opt->long_name, reason);
+}
+
 static int get_arg(struct parse_opt_ctx_t *p, const struct option *opt,
 		   int flags, const char **arg)
 {
+	const char *res;
+
 	if (p->opt) {
-		*arg = p->opt;
+		res = p->opt;
 		p->opt = NULL;
 	} else if ((opt->flags & PARSE_OPT_LASTARG_DEFAULT) && (p->argc == 1 ||
 		    **(p->argv + 1) == '-')) {
-		*arg = (const char *)opt->defval;
+		res = (const char *)opt->defval;
 	} else if (p->argc > 1) {
 		p->argc--;
-		*arg = *++p->argv;
+		res = *++p->argv;
 	} else
 		return opterror(opt, "requires a value", flags);
+	if (arg)
+		*arg = res;
 	return 0;
 }
 
@@ -89,6 +103,64 @@ static int get_value(struct parse_opt_ctx_t *p,
 		default:
 			break;
 		}
+	}
+
+	if (opt->flags & PARSE_OPT_NOBUILD) {
+		char reason[128];
+		bool noarg = false;
+
+		err = snprintf(reason, sizeof(reason),
+				opt->flags & PARSE_OPT_CANSKIP ?
+					"is being ignored because %s " :
+					"is not available because %s",
+				opt->build_opt);
+		reason[sizeof(reason) - 1] = '\0';
+
+		if (err < 0)
+			strncpy(reason, opt->flags & PARSE_OPT_CANSKIP ?
+					"is being ignored" :
+					"is not available",
+					sizeof(reason));
+
+		if (!(opt->flags & PARSE_OPT_CANSKIP))
+			return opterror(opt, reason, flags);
+
+		err = 0;
+		if (unset)
+			noarg = true;
+		if (opt->flags & PARSE_OPT_NOARG)
+			noarg = true;
+		if (opt->flags & PARSE_OPT_OPTARG && !p->opt)
+			noarg = true;
+
+		switch (opt->type) {
+		case OPTION_BOOLEAN:
+		case OPTION_INCR:
+		case OPTION_BIT:
+		case OPTION_SET_UINT:
+		case OPTION_SET_PTR:
+		case OPTION_END:
+		case OPTION_ARGUMENT:
+		case OPTION_GROUP:
+			noarg = true;
+			break;
+		case OPTION_CALLBACK:
+		case OPTION_STRING:
+		case OPTION_INTEGER:
+		case OPTION_UINTEGER:
+		case OPTION_LONG:
+		case OPTION_U64:
+		default:
+			break;
+		}
+
+		if (!noarg)
+			err = get_arg(p, opt, flags, NULL);
+		if (err)
+			return err;
+
+		optwarning(opt, reason, flags);
+		return 0;
 	}
 
 	switch (opt->type) {
@@ -645,6 +717,10 @@ static void print_option_help(const struct option *opts, int full)
 		pad = USAGE_OPTS_WIDTH;
 	}
 	fprintf(stderr, "%*s%s\n", pad + USAGE_GAP, "", opts->help);
+	if (opts->flags & PARSE_OPT_NOBUILD)
+		fprintf(stderr, "%*s(not built-in because %s)\n",
+			USAGE_OPTS_WIDTH + USAGE_GAP, "",
+			opts->build_opt);
 }
 
 static int option__cmp(const void *va, const void *vb)
@@ -848,15 +924,39 @@ int parse_opt_verbosity_cb(const struct option *opt,
 	return 0;
 }
 
-void set_option_flag(struct option *opts, int shortopt, const char *longopt,
-		     int flag)
+static struct option *
+find_option(struct option *opts, int shortopt, const char *longopt)
 {
 	for (; opts->type != OPTION_END; opts++) {
 		if ((shortopt && opts->short_name == shortopt) ||
 		    (opts->long_name && longopt &&
-		     !strcmp(opts->long_name, longopt))) {
-			opts->flags |= flag;
-			break;
-		}
+		     !strcmp(opts->long_name, longopt)))
+			return opts;
 	}
+	return NULL;
+}
+
+void set_option_flag(struct option *opts, int shortopt, const char *longopt,
+		     int flag)
+{
+	struct option *opt = find_option(opts, shortopt, longopt);
+
+	if (opt)
+		opt->flags |= flag;
+	return;
+}
+
+void set_option_nobuild(struct option *opts, int shortopt,
+			const char *longopt,
+			const char *build_opt,
+			bool can_skip)
+{
+	struct option *opt = find_option(opts, shortopt, longopt);
+
+	if (!opt)
+		return;
+
+	opt->flags |= PARSE_OPT_NOBUILD;
+	opt->flags |= can_skip ? PARSE_OPT_CANSKIP : 0;
+	opt->build_opt = build_opt;
 }

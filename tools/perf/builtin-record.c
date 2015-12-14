@@ -1113,12 +1113,10 @@ struct option __record_options[] = {
 			"per thread proc mmap processing timeout in ms"),
 	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
 		    "Record context switch events"),
-#ifdef HAVE_LIBBPF_SUPPORT
 	OPT_STRING(0, "clang-path", &llvm_param.clang_path, "clang path",
 		   "clang binary to use for compiling BPF scriptlets"),
 	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",
 		   "options passed to clang when compiling BPF scriptlets"),
-#endif
 	OPT_END()
 };
 
@@ -1129,6 +1127,13 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	int err;
 	struct record *rec = &record;
 	char errbuf[BUFSIZ];
+
+#ifndef HAVE_LIBBPF_SUPPORT
+# define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, "NO_LIBBPF=1", c)
+	set_nobuild('\0', "clang-path", true);
+	set_nobuild('\0', "clang-opt", true);
+# undef set_nobuild
+#endif
 
 	rec->evlist = perf_evlist__new();
 	if (rec->evlist == NULL)
