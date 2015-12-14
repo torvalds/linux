@@ -113,6 +113,9 @@ static int inet6_create(struct net *net, struct socket *sock, int protocol,
 	    !inet_ehash_secret)
 		build_ehash_secret();
 
+	if (protocol < 0 || protocol >= IPPROTO_MAX)
+		return -EINVAL;
+
 	/* Look for the requested type/protocol pair. */
 lookup_protocol:
 	err = -ESOCKTNOSUPPORT;

@@ -288,6 +288,9 @@ static int inet_create(struct net *net, struct socket *sock, int protocol,
 		if (sock->type != SOCK_RAW && sock->type != SOCK_DGRAM)
 			build_ehash_secret();
 
+	if (protocol < 0 || protocol >= IPPROTO_MAX)
+		return -EINVAL;
+
 	sock->state = SS_UNCONNECTED;
 
 	/* Look for the requested type/protocol pair. */
