@@ -588,8 +588,6 @@ struct bdb_psr {
 	struct psr_table psr_table[16];
 } __packed;
 
-int intel_parse_bios(struct drm_device *dev);
-
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in
  * GR18 & SWF*.

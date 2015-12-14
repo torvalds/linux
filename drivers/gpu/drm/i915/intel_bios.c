@@ -1282,7 +1282,7 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
 }
 
 /**
- * intel_parse_bios - find VBT and initialize settings from the BIOS
+ * intel_bios_init - find VBT and initialize settings from the BIOS
  * @dev: DRM device
  *
  * Loads the Video BIOS and checks that the VBT exists.  Sets scratch registers
@@ -1291,7 +1291,7 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
  * Returns 0 on success, nonzero on failure.
  */
 int
-intel_parse_bios(struct drm_device *dev)
+intel_bios_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;

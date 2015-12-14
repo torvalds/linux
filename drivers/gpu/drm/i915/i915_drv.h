@@ -3352,6 +3352,9 @@ static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 }
 extern void intel_i2c_reset(struct drm_device *dev);
 
+/* intel_bios.c */
+int intel_bios_init(struct drm_device *dev);
+
 /* intel_opregion.c */
 #ifdef CONFIG_ACPI
 extern int intel_opregion_setup(struct drm_device *dev);
