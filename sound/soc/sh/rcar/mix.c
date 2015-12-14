@@ -158,6 +158,7 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 	priv->mix	= mix;
 
 	i = 0;
+	ret = 0;
 	for_each_child_of_node(node, np) {
 		mix = rsnd_mix_get(priv, i);
 
