@@ -5790,7 +5790,7 @@ EXPORT_SYMBOL_GPL(cgroup_get_from_path);
 
 #if defined(CONFIG_CGROUP_NET_PRIO) || defined(CONFIG_CGROUP_NET_CLASSID)
 
-spinlock_t cgroup_sk_update_lock;
+DEFINE_SPINLOCK(cgroup_sk_update_lock);
 static bool cgroup_sk_alloc_disabled __read_mostly;
 
 void cgroup_sk_alloc_disable(void)
