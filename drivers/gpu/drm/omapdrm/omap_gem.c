@@ -1345,7 +1345,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	drm_gem_object_release(obj);
 
-	kfree(obj);
+	kfree(omap_obj);
 }
 
 /* GEM buffer object constructor */
