@@ -271,6 +271,15 @@ config MFD_MC13XXX_I2C
 	help
 	  Select this if your MC13xxx is connected via an I2C bus.
 
+config MFD_MX25_TSADC
+	tristate "Freescale i.MX25 integrated Touchscreen and ADC unit"
+	select REGMAP_MMIO
+	depends on (SOC_IMX25 && OF) || COMPILE_TEST
+	help
+	  Enable support for the integrated Touchscreen and ADC unit of the
+	  i.MX25 processors. They consist of a conversion queue for general
+	  purpose ADC and a queue for Touchscreens.
+
 config MFD_HI6421_PMIC
 	tristate "HiSilicon Hi6421 PMU/Codec IC"
 	depends on OF
