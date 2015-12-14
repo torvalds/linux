@@ -2297,6 +2297,10 @@ static int edma_probe(struct platform_device *pdev)
 		edma_set_chmap(&ecc->slave_chans[i], ecc->dummy_slot);
 	}
 
+	ecc->dma_slave.filter.map = info->slave_map;
+	ecc->dma_slave.filter.mapcnt = info->slavecnt;
+	ecc->dma_slave.filter.fn = edma_filter_fn;
+
 	ret = dma_async_device_register(&ecc->dma_slave);
 	if (ret) {
 		dev_err(dev, "slave ddev registration failed (%d)\n", ret);
