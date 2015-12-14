@@ -62,7 +62,7 @@ int service_operation(struct orangefs_kernel_op_s *op,
 	/* irqflags and wait_entry are only used IF the client-core aborts */
 	unsigned long irqflags;
 
-	DECLARE_WAITQUEUE(wait_entry, current);
+	DEFINE_WAIT(wait_entry);
 
 	op->upcall.tgid = current->tgid;
 	op->upcall.pid = current->pid;
@@ -204,10 +204,10 @@ retry_servicing:
 			 * memory system can be initialized.
 			 */
 			spin_lock_irqsave(&op->lock, irqflags);
-			add_wait_queue(&orangefs_bufmap_init_waitq, &wait_entry);
+			prepare_to_wait(&orangefs_bufmap_init_waitq,
+					&wait_entry,
+					TASK_INTERRUPTIBLE);
 			spin_unlock_irqrestore(&op->lock, irqflags);
-
-			set_current_state(TASK_INTERRUPTIBLE);
 
 			/*
 			 * Wait for orangefs_bufmap_initialize() to wake me up
@@ -225,8 +225,7 @@ retry_servicing:
 				     get_bufmap_init());
 
 			spin_lock_irqsave(&op->lock, irqflags);
-			remove_wait_queue(&orangefs_bufmap_init_waitq,
-					  &wait_entry);
+			finish_wait(&orangefs_bufmap_init_waitq, &wait_entry);
 			spin_unlock_irqrestore(&op->lock, irqflags);
 
 			if (get_bufmap_init() == 0) {
@@ -342,16 +341,11 @@ void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
 int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 {
 	int ret = -EINVAL;
-	DECLARE_WAITQUEUE(wait_entry, current);
-
-	spin_lock(&op->lock);
-	add_wait_queue(&op->waitq, &wait_entry);
-	spin_unlock(&op->lock);
+	DEFINE_WAIT(wait_entry);
 
 	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
 		spin_lock(&op->lock);
+		prepare_to_wait(&op->waitq, &wait_entry, TASK_INTERRUPTIBLE);
 		if (op_state_serviced(op)) {
 			spin_unlock(&op->lock);
 			ret = 0;
@@ -434,10 +428,8 @@ int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 		break;
 	}
 
-	set_current_state(TASK_RUNNING);
-
 	spin_lock(&op->lock);
-	remove_wait_queue(&op->waitq, &wait_entry);
+	finish_wait(&op->waitq, &wait_entry);
 	spin_unlock(&op->lock);
 
 	return ret;
@@ -455,16 +447,11 @@ int wait_for_matching_downcall(struct orangefs_kernel_op_s *op)
 int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
 {
 	int ret = -EINVAL;
-	DECLARE_WAITQUEUE(wait_entry, current);
-
-	spin_lock(&op->lock);
-	add_wait_queue(&op->waitq, &wait_entry);
-	spin_unlock(&op->lock);
+	DEFINE_WAIT(wait_entry);
 
 	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
 		spin_lock(&op->lock);
+		prepare_to_wait(&op->waitq, &wait_entry, TASK_INTERRUPTIBLE);
 		if (op_state_serviced(op)) {
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "%s:op-state is SERVICED.\n",
@@ -514,10 +501,8 @@ int wait_for_cancellation_downcall(struct orangefs_kernel_op_s *op)
 		break;
 	}
 
-	set_current_state(TASK_RUNNING);
-
 	spin_lock(&op->lock);
-	remove_wait_queue(&op->waitq, &wait_entry);
+	finish_wait(&op->waitq, &wait_entry);
 	spin_unlock(&op->lock);
 
 	gossip_debug(GOSSIP_WAIT_DEBUG,

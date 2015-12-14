@@ -432,7 +432,6 @@ static ssize_t orangefs_devreq_writev(struct file *file,
 				return -EIO;
 			}
 		} else {
-			/* Change downcall status */
 			gossip_err("writev: could not vmalloc for trailer!\n");
 			dev_req_release(buffer);
 			put_op(op);
@@ -453,7 +452,7 @@ no_trailer:
 		 */
 		if (op->upcall.type == ORANGEFS_VFS_OP_FILE_IO) {
 			int timed_out = 0;
-			DECLARE_WAITQUEUE(wait_entry, current);
+			DEFINE_WAIT(wait_entry);
 
 			/*
 			 * tell the vfs op waiting on a waitqueue
@@ -463,14 +462,14 @@ no_trailer:
 			set_op_state_serviced(op);
 			spin_unlock(&op->lock);
 
-			add_wait_queue_exclusive(&op->io_completion_waitq,
-						 &wait_entry);
 			wake_up_interruptible(&op->waitq);
 
 			while (1) {
-				set_current_state(TASK_INTERRUPTIBLE);
-
 				spin_lock(&op->lock);
+				prepare_to_wait_exclusive(
+					&op->io_completion_waitq,
+					&wait_entry,
+					TASK_INTERRUPTIBLE);
 				if (op->io_completed) {
 					spin_unlock(&op->lock);
 					break;
@@ -497,9 +496,9 @@ no_trailer:
 				break;
 			}
 
-			set_current_state(TASK_RUNNING);
-			remove_wait_queue(&op->io_completion_waitq,
-					  &wait_entry);
+			spin_lock(&op->lock);
+			finish_wait(&op->io_completion_waitq, &wait_entry);
+			spin_unlock(&op->lock);
 
 			/* NOTE: for I/O operations we handle releasing the op
 			 * object except in the case of timeout.  the reason we

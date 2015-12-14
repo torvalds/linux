@@ -333,19 +333,17 @@ static int wait_for_a_slot(struct slot_args *slargs, int *buffer_index)
 {
 	int ret = -1;
 	int i = 0;
-	DECLARE_WAITQUEUE(my_wait, current);
-
-
-	add_wait_queue_exclusive(slargs->slot_wq, &my_wait);
+	DEFINE_WAIT(wait_entry);
 
 	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
 		/*
 		 * check for available desc, slot_lock is the appropriate
 		 * index_lock
 		 */
 		spin_lock(slargs->slot_lock);
+		prepare_to_wait_exclusive(slargs->slot_wq,
+					  &wait_entry,
+					  TASK_INTERRUPTIBLE);
 		for (i = 0; i < slargs->slot_count; i++)
 			if (slargs->slot_array[i] == 0) {
 				slargs->slot_array[i] = 1;
@@ -383,8 +381,9 @@ static int wait_for_a_slot(struct slot_args *slargs, int *buffer_index)
 		break;
 	}
 
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(slargs->slot_wq, &my_wait);
+	spin_lock(slargs->slot_lock);
+	finish_wait(slargs->slot_wq, &wait_entry);
+	spin_unlock(slargs->slot_lock);
 	return ret;
 }
 
