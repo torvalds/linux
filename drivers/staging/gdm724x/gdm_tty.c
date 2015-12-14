@@ -64,7 +64,7 @@ static void gdm_port_destruct(struct tty_port *port)
 	kfree(gdm);
 }
 
-static struct tty_port_operations gdm_port_ops = {
+static const struct tty_port_operations gdm_port_ops = {
 	.destruct = gdm_port_destruct,
 };
 
