@@ -104,20 +104,10 @@ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
 	const char *suffix = NULL;
 
-	if (ndns->claim) {
-		if (is_nd_btt(ndns->claim))
-			suffix = "s";
-		else if (is_nd_pfn(ndns->claim))
-			suffix = "m";
-		else
-			dev_WARN_ONCE(&ndns->dev, 1,
-					"unknown claim type by %s\n",
-					dev_name(ndns->claim));
-	}
+	if (ndns->claim && is_nd_btt(ndns->claim))
+		suffix = "s";
 
 	if (is_namespace_pmem(&ndns->dev) || is_namespace_io(&ndns->dev)) {
-		if (!suffix && pmem_should_map_pages(&ndns->dev))
-			suffix = "m";
 		sprintf(name, "pmem%d%s", nd_region->id, suffix ? suffix : "");
 	} else if (is_namespace_blk(&ndns->dev)) {
 		struct nd_namespace_blk *nsblk;
@@ -1224,6 +1214,29 @@ static ssize_t holder_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(holder);
 
+static ssize_t mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_namespace_common *ndns = to_ndns(dev);
+	struct device *claim;
+	char *mode;
+	ssize_t rc;
+
+	device_lock(dev);
+	claim = ndns->claim;
+	if (pmem_should_map_pages(dev) || (claim && is_nd_pfn(claim)))
+		mode = "memory";
+	else if (claim && is_nd_btt(claim))
+		mode = "safe";
+	else
+		mode = "raw";
+	rc = sprintf(buf, "%s\n", mode);
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(mode);
+
 static ssize_t force_raw_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
@@ -1247,6 +1260,7 @@ static DEVICE_ATTR_RW(force_raw);
 static struct attribute *nd_namespace_attributes[] = {
 	&dev_attr_nstype.attr,
 	&dev_attr_size.attr,
+	&dev_attr_mode.attr,
 	&dev_attr_uuid.attr,
 	&dev_attr_holder.attr,
 	&dev_attr_resource.attr,
@@ -1280,7 +1294,8 @@ static umode_t namespace_visible(struct kobject *kobj,
 
 	if (a == &dev_attr_nstype.attr || a == &dev_attr_size.attr
 			|| a == &dev_attr_holder.attr
-			|| a == &dev_attr_force_raw.attr)
+			|| a == &dev_attr_force_raw.attr
+			|| a == &dev_attr_mode.attr)
 		return a->mode;
 
 	return 0;
