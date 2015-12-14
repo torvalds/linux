@@ -3159,8 +3159,8 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		memset(&hs_cfg, 0, sizeof(hs_cfg));
 		hs_cfg.is_invoke_hostcmd = false;
 		hs_cfg.conditions = HS_CFG_COND_MAC_EVENT;
-		hs_cfg.gpio = HS_CFG_GPIO_DEF;
-		hs_cfg.gap = HS_CFG_GAP_DEF;
+		hs_cfg.gpio = adapter->hs_cfg.gpio;
+		hs_cfg.gap = adapter->hs_cfg.gap;
 		ret = mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,
 					    MWIFIEX_SYNC_CMD, &hs_cfg);
 		if (ret) {
