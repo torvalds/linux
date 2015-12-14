@@ -159,7 +159,7 @@ config USB_TI_CPPI_DMA
 
 config USB_TI_CPPI41_DMA
 	bool 'TI CPPI 4.1 (AM335x)'
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP && DMADEVICES
 	select TI_CPPI41
 
 config USB_TUSB_OMAP_DMA

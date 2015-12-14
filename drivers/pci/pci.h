@@ -337,6 +337,4 @@ static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 }
 #endif
 
-struct pci_host_bridge *pci_find_host_bridge(struct pci_bus *bus);
-
 #endif /* DRIVERS_PCI_H */

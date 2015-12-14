@@ -188,10 +188,14 @@ static void xhci_pme_acpi_rtd3_enable(struct pci_dev *dev)
 		0xb7, 0x0c, 0x34, 0xac,	0x01, 0xe9, 0xbf, 0x45,
 		0xb7, 0xe6, 0x2b, 0x34, 0xec, 0x93, 0x1e, 0x23,
 	};
-	acpi_evaluate_dsm(ACPI_HANDLE(&dev->dev), intel_dsm_uuid, 3, 1, NULL);
+	union acpi_object *obj;
+
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(&dev->dev), intel_dsm_uuid, 3, 1,
+				NULL);
+	ACPI_FREE(obj);
 }
 #else
-	static void xhci_pme_acpi_rtd3_enable(struct pci_dev *dev) { }
+static void xhci_pme_acpi_rtd3_enable(struct pci_dev *dev) { }
 #endif /* CONFIG_ACPI */
 
 /* called during probe() after chip reset completes */

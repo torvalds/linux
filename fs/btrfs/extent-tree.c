@@ -124,7 +124,7 @@ static int block_group_bits(struct btrfs_block_group_cache *cache, u64 bits)
 	return (cache->flags & bits) == bits;
 }
 
-static void btrfs_get_block_group(struct btrfs_block_group_cache *cache)
+void btrfs_get_block_group(struct btrfs_block_group_cache *cache)
 {
 	atomic_inc(&cache->count);
 }
@@ -5915,19 +5915,6 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			set_extent_dirty(info->pinned_extents,
 					 bytenr, bytenr + num_bytes - 1,
 					 GFP_NOFS | __GFP_NOFAIL);
-			/*
-			 * No longer have used bytes in this block group, queue
-			 * it for deletion.
-			 */
-			if (old_val == 0) {
-				spin_lock(&info->unused_bgs_lock);
-				if (list_empty(&cache->bg_list)) {
-					btrfs_get_block_group(cache);
-					list_add_tail(&cache->bg_list,
-						      &info->unused_bgs);
-				}
-				spin_unlock(&info->unused_bgs_lock);
-			}
 		}
 
 		spin_lock(&trans->transaction->dirty_bgs_lock);
@@ -5938,6 +5925,22 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			btrfs_get_block_group(cache);
 		}
 		spin_unlock(&trans->transaction->dirty_bgs_lock);
+
+		/*
+		 * No longer have used bytes in this block group, queue it for
+		 * deletion. We do this after adding the block group to the
+		 * dirty list to avoid races between cleaner kthread and space
+		 * cache writeout.
+		 */
+		if (!alloc && old_val == 0) {
+			spin_lock(&info->unused_bgs_lock);
+			if (list_empty(&cache->bg_list)) {
+				btrfs_get_block_group(cache);
+				list_add_tail(&cache->bg_list,
+					      &info->unused_bgs);
+			}
+			spin_unlock(&info->unused_bgs_lock);
+		}
 
 		btrfs_put_block_group(cache);
 		total -= num_bytes;
@@ -8105,20 +8108,46 @@ reada:
 }
 
 /*
- * TODO: Modify related function to add related node/leaf to dirty_extent_root,
- * for later qgroup accounting.
- *
- * Current, this function does nothing.
+ * These may not be seen by the usual inc/dec ref code so we have to
+ * add them here.
  */
+static int record_one_subtree_extent(struct btrfs_trans_handle *trans,
+				     struct btrfs_root *root, u64 bytenr,
+				     u64 num_bytes)
+{
+	struct btrfs_qgroup_extent_record *qrecord;
+	struct btrfs_delayed_ref_root *delayed_refs;
+
+	qrecord = kmalloc(sizeof(*qrecord), GFP_NOFS);
+	if (!qrecord)
+		return -ENOMEM;
+
+	qrecord->bytenr = bytenr;
+	qrecord->num_bytes = num_bytes;
+	qrecord->old_roots = NULL;
+
+	delayed_refs = &trans->transaction->delayed_refs;
+	spin_lock(&delayed_refs->lock);
+	if (btrfs_qgroup_insert_dirty_extent(delayed_refs, qrecord))
+		kfree(qrecord);
+	spin_unlock(&delayed_refs->lock);
+
+	return 0;
+}
+
 static int account_leaf_items(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct extent_buffer *eb)
 {
 	int nr = btrfs_header_nritems(eb);
-	int i, extent_type;
+	int i, extent_type, ret;
 	struct btrfs_key key;
 	struct btrfs_file_extent_item *fi;
 	u64 bytenr, num_bytes;
+
+	/* We can be called directly from walk_up_proc() */
+	if (!root->fs_info->quota_enabled)
+		return 0;
 
 	for (i = 0; i < nr; i++) {
 		btrfs_item_key_to_cpu(eb, &key, i);
@@ -8138,6 +8167,10 @@ static int account_leaf_items(struct btrfs_trans_handle *trans,
 			continue;
 
 		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
+
+		ret = record_one_subtree_extent(trans, root, bytenr, num_bytes);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -8206,8 +8239,6 @@ static int adjust_slots_upwards(struct btrfs_root *root,
 
 /*
  * root_eb is the subtree root and is locked before this function is called.
- * TODO: Modify this function to mark all (including complete shared node)
- * to dirty_extent_root to allow it get accounted in qgroup.
  */
 static int account_shared_subtree(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
@@ -8285,6 +8316,11 @@ walk_down:
 			btrfs_tree_read_lock(eb);
 			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
+
+			ret = record_one_subtree_extent(trans, root, child_bytenr,
+							root->nodesize);
+			if (ret)
+				goto out;
 		}
 
 		if (level == 0) {
@@ -10256,6 +10292,47 @@ out:
 	return ret;
 }
 
+struct btrfs_trans_handle *
+btrfs_start_trans_remove_block_group(struct btrfs_fs_info *fs_info,
+				     const u64 chunk_offset)
+{
+	struct extent_map_tree *em_tree = &fs_info->mapping_tree.map_tree;
+	struct extent_map *em;
+	struct map_lookup *map;
+	unsigned int num_items;
+
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, chunk_offset, 1);
+	read_unlock(&em_tree->lock);
+	ASSERT(em && em->start == chunk_offset);
+
+	/*
+	 * We need to reserve 3 + N units from the metadata space info in order
+	 * to remove a block group (done at btrfs_remove_chunk() and at
+	 * btrfs_remove_block_group()), which are used for:
+	 *
+	 * 1 unit for adding the free space inode's orphan (located in the tree
+	 * of tree roots).
+	 * 1 unit for deleting the block group item (located in the extent
+	 * tree).
+	 * 1 unit for deleting the free space item (located in tree of tree
+	 * roots).
+	 * N units for deleting N device extent items corresponding to each
+	 * stripe (located in the device tree).
+	 *
+	 * In order to remove a block group we also need to reserve units in the
+	 * system space info in order to update the chunk tree (update one or
+	 * more device items and remove one chunk item), but this is done at
+	 * btrfs_remove_chunk() through a call to check_system_chunk().
+	 */
+	map = (struct map_lookup *)em->bdev;
+	num_items = 3 + map->num_stripes;
+	free_extent_map(em);
+
+	return btrfs_start_transaction_fallback_global_rsv(fs_info->extent_root,
+							   num_items, 1);
+}
+
 /*
  * Process the unused_bgs list and remove any that don't have any allocated
  * space inside of them.
@@ -10322,8 +10399,8 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 * Want to do this before we do anything else so we can recover
 		 * properly if we fail to join the transaction.
 		 */
-		/* 1 for btrfs_orphan_reserve_metadata() */
-		trans = btrfs_start_transaction(root, 1);
+		trans = btrfs_start_trans_remove_block_group(fs_info,
+						     block_group->key.objectid);
 		if (IS_ERR(trans)) {
 			btrfs_dec_block_group_ro(root, block_group);
 			ret = PTR_ERR(trans);

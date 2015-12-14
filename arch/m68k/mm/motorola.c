@@ -250,7 +250,7 @@ void __init paging_init(void)
 	high_memory = phys_to_virt(max_addr);
 
 	min_low_pfn = availmem >> PAGE_SHIFT;
-	max_low_pfn = max_addr >> PAGE_SHIFT;
+	max_pfn = max_low_pfn = max_addr >> PAGE_SHIFT;
 
 	for (i = 0; i < m68k_num_memory; i++) {
 		addr = m68k_memory[i].addr;

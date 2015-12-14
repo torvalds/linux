@@ -139,6 +139,12 @@ static inline int epilogue_offset(const struct jit_ctx *ctx)
 /* Stack must be multiples of 16B */
 #define STACK_ALIGN(sz) (((sz) + 15) & ~15)
 
+#define _STACK_SIZE \
+	(MAX_BPF_STACK \
+	 + 4 /* extra for skb_copy_bits buffer */)
+
+#define STACK_SIZE STACK_ALIGN(_STACK_SIZE)
+
 static void build_prologue(struct jit_ctx *ctx)
 {
 	const u8 r6 = bpf2a64[BPF_REG_6];
@@ -150,10 +156,6 @@ static void build_prologue(struct jit_ctx *ctx)
 	const u8 rx = bpf2a64[BPF_REG_X];
 	const u8 tmp1 = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
-	int stack_size = MAX_BPF_STACK;
-
-	stack_size += 4; /* extra for skb_copy_bits buffer */
-	stack_size = STACK_ALIGN(stack_size);
 
 	/*
 	 * BPF prog stack layout
@@ -165,12 +167,13 @@ static void build_prologue(struct jit_ctx *ctx)
 	 *                        | ... | callee saved registers
 	 *                        +-----+
 	 *                        |     | x25/x26
-	 * BPF fp register => -80:+-----+
+	 * BPF fp register => -80:+-----+ <= (BPF_FP)
 	 *                        |     |
 	 *                        | ... | BPF prog stack
 	 *                        |     |
-	 *                        |     |
-	 * current A64_SP =>      +-----+
+	 *                        +-----+ <= (BPF_FP - MAX_BPF_STACK)
+	 *                        |RSVD | JIT scratchpad
+	 * current A64_SP =>      +-----+ <= (BPF_FP - STACK_SIZE)
 	 *                        |     |
 	 *                        | ... | Function call stack
 	 *                        |     |
@@ -196,7 +199,7 @@ static void build_prologue(struct jit_ctx *ctx)
 	emit(A64_MOV(1, fp, A64_SP), ctx);
 
 	/* Set up function call stack */
-	emit(A64_SUB_I(1, A64_SP, A64_SP, stack_size), ctx);
+	emit(A64_SUB_I(1, A64_SP, A64_SP, STACK_SIZE), ctx);
 
 	/* Clear registers A and X */
 	emit_a64_mov_i64(ra, 0, ctx);
@@ -213,13 +216,9 @@ static void build_epilogue(struct jit_ctx *ctx)
 	const u8 fp = bpf2a64[BPF_REG_FP];
 	const u8 tmp1 = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
-	int stack_size = MAX_BPF_STACK;
-
-	stack_size += 4; /* extra for skb_copy_bits buffer */
-	stack_size = STACK_ALIGN(stack_size);
 
 	/* We're done with BPF stack */
-	emit(A64_ADD_I(1, A64_SP, A64_SP, stack_size), ctx);
+	emit(A64_ADD_I(1, A64_SP, A64_SP, STACK_SIZE), ctx);
 
 	/* Restore fs (x25) and x26 */
 	emit(A64_POP(fp, A64_R(26), A64_SP), ctx);
@@ -591,7 +590,25 @@ emit_cond_jmp:
 	case BPF_ST | BPF_MEM | BPF_H:
 	case BPF_ST | BPF_MEM | BPF_B:
 	case BPF_ST | BPF_MEM | BPF_DW:
-		goto notyet;
+		/* Load imm to a register then store it */
+		ctx->tmp_used = 1;
+		emit_a64_mov_i(1, tmp2, off, ctx);
+		emit_a64_mov_i(1, tmp, imm, ctx);
+		switch (BPF_SIZE(code)) {
+		case BPF_W:
+			emit(A64_STR32(tmp, dst, tmp2), ctx);
+			break;
+		case BPF_H:
+			emit(A64_STRH(tmp, dst, tmp2), ctx);
+			break;
+		case BPF_B:
+			emit(A64_STRB(tmp, dst, tmp2), ctx);
+			break;
+		case BPF_DW:
+			emit(A64_STR64(tmp, dst, tmp2), ctx);
+			break;
+		}
+		break;
 
 	/* STX: *(size *)(dst + off) = src */
 	case BPF_STX | BPF_MEM | BPF_W:
@@ -658,7 +675,7 @@ emit_cond_jmp:
 			return -EINVAL;
 		}
 		emit_a64_mov_i64(r3, size, ctx);
-		emit(A64_ADD_I(1, r4, fp, MAX_BPF_STACK), ctx);
+		emit(A64_SUB_I(1, r4, fp, STACK_SIZE), ctx);
 		emit_a64_mov_i64(r5, (unsigned long)bpf_load_pointer, ctx);
 		emit(A64_PUSH(A64_FP, A64_LR, A64_SP), ctx);
 		emit(A64_MOV(1, A64_FP, A64_SP), ctx);
