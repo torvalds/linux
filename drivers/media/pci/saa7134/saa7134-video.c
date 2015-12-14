@@ -1906,6 +1906,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_s_std			= saa7134_s_std,
 	.vidioc_g_std			= saa7134_g_std,
 	.vidioc_querystd		= saa7134_querystd,
@@ -2089,7 +2090,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	 * USERPTR support is a no-go unless the application knows about these
 	 * limitations and has special support for this.
 	 */
-	q->io_modes = VB2_MMAP | VB2_READ;
+	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
 	if (saa7134_userptr)
 		q->io_modes |= VB2_USERPTR;
 	q->drv_priv = &dev->video_q;
