@@ -74,7 +74,7 @@ EXPORT_SYMBOL(nvm_unregister_target);
 void *nvm_dev_dma_alloc(struct nvm_dev *dev, gfp_t mem_flags,
 							dma_addr_t *dma_handler)
 {
-	return dev->ops->dev_dma_alloc(dev->q, dev->ppalist_pool, mem_flags,
+	return dev->ops->dev_dma_alloc(dev, dev->ppalist_pool, mem_flags,
 								dma_handler);
 }
 EXPORT_SYMBOL(nvm_dev_dma_alloc);
@@ -97,15 +97,47 @@ static struct nvmm_type *nvm_find_mgr_type(const char *name)
 	return NULL;
 }
 
+struct nvmm_type *nvm_init_mgr(struct nvm_dev *dev)
+{
+	struct nvmm_type *mt;
+	int ret;
+
+	lockdep_assert_held(&nvm_lock);
+
+	list_for_each_entry(mt, &nvm_mgrs, list) {
+		ret = mt->register_mgr(dev);
+		if (ret < 0) {
+			pr_err("nvm: media mgr failed to init (%d) on dev %s\n",
+								ret, dev->name);
+			return NULL; /* initialization failed */
+		} else if (ret > 0)
+			return mt;
+	}
+
+	return NULL;
+}
+
 int nvm_register_mgr(struct nvmm_type *mt)
 {
+	struct nvm_dev *dev;
 	int ret = 0;
 
 	down_write(&nvm_lock);
-	if (nvm_find_mgr_type(mt->name))
+	if (nvm_find_mgr_type(mt->name)) {
 		ret = -EEXIST;
-	else
+		goto finish;
+	} else {
 		list_add(&mt->list, &nvm_mgrs);
+	}
+
+	/* try to register media mgr if any device have none configured */
+	list_for_each_entry(dev, &nvm_devices, devices) {
+		if (dev->mt)
+			continue;
+
+		dev->mt = nvm_init_mgr(dev);
+	}
+finish:
 	up_write(&nvm_lock);
 
 	return ret;
@@ -221,13 +253,12 @@ static void nvm_free(struct nvm_dev *dev)
 
 static int nvm_init(struct nvm_dev *dev)
 {
-	struct nvmm_type *mt;
 	int ret = -EINVAL;
 
 	if (!dev->q || !dev->ops)
 		return ret;
 
-	if (dev->ops->identity(dev->q, &dev->identity)) {
+	if (dev->ops->identity(dev, &dev->identity)) {
 		pr_err("nvm: device could not be identified\n");
 		goto err;
 	}
@@ -250,22 +281,6 @@ static int nvm_init(struct nvm_dev *dev)
 	if (ret) {
 		pr_err("nvm: could not initialize core structures.\n");
 		goto err;
-	}
-
-	/* register with device with a supported manager */
-	list_for_each_entry(mt, &nvm_mgrs, list) {
-		ret = mt->register_mgr(dev);
-		if (ret < 0)
-			goto err; /* initialization failed */
-		if (ret > 0) {
-			dev->mt = mt;
-			break; /* successfully initialized */
-		}
-	}
-
-	if (!ret) {
-		pr_info("nvm: no compatible manager found.\n");
-		return 0;
 	}
 
 	pr_info("nvm: registered %s [%u/%u/%u/%u/%u/%u]\n",
@@ -308,21 +323,24 @@ int nvm_register(struct request_queue *q, char *disk_name,
 	if (ret)
 		goto err_init;
 
-	if (dev->ops->max_phys_sect > 1) {
-		dev->ppalist_pool = dev->ops->create_dma_pool(dev->q,
-								"ppalist");
-		if (!dev->ppalist_pool) {
-			pr_err("nvm: could not create ppa pool\n");
-			ret = -ENOMEM;
-			goto err_init;
-		}
-	} else if (dev->ops->max_phys_sect > 256) {
+	if (dev->ops->max_phys_sect > 256) {
 		pr_info("nvm: max sectors supported is 256.\n");
 		ret = -EINVAL;
 		goto err_init;
 	}
 
+	if (dev->ops->max_phys_sect > 1) {
+		dev->ppalist_pool = dev->ops->create_dma_pool(dev, "ppalist");
+		if (!dev->ppalist_pool) {
+			pr_err("nvm: could not create ppa pool\n");
+			ret = -ENOMEM;
+			goto err_init;
+		}
+	}
+
+	/* register device with a supported media manager */
 	down_write(&nvm_lock);
+	dev->mt = nvm_init_mgr(dev);
 	list_add(&dev->devices, &nvm_devices);
 	up_write(&nvm_lock);
 
@@ -335,15 +353,17 @@ EXPORT_SYMBOL(nvm_register);
 
 void nvm_unregister(char *disk_name)
 {
-	struct nvm_dev *dev = nvm_find_nvm_dev(disk_name);
+	struct nvm_dev *dev;
 
+	down_write(&nvm_lock);
+	dev = nvm_find_nvm_dev(disk_name);
 	if (!dev) {
 		pr_err("nvm: could not find device %s to unregister\n",
 								disk_name);
+		up_write(&nvm_lock);
 		return;
 	}
 
-	down_write(&nvm_lock);
 	list_del(&dev->devices);
 	up_write(&nvm_lock);
 
@@ -361,38 +381,24 @@ static int nvm_create_target(struct nvm_dev *dev,
 {
 	struct nvm_ioctl_create_simple *s = &create->conf.s;
 	struct request_queue *tqueue;
-	struct nvmm_type *mt;
 	struct gendisk *tdisk;
 	struct nvm_tgt_type *tt;
 	struct nvm_target *t;
 	void *targetdata;
-	int ret = 0;
 
 	if (!dev->mt) {
-		/* register with device with a supported NVM manager */
-		list_for_each_entry(mt, &nvm_mgrs, list) {
-			ret = mt->register_mgr(dev);
-			if (ret < 0)
-				return ret; /* initialization failed */
-			if (ret > 0) {
-				dev->mt = mt;
-				break; /* successfully initialized */
-			}
-		}
-
-		if (!ret) {
-			pr_info("nvm: no compatible nvm manager found.\n");
-			return -ENODEV;
-		}
-	}
-
-	tt = nvm_find_target_type(create->tgttype);
-	if (!tt) {
-		pr_err("nvm: target type %s not found\n", create->tgttype);
-		return -EINVAL;
+		pr_info("nvm: device has no media manager registered.\n");
+		return -ENODEV;
 	}
 
 	down_write(&nvm_lock);
+	tt = nvm_find_target_type(create->tgttype);
+	if (!tt) {
+		pr_err("nvm: target type %s not found\n", create->tgttype);
+		up_write(&nvm_lock);
+		return -EINVAL;
+	}
+
 	list_for_each_entry(t, &dev->online_targets, list) {
 		if (!strcmp(create->tgtname, t->disk->disk_name)) {
 			pr_err("nvm: target name already exists.\n");
@@ -476,7 +482,9 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 	struct nvm_dev *dev;
 	struct nvm_ioctl_create_simple *s;
 
+	down_write(&nvm_lock);
 	dev = nvm_find_nvm_dev(create->dev);
+	up_write(&nvm_lock);
 	if (!dev) {
 		pr_err("nvm: device not found\n");
 		return -EINVAL;
@@ -535,7 +543,9 @@ static int nvm_configure_show(const char *val)
 		return -EINVAL;
 	}
 
+	down_write(&nvm_lock);
 	dev = nvm_find_nvm_dev(devname);
+	up_write(&nvm_lock);
 	if (!dev) {
 		pr_err("nvm: device not found\n");
 		return -EINVAL;
@@ -680,8 +690,10 @@ static long nvm_ioctl_info(struct file *file, void __user *arg)
 	info->tgtsize = tgt_iter;
 	up_write(&nvm_lock);
 
-	if (copy_to_user(arg, info, sizeof(struct nvm_ioctl_info)))
+	if (copy_to_user(arg, info, sizeof(struct nvm_ioctl_info))) {
+		kfree(info);
 		return -EFAULT;
+	}
 
 	kfree(info);
 	return 0;
@@ -724,8 +736,11 @@ static long nvm_ioctl_get_devices(struct file *file, void __user *arg)
 
 	devices->nr_devices = i;
 
-	if (copy_to_user(arg, devices, sizeof(struct nvm_ioctl_get_devices)))
+	if (copy_to_user(arg, devices,
+			 sizeof(struct nvm_ioctl_get_devices))) {
+		kfree(devices);
 		return -EFAULT;
+	}
 
 	kfree(devices);
 	return 0;

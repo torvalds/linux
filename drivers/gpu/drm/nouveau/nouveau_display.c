@@ -829,7 +829,6 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 	struct drm_device *dev = drm->dev;
 	struct nouveau_page_flip_state *s;
 	unsigned long flags;
-	int crtcid = -1;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
@@ -841,15 +840,19 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event) {
-		/* Vblank timestamps/counts are only correct on >= NV-50 */
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
-			crtcid = s->crtc;
+		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+			drm_arm_vblank_event(dev, s->crtc, s->event);
+		} else {
+			drm_send_vblank_event(dev, s->crtc, s->event);
 
-		drm_send_vblank_event(dev, crtcid, s->event);
+			/* Give up ownership of vblank for page-flipped crtc */
+			drm_vblank_put(dev, s->crtc);
+		}
 	}
-
-	/* Give up ownership of vblank for page-flipped crtc */
-	drm_vblank_put(dev, s->crtc);
+	else {
+		/* Give up ownership of vblank for page-flipped crtc */
+		drm_vblank_put(dev, s->crtc);
+	}
 
 	list_del(&s->head);
 	if (ps)

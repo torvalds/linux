@@ -587,9 +587,13 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 	uint32_t flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
 	int r;
 
-	if (gtt->userptr)
-		amdgpu_ttm_tt_pin_userptr(ttm);
-
+	if (gtt->userptr) {
+		r = amdgpu_ttm_tt_pin_userptr(ttm);
+		if (r) {
+			DRM_ERROR("failed to pin userptr\n");
+			return r;
+		}
+	}
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
 	if (!ttm->num_pages) {
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
@@ -797,11 +801,12 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 	if (mem && mem->mem_type != TTM_PL_SYSTEM)
 		flags |= AMDGPU_PTE_VALID;
 
-	if (mem && mem->mem_type == TTM_PL_TT)
+	if (mem && mem->mem_type == TTM_PL_TT) {
 		flags |= AMDGPU_PTE_SYSTEM;
 
-	if (!ttm || ttm->caching_state == tt_cached)
-		flags |= AMDGPU_PTE_SNOOPED;
+		if (ttm->caching_state == tt_cached)
+			flags |= AMDGPU_PTE_SNOOPED;
+	}
 
 	if (adev->asic_type >= CHIP_TOPAZ)
 		flags |= AMDGPU_PTE_EXECUTABLE;

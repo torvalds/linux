@@ -721,6 +721,7 @@ static const struct of_device_id imx_tve_dt_ids[] = {
 	{ .compatible = "fsl,imx53-tve", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx_tve_dt_ids);
 
 static struct platform_driver imx_tve_driver = {
 	.probe		= imx_tve_probe,
