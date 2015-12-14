@@ -113,8 +113,6 @@ struct omap_gem_object {
 	} *sync;
 };
 
-static int get_pages(struct drm_gem_object *obj, struct page ***pages);
-static uint64_t mmap_offset(struct drm_gem_object *obj);
 
 /* To deal with userspace mmap'ings of 2d tiled buffers, which (a) are
  * not necessarily pinned in TILER all the time, and (b) when they are
@@ -143,6 +141,30 @@ static struct {
 	int stride_pfn;			/* stride in pages */
 	int last;				/* index of last used entry */
 } *usergart;
+
+/* -----------------------------------------------------------------------------
+ * Helpers
+ */
+
+/** get mmap offset */
+static uint64_t mmap_offset(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	int ret;
+	size_t size;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	/* Make it mmapable */
+	size = omap_gem_mmap_size(obj);
+	ret = drm_gem_create_mmap_offset_size(obj, size);
+	if (ret) {
+		dev_err(dev->dev, "could not allocate mmap offset\n");
+		return 0;
+	}
+
+	return drm_vma_node_offset_addr(&obj->vma_node);
+}
 
 static void evict_entry(struct drm_gem_object *obj,
 		enum tiler_fmt fmt, struct usergart_entry *entry)
@@ -266,6 +288,28 @@ free_pages:
 	return ret;
 }
 
+/* acquire pages when needed (for example, for DMA where physically
+ * contiguous buffer is not required
+ */
+static int get_pages(struct drm_gem_object *obj, struct page ***pages)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	int ret = 0;
+
+	if (is_shmem(obj) && !omap_obj->pages) {
+		ret = omap_gem_attach_pages(obj);
+		if (ret) {
+			dev_err(obj->dev->dev, "could not attach pages\n");
+			return ret;
+		}
+	}
+
+	/* TODO: even phys-contig.. we should have a list of pages? */
+	*pages = omap_obj->pages;
+
+	return 0;
+}
+
 /** release backing pages */
 static void omap_gem_detach_pages(struct drm_gem_object *obj)
 {
@@ -293,26 +337,6 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 uint32_t omap_gem_flags(struct drm_gem_object *obj)
 {
 	return to_omap_bo(obj)->flags;
-}
-
-/** get mmap offset */
-static uint64_t mmap_offset(struct drm_gem_object *obj)
-{
-	struct drm_device *dev = obj->dev;
-	int ret;
-	size_t size;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
-	/* Make it mmapable */
-	size = omap_gem_mmap_size(obj);
-	ret = drm_gem_create_mmap_offset_size(obj, size);
-	if (ret) {
-		dev_err(dev->dev, "could not allocate mmap offset\n");
-		return 0;
-	}
-
-	return drm_vma_node_offset_addr(&obj->vma_node);
 }
 
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
@@ -859,28 +883,6 @@ int omap_gem_tiled_stride(struct drm_gem_object *obj, uint32_t orient)
 	if (omap_obj->flags & OMAP_BO_TILED)
 		ret = tiler_stride(gem2fmt(omap_obj->flags), orient);
 	return ret;
-}
-
-/* acquire pages when needed (for example, for DMA where physically
- * contiguous buffer is not required
- */
-static int get_pages(struct drm_gem_object *obj, struct page ***pages)
-{
-	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	int ret = 0;
-
-	if (is_shmem(obj) && !omap_obj->pages) {
-		ret = omap_gem_attach_pages(obj);
-		if (ret) {
-			dev_err(obj->dev->dev, "could not attach pages\n");
-			return ret;
-		}
-	}
-
-	/* TODO: even phys-contig.. we should have a list of pages? */
-	*pages = omap_obj->pages;
-
-	return 0;
 }
 
 /* if !remap, and we don't have pages backing, then fail, rather than
