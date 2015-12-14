@@ -111,6 +111,7 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
 	priv->ctu	= ctu;
 
 	i = 0;
+	ret = 0;
 	for_each_child_of_node(node, np) {
 		ctu = rsnd_ctu_get(priv, i);
 
