@@ -2803,7 +2803,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.ia32_xss;
 		break;
 	case MSR_TSC_AUX:
-		if (!guest_cpuid_has_rdtscp(vcpu))
+		if (!guest_cpuid_has_rdtscp(vcpu) && !msr_info->host_initiated)
 			return 1;
 		/* Otherwise falls through */
 	default:
@@ -2909,7 +2909,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			clear_atomic_switch_msr(vmx, MSR_IA32_XSS);
 		break;
 	case MSR_TSC_AUX:
-		if (!guest_cpuid_has_rdtscp(vcpu))
+		if (!guest_cpuid_has_rdtscp(vcpu) && !msr_info->host_initiated)
 			return 1;
 		/* Check reserved bit, higher 32 bits should be zero */
 		if ((data >> 32) != 0)
