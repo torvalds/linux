@@ -2001,29 +2001,48 @@ static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 {
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
-	char buf[256];
-	int pos = 0;
-	const size_t bufsz = sizeof(buf);
+	char *buf;
+	int pos = 0, i, ret;
+	size_t bufsz = sizeof(buf);
 
-	pos += scnprintf(buf + pos, bufsz - pos, "read: %u\n",
-						rxq->read);
-	pos += scnprintf(buf + pos, bufsz - pos, "write: %u\n",
-						rxq->write);
-	pos += scnprintf(buf + pos, bufsz - pos, "write_actual: %u\n",
-						rxq->write_actual);
-	pos += scnprintf(buf + pos, bufsz - pos, "need_update: %d\n",
-						rxq->need_update);
-	pos += scnprintf(buf + pos, bufsz - pos, "free_count: %u\n",
-						rxq->free_count);
-	if (rxq->rb_stts) {
-		pos += scnprintf(buf + pos, bufsz - pos, "closed_rb_num: %u\n",
-			 le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF);
-	} else {
-		pos += scnprintf(buf + pos, bufsz - pos,
-					"closed_rb_num: Not Allocated\n");
+	bufsz = sizeof(char) * 121 * trans->num_rx_queues;
+
+	if (!trans_pcie->rxq)
+		return -EAGAIN;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (i = 0; i < trans->num_rx_queues && pos < bufsz; i++) {
+		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
+
+		pos += scnprintf(buf + pos, bufsz - pos, "queue#: %2d\n",
+				 i);
+		pos += scnprintf(buf + pos, bufsz - pos, "\tread: %u\n",
+				 rxq->read);
+		pos += scnprintf(buf + pos, bufsz - pos, "\twrite: %u\n",
+				 rxq->write);
+		pos += scnprintf(buf + pos, bufsz - pos, "\twrite_actual: %u\n",
+				 rxq->write_actual);
+		pos += scnprintf(buf + pos, bufsz - pos, "\tneed_update: %2d\n",
+				 rxq->need_update);
+		pos += scnprintf(buf + pos, bufsz - pos, "\tfree_count: %u\n",
+				 rxq->free_count);
+		if (rxq->rb_stts) {
+			pos += scnprintf(buf + pos, bufsz - pos,
+					 "\tclosed_rb_num: %u\n",
+					 le16_to_cpu(rxq->rb_stts->closed_rb_num) &
+					 0x0FFF);
+		} else {
+			pos += scnprintf(buf + pos, bufsz - pos,
+					 "\tclosed_rb_num: Not Allocated\n");
 	}
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	}
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+
+	return ret;
 }
 
 static ssize_t iwl_dbgfs_interrupt_read(struct file *file,
@@ -2188,7 +2207,8 @@ static u32 iwl_trans_pcie_dump_rbs(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int max_len = PAGE_SIZE << trans_pcie->rx_page_order;
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
+	/* Dump RBs is supported only for pre-9000 devices (1 queue) */
+	struct iwl_rxq *rxq = &trans_pcie->rxq[0];
 	u32 i, r, j, rb_len = 0;
 
 	spin_lock(&rxq->lock);
@@ -2438,11 +2458,12 @@ static struct iwl_trans_dump_data
 	len += sizeof(*data) + (FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND);
 
 	if (dump_rbs) {
+		/* Dump RBs is supported only for pre-9000 devices (1 queue) */
+		struct iwl_rxq *rxq = &trans_pcie->rxq[0];
 		/* RBs */
-		num_rbs = le16_to_cpu(ACCESS_ONCE(
-				      trans_pcie->rxq.rb_stts->closed_rb_num))
+		num_rbs = le16_to_cpu(ACCESS_ONCE(rxq->rb_stts->closed_rb_num))
 				      & 0x0FFF;
-		num_rbs = (num_rbs - trans_pcie->rxq.read) & RX_QUEUE_MASK;
+		num_rbs = (num_rbs - rxq->read) & RX_QUEUE_MASK;
 		len += num_rbs * (sizeof(*data) +
 				  sizeof(struct iwl_fw_error_dump_rb) +
 				  (PAGE_SIZE << trans_pcie->rx_page_order));

@@ -57,7 +57,7 @@
 #define RX_POST_REQ_ALLOC 2
 #define RX_CLAIM_REQ_ALLOC 8
 #define RX_POOL_SIZE ((RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC) * RX_NUM_QUEUES)
-#define RX_LOW_WATERMARK 8
+#define RX_PENDING_WATERMARK 16
 
 struct iwl_host_cmd;
 
@@ -103,7 +103,6 @@ struct isr_statistics {
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
  * @lock:
- * @pool: initial pool of iwl_rx_mem_buffer for the queue
  * @queue: actual rx queue
  *
  * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
@@ -122,7 +121,6 @@ struct iwl_rxq {
 	struct iwl_rb_status *rb_stts;
 	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
-	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE];
 	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
 };
 
@@ -298,6 +296,7 @@ struct iwl_tso_hdr_page {
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
+ * @rx_pool: initial pool of iwl_rx_mem_buffer for all the queues
  * @rba: allocator for RX replenishing
  * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
@@ -324,7 +323,8 @@ struct iwl_tso_hdr_page {
  * @fw_mon_size: size of the buffer for the firmware monitor
  */
 struct iwl_trans_pcie {
-	struct iwl_rxq rxq;
+	struct iwl_rxq *rxq;
+	struct iwl_rx_mem_buffer rx_pool[RX_QUEUE_SIZE];
 	struct iwl_rb_allocator rba;
 	struct iwl_trans *trans;
 	struct iwl_drv *drv;
