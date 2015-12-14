@@ -410,9 +410,11 @@ static int ravb_dmac_init(struct net_device *ndev)
 	/* Timestamp enable */
 	ravb_write(ndev, TCCR_TFEN, TCCR);
 
-	/* Interrupt enable: */
+	/* Interrupt init: */
 	/* Frame receive */
 	ravb_write(ndev, RIC0_FRE0 | RIC0_FRE1, RIC0);
+	/* Disable FIFO full warning */
+	ravb_write(ndev, 0, RIC1);
 	/* Receive FIFO full error, descriptor empty */
 	ravb_write(ndev, RIC2_QFE0 | RIC2_QFE1 | RIC2_RFFE, RIC2);
 	/* Frame transmitted, timestamp FIFO updated */
@@ -1478,7 +1480,6 @@ static int ravb_close(struct net_device *ndev)
 
 	/* Disable interrupts by clearing the interrupt masks. */
 	ravb_write(ndev, 0, RIC0);
-	ravb_write(ndev, 0, RIC1);
 	ravb_write(ndev, 0, RIC2);
 	ravb_write(ndev, 0, TIC);
 
