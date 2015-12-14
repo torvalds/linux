@@ -144,6 +144,8 @@ SPI_STATISTICS_TRANSFER_BYTES_HISTO(14, "16384-32767");
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(15, "32768-65535");
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(16, "65536+");
 
+SPI_STATISTICS_SHOW(transfers_split_maxsize, "%lu");
+
 static struct attribute *spi_dev_attrs[] = {
 	&dev_attr_modalias.attr,
 	NULL,
@@ -181,6 +183,7 @@ static struct attribute *spi_device_statistics_attrs[] = {
 	&dev_attr_spi_device_transfer_bytes_histo14.attr,
 	&dev_attr_spi_device_transfer_bytes_histo15.attr,
 	&dev_attr_spi_device_transfer_bytes_histo16.attr,
+	&dev_attr_spi_device_transfers_split_maxsize.attr,
 	NULL,
 };
 
@@ -223,6 +226,7 @@ static struct attribute *spi_master_statistics_attrs[] = {
 	&dev_attr_spi_master_transfer_bytes_histo14.attr,
 	&dev_attr_spi_master_transfer_bytes_histo15.attr,
 	&dev_attr_spi_master_transfer_bytes_histo16.attr,
+	&dev_attr_spi_master_transfers_split_maxsize.attr,
 	NULL,
 };
 
@@ -2236,6 +2240,113 @@ struct spi_replaced_transfers *spi_replace_transfers(
 	return rxfer;
 }
 EXPORT_SYMBOL_GPL(spi_replace_transfers);
+
+int __spi_split_transfer_maxsize(struct spi_master *master,
+				 struct spi_message *msg,
+				 struct spi_transfer **xferp,
+				 size_t maxsize,
+				 gfp_t gfp)
+{
+	struct spi_transfer *xfer = *xferp, *xfers;
+	struct spi_replaced_transfers *srt;
+	size_t offset;
+	size_t count, i;
+
+	/* warn once about this fact that we are splitting a transfer */
+	dev_warn_once(&msg->spi->dev,
+		      "spi_transfer of length %i exceed max length of %i - needed to split transfers\n",
+		      xfer->len, maxsize);
+
+	/* calculate how many we have to replace */
+	count = DIV_ROUND_UP(xfer->len, maxsize);
+
+	/* create replacement */
+	srt = spi_replace_transfers(msg, xfer, 1, count, NULL, 0, gfp);
+	if (!srt)
+		return -ENOMEM;
+	xfers = srt->inserted_transfers;
+
+	/* now handle each of those newly inserted spi_transfers
+	 * note that the replacements spi_transfers all are preset
+	 * to the same values as *xferp, so tx_buf, rx_buf and len
+	 * are all identical (as well as most others)
+	 * so we just have to fix up len and the pointers.
+	 *
+	 * this also includes support for the depreciated
+	 * spi_message.is_dma_mapped interface
+	 */
+
+	/* the first transfer just needs the length modified, so we
+	 * run it outside the loop
+	 */
+	xfers[0].len = min(maxsize, xfer[0].len);
+
+	/* all the others need rx_buf/tx_buf also set */
+	for (i = 1, offset = maxsize; i < count; offset += maxsize, i++) {
+		/* update rx_buf, tx_buf and dma */
+		if (xfers[i].rx_buf)
+			xfers[i].rx_buf += offset;
+		if (xfers[i].rx_dma)
+			xfers[i].rx_dma += offset;
+		if (xfers[i].tx_buf)
+			xfers[i].tx_buf += offset;
+		if (xfers[i].tx_dma)
+			xfers[i].tx_dma += offset;
+
+		/* update length */
+		xfers[i].len = min(maxsize, xfers[i].len - offset);
+	}
+
+	/* we set up xferp to the last entry we have inserted,
+	 * so that we skip those already split transfers
+	 */
+	*xferp = &xfers[count - 1];
+
+	/* increment statistics counters */
+	SPI_STATISTICS_INCREMENT_FIELD(&master->statistics,
+				       transfers_split_maxsize);
+	SPI_STATISTICS_INCREMENT_FIELD(&msg->spi->statistics,
+				       transfers_split_maxsize);
+
+	return 0;
+}
+
+/**
+ * spi_split_tranfers_maxsize - split spi transfers into multiple transfers
+ *                              when an individual transfer exceeds a
+ *                              certain size
+ * @master:    the @spi_master for this transfer
+ * @message:   the @spi_message to transform
+ * @max_size:  the maximum when to apply this
+ *
+ * Return: status of transformation
+ */
+int spi_split_transfers_maxsize(struct spi_master *master,
+				struct spi_message *msg,
+				size_t maxsize,
+				gfp_t gfp)
+{
+	struct spi_transfer *xfer;
+	int ret;
+
+	/* iterate over the transfer_list,
+	 * but note that xfer is advanced to the last transfer inserted
+	 * to avoid checking sizes again unnecessarily (also xfer does
+	 * potentiall belong to a different list by the time the
+	 * replacement has happened
+	 */
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		if (xfer->len > maxsize) {
+			ret = __spi_split_transfer_maxsize(
+				master, msg, &xfer, maxsize, gfp);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spi_split_transfers_maxsize);
 
 /*-------------------------------------------------------------------------*/
 

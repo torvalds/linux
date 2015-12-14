@@ -53,6 +53,10 @@ extern struct bus_type spi_bus_type;
  *
  * @transfer_bytes_histo:
  *                 transfer bytes histogramm
+ *
+ * @transfers_split_maxsize:
+ *                 number of transfers that have been split because of
+ *                 maxsize limit
  */
 struct spi_statistics {
 	spinlock_t		lock; /* lock for the whole structure */
@@ -72,6 +76,8 @@ struct spi_statistics {
 
 #define SPI_STATISTICS_HISTO_SIZE 17
 	unsigned long transfer_bytes_histo[SPI_STATISTICS_HISTO_SIZE];
+
+	unsigned long transfers_split_maxsize;
 };
 
 void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
@@ -932,6 +938,15 @@ extern struct spi_replaced_transfers *spi_replace_transfers(
 	spi_replaced_release_t release,
 	size_t extradatasize,
 	gfp_t gfp);
+
+/*---------------------------------------------------------------------------*/
+
+/* SPI transfer transformation methods */
+
+extern int spi_split_transfers_maxsize(struct spi_master *master,
+				       struct spi_message *msg,
+				       size_t maxsize,
+				       gfp_t gfp);
 
 /*---------------------------------------------------------------------------*/
 
