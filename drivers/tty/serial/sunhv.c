@@ -168,17 +168,17 @@ struct sunhv_ops {
 	int (*receive_chars)(struct uart_port *port);
 };
 
-static struct sunhv_ops bychar_ops = {
+static const struct sunhv_ops bychar_ops = {
 	.transmit_chars = transmit_chars_putchar,
 	.receive_chars = receive_chars_getchar,
 };
 
-static struct sunhv_ops bywrite_ops = {
+static const struct sunhv_ops bywrite_ops = {
 	.transmit_chars = transmit_chars_write,
 	.receive_chars = receive_chars_read,
 };
 
-static struct sunhv_ops *sunhv_ops = &bychar_ops;
+static const struct sunhv_ops *sunhv_ops = &bychar_ops;
 
 static struct tty_port *receive_chars(struct uart_port *port)
 {
