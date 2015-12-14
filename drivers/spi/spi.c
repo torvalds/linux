@@ -2107,6 +2107,138 @@ EXPORT_SYMBOL_GPL(spi_res_release);
 
 /*-------------------------------------------------------------------------*/
 
+/* Core methods for spi_message alterations */
+
+static void __spi_replace_transfers_release(struct spi_master *master,
+					    struct spi_message *msg,
+					    void *res)
+{
+	struct spi_replaced_transfers *rxfer = res;
+	size_t i;
+
+	/* call extra callback if requested */
+	if (rxfer->release)
+		rxfer->release(master, msg, res);
+
+	/* insert replaced transfers back into the message */
+	list_splice(&rxfer->replaced_transfers, rxfer->replaced_after);
+
+	/* remove the formerly inserted entries */
+	for (i = 0; i < rxfer->inserted; i++)
+		list_del(&rxfer->inserted_transfers[i].transfer_list);
+}
+
+/**
+ * spi_replace_transfers - replace transfers with several transfers
+ *                         and register change with spi_message.resources
+ * @msg:           the spi_message we work upon
+ * @xfer_first:    the first spi_transfer we want to replace
+ * @remove:        number of transfers to remove
+ * @insert:        the number of transfers we want to insert instead
+ * @release:       extra release code necessary in some circumstances
+ * @extradatasize: extra data to allocate (with alignment guarantees
+ *                 of struct @spi_transfer)
+ *
+ * Returns: pointer to @spi_replaced_transfers,
+ *          PTR_ERR(...) in case of errors.
+ */
+struct spi_replaced_transfers *spi_replace_transfers(
+	struct spi_message *msg,
+	struct spi_transfer *xfer_first,
+	size_t remove,
+	size_t insert,
+	spi_replaced_release_t release,
+	size_t extradatasize,
+	gfp_t gfp)
+{
+	struct spi_replaced_transfers *rxfer;
+	struct spi_transfer *xfer;
+	size_t i;
+
+	/* allocate the structure using spi_res */
+	rxfer = spi_res_alloc(msg->spi, __spi_replace_transfers_release,
+			      insert * sizeof(struct spi_transfer)
+			      + sizeof(struct spi_replaced_transfers)
+			      + extradatasize,
+			      gfp);
+	if (!rxfer)
+		return ERR_PTR(-ENOMEM);
+
+	/* the release code to invoke before running the generic release */
+	rxfer->release = release;
+
+	/* assign extradata */
+	if (extradatasize)
+		rxfer->extradata =
+			&rxfer->inserted_transfers[insert];
+
+	/* init the replaced_transfers list */
+	INIT_LIST_HEAD(&rxfer->replaced_transfers);
+
+	/* assign the list_entry after which we should reinsert
+	 * the @replaced_transfers - it may be spi_message.messages!
+	 */
+	rxfer->replaced_after = xfer_first->transfer_list.prev;
+
+	/* remove the requested number of transfers */
+	for (i = 0; i < remove; i++) {
+		/* if the entry after replaced_after it is msg->transfers
+		 * then we have been requested to remove more transfers
+		 * than are in the list
+		 */
+		if (rxfer->replaced_after->next == &msg->transfers) {
+			dev_err(&msg->spi->dev,
+				"requested to remove more spi_transfers than are available\n");
+			/* insert replaced transfers back into the message */
+			list_splice(&rxfer->replaced_transfers,
+				    rxfer->replaced_after);
+
+			/* free the spi_replace_transfer structure */
+			spi_res_free(rxfer);
+
+			/* and return with an error */
+			return ERR_PTR(-EINVAL);
+		}
+
+		/* remove the entry after replaced_after from list of
+		 * transfers and add it to list of replaced_transfers
+		 */
+		list_move_tail(rxfer->replaced_after->next,
+			       &rxfer->replaced_transfers);
+	}
+
+	/* create copy of the given xfer with identical settings
+	 * based on the first transfer to get removed
+	 */
+	for (i = 0; i < insert; i++) {
+		/* we need to run in reverse order */
+		xfer = &rxfer->inserted_transfers[insert - 1 - i];
+
+		/* copy all spi_transfer data */
+		memcpy(xfer, xfer_first, sizeof(*xfer));
+
+		/* add to list */
+		list_add(&xfer->transfer_list, rxfer->replaced_after);
+
+		/* clear cs_change and delay_usecs for all but the last */
+		if (i) {
+			xfer->cs_change = false;
+			xfer->delay_usecs = 0;
+		}
+	}
+
+	/* set up inserted */
+	rxfer->inserted = insert;
+
+	/* and register it with spi_res/spi_message */
+	spi_res_add(msg, rxfer);
+
+	return rxfer;
+}
+EXPORT_SYMBOL_GPL(spi_replace_transfers);
+
+/*-------------------------------------------------------------------------*/
+
 /* Core methods for SPI master protocol drivers.  Some of the
  * other core methods are currently defined as inline functions.
  */
