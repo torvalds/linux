@@ -408,6 +408,10 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 		return;
 	}
 
+	/* defer roc if driver is not started (i.e. during reconfig) */
+	if (local->in_reconfig)
+		return;
+
 	roc = list_first_entry(&local->roc_list, struct ieee80211_roc_work,
 			       list);
 

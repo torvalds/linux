@@ -256,6 +256,11 @@ static void ieee80211_restart_work(struct work_struct *work)
 	list_for_each_entry(sdata, &local->interfaces, list)
 		flush_delayed_work(&sdata->dec_tailroom_needed_wk);
 	ieee80211_scan_cancel(local);
+
+	/* make sure any new ROC will consider local->in_reconfig */
+	flush_delayed_work(&local->roc_work);
+	flush_work(&local->hw_roc_done);
+
 	ieee80211_reconfig(local);
 	rtnl_unlock();
 }
