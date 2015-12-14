@@ -542,6 +542,42 @@ static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
 	return NULL;
 }
 
+static struct dma_chan *find_candidate(struct dma_device *device,
+				       const dma_cap_mask_t *mask,
+				       dma_filter_fn fn, void *fn_param)
+{
+	struct dma_chan *chan = private_candidate(mask, device, fn, fn_param);
+	int err;
+
+	if (chan) {
+		/* Found a suitable channel, try to grab, prep, and return it.
+		 * We first set DMA_PRIVATE to disable balance_ref_count as this
+		 * channel will not be published in the general-purpose
+		 * allocator
+		 */
+		dma_cap_set(DMA_PRIVATE, device->cap_mask);
+		device->privatecnt++;
+		err = dma_chan_get(chan);
+
+		if (err) {
+			if (err == -ENODEV) {
+				pr_debug("%s: %s module removed\n", __func__,
+					 dma_chan_name(chan));
+				list_del_rcu(&device->global_node);
+			} else
+				pr_debug("%s: failed to get %s: (%d)\n",
+					 __func__, dma_chan_name(chan), err);
+
+			if (--device->privatecnt == 0)
+				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
+
+			chan = ERR_PTR(err);
+		}
+	}
+
+	return chan ? chan : ERR_PTR(-EPROBE_DEFER);
+}
+
 /**
  * dma_get_slave_channel - try to get specific channel exclusively
  * @chan: target channel
@@ -580,7 +616,6 @@ struct dma_chan *dma_get_any_slave_channel(struct dma_device *device)
 {
 	dma_cap_mask_t mask;
 	struct dma_chan *chan;
-	int err;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -588,23 +623,11 @@ struct dma_chan *dma_get_any_slave_channel(struct dma_device *device)
 	/* lock against __dma_request_channel */
 	mutex_lock(&dma_list_mutex);
 
-	chan = private_candidate(&mask, device, NULL, NULL);
-	if (chan) {
-		dma_cap_set(DMA_PRIVATE, device->cap_mask);
-		device->privatecnt++;
-		err = dma_chan_get(chan);
-		if (err) {
-			pr_debug("%s: failed to get %s: (%d)\n",
-				__func__, dma_chan_name(chan), err);
-			chan = NULL;
-			if (--device->privatecnt == 0)
-				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
-		}
-	}
+	chan = find_candidate(device, &mask, NULL, NULL);
 
 	mutex_unlock(&dma_list_mutex);
 
-	return chan;
+	return IS_ERR(chan) ? NULL : chan;
 }
 EXPORT_SYMBOL_GPL(dma_get_any_slave_channel);
 
@@ -621,35 +644,15 @@ struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 {
 	struct dma_device *device, *_d;
 	struct dma_chan *chan = NULL;
-	int err;
 
 	/* Find a channel */
 	mutex_lock(&dma_list_mutex);
 	list_for_each_entry_safe(device, _d, &dma_device_list, global_node) {
-		chan = private_candidate(mask, device, fn, fn_param);
-		if (chan) {
-			/* Found a suitable channel, try to grab, prep, and
-			 * return it.  We first set DMA_PRIVATE to disable
-			 * balance_ref_count as this channel will not be
-			 * published in the general-purpose allocator
-			 */
-			dma_cap_set(DMA_PRIVATE, device->cap_mask);
-			device->privatecnt++;
-			err = dma_chan_get(chan);
+		chan = find_candidate(device, mask, fn, fn_param);
+		if (!IS_ERR(chan))
+			break;
 
-			if (err == -ENODEV) {
-				pr_debug("%s: %s module removed\n",
-					 __func__, dma_chan_name(chan));
-				list_del_rcu(&device->global_node);
-			} else if (err)
-				pr_debug("%s: failed to get %s: (%d)\n",
-					 __func__, dma_chan_name(chan), err);
-			else
-				break;
-			if (--device->privatecnt == 0)
-				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
-			chan = NULL;
-		}
+		chan = NULL;
 	}
 	mutex_unlock(&dma_list_mutex);
 
