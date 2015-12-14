@@ -653,6 +653,7 @@ fail:
 	return ret;
 }
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 /* Set scrolling position.  This allows us to implement fast scrolling
  * for console.
  *
@@ -689,6 +690,7 @@ fail:
 
 	return ret;
 }
+#endif
 
 /* Sync the buffer for CPU access.. note pages should already be
  * attached, ie. omap_gem_get_pages()
@@ -924,6 +926,7 @@ int omap_gem_put_pages(struct drm_gem_object *obj)
 	return 0;
 }
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 /* Get kernel virtual address for CPU access.. this more or less only
  * exists for omap_fbdev.  This should be called with struct_mutex
  * held.
@@ -942,6 +945,7 @@ void *omap_gem_vaddr(struct drm_gem_object *obj)
 	}
 	return omap_obj->vaddr;
 }
+#endif
 
 #ifdef CONFIG_PM
 /* re-pin objects in DMM in resume path: */

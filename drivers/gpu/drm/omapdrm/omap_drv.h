@@ -138,8 +138,18 @@ void omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
 void omap_drm_irq_uninstall(struct drm_device *dev);
 int omap_drm_irq_install(struct drm_device *dev);
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
 void omap_fbdev_free(struct drm_device *dev);
+#else
+static inline struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
+{
+	return NULL;
+}
+static inline void omap_fbdev_free(struct drm_device *dev)
+{
+}
+#endif
 
 struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);

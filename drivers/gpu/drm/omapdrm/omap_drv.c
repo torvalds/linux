@@ -692,10 +692,6 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		drm_crtc_vblank_off(priv->crtcs[i]);
 
 	priv->fbdev = omap_fbdev_init(dev);
-	if (!priv->fbdev) {
-		dev_warn(dev->dev, "omap_fbdev_init failed\n");
-		/* well, limp along without an fbdev.. maybe X11 will work? */
-	}
 
 	/* store off drm_device for use in pm ops */
 	dev_set_drvdata(dev->dev, dev);
