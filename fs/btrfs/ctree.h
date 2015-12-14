@@ -35,6 +35,7 @@
 #include <linux/btrfs.h>
 #include <linux/workqueue.h>
 #include <linux/security.h>
+#include <linux/sizes.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
@@ -196,9 +197,9 @@ static int btrfs_csum_sizes[] = { 4 };
 /* ioprio of readahead is set to idle */
 #define BTRFS_IOPRIO_READA (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0))
 
-#define BTRFS_DIRTY_METADATA_THRESH	(32 * 1024 * 1024)
+#define BTRFS_DIRTY_METADATA_THRESH	SZ_32M
 
-#define BTRFS_MAX_EXTENT_SIZE (128 * 1024 * 1024)
+#define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
 /*
  * The key defines the order in the tree, and so it also defines (optimal)

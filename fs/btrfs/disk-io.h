@@ -19,7 +19,7 @@
 #ifndef __DISKIO__
 #define __DISKIO__
 
-#define BTRFS_SUPER_INFO_OFFSET (64 * 1024)
+#define BTRFS_SUPER_INFO_OFFSET SZ_64K
 #define BTRFS_SUPER_INFO_SIZE 4096
 
 #define BTRFS_SUPER_MIRROR_MAX	 3
@@ -35,7 +35,7 @@ enum btrfs_wq_endio_type {
 
 static inline u64 btrfs_sb_offset(int mirror)
 {
-	u64 start = 16 * 1024;
+	u64 start = SZ_16K;
 	if (mirror)
 		return start << (BTRFS_SUPER_MIRROR_SHIFT * mirror);
 	return BTRFS_SUPER_INFO_OFFSET;

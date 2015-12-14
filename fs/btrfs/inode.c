@@ -414,15 +414,15 @@ static noinline void compress_file_range(struct inode *inode,
 	unsigned long nr_pages_ret = 0;
 	unsigned long total_compressed = 0;
 	unsigned long total_in = 0;
-	unsigned long max_compressed = 128 * 1024;
-	unsigned long max_uncompressed = 128 * 1024;
+	unsigned long max_compressed = SZ_128K;
+	unsigned long max_uncompressed = SZ_128K;
 	int i;
 	int will_compress;
 	int compress_type = root->fs_info->compress_type;
 	int redirty = 0;
 
 	/* if this is a small write inside eof, kick off a defrag */
-	if ((end - start + 1) < 16 * 1024 &&
+	if ((end - start + 1) < SZ_16K &&
 	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
 		btrfs_add_inode_defrag(NULL, inode);
 
@@ -430,7 +430,7 @@ static noinline void compress_file_range(struct inode *inode,
 again:
 	will_compress = 0;
 	nr_pages = (end >> PAGE_CACHE_SHIFT) - (start >> PAGE_CACHE_SHIFT) + 1;
-	nr_pages = min(nr_pages, (128 * 1024UL) / PAGE_CACHE_SIZE);
+	nr_pages = min_t(unsigned long, nr_pages, SZ_128K / PAGE_CACHE_SIZE);
 
 	/*
 	 * we don't want to send crud past the end of i_size through
@@ -944,7 +944,7 @@ static noinline int cow_file_range(struct inode *inode,
 	disk_num_bytes = num_bytes;
 
 	/* if this is a small write inside eof, kick off defrag */
-	if (num_bytes < 64 * 1024 &&
+	if (num_bytes < SZ_64K &&
 	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
 		btrfs_add_inode_defrag(NULL, inode);
 
@@ -1107,7 +1107,7 @@ static noinline void async_cow_submit(struct btrfs_work *work)
 	 * atomic_sub_return implies a barrier for waitqueue_active
 	 */
 	if (atomic_sub_return(nr_pages, &root->fs_info->async_delalloc_pages) <
-	    5 * 1024 * 1024 &&
+	    5 * SZ_1M &&
 	    waitqueue_active(&root->fs_info->async_submit_wait))
 		wake_up(&root->fs_info->async_submit_wait);
 
@@ -1132,7 +1132,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	unsigned long nr_pages;
 	u64 cur_end;
-	int limit = 10 * 1024 * 1024;
+	int limit = 10 * SZ_1M;
 
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, EXTENT_LOCKED,
 			 1, 0, NULL, GFP_NOFS);
@@ -1148,7 +1148,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 		    !btrfs_test_opt(root, FORCE_COMPRESS))
 			cur_end = end;
 		else
-			cur_end = min(end, start + 512 * 1024 - 1);
+			cur_end = min(end, start + SZ_512K - 1);
 
 		async_cow->end = cur_end;
 		INIT_LIST_HEAD(&async_cow->extents);
@@ -4348,7 +4348,7 @@ search_again:
 	 * up a huge file in a single leaf.  Most of the time that
 	 * bytes_deleted is > 0, it will be huge by the time we get here
 	 */
-	if (be_nice && bytes_deleted > 32 * 1024 * 1024) {
+	if (be_nice && bytes_deleted > SZ_32M) {
 		if (btrfs_should_end_transaction(trans, root)) {
 			err = -EAGAIN;
 			goto error;
@@ -4591,7 +4591,7 @@ error:
 
 	btrfs_free_path(path);
 
-	if (be_nice && bytes_deleted > 32 * 1024 * 1024) {
+	if (be_nice && bytes_deleted > SZ_32M) {
 		unsigned long updates = trans->delayed_ref_updates;
 		if (updates) {
 			trans->delayed_ref_updates = 0;
@@ -9757,7 +9757,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 			}
 		}
 
-		cur_bytes = min(num_bytes, 256ULL * 1024 * 1024);
+		cur_bytes = min_t(u64, num_bytes, SZ_256M);
 		cur_bytes = max(cur_bytes, min_size);
 		/*
 		 * If we are severely fragmented we could end up with really

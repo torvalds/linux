@@ -30,7 +30,7 @@
 #include "volumes.h"
 
 #define BITS_PER_BITMAP		(PAGE_CACHE_SIZE * 8)
-#define MAX_CACHE_BYTES_PER_GIG	(32 * 1024)
+#define MAX_CACHE_BYTES_PER_GIG	SZ_32K
 
 struct btrfs_trim_range {
 	u64 start;
@@ -1656,11 +1656,10 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	 * at or below 32k, so we need to adjust how much memory we allow to be
 	 * used by extent based free space tracking
 	 */
-	if (size < 1024 * 1024 * 1024)
+	if (size < SZ_1G)
 		max_bytes = MAX_CACHE_BYTES_PER_GIG;
 	else
-		max_bytes = MAX_CACHE_BYTES_PER_GIG *
-			div_u64(size, 1024 * 1024 * 1024);
+		max_bytes = MAX_CACHE_BYTES_PER_GIG * div_u64(size, SZ_1G);
 
 	/*
 	 * we want to account for 1 more bitmap than what we have so we can make
@@ -2489,8 +2488,7 @@ void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group)
 	 * track of free space, and if we pass 1/2 of that we want to
 	 * start converting things over to using bitmaps
 	 */
-	ctl->extents_thresh = ((1024 * 32) / 2) /
-				sizeof(struct btrfs_free_space);
+	ctl->extents_thresh = (SZ_32K / 2) / sizeof(struct btrfs_free_space);
 }
 
 /*

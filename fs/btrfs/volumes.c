@@ -1406,7 +1406,7 @@ int find_free_dev_extent(struct btrfs_trans_handle *trans,
 	 * we don't want to overwrite the superblock on the drive,
 	 * so we make sure to start at an offset of at least 1MB
 	 */
-	search_start = max(root->fs_info->alloc_start, 1024ull * 1024);
+	search_start = max_t(u64, root->fs_info->alloc_start, SZ_1M);
 	return find_free_dev_extent_start(trans->transaction, device,
 					  num_bytes, search_start, start, len);
 }
@@ -3405,7 +3405,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	list_for_each_entry(device, devices, dev_list) {
 		old_size = btrfs_device_get_total_bytes(device);
 		size_to_free = div_factor(old_size, 1);
-		size_to_free = min(size_to_free, (u64)1 * 1024 * 1024);
+		size_to_free = min_t(u64, size_to_free, SZ_1M);
 		if (!device->writeable ||
 		    btrfs_device_get_total_bytes(device) -
 		    btrfs_device_get_bytes_used(device) > size_to_free ||
@@ -4459,7 +4459,7 @@ static int btrfs_cmp_device_info(const void *a, const void *b)
 static u32 find_raid56_stripe_len(u32 data_devices, u32 dev_stripe_target)
 {
 	/* TODO allow them to set a preferred stripe size */
-	return 64 * 1024;
+	return SZ_64K;
 }
 
 static void check_raid56_incompat_flag(struct btrfs_fs_info *info, u64 type)
@@ -4527,21 +4527,21 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	ncopies = btrfs_raid_array[index].ncopies;
 
 	if (type & BTRFS_BLOCK_GROUP_DATA) {
-		max_stripe_size = 1024 * 1024 * 1024;
+		max_stripe_size = SZ_1G;
 		max_chunk_size = 10 * max_stripe_size;
 		if (!devs_max)
 			devs_max = BTRFS_MAX_DEVS(info->chunk_root);
 	} else if (type & BTRFS_BLOCK_GROUP_METADATA) {
 		/* for larger filesystems, use larger metadata chunks */
-		if (fs_devices->total_rw_bytes > 50ULL * 1024 * 1024 * 1024)
-			max_stripe_size = 1024 * 1024 * 1024;
+		if (fs_devices->total_rw_bytes > 50ULL * SZ_1G)
+			max_stripe_size = SZ_1G;
 		else
-			max_stripe_size = 256 * 1024 * 1024;
+			max_stripe_size = SZ_256M;
 		max_chunk_size = max_stripe_size;
 		if (!devs_max)
 			devs_max = BTRFS_MAX_DEVS(info->chunk_root);
 	} else if (type & BTRFS_BLOCK_GROUP_SYSTEM) {
-		max_stripe_size = 32 * 1024 * 1024;
+		max_stripe_size = SZ_32M;
 		max_chunk_size = 2 * max_stripe_size;
 		if (!devs_max)
 			devs_max = BTRFS_MAX_DEVS_SYS_CHUNK;
