@@ -8842,7 +8842,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 
 	netdev->features = NETIF_F_SG		       |
 			   NETIF_F_IP_CSUM	       |
-			   NETIF_F_SCTP_CSUM	       |
+			   NETIF_F_SCTP_CRC	       |
 			   NETIF_F_HIGHDMA	       |
 			   NETIF_F_GSO_UDP_TUNNEL      |
 			   NETIF_F_GSO_GRE	       |

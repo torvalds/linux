@@ -8995,8 +8995,8 @@ skip_sriov:
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
-		netdev->features |= NETIF_F_SCTP_CSUM;
-		netdev->hw_features |= NETIF_F_SCTP_CSUM |
+		netdev->features |= NETIF_F_SCTP_CRC;
+		netdev->hw_features |= NETIF_F_SCTP_CRC |
 				       NETIF_F_NTUPLE;
 		break;
 	default:

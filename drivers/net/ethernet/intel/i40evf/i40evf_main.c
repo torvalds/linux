@@ -2321,7 +2321,7 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 	netdev->features |= NETIF_F_HIGHDMA |
 			    NETIF_F_SG |
 			    NETIF_F_IP_CSUM |
-			    NETIF_F_SCTP_CSUM |
+			    NETIF_F_SCTP_CRC |
 			    NETIF_F_IPV6_CSUM |
 			    NETIF_F_TSO |
 			    NETIF_F_TSO6 |
