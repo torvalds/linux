@@ -927,15 +927,6 @@ struct platform_nand_data {
 	struct platform_nand_ctrl ctrl;
 };
 
-/* Some helpers to access the data structures */
-static inline
-struct platform_nand_chip *get_platform_nandchip(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd->priv;
-
-	return chip->priv;
-}
-
 /* return the supported features. */
 static inline int onfi_feature(struct nand_chip *chip)
 {
