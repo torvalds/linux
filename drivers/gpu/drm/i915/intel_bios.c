@@ -1214,7 +1214,14 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	}
 }
 
-static const struct bdb_header *validate_vbt(const void *base,
+static const struct bdb_header *get_bdb_header(const struct vbt_header *vbt)
+{
+	const void *_vbt = vbt;
+
+	return _vbt + vbt->bdb_offset;
+}
+
+static const struct vbt_header *validate_vbt(const void *base,
 					     size_t size,
 					     const void *_vbt,
 					     const char *source)
@@ -1222,6 +1229,9 @@ static const struct bdb_header *validate_vbt(const void *base,
 	size_t offset = _vbt - base;
 	const struct vbt_header *vbt = _vbt;
 	const struct bdb_header *bdb;
+
+	if (!vbt)
+		return NULL;
 
 	if (offset + sizeof(struct vbt_header) > size) {
 		DRM_DEBUG_DRIVER("VBT header incomplete\n");
@@ -1239,7 +1249,7 @@ static const struct bdb_header *validate_vbt(const void *base,
 		return NULL;
 	}
 
-	bdb = base + offset;
+	bdb = get_bdb_header(vbt);
 	if (offset + bdb->bdb_size > size) {
 		DRM_DEBUG_DRIVER("BDB incomplete\n");
 		return NULL;
@@ -1247,12 +1257,12 @@ static const struct bdb_header *validate_vbt(const void *base,
 
 	DRM_DEBUG_KMS("Using VBT from %s: %20s\n",
 		      source, vbt->signature);
-	return bdb;
+	return vbt;
 }
 
-static const struct bdb_header *find_vbt(void __iomem *bios, size_t size)
+static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
 {
-	const struct bdb_header *bdb = NULL;
+	const struct vbt_header *vbt = NULL;
 	size_t i;
 
 	/* Scour memory looking for the VBT signature. */
@@ -1266,12 +1276,12 @@ static const struct bdb_header *find_vbt(void __iomem *bios, size_t size)
 			 */
 			void *_bios = (void __force *) bios;
 
-			bdb = validate_vbt(_bios, size, _bios + i, "PCI ROM");
+			vbt = validate_vbt(_bios, size, _bios + i, "PCI ROM");
 			break;
 		}
 	}
 
-	return bdb;
+	return vbt;
 }
 
 /**
@@ -1288,7 +1298,8 @@ intel_parse_bios(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;
-	const struct bdb_header *bdb = NULL;
+	const struct vbt_header *vbt;
+	const struct bdb_header *bdb;
 	u8 __iomem *bios = NULL;
 
 	if (HAS_PCH_NOP(dev))
@@ -1297,23 +1308,23 @@ intel_parse_bios(struct drm_device *dev)
 	init_vbt_defaults(dev_priv);
 
 	/* XXX Should this validation be moved to intel_opregion.c? */
-	if (dev_priv->opregion.vbt)
-		bdb = validate_vbt(dev_priv->opregion.header, OPREGION_SIZE,
-				   dev_priv->opregion.vbt, "OpRegion");
-
-	if (bdb == NULL) {
+	vbt = validate_vbt(dev_priv->opregion.header, OPREGION_SIZE,
+			   dev_priv->opregion.vbt, "OpRegion");
+	if (!vbt) {
 		size_t size;
 
 		bios = pci_map_rom(pdev, &size);
 		if (!bios)
 			return -1;
 
-		bdb = find_vbt(bios, size);
-		if (!bdb) {
+		vbt = find_vbt(bios, size);
+		if (!vbt) {
 			pci_unmap_rom(pdev, bios);
 			return -1;
 		}
 	}
+
+	bdb = get_bdb_header(vbt);
 
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
