@@ -65,6 +65,12 @@ Optional properties:
     that have not been specified are set to 0 by default. Entries are:
     <IN1, IN2, IN3, IN4> (wm5102, wm5110, wm8280, wm8997)
     <IN1A, IN2A, IN1B, IN2B> (wm8998, wm1814)
+  - wlf,out-mono : A list of boolean values indicating whether each output is
+    mono or stereo. Position within the list indicates the output affected
+    (eg. First entry in the list corresponds to output 1). A non-zero value
+    indicates a mono output. If present, the number of values should be less
+    than or equal to the number of outputs, if less values are supplied the
+    additional outputs will be treated as stereo.
 
   - wlf,dmic-ref : DMIC reference voltage source for each input, can be
     selected from either MICVDD or one of the MICBIAS's, defines
