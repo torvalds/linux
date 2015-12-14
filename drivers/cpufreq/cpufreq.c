@@ -1401,13 +1401,10 @@ static void cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 	}
 
 	cpumask_clear_cpu(cpu, policy->real_cpus);
-
-	if (cpumask_empty(policy->real_cpus)) {
-		cpufreq_policy_free(policy, true);
-		return;
-	}
-
 	remove_cpu_dev_symlink(policy, cpu);
+
+	if (cpumask_empty(policy->real_cpus))
+		cpufreq_policy_free(policy, true);
 }
 
 static void handle_update(struct work_struct *work)

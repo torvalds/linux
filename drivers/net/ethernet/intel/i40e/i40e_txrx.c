@@ -235,6 +235,9 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 				 "Filter deleted for PCTYPE %d loc = %d\n",
 				 fd_data->pctype, fd_data->fd_id);
 	}
+	if (err)
+		kfree(raw_packet);
+
 	return err ? -EOPNOTSUPP : 0;
 }
 
@@ -312,6 +315,9 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 				 fd_data->pctype, fd_data->fd_id);
 	}
 
+	if (err)
+		kfree(raw_packet);
+
 	return err ? -EOPNOTSUPP : 0;
 }
 
@@ -322,7 +328,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
  * @fd_data: the flow director data required for the FDir descriptor
  * @add: true adds a filter, false removes it
  *
- * Always returns -EOPNOTSUPP
+ * Returns 0 if the filters were successfully added or removed
  **/
 static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
 				    struct i40e_fdir_filter *fd_data,
@@ -386,6 +392,9 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 					 fd_data->pctype, fd_data->fd_id);
 		}
 	}
+
+	if (err)
+		kfree(raw_packet);
 
 	return err ? -EOPNOTSUPP : 0;
 }
@@ -506,9 +515,6 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 				pf->auto_disable_flags |=
 							I40E_FLAG_FD_SB_ENABLED;
 			}
-		} else {
-			dev_info(&pdev->dev,
-				"FD filter programming failed due to incorrect filter parameters\n");
 		}
 	} else if (error == BIT(I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
 		if (I40E_DEBUG_FD & pf->hw.debug_mask)
@@ -526,11 +532,7 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 					    struct i40e_tx_buffer *tx_buffer)
 {
 	if (tx_buffer->skb) {
-		if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
-			kfree(tx_buffer->raw_buf);
-		else
-			dev_kfree_skb_any(tx_buffer->skb);
-
+		dev_kfree_skb_any(tx_buffer->skb);
 		if (dma_unmap_len(tx_buffer, len))
 			dma_unmap_single(ring->dev,
 					 dma_unmap_addr(tx_buffer, dma),
@@ -542,6 +544,10 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 			       dma_unmap_len(tx_buffer, len),
 			       DMA_TO_DEVICE);
 	}
+
+	if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
+		kfree(tx_buffer->raw_buf);
+
 	tx_buffer->next_to_watch = NULL;
 	tx_buffer->skb = NULL;
 	dma_unmap_len_set(tx_buffer, len, 0);
@@ -1863,7 +1869,6 @@ enable_int:
 		q_vector->itr_countdown--;
 	else
 		q_vector->itr_countdown = ITR_COUNTDOWN_START;
-
 }
 
 /**
@@ -1891,12 +1896,14 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 		return 0;
 	}
 
+	/* Clear hung_detected bit */
+	clear_bit(I40E_Q_VECTOR_HUNG_DETECT, &q_vector->hung_detected);
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	i40e_for_each_ring(ring, q_vector->tx) {
 		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
-		arm_wb |= ring->arm_wb;
+		arm_wb = arm_wb || ring->arm_wb;
 		ring->arm_wb = false;
 	}
 
@@ -1925,8 +1932,10 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
 tx_only:
-		if (arm_wb)
+		if (arm_wb) {
+			q_vector->tx.ring[0].tx_stats.tx_force_wb++;
 			i40e_force_wb(vsi, q_vector);
+		}
 		return budget;
 	}
 
@@ -2186,14 +2195,12 @@ out:
  * @tx_ring:  ptr to the ring to send
  * @skb:      ptr to the skb we're sending
  * @hdr_len:  ptr to the size of the packet header
- * @cd_type_cmd_tso_mss: ptr to u64 object
- * @cd_tunneling: ptr to context descriptor bits
+ * @cd_type_cmd_tso_mss: Quad Word 1
  *
  * Returns 0 if no TSO can happen, 1 if tso is going, or error
  **/
 static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
-		    u8 *hdr_len, u64 *cd_type_cmd_tso_mss,
-		    u32 *cd_tunneling)
+		    u8 *hdr_len, u64 *cd_type_cmd_tso_mss)
 {
 	u32 cd_cmd, cd_tso_len, cd_mss;
 	struct ipv6hdr *ipv6h;
@@ -2246,7 +2253,7 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
  * @tx_ring:  ptr to the ring to send
  * @skb:      ptr to the skb we're sending
  * @tx_flags: the collected send information
- * @cd_type_cmd_tso_mss: ptr to u64 object
+ * @cd_type_cmd_tso_mss: Quad Word 1
  *
  * Returns 0 if no Tx timestamp can happen and 1 if the timestamp will happen
  **/
@@ -2806,6 +2813,9 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	int tsyn;
 	int tso;
 
+	/* prefetch the data, we'll need it later */
+	prefetch(skb->data);
+
 	if (0 == i40e_xmit_descriptor_count(skb, tx_ring))
 		return NETDEV_TX_BUSY;
 
@@ -2825,8 +2835,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	else if (protocol == htons(ETH_P_IPV6))
 		tx_flags |= I40E_TX_FLAGS_IPV6;
 
-	tso = i40e_tso(tx_ring, skb, &hdr_len,
-		       &cd_type_cmd_tso_mss, &cd_tunneling);
+	tso = i40e_tso(tx_ring, skb, &hdr_len, &cd_type_cmd_tso_mss);
 
 	if (tso < 0)
 		goto out_drop;

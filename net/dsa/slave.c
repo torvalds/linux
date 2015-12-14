@@ -1212,6 +1212,17 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	return 0;
 }
 
+void dsa_slave_destroy(struct net_device *slave_dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(slave_dev);
+
+	netif_carrier_off(slave_dev);
+	if (p->phy)
+		phy_disconnect(p->phy);
+	unregister_netdev(slave_dev);
+	free_netdev(slave_dev);
+}
+
 static bool dsa_slave_dev_check(struct net_device *dev)
 {
 	return dev->netdev_ops == &dsa_slave_netdev_ops;

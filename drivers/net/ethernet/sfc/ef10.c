@@ -181,13 +181,6 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 		MCDI_WORD(outbuf, GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID);
 
 	if (!(nic_data->datapath_caps &
-	      (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))) {
-		netif_err(efx, drv, efx->net_dev,
-			  "current firmware does not support TSO\n");
-		return -ENODEV;
-	}
-
-	if (!(nic_data->datapath_caps &
 	      (1 << MC_CMD_GET_CAPABILITIES_OUT_RX_PREFIX_LEN_14_LBN))) {
 		netif_err(efx, probe, efx->net_dev,
 			  "current firmware does not support an RX prefix\n");
@@ -1797,6 +1790,12 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 			     ESF_DZ_TX_OPTION_UDP_TCP_CSUM, csum_offload,
 			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload);
 	tx_queue->write_count = 1;
+
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN)) {
+		tx_queue->tso_version = 1;
+	}
+
 	wmb();
 	efx_ef10_push_tx_desc(tx_queue, txd);
 
@@ -2375,8 +2374,19 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 				    1 << MC_CMD_WORKAROUND_EXT_OUT_FLR_DONE_LBN) {
 					netif_info(efx, drv, efx->net_dev,
 						   "other functions on NIC have been reset\n");
-					/* MC's boot count has incremented */
-					++nic_data->warm_boot_count;
+
+					/* With MCFW v4.6.x and earlier, the
+					 * boot count will have incremented,
+					 * so re-read the warm_boot_count
+					 * value now to ensure this function
+					 * doesn't think it has changed next
+					 * time it checks.
+					 */
+					rc = efx_ef10_get_warm_boot_count(efx);
+					if (rc >= 0) {
+						nic_data->warm_boot_count = rc;
+						rc = 0;
+					}
 				}
 				nic_data->workaround_26807 = true;
 			} else if (rc == -EPERM) {

@@ -22,6 +22,8 @@
 #define DRIVER_AUTHOR "Qualcomm Inc"
 #define DRIVER_DESC "Qualcomm USB Serial driver"
 
+#define QUECTEL_EC20_PID	0x9215
+
 /* standard device layouts supported by this driver */
 enum qcserial_layouts {
 	QCSERIAL_G2K = 0,	/* Gobi 2000 */
@@ -171,6 +173,38 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
+static int handle_quectel_ec20(struct device *dev, int ifnum)
+{
+	int altsetting = 0;
+
+	/*
+	 * Quectel EC20 Mini PCIe LTE module layout:
+	 * 0: DM/DIAG (use libqcdm from ModemManager for communication)
+	 * 1: NMEA
+	 * 2: AT-capable modem port
+	 * 3: Modem interface
+	 * 4: NDIS
+	 */
+	switch (ifnum) {
+	case 0:
+		dev_dbg(dev, "Quectel EC20 DM/DIAG interface found\n");
+		break;
+	case 1:
+		dev_dbg(dev, "Quectel EC20 NMEA GPS interface found\n");
+		break;
+	case 2:
+	case 3:
+		dev_dbg(dev, "Quectel EC20 Modem port found\n");
+		break;
+	case 4:
+		/* Don't claim the QMI/net interface */
+		altsetting = -1;
+		break;
+	}
+
+	return altsetting;
+}
+
 static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 {
 	struct usb_host_interface *intf = serial->interface->cur_altsetting;
@@ -180,6 +214,10 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	__u8 ifnum;
 	int altsetting = -1;
 	bool sendsetup = false;
+
+	/* we only support vendor specific functions */
+	if (intf->desc.bInterfaceClass != USB_CLASS_VENDOR_SPEC)
+		goto done;
 
 	nintf = serial->dev->actconfig->desc.bNumInterfaces;
 	dev_dbg(dev, "Num Interfaces = %d\n", nintf);
@@ -240,6 +278,12 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			altsetting = -1;
 		break;
 	case QCSERIAL_G2K:
+		/* handle non-standard layouts */
+		if (nintf == 5 && id->idProduct == QUECTEL_EC20_PID) {
+			altsetting = handle_quectel_ec20(dev, ifnum);
+			goto done;
+		}
+
 		/*
 		 * Gobi 2K+ USB layout:
 		 * 0: QMI/net
@@ -301,29 +345,39 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		break;
 	case QCSERIAL_HWI:
 		/*
-		 * Huawei layout:
-		 * 0: AT-capable modem port
-		 * 1: DM/DIAG
-		 * 2: AT-capable modem port
-		 * 3: CCID-compatible PCSC interface
-		 * 4: QMI/net
-		 * 5: NMEA
+		 * Huawei devices map functions by subclass + protocol
+		 * instead of interface numbers. The protocol identify
+		 * a specific function, while the subclass indicate a
+		 * specific firmware source
+		 *
+		 * This is a blacklist of functions known to be
+		 * non-serial.  The rest are assumed to be serial and
+		 * will be handled by this driver
 		 */
-		switch (ifnum) {
-		case 0:
-		case 2:
-			dev_dbg(dev, "Modem port found\n");
-			break;
-		case 1:
-			dev_dbg(dev, "DM/DIAG interface found\n");
-			break;
-		case 5:
-			dev_dbg(dev, "NMEA GPS interface found\n");
-			break;
-		default:
-			/* don't claim any unsupported interface */
+		switch (intf->desc.bInterfaceProtocol) {
+			/* QMI combined (qmi_wwan) */
+		case 0x07:
+		case 0x37:
+		case 0x67:
+			/* QMI data (qmi_wwan) */
+		case 0x08:
+		case 0x38:
+		case 0x68:
+			/* QMI control (qmi_wwan) */
+		case 0x09:
+		case 0x39:
+		case 0x69:
+			/* NCM like (huawei_cdc_ncm) */
+		case 0x16:
+		case 0x46:
+		case 0x76:
 			altsetting = -1;
 			break;
+		default:
+			dev_dbg(dev, "Huawei type serial port found (%02x/%02x/%02x)\n",
+				intf->desc.bInterfaceClass,
+				intf->desc.bInterfaceSubClass,
+				intf->desc.bInterfaceProtocol);
 		}
 		break;
 	default:

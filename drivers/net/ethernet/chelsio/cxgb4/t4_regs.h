@@ -2802,6 +2802,10 @@
 #define HASHEN_V(x) ((x) << HASHEN_S)
 #define HASHEN_F    HASHEN_V(1U)
 
+#define ASLIPCOMPEN_S    17
+#define ASLIPCOMPEN_V(x) ((x) << ASLIPCOMPEN_S)
+#define ASLIPCOMPEN_F    ASLIPCOMPEN_V(1U)
+
 #define REQQPARERR_S    16
 #define REQQPARERR_V(x) ((x) << REQQPARERR_S)
 #define REQQPARERR_F    REQQPARERR_V(1U)

@@ -1,3 +1,16 @@
+config WLAN_VENDOR_RSI
+	bool "Redpine Signals Inc devices"
+	default y
+	---help---
+	  If you have a wireless card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about  cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if WLAN_VENDOR_RSI
+
 config RSI_91X
 	tristate "Redpine Signals Inc 91x WLAN driver support"
 	depends on MAC80211
@@ -28,3 +41,5 @@ config RSI_USB
 	---help---
 	  This option enables the USB bus support in rsi drivers.
 	  Select M (recommended), if you have a RSI 1x1 wireless module.
+
+endif # WLAN_VENDOR_RSI

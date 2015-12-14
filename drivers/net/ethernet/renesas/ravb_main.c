@@ -115,12 +115,15 @@ static void ravb_read_mac_address(struct net_device *ndev, const u8 *mac)
 	if (mac) {
 		ether_addr_copy(ndev->dev_addr, mac);
 	} else {
-		ndev->dev_addr[0] = (ravb_read(ndev, MAHR) >> 24);
-		ndev->dev_addr[1] = (ravb_read(ndev, MAHR) >> 16) & 0xFF;
-		ndev->dev_addr[2] = (ravb_read(ndev, MAHR) >> 8) & 0xFF;
-		ndev->dev_addr[3] = (ravb_read(ndev, MAHR) >> 0) & 0xFF;
-		ndev->dev_addr[4] = (ravb_read(ndev, MALR) >> 8) & 0xFF;
-		ndev->dev_addr[5] = (ravb_read(ndev, MALR) >> 0) & 0xFF;
+		u32 mahr = ravb_read(ndev, MAHR);
+		u32 malr = ravb_read(ndev, MALR);
+
+		ndev->dev_addr[0] = (mahr >> 24) & 0xFF;
+		ndev->dev_addr[1] = (mahr >> 16) & 0xFF;
+		ndev->dev_addr[2] = (mahr >>  8) & 0xFF;
+		ndev->dev_addr[3] = (mahr >>  0) & 0xFF;
+		ndev->dev_addr[4] = (malr >>  8) & 0xFF;
+		ndev->dev_addr[5] = (malr >>  0) & 0xFF;
 	}
 }
 
@@ -1227,11 +1230,12 @@ static int ravb_open(struct net_device *ndev)
 	/* Device init */
 	error = ravb_dmac_init(ndev);
 	if (error)
-		goto out_free_irq;
+		goto out_free_irq2;
 	ravb_emac_init(ndev);
 
 	/* Initialise PTP Clock driver */
-	ravb_ptp_init(ndev, priv->pdev);
+	if (priv->chip_id == RCAR_GEN2)
+		ravb_ptp_init(ndev, priv->pdev);
 
 	netif_tx_start_all_queues(ndev);
 
@@ -1244,10 +1248,13 @@ static int ravb_open(struct net_device *ndev)
 
 out_ptp_stop:
 	/* Stop PTP Clock driver */
-	ravb_ptp_stop(ndev);
+	if (priv->chip_id == RCAR_GEN2)
+		ravb_ptp_stop(ndev);
+out_free_irq2:
+	if (priv->chip_id == RCAR_GEN3)
+		free_irq(priv->emac_irq, ndev);
 out_free_irq:
 	free_irq(ndev->irq, ndev);
-	free_irq(priv->emac_irq, ndev);
 out_napi_off:
 	napi_disable(&priv->napi[RAVB_NC]);
 	napi_disable(&priv->napi[RAVB_BE]);
@@ -1476,7 +1483,8 @@ static int ravb_close(struct net_device *ndev)
 	ravb_write(ndev, 0, TIC);
 
 	/* Stop PTP Clock driver */
-	ravb_ptp_stop(ndev);
+	if (priv->chip_id == RCAR_GEN2)
+		ravb_ptp_stop(ndev);
 
 	/* Set the config mode to stop the AVB-DMAC's processes */
 	if (ravb_stop_dma(ndev) < 0)
@@ -1656,7 +1664,9 @@ static int ravb_mdio_release(struct ravb_private *priv)
 static const struct of_device_id ravb_match_table[] = {
 	{ .compatible = "renesas,etheravb-r8a7790", .data = (void *)RCAR_GEN2 },
 	{ .compatible = "renesas,etheravb-r8a7794", .data = (void *)RCAR_GEN2 },
+	{ .compatible = "renesas,etheravb-rcar-gen2", .data = (void *)RCAR_GEN2 },
 	{ .compatible = "renesas,etheravb-r8a7795", .data = (void *)RCAR_GEN3 },
+	{ .compatible = "renesas,etheravb-rcar-gen3", .data = (void *)RCAR_GEN3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ravb_match_table);
@@ -1781,8 +1791,16 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev->ethtool_ops = &ravb_ethtool_ops;
 
 	/* Set AVB config mode */
-	ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_OPC) | CCC_OPC_CONFIG,
-		   CCC);
+	if (chip_id == RCAR_GEN2) {
+		ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_OPC) |
+			   CCC_OPC_CONFIG, CCC);
+		/* Set CSEL value */
+		ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_CSEL) |
+			   CCC_CSEL_HPB, CCC);
+	} else {
+		ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_OPC) |
+			   CCC_OPC_CONFIG | CCC_GAC | CCC_CSEL_HPB, CCC);
+	}
 
 	/* Set CSEL value */
 	ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_CSEL) | CCC_CSEL_HPB,
@@ -1813,6 +1831,10 @@ static int ravb_probe(struct platform_device *pdev)
 
 	/* Initialise HW timestamp list */
 	INIT_LIST_HEAD(&priv->ts_skb_list);
+
+	/* Initialise PTP Clock driver */
+	if (chip_id != RCAR_GEN2)
+		ravb_ptp_init(ndev, pdev);
 
 	/* Debug message level */
 	priv->msg_enable = RAVB_DEF_MSG_ENABLE;
@@ -1855,6 +1877,10 @@ out_napi_del:
 out_dma_free:
 	dma_free_coherent(ndev->dev.parent, priv->desc_bat_size, priv->desc_bat,
 			  priv->desc_bat_dma);
+
+	/* Stop PTP Clock driver */
+	if (chip_id != RCAR_GEN2)
+		ravb_ptp_stop(ndev);
 out_release:
 	if (ndev)
 		free_netdev(ndev);
@@ -1868,6 +1894,10 @@ static int ravb_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ravb_private *priv = netdev_priv(ndev);
+
+	/* Stop PTP Clock driver */
+	if (priv->chip_id != RCAR_GEN2)
+		ravb_ptp_stop(ndev);
 
 	dma_free_coherent(ndev->dev.parent, priv->desc_bat_size, priv->desc_bat,
 			  priv->desc_bat_dma);

@@ -1239,13 +1239,13 @@ static int __init ic_dynamic(void)
 		    (ic_proto_enabled & IC_USE_DHCP) &&
 		    ic_dhcp_msgtype != DHCPACK) {
 			ic_got_reply = 0;
-			pr_notice(",");
+			pr_cont(",");
 			continue;
 		}
 #endif /* IPCONFIG_DHCP */
 
 		if (ic_got_reply) {
-			pr_notice(" OK\n");
+			pr_cont(" OK\n");
 			break;
 		}
 
@@ -1253,7 +1253,7 @@ static int __init ic_dynamic(void)
 			continue;
 
 		if (! --retries) {
-			pr_notice(" timed out!\n");
+			pr_cont(" timed out!\n");
 			break;
 		}
 
@@ -1263,7 +1263,7 @@ static int __init ic_dynamic(void)
 		if (timeout > CONF_TIMEOUT_MAX)
 			timeout = CONF_TIMEOUT_MAX;
 
-		pr_notice(".");
+		pr_cont(".");
 	}
 
 #ifdef IPCONFIG_BOOTP
@@ -1280,11 +1280,10 @@ static int __init ic_dynamic(void)
 		return -1;
 	}
 
-	pr_info("IP-Config: Got %s answer from %pI4, ",
+	pr_info("IP-Config: Got %s answer from %pI4, my address is %pI4\n",
 		((ic_got_reply & IC_RARP) ? "RARP"
 		: (ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP"),
-		&ic_addrservaddr);
-	pr_info("my address is %pI4\n", &ic_myaddr);
+		&ic_addrservaddr, &ic_myaddr);
 
 	return 0;
 }
@@ -1527,14 +1526,14 @@ static int __init ip_auto_config(void)
 		pr_cont(", mtu=%d", ic_dev_mtu);
 	for (i = 0; i < CONF_NAMESERVERS_MAX; i++)
 		if (ic_nameservers[i] != NONE) {
-			pr_info("     nameserver%u=%pI4",
+			pr_cont("     nameserver%u=%pI4",
 				i, &ic_nameservers[i]);
 			break;
 		}
 	for (i++; i < CONF_NAMESERVERS_MAX; i++)
 		if (ic_nameservers[i] != NONE)
-			pr_info(", nameserver%u=%pI4", i, &ic_nameservers[i]);
-	pr_info("\n");
+			pr_cont(", nameserver%u=%pI4", i, &ic_nameservers[i]);
+	pr_cont("\n");
 #endif /* !SILENT */
 
 	return 0;

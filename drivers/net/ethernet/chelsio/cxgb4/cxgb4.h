@@ -483,6 +483,8 @@ struct sge_fl {                     /* SGE free-buffer queue state */
 	unsigned int pidx;          /* producer index */
 	unsigned long alloc_failed; /* # of times buffer allocation failed */
 	unsigned long large_alloc_failed;
+	unsigned long mapping_err;  /* # of RX Buffer DMA Mapping failures */
+	unsigned long low;          /* # of times momentarily starving */
 	unsigned long starving;
 	/* RO fields */
 	unsigned int cntxt_id;      /* SGE context id for the free list */
@@ -618,6 +620,7 @@ struct sge_ofld_txq {               /* state for an SGE offload Tx queue */
 	struct adapter *adap;
 	struct sk_buff_head sendq;  /* list of backpressured packets */
 	struct tasklet_struct qresume_tsk; /* restarts the queue */
+	bool service_ofldq_running; /* service_ofldq() is processing sendq */
 	u8 full;                    /* the Tx ring is full */
 	unsigned long mapping_err;  /* # of I/O MMU packet mapping errors */
 } ____cacheline_aligned_in_smp;

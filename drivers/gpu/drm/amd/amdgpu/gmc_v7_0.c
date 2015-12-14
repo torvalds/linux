@@ -40,7 +40,7 @@
 static void gmc_v7_0_set_gart_funcs(struct amdgpu_device *adev);
 static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 
-MODULE_FIRMWARE("radeon/boniare_mc.bin");
+MODULE_FIRMWARE("radeon/bonaire_mc.bin");
 MODULE_FIRMWARE("radeon/hawaii_mc.bin");
 
 /**
@@ -501,6 +501,7 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, EFFECTIVE_L2_QUEUE_SIZE, 7);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_DEFAULT_PAGE_OUT_TO_SYSTEM_MEMORY, 1);
 	WREG32(mmVM_L2_CNTL, tmp);
 	tmp = REG_SET_FIELD(0, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
@@ -960,12 +961,10 @@ static int gmc_v7_0_sw_init(void *handle)
 
 static int gmc_v7_0_sw_fini(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			fence_put(adev->vm_manager.active[i]);
+		amdgpu_vm_manager_fini(adev);
 		gmc_v7_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
@@ -1010,12 +1009,10 @@ static int gmc_v7_0_hw_fini(void *handle)
 
 static int gmc_v7_0_suspend(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			fence_put(adev->vm_manager.active[i]);
+		amdgpu_vm_manager_fini(adev);
 		gmc_v7_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}

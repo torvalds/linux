@@ -46,8 +46,15 @@
 #include "core.h"
 
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
+#define MLXSW_SP_LAG_MAX 64
+#define MLXSW_SP_PORT_PER_LAG_MAX 16
 
 struct mlxsw_sp_port;
+
+struct mlxsw_sp_upper {
+	struct net_device *dev;
+	unsigned int ref_count;
+};
 
 struct mlxsw_sp {
 	unsigned long active_vfids[BITS_TO_LONGS(VLAN_N_VID)];
@@ -63,11 +70,15 @@ struct mlxsw_sp {
 	} fdb_notify;
 #define MLXSW_SP_DEFAULT_AGEING_TIME 300
 	u32 ageing_time;
-	struct {
-		struct net_device *dev;
-		unsigned int ref_count;
-	} master_bridge;
+	struct mlxsw_sp_upper master_bridge;
+	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
 };
+
+static inline struct mlxsw_sp_upper *
+mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
+{
+	return &mlxsw_sp->lags[lag_id];
+}
 
 struct mlxsw_sp_port_pcpu_stats {
 	u64			rx_packets;
@@ -87,14 +98,28 @@ struct mlxsw_sp_port {
 	u8 learning:1,
 	   learning_sync:1,
 	   uc_flood:1,
-	   bridged:1;
+	   bridged:1,
+	   lagged:1;
 	u16 pvid;
+	u16 lag_id;
 	/* 802.1Q bridge VLANs */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	/* VLAN interfaces */
 	unsigned long active_vfids[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 nr_vfids;
 };
+
+static inline struct mlxsw_sp_port *
+mlxsw_sp_port_lagged_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id, u8 port_index)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	u8 local_port;
+
+	local_port = mlxsw_core_lag_mapping_get(mlxsw_sp->core,
+						lag_id, port_index);
+	mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	return mlxsw_sp_port && mlxsw_sp_port->lagged ? mlxsw_sp_port : NULL;
+}
 
 enum mlxsw_sp_flood_table {
 	MLXSW_SP_FLOOD_TABLE_UC,

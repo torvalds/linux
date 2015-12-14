@@ -272,6 +272,11 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 			if (ret_val)
 				goto out;
 		}
+		if (phy->id == M88E1543_E_PHY_ID) {
+			ret_val = igb_initialize_M88E1543_phy(hw);
+			if (ret_val)
+				goto out;
+		}
 		break;
 	case IGP03E1000_E_PHY_ID:
 		phy->type = e1000_phy_igp_3;
@@ -294,6 +299,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 	case I210_I_PHY_ID:
 		phy->type		= e1000_phy_i210;
 		phy->ops.check_polarity	= igb_check_polarity_m88;
+		phy->ops.get_cfg_done	= igb_get_cfg_done_i210;
 		phy->ops.get_phy_info	= igb_get_phy_info_m88;
 		phy->ops.get_cable_length = igb_get_cable_length_m88_gen2;
 		phy->ops.set_d0_lplu_state = igb_set_d0_lplu_state_82580;
@@ -925,6 +931,8 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 
 	if (phy->id == M88E1512_E_PHY_ID)
 		ret_val = igb_initialize_M88E1512_phy(hw);
+	if (phy->id == M88E1543_E_PHY_ID)
+		ret_val = igb_initialize_M88E1543_phy(hw);
 out:
 	return ret_val;
 }

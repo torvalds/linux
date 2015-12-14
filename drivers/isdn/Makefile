@@ -10,7 +10,6 @@ obj-$(CONFIG_ISDN_DIVERSION)		+= divert/
 obj-$(CONFIG_ISDN_DRV_HISAX)		+= hisax/
 obj-$(CONFIG_ISDN_DRV_ICN)		+= icn/
 obj-$(CONFIG_ISDN_DRV_PCBIT)		+= pcbit/
-obj-$(CONFIG_ISDN_DRV_SC)		+= sc/
 obj-$(CONFIG_ISDN_DRV_LOOP)		+= isdnloop/
 obj-$(CONFIG_ISDN_DRV_ACT2000)		+= act2000/
 obj-$(CONFIG_HYSDN)			+= hysdn/

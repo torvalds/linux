@@ -32,6 +32,10 @@ help:
 	@echo '  from the kernel command line to build and install one of'
 	@echo '  the tools above'
 	@echo ''
+	@echo '  $$ make tools/all'
+	@echo ''
+	@echo '  builds all tools.'
+	@echo ''
 	@echo '  $$ make tools/install'
 	@echo ''
 	@echo '  installs all tools.'
@@ -77,6 +81,11 @@ tmon: FORCE
 freefall: FORCE
 	$(call descend,laptop/$@)
 
+all: acpi cgroup cpupower hv firewire lguest \
+		perf selftests turbostat usb \
+		virtio vm net x86_energy_perf_policy \
+		tmon freefall
+
 acpi_install:
 	$(call descend,power/$(@:_install=),install)
 
@@ -101,7 +110,7 @@ freefall_install:
 install: acpi_install cgroup_install cpupower_install hv_install firewire_install lguest_install \
 		perf_install selftests_install turbostat_install usb_install \
 		virtio_install vm_install net_install x86_energy_perf_policy_install \
-		tmon freefall_install
+		tmon_install freefall_install
 
 acpi_clean:
 	$(call descend,power/acpi,clean)

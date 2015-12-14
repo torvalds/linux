@@ -106,7 +106,7 @@ static void aead_wmem_wakeup(struct sock *sk)
 
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
+	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
 							   POLLRDNORM |
 							   POLLRDBAND);
@@ -125,7 +125,7 @@ static int aead_wait_for_data(struct sock *sk, unsigned flags)
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
 
-	set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 
 	for (;;) {
 		if (signal_pending(current))
@@ -139,7 +139,7 @@ static int aead_wait_for_data(struct sock *sk, unsigned flags)
 	}
 	finish_wait(sk_sleep(sk), &wait);
 
-	clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 
 	return err;
 }
@@ -157,7 +157,7 @@ static void aead_data_wakeup(struct sock *sk)
 
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
+	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
 							   POLLRDNORM |
 							   POLLRDBAND);

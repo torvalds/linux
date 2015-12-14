@@ -858,3 +858,30 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 
 	return 0;
 }
+
+int qed_mcp_set_led(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		    enum qed_led_mode mode)
+{
+	u32 resp = 0, param = 0, drv_mb_param;
+	int rc;
+
+	switch (mode) {
+	case QED_LED_MODE_ON:
+		drv_mb_param = DRV_MB_PARAM_SET_LED_MODE_ON;
+		break;
+	case QED_LED_MODE_OFF:
+		drv_mb_param = DRV_MB_PARAM_SET_LED_MODE_OFF;
+		break;
+	case QED_LED_MODE_RESTORE:
+		drv_mb_param = DRV_MB_PARAM_SET_LED_MODE_OPER;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Invalid LED mode %d\n", mode);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_SET_LED_MODE,
+			 drv_mb_param, &resp, &param);
+
+	return rc;
+}

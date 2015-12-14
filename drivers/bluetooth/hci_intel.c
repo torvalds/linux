@@ -186,7 +186,7 @@ static int intel_lpm_suspend(struct hci_uart *hu)
 	}
 
 	memcpy(skb_put(skb, sizeof(suspend)), suspend, sizeof(suspend));
-	bt_cb(skb)->pkt_type = HCI_LPM_PKT;
+	hci_skb_pkt_type(skb) = HCI_LPM_PKT;
 
 	set_bit(STATE_LPM_TRANSACTION, &intel->flags);
 
@@ -230,7 +230,7 @@ static int intel_lpm_resume(struct hci_uart *hu)
 		return -ENOMEM;
 	}
 
-	bt_cb(skb)->pkt_type = HCI_LPM_WAKE_PKT;
+	hci_skb_pkt_type(skb) = HCI_LPM_WAKE_PKT;
 
 	set_bit(STATE_LPM_TRANSACTION, &intel->flags);
 
@@ -272,7 +272,7 @@ static int intel_lpm_host_wake(struct hci_uart *hu)
 
 	memcpy(skb_put(skb, sizeof(lpm_resume_ack)), lpm_resume_ack,
 	       sizeof(lpm_resume_ack));
-	bt_cb(skb)->pkt_type = HCI_LPM_PKT;
+	hci_skb_pkt_type(skb) = HCI_LPM_PKT;
 
 	/* LPM flow is a priority, enqueue packet at list head */
 	skb_queue_head(&intel->txq, skb);
@@ -467,7 +467,7 @@ static int inject_cmd_complete(struct hci_dev *hdev, __u16 opcode)
 
 	*skb_put(skb, 1) = 0x00;
 
-	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
+	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 
 	return hci_recv_frame(hdev, skb);
 }
@@ -517,7 +517,7 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	}
 
 	memcpy(skb_put(skb, sizeof(speed_cmd)), speed_cmd, sizeof(speed_cmd));
-	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
+	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
 
 	hci_uart_set_flow_control(hu, true);
 
@@ -1126,7 +1126,7 @@ static struct sk_buff *intel_dequeue(struct hci_uart *hu)
 		return skb;
 
 	if (test_bit(STATE_BOOTLOADER, &intel->flags) &&
-	    (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT)) {
+	    (hci_skb_pkt_type(skb) == HCI_COMMAND_PKT)) {
 		struct hci_command_hdr *cmd = (void *)skb->data;
 		__u16 opcode = le16_to_cpu(cmd->opcode);
 
@@ -1140,7 +1140,7 @@ static struct sk_buff *intel_dequeue(struct hci_uart *hu)
 	}
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
 	return skb;
 }

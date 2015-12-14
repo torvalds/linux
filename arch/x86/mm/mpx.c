@@ -586,6 +586,29 @@ static unsigned long mpx_bd_entry_to_bt_addr(struct mm_struct *mm,
 }
 
 /*
+ * We only want to do a 4-byte get_user() on 32-bit.  Otherwise,
+ * we might run off the end of the bounds table if we are on
+ * a 64-bit kernel and try to get 8 bytes.
+ */
+int get_user_bd_entry(struct mm_struct *mm, unsigned long *bd_entry_ret,
+		long __user *bd_entry_ptr)
+{
+	u32 bd_entry_32;
+	int ret;
+
+	if (is_64bit_mm(mm))
+		return get_user(*bd_entry_ret, bd_entry_ptr);
+
+	/*
+	 * Note that get_user() uses the type of the *pointer* to
+	 * establish the size of the get, not the destination.
+	 */
+	ret = get_user(bd_entry_32, (u32 __user *)bd_entry_ptr);
+	*bd_entry_ret = bd_entry_32;
+	return ret;
+}
+
+/*
  * Get the base of bounds tables pointed by specific bounds
  * directory entry.
  */
@@ -605,7 +628,7 @@ static int get_bt_addr(struct mm_struct *mm,
 		int need_write = 0;
 
 		pagefault_disable();
-		ret = get_user(bd_entry, bd_entry_ptr);
+		ret = get_user_bd_entry(mm, &bd_entry, bd_entry_ptr);
 		pagefault_enable();
 		if (!ret)
 			break;
@@ -700,11 +723,23 @@ static unsigned long mpx_get_bt_entry_offset_bytes(struct mm_struct *mm,
  */
 static inline unsigned long bd_entry_virt_space(struct mm_struct *mm)
 {
-	unsigned long long virt_space = (1ULL << boot_cpu_data.x86_virt_bits);
-	if (is_64bit_mm(mm))
-		return virt_space / MPX_BD_NR_ENTRIES_64;
-	else
-		return virt_space / MPX_BD_NR_ENTRIES_32;
+	unsigned long long virt_space;
+	unsigned long long GB = (1ULL << 30);
+
+	/*
+	 * This covers 32-bit emulation as well as 32-bit kernels
+	 * running on 64-bit harware.
+	 */
+	if (!is_64bit_mm(mm))
+		return (4ULL * GB) / MPX_BD_NR_ENTRIES_32;
+
+	/*
+	 * 'x86_virt_bits' returns what the hardware is capable
+	 * of, and returns the full >32-bit adddress space when
+	 * running 32-bit kernels on 64-bit hardware.
+	 */
+	virt_space = (1ULL << boot_cpu_data.x86_virt_bits);
+	return virt_space / MPX_BD_NR_ENTRIES_64;
 }
 
 /*

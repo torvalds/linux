@@ -401,20 +401,26 @@ void wil_bcast_fini(struct wil6210_priv *wil)
 
 static void wil_connect_worker(struct work_struct *work)
 {
-	int rc;
+	int rc, cid, ringid;
 	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
 						connect_worker);
 	struct net_device *ndev = wil_to_ndev(wil);
 
-	int cid = wil->pending_connect_cid;
-	int ringid = wil_find_free_vring(wil);
+	mutex_lock(&wil->mutex);
 
+	cid = wil->pending_connect_cid;
 	if (cid < 0) {
 		wil_err(wil, "No connection pending\n");
-		return;
+		goto out;
+	}
+	ringid = wil_find_free_vring(wil);
+	if (ringid < 0) {
+		wil_err(wil, "No free vring found\n");
+		goto out;
 	}
 
-	wil_dbg_wmi(wil, "Configure for connection CID %d\n", cid);
+	wil_dbg_wmi(wil, "Configure for connection CID %d vring %d\n",
+		    cid, ringid);
 
 	rc = wil_vring_init_tx(wil, ringid, 1 << tx_ring_order, cid, 0);
 	wil->pending_connect_cid = -1;
@@ -424,6 +430,8 @@ static void wil_connect_worker(struct work_struct *work)
 	} else {
 		wil_disconnect_cid(wil, cid, WLAN_REASON_UNSPECIFIED, true);
 	}
+out:
+	mutex_unlock(&wil->mutex);
 }
 
 int wil_priv_init(struct wil6210_priv *wil)

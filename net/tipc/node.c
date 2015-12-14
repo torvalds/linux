@@ -1189,20 +1189,19 @@ int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 			spin_unlock_bh(&le->lock);
 		}
 		tipc_node_read_unlock(n);
-		if (likely(!skb_queue_empty(&xmitq))) {
+		if (likely(!rc))
 			tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr);
-			return 0;
-		}
-		if (unlikely(rc == -ENOBUFS))
+		else if (rc == -ENOBUFS)
 			tipc_node_link_down(n, bearer_id, false);
 		tipc_node_put(n);
 		return rc;
 	}
 
-	if (unlikely(!in_own_node(net, dnode)))
-		return rc;
-	tipc_sk_rcv(net, list);
-	return 0;
+	if (likely(in_own_node(net, dnode))) {
+		tipc_sk_rcv(net, list);
+		return 0;
+	}
+	return rc;
 }
 
 /* tipc_node_xmit_skb(): send single buffer to destination

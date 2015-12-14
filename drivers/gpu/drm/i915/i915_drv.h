@@ -351,6 +351,8 @@ enum intel_dpll_id {
 	/* hsw/bdw */
 	DPLL_ID_WRPLL1 = 0,
 	DPLL_ID_WRPLL2 = 1,
+	DPLL_ID_SPLL = 2,
+
 	/* skl */
 	DPLL_ID_SKL_DPLL1 = 0,
 	DPLL_ID_SKL_DPLL2 = 1,
@@ -367,6 +369,7 @@ struct intel_dpll_hw_state {
 
 	/* hsw, bdw */
 	uint32_t wrpll;
+	uint32_t spll;
 
 	/* skl */
 	/*
@@ -2648,6 +2651,7 @@ struct i915_params {
 	int enable_cmd_parser;
 	/* leave bools at the end to not create holes */
 	bool enable_hangcheck;
+	bool fastboot;
 	bool prefault_disable;
 	bool load_detect_test;
 	bool reset;

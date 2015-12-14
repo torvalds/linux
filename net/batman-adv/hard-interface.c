@@ -464,7 +464,8 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	ret = netdev_master_upper_dev_link(hard_iface->net_dev, soft_iface);
+	ret = netdev_master_upper_dev_link(hard_iface->net_dev,
+					   soft_iface, NULL, NULL);
 	if (ret)
 		goto err_dev;
 
@@ -708,7 +709,8 @@ static int batadv_hard_if_event(struct notifier_block *this,
 	}
 
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);
-	if (!hard_iface && event == NETDEV_REGISTER)
+	if (!hard_iface && (event == NETDEV_REGISTER ||
+			    event == NETDEV_POST_TYPE_CHANGE))
 		hard_iface = batadv_hardif_add_interface(net_dev);
 
 	if (!hard_iface)
@@ -723,6 +725,7 @@ static int batadv_hard_if_event(struct notifier_block *this,
 		batadv_hardif_deactivate_interface(hard_iface);
 		break;
 	case NETDEV_UNREGISTER:
+	case NETDEV_PRE_TYPE_CHANGE:
 		list_del_rcu(&hard_iface->list);
 
 		batadv_hardif_remove_interface(hard_iface);

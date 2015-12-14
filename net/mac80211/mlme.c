@@ -1930,7 +1930,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	sdata->u.mgd.flags |= IEEE80211_STA_RESET_SIGNAL_AVE;
 
-	if (sdata->vif.p2p) {
+	if (sdata->vif.p2p ||
+	    sdata->vif.driver_flags & IEEE80211_VIF_GET_NOA_UPDATE) {
 		const struct cfg80211_bss_ies *ies;
 
 		rcu_read_lock();
@@ -3458,7 +3459,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (sdata->vif.p2p) {
+	if (sdata->vif.p2p ||
+	    sdata->vif.driver_flags & IEEE80211_VIF_GET_NOA_UPDATE) {
 		struct ieee80211_p2p_noa_attr noa = {};
 		int ret;
 

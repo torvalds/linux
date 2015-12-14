@@ -2884,33 +2884,21 @@ struct platform_driver bcm63xx_enet_shared_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&bcm63xx_enet_shared_driver,
+	&bcm63xx_enet_driver,
+	&bcm63xx_enetsw_driver,
+};
+
 /* entry point */
 static int __init bcm_enet_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&bcm63xx_enet_shared_driver);
-	if (ret)
-		return ret;
-
-	ret = platform_driver_register(&bcm63xx_enet_driver);
-	if (ret)
-		platform_driver_unregister(&bcm63xx_enet_shared_driver);
-
-	ret = platform_driver_register(&bcm63xx_enetsw_driver);
-	if (ret) {
-		platform_driver_unregister(&bcm63xx_enet_driver);
-		platform_driver_unregister(&bcm63xx_enet_shared_driver);
-	}
-
-	return ret;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit bcm_enet_exit(void)
 {
-	platform_driver_unregister(&bcm63xx_enet_driver);
-	platform_driver_unregister(&bcm63xx_enetsw_driver);
-	platform_driver_unregister(&bcm63xx_enet_shared_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 

@@ -67,6 +67,8 @@ struct i40e_vsi {
 	u16 rx_itr_setting;
 	u16 tx_itr_setting;
 	u16 qs_handle;
+	u8 *rss_hkey_user; /* User configured hash keys */
+	u8 *rss_lut_user;  /* User configured lookup table entries */
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
@@ -95,10 +97,10 @@ struct i40e_vsi {
 #define I40E_TX_DESC(R, i) (&(((struct i40e_tx_desc *)((R)->desc))[i]))
 #define I40E_TX_CTXTDESC(R, i) \
 	(&(((struct i40e_tx_context_desc *)((R)->desc))[i]))
-#define MAX_RX_QUEUES 8
-#define MAX_TX_QUEUES MAX_RX_QUEUES
+#define MAX_QUEUES 16
 
 #define I40EVF_HKEY_ARRAY_SIZE ((I40E_VFQF_HKEY_MAX_INDEX + 1) * 4)
+#define I40EVF_HLUT_ARRAY_SIZE ((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4)
 
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
@@ -141,9 +143,6 @@ struct i40e_q_vector {
 
 #define OTHER_VECTOR 1
 #define NONQ_VECS (OTHER_VECTOR)
-
-#define MAX_MSIX_Q_VECTORS 4
-#define MAX_MSIX_COUNT 5
 
 #define MIN_MSIX_Q_VECTORS 1
 #define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NONQ_VECS)
@@ -190,19 +189,19 @@ struct i40evf_adapter {
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work init_task;
-	struct i40e_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
+	struct i40e_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
 	int num_active_queues;
 
 	/* TX */
-	struct i40e_ring *tx_rings[I40E_MAX_VSI_QP];
+	struct i40e_ring *tx_rings;
 	u32 tx_timeout_count;
 	struct list_head mac_filter_list;
 	u32 tx_desc_count;
 
 	/* RX */
-	struct i40e_ring *rx_rings[I40E_MAX_VSI_QP];
+	struct i40e_ring *rx_rings;
 	u64 hw_csum_rx_error;
 	u32 rx_desc_count;
 	int num_msix_vectors;
@@ -313,4 +312,8 @@ void i40evf_request_reset(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum i40e_virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);
+int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
+		      u16 lut_size);
+int i40evf_get_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut,
+		   u16 lut_size);
 #endif /* _I40EVF_H_ */

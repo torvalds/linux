@@ -575,7 +575,6 @@ static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
 				cf->data[2] |= CAN_ERR_PROT_STUFF;
 				break;
 			default:
-				cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 				cf->data[3] = (ecc & SUN4I_STA_ERR_SEG_CODE)
 					       >> 16;
 				break;

@@ -107,10 +107,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 	struct device_node *of_node = dev->of_node;
 	int ret;
 
-	if (!of_node && dev->parent->of_node)
-		of_node = dev->parent->of_node;
-
-	if (!phydev->dev.of_node)
+	if (!of_node)
 		return -ENODEV;
 
 	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",

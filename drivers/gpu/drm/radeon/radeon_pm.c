@@ -1542,8 +1542,7 @@ int radeon_pm_late_init(struct radeon_device *rdev)
 				ret = device_create_file(rdev->dev, &dev_attr_power_method);
 				if (ret)
 					DRM_ERROR("failed to create device file for power method\n");
-				if (!ret)
-					rdev->pm.sysfs_initialized = true;
+				rdev->pm.sysfs_initialized = true;
 			}
 
 			mutex_lock(&rdev->pm.mutex);

@@ -113,7 +113,7 @@ static int pppox_create(struct net *net, struct socket *sock, int protocol,
 
 	rc = -EPROTONOSUPPORT;
 	if (!pppox_protos[protocol])
-		request_module("pppox-proto-%d", protocol);
+		request_module("net-pf-%d-proto-%d", PF_PPPOX, protocol);
 	if (!pppox_protos[protocol] ||
 	    !try_module_get(pppox_protos[protocol]->owner))
 		goto out;
@@ -147,3 +147,4 @@ module_exit(pppox_exit);
 MODULE_AUTHOR("Michal Ostrowski <mostrows@speakeasy.net>");
 MODULE_DESCRIPTION("PPP over Ethernet driver (generic socket layer)");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NETPROTO(PF_PPPOX);

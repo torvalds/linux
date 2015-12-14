@@ -10139,8 +10139,8 @@ static void __bnx2x_del_vxlan_port(struct bnx2x *bp, u16 port)
 		DP(BNX2X_MSG_SP, "Invalid vxlan port\n");
 		return;
 	}
-	bp->vxlan_dst_port--;
-	if (bp->vxlan_dst_port)
+	bp->vxlan_dst_port_count--;
+	if (bp->vxlan_dst_port_count)
 		return;
 
 	if (netif_running(bp->dev)) {

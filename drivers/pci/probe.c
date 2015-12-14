@@ -1685,8 +1685,8 @@ static void pci_dma_configure(struct pci_dev *dev)
 {
 	struct device *bridge = pci_get_host_bridge_device(dev);
 
-	if (IS_ENABLED(CONFIG_OF) && dev->dev.of_node) {
-		if (bridge->parent)
+	if (IS_ENABLED(CONFIG_OF) &&
+		bridge->parent && bridge->parent->of_node) {
 			of_dma_configure(&dev->dev, bridge->parent->of_node);
 	} else if (has_acpi_companion(bridge)) {
 		struct acpi_device *adev = to_acpi_device_node(bridge->fwnode);

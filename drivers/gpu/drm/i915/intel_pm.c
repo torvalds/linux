@@ -4449,7 +4449,7 @@ static void gen6_set_rps(struct drm_device *dev, u8 val)
 	POSTING_READ(GEN6_RPNSWREQ);
 
 	dev_priv->rps.cur_freq = val;
-	trace_intel_gpu_freq_change(val * 50);
+	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
 }
 
 static void valleyview_set_rps(struct drm_device *dev, u8 val)
@@ -7255,7 +7255,8 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	if (IS_GEN9(dev_priv->dev))
-		return (val * GT_FREQUENCY_MULTIPLIER) / GEN9_FREQ_SCALER;
+		return DIV_ROUND_CLOSEST(val * GT_FREQUENCY_MULTIPLIER,
+					 GEN9_FREQ_SCALER);
 	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_gpu_freq(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
@@ -7267,13 +7268,14 @@ int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	if (IS_GEN9(dev_priv->dev))
-		return (val * GEN9_FREQ_SCALER) / GT_FREQUENCY_MULTIPLIER;
+		return DIV_ROUND_CLOSEST(val * GEN9_FREQ_SCALER,
+					 GT_FREQUENCY_MULTIPLIER);
 	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_freq_opcode(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
 		return byt_freq_opcode(dev_priv, val);
 	else
-		return val / GT_FREQUENCY_MULTIPLIER;
+		return DIV_ROUND_CLOSEST(val, GT_FREQUENCY_MULTIPLIER);
 }
 
 struct request_boost {
