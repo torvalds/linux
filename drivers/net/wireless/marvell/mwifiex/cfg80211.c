@@ -1708,6 +1708,11 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	u8 deauth_mac[ETH_ALEN];
 	unsigned long flags;
 
+	if (!priv->bss_started && priv->wdev.cac_started) {
+		mwifiex_dbg(priv->adapter, INFO, "%s: abort CAC!\n", __func__);
+		mwifiex_abort_cac(priv);
+	}
+
 	if (list_empty(&priv->sta_list) || !priv->bss_started)
 		return 0;
 
