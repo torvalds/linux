@@ -195,6 +195,7 @@ struct bpf_object {
 		Elf *elf;
 		GElf_Ehdr ehdr;
 		Elf_Data *symbols;
+		size_t strtabidx;
 		struct {
 			GElf_Shdr shdr;
 			Elf_Data *data;
@@ -527,14 +528,14 @@ bpf_object__init_maps(struct bpf_object *obj, void *data,
 	return 0;
 }
 
-static void
+static int
 bpf_object__init_maps_name(struct bpf_object *obj, int maps_shndx)
 {
 	int i;
 	Elf_Data *symbols = obj->efile.symbols;
 
 	if (!symbols || maps_shndx < 0)
-		return;
+		return -EINVAL;
 
 	for (i = 0; i < symbols->d_size / sizeof(GElf_Sym); i++) {
 		GElf_Sym sym;
@@ -547,7 +548,7 @@ bpf_object__init_maps_name(struct bpf_object *obj, int maps_shndx)
 			continue;
 
 		map_name = elf_strptr(obj->efile.elf,
-				      obj->efile.ehdr.e_shstrndx,
+				      obj->efile.strtabidx,
 				      sym.st_name);
 		map_idx = sym.st_value / sizeof(struct bpf_map_def);
 		if (map_idx >= obj->nr_maps) {
@@ -556,9 +557,14 @@ bpf_object__init_maps_name(struct bpf_object *obj, int maps_shndx)
 			continue;
 		}
 		obj->maps[map_idx].name = strdup(map_name);
+		if (!obj->maps[map_idx].name) {
+			pr_warning("failed to alloc map name\n");
+			return -ENOMEM;
+		}
 		pr_debug("map %zu is \"%s\"\n", map_idx,
 			 obj->maps[map_idx].name);
 	}
+	return 0;
 }
 
 static int bpf_object__elf_collect(struct bpf_object *obj)
@@ -625,8 +631,10 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				pr_warning("bpf: multiple SYMTAB in %s\n",
 					   obj->path);
 				err = -LIBBPF_ERRNO__FORMAT;
-			} else
+			} else {
 				obj->efile.symbols = data;
+				obj->efile.strtabidx = sh.sh_link;
+			}
 		} else if ((sh.sh_type == SHT_PROGBITS) &&
 			   (sh.sh_flags & SHF_EXECINSTR) &&
 			   (data->d_size > 0)) {
@@ -662,8 +670,12 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			goto out;
 	}
 
+	if (!obj->efile.strtabidx || obj->efile.strtabidx >= idx) {
+		pr_warning("Corrupted ELF file: index of strtab invalid\n");
+		return LIBBPF_ERRNO__FORMAT;
+	}
 	if (maps_shndx >= 0)
-		bpf_object__init_maps_name(obj, maps_shndx);
+		err = bpf_object__init_maps_name(obj, maps_shndx);
 out:
 	return err;
 }
@@ -1372,7 +1384,7 @@ bpf_object__get_map_by_name(struct bpf_object *obj, const char *name)
 	struct bpf_map *pos;
 
 	bpf_map__for_each(pos, obj) {
-		if (strcmp(pos->name, name) == 0)
+		if (pos->name && !strcmp(pos->name, name))
 			return pos;
 	}
 	return NULL;
