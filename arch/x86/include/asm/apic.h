@@ -23,6 +23,11 @@
 #define APIC_VERBOSE 1
 #define APIC_DEBUG   2
 
+/* Macros for apic_extnmi which controls external NMI masking */
+#define APIC_EXTNMI_BSP		0 /* Default */
+#define APIC_EXTNMI_ALL		1
+#define APIC_EXTNMI_NONE	2
+
 /*
  * Define the default level of output to be very little
  * This can be turned up by using apic=verbose for more

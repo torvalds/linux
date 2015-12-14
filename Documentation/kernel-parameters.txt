@@ -472,6 +472,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
 
+	apic_extnmi=	[APIC,X86] External NMI delivery setting
+			Format: { bsp (default) | all | none }
+			bsp:  External NMI is delivered only to CPU 0
+			all:  External NMIs are broadcast to all CPUs as a
+			      backup of CPU 0
+			none: External NMI is masked for all CPUs. This is
+			      useful so that a dump capture kernel won't be
+			      shot down by NMI
+
 	autoconf=	[IPV6]
 			See Documentation/networking/ipv6.txt.
 
