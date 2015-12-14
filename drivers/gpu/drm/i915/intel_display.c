@@ -13801,9 +13801,6 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
 
-	if (intel_crtc->cursor_bo == obj)
-		goto update;
-
 	if (!obj)
 		addr = 0;
 	else if (!INTEL_INFO(dev)->cursor_needs_physical)
@@ -13812,9 +13809,7 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 		addr = obj->phys_handle->busaddr;
 
 	intel_crtc->cursor_addr = addr;
-	intel_crtc->cursor_bo = obj;
 
-update:
 	if (crtc->state->active)
 		intel_crtc_update_cursor(crtc, state->visible);
 }
