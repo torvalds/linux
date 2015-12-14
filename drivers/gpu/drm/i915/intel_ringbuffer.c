@@ -1865,15 +1865,13 @@ i830_dispatch_execbuffer(struct drm_i915_gem_request *req,
 		offset = cs_offset;
 	}
 
-	ret = intel_ring_begin(req, 4);
+	ret = intel_ring_begin(req, 2);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_BATCH_BUFFER);
+	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_GTT);
 	intel_ring_emit(ring, offset | (dispatch_flags & I915_DISPATCH_SECURE ?
 					0 : MI_BATCH_NON_SECURE));
-	intel_ring_emit(ring, offset + len - 8);
-	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
 
 	return 0;
