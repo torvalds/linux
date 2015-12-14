@@ -85,11 +85,5 @@ void setup_pager(void)
 
 int pager_in_use(void)
 {
-	const char *env;
-
-	if (spawned_pager)
-		return 1;
-
-	env = getenv("PERF_PAGER_IN_USE");
-	return env ? perf_config_bool("PERF_PAGER_IN_USE", env) : 0;
+	return spawned_pager;
 }
