@@ -793,17 +793,23 @@ void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 	/* Leave the nmi callback set */
 }
 
+/*
+ * Check if the crash dumping IPI got issued and if so, call its callback
+ * directly. This function is used when we have already been in NMI handler.
+ * It doesn't return.
+ */
+void run_crash_ipi_callback(struct pt_regs *regs)
+{
+	if (crash_ipi_issued)
+		crash_nmi_callback(0, regs);
+}
+
 /* Override the weak function in kernel/panic.c */
 void nmi_panic_self_stop(struct pt_regs *regs)
 {
 	while (1) {
-		/*
-		 * Wait for the crash dumping IPI to be issued, and then
-		 * call its callback directly.
-		 */
-		if (READ_ONCE(crash_ipi_issued))
-			crash_nmi_callback(0, regs); /* Don't return */
-
+		/* If no CPU is preparing crash dump, we simply loop here. */
+		run_crash_ipi_callback(regs);
 		cpu_relax();
 	}
 }
@@ -812,5 +818,9 @@ void nmi_panic_self_stop(struct pt_regs *regs)
 void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 {
 	/* No other CPUs to shoot down */
+}
+
+void run_crash_ipi_callback(struct pt_regs *regs)
+{
 }
 #endif
