@@ -1117,6 +1117,8 @@ struct option __record_options[] = {
 		   "clang binary to use for compiling BPF scriptlets"),
 	OPT_STRING(0, "clang-opt", &llvm_param.clang_opt, "clang options",
 		   "options passed to clang when compiling BPF scriptlets"),
+	OPT_STRING(0, "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
 	OPT_END()
 };
 
@@ -1133,6 +1135,20 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	set_nobuild('\0', "clang-path", true);
 	set_nobuild('\0', "clang-opt", true);
 # undef set_nobuild
+#endif
+
+#ifndef HAVE_BPF_PROLOGUE
+# if !defined (HAVE_DWARF_SUPPORT)
+#  define REASON  "NO_DWARF=1"
+# elif !defined (HAVE_LIBBPF_SUPPORT)
+#  define REASON  "NO_LIBBPF=1"
+# else
+#  define REASON  "this architecture doesn't support BPF prologue"
+# endif
+# define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, REASON, c)
+	set_nobuild('\0', "vmlinux", true);
+# undef set_nobuild
+# undef REASON
 #endif
 
 	rec->evlist = perf_evlist__new();

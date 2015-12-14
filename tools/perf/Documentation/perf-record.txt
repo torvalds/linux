@@ -314,11 +314,17 @@ This option sets the time out limit. The default value is 500 ms.
 Record context switch events i.e. events of type PERF_RECORD_SWITCH or
 PERF_RECORD_SWITCH_CPU_WIDE.
 
---clang-path::
+--clang-path=PATH::
 Path to clang binary to use for compiling BPF scriptlets.
+(enabled when BPF support is on)
 
---clang-opt::
+--clang-opt=OPTIONS::
 Options passed to clang when compiling BPF scriptlets.
+(enabled when BPF support is on)
+
+--vmlinux=PATH::
+Specify vmlinux path which has debuginfo.
+(enabled when BPF prologue is on)
 
 SEE ALSO
 --------
