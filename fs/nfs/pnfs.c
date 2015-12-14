@@ -618,7 +618,6 @@ pnfs_destroy_layout(struct nfs_inode *nfsi)
 		pnfs_get_layout_hdr(lo);
 		pnfs_layout_clear_fail_bit(lo, NFS_LAYOUT_RO_FAILED);
 		pnfs_layout_clear_fail_bit(lo, NFS_LAYOUT_RW_FAILED);
-		pnfs_clear_retry_layoutget(lo);
 		spin_unlock(&nfsi->vfs_inode.i_lock);
 		pnfs_free_lseg_list(&tmp_list);
 		pnfs_put_layout_hdr(lo);
@@ -1094,7 +1093,6 @@ bool pnfs_roc(struct inode *ino)
 				   &lo->plh_flags))
 		layoutreturn = pnfs_prepare_layoutreturn(lo);
 
-	pnfs_clear_retry_layoutget(lo);
 	list_for_each_entry_safe(lseg, tmp, &lo->plh_segs, pls_list)
 		/* If we are sending layoutreturn, invalidate all valid lsegs */
 		if (layoutreturn || test_bit(NFS_LSEG_ROC, &lseg->pls_flags)) {
@@ -1457,25 +1455,15 @@ static bool pnfs_within_mdsthreshold(struct nfs_open_context *ctx,
 	return ret;
 }
 
-/* stop waiting if someone clears NFS_LAYOUT_RETRY_LAYOUTGET bit. */
-static int pnfs_layoutget_retry_bit_wait(struct wait_bit_key *key, int mode)
-{
-	if (!test_bit(NFS_LAYOUT_RETRY_LAYOUTGET, key->flags))
-		return 1;
-	return nfs_wait_bit_killable(key, mode);
-}
-
 static bool pnfs_prepare_to_retry_layoutget(struct pnfs_layout_hdr *lo)
 {
-	if (!pnfs_should_retry_layoutget(lo))
-		return false;
 	/*
 	 * send layoutcommit as it can hold up layoutreturn due to lseg
 	 * reference
 	 */
 	pnfs_layoutcommit_inode(lo->plh_inode, false);
 	return !wait_on_bit_action(&lo->plh_flags, NFS_LAYOUT_RETURN,
-				   pnfs_layoutget_retry_bit_wait,
+				   nfs_wait_bit_killable,
 				   TASK_UNINTERRUPTIBLE);
 }
 
@@ -1550,8 +1538,7 @@ lookup_again:
 	}
 
 	/* if LAYOUTGET already failed once we don't try again */
-	if (pnfs_layout_io_test_failed(lo, iomode) &&
-	    !pnfs_should_retry_layoutget(lo)) {
+	if (pnfs_layout_io_test_failed(lo, iomode)) {
 		trace_pnfs_update_layout(ino, pos, count, iomode, lo,
 				 PNFS_UPDATE_LAYOUT_IO_TEST_FAIL);
 		goto out_unlock;
@@ -1628,7 +1615,6 @@ lookup_again:
 		arg.length = PAGE_CACHE_ALIGN(arg.length);
 
 	lseg = send_layoutget(lo, ctx, &arg, gfp_flags);
-	pnfs_clear_retry_layoutget(lo);
 	atomic_dec(&lo->plh_outstanding);
 	trace_pnfs_update_layout(ino, pos, count, iomode, lo,
 				 PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET);

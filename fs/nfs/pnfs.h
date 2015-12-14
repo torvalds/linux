@@ -98,7 +98,6 @@ enum {
 	NFS_LAYOUT_RETURN_BEFORE_CLOSE,	/* Return this layout before close */
 	NFS_LAYOUT_INVALID_STID,	/* layout stateid id is invalid */
 	NFS_LAYOUT_FIRST_LAYOUTGET,	/* Serialize first layoutget */
-	NFS_LAYOUT_RETRY_LAYOUTGET,	/* Retry layoutget */
 };
 
 enum layoutdriver_policy_flags {
@@ -377,26 +376,6 @@ nfs4_get_deviceid(struct nfs4_deviceid_node *d)
 {
 	atomic_inc(&d->ref);
 	return d;
-}
-
-static inline void pnfs_set_retry_layoutget(struct pnfs_layout_hdr *lo)
-{
-	if (!test_and_set_bit(NFS_LAYOUT_RETRY_LAYOUTGET, &lo->plh_flags))
-		atomic_inc(&lo->plh_refcount);
-}
-
-static inline void pnfs_clear_retry_layoutget(struct pnfs_layout_hdr *lo)
-{
-	if (test_and_clear_bit(NFS_LAYOUT_RETRY_LAYOUTGET, &lo->plh_flags)) {
-		atomic_dec(&lo->plh_refcount);
-		/* wake up waiters for LAYOUTRETURN as that is not needed */
-		wake_up_bit(&lo->plh_flags, NFS_LAYOUT_RETURN);
-	}
-}
-
-static inline bool pnfs_should_retry_layoutget(struct pnfs_layout_hdr *lo)
-{
-	return test_bit(NFS_LAYOUT_RETRY_LAYOUTGET, &lo->plh_flags);
 }
 
 static inline struct pnfs_layout_segment *

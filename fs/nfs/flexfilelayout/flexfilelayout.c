@@ -1399,11 +1399,9 @@ static int ff_layout_write_done_cb(struct rpc_task *task,
 
 	switch (err) {
 	case -NFS4ERR_RESET_TO_PNFS:
-		pnfs_set_retry_layoutget(hdr->lseg->pls_layout);
 		ff_layout_reset_write(hdr, true);
 		return task->tk_status;
 	case -NFS4ERR_RESET_TO_MDS:
-		pnfs_clear_retry_layoutget(hdr->lseg->pls_layout);
 		ff_layout_reset_write(hdr, false);
 		return task->tk_status;
 	case -EAGAIN:
@@ -1438,11 +1436,9 @@ static int ff_layout_commit_done_cb(struct rpc_task *task,
 
 	switch (err) {
 	case -NFS4ERR_RESET_TO_PNFS:
-		pnfs_set_retry_layoutget(data->lseg->pls_layout);
 		pnfs_generic_prepare_to_resend_writes(data);
 		return -EAGAIN;
 	case -NFS4ERR_RESET_TO_MDS:
-		pnfs_clear_retry_layoutget(data->lseg->pls_layout);
 		pnfs_generic_prepare_to_resend_writes(data);
 		return -EAGAIN;
 	case -EAGAIN:
