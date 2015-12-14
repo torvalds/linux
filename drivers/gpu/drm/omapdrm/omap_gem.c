@@ -29,13 +29,10 @@
  * GEM buffer object implementation.
  */
 
-#define to_omap_bo(x) container_of(x, struct omap_gem_object, base)
-
 /* note: we use upper 8 bits of flags for driver-internal flags: */
-#define OMAP_BO_DMA			0x01000000	/* actually is physically contiguous */
+#define OMAP_BO_DMA		0x01000000	/* actually is physically contiguous */
 #define OMAP_BO_EXT_SYNC	0x02000000	/* externally allocated sync object */
 #define OMAP_BO_EXT_MEM		0x04000000	/* externally allocated memory */
-
 
 struct omap_gem_object {
 	struct drm_gem_object base;
@@ -113,6 +110,7 @@ struct omap_gem_object {
 	} *sync;
 };
 
+#define to_omap_bo(x) container_of(x, struct omap_gem_object, base)
 
 /* To deal with userspace mmap'ings of 2d tiled buffers, which (a) are
  * not necessarily pinned in TILER all the time, and (b) when they are
@@ -166,6 +164,22 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	return drm_vma_node_offset_addr(&obj->vma_node);
 }
 
+/* GEM objects can either be allocated from contiguous memory (in which
+ * case obj->filp==NULL), or w/ shmem backing (obj->filp!=NULL).  But non
+ * contiguous buffers can be remapped in TILER/DMM if they need to be
+ * contiguous... but we don't do this all the time to reduce pressure
+ * on TILER/DMM space when we know at allocation time that the buffer
+ * will need to be scanned out.
+ */
+static inline bool is_shmem(struct drm_gem_object *obj)
+{
+	return obj->filp != NULL;
+}
+
+/* -----------------------------------------------------------------------------
+ * Eviction
+ */
+
 static void evict_entry(struct drm_gem_object *obj,
 		enum tiler_fmt fmt, struct usergart_entry *entry)
 {
@@ -212,30 +226,9 @@ static void evict(struct drm_gem_object *obj)
 	}
 }
 
-/* GEM objects can either be allocated from contiguous memory (in which
- * case obj->filp==NULL), or w/ shmem backing (obj->filp!=NULL).  But non
- * contiguous buffers can be remapped in TILER/DMM if they need to be
- * contiguous... but we don't do this all the time to reduce pressure
- * on TILER/DMM space when we know at allocation time that the buffer
- * will need to be scanned out.
+/* -----------------------------------------------------------------------------
+ * Page Management
  */
-static inline bool is_shmem(struct drm_gem_object *obj)
-{
-	return obj->filp != NULL;
-}
-
-/**
- * shmem buffers that are mapped cached can simulate coherency via using
- * page faulting to keep track of dirty pages
- */
-static inline bool is_cached_coherent(struct drm_gem_object *obj)
-{
-	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	return is_shmem(obj) &&
-		((omap_obj->flags & OMAP_BO_CACHE_MASK) == OMAP_BO_CACHED);
-}
-
-static DEFINE_SPINLOCK(sync_lock);
 
 /** ensure backing pages are allocated */
 static int omap_gem_attach_pages(struct drm_gem_object *obj)
@@ -379,6 +372,10 @@ int omap_gem_tiled_size(struct drm_gem_object *obj, uint16_t *w, uint16_t *h)
 	}
 	return -EINVAL;
 }
+
+/* -----------------------------------------------------------------------------
+ * Fault Handling
+ */
 
 /* Normal handling for the case of faulting in non-tiled buffers */
 static int fault_1d(struct drm_gem_object *obj,
@@ -614,6 +611,9 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 	return 0;
 }
 
+/* -----------------------------------------------------------------------------
+ * Dumb Buffers
+ */
 
 /**
  * omap_gem_dumb_create	-	create a dumb buffer
@@ -709,6 +709,21 @@ fail:
 	return ret;
 }
 #endif
+
+/* -----------------------------------------------------------------------------
+ * Memory Management & DMA Sync
+ */
+
+/**
+ * shmem buffers that are mapped cached can simulate coherency via using
+ * page faulting to keep track of dirty pages
+ */
+static inline bool is_cached_coherent(struct drm_gem_object *obj)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	return is_shmem(obj) &&
+		((omap_obj->flags & OMAP_BO_CACHE_MASK) == OMAP_BO_CACHED);
+}
 
 /* Sync the buffer for CPU access.. note pages should already be
  * attached, ie. omap_gem_get_pages()
@@ -943,6 +958,10 @@ void *omap_gem_vaddr(struct drm_gem_object *obj)
 }
 #endif
 
+/* -----------------------------------------------------------------------------
+ * Power Management
+ */
+
 #ifdef CONFIG_PM
 /* re-pin objects in DMM in resume path: */
 int omap_gem_resume(struct device *dev)
@@ -970,6 +989,10 @@ int omap_gem_resume(struct device *dev)
 	return 0;
 }
 #endif
+
+/* -----------------------------------------------------------------------------
+ * DebugFS
+ */
 
 #ifdef CONFIG_DEBUG_FS
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
@@ -1017,8 +1040,11 @@ void omap_gem_describe_objects(struct list_head *list, struct seq_file *m)
 }
 #endif
 
-/* Buffer Synchronization:
+/* -----------------------------------------------------------------------------
+ * Buffer Synchronization
  */
+
+static DEFINE_SPINLOCK(sync_lock);
 
 struct omap_gem_sync_waiter {
 	struct list_head list;
@@ -1265,6 +1291,10 @@ unlock:
 	return ret;
 }
 
+/* -----------------------------------------------------------------------------
+ * Constructor & Destructor
+ */
+
 /* don't call directly.. called from GEM core when it is time to actually
  * free the object..
  */
@@ -1309,30 +1339,6 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	drm_gem_object_release(obj);
 
 	kfree(obj);
-}
-
-/* convenience method to construct a GEM buffer object, and userspace handle */
-int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
-		union omap_gem_size gsize, uint32_t flags, uint32_t *handle)
-{
-	struct drm_gem_object *obj;
-	int ret;
-
-	obj = omap_gem_new(dev, gsize, flags);
-	if (!obj)
-		return -ENOMEM;
-
-	ret = drm_gem_handle_create(file, obj, handle);
-	if (ret) {
-		drm_gem_object_release(obj);
-		kfree(obj); /* TODO isn't there a dtor to call? just copying i915 */
-		return ret;
-	}
-
-	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_unreference_unlocked(obj);
-
-	return 0;
 }
 
 /* GEM buffer object constructor */
@@ -1426,7 +1432,35 @@ fail:
 	return NULL;
 }
 
-/* init/cleanup.. if DMM is used, we need to set some stuff up.. */
+/* convenience method to construct a GEM buffer object, and userspace handle */
+int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
+		union omap_gem_size gsize, uint32_t flags, uint32_t *handle)
+{
+	struct drm_gem_object *obj;
+	int ret;
+
+	obj = omap_gem_new(dev, gsize, flags);
+	if (!obj)
+		return -ENOMEM;
+
+	ret = drm_gem_handle_create(file, obj, handle);
+	if (ret) {
+		drm_gem_object_release(obj);
+		kfree(obj); /* TODO isn't there a dtor to call? just copying i915 */
+		return ret;
+	}
+
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_unreference_unlocked(obj);
+
+	return 0;
+}
+
+/* -----------------------------------------------------------------------------
+ * Init & Cleanup
+ */
+
+/* If DMM is used, we need to set some stuff up.. */
 void omap_gem_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
