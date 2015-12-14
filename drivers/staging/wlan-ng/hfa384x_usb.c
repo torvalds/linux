@@ -145,11 +145,11 @@ enum cmd_mode {
 	DOASYNC
 };
 
-#define THROTTLE_JIFFIES	(HZ/8)
+#define THROTTLE_JIFFIES	(HZ / 8)
 #define URB_ASYNC_UNLINK 0
 #define USB_QUEUE_BULK 0
 
-#define ROUNDUP64(a) (((a)+63)&~63)
+#define ROUNDUP64(a) (((a) + 63) & ~63)
 
 #ifdef DEBUG_USB
 static void dbprint_urb(struct urb *urb);
@@ -3985,8 +3985,7 @@ static void hfa384x_usb_throttlefn(unsigned long data)
 	pr_debug("flags=0x%lx\n", hw->usb_flags);
 	if (!hw->wlandev->hwremoved &&
 	    ((test_and_clear_bit(THROTTLE_RX, &hw->usb_flags) &&
-	      !test_and_set_bit(WORK_RX_RESUME, &hw->usb_flags))
-	     |
+	      !test_and_set_bit(WORK_RX_RESUME, &hw->usb_flags)) |
 	     (test_and_clear_bit(THROTTLE_TX, &hw->usb_flags) &&
 	      !test_and_set_bit(WORK_TX_RESUME, &hw->usb_flags))
 	    )) {
