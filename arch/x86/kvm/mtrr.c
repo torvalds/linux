@@ -267,7 +267,7 @@ static int fixed_mtrr_addr_to_seg(u64 addr)
 
 	for (seg = 0; seg < seg_num; seg++) {
 		mtrr_seg = &fixed_seg_table[seg];
-		if (mtrr_seg->start >= addr && addr < mtrr_seg->end)
+		if (mtrr_seg->start <= addr && addr < mtrr_seg->end)
 			return seg;
 	}
 
