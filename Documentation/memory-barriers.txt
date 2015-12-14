@@ -536,7 +536,7 @@ leading to the following situation:
 	(Q == &B) and (D == 2) ????
 
 Whilst this may seem like a failure of coherency or causality maintenance, it
-isn't, and this behaviour can be observed on certain real CPUs (such as the DEC
+isn't, and this behavior can be observed on certain real CPUs (such as the DEC
 Alpha).
 
 To deal with this, a data dependency barrier or better must be inserted
@@ -2218,7 +2218,7 @@ INTERPROCESSOR INTERACTION
 
 When there's a system with more than one processor, more than one CPU in the
 system may be working on the same data set at the same time.  This can cause
-synchronisation problems, and the usual way of dealing with them is to use
+synchronization problems, and the usual way of dealing with them is to use
 locks.  Locks, however, are quite expensive, and so it may be preferable to
 operate without the use of a lock if at all possible.  In such a case
 operations that affect both CPUs may have to be carefully ordered to prevent
@@ -2396,7 +2396,7 @@ The following operations are special locking primitives:
 
 These implement ACQUIRE-class and RELEASE-class operations. These should be used in
 preference to other operations when implementing locking primitives, because
-their implementations can be optimised on many architectures.
+their implementations can be optimized on many architectures.
 
 [!] Note that special memory barrier primitives are available for these
 situations because on some CPUs the atomic instructions used imply full memory
@@ -2506,7 +2506,7 @@ functions:
      spaces.
 
      Accesses to this space may be fully synchronous (as on i386), but
-     intermediary bridges (such as the PCI host bridge) may not fully honour
+     intermediary bridges (such as the PCI host bridge) may not fully honor
      that.
 
      They are guaranteed to be fully ordered with respect to each other.
@@ -2940,7 +2940,7 @@ AND THEN THERE'S THE ALPHA
 The DEC Alpha CPU is one of the most relaxed CPUs there is.  Not only that,
 some versions of the Alpha CPU have a split data cache, permitting them to have
 two semantically-related cache lines updated at separate times.  This is where
-the data dependency barrier really becomes necessary as this synchronises both
+the data dependency barrier really becomes necessary as this synchronizes both
 caches with the memory coherence system, thus making it seem like pointer
 changes vs new data occur in the right order.
 
@@ -2957,7 +2957,7 @@ CIRCULAR BUFFERS
 ----------------
 
 Memory barriers can be used to implement circular buffering without the need
-of a lock to serialise the producer with the consumer.  See:
+of a lock to serialize the producer with the consumer.  See:
 
 	Documentation/circular-buffers.txt
 

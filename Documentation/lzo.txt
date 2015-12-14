@@ -56,7 +56,7 @@ Description
 
   After any instruction except the large literal copy, 0, 1, 2 or 3 literals
   are copied before starting the next instruction. The number of literals that
-  were copied may change the meaning and behaviour of the next instruction. In
+  were copied may change the meaning and behavior of the next instruction. In
   practice, only one instruction needs to know whether 0, less than 4, or more
   literals were copied. This is the information stored in the <state> variable
   in this implementation. This number of immediate literals to be copied is
@@ -69,9 +69,9 @@ Description
 
   IMPORTANT NOTE : in the code some length checks are missing because certain
   instructions are called under the assumption that a certain number of bytes
-  follow because it has already been garanteed before parsing the instructions.
+  follow because it has already been guaranteed before parsing the instructions.
   They just have to "refill" this credit if they consume extra bytes. This is
-  an implementation design choice independant on the algorithm or encoding.
+  an implementation design choice independent on the algorithm or encoding.
 
 Byte sequences
 

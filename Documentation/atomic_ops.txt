@@ -373,7 +373,7 @@ void obj_timeout(struct obj *obj)
 }
 
 (This is a simplification of the ARP queue management in the
- generic neighbour discover code of the networking.  Olaf Kirch
+ generic neighbor discover code of the networking.  Olaf Kirch
  found a bug wrt. memory barriers in kfree_skb() that exposed
  the atomic_t memory barrier requirements quite clearly.)
 

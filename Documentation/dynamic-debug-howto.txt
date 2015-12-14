@@ -32,10 +32,10 @@ Dynamic debug has even more useful features:
    which can be read to display the complete list of known debug
    statements, to help guide you
 
-Controlling dynamic debug Behaviour
+Controlling dynamic debug Behavior
 ===================================
 
-The behaviour of pr_debug()/dev_dbg()s are controlled via writing to a
+The behavior of pr_debug()/dev_dbg()s are controlled via writing to a
 control file in the 'debugfs' filesystem. Thus, you must first mount
 the debugfs filesystem, in order to make use of this feature.
 Subsequently, we refer to the control file as:
@@ -51,10 +51,10 @@ nullarbor:~ # echo 'file svcsock.c wtf 1 +p' >
 				<debugfs>/dynamic_debug/control
 -bash: echo: write error: Invalid argument
 
-Viewing Dynamic Debug Behaviour
+Viewing Dynamic Debug Behavior
 ===========================
 
-You can view the currently configured behaviour of all the debug
+You can view the currently configured behavior of all the debug
 statements via:
 
 nullarbor:~ # cat <debugfs>/dynamic_debug/control

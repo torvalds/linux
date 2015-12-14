@@ -1,7 +1,7 @@
 		The Common Clk Framework
 		Mike Turquette <mturquette@ti.com>
 
-This document endeavours to explain the common clk framework details,
+This document endeavors to explain the common clk framework details,
 and how to port a platform over to this framework.  It is not yet a
 detailed explanation of the clock api in include/linux/clk.h, but
 perhaps someday it will include that information.

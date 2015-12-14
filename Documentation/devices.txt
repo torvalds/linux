@@ -400,7 +400,7 @@ Your cooperation is appreciated.
 		182 = /dev/perfctr	Performance-monitoring counters
 		183 = /dev/hwrng	Generic random number generator
 		184 = /dev/cpu/microcode CPU microcode update interface
-		186 = /dev/atomicps	Atomic shapshot of process state data
+		186 = /dev/atomicps	Atomic snapshot of process state data
 		187 = /dev/irnet	IrNET device
 		188 = /dev/smbusbios	SMBus BIOS
 		189 = /dev/ussp_ctl	User space serial port control
@@ -2947,7 +2947,7 @@ Your cooperation is appreciated.
 		  2 = /dev/dvb/adapter0/sec0      (obsolete/unused)
 		  3 = /dev/dvb/adapter0/frontend0 first frontend device of first card
 		  4 = /dev/dvb/adapter0/demux0    first demux device of first card
-		  5 = /dev/dvb/adapter0/dvr0      first digital video recoder device of first card
+		  5 = /dev/dvb/adapter0/dvr0      first digital video recorder device of first card
 		  6 = /dev/dvb/adapter0/ca0       first common access port of first card
 		  7 = /dev/dvb/adapter0/net0      first network device of first card
 		  8 = /dev/dvb/adapter0/osd0      first on-screen-display device of first card

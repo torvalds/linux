@@ -38,7 +38,7 @@ This document may not be entirely up to date and comprehensive. The command
 module. Loadable modules, after being loaded into the running kernel, also
 reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
 parameters may be changed at runtime by the command
-"echo -n ${value} > /sys/module/${modulename}/parameters/${parm}".
+"echo -n ${value} > /sys/module/${modulename}/parameters/${param}".
 
 The parameters listed below are only valid if certain kernel build options were
 enabled and if respective hardware is present. The text in square brackets at
@@ -405,7 +405,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	alignment=	[KNL,ARM]
 			Allow the default userspace alignment fault handler
-			behaviour to be specified.  Bit 0 enables warnings,
+			behavior to be specified.  Bit 0 enables warnings,
 			bit 1 enables fixups, and bit 2 sends a segfault.
 
 	align_va_addr=	[X86-64]
@@ -470,7 +470,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Change the output verbosity whilst booting
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
-			when initialising the APIC and IO-APIC components.
+			when initializing the APIC and IO-APIC components.
 
 	autoconf=	[IPV6]
 			See Documentation/networking/ipv6.txt.
@@ -1370,7 +1370,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
-	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
+	i8042.notimeout	[HW] Ignore timeout condition singled by controller
 	i8042.reset	[HW] Reset the controller during init and cleanup
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 	i8042.kbdreset  [HW] Reset device connected to KBD port
@@ -1464,7 +1464,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	ima_policy=	[IMA]
 			The builtin measurement policy to load during IMA
-			setup.  Specyfing "tcb" as the value, measures all
+			setup.  Specifying "tcb" as the value, measures all
 			programs exec'd, files mmap'd for exec, and all files
 			opened with the read mode bit set by either the
 			effective uid (euid=0) or uid=0.
@@ -2146,7 +2146,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
 			parameter allows control of the logging verbosity for
-			the additional memory initialisation checks. A value
+			the additional memory initialization checks. A value
 			of 0 disables mminit logging and a level of 4 will
 			log everything. Information is printed at KERN_DEBUG
 			so loglevel=8 may also need to be specified.
@@ -2296,7 +2296,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Servers that do not support this mode of operation
 			will be autodetected by the client, and it will fall
 			back to using the idmapper.
-			To turn off this behaviour, set the value to '0'.
+			To turn off this behavior, set the value to '0'.
 	nfs.nfs4_unique_id=
 			[NFS4] Specify an additional fixed unique ident-
 			ification string that NFSv4 clients can insert into
@@ -2317,7 +2317,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			doing this risks data corruption, since there are
 			no guarantees that the file will remain unchanged
 			after the locks are lost.
-			If you want to enable the kernel legacy behaviour of
+			If you want to enable the kernel legacy behavior of
 			attempting to recover these locks, then set this
 			parameter to '1'.
 			The default parameter value of '0' causes the kernel
@@ -2517,7 +2517,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	no-steal-acc    [X86,KVM] Disable paravirtualized steal time accounting.
 			steal time is computed, but won't influence scheduler
-			behaviour
+			behavior
 
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
@@ -2665,7 +2665,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			we can turn it on.
 			on: enable the feature
 
-	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
+	panic=		[KNL] Kernel behavior on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
 			timeout = 0: wait forever
 			timeout < 0: reboot immediately
@@ -3841,7 +3841,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See also Documentation/input/joystick-parport.txt
 
 	udbg-immortal	[PPC] When debugging early kernel crashes that
-			happen after console_init() and before a proper 
+			happen after console_init() and before a proper
 			console driver takes over, this boot options might
 			help "seeing" what's going on.
 

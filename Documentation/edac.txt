@@ -658,7 +658,7 @@ exports one
 		echo 2 >/sys/devices/system/edac/mc/mc0/inject_addrmatch/dimm
 		echo 1 >/sys/devices/system/edac/mc/mc0/inject_addrmatch/rank
 
-	To return to the default behaviour of matching any, you can do:
+	To return to the default behavior of matching any, you can do:
 		echo any >/sys/devices/system/edac/mc/mc0/inject_addrmatch/dimm
 		echo any >/sys/devices/system/edac/mc/mc0/inject_addrmatch/rank
 

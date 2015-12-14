@@ -10,13 +10,13 @@ IRQ numbers.
 The number of interrupt controllers registered as unique irqchips
 show a rising tendency: for example subdrivers of different kinds
 such as GPIO controllers avoid reimplementing identical callback
-mechanisms as the IRQ core system by modelling their interrupt
+mechanisms as the IRQ core system by modeling their interrupt
 handlers as irqchips, i.e. in effect cascading interrupt controllers.
 
 Here the interrupt number loose all kind of correspondence to
 hardware interrupt numbers: whereas in the past, IRQ numbers could
 be chosen so they matched the hardware IRQ line into the root
-interrupt controller (i.e. the component actually fireing the
+interrupt controller (i.e. the component actually firing the
 interrupt line to the CPU) nowadays this number is just a number.
 
 For this reason we need a mechanism to separate controller-local

@@ -10,7 +10,7 @@ Overview
 
 Windows 2000, XP, and Vista use a new partitioning scheme.  It is a complete
 replacement for the MSDOS style partitions.  It stores its information in a
-1MiB journalled database at the end of the physical disk.  The size of
+1MiB journaled database at the end of the physical disk.  The size of
 partitions is limited only by disk space.  The maximum number of partitions is
 nearly 2000.
 
