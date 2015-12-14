@@ -1,6 +1,7 @@
 config MN10300
 	def_bool y
 	select HAVE_OPROFILE
+	select HAVE_UID16
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select HAVE_ARCH_TRACEHOOK
@@ -36,9 +37,6 @@ config HIGHMEM
 
 config NUMA
 	def_bool n
-
-config UID16
-	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y

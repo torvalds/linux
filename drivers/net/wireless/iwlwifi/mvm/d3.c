@@ -309,9 +309,9 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 	 * to transmit packets to the AP, i.e. the PTK.
 	 */
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
-		key->hw_key_idx = 0;
 		mvm->ptk_ivlen = key->iv_len;
 		mvm->ptk_icvlen = key->icv_len;
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, 0);
 	} else {
 		/*
 		 * firmware only supports TSC/RSC for a single key,
@@ -319,12 +319,11 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		 * with new ones -- this relies on mac80211 doing
 		 * list_add_tail().
 		 */
-		key->hw_key_idx = 1;
 		mvm->gtk_ivlen = key->iv_len;
 		mvm->gtk_icvlen = key->icv_len;
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, 1);
 	}
 
-	ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, true);
 	data->error = ret != 0;
 out_unlock:
 	mutex_unlock(&mvm->mutex);
@@ -771,9 +770,6 @@ static int iwl_mvm_switch_to_d3(struct iwl_mvm *mvm)
 	 * back to the runtime firmware image.
 	 */
 	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
-
-	/* We reprogram keys and shouldn't allocate new key indices */
-	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
 
 	mvm->ptk_ivlen = 0;
 	mvm->ptk_icvlen = 0;

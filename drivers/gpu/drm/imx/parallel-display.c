@@ -54,7 +54,11 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 
 	if (imxpd->panel && imxpd->panel->funcs &&
 	    imxpd->panel->funcs->get_modes) {
+		struct drm_display_info *di = &connector->display_info;
+
 		num_modes = imxpd->panel->funcs->get_modes(imxpd->panel);
+		if (!imxpd->bus_format && di->num_bus_formats)
+			imxpd->bus_format = di->bus_formats[0];
 		if (num_modes > 0)
 			return num_modes;
 	}
