@@ -136,9 +136,11 @@ void panic(const char *fmt, ...)
 	 * everything else.
 	 * If we want to run this after calling panic_notifiers, pass
 	 * the "crash_kexec_post_notifiers" option to the kernel.
+	 *
+	 * Bypass the panic_cpu check and call __crash_kexec directly.
 	 */
 	if (!crash_kexec_post_notifiers)
-		crash_kexec(NULL);
+		__crash_kexec(NULL);
 
 	/*
 	 * Note smp_send_stop is the usual smp shutdown function, which
@@ -161,9 +163,11 @@ void panic(const char *fmt, ...)
 	 * panic_notifiers and dumping kmsg before kdump.
 	 * Note: since some panic_notifiers can make crashed kernel
 	 * more unstable, it can increase risks of the kdump failure too.
+	 *
+	 * Bypass the panic_cpu check and call __crash_kexec directly.
 	 */
 	if (crash_kexec_post_notifiers)
-		crash_kexec(NULL);
+		__crash_kexec(NULL);
 
 	bust_spinlocks(0);
 
