@@ -988,7 +988,7 @@ int intel_opregion_setup(struct drm_device *dev)
 
 	if (!dmi_check_system(intel_no_opregion_vbt)) {
 		void *vbt = base + OPREGION_VBT_OFFSET;
-		u32 vbt_size = OPREGION_SIZE - OPREGION_VBT_OFFSET;
+		u32 vbt_size = OPREGION_ASLE_EXT_OFFSET - OPREGION_VBT_OFFSET;
 
 		if (intel_bios_is_valid_vbt(vbt, vbt_size)) {
 			DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion\n");
