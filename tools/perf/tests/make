@@ -259,7 +259,8 @@ $(run_O):
 tarpkg:
 	@cmd="$(PERF)/tests/perf-targz-src-pkg $(PERF)"; \
 	echo "- $@: $$cmd" && echo $$cmd > $@ && \
-	( eval $$cmd ) >> $@ 2>&1
+	( eval $$cmd ) >> $@ 2>&1 && \
+	rm -f $@
 
 make_kernelsrc:
 	@echo "- make -C <kernelsrc> tools/perf"
