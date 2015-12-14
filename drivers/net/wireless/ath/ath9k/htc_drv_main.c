@@ -834,7 +834,7 @@ void ath9k_htc_ani_work(struct work_struct *work)
 		if (longcal || shortcal)
 			common->ani.caldone =
 				ath9k_hw_calibrate(ah, ah->curchan,
-						   ah->rxchainmask, longcal);
+						ah->rxchainmask, longcal) > 0;
 
 		ath9k_htc_ps_restore(priv);
 	}
