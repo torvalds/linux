@@ -25,6 +25,7 @@ enum hvutil_transport_mode {
 	HVUTIL_TRANSPORT_INIT = 0,
 	HVUTIL_TRANSPORT_NETLINK,
 	HVUTIL_TRANSPORT_CHARDEV,
+	HVUTIL_TRANSPORT_DESTROY,
 };
 
 struct hvutil_transport {
