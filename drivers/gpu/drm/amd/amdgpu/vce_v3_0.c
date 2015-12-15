@@ -558,17 +558,10 @@ static int vce_v3_0_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 mask = 0;
-	int idx;
 
-	for (idx = 0; idx < 2; ++idx) {
-		if (adev->vce.harvest_config & (1 << idx))
-			continue;
+	mask |= (adev->vce.harvest_config & (1<<0)) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
+	mask |= (adev->vce.harvest_config & (1<<1)) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
 
-		if (idx == 0)
-			mask |= SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
-		else
-			mask |= SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
-	}
 	WREG32_P(mmSRBM_SOFT_RESET, mask,
 		 ~(SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK |
 		   SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK));
