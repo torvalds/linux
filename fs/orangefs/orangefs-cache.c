@@ -166,7 +166,7 @@ void op_release(struct orangefs_kernel_op_s *orangefs_op)
 int dev_req_cache_initialize(void)
 {
 	dev_req_cache = kmem_cache_create("orangefs_devreqcache",
-					  MAX_ALIGNED_DEV_REQ_DOWNSIZE,
+					  MAX_DEV_REQ_DOWNSIZE,
 					  0,
 					  ORANGEFS_CACHE_CREATE_FLAGS,
 					  NULL);
@@ -192,7 +192,7 @@ void *dev_req_alloc(void)
 	if (buffer == NULL)
 		gossip_err("Failed to allocate from dev_req_cache\n");
 	else
-		memset(buffer, 0, sizeof(MAX_ALIGNED_DEV_REQ_DOWNSIZE));
+		memset(buffer, 0, sizeof(MAX_DEV_REQ_DOWNSIZE));
 	return buffer;
 }
 

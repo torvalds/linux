@@ -80,28 +80,10 @@ sizeof(__u64) + sizeof(struct orangefs_upcall_s))
 #define MAX_DEV_REQ_DOWNSIZE (2*sizeof(__s32) + \
 sizeof(__u64) + sizeof(struct orangefs_downcall_s))
 
-#define BITS_PER_LONG_DIV_8 (BITS_PER_LONG >> 3)
-
 /* borrowed from irda.h */
 #ifndef MSECS_TO_JIFFIES
 #define MSECS_TO_JIFFIES(ms) (((ms)*HZ+999)/1000)
 #endif
-
-#define MAX_ALIGNED_DEV_REQ_UPSIZE				\
-		(MAX_DEV_REQ_UPSIZE +				\
-			((((MAX_DEV_REQ_UPSIZE /		\
-				(BITS_PER_LONG_DIV_8)) *	\
-				(BITS_PER_LONG_DIV_8)) +	\
-			    (BITS_PER_LONG_DIV_8)) -		\
-			MAX_DEV_REQ_UPSIZE))
-
-#define MAX_ALIGNED_DEV_REQ_DOWNSIZE				\
-		(MAX_DEV_REQ_DOWNSIZE +				\
-			((((MAX_DEV_REQ_DOWNSIZE /		\
-				(BITS_PER_LONG_DIV_8)) *	\
-				(BITS_PER_LONG_DIV_8)) +	\
-			    (BITS_PER_LONG_DIV_8)) -		\
-			MAX_DEV_REQ_DOWNSIZE))
 
 /*
  * valid orangefs kernel operation states

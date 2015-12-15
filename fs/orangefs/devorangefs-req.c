@@ -120,10 +120,10 @@ static ssize_t orangefs_devreq_read(struct file *file,
 	}
 
 	/*
-	 * The client will do an ioctl to find MAX_ALIGNED_DEV_REQ_UPSIZE, then
+	 * The client will do an ioctl to find MAX_DEV_REQ_UPSIZE, then
 	 * always read with that size buffer.
 	 */
-	if (count != MAX_ALIGNED_DEV_REQ_UPSIZE) {
+	if (count != MAX_DEV_REQ_UPSIZE) {
 		gossip_err("orangefs: client-core tried to read wrong size\n");
 		return -EINVAL;
 	}
@@ -226,7 +226,7 @@ static ssize_t orangefs_devreq_read(struct file *file,
 		goto error;
 
 	/* The client only asks to read one size buffer. */
-	return MAX_ALIGNED_DEV_REQ_UPSIZE;
+	return MAX_DEV_REQ_UPSIZE;
 error:
 	/*
 	 * We were unable to copy the op data to the client. Put the op back in
@@ -258,7 +258,7 @@ static ssize_t orangefs_devreq_writev(struct file *file,
 	void *buffer = NULL;
 	void *ptr = NULL;
 	unsigned long i = 0;
-	int num_remaining = MAX_ALIGNED_DEV_REQ_DOWNSIZE;
+	int num_remaining = MAX_DEV_REQ_DOWNSIZE;
 	int ret = 0;
 	/* num elements in iovec without trailer */
 	int notrailer_count = 4;
@@ -661,8 +661,8 @@ static inline long check_ioctl_command(unsigned int command)
 static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 {
 	static __s32 magic = ORANGEFS_DEVREQ_MAGIC;
-	static __s32 max_up_size = MAX_ALIGNED_DEV_REQ_UPSIZE;
-	static __s32 max_down_size = MAX_ALIGNED_DEV_REQ_DOWNSIZE;
+	static __s32 max_up_size = MAX_DEV_REQ_UPSIZE;
+	static __s32 max_down_size = MAX_DEV_REQ_DOWNSIZE;
 	struct ORANGEFS_dev_map_desc user_desc;
 	int ret = 0;
 	struct dev_mask_info_s mask_info = { 0 };
