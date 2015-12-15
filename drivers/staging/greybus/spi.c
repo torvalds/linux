@@ -366,8 +366,12 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 	/* now, fetch the devices configuration */
 	for (i = 0; i < spi->num_chipselect; i++) {
 		ret = gb_spi_setup_device(spi, i);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(&connection->bundle->dev,
+				"failed to allocated spi device: %d\n", ret);
+			spi_unregister_master(master);
 			break;
+		}
 	}
 
 	return ret;
