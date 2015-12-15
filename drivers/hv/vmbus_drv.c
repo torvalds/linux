@@ -531,7 +531,7 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 
 static const uuid_le null_guid;
 
-static inline bool is_null_guid(const __u8 *guid)
+static inline bool is_null_guid(const uuid_le *guid)
 {
 	if (memcmp(guid, &null_guid, sizeof(uuid_le)))
 		return false;
@@ -544,9 +544,9 @@ static inline bool is_null_guid(const __u8 *guid)
  */
 static const struct hv_vmbus_device_id *hv_vmbus_get_id(
 					const struct hv_vmbus_device_id *id,
-					const __u8 *guid)
+					const uuid_le *guid)
 {
-	for (; !is_null_guid(id->guid); id++)
+	for (; !is_null_guid(&id->guid); id++)
 		if (!memcmp(&id->guid, guid, sizeof(uuid_le)))
 			return id;
 
@@ -563,7 +563,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct hv_device *hv_dev = device_to_hv_device(device);
 
-	if (hv_vmbus_get_id(drv->id_table, hv_dev->dev_type.b))
+	if (hv_vmbus_get_id(drv->id_table, &hv_dev->dev_type))
 		return 1;
 
 	return 0;
@@ -580,7 +580,7 @@ static int vmbus_probe(struct device *child_device)
 	struct hv_device *dev = device_to_hv_device(child_device);
 	const struct hv_vmbus_device_id *dev_id;
 
-	dev_id = hv_vmbus_get_id(drv->id_table, dev->dev_type.b);
+	dev_id = hv_vmbus_get_id(drv->id_table, &dev->dev_type);
 	if (drv->probe) {
 		ret = drv->probe(dev, dev_id);
 		if (ret != 0)
