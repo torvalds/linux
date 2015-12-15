@@ -35,6 +35,7 @@
 #define GPC_MISC		0x2c
 #define GPC_IMR1_CORE0		0x30
 #define GPC_IMR1_CORE1		0x40
+#define GPC_IMR1_M4		0x50
 #define GPC_SLOT0_CFG		0xb0
 #define GPC_PGC_CPU_MAPPING	0xec
 #define GPC_CPU_PGC_SW_PUP_REQ	0xf0
@@ -109,6 +110,7 @@ enum imx_gpc_slot {
 static void __iomem *gpc_base;
 static u32 gpcv2_wake_irqs[IMR_NUM];
 static u32 gpcv2_saved_imrs[IMR_NUM];
+static u32 gpcv2_saved_imrs_m4[IMR_NUM];
 static u32 gpcv2_mf_irqs[IMR_NUM];
 static u32 gpcv2_mf_request_on[IMR_NUM];
 static DEFINE_SPINLOCK(gpcv2_lock);
@@ -508,6 +510,26 @@ void imx_gpcv2_pre_suspend(bool arm_power_off)
 		gpcv2_saved_imrs[i] = readl_relaxed(reg_imr1 + i * 4);
 		writel_relaxed(~gpcv2_wake_irqs[i], reg_imr1 + i * 4);
 	}
+}
+
+void imx_gpcv2_enable_wakeup_for_m4(void)
+{
+	void __iomem *reg_imr2 = gpc_base + GPC_IMR1_M4;
+	u32 i;
+
+	for (i = 0; i < IMR_NUM; i++) {
+		gpcv2_saved_imrs_m4[i] = readl_relaxed(reg_imr2 + i * 4);
+		writel_relaxed(~gpcv2_wake_irqs[i], reg_imr2 + i * 4);
+	}
+}
+
+void imx_gpcv2_disable_wakeup_for_m4(void)
+{
+	void __iomem *reg_imr2 = gpc_base + GPC_IMR1_M4;
+	u32 i;
+
+	for (i = 0; i < IMR_NUM; i++)
+		writel_relaxed(gpcv2_saved_imrs_m4[i], reg_imr2 + i * 4);
 }
 
 void imx_gpcv2_post_resume(void)

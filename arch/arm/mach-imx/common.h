@@ -132,6 +132,8 @@ unsigned int imx_gpc_is_mf_mix_off(void);
 void imx_gpcv2_pre_suspend(bool arm_power_off);
 void imx_gpcv2_post_resume(void);
 unsigned int imx_gpcv2_is_mf_mix_off(void);
+void imx_gpcv2_enable_wakeup_for_m4(void);
+void imx_gpcv2_disable_wakeup_for_m4(void);
 int imx_gpc_mf_power_on(unsigned int irq, unsigned int on);
 #ifdef CONFIG_HAVE_IMX_GPCV2
 int imx_gpcv2_mf_power_on(unsigned int irq, unsigned int on);

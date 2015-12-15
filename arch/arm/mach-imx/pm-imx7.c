@@ -78,6 +78,7 @@
 
 #define CCM_LPCG_START		0x4040
 #define CCM_LPCG_STEP		0x10
+#define CCM_PCIE_LPCG		0x4600
 
 #define BM_CCM_ROOT_POST_PODF	0x3f
 #define BM_CCM_ROOT_PRE_PODF	0x70000
@@ -708,10 +709,20 @@ static int imx7_pm_enter(suspend_state_t state)
 		imx_anatop_pre_suspend();
 		imx_gpcv2_pre_suspend(true);
 		if (imx_gpcv2_is_mf_mix_off()) {
+			/*
+			 * per design requirement, EXSC for PCIe/EIM
+			 * will need clock to recover RDC setting on
+			 * resume, so enable PCIe/EIM LPCG for RDC
+			 * recovery when M/F mix off
+			 */
+			writel_relaxed(0x3, pm_info->ccm_base.vbase +
+				CCM_PCIE_LPCG);
 			/* stop m4 if mix will also be shutdown */
-			if (imx_src_is_m4_enabled() && imx_mu_is_m4_in_stop())
+			if (imx_src_is_m4_enabled() && imx_mu_is_m4_in_stop()) {
 				writel(M4_RCR_HALT,
 					pm_info->src_base.vbase + M4RCR);
+				imx_gpcv2_enable_wakeup_for_m4();
+			}
 			imx7_console_save(console_saved_reg);
 			memcpy(ocram_saved_in_ddr, ocram_base, ocram_size);
 			if (lpsr_enabled) {
@@ -743,9 +754,12 @@ static int imx7_pm_enter(suspend_state_t state)
 		}
 		if (imx_gpcv2_is_mf_mix_off() ||
 			imx7_pm_is_resume_from_lpsr()) {
+			writel_relaxed(0x0, pm_info->ccm_base.vbase +
+				CCM_PCIE_LPCG);
 			memcpy(ocram_base, ocram_saved_in_ddr, ocram_size);
 			imx7_console_restore(console_saved_reg);
 			if (imx_src_is_m4_enabled() && imx_mu_is_m4_in_stop()) {
+				imx_gpcv2_disable_wakeup_for_m4();
 				/* restore M4 image */
 				memcpy(lpm_m4tcm_base,
 				    lpm_m4tcm_saved_in_ddr, SZ_32K);
