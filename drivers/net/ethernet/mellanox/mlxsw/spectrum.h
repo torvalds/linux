@@ -103,7 +103,7 @@ struct mlxsw_sp_port {
 	u16 pvid;
 	u16 lag_id;
 	/* 802.1Q bridge VLANs */
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	unsigned long *active_vlans;
 	/* VLAN interfaces */
 	unsigned long active_vfids[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 nr_vfids;

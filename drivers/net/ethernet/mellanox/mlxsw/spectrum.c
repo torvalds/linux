@@ -1245,6 +1245,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct net_device *dev;
 	bool usable;
+	size_t bytes;
 	int err;
 
 	dev = alloc_etherdev(sizeof(struct mlxsw_sp_port));
@@ -1258,6 +1259,12 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port->learning_sync = 1;
 	mlxsw_sp_port->uc_flood = 1;
 	mlxsw_sp_port->pvid = 1;
+	bytes = DIV_ROUND_UP(VLAN_N_VID, BITS_PER_BYTE);
+	mlxsw_sp_port->active_vlans = kzalloc(bytes, GFP_KERNEL);
+	if (!mlxsw_sp_port->active_vlans) {
+		err = -ENOMEM;
+		goto err_port_active_vlans_alloc;
+	}
 
 	mlxsw_sp_port->pcpu_stats =
 		netdev_alloc_pcpu_stats(struct mlxsw_sp_port_pcpu_stats);
@@ -1359,6 +1366,8 @@ err_port_module_check:
 err_dev_addr_init:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
+	kfree(mlxsw_sp_port->active_vlans);
+err_port_active_vlans_alloc:
 	free_netdev(dev);
 	return err;
 }
@@ -1381,6 +1390,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
+	kfree(mlxsw_sp_port->active_vlans);
 	free_netdev(mlxsw_sp_port->dev);
 }
 
