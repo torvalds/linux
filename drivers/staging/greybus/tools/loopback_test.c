@@ -34,7 +34,8 @@ struct dict {
 static struct dict dict[] = {
 	{"ping", 2},
 	{"transfer", 3},
-	{"sink", 4}
+	{"sink", 4},
+	{NULL,}		/* list termination */
 };
 
 struct loopback_results {
@@ -805,7 +806,7 @@ void loopback_run(struct loopback_test *t)
 	int i;
 	int ret;
 
-	for (i = 0; i < sizeof(dict) / sizeof(struct dict); i++) {
+	for (i = 0; dict[i].name != NULL; i++) {
 		if (strstr(dict[i].name, t->test_name))
 			t->test_id = dict[i].type;
 	}
