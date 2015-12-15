@@ -376,18 +376,17 @@ static long media_device_get_topology(struct media_device *mdev,
 	struct media_v2_topology ktopo;
 	int ret;
 
-	ret = copy_from_user(&ktopo, utopo, sizeof(ktopo));
-
-	if (ret < 0)
-		return ret;
+	if (copy_from_user(&ktopo, utopo, sizeof(ktopo)))
+		return -EFAULT;
 
 	ret = __media_device_get_topology(mdev, &ktopo);
 	if (ret < 0)
 		return ret;
 
-	ret = copy_to_user(utopo, &ktopo, sizeof(*utopo));
+	if (copy_to_user(utopo, &ktopo, sizeof(*utopo)))
+		return -EFAULT;
 
-	return ret;
+	return 0;
 }
 
 static long media_device_ioctl(struct file *filp, unsigned int cmd,
