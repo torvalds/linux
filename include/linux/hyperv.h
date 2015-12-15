@@ -986,19 +986,6 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 int vmbus_cpu_number_to_vp_number(int cpu_number);
 u64 hv_do_hypercall(u64 control, void *input, void *output);
 
-/**
- * VMBUS_DEVICE - macro used to describe a specific hyperv vmbus device
- *
- * This macro is used to create a struct hv_vmbus_device_id that matches a
- * specific device.
- */
-#define VMBUS_DEVICE(g0, g1, g2, g3, g4, g5, g6, g7,	\
-		     g8, g9, ga, gb, gc, gd, ge, gf)	\
-	.guid = { g0, g1, g2, g3, g4, g5, g6, g7,	\
-		  g8, g9, ga, gb, gc, gd, ge, gf },
-
-
-
 /*
  * GUID definitions of various offer types - services offered to the guest.
  */
