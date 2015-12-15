@@ -1588,6 +1588,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mcoquelin/stm32.git
 N:	stm32
 F:	drivers/clocksource/armv7m_systick.c
 
+ARM/TANGO ARCHITECTURE
+M:	Marc Gonzalez <marc_gonzalez@sigmadesigns.com>
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	arch/arm/mach-tango/
+F:	arch/arm/boot/dts/tango*
+
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
