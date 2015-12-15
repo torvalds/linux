@@ -128,9 +128,9 @@ static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
 					  DE_PIPEB_FIFO_UNDERRUN;
 
 	if (enable)
-		ironlake_enable_display_irq(dev_priv, bit);
+		ilk_enable_display_irq(dev_priv, bit);
 	else
-		ironlake_disable_display_irq(dev_priv, bit);
+		ilk_disable_display_irq(dev_priv, bit);
 }
 
 static void ivybridge_check_fifo_underruns(struct intel_crtc *crtc)
@@ -161,9 +161,9 @@ static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
 		if (!ivb_can_enable_err_int(dev))
 			return;
 
-		ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		ilk_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
 	} else {
-		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		ilk_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
 
 		if (old &&
 		    I915_READ(GEN7_ERR_INT) & ERR_INT_FIFO_UNDERRUN(pipe)) {
@@ -178,14 +178,10 @@ static void broadwell_set_fifo_underrun_reporting(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	assert_spin_locked(&dev_priv->irq_lock);
-
 	if (enable)
-		dev_priv->de_irq_mask[pipe] &= ~GEN8_PIPE_FIFO_UNDERRUN;
+		bdw_enable_pipe_irq(dev_priv, pipe, GEN8_PIPE_FIFO_UNDERRUN);
 	else
-		dev_priv->de_irq_mask[pipe] |= GEN8_PIPE_FIFO_UNDERRUN;
-	I915_WRITE(GEN8_DE_PIPE_IMR(pipe), dev_priv->de_irq_mask[pipe]);
-	POSTING_READ(GEN8_DE_PIPE_IMR(pipe));
+		bdw_disable_pipe_irq(dev_priv, pipe, GEN8_PIPE_FIFO_UNDERRUN);
 }
 
 static void ibx_set_fifo_underrun_reporting(struct drm_device *dev,

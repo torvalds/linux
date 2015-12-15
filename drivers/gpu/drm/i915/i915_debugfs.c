@@ -1639,7 +1639,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	intel_runtime_pm_get(dev_priv);
 	mutex_lock(&dev_priv->fbc.lock);
 
-	if (intel_fbc_enabled(dev_priv))
+	if (intel_fbc_is_active(dev_priv))
 		seq_puts(m, "FBC enabled\n");
 	else
 		seq_printf(m, "FBC disabled: %s\n",
@@ -1869,33 +1869,29 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct intel_fbdev *ifbdev = NULL;
-	struct intel_framebuffer *fb;
+	struct intel_framebuffer *fbdev_fb = NULL;
 	struct drm_framebuffer *drm_fb;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct drm_i915_private *dev_priv = dev->dev_private;
+       if (to_i915(dev)->fbdev) {
+               fbdev_fb = to_intel_framebuffer(to_i915(dev)->fbdev->helper.fb);
 
-	ifbdev = dev_priv->fbdev;
-	if (ifbdev) {
-		fb = to_intel_framebuffer(ifbdev->helper.fb);
-
-		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
-			   fb->base.width,
-			   fb->base.height,
-			   fb->base.depth,
-			   fb->base.bits_per_pixel,
-			   fb->base.modifier[0],
-			   atomic_read(&fb->base.refcount.refcount));
-		describe_obj(m, fb->obj);
-		seq_putc(m, '\n');
-	}
+               seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
+                         fbdev_fb->base.width,
+                         fbdev_fb->base.height,
+                         fbdev_fb->base.depth,
+                         fbdev_fb->base.bits_per_pixel,
+                         fbdev_fb->base.modifier[0],
+                         atomic_read(&fbdev_fb->base.refcount.refcount));
+               describe_obj(m, fbdev_fb->obj);
+               seq_putc(m, '\n');
+       }
 #endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	drm_for_each_fb(drm_fb, dev) {
-		fb = to_intel_framebuffer(drm_fb);
-		if (ifbdev && &fb->base == ifbdev->helper.fb)
+		struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
+		if (fb == fbdev_fb)
 			continue;
 
 		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
@@ -2473,15 +2469,15 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	if (!HAS_GUC_SCHED(dev_priv->dev))
 		return 0;
 
+	if (mutex_lock_interruptible(&dev->struct_mutex))
+		return 0;
+
 	/* Take a local copy of the GuC data, so we can dump it at leisure */
-	spin_lock(&dev_priv->guc.host2guc_lock);
 	guc = dev_priv->guc;
-	if (guc.execbuf_client) {
-		spin_lock(&guc.execbuf_client->wq_lock);
+	if (guc.execbuf_client)
 		client = *guc.execbuf_client;
-		spin_unlock(&guc.execbuf_client->wq_lock);
-	}
-	spin_unlock(&dev_priv->guc.host2guc_lock);
+
+	mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "GuC total action count: %llu\n", guc.action_count);
 	seq_printf(m, "GuC action failure count: %u\n", guc.action_fail);
@@ -2582,8 +2578,11 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		}
 	seq_puts(m, "\n");
 
-	/* CHV PSR has no kind of performance counter */
-	if (HAS_DDI(dev)) {
+	/*
+	 * VLV/CHV PSR has no kind of performance counter
+	 * SKL+ Perf counter is reset to 0 everytime DC state is entered
+	 */
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		psrperf = I915_READ(EDP_PSR_PERF_CNT) &
 			EDP_PSR_PERF_CNT_MASK;
 
@@ -2685,71 +2684,6 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static const char *power_domain_str(enum intel_display_power_domain domain)
-{
-	switch (domain) {
-	case POWER_DOMAIN_PIPE_A:
-		return "PIPE_A";
-	case POWER_DOMAIN_PIPE_B:
-		return "PIPE_B";
-	case POWER_DOMAIN_PIPE_C:
-		return "PIPE_C";
-	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
-		return "PIPE_A_PANEL_FITTER";
-	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
-		return "PIPE_B_PANEL_FITTER";
-	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
-		return "PIPE_C_PANEL_FITTER";
-	case POWER_DOMAIN_TRANSCODER_A:
-		return "TRANSCODER_A";
-	case POWER_DOMAIN_TRANSCODER_B:
-		return "TRANSCODER_B";
-	case POWER_DOMAIN_TRANSCODER_C:
-		return "TRANSCODER_C";
-	case POWER_DOMAIN_TRANSCODER_EDP:
-		return "TRANSCODER_EDP";
-	case POWER_DOMAIN_PORT_DDI_A_LANES:
-		return "PORT_DDI_A_LANES";
-	case POWER_DOMAIN_PORT_DDI_B_LANES:
-		return "PORT_DDI_B_LANES";
-	case POWER_DOMAIN_PORT_DDI_C_LANES:
-		return "PORT_DDI_C_LANES";
-	case POWER_DOMAIN_PORT_DDI_D_LANES:
-		return "PORT_DDI_D_LANES";
-	case POWER_DOMAIN_PORT_DDI_E_LANES:
-		return "PORT_DDI_E_LANES";
-	case POWER_DOMAIN_PORT_DSI:
-		return "PORT_DSI";
-	case POWER_DOMAIN_PORT_CRT:
-		return "PORT_CRT";
-	case POWER_DOMAIN_PORT_OTHER:
-		return "PORT_OTHER";
-	case POWER_DOMAIN_VGA:
-		return "VGA";
-	case POWER_DOMAIN_AUDIO:
-		return "AUDIO";
-	case POWER_DOMAIN_PLLS:
-		return "PLLS";
-	case POWER_DOMAIN_AUX_A:
-		return "AUX_A";
-	case POWER_DOMAIN_AUX_B:
-		return "AUX_B";
-	case POWER_DOMAIN_AUX_C:
-		return "AUX_C";
-	case POWER_DOMAIN_AUX_D:
-		return "AUX_D";
-	case POWER_DOMAIN_GMBUS:
-		return "GMBUS";
-	case POWER_DOMAIN_MODESET:
-		return "MODESET";
-	case POWER_DOMAIN_INIT:
-		return "INIT";
-	default:
-		MISSING_CASE(domain);
-		return "?";
-	}
-}
-
 static int i915_power_domain_info(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = m->private;
@@ -2775,7 +2709,7 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 				continue;
 
 			seq_printf(m, "  %-23s %d\n",
-				 power_domain_str(power_domain),
+				 intel_display_power_domain_str(power_domain),
 				 power_domains->domain_use_count[power_domain]);
 		}
 	}

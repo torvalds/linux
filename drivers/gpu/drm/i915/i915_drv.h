@@ -57,7 +57,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20151120"
+#define DRIVER_DATE		"20151204"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -902,7 +902,6 @@ struct i915_fbc {
 	/* This is always the inner lock when overlapping with struct_mutex and
 	 * it's the outer lock when overlapping with stolen_lock. */
 	struct mutex lock;
-	unsigned long uncompressed_size;
 	unsigned threshold;
 	unsigned int fb_id;
 	unsigned int possible_framebuffer_bits;
@@ -915,21 +914,21 @@ struct i915_fbc {
 
 	bool false_color;
 
-	/* Tracks whether the HW is actually enabled, not whether the feature is
-	 * possible. */
 	bool enabled;
+	bool active;
 
 	struct intel_fbc_work {
-		struct delayed_work work;
-		struct intel_crtc *crtc;
+		bool scheduled;
+		struct work_struct work;
 		struct drm_framebuffer *fb;
-	} *fbc_work;
+		unsigned long enable_jiffies;
+	} work;
 
 	const char *no_fbc_reason;
 
-	bool (*fbc_enabled)(struct drm_i915_private *dev_priv);
-	void (*enable_fbc)(struct intel_crtc *crtc);
-	void (*disable_fbc)(struct drm_i915_private *dev_priv);
+	bool (*is_active)(struct drm_i915_private *dev_priv);
+	void (*activate)(struct intel_crtc *crtc);
+	void (*deactivate)(struct drm_i915_private *dev_priv);
 };
 
 /**
@@ -1885,6 +1884,7 @@ struct drm_i915_private {
 	u32 chv_phy_control;
 
 	u32 suspend_count;
+	bool suspended_to_idle;
 	struct i915_suspend_saved_registers regfile;
 	struct vlv_s0ix_state vlv_s0ix_state;
 
@@ -2608,11 +2608,13 @@ struct drm_i915_cmd_table {
 #define INTEL_PCH_SPT_DEVICE_ID_TYPE		0xA100
 #define INTEL_PCH_SPT_LP_DEVICE_ID_TYPE		0x9D00
 #define INTEL_PCH_P2X_DEVICE_ID_TYPE		0x7100
+#define INTEL_PCH_QEMU_DEVICE_ID_TYPE		0x2900 /* qemu q35 has 2918 */
 
 #define INTEL_PCH_TYPE(dev) (__I915__(dev)->pch_type)
 #define HAS_PCH_SPT(dev) (INTEL_PCH_TYPE(dev) == PCH_SPT)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
 #define HAS_PCH_LPT_LP(dev) (__I915__(dev)->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE)
+#define HAS_PCH_LPT_H(dev) (__I915__(dev)->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
 #define HAS_PCH_NOP(dev) (INTEL_PCH_TYPE(dev) == PCH_NOP)
@@ -2749,17 +2751,47 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv);
 void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
 				   uint32_t mask,
 				   uint32_t bits);
-void
-ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask);
-void
-ironlake_disable_display_irq(struct drm_i915_private *dev_priv, u32 mask);
+void ilk_update_display_irq(struct drm_i915_private *dev_priv,
+			    uint32_t interrupt_mask,
+			    uint32_t enabled_irq_mask);
+static inline void
+ilk_enable_display_irq(struct drm_i915_private *dev_priv, uint32_t bits)
+{
+	ilk_update_display_irq(dev_priv, bits, bits);
+}
+static inline void
+ilk_disable_display_irq(struct drm_i915_private *dev_priv, uint32_t bits)
+{
+	ilk_update_display_irq(dev_priv, bits, 0);
+}
+void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
+			 enum pipe pipe,
+			 uint32_t interrupt_mask,
+			 uint32_t enabled_irq_mask);
+static inline void bdw_enable_pipe_irq(struct drm_i915_private *dev_priv,
+				       enum pipe pipe, uint32_t bits)
+{
+	bdw_update_pipe_irq(dev_priv, pipe, bits, bits);
+}
+static inline void bdw_disable_pipe_irq(struct drm_i915_private *dev_priv,
+					enum pipe pipe, uint32_t bits)
+{
+	bdw_update_pipe_irq(dev_priv, pipe, bits, 0);
+}
 void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 				  uint32_t interrupt_mask,
 				  uint32_t enabled_irq_mask);
-#define ibx_enable_display_interrupt(dev_priv, bits) \
-	ibx_display_interrupt_update((dev_priv), (bits), (bits))
-#define ibx_disable_display_interrupt(dev_priv, bits) \
-	ibx_display_interrupt_update((dev_priv), (bits), 0)
+static inline void
+ibx_enable_display_interrupt(struct drm_i915_private *dev_priv, uint32_t bits)
+{
+	ibx_display_interrupt_update(dev_priv, bits, bits);
+}
+static inline void
+ibx_disable_display_interrupt(struct drm_i915_private *dev_priv, uint32_t bits)
+{
+	ibx_display_interrupt_update(dev_priv, bits, 0);
+}
+
 
 /* i915_gem.c */
 int i915_gem_create_ioctl(struct drm_device *dev, void *data,

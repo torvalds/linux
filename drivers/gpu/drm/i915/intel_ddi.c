@@ -3151,7 +3151,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		pipe_config->has_hdmi_sink = true;
 		intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 
-		if (intel_hdmi->infoframe_enabled(&encoder->base))
+		if (intel_hdmi->infoframe_enabled(&encoder->base, pipe_config))
 			pipe_config->has_infoframe = true;
 		break;
 	case TRANS_DDI_MODE_SELECT_DVI:

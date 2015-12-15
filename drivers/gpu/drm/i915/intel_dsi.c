@@ -266,15 +266,17 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 }
 
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
-	struct drm_display_mode *adjusted_mode = &config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
 	DRM_DEBUG_KMS("\n");
+
+	pipe_config->has_dsi_encoder = true;
 
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
@@ -462,6 +464,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 	intel_panel_enable_backlight(intel_dsi->attached_connector);
 }
 
+static void intel_dsi_prepare(struct intel_encoder *intel_encoder);
+
 static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -473,6 +477,9 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	u32 tmp;
 
 	DRM_DEBUG_KMS("\n");
+
+	intel_dsi_prepare(encoder);
+	intel_enable_dsi_pll(encoder);
 
 	/* Panel Enable over CRC PMIC */
 	if (intel_dsi->gpio_panel)
@@ -698,6 +705,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 {
 	u32 pclk = 0;
 	DRM_DEBUG_KMS("\n");
+
+	pipe_config->has_dsi_encoder = true;
 
 	/*
 	 * DPLL_MD is not used in case of DSI, reading will get some default value
@@ -1026,15 +1035,6 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	}
 }
 
-static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
-{
-	DRM_DEBUG_KMS("\n");
-
-	intel_dsi_prepare(encoder);
-	intel_enable_dsi_pll(encoder);
-
-}
-
 static enum drm_connector_status
 intel_dsi_detect(struct drm_connector *connector, bool force)
 {
@@ -1155,9 +1155,7 @@ void intel_dsi_init(struct drm_device *dev)
 	drm_encoder_init(dev, encoder, &intel_dsi_funcs, DRM_MODE_ENCODER_DSI,
 			 NULL);
 
-	/* XXX: very likely not all of these are needed */
 	intel_encoder->compute_config = intel_dsi_compute_config;
-	intel_encoder->pre_pll_enable = intel_dsi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
 	intel_encoder->enable = intel_dsi_enable_nop;
 	intel_encoder->disable = intel_dsi_pre_disable;

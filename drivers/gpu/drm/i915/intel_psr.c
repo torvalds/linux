@@ -191,9 +191,6 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-			   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
-
 	/* Enable AUX frame sync at sink */
 	if (dev_priv->psr.aux_frame_sync)
 		drm_dp_dpcd_writeb(&intel_dp->aux,
@@ -414,9 +411,14 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 				skl_psr_setup_su_vsc(intel_dp);
 		}
 
-		/* Avoid continuous PSR exit by masking memup and hpd */
+		/*
+		 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD.
+		 * Also mask LPSP to avoid dependency on other drivers that
+		 * might block runtime_pm besides preventing other hw tracking
+		 * issues now we can rely on frontbuffer tracking.
+		 */
 		I915_WRITE(EDP_PSR_DEBUG_CTL, EDP_PSR_DEBUG_MASK_MEMUP |
-			   EDP_PSR_DEBUG_MASK_HPD);
+			   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
@@ -522,10 +524,14 @@ void intel_psr_disable(struct intel_dp *intel_dp)
 		return;
 	}
 
+	/* Disable PSR on Source */
 	if (HAS_DDI(dev))
 		hsw_psr_disable(intel_dp);
 	else
 		vlv_psr_disable(intel_dp);
+
+	/* Disable PSR on Sink */
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
 
 	dev_priv->psr.enabled = NULL;
 	mutex_unlock(&dev_priv->psr.lock);
@@ -737,25 +743,9 @@ void intel_psr_flush(struct drm_device *dev,
 	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
-	if (HAS_DDI(dev)) {
-		/*
-		 * By definition every flush should mean invalidate + flush,
-		 * however on core platforms let's minimize the
-		 * disable/re-enable so we can avoid the invalidate when flip
-		 * originated the flush.
-		 */
-		if (frontbuffer_bits && origin != ORIGIN_FLIP)
-			intel_psr_exit(dev);
-	} else {
-		/*
-		 * On Valleyview and Cherryview we don't use hardware tracking
-		 * so any plane updates or cursor moves don't result in a PSR
-		 * invalidating. Which means we need to manually fake this in
-		 * software for all flushes.
-		 */
-		if (frontbuffer_bits)
-			intel_psr_exit(dev);
-	}
+	/* By definition flush = invalidate + flush */
+	if (frontbuffer_bits)
+		intel_psr_exit(dev);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		if (!work_busy(&dev_priv->psr.work.work))
