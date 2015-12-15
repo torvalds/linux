@@ -53,7 +53,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 	frame.sp = regs->sp;
 	frame.pc = regs->pc;
 	do {
-		int ret = unwind_frame(&frame);
+		int ret = unwind_frame(NULL, &frame);
 		if (ret < 0)
 			return 0;
 	} while (in_lock_functions(frame.pc));

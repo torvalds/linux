@@ -36,7 +36,7 @@
  *	ldp	x29, x30, [sp]
  *	add	sp, sp, #0x10
  */
-int notrace unwind_frame(struct stackframe *frame)
+int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 {
 	unsigned long high, low;
 	unsigned long fp = frame->fp;
@@ -99,7 +99,7 @@ int notrace unwind_frame(struct stackframe *frame)
 	return 0;
 }
 
-void notrace walk_stackframe(struct stackframe *frame,
+void notrace walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
 		     int (*fn)(struct stackframe *, void *), void *data)
 {
 	while (1) {
@@ -107,7 +107,7 @@ void notrace walk_stackframe(struct stackframe *frame,
 
 		if (fn(frame, data))
 			break;
-		ret = unwind_frame(frame);
+		ret = unwind_frame(tsk, frame);
 		if (ret < 0)
 			break;
 	}
@@ -159,7 +159,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 		frame.pc = (unsigned long)save_stack_trace_tsk;
 	}
 
-	walk_stackframe(&frame, save_trace, &data);
+	walk_stackframe(tsk, &frame, save_trace, &data);
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }

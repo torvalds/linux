@@ -177,7 +177,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		int ret;
 
 		dump_backtrace_entry(where);
-		ret = unwind_frame(&frame);
+		ret = unwind_frame(tsk, &frame);
 		if (ret < 0)
 			break;
 		stack = frame.sp;
