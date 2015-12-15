@@ -32,7 +32,7 @@ static void qxl_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	struct qxl_bo *bo;
 	struct qxl_device *qdev;
 
-	bo = container_of(tbo, struct qxl_bo, tbo);
+	bo = to_qxl_bo(tbo);
 	qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
 
 	qxl_surface_evict(qdev, bo, false);
