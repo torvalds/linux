@@ -86,7 +86,7 @@ static int tegra_fb_create_handle(struct drm_framebuffer *framebuffer,
 	return drm_gem_handle_create(file, &fb->planes[0]->gem, handle);
 }
 
-static struct drm_framebuffer_funcs tegra_fb_funcs = {
+static const struct drm_framebuffer_funcs tegra_fb_funcs = {
 	.destroy = tegra_fb_destroy,
 	.create_handle = tegra_fb_create_handle,
 };
