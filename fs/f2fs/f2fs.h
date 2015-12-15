@@ -715,8 +715,8 @@ enum {
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
-	struct buffer_head *raw_super_buf;	/* buffer head of raw sb */
 	struct f2fs_super_block *raw_super;	/* raw super block pointer */
+	int valid_super_block;			/* valid super block no */
 	int s_flag;				/* flags for sbi */
 
 	/* for node-related operations */

@@ -567,7 +567,6 @@ static void f2fs_put_super(struct super_block *sb)
 	wait_for_completion(&sbi->s_kobj_unregister);
 
 	sb->s_fs_info = NULL;
-	brelse(sbi->raw_super_buf);
 	kfree(sbi->raw_super);
 	kfree(sbi);
 }
@@ -1132,65 +1131,53 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
  */
 static int read_raw_super_block(struct super_block *sb,
 			struct f2fs_super_block **raw_super,
-			struct buffer_head **raw_super_buf,
-			int *recovery)
+			int *valid_super_block, int *recovery)
 {
 	int block = 0;
-	struct buffer_head *buffer;
-	struct f2fs_super_block *super;
+	struct buffer_head *bh;
+	struct f2fs_super_block *super, *buf;
 	int err = 0;
 
 	super = kzalloc(sizeof(struct f2fs_super_block), GFP_KERNEL);
 	if (!super)
 		return -ENOMEM;
 retry:
-	buffer = sb_bread(sb, block);
-	if (!buffer) {
+	bh = sb_bread(sb, block);
+	if (!bh) {
 		*recovery = 1;
 		f2fs_msg(sb, KERN_ERR, "Unable to read %dth superblock",
 				block + 1);
-		if (block == 0) {
-			block++;
-			goto retry;
-		} else {
-			err = -EIO;
-			goto out;
-		}
+		err = -EIO;
+		goto next;
 	}
 
-	memcpy(super, buffer->b_data + F2FS_SUPER_OFFSET, sizeof(*super));
+	buf = (struct f2fs_super_block *)(bh->b_data + F2FS_SUPER_OFFSET);
 
 	/* sanity checking of raw super */
-	if (sanity_check_raw_super(sb, super)) {
-		brelse(buffer);
+	if (sanity_check_raw_super(sb, buf)) {
+		brelse(bh);
 		*recovery = 1;
 		f2fs_msg(sb, KERN_ERR,
 			"Can't find valid F2FS filesystem in %dth superblock",
 								block + 1);
-		if (block == 0) {
-			block++;
-			goto retry;
-		} else {
-			err = -EINVAL;
-			goto out;
-		}
+		err = -EINVAL;
+		goto next;
 	}
 
 	if (!*raw_super) {
-		*raw_super_buf = buffer;
+		memcpy(super, buf, sizeof(*super));
+		*valid_super_block = block;
 		*raw_super = super;
-	} else {
-		/* already have a valid superblock */
-		brelse(buffer);
 	}
+	brelse(bh);
 
+next:
 	/* check the validity of the second superblock */
 	if (block == 0) {
 		block++;
 		goto retry;
 	}
 
-out:
 	/* No valid superblock */
 	if (!*raw_super) {
 		kfree(super);
@@ -1203,18 +1190,16 @@ out:
 int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover)
 {
 	struct f2fs_super_block *super = F2FS_RAW_SUPER(sbi);
-	struct buffer_head *sbh = sbi->raw_super_buf;
 	struct buffer_head *bh;
 	int err;
 
 	/* write back-up superblock first */
-	bh = sb_getblk(sbi->sb, sbh->b_blocknr ? 0 : 1);
+	bh = sb_getblk(sbi->sb, sbi->valid_super_block ? 0 : 1);
 	if (!bh)
 		return -EIO;
 
 	lock_buffer(bh);
 	memcpy(bh->b_data + F2FS_SUPER_OFFSET, super, sizeof(*super));
-	WARN_ON(sbh->b_size != F2FS_BLKSIZE);
 	set_buffer_uptodate(bh);
 	set_buffer_dirty(bh);
 	unlock_buffer(bh);
@@ -1227,33 +1212,37 @@ int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover)
 	if (recover || err)
 		return err;
 
-	/* write current valid superblock */
-	lock_buffer(sbh);
-	if (memcmp(sbh->b_data + F2FS_SUPER_OFFSET, super, sizeof(*super))) {
-		f2fs_msg(sbi->sb, KERN_INFO, "Write modified valid superblock");
-		memcpy(sbh->b_data + F2FS_SUPER_OFFSET, super, sizeof(*super));
-	}
-	set_buffer_dirty(sbh);
-	unlock_buffer(sbh);
+	bh = sb_getblk(sbi->sb, sbi->valid_super_block);
+	if (!bh)
+		return -EIO;
 
-	return __sync_dirty_buffer(sbh, WRITE_FLUSH_FUA);
+	/* write current valid superblock */
+	lock_buffer(bh);
+	memcpy(bh->b_data + F2FS_SUPER_OFFSET, super, sizeof(*super));
+	set_buffer_uptodate(bh);
+	set_buffer_dirty(bh);
+	unlock_buffer(bh);
+
+	err = __sync_dirty_buffer(bh, WRITE_FLUSH_FUA);
+	brelse(bh);
+
+	return err;
 }
 
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct f2fs_sb_info *sbi;
 	struct f2fs_super_block *raw_super;
-	struct buffer_head *raw_super_buf;
 	struct inode *root;
 	long err;
 	bool retry = true, need_fsck = false;
 	char *options = NULL;
-	int recovery, i;
+	int recovery, i, valid_super_block;
 
 try_onemore:
 	err = -EINVAL;
 	raw_super = NULL;
-	raw_super_buf = NULL;
+	valid_super_block = -1;
 	recovery = 0;
 
 	/* allocate memory for f2fs-specific super block info */
@@ -1267,7 +1256,8 @@ try_onemore:
 		goto free_sbi;
 	}
 
-	err = read_raw_super_block(sb, &raw_super, &raw_super_buf, &recovery);
+	err = read_raw_super_block(sb, &raw_super, &valid_super_block,
+								&recovery);
 	if (err)
 		goto free_sbi;
 
@@ -1300,7 +1290,7 @@ try_onemore:
 	/* init f2fs-specific super block info */
 	sbi->sb = sb;
 	sbi->raw_super = raw_super;
-	sbi->raw_super_buf = raw_super_buf;
+	sbi->valid_super_block = valid_super_block;
 	mutex_init(&sbi->gc_mutex);
 	mutex_init(&sbi->writepages);
 	mutex_init(&sbi->cp_mutex);
@@ -1506,7 +1496,6 @@ free_meta_inode:
 free_options:
 	kfree(options);
 free_sb_buf:
-	brelse(raw_super_buf);
 	kfree(raw_super);
 free_sbi:
 	kfree(sbi);
