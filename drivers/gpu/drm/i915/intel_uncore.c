@@ -328,12 +328,9 @@ static void intel_uncore_ellc_detect(struct drm_device *dev)
 }
 
 static bool
-check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
+fpga_check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
 {
 	u32 dbg;
-
-	if (!HAS_FPGA_DBG_UNCLAIMED(dev_priv))
-		return false;
 
 	dbg = __raw_i915_read32(dev_priv, FPGA_DBG);
 	if (likely(!(dbg & FPGA_DBG_RM_NOCLAIM)))
@@ -342,6 +339,32 @@ check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
 	__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 
 	return true;
+}
+
+static bool
+vlv_check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
+{
+	u32 cer;
+
+	cer = __raw_i915_read32(dev_priv, CLAIM_ER);
+	if (likely(!(cer & (CLAIM_ER_OVERFLOW | CLAIM_ER_CTR_MASK))))
+		return false;
+
+	__raw_i915_write32(dev_priv, CLAIM_ER, CLAIM_ER_CLR);
+
+	return true;
+}
+
+static bool
+check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
+{
+	if (HAS_FPGA_DBG_UNCLAIMED(dev_priv))
+		return fpga_check_for_unclaimed_mmio(dev_priv);
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		return vlv_check_for_unclaimed_mmio(dev_priv);
+
+	return false;
 }
 
 static void __intel_uncore_early_sanitize(struct drm_device *dev,

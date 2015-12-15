@@ -1711,6 +1711,11 @@ enum skl_disp_power_wells {
 #define FPGA_DBG		_MMIO(0x42300)
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
 
+#define CLAIM_ER		_MMIO(VLV_DISPLAY_BASE + 0x2028)
+#define   CLAIM_ER_CLR		(1 << 31)
+#define   CLAIM_ER_OVERFLOW	(1 << 16)
+#define   CLAIM_ER_CTR_MASK	0xffff
+
 #define DERRMR		_MMIO(0x44050)
 /* Note that HBLANK events are reserved on bdw+ */
 #define   DERRMR_PIPEA_SCANLINE		(1<<0)
