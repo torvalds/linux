@@ -82,21 +82,32 @@ static void orangefs_bufmap_unref(struct orangefs_bufmap *bufmap)
 	}
 }
 
+/*
+ * XXX: Can the size and shift change while the caller gives up the 
+ * XXX: lock between calling this and doing something useful?
+ */
+
 int orangefs_bufmap_size_query(void)
 {
-	struct orangefs_bufmap *bufmap = orangefs_bufmap_ref();
-	int size = bufmap ? bufmap->desc_size : 0;
-
-	orangefs_bufmap_unref(bufmap);
+	struct orangefs_bufmap *bufmap;
+	int size = 0;
+	bufmap = orangefs_bufmap_ref();
+	if (bufmap) {
+		size = bufmap->desc_size;
+		orangefs_bufmap_unref(bufmap);
+	}
 	return size;
 }
 
 int orangefs_bufmap_shift_query(void)
 {
-	struct orangefs_bufmap *bufmap = orangefs_bufmap_ref();
-	int shift = bufmap ? bufmap->desc_shift : 0;
-
-	orangefs_bufmap_unref(bufmap);
+	struct orangefs_bufmap *bufmap;
+	int shift = 0;
+	bufmap = orangefs_bufmap_ref();
+	if (bufmap) {
+		shift = bufmap->desc_shift;
+		orangefs_bufmap_unref(bufmap);
+	}
 	return shift;
 }
 
