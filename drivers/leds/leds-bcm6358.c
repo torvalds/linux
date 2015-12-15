@@ -76,12 +76,15 @@ static unsigned long bcm6358_led_busy(void __iomem *mem)
 	return val;
 }
 
-static void bcm6358_led_mode(struct bcm6358_led *led, unsigned long value)
+static void bcm6358_led_set(struct led_classdev *led_cdev,
+			    enum led_brightness value)
 {
-	unsigned long val;
+	struct bcm6358_led *led =
+		container_of(led_cdev, struct bcm6358_led, cdev);
+	unsigned long flags, val;
 
+	spin_lock_irqsave(led->lock, flags);
 	bcm6358_led_busy(led->mem);
-
 	val = bcm6358_led_read(led->mem + BCM6358_REG_MODE);
 	if ((led->active_low && value == LED_OFF) ||
 	    (!led->active_low && value != LED_OFF))
@@ -89,17 +92,6 @@ static void bcm6358_led_mode(struct bcm6358_led *led, unsigned long value)
 	else
 		val &= ~(BIT(led->pin));
 	bcm6358_led_write(led->mem + BCM6358_REG_MODE, val);
-}
-
-static void bcm6358_led_set(struct led_classdev *led_cdev,
-			    enum led_brightness value)
-{
-	struct bcm6358_led *led =
-		container_of(led_cdev, struct bcm6358_led, cdev);
-	unsigned long flags;
-
-	spin_lock_irqsave(led->lock, flags);
-	bcm6358_led_mode(led, value);
 	spin_unlock_irqrestore(led->lock, flags);
 }
 
