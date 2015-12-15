@@ -1890,6 +1890,9 @@ static int only_one_child(struct pci_bus *bus)
 	return 0;
 }
 
+// It can be arbitrary (above 2). Freebsd uses 20, so use that too.
+#define AEOLIA_SLOT_NUM 20
+
 /**
  * pci_scan_slot - scan a PCI slot on a bus for devices.
  * @bus: PCI bus to scan
@@ -1905,17 +1908,31 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 {
 	unsigned fn, nr = 0;
 	struct pci_dev *dev;
+	u32 l;
 
 	if (only_one_child(bus) && (devfn > 0))
 		return 0; /* Already scanned the entire slot */
 
+	// skip phantom Aeolia devices that bleed through the PCI space
+	if (PCI_SLOT(devfn) != AEOLIA_SLOT_NUM &&
+		pci_bus_read_dev_vendor_id(bus, devfn, &l, 60*1000) &&
+		(l & 0xffff) == PCI_VENDOR_ID_SONY) {
+		return 0;
+	}
+
 	dev = pci_scan_single_device(bus, devfn);
 	if (!dev)
 		return 0;
+
 	if (!dev->is_added)
 		nr++;
 
 	for (fn = next_fn(bus, dev, 0); fn > 0; fn = next_fn(bus, dev, fn)) {
+		if (PCI_SLOT(devfn) != AEOLIA_SLOT_NUM &&
+			pci_bus_read_dev_vendor_id(bus, devfn + fn, &l, 60*1000) &&
+			(l & 0xffff) == PCI_VENDOR_ID_SONY) {
+			continue;
+		}
 		dev = pci_scan_single_device(bus, devfn + fn);
 		if (dev) {
 			if (!dev->is_added)
