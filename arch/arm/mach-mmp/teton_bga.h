@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/mach-mmp/include/mach/teton_bga.h
- *
  *  Support for the Marvell PXA168 Teton BGA Development Platform.
  *
  *  This program is free software; you can redistribute it and/or modify

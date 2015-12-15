@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-mmp/include/mach/addr-map.h
- *
  *   Common address map definitions
  *
  * This program is free software; you can redistribute it and/or modify

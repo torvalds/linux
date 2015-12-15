@@ -546,22 +546,6 @@ config ARCH_ORION5X
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
 	  Orion-2 (5281), Orion-1-90 (6183).
 
-config ARCH_MMP
-	bool "Marvell PXA168/910/MMP2"
-	depends on MMU
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
-	select GENERIC_ALLOCATOR
-	select GENERIC_CLOCKEVENTS
-	select GPIO_PXA
-	select IRQ_DOMAIN
-	select MULTI_IRQ_HANDLER
-	select PINCTRL
-	select PLAT_PXA
-	select SPARSE_IRQ
-	help
-	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
-
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
 	select ARCH_REQUIRE_GPIOLIB

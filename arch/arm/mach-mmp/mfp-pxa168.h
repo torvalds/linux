@@ -1,7 +1,7 @@
 #ifndef __ASM_MACH_MFP_PXA168_H
 #define __ASM_MACH_MFP_PXA168_H
 
-#include <mach/mfp.h>
+#include "mfp.h"
 
 #define MFP_DRIVE_VERY_SLOW	(0x0 << 13)
 #define MFP_DRIVE_SLOW		(0x1 << 13)
