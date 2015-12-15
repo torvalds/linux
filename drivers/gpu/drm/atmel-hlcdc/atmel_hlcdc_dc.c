@@ -346,6 +346,7 @@ static const struct of_device_id atmel_hlcdc_of_match[] = {
 	},
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, atmel_hlcdc_of_match);
 
 int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
 			      struct drm_display_mode *mode)
