@@ -2306,15 +2306,6 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	if (!HAS_RUNTIME_PM(dev))
 		return;
 
-	/*
-	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
-	 * requirement.
-	 */
-	if (!intel_enable_rc6(dev)) {
-		DRM_INFO("RC6 disabled, disabling runtime PM support\n");
-		return;
-	}
-
 	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
 	pm_runtime_mark_last_busy(device);
 	pm_runtime_use_autosuspend(device);

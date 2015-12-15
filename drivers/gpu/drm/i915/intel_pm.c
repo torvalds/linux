@@ -6014,7 +6014,17 @@ static void intel_init_emon(struct drm_device *dev)
 
 void intel_init_gt_powersave(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	i915.enable_rc6 = sanitize_rc6_option(dev, i915.enable_rc6);
+	/*
+	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
+	 * requirement.
+	 */
+	if (!i915.enable_rc6) {
+		DRM_INFO("RC6 disabled, disabling runtime PM support\n");
+		intel_runtime_pm_get(dev_priv);
+	}
 
 	if (IS_CHERRYVIEW(dev))
 		cherryview_init_gt_powersave(dev);
@@ -6024,10 +6034,15 @@ void intel_init_gt_powersave(struct drm_device *dev)
 
 void intel_cleanup_gt_powersave(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	if (IS_CHERRYVIEW(dev))
 		return;
 	else if (IS_VALLEYVIEW(dev))
 		valleyview_cleanup_gt_powersave(dev);
+
+	if (!i915.enable_rc6)
+		intel_runtime_pm_put(dev_priv);
 }
 
 static void gen6_suspend_rps(struct drm_device *dev)
