@@ -414,28 +414,22 @@ static int vce_v3_0_sw_fini(void *handle)
 
 static int vce_v3_0_hw_init(void *handle)
 {
-	struct amdgpu_ring *ring;
-	int r;
+	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = vce_v3_0_start(adev);
 	if (r)
 		return r;
 
-	ring = &adev->vce.ring[0];
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
-		return r;
-	}
+	adev->vce.ring[0].ready = false;
+	adev->vce.ring[1].ready = false;
 
-	ring = &adev->vce.ring[1];
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
-		return r;
+	for (i = 0; i < 2; i++) {
+		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
+		if (r)
+			return r;
+		else
+			adev->vce.ring[i].ready = true;
 	}
 
 	DRM_INFO("VCE initialized successfully.\n");
