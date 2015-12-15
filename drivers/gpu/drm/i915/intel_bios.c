@@ -1221,37 +1221,40 @@ static const struct bdb_header *get_bdb_header(const struct vbt_header *vbt)
 	return _vbt + vbt->bdb_offset;
 }
 
-static const struct vbt_header *validate_vbt(const void *base,
-					     size_t size,
-					     const void *_vbt)
+/**
+ * intel_bios_is_valid_vbt - does the given buffer contain a valid VBT
+ * @buf:	pointer to a buffer to validate
+ * @size:	size of the buffer
+ *
+ * Returns true on valid VBT.
+ */
+bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 {
-	size_t offset = _vbt - base;
-	const struct vbt_header *vbt = _vbt;
+	const struct vbt_header *vbt = buf;
 	const struct bdb_header *bdb;
 
 	if (!vbt)
-		return NULL;
+		return false;
 
-	if (offset + sizeof(struct vbt_header) > size) {
+	if (sizeof(struct vbt_header) > size) {
 		DRM_DEBUG_DRIVER("VBT header incomplete\n");
-		return NULL;
+		return false;
 	}
 
 	if (memcmp(vbt->signature, "$VBT", 4)) {
 		DRM_DEBUG_DRIVER("VBT invalid signature\n");
-		return NULL;
+		return false;
 	}
 
-	offset += vbt->bdb_offset;
-	if (offset + sizeof(struct bdb_header) > size) {
+	if (vbt->bdb_offset + sizeof(struct bdb_header) > size) {
 		DRM_DEBUG_DRIVER("BDB header incomplete\n");
-		return NULL;
+		return false;
 	}
 
 	bdb = get_bdb_header(vbt);
-	if (offset + bdb->bdb_size > size) {
+	if (vbt->bdb_offset + bdb->bdb_size > size) {
 		DRM_DEBUG_DRIVER("BDB incomplete\n");
-		return NULL;
+		return false;
 	}
 
 	return vbt;
@@ -1259,26 +1262,27 @@ static const struct vbt_header *validate_vbt(const void *base,
 
 static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
 {
-	const struct vbt_header *vbt = NULL;
 	size_t i;
 
 	/* Scour memory looking for the VBT signature. */
 	for (i = 0; i + 4 < size; i++) {
-		if (ioread32(bios + i) == *((const u32 *) "$VBT")) {
-			/*
-			 * This is the one place where we explicitly discard the
-			 * address space (__iomem) of the BIOS/VBT. From now on
-			 * everything is based on 'base', and treated as regular
-			 * memory.
-			 */
-			void *_bios = (void __force *) bios;
+		void *vbt;
 
-			vbt = validate_vbt(_bios, size, _bios + i);
-			break;
-		}
+		if (ioread32(bios + i) != *((const u32 *) "$VBT"))
+			continue;
+
+		/*
+		 * This is the one place where we explicitly discard the address
+		 * space (__iomem) of the BIOS/VBT.
+		 */
+		vbt = (void __force *) bios + i;
+		if (intel_bios_is_valid_vbt(vbt, size - i))
+			return vbt;
+
+		break;
 	}
 
-	return vbt;
+	return NULL;
 }
 
 /**
@@ -1295,7 +1299,7 @@ intel_bios_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;
-	const struct vbt_header *vbt;
+	const struct vbt_header *vbt = dev_priv->opregion.vbt;
 	const struct bdb_header *bdb;
 	u8 __iomem *bios = NULL;
 
@@ -1304,12 +1308,7 @@ intel_bios_init(struct drm_device *dev)
 
 	init_vbt_defaults(dev_priv);
 
-	/* XXX Should this validation be moved to intel_opregion.c? */
-	vbt = validate_vbt(dev_priv->opregion.header, OPREGION_SIZE,
-			   dev_priv->opregion.vbt);
-	if (vbt) {
-		DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion\n");
-	} else {
+	if (!vbt) {
 		size_t size;
 
 		bios = pci_map_rom(pdev, &size);
