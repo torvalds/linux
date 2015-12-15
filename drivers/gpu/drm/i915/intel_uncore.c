@@ -604,19 +604,19 @@ ilk_dummy_write(struct drm_i915_private *dev_priv)
 
 static void
 hsw_unclaimed_reg_debug(struct drm_i915_private *dev_priv,
-			i915_reg_t reg, bool read, bool before)
+			const i915_reg_t reg,
+			const bool read,
+			const bool before)
 {
-	const char *op = read ? "reading" : "writing to";
-	const char *when = before ? "before" : "after";
-
-	if (!i915.mmio_debug)
+	if (likely(!i915.mmio_debug))
 		return;
 
-	if (check_for_unclaimed_mmio(dev_priv)) {
-		WARN(1, "Unclaimed register detected %s %s register 0x%x\n",
-		     when, op, i915_mmio_reg_offset(reg));
+	if (WARN(check_for_unclaimed_mmio(dev_priv),
+		 "Unclaimed register detected %s %s register 0x%x\n",
+		 before ? "before" : "after",
+		 read ? "reading" : "writing to",
+		 i915_mmio_reg_offset(reg)))
 		i915.mmio_debug--; /* Only report the first N failures */
-	}
 }
 
 #define GEN2_READ_HEADER(x) \
