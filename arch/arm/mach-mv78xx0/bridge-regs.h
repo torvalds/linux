@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-mv78xx0/include/mach/bridge-regs.h
- *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
@@ -9,7 +7,7 @@
 #ifndef __ASM_ARCH_BRIDGE_REGS_H
 #define __ASM_ARCH_BRIDGE_REGS_H
 
-#include <mach/mv78xx0.h>
+#include "mv78xx0.h"
 
 #define CPU_CONTROL		(BRIDGE_VIRT_BASE + 0x0104)
 #define L2_WRITETHROUGH		0x00020000

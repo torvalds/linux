@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-orion5x/include/mach/irqs.h
- *
  * IRQ definitions for Orion SoC
  *
  *  Maintainer: Tzachi Perelstein <tzachi@marvell.com>
@@ -54,7 +52,7 @@
 #define IRQ_ORION5X_GPIO_START	33
 #define NR_GPIO_IRQS		32
 
-#define NR_IRQS			(IRQ_ORION5X_GPIO_START + NR_GPIO_IRQS)
+#define ORION5X_NR_IRQS		(IRQ_ORION5X_GPIO_START + NR_GPIO_IRQS)
 
 
 #endif

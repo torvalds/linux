@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-mv78xx0/include/mach/irqs.h
- *
  * IRQ definitions for Marvell MV78xx0 SoCs
  *
  * This file is licensed under the terms of the GNU General Public
@@ -88,7 +86,7 @@
 #define IRQ_MV78XX0_GPIO_START	96
 #define NR_GPIO_IRQS		32
 
-#define NR_IRQS			(IRQ_MV78XX0_GPIO_START + NR_GPIO_IRQS)
+#define MV78XX0_NR_IRQS		(IRQ_MV78XX0_GPIO_START + NR_GPIO_IRQS)
 
 
 #endif
