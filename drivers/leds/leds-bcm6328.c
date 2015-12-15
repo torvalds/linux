@@ -42,7 +42,7 @@
 #define BCM6328_LED_SHIFT_TEST		BIT(30)
 #define BCM6328_LED_TEST		BIT(31)
 #define BCM6328_INIT_MASK		(BCM6328_SERIAL_LED_EN | \
-					 BCM6328_SERIAL_LED_MUX  | \
+					 BCM6328_SERIAL_LED_MUX | \
 					 BCM6328_SERIAL_LED_CLK_NPOL | \
 					 BCM6328_SERIAL_LED_DATA_PPOL | \
 					 BCM6328_SERIAL_LED_SHIFT_DIR)
@@ -151,9 +151,9 @@ static int bcm6328_blink_set(struct led_classdev *led_cdev,
 	}
 
 	delay = *delay_on / BCM6328_LED_INTERVAL_MS;
-	if (delay == 0)
+	if (delay == 0) {
 		delay = 1;
-	else if (delay > BCM6328_LED_INTV_MASK) {
+	} else if (delay > BCM6328_LED_INTV_MASK) {
 		dev_dbg(led_cdev->dev,
 			"fallback to soft blinking (delay > %ums)\n",
 			BCM6328_LED_INTV_MASK * BCM6328_LED_INTERVAL_MS);
@@ -337,7 +337,7 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 	struct device_node *child;
 	struct resource *mem_r;
 	void __iomem *mem;
-	spinlock_t *lock;
+	spinlock_t *lock; /* memory lock */
 	unsigned long val, *blink_leds, *blink_delay;
 
 	mem_r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
