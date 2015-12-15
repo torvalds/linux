@@ -35,6 +35,7 @@ struct gb_interface {
 
 	/* The interface needs to boot over unipro */
 	bool boot_over_unipro;
+	bool disconnected;
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)
 

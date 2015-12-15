@@ -335,9 +335,10 @@ static int gb_svc_hello(struct gb_operation *op)
 static void gb_svc_intf_remove(struct gb_svc *svc, struct gb_interface *intf)
 {
 	u8 intf_id = intf->interface_id;
-	u8 device_id;
+	u8 device_id = intf->device_id;
 
-	device_id = intf->device_id;
+	intf->disconnected = true;
+
 	gb_interface_remove(intf);
 
 	/*

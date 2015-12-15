@@ -130,6 +130,9 @@ void gb_interface_remove(struct gb_interface *intf)
 	struct gb_bundle *bundle;
 	struct gb_bundle *next;
 
+	if (intf->disconnected)
+		gb_control_disable(intf->control);
+
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
 
