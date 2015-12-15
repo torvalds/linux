@@ -3865,9 +3865,8 @@ static void nf_tables_commit_release(struct nft_trans *trans)
 	kfree(trans);
 }
 
-static int nf_tables_commit(struct sk_buff *skb)
+static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 {
-	struct net *net = sock_net(skb->sk);
 	struct nft_trans *trans, *next;
 	struct nft_trans_elem *te;
 
@@ -4002,9 +4001,8 @@ static void nf_tables_abort_release(struct nft_trans *trans)
 	kfree(trans);
 }
 
-static int nf_tables_abort(struct sk_buff *skb)
+static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 {
-	struct net *net = sock_net(skb->sk);
 	struct nft_trans *trans, *next;
 	struct nft_trans_elem *te;
 

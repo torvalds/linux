@@ -425,15 +425,15 @@ next:
 	}
 done:
 	if (status & NFNL_BATCH_REPLAY) {
-		ss->abort(oskb);
+		ss->abort(net, oskb);
 		nfnl_err_reset(&err_list);
 		nfnl_unlock(subsys_id);
 		kfree_skb(skb);
 		goto replay;
 	} else if (status == NFNL_BATCH_DONE) {
-		ss->commit(oskb);
+		ss->commit(net, oskb);
 	} else {
-		ss->abort(oskb);
+		ss->abort(net, oskb);
 	}
 
 	nfnl_err_deliver(&err_list, oskb);
