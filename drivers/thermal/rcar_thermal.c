@@ -81,6 +81,12 @@ struct rcar_thermal_priv {
 # define rcar_force_update_temp(priv)	0
 #endif
 
+static const struct of_device_id rcar_thermal_dt_ids[] = {
+	{ .compatible = "renesas,rcar-thermal", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rcar_thermal_dt_ids);
+
 /*
  *		basic functions
  */
@@ -483,12 +489,6 @@ error_unregister:
 
 	return ret;
 }
-
-static const struct of_device_id rcar_thermal_dt_ids[] = {
-	{ .compatible = "renesas,rcar-thermal", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, rcar_thermal_dt_ids);
 
 static struct platform_driver rcar_thermal_driver = {
 	.driver	= {
