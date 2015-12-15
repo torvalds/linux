@@ -31,6 +31,11 @@
 #include <linux/hyperv.h>
 
 /*
+ * Timeout for services such as KVP and fcopy.
+ */
+#define HV_UTIL_TIMEOUT 30
+
+/*
  * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
  * is set by CPUID(HVCPUID_VERSION_FEATURES).
  */
