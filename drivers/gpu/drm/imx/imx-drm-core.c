@@ -39,13 +39,13 @@ struct imx_drm_component {
 struct imx_drm_device {
 	struct drm_device			*drm;
 	struct imx_drm_crtc			*crtc[MAX_CRTC];
-	int					pipes;
+	unsigned int				pipes;
 	struct drm_fbdev_cma			*fbhelper;
 };
 
 struct imx_drm_crtc {
 	struct drm_crtc				*crtc;
-	int					pipe;
+	unsigned int				pipe;
 	struct imx_drm_crtc_helper_funcs	imx_drm_helper_funcs;
 };
 
@@ -54,7 +54,7 @@ static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
 #endif
 
-int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
+unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
 {
 	return crtc->pipe;
 }

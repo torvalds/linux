@@ -13,7 +13,7 @@ struct drm_plane;
 struct imx_drm_crtc;
 struct platform_device;
 
-int imx_drm_crtc_id(struct imx_drm_crtc *crtc);
+unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc);
 
 struct imx_drm_crtc_helper_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
