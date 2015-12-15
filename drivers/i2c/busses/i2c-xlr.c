@@ -89,38 +89,43 @@ static int xlr_i2c_tx(struct xlr_i2c_private *priv,  u16 len,
 	unsigned long timeout, stoptime, checktime;
 	u32 i2c_status;
 	int pos, timedout;
-	u8 offset, byte;
+	u8 offset;
+	u32 xfer;
+
+	if (!len)
+		return -EOPNOTSUPP;
 
 	offset = buf[0];
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_ADDR, offset);
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_DEVADDR, addr);
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_CFG,
 			XLR_I2C_CFG_ADDR | priv->cfg->cfg_extra);
-	xlr_i2c_wreg(priv->iobase, XLR_I2C_BYTECNT, len - 1);
 
 	timeout = msecs_to_jiffies(XLR_I2C_TIMEOUT);
 	stoptime = jiffies + timeout;
 	timedout = 0;
-	pos = 1;
-retry:
+
 	if (len == 1) {
-		xlr_i2c_wreg(priv->iobase, XLR_I2C_STARTXFR,
-				XLR_I2C_STARTXFR_ND);
+		xlr_i2c_wreg(priv->iobase, XLR_I2C_BYTECNT, len - 1);
+		xfer = XLR_I2C_STARTXFR_ND;
+		pos = 1;
 	} else {
-		xlr_i2c_wreg(priv->iobase, XLR_I2C_DATAOUT, buf[pos]);
-		xlr_i2c_wreg(priv->iobase, XLR_I2C_STARTXFR,
-				XLR_I2C_STARTXFR_WR);
+		xlr_i2c_wreg(priv->iobase, XLR_I2C_BYTECNT, len - 2);
+		xlr_i2c_wreg(priv->iobase, XLR_I2C_DATAOUT, buf[1]);
+		xfer = XLR_I2C_STARTXFR_WR;
+		pos = 2;
 	}
+
+retry:
+	/* retry can only happen on the first byte */
+	xlr_i2c_wreg(priv->iobase, XLR_I2C_STARTXFR, xfer);
 
 	while (!timedout) {
 		checktime = jiffies;
 		i2c_status = xlr_i2c_rdreg(priv->iobase, XLR_I2C_STATUS);
 
-		if (i2c_status & XLR_I2C_SDOEMPTY) {
-			pos++;
-			/* need to do a empty dataout after the last byte */
-			byte = (pos < len) ? buf[pos] : 0;
-			xlr_i2c_wreg(priv->iobase, XLR_I2C_DATAOUT, byte);
+		if ((i2c_status & XLR_I2C_SDOEMPTY) && pos < len) {
+			xlr_i2c_wreg(priv->iobase, XLR_I2C_DATAOUT, buf[pos++]);
 
 			/* reset timeout on successful xmit */
 			stoptime = jiffies + timeout;
@@ -149,11 +154,13 @@ static int xlr_i2c_rx(struct xlr_i2c_private *priv, u16 len, u8 *buf, u16 addr)
 	u32 i2c_status;
 	unsigned long timeout, stoptime, checktime;
 	int nbytes, timedout;
-	u8 byte;
+
+	if (!len)
+		return -EOPNOTSUPP;
 
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_CFG,
 			XLR_I2C_CFG_NOADDR | priv->cfg->cfg_extra);
-	xlr_i2c_wreg(priv->iobase, XLR_I2C_BYTECNT, len);
+	xlr_i2c_wreg(priv->iobase, XLR_I2C_BYTECNT, len - 1);
 	xlr_i2c_wreg(priv->iobase, XLR_I2C_DEVADDR, addr);
 
 	timeout = msecs_to_jiffies(XLR_I2C_TIMEOUT);
@@ -167,14 +174,11 @@ retry:
 		checktime = jiffies;
 		i2c_status = xlr_i2c_rdreg(priv->iobase, XLR_I2C_STATUS);
 		if (i2c_status & XLR_I2C_RXRDY) {
-			if (nbytes > len)
+			if (nbytes >= len)
 				return -EIO;	/* should not happen */
 
-			/* we need to do a dummy datain when nbytes == len */
-			byte = xlr_i2c_rdreg(priv->iobase, XLR_I2C_DATAIN);
-			if (nbytes < len)
-				buf[nbytes] = byte;
-			nbytes++;
+			buf[nbytes++] =
+				xlr_i2c_rdreg(priv->iobase, XLR_I2C_DATAIN);
 
 			/* reset timeout on successful read */
 			stoptime = jiffies + timeout;
@@ -228,7 +232,7 @@ static int xlr_i2c_xfer(struct i2c_adapter *adap,
 static u32 xlr_func(struct i2c_adapter *adap)
 {
 	/* Emulate SMBUS over I2C */
-	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
+	return (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) | I2C_FUNC_I2C;
 }
 
 static struct i2c_algorithm xlr_i2c_algo = {
