@@ -23,7 +23,6 @@ struct gb_spi {
 	u8			num_chipselect;
 	u32			min_speed_hz;
 	u32			max_speed_hz;
-	struct spi_device	*spi_devices;
 };
 
 static struct spi_master *get_master_from_spi(struct gb_spi *spi)
@@ -284,7 +283,7 @@ static int gb_spi_setup_device(struct gb_spi *spi, u8 cs)
 	struct gb_spi_device_config_request request;
 	struct gb_spi_device_config_response response;
 	struct spi_board_info spi_board = { {0} };
-	struct spi_device *spidev = &spi->spi_devices[cs];
+	struct spi_device *spidev;
 	int ret;
 
 	request.chip_select = cs;
@@ -308,24 +307,6 @@ static int gb_spi_setup_device(struct gb_spi *spi, u8 cs)
 	return 0;
 }
 
-static int gb_spi_init(struct gb_spi *spi)
-{
-	int ret;
-
-	/* get master configuration */
-	ret = gb_spi_get_master_config(spi);
-	if (ret)
-		return ret;
-
-	spi->spi_devices = kcalloc(spi->num_chipselect,
-				   sizeof(struct spi_device), GFP_KERNEL);
-	if (!spi->spi_devices)
-		return -ENOMEM;
-
-	return ret;
-}
-
-
 static int gb_spi_connection_init(struct gb_connection *connection)
 {
 	struct gb_spi *spi;
@@ -344,7 +325,8 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 	spi->connection = connection;
 	connection->private = master;
 
-	ret = gb_spi_init(spi);
+	/* get master configuration */
+	ret = gb_spi_get_master_config(spi);
 	if (ret)
 		goto out_put_master;
 
