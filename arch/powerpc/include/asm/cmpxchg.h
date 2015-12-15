@@ -9,34 +9,10 @@
 /*
  * Atomic exchange
  *
- * Changes the memory location '*ptr' to be val and returns
+ * Changes the memory location '*p' to be val and returns
  * the previous value stored there.
  */
-static __always_inline unsigned long
-__xchg_u32(volatile void *p, unsigned long val)
-{
-	unsigned long prev;
 
-	__asm__ __volatile__(
-	PPC_ATOMIC_ENTRY_BARRIER
-"1:	lwarx	%0,0,%2 \n"
-	PPC405_ERR77(0,%2)
-"	stwcx.	%3,0,%2 \n\
-	bne-	1b"
-	PPC_ATOMIC_EXIT_BARRIER
-	: "=&r" (prev), "+m" (*(volatile unsigned int *)p)
-	: "r" (p), "r" (val)
-	: "cc", "memory");
-
-	return prev;
-}
-
-/*
- * Atomic exchange
- *
- * Changes the memory location '*ptr' to be val and returns
- * the previous value stored there.
- */
 static __always_inline unsigned long
 __xchg_u32_local(volatile void *p, unsigned long val)
 {
@@ -54,26 +30,24 @@ __xchg_u32_local(volatile void *p, unsigned long val)
 	return prev;
 }
 
-#ifdef CONFIG_PPC64
 static __always_inline unsigned long
-__xchg_u64(volatile void *p, unsigned long val)
+__xchg_u32_relaxed(u32 *p, unsigned long val)
 {
 	unsigned long prev;
 
 	__asm__ __volatile__(
-	PPC_ATOMIC_ENTRY_BARRIER
-"1:	ldarx	%0,0,%2 \n"
-	PPC405_ERR77(0,%2)
-"	stdcx.	%3,0,%2 \n\
-	bne-	1b"
-	PPC_ATOMIC_EXIT_BARRIER
-	: "=&r" (prev), "+m" (*(volatile unsigned long *)p)
+"1:	lwarx	%0,0,%2\n"
+	PPC405_ERR77(0, %2)
+"	stwcx.	%3,0,%2\n"
+"	bne-	1b"
+	: "=&r" (prev), "+m" (*p)
 	: "r" (p), "r" (val)
-	: "cc", "memory");
+	: "cc");
 
 	return prev;
 }
 
+#ifdef CONFIG_PPC64
 static __always_inline unsigned long
 __xchg_u64_local(volatile void *p, unsigned long val)
 {
@@ -90,6 +64,23 @@ __xchg_u64_local(volatile void *p, unsigned long val)
 
 	return prev;
 }
+
+static __always_inline unsigned long
+__xchg_u64_relaxed(u64 *p, unsigned long val)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__(
+"1:	ldarx	%0,0,%2\n"
+	PPC405_ERR77(0, %2)
+"	stdcx.	%3,0,%2\n"
+"	bne-	1b"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (val)
+	: "cc");
+
+	return prev;
+}
 #endif
 
 /*
@@ -97,21 +88,6 @@ __xchg_u64_local(volatile void *p, unsigned long val)
  * if something tries to do an invalid xchg().
  */
 extern void __xchg_called_with_bad_pointer(void);
-
-static __always_inline unsigned long
-__xchg(volatile void *ptr, unsigned long x, unsigned int size)
-{
-	switch (size) {
-	case 4:
-		return __xchg_u32(ptr, x);
-#ifdef CONFIG_PPC64
-	case 8:
-		return __xchg_u64(ptr, x);
-#endif
-	}
-	__xchg_called_with_bad_pointer();
-	return x;
-}
 
 static __always_inline unsigned long
 __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
@@ -127,12 +103,21 @@ __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
 	__xchg_called_with_bad_pointer();
 	return x;
 }
-#define xchg(ptr,x)							     \
-  ({									     \
-     __typeof__(*(ptr)) _x_ = (x);					     \
-     (__typeof__(*(ptr))) __xchg((ptr), (unsigned long)_x_, sizeof(*(ptr))); \
-  })
 
+static __always_inline unsigned long
+__xchg_relaxed(void *ptr, unsigned long x, unsigned int size)
+{
+	switch (size) {
+	case 4:
+		return __xchg_u32_relaxed(ptr, x);
+#ifdef CONFIG_PPC64
+	case 8:
+		return __xchg_u64_relaxed(ptr, x);
+#endif
+	}
+	__xchg_called_with_bad_pointer();
+	return x;
+}
 #define xchg_local(ptr,x)						     \
   ({									     \
      __typeof__(*(ptr)) _x_ = (x);					     \
@@ -140,6 +125,12 @@ __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
      		(unsigned long)_x_, sizeof(*(ptr))); 			     \
   })
 
+#define xchg_relaxed(ptr, x)						\
+({									\
+	__typeof__(*(ptr)) _x_ = (x);					\
+	(__typeof__(*(ptr))) __xchg_relaxed((ptr),			\
+			(unsigned long)_x_, sizeof(*(ptr)));		\
+})
 /*
  * Compare and exchange - if *p == old, set it to new,
  * and return the old value of *p.
