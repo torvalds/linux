@@ -182,12 +182,12 @@ static void acpi_print_osc_error(acpi_handle handle,
 	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer)))
 		printk(KERN_DEBUG "%s\n", error);
 	else {
-		printk(KERN_DEBUG "%s:%s\n", (char *)buffer.pointer, error);
+		printk(KERN_DEBUG "%s: %s\n", (char *)buffer.pointer, error);
 		kfree(buffer.pointer);
 	}
-	printk(KERN_DEBUG"_OSC request data:");
+	printk(KERN_DEBUG "_OSC request data:");
 	for (i = 0; i < context->cap.length; i += sizeof(u32))
-		printk("%x ", *((u32 *)(context->cap.pointer + i)));
+		printk(" %x", *((u32 *)(context->cap.pointer + i)));
 	printk("\n");
 }
 
