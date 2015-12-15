@@ -543,15 +543,14 @@ done:
 	return skb->len;
 }
 
-static int nf_tables_gettable(struct sock *nlsk, struct sk_buff *skb,
-			      const struct nlmsghdr *nlh,
+static int nf_tables_gettable(struct net *net, struct sock *nlsk,
+			      struct sk_buff *skb, const struct nlmsghdr *nlh,
 			      const struct nlattr * const nla[])
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	const struct nft_af_info *afi;
 	const struct nft_table *table;
 	struct sk_buff *skb2;
-	struct net *net = sock_net(skb->sk);
 	int family = nfmsg->nfgen_family;
 	int err;
 
@@ -1097,8 +1096,8 @@ done:
 	return skb->len;
 }
 
-static int nf_tables_getchain(struct sock *nlsk, struct sk_buff *skb,
-			      const struct nlmsghdr *nlh,
+static int nf_tables_getchain(struct net *net, struct sock *nlsk,
+			      struct sk_buff *skb, const struct nlmsghdr *nlh,
 			      const struct nlattr * const nla[])
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
@@ -1106,7 +1105,6 @@ static int nf_tables_getchain(struct sock *nlsk, struct sk_buff *skb,
 	const struct nft_table *table;
 	const struct nft_chain *chain;
 	struct sk_buff *skb2;
-	struct net *net = sock_net(skb->sk);
 	int family = nfmsg->nfgen_family;
 	int err;
 
@@ -1923,8 +1921,8 @@ done:
 	return skb->len;
 }
 
-static int nf_tables_getrule(struct sock *nlsk, struct sk_buff *skb,
-			     const struct nlmsghdr *nlh,
+static int nf_tables_getrule(struct net *net, struct sock *nlsk,
+			     struct sk_buff *skb, const struct nlmsghdr *nlh,
 			     const struct nlattr * const nla[])
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
@@ -1933,7 +1931,6 @@ static int nf_tables_getrule(struct sock *nlsk, struct sk_buff *skb,
 	const struct nft_chain *chain;
 	const struct nft_rule *rule;
 	struct sk_buff *skb2;
-	struct net *net = sock_net(skb->sk);
 	int family = nfmsg->nfgen_family;
 	int err;
 
@@ -2604,11 +2601,10 @@ static int nf_tables_dump_sets_done(struct netlink_callback *cb)
 	return 0;
 }
 
-static int nf_tables_getset(struct sock *nlsk, struct sk_buff *skb,
-			    const struct nlmsghdr *nlh,
+static int nf_tables_getset(struct net *net, struct sock *nlsk,
+			    struct sk_buff *skb, const struct nlmsghdr *nlh,
 			    const struct nlattr * const nla[])
 {
-	struct net *net = sock_net(skb->sk);
 	const struct nft_set *set;
 	struct nft_ctx ctx;
 	struct sk_buff *skb2;
@@ -3190,11 +3186,10 @@ nla_put_failure:
 	return -ENOSPC;
 }
 
-static int nf_tables_getsetelem(struct sock *nlsk, struct sk_buff *skb,
-				const struct nlmsghdr *nlh,
+static int nf_tables_getsetelem(struct net *net, struct sock *nlsk,
+				struct sk_buff *skb, const struct nlmsghdr *nlh,
 				const struct nlattr * const nla[])
 {
-	struct net *net = sock_net(skb->sk);
 	const struct nft_set *set;
 	struct nft_ctx ctx;
 	int err;
@@ -3723,11 +3718,10 @@ err:
 	return err;
 }
 
-static int nf_tables_getgen(struct sock *nlsk, struct sk_buff *skb,
-			    const struct nlmsghdr *nlh,
+static int nf_tables_getgen(struct net *net, struct sock *nlsk,
+			    struct sk_buff *skb, const struct nlmsghdr *nlh,
 			    const struct nlattr * const nla[])
 {
-	struct net *net = sock_net(skb->sk);
 	struct sk_buff *skb2;
 	int err;
 

@@ -957,10 +957,10 @@ static int nfq_id_after(unsigned int id, unsigned int max)
 	return (int)(id - max) > 0;
 }
 
-static int
-nfqnl_recv_verdict_batch(struct sock *ctnl, struct sk_buff *skb,
-		   const struct nlmsghdr *nlh,
-		   const struct nlattr * const nfqa[])
+static int nfqnl_recv_verdict_batch(struct net *net, struct sock *ctnl,
+				    struct sk_buff *skb,
+				    const struct nlmsghdr *nlh,
+			            const struct nlattr * const nfqa[])
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	struct nf_queue_entry *entry, *tmp;
@@ -969,8 +969,6 @@ nfqnl_recv_verdict_batch(struct sock *ctnl, struct sk_buff *skb,
 	struct nfqnl_instance *queue;
 	LIST_HEAD(batch_list);
 	u16 queue_num = ntohs(nfmsg->res_id);
-
-	struct net *net = sock_net(ctnl);
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
 	queue = verdict_instance_lookup(q, queue_num,
@@ -1029,14 +1027,13 @@ static struct nf_conn *nfqnl_ct_parse(struct nfnl_ct_hook *nfnl_ct,
 	return ct;
 }
 
-static int
-nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
-		   const struct nlmsghdr *nlh,
-		   const struct nlattr * const nfqa[])
+static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
+			      struct sk_buff *skb,
+			      const struct nlmsghdr *nlh,
+			      const struct nlattr * const nfqa[])
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
-
 	struct nfqnl_msg_verdict_hdr *vhdr;
 	struct nfqnl_instance *queue;
 	unsigned int verdict;
@@ -1044,8 +1041,6 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	enum ip_conntrack_info uninitialized_var(ctinfo);
 	struct nfnl_ct_hook *nfnl_ct;
 	struct nf_conn *ct = NULL;
-
-	struct net *net = sock_net(ctnl);
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
 	queue = instance_lookup(q, queue_num);
@@ -1092,10 +1087,9 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	return 0;
 }
 
-static int
-nfqnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
-		  const struct nlmsghdr *nlh,
-		  const struct nlattr * const nfqa[])
+static int nfqnl_recv_unsupp(struct net *net, struct sock *ctnl,
+			     struct sk_buff *skb, const struct nlmsghdr *nlh,
+			     const struct nlattr * const nfqa[])
 {
 	return -ENOTSUPP;
 }
@@ -1110,16 +1104,14 @@ static const struct nf_queue_handler nfqh = {
 	.nf_hook_drop	= &nfqnl_nf_hook_drop,
 };
 
-static int
-nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
-		  const struct nlmsghdr *nlh,
-		  const struct nlattr * const nfqa[])
+static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
+			     struct sk_buff *skb, const struct nlmsghdr *nlh,
+			     const struct nlattr * const nfqa[])
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
 	struct nfqnl_instance *queue;
 	struct nfqnl_msg_config_cmd *cmd = NULL;
-	struct net *net = sock_net(ctnl);
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	int ret = 0;
 
