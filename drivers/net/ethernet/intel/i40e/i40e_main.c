@@ -8766,7 +8766,7 @@ static netdev_features_t i40e_features_check(struct sk_buff *skb,
 	if (skb->encapsulation &&
 	    (skb_inner_mac_header(skb) - skb_transport_header(skb) >
 	     I40E_MAX_TUNNEL_HDR_LEN))
-		return features & ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+		return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 
 	return features;
 }
@@ -8842,7 +8842,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 
 	netdev->features = NETIF_F_SG		       |
 			   NETIF_F_IP_CSUM	       |
-			   NETIF_F_SCTP_CSUM	       |
+			   NETIF_F_SCTP_CRC	       |
 			   NETIF_F_HIGHDMA	       |
 			   NETIF_F_GSO_UDP_TUNNEL      |
 			   NETIF_F_GSO_GRE	       |

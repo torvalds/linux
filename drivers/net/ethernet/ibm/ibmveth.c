@@ -763,7 +763,7 @@ static netdev_features_t ibmveth_fix_features(struct net_device *dev,
 	 */
 
 	if (!(features & NETIF_F_RXCSUM))
-		features &= ~NETIF_F_ALL_CSUM;
+		features &= ~NETIF_F_CSUM_MASK;
 
 	return features;
 }
@@ -928,7 +928,8 @@ static int ibmveth_set_features(struct net_device *dev,
 		rc1 = ibmveth_set_csum_offload(dev, rx_csum);
 		if (rc1 && !adapter->rx_csum)
 			dev->features =
-				features & ~(NETIF_F_ALL_CSUM | NETIF_F_RXCSUM);
+				features & ~(NETIF_F_CSUM_MASK |
+					     NETIF_F_RXCSUM);
 	}
 
 	if (large_send != adapter->large_send) {

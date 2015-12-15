@@ -1986,7 +1986,7 @@ rtl8152_features_check(struct sk_buff *skb, struct net_device *dev,
 	int offset = skb_transport_offset(skb);
 
 	if ((mss || skb->ip_summed == CHECKSUM_PARTIAL) && offset > max_offset)
-		features &= ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+		features &= ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 	else if ((skb->len + sizeof(struct tx_desc)) > agg_buf_sz)
 		features &= ~NETIF_F_GSO_MASK;
 

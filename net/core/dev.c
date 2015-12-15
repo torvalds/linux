@@ -138,6 +138,7 @@
 #include <linux/errqueue.h>
 #include <linux/hrtimer.h>
 #include <linux/netfilter_ingress.h>
+#include <linux/sctp.h>
 
 #include "net-sysfs.h"
 
@@ -2471,6 +2472,141 @@ out:
 }
 EXPORT_SYMBOL(skb_checksum_help);
 
+/* skb_csum_offload_check - Driver helper function to determine if a device
+ * with limited checksum offload capabilities is able to offload the checksum
+ * for a given packet.
+ *
+ * Arguments:
+ *   skb - sk_buff for the packet in question
+ *   spec - contains the description of what device can offload
+ *   csum_encapped - returns true if the checksum being offloaded is
+ *	      encpasulated. That is it is checksum for the transport header
+ *	      in the inner headers.
+ *   checksum_help - when set indicates that helper function should
+ *	      call skb_checksum_help if offload checks fail
+ *
+ * Returns:
+ *   true: Packet has passed the checksum checks and should be offloadable to
+ *	   the device (a driver may still need to check for additional
+ *	   restrictions of its device)
+ *   false: Checksum is not offloadable. If checksum_help was set then
+ *	   skb_checksum_help was called to resolve checksum for non-GSO
+ *	   packets and when IP protocol is not SCTP
+ */
+bool __skb_csum_offload_chk(struct sk_buff *skb,
+			    const struct skb_csum_offl_spec *spec,
+			    bool *csum_encapped,
+			    bool csum_help)
+{
+	struct iphdr *iph;
+	struct ipv6hdr *ipv6;
+	void *nhdr;
+	int protocol;
+	u8 ip_proto;
+
+	if (skb->protocol == htons(ETH_P_8021Q) ||
+	    skb->protocol == htons(ETH_P_8021AD)) {
+		if (!spec->vlan_okay)
+			goto need_help;
+	}
+
+	/* We check whether the checksum refers to a transport layer checksum in
+	 * the outermost header or an encapsulated transport layer checksum that
+	 * corresponds to the inner headers of the skb. If the checksum is for
+	 * something else in the packet we need help.
+	 */
+	if (skb_checksum_start_offset(skb) == skb_transport_offset(skb)) {
+		/* Non-encapsulated checksum */
+		protocol = eproto_to_ipproto(vlan_get_protocol(skb));
+		nhdr = skb_network_header(skb);
+		*csum_encapped = false;
+		if (spec->no_not_encapped)
+			goto need_help;
+	} else if (skb->encapsulation && spec->encap_okay &&
+		   skb_checksum_start_offset(skb) ==
+		   skb_inner_transport_offset(skb)) {
+		/* Encapsulated checksum */
+		*csum_encapped = true;
+		switch (skb->inner_protocol_type) {
+		case ENCAP_TYPE_ETHER:
+			protocol = eproto_to_ipproto(skb->inner_protocol);
+			break;
+		case ENCAP_TYPE_IPPROTO:
+			protocol = skb->inner_protocol;
+			break;
+		}
+		nhdr = skb_inner_network_header(skb);
+	} else {
+		goto need_help;
+	}
+
+	switch (protocol) {
+	case IPPROTO_IP:
+		if (!spec->ipv4_okay)
+			goto need_help;
+		iph = nhdr;
+		ip_proto = iph->protocol;
+		if (iph->ihl != 5 && !spec->ip_options_okay)
+			goto need_help;
+		break;
+	case IPPROTO_IPV6:
+		if (!spec->ipv6_okay)
+			goto need_help;
+		if (spec->no_encapped_ipv6 && *csum_encapped)
+			goto need_help;
+		ipv6 = nhdr;
+		nhdr += sizeof(*ipv6);
+		ip_proto = ipv6->nexthdr;
+		break;
+	default:
+		goto need_help;
+	}
+
+ip_proto_again:
+	switch (ip_proto) {
+	case IPPROTO_TCP:
+		if (!spec->tcp_okay ||
+		    skb->csum_offset != offsetof(struct tcphdr, check))
+			goto need_help;
+		break;
+	case IPPROTO_UDP:
+		if (!spec->udp_okay ||
+		    skb->csum_offset != offsetof(struct udphdr, check))
+			goto need_help;
+		break;
+	case IPPROTO_SCTP:
+		if (!spec->sctp_okay ||
+		    skb->csum_offset != offsetof(struct sctphdr, checksum))
+			goto cant_help;
+		break;
+	case NEXTHDR_HOP:
+	case NEXTHDR_ROUTING:
+	case NEXTHDR_DEST: {
+		u8 *opthdr = nhdr;
+
+		if (protocol != IPPROTO_IPV6 || !spec->ext_hdrs_okay)
+			goto need_help;
+
+		ip_proto = opthdr[0];
+		nhdr += (opthdr[1] + 1) << 3;
+
+		goto ip_proto_again;
+	}
+	default:
+		goto need_help;
+	}
+
+	/* Passed the tests for offloading checksum */
+	return true;
+
+need_help:
+	if (csum_help && !skb_shinfo(skb)->gso_size)
+		skb_checksum_help(skb);
+cant_help:
+	return false;
+}
+EXPORT_SYMBOL(__skb_csum_offload_chk);
+
 __be16 skb_network_protocol(struct sk_buff *skb, int *depth)
 {
 	__be16 type = skb->protocol;
@@ -2645,7 +2781,7 @@ static netdev_features_t harmonize_features(struct sk_buff *skb,
 
 	if (skb->ip_summed != CHECKSUM_NONE &&
 	    !can_checksum_protocol(features, type)) {
-		features &= ~NETIF_F_ALL_CSUM;
+		features &= ~NETIF_F_CSUM_MASK;
 	} else if (illegal_highdma(skb->dev, skb)) {
 		features &= ~NETIF_F_SG;
 	}
@@ -2792,7 +2928,7 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 			else
 				skb_set_transport_header(skb,
 							 skb_checksum_start_offset(skb));
-			if (!(features & NETIF_F_ALL_CSUM) &&
+			if (!(features & NETIF_F_CSUM_MASK) &&
 			    skb_checksum_help(skb))
 				goto out_kfree_skb;
 		}
@@ -6467,9 +6603,9 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 	/* UFO needs SG and checksumming */
 	if (features & NETIF_F_UFO) {
 		/* maybe split UFO into V4 and V6? */
-		if (!((features & NETIF_F_GEN_CSUM) ||
-		    (features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))
-			    == (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
+		if (!(features & NETIF_F_HW_CSUM) &&
+		    ((features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)) !=
+		     (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM))) {
 			netdev_dbg(dev,
 				"Dropping NETIF_F_UFO since no checksum offload features.\n");
 			features &= ~NETIF_F_UFO;
@@ -7571,16 +7707,16 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 netdev_features_t netdev_increment_features(netdev_features_t all,
 	netdev_features_t one, netdev_features_t mask)
 {
-	if (mask & NETIF_F_GEN_CSUM)
-		mask |= NETIF_F_ALL_CSUM;
+	if (mask & NETIF_F_HW_CSUM)
+		mask |= NETIF_F_CSUM_MASK;
 	mask |= NETIF_F_VLAN_CHALLENGED;
 
-	all |= one & (NETIF_F_ONE_FOR_ALL|NETIF_F_ALL_CSUM) & mask;
+	all |= one & (NETIF_F_ONE_FOR_ALL | NETIF_F_CSUM_MASK) & mask;
 	all &= one | ~NETIF_F_ALL_FOR_ALL;
 
 	/* If one device supports hw checksumming, set for all. */
-	if (all & NETIF_F_GEN_CSUM)
-		all &= ~(NETIF_F_ALL_CSUM & ~NETIF_F_GEN_CSUM);
+	if (all & NETIF_F_HW_CSUM)
+		all &= ~(NETIF_F_CSUM_MASK & ~NETIF_F_HW_CSUM);
 
 	return all;
 }

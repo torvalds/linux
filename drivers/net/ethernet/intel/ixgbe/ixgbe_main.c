@@ -8598,7 +8598,7 @@ ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
 
 	if (unlikely(skb_inner_mac_header(skb) - skb_transport_header(skb) >
 		     IXGBE_MAX_TUNNEL_HDR_LEN))
-		return features & ~NETIF_F_ALL_CSUM;
+		return features & ~NETIF_F_CSUM_MASK;
 
 	return features;
 }
@@ -8995,8 +8995,8 @@ skip_sriov:
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
-		netdev->features |= NETIF_F_SCTP_CSUM;
-		netdev->hw_features |= NETIF_F_SCTP_CSUM |
+		netdev->features |= NETIF_F_SCTP_CRC;
+		netdev->hw_features |= NETIF_F_SCTP_CRC |
 				       NETIF_F_NTUPLE;
 		break;
 	default:

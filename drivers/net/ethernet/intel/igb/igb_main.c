@@ -2379,8 +2379,8 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	if (hw->mac.type >= e1000_82576) {
-		netdev->hw_features |= NETIF_F_SCTP_CSUM;
-		netdev->features |= NETIF_F_SCTP_CSUM;
+		netdev->hw_features |= NETIF_F_SCTP_CRC;
+		netdev->features |= NETIF_F_SCTP_CRC;
 	}
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;

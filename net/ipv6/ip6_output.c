@@ -1322,7 +1322,7 @@ emsgsize:
 	    headersize == sizeof(struct ipv6hdr) &&
 	    length < mtu - headersize &&
 	    !(flags & MSG_MORE) &&
-	    rt->dst.dev->features & NETIF_F_V6_CSUM)
+	    rt->dst.dev->features & (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))
 		csummode = CHECKSUM_PARTIAL;
 
 	if (sk->sk_type == SOCK_DGRAM || sk->sk_type == SOCK_RAW) {
