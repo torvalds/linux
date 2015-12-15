@@ -580,13 +580,15 @@ EXPORT_SYMBOL_GPL(__media_entity_remove_links);
 
 void media_entity_remove_links(struct media_entity *entity)
 {
+	struct media_device *mdev = entity->graph_obj.mdev;
+
 	/* Do nothing if the entity is not registered. */
-	if (entity->graph_obj.mdev == NULL)
+	if (mdev == NULL)
 		return;
 
-	spin_lock(&entity->graph_obj.mdev->lock);
+	spin_lock(&mdev->lock);
 	__media_entity_remove_links(entity);
-	spin_unlock(&entity->graph_obj.mdev->lock);
+	spin_unlock(&mdev->lock);
 }
 EXPORT_SYMBOL_GPL(media_entity_remove_links);
 
@@ -781,9 +783,15 @@ EXPORT_SYMBOL_GPL(__media_remove_intf_link);
 
 void media_remove_intf_link(struct media_link *link)
 {
-	spin_lock(&link->graph_obj.mdev->lock);
+	struct media_device *mdev = link->graph_obj.mdev;
+
+	/* Do nothing if the intf is not registered. */
+	if (mdev == NULL)
+		return;
+
+	spin_lock(&mdev->lock);
 	__media_remove_intf_link(link);
-	spin_unlock(&link->graph_obj.mdev->lock);
+	spin_unlock(&mdev->lock);
 }
 EXPORT_SYMBOL_GPL(media_remove_intf_link);
 
@@ -799,12 +807,14 @@ EXPORT_SYMBOL_GPL(__media_remove_intf_links);
 
 void media_remove_intf_links(struct media_interface *intf)
 {
+	struct media_device *mdev = intf->graph_obj.mdev;
+
 	/* Do nothing if the intf is not registered. */
-	if (intf->graph_obj.mdev == NULL)
+	if (mdev == NULL)
 		return;
 
-	spin_lock(&intf->graph_obj.mdev->lock);
+	spin_lock(&mdev->lock);
 	__media_remove_intf_links(intf);
-	spin_unlock(&intf->graph_obj.mdev->lock);
+	spin_unlock(&mdev->lock);
 }
 EXPORT_SYMBOL_GPL(media_remove_intf_links);
