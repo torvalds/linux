@@ -3028,6 +3028,8 @@ static int mxt_enter_bootloader(struct mxt_data *data)
 	}
 
 	if (!data->in_bootloader) {
+		disable_irq(data->irq);
+
 		/* Change to the bootloader mode */
 		ret = mxt_t6_command(data, MXT_COMMAND_RESET,
 				     MXT_BOOT_VALUE, false);
