@@ -573,17 +573,12 @@ EXPORT_SYMBOL_GPL(media_device_register_entity);
  * If the entity has never been registered this function will return
  * immediately.
  */
-void media_device_unregister_entity(struct media_entity *entity)
+static void __media_device_unregister_entity(struct media_entity *entity)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_link *link, *tmp;
 	struct media_interface *intf;
 	unsigned int i;
-
-	if (mdev == NULL)
-		return;
-
-	spin_lock(&mdev->lock);
 
 	/* Remove all interface links pointing to this entity */
 	list_for_each_entry(intf, &mdev->interfaces, graph_obj.list) {
@@ -603,10 +598,22 @@ void media_device_unregister_entity(struct media_entity *entity)
 	/* Remove the entity */
 	media_gobj_destroy(&entity->graph_obj);
 
-	spin_unlock(&mdev->lock);
 	entity->graph_obj.mdev = NULL;
 }
+
+void media_device_unregister_entity(struct media_entity *entity)
+{
+	struct media_device *mdev = entity->graph_obj.mdev;
+
+	if (mdev == NULL)
+		return;
+
+	spin_lock(&mdev->lock);
+	__media_device_unregister_entity(entity);
+	spin_unlock(&mdev->lock);
+}
 EXPORT_SYMBOL_GPL(media_device_unregister_entity);
+
 
 /**
  * media_device_register - register a media device
@@ -666,22 +673,29 @@ void media_device_unregister(struct media_device *mdev)
 	struct media_entity *next;
 	struct media_interface *intf, *tmp_intf;
 
-	/* Check if mdev was ever registered at all */
-	if (!media_devnode_is_registered(&mdev->devnode))
+	if (mdev == NULL)
 		return;
+
+	spin_lock(&mdev->lock);
+
+	/* Check if mdev was ever registered at all */
+	if (!media_devnode_is_registered(&mdev->devnode)) {
+		spin_unlock(&mdev->lock);
+		return;
+	}
 
 	/* Remove all entities from the media device */
 	list_for_each_entry_safe(entity, next, &mdev->entities, graph_obj.list)
-		media_device_unregister_entity(entity);
+		__media_device_unregister_entity(entity);
 
 	/* Remove all interfaces from the media device */
-	spin_lock(&mdev->lock);
 	list_for_each_entry_safe(intf, tmp_intf, &mdev->interfaces,
 				 graph_obj.list) {
 		__media_remove_intf_links(intf);
 		media_gobj_destroy(&intf->graph_obj);
 		kfree(intf);
 	}
+
 	spin_unlock(&mdev->lock);
 
 	device_remove_file(&mdev->devnode.dev, &dev_attr_model);
