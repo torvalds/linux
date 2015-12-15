@@ -208,7 +208,7 @@ static unsigned int skl_get_errorcode(struct sst_dsp *ctx)
  * since get/set_module are called from DAPM context,
  * we don't need lock for usage count
  */
-static unsigned int skl_get_module(struct sst_dsp *ctx, u16 mod_id)
+static int skl_get_module(struct sst_dsp *ctx, u16 mod_id)
 {
 	struct skl_module_table *module;
 
@@ -220,7 +220,7 @@ static unsigned int skl_get_module(struct sst_dsp *ctx, u16 mod_id)
 	return -EINVAL;
 }
 
-static unsigned int skl_put_module(struct sst_dsp *ctx, u16 mod_id)
+static int skl_put_module(struct sst_dsp *ctx, u16 mod_id)
 {
 	struct skl_module_table *module;
 
@@ -340,7 +340,7 @@ static int skl_load_module(struct sst_dsp *ctx, u16 mod_id, char *guid)
 
 static int skl_unload_module(struct sst_dsp *ctx, u16 mod_id)
 {
-	unsigned int usage_cnt;
+	int usage_cnt;
 	struct skl_sst *skl = ctx->thread_context;
 	int ret = 0;
 
