@@ -314,14 +314,11 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 {
 	u32 tmp;
-	unsigned ret;
 
 	/* Fiji, Stoney are single pipe */
 	if ((adev->asic_type == CHIP_FIJI) ||
-	    (adev->asic_type == CHIP_STONEY)){
-		ret = AMDGPU_VCE_HARVEST_VCE1;
-		return ret;
-	}
+	    (adev->asic_type == CHIP_STONEY))
+		return AMDGPU_VCE_HARVEST_VCE1;
 
 	/* Tonga and CZ are dual or single pipe */
 	if (adev->flags & AMD_IS_APU)
@@ -335,19 +332,14 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 
 	switch (tmp) {
 	case 1:
-		ret = AMDGPU_VCE_HARVEST_VCE0;
-		break;
+		return AMDGPU_VCE_HARVEST_VCE0;
 	case 2:
-		ret = AMDGPU_VCE_HARVEST_VCE1;
-		break;
+		return AMDGPU_VCE_HARVEST_VCE1;
 	case 3:
-		ret = AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1;
-		break;
+		return AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1;
 	default:
-		ret = 0;
+		return 0;
 	}
-
-	return ret;
 }
 
 static int vce_v3_0_early_init(void *handle)
