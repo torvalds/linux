@@ -1763,7 +1763,6 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 				       struct pnfs_layout_segment *lseg)
 {
 	struct pnfs_layout_hdr *lo = NFS_I(inode)->layout;
-	int iomode = pnfs_iomode_to_fail_bit(lseg->pls_range.iomode);
 	struct pnfs_layout_range range = {
 		.iomode = lseg->pls_range.iomode,
 		.offset = 0,
@@ -1772,8 +1771,6 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 	LIST_HEAD(free_me);
 
 	spin_lock(&inode->i_lock);
-	/* set failure bit so that pnfs path will be retried later */
-	pnfs_layout_set_fail_bit(lo, iomode);
 	if (lo->plh_return_iomode == 0)
 		lo->plh_return_iomode = range.iomode;
 	else if (lo->plh_return_iomode != range.iomode)
