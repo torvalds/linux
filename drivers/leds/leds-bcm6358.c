@@ -49,12 +49,20 @@ struct bcm6358_led {
 
 static void bcm6358_led_write(void __iomem *reg, unsigned long data)
 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
 	iowrite32be(data, reg);
+#else
+	writel(data, reg);
+#endif
 }
 
 static unsigned long bcm6358_led_read(void __iomem *reg)
 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
 	return ioread32be(reg);
+#else
+	return readl(reg);
+#endif
 }
 
 static unsigned long bcm6358_led_busy(void __iomem *mem)
