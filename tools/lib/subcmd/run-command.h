@@ -1,5 +1,5 @@
-#ifndef __PERF_RUN_COMMAND_H
-#define __PERF_RUN_COMMAND_H
+#ifndef __SUBCMD_RUN_COMMAND_H
+#define __SUBCMD_RUN_COMMAND_H
 
 #include <unistd.h>
 
@@ -57,4 +57,4 @@ int run_command(struct child_process *);
 #define RUN_COMMAND_STDOUT_TO_STDERR 4
 int run_command_v_opt(const char **argv, int opt);
 
-#endif /* __PERF_RUN_COMMAND_H */
+#endif /* __SUBCMD_RUN_COMMAND_H */

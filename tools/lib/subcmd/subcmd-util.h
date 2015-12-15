@@ -1,5 +1,5 @@
-#ifndef __PERF_SUBCMD_UTIL_H
-#define __PERF_SUBCMD_UTIL_H
+#ifndef __SUBCMD_UTIL_H
+#define __SUBCMD_UTIL_H
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -88,4 +88,4 @@ static inline int prefixcmp(const char *str, const char *prefix)
 			return (unsigned char)*prefix - (unsigned char)*str;
 }
 
-#endif /* __PERF_SUBCMD_UTIL_H */
+#endif /* __SUBCMD_UTIL_H */

@@ -1,5 +1,5 @@
-#ifndef __PERF_EXEC_CMD_H
-#define __PERF_EXEC_CMD_H
+#ifndef __SUBCMD_EXEC_CMD_H
+#define __SUBCMD_EXEC_CMD_H
 
 extern void exec_cmd_init(const char *exec_name, const char *prefix,
 			  const char *exec_path, const char *exec_path_env);
@@ -13,4 +13,4 @@ extern int execl_cmd(const char *cmd, ...);
 extern char *get_argv_exec_path(void);
 extern char *system_path(const char *path);
 
-#endif /* __PERF_EXEC_CMD_H */
+#endif /* __SUBCMD_EXEC_CMD_H */

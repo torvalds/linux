@@ -1,5 +1,5 @@
-#ifndef __PERF_HELP_H
-#define __PERF_HELP_H
+#ifndef __SUBCMD_HELP_H
+#define __SUBCMD_HELP_H
 
 #include <sys/types.h>
 
@@ -31,4 +31,4 @@ int is_in_cmdlist(struct cmdnames *c, const char *s);
 void list_commands(const char *title, struct cmdnames *main_cmds,
 		   struct cmdnames *other_cmds);
 
-#endif /* __PERF_HELP_H */
+#endif /* __SUBCMD_HELP_H */

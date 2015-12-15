@@ -1,5 +1,5 @@
-#ifndef __PERF_PARSE_OPTIONS_H
-#define __PERF_PARSE_OPTIONS_H
+#ifndef __SUBCMD_PARSE_OPTIONS_H
+#define __SUBCMD_PARSE_OPTIONS_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -225,4 +225,5 @@ extern const char *parse_options_fix_filename(const char *prefix, const char *fi
 void set_option_flag(struct option *opts, int sopt, const char *lopt, int flag);
 void set_option_nobuild(struct option *opts, int shortopt, const char *longopt,
 			const char *build_opt, bool can_skip);
-#endif /* __PERF_PARSE_OPTIONS_H */
+
+#endif /* __SUBCMD_PARSE_OPTIONS_H */
