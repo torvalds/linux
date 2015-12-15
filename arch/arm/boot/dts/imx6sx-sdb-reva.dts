@@ -10,6 +10,20 @@
 
 / {
 	model = "Freescale i.MX6 SoloX SDB RevA Board";
+
+	regulators {
+		/* Transceiver EN/STBY is active high on RevA board */
+		reg_can_en: regulator@9 {
+			gpio = <&gpio4 25 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_can_stby: regulator@10 {
+			gpio = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&reg_can_en>;
+		};
+	};
 };
 
 &cpu0 {
