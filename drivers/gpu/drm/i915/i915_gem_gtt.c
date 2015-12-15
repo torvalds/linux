@@ -2351,6 +2351,9 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	int i = 0;
 	struct sg_page_iter sg_iter;
 	dma_addr_t addr = 0; /* shut up gcc */
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_dma_address(sg_iter.sg) +
@@ -2377,6 +2380,8 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 /*
@@ -2397,6 +2402,9 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	int i = 0;
 	struct sg_page_iter sg_iter;
 	dma_addr_t addr = 0;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_page_iter_dma_address(&sg_iter);
@@ -2421,6 +2429,8 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 static void gen8_ggtt_clear_range(struct i915_address_space *vm,
@@ -2435,6 +2445,9 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 		(gen8_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
 	const int max_entries = gtt_total_entries(dev_priv->gtt) - first_entry;
 	int i;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	if (WARN(num_entries > max_entries,
 		 "First entry = %d; Num entries = %d (max=%d)\n",
@@ -2447,6 +2460,8 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 	for (i = 0; i < num_entries; i++)
 		gen8_set_pte(&gtt_base[i], scratch_pte);
 	readl(gtt_base);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 static void gen6_ggtt_clear_range(struct i915_address_space *vm,
@@ -2461,6 +2476,9 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 		(gen6_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
 	const int max_entries = gtt_total_entries(dev_priv->gtt) - first_entry;
 	int i;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	if (WARN(num_entries > max_entries,
 		 "First entry = %d; Num entries = %d (max=%d)\n",
@@ -2473,6 +2491,8 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 	for (i = 0; i < num_entries; i++)
 		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 static void i915_ggtt_insert_entries(struct i915_address_space *vm,
@@ -2480,10 +2500,16 @@ static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 				     uint64_t start,
 				     enum i915_cache_level cache_level, u32 unused)
 {
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	intel_gtt_insert_sg_entries(pages, start >> PAGE_SHIFT, flags);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 
 }
 
@@ -2492,9 +2518,16 @@ static void i915_ggtt_clear_range(struct i915_address_space *vm,
 				  uint64_t length,
 				  bool unused)
 {
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned num_entries = length >> PAGE_SHIFT;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
+
 	intel_gtt_clear_range(first_entry, num_entries);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 static int ggtt_bind_vma(struct i915_vma *vma,
