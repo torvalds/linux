@@ -662,9 +662,9 @@ int media_entity_setup_link(struct media_link *link, u32 flags)
 {
 	int ret;
 
-	spin_lock(&link->source->entity->graph_obj.mdev->lock);
+	mutex_lock(&link->graph_obj.mdev->graph_mutex);
 	ret = __media_entity_setup_link(link, flags);
-	spin_unlock(&link->source->entity->graph_obj.mdev->lock);
+	mutex_unlock(&link->graph_obj.mdev->graph_mutex);
 
 	return ret;
 }
