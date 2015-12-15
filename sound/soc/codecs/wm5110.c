@@ -2158,6 +2158,25 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 	},
 };
 
+static int wm5110_open(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(rtd->codec);
+	struct arizona *arizona = priv->core.arizona;
+	int n_adsp;
+
+	if (strcmp(rtd->codec_dai->name, "wm5110-dsp-voicectrl") == 0) {
+		n_adsp = 2;
+	} else {
+		dev_err(arizona->dev,
+			"No suitable compressed stream for DAI '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
+
+	return wm_adsp_compr_open(&priv->core.adsp[n_adsp], stream);
+}
+
 static int wm5110_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
@@ -2249,6 +2268,10 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 };
 
 static struct snd_compr_ops wm5110_compr_ops = {
+	.open = wm5110_open,
+	.free = wm_adsp_compr_free,
+	.set_params = wm_adsp_compr_set_params,
+	.get_caps = wm_adsp_compr_get_caps,
 };
 
 static struct snd_soc_platform_driver wm5110_compr_platform = {

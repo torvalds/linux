@@ -15,6 +15,7 @@
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <sound/compress_driver.h>
 
 #include "wmfw.h"
 
@@ -29,6 +30,8 @@ struct wm_adsp_alg_region {
 	int type;
 	unsigned int base;
 };
+
+struct wm_adsp_compr;
 
 struct wm_adsp {
 	const char *part;
@@ -58,6 +61,8 @@ struct wm_adsp {
 	struct list_head ctl_list;
 
 	struct work_struct boot_work;
+
+	struct wm_adsp_compr *compr;
 
 	struct mutex pwr_lock;
 
@@ -96,5 +101,13 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event);
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
+
+extern int wm_adsp_compr_open(struct wm_adsp *dsp,
+			      struct snd_compr_stream *stream);
+extern int wm_adsp_compr_free(struct snd_compr_stream *stream);
+extern int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
+				    struct snd_compr_params *params);
+extern int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
+				  struct snd_compr_caps *caps);
 
 #endif

@@ -229,8 +229,42 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MISC] =     "Misc",
 };
 
-static struct {
+struct wm_adsp_compr {
+	struct wm_adsp *dsp;
+
+	struct snd_compr_stream *stream;
+	struct snd_compressed_buffer size;
+};
+
+#define WM_ADSP_DATA_WORD_SIZE         3
+
+#define WM_ADSP_MIN_FRAGMENTS          1
+#define WM_ADSP_MAX_FRAGMENTS          256
+#define WM_ADSP_MIN_FRAGMENT_SIZE      (64 * WM_ADSP_DATA_WORD_SIZE)
+#define WM_ADSP_MAX_FRAGMENT_SIZE      (4096 * WM_ADSP_DATA_WORD_SIZE)
+
+struct wm_adsp_fw_caps {
+	u32 id;
+	struct snd_codec_desc desc;
+};
+
+static const struct wm_adsp_fw_caps ez2control_caps[] = {
+	{
+		.id = SND_AUDIOCODEC_BESPOKE,
+		.desc = {
+			.max_ch = 1,
+			.sample_rates = { 16000 },
+			.num_sample_rates = 1,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		},
+	},
+};
+
+static const struct {
 	const char *file;
+	int compr_direction;
+	int num_caps;
+	const struct wm_adsp_fw_caps *caps;
 } wm_adsp_fw[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =  { .file = "mbc-vss" },
 	[WM_ADSP_FW_HIFI] =     { .file = "hifi" },
@@ -238,7 +272,12 @@ static struct {
 	[WM_ADSP_FW_TX_SPK] =   { .file = "tx-spk" },
 	[WM_ADSP_FW_RX] =       { .file = "rx" },
 	[WM_ADSP_FW_RX_ANC] =   { .file = "rx-anc" },
-	[WM_ADSP_FW_CTRL] =     { .file = "ctrl" },
+	[WM_ADSP_FW_CTRL] =     {
+		.file = "ctrl",
+		.compr_direction = SND_COMPRESS_CAPTURE,
+		.num_caps = ARRAY_SIZE(ez2control_caps),
+		.caps = ez2control_caps,
+	},
 	[WM_ADSP_FW_ASR] =      { .file = "asr" },
 	[WM_ADSP_FW_TRACE] =    { .file = "trace" },
 	[WM_ADSP_FW_SPK_PROT] = { .file = "spk-prot" },
@@ -461,7 +500,7 @@ static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&dsp[e->shift_l].pwr_lock);
 
-	if (dsp[e->shift_l].running)
+	if (dsp[e->shift_l].running || dsp[e->shift_l].compr)
 		ret = -EBUSY;
 	else
 		dsp[e->shift_l].fw = ucontrol->value.integer.value[0];
@@ -2177,5 +2216,154 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
+
+int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
+{
+	struct wm_adsp_compr *compr;
+	int ret = 0;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	if (wm_adsp_fw[dsp->fw].num_caps == 0) {
+		adsp_err(dsp, "Firmware does not support compressed API\n");
+		ret = -ENXIO;
+		goto out;
+	}
+
+	if (wm_adsp_fw[dsp->fw].compr_direction != stream->direction) {
+		adsp_err(dsp, "Firmware does not support stream direction\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	compr = kzalloc(sizeof(*compr), GFP_KERNEL);
+	if (!compr) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	compr->dsp = dsp;
+	compr->stream = stream;
+
+	dsp->compr = compr;
+
+	stream->runtime->private_data = compr;
+
+out:
+	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm_adsp_compr_open);
+
+int wm_adsp_compr_free(struct snd_compr_stream *stream)
+{
+	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	dsp->compr = NULL;
+
+	kfree(compr);
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp_compr_free);
+
+static int wm_adsp_compr_check_params(struct snd_compr_stream *stream,
+				      struct snd_compr_params *params)
+{
+	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
+	const struct wm_adsp_fw_caps *caps;
+	const struct snd_codec_desc *desc;
+	int i, j;
+
+	if (params->buffer.fragment_size < WM_ADSP_MIN_FRAGMENT_SIZE ||
+	    params->buffer.fragment_size > WM_ADSP_MAX_FRAGMENT_SIZE ||
+	    params->buffer.fragments < WM_ADSP_MIN_FRAGMENTS ||
+	    params->buffer.fragments > WM_ADSP_MAX_FRAGMENTS ||
+	    params->buffer.fragment_size % WM_ADSP_DATA_WORD_SIZE) {
+		adsp_err(dsp, "Invalid buffer fragsize=%d fragments=%d\n",
+			 params->buffer.fragment_size,
+			 params->buffer.fragments);
+
+		return -EINVAL;
+	}
+
+	for (i = 0; i < wm_adsp_fw[dsp->fw].num_caps; i++) {
+		caps = &wm_adsp_fw[dsp->fw].caps[i];
+		desc = &caps->desc;
+
+		if (caps->id != params->codec.id)
+			continue;
+
+		if (stream->direction == SND_COMPRESS_PLAYBACK) {
+			if (desc->max_ch < params->codec.ch_out)
+				continue;
+		} else {
+			if (desc->max_ch < params->codec.ch_in)
+				continue;
+		}
+
+		if (!(desc->formats & (1 << params->codec.format)))
+			continue;
+
+		for (j = 0; j < desc->num_sample_rates; ++j)
+			if (desc->sample_rates[j] == params->codec.sample_rate)
+				return 0;
+	}
+
+	adsp_err(dsp, "Invalid params id=%u ch=%u,%u rate=%u fmt=%u\n",
+		 params->codec.id, params->codec.ch_in, params->codec.ch_out,
+		 params->codec.sample_rate, params->codec.format);
+	return -EINVAL;
+}
+
+int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
+			     struct snd_compr_params *params)
+{
+	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	int ret;
+
+	ret = wm_adsp_compr_check_params(stream, params);
+	if (ret)
+		return ret;
+
+	compr->size = params->buffer;
+
+	adsp_dbg(compr->dsp, "fragment_size=%d fragments=%d\n",
+		 compr->size.fragment_size, compr->size.fragments);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp_compr_set_params);
+
+int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
+			   struct snd_compr_caps *caps)
+{
+	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	int fw = compr->dsp->fw;
+	int i;
+
+	if (wm_adsp_fw[fw].caps) {
+		for (i = 0; i < wm_adsp_fw[fw].num_caps; i++)
+			caps->codecs[i] = wm_adsp_fw[fw].caps[i].id;
+
+		caps->num_codecs = i;
+		caps->direction = wm_adsp_fw[fw].compr_direction;
+
+		caps->min_fragment_size = WM_ADSP_MIN_FRAGMENT_SIZE;
+		caps->max_fragment_size = WM_ADSP_MAX_FRAGMENT_SIZE;
+		caps->min_fragments = WM_ADSP_MIN_FRAGMENTS;
+		caps->max_fragments = WM_ADSP_MAX_FRAGMENTS;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp_compr_get_caps);
 
 MODULE_LICENSE("GPL v2");
