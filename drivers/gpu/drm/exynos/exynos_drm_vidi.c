@@ -339,7 +339,7 @@ static void vidi_connector_destroy(struct drm_connector *connector)
 {
 }
 
-static struct drm_connector_funcs vidi_connector_funcs = {
+static const struct drm_connector_funcs vidi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = vidi_detect,
@@ -383,7 +383,7 @@ static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
 	return &ctx->encoder;
 }
 
-static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
 	.get_modes = vidi_get_modes,
 	.best_encoder = vidi_best_encoder,
 };
@@ -431,14 +431,14 @@ static void exynos_vidi_disable(struct drm_encoder *encoder)
 {
 }
 
-static struct drm_encoder_helper_funcs exynos_vidi_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs exynos_vidi_encoder_helper_funcs = {
 	.mode_fixup = exynos_vidi_mode_fixup,
 	.mode_set = exynos_vidi_mode_set,
 	.enable = exynos_vidi_enable,
 	.disable = exynos_vidi_disable,
 };
 
-static struct drm_encoder_funcs exynos_vidi_encoder_funcs = {
+static const struct drm_encoder_funcs exynos_vidi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
