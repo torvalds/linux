@@ -9,10 +9,6 @@
 
 struct orangefs_bufmap;
 
-/*
- * orangefs_bufmap_size_query is now an inline function because buffer
- * sizes are not hardcoded
- */
 int orangefs_bufmap_size_query(void);
 
 int orangefs_bufmap_shift_query(void);

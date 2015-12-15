@@ -82,7 +82,7 @@ static void orangefs_bufmap_unref(struct orangefs_bufmap *bufmap)
 	}
 }
 
-inline int orangefs_bufmap_size_query(void)
+int orangefs_bufmap_size_query(void)
 {
 	struct orangefs_bufmap *bufmap = orangefs_bufmap_ref();
 	int size = bufmap ? bufmap->desc_size : 0;
@@ -91,7 +91,7 @@ inline int orangefs_bufmap_size_query(void)
 	return size;
 }
 
-inline int orangefs_bufmap_shift_query(void)
+int orangefs_bufmap_shift_query(void)
 {
 	struct orangefs_bufmap *bufmap = orangefs_bufmap_ref();
 	int shift = bufmap ? bufmap->desc_shift : 0;
