@@ -1430,6 +1430,20 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
+
+static inline void
+assert_rpm_device_not_suspended(struct drm_i915_private *dev_priv)
+{
+	WARN_ONCE(dev_priv->pm.suspended,
+		  "Device suspended during HW access\n");
+}
+
+static inline void
+assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
+{
+	assert_rpm_device_not_suspended(dev_priv);
+}
+
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
