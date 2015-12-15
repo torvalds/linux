@@ -25,16 +25,13 @@ DECLARE_PER_CPU(unsigned long [IRQ_STACK_SIZE/sizeof(long)], irq_stack);
  *       ------------
  *       |          |  <- irq_stack_ptr
  *   top ------------
- *       |  elr_el1 |
+ *       |   x19    | <- irq_stack_ptr - 0x08
  *       ------------
  *       |   x29    | <- irq_stack_ptr - 0x10
  *       ------------
- *       |   xzr    |
- *       ------------
- *       |   x19    | <- irq_stack_ptr - 0x20
- *       ------------
  *
- * where x19 holds a copy of the task stack pointer.
+ * where x19 holds a copy of the task stack pointer where the struct pt_regs
+ * from kernel_entry can be found.
  *
  */
 #define IRQ_STACK_PTR(cpu) ((unsigned long)per_cpu(irq_stack, cpu) + IRQ_STACK_START_SP)
@@ -43,7 +40,7 @@ DECLARE_PER_CPU(unsigned long [IRQ_STACK_SIZE/sizeof(long)], irq_stack);
  * The offset from irq_stack_ptr where entry.S will store the original
  * stack pointer. Used by unwind_frame() and dump_backtrace().
  */
-#define IRQ_STACK_TO_TASK_STACK(ptr) *((unsigned long *)(ptr - 0x20));
+#define IRQ_STACK_TO_TASK_STACK(ptr) (*((unsigned long *)((ptr) - 0x08)))
 
 extern void set_handle_irq(void (*handle_irq)(struct pt_regs *));
 
