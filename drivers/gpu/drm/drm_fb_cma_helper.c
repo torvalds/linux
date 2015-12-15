@@ -266,7 +266,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	fbi = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(fbi)) {
 		ret = PTR_ERR(fbi);
-		goto err_drm_gem_cma_free_object;
+		goto err_gem_free_object;
 	}
 
 	fbdev_cma->fb = drm_fb_cma_alloc(dev, &mode_cmd, &obj, 1);
@@ -299,8 +299,8 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 
 err_fb_info_destroy:
 	drm_fb_helper_release_fbi(helper);
-err_drm_gem_cma_free_object:
-	drm_gem_cma_free_object(&obj->base);
+err_gem_free_object:
+	dev->driver->gem_free_object(&obj->base);
 	return ret;
 }
 
