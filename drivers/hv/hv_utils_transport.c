@@ -77,6 +77,7 @@ static ssize_t hvt_op_write(struct file *file, const char __user *buf,
 {
 	struct hvutil_transport *hvt;
 	u8 *inmsg;
+	int ret;
 
 	hvt = container_of(file->f_op, struct hvutil_transport, fops);
 
@@ -84,11 +85,11 @@ static ssize_t hvt_op_write(struct file *file, const char __user *buf,
 	if (IS_ERR(inmsg))
 		return PTR_ERR(inmsg);
 
-	if (hvt->on_msg(inmsg, count))
-		return -EFAULT;
+	ret = hvt->on_msg(inmsg, count);
+
 	kfree(inmsg);
 
-	return count;
+	return ret ? ret : count;
 }
 
 static unsigned int hvt_op_poll(struct file *file, poll_table *wait)
