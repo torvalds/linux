@@ -2717,7 +2717,7 @@ extern void intel_uncore_sanitize(struct drm_device *dev);
 extern void intel_uncore_early_sanitize(struct drm_device *dev,
 					bool restore_forcewake);
 extern void intel_uncore_init(struct drm_device *dev);
-extern void intel_uncore_check_errors(struct drm_device *dev);
+extern bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv);
 extern void intel_uncore_fini(struct drm_device *dev);
 extern void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore);
 const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);

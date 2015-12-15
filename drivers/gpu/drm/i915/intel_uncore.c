@@ -1596,8 +1596,7 @@ bool intel_has_gpu_reset(struct drm_device *dev)
 	return intel_get_gpu_reset(dev) != NULL;
 }
 
-void intel_uncore_check_errors(struct drm_device *dev)
+bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv)
 {
-	if (check_for_unclaimed_mmio(to_i915(dev)))
-		DRM_ERROR("Unclaimed register before interrupt\n");
+	return check_for_unclaimed_mmio(dev_priv);
 }
