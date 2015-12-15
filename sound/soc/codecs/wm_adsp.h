@@ -32,6 +32,7 @@ struct wm_adsp_alg_region {
 };
 
 struct wm_adsp_compr;
+struct wm_adsp_compr_buf;
 
 struct wm_adsp {
 	const char *part;
@@ -63,6 +64,7 @@ struct wm_adsp {
 	struct work_struct boot_work;
 
 	struct wm_adsp_compr *compr;
+	struct wm_adsp_compr_buf *buffer;
 
 	struct mutex pwr_lock;
 
