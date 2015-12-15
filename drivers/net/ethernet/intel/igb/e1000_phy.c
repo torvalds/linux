@@ -1717,32 +1717,15 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u16 phy_data, phy_data2, index, default_page, is_cm;
+	int len_tot = 0;
+	u16 len_min;
+	u16 len_max;
 
 	switch (hw->phy.id) {
-	case I210_I_PHY_ID:
-		/* Get cable length from PHY Cable Diagnostics Control Reg */
-		ret_val = phy->ops.read_reg(hw, (0x7 << GS40G_PAGE_SHIFT) +
-					    (I347AT4_PCDL + phy->addr),
-					    &phy_data);
-		if (ret_val)
-			return ret_val;
-
-		/* Check if the unit of cable length is meters or cm */
-		ret_val = phy->ops.read_reg(hw, (0x7 << GS40G_PAGE_SHIFT) +
-					    I347AT4_PCDC, &phy_data2);
-		if (ret_val)
-			return ret_val;
-
-		is_cm = !(phy_data2 & I347AT4_PCDC_CABLE_LENGTH_UNIT);
-
-		/* Populate the phy structure with cable length in meters */
-		phy->min_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->cable_length = phy_data / (is_cm ? 100 : 1);
-		break;
 	case M88E1543_E_PHY_ID:
 	case M88E1512_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
+	case I210_I_PHY_ID:
 		/* Remember the original page select and set it to 7 */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
 					    &default_page);
@@ -1753,12 +1736,6 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		/* Get cable length from PHY Cable Diagnostics Control Reg */
-		ret_val = phy->ops.read_reg(hw, (I347AT4_PCDL + phy->addr),
-					    &phy_data);
-		if (ret_val)
-			goto out;
-
 		/* Check if the unit of cable length is meters or cm */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PCDC, &phy_data2);
 		if (ret_val)
@@ -1766,10 +1743,50 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 
 		is_cm = !(phy_data2 & I347AT4_PCDC_CABLE_LENGTH_UNIT);
 
+		/* Get cable length from Pair 0 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL0, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[0] = phy_data / (is_cm ? 100 : 1);
+		len_tot = phy->pair_length[0];
+		len_min = phy->pair_length[0];
+		len_max = phy->pair_length[0];
+
+		/* Get cable length from Pair 1 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL1, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[1] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[1];
+		len_min = min(len_min, phy->pair_length[1]);
+		len_max = max(len_max, phy->pair_length[1]);
+
+		/* Get cable length from Pair 2 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL2, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[2] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[2];
+		len_min = min(len_min, phy->pair_length[2]);
+		len_max = max(len_max, phy->pair_length[2]);
+
+		/* Get cable length from Pair 3 length Regs */
+		ret_val = phy->ops.read_reg(hw, I347AT4_PCDL3, &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy->pair_length[3] = phy_data / (is_cm ? 100 : 1);
+		len_tot += phy->pair_length[3];
+		len_min = min(len_min, phy->pair_length[3]);
+		len_max = max(len_max, phy->pair_length[3]);
+
 		/* Populate the phy structure with cable length in meters */
-		phy->min_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->max_cable_length = phy_data / (is_cm ? 100 : 1);
-		phy->cable_length = phy_data / (is_cm ? 100 : 1);
+		phy->min_cable_length = len_min;
+		phy->max_cable_length = len_max;
+		phy->cable_length = len_tot / 4;
 
 		/* Reset the page selec to its original value */
 		ret_val = phy->ops.write_reg(hw, I347AT4_PAGE_SELECT,
@@ -2584,66 +2601,6 @@ s32 igb_get_cable_length_82580(struct e1000_hw *hw)
 	phy->cable_length = length;
 
 out:
-	return ret_val;
-}
-
-/**
- *  igb_write_phy_reg_gs40g - Write GS40G PHY register
- *  @hw: pointer to the HW structure
- *  @offset: lower half is register offset to write to
- *     upper half is page to use.
- *  @data: data to write at register offset
- *
- *  Acquires semaphore, if necessary, then writes the data to PHY register
- *  at the offset.  Release any acquired semaphores before exiting.
- **/
-s32 igb_write_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 data)
-{
-	s32 ret_val;
-	u16 page = offset >> GS40G_PAGE_SHIFT;
-
-	offset = offset & GS40G_OFFSET_MASK;
-	ret_val = hw->phy.ops.acquire(hw);
-	if (ret_val)
-		return ret_val;
-
-	ret_val = igb_write_phy_reg_mdic(hw, GS40G_PAGE_SELECT, page);
-	if (ret_val)
-		goto release;
-	ret_val = igb_write_phy_reg_mdic(hw, offset, data);
-
-release:
-	hw->phy.ops.release(hw);
-	return ret_val;
-}
-
-/**
- *  igb_read_phy_reg_gs40g - Read GS40G  PHY register
- *  @hw: pointer to the HW structure
- *  @offset: lower half is register offset to read to
- *     upper half is page to use.
- *  @data: data to read at register offset
- *
- *  Acquires semaphore, if necessary, then reads the data in the PHY register
- *  at the offset.  Release any acquired semaphores before exiting.
- **/
-s32 igb_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data)
-{
-	s32 ret_val;
-	u16 page = offset >> GS40G_PAGE_SHIFT;
-
-	offset = offset & GS40G_OFFSET_MASK;
-	ret_val = hw->phy.ops.acquire(hw);
-	if (ret_val)
-		return ret_val;
-
-	ret_val = igb_write_phy_reg_mdic(hw, GS40G_PAGE_SELECT, page);
-	if (ret_val)
-		goto release;
-	ret_val = igb_read_phy_reg_mdic(hw, offset, data);
-
-release:
-	hw->phy.ops.release(hw);
 	return ret_val;
 }
 
