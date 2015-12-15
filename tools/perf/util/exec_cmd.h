@@ -1,6 +1,9 @@
 #ifndef __PERF_EXEC_CMD_H
 #define __PERF_EXEC_CMD_H
 
+extern void exec_cmd_init(const char *exec_name, const char *prefix,
+			  const char *exec_path, const char *exec_path_env);
+
 extern void perf_set_argv_exec_path(const char *exec_path);
 extern const char *perf_extract_argv0_path(const char *path);
 extern void setup_path(void);

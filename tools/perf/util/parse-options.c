@@ -2,6 +2,7 @@
 #include "parse-options.h"
 #include "cache.h"
 #include "header.h"
+#include "subcmd-config.h"
 #include <linux/string.h>
 
 #define OPT_SHORT 1
@@ -577,7 +578,8 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 	if (subcommands && !usagestr[0]) {
 		struct strbuf buf = STRBUF_INIT;
 
-		strbuf_addf(&buf, "perf %s [<options>] {", argv[0]);
+		strbuf_addf(&buf, "%s %s [<options>] {",
+			    subcmd_config.exec_name, argv[0]);
 		for (int i = 0; subcommands[i]; i++) {
 			if (i)
 				strbuf_addstr(&buf, "|");

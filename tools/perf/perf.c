@@ -119,7 +119,7 @@ static void commit_pager_choice(void)
 {
 	switch (use_pager) {
 	case 0:
-		setenv("PERF_PAGER", "cat", 1);
+		setenv(PERF_PAGER_ENVIRONMENT, "cat", 1);
 		break;
 	case 1:
 		/* setup_pager(); */
@@ -529,6 +529,10 @@ int main(int argc, const char **argv)
 {
 	const char *cmd;
 	char sbuf[STRERR_BUFSIZE];
+
+	/* libsubcmd init */
+	exec_cmd_init("perf", PREFIX, PERF_EXEC_PATH, EXEC_PATH_ENVIRONMENT);
+	pager_init(PERF_PAGER_ENVIRONMENT);
 
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);

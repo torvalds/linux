@@ -1,6 +1,7 @@
 #include "cache.h"
 #include "exec_cmd.h"
 #include "quote.h"
+#include "subcmd-config.h"
 
 #include <string.h>
 
@@ -9,15 +10,23 @@
 static const char *argv_exec_path;
 static const char *argv0_path;
 
+void exec_cmd_init(const char *exec_name, const char *prefix,
+		   const char *exec_path, const char *exec_path_env)
+{
+	subcmd_config.exec_name		= exec_name;
+	subcmd_config.prefix		= prefix;
+	subcmd_config.exec_path		= exec_path;
+	subcmd_config.exec_path_env	= exec_path_env;
+}
+
 char *system_path(const char *path)
 {
-	static const char *prefix = PREFIX;
 	struct strbuf d = STRBUF_INIT;
 
 	if (is_absolute_path(path))
 		return strdup(path);
 
-	strbuf_addf(&d, "%s/%s", prefix, path);
+	strbuf_addf(&d, "%s/%s", subcmd_config.prefix, path);
 	path = strbuf_detach(&d, NULL);
 	return (char *)path;
 }
@@ -47,7 +56,7 @@ void perf_set_argv_exec_path(const char *exec_path)
 	/*
 	 * Propagate this setting to external programs.
 	 */
-	setenv(EXEC_PATH_ENVIRONMENT, exec_path, 1);
+	setenv(subcmd_config.exec_path_env, exec_path, 1);
 }
 
 
@@ -59,11 +68,11 @@ char *perf_exec_path(void)
 	if (argv_exec_path)
 		return strdup(argv_exec_path);
 
-	env = getenv(EXEC_PATH_ENVIRONMENT);
+	env = getenv(subcmd_config.exec_path_env);
 	if (env && *env)
 		return strdup(env);
 
-	return system_path(PERF_EXEC_PATH);
+	return system_path(subcmd_config.exec_path);
 }
 
 static void add_path(struct strbuf *out, const char *path)
@@ -107,7 +116,7 @@ static const char **prepare_perf_cmd(const char **argv)
 		; /* just counting */
 	nargv = malloc(sizeof(*nargv) * (argc + 2));
 
-	nargv[0] = "perf";
+	nargv[0] = subcmd_config.exec_name;
 	for (argc = 0; argv[argc]; argc++)
 		nargv[argc + 1] = argv[argc];
 	nargv[argc + 1] = NULL;
@@ -118,7 +127,7 @@ int execv_perf_cmd(const char **argv) {
 	const char **nargv = prepare_perf_cmd(argv);
 
 	/* execvp() can only ever return if it fails */
-	execvp("perf", (char **)nargv);
+	execvp(subcmd_config.exec_name, (char **)nargv);
 
 	free(nargv);
 	return -1;
