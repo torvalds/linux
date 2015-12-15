@@ -264,7 +264,6 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 		       unsigned long *blink_leds, unsigned long *blink_delay)
 {
 	struct bcm6328_led *led;
-	unsigned long flags;
 	const char *state;
 	int rc;
 
@@ -286,7 +285,6 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 						    "linux,default-trigger",
 						    NULL);
 
-	spin_lock_irqsave(lock, flags);
 	if (!of_property_read_string(nc, "default-state", &state)) {
 		if (!strcmp(state, "on")) {
 			led->cdev.brightness = LED_FULL;
@@ -314,7 +312,6 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 	} else {
 		led->cdev.brightness = LED_OFF;
 	}
-	spin_unlock_irqrestore(lock, flags);
 
 	bcm6328_led_set(&led->cdev, led->cdev.brightness);
 
