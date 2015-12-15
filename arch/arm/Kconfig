@@ -241,7 +241,6 @@ config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime" if EMBEDDED
 	default y
 	depends on !XIP_KERNEL && MMU
-	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help
 	  Patch phys-to-virt and virt-to-phys translation functions at
 	  boot and module load time according to the position of the
@@ -356,7 +355,6 @@ config ARCH_REALVIEW
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PL061 if GPIOLIB
 	select ICST
-	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_SCHED_CLOCK
 	help
