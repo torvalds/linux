@@ -73,6 +73,16 @@ static inline u16 mlxsw_sp_vfid_to_fid(u16 vfid)
 	return MLXSW_SP_VFID_BASE + vfid;
 }
 
+static inline u16 mlxsw_sp_fid_to_vfid(u16 fid)
+{
+	return fid - MLXSW_SP_VFID_BASE;
+}
+
+static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
+{
+	return fid >= MLXSW_SP_VFID_BASE;
+}
+
 struct mlxsw_sp {
 	struct {
 		struct list_head list;
@@ -171,6 +181,21 @@ mlxsw_sp_port_vport_find(const struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
 			    vport.list) {
 		if (mlxsw_sp_vport_vid_get(mlxsw_sp_vport) == vid)
+			return mlxsw_sp_vport;
+	}
+
+	return NULL;
+}
+
+static inline struct mlxsw_sp_port *
+mlxsw_sp_port_vport_find_by_vfid(const struct mlxsw_sp_port *mlxsw_sp_port,
+				 u16 vfid)
+{
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+
+	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
+			    vport.list) {
+		if (mlxsw_sp_vport_vfid_get(mlxsw_sp_vport) == vfid)
 			return mlxsw_sp_vport;
 	}
 
