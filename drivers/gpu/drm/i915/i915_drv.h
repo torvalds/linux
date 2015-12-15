@@ -458,6 +458,7 @@ struct intel_opregion {
 	u32 swsci_gbda_sub_functions;
 	u32 swsci_sbcb_sub_functions;
 	struct opregion_asle *asle;
+	void *rvda;
 	const void *vbt;
 	u32 vbt_size;
 	u32 *lid_state;

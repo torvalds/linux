@@ -837,6 +837,10 @@ void intel_opregion_fini(struct drm_device *dev)
 
 	/* just clear all opregion memory pointers now */
 	memunmap(opregion->header);
+	if (opregion->rvda) {
+		memunmap(opregion->rvda);
+		opregion->rvda = NULL;
+	}
 	opregion->header = NULL;
 	opregion->acpi = NULL;
 	opregion->swsci = NULL;
@@ -987,13 +991,30 @@ int intel_opregion_setup(struct drm_device *dev)
 		DRM_DEBUG_DRIVER("ASLE extension supported\n");
 
 	if (!dmi_check_system(intel_no_opregion_vbt)) {
-		const void *vbt = base + OPREGION_VBT_OFFSET;
-		u32 vbt_size = OPREGION_ASLE_EXT_OFFSET - OPREGION_VBT_OFFSET;
+		const void *vbt = NULL;
+		u32 vbt_size = 0;
+
+		if (opregion->header->opregion_ver >= 2 && opregion->asle &&
+		    opregion->asle->rvda && opregion->asle->rvds) {
+			opregion->rvda = memremap(opregion->asle->rvda,
+						  opregion->asle->rvds,
+						  MEMREMAP_WB);
+			vbt = opregion->rvda;
+			vbt_size = opregion->asle->rvds;
+		}
 
 		if (intel_bios_is_valid_vbt(vbt, vbt_size)) {
-			DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion\n");
+			DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion (RVDA)\n");
 			opregion->vbt = vbt;
 			opregion->vbt_size = vbt_size;
+		} else {
+			vbt = base + OPREGION_VBT_OFFSET;
+			vbt_size = OPREGION_ASLE_EXT_OFFSET - OPREGION_VBT_OFFSET;
+			if (intel_bios_is_valid_vbt(vbt, vbt_size)) {
+				DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion (Mailbox #4)\n");
+				opregion->vbt = vbt;
+				opregion->vbt_size = vbt_size;
+			}
 		}
 	}
 
