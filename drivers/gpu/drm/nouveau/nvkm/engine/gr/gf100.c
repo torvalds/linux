@@ -140,6 +140,12 @@ gf100_gr_zbc_depth_get(struct gf100_gr *gr, int format,
 /*******************************************************************************
  * Graphics object classes
  ******************************************************************************/
+#define gf100_gr_object(p) container_of((p), struct gf100_gr_object, object)
+
+struct gf100_gr_object {
+	struct nvkm_object object;
+	struct gf100_gr_chan *chan;
+};
 
 static int
 gf100_fermi_mthd_zbc_color(struct nvkm_object *object, void *data, u32 size)
@@ -258,6 +264,27 @@ gf100_gr_mthd_sw(struct nvkm_device *device, u16 class, u32 mthd, u32 data)
 	return false;
 }
 
+static const struct nvkm_object_func
+gf100_gr_object_func = {
+};
+
+static int
+gf100_gr_object_new(const struct nvkm_oclass *oclass, void *data, u32 size,
+		    struct nvkm_object **pobject)
+{
+	struct gf100_gr_chan *chan = gf100_gr_chan(oclass->parent);
+	struct gf100_gr_object *object;
+
+	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &object->object;
+
+	nvkm_object_ctor(oclass->base.func ? oclass->base.func :
+			 &gf100_gr_object_func, oclass, &object->object);
+	object->chan = chan;
+	return 0;
+}
+
 static int
 gf100_gr_object_get(struct nvkm_gr *base, int index, struct nvkm_sclass *sclass)
 {
@@ -267,6 +294,7 @@ gf100_gr_object_get(struct nvkm_gr *base, int index, struct nvkm_sclass *sclass)
 	while (gr->func->sclass[c].oclass) {
 		if (c++ == index) {
 			*sclass = gr->func->sclass[index];
+			sclass->ctor = gf100_gr_object_new;
 			return index;
 		}
 	}
