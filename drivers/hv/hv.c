@@ -89,9 +89,9 @@ static int query_hypervisor_info(void)
 }
 
 /*
- * do_hypercall- Invoke the specified hypercall
+ * hv_do_hypercall- Invoke the specified hypercall
  */
-static u64 do_hypercall(u64 control, void *input, void *output)
+u64 hv_do_hypercall(u64 control, void *input, void *output)
 {
 	u64 input_address = (input) ? virt_to_phys(input) : 0;
 	u64 output_address = (output) ? virt_to_phys(output) : 0;
@@ -132,6 +132,7 @@ static u64 do_hypercall(u64 control, void *input, void *output)
 	return hv_status_lo | ((u64)hv_status_hi << 32);
 #endif /* !x86_64 */
 }
+EXPORT_SYMBOL_GPL(hv_do_hypercall);
 
 #ifdef CONFIG_X86_64
 static cycle_t read_hv_clock_tsc(struct clocksource *arg)
@@ -316,7 +317,7 @@ int hv_post_message(union hv_connection_id connection_id,
 {
 
 	struct hv_input_post_message *aligned_msg;
-	u16 status;
+	u64 status;
 
 	if (payload_size > HV_MESSAGE_PAYLOAD_BYTE_COUNT)
 		return -EMSGSIZE;
@@ -330,11 +331,10 @@ int hv_post_message(union hv_connection_id connection_id,
 	aligned_msg->payload_size = payload_size;
 	memcpy((void *)aligned_msg->payload, payload, payload_size);
 
-	status = do_hypercall(HVCALL_POST_MESSAGE, aligned_msg, NULL)
-		& 0xFFFF;
+	status = hv_do_hypercall(HVCALL_POST_MESSAGE, aligned_msg, NULL);
 
 	put_cpu();
-	return status;
+	return status & 0xFFFF;
 }
 
 
@@ -344,13 +344,13 @@ int hv_post_message(union hv_connection_id connection_id,
  *
  * This involves a hypercall.
  */
-u16 hv_signal_event(void *con_id)
+int hv_signal_event(void *con_id)
 {
-	u16 status;
+	u64 status;
 
-	status = (do_hypercall(HVCALL_SIGNAL_EVENT, con_id, NULL) & 0xFFFF);
+	status = hv_do_hypercall(HVCALL_SIGNAL_EVENT, con_id, NULL);
 
-	return status;
+	return status & 0xFFFF;
 }
 
 static int hv_ce_set_next_event(unsigned long delta,

@@ -587,7 +587,7 @@ extern int hv_post_message(union hv_connection_id connection_id,
 			 enum hv_message_type message_type,
 			 void *payload, size_t payload_size);
 
-extern u16 hv_signal_event(void *con_id);
+extern int hv_signal_event(void *con_id);
 
 extern int hv_synic_alloc(void);
 
