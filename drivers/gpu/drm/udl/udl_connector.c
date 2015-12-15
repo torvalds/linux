@@ -122,13 +122,13 @@ static void udl_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static struct drm_connector_helper_funcs udl_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs udl_connector_helper_funcs = {
 	.get_modes = udl_get_modes,
 	.mode_valid = udl_mode_valid,
 	.best_encoder = udl_best_single_encoder,
 };
 
-static struct drm_connector_funcs udl_connector_funcs = {
+static const struct drm_connector_funcs udl_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = udl_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
