@@ -114,7 +114,7 @@ static int vss_handle_handshake(struct hv_vss_msg *vss_msg)
 	default:
 		return -EINVAL;
 	}
-	vss_transaction.state = HVUTIL_READY;
+	hv_poll_channel(vss_transaction.recv_channel, vss_poll_wrapper);
 	pr_debug("VSS: userspace daemon ver. %d registered\n", dm_reg_value);
 	return 0;
 }

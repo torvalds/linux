@@ -155,7 +155,7 @@ static int kvp_handle_handshake(struct hv_kvp_msg *msg)
 	pr_debug("KVP: userspace daemon ver. %d registered\n",
 		 KVP_OP_REGISTER);
 	kvp_register(dm_reg_value);
-	kvp_transaction.state = HVUTIL_READY;
+	hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
 
 	return 0;
 }
