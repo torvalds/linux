@@ -155,13 +155,22 @@ static int hvt_op_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+static void hvt_transport_free(struct hvutil_transport *hvt)
+{
+	misc_deregister(&hvt->mdev);
+	kfree(hvt->outmsg);
+	kfree(hvt);
+}
+
 static int hvt_op_release(struct inode *inode, struct file *file)
 {
 	struct hvutil_transport *hvt;
+	int mode_old;
 
 	hvt = container_of(file->f_op, struct hvutil_transport, fops);
 
 	mutex_lock(&hvt->lock);
+	mode_old = hvt->mode;
 	if (hvt->mode != HVUTIL_TRANSPORT_DESTROY)
 		hvt->mode = HVUTIL_TRANSPORT_INIT;
 	/*
@@ -170,6 +179,9 @@ static int hvt_op_release(struct inode *inode, struct file *file)
 	 */
 	hvt_reset(hvt);
 	mutex_unlock(&hvt->lock);
+
+	if (mode_old == HVUTIL_TRANSPORT_DESTROY)
+		hvt_transport_free(hvt);
 
 	return 0;
 }
@@ -304,17 +316,25 @@ err_free_hvt:
 
 void hvutil_transport_destroy(struct hvutil_transport *hvt)
 {
+	int mode_old;
+
 	mutex_lock(&hvt->lock);
+	mode_old = hvt->mode;
 	hvt->mode = HVUTIL_TRANSPORT_DESTROY;
 	wake_up_interruptible(&hvt->outmsg_q);
 	mutex_unlock(&hvt->lock);
 
+	/*
+	 * In case we were in 'chardev' mode we still have an open fd so we
+	 * have to defer freeing the device. Netlink interface can be freed
+	 * now.
+	 */
 	spin_lock(&hvt_list_lock);
 	list_del(&hvt->list);
 	spin_unlock(&hvt_list_lock);
 	if (hvt->cn_id.idx > 0 && hvt->cn_id.val > 0)
 		cn_del_callback(&hvt->cn_id);
-	misc_deregister(&hvt->mdev);
-	kfree(hvt->outmsg);
-	kfree(hvt);
+
+	if (mode_old != HVUTIL_TRANSPORT_CHARDEV)
+		hvt_transport_free(hvt);
 }
