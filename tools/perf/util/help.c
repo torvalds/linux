@@ -2,6 +2,7 @@
 #include "../builtin.h"
 #include "exec_cmd.h"
 #include "help.h"
+#include "subcmd-util.h"
 
 void add_cmdname(struct cmdnames *cmds, const char *name, size_t len)
 {
@@ -119,8 +120,7 @@ static void list_commands_in_dir(struct cmdnames *cmds,
 	int prefix_len;
 	DIR *dir = opendir(path);
 	struct dirent *de;
-	struct strbuf buf = STRBUF_INIT;
-	int len;
+	char *buf = NULL;
 
 	if (!dir)
 		return;
@@ -128,8 +128,7 @@ static void list_commands_in_dir(struct cmdnames *cmds,
 		prefix = "perf-";
 	prefix_len = strlen(prefix);
 
-	strbuf_addf(&buf, "%s/", path);
-	len = buf.len;
+	astrcatf(&buf, "%s/", path);
 
 	while ((de = readdir(dir)) != NULL) {
 		int entlen;
@@ -137,9 +136,8 @@ static void list_commands_in_dir(struct cmdnames *cmds,
 		if (prefixcmp(de->d_name, prefix))
 			continue;
 
-		strbuf_setlen(&buf, len);
-		strbuf_addstr(&buf, de->d_name);
-		if (!is_executable(buf.buf))
+		astrcat(&buf, de->d_name);
+		if (!is_executable(buf))
 			continue;
 
 		entlen = strlen(de->d_name) - prefix_len;
@@ -149,7 +147,7 @@ static void list_commands_in_dir(struct cmdnames *cmds,
 		add_cmdname(cmds, de->d_name + prefix_len, entlen);
 	}
 	closedir(dir);
-	strbuf_release(&buf);
+	free(buf);
 }
 
 void load_command_list(const char *prefix,

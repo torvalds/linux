@@ -4,6 +4,7 @@
 #include "subcmd-config.h"
 
 #include <string.h>
+#include "subcmd-util.h"
 
 #define MAX_ARGS	32
 
@@ -21,14 +22,14 @@ void exec_cmd_init(const char *exec_name, const char *prefix,
 
 char *system_path(const char *path)
 {
-	struct strbuf d = STRBUF_INIT;
+	char *buf = NULL;
 
 	if (is_absolute_path(path))
 		return strdup(path);
 
-	strbuf_addf(&d, "%s/%s", subcmd_config.prefix, path);
-	path = strbuf_detach(&d, NULL);
-	return (char *)path;
+	astrcatf(&buf, "%s/%s", subcmd_config.prefix, path);
+
+	return buf;
 }
 
 const char *perf_extract_argv0_path(const char *argv0)
@@ -75,22 +76,22 @@ char *perf_exec_path(void)
 	return system_path(subcmd_config.exec_path);
 }
 
-static void add_path(struct strbuf *out, const char *path)
+static void add_path(char **out, const char *path)
 {
 	if (path && *path) {
 		if (is_absolute_path(path))
-			strbuf_addstr(out, path);
+			astrcat(out, path);
 		else
-			strbuf_addstr(out, make_nonrelative_path(path));
+			astrcat(out, make_nonrelative_path(path));
 
-		strbuf_addch(out, PATH_SEP);
+		astrcat(out, ":");
 	}
 }
 
 void setup_path(void)
 {
 	const char *old_path = getenv("PATH");
-	struct strbuf new_path = STRBUF_INIT;
+	char *new_path = NULL;
 	char *tmp = perf_exec_path();
 
 	add_path(&new_path, tmp);
@@ -98,13 +99,13 @@ void setup_path(void)
 	free(tmp);
 
 	if (old_path)
-		strbuf_addstr(&new_path, old_path);
+		astrcat(&new_path, old_path);
 	else
-		strbuf_addstr(&new_path, "/usr/local/bin:/usr/bin:/bin");
+		astrcat(&new_path, "/usr/local/bin:/usr/bin:/bin");
 
-	setenv("PATH", new_path.buf, 1);
+	setenv("PATH", new_path, 1);
 
-	strbuf_release(&new_path);
+	free(new_path);
 }
 
 static const char **prepare_perf_cmd(const char **argv)

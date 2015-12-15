@@ -1,4 +1,5 @@
 #include "util.h"
+#include "subcmd-util.h"
 #include "parse-options.h"
 #include "cache.h"
 #include "header.h"
@@ -8,7 +9,7 @@
 #define OPT_SHORT 1
 #define OPT_UNSET 2
 
-static struct strbuf error_buf = STRBUF_INIT;
+char *error_buf;
 
 static int opterror(const struct option *opt, const char *reason, int flags)
 {
@@ -576,19 +577,18 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 
 	/* build usage string if it's not provided */
 	if (subcommands && !usagestr[0]) {
-		struct strbuf buf = STRBUF_INIT;
+		char *buf = NULL;
 
-		strbuf_addf(&buf, "%s %s [<options>] {",
-			    subcmd_config.exec_name, argv[0]);
+		astrcatf(&buf, "%s %s [<options>] {", subcmd_config.exec_name, argv[0]);
+
 		for (int i = 0; subcommands[i]; i++) {
 			if (i)
-				strbuf_addstr(&buf, "|");
-			strbuf_addstr(&buf, subcommands[i]);
+				astrcat(&buf, "|");
+			astrcat(&buf, subcommands[i]);
 		}
-		strbuf_addstr(&buf, "}");
+		astrcat(&buf, "}");
 
-		usagestr[0] = strdup(buf.buf);
-		strbuf_release(&buf);
+		usagestr[0] = buf;
 	}
 
 	parse_options_start(&ctx, argc, argv, flags);
@@ -613,13 +613,11 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 		putchar('\n');
 		exit(130);
 	default: /* PARSE_OPT_UNKNOWN */
-		if (ctx.argv[0][1] == '-') {
-			strbuf_addf(&error_buf, "unknown option `%s'",
-				    ctx.argv[0] + 2);
-		} else {
-			strbuf_addf(&error_buf, "unknown switch `%c'",
-				    *ctx.opt);
-		}
+		if (ctx.argv[0][1] == '-')
+			astrcatf(&error_buf, "unknown option `%s'",
+				 ctx.argv[0] + 2);
+		else
+			astrcatf(&error_buf, "unknown switch `%c'", *ctx.opt);
 		usage_with_options(usagestr, options);
 	}
 
@@ -806,9 +804,9 @@ static int usage_with_options_internal(const char * const *usagestr,
 
 	setup_pager();
 
-	if (strbuf_avail(&error_buf)) {
-		fprintf(stderr, "  Error: %s\n", error_buf.buf);
-		strbuf_release(&error_buf);
+	if (error_buf) {
+		fprintf(stderr, "  Error: %s\n", error_buf);
+		zfree(&error_buf);
 	}
 
 	fprintf(stderr, "\n Usage: %s\n", *usagestr++);
@@ -852,10 +850,14 @@ void usage_with_options_msg(const char * const *usagestr,
 			    const struct option *opts, const char *fmt, ...)
 {
 	va_list ap;
+	char *tmp = error_buf;
 
 	va_start(ap, fmt);
-	strbuf_addv(&error_buf, fmt, ap);
+	if (vasprintf(&error_buf, fmt, ap) == -1)
+		die("vasprintf failed");
 	va_end(ap);
+
+	free(tmp);
 
 	usage_with_options_internal(usagestr, opts, 0, NULL);
 	exit(129);
