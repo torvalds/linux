@@ -1,27 +1,17 @@
-Qualcomm Resource Power Manager (RPM) over SMD
+QCOM SMD RPM REGULATOR
 
-This driver is used to interface with the Resource Power Manager (RPM) found in
-various Qualcomm platforms. The RPM allows each component in the system to vote
-for state of the system resources, such as clocks, regulators and bus
-frequencies.
+The Qualcomm RPM over SMD regulator is modelled as a subdevice of the RPM.
+Because SMD is used as the communication transport mechanism, the RPM resides as
+a subnode of the SMD.  As such, the SMD-RPM regulator requires that the SMD and
+RPM nodes be present.
 
-- compatible:
-	Usage: required
-	Value type: <string>
-	Definition: must be one of:
-		    "qcom,rpm-msm8974"
+Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.txt for
+information pertaining to the SMD node.
 
-- qcom,smd-channels:
-	Usage: required
-	Value type: <stringlist>
-	Definition: Shared Memory channel used for communication with the RPM
+Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.txt for
+information regarding the RPM node.
 
-= SUBDEVICES
-
-The RPM exposes resources to its subnodes. The below bindings specify the set
-of valid subnodes that can operate on these resources.
-
-== Regulators
+== Regulator
 
 Regulator nodes are identified by their compatible:
 
@@ -114,4 +104,3 @@ see regulator.txt.
 			};
 		};
 	};
-
