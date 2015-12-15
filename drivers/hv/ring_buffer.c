@@ -380,30 +380,59 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 	return 0;
 }
 
-static inline int __hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
-				       void *buffer, u32 buflen, u32 offset,
-				       bool *signal, bool advance)
+int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
+		       void *buffer, u32 buflen, u32 *buffer_actual_len,
+		       u64 *requestid, bool *signal, bool raw)
 {
 	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
 	u32 next_read_location = 0;
 	u64 prev_indices = 0;
 	unsigned long flags;
+	struct vmpacket_descriptor desc;
+	u32 offset;
+	u32 packetlen;
+	int ret = 0;
 
 	if (buflen <= 0)
 		return -EINVAL;
 
 	spin_lock_irqsave(&inring_info->ring_lock, flags);
 
+	*buffer_actual_len = 0;
+	*requestid = 0;
+
 	hv_get_ringbuffer_availbytes(inring_info,
 				&bytes_avail_toread,
 				&bytes_avail_towrite);
 
 	/* Make sure there is something to read */
-	if (bytes_avail_toread < buflen) {
-		spin_unlock_irqrestore(&inring_info->ring_lock, flags);
+	if (bytes_avail_toread < sizeof(desc)) {
+		/*
+		 * No error is set when there is even no header, drivers are
+		 * supposed to analyze buffer_actual_len.
+		 */
+		goto out_unlock;
+	}
 
-		return -EAGAIN;
+	next_read_location = hv_get_next_read_location(inring_info);
+	next_read_location = hv_copyfrom_ringbuffer(inring_info, &desc,
+						    sizeof(desc),
+						    next_read_location);
+
+	offset = raw ? 0 : (desc.offset8 << 3);
+	packetlen = (desc.len8 << 3) - offset;
+	*buffer_actual_len = packetlen;
+	*requestid = desc.trans_id;
+
+	if (bytes_avail_toread < packetlen + offset) {
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
+
+	if (packetlen > buflen) {
+		ret = -ENOBUFS;
+		goto out_unlock;
 	}
 
 	next_read_location =
@@ -411,11 +440,8 @@ static inline int __hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 
 	next_read_location = hv_copyfrom_ringbuffer(inring_info,
 						buffer,
-						buflen,
+						packetlen,
 						next_read_location);
-
-	if (!advance)
-		goto out_unlock;
 
 	next_read_location = hv_copyfrom_ringbuffer(inring_info,
 						&prev_indices,
@@ -436,22 +462,5 @@ static inline int __hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 
 out_unlock:
 	spin_unlock_irqrestore(&inring_info->ring_lock, flags);
-	return 0;
-}
-
-/* Read from ring buffer without advancing the read index. */
-int hv_ringbuffer_peek(struct hv_ring_buffer_info *inring_info,
-		       void *buffer, u32 buflen)
-{
-	return __hv_ringbuffer_read(inring_info, buffer, buflen,
-				    0, NULL, false);
-}
-
-/* Read from ring buffer and advance the read index. */
-int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
-		       void *buffer, u32 buflen, u32 offset,
-		       bool *signal)
-{
-	return __hv_ringbuffer_read(inring_info, buffer, buflen,
-				    offset, signal, true);
+	return ret;
 }

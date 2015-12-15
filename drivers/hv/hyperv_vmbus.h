@@ -619,14 +619,9 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
 		    struct kvec *kv_list,
 		    u32 kv_count, bool *signal);
 
-int hv_ringbuffer_peek(struct hv_ring_buffer_info *ring_info, void *buffer,
-		   u32 buflen);
-
-int hv_ringbuffer_read(struct hv_ring_buffer_info *ring_info,
-		   void *buffer,
-		   u32 buflen,
-		   u32 offset, bool *signal);
-
+int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
+		       void *buffer, u32 buflen, u32 *buffer_actual_len,
+		       u64 *requestid, bool *signal, bool raw);
 
 void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 			    struct hv_ring_buffer_debug_info *debug_info);

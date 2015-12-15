@@ -927,37 +927,11 @@ __vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 		   u32 bufferlen, u32 *buffer_actual_len, u64 *requestid,
 		   bool raw)
 {
-	struct vmpacket_descriptor desc;
-	u32 packetlen;
-	u32 userlen;
 	int ret;
 	bool signal = false;
 
-	*buffer_actual_len = 0;
-	*requestid = 0;
-
-
-	ret = hv_ringbuffer_peek(&channel->inbound, &desc,
-			     sizeof(struct vmpacket_descriptor));
-	if (ret != 0)
-		return 0;
-
-	packetlen = desc.len8 << 3;
-	if (!raw)
-		userlen = packetlen - (desc.offset8 << 3);
-	else
-		userlen = packetlen;
-
-	*buffer_actual_len = userlen;
-
-	if (userlen > bufferlen)
-		return -ENOBUFS;
-
-	*requestid = desc.trans_id;
-
-	/* Copy over the packet to the user buffer */
-	ret = hv_ringbuffer_read(&channel->inbound, buffer, userlen,
-				 raw ? 0 : desc.offset8 << 3, &signal);
+	ret = hv_ringbuffer_read(&channel->inbound, buffer, bufferlen,
+				 buffer_actual_len, requestid, &signal, raw);
 
 	if (signal)
 		vmbus_setevent(channel);
