@@ -81,7 +81,7 @@ static inline int dw_wdt_top_in_seconds(unsigned top)
 	 * There are 16 possible timeout values in 0..15 where the number of
 	 * cycles is 2 ^ (16 + i) and the watchdog counts down.
 	 */
-	return (1 << (16 + top)) / clk_get_rate(dw_wdt.clk);
+	return (1U << (16 + top)) / clk_get_rate(dw_wdt.clk);
 }
 
 static int dw_wdt_get_top(void)
