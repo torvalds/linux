@@ -213,7 +213,7 @@ static void dce_v11_0_vblank_wait(struct amdgpu_device *adev, int crtc)
 {
 	unsigned i = 100;
 
-	if (crtc >= adev->mode_info.num_crtc)
+	if (crtc < 0 || crtc >= adev->mode_info.num_crtc)
 		return;
 
 	if (!(RREG32(mmCRTC_CONTROL + crtc_offsets[crtc]) & CRTC_CONTROL__CRTC_MASTER_EN_MASK))
@@ -241,7 +241,7 @@ static void dce_v11_0_vblank_wait(struct amdgpu_device *adev, int crtc)
 
 static u32 dce_v11_0_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 {
-	if (crtc >= adev->mode_info.num_crtc)
+	if (crtc < 0 || crtc >= adev->mode_info.num_crtc)
 		return 0;
 	else
 		return RREG32(mmCRTC_STATUS_FRAME_COUNT + crtc_offsets[crtc]);
@@ -3386,7 +3386,7 @@ static void dce_v11_0_crtc_vblank_int_ack(struct amdgpu_device *adev,
 {
 	u32 tmp;
 
-	if (crtc >= adev->mode_info.num_crtc) {
+	if (crtc < 0 || crtc >= adev->mode_info.num_crtc) {
 		DRM_DEBUG("invalid crtc %d\n", crtc);
 		return;
 	}
@@ -3401,7 +3401,7 @@ static void dce_v11_0_crtc_vline_int_ack(struct amdgpu_device *adev,
 {
 	u32 tmp;
 
-	if (crtc >= adev->mode_info.num_crtc) {
+	if (crtc < 0 || crtc >= adev->mode_info.num_crtc) {
 		DRM_DEBUG("invalid crtc %d\n", crtc);
 		return;
 	}
