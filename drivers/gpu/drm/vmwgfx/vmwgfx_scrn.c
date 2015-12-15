@@ -530,7 +530,7 @@ out_no_fence:
 	return ret;
 }
 
-static struct drm_crtc_funcs vmw_screen_object_crtc_funcs = {
+static const struct drm_crtc_funcs vmw_screen_object_crtc_funcs = {
 	.cursor_set = vmw_du_crtc_cursor_set,
 	.cursor_move = vmw_du_crtc_cursor_move,
 	.gamma_set = vmw_du_crtc_gamma_set,
@@ -548,7 +548,7 @@ static void vmw_sou_encoder_destroy(struct drm_encoder *encoder)
 	vmw_sou_destroy(vmw_encoder_to_sou(encoder));
 }
 
-static struct drm_encoder_funcs vmw_screen_object_encoder_funcs = {
+static const struct drm_encoder_funcs vmw_screen_object_encoder_funcs = {
 	.destroy = vmw_sou_encoder_destroy,
 };
 
@@ -561,7 +561,7 @@ static void vmw_sou_connector_destroy(struct drm_connector *connector)
 	vmw_sou_destroy(vmw_connector_to_sou(connector));
 }
 
-static struct drm_connector_funcs vmw_sou_connector_funcs = {
+static const struct drm_connector_funcs vmw_sou_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_sou_connector_destroy,

@@ -294,7 +294,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 	return vmw_ldu_commit_list(dev_priv);
 }
 
-static struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
+static const struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.cursor_set = vmw_du_crtc_cursor_set,
 	.cursor_move = vmw_du_crtc_cursor_move,
 	.gamma_set = vmw_du_crtc_gamma_set,
@@ -312,7 +312,7 @@ static void vmw_ldu_encoder_destroy(struct drm_encoder *encoder)
 	vmw_ldu_destroy(vmw_encoder_to_ldu(encoder));
 }
 
-static struct drm_encoder_funcs vmw_legacy_encoder_funcs = {
+static const struct drm_encoder_funcs vmw_legacy_encoder_funcs = {
 	.destroy = vmw_ldu_encoder_destroy,
 };
 
@@ -325,7 +325,7 @@ static void vmw_ldu_connector_destroy(struct drm_connector *connector)
 	vmw_ldu_destroy(vmw_connector_to_ldu(connector));
 }
 
-static struct drm_connector_funcs vmw_legacy_connector_funcs = {
+static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
 	.fill_modes = vmw_du_connector_fill_modes,
