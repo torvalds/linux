@@ -180,9 +180,10 @@ static void acpi_print_osc_error(acpi_handle handle,
 	int i;
 
 	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer)))
-		printk(KERN_DEBUG "%s\n", error);
+		printk(KERN_DEBUG "%s: %s\n", context->uuid_str, error);
 	else {
-		printk(KERN_DEBUG "%s: %s\n", (char *)buffer.pointer, error);
+		printk(KERN_DEBUG "%s (%s): %s\n",
+		       (char *)buffer.pointer, context->uuid_str, error);
 		kfree(buffer.pointer);
 	}
 	printk(KERN_DEBUG "_OSC request data:");
