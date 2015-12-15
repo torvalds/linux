@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "util.h"
 #include "strbuf.h"
-#include "pager.h"
+#include <subcmd/pager.h>
 #include "../perf.h"
 #include "../ui/ui.h"
 

@@ -18,7 +18,7 @@
 #include <unistd.h>
 
 #include "parse-events.h"
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 
 #include <sys/mman.h>
 

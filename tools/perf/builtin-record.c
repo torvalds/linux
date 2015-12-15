@@ -11,7 +11,7 @@
 
 #include "util/build-id.h"
 #include "util/util.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 
 #include "util/callchain.h"

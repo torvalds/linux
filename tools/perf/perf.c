@@ -9,12 +9,12 @@
 #include "builtin.h"
 
 #include "util/env.h"
-#include "util/exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "util/cache.h"
 #include "util/quote.h"
-#include "util/run-command.h"
+#include <subcmd/run-command.h>
 #include "util/parse-events.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/bpf-loader.h"
 #include "util/debug.h"
 #include <api/fs/tracing_path.h>

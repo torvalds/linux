@@ -24,7 +24,7 @@
 #include <linux/kernel.h>
 #include "../perf.h"
 #include "util.h"
-#include "exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "tests.h"
 
 #define ENV "PERF_TEST_ATTR"

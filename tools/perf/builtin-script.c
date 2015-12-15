@@ -3,9 +3,9 @@
 #include "perf.h"
 #include "util/cache.h"
 #include "util/debug.h"
-#include "util/exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "util/header.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/perf_regs.h"
 #include "util/session.h"
 #include "util/tool.h"

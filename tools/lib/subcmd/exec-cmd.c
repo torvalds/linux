@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "subcmd-util.h"
-#include "exec_cmd.h"
+#include "exec-cmd.h"
 #include "subcmd-config.h"
 
 #define MAX_ARGS	32

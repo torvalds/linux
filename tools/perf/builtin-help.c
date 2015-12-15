@@ -6,11 +6,11 @@
 #include "perf.h"
 #include "util/cache.h"
 #include "builtin.h"
-#include "util/exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "common-cmds.h"
-#include "util/parse-options.h"
-#include "util/run-command.h"
-#include "util/help.h"
+#include <subcmd/parse-options.h>
+#include <subcmd/run-command.h>
+#include <subcmd/help.h>
 #include "util/debug.h"
 
 static struct man_viewer_list {

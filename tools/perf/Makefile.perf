@@ -145,9 +145,10 @@ BISON   = bison
 STRIP   = strip
 AWK     = awk
 
-LIB_DIR          = $(srctree)/tools/lib/api/
+LIB_DIR		= $(srctree)/tools/lib/api/
 TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
-BPF_DIR = $(srctree)/tools/lib/bpf/
+BPF_DIR		= $(srctree)/tools/lib/bpf/
+SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
 
 # include config/Makefile by default and rule out
 # non-config cases
@@ -184,6 +185,7 @@ strip-libs = $(filter-out -l%,$(1))
 ifneq ($(OUTPUT),)
   TE_PATH=$(OUTPUT)
   BPF_PATH=$(OUTPUT)
+  SUBCMD_PATH=$(OUTPUT)
 ifneq ($(subdir),)
   API_PATH=$(OUTPUT)/../lib/api/
 else
@@ -193,6 +195,7 @@ else
   TE_PATH=$(TRACE_EVENT_DIR)
   API_PATH=$(LIB_DIR)
   BPF_PATH=$(BPF_DIR)
+  SUBCMD_PATH=$(SUBCMD_DIR)
 endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
@@ -205,6 +208,8 @@ LIBAPI = $(API_PATH)libapi.a
 export LIBAPI
 
 LIBBPF = $(BPF_PATH)libbpf.a
+
+LIBSUBCMD = $(SUBCMD_PATH)libsubcmd.a
 
 # python extension build directories
 PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
@@ -257,7 +262,7 @@ export PERL_PATH
 
 LIB_FILE=$(OUTPUT)libperf.a
 
-PERFLIBS = $(LIB_FILE) $(LIBAPI) $(LIBTRACEEVENT)
+PERFLIBS = $(LIB_FILE) $(LIBAPI) $(LIBTRACEEVENT) $(LIBSUBCMD)
 ifndef NO_LIBBPF
   PERFLIBS += $(LIBBPF)
 endif
@@ -437,6 +442,13 @@ $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
 	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) clean >/dev/null
 
+$(LIBSUBCMD): fixdep FORCE
+	$(Q)$(MAKE) -C $(SUBCMD_DIR) O=$(OUTPUT) $(OUTPUT)libsubcmd.a
+
+$(LIBSUBCMD)-clean:
+	$(call QUIET_CLEAN, libsubcmd)
+	$(Q)$(MAKE) -C $(SUBCMD_DIR) O=$(OUTPUT) clean
+
 help:
 	@echo 'Perf make targets:'
 	@echo '  doc		- make *all* documentation (see below)'
@@ -584,7 +596,7 @@ config-clean:
 	$(call QUIET_CLEAN, config)
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ $(if $(OUTPUT),OUTPUT=$(OUTPUT)feature/,) clean >/dev/null
 
-clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean config-clean
+clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected

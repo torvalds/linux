@@ -18,7 +18,7 @@
 #include "debug.h"
 #include "header.h"
 
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 #include "parse-events.h"
 #include "hist.h"
 #include "thread.h"

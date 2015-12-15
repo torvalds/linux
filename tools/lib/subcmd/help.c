@@ -9,7 +9,7 @@
 #include <dirent.h>
 #include "subcmd-util.h"
 #include "help.h"
-#include "exec_cmd.h"
+#include "exec-cmd.h"
 
 void add_cmdname(struct cmdnames *cmds, const char *name, size_t len)
 {

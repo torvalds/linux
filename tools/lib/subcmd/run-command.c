@@ -7,7 +7,7 @@
 #include <sys/wait.h>
 #include "subcmd-util.h"
 #include "run-command.h"
-#include "exec_cmd.h"
+#include "exec-cmd.h"
 
 #define STRERR_BUFSIZE 128
 

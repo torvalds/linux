@@ -10,7 +10,7 @@
 #include "util/header.h"
 #include "util/session.h"
 #include "util/intlist.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 #include "util/debug.h"
 #include "util/tool.h"

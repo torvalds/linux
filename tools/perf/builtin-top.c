@@ -34,7 +34,7 @@
 #include "util/top.h"
 #include "util/util.h"
 #include <linux/rbtree.h>
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/cpumap.h"
 #include "util/xyarray.h"

@@ -11,7 +11,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "color.h"
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 #include "symbol.h"
 
 struct test __weak arch_tests[] = {
