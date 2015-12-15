@@ -129,23 +129,20 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 * on other archs. It's unlikely on AArch64.
 	 */
 	old = *parent;
-	*parent = return_hooker;
 
 	trace.func = self_addr;
 	trace.depth = current->curr_ret_stack + 1;
 
 	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace)) {
-		*parent = old;
+	if (!ftrace_graph_entry(&trace))
 		return;
-	}
 
 	err = ftrace_push_return_trace(old, self_addr, &trace.depth,
 				       frame_pointer);
-	if (err == -EBUSY) {
-		*parent = old;
+	if (err == -EBUSY)
 		return;
-	}
+	else
+		*parent = return_hooker;
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
