@@ -368,19 +368,23 @@ static void gigaset_freecshw(struct cardstate *cs)
 	tasklet_kill(&cs->write_tasklet);
 	if (!cs->hw.ser)
 		return;
-	dev_set_drvdata(&cs->hw.ser->dev.dev, NULL);
 	platform_device_unregister(&cs->hw.ser->dev);
-	kfree(cs->hw.ser);
-	cs->hw.ser = NULL;
 }
 
 static void gigaset_device_release(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct cardstate *cs = dev_get_drvdata(dev);
 
 	/* adapted from platform_device_release() in drivers/base/platform.c */
 	kfree(dev->platform_data);
 	kfree(pdev->resource);
+
+	if (!cs)
+		return;
+	dev_set_drvdata(dev, NULL);
+	kfree(cs->hw.ser);
+	cs->hw.ser = NULL;
 }
 
 /*
