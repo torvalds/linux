@@ -139,6 +139,27 @@
 			};
 		};
 
+		gpu_3d: gpu@00130000 {
+			compatible = "vivante,gc";
+			reg = <0x00130000 0x4000>;
+			interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_GPU3D_AXI>,
+				 <&clks IMX6QDL_CLK_GPU3D_CORE>,
+				 <&clks IMX6QDL_CLK_GPU3D_SHADER>;
+			clock-names = "bus", "core", "shader";
+			power-domains = <&gpc 1>;
+		};
+
+		gpu_2d: gpu@00134000 {
+			compatible = "vivante,gc";
+			reg = <0x00134000 0x4000>;
+			interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_GPU2D_AXI>,
+				 <&clks IMX6QDL_CLK_GPU2D_CORE>;
+			clock-names = "bus", "core";
+			power-domains = <&gpc 1>;
+		};
+
 		timer@00a00600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;

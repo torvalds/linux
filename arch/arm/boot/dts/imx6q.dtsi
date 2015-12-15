@@ -154,6 +154,16 @@
 			status = "disabled";
 		};
 
+		gpu_vg: gpu@02204000 {
+			compatible = "vivante,gc";
+			reg = <0x02204000 0x4000>;
+			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_OPENVG_AXI>,
+				 <&clks IMX6QDL_CLK_GPU2D_CORE>;
+			clock-names = "bus", "core";
+			power-domains = <&gpc 1>;
+		};
+
 		ipu2: ipu@02800000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -225,6 +235,11 @@
 	display-subsystem {
 		compatible = "fsl,imx-display-subsystem";
 		ports = <&ipu1_di0>, <&ipu1_di1>, <&ipu2_di0>, <&ipu2_di1>;
+	};
+
+	gpu-subsystem {
+		compatible = "fsl,imx-gpu-subsystem";
+		cores = <&gpu_2d>, <&gpu_3d>, <&gpu_vg>;
 	};
 };
 
