@@ -173,7 +173,7 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 	return (valid) ? MODE_OK : MODE_BAD;
 }
 
-static struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
+static const struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
@@ -218,7 +218,7 @@ static void dw_hdmi_rockchip_encoder_prepare(struct drm_encoder *encoder)
 				      ROCKCHIP_OUT_MODE_AAAA);
 }
 
-static struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
 	.mode_fixup = dw_hdmi_rockchip_encoder_mode_fixup,
 	.mode_set   = dw_hdmi_rockchip_encoder_mode_set,
 	.prepare    = dw_hdmi_rockchip_encoder_prepare,
