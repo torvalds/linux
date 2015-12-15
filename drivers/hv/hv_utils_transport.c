@@ -27,11 +27,11 @@ static struct list_head hvt_list = LIST_HEAD_INIT(hvt_list);
 
 static void hvt_reset(struct hvutil_transport *hvt)
 {
-	mutex_lock(&hvt->outmsg_lock);
+	mutex_lock(&hvt->lock);
 	kfree(hvt->outmsg);
 	hvt->outmsg = NULL;
 	hvt->outmsg_len = 0;
-	mutex_unlock(&hvt->outmsg_lock);
+	mutex_unlock(&hvt->lock);
 	if (hvt->on_reset)
 		hvt->on_reset();
 }
@@ -47,7 +47,7 @@ static ssize_t hvt_op_read(struct file *file, char __user *buf,
 	if (wait_event_interruptible(hvt->outmsg_q, hvt->outmsg_len > 0))
 		return -EINTR;
 
-	mutex_lock(&hvt->outmsg_lock);
+	mutex_lock(&hvt->lock);
 	if (!hvt->outmsg) {
 		ret = -EAGAIN;
 		goto out_unlock;
@@ -68,7 +68,7 @@ static ssize_t hvt_op_read(struct file *file, char __user *buf,
 	hvt->outmsg_len = 0;
 
 out_unlock:
-	mutex_unlock(&hvt->outmsg_lock);
+	mutex_unlock(&hvt->lock);
 	return ret;
 }
 
@@ -197,7 +197,7 @@ int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len)
 		return ret;
 	}
 	/* HVUTIL_TRANSPORT_CHARDEV */
-	mutex_lock(&hvt->outmsg_lock);
+	mutex_lock(&hvt->lock);
 	if (hvt->outmsg) {
 		/* Previous message wasn't received */
 		ret = -EFAULT;
@@ -211,7 +211,7 @@ int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len)
 	} else
 		ret = -ENOMEM;
 out_unlock:
-	mutex_unlock(&hvt->outmsg_lock);
+	mutex_unlock(&hvt->lock);
 	return ret;
 }
 
@@ -242,7 +242,7 @@ struct hvutil_transport *hvutil_transport_init(const char *name,
 	hvt->mdev.fops = &hvt->fops;
 
 	init_waitqueue_head(&hvt->outmsg_q);
-	mutex_init(&hvt->outmsg_lock);
+	mutex_init(&hvt->lock);
 
 	spin_lock(&hvt_list_lock);
 	list_add(&hvt->list, &hvt_list);

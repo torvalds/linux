@@ -38,7 +38,7 @@ struct hvutil_transport {
 	u8 *outmsg;                         /* message to the userspace */
 	int outmsg_len;                     /* its length */
 	wait_queue_head_t outmsg_q;         /* poll/read wait queue */
-	struct mutex outmsg_lock;           /* protects outmsg */
+	struct mutex lock;                  /* protects struct members */
 };
 
 struct hvutil_transport *hvutil_transport_init(const char *name,
