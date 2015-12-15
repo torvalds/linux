@@ -1247,28 +1247,29 @@ struct amdgpu_cs_chunk {
 	uint32_t		chunk_id;
 	uint32_t		length_dw;
 	uint32_t		*kdata;
-	void __user		*user_ptr;
 };
 
 struct amdgpu_cs_parser {
 	struct amdgpu_device	*adev;
 	struct drm_file		*filp;
 	struct amdgpu_ctx	*ctx;
-	struct amdgpu_bo_list *bo_list;
+
 	/* chunks */
 	unsigned		nchunks;
 	struct amdgpu_cs_chunk	*chunks;
-	/* relocations */
-	struct amdgpu_bo_list_entry	vm_pd;
-	struct list_head	validated;
-	struct fence		*fence;
-	uint64_t		bytes_moved_threshold;
-	uint64_t		bytes_moved;
 
-	struct amdgpu_ib	*ibs;
+	/* indirect buffers */
 	uint32_t		num_ibs;
+	struct amdgpu_ib	*ibs;
 
-	struct ww_acquire_ctx	ticket;
+	/* buffer objects */
+	struct ww_acquire_ctx		ticket;
+	struct amdgpu_bo_list		*bo_list;
+	struct amdgpu_bo_list_entry	vm_pd;
+	struct list_head		validated;
+	struct fence			*fence;
+	uint64_t			bytes_moved_threshold;
+	uint64_t			bytes_moved;
 
 	/* user fence */
 	struct amdgpu_user_fence	uf;

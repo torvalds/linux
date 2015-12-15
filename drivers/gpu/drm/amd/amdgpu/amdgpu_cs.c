@@ -217,7 +217,6 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 
 		size = p->chunks[i].length_dw;
 		cdata = (void __user *)(unsigned long)user_chunk.chunk_data;
-		p->chunks[i].user_ptr = cdata;
 
 		p->chunks[i].kdata = drm_malloc_ab(size, sizeof(uint32_t));
 		if (p->chunks[i].kdata == NULL) {
