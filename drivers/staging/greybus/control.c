@@ -59,29 +59,68 @@ int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id)
 				 sizeof(request), NULL, 0);
 }
 
-static int gb_control_connection_init(struct gb_connection *connection)
+struct gb_control *gb_control_create(struct gb_interface *intf)
 {
 	struct gb_control *control;
 
 	control = kzalloc(sizeof(*control), GFP_KERNEL);
 	if (!control)
-		return -ENOMEM;
+		return NULL;
 
-	control->connection = connection;
-	connection->private = control;
+	control->connection = gb_connection_create_dynamic(intf, NULL,
+						GB_CONTROL_CPORT_ID,
+						GREYBUS_PROTOCOL_CONTROL);
+	if (!control->connection) {
+		dev_err(&intf->dev, "failed to create control connection\n");
+		kfree(control);
+		return NULL;
+	}
 
-	/* Set interface's control connection */
-	connection->intf->control = control;
+	control->connection->private = control;
+
+	return control;
+}
+
+int gb_control_enable(struct gb_control *control)
+{
+	int ret;
+
+	dev_dbg(&control->connection->intf->dev, "%s\n", __func__);
+
+	ret = gb_connection_init(control->connection);
+	if (ret) {
+		dev_err(&control->connection->intf->dev,
+				"failed to enable control connection: %d\n",
+				ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+void gb_control_disable(struct gb_control *control)
+{
+	dev_dbg(&control->connection->intf->dev, "%s\n", __func__);
+
+	gb_connection_exit(control->connection);
+}
+
+void gb_control_destroy(struct gb_control *control)
+{
+	gb_connection_destroy(control->connection);
+	kfree(control);
+}
+
+static int gb_control_connection_init(struct gb_connection *connection)
+{
+	dev_dbg(&connection->intf->dev, "%s\n", __func__);
 
 	return 0;
 }
 
 static void gb_control_connection_exit(struct gb_connection *connection)
 {
-	struct gb_control *control = connection->private;
-
-	connection->intf->control = NULL;
-	kfree(control);
+	dev_dbg(&connection->intf->dev, "%s\n", __func__);
 }
 
 static struct gb_protocol control_protocol = {

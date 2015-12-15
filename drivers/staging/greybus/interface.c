@@ -61,6 +61,9 @@ static void gb_interface_release(struct device *dev)
 	kfree(intf->product_string);
 	kfree(intf->vendor_string);
 
+	if (intf->control)
+		gb_control_destroy(intf->control);
+
 	kfree(intf);
 }
 
@@ -106,6 +109,12 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%d-%d", hd->bus_id, interface_id);
 
+	intf->control = gb_control_create(intf);
+	if (!intf->control) {
+		put_device(&intf->dev);
+		return NULL;
+	}
+
 	spin_lock_irq(&gb_interfaces_lock);
 	list_add(&intf->links, &hd->interfaces);
 	spin_unlock_irq(&gb_interfaces_lock);
@@ -127,8 +136,7 @@ void gb_interface_remove(struct gb_interface *intf)
 	if (device_is_registered(&intf->dev))
 		device_del(&intf->dev);
 
-	if (intf->control)
-		gb_connection_destroy(intf->control->connection);
+	gb_control_disable(intf->control);
 
 	spin_lock_irq(&gb_interfaces_lock);
 	list_del(&intf->links);
@@ -161,20 +169,10 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 
 	intf->device_id = device_id;
 
-	/* Establish control CPort connection */
-	connection = gb_connection_create_dynamic(intf, NULL,
-						GB_CONTROL_CPORT_ID,
-						GREYBUS_PROTOCOL_CONTROL);
-	if (!connection) {
-		dev_err(&intf->dev, "failed to create control connection\n");
-		return -ENOMEM;
-	}
-
-	ret = gb_connection_init(connection);
-	if (ret) {
-		gb_connection_destroy(connection);
+	/* Establish control connection */
+	ret = gb_control_enable(intf->control);
+	if (ret)
 		return ret;
-	}
 
 	/* Get manifest size using control protocol on CPort */
 	size = gb_control_get_manifest_size_operation(intf);
