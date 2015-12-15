@@ -1170,7 +1170,7 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 
 	if (ipac->type & IPAC_TYPE_IPACX) {
 		ista = ReadIPAC(ipac, ISACX_ISTA);
-		while (ista && cnt--) {
+		while (ista && --cnt) {
 			pr_debug("%s: ISTA %02x\n", ipac->name, ista);
 			if (ista & IPACX__ICA)
 				ipac_irq(&ipac->hscx[0], ista);
@@ -1182,7 +1182,7 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 		}
 	} else if (ipac->type & IPAC_TYPE_IPAC) {
 		ista = ReadIPAC(ipac, IPAC_ISTA);
-		while (ista && cnt--) {
+		while (ista && --cnt) {
 			pr_debug("%s: ISTA %02x\n", ipac->name, ista);
 			if (ista & (IPAC__ICD | IPAC__EXD)) {
 				istad = ReadISAC(isac, ISAC_ISTA);
@@ -1200,7 +1200,7 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 			ista = ReadIPAC(ipac, IPAC_ISTA);
 		}
 	} else if (ipac->type & IPAC_TYPE_HSCX) {
-		while (cnt) {
+		while (--cnt) {
 			ista = ReadIPAC(ipac, IPAC_ISTAB + ipac->hscx[1].off);
 			pr_debug("%s: B2 ISTA %02x\n", ipac->name, ista);
 			if (ista)
@@ -1211,7 +1211,6 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 				mISDNisac_irq(isac, istad);
 			if (0 == (ista | istad))
 				break;
-			cnt--;
 		}
 	}
 	if (cnt > maxloop) /* only for ISAC/HSCX without PCI IRQ test */
