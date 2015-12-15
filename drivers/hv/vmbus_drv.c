@@ -1063,9 +1063,25 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 	new_res->start = start;
 	new_res->end = end;
 
+	/*
+	 * Stick ranges from higher in address space at the front of the list.
+	 * If two ranges are adjacent, merge them.
+	 */
 	do {
 		if (!*old_res) {
 			*old_res = new_res;
+			break;
+		}
+
+		if (((*old_res)->end + 1) == new_res->start) {
+			(*old_res)->end = new_res->end;
+			kfree(new_res);
+			break;
+		}
+
+		if ((*old_res)->start == new_res->end + 1) {
+			(*old_res)->start = new_res->start;
+			kfree(new_res);
 			break;
 		}
 
