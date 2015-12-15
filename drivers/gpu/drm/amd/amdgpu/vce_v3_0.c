@@ -535,17 +535,9 @@ static bool vce_v3_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 mask = 0;
-	int idx;
 
-	for (idx = 0; idx < 2; ++idx) {
-		if (adev->vce.harvest_config & (1 << idx))
-			continue;
-
-		if (idx == 0)
-			mask |= SRBM_STATUS2__VCE0_BUSY_MASK;
-		else
-			mask |= SRBM_STATUS2__VCE1_BUSY_MASK;
-	}
+	mask |= (adev->vce.harvest_config & (1<<0)) ? 0 : SRBM_STATUS2__VCE0_BUSY_MASK;
+	mask |= (adev->vce.harvest_config & (1<<1)) ? 0 : SRBM_STATUS2__VCE1_BUSY_MASK;
 
 	return !(RREG32(mmSRBM_STATUS2) & mask);
 }
@@ -554,23 +546,11 @@ static int vce_v3_0_wait_for_idle(void *handle)
 {
 	unsigned i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 mask = 0;
-	int idx;
 
-	for (idx = 0; idx < 2; ++idx) {
-		if (adev->vce.harvest_config & (1 << idx))
-			continue;
-
-		if (idx == 0)
-			mask |= SRBM_STATUS2__VCE0_BUSY_MASK;
-		else
-			mask |= SRBM_STATUS2__VCE1_BUSY_MASK;
-	}
-
-	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!(RREG32(mmSRBM_STATUS2) & mask))
+	for (i = 0; i < adev->usec_timeout; i++)
+		if (vce_v3_0_is_idle(handle))
 			return 0;
-	}
+
 	return -ETIMEDOUT;
 }
 
