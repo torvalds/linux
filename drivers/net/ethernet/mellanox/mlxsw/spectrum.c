@@ -679,7 +679,7 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 
 	if (!vfid->nr_vports) {
 		err = mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid,
-					       true);
+					       true, false);
 		if (err) {
 			netdev_err(dev, "Failed to setup flooding for vFID=%d\n",
 				   vfid->vfid);
@@ -747,7 +747,8 @@ err_port_vid_to_fid_set:
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 err_port_vp_mode_trans:
 	if (!vfid->nr_vports)
-		mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, false);
+		mlxsw_sp_vport_flood_set(mlxsw_sp_vport, vfid->vfid, false,
+					 false);
 err_vport_flood_set:
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
 err_port_vport_create:
@@ -1788,16 +1789,15 @@ static int __mlxsw_sp_flood_init(struct mlxsw_core *mlxsw_core,
 	enum mlxsw_sp_flood_table flood_table;
 	char sfgc_pl[MLXSW_REG_SFGC_LEN];
 
-	if (bridge_type == MLXSW_REG_SFGC_BRIDGE_TYPE_VFID) {
+	if (bridge_type == MLXSW_REG_SFGC_BRIDGE_TYPE_VFID)
 		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID;
-		flood_table = 0;
-	} else {
+	else
 		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST;
-		if (type == MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST)
-			flood_table = MLXSW_SP_FLOOD_TABLE_UC;
-		else
-			flood_table = MLXSW_SP_FLOOD_TABLE_BM;
-	}
+
+	if (type == MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST)
+		flood_table = MLXSW_SP_FLOOD_TABLE_UC;
+	else
+		flood_table = MLXSW_SP_FLOOD_TABLE_BM;
 
 	mlxsw_reg_sfgc_pack(sfgc_pl, type, bridge_type, table_type,
 			    flood_table);
@@ -1808,9 +1808,6 @@ static int mlxsw_sp_flood_init(struct mlxsw_sp *mlxsw_sp)
 {
 	int type, err;
 
-	/* For non-offloaded netdevs, flood all traffic types to CPU
-	 * port.
-	 */
 	for (type = 0; type < MLXSW_REG_SFGC_TYPE_MAX; type++) {
 		if (type == MLXSW_REG_SFGC_TYPE_RESERVED)
 			continue;
@@ -1819,15 +1816,6 @@ static int mlxsw_sp_flood_init(struct mlxsw_sp *mlxsw_sp)
 					    MLXSW_REG_SFGC_BRIDGE_TYPE_VFID);
 		if (err)
 			return err;
-	}
-
-	/* For bridged ports, use one flooding table for unknown unicast
-	 * traffic and a second table for unregistered multicast and
-	 * broadcast.
-	 */
-	for (type = 0; type < MLXSW_REG_SFGC_TYPE_MAX; type++) {
-		if (type == MLXSW_REG_SFGC_TYPE_RESERVED)
-			continue;
 
 		err = __mlxsw_sp_flood_init(mlxsw_sp->core, type,
 					    MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID);
@@ -1958,8 +1946,8 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.flood_mode			= 3,
 	.max_fid_offset_flood_tables	= 2,
 	.fid_offset_flood_table_size	= VLAN_N_VID - 1,
-	.max_fid_flood_tables		= 1,
-	.fid_flood_table_size		= VLAN_N_VID,
+	.max_fid_flood_tables		= 2,
+	.fid_flood_table_size		= MLXSW_SP_VFID_MAX,
 	.used_max_ib_mc			= 1,
 	.max_ib_mc			= 0,
 	.used_max_pkey			= 1,
