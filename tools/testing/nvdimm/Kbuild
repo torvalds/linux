@@ -9,6 +9,8 @@ ldflags-y += --wrap=memunmap
 ldflags-y += --wrap=__devm_request_region
 ldflags-y += --wrap=__request_region
 ldflags-y += --wrap=__release_region
+ldflags-y += --wrap=devm_memremap_pages
+ldflags-y += --wrap=phys_to_pfn_t
 
 DRIVERS := ../../../drivers
 NVDIMM_SRC := $(DRIVERS)/nvdimm
