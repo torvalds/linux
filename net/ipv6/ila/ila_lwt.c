@@ -11,84 +11,12 @@
 #include <net/lwtunnel.h>
 #include <net/protocol.h>
 #include <uapi/linux/ila.h>
-
-struct ila_params {
-	__be64 locator;
-	__be64 locator_match;
-	__wsum csum_diff;
-};
+#include "ila.h"
 
 static inline struct ila_params *ila_params_lwtunnel(
 	struct lwtunnel_state *lwstate)
 {
 	return (struct ila_params *)lwstate->data;
-}
-
-static inline __wsum compute_csum_diff8(const __be32 *from, const __be32 *to)
-{
-	__be32 diff[] = {
-		~from[0], ~from[1], to[0], to[1],
-	};
-
-	return csum_partial(diff, sizeof(diff), 0);
-}
-
-static inline __wsum get_csum_diff(struct ipv6hdr *ip6h, struct ila_params *p)
-{
-	if (*(__be64 *)&ip6h->daddr == p->locator_match)
-		return p->csum_diff;
-	else
-		return compute_csum_diff8((__be32 *)&ip6h->daddr,
-					  (__be32 *)&p->locator);
-}
-
-static void update_ipv6_locator(struct sk_buff *skb, struct ila_params *p)
-{
-	__wsum diff;
-	struct ipv6hdr *ip6h = ipv6_hdr(skb);
-	size_t nhoff = sizeof(struct ipv6hdr);
-
-	/* First update checksum */
-	switch (ip6h->nexthdr) {
-	case NEXTHDR_TCP:
-		if (likely(pskb_may_pull(skb, nhoff + sizeof(struct tcphdr)))) {
-			struct tcphdr *th = (struct tcphdr *)
-					(skb_network_header(skb) + nhoff);
-
-			diff = get_csum_diff(ip6h, p);
-			inet_proto_csum_replace_by_diff(&th->check, skb,
-							diff, true);
-		}
-		break;
-	case NEXTHDR_UDP:
-		if (likely(pskb_may_pull(skb, nhoff + sizeof(struct udphdr)))) {
-			struct udphdr *uh = (struct udphdr *)
-					(skb_network_header(skb) + nhoff);
-
-			if (uh->check || skb->ip_summed == CHECKSUM_PARTIAL) {
-				diff = get_csum_diff(ip6h, p);
-				inet_proto_csum_replace_by_diff(&uh->check, skb,
-								diff, true);
-				if (!uh->check)
-					uh->check = CSUM_MANGLED_0;
-			}
-		}
-		break;
-	case NEXTHDR_ICMP:
-		if (likely(pskb_may_pull(skb,
-					 nhoff + sizeof(struct icmp6hdr)))) {
-			struct icmp6hdr *ih = (struct icmp6hdr *)
-					(skb_network_header(skb) + nhoff);
-
-			diff = get_csum_diff(ip6h, p);
-			inet_proto_csum_replace_by_diff(&ih->icmp6_cksum, skb,
-							diff, true);
-		}
-		break;
-	}
-
-	/* Now change destination address */
-	*(__be64 *)&ip6h->daddr = p->locator;
 }
 
 static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
@@ -213,17 +141,12 @@ static const struct lwtunnel_encap_ops ila_encap_ops = {
 	.cmp_encap = ila_encap_cmp,
 };
 
-static int __init ila_init(void)
+int ila_lwt_init(void)
 {
 	return lwtunnel_encap_add_ops(&ila_encap_ops, LWTUNNEL_ENCAP_ILA);
 }
 
-static void __exit ila_fini(void)
+void ila_lwt_fini(void)
 {
 	lwtunnel_encap_del_ops(&ila_encap_ops, LWTUNNEL_ENCAP_ILA);
 }
-
-module_init(ila_init);
-module_exit(ila_fini);
-MODULE_AUTHOR("Tom Herbert <tom@herbertland.com>");
-MODULE_LICENSE("GPL");
