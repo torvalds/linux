@@ -205,7 +205,7 @@ static int oxfw_probe(struct fw_unit *unit,
 		goto error;
 
 	if (oxfw->device_info) {
-		err = snd_oxfw_create_mixer(oxfw);
+		err = snd_oxfw_add_spkr(oxfw);
 		if (err < 0)
 			goto error;
 	}
