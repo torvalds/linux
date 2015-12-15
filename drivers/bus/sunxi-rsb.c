@@ -342,13 +342,13 @@ static int sunxi_rsb_read(struct sunxi_rsb *rsb, u8 rtaddr, u8 addr,
 
 	ret = _sunxi_rsb_run_xfer(rsb);
 	if (ret)
-		goto out;
+		goto unlock;
 
 	*buf = readl(rsb->regs + RSB_DATA);
 
+unlock:
 	mutex_unlock(&rsb->lock);
 
-out:
 	return ret;
 }
 
