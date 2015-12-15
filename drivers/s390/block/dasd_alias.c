@@ -722,7 +722,7 @@ static int reset_summary_unit_check(struct alias_lcu *lcu,
 	ASCEBC((char *) &cqr->magic, 4);
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = DASD_ECKD_CCW_RSCK;
-	ccw->flags = 0 ;
+	ccw->flags = CCW_FLAG_SLI;
 	ccw->count = 16;
 	ccw->cda = (__u32)(addr_t) cqr->data;
 	((char *)cqr->data)[0] = reason;
