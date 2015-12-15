@@ -9,6 +9,14 @@
 
 DECLARE_WAIT_QUEUE_HEAD(orangefs_bufmap_init_waitq);
 
+/* used to describe mapped buffers */
+struct orangefs_bufmap_desc {
+	void *uaddr;			/* user space address pointer */
+	struct page **page_array;	/* array of mapped pages */
+	int array_count;		/* size of above arrays */
+	struct list_head list_link;
+};
+
 static struct orangefs_bufmap {
 	atomic_t refcnt;
 
@@ -50,7 +58,7 @@ orangefs_bufmap_free(struct orangefs_bufmap *bufmap)
 	kfree(bufmap);
 }
 
-struct orangefs_bufmap *orangefs_bufmap_ref(void)
+static struct orangefs_bufmap *orangefs_bufmap_ref(void)
 {
 	struct orangefs_bufmap *bufmap = NULL;
 
@@ -63,7 +71,7 @@ struct orangefs_bufmap *orangefs_bufmap_ref(void)
 	return bufmap;
 }
 
-void orangefs_bufmap_unref(struct orangefs_bufmap *bufmap)
+static void orangefs_bufmap_unref(struct orangefs_bufmap *bufmap)
 {
 	if (atomic_dec_and_lock(&bufmap->refcnt, &orangefs_bufmap_lock)) {
 		__orangefs_bufmap = NULL;

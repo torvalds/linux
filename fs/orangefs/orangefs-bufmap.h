@@ -7,18 +7,7 @@
 #ifndef __ORANGEFS_BUFMAP_H
 #define __ORANGEFS_BUFMAP_H
 
-/* used to describe mapped buffers */
-struct orangefs_bufmap_desc {
-	void *uaddr;			/* user space address pointer */
-	struct page **page_array;	/* array of mapped pages */
-	int array_count;		/* size of above arrays */
-	struct list_head list_link;
-};
-
 struct orangefs_bufmap;
-
-struct orangefs_bufmap *orangefs_bufmap_ref(void);
-void orangefs_bufmap_unref(struct orangefs_bufmap *bufmap);
 
 /*
  * orangefs_bufmap_size_query is now an inline function because buffer
