@@ -922,8 +922,10 @@ EXPORT_SYMBOL_GPL(vmbus_sendpacket_multipagebuffer);
  *
  * Mainly used by Hyper-V drivers.
  */
-int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
-			u32 bufferlen, u32 *buffer_actual_len, u64 *requestid)
+static inline int
+__vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
+		   u32 bufferlen, u32 *buffer_actual_len, u64 *requestid,
+		   bool raw)
 {
 	struct vmpacket_descriptor desc;
 	u32 packetlen;
@@ -941,27 +943,34 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 		return 0;
 
 	packetlen = desc.len8 << 3;
-	userlen = packetlen - (desc.offset8 << 3);
+	if (!raw)
+		userlen = packetlen - (desc.offset8 << 3);
+	else
+		userlen = packetlen;
 
 	*buffer_actual_len = userlen;
 
-	if (userlen > bufferlen) {
-
-		pr_err("Buffer too small - got %d needs %d\n",
-			   bufferlen, userlen);
-		return -ETOOSMALL;
-	}
+	if (userlen > bufferlen)
+		return -ENOBUFS;
 
 	*requestid = desc.trans_id;
 
 	/* Copy over the packet to the user buffer */
 	ret = hv_ringbuffer_read(&channel->inbound, buffer, userlen,
-			     (desc.offset8 << 3), &signal);
+				 raw ? 0 : desc.offset8 << 3, &signal);
 
 	if (signal)
 		vmbus_setevent(channel);
 
-	return 0;
+	return ret;
+}
+
+int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
+		     u32 bufferlen, u32 *buffer_actual_len,
+		     u64 *requestid)
+{
+	return __vmbus_recvpacket(channel, buffer, bufferlen,
+				  buffer_actual_len, requestid, false);
 }
 EXPORT_SYMBOL(vmbus_recvpacket);
 
@@ -972,37 +981,7 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 			      u32 bufferlen, u32 *buffer_actual_len,
 			      u64 *requestid)
 {
-	struct vmpacket_descriptor desc;
-	u32 packetlen;
-	int ret;
-	bool signal = false;
-
-	*buffer_actual_len = 0;
-	*requestid = 0;
-
-
-	ret = hv_ringbuffer_peek(&channel->inbound, &desc,
-			     sizeof(struct vmpacket_descriptor));
-	if (ret != 0)
-		return 0;
-
-
-	packetlen = desc.len8 << 3;
-
-	*buffer_actual_len = packetlen;
-
-	if (packetlen > bufferlen)
-		return -ENOBUFS;
-
-	*requestid = desc.trans_id;
-
-	/* Copy over the entire packet to the user buffer */
-	ret = hv_ringbuffer_read(&channel->inbound, buffer, packetlen, 0,
-				 &signal);
-
-	if (signal)
-		vmbus_setevent(channel);
-
-	return ret;
+	return __vmbus_recvpacket(channel, buffer, bufferlen,
+				  buffer_actual_len, requestid, true);
 }
 EXPORT_SYMBOL_GPL(vmbus_recvpacket_raw);
