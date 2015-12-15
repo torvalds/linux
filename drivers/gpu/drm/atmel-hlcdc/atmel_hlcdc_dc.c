@@ -333,6 +333,10 @@ static const struct of_device_id atmel_hlcdc_of_match[] = {
 		.data = &atmel_hlcdc_dc_at91sam9x5,
 	},
 	{
+		.compatible = "atmel,sama5d2-hlcdc",
+		.data = &atmel_hlcdc_dc_sama5d4,
+	},
+	{
 		.compatible = "atmel,sama5d3-hlcdc",
 		.data = &atmel_hlcdc_dc_sama5d3,
 	},
