@@ -601,23 +601,11 @@ static int vmbus_remove(struct device *child_device)
 {
 	struct hv_driver *drv;
 	struct hv_device *dev = device_to_hv_device(child_device);
-	u32 relid = dev->channel->offermsg.child_relid;
 
 	if (child_device->driver) {
 		drv = drv_to_hv_drv(child_device->driver);
 		if (drv->remove)
 			drv->remove(dev);
-		else {
-			hv_process_channel_removal(dev->channel, relid);
-			pr_err("remove not set for driver %s\n",
-				dev_name(child_device));
-		}
-	} else {
-		/*
-		 * We don't have a driver for this device; deal with the
-		 * rescind message by removing the channel.
-		 */
-		hv_process_channel_removal(dev->channel, relid);
 	}
 
 	return 0;
@@ -652,7 +640,10 @@ static void vmbus_shutdown(struct device *child_device)
 static void vmbus_device_release(struct device *device)
 {
 	struct hv_device *hv_dev = device_to_hv_device(device);
+	struct vmbus_channel *channel = hv_dev->channel;
 
+	hv_process_channel_removal(channel,
+				   channel->offermsg.child_relid);
 	kfree(hv_dev);
 
 }

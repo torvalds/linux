@@ -191,6 +191,8 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 	if (channel == NULL)
 		return;
 
+	BUG_ON(!channel->rescind);
+
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(channel->target_cpu,
@@ -230,9 +232,7 @@ void vmbus_free_channels(void)
 
 	list_for_each_entry_safe(channel, tmp, &vmbus_connection.chn_list,
 		listentry) {
-		/* if we don't set rescind to true, vmbus_close_internal()
-		 * won't invoke hv_process_channel_removal().
-		 */
+		/* hv_process_channel_removal() needs this */
 		channel->rescind = true;
 
 		vmbus_device_unregister(channel->device_obj);

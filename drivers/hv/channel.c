@@ -575,12 +575,6 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	free_pages((unsigned long)channel->ringbuffer_pages,
 		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
 
-	/*
-	 * If the channel has been rescinded; process device removal.
-	 */
-	if (channel->rescind)
-		hv_process_channel_removal(channel,
-					   channel->offermsg.child_relid);
 out:
 	tasklet_enable(tasklet);
 
