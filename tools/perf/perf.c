@@ -183,9 +183,9 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 		if (!prefixcmp(cmd, CMD_EXEC_PATH)) {
 			cmd += strlen(CMD_EXEC_PATH);
 			if (*cmd == '=')
-				perf_set_argv_exec_path(cmd + 1);
+				set_argv_exec_path(cmd + 1);
 			else {
-				puts(perf_exec_path());
+				puts(get_argv_exec_path());
 				exit(0);
 			}
 		} else if (!strcmp(cmd, "--html-path")) {
@@ -538,7 +538,7 @@ int main(int argc, const char **argv)
 	page_size = sysconf(_SC_PAGE_SIZE);
 	cacheline_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
 
-	cmd = perf_extract_argv0_path(argv[0]);
+	cmd = extract_argv0_path(argv[0]);
 	if (!cmd)
 		cmd = "perf-help";
 

@@ -1408,7 +1408,7 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 	char first_half[BUFSIZ];
 	char *script_root;
 
-	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", perf_exec_path());
+	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
 
 	scripts_dir = opendir(scripts_path);
 	if (!scripts_dir)
@@ -1529,7 +1529,7 @@ int find_scripts(char **scripts_array, char **scripts_path_array)
 	if (!session)
 		return -1;
 
-	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", perf_exec_path());
+	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
 
 	scripts_dir = opendir(scripts_path);
 	if (!scripts_dir) {
@@ -1587,7 +1587,7 @@ static char *get_script_path(const char *script_root, const char *suffix)
 	char lang_path[MAXPATHLEN];
 	char *__script_root;
 
-	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", perf_exec_path());
+	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
 
 	scripts_dir = opendir(scripts_path);
 	if (!scripts_dir)
@@ -1823,7 +1823,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		scripting_max_stack = itrace_synth_opts.callchain_sz;
 
 	/* make sure PERF_EXEC_PATH is set for scripts */
-	perf_set_argv_exec_path(perf_exec_path());
+	set_argv_exec_path(get_argv_exec_path());
 
 	if (argc && !script_name && !rec_script_path && !rep_script_path) {
 		int live_pipe[2];

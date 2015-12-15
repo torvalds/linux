@@ -32,7 +32,7 @@ char *system_path(const char *path)
 	return buf;
 }
 
-const char *perf_extract_argv0_path(const char *argv0)
+const char *extract_argv0_path(const char *argv0)
 {
 	const char *slash;
 
@@ -51,7 +51,7 @@ const char *perf_extract_argv0_path(const char *argv0)
 	return argv0;
 }
 
-void perf_set_argv_exec_path(const char *exec_path)
+void set_argv_exec_path(const char *exec_path)
 {
 	argv_exec_path = exec_path;
 	/*
@@ -61,8 +61,8 @@ void perf_set_argv_exec_path(const char *exec_path)
 }
 
 
-/* Returns the highest-priority, location to look for perf programs. */
-char *perf_exec_path(void)
+/* Returns the highest-priority location to look for subprograms. */
+char *get_argv_exec_path(void)
 {
 	char *env;
 
@@ -92,7 +92,7 @@ void setup_path(void)
 {
 	const char *old_path = getenv("PATH");
 	char *new_path = NULL;
-	char *tmp = perf_exec_path();
+	char *tmp = get_argv_exec_path();
 
 	add_path(&new_path, tmp);
 	add_path(&new_path, argv0_path);
@@ -108,7 +108,7 @@ void setup_path(void)
 	free(new_path);
 }
 
-static const char **prepare_perf_cmd(const char **argv)
+static const char **prepare_exec_cmd(const char **argv)
 {
 	int argc;
 	const char **nargv;
@@ -124,8 +124,8 @@ static const char **prepare_perf_cmd(const char **argv)
 	return nargv;
 }
 
-int execv_perf_cmd(const char **argv) {
-	const char **nargv = prepare_perf_cmd(argv);
+int execv_cmd(const char **argv) {
+	const char **nargv = prepare_exec_cmd(argv);
 
 	/* execvp() can only ever return if it fails */
 	execvp(subcmd_config.exec_name, (char **)nargv);
@@ -135,7 +135,7 @@ int execv_perf_cmd(const char **argv) {
 }
 
 
-int execl_perf_cmd(const char *cmd,...)
+int execl_cmd(const char *cmd,...)
 {
 	int argc;
 	const char *argv[MAX_ARGS + 1];
@@ -155,5 +155,5 @@ int execl_perf_cmd(const char *cmd,...)
 		return error("too many args to run %s", cmd);
 
 	argv[argc] = NULL;
-	return execv_perf_cmd(argv);
+	return execv_cmd(argv);
 }

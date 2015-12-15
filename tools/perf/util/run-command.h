@@ -41,7 +41,7 @@ struct child_process {
 	unsigned no_stdin:1;
 	unsigned no_stdout:1;
 	unsigned no_stderr:1;
-	unsigned perf_cmd:1; /* if this is to be perf sub-command */
+	unsigned exec_cmd:1; /* if this is to be external sub-command */
 	unsigned stdout_to_stderr:1;
 	void (*preexec_cb)(void);
 };
@@ -51,7 +51,7 @@ int finish_command(struct child_process *);
 int run_command(struct child_process *);
 
 #define RUN_COMMAND_NO_STDIN 1
-#define RUN_PERF_CMD	     2	/*If this is to be perf sub-command */
+#define RUN_EXEC_CMD	     2	/*If this is to be external sub-command */
 #define RUN_COMMAND_STDOUT_TO_STDERR 4
 int run_command_v_opt(const char **argv, int opt);
 

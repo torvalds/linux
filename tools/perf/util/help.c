@@ -155,7 +155,7 @@ void load_command_list(const char *prefix,
 		struct cmdnames *other_cmds)
 {
 	const char *env_path = getenv("PATH");
-	char *exec_path = perf_exec_path();
+	char *exec_path = get_argv_exec_path();
 
 	if (exec_path) {
 		list_commands_in_dir(main_cmds, exec_path, prefix);
@@ -200,7 +200,7 @@ void list_commands(const char *title, struct cmdnames *main_cmds,
 			longest = other_cmds->names[i]->len;
 
 	if (main_cmds->cnt) {
-		char *exec_path = perf_exec_path();
+		char *exec_path = get_argv_exec_path();
 		printf("available %s in '%s'\n", title, exec_path);
 		printf("----------------");
 		mput_char('-', strlen(title) + strlen(exec_path));
