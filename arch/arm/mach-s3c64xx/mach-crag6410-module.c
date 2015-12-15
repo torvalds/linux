@@ -29,6 +29,9 @@
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
+#include <plat/cpu.h>
+#include <mach/irqs.h>
+
 #include "crag6410.h"
 
 static struct s3c64xx_spi_csinfo wm0010_spi_csinfo = {
@@ -399,6 +402,9 @@ static struct i2c_driver wlf_gf_module_driver = {
 
 static int __init wlf_gf_module_register(void)
 {
+	if (!soc_is_s3c64xx())
+		return 0;
+
 	return i2c_add_driver(&wlf_gf_module_driver);
 }
 device_initcall(wlf_gf_module_register);

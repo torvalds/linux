@@ -30,6 +30,7 @@
 
 #include <asm/irq.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
@@ -1176,14 +1177,16 @@ static __init int samsung_gpiolib_init(void)
 	 * interfaces. For legacy (non-DT) platforms this driver is used.
 	 */
 	if (of_have_populated_dt())
-		return -ENODEV;
-
-	samsung_gpiolib_set_cfg(samsung_gpio_cfgs, ARRAY_SIZE(samsung_gpio_cfgs));
+		return 0;
 
 	if (soc_is_s3c24xx()) {
+		samsung_gpiolib_set_cfg(samsung_gpio_cfgs,
+				ARRAY_SIZE(samsung_gpio_cfgs));
 		s3c24xx_gpiolib_add_chips(s3c24xx_gpios,
 				ARRAY_SIZE(s3c24xx_gpios), S3C24XX_VA_GPIO);
 	} else if (soc_is_s3c64xx()) {
+		samsung_gpiolib_set_cfg(samsung_gpio_cfgs,
+				ARRAY_SIZE(samsung_gpio_cfgs));
 		samsung_gpiolib_add_2bit_chips(s3c64xx_gpios_2bit,
 				ARRAY_SIZE(s3c64xx_gpios_2bit),
 				S3C64XX_VA_GPIO + 0xE0, 0x20);
@@ -1192,9 +1195,6 @@ static __init int samsung_gpiolib_init(void)
 				S3C64XX_VA_GPIO);
 		samsung_gpiolib_add_4bit2_chips(s3c64xx_gpios_4bit2,
 				ARRAY_SIZE(s3c64xx_gpios_4bit2));
-	} else {
-		WARN(1, "Unknown SoC in gpio-samsung, no GPIOs added\n");
-		return -ENODEV;
 	}
 
 	return 0;
