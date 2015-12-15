@@ -689,7 +689,7 @@ static int unregister_for_notification(struct loopback_test *t)
 
 static int is_complete(struct loopback_test *t)
 {
-	uint32_t iteration_count = 0;
+	int iteration_count;
 	int i;
 
 	for (i = 0; i < t->device_count; i++) {
