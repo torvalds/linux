@@ -524,12 +524,10 @@ static const struct fence_ops android_fence_ops = {
 static void sync_fence_free(struct kref *kref)
 {
 	struct sync_fence *fence = container_of(kref, struct sync_fence, kref);
-	int i, status = atomic_read(&fence->status);
+	int i;
 
 	for (i = 0; i < fence->num_fences; ++i) {
-		if (status)
-			fence_remove_callback(fence->cbs[i].sync_pt,
-					      &fence->cbs[i].cb);
+		fence_remove_callback(fence->cbs[i].sync_pt, &fence->cbs[i].cb);
 		fence_put(fence->cbs[i].sync_pt);
 	}
 
