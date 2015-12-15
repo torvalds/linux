@@ -41,6 +41,8 @@ int nft_register_afinfo(struct net *net, struct nft_af_info *afi)
 }
 EXPORT_SYMBOL_GPL(nft_register_afinfo);
 
+static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi);
+
 /**
  *	nft_unregister_afinfo - unregister nf_tables address family info
  *
@@ -48,9 +50,10 @@ EXPORT_SYMBOL_GPL(nft_register_afinfo);
  *
  *	Unregister the address family for use with nf_tables.
  */
-void nft_unregister_afinfo(struct nft_af_info *afi)
+void nft_unregister_afinfo(struct net *net, struct nft_af_info *afi)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
+	__nft_release_afinfo(net, afi);
 	list_del_rcu(&afi->list);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 }
@@ -4579,12 +4582,52 @@ int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 }
 EXPORT_SYMBOL_GPL(nft_data_dump);
 
-static int nf_tables_init_net(struct net *net)
+static int __net_init nf_tables_init_net(struct net *net)
 {
 	INIT_LIST_HEAD(&net->nft.af_info);
 	INIT_LIST_HEAD(&net->nft.commit_list);
 	net->nft.base_seq = 1;
 	return 0;
+}
+
+/* Called by nft_unregister_afinfo() from __net_exit path, nfnl_lock is held. */
+static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi)
+{
+	struct nft_table *table, *nt;
+	struct nft_chain *chain, *nc;
+	struct nft_rule *rule, *nr;
+	struct nft_set *set, *ns;
+	struct nft_ctx ctx = {
+		.net	= net,
+		.afi	= afi,
+	};
+
+	list_for_each_entry_safe(table, nt, &afi->tables, list) {
+		list_for_each_entry(chain, &table->chains, list)
+			nf_tables_unregister_hooks(table, chain, afi->nops);
+		/* No packets are walking on these chains anymore. */
+		ctx.table = table;
+		list_for_each_entry(chain, &table->chains, list) {
+			ctx.chain = chain;
+			list_for_each_entry_safe(rule, nr, &chain->rules, list) {
+				list_del(&rule->list);
+				chain->use--;
+				nf_tables_rule_destroy(&ctx, rule);
+			}
+		}
+		list_for_each_entry_safe(set, ns, &table->sets, list) {
+			list_del(&set->list);
+			table->use--;
+			nft_set_destroy(set);
+		}
+		list_for_each_entry_safe(chain, nc, &table->chains, list) {
+			list_del(&chain->list);
+			table->use--;
+			nf_tables_chain_destroy(chain);
+		}
+		list_del(&table->list);
+		nf_tables_table_destroy(&ctx);
+	}
 }
 
 static struct pernet_operations nf_tables_net_ops = {

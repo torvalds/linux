@@ -139,7 +139,7 @@ err:
 
 static void nf_tables_netdev_exit_net(struct net *net)
 {
-	nft_unregister_afinfo(net->nft.netdev);
+	nft_unregister_afinfo(net, net->nft.netdev);
 	kfree(net->nft.netdev);
 }
 
