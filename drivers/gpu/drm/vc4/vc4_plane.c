@@ -29,6 +29,14 @@ struct vc4_plane_state {
 	u32 *dlist;
 	u32 dlist_size; /* Number of dwords in allocated for the display list */
 	u32 dlist_count; /* Number of used dwords in the display list. */
+
+	/* Offset in the dlist to pointer word 0. */
+	u32 pw0_offset;
+
+	/* Offset where the plane's dlist was last stored in the
+	   hardware at vc4_crtc_atomic_flush() time.
+	*/
+	u32 *hw_dlist;
 };
 
 static inline struct vc4_plane_state *
@@ -207,6 +215,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Position Word 3: Context.  Written by the HVS. */
 	vc4_dlist_write(vc4_state, 0xc0c0c0c0);
 
+	vc4_state->pw0_offset = vc4_state->dlist_count;
+
 	/* Pointer Word 0: RGB / Y Pointer */
 	vc4_dlist_write(vc4_state, bo->paddr + offset);
 
@@ -258,6 +268,8 @@ u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist)
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(plane->state);
 	int i;
 
+	vc4_state->hw_dlist = dlist;
+
 	/* Can't memcpy_toio() because it needs to be 32-bit writes. */
 	for (i = 0; i < vc4_state->dlist_count; i++)
 		writel(vc4_state->dlist[i], &dlist[i]);
@@ -270,6 +282,34 @@ u32 vc4_plane_dlist_size(struct drm_plane_state *state)
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 
 	return vc4_state->dlist_count;
+}
+
+/* Updates the plane to immediately (well, once the FIFO needs
+ * refilling) scan out from at a new framebuffer.
+ */
+void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
+{
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(plane->state);
+	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
+	uint32_t addr;
+
+	/* We're skipping the address adjustment for negative origin,
+	 * because this is only called on the primary plane.
+	 */
+	WARN_ON_ONCE(plane->state->crtc_x < 0 || plane->state->crtc_y < 0);
+	addr = bo->paddr + fb->offsets[0];
+
+	/* Write the new address into the hardware immediately.  The
+	 * scanout will start from this address as soon as the FIFO
+	 * needs to refill with pixels.
+	 */
+	writel(addr, &vc4_state->hw_dlist[vc4_state->pw0_offset]);
+
+	/* Also update the CPU-side dlist copy, so that any later
+	 * atomic updates that don't do a new modeset on our plane
+	 * also use our updated address.
+	 */
+	vc4_state->dlist[vc4_state->pw0_offset] = addr;
 }
 
 static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
