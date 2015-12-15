@@ -1125,8 +1125,8 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	cz_hwmgr->battery_state = (PP_StateUILabel_Battery == prequest_ps->classification.ui_label);
 
-	clocks.memoryClock = hwmgr->display_config.min_core_set_clock != 0 ?
-				hwmgr->display_config.min_core_set_clock :
+	clocks.memoryClock = hwmgr->display_config.min_mem_set_clock != 0 ?
+				hwmgr->display_config.min_mem_set_clock :
 				cz_hwmgr->sys_info.nbp_memory_clock[1];
 
 	cgs_get_active_displays_info(hwmgr->device, &info);
