@@ -152,6 +152,13 @@
 			status = "disabled";
 		};
 
+		aux: aux@0x7e215000 {
+			compatible = "brcm,bcm2835-aux";
+			#clock-cells = <1>;
+			reg = <0x7e215000 0x8>;
+			clocks = <&clocks BCM2835_CLOCK_VPU>;
+		};
+
 		sdhci: sdhci@7e300000 {
 			compatible = "brcm,bcm2835-sdhci";
 			reg = <0x7e300000 0x100>;
