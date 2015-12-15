@@ -1050,8 +1050,7 @@ int azx_bus_init(struct azx *chip, const char *model,
 	if (chip->get_position[0] != azx_get_pos_lpib ||
 	    chip->get_position[1] != azx_get_pos_lpib)
 		bus->core.use_posbuf = true;
-	if (chip->bdl_pos_adj)
-		bus->core.bdl_pos_adj = chip->bdl_pos_adj[chip->dev_index];
+	bus->core.bdl_pos_adj = chip->bdl_pos_adj;
 	if (chip->driver_caps & AZX_DCAPS_CORBRP_SELF_CLEAR)
 		bus->core.corbrp_self_clear = true;
 
