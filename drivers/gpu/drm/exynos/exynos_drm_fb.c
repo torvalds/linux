@@ -37,6 +37,7 @@
 struct exynos_drm_fb {
 	struct drm_framebuffer	fb;
 	struct exynos_drm_gem	*exynos_gem[MAX_FB_BUFFER];
+	dma_addr_t			dma_addr[MAX_FB_BUFFER];
 };
 
 static int check_fb_gem_memory_type(struct drm_device *drm_dev,
@@ -135,6 +136,8 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 			goto err;
 
 		exynos_fb->exynos_gem[i] = exynos_gem[i];
+		exynos_fb->dma_addr[i] = exynos_gem[i]->dma_addr
+						+ mode_cmd->offsets[i];
 	}
 
 	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
@@ -189,21 +192,14 @@ err:
 	return ERR_PTR(ret);
 }
 
-struct exynos_drm_gem *exynos_drm_fb_gem(struct drm_framebuffer *fb, int index)
+dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 {
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
-	struct exynos_drm_gem *exynos_gem;
 
 	if (index >= MAX_FB_BUFFER)
-		return NULL;
+		return DMA_ERROR_CODE;
 
-	exynos_gem = exynos_fb->exynos_gem[index];
-	if (!exynos_gem)
-		return NULL;
-
-	DRM_DEBUG_KMS("dma_addr: 0x%lx\n", (unsigned long)exynos_gem->dma_addr);
-
-	return exynos_gem;
+	return exynos_fb->dma_addr[index];
 }
 
 static void exynos_drm_output_poll_changed(struct drm_device *dev)

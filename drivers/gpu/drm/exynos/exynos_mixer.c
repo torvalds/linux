@@ -37,12 +37,12 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
 
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2
-#define CURSOR_WIN		1
 
 /* The pixelformats that are natively supported by the mixer. */
 #define MXR_FORMAT_RGB565	4
@@ -109,6 +109,28 @@ struct mixer_drv_data {
 	enum mixer_version_id	version;
 	bool					is_vp_enabled;
 	bool					has_sclk;
+};
+
+static const struct exynos_drm_plane_config plane_configs[MIXER_WIN_NR] = {
+	{
+		.zpos = 0,
+		.type = DRM_PLANE_TYPE_PRIMARY,
+		.pixel_formats = mixer_formats,
+		.num_pixel_formats = ARRAY_SIZE(mixer_formats),
+		.capabilities = EXYNOS_DRM_PLANE_CAP_DOUBLE,
+	}, {
+		.zpos = 1,
+		.type = DRM_PLANE_TYPE_CURSOR,
+		.pixel_formats = mixer_formats,
+		.num_pixel_formats = ARRAY_SIZE(mixer_formats),
+		.capabilities = EXYNOS_DRM_PLANE_CAP_DOUBLE,
+	}, {
+		.zpos = 2,
+		.type = DRM_PLANE_TYPE_OVERLAY,
+		.pixel_formats = vp_formats,
+		.num_pixel_formats = ARRAY_SIZE(vp_formats),
+		.capabilities = EXYNOS_DRM_PLANE_CAP_SCALE,
+	},
 };
 
 static const u8 filter_y_horiz_tap8[] = {
@@ -399,10 +421,11 @@ static void mixer_stop(struct mixer_context *ctx)
 static void vp_video_buffer(struct mixer_context *ctx,
 			    struct exynos_drm_plane *plane)
 {
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
+	struct drm_display_mode *mode = &state->base.crtc->state->adjusted_mode;
 	struct mixer_resources *res = &ctx->mixer_res;
-	struct drm_plane_state *state = plane->base.state;
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_display_mode *mode = &state->crtc->mode;
+	struct drm_framebuffer *fb = state->base.fb;
 	unsigned long flags;
 	dma_addr_t luma_addr[2], chroma_addr[2];
 	bool tiled_mode = false;
@@ -422,8 +445,8 @@ static void vp_video_buffer(struct mixer_context *ctx,
 		return;
 	}
 
-	luma_addr[0] = plane->dma_addr[0];
-	chroma_addr[0] = plane->dma_addr[1];
+	luma_addr[0] = exynos_drm_fb_dma_addr(fb, 0);
+	chroma_addr[0] = exynos_drm_fb_dma_addr(fb, 1);
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		ctx->interlace = true;
@@ -459,24 +482,24 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height / 2));
 
-	vp_reg_write(res, VP_SRC_WIDTH, plane->src_w);
-	vp_reg_write(res, VP_SRC_HEIGHT, plane->src_h);
+	vp_reg_write(res, VP_SRC_WIDTH, state->src.w);
+	vp_reg_write(res, VP_SRC_HEIGHT, state->src.h);
 	vp_reg_write(res, VP_SRC_H_POSITION,
-			VP_SRC_H_POSITION_VAL(plane->src_x));
-	vp_reg_write(res, VP_SRC_V_POSITION, plane->src_y);
+			VP_SRC_H_POSITION_VAL(state->src.x));
+	vp_reg_write(res, VP_SRC_V_POSITION, state->src.y);
 
-	vp_reg_write(res, VP_DST_WIDTH, plane->crtc_w);
-	vp_reg_write(res, VP_DST_H_POSITION, plane->crtc_x);
+	vp_reg_write(res, VP_DST_WIDTH, state->crtc.w);
+	vp_reg_write(res, VP_DST_H_POSITION, state->crtc.x);
 	if (ctx->interlace) {
-		vp_reg_write(res, VP_DST_HEIGHT, plane->crtc_h / 2);
-		vp_reg_write(res, VP_DST_V_POSITION, plane->crtc_y / 2);
+		vp_reg_write(res, VP_DST_HEIGHT, state->crtc.h / 2);
+		vp_reg_write(res, VP_DST_V_POSITION, state->crtc.y / 2);
 	} else {
-		vp_reg_write(res, VP_DST_HEIGHT, plane->crtc_h);
-		vp_reg_write(res, VP_DST_V_POSITION, plane->crtc_y);
+		vp_reg_write(res, VP_DST_HEIGHT, state->crtc.h);
+		vp_reg_write(res, VP_DST_V_POSITION, state->crtc.y);
 	}
 
-	vp_reg_write(res, VP_H_RATIO, plane->h_ratio);
-	vp_reg_write(res, VP_V_RATIO, plane->v_ratio);
+	vp_reg_write(res, VP_H_RATIO, state->h_ratio);
+	vp_reg_write(res, VP_V_RATIO, state->v_ratio);
 
 	vp_reg_write(res, VP_ENDIAN_MODE, VP_ENDIAN_MODE_LITTLE);
 
@@ -505,37 +528,14 @@ static void mixer_layer_update(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
 }
 
-static int mixer_setup_scale(const struct exynos_drm_plane *plane,
-		unsigned int *x_ratio, unsigned int *y_ratio)
-{
-	if (plane->crtc_w != plane->src_w) {
-		if (plane->crtc_w == 2 * plane->src_w)
-			*x_ratio = 1;
-		else
-			goto fail;
-	}
-
-	if (plane->crtc_h != plane->src_h) {
-		if (plane->crtc_h == 2 * plane->src_h)
-			*y_ratio = 1;
-		else
-			goto fail;
-	}
-
-	return 0;
-
-fail:
-	DRM_DEBUG_KMS("only 2x width/height scaling of plane supported\n");
-	return -ENOTSUPP;
-}
-
 static void mixer_graph_buffer(struct mixer_context *ctx,
 			       struct exynos_drm_plane *plane)
 {
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
+	struct drm_display_mode *mode = &state->base.crtc->state->adjusted_mode;
 	struct mixer_resources *res = &ctx->mixer_res;
-	struct drm_plane_state *state = plane->base.state;
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_display_mode *mode = &state->crtc->mode;
+	struct drm_framebuffer *fb = state->base.fb;
 	unsigned long flags;
 	unsigned int win = plane->zpos;
 	unsigned int x_ratio = 0, y_ratio = 0;
@@ -567,17 +567,17 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 		return;
 	}
 
-	/* check if mixer supports requested scaling setup */
-	if (mixer_setup_scale(plane, &x_ratio, &y_ratio))
-		return;
+	/* ratio is already checked by common plane code */
+	x_ratio = state->h_ratio == (1 << 15);
+	y_ratio = state->v_ratio == (1 << 15);
 
-	dst_x_offset = plane->crtc_x;
-	dst_y_offset = plane->crtc_y;
+	dst_x_offset = state->crtc.x;
+	dst_y_offset = state->crtc.y;
 
 	/* converting dma address base and source offset */
-	dma_addr = plane->dma_addr[0]
-		+ (plane->src_x * fb->bits_per_pixel >> 3)
-		+ (plane->src_y * fb->pitches[0]);
+	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
+		+ (state->src.x * fb->bits_per_pixel >> 3)
+		+ (state->src.y * fb->pitches[0]);
 	src_x_offset = 0;
 	src_y_offset = 0;
 
@@ -605,8 +605,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 		mixer_reg_write(res, MXR_RESOLUTION, val);
 	}
 
-	val  = MXR_GRP_WH_WIDTH(plane->src_w);
-	val |= MXR_GRP_WH_HEIGHT(plane->src_h);
+	val  = MXR_GRP_WH_WIDTH(state->src.w);
+	val |= MXR_GRP_WH_HEIGHT(state->src.h);
 	val |= MXR_GRP_WH_H_SCALE(x_ratio);
 	val |= MXR_GRP_WH_V_SCALE(y_ratio);
 	mixer_reg_write(res, MXR_GRAPHIC_WH(win), val);
@@ -1020,42 +1020,11 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 {
 	struct mixer_context *ctx = crtc->ctx;
 	struct mixer_resources *res = &ctx->mixer_res;
-	int ret;
 
 	if (test_bit(MXR_BIT_POWERED, &ctx->flags))
 		return;
 
 	pm_runtime_get_sync(ctx->dev);
-
-	ret = clk_prepare_enable(res->mixer);
-	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the mixer clk [%d]\n", ret);
-		return;
-	}
-	ret = clk_prepare_enable(res->hdmi);
-	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the hdmi clk [%d]\n", ret);
-		return;
-	}
-	if (ctx->vp_enabled) {
-		ret = clk_prepare_enable(res->vp);
-		if (ret < 0) {
-			DRM_ERROR("Failed to prepare_enable the vp clk [%d]\n",
-				  ret);
-			return;
-		}
-		if (ctx->has_sclk) {
-			ret = clk_prepare_enable(res->sclk_mixer);
-			if (ret < 0) {
-				DRM_ERROR("Failed to prepare_enable the " \
-					   "sclk_mixer clk [%d]\n",
-					  ret);
-				return;
-			}
-		}
-	}
-
-	set_bit(MXR_BIT_POWERED, &ctx->flags);
 
 	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
@@ -1064,12 +1033,13 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 		mixer_reg_writemask(res, MXR_INT_EN, ~0, MXR_INT_EN_VSYNC);
 	}
 	mixer_win_reset(ctx);
+
+	set_bit(MXR_BIT_POWERED, &ctx->flags);
 }
 
 static void mixer_disable(struct exynos_drm_crtc *crtc)
 {
 	struct mixer_context *ctx = crtc->ctx;
-	struct mixer_resources *res = &ctx->mixer_res;
 	int i;
 
 	if (!test_bit(MXR_BIT_POWERED, &ctx->flags))
@@ -1081,17 +1051,9 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 	for (i = 0; i < MIXER_WIN_NR; i++)
 		mixer_disable_plane(crtc, &ctx->planes[i]);
 
+	pm_runtime_put(ctx->dev);
+
 	clear_bit(MXR_BIT_POWERED, &ctx->flags);
-
-	clk_disable_unprepare(res->hdmi);
-	clk_disable_unprepare(res->mixer);
-	if (ctx->vp_enabled) {
-		clk_disable_unprepare(res->vp);
-		if (ctx->has_sclk)
-			clk_disable_unprepare(res->sclk_mixer);
-	}
-
-	pm_runtime_put_sync(ctx->dev);
 }
 
 /* Only valid for Mixer version 16.0.33.0 */
@@ -1187,30 +1149,19 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 	struct mixer_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_plane *exynos_plane;
-	unsigned int zpos;
+	unsigned int i;
 	int ret;
 
 	ret = mixer_initialize(ctx, drm_dev);
 	if (ret)
 		return ret;
 
-	for (zpos = 0; zpos < MIXER_WIN_NR; zpos++) {
-		enum drm_plane_type type;
-		const uint32_t *formats;
-		unsigned int fcount;
+	for (i = 0; i < MIXER_WIN_NR; i++) {
+		if (i == VP_DEFAULT_WIN && !ctx->vp_enabled)
+			continue;
 
-		if (zpos < VP_DEFAULT_WIN) {
-			formats = mixer_formats;
-			fcount = ARRAY_SIZE(mixer_formats);
-		} else {
-			formats = vp_formats;
-			fcount = ARRAY_SIZE(vp_formats);
-		}
-
-		type = exynos_plane_get_type(zpos, CURSOR_WIN);
-		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type, formats, fcount,
-					zpos);
+		ret = exynos_plane_init(drm_dev, &ctx->planes[i],
+					1 << ctx->pipe, &plane_configs[i]);
 		if (ret)
 			return ret;
 	}
@@ -1293,10 +1244,70 @@ static int mixer_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int exynos_mixer_suspend(struct device *dev)
+{
+	struct mixer_context *ctx = dev_get_drvdata(dev);
+	struct mixer_resources *res = &ctx->mixer_res;
+
+	clk_disable_unprepare(res->hdmi);
+	clk_disable_unprepare(res->mixer);
+	if (ctx->vp_enabled) {
+		clk_disable_unprepare(res->vp);
+		if (ctx->has_sclk)
+			clk_disable_unprepare(res->sclk_mixer);
+	}
+
+	return 0;
+}
+
+static int exynos_mixer_resume(struct device *dev)
+{
+	struct mixer_context *ctx = dev_get_drvdata(dev);
+	struct mixer_resources *res = &ctx->mixer_res;
+	int ret;
+
+	ret = clk_prepare_enable(res->mixer);
+	if (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the mixer clk [%d]\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(res->hdmi);
+	if (ret < 0) {
+		DRM_ERROR("Failed to prepare_enable the hdmi clk [%d]\n", ret);
+		return ret;
+	}
+	if (ctx->vp_enabled) {
+		ret = clk_prepare_enable(res->vp);
+		if (ret < 0) {
+			DRM_ERROR("Failed to prepare_enable the vp clk [%d]\n",
+				  ret);
+			return ret;
+		}
+		if (ctx->has_sclk) {
+			ret = clk_prepare_enable(res->sclk_mixer);
+			if (ret < 0) {
+				DRM_ERROR("Failed to prepare_enable the " \
+					   "sclk_mixer clk [%d]\n",
+					  ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops exynos_mixer_pm_ops = {
+	SET_RUNTIME_PM_OPS(exynos_mixer_suspend, exynos_mixer_resume, NULL)
+};
+
 struct platform_driver mixer_driver = {
 	.driver = {
 		.name = "exynos-mixer",
 		.owner = THIS_MODULE,
+		.pm = &exynos_mixer_pm_ops,
 		.of_match_table = mixer_match_types,
 	},
 	.probe = mixer_probe,
