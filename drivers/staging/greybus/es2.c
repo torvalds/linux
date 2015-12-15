@@ -274,7 +274,7 @@ static struct urb *next_free_urb(struct es2_ap_dev *es2, gfp_t gfp_mask)
 	 * Crap, pool is empty, complain to the syslog and go allocate one
 	 * dynamically as we have to succeed.
 	 */
-	dev_err(&es2->usb_dev->dev,
+	dev_dbg(&es2->usb_dev->dev,
 		"No free CPort OUT urbs, having to dynamically allocate one!\n");
 	return usb_alloc_urb(0, gfp_mask);
 }
