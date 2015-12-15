@@ -275,10 +275,10 @@ sync_nodes:
 		goto out;
 
 	/* once recovery info is written, don't need to tack this */
-	remove_dirty_inode(sbi, ino, APPEND_INO);
+	remove_ino_entry(sbi, ino, APPEND_INO);
 	clear_inode_flag(fi, FI_APPEND_WRITE);
 flush_out:
-	remove_dirty_inode(sbi, ino, UPDATE_INO);
+	remove_ino_entry(sbi, ino, UPDATE_INO);
 	clear_inode_flag(fi, FI_UPDATE_WRITE);
 	ret = f2fs_issue_flush(sbi);
 out:

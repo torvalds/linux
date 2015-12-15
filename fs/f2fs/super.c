@@ -548,7 +548,7 @@ static void f2fs_put_super(struct super_block *sb)
 	 * normally superblock is clean, so we need to release this.
 	 * In addition, EIO will skip do checkpoint, we need this as well.
 	 */
-	release_dirty_inode(sbi);
+	release_ino_entry(sbi);
 	release_discard_addrs(sbi);
 
 	f2fs_leave_shrinker(sbi);

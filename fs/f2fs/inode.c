@@ -357,9 +357,9 @@ no_delete:
 	if (xnid)
 		invalidate_mapping_pages(NODE_MAPPING(sbi), xnid, xnid);
 	if (is_inode_flag_set(fi, FI_APPEND_WRITE))
-		add_dirty_inode(sbi, inode->i_ino, APPEND_INO);
+		add_ino_entry(sbi, inode->i_ino, APPEND_INO);
 	if (is_inode_flag_set(fi, FI_UPDATE_WRITE))
-		add_dirty_inode(sbi, inode->i_ino, UPDATE_INO);
+		add_ino_entry(sbi, inode->i_ino, UPDATE_INO);
 	if (is_inode_flag_set(fi, FI_FREE_NID)) {
 		if (err && err != -ENOENT)
 			alloc_nid_done(sbi, inode->i_ino);

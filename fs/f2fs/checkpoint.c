@@ -410,13 +410,13 @@ static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 	spin_unlock(&im->ino_lock);
 }
 
-void add_dirty_inode(struct f2fs_sb_info *sbi, nid_t ino, int type)
+void add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 {
 	/* add new dirty ino entry into list */
 	__add_ino_entry(sbi, ino, type);
 }
 
-void remove_dirty_inode(struct f2fs_sb_info *sbi, nid_t ino, int type)
+void remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 {
 	/* remove dirty ino entry from list */
 	__remove_ino_entry(sbi, ino, type);
@@ -434,7 +434,7 @@ bool exist_written_data(struct f2fs_sb_info *sbi, nid_t ino, int mode)
 	return e ? true : false;
 }
 
-void release_dirty_inode(struct f2fs_sb_info *sbi)
+void release_ino_entry(struct f2fs_sb_info *sbi)
 {
 	struct ino_entry *e, *tmp;
 	int i;
@@ -1081,7 +1081,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		invalidate_mapping_pages(META_MAPPING(sbi), discard_blk,
 								discard_blk);
 
-	release_dirty_inode(sbi);
+	release_ino_entry(sbi);
 
 	if (unlikely(f2fs_cp_error(sbi)))
 		return;
