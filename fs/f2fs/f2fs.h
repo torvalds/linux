@@ -158,13 +158,7 @@ struct ino_entry {
 	nid_t ino;		/* inode number */
 };
 
-/*
- * for the list of directory inodes or gc inodes.
- * NOTE: there are two slab users for this structure, if we add/modify/delete
- * fields in structure for one of slab users, it may affect fields or size of
- * other one, in this condition, it's better to split both of slab and related
- * data structure.
- */
+/* for the list of inodes to be GCed */
 struct inode_entry {
 	struct list_head list;	/* list head */
 	struct inode *inode;	/* vfs inode pointer */
@@ -441,8 +435,8 @@ struct f2fs_inode_info {
 	unsigned int clevel;		/* maximum level of given file name */
 	nid_t i_xattr_nid;		/* node id that contains xattrs */
 	unsigned long long xattr_ver;	/* cp version of xattr modification */
-	struct inode_entry *dirty_dir;	/* the pointer of dirty dir */
 
+	struct list_head dirty_list;	/* linked in global dirty list */
 	struct list_head inmem_pages;	/* inmemory pages managed by f2fs */
 	struct mutex inmem_lock;	/* lock for inmemory pages */
 
