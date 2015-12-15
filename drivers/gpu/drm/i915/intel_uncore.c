@@ -404,7 +404,7 @@ void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
 
-	WARN_ON(dev_priv->pm.suspended);
+	assert_rpm_wakelock_held(dev_priv);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	__intel_uncore_forcewake_get(dev_priv, fw_domains);

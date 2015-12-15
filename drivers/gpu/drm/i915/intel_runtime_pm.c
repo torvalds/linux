@@ -538,8 +538,7 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
 		  "DC5 already programmed to be enabled.\n");
-	WARN_ONCE(dev_priv->pm.suspended,
-		  "DC5 cannot be enabled, if platform is runtime-suspended.\n");
+	assert_rpm_wakelock_held(dev_priv);
 
 	assert_csr_loaded(dev_priv);
 }
@@ -553,8 +552,7 @@ static void assert_can_disable_dc5(struct drm_i915_private *dev_priv)
 	if (dev_priv->power_domains.initializing)
 		return;
 
-	WARN_ONCE(dev_priv->pm.suspended,
-		"Disabling of DC5 while platform is runtime-suspended should never happen.\n");
+	assert_rpm_wakelock_held(dev_priv);
 }
 
 static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
@@ -2242,7 +2240,7 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 	struct device *device = &dev->pdev->dev;
 
 	pm_runtime_get_sync(device);
-	WARN(dev_priv->pm.suspended, "Device still suspended.\n");
+	assert_rpm_wakelock_held(dev_priv);
 }
 
 /**
@@ -2267,7 +2265,7 @@ void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
 
-	WARN(dev_priv->pm.suspended, "Getting nosync-ref while suspended.\n");
+	assert_rpm_wakelock_held(dev_priv);
 	pm_runtime_get_noresume(device);
 }
 
