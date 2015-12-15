@@ -151,7 +151,7 @@ int rcar_du_hdmienc_init(struct rcar_du_device *rcdu,
 		goto error;
 
 	ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_TMDS);
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret < 0)
 		goto error;
 

@@ -1023,7 +1023,7 @@ static int tegra_dsi_init(struct host1x_client *client)
 
 		drm_encoder_init(drm, &dsi->output.encoder,
 				 &tegra_dsi_encoder_funcs,
-				 DRM_MODE_ENCODER_DSI);
+				 DRM_MODE_ENCODER_DSI, NULL);
 		drm_encoder_helper_add(&dsi->output.encoder,
 				       &tegra_dsi_encoder_helper_funcs);
 
