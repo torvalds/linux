@@ -626,6 +626,8 @@ mlxsw_sp_port_vport_create(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_vport->mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	mlxsw_sp_vport->local_port = mlxsw_sp_port->local_port;
 	mlxsw_sp_vport->stp_state = BR_STATE_FORWARDING;
+	mlxsw_sp_vport->lagged = mlxsw_sp_port->lagged;
+	mlxsw_sp_vport->lag_id = mlxsw_sp_port->lag_id;
 	mlxsw_sp_vport->vport.vfid = vfid;
 	mlxsw_sp_vport->vport.vid = vfid->vid;
 
@@ -2774,16 +2776,40 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 	return NOTIFY_DONE;
 }
 
+static int mlxsw_sp_netdevice_lag_vport_event(struct net_device *lag_dev,
+					      unsigned long event, void *ptr,
+					      u16 vid)
+{
+	struct net_device *dev;
+	struct list_head *iter;
+	int ret;
+
+	netdev_for_each_lower_dev(lag_dev, dev, iter) {
+		if (mlxsw_sp_port_dev_check(dev)) {
+			ret = mlxsw_sp_netdevice_vport_event(dev, event, ptr,
+							     vid);
+			if (ret == NOTIFY_BAD)
+				return ret;
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 					 unsigned long event, void *ptr)
 {
 	struct net_device *real_dev = vlan_dev_real_dev(vlan_dev);
 	u16 vid = vlan_dev_vlan_id(vlan_dev);
 
-	if (!mlxsw_sp_port_dev_check(real_dev))
-		return NOTIFY_DONE;
+	if (mlxsw_sp_port_dev_check(real_dev))
+		return mlxsw_sp_netdevice_vport_event(real_dev, event, ptr,
+						      vid);
+	else if (netif_is_lag_master(real_dev))
+		return mlxsw_sp_netdevice_lag_vport_event(real_dev, event, ptr,
+							  vid);
 
-	return mlxsw_sp_netdevice_vport_event(real_dev, event, ptr, vid);
+	return NOTIFY_DONE;
 }
 
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
