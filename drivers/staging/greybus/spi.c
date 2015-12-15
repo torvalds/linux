@@ -360,6 +360,8 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 	master->transfer_one_message = gb_spi_transfer_one_message;
 
 	ret = spi_register_master(master);
+	if (ret < 0)
+		goto out_put_master;
 
 	/* now, fetch the devices configuration */
 	for (i = 0; i < spi->num_chipselect; i++) {
