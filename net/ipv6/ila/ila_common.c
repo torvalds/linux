@@ -80,12 +80,20 @@ static int __init ila_init(void)
 	if (ret)
 		goto fail_lwt;
 
+	ret = ila_xlat_init();
+	if (ret)
+		goto fail_xlat;
+
+	return 0;
+fail_xlat:
+	ila_lwt_fini();
 fail_lwt:
 	return ret;
 }
 
 static void __exit ila_fini(void)
 {
+	ila_xlat_fini();
 	ila_lwt_fini();
 }
 

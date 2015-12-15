@@ -42,5 +42,7 @@ void update_ipv6_locator(struct sk_buff *skb, struct ila_params *p);
 
 int ila_lwt_init(void);
 void ila_lwt_fini(void);
+int ila_xlat_init(void);
+void ila_xlat_fini(void);
 
 #endif /* __ILA_H */
