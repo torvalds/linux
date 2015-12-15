@@ -327,13 +327,31 @@ static void intel_uncore_ellc_detect(struct drm_device *dev)
 	}
 }
 
+static bool
+check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
+{
+	u32 dbg;
+
+	if (!HAS_FPGA_DBG_UNCLAIMED(dev_priv))
+		return false;
+
+	dbg = __raw_i915_read32(dev_priv, FPGA_DBG);
+	if (likely(!(dbg & FPGA_DBG_RM_NOCLAIM)))
+		return false;
+
+	__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+
+	return true;
+}
+
 static void __intel_uncore_early_sanitize(struct drm_device *dev,
 					  bool restore_forcewake)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (HAS_FPGA_DBG_UNCLAIMED(dev))
-		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+	/* clear out unclaimed reg detection bit */
+	if (check_for_unclaimed_mmio(dev_priv))
+		DRM_DEBUG("unclaimed mmio detected on uncore init, clearing\n");
 
 	/* clear out old GT FIFO errors */
 	if (IS_GEN6(dev) || IS_GEN7(dev))
@@ -594,10 +612,9 @@ hsw_unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 	if (!i915.mmio_debug)
 		return;
 
-	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
+	if (check_for_unclaimed_mmio(dev_priv)) {
 		WARN(1, "Unclaimed register detected %s %s register 0x%x\n",
 		     when, op, i915_mmio_reg_offset(reg));
-		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 		i915.mmio_debug--; /* Only report the first N failures */
 	}
 }
@@ -610,11 +627,10 @@ hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
 	if (i915.mmio_debug || !mmio_debug_once)
 		return;
 
-	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
+	if (check_for_unclaimed_mmio(dev_priv)) {
 		DRM_DEBUG("Unclaimed register detected, "
 			  "enabling oneshot unclaimed register reporting. "
 			  "Please use i915.mmio_debug=N for more information.\n");
-		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 		i915.mmio_debug = mmio_debug_once--;
 	}
 }
@@ -1582,11 +1598,6 @@ bool intel_has_gpu_reset(struct drm_device *dev)
 
 void intel_uncore_check_errors(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (HAS_FPGA_DBG_UNCLAIMED(dev) &&
-	    (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
+	if (check_for_unclaimed_mmio(to_i915(dev)))
 		DRM_ERROR("Unclaimed register before interrupt\n");
-		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
-	}
 }
