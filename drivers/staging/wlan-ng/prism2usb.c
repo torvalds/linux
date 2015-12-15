@@ -139,8 +139,7 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 	wlandev = (wlandevice_t *)usb_get_intfdata(interface);
 	if (wlandev != NULL) {
 		LIST_HEAD(cleanlist);
-		struct list_head *entry;
-		struct list_head *temp;
+		hfa384x_usbctlx_t *ctlx, *temp;
 		unsigned long flags;
 
 		hfa384x_t *hw = wlandev->priv;
@@ -184,12 +183,8 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		 * and tell everyone who is waiting for their
 		 * responses that we have shut down.
 		 */
-		list_for_each(entry, &cleanlist) {
-			hfa384x_usbctlx_t *ctlx;
-
-			ctlx = list_entry(entry, hfa384x_usbctlx_t, list);
+		list_for_each_entry(ctlx, &cleanlist, list)
 			complete(&ctlx->done);
-		}
 
 		/* Give any outstanding synchronous commands
 		 * a chance to complete. All they need to do
@@ -199,12 +194,8 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		msleep(100);
 
 		/* Now delete the CTLXs, because no-one else can now. */
-		list_for_each_safe(entry, temp, &cleanlist) {
-			hfa384x_usbctlx_t *ctlx;
-
-			ctlx = list_entry(entry, hfa384x_usbctlx_t, list);
+		list_for_each_entry_safe(ctlx, temp, &cleanlist, list)
 			kfree(ctlx);
-		}
 
 		/* Unhook the wlandev */
 		unregister_wlandev(wlandev);

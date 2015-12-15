@@ -2810,8 +2810,7 @@ void hfa384x_tx_timeout(wlandevice_t *wlandev)
 static void hfa384x_usbctlx_reaper_task(unsigned long data)
 {
 	hfa384x_t *hw = (hfa384x_t *)data;
-	struct list_head *entry;
-	struct list_head *temp;
+	hfa384x_usbctlx_t *ctlx, *temp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -2819,10 +2818,7 @@ static void hfa384x_usbctlx_reaper_task(unsigned long data)
 	/* This list is guaranteed to be empty if someone
 	 * has unplugged the adapter.
 	 */
-	list_for_each_safe(entry, temp, &hw->ctlxq.reapable) {
-		hfa384x_usbctlx_t *ctlx;
-
-		ctlx = list_entry(entry, hfa384x_usbctlx_t, list);
+	list_for_each_entry_safe(ctlx, temp, &hw->ctlxq.reapable, list) {
 		list_del(&ctlx->list);
 		kfree(ctlx);
 	}
@@ -2847,8 +2843,7 @@ static void hfa384x_usbctlx_reaper_task(unsigned long data)
 static void hfa384x_usbctlx_completion_task(unsigned long data)
 {
 	hfa384x_t *hw = (hfa384x_t *)data;
-	struct list_head *entry;
-	struct list_head *temp;
+	hfa384x_usbctlx_t *ctlx, *temp;
 	unsigned long flags;
 
 	int reap = 0;
@@ -2858,11 +2853,7 @@ static void hfa384x_usbctlx_completion_task(unsigned long data)
 	/* This list is guaranteed to be empty if someone
 	 * has unplugged the adapter ...
 	 */
-	list_for_each_safe(entry, temp, &hw->ctlxq.completing) {
-		hfa384x_usbctlx_t *ctlx;
-
-		ctlx = list_entry(entry, hfa384x_usbctlx_t, list);
-
+	list_for_each_entry_safe(ctlx, temp, &hw->ctlxq.completing, list) {
 		/* Call the completion function that this
 		 * command was assigned, assuming it has one.
 		 */
