@@ -683,7 +683,7 @@ struct vmbus_connection {
 
 	/* List of channels */
 	struct list_head chn_list;
-	spinlock_t channel_lock;
+	struct mutex channel_mutex;
 
 	struct workqueue_struct *work_queue;
 };

@@ -146,7 +146,7 @@ int vmbus_connect(void)
 	spin_lock_init(&vmbus_connection.channelmsg_lock);
 
 	INIT_LIST_HEAD(&vmbus_connection.chn_list);
-	spin_lock_init(&vmbus_connection.channel_lock);
+	mutex_init(&vmbus_connection.channel_mutex);
 
 	/*
 	 * Setup the vmbus event connection for channel interrupt
@@ -282,11 +282,10 @@ struct vmbus_channel *relid2channel(u32 relid)
 {
 	struct vmbus_channel *channel;
 	struct vmbus_channel *found_channel  = NULL;
-	unsigned long flags;
 	struct list_head *cur, *tmp;
 	struct vmbus_channel *cur_sc;
 
-	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
+	mutex_lock(&vmbus_connection.channel_mutex);
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		if (channel->offermsg.child_relid == relid) {
 			found_channel = channel;
@@ -305,7 +304,7 @@ struct vmbus_channel *relid2channel(u32 relid)
 			}
 		}
 	}
-	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+	mutex_unlock(&vmbus_connection.channel_mutex);
 
 	return found_channel;
 }

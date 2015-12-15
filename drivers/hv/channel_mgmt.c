@@ -206,9 +206,9 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 	}
 
 	if (channel->primary_channel == NULL) {
-		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
+		mutex_lock(&vmbus_connection.channel_mutex);
 		list_del(&channel->listentry);
-		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+		mutex_unlock(&vmbus_connection.channel_mutex);
 
 		primary_channel = channel;
 	} else {
@@ -253,7 +253,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	unsigned long flags;
 
 	/* Make sure this is a new offer */
-	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
+	mutex_lock(&vmbus_connection.channel_mutex);
 
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		if (!uuid_le_cmp(channel->offermsg.offer.if_type,
@@ -269,7 +269,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		list_add_tail(&newchannel->listentry,
 			      &vmbus_connection.chn_list);
 
-	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+	mutex_unlock(&vmbus_connection.channel_mutex);
 
 	if (!fnew) {
 		/*
@@ -341,9 +341,9 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 err_deq_chan:
 	vmbus_release_relid(newchannel->offermsg.child_relid);
 
-	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
+	mutex_lock(&vmbus_connection.channel_mutex);
 	list_del(&newchannel->listentry);
-	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+	mutex_unlock(&vmbus_connection.channel_mutex);
 
 	if (newchannel->target_cpu != get_cpu()) {
 		put_cpu();
