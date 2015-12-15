@@ -178,7 +178,7 @@ alternative_endif
 	mrs	\rd, sp_el0
 	.endm
 
-	.macro	irq_stack_entry, dummy_lr
+	.macro	irq_stack_entry
 	mov	x19, sp			// preserve the original sp
 
 	this_cpu_ptr irq_stack, x25, x26
@@ -196,10 +196,12 @@ alternative_endif
 	add	x26, x25, x26
 	mov	sp, x26
 
-	/* Add a dummy stack frame */
-	stp     x29, \dummy_lr, [sp, #-16]!           // dummy stack frame
+	/*
+	 * Add a dummy stack frame, this non-standard format is fixed up
+	 * by unwind_frame()
+	 */
+	stp     x29, x19, [sp, #-16]!
 	mov	x29, sp
-	stp     x19, xzr, [sp, #-16]!
 
 9998:
 	.endm
@@ -229,7 +231,7 @@ tsk	.req	x28		// current thread_info
 	.macro	irq_handler
 	ldr_l	x1, handle_arch_irq
 	mov	x0, sp
-	irq_stack_entry x22
+	irq_stack_entry
 	blr	x1
 	irq_stack_exit
 	.endm
