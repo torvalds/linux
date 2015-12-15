@@ -366,7 +366,6 @@ http://patchwork.kernel.org/ でリストされています。
 に全サブシステムツリーからほぼ毎日プルされてできる特別なテスト用のリ
 ポジトリが存在します-
        http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
-       http://linux.f-seidel.de/linux-next/pmwiki/
 
 このやり方によって、-next カーネルは次のマージ機会でどんなものがメイン
 ラインカーネルにマージされるか、おおまかなの展望を提供します。-next 
