@@ -143,6 +143,13 @@ struct mma_chip_info {
 	u8 ev_count;
 };
 
+enum {
+	idx_x,
+	idx_y,
+	idx_z,
+	idx_ts,
+};
+
 static int mma8452_drdy(struct mma8452_data *data)
 {
 	int tries = 150;
@@ -816,31 +823,31 @@ static struct attribute_group mma8452_event_attribute_group = {
 }
 
 static const struct iio_chan_spec mma8452_channels[] = {
-	MMA8452_CHANNEL(X, 0, 12),
-	MMA8452_CHANNEL(Y, 1, 12),
-	MMA8452_CHANNEL(Z, 2, 12),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	MMA8452_CHANNEL(X, idx_x, 12),
+	MMA8452_CHANNEL(Y, idx_y, 12),
+	MMA8452_CHANNEL(Z, idx_z, 12),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
 };
 
 static const struct iio_chan_spec mma8453_channels[] = {
-	MMA8452_CHANNEL(X, 0, 10),
-	MMA8452_CHANNEL(Y, 1, 10),
-	MMA8452_CHANNEL(Z, 2, 10),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	MMA8452_CHANNEL(X, idx_x, 10),
+	MMA8452_CHANNEL(Y, idx_y, 10),
+	MMA8452_CHANNEL(Z, idx_z, 10),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
 };
 
 static const struct iio_chan_spec mma8652_channels[] = {
-	MMA8652_CHANNEL(X, 0, 12),
-	MMA8652_CHANNEL(Y, 1, 12),
-	MMA8652_CHANNEL(Z, 2, 12),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	MMA8652_CHANNEL(X, idx_x, 12),
+	MMA8652_CHANNEL(Y, idx_y, 12),
+	MMA8652_CHANNEL(Z, idx_z, 12),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
 };
 
 static const struct iio_chan_spec mma8653_channels[] = {
-	MMA8652_CHANNEL(X, 0, 10),
-	MMA8652_CHANNEL(Y, 1, 10),
-	MMA8652_CHANNEL(Z, 2, 10),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	MMA8652_CHANNEL(X, idx_x, 10),
+	MMA8652_CHANNEL(Y, idx_y, 10),
+	MMA8652_CHANNEL(Z, idx_z, 10),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
 };
 
 enum {
