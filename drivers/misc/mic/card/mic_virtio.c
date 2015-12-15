@@ -337,7 +337,7 @@ static int mic_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	 * rings have been re-assigned.
 	 */
 	mic_send_intr(mvdev->mdev, mvdev->c2h_vdev_db);
-	for (retry = 100; retry--;) {
+	for (retry = 100; --retry;) {
 		if (!ioread8(&dc->used_address_updated))
 			break;
 		msleep(100);
