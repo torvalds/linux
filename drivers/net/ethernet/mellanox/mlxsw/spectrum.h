@@ -41,11 +41,16 @@
 #include <linux/netdevice.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
+#include <linux/list.h>
 #include <net/switchdev.h>
 
 #include "core.h"
 
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
+#define MLXSW_SP_VFID_PORT_MAX 512	/* Non-bridged VLAN interfaces */
+#define MLXSW_SP_VFID_BR_MAX 8192	/* Bridged VLAN interfaces */
+#define MLXSW_SP_VFID_MAX (MLXSW_SP_VFID_PORT_MAX + MLXSW_SP_VFID_BR_MAX)
+
 #define MLXSW_SP_LAG_MAX 64
 #define MLXSW_SP_PORT_PER_LAG_MAX 16
 
@@ -56,8 +61,23 @@ struct mlxsw_sp_upper {
 	unsigned int ref_count;
 };
 
+struct mlxsw_sp_vfid {
+	struct list_head list;
+	u16 nr_vports;
+	u16 vfid;	/* Starting at 0 */
+	u16 vid;
+};
+
+static inline u16 mlxsw_sp_vfid_to_fid(u16 vfid)
+{
+	return MLXSW_SP_VFID_BASE + vfid;
+}
+
 struct mlxsw_sp {
-	unsigned long active_vfids[BITS_TO_LONGS(VLAN_N_VID)];
+	struct {
+		struct list_head list;
+		unsigned long mapped[BITS_TO_LONGS(MLXSW_SP_VFID_PORT_MAX)];
+	} port_vfids;
 	unsigned long active_fids[BITS_TO_LONGS(VLAN_N_VID)];
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
@@ -102,11 +122,15 @@ struct mlxsw_sp_port {
 	   lagged:1;
 	u16 pvid;
 	u16 lag_id;
+	struct {
+		struct list_head list;
+		struct mlxsw_sp_vfid *vfid;
+		u16 vid;
+	} vport;
 	/* 802.1Q bridge VLANs */
 	unsigned long *active_vlans;
 	/* VLAN interfaces */
-	unsigned long active_vfids[BITS_TO_LONGS(VLAN_N_VID)];
-	u16 nr_vfids;
+	struct list_head vports_list;
 };
 
 static inline struct mlxsw_sp_port *
@@ -119,6 +143,38 @@ mlxsw_sp_port_lagged_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id, u8 port_index)
 						lag_id, port_index);
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	return mlxsw_sp_port && mlxsw_sp_port->lagged ? mlxsw_sp_port : NULL;
+}
+
+static inline bool
+mlxsw_sp_port_is_vport(const struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	return mlxsw_sp_port->vport.vfid;
+}
+
+static inline u16
+mlxsw_sp_vport_vid_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	return mlxsw_sp_vport->vport.vid;
+}
+
+static inline u16
+mlxsw_sp_vport_vfid_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	return mlxsw_sp_vport->vport.vfid->vfid;
+}
+
+static inline struct mlxsw_sp_port *
+mlxsw_sp_port_vport_find(const struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
+{
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+
+	list_for_each_entry(mlxsw_sp_vport, &mlxsw_sp_port->vports_list,
+			    vport.list) {
+		if (mlxsw_sp_vport_vid_get(mlxsw_sp_vport) == vid)
+			return mlxsw_sp_vport;
+	}
+
+	return NULL;
 }
 
 enum mlxsw_sp_flood_table {
@@ -143,5 +199,7 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 			  u16 vid);
 int mlxsw_sp_port_kill_vid(struct net_device *dev,
 			   __be16 __always_unused proto, u16 vid);
+int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 vfid,
+			     bool set);
 
 #endif

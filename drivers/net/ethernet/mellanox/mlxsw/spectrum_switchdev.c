@@ -129,17 +129,25 @@ static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				     bool only_uc)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u16 local_port = mlxsw_sp_port->local_port;
+	enum mlxsw_flood_table_type table_type;
 	u16 range = fid_end - fid_begin + 1;
 	char *sftr_pl;
 	int err;
+
+	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
+		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID;
+		local_port = MLXSW_PORT_CPU_PORT;
+	} else {
+		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST;
+	}
 
 	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
 	if (!sftr_pl)
 		return -ENOMEM;
 
 	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_UC, fid_begin,
-			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, range,
-			    mlxsw_sp_port->local_port, set);
+			    table_type, range, local_port, set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 	if (err)
 		goto buffer_out;
@@ -151,8 +159,7 @@ static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		goto buffer_out;
 
 	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, fid_begin,
-			    MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST, range,
-			    mlxsw_sp_port->local_port, set);
+			    table_type, range, local_port, set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 
 buffer_out:
@@ -183,6 +190,15 @@ err_port_flood_set:
 		__mlxsw_sp_port_flood_set(mlxsw_sp_port, vid, vid, !set, true);
 	netdev_err(dev, "Failed to configure unicast flooding\n");
 	return err;
+}
+
+int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 vfid,
+			     bool set)
+{
+	/* In case of vFIDs, index into the flooding table is relative to
+	 * the start of the vFIDs range.
+	 */
+	return __mlxsw_sp_port_flood_set(mlxsw_sp_vport, vfid, vfid, set, true);
 }
 
 static int mlxsw_sp_port_attr_br_flags_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -304,7 +320,7 @@ static int mlxsw_sp_port_fid_map(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid)
 {
 	enum mlxsw_reg_svfa_mt mt;
 
-	if (mlxsw_sp_port->nr_vfids)
+	if (!list_empty(&mlxsw_sp_port->vports_list))
 		mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
 	else
 		mt = MLXSW_REG_SVFA_MT_VID_TO_FID;
@@ -316,7 +332,7 @@ static int mlxsw_sp_port_fid_unmap(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid)
 {
 	enum mlxsw_reg_svfa_mt mt;
 
-	if (!mlxsw_sp_port->nr_vfids)
+	if (list_empty(&mlxsw_sp_port->vports_list))
 		return 0;
 
 	mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
