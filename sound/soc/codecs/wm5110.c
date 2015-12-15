@@ -2272,6 +2272,7 @@ static struct snd_compr_ops wm5110_compr_ops = {
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
 	.get_caps = wm_adsp_compr_get_caps,
+	.trigger = wm_adsp_compr_trigger,
 };
 
 static struct snd_soc_platform_driver wm5110_compr_platform = {

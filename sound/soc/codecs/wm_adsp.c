@@ -283,6 +283,7 @@ struct wm_adsp_compr_buf {
 
 struct wm_adsp_compr {
 	struct wm_adsp *dsp;
+	struct wm_adsp_compr_buf *buf;
 
 	struct snd_compr_stream *stream;
 	struct snd_compressed_buffer size;
@@ -2341,6 +2342,13 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 		goto out;
 	}
 
+	if (dsp->compr) {
+		/* It is expect this limitation will be removed in future */
+		adsp_err(dsp, "Only a single stream supported per DSP\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
 	compr = kzalloc(sizeof(*compr), GFP_KERNEL);
 	if (!compr) {
 		ret = -ENOMEM;
@@ -2656,5 +2664,59 @@ static int wm_adsp_buffer_free(struct wm_adsp *dsp)
 
 	return 0;
 }
+
+static inline int wm_adsp_compr_attached(struct wm_adsp_compr *compr)
+{
+	return compr->buf != NULL;
+}
+
+static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
+{
+	/*
+	 * Note this will be more complex once each DSP can support multiple
+	 * streams
+	 */
+	if (!compr->dsp->buffer)
+		return -EINVAL;
+
+	compr->buf = compr->dsp->buffer;
+
+	return 0;
+}
+
+int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
+{
+	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
+	int ret = 0;
+
+	adsp_dbg(dsp, "Trigger: %d\n", cmd);
+
+	mutex_lock(&dsp->pwr_lock);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		if (wm_adsp_compr_attached(compr))
+			break;
+
+		ret = wm_adsp_compr_attach(compr);
+		if (ret < 0) {
+			adsp_err(dsp, "Failed to link buffer and stream: %d\n",
+				 ret);
+			break;
+		}
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm_adsp_compr_trigger);
 
 MODULE_LICENSE("GPL v2");
