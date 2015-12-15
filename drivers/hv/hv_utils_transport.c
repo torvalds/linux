@@ -80,11 +80,10 @@ static ssize_t hvt_op_write(struct file *file, const char __user *buf,
 
 	hvt = container_of(file->f_op, struct hvutil_transport, fops);
 
-	inmsg = kzalloc(count, GFP_KERNEL);
-	if (copy_from_user(inmsg, buf, count)) {
-		kfree(inmsg);
-		return -EFAULT;
-	}
+	inmsg = memdup_user(buf, count);
+	if (IS_ERR(inmsg))
+		return PTR_ERR(inmsg);
+
 	if (hvt->on_msg(inmsg, count))
 		return -EFAULT;
 	kfree(inmsg);
