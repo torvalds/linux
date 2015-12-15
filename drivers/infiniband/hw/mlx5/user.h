@@ -66,7 +66,11 @@ struct mlx5_ib_alloc_ucontext_req_v2 {
 	__u32	total_num_uuars;
 	__u32	num_low_latency_uuars;
 	__u32	flags;
-	__u32	reserved;
+	__u32	comp_mask;
+};
+
+enum mlx5_ib_alloc_ucontext_resp_mask {
+	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_CORE_CLOCK_OFFSET = 1UL << 0,
 };
 
 struct mlx5_ib_alloc_ucontext_resp {
@@ -80,7 +84,11 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u32	max_recv_wr;
 	__u32	max_srq_recv_wr;
 	__u16	num_ports;
-	__u16	reserved;
+	__u16	reserved1;
+	__u32	comp_mask;
+	__u32	response_length;
+	__u32	reserved2;
+	__u64	hca_core_clock_offset;
 };
 
 struct mlx5_ib_alloc_pd_resp {
