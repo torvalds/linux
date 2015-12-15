@@ -67,8 +67,7 @@ static int write_modem(struct cardstate *cs)
 	struct sk_buff *skb = bcs->tx_skb;
 	int sent = -EOPNOTSUPP;
 
-	if (!tty || !tty->ops || !skb)
-		return -EINVAL;
+	WARN_ON(!tty || !tty->ops || !skb);
 
 	if (!skb->len) {
 		dev_kfree_skb_any(skb);
@@ -109,8 +108,7 @@ static int send_cb(struct cardstate *cs)
 	unsigned long flags;
 	int sent = 0;
 
-	if (!tty || !tty->ops)
-		return -EFAULT;
+	WARN_ON(!tty || !tty->ops);
 
 	cb = cs->cmdbuf;
 	if (!cb)
@@ -432,7 +430,9 @@ static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
 	struct tty_struct *tty = cs->hw.ser->tty;
 	unsigned int set, clear;
 
-	if (!tty || !tty->ops || !tty->ops->tiocmset)
+	WARN_ON(!tty || !tty->ops);
+	/* tiocmset is an optional tty driver method */
+	if (!tty->ops->tiocmset)
 		return -EINVAL;
 	set = new_state & ~old_state;
 	clear = old_state & ~new_state;
