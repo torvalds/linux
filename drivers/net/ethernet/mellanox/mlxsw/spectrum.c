@@ -2259,6 +2259,40 @@ static int mlxsw_sp_port_lag_changed(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_sp_port_lag_tx_en_set(mlxsw_sp_port, info->tx_enabled);
 }
 
+static int mlxsw_sp_port_vlan_link(struct mlxsw_sp_port *mlxsw_sp_port,
+				   struct net_device *vlan_dev)
+{
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+	u16 vid = vlan_dev_vlan_id(vlan_dev);
+
+	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
+	if (!mlxsw_sp_vport) {
+		WARN_ON(!mlxsw_sp_vport);
+		return -EINVAL;
+	}
+
+	mlxsw_sp_vport->dev = vlan_dev;
+
+	return 0;
+}
+
+static int mlxsw_sp_port_vlan_unlink(struct mlxsw_sp_port *mlxsw_sp_port,
+				     struct net_device *vlan_dev)
+{
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+	u16 vid = vlan_dev_vlan_id(vlan_dev);
+
+	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
+	if (!mlxsw_sp_vport) {
+		WARN_ON(!mlxsw_sp_vport);
+		return -EINVAL;
+	}
+
+	mlxsw_sp_vport->dev = mlxsw_sp_port->dev;
+
+	return 0;
+}
+
 static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 					       unsigned long event, void *ptr)
 {
@@ -2288,9 +2322,23 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!info->master)
-			break;
-		if (netif_is_bridge_master(upper_dev)) {
+		if (is_vlan_dev(upper_dev)) {
+			if (info->linking) {
+				err = mlxsw_sp_port_vlan_link(mlxsw_sp_port,
+							      upper_dev);
+				if (err) {
+					netdev_err(dev, "Failed to link VLAN device\n");
+					return NOTIFY_BAD;
+				}
+			} else {
+				err = mlxsw_sp_port_vlan_unlink(mlxsw_sp_port,
+								upper_dev);
+				if (err) {
+					netdev_err(dev, "Failed to unlink VLAN device\n");
+					return NOTIFY_BAD;
+				}
+			}
+		} else if (netif_is_bridge_master(upper_dev)) {
 			if (info->linking) {
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port);
 				if (err)
