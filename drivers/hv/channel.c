@@ -512,6 +512,18 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	tasklet = hv_context.event_dpc[channel->target_cpu];
 	tasklet_disable(tasklet);
 
+	/*
+	 * In case a device driver's probe() fails (e.g.,
+	 * util_probe() -> vmbus_open() returns -ENOMEM) and the device is
+	 * rescinded later (e.g., we dynamically disble an Integrated Service
+	 * in Hyper-V Manager), the driver's remove() invokes vmbus_close():
+	 * here we should skip most of the below cleanup work.
+	 */
+	if (channel->state != CHANNEL_OPENED_STATE) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	channel->state = CHANNEL_OPEN_STATE;
 	channel->sc_creation_callback = NULL;
 	/* Stop callback and cancel the timer asap */
