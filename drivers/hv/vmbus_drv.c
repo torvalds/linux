@@ -870,7 +870,7 @@ static int vmbus_bus_init(int irq)
 	on_each_cpu(hv_synic_init, NULL, 1);
 	ret = vmbus_connect();
 	if (ret)
-		goto err_alloc;
+		goto err_connect;
 
 	if (vmbus_proto_version > VERSION_WIN7)
 		cpu_hotplug_disable();
@@ -888,6 +888,8 @@ static int vmbus_bus_init(int irq)
 
 	return 0;
 
+err_connect:
+	on_each_cpu(hv_synic_cleanup, NULL, 1);
 err_alloc:
 	hv_synic_free();
 	hv_remove_vmbus_irq();
