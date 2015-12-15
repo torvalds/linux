@@ -396,7 +396,7 @@ static inline void mlxsw_reg_sfd_rec_pack(char *payload, int rec_index,
 
 static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 					 enum mlxsw_reg_sfd_rec_policy policy,
-					 const char *mac, u16 vid,
+					 const char *mac, u16 fid_vid,
 					 enum mlxsw_reg_sfd_rec_action action,
 					 u8 local_port)
 {
@@ -404,16 +404,16 @@ static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 			       MLXSW_REG_SFD_REC_TYPE_UNICAST,
 			       policy, mac, action);
 	mlxsw_reg_sfd_uc_sub_port_set(payload, rec_index, 0);
-	mlxsw_reg_sfd_uc_fid_vid_set(payload, rec_index, vid);
+	mlxsw_reg_sfd_uc_fid_vid_set(payload, rec_index, fid_vid);
 	mlxsw_reg_sfd_uc_system_port_set(payload, rec_index, local_port);
 }
 
 static inline void mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
-					   char *mac, u16 *p_vid,
+					   char *mac, u16 *p_fid_vid,
 					   u8 *p_local_port)
 {
 	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
-	*p_vid = mlxsw_reg_sfd_uc_fid_vid_get(payload, rec_index);
+	*p_fid_vid = mlxsw_reg_sfd_uc_fid_vid_get(payload, rec_index);
 	*p_local_port = mlxsw_reg_sfd_uc_system_port_get(payload, rec_index);
 }
 
@@ -448,7 +448,7 @@ MLXSW_ITEM32_INDEXED(reg, sfd, uc_lag_lag_id, MLXSW_REG_SFD_BASE_LEN, 0, 10,
 static inline void
 mlxsw_reg_sfd_uc_lag_pack(char *payload, int rec_index,
 			  enum mlxsw_reg_sfd_rec_policy policy,
-			  const char *mac, u16 vid,
+			  const char *mac, u16 fid_vid,
 			  enum mlxsw_reg_sfd_rec_action action,
 			  u16 lag_id)
 {
@@ -456,7 +456,7 @@ mlxsw_reg_sfd_uc_lag_pack(char *payload, int rec_index,
 			       MLXSW_REG_SFD_REC_TYPE_UNICAST_LAG,
 			       policy, mac, action);
 	mlxsw_reg_sfd_uc_lag_sub_port_set(payload, rec_index, 0);
-	mlxsw_reg_sfd_uc_lag_fid_vid_set(payload, rec_index, vid);
+	mlxsw_reg_sfd_uc_lag_fid_vid_set(payload, rec_index, fid_vid);
 	mlxsw_reg_sfd_uc_lag_lag_id_set(payload, rec_index, lag_id);
 }
 

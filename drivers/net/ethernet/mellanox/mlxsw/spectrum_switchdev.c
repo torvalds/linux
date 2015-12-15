@@ -520,7 +520,7 @@ static enum mlxsw_reg_sfd_op mlxsw_sp_sfd_op(bool adding)
 }
 
 static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp_port *mlxsw_sp_port,
-				   const char *mac, u16 vid, bool adding,
+				   const char *mac, u16 fid, bool adding,
 				   bool dynamic)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
@@ -533,7 +533,7 @@ static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
 	mlxsw_reg_sfd_uc_pack(sfd_pl, 0, mlxsw_sp_sfd_rec_policy(dynamic),
-			      mac, vid, MLXSW_REG_SFD_REC_ACTION_NOP,
+			      mac, fid, MLXSW_REG_SFD_REC_ACTION_NOP,
 			      mlxsw_sp_port->local_port);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
 	kfree(sfd_pl);
@@ -542,7 +542,7 @@ static int mlxsw_sp_port_fdb_uc_op(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int mlxsw_sp_port_fdb_uc_lag_op(struct mlxsw_sp *mlxsw_sp, u16 lag_id,
-				       const char *mac, u16 vid, bool adding,
+				       const char *mac, u16 fid, bool adding,
 				       bool dynamic)
 {
 	char *sfd_pl;
@@ -554,7 +554,7 @@ static int mlxsw_sp_port_fdb_uc_lag_op(struct mlxsw_sp *mlxsw_sp, u16 lag_id,
 
 	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
 	mlxsw_reg_sfd_uc_lag_pack(sfd_pl, 0, mlxsw_sp_sfd_rec_policy(dynamic),
-				  mac, vid, MLXSW_REG_SFD_REC_ACTION_NOP,
+				  mac, fid, MLXSW_REG_SFD_REC_ACTION_NOP,
 				  lag_id);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
 	kfree(sfd_pl);
@@ -567,21 +567,21 @@ mlxsw_sp_port_fdb_static_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			     const struct switchdev_obj_port_fdb *fdb,
 			     struct switchdev_trans *trans)
 {
-	u16 vid = fdb->vid;
+	u16 fid = fdb->vid;
 
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
-	if (!vid)
-		vid = mlxsw_sp_port->pvid;
+	if (!fid)
+		fid = mlxsw_sp_port->pvid;
 
 	if (!mlxsw_sp_port->lagged)
 		return mlxsw_sp_port_fdb_uc_op(mlxsw_sp_port,
-					       fdb->addr, vid, true, false);
+					       fdb->addr, fid, true, false);
 	else
 		return mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp_port->mlxsw_sp,
 						   mlxsw_sp_port->lag_id,
-						   fdb->addr, vid, true, false);
+						   fdb->addr, fid, true, false);
 }
 
 static int mlxsw_sp_port_obj_add(struct net_device *dev,
@@ -696,14 +696,16 @@ static int
 mlxsw_sp_port_fdb_static_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			     const struct switchdev_obj_port_fdb *fdb)
 {
+	u16 fid = fdb->vid;
+
 	if (!mlxsw_sp_port->lagged)
 		return mlxsw_sp_port_fdb_uc_op(mlxsw_sp_port,
-					       fdb->addr, fdb->vid,
+					       fdb->addr, fid,
 					       false, false);
 	else
 		return mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp_port->mlxsw_sp,
 						   mlxsw_sp_port->lag_id,
-						   fdb->addr, fdb->vid,
+						   fdb->addr, fid,
 						   false, false);
 }
 
@@ -751,7 +753,7 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char *sfd_pl;
 	char mac[ETH_ALEN];
-	u16 vid;
+	u16 fid;
 	u8 local_port;
 	u16 lag_id;
 	u8 num_rec;
@@ -781,12 +783,12 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 		for (i = 0; i < num_rec; i++) {
 			switch (mlxsw_reg_sfd_rec_type_get(sfd_pl, i)) {
 			case MLXSW_REG_SFD_REC_TYPE_UNICAST:
-				mlxsw_reg_sfd_uc_unpack(sfd_pl, i, mac, &vid,
+				mlxsw_reg_sfd_uc_unpack(sfd_pl, i, mac, &fid,
 							&local_port);
 				if (local_port == mlxsw_sp_port->local_port) {
 					ether_addr_copy(fdb->addr, mac);
 					fdb->ndm_state = NUD_REACHABLE;
-					fdb->vid = vid;
+					fdb->vid = fid;
 					err = cb(&fdb->obj);
 					if (err)
 						stored_err = err;
@@ -794,12 +796,12 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 				break;
 			case MLXSW_REG_SFD_REC_TYPE_UNICAST_LAG:
 				mlxsw_reg_sfd_uc_lag_unpack(sfd_pl, i,
-							    mac, &vid, &lag_id);
+							    mac, &fid, &lag_id);
 				if (mlxsw_sp_port ==
 				    mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id)) {
 					ether_addr_copy(fdb->addr, mac);
 					fdb->ndm_state = NUD_REACHABLE;
-					fdb->vid = vid;
+					fdb->vid = fid;
 					err = cb(&fdb->obj);
 					if (err)
 						stored_err = err;
@@ -888,23 +890,25 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	char mac[ETH_ALEN];
 	u8 local_port;
-	u16 vid;
+	u16 vid, fid;
 	int err;
 
-	mlxsw_reg_sfn_mac_unpack(sfn_pl, rec_index, mac, &vid, &local_port);
+	mlxsw_reg_sfn_mac_unpack(sfn_pl, rec_index, mac, &fid, &local_port);
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	if (!mlxsw_sp_port) {
 		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Incorrect local port in FDB notification\n");
 		return;
 	}
 
-	err = mlxsw_sp_port_fdb_uc_op(mlxsw_sp_port, mac, vid,
+	err = mlxsw_sp_port_fdb_uc_op(mlxsw_sp_port, mac, fid,
 				      adding && mlxsw_sp_port->learning, true);
 	if (err) {
 		if (net_ratelimit())
 			netdev_err(mlxsw_sp_port->dev, "Failed to set FDB entry\n");
 		return;
 	}
+
+	vid = fid;
 
 	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning,
 				    mlxsw_sp_port->learning_sync,
@@ -918,17 +922,17 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	char mac[ETH_ALEN];
 	u16 lag_id;
-	u16 vid;
+	u16 vid, fid;
 	int err;
 
-	mlxsw_reg_sfn_mac_lag_unpack(sfn_pl, rec_index, mac, &vid, &lag_id);
+	mlxsw_reg_sfn_mac_lag_unpack(sfn_pl, rec_index, mac, &fid, &lag_id);
 	mlxsw_sp_port = mlxsw_sp_lag_rep_port(mlxsw_sp, lag_id);
 	if (!mlxsw_sp_port) {
 		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Cannot find port representor for LAG\n");
 		return;
 	}
 
-	err = mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp, lag_id, mac, vid,
+	err = mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp, lag_id, mac, fid,
 					  adding && mlxsw_sp_port->learning,
 					  true);
 	if (err) {
@@ -936,6 +940,8 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 			netdev_err(mlxsw_sp_port->dev, "Failed to set FDB entry\n");
 		return;
 	}
+
+	vid = fid;
 
 	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning,
 				    mlxsw_sp_port->learning_sync,
