@@ -956,7 +956,7 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static struct drm_connector_funcs hdmi_connector_funcs = {
+static const struct drm_connector_funcs hdmi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = hdmi_detect,
@@ -1030,7 +1030,7 @@ static struct drm_encoder *hdmi_best_encoder(struct drm_connector *connector)
 	return &hdata->encoder;
 }
 
-static struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
 	.get_modes = hdmi_get_modes,
 	.mode_valid = hdmi_mode_valid,
 	.best_encoder = hdmi_best_encoder,
@@ -1647,14 +1647,14 @@ static void hdmi_disable(struct drm_encoder *encoder)
 	hdata->powered = false;
 }
 
-static struct drm_encoder_helper_funcs exynos_hdmi_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs exynos_hdmi_encoder_helper_funcs = {
 	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
 	.enable		= hdmi_enable,
 	.disable	= hdmi_disable,
 };
 
-static struct drm_encoder_funcs exynos_hdmi_encoder_funcs = {
+static const struct drm_encoder_funcs exynos_hdmi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 

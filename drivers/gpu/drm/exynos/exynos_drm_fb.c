@@ -109,7 +109,7 @@ static int exynos_drm_fb_dirty(struct drm_framebuffer *fb,
 	return 0;
 }
 
-static struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
+static const struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
 	.destroy	= exynos_drm_fb_destroy,
 	.create_handle	= exynos_drm_fb_create_handle,
 	.dirty		= exynos_drm_fb_dirty,

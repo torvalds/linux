@@ -1603,7 +1603,7 @@ static void exynos_dsi_connector_destroy(struct drm_connector *connector)
 	connector->dev = NULL;
 }
 
-static struct drm_connector_funcs exynos_dsi_connector_funcs = {
+static const struct drm_connector_funcs exynos_dsi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = exynos_dsi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -1631,7 +1631,7 @@ exynos_dsi_best_encoder(struct drm_connector *connector)
 	return &dsi->encoder;
 }
 
-static struct drm_connector_helper_funcs exynos_dsi_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs exynos_dsi_connector_helper_funcs = {
 	.get_modes = exynos_dsi_get_modes,
 	.best_encoder = exynos_dsi_best_encoder,
 };
@@ -1684,14 +1684,14 @@ static void exynos_dsi_mode_set(struct drm_encoder *encoder,
 	vm->hsync_len = m->hsync_end - m->hsync_start;
 }
 
-static struct drm_encoder_helper_funcs exynos_dsi_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs exynos_dsi_encoder_helper_funcs = {
 	.mode_fixup = exynos_dsi_mode_fixup,
 	.mode_set = exynos_dsi_mode_set,
 	.enable = exynos_dsi_enable,
 	.disable = exynos_dsi_disable,
 };
 
-static struct drm_encoder_funcs exynos_dsi_encoder_funcs = {
+static const struct drm_encoder_funcs exynos_dsi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 

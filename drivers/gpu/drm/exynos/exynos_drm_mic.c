@@ -389,7 +389,7 @@ already_disabled:
 	mutex_unlock(&mic_mutex);
 }
 
-struct drm_bridge_funcs mic_bridge_funcs = {
+static const struct drm_bridge_funcs mic_bridge_funcs = {
 	.disable = mic_disable,
 	.post_disable = mic_post_disable,
 	.pre_enable = mic_pre_enable,
