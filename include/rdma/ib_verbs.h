@@ -53,6 +53,8 @@
 #include <uapi/linux/if_ether.h>
 #include <net/ipv6.h>
 #include <net/ip.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include <linux/atomic.h>
 #include <linux/mmu_notifier.h>
@@ -1920,6 +1922,31 @@ static inline int ib_copy_from_udata(void *dest, struct ib_udata *udata, size_t 
 static inline int ib_copy_to_udata(struct ib_udata *udata, void *src, size_t len)
 {
 	return copy_to_user(udata->outbuf, src, len) ? -EFAULT : 0;
+}
+
+static inline bool ib_is_udata_cleared(struct ib_udata *udata,
+				       size_t offset,
+				       size_t len)
+{
+	const void __user *p = udata->inbuf + offset;
+	bool ret = false;
+	u8 *buf;
+
+	if (len > USHRT_MAX)
+		return false;
+
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return false;
+
+	if (copy_from_user(buf, p, len))
+		goto free;
+
+	ret = !memchr_inv(buf, 0, len);
+
+free:
+	kfree(buf);
+	return ret;
 }
 
 /**
