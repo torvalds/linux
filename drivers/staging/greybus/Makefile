@@ -85,7 +85,10 @@ ccflags-y := -Wall
 # needed for trace events
 ccflags-y += -I$(src)
 
-all: module
+all: module tools
+
+tools::
+	$(MAKE) -C tools KERNELDIR=$(realpath $(KERNELDIR))
 
 module:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)
@@ -97,6 +100,7 @@ clean:
 	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
 	rm -f Module.markers Module.symvers modules.order
 	rm -rf .tmp_versions Modules.symvers
+	$(MAKE) -C tools clean
 
 coccicheck:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) coccicheck
