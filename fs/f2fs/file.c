@@ -1700,7 +1700,6 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	}
 
 	map.m_lblk = pg_start;
-	map.m_len = pg_end - pg_start;
 
 	/*
 	 * lookup mapping info in dnode page cache, skip defragmenting if all
@@ -1708,14 +1707,13 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	 * in logical blocks.
 	 */
 	while (map.m_lblk < pg_end) {
-		map.m_flags = 0;
+		map.m_len = pg_end - map.m_lblk;
 		err = f2fs_map_blocks(inode, &map, 0, F2FS_GET_BLOCK_READ);
 		if (err)
 			goto out;
 
 		if (!(map.m_flags & F2FS_MAP_FLAGS)) {
 			map.m_lblk++;
-			map.m_len--;
 			continue;
 		}
 
@@ -1726,7 +1724,6 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 		blk_end = map.m_pblk + map.m_len;
 
 		map.m_lblk += map.m_len;
-		map.m_len = pg_end - map.m_lblk;
 	}
 
 	if (!fragmented)
@@ -1752,14 +1749,13 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 		int cnt = 0;
 
 do_map:
-		map.m_flags = 0;
+		map.m_len = pg_end - map.m_lblk;
 		err = f2fs_map_blocks(inode, &map, 0, F2FS_GET_BLOCK_READ);
 		if (err)
 			goto clear_out;
 
 		if (!(map.m_flags & F2FS_MAP_FLAGS)) {
 			map.m_lblk++;
-			map.m_len--;
 			continue;
 		}
 
@@ -1784,7 +1780,6 @@ do_map:
 		}
 
 		map.m_lblk = idx;
-		map.m_len = pg_end - idx;
 
 		if (idx < pg_end && cnt < blk_per_seg)
 			goto do_map;
