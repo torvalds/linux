@@ -290,6 +290,9 @@ static void _rcar_thermal_irq_ctrl(struct rcar_thermal_priv *priv, int enable)
 	unsigned long flags;
 	u32 mask = 0x3 << rcar_id_to_shift(priv); /* enable Rising/Falling */
 
+	if (!rcar_has_irq_support(priv))
+		return;
+
 	spin_lock_irqsave(&common->lock, flags);
 
 	rcar_thermal_common_bset(common, INTMSK, mask, enable ? 0 : mask);
@@ -374,8 +377,7 @@ static int rcar_thermal_remove(struct platform_device *pdev)
 	struct rcar_thermal_priv *priv;
 
 	rcar_thermal_for_each_priv(priv, common) {
-		if (rcar_has_irq_support(priv))
-			rcar_thermal_irq_disable(priv);
+		rcar_thermal_irq_disable(priv);
 		thermal_zone_device_unregister(priv->zone);
 	}
 
@@ -461,8 +463,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			goto error_unregister;
 		}
 
-		if (rcar_has_irq_support(priv))
-			rcar_thermal_irq_enable(priv);
+		rcar_thermal_irq_enable(priv);
 
 		list_move_tail(&priv->list, &common->head);
 
