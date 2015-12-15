@@ -533,7 +533,7 @@ static const uuid_le null_guid;
 
 static inline bool is_null_guid(const uuid_le *guid)
 {
-	if (memcmp(guid, &null_guid, sizeof(uuid_le)))
+	if (uuid_le_cmp(*guid, null_guid))
 		return false;
 	return true;
 }
@@ -547,7 +547,7 @@ static const struct hv_vmbus_device_id *hv_vmbus_get_id(
 					const uuid_le *guid)
 {
 	for (; !is_null_guid(&id->guid); id++)
-		if (!memcmp(&id->guid, guid, sizeof(uuid_le)))
+		if (!uuid_le_cmp(id->guid, *guid))
 			return id;
 
 	return NULL;

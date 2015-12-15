@@ -408,8 +408,7 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 	struct cpumask *alloced_mask;
 
 	for (i = IDE; i < MAX_PERF_CHN; i++) {
-		if (!memcmp(type_guid->b, &hp_devs[i].guid,
-				 sizeof(uuid_le))) {
+		if (!uuid_le_cmp(*type_guid, hp_devs[i].guid)) {
 			perf_chn = true;
 			break;
 		}
