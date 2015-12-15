@@ -28,8 +28,10 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x100>;
+			clocks = <&clock CLK_KFC_CLK>;
 			clock-frequency = <1000000000>;
 			cci-control-port = <&cci_control0>;
+			operating-points-v2 = <&cluster_a7_opp_table>;
 		};
 
 		cpu1: cpu@101 {
@@ -38,6 +40,7 @@
 			reg = <0x101>;
 			clock-frequency = <1000000000>;
 			cci-control-port = <&cci_control0>;
+			operating-points-v2 = <&cluster_a7_opp_table>;
 		};
 
 		cpu2: cpu@102 {
@@ -46,6 +49,7 @@
 			reg = <0x102>;
 			clock-frequency = <1000000000>;
 			cci-control-port = <&cci_control0>;
+			operating-points-v2 = <&cluster_a7_opp_table>;
 		};
 
 		cpu3: cpu@103 {
@@ -54,14 +58,17 @@
 			reg = <0x103>;
 			clock-frequency = <1000000000>;
 			cci-control-port = <&cci_control0>;
+			operating-points-v2 = <&cluster_a7_opp_table>;
 		};
 
 		cpu4: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
+			clocks = <&clock CLK_ARM_CLK>;
 			reg = <0x0>;
 			clock-frequency = <1800000000>;
 			cci-control-port = <&cci_control1>;
+			operating-points-v2 = <&cluster_a15_opp_table>;
 		};
 
 		cpu5: cpu@1 {
@@ -70,6 +77,7 @@
 			reg = <0x1>;
 			clock-frequency = <1800000000>;
 			cci-control-port = <&cci_control1>;
+			operating-points-v2 = <&cluster_a15_opp_table>;
 		};
 
 		cpu6: cpu@2 {
@@ -78,6 +86,7 @@
 			reg = <0x2>;
 			clock-frequency = <1800000000>;
 			cci-control-port = <&cci_control1>;
+			operating-points-v2 = <&cluster_a15_opp_table>;
 		};
 
 		cpu7: cpu@3 {
@@ -86,6 +95,7 @@
 			reg = <0x3>;
 			clock-frequency = <1800000000>;
 			cci-control-port = <&cci_control1>;
+			operating-points-v2 = <&cluster_a15_opp_table>;
 		};
 	};
 };
