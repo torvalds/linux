@@ -465,7 +465,7 @@ static int gb_camera_debugfs_open(struct inode *inode, struct file *file)
 		const struct gb_camera_debugfs_entry *entry =
 			&gb_camera_debugfs_entries[i];
 
-		if (!strcmp(file->f_dentry->d_iname, entry->name)) {
+		if (!strcmp(file->f_path.dentry->d_iname, entry->name)) {
 			file->private_data = (void *)entry;
 			break;
 		}
