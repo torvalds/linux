@@ -346,7 +346,7 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 
 	ret = gb_spi_init(spi);
 	if (ret)
-		goto out_err;
+		goto out_put_master;
 
 	master->bus_num = -1; /* Allow spi-core to allocate it dynamically */
 	master->num_chipselect = spi->num_chipselect;
@@ -370,7 +370,7 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 
 	return ret;
 
-out_err:
+out_put_master:
 	spi_master_put(master);
 
 	return ret;
