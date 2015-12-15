@@ -135,12 +135,23 @@ static void oxfw_card_free(struct snd_card *card)
 	mutex_destroy(&oxfw->mutex);
 }
 
-static void detect_quirks(struct snd_oxfw *oxfw)
+static int detect_quirks(struct snd_oxfw *oxfw)
 {
 	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
 	struct fw_csr_iterator it;
 	int key, val;
 	int vendor, model;
+
+	/*
+	 * Add ALSA control elements for two models to keep compatibility to
+	 * old firewire-speaker module.
+	 */
+	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN ||
+	    oxfw->entry->vendor_id == VENDOR_LACIE) {
+		oxfw->device_info =
+			(const struct device_info *)oxfw->entry->driver_data;
+		return snd_oxfw_add_spkr(oxfw);
+	}
 
 	/*
 	 * TASCAM FireOne has physical control and requires a pair of additional
@@ -149,7 +160,7 @@ static void detect_quirks(struct snd_oxfw *oxfw)
 	if (oxfw->entry->vendor_id == VENDOR_TASCAM) {
 		oxfw->midi_input_ports++;
 		oxfw->midi_output_ports++;
-		return;
+		return 0;
 	}
 
 	/* Seek from Root Directory of Config ROM. */
@@ -168,6 +179,8 @@ static void detect_quirks(struct snd_oxfw *oxfw)
 	 */
 	if (vendor == VENDOR_LOUD && model == MODEL_SATELLITE)
 		oxfw->wrong_dbs = true;
+
+	return 0;
 }
 
 static int oxfw_probe(struct fw_unit *unit,
@@ -198,7 +211,9 @@ static int oxfw_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	detect_quirks(oxfw);
+	err = detect_quirks(oxfw);
+	if (err < 0)
+		goto error;
 
 	err = name_card(oxfw);
 	if (err < 0)
@@ -207,14 +222,6 @@ static int oxfw_probe(struct fw_unit *unit,
 	err = snd_oxfw_create_pcm(oxfw);
 	if (err < 0)
 		goto error;
-
-	if (oxfw->device_info) {
-		oxfw->device_info =
-				(const struct device_info *)entry->driver_data;
-		err = snd_oxfw_add_spkr(oxfw);
-		if (err < 0)
-			goto error;
-	}
 
 	snd_oxfw_proc_init(oxfw);
 
