@@ -72,6 +72,8 @@ struct snd_oxfw {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	const struct ieee1394_device_id *entry;
 };
 
 /*
