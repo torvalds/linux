@@ -131,8 +131,8 @@ static void nft_trans_destroy(struct nft_trans *trans)
 	kfree(trans);
 }
 
-int nft_register_basechain(struct nft_base_chain *basechain,
-			   unsigned int hook_nops)
+static int nft_register_basechain(struct nft_base_chain *basechain,
+				  unsigned int hook_nops)
 {
 	struct net *net = read_pnet(&basechain->pnet);
 
@@ -141,10 +141,9 @@ int nft_register_basechain(struct nft_base_chain *basechain,
 
 	return nf_register_net_hooks(net, basechain->ops, hook_nops);
 }
-EXPORT_SYMBOL_GPL(nft_register_basechain);
 
-void nft_unregister_basechain(struct nft_base_chain *basechain,
-			      unsigned int hook_nops)
+static void nft_unregister_basechain(struct nft_base_chain *basechain,
+				     unsigned int hook_nops)
 {
 	struct net *net = read_pnet(&basechain->pnet);
 
@@ -153,7 +152,6 @@ void nft_unregister_basechain(struct nft_base_chain *basechain,
 
 	nf_unregister_net_hooks(net, basechain->ops, hook_nops);
 }
-EXPORT_SYMBOL_GPL(nft_unregister_basechain);
 
 static int nf_tables_register_hooks(const struct nft_table *table,
 				    struct nft_chain *chain,
@@ -4589,6 +4587,27 @@ static int __net_init nf_tables_init_net(struct net *net)
 	net->nft.base_seq = 1;
 	return 0;
 }
+
+int __nft_release_basechain(struct nft_ctx *ctx)
+{
+	struct nft_rule *rule, *nr;
+
+	BUG_ON(!(ctx->chain->flags & NFT_BASE_CHAIN));
+
+	nf_tables_unregister_hooks(ctx->chain->table, ctx->chain,
+				   ctx->afi->nops);
+	list_for_each_entry_safe(rule, nr, &ctx->chain->rules, list) {
+		list_del(&rule->list);
+		ctx->chain->use--;
+		nf_tables_rule_destroy(ctx, rule);
+	}
+	list_del(&ctx->chain->list);
+	ctx->table->use--;
+	nf_tables_chain_destroy(ctx->chain);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__nft_release_basechain);
 
 /* Called by nft_unregister_afinfo() from __net_exit path, nfnl_lock is held. */
 static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi)

@@ -821,10 +821,7 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
-int nft_register_basechain(struct nft_base_chain *basechain,
-			   unsigned int hook_nops);
-void nft_unregister_basechain(struct nft_base_chain *basechain,
-			      unsigned int hook_nops);
+int __nft_release_basechain(struct nft_ctx *ctx);
 
 unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
 
