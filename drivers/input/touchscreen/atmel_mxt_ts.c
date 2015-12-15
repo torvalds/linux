@@ -2348,16 +2348,26 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 	return 0;
 }
 
-static int mxt_read_t107_stylus_config(struct mxt_data *data)
+static int mxt_set_up_active_stylus(struct input_dev *input_dev,
+				    struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
 	int error;
 	struct mxt_object *object;
 	u8 styaux;
 	int aux;
+	u8 ctrl;
 
 	object = mxt_get_object(data, MXT_PROCI_ACTIVESTYLUS_T107);
 	if (!object)
+		return 0;
+
+	error = __mxt_read_reg(client, object->start_address, 1, &ctrl);
+	if (error)
+		return;
+
+	/* Check enable bit */
+	if (!(ctrl & 0x01))
 		return 0;
 
 	error = __mxt_read_reg(client,
@@ -2375,8 +2385,12 @@ static int mxt_read_t107_stylus_config(struct mxt_data *data)
 	if (styaux & MXT_T107_STYLUS_STYAUX_PEAK)
 		data->stylus_aux_peak = aux++;
 
+	input_set_capability(input_dev, EV_KEY, BTN_STYLUS);
+	input_set_capability(input_dev, EV_KEY, BTN_STYLUS2);
+	input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0);
+
 	dev_dbg(&client->dev,
-		"Enabling T107 active stylus, aux map pressure:%u peak:%u\n",
+		"T107 active stylus, aux map pressure:%u peak:%u\n",
 		data->stylus_aux_pressure, data->stylus_aux_peak);
 
 	return 0;
@@ -2510,12 +2524,6 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 		if (error)
 			dev_warn(dev, "Failed to read T100 config\n");
 
-		if (data->T107_address) {
-			error = mxt_read_t107_stylus_config(data);
-			if (error)
-				dev_warn(dev, "Failed to read T107 config\n");
-		}
-
 		break;
 
 	default:
@@ -2607,12 +2615,12 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 				     0, 255, 0, 0);
 	}
 
-	/* For active stylus */
-	if (data->T107_address) {
-		input_set_capability(input_dev, EV_KEY, BTN_STYLUS);
-		input_set_capability(input_dev, EV_KEY, BTN_STYLUS2);
-		input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
-				0, MT_TOOL_MAX, 0, 0);
+	/* For T107 Active Stylus */
+	if (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	    data->T107_address) {
+		error = mxt_set_up_active_stylus(input_dev, data);
+		if (error)
+			dev_warn(dev, "Failed to read T107 config\n");
 	}
 
 	/* For T15 Key Array */
