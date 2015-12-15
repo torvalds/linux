@@ -1,12 +1,17 @@
-#include "cache.h"
+#include <linux/compiler.h>
+#include <linux/string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include "subcmd-util.h"
 #include "exec_cmd.h"
-#include "quote.h"
 #include "subcmd-config.h"
 
-#include <string.h>
-#include "subcmd-util.h"
-
 #define MAX_ARGS	32
+#define PATH_MAX	4096
 
 static const char *argv_exec_path;
 static const char *argv0_path;
@@ -18,6 +23,49 @@ void exec_cmd_init(const char *exec_name, const char *prefix,
 	subcmd_config.prefix		= prefix;
 	subcmd_config.exec_path		= exec_path;
 	subcmd_config.exec_path_env	= exec_path_env;
+}
+
+#define is_dir_sep(c) ((c) == '/')
+
+static int is_absolute_path(const char *path)
+{
+	return path[0] == '/';
+}
+
+static const char *get_pwd_cwd(void)
+{
+	static char cwd[PATH_MAX + 1];
+	char *pwd;
+	struct stat cwd_stat, pwd_stat;
+	if (getcwd(cwd, PATH_MAX) == NULL)
+		return NULL;
+	pwd = getenv("PWD");
+	if (pwd && strcmp(pwd, cwd)) {
+		stat(cwd, &cwd_stat);
+		if (!stat(pwd, &pwd_stat) &&
+		    pwd_stat.st_dev == cwd_stat.st_dev &&
+		    pwd_stat.st_ino == cwd_stat.st_ino) {
+			strlcpy(cwd, pwd, PATH_MAX);
+		}
+	}
+	return cwd;
+}
+
+static const char *make_nonrelative_path(const char *path)
+{
+	static char buf[PATH_MAX + 1];
+
+	if (is_absolute_path(path)) {
+		if (strlcpy(buf, path, PATH_MAX) >= PATH_MAX)
+			die("Too long path: %.*s", 60, path);
+	} else {
+		const char *cwd = get_pwd_cwd();
+		if (!cwd)
+			die("Cannot determine the current working directory");
+		if (snprintf(buf, PATH_MAX, "%s/%s", cwd, path) >= PATH_MAX)
+			die("Too long path: %.*s", 60, path);
+	}
+	return buf;
 }
 
 char *system_path(const char *path)
@@ -151,8 +199,10 @@ int execl_cmd(const char *cmd,...)
 			break;
 	}
 	va_end(param);
-	if (MAX_ARGS <= argc)
-		return error("too many args to run %s", cmd);
+	if (MAX_ARGS <= argc) {
+		fprintf(stderr, " Error: too many args to run %s\n", cmd);
+		return -1;
+	}
 
 	argv[argc] = NULL;
 	return execv_cmd(argv);

@@ -1,7 +1,15 @@
-#include "cache.h"
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/wait.h>
+#include "subcmd-util.h"
 #include "run-command.h"
 #include "exec_cmd.h"
-#include "debug.h"
+
+#define STRERR_BUFSIZE 128
 
 static inline void close_pair(int fd[2])
 {
@@ -164,8 +172,8 @@ static int wait_or_whine(pid_t pid)
 		if (waiting < 0) {
 			if (errno == EINTR)
 				continue;
-			error("waitpid failed (%s)",
-			      strerror_r(errno, sbuf, sizeof(sbuf)));
+			fprintf(stderr, " Error: waitpid failed (%s)",
+				strerror_r(errno, sbuf, sizeof(sbuf)));
 			return -ERR_RUN_COMMAND_WAITPID;
 		}
 		if (waiting != pid)

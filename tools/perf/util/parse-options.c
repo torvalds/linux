@@ -1,10 +1,14 @@
-#include "util.h"
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <ctype.h>
 #include "subcmd-util.h"
 #include "parse-options.h"
-#include "cache.h"
-#include "header.h"
 #include "subcmd-config.h"
-#include <linux/string.h>
+#include "pager.h"
 
 #define OPT_SHORT 1
 #define OPT_UNSET 2
@@ -14,20 +18,29 @@ char *error_buf;
 static int opterror(const struct option *opt, const char *reason, int flags)
 {
 	if (flags & OPT_SHORT)
-		return error("switch `%c' %s", opt->short_name, reason);
-	if (flags & OPT_UNSET)
-		return error("option `no-%s' %s", opt->long_name, reason);
-	return error("option `%s' %s", opt->long_name, reason);
+		fprintf(stderr, " Error: switch `%c' %s", opt->short_name, reason);
+	else if (flags & OPT_UNSET)
+		fprintf(stderr, " Error: option `no-%s' %s", opt->long_name, reason);
+	else
+		fprintf(stderr, " Error: option `%s' %s", opt->long_name, reason);
+
+	return -1;
+}
+
+static const char *skip_prefix(const char *str, const char *prefix)
+{
+	size_t len = strlen(prefix);
+	return strncmp(str, prefix, len) ? NULL : str + len;
 }
 
 static void optwarning(const struct option *opt, const char *reason, int flags)
 {
 	if (flags & OPT_SHORT)
-		warning("switch `%c' %s", opt->short_name, reason);
+		fprintf(stderr, " Warning: switch `%c' %s", opt->short_name, reason);
 	else if (flags & OPT_UNSET)
-		warning("option `no-%s' %s", opt->long_name, reason);
+		fprintf(stderr, " Warning: option `no-%s' %s", opt->long_name, reason);
 	else
-		warning("option `%s' %s", opt->long_name, reason);
+		fprintf(stderr, " Warning: option `%s' %s", opt->long_name, reason);
 }
 
 static int get_arg(struct parse_opt_ctx_t *p, const struct option *opt,
@@ -71,11 +84,11 @@ static int get_value(struct parse_opt_ctx_t *p,
 
 			if (((flags & OPT_SHORT) && p->excl_opt->short_name) ||
 			    p->excl_opt->long_name == NULL) {
-				scnprintf(msg, sizeof(msg), "cannot be used with switch `%c'",
-					  p->excl_opt->short_name);
+				snprintf(msg, sizeof(msg), "cannot be used with switch `%c'",
+					 p->excl_opt->short_name);
 			} else {
-				scnprintf(msg, sizeof(msg), "cannot be used with %s",
-					  p->excl_opt->long_name);
+				snprintf(msg, sizeof(msg), "cannot be used with %s",
+					 p->excl_opt->long_name);
 			}
 			opterror(opt, msg, flags);
 			return -3;
@@ -401,14 +414,16 @@ match:
 		return get_value(p, options, flags);
 	}
 
-	if (ambiguous_option)
-		return error("Ambiguous option: %s "
-			"(could be --%s%s or --%s%s)",
-			arg,
-			(ambiguous_flags & OPT_UNSET) ?  "no-" : "",
-			ambiguous_option->long_name,
-			(abbrev_flags & OPT_UNSET) ?  "no-" : "",
-			abbrev_option->long_name);
+	if (ambiguous_option) {
+		 fprintf(stderr,
+			 " Error: Ambiguous option: %s (could be --%s%s or --%s%s)",
+			 arg,
+			 (ambiguous_flags & OPT_UNSET) ?  "no-" : "",
+			 ambiguous_option->long_name,
+			 (abbrev_flags & OPT_UNSET) ?  "no-" : "",
+			 abbrev_option->long_name);
+		 return -1;
+	}
 	if (abbrev_option)
 		return get_value(p, abbrev_option, abbrev_flags);
 	return -2;
@@ -420,7 +435,7 @@ static void check_typos(const char *arg, const struct option *options)
 		return;
 
 	if (!prefixcmp(arg, "no-")) {
-		error ("did you mean `--%s` (with two dashes ?)", arg);
+		fprintf(stderr, " Error: did you mean `--%s` (with two dashes ?)", arg);
 		exit(129);
 	}
 
@@ -428,7 +443,7 @@ static void check_typos(const char *arg, const struct option *options)
 		if (!options->long_name)
 			continue;
 		if (!prefixcmp(options->long_name, arg)) {
-			error ("did you mean `--%s` (with two dashes ?)", arg);
+			fprintf(stderr, " Error: did you mean `--%s` (with two dashes ?)", arg);
 			exit(129);
 		}
 	}
@@ -746,16 +761,18 @@ static int option__cmp(const void *va, const void *vb)
 
 static struct option *options__order(const struct option *opts)
 {
-	int nr_opts = 0;
+	int nr_opts = 0, len;
 	const struct option *o = opts;
 	struct option *ordered;
 
 	for (o = opts; o->type != OPTION_END; o++)
 		++nr_opts;
 
-	ordered = memdup(opts, sizeof(*o) * (nr_opts + 1));
-	if (ordered == NULL)
+	len = sizeof(*o) * (nr_opts + 1);
+	ordered = malloc(len);
+	if (!ordered)
 		goto out;
+	memcpy(ordered, opts, len);
 
 	qsort(ordered, nr_opts, sizeof(*o), option__cmp);
 out:

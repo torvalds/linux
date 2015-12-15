@@ -151,12 +151,6 @@ extern void set_warning_routine(void (*routine)(const char *err, va_list params)
 extern int prefixcmp(const char *str, const char *prefix);
 extern void set_buildid_dir(const char *dir);
 
-static inline const char *skip_prefix(const char *str, const char *prefix)
-{
-	size_t len = strlen(prefix);
-	return strncmp(str, prefix, len) ? NULL : str + len;
-}
-
 #ifdef __GLIBC_PREREQ
 #if __GLIBC_PREREQ(2, 1)
 #define HAVE_STRCHRNUL
@@ -186,14 +180,6 @@ static inline void *zalloc(size_t size)
 }
 
 #define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
-
-static inline int has_extension(const char *filename, const char *ext)
-{
-	size_t len = strlen(filename);
-	size_t extlen = strlen(ext);
-
-	return len > extlen && !memcmp(filename + len - extlen, ext, extlen);
-}
 
 /* Sane ctype - no locale, and works with signed chars */
 #undef isascii

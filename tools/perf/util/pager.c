@@ -1,4 +1,9 @@
-#include "cache.h"
+#include <sys/select.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <signal.h>
+#include "pager.h"
 #include "run-command.h"
 #include "sigchain.h"
 #include "subcmd-config.h"

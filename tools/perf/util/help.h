@@ -1,12 +1,14 @@
 #ifndef __PERF_HELP_H
 #define __PERF_HELP_H
 
+#include <sys/types.h>
+
 struct cmdnames {
 	size_t alloc;
 	size_t cnt;
 	struct cmdname {
 		size_t len; /* also used for similarity index in help.c */
-		char name[FLEX_ARRAY];
+		char name[];
 	} **names;
 };
 

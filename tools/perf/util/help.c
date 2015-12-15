@@ -1,8 +1,15 @@
-#include "cache.h"
-#include "../builtin.h"
-#include "exec_cmd.h"
-#include "help.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
 #include "subcmd-util.h"
+#include "help.h"
+#include "exec_cmd.h"
 
 void add_cmdname(struct cmdnames *cmds, const char *name, size_t len)
 {
@@ -70,6 +77,28 @@ void exclude_cmds(struct cmdnames *cmds, struct cmdnames *excludes)
 	cmds->cnt = cj;
 }
 
+static void get_term_dimensions(struct winsize *ws)
+{
+	char *s = getenv("LINES");
+
+	if (s != NULL) {
+		ws->ws_row = atoi(s);
+		s = getenv("COLUMNS");
+		if (s != NULL) {
+			ws->ws_col = atoi(s);
+			if (ws->ws_row && ws->ws_col)
+				return;
+		}
+	}
+#ifdef TIOCGWINSZ
+	if (ioctl(1, TIOCGWINSZ, ws) == 0 &&
+	    ws->ws_row && ws->ws_col)
+		return;
+#endif
+	ws->ws_row = 25;
+	ws->ws_col = 80;
+}
+
 static void pretty_print_string_list(struct cmdnames *cmds, int longest)
 {
 	int cols = 1, rows;
@@ -111,6 +140,14 @@ static int is_executable(const char *name)
 		return 0;
 
 	return st.st_mode & S_IXUSR;
+}
+
+static int has_extension(const char *filename, const char *ext)
+{
+	size_t len = strlen(filename);
+	size_t extlen = strlen(ext);
+
+	return len > extlen && !memcmp(filename + len - extlen, ext, extlen);
 }
 
 static void list_commands_in_dir(struct cmdnames *cmds,
@@ -168,7 +205,7 @@ void load_command_list(const char *prefix,
 		char *paths, *path, *colon;
 		path = paths = strdup(env_path);
 		while (1) {
-			if ((colon = strchr(path, PATH_SEP)))
+			if ((colon = strchr(path, ':')))
 				*colon = 0;
 			if (!exec_path || strcmp(path, exec_path))
 				list_commands_in_dir(other_cmds, path, prefix);

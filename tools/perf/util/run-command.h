@@ -1,6 +1,8 @@
 #ifndef __PERF_RUN_COMMAND_H
 #define __PERF_RUN_COMMAND_H
 
+#include <unistd.h>
+
 enum {
 	ERR_RUN_COMMAND_FORK = 10000,
 	ERR_RUN_COMMAND_EXEC,
