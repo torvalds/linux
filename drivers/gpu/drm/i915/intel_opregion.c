@@ -993,6 +993,7 @@ int intel_opregion_setup(struct drm_device *dev)
 		if (intel_bios_is_valid_vbt(vbt, vbt_size)) {
 			DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion\n");
 			opregion->vbt = vbt;
+			opregion->vbt_size = vbt_size;
 		}
 	}
 

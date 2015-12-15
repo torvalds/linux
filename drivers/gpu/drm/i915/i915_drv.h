@@ -458,6 +458,7 @@ struct intel_opregion {
 	u32 swsci_sbcb_sub_functions;
 	struct opregion_asle *asle;
 	const void *vbt;
+	u32 vbt_size;
 	u32 *lid_state;
 	struct work_struct asle_work;
 };

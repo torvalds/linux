@@ -1857,6 +1857,19 @@ out:
 	return 0;
 }
 
+static int i915_vbt(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion = &dev_priv->opregion;
+
+	if (opregion->vbt)
+		seq_write(m, opregion->vbt, opregion->vbt_size);
+
+	return 0;
+}
+
 static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -5325,6 +5338,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ips_status", i915_ips_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_opregion", i915_opregion, 0},
+	{"i915_vbt", i915_vbt, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_context_status", i915_context_status, 0},
 	{"i915_dump_lrc", i915_dump_lrc, 0},
