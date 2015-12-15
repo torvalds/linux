@@ -837,6 +837,19 @@ int record_callchain_opt(const struct option *opt,
 
 static int perf_record_config(const char *var, const char *value, void *cb)
 {
+	struct record *rec = cb;
+
+	if (!strcmp(var, "record.build-id")) {
+		if (!strcmp(value, "cache"))
+			rec->no_buildid_cache = false;
+		else if (!strcmp(value, "no-cache"))
+			rec->no_buildid_cache = true;
+		else if (!strcmp(value, "skip"))
+			rec->no_buildid = true;
+		else
+			return -1;
+		return 0;
+	}
 	if (!strcmp(var, "record.call-graph"))
 		var = "call-graph.record-mode"; /* fall-through */
 
