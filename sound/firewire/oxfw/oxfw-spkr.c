@@ -14,8 +14,8 @@ enum control_attribute {
 	CTL_CURRENT	= 0x10,
 };
 
-static int spkr_mute_command(struct snd_oxfw *oxfw, bool *value,
-			     enum control_action action)
+static int avc_audio_feature_mute(struct fw_unit *unit, u8 fb_id, bool *value,
+				  enum control_action action)
 {
 	u8 *buf;
 	u8 response_ok;
@@ -35,7 +35,7 @@ static int spkr_mute_command(struct snd_oxfw *oxfw, bool *value,
 	buf[1] = 0x08;			/* audio unit 0 */
 	buf[2] = 0xb8;			/* FUNCTION BLOCK */
 	buf[3] = 0x81;			/* function block type: feature */
-	buf[4] = oxfw->device_info->mute_fb_id; /* function block ID */
+	buf[4] = fb_id;			/* function block ID */
 	buf[5] = 0x10;			/* control attribute: current */
 	buf[6] = 0x02;			/* selector length */
 	buf[7] = 0x00;			/* audio channel number */
@@ -46,16 +46,16 @@ static int spkr_mute_command(struct snd_oxfw *oxfw, bool *value,
 	else
 		buf[10] = *value ? 0x70 : 0x60;
 
-	err = fcp_avc_transaction(oxfw->unit, buf, 11, buf, 11, 0x3fe);
+	err = fcp_avc_transaction(unit, buf, 11, buf, 11, 0x3fe);
 	if (err < 0)
 		goto error;
 	if (err < 11) {
-		dev_err(&oxfw->unit->device, "short FCP response\n");
+		dev_err(&unit->device, "short FCP response\n");
 		err = -EIO;
 		goto error;
 	}
 	if (buf[0] != response_ok) {
-		dev_err(&oxfw->unit->device, "mute command failed\n");
+		dev_err(&unit->device, "mute command failed\n");
 		err = -EIO;
 		goto error;
 	}
@@ -70,10 +70,10 @@ error:
 	return err;
 }
 
-static int spkr_volume_command(struct snd_oxfw *oxfw, s16 *value,
-			       unsigned int channel,
-			       enum control_attribute attribute,
-			       enum control_action action)
+static int avc_audio_feature_volume(struct fw_unit *unit, u8 fb_id, s16 *value,
+				    unsigned int channel,
+				    enum control_attribute attribute,
+				    enum control_action action)
 {
 	u8 *buf;
 	u8 response_ok;
@@ -93,7 +93,7 @@ static int spkr_volume_command(struct snd_oxfw *oxfw, s16 *value,
 	buf[1] = 0x08;			/* audio unit 0 */
 	buf[2] = 0xb8;			/* FUNCTION BLOCK */
 	buf[3] = 0x81;			/* function block type: feature */
-	buf[4] = oxfw->device_info->volume_fb_id; /* function block ID */
+	buf[4] = fb_id;			/* function block ID */
 	buf[5] = attribute;		/* control attribute */
 	buf[6] = 0x02;			/* selector length */
 	buf[7] = channel;		/* audio channel number */
@@ -107,16 +107,16 @@ static int spkr_volume_command(struct snd_oxfw *oxfw, s16 *value,
 		buf[11] = *value;
 	}
 
-	err = fcp_avc_transaction(oxfw->unit, buf, 12, buf, 12, 0x3fe);
+	err = fcp_avc_transaction(unit, buf, 12, buf, 12, 0x3fe);
 	if (err < 0)
 		goto error;
 	if (err < 12) {
-		dev_err(&oxfw->unit->device, "short FCP response\n");
+		dev_err(&unit->device, "short FCP response\n");
 		err = -EIO;
 		goto error;
 	}
 	if (buf[0] != response_ok) {
-		dev_err(&oxfw->unit->device, "volume command failed\n");
+		dev_err(&unit->device, "volume command failed\n");
 		err = -EIO;
 		goto error;
 	}
@@ -153,7 +153,8 @@ static int spkr_mute_put(struct snd_kcontrol *control,
 	if (mute == oxfw->mute)
 		return 0;
 
-	err = spkr_mute_command(oxfw, &mute, CTL_WRITE);
+	err = avc_audio_feature_mute(oxfw->unit, oxfw->device_info->mute_fb_id,
+				     &mute, CTL_WRITE);
 	if (err < 0)
 		return err;
 	oxfw->mute = mute;
@@ -218,8 +219,10 @@ static int spkr_volume_put(struct snd_kcontrol *control,
 	for (i = 0; i <= oxfw->device_info->mixer_channels; ++i) {
 		volume = value->value.integer.value[channel_map[i ? i - 1 : 0]];
 		if (changed_channels & (1 << i)) {
-			err = spkr_volume_command(oxfw, &volume, i,
-						   CTL_CURRENT, CTL_WRITE);
+			err = avc_audio_feature_volume(oxfw->unit,
+						  oxfw->device_info->mute_fb_id,
+						  &volume,
+						  i, CTL_CURRENT, CTL_WRITE);
 			if (err < 0)
 				return err;
 		}
@@ -251,22 +254,27 @@ int snd_oxfw_add_spkr(struct snd_oxfw *oxfw)
 	unsigned int i, first_ch;
 	int err;
 
-	err = spkr_volume_command(oxfw, &oxfw->volume_min,
-				   0, CTL_MIN, CTL_READ);
+	err = avc_audio_feature_volume(oxfw->unit,
+				       oxfw->device_info->volume_fb_id,
+				       &oxfw->volume_min, 0, CTL_MIN, CTL_READ);
 	if (err < 0)
 		return err;
-	err = spkr_volume_command(oxfw, &oxfw->volume_max,
-				   0, CTL_MAX, CTL_READ);
+	err = avc_audio_feature_volume(oxfw->unit,
+				       oxfw->device_info->volume_fb_id,
+				       &oxfw->volume_max, 0, CTL_MAX, CTL_READ);
 	if (err < 0)
 		return err;
 
-	err = spkr_mute_command(oxfw, &oxfw->mute, CTL_READ);
+	err = avc_audio_feature_mute(oxfw->unit, oxfw->device_info->mute_fb_id,
+				     &oxfw->mute, CTL_READ);
 	if (err < 0)
 		return err;
 
 	first_ch = oxfw->device_info->mixer_channels == 1 ? 0 : 1;
 	for (i = 0; i < oxfw->device_info->mixer_channels; ++i) {
-		err = spkr_volume_command(oxfw, &oxfw->volume[i],
+		err = avc_audio_feature_volume(oxfw->unit,
+					  oxfw->device_info->volume_fb_id,
+					  &oxfw->volume[i],
 					  first_ch + i, CTL_CURRENT, CTL_READ);
 		if (err < 0)
 			return err;
