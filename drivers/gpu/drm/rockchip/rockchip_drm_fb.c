@@ -66,7 +66,7 @@ static int rockchip_drm_fb_create_handle(struct drm_framebuffer *fb,
 				     rockchip_fb->obj[0], handle);
 }
 
-static struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
+static const struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
 	.destroy	= rockchip_drm_fb_destroy,
 	.create_handle	= rockchip_drm_fb_create_handle,
 };
