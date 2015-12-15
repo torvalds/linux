@@ -146,6 +146,7 @@ static int bcm6328_blink_set(struct led_classdev *led_cdev,
 	struct bcm6328_led *led =
 		container_of(led_cdev, struct bcm6328_led, cdev);
 	unsigned long delay, flags;
+	int rc;
 
 	if (!*delay_on)
 		*delay_on = BCM6328_LED_DEF_DELAY;
@@ -183,16 +184,15 @@ static int bcm6328_blink_set(struct led_classdev *led_cdev,
 		bcm6328_led_write(led->mem + BCM6328_REG_INIT, val);
 
 		bcm6328_led_mode(led, BCM6328_LED_MODE_BLINK);
-
-		spin_unlock_irqrestore(led->lock, flags);
+		rc = 0;
 	} else {
-		spin_unlock_irqrestore(led->lock, flags);
 		dev_dbg(led_cdev->dev,
 			"fallback to soft blinking (delay already set)\n");
-		return -EINVAL;
+		rc = -EINVAL;
 	}
+	spin_unlock_irqrestore(led->lock, flags);
 
-	return 0;
+	return rc;
 }
 
 static int bcm6328_hwled(struct device *dev, struct device_node *nc, u32 reg,
