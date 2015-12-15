@@ -1365,6 +1365,19 @@ static void *wm_adsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
 	return alg;
 }
 
+static struct wm_adsp_alg_region *
+	wm_adsp_find_alg_region(struct wm_adsp *dsp, int type, unsigned int id)
+{
+	struct wm_adsp_alg_region *alg_region;
+
+	list_for_each_entry(alg_region, &dsp->alg_regions, list) {
+		if (id == alg_region->alg && type == alg_region->type)
+			return alg_region;
+	}
+
+	return NULL;
+}
+
 static struct wm_adsp_alg_region *wm_adsp_create_region(struct wm_adsp *dsp,
 							int type, __be32 id,
 							__be32 base)
@@ -1737,22 +1750,16 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 				break;
 			}
 
-			reg = 0;
-			list_for_each_entry(alg_region,
-					    &dsp->alg_regions, list) {
-				if (le32_to_cpu(blk->id) == alg_region->alg &&
-				    type == alg_region->type) {
-					reg = alg_region->base;
-					reg = wm_adsp_region_to_reg(mem,
-								    reg);
-					reg += offset;
-					break;
-				}
-			}
-
-			if (reg == 0)
+			alg_region = wm_adsp_find_alg_region(dsp, type,
+						le32_to_cpu(blk->id));
+			if (alg_region) {
+				reg = alg_region->base;
+				reg = wm_adsp_region_to_reg(mem, reg);
+				reg += offset;
+			} else {
 				adsp_err(dsp, "No %x for algorithm %x\n",
 					 type, le32_to_cpu(blk->id));
+			}
 			break;
 
 		default:
