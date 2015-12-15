@@ -44,7 +44,7 @@ void *return_address(unsigned int level)
 	frame.sp = current_stack_pointer;
 	frame.pc = (unsigned long)return_address; /* dummy */
 
-	walk_stackframe(&frame, save_return_addr, &data);
+	walk_stackframe(current, &frame, save_return_addr, &data);
 
 	if (!data.level)
 		return data.addr;

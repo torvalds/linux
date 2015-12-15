@@ -165,7 +165,7 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 	frame.sp = regs->sp;
 	frame.pc = regs->pc;
 
-	walk_stackframe(&frame, callchain_trace, entry);
+	walk_stackframe(current, &frame, callchain_trace, entry);
 }
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
