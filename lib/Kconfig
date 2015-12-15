@@ -475,6 +475,11 @@ config DDR
 	  information. This data is useful for drivers handling
 	  DDR SDRAM controllers.
 
+config IRQ_POLL
+	bool "IRQ polling library"
+	help
+	  Helper library to poll interrupt mitigation using polling.
+
 config MPILIB
 	tristate
 	select CLZ_TAB

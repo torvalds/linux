@@ -70,7 +70,6 @@ static struct ib_qp_attr ipoib_cm_err_attr = {
 #define IPOIB_CM_RX_DRAIN_WRID 0xffffffff
 
 static struct ib_send_wr ipoib_cm_rx_drain_wr = {
-	.wr_id = IPOIB_CM_RX_DRAIN_WRID,
 	.opcode = IB_WR_SEND,
 };
 
@@ -223,6 +222,7 @@ static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv *priv)
 	 * error" WC will be immediately generated for each WR we post.
 	 */
 	p = list_entry(priv->cm.rx_flush_list.next, typeof(*p), list);
+	ipoib_cm_rx_drain_wr.wr_id = IPOIB_CM_RX_DRAIN_WRID;
 	if (ib_post_send(p->qp, &ipoib_cm_rx_drain_wr, &bad_wr))
 		ipoib_warn(priv, "failed to post drain wr\n");
 
