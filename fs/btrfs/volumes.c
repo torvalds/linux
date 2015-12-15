@@ -3402,6 +3402,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	u32 count_meta = 0;
 	u32 count_sys = 0;
 	int chunk_reserved = 0;
+	u64 bytes_used = 0;
 
 	/* step one make some room on all the devices */
 	devices = &fs_info->fs_devices->devices;
@@ -3540,7 +3541,13 @@ again:
 			goto loop;
 		}
 
-		if ((chunk_type & BTRFS_BLOCK_GROUP_DATA) && !chunk_reserved) {
+		ASSERT(fs_info->data_sinfo);
+		spin_lock(&fs_info->data_sinfo->lock);
+		bytes_used = fs_info->data_sinfo->bytes_used;
+		spin_unlock(&fs_info->data_sinfo->lock);
+
+		if ((chunk_type & BTRFS_BLOCK_GROUP_DATA) &&
+		    !chunk_reserved && !bytes_used) {
 			trans = btrfs_start_transaction(chunk_root, 0);
 			if (IS_ERR(trans)) {
 				mutex_unlock(&fs_info->delete_unused_bgs_mutex);
