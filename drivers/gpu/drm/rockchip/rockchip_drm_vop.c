@@ -50,6 +50,8 @@
 		REG_SET(x, win->base, win->phy->name, v, RELAXED)
 #define VOP_SCL_SET(x, win, name, v) \
 		REG_SET(x, win->base, win->phy->scl->name, v, RELAXED)
+#define VOP_SCL_SET_EXT(x, win, name, v) \
+		REG_SET(x, win->base, win->phy->scl->ext->name, v, RELAXED)
 #define VOP_CTRL_SET(x, name, v) \
 		REG_SET(x, 0, (x)->data->ctrl->name, v, NORMAL)
 
@@ -313,6 +315,20 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 		return;
 	}
 
+	if (!win->phy->scl->ext) {
+		VOP_SCL_SET(vop, win, scale_yrgb_x,
+			    scl_cal_scale2(src_w, dst_w));
+		VOP_SCL_SET(vop, win, scale_yrgb_y,
+			    scl_cal_scale2(src_h, dst_h));
+		if (is_yuv) {
+			VOP_SCL_SET(vop, win, scale_cbcr_x,
+				    scl_cal_scale2(src_w, dst_w));
+			VOP_SCL_SET(vop, win, scale_cbcr_y,
+				    scl_cal_scale2(src_h, dst_h));
+		}
+		return;
+	}
+
 	yrgb_hor_scl_mode = scl_get_scl_mode(src_w, dst_w);
 	yrgb_ver_scl_mode = scl_get_scl_mode(src_h, dst_h);
 
@@ -330,7 +346,7 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 			lb_mode = scl_vop_cal_lb_mode(src_w, false);
 	}
 
-	VOP_SCL_SET(vop, win, lb_mode, lb_mode);
+	VOP_SCL_SET_EXT(vop, win, lb_mode, lb_mode);
 	if (lb_mode == LB_RGB_3840X2) {
 		if (yrgb_ver_scl_mode != SCALE_NONE) {
 			DRM_ERROR("ERROR : not allow yrgb ver scale\n");
@@ -354,14 +370,14 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 				false, vsu_mode, &vskiplines);
 	VOP_SCL_SET(vop, win, scale_yrgb_y, val);
 
-	VOP_SCL_SET(vop, win, vsd_yrgb_gt4, vskiplines == 4);
-	VOP_SCL_SET(vop, win, vsd_yrgb_gt2, vskiplines == 2);
+	VOP_SCL_SET_EXT(vop, win, vsd_yrgb_gt4, vskiplines == 4);
+	VOP_SCL_SET_EXT(vop, win, vsd_yrgb_gt2, vskiplines == 2);
 
-	VOP_SCL_SET(vop, win, yrgb_hor_scl_mode, yrgb_hor_scl_mode);
-	VOP_SCL_SET(vop, win, yrgb_ver_scl_mode, yrgb_ver_scl_mode);
-	VOP_SCL_SET(vop, win, yrgb_hsd_mode, SCALE_DOWN_BIL);
-	VOP_SCL_SET(vop, win, yrgb_vsd_mode, SCALE_DOWN_BIL);
-	VOP_SCL_SET(vop, win, yrgb_vsu_mode, vsu_mode);
+	VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, yrgb_hor_scl_mode);
+	VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, yrgb_ver_scl_mode);
+	VOP_SCL_SET_EXT(vop, win, yrgb_hsd_mode, SCALE_DOWN_BIL);
+	VOP_SCL_SET_EXT(vop, win, yrgb_vsd_mode, SCALE_DOWN_BIL);
+	VOP_SCL_SET_EXT(vop, win, yrgb_vsu_mode, vsu_mode);
 	if (is_yuv) {
 		val = scl_vop_cal_scale(cbcr_hor_scl_mode, cbcr_src_w,
 					dst_w, true, 0, NULL);
@@ -370,13 +386,13 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 					dst_h, false, vsu_mode, &vskiplines);
 		VOP_SCL_SET(vop, win, scale_cbcr_y, val);
 
-		VOP_SCL_SET(vop, win, vsd_cbcr_gt4, vskiplines == 4);
-		VOP_SCL_SET(vop, win, vsd_cbcr_gt2, vskiplines == 2);
-		VOP_SCL_SET(vop, win, cbcr_hor_scl_mode, cbcr_hor_scl_mode);
-		VOP_SCL_SET(vop, win, cbcr_ver_scl_mode, cbcr_ver_scl_mode);
-		VOP_SCL_SET(vop, win, cbcr_hsd_mode, SCALE_DOWN_BIL);
-		VOP_SCL_SET(vop, win, cbcr_vsd_mode, SCALE_DOWN_BIL);
-		VOP_SCL_SET(vop, win, cbcr_vsu_mode, vsu_mode);
+		VOP_SCL_SET_EXT(vop, win, vsd_cbcr_gt4, vskiplines == 4);
+		VOP_SCL_SET_EXT(vop, win, vsd_cbcr_gt2, vskiplines == 2);
+		VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, cbcr_hor_scl_mode);
+		VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, cbcr_ver_scl_mode);
+		VOP_SCL_SET_EXT(vop, win, cbcr_hsd_mode, SCALE_DOWN_BIL);
+		VOP_SCL_SET_EXT(vop, win, cbcr_vsd_mode, SCALE_DOWN_BIL);
+		VOP_SCL_SET_EXT(vop, win, cbcr_vsu_mode, vsu_mode);
 	}
 }
 

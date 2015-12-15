@@ -50,7 +50,7 @@ static const uint32_t formats_234[] = {
 	DRM_FORMAT_BGR565,
 };
 
-static const struct vop_scl_regs win_full_scl = {
+static const struct vop_scl_extension win_full_ext = {
 	.cbcr_vsd_mode = VOP_REG(WIN0_CTRL1, 0x1, 31),
 	.cbcr_vsu_mode = VOP_REG(WIN0_CTRL1, 0x1, 30),
 	.cbcr_hsd_mode = VOP_REG(WIN0_CTRL1, 0x3, 28),
@@ -72,6 +72,9 @@ static const struct vop_scl_regs win_full_scl = {
 	.cbcr_axi_gather_en = VOP_REG(WIN0_CTRL1, 0x1, 1),
 	.yrgb_axi_gather_en = VOP_REG(WIN0_CTRL1, 0x1, 0),
 	.lb_mode = VOP_REG(WIN0_CTRL0, 0x7, 5),
+};
+
+static const struct vop_scl_regs win_full_scl = {
 	.scale_yrgb_x = VOP_REG(WIN0_SCL_FACTOR_YRGB, 0xffff, 0x0),
 	.scale_yrgb_y = VOP_REG(WIN0_SCL_FACTOR_YRGB, 0xffff, 16),
 	.scale_cbcr_x = VOP_REG(WIN0_SCL_FACTOR_CBR, 0xffff, 0x0),
