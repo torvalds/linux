@@ -66,7 +66,8 @@ struct vop_intr {
 	struct vop_reg clear;
 	struct vop_reg status;
 };
-struct vop_scl_regs {
+
+struct vop_scl_extension {
 	struct vop_reg cbcr_vsd_mode;
 	struct vop_reg cbcr_vsu_mode;
 	struct vop_reg cbcr_hsd_mode;
@@ -87,8 +88,12 @@ struct vop_scl_regs {
 	struct vop_reg bic_coe_sel;
 	struct vop_reg cbcr_axi_gather_en;
 	struct vop_reg yrgb_axi_gather_en;
-
 	struct vop_reg lb_mode;
+};
+
+struct vop_scl_regs {
+	const struct vop_scl_extension *ext;
+
 	struct vop_reg scale_yrgb_x;
 	struct vop_reg scale_yrgb_y;
 	struct vop_reg scale_cbcr_x;
@@ -240,6 +245,11 @@ enum scale_down_mode {
 static inline uint16_t scl_cal_scale(int src, int dst, int shift)
 {
 	return ((src * 2 - 3) << (shift - 1)) / (dst - 1);
+}
+
+static inline uint16_t scl_cal_scale2(int src, int dst)
+{
+	return ((src - 1) << 12) / (dst - 1);
 }
 
 #define GET_SCL_FT_BILI_DN(src, dst)	scl_cal_scale(src, dst, 12)
