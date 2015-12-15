@@ -152,6 +152,9 @@ struct option {
 /* parse_options() will filter out the processed options and leave the
  * non-option argments in argv[].
  * Returns the number of arguments left in argv[].
+ *
+ * NOTE: parse_options() and parse_options_subcommand() may call exit() in the
+ * case of an error (or for 'special' options like --list-cmds or --list-opts).
  */
 extern int parse_options(int argc, const char **argv,
                          const struct option *options,
