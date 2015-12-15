@@ -65,6 +65,7 @@ struct mlxsw_sp_vfid {
 	struct list_head list;
 	u16 nr_vports;
 	u16 vfid;	/* Starting at 0 */
+	struct net_device *br_dev;
 	u16 vid;
 };
 
@@ -88,6 +89,10 @@ struct mlxsw_sp {
 		struct list_head list;
 		unsigned long mapped[BITS_TO_LONGS(MLXSW_SP_VFID_PORT_MAX)];
 	} port_vfids;
+	struct {
+		struct list_head list;
+		unsigned long mapped[BITS_TO_LONGS(MLXSW_SP_VFID_BR_MAX)];
+	} br_vfids;
 	unsigned long active_fids[BITS_TO_LONGS(VLAN_N_VID)];
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
@@ -159,6 +164,12 @@ static inline bool
 mlxsw_sp_port_is_vport(const struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	return mlxsw_sp_port->vport.vfid;
+}
+
+static inline struct net_device *
+mlxsw_sp_vport_br_get(const struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	return mlxsw_sp_vport->vport.vfid->br_dev;
 }
 
 static inline u16

@@ -151,6 +151,11 @@ static int mlxsw_sp_port_attr_stp_state_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_sp_port_stp_state_set(mlxsw_sp_port, state);
 }
 
+static bool mlxsw_sp_vfid_is_vport_br(u16 vfid)
+{
+	return vfid >= MLXSW_SP_VFID_PORT_MAX;
+}
+
 static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 idx_begin, u16 idx_end, bool set,
 				     bool only_uc)
@@ -164,7 +169,10 @@ static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
 		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID;
-		local_port = MLXSW_PORT_CPU_PORT;
+		if (mlxsw_sp_vfid_is_vport_br(idx_begin))
+			local_port = mlxsw_sp_port->local_port;
+		else
+			local_port = MLXSW_PORT_CPU_PORT;
 	} else {
 		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST;
 	}
