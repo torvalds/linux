@@ -140,7 +140,7 @@ static cycle_t read_hv_clock_tsc(struct clocksource *arg)
 	cycle_t current_tick;
 	struct ms_hyperv_tsc_page *tsc_pg = hv_context.tsc_page;
 
-	if (tsc_pg->tsc_sequence != -1) {
+	if (tsc_pg->tsc_sequence != 0) {
 		/*
 		 * Use the tsc page to compute the value.
 		 */
@@ -162,7 +162,7 @@ static cycle_t read_hv_clock_tsc(struct clocksource *arg)
 			if (tsc_pg->tsc_sequence == sequence)
 				return current_tick;
 
-			if (tsc_pg->tsc_sequence != -1)
+			if (tsc_pg->tsc_sequence != 0)
 				continue;
 			/*
 			 * Fallback using MSR method.
