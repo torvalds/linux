@@ -92,11 +92,6 @@
 #define KVM_INVALID_INST		0xdeadbeef
 #define KVM_INVALID_ADDR		0xdeadbeef
 
-#define KVM_MALTA_GUEST_RTC_ADDR	0xb8000070UL
-
-#define GUEST_TICKS_PER_JIFFY		(40000000/HZ)
-#define MS_TO_NS(x)			(x * 1E6L)
-
 #define CAUSEB_DC			27
 #define CAUSEF_DC			(_ULCAST_(1) << 27)
 
