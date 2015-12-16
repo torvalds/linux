@@ -438,7 +438,7 @@ static void mixer_cfg_layer(struct mixer_context *ctx, unsigned int win,
 				    MXR_LAYER_CFG_GRP1_VAL(priority),
 				    MXR_LAYER_CFG_GRP1_MASK);
 		break;
-	case 2:
+	case VP_DEFAULT_WIN:
 		if (ctx->vp_enabled) {
 			vp_reg_writemask(res, VP_ENABLE, val, VP_ENABLE_ON);
 			mixer_reg_writemask(res, MXR_CFG, val,
@@ -990,7 +990,7 @@ static void mixer_update_plane(struct exynos_drm_crtc *crtc,
 	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
 
-	if (plane->index > 1 && mixer_ctx->vp_enabled)
+	if (plane->index == VP_DEFAULT_WIN)
 		vp_video_buffer(mixer_ctx, plane);
 	else
 		mixer_graph_buffer(mixer_ctx, plane);
