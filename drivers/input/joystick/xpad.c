@@ -1140,7 +1140,7 @@ static void xpad_send_led_command(struct usb_xpad *xpad, int command)
  */
 static void xpad_identify_controller(struct usb_xpad *xpad)
 {
-	xpad_send_led_command(xpad, (xpad->pad_nr % 4) + 2);
+	led_set_brightness(&xpad->led->led_cdev, (xpad->pad_nr % 4) + 2);
 }
 
 static void xpad_led_set(struct led_classdev *led_cdev,
