@@ -64,6 +64,7 @@ struct exynos_drm_plane_state {
 	struct exynos_drm_rect src;
 	unsigned int h_ratio;
 	unsigned int v_ratio;
+	unsigned int zpos;
 };
 
 static inline struct exynos_drm_plane_state *
@@ -91,11 +92,12 @@ struct exynos_drm_plane {
 
 #define EXYNOS_DRM_PLANE_CAP_DOUBLE	(1 << 0)
 #define EXYNOS_DRM_PLANE_CAP_SCALE	(1 << 1)
+#define EXYNOS_DRM_PLANE_CAP_ZPOS	(1 << 2)
 
 /*
  * Exynos DRM plane configuration structure.
  *
- * @zpos: z-position of the plane.
+ * @zpos: initial z-position of the plane.
  * @type: type of the plane (primary, cursor or overlay).
  * @pixel_formats: supported pixel formats.
  * @num_pixel_formats: number of elements in 'pixel_formats'.
