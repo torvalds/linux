@@ -279,6 +279,7 @@ enum {
  */
 enum iwl_phy_ops_subcmd_ids {
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+	CT_KILL_NOTIFICATION = 0xFE,
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
 
@@ -1684,6 +1685,17 @@ struct iwl_dts_measurement_notif {
 	__le32 temp;
 	__le32 voltage;
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S */
+
+/**
+ * struct ct_kill_notif - CT-kill entry notification
+ *
+ * @temperature: the current temperature in celsius
+ * @reserved: reserved
+ */
+struct ct_kill_notif {
+	__le16 temperature;
+	__le16 reserved;
+} __packed; /* GRP_PHY_CT_KILL_NTF */
 
 /***********************************
  * TDLS API

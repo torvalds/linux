@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -171,6 +172,24 @@ void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	iwl_mvm_tt_temp_changed(mvm, temp);
 }
 
+void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct ct_kill_notif *notif;
+	int len = iwl_rx_packet_payload_len(pkt);
+
+	if (WARN_ON_ONCE(len != sizeof(*notif))) {
+		IWL_ERR(mvm, "Invalid CT_KILL_NOTIFICATION\n");
+		return;
+	}
+
+	notif = (struct ct_kill_notif *)pkt->data;
+	IWL_DEBUG_TEMP(mvm, "CT Kill notification temperature = %d\n",
+		       notif->temperature);
+
+	iwl_mvm_enter_ctkill(mvm);
+}
+
 static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 {
 	struct iwl_dts_measurement_cmd cmd = {
@@ -235,6 +254,12 @@ static void check_exit_ctkill(struct work_struct *work)
 
 	tt = container_of(work, struct iwl_mvm_tt_mgmt, ct_kill_exit.work);
 	mvm = container_of(tt, struct iwl_mvm, thermal_throttle);
+
+	if (iwl_mvm_is_tt_in_fw(mvm)) {
+		iwl_mvm_exit_ctkill(mvm);
+
+		return;
+	}
 
 	duration = tt->params.ct_kill_duration;
 
