@@ -72,27 +72,22 @@ struct media_gobj {
 };
 
 #define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
-#define MEDIA_ENTITY_ENUM_MAX_ID	64
 
 /*
  * The number of pads can't be bigger than the number of entities,
  * as the worse-case scenario is to have one entity linked up to
- * MEDIA_ENTITY_ENUM_MAX_ID - 1 entities.
+ * 63 entities.
  */
-#define MEDIA_ENTITY_MAX_PADS		(MEDIA_ENTITY_ENUM_MAX_ID - 1)
+#define MEDIA_ENTITY_MAX_PADS		63
 
 /**
  * struct media_entity_enum - An enumeration of media entities.
  *
- * @prealloc_bmap: Pre-allocated space reserved for media entities if the
- *		total number of entities does not exceed
- *		MEDIA_ENTITY_ENUM_MAX_ID.
  * @bmap:	Bit map in which each bit represents one entity at struct
  *		media_entity->internal_idx.
  * @idx_max:	Number of bits in bmap
  */
 struct media_entity_enum {
-	DECLARE_BITMAP(prealloc_bmap, MEDIA_ENTITY_ENUM_MAX_ID);
 	unsigned long *bmap;
 	int idx_max;
 };

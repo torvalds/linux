@@ -81,14 +81,10 @@ static inline const char *intf_type(struct media_interface *intf)
 __must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
 					  int idx_max)
 {
-	if (idx_max > MEDIA_ENTITY_ENUM_MAX_ID) {
-		ent_enum->bmap = kcalloc(DIV_ROUND_UP(idx_max, BITS_PER_LONG),
-					 sizeof(long), GFP_KERNEL);
-		if (!ent_enum->bmap)
-			return -ENOMEM;
-	} else {
-		ent_enum->bmap = ent_enum->prealloc_bmap;
-	}
+	ent_enum->bmap = kcalloc(DIV_ROUND_UP(idx_max, BITS_PER_LONG),
+				 sizeof(long), GFP_KERNEL);
+	if (!ent_enum->bmap)
+		return -ENOMEM;
 
 	bitmap_zero(ent_enum->bmap, idx_max);
 	ent_enum->idx_max = idx_max;
@@ -104,9 +100,7 @@ EXPORT_SYMBOL_GPL(__media_entity_enum_init);
  */
 void media_entity_enum_cleanup(struct media_entity_enum *ent_enum)
 {
-	if (ent_enum->bmap != ent_enum->prealloc_bmap)
-		kfree(ent_enum->bmap);
-	ent_enum->bmap = NULL;
+	kfree(ent_enum->bmap);
 }
 EXPORT_SYMBOL_GPL(media_entity_enum_cleanup);
 
