@@ -209,6 +209,12 @@ iss_video_far_end(struct iss_video *video)
 	struct iss_video *far_end = NULL;
 
 	mutex_lock(&mdev->graph_mutex);
+
+	if (media_entity_graph_walk_init(&graph, mdev)) {
+		mutex_unlock(&mdev->graph_mutex);
+		return NULL;
+	}
+
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
@@ -226,6 +232,9 @@ iss_video_far_end(struct iss_video *video)
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
+
+	media_entity_graph_walk_cleanup(&graph);
+
 	return far_end;
 }
 
@@ -772,7 +781,11 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	ret = media_entity_enum_init(&pipe->ent_enum, entity->graph_obj.mdev);
 	if (ret)
-		goto err_enum_init;
+		goto err_graph_walk_init;
+
+	ret = media_entity_graph_walk_init(&graph, entity->graph_obj.mdev);
+	if (ret)
+		goto err_graph_walk_init;
 
 	if (video->iss->pdata->set_constraints)
 		video->iss->pdata->set_constraints(video->iss, true);
@@ -853,6 +866,8 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		spin_unlock_irqrestore(&video->qlock, flags);
 	}
 
+	media_entity_graph_walk_cleanup(&graph);
+
 	mutex_unlock(&video->stream_lock);
 
 	return 0;
@@ -866,9 +881,11 @@ err_media_entity_pipeline_start:
 		video->iss->pdata->set_constraints(video->iss, false);
 	video->queue = NULL;
 
+	media_entity_graph_walk_cleanup(&graph);
+
+err_graph_walk_init:
 	media_entity_enum_cleanup(&pipe->ent_enum);
 
-err_enum_init:
 	mutex_unlock(&video->stream_lock);
 
 	return ret;
@@ -992,7 +1009,13 @@ static int iss_video_open(struct file *file)
 		goto done;
 	}
 
-	ret = omap4iss_pipeline_pm_use(&video->video.entity, 1);
+	ret = media_entity_graph_walk_init(&handle->graph,
+					   &video->iss->media_dev);
+	if (ret)
+		goto done;
+
+	ret = omap4iss_pipeline_pm_use(&video->video.entity, 1,
+				       &handle->graph);
 	if (ret < 0) {
 		omap4iss_put(video->iss);
 		goto done;
@@ -1031,6 +1054,7 @@ static int iss_video_open(struct file *file)
 done:
 	if (ret < 0) {
 		v4l2_fh_del(&handle->vfh);
+		media_entity_graph_walk_cleanup(&handle->graph);
 		kfree(handle);
 	}
 
@@ -1046,12 +1070,13 @@ static int iss_video_release(struct file *file)
 	/* Disable streaming and free the buffers queue resources. */
 	iss_video_streamoff(file, vfh, video->type);
 
-	omap4iss_pipeline_pm_use(&video->video.entity, 0);
+	omap4iss_pipeline_pm_use(&video->video.entity, 0, &handle->graph);
 
 	/* Release the videobuf2 queue */
 	vb2_queue_release(&handle->queue);
 
 	/* Release the file handle. */
+	media_entity_graph_walk_cleanup(&handle->graph);
 	v4l2_fh_del(vfh);
 	kfree(handle);
 	file->private_data = NULL;

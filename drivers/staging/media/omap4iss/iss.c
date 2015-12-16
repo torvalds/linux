@@ -389,14 +389,14 @@ static irqreturn_t iss_isr(int irq, void *_iss)
  *
  * Return the total number of users of all video device nodes in the pipeline.
  */
-static int iss_pipeline_pm_use_count(struct media_entity *entity)
+static int iss_pipeline_pm_use_count(struct media_entity *entity,
+				     struct media_entity_graph *graph)
 {
-	struct media_entity_graph graph;
 	int use = 0;
 
-	media_entity_graph_walk_start(&graph, entity);
+	media_entity_graph_walk_start(graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(&graph))) {
+	while ((entity = media_entity_graph_walk_next(graph))) {
 		if (is_media_entity_v4l2_io(entity))
 			use += entity->use_count;
 	}
@@ -449,27 +449,27 @@ static int iss_pipeline_pm_power_one(struct media_entity *entity, int change)
  *
  * Return 0 on success or a negative error code on failure.
  */
-static int iss_pipeline_pm_power(struct media_entity *entity, int change)
+static int iss_pipeline_pm_power(struct media_entity *entity, int change,
+				 struct media_entity_graph *graph)
 {
-	struct media_entity_graph graph;
 	struct media_entity *first = entity;
 	int ret = 0;
 
 	if (!change)
 		return 0;
 
-	media_entity_graph_walk_start(&graph, entity);
+	media_entity_graph_walk_start(graph, entity);
 
-	while (!ret && (entity = media_entity_graph_walk_next(&graph)))
+	while (!ret && (entity = media_entity_graph_walk_next(graph)))
 		if (is_media_entity_v4l2_subdev(entity))
 			ret = iss_pipeline_pm_power_one(entity, change);
 
 	if (!ret)
 		return 0;
 
-	media_entity_graph_walk_start(&graph, first);
+	media_entity_graph_walk_start(graph, first);
 
-	while ((first = media_entity_graph_walk_next(&graph)) &&
+	while ((first = media_entity_graph_walk_next(graph)) &&
 	       first != entity)
 		if (is_media_entity_v4l2_subdev(first))
 			iss_pipeline_pm_power_one(first, -change);
@@ -489,7 +489,8 @@ static int iss_pipeline_pm_power(struct media_entity *entity, int change)
  * off is assumed to never fail. No failure can occur when the use parameter is
  * set to 0.
  */
-int omap4iss_pipeline_pm_use(struct media_entity *entity, int use)
+int omap4iss_pipeline_pm_use(struct media_entity *entity, int use,
+			     struct media_entity_graph *graph)
 {
 	int change = use ? 1 : -1;
 	int ret;
@@ -501,7 +502,7 @@ int omap4iss_pipeline_pm_use(struct media_entity *entity, int use)
 	WARN_ON(entity->use_count < 0);
 
 	/* Apply power change to connected non-nodes. */
-	ret = iss_pipeline_pm_power(entity, change);
+	ret = iss_pipeline_pm_power(entity, change, graph);
 	if (ret < 0)
 		entity->use_count -= change;
 
@@ -526,34 +527,48 @@ int omap4iss_pipeline_pm_use(struct media_entity *entity, int use)
 static int iss_pipeline_link_notify(struct media_link *link, u32 flags,
 				    unsigned int notification)
 {
+	struct media_entity_graph *graph =
+		&container_of(link->graph_obj.mdev, struct iss_device,
+			      media_dev)->pm_count_graph;
 	struct media_entity *source = link->source->entity;
 	struct media_entity *sink = link->sink->entity;
-	int source_use = iss_pipeline_pm_use_count(source);
-	int sink_use = iss_pipeline_pm_use_count(sink);
+	int source_use;
+	int sink_use;
 	int ret;
+
+	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH) {
+		ret = media_entity_graph_walk_init(graph,
+						   link->graph_obj.mdev);
+		if (ret)
+			return ret;
+	}
+
+	source_use = iss_pipeline_pm_use_count(source, graph);
+	sink_use = iss_pipeline_pm_use_count(sink, graph);
 
 	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
 	    !(flags & MEDIA_LNK_FL_ENABLED)) {
 		/* Powering off entities is assumed to never fail. */
-		iss_pipeline_pm_power(source, -sink_use);
-		iss_pipeline_pm_power(sink, -source_use);
+		iss_pipeline_pm_power(source, -sink_use, graph);
+		iss_pipeline_pm_power(sink, -source_use, graph);
 		return 0;
 	}
 
 	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
 	    (flags & MEDIA_LNK_FL_ENABLED)) {
-		ret = iss_pipeline_pm_power(source, sink_use);
+		ret = iss_pipeline_pm_power(source, sink_use, graph);
 		if (ret < 0)
 			return ret;
 
-		ret = iss_pipeline_pm_power(sink, source_use);
+		ret = iss_pipeline_pm_power(sink, source_use, graph);
 		if (ret < 0)
-			iss_pipeline_pm_power(source, -sink_use);
-
-		return ret;
+			iss_pipeline_pm_power(source, -sink_use, graph);
 	}
 
-	return 0;
+	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH)
+		media_entity_graph_walk_cleanup(graph);
+
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------

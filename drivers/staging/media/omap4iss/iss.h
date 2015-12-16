@@ -87,6 +87,7 @@ struct iss_reg {
 struct iss_device {
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
+	struct media_entity_graph pm_count_graph;
 	struct device *dev;
 	u32 revision;
 
@@ -151,7 +152,8 @@ void omap4iss_isp_subclk_enable(struct iss_device *iss,
 void omap4iss_isp_subclk_disable(struct iss_device *iss,
 				 enum iss_isp_subclk_resource res);
 
-int omap4iss_pipeline_pm_use(struct media_entity *entity, int use);
+int omap4iss_pipeline_pm_use(struct media_entity *entity, int use,
+			     struct media_entity_graph *graph);
 
 int omap4iss_register_entities(struct platform_device *pdev,
 			       struct v4l2_device *v4l2_dev);
