@@ -404,6 +404,30 @@
 #define CAUSEF_BD		(_ULCAST_(1)   << 31)
 
 /*
+ * Cause.ExcCode trap codes.
+ */
+#define EXCCODE_INT		0	/* Interrupt pending */
+#define EXCCODE_MOD		1	/* TLB modified fault */
+#define EXCCODE_TLBL		2	/* TLB miss on load or ifetch */
+#define EXCCODE_TLBS		3	/* TLB miss on a store */
+#define EXCCODE_ADEL		4	/* Address error on a load or ifetch */
+#define EXCCODE_ADES		5	/* Address error on a store */
+#define EXCCODE_IBE		6	/* Bus error on an ifetch */
+#define EXCCODE_DBE		7	/* Bus error on a load or store */
+#define EXCCODE_SYS		8	/* System call */
+#define EXCCODE_BP		9	/* Breakpoint */
+#define EXCCODE_RI		10	/* Reserved instruction exception */
+#define EXCCODE_CPU		11	/* Coprocessor unusable */
+#define EXCCODE_OV		12	/* Arithmetic overflow */
+#define EXCCODE_TR		13	/* Trap instruction */
+#define EXCCODE_VCEI		14	/* Virtual coherency exception */
+#define EXCCODE_MSAFPE		14	/* MSA floating point exception */
+#define EXCCODE_FPE		15	/* Floating point exception */
+#define EXCCODE_MSADIS		21	/* MSA disabled exception */
+#define EXCCODE_WATCH		23	/* Watch address reference */
+#define EXCCODE_VCED		31	/* Virtual coherency data */
+
+/*
  * Bits in the coprocessor 0 config register.
  */
 /* Generic bits.  */

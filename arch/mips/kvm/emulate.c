@@ -1780,7 +1780,7 @@ enum emulation_result kvm_mips_emulate_syscall(unsigned long cause,
 		kvm_debug("Delivering SYSCALL @ pc %#lx\n", arch->pc);
 
 		kvm_change_c0_guest_cause(cop0, (0xff),
-					  (T_SYSCALL << CAUSEB_EXCCODE));
+					  (EXCCODE_SYS << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
 		arch->pc = KVM_GUEST_KSEG0 + 0x180;
@@ -1827,7 +1827,7 @@ enum emulation_result kvm_mips_emulate_tlbmiss_ld(unsigned long cause,
 	}
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
-				  (T_TLB_LD_MISS << CAUSEB_EXCCODE));
+				  (EXCCODE_TLBL << CAUSEB_EXCCODE));
 
 	/* setup badvaddr, context and entryhi registers for the guest */
 	kvm_write_c0_guest_badvaddr(cop0, vcpu->arch.host_cp0_badvaddr);
@@ -1873,7 +1873,7 @@ enum emulation_result kvm_mips_emulate_tlbinv_ld(unsigned long cause,
 	}
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
-				  (T_TLB_LD_MISS << CAUSEB_EXCCODE));
+				  (EXCCODE_TLBL << CAUSEB_EXCCODE));
 
 	/* setup badvaddr, context and entryhi registers for the guest */
 	kvm_write_c0_guest_badvaddr(cop0, vcpu->arch.host_cp0_badvaddr);
@@ -1917,7 +1917,7 @@ enum emulation_result kvm_mips_emulate_tlbmiss_st(unsigned long cause,
 	}
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
-				  (T_TLB_ST_MISS << CAUSEB_EXCCODE));
+				  (EXCCODE_TLBS << CAUSEB_EXCCODE));
 
 	/* setup badvaddr, context and entryhi registers for the guest */
 	kvm_write_c0_guest_badvaddr(cop0, vcpu->arch.host_cp0_badvaddr);
@@ -1961,7 +1961,7 @@ enum emulation_result kvm_mips_emulate_tlbinv_st(unsigned long cause,
 	}
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
-				  (T_TLB_ST_MISS << CAUSEB_EXCCODE));
+				  (EXCCODE_TLBS << CAUSEB_EXCCODE));
 
 	/* setup badvaddr, context and entryhi registers for the guest */
 	kvm_write_c0_guest_badvaddr(cop0, vcpu->arch.host_cp0_badvaddr);
@@ -2032,7 +2032,8 @@ enum emulation_result kvm_mips_emulate_tlbmod(unsigned long cause,
 		arch->pc = KVM_GUEST_KSEG0 + 0x180;
 	}
 
-	kvm_change_c0_guest_cause(cop0, (0xff), (T_TLB_MOD << CAUSEB_EXCCODE));
+	kvm_change_c0_guest_cause(cop0, (0xff),
+				  (EXCCODE_MOD << CAUSEB_EXCCODE));
 
 	/* setup badvaddr, context and entryhi registers for the guest */
 	kvm_write_c0_guest_badvaddr(cop0, vcpu->arch.host_cp0_badvaddr);
@@ -2067,7 +2068,7 @@ enum emulation_result kvm_mips_emulate_fpu_exc(unsigned long cause,
 	arch->pc = KVM_GUEST_KSEG0 + 0x180;
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
-				  (T_COP_UNUSABLE << CAUSEB_EXCCODE));
+				  (EXCCODE_CPU << CAUSEB_EXCCODE));
 	kvm_change_c0_guest_cause(cop0, (CAUSEF_CE), (0x1 << CAUSEB_CE));
 
 	return EMULATE_DONE;
@@ -2095,7 +2096,7 @@ enum emulation_result kvm_mips_emulate_ri_exc(unsigned long cause,
 		kvm_debug("Delivering RI @ pc %#lx\n", arch->pc);
 
 		kvm_change_c0_guest_cause(cop0, (0xff),
-					  (T_RES_INST << CAUSEB_EXCCODE));
+					  (EXCCODE_RI << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
 		arch->pc = KVM_GUEST_KSEG0 + 0x180;
@@ -2130,7 +2131,7 @@ enum emulation_result kvm_mips_emulate_bp_exc(unsigned long cause,
 		kvm_debug("Delivering BP @ pc %#lx\n", arch->pc);
 
 		kvm_change_c0_guest_cause(cop0, (0xff),
-					  (T_BREAK << CAUSEB_EXCCODE));
+					  (EXCCODE_BP << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
 		arch->pc = KVM_GUEST_KSEG0 + 0x180;
@@ -2165,7 +2166,7 @@ enum emulation_result kvm_mips_emulate_trap_exc(unsigned long cause,
 		kvm_debug("Delivering TRAP @ pc %#lx\n", arch->pc);
 
 		kvm_change_c0_guest_cause(cop0, (0xff),
-					  (T_TRAP << CAUSEB_EXCCODE));
+					  (EXCCODE_TR << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
 		arch->pc = KVM_GUEST_KSEG0 + 0x180;
@@ -2200,7 +2201,7 @@ enum emulation_result kvm_mips_emulate_msafpe_exc(unsigned long cause,
 		kvm_debug("Delivering MSAFPE @ pc %#lx\n", arch->pc);
 
 		kvm_change_c0_guest_cause(cop0, (0xff),
-					  (T_MSAFPE << CAUSEB_EXCCODE));
+					  (EXCCODE_MSAFPE << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
 		arch->pc = KVM_GUEST_KSEG0 + 0x180;
@@ -2235,7 +2236,7 @@ enum emulation_result kvm_mips_emulate_fpe_exc(unsigned long cause,
 		kvm_debug("Delivering FPE @ pc %#lx\n", arch->pc);
 
 		kvm_change_c0_guest_cause(cop0, (0xff),
-					  (T_FPE << CAUSEB_EXCCODE));
+					  (EXCCODE_FPE << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
 		arch->pc = KVM_GUEST_KSEG0 + 0x180;
@@ -2270,7 +2271,7 @@ enum emulation_result kvm_mips_emulate_msadis_exc(unsigned long cause,
 		kvm_debug("Delivering MSADIS @ pc %#lx\n", arch->pc);
 
 		kvm_change_c0_guest_cause(cop0, (0xff),
-					  (T_MSADIS << CAUSEB_EXCCODE));
+					  (EXCCODE_MSADIS << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
 		arch->pc = KVM_GUEST_KSEG0 + 0x180;
@@ -2479,25 +2480,25 @@ enum emulation_result kvm_mips_check_privilege(unsigned long cause,
 
 	if (usermode) {
 		switch (exccode) {
-		case T_INT:
-		case T_SYSCALL:
-		case T_BREAK:
-		case T_RES_INST:
-		case T_TRAP:
-		case T_MSAFPE:
-		case T_FPE:
-		case T_MSADIS:
+		case EXCCODE_INT:
+		case EXCCODE_SYS:
+		case EXCCODE_BP:
+		case EXCCODE_RI:
+		case EXCCODE_TR:
+		case EXCCODE_MSAFPE:
+		case EXCCODE_FPE:
+		case EXCCODE_MSADIS:
 			break;
 
-		case T_COP_UNUSABLE:
+		case EXCCODE_CPU:
 			if (((cause & CAUSEF_CE) >> CAUSEB_CE) == 0)
 				er = EMULATE_PRIV_FAIL;
 			break;
 
-		case T_TLB_MOD:
+		case EXCCODE_MOD:
 			break;
 
-		case T_TLB_LD_MISS:
+		case EXCCODE_TLBL:
 			/*
 			 * We we are accessing Guest kernel space, then send an
 			 * address error exception to the guest
@@ -2506,12 +2507,12 @@ enum emulation_result kvm_mips_check_privilege(unsigned long cause,
 				kvm_debug("%s: LD MISS @ %#lx\n", __func__,
 					  badvaddr);
 				cause &= ~0xff;
-				cause |= (T_ADDR_ERR_LD << CAUSEB_EXCCODE);
+				cause |= (EXCCODE_ADEL << CAUSEB_EXCCODE);
 				er = EMULATE_PRIV_FAIL;
 			}
 			break;
 
-		case T_TLB_ST_MISS:
+		case EXCCODE_TLBS:
 			/*
 			 * We we are accessing Guest kernel space, then send an
 			 * address error exception to the guest
@@ -2520,26 +2521,26 @@ enum emulation_result kvm_mips_check_privilege(unsigned long cause,
 				kvm_debug("%s: ST MISS @ %#lx\n", __func__,
 					  badvaddr);
 				cause &= ~0xff;
-				cause |= (T_ADDR_ERR_ST << CAUSEB_EXCCODE);
+				cause |= (EXCCODE_ADES << CAUSEB_EXCCODE);
 				er = EMULATE_PRIV_FAIL;
 			}
 			break;
 
-		case T_ADDR_ERR_ST:
+		case EXCCODE_ADES:
 			kvm_debug("%s: address error ST @ %#lx\n", __func__,
 				  badvaddr);
 			if ((badvaddr & PAGE_MASK) == KVM_GUEST_COMMPAGE_ADDR) {
 				cause &= ~0xff;
-				cause |= (T_TLB_ST_MISS << CAUSEB_EXCCODE);
+				cause |= (EXCCODE_TLBS << CAUSEB_EXCCODE);
 			}
 			er = EMULATE_PRIV_FAIL;
 			break;
-		case T_ADDR_ERR_LD:
+		case EXCCODE_ADEL:
 			kvm_debug("%s: address error LD @ %#lx\n", __func__,
 				  badvaddr);
 			if ((badvaddr & PAGE_MASK) == KVM_GUEST_COMMPAGE_ADDR) {
 				cause &= ~0xff;
-				cause |= (T_TLB_LD_MISS << CAUSEB_EXCCODE);
+				cause |= (EXCCODE_TLBL << CAUSEB_EXCCODE);
 			}
 			er = EMULATE_PRIV_FAIL;
 			break;
@@ -2585,9 +2586,9 @@ enum emulation_result kvm_mips_handle_tlbmiss(unsigned long cause,
 		      (va & VPN2_MASK) |
 		      (kvm_read_c0_guest_entryhi(vcpu->arch.cop0) & ASID_MASK));
 	if (index < 0) {
-		if (exccode == T_TLB_LD_MISS) {
+		if (exccode == EXCCODE_TLBL) {
 			er = kvm_mips_emulate_tlbmiss_ld(cause, opc, run, vcpu);
-		} else if (exccode == T_TLB_ST_MISS) {
+		} else if (exccode == EXCCODE_TLBS) {
 			er = kvm_mips_emulate_tlbmiss_st(cause, opc, run, vcpu);
 		} else {
 			kvm_err("%s: invalid exc code: %d\n", __func__,
@@ -2602,10 +2603,10 @@ enum emulation_result kvm_mips_handle_tlbmiss(unsigned long cause,
 		 * exception to the guest
 		 */
 		if (!TLB_IS_VALID(*tlb, va)) {
-			if (exccode == T_TLB_LD_MISS) {
+			if (exccode == EXCCODE_TLBL) {
 				er = kvm_mips_emulate_tlbinv_ld(cause, opc, run,
 								vcpu);
-			} else if (exccode == T_TLB_ST_MISS) {
+			} else if (exccode == EXCCODE_TLBS) {
 				er = kvm_mips_emulate_tlbinv_st(cause, opc, run,
 								vcpu);
 			} else {

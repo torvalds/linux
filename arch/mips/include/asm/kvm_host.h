@@ -281,34 +281,6 @@ enum mips_mmu_types {
 	MMU_TYPE_R8000
 };
 
-/*
- * Trap codes
- */
-#define T_INT			0	/* Interrupt pending */
-#define T_TLB_MOD		1	/* TLB modified fault */
-#define T_TLB_LD_MISS		2	/* TLB miss on load or ifetch */
-#define T_TLB_ST_MISS		3	/* TLB miss on a store */
-#define T_ADDR_ERR_LD		4	/* Address error on a load or ifetch */
-#define T_ADDR_ERR_ST		5	/* Address error on a store */
-#define T_BUS_ERR_IFETCH	6	/* Bus error on an ifetch */
-#define T_BUS_ERR_LD_ST		7	/* Bus error on a load or store */
-#define T_SYSCALL		8	/* System call */
-#define T_BREAK			9	/* Breakpoint */
-#define T_RES_INST		10	/* Reserved instruction exception */
-#define T_COP_UNUSABLE		11	/* Coprocessor unusable */
-#define T_OVFLOW		12	/* Arithmetic overflow */
-
-/*
- * Trap definitions added for r4000 port.
- */
-#define T_TRAP			13	/* Trap instruction */
-#define T_VCEI			14	/* Virtual coherency exception */
-#define T_MSAFPE		14	/* MSA floating point exception */
-#define T_FPE			15	/* Floating point exception */
-#define T_MSADIS		21	/* MSA disabled exception */
-#define T_WATCH			23	/* Watch address reference */
-#define T_VCED			31	/* Virtual coherency data */
-
 /* Resume Flags */
 #define RESUME_FLAG_DR		(1<<0)	/* Reload guest nonvolatile state? */
 #define RESUME_FLAG_HOST	(1<<1)	/* Resume host? */
