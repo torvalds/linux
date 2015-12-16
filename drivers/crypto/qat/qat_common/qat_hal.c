@@ -418,7 +418,7 @@ int qat_hal_check_ae_active(struct icp_qat_fw_loader_handle *handle,
 
 	qat_hal_rd_ae_csr(handle, ae, CTX_ENABLES, &enable);
 	qat_hal_rd_ae_csr(handle, ae, ACTIVE_CTX_STATUS, &active);
-	if ((enable & (0xff >> CE_ENABLE_BITPOS)) ||
+	if ((enable & (0xff << CE_ENABLE_BITPOS)) ||
 	    (active & (1 << ACS_ABO_BITPOS)))
 		return 1;
 	else
