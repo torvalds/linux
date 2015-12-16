@@ -1363,6 +1363,7 @@ static void nfp_net_tx_ring_free(struct nfp_net_tx_ring *tx_ring)
 	tx_ring->wr_p = 0;
 	tx_ring->rd_p = 0;
 	tx_ring->qcp_rd_p = 0;
+	tx_ring->wr_ptr_add = 0;
 
 	tx_ring->txbufs = NULL;
 	tx_ring->txds = NULL;
@@ -1437,6 +1438,7 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 	rx_ring->cnt = 0;
 	rx_ring->wr_p = 0;
 	rx_ring->rd_p = 0;
+	rx_ring->wr_ptr_add = 0;
 
 	rx_ring->rxbufs = NULL;
 	rx_ring->rxds = NULL;
