@@ -1473,10 +1473,13 @@ static bool ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_atx_tid *txtid;
 	struct ath_txq *txq;
 	struct ath_node *an;
 	u8 density;
+
+	ath_dbg(common, XMIT, "%s called\n", __func__);
 
 	an = (struct ath_node *)sta->drv_priv;
 	txtid = ATH_AN_2_TID(an, tid);
@@ -1512,9 +1515,12 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 
 void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	struct ath_atx_tid *txtid = ATH_AN_2_TID(an, tid);
 	struct ath_txq *txq = txtid->txq;
+
+	ath_dbg(common, XMIT, "%s called\n", __func__);
 
 	ath_txq_lock(sc, txq);
 	txtid->active = false;
@@ -1526,10 +1532,13 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
 		       struct ath_node *an)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_atx_tid *tid;
 	struct ath_txq *txq;
 	bool buffered;
 	int tidno;
+
+	ath_dbg(common, XMIT, "%s called\n", __func__);
 
 	for (tidno = 0, tid = &an->tid[tidno];
 	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
@@ -1555,9 +1564,12 @@ void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
 
 void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_atx_tid *tid;
 	struct ath_txq *txq;
 	int tidno;
+
+	ath_dbg(common, XMIT, "%s called\n", __func__);
 
 	for (tidno = 0, tid = &an->tid[tidno];
 	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
@@ -1579,9 +1591,12 @@ void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta,
 			u16 tidno)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_atx_tid *tid;
 	struct ath_node *an;
 	struct ath_txq *txq;
+
+	ath_dbg(common, XMIT, "%s called\n", __func__);
 
 	an = (struct ath_node *)sta->drv_priv;
 	tid = ATH_AN_2_TID(an, tidno);
@@ -2316,6 +2331,12 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	queue = ieee80211_is_data_present(hdr->frame_control);
 
+	/* If chanctx, queue all null frames while NOA could be there */
+	if (ath9k_is_chanctx_enabled() &&
+	    ieee80211_is_nullfunc(hdr->frame_control) &&
+	    !txctl->force_channel)
+		queue = true;
+
 	/* Force queueing of all frames that belong to a virtual interface on
 	 * a different channel context, to ensure that they are sent on the
 	 * correct channel.
@@ -2894,7 +2915,7 @@ int ath9k_tx99_send(struct ath_softc *sc, struct sk_buff *skb,
 		if (skb_headroom(skb) < padsize) {
 			ath_dbg(common, XMIT,
 				"tx99 padding failed\n");
-		return -EINVAL;
+			return -EINVAL;
 		}
 
 		skb_push(skb, padsize);

@@ -1139,7 +1139,7 @@ static ssize_t ath10k_read_htt_max_amsdu_ampdu(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	char buf[64];
-	u8 amsdu = 3, ampdu = 64;
+	u8 amsdu, ampdu;
 	unsigned int len;
 
 	mutex_lock(&ar->conf_mutex);

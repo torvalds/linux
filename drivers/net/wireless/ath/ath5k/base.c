@@ -767,7 +767,7 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
 		flags |= AR5K_TXDESC_NOACK;
 
-	rc_flags = info->control.rates[0].flags;
+	rc_flags = bf->rates[0].flags;
 
 	hw_rate = ath5k_get_rate_hw_value(ah->hw, info, bf, 0);
 
