@@ -558,7 +558,7 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 		input_report_key(input, KEY_PROG1 + i, keys & (1 << i));
 
 	input_report_abs(input, ABS_RX, strip1);
-	input_report_abs(input, ABS_RX, strip2);
+	input_report_abs(input, ABS_RY, strip2);
 
 	input_report_abs(input, ABS_WHEEL,    ring1 & 0x7f ? ring1 : 0);
 	input_report_abs(input, ABS_THROTTLE, ring2 & 0x07 ? ring2 : 0);
