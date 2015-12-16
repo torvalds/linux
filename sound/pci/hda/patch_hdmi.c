@@ -86,6 +86,7 @@ struct hdmi_spec_per_pin {
 	struct delayed_work work;
 	struct snd_kcontrol *eld_ctl;
 	struct snd_jack *acomp_jack; /* jack via audio component */
+	struct hda_pcm *pcm; /* pointer to spec->pcm_rec[n] dynamically*/
 	int repoll_count;
 	bool setup; /* the stream has been set up by prepare callback */
 	int channels; /* current number of channels */
@@ -144,7 +145,7 @@ struct hdmi_spec {
 	struct hdmi_ops ops;
 
 	bool dyn_pin_out;
-
+	bool dyn_pcm_assign;
 	/*
 	 * Non-generic VIA/NVIDIA specific
 	 */
@@ -389,13 +390,16 @@ static int hinfo_to_pin_index(struct hda_codec *codec,
 			      struct hda_pcm_stream *hinfo)
 {
 	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin;
 	int pin_idx;
 
-	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++)
-		if (get_pcm_rec(spec, pin_idx)->stream == hinfo)
+	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		per_pin = get_pin(spec, pin_idx);
+		if (per_pin->pcm && per_pin->pcm->stream == hinfo)
 			return pin_idx;
+	}
 
-	codec_warn(codec, "HDMI: hinfo %p not registered\n", hinfo);
+	codec_dbg(codec, "HDMI: hinfo %p not registered\n", hinfo);
 	return -EINVAL;
 }
 
@@ -2116,6 +2120,7 @@ static int hdmi_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 static int generic_hdmi_build_pcms(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin;
 	int pin_idx;
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
@@ -2125,6 +2130,10 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 		info = snd_hda_codec_pcm_new(codec, "HDMI %d", pin_idx);
 		if (!info)
 			return -ENOMEM;
+		if (!spec->dyn_pcm_assign) {
+			per_pin = get_pin(spec, pin_idx);
+			per_pin->pcm = info;
+		}
 		spec->pcm_rec[pin_idx] = info;
 		info->pcm_type = HDA_PCM_TYPE_HDMI;
 		info->own_chmap = true;
