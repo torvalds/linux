@@ -29,8 +29,8 @@ void __init init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	/* a SMP H/w block could do IPI IRQ request here */
-	if (plat_smp_ops.init_irq_cpu)
-		plat_smp_ops.init_irq_cpu(smp_processor_id());
+	if (plat_smp_ops.init_per_cpu)
+		plat_smp_ops.init_per_cpu(smp_processor_id());
 
 	if (machine_desc->init_cpu_smp)
 		machine_desc->init_cpu_smp(smp_processor_id());
