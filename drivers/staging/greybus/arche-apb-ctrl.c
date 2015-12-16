@@ -325,6 +325,8 @@ static int arche_apb_ctrl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, apb);
 
+	assert_gpio(apb->resetn_gpio);
+
 	dev_info(&pdev->dev, "Device registered successfully\n");
 	return 0;
 
