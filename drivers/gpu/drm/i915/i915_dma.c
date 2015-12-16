@@ -370,7 +370,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = intel_bios_init(dev);
+	ret = intel_bios_init(dev_priv);
 	if (ret)
 		DRM_INFO("failed to find VBIOS tables\n");
 

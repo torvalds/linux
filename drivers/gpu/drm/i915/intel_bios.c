@@ -332,10 +332,10 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	drm_mode_debug_printmodeline(panel_fixed_mode);
 }
 
-static int intel_bios_ssc_frequency(struct drm_device *dev,
+static int intel_bios_ssc_frequency(struct drm_i915_private *dev_priv,
 				    bool alternate)
 {
-	switch (INTEL_INFO(dev)->gen) {
+	switch (INTEL_INFO(dev_priv)->gen) {
 	case 2:
 		return alternate ? 66667 : 48000;
 	case 3:
@@ -350,7 +350,6 @@ static void
 parse_general_features(struct drm_i915_private *dev_priv,
 		       const struct bdb_header *bdb)
 {
-	struct drm_device *dev = dev_priv->dev;
 	const struct bdb_general_features *general;
 
 	general = find_section(bdb, BDB_GENERAL_FEATURES);
@@ -362,7 +361,7 @@ parse_general_features(struct drm_i915_private *dev_priv,
 			dev_priv->vbt.int_crt_support = general->int_crt_support;
 		dev_priv->vbt.lvds_use_ssc = general->enable_ssc;
 		dev_priv->vbt.lvds_ssc_freq =
-			intel_bios_ssc_frequency(dev, general->ssc_freq);
+			intel_bios_ssc_frequency(dev_priv, general->ssc_freq);
 		dev_priv->vbt.display_clock_mode = general->display_clock_mode;
 		dev_priv->vbt.fdi_rx_polarity_inverted = general->fdi_rx_polarity_inverted;
 		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
@@ -1057,10 +1056,9 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 static void parse_ddi_ports(struct drm_i915_private *dev_priv,
 			    const struct bdb_header *bdb)
 {
-	struct drm_device *dev = dev_priv->dev;
 	enum port port;
 
-	if (!HAS_DDI(dev))
+	if (!HAS_DDI(dev_priv))
 		return;
 
 	if (!dev_priv->vbt.child_dev_num)
@@ -1173,7 +1171,6 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 static void
 init_vbt_defaults(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	enum port port;
 
 	dev_priv->vbt.crt_ddc_pin = GMBUS_PIN_VGADDC;
@@ -1198,8 +1195,8 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	 * Core/SandyBridge/IvyBridge use alternative (120MHz) reference
 	 * clock for LVDS.
 	 */
-	dev_priv->vbt.lvds_ssc_freq = intel_bios_ssc_frequency(dev,
-			!HAS_PCH_SPLIT(dev));
+	dev_priv->vbt.lvds_ssc_freq = intel_bios_ssc_frequency(dev_priv,
+			!HAS_PCH_SPLIT(dev_priv));
 	DRM_DEBUG_KMS("Set default to SSC at %d kHz\n", dev_priv->vbt.lvds_ssc_freq);
 
 	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
@@ -1295,15 +1292,14 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
  * Returns 0 on success, nonzero on failure.
  */
 int
-intel_bios_init(struct drm_device *dev)
+intel_bios_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = dev_priv->dev->pdev;
 	const struct vbt_header *vbt = dev_priv->opregion.vbt;
 	const struct bdb_header *bdb;
 	u8 __iomem *bios = NULL;
 
-	if (HAS_PCH_NOP(dev))
+	if (HAS_PCH_NOP(dev_priv))
 		return -ENODEV;
 
 	init_vbt_defaults(dev_priv);
