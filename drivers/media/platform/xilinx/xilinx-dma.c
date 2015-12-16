@@ -182,10 +182,17 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 	struct media_device *mdev = entity->graph_obj.mdev;
 	unsigned int num_inputs = 0;
 	unsigned int num_outputs = 0;
+	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
 
 	/* Walk the graph to locate the video nodes. */
+	ret = media_entity_graph_walk_init(&graph, entity->graph_obj.mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		return ret;
+	}
+
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
@@ -205,6 +212,8 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
+
+	media_entity_graph_walk_cleanup(&graph);
 
 	/* We need exactly one output and zero or one input. */
 	if (num_outputs != 1 || num_inputs > 1)
