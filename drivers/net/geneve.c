@@ -380,8 +380,11 @@ static struct socket *geneve_create_sock(struct net *net, bool ipv6,
 
 static void geneve_notify_add_rx_port(struct geneve_sock *gs)
 {
+	struct net_device *dev;
 	struct sock *sk = gs->sock->sk;
+	struct net *net = sock_net(sk);
 	sa_family_t sa_family = sk->sk_family;
+	__be16 port = inet_sk(sk)->inet_sport;
 	int err;
 
 	if (sa_family == AF_INET) {
@@ -390,6 +393,14 @@ static void geneve_notify_add_rx_port(struct geneve_sock *gs)
 			pr_warn("geneve: udp_add_offload failed with status %d\n",
 				err);
 	}
+
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		if (dev->netdev_ops->ndo_add_geneve_port)
+			dev->netdev_ops->ndo_add_geneve_port(dev, sa_family,
+							     port);
+	}
+	rcu_read_unlock();
 }
 
 static int geneve_hlen(struct genevehdr *gh)
@@ -530,8 +541,20 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 
 static void geneve_notify_del_rx_port(struct geneve_sock *gs)
 {
+	struct net_device *dev;
 	struct sock *sk = gs->sock->sk;
+	struct net *net = sock_net(sk);
 	sa_family_t sa_family = sk->sk_family;
+	__be16 port = inet_sk(sk)->inet_sport;
+
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		if (dev->netdev_ops->ndo_del_geneve_port)
+			dev->netdev_ops->ndo_del_geneve_port(dev, sa_family,
+							     port);
+	}
+
+	rcu_read_unlock();
 
 	if (sa_family == AF_INET)
 		udp_del_offload(&gs->udp_offloads);
@@ -1085,6 +1108,30 @@ static const struct ethtool_ops geneve_ethtool_ops = {
 static struct device_type geneve_type = {
 	.name = "geneve",
 };
+
+/* Calls the ndo_add_geneve_port of the caller in order to
+ * supply the listening GENEVE udp ports. Callers are expected
+ * to implement the ndo_add_geneve_port.
+ */
+void geneve_get_rx_port(struct net_device *dev)
+{
+	struct net *net = dev_net(dev);
+	struct geneve_net *gn = net_generic(net, geneve_net_id);
+	struct geneve_sock *gs;
+	sa_family_t sa_family;
+	struct sock *sk;
+	__be16 port;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(gs, &gn->sock_list, list) {
+		sk = gs->sock->sk;
+		sa_family = sk->sk_family;
+		port = inet_sk(sk)->inet_sport;
+		dev->netdev_ops->ndo_add_geneve_port(dev, sa_family, port);
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(geneve_get_rx_port);
 
 /* Initialize the device structure. */
 static void geneve_setup(struct net_device *dev)
