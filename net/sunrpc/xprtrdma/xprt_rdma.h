@@ -207,6 +207,8 @@ struct rpcrdma_frmr {
 	enum rpcrdma_frmr_state		fr_state;
 	struct work_struct		fr_work;
 	struct rpcrdma_xprt		*fr_xprt;
+	bool				fr_waiter;
+	struct completion		fr_linv_done;;
 	union {
 		struct ib_reg_wr	fr_regwr;
 		struct ib_send_wr	fr_invwr;
