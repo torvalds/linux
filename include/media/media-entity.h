@@ -301,11 +301,22 @@ static inline enum media_gobj_type media_type(struct media_gobj *gobj)
 	return gobj->id >> MEDIA_BITS_PER_ID;
 }
 
+/**
+ * media_id() - return the media object ID
+ *
+ * @gobj:	pointer to the media graph object
+ */
 static inline u32 media_id(struct media_gobj *gobj)
 {
 	return gobj->id & MEDIA_ID_MASK;
 }
 
+/**
+ * media_gobj_gen_id() - encapsulates type and ID on at the object ID
+ *
+ * @type:	object type as define at enum &media_gobj_type.
+ * @local_id:	next ID, from struct &media_device.@id.
+ */
 static inline u32 media_gobj_gen_id(enum media_gobj_type type, u64 local_id)
 {
 	u32 id;
