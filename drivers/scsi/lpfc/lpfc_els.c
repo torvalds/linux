@@ -4749,6 +4749,9 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 	case LPFC_LINK_SPEED_16GHZ:
 		rdp_speed = RDP_PS_16GB;
 		break;
+	case LPFC_LINK_SPEED_32GHZ:
+		rdp_speed = RDP_PS_32GB;
+		break;
 	default:
 		rdp_speed = RDP_PS_UNKNOWN;
 		break;

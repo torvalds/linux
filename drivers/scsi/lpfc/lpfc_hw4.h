@@ -3317,6 +3317,7 @@ struct lpfc_acqe_link {
 #define LPFC_ASYNC_LINK_SPEED_20GBPS		0x5
 #define LPFC_ASYNC_LINK_SPEED_25GBPS		0x6
 #define LPFC_ASYNC_LINK_SPEED_40GBPS		0x7
+#define LPFC_ASYNC_LINK_SPEED_100GBPS		0x8
 #define lpfc_acqe_link_duplex_SHIFT		16
 #define lpfc_acqe_link_duplex_MASK		0x000000FF
 #define lpfc_acqe_link_duplex_WORD		word0

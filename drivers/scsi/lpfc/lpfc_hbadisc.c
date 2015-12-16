@@ -3037,19 +3037,22 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	uint32_t fc_flags = 0;
 
 	spin_lock_irq(&phba->hbalock);
-	switch (bf_get(lpfc_mbx_read_top_link_spd, la)) {
-	case LPFC_LINK_SPEED_1GHZ:
-	case LPFC_LINK_SPEED_2GHZ:
-	case LPFC_LINK_SPEED_4GHZ:
-	case LPFC_LINK_SPEED_8GHZ:
-	case LPFC_LINK_SPEED_10GHZ:
-	case LPFC_LINK_SPEED_16GHZ:
-	case LPFC_LINK_SPEED_32GHZ:
-		phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
-		break;
-	default:
-		phba->fc_linkspeed = LPFC_LINK_SPEED_UNKNOWN;
-		break;
+	phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
+
+	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		switch (bf_get(lpfc_mbx_read_top_link_spd, la)) {
+		case LPFC_LINK_SPEED_1GHZ:
+		case LPFC_LINK_SPEED_2GHZ:
+		case LPFC_LINK_SPEED_4GHZ:
+		case LPFC_LINK_SPEED_8GHZ:
+		case LPFC_LINK_SPEED_10GHZ:
+		case LPFC_LINK_SPEED_16GHZ:
+		case LPFC_LINK_SPEED_32GHZ:
+			break;
+		default:
+			phba->fc_linkspeed = LPFC_LINK_SPEED_UNKNOWN;
+			break;
+		}
 	}
 
 	if (phba->fc_topology &&

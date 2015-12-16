@@ -5255,7 +5255,7 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 
 	spin_lock_irq(shost->host_lock);
 
-	if (lpfc_is_link_up(phba)) {
+	if ((lpfc_is_link_up(phba)) && (!(phba->hba_flag & HBA_FCOE_MODE))) {
 		switch(phba->fc_linkspeed) {
 		case LPFC_LINK_SPEED_1GHZ:
 			fc_host_speed(shost) = FC_PORTSPEED_1GBIT;

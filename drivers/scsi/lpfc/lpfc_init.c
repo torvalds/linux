@@ -3710,49 +3710,6 @@ lpfc_sli4_parse_latt_type(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_parse_latt_link_speed - Parse sli4 link-attention link speed
- * @phba: pointer to lpfc hba data structure.
- * @acqe_link: pointer to the async link completion queue entry.
- *
- * This routine is to parse the SLI4 link-attention link speed and translate
- * it into the base driver's link-attention link speed coding.
- *
- * Return: Link-attention link speed in terms of base driver's coding.
- **/
-static uint8_t
-lpfc_sli4_parse_latt_link_speed(struct lpfc_hba *phba,
-				struct lpfc_acqe_link *acqe_link)
-{
-	uint8_t link_speed;
-
-	switch (bf_get(lpfc_acqe_link_speed, acqe_link)) {
-	case LPFC_ASYNC_LINK_SPEED_ZERO:
-	case LPFC_ASYNC_LINK_SPEED_10MBPS:
-	case LPFC_ASYNC_LINK_SPEED_100MBPS:
-		link_speed = LPFC_LINK_SPEED_UNKNOWN;
-		break;
-	case LPFC_ASYNC_LINK_SPEED_1GBPS:
-		link_speed = LPFC_LINK_SPEED_1GHZ;
-		break;
-	case LPFC_ASYNC_LINK_SPEED_10GBPS:
-		link_speed = LPFC_LINK_SPEED_10GHZ;
-		break;
-	case LPFC_ASYNC_LINK_SPEED_20GBPS:
-	case LPFC_ASYNC_LINK_SPEED_25GBPS:
-	case LPFC_ASYNC_LINK_SPEED_40GBPS:
-		link_speed = LPFC_LINK_SPEED_UNKNOWN;
-		break;
-	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0483 Invalid link-attention link speed: x%x\n",
-				bf_get(lpfc_acqe_link_speed, acqe_link));
-		link_speed = LPFC_LINK_SPEED_UNKNOWN;
-		break;
-	}
-	return link_speed;
-}
-
-/**
  * lpfc_sli_port_speed_get - Get sli3 link speed code to link speed
  * @phba: pointer to lpfc hba data structure.
  *
@@ -3768,27 +3725,35 @@ lpfc_sli_port_speed_get(struct lpfc_hba *phba)
 	if (!lpfc_is_link_up(phba))
 		return 0;
 
-	switch (phba->fc_linkspeed) {
-	case LPFC_LINK_SPEED_1GHZ:
-		link_speed = 1000;
-		break;
-	case LPFC_LINK_SPEED_2GHZ:
-		link_speed = 2000;
-		break;
-	case LPFC_LINK_SPEED_4GHZ:
-		link_speed = 4000;
-		break;
-	case LPFC_LINK_SPEED_8GHZ:
-		link_speed = 8000;
-		break;
-	case LPFC_LINK_SPEED_10GHZ:
-		link_speed = 10000;
-		break;
-	case LPFC_LINK_SPEED_16GHZ:
-		link_speed = 16000;
-		break;
-	default:
-		link_speed = 0;
+	if (phba->sli_rev <= LPFC_SLI_REV3) {
+		switch (phba->fc_linkspeed) {
+		case LPFC_LINK_SPEED_1GHZ:
+			link_speed = 1000;
+			break;
+		case LPFC_LINK_SPEED_2GHZ:
+			link_speed = 2000;
+			break;
+		case LPFC_LINK_SPEED_4GHZ:
+			link_speed = 4000;
+			break;
+		case LPFC_LINK_SPEED_8GHZ:
+			link_speed = 8000;
+			break;
+		case LPFC_LINK_SPEED_10GHZ:
+			link_speed = 10000;
+			break;
+		case LPFC_LINK_SPEED_16GHZ:
+			link_speed = 16000;
+			break;
+		default:
+			link_speed = 0;
+		}
+	} else {
+		if (phba->sli4_hba.link_state.logical_speed)
+			link_speed =
+			      phba->sli4_hba.link_state.logical_speed;
+		else
+			link_speed = phba->sli4_hba.link_state.speed;
 	}
 	return link_speed;
 }
@@ -3984,7 +3949,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	la->eventTag = acqe_link->event_tag;
 	bf_set(lpfc_mbx_read_top_att_type, la, att_type);
 	bf_set(lpfc_mbx_read_top_link_spd, la,
-	       lpfc_sli4_parse_latt_link_speed(phba, acqe_link));
+	       (bf_get(lpfc_acqe_link_speed, acqe_link)));
 
 	/* Fake the the following irrelvant fields */
 	bf_set(lpfc_mbx_read_top_topology, la, LPFC_TOPOLOGY_PT_PT);

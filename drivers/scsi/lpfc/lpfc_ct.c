@@ -48,15 +48,26 @@
 #include "lpfc_vport.h"
 #include "lpfc_debugfs.h"
 
-/* FDMI Port Speed definitions */
-#define HBA_PORTSPEED_1GBIT		0x0001	/* 1 GBit/sec */
-#define HBA_PORTSPEED_2GBIT		0x0002	/* 2 GBit/sec */
-#define HBA_PORTSPEED_4GBIT		0x0008	/* 4 GBit/sec */
-#define HBA_PORTSPEED_10GBIT		0x0004	/* 10 GBit/sec */
-#define HBA_PORTSPEED_8GBIT		0x0010	/* 8 GBit/sec */
-#define HBA_PORTSPEED_16GBIT		0x0020	/* 16 GBit/sec */
-#define HBA_PORTSPEED_32GBIT		0x0040  /* 32 GBit/sec */
-#define HBA_PORTSPEED_UNKNOWN		0x0800	/* Unknown */
+/* FDMI Port Speed definitions - FC-GS-7 */
+#define HBA_PORTSPEED_1GFC		0x00000001	/* 1G FC */
+#define HBA_PORTSPEED_2GFC		0x00000002	/* 2G FC */
+#define HBA_PORTSPEED_4GFC		0x00000008	/* 4G FC */
+#define HBA_PORTSPEED_10GFC		0x00000004	/* 10G FC */
+#define HBA_PORTSPEED_8GFC		0x00000010	/* 8G FC */
+#define HBA_PORTSPEED_16GFC		0x00000020	/* 16G FC */
+#define HBA_PORTSPEED_32GFC		0x00000040	/* 32G FC */
+#define HBA_PORTSPEED_20GFC		0x00000080	/* 20G FC */
+#define HBA_PORTSPEED_40GFC		0x00000100	/* 40G FC */
+#define HBA_PORTSPEED_128GFC		0x00000200	/* 128G FC */
+#define HBA_PORTSPEED_64GFC		0x00000400	/* 64G FC */
+#define HBA_PORTSPEED_256GFC		0x00000800	/* 256G FC */
+#define HBA_PORTSPEED_UNKNOWN		0x00008000	/* Unknown */
+#define HBA_PORTSPEED_10GE		0x00010000	/* 10G E */
+#define HBA_PORTSPEED_40GE		0x00020000	/* 40G E */
+#define HBA_PORTSPEED_100GE		0x00040000	/* 100G E */
+#define HBA_PORTSPEED_25GE		0x00080000	/* 25G E */
+#define HBA_PORTSPEED_50GE		0x00100000	/* 50G E */
+#define HBA_PORTSPEED_400GE		0x00200000	/* 400G E */
 
 #define FOURBYTES	4
 
@@ -1921,20 +1932,38 @@ lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport,
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 
 	ae->un.AttrInt = 0;
-	if (phba->lmt & LMT_32Gb)
-		ae->un.AttrInt |= HBA_PORTSPEED_32GBIT;
-	if (phba->lmt & LMT_16Gb)
-		ae->un.AttrInt |= HBA_PORTSPEED_16GBIT;
-	if (phba->lmt & LMT_10Gb)
-		ae->un.AttrInt |= HBA_PORTSPEED_10GBIT;
-	if (phba->lmt & LMT_8Gb)
-		ae->un.AttrInt |= HBA_PORTSPEED_8GBIT;
-	if (phba->lmt & LMT_4Gb)
-		ae->un.AttrInt |= HBA_PORTSPEED_4GBIT;
-	if (phba->lmt & LMT_2Gb)
-		ae->un.AttrInt |= HBA_PORTSPEED_2GBIT;
-	if (phba->lmt & LMT_1Gb)
-		ae->un.AttrInt |= HBA_PORTSPEED_1GBIT;
+	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		if (phba->lmt & LMT_32Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_32GFC;
+		if (phba->lmt & LMT_16Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_16GFC;
+		if (phba->lmt & LMT_10Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_10GFC;
+		if (phba->lmt & LMT_8Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_8GFC;
+		if (phba->lmt & LMT_4Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_4GFC;
+		if (phba->lmt & LMT_2Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_2GFC;
+		if (phba->lmt & LMT_1Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_1GFC;
+	} else {
+		/* FCoE links support only one speed */
+		switch (phba->fc_linkspeed) {
+		case LPFC_ASYNC_LINK_SPEED_10GBPS:
+			ae->un.AttrInt = HBA_PORTSPEED_10GE;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_25GBPS:
+			ae->un.AttrInt = HBA_PORTSPEED_25GE;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_40GBPS:
+			ae->un.AttrInt = HBA_PORTSPEED_40GE;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_100GBPS:
+			ae->un.AttrInt = HBA_PORTSPEED_100GE;
+			break;
+		}
+	}
 	ae->un.AttrInt = cpu_to_be32(ae->un.AttrInt);
 	size = FOURBYTES + sizeof(uint32_t);
 	ad->AttrLen = cpu_to_be16(size);
@@ -1952,32 +1981,53 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport,
 
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 
-	switch (phba->fc_linkspeed) {
-	case LPFC_LINK_SPEED_1GHZ:
-		ae->un.AttrInt = HBA_PORTSPEED_1GBIT;
-		break;
-	case LPFC_LINK_SPEED_2GHZ:
-		ae->un.AttrInt = HBA_PORTSPEED_2GBIT;
-		break;
-	case LPFC_LINK_SPEED_4GHZ:
-		ae->un.AttrInt = HBA_PORTSPEED_4GBIT;
-		break;
-	case LPFC_LINK_SPEED_8GHZ:
-		ae->un.AttrInt = HBA_PORTSPEED_8GBIT;
-		break;
-	case LPFC_LINK_SPEED_10GHZ:
-		ae->un.AttrInt = HBA_PORTSPEED_10GBIT;
-		break;
-	case LPFC_LINK_SPEED_16GHZ:
-		ae->un.AttrInt = HBA_PORTSPEED_16GBIT;
-		break;
-	case LPFC_LINK_SPEED_32GHZ:
-		ae->un.AttrInt = HBA_PORTSPEED_32GBIT;
-		break;
-	default:
-		ae->un.AttrInt = HBA_PORTSPEED_UNKNOWN;
-		break;
+	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		switch (phba->fc_linkspeed) {
+		case LPFC_LINK_SPEED_1GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_1GFC;
+			break;
+		case LPFC_LINK_SPEED_2GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_2GFC;
+			break;
+		case LPFC_LINK_SPEED_4GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_4GFC;
+			break;
+		case LPFC_LINK_SPEED_8GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_8GFC;
+			break;
+		case LPFC_LINK_SPEED_10GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_10GFC;
+			break;
+		case LPFC_LINK_SPEED_16GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_16GFC;
+			break;
+		case LPFC_LINK_SPEED_32GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_32GFC;
+			break;
+		default:
+			ae->un.AttrInt = HBA_PORTSPEED_UNKNOWN;
+			break;
+		}
+	} else {
+		switch (phba->fc_linkspeed) {
+		case LPFC_ASYNC_LINK_SPEED_10GBPS:
+			ae->un.AttrInt = HBA_PORTSPEED_10GE;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_25GBPS:
+			ae->un.AttrInt = HBA_PORTSPEED_25GE;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_40GBPS:
+			ae->un.AttrInt = HBA_PORTSPEED_40GE;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_100GBPS:
+			ae->un.AttrInt = HBA_PORTSPEED_100GE;
+			break;
+		default:
+			ae->un.AttrInt = HBA_PORTSPEED_UNKNOWN;
+			break;
+		}
 	}
+
 	ae->un.AttrInt = cpu_to_be32(ae->un.AttrInt);
 	size = FOURBYTES + sizeof(uint32_t);
 	ad->AttrLen = cpu_to_be16(size);
