@@ -319,7 +319,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	struct rpcrdma_mw *mw;
 	struct rpcrdma_frmr *frmr;
 	struct ib_mr *mr;
-	struct ib_reg_wr reg_wr;
+	struct ib_reg_wr *reg_wr;
 	struct ib_send_wr *bad_wr;
 	int rc, i, n, dma_nents;
 	u8 key;
@@ -336,6 +336,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	frmr = &mw->r.frmr;
 	frmr->fr_state = FRMR_IS_VALID;
 	mr = frmr->fr_mr;
+	reg_wr = &frmr->fr_regwr;
 
 	if (nsegs > ia->ri_max_frmr_depth)
 		nsegs = ia->ri_max_frmr_depth;
@@ -381,19 +382,19 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	key = (u8)(mr->rkey & 0x000000FF);
 	ib_update_fast_reg_key(mr, ++key);
 
-	reg_wr.wr.next = NULL;
-	reg_wr.wr.opcode = IB_WR_REG_MR;
-	reg_wr.wr.wr_id = (uintptr_t)mw;
-	reg_wr.wr.num_sge = 0;
-	reg_wr.wr.send_flags = 0;
-	reg_wr.mr = mr;
-	reg_wr.key = mr->rkey;
-	reg_wr.access = writing ?
-			IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
-			IB_ACCESS_REMOTE_READ;
+	reg_wr->wr.next = NULL;
+	reg_wr->wr.opcode = IB_WR_REG_MR;
+	reg_wr->wr.wr_id = (uintptr_t)mw;
+	reg_wr->wr.num_sge = 0;
+	reg_wr->wr.send_flags = 0;
+	reg_wr->mr = mr;
+	reg_wr->key = mr->rkey;
+	reg_wr->access = writing ?
+			 IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
+			 IB_ACCESS_REMOTE_READ;
 
 	DECR_CQCOUNT(&r_xprt->rx_ep);
-	rc = ib_post_send(ia->ri_id->qp, &reg_wr.wr, &bad_wr);
+	rc = ib_post_send(ia->ri_id->qp, &reg_wr->wr, &bad_wr);
 	if (rc)
 		goto out_senderr;
 
@@ -423,23 +424,24 @@ frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_mw *mw = seg1->rl_mw;
 	struct rpcrdma_frmr *frmr = &mw->r.frmr;
-	struct ib_send_wr invalidate_wr, *bad_wr;
+	struct ib_send_wr *invalidate_wr, *bad_wr;
 	int rc, nsegs = seg->mr_nsegs;
 
 	dprintk("RPC:       %s: FRMR %p\n", __func__, mw);
 
 	seg1->rl_mw = NULL;
 	frmr->fr_state = FRMR_IS_INVALID;
+	invalidate_wr = &mw->r.frmr.fr_invwr;
 
-	memset(&invalidate_wr, 0, sizeof(invalidate_wr));
-	invalidate_wr.wr_id = (unsigned long)(void *)mw;
-	invalidate_wr.opcode = IB_WR_LOCAL_INV;
-	invalidate_wr.ex.invalidate_rkey = frmr->fr_mr->rkey;
+	memset(invalidate_wr, 0, sizeof(*invalidate_wr));
+	invalidate_wr->wr_id = (uintptr_t)mw;
+	invalidate_wr->opcode = IB_WR_LOCAL_INV;
+	invalidate_wr->ex.invalidate_rkey = frmr->fr_mr->rkey;
 	DECR_CQCOUNT(&r_xprt->rx_ep);
 
 	ib_dma_unmap_sg(ia->ri_device, frmr->sg, frmr->sg_nents, seg1->mr_dir);
 	read_lock(&ia->ri_qplock);
-	rc = ib_post_send(ia->ri_id->qp, &invalidate_wr, &bad_wr);
+	rc = ib_post_send(ia->ri_id->qp, invalidate_wr, &bad_wr);
 	read_unlock(&ia->ri_qplock);
 	if (rc)
 		goto out_err;
