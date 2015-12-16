@@ -97,6 +97,15 @@ struct media_entity_enum {
 	int idx_max;
 };
 
+/**
+ * struct media_entity_graph - Media graph traversal state
+ *
+ * @stack:		Graph traversal stack; the stack contains information
+ *			on the path the media entities to be walked and the
+ *			links through which they were reached.
+ * @entities:		Visited entities
+ * @top:		The top of the stack
+ */
 struct media_entity_graph {
 	struct {
 		struct media_entity *entity;
