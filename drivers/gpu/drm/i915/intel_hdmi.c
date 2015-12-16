@@ -78,7 +78,7 @@ static u32 g4x_infoframe_index(enum hdmi_infoframe_type type)
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 		return VIDEO_DIP_SELECT_VENDOR;
 	default:
-		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
+		MISSING_CASE(type);
 		return 0;
 	}
 }
@@ -93,7 +93,7 @@ static u32 g4x_infoframe_enable(enum hdmi_infoframe_type type)
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 		return VIDEO_DIP_ENABLE_VENDOR;
 	default:
-		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
+		MISSING_CASE(type);
 		return 0;
 	}
 }
@@ -108,7 +108,7 @@ static u32 hsw_infoframe_enable(enum hdmi_infoframe_type type)
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 		return VIDEO_DIP_ENABLE_VS_HSW;
 	default:
-		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
+		MISSING_CASE(type);
 		return 0;
 	}
 }
@@ -127,7 +127,7 @@ hsw_dip_data_reg(struct drm_i915_private *dev_priv,
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 		return HSW_TVIDEO_DIP_VS_DATA(cpu_transcoder, i);
 	default:
-		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
+		MISSING_CASE(type);
 		return INVALID_MMIO_REG;
 	}
 }
@@ -375,8 +375,6 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 	u32 val = I915_READ(ctl_reg);
 
 	data_reg = hsw_dip_data_reg(dev_priv, cpu_transcoder, type, 0);
-	if (i915_mmio_reg_valid(data_reg))
-		return;
 
 	val &= ~hsw_infoframe_enable(type);
 	I915_WRITE(ctl_reg, val);
