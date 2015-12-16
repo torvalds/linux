@@ -124,6 +124,38 @@
 			gpio = <&gpio1 12 0>;
 			enable-active-high;
 		};
+
+		reg_can_wake: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "can-wake";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&max7310_b 7 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_can_en: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "can-en";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&max7310_b 5 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&reg_can_wake>;
+		};
+
+		reg_can_stby: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "can-stby";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&max7310_b 4 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&reg_can_en>;
+		};
 	};
 
 	sound-cs42888 {
@@ -210,6 +242,20 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
+	status = "okay";
+};
+
+&flexcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	xceiver-supply = <&reg_can_stby>;
+	status = "okay";
+};
+
+&flexcan2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan2>;
+	xceiver-supply = <&reg_can_stby>;
 	status = "okay";
 };
 
@@ -504,6 +550,20 @@
 				MX6SX_PAD_CSI_DATA03__ESAI_RX_FS    0x1b030
 				MX6SX_PAD_CSI_VSYNC__ESAI_TX5_RX0   0x1b030
 				MX6SX_PAD_CSI_DATA05__ESAI_TX4_RX1  0x1b030
+			>;
+		};
+
+		pinctrl_flexcan1: flexcan1grp-1 {
+			fsl,pins = <
+				MX6SX_PAD_QSPI1B_DQS__CAN1_TX   0x1b020
+				MX6SX_PAD_QSPI1A_SS1_B__CAN1_RX	0x1b020
+			>;
+		};
+
+		pinctrl_flexcan2: flexcan2grp-1 {
+			fsl,pins = <
+				MX6SX_PAD_QSPI1B_SS1_B__CAN2_RX 0x1b020
+				MX6SX_PAD_QSPI1A_DQS__CAN2_TX	0x1b020
 			>;
 		};
 
