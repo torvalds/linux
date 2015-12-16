@@ -518,10 +518,10 @@ int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter)
 	if (!iter->walker)
 		return -ENOMEM;
 
-	mutex_lock(&ht->mutex);
+	spin_lock(&ht->lock);
 	iter->walker->tbl = rht_dereference(ht->tbl, ht);
 	list_add(&iter->walker->list, &iter->walker->tbl->walkers);
-	mutex_unlock(&ht->mutex);
+	spin_unlock(&ht->lock);
 
 	return 0;
 }
@@ -535,10 +535,10 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_init);
  */
 void rhashtable_walk_exit(struct rhashtable_iter *iter)
 {
-	mutex_lock(&iter->ht->mutex);
+	spin_lock(&iter->ht->lock);
 	if (iter->walker->tbl)
 		list_del(&iter->walker->list);
-	mutex_unlock(&iter->ht->mutex);
+	spin_unlock(&iter->ht->lock);
 	kfree(iter->walker);
 }
 EXPORT_SYMBOL_GPL(rhashtable_walk_exit);
@@ -562,14 +562,12 @@ int rhashtable_walk_start(struct rhashtable_iter *iter)
 {
 	struct rhashtable *ht = iter->ht;
 
-	mutex_lock(&ht->mutex);
-
-	if (iter->walker->tbl)
-		list_del(&iter->walker->list);
-
 	rcu_read_lock();
 
-	mutex_unlock(&ht->mutex);
+	spin_lock(&ht->lock);
+	if (iter->walker->tbl)
+		list_del(&iter->walker->list);
+	spin_unlock(&ht->lock);
 
 	if (!iter->walker->tbl) {
 		iter->walker->tbl = rht_dereference_rcu(ht->tbl, ht);
