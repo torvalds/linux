@@ -26,6 +26,7 @@
 #include <linux/sched.h>	/* for idle_task_exit */
 #include <linux/cpu.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/firmware.h>
@@ -563,6 +564,152 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 
 	pr_debug("Successfully removed CPU, drc index: %x\n", drc_index);
 	return 0;
+}
+
+static struct device_node *cpu_drc_index_to_dn(u32 drc_index)
+{
+	struct device_node *dn;
+	u32 my_index;
+	int rc;
+
+	for_each_node_by_type(dn, "cpu") {
+		rc = of_property_read_u32(dn, "ibm,my-drc-index", &my_index);
+		if (rc)
+			continue;
+
+		if (my_index == drc_index)
+			break;
+	}
+
+	return dn;
+}
+
+static int dlpar_cpu_remove_by_index(u32 drc_index)
+{
+	struct device_node *dn;
+	int rc;
+
+	dn = cpu_drc_index_to_dn(drc_index);
+	if (!dn) {
+		pr_warn("Cannot find CPU (drc index %x) to remove\n",
+			drc_index);
+		return -ENODEV;
+	}
+
+	rc = dlpar_cpu_remove(dn, drc_index);
+	of_node_put(dn);
+	return rc;
+}
+
+static int find_dlpar_cpus_to_remove(u32 *cpu_drcs, int cpus_to_remove)
+{
+	struct device_node *dn;
+	int cpus_found = 0;
+	int rc;
+
+	/* We want to find cpus_to_remove + 1 CPUs to ensure we do not
+	 * remove the last CPU.
+	 */
+	for_each_node_by_type(dn, "cpu") {
+		cpus_found++;
+
+		if (cpus_found > cpus_to_remove) {
+			of_node_put(dn);
+			break;
+		}
+
+		/* Note that cpus_found is always 1 ahead of the index
+		 * into the cpu_drcs array, so we use cpus_found - 1
+		 */
+		rc = of_property_read_u32(dn, "ibm,my-drc-index",
+					  &cpu_drcs[cpus_found - 1]);
+		if (rc) {
+			pr_warn("Error occurred getting drc-index for %s\n",
+				dn->name);
+			of_node_put(dn);
+			return -1;
+		}
+	}
+
+	if (cpus_found < cpus_to_remove) {
+		pr_warn("Failed to find enough CPUs (%d of %d) to remove\n",
+			cpus_found, cpus_to_remove);
+	} else if (cpus_found == cpus_to_remove) {
+		pr_warn("Cannot remove all CPUs\n");
+	}
+
+	return cpus_found;
+}
+
+static int dlpar_cpu_remove_by_count(u32 cpus_to_remove)
+{
+	u32 *cpu_drcs;
+	int cpus_found;
+	int cpus_removed = 0;
+	int i, rc;
+
+	pr_debug("Attempting to hot-remove %d CPUs\n", cpus_to_remove);
+
+	cpu_drcs = kcalloc(cpus_to_remove, sizeof(*cpu_drcs), GFP_KERNEL);
+	if (!cpu_drcs)
+		return -EINVAL;
+
+	cpus_found = find_dlpar_cpus_to_remove(cpu_drcs, cpus_to_remove);
+	if (cpus_found <= cpus_to_remove) {
+		kfree(cpu_drcs);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cpus_to_remove; i++) {
+		rc = dlpar_cpu_remove_by_index(cpu_drcs[i]);
+		if (rc)
+			break;
+
+		cpus_removed++;
+	}
+
+	if (cpus_removed != cpus_to_remove) {
+		pr_warn("CPU hot-remove failed, adding back removed CPUs\n");
+
+		for (i = 0; i < cpus_removed; i++)
+			dlpar_cpu_add(cpu_drcs[i]);
+
+		rc = -EINVAL;
+	} else {
+		rc = 0;
+	}
+
+	kfree(cpu_drcs);
+	return rc;
+}
+
+int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
+{
+	u32 count, drc_index;
+	int rc;
+
+	count = hp_elog->_drc_u.drc_count;
+	drc_index = hp_elog->_drc_u.drc_index;
+
+	lock_device_hotplug();
+
+	switch (hp_elog->action) {
+	case PSERIES_HP_ELOG_ACTION_REMOVE:
+		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_COUNT)
+			rc = dlpar_cpu_remove_by_count(count);
+		else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX)
+			rc = dlpar_cpu_remove_by_index(drc_index);
+		else
+			rc = -EINVAL;
+		break;
+	default:
+		pr_err("Invalid action (%d) specified\n", hp_elog->action);
+		rc = -EINVAL;
+		break;
+	}
+
+	unlock_device_hotplug();
+	return rc;
 }
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
