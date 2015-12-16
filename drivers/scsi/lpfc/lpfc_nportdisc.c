@@ -1045,16 +1045,6 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	if (irsp->ulpStatus)
 		goto out;
 
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				 "0133 PLOGI: no memory for reg_login "
-				 "Data: x%x x%x x%x x%x\n",
-				 ndlp->nlp_DID, ndlp->nlp_state,
-				 ndlp->nlp_flag, ndlp->nlp_rpi);
-		goto out;
-	}
-
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
@@ -1118,6 +1108,17 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			lpfc_issue_reg_vfi(vport);
 		} else {
+			mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+			if (!mbox) {
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+						 "0133 PLOGI: no memory "
+						 "for config_link "
+						 "Data: x%x x%x x%x x%x\n",
+						 ndlp->nlp_DID, ndlp->nlp_state,
+						 ndlp->nlp_flag, ndlp->nlp_rpi);
+				goto out;
+			}
+
 			lpfc_config_link(phba, mbox);
 
 			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -1131,6 +1132,16 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	}
 
 	lpfc_unreg_rpi(vport, ndlp);
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0018 PLOGI: no memory for reg_login "
+				 "Data: x%x x%x x%x x%x\n",
+				 ndlp->nlp_DID, ndlp->nlp_state,
+				 ndlp->nlp_flag, ndlp->nlp_rpi);
+		goto out;
+	}
 
 	if (lpfc_reg_rpi(phba, vport->vpi, irsp->un.elsreq64.remoteID,
 			 (uint8_t *) sp, mbox, ndlp->nlp_rpi) == 0) {
