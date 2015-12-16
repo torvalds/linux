@@ -386,6 +386,12 @@ static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
 	mutex_lock(&mdev->graph_mutex);
 
 	/* Walk the graph to locate the entities and video nodes. */
+	ret = media_entity_graph_walk_init(&graph, mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		return ret;
+	}
+
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
@@ -418,6 +424,8 @@ static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
+
+	media_entity_graph_walk_cleanup(&graph);
 
 	/* We need one output and at least one input. */
 	if (pipe->num_inputs == 0 || !pipe->output) {
