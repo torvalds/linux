@@ -176,6 +176,7 @@ struct isp_device {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_async_notifier notifier;
 	struct media_device media_dev;
+	struct media_entity_graph pm_count_graph;
 	struct device *dev;
 	u32 revision;
 
@@ -265,7 +266,8 @@ void omap3isp_subclk_enable(struct isp_device *isp,
 void omap3isp_subclk_disable(struct isp_device *isp,
 			     enum isp_subclk_resource res);
 
-int omap3isp_pipeline_pm_use(struct media_entity *entity, int use);
+int omap3isp_pipeline_pm_use(struct media_entity *entity, int use,
+			     struct media_entity_graph *graph);
 
 int omap3isp_register_entities(struct platform_device *pdev,
 			       struct v4l2_device *v4l2_dev);
