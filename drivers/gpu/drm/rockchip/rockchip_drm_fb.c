@@ -210,20 +210,11 @@ rockchip_atomic_wait_for_complete(struct drm_atomic_state *old_state)
 	}
 }
 
-int rockchip_drm_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state,
-			       bool async)
+static void
+rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 {
-	int ret;
-
-	if (async)
-		return -EBUSY;
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (ret)
-		return ret;
-
-	drm_atomic_helper_swap_state(dev, state);
+	struct drm_atomic_state *state = commit->state;
+	struct drm_device *dev = commit->dev;
 
 	/*
 	 * TODO: do fence wait here.
@@ -255,6 +246,43 @@ int rockchip_drm_atomic_commit(struct drm_device *dev,
 	drm_atomic_helper_cleanup_planes(dev, state);
 
 	drm_atomic_state_free(state);
+}
+
+void rockchip_drm_atomic_work(struct work_struct *work)
+{
+	struct rockchip_atomic_commit *commit = container_of(work,
+					struct rockchip_atomic_commit, work);
+
+	rockchip_atomic_commit_complete(commit);
+}
+
+int rockchip_drm_atomic_commit(struct drm_device *dev,
+			       struct drm_atomic_state *state,
+			       bool async)
+{
+	struct rockchip_drm_private *private = dev->dev_private;
+	struct rockchip_atomic_commit *commit = &private->commit;
+	int ret;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/* serialize outstanding asynchronous commits */
+	mutex_lock(&commit->lock);
+	flush_work(&commit->work);
+
+	drm_atomic_helper_swap_state(dev, state);
+
+	commit->dev = dev;
+	commit->state = state;
+
+	if (async)
+		schedule_work(&commit->work);
+	else
+		rockchip_atomic_commit_complete(commit);
+
+	mutex_unlock(&commit->lock);
 
 	return 0;
 }
