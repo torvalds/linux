@@ -616,10 +616,8 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	/* set trigger for requesting send completion */
 	ep->rep_cqinit = ep->rep_attr.cap.max_send_wr/2 - 1;
-	if (ep->rep_cqinit > RPCRDMA_MAX_UNSIGNALED_SENDS)
-		ep->rep_cqinit = RPCRDMA_MAX_UNSIGNALED_SENDS;
-	else if (ep->rep_cqinit <= 2)
-		ep->rep_cqinit = 0;
+	if (ep->rep_cqinit <= 2)
+		ep->rep_cqinit = 0;	/* always signal? */
 	INIT_CQCOUNT(ep);
 	init_waitqueue_head(&ep->rep_connect_wait);
 	INIT_DELAYED_WORK(&ep->rep_connect_worker, rpcrdma_connect_worker);
