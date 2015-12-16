@@ -738,9 +738,6 @@ int rhashtable_init(struct rhashtable *ht,
 	if (params->nulls_base && params->nulls_base < (1U << RHT_BASE_SHIFT))
 		return -EINVAL;
 
-	if (params->nelem_hint)
-		size = rounded_hashtable_size(params);
-
 	memset(ht, 0, sizeof(*ht));
 	mutex_init(&ht->mutex);
 	spin_lock_init(&ht->lock);
@@ -759,6 +756,9 @@ int rhashtable_init(struct rhashtable *ht,
 		ht->p.insecure_max_entries = ht->p.max_size * 2;
 
 	ht->p.min_size = max(ht->p.min_size, HASH_MIN_SIZE);
+
+	if (params->nelem_hint)
+		size = rounded_hashtable_size(&ht->p);
 
 	/* The maximum (not average) chain length grows with the
 	 * size of the hash table, at a rate of (log N)/(log log N).
