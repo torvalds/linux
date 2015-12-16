@@ -119,9 +119,11 @@ struct media_entity_graph {
 /*
  * struct media_pipeline - Media pipeline related information
  *
- * @graph:	Media graph walk during pipeline start / stop
+ * @streaming_count:	Streaming start count - streaming stop count
+ * @graph:		Media graph walk during pipeline start / stop
  */
 struct media_pipeline {
+	int streaming_count;
 	struct media_entity_graph graph;
 };
 
