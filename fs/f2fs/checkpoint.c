@@ -1130,9 +1130,9 @@ void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* do checkpoint periodically */
 	sbi->cp_expires = round_jiffies_up(jiffies + HZ * sbi->cp_interval);
+	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish checkpoint");
 out:
 	mutex_unlock(&sbi->cp_mutex);
-	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish checkpoint");
 }
 
 void init_ino_entry_info(struct f2fs_sb_info *sbi)
