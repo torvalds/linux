@@ -2196,6 +2196,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 #endif
 #endif
 
+	kasan_cache_create(cachep, &size, &flags);
 	/*
 	 * Determine if the slab management is 'on' or 'off' slab.
 	 * (bootstrapping cannot cope with offslab caches so don't do
@@ -2503,8 +2504,13 @@ static void cache_init_objs(struct kmem_cache *cachep,
 		 * cache which they are a constructor for.  Otherwise, deadlock.
 		 * They must also be threaded.
 		 */
-		if (cachep->ctor && !(cachep->flags & SLAB_POISON))
+		if (cachep->ctor && !(cachep->flags & SLAB_POISON)) {
+			kasan_unpoison_object_data(cachep,
+						   objp + obj_offset(cachep));
 			cachep->ctor(objp + obj_offset(cachep));
+			kasan_poison_object_data(
+				cachep, objp + obj_offset(cachep));
+		}
 
 		if (cachep->flags & SLAB_RED_ZONE) {
 			if (*dbg_redzone2(cachep, objp) != RED_INACTIVE)
@@ -2519,8 +2525,11 @@ static void cache_init_objs(struct kmem_cache *cachep,
 			kernel_map_pages(virt_to_page(objp),
 					 cachep->size / PAGE_SIZE, 0);
 #else
-		if (cachep->ctor)
+		if (cachep->ctor) {
+			kasan_unpoison_object_data(cachep, objp);
 			cachep->ctor(objp);
+			kasan_poison_object_data(cachep, objp);
+		}
 #endif
 		set_obj_status(page, i, OBJECT_FREE);
 		set_free_obj(page, i, i);
@@ -2650,6 +2659,7 @@ static int cache_grow(struct kmem_cache *cachep,
 
 	slab_map_pages(cachep, page, freelist);
 
+	kasan_poison_slab(page);
 	cache_init_objs(cachep, page);
 
 	if (gfpflags_allow_blocking(local_flags))
@@ -3366,7 +3376,10 @@ free_done:
 static inline void __cache_free(struct kmem_cache *cachep, void *objp,
 				unsigned long caller)
 {
-	struct array_cache *ac = cpu_cache_get(cachep);
+	struct array_cache *ac;
+
+	kasan_slab_free(cachep, objp);
+	ac = cpu_cache_get(cachep);
 
 	check_irq_off();
 	kmemleak_free_recursive(objp, cachep->flags);
@@ -3405,6 +3418,8 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
 void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
 	void *ret = slab_alloc(cachep, flags, _RET_IP_);
+	if (ret)
+		kasan_slab_alloc(cachep, ret);
 
 	trace_kmem_cache_alloc(_RET_IP_, ret,
 			       cachep->object_size, cachep->size, flags);
@@ -3434,6 +3449,8 @@ kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
 
 	ret = slab_alloc(cachep, flags, _RET_IP_);
 
+	if (ret)
+		kasan_kmalloc(cachep, ret, size);
 	trace_kmalloc(_RET_IP_, ret,
 		      size, cachep->size, flags);
 	return ret;
@@ -3457,6 +3474,8 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 {
 	void *ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
 
+	if (ret)
+		kasan_slab_alloc(cachep, ret);
 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
 				    cachep->object_size, cachep->size,
 				    flags, nodeid);
@@ -3475,6 +3494,8 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
 
 	ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
 
+	if (ret)
+		kasan_kmalloc(cachep, ret, size);
 	trace_kmalloc_node(_RET_IP_, ret,
 			   size, cachep->size,
 			   flags, nodeid);
@@ -3487,11 +3508,16 @@ static __always_inline void *
 __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
 {
 	struct kmem_cache *cachep;
+	void *ret;
 
 	cachep = kmalloc_slab(size, flags);
 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
 		return cachep;
-	return kmem_cache_alloc_node_trace(cachep, flags, node, size);
+	ret = kmem_cache_alloc_node_trace(cachep, flags, node, size);
+	if (ret)
+		kasan_kmalloc(cachep, ret, size);
+
+	return ret;
 }
 
 void *__kmalloc_node(size_t size, gfp_t flags, int node)
@@ -3525,6 +3551,8 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 		return cachep;
 	ret = slab_alloc(cachep, flags, caller);
 
+	if (ret)
+		kasan_kmalloc(cachep, ret, size);
 	trace_kmalloc(caller, ret,
 		      size, cachep->size, flags);
 
@@ -4242,10 +4270,17 @@ module_init(slab_proc_init);
  */
 size_t ksize(const void *objp)
 {
+	size_t size;
+
 	BUG_ON(!objp);
 	if (unlikely(objp == ZERO_SIZE_PTR))
 		return 0;
 
-	return virt_to_cache(objp)->object_size;
+	size = virt_to_cache(objp)->object_size;
+	/* We assume that ksize callers could use whole allocated area,
+	   so we need to unpoison this area. */
+	kasan_krealloc(objp, size);
+
+	return size;
 }
 EXPORT_SYMBOL(ksize);
