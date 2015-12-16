@@ -720,13 +720,11 @@ static int hostfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, 
 
 	init_special_inode(inode, mode, dev);
 	err = do_mknod(name, mode, MAJOR(dev), MINOR(dev));
-	if (!err)
+	if (err)
 		goto out_free;
 
 	err = read_name(inode, name);
 	__putname(name);
-	if (err)
-		goto out_put;
 	if (err)
 		goto out_put;
 
