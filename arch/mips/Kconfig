@@ -2027,7 +2027,8 @@ config KVM_GUEST
 	bool "KVM Guest Kernel"
 	depends on BROKEN_ON_SMP
 	help
-	  Select this option if building a guest kernel for KVM (Trap & Emulate) mode
+	  Select this option if building a guest kernel for KVM (Trap & Emulate)
+	  mode.
 
 config KVM_GUEST_TIMER_FREQ
 	int "Count/Compare Timer Frequency (MHz)"

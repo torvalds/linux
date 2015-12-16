@@ -1243,10 +1243,9 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 #ifdef KVM_MIPS_DEBUG_COP0_COUNTERS
 			cop0->stat[MIPS_CP0_STATUS][0]++;
 #endif
-			if (rt != 0) {
+			if (rt != 0)
 				vcpu->arch.gprs[rt] =
 				    kvm_read_c0_guest_status(cop0);
-			}
 			/* EI */
 			if (inst & 0x20) {
 				kvm_debug("[%#lx] mfmcz_op: EI\n",
@@ -2583,9 +2582,8 @@ enum emulation_result kvm_mips_handle_tlbmiss(unsigned long cause,
 	 * an entry into the guest TLB.
 	 */
 	index = kvm_mips_guest_tlb_lookup(vcpu,
-					  (va & VPN2_MASK) |
-					  (kvm_read_c0_guest_entryhi
-					   (vcpu->arch.cop0) & ASID_MASK));
+		      (va & VPN2_MASK) |
+		      (kvm_read_c0_guest_entryhi(vcpu->arch.cop0) & ASID_MASK));
 	if (index < 0) {
 		if (exccode == T_TLB_LD_MISS) {
 			er = kvm_mips_emulate_tlbmiss_ld(cause, opc, run, vcpu);

@@ -58,7 +58,7 @@
 #define KVM_MAX_VCPUS		1
 #define KVM_USER_MEM_SLOTS	8
 /* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 	0
+#define KVM_PRIVATE_MEM_SLOTS	0
 
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #define KVM_HALT_POLL_NS_DEFAULT 500000
