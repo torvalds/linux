@@ -66,6 +66,8 @@ struct kvm_s390_io_adapter_req {
 #define KVM_S390_VM_MEM_CLR_CMMA	1
 #define KVM_S390_VM_MEM_LIMIT_SIZE	2
 
+#define KVM_S390_NO_MEM_LIMIT		U64_MAX
+
 /* kvm attributes for KVM_S390_VM_TOD */
 #define KVM_S390_VM_TOD_LOW		0
 #define KVM_S390_VM_TOD_HIGH		1

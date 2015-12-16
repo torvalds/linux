@@ -40,7 +40,8 @@ struct read_info_sccb {
 	u8	fac85;			/* 85 */
 	u8	_pad_86[91 - 86];	/* 86-90 */
 	u8	flags;			/* 91 */
-	u8	_pad_92[100 - 92];	/* 92-99 */
+	u8	_pad_92[99 - 92];	/* 92-98 */
+	u8	hamaxpow;		/* 99 */
 	u32	rnsize2;		/* 100-103 */
 	u64	rnmax2;			/* 104-111 */
 	u8	_pad_112[116 - 112];	/* 112-115 */
@@ -119,6 +120,11 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	sclp.rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp.rzm <<= 20;
 	sclp.ibc = sccb->ibc;
+
+	if (sccb->hamaxpow && sccb->hamaxpow < 64)
+		sclp.hamax = (1UL << sccb->hamaxpow) - 1;
+	else
+		sclp.hamax = U64_MAX;
 
 	if (!sccb->hcpua) {
 		if (MACHINE_IS_VM)

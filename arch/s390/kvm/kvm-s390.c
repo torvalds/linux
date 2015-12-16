@@ -378,8 +378,8 @@ static int kvm_s390_get_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	case KVM_S390_VM_MEM_LIMIT_SIZE:
 		ret = 0;
 		VM_EVENT(kvm, 3, "QUERY: max guest memory: %lu bytes",
-			 kvm->arch.gmap->asce_end);
-		if (put_user(kvm->arch.gmap->asce_end, (u64 __user *)attr->addr))
+			 kvm->arch.mem_limit);
+		if (put_user(kvm->arch.mem_limit, (u64 __user *)attr->addr))
 			ret = -EFAULT;
 		break;
 	default:
@@ -431,8 +431,16 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		if (get_user(new_limit, (u64 __user *)attr->addr))
 			return -EFAULT;
 
-		if (new_limit > kvm->arch.gmap->asce_end)
+		if (kvm->arch.mem_limit != KVM_S390_NO_MEM_LIMIT &&
+		    new_limit > kvm->arch.mem_limit)
 			return -E2BIG;
+
+		if (!new_limit)
+			return -EINVAL;
+
+		/* gmap_alloc takes last usable address */
+		if (new_limit != KVM_S390_NO_MEM_LIMIT)
+			new_limit -= 1;
 
 		ret = -EBUSY;
 		mutex_lock(&kvm->lock);
@@ -450,7 +458,9 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 			}
 		}
 		mutex_unlock(&kvm->lock);
-		VM_EVENT(kvm, 3, "SET: max guest memory: %lu bytes", new_limit);
+		VM_EVENT(kvm, 3, "SET: max guest address: %lu", new_limit);
+		VM_EVENT(kvm, 3, "New guest asce: 0x%pK",
+			 (void *) kvm->arch.gmap->asce);
 		break;
 	}
 	default:
@@ -1172,8 +1182,14 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	if (type & KVM_VM_S390_UCONTROL) {
 		kvm->arch.gmap = NULL;
+		kvm->arch.mem_limit = KVM_S390_NO_MEM_LIMIT;
 	} else {
-		kvm->arch.gmap = gmap_alloc(current->mm, (1UL << 44) - 1);
+		if (sclp.hamax == U64_MAX)
+			kvm->arch.mem_limit = TASK_MAX_SIZE;
+		else
+			kvm->arch.mem_limit = min_t(unsigned long, TASK_MAX_SIZE,
+						    sclp.hamax + 1);
+		kvm->arch.gmap = gmap_alloc(current->mm, kvm->arch.mem_limit - 1);
 		if (!kvm->arch.gmap)
 			goto out_err;
 		kvm->arch.gmap->private = kvm;
@@ -1185,7 +1201,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
-	KVM_EVENT(3, "vm 0x%p created by pid %u", kvm, current->pid);
+	KVM_EVENT(3, "vm 0x%pK created by pid %u", kvm, current->pid);
 
 	return 0;
 out_err:
@@ -1245,7 +1261,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		gmap_free(kvm->arch.gmap);
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
-	KVM_EVENT(3, "vm 0x%p destroyed", kvm);
+	KVM_EVENT(3, "vm 0x%pK destroyed", kvm);
 }
 
 /* Section: vcpu related */
@@ -1349,7 +1365,8 @@ static int sca_switch_to_extended(struct kvm *kvm)
 
 	free_page((unsigned long)old_sca);
 
-	VM_EVENT(kvm, 2, "Switched to ESCA (%p -> %p)", old_sca, kvm->arch.sca);
+	VM_EVENT(kvm, 2, "Switched to ESCA (0x%pK -> 0x%pK)",
+		 old_sca, kvm->arch.sca);
 	return 0;
 }
 
@@ -1624,7 +1641,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
 		goto out_free_sie_block;
-	VM_EVENT(kvm, 3, "create cpu %d at %p, sie block at %p", id, vcpu,
+	VM_EVENT(kvm, 3, "create cpu %d at 0x%pK, sie block at 0x%pK", id, vcpu,
 		 vcpu->arch.sie_block);
 	trace_kvm_s390_create_vcpu(id, vcpu, vcpu->arch.sie_block);
 
@@ -2120,7 +2137,8 @@ static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 	 */
 	kvm_check_async_pf_completion(vcpu);
 
-	memcpy(&vcpu->arch.sie_block->gg14, &vcpu->run->s.regs.gprs[14], 16);
+	vcpu->arch.sie_block->gg14 = vcpu->run->s.regs.gprs[14];
+	vcpu->arch.sie_block->gg15 = vcpu->run->s.regs.gprs[15];
 
 	if (need_resched())
 		schedule();
@@ -2185,7 +2203,8 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 	if (guestdbg_enabled(vcpu))
 		kvm_s390_restore_guest_per_regs(vcpu);
 
-	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
+	vcpu->run->s.regs.gprs[14] = vcpu->arch.sie_block->gg14;
+	vcpu->run->s.regs.gprs[15] = vcpu->arch.sie_block->gg15;
 
 	if (vcpu->arch.sie_block->icptcode > 0) {
 		int rc = kvm_handle_sie_intercept(vcpu);
@@ -2824,6 +2843,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		return -EINVAL;
 
 	if (mem->memory_size & 0xffffful)
+		return -EINVAL;
+
+	if (mem->guest_phys_addr + mem->memory_size > kvm->arch.mem_limit)
 		return -EINVAL;
 
 	return 0;

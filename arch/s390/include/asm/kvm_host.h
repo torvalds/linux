@@ -627,6 +627,7 @@ struct kvm_arch{
 	struct kvm_s390_float_interrupt float_int;
 	struct kvm_device *flic;
 	struct gmap *gmap;
+	unsigned long mem_limit;
 	int css_support;
 	int use_irqchip;
 	int use_cmma;
