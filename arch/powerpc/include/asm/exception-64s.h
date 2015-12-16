@@ -333,8 +333,8 @@ do_kvm_##n:								\
 /*
  * Exception vectors.
  */
-#define STD_EXCEPTION_PSERIES(loc, vec, label)		\
-	. = loc;					\
+#define STD_EXCEPTION_PSERIES(vec, label)		\
+	. = vec;					\
 	.globl label##_pSeries;				\
 label##_pSeries:					\
 	SET_SCRATCH0(r13);		/* save r13 */		\

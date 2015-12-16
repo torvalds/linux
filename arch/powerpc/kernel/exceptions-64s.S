@@ -230,7 +230,7 @@ data_access_slb_pSeries:
 	bctr
 #endif
 
-	STD_EXCEPTION_PSERIES(0x400, 0x400, instruction_access)
+	STD_EXCEPTION_PSERIES(0x400, instruction_access)
 
 	. = 0x480
 	.globl instruction_access_slb_pSeries
@@ -274,13 +274,13 @@ hardware_interrupt_hv:
 		KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x500)
 	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 
-	STD_EXCEPTION_PSERIES(0x600, 0x600, alignment)
+	STD_EXCEPTION_PSERIES(0x600, alignment)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x600)
 
-	STD_EXCEPTION_PSERIES(0x700, 0x700, program_check)
+	STD_EXCEPTION_PSERIES(0x700, program_check)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x700)
 
-	STD_EXCEPTION_PSERIES(0x800, 0x800, fp_unavailable)
+	STD_EXCEPTION_PSERIES(0x800, fp_unavailable)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x800)
 
 	. = 0x900
@@ -293,7 +293,7 @@ decrementer_pSeries:
 	MASKABLE_EXCEPTION_PSERIES(0xa00, 0xa00, doorbell_super)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xa00)
 
-	STD_EXCEPTION_PSERIES(0xb00, 0xb00, trap_0b)
+	STD_EXCEPTION_PSERIES(0xb00, trap_0b)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xb00)
 
 	. = 0xc00
@@ -325,7 +325,7 @@ system_call_pSeries:
 	SYSCALL_PSERIES_3
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xc00)
 
-	STD_EXCEPTION_PSERIES(0xd00, 0xd00, single_step)
+	STD_EXCEPTION_PSERIES(0xd00, single_step)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xd00)
 
 	/* At 0xe??? we have a bunch of hypervisor exceptions, we branch
@@ -401,7 +401,7 @@ hv_facility_unavailable_trampoline:
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1202)
 #endif /* CONFIG_CBE_RAS */
 
-	STD_EXCEPTION_PSERIES(0x1300, 0x1300, instruction_breakpoint)
+	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_STD, 0x1300)
 
 	. = 0x1500
@@ -428,7 +428,7 @@ denorm_exception_hv:
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1602)
 #endif /* CONFIG_CBE_RAS */
 
-	STD_EXCEPTION_PSERIES(0x1700, 0x1700, altivec_assist)
+	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0x1700)
 
 #ifdef CONFIG_CBE_RAS
