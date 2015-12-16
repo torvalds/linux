@@ -326,6 +326,7 @@ struct pcie_service_card {
 	dma_addr_t sleep_cookie_pbase;
 	void __iomem *pci_mmap;
 	void __iomem *pci_mmap1;
+	int msi_enable;
 };
 
 static inline int
