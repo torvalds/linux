@@ -389,7 +389,7 @@ int __init gicv2m_of_init(struct device_node *node, struct irq_domain *parent)
 
 		ret = gicv2m_init_one(child, parent);
 		if (ret) {
-			of_node_put(node);
+			of_node_put(child);
 			break;
 		}
 	}
