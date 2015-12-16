@@ -42,6 +42,13 @@ struct rockchip_crtc_funcs {
 	void (*wait_for_update)(struct drm_crtc *crtc);
 };
 
+struct rockchip_atomic_commit {
+	struct work_struct	work;
+	struct drm_atomic_state *state;
+	struct drm_device *dev;
+	struct mutex lock;
+};
+
 /*
  * Rockchip drm private structure.
  *
@@ -52,8 +59,11 @@ struct rockchip_drm_private {
 	struct drm_fb_helper fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
+
+	struct rockchip_atomic_commit commit;
 };
 
+void rockchip_drm_atomic_work(struct work_struct *work);
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs);
 void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc);
