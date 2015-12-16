@@ -59,4 +59,9 @@ config PINCTRL_SUN9I_A80
 	def_bool MACH_SUN9I
 	select PINCTRL_SUNXI_COMMON
 
+config PINCTRL_SUN9I_A80_R
+	def_bool MACH_SUN9I
+	depends on RESET_CONTROLLER
+	select PINCTRL_SUNXI_COMMON
+
 endif
