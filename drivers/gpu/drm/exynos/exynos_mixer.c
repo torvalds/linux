@@ -165,6 +165,16 @@ static const u8 filter_cr_horiz_tap4[] = {
 	70,	59,	48,	37,	27,	19,	11,	5,
 };
 
+static inline bool is_alpha_format(unsigned int pixel_format)
+{
+	switch (pixel_format) {
+	case DRM_FORMAT_ARGB8888:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static inline u32 vp_reg_read(struct mixer_resources *res, u32 reg_id)
 {
 	return readl(res->vp_regs + reg_id);
@@ -292,6 +302,37 @@ static void vp_default_filter(struct mixer_resources *res)
 		filter_y_vert_tap4, sizeof(filter_y_vert_tap4));
 	vp_filter_set(res, VP_POLY4_C0_LL,
 		filter_cr_horiz_tap4, sizeof(filter_cr_horiz_tap4));
+}
+
+static void mixer_cfg_gfx_blend(struct mixer_context *ctx, unsigned int win,
+				bool alpha)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+	u32 val;
+
+	val  = MXR_GRP_CFG_COLOR_KEY_DISABLE; /* no blank key */
+	if (alpha) {
+		/* blending based on pixel alpha */
+		val |= MXR_GRP_CFG_BLEND_PRE_MUL;
+		val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
+	}
+	mixer_reg_writemask(res, MXR_GRAPHIC_CFG(win),
+			    val, MXR_GRP_CFG_MISC_MASK);
+}
+
+static void mixer_cfg_vp_blend(struct mixer_context *ctx)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+	u32 val;
+
+	/*
+	 * No blending at the moment since the NV12/NV21 pixelformats don't
+	 * have an alpha channel. However the mixer supports a global alpha
+	 * value for a layer. Once this functionality is exposed, we can
+	 * support blending of the video layer through this.
+	 */
+	val = 0;
+	mixer_reg_write(res, MXR_VIDEO_CFG, val);
 }
 
 static void mixer_vsync_set_update(struct mixer_context *ctx, bool enable)
@@ -519,6 +560,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	mixer_cfg_scan(ctx, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
 	mixer_cfg_layer(ctx, plane->index, state->zpos + 1, true);
+	mixer_cfg_vp_blend(ctx);
 	mixer_run(ctx);
 
 	mixer_vsync_set_update(ctx, true);
@@ -634,6 +676,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	mixer_cfg_scan(ctx, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
 	mixer_cfg_layer(ctx, win, state->zpos + 1, true);
+	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->pixel_format));
 
 	/* layer update mandatory for mixer 16.0.33.0 */
 	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
