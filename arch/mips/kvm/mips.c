@@ -1620,7 +1620,7 @@ static struct notifier_block kvm_mips_csr_die_notifier = {
 	.notifier_call = kvm_mips_csr_die_notify,
 };
 
-int __init kvm_mips_init(void)
+static int __init kvm_mips_init(void)
 {
 	int ret;
 
@@ -1646,7 +1646,7 @@ int __init kvm_mips_init(void)
 	return 0;
 }
 
-void __exit kvm_mips_exit(void)
+static void __exit kvm_mips_exit(void)
 {
 	kvm_exit();
 
