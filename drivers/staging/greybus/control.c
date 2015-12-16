@@ -126,8 +126,8 @@ static void gb_control_connection_exit(struct gb_connection *connection)
 static struct gb_protocol control_protocol = {
 	.name			= "control",
 	.id			= GREYBUS_PROTOCOL_CONTROL,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_CONTROL_VERSION_MAJOR,
+	.minor			= GB_CONTROL_VERSION_MINOR,
 	.connection_init	= gb_control_connection_init,
 	.connection_exit	= gb_control_connection_exit,
 	.flags			= GB_PROTOCOL_SKIP_CONTROL_CONNECTED |
