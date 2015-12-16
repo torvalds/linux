@@ -282,24 +282,35 @@ static int vsp1_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 					 struct vsp1_rwpf *output)
 {
 	struct vsp1_entity *entity;
-	unsigned int entities = 0;
+	struct media_entity_enum ent_enum;
 	struct media_pad *pad;
+	int rval;
 	bool bru_found = false;
 
 	input->location.left = 0;
 	input->location.top = 0;
 
+	rval = media_entity_enum_init(
+		&ent_enum, input->entity.pads[RWPF_PAD_SOURCE].graph_obj.mdev);
+	if (rval)
+		return rval;
+
 	pad = media_entity_remote_pad(&input->entity.pads[RWPF_PAD_SOURCE]);
 
 	while (1) {
-		if (pad == NULL)
-			return -EPIPE;
+		if (pad == NULL) {
+			rval = -EPIPE;
+			goto out;
+		}
 
 		/* We've reached a video node, that shouldn't have happened. */
-		if (!is_media_entity_v4l2_subdev(pad->entity))
-			return -EPIPE;
+		if (!is_media_entity_v4l2_subdev(pad->entity)) {
+			rval = -EPIPE;
+			goto out;
+		}
 
-		entity = to_vsp1_entity(media_entity_to_v4l2_subdev(pad->entity));
+		entity = to_vsp1_entity(
+			media_entity_to_v4l2_subdev(pad->entity));
 
 		/* A BRU is present in the pipeline, store the compose rectangle
 		 * location in the input RPF for use when configuring the RPF.
@@ -322,15 +333,18 @@ static int vsp1_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 			break;
 
 		/* Ensure the branch has no loop. */
-		if (entities & (1 << media_entity_id(&entity->subdev.entity)))
-			return -EPIPE;
-
-		entities |= 1 << media_entity_id(&entity->subdev.entity);
+		if (media_entity_enum_test_and_set(&ent_enum,
+						   &entity->subdev.entity)) {
+			rval = -EPIPE;
+			goto out;
+		}
 
 		/* UDS can't be chained. */
 		if (entity->type == VSP1_ENTITY_UDS) {
-			if (pipe->uds)
-				return -EPIPE;
+			if (pipe->uds) {
+				rval = -EPIPE;
+				goto out;
+			}
 
 			pipe->uds = entity;
 			pipe->uds_input = bru_found ? pipe->bru
@@ -348,9 +362,12 @@ static int vsp1_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 
 	/* The last entity must be the output WPF. */
 	if (entity != &output->entity)
-		return -EPIPE;
+		rval = -EPIPE;
 
-	return 0;
+out:
+	media_entity_enum_cleanup(&ent_enum);
+
+	return rval;
 }
 
 static void __vsp1_pipeline_cleanup(struct vsp1_pipeline *pipe)
