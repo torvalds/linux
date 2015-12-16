@@ -97,6 +97,16 @@ struct media_entity_enum {
 	int idx_max;
 };
 
+struct media_entity_graph {
+	struct {
+		struct media_entity *entity;
+		struct list_head *link;
+	} stack[MEDIA_ENTITY_ENUM_MAX_DEPTH];
+
+	DECLARE_BITMAP(entities, MEDIA_ENTITY_ENUM_MAX_ID);
+	int top;
+};
+
 struct media_pipeline {
 };
 
@@ -463,16 +473,6 @@ static inline bool media_entity_enum_intersects(
 	return bitmap_intersects(ent_enum1->bmap, ent_enum2->bmap,
 				 min(ent_enum1->idx_max, ent_enum2->idx_max));
 }
-
-struct media_entity_graph {
-	struct {
-		struct media_entity *entity;
-		struct list_head *link;
-	} stack[MEDIA_ENTITY_ENUM_MAX_DEPTH];
-
-	DECLARE_BITMAP(entities, MEDIA_ENTITY_ENUM_MAX_ID);
-	int top;
-};
 
 #define gobj_to_entity(gobj) \
 		container_of(gobj, struct media_entity, graph_obj)
