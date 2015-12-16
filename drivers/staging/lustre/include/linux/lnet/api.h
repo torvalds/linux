@@ -161,12 +161,6 @@ int LNetEQAlloc(unsigned int       count_in,
 
 int LNetEQFree(lnet_handle_eq_t eventq_in);
 
-int LNetEQGet(lnet_handle_eq_t  eventq_in,
-	      lnet_event_t     *event_out);
-
-int LNetEQWait(lnet_handle_eq_t  eventq_in,
-	       lnet_event_t     *event_out);
-
 int LNetEQPoll(lnet_handle_eq_t *eventqs_in,
 	       int		 neq_in,
 	       int		 timeout_ms,

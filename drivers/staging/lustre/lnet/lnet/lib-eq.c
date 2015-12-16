@@ -282,15 +282,6 @@ lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
  * at least one event between this event and the last event obtained from the
  * EQ has been dropped due to limited space in the EQ.
  */
-int
-LNetEQGet(lnet_handle_eq_t eventq, lnet_event_t *event)
-{
-	int which;
-
-	return LNetEQPoll(&eventq, 1, 0,
-			 event, &which);
-}
-EXPORT_SYMBOL(LNetEQGet);
 
 /**
  * Block the calling process until there is an event in the EQ.
@@ -308,15 +299,6 @@ EXPORT_SYMBOL(LNetEQGet);
  * at least one event between this event and the last event obtained from the
  * EQ has been dropped due to limited space in the EQ.
  */
-int
-LNetEQWait(lnet_handle_eq_t eventq, lnet_event_t *event)
-{
-	int which;
-
-	return LNetEQPoll(&eventq, 1, LNET_TIME_FOREVER,
-			 event, &which);
-}
-EXPORT_SYMBOL(LNetEQWait);
 
 static int
 lnet_eq_wait_locked(int *timeout_ms)
