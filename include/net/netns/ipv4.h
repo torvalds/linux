@@ -86,6 +86,9 @@ struct netns_ipv4 {
 
 	int sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	int sysctl_tcp_l3mdev_accept;
+#endif
 	int sysctl_tcp_mtu_probing;
 	int sysctl_tcp_base_mss;
 	int sysctl_tcp_probe_threshold;
