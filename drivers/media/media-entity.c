@@ -71,6 +71,46 @@ static inline const char *intf_type(struct media_interface *intf)
 };
 
 /**
+ * __media_entity_enum_init - Initialise an entity enumeration
+ *
+ * @ent_enum: Entity enumeration to be initialised
+ * @idx_max: Maximum number of entities in the enumeration
+ *
+ * Returns zero on success or a negative error code.
+ */
+__must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
+					  int idx_max)
+{
+	if (idx_max > MEDIA_ENTITY_ENUM_MAX_ID) {
+		ent_enum->bmap = kcalloc(DIV_ROUND_UP(idx_max, BITS_PER_LONG),
+					 sizeof(long), GFP_KERNEL);
+		if (!ent_enum->bmap)
+			return -ENOMEM;
+	} else {
+		ent_enum->bmap = ent_enum->prealloc_bmap;
+	}
+
+	bitmap_zero(ent_enum->bmap, idx_max);
+	ent_enum->idx_max = idx_max;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__media_entity_enum_init);
+
+/**
+ * media_entity_enum_cleanup - Release resources of an entity enumeration
+ *
+ * @e: Entity enumeration to be released
+ */
+void media_entity_enum_cleanup(struct media_entity_enum *ent_enum)
+{
+	if (ent_enum->bmap != ent_enum->prealloc_bmap)
+		kfree(ent_enum->bmap);
+	ent_enum->bmap = NULL;
+}
+EXPORT_SYMBOL_GPL(media_entity_enum_cleanup);
+
+/**
  *  dev_dbg_obj - Prints in debug mode a change on some object
  *
  * @event_name:	Name of the event to report. Could be __func__

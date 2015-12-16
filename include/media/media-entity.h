@@ -23,7 +23,7 @@
 #ifndef _MEDIA_ENTITY_H
 #define _MEDIA_ENTITY_H
 
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/media.h>
@@ -69,6 +69,32 @@ struct media_gobj {
 	struct media_device	*mdev;
 	u32			id;
 	struct list_head	list;
+};
+
+#define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
+#define MEDIA_ENTITY_ENUM_MAX_ID	64
+
+/*
+ * The number of pads can't be bigger than the number of entities,
+ * as the worse-case scenario is to have one entity linked up to
+ * MEDIA_ENTITY_ENUM_MAX_ID - 1 entities.
+ */
+#define MEDIA_ENTITY_MAX_PADS		(MEDIA_ENTITY_ENUM_MAX_ID - 1)
+
+/**
+ * struct media_entity_enum - An enumeration of media entities.
+ *
+ * @prealloc_bmap: Pre-allocated space reserved for media entities if the
+ *		total number of entities does not exceed
+ *		MEDIA_ENTITY_ENUM_MAX_ID.
+ * @bmap:	Bit map in which each bit represents one entity at struct
+ *		media_entity->internal_idx.
+ * @idx_max:	Number of bits in bmap
+ */
+struct media_entity_enum {
+	DECLARE_BITMAP(prealloc_bmap, MEDIA_ENTITY_ENUM_MAX_ID);
+	unsigned long *bmap;
+	int idx_max;
 };
 
 struct media_pipeline {
@@ -329,15 +355,114 @@ static inline bool is_media_entity_v4l2_subdev(struct media_entity *entity)
 	}
 }
 
-#define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
-#define MEDIA_ENTITY_ENUM_MAX_ID	64
+__must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
+					  int idx_max);
+void media_entity_enum_cleanup(struct media_entity_enum *e);
 
-/*
- * The number of pads can't be bigger than the number of entities,
- * as the worse-case scenario is to have one entity linked up to
- * MEDIA_ENTITY_ENUM_MAX_ID - 1 entities.
+/**
+ * media_entity_enum_zero - Clear the entire enum
+ *
+ * @e: Entity enumeration to be cleared
  */
-#define MEDIA_ENTITY_MAX_PADS		(MEDIA_ENTITY_ENUM_MAX_ID - 1)
+static inline void media_entity_enum_zero(struct media_entity_enum *ent_enum)
+{
+	bitmap_zero(ent_enum->bmap, ent_enum->idx_max);
+}
+
+/**
+ * media_entity_enum_set - Mark a single entity in the enum
+ *
+ * @e: Entity enumeration
+ * @entity: Entity to be marked
+ */
+static inline void media_entity_enum_set(struct media_entity_enum *ent_enum,
+					 struct media_entity *entity)
+{
+	if (WARN_ON(entity->internal_idx >= ent_enum->idx_max))
+		return;
+
+	__set_bit(entity->internal_idx, ent_enum->bmap);
+}
+
+/**
+ * media_entity_enum_clear - Unmark a single entity in the enum
+ *
+ * @e: Entity enumeration
+ * @entity: Entity to be unmarked
+ */
+static inline void media_entity_enum_clear(struct media_entity_enum *ent_enum,
+					   struct media_entity *entity)
+{
+	if (WARN_ON(entity->internal_idx >= ent_enum->idx_max))
+		return;
+
+	__clear_bit(entity->internal_idx, ent_enum->bmap);
+}
+
+/**
+ * media_entity_enum_test - Test whether the entity is marked
+ *
+ * @e: Entity enumeration
+ * @entity: Entity to be tested
+ *
+ * Returns true if the entity was marked.
+ */
+static inline bool media_entity_enum_test(struct media_entity_enum *ent_enum,
+					  struct media_entity *entity)
+{
+	if (WARN_ON(entity->internal_idx >= ent_enum->idx_max))
+		return true;
+
+	return test_bit(entity->internal_idx, ent_enum->bmap);
+}
+
+/**
+ * media_entity_enum_test - Test whether the entity is marked, and mark it
+ *
+ * @e: Entity enumeration
+ * @entity: Entity to be tested
+ *
+ * Returns true if the entity was marked, and mark it before doing so.
+ */
+static inline bool media_entity_enum_test_and_set(
+	struct media_entity_enum *ent_enum, struct media_entity *entity)
+{
+	if (WARN_ON(entity->internal_idx >= ent_enum->idx_max))
+		return true;
+
+	return __test_and_set_bit(entity->internal_idx, ent_enum->bmap);
+}
+
+/**
+ * media_entity_enum_test - Test whether the entire enum is empty
+ *
+ * @e: Entity enumeration
+ * @entity: Entity to be tested
+ *
+ * Returns true if the entity was marked.
+ */
+static inline bool media_entity_enum_empty(struct media_entity_enum *ent_enum)
+{
+	return bitmap_empty(ent_enum->bmap, ent_enum->idx_max);
+}
+
+/**
+ * media_entity_enum_intersects - Test whether two enums intersect
+ *
+ * @e: First entity enumeration
+ * @f: Second entity enumeration
+ *
+ * Returns true if entity enumerations e and f intersect, otherwise false.
+ */
+static inline bool media_entity_enum_intersects(
+	struct media_entity_enum *ent_enum1,
+	struct media_entity_enum *ent_enum2)
+{
+	WARN_ON(ent_enum1->idx_max != ent_enum2->idx_max);
+
+	return bitmap_intersects(ent_enum1->bmap, ent_enum2->bmap,
+				 min(ent_enum1->idx_max, ent_enum2->idx_max));
+}
 
 struct media_entity_graph {
 	struct {

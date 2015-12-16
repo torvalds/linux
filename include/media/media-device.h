@@ -342,6 +342,21 @@ struct media_device {
 #define to_media_device(node) container_of(node, struct media_device, devnode)
 
 /**
+ * media_entity_enum_init - Initialise an entity enumeration
+ *
+ * @e: Entity enumeration to be initialised
+ * @mdev: The related media device
+ *
+ * Returns zero on success or a negative error code.
+ */
+static inline __must_check int media_entity_enum_init(
+	struct media_entity_enum *ent_enum, struct media_device *mdev)
+{
+	return __media_entity_enum_init(ent_enum,
+					mdev->entity_internal_idx_max + 1);
+}
+
+/**
  * media_device_init() - Initializes a media device element
  *
  * @mdev:	pointer to struct &media_device
