@@ -4079,22 +4079,18 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	char message[128];
 	uint8_t status;
 	uint8_t evt_type;
+	uint8_t operational = 0;
 	struct temp_event temp_event_data;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
 	struct Scsi_Host  *shost;
 
 	evt_type = bf_get(lpfc_trailer_type, acqe_sli);
 
-	/* Special case Lancer */
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
-		 LPFC_SLI_INTF_IF_TYPE_2) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-				"2901 Async SLI event - Event Data1:x%08x Event Data2:"
-				"x%08x SLI Event Type:%d\n",
-				acqe_sli->event_data1, acqe_sli->event_data2,
-				evt_type);
-		return;
-	}
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2901 Async SLI event - Event Data1:x%08x Event Data2:"
+			"x%08x SLI Event Type:%d\n",
+			acqe_sli->event_data1, acqe_sli->event_data2,
+			evt_type);
 
 	port_name = phba->Port[0];
 	if (port_name == 0x00)
@@ -4140,29 +4136,46 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 		/* fetch the status for this port */
 		switch (phba->sli4_hba.lnk_info.lnk_no) {
 		case LPFC_LINK_NUMBER_0:
-			status = bf_get(lpfc_sli_misconfigured_port0,
+			status = bf_get(lpfc_sli_misconfigured_port0_state,
+					&misconfigured->theEvent);
+			operational = bf_get(lpfc_sli_misconfigured_port0_op,
 					&misconfigured->theEvent);
 			break;
 		case LPFC_LINK_NUMBER_1:
-			status = bf_get(lpfc_sli_misconfigured_port1,
+			status = bf_get(lpfc_sli_misconfigured_port1_state,
+					&misconfigured->theEvent);
+			operational = bf_get(lpfc_sli_misconfigured_port1_op,
 					&misconfigured->theEvent);
 			break;
 		case LPFC_LINK_NUMBER_2:
-			status = bf_get(lpfc_sli_misconfigured_port2,
+			status = bf_get(lpfc_sli_misconfigured_port2_state,
+					&misconfigured->theEvent);
+			operational = bf_get(lpfc_sli_misconfigured_port2_op,
 					&misconfigured->theEvent);
 			break;
 		case LPFC_LINK_NUMBER_3:
-			status = bf_get(lpfc_sli_misconfigured_port3,
+			status = bf_get(lpfc_sli_misconfigured_port3_state,
+					&misconfigured->theEvent);
+			operational = bf_get(lpfc_sli_misconfigured_port3_op,
 					&misconfigured->theEvent);
 			break;
 		default:
-			status = ~LPFC_SLI_EVENT_STATUS_VALID;
-			break;
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3296 "
+					"LPFC_SLI_EVENT_TYPE_MISCONFIGURED "
+					"event: Invalid link %d",
+					phba->sli4_hba.lnk_info.lnk_no);
+			return;
 		}
+
+		/* Skip if optic state unchanged */
+		if (phba->sli4_hba.lnk_info.optic_state == status)
+			return;
 
 		switch (status) {
 		case LPFC_SLI_EVENT_STATUS_VALID:
-			return; /* no message if the sfp is okay */
+			sprintf(message, "Physical Link is functional");
+			break;
 		case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
 			sprintf(message, "Optics faulted/incorrectly "
 				"installed/not installed - Reseat optics, "
@@ -4177,15 +4190,26 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			sprintf(message, "Incompatible optics - Replace with "
 				"compatible optics for card to function.");
 			break;
+		case LPFC_SLI_EVENT_STATUS_UNQUALIFIED:
+			sprintf(message, "Unqualified optics - Replace with "
+				"Avago optics for Warranty and Technical "
+				"Support - Link is%s operational",
+				(operational) ? "" : " not");
+			break;
+		case LPFC_SLI_EVENT_STATUS_UNCERTIFIED:
+			sprintf(message, "Uncertified optics - Replace with "
+				"Avago-certified optics to enable link "
+				"operation - Link is%s operational",
+				(operational) ? "" : " not");
+			break;
 		default:
 			/* firmware is reporting a status we don't know about */
 			sprintf(message, "Unknown event status x%02x", status);
 			break;
 		}
-
+		phba->sli4_hba.lnk_info.optic_state = status;
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"3176 Misconfigured Physical Port - "
-				"Port Name %c %s\n", port_name, message);
+				"3176 Port Name %c %s\n", port_name, message);
 		break;
 	case LPFC_SLI_EVENT_TYPE_REMOTE_DPORT:
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -5258,6 +5282,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_xri_blk_list);
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_vfi_blk_list);
 	INIT_LIST_HEAD(&phba->lpfc_vpi_blk_list);
+
+	/* initialize optic_state to 0xFF */
+	phba->sli4_hba.lnk_info.optic_state = 0xff;
 
 	/* Initialize the driver internal SLI layer lists. */
 	lpfc_sli_setup(phba);
