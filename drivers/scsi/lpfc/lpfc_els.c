@@ -4824,6 +4824,7 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	struct lpfc_nodelist *ndlp = rdp_context->ndlp;
 	struct lpfc_vport *vport = ndlp->vport;
 	struct lpfc_iocbq *elsiocb;
+	struct ulp_bde64 *bpl;
 	IOCB_t *icmd;
 	uint8_t *pcmd;
 	struct ls_rjt *stat;
@@ -4833,6 +4834,8 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 
 	if (status != SUCCESS)
 		goto error;
+
+	/* This will change once we know the true size of the RDP payload */
 	cmdsize = sizeof(struct fc_rdp_res_frame);
 
 	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize,
@@ -4873,6 +4876,13 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 			&rdp_context->link_stat);
 	rdp_res->length = cpu_to_be32(fec_size + RDP_DESC_PAYLOAD_SIZE);
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
+
+	/* Now that we know the true size of the payload, update the BPL */
+	bpl = (struct ulp_bde64 *)
+		(((struct lpfc_dmabuf *)(elsiocb->context3))->virt);
+	bpl->tus.f.bdeSize = (fec_size + RDP_DESC_PAYLOAD_SIZE + 8);
+	bpl->tus.f.bdeFlags = 0;
+	bpl->tus.w = le32_to_cpu(bpl->tus.w);
 
 	phba->fc_stat.elsXmitACC++;
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
