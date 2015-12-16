@@ -84,6 +84,9 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 			(cur_wall_time - j_cdbs->prev_cpu_wall);
 		j_cdbs->prev_cpu_wall = cur_wall_time;
 
+		if (cur_idle_time < j_cdbs->prev_cpu_idle)
+			cur_idle_time = j_cdbs->prev_cpu_idle;
+
 		idle_time = (unsigned int)
 			(cur_idle_time - j_cdbs->prev_cpu_idle);
 		j_cdbs->prev_cpu_idle = cur_idle_time;
