@@ -154,6 +154,16 @@
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
 		};
+
+		reg_sd3_vmmc: regulator@7 {
+			compatible = "regulator-fixed";
+			regulator-name = "P3V3_SDa_SWITCHED";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio7 8 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			status = "disabled";
+		};
 	};
 
 	hannstar_cabc {

@@ -73,8 +73,16 @@
 	status = "okay";
 };
 
+&reg_sd3_vmmc {
+	status = "okay";
+};
+
 &sata {
 	status = "okay";
+};
+
+&usdhc3 {
+	vmmc-supply = <&reg_sd3_vmmc>;
 };
 
 &vgen3_reg {
