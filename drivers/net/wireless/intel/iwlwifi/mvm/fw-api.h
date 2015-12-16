@@ -289,6 +289,8 @@ enum iwl_phy_ops_subcmd_ids {
 
 enum iwl_data_path_subcmd_ids {
 	UPDATE_MU_GROUPS_CMD = 0x1,
+	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+	RX_QUEUES_NOTIFICATION = 0xFF,
 };
 
 enum iwl_prot_offload_subcmd_ids {

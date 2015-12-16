@@ -345,6 +345,54 @@ static bool iwl_mvm_is_nonagg_dup(struct ieee80211_sta *sta, int queue,
 	return false;
 }
 
+int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
+			    const u8 *data, u32 count)
+{
+	struct iwl_rxq_sync_cmd *cmd;
+	u32 data_size = sizeof(*cmd) + count;
+	int ret;
+
+	/* should be DWORD aligned */
+	if (WARN_ON(count & 3 || count > IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE))
+		return -EINVAL;
+
+	cmd = kzalloc(data_size, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->rxq_mask = cpu_to_le32(rxq_mask);
+	cmd->count =  cpu_to_le32(count);
+	cmd->flags = 0;
+	memcpy(cmd->payload, data, count);
+
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(DATA_PATH_GROUP,
+					   TRIGGER_RX_QUEUES_NOTIF_CMD),
+				   0, data_size, cmd);
+
+	kfree(cmd);
+	return ret;
+}
+
+void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
+			    int queue)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_rxq_sync_notification *notif;
+	struct iwl_mvm_internal_rxq_notif *internal_notif;
+
+	notif = (void *)pkt->data;
+	internal_notif = (void *)notif->payload;
+
+	switch (internal_notif->type) {
+	case IWL_MVM_RXQ_NOTIF_DEL_BA:
+		/* TODO */
+		break;
+	default:
+		WARN_ONCE(1, "Invalid identifier %d", internal_notif->type);
+	}
+}
+
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue)
 {

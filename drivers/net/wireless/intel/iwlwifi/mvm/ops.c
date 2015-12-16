@@ -404,6 +404,8 @@ static const struct iwl_hcmd_names iwl_mvm_phy_names[] = {
  */
 static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(UPDATE_MU_GROUPS_CMD),
+	HCMD_NAME(TRIGGER_RX_QUEUES_NOTIF_CMD),
+	HCMD_NAME(RX_QUEUES_NOTIFICATION),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -876,6 +878,9 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, 0);
 	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
 		iwl_mvm_rx_phy_cmd_mq(mvm, rxb);
+	else if (unlikely(pkt->hdr.group_id == DATA_PATH_GROUP &&
+			  pkt->hdr.cmd == RX_QUEUES_NOTIFICATION))
+		iwl_mvm_rx_queue_notif(mvm, rxb, 0);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
@@ -1548,6 +1553,9 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 
 	if (unlikely(pkt->hdr.cmd == FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, rxb, queue);
+	else if (unlikely(pkt->hdr.cmd == RX_QUEUES_NOTIFICATION &&
+			  pkt->hdr.group_id == DATA_PATH_GROUP))
+		iwl_mvm_rx_queue_notif(mvm, rxb, queue);
 	else
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, queue);
 }
