@@ -759,7 +759,7 @@ static int mwifiex_set_wpa_ie_helper(struct mwifiex_private *priv,
 			return -1;
 		}
 		memcpy(priv->wpa_ie, ie_data_ptr, ie_len);
-		priv->wpa_ie_len = (u8) ie_len;
+		priv->wpa_ie_len = ie_len;
 		mwifiex_dbg(priv->adapter, CMD,
 			    "cmd: Set Wpa_ie_len=%d IE=%#x\n",
 			    priv->wpa_ie_len, priv->wpa_ie[0]);

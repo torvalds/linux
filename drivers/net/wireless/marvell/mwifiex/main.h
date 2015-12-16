@@ -564,14 +564,14 @@ struct mwifiex_private {
 	struct mwifiex_wep_key wep_key[NUM_WEP_KEYS];
 	u16 wep_key_curr_index;
 	u8 wpa_ie[256];
-	u8 wpa_ie_len;
+	u16 wpa_ie_len;
 	u8 wpa_is_gtk_set;
 	struct host_cmd_ds_802_11_key_material aes_key;
 	struct host_cmd_ds_802_11_key_material_v2 aes_key_v2;
 	u8 wapi_ie[256];
-	u8 wapi_ie_len;
+	u16 wapi_ie_len;
 	u8 *wps_ie;
-	u8 wps_ie_len;
+	u16 wps_ie_len;
 	u8 wmm_required;
 	u8 wmm_enabled;
 	u8 wmm_qosinfo;
