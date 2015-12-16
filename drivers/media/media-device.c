@@ -537,6 +537,7 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 					      struct media_entity *entity)
 {
 	unsigned int i;
+	int ret;
 
 	if (entity->function == MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN ||
 	    entity->function == MEDIA_ENT_F_UNKNOWN)
@@ -551,13 +552,16 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	entity->num_links = 0;
 	entity->num_backlinks = 0;
 
+	if (!ida_pre_get(&mdev->entity_internal_idx, GFP_KERNEL))
+		return -ENOMEM;
+
 	spin_lock(&mdev->lock);
 
-	entity->internal_idx = ida_simple_get(&mdev->entity_internal_idx, 1, 0,
-					      GFP_KERNEL);
-	if (entity->internal_idx < 0) {
+	ret = ida_get_new_above(&mdev->entity_internal_idx, 1,
+				&entity->internal_idx);
+	if (ret < 0) {
 		spin_unlock(&mdev->lock);
-		return entity->internal_idx;
+		return ret;
 	}
 
 	mdev->entity_internal_idx_max =
