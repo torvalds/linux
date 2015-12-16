@@ -21,7 +21,7 @@
 #include <sound/pcm_drm_eld.h>
 #include <sound/pcm_iec958.h>
 
-#include "dw_hdmi-audio.h"
+#include "dw-hdmi-audio.h"
 
 #define DRIVER_NAME "dw-hdmi-ahb-audio"
 
