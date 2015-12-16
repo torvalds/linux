@@ -16173,7 +16173,7 @@ fail_fcf_read:
 }
 
 /**
- * lpfc_check_next_fcf_pri
+ * lpfc_check_next_fcf_pri_level
  * phba pointer to the lpfc_hba struct for this port.
  * This routine is called from the lpfc_sli4_fcf_rr_next_index_get
  * routine when the rr_bmask is empty. The FCF indecies are put into the
@@ -16329,8 +16329,12 @@ next_priority:
 
 	if (next_fcf_index < LPFC_SLI4_FCF_TBL_INDX_MAX &&
 		phba->fcf.fcf_pri[next_fcf_index].fcf_rec.flag &
-		LPFC_FCF_FLOGI_FAILED)
+		LPFC_FCF_FLOGI_FAILED) {
+		if (list_is_singular(&phba->fcf.fcf_pri_list))
+			return LPFC_FCOE_FCF_NEXT_NONE;
+
 		goto next_priority;
+	}
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 			"2845 Get next roundrobin failover FCF (x%x)\n",
