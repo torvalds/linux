@@ -64,11 +64,6 @@ struct snd_oxfw {
 	unsigned int midi_input_ports;
 	unsigned int midi_output_ports;
 
-	bool mute;
-	s16 volume[6];
-	s16 volume_min;
-	s16 volume_max;
-
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
