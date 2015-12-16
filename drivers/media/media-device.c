@@ -577,13 +577,6 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 }
 EXPORT_SYMBOL_GPL(media_device_register_entity);
 
-/**
- * media_device_unregister_entity - Unregister an entity
- * @entity:	The entity
- *
- * If the entity has never been registered this function will return
- * immediately.
- */
 static void __media_device_unregister_entity(struct media_entity *entity)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
@@ -627,7 +620,6 @@ void media_device_unregister_entity(struct media_entity *entity)
 }
 EXPORT_SYMBOL_GPL(media_device_unregister_entity);
 
-
 /**
  * media_device_init() - initialize a media device
  * @mdev:	The media device
@@ -652,11 +644,6 @@ void media_device_init(struct media_device *mdev)
 }
 EXPORT_SYMBOL_GPL(media_device_init);
 
-/**
- * media_device_cleanup() - Cleanup a media device
- * @mdev:	The media device
- *
- */
 void media_device_cleanup(struct media_device *mdev)
 {
 	ida_destroy(&mdev->entity_internal_idx);
@@ -665,13 +652,6 @@ void media_device_cleanup(struct media_device *mdev)
 }
 EXPORT_SYMBOL_GPL(media_device_cleanup);
 
-/**
- * __media_device_register() - register a media device
- * @mdev:	The media device
- * @owner:	The module owner
- *
- * returns zero on success or a negative error code.
- */
 int __must_check __media_device_register(struct media_device *mdev,
 					 struct module *owner)
 {
@@ -701,13 +681,6 @@ int __must_check __media_device_register(struct media_device *mdev,
 }
 EXPORT_SYMBOL_GPL(__media_device_register);
 
-/**
- * media_device_unregister - unregister a media device
- * @mdev:	The media device
- *
- * It is safe to call this function on an unregistered
- * (but initialised) media device.
- */
 void media_device_unregister(struct media_device *mdev)
 {
 	struct media_entity *entity;

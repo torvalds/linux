@@ -428,6 +428,8 @@ void media_device_cleanup(struct media_device *mdev);
  * a sysfs attribute.
  *
  * Unregistering a media device that hasn't been registered is *NOT* safe.
+ *
+ * Return: returns zero on success or a negative error code.
  */
 int __must_check __media_device_register(struct media_device *mdev,
 					 struct module *owner);
@@ -437,6 +439,10 @@ int __must_check __media_device_register(struct media_device *mdev,
  * __media_device_unregister() - Unegisters a media device element
  *
  * @mdev:	pointer to struct &media_device
+ *
+ *
+ * It is safe to call this function on an unregistered (but initialised)
+ * media device.
  */
 void media_device_unregister(struct media_device *mdev);
 
