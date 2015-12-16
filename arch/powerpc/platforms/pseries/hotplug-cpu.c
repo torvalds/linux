@@ -335,8 +335,6 @@ static void pseries_remove_processor(struct device_node *np)
 	cpu_maps_update_done();
 }
 
-#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-
 static int dlpar_online_cpu(struct device_node *dn)
 {
 	int rc = 0;
@@ -404,15 +402,10 @@ static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
 	return found;
 }
 
-static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
+static ssize_t dlpar_cpu_add(u32 drc_index)
 {
 	struct device_node *dn, *parent;
-	u32 drc_index;
 	int rc;
-
-	rc = kstrtou32(buf, 0, &drc_index);
-	if (rc)
-		return -EINVAL;
 
 	parent = of_find_node_by_path("/cpus");
 	if (!parent)
@@ -444,10 +437,7 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	}
 
 	rc = dlpar_online_cpu(dn);
-	if (rc)
-		return rc;
-
-	return count;
+	return rc;
 }
 
 static int dlpar_offline_cpu(struct device_node *dn)
@@ -506,6 +496,41 @@ out:
 
 }
 
+static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
+{
+	int rc;
+
+	rc = dlpar_offline_cpu(dn);
+	if (rc)
+		return -EINVAL;
+
+	rc = dlpar_release_drc(drc_index);
+	if (rc)
+		return rc;
+
+	rc = dlpar_detach_node(dn);
+	if (rc)
+		dlpar_acquire_drc(drc_index);
+
+	return rc;
+}
+
+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
+
+static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
+{
+	u32 drc_index;
+	int rc;
+
+	rc = kstrtou32(buf, 0, &drc_index);
+	if (rc)
+		return -EINVAL;
+
+	rc = dlpar_cpu_add(drc_index);
+
+	return rc ? rc : count;
+}
+
 static ssize_t dlpar_cpu_release(const char *buf, size_t count)
 {
 	struct device_node *dn;
@@ -522,27 +547,10 @@ static ssize_t dlpar_cpu_release(const char *buf, size_t count)
 		return -EINVAL;
 	}
 
-	rc = dlpar_offline_cpu(dn);
-	if (rc) {
-		of_node_put(dn);
-		return -EINVAL;
-	}
-
-	rc = dlpar_release_drc(drc_index);
-	if (rc) {
-		of_node_put(dn);
-		return rc;
-	}
-
-	rc = dlpar_detach_node(dn);
-	if (rc) {
-		dlpar_acquire_drc(drc_index);
-		return rc;
-	}
-
+	rc = dlpar_cpu_remove(dn, drc_index);
 	of_node_put(dn);
 
-	return count;
+	return rc ? rc : count;
 }
 
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
