@@ -116,7 +116,8 @@ enum cop_op {
 	dmtc_op	      = 0x05, ctc_op	    = 0x06,
 	mthc0_op      = 0x06, mthc_op	    = 0x07,
 	bc_op	      = 0x08, bc1eqz_op     = 0x09,
-	bc1nez_op     = 0x0d, cop_op	    = 0x10,
+	mfmc0_op      = 0x0b, bc1nez_op     = 0x0d,
+	wrpgpr_op     = 0x0e, cop_op	    = 0x10,
 	copm_op	      = 0x18
 };
 

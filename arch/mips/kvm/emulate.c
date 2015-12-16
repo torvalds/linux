@@ -30,7 +30,6 @@
 #include <asm/r4kcache.h>
 #define CONFIG_MIPS_MT
 
-#include "opcode.h"
 #include "interrupt.h"
 #include "commpage.h"
 
@@ -1240,7 +1239,7 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 			er = EMULATE_FAIL;
 			break;
 
-		case mfmcz_op:
+		case mfmc0_op:
 #ifdef KVM_MIPS_DEBUG_COP0_COUNTERS
 			cop0->stat[MIPS_CP0_STATUS][0]++;
 #endif
@@ -1249,11 +1248,11 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 				    kvm_read_c0_guest_status(cop0);
 			/* EI */
 			if (inst & 0x20) {
-				kvm_debug("[%#lx] mfmcz_op: EI\n",
+				kvm_debug("[%#lx] mfmc0_op: EI\n",
 					  vcpu->arch.pc);
 				kvm_set_c0_guest_status(cop0, ST0_IE);
 			} else {
-				kvm_debug("[%#lx] mfmcz_op: DI\n",
+				kvm_debug("[%#lx] mfmc0_op: DI\n",
 					  vcpu->arch.pc);
 				kvm_clear_c0_guest_status(cop0, ST0_IE);
 			}
