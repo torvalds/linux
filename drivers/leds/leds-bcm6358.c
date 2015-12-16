@@ -123,9 +123,6 @@ static int bcm6358_led(struct device *dev, struct device_node *nc, u32 reg,
 			led->cdev.brightness = LED_FULL;
 		} else if (!strcmp(state, "keep")) {
 			unsigned long val;
-
-			bcm6358_led_busy(led->mem);
-
 			val = bcm6358_led_read(led->mem + BCM6358_REG_MODE);
 			val &= BIT(led->pin);
 			if ((led->active_low && !val) ||
