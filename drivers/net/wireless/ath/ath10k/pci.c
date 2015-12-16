@@ -3071,9 +3071,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_sleep;
 	}
 
-	ath10k_pci_ce_deinit(ar);
-	ath10k_pci_irq_disable(ar);
-
 	if (ar_pci->pci_ps == 0) {
 		ret = ath10k_pci_force_wake(ar);
 		if (ret) {
@@ -3081,6 +3078,9 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 			goto err_free_pipes;
 		}
 	}
+
+	ath10k_pci_ce_deinit(ar);
+	ath10k_pci_irq_disable(ar);
 
 	ret = ath10k_pci_init_irq(ar);
 	if (ret) {
