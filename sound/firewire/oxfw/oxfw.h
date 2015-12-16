@@ -31,12 +31,6 @@
 #include "../amdtp-am824.h"
 #include "../cmp.h"
 
-struct device_info {
-	const char *driver_name;
-	const char *vendor_name;
-	const char *model_name;
-};
-
 /* This is an arbitrary number for convinience. */
 #define	SND_OXFW_STREAM_FORMAT_ENTRIES	10
 struct snd_oxfw {

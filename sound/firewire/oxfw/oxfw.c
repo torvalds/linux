@@ -30,6 +30,12 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("snd-firewire-speakers");
 
+struct compat_info {
+	const char *driver_name;
+	const char *vendor_name;
+	const char *model_name;
+};
+
 static bool detect_loud_models(struct fw_unit *unit)
 {
 	const char *const models[] = {
@@ -59,7 +65,7 @@ static bool detect_loud_models(struct fw_unit *unit)
 static int name_card(struct snd_oxfw *oxfw)
 {
 	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
-	const struct device_info *info;
+	const struct compat_info *info;
 	char vendor[24];
 	char model[32];
 	const char *d, *v, *m;
@@ -87,7 +93,7 @@ static int name_card(struct snd_oxfw *oxfw)
 	/* to apply card definitions */
 	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN ||
 	    oxfw->entry->vendor_id == VENDOR_LACIE) {
-		info = (const struct device_info *)oxfw->entry->driver_data;
+		info = (const struct compat_info *)oxfw->entry->driver_data;
 		d = info->driver_name;
 		v = info->vendor_name;
 		m = info->model_name;
@@ -279,13 +285,13 @@ static void oxfw_remove(struct fw_unit *unit)
 	snd_card_free_when_closed(oxfw->card);
 }
 
-static const struct device_info griffin_firewave = {
+static const struct compat_info griffin_firewave = {
 	.driver_name = "FireWave",
 	.vendor_name = "Griffin",
 	.model_name = "FireWave",
 };
 
-static const struct device_info lacie_speakers = {
+static const struct compat_info lacie_speakers = {
 	.driver_name = "FWSpeakers",
 	.vendor_name = "LaCie",
 	.model_name = "FireWire Speakers",
