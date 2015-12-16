@@ -43,6 +43,7 @@ struct i915_guc_client {
 	uint32_t wq_offset;
 	uint32_t wq_size;
 	uint32_t wq_tail;
+	uint32_t wq_head;
 
 	/* GuC submission statistics & status */
 	uint64_t submissions[I915_NUM_RINGS];
@@ -122,5 +123,6 @@ int i915_guc_submit(struct i915_guc_client *client,
 		    struct drm_i915_gem_request *rq);
 void i915_guc_submission_disable(struct drm_device *dev);
 void i915_guc_submission_fini(struct drm_device *dev);
+int i915_guc_wq_check_space(struct i915_guc_client *client);
 
 #endif

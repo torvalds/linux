@@ -670,6 +670,19 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 			return ret;
 	}
 
+	if (i915.enable_guc_submission) {
+		/*
+		 * Check that the GuC has space for the request before
+		 * going any further, as the i915_add_request() call
+		 * later on mustn't fail ...
+		 */
+		struct intel_guc *guc = &request->i915->guc;
+
+		ret = i915_guc_wq_check_space(guc->execbuf_client);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
