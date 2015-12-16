@@ -349,16 +349,16 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 					     struct media_pipeline *pipe)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
-	struct media_entity_graph graph;
+	struct media_entity_graph *graph = &pipe->graph;
 	struct media_entity *entity_err = entity;
 	struct media_link *link;
 	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
 
-	media_entity_graph_walk_start(&graph, entity);
+	media_entity_graph_walk_start(graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(&graph))) {
+	while ((entity = media_entity_graph_walk_next(graph))) {
 		DECLARE_BITMAP(active, MEDIA_ENTITY_MAX_PADS);
 		DECLARE_BITMAP(has_no_links, MEDIA_ENTITY_MAX_PADS);
 
@@ -439,9 +439,9 @@ error:
 	 * Link validation on graph failed. We revert what we did and
 	 * return the error.
 	 */
-	media_entity_graph_walk_start(&graph, entity_err);
+	media_entity_graph_walk_start(graph, entity_err);
 
-	while ((entity_err = media_entity_graph_walk_next(&graph))) {
+	while ((entity_err = media_entity_graph_walk_next(graph))) {
 		entity_err->stream_count--;
 		if (entity_err->stream_count == 0)
 			entity_err->pipe = NULL;
@@ -463,13 +463,13 @@ EXPORT_SYMBOL_GPL(media_entity_pipeline_start);
 void media_entity_pipeline_stop(struct media_entity *entity)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
-	struct media_entity_graph graph;
+	struct media_entity_graph *graph = &entity->pipe->graph;
 
 	mutex_lock(&mdev->graph_mutex);
 
-	media_entity_graph_walk_start(&graph, entity);
+	media_entity_graph_walk_start(graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(&graph))) {
+	while ((entity = media_entity_graph_walk_next(graph))) {
 		entity->stream_count--;
 		if (entity->stream_count == 0)
 			entity->pipe = NULL;

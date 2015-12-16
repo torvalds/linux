@@ -116,7 +116,13 @@ struct media_entity_graph {
 	int top;
 };
 
+/*
+ * struct media_pipeline - Media pipeline related information
+ *
+ * @graph:	Media graph walk during pipeline start / stop
+ */
 struct media_pipeline {
+	struct media_entity_graph graph;
 };
 
 /**
