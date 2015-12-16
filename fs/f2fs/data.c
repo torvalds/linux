@@ -1180,7 +1180,7 @@ out:
 		f2fs_balance_fs(sbi);
 	if (wbc->for_reclaim) {
 		f2fs_submit_merged_bio(sbi, DATA, WRITE);
-		remove_dirty_dir_inode(inode);
+		remove_dirty_inode(inode);
 	}
 	return 0;
 
@@ -1372,7 +1372,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	if (locked)
 		mutex_unlock(&sbi->writepages);
 
-	remove_dirty_dir_inode(inode);
+	remove_dirty_inode(inode);
 
 	wbc->nr_to_write = max((long)0, wbc->nr_to_write - diff);
 	return ret;

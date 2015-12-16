@@ -722,53 +722,51 @@ fail_no_cp:
 	return -EINVAL;
 }
 
-static void __add_dirty_inode(struct inode *inode)
+static void __add_dirty_inode(struct inode *inode, enum inode_type type)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+	int flag = (type == DIR_INODE) ? FI_DIRTY_DIR : FI_DIRTY_FILE;
 
-	if (is_inode_flag_set(fi, FI_DIRTY_DIR))
+	if (is_inode_flag_set(fi, flag))
 		return;
 
-	set_inode_flag(fi, FI_DIRTY_DIR);
-	list_add_tail(&fi->dirty_list, &sbi->dir_inode_list);
-	stat_inc_dirty_dir(sbi);
-	return;
+	set_inode_flag(fi, flag);
+	list_add_tail(&fi->dirty_list, &sbi->inode_list[type]);
+	if (type == DIR_INODE)
+		stat_inc_dirty_dir(sbi);
 }
 
-static void __remove_dirty_inode(struct inode *inode)
+static void __remove_dirty_inode(struct inode *inode, enum inode_type type)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+	int flag = (type == DIR_INODE) ? FI_DIRTY_DIR : FI_DIRTY_FILE;
 
 	if (get_dirty_pages(inode) ||
-			!is_inode_flag_set(F2FS_I(inode), FI_DIRTY_DIR))
+			!is_inode_flag_set(F2FS_I(inode), flag))
 		return;
 
 	list_del_init(&fi->dirty_list);
-	clear_inode_flag(fi, FI_DIRTY_DIR);
-	stat_dec_dirty_dir(sbi);
+	clear_inode_flag(fi, flag);
+	if (type == DIR_INODE)
+		stat_dec_dirty_dir(sbi);
 }
 
 void update_dirty_page(struct inode *inode, struct page *page)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	enum inode_type type = S_ISDIR(inode->i_mode) ? DIR_INODE : FILE_INODE;
 
 	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode) &&
 			!S_ISLNK(inode->i_mode))
 		return;
 
-	if (!S_ISDIR(inode->i_mode)) {
-		inode_inc_dirty_pages(inode);
-		goto out;
-	}
-
-	spin_lock(&sbi->dir_inode_lock);
-	__add_dirty_inode(inode);
+	spin_lock(&sbi->inode_lock[type]);
+	__add_dirty_inode(inode, type);
 	inode_inc_dirty_pages(inode);
-	spin_unlock(&sbi->dir_inode_lock);
+	spin_unlock(&sbi->inode_lock[type]);
 
-out:
 	SetPagePrivate(page);
 	f2fs_trace_pid(page);
 }
@@ -777,22 +775,24 @@ void add_dirty_dir_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 
-	spin_lock(&sbi->dir_inode_lock);
-	__add_dirty_inode(inode);
-	spin_unlock(&sbi->dir_inode_lock);
+	spin_lock(&sbi->inode_lock[DIR_INODE]);
+	__add_dirty_inode(inode, DIR_INODE);
+	spin_unlock(&sbi->inode_lock[DIR_INODE]);
 }
 
-void remove_dirty_dir_inode(struct inode *inode)
+void remove_dirty_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+	enum inode_type type = S_ISDIR(inode->i_mode) ? DIR_INODE : FILE_INODE;
 
-	if (!S_ISDIR(inode->i_mode))
+	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode) &&
+			!S_ISLNK(inode->i_mode))
 		return;
 
-	spin_lock(&sbi->dir_inode_lock);
-	__remove_dirty_inode(inode);
-	spin_unlock(&sbi->dir_inode_lock);
+	spin_lock(&sbi->inode_lock[type]);
+	__remove_dirty_inode(inode, type);
+	spin_unlock(&sbi->inode_lock[type]);
 
 	/* Only from the recovery routine */
 	if (is_inode_flag_set(fi, FI_DELAY_IPUT)) {
@@ -801,7 +801,7 @@ void remove_dirty_dir_inode(struct inode *inode)
 	}
 }
 
-void sync_dirty_dir_inodes(struct f2fs_sb_info *sbi)
+void sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type)
 {
 	struct list_head *head;
 	struct inode *inode;
@@ -810,16 +810,16 @@ retry:
 	if (unlikely(f2fs_cp_error(sbi)))
 		return;
 
-	spin_lock(&sbi->dir_inode_lock);
+	spin_lock(&sbi->inode_lock[type]);
 
-	head = &sbi->dir_inode_list;
+	head = &sbi->inode_list[type];
 	if (list_empty(head)) {
-		spin_unlock(&sbi->dir_inode_lock);
+		spin_unlock(&sbi->inode_lock[type]);
 		return;
 	}
 	fi = list_entry(head->next, struct f2fs_inode_info, dirty_list);
 	inode = igrab(&fi->vfs_inode);
-	spin_unlock(&sbi->dir_inode_lock);
+	spin_unlock(&sbi->inode_lock[type]);
 	if (inode) {
 		filemap_fdatawrite(inode->i_mapping);
 		iput(inode);
@@ -854,7 +854,7 @@ retry_flush_dents:
 	/* write all the dirty dentry pages */
 	if (get_pages(sbi, F2FS_DIRTY_DENTS)) {
 		f2fs_unlock_all(sbi);
-		sync_dirty_dir_inodes(sbi);
+		sync_dirty_inodes(sbi, DIR_INODE);
 		if (unlikely(f2fs_cp_error(sbi))) {
 			err = -EIO;
 			goto out;

@@ -444,7 +444,7 @@ error:
 	/* once the failed inode becomes a bad inode, i_mode is S_IFREG */
 	truncate_inode_pages(&inode->i_data, 0);
 	truncate_blocks(inode, 0, false);
-	remove_dirty_dir_inode(inode);
+	remove_dirty_inode(inode);
 	remove_inode_page(inode);
 	return ERR_PTR(err);
 }

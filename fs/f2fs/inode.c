@@ -327,7 +327,7 @@ void f2fs_evict_inode(struct inode *inode)
 		goto out_clear;
 
 	f2fs_bug_on(sbi, get_dirty_pages(inode));
-	remove_dirty_dir_inode(inode);
+	remove_dirty_inode(inode);
 
 	f2fs_destroy_extent_tree(inode);
 
