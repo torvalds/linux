@@ -186,7 +186,7 @@ static int qat_hal_wait_cycles(struct icp_qat_fw_loader_handle *handle,
 		if (elapsed_cycles >= 8 && !(csr & (1 << ACS_ABO_BITPOS)))
 			return 0;
 	}
-	if (!times) {
+	if (times < 0) {
 		pr_err("QAT: wait_num_cycles time out\n");
 		return -EFAULT;
 	}
