@@ -353,25 +353,26 @@ parse_general_features(struct drm_i915_private *dev_priv,
 	const struct bdb_general_features *general;
 
 	general = find_section(bdb, BDB_GENERAL_FEATURES);
-	if (general) {
-		dev_priv->vbt.int_tv_support = general->int_tv_support;
-		/* int_crt_support can't be trusted on earlier platforms */
-		if (bdb->version >= 155 &&
-		    (HAS_DDI(dev_priv) || IS_VALLEYVIEW(dev_priv)))
-			dev_priv->vbt.int_crt_support = general->int_crt_support;
-		dev_priv->vbt.lvds_use_ssc = general->enable_ssc;
-		dev_priv->vbt.lvds_ssc_freq =
-			intel_bios_ssc_frequency(dev_priv, general->ssc_freq);
-		dev_priv->vbt.display_clock_mode = general->display_clock_mode;
-		dev_priv->vbt.fdi_rx_polarity_inverted = general->fdi_rx_polarity_inverted;
-		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
-			      dev_priv->vbt.int_tv_support,
-			      dev_priv->vbt.int_crt_support,
-			      dev_priv->vbt.lvds_use_ssc,
-			      dev_priv->vbt.lvds_ssc_freq,
-			      dev_priv->vbt.display_clock_mode,
-			      dev_priv->vbt.fdi_rx_polarity_inverted);
-	}
+	if (!general)
+		return;
+
+	dev_priv->vbt.int_tv_support = general->int_tv_support;
+	/* int_crt_support can't be trusted on earlier platforms */
+	if (bdb->version >= 155 &&
+	    (HAS_DDI(dev_priv) || IS_VALLEYVIEW(dev_priv)))
+		dev_priv->vbt.int_crt_support = general->int_crt_support;
+	dev_priv->vbt.lvds_use_ssc = general->enable_ssc;
+	dev_priv->vbt.lvds_ssc_freq =
+		intel_bios_ssc_frequency(dev_priv, general->ssc_freq);
+	dev_priv->vbt.display_clock_mode = general->display_clock_mode;
+	dev_priv->vbt.fdi_rx_polarity_inverted = general->fdi_rx_polarity_inverted;
+	DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
+		      dev_priv->vbt.int_tv_support,
+		      dev_priv->vbt.int_crt_support,
+		      dev_priv->vbt.lvds_use_ssc,
+		      dev_priv->vbt.lvds_ssc_freq,
+		      dev_priv->vbt.display_clock_mode,
+		      dev_priv->vbt.fdi_rx_polarity_inverted);
 }
 
 static void
