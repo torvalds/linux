@@ -560,8 +560,8 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 	input_report_abs(input, ABS_RX, strip1);
 	input_report_abs(input, ABS_RY, strip2);
 
-	input_report_abs(input, ABS_WHEEL,    ring1 & 0x7f ? ring1 : 0);
-	input_report_abs(input, ABS_THROTTLE, ring2 & 0x07 ? ring2 : 0);
+	input_report_abs(input, ABS_WHEEL,    (ring1 & 0x80) ? (ring1 & 0x7f) : 0);
+	input_report_abs(input, ABS_THROTTLE, (ring2 & 0x80) ? (ring2 & 0x7f) : 0);
 
 	input_report_key(input, wacom->tool[1], prox ? 1 : 0);
 	input_report_abs(input, ABS_MISC, prox ? PAD_DEVICE_ID : 0);
