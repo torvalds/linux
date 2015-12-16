@@ -394,6 +394,8 @@
 #define CAUSEF_IV		(_ULCAST_(1)   << 23)
 #define CAUSEB_PCI		26
 #define CAUSEF_PCI		(_ULCAST_(1)   << 26)
+#define CAUSEB_DC		27
+#define CAUSEF_DC		(_ULCAST_(1)   << 27)
 #define CAUSEB_CE		28
 #define CAUSEF_CE		(_ULCAST_(3)   << 28)
 #define CAUSEB_TI		30
