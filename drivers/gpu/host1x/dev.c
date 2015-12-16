@@ -35,6 +35,7 @@
 #include "hw/host1x01.h"
 #include "hw/host1x02.h"
 #include "hw/host1x04.h"
+#include "hw/host1x05.h"
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -87,7 +88,17 @@ static const struct host1x_info host1x04_info = {
 	.sync_offset = 0x2100,
 };
 
+static const struct host1x_info host1x05_info = {
+	.nb_channels = 14,
+	.nb_pts = 192,
+	.nb_mlocks = 16,
+	.nb_bases = 64,
+	.init = host1x05_init,
+	.sync_offset = 0x2100,
+};
+
 static struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra124-host1x", .data = &host1x04_info, },
 	{ .compatible = "nvidia,tegra114-host1x", .data = &host1x02_info, },
 	{ .compatible = "nvidia,tegra30-host1x", .data = &host1x01_info, },
@@ -212,6 +223,11 @@ static struct platform_driver tegra_host1x_driver = {
 	.remove = host1x_remove,
 };
 
+static struct platform_driver * const drivers[] = {
+	&tegra_host1x_driver,
+	&tegra_mipi_driver,
+};
+
 static int __init tegra_host1x_init(void)
 {
 	int err;
@@ -220,28 +236,17 @@ static int __init tegra_host1x_init(void)
 	if (err < 0)
 		return err;
 
-	err = platform_driver_register(&tegra_host1x_driver);
+	err = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (err < 0)
-		goto unregister_bus;
+		bus_unregister(&host1x_bus_type);
 
-	err = platform_driver_register(&tegra_mipi_driver);
-	if (err < 0)
-		goto unregister_host1x;
-
-	return 0;
-
-unregister_host1x:
-	platform_driver_unregister(&tegra_host1x_driver);
-unregister_bus:
-	bus_unregister(&host1x_bus_type);
 	return err;
 }
 module_init(tegra_host1x_init);
 
 static void __exit tegra_host1x_exit(void)
 {
-	platform_driver_unregister(&tegra_mipi_driver);
-	platform_driver_unregister(&tegra_host1x_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 	bus_unregister(&host1x_bus_type);
 }
 module_exit(tegra_host1x_exit);
