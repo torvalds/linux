@@ -306,7 +306,7 @@ endif
 
 EXTRA_CFLAGS += -DHOST=\"$(HOST)\"
 
-obj-m = $(MODULE_NAME).o
+obj-$(CONFIG_MXC_GPU_VIV) = $(MODULE_NAME).o
 
 $(MODULE_NAME)-objs  = $(OBJS)
 
