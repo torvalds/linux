@@ -1326,8 +1326,8 @@ intel_bios_init(struct drm_device *dev)
 
 	bdb = get_bdb_header(vbt);
 
-	DRM_DEBUG_KMS("VBT signature \"%20s\", BDB version %d\n",
-		      vbt->signature, bdb->version);
+	DRM_DEBUG_KMS("VBT signature \"%.*s\", BDB version %d\n",
+		      (int)sizeof(vbt->signature), vbt->signature, bdb->version);
 
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
