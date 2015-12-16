@@ -275,10 +275,7 @@ struct device;
  * @driver_version: Device driver version
  * @topology_version: Monotonic counter for storing the version of the graph
  *		topology. Should be incremented each time the topology changes.
- * @entity_id:	Unique ID used on the last entity registered
- * @pad_id:	Unique ID used on the last pad registered
- * @link_id:	Unique ID used on the last link registered
- * @intf_devnode_id: Unique ID used on the last interface devnode registered
+ * @id:		Unique ID used on the last registered graph object
  * @entity_internal_idx: Unique internal entity ID used by the graph traversal
  *		algorithms
  * @entity_internal_idx_max: Allocated internal entity indices
@@ -313,10 +310,7 @@ struct media_device {
 
 	u32 topology_version;
 
-	u32 entity_id;
-	u32 pad_id;
-	u32 link_id;
-	u32 intf_devnode_id;
+	u32 id;
 	struct ida entity_internal_idx;
 	int entity_internal_idx_max;
 

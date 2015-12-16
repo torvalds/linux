@@ -106,8 +106,8 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 	switch (media_type(gobj)) {
 	case MEDIA_GRAPH_ENTITY:
 		dev_dbg(gobj->mdev->dev,
-			"%s: id 0x%08x entity#%d: '%s'\n",
-			event_name, gobj->id, media_localid(gobj),
+			"%s id %u: entity '%s'\n",
+			event_name, media_id(gobj),
 			gobj_to_entity(gobj)->name);
 		break;
 	case MEDIA_GRAPH_LINK:
@@ -115,14 +115,12 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 		struct media_link *link = gobj_to_link(gobj);
 
 		dev_dbg(gobj->mdev->dev,
-			"%s: id 0x%08x link#%d: %s#%d ==> %s#%d\n",
-			event_name, gobj->id, media_localid(gobj),
-
-			gobj_type(media_type(link->gobj0)),
-			media_localid(link->gobj0),
-
-			gobj_type(media_type(link->gobj1)),
-			media_localid(link->gobj1));
+			"%s id %u: %s link id %u ==> id %u\n",
+			event_name, media_id(gobj),
+			media_type(link->gobj0) == MEDIA_GRAPH_PAD ?
+				"data" : "interface",
+			media_id(link->gobj0),
+			media_id(link->gobj1));
 		break;
 	}
 	case MEDIA_GRAPH_PAD:
@@ -130,11 +128,10 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 		struct media_pad *pad = gobj_to_pad(gobj);
 
 		dev_dbg(gobj->mdev->dev,
-			"%s: id 0x%08x %s%spad#%d: '%s':%d\n",
-			event_name, gobj->id,
-			pad->flags & MEDIA_PAD_FL_SINK   ? "  sink " : "",
+			"%s id %u: %s%spad '%s':%d\n",
+			event_name, media_id(gobj),
+			pad->flags & MEDIA_PAD_FL_SINK   ? "sink " : "",
 			pad->flags & MEDIA_PAD_FL_SOURCE ? "source " : "",
-			media_localid(gobj),
 			pad->entity->name, pad->index);
 		break;
 	}
@@ -144,8 +141,8 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 		struct media_intf_devnode *devnode = intf_to_devnode(intf);
 
 		dev_dbg(gobj->mdev->dev,
-			"%s: id 0x%08x intf_devnode#%d: %s - major: %d, minor: %d\n",
-			event_name, gobj->id, media_localid(gobj),
+			"%s id %u: intf_devnode %s - major: %d, minor: %d\n",
+			event_name, media_id(gobj),
 			intf_type(intf),
 			devnode->major, devnode->minor);
 		break;
@@ -163,21 +160,19 @@ void media_gobj_create(struct media_device *mdev,
 	gobj->mdev = mdev;
 
 	/* Create a per-type unique object ID */
+	gobj->id = media_gobj_gen_id(type, ++mdev->id);
+
 	switch (type) {
 	case MEDIA_GRAPH_ENTITY:
-		gobj->id = media_gobj_gen_id(type, ++mdev->entity_id);
 		list_add_tail(&gobj->list, &mdev->entities);
 		break;
 	case MEDIA_GRAPH_PAD:
-		gobj->id = media_gobj_gen_id(type, ++mdev->pad_id);
 		list_add_tail(&gobj->list, &mdev->pads);
 		break;
 	case MEDIA_GRAPH_LINK:
-		gobj->id = media_gobj_gen_id(type, ++mdev->link_id);
 		list_add_tail(&gobj->list, &mdev->links);
 		break;
 	case MEDIA_GRAPH_INTF_DEVNODE:
-		gobj->id = media_gobj_gen_id(type, ++mdev->intf_devnode_id);
 		list_add_tail(&gobj->list, &mdev->interfaces);
 		break;
 	}

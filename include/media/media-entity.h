@@ -47,8 +47,8 @@ enum media_gobj_type {
 };
 
 #define MEDIA_BITS_PER_TYPE		8
-#define MEDIA_BITS_PER_LOCAL_ID		(32 - MEDIA_BITS_PER_TYPE)
-#define MEDIA_LOCAL_ID_MASK		 GENMASK(MEDIA_BITS_PER_LOCAL_ID - 1, 0)
+#define MEDIA_BITS_PER_ID		(32 - MEDIA_BITS_PER_TYPE)
+#define MEDIA_ID_MASK			 GENMASK_ULL(MEDIA_BITS_PER_ID - 1, 0)
 
 /* Structs to represent the objects that belong to a media graph */
 
@@ -58,9 +58,8 @@ enum media_gobj_type {
  * @mdev:	Pointer to the struct media_device that owns the object
  * @id:		Non-zero object ID identifier. The ID should be unique
  *		inside a media_device, as it is composed by
- *		MEDIA_BITS_PER_TYPE to store the type plus
- *		MEDIA_BITS_PER_LOCAL_ID	to store a per-type ID
- *		(called as "local ID").
+ *		%MEDIA_BITS_PER_TYPE to store the type plus
+ *		%MEDIA_BITS_PER_ID to store the ID
  * @list:	List entry stored in one of the per-type mdev object lists
  *
  * All objects on the media graph should have this struct embedded
@@ -299,20 +298,20 @@ static inline u32 media_entity_id(struct media_entity *entity)
  */
 static inline enum media_gobj_type media_type(struct media_gobj *gobj)
 {
-	return gobj->id >> MEDIA_BITS_PER_LOCAL_ID;
+	return gobj->id >> MEDIA_BITS_PER_ID;
 }
 
-static inline u32 media_localid(struct media_gobj *gobj)
+static inline u32 media_id(struct media_gobj *gobj)
 {
-	return gobj->id & MEDIA_LOCAL_ID_MASK;
+	return gobj->id & MEDIA_ID_MASK;
 }
 
-static inline u32 media_gobj_gen_id(enum media_gobj_type type, u32 local_id)
+static inline u32 media_gobj_gen_id(enum media_gobj_type type, u64 local_id)
 {
 	u32 id;
 
-	id = type << MEDIA_BITS_PER_LOCAL_ID;
-	id |= local_id & MEDIA_LOCAL_ID_MASK;
+	id = type << MEDIA_BITS_PER_ID;
+	id |= local_id & MEDIA_ID_MASK;
 
 	return id;
 }
