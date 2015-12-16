@@ -261,7 +261,7 @@ static struct media_entity *stack_pop(struct media_entity_graph *graph)
 /*
  * TODO: Get rid of this.
  */
-#define MEDIA_ENTITY_MAX_PADS		63
+#define MEDIA_ENTITY_MAX_PADS		512
 
 /**
  * media_entity_graph_walk_init - Allocate resources for graph walk
