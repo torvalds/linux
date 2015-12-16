@@ -76,7 +76,7 @@ to_exynos_plane_state(struct drm_plane_state *state)
  * Exynos drm common overlay structure.
  *
  * @base: plane object
- * @zpos: order of overlay layer(z position).
+ * @index: hardware index of the overlay layer
  *
  * this structure is common to exynos SoC and its contents would be copied
  * to hardware specific overlay info.
@@ -85,7 +85,7 @@ to_exynos_plane_state(struct drm_plane_state *state)
 struct exynos_drm_plane {
 	struct drm_plane base;
 	const struct exynos_drm_plane_config *config;
-	unsigned int zpos;
+	unsigned int index;
 	struct drm_framebuffer *pending_fb;
 };
 

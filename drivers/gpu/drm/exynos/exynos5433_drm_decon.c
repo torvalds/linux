@@ -256,7 +256,7 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	decon_shadow_protect_win(ctx, plane->zpos, true);
+	decon_shadow_protect_win(ctx, plane->index, true);
 }
 
 #define BIT_VAL(x, e, s) (((x) & ((1 << ((e) - (s) + 1)) - 1)) << (s))
@@ -270,7 +270,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 				to_exynos_plane_state(plane->base.state);
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_framebuffer *fb = state->base.fb;
-	unsigned int win = plane->zpos;
+	unsigned int win = plane->index;
 	unsigned int bpp = fb->bits_per_pixel >> 3;
 	unsigned int pitch = fb->pitches[0];
 	dma_addr_t dma_addr = exynos_drm_fb_dma_addr(fb, 0);
@@ -320,7 +320,7 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 				struct exynos_drm_plane *plane)
 {
 	struct decon_context *ctx = crtc->ctx;
-	unsigned int win = plane->zpos;
+	unsigned int win = plane->index;
 
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
@@ -344,7 +344,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc,
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	decon_shadow_protect_win(ctx, plane->zpos, false);
+	decon_shadow_protect_win(ctx, plane->index, false);
 
 	if (ctx->out_type == IFTYPE_I80)
 		set_bit(BIT_WIN_UPDATED, &ctx->flags);
@@ -502,7 +502,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[win].zpos = win;
 		ctx->configs[win].type = decon_win_types[tmp];
 
-		ret = exynos_plane_init(drm_dev, &ctx->planes[win],
+		ret = exynos_plane_init(drm_dev, &ctx->planes[win], win,
 					1 << ctx->pipe, &ctx->configs[win]);
 		if (ret)
 			return ret;

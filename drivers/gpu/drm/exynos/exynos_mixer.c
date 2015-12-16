@@ -511,7 +511,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 
 	mixer_cfg_scan(ctx, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
-	mixer_cfg_layer(ctx, plane->zpos, true);
+	mixer_cfg_layer(ctx, plane->index, true);
 	mixer_run(ctx);
 
 	mixer_vsync_set_update(ctx, true);
@@ -537,7 +537,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	struct mixer_resources *res = &ctx->mixer_res;
 	struct drm_framebuffer *fb = state->base.fb;
 	unsigned long flags;
-	unsigned int win = plane->zpos;
+	unsigned int win = plane->index;
 	unsigned int x_ratio = 0, y_ratio = 0;
 	unsigned int src_x_offset, src_y_offset, dst_x_offset, dst_y_offset;
 	dma_addr_t dma_addr;
@@ -956,12 +956,12 @@ static void mixer_update_plane(struct exynos_drm_crtc *crtc,
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 
-	DRM_DEBUG_KMS("win: %d\n", plane->zpos);
+	DRM_DEBUG_KMS("win: %d\n", plane->index);
 
 	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
 
-	if (plane->zpos > 1 && mixer_ctx->vp_enabled)
+	if (plane->index > 1 && mixer_ctx->vp_enabled)
 		vp_video_buffer(mixer_ctx, plane);
 	else
 		mixer_graph_buffer(mixer_ctx, plane);
@@ -974,7 +974,7 @@ static void mixer_disable_plane(struct exynos_drm_crtc *crtc,
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 	unsigned long flags;
 
-	DRM_DEBUG_KMS("win: %d\n", plane->zpos);
+	DRM_DEBUG_KMS("win: %d\n", plane->index);
 
 	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
@@ -982,7 +982,7 @@ static void mixer_disable_plane(struct exynos_drm_crtc *crtc,
 	spin_lock_irqsave(&res->reg_slock, flags);
 	mixer_vsync_set_update(mixer_ctx, false);
 
-	mixer_cfg_layer(mixer_ctx, plane->zpos, false);
+	mixer_cfg_layer(mixer_ctx, plane->index, false);
 
 	mixer_vsync_set_update(mixer_ctx, true);
 	spin_unlock_irqrestore(&res->reg_slock, flags);
@@ -1160,7 +1160,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 		if (i == VP_DEFAULT_WIN && !ctx->vp_enabled)
 			continue;
 
-		ret = exynos_plane_init(drm_dev, &ctx->planes[i],
+		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
 					1 << ctx->pipe, &plane_configs[i]);
 		if (ret)
 			return ret;

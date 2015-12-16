@@ -280,7 +280,7 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
 
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane,
-		      unsigned long possible_crtcs,
+		      unsigned int index, unsigned long possible_crtcs,
 		      const struct exynos_drm_plane_config *config)
 {
 	int err;
@@ -298,7 +298,7 @@ int exynos_plane_init(struct drm_device *dev,
 
 	drm_plane_helper_add(&exynos_plane->base, &plane_helper_funcs);
 
-	exynos_plane->zpos = config->zpos;
+	exynos_plane->index = index;
 	exynos_plane->config = config;
 
 	if (config->type == DRM_PLANE_TYPE_OVERLAY)
