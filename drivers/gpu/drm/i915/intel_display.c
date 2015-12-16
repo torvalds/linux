@@ -13684,6 +13684,19 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	drm_atomic_state_free(state);
 
+	/* As one of the primary mmio accessors, KMS has a high likelihood
+	 * of triggering bugs in unclaimed access. After we finish
+	 * modesetting, see if an error has been flagged, and if so
+	 * enable debugging for the next modeset - and hope we catch
+	 * the culprit.
+	 *
+	 * XXX note that we assume display power is on at this point.
+	 * This might hold true now but we need to add pm helper to check
+	 * unclaimed only when the hardware is on, as atomic commits
+	 * can happen also when the device is completely off.
+	 */
+	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
+
 	return 0;
 }
 

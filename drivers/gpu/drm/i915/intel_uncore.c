@@ -619,22 +619,6 @@ hsw_unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void
-hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
-{
-	static bool mmio_debug_once = true;
-
-	if (i915.mmio_debug || !mmio_debug_once)
-		return;
-
-	if (check_for_unclaimed_mmio(dev_priv)) {
-		DRM_DEBUG("Unclaimed register detected, "
-			  "enabling oneshot unclaimed register reporting. "
-			  "Please use i915.mmio_debug=N for more information.\n");
-		i915.mmio_debug = mmio_debug_once--;
-	}
-}
-
 #define GEN2_READ_HEADER(x) \
 	u##x val = 0; \
 	assert_rpm_wakelock_held(dev_priv);
@@ -914,7 +898,6 @@ hsw_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool t
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
-	hsw_unclaimed_reg_detect(dev_priv); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -949,7 +932,6 @@ gen8_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool 
 		__force_wake_get(dev_priv, FORCEWAKE_RENDER); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
-	hsw_unclaimed_reg_detect(dev_priv); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -1019,7 +1001,6 @@ gen9_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, \
 		__force_wake_get(dev_priv, fw_engine); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
-	hsw_unclaimed_reg_detect(dev_priv); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -1238,6 +1219,8 @@ void intel_uncore_init(struct drm_device *dev)
 	intel_uncore_ellc_detect(dev);
 	intel_uncore_fw_domains_init(dev);
 	__intel_uncore_early_sanitize(dev, false);
+
+	dev_priv->uncore.unclaimed_mmio_check = 1;
 
 	switch (INTEL_INFO(dev)->gen) {
 	default:
@@ -1599,4 +1582,20 @@ bool intel_has_gpu_reset(struct drm_device *dev)
 bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv)
 {
 	return check_for_unclaimed_mmio(dev_priv);
+}
+
+void
+intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
+{
+	if (unlikely(i915.mmio_debug ||
+		     dev_priv->uncore.unclaimed_mmio_check <= 0))
+		return;
+
+	if (unlikely(intel_uncore_unclaimed_mmio(dev_priv))) {
+		DRM_DEBUG("Unclaimed register detected, "
+			  "enabling oneshot unclaimed register reporting. "
+			  "Please use i915.mmio_debug=N for more information.\n");
+		i915.mmio_debug++;
+		dev_priv->uncore.unclaimed_mmio_check--;
+	}
 }

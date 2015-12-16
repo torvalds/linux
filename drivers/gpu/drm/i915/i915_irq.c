@@ -2188,11 +2188,6 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	/* We get interrupts on unclaimed registers, so check for this before we
-	 * do any I915_{READ,WRITE}. */
-	if (intel_uncore_unclaimed_mmio(dev_priv))
-		DRM_ERROR("Unclaimed register before interrupt\n");
-
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
 	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
@@ -3080,6 +3075,12 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	 * sure that we hold a reference when this work is running.
 	 */
 	DISABLE_RPM_WAKEREF_ASSERTS(dev_priv);
+
+	/* As enabling the GPU requires fairly extensive mmio access,
+	 * periodically arm the mmio checker to see if we are triggering
+	 * any invalid access.
+	 */
+	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	for_each_ring(ring, dev_priv, i) {
 		u64 acthd;
