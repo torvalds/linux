@@ -81,6 +81,11 @@
 	};
 };
 
+&clks {
+	assigned-clocks = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <786432000>;
+};
+
 &cpu0 {
 	/*
 	 * on i.MX6UL, no seperated VDD_ARM_IN and VDD_SOC_IN,
