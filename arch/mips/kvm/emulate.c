@@ -20,6 +20,7 @@
 #include <linux/random.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
+#include <asm/cacheops.h>
 #include <asm/cpu-info.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -1544,19 +1545,6 @@ int kvm_mips_sync_icache(unsigned long va, struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-#define MIPS_CACHE_OP_INDEX_INV         0x0
-#define MIPS_CACHE_OP_INDEX_LD_TAG      0x1
-#define MIPS_CACHE_OP_INDEX_ST_TAG      0x2
-#define MIPS_CACHE_OP_IMP               0x3
-#define MIPS_CACHE_OP_HIT_INV           0x4
-#define MIPS_CACHE_OP_FILL_WB_INV       0x5
-#define MIPS_CACHE_OP_HIT_HB            0x6
-#define MIPS_CACHE_OP_FETCH_LOCK        0x7
-
-#define MIPS_CACHE_ICACHE               0x0
-#define MIPS_CACHE_DCACHE               0x1
-#define MIPS_CACHE_SEC                  0x3
-
 enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 					     uint32_t cause,
 					     struct kvm_run *run,
@@ -1581,8 +1569,8 @@ enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 	base = (inst >> 21) & 0x1f;
 	op_inst = (inst >> 16) & 0x1f;
 	offset = (int16_t)inst;
-	cache = (inst >> 16) & 0x3;
-	op = (inst >> 18) & 0x7;
+	cache = op_inst & CacheOp_Cache;
+	op = op_inst & CacheOp_Op;
 
 	va = arch->gprs[base] + offset;
 
@@ -1594,14 +1582,14 @@ enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 	 * invalidate the caches entirely by stepping through all the
 	 * ways/indexes
 	 */
-	if (op == MIPS_CACHE_OP_INDEX_INV) {
+	if (op == Index_Writeback_Inv) {
 		kvm_debug("@ %#lx/%#lx CACHE (cache: %#x, op: %#x, base[%d]: %#lx, offset: %#x\n",
 			  vcpu->arch.pc, vcpu->arch.gprs[31], cache, op, base,
 			  arch->gprs[base], offset);
 
-		if (cache == MIPS_CACHE_DCACHE)
+		if (cache == Cache_D)
 			r4k_blast_dcache();
-		else if (cache == MIPS_CACHE_ICACHE)
+		else if (cache == Cache_I)
 			r4k_blast_icache();
 		else {
 			kvm_err("%s: unsupported CACHE INDEX operation\n",
@@ -1674,9 +1662,7 @@ enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 
 skip_fault:
 	/* XXXKYMA: Only a subset of cache ops are supported, used by Linux */
-	if (cache == MIPS_CACHE_DCACHE
-	    && (op == MIPS_CACHE_OP_FILL_WB_INV
-		|| op == MIPS_CACHE_OP_HIT_INV)) {
+	if (op_inst == Hit_Writeback_Inv_D || op_inst == Hit_Invalidate_D) {
 		flush_dcache_line(va);
 
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
@@ -1686,7 +1672,7 @@ skip_fault:
 		 */
 		kvm_mips_trans_cache_va(inst, opc, vcpu);
 #endif
-	} else if (op == MIPS_CACHE_OP_HIT_INV && cache == MIPS_CACHE_ICACHE) {
+	} else if (op_inst == Hit_Invalidate_I) {
 		flush_dcache_line(va);
 		flush_icache_line(va);
 
