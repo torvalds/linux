@@ -383,7 +383,13 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 
 	mutex_lock(&mdev->graph_mutex);
 
-	media_entity_graph_walk_start(graph, entity);
+	ret = media_entity_graph_walk_init(&pipe->graph, mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		return ret;
+	}
+
+	media_entity_graph_walk_start(&pipe->graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(graph))) {
 		DECLARE_BITMAP(active, MEDIA_ENTITY_MAX_PADS);
@@ -481,6 +487,8 @@ error:
 			break;
 	}
 
+	media_entity_graph_walk_cleanup(graph);
+
 	mutex_unlock(&mdev->graph_mutex);
 
 	return ret;
@@ -501,6 +509,8 @@ void media_entity_pipeline_stop(struct media_entity *entity)
 		if (entity->stream_count == 0)
 			entity->pipe = NULL;
 	}
+
+	media_entity_graph_walk_cleanup(graph);
 
 	mutex_unlock(&mdev->graph_mutex);
 }
