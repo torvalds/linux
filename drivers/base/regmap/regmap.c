@@ -1513,7 +1513,7 @@ int regmap_write(struct regmap *map, unsigned int reg, unsigned int val)
 {
 	int ret;
 
-	if (reg % map->reg_stride)
+	if (!IS_ALIGNED(reg, map->reg_stride))
 		return -EINVAL;
 
 	map->lock(map->lock_arg);
@@ -1540,7 +1540,7 @@ int regmap_write_async(struct regmap *map, unsigned int reg, unsigned int val)
 {
 	int ret;
 
-	if (reg % map->reg_stride)
+	if (!IS_ALIGNED(reg, map->reg_stride))
 		return -EINVAL;
 
 	map->lock(map->lock_arg);
@@ -1714,7 +1714,7 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 
 	if (map->bus && !map->format.parse_inplace)
 		return -EINVAL;
-	if (reg % map->reg_stride)
+	if (!IS_ALIGNED(reg, map->reg_stride))
 		return -EINVAL;
 
 	/*
@@ -1983,7 +1983,7 @@ static int _regmap_multi_reg_write(struct regmap *map,
 			int reg = regs[i].reg;
 			if (!map->writeable_reg(map->dev, reg))
 				return -EINVAL;
-			if (reg % map->reg_stride)
+			if (!IS_ALIGNED(reg, map->reg_stride))
 				return -EINVAL;
 		}
 
@@ -2133,7 +2133,7 @@ int regmap_raw_write_async(struct regmap *map, unsigned int reg,
 
 	if (val_len % map->format.val_bytes)
 		return -EINVAL;
-	if (reg % map->reg_stride)
+	if (!IS_ALIGNED(reg, map->reg_stride))
 		return -EINVAL;
 
 	map->lock(map->lock_arg);
@@ -2260,7 +2260,7 @@ int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val)
 {
 	int ret;
 
-	if (reg % map->reg_stride)
+	if (!IS_ALIGNED(reg, map->reg_stride))
 		return -EINVAL;
 
 	map->lock(map->lock_arg);
@@ -2296,7 +2296,7 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		return -EINVAL;
 	if (val_len % map->format.val_bytes)
 		return -EINVAL;
-	if (reg % map->reg_stride)
+	if (!IS_ALIGNED(reg, map->reg_stride))
 		return -EINVAL;
 	if (val_count == 0)
 		return -EINVAL;
@@ -2414,7 +2414,7 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 	size_t val_bytes = map->format.val_bytes;
 	bool vol = regmap_volatile_range(map, reg, val_count);
 
-	if (reg % map->reg_stride)
+	if (!IS_ALIGNED(reg, map->reg_stride))
 		return -EINVAL;
 
 	if (map->bus && map->format.parse_inplace && (vol || map->cache_type == REGCACHE_NONE)) {
