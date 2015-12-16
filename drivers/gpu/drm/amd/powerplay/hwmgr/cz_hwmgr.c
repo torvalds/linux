@@ -884,7 +884,7 @@ static int cz_tf_update_low_mem_pstate(struct pp_hwmgr *hwmgr,
 		if (pnew_state->action == FORCE_HIGH)
 			cz_nbdpm_pstate_enable_disable(hwmgr, false, disable_switch);
 		else if (pnew_state->action == CANCEL_FORCE_HIGH)
-			cz_nbdpm_pstate_enable_disable(hwmgr, false, disable_switch);
+			cz_nbdpm_pstate_enable_disable(hwmgr, true, disable_switch);
 		else
 			cz_nbdpm_pstate_enable_disable(hwmgr, enable_low_mem_state, disable_switch);
 	}
