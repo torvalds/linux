@@ -4730,27 +4730,24 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 
 	desc->tag = cpu_to_be32(RDP_PORT_SPEED_DESC_TAG);
 
-	switch (phba->sli4_hba.link_state.speed) {
-	case LPFC_FC_LA_SPEED_1G:
+	switch (phba->fc_linkspeed) {
+	case LPFC_LINK_SPEED_1GHZ:
 		rdp_speed = RDP_PS_1GB;
 		break;
-	case LPFC_FC_LA_SPEED_2G:
+	case LPFC_LINK_SPEED_2GHZ:
 		rdp_speed = RDP_PS_2GB;
 		break;
-	case LPFC_FC_LA_SPEED_4G:
+	case LPFC_LINK_SPEED_4GHZ:
 		rdp_speed = RDP_PS_4GB;
 		break;
-	case LPFC_FC_LA_SPEED_8G:
+	case LPFC_LINK_SPEED_8GHZ:
 		rdp_speed = RDP_PS_8GB;
 		break;
-	case LPFC_FC_LA_SPEED_10G:
+	case LPFC_LINK_SPEED_10GHZ:
 		rdp_speed = RDP_PS_10GB;
 		break;
-	case LPFC_FC_LA_SPEED_16G:
+	case LPFC_LINK_SPEED_16GHZ:
 		rdp_speed = RDP_PS_16GB;
-		break;
-	case LPFC_FC_LA_SPEED_32G:
-		rdp_speed = RDP_PS_32GB;
 		break;
 	default:
 		rdp_speed = RDP_PS_UNKNOWN;
