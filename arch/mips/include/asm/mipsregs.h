@@ -420,12 +420,20 @@
 #define EXCCODE_CPU		11	/* Coprocessor unusable */
 #define EXCCODE_OV		12	/* Arithmetic overflow */
 #define EXCCODE_TR		13	/* Trap instruction */
-#define EXCCODE_VCEI		14	/* Virtual coherency exception */
 #define EXCCODE_MSAFPE		14	/* MSA floating point exception */
 #define EXCCODE_FPE		15	/* Floating point exception */
+#define EXCCODE_TLBRI		19	/* TLB Read-Inhibit exception */
+#define EXCCODE_TLBXI		20	/* TLB Execution-Inhibit exception */
 #define EXCCODE_MSADIS		21	/* MSA disabled exception */
+#define EXCCODE_MDMX		22	/* MDMX unusable exception */
 #define EXCCODE_WATCH		23	/* Watch address reference */
-#define EXCCODE_VCED		31	/* Virtual coherency data */
+#define EXCCODE_MCHECK		24	/* Machine check */
+#define EXCCODE_THREAD		25	/* Thread exceptions (MT) */
+#define EXCCODE_DSPDIS		26	/* DSP disabled exception */
+#define EXCCODE_GE		27	/* Virtualized guest exception (VZ) */
+
+/* Implementation specific trap codes used by MIPS cores */
+#define MIPS_EXCCODE_TLBPAR	16	/* TLB parity error exception */
 
 /*
  * Bits in the coprocessor 0 config register.
