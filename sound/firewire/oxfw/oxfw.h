@@ -35,9 +35,6 @@ struct device_info {
 	const char *driver_name;
 	const char *vendor_name;
 	const char *model_name;
-	unsigned int mixer_channels;
-	u8 mute_fb_id;
-	u8 volume_fb_id;
 };
 
 /* This is an arbitrary number for convinience. */
@@ -142,4 +139,4 @@ int snd_oxfw_create_midi(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_hwdep(struct snd_oxfw *oxfw);
 
-int snd_oxfw_add_spkr(struct snd_oxfw *oxfw);
+int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie);

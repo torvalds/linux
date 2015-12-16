@@ -12,6 +12,10 @@ struct fw_spkr {
 	s16 volume[6];
 	s16 volume_min;
 	s16 volume_max;
+
+	unsigned int mixer_channels;
+	u8 mute_fb_id;
+	u8 volume_fb_id;
 };
 
 enum control_action { CTL_READ, CTL_WRITE };
@@ -162,8 +166,8 @@ static int spkr_mute_put(struct snd_kcontrol *control,
 	if (mute == spkr->mute)
 		return 0;
 
-	err = avc_audio_feature_mute(oxfw->unit, oxfw->device_info->mute_fb_id,
-				     &mute, CTL_WRITE);
+	err = avc_audio_feature_mute(oxfw->unit, spkr->mute_fb_id, &mute,
+				     CTL_WRITE);
 	if (err < 0)
 		return err;
 	spkr->mute = mute;
@@ -178,7 +182,7 @@ static int spkr_volume_info(struct snd_kcontrol *control,
 	struct fw_spkr *spkr = oxfw->spec;
 
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = oxfw->device_info->mixer_channels;
+	info->count = spkr->mixer_channels;
 	info->value.integer.min = spkr->volume_min;
 	info->value.integer.max = spkr->volume_max;
 
@@ -194,7 +198,7 @@ static int spkr_volume_get(struct snd_kcontrol *control,
 	struct fw_spkr *spkr = oxfw->spec;
 	unsigned int i;
 
-	for (i = 0; i < oxfw->device_info->mixer_channels; ++i)
+	for (i = 0; i < spkr->mixer_channels; ++i)
 		value->value.integer.value[channel_map[i]] = spkr->volume[i];
 
 	return 0;
@@ -210,7 +214,7 @@ static int spkr_volume_put(struct snd_kcontrol *control,
 	s16 volume;
 	int err;
 
-	for (i = 0; i < oxfw->device_info->mixer_channels; ++i) {
+	for (i = 0; i < spkr->mixer_channels; ++i) {
 		if (value->value.integer.value[i] < spkr->volume_min ||
 		    value->value.integer.value[i] > spkr->volume_max)
 			return -EINVAL;
@@ -220,7 +224,7 @@ static int spkr_volume_put(struct snd_kcontrol *control,
 	}
 
 	changed_channels = 0;
-	for (i = 0; i < oxfw->device_info->mixer_channels; ++i)
+	for (i = 0; i < spkr->mixer_channels; ++i)
 		if (value->value.integer.value[channel_map[i]] !=
 							spkr->volume[i])
 			changed_channels |= 1 << (i + 1);
@@ -228,12 +232,11 @@ static int spkr_volume_put(struct snd_kcontrol *control,
 	if (equal_values && changed_channels != 0)
 		changed_channels = 1 << 0;
 
-	for (i = 0; i <= oxfw->device_info->mixer_channels; ++i) {
+	for (i = 0; i <= spkr->mixer_channels; ++i) {
 		volume = value->value.integer.value[channel_map[i ? i - 1 : 0]];
 		if (changed_channels & (1 << i)) {
 			err = avc_audio_feature_volume(oxfw->unit,
-						  oxfw->device_info->mute_fb_id,
-						  &volume,
+						  spkr->volume_fb_id, &volume,
 						  i, CTL_CURRENT, CTL_WRITE);
 			if (err < 0)
 				return err;
@@ -245,7 +248,7 @@ static int spkr_volume_put(struct snd_kcontrol *control,
 	return changed_channels != 0;
 }
 
-int snd_oxfw_add_spkr(struct snd_oxfw *oxfw)
+int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie)
 {
 	static const struct snd_kcontrol_new controls[] = {
 		{
@@ -272,30 +275,35 @@ int snd_oxfw_add_spkr(struct snd_oxfw *oxfw)
 		return -ENOMEM;
 	oxfw->spec = spkr;
 
-	err = avc_audio_feature_volume(oxfw->unit,
-				       oxfw->device_info->volume_fb_id,
-				       &spkr->volume_min,
-				       0, CTL_MIN, CTL_READ);
+	if (is_lacie) {
+		spkr->mixer_channels = 1;
+		spkr->mute_fb_id = 0x01;
+		spkr->volume_fb_id = 0x01;
+	} else {
+		spkr->mixer_channels = 6;
+		spkr->mute_fb_id = 0x01;
+		spkr->volume_fb_id = 0x02;
+	}
+
+	err = avc_audio_feature_volume(oxfw->unit, spkr->volume_fb_id,
+				       &spkr->volume_min, 0, CTL_MIN, CTL_READ);
 	if (err < 0)
 		return err;
-	err = avc_audio_feature_volume(oxfw->unit,
-				       oxfw->device_info->volume_fb_id,
-				       &spkr->volume_max,
-				       0, CTL_MAX, CTL_READ);
+	err = avc_audio_feature_volume(oxfw->unit, spkr->volume_fb_id,
+				       &spkr->volume_max, 0, CTL_MAX, CTL_READ);
 	if (err < 0)
 		return err;
 
-	err = avc_audio_feature_mute(oxfw->unit, oxfw->device_info->mute_fb_id,
-				     &spkr->mute, CTL_READ);
+	err = avc_audio_feature_mute(oxfw->unit, spkr->mute_fb_id, &spkr->mute,
+				     CTL_READ);
 	if (err < 0)
 		return err;
 
-	first_ch = oxfw->device_info->mixer_channels == 1 ? 0 : 1;
-	for (i = 0; i < oxfw->device_info->mixer_channels; ++i) {
-		err = avc_audio_feature_volume(oxfw->unit,
-					  oxfw->device_info->volume_fb_id,
-					  &spkr->volume[i],
-					  first_ch + i, CTL_CURRENT, CTL_READ);
+	first_ch = spkr->mixer_channels == 1 ? 0 : 1;
+	for (i = 0; i < spkr->mixer_channels; ++i) {
+		err = avc_audio_feature_volume(oxfw->unit, spkr->volume_fb_id,
+					       &spkr->volume[i], first_ch + i,
+					       CTL_CURRENT, CTL_READ);
 		if (err < 0)
 			return err;
 	}

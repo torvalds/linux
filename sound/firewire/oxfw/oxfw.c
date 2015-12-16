@@ -147,12 +147,10 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 	 * Add ALSA control elements for two models to keep compatibility to
 	 * old firewire-speaker module.
 	 */
-	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN ||
-	    oxfw->entry->vendor_id == VENDOR_LACIE) {
-		oxfw->device_info =
-			(const struct device_info *)oxfw->entry->driver_data;
-		return snd_oxfw_add_spkr(oxfw);
-	}
+	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN)
+		return snd_oxfw_add_spkr(oxfw, false);
+	if (oxfw->entry->vendor_id == VENDOR_LACIE)
+		return snd_oxfw_add_spkr(oxfw, true);
 
 	/*
 	 * TASCAM FireOne has physical control and requires a pair of additional
@@ -285,18 +283,12 @@ static const struct device_info griffin_firewave = {
 	.driver_name = "FireWave",
 	.vendor_name = "Griffin",
 	.model_name = "FireWave",
-	.mixer_channels = 6,
-	.mute_fb_id   = 0x01,
-	.volume_fb_id = 0x02,
 };
 
 static const struct device_info lacie_speakers = {
 	.driver_name = "FWSpeakers",
 	.vendor_name = "LaCie",
 	.model_name = "FireWire Speakers",
-	.mixer_channels = 1,
-	.mute_fb_id   = 0x01,
-	.volume_fb_id = 0x01,
 };
 
 static const struct ieee1394_device_id oxfw_id_table[] = {
