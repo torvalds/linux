@@ -241,7 +241,7 @@ static int isp_video_get_graph_data(struct isp_video *video,
 	while ((entity = media_entity_graph_walk_next(&graph))) {
 		struct isp_video *__video;
 
-		pipe->entities |= 1 << media_entity_id(entity);
+		media_entity_enum_set(&pipe->ent_enum, entity);
 
 		if (far_end != NULL)
 			continue;
@@ -901,7 +901,6 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 	struct v4l2_ext_control ctrl;
 	unsigned int i;
 	int ret;
-	u32 id;
 
 	/* Memory-to-memory pipelines have no external subdev. */
 	if (pipe->input != NULL)
@@ -909,7 +908,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 
 	for (i = 0; i < ARRAY_SIZE(ents); i++) {
 		/* Is the entity part of the pipeline? */
-		if (!(pipe->entities & (1 << media_entity_id(ents[i]))))
+		if (!media_entity_enum_test(&pipe->ent_enum, ents[i]))
 			continue;
 
 		/* ISP entities have always sink pad == 0. Find source. */
@@ -961,8 +960,8 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 
 	pipe->external_rate = ctrl.value64;
 
-	id = media_entity_id(&isp->isp_ccdc.subdev.entity);
-	if (pipe->entities & (1 << id)) {
+	if (media_entity_enum_test(&pipe->ent_enum,
+				   &isp->isp_ccdc.subdev.entity)) {
 		unsigned int rate = UINT_MAX;
 		/*
 		 * Check that maximum allowed CCDC pixel rate isn't
@@ -1028,7 +1027,9 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	pipe = video->video.entity.pipe
 	     ? to_isp_pipeline(&video->video.entity) : &video->pipe;
 
-	pipe->entities = 0;
+	ret = media_entity_enum_init(&pipe->ent_enum, &video->isp->media_dev);
+	if (ret)
+		goto err_enum_init;
 
 	/* TODO: Implement PM QoS */
 	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
@@ -1102,6 +1103,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	}
 
 	mutex_unlock(&video->stream_lock);
+
 	return 0;
 
 err_set_stream:
@@ -1122,7 +1124,11 @@ err_pipeline_start:
 	INIT_LIST_HEAD(&video->dmaqueue);
 	video->queue = NULL;
 
+	media_entity_enum_cleanup(&pipe->ent_enum);
+
+err_enum_init:
 	mutex_unlock(&video->stream_lock);
+
 	return ret;
 }
 
@@ -1173,6 +1179,8 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	/* TODO: Implement PM QoS */
 	media_entity_pipeline_stop(&video->video.entity);
+
+	media_entity_enum_cleanup(&pipe->ent_enum);
 
 done:
 	mutex_unlock(&video->stream_lock);

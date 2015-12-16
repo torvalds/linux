@@ -896,7 +896,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	 * starting entities if the pipeline won't start anyway (those entities
 	 * would then likely fail to stop, making the problem worse).
 	 */
-	if (pipe->entities & isp->crashed)
+	if (media_entity_enum_intersects(&pipe->ent_enum, &isp->crashed))
 		return -EIO;
 
 	spin_lock_irqsave(&pipe->lock, flags);
@@ -989,7 +989,6 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 	struct v4l2_subdev *subdev;
 	int failure = 0;
 	int ret;
-	u32 id;
 
 	/*
 	 * We need to stop all the modules after CCDC first or they'll
@@ -1041,10 +1040,9 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 		if (ret) {
 			dev_info(isp->dev, "Unable to stop %s\n", subdev->name);
 			isp->stop_failure = true;
-			if (subdev == &isp->isp_prev.subdev) {
-				id = media_entity_id(&subdev->entity);
-				isp->crashed |= 1U << id;
-			}
+			if (subdev == &isp->isp_prev.subdev)
+				media_entity_enum_set(&isp->crashed,
+						      &subdev->entity);
 			failure = -ETIMEDOUT;
 		}
 	}
@@ -1250,7 +1248,7 @@ static int isp_reset(struct isp_device *isp)
 	}
 
 	isp->stop_failure = false;
-	isp->crashed = 0;
+	media_entity_enum_zero(&isp->crashed);
 	return 0;
 }
 
@@ -1661,7 +1659,8 @@ static void __omap3isp_put(struct isp_device *isp, bool save_ctx)
 		/* Reset the ISP if an entity has failed to stop. This is the
 		 * only way to recover from such conditions.
 		 */
-		if (isp->crashed || isp->stop_failure)
+		if (!media_entity_enum_empty(&isp->crashed) ||
+		    isp->stop_failure)
 			isp_reset(isp);
 		isp_disable_clocks(isp);
 	}
@@ -2219,6 +2218,8 @@ static int isp_remove(struct platform_device *pdev)
 	isp_detach_iommu(isp);
 	__omap3isp_put(isp, false);
 
+	media_entity_enum_cleanup(&isp->crashed);
+
 	return 0;
 }
 
@@ -2365,6 +2366,10 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 	struct v4l2_subdev *sd;
 	struct isp_bus_cfg *bus;
 	int ret;
+
+	ret = media_entity_enum_init(&isp->crashed, &isp->media_dev);
+	if (ret)
+		return ret;
 
 	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
 		/* Only try to link entities whose interface was set on bound */
