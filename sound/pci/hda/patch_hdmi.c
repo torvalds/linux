@@ -146,6 +146,11 @@ struct hdmi_spec {
 	/* pcm_bitmap means which pcms have been assigned to pins*/
 	unsigned long pcm_bitmap;
 	int pcm_used;	/* counter of pcm_rec[] */
+	/* bitmap shows whether the pcm is opened in user space
+	 * bit 0 means the first playback PCM (PCM3);
+	 * bit 1 means the second playback PCM, and so on.
+	 */
+	unsigned long pcm_in_use;
 	unsigned int channels_max; /* max over all cvts */
 
 	struct hdmi_eld temp_eld;
@@ -1525,9 +1530,13 @@ static int hdmi_pcm_open_no_pin(struct hda_pcm_stream *hinfo,
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int cvt_idx;
+	int cvt_idx, pcm_idx;
 	struct hdmi_spec_per_cvt *per_cvt = NULL;
 	int err;
+
+	pcm_idx = hinfo_to_pcm_index(codec, hinfo);
+	if (pcm_idx < 0)
+		return -EINVAL;
 
 	err = hdmi_choose_cvt(codec, -1, &cvt_idx, NULL);
 	if (err)
@@ -1539,6 +1548,7 @@ static int hdmi_pcm_open_no_pin(struct hda_pcm_stream *hinfo,
 
 	intel_not_share_assigned_cvt_nid(codec, 0, per_cvt->cvt_nid);
 
+	set_bit(pcm_idx, &spec->pcm_in_use);
 	/* todo: setup spdif ctls assign */
 
 	/* Initially set the converter's capabilities */
@@ -1607,7 +1617,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	/* Claim converter */
 	per_cvt->assigned = 1;
 
-
+	set_bit(pcm_idx, &spec->pcm_in_use);
 	per_pin = get_pin(spec, pin_idx);
 	per_pin->cvt_nid = per_cvt->cvt_nid;
 	hinfo->nid = per_cvt->cvt_nid;
@@ -1732,6 +1742,71 @@ static void hdmi_detach_hda_pcm(struct hdmi_spec *spec,
 		clear_bit(idx, &spec->pcm_bitmap);
 }
 
+static int hdmi_get_pin_cvt_mux(struct hdmi_spec *spec,
+		struct hdmi_spec_per_pin *per_pin, hda_nid_t cvt_nid)
+{
+	int mux_idx;
+
+	for (mux_idx = 0; mux_idx < per_pin->num_mux_nids; mux_idx++)
+		if (per_pin->mux_nids[mux_idx] == cvt_nid)
+			break;
+	return mux_idx;
+}
+
+static bool check_non_pcm_per_cvt(struct hda_codec *codec, hda_nid_t cvt_nid);
+
+static void hdmi_pcm_setup_pin(struct hdmi_spec *spec,
+			   struct hdmi_spec_per_pin *per_pin)
+{
+	struct hda_codec *codec = per_pin->codec;
+	struct hda_pcm *pcm;
+	struct hda_pcm_stream *hinfo;
+	struct snd_pcm_substream *substream;
+	int mux_idx;
+	bool non_pcm;
+
+	if (per_pin->pcm_idx >= 0 && per_pin->pcm_idx < spec->pcm_used)
+		pcm = spec->pcm_rec[per_pin->pcm_idx];
+	else
+		return;
+	if (!test_bit(per_pin->pcm_idx, &spec->pcm_in_use))
+		return;
+
+	/* hdmi audio only uses playback and one substream */
+	hinfo = pcm->stream;
+	substream = pcm->pcm->streams[0].substream;
+
+	per_pin->cvt_nid = hinfo->nid;
+
+	mux_idx = hdmi_get_pin_cvt_mux(spec, per_pin, hinfo->nid);
+	if (mux_idx < per_pin->num_mux_nids)
+		snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
+				AC_VERB_SET_CONNECT_SEL,
+				mux_idx);
+	snd_hda_spdif_ctls_assign(codec, per_pin->pcm_idx, hinfo->nid);
+
+	non_pcm = check_non_pcm_per_cvt(codec, hinfo->nid);
+	if (substream->runtime)
+		per_pin->channels = substream->runtime->channels;
+	per_pin->setup = true;
+	per_pin->mux_idx = mux_idx;
+
+	hdmi_setup_audio_infoframe(codec, per_pin, non_pcm);
+}
+
+static void hdmi_pcm_reset_pin(struct hdmi_spec *spec,
+			   struct hdmi_spec_per_pin *per_pin)
+{
+	if (per_pin->pcm_idx >= 0 && per_pin->pcm_idx < spec->pcm_used)
+		snd_hda_spdif_ctls_unassign(per_pin->codec, per_pin->pcm_idx);
+
+	per_pin->chmap_set = false;
+	memset(per_pin->chmap, 0, sizeof(per_pin->chmap));
+
+	per_pin->setup = false;
+	per_pin->channels = 0;
+}
+
 /* update per_pin ELD from the given new ELD;
  * setup info frame and notification accordingly
  */
@@ -1745,10 +1820,13 @@ static void update_eld(struct hda_codec *codec,
 	bool eld_changed;
 
 	if (spec->dyn_pcm_assign) {
-		if (eld->eld_valid)
+		if (eld->eld_valid) {
 			hdmi_attach_hda_pcm(spec, per_pin);
-		else
+			hdmi_pcm_setup_pin(spec, per_pin);
+		} else {
+			hdmi_pcm_reset_pin(spec, per_pin);
 			hdmi_detach_hda_pcm(spec, per_pin);
+		}
 	}
 
 	if (eld->eld_valid)
@@ -2159,6 +2237,7 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 		hinfo->nid = 0;
 
 		mutex_lock(&spec->pcm_lock);
+		clear_bit(pcm_idx, &spec->pcm_in_use);
 		pin_idx = hinfo_to_pin_index(codec, hinfo);
 		if (spec->dyn_pcm_assign && pin_idx < 0) {
 			mutex_unlock(&spec->pcm_lock);
