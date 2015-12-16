@@ -24,6 +24,10 @@ struct inet_diag_handler {
 	void		(*idiag_get_info)(struct sock *sk,
 					  struct inet_diag_msg *r,
 					  void *info);
+
+	int		(*destroy)(struct sk_buff *in_skb,
+				   const struct inet_diag_req_v2 *req);
+
 	__u16		idiag_type;
 	__u16		idiag_info_size;
 };
