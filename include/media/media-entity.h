@@ -705,6 +705,12 @@ struct media_entity *media_entity_get(struct media_entity *entity);
 
 __must_check int media_entity_graph_walk_init(
 	struct media_entity_graph *graph, struct media_device *mdev);
+
+/**
+ * media_entity_graph_walk_cleanup - Release resources used by graph walk.
+ *
+ * @graph: Media graph structure that will be used to walk the graph
+ */
 void media_entity_graph_walk_cleanup(struct media_entity_graph *graph);
 
 /**
