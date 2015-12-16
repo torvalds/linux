@@ -516,7 +516,7 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 		 * d-pad down   -> data[4] & 0x80
 		 * d-pad center -> data[3] & 0x01
 		 */
-		buttons = ((data[2] & 0xF0) << 7) |
+		buttons = ((data[2] >> 4) << 7) |
 		          ((data[1] & 0x04) << 6) |
 		          ((data[2] & 0x0F) << 2) |
 		          (data[1] & 0x03);
