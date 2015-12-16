@@ -2020,18 +2020,18 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 	}
 
 	switch (fll->arizona->type) {
+	case WM5102:
+	case WM8997:
+		return init_ratio;
 	case WM5110:
 	case WM8280:
 		if (fll->arizona->rev < 3 || sync)
 			return init_ratio;
 		break;
-	case WM8998:
-	case WM1814:
+	default:
 		if (sync)
 			return init_ratio;
 		break;
-	default:
-		return init_ratio;
 	}
 
 	cfg->fratio = init_ratio - 1;
