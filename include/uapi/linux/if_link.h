@@ -218,6 +218,7 @@ enum in6_addr_gen_mode {
 	IN6_ADDR_GEN_MODE_EUI64,
 	IN6_ADDR_GEN_MODE_NONE,
 	IN6_ADDR_GEN_MODE_STABLE_PRIVACY,
+	IN6_ADDR_GEN_MODE_RANDOM,
 };
 
 /* Bridge section */
