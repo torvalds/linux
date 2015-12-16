@@ -18,6 +18,8 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt)     "pseries-hotplug-cpu: " fmt
+
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -405,38 +407,67 @@ static bool dlpar_cpu_exists(struct device_node *parent, u32 drc_index)
 static ssize_t dlpar_cpu_add(u32 drc_index)
 {
 	struct device_node *dn, *parent;
-	int rc;
+	int rc, saved_rc;
+
+	pr_debug("Attempting to add CPU, drc index: %x\n", drc_index);
 
 	parent = of_find_node_by_path("/cpus");
-	if (!parent)
+	if (!parent) {
+		pr_warn("Failed to find CPU root node \"/cpus\"\n");
 		return -ENODEV;
+	}
 
 	if (dlpar_cpu_exists(parent, drc_index)) {
 		of_node_put(parent);
-		printk(KERN_WARNING "CPU with drc index %x already exists\n",
-		       drc_index);
+		pr_warn("CPU with drc index %x already exists\n", drc_index);
 		return -EINVAL;
 	}
 
 	rc = dlpar_acquire_drc(drc_index);
 	if (rc) {
+		pr_warn("Failed to acquire DRC, rc: %d, drc index: %x\n",
+			rc, drc_index);
 		of_node_put(parent);
 		return -EINVAL;
 	}
 
 	dn = dlpar_configure_connector(cpu_to_be32(drc_index), parent);
 	of_node_put(parent);
-	if (!dn)
+	if (!dn) {
+		pr_warn("Failed call to configure-connector, drc index: %x\n",
+			drc_index);
+		dlpar_release_drc(drc_index);
 		return -EINVAL;
+	}
 
 	rc = dlpar_attach_node(dn);
 	if (rc) {
-		dlpar_release_drc(drc_index);
-		dlpar_free_cc_nodes(dn);
-		return rc;
+		saved_rc = rc;
+		pr_warn("Failed to attach node %s, rc: %d, drc index: %x\n",
+			dn->name, rc, drc_index);
+
+		rc = dlpar_release_drc(drc_index);
+		if (!rc)
+			dlpar_free_cc_nodes(dn);
+
+		return saved_rc;
 	}
 
 	rc = dlpar_online_cpu(dn);
+	if (rc) {
+		saved_rc = rc;
+		pr_warn("Failed to online cpu %s, rc: %d, drc index: %x\n",
+			dn->name, rc, drc_index);
+
+		rc = dlpar_detach_node(dn);
+		if (!rc)
+			dlpar_release_drc(drc_index);
+
+		return saved_rc;
+	}
+
+	pr_debug("Successfully added CPU %s, drc index: %x\n", dn->name,
+		 drc_index);
 	return rc;
 }
 
@@ -500,19 +531,38 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 {
 	int rc;
 
+	pr_debug("Attemping to remove CPU %s, drc index: %x\n",
+		 dn->name, drc_index);
+
 	rc = dlpar_offline_cpu(dn);
-	if (rc)
+	if (rc) {
+		pr_warn("Failed to offline CPU %s, rc: %d\n", dn->name, rc);
 		return -EINVAL;
+	}
 
 	rc = dlpar_release_drc(drc_index);
-	if (rc)
+	if (rc) {
+		pr_warn("Failed to release drc (%x) for CPU %s, rc: %d\n",
+			drc_index, dn->name, rc);
+		dlpar_online_cpu(dn);
 		return rc;
+	}
 
 	rc = dlpar_detach_node(dn);
-	if (rc)
-		dlpar_acquire_drc(drc_index);
+	if (rc) {
+		int saved_rc = rc;
 
-	return rc;
+		pr_warn("Failed to detach CPU %s, rc: %d", dn->name, rc);
+
+		rc = dlpar_acquire_drc(drc_index);
+		if (!rc)
+			dlpar_online_cpu(dn);
+
+		return saved_rc;
+	}
+
+	pr_debug("Successfully removed CPU, drc index: %x\n", drc_index);
+	return 0;
 }
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
