@@ -68,6 +68,11 @@ struct irq_domain *domain;
 static bool m4_in_stop;
 
 
+void imx_mu_set_m4_run_mode(void)
+{
+	m4_in_stop = false;
+}
+
 bool imx_mu_is_m4_in_stop(void)
 {
 	return m4_in_stop;

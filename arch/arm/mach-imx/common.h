@@ -90,6 +90,7 @@ void mcc_receive_from_mu_buffer(unsigned int index, unsigned int *data);
 void mcc_send_via_mu_buffer(unsigned int index, unsigned int data);
 bool imx_mu_is_m4_in_low_freq(void);
 bool imx_mu_is_m4_in_stop(void);
+void imx_mu_set_m4_run_mode(void);
 int imx_mu_lpm_ready(bool ready);
 
 enum mxc_cpu_pwr_mode {
