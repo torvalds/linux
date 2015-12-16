@@ -140,6 +140,18 @@ static void bcm6328_led_set(struct led_classdev *led_cdev,
 	spin_unlock_irqrestore(led->lock, flags);
 }
 
+static unsigned long bcm6328_blink_delay(unsigned long delay)
+{
+	unsigned long bcm6328_delay;
+
+	bcm6328_delay = delay + BCM6328_LED_INTERVAL_MS / 2;
+	bcm6328_delay = bcm6328_delay / BCM6328_LED_INTERVAL_MS;
+	if (bcm6328_delay == 0)
+		bcm6328_delay = 1;
+
+	return bcm6328_delay;
+}
+
 static int bcm6328_blink_set(struct led_classdev *led_cdev,
 			     unsigned long *delay_on, unsigned long *delay_off)
 {
@@ -153,16 +165,14 @@ static int bcm6328_blink_set(struct led_classdev *led_cdev,
 	if (!*delay_off)
 		*delay_off = BCM6328_LED_DEF_DELAY;
 
-	if (*delay_on != *delay_off) {
+	delay = bcm6328_blink_delay(*delay_on);
+	if (delay != bcm6328_blink_delay(*delay_off)) {
 		dev_dbg(led_cdev->dev,
 			"fallback to soft blinking (delay_on != delay_off)\n");
 		return -EINVAL;
 	}
 
-	delay = *delay_on / BCM6328_LED_INTERVAL_MS;
-	if (delay == 0) {
-		delay = 1;
-	} else if (delay > BCM6328_LED_INTV_MASK) {
+	if (delay > BCM6328_LED_INTV_MASK) {
 		dev_dbg(led_cdev->dev,
 			"fallback to soft blinking (delay > %ums)\n",
 			BCM6328_LED_INTV_MASK * BCM6328_LED_INTERVAL_MS);
