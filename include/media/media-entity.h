@@ -73,13 +73,6 @@ struct media_gobj {
 
 #define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
 
-/*
- * The number of pads can't be bigger than the number of entities,
- * as the worse-case scenario is to have one entity linked up to
- * 63 entities.
- */
-#define MEDIA_ENTITY_MAX_PADS		63
-
 /**
  * struct media_entity_enum - An enumeration of media entities.
  *

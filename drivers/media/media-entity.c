@@ -276,6 +276,11 @@ static struct media_entity *stack_pop(struct media_entity_graph *graph)
 #define link_top(en)	((en)->stack[(en)->top].link)
 #define stack_top(en)	((en)->stack[(en)->top].entity)
 
+/*
+ * TODO: Get rid of this.
+ */
+#define MEDIA_ENTITY_MAX_PADS		63
+
 /**
  * media_entity_graph_walk_init - Allocate resources for graph walk
  * @graph: Media graph structure that will be used to walk the graph
