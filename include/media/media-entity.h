@@ -103,7 +103,7 @@ struct media_entity_enum {
  * @stack:		Graph traversal stack; the stack contains information
  *			on the path the media entities to be walked and the
  *			links through which they were reached.
- * @entities:		Visited entities
+ * @ent_enum:		Visited entities
  * @top:		The top of the stack
  */
 struct media_entity_graph {
@@ -112,7 +112,7 @@ struct media_entity_graph {
 		struct list_head *link;
 	} stack[MEDIA_ENTITY_ENUM_MAX_DEPTH];
 
-	DECLARE_BITMAP(entities, MEDIA_ENTITY_ENUM_MAX_ID);
+	struct media_entity_enum ent_enum;
 	int top;
 };
 

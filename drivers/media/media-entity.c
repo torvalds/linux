@@ -296,7 +296,7 @@ static struct media_entity *stack_pop(struct media_entity_graph *graph)
 __must_check int media_entity_graph_walk_init(
 	struct media_entity_graph *graph, struct media_device *mdev)
 {
-	return 0;
+	return media_entity_enum_init(&graph->ent_enum, mdev);
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_init);
 
@@ -306,20 +306,18 @@ EXPORT_SYMBOL_GPL(media_entity_graph_walk_init);
  */
 void media_entity_graph_walk_cleanup(struct media_entity_graph *graph)
 {
+	media_entity_enum_cleanup(&graph->ent_enum);
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_cleanup);
 
 void media_entity_graph_walk_start(struct media_entity_graph *graph,
 				   struct media_entity *entity)
 {
+	media_entity_enum_zero(&graph->ent_enum);
+	media_entity_enum_set(&graph->ent_enum, entity);
+
 	graph->top = 0;
 	graph->stack[graph->top].entity = NULL;
-	bitmap_zero(graph->entities, MEDIA_ENTITY_ENUM_MAX_ID);
-
-	if (WARN_ON(media_entity_id(entity) >= MEDIA_ENTITY_ENUM_MAX_ID))
-		return;
-
-	__set_bit(media_entity_id(entity), graph->entities);
 	stack_push(graph, entity);
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_start);
@@ -350,11 +348,9 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 
 		/* Get the entity in the other end of the link . */
 		next = media_entity_other(entity, link);
-		if (WARN_ON(media_entity_id(next) >= MEDIA_ENTITY_ENUM_MAX_ID))
-			return NULL;
 
 		/* Has the entity already been visited? */
-		if (__test_and_set_bit(media_entity_id(next), graph->entities)) {
+		if (media_entity_enum_test_and_set(&graph->ent_enum, next)) {
 			link_top(graph) = link_top(graph)->next;
 			continue;
 		}
