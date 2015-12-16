@@ -1605,6 +1605,7 @@ struct skl_wm_level {
  * For more, read the Documentation/power/runtime_pm.txt.
  */
 struct i915_runtime_pm {
+	atomic_t wakeref_count;
 	bool suspended;
 	bool irqs_enabled;
 };
