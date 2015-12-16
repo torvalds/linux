@@ -674,8 +674,6 @@ lpfc_work_done(struct lpfc_hba *phba)
 				lpfc_mbox_timeout_handler(phba);
 			if (work_port_events & WORKER_FABRIC_BLOCK_TMO)
 				lpfc_unblock_fabric_iocbs(phba);
-			if (work_port_events & WORKER_FDMI_TMO)
-				lpfc_fdmi_timeout_handler(vport);
 			if (work_port_events & WORKER_RAMP_DOWN_QUEUE)
 				lpfc_ramp_down_queue_handler(phba);
 			if (work_port_events & WORKER_DELAYED_DISC_TMO)
@@ -5554,15 +5552,15 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			 ndlp->nlp_usg_map, ndlp);
 	/*
 	 * Start issuing Fabric-Device Management Interface (FDMI) command to
-	 * 0xfffffa (FDMI well known port) or Delay issuing FDMI command if
-	 * fdmi-on=2 (supporting RPA/hostnmae)
+	 * 0xfffffa (FDMI well known port).
+	 * DHBA -> DPRT -> RHBA -> RPA  (physical port)
+	 * DPRT -> RPRT (vports)
 	 */
-
-	if (vport->cfg_fdmi_on & LPFC_FDMI_REG_DELAY)
-		mod_timer(&vport->fc_fdmitmo,
-			  jiffies + msecs_to_jiffies(1000 * 60));
+	if (vport->port_type == LPFC_PHYSICAL_PORT)
+		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA, 0);
 	else
-		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
+		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DPRT, 0);
+
 
 	/* decrement the node reference count held for this callback
 	 * function.

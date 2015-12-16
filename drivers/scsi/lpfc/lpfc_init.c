@@ -1184,8 +1184,10 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			lpfc_rcv_seq_check_edtov(vports[i]);
+			lpfc_fdmi_num_disc_check(vports[i]);
+		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
 	if ((phba->link_state == LPFC_HBA_ERROR) ||
@@ -1290,6 +1292,10 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				jiffies +
 				msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
 		}
+	} else {
+			mod_timer(&phba->hb_tmofunc,
+				jiffies +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
 	}
 }
 
@@ -2621,7 +2627,6 @@ void
 lpfc_stop_vport_timers(struct lpfc_vport *vport)
 {
 	del_timer_sync(&vport->els_tmofunc);
-	del_timer_sync(&vport->fc_fdmitmo);
 	del_timer_sync(&vport->delayed_disc_tmo);
 	lpfc_can_disctmo(vport);
 	return;
@@ -3339,10 +3344,6 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	init_timer(&vport->fc_disctmo);
 	vport->fc_disctmo.function = lpfc_disc_timeout;
 	vport->fc_disctmo.data = (unsigned long)vport;
-
-	init_timer(&vport->fc_fdmitmo);
-	vport->fc_fdmitmo.function = lpfc_fdmi_tmo;
-	vport->fc_fdmitmo.data = (unsigned long)vport;
 
 	init_timer(&vport->els_tmofunc);
 	vport->els_tmofunc.function = lpfc_els_timeout;
@@ -6159,6 +6160,20 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	/* Put reference to SCSI host to driver's device private data */
 	pci_set_drvdata(phba->pcidev, shost);
 
+	/*
+	 * At this point we are fully registered with PSA. In addition,
+	 * any initial discovery should be completed.
+	 */
+	vport->load_flag |= FC_ALLOW_FDMI;
+	if (phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) {
+
+		/* Setup appropriate attribute masks */
+		vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
+		if (phba->cfg_fdmi_on == LPFC_FDMI_SMART_SAN)
+			vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
+		else
+			vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
+	}
 	return 0;
 }
 

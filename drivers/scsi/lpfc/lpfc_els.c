@@ -688,6 +688,21 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				sp->cmn.bbRcvSizeLsb;
 
 	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
+	if (fabric_param_changed) {
+		/* Reset FDMI attribute masks based on config parameter */
+		if (phba->cfg_fdmi_on == LPFC_FDMI_NO_SUPPORT) {
+			vport->fdmi_hba_mask = 0;
+			vport->fdmi_port_mask = 0;
+		} else {
+			/* Setup appropriate attribute masks */
+			vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
+			if (phba->cfg_fdmi_on == LPFC_FDMI_SMART_SAN)
+				vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
+			else
+				vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
+		}
+
+	}
 	memcpy(&vport->fabric_portname, &sp->portName,
 			sizeof(struct lpfc_name));
 	memcpy(&vport->fabric_nodename, &sp->nodeName,
@@ -4690,6 +4705,23 @@ lpfc_rdp_res_link_error(struct fc_rdp_link_error_status_desc *desc,
 	desc->length = cpu_to_be32(sizeof(desc->info));
 }
 
+int
+lpfc_rdp_res_fec_desc(struct fc_fec_rdp_desc *desc, READ_LNK_VAR *stat)
+{
+	if (bf_get(lpfc_read_link_stat_gec2, stat) == 0)
+		return 0;
+	desc->tag = cpu_to_be32(RDP_FEC_DESC_TAG);
+
+	desc->info.CorrectedBlocks =
+		cpu_to_be32(stat->fecCorrBlkCount);
+	desc->info.UncorrectableBlocks =
+		cpu_to_be32(stat->fecUncorrBlkCount);
+
+	desc->length = cpu_to_be32(sizeof(desc->info));
+
+	return sizeof(struct fc_fec_rdp_desc);
+}
+
 void
 lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 {
@@ -4800,7 +4832,7 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	struct ls_rjt *stat;
 	struct fc_rdp_res_frame *rdp_res;
 	uint32_t cmdsize;
-	int rc;
+	int rc, fec_size;
 
 	if (status != SUCCESS)
 		goto error;
@@ -4840,8 +4872,9 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	lpfc_rdp_res_diag_port_names(&rdp_res->diag_port_names_desc, phba);
 	lpfc_rdp_res_attach_port_names(&rdp_res->attached_port_names_desc,
 			vport, ndlp);
-	rdp_res->length = cpu_to_be32(RDP_DESC_PAYLOAD_SIZE);
-
+	fec_size = lpfc_rdp_res_fec_desc(&rdp_res->fec_desc,
+			&rdp_context->link_stat);
+	rdp_res->length = cpu_to_be32(fec_size + RDP_DESC_PAYLOAD_SIZE);
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
 
 	phba->fc_stat.elsXmitACC++;
@@ -7704,6 +7737,35 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	}
 }
 
+void
+lpfc_start_fdmi(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_nodelist *ndlp;
+
+	/* If this is the first time, allocate an ndlp and initialize
+	 * it. Otherwise, make sure the node is enabled and then do the
+	 * login.
+	 */
+	ndlp = lpfc_findnode_did(vport, FDMI_DID);
+	if (!ndlp) {
+		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		if (ndlp) {
+			lpfc_nlp_init(vport, ndlp, FDMI_DID);
+			ndlp->nlp_type |= NLP_FABRIC;
+		} else {
+			return;
+		}
+	}
+	if (!NLP_CHK_NODE_ACT(ndlp))
+		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_NPR_NODE);
+
+	if (ndlp) {
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_PLOGI_ISSUE);
+		lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
+	}
+}
+
 /**
  * lpfc_do_scr_ns_plogi - Issue a plogi to the name server for scr
  * @phba: pointer to lpfc hba data structure.
@@ -7720,7 +7782,7 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 void
 lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp, *ndlp_fdmi;
+	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	/*
@@ -7778,32 +7840,9 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		return;
 	}
 
-	if (vport->cfg_fdmi_on & LPFC_FDMI_SUPPORT) {
-		/* If this is the first time, allocate an ndlp and initialize
-		 * it. Otherwise, make sure the node is enabled and then do the
-		 * login.
-		 */
-		ndlp_fdmi = lpfc_findnode_did(vport, FDMI_DID);
-		if (!ndlp_fdmi) {
-			ndlp_fdmi = mempool_alloc(phba->nlp_mem_pool,
-						  GFP_KERNEL);
-			if (ndlp_fdmi) {
-				lpfc_nlp_init(vport, ndlp_fdmi, FDMI_DID);
-				ndlp_fdmi->nlp_type |= NLP_FABRIC;
-			} else
-				return;
-		}
-		if (!NLP_CHK_NODE_ACT(ndlp_fdmi))
-			ndlp_fdmi = lpfc_enable_node(vport,
-						     ndlp_fdmi,
-						     NLP_STE_NPR_NODE);
-
-		if (ndlp_fdmi) {
-			lpfc_nlp_set_state(vport, ndlp_fdmi,
-					   NLP_STE_PLOGI_ISSUE);
-			lpfc_issue_els_plogi(vport, ndlp_fdmi->nlp_DID, 0);
-		}
-	}
+	if ((phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) &&
+	    (vport->load_flag & FC_ALLOW_FDMI))
+		lpfc_start_fdmi(vport);
 }
 
 /**
