@@ -59,6 +59,7 @@ static bool detect_loud_models(struct fw_unit *unit)
 static int name_card(struct snd_oxfw *oxfw)
 {
 	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
+	const struct device_info *info;
 	char vendor[24];
 	char model[32];
 	const char *d, *v, *m;
@@ -84,10 +85,12 @@ static int name_card(struct snd_oxfw *oxfw)
 	be32_to_cpus(&firmware);
 
 	/* to apply card definitions */
-	if (oxfw->device_info) {
-		d = oxfw->device_info->driver_name;
-		v = oxfw->device_info->vendor_name;
-		m = oxfw->device_info->model_name;
+	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN ||
+	    oxfw->entry->vendor_id == VENDOR_LACIE) {
+		info = (const struct device_info *)oxfw->entry->driver_data;
+		d = info->driver_name;
+		v = info->vendor_name;
+		m = info->model_name;
 	} else {
 		d = "OXFW";
 		v = vendor;
@@ -132,12 +135,33 @@ static void oxfw_card_free(struct snd_card *card)
 	mutex_destroy(&oxfw->mutex);
 }
 
-static void detect_quirks(struct snd_oxfw *oxfw)
+static int detect_quirks(struct snd_oxfw *oxfw)
 {
 	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
 	struct fw_csr_iterator it;
 	int key, val;
 	int vendor, model;
+
+	/*
+	 * Add ALSA control elements for two models to keep compatibility to
+	 * old firewire-speaker module.
+	 */
+	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN ||
+	    oxfw->entry->vendor_id == VENDOR_LACIE) {
+		oxfw->device_info =
+			(const struct device_info *)oxfw->entry->driver_data;
+		return snd_oxfw_add_spkr(oxfw);
+	}
+
+	/*
+	 * TASCAM FireOne has physical control and requires a pair of additional
+	 * MIDI ports.
+	 */
+	if (oxfw->entry->vendor_id == VENDOR_TASCAM) {
+		oxfw->midi_input_ports++;
+		oxfw->midi_output_ports++;
+		return 0;
+	}
 
 	/* Seek from Root Directory of Config ROM. */
 	vendor = model = 0;
@@ -156,24 +180,17 @@ static void detect_quirks(struct snd_oxfw *oxfw)
 	if (vendor == VENDOR_LOUD && model == MODEL_SATELLITE)
 		oxfw->wrong_dbs = true;
 
-	/*
-	 * TASCAM FireOne has physical control and requires a pair of additional
-	 * MIDI ports.
-	 */
-	if (vendor == VENDOR_TASCAM) {
-		oxfw->midi_input_ports++;
-		oxfw->midi_output_ports++;
-	}
+	return 0;
 }
 
 static int oxfw_probe(struct fw_unit *unit,
-		       const struct ieee1394_device_id *id)
+		      const struct ieee1394_device_id *entry)
 {
 	struct snd_card *card;
 	struct snd_oxfw *oxfw;
 	int err;
 
-	if ((id->vendor_id == VENDOR_LOUD) && !detect_loud_models(unit))
+	if (entry->vendor_id == VENDOR_LOUD && !detect_loud_models(unit))
 		return -ENODEV;
 
 	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE,
@@ -186,7 +203,7 @@ static int oxfw_probe(struct fw_unit *unit,
 	oxfw->card = card;
 	mutex_init(&oxfw->mutex);
 	oxfw->unit = fw_unit_get(unit);
-	oxfw->device_info = (const struct device_info *)id->driver_data;
+	oxfw->entry = entry;
 	spin_lock_init(&oxfw->lock);
 	init_waitqueue_head(&oxfw->hwdep_wait);
 
@@ -194,7 +211,9 @@ static int oxfw_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	detect_quirks(oxfw);
+	err = detect_quirks(oxfw);
+	if (err < 0)
+		goto error;
 
 	err = name_card(oxfw);
 	if (err < 0)
@@ -203,12 +222,6 @@ static int oxfw_probe(struct fw_unit *unit,
 	err = snd_oxfw_create_pcm(oxfw);
 	if (err < 0)
 		goto error;
-
-	if (oxfw->device_info) {
-		err = snd_oxfw_create_mixer(oxfw);
-		if (err < 0)
-			goto error;
-	}
 
 	snd_oxfw_proc_init(oxfw);
 

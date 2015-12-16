@@ -72,6 +72,8 @@ struct snd_oxfw {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	const struct ieee1394_device_id *entry;
 };
 
 /*
@@ -138,10 +140,10 @@ void snd_oxfw_stream_lock_release(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_pcm(struct snd_oxfw *oxfw);
 
-int snd_oxfw_create_mixer(struct snd_oxfw *oxfw);
-
 void snd_oxfw_proc_init(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_midi(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_hwdep(struct snd_oxfw *oxfw);
+
+int snd_oxfw_add_spkr(struct snd_oxfw *oxfw);
