@@ -507,43 +507,6 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 }
 EXPORT_SYMBOL(kvm_mips_host_tlb_inv);
 
-/* XXXKYMA: Fix Guest USER/KERNEL no longer share the same ASID */
-int kvm_mips_host_tlb_inv_index(struct kvm_vcpu *vcpu, int index)
-{
-	unsigned long flags, old_entryhi;
-
-	if (index >= current_cpu_data.tlbsize)
-		BUG();
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-
-	write_c0_entryhi(UNIQUE_ENTRYHI(index));
-	mtc0_tlbw_hazard();
-
-	write_c0_index(index);
-	mtc0_tlbw_hazard();
-
-	write_c0_entrylo0(0);
-	mtc0_tlbw_hazard();
-
-	write_c0_entrylo1(0);
-	mtc0_tlbw_hazard();
-
-	tlb_write_indexed();
-	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
-
-	write_c0_entryhi(old_entryhi);
-	mtc0_tlbw_hazard();
-	tlbw_use_hazard();
-
-	local_irq_restore(flags);
-
-	return 0;
-}
-
 void kvm_mips_flush_host_tlb(int skip_kseg0)
 {
 	unsigned long flags;
