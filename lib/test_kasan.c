@@ -68,7 +68,21 @@ static noinline void __init kmalloc_node_oob_right(void)
 static noinline void __init kmalloc_large_oob_right(void)
 {
 	char *ptr;
-	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
+	size_t size;
+	if (KMALLOC_MAX_CACHE_SIZE == KMALLOC_MAX_SIZE) {
+		/*
+		 * We're using the SLAB allocator. Allocate a chunk that fits
+		 * into a slab.
+		 */
+		size = KMALLOC_MAX_CACHE_SIZE - 256;
+	} else {
+		/*
+		 * KMALLOC_MAX_SIZE > KMALLOC_MAX_CACHE_SIZE.
+		 * We're using the SLUB allocator. Allocate a chunk that does
+		 * not fit into a slab to trigger the page allocator.
+		 */
+		size = KMALLOC_MAX_CACHE_SIZE + 10;
+	}
 
 	pr_info("kmalloc large allocation: out-of-bounds to right\n");
 	ptr = kmalloc(size, GFP_KERNEL);
