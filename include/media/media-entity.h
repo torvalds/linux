@@ -157,6 +157,8 @@ struct media_entity_operations {
  * @num_pads:	Number of sink and source pads.
  * @num_links:	Total number of links, forward and back, enabled and disabled.
  * @num_backlinks: Number of backlinks
+ * @internal_idx: An unique internal entity specific number. The numbers are
+ *		re-used if entities are unregistered or registered again.
  * @pads:	Pads array with the size defined by @num_pads.
  * @links:	List of data links.
  * @ops:	Entity operations.
@@ -183,6 +185,7 @@ struct media_entity {
 	u16 num_pads;
 	u16 num_links;
 	u16 num_backlinks;
+	int internal_idx;
 
 	struct media_pad *pads;
 	struct list_head links;

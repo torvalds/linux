@@ -261,6 +261,7 @@
  * in the end provide a way to use driver-specific callbacks.
  */
 
+struct ida;
 struct device;
 
 /**
@@ -278,6 +279,7 @@ struct device;
  * @pad_id:	Unique ID used on the last pad registered
  * @link_id:	Unique ID used on the last link registered
  * @intf_devnode_id: Unique ID used on the last interface devnode registered
+ * @entity_internal_idx: Allocated internal entity indices
  * @entities:	List of registered entities
  * @interfaces:	List of registered interfaces
  * @pads:	List of registered pads
@@ -313,6 +315,8 @@ struct media_device {
 	u32 pad_id;
 	u32 link_id;
 	u32 intf_devnode_id;
+	struct ida entity_internal_idx;
+	int entity_internal_idx_max;
 
 	struct list_head entities;
 	struct list_head interfaces;

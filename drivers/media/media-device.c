@@ -22,6 +22,7 @@
 
 #include <linux/compat.h>
 #include <linux/export.h>
+#include <linux/idr.h>
 #include <linux/ioctl.h>
 #include <linux/media.h>
 #include <linux/slab.h>
@@ -551,6 +552,17 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	entity->num_backlinks = 0;
 
 	spin_lock(&mdev->lock);
+
+	entity->internal_idx = ida_simple_get(&mdev->entity_internal_idx, 1, 0,
+					      GFP_KERNEL);
+	if (entity->internal_idx < 0) {
+		spin_unlock(&mdev->lock);
+		return entity->internal_idx;
+	}
+
+	mdev->entity_internal_idx_max =
+		max(mdev->entity_internal_idx_max, entity->internal_idx);
+
 	/* Initialize media_gobj embedded at the entity */
 	media_gobj_create(mdev, MEDIA_GRAPH_ENTITY, &entity->graph_obj);
 
@@ -578,6 +590,8 @@ static void __media_device_unregister_entity(struct media_entity *entity)
 	struct media_link *link, *tmp;
 	struct media_interface *intf;
 	unsigned int i;
+
+	ida_simple_remove(&mdev->entity_internal_idx, entity->internal_idx);
 
 	/* Remove all interface links pointing to this entity */
 	list_for_each_entry(intf, &mdev->interfaces, graph_obj.list) {
@@ -632,6 +646,7 @@ void media_device_init(struct media_device *mdev)
 	INIT_LIST_HEAD(&mdev->links);
 	spin_lock_init(&mdev->lock);
 	mutex_init(&mdev->graph_mutex);
+	ida_init(&mdev->entity_internal_idx);
 
 	dev_dbg(mdev->dev, "Media device initialized\n");
 }
@@ -644,6 +659,8 @@ EXPORT_SYMBOL_GPL(media_device_init);
  */
 void media_device_cleanup(struct media_device *mdev)
 {
+	ida_destroy(&mdev->entity_internal_idx);
+	mdev->entity_internal_idx_max = 0;
 	mutex_destroy(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_device_cleanup);
