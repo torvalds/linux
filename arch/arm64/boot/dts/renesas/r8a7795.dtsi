@@ -772,7 +772,7 @@
 			compatible = "renesas,sata-r8a7795";
 			reg = <0 0xee300000 0 0x1fff>;
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 915>;
+			clocks = <&cpg CPG_MOD 815>;
 			status = "disabled";
 		};
 	};
