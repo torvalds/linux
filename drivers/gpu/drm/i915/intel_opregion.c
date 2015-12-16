@@ -422,7 +422,7 @@ int intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_connector *intel_connector;
+	struct intel_connector *connector;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
@@ -446,8 +446,8 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	 * only one).
 	 */
 	DRM_DEBUG_KMS("updating opregion backlight %d/255\n", bclp);
-	list_for_each_entry(intel_connector, &dev->mode_config.connector_list, base.head)
-		intel_panel_set_backlight_acpi(intel_connector, bclp, 255);
+	for_each_intel_connector(dev, connector)
+		intel_panel_set_backlight_acpi(connector, bclp, 255);
 	asle->cblv = DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID;
 
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);

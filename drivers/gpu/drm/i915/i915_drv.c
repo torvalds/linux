@@ -543,15 +543,12 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 
 	drm_modeset_lock_all(dev);
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
-
-		if (intel_encoder->suspend)
-			intel_encoder->suspend(intel_encoder);
-	}
+	for_each_intel_encoder(dev, encoder)
+		if (encoder->suspend)
+			encoder->suspend(encoder);
 	drm_modeset_unlock_all(dev);
 }
 

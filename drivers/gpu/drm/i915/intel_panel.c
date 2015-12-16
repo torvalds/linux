@@ -1845,7 +1845,7 @@ void intel_backlight_register(struct drm_device *dev)
 {
 	struct intel_connector *connector;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
+	for_each_intel_connector(dev, connector)
 		intel_backlight_device_register(connector);
 }
 
@@ -1853,6 +1853,6 @@ void intel_backlight_unregister(struct drm_device *dev)
 {
 	struct intel_connector *connector;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
+	for_each_intel_connector(dev, connector)
 		intel_backlight_device_unregister(connector);
 }

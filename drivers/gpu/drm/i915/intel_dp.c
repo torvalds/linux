@@ -389,8 +389,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	 * We don't have power sequencer currently.
 	 * Pick one that's not used by other ports.
 	 */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
-			    base.head) {
+	for_each_intel_encoder(dev, encoder) {
 		struct intel_dp *tmp;
 
 		if (encoder->type != INTEL_OUTPUT_EDP)
@@ -530,7 +529,7 @@ void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv)
 	 * should use them always.
 	 */
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
+	for_each_intel_encoder(dev, encoder) {
 		struct intel_dp *intel_dp;
 
 		if (encoder->type != INTEL_OUTPUT_EDP)
@@ -2850,8 +2849,7 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 	if (WARN_ON(pipe != PIPE_A && pipe != PIPE_B))
 		return;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
-			    base.head) {
+	for_each_intel_encoder(dev, encoder) {
 		struct intel_dp *intel_dp;
 		enum port port;
 
