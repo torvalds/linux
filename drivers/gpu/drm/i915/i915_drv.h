@@ -33,6 +33,7 @@
 #include <uapi/drm/i915_drm.h>
 #include <uapi/drm/drm_fourcc.h>
 
+#include <drm/drmP.h>
 #include "i915_reg.h"
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
