@@ -67,6 +67,7 @@ enum {
 	Opt_extent_cache,
 	Opt_noextent_cache,
 	Opt_noinline_data,
+	Opt_data_flush,
 	Opt_err,
 };
 
@@ -91,6 +92,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_extent_cache, "extent_cache"},
 	{Opt_noextent_cache, "noextent_cache"},
 	{Opt_noinline_data, "noinline_data"},
+	{Opt_data_flush, "data_flush"},
 	{Opt_err, NULL},
 };
 
@@ -406,6 +408,9 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_noinline_data:
 			clear_opt(sbi, INLINE_DATA);
 			break;
+		case Opt_data_flush:
+			set_opt(sbi, DATA_FLUSH);
+			break;
 		default:
 			f2fs_msg(sb, KERN_ERR,
 				"Unrecognized mount option \"%s\" or missing value",
@@ -687,6 +692,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",extent_cache");
 	else
 		seq_puts(seq, ",noextent_cache");
+	if (test_opt(sbi, DATA_FLUSH))
+		seq_puts(seq, ",data_flush");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
 	return 0;

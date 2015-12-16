@@ -149,6 +149,8 @@ noextent_cache         Disable an extent cache based on rb-tree explicitly, see
                        the above extent_cache mount option.
 noinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
+data_flush             Enable data flushing before checkpoint in order to
+                       persist data of regular and symlink.
 
 ================================================================================
 DEBUGFS ENTRIES
