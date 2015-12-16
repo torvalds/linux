@@ -140,6 +140,7 @@ struct hdmi_spec {
 	struct snd_array pins; /* struct hdmi_spec_per_pin */
 	struct hda_pcm *pcm_rec[16];
 	struct mutex pcm_lock;
+	int pcm_used;	/* counter of pcm_rec[] */
 	unsigned int channels_max; /* max over all cvts */
 
 	struct hdmi_eld temp_eld;
@@ -384,6 +385,20 @@ static int pin_nid_to_pin_index(struct hda_codec *codec, hda_nid_t pin_nid)
 			return pin_idx;
 
 	codec_warn(codec, "HDMI: pin nid %d not registered\n", pin_nid);
+	return -EINVAL;
+}
+
+static int hinfo_to_pcm_index(struct hda_codec *codec,
+			struct hda_pcm_stream *hinfo)
+{
+	struct hdmi_spec *spec = codec->spec;
+	int pcm_idx;
+
+	for (pcm_idx = 0; pcm_idx < spec->pcm_used; pcm_idx++)
+		if (get_pcm_rec(spec, pcm_idx)->stream == hinfo)
+			return pcm_idx;
+
+	codec_warn(codec, "HDMI: hinfo %p not registered\n", hinfo);
 	return -EINVAL;
 }
 
@@ -1548,13 +1563,17 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int pin_idx, cvt_idx, mux_idx = 0;
+	int pin_idx, cvt_idx, pcm_idx, mux_idx = 0;
 	struct hdmi_spec_per_pin *per_pin;
 	struct hdmi_eld *eld;
 	struct hdmi_spec_per_cvt *per_cvt = NULL;
 	int err;
 
 	/* Validate hinfo */
+	pcm_idx = hinfo_to_pcm_index(codec, hinfo);
+	if (pcm_idx < 0)
+		return -EINVAL;
+
 	mutex_lock(&spec->pcm_lock);
 	pin_idx = hinfo_to_pin_index(codec, hinfo);
 	if (!spec->dyn_pcm_assign) {
@@ -1596,7 +1615,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
 		intel_not_share_assigned_cvt(codec, per_pin->pin_nid, mux_idx);
 
-	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
+	snd_hda_spdif_ctls_assign(codec, pcm_idx, per_cvt->cvt_nid);
 
 	/* Initially set the converter's capabilities */
 	hinfo->channels_min = per_cvt->channels_min;
@@ -1613,7 +1632,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 		    !hinfo->rates || !hinfo->formats) {
 			per_cvt->assigned = 0;
 			hinfo->nid = 0;
-			snd_hda_spdif_ctls_unassign(codec, pin_idx);
+			snd_hda_spdif_ctls_unassign(codec, pcm_idx);
 			mutex_unlock(&spec->pcm_lock);
 			return -ENODEV;
 		}
@@ -2043,12 +2062,15 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 			  struct snd_pcm_substream *substream)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int cvt_idx, pin_idx;
+	int cvt_idx, pin_idx, pcm_idx;
 	struct hdmi_spec_per_cvt *per_cvt;
 	struct hdmi_spec_per_pin *per_pin;
 	int pinctl;
 
 	if (hinfo->nid) {
+		pcm_idx = hinfo_to_pcm_index(codec, hinfo);
+		if (snd_BUG_ON(pcm_idx < 0))
+			return -EINVAL;
 		cvt_idx = cvt_nid_to_cvt_index(codec, hinfo->nid);
 		if (snd_BUG_ON(cvt_idx < 0))
 			return -EINVAL;
@@ -2079,7 +2101,7 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 					    pinctl & ~PIN_OUT);
 		}
 
-		snd_hda_spdif_ctls_unassign(codec, pin_idx);
+		snd_hda_spdif_ctls_unassign(codec, pcm_idx);
 
 		mutex_lock(&per_pin->lock);
 		per_pin->chmap_set = false;
@@ -2277,6 +2299,7 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 			per_pin->pcm = info;
 		}
 		spec->pcm_rec[pin_idx] = info;
+		spec->pcm_used++;
 		info->pcm_type = HDA_PCM_TYPE_HDMI;
 		info->own_chmap = true;
 
@@ -2353,6 +2376,7 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 						  HDA_PCM_TYPE_HDMI);
 		if (err < 0)
 			return err;
+		/* pin number is the same with pcm number so far */
 		snd_hda_spdif_ctls_unassign(codec, pin_idx);
 
 		/* add control for ELD Bytes */
