@@ -229,7 +229,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 			    kzalloc(npages * sizeof(unsigned long), GFP_KERNEL);
 
 			if (!kvm->arch.guest_pmap) {
-				kvm_err("Failed to allocate guest PMAP");
+				kvm_err("Failed to allocate guest PMAP\n");
 				return;
 			}
 
