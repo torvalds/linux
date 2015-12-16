@@ -527,7 +527,7 @@ static int sunxi_rsb_init_device_mode(struct sunxi_rsb *rsb)
  */
 
 static const struct sunxi_rsb_addr_map sunxi_rsb_addr_maps[] = {
-	{ 0x3e3, 0x2d }, /* Primary PMIC: AXP223, AXP809, AXP81X, ... */
+	{ 0x3a3, 0x2d }, /* Primary PMIC: AXP223, AXP809, AXP81X, ... */
 	{ 0x745, 0x3a }, /* Secondary PMIC: AXP806, ... */
 	{ 0xe89, 0x45 }, /* Peripheral IC: AC100, ... */
 };
