@@ -342,6 +342,7 @@ mwifiex_pcie_txbd_empty(struct pcie_service_card *card, u32 rdptr)
 			return 1;
 		break;
 	case PCIE_DEVICE_ID_MARVELL_88W8897:
+	case PCIE_DEVICE_ID_MARVELL_88W8997:
 		if (((card->txbd_wrptr & reg->tx_mask) ==
 		     (rdptr & reg->tx_mask)) &&
 		    ((card->txbd_wrptr & reg->tx_rollover_ind) ==
