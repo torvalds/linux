@@ -699,6 +699,10 @@ struct media_pad *media_entity_remote_pad(struct media_pad *pad);
  */
 struct media_entity *media_entity_get(struct media_entity *entity);
 
+__must_check int media_entity_graph_walk_init(
+	struct media_entity_graph *graph, struct media_device *mdev);
+void media_entity_graph_walk_cleanup(struct media_entity_graph *graph);
+
 /**
  * media_entity_put - Release the reference to the parent module
  *
@@ -715,13 +719,16 @@ void media_entity_put(struct media_entity *entity);
  * @graph: Media graph structure that will be used to walk the graph
  * @entity: Starting entity
  *
- * This function initializes the graph traversal structure to walk the entities
- * graph starting at the given entity. The traversal structure must not be
- * modified by the caller during graph traversal. When done the structure can
- * safely be freed.
+ * Before using this function, media_entity_graph_walk_init() must be
+ * used to allocate resources used for walking the graph. This
+ * function initializes the graph traversal structure to walk the
+ * entities graph starting at the given entity. The traversal
+ * structure must not be modified by the caller during graph
+ * traversal. After the graph walk, the resources must be released
+ * using media_entity_graph_walk_cleanup().
  */
 void media_entity_graph_walk_start(struct media_entity_graph *graph,
-		struct media_entity *entity);
+				   struct media_entity *entity);
 
 /**
  * media_entity_graph_walk_next - Get the next entity in the graph

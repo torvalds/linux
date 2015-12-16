@@ -282,6 +282,33 @@ static struct media_entity *stack_pop(struct media_entity_graph *graph)
 #define link_top(en)	((en)->stack[(en)->top].link)
 #define stack_top(en)	((en)->stack[(en)->top].entity)
 
+/**
+ * media_entity_graph_walk_init - Allocate resources for graph walk
+ * @graph: Media graph structure that will be used to walk the graph
+ * @mdev: Media device
+ *
+ * Reserve resources for graph walk in media device's current
+ * state. The memory must be released using
+ * media_entity_graph_walk_free().
+ *
+ * Returns error on failure, zero on success.
+ */
+__must_check int media_entity_graph_walk_init(
+	struct media_entity_graph *graph, struct media_device *mdev)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(media_entity_graph_walk_init);
+
+/**
+ * media_entity_graph_walk_cleanup - Release resources related to graph walking
+ * @graph: Media graph structure that was used to walk the graph
+ */
+void media_entity_graph_walk_cleanup(struct media_entity_graph *graph)
+{
+}
+EXPORT_SYMBOL_GPL(media_entity_graph_walk_cleanup);
+
 void media_entity_graph_walk_start(struct media_entity_graph *graph,
 				   struct media_entity *entity)
 {
