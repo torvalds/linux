@@ -279,7 +279,9 @@ struct device;
  * @pad_id:	Unique ID used on the last pad registered
  * @link_id:	Unique ID used on the last link registered
  * @intf_devnode_id: Unique ID used on the last interface devnode registered
- * @entity_internal_idx: Allocated internal entity indices
+ * @entity_internal_idx: Unique internal entity ID used by the graph traversal
+ *		algorithms
+ * @entity_internal_idx_max: Allocated internal entity indices
  * @entities:	List of registered entities
  * @interfaces:	List of registered interfaces
  * @pads:	List of registered pads
@@ -344,7 +346,7 @@ struct media_device {
 /**
  * media_entity_enum_init - Initialise an entity enumeration
  *
- * @e: Entity enumeration to be initialised
+ * @ent_enum: Entity enumeration to be initialised
  * @mdev: The related media device
  *
  * Returns zero on success or a negative error code.

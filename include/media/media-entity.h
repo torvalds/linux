@@ -391,7 +391,7 @@ void media_entity_enum_cleanup(struct media_entity_enum *ent_enum);
 /**
  * media_entity_enum_zero - Clear the entire enum
  *
- * @e: Entity enumeration to be cleared
+ * @ent_enum: Entity enumeration to be cleared
  */
 static inline void media_entity_enum_zero(struct media_entity_enum *ent_enum)
 {
@@ -401,7 +401,7 @@ static inline void media_entity_enum_zero(struct media_entity_enum *ent_enum)
 /**
  * media_entity_enum_set - Mark a single entity in the enum
  *
- * @e: Entity enumeration
+ * @ent_enum: Entity enumeration
  * @entity: Entity to be marked
  */
 static inline void media_entity_enum_set(struct media_entity_enum *ent_enum,
@@ -416,7 +416,7 @@ static inline void media_entity_enum_set(struct media_entity_enum *ent_enum,
 /**
  * media_entity_enum_clear - Unmark a single entity in the enum
  *
- * @e: Entity enumeration
+ * @ent_enum: Entity enumeration
  * @entity: Entity to be unmarked
  */
 static inline void media_entity_enum_clear(struct media_entity_enum *ent_enum,
@@ -431,7 +431,7 @@ static inline void media_entity_enum_clear(struct media_entity_enum *ent_enum,
 /**
  * media_entity_enum_test - Test whether the entity is marked
  *
- * @e: Entity enumeration
+ * @ent_enum: Entity enumeration
  * @entity: Entity to be tested
  *
  * Returns true if the entity was marked.
@@ -448,13 +448,14 @@ static inline bool media_entity_enum_test(struct media_entity_enum *ent_enum,
 /**
  * media_entity_enum_test - Test whether the entity is marked, and mark it
  *
- * @e: Entity enumeration
+ * @ent_enum: Entity enumeration
  * @entity: Entity to be tested
  *
  * Returns true if the entity was marked, and mark it before doing so.
  */
-static inline bool media_entity_enum_test_and_set(
-	struct media_entity_enum *ent_enum, struct media_entity *entity)
+static inline bool
+media_entity_enum_test_and_set(struct media_entity_enum *ent_enum,
+			       struct media_entity *entity)
 {
 	if (WARN_ON(entity->internal_idx >= ent_enum->idx_max))
 		return true;
@@ -463,10 +464,9 @@ static inline bool media_entity_enum_test_and_set(
 }
 
 /**
- * media_entity_enum_test - Test whether the entire enum is empty
+ * media_entity_enum_empty - Test whether the entire enum is empty
  *
- * @e: Entity enumeration
- * @entity: Entity to be tested
+ * @ent_enum: Entity enumeration
  *
  * Returns true if the entity was marked.
  */
@@ -478,8 +478,8 @@ static inline bool media_entity_enum_empty(struct media_entity_enum *ent_enum)
 /**
  * media_entity_enum_intersects - Test whether two enums intersect
  *
- * @e: First entity enumeration
- * @f: Second entity enumeration
+ * @ent_enum1: First entity enumeration
+ * @ent_enum2: Second entity enumeration
  *
  * Returns true if entity enumerations e and f intersect, otherwise false.
  */
