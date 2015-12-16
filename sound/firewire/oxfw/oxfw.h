@@ -74,6 +74,7 @@ struct snd_oxfw {
 	wait_queue_head_t hwdep_wait;
 
 	const struct ieee1394_device_id *entry;
+	void *spec;
 };
 
 /*

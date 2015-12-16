@@ -132,6 +132,7 @@ static void oxfw_card_free(struct snd_card *card)
 		kfree(oxfw->rx_stream_formats[i]);
 	}
 
+	kfree(oxfw->spec);
 	mutex_destroy(&oxfw->mutex);
 }
 
