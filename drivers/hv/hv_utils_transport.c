@@ -109,7 +109,7 @@ static unsigned int hvt_op_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &hvt->outmsg_q, wait);
 
 	if (hvt->mode == HVUTIL_TRANSPORT_DESTROY)
-		return -EBADF;
+		return POLLERR | POLLHUP;
 
 	if (hvt->outmsg_len > 0)
 		return POLLIN | POLLRDNORM;
