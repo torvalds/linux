@@ -286,6 +286,7 @@ static const struct i2c_device_id abx80x_id[] = {
 	{ "ab1803", AB1803 },
 	{ "ab1804", AB1804 },
 	{ "ab1805", AB1805 },
+	{ "rv1805", AB1805 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, abx80x_id);
