@@ -749,7 +749,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
 	struct iss_video *video = video_drvdata(file);
 	struct media_entity_graph graph;
-	struct media_entity *entity;
+	struct media_entity *entity = &video->video.entity;
 	enum iss_pipeline_state state;
 	struct iss_pipeline *pipe;
 	struct iss_video *far_end;
@@ -764,24 +764,26 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	/* Start streaming on the pipeline. No link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 */
-	pipe = video->video.entity.pipe
-	     ? to_iss_pipeline(&video->video.entity) : &video->pipe;
+	pipe = entity->pipe
+	     ? to_iss_pipeline(entity) : &video->pipe;
 	pipe->external = NULL;
 	pipe->external_rate = 0;
 	pipe->external_bpp = 0;
-	pipe->entities = 0;
+
+	ret = media_entity_enum_init(&pipe->ent_enum, entity->graph_obj.mdev);
+	if (ret)
+		goto err_enum_init;
 
 	if (video->iss->pdata->set_constraints)
 		video->iss->pdata->set_constraints(video->iss, true);
 
-	ret = media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
+	ret = media_entity_pipeline_start(entity, &pipe->pipe);
 	if (ret < 0)
 		goto err_media_entity_pipeline_start;
 
-	entity = &video->video.entity;
 	media_entity_graph_walk_start(&graph, entity);
 	while ((entity = media_entity_graph_walk_next(&graph)))
-		pipe->entities |= 1 << media_entity_id(entity);
+		media_entity_enum_set(&pipe->ent_enum, entity);
 
 	/* Verify that the currently configured format matches the output of
 	 * the connected subdev.
@@ -852,6 +854,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	}
 
 	mutex_unlock(&video->stream_lock);
+
 	return 0;
 
 err_omap4iss_set_stream:
@@ -863,7 +866,11 @@ err_media_entity_pipeline_start:
 		video->iss->pdata->set_constraints(video->iss, false);
 	video->queue = NULL;
 
+	media_entity_enum_cleanup(&pipe->ent_enum);
+
+err_enum_init:
 	mutex_unlock(&video->stream_lock);
+
 	return ret;
 }
 
@@ -900,6 +907,8 @@ iss_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	omap4iss_pipeline_set_stream(pipe, ISS_PIPELINE_STREAM_STOPPED);
 	vb2_streamoff(&vfh->queue, type);
 	video->queue = NULL;
+
+	media_entity_enum_cleanup(&pipe->ent_enum);
 
 	if (video->iss->pdata->set_constraints)
 		video->iss->pdata->set_constraints(video->iss, false);

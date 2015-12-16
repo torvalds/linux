@@ -606,7 +606,7 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe,
 			 * crashed. Mark it as such, the ISS will be reset when
 			 * applications will release it.
 			 */
-			iss->crashed |= 1U << media_entity_id(&subdev->entity);
+			media_entity_enum_set(&iss->crashed, &subdev->entity);
 			failure = -ETIMEDOUT;
 		}
 	}
@@ -641,7 +641,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 	 * pipeline won't start anyway (those entities would then likely fail to
 	 * stop, making the problem worse).
 	 */
-	if (pipe->entities & iss->crashed)
+	if (media_entity_enum_intersects(&pipe->ent_enum, &iss->crashed))
 		return -EIO;
 
 	spin_lock_irqsave(&pipe->lock, flags);
@@ -761,7 +761,8 @@ static int iss_reset(struct iss_device *iss)
 		return -ETIMEDOUT;
 	}
 
-	iss->crashed = 0;
+	media_entity_enum_zero(&iss->crashed);
+
 	return 0;
 }
 
@@ -1090,7 +1091,7 @@ void omap4iss_put(struct iss_device *iss)
 		 * be worth investigating whether resetting the ISP only can't
 		 * fix the problem in some cases.
 		 */
-		if (iss->crashed)
+		if (!media_entity_enum_empty(&iss->crashed))
 			iss_reset(iss);
 		iss_disable_clocks(iss);
 	}
@@ -1491,6 +1492,10 @@ static int iss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_modules;
 
+	ret = media_entity_enum_init(&iss->crashed, &iss->media_dev);
+	if (ret)
+		goto error_entities;
+
 	ret = iss_create_links(iss);
 	if (ret < 0)
 		goto error_entities;
@@ -1501,6 +1506,7 @@ static int iss_probe(struct platform_device *pdev)
 
 error_entities:
 	iss_unregister_entities(iss);
+	media_entity_enum_cleanup(&iss->crashed);
 error_modules:
 	iss_cleanup_modules(iss);
 error_iss:
@@ -1518,6 +1524,7 @@ static int iss_remove(struct platform_device *pdev)
 	struct iss_device *iss = platform_get_drvdata(pdev);
 
 	iss_unregister_entities(iss);
+	media_entity_enum_cleanup(&iss->crashed);
 	iss_cleanup_modules(iss);
 
 	return 0;

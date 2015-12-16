@@ -82,7 +82,7 @@ struct iss_reg {
 /*
  * struct iss_device - ISS device structure.
  * @syscon: Regmap for the syscon register space
- * @crashed: Bitmask of crashed entities (indexed by entity ID)
+ * @crashed: Crashed entities
  */
 struct iss_device {
 	struct v4l2_device v4l2_dev;
@@ -101,7 +101,7 @@ struct iss_device {
 	u64 raw_dmamask;
 
 	struct mutex iss_mutex;	/* For handling ref_count field */
-	unsigned int crashed;
+	struct media_entity_enum crashed;
 	int has_context;
 	int ref_count;
 
