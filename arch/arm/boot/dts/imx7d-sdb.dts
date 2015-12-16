@@ -1001,7 +1001,7 @@
 	pinctrl-0 = <&pinctrl_sim1_1>;
 	port = <0>;
 	sven_low_active;
-	status = "disabled";
+	status = "okay";
 };
 
 
