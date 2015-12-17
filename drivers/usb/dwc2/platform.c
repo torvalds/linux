@@ -460,7 +460,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	 * Reset before dwc2_get_hwparams() then it could get power-on real
 	 * reset value form registers.
 	 */
-	dwc2_core_reset(hsotg);
+	dwc2_core_reset_and_force_dr_mode(hsotg);
 
 	/* Detect config values from hardware */
 	retval = dwc2_get_hwparams(hsotg);
