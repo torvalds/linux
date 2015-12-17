@@ -389,6 +389,52 @@ void qlt_response_pkt_all_vps(struct scsi_qla_host *vha, response_t *pkt)
 
 }
 
+typedef struct {
+	/* These fields must be initialized by the caller */
+	port_id_t id;
+	/*
+	 * number of cmds dropped while we were waiting for
+	 * initiator to ack LOGO initialize to 1 if LOGO is
+	 * triggered by a command, otherwise, to 0
+	 */
+	int cmd_count;
+
+	/* These fields are used by callee */
+	struct list_head list;
+} qlt_port_logo_t;
+
+static void
+qlt_send_first_logo(struct scsi_qla_host *vha, qlt_port_logo_t *logo)
+{
+	qlt_port_logo_t *tmp;
+	int res;
+
+	mutex_lock(&vha->vha_tgt.tgt_mutex);
+
+	list_for_each_entry(tmp, &vha->logo_list, list) {
+		if (tmp->id.b24 == logo->id.b24) {
+			tmp->cmd_count += logo->cmd_count;
+			mutex_unlock(&vha->vha_tgt.tgt_mutex);
+			return;
+		}
+	}
+
+	list_add_tail(&logo->list, &vha->logo_list);
+
+	mutex_unlock(&vha->vha_tgt.tgt_mutex);
+
+	res = qla24xx_els_dcmd_iocb(vha, ELS_DCMD_LOGO, logo->id);
+
+	mutex_lock(&vha->vha_tgt.tgt_mutex);
+	list_del(&logo->list);
+	mutex_unlock(&vha->vha_tgt.tgt_mutex);
+
+	dev_info(&vha->hw->pdev->dev,
+		 "Finished LOGO to %02x:%02x:%02x, dropped %d cmds, res = %#x\n",
+		 logo->id.b.domain, logo->id.b.area, logo->id.b.al_pa,
+		 logo->cmd_count, res);
+}
+
 static void qlt_free_session_done(struct work_struct *work)
 {
 	struct qla_tgt_sess *sess = container_of(work, struct qla_tgt_sess,
@@ -402,13 +448,20 @@ static void qlt_free_session_done(struct work_struct *work)
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf084,
 		"%s: se_sess %p / sess %p from port %8phC loop_id %#04x"
-		" s_id %02x:%02x:%02x logout %d keep %d plogi %d\n",
+		" s_id %02x:%02x:%02x logout %d keep %d plogi %d els_logo %d\n",
 		__func__, sess->se_sess, sess, sess->port_name, sess->loop_id,
 		sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa,
 		sess->logout_on_delete, sess->keep_nport_handle,
-		sess->plogi_ack_needed);
+		sess->plogi_ack_needed, sess->send_els_logo);
 
 	BUG_ON(!tgt);
+
+	if (sess->send_els_logo) {
+		qlt_port_logo_t logo;
+		logo.id = sess->s_id;
+		logo.cmd_count = 0;
+		qlt_send_first_logo(vha, &logo);
+	}
 
 	if (sess->logout_on_delete) {
 		int rc;
@@ -636,12 +689,12 @@ static int qla24xx_get_loop_id(struct scsi_qla_host *vha, const uint8_t *s_id,
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf045,
 		    "qla_target(%d): get_id_list() failed: %x\n",
 		    vha->vp_idx, rc);
-		res = -1;
+		res = -EBUSY;
 		goto out_free_id_list;
 	}
 
 	id_iter = (char *)gid_list;
-	res = -1;
+	res = -ENOENT;
 	for (i = 0; i < entries; i++) {
 		struct gid_list_info *gid = (struct gid_list_info *)id_iter;
 		if ((gid->al_pa == s_id[2]) &&
@@ -2968,7 +3021,7 @@ static int __qlt_send_term_exchange(struct scsi_qla_host *vha,
 
 	ctio24 = (struct ctio7_to_24xx *)pkt;
 	ctio24->entry_type = CTIO_TYPE7;
-	ctio24->nport_handle = cmd ? cmd->loop_id : CTIO7_NHANDLE_UNRECOGNIZED;
+	ctio24->nport_handle = CTIO7_NHANDLE_UNRECOGNIZED;
 	ctio24->timeout = cpu_to_le16(QLA_TGT_TIMEOUT);
 	ctio24->vp_index = vha->vp_idx;
 	ctio24->initiator_id[0] = atio->u.isp24.fcp_hdr.s_id[2];
@@ -3404,13 +3457,26 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 
 		case CTIO_PORT_LOGGED_OUT:
 		case CTIO_PORT_UNAVAILABLE:
+		{
+			bool logged_out = (status & 0xFFFF);
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf059,
-			    "qla_target(%d): CTIO with PORT LOGGED "
-			    "OUT (29) or PORT UNAVAILABLE (28) status %x "
+			    "qla_target(%d): CTIO with %s status %x "
 			    "received (state %x, se_cmd %p)\n", vha->vp_idx,
+			    (logged_out == CTIO_PORT_LOGGED_OUT) ?
+			    "PORT LOGGED OUT" : "PORT UNAVAILABLE",
 			    status, cmd->state, se_cmd);
-			break;
 
+			if (logged_out && cmd->sess) {
+				/*
+				 * Session is already logged out, but we need
+				 * to notify initiator, who's not aware of this
+				 */
+				cmd->sess->logout_on_delete = 0;
+				cmd->sess->send_els_logo = 1;
+				qlt_schedule_sess_for_deletion(cmd->sess, true);
+			}
+			break;
+		}
 		case CTIO_SRR_RECEIVED:
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05a,
 			    "qla_target(%d): CTIO with SRR_RECEIVED"
@@ -3698,10 +3764,8 @@ static void qlt_create_sess_from_atio(struct work_struct *work)
 		goto out_term;
 	}
 
-	mutex_lock(&vha->vha_tgt.tgt_mutex);
 	sess = qlt_make_local_sess(vha, s_id);
 	/* sess has an extra creation ref. */
-	mutex_unlock(&vha->vha_tgt.tgt_mutex);
 
 	if (!sess)
 		goto out_term;
@@ -5541,12 +5605,16 @@ static struct qla_tgt_sess *qlt_make_local_sess(struct scsi_qla_host *vha,
 	int rc, global_resets;
 	uint16_t loop_id = 0;
 
+	mutex_lock(&vha->vha_tgt.tgt_mutex);
+
 retry:
 	global_resets =
 	    atomic_read(&vha->vha_tgt.qla_tgt->tgt_global_resets_count);
 
 	rc = qla24xx_get_loop_id(vha, s_id, &loop_id);
 	if (rc != 0) {
+		mutex_unlock(&vha->vha_tgt.tgt_mutex);
+
 		if ((s_id[0] == 0xFF) &&
 		    (s_id[1] == 0xFC)) {
 			/*
@@ -5557,17 +5625,27 @@ retry:
 			    "Unable to find initiator with S_ID %x:%x:%x",
 			    s_id[0], s_id[1], s_id[2]);
 		} else
-			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf071,
+			ql_log(ql_log_info, vha, 0xf071,
 			    "qla_target(%d): Unable to find "
 			    "initiator with S_ID %x:%x:%x",
 			    vha->vp_idx, s_id[0], s_id[1],
 			    s_id[2]);
+
+		if (rc == -ENOENT) {
+			qlt_port_logo_t logo;
+			sid_to_portid(s_id, &logo.id);
+			logo.cmd_count = 1;
+			qlt_send_first_logo(vha, &logo);
+		}
+
 		return NULL;
 	}
 
 	fcport = qlt_get_port_database(vha, loop_id);
-	if (!fcport)
+	if (!fcport) {
+		mutex_unlock(&vha->vha_tgt.tgt_mutex);
 		return NULL;
+	}
 
 	if (global_resets !=
 	    atomic_read(&vha->vha_tgt.qla_tgt->tgt_global_resets_count)) {
@@ -5581,6 +5659,8 @@ retry:
 	}
 
 	sess = qlt_create_sess(vha, fcport, true);
+
+	mutex_unlock(&vha->vha_tgt.tgt_mutex);
 
 	kfree(fcport);
 	return sess;
@@ -5611,10 +5691,8 @@ static void qlt_abort_work(struct qla_tgt *tgt,
 	if (!sess) {
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-		mutex_lock(&vha->vha_tgt.tgt_mutex);
 		sess = qlt_make_local_sess(vha, s_id);
 		/* sess has got an extra creation ref */
-		mutex_unlock(&vha->vha_tgt.tgt_mutex);
 
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		if (!sess)
@@ -5670,10 +5748,8 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 	if (!sess) {
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-		mutex_lock(&vha->vha_tgt.tgt_mutex);
 		sess = qlt_make_local_sess(vha, s_id);
 		/* sess has got an extra creation ref */
-		mutex_unlock(&vha->vha_tgt.tgt_mutex);
 
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		if (!sess)

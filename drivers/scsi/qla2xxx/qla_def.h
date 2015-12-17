@@ -3652,6 +3652,8 @@ typedef struct scsi_qla_host {
 	atomic_t		generation_tick;
 	/* Time when global fcport update has been scheduled */
 	int			total_fcport_update_gen;
+	/* List of pending LOGOs, protected by tgt_mutex */
+	struct list_head	logo_list;
 
 	uint32_t	vp_abort_cnt;
 

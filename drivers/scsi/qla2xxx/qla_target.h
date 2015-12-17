@@ -909,6 +909,7 @@ struct qla_tgt_sess {
 	unsigned int logout_on_delete:1;
 	unsigned int plogi_ack_needed:1;
 	unsigned int keep_nport_handle:1;
+	unsigned int send_els_logo:1;
 
 	unsigned char logout_completed;
 
@@ -1118,6 +1119,14 @@ static inline uint32_t sid_to_key(const uint8_t *s_id)
 	       ((unsigned long)s_id[1] << 8) |
 	       (unsigned long)s_id[2]);
 	return key;
+}
+
+static inline void sid_to_portid(const uint8_t *s_id, port_id_t *p)
+{
+	memset(p, 0, sizeof(*p));
+	p->b.domain = s_id[0];
+	p->b.area = s_id[1];
+	p->b.al_pa = s_id[2];
 }
 
 /*
