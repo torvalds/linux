@@ -19,8 +19,8 @@ Required properties:
 	Optional elements: 'tx_clk'
 - clocks: Phandles to input clocks.
 
-Optional properties:
-- phy-reset-gpios : Should specify the gpio for phy reset
+Optional properties for PHY child node:
+- reset-gpios : Should specify the gpio for phy reset
 
 Examples:
 
@@ -32,4 +32,8 @@ Examples:
 		local-mac-address = [3a 0e 03 04 05 06];
 		clock-names = "pclk", "hclk", "tx_clk";
 		clocks = <&clkc 30>, <&clkc 30>, <&clkc 13>;
+		ethernet-phy@1 {
+			reg = <0x1>;
+			reset-gpios = <&pioE 6 1>;
+		};
 	};
