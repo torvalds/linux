@@ -795,12 +795,12 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 
-		qp->sq.wrid = kmalloc(qp->sq.wqe_cnt * sizeof(u64),
+		qp->sq.wrid = kmalloc_array(qp->sq.wqe_cnt, sizeof(u64),
 					gfp | __GFP_NOWARN);
 		if (!qp->sq.wrid)
 			qp->sq.wrid = __vmalloc(qp->sq.wqe_cnt * sizeof(u64),
 						gfp, PAGE_KERNEL);
-		qp->rq.wrid = kmalloc(qp->rq.wqe_cnt * sizeof(u64),
+		qp->rq.wrid = kmalloc_array(qp->rq.wqe_cnt, sizeof(u64),
 					gfp | __GFP_NOWARN);
 		if (!qp->rq.wrid)
 			qp->rq.wrid = __vmalloc(qp->rq.wqe_cnt * sizeof(u64),
