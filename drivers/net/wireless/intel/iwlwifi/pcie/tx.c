@@ -770,7 +770,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 
 	spin_lock(&trans_pcie->irq_lock);
 
-	if (!iwl_trans_grab_nic_access(trans, false, &flags))
+	if (!iwl_trans_grab_nic_access(trans, &flags))
 		goto out;
 
 	/* Stop each Tx DMA channel */

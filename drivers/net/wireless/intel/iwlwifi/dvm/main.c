@@ -429,7 +429,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
 
 	/* Make sure device is powered up for SRAM reads */
-	if (!iwl_trans_grab_nic_access(priv->trans, false, &reg_flags))
+	if (!iwl_trans_grab_nic_access(priv->trans, &reg_flags))
 		return;
 
 	/* Set starting address; reads will auto-increment */
@@ -1731,7 +1731,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
 
 	/* Make sure device is powered up for SRAM reads */
-	if (!iwl_trans_grab_nic_access(trans, false, &reg_flags))
+	if (!iwl_trans_grab_nic_access(trans, &reg_flags))
 		return pos;
 
 	/* Set starting address; reads will auto-increment */

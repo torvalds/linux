@@ -1505,8 +1505,8 @@ static void iwl_trans_pcie_set_pmi(struct iwl_trans *trans, bool state)
 		clear_bit(STATUS_TPOWER_PMI, &trans->status);
 }
 
-static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
-						unsigned long *flags)
+static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
+					   unsigned long *flags)
 {
 	int ret;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -1547,14 +1547,11 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
 			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (unlikely(ret < 0)) {
 		iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_FORCE_NMI);
-		if (!silent) {
-			u32 val = iwl_read32(trans, CSR_GP_CNTRL);
-			WARN_ONCE(1,
-				  "Timeout waiting for hardware access (CSR_GP_CNTRL 0x%08x)\n",
-				  val);
-			spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
-			return false;
-		}
+		WARN_ONCE(1,
+			  "Timeout waiting for hardware access (CSR_GP_CNTRL 0x%08x)\n",
+			  iwl_read32(trans, CSR_GP_CNTRL));
+		spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
+		return false;
 	}
 
 out:
@@ -1602,7 +1599,7 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 	int offs, ret = 0;
 	u32 *vals = buf;
 
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		iwl_write32(trans, HBUS_TARG_MEM_RADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
 			vals[offs] = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
@@ -1620,7 +1617,7 @@ static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 	int offs, ret = 0;
 	const u32 *vals = buf;
 
-	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+	if (iwl_trans_grab_nic_access(trans, &flags)) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
 			iwl_write32(trans, HBUS_TARG_MEM_WDAT,
@@ -2246,7 +2243,7 @@ static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
 	__le32 *val;
 	int i;
 
-	if (!iwl_trans_grab_nic_access(trans, false, &flags))
+	if (!iwl_trans_grab_nic_access(trans, &flags))
 		return 0;
 
 	(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_FH_REGS);
@@ -2273,7 +2270,7 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 	unsigned long flags;
 	u32 i;
 
-	if (!iwl_trans_grab_nic_access(trans, false, &flags))
+	if (!iwl_trans_grab_nic_access(trans, &flags))
 		return 0;
 
 	iwl_write_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
@@ -2658,7 +2655,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			goto out_pci_disable_msi;
 		}
 
-		if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+		if (iwl_trans_grab_nic_access(trans, &flags)) {
 			u32 hw_step;
 
 			hw_step = iwl_read_prph_no_grab(trans, WFPM_CTRL_REG);

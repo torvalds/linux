@@ -122,7 +122,7 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 	unsigned long flags;
 	int i, j;
 
-	if (!iwl_trans_grab_nic_access(mvm->trans, false, &flags))
+	if (!iwl_trans_grab_nic_access(mvm->trans, &flags))
 		return;
 
 	/* Pull RXF data from all RXFs */
@@ -359,7 +359,7 @@ static u32 iwl_dump_prph(struct iwl_trans *trans,
 	unsigned long flags;
 	u32 prph_len = 0, i;
 
-	if (!iwl_trans_grab_nic_access(trans, false, &flags))
+	if (!iwl_trans_grab_nic_access(trans, &flags))
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr); i++) {
