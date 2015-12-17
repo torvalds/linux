@@ -119,7 +119,6 @@
 #include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
@@ -2706,7 +2705,7 @@ static int __init proc_locks_init(void)
 	proc_create("locks", 0, NULL, &proc_locks_operations);
 	return 0;
 }
-module_init(proc_locks_init);
+fs_initcall(proc_locks_init);
 #endif
 
 static int __init filelock_init(void)
