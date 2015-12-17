@@ -293,8 +293,8 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 			void (*callback)(struct rsnd_mod *mod,
 					 struct rsnd_dai_stream *io));
 
-int rsnd_get_slot_rdai(struct rsnd_dai *rdai);
-int rsnd_get_slot_extend(struct rsnd_dai_stream *io);
+int rsnd_get_slot(struct rsnd_dai_stream *io);
+int rsnd_get_slot_width(struct rsnd_dai_stream *io);
 
 /*
  *	R-Car sound DAI

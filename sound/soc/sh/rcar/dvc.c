@@ -242,10 +242,9 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io,
 			    struct snd_soc_pcm_runtime *rtd)
 {
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	int is_play = rsnd_io_is_play(io);
-	int slots = rsnd_get_slot_rdai(rdai);
+	int slots = rsnd_get_slot(io);
 	int ret;
 
 	/* Volume */

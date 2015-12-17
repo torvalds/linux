@@ -191,12 +191,14 @@ int rsnd_io_is_working(struct rsnd_dai_stream *io)
 	return !!io->substream;
 }
 
-int rsnd_get_slot_rdai(struct rsnd_dai *rdai)
+int rsnd_get_slot(struct rsnd_dai_stream *io)
 {
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+
 	return rdai->slots;
 }
 
-int rsnd_get_slot_extend(struct rsnd_dai_stream *io)
+int rsnd_get_slot_width(struct rsnd_dai_stream *io)
 {
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	int chan = runtime->channels;
