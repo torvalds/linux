@@ -149,6 +149,71 @@ static const struct dwc2_core_params params_rk3066 = {
 	.hibernation			= -1,
 };
 
+/*
+ * Check the dr_mode against the module configuration and hardware
+ * capabilities.
+ *
+ * The hardware, module, and dr_mode, can each be set to host, device,
+ * or otg. Check that all these values are compatible and adjust the
+ * value of dr_mode if possible.
+ *
+ *                      actual
+ *    HW  MOD dr_mode   dr_mode
+ *  ------------------------------
+ *   HST  HST  any    :  HST
+ *   HST  DEV  any    :  ---
+ *   HST  OTG  any    :  HST
+ *
+ *   DEV  HST  any    :  ---
+ *   DEV  DEV  any    :  DEV
+ *   DEV  OTG  any    :  DEV
+ *
+ *   OTG  HST  any    :  HST
+ *   OTG  DEV  any    :  DEV
+ *   OTG  OTG  any    :  dr_mode
+ */
+static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
+{
+	enum usb_dr_mode mode;
+
+	hsotg->dr_mode = usb_get_dr_mode(hsotg->dev);
+	if (hsotg->dr_mode == USB_DR_MODE_UNKNOWN)
+		hsotg->dr_mode = USB_DR_MODE_OTG;
+
+	mode = hsotg->dr_mode;
+
+	if (dwc2_hw_is_device(hsotg)) {
+		if (IS_ENABLED(CONFIG_USB_DWC2_HOST)) {
+			dev_err(hsotg->dev,
+				"Controller does not support host mode.\n");
+			return -EINVAL;
+		}
+		mode = USB_DR_MODE_PERIPHERAL;
+	} else if (dwc2_hw_is_host(hsotg)) {
+		if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL)) {
+			dev_err(hsotg->dev,
+				"Controller does not support device mode.\n");
+			return -EINVAL;
+		}
+		mode = USB_DR_MODE_HOST;
+	} else {
+		if (IS_ENABLED(CONFIG_USB_DWC2_HOST))
+			mode = USB_DR_MODE_HOST;
+		else if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL))
+			mode = USB_DR_MODE_PERIPHERAL;
+	}
+
+	if (mode != hsotg->dr_mode) {
+		dev_warn(hsotg->dev,
+			"Configuration mismatch. dr_mode forced to %s\n",
+			mode == USB_DR_MODE_HOST ? "host" : "device");
+
+		hsotg->dr_mode = mode;
+	}
+
+	return 0;
+}
+
 static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
@@ -412,19 +477,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
 
-	hsotg->dr_mode = usb_get_dr_mode(&dev->dev);
-	if (IS_ENABLED(CONFIG_USB_DWC2_HOST) &&
-			hsotg->dr_mode != USB_DR_MODE_HOST) {
-		hsotg->dr_mode = USB_DR_MODE_HOST;
-		dev_warn(hsotg->dev,
-			"Configuration mismatch. Forcing host mode\n");
-	} else if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) &&
-			hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		hsotg->dr_mode = USB_DR_MODE_PERIPHERAL;
-		dev_warn(hsotg->dev,
-			"Configuration mismatch. Forcing peripheral mode\n");
-	}
-
 	retval = dwc2_lowlevel_hw_init(hsotg);
 	if (retval)
 		return retval;
@@ -453,6 +505,10 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		return retval;
 
 	retval = dwc2_lowlevel_hw_enable(hsotg);
+	if (retval)
+		return retval;
+
+	retval = dwc2_get_dr_mode(hsotg);
 	if (retval)
 		return retval;
 
