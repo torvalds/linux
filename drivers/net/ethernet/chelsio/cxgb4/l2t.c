@@ -161,8 +161,7 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 		memcpy(e->dmac, e->neigh->ha, sizeof(e->dmac));
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 
-	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
-	t4_ofld_send(adap, skb);
+	t4_mgmt_tx(adap, skb);
 
 	if (sync && e->state != L2T_STATE_SWITCHING)
 		e->state = L2T_STATE_SYNC_WRITE;
