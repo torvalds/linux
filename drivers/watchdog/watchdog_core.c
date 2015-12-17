@@ -249,7 +249,7 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 
 	devno = wdd->cdev.dev;
 	wdd->dev = device_create(watchdog_class, wdd->parent, devno,
-					NULL, "watchdog%d", wdd->id);
+					wdd, "watchdog%d", wdd->id);
 	if (IS_ERR(wdd->dev)) {
 		watchdog_dev_unregister(wdd);
 		ida_simple_remove(&watchdog_ida, id);

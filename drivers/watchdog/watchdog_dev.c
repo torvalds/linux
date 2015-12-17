@@ -247,6 +247,119 @@ out_timeleft:
 	return err;
 }
 
+#ifdef CONFIG_WATCHDOG_SYSFS
+static ssize_t nowayout_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", !!test_bit(WDOG_NO_WAY_OUT, &wdd->status));
+}
+static DEVICE_ATTR_RO(nowayout);
+
+static ssize_t status_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+	ssize_t status;
+	unsigned int val;
+
+	status = watchdog_get_status(wdd, &val);
+	if (!status)
+		status = sprintf(buf, "%u\n", val);
+
+	return status;
+}
+static DEVICE_ATTR_RO(status);
+
+static ssize_t bootstatus_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u\n", wdd->bootstatus);
+}
+static DEVICE_ATTR_RO(bootstatus);
+
+static ssize_t timeleft_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+	ssize_t status;
+	unsigned int val;
+
+	status = watchdog_get_timeleft(wdd, &val);
+	if (!status)
+		status = sprintf(buf, "%u\n", val);
+
+	return status;
+}
+static DEVICE_ATTR_RO(timeleft);
+
+static ssize_t timeout_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u\n", wdd->timeout);
+}
+static DEVICE_ATTR_RO(timeout);
+
+static ssize_t identity_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", wdd->info->identity);
+}
+static DEVICE_ATTR_RO(identity);
+
+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	if (watchdog_active(wdd))
+		return sprintf(buf, "active\n");
+
+	return sprintf(buf, "inactive\n");
+}
+static DEVICE_ATTR_RO(state);
+
+static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
+				int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+	umode_t mode = attr->mode;
+
+	if (attr == &dev_attr_status.attr && !wdd->ops->status)
+		mode = 0;
+	else if (attr == &dev_attr_timeleft.attr && !wdd->ops->get_timeleft)
+		mode = 0;
+
+	return mode;
+}
+static struct attribute *wdt_attrs[] = {
+	&dev_attr_state.attr,
+	&dev_attr_identity.attr,
+	&dev_attr_timeout.attr,
+	&dev_attr_timeleft.attr,
+	&dev_attr_bootstatus.attr,
+	&dev_attr_status.attr,
+	&dev_attr_nowayout.attr,
+	NULL,
+};
+
+static const struct attribute_group wdt_group = {
+	.attrs = wdt_attrs,
+	.is_visible = wdt_is_visible,
+};
+__ATTRIBUTE_GROUPS(wdt);
+#else
+#define wdt_groups	NULL
+#endif
+
 /*
  *	watchdog_ioctl_op: call the watchdog drivers ioctl op if defined
  *	@wdd: the watchdog device to do the ioctl on
@@ -584,6 +697,7 @@ int watchdog_dev_unregister(struct watchdog_device *wdd)
 static struct class watchdog_class = {
 	.name =		"watchdog",
 	.owner =	THIS_MODULE,
+	.dev_groups =	wdt_groups,
 };
 
 /*
