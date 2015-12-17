@@ -339,13 +339,6 @@
 	ti,non-removable;
 };
 
-&edma {
-	/* Map eDMA MMC2 Events from Crossbar */
-	ti,edma-xbar-event-map = /bits/ 16 <1 12
-                                            2 13>;
-};
-
-
 &mmc3 {
 	/* Wifi & Bluetooth on MMC #3 */
 	status = "okay";
@@ -354,8 +347,8 @@
 	vmmmc-supply = <&v3v3c_reg>;
 	bus-width = <4>;
 	ti,non-removable;
-	dmas = <&edma 12
-		&edma 13>;
+	dmas = <&edma_xbar 12 0 1
+		&edma_xbar 13 0 2>;
 	dma-names = "tx", "rx";
 };
 
