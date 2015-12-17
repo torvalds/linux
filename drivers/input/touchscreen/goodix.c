@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/dmi.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
@@ -37,7 +38,12 @@ struct goodix_ts_data {
 	unsigned int int_trigger_type;
 	bool rotated_screen;
 	int cfg_len;
+	struct gpio_desc *gpiod_int;
+	struct gpio_desc *gpiod_rst;
 };
+
+#define GOODIX_GPIO_INT_NAME		"irq"
+#define GOODIX_GPIO_RST_NAME		"reset"
 
 #define GOODIX_MAX_HEIGHT		4096
 #define GOODIX_MAX_WIDTH		4096
@@ -239,6 +245,106 @@ static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int goodix_int_sync(struct goodix_ts_data *ts)
+{
+	int error;
+
+	error = gpiod_direction_output(ts->gpiod_int, 0);
+	if (error)
+		return error;
+
+	msleep(50);				/* T5: 50ms */
+
+	error = gpiod_direction_input(ts->gpiod_int);
+	if (error)
+		return error;
+
+	return 0;
+}
+
+/**
+ * goodix_reset - Reset device during power on
+ *
+ * @ts: goodix_ts_data pointer
+ */
+static int goodix_reset(struct goodix_ts_data *ts)
+{
+	int error;
+
+	/* begin select I2C slave addr */
+	error = gpiod_direction_output(ts->gpiod_rst, 0);
+	if (error)
+		return error;
+
+	msleep(20);				/* T2: > 10ms */
+
+	/* HIGH: 0x28/0x29, LOW: 0xBA/0xBB */
+	error = gpiod_direction_output(ts->gpiod_int, ts->client->addr == 0x14);
+	if (error)
+		return error;
+
+	usleep_range(100, 2000);		/* T3: > 100us */
+
+	error = gpiod_direction_output(ts->gpiod_rst, 1);
+	if (error)
+		return error;
+
+	usleep_range(6000, 10000);		/* T4: > 5ms */
+
+	/* end select I2C slave addr */
+	error = gpiod_direction_input(ts->gpiod_rst);
+	if (error)
+		return error;
+
+	error = goodix_int_sync(ts);
+	if (error)
+		return error;
+
+	return 0;
+}
+
+/**
+ * goodix_get_gpio_config - Get GPIO config from ACPI/DT
+ *
+ * @ts: goodix_ts_data pointer
+ */
+static int goodix_get_gpio_config(struct goodix_ts_data *ts)
+{
+	int error;
+	struct device *dev;
+	struct gpio_desc *gpiod;
+
+	if (!ts->client)
+		return -EINVAL;
+	dev = &ts->client->dev;
+
+	/* Get the interrupt GPIO pin number */
+	gpiod = devm_gpiod_get_optional(dev, GOODIX_GPIO_INT_NAME, GPIOD_IN);
+	if (IS_ERR(gpiod)) {
+		error = PTR_ERR(gpiod);
+		if (error != -EPROBE_DEFER)
+			dev_dbg(dev, "Failed to get %s GPIO: %d\n",
+				GOODIX_GPIO_INT_NAME, error);
+		return error;
+	}
+
+	ts->gpiod_int = gpiod;
+
+	/* Get the reset line GPIO pin number */
+	gpiod = devm_gpiod_get_optional(dev, GOODIX_GPIO_RST_NAME, GPIOD_IN);
+	if (IS_ERR(gpiod)) {
+		error = PTR_ERR(gpiod);
+		if (error != -EPROBE_DEFER)
+			dev_dbg(dev, "Failed to get %s GPIO: %d\n",
+				GOODIX_GPIO_RST_NAME, error);
+		return error;
+	}
+
+	ts->gpiod_rst = gpiod;
+
+	return 0;
+}
+
 /**
  * goodix_read_config - Read the embedded configuration of the panel
  *
@@ -406,6 +512,19 @@ static int goodix_ts_probe(struct i2c_client *client,
 
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
+
+	error = goodix_get_gpio_config(ts);
+	if (error)
+		return error;
+
+	if (ts->gpiod_int && ts->gpiod_rst) {
+		/* reset the controller */
+		error = goodix_reset(ts);
+		if (error) {
+			dev_err(&client->dev, "Controller reset failed.\n");
+			return error;
+		}
+	}
 
 	error = goodix_i2c_test(client);
 	if (error) {
