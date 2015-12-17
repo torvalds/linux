@@ -609,17 +609,44 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.set_tdm_slot	= rsnd_soc_set_dai_tdm_slot,
 };
 
+void rsnd_parse_connect_common(struct rsnd_dai *rdai,
+		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
+		struct device_node *node,
+		struct device_node *playback,
+		struct device_node *capture)
+{
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct device_node *np;
+	struct rsnd_mod *mod;
+	int i;
+
+	if (!node)
+		return;
+
+	i = 0;
+	for_each_child_of_node(node, np) {
+		mod = mod_get(priv, i);
+		if (np == playback)
+			rsnd_dai_connect(mod, &rdai->playback, mod->type);
+		if (np == capture)
+			rsnd_dai_connect(mod, &rdai->capture, mod->type);
+		i++;
+	}
+
+	of_node_put(node);
+}
+
 static int rsnd_dai_probe(struct rsnd_priv *priv)
 {
 	struct device_node *dai_node;
-	struct device_node *dai_np, *np, *node;
+	struct device_node *dai_np;
 	struct device_node *playback, *capture;
 	struct rsnd_dai_stream *io_playback;
 	struct rsnd_dai_stream *io_capture;
 	struct snd_soc_dai_driver *rdrv, *drv;
 	struct rsnd_dai *rdai;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int nr, dai_i, io_i, np_i;
+	int nr, dai_i, io_i;
 	int ret;
 
 	dai_node = rsnd_dai_of_node(priv);
@@ -676,22 +703,6 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 		rdai->capture.rdai		= rdai;
 		rsnd_set_slot(rdai, 2, 1); /* default */
 
-#define mod_parse(name)							\
-node = rsnd_##name##_of_node(priv);					\
-if (node) {								\
-	struct rsnd_mod *mod;						\
-	np_i = 0;							\
-	for_each_child_of_node(node, np) {				\
-		mod = rsnd_##name##_mod_get(priv, np_i);		\
-		if (np == playback)					\
-			rsnd_dai_connect(mod, io_playback, mod->type);	\
-		if (np == capture)					\
-			rsnd_dai_connect(mod, io_capture, mod->type);	\
-		np_i++;							\
-	}								\
-	of_node_put(node);						\
-}
-
 		for (io_i = 0;; io_i++) {
 			playback = of_parse_phandle(dai_np, "playback", io_i);
 			capture  = of_parse_phandle(dai_np, "capture", io_i);
@@ -699,11 +710,11 @@ if (node) {								\
 			if (!playback && !capture)
 				break;
 
-			mod_parse(ssi);
-			mod_parse(src);
-			mod_parse(ctu);
-			mod_parse(mix);
-			mod_parse(dvc);
+			rsnd_parse_connect_ssi(rdai, playback, capture);
+			rsnd_parse_connect_src(rdai, playback, capture);
+			rsnd_parse_connect_ctu(rdai, playback, capture);
+			rsnd_parse_connect_mix(rdai, playback, capture);
+			rsnd_parse_connect_dvc(rdai, playback, capture);
 
 			of_node_put(playback);
 			of_node_put(capture);

@@ -292,6 +292,11 @@ struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
 void rsnd_mod_interrupt(struct rsnd_mod *mod,
 			void (*callback)(struct rsnd_mod *mod,
 					 struct rsnd_dai_stream *io));
+void rsnd_parse_connect_common(struct rsnd_dai *rdai,
+		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
+		struct device_node *node,
+		struct device_node *playback,
+		struct device_node *capture);
 
 void rsnd_set_slot(struct rsnd_dai *rdai,
 		   int slots, int slots_total);
@@ -544,6 +549,10 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
 #define rsnd_ssi_of_node(priv)						\
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ssi")
+#define rsnd_parse_connect_ssi(rdai, playback, capture)			\
+	rsnd_parse_connect_common(rdai, rsnd_ssi_mod_get,		\
+				  rsnd_ssi_of_node(rsnd_rdai_to_priv(rdai)), \
+				  playback, capture)
 
 /*
  *	R-Car SSIU
@@ -564,6 +573,10 @@ unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct snd_pcm_runtime *runtime);
 #define rsnd_src_of_node(priv)						\
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,src")
+#define rsnd_parse_connect_src(rdai, playback, capture)			\
+	rsnd_parse_connect_common(rdai, rsnd_src_mod_get,		\
+				  rsnd_src_of_node(rsnd_rdai_to_priv(rdai)), \
+						   playback, capture)
 
 /*
  *	R-Car CTU
@@ -573,6 +586,10 @@ void rsnd_ctu_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
 #define rsnd_ctu_of_node(priv)						\
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ctu")
+#define rsnd_parse_connect_ctu(rdai, playback, capture)			\
+	rsnd_parse_connect_common(rdai, rsnd_ctu_mod_get,		\
+				  rsnd_ctu_of_node(rsnd_rdai_to_priv(rdai)), \
+						   playback, capture)
 
 /*
  *	R-Car MIX
@@ -582,6 +599,10 @@ void rsnd_mix_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
 #define rsnd_mix_of_node(priv)						\
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,mix")
+#define rsnd_parse_connect_mix(rdai, playback, capture)			\
+	rsnd_parse_connect_common(rdai, rsnd_mix_mod_get,		\
+				  rsnd_mix_of_node(rsnd_rdai_to_priv(rdai)), \
+						   playback, capture)
 
 /*
  *	R-Car DVC
@@ -591,6 +612,10 @@ void rsnd_dvc_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
 #define rsnd_dvc_of_node(priv)						\
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,dvc")
+#define rsnd_parse_connect_dvc(rdai, playback, capture)			\
+	rsnd_parse_connect_common(rdai, rsnd_dvc_mod_get,		\
+				  rsnd_dvc_of_node(rsnd_rdai_to_priv(rdai)), \
+						   playback, capture)
 
 /*
  *	R-Car CMD
