@@ -383,6 +383,7 @@ config CRYPTO_DEV_ATMEL_AES
 	tristate "Support for Atmel AES hw accelerator"
 	depends on AT_XDMAC || AT_HDMAC || COMPILE_TEST
 	select CRYPTO_AES
+	select CRYPTO_AEAD
 	select CRYPTO_BLKCIPHER
 	help
 	  Some Atmel processors have AES hw accelerator.
