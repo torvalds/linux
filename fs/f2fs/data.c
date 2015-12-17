@@ -573,6 +573,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	int err = 0, ofs = 1;
 	struct extent_info ei;
 	bool allocated = false;
+	block_t blkaddr;
 
 	map->m_len = 0;
 	map->m_flags = 0;
@@ -636,6 +637,9 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	pgofs++;
 
 get_next:
+	if (map->m_len >= maxblocks)
+		goto sync_out;
+
 	if (dn.ofs_in_node >= end_offset) {
 		if (allocated)
 			sync_inode_page(&dn);
@@ -653,44 +657,43 @@ get_next:
 		end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
 	}
 
-	if (maxblocks > map->m_len) {
-		block_t blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
+	blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
 
-		if (blkaddr == NEW_ADDR || blkaddr == NULL_ADDR) {
-			if (create) {
-				if (unlikely(f2fs_cp_error(sbi))) {
-					err = -EIO;
-					goto sync_out;
-				}
-				err = __allocate_data_block(&dn);
-				if (err)
-					goto sync_out;
-				allocated = true;
-				map->m_flags |= F2FS_MAP_NEW;
-				blkaddr = dn.data_blkaddr;
-			} else {
-				/*
-				 * we only merge preallocated unwritten blocks
-				 * for fiemap.
-				 */
-				if (flag != F2FS_GET_BLOCK_FIEMAP ||
-						blkaddr != NEW_ADDR)
-					goto sync_out;
+	if (blkaddr == NEW_ADDR || blkaddr == NULL_ADDR) {
+		if (create) {
+			if (unlikely(f2fs_cp_error(sbi))) {
+				err = -EIO;
+				goto sync_out;
 			}
-		}
-
-		/* Give more consecutive addresses for the readahead */
-		if ((map->m_pblk != NEW_ADDR &&
-				blkaddr == (map->m_pblk + ofs)) ||
-				(map->m_pblk == NEW_ADDR &&
-				blkaddr == NEW_ADDR)) {
-			ofs++;
-			dn.ofs_in_node++;
-			pgofs++;
-			map->m_len++;
-			goto get_next;
+			err = __allocate_data_block(&dn);
+			if (err)
+				goto sync_out;
+			allocated = true;
+			map->m_flags |= F2FS_MAP_NEW;
+			blkaddr = dn.data_blkaddr;
+		} else {
+			/*
+			 * we only merge preallocated unwritten blocks
+			 * for fiemap.
+			 */
+			if (flag != F2FS_GET_BLOCK_FIEMAP ||
+					blkaddr != NEW_ADDR)
+				goto sync_out;
 		}
 	}
+
+	/* Give more consecutive addresses for the readahead */
+	if ((map->m_pblk != NEW_ADDR &&
+			blkaddr == (map->m_pblk + ofs)) ||
+			(map->m_pblk == NEW_ADDR &&
+			blkaddr == NEW_ADDR)) {
+		ofs++;
+		dn.ofs_in_node++;
+		pgofs++;
+		map->m_len++;
+		goto get_next;
+	}
+
 sync_out:
 	if (allocated)
 		sync_inode_page(&dn);
