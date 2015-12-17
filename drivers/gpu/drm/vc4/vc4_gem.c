@@ -145,7 +145,7 @@ vc4_save_hang_state(struct drm_device *dev)
 	unsigned long irqflags;
 	unsigned int i, unref_list_count;
 
-	kernel_state = kcalloc(1, sizeof(*state), GFP_KERNEL);
+	kernel_state = kcalloc(1, sizeof(*kernel_state), GFP_KERNEL);
 	if (!kernel_state)
 		return;
 
