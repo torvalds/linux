@@ -166,6 +166,7 @@ static struct atmel_aes_drv atmel_aes = {
 	.lock = __SPIN_LOCK_UNLOCKED(atmel_aes.lock),
 };
 
+/* Shared functions */
 
 static inline u32 atmel_aes_read(struct atmel_aes_dev *dd, u32 offset)
 {
@@ -300,6 +301,38 @@ static inline int atmel_aes_complete(struct atmel_aes_dev *dd, int err)
 	tasklet_schedule(&dd->queue_task);
 
 	return err;
+}
+
+static void atmel_aes_write_ctrl(struct atmel_aes_dev *dd, bool use_dma,
+				 const u32 *iv)
+{
+	u32 valmr = 0;
+
+	/* MR register must be set before IV registers */
+	if (dd->ctx->keylen == AES_KEYSIZE_128)
+		valmr |= AES_MR_KEYSIZE_128;
+	else if (dd->ctx->keylen == AES_KEYSIZE_192)
+		valmr |= AES_MR_KEYSIZE_192;
+	else
+		valmr |= AES_MR_KEYSIZE_256;
+
+	valmr |= dd->flags & AES_FLAGS_MODE_MASK;
+
+	if (use_dma) {
+		valmr |= AES_MR_SMOD_IDATAR0;
+		if (dd->caps.has_dualbuff)
+			valmr |= AES_MR_DUALBUFF;
+	} else {
+		valmr |= AES_MR_SMOD_AUTO;
+	}
+
+	atmel_aes_write(dd, AES_MR, valmr);
+
+	atmel_aes_write_n(dd, AES_KEYWR(0), dd->ctx->key,
+			  SIZE_IN_WORDS(dd->ctx->keylen));
+
+	if (iv && (valmr & AES_MR_OPMOD_MASK) != AES_MR_OPMOD_ECB)
+		atmel_aes_write_block(dd, AES_IVR(0), iv);
 }
 
 
@@ -661,38 +694,6 @@ static void atmel_aes_dma_callback(void *data)
 	(void)dd->resume(dd);
 }
 
-static void atmel_aes_write_ctrl(struct atmel_aes_dev *dd, bool use_dma,
-				 const u32 *iv)
-{
-	u32 valmr = 0;
-
-	/* MR register must be set before IV registers */
-	if (dd->ctx->keylen == AES_KEYSIZE_128)
-		valmr |= AES_MR_KEYSIZE_128;
-	else if (dd->ctx->keylen == AES_KEYSIZE_192)
-		valmr |= AES_MR_KEYSIZE_192;
-	else
-		valmr |= AES_MR_KEYSIZE_256;
-
-	valmr |= dd->flags & AES_FLAGS_MODE_MASK;
-
-	if (use_dma) {
-		valmr |= AES_MR_SMOD_IDATAR0;
-		if (dd->caps.has_dualbuff)
-			valmr |= AES_MR_DUALBUFF;
-	} else {
-		valmr |= AES_MR_SMOD_AUTO;
-	}
-
-	atmel_aes_write(dd, AES_MR, valmr);
-
-	atmel_aes_write_n(dd, AES_KEYWR(0), dd->ctx->key,
-			  SIZE_IN_WORDS(dd->ctx->keylen));
-
-	if (iv && (valmr & AES_MR_OPMOD_MASK) != AES_MR_OPMOD_ECB)
-		atmel_aes_write_block(dd, AES_IVR(0), iv);
-}
-
 static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 				  struct crypto_async_request *new_areq)
 {
@@ -730,6 +731,9 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 	return (dd->is_async) ? ret : err;
 }
 
+
+/* AES async block ciphers */
+
 static int atmel_aes_transfer_complete(struct atmel_aes_dev *dd)
 {
 	return atmel_aes_complete(dd, 0);
@@ -756,26 +760,6 @@ static int atmel_aes_start(struct atmel_aes_dev *dd)
 
 	return atmel_aes_cpu_start(dd, req->src, req->dst, req->nbytes,
 				   atmel_aes_transfer_complete);
-}
-
-
-static int atmel_aes_buff_init(struct atmel_aes_dev *dd)
-{
-	dd->buf = (void *)__get_free_pages(GFP_KERNEL, ATMEL_AES_BUFFER_ORDER);
-	dd->buflen = ATMEL_AES_BUFFER_SIZE;
-	dd->buflen &= ~(AES_BLOCK_SIZE - 1);
-
-	if (!dd->buf) {
-		dev_err(dd->dev, "unable to alloc pages.\n");
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void atmel_aes_buff_cleanup(struct atmel_aes_dev *dd)
-{
-	free_page((unsigned long)dd->buf);
 }
 
 static int atmel_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
@@ -815,56 +799,6 @@ static int atmel_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 	rctx->mode = mode;
 
 	return atmel_aes_handle_queue(dd, &req->base);
-}
-
-static bool atmel_aes_filter(struct dma_chan *chan, void *slave)
-{
-	struct at_dma_slave	*sl = slave;
-
-	if (sl && sl->dma_dev == chan->device->dev) {
-		chan->private = sl;
-		return true;
-	} else {
-		return false;
-	}
-}
-
-static int atmel_aes_dma_init(struct atmel_aes_dev *dd,
-			      struct crypto_platform_data *pdata)
-{
-	struct at_dma_slave *slave;
-	int err = -ENOMEM;
-	dma_cap_mask_t mask;
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-
-	/* Try to grab 2 DMA channels */
-	slave = &pdata->dma_slave->rxdata;
-	dd->src.chan = dma_request_slave_channel_compat(mask, atmel_aes_filter,
-							slave, dd->dev, "tx");
-	if (!dd->src.chan)
-		goto err_dma_in;
-
-	slave = &pdata->dma_slave->txdata;
-	dd->dst.chan = dma_request_slave_channel_compat(mask, atmel_aes_filter,
-							slave, dd->dev, "rx");
-	if (!dd->dst.chan)
-		goto err_dma_out;
-
-	return 0;
-
-err_dma_out:
-	dma_release_channel(dd->src.chan);
-err_dma_in:
-	dev_warn(dd->dev, "no DMA channel available\n");
-	return err;
-}
-
-static void atmel_aes_dma_cleanup(struct atmel_aes_dev *dd)
-{
-	dma_release_channel(dd->dst.chan);
-	dma_release_channel(dd->src.chan);
 }
 
 static int atmel_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
@@ -1180,6 +1114,78 @@ static struct crypto_alg aes_cfb64_alg = {
 		.decrypt	= atmel_aes_cfb64_decrypt,
 	}
 };
+
+
+/* Probe functions */
+
+static int atmel_aes_buff_init(struct atmel_aes_dev *dd)
+{
+	dd->buf = (void *)__get_free_pages(GFP_KERNEL, ATMEL_AES_BUFFER_ORDER);
+	dd->buflen = ATMEL_AES_BUFFER_SIZE;
+	dd->buflen &= ~(AES_BLOCK_SIZE - 1);
+
+	if (!dd->buf) {
+		dev_err(dd->dev, "unable to alloc pages.\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void atmel_aes_buff_cleanup(struct atmel_aes_dev *dd)
+{
+	free_page((unsigned long)dd->buf);
+}
+
+static bool atmel_aes_filter(struct dma_chan *chan, void *slave)
+{
+	struct at_dma_slave	*sl = slave;
+
+	if (sl && sl->dma_dev == chan->device->dev) {
+		chan->private = sl;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+static int atmel_aes_dma_init(struct atmel_aes_dev *dd,
+			      struct crypto_platform_data *pdata)
+{
+	struct at_dma_slave *slave;
+	int err = -ENOMEM;
+	dma_cap_mask_t mask;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	/* Try to grab 2 DMA channels */
+	slave = &pdata->dma_slave->rxdata;
+	dd->src.chan = dma_request_slave_channel_compat(mask, atmel_aes_filter,
+							slave, dd->dev, "tx");
+	if (!dd->src.chan)
+		goto err_dma_in;
+
+	slave = &pdata->dma_slave->txdata;
+	dd->dst.chan = dma_request_slave_channel_compat(mask, atmel_aes_filter,
+							slave, dd->dev, "rx");
+	if (!dd->dst.chan)
+		goto err_dma_out;
+
+	return 0;
+
+err_dma_out:
+	dma_release_channel(dd->src.chan);
+err_dma_in:
+	dev_warn(dd->dev, "no DMA channel available\n");
+	return err;
+}
+
+static void atmel_aes_dma_cleanup(struct atmel_aes_dev *dd)
+{
+	dma_release_channel(dd->dst.chan);
+	dma_release_channel(dd->src.chan);
+}
 
 static void atmel_aes_queue_task(unsigned long data)
 {
