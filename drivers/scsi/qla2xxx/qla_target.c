@@ -3034,7 +3034,7 @@ static void qlt_init_term_exchange(struct scsi_qla_host *vha)
 	struct qla_tgt_cmd *cmd, *tcmd;
 
 	vha->hw->tgt.leak_exchg_thresh_hold =
-	    (vha->hw->fw_xcb_count/100) * LEAK_EXCHG_THRESH_HOLD_PERCENT;
+	    (vha->hw->cur_fw_xcb_count/100) * LEAK_EXCHG_THRESH_HOLD_PERCENT;
 
 	cmd = tcmd = NULL;
 	if (!list_empty(&vha->hw->tgt.q_full_list)) {
@@ -3064,7 +3064,7 @@ static void qlt_chk_exch_leak_thresh_hold(struct scsi_qla_host *vha)
 
 		ql_dbg(ql_dbg_tgt, vha, 0xe079,
 		    "Chip reset due to exchange starvation: %d/%d.\n",
-		    total_leaked, vha->hw->fw_xcb_count);
+		    total_leaked, vha->hw->cur_fw_xcb_count);
 
 		if (IS_P3P_TYPE(vha->hw))
 			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);

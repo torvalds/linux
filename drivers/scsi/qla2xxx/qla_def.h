@@ -2917,7 +2917,7 @@ struct qlt_hw_data {
 #define MAX_QFULL_CMDS_ALLOC	8192
 #define Q_FULL_THRESH_HOLD_PERCENT 90
 #define Q_FULL_THRESH_HOLD(ha) \
-	((ha->fw_xcb_count/100) * Q_FULL_THRESH_HOLD_PERCENT)
+	((ha->cur_fw_xcb_count/100) * Q_FULL_THRESH_HOLD_PERCENT)
 
 #define LEAK_EXCHG_THRESH_HOLD_PERCENT 75	/* 75 percent */
 
@@ -3298,8 +3298,14 @@ struct qla_hw_data {
 #define RISC_START_ADDRESS_2100 0x1000
 #define RISC_START_ADDRESS_2300 0x800
 #define RISC_START_ADDRESS_2400 0x100000
-	uint16_t	fw_xcb_count;
-	uint16_t	fw_iocb_count;
+
+	uint16_t	orig_fw_tgt_xcb_count;
+	uint16_t	cur_fw_tgt_xcb_count;
+	uint16_t	orig_fw_xcb_count;
+	uint16_t	cur_fw_xcb_count;
+	uint16_t	orig_fw_iocb_count;
+	uint16_t	cur_fw_iocb_count;
+	uint16_t	fw_max_fcf_count;
 
 	uint32_t	fw_shared_ram_start;
 	uint32_t	fw_shared_ram_end;
@@ -3343,6 +3349,7 @@ struct qla_hw_data {
 	struct dentry *dfs_dir;
 	struct dentry *dfs_fce;
 	struct dentry *dfs_tgt_counters;
+	struct dentry *dfs_fw_resource_cnt;
 
 	dma_addr_t	fce_dma;
 	void		*fce;
