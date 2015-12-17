@@ -53,8 +53,7 @@ intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 static void
 assert_device_not_suspended(struct drm_i915_private *dev_priv)
 {
-	WARN_ONCE(HAS_RUNTIME_PM(dev_priv->dev) && dev_priv->pm.suspended,
-		  "Device suspended\n");
+	WARN_ONCE(dev_priv->pm.suspended, "Device suspended\n");
 }
 
 static inline void
