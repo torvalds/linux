@@ -692,12 +692,15 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 
 static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
 {
-#if defined(CONFIG_X86_32) || !defined(CONFIG_X86_64)
+#ifdef CONFIG_X86_64
+	if (is_ia32_task())
+		return __NR_ia32_restart_syscall;
+#endif
+#ifdef CONFIG_X86_X32_ABI
+	return __NR_restart_syscall | (regs->orig_ax & __X32_SYSCALL_BIT);
+#else
 	return __NR_restart_syscall;
-#else /* !CONFIG_X86_32 && CONFIG_X86_64 */
-	return test_thread_flag(TIF_IA32) ? __NR_ia32_restart_syscall :
-		__NR_restart_syscall | (regs->orig_ax & __X32_SYSCALL_BIT);
-#endif /* CONFIG_X86_32 || !CONFIG_X86_64 */
+#endif
 }
 
 /*
