@@ -3102,7 +3102,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	unsigned width;
 	u32 hwcfg1, hwcfg2, hwcfg3, hwcfg4;
 	u32 hptxfsiz, grxfsiz, gnptxfsiz;
-	u32 gusbcfg;
+	u32 gusbcfg = 0;
 
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
@@ -3135,8 +3135,8 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "grxfsiz=%08x\n", grxfsiz);
 
 	/* Force host mode to get HPTXFSIZ / GNPTXFSIZ exact power on value */
-	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-	if (!(gusbcfg & GUSBCFG_FORCEHOSTMODE)) {
+	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
+		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
 		dwc2_writel(gusbcfg | GUSBCFG_FORCEHOSTMODE,
 			    hsotg->regs + GUSBCFG);
 		usleep_range(100000, 150000);
@@ -3146,7 +3146,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
 	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
 	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hptxfsiz);
-	if (!(gusbcfg & GUSBCFG_FORCEHOSTMODE)) {
+	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
 		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
 		usleep_range(100000, 150000);
 	}
