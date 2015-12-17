@@ -680,15 +680,15 @@ struct rsnd_mod *rsnd_dma_attach(struct rsnd_dai_stream *io,
 
 	dma_mod = rsnd_mod_get(dma);
 
-	dev_dbg(dev, "%s[%d] %s[%d] -> %s[%d]\n",
-		rsnd_mod_name(dma_mod), rsnd_mod_id(dma_mod),
-		rsnd_mod_name(mod_from), rsnd_mod_id(mod_from),
-		rsnd_mod_name(mod_to),   rsnd_mod_id(mod_to));
-
 	ret = rsnd_mod_init(priv, dma_mod,
 			    ops, NULL, type, dma_id);
 	if (ret < 0)
 		return ERR_PTR(ret);
+
+	dev_dbg(dev, "%s[%d] %s[%d] -> %s[%d]\n",
+		rsnd_mod_name(dma_mod), rsnd_mod_id(dma_mod),
+		rsnd_mod_name(mod_from), rsnd_mod_id(mod_from),
+		rsnd_mod_name(mod_to),   rsnd_mod_id(mod_to));
 
 	ret = attach(io, dma, id, mod_from, mod_to);
 	if (ret < 0)
