@@ -520,7 +520,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	/* Validate parameter values */
 	dwc2_set_parameters(hsotg, params);
 
-	dwc2_core_reset_and_force_dr_mode(hsotg);
+	dwc2_force_dr_mode(hsotg);
 
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
 		retval = dwc2_gadget_init(hsotg, irq);
