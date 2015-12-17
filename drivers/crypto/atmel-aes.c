@@ -119,6 +119,9 @@ struct atmel_aes_dev {
 	struct crypto_async_request	*areq;
 	struct atmel_aes_base_ctx	*ctx;
 
+	bool			is_async;
+	atmel_aes_fn_t		resume;
+
 	struct device		*dev;
 	struct clk		*iclk;
 	int	irq;
@@ -319,14 +322,17 @@ static inline void atmel_aes_set_mode(struct atmel_aes_dev *dd,
 	dd->flags = (dd->flags & AES_FLAGS_PERSISTENT) | rctx->mode;
 }
 
-static void atmel_aes_finish_req(struct atmel_aes_dev *dd, int err)
+static inline int atmel_aes_complete(struct atmel_aes_dev *dd, int err)
 {
-	struct ablkcipher_request *req = ablkcipher_request_cast(dd->areq);
-
 	clk_disable_unprepare(dd->iclk);
 	dd->flags &= ~AES_FLAGS_BUSY;
 
-	req->base.complete(&req->base, err);
+	if (dd->is_async)
+		dd->areq->complete(dd->areq, err);
+
+	tasklet_schedule(&dd->queue_task);
+
+	return err;
 }
 
 static void atmel_aes_dma_callback(void *data)
@@ -423,6 +429,8 @@ static int atmel_aes_crypt_dma(struct atmel_aes_dev *dd,
 	return 0;
 }
 
+static int atmel_aes_cpu_complete(struct atmel_aes_dev *dd);
+
 static int atmel_aes_crypt_cpu_start(struct atmel_aes_dev *dd)
 {
 	struct ablkcipher_request *req = ablkcipher_request_cast(dd->areq);
@@ -455,8 +463,11 @@ static int atmel_aes_crypt_cpu_start(struct atmel_aes_dev *dd)
 	atmel_aes_write_n(dd, AES_IDATAR(0), (u32 *) dd->buf_in,
 				dd->bufcnt >> 2);
 
-	return 0;
+	dd->resume = atmel_aes_cpu_complete;
+	return -EINPROGRESS;
 }
+
+static int atmel_aes_dma_complete(struct atmel_aes_dev *dd);
 
 static int atmel_aes_crypt_dma_start(struct atmel_aes_dev *dd)
 {
@@ -524,7 +535,8 @@ static int atmel_aes_crypt_dma_start(struct atmel_aes_dev *dd)
 		dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_TO_DEVICE);
 	}
 
-	return err;
+	dd->resume = atmel_aes_dma_complete;
+	return err ? : -EINPROGRESS;
 }
 
 static void atmel_aes_write_ctrl(struct atmel_aes_dev *dd, bool use_dma,
@@ -590,9 +602,10 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 
 	dd->areq = areq;
 	dd->ctx = ctx;
+	dd->is_async = (areq != new_areq);
 
 	err = ctx->start(dd);
-	return (areq != new_areq) ? ret : err;
+	return (dd->is_async) ? ret : err;
 }
 
 static int atmel_aes_start(struct atmel_aes_dev *dd)
@@ -621,10 +634,9 @@ static int atmel_aes_start(struct atmel_aes_dev *dd)
 		else
 			err = atmel_aes_crypt_cpu_start(dd);
 	}
-	if (err) {
+	if (err && err != -EINPROGRESS) {
 		/* aes_task will not finish it, so do it here */
-		atmel_aes_finish_req(dd, err);
-		tasklet_schedule(&dd->queue_task);
+		return atmel_aes_complete(dd, err);
 	}
 
 	return -EINPROGRESS;
@@ -1149,20 +1161,14 @@ static void atmel_aes_queue_task(unsigned long data)
 static void atmel_aes_done_task(unsigned long data)
 {
 	struct atmel_aes_dev *dd = (struct atmel_aes_dev *) data;
+
+	dd->is_async = true;
+	(void)dd->resume(dd);
+}
+
+static int atmel_aes_dma_complete(struct atmel_aes_dev *dd)
+{
 	int err;
-
-	if (!(dd->flags & AES_FLAGS_DMA)) {
-		atmel_aes_read_n(dd, AES_ODATAR(0), (u32 *) dd->buf_out,
-				dd->bufcnt >> 2);
-
-		if (sg_copy_from_buffer(dd->out_sg, dd->nb_out_sg,
-			dd->buf_out, dd->bufcnt))
-			err = 0;
-		else
-			err = -EINVAL;
-
-		goto cpu_end;
-	}
 
 	err = atmel_aes_crypt_dma_stop(dd);
 
@@ -1177,13 +1183,27 @@ static void atmel_aes_done_task(unsigned long data)
 		}
 		if (!err)
 			err = atmel_aes_crypt_dma_start(dd);
-		if (!err)
-			return; /* DMA started. Not fininishing. */
+		if (!err || err == -EINPROGRESS)
+			return -EINPROGRESS; /* DMA started. Not fininishing. */
 	}
 
-cpu_end:
-	atmel_aes_finish_req(dd, err);
-	atmel_aes_handle_queue(dd, NULL);
+	return atmel_aes_complete(dd, err);
+}
+
+static int atmel_aes_cpu_complete(struct atmel_aes_dev *dd)
+{
+	int err;
+
+	atmel_aes_read_n(dd, AES_ODATAR(0), (u32 *) dd->buf_out,
+			 dd->bufcnt >> 2);
+
+	if (sg_copy_from_buffer(dd->out_sg, dd->nb_out_sg,
+				dd->buf_out, dd->bufcnt))
+		err = 0;
+	else
+		err = -EINVAL;
+
+	return atmel_aes_complete(dd, err);
 }
 
 static irqreturn_t atmel_aes_irq(int irq, void *dev_id)
