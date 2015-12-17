@@ -36,6 +36,7 @@ struct goodix_ts_data {
 	unsigned int max_touch_num;
 	unsigned int int_trigger_type;
 	bool rotated_screen;
+	int cfg_len;
 };
 
 #define GOODIX_MAX_HEIGHT		4096
@@ -45,6 +46,8 @@ struct goodix_ts_data {
 #define GOODIX_MAX_CONTACTS		10
 
 #define GOODIX_CONFIG_MAX_LENGTH	240
+#define GOODIX_CONFIG_911_LENGTH	186
+#define GOODIX_CONFIG_967_LENGTH	228
 
 /* Register defines */
 #define GOODIX_READ_COOR_ADDR		0x814E
@@ -113,6 +116,25 @@ static int goodix_i2c_read(struct i2c_client *client,
 
 	ret = i2c_transfer(client->adapter, msgs, 2);
 	return ret < 0 ? ret : (ret != ARRAY_SIZE(msgs) ? -EIO : 0);
+}
+
+static int goodix_get_cfg_len(u16 id)
+{
+	switch (id) {
+	case 911:
+	case 9271:
+	case 9110:
+	case 927:
+	case 928:
+		return GOODIX_CONFIG_911_LENGTH;
+
+	case 912:
+	case 967:
+		return GOODIX_CONFIG_967_LENGTH;
+
+	default:
+		return GOODIX_CONFIG_MAX_LENGTH;
+	}
 }
 
 static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
@@ -230,8 +252,7 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 	int error;
 
 	error = goodix_i2c_read(ts->client, GOODIX_REG_CONFIG_DATA,
-				config,
-				GOODIX_CONFIG_MAX_LENGTH);
+				config, ts->cfg_len);
 	if (error) {
 		dev_warn(&ts->client->dev,
 			 "Error reading config (%d), using defaults\n",
@@ -397,6 +418,8 @@ static int goodix_ts_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Read version failed.\n");
 		return error;
 	}
+
+	ts->cfg_len = goodix_get_cfg_len(id_info);
 
 	goodix_read_config(ts);
 
