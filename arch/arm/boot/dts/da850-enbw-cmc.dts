@@ -28,3 +28,7 @@
 		};
 	};
 };
+
+&edma0 {
+	ti,edma-reserved-slot-ranges = <32 50>;
+};

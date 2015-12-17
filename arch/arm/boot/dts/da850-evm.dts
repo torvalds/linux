@@ -242,3 +242,7 @@
 	tx-num-evt = <32>;
 	rx-num-evt = <32>;
 };
+
+&edma0 {
+	ti,edma-reserved-slot-ranges = <32 50>;
+};
