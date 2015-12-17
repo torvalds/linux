@@ -229,7 +229,7 @@ static inline void qlt_decr_num_pend_cmds(struct scsi_qla_host *vha)
 	spin_unlock_irqrestore(&vha->hw->tgt.q_full_lock, flags);
 }
 
-static void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
+static bool qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio, uint8_t ha_locked)
 {
 	ql_dbg(ql_dbg_tgt, vha, 0xe072,
@@ -285,7 +285,7 @@ static void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 		break;
 	}
 
-	return;
+	return false;
 }
 
 void qlt_response_pkt_all_vps(struct scsi_qla_host *vha, response_t *pkt)
@@ -1738,15 +1738,15 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
-	if (qla2x00_reset_active(vha) || mcmd->reset_count != ha->chip_reset) {
+	if (!vha->flags.online || mcmd->reset_count != ha->chip_reset) {
 		/*
-		 * Either a chip reset is active or this request was from
+		 * Either the port is not online or this request was from
 		 * previous life, just abort the processing.
 		 */
 		ql_dbg(ql_dbg_async, vha, 0xe100,
-			"RESET-TMR active/old-count/new-count = %d/%d/%d.\n",
-			qla2x00_reset_active(vha), mcmd->reset_count,
-			ha->chip_reset);
+			"RESET-TMR online/active/old-count/new-count = %d/%d/%d/%d.\n",
+			vha->flags.online, qla2x00_reset_active(vha),
+			mcmd->reset_count, ha->chip_reset);
 		ha->tgt.tgt_ops->free_mcmd(mcmd);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		return;
@@ -2693,17 +2693,17 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	else
 		vha->tgt_counters.core_qla_que_buf++;
 
-	if (qla2x00_reset_active(vha) || cmd->reset_count != ha->chip_reset) {
+	if (!vha->flags.online || cmd->reset_count != ha->chip_reset) {
 		/*
-		 * Either a chip reset is active or this request was from
+		 * Either the port is not online or this request was from
 		 * previous life, just abort the processing.
 		 */
 		cmd->state = QLA_TGT_STATE_PROCESSED;
 		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
 		ql_dbg(ql_dbg_async, vha, 0xe101,
-			"RESET-RSP active/old-count/new-count = %d/%d/%d.\n",
-			qla2x00_reset_active(vha), cmd->reset_count,
-			ha->chip_reset);
+			"RESET-RSP online/active/old-count/new-count = %d/%d/%d/%d.\n",
+			vha->flags.online, qla2x00_reset_active(vha),
+			cmd->reset_count, ha->chip_reset);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		return 0;
 	}
@@ -2834,18 +2834,18 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
-	if (qla2x00_reset_active(vha) || (cmd->reset_count != ha->chip_reset) ||
+	if (!vha->flags.online || (cmd->reset_count != ha->chip_reset) ||
 	    (cmd->sess && cmd->sess->deleted == QLA_SESS_DELETION_IN_PROGRESS)) {
 		/*
-		 * Either a chip reset is active or this request was from
+		 * Either the port is not online or this request was from
 		 * previous life, just abort the processing.
 		 */
 		cmd->state = QLA_TGT_STATE_NEED_DATA;
 		qlt_abort_cmd_on_host_reset(cmd->vha, cmd);
 		ql_dbg(ql_dbg_async, vha, 0xe102,
-			"RESET-XFR active/old-count/new-count = %d/%d/%d.\n",
-			qla2x00_reset_active(vha), cmd->reset_count,
-			ha->chip_reset);
+			"RESET-XFR online/active/old-count/new-count = %d/%d/%d/%d.\n",
+			vha->flags.online, qla2x00_reset_active(vha),
+			cmd->reset_count, ha->chip_reset);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		return 0;
 	}

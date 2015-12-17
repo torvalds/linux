@@ -3065,6 +3065,26 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			atomic_set(&vha->loop_state, LOOP_READY);
 			ql_dbg(ql_dbg_disc, vha, 0x2069,
 			    "LOOP READY.\n");
+
+			/*
+			 * Process any ATIO queue entries that came in
+			 * while we weren't online.
+			 */
+			if (qla_tgt_mode_enabled(vha)) {
+				if (IS_QLA27XX(ha) || IS_QLA83XX(ha)) {
+					spin_lock_irqsave(&ha->tgt.atio_lock,
+					    flags);
+					qlt_24xx_process_atio_queue(vha, 0);
+					spin_unlock_irqrestore(
+					    &ha->tgt.atio_lock, flags);
+				} else {
+					spin_lock_irqsave(&ha->hardware_lock,
+					    flags);
+					qlt_24xx_process_atio_queue(vha, 1);
+					spin_unlock_irqrestore(
+					    &ha->hardware_lock, flags);
+				}
+			}
 		}
 	}
 
@@ -4919,7 +4939,6 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
-	unsigned long flags, flags2;
 
 	/* If firmware needs to be loaded */
 	if (qla2x00_isp_firmware(vha)) {
@@ -4940,19 +4959,6 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 		if (!status) {
 			/* Issue a marker after FW becomes ready. */
 			qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL);
-
-			vha->flags.online = 1;
-
-			/*
-			 * Process any ATIO queue entries that came in
-			 * while we weren't online.
-			 */
-			spin_lock_irqsave(&ha->hardware_lock, flags);
-			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
-			if (qla_tgt_mode_enabled(vha))
-				qlt_24xx_process_atio_queue(vha, 1);
-			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
-			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		}
