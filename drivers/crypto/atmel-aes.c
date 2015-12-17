@@ -127,7 +127,6 @@ struct atmel_aes_dev {
 	int	irq;
 
 	unsigned long		flags;
-	int	err;
 
 	spinlock_t		lock;
 	struct crypto_queue	queue;
@@ -288,7 +287,6 @@ static int atmel_aes_hw_init(struct atmel_aes_dev *dd)
 		atmel_aes_write(dd, AES_CR, AES_CR_SWRST);
 		atmel_aes_write(dd, AES_MR, 0xE << AES_MR_CKEY_OFFSET);
 		dd->flags |= AES_FLAGS_INIT;
-		dd->err = 0;
 	}
 
 	return 0;
@@ -1171,9 +1169,6 @@ static int atmel_aes_dma_complete(struct atmel_aes_dev *dd)
 	int err;
 
 	err = atmel_aes_crypt_dma_stop(dd);
-
-	err = dd->err ? : err;
-
 	if (dd->total && !err) {
 		if (dd->flags & AES_FLAGS_FAST) {
 			dd->in_sg = sg_next(dd->in_sg);
