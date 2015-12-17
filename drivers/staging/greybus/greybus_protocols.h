@@ -1143,18 +1143,18 @@ struct gb_camera_stream_config_response {
 struct gb_camera_configure_streams_response {
 	__le16 num_streams;
 #define GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED	0x01
-	u8 flags;
-	u8 padding;
+	__u8 flags;
+	__u8 padding;
 	struct gb_camera_stream_config_response config[0];
 } __packed;
 
 /* Greybus Camera Capture request payload - response has no payload */
 struct gb_camera_capture_request {
 	__le32 request_id;
-	u8 streams;
-	u8 padding;
+	__u8 streams;
+	__u8 padding;
 	__le16 num_frames;
-	u8 settings[0];
+	__u8 settings[0];
 } __packed;
 
 /* Greybus Camera Flush response payload - request has no payload */
@@ -1168,7 +1168,7 @@ struct gb_camera_metadata_request {
 	__le16 frame_number;
 	__u8 stream;
 	__u8 padding;
-	u8 metadata[0];
+	__u8 metadata[0];
 } __packed;
 
 /* Lights */
