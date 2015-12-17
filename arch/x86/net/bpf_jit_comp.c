@@ -459,6 +459,18 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			}
 
 		case BPF_ALU | BPF_MOV | BPF_K:
+			/* optimization: if imm32 is zero, use 'xor <dst>,<dst>'
+			 * to save 3 bytes.
+			 */
+			if (imm32 == 0) {
+				if (is_ereg(dst_reg))
+					EMIT1(add_2mod(0x40, dst_reg, dst_reg));
+				b2 = 0x31; /* xor */
+				b3 = 0xC0;
+				EMIT2(b2, add_2reg(b3, dst_reg, dst_reg));
+				break;
+			}
+
 			/* mov %eax, imm32 */
 			if (is_ereg(dst_reg))
 				EMIT1(add_1mod(0x40, dst_reg));
@@ -471,6 +483,20 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 				/* verifier must catch invalid insns */
 				pr_err("invalid BPF_LD_IMM64 insn\n");
 				return -EINVAL;
+			}
+
+			/* optimization: if imm64 is zero, use 'xor <dst>,<dst>'
+			 * to save 7 bytes.
+			 */
+			if (insn[0].imm == 0 && insn[1].imm == 0) {
+				b1 = add_2mod(0x48, dst_reg, dst_reg);
+				b2 = 0x31; /* xor */
+				b3 = 0xC0;
+				EMIT3(b1, b2, add_2reg(b3, dst_reg, dst_reg));
+
+				insn++;
+				i++;
+				break;
 			}
 
 			/* movabsq %rax, imm64 */
