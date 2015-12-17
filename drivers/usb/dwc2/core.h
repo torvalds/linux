@@ -459,6 +459,7 @@ struct dwc2_core_params {
  *                       1 - 16 bits
  *                       2 - 8 or 16 bits
  * @snpsid:             Value from SNPSID register
+ * @dev_ep_dirs:        Direction of device endpoints (GHWCFG1)
  */
 struct dwc2_hw_params {
 	unsigned op_mode:3;
@@ -469,6 +470,7 @@ struct dwc2_hw_params {
 	unsigned en_multiple_tx_fifo:1;
 	unsigned host_rx_fifo_size:16;
 	unsigned host_nperio_tx_fifo_size:16;
+	unsigned dev_nperio_tx_fifo_size:16;
 	unsigned host_perio_tx_fifo_size:16;
 	unsigned nperio_tx_q_depth:3;
 	unsigned host_perio_tx_q_depth:3;
@@ -485,6 +487,7 @@ struct dwc2_hw_params {
 	unsigned power_optimized:1;
 	unsigned utmi_phy_data_width:2;
 	u32 snpsid;
+	u32 dev_ep_dirs;
 };
 
 /* Size of control and EP0 buffers */
