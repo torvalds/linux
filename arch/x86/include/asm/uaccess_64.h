@@ -56,35 +56,49 @@ int __copy_from_user_nocheck(void *dst, const void __user *src, unsigned size)
 	if (!__builtin_constant_p(size))
 		return copy_user_generic(dst, (__force void *)src, size);
 	switch (size) {
-	case 1:__get_user_asm(*(u8 *)dst, (u8 __user *)src,
+	case 1:
+		__uaccess_begin();
+		__get_user_asm(*(u8 *)dst, (u8 __user *)src,
 			      ret, "b", "b", "=q", 1);
+		__uaccess_end();
 		return ret;
-	case 2:__get_user_asm(*(u16 *)dst, (u16 __user *)src,
+	case 2:
+		__uaccess_begin();
+		__get_user_asm(*(u16 *)dst, (u16 __user *)src,
 			      ret, "w", "w", "=r", 2);
+		__uaccess_end();
 		return ret;
-	case 4:__get_user_asm(*(u32 *)dst, (u32 __user *)src,
+	case 4:
+		__uaccess_begin();
+		__get_user_asm(*(u32 *)dst, (u32 __user *)src,
 			      ret, "l", "k", "=r", 4);
+		__uaccess_end();
 		return ret;
-	case 8:__get_user_asm(*(u64 *)dst, (u64 __user *)src,
+	case 8:
+		__uaccess_begin();
+		__get_user_asm(*(u64 *)dst, (u64 __user *)src,
 			      ret, "q", "", "=r", 8);
+		__uaccess_end();
 		return ret;
 	case 10:
+		__uaccess_begin();
 		__get_user_asm(*(u64 *)dst, (u64 __user *)src,
 			       ret, "q", "", "=r", 10);
-		if (unlikely(ret))
-			return ret;
-		__get_user_asm(*(u16 *)(8 + (char *)dst),
-			       (u16 __user *)(8 + (char __user *)src),
-			       ret, "w", "w", "=r", 2);
+		if (likely(!ret))
+			__get_user_asm(*(u16 *)(8 + (char *)dst),
+				       (u16 __user *)(8 + (char __user *)src),
+				       ret, "w", "w", "=r", 2);
+		__uaccess_end();
 		return ret;
 	case 16:
+		__uaccess_begin();
 		__get_user_asm(*(u64 *)dst, (u64 __user *)src,
 			       ret, "q", "", "=r", 16);
-		if (unlikely(ret))
-			return ret;
-		__get_user_asm(*(u64 *)(8 + (char *)dst),
-			       (u64 __user *)(8 + (char __user *)src),
-			       ret, "q", "", "=r", 8);
+		if (likely(!ret))
+			__get_user_asm(*(u64 *)(8 + (char *)dst),
+				       (u64 __user *)(8 + (char __user *)src),
+				       ret, "q", "", "=r", 8);
+		__uaccess_end();
 		return ret;
 	default:
 		return copy_user_generic(dst, (__force void *)src, size);
@@ -106,35 +120,51 @@ int __copy_to_user_nocheck(void __user *dst, const void *src, unsigned size)
 	if (!__builtin_constant_p(size))
 		return copy_user_generic((__force void *)dst, src, size);
 	switch (size) {
-	case 1:__put_user_asm(*(u8 *)src, (u8 __user *)dst,
+	case 1:
+		__uaccess_begin();
+		__put_user_asm(*(u8 *)src, (u8 __user *)dst,
 			      ret, "b", "b", "iq", 1);
+		__uaccess_end();
 		return ret;
-	case 2:__put_user_asm(*(u16 *)src, (u16 __user *)dst,
+	case 2:
+		__uaccess_begin();
+		__put_user_asm(*(u16 *)src, (u16 __user *)dst,
 			      ret, "w", "w", "ir", 2);
+		__uaccess_end();
 		return ret;
-	case 4:__put_user_asm(*(u32 *)src, (u32 __user *)dst,
+	case 4:
+		__uaccess_begin();
+		__put_user_asm(*(u32 *)src, (u32 __user *)dst,
 			      ret, "l", "k", "ir", 4);
+		__uaccess_end();
 		return ret;
-	case 8:__put_user_asm(*(u64 *)src, (u64 __user *)dst,
+	case 8:
+		__uaccess_begin();
+		__put_user_asm(*(u64 *)src, (u64 __user *)dst,
 			      ret, "q", "", "er", 8);
+		__uaccess_end();
 		return ret;
 	case 10:
+		__uaccess_begin();
 		__put_user_asm(*(u64 *)src, (u64 __user *)dst,
 			       ret, "q", "", "er", 10);
-		if (unlikely(ret))
-			return ret;
-		asm("":::"memory");
-		__put_user_asm(4[(u16 *)src], 4 + (u16 __user *)dst,
-			       ret, "w", "w", "ir", 2);
+		if (likely(!ret)) {
+			asm("":::"memory");
+			__put_user_asm(4[(u16 *)src], 4 + (u16 __user *)dst,
+				       ret, "w", "w", "ir", 2);
+		}
+		__uaccess_end();
 		return ret;
 	case 16:
+		__uaccess_begin();
 		__put_user_asm(*(u64 *)src, (u64 __user *)dst,
 			       ret, "q", "", "er", 16);
-		if (unlikely(ret))
-			return ret;
-		asm("":::"memory");
-		__put_user_asm(1[(u64 *)src], 1 + (u64 __user *)dst,
-			       ret, "q", "", "er", 8);
+		if (likely(!ret)) {
+			asm("":::"memory");
+			__put_user_asm(1[(u64 *)src], 1 + (u64 __user *)dst,
+				       ret, "q", "", "er", 8);
+		}
+		__uaccess_end();
 		return ret;
 	default:
 		return copy_user_generic((__force void *)dst, src, size);
@@ -160,39 +190,47 @@ int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 	switch (size) {
 	case 1: {
 		u8 tmp;
+		__uaccess_begin();
 		__get_user_asm(tmp, (u8 __user *)src,
 			       ret, "b", "b", "=q", 1);
 		if (likely(!ret))
 			__put_user_asm(tmp, (u8 __user *)dst,
 				       ret, "b", "b", "iq", 1);
+		__uaccess_end();
 		return ret;
 	}
 	case 2: {
 		u16 tmp;
+		__uaccess_begin();
 		__get_user_asm(tmp, (u16 __user *)src,
 			       ret, "w", "w", "=r", 2);
 		if (likely(!ret))
 			__put_user_asm(tmp, (u16 __user *)dst,
 				       ret, "w", "w", "ir", 2);
+		__uaccess_end();
 		return ret;
 	}
 
 	case 4: {
 		u32 tmp;
+		__uaccess_begin();
 		__get_user_asm(tmp, (u32 __user *)src,
 			       ret, "l", "k", "=r", 4);
 		if (likely(!ret))
 			__put_user_asm(tmp, (u32 __user *)dst,
 				       ret, "l", "k", "ir", 4);
+		__uaccess_end();
 		return ret;
 	}
 	case 8: {
 		u64 tmp;
+		__uaccess_begin();
 		__get_user_asm(tmp, (u64 __user *)src,
 			       ret, "q", "", "=r", 8);
 		if (likely(!ret))
 			__put_user_asm(tmp, (u64 __user *)dst,
 				       ret, "q", "", "er", 8);
+		__uaccess_end();
 		return ret;
 	}
 	default:
