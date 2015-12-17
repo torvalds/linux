@@ -18,77 +18,77 @@
 #include "socfpga_cyclone5_mcv.dtsi"
 
 / {
-       model = "DENX MCV EVK";
-       compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	model = "DENX MCV EVK";
+	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
-       aliases {
-               ethernet0 = &gmac0;
-               stmpe-i2c0 = &stmpe1;
-       };
+	aliases {
+		ethernet0 = &gmac0;
+		stmpe-i2c0 = &stmpe1;
+	};
 
-       chosen {
-               stdout-path = "serial0:115200n8";
-       };
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
 &can0 {
-       status = "okay";
+	status = "okay";
 };
 
 &can1 {
-       status = "okay";
+	status = "okay";
 };
 
 &gmac0 {
-       phy-mode = "rgmii";
-       status = "okay";
+	phy-mode = "rgmii";
+	status = "okay";
 };
 
-&gpio0 {       /* GPIO  0 ... 28 */
-       status = "okay";
+&gpio0 {	/* GPIO  0 ... 28 */
+	status = "okay";
 };
 
-&gpio1 {       /* GPIO 29 ... 57 */
-       status = "okay";
+&gpio1 {	/* GPIO 29 ... 57 */
+	status = "okay";
 };
 
-&gpio2 {       /* GPIO 58..66 (HLGPI 0..13 at offset 13) */
-       status = "okay";
+&gpio2 {	/* GPIO 58..66 (HLGPI 0..13 at offset 13) */
+	status = "okay";
 };
 
 &i2c0 {
-       status = "okay";
-       speed-mode = <0>;
+	status = "okay";
+	speed-mode = <0>;
 
-       stmpe1: stmpe811@41 {
-               compatible = "st,stmpe811";
-               #address-cells = <1>;
-               #size-cells = <0>;
-               reg = <0x41>;
-               id = <0>;
-               blocks = <0x5>;
-               irq-gpio = <&portb 28 0x4>;     /* GPIO 57, trig. level HI */
+	stmpe1: stmpe811@41 {
+		compatible = "st,stmpe811";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x41>;
+		id = <0>;
+		blocks = <0x5>;
+		irq-gpio = <&portb 28 0x4>;     /* GPIO 57, trig. level HI */
 
-               stmpe_touchscreen {
-                       compatible = "st,stmpe-ts";
-                       reg = <0>;
-                       ts,sample-time = <4>;
-                       ts,mod-12b = <1>;
-                       ts,ref-sel = <0>;
-                       ts,adc-freq = <1>;
-                       ts,ave-ctrl = <1>;
-                       ts,touch-det-delay = <3>;
-                       ts,settling = <4>;
-                       ts,fraction-z = <7>;
-                       ts,i-drive = <1>;
-               };
-       };
+		stmpe_touchscreen {
+			compatible = "st,stmpe-ts";
+			reg = <0>;
+			ts,sample-time = <4>;
+			ts,mod-12b = <1>;
+			ts,ref-sel = <0>;
+			ts,adc-freq = <1>;
+			ts,ave-ctrl = <1>;
+			ts,touch-det-delay = <3>;
+			ts,settling = <4>;
+			ts,fraction-z = <7>;
+			ts,i-drive = <1>;
+		};
+	};
 };
 
 &uart0 {
-       status = "okay";
+	status = "okay";
 };
 
 &usb1 {
-       status = "okay";
+	status = "okay";
 };
