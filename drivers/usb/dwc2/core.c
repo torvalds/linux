@@ -602,7 +602,7 @@ static void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg)
 	 * NOTE: This long sleep is _very_ important, otherwise the core will
 	 * not stay in host mode after a connector ID change!
 	 */
-	usleep_range(150000, 160000);
+	msleep(25);
 }
 
 /*
