@@ -76,8 +76,7 @@ struct l2t_entry {
 	struct neighbour *neigh;    /* associated neighbour */
 	struct l2t_entry *first;    /* start of hash chain */
 	struct l2t_entry *next;     /* next l2t_entry on chain */
-	struct sk_buff *arpq_head;  /* queue of packets awaiting resolution */
-	struct sk_buff *arpq_tail;
+	struct sk_buff_head arpq;   /* packet queue awaiting resolution */
 	spinlock_t lock;
 	atomic_t refcnt;            /* entry reference count */
 	u16 hash;                   /* hash bucket the entry is on */
