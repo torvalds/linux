@@ -348,12 +348,6 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
  *    jump offsets, 2nd pass remapping:
  *   new_prog = kmalloc(sizeof(struct bpf_insn) * new_len);
  *   bpf_convert_filter(old_prog, old_len, new_prog, &new_len);
- *
- * User BPF's register A is mapped to our BPF register 6, user BPF
- * register X is mapped to BPF register 7; frame pointer is always
- * register 10; Context 'void *ctx' is stored in register 1, that is,
- * for socket filters: ctx == 'struct sk_buff *', for seccomp:
- * ctx == 'struct seccomp_data *'.
  */
 static int bpf_convert_filter(struct sock_filter *prog, int len,
 			      struct bpf_insn *new_prog, int *new_len)
