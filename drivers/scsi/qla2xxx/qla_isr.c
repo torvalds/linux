@@ -3302,7 +3302,7 @@ static void qla_irq_affinity_notify(struct irq_affinity_notify *notify,
 	}
 }
 
-void qla_irq_affinity_release(struct kref *ref)
+static void qla_irq_affinity_release(struct kref *ref)
 {
 	struct irq_affinity_notify *notify =
 		container_of(ref, struct irq_affinity_notify, kref);

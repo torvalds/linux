@@ -528,6 +528,7 @@ struct se_cmd {
 	unsigned int		t_prot_nents;
 	sense_reason_t		pi_err;
 	sector_t		bad_sector;
+	int			cpuid;
 };
 
 struct se_ua {
