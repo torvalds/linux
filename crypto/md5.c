@@ -24,6 +24,12 @@
 #include <linux/cryptohash.h>
 #include <asm/byteorder.h>
 
+const u8 md5_zero_message_hash[MD5_DIGEST_SIZE] = {
+	0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
+	0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
+};
+EXPORT_SYMBOL_GPL(md5_zero_message_hash);
+
 /* XXX: this stuff can be optimized */
 static inline void le32_to_cpu_array(u32 *buf, unsigned int words)
 {
