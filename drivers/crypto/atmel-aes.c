@@ -689,10 +689,10 @@ static void atmel_aes_write_ctrl(struct atmel_aes_dev *dd, bool use_dma,
 	atmel_aes_write(dd, AES_MR, valmr);
 
 	atmel_aes_write_n(dd, AES_KEYWR(0), dd->ctx->key,
-						dd->ctx->keylen >> 2);
+			  SIZE_IN_WORDS(dd->ctx->keylen));
 
 	if (iv && (valmr & AES_MR_OPMOD_MASK) != AES_MR_OPMOD_ECB)
-		atmel_aes_write_n(dd, AES_IVR(0), iv, 4);
+		atmel_aes_write_block(dd, AES_IVR(0), iv);
 }
 
 static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
