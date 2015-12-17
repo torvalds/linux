@@ -227,12 +227,18 @@ static inline pte_t pte_mkspecial(pte_t pte)
 
 static inline pte_t pte_mkcont(pte_t pte)
 {
-	return set_pte_bit(pte, __pgprot(PTE_CONT));
+	pte = set_pte_bit(pte, __pgprot(PTE_CONT));
+	return set_pte_bit(pte, __pgprot(PTE_TYPE_PAGE));
 }
 
 static inline pte_t pte_mknoncont(pte_t pte)
 {
 	return clear_pte_bit(pte, __pgprot(PTE_CONT));
+}
+
+static inline pmd_t pmd_mkcont(pmd_t pmd)
+{
+	return __pmd(pmd_val(pmd) | PMD_SECT_CONT);
 }
 
 static inline void set_pte(pte_t *ptep, pte_t pte)
@@ -304,7 +310,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 /*
  * Hugetlb definitions.
  */
-#define HUGE_MAX_HSTATE		2
+#define HUGE_MAX_HSTATE		4
 #define HPAGE_SHIFT		PMD_SHIFT
 #define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
