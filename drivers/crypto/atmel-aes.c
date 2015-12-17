@@ -66,7 +66,6 @@
 
 #define AES_FLAGS_INIT		BIT(2)
 #define AES_FLAGS_BUSY		BIT(3)
-#define AES_FLAGS_DMA		BIT(4)
 #define AES_FLAGS_FAST		BIT(5)
 
 #define AES_FLAGS_PERSISTENT	(AES_FLAGS_INIT | AES_FLAGS_BUSY)
@@ -393,8 +392,6 @@ static int atmel_aes_crypt_dma(struct atmel_aes_dev *dd,
 	dmaengine_slave_config(dd->dma_lch_in.chan, &dd->dma_lch_in.dma_conf);
 	dmaengine_slave_config(dd->dma_lch_out.chan, &dd->dma_lch_out.dma_conf);
 
-	dd->flags |= AES_FLAGS_DMA;
-
 	sg_init_table(&sg[0], 1);
 	sg_dma_address(&sg[0]) = dma_addr_in;
 	sg_dma_len(&sg[0]) = length;
@@ -432,8 +429,6 @@ static int atmel_aes_cpu_complete(struct atmel_aes_dev *dd);
 static int atmel_aes_crypt_cpu_start(struct atmel_aes_dev *dd)
 {
 	struct ablkcipher_request *req = ablkcipher_request_cast(dd->areq);
-
-	dd->flags &= ~AES_FLAGS_DMA;
 
 	dma_sync_single_for_cpu(dd->dev, dd->dma_addr_in,
 				dd->dma_size, DMA_TO_DEVICE);
@@ -642,25 +637,23 @@ static int atmel_aes_start(struct atmel_aes_dev *dd)
 
 static int atmel_aes_crypt_dma_stop(struct atmel_aes_dev *dd)
 {
-	int err = -EINVAL;
+	int err = 0;
 	size_t count;
 
-	if (dd->flags & AES_FLAGS_DMA) {
-		err = 0;
-		if  (dd->flags & AES_FLAGS_FAST) {
-			dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_FROM_DEVICE);
-			dma_unmap_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
-		} else {
-			dma_sync_single_for_cpu(dd->dev, dd->dma_addr_out,
-				dd->dma_size, DMA_FROM_DEVICE);
+	if  (dd->flags & AES_FLAGS_FAST) {
+		dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_FROM_DEVICE);
+		dma_unmap_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
+	} else {
+		dma_sync_single_for_cpu(dd->dev, dd->dma_addr_out,
+					dd->dma_size, DMA_FROM_DEVICE);
 
-			/* copy data */
-			count = atmel_aes_sg_copy(&dd->out_sg, &dd->out_offset,
-				dd->buf_out, dd->buflen, dd->dma_size, 1);
-			if (count != dd->dma_size) {
-				err = -EINVAL;
-				pr_err("not all data converted: %zu\n", count);
-			}
+		/* copy data */
+		count = atmel_aes_sg_copy(&dd->out_sg, &dd->out_offset,
+					  dd->buf_out, dd->buflen,
+					  dd->dma_size, 1);
+		if (count != dd->dma_size) {
+			err = -EINVAL;
+			pr_err("not all data converted: %zu\n", count);
 		}
 	}
 
