@@ -2309,18 +2309,21 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
 
+	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
+	pm_runtime_mark_last_busy(device);
+
 	/*
 	 * Take a permanent reference to disable the RPM functionality and drop
 	 * it only when unloading the driver. Use the low level get/put helpers,
 	 * so the driver's own RPM reference tracking asserts also work on
 	 * platforms without RPM support.
 	 */
-	if (!HAS_RUNTIME_PM(dev))
+	if (!HAS_RUNTIME_PM(dev)) {
+		pm_runtime_dont_use_autosuspend(device);
 		pm_runtime_get_sync(device);
-
-	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
-	pm_runtime_mark_last_busy(device);
-	pm_runtime_use_autosuspend(device);
+	} else {
+		pm_runtime_use_autosuspend(device);
+	}
 
 	/*
 	 * The core calls the driver load handler with an RPM reference held.
