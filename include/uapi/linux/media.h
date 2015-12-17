@@ -330,16 +330,20 @@ struct media_v2_link {
 struct media_v2_topology {
 	__u64 topology_version;
 
-	__u64 num_entities;
+	__u32 num_entities;
+	__u32 reserved1;
 	__u64 ptr_entities;
 
-	__u64 num_interfaces;
+	__u32 num_interfaces;
+	__u32 reserved2;
 	__u64 ptr_interfaces;
 
-	__u64 num_pads;
+	__u32 num_pads;
+	__u32 reserved3;
 	__u64 ptr_pads;
 
-	__u64 num_links;
+	__u32 num_links;
+	__u32 reserved4;
 	__u64 ptr_links;
 };
 
