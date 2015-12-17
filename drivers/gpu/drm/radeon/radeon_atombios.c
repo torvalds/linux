@@ -1263,6 +1263,13 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		rdev->mode_info.firmware_flags =
 			le16_to_cpu(firmware_info->info.usFirmwareCapability.susAccess);
 
+		if (ASIC_IS_DCE8(rdev)) {
+			rdev->clock.gpupll_outputfreq =
+				le32_to_cpu(firmware_info->info_22.ulGPUPLL_OutputFreq);
+			if (rdev->clock.gpupll_outputfreq == 0)
+				rdev->clock.gpupll_outputfreq = 360000;	/* 3.6 GHz */
+		}
+
 		return true;
 	}
 
