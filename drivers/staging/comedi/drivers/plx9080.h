@@ -417,7 +417,7 @@ enum bigend_bits {
 static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 {
 	void __iomem *dma_cs_addr;
-	uint8_t dma_status;
+	u8 dma_status;
 	const int timeout = 10000;
 	unsigned int i;
 
