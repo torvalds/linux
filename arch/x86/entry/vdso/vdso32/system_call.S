@@ -1,5 +1,5 @@
 /*
- * Code for the vDSO.  This version uses the old int $0x80 method.
+ * AT_SYSINFO entry point
 */
 
 #include <asm/dwarf2.h>

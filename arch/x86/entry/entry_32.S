@@ -292,7 +292,7 @@ ENTRY(entry_SYSENTER_32)
 	movl	TSS_sysenter_sp0(%esp), %esp
 sysenter_past_esp:
 	pushl	$__USER_DS		/* pt_regs->ss */
-	pushl	%ecx			/* pt_regs->cx */
+	pushl	%ecx			/* pt_regs->sp (stashed in cx) */
 	pushfl				/* pt_regs->flags (except IF = 0) */
 	orl	$X86_EFLAGS_IF, (%esp)	/* Fix IF */
 	pushl	$__USER_CS		/* pt_regs->cs */
