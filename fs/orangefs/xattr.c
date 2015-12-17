@@ -348,6 +348,7 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	int count_keys = 0;
 	int key_size;
 	int i = 0;
+	int returned_count = 0;
 
 	if (size > 0 && buffer == NULL) {
 		gossip_err("%s: bogus NULL pointers\n", __func__);
@@ -392,10 +393,19 @@ try_again:
 	if (length == 0)
 		goto done;
 
+	returned_count = new_op->downcall.resp.listxattr.returned_count;
+	if (returned_count < 0 ||
+	    returned_count >= ORANGEFS_MAX_XATTR_LISTLEN) {
+		gossip_err("%s: impossible value for returned_count:%d:\n",
+		__func__,
+		returned_count);
+		goto done;
+	}
+
 	/*
 	 * Check to see how much can be fit in the buffer. Fit only whole keys.
 	 */
-	for (i = 0; i < new_op->downcall.resp.listxattr.returned_count; i++) {
+	for (i = 0; i < returned_count; i++) {
 		if (total + new_op->downcall.resp.listxattr.lengths[i] > size)
 			goto done;
 
