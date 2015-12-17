@@ -86,6 +86,7 @@ static struct timer_list watchdog_ticktock =
 
 static void watchdog_fire(unsigned long data)
 {
+	module_put(THIS_MODULE);
 	if (soft_noboot)
 		pr_crit("Triggered - Reboot ignored\n");
 	else if (soft_panic) {
@@ -104,13 +105,16 @@ static void watchdog_fire(unsigned long data)
 
 static int softdog_ping(struct watchdog_device *w)
 {
-	mod_timer(&watchdog_ticktock, jiffies+(w->timeout*HZ));
+	if (!mod_timer(&watchdog_ticktock, jiffies+(w->timeout*HZ)))
+		__module_get(THIS_MODULE);
 	return 0;
 }
 
 static int softdog_stop(struct watchdog_device *w)
 {
-	del_timer(&watchdog_ticktock);
+	if (del_timer(&watchdog_ticktock))
+		module_put(THIS_MODULE);
+
 	return 0;
 }
 
