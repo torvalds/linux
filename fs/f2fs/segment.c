@@ -291,8 +291,11 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 	if (!available_free_memory(sbi, NAT_ENTRIES) ||
 			excess_prefree_segs(sbi) ||
 			!available_free_memory(sbi, INO_ENTRIES) ||
-			jiffies > sbi->cp_expires)
+			jiffies > sbi->cp_expires) {
+		if (test_opt(sbi, DATA_FLUSH))
+			sync_dirty_inodes(sbi, FILE_INODE);
 		f2fs_sync_fs(sbi->sb, true);
+	}
 }
 
 static int issue_flush_thread(void *data)
