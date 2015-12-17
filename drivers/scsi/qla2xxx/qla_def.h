@@ -259,7 +259,7 @@
 #define LOOP_DOWN_TIME			255	/* 240 */
 #define	LOOP_DOWN_RESET			(LOOP_DOWN_TIME - 30)
 
-#define DEFAULT_OUTSTANDING_COMMANDS	1024
+#define DEFAULT_OUTSTANDING_COMMANDS	4096
 #define MIN_OUTSTANDING_COMMANDS	128
 
 /* ISP request and response entry counts (37-65535) */
@@ -267,6 +267,7 @@
 #define REQUEST_ENTRY_CNT_2200		2048	/* Number of request entries. */
 #define REQUEST_ENTRY_CNT_24XX		2048	/* Number of request entries. */
 #define REQUEST_ENTRY_CNT_83XX		8192	/* Number of request entries. */
+#define RESPONSE_ENTRY_CNT_83XX		4096	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2100		64	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2300		512	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_MQ		128	/* Number of response entries.*/
