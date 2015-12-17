@@ -453,6 +453,8 @@ static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.irq_type == KVMPPC_IRQ_XICS;
 }
+extern void kvmppc_alloc_host_rm_ops(void);
+extern void kvmppc_free_host_rm_ops(void);
 extern void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu);
 extern int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server);
 extern int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args);
@@ -462,6 +464,8 @@ extern int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval);
 extern int kvmppc_xics_connect_vcpu(struct kvm_device *dev,
 			struct kvm_vcpu *vcpu, u32 cpu);
 #else
+static inline void kvmppc_alloc_host_rm_ops(void) {};
+static inline void kvmppc_free_host_rm_ops(void) {};
 static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 	{ return 0; }
 static inline void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu) { }
@@ -474,6 +478,33 @@ static inline int kvm_vm_ioctl_xics_irq(struct kvm *kvm,
 static inline int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 	{ return 0; }
 #endif
+
+/*
+ * Host-side operations we want to set up while running in real
+ * mode in the guest operating on the xics.
+ * Currently only VCPU wakeup is supported.
+ */
+
+union kvmppc_rm_state {
+	unsigned long raw;
+	struct {
+		u32 in_host;
+		u32 rm_action;
+	};
+};
+
+struct kvmppc_host_rm_core {
+	union kvmppc_rm_state rm_state;
+	void *rm_data;
+	char pad[112];
+};
+
+struct kvmppc_host_rm_ops {
+	struct kvmppc_host_rm_core	*rm_core;
+	void		(*vcpu_kick)(struct kvm_vcpu *vcpu);
+};
+
+extern struct kvmppc_host_rm_ops *kvmppc_host_rm_ops_hv;
 
 static inline unsigned long kvmppc_get_epr(struct kvm_vcpu *vcpu)
 {
