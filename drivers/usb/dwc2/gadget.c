@@ -2244,54 +2244,6 @@ static void dwc2_hsotg_irq_fifoempty(struct dwc2_hsotg *hsotg, bool periodic)
 			GINTSTS_RXFLVL)
 
 /**
- * dwc2_hsotg_corereset - issue softreset to the core
- * @hsotg: The device state
- *
- * Issue a soft reset to the core, and await the core finishing it.
- */
-static int dwc2_hsotg_corereset(struct dwc2_hsotg *hsotg)
-{
-	int timeout;
-	u32 grstctl;
-
-	dev_dbg(hsotg->dev, "resetting core\n");
-
-	/* issue soft reset */
-	dwc2_writel(GRSTCTL_CSFTRST, hsotg->regs + GRSTCTL);
-
-	timeout = 10000;
-	do {
-		grstctl = dwc2_readl(hsotg->regs + GRSTCTL);
-	} while ((grstctl & GRSTCTL_CSFTRST) && timeout-- > 0);
-
-	if (grstctl & GRSTCTL_CSFTRST) {
-		dev_err(hsotg->dev, "Failed to get CSftRst asserted\n");
-		return -EINVAL;
-	}
-
-	timeout = 10000;
-
-	while (1) {
-		u32 grstctl = dwc2_readl(hsotg->regs + GRSTCTL);
-
-		if (timeout-- < 0) {
-			dev_info(hsotg->dev,
-				 "%s: reset failed, GRSTCTL=%08x\n",
-				 __func__, grstctl);
-			return -ETIMEDOUT;
-		}
-
-		if (!(grstctl & GRSTCTL_AHBIDLE))
-			continue;
-
-		break;		/* reset done */
-	}
-
-	dev_dbg(hsotg->dev, "reset successful\n");
-	return 0;
-}
-
-/**
  * dwc2_hsotg_core_init - issue softreset to the core
  * @hsotg: The device state
  *
@@ -2307,7 +2259,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
 
 	if (!is_usb_reset)
-		if (dwc2_hsotg_corereset(hsotg))
+		if (dwc2_core_reset(hsotg))
 			return;
 
 	/*
