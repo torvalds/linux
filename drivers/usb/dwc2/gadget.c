@@ -3403,8 +3403,8 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 
 	/* check hardware configuration */
 
-	cfg = dwc2_readl(hsotg->regs + GHWCFG2);
-	hsotg->num_of_eps = (cfg >> GHWCFG2_NUM_DEV_EP_SHIFT) & 0xF;
+	hsotg->num_of_eps = hsotg->hw_params.num_dev_ep;
+
 	/* Add ep0 */
 	hsotg->num_of_eps++;
 
@@ -3415,7 +3415,7 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 	/* Same dwc2_hsotg_ep is used in both directions for ep0 */
 	hsotg->eps_out[0] = hsotg->eps_in[0];
 
-	cfg = dwc2_readl(hsotg->regs + GHWCFG1);
+	cfg = hsotg->hw_params.dev_ep_dirs;
 	for (i = 1, cfg >>= 2; i < hsotg->num_of_eps; i++, cfg >>= 2) {
 		ep_type = cfg & 3;
 		/* Direction in or both */
@@ -3434,11 +3434,8 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 		}
 	}
 
-	cfg = dwc2_readl(hsotg->regs + GHWCFG3);
-	hsotg->fifo_mem = (cfg >> GHWCFG3_DFIFO_DEPTH_SHIFT);
-
-	cfg = dwc2_readl(hsotg->regs + GHWCFG4);
-	hsotg->dedicated_fifos = (cfg >> GHWCFG4_DED_FIFO_SHIFT) & 1;
+	hsotg->fifo_mem = hsotg->hw_params.total_fifo_size;
+	hsotg->dedicated_fifos = hsotg->hw_params.en_multiple_tx_fifo;
 
 	dev_info(hsotg->dev, "EPs: %d, %s fifos, %d entries in SPRAM\n",
 		 hsotg->num_of_eps,
@@ -3563,6 +3560,17 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	memcpy(&hsotg->g_tx_fifo_sz[1], p_tx_fifo, sizeof(p_tx_fifo));
 	/* Device tree specific probe */
 	dwc2_hsotg_of_probe(hsotg);
+
+	/* Check against largest possible value. */
+	if (hsotg->g_np_g_tx_fifo_sz >
+	    hsotg->hw_params.dev_nperio_tx_fifo_size) {
+		dev_warn(dev, "Specified GNPTXFDEP=%d > %d\n",
+			 hsotg->g_np_g_tx_fifo_sz,
+			 hsotg->hw_params.dev_nperio_tx_fifo_size);
+		hsotg->g_np_g_tx_fifo_sz =
+			hsotg->hw_params.dev_nperio_tx_fifo_size;
+	}
+
 	/* Dump fifo information */
 	dev_dbg(dev, "NonPeriodic TXFIFO size: %d\n",
 						hsotg->g_np_g_tx_fifo_sz);
@@ -3579,20 +3587,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 
-	/*
-	 * Force Device mode before initialization.
-	 * This allows correctly configuring fifo for device mode.
-	 */
-	__bic32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEHOSTMODE);
-	__orr32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEDEVMODE);
-
-	/*
-	 * According to Synopsys databook, this sleep is needed for the force
-	 * device mode to take effect.
-	 */
-	msleep(25);
-
-	dwc2_hsotg_corereset(hsotg);
 	ret = dwc2_hsotg_hw_cfg(hsotg);
 	if (ret) {
 		dev_err(hsotg->dev, "Hardware configuration failed: %d\n", ret);
@@ -3600,9 +3594,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	}
 
 	dwc2_hsotg_init(hsotg);
-
-	/* Switch back to default configuration */
-	__bic32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEDEVMODE);
 
 	hsotg->ctrl_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
