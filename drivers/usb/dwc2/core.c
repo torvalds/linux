@@ -3342,6 +3342,43 @@ void dwc2_disable_global_interrupts(struct dwc2_hsotg *hsotg)
 	dwc2_writel(ahbcfg, hsotg->regs + GAHBCFG);
 }
 
+/* Returns the controller's GHWCFG2.OTG_MODE. */
+unsigned dwc2_op_mode(struct dwc2_hsotg *hsotg)
+{
+	u32 ghwcfg2 = dwc2_readl(hsotg->regs + GHWCFG2);
+
+	return (ghwcfg2 & GHWCFG2_OP_MODE_MASK) >>
+		GHWCFG2_OP_MODE_SHIFT;
+}
+
+/* Returns true if the controller is capable of DRD. */
+bool dwc2_hw_is_otg(struct dwc2_hsotg *hsotg)
+{
+	unsigned op_mode = dwc2_op_mode(hsotg);
+
+	return (op_mode == GHWCFG2_OP_MODE_HNP_SRP_CAPABLE) ||
+		(op_mode == GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE) ||
+		(op_mode == GHWCFG2_OP_MODE_NO_HNP_SRP_CAPABLE);
+}
+
+/* Returns true if the controller is host-only. */
+bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg)
+{
+	unsigned op_mode = dwc2_op_mode(hsotg);
+
+	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_HOST) ||
+		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_HOST);
+}
+
+/* Returns true if the controller is device-only. */
+bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg)
+{
+	unsigned op_mode = dwc2_op_mode(hsotg);
+
+	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE) ||
+		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_DEVICE);
+}
+
 MODULE_DESCRIPTION("DESIGNWARE HS OTG Core");
 MODULE_AUTHOR("Synopsys, Inc.");
 MODULE_LICENSE("Dual BSD/GPL");
