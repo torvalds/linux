@@ -1469,6 +1469,7 @@ static int atmel_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&aes_dd->queue_task);
 
 	atmel_aes_dma_cleanup(aes_dd);
+	atmel_aes_buff_cleanup(aes_dd);
 
 	return 0;
 }
