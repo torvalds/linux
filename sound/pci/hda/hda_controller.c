@@ -956,7 +956,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	status = azx_readb(chip, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
 		if (status & RIRB_INT_RESPONSE) {
-			if (chip->driver_caps & AZX_DCAPS_RIRB_PRE_DELAY)
+			if (chip->driver_caps & AZX_DCAPS_CTX_WORKAROUND)
 				udelay(80);
 			snd_hdac_bus_update_rirb(bus);
 		}
