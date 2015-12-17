@@ -580,7 +580,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	bo = vc4_bo_create(dev, exec_size, true);
 	if (!bo) {
 		DRM_ERROR("Couldn't allocate BO for binning\n");
-		ret = PTR_ERR(exec->exec_bo);
+		ret = -ENOMEM;
 		goto fail;
 	}
 	exec->exec_bo = &bo->base;
