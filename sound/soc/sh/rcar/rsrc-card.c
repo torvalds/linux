@@ -48,7 +48,6 @@ MODULE_DEVICE_TABLE(of, rsrc_card_of_match);
 
 #define DAI_NAME_NUM	32
 struct rsrc_card_dai {
-	unsigned int fmt;
 	unsigned int sysclk;
 	unsigned int tx_slot_mask;
 	unsigned int rx_slot_mask;
@@ -114,14 +113,6 @@ static int rsrc_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 				rtd->cpu_dai :
 				rtd->codec_dai;
 
-	if (dai_props->fmt) {
-		ret = snd_soc_dai_set_fmt(dai, dai_props->fmt);
-		if (ret && ret != -ENOTSUPP) {
-			dev_err(dai->dev, "set_fmt error\n");
-			goto err;
-		}
-	}
-
 	if (dai_props->sysclk) {
 		ret = snd_soc_dai_set_sysclk(dai, 0, dai_props->sysclk, 0);
 		if (ret && ret != -ENOTSUPP) {
@@ -168,7 +159,7 @@ static int rsrc_card_parse_daifmt(struct device_node *node,
 				  struct rsrc_card_priv *priv,
 				  int idx, bool is_fe)
 {
-	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
+	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
 	struct device_node *bitclkmaster = NULL;
 	struct device_node *framemaster = NULL;
 	struct device_node *codec = is_fe ? NULL : np;
@@ -188,7 +179,7 @@ static int rsrc_card_parse_daifmt(struct device_node *node,
 		daifmt |= (codec == framemaster) ?
 			SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
 
-	dai_props->fmt	= daifmt;
+	dai_link->dai_fmt = daifmt;
 
 	of_node_put(bitclkmaster);
 	of_node_put(framemaster);
@@ -340,6 +331,7 @@ static int rsrc_card_dai_link_of(struct device_node *node,
 				 int idx)
 {
 	struct device *dev = rsrc_priv_to_dev(priv);
+	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
 	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
 	bool is_fe = false;
 	int ret;
@@ -361,7 +353,7 @@ static int rsrc_card_dai_link_of(struct device_node *node,
 
 	dev_dbg(dev, "\t%s / %04x / %d\n",
 		dai_props->dai_name,
-		dai_props->fmt,
+		dai_link->dai_fmt,
 		dai_props->sysclk);
 
 	return ret;
