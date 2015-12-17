@@ -152,7 +152,8 @@
 		};
 		edma0: edma@01c00000 {
 			compatible = "ti,edma3";
-			reg =	<0x0 0x10000>;
+			/* eDMA3 CC0: 0x01c0 0000 - 0x01c0 7fff */
+			reg =	<0x0 0x8000>;
 			interrupts = <11 13 12>;
 			#dma-cells = <1>;
 		};
