@@ -100,7 +100,7 @@ enum fcp_resp_rsp_codes {
  */
 /* Predefs for callbacks handed to qla2xxx LLD */
 static void qlt_24xx_atio_pkt(struct scsi_qla_host *ha,
-	struct atio_from_isp *pkt);
+	struct atio_from_isp *pkt, uint8_t);
 static void qlt_response_pkt(struct scsi_qla_host *ha, response_t *pkt);
 static int qlt_issue_task_mgmt(struct qla_tgt_sess *sess, uint32_t lun,
 	int fn, void *iocb, int flags);
@@ -230,7 +230,7 @@ static inline void qlt_decr_num_pend_cmds(struct scsi_qla_host *vha)
 }
 
 static void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
-	struct atio_from_isp *atio)
+	struct atio_from_isp *atio, uint8_t ha_locked)
 {
 	ql_dbg(ql_dbg_tgt, vha, 0xe072,
 		"%s: qla_target(%d): type %x ox_id %04x\n",
@@ -251,7 +251,7 @@ static void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 			    atio->u.isp24.fcp_hdr.d_id[2]);
 			break;
 		}
-		qlt_24xx_atio_pkt(host, atio);
+		qlt_24xx_atio_pkt(host, atio, ha_locked);
 		break;
 	}
 
@@ -274,7 +274,7 @@ static void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 				break;
 			}
 		}
-		qlt_24xx_atio_pkt(host, atio);
+		qlt_24xx_atio_pkt(host, atio, ha_locked);
 		break;
 	}
 
@@ -1211,7 +1211,7 @@ void qlt_stop_phase2(struct qla_tgt *tgt)
 
 	mutex_lock(&vha->vha_tgt.tgt_mutex);
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	while (tgt->irq_cmd_count != 0) {
+	while ((tgt->irq_cmd_count != 0) || (tgt->atio_irq_cmd_count != 0)) {
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		udelay(2);
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -5350,11 +5350,12 @@ qlt_chk_qfull_thresh_hold(struct scsi_qla_host *vha,
 /* ha->hardware_lock supposed to be held on entry */
 /* called via callback from qla2xxx */
 static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
-	struct atio_from_isp *atio)
+	struct atio_from_isp *atio, uint8_t ha_locked)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 	int rc;
+	unsigned long flags;
 
 	if (unlikely(tgt == NULL)) {
 		ql_dbg(ql_dbg_io, vha, 0x3064,
@@ -5366,7 +5367,7 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 	 * Otherwise, some commands can stuck.
 	 */
 
-	tgt->irq_cmd_count++;
+	tgt->atio_irq_cmd_count++;
 
 	switch (atio->u.raw.entry_type) {
 	case ATIO_TYPE7:
@@ -5376,7 +5377,11 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 			    "qla_target(%d): ATIO_TYPE7 "
 			    "received with UNKNOWN exchange address, "
 			    "sending QUEUE_FULL\n", vha->vp_idx);
+			if (!ha_locked)
+				spin_lock_irqsave(&ha->hardware_lock, flags);
 			qlt_send_busy(vha, atio, SAM_STAT_TASK_SET_FULL);
+			if (!ha_locked)
+				spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			break;
 		}
 
@@ -5385,7 +5390,7 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 		if (likely(atio->u.isp24.fcp_cmnd.task_mgmt_flags == 0)) {
 			rc = qlt_chk_qfull_thresh_hold(vha, atio);
 			if (rc != 0) {
-				tgt->irq_cmd_count--;
+				tgt->atio_irq_cmd_count--;
 				return;
 			}
 			rc = qlt_handle_cmd_for_atio(vha, atio);
@@ -5394,11 +5399,20 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 		}
 		if (unlikely(rc != 0)) {
 			if (rc == -ESRCH) {
+				if (!ha_locked)
+					spin_lock_irqsave
+						(&ha->hardware_lock, flags);
+
 #if 1 /* With TERM EXCHANGE some FC cards refuse to boot */
 				qlt_send_busy(vha, atio, SAM_STAT_BUSY);
 #else
 				qlt_send_term_exchange(vha, NULL, atio, 1);
 #endif
+
+				if (!ha_locked)
+					spin_unlock_irqrestore
+						(&ha->hardware_lock, flags);
+
 			} else {
 				if (tgt->tgt_stop) {
 					ql_dbg(ql_dbg_tgt, vha, 0xe059,
@@ -5410,7 +5424,13 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 					    "qla_target(%d): Unable to send "
 					    "command to target, sending BUSY "
 					    "status.\n", vha->vp_idx);
+					if (!ha_locked)
+						spin_lock_irqsave(
+						    &ha->hardware_lock, flags);
 					qlt_send_busy(vha, atio, SAM_STAT_BUSY);
+					if (!ha_locked)
+						spin_unlock_irqrestore(
+						    &ha->hardware_lock, flags);
 				}
 			}
 		}
@@ -5427,7 +5447,12 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 			break;
 		}
 		ql_dbg(ql_dbg_tgt, vha, 0xe02e, "%s", "IMMED_NOTIFY ATIO");
+
+		if (!ha_locked)
+			spin_lock_irqsave(&ha->hardware_lock, flags);
 		qlt_handle_imm_notify(vha, (struct imm_ntfy_from_isp *)atio);
+		if (!ha_locked)
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		break;
 	}
 
@@ -5438,7 +5463,7 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 		break;
 	}
 
-	tgt->irq_cmd_count--;
+	tgt->atio_irq_cmd_count--;
 }
 
 /* ha->hardware_lock supposed to be held on entry */
@@ -6384,7 +6409,7 @@ qlt_init_atio_q_entries(struct scsi_qla_host *vha)
  * @ha: SCSI driver HA context
  */
 void
-qlt_24xx_process_atio_queue(struct scsi_qla_host *vha)
+qlt_24xx_process_atio_queue(struct scsi_qla_host *vha, uint8_t ha_locked)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct atio_from_isp *pkt;
@@ -6397,7 +6422,8 @@ qlt_24xx_process_atio_queue(struct scsi_qla_host *vha)
 		pkt = (struct atio_from_isp *)ha->tgt.atio_ring_ptr;
 		cnt = pkt->u.raw.entry_count;
 
-		qlt_24xx_atio_pkt_all_vps(vha, (struct atio_from_isp *)pkt);
+		qlt_24xx_atio_pkt_all_vps(vha, (struct atio_from_isp *)pkt,
+		    ha_locked);
 
 		for (i = 0; i < cnt; i++) {
 			ha->tgt.atio_ring_index++;
@@ -6681,14 +6707,57 @@ qla83xx_msix_atio_q(int irq, void *dev_id)
 	ha = rsp->hw;
 	vha = pci_get_drvdata(ha->pdev);
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
+	spin_lock_irqsave(&ha->tgt.atio_lock, flags);
 
-	qlt_24xx_process_atio_queue(vha);
-	qla24xx_process_response_queue(vha, rsp);
+	qlt_24xx_process_atio_queue(vha, 0);
 
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&ha->tgt.atio_lock, flags);
 
 	return IRQ_HANDLED;
+}
+
+static void
+qlt_handle_abts_recv_work(struct work_struct *work)
+{
+	struct qla_tgt_sess_op *op = container_of(work,
+		struct qla_tgt_sess_op, work);
+	scsi_qla_host_t *vha = op->vha;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
+
+	if (qla2x00_reset_active(vha) || (op->chip_reset != ha->chip_reset))
+		return;
+
+	spin_lock_irqsave(&ha->tgt.atio_lock, flags);
+	qlt_24xx_process_atio_queue(vha, 0);
+	spin_unlock_irqrestore(&ha->tgt.atio_lock, flags);
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	qlt_response_pkt_all_vps(vha, (response_t *)&op->atio);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+void
+qlt_handle_abts_recv(struct scsi_qla_host *vha, response_t *pkt)
+{
+	struct qla_tgt_sess_op *op;
+
+	op = kzalloc(sizeof(*op), GFP_ATOMIC);
+
+	if (!op) {
+		/* do not reach for ATIO queue here.  This is best effort err
+		 * recovery at this point.
+		 */
+		qlt_response_pkt_all_vps(vha, pkt);
+		return;
+	}
+
+	memcpy(&op->atio, pkt, sizeof(*pkt));
+	op->vha = vha;
+	op->chip_reset = vha->hw->chip_reset;
+	INIT_WORK(&op->work, qlt_handle_abts_recv_work);
+	queue_work(qla_tgt_wq, &op->work);
+	return;
 }
 
 int

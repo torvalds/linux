@@ -835,6 +835,7 @@ struct qla_tgt {
 	 * HW lock.
 	 */
 	int irq_cmd_count;
+	int atio_irq_cmd_count;
 
 	int datasegs_per_cmd, datasegs_per_cont, sg_tablesize;
 
@@ -883,6 +884,7 @@ struct qla_tgt {
 
 struct qla_tgt_sess_op {
 	struct scsi_qla_host *vha;
+	uint32_t chip_reset;
 	struct atio_from_isp atio;
 	struct work_struct work;
 	struct list_head cmd_list;
@@ -1155,7 +1157,7 @@ extern void qlt_enable_vha(struct scsi_qla_host *);
 extern void qlt_vport_create(struct scsi_qla_host *, struct qla_hw_data *);
 extern void qlt_rff_id(struct scsi_qla_host *, struct ct_sns_req *);
 extern void qlt_init_atio_q_entries(struct scsi_qla_host *);
-extern void qlt_24xx_process_atio_queue(struct scsi_qla_host *);
+extern void qlt_24xx_process_atio_queue(struct scsi_qla_host *, uint8_t);
 extern void qlt_24xx_config_rings(struct scsi_qla_host *);
 extern void qlt_24xx_config_nvram_stage1(struct scsi_qla_host *,
 	struct nvram_24xx *);

@@ -2936,6 +2936,7 @@ struct qlt_hw_data {
 	uint32_t leak_exchg_thresh_hold;
 	spinlock_t sess_lock;
 	int rspq_vector_cpuid;
+	spinlock_t atio_lock ____cacheline_aligned;
 };
 
 #define MAX_QFULL_CMDS_ALLOC	8192

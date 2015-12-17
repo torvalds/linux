@@ -2605,8 +2605,14 @@ process_err:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, ELS_IOCB_TYPE);
 			break;
 		case ABTS_RECV_24XX:
-			/* ensure that the ATIO queue is empty */
-			qlt_24xx_process_atio_queue(vha);
+			if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+				/* ensure that the ATIO queue is empty */
+				qlt_handle_abts_recv(vha, (response_t *)pkt);
+				break;
+			} else {
+				/* drop through */
+				qlt_24xx_process_atio_queue(vha, 1);
+			}
 		case ABTS_RESP_24XX:
 		case CTIO_TYPE7:
 		case NOTIFY_ACK_TYPE:
@@ -2773,13 +2779,22 @@ qla24xx_intr_handler(int irq, void *dev_id)
 		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
-		case INTR_ATIO_QUE_UPDATE:
-			qlt_24xx_process_atio_queue(vha);
+		case INTR_ATIO_QUE_UPDATE:{
+			unsigned long flags2;
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
+			qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
 			break;
-		case INTR_ATIO_RSP_QUE_UPDATE:
-			qlt_24xx_process_atio_queue(vha);
+		}
+		case INTR_ATIO_RSP_QUE_UPDATE: {
+			unsigned long flags2;
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
+			qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
+
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		}
 		default:
 			ql_dbg(ql_dbg_async, vha, 0x504f,
 			    "Unrecognized interrupt type (%d).\n", stat * 0xff);
@@ -2938,13 +2953,22 @@ qla24xx_msix_default(int irq, void *dev_id)
 		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
-		case INTR_ATIO_QUE_UPDATE:
-			qlt_24xx_process_atio_queue(vha);
+		case INTR_ATIO_QUE_UPDATE:{
+			unsigned long flags2;
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
+			qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
 			break;
-		case INTR_ATIO_RSP_QUE_UPDATE:
-			qlt_24xx_process_atio_queue(vha);
+		}
+		case INTR_ATIO_RSP_QUE_UPDATE: {
+			unsigned long flags2;
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
+			qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
+
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		}
 		default:
 			ql_dbg(ql_dbg_async, vha, 0x5051,
 			    "Unrecognized interrupt type (%d).\n", stat & 0xff);

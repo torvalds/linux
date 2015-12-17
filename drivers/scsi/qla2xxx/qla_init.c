@@ -4919,7 +4919,7 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
-	unsigned long flags;
+	unsigned long flags, flags2;
 
 	/* If firmware needs to be loaded */
 	if (qla2x00_isp_firmware(vha)) {
@@ -4948,8 +4948,10 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 			 * while we weren't online.
 			 */
 			spin_lock_irqsave(&ha->hardware_lock, flags);
+			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
 			if (qla_tgt_mode_enabled(vha))
-				qlt_24xx_process_atio_queue(vha);
+				qlt_24xx_process_atio_queue(vha, 1);
+			spin_unlock_irqrestore(&ha->tgt.atio_lock, flags2);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);

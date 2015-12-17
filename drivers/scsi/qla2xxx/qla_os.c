@@ -2337,6 +2337,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ha->tgt.q_full_list);
 	spin_lock_init(&ha->tgt.q_full_lock);
 	spin_lock_init(&ha->tgt.sess_lock);
+	spin_lock_init(&ha->tgt.atio_lock);
+
 
 	/* Clear our data area */
 	ha->bars = bars;
