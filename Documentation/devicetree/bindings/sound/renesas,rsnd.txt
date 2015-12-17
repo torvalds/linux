@@ -289,3 +289,22 @@ Example: simple sound card
 &ssi1 {
 	shared-pin;
 };
+
+Example: simple sound card for TDM
+
+	rsnd_tdm: sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "left_j";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+			dai-tdm-slot-num = <6>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&xxx>;
+		};
+	};
