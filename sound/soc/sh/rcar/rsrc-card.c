@@ -50,6 +50,10 @@ MODULE_DEVICE_TABLE(of, rsrc_card_of_match);
 struct rsrc_card_dai {
 	unsigned int fmt;
 	unsigned int sysclk;
+	unsigned int tx_slot_mask;
+	unsigned int rx_slot_mask;
+	int slots;
+	int slot_width;
 	struct clk *clk;
 	char dai_name[DAI_NAME_NUM];
 };
@@ -126,6 +130,18 @@ static int rsrc_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 		}
 	}
 
+	if (dai_props->slots) {
+		ret = snd_soc_dai_set_tdm_slot(dai,
+					       dai_props->tx_slot_mask,
+					       dai_props->rx_slot_mask,
+					       dai_props->slots,
+					       dai_props->slot_width);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(dai->dev, "set_tdm_slot error\n");
+			goto err;
+		}
+	}
+
 	ret = 0;
 
 err:
@@ -195,6 +211,15 @@ static int rsrc_card_parse_links(struct device_node *np,
 	 */
 	ret = of_parse_phandle_with_args(np, "sound-dai",
 					 "#sound-dai-cells", 0, &args);
+	if (ret)
+		return ret;
+
+	/* Parse TDM slot */
+	ret = snd_soc_of_parse_tdm_slot(np,
+					&dai_props->tx_slot_mask,
+					&dai_props->rx_slot_mask,
+					&dai_props->slots,
+					&dai_props->slot_width);
 	if (ret)
 		return ret;
 
