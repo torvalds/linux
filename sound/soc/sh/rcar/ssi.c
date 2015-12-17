@@ -267,7 +267,7 @@ static int rsnd_ssi_config_init(struct rsnd_ssi *ssi,
 	u32 wsr;
 	int is_tdm;
 
-	is_tdm = (rsnd_get_slot_runtime(io) >= 6) ? 1 : 0;
+	is_tdm = (rsnd_get_slot_extend(io) >= 6) ? 1 : 0;
 
 	/*
 	 * always use 32bit system word.

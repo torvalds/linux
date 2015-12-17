@@ -78,7 +78,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	if (rsnd_get_slot_runtime(io) >= 6) {
+	if (rsnd_get_slot_extend(io) >= 6) {
 		/*
 		 * TDM Extend Mode
 		 * see
