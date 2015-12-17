@@ -269,6 +269,7 @@ enum bpf_func_id {
 	 * Return: 0 on success
 	 */
 	BPF_FUNC_perf_event_output,
+	BPF_FUNC_skb_load_bytes,
 	__BPF_FUNC_MAX_ID,
 };
 
