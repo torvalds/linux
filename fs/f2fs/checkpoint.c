@@ -803,6 +803,11 @@ void sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type)
 	struct list_head *head;
 	struct inode *inode;
 	struct f2fs_inode_info *fi;
+	bool is_dir = (type == DIR_INODE);
+
+	trace_f2fs_sync_dirty_inodes_enter(sbi->sb, is_dir,
+				get_pages(sbi, is_dir ?
+				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
 retry:
 	if (unlikely(f2fs_cp_error(sbi)))
 		return;
@@ -812,6 +817,9 @@ retry:
 	head = &sbi->inode_list[type];
 	if (list_empty(head)) {
 		spin_unlock(&sbi->inode_lock[type]);
+		trace_f2fs_sync_dirty_inodes_exit(sbi->sb, is_dir,
+				get_pages(sbi, is_dir ?
+				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
 		return;
 	}
 	fi = list_entry(head->next, struct f2fs_inode_info, dirty_list);
