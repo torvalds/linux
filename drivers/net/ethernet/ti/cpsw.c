@@ -2026,17 +2026,15 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 	for_each_child_of_node(node, slave_node) {
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
 		const void *mac_addr = NULL;
-		u32 phyid;
 		int lenp;
 		const __be32 *parp;
-		struct device_node *mdio_node;
-		struct platform_device *mdio;
 
 		/* This is no slave child node, continue */
 		if (strcmp(slave_node->name, "slave"))
 			continue;
 
 		priv->phy_node = of_parse_phandle(slave_node, "phy-handle", 0);
+		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if (of_phy_is_fixed_link(slave_node)) {
 			struct phy_device *pd;
 
@@ -2048,23 +2046,29 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 				return -ENODEV;
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
 				 PHY_ID_FMT, pd->bus->id, pd->addr);
+		} else if (parp) {
+			u32 phyid;
+			struct device_node *mdio_node;
+			struct platform_device *mdio;
+
+			if (lenp != (sizeof(__be32) * 2)) {
+				dev_err(&pdev->dev, "Invalid slave[%d] phy_id property\n", i);
+				goto no_phy_slave;
+			}
+			mdio_node = of_find_node_by_phandle(be32_to_cpup(parp));
+			phyid = be32_to_cpup(parp+1);
+			mdio = of_find_device_by_node(mdio_node);
+			of_node_put(mdio_node);
+			if (!mdio) {
+				dev_err(&pdev->dev, "Missing mdio platform device\n");
+				return -EINVAL;
+			}
+			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
+				 PHY_ID_FMT, mdio->name, phyid);
+		} else {
+			dev_err(&pdev->dev, "No slave[%d] phy_id or fixed-link property\n", i);
 			goto no_phy_slave;
 		}
-		parp = of_get_property(slave_node, "phy_id", &lenp);
-		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
-			dev_err(&pdev->dev, "Missing slave[%d] phy_id property\n", i);
-			goto no_phy_slave;
-		}
-		mdio_node = of_find_node_by_phandle(be32_to_cpup(parp));
-		phyid = be32_to_cpup(parp+1);
-		mdio = of_find_device_by_node(mdio_node);
-		of_node_put(mdio_node);
-		if (!mdio) {
-			dev_err(&pdev->dev, "Missing mdio platform device\n");
-			return -EINVAL;
-		}
-		snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
-			 PHY_ID_FMT, mdio->name, phyid);
 		slave_data->phy_if = of_get_phy_mode(slave_node);
 		if (slave_data->phy_if < 0) {
 			dev_err(&pdev->dev, "Missing or malformed slave[%d] phy-mode property\n",
