@@ -285,6 +285,8 @@
 			num-cs = <4>;
 			ti,davinci-spi-intr-line = <1>;
 			interrupts = <56>;
+			dmas = <&edma0 18 0>, <&edma0 19 0>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 		mdio: mdio@1e24000 {
