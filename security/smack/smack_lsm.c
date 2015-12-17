@@ -3780,7 +3780,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (sip == NULL)
 		return 0;
 
-	switch (sip->sin_family) {
+	switch (sock->sk->sk_family) {
 	case AF_INET:
 		rc = smack_netlabel_send(sock->sk, sip);
 		break;
