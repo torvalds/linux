@@ -520,6 +520,114 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 }
 
 /*
+ * Force the mode of the controller.
+ *
+ * Forcing the mode is needed for two cases:
+ *
+ * 1) If the dr_mode is set to either HOST or PERIPHERAL we force the
+ * controller to stay in a particular mode regardless of ID pin
+ * changes. We do this usually after a core reset.
+ *
+ * 2) During probe we want to read reset values of the hw
+ * configuration registers that are only available in either host or
+ * device mode. We may need to force the mode if the current mode does
+ * not allow us to access the register in the mode that we want.
+ *
+ * In either case it only makes sense to force the mode if the
+ * controller hardware is OTG capable.
+ *
+ * Checks are done in this function to determine whether doing a force
+ * would be valid or not.
+ *
+ * If a force is done, it requires a 25ms delay to take effect.
+ *
+ * Returns true if the mode was forced.
+ */
+static bool dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
+{
+	u32 gusbcfg;
+	u32 set;
+	u32 clear;
+
+	dev_dbg(hsotg->dev, "Forcing mode to %s\n", host ? "host" : "device");
+
+	/*
+	 * Force mode has no effect if the hardware is not OTG.
+	 */
+	if (!dwc2_hw_is_otg(hsotg))
+		return false;
+
+	/*
+	 * If dr_mode is either peripheral or host only, there is no
+	 * need to ever force the mode to the opposite mode.
+	 */
+	if (WARN_ON(host && hsotg->dr_mode == USB_DR_MODE_PERIPHERAL))
+		return false;
+
+	if (WARN_ON(!host && hsotg->dr_mode == USB_DR_MODE_HOST))
+		return false;
+
+	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+
+	set = host ? GUSBCFG_FORCEHOSTMODE : GUSBCFG_FORCEDEVMODE;
+	clear = host ? GUSBCFG_FORCEDEVMODE : GUSBCFG_FORCEHOSTMODE;
+
+	/*
+	 * If the force mode bit is already set, don't set it.
+	 */
+	if ((gusbcfg & set) && !(gusbcfg & clear))
+		return false;
+
+	gusbcfg &= ~clear;
+	gusbcfg |= set;
+	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
+
+	msleep(25);
+	return true;
+}
+
+/*
+ * Clears the force mode bits.
+ */
+static void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg)
+{
+	u32 gusbcfg;
+
+	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+	gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
+
+	/*
+	 * NOTE: This long sleep is _very_ important, otherwise the core will
+	 * not stay in host mode after a connector ID change!
+	 */
+	usleep_range(150000, 160000);
+}
+
+/*
+ * Sets or clears force mode based on the dr_mode parameter.
+ */
+void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg)
+{
+	switch (hsotg->dr_mode) {
+	case USB_DR_MODE_HOST:
+		dwc2_force_mode(hsotg, true);
+		break;
+	case USB_DR_MODE_PERIPHERAL:
+		dwc2_force_mode(hsotg, false);
+		break;
+	case USB_DR_MODE_OTG:
+		dwc2_clear_force_mode(hsotg);
+		break;
+	default:
+		dev_warn(hsotg->dev, "%s() Invalid dr_mode=%d\n",
+			 __func__, hsotg->dr_mode);
+		break;
+	}
+}
+
+/*
  * Do core a soft reset of the core.  Be careful with this because it
  * resets all the internal state machines of the core.
  *
@@ -529,35 +637,12 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg)
 {
 	int retval;
-	u32 gusbcfg;
 
 	retval = dwc2_core_reset(hsotg);
 	if (retval)
 		return retval;
 
-	if (hsotg->dr_mode == USB_DR_MODE_HOST) {
-		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
-		gusbcfg |= GUSBCFG_FORCEHOSTMODE;
-		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-	} else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) {
-		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
-		gusbcfg |= GUSBCFG_FORCEDEVMODE;
-		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-	} else if (hsotg->dr_mode == USB_DR_MODE_OTG) {
-		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
-		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
-		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-	}
-
-	/*
-	 * NOTE: This long sleep is _very_ important, otherwise the core will
-	 * not stay in host mode after a connector ID change!
-	 */
-	usleep_range(150000, 160000);
-
+	dwc2_force_dr_mode(hsotg);
 	return 0;
 }
 
@@ -3115,6 +3200,22 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	dwc2_set_param_uframe_sched(hsotg, params->uframe_sched);
 	dwc2_set_param_external_id_pin_ctl(hsotg, params->external_id_pin_ctl);
 	dwc2_set_param_hibernation(hsotg, params->hibernation);
+}
+
+/*
+ * Forces either host or device mode if the controller is not
+ * currently in that mode.
+ *
+ * Returns true if the mode was forced.
+ */
+static bool dwc2_force_mode_if_needed(struct dwc2_hsotg *hsotg, bool host)
+{
+	if (host && dwc2_is_host_mode(hsotg))
+		return false;
+	else if (!host && dwc2_is_device_mode(hsotg))
+		return false;
+
+	return dwc2_force_mode(hsotg, host);
 }
 
 /**
