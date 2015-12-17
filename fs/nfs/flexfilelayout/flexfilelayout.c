@@ -1130,7 +1130,7 @@ static int ff_layout_async_handle_error_v3(struct rpc_task *task,
 	return -NFS4ERR_RESET_TO_PNFS;
 out_retry:
 	task->tk_status = 0;
-	rpc_restart_call(task);
+	rpc_restart_call_prepare(task);
 	rpc_delay(task, NFS_JUKEBOX_RETRY_TIME);
 	return -EAGAIN;
 }
