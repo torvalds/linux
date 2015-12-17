@@ -6232,6 +6232,7 @@ qlt_enable_vha(struct scsi_qla_host *vha)
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 	unsigned long flags;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+	int rspq_ent = QLA83XX_RSPQ_MSIX_ENTRY_NUMBER;
 
 	if (!tgt) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe069,
@@ -6250,6 +6251,17 @@ qlt_enable_vha(struct scsi_qla_host *vha)
 		qla24xx_disable_vp(vha);
 		qla24xx_enable_vp(vha);
 	} else {
+		if (ha->msix_entries) {
+			ql_dbg(ql_dbg_tgt, vha, 0xffff,
+			    "%s: host%ld : vector %d cpu %d\n",
+			    __func__, vha->host_no,
+			    ha->msix_entries[rspq_ent].vector,
+			    ha->msix_entries[rspq_ent].cpuid);
+
+			ha->tgt.rspq_vector_cpuid =
+			    ha->msix_entries[rspq_ent].cpuid;
+		}
+
 		set_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags);
 		qla2xxx_wake_dpc(base_vha);
 		qla2x00_wait_for_hba_online(base_vha);
