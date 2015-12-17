@@ -704,7 +704,7 @@ static inline struct cl_env *cl_env_container(struct lu_env *env)
 	return container_of(env, struct cl_env, ce_lu);
 }
 
-struct lu_env *cl_env_peek(int *refcheck)
+static struct lu_env *cl_env_peek(int *refcheck)
 {
 	struct lu_env *env;
 	struct cl_env *cle;
@@ -724,7 +724,6 @@ struct lu_env *cl_env_peek(int *refcheck)
 	CDEBUG(D_OTHER, "%d@%p\n", cle ? cle->ce_ref : 0, cle);
 	return env;
 }
-EXPORT_SYMBOL(cl_env_peek);
 
 /**
  * Returns lu_env: if there already is an environment associated with the
