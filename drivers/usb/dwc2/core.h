@@ -886,6 +886,8 @@ extern void dwc2_core_host_init(struct dwc2_hsotg *hsotg);
 extern int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
 extern int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
 
+void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
+
 /*
  * Host core Functions.
  * The following functions support managing the DWC_otg controller in host
