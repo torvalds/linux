@@ -21,27 +21,6 @@
 		reg = <0x90000000 0x10000000>;
 	};
 
-	soc {
-		fpga {
-			compatible = "simple-bus";
-			reg = <0xb0000000 0x1d000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
-
-			syscon: syscon@b0010000 {
-				compatible = "syscon", "simple-mfd";
-				reg = <0xb0010000 0x3d>;
-				reg-io-width = <2>;
-
-				wdt@e {
-					compatible = "technologic,ts4800-wdt";
-					syscon = <&syscon 0xe>;
-				};
-			};
-		};
-	};
-
 	clocks {
 		ckih1 {
 			clock-frequency = <22579200>;
@@ -97,6 +76,33 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
 	status = "okay";
+};
+
+&weim {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim>;
+	status = "okay";
+
+	fpga@0 {
+		compatible = "simple-bus";
+		fsl,weim-cs-timing = <0x0061008F 0x00000002 0x1c022000
+				      0x00000000 0x1c092480 0x00000000>;
+		reg = <0 0x0000000 0x1d000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0 0x1d000>;
+
+		syscon: syscon@b0010000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x10000 0x3d>;
+			reg-io-width = <2>;
+
+			wdt@e {
+				compatible = "technologic,ts4800-wdt";
+				syscon = <&syscon 0xe>;
+			};
+		};
+	};
 };
 
 &iomuxc {
@@ -171,6 +177,18 @@
 		fsl,pins = <
 			MX51_PAD_EIM_D25__UART3_RXD		0x1c5
 			MX51_PAD_EIM_D26__UART3_TXD		0x1c5
+		>;
+	};
+
+	pinctrl_weim: weimgrp {
+		fsl,pins = <
+			MX51_PAD_EIM_DTACK__EIM_DTACK		0x85
+			MX51_PAD_EIM_CS0__EIM_CS0		0x0
+			MX51_PAD_EIM_CS1__EIM_CS1		0x0
+			MX51_PAD_EIM_EB0__EIM_EB0		0x85
+			MX51_PAD_EIM_EB1__EIM_EB1		0x85
+			MX51_PAD_EIM_OE__EIM_OE			0x85
+			MX51_PAD_EIM_LBA__EIM_LBA		0x85
 		>;
 	};
 };
