@@ -666,6 +666,9 @@ static int wm_coeff_get(struct snd_kcontrol *kctl,
 		else
 			ret = -EPERM;
 	} else {
+		if (!ctl->flags && ctl->enabled)
+			ret = wm_coeff_read_control(ctl, ctl->cache, ctl->len);
+
 		memcpy(p, ctl->cache, ctl->len);
 	}
 
