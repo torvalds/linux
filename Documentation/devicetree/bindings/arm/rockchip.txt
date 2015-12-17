@@ -1,6 +1,10 @@
 Rockchip platforms device tree bindings
 ---------------------------------------
 
+- Kylin RK3036 board:
+    Required root node properties:
+      - compatible = "rockchip,kylin-rk3036", "rockchip,rk3036";
+
 - MarsBoard RK3066 board:
     Required root node properties:
       - compatible = "haoyu,marsboard-rk3066", "rockchip,rk3066a";
