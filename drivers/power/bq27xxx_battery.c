@@ -428,7 +428,10 @@ static int bq27xxx_battery_read_soc(struct bq27xxx_device_info *di)
 {
 	int soc;
 
-	soc = bq27xxx_read(di, BQ27XXX_REG_SOC, false);
+	if (di->chip == BQ27000 || di->chip == BQ27010)
+		soc = bq27xxx_read(di, BQ27XXX_REG_SOC, true);
+	else
+		soc = bq27xxx_read(di, BQ27XXX_REG_SOC, false);
 
 	if (soc < 0)
 		dev_dbg(di->dev, "error reading State-of-Charge\n");
@@ -493,7 +496,10 @@ static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
 {
 	int dcap;
 
-	dcap = bq27xxx_read(di, BQ27XXX_REG_DCAP, false);
+	if (di->chip == BQ27000 || di->chip == BQ27010)
+		dcap = bq27xxx_read(di, BQ27XXX_REG_DCAP, true);
+	else
+		dcap = bq27xxx_read(di, BQ27XXX_REG_DCAP, false);
 
 	if (dcap < 0) {
 		dev_dbg(di->dev, "error reading initial last measured discharge\n");
@@ -501,7 +507,7 @@ static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
 	}
 
 	if (di->chip == BQ27000 || di->chip == BQ27010)
-		dcap *= BQ27XXX_CURRENT_CONSTANT / BQ27XXX_RS;
+		dcap = (dcap << 8) * BQ27XXX_CURRENT_CONSTANT / BQ27XXX_RS;
 	else
 		dcap *= 1000;
 
