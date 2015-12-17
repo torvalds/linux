@@ -481,7 +481,7 @@ static void dwc2_init_fs_ls_pclk_sel(struct dwc2_hsotg *hsotg)
  * Do core a soft reset of the core.  Be careful with this because it
  * resets all the internal state machines of the core.
  */
-int dwc2_core_reset(struct dwc2_hsotg *hsotg)
+int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg)
 {
 	u32 greset;
 	int count = 0;
@@ -561,7 +561,7 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 			dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 			/* Reset after a PHY select */
-			retval = dwc2_core_reset(hsotg);
+			retval = dwc2_core_reset_and_force_dr_mode(hsotg);
 
 			if (retval) {
 				dev_err(hsotg->dev,
@@ -640,7 +640,7 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 		/* Reset after setting the PHY parameters */
-		retval = dwc2_core_reset(hsotg);
+		retval = dwc2_core_reset_and_force_dr_mode(hsotg);
 		if (retval) {
 			dev_err(hsotg->dev,
 				"%s: Reset failed, aborting", __func__);
@@ -805,7 +805,7 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup)
 	 * needed to in order to properly detect various parameters).
 	 */
 	if (!initial_setup) {
-		retval = dwc2_core_reset(hsotg);
+		retval = dwc2_core_reset_and_force_dr_mode(hsotg);
 		if (retval) {
 			dev_err(hsotg->dev, "%s(): Reset failed, aborting\n",
 					__func__);
