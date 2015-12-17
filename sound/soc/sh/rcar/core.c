@@ -354,6 +354,9 @@ int rsnd_dai_connect(struct rsnd_mod *mod,
 	if (!mod)
 		return -EIO;
 
+	if (io->mod[type])
+		return -EINVAL;
+
 	priv = rsnd_mod_to_priv(mod);
 	dev = rsnd_priv_to_dev(priv);
 
