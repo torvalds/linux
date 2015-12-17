@@ -76,7 +76,7 @@
 
 #define ATMEL_AES_QUEUE_LENGTH	50
 
-#define ATMEL_AES_DMA_THRESHOLD		16
+#define ATMEL_AES_DMA_THRESHOLD		256
 
 
 struct atmel_aes_caps {
