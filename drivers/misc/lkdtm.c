@@ -107,6 +107,7 @@ enum ctype {
 	CT_ACCESS_USERSPACE,
 	CT_WRITE_RO,
 	CT_WRITE_KERN,
+	CT_WRAP_ATOMIC
 };
 
 static char* cp_name[] = {
@@ -147,6 +148,7 @@ static char* cp_type[] = {
 	"ACCESS_USERSPACE",
 	"WRITE_RO",
 	"WRITE_KERN",
+	"WRAP_ATOMIC"
 };
 
 static struct jprobe lkdtm;
@@ -619,6 +621,17 @@ static void lkdtm_do_action(enum ctype which)
 
 		do_overwritten();
 		break;
+	}
+	case CT_WRAP_ATOMIC: {
+		atomic_t under = ATOMIC_INIT(INT_MIN);
+		atomic_t over = ATOMIC_INIT(INT_MAX);
+
+		pr_info("attempting atomic underflow\n");
+		atomic_dec(&under);
+		pr_info("attempting atomic overflow\n");
+		atomic_inc(&over);
+
+		return;
 	}
 	case CT_NONE:
 	default:
