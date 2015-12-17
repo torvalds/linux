@@ -3299,8 +3299,10 @@ static int be_msix_register(struct be_adapter *adapter)
 
 	return 0;
 err_msix:
-	for (i--, eqo = &adapter->eq_obj[i]; i >= 0; i--, eqo--)
+	for (i--; i >= 0; i--) {
+		eqo = &adapter->eq_obj[i];
 		free_irq(be_msix_vec_get(adapter, eqo), eqo);
+	}
 	dev_warn(&adapter->pdev->dev, "MSIX Request IRQ failed - err %d\n",
 		 status);
 	be_msix_disable(adapter);
