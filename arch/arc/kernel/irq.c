@@ -32,8 +32,8 @@ void __init init_IRQ(void)
 	if (plat_smp_ops.init_per_cpu)
 		plat_smp_ops.init_per_cpu(smp_processor_id());
 
-	if (machine_desc->init_cpu_smp)
-		machine_desc->init_cpu_smp(smp_processor_id());
+	if (machine_desc->init_per_cpu)
+		machine_desc->init_per_cpu(smp_processor_id());
 #endif
 }
 
