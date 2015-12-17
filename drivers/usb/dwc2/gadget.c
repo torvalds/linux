@@ -3545,8 +3545,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 		return ret;
 	}
 
-	dwc2_hsotg_init(hsotg);
-
 	hsotg->ctrl_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
 	if (!hsotg->ctrl_buff) {
