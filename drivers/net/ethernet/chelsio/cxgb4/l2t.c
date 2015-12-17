@@ -66,7 +66,7 @@ struct l2t_data {
 
 static inline unsigned int vlan_prio(const struct l2t_entry *e)
 {
-	return e->vlan >> 13;
+	return e->vlan >> VLAN_PRIO_SHIFT;
 }
 
 static inline void l2t_hold(struct l2t_data *d, struct l2t_entry *e)
