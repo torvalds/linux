@@ -496,15 +496,10 @@ static int atmel_aes_crypt_dma_start(struct atmel_aes_dev *dd)
 	return err;
 }
 
-static int atmel_aes_write_ctrl(struct atmel_aes_dev *dd)
+static void atmel_aes_write_ctrl(struct atmel_aes_dev *dd, bool use_dma,
+				 const u32 *iv)
 {
-	int err;
 	u32 valcr = 0, valmr = 0;
-
-	err = atmel_aes_hw_init(dd);
-
-	if (err)
-		return err;
 
 	/* MR register must be set before IV registers */
 	if (dd->ctx->keylen == AES_KEYSIZE_128)
@@ -539,7 +534,7 @@ static int atmel_aes_write_ctrl(struct atmel_aes_dev *dd)
 	if (dd->flags & AES_FLAGS_ENCRYPT)
 		valmr |= AES_MR_CYPHER_ENC;
 
-	if (dd->total > ATMEL_AES_DMA_THRESHOLD) {
+	if (use_dma) {
 		valmr |= AES_MR_SMOD_IDATAR0;
 		if (dd->caps.has_dualbuff)
 			valmr |= AES_MR_DUALBUFF;
@@ -555,11 +550,9 @@ static int atmel_aes_write_ctrl(struct atmel_aes_dev *dd)
 
 	if (((dd->flags & AES_FLAGS_CBC) || (dd->flags & AES_FLAGS_CFB) ||
 	   (dd->flags & AES_FLAGS_OFB) || (dd->flags & AES_FLAGS_CTR)) &&
-	   dd->req->info) {
-		atmel_aes_write_n(dd, AES_IVR(0), dd->req->info, 4);
+	   iv) {
+		atmel_aes_write_n(dd, AES_IVR(0), iv, 4);
 	}
-
-	return 0;
 }
 
 static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
@@ -570,6 +563,7 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 	struct atmel_aes_reqctx *rctx;
 	unsigned long flags;
 	int err, ret = 0;
+	bool use_dma;
 
 	spin_lock_irqsave(&dd->lock, flags);
 	if (req)
@@ -607,9 +601,11 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 	dd->ctx = ctx;
 	ctx->dd = dd;
 
-	err = atmel_aes_write_ctrl(dd);
+	err = atmel_aes_hw_init(dd);
 	if (!err) {
-		if (dd->total > ATMEL_AES_DMA_THRESHOLD)
+		use_dma = (dd->total > ATMEL_AES_DMA_THRESHOLD);
+		atmel_aes_write_ctrl(dd, use_dma, req->info);
+		if (use_dma)
 			err = atmel_aes_crypt_dma_start(dd);
 		else
 			err = atmel_aes_crypt_cpu_start(dd);
