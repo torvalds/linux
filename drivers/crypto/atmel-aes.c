@@ -511,7 +511,7 @@ static int atmel_aes_crypt_dma_start(struct atmel_aes_dev *dd)
 static void atmel_aes_write_ctrl(struct atmel_aes_dev *dd, bool use_dma,
 				 const u32 *iv)
 {
-	u32 valcr = 0, valmr = 0;
+	u32 valmr = 0;
 
 	/* MR register must be set before IV registers */
 	if (dd->ctx->keylen == AES_KEYSIZE_128)
@@ -554,7 +554,6 @@ static void atmel_aes_write_ctrl(struct atmel_aes_dev *dd, bool use_dma,
 		valmr |= AES_MR_SMOD_AUTO;
 	}
 
-	atmel_aes_write(dd, AES_CR, valcr);
 	atmel_aes_write(dd, AES_MR, valmr);
 
 	atmel_aes_write_n(dd, AES_KEYWR(0), dd->ctx->key,
