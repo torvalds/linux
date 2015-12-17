@@ -381,9 +381,22 @@ do_pass:
 	new_insn = new_prog;
 	fp = prog;
 
-	if (new_insn)
-		*new_insn = BPF_MOV64_REG(BPF_REG_CTX, BPF_REG_ARG1);
-	new_insn++;
+	/* Classic BPF related prologue emission. */
+	if (new_insn) {
+		/* Classic BPF expects A and X to be reset first. These need
+		 * to be guaranteed to be the first two instructions.
+		 */
+		*new_insn++ = BPF_ALU64_REG(BPF_XOR, BPF_REG_A, BPF_REG_A);
+		*new_insn++ = BPF_ALU64_REG(BPF_XOR, BPF_REG_X, BPF_REG_X);
+
+		/* All programs must keep CTX in callee saved BPF_REG_CTX.
+		 * In eBPF case it's done by the compiler, here we need to
+		 * do this ourself. Initial CTX is present in BPF_REG_ARG1.
+		 */
+		*new_insn++ = BPF_MOV64_REG(BPF_REG_CTX, BPF_REG_ARG1);
+	} else {
+		new_insn += 3;
+	}
 
 	for (i = 0; i < len; fp++, i++) {
 		struct bpf_insn tmp_insns[6] = { };

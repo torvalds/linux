@@ -193,7 +193,7 @@ struct jit_context {
 	 32 /* space for rbx, r13, r14, r15 */ + \
 	 8 /* space for skb_copy_bits() buffer */)
 
-#define PROLOGUE_SIZE 51
+#define PROLOGUE_SIZE 48
 
 /* emit x64 prologue code for BPF program and check it's size.
  * bpf_tail_call helper will skip it while jumping into another program
@@ -229,11 +229,15 @@ static void emit_prologue(u8 **pprog)
 	/* mov qword ptr [rbp-X],r15 */
 	EMIT3_off32(0x4C, 0x89, 0xBD, -STACKSIZE + 24);
 
-	/* clear A and X registers */
-	EMIT2(0x31, 0xc0); /* xor eax, eax */
-	EMIT3(0x4D, 0x31, 0xED); /* xor r13, r13 */
+	/* Clear the tail call counter (tail_call_cnt): for eBPF tail calls
+	 * we need to reset the counter to 0. It's done in two instructions,
+	 * resetting rax register to 0 (xor on eax gets 0 extended), and
+	 * moving it to the counter location.
+	 */
 
-	/* clear tail_cnt: mov qword ptr [rbp-X], rax */
+	/* xor eax, eax */
+	EMIT2(0x31, 0xc0);
+	/* mov qword ptr [rbp-X], rax */
 	EMIT3_off32(0x48, 0x89, 0x85, -STACKSIZE + 32);
 
 	BUILD_BUG_ON(cnt != PROLOGUE_SIZE);
