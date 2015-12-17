@@ -481,11 +481,10 @@ static void dwc2_init_fs_ls_pclk_sel(struct dwc2_hsotg *hsotg)
  * Do core a soft reset of the core.  Be careful with this because it
  * resets all the internal state machines of the core.
  */
-int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg)
+int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 {
 	u32 greset;
 	int count = 0;
-	u32 gusbcfg;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
@@ -516,6 +515,25 @@ int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg)
 			return -EBUSY;
 		}
 	} while (!(greset & GRSTCTL_AHBIDLE));
+
+	return 0;
+}
+
+/*
+ * Do core a soft reset of the core.  Be careful with this because it
+ * resets all the internal state machines of the core.
+ *
+ * Additionally this will apply force mode as per the hsotg->dr_mode
+ * parameter.
+ */
+int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg)
+{
+	int retval;
+	u32 gusbcfg;
+
+	retval = dwc2_core_reset(hsotg);
+	if (retval)
+		return retval;
 
 	if (hsotg->dr_mode == USB_DR_MODE_HOST) {
 		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
