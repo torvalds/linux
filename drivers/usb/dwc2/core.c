@@ -491,7 +491,7 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 
 	/* Wait for AHB master IDLE state */
 	do {
-		usleep_range(20000, 40000);
+		udelay(1);
 		greset = dwc2_readl(hsotg->regs + GRSTCTL);
 		if (++count > 50) {
 			dev_warn(hsotg->dev,
@@ -506,7 +506,7 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 	greset |= GRSTCTL_CSFTRST;
 	dwc2_writel(greset, hsotg->regs + GRSTCTL);
 	do {
-		usleep_range(20000, 40000);
+		udelay(1);
 		greset = dwc2_readl(hsotg->regs + GRSTCTL);
 		if (++count > 50) {
 			dev_warn(hsotg->dev,
@@ -537,7 +537,7 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 	 * NOTE: This long sleep is _very_ important, otherwise the core will
 	 * not stay in host mode after a connector ID change!
 	 */
-	usleep_range(150000, 200000);
+	usleep_range(150000, 160000);
 
 	return 0;
 }
@@ -3139,7 +3139,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
 		dwc2_writel(gusbcfg | GUSBCFG_FORCEHOSTMODE,
 			    hsotg->regs + GUSBCFG);
-		usleep_range(100000, 150000);
+		usleep_range(25000, 50000);
 	}
 
 	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
@@ -3148,7 +3148,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hptxfsiz);
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
 		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-		usleep_range(100000, 150000);
+		usleep_range(25000, 50000);
 	}
 
 	/* hwcfg2 */
