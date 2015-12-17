@@ -337,8 +337,8 @@ static void atmel_aes_dma_callback(void *data)
 {
 	struct atmel_aes_dev *dd = data;
 
-	/* dma_lch_out - completed */
-	tasklet_schedule(&dd->done_task);
+	dd->is_async = true;
+	(void)dd->resume(dd);
 }
 
 static int atmel_aes_crypt_dma(struct atmel_aes_dev *dd,
