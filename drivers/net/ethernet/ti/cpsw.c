@@ -2036,16 +2036,21 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 		priv->phy_node = of_parse_phandle(slave_node, "phy-handle", 0);
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if (of_phy_is_fixed_link(slave_node)) {
-			struct phy_device *pd;
+			struct device_node *phy_node;
+			struct phy_device *phy_dev;
 
+			/* In the case of a fixed PHY, the DT node associated
+			 * to the PHY is the Ethernet MAC DT node.
+			 */
 			ret = of_phy_register_fixed_link(slave_node);
 			if (ret)
 				return ret;
-			pd = of_phy_find_device(slave_node);
-			if (!pd)
+			phy_node = of_node_get(slave_node);
+			phy_dev = of_phy_find_device(phy_node);
+			if (!phy_dev)
 				return -ENODEV;
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
-				 PHY_ID_FMT, pd->bus->id, pd->addr);
+				 PHY_ID_FMT, phy_dev->bus->id, phy_dev->addr);
 		} else if (parp) {
 			u32 phyid;
 			struct device_node *mdio_node;
