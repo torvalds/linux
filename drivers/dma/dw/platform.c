@@ -103,18 +103,21 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct dw_dma_platform_data *pdata;
 	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS];
+	u32 nr_channels;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing DT data\n");
 		return NULL;
 	}
 
+	if (of_property_read_u32(np, "dma-channels", &nr_channels))
+		return NULL;
+
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	if (of_property_read_u32(np, "dma-channels", &pdata->nr_channels))
-		return NULL;
+	pdata->nr_channels = nr_channels;
 
 	if (of_property_read_bool(np, "is_private"))
 		pdata->is_private = true;
