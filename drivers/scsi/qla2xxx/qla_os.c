@@ -227,6 +227,12 @@ MODULE_PARM_DESC(ql2xexlogins,
 		 "Number of extended Logins. "
 		 "0 (Default)- Disabled.");
 
+int ql2xexchoffld = 0;
+module_param(ql2xexchoffld, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xexchoffld,
+		 "Number of exchanges to offload. "
+		 "0 (Default)- Disabled.");
+
 /*
  * SCSI host template entry points
  */
@@ -3138,6 +3144,10 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	if (ha->exlogin_buf)
 		qla2x00_free_exlogin_buffer(ha);
 
+	/* free DMA memory */
+	if (ha->exchoffld_buf)
+		qla2x00_free_exchoffld_buffer(ha);
+
 	qla2x00_destroy_deferred_work(ha);
 
 	qlt_remove_target(ha, base_vha);
@@ -3660,6 +3670,74 @@ qla2x00_free_exlogin_buffer(struct qla_hw_data *ha)
 		    ha->exlogin_buf, ha->exlogin_buf_dma);
 		ha->exlogin_buf = NULL;
 		ha->exlogin_size = 0;
+	}
+}
+
+int
+qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
+{
+	int rval;
+	uint16_t	size, max_cnt, temp;
+	struct qla_hw_data *ha = vha->hw;
+
+	/* Return if we don't need to alloacate any extended logins */
+	if (!ql2xexchoffld)
+		return QLA_SUCCESS;
+
+	ql_log(ql_log_info, vha, 0xd014,
+	    "Exchange offload count: %d.\n", ql2xexlogins);
+
+	max_cnt = 0;
+	rval = qla_get_exchoffld_status(vha, &size, &max_cnt);
+	if (rval != QLA_SUCCESS) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0xd012,
+		    "Failed to get exlogin status.\n");
+		return rval;
+	}
+
+	temp = (ql2xexchoffld > max_cnt) ? max_cnt : ql2xexchoffld;
+	ha->exchoffld_size = (size * temp);
+	ql_log(ql_log_info, vha, 0xd016,
+		"Exchange offload: max_count=%d, buffers=0x%x, total=%d.\n",
+		max_cnt, size, temp);
+
+	ql_log(ql_log_info, vha, 0xd017,
+	    "Exchange Buffers requested size = 0x%x\n", ha->exchoffld_size);
+
+	/* Get consistent memory for extended logins */
+	ha->exchoffld_buf = dma_alloc_coherent(&ha->pdev->dev,
+	    ha->exchoffld_size, &ha->exchoffld_buf_dma, GFP_KERNEL);
+	if (!ha->exchoffld_buf) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0xd013,
+		    "Failed to allocate memory for exchoffld_buf_dma.\n");
+		return -ENOMEM;
+	}
+
+	/* Now configure the dma buffer */
+	rval = qla_set_exchoffld_mem_cfg(vha, ha->exchoffld_buf_dma);
+	if (rval) {
+		ql_log(ql_log_fatal, vha, 0xd02e,
+		    "Setup exchange offload buffer ****FAILED****.\n");
+		qla2x00_free_exchoffld_buffer(ha);
+	}
+
+	return rval;
+}
+
+/*
+* qla2x00_free_exchoffld_buffer
+*
+* Input:
+*	ha = adapter block pointer
+*/
+void
+qla2x00_free_exchoffld_buffer(struct qla_hw_data *ha)
+{
+	if (ha->exchoffld_buf) {
+		dma_free_coherent(&ha->pdev->dev, ha->exchoffld_size,
+		    ha->exchoffld_buf, ha->exchoffld_buf_dma);
+		ha->exchoffld_buf = NULL;
+		ha->exchoffld_size = 0;
 	}
 }
 

@@ -272,6 +272,7 @@
 #define RESPONSE_ENTRY_CNT_MQ		128	/* Number of response entries.*/
 #define ATIO_ENTRY_CNT_24XX		4096	/* Number of ATIO entries. */
 #define RESPONSE_ENTRY_CNT_FX00		256     /* Number of response entries.*/
+#define EXTENDED_EXCH_ENTRY_CNT		32768   /* Entries for offload case */
 
 struct req_que;
 struct qla_tgt_sess;
@@ -2968,7 +2969,8 @@ struct qla_hw_data {
 
 		uint32_t	fawwpn_enabled:1;
 		uint32_t	exlogins_enabled:1;
-		/* 34 bits */
+		uint32_t	exchoffld_enabled:1;
+		/* 35 bits */
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -3245,6 +3247,14 @@ struct qla_hw_data {
 	void		*exlogin_buf;
 	dma_addr_t	exlogin_buf_dma;
 	int		exlogin_size;
+
+#define ENABLE_EXCHANGE_OFFLD	BIT_2
+
+	/* Exchange Offload */
+	void		*exchoffld_buf;
+	dma_addr_t	exchoffld_buf_dma;
+	int		exchoffld_size;
+	int 		exchoffld_count;
 
 	void		*swl;
 

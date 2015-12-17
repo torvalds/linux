@@ -118,6 +118,7 @@ extern uint64_t ql2xmaxlun;
 extern int ql2xmdcapmask;
 extern int ql2xmdenable;
 extern int ql2xexlogins;
+extern int ql2xexchoffld;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -138,6 +139,8 @@ extern int qla2x00_post_async_adisc_done_work(struct scsi_qla_host *,
     fc_port_t *, uint16_t *);
 extern int qla2x00_set_exlogins_buffer(struct scsi_qla_host *);
 extern void qla2x00_free_exlogin_buffer(struct qla_hw_data *);
+extern int qla2x00_set_exchoffld_buffer(struct scsi_qla_host *);
+extern void qla2x00_free_exchoffld_buffer(struct qla_hw_data *);
 
 extern int qla81xx_restart_mpi_firmware(scsi_qla_host_t *);
 
@@ -772,5 +775,7 @@ extern void qlt_host_reset_handler(struct qla_hw_data *ha);
 extern int qla_get_exlogin_status(scsi_qla_host_t *, uint16_t *,
 	uint16_t *);
 extern int qla_set_exlogin_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr);
+extern int qla_get_exchoffld_status(scsi_qla_host_t *, uint16_t *, uint16_t *);
+extern int qla_set_exchoffld_mem_cfg(scsi_qla_host_t *, dma_addr_t);
 
 #endif /* _QLA_GBL_H */
