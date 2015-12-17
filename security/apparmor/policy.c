@@ -766,7 +766,9 @@ struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name)
 	struct aa_profile *profile;
 
 	rcu_read_lock();
-	profile = aa_get_profile(__find_child(&parent->base.profiles, name));
+	do {
+		profile = __find_child(&parent->base.profiles, name);
+	} while (profile && !aa_get_profile_not0(profile));
 	rcu_read_unlock();
 
 	/* refcount released by caller */
