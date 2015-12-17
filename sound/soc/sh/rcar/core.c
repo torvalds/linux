@@ -196,21 +196,10 @@ int rsnd_get_slot_rdai(struct rsnd_dai *rdai)
 	return rdai->slots;
 }
 
-int rsnd_get_slot_runtime(struct rsnd_dai_stream *io)
-{
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	int chan = rsnd_get_slot_rdai(rdai);
-
-	if (runtime->channels < chan)
-		chan = runtime->channels;
-
-	return chan;
-}
-
 int rsnd_get_slot_extend(struct rsnd_dai_stream *io)
 {
-	int chan = rsnd_get_slot_runtime(io);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	int chan = runtime->channels;
 
 	/* TDM Extend Mode needs 8ch */
 	if (chan == 6)
@@ -243,9 +232,9 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	u32 chan = rsnd_get_slot_rdai(rdai);
+	u32 chan = runtime->channels;
 
 	switch (chan) {
 	case 1:
