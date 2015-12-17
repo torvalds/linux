@@ -384,18 +384,6 @@ static inline void disable_hc_int(struct dwc2_hsotg *hsotg, int chnum, u32 intr)
 }
 
 /*
- * Returns the mode of operation, host or device
- */
-static inline int dwc2_is_host_mode(struct dwc2_hsotg *hsotg)
-{
-	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
-}
-static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
-{
-	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
-}
-
-/*
  * Reads HPRT0 in preparation to modify. It keeps the WC bits 0 so that if they
  * are read as 1, they won't clear when written back.
  */
