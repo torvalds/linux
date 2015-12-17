@@ -173,6 +173,23 @@
 			interrupts = <32>;
 			interrupt-names = "edm3_tcerrint";
 		};
+		edma1: edma@01e30000 {
+			compatible = "ti,edma3-tpcc";
+			/* eDMA3 CC1: 0x01e3 0000 - 0x01e3 7fff */
+			reg =	<0x230000 0x8000>;
+			reg-names = "edma3_cc";
+			interrupts = <93 94>;
+			interrupt-names = "edma3_ccint", "edma3_ccerrint";
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma1_tptc0 7>;
+		};
+		edma1_tptc0: tptc@01e38000 {
+			compatible = "ti,edma3-tptc";
+			reg =	<0x238000 0x400>;
+			interrupts = <95>;
+			interrupt-names = "edm3_tcerrint";
+		};
 		serial0: serial@1c42000 {
 			compatible = "ns16550a";
 			reg = <0x42000 0x100>;
