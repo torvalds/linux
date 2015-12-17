@@ -581,18 +581,35 @@ int watchdog_dev_unregister(struct watchdog_device *wdd)
 	return 0;
 }
 
+static struct class watchdog_class = {
+	.name =		"watchdog",
+	.owner =	THIS_MODULE,
+};
+
 /*
  *	watchdog_dev_init: init dev part of watchdog core
  *
  *	Allocate a range of chardev nodes to use for watchdog devices
  */
 
-int __init watchdog_dev_init(void)
+struct class * __init watchdog_dev_init(void)
 {
-	int err = alloc_chrdev_region(&watchdog_devt, 0, MAX_DOGS, "watchdog");
-	if (err < 0)
+	int err;
+
+	err = class_register(&watchdog_class);
+	if (err < 0) {
+		pr_err("couldn't register class\n");
+		return ERR_PTR(err);
+	}
+
+	err = alloc_chrdev_region(&watchdog_devt, 0, MAX_DOGS, "watchdog");
+	if (err < 0) {
 		pr_err("watchdog: unable to allocate char dev region\n");
-	return err;
+		class_unregister(&watchdog_class);
+		return ERR_PTR(err);
+	}
+
+	return &watchdog_class;
 }
 
 /*
@@ -604,4 +621,5 @@ int __init watchdog_dev_init(void)
 void __exit watchdog_dev_exit(void)
 {
 	unregister_chrdev_region(watchdog_devt, MAX_DOGS);
+	class_unregister(&watchdog_class);
 }
