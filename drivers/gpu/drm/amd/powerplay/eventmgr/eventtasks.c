@@ -418,10 +418,17 @@ restart_search:
 int pem_task_initialize_thermal_controller(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
 	struct PP_TemperatureRange range;
+
 	range.max = TEMP_RANGE_MAX;
 	range.min = TEMP_RANGE_MIN;
 
-	return phm_start_thermal_controller(eventmgr->hwmgr, &range);
+	if (eventmgr == NULL || eventmgr->platform_descriptor == NULL)
+		return -EINVAL;
+
+	if (phm_cap_enabled(eventmgr->platform_descriptor->platformCaps, PHM_PlatformCaps_ThermalController))
+		return phm_start_thermal_controller(eventmgr->hwmgr, &range);
+
+	return 0;
 }
 
 int pem_task_uninitialize_thermal_controller(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
