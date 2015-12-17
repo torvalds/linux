@@ -160,9 +160,6 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 		struct gpd_timing_data *td;
 		s64 constraint_ns;
 
-		if (!pdd->dev->driver)
-			continue;
-
 		/*
 		 * Check if the device is allowed to be off long enough for the
 		 * domain to turn off and on (that's how much time it will

@@ -377,7 +377,6 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 			cf->data[2] |= CAN_ERR_PROT_STUFF;
 			break;
 		default:
-			cf->data[2] |= CAN_ERR_PROT_UNSPEC;
 			cf->data[3] = ecc & SJA1000_ECC_SEG;
 			break;
 		}

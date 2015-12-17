@@ -91,6 +91,7 @@ static void dsos__purge(struct dsos *dsos)
 
 	list_for_each_entry_safe(pos, n, &dsos->head, node) {
 		RB_CLEAR_NODE(&pos->rb_node);
+		pos->root = NULL;
 		list_del_init(&pos->node);
 		dso__put(pos);
 	}

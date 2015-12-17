@@ -205,6 +205,9 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 	if (ret < 0)
 		return ret;
 
+	max_hw_sectors_kb = min_not_zero(max_hw_sectors_kb, (unsigned long)
+					 q->limits.max_dev_sectors >> 1);
+
 	if (max_sectors_kb > max_hw_sectors_kb || max_sectors_kb < page_kb)
 		return -EINVAL;
 

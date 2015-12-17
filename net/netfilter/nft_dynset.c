@@ -50,8 +50,9 @@ static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
 	}
 
 	ext = nft_set_elem_ext(set, elem);
-	if (priv->expr != NULL)
-		nft_expr_clone(nft_set_ext_expr(ext), priv->expr);
+	if (priv->expr != NULL &&
+	    nft_expr_clone(nft_set_ext_expr(ext), priv->expr) < 0)
+		return NULL;
 
 	return elem;
 }

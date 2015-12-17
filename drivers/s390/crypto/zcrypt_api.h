@@ -96,6 +96,7 @@ struct zcrypt_ops {
 	struct list_head list;		/* zcrypt ops list. */
 	struct module *owner;
 	int variant;
+	char name[128];
 };
 
 struct zcrypt_device {

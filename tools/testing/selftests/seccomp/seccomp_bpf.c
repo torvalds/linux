@@ -492,6 +492,9 @@ TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 	pid_t parent = getppid();
 	int fd;
 	void *map1, *map2;
+	int page_size = sysconf(_SC_PAGESIZE);
+
+	ASSERT_LT(0, page_size);
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
@@ -504,16 +507,16 @@ TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
 	map1 = (void *)syscall(sysno,
-		NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE, fd, PAGE_SIZE);
+		NULL, page_size, PROT_READ, MAP_PRIVATE, fd, page_size);
 	EXPECT_NE(MAP_FAILED, map1);
 	/* mmap2() should never return. */
 	map2 = (void *)syscall(sysno,
-		 NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0x0C0FFEE);
+		 NULL, page_size, PROT_READ, MAP_PRIVATE, fd, 0x0C0FFEE);
 	EXPECT_EQ(MAP_FAILED, map2);
 
 	/* The test failed, so clean up the resources. */
-	munmap(map1, PAGE_SIZE);
-	munmap(map2, PAGE_SIZE);
+	munmap(map1, page_size);
+	munmap(map2, page_size);
 	close(fd);
 }
 

@@ -1096,6 +1096,27 @@ static void vgic_retire_lr(int lr_nr, struct kvm_vcpu *vcpu)
 	vgic_set_lr(vcpu, lr_nr, vlr);
 }
 
+static bool dist_active_irq(struct kvm_vcpu *vcpu)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	return test_bit(vcpu->vcpu_id, dist->irq_active_on_cpu);
+}
+
+bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, struct irq_phys_map *map)
+{
+	int i;
+
+	for (i = 0; i < vcpu->arch.vgic_cpu.nr_lr; i++) {
+		struct vgic_lr vlr = vgic_get_lr(vcpu, i);
+
+		if (vlr.irq == map->virt_irq && vlr.state & LR_STATE_ACTIVE)
+			return true;
+	}
+
+	return dist_active_irq(vcpu);
+}
+
 /*
  * An interrupt may have been disabled after being made pending on the
  * CPU interface (the classic case is a timer running while we're
@@ -1248,7 +1269,7 @@ static void __kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 	 * may have been serviced from another vcpu. In all cases,
 	 * move along.
 	 */
-	if (!kvm_vgic_vcpu_pending_irq(vcpu) && !kvm_vgic_vcpu_active_irq(vcpu))
+	if (!kvm_vgic_vcpu_pending_irq(vcpu) && !dist_active_irq(vcpu))
 		goto epilog;
 
 	/* SGIs */
@@ -1396,25 +1417,13 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 static bool vgic_sync_hwirq(struct kvm_vcpu *vcpu, int lr, struct vgic_lr vlr)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
-	struct irq_phys_map *map;
-	bool phys_active;
 	bool level_pending;
-	int ret;
 
 	if (!(vlr.state & LR_HW))
 		return false;
 
-	map = vgic_irq_map_search(vcpu, vlr.irq);
-	BUG_ON(!map);
-
-	ret = irq_get_irqchip_state(map->irq,
-				    IRQCHIP_STATE_ACTIVE,
-				    &phys_active);
-
-	WARN_ON(ret);
-
-	if (phys_active)
-		return 0;
+	if (vlr.state & LR_STATE_ACTIVE)
+		return false;
 
 	spin_lock(&dist->lock);
 	level_pending = process_queued_irq(vcpu, lr, vlr);
@@ -1478,17 +1487,6 @@ int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
 
 	return test_bit(vcpu->vcpu_id, dist->irq_pending_on_cpu);
 }
-
-int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu)
-{
-	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
-
-	if (!irqchip_in_kernel(vcpu->kvm))
-		return 0;
-
-	return test_bit(vcpu->vcpu_id, dist->irq_active_on_cpu);
-}
-
 
 void vgic_kick_vcpus(struct kvm *kvm)
 {

@@ -374,6 +374,7 @@ static const struct of_device_id vop_driver_dt_match[] = {
 	  .data = &rk3288_vop },
 	{},
 };
+MODULE_DEVICE_TABLE(of, vop_driver_dt_match);
 
 static inline void vop_writel(struct vop *vop, uint32_t offset, uint32_t v)
 {
@@ -959,8 +960,8 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	val = (dest.y2 - dest.y1 - 1) << 16;
 	val |= (dest.x2 - dest.x1 - 1) & 0xffff;
 	VOP_WIN_SET(vop, win, dsp_info, val);
-	val = (dsp_sty - 1) << 16;
-	val |= (dsp_stx - 1) & 0xffff;
+	val = dsp_sty << 16;
+	val |= dsp_stx & 0xffff;
 	VOP_WIN_SET(vop, win, dsp_st, val);
 	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
@@ -1289,7 +1290,7 @@ static void vop_win_state_complete(struct vop_win *vop_win,
 
 	if (state->event) {
 		spin_lock_irqsave(&drm->event_lock, flags);
-		drm_send_vblank_event(drm, -1, state->event);
+		drm_crtc_send_vblank_event(crtc, state->event);
 		spin_unlock_irqrestore(&drm->event_lock, flags);
 	}
 
@@ -1575,32 +1576,25 @@ static int vop_initial(struct vop *vop)
 		return PTR_ERR(vop->dclk);
 	}
 
-	ret = clk_prepare(vop->hclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare hclk\n");
-		return ret;
-	}
-
 	ret = clk_prepare(vop->dclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to prepare dclk\n");
-		goto err_unprepare_hclk;
+		return ret;
 	}
 
-	ret = clk_prepare(vop->aclk);
+	/* Enable both the hclk and aclk to setup the vop */
+	ret = clk_prepare_enable(vop->hclk);
 	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare aclk\n");
+		dev_err(vop->dev, "failed to prepare/enable hclk\n");
 		goto err_unprepare_dclk;
 	}
 
-	/*
-	 * enable hclk, so that we can config vop register.
-	 */
-	ret = clk_enable(vop->hclk);
+	ret = clk_prepare_enable(vop->aclk);
 	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare aclk\n");
-		goto err_unprepare_aclk;
+		dev_err(vop->dev, "failed to prepare/enable aclk\n");
+		goto err_disable_hclk;
 	}
+
 	/*
 	 * do hclk_reset, reset all vop registers.
 	 */
@@ -1608,7 +1602,7 @@ static int vop_initial(struct vop *vop)
 	if (IS_ERR(ahb_rst)) {
 		dev_err(vop->dev, "failed to get ahb reset\n");
 		ret = PTR_ERR(ahb_rst);
-		goto err_disable_hclk;
+		goto err_disable_aclk;
 	}
 	reset_control_assert(ahb_rst);
 	usleep_range(10, 20);
@@ -1634,26 +1628,25 @@ static int vop_initial(struct vop *vop)
 	if (IS_ERR(vop->dclk_rst)) {
 		dev_err(vop->dev, "failed to get dclk reset\n");
 		ret = PTR_ERR(vop->dclk_rst);
-		goto err_unprepare_aclk;
+		goto err_disable_aclk;
 	}
 	reset_control_assert(vop->dclk_rst);
 	usleep_range(10, 20);
 	reset_control_deassert(vop->dclk_rst);
 
 	clk_disable(vop->hclk);
+	clk_disable(vop->aclk);
 
 	vop->is_enabled = false;
 
 	return 0;
 
+err_disable_aclk:
+	clk_disable_unprepare(vop->aclk);
 err_disable_hclk:
-	clk_disable(vop->hclk);
-err_unprepare_aclk:
-	clk_unprepare(vop->aclk);
+	clk_disable_unprepare(vop->hclk);
 err_unprepare_dclk:
 	clk_unprepare(vop->dclk);
-err_unprepare_hclk:
-	clk_unprepare(vop->hclk);
 	return ret;
 }
 

@@ -1,4 +1,5 @@
 menu "Clock Source drivers"
+	depends on !ARCH_USES_GETTIMEOFFSET
 
 config CLKSRC_OF
 	bool

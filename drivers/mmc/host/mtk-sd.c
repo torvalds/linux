@@ -1276,7 +1276,7 @@ static struct msdc_delay_phase get_best_delay(struct msdc_host *host, u32 delay)
 	int start = 0, len = 0;
 	int start_final = 0, len_final = 0;
 	u8 final_phase = 0xff;
-	struct msdc_delay_phase delay_phase;
+	struct msdc_delay_phase delay_phase = { 0, };
 
 	if (delay == 0) {
 		dev_err(host->dev, "phase error: [map:%x]\n", delay);

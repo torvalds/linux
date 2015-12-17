@@ -209,6 +209,8 @@ EXPORT_SYMBOL_GPL(clk_register_gpio_mux);
 
 struct clk_gpio_delayed_register_data {
 	const char *gpio_name;
+	int num_parents;
+	const char **parent_names;
 	struct device_node *node;
 	struct mutex lock;
 	struct clk *clk;
@@ -222,8 +224,6 @@ static struct clk *of_clk_gpio_delayed_register_get(
 {
 	struct clk_gpio_delayed_register_data *data = _data;
 	struct clk *clk;
-	const char **parent_names;
-	int i, num_parents;
 	int gpio;
 	enum of_gpio_flags of_flags;
 
@@ -248,26 +248,14 @@ static struct clk *of_clk_gpio_delayed_register_get(
 		return ERR_PTR(gpio);
 	}
 
-	num_parents = of_clk_get_parent_count(data->node);
-
-	parent_names = kcalloc(num_parents, sizeof(char *), GFP_KERNEL);
-	if (!parent_names) {
-		clk = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-
-	for (i = 0; i < num_parents; i++)
-		parent_names[i] = of_clk_get_parent_name(data->node, i);
-
-	clk = data->clk_register_get(data->node->name, parent_names,
-			num_parents, gpio, of_flags & OF_GPIO_ACTIVE_LOW);
+	clk = data->clk_register_get(data->node->name, data->parent_names,
+			data->num_parents, gpio, of_flags & OF_GPIO_ACTIVE_LOW);
 	if (IS_ERR(clk))
 		goto out;
 
 	data->clk = clk;
 out:
 	mutex_unlock(&data->lock);
-	kfree(parent_names);
 
 	return clk;
 }
@@ -296,11 +284,24 @@ static void __init of_gpio_clk_setup(struct device_node *node,
 				unsigned gpio, bool active_low))
 {
 	struct clk_gpio_delayed_register_data *data;
+	const char **parent_names;
+	int i, num_parents;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return;
 
+	num_parents = of_clk_get_parent_count(node);
+
+	parent_names = kcalloc(num_parents, sizeof(char *), GFP_KERNEL);
+	if (!parent_names)
+		return;
+
+	for (i = 0; i < num_parents; i++)
+		parent_names[i] = of_clk_get_parent_name(node, i);
+
+	data->num_parents = num_parents;
+	data->parent_names = parent_names;
 	data->node = node;
 	data->gpio_name = gpio_name;
 	data->clk_register_get = clk_register_get;

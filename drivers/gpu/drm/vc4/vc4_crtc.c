@@ -168,7 +168,7 @@ static int vc4_get_clock_select(struct drm_crtc *crtc)
 	struct drm_connector *connector;
 
 	drm_for_each_connector(connector, crtc->dev) {
-		if (connector && connector->state->crtc == crtc) {
+		if (connector->state->crtc == crtc) {
 			struct drm_encoder *encoder = connector->encoder;
 			struct vc4_encoder *vc4_encoder =
 				to_vc4_encoder(encoder);
@@ -401,7 +401,8 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 		dlist_next++;
 
 		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-			  (u32 *)vc4_crtc->dlist - (u32 *)vc4->hvs->dlist);
+			  (u32 __iomem *)vc4_crtc->dlist -
+			  (u32 __iomem *)vc4->hvs->dlist);
 
 		/* Make the next display list start after ours. */
 		vc4_crtc->dlist_size -= (dlist_next - vc4_crtc->dlist);
@@ -591,14 +592,14 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	 * that will take too much.
 	 */
 	primary_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_PRIMARY);
-	if (!primary_plane) {
+	if (IS_ERR(primary_plane)) {
 		dev_err(dev, "failed to construct primary plane\n");
 		ret = PTR_ERR(primary_plane);
 		goto err;
 	}
 
 	cursor_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_CURSOR);
-	if (!cursor_plane) {
+	if (IS_ERR(cursor_plane)) {
 		dev_err(dev, "failed to construct cursor plane\n");
 		ret = PTR_ERR(cursor_plane);
 		goto err_primary;

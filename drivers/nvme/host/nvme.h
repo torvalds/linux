@@ -136,8 +136,22 @@ int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr);
 int nvme_sg_io32(struct nvme_ns *ns, unsigned long arg);
 int nvme_sg_get_version_num(int __user *ip);
 
+#ifdef CONFIG_NVM
 int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id);
 int nvme_nvm_register(struct request_queue *q, char *disk_name);
 void nvme_nvm_unregister(struct request_queue *q, char *disk_name);
+#else
+static inline int nvme_nvm_register(struct request_queue *q, char *disk_name)
+{
+	return 0;
+}
+
+static inline void nvme_nvm_unregister(struct request_queue *q, char *disk_name) {};
+
+static inline int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
+{
+	return 0;
+}
+#endif /* CONFIG_NVM */
 
 #endif /* _NVME_H */

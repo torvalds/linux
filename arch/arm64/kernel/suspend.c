@@ -1,3 +1,4 @@
+#include <linux/ftrace.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
@@ -71,6 +72,13 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	local_dbg_save(flags);
 
 	/*
+	 * Function graph tracer state gets incosistent when the kernel
+	 * calls functions that never return (aka suspend finishers) hence
+	 * disable graph tracing during their execution.
+	 */
+	pause_graph_tracing();
+
+	/*
 	 * mm context saved on the stack, it will be restored when
 	 * the cpu comes out of reset through the identity mapped
 	 * page tables, so that the thread address space is properly
@@ -110,6 +118,8 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		if (hw_breakpoint_restore)
 			hw_breakpoint_restore(NULL);
 	}
+
+	unpause_graph_tracing();
 
 	/*
 	 * Restore pstate flags. OS lock and mdscr have been already

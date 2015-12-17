@@ -675,6 +675,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.fork		= perf_event__repipe,
 			.exit		= perf_event__repipe,
 			.lost		= perf_event__repipe,
+			.lost_samples	= perf_event__repipe,
 			.aux		= perf_event__repipe,
 			.itrace_start	= perf_event__repipe,
 			.context_switch	= perf_event__repipe,

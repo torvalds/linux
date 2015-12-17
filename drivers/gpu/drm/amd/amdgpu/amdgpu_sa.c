@@ -311,8 +311,7 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
 	return false;
 }
 
-int amdgpu_sa_bo_new(struct amdgpu_device *adev,
-		     struct amdgpu_sa_manager *sa_manager,
+int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		     struct amdgpu_sa_bo **sa_bo,
 		     unsigned size, unsigned align)
 {
