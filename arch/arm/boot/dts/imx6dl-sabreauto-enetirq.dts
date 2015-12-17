@@ -1,0 +1,19 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6dl-sabreauto.dts"
+
+&fec {
+	pinctrl-0 = <&pinctrl_enet &pinctrl_enet_irq>;
+	interrupts-extended = <&gpio1 6 IRQ_TYPE_LEVEL_HIGH>,
+			      <&gpc 0 119 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&mlb {
+	status = "disabled";
+};
