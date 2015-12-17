@@ -227,21 +227,17 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 adinr = runtime->channels;
 
 	switch (runtime->sample_bits) {
 	case 16:
-		adinr |= (8 << 16);
-		break;
+		return 8 << 16;
 	case 32:
-		adinr |= (0 << 16);
-		break;
-	default:
-		dev_warn(dev, "not supported sample bits\n");
-		return 0;
+		return 0 << 16;
 	}
 
-	return adinr;
+	dev_warn(dev, "not supported sample bits\n");
+
+	return 0;
 }
 
 u32 rsnd_get_adinr_chan(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
