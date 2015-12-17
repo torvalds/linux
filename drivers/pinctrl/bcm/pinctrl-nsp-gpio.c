@@ -696,7 +696,6 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 
 			irq_set_chip_and_handler(irq, &nsp_gpio_irq_chip,
 						 handle_simple_irq);
-			set_irq_flags(irq, IRQF_VALID);
 			irq_set_chip_data(irq, chip);
 		}
 
