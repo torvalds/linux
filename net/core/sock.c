@@ -872,7 +872,8 @@ set_rcvbuf:
 
 		if (val & SOF_TIMESTAMPING_OPT_ID &&
 		    !(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)) {
-			if (sk->sk_protocol == IPPROTO_TCP) {
+			if (sk->sk_protocol == IPPROTO_TCP &&
+			    sk->sk_type == SOCK_STREAM) {
 				if (sk->sk_state != TCP_ESTABLISHED) {
 					ret = -EINVAL;
 					break;
