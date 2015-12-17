@@ -489,6 +489,10 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 			    EXTENDED_BB_CREDITS);
 		} else
 			mcp->mb[4] = 0;
+
+		if (ha->flags.exlogins_enabled)
+			mcp->mb[4] |= ENABLE_EXTENDED_LOGIN;
+
 		mcp->out_mb |= MBX_4|MBX_3|MBX_2|MBX_1;
 		mcp->in_mb |= MBX_1;
 	} else {
@@ -515,6 +519,117 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1028,
 			    "Done %s.\n", __func__);
 		}
+	}
+
+	return rval;
+}
+
+/*
+ * qla_get_exlogin_status
+ *	Get extended login status
+ *	uses the memory offload control/status Mailbox
+ *
+ * Input:
+ *	ha:		adapter state pointer.
+ *	fwopt:		firmware options
+ *
+ * Returns:
+ *	qla2x00 local function status
+ *
+ * Context:
+ *	Kernel context.
+ */
+#define	FETCH_XLOGINS_STAT	0x8
+int
+qla_get_exlogin_status(scsi_qla_host_t *vha, uint16_t *buf_sz,
+	uint16_t *ex_logins_cnt)
+{
+	int rval;
+	mbx_cmd_t	mc;
+	mbx_cmd_t	*mcp = &mc;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x118f,
+	    "Entered %s\n", __func__);
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = MBC_GET_MEM_OFFLOAD_CNTRL_STAT;
+	mcp->mb[1] = FETCH_XLOGINS_STAT;
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_10|MBX_4|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1115, "Failed=%x.\n", rval);
+	} else {
+		*buf_sz = mcp->mb[4];
+		*ex_logins_cnt = mcp->mb[10];
+
+		ql_log(ql_log_info, vha, 0x1190,
+		    "buffer size 0x%x, exchange login count=%d\n",
+		    mcp->mb[4], mcp->mb[10]);
+
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1116,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
+/*
+ * qla_set_exlogin_mem_cfg
+ *	set extended login memory configuration
+ *	Mbx needs to be issues before init_cb is set
+ *
+ * Input:
+ *	ha:		adapter state pointer.
+ *	buffer:		buffer pointer
+ *	phys_addr:	physical address of buffer
+ *	size:		size of buffer
+ *	TARGET_QUEUE_LOCK must be released
+ *	ADAPTER_STATE_LOCK must be release
+ *
+ * Returns:
+ *	qla2x00 local funxtion status code.
+ *
+ * Context:
+ *	Kernel context.
+ */
+#define CONFIG_XLOGINS_MEM	0x3
+int
+qla_set_exlogin_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr)
+{
+	int		rval;
+	mbx_cmd_t	mc;
+	mbx_cmd_t	*mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
+	int configured_count;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x111a,
+	    "Entered %s.\n", __func__);
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = MBC_GET_MEM_OFFLOAD_CNTRL_STAT;
+	mcp->mb[1] = CONFIG_XLOGINS_MEM;
+	mcp->mb[2] = MSW(phys_addr);
+	mcp->mb[3] = LSW(phys_addr);
+	mcp->mb[6] = MSW(MSD(phys_addr));
+	mcp->mb[7] = LSW(MSD(phys_addr));
+	mcp->mb[8] = MSW(ha->exlogin_size);
+	mcp->mb[9] = LSW(ha->exlogin_size);
+	mcp->out_mb = MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_11|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		/*EMPTY*/
+		ql_dbg(ql_dbg_mbx, vha, 0x111b, "Failed=%x.\n", rval);
+	} else {
+		configured_count = mcp->mb[11];
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x118c,
+		    "Done %s.\n", __func__);
 	}
 
 	return rval;
@@ -594,6 +709,10 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x112f,
 		    "%s: Ext_FwAttributes Upper: 0x%x, Lower: 0x%x.\n",
 		    __func__, mcp->mb[17], mcp->mb[16]);
+		if (ha->fw_attributes_h & 0x4)
+			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x118d,
+			    "%s: Firmware supports Extended Login 0x%x\n",
+			    __func__, ha->fw_attributes_h);
 	}
 
 	if (IS_QLA27XX(ha)) {

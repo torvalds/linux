@@ -1843,9 +1843,16 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			ql_dbg(ql_dbg_init, vha, 0x00ca,
 			    "Starting firmware.\n");
 
+			if (ql2xexlogins)
+				ha->flags.exlogins_enabled = 1;
+
 			rval = qla2x00_execute_fw(vha, srisc_address);
 			/* Retrieve firmware information. */
 			if (rval == QLA_SUCCESS) {
+				rval = qla2x00_set_exlogins_buffer(vha);
+				if (rval != QLA_SUCCESS)
+					goto failed;
+
 enable_82xx_npiv:
 				fw_major_version = ha->fw_major_version;
 				if (IS_P3P_TYPE(ha))

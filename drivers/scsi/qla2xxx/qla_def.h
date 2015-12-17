@@ -891,6 +891,7 @@ struct mbx_cmd_32 {
 #define MBC_DISABLE_VI			0x24	/* Disable VI operation. */
 #define MBC_ENABLE_VI			0x25	/* Enable VI operation. */
 #define MBC_GET_FIRMWARE_OPTION		0x28	/* Get Firmware Options. */
+#define MBC_GET_MEM_OFFLOAD_CNTRL_STAT	0x34	/* Memory Offload ctrl/Stat*/
 #define MBC_SET_FIRMWARE_OPTION		0x38	/* Set Firmware Options. */
 #define MBC_LOOP_PORT_BYPASS		0x40	/* Loop Port Bypass. */
 #define MBC_LOOP_PORT_ENABLE		0x41	/* Loop Port Enable. */
@@ -2962,11 +2963,12 @@ struct qla_hw_data {
 		uint32_t	isp82xx_no_md_cap:1;
 		uint32_t	host_shutting_down:1;
 		uint32_t	idc_compl_status:1;
-
 		uint32_t        mr_reset_hdlr_active:1;
 		uint32_t        mr_intr_valid:1;
+
 		uint32_t	fawwpn_enabled:1;
-		/* 35 bits */
+		uint32_t	exlogins_enabled:1;
+		/* 34 bits */
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -3236,6 +3238,13 @@ struct qla_hw_data {
 
 	void		*async_pd;
 	dma_addr_t	async_pd_dma;
+
+#define ENABLE_EXTENDED_LOGIN	BIT_7
+
+	/* Extended Logins  */
+	void		*exlogin_buf;
+	dma_addr_t	exlogin_buf_dma;
+	int		exlogin_size;
 
 	void		*swl;
 

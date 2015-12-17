@@ -221,6 +221,12 @@ MODULE_PARM_DESC(ql2xmdenable,
 		"0 - MiniDump disabled. "
 		"1 (Default) - MiniDump enabled.");
 
+int ql2xexlogins = 0;
+module_param(ql2xexlogins, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xexlogins,
+		 "Number of extended Logins. "
+		 "0 (Default)- Disabled.");
+
 /*
  * SCSI host template entry points
  */
@@ -3128,6 +3134,10 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	base_vha->flags.online = 0;
 
+	/* free DMA memory */
+	if (ha->exlogin_buf)
+		qla2x00_free_exlogin_buffer(ha);
+
 	qla2x00_destroy_deferred_work(ha);
 
 	qlt_remove_target(ha, base_vha);
@@ -3585,6 +3595,72 @@ fail:
 	ql_log(ql_log_fatal, NULL, 0x0030,
 	    "Memory allocation failure.\n");
 	return -ENOMEM;
+}
+
+int
+qla2x00_set_exlogins_buffer(scsi_qla_host_t *vha)
+{
+	int rval;
+	uint16_t	size, max_cnt, temp;
+	struct qla_hw_data *ha = vha->hw;
+
+	/* Return if we don't need to alloacate any extended logins */
+	if (!ql2xexlogins)
+		return QLA_SUCCESS;
+
+	ql_log(ql_log_info, vha, 0xd021, "EXLOGIN count: %d.\n", ql2xexlogins);
+	max_cnt = 0;
+	rval = qla_get_exlogin_status(vha, &size, &max_cnt);
+	if (rval != QLA_SUCCESS) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0xd029,
+		    "Failed to get exlogin status.\n");
+		return rval;
+	}
+
+	temp = (ql2xexlogins > max_cnt) ? max_cnt : ql2xexlogins;
+	ha->exlogin_size = (size * temp);
+	ql_log(ql_log_info, vha, 0xd024,
+		"EXLOGIN: max_logins=%d, portdb=0x%x, total=%d.\n",
+		max_cnt, size, temp);
+
+	ql_log(ql_log_info, vha, 0xd025, "EXLOGIN: requested size=0x%x\n",
+		ha->exlogin_size);
+
+	/* Get consistent memory for extended logins */
+	ha->exlogin_buf = dma_alloc_coherent(&ha->pdev->dev,
+	    ha->exlogin_size, &ha->exlogin_buf_dma, GFP_KERNEL);
+	if (!ha->exlogin_buf) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0xd02a,
+		    "Failed to allocate memory for exlogin_buf_dma.\n");
+		return -ENOMEM;
+	}
+
+	/* Now configure the dma buffer */
+	rval = qla_set_exlogin_mem_cfg(vha, ha->exlogin_buf_dma);
+	if (rval) {
+		ql_log(ql_log_fatal, vha, 0x00cf,
+		    "Setup extended login buffer  ****FAILED****.\n");
+		qla2x00_free_exlogin_buffer(ha);
+	}
+
+	return rval;
+}
+
+/*
+* qla2x00_free_exlogin_buffer
+*
+* Input:
+*	ha = adapter block pointer
+*/
+void
+qla2x00_free_exlogin_buffer(struct qla_hw_data *ha)
+{
+	if (ha->exlogin_buf) {
+		dma_free_coherent(&ha->pdev->dev, ha->exlogin_size,
+		    ha->exlogin_buf, ha->exlogin_buf_dma);
+		ha->exlogin_buf = NULL;
+		ha->exlogin_size = 0;
+	}
 }
 
 /*
