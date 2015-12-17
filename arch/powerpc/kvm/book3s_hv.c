@@ -3126,6 +3126,8 @@ void kvmppc_alloc_host_rm_ops(void)
 		ops->rm_core[core].rm_state.in_host = 1;
 	}
 
+	ops->vcpu_kick = kvmppc_fast_vcpu_kick_hv;
+
 	/*
 	 * Make the contents of the kvmppc_host_rm_ops structure visible
 	 * to other CPUs before we assign it to the global variable.

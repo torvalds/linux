@@ -17,6 +17,7 @@
 #include <asm/xics.h>
 #include <asm/debug.h>
 #include <asm/synch.h>
+#include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
 
 #include "book3s_xics.h"
@@ -622,4 +623,39 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	}
  bail:
 	return check_too_hard(xics, icp);
+}
+
+/*  --- Non-real mode XICS-related built-in routines ---  */
+
+/**
+ * Host Operations poked by RM KVM
+ */
+static void rm_host_ipi_action(int action, void *data)
+{
+	switch (action) {
+	case XICS_RM_KICK_VCPU:
+		kvmppc_host_rm_ops_hv->vcpu_kick(data);
+		break;
+	default:
+		WARN(1, "Unexpected rm_action=%d data=%p\n", action, data);
+		break;
+	}
+
+}
+
+void kvmppc_xics_ipi_action(void)
+{
+	int core;
+	unsigned int cpu = smp_processor_id();
+	struct kvmppc_host_rm_core *rm_corep;
+
+	core = cpu >> threads_shift;
+	rm_corep = &kvmppc_host_rm_ops_hv->rm_core[core];
+
+	if (rm_corep->rm_data) {
+		rm_host_ipi_action(rm_corep->rm_state.rm_action,
+							rm_corep->rm_data);
+		rm_corep->rm_data = NULL;
+		rm_corep->rm_state.rm_action = 0;
+	}
 }
