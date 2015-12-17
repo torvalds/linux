@@ -181,9 +181,9 @@ enum rsnd_mod_type {
 	RSND_MOD_CTU,
 	RSND_MOD_CMD,
 	RSND_MOD_SRC,
-	RSND_MOD_SSIU,
 	RSND_MOD_SSIP, /* SSI parent */
 	RSND_MOD_SSI,
+	RSND_MOD_SSIU,
 	RSND_MOD_MAX,
 };
 
