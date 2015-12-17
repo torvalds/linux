@@ -2417,6 +2417,7 @@ int nfp_net_netdev_init(struct net_device *netdev)
 	ether_setup(netdev);
 	netdev->netdev_ops = &nfp_net_netdev_ops;
 	netdev->watchdog_timeo = msecs_to_jiffies(5 * 1000);
+	netif_carrier_off(netdev);
 
 	nfp_net_set_ethtool_ops(netdev);
 	nfp_net_irqs_assign(netdev);
