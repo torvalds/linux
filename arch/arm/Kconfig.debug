@@ -246,20 +246,6 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the UA0 serial port in the CX92755.
 
-	config DEBUG_LL_UART_EFM32
-		bool "Kernel low-level debugging via efm32 UART"
-		depends on ARCH_EFM32
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to an UART or USART port on efm32 based
-		  machines. Use the following addresses for DEBUG_UART_PHYS:
-
-		    0x4000c000 | USART0
-		    0x4000c400 | USART1
-		    0x4000c800 | USART2
-		    0x4000e000 | UART0
-		    0x4000e400 | UART1
-
 	config DEBUG_EP93XX
 		bool "Kernel low-level debugging messages via ep93xx UART"
 		depends on ARCH_EP93XX
@@ -1298,6 +1284,20 @@ choice
 		  This option is preferred over the platform specific
 		  options; the platform specific options are deprecated
 		  and will be soon removed.
+
+	config DEBUG_LL_UART_EFM32
+		bool "Kernel low-level debugging via efm32 UART"
+		depends on ARCH_EFM32
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to an UART or USART port on efm32 based
+		  machines. Use the following addresses for DEBUG_UART_PHYS:
+
+		    0x4000c000 | USART0
+		    0x4000c400 | USART1
+		    0x4000c800 | USART2
+		    0x4000e000 | UART0
+		    0x4000e400 | UART1
 
 	config DEBUG_LL_UART_PL01X
 		bool "Kernel low-level debugging via ARM Ltd PL01x Primecell UART"
