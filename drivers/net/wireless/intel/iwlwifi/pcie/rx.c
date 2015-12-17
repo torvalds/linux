@@ -1135,10 +1135,10 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 /*
  * iwl_pcie_rx_handle - Main entry function for receiving responses from fw
  */
-static void iwl_pcie_rx_handle(struct iwl_trans *trans)
+static void iwl_pcie_rx_handle(struct iwl_trans *trans, int queue)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq[0];
+	struct iwl_rxq *rxq = &trans_pcie->rxq[queue];
 	u32 r, i, j, count = 0;
 	bool emergency = false;
 
@@ -1257,6 +1257,51 @@ restart:
 
 	if (rxq->napi.poll)
 		napi_gro_flush(&rxq->napi, false);
+}
+
+static struct iwl_trans_pcie *iwl_pcie_get_trans_pcie(struct msix_entry *entry)
+{
+	u8 queue = entry->entry;
+	struct msix_entry *entries = entry - queue;
+
+	return container_of(entries, struct iwl_trans_pcie, msix_entries[0]);
+}
+
+static inline void iwl_pcie_clear_irq(struct iwl_trans *trans,
+				      struct msix_entry *entry)
+{
+	/*
+	 * Before sending the interrupt the HW disables it to prevent
+	 * a nested interrupt. This is done by writing 1 to the corresponding
+	 * bit in the mask register. After handling the interrupt, it should be
+	 * re-enabled by clearing this bit. This register is defined as
+	 * write 1 clear (W1C) register, meaning that it's being clear
+	 * by writing 1 to the bit.
+	 */
+	iwl_write_direct32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(entry->entry));
+}
+
+/*
+ * iwl_pcie_rx_msix_handle - Main entry function for receiving responses from fw
+ * This interrupt handler should be used with RSS queue only.
+ */
+irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
+{
+	struct msix_entry *entry = dev_id;
+	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
+	struct iwl_trans *trans = trans_pcie->trans;
+
+	lock_map_acquire(&trans->sync_cmd_lockdep_map);
+
+	local_bh_disable();
+	iwl_pcie_rx_handle(trans, entry->entry);
+	local_bh_enable();
+
+	iwl_pcie_clear_irq(trans, entry);
+
+	lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -1589,7 +1634,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		isr_stats->rx++;
 
 		local_bh_disable();
-		iwl_pcie_rx_handle(trans);
+		iwl_pcie_rx_handle(trans, 0);
 		local_bh_enable();
 	}
 
@@ -1731,4 +1776,130 @@ irqreturn_t iwl_pcie_isr(int irq, void *data)
 	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
 	return IRQ_WAKE_THREAD;
+}
+
+irqreturn_t iwl_pcie_msix_isr(int irq, void *data)
+{
+	return IRQ_WAKE_THREAD;
+}
+
+irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
+{
+	struct msix_entry *entry = dev_id;
+	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
+	struct iwl_trans *trans = trans_pcie->trans;
+	struct isr_statistics *isr_stats = isr_stats = &trans_pcie->isr_stats;
+	u32 inta_fh, inta_hw;
+
+	lock_map_acquire(&trans->sync_cmd_lockdep_map);
+
+	spin_lock(&trans_pcie->irq_lock);
+	inta_fh = iwl_read_direct32(trans, CSR_MSIX_FH_INT_CAUSES_AD);
+	inta_hw = iwl_read_direct32(trans, CSR_MSIX_HW_INT_CAUSES_AD);
+	/*
+	 * Clear causes registers to avoid being handling the same cause.
+	 */
+	iwl_write_direct32(trans, CSR_MSIX_FH_INT_CAUSES_AD, inta_fh);
+	iwl_write_direct32(trans, CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
+	spin_unlock(&trans_pcie->irq_lock);
+
+	if (unlikely(!(inta_fh | inta_hw))) {
+		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
+		lock_map_release(&trans->sync_cmd_lockdep_map);
+		return IRQ_NONE;
+	}
+
+	if (iwl_have_debug_level(IWL_DL_ISR))
+		IWL_DEBUG_ISR(trans, "ISR inta_fh 0x%08x, enabled 0x%08x\n",
+			      inta_fh,
+			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
+
+	/* This "Tx" DMA channel is used only for loading uCode */
+	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
+		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
+		isr_stats->tx++;
+		/*
+		 * Wake up uCode load routine,
+		 * now that load is complete
+		 */
+		trans_pcie->ucode_write_complete = true;
+		wake_up(&trans_pcie->ucode_write_waitq);
+	}
+
+	/* Error detected by uCode */
+	if ((inta_fh & MSIX_FH_INT_CAUSES_FH_ERR) ||
+	    (inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR)) {
+		IWL_ERR(trans,
+			"Microcode SW error detected. Restarting 0x%X.\n",
+			inta_fh);
+		isr_stats->sw++;
+		iwl_pcie_irq_handle_error(trans);
+	}
+
+	/* After checking FH register check HW register */
+	if (iwl_have_debug_level(IWL_DL_ISR))
+		IWL_DEBUG_ISR(trans,
+			      "ISR inta_hw 0x%08x, enabled 0x%08x\n",
+			      inta_hw,
+			      iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD));
+
+	/* Alive notification via Rx interrupt will do the real work */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_ALIVE) {
+		IWL_DEBUG_ISR(trans, "Alive interrupt\n");
+		isr_stats->alive++;
+	}
+
+	/* uCode wakes up after power-down sleep */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP) {
+		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
+		iwl_pcie_rxq_check_wrptr(trans);
+		iwl_pcie_txq_check_wrptrs(trans);
+
+		isr_stats->wakeup++;
+	}
+
+	/* Chip got too hot and stopped itself */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_CT_KILL) {
+		IWL_ERR(trans, "Microcode CT kill error detected.\n");
+		isr_stats->ctkill++;
+	}
+
+	/* HW RF KILL switch toggled */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RF_KILL) {
+		bool hw_rfkill;
+
+		hw_rfkill = iwl_is_rfkill_set(trans);
+		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
+			 hw_rfkill ? "disable radio" : "enable radio");
+
+		isr_stats->rfkill++;
+
+		mutex_lock(&trans_pcie->mutex);
+		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+		mutex_unlock(&trans_pcie->mutex);
+		if (hw_rfkill) {
+			set_bit(STATUS_RFKILL, &trans->status);
+			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
+					       &trans->status))
+				IWL_DEBUG_RF_KILL(trans,
+						  "Rfkill while SYNC HCMD in flight\n");
+			wake_up(&trans_pcie->wait_command_queue);
+		} else {
+			clear_bit(STATUS_RFKILL, &trans->status);
+		}
+	}
+
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_HW_ERR) {
+		IWL_ERR(trans,
+			"Hardware error detected. Restarting.\n");
+
+		isr_stats->hw++;
+		iwl_pcie_irq_handle_error(trans);
+	}
+
+	iwl_pcie_clear_irq(trans, entry);
+
+	lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	return IRQ_HANDLED;
 }
