@@ -1151,6 +1151,18 @@ bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg);
 bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg);
 
 /*
+ * Returns the mode of operation, host or device
+ */
+static inline int dwc2_is_host_mode(struct dwc2_hsotg *hsotg)
+{
+	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) != 0;
+}
+static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
+{
+	return (dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_CURMODE_HOST) == 0;
+}
+
+/*
  * Dump core registers and SPRAM
  */
 extern void dwc2_dump_dev_registers(struct dwc2_hsotg *hsotg);
