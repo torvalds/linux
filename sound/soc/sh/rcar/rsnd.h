@@ -293,8 +293,11 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 			void (*callback)(struct rsnd_mod *mod,
 					 struct rsnd_dai_stream *io));
 
+void rsnd_set_slot(struct rsnd_dai *rdai,
+		   int slots, int slots_total);
 int rsnd_get_slot(struct rsnd_dai_stream *io);
 int rsnd_get_slot_width(struct rsnd_dai_stream *io);
+int rsnd_get_slot_num(struct rsnd_dai_stream *io);
 
 /*
  *	R-Car sound DAI
@@ -334,6 +337,7 @@ struct rsnd_dai {
 	struct rsnd_priv *priv;
 
 	int slots;
+	int slots_num;
 
 	unsigned int clk_master:1;
 	unsigned int bit_clk_inv:1;

@@ -191,6 +191,13 @@ int rsnd_io_is_working(struct rsnd_dai_stream *io)
 	return !!io->substream;
 }
 
+void rsnd_set_slot(struct rsnd_dai *rdai,
+		   int slots, int num)
+{
+	rdai->slots	= slots;
+	rdai->slots_num	= num;
+}
+
 int rsnd_get_slot(struct rsnd_dai_stream *io)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
@@ -198,10 +205,17 @@ int rsnd_get_slot(struct rsnd_dai_stream *io)
 	return rdai->slots;
 }
 
+int rsnd_get_slot_num(struct rsnd_dai_stream *io)
+{
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+
+	return rdai->slots_num;
+}
+
 int rsnd_get_slot_width(struct rsnd_dai_stream *io)
 {
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	int chan = runtime->channels;
+	int chan = runtime->channels / rsnd_get_slot_num(io);
 
 	/* TDM Extend Mode needs 8ch */
 	if (chan == 6)
@@ -579,7 +593,7 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	switch (slots) {
 	case 6:
 		/* TDM Extend Mode */
-		rdai->slots = slots;
+		rsnd_set_slot(rdai, slots, 1);
 		break;
 	default:
 		dev_err(dev, "unsupported TDM slots (%d)\n", slots);
@@ -660,7 +674,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 
 		rdai->playback.rdai		= rdai;
 		rdai->capture.rdai		= rdai;
-		rdai->slots			= 2; /* default */
+		rsnd_set_slot(rdai, 2, 1); /* default */
 
 #define mod_parse(name)							\
 node = rsnd_##name##_of_node(priv);					\
