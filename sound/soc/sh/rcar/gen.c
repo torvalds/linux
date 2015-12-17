@@ -226,6 +226,9 @@ static int rsnd_gen2_probe(struct rsnd_priv *priv)
 	const static struct rsnd_regmap_field_conf conf_ssiu[] = {
 		RSND_GEN_S_REG(SSI_MODE0,	0x800),
 		RSND_GEN_S_REG(SSI_MODE1,	0x804),
+		RSND_GEN_S_REG(SSI_MODE2,	0x808),
+		RSND_GEN_S_REG(SSI_CONTROL,	0x810),
+
 		/* FIXME: it needs SSI_MODE2/3 in the future */
 		RSND_GEN_M_REG(SSI_BUSIF_MODE,	0x0,	0x80),
 		RSND_GEN_M_REG(SSI_BUSIF_ADINR,	0x4,	0x80),

@@ -27,8 +27,11 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 			  struct rsnd_priv *priv)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	u32 multi_ssi_slaves = rsnd_ssi_multi_slaves(io);
 	int use_busif = rsnd_ssi_use_busif(io);
 	int id = rsnd_mod_id(mod);
+	u32 mask1, val1;
+	u32 mask2, val2;
 
 	/*
 	 * SSI_MODE0
@@ -38,6 +41,9 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	/*
 	 * SSI_MODE1
 	 */
+	mask1 = (1 << 4) | (1 << 20);	/* mask sync bit */
+	mask2 = (1 << 4);		/* mask sync bit */
+	val1  = val2  = 0;
 	if (rsnd_ssi_is_pin_sharing(io)) {
 		int shift = -1;
 
@@ -51,14 +57,35 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 		case 4:
 			shift = 16;
 			break;
+		default:
+			return -EINVAL;
 		}
 
-		if (shift >= 0)
-			rsnd_mod_bset(mod, SSI_MODE1,
-				      0x3 << shift,
-				      rsnd_rdai_is_clk_master(rdai) ?
-				      0x2 << shift : 0x1 << shift);
+		mask1 |= 0x3 << shift;
+		val1 = rsnd_rdai_is_clk_master(rdai) ?
+			0x2 << shift : 0x1 << shift;
+
+	} else if (multi_ssi_slaves) {
+
+		mask2 |= 0x00000007;
+		mask1 |= 0x0000000f;
+
+		switch (multi_ssi_slaves) {
+		case 0x0206: /* SSI0/1/2/9 */
+			val2 = (1 << 4) | /* SSI0129 sync */
+				rsnd_rdai_is_clk_master(rdai) ? 0x2 : 0x1;
+			/* fall through */
+		case 0x0006: /* SSI0/1/2 */
+			val1 = rsnd_rdai_is_clk_master(rdai) ?
+				0xa : 0x5;
+
+			if (!val2)  /* SSI012 sync */
+				val1 |= (1 << 4);
+		}
 	}
+
+	rsnd_mod_bset(mod, SSI_MODE1, mask1, val1);
+	rsnd_mod_bset(mod, SSI_MODE2, mask2, val2);
 
 	return 0;
 }
@@ -104,8 +131,13 @@ static int rsnd_ssiu_start_gen2(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io,
 				struct rsnd_priv *priv)
 {
-	if (rsnd_ssi_use_busif(io))
-		rsnd_mod_write(mod, SSI_CTRL, 0x1);
+	if (!rsnd_ssi_use_busif(io))
+		return 0;
+
+	rsnd_mod_write(mod, SSI_CTRL, 0x1);
+
+	if (rsnd_ssi_multi_slaves(io))
+		rsnd_mod_write(mod, SSI_CONTROL, 0x1);
 
 	return 0;
 }
@@ -114,8 +146,13 @@ static int rsnd_ssiu_stop_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
-	if (rsnd_ssi_use_busif(io))
-		rsnd_mod_write(mod, SSI_CTRL, 0);
+	if (!rsnd_ssi_use_busif(io))
+		return 0;
+
+	rsnd_mod_write(mod, SSI_CTRL, 0);
+
+	if (rsnd_ssi_multi_slaves(io))
+		rsnd_mod_write(mod, SSI_CONTROL, 0);
 
 	return 0;
 }

@@ -96,6 +96,7 @@ struct rsnd_ssi {
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_ssi_mode_flags(p) ((p)->flags)
 #define rsnd_ssi_is_parent(ssi, io) ((ssi) == rsnd_io_to_mod_ssip(io))
+#define rsnd_ssi_is_multi_slave(ssi, io) ((mod) != rsnd_io_to_mod_ssi(io))
 
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 {
@@ -171,6 +172,41 @@ static int rsnd_ssi_irq_disable(struct rsnd_mod *ssi_mod)
 	return 0;
 }
 
+u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *mod;
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	enum rsnd_mod_type types[] = {
+		RSND_MOD_SSIM1,
+		RSND_MOD_SSIM2,
+		RSND_MOD_SSIM3,
+	};
+	int i, mask;
+
+	switch (runtime->channels) {
+	case 2: /* Multi channel is not needed for Stereo */
+		return 0;
+	case 6:
+		break;
+	default:
+		dev_err(dev, "unsupported channel\n");
+		return 0;
+	}
+
+	mask = 0;
+	for (i = 0; i < ARRAY_SIZE(types); i++) {
+		mod = rsnd_io_to_mod(io, types[i]);
+		if (!mod)
+			continue;
+
+		mask |= 1 << rsnd_mod_id(mod);
+	}
+
+	return mask;
+}
+
 static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 				     struct rsnd_dai_stream *io)
 {
@@ -192,6 +228,9 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 		return 0;
 
 	if (ssi_parent_mod && !rsnd_ssi_is_parent(mod, io))
+		return 0;
+
+	if (rsnd_ssi_is_multi_slave(mod, io))
 		return 0;
 
 	if (ssi->usrcnt > 1) {
@@ -437,8 +476,14 @@ static int __rsnd_ssi_start(struct rsnd_mod *mod,
 
 	cr  =	ssi->cr_own	|
 		ssi->cr_clk	|
-		ssi->cr_mode	|
-		EN;
+		ssi->cr_mode;
+
+	/*
+	 * EN will be set via SSIU :: SSI_CONTROL
+	 * if Multi channel mode
+	 */
+	if (!rsnd_ssi_multi_slaves(io))
+		cr |= EN;
 
 	rsnd_mod_write(mod, SSICR, cr);
 	rsnd_mod_write(mod, SSIWSR, ssi->wsr);
@@ -609,6 +654,13 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	int ret;
 
+	/*
+	 * SSIP/SSIU/IRQ are not needed on
+	 * SSI Multi slaves
+	 */
+	if (rsnd_ssi_is_multi_slave(mod, io))
+		return 0;
+
 	rsnd_ssi_parent_attach(mod, io, priv);
 
 	ret = rsnd_ssiu_attach(io, mod);
@@ -640,6 +692,13 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	int dma_id = 0; /* not needed */
 	int ret;
+
+	/*
+	 * SSIP/SSIU/IRQ/DMA are not needed on
+	 * SSI Multi slaves
+	 */
+	if (rsnd_ssi_is_multi_slave(mod, io))
+		return 0;
 
 	ret = rsnd_ssi_common_probe(mod, io, priv);
 	if (ret)
@@ -732,6 +791,57 @@ static struct rsnd_mod_ops rsnd_ssi_non_ops = {
 /*
  *		ssi mod function
  */
+static void rsnd_ssi_connect(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io)
+{
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	enum rsnd_mod_type types[] = {
+		RSND_MOD_SSI,
+		RSND_MOD_SSIM1,
+		RSND_MOD_SSIM2,
+		RSND_MOD_SSIM3,
+	};
+	enum rsnd_mod_type type;
+	int i;
+
+	/* try SSI -> SSIM1 -> SSIM2 -> SSIM3 */
+	for (i = 0; i < ARRAY_SIZE(types); i++) {
+		type = types[i];
+		if (!rsnd_io_to_mod(io, type)) {
+			rsnd_dai_connect(mod, io, type);
+			rsnd_set_slot(rdai, 2 * (i + 1), (i + 1));
+			return;
+		}
+	}
+}
+
+void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
+			    struct device_node *playback,
+			    struct device_node *capture)
+{
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct device_node *node;
+	struct device_node *np;
+	struct rsnd_mod *mod;
+	int i;
+
+	node = rsnd_ssi_of_node(priv);
+	if (!node)
+		return;
+
+	i = 0;
+	for_each_child_of_node(node, np) {
+		mod = rsnd_ssi_mod_get(priv, i);
+		if (np == playback)
+			rsnd_ssi_connect(mod, &rdai->playback);
+		if (np == capture)
+			rsnd_ssi_connect(mod, &rdai->capture);
+		i++;
+	}
+
+	of_node_put(node);
+}
+
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
 {
 	if (WARN_ON(id < 0 || id >= rsnd_ssi_nr(priv)))

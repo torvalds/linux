@@ -47,6 +47,8 @@ enum rsnd_reg {
 	RSND_REG_SSI_MODE,		/* Gen2 only */
 	RSND_REG_SSI_MODE0,
 	RSND_REG_SSI_MODE1,
+	RSND_REG_SSI_MODE2,
+	RSND_REG_SSI_CONTROL,
 	RSND_REG_SSI_CTRL,		/* Gen2 only */
 	RSND_REG_SSI_BUSIF_MODE,	/* Gen2 only */
 	RSND_REG_SSI_BUSIF_ADINR,	/* Gen2 only */
@@ -181,7 +183,10 @@ enum rsnd_mod_type {
 	RSND_MOD_CTU,
 	RSND_MOD_CMD,
 	RSND_MOD_SRC,
-	RSND_MOD_SSIP, /* SSI parent */
+	RSND_MOD_SSIM3,		/* SSI multi 3 */
+	RSND_MOD_SSIM2,		/* SSI multi 2 */
+	RSND_MOD_SSIM1,		/* SSI multi 1 */
+	RSND_MOD_SSIP,		/* SSI parent */
 	RSND_MOD_SSI,
 	RSND_MOD_SSIU,
 	RSND_MOD_MAX,
@@ -542,6 +547,7 @@ void rsnd_ssi_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io);
+u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io);
 
 #define rsnd_ssi_is_pin_sharing(io)	\
 	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))
@@ -549,10 +555,9 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
 #define rsnd_ssi_of_node(priv)						\
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ssi")
-#define rsnd_parse_connect_ssi(rdai, playback, capture)			\
-	rsnd_parse_connect_common(rdai, rsnd_ssi_mod_get,		\
-				  rsnd_ssi_of_node(rsnd_rdai_to_priv(rdai)), \
-				  playback, capture)
+void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
+			    struct device_node *playback,
+			    struct device_node *capture);
 
 /*
  *	R-Car SSIU
