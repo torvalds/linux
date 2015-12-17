@@ -1975,6 +1975,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
  */
 void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 {
+	struct device *device = &dev_priv->dev->pdev->dev;
+
 	/*
 	 * The i915.ko module is still not prepared to be loaded when
 	 * the power well is not enabled, so just enable it in case
@@ -1989,6 +1991,13 @@ void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 	/* Remove the refcount we took to keep power well support disabled. */
 	if (!i915.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	/*
+	 * Remove the refcount we took in intel_runtime_pm_enable() in case
+	 * the platform doesn't support runtime PM.
+	 */
+	if (!HAS_RUNTIME_PM(dev_priv))
+		pm_runtime_put(device);
 }
 
 static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
@@ -2303,8 +2312,14 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
 
+	/*
+	 * Take a permanent reference to disable the RPM functionality and drop
+	 * it only when unloading the driver. Use the low level get/put helpers,
+	 * so the driver's own RPM reference tracking asserts also work on
+	 * platforms without RPM support.
+	 */
 	if (!HAS_RUNTIME_PM(dev))
-		return;
+		pm_runtime_get_sync(device);
 
 	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
 	pm_runtime_mark_last_busy(device);
