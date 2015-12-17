@@ -280,16 +280,20 @@ static inline unsigned int atmel_aes_get_version(struct atmel_aes_dev *dd)
 	return atmel_aes_read(dd, AES_HW_VERSION) & 0x00000fff;
 }
 
-static void atmel_aes_hw_version_init(struct atmel_aes_dev *dd)
+static int atmel_aes_hw_version_init(struct atmel_aes_dev *dd)
 {
-	atmel_aes_hw_init(dd);
+	int err;
+
+	err = atmel_aes_hw_init(dd);
+	if (err)
+		return err;
 
 	dd->hw_version = atmel_aes_get_version(dd);
 
-	dev_info(dd->dev,
-			"version: 0x%x\n", dd->hw_version);
+	dev_info(dd->dev, "version: 0x%x\n", dd->hw_version);
 
 	clk_disable_unprepare(dd->iclk);
+	return 0;
 }
 
 static void atmel_aes_finish_req(struct atmel_aes_dev *dd, int err)
@@ -1407,7 +1411,9 @@ static int atmel_aes_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 
-	atmel_aes_hw_version_init(aes_dd);
+	err = atmel_aes_hw_version_init(aes_dd);
+	if (err)
+		goto res_err;
 
 	atmel_aes_get_cap(aes_dd);
 
