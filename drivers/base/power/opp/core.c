@@ -814,7 +814,7 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 
 	if (!prop) {
 		/* Search for "opp-microvolt" */
-		name[13] = '\0';
+		sprintf(name, "opp-microvolt");
 		prop = of_find_property(opp->np, name, NULL);
 
 		/* Missing property isn't a problem, but an invalid entry is */
@@ -855,7 +855,7 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 
 	if (!prop) {
 		/* Search for "opp-microamp" */
-		name[12] = '\0';
+		sprintf(name, "opp-microamp");
 		prop = of_find_property(opp->np, name, NULL);
 	}
 
