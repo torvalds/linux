@@ -155,14 +155,13 @@ static int rsrc_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 }
 
 static int rsrc_card_parse_daifmt(struct device_node *node,
-				  struct device_node *np,
+				  struct device_node *codec,
 				  struct rsrc_card_priv *priv,
-				  int idx, bool is_fe)
+				  struct snd_soc_dai_link *dai_link,
+				  unsigned int *retfmt)
 {
-	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
 	struct device_node *bitclkmaster = NULL;
 	struct device_node *framemaster = NULL;
-	struct device_node *codec = is_fe ? NULL : np;
 	unsigned int daifmt;
 
 	daifmt = snd_soc_of_parse_daifmt(node, NULL,
@@ -179,10 +178,10 @@ static int rsrc_card_parse_daifmt(struct device_node *node,
 		daifmt |= (codec == framemaster) ?
 			SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
 
-	dai_link->dai_fmt = daifmt;
-
 	of_node_put(bitclkmaster);
 	of_node_put(framemaster);
+
+	*retfmt = daifmt;
 
 	return 0;
 }
@@ -325,23 +324,15 @@ static int rsrc_card_parse_clk(struct device_node *np,
 	return 0;
 }
 
-static int rsrc_card_dai_link_of(struct device_node *node,
-				 struct device_node *np,
-				 struct rsrc_card_priv *priv,
-				 int idx)
+static int rsrc_card_dai_sub_link_of(struct device_node *node,
+				     struct device_node *np,
+				     struct rsrc_card_priv *priv,
+				     int idx, bool is_fe)
 {
 	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
 	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
-	bool is_fe = false;
 	int ret;
-
-	if (0 == strcmp(np->name, "cpu"))
-		is_fe = true;
-
-	ret = rsrc_card_parse_daifmt(node, np, priv, idx, is_fe);
-	if (ret < 0)
-		return ret;
 
 	ret = rsrc_card_parse_links(np, priv, idx, is_fe);
 	if (ret < 0)
@@ -359,6 +350,48 @@ static int rsrc_card_dai_link_of(struct device_node *node,
 	return ret;
 }
 
+static int rsrc_card_dai_link_of(struct device_node *node,
+				 struct rsrc_card_priv *priv)
+{
+	struct snd_soc_dai_link *dai_link;
+	struct device_node *np;
+	unsigned int daifmt = 0;
+	int ret, i;
+	bool is_fe;
+
+	/* find 1st codec */
+	i = 0;
+	for_each_child_of_node(node, np) {
+		dai_link = rsrc_priv_to_link(priv, i);
+
+		if (strcmp(np->name, "codec") == 0) {
+			ret = rsrc_card_parse_daifmt(node, np, priv,
+						     dai_link, &daifmt);
+			if (ret < 0)
+				return ret;
+			break;
+		}
+		i++;
+	}
+
+	i = 0;
+	for_each_child_of_node(node, np) {
+		dai_link = rsrc_priv_to_link(priv, i);
+		dai_link->dai_fmt = daifmt;
+
+		is_fe = false;
+		if (strcmp(np->name, "cpu") == 0)
+			is_fe = true;
+
+		ret = rsrc_card_dai_sub_link_of(node, np, priv, i, is_fe);
+		if (ret < 0)
+			return ret;
+		i++;
+	}
+
+	return 0;
+}
+
 static int rsrc_card_parse_of(struct device_node *node,
 			      struct rsrc_card_priv *priv,
 			      struct device *dev)
@@ -366,9 +399,8 @@ static int rsrc_card_parse_of(struct device_node *node,
 	const struct rsrc_card_of_data *of_data = rsrc_dev_to_of_data(dev);
 	struct rsrc_card_dai *props;
 	struct snd_soc_dai_link *links;
-	struct device_node *np;
 	int ret;
-	int i, num;
+	int num;
 
 	if (!node)
 		return -EINVAL;
@@ -409,13 +441,9 @@ static int rsrc_card_parse_of(struct device_node *node,
 		priv->snd_card.name ? priv->snd_card.name : "",
 		priv->convert_rate);
 
-	i = 0;
-	for_each_child_of_node(node, np) {
-		ret = rsrc_card_dai_link_of(node, np, priv, i);
-		if (ret < 0)
-			return ret;
-		i++;
-	}
+	ret = rsrc_card_dai_link_of(node, priv);
+	if (ret < 0)
+		return ret;
 
 	if (!priv->snd_card.name)
 		priv->snd_card.name = priv->snd_card.dai_link->name;
