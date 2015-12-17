@@ -3654,6 +3654,8 @@ typedef struct scsi_qla_host {
 	int			total_fcport_update_gen;
 	/* List of pending LOGOs, protected by tgt_mutex */
 	struct list_head	logo_list;
+	/* List of pending PLOGI acks, protected by hw lock */
+	struct list_head	plogi_ack_list;
 
 	uint32_t	vp_abort_cnt;
 

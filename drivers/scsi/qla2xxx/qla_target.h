@@ -896,6 +896,19 @@ enum qla_sess_deletion {
 	QLA_SESS_DELETION_IN_PROGRESS	= 2,
 };
 
+typedef enum {
+	QLT_PLOGI_LINK_SAME_WWN,
+	QLT_PLOGI_LINK_CONFLICT,
+	QLT_PLOGI_LINK_MAX
+} qlt_plogi_link_t;
+
+typedef struct {
+	struct list_head		list;
+	struct imm_ntfy_from_isp	iocb;
+	port_id_t			id;
+	int				ref_count;
+} qlt_plogi_ack_t;
+
 /*
  * Equivilant to IT Nexus (Initiator-Target)
  */
@@ -907,7 +920,6 @@ struct qla_tgt_sess {
 	unsigned int deleted:2;
 	unsigned int local:1;
 	unsigned int logout_on_delete:1;
-	unsigned int plogi_ack_needed:1;
 	unsigned int keep_nport_handle:1;
 	unsigned int send_els_logo:1;
 
@@ -926,9 +938,7 @@ struct qla_tgt_sess {
 	uint8_t port_name[WWN_SIZE];
 	struct work_struct free_work;
 
-	union {
-		struct imm_ntfy_from_isp tm_iocb;
-	};
+	qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
 };
 
 struct qla_tgt_cmd {
