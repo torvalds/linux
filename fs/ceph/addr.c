@@ -1378,11 +1378,13 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	ret = VM_FAULT_NOPAGE;
 	if ((off > size) ||
-	    (page->mapping != inode->i_mapping))
+	    (page->mapping != inode->i_mapping)) {
+		unlock_page(page);
 		goto out;
+	}
 
 	ret = ceph_update_writeable_page(vma->vm_file, off, len, page);
-	if (ret == 0) {
+	if (ret >= 0) {
 		/* success.  we'll keep the page locked. */
 		set_page_dirty(page);
 		ret = VM_FAULT_LOCKED;
@@ -1393,8 +1395,6 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 			ret = VM_FAULT_SIGBUS;
 	}
 out:
-	if (ret != VM_FAULT_LOCKED)
-		unlock_page(page);
 	if (ret == VM_FAULT_LOCKED ||
 	    ci->i_inline_version != CEPH_INLINE_NONE) {
 		int dirty;
