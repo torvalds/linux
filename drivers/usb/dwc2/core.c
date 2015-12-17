@@ -3120,6 +3120,9 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 /**
  * During device initialization, read various hardware configuration
  * registers and interpret the contents.
+ *
+ * This should be called during driver probe. It will perform a core
+ * soft reset in order to get the reset values of the parameters.
  */
 int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 {
@@ -3128,6 +3131,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	u32 hwcfg1, hwcfg2, hwcfg3, hwcfg4;
 	u32 hptxfsiz, grxfsiz, gnptxfsiz;
 	u32 gusbcfg = 0;
+	int retval;
 
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
@@ -3146,6 +3150,10 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "Core Release: %1x.%1x%1x%1x (snpsid=%x)\n",
 		hw->snpsid >> 12 & 0xf, hw->snpsid >> 8 & 0xf,
 		hw->snpsid >> 4 & 0xf, hw->snpsid & 0xf, hw->snpsid);
+
+	retval = dwc2_core_reset(hsotg);
+	if (retval)
+		return retval;
 
 	hwcfg1 = dwc2_readl(hsotg->regs + GHWCFG1);
 	hwcfg2 = dwc2_readl(hsotg->regs + GHWCFG2);
