@@ -374,7 +374,10 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				"bogus CDC Union: master=%u, slave=%u\n",
 				cdc_union->bMasterInterface0,
 				cdc_union->bSlaveInterface0);
-			goto err;
+
+			/* ignore and continue... */
+			cdc_union = NULL;
+			info->data = intf;
 		}
 	}
 
