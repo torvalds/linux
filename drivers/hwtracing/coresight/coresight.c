@@ -548,7 +548,7 @@ static int coresight_name_match(struct device *dev, void *data)
 	to_match = data;
 	i_csdev = to_coresight_device(dev);
 
-	if (!strcmp(to_match, dev_name(&i_csdev->dev)))
+	if (to_match && !strcmp(to_match, dev_name(&i_csdev->dev)))
 		return 1;
 
 	return 0;
