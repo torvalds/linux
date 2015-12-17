@@ -344,9 +344,9 @@ static int tcm_qla2xxx_shutdown_session(struct se_session *se_sess)
 	BUG_ON(!sess);
 	vha = sess->vha;
 
-	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
+	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	target_sess_cmd_list_set_waiting(se_sess);
-	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	return 1;
 }
@@ -360,9 +360,9 @@ static void tcm_qla2xxx_close_session(struct se_session *se_sess)
 	BUG_ON(!sess);
 	vha = sess->vha;
 
-	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
+	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	qlt_unreg_sess(sess);
-	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 }
 
 static u32 tcm_qla2xxx_sess_get_index(struct se_session *se_sess)
@@ -647,7 +647,7 @@ static void tcm_qla2xxx_aborted_task(struct se_cmd *se_cmd)
 static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *,
 			struct tcm_qla2xxx_nacl *, struct qla_tgt_sess *);
 /*
- * Expected to be called with struct qla_hw_data->hardware_lock held
+ * Expected to be called with struct qla_hw_data->tgt.sess_lock held
  */
 static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct qla_tgt_sess *sess)
 {
@@ -701,13 +701,13 @@ static void tcm_qla2xxx_put_sess(struct qla_tgt_sess *sess)
 	if (!sess)
 		return;
 
-	assert_spin_locked(&sess->vha->hw->hardware_lock);
+	assert_spin_locked(&sess->vha->hw->tgt.sess_lock);
 	kref_put(&sess->se_sess->sess_kref, tcm_qla2xxx_release_session);
 }
 
 static void tcm_qla2xxx_shutdown_sess(struct qla_tgt_sess *sess)
 {
-	assert_spin_locked(&sess->vha->hw->hardware_lock);
+	assert_spin_locked(&sess->vha->hw->tgt.sess_lock);
 	target_sess_cmd_list_set_waiting(sess->se_sess);
 }
 
@@ -1081,7 +1081,7 @@ static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(
 }
 
 /*
- * Expected to be called with struct qla_hw_data->hardware_lock held
+ * Expected to be called with struct qla_hw_data->tgt.sess_lock held
  */
 static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_s_id(
 	scsi_qla_host_t *vha,
@@ -1120,7 +1120,7 @@ static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_s_id(
 }
 
 /*
- * Expected to be called with struct qla_hw_data->hardware_lock held
+ * Expected to be called with struct qla_hw_data->tgt.sess_lock held
  */
 static void tcm_qla2xxx_set_sess_by_s_id(
 	struct tcm_qla2xxx_lport *lport,
@@ -1186,7 +1186,7 @@ static void tcm_qla2xxx_set_sess_by_s_id(
 }
 
 /*
- * Expected to be called with struct qla_hw_data->hardware_lock held
+ * Expected to be called with struct qla_hw_data->tgt.sess_lock held
  */
 static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_loop_id(
 	scsi_qla_host_t *vha,
@@ -1225,7 +1225,7 @@ static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_loop_id(
 }
 
 /*
- * Expected to be called with struct qla_hw_data->hardware_lock held
+ * Expected to be called with struct qla_hw_data->tgt.sess_lock held
  */
 static void tcm_qla2xxx_set_sess_by_loop_id(
 	struct tcm_qla2xxx_lport *lport,
@@ -1289,7 +1289,7 @@ static void tcm_qla2xxx_set_sess_by_loop_id(
 }
 
 /*
- * Should always be called with qla_hw_data->hardware_lock held.
+ * Should always be called with qla_hw_data->tgt.sess_lock held.
  */
 static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *lport,
 		struct tcm_qla2xxx_nacl *nacl, struct qla_tgt_sess *sess)
@@ -1405,12 +1405,12 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	 * And now setup the new se_nacl and session pointers into our HW lport
 	 * mappings for fabric S_ID and LOOP_ID.
 	 */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
+	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 	tcm_qla2xxx_set_sess_by_s_id(lport, se_nacl, nacl, se_sess,
 			qla_tgt_sess, s_id);
 	tcm_qla2xxx_set_sess_by_loop_id(lport, se_nacl, nacl, se_sess,
 			qla_tgt_sess, loop_id);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	/*
 	 * Finally register the new FC Nexus with TCM
 	 */
