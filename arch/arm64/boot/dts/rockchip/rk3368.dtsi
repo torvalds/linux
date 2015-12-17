@@ -1092,10 +1092,12 @@
 	fb: fb {
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <NO_DUAL>;
+		status = "disabled";
 	};
 
-	rk_screen: rk_screen {
+	rk_screen: screen {
 		compatible = "rockchip,screen";
+		status = "disabled";
 	};
 
 	lcdc: lcdc@ff930000 {
@@ -1108,12 +1110,12 @@
 		rockchip,iommu-enabled = <1>;
 		reg = <0x0 0xff930000 0x0 0x10000>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
 		/*power-domains = <&power PD_VIO>;*/
 		resets = <&cru SRST_LCDC0_AXI>, <&cru SRST_LCDC0_AHB>, <&cru SRST_LCDC0_DCLK>;
 		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
 	};
 
 	lvds: lvds@ff968000 {
@@ -1137,64 +1139,72 @@
 		/*power-domains = <&power PD_VIO>;*/
 		resets = <&cru SRST_EDP_24M>, <&cru SRST_EDP>;
 		reset-names = "edp_24m", "edp_apb";
+		status = "disabled";
 	};
 
-	iep_mmu {
+	iep_mmu: iep-mmu {
 		dbgname = "iep";
 		compatible = "rockchip,iep_mmu";
 		reg = <0x0 0xff900800 0x0 0x100>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
+		status = "disabled";
 	};
 
-	vip_mmu {
+	vip_mmu: vip-mmu {
 		dbgname = "vip";
 		compatible = "rockchip,vip_mmu";
 		reg = <0x0 0xff950800 0x0 0x100>;
 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vip_mmu";
+		status = "disabled";
 	};
 
-	vop_mmu {
+	vopb_mmu: vopb-mmu {
 		dbgname = "vop";
 		compatible = "rockchip,vopb_mmu";
 		reg = <0x0 0xff930300 0x0 0x100>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vop_mmu";
+		status = "disabled";
 	};
 
-	isp_mmu {
+	isp_mmu: isp-mmu {
 		dbgname = "isp_mmu";
 		compatible = "rockchip,isp_mmu";
 		reg = <0x0 0xff914000 0x0 0x100>,
 		      <0x0 0xff915000 0x0 0x100>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "isp_mmu";
+		status = "disabled";
 	};
 
-	hdcp_mmu {
+	hdcp_mmu: hdcp-mmu {
 		 dbgname = "hdcp_mmu";
 		 compatible = "rockchip,hdcp_mmu";
 		 reg = <0x0 0xff940000 0x0 0x100>;
 		 interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 		 interrupt-names = "hdcp_mmu";
+		status = "disabled";
 	};
 
-	hevc_mmu {
+	hevc_mmu: hevc-mmu {
 		dbgname = "hevc";
 		compatible = "rockchip,hevc_mmu";
 		reg = <0x0 0xff9a0440 0x0 0x40>,
 		      <0x0 0xff9a0480 0x0 0x40>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "hevc_mmu";
+		status = "disabled";
 	};
 
-	vpu_mmu {
+	vpu_mmu: vpu-mmu {
 		dbgname = "vpu";
 		compatible = "rockchip,vpu_mmu";
 		reg = <0x0 0xff9a0800 0x0 0x100>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vepu_mmu", "vdpu_mmu";
+		status = "disabled";
 	};
 };

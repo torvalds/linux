@@ -40,12 +40,10 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3368.dtsi"
 
 / {
-	model = "Rockchip Top board";
 	compatible = "rockchip,tb", "rockchip,rk3368";
 
 	chosen {
@@ -117,10 +115,11 @@
 
 &i2c0 {
 	status = "okay";
+
 	syr827: syr827@40 {
 		compatible = "silergy,syr82x";
+		status = "disabled";
 		reg = <0x40>;
-		status = "okay";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -144,8 +143,8 @@
 
 	syr828: syr828@41 {
 		compatible = "silergy,syr82x";
+		status = "disabled";
 		reg = <0x41>;
-		status = "okay";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -173,8 +172,8 @@
 		 * it's better to add both instances here.
 		 */
 		compatible = "act,act8846", "active-semi,act8846";
+		status = "disabled";
 		reg = <0x5a>;
-		status = "okay";
 		system-power-controller;
 
 		regulators {
@@ -274,13 +273,9 @@
 };
 
 &fb {
+	status = "okay";
 	rockchip,disp-mode = <NO_DUAL>;
 	rockchip,uboot-logo-on = <0>;
-};
-
-&rk_screen {
-	/*#include <dt-bindings/display/screen-timing/lcd-b101ew05.dtsi>*/
-	#include <dt-bindings/display/screen-timing/lcd-F402.dtsi>
 };
 
 &lcdc {
@@ -291,19 +286,19 @@
 	rockchip,fb-win-map = <FB_DEFAULT_ORDER>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
-		lcd_en:lcd_en {
+		lcd_en: lcd-en {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;/*GPIO_C6 = 22*/
 			rockchip,delay = <10>;
 		};
 
-		lcd_cs:lcd_cs {
+		lcd_cs: lcd-cs {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;/*GPIO_C5 = 21*/
 			rockchip,delay = <10>;
 		};
 
-		/*lcd_rst:lcd_rst {
+		/*lcd_rst: lcd-rst {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <5>;
@@ -312,8 +307,13 @@
 };
 
 &lvds {
-	status = "disabled";
 	pinctrl-names = "lcdc", "sleep";
 	pinctrl-0 = <&lcdc_lcdc>;
 	pinctrl-1 = <&lcdc_gpio>;
+	status = "disabled";
 };
+
+&vopb_mmu {
+	status = "okay";
+};
+
