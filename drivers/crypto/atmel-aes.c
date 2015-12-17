@@ -231,7 +231,7 @@ static void atmel_aes_read_n(struct atmel_aes_dev *dd, u32 offset,
 }
 
 static void atmel_aes_write_n(struct atmel_aes_dev *dd, u32 offset,
-					u32 *value, int count)
+			      const u32 *value, int count)
 {
 	for (; count--; value++, offset += 4)
 		atmel_aes_write(dd, offset, *value);
