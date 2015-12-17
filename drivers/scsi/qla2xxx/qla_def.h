@@ -3342,6 +3342,8 @@ struct qla_hw_data {
 	uint32_t	chain_offset;
 	struct dentry *dfs_dir;
 	struct dentry *dfs_fce;
+	struct dentry *dfs_tgt_counters;
+
 	dma_addr_t	fce_dma;
 	void		*fce;
 	uint32_t	fce_bufs;
@@ -3499,6 +3501,18 @@ struct qla_hw_data {
 	int	allow_cna_fw_dump;
 };
 
+struct qla_tgt_counters {
+	uint64_t qla_core_sbt_cmd;
+	uint64_t core_qla_que_buf;
+	uint64_t qla_core_ret_ctio;
+	uint64_t core_qla_snd_status;
+	uint64_t qla_core_ret_sta_ctio;
+	uint64_t core_qla_free_cmd;
+	uint64_t num_q_full_sent;
+	uint64_t num_alloc_iocb_failed;
+	uint64_t num_term_xchg_sent;
+};
+
 /*
  * Qlogic scsi host structure
  */
@@ -3651,6 +3665,7 @@ typedef struct scsi_qla_host {
 
 	atomic_t	vref_count;
 	struct qla8044_reset_template reset_tmplt;
+	struct qla_tgt_counters tgt_counters;
 } scsi_qla_host_t;
 
 #define SET_VP_IDX	1

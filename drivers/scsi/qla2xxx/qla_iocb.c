@@ -1868,6 +1868,7 @@ skip_cmd_array:
 	}
 
 queuing_error:
+	vha->tgt_counters.num_alloc_iocb_failed++;
 	return pkt;
 }
 

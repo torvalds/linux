@@ -284,6 +284,7 @@ static void tcm_qla2xxx_complete_free(struct work_struct *work)
 
 	WARN_ON(cmd->cmd_flags &  BIT_16);
 
+	cmd->vha->tgt_counters.qla_core_ret_sta_ctio++;
 	cmd->cmd_flags |= BIT_16;
 	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
@@ -295,6 +296,7 @@ static void tcm_qla2xxx_complete_free(struct work_struct *work)
  */
 static void tcm_qla2xxx_free_cmd(struct qla_tgt_cmd *cmd)
 {
+	cmd->vha->tgt_counters.core_qla_free_cmd++;
 	cmd->cmd_in_wq = 1;
 	INIT_WORK(&cmd->work, tcm_qla2xxx_complete_free);
 	queue_work(tcm_qla2xxx_free_wq, &cmd->work);
@@ -454,6 +456,7 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 		return -EINVAL;
 	}
 
+	cmd->vha->tgt_counters.qla_core_sbt_cmd++;
 	return target_submit_cmd(se_cmd, se_sess, cdb, &cmd->sense_buffer[0],
 				cmd->unpacked_lun, data_length, fcp_task_attr,
 				data_dir, flags);
@@ -469,6 +472,7 @@ static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 	 */
 	cmd->cmd_in_wq = 0;
 	cmd->cmd_flags |= BIT_11;
+	cmd->vha->tgt_counters.qla_core_ret_ctio++;
 	if (!cmd->write_data_transferred) {
 		/*
 		 * Check if se_cmd has already been aborted via LUN_RESET, and

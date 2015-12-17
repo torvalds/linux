@@ -13,6 +13,48 @@ static struct dentry *qla2x00_dfs_root;
 static atomic_t qla2x00_dfs_root_count;
 
 static int
+qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
+{
+	struct scsi_qla_host *vha = s->private;
+
+	seq_puts(s, "Target Counters\n");
+	seq_printf(s, "qla_core_sbt_cmd = %lld\n",
+		vha->tgt_counters.qla_core_sbt_cmd);
+	seq_printf(s, "qla_core_ret_sta_ctio = %lld\n",
+		vha->tgt_counters.qla_core_ret_sta_ctio);
+	seq_printf(s, "qla_core_ret_ctio = %lld\n",
+		vha->tgt_counters.qla_core_ret_ctio);
+	seq_printf(s, "core_qla_que_buf = %lld\n",
+		vha->tgt_counters.core_qla_que_buf);
+	seq_printf(s, "core_qla_snd_status = %lld\n",
+		vha->tgt_counters.core_qla_snd_status);
+	seq_printf(s, "core_qla_free_cmd = %lld\n",
+		vha->tgt_counters.core_qla_free_cmd);
+	seq_printf(s, "num alloc iocb failed = %lld\n",
+		vha->tgt_counters.num_alloc_iocb_failed);
+	seq_printf(s, "num term exchange sent = %lld\n",
+		vha->tgt_counters.num_term_xchg_sent);
+	seq_printf(s, "num Q full sent = %lld\n",
+		vha->tgt_counters.num_q_full_sent);
+
+	return 0;
+}
+
+static int
+qla_dfs_tgt_counters_open(struct inode *inode, struct file *file)
+{
+	struct scsi_qla_host *vha = inode->i_private;
+	return single_open(file, qla_dfs_tgt_counters_show, vha);
+}
+
+static const struct file_operations dfs_tgt_counters_ops = {
+	.open           = qla_dfs_tgt_counters_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static int
 qla2x00_dfs_fce_show(struct seq_file *s, void *unused)
 {
 	scsi_qla_host_t *vha = s->private;
@@ -146,6 +188,14 @@ create_dir:
 	atomic_inc(&qla2x00_dfs_root_count);
 
 create_nodes:
+	ha->dfs_tgt_counters = debugfs_create_file("tgt_counters", S_IRUSR,
+	    ha->dfs_dir, vha, &dfs_tgt_counters_ops);
+	if (!ha->dfs_tgt_counters) {
+		ql_log(ql_log_warn, vha, 0xd301,
+		    "Unable to create debugFS tgt_counters node.\n");
+		goto out;
+	}
+
 	ha->dfs_fce = debugfs_create_file("fce", S_IRUSR, ha->dfs_dir, vha,
 	    &dfs_fce_ops);
 	if (!ha->dfs_fce) {
@@ -161,6 +211,12 @@ int
 qla2x00_dfs_remove(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+
+	if (ha->dfs_tgt_counters) {
+		debugfs_remove(ha->dfs_tgt_counters);
+		ha->dfs_tgt_counters = NULL;
+	}
+
 	if (ha->dfs_fce) {
 		debugfs_remove(ha->dfs_fce);
 		ha->dfs_fce = NULL;

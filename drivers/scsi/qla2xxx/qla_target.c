@@ -2510,6 +2510,11 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
+	if (xmit_type == QLA_TGT_XMIT_STATUS)
+		vha->tgt_counters.core_qla_snd_status++;
+	else
+		vha->tgt_counters.core_qla_que_buf++;
+
 	if (qla2x00_reset_active(vha) || cmd->reset_count != ha->chip_reset) {
 		/*
 		 * Either a chip reset is active or this request was from
@@ -2957,6 +2962,7 @@ static int __qlt_send_term_exchange(struct scsi_qla_host *vha,
 			ret = 1;
 	}
 
+	vha->tgt_counters.num_term_xchg_sent++;
 	pkt->entry_count = 1;
 	pkt->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
 
@@ -4916,6 +4922,7 @@ static int __qlt_send_busy(struct scsi_qla_host *vha,
 		return -ENOMEM;
 	}
 
+	vha->tgt_counters.num_q_full_sent++;
 	pkt->entry_count = 1;
 	pkt->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
 
