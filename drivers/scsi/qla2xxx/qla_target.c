@@ -6544,9 +6544,20 @@ qlt_24xx_config_nvram_stage2(struct scsi_qla_host *vha,
 {
 	struct qla_hw_data *ha = vha->hw;
 
+	if (!QLA_TGT_MODE_ENABLED())
+		return;
+
 	if (ha->tgt.node_name_set) {
 		memcpy(icb->node_name, ha->tgt.tgt_node_name, WWN_SIZE);
 		icb->firmware_options_1 |= cpu_to_le32(BIT_14);
+	}
+
+	/* disable ZIO at start time. */
+	if (!vha->flags.init_done) {
+		uint32_t tmp;
+		tmp = le32_to_cpu(icb->firmware_options_2);
+		tmp &= ~(BIT_3 | BIT_2 | BIT_1 | BIT_0);
+		icb->firmware_options_2 = cpu_to_le32(tmp);
 	}
 }
 
@@ -6638,6 +6649,15 @@ qlt_81xx_config_nvram_stage2(struct scsi_qla_host *vha,
 		memcpy(icb->node_name, ha->tgt.tgt_node_name, WWN_SIZE);
 		icb->firmware_options_1 |= cpu_to_le32(BIT_14);
 	}
+
+	/* disable ZIO at start time. */
+	if (!vha->flags.init_done) {
+		uint32_t tmp;
+		tmp = le32_to_cpu(icb->firmware_options_2);
+		tmp &= ~(BIT_3 | BIT_2 | BIT_1 | BIT_0);
+		icb->firmware_options_2 = cpu_to_le32(tmp);
+	}
+
 }
 
 void
