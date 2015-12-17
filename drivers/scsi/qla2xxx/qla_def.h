@@ -310,6 +310,14 @@ struct srb_cmd {
 /* To identify if a srb is of T10-CRC type. @sp => srb_t pointer */
 #define IS_PROT_IO(sp)	(sp->flags & SRB_CRC_CTX_DSD_VALID)
 
+struct els_logo_payload {
+	uint8_t opcode;
+	uint8_t rsvd[3];
+	uint8_t s_id[3];
+	uint8_t rsvd1[1];
+	uint8_t wwpn[WWN_SIZE];
+};
+
 /*
  * SRB extensions.
  */
@@ -322,6 +330,15 @@ struct srb_iocb {
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
 			uint16_t data[2];
 		} logio;
+		struct {
+#define ELS_DCMD_TIMEOUT 20
+#define ELS_DCMD_LOGO 0x5
+			uint32_t flags;
+			uint32_t els_cmd;
+			struct completion comp;
+			struct els_logo_payload *els_logo_pyld;
+			dma_addr_t els_logo_pyld_dma;
+		} els_logo;
 		struct {
 			/*
 			 * Values for flags field below are as
@@ -383,7 +400,7 @@ struct srb_iocb {
 #define SRB_FXIOCB_DCMD	10
 #define SRB_FXIOCB_BCMD	11
 #define SRB_ABT_CMD	12
-
+#define SRB_ELS_DCMD	13
 
 typedef struct srb {
 	atomic_t ref_count;

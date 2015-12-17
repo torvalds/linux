@@ -1418,6 +1418,12 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case SRB_CT_CMD:
 		type = "ct pass-through";
 		break;
+	case SRB_ELS_DCMD:
+		type = "Driver ELS logo";
+		ql_dbg(ql_dbg_user, vha, 0x5047,
+		    "Completing %s: (%p) type=%d.\n", type, sp, sp->type);
+		sp->done(vha, sp, 0);
+		return;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x503e,
 		    "Unrecognized SRB: (%p) type=%d.\n", sp, sp->type);
