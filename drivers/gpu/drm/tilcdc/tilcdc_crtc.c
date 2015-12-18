@@ -717,6 +717,14 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 		tilcdc_write(dev, LCDC_END_OF_INT_IND_REG, 0);
 	}
 
+	if (stat & LCDC_SYNC_LOST)
+		dev_err_ratelimited(dev->dev, "%s(0x%08x): Sync lost",
+				    __func__, stat);
+
+	if (stat & LCDC_FIFO_UNDERFLOW)
+		dev_err_ratelimited(dev->dev, "%s(0x%08x): FIFO underfow",
+				    __func__, stat);
+
 	return IRQ_HANDLED;
 }
 

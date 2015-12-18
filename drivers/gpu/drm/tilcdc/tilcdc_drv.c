@@ -382,7 +382,7 @@ static int tilcdc_irq_postinstall(struct drm_device *dev)
 		tilcdc_write(dev, LCDC_INT_ENABLE_SET_REG,
 			   LCDC_V2_UNDERFLOW_INT_ENA |
 			   LCDC_V2_END_OF_FRAME0_INT_ENA |
-			   LCDC_FRAME_DONE);
+			   LCDC_FRAME_DONE | LCDC_SYNC_LOST);
 	}
 
 	return 0;
@@ -401,7 +401,7 @@ static void tilcdc_irq_uninstall(struct drm_device *dev)
 		tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
 			LCDC_V2_UNDERFLOW_INT_ENA | LCDC_V2_PL_INT_ENA |
 			LCDC_V2_END_OF_FRAME0_INT_ENA |
-			LCDC_FRAME_DONE);
+			LCDC_FRAME_DONE | LCDC_SYNC_LOST);
 	}
 }
 
