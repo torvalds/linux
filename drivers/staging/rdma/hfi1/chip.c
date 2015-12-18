@@ -10496,8 +10496,7 @@ static int set_buffer_control(struct hfi1_devdata *dd,
 		new_bc->vl[i].shared = 0;
 	}
 	new_total += be16_to_cpu(new_bc->overall_shared_limit);
-	if (new_total > (u32)dd->link_credits)
-		return -EINVAL;
+
 	/* fetch the current values */
 	get_buffer_control(dd, &cur_bc, &cur_total);
 
