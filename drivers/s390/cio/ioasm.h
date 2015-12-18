@@ -6,6 +6,7 @@
 #include <asm/crw.h>
 #include "orb.h"
 #include "cio.h"
+#include "trace.h"
 
 /*
  * Some S390 specific IO instructions as inline
@@ -25,6 +26,8 @@ static inline int stsch(struct subchannel_id schid, struct schib *addr)
 		: "+d" (ccode), "=m" (*addr)
 		: "d" (reg1), "a" (addr)
 		: "cc");
+	trace_s390_cio_stsch(schid, addr, ccode);
+
 	return ccode;
 }
 
@@ -42,6 +45,8 @@ static inline int msch(struct subchannel_id schid, struct schib *addr)
 		: "+d" (ccode)
 		: "d" (reg1), "a" (addr), "m" (*addr)
 		: "cc");
+	trace_s390_cio_msch(schid, addr, ccode);
+
 	return ccode;
 }
 
@@ -57,6 +62,8 @@ static inline int tsch(struct subchannel_id schid, struct irb *addr)
 		: "=d" (ccode), "=m" (*addr)
 		: "d" (reg1), "a" (addr)
 		: "cc");
+	trace_s390_cio_tsch(schid, addr, ccode);
+
 	return ccode;
 }
 
@@ -74,6 +81,8 @@ static inline int ssch(struct subchannel_id schid, union orb *addr)
 		: "+d" (ccode)
 		: "d" (reg1), "a" (addr), "m" (*addr)
 		: "cc", "memory");
+	trace_s390_cio_ssch(schid, addr, ccode);
+
 	return ccode;
 }
 
@@ -89,6 +98,8 @@ static inline int csch(struct subchannel_id schid)
 		: "=d" (ccode)
 		: "d" (reg1)
 		: "cc");
+	trace_s390_cio_csch(schid, ccode);
+
 	return ccode;
 }
 
@@ -103,6 +114,8 @@ static inline int tpi(struct tpi_info *addr)
 		: "=d" (ccode), "=m" (*addr)
 		: "a" (addr)
 		: "cc");
+	trace_s390_cio_tpi(addr, ccode);
+
 	return ccode;
 }
 
@@ -118,6 +131,8 @@ static inline int chsc(void *chsc_area)
 		: "=d" (cc), "=m" (*(addr_type *) chsc_area)
 		: "d" (chsc_area), "m" (*(addr_type *) chsc_area)
 		: "cc");
+	trace_s390_cio_chsc(chsc_area, cc);
+
 	return cc;
 }
 
@@ -132,6 +147,8 @@ static inline int rchp(struct chp_id chpid)
 		"	ipm	%0\n"
 		"	srl	%0,28"
 		: "=d" (ccode) : "d" (reg1) : "cc");
+	trace_s390_cio_rchp(chpid, ccode);
+
 	return ccode;
 }
 
@@ -147,6 +164,8 @@ static inline int rsch(struct subchannel_id schid)
 		: "=d" (ccode)
 		: "d" (reg1)
 		: "cc", "memory");
+	trace_s390_cio_rsch(schid, ccode);
+
 	return ccode;
 }
 
@@ -162,6 +181,8 @@ static inline int hsch(struct subchannel_id schid)
 		: "=d" (ccode)
 		: "d" (reg1)
 		: "cc");
+	trace_s390_cio_hsch(schid, ccode);
+
 	return ccode;
 }
 
@@ -177,6 +198,8 @@ static inline int xsch(struct subchannel_id schid)
 		: "=d" (ccode)
 		: "d" (reg1)
 		: "cc");
+	trace_s390_cio_xsch(schid, ccode);
+
 	return ccode;
 }
 
@@ -191,6 +214,8 @@ static inline int stcrw(struct crw *crw)
 		: "=d" (ccode), "=m" (*crw)
 		: "a" (crw)
 		: "cc");
+	trace_s390_cio_stcrw(crw, ccode);
+
 	return ccode;
 }
 

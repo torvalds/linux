@@ -41,6 +41,7 @@
 #include "blacklist.h"
 #include "cio_debug.h"
 #include "chp.h"
+#include "trace.h"
 
 debug_info_t *cio_debug_msg_id;
 debug_info_t *cio_debug_trace_id;
@@ -539,6 +540,7 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 
 	set_cpu_flag(CIF_NOHZ_DELAY);
 	tpi_info = (struct tpi_info *) &get_irq_regs()->int_code;
+	trace_s390_cio_interrupt(tpi_info);
 	irb = this_cpu_ptr(&cio_irb);
 	sch = (struct subchannel *)(unsigned long) tpi_info->intparm;
 	if (!sch) {
