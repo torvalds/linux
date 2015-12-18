@@ -443,7 +443,7 @@ static int sst_gain_get(struct snd_kcontrol *kcontrol,
 		break;
 
 	case SST_GAIN_MUTE:
-		ucontrol->value.integer.value[0] = gv->mute ? 1 : 0;
+		ucontrol->value.integer.value[0] = gv->mute ? 0 : 1;
 		break;
 
 	case SST_GAIN_RAMP_DURATION:
@@ -479,7 +479,7 @@ static int sst_gain_put(struct snd_kcontrol *kcontrol,
 		break;
 
 	case SST_GAIN_MUTE:
-		gv->mute = !!ucontrol->value.integer.value[0];
+		gv->mute = !ucontrol->value.integer.value[0];
 		dev_dbg(cmpnt->dev, "%s: Mute %d\n", mc->pname, gv->mute);
 		break;
 
