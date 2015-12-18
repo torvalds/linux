@@ -10726,6 +10726,7 @@ F:	net/tipc/
 TILE ARCHITECTURE
 M:	Chris Metcalf <cmetcalf@ezchip.com>
 W:	http://www.ezchip.com/scm/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cmetcalf/linux-tile.git
 S:	Supported
 F:	arch/tile/
 F:	drivers/char/tile-srom.c
