@@ -484,8 +484,6 @@ struct amdgpu_bo_list_entry {
 	struct amdgpu_bo		*robj;
 	struct ttm_validate_buffer	tv;
 	struct amdgpu_bo_va		*bo_va;
-	unsigned			prefered_domains;
-	unsigned			allowed_domains;
 	uint32_t			priority;
 };
 
@@ -522,7 +520,8 @@ struct amdgpu_bo {
 	/* Protected by gem.mutex */
 	struct list_head		list;
 	/* Protected by tbo.reserved */
-	u32				initial_domain;
+	u32				prefered_domains;
+	u32				allowed_domains;
 	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;

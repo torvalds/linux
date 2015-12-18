@@ -254,12 +254,15 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	bo->adev = adev;
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
-	bo->initial_domain = domain & (AMDGPU_GEM_DOMAIN_VRAM |
-				       AMDGPU_GEM_DOMAIN_GTT |
-				       AMDGPU_GEM_DOMAIN_CPU |
-				       AMDGPU_GEM_DOMAIN_GDS |
-				       AMDGPU_GEM_DOMAIN_GWS |
-				       AMDGPU_GEM_DOMAIN_OA);
+	bo->prefered_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
+					 AMDGPU_GEM_DOMAIN_GTT |
+					 AMDGPU_GEM_DOMAIN_CPU |
+					 AMDGPU_GEM_DOMAIN_GDS |
+					 AMDGPU_GEM_DOMAIN_GWS |
+					 AMDGPU_GEM_DOMAIN_OA);
+	bo->allowed_domains = bo->prefered_domains;
+	if (!kernel && bo->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
+		bo->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
 
 	bo->flags = flags;
 

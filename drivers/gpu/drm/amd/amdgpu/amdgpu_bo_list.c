@@ -111,23 +111,16 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 		drm_gem_object_unreference_unlocked(gobj);
 		entry->priority = min(info[i].bo_priority,
 				      AMDGPU_BO_LIST_MAX_PRIORITY);
-		entry->prefered_domains = entry->robj->initial_domain;
-		entry->allowed_domains = entry->prefered_domains;
-		if (entry->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
-			entry->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
-		if (amdgpu_ttm_tt_has_userptr(entry->robj->tbo.ttm)) {
+		if (amdgpu_ttm_tt_has_userptr(entry->robj->tbo.ttm))
 			has_userptr = true;
-			entry->prefered_domains = AMDGPU_GEM_DOMAIN_GTT;
-			entry->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
-		}
 		entry->tv.bo = &entry->robj->tbo;
 		entry->tv.shared = true;
 
-		if (entry->prefered_domains == AMDGPU_GEM_DOMAIN_GDS)
+		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_GDS)
 			gds_obj = entry->robj;
-		if (entry->prefered_domains == AMDGPU_GEM_DOMAIN_GWS)
+		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_GWS)
 			gws_obj = entry->robj;
-		if (entry->prefered_domains == AMDGPU_GEM_DOMAIN_OA)
+		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_OA)
 			oa_obj = entry->robj;
 
 		trace_amdgpu_bo_list_set(list, entry->robj);

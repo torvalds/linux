@@ -89,8 +89,6 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct amdgpu_bo_list_entry *entry)
 {
 	entry->robj = vm->page_directory;
-	entry->prefered_domains = AMDGPU_GEM_DOMAIN_VRAM;
-	entry->allowed_domains = AMDGPU_GEM_DOMAIN_VRAM;
 	entry->priority = 0;
 	entry->tv.bo = &vm->page_directory->tbo;
 	entry->tv.shared = true;
@@ -1124,8 +1122,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		}
 
 		entry->robj = pt;
-		entry->prefered_domains = AMDGPU_GEM_DOMAIN_VRAM;
-		entry->allowed_domains = AMDGPU_GEM_DOMAIN_VRAM;
 		entry->priority = 0;
 		entry->tv.bo = &entry->robj->tbo;
 		entry->tv.shared = true;

@@ -252,6 +252,8 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		goto handle_lockup;
 
 	bo = gem_to_amdgpu_bo(gobj);
+	bo->prefered_domains = AMDGPU_GEM_DOMAIN_GTT;
+	bo->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
 	r = amdgpu_ttm_tt_set_userptr(bo->tbo.ttm, args->addr, args->flags);
 	if (r)
 		goto release_object;
@@ -628,7 +630,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 
 		info.bo_size = robj->gem_base.size;
 		info.alignment = robj->tbo.mem.page_alignment << PAGE_SHIFT;
-		info.domains = robj->initial_domain;
+		info.domains = robj->prefered_domains;
 		info.domain_flags = robj->flags;
 		amdgpu_bo_unreserve(robj);
 		if (copy_to_user(out, &info, sizeof(info)))
@@ -641,9 +643,13 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			amdgpu_bo_unreserve(robj);
 			break;
 		}
-		robj->initial_domain = args->value & (AMDGPU_GEM_DOMAIN_VRAM |
-						      AMDGPU_GEM_DOMAIN_GTT |
-						      AMDGPU_GEM_DOMAIN_CPU);
+		robj->prefered_domains = args->value & (AMDGPU_GEM_DOMAIN_VRAM |
+							AMDGPU_GEM_DOMAIN_GTT |
+							AMDGPU_GEM_DOMAIN_CPU);
+		robj->allowed_domains = robj->prefered_domains;
+		if (robj->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
+			robj->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
+
 		amdgpu_bo_unreserve(robj);
 		break;
 	default:

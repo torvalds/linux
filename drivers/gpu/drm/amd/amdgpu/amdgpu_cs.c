@@ -107,8 +107,6 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	}
 
 	p->uf_entry.robj = amdgpu_bo_ref(p->uf.bo);
-	p->uf_entry.prefered_domains = AMDGPU_GEM_DOMAIN_GTT;
-	p->uf_entry.allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
 	p->uf_entry.priority = 0;
 	p->uf_entry.tv.bo = &p->uf_entry.robj->tbo;
 	p->uf_entry.tv.shared = true;
@@ -315,9 +313,9 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 		 * completely.
 		 */
 		if (p->bytes_moved <= p->bytes_moved_threshold)
-			domain = lobj->prefered_domains;
+			domain = bo->prefered_domains;
 		else
-			domain = lobj->allowed_domains;
+			domain = bo->allowed_domains;
 
 	retry:
 		amdgpu_ttm_placement_from_domain(bo, domain);
@@ -327,8 +325,8 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			       initial_bytes_moved;
 
 		if (unlikely(r)) {
-			if (r != -ERESTARTSYS && domain != lobj->allowed_domains) {
-				domain = lobj->allowed_domains;
+			if (r != -ERESTARTSYS && domain != bo->allowed_domains) {
+				domain = bo->allowed_domains;
 				goto retry;
 			}
 			return r;
