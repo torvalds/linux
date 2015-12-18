@@ -297,8 +297,6 @@ static bool rt5677_volatile_register(struct device *dev, unsigned int reg)
 	case RT5677_HAP_GENE_CTRL2:
 	case RT5677_PWR_DSP_ST:
 	case RT5677_PRIV_DATA:
-	case RT5677_PLL1_CTRL2:
-	case RT5677_PLL2_CTRL2:
 	case RT5677_ASRC_22:
 	case RT5677_ASRC_23:
 	case RT5677_VAD_CTRL5:
