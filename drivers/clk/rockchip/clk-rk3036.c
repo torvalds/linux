@@ -473,6 +473,6 @@ static void __init rk3036_clk_init(struct device_node *np)
 	rockchip_register_softrst(np, 9, reg_base + RK2928_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(RK2928_GLB_SRST_FST);
+	rockchip_register_restart_notifier(RK2928_GLB_SRST_FST, NULL);
 }
 CLK_OF_DECLARE(rk3036_cru, "rockchip,rk3036-cru", rk3036_clk_init);

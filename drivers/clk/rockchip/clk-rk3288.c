@@ -848,7 +848,6 @@ static void rk3288_clk_shutdown(void)
 static struct syscore_ops rk3288_clk_syscore_ops = {
 	.suspend = rk3288_clk_suspend,
 	.resume = rk3288_clk_resume,
-	.shutdown = rk3288_clk_shutdown,
 };
 
 static void __init rk3288_clk_init(struct device_node *np)
@@ -906,7 +905,8 @@ static void __init rk3288_clk_init(struct device_node *np)
 				  rk3288_cru_base + RK3288_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(RK3288_GLB_SRST_FST);
+	rockchip_register_restart_notifier(RK3288_GLB_SRST_FST,
+					   rk3288_clk_shutdown);
 	register_syscore_ops(&rk3288_clk_syscore_ops);
 }
 CLK_OF_DECLARE(rk3288_cru, "rockchip,rk3288-cru", rk3288_clk_init);
