@@ -2352,6 +2352,12 @@ static void intel_pin_eld_notify(void *audio_ptr, int port)
 	struct hda_codec *codec = audio_ptr;
 	int pin_nid = port + 0x04;
 
+	/* skip notification during system suspend (but not in runtime PM);
+	 * the state will be updated at resume
+	 */
+	if (snd_power_get_state(codec->card) != SNDRV_CTL_POWER_D0)
+		return;
+
 	check_presence_and_report(codec, pin_nid);
 }
 

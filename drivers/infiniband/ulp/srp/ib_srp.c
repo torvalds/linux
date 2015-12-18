@@ -488,7 +488,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	struct ib_qp *qp;
 	struct ib_fmr_pool *fmr_pool = NULL;
 	struct srp_fr_pool *fr_pool = NULL;
-	const int m = 1 + dev->use_fast_reg;
+	const int m = dev->use_fast_reg ? 3 : 1;
 	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
@@ -994,16 +994,16 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 
 	ret = srp_lookup_path(ch);
 	if (ret)
-		return ret;
+		goto out;
 
 	while (1) {
 		init_completion(&ch->done);
 		ret = srp_send_req(ch, multich);
 		if (ret)
-			return ret;
+			goto out;
 		ret = wait_for_completion_interruptible(&ch->done);
 		if (ret < 0)
-			return ret;
+			goto out;
 
 		/*
 		 * The CM event handling code will set status to
@@ -1011,15 +1011,16 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 		 * back, or SRP_DLID_REDIRECT if we get a lid/qp
 		 * redirect REJ back.
 		 */
-		switch (ch->status) {
+		ret = ch->status;
+		switch (ret) {
 		case 0:
 			ch->connected = true;
-			return 0;
+			goto out;
 
 		case SRP_PORT_REDIRECT:
 			ret = srp_lookup_path(ch);
 			if (ret)
-				return ret;
+				goto out;
 			break;
 
 		case SRP_DLID_REDIRECT:
@@ -1028,13 +1029,16 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 		case SRP_STALE_CONN:
 			shost_printk(KERN_ERR, target->scsi_host, PFX
 				     "giving up on stale connection\n");
-			ch->status = -ECONNRESET;
-			return ch->status;
+			ret = -ECONNRESET;
+			goto out;
 
 		default:
-			return ch->status;
+			goto out;
 		}
 	}
+
+out:
+	return ret <= 0 ? ret : -ENODEV;
 }
 
 static int srp_inv_rkey(struct srp_rdma_ch *ch, u32 rkey)
@@ -1309,7 +1313,7 @@ reset_state:
 }
 
 static int srp_map_finish_fr(struct srp_map_state *state,
-			     struct srp_rdma_ch *ch)
+			     struct srp_rdma_ch *ch, int sg_nents)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
@@ -1324,10 +1328,10 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 
 	WARN_ON_ONCE(!dev->use_fast_reg);
 
-	if (state->sg_nents == 0)
+	if (sg_nents == 0)
 		return 0;
 
-	if (state->sg_nents == 1 && target->global_mr) {
+	if (sg_nents == 1 && target->global_mr) {
 		srp_map_desc(state, sg_dma_address(state->sg),
 			     sg_dma_len(state->sg),
 			     target->global_mr->rkey);
@@ -1341,8 +1345,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	rkey = ib_inc_rkey(desc->mr->rkey);
 	ib_update_fast_reg_key(desc->mr, rkey);
 
-	n = ib_map_mr_sg(desc->mr, state->sg, state->sg_nents,
-			 dev->mr_page_size);
+	n = ib_map_mr_sg(desc->mr, state->sg, sg_nents, dev->mr_page_size);
 	if (unlikely(n < 0))
 		return n;
 
@@ -1448,16 +1451,15 @@ static int srp_map_sg_fr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	state->fr.next = req->fr_list;
 	state->fr.end = req->fr_list + ch->target->cmd_sg_cnt;
 	state->sg = scat;
-	state->sg_nents = scsi_sg_count(req->scmnd);
 
-	while (state->sg_nents) {
+	while (count) {
 		int i, n;
 
-		n = srp_map_finish_fr(state, ch);
+		n = srp_map_finish_fr(state, ch, count);
 		if (unlikely(n < 0))
 			return n;
 
-		state->sg_nents -= n;
+		count -= n;
 		for (i = 0; i < n; i++)
 			state->sg = sg_next(state->sg);
 	}
@@ -1517,10 +1519,12 @@ static int srp_map_idb(struct srp_rdma_ch *ch, struct srp_request *req,
 
 	if (dev->use_fast_reg) {
 		state.sg = idb_sg;
-		state.sg_nents = 1;
 		sg_set_buf(idb_sg, req->indirect_desc, idb_len);
 		idb_sg->dma_address = req->indirect_dma_addr; /* hack! */
-		ret = srp_map_finish_fr(&state, ch);
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		idb_sg->dma_length = idb_sg->length;	      /* hack^2 */
+#endif
+		ret = srp_map_finish_fr(&state, ch, 1);
 		if (ret < 0)
 			return ret;
 	} else if (dev->use_fmr) {
@@ -1655,7 +1659,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 			return ret;
 		req->nmdesc++;
 	} else {
-		idb_rkey = target->global_mr->rkey;
+		idb_rkey = cpu_to_be32(target->global_mr->rkey);
 	}
 
 	indirect_hdr->table_desc.va = cpu_to_be64(req->indirect_dma_addr);

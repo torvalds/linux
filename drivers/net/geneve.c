@@ -1009,8 +1009,6 @@ static netdev_tx_t geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 				   &fl6.saddr, &fl6.daddr, prio, ttl,
 				   sport, geneve->dst_port,
 				   !!(flags & GENEVE_F_UDP_ZERO_CSUM6_TX));
-
-	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 	return NETDEV_TX_OK;
 
 tx_error:
