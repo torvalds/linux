@@ -21,10 +21,13 @@
 
 #include <linux/device.h>
 #include <linux/dma-iommu.h>
+#include <linux/gfp.h>
 #include <linux/huge_mm.h>
 #include <linux/iommu.h>
 #include <linux/iova.h>
 #include <linux/mm.h>
+#include <linux/scatterlist.h>
+#include <linux/vmalloc.h>
 
 int iommu_dma_init(void)
 {
