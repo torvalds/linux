@@ -265,5 +265,31 @@
 					       <960000000>,
 					       <825000000>;
 		};
+
+		glink {
+			compatible = "qcom,glink";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			rpm {
+				qcom,glink-edge = "rpm";
+				interrupts = <0 168 1>;
+				qcom,irq-mask = <0x1>;
+				reg = <0x00068000 0x6000>,
+				      <0x09820010 0x4>;
+				reg-names = "msgram", "irq-reg-base";
+
+				rpm-requests {
+					compatible = "qcom,rpm-msm8996";
+					qcom,glink-channels = "rpm_requests";
+
+					rpmcc: qcom,rpmcc {
+						compatible = "qcom,rpmcc-msm8996", "qcom,rpmcc";
+						#clock-cells = <1>;
+					};
+				};
+			};
+		};
 	};
 };
