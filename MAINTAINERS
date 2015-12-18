@@ -3931,8 +3931,8 @@ M:	Doug Thompson <dougthompson@xmission.com>
 M:	Borislav Petkov <bp@alien8.de>
 M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
 L:	linux-edac@vger.kernel.org
-T:	git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git#for-next
-T:	git://git.kernel.org/pub/linux/kernel/git/mchehab/linux-edac.git#linux_next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git for-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-edac.git linux_next
 S:	Supported
 F:	Documentation/edac.txt
 F:	drivers/edac/
