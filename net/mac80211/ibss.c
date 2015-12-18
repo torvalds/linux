@@ -1050,9 +1050,8 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		struct cfg80211_chan_def chandef;
 		enum ieee80211_sta_rx_bandwidth bw = sta->sta.bandwidth;
 
-		ieee80211_ht_oper_to_chandef(channel,
-					     elems->ht_operation,
-					     &chandef);
+		cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
+		ieee80211_chandef_ht_oper(elems->ht_operation, &chandef);
 
 		memcpy(&htcap_ie, elems->ht_cap_elem, sizeof(htcap_ie));
 		rates_updated |= ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
@@ -1066,9 +1065,8 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 			struct ieee80211_vht_cap cap_ie;
 			struct ieee80211_sta_vht_cap cap = sta->sta.vht_cap;
 
-			ieee80211_vht_oper_to_chandef(channel,
-						      elems->vht_operation,
-						      &chandef);
+			ieee80211_chandef_vht_oper(elems->vht_operation,
+						   &chandef);
 			memcpy(&cap_ie, elems->vht_cap_elem, sizeof(cap_ie));
 			ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 							    &cap_ie, sta);
