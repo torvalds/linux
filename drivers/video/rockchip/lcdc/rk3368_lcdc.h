@@ -39,9 +39,13 @@
 #define IEP_REG_DONE		(IEP_CFG_DONE(1)  | IEP_CFG_DONE_WMSK(1))
 #define FBDC_REG_DONE		(FBDC_CFG_DONE(1) | FBDC_CFG_DONE_WMSK(1))
 #define SYS_REG_DONE		(SYS_CFG_DONE(1)  | SYS_CFG_DONE_WMSK(1))
+
 #define VERSION_INFO			(0x0004)
 #define m_RTL_VERSION			(0xffff<<0)
 #define m_FPGA_VERSION			(0xffff<<16)
+#define VOP_FULL_RK3368			0x03021223
+#define VOP_FULL_RK3366			0x03045635
+
 #define SYS_CTRL			(0x0008)
 #define v_DIRECT_PATH_EN(x)			(((x)&1)<<0)
 #define v_DIRECT_PATCH_SEL(x)			(((x)&3)<<1)
@@ -93,6 +97,7 @@
 #define v_NOC_WIN_QOS(x)			(((x)&0x3)<<10)
 #define v_AXI_MAX_OUTSTANDING_EN(x)		(((x)&0x1)<<12)
 #define v_AXI_OUTSTANDING_MAX_NUM(x)		(((x)&0x1f)<<13)
+#define v_NOC_HURRY_W_MODE(x)			(((x)&0x3)<<20)
 
 #define m_NOC_HURRY_EN				(0x1<<0)
 #define m_NOC_HURRY_VALUE			(0x3<<1)
@@ -101,6 +106,7 @@
 #define m_NOC_WIN_QOS				(0x3<<10)
 #define m_AXI_MAX_OUTSTANDING_EN		(0x1<<12)
 #define m_AXI_OUTSTANDING_MAX_NUM		(0x1f<<13)
+#define m_NOC_HURRY_W_MODE			(0x3<<20)
 
 #define DSP_CTRL0			(0x0010)
 #define v_DSP_OUT_MODE(x)			(((x)&0x0f)<<0)
@@ -233,13 +239,15 @@
 #define m_MCU_BYPASS				(1<<30)
 #define m_MCU_TYPE				((u32)1<<31)
 
-#define LINE_FLAG			(0x0020)
+#define LINE_FLAG_RK3368		(0x0020)/*rk3368*/
+#define LINE_FLAG_RK3366		(0x02a0)/*rk3366*/
 #define m_DSP_LINE_FLAG0_NUM			(0x1fff<<0)
 #define m_DSP_LINE_FLAG1_NUM			(0x1fff<<16)
 #define v_DSP_LINE_FLAG0_NUM(x)			(((x)&0x1fff)<<0)
 #define v_DSP_LINE_FLAG1_NUM(x)			(((x)&0x1fff)<<16)
 
-#define INTR_EN				(0x0024)
+#define INTR_EN_RK3368			(0x0024)/*for rk3368*/
+#define INTR_EN_RK3366			(0x0280)/*for rk3366*/
 #define v_FS_INTR_EN(x)				((((x)&1)<<0) | ((1<<(0+16))))
 #define v_FS_NEW_INTR_EN(x)			((((x)&1)<<1) | ((1<<(1+16))))
 #define v_ADDR_SAME_INTR_EN(x)			((((x)&1)<<2) | ((1<<(2+16))))
@@ -254,6 +262,8 @@
 #define v_POST_BUF_EMPTY_INTR_EN(x)	((((x)&1)<<11) | ((1<<(11+16))))
 #define v_PWM_GEN_INTR_EN(x)		((((x)&1)<<12) | ((1<<(12+16))))
 #define v_DSP_HOLD_VALID_INTR_EN(x)	((((x)&1)<<13) | ((1<<(13+16))))
+#define v_INTR_MMU_EN(x)		((((x)&1)<<14) | ((1<<(14+16))))/*rk3366*/
+#define v_INTR_DMA_FINISH_EN(x)		((((x)&1)<<15) | ((1<<(15+16))))/*rk3366*/
 
 #define m_FS_INTR_EN				((1<<0) | ((1<<(0+16))))
 #define m_FS_NEW_INTR_EN			((1<<1) | ((1<<(1+16))))
@@ -269,8 +279,11 @@
 #define m_POST_BUF_EMPTY_INTR_EN		((1<<11) | ((1<<(11+16))))
 #define m_PWM_GEN_INTR_EN			((1<<12) | ((1<<(12+16))))
 #define m_DSP_HOLD_VALID_INTR_EN		((1<<13) | ((1<<(13+16))))
+#define m_INTR_MMU_EN			((1<<14) | ((1<<(14+16))))/*rk3366*/
+#define m_INTR_DMA_FINISH_EN		((1<<15) | ((1<<(15+16))))/*rk3366*/
 
-#define  INTR_CLEAR			(0x0028)
+#define INTR_CLEAR_RK3368		(0x0028)/*rk3368*/
+#define INTR_CLEAR_RK3366		(0x0284)/*rk3366*/
 #define v_FS_INTR_CLR(x)			((((x)&1)<<0) | (1<<(0+16)))
 #define v_FS_NEW_INTR_CLR(x)			((((x)&1)<<1) | (1<<(1+16)))
 #define v_ADDR_SAME_INTR_CLR(x)			((((x)&1)<<2) | (1<<(2+16)))
@@ -285,6 +298,8 @@
 #define v_POST_BUF_EMPTY_INTR_CLR(x)		((((x)&1)<<11) | (1<<(11+16)))
 #define v_PWM_GEN_INTR_CLR(x)			((((x)&1)<<12) | (1<<(12+16)))
 #define v_DSP_HOLD_VALID_INTR_CLR(x)		((((x)&1)<<13) | (1<<(13+16)))
+#define v_INTR_MMU_CLR(x)			((((x)&1)<<14) | ((1<<(14+16))))/*rk3366*/
+#define v_INTR_DMA_FINISH_CLR(x)		((((x)&1)<<15) | ((1<<(15+16))))/*rk3366*/
 
 #define m_FS_INTR_CLR				((1<<0) | ((1<<(0+16))))
 #define m_FS_NEW_INTR_CLR			((1<<1) | ((1<<(1+16))))
@@ -300,8 +315,11 @@
 #define m_POST_BUF_EMPTY_INTR_CLR		((1<<11) | ((1<<(11+16))))
 #define m_PWM_GEN_INTR_CLR			((1<<12) | ((1<<(12+16))))
 #define m_DSP_HOLD_VALID_INTR_CLR		((1<<13) | ((1<<(13+16))))
+#define m_INTR_MMU_CLEAR			((1<<14) | ((1<<(14+16))))/*rk3366*/
+#define m_INTR_DMA_FINISH_CLEAR			((1<<15) | ((1<<(15+16))))/*rk3366*/
 
-#define  INTR_STATUS			(0x002c)
+#define INTR_STATUS_RK3368		(0x002c)/*rk3366*/
+#define INTR_STATUS_RK3366		(0x0288)/*rk3366*/
 #define m_FS_INTR_STS				(1<<0)
 #define m_FS_NEW_INTR_STS			(1<<1)
 #define m_ADDR_SAME_INTR_STS			(1<<2)
@@ -316,6 +334,8 @@
 #define m_POST_BUF_EMPTY_INTR_STS		(1<<11)
 #define m_PWM_GEN_INTR_STS			(1<<12)
 #define m_DSP_HOLD_VALID_INTR_STS		(1<<13)
+#define m_INTR_MMU_STS				(1<<14)/*rk3366*/
+#define m_INTR_DMA_FINISH_STS			(1<<15)/*rk3366*/
 
 #define m_FS_INTR_RAWSTS			(1<<(0+16))
 #define m_FS_NEW_INTR_RAWSTS			(1<<(1+16))
@@ -331,6 +351,57 @@
 #define m_POST_BUF_EMPTY_INTR_RAWSTS		(1<<(11+16))
 #define m_PWM_GEN_INTR_RAWSTS			(1<<(12+16))
 #define m_DSP_HOLD_VALID_INTR_RAWSTS		(1<<(13+16))
+
+#define INTR_RAW_STATUS_RK3366		(0x028c)/*rk3366*/
+#define m_FS_INTR_RAWSTS_RK3366			(1<<0)/*rk3366*/
+#define m_FS_NEW_INTR_RAWSTS_RK3366		(1<<1)/*rk3366*/
+#define m_ADDR_SAME_INTR_RAWSTS_RK3366		(1<<2)/*rk3366*/
+#define m_LINE_FLAG0_INTR_RAWSTS_RK3366		(1<<3)/*rk3366*/
+#define m_LINE_FLAG1_INTR_RAWSTS_RK3366		(1<<4)/*rk3366*/
+#define m_BUS_ERROR_INTR_RAWSTS_RK3366		(1<<5)/*rk3366*/
+#define m_WIN0_EMPTY_INTR_RAWSTS_RK3366		(1<<6)/*rk3366*/
+#define m_WIN1_EMPTY_INTR_RAWSTS_RK3366		(1<<7)/*rk3366*/
+#define m_WIN2_EMPTY_INTR_RAWSTS_RK3366		(1<<8)/*rk3366*/
+#define m_WIN3_EMPTY_INTR_RAWSTS_RK3366		(1<<9)/*rk3366*/
+#define m_HWC_EMPTY_INTR_RAWSTS_RK3366		(1<<10)/*rk3366*/
+#define m_POST_BUF_EMPTY_INTR_RAWSTS_RK3366	(1<<11)/*rk3366*/
+#define m_PWM_GEN_INTR_RAWSTS_RK3366		(1<<12)/*rk3366*/
+#define m_DSP_HOLD_VALID_INTR_RAWSTS_RK3366	(1<<13)/*rk3366*/
+#define m_INTR_MMU_RAWSTS_RK3366		(1<<14)/*rk3366*/
+#define m_INTR_DMA_FINISH_RAWSTS_RK3366		(1<<15)/*rk3366*/
+
+/********************rk3366 write back register************************/
+#define WB_CTRL0			(0x0020)
+#define v_WB_EN(x)				(((x)&0x1)<<0)
+#define v_WB_FMT(x)				(((x)&0x7)<<1)
+#define v_WB_DITHER_EN(x)			(((x)&0x1)<<4)
+#define v_WB_RGB2YUV_EN(x)			(((x)&0x1)<<5)
+#define v_WB_RGB2YUV_MODE(x)			(((x)&0x1)<<6)
+#define v_WB_XPSD_BIL_EN(x)			(((x)&0x1)<<7)
+#define v_WB_YTHROW_EN(x)			(((x)&0x1)<<8)
+#define v_WB_YTHROW_MODE(x)			(((x)&0x1)<<9)
+#define v_WB_HANDSHAKE_MODE(x)			(((x)&0x1)<<11)
+#define v_WB_YRGB_ID(x)				(((x)&0xf)<<24)
+#define v_WB_UI_ID(x)				(((x)&0xf)<<28)
+#define m_WB_EN(x)				(0x1<<0)
+#define m_WB_FMT(x)				(0x7<<1)
+#define m_WB_DITHER_EN(x)			(0x1<<4)
+#define m_WB_RGB2YUV_EN(x)			(0x1<<5)
+#define m_WB_RGB2YUV_MODE(x)			(0x1<<6)
+#define m_WB_XPSD_BIL_EN(x)			(0x1<<7)
+#define m_WB_YTHROW_EN(x)			(0x1<<8)
+#define m_WB_YTHROW_MODE(x)			(0x1<<9)
+#define m_WB_HANDSHAKE_MODE(x)			(0x1<<11)
+#define m_WB_YRGB_ID(x)				(0xf<<24)
+#define m_WB_UI_ID(x)				(0xf<<28)
+#define WB_CTRL1			(0x0024)
+#define v_WB_WIDTH(x)				(((x)&0xfff)<<0)
+#define v_WB_XPSD_BIL_FACTOR(x)			(((x)&0x3fff)<<16)
+#define m_WB_WIDTH				(0xfff<<0)
+#define m_WB_XPSD_BIL_FACTOR			(0x3fff<<16)
+#define WB_YRGB_MST                     (0x0028)
+#define WB_CBR_MST                      (0x002c)
+/********************rk3366 write back register************************/
 
 /*win0 register*/
 #define WIN0_CTRL0			(0x0030)
@@ -1251,11 +1322,11 @@
 #define m_BCSH_COLOR_BAR_V			(0xff<<24)
 
 #define BCSH_BCS			(0x01b4)
-#define v_BCSH_BRIGHTNESS(x)			(((x)&0xff)<<0)
+#define v_BCSH_BRIGHTNESS(x)			(((x)&0x3f)<<0)
 #define v_BCSH_CONTRAST(x)			(((x)&0x1ff)<<8)
 #define v_BCSH_SAT_CON(x)			(((x)&0x3ff)<<20)
 #define v_BCSH_OUT_MODE(x)			(((x)&0x3)<<30)
-#define m_BCSH_BRIGHTNESS			(0xff<<0)
+#define m_BCSH_BRIGHTNESS			(0x3f<<0)
 #define m_BCSH_CONTRAST				(0x1ff<<8)
 #define m_BCSH_SAT_CON				(0x3ff<<20)
 #define m_BCSH_OUT_MODE				((u32)0x3<<30)
@@ -1279,34 +1350,38 @@
 
 #define CABC_CTRL0			(0x01c0)
 #define v_CABC_EN(x)				(((x)&1)<<0)
-#define v_CABC_CALC_PIXEL_NUM(x)		(((x)&0xffffff)<<1)
+#define v_PWM_CONFIG_MODE(x)			(((x)&3)<<1)
+#define v_CABC_HANDLE_EN(x)			(((x)&1)<<3)
+#define v_CABC_CALC_PIXEL_NUM(x)		(((x)&0x7fffff)<<4)
 #define m_CABC_EN				(1<<0)
-#define m_CABC_CALC_PIXEL_NUM			(0xffffff<<1)
-
+#define m_PWM_CONFIG_MODE			(3<<1)
+#define m_CABC_HANDLE_EN			(1<<3)
+#define m_CABC_CALC_PIXEL_NUM			(0x7fffff<<4)
 
 #define CABC_CTRL1			(0x01c4)
 #define v_CABC_LUT_EN(x)			(((x)&1)<<0)
-#define v_CABC_TOTAL_PIXEL_NUM(x)		(((x)&0xffffff)<<1)
+#define v_CABC_TOTAL_PIXEL_NUM(x)		(((x)&0x7fffff)<<4)
 #define m_CABC_LUT_EN				(1<<0)
-#define m_CABC_TOTAL_PIXEL_NUM			(0xffffff<<1)
+#define m_CABC_TOTAL_PIXEL_NUM			(0x7fffff<<4)
 
 #define CABC_CTRL2			(0x01c8)
-#define v_CABC_STAGE_UP_REC(x)			(((x)&0xff)<<0)
-#define m_CABC_STAGE_UP_REC			(0xff<<0)
+#define v_CABC_STAGE_DOWN(x)			(((x)&0xff)<<0)
 #define v_CABC_STAGE_UP(x)			(((x)&0x1ff)<<8)
+#define v_CABC_STAGE_MODE(x)			(((x)&1)<<19)
+#define v_MAX_SCALE_CFG_VALUE(x)		(((x)&0x1ff)<<20)
+#define v_MAX_SCALE_CFG_ENABLE(x)		(((x)&1)<<31)
+#define m_CABC_STAGE_DOWN			(0xff<<0)
 #define m_CABC_STAGE_UP				(0x1ff<<8)
-#define v_CABC_GLOBAL_SU_LIMIT_EN(x)		(((x)&0x1)<<23)
-#define m_CABC_GLOBAL_SU_LIMIT_EN		(0x1<<23)
-#define v_CABC_GLOBAL_SU_REC(x)			(((x)&0xff)<<24)
-#define m_CABC_GLOBAL_SU_REC			(0xff<<24)
+#define m_CABC_STAGE_MODE			(1<<19)
+#define m_MAX_SCALE_CFG_VALUE			(0x1ff<<20)
+#define m_MAX_SCALE_CFG_ENABLE			(1<<31)
 
 #define CABC_CTRL3			(0x01cc)
-#define v_CABC_STAGE_DOWN(x)			(((x)&0xff)<<0)
-#define m_CABC_STAGE_DOWN			(0xff<<0)
-#define v_CABC_STAGE_DOWN_REC(x)		(((x)&0x1ff)<<8)
-#define m_CABC_STAGE_DOWN_REC			(0x1ff<<8)
-#define v_CABC_GLOBAL_SU(x)			(((x)&0x1ff)<<23)
-#define m_CABC_GLOBAL_SU			(0x1ff<<23)
+#define v_CABC_GLOBAL_DN(x)			(((x)&0xff)<<0)
+#define v_CABC_GLOBAL_DN_LIMIT_EN(x)		(((x)&1)<<8)
+#define m_CABC_GLOBAL_DN			(0xff<<0)
+#define m_CABC_GLOBAL_DN_LIMIT_EN		(1<<8)
+
 #define CABC_GAUSS_LINE0_0		(0x01d0)
 #define v_CABC_T_LINE0_0(x)			(((x)&0xff)<<0)
 #define v_CABC_T_LINE0_1(x)			(((x)&0xff)<<8)
@@ -1509,7 +1584,22 @@
 #define v_RD_LATENCY_SAMP_NUM_CH0(x)		(((x)&0xFFFFFF)<<0)
 #define m_RD_LATENCY_SAMP_NUM_CH0		(0xFFFFFF<<0)
 
-#define WIN0_DSP_BG			(0x260)
+#define VOP_STATUS                      0x000002a4
+#define v_VOP_DSP_VCNT(x)			(((x)&0x1FFF)<<0)
+#define v_VOP_MMU_IDLE(x)			(((x)&0x1)<<16)
+#define v_DMA_STOP_VALID(x)			(((x)&0x1)<<17)
+#define m_VOP_DSP_VCNT				(0x1FFF<<0)
+#define m_VOP_MMU_IDLE				(0x1<<16)
+#define m_DMA_STOP_VALID			(0x1<<17)
+
+#define BLANKING_VALUE                  0x02a8
+#define v_BLANKING_VALUE(x)			(((x)&0xFFFFFF)<<0)
+#define v_BLANKING_VALUE_CONFIG_EN(x)		(((x)&0x1)<<24)
+#define m_BLANKING_VALUE			(0xFFFFFF<<0)
+#define m_BLANKING_VALUE_CONFIG_EN		(0x1<<24)
+
+#define WIN0_DSP_BG_RK3368		(0x260)
+#define WIN0_DSP_BG_RK3366		(0x2b0)/*rk3366*/
 #define v_WIN0_DSP_BG_BLUE(x)			(((x)&0xff)<<0)
 #define v_WIN0_DSP_BG_GREEN(x)			(((x)&0xff)<<8)
 #define v_WIN0_DSP_BG_RED(x)			(((x)&0xff)<<16)
@@ -1519,7 +1609,8 @@
 #define m_WIN0_DSP_BG_RED			(0xff<<16)
 #define m_WIN0_DSP_BG_EN			(0x1<<31)
 
-#define WIN1_DSP_BG			(0x264)
+#define WIN1_DSP_BG_RK3368		(0x264)
+#define WIN1_DSP_BG_RK3366		(0x2b4)/*rk3366*/
 #define v_WIN1_DSP_BG_BLUE(x)			(((x)&0xff)<<0)
 #define v_WIN1_DSP_BG_GREEN(x)			(((x)&0xff)<<8)
 #define v_WIN1_DSP_BG_RED(x)			(((x)&0xff)<<16)
@@ -1529,7 +1620,8 @@
 #define m_WIN1_DSP_BG_RED			(0xff<<16)
 #define m_WIN1_DSP_BG_EN			(0x1<<31)
 
-#define WIN2_DSP_BG			(0x268)
+#define WIN2_DSP_BG_RK3368		(0x268)
+#define WIN2_DSP_BG_RK3366		(0x2b8)/*rk3366*/
 #define v_WIN2_DSP_BG_BLUE(x)			(((x)&0xff)<<0)
 #define v_WIN2_DSP_BG_GREEN(x)			(((x)&0xff)<<8)
 #define v_WIN2_DSP_BG_RED(x)			(((x)&0xff)<<16)
@@ -1539,7 +1631,8 @@
 #define m_WIN2_DSP_BG_RED			(0xff<<16)
 #define m_WIN2_DSP_BG_EN			(0x1<<31)
 
-#define WIN3_DSP_BG			(0x26c)
+#define WIN3_DSP_BG_RK3368		(0x26c)
+#define WIN3_DSP_BG_RK3366		(0x2bC)/*rk3366*/
 #define v_WIN3_DSP_BG_BLUE(x)			(((x)&0xff)<<0)
 #define v_WIN3_DSP_BG_GREEN(x)			(((x)&0xff)<<8)
 #define v_WIN3_DSP_BG_RED(x)			(((x)&0xff)<<16)
@@ -1642,10 +1735,25 @@
 
 #define PMUGRF_SOC_CON0_VOP		(0x0100)
 
+#define RK3366_GRF_SOC_CON0		(0x0400)
+#define RK3366_GRF_SOC_CON5		(0x0414)
 
 #define OUT_CCIR656_MODE_0              5
 #define OUT_CCIR656_MODE_1              6
 #define OUT_CCIR656_MODE_2              7
+
+#define VOP_SOURCE_SEL(id, shift)	((id << shift) | 1 << (shift + 16))
+#define RGB_SOURCE_SEL(id)		VOP_SOURCE_SEL(id, 3)
+#define LVDS_SOURCE_SEL(id)		VOP_SOURCE_SEL(id, 0)
+#define MIPI_SOURCE_SEL(id)		VOP_SOURCE_SEL(id, 2)
+#define HDMI_SOURCE_SEL(id)		VOP_SOURCE_SEL(id, 1)
+
+#define RGB_DATA_PLANA			((2 << 6) | (3 << (6 + 16)))
+#define RGB_DATA_PLANB			((3 << 6) | (3 << (6 + 16)))
+
+#define RK3366_GRF_IO_VSEL		0x0900
+#define RK3366_GRF_VOP_IOVOL_SEL(x)	(((x) << 0) | (1 << (0 + 16)))
+#define RK3368_GRF_VOP_IOVOL_SEL(x)	(((x) << 5) | (1 << (5 + 16)))
 
 enum lb_mode {
 	LB_YUV_3840X5 = 0x0,
@@ -1738,8 +1846,15 @@ enum _vop_overlay_mode {
 	VOP_YUV_DOMAIN
 };
 
+enum cabc_stage_mode {
+	LAST_FRAME_PWM_VAL	= 0x0,
+	CUR_FRAME_PWM_VAL	= 0x1,
+	STAGE_BY_STAGE		= 0x2
+};
+
 struct lcdc_device {
 	int id;
+	u32 soc_type;
 	struct rk_lcdc_driver driver;
 	struct device *dev;
 	struct rk_screen *screen;
@@ -1866,7 +1981,8 @@ static inline void  lcdc_msk_reg(struct lcdc_device *lcdc_dev,
 	(*_pv) &= (~msk);
 	(*_pv) |= v;
 	writel_relaxed(*_pv, lcdc_dev->regs + offset);
-        if (offset == INTR_CLEAR)
+        if (((lcdc_dev->soc_type == VOP_FULL_RK3366) && (offset == INTR_CLEAR_RK3366)) ||
+	    ((lcdc_dev->soc_type == VOP_FULL_RK3368) && (offset == INTR_CLEAR_RK3368)))
                 (*_pv) &= 0;
 }
 
@@ -1879,7 +1995,8 @@ static inline void lcdc_cfg_done(struct lcdc_device *lcdc_dev)
 static inline int lcdc_grf_writel(struct regmap *base,
 				  u32 offset, u32 val)
 {
-	regmap_write(base, offset, val);
+	if (base)
+		regmap_write(base, offset, val);
 	dsb(sy);
 
 	return 0;
@@ -1888,7 +2005,8 @@ static inline int lcdc_grf_writel(struct regmap *base,
 static inline int lcdc_cru_writel(struct regmap *base,
 				  u32 offset, u32 val)
 {
-	regmap_write(base, offset, val);
+	if (base)
+		regmap_write(base, offset, val);
 	dsb(sy);
 
 	return 0;
