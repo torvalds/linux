@@ -1867,6 +1867,9 @@ again:
  destroy_blkring:
 	blkif_free(info, 0);
 
+	kfree(info);
+	dev_set_drvdata(&dev->dev, NULL);
+
 	return err;
 }
 
@@ -2453,11 +2456,8 @@ static void blkback_changed(struct xenbus_device *dev,
 	case XenbusStateInitWait:
 		if (dev->state != XenbusStateInitialising)
 			break;
-		if (talk_to_blkback(dev, info)) {
-			kfree(info);
-			dev_set_drvdata(&dev->dev, NULL);
+		if (talk_to_blkback(dev, info))
 			break;
-		}
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
@@ -2466,6 +2466,10 @@ static void blkback_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateConnected:
+		if (dev->state != XenbusStateInitialised) {
+			if (talk_to_blkback(dev, info))
+				break;
+		}
 		blkfront_connect(info);
 		break;
 
