@@ -2171,7 +2171,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	case CX23885_BOARD_HAUPPAUGE_HVR5525:
 		switch (port->nr) {
 		struct m88rs6000t_config m88rs6000t_config;
-		struct a8293_platform_data a8293_pdata = {};
+		struct a8293_platform_data a8293_pdata = { 0 };
 
 		/* port b - satellite */
 		case 1:
