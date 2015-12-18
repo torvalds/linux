@@ -265,7 +265,7 @@ static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
 	spin_unlock(&fs_info->reada_lock);
 
 	if (ret == 1) {
-		if (logical >= zone->start && logical < zone->end)
+		if (logical >= zone->start && logical <= zone->end)
 			return zone;
 		spin_lock(&fs_info->reada_lock);
 		kref_put(&zone->refcnt, reada_zone_release);
@@ -679,7 +679,7 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	 */
 	ret = radix_tree_gang_lookup(&dev->reada_extents, (void **)&re,
 				     dev->reada_next >> PAGE_CACHE_SHIFT, 1);
-	if (ret == 0 || re->logical >= dev->reada_curr_zone->end) {
+	if (ret == 0 || re->logical > dev->reada_curr_zone->end) {
 		ret = reada_pick_zone(dev);
 		if (!ret) {
 			spin_unlock(&fs_info->reada_lock);
