@@ -33,6 +33,10 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NETFILTER);
 
+#define nfnl_dereference_protected(id) \
+	rcu_dereference_protected(table[(id)].subsys, \
+				  lockdep_nfnl_is_held((id)))
+
 static char __initdata nfversion[] = "0.30";
 
 static struct {
@@ -49,6 +53,7 @@ static const int nfnl_group2type[NFNLGRP_MAX+1] = {
 	[NFNLGRP_CONNTRACK_EXP_DESTROY] = NFNL_SUBSYS_CTNETLINK_EXP,
 	[NFNLGRP_NFTABLES]		= NFNL_SUBSYS_NFTABLES,
 	[NFNLGRP_ACCT_QUOTA]		= NFNL_SUBSYS_ACCT,
+	[NFNLGRP_NFTRACE]		= NFNL_SUBSYS_NFTABLES,
 };
 
 void nfnl_lock(__u8 subsys_id)
@@ -207,8 +212,7 @@ replay:
 		} else {
 			rcu_read_unlock();
 			nfnl_lock(subsys_id);
-			if (rcu_dereference_protected(table[subsys_id].subsys,
-				lockdep_is_held(&table[subsys_id].mutex)) != ss ||
+			if (nfnl_dereference_protected(subsys_id) != ss ||
 			    nfnetlink_find_client(type, ss) != nc)
 				err = -EAGAIN;
 			else if (nc->call)
@@ -296,15 +300,13 @@ replay:
 		return netlink_ack(oskb, nlh, -ENOMEM);
 
 	nfnl_lock(subsys_id);
-	ss = rcu_dereference_protected(table[subsys_id].subsys,
-				       lockdep_is_held(&table[subsys_id].mutex));
+	ss = nfnl_dereference_protected(subsys_id);
 	if (!ss) {
 #ifdef CONFIG_MODULES
 		nfnl_unlock(subsys_id);
 		request_module("nfnetlink-subsys-%d", subsys_id);
 		nfnl_lock(subsys_id);
-		ss = rcu_dereference_protected(table[subsys_id].subsys,
-					       lockdep_is_held(&table[subsys_id].mutex));
+		ss = nfnl_dereference_protected(subsys_id);
 		if (!ss)
 #endif
 		{
