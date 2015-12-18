@@ -288,6 +288,27 @@ int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *link)
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_down);
 
 /**
+ * snd_hdac_ext_bus_link_power_up_all -power up all hda link
+ * @ebus: HD-audio extended bus
+ */
+int snd_hdac_ext_bus_link_power_up_all(struct hdac_ext_bus *ebus)
+{
+	struct hdac_ext_link *hlink = NULL;
+	int ret;
+
+	list_for_each_entry(hlink, &ebus->hlink_list, list) {
+		snd_hdac_updatel(hlink->ml_addr,
+				AZX_REG_ML_LCTL, 0, AZX_MLCTL_SPA);
+		ret = check_hdac_link_power_active(hlink, true);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_up_all);
+
+/**
  * snd_hdac_ext_bus_link_power_down_all -power down all hda link
  * @ebus: HD-audio extended bus
  */
