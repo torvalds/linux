@@ -1986,6 +1986,14 @@ static int cz_dpm_force_dpm_level(struct amdgpu_device *adev,
 		ret = cz_dpm_uvd_force_highest(adev);
 		if (ret)
 			return ret;
+
+		/* vce */
+		ret = cz_dpm_unforce_vce_dpm_levels(adev);
+		if (ret)
+			return ret;
+		ret = cz_dpm_vce_force_highest(adev);
+		if (ret)
+			return ret;
 		break;
 	case AMDGPU_DPM_FORCED_LEVEL_LOW:
 		/* sclk */
@@ -2003,6 +2011,14 @@ static int cz_dpm_force_dpm_level(struct amdgpu_device *adev,
 		ret = cz_dpm_uvd_force_lowest(adev);
 		if (ret)
 			return ret;
+
+		/* vce */
+		ret = cz_dpm_unforce_vce_dpm_levels(adev);
+		if (ret)
+			return ret;
+		ret = cz_dpm_vce_force_lowest(adev);
+		if (ret)
+			return ret;
 		break;
 	case AMDGPU_DPM_FORCED_LEVEL_AUTO:
 		/* sclk */
@@ -2012,6 +2028,11 @@ static int cz_dpm_force_dpm_level(struct amdgpu_device *adev,
 
 		/* uvd */
 		ret = cz_dpm_unforce_uvd_dpm_levels(adev);
+		if (ret)
+			return ret;
+
+		/* vce */
+		ret = cz_dpm_unforce_vce_dpm_levels(adev);
 		if (ret)
 			return ret;
 		break;
@@ -2154,7 +2175,8 @@ static int cz_update_vce_dpm(struct amdgpu_device *adev)
 		pi->vce_dpm.hard_min_clk = table->entries[table->count-1].ecclk;
 
 	} else { /* non-stable p-state cases. without vce.Arbiter.EcclkHardMin */
-		pi->vce_dpm.hard_min_clk = table->entries[0].ecclk;
+		/* leave it as set by user */
+		/*pi->vce_dpm.hard_min_clk = table->entries[0].ecclk;*/
 	}
 
 	cz_send_msg_to_smc_with_parameter(adev,
