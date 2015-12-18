@@ -348,12 +348,6 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
  *    jump offsets, 2nd pass remapping:
  *   new_prog = kmalloc(sizeof(struct bpf_insn) * new_len);
  *   bpf_convert_filter(old_prog, old_len, new_prog, &new_len);
- *
- * User BPF's register A is mapped to our BPF register 6, user BPF
- * register X is mapped to BPF register 7; frame pointer is always
- * register 10; Context 'void *ctx' is stored in register 1, that is,
- * for socket filters: ctx == 'struct sk_buff *', for seccomp:
- * ctx == 'struct seccomp_data *'.
  */
 static int bpf_convert_filter(struct sock_filter *prog, int len,
 			      struct bpf_insn *new_prog, int *new_len)
@@ -381,9 +375,22 @@ do_pass:
 	new_insn = new_prog;
 	fp = prog;
 
-	if (new_insn)
-		*new_insn = BPF_MOV64_REG(BPF_REG_CTX, BPF_REG_ARG1);
-	new_insn++;
+	/* Classic BPF related prologue emission. */
+	if (new_insn) {
+		/* Classic BPF expects A and X to be reset first. These need
+		 * to be guaranteed to be the first two instructions.
+		 */
+		*new_insn++ = BPF_ALU64_REG(BPF_XOR, BPF_REG_A, BPF_REG_A);
+		*new_insn++ = BPF_ALU64_REG(BPF_XOR, BPF_REG_X, BPF_REG_X);
+
+		/* All programs must keep CTX in callee saved BPF_REG_CTX.
+		 * In eBPF case it's done by the compiler, here we need to
+		 * do this ourself. Initial CTX is present in BPF_REG_ARG1.
+		 */
+		*new_insn++ = BPF_MOV64_REG(BPF_REG_CTX, BPF_REG_ARG1);
+	} else {
+		new_insn += 3;
+	}
 
 	for (i = 0; i < len; fp++, i++) {
 		struct bpf_insn tmp_insns[6] = { };
@@ -1245,6 +1252,7 @@ int sk_attach_bpf(u32 ufd, struct sock *sk)
 }
 
 #define BPF_RECOMPUTE_CSUM(flags)	((flags) & 1)
+#define BPF_LDST_LEN			16U
 
 static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 {
@@ -1252,7 +1260,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 	int offset = (int) r2;
 	void *from = (void *) (long) r3;
 	unsigned int len = (unsigned int) r4;
-	char buf[16];
+	char buf[BPF_LDST_LEN];
 	void *ptr;
 
 	/* bpf verifier guarantees that:
@@ -1297,6 +1305,36 @@ const struct bpf_func_proto bpf_skb_store_bytes_proto = {
 	.arg3_type	= ARG_PTR_TO_STACK,
 	.arg4_type	= ARG_CONST_STACK_SIZE,
 	.arg5_type	= ARG_ANYTHING,
+};
+
+static u64 bpf_skb_load_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	const struct sk_buff *skb = (const struct sk_buff *)(unsigned long) r1;
+	int offset = (int) r2;
+	void *to = (void *)(unsigned long) r3;
+	unsigned int len = (unsigned int) r4;
+	void *ptr;
+
+	if (unlikely((u32) offset > 0xffff || len > BPF_LDST_LEN))
+		return -EFAULT;
+
+	ptr = skb_header_pointer(skb, offset, len, to);
+	if (unlikely(!ptr))
+		return -EFAULT;
+	if (ptr != to)
+		memcpy(to, ptr, len);
+
+	return 0;
+}
+
+const struct bpf_func_proto bpf_skb_load_bytes_proto = {
+	.func		= bpf_skb_load_bytes,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_PTR_TO_STACK,
+	.arg4_type	= ARG_CONST_STACK_SIZE,
 };
 
 #define BPF_HEADER_FIELD_SIZE(flags)	((flags) & 0x0f)
@@ -1654,6 +1692,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 	switch (func_id) {
 	case BPF_FUNC_skb_store_bytes:
 		return &bpf_skb_store_bytes_proto;
+	case BPF_FUNC_skb_load_bytes:
+		return &bpf_skb_load_bytes_proto;
 	case BPF_FUNC_l3_csum_replace:
 		return &bpf_l3_csum_replace_proto;
 	case BPF_FUNC_l4_csum_replace:
