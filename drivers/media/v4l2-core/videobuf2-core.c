@@ -2406,13 +2406,15 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 		(read) ? "read" : "write", count, q->fileio_read_once,
 		q->fileio_write_immediately);
 
-	fileio = kzalloc(sizeof(struct vb2_fileio_data), GFP_KERNEL);
+	fileio = kzalloc(sizeof(*fileio), GFP_KERNEL);
 	if (fileio == NULL)
 		return -ENOMEM;
 
 	fileio->b = kzalloc(q->buf_struct_size, GFP_KERNEL);
-	if (fileio->b == NULL)
+	if (fileio->b == NULL) {
+		kfree(fileio);
 		return -ENOMEM;
+	}
 
 	fileio->read_once = q->fileio_read_once;
 	fileio->write_immediately = q->fileio_write_immediately;
