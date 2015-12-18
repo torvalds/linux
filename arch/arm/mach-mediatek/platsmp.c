@@ -128,13 +128,13 @@ static void __init mtk_smp_prepare_cpus(unsigned int max_cpus)
 	__mtk_smp_prepare_cpus(max_cpus, 0);
 }
 
-static struct smp_operations mt81xx_tz_smp_ops __initdata = {
+static const struct smp_operations mt81xx_tz_smp_ops __initconst = {
 	.smp_prepare_cpus = mtk_tz_smp_prepare_cpus,
 	.smp_boot_secondary = mtk_boot_secondary,
 };
 CPU_METHOD_OF_DECLARE(mt81xx_tz_smp, "mediatek,mt81xx-tz-smp", &mt81xx_tz_smp_ops);
 
-static struct smp_operations mt6589_smp_ops __initdata = {
+static const struct smp_operations mt6589_smp_ops __initconst = {
 	.smp_prepare_cpus = mtk_smp_prepare_cpus,
 	.smp_boot_secondary = mtk_boot_secondary,
 };

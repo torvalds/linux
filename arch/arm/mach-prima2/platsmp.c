@@ -112,7 +112,7 @@ static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return pen_release != -1 ? -ENOSYS : 0;
 }
 
-struct smp_operations sirfsoc_smp_ops __initdata = {
+const struct smp_operations sirfsoc_smp_ops __initconst = {
 	.smp_secondary_init     = sirfsoc_secondary_init,
 	.smp_boot_secondary     = sirfsoc_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
