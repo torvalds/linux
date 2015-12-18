@@ -1353,14 +1353,10 @@ static int __init probe_docg4(struct platform_device *pdev)
 	doc->mtd = mtd;
 	return 0;
 
- fail:
-	if (nand) {
-		/* re-declarations avoid compiler warning */
-		struct docg4_priv *doc = nand->priv;
-		nand_release(mtd); /* deletes partitions and mtd devices */
-		free_bch(doc->bch);
-		kfree(nand);
-	}
+fail:
+	nand_release(mtd); /* deletes partitions and mtd devices */
+	free_bch(doc->bch);
+	kfree(nand);
 
 fail_unmap:
 	iounmap(virtadr);
