@@ -205,7 +205,7 @@ static inline int xsch(struct subchannel_id schid)
 	int ccode;
 
 	asm volatile(
-		"	.insn	rre,0xb2760000,%1,0\n"
+		"	xsch\n"
 		"	ipm	%0\n"
 		"	srl	%0,28"
 		: "=d" (ccode)
