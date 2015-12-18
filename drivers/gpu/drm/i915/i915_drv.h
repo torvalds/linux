@@ -70,11 +70,11 @@
 		BUILD_BUG_ON(__i915_warn_cond); \
 	WARN(__i915_warn_cond, "WARN_ON(" #x ")"); })
 #else
-#define WARN_ON(x) WARN((x), "WARN_ON(%s)", #x )
+#define WARN_ON(x) WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
 #endif
 
 #undef WARN_ON_ONCE
-#define WARN_ON_ONCE(x) WARN_ONCE((x), "WARN_ON_ONCE(%s)", #x )
+#define WARN_ON_ONCE(x) WARN_ONCE((x), "%s", "WARN_ON_ONCE(" __stringify(x) ")")
 
 #define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
 			     (long) (x), __func__);
@@ -94,14 +94,8 @@
 	unlikely(__ret_warn_on);					\
 })
 
-#define I915_STATE_WARN_ON(condition) ({				\
-	int __ret_warn_on = !!(condition);				\
-	if (unlikely(__ret_warn_on))					\
-		if (!WARN(i915.verbose_state_checks,			\
-			  "WARN_ON(" #condition ")\n"))			\
-			DRM_ERROR("WARN_ON(" #condition ")\n");		\
-	unlikely(__ret_warn_on);					\
-})
+#define I915_STATE_WARN_ON(x)						\
+	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
 
 static inline const char *yesno(bool v)
 {
