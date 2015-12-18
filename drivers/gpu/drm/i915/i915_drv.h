@@ -34,6 +34,7 @@
 #include <uapi/drm/drm_fourcc.h>
 
 #include <drm/drmP.h>
+#include "i915_params.h"
 #include "i915_reg.h"
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
@@ -2670,44 +2671,7 @@ extern int i915_max_ioctl;
 extern int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
 extern int i915_resume_switcheroo(struct drm_device *dev);
 
-/* i915_params.c */
-struct i915_params {
-	int modeset;
-	int panel_ignore_lid;
-	int semaphores;
-	int lvds_channel_mode;
-	int panel_use_ssc;
-	int vbt_sdvo_panel_type;
-	int enable_rc6;
-	int enable_dc;
-	int enable_fbc;
-	int enable_ppgtt;
-	int enable_execlists;
-	int enable_psr;
-	unsigned int preliminary_hw_support;
-	int disable_power_well;
-	int enable_ips;
-	int invert_brightness;
-	int enable_cmd_parser;
-	/* leave bools at the end to not create holes */
-	bool enable_hangcheck;
-	bool fastboot;
-	bool prefault_disable;
-	bool load_detect_test;
-	bool reset;
-	bool disable_display;
-	bool disable_vtd_wa;
-	bool enable_guc_submission;
-	int guc_log_level;
-	int use_mmio_flip;
-	int mmio_debug;
-	bool verbose_state_checks;
-	bool nuclear_pageflip;
-	int edp_vswing;
-};
-extern struct i915_params i915 __read_mostly;
-
-				/* i915_dma.c */
+/* i915_dma.c */
 extern int i915_driver_load(struct drm_device *, unsigned long flags);
 extern int i915_driver_unload(struct drm_device *);
 extern int i915_driver_open(struct drm_device *dev, struct drm_file *file);
