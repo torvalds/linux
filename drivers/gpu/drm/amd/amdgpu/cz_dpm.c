@@ -1971,23 +1971,47 @@ static int cz_dpm_force_dpm_level(struct amdgpu_device *adev,
 
 	switch (level) {
 	case AMDGPU_DPM_FORCED_LEVEL_HIGH:
+		/* sclk */
 		ret = cz_dpm_unforce_dpm_levels(adev);
 		if (ret)
 			return ret;
 		ret = cz_dpm_force_highest(adev);
 		if (ret)
 			return ret;
+
+		/* uvd */
+		ret = cz_dpm_unforce_uvd_dpm_levels(adev);
+		if (ret)
+			return ret;
+		ret = cz_dpm_uvd_force_highest(adev);
+		if (ret)
+			return ret;
 		break;
 	case AMDGPU_DPM_FORCED_LEVEL_LOW:
+		/* sclk */
 		ret = cz_dpm_unforce_dpm_levels(adev);
 		if (ret)
 			return ret;
 		ret = cz_dpm_force_lowest(adev);
 		if (ret)
 			return ret;
+
+		/* uvd */
+		ret = cz_dpm_unforce_uvd_dpm_levels(adev);
+		if (ret)
+			return ret;
+		ret = cz_dpm_uvd_force_lowest(adev);
+		if (ret)
+			return ret;
 		break;
 	case AMDGPU_DPM_FORCED_LEVEL_AUTO:
+		/* sclk */
 		ret = cz_dpm_unforce_dpm_levels(adev);
+		if (ret)
+			return ret;
+
+		/* uvd */
+		ret = cz_dpm_unforce_uvd_dpm_levels(adev);
 		if (ret)
 			return ret;
 		break;
