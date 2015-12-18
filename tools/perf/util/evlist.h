@@ -97,6 +97,9 @@ perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
 
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
+int perf_evlist__id_add_fd(struct perf_evlist *evlist,
+			   struct perf_evsel *evsel,
+			   int cpu, int thread, int fd);
 
 int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist);

@@ -180,6 +180,30 @@ static struct test generic_tests[] = {
 		},
 	},
 	{
+		.desc = "Test thread map synthesize",
+		.func = test__thread_map_synthesize,
+	},
+	{
+		.desc = "Test cpu map synthesize",
+		.func = test__cpu_map_synthesize,
+	},
+	{
+		.desc = "Test stat config synthesize",
+		.func = test__synthesize_stat_config,
+	},
+	{
+		.desc = "Test stat synthesize",
+		.func = test__synthesize_stat,
+	},
+	{
+		.desc = "Test stat round synthesize",
+		.func = test__synthesize_stat_round,
+	},
+	{
+		.desc = "Test attr update synthesize",
+		.func = test__event_update,
+	},
+	{
 		.func = NULL,
 	},
 };
