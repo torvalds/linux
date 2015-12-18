@@ -592,8 +592,9 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id)
 	}
 	if (chip->rmidi && (status & FM801_IRQ_MPU))
 		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
-	if (status & FM801_IRQ_VOLUME)
-		;/* TODO */
+	if (status & FM801_IRQ_VOLUME) {
+		/* TODO */
+	}
 
 	return IRQ_HANDLED;
 }
