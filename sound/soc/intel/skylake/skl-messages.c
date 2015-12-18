@@ -849,6 +849,8 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 		ret = skl_ipc_delete_pipeline(&ctx->ipc, pipe->ppl_id);
 		if (ret < 0)
 			dev_err(ctx->dev, "Failed to delete pipeline\n");
+
+		pipe->state = SKL_PIPE_INVALID;
 	}
 
 	return ret;
