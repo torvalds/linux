@@ -345,18 +345,18 @@ int cio_commit_config(struct subchannel *sch)
 	struct schib schib;
 	struct irb irb;
 
-	if (stsch_err(sch->schid, &schib) || !css_sch_is_valid(&schib))
+	if (stsch(sch->schid, &schib) || !css_sch_is_valid(&schib))
 		return -ENODEV;
 
 	for (retry = 0; retry < 5; retry++) {
 		/* copy desired changes to local schib */
 		cio_apply_config(sch, &schib);
-		ccode = msch_err(sch->schid, &schib);
+		ccode = msch(sch->schid, &schib);
 		if (ccode < 0) /* -EIO if msch gets a program check. */
 			return ccode;
 		switch (ccode) {
 		case 0: /* successful */
-			if (stsch_err(sch->schid, &schib) ||
+			if (stsch(sch->schid, &schib) ||
 			    !css_sch_is_valid(&schib))
 				return -ENODEV;
 			if (cio_check_config(sch, &schib)) {
@@ -391,7 +391,7 @@ int cio_update_schib(struct subchannel *sch)
 {
 	struct schib schib;
 
-	if (stsch_err(sch->schid, &schib) || !css_sch_is_valid(&schib))
+	if (stsch(sch->schid, &schib) || !css_sch_is_valid(&schib))
 		return -ENODEV;
 
 	memcpy(&sch->schib, &schib, sizeof(schib));
@@ -500,7 +500,7 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 	 * If stsch gets an exception, it means the current subchannel set
 	 * is not valid.
 	 */
-	ccode = stsch_err(schid, &sch->schib);
+	ccode = stsch(schid, &sch->schib);
 	if (ccode) {
 		err = (ccode == 3) ? -ENXIO : ccode;
 		goto out;
@@ -616,7 +616,7 @@ static int cio_test_for_console(struct subchannel_id schid, void *data)
 {
 	struct schib schib;
 
-	if (stsch_err(schid, &schib) != 0)
+	if (stsch(schid, &schib) != 0)
 		return -ENXIO;
 	if ((schib.pmcw.st == SUBCHANNEL_TYPE_IO) && schib.pmcw.dnv &&
 	    (schib.pmcw.dev == console_devno)) {
@@ -635,7 +635,7 @@ static int cio_get_console_sch_no(void)
 	if (console_irq != -1) {
 		/* VM provided us with the irq number of the console. */
 		schid.sch_no = console_irq;
-		if (stsch_err(schid, &schib) != 0 ||
+		if (stsch(schid, &schib) != 0 ||
 		    (schib.pmcw.st != SUBCHANNEL_TYPE_IO) || !schib.pmcw.dnv)
 			return -1;
 		console_devno = schib.pmcw.dev;
@@ -705,10 +705,10 @@ __disable_subchannel_easy(struct subchannel_id schid, struct schib *schib)
 	cc = 0;
 	for (retry=0;retry<3;retry++) {
 		schib->pmcw.ena = 0;
-		cc = msch_err(schid, schib);
+		cc = msch(schid, schib);
 		if (cc)
 			return (cc==3?-ENODEV:-EBUSY);
-		if (stsch_err(schid, schib) || !css_sch_is_valid(schib))
+		if (stsch(schid, schib) || !css_sch_is_valid(schib))
 			return -ENODEV;
 		if (!schib->pmcw.ena)
 			return 0;
@@ -755,7 +755,7 @@ static int stsch_reset(struct subchannel_id schid, struct schib *addr)
 
 	pgm_check_occured = 0;
 	s390_base_pgm_handler_fn = cio_reset_pgm_check_handler;
-	rc = stsch_err(schid, addr);
+	rc = stsch(schid, addr);
 	s390_base_pgm_handler_fn = NULL;
 
 	/* The program check handler could have changed pgm_check_occured. */
@@ -792,7 +792,7 @@ static int __shutdown_subchannel_easy(struct subchannel_id schid, void *data)
 			/* No default clear strategy */
 			break;
 		}
-		stsch_err(schid, &schib);
+		stsch(schid, &schib);
 		__disable_subchannel_easy(schid, &schib);
 	}
 out:
@@ -940,7 +940,7 @@ int __init cio_get_iplinfo(struct cio_iplinfo *iplinfo)
 		if (__chsc_enable_facility(&sda_area, CHSC_SDA_OC_MSS))
 			return -ENODEV;
 	}
-	if (stsch_err(schid, &schib))
+	if (stsch(schid, &schib))
 		return -ENODEV;
 	if (schib.pmcw.st != SUBCHANNEL_TYPE_IO)
 		return -ENODEV;

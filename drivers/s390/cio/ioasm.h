@@ -25,7 +25,7 @@ struct tpi_info {
  * Some S390 specific IO instructions as inline
  */
 
-static inline int stsch_err(struct subchannel_id schid, struct schib *addr)
+static inline int stsch(struct subchannel_id schid, struct schib *addr)
 {
 	register struct subchannel_id reg1 asm ("1") = schid;
 	int ccode = -EIO;
@@ -43,21 +43,6 @@ static inline int stsch_err(struct subchannel_id schid, struct schib *addr)
 }
 
 static inline int msch(struct subchannel_id schid, struct schib *addr)
-{
-	register struct subchannel_id reg1 asm ("1") = schid;
-	int ccode;
-
-	asm volatile(
-		"	msch	0(%2)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode)
-		: "d" (reg1), "a" (addr), "m" (*addr)
-		: "cc");
-	return ccode;
-}
-
-static inline int msch_err(struct subchannel_id schid, struct schib *addr)
 {
 	register struct subchannel_id reg1 asm ("1") = schid;
 	int ccode = -EIO;
