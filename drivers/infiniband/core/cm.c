@@ -3731,16 +3731,6 @@ int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 }
 EXPORT_SYMBOL(ib_cm_init_qp_attr);
 
-static void cm_get_ack_delay(struct cm_device *cm_dev)
-{
-	struct ib_device_attr attr;
-
-	if (ib_query_device(cm_dev->ib_device, &attr))
-		cm_dev->ack_delay = 0; /* acks will rely on packet life time */
-	else
-		cm_dev->ack_delay = attr.local_ca_ack_delay;
-}
-
 static ssize_t cm_show_counter(struct kobject *obj, struct attribute *attr,
 			       char *buf)
 {
@@ -3852,7 +3842,7 @@ static void cm_add_one(struct ib_device *ib_device)
 		return;
 
 	cm_dev->ib_device = ib_device;
-	cm_get_ack_delay(cm_dev);
+	cm_dev->ack_delay = ib_device->attrs.local_ca_ack_delay;
 	cm_dev->going_down = 0;
 	cm_dev->device = device_create(&cm_class, &ib_device->dev,
 				       MKDEV(0, 0), NULL,

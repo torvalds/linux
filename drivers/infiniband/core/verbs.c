@@ -229,12 +229,6 @@ EXPORT_SYMBOL(rdma_port_get_link_layer);
 struct ib_pd *ib_alloc_pd(struct ib_device *device)
 {
 	struct ib_pd *pd;
-	struct ib_device_attr devattr;
-	int rc;
-
-	rc = ib_query_device(device, &devattr);
-	if (rc)
-		return ERR_PTR(rc);
 
 	pd = device->alloc_pd(device, NULL, NULL);
 	if (IS_ERR(pd))
@@ -245,7 +239,7 @@ struct ib_pd *ib_alloc_pd(struct ib_device *device)
 	pd->local_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 
-	if (devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
+	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
 		pd->local_dma_lkey = device->local_dma_lkey;
 	else {
 		struct ib_mr *mr;

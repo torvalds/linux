@@ -614,18 +614,12 @@ static ssize_t show_sys_image_guid(struct device *device,
 				   struct device_attribute *dev_attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
-	struct ib_device_attr attr;
-	ssize_t ret;
-
-	ret = ib_query_device(dev, &attr);
-	if (ret)
-		return ret;
 
 	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[0]),
-		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[1]),
-		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[2]),
-		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[3]));
+		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[0]),
+		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[1]),
+		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[2]),
+		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[3]));
 }
 
 static ssize_t show_node_guid(struct device *device,
