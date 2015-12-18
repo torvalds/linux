@@ -18,10 +18,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/nwpserial.h>
 #include <linux/clk.h>
 
-#include "8250/8250.h"
+#include "8250.h"
 
 struct of_serial_info {
 	struct clk *clk;
