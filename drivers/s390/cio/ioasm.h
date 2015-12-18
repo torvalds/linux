@@ -3,23 +3,9 @@
 
 #include <asm/chpid.h>
 #include <asm/schid.h>
+#include <asm/crw.h>
 #include "orb.h"
 #include "cio.h"
-
-/*
- * TPI info structure
- */
-struct tpi_info {
-	struct subchannel_id schid;
-	__u32 intparm;		 /* interruption parameter */
-	__u32 adapter_IO : 1;
-	__u32 reserved2	 : 1;
-	__u32 isc	 : 3;
-	__u32 reserved3	 : 12;
-	__u32 int_type	 : 3;
-	__u32 reserved4	 : 12;
-} __attribute__ ((packed));
-
 
 /*
  * Some S390 specific IO instructions as inline
@@ -146,6 +132,65 @@ static inline int rchp(struct chp_id chpid)
 		"	ipm	%0\n"
 		"	srl	%0,28"
 		: "=d" (ccode) : "d" (reg1) : "cc");
+	return ccode;
+}
+
+static inline int rsch(struct subchannel_id schid)
+{
+	register struct subchannel_id reg1 asm("1") = schid;
+	int ccode;
+
+	asm volatile(
+		"	rsch\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (ccode)
+		: "d" (reg1)
+		: "cc", "memory");
+	return ccode;
+}
+
+static inline int hsch(struct subchannel_id schid)
+{
+	register struct subchannel_id reg1 asm("1") = schid;
+	int ccode;
+
+	asm volatile(
+		"	hsch\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (ccode)
+		: "d" (reg1)
+		: "cc");
+	return ccode;
+}
+
+static inline int xsch(struct subchannel_id schid)
+{
+	register struct subchannel_id reg1 asm("1") = schid;
+	int ccode;
+
+	asm volatile(
+		"	xsch\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (ccode)
+		: "d" (reg1)
+		: "cc");
+	return ccode;
+}
+
+static inline int stcrw(struct crw *crw)
+{
+	int ccode;
+
+	asm volatile(
+		"	stcrw	0(%2)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (ccode), "=m" (*crw)
+		: "a" (crw)
+		: "cc");
 	return ccode;
 }
 
