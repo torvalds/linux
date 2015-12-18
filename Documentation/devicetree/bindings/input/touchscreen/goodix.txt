@@ -19,6 +19,11 @@ Optional properties:
 			  interrupt gpio pin as output to reset the device.
  - reset-gpios		: GPIO pin used for reset
 
+ - touchscreen-inverted-x  : X axis is inverted (boolean)
+ - touchscreen-inverted-y  : Y axis is inverted (boolean)
+ - touchscreen-swapped-x-y : X and Y axis are swapped (boolean)
+                             (swapping is done after inverting the axis)
+
 Example:
 
 	i2c@00000000 {
