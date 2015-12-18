@@ -33,8 +33,6 @@
 #include "common.h"
 #include "mfc.h"
 
-void __iomem *pmu_base_addr;
-
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S5P_VA_SROMC,
