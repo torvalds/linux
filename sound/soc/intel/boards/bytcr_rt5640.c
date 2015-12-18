@@ -20,23 +20,25 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/dmi.h>
 #include <linux/slab.h>
-#include <linux/input.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/jack.h>
 #include "../../codecs/rt5640.h"
 #include "../atom/sst-atom-controls.h"
 
-static const struct snd_soc_dapm_widget byt_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget byt_rt5640_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
-static const struct snd_soc_dapm_route byt_audio_map[] = {
+static const struct snd_soc_dapm_route byt_rt5640_audio_map[] = {
 	{"Headset Mic", NULL, "MICBIAS1"},
 	{"IN2P", NULL, "Headset Mic"},
 	{"Headphone", NULL, "HPOL"},
@@ -56,14 +58,39 @@ static const struct snd_soc_dapm_route byt_audio_map[] = {
 	{"ssp2 Rx", NULL, "AIF1 Capture"},
 };
 
-static const struct snd_kcontrol_new byt_mc_controls[] = {
+static const struct snd_soc_dapm_route byt_rt5640_intmic_dmic1_map[] = {
+	{"DMIC1", NULL, "Internal Mic"},
+};
+
+static const struct snd_soc_dapm_route byt_rt5640_intmic_dmic2_map[] = {
+	{"DMIC2", NULL, "Internal Mic"},
+};
+
+static const struct snd_soc_dapm_route byt_rt5640_intmic_in1_map[] = {
+	{"Internal Mic", NULL, "MICBIAS1"},
+	{"IN1P", NULL, "Internal Mic"},
+};
+
+enum {
+	BYT_RT5640_DMIC1_MAP,
+	BYT_RT5640_DMIC2_MAP,
+	BYT_RT5640_IN1_MAP,
+};
+
+#define BYT_RT5640_MAP(quirk)	((quirk) & 0xff)
+#define BYT_RT5640_DMIC_EN	BIT(16)
+
+static unsigned long byt_rt5640_quirk = BYT_RT5640_DMIC1_MAP |
+					BYT_RT5640_DMIC_EN;
+
+static const struct snd_kcontrol_new byt_rt5640_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Internal Mic"),
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
 
-static int byt_aif1_hw_params(struct snd_pcm_substream *substream,
+static int byt_rt5640_aif1_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -91,7 +118,34 @@ static int byt_aif1_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_pcm_stream byt_dai_params = {
+static int byt_rt5640_quirk_cb(const struct dmi_system_id *id)
+{
+	byt_rt5640_quirk = (unsigned long)id->driver_data;
+	return 1;
+}
+
+static const struct dmi_system_id byt_rt5640_quirk_table[] = {
+	{
+		.callback = byt_rt5640_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T100TA"),
+		},
+		.driver_data = (unsigned long *)BYT_RT5640_IN1_MAP,
+	},
+	{
+		.callback = byt_rt5640_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "DellInc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 8 Pro 5830"),
+		},
+		.driver_data = (unsigned long *)(BYT_RT5640_DMIC2_MAP |
+						 BYT_RT5640_DMIC_EN),
+	},
+	{}
+};
+
+static const struct snd_soc_pcm_stream byt_rt5640_dai_params = {
 	.formats = SNDRV_PCM_FMTBIT_S24_LE,
 	.rate_min = 48000,
 	.rate_max = 48000,
@@ -99,7 +153,7 @@ static const struct snd_soc_pcm_stream byt_dai_params = {
 	.channels_max = 2,
 };
 
-static int byt_codec_fixup(struct snd_soc_pcm_runtime *rtd,
+static int byt_rt5640_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 			    struct snd_pcm_hw_params *params)
 {
 	struct snd_interval *rate = hw_param_interval(params,
@@ -139,21 +193,21 @@ static int byt_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static int byt_aif1_startup(struct snd_pcm_substream *substream)
+static int byt_rt5640_aif1_startup(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_hw_constraint_single(substream->runtime,
 			SNDRV_PCM_HW_PARAM_RATE, 48000);
 }
 
-static struct snd_soc_ops byt_aif1_ops = {
-	.startup = byt_aif1_startup,
+static struct snd_soc_ops byt_rt5640_aif1_ops = {
+	.startup = byt_rt5640_aif1_startup,
 };
 
-static struct snd_soc_ops byt_be_ssp2_ops = {
-	.hw_params = byt_aif1_hw_params,
+static struct snd_soc_ops byt_rt5640_be_ssp2_ops = {
+	.hw_params = byt_rt5640_aif1_hw_params,
 };
 
-static struct snd_soc_dai_link byt_dailink[] = {
+static struct snd_soc_dai_link byt_rt5640_dais[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Baytrail Audio Port",
 		.stream_name = "Baytrail Audio",
@@ -165,7 +219,7 @@ static struct snd_soc_dai_link byt_dailink[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ops = &byt_aif1_ops,
+		.ops = &byt_rt5640_aif1_ops,
 	},
 	[MERR_DPCM_COMPR] = {
 		.name = "Baytrail Compressed Port",
@@ -186,55 +240,57 @@ static struct snd_soc_dai_link byt_dailink[] = {
 		.codec_name = "i2c-10EC5640:00",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBS_CFS,
-		.be_hw_params_fixup = byt_codec_fixup,
+		.be_hw_params_fixup = byt_rt5640_codec_fixup,
 		.ignore_suspend = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ops = &byt_be_ssp2_ops,
+		.ops = &byt_rt5640_be_ssp2_ops,
 	},
 };
 
 /* SoC card */
-static struct snd_soc_card snd_soc_card_byt = {
-	.name = "baytrailcraudio",
+static struct snd_soc_card snd_soc_card_byt_rt5640 = {
+	.name = "bytcr-rt5640",
 	.owner = THIS_MODULE,
-	.dai_link = byt_dailink,
-	.num_links = ARRAY_SIZE(byt_dailink),
-	.dapm_widgets = byt_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(byt_dapm_widgets),
-	.dapm_routes = byt_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(byt_audio_map),
-	.controls = byt_mc_controls,
-	.num_controls = ARRAY_SIZE(byt_mc_controls),
+	.dai_link = byt_rt5640_dais,
+	.num_links = ARRAY_SIZE(byt_rt5640_dais),
+	.dapm_widgets = byt_rt5640_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(byt_rt5640_widgets),
+	.dapm_routes = byt_rt5640_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(byt_rt5640_audio_map),
+	.controls = byt_rt5640_controls,
+	.num_controls = ARRAY_SIZE(byt_rt5640_controls),
 };
 
-static int snd_byt_mc_probe(struct platform_device *pdev)
+static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
 
 	/* register the soc card */
-	snd_soc_card_byt.dev = &pdev->dev;
+	snd_soc_card_byt_rt5640.dev = &pdev->dev;
 
-	ret_val = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_byt);
+	ret_val = devm_snd_soc_register_card(&pdev->dev,
+					&snd_soc_card_byt_rt5640);
 	if (ret_val) {
-		dev_err(&pdev->dev, "devm_snd_soc_register_card failed %d\n", ret_val);
+		dev_err(&pdev->dev, "devm_snd_soc_register_card failed %d\n",
+			ret_val);
 		return ret_val;
 	}
-	platform_set_drvdata(pdev, &snd_soc_card_byt);
+	platform_set_drvdata(pdev, &snd_soc_card_byt_rt5640);
 	return ret_val;
 }
 
-static struct platform_driver snd_byt_mc_driver = {
+static struct platform_driver snd_byt_rt5640_mc_driver = {
 	.driver = {
-		.name = "bytt100_rt5640",
+		.name = "bytcr_rt5640",
 		.pm = &snd_soc_pm_ops,
 	},
-	.probe = snd_byt_mc_probe,
+	.probe = snd_byt_rt5640_mc_probe,
 };
 
-module_platform_driver(snd_byt_mc_driver);
+module_platform_driver(snd_byt_rt5640_mc_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) Baytrail CR Machine driver");
 MODULE_AUTHOR("Subhransu S. Prusty <subhransu.s.prusty@intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:bytt100_rt5640");
+MODULE_ALIAS("platform:bytcr_rt5640");
