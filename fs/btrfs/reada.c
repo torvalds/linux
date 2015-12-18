@@ -303,8 +303,10 @@ static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
 		kfree(zone);
 		ret = radix_tree_gang_lookup(&dev->reada_zones, (void **)&zone,
 					     logical >> PAGE_CACHE_SHIFT, 1);
-		if (ret == 1)
+		if (ret == 1 && logical >= zone->start && logical <= zone->end)
 			kref_get(&zone->refcnt);
+		else
+			zone = NULL;
 	}
 	spin_unlock(&fs_info->reada_lock);
 
