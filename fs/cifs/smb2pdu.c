@@ -97,10 +97,7 @@ smb2_hdr_assemble(struct smb2_hdr *hdr, __le16 smb2_cmd /* command */ ,
 	hdr->smb2_buf_length = cpu_to_be32(parmsize + sizeof(struct smb2_hdr)
 			- 4 /*  RFC 1001 length field itself not counted */);
 
-	hdr->ProtocolId[0] = 0xFE;
-	hdr->ProtocolId[1] = 'S';
-	hdr->ProtocolId[2] = 'M';
-	hdr->ProtocolId[3] = 'B';
+	hdr->ProtocolId = SMB2_PROTO_NUMBER;
 	hdr->StructureSize = cpu_to_le16(64);
 	hdr->Command = smb2_cmd;
 	hdr->CreditRequest = cpu_to_le16(2); /* BB make this dynamic */
@@ -1573,7 +1570,8 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		goto ioctl_exit;
 	}
 
-	memcpy(*out_data, rsp->hdr.ProtocolId + le32_to_cpu(rsp->OutputOffset),
+	memcpy(*out_data,
+	       (char *)&rsp->hdr.ProtocolId + le32_to_cpu(rsp->OutputOffset),
 	       *plen);
 ioctl_exit:
 	free_rsp_buf(resp_buftype, rsp);
@@ -2093,7 +2091,7 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 	}
 
 	if (*buf) {
-		memcpy(*buf, (char *)rsp->hdr.ProtocolId + rsp->DataOffset,
+		memcpy(*buf, (char *)&rsp->hdr.ProtocolId + rsp->DataOffset,
 		       *nbytes);
 		free_rsp_buf(resp_buftype, iov[0].iov_base);
 	} else if (resp_buftype != CIFS_NO_BUFFER) {
