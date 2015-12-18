@@ -165,6 +165,13 @@ static void set_guc_init_params(struct drm_i915_private *dev_priv)
 			i915.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
 	}
 
+	if (guc->ads_obj) {
+		u32 ads = (u32)i915_gem_obj_ggtt_offset(guc->ads_obj)
+				>> PAGE_SHIFT;
+		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
+		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
+	}
+
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (i915.enable_guc_submission) {
 		u32 pgs = i915_gem_obj_ggtt_offset(dev_priv->guc.ctx_pool_obj);
