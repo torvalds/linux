@@ -1913,9 +1913,6 @@ int ib_register_event_handler  (struct ib_event_handler *event_handler);
 int ib_unregister_event_handler(struct ib_event_handler *event_handler);
 void ib_dispatch_event(struct ib_event *event);
 
-int ib_query_device(struct ib_device *device,
-		    struct ib_device_attr *device_attr);
-
 int ib_query_port(struct ib_device *device,
 		  u8 port_num, struct ib_port_attr *port_attr);
 
