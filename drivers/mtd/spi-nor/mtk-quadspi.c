@@ -272,10 +272,10 @@ static int mt8173_nor_write_single_byte(struct mt8173_nor *mt8173_nor,
 	mt8173_nor_set_addr(mt8173_nor, addr);
 
 	for (i = 0; i < length; i++) {
+		writeb(*data++, mt8173_nor->base + MTK_NOR_WDATA_REG);
 		ret = mt8173_nor_execute_cmd(mt8173_nor, MTK_NOR_PIO_WR_CMD);
 		if (ret < 0)
 			return ret;
-		writeb(*data++, mt8173_nor->base + MTK_NOR_WDATA_REG);
 	}
 	return 0;
 }
