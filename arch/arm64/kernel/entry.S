@@ -181,19 +181,20 @@ alternative_endif
 	.macro	irq_stack_entry
 	mov	x19, sp			// preserve the original sp
 
-	this_cpu_ptr irq_stack, x25, x26
-
 	/*
-	 * Check the lowest address on irq_stack for the irq_count value,
-	 * incremented by do_softirq_own_stack if we have re-enabled irqs
-	 * while on the irq_stack.
+	 * Compare sp with the current thread_info, if the top
+	 * ~(THREAD_SIZE - 1) bits match, we are on a task stack, and
+	 * should switch to the irq stack.
 	 */
-	ldr	x26, [x25]
-	cbnz	x26, 9998f		// recursive use?
+	and	x25, x19, #~(THREAD_SIZE - 1)
+	cmp	x25, tsk
+	b.ne	9998f
 
-	/* switch to the irq stack */
+	this_cpu_ptr irq_stack, x25, x26
 	mov	x26, #IRQ_STACK_START_SP
 	add	x26, x25, x26
+
+	/* switch to the irq stack */
 	mov	sp, x26
 
 	/*
@@ -405,10 +406,10 @@ el1_irq:
 	bl	trace_hardirqs_off
 #endif
 
+	get_thread_info tsk
 	irq_handler
 
 #ifdef CONFIG_PREEMPT
-	get_thread_info tsk
 	ldr	w24, [tsk, #TI_PREEMPT]		// get preempt count
 	cbnz	w24, 1f				// preempt count != 0
 	ldr	x0, [tsk, #TI_FLAGS]		// get flags

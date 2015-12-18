@@ -25,23 +25,13 @@
 #include <linux/irq.h>
 #include <linux/smp.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/seq_file.h>
 
 unsigned long irq_err_count;
 
-/*
- * irq stack only needs to be 16 byte aligned - not IRQ_STACK_SIZE aligned.
- * irq_stack[0] is used as irq_count, a non-zero value indicates the stack
- * is in use, and el?_irq() shouldn't switch to it. This is used to detect
- * recursive use of the irq_stack, it is lazily updated by
- * do_softirq_own_stack(), which is called on the irq_stack, before
- * re-enabling interrupts to process softirqs.
- */
+/* irq stack only needs to be 16 byte aligned - not IRQ_STACK_SIZE aligned. */
 DEFINE_PER_CPU(unsigned long [IRQ_STACK_SIZE/sizeof(long)], irq_stack) __aligned(16);
-
-#define IRQ_COUNT()	(*per_cpu(irq_stack, smp_processor_id()))
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
@@ -65,30 +55,4 @@ void __init init_IRQ(void)
 	irqchip_init();
 	if (!handle_arch_irq)
 		panic("No interrupt controller found.");
-}
-
-/*
- * do_softirq_own_stack() is called from irq_exit() before __do_softirq()
- * re-enables interrupts, at which point we may re-enter el?_irq(). We
- * increase irq_count here so that el1_irq() knows that it is already on the
- * irq stack.
- *
- * Called with interrupts disabled, so we don't worry about moving cpu, or
- * being interrupted while modifying irq_count.
- *
- * This function doesn't actually switch stack.
- */
-void do_softirq_own_stack(void)
-{
-	int cpu = smp_processor_id();
-
-	WARN_ON_ONCE(!irqs_disabled());
-
-	if (on_irq_stack(current_stack_pointer, cpu)) {
-		IRQ_COUNT()++;
-		__do_softirq();
-		IRQ_COUNT()--;
-	} else {
-		__do_softirq();
-	}
 }
