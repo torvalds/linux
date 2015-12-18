@@ -1078,6 +1078,37 @@ static uint32_t cz_get_eclk_level(struct amdgpu_device *adev,
 	return i;
 }
 
+static uint32_t cz_get_uvd_level(struct amdgpu_device *adev,
+				 uint32_t clock, uint16_t msg)
+{
+	int i = 0;
+	struct amdgpu_uvd_clock_voltage_dependency_table *table =
+		&adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table;
+
+	switch (msg) {
+	case PPSMC_MSG_SetUvdSoftMin:
+	case PPSMC_MSG_SetUvdHardMin:
+		for (i = 0; i < table->count; i++)
+			if (clock <= table->entries[i].vclk)
+				break;
+		if (i == table->count)
+			i = table->count - 1;
+		break;
+	case PPSMC_MSG_SetUvdSoftMax:
+	case PPSMC_MSG_SetUvdHardMax:
+		for (i = table->count - 1; i >= 0; i--)
+			if (clock >= table->entries[i].vclk)
+				break;
+		if (i < 0)
+			i = 0;
+		break;
+	default:
+		break;
+	}
+
+	return i;
+}
+
 static int cz_program_bootup_state(struct amdgpu_device *adev)
 {
 	struct cz_power_info *pi = cz_get_pi(adev);
@@ -1735,6 +1766,104 @@ static int cz_dpm_unforce_dpm_levels(struct amdgpu_device *adev)
 	DRM_DEBUG("DPM unforce state min=%d, max=%d.\n",
 		  pi->sclk_dpm.soft_min_clk,
 		  pi->sclk_dpm.soft_max_clk);
+
+	return 0;
+}
+
+
+static int cz_dpm_uvd_force_highest(struct amdgpu_device *adev)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+	int ret = 0;
+
+	if (pi->uvd_dpm.soft_min_clk != pi->uvd_dpm.soft_max_clk) {
+		pi->uvd_dpm.soft_min_clk =
+			pi->uvd_dpm.soft_max_clk;
+		ret = cz_send_msg_to_smc_with_parameter(adev,
+				PPSMC_MSG_SetUvdSoftMin,
+				cz_get_uvd_level(adev,
+					pi->uvd_dpm.soft_min_clk,
+					PPSMC_MSG_SetUvdSoftMin));
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int cz_dpm_uvd_force_lowest(struct amdgpu_device *adev)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+	int ret = 0;
+
+	if (pi->uvd_dpm.soft_max_clk != pi->uvd_dpm.soft_min_clk) {
+		pi->uvd_dpm.soft_max_clk = pi->uvd_dpm.soft_min_clk;
+		ret = cz_send_msg_to_smc_with_parameter(adev,
+				PPSMC_MSG_SetUvdSoftMax,
+				cz_get_uvd_level(adev,
+					pi->uvd_dpm.soft_max_clk,
+					PPSMC_MSG_SetUvdSoftMax));
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static uint32_t cz_dpm_get_max_uvd_level(struct amdgpu_device *adev)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+
+	if (!pi->max_uvd_level) {
+		cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxUvdLevel);
+		pi->max_uvd_level = cz_get_argument(adev) + 1;
+	}
+
+	if (pi->max_uvd_level > CZ_MAX_HARDWARE_POWERLEVELS) {
+		DRM_ERROR("Invalid max uvd level!\n");
+		return -EINVAL;
+	}
+
+	return pi->max_uvd_level;
+}
+
+static int cz_dpm_unforce_uvd_dpm_levels(struct amdgpu_device *adev)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+	struct amdgpu_uvd_clock_voltage_dependency_table *dep_table =
+		&adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table;
+	uint32_t level = 0;
+	int ret = 0;
+
+	pi->uvd_dpm.soft_min_clk = dep_table->entries[0].vclk;
+	level = cz_dpm_get_max_uvd_level(adev) - 1;
+	if (level < dep_table->count)
+		pi->uvd_dpm.soft_max_clk = dep_table->entries[level].vclk;
+	else
+		pi->uvd_dpm.soft_max_clk =
+			dep_table->entries[dep_table->count - 1].vclk;
+
+	/* get min/max sclk soft value
+	 * notify SMU to execute */
+	ret = cz_send_msg_to_smc_with_parameter(adev,
+				PPSMC_MSG_SetUvdSoftMin,
+				cz_get_uvd_level(adev,
+					pi->uvd_dpm.soft_min_clk,
+					PPSMC_MSG_SetUvdSoftMin));
+	if (ret)
+		return ret;
+
+	ret = cz_send_msg_to_smc_with_parameter(adev,
+				PPSMC_MSG_SetUvdSoftMax,
+				cz_get_uvd_level(adev,
+					pi->uvd_dpm.soft_max_clk,
+					PPSMC_MSG_SetUvdSoftMax));
+	if (ret)
+		return ret;
+
+	DRM_DEBUG("DPM uvd unforce state min=%d, max=%d.\n",
+		  pi->uvd_dpm.soft_min_clk,
+		  pi->uvd_dpm.soft_max_clk);
 
 	return 0;
 }
