@@ -30,47 +30,6 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
-#define AMDGPU_CS_MAX_PRIORITY		32u
-#define AMDGPU_CS_NUM_BUCKETS		(AMDGPU_CS_MAX_PRIORITY + 1)
-
-/* This is based on the bucket sort with O(n) time complexity.
- * An item with priority "i" is added to bucket[i]. The lists are then
- * concatenated in descending order.
- */
-struct amdgpu_cs_buckets {
-	struct list_head bucket[AMDGPU_CS_NUM_BUCKETS];
-};
-
-static void amdgpu_cs_buckets_init(struct amdgpu_cs_buckets *b)
-{
-	unsigned i;
-
-	for (i = 0; i < AMDGPU_CS_NUM_BUCKETS; i++)
-		INIT_LIST_HEAD(&b->bucket[i]);
-}
-
-static void amdgpu_cs_buckets_add(struct amdgpu_cs_buckets *b,
-				  struct list_head *item, unsigned priority)
-{
-	/* Since buffers which appear sooner in the relocation list are
-	 * likely to be used more often than buffers which appear later
-	 * in the list, the sort mustn't change the ordering of buffers
-	 * with the same priority, i.e. it must be stable.
-	 */
-	list_add_tail(item, &b->bucket[min(priority, AMDGPU_CS_MAX_PRIORITY)]);
-}
-
-static void amdgpu_cs_buckets_get_list(struct amdgpu_cs_buckets *b,
-				       struct list_head *out_list)
-{
-	unsigned i;
-
-	/* Connect the sorted buckets in the output list. */
-	for (i = 0; i < AMDGPU_CS_NUM_BUCKETS; i++) {
-		list_splice(&b->bucket[i], out_list);
-	}
-}
-
 int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		       u32 ip_instance, u32 ring,
 		       struct amdgpu_ring **out_ring)
@@ -382,22 +341,16 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 				union drm_amdgpu_cs *cs)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	struct amdgpu_cs_buckets buckets;
 	struct list_head duplicates;
 	bool need_mmap_lock = false;
-	int i, r;
+	int r;
 
 	INIT_LIST_HEAD(&p->validated);
 
 	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
 	if (p->bo_list) {
 		need_mmap_lock = p->bo_list->has_userptr;
-		amdgpu_cs_buckets_init(&buckets);
-		for (i = 0; i < p->bo_list->num_entries; i++)
-			amdgpu_cs_buckets_add(&buckets, &p->bo_list->array[i].tv.head,
-					      p->bo_list->array[i].priority);
-
-		amdgpu_cs_buckets_get_list(&buckets, &p->validated);
+		amdgpu_bo_list_get_list(p->bo_list, &p->validated);
 	}
 
 	INIT_LIST_HEAD(&duplicates);
