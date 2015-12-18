@@ -85,7 +85,7 @@ ccflags-y := -Wall
 # needed for trace events
 ccflags-y += -I$(src)
 
-all: module tools
+all: module
 
 tools::
 	$(MAKE) -C tools KERNELDIR=$(realpath $(KERNELDIR))
