@@ -163,6 +163,7 @@ MODULE_PARM_DESC(radio_nr, "Radio device numbers");
  * @cap_ctrl:		capture control
  */
 struct fm801 {
+	struct device *dev;
 	int irq;
 
 	unsigned long port;
@@ -190,7 +191,6 @@ struct fm801 {
 	struct snd_ac97 *ac97;
 	struct snd_ac97 *ac97_sec;
 
-	struct pci_dev *pci;
 	struct snd_card *card;
 	struct snd_pcm *pcm;
 	struct snd_rawmidi *rmidi;
@@ -715,6 +715,7 @@ static struct snd_pcm_ops snd_fm801_capture_ops = {
 
 static int snd_fm801_pcm(struct fm801 *chip, int device)
 {
+	struct pci_dev *pdev = to_pci_dev(chip->dev);
 	struct snd_pcm *pcm;
 	int err;
 
@@ -730,7 +731,7 @@ static int snd_fm801_pcm(struct fm801 *chip, int device)
 	chip->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      snd_dma_pci_data(pdev),
 					      chip->multichannel ? 128*1024 : 64*1024, 128*1024);
 
 	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
@@ -1182,7 +1183,7 @@ static int snd_fm801_free(struct fm801 *chip)
 	cmdw |= 0x00c3;
 	fm801_writew(chip, IRQ_MASK, cmdw);
 
-	devm_free_irq(&chip->pci->dev, chip->irq, chip);
+	devm_free_irq(chip->dev, chip->irq, chip);
 
       __end_hw:
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
@@ -1220,7 +1221,7 @@ static int snd_fm801_create(struct snd_card *card,
 		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);
 	chip->card = card;
-	chip->pci = pci;
+	chip->dev = &pci->dev;
 	chip->irq = -1;
 	chip->tea575x_tuner = tea575x_tuner;
 	if ((err = pci_request_regions(pci, "FM801")) < 0)
