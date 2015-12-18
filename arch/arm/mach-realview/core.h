@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/mach-realview/core.h
- *
  *  Copyright (C) 2004 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
  *

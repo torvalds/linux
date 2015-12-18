@@ -1,6 +1,4 @@
 /*
- * include/asm-arm/arch-realview/board-pba8.h
- *
  * Copyright (C) 2008 ARM Limited
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +19,7 @@
 #ifndef __ASM_ARCH_BOARD_PBA8_H
 #define __ASM_ARCH_BOARD_PBA8_H
 
-#include <mach/platform.h>
+#include "platform.h"
 
 /*
  * Peripheral addresses

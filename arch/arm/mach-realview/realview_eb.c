@@ -31,7 +31,7 @@
 #include <linux/platform_data/clk-realview.h>
 #include <linux/reboot.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>
@@ -44,8 +44,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/board-eb.h>
-#include <mach/irqs.h>
+#include "board-eb.h"
+#include "irqs-eb.h"
 
 #include "core.h"
 

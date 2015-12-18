@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-realview/include/mach/irqs-pba8.h
- *
  * Copyright (C) 2008 ARM Limited
  *
  * This program is free software; you can redistribute it and/or modify
@@ -69,26 +67,5 @@
 
 #define IRQ_PBA8_SMC		-1
 #define IRQ_PBA8_SCTL		-1
-
-#define NR_GIC_PBA8		1
-
-/*
- * Only define NR_IRQS if less than NR_IRQS_PBA8
- */
-#define NR_IRQS_PBA8		(IRQ_PBA8_GIC_START + 64)
-
-#if defined(CONFIG_MACH_REALVIEW_PBA8)
-
-#if !defined(NR_IRQS) || (NR_IRQS < NR_IRQS_PBA8)
-#undef NR_IRQS
-#define NR_IRQS			NR_IRQS_PBA8
-#endif
-
-#if !defined(MAX_GIC_NR) || (MAX_GIC_NR < NR_GIC_PBA8)
-#undef MAX_GIC_NR
-#define MAX_GIC_NR		NR_GIC_PBA8
-#endif
-
-#endif	/* CONFIG_MACH_REALVIEW_PBA8 */
 
 #endif	/* __MACH_IRQS_PBA8_H */

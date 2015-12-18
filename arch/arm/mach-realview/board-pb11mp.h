@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-realview/include/mach/board-pb11mp.h
- *
  * Copyright (C) 2008 ARM Limited
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +19,7 @@
 #ifndef __ASM_ARCH_BOARD_PB11MP_H
 #define __ASM_ARCH_BOARD_PB11MP_H
 
-#include <mach/platform.h>
+#include "platform.h"
 
 /*
  * Peripheral addresses

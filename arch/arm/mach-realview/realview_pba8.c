@@ -39,9 +39,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/hardware.h>
-#include <mach/board-pba8.h>
-#include <mach/irqs.h>
+#include "hardware.h"
+#include "board-pba8.h"
+#include "irqs-pba8.h"
 
 #include "core.h"
 

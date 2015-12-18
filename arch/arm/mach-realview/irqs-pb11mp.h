@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-realview/include/mach/irqs-pb11mp.h
- *
  * Copyright (C) 2008 ARM Limited
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,6 +19,7 @@
 #ifndef __MACH_IRQS_PB11MP_H
 #define __MACH_IRQS_PB11MP_H
 
+#define IRQ_LOCALTIMER				29
 #define IRQ_TC11MP_GIC_START			32
 #define IRQ_PB11MP_GIC_START			64
 
@@ -94,29 +93,5 @@
 #define IRQ_PB11MP_USB_GIC1	(IRQ_PB11MP_GIC_START + 29)	/* USB controller */
 #define IRQ_PB11MP_TSPEN	(IRQ_PB11MP_GIC_START + 30)	/* Touchscreen pen */
 #define IRQ_PB11MP_TSKPAD	(IRQ_PB11MP_GIC_START + 31)	/* Touchscreen keypad */
-
-#define IRQ_PB11MP_SMC		-1
-#define IRQ_PB11MP_SCTL		-1
-
-#define NR_GIC_PB11MP		2
-
-/*
- * Only define NR_IRQS if less than NR_IRQS_PB11MP
- */
-#define NR_IRQS_PB11MP		(IRQ_TC11MP_GIC_START + 96)
-
-#if defined(CONFIG_MACH_REALVIEW_PB11MP)
-
-#if !defined(NR_IRQS) || (NR_IRQS < NR_IRQS_PB11MP)
-#undef NR_IRQS
-#define NR_IRQS			NR_IRQS_PB11MP
-#endif
-
-#if !defined(MAX_GIC_NR) || (MAX_GIC_NR < NR_GIC_PB11MP)
-#undef MAX_GIC_NR
-#define MAX_GIC_NR		NR_GIC_PB11MP
-#endif
-
-#endif	/* CONFIG_MACH_REALVIEW_PB11MP */
 
 #endif	/* __MACH_IRQS_PB11MP_H */
