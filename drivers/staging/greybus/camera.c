@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
+#include "es2.h"
 #include "greybus.h"
 #include "greybus_protocols.h"
 
@@ -79,6 +80,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 {
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
+	struct es2_ap_csi_config csi_cfg;
 	unsigned int i;
 	size_t req_size;
 	size_t resp_size;
@@ -145,6 +147,27 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 			goto done;
 		}
 	}
+
+	/* Configure the CSI transmitter. Hardcode the parameters for now. */
+	if (nstreams && !(resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED)) {
+		csi_cfg.csi_id = 1;
+		csi_cfg.clock_mode = 0;
+		csi_cfg.num_lanes = 2;
+		csi_cfg.bus_freq = 250000000;
+
+		ret = es2_ap_csi_setup(gcam->connection->hd, true, &csi_cfg);
+	} else if (nstreams == 0) {
+		csi_cfg.csi_id = 1;
+		csi_cfg.clock_mode = 0;
+		csi_cfg.num_lanes = 0;
+		csi_cfg.bus_freq = 0;
+
+		ret = es2_ap_csi_setup(gcam->connection->hd, false, &csi_cfg);
+	}
+
+	if (ret < 0)
+		gcam_err(gcam, "failed to %s the CSI transmitter\n",
+			 nstreams ? "start" : "stop");
 
 	ret = resp->num_streams;
 
