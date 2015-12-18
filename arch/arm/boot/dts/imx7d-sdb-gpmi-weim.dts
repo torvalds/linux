@@ -5,21 +5,5 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include "imx7d-sdb.dts"
-
-&gpmi{
-	status = "okay";
-};
-
-&sai1{
-	status = "disabled";
-};
-
-&usdhc3{
-	status = "disabled";
-};
-
-&uart5{
-	status = "disabled";
-};
+#include "imx7d-sdb-gpmi-weim.dtsi"

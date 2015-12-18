@@ -5,42 +5,5 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include "imx7d-sdb.dts"
-
-/* disable epdc, conflict with qspi */
-&epdc {
-        status = "disabled";
-};
-
-&iomuxc {
-	qspi1 {
-		pinctrl_qspi1_1: qspi1grp_1 {
-			fsl,pins = <
-				MX7D_PAD_EPDC_DATA00__QSPI_A_DATA0 0x51
-				MX7D_PAD_EPDC_DATA01__QSPI_A_DATA1 0x51
-				MX7D_PAD_EPDC_DATA02__QSPI_A_DATA2 0x51
-				MX7D_PAD_EPDC_DATA03__QSPI_A_DATA3 0x51
-				MX7D_PAD_EPDC_DATA05__QSPI_A_SCLK 0x51
-				MX7D_PAD_EPDC_DATA06__QSPI_A_SS0_B 0x51
-			>;
-		};
-	};
-};
-
-&qspi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_qspi1_1>;
-	status = "okay";
-	ddrsmp=<0>;
-
-	flash0: mx25l51245g@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "macronix,mx25l51245g";
-		spi-max-frequency = <29000000>;
-		/* take off one dummy cycle */
-		spi-nor,ddr-quad-read-dummy = <5>;
-		reg = <0>;
-	};
-};
+#include "imx7d-sdb-qspi.dtsi"

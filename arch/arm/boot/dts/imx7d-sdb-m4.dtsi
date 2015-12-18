@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	memory {
+		linux,usable-memory = <0x80000000 0x1ff00000>,
+				<0xa0000000 0x1ff00000>;
+	};
+};
+
+&adc1 {
+	status = "disabled";
+};
+
+&adc2 {
+	status = "disabled";
+};
+
+&flexcan1 {
+	status = "disabled";
+};
+
+&flexcan2 {
+	status = "disabled";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&gpt3 {
+	status = "disabled";
+};
+
+&gpt4 {
+	status = "disabled";
+};
+
+&ocram {
+	reg = <0x00901000 0xf000>;
+};
+
+&rpmsg{
+	status = "okay";
+};
+
+&uart2 {
+	status = "disabled";
+};
+
+&wdog3{
+	status = "disabled";
+};

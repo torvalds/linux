@@ -1,0 +1,88 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx7d-sdb.dts"
+
+/ {
+	regulators {
+		reg_usb_otg2_vbus: regulator@1 {
+			gpio = <&gpio4 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		reg_pcie: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "MPCIE_3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio_spi 6 GPIO_ACTIVE_HIGH>;
+			regulator-always-on;
+			enable-active-high;
+		};
+	};
+
+	sound-hdmi {
+		cpu-dai = <&sai1>;
+	};
+};
+
+&epdc {
+	pinctrl-0 = <&pinctrl_epdc0>;
+	en-gpios = <&gpio_spi 5 GPIO_ACTIVE_LOW>;
+};
+
+&fec2 {
+	pinctrl-0 = <&pinctrl_enet2>;
+	pinctrl-assert-gpios = <>;
+};
+
+&i2c4 {
+	ov5647_mipi: ov5647_mipi@36 {
+		pwn-gpios = <&gpio_spi 7 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&iomuxc {
+	imx7d-sdb {
+		pinctrl_tsc2046_pendown: tsc2046_pendown {
+			fsl,pins = <
+				MX7D_PAD_EPDC_DATA13__GPIO2_IO13 0x59
+			>;
+		};
+
+		pinctrl_uart5: uart5grp {
+			fsl,pins = <
+				MX7D_PAD_SAI1_TX_BCLK__UART5_DCE_TX 0x79
+				MX7D_PAD_SAI1_RX_DATA__UART5_DCE_RX 0x79
+				MX7D_PAD_SAI1_TX_SYNC__UART5_DCE_CTS 0x79
+				MX7D_PAD_SAI1_TX_DATA__UART5_DCE_RTS 0x79
+			>;
+		};
+
+		pinctrl_uart5dte: uart5dtegrp {
+			fsl,pins = <
+				MX7D_PAD_SAI1_TX_BCLK__UART5_DTE_RX 0x79
+				MX7D_PAD_SAI1_RX_DATA__UART5_DTE_TX 0x79
+				MX7D_PAD_SAI1_TX_SYNC__UART5_DTE_RTS 0x79
+				MX7D_PAD_SAI1_TX_DATA__UART5_DTE_CTS 0x79
+			>;
+		};
+	};
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog_1 &pinctrl_usbotg2_pwr_1>;
+};
+
+&iomuxc_lpsr {
+	pinctrl-0 = <&pinctrl_hog_2>;
+};
+
+&uart5 {
+	fsl,uart-has-rtscts;
+};

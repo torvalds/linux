@@ -5,5 +5,5 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include "imx7d-sdb.dts"
-#include "imx7d-sdb-touch.dtsi"
+#include "imx7d-sdb-reva.dts"
+#include "imx7d-sdb-gpmi-weim.dtsi"
