@@ -1770,7 +1770,6 @@ static int cz_dpm_unforce_dpm_levels(struct amdgpu_device *adev)
 	return 0;
 }
 
-
 static int cz_dpm_uvd_force_highest(struct amdgpu_device *adev)
 {
 	struct cz_power_info *pi = cz_get_pi(adev);
@@ -1864,6 +1863,103 @@ static int cz_dpm_unforce_uvd_dpm_levels(struct amdgpu_device *adev)
 	DRM_DEBUG("DPM uvd unforce state min=%d, max=%d.\n",
 		  pi->uvd_dpm.soft_min_clk,
 		  pi->uvd_dpm.soft_max_clk);
+
+	return 0;
+}
+
+static int cz_dpm_vce_force_highest(struct amdgpu_device *adev)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+	int ret = 0;
+
+	if (pi->vce_dpm.soft_min_clk != pi->vce_dpm.soft_max_clk) {
+		pi->vce_dpm.soft_min_clk =
+			pi->vce_dpm.soft_max_clk;
+		ret = cz_send_msg_to_smc_with_parameter(adev,
+				PPSMC_MSG_SetEclkSoftMin,
+				cz_get_eclk_level(adev,
+					pi->vce_dpm.soft_min_clk,
+					PPSMC_MSG_SetEclkSoftMin));
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int cz_dpm_vce_force_lowest(struct amdgpu_device *adev)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+	int ret = 0;
+
+	if (pi->vce_dpm.soft_max_clk != pi->vce_dpm.soft_min_clk) {
+		pi->vce_dpm.soft_max_clk = pi->vce_dpm.soft_min_clk;
+		ret = cz_send_msg_to_smc_with_parameter(adev,
+				PPSMC_MSG_SetEclkSoftMax,
+				cz_get_uvd_level(adev,
+					pi->vce_dpm.soft_max_clk,
+					PPSMC_MSG_SetEclkSoftMax));
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static uint32_t cz_dpm_get_max_vce_level(struct amdgpu_device *adev)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+
+	if (!pi->max_vce_level) {
+		cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxEclkLevel);
+		pi->max_vce_level = cz_get_argument(adev) + 1;
+	}
+
+	if (pi->max_vce_level > CZ_MAX_HARDWARE_POWERLEVELS) {
+		DRM_ERROR("Invalid max vce level!\n");
+		return -EINVAL;
+	}
+
+	return pi->max_vce_level;
+}
+
+static int cz_dpm_unforce_vce_dpm_levels(struct amdgpu_device *adev)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+	struct amdgpu_vce_clock_voltage_dependency_table *dep_table =
+		&adev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table;
+	uint32_t level = 0;
+	int ret = 0;
+
+	pi->vce_dpm.soft_min_clk = dep_table->entries[0].ecclk;
+	level = cz_dpm_get_max_vce_level(adev) - 1;
+	if (level < dep_table->count)
+		pi->vce_dpm.soft_max_clk = dep_table->entries[level].ecclk;
+	else
+		pi->vce_dpm.soft_max_clk =
+			dep_table->entries[dep_table->count - 1].ecclk;
+
+	/* get min/max sclk soft value
+	 * notify SMU to execute */
+	ret = cz_send_msg_to_smc_with_parameter(adev,
+				PPSMC_MSG_SetEclkSoftMin,
+				cz_get_eclk_level(adev,
+					pi->vce_dpm.soft_min_clk,
+					PPSMC_MSG_SetEclkSoftMin));
+	if (ret)
+		return ret;
+
+	ret = cz_send_msg_to_smc_with_parameter(adev,
+				PPSMC_MSG_SetEclkSoftMax,
+				cz_get_eclk_level(adev,
+					pi->vce_dpm.soft_max_clk,
+					PPSMC_MSG_SetEclkSoftMax));
+	if (ret)
+		return ret;
+
+	DRM_DEBUG("DPM vce unforce state min=%d, max=%d.\n",
+		  pi->vce_dpm.soft_min_clk,
+		  pi->vce_dpm.soft_max_clk);
 
 	return 0;
 }
