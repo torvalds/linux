@@ -4822,7 +4822,7 @@ void glink_core_rx_put_pkt_ctx(struct glink_transport_if *if_ptr,
 
 	ch_set_local_rx_intent_notified(ctx, intent_ptr);
 	if (ctx->notify_rx && (intent_ptr->data || intent_ptr->bounce_buf)) {
-		ctx->notify_rx(ctx, intent_ptr->data ?
+		ctx->notify_rx(ctx->user_priv, intent_ptr->data ?
 				intent_ptr->data : intent_ptr->bounce_buf,
 			       intent_ptr->pkt_size);
 	} else if (ctx->notify_rxv) {
@@ -5123,10 +5123,10 @@ static void tx_work_func(struct work_struct *work)
 	struct channel_ctx *ch_ptr;
 	uint32_t prio;
 	uint32_t tx_ready_head_prio = 0;
-	int ret = 0;
 	struct channel_ctx *tx_ready_head = NULL;
 	bool transmitted_successfully = true;
 	unsigned long flags;
+	int ret = 0;
 
 	GLINK_PERF("%s: worker starting\n", __func__);
 

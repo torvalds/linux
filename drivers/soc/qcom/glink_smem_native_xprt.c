@@ -2048,7 +2048,7 @@ static int qcom_ipc_create_device(struct device_node *node,
 	qidev->dev.bus = &qcom_ipc_bus;
 	qidev->dev.release = qcom_ipc_release_device;
 	qidev->dev.of_node = node;
-	dev_set_drvdata(&qidev->dev, edge_name);
+	dev_set_drvdata(&qidev->dev, (void *)edge_name);
 
 	ret = device_register(&qidev->dev);
 	if (ret) {
