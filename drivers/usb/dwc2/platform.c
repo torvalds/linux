@@ -405,6 +405,25 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	return 0;
 }
 
+/**
+ * dwc2_driver_shutdown() - Called on device shutdown
+ *
+ * @dev: Platform device
+ *
+ * In specific conditions (involving usb hubs) dwc2 devices can create a
+ * lot of interrupts, even to the point of overwhelming devices running
+ * at low frequencies. Some devices need to do special clock handling
+ * at shutdown-time which may bring the system clock below the threshold
+ * of being able to handle the dwc2 interrupts. Disabling dwc2-irqs
+ * prevents reboots/poweroffs from getting stuck in such cases.
+ */
+static void dwc2_driver_shutdown(struct platform_device *dev)
+{
+	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
+
+	disable_irq(hsotg->irq);
+}
+
 static const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
 	{ .compatible = "hisilicon,hi6220-usb", .data = &params_hi6220 },
@@ -435,7 +454,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	struct dwc2_hsotg *hsotg;
 	struct resource *res;
 	int retval;
-	int irq;
 
 	match = of_match_device(dwc2_of_match_table, &dev->dev);
 	if (match && match->data) {
@@ -490,15 +508,15 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	dwc2_set_all_params(hsotg->core_params, -1);
 
-	irq = platform_get_irq(dev, 0);
-	if (irq < 0) {
+	hsotg->irq = platform_get_irq(dev, 0);
+	if (hsotg->irq < 0) {
 		dev_err(&dev->dev, "missing IRQ resource\n");
-		return irq;
+		return hsotg->irq;
 	}
 
 	dev_dbg(hsotg->dev, "registering common handler for irq%d\n",
-		irq);
-	retval = devm_request_irq(hsotg->dev, irq,
+		hsotg->irq);
+	retval = devm_request_irq(hsotg->dev, hsotg->irq,
 				  dwc2_handle_common_intr, IRQF_SHARED,
 				  dev_name(hsotg->dev), hsotg);
 	if (retval)
@@ -523,14 +541,14 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	dwc2_force_dr_mode(hsotg);
 
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
-		retval = dwc2_gadget_init(hsotg, irq);
+		retval = dwc2_gadget_init(hsotg, hsotg->irq);
 		if (retval)
 			goto error;
 		hsotg->gadget_enabled = 1;
 	}
 
 	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		retval = dwc2_hcd_init(hsotg, irq);
+		retval = dwc2_hcd_init(hsotg, hsotg->irq);
 		if (retval) {
 			if (hsotg->gadget_enabled)
 				dwc2_hsotg_remove(hsotg);
@@ -597,6 +615,7 @@ static struct platform_driver dwc2_platform_driver = {
 	},
 	.probe = dwc2_driver_probe,
 	.remove = dwc2_driver_remove,
+	.shutdown = dwc2_driver_shutdown,
 };
 
 module_platform_driver(dwc2_platform_driver);
