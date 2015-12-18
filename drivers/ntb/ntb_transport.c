@@ -1532,7 +1532,7 @@ static int ntb_process_tx(struct ntb_transport_qp *qp,
 
 	if (entry->len > qp->tx_max_frame - sizeof(struct ntb_payload_header)) {
 		if (qp->tx_handler)
-			qp->tx_handler(qp->cb_data, qp, NULL, -EIO);
+			qp->tx_handler(qp, qp->cb_data, NULL, -EIO);
 
 		ntb_list_add(&qp->ntb_tx_free_q_lock, &entry->entry,
 			     &qp->tx_free_q);
