@@ -6,7 +6,7 @@
 CFLAGS_trace.o := -I$(src)
 
 obj-y += airq.o blacklist.o chsc.o cio.o css.o chp.o idset.o isc.o \
-	fcx.o itcw.o crw.o ccwreq.o trace.o
+	fcx.o itcw.o crw.o ccwreq.o trace.o ioasm.o
 ccw_device-objs += device.o device_fsm.o device_ops.o
 ccw_device-objs += device_id.o device_pgid.o device_status.o
 obj-y += ccw_device.o cmf.o
