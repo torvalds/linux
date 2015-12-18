@@ -98,6 +98,7 @@ static struct sst_dev_stream_map dpcm_strm_map[] = {
 	{MERR_DPCM_AUDIO, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA1_IN, SST_TASK_ID_MEDIA, 0},
 	{MERR_DPCM_COMPR, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA0_IN, SST_TASK_ID_MEDIA, 0},
 	{MERR_DPCM_AUDIO, 0, SNDRV_PCM_STREAM_CAPTURE, PIPE_PCM1_OUT, SST_TASK_ID_MEDIA, 0},
+	{MERR_DPCM_DEEP_BUFFER, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA3_IN, SST_TASK_ID_MEDIA, 0},
 };
 
 static int sst_media_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
@@ -506,6 +507,17 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 		.stream_name = "Headset Capture",
 		.channels_min = 1,
 		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+},
+{
+	.name = "deepbuffer-cpu-dai",
+	.ops = &sst_media_dai_ops,
+	.playback = {
+		.stream_name = "Deepbuffer Playback",
+		.channels_min = SST_STEREO,
+		.channels_max = SST_STEREO,
 		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
