@@ -16,15 +16,15 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_interface *intf = to_gb_interface(dev);		\
-	return scnprintf(buf, PAGE_SIZE, "%"#type"\n", intf->field);	\
+	return scnprintf(buf, PAGE_SIZE, type"\n", intf->field);	\
 }									\
 static DEVICE_ATTR_RO(field)
 
-gb_interface_attr(interface_id, u);
-gb_interface_attr(vendor_id, x);
-gb_interface_attr(product_id, x);
-gb_interface_attr(vendor_string, s);
-gb_interface_attr(product_string, s);
+gb_interface_attr(interface_id, "%u");
+gb_interface_attr(vendor_id, "0x%08x");
+gb_interface_attr(product_id, "0x%08x");
+gb_interface_attr(vendor_string, "%s");
+gb_interface_attr(product_string, "%s");
 
 static struct attribute *interface_attrs[] = {
 	&dev_attr_interface_id.attr,
