@@ -83,16 +83,6 @@
 	regulator-max-microvolt = <1800000>;
 };
 
-&vaux1 {
-	regulator-min-microvolt = <3000000>;
-	regulator-max-microvolt = <3000000>;
-};
-
-&vaux4 {
-	regulator-min-microvolt = <1800000>;
-	regulator-max-microvolt = <1800000>;
-};
-
 &mcbsp2 {
 	status = "okay";
 };
