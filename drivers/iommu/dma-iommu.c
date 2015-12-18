@@ -194,6 +194,7 @@ static struct page **__iommu_dma_alloc_pages(unsigned int count, gfp_t gfp)
 {
 	struct page **pages;
 	unsigned int i = 0, array_size = count * sizeof(*pages);
+	unsigned int order = MAX_ORDER;
 
 	if (array_size <= PAGE_SIZE)
 		pages = kzalloc(array_size, GFP_KERNEL);
@@ -207,14 +208,15 @@ static struct page **__iommu_dma_alloc_pages(unsigned int count, gfp_t gfp)
 
 	while (count) {
 		struct page *page = NULL;
-		int j, order = __fls(count);
+		int j;
 
 		/*
 		 * Higher-order allocations are a convenience rather
 		 * than a necessity, hence using __GFP_NORETRY until
 		 * falling back to single-page allocations.
 		 */
-		for (order = min(order, MAX_ORDER); order > 0; order--) {
+		for (order = min_t(unsigned int, order, __fls(count));
+		     order > 0; order--) {
 			page = alloc_pages(gfp | __GFP_NORETRY, order);
 			if (!page)
 				continue;
