@@ -1385,9 +1385,12 @@ static s32 Handle_ConnectTimeout(struct host_if_drv *hif_drv)
 
 	hif_drv->usr_conn_req.ssid_len = 0;
 	kfree(hif_drv->usr_conn_req.pu8ssid);
+	hif_drv->usr_conn_req.pu8ssid = NULL;
 	kfree(hif_drv->usr_conn_req.pu8bssid);
+	hif_drv->usr_conn_req.pu8bssid = NULL;
 	hif_drv->usr_conn_req.ies_len = 0;
 	kfree(hif_drv->usr_conn_req.ies);
+	hif_drv->usr_conn_req.ies = NULL;
 
 	eth_zero_addr(wilc_connected_ssid);
 
@@ -1641,9 +1644,12 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 			strConnectInfo.pu8ReqIEs = NULL;
 			hif_drv->usr_conn_req.ssid_len = 0;
 			kfree(hif_drv->usr_conn_req.pu8ssid);
+			hif_drv->usr_conn_req.pu8ssid = NULL;
 			kfree(hif_drv->usr_conn_req.pu8bssid);
+			hif_drv->usr_conn_req.pu8bssid = NULL;
 			hif_drv->usr_conn_req.ies_len = 0;
 			kfree(hif_drv->usr_conn_req.ies);
+			hif_drv->usr_conn_req.ies = NULL;
 		} else if ((u8MacStatus == MAC_DISCONNECTED) &&
 			   (hif_drv->hif_state == HOST_IF_CONNECTED)) {
 			PRINT_D(HOSTINF_DBG, "Received MAC_DISCONNECTED from the FW\n");
@@ -1677,9 +1683,12 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct host_if_drv *hif_drv,
 
 			hif_drv->usr_conn_req.ssid_len = 0;
 			kfree(hif_drv->usr_conn_req.pu8ssid);
+			hif_drv->usr_conn_req.pu8ssid = NULL;
 			kfree(hif_drv->usr_conn_req.pu8bssid);
+			hif_drv->usr_conn_req.pu8bssid = NULL;
 			hif_drv->usr_conn_req.ies_len = 0;
 			kfree(hif_drv->usr_conn_req.ies);
+			hif_drv->usr_conn_req.ies = NULL;
 
 			if (join_req && join_req_drv == hif_drv) {
 				kfree(join_req);
@@ -2049,9 +2058,12 @@ static void Handle_Disconnect(struct host_if_drv *hif_drv)
 
 		hif_drv->usr_conn_req.ssid_len = 0;
 		kfree(hif_drv->usr_conn_req.pu8ssid);
+		hif_drv->usr_conn_req.pu8ssid = NULL;
 		kfree(hif_drv->usr_conn_req.pu8bssid);
+		hif_drv->usr_conn_req.pu8bssid = NULL;
 		hif_drv->usr_conn_req.ies_len = 0;
 		kfree(hif_drv->usr_conn_req.ies);
+		hif_drv->usr_conn_req.ies = NULL;
 
 		if (join_req && join_req_drv == hif_drv) {
 			kfree(join_req);
