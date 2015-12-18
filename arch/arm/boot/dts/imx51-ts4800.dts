@@ -30,6 +30,53 @@
 			clock-frequency = <24576000>;
 		};
 	};
+
+	backlight_reg: regulator-backlight {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enable_lcd>;
+		regulator-name = "enable_lcd_reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio4 9 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 78770>;
+		brightness-levels = <0 150 200 255>;
+		default-brightness-level = <1>;
+		power-supply = <&backlight_reg>;
+	};
+
+	display0: display@di0 {
+		compatible = "fsl,imx-parallel-display";
+		interface-pix-fmt = "rgb24";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lcd>;
+
+		display-timings {
+			800x480p60 {
+				native-mode;
+				clock-frequency = <30066000>;
+				hactive = <800>;
+				vactive = <480>;
+				hfront-porch = <50>;
+				hback-porch = <70>;
+				hsync-len = <50>;
+				vback-porch = <0>;
+				vfront-porch = <0>;
+				vsync-len = <50>;
+			};
+		};
+
+		port@0 {
+			display0_in: endpoint {
+				remote-endpoint = <&ipu_di0_disp0>;
+			};
+		};
+	};
 };
 
 &esdhc1 {
@@ -58,6 +105,16 @@
 		compatible = "stm,m41t00";
 		reg = <0x68>;
 	};
+};
+
+&ipu_di0_disp0 {
+	remote-endpoint = <&display0_in>;
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm_backlight>;
+	status = "okay";
 };
 
 &uart1 {
@@ -115,6 +172,12 @@
 		>;
 	};
 
+	pinctrl_enable_lcd: enablelcdgrp {
+		fsl,pins = <
+			MX51_PAD_CSI2_D12__GPIO4_9		0x1c5
+		>;
+	};
+
 	pinctrl_esdhc1: esdhc1grp {
 		fsl,pins = <
 			MX51_PAD_SD1_CMD__SD1_CMD		0x400020d5
@@ -156,6 +219,45 @@
 		fsl,pins = <
 			MX51_PAD_KEY_COL4__I2C2_SCL		0x400001ed
 			MX51_PAD_KEY_COL5__I2C2_SDA		0x400001ed
+		>;
+	};
+
+	pinctrl_lcd: lcdgrp {
+		fsl,pins = <
+			MX51_PAD_DISP1_DAT0__DISP1_DAT0		0x5
+			MX51_PAD_DISP1_DAT1__DISP1_DAT1		0x5
+			MX51_PAD_DISP1_DAT2__DISP1_DAT2		0x5
+			MX51_PAD_DISP1_DAT3__DISP1_DAT3		0x5
+			MX51_PAD_DISP1_DAT4__DISP1_DAT4		0x5
+			MX51_PAD_DISP1_DAT5__DISP1_DAT5		0x5
+			MX51_PAD_DISP1_DAT6__DISP1_DAT6		0x5
+			MX51_PAD_DISP1_DAT7__DISP1_DAT7		0x5
+			MX51_PAD_DISP1_DAT8__DISP1_DAT8		0x5
+			MX51_PAD_DISP1_DAT9__DISP1_DAT9		0x5
+			MX51_PAD_DISP1_DAT10__DISP1_DAT10	0x5
+			MX51_PAD_DISP1_DAT11__DISP1_DAT11	0x5
+			MX51_PAD_DISP1_DAT12__DISP1_DAT12	0x5
+			MX51_PAD_DISP1_DAT13__DISP1_DAT13	0x5
+			MX51_PAD_DISP1_DAT14__DISP1_DAT14	0x5
+			MX51_PAD_DISP1_DAT15__DISP1_DAT15	0x5
+			MX51_PAD_DISP1_DAT16__DISP1_DAT16	0x5
+			MX51_PAD_DISP1_DAT17__DISP1_DAT17	0x5
+			MX51_PAD_DISP1_DAT18__DISP1_DAT18	0x5
+			MX51_PAD_DISP1_DAT19__DISP1_DAT19	0x5
+			MX51_PAD_DISP1_DAT20__DISP1_DAT20	0x5
+			MX51_PAD_DISP1_DAT21__DISP1_DAT21	0x5
+			MX51_PAD_DISP1_DAT22__DISP1_DAT22	0x5
+			MX51_PAD_DISP1_DAT23__DISP1_DAT23	0x5
+			MX51_PAD_DI1_PIN2__DI1_PIN2		0x5
+			MX51_PAD_DI1_PIN3__DI1_PIN3		0x5
+			MX51_PAD_DI2_DISP_CLK__DI2_DISP_CLK	0x5
+			MX51_PAD_DI_GP4__DI2_PIN15		0x5
+		>;
+	};
+
+	pinctrl_pwm_backlight: backlightgrp {
+		fsl,pins = <
+			MX51_PAD_GPIO1_2__PWM1_PWMO		0x80000000
 		>;
 	};
 
