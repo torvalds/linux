@@ -3210,26 +3210,26 @@ int wilc_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
-		     u8 u8PtkKeylen, const u8 *mac_addr,
-		     const u8 *pu8RxMic, const u8 *pu8TxMic,
-		     u8 mode, u8 u8Ciphermode, u8 u8Idx)
+int wilc_add_ptk(struct host_if_drv *hif_drv, const u8 *ptk,
+		     u8 ptk_key_len, const u8 *mac_addr,
+		     const u8 *rx_mic, const u8 *tx_mic,
+		     u8 mode, u8 cipher_mode, u8 index)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
-	u8 u8KeyLen = u8PtkKeylen;
-	u32 i;
+	u8 key_len = ptk_key_len;
+	int i;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
 		return -EFAULT;
 	}
 
-	if (pu8RxMic)
-		u8KeyLen += RX_MIC_KEY_LEN;
+	if (rx_mic)
+		key_len += RX_MIC_KEY_LEN;
 
-	if (pu8TxMic)
-		u8KeyLen += TX_MIC_KEY_LEN;
+	if (tx_mic)
+		key_len += TX_MIC_KEY_LEN;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
@@ -3237,32 +3237,33 @@ s32 wilc_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 	msg.body.key_info.type = WPA_PTK;
 	if (mode == AP_MODE) {
 		msg.body.key_info.action = ADDKEY_AP;
-		msg.body.key_info.attr.wpa.index = u8Idx;
+		msg.body.key_info.attr.wpa.index = index;
 	}
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
 
-	msg.body.key_info.attr.wpa.key = kmalloc(u8PtkKeylen, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wpa.key, pu8Ptk, u8PtkKeylen);
+	msg.body.key_info.attr.wpa.key = kmemdup(ptk, ptk_key_len, GFP_KERNEL);
+	if (!msg.body.key_info.attr.wpa.key)
+		return -ENOMEM;
 
-	if (pu8RxMic) {
-		memcpy(msg.body.key_info.attr.wpa.key + 16, pu8RxMic, RX_MIC_KEY_LEN);
+	if (rx_mic) {
+		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic, RX_MIC_KEY_LEN);
 		if (INFO) {
 			for (i = 0; i < RX_MIC_KEY_LEN; i++)
-				PRINT_INFO(CFG80211_DBG, "PairwiseRx[%d] = %x\n", i, pu8RxMic[i]);
+				PRINT_INFO(CFG80211_DBG, "PairwiseRx[%d] = %x\n", i, rx_mic[i]);
 		}
 	}
-	if (pu8TxMic) {
-		memcpy(msg.body.key_info.attr.wpa.key + 24, pu8TxMic, TX_MIC_KEY_LEN);
+	if (tx_mic) {
+		memcpy(msg.body.key_info.attr.wpa.key + 24, tx_mic, TX_MIC_KEY_LEN);
 		if (INFO) {
 			for (i = 0; i < TX_MIC_KEY_LEN; i++)
-				PRINT_INFO(CFG80211_DBG, "PairwiseTx[%d] = %x\n", i, pu8TxMic[i]);
+				PRINT_INFO(CFG80211_DBG, "PairwiseTx[%d] = %x\n", i, tx_mic[i]);
 		}
 	}
 
-	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
+	msg.body.key_info.attr.wpa.key_len = key_len;
 	msg.body.key_info.attr.wpa.mac_addr = mac_addr;
-	msg.body.key_info.attr.wpa.mode = u8Ciphermode;
+	msg.body.key_info.attr.wpa.mode = cipher_mode;
 	msg.drv = hif_drv;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
@@ -3275,15 +3276,15 @@ s32 wilc_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 	return result;
 }
 
-s32 wilc_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
-			u8 u8GtkKeylen,	u8 u8KeyIdx,
-			u32 u32KeyRSClen, const u8 *KeyRSC,
-			const u8 *pu8RxMic, const u8 *pu8TxMic,
-			u8 mode, u8 u8Ciphermode)
+int wilc_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *rx_gtk,
+			u8 gtk_key_len,	u8 index,
+			u32 key_rsc_len, const u8 *key_rsc,
+			const u8 *rx_mic, const u8 *tx_mic,
+			u8 mode, u8 cipher_mode)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
-	u8 u8KeyLen = u8GtkKeylen;
+	u8 key_len = gtk_key_len;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -3291,15 +3292,18 @@ s32 wilc_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 	}
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	if (pu8RxMic)
-		u8KeyLen += RX_MIC_KEY_LEN;
+	if (rx_mic)
+		key_len += RX_MIC_KEY_LEN;
 
-	if (pu8TxMic)
-		u8KeyLen += TX_MIC_KEY_LEN;
+	if (tx_mic)
+		key_len += TX_MIC_KEY_LEN;
 
-	if (KeyRSC) {
-		msg.body.key_info.attr.wpa.seq = kmalloc(u32KeyRSClen, GFP_KERNEL);
-		memcpy(msg.body.key_info.attr.wpa.seq, KeyRSC, u32KeyRSClen);
+	if (key_rsc) {
+		msg.body.key_info.attr.wpa.seq = kmemdup(key_rsc,
+							 key_rsc_len,
+							 GFP_KERNEL);
+		if (!msg.body.key_info.attr.wpa.seq)
+			return -ENOMEM;
 	}
 
 	msg.id = HOST_IF_MSG_KEY;
@@ -3308,25 +3312,28 @@ s32 wilc_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 
 	if (mode == AP_MODE) {
 		msg.body.key_info.action = ADDKEY_AP;
-		msg.body.key_info.attr.wpa.mode = u8Ciphermode;
+		msg.body.key_info.attr.wpa.mode = cipher_mode;
 	}
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
 
-	msg.body.key_info.attr.wpa.key = kmalloc(u8KeyLen, GFP_KERNEL);
-	memcpy(msg.body.key_info.attr.wpa.key, pu8RxGtk, u8GtkKeylen);
+	msg.body.key_info.attr.wpa.key = kmemdup(rx_gtk,
+						 key_len,
+						 GFP_KERNEL);
+	if (!msg.body.key_info.attr.wpa.key)
+		return -ENOMEM;
 
-	if (pu8RxMic)
-		memcpy(msg.body.key_info.attr.wpa.key + 16, pu8RxMic,
+	if (rx_mic)
+		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic,
 		       RX_MIC_KEY_LEN);
 
-	if (pu8TxMic)
-		memcpy(msg.body.key_info.attr.wpa.key + 24, pu8TxMic,
+	if (tx_mic)
+		memcpy(msg.body.key_info.attr.wpa.key + 24, tx_mic,
 		       TX_MIC_KEY_LEN);
 
-	msg.body.key_info.attr.wpa.index = u8KeyIdx;
-	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
-	msg.body.key_info.attr.wpa.seq_len = u32KeyRSClen;
+	msg.body.key_info.attr.wpa.index = index;
+	msg.body.key_info.attr.wpa.key_len = key_len;
+	msg.body.key_info.attr.wpa.seq_len = key_rsc_len;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
@@ -3407,18 +3414,6 @@ s32 wilc_set_mac_address(struct host_if_drv *hif_drv, u8 *pu8MacAddress)
 		PRINT_ER("Failed to send message queue: Set mac address\n");
 
 	return result;
-}
-
-s32 host_int_set_start_scan_req(struct host_if_drv *hif_drv, u8 scanSource)
-{
-	struct wid wid;
-
-	wid.id = (u16)WID_START_SCAN_REQ;
-	wid.type = WID_CHAR;
-	wid.val = (s8 *)&scanSource;
-	wid.size = sizeof(char);
-
-	return 0;
 }
 
 s32 wilc_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
