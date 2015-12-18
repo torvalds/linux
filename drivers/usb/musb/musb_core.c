@@ -2136,6 +2136,10 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	pm_runtime_get_sync(musb->controller);
 
+	status = usb_phy_init(musb->xceiv);
+	if (status < 0)
+		goto err_usb_phy_init;
+
 	if (use_dma && dev->dma_mask) {
 		musb->dma_controller =
 			musb_dma_controller_create(musb, musb->mregs);
@@ -2256,7 +2260,11 @@ fail3:
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
 		musb_dma_controller_destroy(musb->dma_controller);
+
 fail2_5:
+	usb_phy_shutdown(musb->xceiv);
+
+err_usb_phy_init:
 	pm_runtime_put_sync(musb->controller);
 
 fail2:
@@ -2316,6 +2324,8 @@ static int musb_remove(struct platform_device *pdev)
 
 	if (musb->dma_controller)
 		musb_dma_controller_destroy(musb->dma_controller);
+
+	usb_phy_shutdown(musb->xceiv);
 
 	cancel_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
