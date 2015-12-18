@@ -11,8 +11,6 @@
 #include <asm-generic/irq.h>
 #include <asm/thread_info.h>
 
-#define __ARCH_HAS_DO_SOFTIRQ
-
 struct pt_regs;
 
 DECLARE_PER_CPU(unsigned long [IRQ_STACK_SIZE/sizeof(long)], irq_stack);
