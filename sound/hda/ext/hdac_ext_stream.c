@@ -111,6 +111,7 @@ void snd_hdac_stream_free_all(struct hdac_ext_bus *ebus)
 	while (!list_empty(&bus->stream_list)) {
 		s = list_first_entry(&bus->stream_list, struct hdac_stream, list);
 		stream = stream_to_hdac_ext_stream(s);
+		snd_hdac_ext_stream_decouple(ebus, stream, false);
 		list_del(&s->list);
 		kfree(stream);
 	}
