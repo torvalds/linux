@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_ARCH_REGS_PMU_H
-#define __ASM_ARCH_REGS_PMU_H __FILE__
+#ifndef __LINUX_SOC_EXYNOS_REGS_PMU_H
+#define __LINUX_SOC_EXYNOS_REGS_PMU_H __FILE__
 
 #define S5P_CENTRAL_SEQ_CONFIGURATION		0x0200
 
@@ -690,4 +690,4 @@
 					 | EXYNOS5420_KFC_USE_STANDBY_WFI2  \
 					 | EXYNOS5420_KFC_USE_STANDBY_WFI3)
 
-#endif /* __ASM_ARCH_REGS_PMU_H */
+#endif /* __LINUX_SOC_EXYNOS_REGS_PMU_H */

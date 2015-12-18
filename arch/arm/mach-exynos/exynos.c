@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/irqchip.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -31,7 +32,6 @@
 
 #include "common.h"
 #include "mfc.h"
-#include "regs-pmu.h"
 
 void __iomem *pmu_base_addr;
 

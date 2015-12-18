@@ -15,10 +15,10 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
-#include <asm/cputype.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
+#include <linux/soc/samsung/exynos-pmu.h>
 
-#include "exynos-pmu.h"
-#include "regs-pmu.h"
+#include <asm/cputype.h>
 
 #define PMU_TABLE_END	(-1U)
 
