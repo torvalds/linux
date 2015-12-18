@@ -159,6 +159,12 @@
 				syscon = <&syscon 0xe>;
 			};
 		};
+
+		touchscreen {
+			compatible = "technologic,ts4800-ts";
+			reg = <0x12000 0x1000>;
+			syscon = <&syscon 0x10 6>;
+		};
 	};
 };
 
