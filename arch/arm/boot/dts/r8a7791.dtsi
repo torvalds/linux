@@ -1530,7 +1530,7 @@
 	};
 
 	pci0: pci@ee090000 {
-		compatible = "renesas,pci-r8a7791";
+		compatible = "renesas,pci-r8a7791", "renesas,pci-rcar-gen2";
 		device_type = "pci";
 		reg = <0 0xee090000 0 0xc00>,
 		      <0 0xee080000 0 0x1100>;
@@ -1565,7 +1565,7 @@
 	};
 
 	pci1: pci@ee0d0000 {
-		compatible = "renesas,pci-r8a7791";
+		compatible = "renesas,pci-r8a7791", "renesas,pci-rcar-gen2";
 		device_type = "pci";
 		reg = <0 0xee0d0000 0 0xc00>,
 		      <0 0xee0c0000 0 0x1100>;
