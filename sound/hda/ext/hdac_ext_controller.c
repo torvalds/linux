@@ -77,6 +77,12 @@ int snd_hdac_ext_bus_parse_capabilities(struct hdac_ext_bus *ebus)
 			ebus->spbcap = bus->remap_addr + offset;
 			break;
 
+		case AZX_DRSM_CAP_ID:
+			/* DMA resume  capability found, handler function */
+			dev_dbg(bus->dev, "Found DRSM capability\n");
+			ebus->drsmcap = bus->remap_addr + offset;
+			break;
+
 		default:
 			dev_dbg(bus->dev, "Unknown capability %d\n", cur_cap);
 			break;
