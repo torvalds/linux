@@ -80,13 +80,12 @@ static void gfs2_set_iop(struct inode *inode)
  * @sb: The super block
  * @no_addr: The inode number
  * @type: The type of the inode
- * non_block: Can we block on inodes that are being freed?
  *
  * Returns: A VFS inode, or an error
  */
 
 struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
-				u64 no_addr, u64 no_formal_ino, int non_block)
+				u64 no_addr, u64 no_formal_ino)
 {
 	struct inode *inode;
 	struct gfs2_inode *ip;
@@ -170,7 +169,7 @@ struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 	if (error)
 		goto fail;
 
-	inode = gfs2_inode_lookup(sb, DT_UNKNOWN, no_addr, 0, 1);
+	inode = gfs2_inode_lookup(sb, DT_UNKNOWN, no_addr, 0);
 	if (IS_ERR(inode))
 		goto fail;
 
