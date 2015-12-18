@@ -27,7 +27,7 @@
 #include "util/session.h"
 #include "util/tool.h"
 
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 
 #include "util/thread.h"

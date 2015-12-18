@@ -12,7 +12,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/parse-events.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/session.h"
 #include "util/data.h"
 #include "util/debug.h"

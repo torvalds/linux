@@ -352,7 +352,8 @@ void sighandler_dump_stack(int sig)
 {
 	psignal(sig, "perf");
 	dump_stack();
-	exit(sig);
+	signal(sig, SIG_DFL);
+	raise(sig);
 }
 
 int parse_nsec_time(const char *str, u64 *ptime)

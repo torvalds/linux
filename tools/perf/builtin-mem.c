@@ -1,7 +1,7 @@
 #include "builtin.h"
 #include "perf.h"
 
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 #include "util/tool.h"
 #include "util/session.h"

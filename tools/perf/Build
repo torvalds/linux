@@ -36,7 +36,10 @@ paths += -DPERF_MAN_PATH="BUILD_STR($(mandir_SQ))"
 
 CFLAGS_builtin-help.o      += $(paths)
 CFLAGS_builtin-timechart.o += $(paths)
-CFLAGS_perf.o              += -DPERF_HTML_PATH="BUILD_STR($(htmldir_SQ))" -include $(OUTPUT)PERF-VERSION-FILE
+CFLAGS_perf.o              += -DPERF_HTML_PATH="BUILD_STR($(htmldir_SQ))"	\
+			      -DPERF_EXEC_PATH="BUILD_STR($(perfexecdir_SQ))"	\
+			      -DPREFIX="BUILD_STR($(prefix_SQ))"		\
+			      -include $(OUTPUT)PERF-VERSION-FILE
 CFLAGS_builtin-trace.o	   += -DSTRACE_GROUPS_DIR="BUILD_STR($(STRACE_GROUPS_DIR_SQ))"
 
 libperf-y += util/

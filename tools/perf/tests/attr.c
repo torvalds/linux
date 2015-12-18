@@ -24,7 +24,7 @@
 #include <linux/kernel.h>
 #include "../perf.h"
 #include "util.h"
-#include "exec_cmd.h"
+#include <subcmd/exec-cmd.h>
 #include "tests.h"
 
 #define ENV "PERF_TEST_ATTR"
@@ -164,7 +164,7 @@ int test__attr(int subtest __maybe_unused)
 		return run_dir("./tests", "./perf");
 
 	/* Then installed path. */
-	snprintf(path_dir,  PATH_MAX, "%s/tests", perf_exec_path());
+	snprintf(path_dir,  PATH_MAX, "%s/tests", get_argv_exec_path());
 	snprintf(path_perf, PATH_MAX, "%s/perf", BINDIR);
 
 	if (!lstat(path_dir, &st) &&

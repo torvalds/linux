@@ -20,6 +20,7 @@ tools/lib/traceevent
 tools/lib/bpf
 tools/lib/api
 tools/lib/bpf
+tools/lib/subcmd
 tools/lib/hweight.c
 tools/lib/rbtree.c
 tools/lib/string.c
