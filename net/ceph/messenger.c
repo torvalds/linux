@@ -3358,9 +3358,7 @@ static void ceph_msg_free(struct ceph_msg *m)
 static void ceph_msg_release(struct kref *kref)
 {
 	struct ceph_msg *m = container_of(kref, struct ceph_msg, kref);
-	LIST_HEAD(data);
-	struct list_head *links;
-	struct list_head *next;
+	struct ceph_msg_data *data, *next;
 
 	dout("%s %p\n", __func__, m);
 	WARN_ON(!list_empty(&m->list_head));
@@ -3373,12 +3371,8 @@ static void ceph_msg_release(struct kref *kref)
 		m->middle = NULL;
 	}
 
-	list_splice_init(&m->data, &data);
-	list_for_each_safe(links, next, &data) {
-		struct ceph_msg_data *data;
-
-		data = list_entry(links, struct ceph_msg_data, links);
-		list_del_init(links);
+	list_for_each_entry_safe(data, next, &m->data, links) {
+		list_del_init(&data->links);
 		ceph_msg_data_destroy(data);
 	}
 	m->data_length = 0;
