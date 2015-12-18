@@ -39,6 +39,13 @@ static const struct snd_soc_dapm_widget byt_rt5640_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route byt_rt5640_audio_map[] = {
+	{"AIF1 Playback", NULL, "ssp2 Tx"},
+	{"ssp2 Tx", NULL, "codec_out0"},
+	{"ssp2 Tx", NULL, "codec_out1"},
+	{"codec_in0", NULL, "ssp2 Rx"},
+	{"codec_in1", NULL, "ssp2 Rx"},
+	{"ssp2 Rx", NULL, "AIF1 Capture"},
+
 	{"Headset Mic", NULL, "MICBIAS1"},
 	{"IN2P", NULL, "Headset Mic"},
 	{"Headphone", NULL, "HPOL"},
@@ -47,15 +54,6 @@ static const struct snd_soc_dapm_route byt_rt5640_audio_map[] = {
 	{"Speaker", NULL, "SPOLN"},
 	{"Speaker", NULL, "SPORP"},
 	{"Speaker", NULL, "SPORN"},
-	{"Internal Mic", NULL, "MICBIAS1"},
-	{"IN1P", NULL, "Internal Mic"},
-
-	{"AIF1 Playback", NULL, "ssp2 Tx"},
-	{"ssp2 Tx", NULL, "codec_out0"},
-	{"ssp2 Tx", NULL, "codec_out1"},
-	{"codec_in0", NULL, "ssp2 Rx"},
-	{"codec_in1", NULL, "ssp2 Rx"},
-	{"ssp2 Rx", NULL, "AIF1 Capture"},
 };
 
 static const struct snd_soc_dapm_route byt_rt5640_intmic_dmic1_map[] = {
@@ -144,6 +142,54 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 	},
 	{}
 };
+
+static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
+{
+	int ret;
+	struct snd_soc_codec *codec = runtime->codec;
+	struct snd_soc_card *card = runtime->card;
+	const struct snd_soc_dapm_route *custom_map;
+	int num_routes;
+
+	card->dapm.idle_bias_off = true;
+
+	ret = snd_soc_add_card_controls(card, byt_rt5640_controls,
+					ARRAY_SIZE(byt_rt5640_controls));
+	if (ret) {
+		dev_err(card->dev, "unable to add card controls\n");
+		return ret;
+	}
+
+	dmi_check_system(byt_rt5640_quirk_table);
+	switch (BYT_RT5640_MAP(byt_rt5640_quirk)) {
+	case BYT_RT5640_IN1_MAP:
+		custom_map = byt_rt5640_intmic_in1_map;
+		num_routes = ARRAY_SIZE(byt_rt5640_intmic_in1_map);
+		break;
+	case BYT_RT5640_DMIC2_MAP:
+		custom_map = byt_rt5640_intmic_dmic2_map;
+		num_routes = ARRAY_SIZE(byt_rt5640_intmic_dmic2_map);
+		break;
+	default:
+		custom_map = byt_rt5640_intmic_dmic1_map;
+		num_routes = ARRAY_SIZE(byt_rt5640_intmic_dmic1_map);
+	}
+
+	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	if (ret)
+		return ret;
+
+	if (byt_rt5640_quirk & BYT_RT5640_DMIC_EN) {
+		ret = rt5640_dmic_enable(codec, 0, 0);
+		if (ret)
+			return ret;
+	}
+
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Speaker");
+
+	return ret;
+}
 
 static const struct snd_soc_pcm_stream byt_rt5640_dai_params = {
 	.formats = SNDRV_PCM_FMTBIT_S24_LE,
@@ -244,12 +290,13 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 		.ignore_suspend = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		.init = byt_rt5640_init,
 		.ops = &byt_rt5640_be_ssp2_ops,
 	},
 };
 
 /* SoC card */
-static struct snd_soc_card snd_soc_card_byt_rt5640 = {
+static struct snd_soc_card byt_rt5640_card = {
 	.name = "bytcr-rt5640",
 	.owner = THIS_MODULE,
 	.dai_link = byt_rt5640_dais,
@@ -258,8 +305,7 @@ static struct snd_soc_card snd_soc_card_byt_rt5640 = {
 	.num_dapm_widgets = ARRAY_SIZE(byt_rt5640_widgets),
 	.dapm_routes = byt_rt5640_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(byt_rt5640_audio_map),
-	.controls = byt_rt5640_controls,
-	.num_controls = ARRAY_SIZE(byt_rt5640_controls),
+	.fully_routed = true,
 };
 
 static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
@@ -267,16 +313,16 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	int ret_val = 0;
 
 	/* register the soc card */
-	snd_soc_card_byt_rt5640.dev = &pdev->dev;
+	byt_rt5640_card.dev = &pdev->dev;
 
-	ret_val = devm_snd_soc_register_card(&pdev->dev,
-					&snd_soc_card_byt_rt5640);
+	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5640_card);
+
 	if (ret_val) {
 		dev_err(&pdev->dev, "devm_snd_soc_register_card failed %d\n",
 			ret_val);
 		return ret_val;
 	}
-	platform_set_drvdata(pdev, &snd_soc_card_byt_rt5640);
+	platform_set_drvdata(pdev, &byt_rt5640_card);
 	return ret_val;
 }
 
