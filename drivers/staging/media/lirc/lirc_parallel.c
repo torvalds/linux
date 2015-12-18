@@ -647,7 +647,7 @@ static int __init lirc_parallel_init(void)
 		goto exit_device_put;
 
 	pport = parport_find_base(io);
-	if (pport == NULL) {
+	if (!pport) {
 		pr_notice("no port at %x found\n", io);
 		result = -ENXIO;
 		goto exit_device_put;
@@ -656,7 +656,7 @@ static int __init lirc_parallel_init(void)
 					   pf, kf, lirc_lirc_irq_handler, 0,
 					   NULL);
 	parport_put_port(pport);
-	if (ppdevice == NULL) {
+	if (!ppdevice) {
 		pr_notice("parport_register_device() failed\n");
 		result = -ENXIO;
 		goto exit_device_put;
