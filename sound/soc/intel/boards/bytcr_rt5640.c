@@ -32,22 +32,21 @@
 static const struct snd_soc_dapm_widget byt_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_MIC("Int Mic", NULL),
-	SND_SOC_DAPM_SPK("Ext Spk", NULL),
+	SND_SOC_DAPM_MIC("Internal Mic", NULL),
+	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
 static const struct snd_soc_dapm_route byt_audio_map[] = {
-	{"IN2P", NULL, "Headset Mic"},
-	{"IN2N", NULL, "Headset Mic"},
 	{"Headset Mic", NULL, "MICBIAS1"},
-	{"IN1P", NULL, "MICBIAS1"},
-	{"LDO2", NULL, "Int Mic"},
+	{"IN2P", NULL, "Headset Mic"},
 	{"Headphone", NULL, "HPOL"},
 	{"Headphone", NULL, "HPOR"},
-	{"Ext Spk", NULL, "SPOLP"},
-	{"Ext Spk", NULL, "SPOLN"},
-	{"Ext Spk", NULL, "SPORP"},
-	{"Ext Spk", NULL, "SPORN"},
+	{"Speaker", NULL, "SPOLP"},
+	{"Speaker", NULL, "SPOLN"},
+	{"Speaker", NULL, "SPORP"},
+	{"Speaker", NULL, "SPORN"},
+	{"Internal Mic", NULL, "MICBIAS1"},
+	{"IN1P", NULL, "Internal Mic"},
 
 	{"AIF1 Playback", NULL, "ssp2 Tx"},
 	{"ssp2 Tx", NULL, "codec_out0"},
@@ -60,8 +59,8 @@ static const struct snd_soc_dapm_route byt_audio_map[] = {
 static const struct snd_kcontrol_new byt_mc_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("Int Mic"),
-	SOC_DAPM_PIN_SWITCH("Ext Spk"),
+	SOC_DAPM_PIN_SWITCH("Internal Mic"),
+	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
 
 static int byt_aif1_hw_params(struct snd_pcm_substream *substream,
