@@ -1551,12 +1551,16 @@ static void gfs2_evict_inode(struct inode *inode)
 			goto out_truncate;
 	}
 
-	ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-	gfs2_glock_dq_wait(&ip->i_iopen_gh);
-	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &ip->i_iopen_gh);
-	error = gfs2_glock_nq(&ip->i_iopen_gh);
-	if (error)
-		goto out_truncate;
+	if (ip->i_iopen_gh.gh_gl &&
+	    test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
+		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
+		gfs2_glock_dq_wait(&ip->i_iopen_gh);
+		gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE,
+				   &ip->i_iopen_gh);
+		error = gfs2_glock_nq(&ip->i_iopen_gh);
+		if (error)
+			goto out_truncate;
+	}
 
 	/* Case 1 starts here */
 
@@ -1606,11 +1610,13 @@ out_unlock:
 	if (gfs2_rs_active(&ip->i_res))
 		gfs2_rs_deltree(&ip->i_res);
 
-	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
-		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-		gfs2_glock_dq_wait(&ip->i_iopen_gh);
+	if (ip->i_iopen_gh.gh_gl) {
+		if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
+			ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
+			gfs2_glock_dq_wait(&ip->i_iopen_gh);
+		}
+		gfs2_holder_uninit(&ip->i_iopen_gh);
 	}
-	gfs2_holder_uninit(&ip->i_iopen_gh);
 	gfs2_glock_dq_uninit(&gh);
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
