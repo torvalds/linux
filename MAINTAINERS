@@ -10401,7 +10401,7 @@ S:	Maintained
 F:	drivers/staging/olpc_dcon/
 
 STAGING - PARALLEL LCD/KEYPAD PANEL DRIVER
-M:	Willy Tarreau <willy@meta-x.org>
+M:	Willy Tarreau <willy@haproxy.com>
 S:	Odd Fixes
 F:	drivers/staging/panel/
 
