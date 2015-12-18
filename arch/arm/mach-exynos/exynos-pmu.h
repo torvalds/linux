@@ -37,6 +37,7 @@ extern const struct exynos_pmu_data exynos4210_pmu_data;
 extern const struct exynos_pmu_data exynos4212_pmu_data;
 extern const struct exynos_pmu_data exynos4412_pmu_data;
 extern const struct exynos_pmu_data exynos5250_pmu_data;
+extern const struct exynos_pmu_data exynos5420_pmu_data;
 
 extern void pmu_raw_writel(u32 val, u32 offset);
 extern u32 pmu_raw_readl(u32 offset);
