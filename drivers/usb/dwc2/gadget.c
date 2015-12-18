@@ -2095,7 +2095,7 @@ static void dwc2_hsotg_irq_enumdone(struct dwc2_hsotg *hsotg)
 	 */
 
 	/* catch both EnumSpd_FS and EnumSpd_FS48 */
-	switch (dsts & DSTS_ENUMSPD_MASK) {
+	switch ((dsts & DSTS_ENUMSPD_MASK) >> DSTS_ENUMSPD_SHIFT) {
 	case DSTS_ENUMSPD_FS:
 	case DSTS_ENUMSPD_FS48:
 		hsotg->gadget.speed = USB_SPEED_FULL;
