@@ -48,6 +48,9 @@
 #define AZX_REG_VS_SDXEFIFOS_XBASE	0x1094
 #define AZX_REG_VS_SDXEFIFOS_XINTERVAL	0x20
 
+#define AZX_PCIREG_CGCTL		0x48
+#define AZX_CGCTL_MISCBDCGE_MASK	(1 << 6)
+
 struct skl_dsp_resource {
 	u32 max_mcps;
 	u32 max_mem;

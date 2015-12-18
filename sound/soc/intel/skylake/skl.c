@@ -29,6 +29,8 @@
 #include <sound/pcm.h>
 #include "../common/sst-acpi.h"
 #include "skl.h"
+#include "skl-sst-dsp.h"
+#include "skl-sst-ipc.h"
 
 /*
  * initialize the PCI registers
@@ -57,6 +59,49 @@ static void skl_init_pci(struct skl *skl)
 	 */
 	dev_dbg(ebus_to_hbus(ebus)->dev, "Clearing TCSEL\n");
 	skl_update_pci_byte(skl->pci, AZX_PCIREG_TCSEL, 0x07, 0);
+}
+
+static void update_pci_dword(struct pci_dev *pci,
+			unsigned int reg, u32 mask, u32 val)
+{
+	u32 data = 0;
+
+	pci_read_config_dword(pci, reg, &data);
+	data &= ~mask;
+	data |= (val & mask);
+	pci_write_config_dword(pci, reg, data);
+}
+
+/*
+ * skl_enable_miscbdcge - enable/dsiable CGCTL.MISCBDCGE bits
+ *
+ * @dev: device pointer
+ * @enable: enable/disable flag
+ */
+static void skl_enable_miscbdcge(struct device *dev, bool enable)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	u32 val;
+
+	val = enable ? AZX_CGCTL_MISCBDCGE_MASK : 0;
+
+	update_pci_dword(pci, AZX_PCIREG_CGCTL, AZX_CGCTL_MISCBDCGE_MASK, val);
+}
+
+/*
+ * While performing reset, controller may not come back properly causing
+ * issues, so recommendation is to set CGCTL.MISCBDCGE to 0 then do reset
+ * (init chip) and then again set CGCTL.MISCBDCGE to 1
+ */
+static int skl_init_chip(struct hdac_bus *bus, bool full_reset)
+{
+	int ret;
+
+	skl_enable_miscbdcge(bus->dev, false);
+	ret = snd_hdac_bus_init_chip(bus, full_reset);
+	skl_enable_miscbdcge(bus->dev, true);
+
+	return ret;
 }
 
 /* called from IRQ */
@@ -145,7 +190,9 @@ static int _skl_suspend(struct hdac_ext_bus *ebus)
 		return ret;
 
 	snd_hdac_bus_stop_chip(bus);
+	skl_enable_miscbdcge(bus->dev, false);
 	snd_hdac_bus_enter_link_reset(bus);
+	skl_enable_miscbdcge(bus->dev, true);
 
 	return 0;
 }
@@ -156,7 +203,7 @@ static int _skl_resume(struct hdac_ext_bus *ebus)
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 
 	skl_init_pci(skl);
-	snd_hdac_bus_init_chip(bus, true);
+	skl_init_chip(bus, true);
 
 	return skl_resume_dsp(skl);
 }
@@ -380,7 +427,7 @@ static int skl_codec_create(struct hdac_ext_bus *ebus)
 				 * back to the sanity state.
 				 */
 				snd_hdac_bus_stop_chip(bus);
-				snd_hdac_bus_init_chip(bus, true);
+				skl_init_chip(bus, true);
 			}
 		}
 	}
@@ -490,7 +537,7 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 	/* initialize chip */
 	skl_init_pci(skl);
 
-	snd_hdac_bus_init_chip(bus, true);
+	skl_init_chip(bus, true);
 
 	/* codec detection */
 	if (!bus->codec_mask) {
@@ -539,6 +586,8 @@ static int skl_probe(struct pci_dev *pci,
 			dev_dbg(bus->dev, "error failed to register dsp\n");
 			goto out_mach_free;
 		}
+		skl->skl_sst->enable_miscbdcge = skl_enable_miscbdcge;
+
 	}
 	if (ebus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(ebus);
