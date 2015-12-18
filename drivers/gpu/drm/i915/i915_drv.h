@@ -88,23 +88,18 @@
  */
 #define I915_STATE_WARN(condition, format...) ({			\
 	int __ret_warn_on = !!(condition);				\
-	if (unlikely(__ret_warn_on)) {					\
-		if (i915.verbose_state_checks)				\
-			WARN(1, format);				\
-		else 							\
+	if (unlikely(__ret_warn_on))					\
+		if (!WARN(i915.verbose_state_checks, format))		\
 			DRM_ERROR(format);				\
-	}								\
 	unlikely(__ret_warn_on);					\
 })
 
 #define I915_STATE_WARN_ON(condition) ({				\
 	int __ret_warn_on = !!(condition);				\
-	if (unlikely(__ret_warn_on)) {					\
-		if (i915.verbose_state_checks)				\
-			WARN(1, "WARN_ON(" #condition ")\n");		\
-		else 							\
+	if (unlikely(__ret_warn_on))					\
+		if (!WARN(i915.verbose_state_checks,			\
+			  "WARN_ON(" #condition ")\n"))			\
 			DRM_ERROR("WARN_ON(" #condition ")\n");		\
-	}								\
 	unlikely(__ret_warn_on);					\
 })
 
