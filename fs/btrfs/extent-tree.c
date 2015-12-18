@@ -3684,11 +3684,21 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	/*
-	 * We don't need the lock here since we are protected by the transaction
-	 * commit.  We want to do the cache_save_setup first and then run the
+	 * Even though we are in the critical section of the transaction commit,
+	 * we can still have concurrent tasks adding elements to this
+	 * transaction's list of dirty block groups. These tasks correspond to
+	 * endio free space workers started when writeback finishes for a
+	 * space cache, which run inode.c:btrfs_finish_ordered_io(), and can
+	 * allocate new block groups as a result of COWing nodes of the root
+	 * tree when updating the free space inode. The writeback for the space
+	 * caches is triggered by an earlier call to
+	 * btrfs_start_dirty_block_groups() and iterations of the following
+	 * loop.
+	 * Also we want to do the cache_save_setup first and then run the
 	 * delayed refs to make sure we have the best chance at doing this all
 	 * in one shot.
 	 */
+	spin_lock(&cur_trans->dirty_bgs_lock);
 	while (!list_empty(&cur_trans->dirty_bgs)) {
 		cache = list_first_entry(&cur_trans->dirty_bgs,
 					 struct btrfs_block_group_cache,
@@ -3700,11 +3710,13 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		 * finish and then do it all again
 		 */
 		if (!list_empty(&cache->io_list)) {
+			spin_unlock(&cur_trans->dirty_bgs_lock);
 			list_del_init(&cache->io_list);
 			btrfs_wait_cache_io(root, trans, cache,
 					    &cache->io_ctl, path,
 					    cache->key.objectid);
 			btrfs_put_block_group(cache);
+			spin_lock(&cur_trans->dirty_bgs_lock);
 		}
 
 		/*
@@ -3712,6 +3724,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		 * on any pending IO
 		 */
 		list_del_init(&cache->dirty_list);
+		spin_unlock(&cur_trans->dirty_bgs_lock);
 		should_put = 1;
 
 		cache_save_setup(cache, trans, path);
@@ -3743,7 +3756,9 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		/* if its not on the io list, we need to put the block group */
 		if (should_put)
 			btrfs_put_block_group(cache);
+		spin_lock(&cur_trans->dirty_bgs_lock);
 	}
+	spin_unlock(&cur_trans->dirty_bgs_lock);
 
 	while (!list_empty(io)) {
 		cache = list_first_entry(io, struct btrfs_block_group_cache,
