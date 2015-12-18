@@ -50,7 +50,7 @@ unsigned long __init opal_get_boot_time(void)
 		rc = opal_rtc_read(&__y_m_d, &__h_m_s_ms);
 		if (rc == OPAL_BUSY_EVENT)
 			opal_poll_events(NULL);
-		else
+		else if (rc == OPAL_BUSY)
 			mdelay(10);
 	}
 	if (rc != OPAL_SUCCESS)
