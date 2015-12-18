@@ -2713,12 +2713,10 @@ struct bdaddr_list *hci_bdaddr_list_lookup(struct list_head *bdaddr_list,
 
 void hci_bdaddr_list_clear(struct list_head *bdaddr_list)
 {
-	struct list_head *p, *n;
+	struct bdaddr_list *b, *n;
 
-	list_for_each_safe(p, n, bdaddr_list) {
-		struct bdaddr_list *b = list_entry(p, struct bdaddr_list, list);
-
-		list_del(p);
+	list_for_each_entry_safe(b, n, bdaddr_list, list) {
+		list_del(&b->list);
 		kfree(b);
 	}
 }
