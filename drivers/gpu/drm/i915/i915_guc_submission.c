@@ -839,17 +839,40 @@ static void guc_create_log(struct intel_guc *guc)
 	guc->log_flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 }
 
+static void init_guc_policies(struct guc_policies *policies)
+{
+	struct guc_policy *policy;
+	u32 p, i;
+
+	policies->dpc_promote_time = 500000;
+	policies->max_num_work_items = POLICY_MAX_NUM_WI;
+
+	for (p = 0; p < GUC_CTX_PRIORITY_NUM; p++) {
+		for (i = 0; i < I915_NUM_RINGS; i++) {
+			policy = &policies->policy[p][i];
+
+			policy->execution_quantum = 1000000;
+			policy->preemption_time = 500000;
+			policy->fault_time = 250000;
+			policy->policy_flags = 0;
+		}
+	}
+
+	policies->is_valid = 1;
+}
+
 static void guc_create_ads(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct drm_i915_gem_object *obj;
 	struct guc_ads *ads;
+	struct guc_policies *policies;
 	struct intel_engine_cs *ring;
 	struct page *page;
 	u32 size, i;
 
 	/* The ads obj includes the struct itself and buffers passed to GuC */
-	size = sizeof(struct guc_ads);
+	size = sizeof(struct guc_ads) + sizeof(struct guc_policies);
 
 	obj = guc->ads_obj;
 	if (!obj) {
@@ -875,6 +898,13 @@ static void guc_create_ads(struct intel_guc *guc)
 
 	for_each_ring(ring, dev_priv, i)
 		ads->eng_state_size[i] = intel_lr_context_size(ring);
+
+	/* GuC scheduling policies */
+	policies = (void *)ads + sizeof(struct guc_ads);
+	init_guc_policies(policies);
+
+	ads->scheduler_policies = i915_gem_obj_ggtt_offset(obj) +
+			sizeof(struct guc_ads);
 
 	kunmap(page);
 }

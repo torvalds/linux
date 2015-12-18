@@ -39,6 +39,7 @@
 #define GUC_CTX_PRIORITY_HIGH		1
 #define GUC_CTX_PRIORITY_KMD_NORMAL	2
 #define GUC_CTX_PRIORITY_NORMAL		3
+#define GUC_CTX_PRIORITY_NUM		4
 
 #define GUC_MAX_GPU_CONTEXTS		1024
 #define	GUC_INVALID_CTX_ID		GUC_MAX_GPU_CONTEXTS
@@ -315,6 +316,50 @@ struct guc_context_desc {
 #define GUC_POWER_D1		2
 #define GUC_POWER_D2		3
 #define GUC_POWER_D3		4
+
+/* Scheduling policy settings */
+
+/* Reset engine upon preempt failure */
+#define POLICY_RESET_ENGINE		(1<<0)
+/* Preempt to idle on quantum expiry */
+#define POLICY_PREEMPT_TO_IDLE		(1<<1)
+
+#define POLICY_MAX_NUM_WI		15
+
+struct guc_policy {
+	/* Time for one workload to execute. (in micro seconds) */
+	u32 execution_quantum;
+	u32 reserved1;
+
+	/* Time to wait for a preemption request to completed before issuing a
+	 * reset. (in micro seconds). */
+	u32 preemption_time;
+
+	/* How much time to allow to run after the first fault is observed.
+	 * Then preempt afterwards. (in micro seconds) */
+	u32 fault_time;
+
+	u32 policy_flags;
+	u32 reserved[2];
+} __packed;
+
+struct guc_policies {
+	struct guc_policy policy[GUC_CTX_PRIORITY_NUM][I915_NUM_RINGS];
+
+	/* In micro seconds. How much time to allow before DPC processing is
+	 * called back via interrupt (to prevent DPC queue drain starving).
+	 * Typically 1000s of micro seconds (example only, not granularity). */
+	u32 dpc_promote_time;
+
+	/* Must be set to take these new values. */
+	u32 is_valid;
+
+	/* Max number of WIs to process per call. A large value may keep CS
+	 * idle. */
+	u32 max_num_work_items;
+
+	u32 reserved[19];
+} __packed;
 
 /* GuC Additional Data Struct */
 
