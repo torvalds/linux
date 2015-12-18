@@ -84,6 +84,7 @@ static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
 
 void intel_lr_context_free(struct intel_context *ctx);
+uint32_t intel_lr_context_size(struct intel_engine_cs *ring);
 int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 				    struct intel_engine_cs *ring);
 void intel_lr_context_unpin(struct drm_i915_gem_request *req);

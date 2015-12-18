@@ -2399,7 +2399,7 @@ void intel_lr_context_free(struct intel_context *ctx)
 	}
 }
 
-static uint32_t get_lr_context_size(struct intel_engine_cs *ring)
+uint32_t intel_lr_context_size(struct intel_engine_cs *ring)
 {
 	int ret = 0;
 
@@ -2467,7 +2467,7 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
 	WARN_ON(ctx->engine[ring->id].state);
 
-	context_size = round_up(get_lr_context_size(ring), 4096);
+	context_size = round_up(intel_lr_context_size(ring), 4096);
 
 	/* One extra page as the sharing data between driver and GuC */
 	context_size += PAGE_SIZE * LRC_PPHWSP_PN;
