@@ -325,6 +325,7 @@ int ib_register_device(struct ib_device *device,
 {
 	int ret;
 	struct ib_client *client;
+	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
 
 	mutex_lock(&device_mutex);
 
@@ -349,6 +350,13 @@ int ib_register_device(struct ib_device *device,
 	ret = ib_cache_setup_one(device);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
+		goto out;
+	}
+
+	memset(&device->attrs, 0, sizeof(device->attrs));
+	ret = device->query_device(device, &device->attrs, &uhw);
+	if (ret) {
+		printk(KERN_WARNING "Couldn't query the device attributes\n");
 		goto out;
 	}
 
