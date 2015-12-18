@@ -89,6 +89,8 @@ struct intel_guc {
 	uint32_t log_flags;
 	struct drm_i915_gem_object *log_obj;
 
+	struct drm_i915_gem_object *ads_obj;
+
 	struct drm_i915_gem_object *ctx_pool_obj;
 	struct ida ctx_ids;
 

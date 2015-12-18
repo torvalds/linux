@@ -839,6 +839,46 @@ static void guc_create_log(struct intel_guc *guc)
 	guc->log_flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 }
 
+static void guc_create_ads(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_gem_object *obj;
+	struct guc_ads *ads;
+	struct intel_engine_cs *ring;
+	struct page *page;
+	u32 size, i;
+
+	/* The ads obj includes the struct itself and buffers passed to GuC */
+	size = sizeof(struct guc_ads);
+
+	obj = guc->ads_obj;
+	if (!obj) {
+		obj = gem_allocate_guc_obj(dev_priv->dev, PAGE_ALIGN(size));
+		if (!obj)
+			return;
+
+		guc->ads_obj = obj;
+	}
+
+	page = i915_gem_object_get_page(obj, 0);
+	ads = kmap(page);
+
+	/*
+	 * The GuC requires a "Golden Context" when it reinitialises
+	 * engines after a reset. Here we use the Render ring default
+	 * context, which must already exist and be pinned in the GGTT,
+	 * so its address won't change after we've told the GuC where
+	 * to find it.
+	 */
+	ring = &dev_priv->ring[RCS];
+	ads->golden_context_lrca = ring->status_page.gfx_addr;
+
+	for_each_ring(ring, dev_priv, i)
+		ads->eng_state_size[i] = intel_lr_context_size(ring);
+
+	kunmap(page);
+}
+
 /*
  * Set up the memory resources to be shared with the GuC.  At this point,
  * we require just one object that can be mapped through the GGTT.
@@ -864,6 +904,8 @@ int i915_guc_submission_init(struct drm_device *dev)
 	ida_init(&guc->ctx_ids);
 
 	guc_create_log(guc);
+
+	guc_create_ads(guc);
 
 	return 0;
 }
@@ -902,6 +944,9 @@ void i915_guc_submission_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
+
+	gem_release_guc_obj(dev_priv->guc.ads_obj);
+	guc->ads_obj = NULL;
 
 	gem_release_guc_obj(dev_priv->guc.log_obj);
 	guc->log_obj = NULL;

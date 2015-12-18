@@ -40,6 +40,7 @@
 #define   GS_MIA_CORE_STATE		  (1 << GS_MIA_SHIFT)
 
 #define SOFT_SCRATCH(n)			_MMIO(0xc180 + (n) * 4)
+#define SOFT_SCRATCH_COUNT		16
 
 #define UOS_RSA_SCRATCH(i)		_MMIO(0xc200 + (i) * 4)
 #define   UOS_RSA_SCRATCH_MAX_COUNT	  64
