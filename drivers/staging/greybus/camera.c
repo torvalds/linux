@@ -576,6 +576,16 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 	if (ret < 0)
 		goto error;
 
+	ret = gb_svc_link_config(svc, connection->intf->interface_id,
+				 GB_SVC_LINK_CONFIG_BURST_HS_A, 1, 1, 0);
+	if (ret < 0)
+		goto error;
+
+	ret = gb_svc_link_config(svc, svc->ap_intf_id,
+				 GB_SVC_LINK_CONFIG_BURST_HS_A, 1, 1, 0);
+	if (ret < 0)
+		goto error;
+
 	gcam->data_connected = true;
 
 	ret = gb_camera_debugfs_init(gcam);
