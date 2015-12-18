@@ -103,9 +103,9 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	for (i = 0; i < nstreams; ++i) {
 		struct gb_camera_stream_config_request *cfg = &req->config[i];
 
-		cfg->width = streams[i].width;
-		cfg->height = streams[i].height;
-		cfg->format = streams[i].format;
+		cfg->width = cpu_to_le16(streams[i].width);
+		cfg->height = cpu_to_le16(streams[i].height);
+		cfg->format = cpu_to_le16(streams[i].format);
 		cfg->padding = 0;
 	}
 
@@ -131,13 +131,13 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	for (i = 0; i < nstreams; ++i) {
 		struct gb_camera_stream_config_response *cfg = &resp->config[i];
 
-		streams[i].width = cfg->width;
-		streams[i].height = cfg->height;
-		streams[i].format = cfg->format;
+		streams[i].width = le16_to_cpu(cfg->width);
+		streams[i].height = le16_to_cpu(cfg->height);
+		streams[i].format = le16_to_cpu(cfg->format);
 		streams[i].vc = cfg->virtual_channel;
 		streams[i].dt[0] = cfg->data_type[0];
 		streams[i].dt[1] = cfg->data_type[1];
-		streams[i].max_size = cfg->max_size;
+		streams[i].max_size = le32_to_cpu(cfg->max_size);
 
 		if (cfg->padding[0] || cfg->padding[1] || cfg->padding[2]) {
 			gcam_dbg(gcam, "stream #%u padding != 0", i);
@@ -169,10 +169,10 @@ static int gb_camera_capture(struct gb_camera *gcam, u32 request_id,
 	if (!req)
 		return -ENOMEM;
 
-	req->request_id = request_id;
+	req->request_id = cpu_to_le32(request_id);
 	req->streams = streams;
 	req->padding = 0;
-	req->num_frames = num_frames;
+	req->num_frames = cpu_to_le16(num_frames);
 	memcpy(req->settings, settings, settings_size);
 
 	return gb_operation_sync(gcam->connection, GB_CAMERA_TYPE_CAPTURE,
@@ -190,7 +190,7 @@ static int gb_camera_flush(struct gb_camera *gcam, u32 *request_id)
 		return ret;
 
 	if (request_id)
-		*request_id = resp.request_id;
+		*request_id = le32_to_cpu(resp.request_id);
 
 	return 0;
 }
