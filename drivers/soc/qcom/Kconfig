@@ -51,7 +51,7 @@ config QCOM_SMD_RPM
 	  Say M here if you want to include support for the Qualcomm RPM as a
 
 config MSM_GLINK
-	bool "Generic Link (G-Link)"
+	tristate "Generic Link (G-Link)"
 	help
 	  G-Link is a generic link transport that replaces SMD.  It is used
 	  within a System-on-Chip (SoC) for communication between both internal
@@ -89,7 +89,7 @@ config QCOM_WCNSS_CTRL
 config MSM_GLINK_SMEM_NATIVE_XPRT
 	depends on QCOM_SMEM
 	depends on MSM_GLINK
-	bool "Generic Link (G-Link) SMEM Native Transport"
+	tristate "Generic Link (G-Link) SMEM Native Transport"
 	help
 	  G-Link SMEM Native Transport is a G-Link Transport plug-in.  It allows
 	  G-Link communication to remote entities through a shared memory
