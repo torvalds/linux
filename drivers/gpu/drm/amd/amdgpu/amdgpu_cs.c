@@ -181,15 +181,12 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		goto free_chunk;
 	}
 
-	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
-
 	/* get chunks */
-	INIT_LIST_HEAD(&p->validated);
 	chunk_array_user = (uint64_t __user *)(unsigned long)(cs->in.chunks);
 	if (copy_from_user(chunk_array, chunk_array_user,
 			   sizeof(uint64_t)*cs->in.num_chunks)) {
 		ret = -EFAULT;
-		goto put_bo_list;
+		goto put_ctx;
 	}
 
 	p->nchunks = cs->in.num_chunks;
@@ -197,7 +194,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 			    GFP_KERNEL);
 	if (!p->chunks) {
 		ret = -ENOMEM;
-		goto put_bo_list;
+		goto put_ctx;
 	}
 
 	for (i = 0; i < p->nchunks; i++) {
@@ -273,9 +270,7 @@ free_partial_kdata:
 	for (; i >= 0; i--)
 		drm_free_large(p->chunks[i].kdata);
 	kfree(p->chunks);
-put_bo_list:
-	if (p->bo_list)
-		amdgpu_bo_list_put(p->bo_list);
+put_ctx:
 	amdgpu_ctx_put(p->ctx);
 free_chunk:
 	kfree(chunk_array);
@@ -383,7 +378,8 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 	return 0;
 }
 
-static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
+static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
+				union drm_amdgpu_cs *cs)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_cs_buckets buckets;
@@ -391,12 +387,15 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 	bool need_mmap_lock = false;
 	int i, r;
 
+	INIT_LIST_HEAD(&p->validated);
+
+	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
 	if (p->bo_list) {
 		need_mmap_lock = p->bo_list->has_userptr;
 		amdgpu_cs_buckets_init(&buckets);
 		for (i = 0; i < p->bo_list->num_entries; i++)
 			amdgpu_cs_buckets_add(&buckets, &p->bo_list->array[i].tv.head,
-								  p->bo_list->array[i].priority);
+					      p->bo_list->array[i].priority);
 
 		amdgpu_cs_buckets_get_list(&buckets, &p->validated);
 	}
@@ -827,7 +826,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		r = amdgpu_cs_handle_lockup(adev, r);
 		return r;
 	}
-	r = amdgpu_cs_parser_relocs(&parser);
+	r = amdgpu_cs_parser_bos(&parser, data);
 	if (r == -ENOMEM)
 		DRM_ERROR("Not enough memory for command submission!\n");
 	else if (r && r != -ERESTARTSYS)
