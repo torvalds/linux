@@ -582,6 +582,7 @@ static void netcp_free_rx_desc_chain(struct netcp_intf *netcp,
 	unsigned int buf_len, dma_sz = sizeof(*ndesc);
 	void *buf_ptr;
 	u32 pad[2];
+	u32 tmp;
 
 	get_words(&dma_desc, 1, &desc->next_desc);
 
@@ -591,6 +592,7 @@ static void netcp_free_rx_desc_chain(struct netcp_intf *netcp,
 			dev_err(netcp->ndev_dev, "failed to unmap Rx desc\n");
 			break;
 		}
+		get_pkt_info(&dma_buf, &tmp, &dma_desc, ndesc);
 		get_pad_ptr(&buf_ptr, ndesc);
 		dma_unmap_page(netcp->dev, dma_buf, PAGE_SIZE, DMA_FROM_DEVICE);
 		__free_page(buf_ptr);
@@ -637,6 +639,7 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 	dma_addr_t dma_desc, dma_buff;
 	struct netcp_packet p_info;
 	struct sk_buff *skb;
+	u32 pad[2];
 	void *org_buf_ptr;
 
 	dma_desc = knav_queue_pop(netcp->rx_queue, &dma_sz);
@@ -650,7 +653,8 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 	}
 
 	get_pkt_info(&dma_buff, &buf_len, &dma_desc, desc);
-	get_pad_ptr(&org_buf_ptr, desc);
+	get_pad_info(&pad[0], &pad[1], &org_buf_len, desc);
+	org_buf_ptr = (void *)(uintptr_t)(pad[0] + ((u64)pad[1] << 32));
 
 	if (unlikely(!org_buf_ptr)) {
 		dev_err(netcp->ndev_dev, "NULL bufptr in desc\n");
@@ -684,7 +688,7 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 		}
 
 		get_pkt_info(&dma_buff, &buf_len, &dma_desc, ndesc);
-		get_pad_ptr(ptr, ndesc);
+		get_pad_ptr(&ptr, ndesc);
 		page = ptr;
 
 		if (likely(dma_buff && buf_len && page)) {
@@ -773,7 +777,7 @@ static void netcp_free_rx_buf(struct netcp_intf *netcp, int fdq)
 		}
 
 		get_org_pkt_info(&dma, &buf_len, desc);
-		get_pad_ptr(buf_ptr, desc);
+		get_pad_ptr(&buf_ptr, desc);
 
 		if (unlikely(!dma)) {
 			dev_err(netcp->ndev_dev, "NULL orig_buff in desc\n");
