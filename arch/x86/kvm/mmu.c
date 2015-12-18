@@ -2041,14 +2041,6 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 	}
 }
 
-static void init_shadow_page_table(struct kvm_mmu_page *sp)
-{
-	int i;
-
-	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
-		sp->spt[i] = 0ull;
-}
-
 static void __clear_sp_write_flooding_count(struct kvm_mmu_page *sp)
 {
 	sp->write_flooding_count = 0;
@@ -2128,7 +2120,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		account_shadowed(vcpu->kvm, sp);
 	}
 	sp->mmu_valid_gen = vcpu->kvm->arch.mmu_valid_gen;
-	init_shadow_page_table(sp);
+	clear_page(sp->spt);
 	trace_kvm_mmu_get_page(sp, true);
 	return sp;
 }
