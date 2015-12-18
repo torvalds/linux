@@ -44,6 +44,9 @@ int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 			u32 *value);
 int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 			u32 value);
+int gb_svc_link_config(struct gb_svc *svc, u8 intf_id, unsigned int burst,
+		       unsigned int gear, unsigned int nlanes,
+		       unsigned int flags);
 
 int gb_svc_protocol_init(void);
 void gb_svc_protocol_exit(void);

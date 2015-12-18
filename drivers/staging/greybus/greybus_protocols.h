@@ -726,6 +726,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_DME_PEER_SET	0x0a
 #define GB_SVC_TYPE_ROUTE_CREATE	0x0b
 #define GB_SVC_TYPE_ROUTE_DESTROY	0x0c
+#define GB_SVC_TYPE_LINK_CONFIG		0x0d
 
 /*
  * SVC version request/response has the same payload as
@@ -805,6 +806,20 @@ struct gb_svc_dme_peer_set_request {
 struct gb_svc_dme_peer_set_response {
 	__le16	result_code;
 } __packed;
+
+#define GB_SVC_LINK_CONFIG_BURST_PWM		0
+#define GB_SVC_LINK_CONFIG_BURST_HS_A		1
+#define GB_SVC_LINK_CONFIG_BURST_HS_B		2
+#define GB_SVC_LINK_CONFIG_FLAG_AUTO_SLEEP	(1 << 0)
+
+struct gb_svc_link_config_request {
+	__u8 intf_id;
+	__u8 burst;
+	__u8 gear;
+	__u8 nlanes;
+	__u8 flags;
+} __packed;
+/* link config response has no payload */
 
 /* Attributes for peer get/set operations */
 #define DME_ATTR_SELECTOR_INDEX		0

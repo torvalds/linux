@@ -270,6 +270,24 @@ static void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
 	}
 }
 
+/* Creates bi-directional routes between the devices */
+int gb_svc_link_config(struct gb_svc *svc, u8 intf_id,
+		       unsigned int burst, unsigned int gear,
+		       unsigned int nlanes, unsigned int flags)
+{
+	struct gb_svc_link_config_request request;
+
+	request.intf_id = intf_id;
+	request.burst = burst;
+	request.gear = gear;
+	request.nlanes = nlanes;
+	request.flags = flags;
+
+	return gb_operation_sync(svc->connection, GB_SVC_TYPE_LINK_CONFIG,
+				 &request, sizeof(request), NULL, 0);
+}
+EXPORT_SYMBOL_GPL(gb_svc_link_config);
+
 static int gb_svc_version_request(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
