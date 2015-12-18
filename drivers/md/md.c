@@ -314,8 +314,8 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
  */
 void mddev_suspend(struct mddev *mddev)
 {
-	BUG_ON(mddev->suspended);
-	mddev->suspended = 1;
+	if (mddev->suspended++)
+		return;
 	synchronize_rcu();
 	wait_event(mddev->sb_wait, atomic_read(&mddev->active_io) == 0);
 	mddev->pers->quiesce(mddev, 1);
@@ -326,7 +326,8 @@ EXPORT_SYMBOL_GPL(mddev_suspend);
 
 void mddev_resume(struct mddev *mddev)
 {
-	mddev->suspended = 0;
+	if (--mddev->suspended)
+		return;
 	wake_up(&mddev->sb_wait);
 	mddev->pers->quiesce(mddev, 0);
 
