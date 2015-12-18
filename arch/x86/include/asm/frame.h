@@ -1,15 +1,16 @@
 #ifndef _ASM_X86_FRAME_H
 #define _ASM_X86_FRAME_H
 
-#ifdef __ASSEMBLY__
-
 #include <asm/asm.h>
 
 /*
  * These are stack frame creation macros.  They should be used by every
  * callable non-leaf asm function to make kernel stack traces more reliable.
  */
+
 #ifdef CONFIG_FRAME_POINTER
+
+#ifdef __ASSEMBLY__
 
 .macro FRAME_BEGIN
 	push %_ASM_BP
@@ -19,6 +20,16 @@
 .macro FRAME_END
 	pop %_ASM_BP
 .endm
+
+#else /* !__ASSEMBLY__ */
+
+#define FRAME_BEGIN				\
+	"push %" _ASM_BP "\n"			\
+	_ASM_MOV "%" _ASM_SP ", %" _ASM_BP "\n"
+
+#define FRAME_END "pop %" _ASM_BP "\n"
+
+#endif /* __ASSEMBLY__ */
 
 #define FRAME_OFFSET __ASM_SEL(4, 8)
 
@@ -30,5 +41,4 @@
 
 #endif /* CONFIG_FRAME_POINTER */
 
-#endif  /*  __ASSEMBLY__  */
 #endif /* _ASM_X86_FRAME_H */
