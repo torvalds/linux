@@ -72,7 +72,12 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 	IPI_IRQ_WORK,
 	IPI_COMPLETION,
-	IPI_CPU_BACKTRACE = 15,
+	IPI_CPU_BACKTRACE,
+	/*
+	 * SGI8-15 can be reserved by secure firmware, and thus may
+	 * not be usable by the kernel. Please keep the above limited
+	 * to at most 8 entries.
+	 */
 };
 
 static DECLARE_COMPLETION(cpu_running);
