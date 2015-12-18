@@ -1018,10 +1018,6 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		return ret;
 
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0)) {
-		/* WaDisableHDCInvalidation:skl */
-		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
-			   BDW_DISABLE_HDC_INVALIDATION);
-
 		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
 		I915_WRITE(FF_SLICE_CS_CHICKEN2,
 			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
@@ -1046,7 +1042,7 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
-	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0)) {
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_F0)) {
 		/*
 		 *Use Force Non-Coherent whenever executing a 3D context. This
 		 * is a workaround for a possible hang in the unlikely event
@@ -1055,6 +1051,10 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		/* WaForceEnableNonCoherent:skl */
 		WA_SET_BIT_MASKED(HDC_CHICKEN0,
 				  HDC_FORCE_NON_COHERENT);
+
+		/* WaDisableHDCInvalidation:skl */
+		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+			   BDW_DISABLE_HDC_INVALIDATION);
 	}
 
 	/* WaBarrierPerformanceFixDisable:skl */
