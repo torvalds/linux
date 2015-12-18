@@ -2774,6 +2774,7 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 		/* Activating a spare .. or possibly reactivating
 		 * if we ever get bitmaps working here.
 		 */
+		int err;
 
 		if (rdev->raid_disk != -1)
 			return -EBUSY;
@@ -2795,9 +2796,15 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 			rdev->saved_raid_disk = -1;
 		clear_bit(In_sync, &rdev->flags);
 		clear_bit(Bitmap_sync, &rdev->flags);
-		remove_and_add_spares(rdev->mddev, rdev);
-		if (rdev->raid_disk == -1)
-			return -EBUSY;
+		err = rdev->mddev->pers->
+			hot_add_disk(rdev->mddev, rdev);
+		if (err) {
+			rdev->raid_disk = -1;
+			return err;
+		} else
+			sysfs_notify_dirent_safe(rdev->sysfs_state);
+		if (sysfs_link_rdev(rdev->mddev, rdev))
+			/* failure here is OK */;
 		/* don't wakeup anyone, leave that to userspace. */
 	} else {
 		if (slot >= rdev->mddev->raid_disks &&
