@@ -380,7 +380,6 @@ struct iser_reg_ops {
  *
  * @ib_device:     RDMA device
  * @pd:            Protection Domain for this device
- * @dev_attr:      Device attributes container
  * @mr:            Global DMA memory region
  * @event_handler: IB events handle routine
  * @ig_list:	   entry in devices list
@@ -393,7 +392,6 @@ struct iser_reg_ops {
 struct iser_device {
 	struct ib_device             *ib_device;
 	struct ib_pd	             *pd;
-	struct ib_device_attr	     dev_attr;
 	struct ib_mr	             *mr;
 	struct ib_event_handler      event_handler;
 	struct list_head             ig_list;

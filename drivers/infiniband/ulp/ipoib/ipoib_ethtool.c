@@ -40,15 +40,11 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(netdev);
-	struct ib_device_attr *attr;
 
-	attr = kmalloc(sizeof(*attr), GFP_KERNEL);
-	if (attr && !ib_query_device(priv->ca, attr))
-		snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-			 "%d.%d.%d", (int)(attr->fw_ver >> 32),
-			 (int)(attr->fw_ver >> 16) & 0xffff,
-			 (int)attr->fw_ver & 0xffff);
-	kfree(attr);
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		 "%d.%d.%d", (int)(priv->ca->attrs.fw_ver >> 32),
+		 (int)(priv->ca->attrs.fw_ver >> 16) & 0xffff,
+		 (int)priv->ca->attrs.fw_ver & 0xffff);
 
 	strlcpy(drvinfo->bus_info, dev_name(priv->ca->dma_device),
 		sizeof(drvinfo->bus_info));

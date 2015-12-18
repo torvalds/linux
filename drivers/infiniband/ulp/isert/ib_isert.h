@@ -207,7 +207,6 @@ struct isert_device {
 	struct isert_comp	*comps;
 	int                     comps_used;
 	struct list_head	dev_node;
-	struct ib_device_attr	dev_attr;
 	int			(*reg_rdma_mem)(struct iscsi_conn *conn,
 						    struct iscsi_cmd *cmd,
 						    struct isert_rdma_wr *wr);

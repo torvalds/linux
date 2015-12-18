@@ -341,10 +341,10 @@ static void srpt_get_ioc(struct srpt_port *sport, u32 slot,
 	memset(iocp, 0, sizeof *iocp);
 	strcpy(iocp->id_string, SRPT_ID_STRING);
 	iocp->guid = cpu_to_be64(srpt_service_guid);
-	iocp->vendor_id = cpu_to_be32(sdev->dev_attr.vendor_id);
-	iocp->device_id = cpu_to_be32(sdev->dev_attr.vendor_part_id);
-	iocp->device_version = cpu_to_be16(sdev->dev_attr.hw_ver);
-	iocp->subsys_vendor_id = cpu_to_be32(sdev->dev_attr.vendor_id);
+	iocp->vendor_id = cpu_to_be32(sdev->device->attrs.vendor_id);
+	iocp->device_id = cpu_to_be32(sdev->device->attrs.vendor_part_id);
+	iocp->device_version = cpu_to_be16(sdev->device->attrs.hw_ver);
+	iocp->subsys_vendor_id = cpu_to_be32(sdev->device->attrs.vendor_id);
 	iocp->subsys_device_id = 0x0;
 	iocp->io_class = cpu_to_be16(SRP_REV16A_IB_IO_CLASS);
 	iocp->io_subclass = cpu_to_be16(SRP_IO_SUBCLASS);
@@ -3203,14 +3203,11 @@ static void srpt_add_one(struct ib_device *device)
 	init_waitqueue_head(&sdev->ch_releaseQ);
 	spin_lock_init(&sdev->spinlock);
 
-	if (ib_query_device(device, &sdev->dev_attr))
-		goto free_dev;
-
 	sdev->pd = ib_alloc_pd(device);
 	if (IS_ERR(sdev->pd))
 		goto free_dev;
 
-	sdev->srq_size = min(srpt_srq_size, sdev->dev_attr.max_srq_wr);
+	sdev->srq_size = min(srpt_srq_size, sdev->device->attrs.max_srq_wr);
 
 	srq_attr.event_handler = srpt_srq_event;
 	srq_attr.srq_context = (void *)sdev;
@@ -3224,7 +3221,7 @@ static void srpt_add_one(struct ib_device *device)
 		goto err_pd;
 
 	pr_debug("%s: create SRQ #wr= %d max_allow=%d dev= %s\n",
-		 __func__, sdev->srq_size, sdev->dev_attr.max_srq_wr,
+		 __func__, sdev->srq_size, sdev->device->attrs.max_srq_wr,
 		 device->name);
 
 	if (!srpt_service_guid)

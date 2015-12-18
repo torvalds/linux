@@ -379,8 +379,6 @@ struct srpt_port {
  * @mr:            L_Key (local key) with write access to all local memory.
  * @srq:           Per-HCA SRQ (shared receive queue).
  * @cm_id:         Connection identifier.
- * @dev_attr:      Attributes of the InfiniBand device as obtained during the
- *                 ib_client.add() callback.
  * @srq_size:      SRQ size.
  * @ioctx_ring:    Per-HCA SRQ.
  * @rch_list:      Per-device channel list -- see also srpt_rdma_ch.list.
@@ -395,7 +393,6 @@ struct srpt_device {
 	struct ib_pd		*pd;
 	struct ib_srq		*srq;
 	struct ib_cm_id		*cm_id;
-	struct ib_device_attr	dev_attr;
 	int			srq_size;
 	struct srpt_recv_ioctx	**ioctx_ring;
 	struct list_head	rch_list;

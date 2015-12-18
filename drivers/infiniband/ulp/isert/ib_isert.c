@@ -95,22 +95,6 @@ isert_qp_event_callback(struct ib_event *e, void *context)
 	}
 }
 
-static int
-isert_query_device(struct ib_device *ib_dev, struct ib_device_attr *devattr)
-{
-	int ret;
-
-	ret = ib_query_device(ib_dev, devattr);
-	if (ret) {
-		isert_err("ib_query_device() failed: %d\n", ret);
-		return ret;
-	}
-	isert_dbg("devattr->max_sge: %d\n", devattr->max_sge);
-	isert_dbg("devattr->max_sge_rd: %d\n", devattr->max_sge_rd);
-
-	return 0;
-}
-
 static struct isert_comp *
 isert_comp_get(struct isert_conn *isert_conn)
 {
@@ -157,9 +141,9 @@ isert_create_qp(struct isert_conn *isert_conn,
 	attr.recv_cq = comp->cq;
 	attr.cap.max_send_wr = ISERT_QP_MAX_REQ_DTOS;
 	attr.cap.max_recv_wr = ISERT_QP_MAX_RECV_DTOS + 1;
-	attr.cap.max_send_sge = device->dev_attr.max_sge;
-	isert_conn->max_sge = min(device->dev_attr.max_sge,
-				  device->dev_attr.max_sge_rd);
+	attr.cap.max_send_sge = device->ib_device->attrs.max_sge;
+	isert_conn->max_sge = min(device->ib_device->attrs.max_sge,
+				  device->ib_device->attrs.max_sge_rd);
 	attr.cap.max_recv_sge = 1;
 	attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	attr.qp_type = IB_QPT_RC;
@@ -287,8 +271,7 @@ isert_free_comps(struct isert_device *device)
 }
 
 static int
-isert_alloc_comps(struct isert_device *device,
-		  struct ib_device_attr *attr)
+isert_alloc_comps(struct isert_device *device)
 {
 	int i, max_cqe, ret = 0;
 
@@ -308,7 +291,7 @@ isert_alloc_comps(struct isert_device *device,
 		return -ENOMEM;
 	}
 
-	max_cqe = min(ISER_MAX_CQ_LEN, attr->max_cqe);
+	max_cqe = min(ISER_MAX_CQ_LEN, device->ib_device->attrs.max_cqe);
 
 	for (i = 0; i < device->comps_used; i++) {
 		struct ib_cq_init_attr cq_attr = {};
@@ -344,17 +327,15 @@ out_cq:
 static int
 isert_create_device_ib_res(struct isert_device *device)
 {
-	struct ib_device_attr *dev_attr;
+	struct ib_device *ib_dev = device->ib_device;
 	int ret;
 
-	dev_attr = &device->dev_attr;
-	ret = isert_query_device(device->ib_device, dev_attr);
-	if (ret)
-		return ret;
+	isert_dbg("devattr->max_sge: %d\n", ib_dev->attrs.max_sge);
+	isert_dbg("devattr->max_sge_rd: %d\n", ib_dev->attrs.max_sge_rd);
 
 	/* asign function handlers */
-	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS &&
-	    dev_attr->device_cap_flags & IB_DEVICE_SIGNATURE_HANDOVER) {
+	if (ib_dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS &&
+	    ib_dev->attrs.device_cap_flags & IB_DEVICE_SIGNATURE_HANDOVER) {
 		device->use_fastreg = 1;
 		device->reg_rdma_mem = isert_reg_rdma;
 		device->unreg_rdma_mem = isert_unreg_rdma;
@@ -364,11 +345,11 @@ isert_create_device_ib_res(struct isert_device *device)
 		device->unreg_rdma_mem = isert_unmap_cmd;
 	}
 
-	ret = isert_alloc_comps(device, dev_attr);
+	ret = isert_alloc_comps(device);
 	if (ret)
 		return ret;
 
-	device->pd = ib_alloc_pd(device->ib_device);
+	device->pd = ib_alloc_pd(ib_dev);
 	if (IS_ERR(device->pd)) {
 		ret = PTR_ERR(device->pd);
 		isert_err("failed to allocate pd, device %p, ret=%d\n",
@@ -377,7 +358,7 @@ isert_create_device_ib_res(struct isert_device *device)
 	}
 
 	/* Check signature cap */
-	device->pi_capable = dev_attr->device_cap_flags &
+	device->pi_capable = ib_dev->attrs.device_cap_flags &
 			     IB_DEVICE_SIGNATURE_HANDOVER ? true : false;
 
 	return 0;
@@ -714,7 +695,7 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	/* Set max inflight RDMA READ requests */
 	isert_conn->initiator_depth = min_t(u8,
 				event->param.conn.initiator_depth,
-				device->dev_attr.max_qp_init_rd_atom);
+				device->ib_device->attrs.max_qp_init_rd_atom);
 	isert_dbg("Using initiator_depth: %u\n", isert_conn->initiator_depth);
 
 	ret = isert_conn_setup_qp(isert_conn, cma_id);
