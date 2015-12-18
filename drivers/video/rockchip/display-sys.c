@@ -93,14 +93,6 @@ static int mode_string(char *buf, unsigned int offset,
 	}
 	if (mode->xres == 0 && mode->yres == 0)
 		return snprintf(&buf[offset], PAGE_SIZE - offset, "auto\n");
-/*
-	if (mode->flag & FB_MODE_IS_DETAILED)
-		m = 'D';
-	if (mode->flag & FB_MODE_IS_VESA)
-		m = 'V';
-	if (mode->flag & FB_MODE_IS_STANDARD)
-		m = 'S';
-*/
 	if (mode->vmode & FB_VMODE_INTERLACED)
 		v = 'i';
 	if (mode->vmode & FB_VMODE_DOUBLE)
@@ -318,10 +310,10 @@ static ssize_t display_3dmode_show(struct device *dev,
 					      struct display_modelist,
 					      list);
 		mode_strlen = mode_string(mode_str, 0,
-					  &(display_modelist->mode));
-		mode_str[mode_strlen-1] = 0;
+					  &display_modelist->mode);
+		mode_str[mode_strlen - 1] = 0;
 		format_3d = display_modelist->format_3d;
-		i += snprintf(buf+i, PAGE_SIZE, "%s,%d\n",
+		i += snprintf(buf + i, PAGE_SIZE, "%s,%d\n",
 			      mode_str, format_3d);
 	}
 	mutex_unlock(&dsp->lock);
@@ -744,7 +736,7 @@ void rk_display_device_unregister(struct rk_display_device *ddev)
 	mutex_lock(&ddev->lock);
 	device_unregister(ddev->dev);
 	mutex_unlock(&ddev->lock);
-	/* Mark device index as avaliable */
+	/* Mark device index as available */
 	mutex_lock(&allocated_dsp_lock);
 	idr_remove(&allocated_dsp, ddev->idx);
 	mutex_unlock(&allocated_dsp_lock);
@@ -777,7 +769,6 @@ static void __exit rk_display_class_exit(void)
 
 subsys_initcall(rk_display_class_init);
 module_exit(rk_display_class_exit);
-
 
 MODULE_AUTHOR("zhengyang@rock-chips.com");
 MODULE_DESCRIPTION("Driver for rk display device");
