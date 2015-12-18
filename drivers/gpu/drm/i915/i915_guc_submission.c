@@ -867,12 +867,15 @@ static void guc_create_ads(struct intel_guc *guc)
 	struct drm_i915_gem_object *obj;
 	struct guc_ads *ads;
 	struct guc_policies *policies;
+	struct guc_mmio_reg_state *reg_state;
 	struct intel_engine_cs *ring;
 	struct page *page;
 	u32 size, i;
 
 	/* The ads obj includes the struct itself and buffers passed to GuC */
-	size = sizeof(struct guc_ads) + sizeof(struct guc_policies);
+	size = sizeof(struct guc_ads) + sizeof(struct guc_policies) +
+			sizeof(struct guc_mmio_reg_state) +
+			GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE;
 
 	obj = guc->ads_obj;
 	if (!obj) {
@@ -905,6 +908,23 @@ static void guc_create_ads(struct intel_guc *guc)
 
 	ads->scheduler_policies = i915_gem_obj_ggtt_offset(obj) +
 			sizeof(struct guc_ads);
+
+	/* MMIO reg state */
+	reg_state = (void *)policies + sizeof(struct guc_policies);
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		reg_state->mmio_white_list[i].mmio_start =
+			dev_priv->ring[i].mmio_base + GUC_MMIO_WHITE_LIST_START;
+
+		/* Nothing to be saved or restored for now. */
+		reg_state->mmio_white_list[i].count = 0;
+	}
+
+	ads->reg_state_addr = ads->scheduler_policies +
+			sizeof(struct guc_policies);
+
+	ads->reg_state_buffer = ads->reg_state_addr +
+			sizeof(struct guc_mmio_reg_state);
 
 	kunmap(page);
 }

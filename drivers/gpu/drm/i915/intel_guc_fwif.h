@@ -361,6 +361,43 @@ struct guc_policies {
 	u32 reserved[19];
 } __packed;
 
+/* GuC MMIO reg state struct */
+
+#define GUC_REGSET_FLAGS_NONE		0x0
+#define GUC_REGSET_POWERCYCLE		0x1
+#define GUC_REGSET_MASKED		0x2
+#define GUC_REGSET_ENGINERESET		0x4
+#define GUC_REGSET_SAVE_DEFAULT_VALUE	0x8
+#define GUC_REGSET_SAVE_CURRENT_VALUE	0x10
+
+#define GUC_REGSET_MAX_REGISTERS	20
+#define GUC_MMIO_WHITE_LIST_START	0x24d0
+#define GUC_MMIO_WHITE_LIST_MAX		12
+#define GUC_S3_SAVE_SPACE_PAGES		10
+
+struct guc_mmio_regset {
+	struct __packed {
+		u32 offset;
+		u32 value;
+		u32 flags;
+	} registers[GUC_REGSET_MAX_REGISTERS];
+
+	u32 values_valid;
+	u32 number_of_registers;
+} __packed;
+
+struct guc_mmio_reg_state {
+	struct guc_mmio_regset global_reg;
+	struct guc_mmio_regset engine_reg[I915_NUM_RINGS];
+
+	/* MMIO registers that are set as non privileged */
+	struct __packed {
+		u32 mmio_start;
+		u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
+		u32 count;
+	} mmio_white_list[I915_NUM_RINGS];
+} __packed;
+
 /* GuC Additional Data Struct */
 
 struct guc_ads {
