@@ -23,41 +23,6 @@
 #include "../free-space-cache.h"
 
 #define BITS_PER_BITMAP		(PAGE_CACHE_SIZE * 8)
-static struct btrfs_block_group_cache *init_test_block_group(void)
-{
-	struct btrfs_block_group_cache *cache;
-
-	cache = kzalloc(sizeof(*cache), GFP_NOFS);
-	if (!cache)
-		return NULL;
-	cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
-					GFP_NOFS);
-	if (!cache->free_space_ctl) {
-		kfree(cache);
-		return NULL;
-	}
-	cache->fs_info = btrfs_alloc_dummy_fs_info();
-	if (!cache->fs_info) {
-		kfree(cache->free_space_ctl);
-		kfree(cache);
-		return NULL;
-	}
-
-	cache->key.objectid = 0;
-	cache->key.offset = 1024 * 1024 * 1024;
-	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
-	cache->sectorsize = 4096;
-	cache->full_stripe_len = 4096;
-
-	spin_lock_init(&cache->lock);
-	INIT_LIST_HEAD(&cache->list);
-	INIT_LIST_HEAD(&cache->cluster_list);
-	INIT_LIST_HEAD(&cache->bg_list);
-
-	btrfs_init_free_space_ctl(cache);
-
-	return cache;
-}
 
 /*
  * This test just does basic sanity checking, making sure we can add an exten
@@ -891,7 +856,7 @@ int btrfs_test_free_space_cache(void)
 
 	test_msg("Running btrfs free space cache tests\n");
 
-	cache = init_test_block_group();
+	cache = btrfs_alloc_dummy_block_group(1024 * 1024 * 1024);
 	if (!cache) {
 		test_msg("Couldn't run the tests\n");
 		return 0;
@@ -922,9 +887,7 @@ int btrfs_test_free_space_cache(void)
 
 	ret = test_steal_space_from_bitmap_to_extent(cache);
 out:
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
-	kfree(cache->free_space_ctl);
-	kfree(cache);
+	btrfs_free_dummy_block_group(cache);
 	btrfs_free_dummy_root(root);
 	test_msg("Free space cache tests finished\n");
 	return ret;
