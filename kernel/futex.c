@@ -1839,20 +1839,25 @@ retry_private:
 				 */
 				this->pi_state = NULL;
 				put_pi_state(pi_state);
-				goto out_unlock;
+				/*
+				 * We stop queueing more waiters and let user
+				 * space deal with the mess.
+				 */
+				break;
 			}
 		}
 		requeue_futex(this, hb1, hb2, &key2);
 		drop_count++;
 	}
 
-out_unlock:
 	/*
 	 * We took an extra initial reference to the pi_state either
 	 * in futex_proxy_trylock_atomic() or in lookup_pi_state(). We
 	 * need to drop it here again.
 	 */
 	put_pi_state(pi_state);
+
+out_unlock:
 	double_unlock_hb(hb1, hb2);
 	wake_up_q(&wake_q);
 	hb_waiters_dec(hb2);
