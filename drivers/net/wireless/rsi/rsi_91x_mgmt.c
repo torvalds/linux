@@ -1023,7 +1023,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 		return -ENOMEM;
 	}
 
-	selected_rates = kmalloc(2 * RSI_TBL_SZ, GFP_KERNEL);
+	selected_rates = kzalloc(2 * RSI_TBL_SZ, GFP_KERNEL);
 	if (!selected_rates) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
 			__func__);
@@ -1032,7 +1032,6 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	}
 
 	memset(skb->data, 0, sizeof(struct rsi_auto_rate));
-	memset(selected_rates, 0, 2 * RSI_TBL_SZ);
 
 	auto_rate = (struct rsi_auto_rate *)skb->data;
 
