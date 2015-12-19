@@ -241,6 +241,7 @@ v3	V3 Semiconductor
 variscite	Variscite Ltd.
 via	VIA Technologies, Inc.
 virtio	Virtual I/O Device Specification, developed by the OASIS consortium
+vivante	Vivante Corporation
 voipac	Voipac Technologies s.r.o.
 wexler	Wexler
 winbond Winbond Electronics corp.
