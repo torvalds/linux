@@ -932,6 +932,8 @@ struct amdgpu_vm_id {
 };
 
 struct amdgpu_vm {
+	/* tree of virtual addresses mapped */
+	spinlock_t		it_lock;
 	struct rb_root		va;
 
 	/* protecting invalidated */
@@ -956,8 +958,7 @@ struct amdgpu_vm {
 
 	/* for id and flush management per ring */
 	struct amdgpu_vm_id	ids[AMDGPU_MAX_RINGS];
-	/* for interval tree */
-	spinlock_t		it_lock;
+
 	/* protecting freed */
 	spinlock_t		freed_lock;
 };
