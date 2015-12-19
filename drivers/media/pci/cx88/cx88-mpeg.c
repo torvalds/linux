@@ -393,7 +393,8 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 	if (pci_enable_device(dev->pci))
 		return -EIO;
 	pci_set_master(dev->pci);
-	if (!pci_set_dma_mask(dev->pci,DMA_BIT_MASK(32))) {
+	err = pci_set_dma_mask(dev->pci,DMA_BIT_MASK(32));
+	if (err) {
 		printk("%s/2: Oops: no 32bit PCI DMA ???\n",dev->core->name);
 		return -EIO;
 	}

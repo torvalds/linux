@@ -2711,7 +2711,7 @@ $kernelversion = get_kernel_version();
 
 # generate a sequence of code that will splice in highlighting information
 # using the s// operator.
-foreach my $k (keys @highlights) {
+for (my $k = 0; $k < @highlights; $k++) {
     my $pattern = $highlights[$k][0];
     my $result = $highlights[$k][1];
 #   print STDERR "scanning pattern:$pattern, highlight:($result)\n";

@@ -123,12 +123,42 @@ static u64 block_to_addr(struct rrpc *rrpc, struct rrpc_block *rblk)
 	return blk->id * rrpc->dev->pgs_per_blk;
 }
 
+static struct ppa_addr linear_to_generic_addr(struct nvm_dev *dev,
+							struct ppa_addr r)
+{
+	struct ppa_addr l;
+	int secs, pgs, blks, luns;
+	sector_t ppa = r.ppa;
+
+	l.ppa = 0;
+
+	div_u64_rem(ppa, dev->sec_per_pg, &secs);
+	l.g.sec = secs;
+
+	sector_div(ppa, dev->sec_per_pg);
+	div_u64_rem(ppa, dev->sec_per_blk, &pgs);
+	l.g.pg = pgs;
+
+	sector_div(ppa, dev->pgs_per_blk);
+	div_u64_rem(ppa, dev->blks_per_lun, &blks);
+	l.g.blk = blks;
+
+	sector_div(ppa, dev->blks_per_lun);
+	div_u64_rem(ppa, dev->luns_per_chnl, &luns);
+	l.g.lun = luns;
+
+	sector_div(ppa, dev->luns_per_chnl);
+	l.g.ch = ppa;
+
+	return l;
+}
+
 static struct ppa_addr rrpc_ppa_to_gaddr(struct nvm_dev *dev, u64 addr)
 {
 	struct ppa_addr paddr;
 
 	paddr.ppa = addr;
-	return __linear_to_generic_addr(dev, paddr);
+	return linear_to_generic_addr(dev, paddr);
 }
 
 /* requires lun->lock taken */
@@ -152,7 +182,7 @@ static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 	struct nvm_block *blk;
 	struct rrpc_block *rblk;
 
-	blk = nvm_get_blk(rrpc->dev, rlun->parent, 0);
+	blk = nvm_get_blk(rrpc->dev, rlun->parent, flags);
 	if (!blk)
 		return NULL;
 
@@ -170,6 +200,20 @@ static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 static void rrpc_put_blk(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
 	nvm_put_blk(rrpc->dev, rblk->parent);
+}
+
+static void rrpc_put_blks(struct rrpc *rrpc)
+{
+	struct rrpc_lun *rlun;
+	int i;
+
+	for (i = 0; i < rrpc->nr_luns; i++) {
+		rlun = &rrpc->luns[i];
+		if (rlun->cur)
+			rrpc_put_blk(rrpc, rlun->cur);
+		if (rlun->gc_cur)
+			rrpc_put_blk(rrpc, rlun->gc_cur);
+	}
 }
 
 static struct rrpc_lun *get_next_lun(struct rrpc *rrpc)
@@ -972,7 +1016,7 @@ static int rrpc_map_init(struct rrpc *rrpc)
 		return 0;
 
 	/* Bring up the mapping table from device */
-	ret = dev->ops->get_l2p_tbl(dev->q, 0, dev->total_pages,
+	ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_pages,
 							rrpc_l2p_update, rrpc);
 	if (ret) {
 		pr_err("nvm: rrpc: could not read L2P table.\n");
@@ -1194,18 +1238,21 @@ static int rrpc_luns_configure(struct rrpc *rrpc)
 
 		rblk = rrpc_get_blk(rrpc, rlun, 0);
 		if (!rblk)
-			return -EINVAL;
+			goto err;
 
 		rrpc_set_lun_cur(rlun, rblk);
 
 		/* Emergency gc block */
 		rblk = rrpc_get_blk(rrpc, rlun, 1);
 		if (!rblk)
-			return -EINVAL;
+			goto err;
 		rlun->gc_cur = rblk;
 	}
 
 	return 0;
+err:
+	rrpc_put_blks(rrpc);
+	return -EINVAL;
 }
 
 static struct nvm_tgt_type tt_rrpc;

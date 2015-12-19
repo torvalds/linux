@@ -599,7 +599,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 		FJES_CMD_REQ_RES_CODE_BUSY) &&
 	       (timeout > 0)) {
 		msleep(200 + hw->my_epid * 20);
-			timeout -= (200 + hw->my_epid * 20);
+		timeout -= (200 + hw->my_epid * 20);
 
 		res_buf->unshare_buffer.length = 0;
 		res_buf->unshare_buffer.code = 0;

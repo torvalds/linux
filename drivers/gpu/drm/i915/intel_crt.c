@@ -138,18 +138,6 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
-static void hsw_crt_pre_enable(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	WARN(I915_READ(SPLL_CTL) & SPLL_PLL_ENABLE, "SPLL already enabled\n");
-	I915_WRITE(SPLL_CTL,
-		   SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC);
-	POSTING_READ(SPLL_CTL);
-	udelay(20);
-}
-
 /* Note: The caller is required to filter out dpms modes not supported by the
  * platform. */
 static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
@@ -216,19 +204,6 @@ static void pch_post_disable_crt(struct intel_encoder *encoder)
 	intel_disable_crt(encoder);
 }
 
-static void hsw_crt_post_disable(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t val;
-
-	DRM_DEBUG_KMS("Disabling SPLL\n");
-	val = I915_READ(SPLL_CTL);
-	WARN_ON(!(val & SPLL_PLL_ENABLE));
-	I915_WRITE(SPLL_CTL, val & ~SPLL_PLL_ENABLE);
-	POSTING_READ(SPLL_CTL);
-}
-
 static void intel_enable_crt(struct intel_encoder *encoder)
 {
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
@@ -280,6 +255,10 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	if (HAS_DDI(dev)) {
 		pipe_config->ddi_pll_sel = PORT_CLK_SEL_SPLL;
 		pipe_config->port_clock = 135000 * 2;
+
+		pipe_config->dpll_hw_state.wrpll = 0;
+		pipe_config->dpll_hw_state.spll =
+			SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
 	}
 
 	return true;
@@ -860,8 +839,6 @@ void intel_crt_init(struct drm_device *dev)
 	if (HAS_DDI(dev)) {
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;
-		crt->base.pre_enable = hsw_crt_pre_enable;
-		crt->base.post_disable = hsw_crt_post_disable;
 	} else {
 		crt->base.get_config = intel_crt_get_config;
 		crt->base.get_hw_state = intel_crt_get_hw_state;

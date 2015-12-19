@@ -312,6 +312,7 @@ extern void css_schedule_reprobe(void);
 extern void reipl_ccw_dev(struct ccw_dev_id *id);
 
 struct cio_iplinfo {
+	u8 ssid;
 	u16 devno;
 	int is_qdio;
 };

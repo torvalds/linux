@@ -920,8 +920,8 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 	desc->lld.mbr_cfg = chan_cc;
 
 	dev_dbg(chan2dev(chan),
-		"%s: lld: mbr_sa=0x%08x, mbr_da=0x%08x, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
-		__func__, desc->lld.mbr_sa, desc->lld.mbr_da,
+		"%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
+		__func__, &desc->lld.mbr_sa, &desc->lld.mbr_da,
 		desc->lld.mbr_ubc, desc->lld.mbr_cfg);
 
 	/* Chain lld. */
@@ -953,8 +953,8 @@ at_xdmac_prep_interleaved(struct dma_chan *chan,
 	if ((xt->numf > 1) && (xt->frame_size > 1))
 		return NULL;
 
-	dev_dbg(chan2dev(chan), "%s: src=0x%08x, dest=0x%08x, numf=%d, frame_size=%d, flags=0x%lx\n",
-		__func__, xt->src_start, xt->dst_start,	xt->numf,
+	dev_dbg(chan2dev(chan), "%s: src=%pad, dest=%pad, numf=%d, frame_size=%d, flags=0x%lx\n",
+		__func__, &xt->src_start, &xt->dst_start,	xt->numf,
 		xt->frame_size, flags);
 
 	src_addr = xt->src_start;
@@ -1179,8 +1179,8 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 	desc->lld.mbr_cfg = chan_cc;
 
 	dev_dbg(chan2dev(chan),
-		"%s: lld: mbr_da=0x%08x, mbr_ds=0x%08x, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
-		__func__, desc->lld.mbr_da, desc->lld.mbr_ds, desc->lld.mbr_ubc,
+		"%s: lld: mbr_da=%pad, mbr_ds=%pad, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
+		__func__, &desc->lld.mbr_da, &desc->lld.mbr_ds, desc->lld.mbr_ubc,
 		desc->lld.mbr_cfg);
 
 	return desc;
@@ -1193,8 +1193,8 @@ at_xdmac_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
 	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
 	struct at_xdmac_desc	*desc;
 
-	dev_dbg(chan2dev(chan), "%s: dest=0x%08x, len=%d, pattern=0x%x, flags=0x%lx\n",
-		__func__, dest, len, value, flags);
+	dev_dbg(chan2dev(chan), "%s: dest=%pad, len=%d, pattern=0x%x, flags=0x%lx\n",
+		__func__, &dest, len, value, flags);
 
 	if (unlikely(!len))
 		return NULL;
@@ -1229,8 +1229,8 @@ at_xdmac_prep_dma_memset_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	/* Prepare descriptors. */
 	for_each_sg(sgl, sg, sg_len, i) {
-		dev_dbg(chan2dev(chan), "%s: dest=0x%08x, len=%d, pattern=0x%x, flags=0x%lx\n",
-			__func__, sg_dma_address(sg), sg_dma_len(sg),
+		dev_dbg(chan2dev(chan), "%s: dest=%pad, len=%d, pattern=0x%x, flags=0x%lx\n",
+			__func__, &sg_dma_address(sg), sg_dma_len(sg),
 			value, flags);
 		desc = at_xdmac_memset_create_desc(chan, atchan,
 						   sg_dma_address(sg),

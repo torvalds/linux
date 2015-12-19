@@ -302,8 +302,14 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 			return -EINVAL;
 		}
 
-		if (amdgpu_enable_scheduler || !amdgpu_enable_semaphores ||
-		    (count >= AMDGPU_NUM_SYNCS)) {
+		if (amdgpu_enable_scheduler || !amdgpu_enable_semaphores) {
+			r = fence_wait(&fence->base, true);
+			if (r)
+				return r;
+			continue;
+		}
+
+		if (count >= AMDGPU_NUM_SYNCS) {
 			/* not enough room, wait manually */
 			r = fence_wait(&fence->base, false);
 			if (r)
