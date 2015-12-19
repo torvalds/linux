@@ -600,12 +600,12 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 		goto error;
 
 	ret = gb_svc_link_config(svc, connection->intf->interface_id,
-				 GB_SVC_LINK_CONFIG_BURST_HS_A, 1, 1, 0);
+				 GB_SVC_LINK_CONFIG_BURST_HS_A, 2, 2, 0);
 	if (ret < 0)
 		goto error;
 
 	ret = gb_svc_link_config(svc, svc->ap_intf_id,
-				 GB_SVC_LINK_CONFIG_BURST_HS_A, 1, 1, 0);
+				 GB_SVC_LINK_CONFIG_BURST_HS_A, 2, 2, 0);
 	if (ret < 0)
 		goto error;
 
