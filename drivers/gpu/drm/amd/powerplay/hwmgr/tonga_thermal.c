@@ -371,6 +371,9 @@ int tf_tonga_thermal_setup_fan_table(struct pp_hwmgr *hwmgr, void *input, void *
 	int res;
 	uint64_t tmp64;
 
+	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl))
+		return 0;
+
 	if (0 == data->fan_table_start) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
