@@ -370,8 +370,78 @@ static int uinput_allocate_device(struct uinput_device *udev)
 	return 0;
 }
 
-static int uinput_setup_device(struct uinput_device *udev,
-			       const char __user *buffer, size_t count)
+static int uinput_dev_setup(struct uinput_device *udev,
+			    struct uinput_setup __user *arg)
+{
+	struct uinput_setup setup;
+	struct input_dev *dev;
+	int retval;
+
+	if (udev->state == UIST_CREATED)
+		return -EINVAL;
+
+	if (copy_from_user(&setup, arg, sizeof(setup)))
+		return -EFAULT;
+
+	if (!setup.name[0])
+		return -EINVAL;
+
+	dev = udev->dev;
+	dev->id = setup.id;
+	udev->ff_effects_max = setup.ff_effects_max;
+
+	kfree(dev->name);
+	dev->name = kstrndup(setup.name, UINPUT_MAX_NAME_SIZE, GFP_KERNEL);
+	if (!dev->name)
+		return -ENOMEM;
+
+	retval = uinput_validate_absbits(dev);
+	if (retval < 0)
+		return retval;
+
+	udev->state = UIST_SETUP_COMPLETE;
+	return 0;
+}
+
+static int uinput_abs_setup(struct uinput_device *udev,
+			    struct uinput_setup __user *arg, size_t size)
+{
+	struct uinput_abs_setup setup = {};
+	struct input_dev *dev;
+
+	if (size > sizeof(setup))
+		return -E2BIG;
+
+	if (udev->state == UIST_CREATED)
+		return -EINVAL;
+
+	if (copy_from_user(&setup, arg, size))
+		return -EFAULT;
+
+	if (setup.code > ABS_MAX)
+		return -ERANGE;
+
+	dev = udev->dev;
+
+	input_alloc_absinfo(dev);
+	if (!dev->absinfo)
+		return -ENOMEM;
+
+	set_bit(setup.code, dev->absbit);
+	dev->absinfo[setup.code] = setup.absinfo;
+
+	/*
+	 * We restore the state to UIST_NEW_DEVICE because the user has to call
+	 * UI_DEV_SETUP in the last place before UI_DEV_CREATE to check the
+	 * validity of the absbits.
+	 */
+	udev->state = UIST_NEW_DEVICE;
+	return 0;
+}
+
+/* legacy setup via write() */
+static int uinput_setup_device_legacy(struct uinput_device *udev,
+				      const char __user *buffer, size_t count)
 {
 	struct uinput_user_dev	*user_dev;
 	struct input_dev	*dev;
@@ -474,7 +544,7 @@ static ssize_t uinput_write(struct file *file, const char __user *buffer,
 
 	retval = udev->state == UIST_CREATED ?
 			uinput_inject_events(udev, buffer, count) :
-			uinput_setup_device(udev, buffer, count);
+			uinput_setup_device_legacy(udev, buffer, count);
 
 	mutex_unlock(&udev->mutex);
 
@@ -735,6 +805,12 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 			uinput_destroy_device(udev);
 			goto out;
 
+		case UI_DEV_SETUP:
+			retval = uinput_dev_setup(udev, p);
+			goto out;
+
+		/* UI_ABS_SETUP is handled in the variable size ioctls */
+
 		case UI_SET_EVBIT:
 			retval = uinput_set_bit(arg, evbit, EV_MAX);
 			goto out;
@@ -878,6 +954,10 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 		}
 		name = dev_name(&udev->dev->dev);
 		retval = uinput_str_to_user(p, name, size);
+		goto out;
+
+	case UI_ABS_SETUP & ~IOCSIZE_MASK:
+		retval = uinput_abs_setup(udev, p, size);
 		goto out;
 	}
 
