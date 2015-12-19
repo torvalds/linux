@@ -1709,27 +1709,31 @@ retry_private:
 		 * exist yet, look it up one more time to ensure we have a
 		 * reference to it. If the lock was taken, ret contains the
 		 * vpid of the top waiter task.
+		 * If the lock was not taken, we have pi_state and an initial
+		 * refcount on it. In case of an error we have nothing.
 		 */
 		if (ret > 0) {
 			WARN_ON(pi_state);
 			drop_count++;
 			task_count++;
 			/*
-			 * If we acquired the lock, then the user
-			 * space value of uaddr2 should be vpid. It
-			 * cannot be changed by the top waiter as it
-			 * is blocked on hb2 lock if it tries to do
-			 * so. If something fiddled with it behind our
-			 * back the pi state lookup might unearth
-			 * it. So we rather use the known value than
-			 * rereading and handing potential crap to
-			 * lookup_pi_state.
+			 * If we acquired the lock, then the user space value
+			 * of uaddr2 should be vpid. It cannot be changed by
+			 * the top waiter as it is blocked on hb2 lock if it
+			 * tries to do so. If something fiddled with it behind
+			 * our back the pi state lookup might unearth it. So
+			 * we rather use the known value than rereading and
+			 * handing potential crap to lookup_pi_state.
+			 *
+			 * If that call succeeds then we have pi_state and an
+			 * initial refcount on it.
 			 */
 			ret = lookup_pi_state(ret, hb2, &key2, &pi_state);
 		}
 
 		switch (ret) {
 		case 0:
+			/* We hold a reference on the pi state. */
 			break;
 		case -EFAULT:
 			put_pi_state(pi_state);
@@ -1804,19 +1808,37 @@ retry_private:
 		 * of requeue_pi if we couldn't acquire the lock atomically.
 		 */
 		if (requeue_pi) {
-			/* Prepare the waiter to take the rt_mutex. */
+			/*
+			 * Prepare the waiter to take the rt_mutex. Take a
+			 * refcount on the pi_state and store the pointer in
+			 * the futex_q object of the waiter.
+			 */
 			atomic_inc(&pi_state->refcount);
 			this->pi_state = pi_state;
 			ret = rt_mutex_start_proxy_lock(&pi_state->pi_mutex,
 							this->rt_waiter,
 							this->task);
 			if (ret == 1) {
-				/* We got the lock. */
+				/*
+				 * We got the lock. We do neither drop the
+				 * refcount on pi_state nor clear
+				 * this->pi_state because the waiter needs the
+				 * pi_state for cleaning up the user space
+				 * value. It will drop the refcount after
+				 * doing so.
+				 */
 				requeue_pi_wake_futex(this, &key2, hb2);
 				drop_count++;
 				continue;
 			} else if (ret) {
-				/* -EDEADLK */
+				/*
+				 * rt_mutex_start_proxy_lock() detected a
+				 * potential deadlock when we tried to queue
+				 * that waiter. Drop the pi_state reference
+				 * which we took above and remove the pointer
+				 * to the state from the waiters futex_q
+				 * object.
+				 */
 				this->pi_state = NULL;
 				put_pi_state(pi_state);
 				goto out_unlock;
@@ -1827,6 +1849,11 @@ retry_private:
 	}
 
 out_unlock:
+	/*
+	 * We took an extra initial reference to the pi_state either
+	 * in futex_proxy_trylock_atomic() or in lookup_pi_state(). We
+	 * need to drop it here again.
+	 */
 	put_pi_state(pi_state);
 	double_unlock_hb(hb1, hb2);
 	wake_up_q(&wake_q);
