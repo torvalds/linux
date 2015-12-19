@@ -255,12 +255,9 @@ out:
 
 static int adf_ctl_is_device_in_use(int id)
 {
-	struct list_head *itr, *head = adf_devmgr_get_head();
+	struct adf_accel_dev *dev;
 
-	list_for_each(itr, head) {
-		struct adf_accel_dev *dev =
-				list_entry(itr, struct adf_accel_dev, list);
-
+	list_for_each_entry(dev, adf_devmgr_get_head(), list) {
 		if (id == dev->accel_id || id == ADF_CFG_ALL_DEVICES) {
 			if (adf_devmgr_in_reset(dev) || adf_dev_in_use(dev)) {
 				dev_info(&GET_DEV(dev),
@@ -275,12 +272,10 @@ static int adf_ctl_is_device_in_use(int id)
 
 static int adf_ctl_stop_devices(uint32_t id)
 {
-	struct list_head *itr, *head = adf_devmgr_get_head();
+	struct adf_accel_dev *accel_dev;
 	int ret = 0;
 
-	list_for_each_prev(itr, head) {
-		struct adf_accel_dev *accel_dev =
-				list_entry(itr, struct adf_accel_dev, list);
+	list_for_each_entry_reverse(accel_dev, adf_devmgr_get_head(), list) {
 		if (id == accel_dev->accel_id || id == ADF_CFG_ALL_DEVICES) {
 			if (!adf_dev_started(accel_dev))
 				continue;
