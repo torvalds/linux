@@ -105,7 +105,7 @@ static int egalax_connect(struct serio *serio, struct serio_driver *drv)
 
 	egalax = kzalloc(sizeof(struct egalax), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!egalax) {
+	if (!egalax || !input_dev) {
 		error = -ENOMEM;
 		goto err_free_mem;
 	}
