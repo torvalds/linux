@@ -1582,6 +1582,7 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 
 	case FICLONE:
 	case FICLONERANGE:
+	case FIDEDUPERANGE:
 		goto do_ioctl;
 
 	case FIBMAP:

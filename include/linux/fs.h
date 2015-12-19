@@ -1633,6 +1633,8 @@ struct file_operations {
 			loff_t, size_t, unsigned int);
 	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t,
 			u64);
+	ssize_t (*dedupe_file_range)(struct file *, u64, u64, struct file *,
+			u64);
 };
 
 struct inode_operations {
@@ -1688,6 +1690,8 @@ extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
 				   loff_t, size_t, unsigned int);
 extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 		struct file *file_out, loff_t pos_out, u64 len);
+extern int vfs_dedupe_file_range(struct file *file,
+				 struct file_dedupe_range *same);
 
 struct super_operations {
    	struct inode *(*alloc_inode)(struct super_block *sb);
