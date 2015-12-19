@@ -1279,7 +1279,13 @@ static int _gpiod_get_raw_value(const struct gpio_desc *desc)
 	chip = desc->chip;
 	offset = gpio_chip_hwgpio(desc);
 	value = chip->get ? chip->get(chip, offset) : -EIO;
-	value = value < 0 ? value : !!value;
+	/*
+	 * FIXME: fix all drivers to clamp to [0,1] or return negative,
+	 * then change this to:
+	 * value = value < 0 ? value : !!value;
+	 * so we can properly propagate error codes.
+	 */
+	value = !!value;
 	trace_gpio_value(desc_to_gpio(desc), 1, value);
 	return value;
 }
