@@ -35,3 +35,18 @@ config UBIFS_FS_ZLIB
 	default y
 	help
 	  Zlib compresses better than LZO but it is slower. Say 'Y' if unsure.
+
+config UBIFS_ATIME_SUPPORT
+	bool "Access time support" if UBIFS_FS
+	depends on UBIFS_FS
+	default n
+	help
+	  Originally UBIFS did not support atime, because it looked like a bad idea due
+	  increased flash wear. This option adds atime support and it is disabled by default
+	  to preserve the old behavior. If you enable this option, UBIFS starts updating atime,
+	  which means that file-system read operations will cause writes (inode atime
+	  updates). This may affect file-system performance and increase flash device wear,
+	  so be careful. How often atime is updated depends on the selected strategy:
+	  strictatime is the "heavy", relatime is "lighter", etc.
+
+	  If unsure, say 'N'

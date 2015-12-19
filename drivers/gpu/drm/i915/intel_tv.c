@@ -1138,13 +1138,13 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder)
 
 	j = 0;
 	for (i = 0; i < 60; i++)
-		I915_WRITE(TV_H_LUMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_H_LUMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 60; i++)
-		I915_WRITE(TV_H_CHROMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_H_CHROMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 43; i++)
-		I915_WRITE(TV_V_LUMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_V_LUMA(i), tv_mode->filter_table[j++]);
 	for (i = 0; i < 43; i++)
-		I915_WRITE(TV_V_CHROMA_0 + (i<<2), tv_mode->filter_table[j++]);
+		I915_WRITE(TV_V_CHROMA(i), tv_mode->filter_table[j++]);
 	I915_WRITE(TV_DAC, I915_READ(TV_DAC) & TV_DAC_SAVE);
 	I915_WRITE(TV_CTL, tv_ctl);
 }
@@ -1291,7 +1291,7 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 		return;
 
 
-	for (i = 0; i < sizeof(tv_modes) / sizeof(*tv_modes); i++) {
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		tv_mode = tv_modes + i;
 
 		if ((intel_tv->type == DRM_MODE_CONNECTOR_Component) ==
@@ -1579,7 +1579,7 @@ intel_tv_init(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	u32 tv_dac_on, tv_dac_off, save_tv_dac;
-	char *tv_format_names[ARRAY_SIZE(tv_modes)];
+	const char *tv_format_names[ARRAY_SIZE(tv_modes)];
 	int i, initial_mode = 0;
 
 	if ((I915_READ(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
@@ -1677,7 +1677,7 @@ intel_tv_init(struct drm_device *dev)
 
 	/* Create TV properties then attach current values */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++)
-		tv_format_names[i] = (char *)tv_modes[i].name;
+		tv_format_names[i] = tv_modes[i].name;
 	drm_mode_create_tv_properties(dev,
 				      ARRAY_SIZE(tv_modes),
 				      tv_format_names);

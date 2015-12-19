@@ -700,9 +700,9 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 
 	ipoib_build_sge(priv, tx_req);
 
-	priv->tx_wr.wr_id	= wr_id | IPOIB_OP_CM;
+	priv->tx_wr.wr.wr_id	= wr_id | IPOIB_OP_CM;
 
-	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
+	return ib_post_send(tx->qp, &priv->tx_wr.wr, &bad_wr);
 }
 
 void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_tx *tx)

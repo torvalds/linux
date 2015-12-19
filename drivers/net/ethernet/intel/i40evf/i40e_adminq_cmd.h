@@ -1719,11 +1719,13 @@ struct i40e_aqc_get_link_status {
 	u8	phy_type;    /* i40e_aq_phy_type   */
 	u8	link_speed;  /* i40e_aq_link_speed */
 	u8	link_info;
-#define I40E_AQ_LINK_UP			0x01
+#define I40E_AQ_LINK_UP			0x01    /* obsolete */
+#define I40E_AQ_LINK_UP_FUNCTION	0x01
 #define I40E_AQ_LINK_FAULT		0x02
 #define I40E_AQ_LINK_FAULT_TX		0x04
 #define I40E_AQ_LINK_FAULT_RX		0x08
 #define I40E_AQ_LINK_FAULT_REMOTE	0x10
+#define I40E_AQ_LINK_UP_PORT		0x20
 #define I40E_AQ_MEDIA_AVAILABLE		0x40
 #define I40E_AQ_SIGNAL_DETECT		0x80
 	u8	an_info;

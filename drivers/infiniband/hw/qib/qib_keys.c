@@ -336,14 +336,15 @@ bail:
 }
 
 /*
- * Initialize the memory region specified by the work reqeust.
+ * Initialize the memory region specified by the work request.
  */
-int qib_fast_reg_mr(struct qib_qp *qp, struct ib_send_wr *wr)
+int qib_reg_mr(struct qib_qp *qp, struct ib_reg_wr *wr)
 {
 	struct qib_lkey_table *rkt = &to_idev(qp->ibqp.device)->lk_table;
 	struct qib_pd *pd = to_ipd(qp->ibqp.pd);
-	struct qib_mregion *mr;
-	u32 rkey = wr->wr.fast_reg.rkey;
+	struct qib_mr *mr = to_imr(wr->mr);
+	struct qib_mregion *mrg;
+	u32 key = wr->key;
 	unsigned i, n, m;
 	int ret = -EINVAL;
 	unsigned long flags;
@@ -351,33 +352,33 @@ int qib_fast_reg_mr(struct qib_qp *qp, struct ib_send_wr *wr)
 	size_t ps;
 
 	spin_lock_irqsave(&rkt->lock, flags);
-	if (pd->user || rkey == 0)
+	if (pd->user || key == 0)
 		goto bail;
 
-	mr = rcu_dereference_protected(
-		rkt->table[(rkey >> (32 - ib_qib_lkey_table_size))],
+	mrg = rcu_dereference_protected(
+		rkt->table[(key >> (32 - ib_qib_lkey_table_size))],
 		lockdep_is_held(&rkt->lock));
-	if (unlikely(mr == NULL || qp->ibqp.pd != mr->pd))
+	if (unlikely(mrg == NULL || qp->ibqp.pd != mrg->pd))
 		goto bail;
 
-	if (wr->wr.fast_reg.page_list_len > mr->max_segs)
+	if (mr->npages > mrg->max_segs)
 		goto bail;
 
-	ps = 1UL << wr->wr.fast_reg.page_shift;
-	if (wr->wr.fast_reg.length > ps * wr->wr.fast_reg.page_list_len)
+	ps = mr->ibmr.page_size;
+	if (mr->ibmr.length > ps * mr->npages)
 		goto bail;
 
-	mr->user_base = wr->wr.fast_reg.iova_start;
-	mr->iova = wr->wr.fast_reg.iova_start;
-	mr->lkey = rkey;
-	mr->length = wr->wr.fast_reg.length;
-	mr->access_flags = wr->wr.fast_reg.access_flags;
-	page_list = wr->wr.fast_reg.page_list->page_list;
+	mrg->user_base = mr->ibmr.iova;
+	mrg->iova = mr->ibmr.iova;
+	mrg->lkey = key;
+	mrg->length = mr->ibmr.length;
+	mrg->access_flags = wr->access;
+	page_list = mr->pages;
 	m = 0;
 	n = 0;
-	for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
-		mr->map[m]->segs[n].vaddr = (void *) page_list[i];
-		mr->map[m]->segs[n].length = ps;
+	for (i = 0; i < mr->npages; i++) {
+		mrg->map[m]->segs[n].vaddr = (void *) page_list[i];
+		mrg->map[m]->segs[n].length = ps;
 		if (++n == QIB_SEGSZ) {
 			m++;
 			n = 0;

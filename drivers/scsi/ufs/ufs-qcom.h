@@ -35,8 +35,8 @@
 
 #define UFS_QCOM_LIMIT_NUM_LANES_RX	2
 #define UFS_QCOM_LIMIT_NUM_LANES_TX	2
-#define UFS_QCOM_LIMIT_HSGEAR_RX	UFS_HS_G2
-#define UFS_QCOM_LIMIT_HSGEAR_TX	UFS_HS_G2
+#define UFS_QCOM_LIMIT_HSGEAR_RX	UFS_HS_G3
+#define UFS_QCOM_LIMIT_HSGEAR_TX	UFS_HS_G3
 #define UFS_QCOM_LIMIT_PWMGEAR_RX	UFS_PWM_G4
 #define UFS_QCOM_LIMIT_PWMGEAR_TX	UFS_PWM_G4
 #define UFS_QCOM_LIMIT_RX_PWR_PWM	SLOW_MODE
@@ -58,6 +58,21 @@ enum {
 	REG_UFS_CFG2                        = 0xE0,
 	REG_UFS_HW_VERSION                  = 0xE4,
 
+	UFS_TEST_BUS				= 0xE8,
+	UFS_TEST_BUS_CTRL_0			= 0xEC,
+	UFS_TEST_BUS_CTRL_1			= 0xF0,
+	UFS_TEST_BUS_CTRL_2			= 0xF4,
+	UFS_UNIPRO_CFG				= 0xF8,
+
+	/*
+	 * QCOM UFS host controller vendor specific registers
+	 * added in HW Version 3.0.0
+	 */
+	UFS_AH8_CFG				= 0xFC,
+};
+
+/* QCOM UFS host controller vendor specific debug registers */
+enum {
 	UFS_DBG_RD_REG_UAWM			= 0x100,
 	UFS_DBG_RD_REG_UARM			= 0x200,
 	UFS_DBG_RD_REG_TXUC			= 0x300,
@@ -73,6 +88,14 @@ enum {
 	UFS_UFS_DBG_RD_EDTL_RAM			= 0x1900,
 };
 
+#define UFS_CNTLR_2_x_x_VEN_REGS_OFFSET(x)	(0x000 + x)
+#define UFS_CNTLR_3_x_x_VEN_REGS_OFFSET(x)	(0x400 + x)
+
+/* bit definitions for REG_UFS_CFG1 register */
+#define QUNIPRO_SEL	UFS_BIT(0)
+#define TEST_BUS_EN		BIT(18)
+#define TEST_BUS_SEL		GENMASK(22, 19)
+
 /* bit definitions for REG_UFS_CFG2 register */
 #define UAWM_HW_CGC_EN		(1 << 0)
 #define UARM_HW_CGC_EN		(1 << 1)
@@ -82,6 +105,9 @@ enum {
 #define TRLUT_HW_CGC_EN		(1 << 5)
 #define TMRLUT_HW_CGC_EN	(1 << 6)
 #define OCSC_HW_CGC_EN		(1 << 7)
+
+/* bit definition for UFS_UFS_TEST_BUS_CTRL_n */
+#define TEST_BUS_SUB_SEL_MASK	0x1F  /* All XXX_SEL fields are 5 bits wide */
 
 #define REG_UFS_CFG2_CGC_EN_ALL (UAWM_HW_CGC_EN | UARM_HW_CGC_EN |\
 				 TXUC_HW_CGC_EN | RXUC_HW_CGC_EN |\
@@ -105,6 +131,21 @@ enum ufs_qcom_phy_init_type {
 	UFS_PHY_INIT_FULL,
 	UFS_PHY_INIT_CFG_RESTORE,
 };
+
+/* QCOM UFS debug print bit mask */
+#define UFS_QCOM_DBG_PRINT_REGS_EN	BIT(0)
+#define UFS_QCOM_DBG_PRINT_ICE_REGS_EN	BIT(1)
+#define UFS_QCOM_DBG_PRINT_TEST_BUS_EN	BIT(2)
+
+#define UFS_QCOM_DBG_PRINT_ALL	\
+	(UFS_QCOM_DBG_PRINT_REGS_EN | UFS_QCOM_DBG_PRINT_ICE_REGS_EN | \
+	 UFS_QCOM_DBG_PRINT_TEST_BUS_EN)
+
+/* QUniPro Vendor specific attributes */
+#define DME_VS_CORE_CLK_CTRL	0xD002
+/* bit and mask definitions for DME_VS_CORE_CLK_CTRL attribute */
+#define DME_VS_CORE_CLK_CTRL_CORE_CLK_DIV_EN_BIT		BIT(8)
+#define DME_VS_CORE_CLK_CTRL_MAX_CORE_CLK_1US_CYCLES_MASK	0xFF
 
 static inline void
 ufs_qcom_get_controller_revision(struct ufs_hba *hba,
@@ -157,8 +198,13 @@ struct ufs_hw_version {
 	u16 minor;
 	u8 major;
 };
-struct ufs_qcom_host {
 
+struct ufs_qcom_testbus {
+	u8 select_major;
+	u8 select_minor;
+};
+
+struct ufs_qcom_host {
 	/*
 	 * Set this capability if host controller supports the QUniPro mode
 	 * and if driver wants the Host controller to operate in QUniPro mode.
@@ -166,6 +212,12 @@ struct ufs_qcom_host {
 	 * controller supports the QUniPro mode.
 	 */
 	#define UFS_QCOM_CAP_QUNIPRO	UFS_BIT(0)
+
+	/*
+	 * Set this capability if host controller can retain the secure
+	 * configuration even after UFS controller core power collapse.
+	 */
+	#define UFS_QCOM_CAP_RETAIN_SEC_CFG_AFTER_PWR_COLLAPSE	UFS_BIT(1)
 	u32 caps;
 
 	struct phy *generic_phy;
@@ -178,12 +230,22 @@ struct ufs_qcom_host {
 	struct clk *tx_l1_sync_clk;
 	bool is_lane_clks_enabled;
 
+	void __iomem *dev_ref_clk_ctrl_mmio;
+	bool is_dev_ref_clk_enabled;
 	struct ufs_hw_version hw_ver;
+
+	u32 dev_ref_clk_en_mask;
+
+	/* Bitmask for enabling debug prints */
+	u32 dbg_print_en;
+	struct ufs_qcom_testbus testbus;
 };
 
 #define ufs_qcom_is_link_off(hba) ufshcd_is_link_off(hba)
 #define ufs_qcom_is_link_active(hba) ufshcd_is_link_active(hba)
 #define ufs_qcom_is_link_hibern8(hba) ufshcd_is_link_hibern8(hba)
+
+int ufs_qcom_testbus_config(struct ufs_qcom_host *host);
 
 static inline bool ufs_qcom_cap_qunipro(struct ufs_qcom_host *host)
 {

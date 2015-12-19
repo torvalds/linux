@@ -23,11 +23,14 @@
 
 static int nouveau_platform_probe(struct platform_device *pdev)
 {
+	const struct nvkm_device_tegra_func *func;
 	struct nvkm_device *device;
 	struct drm_device *drm;
 	int ret;
 
-	drm = nouveau_platform_device_create(pdev, &device);
+	func = of_device_get_match_data(&pdev->dev);
+
+	drm = nouveau_platform_device_create(func, pdev, &device);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
@@ -48,9 +51,19 @@ static int nouveau_platform_remove(struct platform_device *pdev)
 }
 
 #if IS_ENABLED(CONFIG_OF)
+static const struct nvkm_device_tegra_func gk20a_platform_data = {
+	.iommu_bit = 34,
+};
+
 static const struct of_device_id nouveau_platform_match[] = {
-	{ .compatible = "nvidia,gk20a" },
-	{ .compatible = "nvidia,gm20b" },
+	{
+		.compatible = "nvidia,gk20a",
+		.data = &gk20a_platform_data,
+	},
+	{
+		.compatible = "nvidia,gm20b",
+		.data = &gk20a_platform_data,
+	},
 	{ }
 };
 

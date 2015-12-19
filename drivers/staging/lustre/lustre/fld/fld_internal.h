@@ -42,7 +42,6 @@
 #define __FLD_INTERNAL_H
 
 #include "../include/lustre/lustre_idl.h"
-#include "../include/dt_object.h"
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../include/lustre_req_layout.h"
@@ -175,8 +174,6 @@ void fld_dump_cache_entries(struct fld_cache *cache);
 struct fld_cache_entry
 *fld_cache_entry_lookup_nolock(struct fld_cache *cache,
 			      struct lu_seq_range *range);
-int fld_write_range(const struct lu_env *env, struct dt_object *dt,
-		    const struct lu_seq_range *range, struct thandle *th);
 
 static inline const char *
 fld_target_name(struct lu_fld_target *tar)

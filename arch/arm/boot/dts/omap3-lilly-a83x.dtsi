@@ -284,7 +284,7 @@
 };
 
 &mmc1 {
-	cd-gpios = <&gpio4 30 IRQ_TYPE_LEVEL_LOW>;
+	cd-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
 	cd-inverted;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
@@ -314,7 +314,7 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <8 0>;   /* boot6 / gpio_8 */
 		spi-max-frequency = <1000000>;
-		pendown-gpio = <&gpio1 8 0>;
+		pendown-gpio = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&reg_vcc3>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsc2048_pins>;

@@ -233,7 +233,7 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
 		for (i = 0; i != chip->ngpio; ++i) {
 			struct gpio_desc *gpio = &chip->desc[i];
 
-			if (!gpio->name)
+			if (!gpio->name || !name)
 				continue;
 
 			if (!strcmp(gpio->name, name)) {
@@ -2209,8 +2209,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	} else if (is_acpi_node(fwnode)) {
 		struct acpi_gpio_info info;
 
-		desc = acpi_get_gpiod_by_index(to_acpi_node(fwnode), propname, 0,
-					       &info);
+		desc = acpi_node_get_gpiod(fwnode, propname, 0, &info);
 		if (!IS_ERR(desc))
 			active_low = info.active_low;
 	}

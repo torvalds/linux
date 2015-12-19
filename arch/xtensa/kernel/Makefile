@@ -16,6 +16,7 @@ obj-$(CONFIG_SMP) += smp.o mxhead.o
 obj-$(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) += perf_event.o
 
 AFLAGS_head.o += -mtext-section-literals
+AFLAGS_mxhead.o += -mtext-section-literals
 
 # In the Xtensa architecture, assembly generates literals which must always
 # precede the L32R instruction with a relative offset less than 256 kB.

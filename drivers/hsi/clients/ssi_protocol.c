@@ -783,7 +783,7 @@ static void ssip_rx_strans(struct hsi_client *cl, u32 cmd)
 	}
 	ssip_set_rxstate(ssi, RECEIVING);
 	if (unlikely(SSIP_MSG_ID(cmd) != ssi->rxid)) {
-		dev_err(&cl->device, "START TRANS id %d expeceted %d\n",
+		dev_err(&cl->device, "START TRANS id %d expected %d\n",
 					SSIP_MSG_ID(cmd), ssi->rxid);
 		spin_unlock(&ssi->lock);
 		goto out1;

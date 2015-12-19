@@ -581,6 +581,7 @@ What:		/sys/.../iio:deviceX/events/in_voltageY_supply_thresh_rising_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_supply_thresh_falling_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_thresh_rising_en
 What:		/sys/.../iio:deviceX/events/in_voltageY_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_thresh_either_en
 What:		/sys/.../iio:deviceX/events/in_tempY_thresh_rising_en
 What:		/sys/.../iio:deviceX/events/in_tempY_thresh_falling_en
 KernelVersion:	2.6.37
@@ -1459,3 +1460,34 @@ Description:
 		measurements and return the average value as output data. Each
 		value resulted from <type>[_name]_oversampling_ratio measurements
 		is considered as one sample for <type>[_name]_sampling_frequency.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_co2_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_co2_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_voc_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_voc_raw
+KernelVersion:	4.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no offset etc.) percentage reading of a substance.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_resistance_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_resistanceX_raw
+What:		/sys/bus/iio/devices/iio:deviceX/out_resistance_raw
+What:		/sys/bus/iio/devices/iio:deviceX/out_resistanceX_raw
+KernelVersion:	4.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no offset etc.) resistance reading that can be processed
+		into an ohm value.
+
+What:		/sys/bus/iio/devices/iio:deviceX/heater_enable
+KernelVersion:	4.1.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		'1' (enable) or '0' (disable) specifying the enable
+		of heater function. Same reading values apply
+		This ABI is especially applicable for humidity sensors
+		to heatup the device and get rid of any condensation
+		in some humidity environment

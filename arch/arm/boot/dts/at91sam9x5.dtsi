@@ -68,7 +68,7 @@
 		adc_op_clk: adc_op_clk{
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <5000000>;
+			clock-frequency = <1000000>;
 		};
 	};
 
@@ -105,7 +105,7 @@
 			};
 
 			pmc: pmc@fffffc00 {
-				compatible = "atmel,at91sam9x5-pmc";
+				compatible = "atmel,at91sam9x5-pmc", "syscon";
 				reg = <0xfffffc00 0x100>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				interrupt-controller;
@@ -1043,6 +1043,7 @@
 				atmel,adc-channels-used = <0xffff>;
 				atmel,adc-vref = <3300>;
 				atmel,adc-startup-time = <40>;
+				atmel,adc-sample-hold-time = <11>;
 				atmel,adc-res = <8 10>;
 				atmel,adc-res-names = "lowres", "highres";
 				atmel,adc-use-res = "highres";

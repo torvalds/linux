@@ -208,7 +208,7 @@ struct rxrpc_transport {
 	struct rb_root		server_conns;	/* server connections on this transport */
 	struct list_head	link;		/* link in master session list */
 	struct sk_buff_head	error_queue;	/* error packets awaiting processing */
-	time_t			put_time;	/* time at which to reap */
+	unsigned long		put_time;	/* time at which to reap */
 	spinlock_t		client_lock;	/* client connection allocation lock */
 	rwlock_t		conn_lock;	/* lock for active/dead connections */
 	atomic_t		usage;
@@ -256,7 +256,7 @@ struct rxrpc_connection {
 	struct rxrpc_crypt	csum_iv;	/* packet checksum base */
 	unsigned long		events;
 #define RXRPC_CONN_CHALLENGE	0		/* send challenge packet */
-	time_t			put_time;	/* time at which to reap */
+	unsigned long		put_time;	/* time at which to reap */
 	rwlock_t		lock;		/* access lock */
 	spinlock_t		state_lock;	/* state-change lock */
 	atomic_t		usage;

@@ -974,6 +974,16 @@ config CACHE_TAUROS2
 	  This option enables the Tauros2 L2 cache controller (as
 	  found on PJ1/PJ4).
 
+config CACHE_UNIPHIER
+	bool "Enable the UniPhier outer cache controller"
+	depends on ARCH_UNIPHIER
+	default y
+	select OUTER_CACHE
+	select OUTER_CACHE_SYNC
+	help
+	  This option enables the UniPhier outer cache (system cache)
+	  controller.
+
 config CACHE_XSC3L2
 	bool "Enable the L2 cache on XScale3"
 	depends on CPU_XSC3

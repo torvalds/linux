@@ -578,7 +578,7 @@ int dm_bm_write_lock_zero(struct dm_block_manager *bm,
 }
 EXPORT_SYMBOL_GPL(dm_bm_write_lock_zero);
 
-int dm_bm_unlock(struct dm_block *b)
+void dm_bm_unlock(struct dm_block *b)
 {
 	struct buffer_aux *aux;
 	aux = dm_bufio_get_aux_data(to_buffer(b));
@@ -590,8 +590,6 @@ int dm_bm_unlock(struct dm_block *b)
 		bl_up_read(&aux->lock);
 
 	dm_bufio_release(to_buffer(b));
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_bm_unlock);
 

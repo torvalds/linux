@@ -33,7 +33,7 @@
 #define mtype_gc		IPSET_TOKEN(MTYPE, _gc)
 #define mtype			MTYPE
 
-#define get_ext(set, map, id)	((map)->extensions + (set)->dsize * (id))
+#define get_ext(set, map, id)	((map)->extensions + ((set)->dsize * (id)))
 
 static void
 mtype_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
@@ -67,12 +67,9 @@ mtype_destroy(struct ip_set *set)
 		del_timer_sync(&map->gc);
 
 	ip_set_free(map->members);
-	if (set->dsize) {
-		if (set->extensions & IPSET_EXT_DESTROY)
-			mtype_ext_cleanup(set);
-		ip_set_free(map->extensions);
-	}
-	kfree(map);
+	if (set->dsize && set->extensions & IPSET_EXT_DESTROY)
+		mtype_ext_cleanup(set);
+	ip_set_free(map);
 
 	set->data = NULL;
 }
@@ -92,16 +89,14 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 {
 	const struct mtype *map = set->data;
 	struct nlattr *nested;
+	size_t memsize = sizeof(*map) + map->memsize;
 
 	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
 		goto nla_put_failure;
 	if (mtype_do_head(skb, map) ||
 	    nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1)) ||
-	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE,
-			  htonl(sizeof(*map) +
-				map->memsize +
-				set->dsize * map->elements)))
+	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)))
 		goto nla_put_failure;
 	if (unlikely(ip_set_put_flags(skb, set)))
 		goto nla_put_failure;

@@ -47,9 +47,9 @@ struct virt_dma_desc *vchan_find_desc(struct virt_dma_chan *, dma_cookie_t);
 
 /**
  * vchan_tx_prep - prepare a descriptor
- * vc: virtual channel allocating this descriptor
- * vd: virtual descriptor to prepare
- * tx_flags: flags argument passed in to prepare function
+ * @vc: virtual channel allocating this descriptor
+ * @vd: virtual descriptor to prepare
+ * @tx_flags: flags argument passed in to prepare function
  */
 static inline struct dma_async_tx_descriptor *vchan_tx_prep(struct virt_dma_chan *vc,
 	struct virt_dma_desc *vd, unsigned long tx_flags)
@@ -65,7 +65,7 @@ static inline struct dma_async_tx_descriptor *vchan_tx_prep(struct virt_dma_chan
 
 /**
  * vchan_issue_pending - move submitted descriptors to issued list
- * vc: virtual channel to update
+ * @vc: virtual channel to update
  *
  * vc.lock must be held by caller
  */
@@ -77,7 +77,7 @@ static inline bool vchan_issue_pending(struct virt_dma_chan *vc)
 
 /**
  * vchan_cookie_complete - report completion of a descriptor
- * vd: virtual descriptor to update
+ * @vd: virtual descriptor to update
  *
  * vc.lock must be held by caller
  */
@@ -97,7 +97,7 @@ static inline void vchan_cookie_complete(struct virt_dma_desc *vd)
 
 /**
  * vchan_cyclic_callback - report the completion of a period
- * vd: virtual descriptor
+ * @vd: virtual descriptor
  */
 static inline void vchan_cyclic_callback(struct virt_dma_desc *vd)
 {
@@ -109,7 +109,7 @@ static inline void vchan_cyclic_callback(struct virt_dma_desc *vd)
 
 /**
  * vchan_next_desc - peek at the next descriptor to be processed
- * vc: virtual channel to obtain descriptor from
+ * @vc: virtual channel to obtain descriptor from
  *
  * vc.lock must be held by caller
  */
@@ -123,8 +123,8 @@ static inline struct virt_dma_desc *vchan_next_desc(struct virt_dma_chan *vc)
 
 /**
  * vchan_get_all_descriptors - obtain all submitted and issued descriptors
- * vc: virtual channel to get descriptors from
- * head: list of descriptors found
+ * @vc: virtual channel to get descriptors from
+ * @head: list of descriptors found
  *
  * vc.lock must be held by caller
  *

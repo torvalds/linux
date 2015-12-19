@@ -24,7 +24,6 @@
 #include "mostcore.h"
 #include "networking.h"
 
-
 #define MEP_HDR_LEN 8
 #define MDP_HDR_LEN 16
 #define MAMAC_DATA_LEN (1024 - MDP_HDR_LEN)
@@ -46,8 +45,6 @@
 
 #define HB(value)		((u8)((u16)(value) >> 8))
 #define LB(value)		((u8)(value))
-
-
 
 #define EXTRACT_BIT_SET(bitset_name, value) \
 	(((value) >> bitset_name##_SHIFT) & bitset_name##_MASK)
@@ -80,7 +77,6 @@ struct net_dev_context {
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
 static struct spinlock list_lock;
 static struct most_aim aim;
-
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 {
@@ -186,7 +182,7 @@ static int most_nd_open(struct net_device *dev)
 {
 	struct net_dev_context *nd = dev->ml_priv;
 
-	pr_info("open net device %s\n", dev->name);
+	netdev_info(dev, "open net device\n");
 
 	BUG_ON(nd->dev != dev);
 
@@ -195,14 +191,14 @@ static int most_nd_open(struct net_device *dev)
 
 	BUG_ON(!nd->tx.linked || !nd->rx.linked);
 
-	if (most_start_channel(nd->iface, nd->rx.ch_id)) {
-		pr_err("most_start_channel() failed\n");
+	if (most_start_channel(nd->iface, nd->rx.ch_id, &aim)) {
+		netdev_err(dev, "most_start_channel() failed\n");
 		return -EBUSY;
 	}
 
-	if (most_start_channel(nd->iface, nd->tx.ch_id)) {
-		pr_err("most_start_channel() failed\n");
-		most_stop_channel(nd->iface, nd->rx.ch_id);
+	if (most_start_channel(nd->iface, nd->tx.ch_id, &aim)) {
+		netdev_err(dev, "most_start_channel() failed\n");
+		most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
 		return -EBUSY;
 	}
 
@@ -222,14 +218,14 @@ static int most_nd_stop(struct net_device *dev)
 {
 	struct net_dev_context *nd = dev->ml_priv;
 
-	pr_info("stop net device %s\n", dev->name);
+	netdev_info(dev, "stop net device\n");
 
 	BUG_ON(nd->dev != dev);
 	netif_stop_queue(dev);
 
 	if (nd->channels_opened) {
-		most_stop_channel(nd->iface, nd->rx.ch_id);
-		most_stop_channel(nd->iface, nd->tx.ch_id);
+		most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
+		most_stop_channel(nd->iface, nd->tx.ch_id, &aim);
 		nd->channels_opened = false;
 	}
 
@@ -245,7 +241,7 @@ static netdev_tx_t most_nd_start_xmit(struct sk_buff *skb,
 
 	BUG_ON(nd->dev != dev);
 
-	mbo = most_get_mbo(nd->iface, nd->tx.ch_id);
+	mbo = most_get_mbo(nd->iface, nd->tx.ch_id, &aim);
 
 	if (!mbo) {
 		netif_stop_queue(dev);
@@ -281,7 +277,7 @@ static const struct net_device_ops most_nd_ops = {
 
 static void most_nd_setup(struct net_device *dev)
 {
-	pr_info("setup net device %s\n", dev->name);
+	netdev_info(dev, "setup net device\n");
 	ether_setup(dev);
 	dev->netdev_ops = &most_nd_ops;
 }
@@ -295,7 +291,7 @@ static void most_net_rm_netdev_safe(struct net_dev_context *nd)
 
 	unregister_netdev(nd->dev);
 	free_netdev(nd->dev);
-	nd->dev = 0;
+	nd->dev = NULL;
 }
 
 static struct net_dev_context *get_net_dev_context(
@@ -349,7 +345,8 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 
 	if (nd->tx.linked || nd->rx.linked) {
 		struct net_device *dev =
-			alloc_netdev(0, "meth%d", NET_NAME_UNKNOWN, most_nd_setup);
+			alloc_netdev(0, "meth%d", NET_NAME_UNKNOWN,
+				     most_nd_setup);
 
 		if (!dev) {
 			pr_err("no memory for net_device\n");
@@ -357,10 +354,13 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		}
 
 		nd->dev = dev;
+		ch->ch_id = channel_idx;
+		ch->linked = true;
 
 		dev->ml_priv = nd;
 		if (register_netdev(dev)) {
 			pr_err("registering net device failed\n");
+			ch->linked = false;
 			free_netdev(dev);
 			return -EINVAL;
 		}
@@ -428,7 +428,7 @@ static int aim_rx_data(struct mbo *mbo)
 	const u32 zero = 0;
 	struct net_dev_context *nd;
 	char *buf = mbo->virt_address;
-	uint32_t len = mbo->processed_length;
+	u32 len = mbo->processed_length;
 	struct sk_buff *skb;
 	struct net_device *dev;
 
@@ -464,7 +464,7 @@ static int aim_rx_data(struct mbo *mbo)
 
 	if (nd->is_mamac) {
 		/* dest */
-		memcpy(skb_put(skb, ETH_ALEN), dev->dev_addr, ETH_ALEN);
+		ether_addr_copy(skb_put(skb, ETH_ALEN), dev->dev_addr);
 
 		/* src */
 		memcpy(skb_put(skb, 4), &zero, 4);
@@ -491,15 +491,18 @@ out:
 	return 0;
 }
 
+static struct most_aim aim = {
+	.name = "networking",
+	.probe_channel = aim_probe_channel,
+	.disconnect_channel = aim_disconnect_channel,
+	.tx_completion = aim_resume_tx_channel,
+	.rx_completion = aim_rx_data,
+};
+
 static int __init most_net_init(void)
 {
 	pr_info("most_net_init()\n");
 	spin_lock_init(&list_lock);
-	aim.name = "networking";
-	aim.probe_channel = aim_probe_channel;
-	aim.disconnect_channel = aim_disconnect_channel;
-	aim.tx_completion = aim_resume_tx_channel;
-	aim.rx_completion = aim_rx_data;
 	return most_register_aim(&aim);
 }
 
@@ -548,7 +551,7 @@ void most_deliver_netinfo(struct most_interface *iface,
 		return;
 
 	if (mac_addr)
-		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
+		ether_addr_copy(dev->dev_addr, mac_addr);
 
 	if (nd->link_stat != link_stat) {
 		nd->link_stat = link_stat;

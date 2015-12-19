@@ -10,6 +10,7 @@
 #include <linux/videodev2.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
 #include <media/v4l2-ctrls.h>
@@ -1172,8 +1173,7 @@ static int tvp5150_probe(struct i2c_client *c,
 	sd->ctrl_handler = &core->hdl;
 	if (core->hdl.error) {
 		res = core->hdl.error;
-		v4l2_ctrl_handler_free(&core->hdl);
-		return res;
+		goto err;
 	}
 	v4l2_ctrl_handler_setup(&core->hdl);
 
@@ -1186,9 +1186,17 @@ static int tvp5150_probe(struct i2c_client *c,
 	core->rect.left = 0;
 	core->rect.width = TVP5150_H_MAX;
 
+	res = v4l2_async_register_subdev(sd);
+	if (res < 0)
+		goto err;
+
 	if (debug > 1)
 		tvp5150_log_status(sd);
 	return 0;
+
+err:
+	v4l2_ctrl_handler_free(&core->hdl);
+	return res;
 }
 
 static int tvp5150_remove(struct i2c_client *c)
@@ -1200,7 +1208,7 @@ static int tvp5150_remove(struct i2c_client *c)
 		"tvp5150.c: removing tvp5150 adapter on address 0x%x\n",
 		c->addr << 1);
 
-	v4l2_device_unregister_subdev(sd);
+	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&decoder->hdl);
 	return 0;
 }

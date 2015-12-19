@@ -264,7 +264,9 @@ static int multipath_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			spin_unlock_irq(&conf->device_lock);
 			rcu_assign_pointer(p->rdev, rdev);
 			err = 0;
+			mddev_suspend(mddev);
 			md_integrity_add_rdev(rdev, mddev);
+			mddev_resume(mddev);
 			break;
 		}
 

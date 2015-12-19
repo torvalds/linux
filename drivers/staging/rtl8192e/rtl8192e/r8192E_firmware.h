@@ -6,10 +6,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -18,8 +14,6 @@
 ******************************************************************************/
 #ifndef __INC_FIRMWARE_H
 #define __INC_FIRMWARE_H
-
-#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8)
 
 #define RTL8192E_BOOT_IMG_FW	"RTL8192E/boot.img"
 #define RTL8192E_MAIN_IMG_FW	"RTL8192E/main.img"
@@ -50,16 +44,17 @@ enum firmware_status {
 	FW_STATUS_5_READY = 5,
 };
 
+#define MAX_FW_SIZE 64000
+struct rt_fw_blob {
+	u16 size;
+	u8 data[MAX_FW_SIZE];
+};
+
+#define FW_BLOBS 3
 struct rt_firmware {
-	enum firmware_status firmware_status;
-	u16		  cmdpacket_frag_thresold;
-#define RTL8190_MAX_FIRMWARE_CODE_SIZE	64000
-#define MAX_FW_INIT_STEP		3
-	u8 firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
-	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
+	enum firmware_status status;
+	struct rt_fw_blob blobs[FW_BLOBS];
 };
 
 bool rtl92e_init_fw(struct net_device *dev);
-void rtl92e_init_fw_param(struct net_device *dev);
-
 #endif

@@ -277,7 +277,6 @@ MODULE_DEVICE_TABLE(spi, max1111_ids);
 static struct spi_driver max1111_driver = {
 	.driver		= {
 		.name	= "max1111",
-		.owner	= THIS_MODULE,
 	},
 	.id_table	= max1111_ids,
 	.probe		= max1111_probe,

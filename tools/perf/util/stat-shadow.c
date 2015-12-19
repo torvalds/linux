@@ -413,6 +413,11 @@ void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
 			ratio = total / avg;
 
 		fprintf(out, " # %8.0f cycles / elision       ", ratio);
+	} else if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK)) {
+		if ((ratio = avg_stats(&walltime_nsecs_stats)) != 0)
+			fprintf(out, " # %8.3f CPUs utilized          ", avg / ratio);
+		else
+			fprintf(out, "                                   ");
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
 		char unit = 'M';
 

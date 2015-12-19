@@ -9,7 +9,7 @@ Required properties:
 
 Example:
 
-	hps_0_fpgamgr: fpgamgr@0xff706000 {
+	hps_0_fpgamgr: fpgamgr@ff706000 {
 		compatible = "altr,socfpga-fpga-mgr";
 		reg = <0xFF706000 0x1000
 		       0xFFB90000 0x1000>;

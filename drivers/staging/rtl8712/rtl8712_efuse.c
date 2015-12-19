@@ -39,7 +39,7 @@ static void efuse_reg_ctrl(struct _adapter *padapter, u8 bPowerOn)
 {
 	u8 tmpu8 = 0;
 
-	if (true == bPowerOn) {
+	if (bPowerOn) {
 		/* -----------------e-fuse pwr & clk reg ctrl ---------------
 		 * Enable LDOE25 Macro Block
 		 */
@@ -80,12 +80,13 @@ static u8 efuse_one_byte_read(struct _adapter *padapter, u16 addr, u8 *data)
 	u8 tmpidx = 0, bResult;
 
 	/* -----------------e-fuse reg ctrl --------------------------------- */
-	r8712_write8(padapter, EFUSE_CTRL+1, (u8)(addr&0xFF)); /* address */
-	r8712_write8(padapter, EFUSE_CTRL+2, ((u8)((addr>>8)&0x03)) |
-	       (r8712_read8(padapter, EFUSE_CTRL+2)&0xFC));
-	r8712_write8(padapter, EFUSE_CTRL+3, 0x72); /* read cmd */
+	r8712_write8(padapter, EFUSE_CTRL + 1, (u8)(addr & 0xFF)); /* address */
+	r8712_write8(padapter, EFUSE_CTRL + 2, ((u8)((addr >> 8) & 0x03)) |
+	       (r8712_read8(padapter, EFUSE_CTRL + 2) & 0xFC));
+	r8712_write8(padapter, EFUSE_CTRL + 3, 0x72); /* read cmd */
 	/* wait for complete */
-	while (!(0x80 & r8712_read8(padapter, EFUSE_CTRL+3)) && (tmpidx < 100))
+	while (!(0x80 & r8712_read8(padapter, EFUSE_CTRL + 3)) &&
+	       (tmpidx < 100))
 		tmpidx++;
 	if (tmpidx < 100) {
 		*data = r8712_read8(padapter, EFUSE_CTRL);
@@ -102,13 +103,14 @@ static u8 efuse_one_byte_write(struct _adapter *padapter, u16 addr, u8 data)
 	u8 tmpidx = 0, bResult;
 
 	/* -----------------e-fuse reg ctrl -------------------------------- */
-	r8712_write8(padapter, EFUSE_CTRL+1, (u8)(addr&0xFF)); /* address */
-	r8712_write8(padapter, EFUSE_CTRL+2, ((u8)((addr>>8)&0x03)) |
-	       (r8712_read8(padapter, EFUSE_CTRL+2)&0xFC));
+	r8712_write8(padapter, EFUSE_CTRL + 1, (u8)(addr & 0xFF)); /* address */
+	r8712_write8(padapter, EFUSE_CTRL + 2, ((u8)((addr >> 8) & 0x03)) |
+	       (r8712_read8(padapter, EFUSE_CTRL + 2) & 0xFC));
 	r8712_write8(padapter, EFUSE_CTRL, data); /* data */
-	r8712_write8(padapter, EFUSE_CTRL+3, 0xF2); /* write cmd */
+	r8712_write8(padapter, EFUSE_CTRL + 3, 0xF2); /* write cmd */
 	/* wait for complete */
-	while ((0x80 &  r8712_read8(padapter, EFUSE_CTRL+3)) && (tmpidx < 100))
+	while ((0x80 &  r8712_read8(padapter, EFUSE_CTRL + 3)) &&
+	       (tmpidx < 100))
 		tmpidx++;
 	if (tmpidx < 100)
 		bResult = true;
@@ -123,13 +125,13 @@ static u8 efuse_one_byte_rw(struct _adapter *padapter, u8 bRead, u16 addr,
 	u8 tmpidx = 0, tmpv8 = 0, bResult;
 
 	/* -----------------e-fuse reg ctrl --------------------------------- */
-	r8712_write8(padapter, EFUSE_CTRL+1, (u8)(addr&0xFF)); /* address */
+	r8712_write8(padapter, EFUSE_CTRL + 1, (u8)(addr & 0xFF)); /* address */
 	tmpv8 = ((u8)((addr >> 8) & 0x03)) |
 		 (r8712_read8(padapter, EFUSE_CTRL + 2) & 0xFC);
-	r8712_write8(padapter, EFUSE_CTRL+2, tmpv8);
-	if (true == bRead) {
-		r8712_write8(padapter, EFUSE_CTRL+3,  0x72); /* read cmd */
-		while (!(0x80 & r8712_read8(padapter, EFUSE_CTRL+3)) &&
+	r8712_write8(padapter, EFUSE_CTRL + 2, tmpv8);
+	if (bRead) {
+		r8712_write8(padapter, EFUSE_CTRL + 3,  0x72); /* read cmd */
+		while (!(0x80 & r8712_read8(padapter, EFUSE_CTRL + 3)) &&
 		       (tmpidx < 100))
 			tmpidx++;
 		if (tmpidx < 100) {
@@ -141,8 +143,8 @@ static u8 efuse_one_byte_rw(struct _adapter *padapter, u8 bRead, u16 addr,
 		}
 	} else {
 		r8712_write8(padapter, EFUSE_CTRL, *data); /* data */
-		r8712_write8(padapter, EFUSE_CTRL+3, 0xF2); /* write cmd */
-		while ((0x80 & r8712_read8(padapter, EFUSE_CTRL+3)) &&
+		r8712_write8(padapter, EFUSE_CTRL + 3, 0xF2); /* write cmd */
+		while ((0x80 & r8712_read8(padapter, EFUSE_CTRL + 3)) &&
 		       (tmpidx < 100))
 			tmpidx++;
 		if (tmpidx < 100)
@@ -158,13 +160,14 @@ static u8 efuse_is_empty(struct _adapter *padapter, u8 *empty)
 	u8 value, ret = true;
 
 	/* read one byte to check if E-Fuse is empty */
-	if (efuse_one_byte_rw(padapter, true, 0, &value) == true) {
+	if (efuse_one_byte_rw(padapter, true, 0, &value)) {
 		if (0xFF == value)
 			*empty = true;
 		else
 			*empty = false;
-	} else
+	} else {
 		ret = false;
+	}
 	return ret;
 }
 
@@ -207,7 +210,7 @@ static void pgpacket_copy_data(const u8 word_en, const u8 *sourdata,
 	u8 word_idx, byte_idx;
 
 	for (word_idx = 0; word_idx < PGPKG_MAX_WORDS; word_idx++) {
-		if (!(word_en&BIT(word_idx))) {
+		if (!(word_en & BIT(word_idx))) {
 			byte_idx = word_idx * 2;
 			targetdata[byte_idx] = sourdata[tmpindex++];
 			targetdata[byte_idx + 1] = sourdata[tmpindex++];
@@ -229,8 +232,9 @@ u16 r8712_efuse_get_current_size(struct _adapter *padapter)
 			word_cnts = calculate_word_cnts(hworden);
 			/* read next header */
 			efuse_addr = efuse_addr + (word_cnts * 2) + 1;
-		} else
+		} else {
 			bContinual = false;
+		}
 	}
 	return efuse_addr;
 }
@@ -248,10 +252,9 @@ u8 r8712_efuse_pg_packet_read(struct _adapter *padapter, u8 offset, u8 *data)
 		return false;
 	if (offset > 0x0f)
 		return false;
-	memset(data, 0xFF, sizeof(u8)*PGPKT_DATA_SIZE);
+	memset(data, 0xFF, sizeof(u8) * PGPKT_DATA_SIZE);
 	while (efuse_addr < efuse_available_max_size) {
-		if (efuse_one_byte_read(padapter, efuse_addr, &efuse_data) ==
-		    true) {
+		if (efuse_one_byte_read(padapter, efuse_addr, &efuse_data)) {
 			if (efuse_data == 0xFF)
 				break;
 			hoffset = (efuse_data >> 4) & 0x0F;
@@ -262,15 +265,16 @@ u8 r8712_efuse_pg_packet_read(struct _adapter *padapter, u8 offset, u8 *data)
 				for (tmpidx = 0; tmpidx < word_cnts * 2;
 				     tmpidx++) {
 					if (efuse_one_byte_read(padapter,
-					    efuse_addr+1+tmpidx, &efuse_data) ==
-					     true) {
+					    efuse_addr + 1 + tmpidx,
+					    &efuse_data)) {
 						tmpdata[tmpidx] = efuse_data;
-					} else
+					} else {
 						ret = false;
+					}
 				}
 				pgpacket_copy_data(hworden, tmpdata, data);
 			}
-			efuse_addr += 1 + (word_cnts*2);
+			efuse_addr += 1 + (word_cnts * 2);
 		} else {
 			ret = false;
 			break;
@@ -295,14 +299,14 @@ static u8 fix_header(struct _adapter *padapter, u8 header, u16 header_addr)
 	/* retrieve original data */
 	addr = 0;
 	while (addr < header_addr) {
-		if (efuse_one_byte_read(padapter, addr++, &value) == false) {
+		if (!efuse_one_byte_read(padapter, addr++, &value)) {
 			ret = false;
 			break;
 		}
 		offset = GET_EFUSE_OFFSET(value);
 		word_en = GET_EFUSE_WORD_EN(value);
 		if (pkt.offset != offset) {
-			addr += calculate_word_cnts(word_en)*2;
+			addr += calculate_word_cnts(word_en) * 2;
 			continue;
 		}
 		for (i = 0; i < PGPKG_MAX_WORDS; i++) {
@@ -310,15 +314,15 @@ static u8 fix_header(struct _adapter *padapter, u8 header, u16 header_addr)
 				if (BIT(i) & pkt.word_en) {
 					if (efuse_one_byte_read(
 							padapter, addr,
-							&value) == true)
-						pkt.data[i*2] = value;
+							&value))
+						pkt.data[i * 2] = value;
 					else
 						return false;
 					if (efuse_one_byte_read(
 							padapter,
 							addr + 1,
-							&value) == true)
-						pkt.data[i*2 + 1] =
+							&value))
+						pkt.data[i * 2 + 1] =
 							value;
 					else
 						return false;
@@ -333,27 +337,26 @@ static u8 fix_header(struct _adapter *padapter, u8 header, u16 header_addr)
 	/* fill original data */
 	for (i = 0; i < PGPKG_MAX_WORDS; i++) {
 		if (BIT(i) & pkt.word_en) {
-			efuse_one_byte_write(padapter, addr, pkt.data[i*2]);
-			efuse_one_byte_write(padapter, addr+1,
-					pkt.data[i*2 + 1]);
+			efuse_one_byte_write(padapter, addr, pkt.data[i * 2]);
+			efuse_one_byte_write(padapter, addr + 1,
+					     pkt.data[i * 2 + 1]);
 			/* additional check */
-			if (efuse_one_byte_read(padapter, addr, &value)
-				== false)
+			if (!efuse_one_byte_read(padapter, addr, &value)) {
 				ret = false;
-			else if (pkt.data[i*2] != value) {
+			} else if (pkt.data[i * 2] != value) {
 				ret = false;
 				if (0xFF == value) /* write again */
 					efuse_one_byte_write(padapter, addr,
 							pkt.data[i * 2]);
 			}
-			if (efuse_one_byte_read(padapter, addr+1, &value) ==
-				false)
+			if (!efuse_one_byte_read(padapter, addr + 1, &value)) {
 				ret = false;
-			else if (pkt.data[i*2 + 1] != value) {
+			} else if (pkt.data[i * 2 + 1] != value) {
 				ret = false;
 				if (0xFF == value) /* write again */
-					efuse_one_byte_write(padapter, addr+1,
-							pkt.data[i*2 + 1]);
+					efuse_one_byte_write(padapter, addr + 1,
+							     pkt.data[i * 2 +
+								      1]);
 			}
 		}
 		addr += 2;
@@ -388,8 +391,8 @@ u8 r8712_efuse_pg_packet_write(struct _adapter *padapter, const u8 offset,
 		efuse_one_byte_write(padapter, efuse_addr, pg_header); /*hdr*/
 		sub_repeat = 0;
 		/* check if what we read is what we write */
-		while (efuse_one_byte_read(padapter, efuse_addr,
-					   &efuse_data) == false) {
+		while (!efuse_one_byte_read(padapter, efuse_addr,
+					    &efuse_data)) {
 			if (++sub_repeat > _REPEAT_THRESHOLD_) {
 				bResult = false; /* continue to blind write */
 				break; /* continue to blind write */
@@ -402,14 +405,15 @@ u8 r8712_efuse_pg_packet_write(struct _adapter *padapter, const u8 offset,
 
 			/* go to next address */
 			efuse_addr++;
-			for (i = 0; i < target_word_cnts*2; i++) {
+			for (i = 0; i < target_word_cnts * 2; i++) {
 				efuse_one_byte_write(padapter,
 						     efuse_addr + i,
 						     *(data + i));
-				if (efuse_one_byte_read(padapter,
-				    efuse_addr + i, &efuse_data) == false)
+				if (!efuse_one_byte_read(padapter,
+							 efuse_addr + i,
+							 &efuse_data))
 					bResult = false;
-				else if (*(data+i) != efuse_data) /* fail */
+				else if (*(data + i) != efuse_data) /* fail */
 					bResult = false;
 			}
 			break;
@@ -437,10 +441,10 @@ u8 r8712_efuse_access(struct _adapter *padapter, u8 bRead, u16 start_addr,
 
 	if (start_addr > EFUSE_MAX_SIZE)
 		return false;
-	if ((bRead == false) && ((start_addr + cnts) >
+	if (!bRead && ((start_addr + cnts) >
 	   efuse_available_max_size))
 		return false;
-	if ((false == bRead) && (r8712_efuse_reg_init(padapter) == false))
+	if (!bRead && !r8712_efuse_reg_init(padapter))
 		return false;
 	/* -----------------e-fuse one byte read / write ---------------------*/
 	for (i = 0; i < cnts; i++) {
@@ -450,10 +454,10 @@ u8 r8712_efuse_access(struct _adapter *padapter, u8 bRead, u16 start_addr,
 		}
 		res = efuse_one_byte_rw(padapter, bRead, start_addr + i,
 		      data + i);
-		if ((false == bRead) && (false == res))
+		if (!bRead && !res)
 			break;
 	}
-	if (false == bRead)
+	if (!bRead)
 		r8712_efuse_reg_uninit(padapter);
 	return res;
 }
@@ -466,8 +470,7 @@ u8 r8712_efuse_map_read(struct _adapter *padapter, u16 addr, u16 cnts, u8 *data)
 
 	if ((addr + cnts) > EFUSE_MAP_MAX_SIZE)
 		return false;
-	if ((efuse_is_empty(padapter, &offset) == true) && (offset ==
-	     true)) {
+	if (efuse_is_empty(padapter, &offset) && offset) {
 		for (i = 0; i < cnts; i++)
 			data[i] = 0xFF;
 		return ret;
@@ -504,13 +507,14 @@ u8 r8712_efuse_map_write(struct _adapter *padapter, u16 addr, u16 cnts,
 	empty = r8712_read8(padapter, EFUSE_CLK_CTRL);
 	if (empty != 0x03)
 		return false;
-	if (efuse_is_empty(padapter, &empty) == true) {
-		if (true == empty)
+	if (efuse_is_empty(padapter, &empty)) {
+		if (empty)
 			memset(pktdata, 0xFF, PGPKT_DATA_SIZE);
-	} else
+	} else {
 		return false;
+	}
 	offset = (addr >> 3) & 0xF;
-	if (empty == false)
+	if (!empty)
 		if (!r8712_efuse_pg_packet_read(padapter, offset, pktdata))
 			return false;
 	word_en = 0xF;
@@ -541,8 +545,8 @@ u8 r8712_efuse_map_write(struct _adapter *padapter, u16 addr, u16 cnts,
 				break;
 			}
 
-			if ((data[idx] != pktdata[i]) || (data[idx+1] !=
-			     pktdata[i+1])) {
+			if ((data[idx] != pktdata[i]) || (data[idx + 1] !=
+			     pktdata[i + 1])) {
 				word_en &= ~BIT(i >> 1);
 				newdata[j++] = data[idx];
 				newdata[j++] = data[idx + 1];
@@ -554,13 +558,13 @@ u8 r8712_efuse_map_write(struct _adapter *padapter, u16 addr, u16 cnts,
 		}
 
 		if (word_en != 0xF)
-			if (r8712_efuse_pg_packet_write(padapter, offset,
-			    word_en, newdata) == false)
+			if (!r8712_efuse_pg_packet_write(padapter, offset,
+							 word_en, newdata))
 				return false;
 		if (idx == cnts)
 			break;
 		offset++;
-		if (empty == false)
+		if (!empty)
 			if (!r8712_efuse_pg_packet_read(padapter, offset,
 			    pktdata))
 				return false;

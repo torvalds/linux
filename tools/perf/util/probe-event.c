@@ -1895,9 +1895,8 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 		sym = map__find_symbol(map, addr, NULL);
 	} else {
 		if (tp->symbol && !addr) {
-			ret = kernel_get_symbol_address_by_name(tp->symbol,
-							&addr, true, false);
-			if (ret < 0)
+			if (kernel_get_symbol_address_by_name(tp->symbol,
+						&addr, true, false) < 0)
 				goto out;
 		}
 		if (addr) {
@@ -1905,6 +1904,7 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 			sym = __find_kernel_function(addr, &map);
 		}
 	}
+
 	if (!sym)
 		goto out;
 

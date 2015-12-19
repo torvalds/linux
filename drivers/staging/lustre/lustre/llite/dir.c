@@ -660,7 +660,7 @@ static int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
 	int mode;
 	int err;
 
-	mode = (0755 & ~current_umask()) | S_IFDIR;
+	mode = (~current_umask() & 0755) | S_IFDIR;
 	op_data = ll_prep_md_op_data(NULL, dir, NULL, filename,
 				     strlen(filename), mode, LUSTRE_OPC_MKDIR,
 				     lump);
@@ -838,11 +838,11 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 	/* We don't swab objects for directories */
 	switch (le32_to_cpu(lmm->lmm_magic)) {
 	case LOV_MAGIC_V1:
-		if (LOV_MAGIC != cpu_to_le32(LOV_MAGIC))
+		if (cpu_to_le32(LOV_MAGIC) != LOV_MAGIC)
 			lustre_swab_lov_user_md_v1((struct lov_user_md_v1 *)lmm);
 		break;
 	case LOV_MAGIC_V3:
-		if (LOV_MAGIC != cpu_to_le32(LOV_MAGIC))
+		if (cpu_to_le32(LOV_MAGIC) != LOV_MAGIC)
 			lustre_swab_lov_user_md_v3((struct lov_user_md_v3 *)lmm);
 		break;
 	default:
@@ -906,7 +906,6 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 	hpk.hpk_flags = 0;
 	hpk.hpk_errval = 0;
 	hpk.hpk_data_version = 0;
-
 
 	/* For archive request, we need to read the current file version. */
 	if (copy->hc_hai.hai_action == HSMA_ARCHIVE) {
@@ -1046,7 +1045,6 @@ progress:
 
 	return rc;
 }
-
 
 static int copy_and_ioctl(int cmd, struct obd_export *exp,
 			  const void __user *data, size_t size)
@@ -1554,7 +1552,7 @@ out_req:
 
 		switch (lmm->lmm_magic) {
 		case LOV_USER_MAGIC_V1:
-			if (LOV_USER_MAGIC_V1 == cpu_to_le32(LOV_USER_MAGIC_V1))
+			if (cpu_to_le32(LOV_USER_MAGIC_V1) == LOV_USER_MAGIC_V1)
 				break;
 			/* swab objects first so that stripes num will be sane */
 			lustre_swab_lov_user_md_objects(
@@ -1563,7 +1561,7 @@ out_req:
 			lustre_swab_lov_user_md_v1((struct lov_user_md_v1 *)lmm);
 			break;
 		case LOV_USER_MAGIC_V3:
-			if (LOV_USER_MAGIC_V3 == cpu_to_le32(LOV_USER_MAGIC_V3))
+			if (cpu_to_le32(LOV_USER_MAGIC_V3) == LOV_USER_MAGIC_V3)
 				break;
 			/* swab objects first so that stripes num will be sane */
 			lustre_swab_lov_user_md_objects(
@@ -1734,6 +1732,9 @@ out_quotactl:
 	}
 	case OBD_IOC_CHANGELOG_SEND:
 	case OBD_IOC_CHANGELOG_CLEAR:
+		if (!capable(CFS_CAP_SYS_ADMIN))
+			return -EPERM;
+
 		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void *)arg,
 				    sizeof(struct ioc_changelog));
 		return rc;

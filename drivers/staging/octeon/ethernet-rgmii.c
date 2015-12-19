@@ -207,7 +207,7 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 
 int cvm_oct_rgmii_open(struct net_device *dev)
 {
-	return cvm_oct_common_open(dev, cvm_oct_rgmii_poll, false);
+	return cvm_oct_common_open(dev, cvm_oct_rgmii_poll);
 }
 
 static void cvm_oct_rgmii_immediate_poll(struct work_struct *work)

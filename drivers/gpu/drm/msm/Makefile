@@ -50,7 +50,7 @@ msm-y := \
 	msm_rd.o \
 	msm_ringbuffer.o
 
-msm-$(CONFIG_DRM_MSM_FBDEV) += msm_fbdev.o
+msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
 
 msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \

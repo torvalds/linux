@@ -308,6 +308,12 @@ modulator programming see
 fields.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CAP_SDR_OUTPUT</constant></entry>
+	    <entry>0x00400000</entry>
+	    <entry>The device supports the
+<link linkend="sdr">SDR Output</link> interface.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CAP_READWRITE</constant></entry>
 	    <entry>0x01000000</entry>
 	    <entry>The device supports the <link

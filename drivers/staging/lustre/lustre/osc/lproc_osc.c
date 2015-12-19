@@ -63,7 +63,7 @@ static ssize_t active_store(struct kobject *kobj, struct attribute *attr,
 	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
 		return rc;
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -ERANGE;
 
 	/* opposite senses */
@@ -96,9 +96,9 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct client_obd *cli = &dev->u.cli;
-	struct ptlrpc_request_pool *pool = cli->cl_import->imp_rq_pool;
 	int rc;
 	unsigned long val;
+	int adding, added, req_count;
 
 	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
@@ -107,8 +107,19 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 	if (val < 1 || val > OSC_MAX_RIF_MAX)
 		return -ERANGE;
 
-	if (pool && val > cli->cl_max_rpcs_in_flight)
-		pool->prp_populate(pool, val-cli->cl_max_rpcs_in_flight);
+	adding = val - cli->cl_max_rpcs_in_flight;
+	req_count = atomic_read(&osc_pool_req_count);
+	if (adding > 0 && req_count < osc_reqpool_maxreqcount) {
+		/*
+		 * There might be some race which will cause over-limit
+		 * allocation, but it is fine.
+		 */
+		if (req_count + adding > osc_reqpool_maxreqcount)
+			adding = osc_reqpool_maxreqcount - req_count;
+
+		added = osc_rq_pool->prp_populate(osc_rq_pool, adding);
+		atomic_add(added, &osc_pool_req_count);
+	}
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_rpcs_in_flight = val;
@@ -216,6 +227,7 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 
 	return count;
 }
+
 LPROC_SEQ_FOPS(osc_cached_mb);
 
 static ssize_t cur_dirty_bytes_show(struct kobject *kobj,
@@ -366,6 +378,7 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *obd = m->private;
 	int i;
+
 	DECLARE_CKSUM_NAME;
 
 	if (obd == NULL)
@@ -389,6 +402,7 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int i;
+
 	DECLARE_CKSUM_NAME;
 	char kernbuf[10];
 
@@ -414,6 +428,7 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 	}
 	return -EINVAL;
 }
+
 LPROC_SEQ_FOPS(osc_checksum_type);
 
 static ssize_t resend_count_show(struct kobject *kobj,
@@ -439,9 +454,6 @@ static ssize_t resend_count_store(struct kobject *kobj,
 	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
 		return rc;
-
-	if (val < 0)
-	       return -EINVAL;
 
 	atomic_set(&obd->u.cli.cl_resends, val);
 
@@ -586,18 +598,18 @@ static struct lprocfs_vars lprocfs_osc_obd_vars[] = {
 
 static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct obd_device *dev = seq->private;
 	struct client_obd *cli = &dev->u.cli;
 	unsigned long read_tot = 0, write_tot = 0, read_cum, write_cum;
 	int i;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%9lu (secs.usecs)\n",
+		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
 	seq_printf(seq, "read RPCs in flight:  %d\n",
 		   cli->cl_r_in_flight);
 	seq_printf(seq, "write RPCs in flight: %d\n",
@@ -619,6 +631,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 	for (i = 0; i < OBD_HIST_MAX; i++) {
 		unsigned long r = cli->cl_read_page_hist.oh_buckets[i];
 		unsigned long w = cli->cl_write_page_hist.oh_buckets[i];
+
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
@@ -642,6 +655,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 	for (i = 0; i < OBD_HIST_MAX; i++) {
 		unsigned long r = cli->cl_read_rpc_hist.oh_buckets[i];
 		unsigned long w = cli->cl_write_rpc_hist.oh_buckets[i];
+
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
@@ -665,6 +679,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 	for (i = 0; i < OBD_HIST_MAX; i++) {
 		unsigned long r = cli->cl_read_offset_hist.oh_buckets[i];
 		unsigned long w = cli->cl_write_offset_hist.oh_buckets[i];
+
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
@@ -679,6 +694,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
+
 #undef pct
 
 static ssize_t osc_rpc_stats_seq_write(struct file *file,
@@ -703,14 +719,14 @@ LPROC_SEQ_FOPS(osc_rpc_stats);
 
 static int osc_stats_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct obd_device *dev = seq->private;
 	struct osc_stats *stats = &obd2osc_dev(dev)->od_stats;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%9lu (secs.usecs)\n",
+		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
 	seq_printf(seq, "lockless_write_bytes\t\t%llu\n",
 		   stats->os_lockless_writes);
 	seq_printf(seq, "lockless_read_bytes\t\t%llu\n",

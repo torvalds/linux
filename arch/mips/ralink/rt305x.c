@@ -21,8 +21,6 @@
 
 #include "common.h"
 
-enum rt305x_soc_type rt305x_soc;
-
 static struct rt2880_pmx_func i2c_func[] =  { FUNC("i2c", 0, 1, 2) };
 static struct rt2880_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
 static struct rt2880_pmx_func uartf_func[] = {
@@ -201,6 +199,7 @@ void __init ralink_clk_init(void)
 	}
 
 	ralink_clk_add("cpu", cpu_rate);
+	ralink_clk_add("sys", sys_rate);
 	ralink_clk_add("10000b00.spi", sys_rate);
 	ralink_clk_add("10000100.timer", wdt_rate);
 	ralink_clk_add("10000120.watchdog", wdt_rate);
@@ -235,24 +234,24 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 
 		icache_sets = (read_c0_config1() >> 22) & 7;
 		if (icache_sets == 1) {
-			rt305x_soc = RT305X_SOC_RT3050;
+			ralink_soc = RT305X_SOC_RT3050;
 			name = "RT3050";
 			soc_info->compatible = "ralink,rt3050-soc";
 		} else {
-			rt305x_soc = RT305X_SOC_RT3052;
+			ralink_soc = RT305X_SOC_RT3052;
 			name = "RT3052";
 			soc_info->compatible = "ralink,rt3052-soc";
 		}
 	} else if (n0 == RT3350_CHIP_NAME0 && n1 == RT3350_CHIP_NAME1) {
-		rt305x_soc = RT305X_SOC_RT3350;
+		ralink_soc = RT305X_SOC_RT3350;
 		name = "RT3350";
 		soc_info->compatible = "ralink,rt3350-soc";
 	} else if (n0 == RT3352_CHIP_NAME0 && n1 == RT3352_CHIP_NAME1) {
-		rt305x_soc = RT305X_SOC_RT3352;
+		ralink_soc = RT305X_SOC_RT3352;
 		name = "RT3352";
 		soc_info->compatible = "ralink,rt3352-soc";
 	} else if (n0 == RT5350_CHIP_NAME0 && n1 == RT5350_CHIP_NAME1) {
-		rt305x_soc = RT305X_SOC_RT5350;
+		ralink_soc = RT305X_SOC_RT5350;
 		name = "RT5350";
 		soc_info->compatible = "ralink,rt5350-soc";
 	} else {

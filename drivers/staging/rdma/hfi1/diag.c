@@ -607,7 +607,7 @@ static int hfi1_snoop_add(struct hfi1_devdata *dd, const char *name)
 static struct hfi1_devdata *hfi1_dd_from_sc_inode(struct inode *in)
 {
 	int unit = iminor(in) - HFI1_SNOOP_CAPTURE_BASE;
-	struct hfi1_devdata *dd = NULL;
+	struct hfi1_devdata *dd;
 
 	dd = hfi1_lookup(unit);
 	return dd;
@@ -1159,9 +1159,8 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 				   filter_cmd.opcode, filter_cmd.length,
 				   filter_cmd.value_ptr);
 
-			filter_value = kzalloc(
-						filter_cmd.length * sizeof(u8),
-						GFP_KERNEL);
+			filter_value = kcalloc(filter_cmd.length, sizeof(u8),
+					       GFP_KERNEL);
 			if (!filter_value) {
 				pr_alert("Not enough memory\n");
 				ret = -ENOMEM;
@@ -1478,7 +1477,7 @@ static struct snoop_packet *allocate_snoop_packet(u32 hdr_len,
 						  u32 md_len)
 {
 
-	struct snoop_packet *packet = NULL;
+	struct snoop_packet *packet;
 
 	packet = kzalloc(sizeof(struct snoop_packet) + hdr_len + data_len
 			 + md_len,

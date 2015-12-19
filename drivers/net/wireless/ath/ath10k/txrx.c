@@ -52,6 +52,9 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	struct ieee80211_tx_info *info;
 	struct ath10k_skb_cb *skb_cb;
 	struct sk_buff *msdu;
+	struct ieee80211_hdr *hdr;
+	__le16 fc;
+	bool limit_mgmt_desc = false;
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
 		   "htt tx completion msdu_id %u discard %d no_ack %d success %d\n",
@@ -72,20 +75,22 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		spin_unlock_bh(&htt->tx_lock);
 		return;
 	}
+
+	hdr = (struct ieee80211_hdr *)msdu->data;
+	fc = hdr->frame_control;
+
+	if (unlikely(ieee80211_is_mgmt(fc)) &&
+	    ar->hw_params.max_probe_resp_desc_thres)
+		limit_mgmt_desc = true;
+
 	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
-	__ath10k_htt_tx_dec_pending(htt);
+	__ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
 	if (htt->num_pending_tx == 0)
 		wake_up(&htt->empty_tx_wq);
 	spin_unlock_bh(&htt->tx_lock);
 
 	skb_cb = ATH10K_SKB_CB(msdu);
-
 	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
-
-	if (skb_cb->htt.txbuf)
-		dma_pool_free(htt->tx_pool,
-			      skb_cb->htt.txbuf,
-			      skb_cb->htt.txbuf_paddr);
 
 	ath10k_report_offchan_tx(htt->ar, msdu);
 

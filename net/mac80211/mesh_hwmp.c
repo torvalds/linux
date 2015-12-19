@@ -329,7 +329,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	if (sta->mesh->fail_avg >= 100)
 		return MAX_METRIC;
 
-	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &rinfo);
+	sta_set_rate_info_tx(sta, &sta->tx_stats.last_rate, &rinfo);
 	rate = cfg80211_calculate_bitrate(&rinfo);
 	if (WARN_ON(!rate))
 		return MAX_METRIC;

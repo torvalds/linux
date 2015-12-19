@@ -47,7 +47,7 @@ Required properties:
 - clocks: Required if the System MMU is needed to gate its clock.
 - power-domains: Required if the System MMU is needed to gate its power.
 	  Please refer to the following document:
-	  Documentation/devicetree/bindings/arm/exynos/power_domain.txt
+	  Documentation/devicetree/bindings/power/pd-samsung.txt
 
 Examples:
 	gsc_0: gsc@13e00000 {

@@ -188,7 +188,7 @@ static void rtl8188e_config_rf_reg(struct adapter *adapt,
 	u32 addr, u32 data)
 {
 	u32 content = 0x1000; /*RF Content: radio_a_txt*/
-	u32 maskforphyset = (u32)(content & 0xE000);
+	u32 maskforphyset = content & 0xE000;
 
 	rtl_rfreg_delay(adapt, RF90_PATH_A, addr | maskforphyset,
 			RFREG_OFFSET_MASK,
@@ -198,7 +198,7 @@ static void rtl8188e_config_rf_reg(struct adapter *adapt,
 static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 {
 	u32 i;
-	u32 array_len = sizeof(Array_RadioA_1T_8188E)/sizeof(u32);
+	u32 array_len = ARRAY_SIZE(Array_RadioA_1T_8188E);
 	u32 *array = Array_RadioA_1T_8188E;
 
 	for (i = 0; i < array_len; i += 2) {
@@ -214,7 +214,7 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 				while (v2 != 0xDEAD && v2 != 0xCDEF &&
 				       v2 != 0xCDCD && i < array_len - 2)
 					READ_NEXT_PAIR(v1, v2, i);
-					i -= 2;
+				i -= 2;
 			} else {
 				READ_NEXT_PAIR(v1, v2, i);
 				while (v2 != 0xDEAD && v2 != 0xCDEF &&

@@ -24,7 +24,7 @@
 #define UUID_NFIT_DIMM "4309ac30-0d11-11e4-9191-0800200c9a66"
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
-		| ACPI_NFIT_MEM_ARMED)
+		| ACPI_NFIT_MEM_NOT_ARMED)
 
 enum nfit_uuids {
 	NFIT_SPA_VOLATILE,
@@ -48,6 +48,7 @@ enum {
 struct nfit_spa {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
+	int is_registered;
 };
 
 struct nfit_dcr {
@@ -95,8 +96,10 @@ struct nfit_mem {
 
 struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
-	struct acpi_table_nfit *nfit;
+	struct acpi_table_header acpi_header;
+	struct acpi_nfit_header *nfit;
 	struct mutex spa_map_mutex;
+	struct mutex init_mutex;
 	struct list_head spa_maps;
 	struct list_head memdevs;
 	struct list_head flushes;

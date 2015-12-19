@@ -49,7 +49,7 @@ EXPORT_SYMBOL_GPL(pkey_id_type_name);
 static void public_key_describe(const struct key *asymmetric_key,
 				struct seq_file *m)
 {
-	struct public_key *key = asymmetric_key->payload.data;
+	struct public_key *key = asymmetric_key->payload.data[asym_crypto];
 
 	if (key)
 		seq_printf(m, "%s.%s",
@@ -112,7 +112,7 @@ EXPORT_SYMBOL_GPL(public_key_verify_signature);
 static int public_key_verify_signature_2(const struct key *key,
 					 const struct public_key_signature *sig)
 {
-	const struct public_key *pk = key->payload.data;
+	const struct public_key *pk = key->payload.data[asym_crypto];
 	return public_key_verify_signature(pk, sig);
 }
 

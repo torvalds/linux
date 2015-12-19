@@ -44,19 +44,9 @@
 #include "../include/obd_class.h"
 #include "ptlrpc_internal.h"
 
-static int suppress_pings;
-module_param(suppress_pings, int, 0644);
-MODULE_PARM_DESC(suppress_pings, "Suppress pings");
-
 struct mutex pinger_mutex;
 static LIST_HEAD(pinger_imports);
 static struct list_head timeout_list = LIST_HEAD_INIT(timeout_list);
-
-int ptlrpc_pinger_suppress_pings(void)
-{
-	return suppress_pings;
-}
-EXPORT_SYMBOL(ptlrpc_pinger_suppress_pings);
 
 struct ptlrpc_request *
 ptlrpc_prep_ping(struct obd_import *imp)
@@ -105,7 +95,7 @@ static int ptlrpc_ping(struct obd_import *imp)
 
 	DEBUG_REQ(D_INFO, req, "pinging %s->%s",
 		  imp->imp_obd->obd_uuid.uuid, obd2cli_tgt(imp->imp_obd));
-	ptlrpcd_add_req(req, PDL_POLICY_ROUND, -1);
+	ptlrpcd_add_req(req);
 
 	return 0;
 }
@@ -113,6 +103,7 @@ static int ptlrpc_ping(struct obd_import *imp)
 static void ptlrpc_update_next_ping(struct obd_import *imp, int soon)
 {
 	int time = soon ? PING_INTERVAL_SHORT : PING_INTERVAL;
+
 	if (imp->imp_state == LUSTRE_IMP_DISCON) {
 		int dtime = max_t(int, CONNECTION_SWITCH_MIN,
 				  AT_OFF ? 0 :
@@ -120,11 +111,6 @@ static void ptlrpc_update_next_ping(struct obd_import *imp, int soon)
 		time = min(time, dtime);
 	}
 	imp->imp_next_ping = cfs_time_shift(time);
-}
-
-void ptlrpc_ping_import_soon(struct obd_import *imp)
-{
-	imp->imp_next_ping = cfs_time_current();
 }
 
 static inline int imp_is_deactive(struct obd_import *imp)
@@ -150,6 +136,7 @@ static long pinger_check_timeout(unsigned long time)
 	mutex_lock(&pinger_mutex);
 	list_for_each_entry(item, &timeout_list, ti_chain) {
 		int ti_timeout = item->ti_timeout;
+
 		if (timeout > ti_timeout)
 			timeout = ti_timeout;
 		break;
@@ -234,7 +221,7 @@ static void ptlrpc_pinger_process_import(struct obd_import *imp,
 
 static int ptlrpc_pinger_main(void *arg)
 {
-	struct ptlrpc_thread *thread = (struct ptlrpc_thread *)arg;
+	struct ptlrpc_thread *thread = arg;
 
 	/* Record that the thread is running */
 	thread_set_flags(thread, SVC_RUNNING);
@@ -266,8 +253,6 @@ static int ptlrpc_pinger_main(void *arg)
 				ptlrpc_update_next_ping(imp, 0);
 		}
 		mutex_unlock(&pinger_mutex);
-		/* update memory usage info */
-		obd_update_maxusage();
 
 		/* Wait until the next ping time, or until we're stopped. */
 		time_to_next_wake = pinger_check_timeout(this_ping);
@@ -277,8 +262,8 @@ static int ptlrpc_pinger_main(void *arg)
 		   next ping time to next_ping + .01 sec, which means
 		   we will SKIP the next ping at next_ping, and the
 		   ping will get sent 2 timeouts from now!  Beware. */
-		CDEBUG(D_INFO, "next wakeup in "CFS_DURATION_T" ("
-		       CFS_TIME_T")\n", time_to_next_wake,
+		CDEBUG(D_INFO, "next wakeup in " CFS_DURATION_T " (%ld)\n",
+		       time_to_next_wake,
 		       cfs_time_add(this_ping,
 				    cfs_time_seconds(PING_INTERVAL)));
 		if (time_to_next_wake > 0) {
@@ -327,13 +312,10 @@ int ptlrpc_start_pinger(void)
 	l_wait_event(pinger_thread.t_ctl_waitq,
 		     thread_is_running(&pinger_thread), &lwi);
 
-	if (suppress_pings)
-		CWARN("Pings will be suppressed at the request of the administrator.  The configuration shall meet the additional requirements described in the manual.  (Search for the \"suppress_pings\" kernel module parameter.)\n");
-
 	return 0;
 }
 
-int ptlrpc_pinger_remove_timeouts(void);
+static int ptlrpc_pinger_remove_timeouts(void);
 
 int ptlrpc_stop_pinger(void)
 {
@@ -517,7 +499,7 @@ int ptlrpc_del_timeout_client(struct list_head *obd_list,
 }
 EXPORT_SYMBOL(ptlrpc_del_timeout_client);
 
-int ptlrpc_pinger_remove_timeouts(void)
+static int ptlrpc_pinger_remove_timeouts(void)
 {
 	struct timeout_item *item, *tmp;
 
@@ -536,139 +518,3 @@ void ptlrpc_pinger_wake_up(void)
 	thread_add_flags(&pinger_thread, SVC_EVENT);
 	wake_up(&pinger_thread.t_ctl_waitq);
 }
-
-/* Ping evictor thread */
-#define PET_READY     1
-#define PET_TERMINATE 2
-
-static int pet_refcount;
-static int pet_state;
-static wait_queue_head_t pet_waitq;
-static LIST_HEAD(pet_list);
-static DEFINE_SPINLOCK(pet_lock);
-
-int ping_evictor_wake(struct obd_export *exp)
-{
-	struct obd_device *obd;
-
-	spin_lock(&pet_lock);
-	if (pet_state != PET_READY) {
-		/* eventually the new obd will call here again. */
-		spin_unlock(&pet_lock);
-		return 1;
-	}
-
-	obd = class_exp2obd(exp);
-	if (list_empty(&obd->obd_evict_list)) {
-		class_incref(obd, "evictor", obd);
-		list_add(&obd->obd_evict_list, &pet_list);
-	}
-	spin_unlock(&pet_lock);
-
-	wake_up(&pet_waitq);
-	return 0;
-}
-
-static int ping_evictor_main(void *arg)
-{
-	struct obd_device *obd;
-	struct obd_export *exp;
-	struct l_wait_info lwi = { 0 };
-	time_t expire_time;
-
-	unshare_fs_struct();
-
-	CDEBUG(D_HA, "Starting Ping Evictor\n");
-	pet_state = PET_READY;
-	while (1) {
-		l_wait_event(pet_waitq, (!list_empty(&pet_list)) ||
-			     (pet_state == PET_TERMINATE), &lwi);
-
-		/* loop until all obd's will be removed */
-		if ((pet_state == PET_TERMINATE) && list_empty(&pet_list))
-			break;
-
-		/* we only get here if pet_exp != NULL, and the end of this
-		 * loop is the only place which sets it NULL again, so lock
-		 * is not strictly necessary. */
-		spin_lock(&pet_lock);
-		obd = list_entry(pet_list.next, struct obd_device,
-				     obd_evict_list);
-		spin_unlock(&pet_lock);
-
-		expire_time = get_seconds() - PING_EVICT_TIMEOUT;
-
-		CDEBUG(D_HA, "evicting all exports of obd %s older than %ld\n",
-		       obd->obd_name, expire_time);
-
-		/* Exports can't be deleted out of the list while we hold
-		 * the obd lock (class_unlink_export), which means we can't
-		 * lose the last ref on the export.  If they've already been
-		 * removed from the list, we won't find them here. */
-		spin_lock(&obd->obd_dev_lock);
-		while (!list_empty(&obd->obd_exports_timed)) {
-			exp = list_entry(obd->obd_exports_timed.next,
-					     struct obd_export,
-					     exp_obd_chain_timed);
-			if (expire_time > exp->exp_last_request_time) {
-				class_export_get(exp);
-				spin_unlock(&obd->obd_dev_lock);
-				LCONSOLE_WARN("%s: haven't heard from client %s (at %s) in %ld seconds. I think it's dead, and I am evicting it. exp %p, cur %ld expire %ld last %ld\n",
-					      obd->obd_name,
-					      obd_uuid2str(&exp->exp_client_uuid),
-					      obd_export_nid2str(exp),
-					      (long)(get_seconds() -
-						     exp->exp_last_request_time),
-					      exp, (long)get_seconds(),
-					      (long)expire_time,
-					      (long)exp->exp_last_request_time);
-				CDEBUG(D_HA, "Last request was at %ld\n",
-				       exp->exp_last_request_time);
-				class_fail_export(exp);
-				class_export_put(exp);
-				spin_lock(&obd->obd_dev_lock);
-			} else {
-				/* List is sorted, so everyone below is ok */
-				break;
-			}
-		}
-		spin_unlock(&obd->obd_dev_lock);
-
-		spin_lock(&pet_lock);
-		list_del_init(&obd->obd_evict_list);
-		spin_unlock(&pet_lock);
-
-		class_decref(obd, "evictor", obd);
-	}
-	CDEBUG(D_HA, "Exiting Ping Evictor\n");
-
-	return 0;
-}
-
-void ping_evictor_start(void)
-{
-	struct task_struct *task;
-
-	if (++pet_refcount > 1)
-		return;
-
-	init_waitqueue_head(&pet_waitq);
-
-	task = kthread_run(ping_evictor_main, NULL, "ll_evictor");
-	if (IS_ERR(task)) {
-		pet_refcount--;
-		CERROR("Cannot start ping evictor thread: %ld\n",
-			PTR_ERR(task));
-	}
-}
-EXPORT_SYMBOL(ping_evictor_start);
-
-void ping_evictor_stop(void)
-{
-	if (--pet_refcount > 0)
-		return;
-
-	pet_state = PET_TERMINATE;
-	wake_up(&pet_waitq);
-}
-EXPORT_SYMBOL(ping_evictor_stop);

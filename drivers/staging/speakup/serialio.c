@@ -101,7 +101,7 @@ static void start_serial_interrupt(int irq)
 {
 	int rv;
 
-	if (synth->read_buff_add == NULL)
+	if (!synth->read_buff_add)
 		return;
 
 	rv = request_irq(irq, synth_readbuf_handler, IRQF_SHARED,
@@ -127,7 +127,7 @@ void spk_stop_serial_interrupt(void)
 	if (speakup_info.port_tts == 0)
 		return;
 
-	if (synth->read_buff_add == NULL)
+	if (!synth->read_buff_add)
 		return;
 
 	/* Turn off interrupts */

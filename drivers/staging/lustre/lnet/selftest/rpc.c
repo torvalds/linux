@@ -146,7 +146,7 @@ srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 		int nob;
 
 		pg = alloc_pages_node(cfs_cpt_spread_node(lnet_cpt_table(), cpt),
-				      GFP_IOFS, 0);
+				      GFP_KERNEL, 0);
 		if (pg == NULL) {
 			CERROR("Can't allocate page %d of %d\n", i, bulk_npg);
 			srpc_free_bulk(bk);
@@ -565,7 +565,7 @@ srpc_add_buffer(struct swi_workitem *wi)
 	}
 
 	if (rc != 0) {
-		scd->scd_buf_err_stamp = get_seconds();
+		scd->scd_buf_err_stamp = ktime_get_real_seconds();
 		scd->scd_buf_err = rc;
 
 		LASSERT(scd->scd_buf_posting > 0);
@@ -1100,8 +1100,7 @@ srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
 	INIT_LIST_HEAD(&timer->stt_list);
 	timer->stt_data    = rpc;
 	timer->stt_func    = srpc_client_rpc_expired;
-	timer->stt_expires = cfs_time_add(rpc->crpc_timeout,
-					  get_seconds());
+	timer->stt_expires = ktime_get_real_seconds() + rpc->crpc_timeout;
 	stt_add_timer(timer);
 	return;
 }
@@ -1355,7 +1354,6 @@ srpc_post_rpc(srpc_client_rpc_t *rpc)
 	return;
 }
 
-
 int
 srpc_send_reply(struct srpc_server_rpc *rpc)
 {
@@ -1488,7 +1486,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		}
 
 		if (scd->scd_buf_err_stamp != 0 &&
-		    scd->scd_buf_err_stamp < get_seconds()) {
+		    scd->scd_buf_err_stamp < ktime_get_real_seconds()) {
 			/* re-enable adding buffer */
 			scd->scd_buf_err_stamp = 0;
 			scd->scd_buf_err = 0;
@@ -1581,7 +1579,6 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 	}
 }
 
-
 int
 srpc_startup(void)
 {
@@ -1593,7 +1590,7 @@ srpc_startup(void)
 	/* 1 second pause to avoid timestamp reuse */
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout(cfs_time_seconds(1));
-	srpc_data.rpc_matchbits = ((__u64) get_seconds()) << 48;
+	srpc_data.rpc_matchbits = ((__u64)ktime_get_real_seconds()) << 48;
 
 	srpc_data.rpc_state = SRPC_STATE_NONE;
 

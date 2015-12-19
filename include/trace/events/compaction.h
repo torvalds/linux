@@ -9,6 +9,62 @@
 #include <linux/tracepoint.h>
 #include <trace/events/gfpflags.h>
 
+#define COMPACTION_STATUS					\
+	EM( COMPACT_DEFERRED,		"deferred")		\
+	EM( COMPACT_SKIPPED,		"skipped")		\
+	EM( COMPACT_CONTINUE,		"continue")		\
+	EM( COMPACT_PARTIAL,		"partial")		\
+	EM( COMPACT_COMPLETE,		"complete")		\
+	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
+	EMe(COMPACT_CONTENDED,		"contended")
+
+#ifdef CONFIG_ZONE_DMA
+#define IFDEF_ZONE_DMA(X) X
+#else
+#define IFDEF_ZONE_DMA(X)
+#endif
+
+#ifdef CONFIG_ZONE_DMA32
+#define IFDEF_ZONE_DMA32(X) X
+#else
+#define IFDEF_ZONE_DMA32(X)
+#endif
+
+#ifdef CONFIG_HIGHMEM
+#define IFDEF_ZONE_HIGHMEM(X) X
+#else
+#define IFDEF_ZONE_HIGHMEM(X)
+#endif
+
+#define ZONE_TYPE						\
+	IFDEF_ZONE_DMA(		EM (ZONE_DMA,	 "DMA"))	\
+	IFDEF_ZONE_DMA32(	EM (ZONE_DMA32,	 "DMA32"))	\
+				EM (ZONE_NORMAL, "Normal")	\
+	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
+				EMe(ZONE_MOVABLE,"Movable")
+
+/*
+ * First define the enums in the above macros to be exported to userspace
+ * via TRACE_DEFINE_ENUM().
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+COMPACTION_STATUS
+ZONE_TYPE
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	{a, b},
+#define EMe(a, b)	{a, b}
+
 DECLARE_EVENT_CLASS(mm_compaction_isolate_template,
 
 	TP_PROTO(
@@ -161,7 +217,7 @@ TRACE_EVENT(mm_compaction_end,
 		__entry->free_pfn,
 		__entry->zone_end,
 		__entry->sync ? "sync" : "async",
-		compaction_status_string[__entry->status])
+		__print_symbolic(__entry->status, COMPACTION_STATUS))
 );
 
 TRACE_EVENT(mm_compaction_try_to_compact_pages,
@@ -201,23 +257,23 @@ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
 
 	TP_STRUCT__entry(
 		__field(int, nid)
-		__field(char *, name)
+		__field(enum zone_type, idx)
 		__field(int, order)
 		__field(int, ret)
 	),
 
 	TP_fast_assign(
 		__entry->nid = zone_to_nid(zone);
-		__entry->name = (char *)zone->name;
+		__entry->idx = zone_idx(zone);
 		__entry->order = order;
 		__entry->ret = ret;
 	),
 
 	TP_printk("node=%d zone=%-8s order=%d ret=%s",
 		__entry->nid,
-		__entry->name,
+		__print_symbolic(__entry->idx, ZONE_TYPE),
 		__entry->order,
-		compaction_status_string[__entry->ret])
+		__print_symbolic(__entry->ret, COMPACTION_STATUS))
 );
 
 DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_finished,
@@ -247,7 +303,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
 
 	TP_STRUCT__entry(
 		__field(int, nid)
-		__field(char *, name)
+		__field(enum zone_type, idx)
 		__field(int, order)
 		__field(unsigned int, considered)
 		__field(unsigned int, defer_shift)
@@ -256,7 +312,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
 
 	TP_fast_assign(
 		__entry->nid = zone_to_nid(zone);
-		__entry->name = (char *)zone->name;
+		__entry->idx = zone_idx(zone);
 		__entry->order = order;
 		__entry->considered = zone->compact_considered;
 		__entry->defer_shift = zone->compact_defer_shift;
@@ -265,7 +321,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
 
 	TP_printk("node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
 		__entry->nid,
-		__entry->name,
+		__print_symbolic(__entry->idx, ZONE_TYPE),
 		__entry->order,
 		__entry->order_failed,
 		__entry->considered,

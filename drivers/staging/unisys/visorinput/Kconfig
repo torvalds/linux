@@ -1,0 +1,10 @@
+#
+# Unisys visorinput configuration
+#
+
+config UNISYS_VISORINPUT
+	tristate "Unisys visorinput driver"
+	depends on UNISYSSPAR && UNISYS_VISORBUS && FB
+	---help---
+	If you say Y here, you will enable the Unisys visorinput driver.
+

@@ -115,7 +115,7 @@ static void ipipeif_set_outaddr(struct iss_ipipeif_device *ipipeif, u32 addr)
 {
 	struct iss_device *iss = to_iss_device(ipipeif);
 
-	/* Save address splitted in Base Address H & L */
+	/* Save address split in Base Address H & L */
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_ISIF, ISIF_CADU,
 		      (addr >> (16 + 5)) & ISIF_CADU_MASK);
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_ISIF, ISIF_CADL,
@@ -233,7 +233,7 @@ static void ipipeif_isr_buffer(struct iss_ipipeif_device *ipipeif)
 	ipipeif_write_enable(ipipeif, 0);
 
 	buffer = omap4iss_video_buffer_next(&ipipeif->video_out);
-	if (buffer == NULL)
+	if (!buffer)
 		return;
 
 	ipipeif_set_outaddr(ipipeif, buffer->iss_addr);
@@ -446,8 +446,8 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
  * return -EINVAL or zero on success
  */
 static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
-			       struct v4l2_subdev_mbus_code_enum *code)
+				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct iss_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -480,8 +480,8 @@ static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ipipeif_enum_frame_size(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
-				struct v4l2_subdev_frame_size_enum *fse)
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct iss_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt format;
@@ -526,7 +526,7 @@ static int ipipeif_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipeif_get_format(ipipeif, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	fmt->format = *format;
@@ -550,7 +550,7 @@ static int ipipeif_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipeif_get_format(ipipeif, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	ipipeif_try_format(ipipeif, cfg, fmt->pad, &fmt->format, fmt->which);
@@ -570,7 +570,7 @@ static int ipipeif_set_format(struct v4l2_subdev *sd,
 					      fmt->which);
 		*format = fmt->format;
 		ipipeif_try_format(ipipeif, cfg, IPIPEIF_PAD_SOURCE_VP, format,
-				fmt->which);
+				   fmt->which);
 	}
 
 	return 0;
@@ -656,8 +656,8 @@ static const struct v4l2_subdev_internal_ops ipipeif_v4l2_internal_ops = {
  * return -EINVAL or zero on success
  */
 static int ipipeif_link_setup(struct media_entity *entity,
-			   const struct media_pad *local,
-			   const struct media_pad *remote, u32 flags)
+			      const struct media_pad *local,
+			      const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct iss_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
@@ -778,7 +778,7 @@ void omap4iss_ipipeif_unregister_entities(struct iss_ipipeif_device *ipipeif)
 }
 
 int omap4iss_ipipeif_register_entities(struct iss_ipipeif_device *ipipeif,
-	struct v4l2_device *vdev)
+				       struct v4l2_device *vdev)
 {
 	int ret;
 

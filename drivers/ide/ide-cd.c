@@ -441,7 +441,7 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		struct request *rq;
 		int error;
 
-		rq = blk_get_request(drive->queue, write, __GFP_WAIT);
+		rq = blk_get_request(drive->queue, write, __GFP_RECLAIM);
 
 		memcpy(rq->cmd, cmd, BLK_MAX_CDB);
 		rq->cmd_type = REQ_TYPE_ATA_PC;

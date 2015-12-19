@@ -42,7 +42,6 @@ const char *sti_plane_to_str(struct sti_plane *plane)
 		return "<UNKNOWN PLANE>";
 	}
 }
-EXPORT_SYMBOL(sti_plane_to_str);
 
 static void sti_plane_destroy(struct drm_plane *drm_plane)
 {
@@ -108,7 +107,6 @@ void sti_plane_init_property(struct sti_plane *plane,
 			 plane->drm_plane.base.id,
 			 sti_plane_to_str(plane), plane->zorder);
 }
-EXPORT_SYMBOL(sti_plane_init_property);
 
 struct drm_plane_funcs sti_plane_helpers_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
@@ -119,4 +117,3 @@ struct drm_plane_funcs sti_plane_helpers_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
-EXPORT_SYMBOL(sti_plane_helpers_funcs);

@@ -68,7 +68,7 @@
 		regulator-name = "hsusb1_vbus";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio1 1 0>;	/* gpio_1 */
+		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;	/* gpio_1 */
 		startup-delay-us = <70000>;
 		enable-active-high;
 		/*
@@ -98,7 +98,7 @@
 		regulator-name = "vwl1271";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio2 11 0>;
+		gpio = <&gpio2 11 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <70000>;
 		enable-active-high;
 	};

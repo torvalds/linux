@@ -32,6 +32,10 @@ enum btrfs_trans_state {
 	TRANS_STATE_MAX			= 6,
 };
 
+#define BTRFS_TRANS_HAVE_FREE_BGS	0
+#define BTRFS_TRANS_DIRTY_BG_RUN	1
+#define BTRFS_TRANS_CACHE_ENOSPC	2
+
 struct btrfs_transaction {
 	u64 transid;
 	/*
@@ -46,11 +50,9 @@ struct btrfs_transaction {
 	 */
 	atomic_t num_writers;
 	atomic_t use_count;
+	atomic_t pending_ordered;
 
-	/*
-	 * true if there is free bgs operations in this transaction
-	 */
-	int have_free_bgs;
+	unsigned long flags;
 
 	/* Be protected by fs_info->trans_lock when we want to change it. */
 	enum btrfs_trans_state state;
@@ -59,9 +61,9 @@ struct btrfs_transaction {
 	unsigned long start_time;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
+	wait_queue_head_t pending_wait;
 	struct list_head pending_snapshots;
 	struct list_head pending_chunks;
-	struct list_head pending_ordered;
 	struct list_head switch_commits;
 	struct list_head dirty_bgs;
 	struct list_head io_bgs;
@@ -75,12 +77,11 @@ struct btrfs_transaction {
 	 */
 	struct mutex cache_write_mutex;
 	spinlock_t dirty_bgs_lock;
+	/* Protected by spin lock fs_info->unused_bgs_lock. */
 	struct list_head deleted_bgs;
-	spinlock_t deleted_bgs_lock;
 	spinlock_t dropped_roots_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
-	int dirty_bg_run;
 };
 
 #define __TRANS_FREEZABLE	(1U << 0)
@@ -107,7 +108,6 @@ struct btrfs_trans_handle {
 	u64 transid;
 	u64 bytes_reserved;
 	u64 chunk_bytes_reserved;
-	u64 qgroup_reserved;
 	unsigned long use_count;
 	unsigned long blocks_reserved;
 	unsigned long blocks_used;
@@ -129,7 +129,6 @@ struct btrfs_trans_handle {
 	 */
 	struct btrfs_root *root;
 	struct seq_list delayed_ref_elem;
-	struct list_head ordered;
 	struct list_head qgroup_ref_list;
 	struct list_head new_bgs;
 };
@@ -185,9 +184,14 @@ static inline void btrfs_clear_skip_qgroup(struct btrfs_trans_handle *trans)
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
-						   int num_items);
+						   unsigned int num_items);
+struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
+					struct btrfs_root *root,
+					unsigned int num_items,
+					int min_factor);
 struct btrfs_trans_handle *btrfs_start_transaction_lflush(
-					struct btrfs_root *root, int num_items);
+					struct btrfs_root *root,
+					unsigned int num_items);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root);

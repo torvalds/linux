@@ -77,6 +77,7 @@ struct device_node *of_irq_find_parent(struct device_node *child)
 
 	return p;
 }
+EXPORT_SYMBOL_GPL(of_irq_find_parent);
 
 /**
  * of_irq_parse_raw - Low level interrupt tree parsing
@@ -501,10 +502,12 @@ void __init of_irq_init(const struct of_device_id *matches)
 		 * pointer, interrupt-parent device_node etc.
 		 */
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
-		if (WARN_ON(!desc))
+		if (WARN_ON(!desc)) {
+			of_node_put(np);
 			goto err;
+		}
 
-		desc->dev = np;
+		desc->dev = of_node_get(np);
 		desc->interrupt_parent = of_irq_find_parent(np);
 		if (desc->interrupt_parent == np)
 			desc->interrupt_parent = NULL;
@@ -575,6 +578,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 err:
 	list_for_each_entry_safe(desc, temp_desc, &intc_desc_list, list) {
 		list_del(&desc->list);
+		of_node_put(desc->dev);
 		kfree(desc);
 	}
 }

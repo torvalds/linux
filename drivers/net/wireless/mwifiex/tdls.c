@@ -204,6 +204,12 @@ mwifiex_tdls_add_ht_oper(struct mwifiex_private *priv, const u8 *mac,
 		return -1;
 	}
 
+	if (!(le16_to_cpu(sta_ptr->tdls_cap.ht_capb.cap_info))) {
+		mwifiex_dbg(priv->adapter, WARN,
+			    "TDLS peer doesn't support ht capabilities\n");
+		return 0;
+	}
+
 	pos = (void *)skb_put(skb, sizeof(struct ieee80211_ht_operation) + 2);
 	*pos++ = WLAN_EID_HT_OPERATION;
 	*pos++ = sizeof(struct ieee80211_ht_operation);
@@ -250,6 +256,12 @@ static int mwifiex_tdls_add_vht_oper(struct mwifiex_private *priv,
 		mwifiex_dbg(adapter, ERROR,
 			    "TDLS peer station not found in list\n");
 		return -1;
+	}
+
+	if (!(le32_to_cpu(sta_ptr->tdls_cap.vhtcap.vht_cap_info))) {
+		mwifiex_dbg(adapter, WARN,
+			    "TDLS peer doesn't support vht capabilities\n");
+		return 0;
 	}
 
 	if (!mwifiex_is_bss_in_11ac_mode(priv)) {

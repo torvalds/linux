@@ -143,7 +143,8 @@ static bool xt_socket_sk_is_transparent(struct sock *sk)
 	}
 }
 
-static struct sock *xt_socket_lookup_slow_v4(const struct sk_buff *skb,
+static struct sock *xt_socket_lookup_slow_v4(struct net *net,
+					     const struct sk_buff *skb,
 					     const struct net_device *indev)
 {
 	const struct iphdr *iph = ip_hdr(skb);
@@ -197,7 +198,7 @@ static struct sock *xt_socket_lookup_slow_v4(const struct sk_buff *skb,
 	}
 #endif
 
-	return xt_socket_get_sock_v4(dev_net(skb->dev), protocol, saddr, daddr,
+	return xt_socket_get_sock_v4(net, protocol, saddr, daddr,
 				     sport, dport, indev);
 }
 
@@ -209,7 +210,7 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	struct sock *sk = skb->sk;
 
 	if (!sk)
-		sk = xt_socket_lookup_slow_v4(skb, par->in);
+		sk = xt_socket_lookup_slow_v4(par->net, skb, par->in);
 	if (sk) {
 		bool wildcard;
 		bool transparent = true;
@@ -335,7 +336,8 @@ xt_socket_get_sock_v6(struct net *net, const u8 protocol,
 	return NULL;
 }
 
-static struct sock *xt_socket_lookup_slow_v6(const struct sk_buff *skb,
+static struct sock *xt_socket_lookup_slow_v6(struct net *net,
+					     const struct sk_buff *skb,
 					     const struct net_device *indev)
 {
 	__be16 uninitialized_var(dport), uninitialized_var(sport);
@@ -371,7 +373,7 @@ static struct sock *xt_socket_lookup_slow_v6(const struct sk_buff *skb,
 		return NULL;
 	}
 
-	return xt_socket_get_sock_v6(dev_net(skb->dev), tproto, saddr, daddr,
+	return xt_socket_get_sock_v6(net, tproto, saddr, daddr,
 				     sport, dport, indev);
 }
 
@@ -383,7 +385,7 @@ socket_mt6_v1_v2_v3(const struct sk_buff *skb, struct xt_action_param *par)
 	struct sock *sk = skb->sk;
 
 	if (!sk)
-		sk = xt_socket_lookup_slow_v6(skb, par->in);
+		sk = xt_socket_lookup_slow_v6(par->net, skb, par->in);
 	if (sk) {
 		bool wildcard;
 		bool transparent = true;

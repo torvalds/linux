@@ -175,6 +175,7 @@ static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 	return kvm->arch.user_cpu_state_ctrl != 0;
 }
 
+/* implemented in interrupt.c */
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
@@ -185,7 +186,25 @@ int __must_check kvm_s390_inject_vm(struct kvm *kvm,
 				    struct kvm_s390_interrupt *s390int);
 int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 				      struct kvm_s390_irq *irq);
-int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
+static inline int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
+					   struct kvm_s390_pgm_info *pgm_info)
+{
+	struct kvm_s390_irq irq = {
+		.type = KVM_S390_PROGRAM_INT,
+		.u.pgm = *pgm_info,
+	};
+
+	return kvm_s390_inject_vcpu(vcpu, &irq);
+}
+static inline int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
+{
+	struct kvm_s390_irq irq = {
+		.type = KVM_S390_PROGRAM_INT,
+		.u.pgm.code = code,
+	};
+
+	return kvm_s390_inject_vcpu(vcpu, &irq);
+}
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 						    u64 isc_mask, u32 schid);
 int kvm_s390_reinject_io_int(struct kvm *kvm,
@@ -212,6 +231,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
+void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
 int kvm_s390_store_adtl_status_unloaded(struct kvm_vcpu *vcpu,
@@ -231,9 +251,6 @@ extern unsigned long kvm_s390_fac_list_mask[];
 
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
-/* implemented in interrupt.c */
-int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
-			     struct kvm_s390_pgm_info *pgm_info);
 
 static inline void kvm_s390_vcpu_block_all(struct kvm *kvm)
 {
@@ -252,6 +269,16 @@ static inline void kvm_s390_vcpu_unblock_all(struct kvm *kvm)
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		kvm_s390_vcpu_unblock(vcpu);
+}
+
+static inline u64 kvm_s390_get_tod_clock_fast(struct kvm *kvm)
+{
+	u64 rc;
+
+	preempt_disable();
+	rc = get_tod_clock_fast() + kvm->arch.epoch;
+	preempt_enable();
+	return rc;
 }
 
 /**

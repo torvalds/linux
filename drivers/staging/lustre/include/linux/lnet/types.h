@@ -303,7 +303,7 @@ static inline int LNetHandleIsEqual(lnet_handle_any_t h1, lnet_handle_any_t h2)
  */
 static inline int LNetHandleIsInvalid(lnet_handle_any_t h)
 {
-	return LNET_WIRE_HANDLE_COOKIE_NONE == h.cookie;
+	return h.cookie == LNET_WIRE_HANDLE_COOKIE_NONE;
 }
 
 /**

@@ -45,9 +45,7 @@ int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	int ret;
 
-	mutex_lock(&obj->dev->struct_mutex);
 	ret = drm_gem_mmap_obj(obj, obj->size, vma);
-	mutex_unlock(&obj->dev->struct_mutex);
 	if (ret < 0)
 		return ret;
 

@@ -181,7 +181,7 @@ static void deregister_from_lirc(struct sasem_context *context)
 	if (retval)
 		dev_err(&context->dev->dev,
 			"%s: unable to deregister from lirc (%d)\n",
-		       __func__, retval);
+			__func__, retval);
 	else
 		dev_info(&context->dev->dev,
 			 "Deregistered Sasem driver (minor:%d)\n", minor);
@@ -244,7 +244,7 @@ exit:
  */
 static long vfd_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
-	struct sasem_context *context = NULL;
+	struct sasem_context *context;
 
 	context = (struct sasem_context *) file->private_data;
 
@@ -697,16 +697,11 @@ static int sasem_probe(struct usb_interface *interface,
 	for (i = 0; i < num_endpoints && !(ir_ep_found && vfd_ep_found); ++i) {
 
 		struct usb_endpoint_descriptor *ep;
-		int ep_dir;
-		int ep_type;
 
 		ep = &iface_desc->endpoint [i].desc;
-		ep_dir = ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
-		ep_type = ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 
 		if (!ir_ep_found &&
-			ep_dir == USB_DIR_IN &&
-			ep_type == USB_ENDPOINT_XFER_INT) {
+			usb_endpoint_is_int_in(ep)) {
 
 			rx_endpoint = ep;
 			ir_ep_found = 1;
@@ -715,8 +710,7 @@ static int sasem_probe(struct usb_interface *interface,
 					"%s: found IR endpoint\n", __func__);
 
 		} else if (!vfd_ep_found &&
-			ep_dir == USB_DIR_OUT &&
-			ep_type == USB_ENDPOINT_XFER_INT) {
+			usb_endpoint_is_int_out(ep)) {
 
 			tx_endpoint = ep;
 			vfd_ep_found = 1;

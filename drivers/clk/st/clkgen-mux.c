@@ -17,6 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include "clkgen.h"
 
 static DEFINE_SPINLOCK(clkgena_divmux_lock);
 static DEFINE_SPINLOCK(clkgenf_lock);
@@ -576,6 +577,7 @@ static struct clkgen_mux_data stih415_a9_mux_data = {
 	.offset = 0,
 	.shift = 1,
 	.width = 2,
+	.lock = &clkgen_a9_lock,
 };
 static struct clkgen_mux_data stih416_a9_mux_data = {
 	.offset = 0,
@@ -586,6 +588,7 @@ static struct clkgen_mux_data stih407_a9_mux_data = {
 	.offset = 0x1a4,
 	.shift = 0,
 	.width = 2,
+	.lock = &clkgen_a9_lock,
 };
 
 static const struct of_device_id mux_of_match[] = {

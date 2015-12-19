@@ -276,11 +276,10 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 		}
 
 		/* We make a copy to enqueue. */
-		new_dg = kmalloc(dg_size, GFP_KERNEL);
+		new_dg = kmemdup(dg, dg_size, GFP_KERNEL);
 		if (new_dg == NULL)
 			return VMCI_ERROR_NO_MEM;
 
-		memcpy(new_dg, dg, dg_size);
 		retval = vmci_ctx_enqueue_datagram(dg->dst.context, new_dg);
 		if (retval < VMCI_SUCCESS) {
 			kfree(new_dg);

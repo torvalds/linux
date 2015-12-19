@@ -1231,20 +1231,13 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
 	{ }
 };
 
-static const struct bdb_header *validate_vbt(const void __iomem *_base,
+static const struct bdb_header *validate_vbt(const void *base,
 					     size_t size,
-					     const void __iomem *_vbt,
+					     const void *_vbt,
 					     const char *source)
 {
-	/*
-	 * This is the one place where we explicitly discard the address space
-	 * (__iomem) of the BIOS/VBT. (And this will cause a sparse complaint.)
-	 * From now on everything is based on 'base', and treated as regular
-	 * memory.
-	 */
-	const void *base = (const void *) _base;
-	size_t offset = _vbt - _base;
-	const struct vbt_header *vbt = base + offset;
+	size_t offset = _vbt - base;
+	const struct vbt_header *vbt = _vbt;
 	const struct bdb_header *bdb;
 
 	if (offset + sizeof(struct vbt_header) > size) {
@@ -1282,7 +1275,15 @@ static const struct bdb_header *find_vbt(void __iomem *bios, size_t size)
 	/* Scour memory looking for the VBT signature. */
 	for (i = 0; i + 4 < size; i++) {
 		if (ioread32(bios + i) == *((const u32 *) "$VBT")) {
-			bdb = validate_vbt(bios, size, bios + i, "PCI ROM");
+			/*
+			 * This is the one place where we explicitly discard the
+			 * address space (__iomem) of the BIOS/VBT. From now on
+			 * everything is based on 'base', and treated as regular
+			 * memory.
+			 */
+			void *_bios = (void __force *) bios;
+
+			bdb = validate_vbt(_bios, size, _bios + i, "PCI ROM");
 			break;
 		}
 	}
@@ -1349,22 +1350,4 @@ intel_parse_bios(struct drm_device *dev)
 		pci_unmap_rom(pdev, bios);
 
 	return 0;
-}
-
-/* Ensure that vital registers have been initialised, even if the BIOS
- * is absent or just failing to do its job.
- */
-void intel_setup_bios(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	 /* Set the Panel Power On/Off timings if uninitialized. */
-	if (!HAS_PCH_SPLIT(dev) &&
-	    I915_READ(PP_ON_DELAYS) == 0 && I915_READ(PP_OFF_DELAYS) == 0) {
-		/* Set T2 to 40ms and T5 to 200ms */
-		I915_WRITE(PP_ON_DELAYS, 0x019007d0);
-
-		/* Set T3 to 35ms and Tx to 200ms */
-		I915_WRITE(PP_OFF_DELAYS, 0x015e07d0);
-	}
 }

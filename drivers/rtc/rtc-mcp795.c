@@ -186,7 +186,6 @@ static int mcp795_probe(struct spi_device *spi)
 static struct spi_driver mcp795_driver = {
 		.driver = {
 				.name = "rtc-mcp795",
-				.owner = THIS_MODULE,
 		},
 		.probe = mcp795_probe,
 };

@@ -70,15 +70,31 @@ static int skl_transfer_firmware(struct sst_dsp *ctx,
 static int skl_load_base_firmware(struct sst_dsp *ctx)
 {
 	int ret = 0, i;
-	const struct firmware *fw = NULL;
 	struct skl_sst *skl = ctx->thread_context;
 	u32 reg;
 
-	ret = request_firmware(&fw, "dsp_fw_release.bin", ctx->dev);
+	skl->boot_complete = false;
+	init_waitqueue_head(&skl->boot_wait);
+
+	if (ctx->fw == NULL) {
+		ret = request_firmware(&ctx->fw, "dsp_fw_release.bin", ctx->dev);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Request firmware failed %d\n", ret);
+			skl_dsp_disable_core(ctx);
+			return -EIO;
+		}
+	}
+
+	ret = skl_dsp_boot(ctx);
 	if (ret < 0) {
-		dev_err(ctx->dev, "Request firmware failed %d\n", ret);
-		skl_dsp_disable_core(ctx);
-		return -EIO;
+		dev_err(ctx->dev, "Boot dsp core failed ret: %d", ret);
+		goto skl_load_base_firmware_failed;
+	}
+
+	ret = skl_cldma_prepare(ctx);
+	if (ret < 0) {
+		dev_err(ctx->dev, "CL dma prepare failed : %d", ret);
+		goto skl_load_base_firmware_failed;
 	}
 
 	/* enable Interrupt */
@@ -102,7 +118,7 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		goto skl_load_base_firmware_failed;
 	}
 
-	ret = skl_transfer_firmware(ctx, fw->data, fw->size);
+	ret = skl_transfer_firmware(ctx, ctx->fw->data, ctx->fw->size);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Transfer firmware failed%d\n", ret);
 		goto skl_load_base_firmware_failed;
@@ -118,13 +134,12 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		dev_dbg(ctx->dev, "Download firmware successful%d\n", ret);
 		skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
 	}
-	release_firmware(fw);
-
 	return 0;
 
 skl_load_base_firmware_failed:
 	skl_dsp_disable_core(ctx);
-	release_firmware(fw);
+	release_firmware(ctx->fw);
+	ctx->fw = NULL;
 	return ret;
 }
 
@@ -171,6 +186,12 @@ static int skl_set_dsp_D3(struct sst_dsp *ctx)
 		ret = -EIO;
 	}
 	skl_dsp_set_state_locked(ctx, SKL_DSP_RESET);
+
+	/* disable Interrupt */
+	ctx->cl_dev.ops.cl_cleanup_controller(ctx);
+	skl_cldma_int_disable(ctx);
+	skl_ipc_op_int_disable(ctx);
+	skl_ipc_int_disable(ctx);
 
 	return ret;
 }
@@ -235,22 +256,6 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	if (ret)
 		return ret;
 
-	skl->boot_complete = false;
-	init_waitqueue_head(&skl->boot_wait);
-
-	ret = skl_dsp_boot(sst);
-	if (ret < 0) {
-		dev_err(skl->dev, "Boot dsp core failed ret: %d", ret);
-		goto free_ipc;
-	}
-
-	ret = skl_cldma_prepare(sst);
-	if (ret < 0) {
-		dev_err(dev, "CL dma prepare failed : %d", ret);
-		goto free_ipc;
-	}
-
-
 	ret = sst->fw_ops.load_fw(sst);
 	if (ret < 0) {
 		dev_err(dev, "Load base fw failed : %d", ret);
@@ -262,7 +267,6 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	return 0;
 
-free_ipc:
 	skl_ipc_free(&skl->ipc);
 	return ret;
 }

@@ -1102,6 +1102,7 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	RAPL_CPU(0x4A, rapl_defaults_tng),/* Tangier */
 	RAPL_CPU(0x56, rapl_defaults_core),/* Future Xeon */
 	RAPL_CPU(0x5A, rapl_defaults_ann),/* Annidale */
+	RAPL_CPU(0X5C, rapl_defaults_core),/* Broxton */
 	RAPL_CPU(0x5E, rapl_defaults_core),/* Skylake-H/S */
 	RAPL_CPU(0x57, rapl_defaults_hsw_server),/* Knights Landing */
 	{}
@@ -1340,10 +1341,13 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 
 	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++) {
 		/* check if the domain is locked by BIOS */
-		if (rapl_read_data_raw(rd, FW_LOCK, false, &locked)) {
+		ret = rapl_read_data_raw(rd, FW_LOCK, false, &locked);
+		if (ret)
+			return ret;
+		if (locked) {
 			pr_info("RAPL package %d domain %s locked by BIOS\n",
 				rp->id, rd->name);
-				rd->state |= DOMAIN_STATE_BIOS_LOCKED;
+			rd->state |= DOMAIN_STATE_BIOS_LOCKED;
 		}
 	}
 

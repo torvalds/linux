@@ -3518,7 +3518,7 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 
 	netdev_rss_key_fill(rss_key, RSS_HASH_KEY_LEN);
 	rc = be_cmd_rss_config(adapter, rss->rsstable, rss->rss_flags,
-			       128, rss_key);
+			       RSS_INDIR_TABLE_LEN, rss_key);
 	if (rc) {
 		rss->rss_flags = RSS_ENABLE_NONE;
 		return rc;

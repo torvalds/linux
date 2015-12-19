@@ -550,7 +550,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev,
 			       irq_ack,
 			       qcom_rpm_ack_interrupt,
-			       IRQF_TRIGGER_RISING | IRQF_NO_SUSPEND,
+			       IRQF_TRIGGER_RISING,
 			       "qcom_rpm_ack",
 			       rpm);
 	if (ret) {

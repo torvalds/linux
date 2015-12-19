@@ -36,7 +36,7 @@
 
 u8 r8712_read8(struct _adapter *adapter, u32 addr)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
 	u8 (*_read8)(struct intf_hdl *pintfhdl, u32 addr);
 
@@ -46,7 +46,7 @@ u8 r8712_read8(struct _adapter *adapter, u32 addr)
 
 u16 r8712_read16(struct _adapter *adapter, u32 addr)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
 	u16 (*_read16)(struct intf_hdl *pintfhdl, u32 addr);
 
@@ -56,7 +56,7 @@ u16 r8712_read16(struct _adapter *adapter, u32 addr)
 
 u32 r8712_read32(struct _adapter *adapter, u32 addr)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
 	u32 (*_read32)(struct intf_hdl *pintfhdl, u32 addr);
 
@@ -66,7 +66,7 @@ u32 r8712_read32(struct _adapter *adapter, u32 addr)
 
 void r8712_write8(struct _adapter *adapter, u32 addr, u8 val)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
 	void (*_write8)(struct intf_hdl *pintfhdl, u32 addr, u8 val);
 
@@ -76,7 +76,7 @@ void r8712_write8(struct _adapter *adapter, u32 addr, u8 val)
 
 void r8712_write16(struct _adapter *adapter, u32 addr, u16 val)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
 	void (*_write16)(struct intf_hdl *pintfhdl, u32 addr, u16 val);
 
@@ -86,8 +86,8 @@ void r8712_write16(struct _adapter *adapter, u32 addr, u16 val)
 
 void r8712_write32(struct _adapter *adapter, u32 addr, u32 val)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
-	struct intf_hdl *pintfhdl = (struct intf_hdl *)(&(pio_queue->intf));
+	struct io_queue *pio_queue = adapter->pio_queue;
+	struct intf_hdl *pintfhdl  = &(pio_queue->intf);
 
 	void (*_write32)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
 
@@ -97,13 +97,12 @@ void r8712_write32(struct _adapter *adapter, u32 addr, u32 val)
 
 void r8712_read_mem(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
 
 	void (*_read_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
 			  u8 *pmem);
-	if ((adapter->bDriverStopped == true) ||
-	    (adapter->bSurpriseRemoved == true))
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 		return;
 	_read_mem = pintfhdl->io_ops._read_mem;
 	_read_mem(pintfhdl, addr, cnt, pmem);
@@ -111,7 +110,7 @@ void r8712_read_mem(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 void r8712_write_mem(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
 	void (*_write_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
 			   u8 *pmem);
@@ -122,13 +121,12 @@ void r8712_write_mem(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 void r8712_read_port(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl	*pintfhdl = &(pio_queue->intf);
 
 	u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
 			  u8 *pmem);
-	if ((adapter->bDriverStopped == true) ||
-	    (adapter->bSurpriseRemoved == true))
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 		return;
 	_read_port = pintfhdl->io_ops._read_port;
 	_read_port(pintfhdl, addr, cnt, pmem);
@@ -136,7 +134,7 @@ void r8712_read_port(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 void r8712_write_port(struct _adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
-	struct io_queue *pio_queue = (struct io_queue *)adapter->pio_queue;
+	struct io_queue *pio_queue = adapter->pio_queue;
 	struct intf_hdl *pintfhdl = &(pio_queue->intf);
 
 	u32 (*_write_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,

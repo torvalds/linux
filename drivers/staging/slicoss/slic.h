@@ -93,10 +93,10 @@ struct slic_rcvbuf_info {
 	u32     lastid;
 };
 /*
- SLIC Handle structure.  Used to restrict handle values to
- 32 bits by using an index rather than an address.
- Simplifies ucode in 64-bit systems
-*/
+ * SLIC Handle structure.  Used to restrict handle values to
+ * 32 bits by using an index rather than an address.
+ * Simplifies ucode in 64-bit systems
+ */
 struct slic_handle_word {
 	union {
 		struct {
@@ -165,7 +165,6 @@ struct slic_cmdqueue {
 
 #define SLIC_MAX_CARDS              32
 #define SLIC_MAX_PORTS              4        /* Max # of ports per card   */
-
 
 struct mcast_address {
 	unsigned char address[6];
@@ -334,10 +333,11 @@ struct physcard {
 	struct physcard *next;
 	uint                adapters_allocd;
 
-/*  the following is not currently needed
-	u32              bridge_busnum;
-	u32              bridge_cfg[NUM_CFG_SPACES][NUM_CFG_REG_ULONGS];
-*/
+/*
+ * the following is not currently needed
+ *	u32              bridge_busnum;
+ *	u32              bridge_cfg[NUM_CFG_SPACES][NUM_CFG_REG_ULONGS];
+ */
 };
 
 struct base_driver {
@@ -447,7 +447,7 @@ struct adapter {
 	*  SLIC Handles
 	*/
 	/* Object handles*/
-	struct slic_handle slic_handles[SLIC_CMDQ_MAXCMDS+1];
+	struct slic_handle slic_handles[SLIC_CMDQ_MAXCMDS + 1];
 	/* Free object handles*/
 	struct slic_handle *pfree_slic_handles;
 	/* Object handle list lock*/
@@ -485,7 +485,6 @@ struct adapter {
 	struct slicnet_stats     slic_stats;
 };
 
-
 #define UPDATE_STATS(largestat, newstat, oldstat)                        \
 {                                                                        \
 	if ((newstat) < (oldstat))                                       \
@@ -514,6 +513,6 @@ struct adapter {
 #define FLUSH		true
 #define DONT_FLUSH	false
 
-#define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE+10)
+#define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE + 10)
 
 #endif /*  __SLIC_DRIVER_H__ */

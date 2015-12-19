@@ -179,12 +179,9 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 		/* Note completely different from the adaptive versions */
 	case IIO_EV_TYPE_THRESH:
 		value = chip->threshold[rising][chan];
-		ret = i2c_smbus_write_word_data(chip->client,
+		return i2c_smbus_write_word_data(chip->client,
 						ad7150_addresses[chan][3],
 						swab16(value));
-		if (ret < 0)
-			return ret;
-		return 0;
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
 		sens = chip->mag_sensitivity[rising][chan];
 		timeout = chip->mag_timeout[rising][chan];
@@ -222,7 +219,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 	u64 event_code;
 
 	/* Something must always be turned on */
-	if (state == 0)
+	if (!state)
 		return -EINVAL;
 
 	event_code = IIO_UNMOD_EVENT_CODE(chan->type, chan->channel, type, dir);
@@ -636,21 +633,12 @@ static int ad7150_probe(struct i2c_client *client,
 			return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 	if (ret)
 		return ret;
 
 	dev_info(&client->dev, "%s capacitive sensor registered,irq: %d\n",
 		 id->name, client->irq);
-
-	return 0;
-}
-
-static int ad7150_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
 
 	return 0;
 }
@@ -669,7 +657,6 @@ static struct i2c_driver ad7150_driver = {
 		.name = "ad7150",
 	},
 	.probe = ad7150_probe,
-	.remove = ad7150_remove,
 	.id_table = ad7150_id,
 };
 module_i2c_driver(ad7150_driver);

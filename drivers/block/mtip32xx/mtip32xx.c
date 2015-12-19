@@ -173,7 +173,7 @@ static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 {
 	struct request *rq;
 
-	rq = blk_mq_alloc_request(dd->queue, 0, __GFP_WAIT, true);
+	rq = blk_mq_alloc_request(dd->queue, 0, __GFP_RECLAIM, true);
 	return blk_mq_rq_to_pdu(rq);
 }
 
@@ -3810,7 +3810,6 @@ static int mtip_block_initialize(struct driver_data *dd)
 	sector_t capacity;
 	unsigned int index = 0;
 	struct kobject *kobj;
-	unsigned char thd_name[16];
 
 	if (dd->disk)
 		goto skip_create_disk; /* hw init done, before rebuild */
@@ -3958,10 +3957,9 @@ skip_create_disk:
 	}
 
 start_service_thread:
-	sprintf(thd_name, "mtip_svc_thd_%02d", index);
 	dd->mtip_svc_handler = kthread_create_on_node(mtip_service_thread,
-						dd, dd->numa_node, "%s",
-						thd_name);
+						dd, dd->numa_node,
+						"mtip_svc_thd_%02d", index);
 
 	if (IS_ERR(dd->mtip_svc_handler)) {
 		dev_err(&dd->pdev->dev, "service thread failed to start\n");

@@ -350,7 +350,8 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	cfg->bss_type = SCAN_BSS_TYPE_ANY;
 	/* currently NL80211 supports only a single interval */
 	for (i = 0; i < SCAN_MAX_CYCLE_INTERVALS; i++)
-		cfg->intervals[i] = cpu_to_le32(req->interval);
+		cfg->intervals[i] = cpu_to_le32(req->scan_plans[0].interval *
+						MSEC_PER_SEC);
 
 	cfg->ssid_len = 0;
 	ret = wlcore_scan_sched_scan_ssid_list(wl, wlvif, req);

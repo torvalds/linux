@@ -618,6 +618,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 		break;
 
 	case ARGI_TARGETREF:
+	case ARGI_STORE_TARGET:
 
 		switch (destination_type) {
 		case ACPI_TYPE_INTEGER:

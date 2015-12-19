@@ -184,10 +184,6 @@ int dvb_unregister_adapter(struct dvb_adapter *adap);
  * @pdvbdev:	pointer to the place where the new struct dvb_device will be
  *		stored
  * @template:	Template used to create &pdvbdev;
- * @device:	pointer to struct device that corresponds to the device driver
- * @adapter_nums: Array with a list of the numbers for @dvb_register_adapter;
- * 		to select among them. Typically, initialized with:
- *		DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nums)
  * @priv:	private data
  * @type:	type of the device: DVB_DEVICE_SEC, DVB_DEVICE_FRONTEND,
  *		DVB_DEVICE_DEMUX, DVB_DEVICE_DVR, DVB_DEVICE_CA, DVB_DEVICE_NET

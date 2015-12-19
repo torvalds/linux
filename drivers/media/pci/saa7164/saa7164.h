@@ -54,8 +54,6 @@
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/videobuf-dma-sg.h>
-#include <media/videobuf-dvb.h>
 #include <dvb_demux.h>
 #include <dvb_frontend.h>
 #include <dvb_net.h>
@@ -64,6 +62,8 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 
 #include "saa7164-reg.h"
 #include "saa7164-types.h"
@@ -117,7 +117,11 @@
 #define DBGLVL_CPU 8192
 
 #define SAA7164_NORMS \
-	(V4L2_STD_NTSC_M |  V4L2_STD_NTSC_M_JP |  V4L2_STD_NTSC_443)
+	(V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_JP)
+
+/* TV frequency range copied from tuner-core.c */
+#define SAA7164_TV_MIN_FREQ (44U * 16U)
+#define SAA7164_TV_MAX_FREQ (958U * 16U)
 
 enum port_t {
 	SAA7164_MPEG_UNDEFINED = 0,
@@ -185,11 +189,13 @@ struct saa7164_subid {
 };
 
 struct saa7164_encoder_fh {
+	struct v4l2_fh fh;
 	struct saa7164_port *port;
 	atomic_t v4l_reading;
 };
 
 struct saa7164_vbi_fh {
+	struct v4l2_fh fh;
 	struct saa7164_port *port;
 	atomic_t v4l_reading;
 };
@@ -381,12 +387,11 @@ struct saa7164_port {
 	/* Encoder */
 	/* Defaults established in saa7164-encoder.c */
 	struct saa7164_tvnorm encodernorm;
+	struct v4l2_ctrl_handler ctrl_handler;
 	v4l2_std_id std;
 	u32 height;
 	u32 width;
 	u32 freq;
-	u32 ts_packet_size;
-	u32 ts_packet_count;
 	u8 mux_input;
 	u8 encoder_profile;
 	u8 video_format;
@@ -419,6 +424,7 @@ struct saa7164_port {
 	/* V4L VBI */
 	struct tmComResVBIFormatDescrHeader vbi_fmt_ntsc;
 	struct saa7164_vbi_params vbi_params;
+	struct saa7164_port *enc_port;
 
 	/* Debug */
 	u32 sync_errors;
@@ -594,6 +600,16 @@ extern int saa7164_buffer_zero_offsets(struct saa7164_port *port, int i);
 
 /* ----------------------------------------------------------- */
 /* saa7164-encoder.c                                            */
+int saa7164_s_std(struct saa7164_port *port, v4l2_std_id id);
+int saa7164_g_std(struct saa7164_port *port, v4l2_std_id *id);
+int saa7164_enum_input(struct file *file, void *priv, struct v4l2_input *i);
+int saa7164_g_input(struct saa7164_port *port, unsigned int *i);
+int saa7164_s_input(struct saa7164_port *port, unsigned int i);
+int saa7164_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t);
+int saa7164_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *t);
+int saa7164_g_frequency(struct saa7164_port *port, struct v4l2_frequency *f);
+int saa7164_s_frequency(struct saa7164_port *port,
+			const struct v4l2_frequency *f);
 int saa7164_encoder_register(struct saa7164_port *port);
 void saa7164_encoder_unregister(struct saa7164_port *port);
 

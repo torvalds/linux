@@ -48,10 +48,16 @@ static const struct dw_hdmi_mpll_config imx_mpll_cfg[] = {
 			{ 0x40a2, 0x000a },
 		},
 	}, {
-		~0UL, {
+		216000000, {
 			{ 0x00a0, 0x000a },
 			{ 0x2001, 0x000f },
 			{ 0x4002, 0x000f },
+		},
+	}, {
+		~0UL, {
+			{ 0x0000, 0x0000 },
+			{ 0x0000, 0x0000 },
+			{ 0x0000, 0x0000 },
 		},
 	}
 };
@@ -82,7 +88,7 @@ static const struct dw_hdmi_curr_ctrl imx_cur_ctr[] = {
  */
 static const struct dw_hdmi_phy_config imx_phy_config[] = {
 	/*pixelclk   symbol   term   vlev */
-	{ 148500000, 0x800d, 0x0005, 0x01ad},
+	{ 216000000, 0x800d, 0x0005, 0x01ad},
 	{ ~0UL,      0x0000, 0x0000, 0x0000}
 };
 
@@ -148,7 +154,8 @@ static enum drm_mode_status imx6q_hdmi_mode_valid(struct drm_connector *con,
 {
 	if (mode->clock < 13500)
 		return MODE_CLOCK_LOW;
-	if (mode->clock > 266000)
+	/* FIXME: Hardware is capable of 266MHz, but setup data is missing. */
+	if (mode->clock > 216000)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -159,7 +166,8 @@ static enum drm_mode_status imx6dl_hdmi_mode_valid(struct drm_connector *con,
 {
 	if (mode->clock < 13500)
 		return MODE_CLOCK_LOW;
-	if (mode->clock > 270000)
+	/* FIXME: Hardware is capable of 270MHz, but setup data is missing. */
+	if (mode->clock > 216000)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;

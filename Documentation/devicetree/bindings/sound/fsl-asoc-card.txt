@@ -13,13 +13,15 @@ So having this generic sound card allows all Freescale SoC users to benefit
 from the simplification of a new card support and the capability of the wide
 sample rates support through ASRC.
 
-Note: The card is initially designed for those sound cards who use I2S and
-      PCM DAI formats. However, it'll be also possible to support those non
-      I2S/PCM type sound cards, such as S/PDIF audio and HDMI audio, as long
-      as the driver has been properly upgraded.
+Note: The card is initially designed for those sound cards who use AC'97, I2S
+      and PCM DAI formats. However, it'll be also possible to support those non
+      AC'97/I2S/PCM type sound cards, such as S/PDIF audio and HDMI audio, as
+      long as the driver has been properly upgraded.
 
 
 The compatible list for this generic sound card currently:
+ "fsl,imx-audio-ac97"
+
  "fsl,imx-audio-cs42888"
 
  "fsl,imx-audio-wm8962"

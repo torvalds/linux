@@ -149,6 +149,17 @@ config BERLIN2_ADC
 	  Marvell Berlin2 ADC driver. This ADC has 8 channels, with one used for
 	  temperature measurement.
 
+config CC10001_ADC
+	tristate "Cosmic Circuits 10001 ADC driver"
+	depends on HAS_IOMEM && HAVE_CLK && REGULATOR
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Cosmic Circuits 10001 ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cc10001_adc.
+
 config DA9150_GPADC
 	tristate "Dialog DA9150 GPADC driver support"
 	depends on MFD_DA9150
@@ -161,17 +172,6 @@ config DA9150_GPADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called berlin2-adc.
 
-config CC10001_ADC
-	tristate "Cosmic Circuits 10001 ADC driver"
-	depends on HAS_IOMEM && HAVE_CLK && REGULATOR
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  Say yes here to build support for Cosmic Circuits 10001 ADC.
-
-	  This driver can also be built as a module. If so, the module will be
-	  called cc10001_adc.
-
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
@@ -182,6 +182,17 @@ config EXYNOS_ADC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called exynos_adc.
+
+config HI8435
+	tristate "Holt Integrated Circuits HI-8435 threshold detector"
+	select IIO_TRIGGERED_EVENT
+	depends on SPI
+	help
+	  If you say yes here you get support for Holt Integrated Circuits
+	  HI-8435 chip.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called hi8435.
 
 config LP8788_ADC
 	tristate "LP8788 ADC driver"
@@ -361,6 +372,8 @@ config TWL6030_GPADC
 config VF610_ADC
 	tristate "Freescale vf610 ADC driver"
 	depends on OF
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to support for Vybrid board analog-to-digital converter.
 	  Since the IP is used for i.MX6SLX, the driver also support i.MX6SLX.

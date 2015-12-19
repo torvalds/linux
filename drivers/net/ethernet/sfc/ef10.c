@@ -1604,6 +1604,22 @@ efx_ef10_mcdi_read_response(struct efx_nic *efx, efx_dword_t *outbuf,
 	memcpy(outbuf, pdu + offset, outlen);
 }
 
+static void efx_ef10_mcdi_reboot_detected(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	/* All our allocations have been reset */
+	efx_ef10_reset_mc_allocations(efx);
+
+	/* The datapath firmware might have been changed */
+	nic_data->must_check_datapath_caps = true;
+
+	/* MAC statistics have been cleared on the NIC; clear the local
+	 * statistic that we update with efx_update_diff_stat().
+	 */
+	nic_data->stats[EF10_STAT_port_rx_bad_bytes] = 0;
+}
+
 static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -1623,17 +1639,7 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 		return 0;
 
 	nic_data->warm_boot_count = rc;
-
-	/* All our allocations have been reset */
-	efx_ef10_reset_mc_allocations(efx);
-
-	/* The datapath firmware might have been changed */
-	nic_data->must_check_datapath_caps = true;
-
-	/* MAC statistics have been cleared on the NIC; clear the local
-	 * statistic that we update with efx_update_diff_stat().
-	 */
-	nic_data->stats[EF10_STAT_port_rx_bad_bytes] = 0;
+	efx_ef10_mcdi_reboot_detected(efx);
 
 	return -EIO;
 }
@@ -1849,7 +1855,9 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 	unsigned int write_ptr;
 	efx_qword_t *txd;
 
-	BUG_ON(tx_queue->write_count == tx_queue->insert_count);
+	tx_queue->xmit_more_available = false;
+	if (unlikely(tx_queue->write_count == tx_queue->insert_count))
+		return;
 
 	do {
 		write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
@@ -3291,7 +3299,8 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 
 		new_spec.priority = EFX_FILTER_PRI_AUTO;
 		new_spec.flags = (EFX_FILTER_FLAG_RX |
-				  EFX_FILTER_FLAG_RX_RSS);
+				  (efx_rss_enabled(efx) ?
+				   EFX_FILTER_FLAG_RX_RSS : 0));
 		new_spec.dmaq_id = 0;
 		new_spec.rss_context = EFX_FILTER_RSS_CONTEXT_DEFAULT;
 		rc = efx_ef10_filter_push(efx, &new_spec,
@@ -3913,6 +3922,7 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
 	struct efx_ef10_dev_addr *addr_list;
+	enum efx_filter_flags filter_flags;
 	struct efx_filter_spec spec;
 	u8 baddr[ETH_ALEN];
 	unsigned int i, j;
@@ -3927,11 +3937,11 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 		addr_count = table->dev_uc_count;
 	}
 
+	filter_flags = efx_rss_enabled(efx) ? EFX_FILTER_FLAG_RX_RSS : 0;
+
 	/* Insert/renew filters */
 	for (i = 0; i < addr_count; i++) {
-		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-				   EFX_FILTER_FLAG_RX_RSS,
-				   0);
+		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC,
 					 addr_list[i].addr);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -3960,9 +3970,7 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 
 	if (multicast && rollback) {
 		/* Also need an Ethernet broadcast filter */
-		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-				   EFX_FILTER_FLAG_RX_RSS,
-				   0);
+		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		eth_broadcast_addr(baddr);
 		efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC, baddr);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -3992,13 +4000,14 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx, bool multicast,
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	enum efx_filter_flags filter_flags;
 	struct efx_filter_spec spec;
 	u8 baddr[ETH_ALEN];
 	int rc;
 
-	efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-			   EFX_FILTER_FLAG_RX_RSS,
-			   0);
+	filter_flags = efx_rss_enabled(efx) ? EFX_FILTER_FLAG_RX_RSS : 0;
+
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 
 	if (multicast)
 		efx_filter_set_mc_def(&spec);
@@ -4015,8 +4024,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx, bool multicast,
 		if (!nic_data->workaround_26807) {
 			/* Also need an Ethernet broadcast filter */
 			efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-					   EFX_FILTER_FLAG_RX_RSS,
-					   0);
+					   filter_flags, 0);
 			eth_broadcast_addr(baddr);
 			efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC,
 						 baddr);
@@ -4670,6 +4678,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.mcdi_poll_response = efx_ef10_mcdi_poll_response,
 	.mcdi_read_response = efx_ef10_mcdi_read_response,
 	.mcdi_poll_reboot = efx_ef10_mcdi_poll_reboot,
+	.mcdi_reboot_detected = efx_ef10_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
 	.irq_test_generate = efx_ef10_irq_test_generate,
 	.irq_disable_non_ev = efx_port_dummy_op_void,
@@ -4774,6 +4783,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.mcdi_poll_response = efx_ef10_mcdi_poll_response,
 	.mcdi_read_response = efx_ef10_mcdi_read_response,
 	.mcdi_poll_reboot = efx_ef10_mcdi_poll_reboot,
+	.mcdi_reboot_detected = efx_ef10_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
 	.irq_test_generate = efx_ef10_irq_test_generate,
 	.irq_disable_non_ev = efx_port_dummy_op_void,

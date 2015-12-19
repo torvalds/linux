@@ -75,6 +75,15 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 			   (1 << MIDR_VARIANT_SHIFT) | 2),
 	},
 #endif
+#ifdef CONFIG_ARM64_ERRATUM_834220
+	{
+	/* Cortex-A57 r0p0 - r1p2 */
+		.desc = "ARM erratum 834220",
+		.capability = ARM64_WORKAROUND_834220,
+		MIDR_RANGE(MIDR_CORTEX_A57, 0x00,
+			   (1 << MIDR_VARIANT_SHIFT) | 2),
+	},
+#endif
 #ifdef CONFIG_ARM64_ERRATUM_845719
 	{
 	/* Cortex-A53 r0p[01234] */
@@ -97,5 +106,5 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 
 void check_local_cpu_errata(void)
 {
-	check_cpu_capabilities(arm64_errata, "enabling workaround for");
+	update_cpu_capabilities(arm64_errata, "enabling workaround for");
 }

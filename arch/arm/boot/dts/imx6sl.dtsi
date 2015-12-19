@@ -135,8 +135,24 @@
 				ranges;
 
 				spdif: spdif@02004000 {
+					compatible = "fsl,imx6sl-spdif",
+						"fsl,imx35-spdif";
 					reg = <0x02004000 0x4000>;
 					interrupts = <0 52 IRQ_TYPE_LEVEL_HIGH>;
+					dmas = <&sdma 14 18 0>,
+						<&sdma 15 18 0>;
+					dma-names = "rx", "tx";
+					clocks = <&clks IMX6SL_CLK_SPDIF_GCLK>, <&clks IMX6SL_CLK_OSC>,
+						 <&clks IMX6SL_CLK_SPDIF>, <&clks IMX6SL_CLK_DUMMY>,
+						 <&clks IMX6SL_CLK_DUMMY>, <&clks IMX6SL_CLK_DUMMY>,
+						 <&clks IMX6SL_CLK_IPG>, <&clks IMX6SL_CLK_DUMMY>,
+						 <&clks IMX6SL_CLK_DUMMY>, <&clks IMX6SL_CLK_SPBA>;
+					clock-names = "core", "rxtx0",
+						"rxtx1", "rxtx2",
+						"rxtx3", "rxtx4",
+						"rxtx5", "rxtx6",
+						"rxtx7", "dma";
+					status = "disabled";
 				};
 
 				ecspi1: ecspi@02008000 {
@@ -670,8 +686,11 @@
 			};
 
 			dcp: dcp@020fc000 {
+				compatible = "fsl,imx6sl-dcp", "fsl,imx28-dcp";
 				reg = <0x020fc000 0x4000>;
-				interrupts = <0 99 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <0 99 IRQ_TYPE_LEVEL_HIGH>,
+					     <0 100 IRQ_TYPE_LEVEL_HIGH>,
+					     <0 101 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 

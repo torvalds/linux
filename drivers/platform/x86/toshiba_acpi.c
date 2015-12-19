@@ -131,7 +131,7 @@ MODULE_LICENSE("GPL");
 /* Field definitions */
 #define HCI_ACCEL_MASK			0x7fff
 #define HCI_HOTKEY_DISABLE		0x0b
-#define HCI_HOTKEY_ENABLE		0x09
+#define HCI_HOTKEY_ENABLE		0x01
 #define HCI_HOTKEY_SPECIAL_FUNCTIONS	0x10
 #define HCI_LCD_BRIGHTNESS_BITS		3
 #define HCI_LCD_BRIGHTNESS_SHIFT	(16-HCI_LCD_BRIGHTNESS_BITS)
@@ -198,6 +198,7 @@ struct toshiba_acpi_dev {
 	unsigned int panel_power_on_supported:1;
 	unsigned int usb_three_supported:1;
 	unsigned int sysfs_created:1;
+	unsigned int special_functions;
 
 	bool kbd_led_registered;
 	bool illumination_led_registered;
@@ -1668,10 +1669,10 @@ static ssize_t available_kbd_modes_show(struct device *dev,
 	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
 
 	if (toshiba->kbd_type == 1)
-		return sprintf(buf, "%x %x\n",
+		return sprintf(buf, "0x%x 0x%x\n",
 			       SCI_KBD_MODE_FNZ, SCI_KBD_MODE_AUTO);
 
-	return sprintf(buf, "%x %x %x\n",
+	return sprintf(buf, "0x%x 0x%x 0x%x\n",
 		       SCI_KBD_MODE_AUTO, SCI_KBD_MODE_ON, SCI_KBD_MODE_OFF);
 }
 static DEVICE_ATTR_RO(available_kbd_modes);
@@ -2253,27 +2254,22 @@ static int toshiba_acpi_enable_hotkeys(struct toshiba_acpi_dev *dev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	result = hci_write(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_ENABLE);
+	/*
+	 * Enable the "Special Functions" mode only if they are
+	 * supported and if they are activated.
+	 */
+	if (dev->kbd_function_keys_supported && dev->special_functions)
+		result = hci_write(dev, HCI_HOTKEY_EVENT,
+				   HCI_HOTKEY_SPECIAL_FUNCTIONS);
+	else
+		result = hci_write(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_ENABLE);
+
 	if (result == TOS_FAILURE)
 		return -EIO;
 	else if (result == TOS_NOT_SUPPORTED)
 		return -ENODEV;
 
 	return 0;
-}
-
-static void toshiba_acpi_enable_special_functions(struct toshiba_acpi_dev *dev)
-{
-	u32 result;
-
-	/*
-	 * Re-activate the hotkeys, but this time, we are using the
-	 * "Special Functions" mode.
-	 */
-	result = hci_write(dev, HCI_HOTKEY_EVENT,
-			   HCI_HOTKEY_SPECIAL_FUNCTIONS);
-	if (result != TOS_SUCCESS)
-		pr_err("Could not enable the Special Function mode\n");
 }
 
 static bool toshiba_acpi_i8042_filter(unsigned char data, unsigned char str,
@@ -2385,8 +2381,6 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 {
 	const struct key_entry *keymap = toshiba_acpi_keymap;
 	acpi_handle ec_handle;
-	u32 events_type;
-	u32 hci_result;
 	int error;
 
 	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID)) {
@@ -2398,10 +2392,8 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	if (error)
 		return error;
 
-	if (toshiba_hotkey_event_type_get(dev, &events_type))
+	if (toshiba_hotkey_event_type_get(dev, &dev->hotkey_event_type))
 		pr_notice("Unable to query Hotkey Event Type\n");
-
-	dev->hotkey_event_type = events_type;
 
 	dev->hotkey_dev = input_allocate_device();
 	if (!dev->hotkey_dev)
@@ -2411,14 +2403,15 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	dev->hotkey_dev->phys = "toshiba_acpi/input0";
 	dev->hotkey_dev->id.bustype = BUS_HOST;
 
-	if (events_type == HCI_SYSTEM_TYPE1 ||
+	if (dev->hotkey_event_type == HCI_SYSTEM_TYPE1 ||
 	    !dev->kbd_function_keys_supported)
 		keymap = toshiba_acpi_keymap;
-	else if (events_type == HCI_SYSTEM_TYPE2 ||
+	else if (dev->hotkey_event_type == HCI_SYSTEM_TYPE2 ||
 		 dev->kbd_function_keys_supported)
 		keymap = toshiba_acpi_alt_keymap;
 	else
-		pr_info("Unknown event type received %x\n", events_type);
+		pr_info("Unknown event type received %x\n",
+			dev->hotkey_event_type);
 	error = sparse_keymap_setup(dev->hotkey_dev, keymap, NULL);
 	if (error)
 		goto err_free_dev;
@@ -2449,11 +2442,8 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	 */
 	if (acpi_has_method(dev->acpi_dev->handle, "INFO"))
 		dev->info_supported = 1;
-	else {
-		hci_result = hci_write(dev, HCI_SYSTEM_EVENT, 1);
-		if (hci_result == TOS_SUCCESS)
-			dev->system_event_supported = 1;
-	}
+	else if (hci_write(dev, HCI_SYSTEM_EVENT, 1) == TOS_SUCCESS)
+		dev->system_event_supported = 1;
 
 	if (!dev->info_supported && !dev->system_event_supported) {
 		pr_warn("No hotkey query interface found\n");
@@ -2631,7 +2621,6 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev;
 	const char *hci_method;
-	u32 special_functions;
 	u32 dummy;
 	int ret = 0;
 
@@ -2673,9 +2662,10 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	 * with the new keyboard layout, query for its presence to help
 	 * determine the keymap layout to use.
 	 */
-	ret = toshiba_function_keys_get(dev, &special_functions);
+	ret = toshiba_function_keys_get(dev, &dev->special_functions);
 	dev->kbd_function_keys_supported = !ret;
 
+	dev->hotkey_event_type = 0;
 	if (toshiba_acpi_setup_keyboard(dev))
 		pr_info("Unable to activate hotkeys\n");
 
@@ -2747,13 +2737,6 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	dev->fan_supported = !ret;
 
 	print_supported_features(dev);
-
-	/*
-	 * Enable the "Special Functions" mode only if they are
-	 * supported and if they are activated.
-	 */
-	if (dev->kbd_function_keys_supported && special_functions)
-		toshiba_acpi_enable_special_functions(dev);
 
 	ret = sysfs_create_group(&dev->acpi_dev->dev.kobj,
 				 &toshiba_attr_group);

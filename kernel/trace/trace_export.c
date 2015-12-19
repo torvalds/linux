@@ -187,7 +187,7 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call;
 	FTRACE_ENTRY_REG(call, struct_name, etype,			\
 			 PARAMS(tstruct), PARAMS(print), filter, NULL)
 
-int ftrace_event_is_function(struct trace_event_call *call)
+bool ftrace_event_is_function(struct trace_event_call *call)
 {
 	return call == &event_function;
 }

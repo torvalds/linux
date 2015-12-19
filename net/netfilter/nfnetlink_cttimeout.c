@@ -291,6 +291,34 @@ cttimeout_get_timeout(struct sock *ctnl, struct sk_buff *skb,
 	return ret;
 }
 
+static void untimeout(struct nf_conntrack_tuple_hash *i,
+		      struct ctnl_timeout *timeout)
+{
+	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(i);
+	struct nf_conn_timeout *timeout_ext = nf_ct_timeout_find(ct);
+
+	if (timeout_ext && (!timeout || timeout_ext->timeout == timeout))
+		RCU_INIT_POINTER(timeout_ext->timeout, NULL);
+}
+
+static void ctnl_untimeout(struct ctnl_timeout *timeout)
+{
+	struct nf_conntrack_tuple_hash *h;
+	const struct hlist_nulls_node *nn;
+	int i;
+
+	local_bh_disable();
+	for (i = 0; i < init_net.ct.htable_size; i++) {
+		spin_lock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
+		if (i < init_net.ct.htable_size) {
+			hlist_nulls_for_each_entry(h, nn, &init_net.ct.hash[i], hnnode)
+				untimeout(h, timeout);
+		}
+		spin_unlock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
+	}
+	local_bh_enable();
+}
+
 /* try to delete object, fail if it is still in use. */
 static int ctnl_timeout_try_del(struct ctnl_timeout *timeout)
 {
@@ -301,6 +329,7 @@ static int ctnl_timeout_try_del(struct ctnl_timeout *timeout)
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
 		nf_ct_l4proto_put(timeout->l4proto);
+		ctnl_untimeout(timeout);
 		kfree_rcu(timeout, rcu_head);
 	} else {
 		/* still in use, restore reference counter. */
@@ -567,6 +596,10 @@ static void __exit cttimeout_exit(void)
 	pr_info("cttimeout: unregistering from nfnetlink.\n");
 
 	nfnetlink_subsys_unregister(&cttimeout_subsys);
+
+	/* Make sure no conntrack objects refer to custom timeouts anymore. */
+	ctnl_untimeout(NULL);
+
 	list_for_each_entry_safe(cur, tmp, &cttimeout_list, head) {
 		list_del_rcu(&cur->head);
 		/* We are sure that our objects have no clients at this point,
@@ -579,6 +612,7 @@ static void __exit cttimeout_exit(void)
 	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, NULL);
 	RCU_INIT_POINTER(nf_ct_timeout_put_hook, NULL);
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
+	rcu_barrier();
 }
 
 module_init(cttimeout_init);

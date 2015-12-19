@@ -26,6 +26,7 @@
 #include <linux/dm9000.h>
 #include <linux/leds.h>
 #include <linux/rtc-v3020.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 
 #include <linux/i2c.h>
@@ -305,11 +306,14 @@ static inline void cm_x300_init_lcd(void) {}
 #endif
 
 #if defined(CONFIG_BACKLIGHT_PWM) || defined(CONFIG_BACKLIGHT_PWM_MODULE)
+static struct pwm_lookup cm_x300_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.0", 1, "pwm-backlight.0", NULL, 10000,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data cm_x300_backlight_data = {
-	.pwm_id		= 2,
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
-	.pwm_period_ns	= 10000,
 	.enable_gpio	= -1,
 };
 
@@ -323,6 +327,7 @@ static struct platform_device cm_x300_backlight_device = {
 
 static void cm_x300_init_bl(void)
 {
+	pwm_add_table(cm_x300_pwm_lookup, ARRAY_SIZE(cm_x300_pwm_lookup));
 	platform_device_register(&cm_x300_backlight_device);
 }
 #else

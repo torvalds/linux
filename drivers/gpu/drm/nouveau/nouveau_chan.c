@@ -55,10 +55,8 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 		}
 
 		if (ret) {
-			NV_PRINTK(err, cli, "failed to idle channel "
-					    "0x%08x [%s]\n",
-				  chan->user.handle,
-				  nvxx_client(&cli->base)->name);
+			NV_PRINTK(err, cli, "failed to idle channel %d [%s]\n",
+				  chan->chid, nvxx_client(&cli->base)->name);
 			return ret;
 		}
 	}
@@ -89,7 +87,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 
 static int
 nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
-		     u32 handle, u32 size, struct nouveau_channel **pchan)
+		     u32 size, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	struct nvkm_mmu *mmu = nvxx_mmu(device);
@@ -174,8 +172,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		}
 	}
 
-	ret = nvif_object_init(&device->object, NVDRM_PUSH |
-			       (handle & 0xffff), NV_DMA_FROM_MEMORY,
+	ret = nvif_object_init(&device->object, 0, NV_DMA_FROM_MEMORY,
 			       &args, sizeof(args), &chan->push.ctxdma);
 	if (ret) {
 		nouveau_channel_del(pchan);
@@ -187,7 +184,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 
 static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
-		    u32 handle, u32 engine, struct nouveau_channel **pchan)
+		    u32 engine, struct nouveau_channel **pchan)
 {
 	static const u16 oclasses[] = { MAXWELL_CHANNEL_GPFIFO_A,
 					KEPLER_CHANNEL_GPFIFO_A,
@@ -206,7 +203,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 	int ret;
 
 	/* allocate dma push buffer */
-	ret = nouveau_channel_prep(drm, device, handle, 0x12000, &chan);
+	ret = nouveau_channel_prep(drm, device, 0x12000, &chan);
 	*pchan = chan;
 	if (ret)
 		return ret;
@@ -236,7 +233,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 			size = sizeof(args.nv50);
 		}
 
-		ret = nvif_object_init(&device->object, handle, *oclass++,
+		ret = nvif_object_init(&device->object, 0, *oclass++,
 				       &args, size, &chan->user);
 		if (ret == 0) {
 			if (chan->user.oclass >= KEPLER_CHANNEL_GPFIFO_A)
@@ -256,7 +253,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 
 static int
 nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
-		    u32 handle, struct nouveau_channel **pchan)
+		    struct nouveau_channel **pchan)
 {
 	static const u16 oclasses[] = { NV40_CHANNEL_DMA,
 					NV17_CHANNEL_DMA,
@@ -269,7 +266,7 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
 	int ret;
 
 	/* allocate dma push buffer */
-	ret = nouveau_channel_prep(drm, device, handle, 0x10000, &chan);
+	ret = nouveau_channel_prep(drm, device, 0x10000, &chan);
 	*pchan = chan;
 	if (ret)
 		return ret;
@@ -280,7 +277,7 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
 	args.offset = chan->push.vma.offset;
 
 	do {
-		ret = nvif_object_init(&device->object, handle, *oclass++,
+		ret = nvif_object_init(&device->object, 0, *oclass++,
 				       &args, sizeof(args), &chan->user);
 		if (ret == 0) {
 			chan->chid = args.chid;
@@ -401,8 +398,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 int
 nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
-		    u32 handle, u32 arg0, u32 arg1,
-		    struct nouveau_channel **pchan)
+		    u32 arg0, u32 arg1, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	bool super;
@@ -412,10 +408,10 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	super = cli->base.super;
 	cli->base.super = true;
 
-	ret = nouveau_channel_ind(drm, device, handle, arg0, pchan);
+	ret = nouveau_channel_ind(drm, device, arg0, pchan);
 	if (ret) {
 		NV_PRINTK(dbg, cli, "ib channel create, %d\n", ret);
-		ret = nouveau_channel_dma(drm, device, handle, pchan);
+		ret = nouveau_channel_dma(drm, device, pchan);
 		if (ret) {
 			NV_PRINTK(dbg, cli, "dma channel create, %d\n", ret);
 			goto done;

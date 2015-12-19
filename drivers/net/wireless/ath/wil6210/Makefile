@@ -17,6 +17,7 @@ wil6210-y += pmc.o
 wil6210-$(CONFIG_WIL6210_TRACING) += trace.o
 wil6210-y += wil_platform.o
 wil6210-y += ethtool.o
+wil6210-y += wil_crash_dump.o
 
 # for tracing framework to find trace.h
 CFLAGS_trace.o := -I$(src)

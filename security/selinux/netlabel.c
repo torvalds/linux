@@ -245,7 +245,7 @@ int selinux_netlbl_skbuff_setsid(struct sk_buff *skb,
 
 	/* if this is a locally generated packet check to see if it is already
 	 * being labeled by it's parent socket, if it is just exit */
-	sk = skb->sk;
+	sk = skb_to_full_sk(skb);
 	if (sk != NULL) {
 		struct sk_security_struct *sksec = sk->sk_security;
 		if (sksec->nlbl_state != NLBL_REQSKB)

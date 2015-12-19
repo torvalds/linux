@@ -43,17 +43,11 @@
 static bool pnv_eeh_nb_init = false;
 static int eeh_event_irq = -EINVAL;
 
-/**
- * pnv_eeh_init - EEH platform dependent initialization
- *
- * EEH platform dependent initialization on powernv
- */
 static int pnv_eeh_init(void)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 
-	/* We require OPALv3 */
 	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
 		pr_warn("%s: OPALv3 is required !\n",
 			__func__);
@@ -77,9 +71,9 @@ static int pnv_eeh_init(void)
 		/*
 		 * PE#0 should be regarded as valid by EEH core
 		 * if it's not the reserved one. Currently, we
-		 * have the reserved PE#0 and PE#127 for PHB3
+		 * have the reserved PE#255 and PE#127 for PHB3
 		 * and P7IOC separately. So we should regard
-		 * PE#0 as valid for P7IOC.
+		 * PE#0 as valid for PHB3 and P7IOC.
 		 */
 		if (phb->ioda.reserved_pe != 0)
 			eeh_add_flag(EEH_VALID_PE_ZERO);
@@ -284,31 +278,21 @@ static int pnv_eeh_post_init(void)
 #endif /* CONFIG_DEBUG_FS */
 	}
 
-
 	return ret;
-}
-
-static int pnv_eeh_cap_start(struct pci_dn *pdn)
-{
-	u32 status;
-
-	if (!pdn)
-		return 0;
-
-	pnv_pci_cfg_read(pdn, PCI_STATUS, 2, &status);
-	if (!(status & PCI_STATUS_CAP_LIST))
-		return 0;
-
-	return PCI_CAPABILITY_LIST;
 }
 
 static int pnv_eeh_find_cap(struct pci_dn *pdn, int cap)
 {
-	int pos = pnv_eeh_cap_start(pdn);
+	int pos = PCI_CAPABILITY_LIST;
 	int cnt = 48;   /* Maximal number of capabilities */
-	u32 id;
+	u32 status, id;
 
-	if (!pos)
+	if (!pdn)
+		return 0;
+
+	/* Check if the device supports capabilities */
+	pnv_pci_cfg_read(pdn, PCI_STATUS, 2, &status);
+	if (!(status & PCI_STATUS_CAP_LIST))
 		return 0;
 
 	while (cnt--) {
@@ -443,10 +427,13 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * that PE to block its config space.
 	 *
 	 * Broadcom Austin 4-ports NICs (14e4:1657)
+	 * Broadcom Shiner 4-ports 1G NICs (14e4:168a)
 	 * Broadcom Shiner 2-ports 10G NICs (14e4:168e)
 	 */
 	if ((pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
 	     pdn->device_id == 0x1657) ||
+	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
+	     pdn->device_id == 0x168a) ||
 	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
 	     pdn->device_id == 0x168e))
 		edev->pe->state |= EEH_PE_CFG_RESTRICTED;
@@ -487,10 +474,9 @@ static int pnv_eeh_set_option(struct eeh_pe *pe, int option)
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
 	bool freeze_pe = false;
-	int opt, ret = 0;
+	int opt;
 	s64 rc;
 
-	/* Sanity check on option */
 	switch (option) {
 	case EEH_OPT_DISABLE:
 		return -EPERM;
@@ -511,38 +497,37 @@ static int pnv_eeh_set_option(struct eeh_pe *pe, int option)
 		return -EINVAL;
 	}
 
-	/* If PHB supports compound PE, to handle it */
+	/* Freeze master and slave PEs if PHB supports compound PEs */
 	if (freeze_pe) {
 		if (phb->freeze_pe) {
 			phb->freeze_pe(phb, pe->addr);
-		} else {
-			rc = opal_pci_eeh_freeze_set(phb->opal_id,
-						     pe->addr, opt);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld freezing "
-					"PHB#%x-PE#%x\n",
-					__func__, rc,
-					phb->hose->global_number, pe->addr);
-				ret = -EIO;
-			}
+			return 0;
 		}
-	} else {
-		if (phb->unfreeze_pe) {
-			ret = phb->unfreeze_pe(phb, pe->addr, opt);
-		} else {
-			rc = opal_pci_eeh_freeze_clear(phb->opal_id,
-						       pe->addr, opt);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld enable %d "
-					"for PHB#%x-PE#%x\n",
-					__func__, rc, option,
-					phb->hose->global_number, pe->addr);
-				ret = -EIO;
-			}
+
+		rc = opal_pci_eeh_freeze_set(phb->opal_id, pe->addr, opt);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld freezing PHB#%x-PE#%x\n",
+				__func__, rc, phb->hose->global_number,
+				pe->addr);
+			return -EIO;
 		}
+
+		return 0;
 	}
 
-	return ret;
+	/* Unfreeze master and slave PEs if PHB supports */
+	if (phb->unfreeze_pe)
+		return phb->unfreeze_pe(phb, pe->addr, opt);
+
+	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe->addr, opt);
+	if (rc != OPAL_SUCCESS) {
+		pr_warn("%s: Failure %lld enable %d for PHB#%x-PE#%x\n",
+			__func__, rc, option, phb->hose->global_number,
+			pe->addr);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /**
@@ -1065,7 +1050,6 @@ static int pnv_eeh_err_inject(struct eeh_pe *pe, int type, int func,
 	struct pnv_phb *phb = hose->private_data;
 	s64 rc;
 
-	/* Sanity check on error type */
 	if (type != OPAL_ERR_INJECT_TYPE_IOA_BUS_ERR &&
 	    type != OPAL_ERR_INJECT_TYPE_IOA_BUS_ERR64) {
 		pr_warn("%s: Invalid error type %d\n",

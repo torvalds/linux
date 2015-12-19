@@ -694,7 +694,6 @@ void *get_xsave_addr(struct xregs_state *xsave, int xstate_feature)
 	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return NULL;
 
-	xsave = &current->thread.fpu.state.xsave;
 	/*
 	 * We should not ever be requesting features that we
 	 * have not enabled.  Remember that pcntxt_mask is

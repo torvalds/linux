@@ -5,6 +5,7 @@ There are 3 variants of the chip for various touch panel sizes
 FT5206GE1  2.8" .. 3.8"
 FT5306DE4  4.3" .. 7"
 FT5406EE8  7"   .. 8.9"
+FT5506EEG  7"   .. 8.9"
 
 The software interface is identical for all those chips, so that
 currently there is no need for the driver to distinguish between the
@@ -17,6 +18,7 @@ Required properties:
  - compatible:  "edt,edt-ft5206"
            or:  "edt,edt-ft5306"
            or:  "edt,edt-ft5406"
+           or:  "edt,edt-ft5506"
 
  - reg:         I2C slave address of the chip (0x38)
  - interrupt-parent: a phandle pointing to the interrupt controller
@@ -49,7 +51,7 @@ Example:
 		pinctrl-names = "default";
 		pinctrl-0 = <&edt_ft5x06_pins>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <5 0>;
-		reset-gpios = <&gpio2 6 1>;
-		wake-gpios = <&gpio4 9 0>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+		wake-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
 	};

@@ -696,7 +696,7 @@ struct visor_busdev {
 static int match_visorbus_dev_by_id(struct device *dev, void *data)
 {
 	struct visor_device *vdev = to_visor_device(dev);
-	struct visor_busdev *id = (struct visor_busdev *)data;
+	struct visor_busdev *id = data;
 	u32 bus_no = id->bus_no;
 	u32 dev_no = id->dev_no;
 

@@ -254,7 +254,7 @@ acct:
 	}
 }
 
-static int ipvlan_rcv_frame(struct ipvl_addr *addr, struct sk_buff *skb,
+static int ipvlan_rcv_frame(struct ipvl_addr *addr, struct sk_buff **pskb,
 			    bool local)
 {
 	struct ipvl_dev *ipvlan = addr->master;
@@ -262,6 +262,7 @@ static int ipvlan_rcv_frame(struct ipvl_addr *addr, struct sk_buff *skb,
 	unsigned int len;
 	rx_handler_result_t ret = RX_HANDLER_CONSUMED;
 	bool success = false;
+	struct sk_buff *skb = *pskb;
 
 	len = skb->len + ETH_HLEN;
 	if (unlikely(!(dev->flags & IFF_UP))) {
@@ -273,6 +274,7 @@ static int ipvlan_rcv_frame(struct ipvl_addr *addr, struct sk_buff *skb,
 	if (!skb)
 		goto out;
 
+	*pskb = skb;
 	skb->dev = dev;
 	skb->pkt_type = PACKET_HOST;
 
@@ -344,17 +346,18 @@ static int ipvlan_process_v4_outbound(struct sk_buff *skb)
 {
 	const struct iphdr *ip4h = ip_hdr(skb);
 	struct net_device *dev = skb->dev;
+	struct net *net = dev_net(dev);
 	struct rtable *rt;
 	int err, ret = NET_XMIT_DROP;
 	struct flowi4 fl4 = {
-		.flowi4_oif = dev_get_iflink(dev),
+		.flowi4_oif = dev->ifindex,
 		.flowi4_tos = RT_TOS(ip4h->tos),
 		.flowi4_flags = FLOWI_FLAG_ANYSRC,
 		.daddr = ip4h->daddr,
 		.saddr = ip4h->saddr,
 	};
 
-	rt = ip_route_output_flow(dev_net(dev), &fl4, NULL);
+	rt = ip_route_output_flow(net, &fl4, NULL);
 	if (IS_ERR(rt))
 		goto err;
 
@@ -364,7 +367,7 @@ static int ipvlan_process_v4_outbound(struct sk_buff *skb)
 	}
 	skb_dst_drop(skb);
 	skb_dst_set(skb, &rt->dst);
-	err = ip_local_out(skb);
+	err = ip_local_out(net, skb->sk, skb);
 	if (unlikely(net_xmit_eval(err)))
 		dev->stats.tx_errors++;
 	else
@@ -381,10 +384,11 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 {
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct net_device *dev = skb->dev;
+	struct net *net = dev_net(dev);
 	struct dst_entry *dst;
 	int err, ret = NET_XMIT_DROP;
 	struct flowi6 fl6 = {
-		.flowi6_iif = skb->dev->ifindex,
+		.flowi6_iif = dev->ifindex,
 		.daddr = ip6h->daddr,
 		.saddr = ip6h->saddr,
 		.flowi6_flags = FLOWI_FLAG_ANYSRC,
@@ -393,7 +397,7 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 		.flowi6_proto = ip6h->nexthdr,
 	};
 
-	dst = ip6_route_output(dev_net(dev), NULL, &fl6);
+	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {
 		ret = dst->error;
 		dst_release(dst);
@@ -401,7 +405,7 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 	}
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
-	err = ip6_local_out(skb);
+	err = ip6_local_out(net, skb->sk, skb);
 	if (unlikely(net_xmit_eval(err)))
 		dev->stats.tx_errors++;
 	else
@@ -484,7 +488,7 @@ static int ipvlan_xmit_mode_l3(struct sk_buff *skb, struct net_device *dev)
 
 	addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
 	if (addr)
-		return ipvlan_rcv_frame(addr, skb, true);
+		return ipvlan_rcv_frame(addr, &skb, true);
 
 out:
 	skb->dev = ipvlan->phy_dev;
@@ -504,7 +508,7 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 		if (lyr3h) {
 			addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
 			if (addr)
-				return ipvlan_rcv_frame(addr, skb, true);
+				return ipvlan_rcv_frame(addr, &skb, true);
 		}
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (!skb)
@@ -587,7 +591,7 @@ static rx_handler_result_t ipvlan_handle_mode_l3(struct sk_buff **pskb,
 
 	addr = ipvlan_addr_lookup(port, lyr3h, addr_type, true);
 	if (addr)
-		ret = ipvlan_rcv_frame(addr, skb, false);
+		ret = ipvlan_rcv_frame(addr, pskb, false);
 
 out:
 	return ret;
@@ -624,7 +628,7 @@ static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 
 		addr = ipvlan_addr_lookup(port, lyr3h, addr_type, true);
 		if (addr)
-			ret = ipvlan_rcv_frame(addr, skb, false);
+			ret = ipvlan_rcv_frame(addr, pskb, false);
 	}
 
 	return ret;
@@ -649,5 +653,5 @@ rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb)
 	WARN_ONCE(true, "ipvlan_handle_frame() called for mode = [%hx]\n",
 			  port->mode);
 	kfree_skb(skb);
-	return NET_RX_DROP;
+	return RX_HANDLER_CONSUMED;
 }

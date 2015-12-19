@@ -197,7 +197,7 @@ void _raw_write_lock_wait(arch_rwlock_t *rw, unsigned int prev)
 		}
 		old = ACCESS_ONCE(rw->lock);
 		owner = ACCESS_ONCE(rw->owner);
-		smp_rmb();
+		smp_mb();
 		if ((int) old >= 0) {
 			prev = __RAW_LOCK(&rw->lock, 0x80000000, __RAW_OP_OR);
 			old = prev;
@@ -231,7 +231,7 @@ void _raw_write_lock_wait(arch_rwlock_t *rw)
 		    _raw_compare_and_swap(&rw->lock, old, old | 0x80000000))
 			prev = old;
 		else
-			smp_rmb();
+			smp_mb();
 		if ((old & 0x7fffffff) == 0 && (int) prev >= 0)
 			break;
 		if (MACHINE_HAS_CAD)

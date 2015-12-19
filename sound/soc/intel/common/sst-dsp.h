@@ -216,10 +216,12 @@ struct sst_pdata {
 	void *dsp;
 };
 
+#if IS_ENABLED(CONFIG_DW_DMAC_CORE)
 /* Initialization */
 struct sst_dsp *sst_dsp_new(struct device *dev,
 	struct sst_dsp_device *sst_dev, struct sst_pdata *pdata);
 void sst_dsp_free(struct sst_dsp *sst);
+#endif
 
 /* SHIM Read / Write */
 void sst_dsp_shim_write(struct sst_dsp *sst, u32 offset, u32 value);

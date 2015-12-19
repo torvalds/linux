@@ -223,13 +223,13 @@ struct iwl_tt_tx_backoff {
  * @support_tx_backoff: Support tx-backoff?
  */
 struct iwl_tt_params {
-	s32 ct_kill_entry;
-	s32 ct_kill_exit;
+	u32 ct_kill_entry;
+	u32 ct_kill_exit;
 	u32 ct_kill_duration;
-	s32 dynamic_smps_entry;
-	s32 dynamic_smps_exit;
-	s32 tx_protection_entry;
-	s32 tx_protection_exit;
+	u32 dynamic_smps_entry;
+	u32 dynamic_smps_exit;
+	u32 tx_protection_entry;
+	u32 tx_protection_exit;
 	struct iwl_tt_tx_backoff tx_backoff[TT_TX_BACKOFF_SIZE];
 	bool support_ct_kill;
 	bool support_dynamic_smps;

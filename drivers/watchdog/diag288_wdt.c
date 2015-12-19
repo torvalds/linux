@@ -29,6 +29,7 @@
 #include <linux/watchdog.h>
 #include <linux/suspend.h>
 #include <asm/ebcdic.h>
+#include <asm/diag.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
@@ -94,12 +95,14 @@ static int __diag288(unsigned int func, unsigned int timeout,
 static int __diag288_vm(unsigned int  func, unsigned int timeout,
 			char *cmd, size_t len)
 {
+	diag_stat_inc(DIAG_STAT_X288);
 	return __diag288(func, timeout, virt_to_phys(cmd), len);
 }
 
 static int __diag288_lpar(unsigned int func, unsigned int timeout,
 			  unsigned long action)
 {
+	diag_stat_inc(DIAG_STAT_X288);
 	return __diag288(func, timeout, action, 0);
 }
 
@@ -141,6 +144,7 @@ static int wdt_stop(struct watchdog_device *dev)
 {
 	int ret;
 
+	diag_stat_inc(DIAG_STAT_X288);
 	ret = __diag288(WDT_FUNC_CANCEL, 0, 0, 0);
 	return ret;
 }

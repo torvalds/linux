@@ -11,15 +11,19 @@
 #ifndef __ASM_S390_PROCESSOR_H
 #define __ASM_S390_PROCESSOR_H
 
+#include <linux/const.h>
+
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
 #define CIF_ASCE		1	/* user asce needs fixup / uaccess */
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
-#define CIF_FPU			3	/* restore vector registers */
+#define CIF_FPU			3	/* restore FPU registers */
+#define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
 
-#define _CIF_MCCK_PENDING	(1<<CIF_MCCK_PENDING)
-#define _CIF_ASCE		(1<<CIF_ASCE)
-#define _CIF_NOHZ_DELAY		(1<<CIF_NOHZ_DELAY)
-#define _CIF_FPU		(1<<CIF_FPU)
+#define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
+#define _CIF_ASCE		_BITUL(CIF_ASCE)
+#define _CIF_NOHZ_DELAY		_BITUL(CIF_NOHZ_DELAY)
+#define _CIF_FPU		_BITUL(CIF_FPU)
+#define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
 
 #ifndef __ASSEMBLY__
 
@@ -30,21 +34,22 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/runtime_instr.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/types.h>
+#include <asm/fpu/internal.h>
 
 static inline void set_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags |= (1U << flag);
+	S390_lowcore.cpu_flags |= (1UL << flag);
 }
 
 static inline void clear_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags &= ~(1U << flag);
+	S390_lowcore.cpu_flags &= ~(1UL << flag);
 }
 
 static inline int test_cpu_flag(int flag)
 {
-	return !!(S390_lowcore.cpu_flags & (1U << flag));
+	return !!(S390_lowcore.cpu_flags & (1UL << flag));
 }
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
@@ -102,7 +107,6 @@ struct thread_struct {
 	struct list_head list;
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
-	int ri_signum;
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
 };
 
@@ -139,8 +143,10 @@ struct stack_frame {
 
 #define ARCH_MIN_TASKALIGN	8
 
+extern __vector128 init_task_fpu_regs[__NUM_VXRS];
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
+	.fpu.regs = (void *)&init_task_fpu_regs,			\
 }
 
 /*
@@ -217,7 +223,7 @@ static inline void __load_psw(psw_t psw)
  * Set PSW mask to specified value, while leaving the
  * PSW addr pointing to the next instruction.
  */
-static inline void __load_psw_mask (unsigned long mask)
+static inline void __load_psw_mask(unsigned long mask)
 {
 	unsigned long addr;
 	psw_t psw;
@@ -243,6 +249,16 @@ static inline unsigned long __extract_psw(void)
 	return (((unsigned long) reg1) << 32) | ((unsigned long) reg2);
 }
 
+static inline void local_mcck_enable(void)
+{
+	__load_psw_mask(__extract_psw() | PSW_MASK_MCHECK);
+}
+
+static inline void local_mcck_disable(void)
+{
+	__load_psw_mask(__extract_psw() & ~PSW_MASK_MCHECK);
+}
+
 /*
  * Rewind PSW instruction address by specified number of bytes.
  */
@@ -266,64 +282,13 @@ void enabled_wait(void);
  */
 static inline void __noreturn disabled_wait(unsigned long code)
 {
-        unsigned long ctl_buf;
-        psw_t dw_psw;
+	psw_t psw;
 
-	dw_psw.mask = PSW_MASK_BASE | PSW_MASK_WAIT | PSW_MASK_BA | PSW_MASK_EA;
-        dw_psw.addr = code;
-        /* 
-         * Store status and then load disabled wait psw,
-         * the processor is dead afterwards
-         */
-	asm volatile(
-		"	stctg	0,0,0(%2)\n"
-		"	ni	4(%2),0xef\n"	/* switch off protection */
-		"	lctlg	0,0,0(%2)\n"
-		"	lghi	1,0x1000\n"
-		"	stpt	0x328(1)\n"	/* store timer */
-		"	stckc	0x330(1)\n"	/* store clock comparator */
-		"	stpx	0x318(1)\n"	/* store prefix register */
-		"	stam	0,15,0x340(1)\n"/* store access registers */
-		"	stfpc	0x31c(1)\n"	/* store fpu control */
-		"	std	0,0x200(1)\n"	/* store f0 */
-		"	std	1,0x208(1)\n"	/* store f1 */
-		"	std	2,0x210(1)\n"	/* store f2 */
-		"	std	3,0x218(1)\n"	/* store f3 */
-		"	std	4,0x220(1)\n"	/* store f4 */
-		"	std	5,0x228(1)\n"	/* store f5 */
-		"	std	6,0x230(1)\n"	/* store f6 */
-		"	std	7,0x238(1)\n"	/* store f7 */
-		"	std	8,0x240(1)\n"	/* store f8 */
-		"	std	9,0x248(1)\n"	/* store f9 */
-		"	std	10,0x250(1)\n"	/* store f10 */
-		"	std	11,0x258(1)\n"	/* store f11 */
-		"	std	12,0x260(1)\n"	/* store f12 */
-		"	std	13,0x268(1)\n"	/* store f13 */
-		"	std	14,0x270(1)\n"	/* store f14 */
-		"	std	15,0x278(1)\n"	/* store f15 */
-		"	stmg	0,15,0x280(1)\n"/* store general registers */
-		"	stctg	0,15,0x380(1)\n"/* store control registers */
-		"	oi	0x384(1),0x10\n"/* fake protection bit */
-		"	lpswe	0(%1)"
-		: "=m" (ctl_buf)
-		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0", "1");
+	psw.mask = PSW_MASK_BASE | PSW_MASK_WAIT | PSW_MASK_BA | PSW_MASK_EA;
+	psw.addr = code;
+	__load_psw(psw);
 	while (1);
 }
-
-/*
- * Use to set psw mask except for the first byte which
- * won't be changed by this function.
- */
-static inline void
-__set_psw_mask(unsigned long mask)
-{
-	__load_psw_mask(mask | (arch_local_save_flags() & ~(-1UL >> 8)));
-}
-
-#define local_mcck_enable() \
-	__set_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT | PSW_MASK_MCHECK)
-#define local_mcck_disable() \
-	__set_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT)
 
 /*
  * Basic Machine Check/Program Check Handler.
