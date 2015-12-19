@@ -43,14 +43,14 @@
 #include "rds.h"
 #include "ib.h"
 
-static unsigned int fmr_pool_size = RDS_FMR_POOL_SIZE;
-unsigned int fmr_message_size = RDS_FMR_SIZE + 1; /* +1 allows for unaligned MRs */
+unsigned int rds_ib_fmr_1m_pool_size = RDS_FMR_1M_POOL_SIZE;
+unsigned int rds_ib_fmr_8k_pool_size = RDS_FMR_8K_POOL_SIZE;
 unsigned int rds_ib_retry_count = RDS_IB_DEFAULT_RETRY_COUNT;
 
-module_param(fmr_pool_size, int, 0444);
-MODULE_PARM_DESC(fmr_pool_size, " Max number of fmr per HCA");
-module_param(fmr_message_size, int, 0444);
-MODULE_PARM_DESC(fmr_message_size, " Max size of a RDMA transfer");
+module_param(rds_ib_fmr_1m_pool_size, int, 0444);
+MODULE_PARM_DESC(rds_ib_fmr_1m_pool_size, " Max number of 1M fmr per HCA");
+module_param(rds_ib_fmr_8k_pool_size, int, 0444);
+MODULE_PARM_DESC(rds_ib_fmr_8k_pool_size, " Max number of 8K fmr per HCA");
 module_param(rds_ib_retry_count, int, 0444);
 MODULE_PARM_DESC(rds_ib_retry_count, " Number of hw retries before reporting an error");
 
@@ -97,8 +97,10 @@ static void rds_ib_dev_free(struct work_struct *work)
 	struct rds_ib_device *rds_ibdev = container_of(work,
 					struct rds_ib_device, free_work);
 
-	if (rds_ibdev->mr_pool)
-		rds_ib_destroy_mr_pool(rds_ibdev->mr_pool);
+	if (rds_ibdev->mr_8k_pool)
+		rds_ib_destroy_mr_pool(rds_ibdev->mr_8k_pool);
+	if (rds_ibdev->mr_1m_pool)
+		rds_ib_destroy_mr_pool(rds_ibdev->mr_1m_pool);
 	if (rds_ibdev->pd)
 		ib_dealloc_pd(rds_ibdev->pd);
 
@@ -148,9 +150,13 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_sge = min(dev_attr->max_sge, RDS_IB_MAX_SGE);
 
 	rds_ibdev->fmr_max_remaps = dev_attr->max_map_per_fmr?: 32;
-	rds_ibdev->max_fmrs = dev_attr->max_fmr ?
-			min_t(unsigned int, dev_attr->max_fmr, fmr_pool_size) :
-			fmr_pool_size;
+	rds_ibdev->max_1m_fmrs = dev_attr->max_mr ?
+		min_t(unsigned int, (dev_attr->max_mr / 2),
+		      rds_ib_fmr_1m_pool_size) : rds_ib_fmr_1m_pool_size;
+
+	rds_ibdev->max_8k_fmrs = dev_attr->max_mr ?
+		min_t(unsigned int, ((dev_attr->max_mr / 2) * RDS_MR_8K_SCALE),
+		      rds_ib_fmr_8k_pool_size) : rds_ib_fmr_8k_pool_size;
 
 	rds_ibdev->max_initiator_depth = dev_attr->max_qp_init_rd_atom;
 	rds_ibdev->max_responder_resources = dev_attr->max_qp_rd_atom;
@@ -162,11 +168,24 @@ static void rds_ib_add_one(struct ib_device *device)
 		goto put_dev;
 	}
 
-	rds_ibdev->mr_pool = rds_ib_create_mr_pool(rds_ibdev);
-	if (IS_ERR(rds_ibdev->mr_pool)) {
-		rds_ibdev->mr_pool = NULL;
+	rds_ibdev->mr_1m_pool =
+		rds_ib_create_mr_pool(rds_ibdev, RDS_IB_MR_1M_POOL);
+	if (IS_ERR(rds_ibdev->mr_1m_pool)) {
+		rds_ibdev->mr_1m_pool = NULL;
 		goto put_dev;
 	}
+
+	rds_ibdev->mr_8k_pool =
+		rds_ib_create_mr_pool(rds_ibdev, RDS_IB_MR_8K_POOL);
+	if (IS_ERR(rds_ibdev->mr_8k_pool)) {
+		rds_ibdev->mr_8k_pool = NULL;
+		goto put_dev;
+	}
+
+	rdsdebug("RDS/IB: max_mr = %d, max_wrs = %d, max_sge = %d, fmr_max_remaps = %d, max_1m_fmrs = %d, max_8k_fmrs = %d\n",
+		 dev_attr->max_fmr, rds_ibdev->max_wrs, rds_ibdev->max_sge,
+		 rds_ibdev->fmr_max_remaps, rds_ibdev->max_1m_fmrs,
+		 rds_ibdev->max_8k_fmrs);
 
 	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
 	INIT_LIST_HEAD(&rds_ibdev->conn_list);
@@ -317,7 +336,7 @@ static int rds_ib_laddr_check(struct net *net, __be32 addr)
 	/* Create a CMA ID and try to bind it. This catches both
 	 * IB and iWARP capable NICs.
 	 */
-	cm_id = rdma_create_id(NULL, NULL, RDMA_PS_TCP, IB_QPT_RC);
+	cm_id = rdma_create_id(&init_net, NULL, NULL, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 

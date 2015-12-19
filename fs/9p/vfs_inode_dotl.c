@@ -829,9 +829,6 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 		 dir->i_ino, dentry, omode,
 		 MAJOR(rdev), MINOR(rdev));
 
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
-
 	v9ses = v9fs_inode2v9ses(dir);
 	dir_dentry = dentry->d_parent;
 	dfid = v9fs_fid_lookup(dir_dentry);

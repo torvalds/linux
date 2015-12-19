@@ -181,7 +181,7 @@ static int mioa701_wm9713_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	mioa701.dev = &pdev->dev;
-	rc =  snd_soc_register_card(&mioa701);
+	rc = devm_snd_soc_register_card(&pdev->dev, &mioa701);
 	if (!rc)
 		dev_warn(&pdev->dev, "Be warned that incorrect mixers/muxes setup will"
 			 "lead to overheating and possible destruction of your device."
@@ -189,17 +189,8 @@ static int mioa701_wm9713_probe(struct platform_device *pdev)
 	return rc;
 }
 
-static int mioa701_wm9713_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-	return 0;
-}
-
 static struct platform_driver mioa701_wm9713_driver = {
 	.probe		= mioa701_wm9713_probe,
-	.remove		= mioa701_wm9713_remove,
 	.driver		= {
 		.name		= "mioa701-wm9713",
 		.pm     = &snd_soc_pm_ops,

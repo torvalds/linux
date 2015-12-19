@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20150818
+#define ACPI_CA_VERSION                 0x20150930
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -393,15 +393,11 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init acpi_terminate(void))
  */
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable(void))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable(void))
-#ifdef ACPI_FUTURE_USAGE
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status acpi_subsystem_status(void))
-#endif
 
-#ifdef ACPI_FUTURE_USAGE
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_get_system_info(struct acpi_buffer
 						 *ret_buffer))
-#endif
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_statistics(struct acpi_statistics *stats))
 ACPI_EXTERNAL_RETURN_PTR(const char
@@ -625,11 +621,9 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 							       space_id,
 							       acpi_adr_space_handler
 							       handler))
-#ifdef ACPI_FUTURE_USAGE
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_install_exception_handler
 			     (acpi_exception_handler handler))
-#endif
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_install_interface_handler
 			     (acpi_interface_handler handler))
@@ -750,12 +744,10 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_current_resources(acpi_handle device,
 							struct acpi_buffer
 							*ret_buffer))
-#ifdef ACPI_FUTURE_USAGE
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_possible_resources(acpi_handle device,
 							 struct acpi_buffer
 							 *ret_buffer))
-#endif
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_event_resources(acpi_handle device_handle,
 						      struct acpi_buffer
@@ -844,7 +836,6 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 /*
  * ACPI Timer interfaces
  */
-#ifdef ACPI_FUTURE_USAGE
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_get_timer_resolution(u32 *resolution))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_get_timer(u32 *ticks))
@@ -853,7 +844,6 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_get_timer_duration(u32 start_ticks,
 							u32 end_ticks,
 							u32 *time_elapsed))
-#endif				/* ACPI_FUTURE_USAGE */
 
 /*
  * Error/Warning output
@@ -938,5 +928,7 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 					       acpi_object_handler handler,
 					       void **data,
 					       void (*callback)(void *)))
+
+void acpi_set_debugger_thread_id(acpi_thread_id thread_id);
 
 #endif				/* __ACXFACE_H__ */

@@ -12,10 +12,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -43,8 +39,8 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 	struct rtllib_device *ieee = priv->rtllib;
 
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;
-	if (((KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
-	     (KEY_TYPE_WEP104 == ieee->pairwise_key_type)) &&
+	if (((ieee->pairwise_key_type == KEY_TYPE_WEP40) ||
+	     (ieee->pairwise_key_type == KEY_TYPE_WEP104)) &&
 	     (priv->rtllib->auth_mode != 2)) {
 		SECR_value |= SCR_RxUseDK;
 		SECR_value |= SCR_TxUseDK;

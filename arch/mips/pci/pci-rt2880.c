@@ -11,6 +11,7 @@
  *  by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/io.h>
@@ -232,8 +233,7 @@ static int rt288x_pci_probe(struct platform_device *pdev)
 	ioport_resource.end = RT2880_PCI_IO_BASE + RT2880_PCI_IO_SIZE - 1;
 
 	rt2880_pci_reg_write(0, RT2880_PCI_REG_PCICFG_ADDR);
-	for (i = 0; i < 0xfffff; i++)
-		;
+	udelay(1);
 
 	rt2880_pci_reg_write(0x79, RT2880_PCI_REG_ARBCTL);
 	rt2880_pci_reg_write(0x07FF0001, RT2880_PCI_REG_BAR0SETUP_ADDR);

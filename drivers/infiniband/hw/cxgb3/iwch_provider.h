@@ -77,6 +77,8 @@ struct iwch_mr {
 	struct iwch_dev *rhp;
 	u64 kva;
 	struct tpt_attributes attr;
+	u64 *pages;
+	u32 npages;
 };
 
 typedef struct iwch_mw iwch_mw_handle;

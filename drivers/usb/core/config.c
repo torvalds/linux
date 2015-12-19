@@ -115,7 +115,8 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 		   USB_SS_MULT(desc->bmAttributes) > 3) {
 		dev_warn(ddev, "Isoc endpoint has Mult of %d in "
 				"config %d interface %d altsetting %d ep %d: "
-				"setting to 3\n", desc->bmAttributes + 1,
+				"setting to 3\n",
+				USB_SS_MULT(desc->bmAttributes),
 				cfgno, inum, asnum, ep->desc.bEndpointAddress);
 		ep->ss_ep_comp.bmAttributes = 2;
 	}
@@ -852,6 +853,10 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 		case USB_SS_CAP_TYPE:
 			dev->bos->ss_cap =
 				(struct usb_ss_cap_descriptor *)buffer;
+			break;
+		case USB_SSP_CAP_TYPE:
+			dev->bos->ssp_cap =
+				(struct usb_ssp_cap_descriptor *)buffer;
 			break;
 		case CONTAINER_ID_TYPE:
 			dev->bos->ss_id =

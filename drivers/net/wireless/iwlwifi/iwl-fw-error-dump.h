@@ -86,6 +86,8 @@
  *	Structured as &struct iwl_fw_error_dump_trigger_desc.
  * @IWL_FW_ERROR_DUMP_RB: the content of an RB structured as
  *	&struct iwl_fw_error_dump_rb
+ * @IWL_FW_ERROR_PAGING: UMAC's image memory segments which were
+ *	paged to the DRAM.
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -100,6 +102,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_MEM = 9,
 	IWL_FW_ERROR_DUMP_ERROR_INFO = 10,
 	IWL_FW_ERROR_DUMP_RB = 11,
+	IWL_FW_ERROR_DUMP_PAGING = 12,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -235,6 +238,19 @@ struct iwl_fw_error_dump_mem {
 struct iwl_fw_error_dump_rb {
 	__le32 index;
 	__le32 rxq;
+	__le32 reserved;
+	u8 data[];
+};
+
+/**
+ * struct iwl_fw_error_dump_paging - content of the UMAC's image page
+ *	block on DRAM
+ * @index: the index of the page block
+ * @reserved:
+ * @data: the content of the page block
+ */
+struct iwl_fw_error_dump_paging {
+	__le32 index;
 	__le32 reserved;
 	u8 data[];
 };

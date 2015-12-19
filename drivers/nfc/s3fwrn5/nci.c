@@ -31,7 +31,7 @@ static int s3fwrn5_nci_prop_rsp(struct nci_dev *ndev, struct sk_buff *skb)
 	return 0;
 }
 
-static struct nci_prop_ops s3fwrn5_nci_prop_ops[] = {
+static struct nci_driver_ops s3fwrn5_nci_prop_ops[] = {
 	{
 		.opcode = nci_opcode_pack(NCI_GID_PROPRIETARY,
 				NCI_PROP_AGAIN),
@@ -79,7 +79,7 @@ static struct nci_prop_ops s3fwrn5_nci_prop_ops[] = {
 	},
 };
 
-void s3fwrn5_nci_get_prop_ops(struct nci_prop_ops **ops, size_t *n)
+void s3fwrn5_nci_get_prop_ops(struct nci_driver_ops **ops, size_t *n)
 {
 	*ops = s3fwrn5_nci_prop_ops;
 	*n = ARRAY_SIZE(s3fwrn5_nci_prop_ops);

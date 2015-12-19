@@ -61,7 +61,7 @@ static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 }
 
 static struct irq_chip mpc8xx_pic = {
-	.name = "MPC8XX SIU",
+	.name = "8XX SIU",
 	.irq_unmask = mpc8xx_unmask_irq,
 	.irq_mask = mpc8xx_mask_irq,
 	.irq_ack = mpc8xx_ack,

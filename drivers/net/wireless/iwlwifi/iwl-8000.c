@@ -69,13 +69,13 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL8000_UCODE_API_MAX	17
+#define IWL8000_UCODE_API_MAX	19
 
 /* Oldest version we won't warn about */
-#define IWL8000_UCODE_API_OK	12
+#define IWL8000_UCODE_API_OK	13
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	12
+#define IWL8000_UCODE_API_MIN	13
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d
@@ -107,7 +107,7 @@
 
 static const struct iwl_base_params iwl8000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_8000,
-	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_queues = 31,
 	.pll_cfg_val = 0,
 	.shadow_ram_support = true,
 	.led_compensation = 57,

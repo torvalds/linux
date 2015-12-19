@@ -39,7 +39,7 @@ void genl_unlock(void)
 EXPORT_SYMBOL(genl_unlock);
 
 #ifdef CONFIG_LOCKDEP
-int lockdep_genl_is_held(void)
+bool lockdep_genl_is_held(void)
 {
 	return lockdep_is_held(&genl_mutex);
 }
@@ -1136,19 +1136,19 @@ int genlmsg_multicast_allns(struct genl_family *family, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(genlmsg_multicast_allns);
 
-void genl_notify(struct genl_family *family,
-		 struct sk_buff *skb, struct net *net, u32 portid, u32 group,
-		 struct nlmsghdr *nlh, gfp_t flags)
+void genl_notify(struct genl_family *family, struct sk_buff *skb,
+		 struct genl_info *info, u32 group, gfp_t flags)
 {
+	struct net *net = genl_info_net(info);
 	struct sock *sk = net->genl_sock;
 	int report = 0;
 
-	if (nlh)
-		report = nlmsg_report(nlh);
+	if (info->nlhdr)
+		report = nlmsg_report(info->nlhdr);
 
 	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return;
 	group = family->mcgrp_offset + group;
-	nlmsg_notify(sk, skb, portid, group, report, flags);
+	nlmsg_notify(sk, skb, info->snd_portid, group, report, flags);
 }
 EXPORT_SYMBOL(genl_notify);

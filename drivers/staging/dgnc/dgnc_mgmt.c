@@ -32,10 +32,8 @@
 #include "dgnc_pci.h"
 #include "dgnc_mgmt.h"
 
-
 /* Our "in use" variables, to enforce 1 open only */
 static int dgnc_mgmt_in_use[MAXMGMTDEVICES];
-
 
 /*
  * dgnc_mgmt_open()
@@ -67,7 +65,6 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-
 /*
  * dgnc_mgmt_close()
  *
@@ -90,7 +87,6 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-
 /*
  * dgnc_mgmt_ioctl()
  *
@@ -100,10 +96,9 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
-	void __user *uarg = (void __user *) arg;
+	void __user *uarg = (void __user *)arg;
 
 	switch (cmd) {
-
 	case DIGI_GETDD:
 	{
 		/*
@@ -115,6 +110,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		spin_lock_irqsave(&dgnc_global_lock, flags);
 
+		memset(&ddi, 0, sizeof(ddi));
 		ddi.dinfo_nboards = dgnc_NumBoards;
 		sprintf(ddi.dinfo_version, "%s", DG_PART);
 
@@ -147,8 +143,9 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		di.info_bdtype = dgnc_Board[brd]->dpatype;
 		di.info_bdstate = dgnc_Board[brd]->dpastatus;
 		di.info_ioport = 0;
-		di.info_physaddr = (ulong) dgnc_Board[brd]->membase;
-		di.info_physsize = (ulong) dgnc_Board[brd]->membase - dgnc_Board[brd]->membase_end;
+		di.info_physaddr = (ulong)dgnc_Board[brd]->membase;
+		di.info_physsize = (ulong)dgnc_Board[brd]->membase
+			- dgnc_Board[brd]->membase_end;
 		if (dgnc_Board[brd]->state != BOARD_FAILED)
 			di.info_nports = dgnc_Board[brd]->nasync;
 		else
@@ -254,8 +251,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		break;
 	}
-
-
 	}
 
 	return 0;

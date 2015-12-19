@@ -68,6 +68,7 @@
 #define WACOM_REPORT_BPAD_PEN		3
 #define WACOM_REPORT_BPAD_TOUCH		16
 #define WACOM_REPORT_DEVICE_LIST	16
+#define WACOM_REPORT_INTUOS_PEN		16
 #define WACOM_REPORT_REMOTE		17
 
 /* device quirks */
@@ -117,22 +118,26 @@ enum {
 	INTUOSPS,
 	INTUOSPM,
 	INTUOSPL,
-	INTUOSHT,
 	WACOM_21UX2,
 	WACOM_22HD,
 	DTK,
 	WACOM_24HD,
 	WACOM_27QHD,
 	CINTIQ_HYBRID,
+	CINTIQ_COMPANION_2,
 	CINTIQ,
 	WACOM_BEE,
 	WACOM_13HD,
 	WACOM_MO,
-	WIRELESS,
+	BAMBOO_PEN,
+	INTUOSHT,
+	INTUOSHT2,
+	BAMBOO_TOUCH,
 	BAMBOO_PT,
 	WACOM_24HDT,
 	WACOM_27QHDT,
 	BAMBOO_PAD,
+	WIRELESS,
 	REMOTE,
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
@@ -198,6 +203,7 @@ struct hid_data {
 	int width;
 	int height;
 	int id;
+	int cc_report;
 	int cc_index;
 	int cc_value_index;
 	int num_expected;

@@ -714,7 +714,6 @@ au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s %d", DRV_NAME,
 		 aup->mac_id);
-	info->regdump_len = 0;
 }
 
 static void au1000_set_msglevel(struct net_device *dev, u32 value)

@@ -116,13 +116,11 @@ static struct spi_board_info mcp251x_board_info[] = {
 };
 
 static struct pxa2xx_spi_master pxa_ssp3_spi_master_info = {
-	.clock_enable   = CKEN_SSP3,
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };
 
 static struct pxa2xx_spi_master pxa_ssp4_spi_master_info = {
-	.clock_enable   = CKEN_SSP4,
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };

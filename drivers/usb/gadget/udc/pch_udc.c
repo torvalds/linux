@@ -330,7 +330,7 @@ struct pch_vbus_gpio_data {
  * @prot_stall:		protcol stall requested
  * @irq_registered:	irq registered with system
  * @mem_region:		device memory mapped
- * @registered:		driver regsitered with system
+ * @registered:		driver registered with system
  * @suspended:		driver in suspended state
  * @connected:		gadget driver associated
  * @vbus_session:	required vbus_session state
@@ -2747,18 +2747,18 @@ static void pch_udc_dev_isr(struct pch_udc_dev *dev, u32 dev_intr)
 	if (dev_intr & UDC_DEVINT_US) {
 		if (dev->driver
 			&& dev->driver->suspend) {
-			spin_lock(&dev->lock);
-			dev->driver->suspend(&dev->gadget);
 			spin_unlock(&dev->lock);
+			dev->driver->suspend(&dev->gadget);
+			spin_lock(&dev->lock);
 		}
 
 		vbus = pch_vbus_gpio_get_value(dev);
 		if ((dev->vbus_session == 0)
 			&& (vbus != 1)) {
 			if (dev->driver && dev->driver->disconnect) {
-				spin_lock(&dev->lock);
-				dev->driver->disconnect(&dev->gadget);
 				spin_unlock(&dev->lock);
+				dev->driver->disconnect(&dev->gadget);
+				spin_lock(&dev->lock);
 			}
 			pch_udc_reconnect(dev);
 		} else if ((dev->vbus_session == 0)

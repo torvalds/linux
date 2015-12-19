@@ -55,6 +55,7 @@
 #include <linux/bitops.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
+#include <linux/highmem.h>
 
 #include "hfi.h"
 #include "common.h"
@@ -64,7 +65,8 @@
 #include "trace.h"
 
 /* must be a power of 2 >= 64 <= 32768 */
-#define SDMA_DESCQ_CNT 1024
+#define SDMA_DESCQ_CNT 2048
+#define SDMA_DESC_INTR 64
 #define INVALID_TAIL 0xffff
 
 static uint sdma_descq_cnt = SDMA_DESCQ_CNT;
@@ -78,6 +80,10 @@ MODULE_PARM_DESC(sdma_idle_cnt, "sdma interrupt idle delay (ns,default 250)");
 uint mod_num_sdma;
 module_param_named(num_sdma, mod_num_sdma, uint, S_IRUGO);
 MODULE_PARM_DESC(num_sdma, "Set max number SDMA engines to use");
+
+static uint sdma_desct_intr = SDMA_DESC_INTR;
+module_param_named(desct_intr, sdma_desct_intr, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(desct_intr, "Number of SDMA descriptor before interrupt");
 
 #define SDMA_WAIT_BATCH_SIZE 20
 /* max wait time for a SDMA engine to indicate it has halted */
@@ -303,17 +309,26 @@ static void sdma_wait_for_packet_egress(struct sdma_engine *sde,
 	u64 off = 8 * sde->this_idx;
 	struct hfi1_devdata *dd = sde->dd;
 	int lcnt = 0;
+	u64 reg_prev;
+	u64 reg = 0;
 
 	while (1) {
-		u64 reg = read_csr(dd, off + SEND_EGRESS_SEND_DMA_STATUS);
+		reg_prev = reg;
+		reg = read_csr(dd, off + SEND_EGRESS_SEND_DMA_STATUS);
 
 		reg &= SDMA_EGRESS_PACKET_OCCUPANCY_SMASK;
 		reg >>= SDMA_EGRESS_PACKET_OCCUPANCY_SHIFT;
 		if (reg == 0)
 			break;
-		if (lcnt++ > 100) {
-			dd_dev_err(dd, "%s: engine %u timeout waiting for packets to egress, remaining count %u\n",
+		/* counter is reest if accupancy count changes */
+		if (reg != reg_prev)
+			lcnt = 0;
+		if (lcnt++ > 500) {
+			/* timed out - bounce the link */
+			dd_dev_err(dd, "%s: engine %u timeout waiting for packets to egress, remaining count %u, bouncing link\n",
 				  __func__, sde->this_idx, (u32)reg);
+			queue_work(dd->pport->hfi1_wq,
+				&dd->pport->link_bounce_work);
 			break;
 		}
 		udelay(1);
@@ -369,16 +384,17 @@ static void sdma_flush(struct sdma_engine *sde)
 {
 	struct sdma_txreq *txp, *txp_next;
 	LIST_HEAD(flushlist);
+	unsigned long flags;
 
 	/* flush from head to tail */
 	sdma_flush_descq(sde);
-	spin_lock(&sde->flushlist_lock);
+	spin_lock_irqsave(&sde->flushlist_lock, flags);
 	/* copy flush list */
 	list_for_each_entry_safe(txp, txp_next, &sde->flushlist, list) {
 		list_del_init(&txp->list);
 		list_add_tail(&txp->list, &flushlist);
 	}
-	spin_unlock(&sde->flushlist_lock);
+	spin_unlock_irqrestore(&sde->flushlist_lock, flags);
 	/* flush from flush list */
 	list_for_each_entry_safe(txp, txp_next, &flushlist, list) {
 		int drained = 0;
@@ -741,6 +757,7 @@ u16 sdma_get_descq_cnt(void)
 		return SDMA_DESCQ_CNT;
 	return count;
 }
+
 /**
  * sdma_select_engine_vl() - select sdma engine
  * @dd: devdata
@@ -966,10 +983,7 @@ static void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
 			sde->descq = NULL;
 			sde->descq_phys = 0;
 		}
-		if (is_vmalloc_addr(sde->tx_ring))
-			vfree(sde->tx_ring);
-		else
-			kfree(sde->tx_ring);
+		kvfree(sde->tx_ring);
 		sde->tx_ring = NULL;
 	}
 	spin_lock_irq(&dd->sde_map_lock);
@@ -1038,6 +1052,9 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		return -ENOMEM;
 
 	idle_cnt = ns_to_cclock(dd, idle_cnt);
+	if (!sdma_desct_intr)
+		sdma_desct_intr = SDMA_DESC_INTR;
+
 	/* Allocate memory for SendDMA descriptor FIFOs */
 	for (this_idx = 0; this_idx < num_engines; ++this_idx) {
 		sde = &dd->per_sdma[this_idx];
@@ -1096,10 +1113,8 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 
 		sde->progress_check_head = 0;
 
-		init_timer(&sde->err_progress_check_timer);
-		sde->err_progress_check_timer.function =
-						sdma_err_progress_check;
-		sde->err_progress_check_timer.data = (unsigned long)sde;
+		setup_timer(&sde->err_progress_check_timer,
+			    sdma_err_progress_check, (unsigned long)sde);
 
 		sde->descq = dma_zalloc_coherent(
 			&dd->pcidev->dev,
@@ -1540,7 +1555,7 @@ void sdma_engine_interrupt(struct sdma_engine *sde, u64 status)
 {
 	trace_hfi1_sdma_engine_interrupt(sde, status);
 	write_seqlock(&sde->head_lock);
-	sdma_set_desc_cnt(sde, sde->descq_cnt / 2);
+	sdma_set_desc_cnt(sde, sdma_desct_intr);
 	sdma_make_progress(sde, status);
 	write_sequnlock(&sde->head_lock);
 }
@@ -2699,13 +2714,35 @@ static void __sdma_process_event(struct sdma_engine *sde,
  * of descriptors in the sdma_txreq is exhausted.
  *
  * The code will bump the allocation up to the max
- * of MAX_DESC (64) descriptors.  There doesn't seem
- * much point in an interim step.
+ * of MAX_DESC (64) descriptors. There doesn't seem
+ * much point in an interim step. The last descriptor
+ * is reserved for coalesce buffer in order to support
+ * cases where input packet has >MAX_DESC iovecs.
  *
  */
-int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
+static int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 {
 	int i;
+
+	/* Handle last descriptor */
+	if (unlikely((tx->num_desc == (MAX_DESC - 1)))) {
+		/* if tlen is 0, it is for padding, release last descriptor */
+		if (!tx->tlen) {
+			tx->desc_limit = MAX_DESC;
+		} else if (!tx->coalesce_buf) {
+			/* allocate coalesce buffer with space for padding */
+			tx->coalesce_buf = kmalloc(tx->tlen + sizeof(u32),
+						   GFP_ATOMIC);
+			if (!tx->coalesce_buf)
+				return -ENOMEM;
+
+			tx->coalesce_idx = 0;
+		}
+		return 0;
+	}
+
+	if (unlikely(tx->num_desc == MAX_DESC))
+		return -ENOMEM;
 
 	tx->descp = kmalloc_array(
 			MAX_DESC,
@@ -2713,11 +2750,96 @@ int _extend_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 			GFP_ATOMIC);
 	if (!tx->descp)
 		return -ENOMEM;
-	tx->desc_limit = MAX_DESC;
+
+	/* reserve last descriptor for coalescing */
+	tx->desc_limit = MAX_DESC - 1;
 	/* copy ones already built */
 	for (i = 0; i < tx->num_desc; i++)
 		tx->descp[i] = tx->descs[i];
 	return 0;
+}
+
+/*
+ * ext_coal_sdma_tx_descs() - extend or coalesce sdma tx descriptors
+ *
+ * This is called once the initial nominal allocation of descriptors
+ * in the sdma_txreq is exhausted.
+ *
+ * This function calls _extend_sdma_tx_descs to extend or allocate
+ * coalesce buffer. If there is a allocated coalesce buffer, it will
+ * copy the input packet data into the coalesce buffer. It also adds
+ * coalesce buffer descriptor once whe whole packet is received.
+ *
+ * Return:
+ * <0 - error
+ * 0 - coalescing, don't populate descriptor
+ * 1 - continue with populating descriptor
+ */
+int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
+			   int type, void *kvaddr, struct page *page,
+			   unsigned long offset, u16 len)
+{
+	int pad_len, rval;
+	dma_addr_t addr;
+
+	rval = _extend_sdma_tx_descs(dd, tx);
+	if (rval) {
+		sdma_txclean(dd, tx);
+		return rval;
+	}
+
+	/* If coalesce buffer is allocated, copy data into it */
+	if (tx->coalesce_buf) {
+		if (type == SDMA_MAP_NONE) {
+			sdma_txclean(dd, tx);
+			return -EINVAL;
+		}
+
+		if (type == SDMA_MAP_PAGE) {
+			kvaddr = kmap(page);
+			kvaddr += offset;
+		} else if (WARN_ON(!kvaddr)) {
+			sdma_txclean(dd, tx);
+			return -EINVAL;
+		}
+
+		memcpy(tx->coalesce_buf + tx->coalesce_idx, kvaddr, len);
+		tx->coalesce_idx += len;
+		if (type == SDMA_MAP_PAGE)
+			kunmap(page);
+
+		/* If there is more data, return */
+		if (tx->tlen - tx->coalesce_idx)
+			return 0;
+
+		/* Whole packet is received; add any padding */
+		pad_len = tx->packet_len & (sizeof(u32) - 1);
+		if (pad_len) {
+			pad_len = sizeof(u32) - pad_len;
+			memset(tx->coalesce_buf + tx->coalesce_idx, 0, pad_len);
+			/* padding is taken care of for coalescing case */
+			tx->packet_len += pad_len;
+			tx->tlen += pad_len;
+		}
+
+		/* dma map the coalesce buffer */
+		addr = dma_map_single(&dd->pcidev->dev,
+				      tx->coalesce_buf,
+				      tx->tlen,
+				      DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
+			sdma_txclean(dd, tx);
+			return -ENOSPC;
+		}
+
+		/* Add descriptor for coalesce buffer */
+		tx->desc_limit = MAX_DESC;
+		return _sdma_txadd_daddr(dd, SDMA_MAP_SINGLE, tx,
+					 addr, tx->tlen);
+	}
+
+	return 1;
 }
 
 /* Update sdes when the lmc changes */
@@ -2745,13 +2867,15 @@ int _pad_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 {
 	int rval = 0;
 
+	tx->num_desc++;
 	if ((unlikely(tx->num_desc == tx->desc_limit))) {
 		rval = _extend_sdma_tx_descs(dd, tx);
-		if (rval)
+		if (rval) {
+			sdma_txclean(dd, tx);
 			return rval;
+		}
 	}
-	/* finish the one just added  */
-	tx->num_desc++;
+	/* finish the one just added */
 	make_tx_sdma_desc(
 		tx,
 		SDMA_MAP_NONE,

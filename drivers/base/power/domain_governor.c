@@ -77,10 +77,8 @@ static bool default_stop_ok(struct device *dev)
 				      dev_update_qos_constraint);
 
 	if (constraint_ns > 0) {
-		constraint_ns -= td->save_state_latency_ns +
-				td->stop_latency_ns +
-				td->start_latency_ns +
-				td->restore_state_latency_ns;
+		constraint_ns -= td->suspend_latency_ns +
+				td->resume_latency_ns;
 		if (constraint_ns == 0)
 			return false;
 	}
@@ -161,9 +159,6 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
 		struct gpd_timing_data *td;
 		s64 constraint_ns;
-
-		if (!pdd->dev->driver)
-			continue;
 
 		/*
 		 * Check if the device is allowed to be off long enough for the

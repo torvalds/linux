@@ -42,10 +42,6 @@
 #include <linux/platform_data/i2c-designware.h>
 #include "i2c-designware-core.h"
 
-static struct i2c_algorithm i2c_dw_algo = {
-	.master_xfer	= i2c_dw_xfer,
-	.functionality	= i2c_dw_func,
-};
 static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 {
 	return clk_get_rate(dev->clk)/1000;
@@ -97,7 +93,6 @@ static void dw_i2c_acpi_params(struct platform_device *pdev, char method[],
 static int dw_i2c_acpi_configure(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
-	const struct acpi_device_id *id;
 
 	dev->adapter.nr = -1;
 	dev->tx_fifo_depth = 32;
@@ -111,27 +106,7 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 	dw_i2c_acpi_params(pdev, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt,
 			   &dev->sda_hold_time);
 
-	/*
-	 * Provide a way for Designware I2C host controllers that are not
-	 * based on Intel LPSS to specify their input clock frequency via
-	 * id->driver_data.
-	 */
-	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
-	if (id && id->driver_data)
-		clk_register_fixed_rate(&pdev->dev, dev_name(&pdev->dev), NULL,
-					CLK_IS_ROOT, id->driver_data);
-
 	return 0;
-}
-
-static void dw_i2c_acpi_unconfigure(struct platform_device *pdev)
-{
-	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
-	if (id && id->driver_data)
-		clk_unregister(dev->clk);
 }
 
 static const struct acpi_device_id dw_i2c_acpi_match[] = {
@@ -141,7 +116,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT3433", 0 },
 	{ "80860F41", 0 },
 	{ "808622C1", 0 },
-	{ "AMD0010", 133 * 1000 * 1000 },
+	{ "AMD0010", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_i2c_acpi_match);
@@ -150,10 +125,9 @@ static inline int dw_i2c_acpi_configure(struct platform_device *pdev)
 {
 	return -ENODEV;
 }
-static inline void dw_i2c_acpi_unconfigure(struct platform_device *pdev) { }
 #endif
 
-static int dw_i2c_probe(struct platform_device *pdev)
+static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev;
 	struct i2c_adapter *adap;
@@ -175,8 +149,6 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->base))
 		return PTR_ERR(dev->base);
 
-	init_completion(&dev->cmd_complete);
-	mutex_init(&dev->lock);
 	dev->dev = &pdev->dev;
 	dev->irq = irq;
 	platform_set_drvdata(pdev, dev);
@@ -251,26 +223,11 @@ static int dw_i2c_probe(struct platform_device *pdev)
 		dev->rx_fifo_depth = ((param1 >> 8)  & 0xff) + 1;
 		dev->adapter.nr = pdev->id;
 	}
-	r = i2c_dw_init(dev);
-	if (r)
-		return r;
-
-	i2c_dw_disable_int(dev);
-	r = devm_request_irq(&pdev->dev, dev->irq, i2c_dw_isr, IRQF_SHARED,
-			pdev->name, dev);
-	if (r) {
-		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
-		return r;
-	}
 
 	adap = &dev->adapter;
-	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_DEPRECATED;
-	strlcpy(adap->name, "Synopsys DesignWare I2C adapter",
-			sizeof(adap->name));
-	adap->algo = &i2c_dw_algo;
-	adap->dev.parent = &pdev->dev;
+	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->dev.of_node = pdev->dev.of_node;
 
 	if (dev->pm_runtime_disabled) {
@@ -282,9 +239,8 @@ static int dw_i2c_probe(struct platform_device *pdev)
 		pm_runtime_enable(&pdev->dev);
 	}
 
-	r = i2c_add_numbered_adapter(adap);
+	r = i2c_dw_probe(dev);
 	if (r) {
-		dev_err(&pdev->dev, "failure adding adapter\n");
 		pm_runtime_disable(&pdev->dev);
 		return r;
 	}
@@ -292,7 +248,7 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw_i2c_remove(struct platform_device *pdev)
+static int dw_i2c_plat_remove(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
 
@@ -306,9 +262,6 @@ static int dw_i2c_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	if (has_acpi_companion(&pdev->dev))
-		dw_i2c_acpi_unconfigure(pdev);
-
 	return 0;
 }
 
@@ -321,23 +274,23 @@ MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-static int dw_i2c_prepare(struct device *dev)
+static int dw_i2c_plat_prepare(struct device *dev)
 {
 	return pm_runtime_suspended(dev);
 }
 
-static void dw_i2c_complete(struct device *dev)
+static void dw_i2c_plat_complete(struct device *dev)
 {
 	if (dev->power.direct_complete)
 		pm_request_resume(dev);
 }
 #else
-#define dw_i2c_prepare	NULL
-#define dw_i2c_complete	NULL
+#define dw_i2c_plat_prepare	NULL
+#define dw_i2c_plat_complete	NULL
 #endif
 
 #ifdef CONFIG_PM
-static int dw_i2c_suspend(struct device *dev)
+static int dw_i2c_plat_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
@@ -348,7 +301,7 @@ static int dw_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int dw_i2c_resume(struct device *dev)
+static int dw_i2c_plat_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
@@ -362,10 +315,10 @@ static int dw_i2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
-	.prepare = dw_i2c_prepare,
-	.complete = dw_i2c_complete,
-	SET_SYSTEM_SLEEP_PM_OPS(dw_i2c_suspend, dw_i2c_resume)
-	SET_RUNTIME_PM_OPS(dw_i2c_suspend, dw_i2c_resume, NULL)
+	.prepare = dw_i2c_plat_prepare,
+	.complete = dw_i2c_plat_complete,
+	SET_SYSTEM_SLEEP_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume)
+	SET_RUNTIME_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume, NULL)
 };
 
 #define DW_I2C_DEV_PMOPS (&dw_i2c_dev_pm_ops)
@@ -377,8 +330,8 @@ static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
 MODULE_ALIAS("platform:i2c_designware");
 
 static struct platform_driver dw_i2c_driver = {
-	.probe = dw_i2c_probe,
-	.remove = dw_i2c_remove,
+	.probe = dw_i2c_plat_probe,
+	.remove = dw_i2c_plat_remove,
 	.driver		= {
 		.name	= "i2c_designware",
 		.of_match_table = of_match_ptr(dw_i2c_of_match),

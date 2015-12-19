@@ -637,7 +637,7 @@ DEFINE_MUTEX(smack_onlycap_lock);
 int smack_privileged(int cap)
 {
 	struct smack_known *skp = smk_of_current();
-	struct smack_onlycap *sop;
+	struct smack_known_list_elem *sklep;
 
 	/*
 	 * All kernel tasks are privileged
@@ -654,8 +654,8 @@ int smack_privileged(int cap)
 		return 1;
 	}
 
-	list_for_each_entry_rcu(sop, &smack_onlycap_list, list) {
-		if (sop->smk_label == skp) {
+	list_for_each_entry_rcu(sklep, &smack_onlycap_list, list) {
+		if (sklep->smk_label == skp) {
 			rcu_read_unlock();
 			return 1;
 		}

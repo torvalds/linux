@@ -73,15 +73,19 @@ nvbios_volt_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	memset(info, 0x00, sizeof(*info));
 	switch (!!volt * *ver) {
 	case 0x12:
+		info->type    = NVBIOS_VOLT_GPIO;
 		info->vidmask = nvbios_rd08(bios, volt + 0x04);
 		break;
 	case 0x20:
+		info->type    = NVBIOS_VOLT_GPIO;
 		info->vidmask = nvbios_rd08(bios, volt + 0x05);
 		break;
 	case 0x30:
+		info->type    = NVBIOS_VOLT_GPIO;
 		info->vidmask = nvbios_rd08(bios, volt + 0x04);
 		break;
 	case 0x40:
+		info->type    = NVBIOS_VOLT_GPIO;
 		info->base    = nvbios_rd32(bios, volt + 0x04);
 		info->step    = nvbios_rd16(bios, volt + 0x08);
 		info->vidmask = nvbios_rd08(bios, volt + 0x0b);
@@ -90,11 +94,20 @@ nvbios_volt_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		info->max     = info->base;
 		break;
 	case 0x50:
-		info->vidmask = nvbios_rd08(bios, volt + 0x06);
 		info->min     = nvbios_rd32(bios, volt + 0x0a);
 		info->max     = nvbios_rd32(bios, volt + 0x0e);
 		info->base    = nvbios_rd32(bios, volt + 0x12) & 0x00ffffff;
-		info->step    = nvbios_rd16(bios, volt + 0x16);
+
+		/* offset 4 seems to be a flag byte */
+		if (nvbios_rd32(bios, volt + 0x4) & 1) {
+			info->type      = NVBIOS_VOLT_PWM;
+			info->pwm_freq  = nvbios_rd32(bios, volt + 0x5) / 1000;
+			info->pwm_range = nvbios_rd32(bios, volt + 0x16);
+		} else {
+			info->type      = NVBIOS_VOLT_GPIO;
+			info->vidmask   = nvbios_rd08(bios, volt + 0x06);
+			info->step      = nvbios_rd16(bios, volt + 0x16);
+		}
 		break;
 	}
 	return volt;

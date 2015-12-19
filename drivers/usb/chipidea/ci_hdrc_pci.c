@@ -142,16 +142,16 @@ static const struct pci_device_id ci_hdrc_pci_id_table[] = {
 		.driver_data = (kernel_ulong_t)&pci_platdata,
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0811),
+		PCI_VDEVICE(INTEL, 0x0811),
 		.driver_data = (kernel_ulong_t)&langwell_pci_platdata,
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829),
+		PCI_VDEVICE(INTEL, 0x0829),
 		.driver_data = (kernel_ulong_t)&penwell_pci_platdata,
 	},
 	{
 		/* Intel Clovertrail */
-		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xe006),
+		PCI_VDEVICE(INTEL, 0xe006),
 		.driver_data = (kernel_ulong_t)&penwell_pci_platdata,
 	},
 	{ 0 } /* end: all zeroes */

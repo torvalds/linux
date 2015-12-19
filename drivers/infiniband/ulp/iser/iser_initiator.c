@@ -661,48 +661,14 @@ void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 
 void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 {
-	int is_rdma_data_aligned = 1;
-	int is_rdma_prot_aligned = 1;
 	int prot_count = scsi_prot_sg_count(iser_task->sc);
-
-	/* if we were reading, copy back to unaligned sglist,
-	 * anyway dma_unmap and free the copy
-	 */
-	if (iser_task->data[ISER_DIR_IN].orig_sg) {
-		is_rdma_data_aligned = 0;
-		iser_finalize_rdma_unaligned_sg(iser_task,
-						&iser_task->data[ISER_DIR_IN],
-						ISER_DIR_IN);
-	}
-
-	if (iser_task->data[ISER_DIR_OUT].orig_sg) {
-		is_rdma_data_aligned = 0;
-		iser_finalize_rdma_unaligned_sg(iser_task,
-						&iser_task->data[ISER_DIR_OUT],
-						ISER_DIR_OUT);
-	}
-
-	if (iser_task->prot[ISER_DIR_IN].orig_sg) {
-		is_rdma_prot_aligned = 0;
-		iser_finalize_rdma_unaligned_sg(iser_task,
-						&iser_task->prot[ISER_DIR_IN],
-						ISER_DIR_IN);
-	}
-
-	if (iser_task->prot[ISER_DIR_OUT].orig_sg) {
-		is_rdma_prot_aligned = 0;
-		iser_finalize_rdma_unaligned_sg(iser_task,
-						&iser_task->prot[ISER_DIR_OUT],
-						ISER_DIR_OUT);
-	}
 
 	if (iser_task->dir[ISER_DIR_IN]) {
 		iser_unreg_rdma_mem(iser_task, ISER_DIR_IN);
-		if (is_rdma_data_aligned)
-			iser_dma_unmap_task_data(iser_task,
-						 &iser_task->data[ISER_DIR_IN],
-						 DMA_FROM_DEVICE);
-		if (prot_count && is_rdma_prot_aligned)
+		iser_dma_unmap_task_data(iser_task,
+					 &iser_task->data[ISER_DIR_IN],
+					 DMA_FROM_DEVICE);
+		if (prot_count)
 			iser_dma_unmap_task_data(iser_task,
 						 &iser_task->prot[ISER_DIR_IN],
 						 DMA_FROM_DEVICE);
@@ -710,11 +676,10 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 
 	if (iser_task->dir[ISER_DIR_OUT]) {
 		iser_unreg_rdma_mem(iser_task, ISER_DIR_OUT);
-		if (is_rdma_data_aligned)
-			iser_dma_unmap_task_data(iser_task,
-						 &iser_task->data[ISER_DIR_OUT],
-						 DMA_TO_DEVICE);
-		if (prot_count && is_rdma_prot_aligned)
+		iser_dma_unmap_task_data(iser_task,
+					 &iser_task->data[ISER_DIR_OUT],
+					 DMA_TO_DEVICE);
+		if (prot_count)
 			iser_dma_unmap_task_data(iser_task,
 						 &iser_task->prot[ISER_DIR_OUT],
 						 DMA_TO_DEVICE);

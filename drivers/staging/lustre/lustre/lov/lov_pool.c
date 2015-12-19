@@ -142,12 +142,12 @@ static void pool_hashrefcount_put_locked(struct cfs_hash *hs,
 	lov_pool_putref_locked(pool);
 }
 
-cfs_hash_ops_t pool_hash_operations = {
+struct cfs_hash_ops pool_hash_operations = {
 	.hs_hash	= pool_hashfn,
-	.hs_key	 = pool_key,
+	.hs_key		= pool_key,
 	.hs_keycmp      = pool_hashkey_keycmp,
 	.hs_object      = pool_hashobject,
-	.hs_get	 = pool_hashrefcount_get,
+	.hs_get		= pool_hashrefcount_get,
 	.hs_put_locked  = pool_hashrefcount_put_locked,
 
 };
@@ -282,6 +282,7 @@ static int pool_proc_open(struct inode *inode, struct file *file)
 	rc = seq_open(file, &pool_proc_ops);
 	if (!rc) {
 		struct seq_file *s = file->private_data;
+
 		s->private = inode->i_private;
 	}
 	return rc;
@@ -293,28 +294,6 @@ static struct file_operations pool_proc_operations = {
 	.llseek	 = seq_lseek,
 	.release	= seq_release,
 };
-
-void lov_dump_pool(int level, struct pool_desc *pool)
-{
-	int i;
-
-	lov_pool_getref(pool);
-
-	CDEBUG(level, "pool "LOV_POOLNAMEF" has %d members\n",
-	       pool->pool_name, pool->pool_obds.op_count);
-	down_read(&pool_tgt_rw_sem(pool));
-
-	for (i = 0; i < pool_tgt_count(pool) ; i++) {
-		if (!pool_tgt(pool, i) || !(pool_tgt(pool, i))->ltd_exp)
-			continue;
-		CDEBUG(level, "pool "LOV_POOLNAMEF"[%d] = %s\n",
-		       pool->pool_name, i,
-		       obd_uuid2str(&((pool_tgt(pool, i))->ltd_uuid)));
-	}
-
-	up_read(&pool_tgt_rw_sem(pool));
-	lov_pool_putref(pool);
-}
 
 #define LOV_POOL_INIT_COUNT 2
 int lov_ost_pool_init(struct ost_pool *op, unsigned int count)
@@ -417,7 +396,6 @@ int lov_ost_pool_free(struct ost_pool *op)
 	up_write(&op->op_rw_sem);
 	return 0;
 }
-
 
 int lov_pool_new(struct obd_device *obd, char *poolname)
 {
@@ -530,7 +508,6 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 	return 0;
 }
 
-
 int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 {
 	struct obd_uuid ost_uuid;
@@ -546,7 +523,6 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 		return -ENOENT;
 
 	obd_str2uuid(&ost_uuid, ostname);
-
 
 	/* search ost in lov array */
 	obd_getref(obd);

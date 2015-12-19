@@ -1722,11 +1722,13 @@ struct i40e_aqc_get_link_status {
 	u8	phy_type;    /* i40e_aq_phy_type   */
 	u8	link_speed;  /* i40e_aq_link_speed */
 	u8	link_info;
-#define I40E_AQ_LINK_UP			0x01
+#define I40E_AQ_LINK_UP			0x01    /* obsolete */
+#define I40E_AQ_LINK_UP_FUNCTION	0x01
 #define I40E_AQ_LINK_FAULT		0x02
 #define I40E_AQ_LINK_FAULT_TX		0x04
 #define I40E_AQ_LINK_FAULT_RX		0x08
 #define I40E_AQ_LINK_FAULT_REMOTE	0x10
+#define I40E_AQ_LINK_UP_PORT		0x20
 #define I40E_AQ_MEDIA_AVAILABLE		0x40
 #define I40E_AQ_SIGNAL_DETECT		0x80
 	u8	an_info;
@@ -2062,6 +2064,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_start);
 #define I40E_AQC_CEE_APP_ISCSI_MASK	(0x7 << I40E_AQC_CEE_APP_ISCSI_SHIFT)
 #define I40E_AQC_CEE_APP_FIP_SHIFT	0x8
 #define I40E_AQC_CEE_APP_FIP_MASK	(0x7 << I40E_AQC_CEE_APP_FIP_SHIFT)
+
 #define I40E_AQC_CEE_PG_STATUS_SHIFT	0x0
 #define I40E_AQC_CEE_PG_STATUS_MASK	(0x7 << I40E_AQC_CEE_PG_STATUS_SHIFT)
 #define I40E_AQC_CEE_PFC_STATUS_SHIFT	0x3
@@ -2070,10 +2073,19 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_start);
 #define I40E_AQC_CEE_APP_STATUS_MASK	(0x7 << I40E_AQC_CEE_APP_STATUS_SHIFT)
 #define I40E_AQC_CEE_FCOE_STATUS_SHIFT	0x8
 #define I40E_AQC_CEE_FCOE_STATUS_MASK	(0x7 << I40E_AQC_CEE_FCOE_STATUS_SHIFT)
-#define I40E_AQC_CEE_ISCSI_STATUS_SHIFT	0xA
+#define I40E_AQC_CEE_ISCSI_STATUS_SHIFT	0xB
 #define I40E_AQC_CEE_ISCSI_STATUS_MASK	(0x7 << I40E_AQC_CEE_ISCSI_STATUS_SHIFT)
 #define I40E_AQC_CEE_FIP_STATUS_SHIFT	0x10
 #define I40E_AQC_CEE_FIP_STATUS_MASK	(0x7 << I40E_AQC_CEE_FIP_STATUS_SHIFT)
+
+/* struct i40e_aqc_get_cee_dcb_cfg_v1_resp was originally defined with
+ * word boundary layout issues, which the Linux compilers silently deal
+ * with by adding padding, making the actual struct larger than designed.
+ * However, the FW compiler for the NIC is less lenient and complains
+ * about the struct.  Hence, the struct defined here has an extra byte in
+ * fields reserved3 and reserved4 to directly acknowledge that padding,
+ * and the new length is used in the length check macro.
+ */
 struct i40e_aqc_get_cee_dcb_cfg_v1_resp {
 	u8	reserved1;
 	u8	oper_num_tc;
@@ -2081,9 +2093,9 @@ struct i40e_aqc_get_cee_dcb_cfg_v1_resp {
 	u8	reserved2;
 	u8	oper_tc_bw[8];
 	u8	oper_pfc_en;
-	u8	reserved3;
+	u8	reserved3[2];
 	__le16	oper_app_prio;
-	u8	reserved4;
+	u8	reserved4[2];
 	__le16	tlv_status;
 };
 
@@ -2120,6 +2132,13 @@ I40E_CHECK_STRUCT_LEN(0x20, i40e_aqc_get_cee_dcb_cfg_resp);
 struct i40e_aqc_lldp_set_local_mib {
 #define SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT	0
 #define SET_LOCAL_MIB_AC_TYPE_DCBX_MASK	(1 << SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_DCBX_MASK	(1 << \
+					SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_LOCAL_MIB	0x0
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT	(1)
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_MASK	(1 << \
+				SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS		0x1
 	u8	type;
 	u8	reserved0;
 	__le16	length;

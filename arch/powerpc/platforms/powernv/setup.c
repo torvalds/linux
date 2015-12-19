@@ -187,7 +187,7 @@ static void pnv_kexec_wait_secondaries_down(void)
 
 	for_each_online_cpu(i) {
 		uint8_t status;
-		int64_t rc;
+		int64_t rc, timeout = 1000;
 
 		if (i == my_cpu)
 			continue;
@@ -203,6 +203,18 @@ static void pnv_kexec_wait_secondaries_down(void)
 				       "(physical %d) to enter OPAL\n",
 				       i, paca[i].hw_cpu_id);
 				notified = i;
+			}
+
+			/*
+			 * On crash secondaries might be unreachable or hung,
+			 * so timeout if we've waited too long
+			 * */
+			mdelay(1);
+			if (timeout-- == 0) {
+				printk(KERN_ERR "kexec: timed out waiting for "
+				       "cpu %d (physical %d) to enter OPAL\n",
+				       i, paca[i].hw_cpu_id);
+				break;
 			}
 		}
 	}
@@ -225,13 +237,6 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 
 		/* Return the CPU to OPAL */
 		opal_return_cpu();
-	} else if (crash_shutdown) {
-		/*
-		 * On crash, we don't wait for secondaries to go
-		 * down as they might be unreachable or hung, so
-		 * instead we just wait a bit and move on.
-		 */
-		mdelay(1);
 	} else {
 		/* Primary waits for the secondaries to have reached OPAL */
 		pnv_kexec_wait_secondaries_down();

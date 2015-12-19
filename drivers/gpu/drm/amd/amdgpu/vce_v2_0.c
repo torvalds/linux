@@ -642,7 +642,6 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.emit_semaphore = amdgpu_vce_ring_emit_semaphore,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
-	.is_lockup = amdgpu_ring_test_lockup,
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 

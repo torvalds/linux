@@ -45,7 +45,7 @@ struct netup_spi_regs {
 struct netup_spi {
 	struct device			*dev;
 	struct spi_master		*master;
-	struct netup_spi_regs		*regs;
+	struct netup_spi_regs __iomem	*regs;
 	u8 __iomem			*mmio;
 	spinlock_t			lock;
 	wait_queue_head_t		waitq;
@@ -200,7 +200,7 @@ int netup_spi_init(struct netup_unidvb_dev *ndev)
 	spin_lock_init(&nspi->lock);
 	init_waitqueue_head(&nspi->waitq);
 	nspi->master = master;
-	nspi->regs = (struct netup_spi_regs *)(ndev->bmmio0 + 0x4000);
+	nspi->regs = (struct netup_spi_regs __iomem *)(ndev->bmmio0 + 0x4000);
 	writew(2, &nspi->regs->clock_divider);
 	writew(NETUP_UNIDVB_IRQ_SPI, ndev->bmmio0 + REG_IMASK_SET);
 	ndev->spi = nspi;

@@ -11,10 +11,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/hash.h>
 
-#ifndef	DMA_ERROR_CODE
-#define	DMA_ERROR_CODE (~(dma_addr_t)0x0)
-#endif
-
 static unsigned long iommu_large_alloc = 15;
 
 static	DEFINE_PER_CPU(unsigned int, iommu_hash_common);
@@ -123,7 +119,7 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 	/* Sanity check */
 	if (unlikely(npages == 0)) {
 		WARN_ON_ONCE(1);
-		return DMA_ERROR_CODE;
+		return IOMMU_ERROR_CODE;
 	}
 
 	if (largealloc) {
@@ -206,7 +202,7 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 			goto again;
 		} else {
 			/* give up */
-			n = DMA_ERROR_CODE;
+			n = IOMMU_ERROR_CODE;
 			goto bail;
 		}
 	}
@@ -259,7 +255,7 @@ void iommu_tbl_range_free(struct iommu_map_table *iommu, u64 dma_addr,
 	unsigned long flags;
 	unsigned long shift = iommu->table_shift;
 
-	if (entry == DMA_ERROR_CODE) /* use default addr->entry mapping */
+	if (entry == IOMMU_ERROR_CODE) /* use default addr->entry mapping */
 		entry = (dma_addr - iommu->table_map_base) >> shift;
 	pool = get_pool(iommu, entry);
 

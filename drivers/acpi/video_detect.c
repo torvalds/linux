@@ -233,6 +233,15 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1272633 */
+	 .callback = video_detect_force_video,
+	 .ident = "Dell XPS14 L421X",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "XPS L421X"),
+		},
+	},
+	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1163574 */
 	 .callback = video_detect_force_video,
 	 .ident = "Dell XPS15 L521X",
@@ -243,6 +252,15 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 
 	/* Non win8 machines which need native backlight nevertheless */
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1201530 */
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo Ideapad S405",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_BOARD_NAME, "Lenovo IdeaPad S405"),
+		},
+	},
 	{
 	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
 	 .callback = video_detect_force_native,

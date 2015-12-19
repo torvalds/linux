@@ -33,6 +33,18 @@
 			interrupts = <0x0 0x2d 0x1>;
 		};
 	};
+
+	poweroff_mbox: poweroff_mbox@10548000 {
+		compatible = "syscon";
+		reg = <0x0 0x10548000 0x0 0x30>;
+	};
+
+	poweroff: poweroff@10548010 {
+		compatible = "syscon-poweroff";
+		regmap = <&poweroff_mbox>;
+		offset = <0x10>;
+		mask = <0x1>;
+	};
 };
 
 &pcie0clk {

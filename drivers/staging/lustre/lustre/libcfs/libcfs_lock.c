@@ -34,7 +34,6 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-
 /** destroy cpu-partition lock, see libcfs_private.h for more detail */
 void
 cfs_percpt_lock_free(struct cfs_percpt_lock *pcl)
@@ -63,12 +62,12 @@ cfs_percpt_lock_alloc(struct cfs_cpt_table *cptab)
 
 	/* NB: cptab can be NULL, pcl will be for HW CPUs on that case */
 	LIBCFS_ALLOC(pcl, sizeof(*pcl));
-	if (pcl == NULL)
+	if (!pcl)
 		return NULL;
 
 	pcl->pcl_cptab = cptab;
 	pcl->pcl_locks = cfs_percpt_alloc(cptab, sizeof(*lock));
-	if (pcl->pcl_locks == NULL) {
+	if (!pcl->pcl_locks) {
 		LIBCFS_FREE(pcl, sizeof(*pcl));
 		return NULL;
 	}
@@ -146,7 +145,6 @@ cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index)
 }
 EXPORT_SYMBOL(cfs_percpt_unlock);
 
-
 /** free cpu-partition refcount */
 void
 cfs_percpt_atomic_free(atomic_t **refs)
@@ -164,7 +162,7 @@ cfs_percpt_atomic_alloc(struct cfs_cpt_table *cptab, int init_val)
 	int		i;
 
 	refs = cfs_percpt_alloc(cptab, sizeof(*ref));
-	if (refs == NULL)
+	if (!refs)
 		return NULL;
 
 	cfs_percpt_for_each(ref, i, refs)

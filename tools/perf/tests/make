@@ -221,6 +221,11 @@ test_O = $(if $(test_$1),$(test_$1),$(test_default_O))
 
 all:
 
+ifdef SHUF
+run := $(shell shuf -e $(run))
+run_O := $(shell shuf -e $(run_O))
+endif
+
 ifdef DEBUG
 d := $(info run   $(run))
 d := $(info run_O $(run_O))

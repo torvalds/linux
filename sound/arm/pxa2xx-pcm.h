@@ -13,8 +13,6 @@
 struct pxa2xx_runtime_data {
 	int dma_ch;
 	struct snd_dmaengine_dai_dma_data *params;
-	struct pxa_dma_desc *dma_desc_array;
-	dma_addr_t dma_desc_array_phys;
 };
 
 struct pxa2xx_pcm_client {

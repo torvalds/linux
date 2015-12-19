@@ -42,8 +42,6 @@
 #include <scsi/scsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_fabric_configfs.h>
-#include <target/configfs_macros.h>
 #include <linux/vhost.h>
 #include <linux/virtio_scsi.h>
 #include <linux/llist.h>
@@ -1684,11 +1682,10 @@ static void vhost_scsi_free_cmd_map_res(struct vhost_scsi_nexus *nexus,
 	}
 }
 
-static ssize_t vhost_scsi_tpg_attrib_store_fabric_prot_type(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t vhost_scsi_tpg_attrib_fabric_prot_type_store(
+		struct config_item *item, const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
 				struct vhost_scsi_tpg, se_tpg);
 	unsigned long val;
@@ -1707,19 +1704,20 @@ static ssize_t vhost_scsi_tpg_attrib_store_fabric_prot_type(
 	return count;
 }
 
-static ssize_t vhost_scsi_tpg_attrib_show_fabric_prot_type(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t vhost_scsi_tpg_attrib_fabric_prot_type_show(
+		struct config_item *item, char *page)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
 				struct vhost_scsi_tpg, se_tpg);
 
 	return sprintf(page, "%d\n", tpg->tv_fabric_prot_type);
 }
-TF_TPG_ATTRIB_ATTR(vhost_scsi, fabric_prot_type, S_IRUGO | S_IWUSR);
+
+CONFIGFS_ATTR(vhost_scsi_tpg_attrib_, fabric_prot_type);
 
 static struct configfs_attribute *vhost_scsi_tpg_attrib_attrs[] = {
-	&vhost_scsi_tpg_attrib_fabric_prot_type.attr,
+	&vhost_scsi_tpg_attrib_attr_fabric_prot_type,
 	NULL,
 };
 
@@ -1867,9 +1865,9 @@ static int vhost_scsi_drop_nexus(struct vhost_scsi_tpg *tpg)
 	return 0;
 }
 
-static ssize_t vhost_scsi_tpg_show_nexus(struct se_portal_group *se_tpg,
-					char *page)
+static ssize_t vhost_scsi_tpg_nexus_show(struct config_item *item, char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
 				struct vhost_scsi_tpg, se_tpg);
 	struct vhost_scsi_nexus *tv_nexus;
@@ -1888,10 +1886,10 @@ static ssize_t vhost_scsi_tpg_show_nexus(struct se_portal_group *se_tpg,
 	return ret;
 }
 
-static ssize_t vhost_scsi_tpg_store_nexus(struct se_portal_group *se_tpg,
-					 const char *page,
-					 size_t count)
+static ssize_t vhost_scsi_tpg_nexus_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
 				struct vhost_scsi_tpg, se_tpg);
 	struct vhost_scsi_tport *tport_wwn = tpg->tport;
@@ -1966,10 +1964,10 @@ check_newline:
 	return count;
 }
 
-TF_TPG_BASE_ATTR(vhost_scsi, nexus, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(vhost_scsi_tpg_, nexus);
 
 static struct configfs_attribute *vhost_scsi_tpg_attrs[] = {
-	&vhost_scsi_tpg_nexus.attr,
+	&vhost_scsi_tpg_attr_nexus,
 	NULL,
 };
 
@@ -2105,18 +2103,17 @@ static void vhost_scsi_drop_tport(struct se_wwn *wwn)
 }
 
 static ssize_t
-vhost_scsi_wwn_show_attr_version(struct target_fabric_configfs *tf,
-				char *page)
+vhost_scsi_wwn_version_show(struct config_item *item, char *page)
 {
 	return sprintf(page, "TCM_VHOST fabric module %s on %s/%s"
 		"on "UTS_RELEASE"\n", VHOST_SCSI_VERSION, utsname()->sysname,
 		utsname()->machine);
 }
 
-TF_WWN_ATTR_RO(vhost_scsi, version);
+CONFIGFS_ATTR_RO(vhost_scsi_wwn_, version);
 
 static struct configfs_attribute *vhost_scsi_wwn_attrs[] = {
-	&vhost_scsi_wwn_version.attr,
+	&vhost_scsi_wwn_attr_version,
 	NULL,
 };
 

@@ -63,7 +63,7 @@ enum usb_otg_state {
 struct usb_phy;
 struct usb_otg;
 
-/* for transceivers connected thru an ULPI interface, the user must
+/* for phys connected thru an ULPI interface, the user must
  * provide access ops
  */
 struct usb_phy_io_ops {
@@ -92,10 +92,10 @@ struct usb_phy {
 	u16			port_status;
 	u16			port_change;
 
-	/* to support controllers that have multiple transceivers */
+	/* to support controllers that have multiple phys */
 	struct list_head	head;
 
-	/* initialize/shutdown the OTG controller */
+	/* initialize/shutdown the phy */
 	int	(*init)(struct usb_phy *x);
 	void	(*shutdown)(struct usb_phy *x);
 
@@ -106,7 +106,7 @@ struct usb_phy {
 	int	(*set_power)(struct usb_phy *x,
 				unsigned mA);
 
-	/* Set transceiver into suspend mode */
+	/* Set phy into suspend mode */
 	int	(*set_suspend)(struct usb_phy *x,
 				int suspend);
 

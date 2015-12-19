@@ -170,8 +170,7 @@ sfw_add_session_timer(void)
 	LASSERT(!sn->sn_timer_active);
 
 	sn->sn_timer_active = 1;
-	timer->stt_expires = cfs_time_add(sn->sn_timeout,
-					  get_seconds());
+	timer->stt_expires = ktime_get_real_seconds() + sn->sn_timeout;
 	stt_add_timer(timer);
 	return;
 }
@@ -237,7 +236,6 @@ sfw_deactivate_session(void)
 
 	spin_lock(&sfw_data.fw_lock);
 }
-
 
 static void
 sfw_session_expired(void *data)
@@ -372,7 +370,6 @@ sfw_get_stats(srpc_stat_reqst_t *request, srpc_stat_reply_t *reply)
 	sfw_session_t *sn = sfw_data.fw_session;
 	sfw_counters_t *cnt = &reply->str_fw;
 	sfw_batch_t *bat;
-	struct timeval tv;
 
 	reply->str_sid = (sn == NULL) ? LST_INVALID_SID : sn->sn_id;
 
@@ -391,10 +388,7 @@ sfw_get_stats(srpc_stat_reqst_t *request, srpc_stat_reply_t *reply)
 
 	/* send over the msecs since the session was started
 	 - with 32 bits to send, this is ~49 days */
-	cfs_duration_usec(cfs_time_sub(cfs_time_current(),
-				       sn->sn_started), &tv);
-
-	cnt->running_ms      = (__u32)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+	cnt->running_ms	     = jiffies_to_msecs(jiffies - sn->sn_started);
 	cnt->brw_errors      = atomic_read(&sn->sn_brw_errors);
 	cnt->ping_errors     = atomic_read(&sn->sn_ping_errors);
 	cnt->zombie_sessions = atomic_read(&sfw_data.fw_nzombies);
@@ -1638,7 +1632,6 @@ extern srpc_service_t	brw_test_service;
 extern void brw_init_test_client(void);
 extern void brw_init_test_service(void);
 
-
 int
 sfw_startup(void)
 {
@@ -1647,7 +1640,6 @@ sfw_startup(void)
 	int error;
 	srpc_service_t *sv;
 	sfw_test_case_t *tsc;
-
 
 	if (session_timeout < 0) {
 		CERROR("Session timeout must be non-negative: %d\n",

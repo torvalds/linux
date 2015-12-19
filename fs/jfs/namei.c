@@ -1372,9 +1372,6 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	tid_t tid;
 	struct tblock *tblk;
 
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
-
 	jfs_info("jfs_mknod: %pd", dentry);
 
 	rc = dquot_initialize(dir);

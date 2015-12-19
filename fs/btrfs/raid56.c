@@ -810,7 +810,11 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 			}
 
 			goto done_nolock;
-		} else  if (waitqueue_active(&h->wait)) {
+			/*
+			 * The barrier for this waitqueue_active is not needed,
+			 * we're protected by h->lock and can't miss a wakeup.
+			 */
+		} else if (waitqueue_active(&h->wait)) {
 			spin_unlock(&rbio->bio_list_lock);
 			spin_unlock_irqrestore(&h->lock, flags);
 			wake_up(&h->wait);

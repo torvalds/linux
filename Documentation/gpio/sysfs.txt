@@ -20,14 +20,14 @@ userspace GPIO can be used to determine system configuration data that
 standard kernels won't know about. And for some tasks, simple userspace
 GPIO drivers could be all that the system really needs.
 
-DO NOT ABUSE SYFS TO CONTROL HARDWARE THAT HAS PROPER KERNEL DRIVERS.
+DO NOT ABUSE SYSFS TO CONTROL HARDWARE THAT HAS PROPER KERNEL DRIVERS.
 PLEASE READ THE DOCUMENT NAMED "drivers-on-gpio.txt" IN THIS DOCUMENTATION
 DIRECTORY TO AVOID REINVENTING KERNEL WHEELS IN USERSPACE. I MEAN IT.
 REALLY.
 
 Paths in Sysfs
 --------------
-There are three kinds of entry in /sys/class/gpio:
+There are three kinds of entries in /sys/class/gpio:
 
    -	Control interfaces used to get userspace control over GPIOs;
 
@@ -106,7 +106,7 @@ read-only attributes:
 
     	"label" ... provided for diagnostics (not always unique)
 
-    	"ngpio" ... how many GPIOs this manges (N to N + ngpio - 1)
+        "ngpio" ... how many GPIOs this manages (N to N + ngpio - 1)
 
 Board documentation should in most cases cover what GPIOs are used for
 what purposes. However, those numbers are not always stable; GPIOs on

@@ -56,7 +56,6 @@
 #include "sysfs.h"
 #include "xmit.h"
 #include "lo.h"
-#include "pcmcia.h"
 #include "sdio.h"
 #include <linux/mmc/sdio_func.h>
 
@@ -5850,12 +5849,9 @@ static int __init b43_init(void)
 	int err;
 
 	b43_debugfs_init();
-	err = b43_pcmcia_init();
-	if (err)
-		goto err_dfs_exit;
 	err = b43_sdio_init();
 	if (err)
-		goto err_pcmcia_exit;
+		goto err_dfs_exit;
 #ifdef CONFIG_B43_BCMA
 	err = bcma_driver_register(&b43_bcma_driver);
 	if (err)
@@ -5878,8 +5874,6 @@ err_bcma_driver_exit:
 err_sdio_exit:
 #endif
 	b43_sdio_exit();
-err_pcmcia_exit:
-	b43_pcmcia_exit();
 err_dfs_exit:
 	b43_debugfs_exit();
 	return err;
@@ -5894,7 +5888,6 @@ static void __exit b43_exit(void)
 	bcma_driver_unregister(&b43_bcma_driver);
 #endif
 	b43_sdio_exit();
-	b43_pcmcia_exit();
 	b43_debugfs_exit();
 }
 

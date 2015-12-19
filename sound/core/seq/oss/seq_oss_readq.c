@@ -91,8 +91,7 @@ snd_seq_oss_readq_clear(struct seq_oss_readq *q)
 		q->head = q->tail = 0;
 	}
 	/* if someone sleeping, wake'em up */
-	if (waitqueue_active(&q->midi_sleep))
-		wake_up(&q->midi_sleep);
+	wake_up(&q->midi_sleep);
 	q->input_time = (unsigned long)-1;
 }
 
@@ -138,8 +137,7 @@ snd_seq_oss_readq_put_event(struct seq_oss_readq *q, union evrec *ev)
 	q->qlen++;
 
 	/* wake up sleeper */
-	if (waitqueue_active(&q->midi_sleep))
-		wake_up(&q->midi_sleep);
+	wake_up(&q->midi_sleep);
 
 	spin_unlock_irqrestore(&q->lock, flags);
 

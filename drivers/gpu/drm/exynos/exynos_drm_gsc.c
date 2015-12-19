@@ -543,7 +543,7 @@ static int gsc_src_set_fmt(struct device *dev, u32 fmt)
 			GSC_IN_YUV420_2P);
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid target yuv order 0x%x.\n", fmt);
+		dev_err(ippdrv->dev, "invalid target yuv order 0x%x.\n", fmt);
 		return -EINVAL;
 	}
 
@@ -595,7 +595,7 @@ static int gsc_src_set_transf(struct device *dev,
 			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid degree value %d.\n", degree);
+		dev_err(ippdrv->dev, "invalid degree value %d.\n", degree);
 		return -EINVAL;
 	}
 
@@ -721,7 +721,7 @@ static int gsc_src_set_addr(struct device *dev,
 		property->prop_id, buf_id, buf_type);
 
 	if (buf_id > GSC_MAX_SRC) {
-		dev_info(ippdrv->dev, "inavlid buf_id %d.\n", buf_id);
+		dev_info(ippdrv->dev, "invalid buf_id %d.\n", buf_id);
 		return -EINVAL;
 	}
 
@@ -814,7 +814,7 @@ static int gsc_dst_set_fmt(struct device *dev, u32 fmt)
 			GSC_OUT_YUV420_2P);
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid target yuv order 0x%x.\n", fmt);
+		dev_err(ippdrv->dev, "invalid target yuv order 0x%x.\n", fmt);
 		return -EINVAL;
 	}
 
@@ -866,7 +866,7 @@ static int gsc_dst_set_transf(struct device *dev,
 			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid degree value %d.\n", degree);
+		dev_err(ippdrv->dev, "invalid degree value %d.\n", degree);
 		return -EINVAL;
 	}
 
@@ -1176,7 +1176,7 @@ static int gsc_dst_set_addr(struct device *dev,
 		property->prop_id, buf_id, buf_type);
 
 	if (buf_id > GSC_MAX_DST) {
-		dev_info(ippdrv->dev, "inavlid buf_id %d.\n", buf_id);
+		dev_info(ippdrv->dev, "invalid buf_id %d.\n", buf_id);
 		return -EINVAL;
 	}
 

@@ -198,7 +198,7 @@ static int adf_copy_key_value_data(struct adf_accel_dev *accel_dev,
 			goto out_err;
 		}
 
-		params_head = section_head->params;
+		params_head = section.params;
 
 		while (params_head) {
 			if (copy_from_user(&key_val, (void __user *)params_head,
@@ -463,9 +463,6 @@ static int __init adf_register_ctl_device_driver(void)
 {
 	mutex_init(&adf_ctl_lock);
 
-	if (qat_algs_init())
-		goto err_algs_init;
-
 	if (adf_chr_drv_create())
 		goto err_chr_dev;
 
@@ -482,8 +479,6 @@ err_crypto_register:
 err_aer:
 	adf_chr_drv_destroy();
 err_chr_dev:
-	qat_algs_exit();
-err_algs_init:
 	mutex_destroy(&adf_ctl_lock);
 	return -EFAULT;
 }
@@ -493,7 +488,6 @@ static void __exit adf_unregister_ctl_device_driver(void)
 	adf_chr_drv_destroy();
 	adf_exit_aer();
 	qat_crypto_unregister();
-	qat_algs_exit();
 	adf_clean_vf_map(false);
 	mutex_destroy(&adf_ctl_lock);
 }

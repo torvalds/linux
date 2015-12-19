@@ -234,7 +234,7 @@ int ext4_check_blockref(const char *function, unsigned int line,
 			es->s_last_error_block = cpu_to_le64(blk);
 			ext4_error_inode(inode, function, line, blk,
 					 "invalid block");
-			return -EIO;
+			return -EFSCORRUPTED;
 		}
 	}
 	return 0;

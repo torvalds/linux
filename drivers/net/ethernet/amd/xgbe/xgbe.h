@@ -209,8 +209,6 @@
 #define XGMAC_IOCTL_CONTEXT	2
 
 #define XGBE_FIFO_MAX		81920
-#define XGBE_FIFO_SIZE_B(x)	(x)
-#define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
 #define XGBE_TC_MIN_QUANTUM	10
 
@@ -461,7 +459,6 @@ struct xgbe_channel {
 
 enum xgbe_state {
 	XGBE_DOWN,
-	XGBE_LINK,
 	XGBE_LINK_INIT,
 	XGBE_LINK_ERR,
 };
@@ -481,20 +478,6 @@ enum xgbe_int {
 enum xgbe_int_state {
 	XGMAC_INT_STATE_SAVE,
 	XGMAC_INT_STATE_RESTORE,
-};
-
-enum xgbe_mtl_fifo_size {
-	XGMAC_MTL_FIFO_SIZE_256  = 0x00,
-	XGMAC_MTL_FIFO_SIZE_512  = 0x01,
-	XGMAC_MTL_FIFO_SIZE_1K   = 0x03,
-	XGMAC_MTL_FIFO_SIZE_2K   = 0x07,
-	XGMAC_MTL_FIFO_SIZE_4K   = 0x0f,
-	XGMAC_MTL_FIFO_SIZE_8K   = 0x1f,
-	XGMAC_MTL_FIFO_SIZE_16K  = 0x3f,
-	XGMAC_MTL_FIFO_SIZE_32K  = 0x7f,
-	XGMAC_MTL_FIFO_SIZE_64K  = 0xff,
-	XGMAC_MTL_FIFO_SIZE_128K = 0x1ff,
-	XGMAC_MTL_FIFO_SIZE_256K = 0x3ff,
 };
 
 enum xgbe_speed {
@@ -598,6 +581,7 @@ struct xgbe_mmc_stats {
 struct xgbe_ext_stats {
 	u64 tx_tso_packets;
 	u64 rx_split_header_packets;
+	u64 rx_buffer_unavailable;
 };
 
 struct xgbe_hw_if {

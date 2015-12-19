@@ -17,39 +17,22 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
+static const struct mv88e6xxx_switch_id mv88e6123_61_65_table[] = {
+	{ PORT_SWITCH_ID_6123, "Marvell 88E6123" },
+	{ PORT_SWITCH_ID_6123_A1, "Marvell 88E6123 (A1)" },
+	{ PORT_SWITCH_ID_6123_A2, "Marvell 88E6123 (A2)" },
+	{ PORT_SWITCH_ID_6161, "Marvell 88E6161" },
+	{ PORT_SWITCH_ID_6161_A1, "Marvell 88E6161 (A1)" },
+	{ PORT_SWITCH_ID_6161_A2, "Marvell 88E6161 (A2)" },
+	{ PORT_SWITCH_ID_6165, "Marvell 88E6165" },
+	{ PORT_SWITCH_ID_6165_A1, "Marvell 88E6165 (A1)" },
+	{ PORT_SWITCH_ID_6165_A2, "Marvell 88e6165 (A2)" },
+};
+
 static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 {
-	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
-	int ret;
-
-	if (bus == NULL)
-		return NULL;
-
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
-	if (ret >= 0) {
-		if (ret == PORT_SWITCH_ID_6123_A1)
-			return "Marvell 88E6123 (A1)";
-		if (ret == PORT_SWITCH_ID_6123_A2)
-			return "Marvell 88E6123 (A2)";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6123)
-			return "Marvell 88E6123";
-
-		if (ret == PORT_SWITCH_ID_6161_A1)
-			return "Marvell 88E6161 (A1)";
-		if (ret == PORT_SWITCH_ID_6161_A2)
-			return "Marvell 88E6161 (A2)";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6161)
-			return "Marvell 88E6161";
-
-		if (ret == PORT_SWITCH_ID_6165_A1)
-			return "Marvell 88E6165 (A1)";
-		if (ret == PORT_SWITCH_ID_6165_A2)
-			return "Marvell 88e6165 (A2)";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6165)
-			return "Marvell 88E6165";
-	}
-
-	return NULL;
+	return mv88e6xxx_lookup_name(host_dev, sw_addr, mv88e6123_61_65_table,
+				     ARRAY_SIZE(mv88e6123_61_65_table));
 }
 
 static int mv88e6123_61_65_setup_global(struct dsa_switch *ds)
@@ -125,7 +108,6 @@ struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.set_addr		= mv88e6xxx_set_addr_indirect,
 	.phy_read		= mv88e6xxx_phy_read,
 	.phy_write		= mv88e6xxx_phy_write,
-	.poll_link		= mv88e6xxx_poll_link,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_sset_count		= mv88e6xxx_get_sset_count,

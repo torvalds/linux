@@ -85,9 +85,14 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 	src_tcon = tlink_tcon(smb_file_src->tlink);
 	target_tcon = tlink_tcon(smb_file_target->tlink);
 
-	/* check if source and target are on same tree connection */
-	if (src_tcon != target_tcon) {
-		cifs_dbg(VFS, "file copy src and target on different volume\n");
+	/* check source and target on same server (or volume if dup_extents) */
+	if (dup_extents && (src_tcon != target_tcon)) {
+		cifs_dbg(VFS, "source and target of copy not on same share\n");
+		goto out_fput;
+	}
+
+	if (!dup_extents && (src_tcon->ses != target_tcon->ses)) {
+		cifs_dbg(VFS, "source and target of copy not on same server\n");
 		goto out_fput;
 	}
 

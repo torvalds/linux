@@ -12,7 +12,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Phytec phyFLEX-i.MX6 Ouad";
+	model = "Phytec phyFLEX-i.MX6 Quad";
 	compatible = "phytec,imx6q-pfla02", "fsl,imx6q";
 
 	memory {
@@ -80,7 +80,7 @@
 	cs-gpios = <&gpio4 24 0>;
 
 	flash@0 {
-		compatible = "m25p80";
+		compatible = "m25p80", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -373,7 +373,7 @@
 };
 
 &pcie {
-	pinctrl-name = "default";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio4 17 0>;
 	status = "disabled";

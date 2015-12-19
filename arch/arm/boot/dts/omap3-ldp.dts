@@ -200,7 +200,7 @@
 	tsc2046@0 {
 		interrupt-parent = <&gpio2>;
 		interrupts = <22 0>;		/* gpio54 */
-		pendown-gpio = <&gpio2 22 0>;
+		pendown-gpio = <&gpio2 22 GPIO_ACTIVE_HIGH>;
 	};
 };
 

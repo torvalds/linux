@@ -39,8 +39,6 @@ Boards:
     compatible = "renesas,armadillo800eva"
   - BOCK-W
     compatible = "renesas,bockw", "renesas,r8a7778"
-  - BOCK-W - Reference Device Tree Implementation
-    compatible = "renesas,bockw-reference", "renesas,r8a7778"
   - Genmai (RTK772100BC00000BR)
     compatible = "renesas,genmai", "renesas,r7s72100"
   - Gose
@@ -57,7 +55,7 @@ Boards:
     compatible = "renesas,lager", "renesas,r8a7790"
   - Marzen
     compatible = "renesas,marzen", "renesas,r8a7779"
-
-Note: Reference Device Tree Implementations are temporary implementations
-      to ease the migration from platform devices to Device Tree, and are
-      intended to be removed in the future.
+  - Porter (M2-LCDP)
+    compatible = "renesas,porter", "renesas,r8a7791"
+  - SILK (RTP0RC7794LCB00011S)
+    compatible = "renesas,silk", "renesas,r8a7794"

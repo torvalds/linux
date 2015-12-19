@@ -249,7 +249,7 @@ ENTRY(_startup)
 
 	__loopt	a2, a3, a4, 2
 	s32i	a0, a2, 0
-	__endla	a2, a4, 4
+	__endla	a2, a3, 4
 
 #if XCHAL_DCACHE_IS_WRITEBACK
 

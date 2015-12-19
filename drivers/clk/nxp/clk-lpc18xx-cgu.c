@@ -480,6 +480,42 @@ static const struct clk_ops lpc18xx_pll1_ops = {
 	.recalc_rate = lpc18xx_pll1_recalc_rate,
 };
 
+static int lpc18xx_cgu_gate_enable(struct clk_hw *hw)
+{
+	return clk_gate_ops.enable(hw);
+}
+
+static void lpc18xx_cgu_gate_disable(struct clk_hw *hw)
+{
+	clk_gate_ops.disable(hw);
+}
+
+static int lpc18xx_cgu_gate_is_enabled(struct clk_hw *hw)
+{
+	const struct clk_hw *parent;
+
+	/*
+	 * The consumer of base clocks needs know if the
+	 * base clock is really enabled before it can be
+	 * accessed. It is therefore necessary to verify
+	 * this all the way up.
+	 */
+	parent = clk_hw_get_parent(hw);
+	if (!parent)
+		return 0;
+
+	if (!clk_hw_is_enabled(parent))
+		return 0;
+
+	return clk_gate_ops.is_enabled(hw);
+}
+
+static const struct clk_ops lpc18xx_gate_ops = {
+	.enable = lpc18xx_cgu_gate_enable,
+	.disable = lpc18xx_cgu_gate_disable,
+	.is_enabled = lpc18xx_cgu_gate_is_enabled,
+};
+
 static struct lpc18xx_cgu_pll_clk lpc18xx_cgu_src_clk_plls[] = {
 	LPC1XX_CGU_CLK_PLL(PLL0USB,	pll0_src_ids, pll0_ops),
 	LPC1XX_CGU_CLK_PLL(PLL0AUDIO,	pll0_src_ids, pll0_ops),
@@ -510,7 +546,7 @@ static struct clk *lpc18xx_cgu_register_div(struct lpc18xx_cgu_src_clk_div *clk,
 	return clk_register_composite(NULL, name, parents, clk->n_parents,
 				      &clk->mux.hw, &clk_mux_ops,
 				      &clk->div.hw, &clk_divider_ops,
-				      &clk->gate.hw, &clk_gate_ops, 0);
+				      &clk->gate.hw, &lpc18xx_gate_ops, 0);
 }
 
 
@@ -538,7 +574,7 @@ static struct clk *lpc18xx_register_base_clk(struct lpc18xx_cgu_base_clk *clk,
 	return clk_register_composite(NULL, name, parents, clk->n_parents,
 				      &clk->mux.hw, &clk_mux_ops,
 				      NULL,  NULL,
-				      &clk->gate.hw, &clk_gate_ops, 0);
+				      &clk->gate.hw, &lpc18xx_gate_ops, 0);
 }
 
 
@@ -557,7 +593,7 @@ static struct clk *lpc18xx_cgu_register_pll(struct lpc18xx_cgu_pll_clk *clk,
 	return clk_register_composite(NULL, name, parents, clk->n_parents,
 				      &clk->mux.hw, &clk_mux_ops,
 				      &clk->pll.hw, clk->pll_ops,
-				      &clk->gate.hw, &clk_gate_ops, 0);
+				      &clk->gate.hw, &lpc18xx_gate_ops, 0);
 }
 
 static void __init lpc18xx_cgu_register_source_clks(struct device_node *np,

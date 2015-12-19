@@ -89,10 +89,6 @@ int memblock_add_range(struct memblock_type *type,
 		       phys_addr_t base, phys_addr_t size,
 		       int nid, unsigned long flags);
 
-int memblock_remove_range(struct memblock_type *type,
-			  phys_addr_t base,
-			  phys_addr_t size);
-
 void __next_mem_range(u64 *idx, int nid, ulong flags,
 		      struct memblock_type *type_a,
 		      struct memblock_type *type_b, phys_addr_t *out_start,

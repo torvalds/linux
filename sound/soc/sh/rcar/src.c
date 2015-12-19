@@ -159,7 +159,7 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 	/*
 	 * SSI_MODE1
 	 */
-	if (rsnd_ssi_is_pin_sharing(ssi_mod)) {
+	if (rsnd_ssi_is_pin_sharing(io)) {
 		int shift = -1;
 		switch (ssi_id) {
 		case 1:
@@ -352,7 +352,7 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 
 	rsnd_src_soft_reset(mod);
 
@@ -373,7 +373,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	if (src->err)
 		dev_warn(dev, "%s[%d] under/over flow err = %d\n",
@@ -918,12 +918,12 @@ static void rsnd_src_reconvert_update(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, SRC_IFSVR, fsrate);
 }
 
-static int rsnd_src_pcm_new(struct rsnd_mod *mod,
+static int rsnd_src_pcm_new_gen2(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io,
 			    struct snd_soc_pcm_runtime *rtd)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	int ret;
 
@@ -932,15 +932,15 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 	 */
 
 	/*
-	 * Gen1 is not supported
-	 */
-	if (rsnd_is_gen1(priv))
-		return 0;
-
-	/*
 	 * SRC sync convert needs clock master
 	 */
 	if (!rsnd_rdai_is_clk_master(rdai))
+		return 0;
+
+	/*
+	 * SRC In doesn't work if DVC was enabled
+	 */
+	if (dvc && !rsnd_io_is_play(io))
 		return 0;
 
 	/*
@@ -975,7 +975,7 @@ static struct rsnd_mod_ops rsnd_src_gen2_ops = {
 	.start	= rsnd_src_start_gen2,
 	.stop	= rsnd_src_stop_gen2,
 	.hw_params = rsnd_src_hw_params,
-	.pcm_new = rsnd_src_pcm_new,
+	.pcm_new = rsnd_src_pcm_new_gen2,
 };
 
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
@@ -983,7 +983,7 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_src_nr(priv)))
 		id = 0;
 
-	return &((struct rsnd_src *)(priv->src) + id)->mod;
+	return rsnd_mod_get((struct rsnd_src *)(priv->src) + id);
 }
 
 static void rsnd_of_parse_src(struct platform_device *pdev,
@@ -1043,8 +1043,10 @@ int rsnd_src_probe(struct platform_device *pdev,
 	int i, nr, ret;
 
 	ops = NULL;
-	if (rsnd_is_gen1(priv))
+	if (rsnd_is_gen1(priv)) {
 		ops = &rsnd_src_gen1_ops;
+		dev_warn(dev, "Gen1 support will be removed soon\n");
+	}
 	if (rsnd_is_gen2(priv))
 		ops = &rsnd_src_gen2_ops;
 	if (!ops) {
@@ -1078,7 +1080,7 @@ int rsnd_src_probe(struct platform_device *pdev,
 
 		src->info = &info->src_info[i];
 
-		ret = rsnd_mod_init(priv, &src->mod, ops, clk, RSND_MOD_SRC, i);
+		ret = rsnd_mod_init(priv, rsnd_mod_get(src), ops, clk, RSND_MOD_SRC, i);
 		if (ret)
 			return ret;
 	}
@@ -1093,6 +1095,6 @@ void rsnd_src_remove(struct platform_device *pdev,
 	int i;
 
 	for_each_rsnd_src(src, priv, i) {
-		rsnd_mod_quit(&src->mod);
+		rsnd_mod_quit(rsnd_mod_get(src));
 	}
 }

@@ -118,7 +118,6 @@ static struct scsi_host_template fnic_host_template = {
 	.sg_tablesize = FNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0xffff,
 	.shost_attrs = fnic_attrs,
-	.use_blk_tags = 1,
 	.track_queue_depth = 1,
 };
 
@@ -696,13 +695,6 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					fnic->config.io_throttle_count));
 	}
 	fnic->fnic_max_tag_id = host->can_queue;
-
-	err = scsi_init_shared_tag_map(host, fnic->fnic_max_tag_id);
-	if (err) {
-		shost_printk(KERN_ERR, fnic->lport->host,
-			  "Unable to alloc shared tag map\n");
-		goto err_out_dev_close;
-	}
 
 	host->max_lun = fnic->config.luns_per_tgt;
 	host->max_id = FNIC_MAX_FCP_TARGET;

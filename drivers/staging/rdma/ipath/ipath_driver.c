@@ -33,7 +33,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
@@ -490,8 +489,7 @@ static int ipath_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				"Unable to set DMA mask for unit %u: %d\n",
 				dd->ipath_unit, ret);
 			goto bail_regions;
-		}
-		else {
+		} else {
 			ipath_dbg("No 64bit DMA mask, used 32 bit mask\n");
 			ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (ret)
@@ -501,8 +499,7 @@ static int ipath_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 					dd->ipath_unit, ret);
 
 		}
-	}
-	else {
+	} else {
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (ret)
 			dev_info(&pdev->dev,
@@ -1229,11 +1226,10 @@ reloop:
 			ipath_cdbg(PKT, "typ %x, opcode %x (eager, "
 				   "qp=%x), len %x; ignored\n",
 				   etype, opcode, qp, tlen);
-		}
-		else if (etype == RCVHQ_RCV_TYPE_EXPECTED)
+		} else if (etype == RCVHQ_RCV_TYPE_EXPECTED) {
 			ipath_dbg("Bug: Expected TID, opcode %x; ignored\n",
 				  be32_to_cpu(hdr->bth[0]) >> 24);
-		else {
+		} else {
 			/*
 			 * error packet, type of error unknown.
 			 * Probably type 3, but we don't know, so don't
@@ -1270,8 +1266,9 @@ reloop:
 				pd->port_seq_cnt = 1;
 			if (seq != pd->port_seq_cnt)
 				last = 1;
-		} else if (l == hdrqtail)
+		} else if (l == hdrqtail) {
 			last = 1;
+		}
 		/*
 		 * update head regs on last packet, and every 16 packets.
 		 * Reduce bus traffic, while still trying to prevent
@@ -1821,15 +1818,14 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 			   (unsigned long) pd->port_rcvhdrq_phys,
 			   (unsigned long) pd->port_rcvhdrq_size,
 			   pd->port_port);
-	}
-	else
+	} else {
 		ipath_cdbg(VERBOSE, "reuse port %d rcvhdrq @%p %llx phys; "
 			   "hdrtailaddr@%p %llx physical\n",
 			   pd->port_port, pd->port_rcvhdrq,
 			   (unsigned long long) pd->port_rcvhdrq_phys,
 			   pd->port_rcvhdrtail_kvaddr, (unsigned long long)
 			   pd->port_rcvhdrqtailaddr_phys);
-
+	}
 	/* clear for security and sanity on each use */
 	memset(pd->port_rcvhdrq, 0, pd->port_rcvhdrq_size);
 	if (pd->port_rcvhdrtail_kvaddr)
@@ -2310,10 +2306,9 @@ void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val)
 	 */
 	if (atomic_inc_return(&dd->ipath_led_override_timer_active) == 1) {
 		/* Need to start timer */
-		init_timer(&dd->ipath_led_override_timer);
-		dd->ipath_led_override_timer.function =
-						 ipath_run_led_override;
-		dd->ipath_led_override_timer.data = (unsigned long) dd;
+		setup_timer(&dd->ipath_led_override_timer,
+				ipath_run_led_override, (unsigned long)dd);
+
 		dd->ipath_led_override_timer.expires = jiffies + 1;
 		add_timer(&dd->ipath_led_override_timer);
 	} else

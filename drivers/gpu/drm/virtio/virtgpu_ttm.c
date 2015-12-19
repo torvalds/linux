@@ -32,6 +32,7 @@
 #include <ttm/ttm_module.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
+#include <drm/virtgpu_drm.h>
 #include "virtgpu_drv.h"
 
 #include <linux/delay.h>

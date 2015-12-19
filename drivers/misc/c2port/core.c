@@ -926,7 +926,7 @@ struct c2port_device *c2port_device_register(char *name,
 
 	c2dev->dev = device_create(c2port_class, NULL, 0, c2dev,
 				   "c2port%d", c2dev->id);
-	if (unlikely(IS_ERR(c2dev->dev))) {
+	if (IS_ERR(c2dev->dev)) {
 		ret = PTR_ERR(c2dev->dev);
 		goto error_device_create;
 	}

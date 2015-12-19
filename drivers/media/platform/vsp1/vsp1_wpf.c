@@ -201,9 +201,9 @@ static void wpf_vdev_queue(struct vsp1_video *video,
 	struct vsp1_rwpf *wpf = container_of(video, struct vsp1_rwpf, video);
 
 	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, buf->addr[0]);
-	if (buf->buf.num_planes > 1)
+	if (buf->buf.vb2_buf.num_planes > 1)
 		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0, buf->addr[1]);
-	if (buf->buf.num_planes > 2)
+	if (buf->buf.vb2_buf.num_planes > 2)
 		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1, buf->addr[2]);
 }
 

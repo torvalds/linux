@@ -122,11 +122,27 @@ struct bt_voice {
 __printf(1, 2)
 void bt_info(const char *fmt, ...);
 __printf(1, 2)
+void bt_warn(const char *fmt, ...);
+__printf(1, 2)
 void bt_err(const char *fmt, ...);
+__printf(1, 2)
+void bt_err_ratelimited(const char *fmt, ...);
 
 #define BT_INFO(fmt, ...)	bt_info(fmt "\n", ##__VA_ARGS__)
+#define BT_WARN(fmt, ...)	bt_warn(fmt "\n", ##__VA_ARGS__)
 #define BT_ERR(fmt, ...)	bt_err(fmt "\n", ##__VA_ARGS__)
 #define BT_DBG(fmt, ...)	pr_debug(fmt "\n", ##__VA_ARGS__)
+
+#define BT_ERR_RATELIMITED(fmt, ...) bt_err_ratelimited(fmt "\n", ##__VA_ARGS__)
+
+#define bt_dev_info(hdev, fmt, ...)				\
+	BT_INFO("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+#define bt_dev_warn(hdev, fmt, ...)				\
+	BT_WARN("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+#define bt_dev_err(hdev, fmt, ...)				\
+	BT_ERR("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+#define bt_dev_dbg(hdev, fmt, ...)				\
+	BT_DBG("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
 
 /* Connection and socket states */
 enum {
@@ -280,22 +296,22 @@ typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status, u16 opcode);
 typedef void (*hci_req_complete_skb_t)(struct hci_dev *hdev, u8 status,
 				       u16 opcode, struct sk_buff *skb);
 
-struct req_ctrl {
-	bool start;
-	u8 event;
-	hci_req_complete_t complete;
-	hci_req_complete_skb_t complete_skb;
+struct hci_ctrl {
+	__u16 opcode;
+	bool req_start;
+	u8 req_event;
+	hci_req_complete_t req_complete;
+	hci_req_complete_skb_t req_complete_skb;
 };
 
 struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 force_active;
-	__u16 opcode;
 	__u16 expect;
 	__u8 incoming:1;
 	union {
 		struct l2cap_ctrl l2cap;
-		struct req_ctrl req;
+		struct hci_ctrl hci;
 	};
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))

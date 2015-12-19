@@ -24,6 +24,8 @@
 struct st_nci_nfc_platform_data {
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
+	bool is_ese_present;
+	bool is_uicc_present;
 };
 
 #endif /* _ST_NCI_H_ */

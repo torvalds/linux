@@ -65,8 +65,7 @@ struct dm_io_client *dm_io_client_create(void)
 	return client;
 
    bad:
-	if (client->pool)
-		mempool_destroy(client->pool);
+	mempool_destroy(client->pool);
 	kfree(client);
 	return ERR_PTR(-ENOMEM);
 }

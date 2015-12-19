@@ -43,71 +43,7 @@
 		pinctrl-0 = <&emmc_nrst_pin>;
 		pinctrl-names = "default";
 		compatible = "mmc-pwrseq-emmc";
-		reset-gpios = <&gpd1 0 1>;
-	};
-
-	pwmleds {
-		compatible = "pwm-leds";
-
-		greenled {
-			label = "green:mmc0";
-			pwms = <&pwm 1 2000000 0>;
-			pwm-names = "pwm1";
-			/*
-			 * Green LED is much brighter than the others
-			 * so limit its max brightness
-			 */
-			max_brightness = <127>;
-			linux,default-trigger = "mmc0";
-		};
-
-		blueled {
-			label = "blue:heartbeat";
-			pwms = <&pwm 2 2000000 0>;
-			pwm-names = "pwm2";
-			max_brightness = <255>;
-			linux,default-trigger = "heartbeat";
-		};
-	};
-
-	gpioleds {
-		compatible = "gpio-leds";
-		redled {
-			label = "red:microSD";
-			gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-			linux,default-trigger = "mmc1";
-		};
-	};
-
-	sound: sound {
-		compatible = "simple-audio-card";
-
-		simple-audio-card,name = "Odroid-XU3";
-		simple-audio-card,widgets =
-			"Headphone", "Headphone Jack",
-			"Speakers", "Speakers";
-		simple-audio-card,routing =
-			"Headphone Jack", "HPL",
-			"Headphone Jack", "HPR",
-			"Headphone Jack", "MICBIAS",
-			"IN1", "Headphone Jack",
-			"Speakers", "SPKL",
-			"Speakers", "SPKR";
-
-		simple-audio-card,format = "i2s";
-		simple-audio-card,bitclock-master = <&link0_codec>;
-		simple-audio-card,frame-master = <&link0_codec>;
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s0 0>;
-			system-clock-frequency = <19200000>;
-		};
-
-		link0_codec: simple-audio-card,codec {
-			sound-dai = <&max98090>;
-			clocks = <&i2s0 CLK_I2S_CDCLK>;
-		};
+		reset-gpios = <&gpd1 0 GPIO_ACTIVE_LOW>;
 	};
 
 	fan0: pwm-fan {
@@ -138,7 +74,7 @@
 
 &hdmi {
 	status = "okay";
-	hpd-gpio = <&gpx3 7 0>;
+	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
 
@@ -160,6 +96,7 @@
 		s2mps11,buck2-ramp-enable = <1>;
 		s2mps11,buck3-ramp-enable = <1>;
 		s2mps11,buck4-ramp-enable = <1>;
+		samsung,s2mps11-acokb-ground;
 
 		interrupt-parent = <&gpx0>;
 		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
@@ -375,19 +312,6 @@
 	};
 };
 
-&hsi2c_5 {
-	status = "okay";
-	max98090: max98090@10 {
-		compatible = "maxim,max98090";
-		reg = <0x10>;
-		interrupt-parent = <&gpx3>;
-		interrupts = <2 0>;
-		clocks = <&i2s0 CLK_I2S_CDCLK>;
-		clock-names = "mclk";
-		#sound-dai-cells = <0>;
-	};
-};
-
 &i2c_2 {
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
@@ -397,10 +321,6 @@
 		compatible = "samsung,exynos4210-hdmiddc";
 		reg = <0x50>;
 	};
-};
-
-&i2s0 {
-	status = "okay";
 };
 
 &mfc {
@@ -463,18 +383,6 @@
 	};
 };
 
-&pwm {
-	/*
-	 * PWM 0 -- fan
-	 * PWM 1 -- Green LED
-	 * PWM 2 -- Blue LED
-	 * PWM 3 -- on MIPI connector for backlight
-	 */
-	pinctrl-0 = <&pwm0_out &pwm1_out &pwm2_out &pwm3_out>;
-	pinctrl-names = "default";
-	status = "okay";
-};
-
 &tmu_cpu0 {
 	vtmu-supply = <&ldo7_reg>;
 	status = "okay";
@@ -510,9 +418,7 @@
 	dr_mode = "host";
 };
 
-&usbdrd_dwc3_1 {
-	dr_mode = "otg";
-};
+/* usbdrd_dwc3_1 mode customized in each board */
 
 &usbdrd3_0 {
 	vdd33-supply = <&ldo9_reg>;

@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -306,13 +308,51 @@ static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 	return radar_detect;
 }
 
+static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif,
+					   struct iwl_mac_power_cmd *cmd,
+					   bool host_awake)
+{
+	int dtimper = vif->bss_conf.dtim_period ?: 1;
+	int skip;
+
+	/* disable, in case we're supposed to override */
+	cmd->skip_dtim_periods = 0;
+	cmd->flags &= ~cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+
+	if (iwl_mvm_power_is_radar(vif))
+		return;
+
+	if (dtimper >= 10)
+		return;
+
+	/* TODO: check that multicast wake lock is off */
+
+	if (host_awake) {
+		if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_LP)
+			return;
+		skip = 2;
+	} else {
+		int dtimper_tu = dtimper * vif->bss_conf.beacon_int;
+
+		if (WARN_ON(!dtimper_tu))
+			return;
+		/* configure skip over dtim up to 306TU - 314 msec */
+		skip = max_t(u8, 1, 306 / dtimper_tu);
+	}
+
+	/* the firmware really expects "look at every X DTIMs", so add 1 */
+	cmd->skip_dtim_periods = 1 + skip;
+	cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+}
+
 static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
-				    struct iwl_mac_power_cmd *cmd)
+				    struct iwl_mac_power_cmd *cmd,
+				    bool host_awake)
 {
 	int dtimper, bi;
 	int keep_alive;
-	bool radar_detect = false;
 	struct iwl_mvm_vif *mvmvif __maybe_unused =
 		iwl_mvm_vif_from_mac80211(vif);
 
@@ -337,8 +377,13 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
-	if (!vif->bss_conf.ps || !mvmvif->pm_enabled ||
-	    (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p))
+	if (!vif->bss_conf.ps || !mvmvif->pm_enabled)
+		return;
+
+	if (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p &&
+	    (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS) ||
+	     !IWL_MVM_P2P_LOWLATENCY_PS_ENABLE))
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
@@ -350,27 +395,25 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 		cmd->lprx_rssi_threshold = POWER_LPRX_RSSI_THRESHOLD;
 	}
 
-	/* Check if radar detection is required on current channel */
-	radar_detect = iwl_mvm_power_is_radar(vif);
+	iwl_mvm_power_config_skip_dtim(mvm, vif, cmd, host_awake);
 
-	/* Check skip over DTIM conditions */
-	if (!radar_detect && (dtimper < 10) &&
-	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP ||
-	     mvm->cur_ucode == IWL_UCODE_WOWLAN)) {
-		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
-		cmd->skip_dtim_periods = 3;
-	}
-
-	if (mvm->cur_ucode != IWL_UCODE_WOWLAN) {
-		cmd->rx_data_timeout =
-			cpu_to_le32(IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT);
-		cmd->tx_data_timeout =
-			cpu_to_le32(IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT);
-	} else {
+	if (!host_awake) {
 		cmd->rx_data_timeout =
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
 		cmd->tx_data_timeout =
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT);
+	} else if (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p &&
+		   fw_has_capa(&mvm->fw->ucode_capa,
+			       IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS)) {
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MVM_SHORT_PS_TX_DATA_TIMEOUT);
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MVM_SHORT_PS_RX_DATA_TIMEOUT);
+	} else {
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT);
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT);
 	}
 
 	if (iwl_mvm_power_allow_uapsd(mvm, vif))
@@ -427,7 +470,8 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 {
 	struct iwl_mac_power_cmd cmd = {};
 
-	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
+	iwl_mvm_power_build_cmd(mvm, vif, &cmd,
+				mvm->cur_ucode != IWL_UCODE_WOWLAN);
 	iwl_mvm_power_log(mvm, &cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	memcpy(&iwl_mvm_vif_from_mac80211(vif)->mac_pwr_cmd, &cmd, sizeof(cmd));
@@ -440,14 +484,14 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 {
 	struct iwl_device_power_cmd cmd = {
-		.flags = cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK),
+		.flags = 0,
 	};
 
 	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM)
 		mvm->ps_disabled = true;
 
-	if (mvm->ps_disabled)
-		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_CAM_MSK);
+	if (!mvm->ps_disabled)
+		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if ((mvm->cur_ucode == IWL_UCODE_WOWLAN) ? mvm->disable_power_off_d3 :
@@ -963,25 +1007,8 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 	if (!vif->bss_conf.assoc)
 		return 0;
 
-	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
-	if (enable) {
-		/* configure skip over dtim up to 306TU - 314 msec */
-		int dtimper = vif->bss_conf.dtim_period ?: 1;
-		int dtimper_tu = dtimper * vif->bss_conf.beacon_int;
-		bool radar_detect = iwl_mvm_power_is_radar(vif);
+	iwl_mvm_power_build_cmd(mvm, vif, &cmd, !enable);
 
-		if (WARN_ON(!dtimper_tu))
-			return 0;
-
-		/* Check skip over DTIM conditions */
-		/* TODO: check that multicast wake lock is off */
-		if (!radar_detect && (dtimper < 10)) {
-			cmd.skip_dtim_periods = 306 / dtimper_tu;
-			if (cmd.skip_dtim_periods)
-				cmd.flags |= cpu_to_le16(
-					POWER_FLAGS_SKIP_OVER_DTIM_MSK);
-		}
-	}
 	iwl_mvm_power_log(mvm, &cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	memcpy(&mvmvif->mac_pwr_cmd, &cmd, sizeof(cmd));

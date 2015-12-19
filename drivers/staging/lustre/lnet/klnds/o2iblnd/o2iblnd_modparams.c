@@ -135,7 +135,6 @@ static int dev_failover;
 module_param(dev_failover, int, 0444);
 MODULE_PARM_DESC(dev_failover, "HCA failover for bonding (0 off, 1 on, other values reserved)");
 
-
 static int require_privileged_port;
 module_param(require_privileged_port, int, 0644);
 MODULE_PARM_DESC(require_privileged_port, "require privileged port when accepting connection");

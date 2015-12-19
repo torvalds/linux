@@ -2907,7 +2907,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 
 	if (err) {
 		d40_err(base->dev,
-			"Failed to regsiter memcpy only channels\n");
+			"Failed to register memcpy only channels\n");
 		goto failure2;
 	}
 

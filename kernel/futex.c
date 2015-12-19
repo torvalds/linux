@@ -276,10 +276,10 @@ static struct {
 static struct {
 	struct fault_attr attr;
 
-	u32 ignore_private;
+	bool ignore_private;
 } fail_futex = {
 	.attr = FAULT_ATTR_INITIALIZER,
-	.ignore_private = 0,
+	.ignore_private = false,
 };
 
 static int __init setup_fail_futex(char *str)

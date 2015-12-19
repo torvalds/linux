@@ -224,7 +224,7 @@ static int ade7759_reset(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	val |= 1 << 6; /* Software Chip Reset */
+	val |= BIT(6); /* Software Chip Reset */
 	return ade7759_spi_write_reg_16(dev,
 			ADE7759_MODE,
 			val);
@@ -288,10 +288,10 @@ static int ade7759_set_irq(struct device *dev, bool enable)
 		goto error_ret;
 
 	if (enable)
-		irqen |= 1 << 3; /* Enables an interrupt when a data is
+		irqen |= BIT(3); /* Enables an interrupt when a data is
 				    present in the waveform register */
 	else
-		irqen &= ~(1 << 3);
+		irqen &= ~BIT(3);
 
 	ret = ade7759_spi_write_reg_8(dev, ADE7759_IRQEN, irqen);
 
@@ -314,7 +314,7 @@ static int ade7759_stop_device(struct device *dev)
 		return ret;
 	}
 
-	val |= 1 << 4;  /* AD converters can be turned off */
+	val |= BIT(4);  /* AD converters can be turned off */
 
 	return ade7759_spi_write_reg_16(dev, ADE7759_MODE, val);
 }
@@ -377,7 +377,7 @@ static ssize_t ade7759_write_frequency(struct device *dev,
 	ret = kstrtou16(buf, 10, &val);
 	if (ret)
 		return ret;
-	if (val == 0)
+	if (!val)
 		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
@@ -490,7 +490,6 @@ static int ade7759_remove(struct spi_device *spi)
 static struct spi_driver ade7759_driver = {
 	.driver = {
 		.name = "ade7759",
-		.owner = THIS_MODULE,
 	},
 	.probe = ade7759_probe,
 	.remove = ade7759_remove,

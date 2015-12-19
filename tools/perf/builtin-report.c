@@ -44,7 +44,7 @@
 struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
-	bool			force, use_tui, use_gtk, use_stdio;
+	bool			use_tui, use_gtk, use_stdio;
 	bool			hide_unresolved;
 	bool			dont_use_callchains;
 	bool			show_full_info;
@@ -678,7 +678,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
-	OPT_BOOLEAN('f', "force", &report.force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
@@ -832,7 +832,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	file.path  = input_name;
-	file.force = report.force;
+	file.force = symbol_conf.force;
 
 repeat:
 	session = perf_session__new(&file, false, &report.tool);

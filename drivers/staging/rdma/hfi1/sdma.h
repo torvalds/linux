@@ -352,6 +352,8 @@ struct sdma_txreq {
 	/* private: */
 	void *coalesce_buf;
 	/* private: */
+	u16 coalesce_idx;
+	/* private: */
 	struct iowait *wait;
 	/* private: */
 	callback_t                  complete;
@@ -735,7 +737,9 @@ static inline void make_tx_sdma_desc(
 }
 
 /* helper to extend txreq */
-int _extend_sdma_tx_descs(struct hfi1_devdata *, struct sdma_txreq *);
+int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
+			   int type, void *kvaddr, struct page *page,
+			   unsigned long offset, u16 len);
 int _pad_sdma_tx_descs(struct hfi1_devdata *, struct sdma_txreq *);
 void sdma_txclean(struct hfi1_devdata *, struct sdma_txreq *);
 
@@ -762,11 +766,6 @@ static inline int _sdma_txadd_daddr(
 {
 	int rval = 0;
 
-	if ((unlikely(tx->num_desc == tx->desc_limit))) {
-		rval = _extend_sdma_tx_descs(dd, tx);
-		if (rval)
-			return rval;
-	}
 	make_tx_sdma_desc(
 		tx,
 		type,
@@ -798,9 +797,7 @@ static inline int _sdma_txadd_daddr(
  *
  * Return:
  * 0 - success, -ENOSPC - mapping fail, -ENOMEM - couldn't
- * extend descriptor array or couldn't allocate coalesce
- * buffer.
- *
+ * extend/coalesce descriptor array
  */
 static inline int sdma_txadd_page(
 	struct hfi1_devdata *dd,
@@ -809,17 +806,28 @@ static inline int sdma_txadd_page(
 	unsigned long offset,
 	u16 len)
 {
-	dma_addr_t addr =
-		dma_map_page(
-			&dd->pcidev->dev,
-			page,
-			offset,
-			len,
-			DMA_TO_DEVICE);
+	dma_addr_t addr;
+	int rval;
+
+	if ((unlikely(tx->num_desc == tx->desc_limit))) {
+		rval = ext_coal_sdma_tx_descs(dd, tx, SDMA_MAP_PAGE,
+					      NULL, page, offset, len);
+		if (rval <= 0)
+			return rval;
+	}
+
+	addr = dma_map_page(
+		       &dd->pcidev->dev,
+		       page,
+		       offset,
+		       len,
+		       DMA_TO_DEVICE);
+
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
 		sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
+
 	return _sdma_txadd_daddr(
 			dd, SDMA_MAP_PAGE, tx, addr, len);
 }
@@ -846,6 +854,15 @@ static inline int sdma_txadd_daddr(
 	dma_addr_t addr,
 	u16 len)
 {
+	int rval;
+
+	if ((unlikely(tx->num_desc == tx->desc_limit))) {
+		rval = ext_coal_sdma_tx_descs(dd, tx, SDMA_MAP_NONE,
+					      NULL, NULL, 0, 0);
+		if (rval <= 0)
+			return rval;
+	}
+
 	return _sdma_txadd_daddr(dd, SDMA_MAP_NONE, tx, addr, len);
 }
 
@@ -862,7 +879,7 @@ static inline int sdma_txadd_daddr(
  * The mapping/unmapping of the kvaddr and len is automatically handled.
  *
  * Return:
- * 0 - success, -ENOSPC - mapping fail, -ENOMEM - couldn't extend
+ * 0 - success, -ENOSPC - mapping fail, -ENOMEM - couldn't extend/coalesce
  * descriptor array
  */
 static inline int sdma_txadd_kvaddr(
@@ -871,16 +888,27 @@ static inline int sdma_txadd_kvaddr(
 	void *kvaddr,
 	u16 len)
 {
-	dma_addr_t addr =
-		dma_map_single(
-			&dd->pcidev->dev,
-			kvaddr,
-			len,
-			DMA_TO_DEVICE);
+	dma_addr_t addr;
+	int rval;
+
+	if ((unlikely(tx->num_desc == tx->desc_limit))) {
+		rval = ext_coal_sdma_tx_descs(dd, tx, SDMA_MAP_SINGLE,
+					      kvaddr, NULL, 0, len);
+		if (rval <= 0)
+			return rval;
+	}
+
+	addr = dma_map_single(
+		       &dd->pcidev->dev,
+		       kvaddr,
+		       len,
+		       DMA_TO_DEVICE);
+
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
 		sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
+
 	return _sdma_txadd_daddr(
 			dd, SDMA_MAP_SINGLE, tx, addr, len);
 }

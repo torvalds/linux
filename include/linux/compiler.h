@@ -56,7 +56,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 #include <linux/compiler-gcc.h>
 #endif
 
-#ifdef CC_USING_HOTPATCH
+#if defined(CC_USING_HOTPATCH) && !defined(__CHECKER__)
 #define notrace __attribute__((hotpatch(0,0)))
 #else
 #define notrace __attribute__((no_instrument_function))
@@ -416,6 +416,14 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #ifndef __visible
 #define __visible
 #endif
+
+/*
+ * Assume alignment of return value.
+ */
+#ifndef __assume_aligned
+#define __assume_aligned(a, ...)
+#endif
+
 
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #ifndef __same_type

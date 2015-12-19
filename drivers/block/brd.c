@@ -323,7 +323,7 @@ out:
 	return err;
 }
 
-static void brd_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 	struct brd_device *brd = bdev->bd_disk->private_data;
@@ -337,6 +337,9 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
 		goto io_error;
 
 	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+		if (sector & ((PAGE_SIZE >> SECTOR_SHIFT) - 1) ||
+		    bio->bi_iter.bi_size & PAGE_MASK)
+			goto io_error;
 		discard_from_brd(brd, sector, bio->bi_iter.bi_size);
 		goto out;
 	}
@@ -358,9 +361,10 @@ static void brd_make_request(struct request_queue *q, struct bio *bio)
 
 out:
 	bio_endio(bio);
-	return;
+	return BLK_QC_T_NONE;
 io_error:
 	bio_io_error(bio);
+	return BLK_QC_T_NONE;
 }
 
 static int brd_rw_page(struct block_device *bdev, sector_t sector,

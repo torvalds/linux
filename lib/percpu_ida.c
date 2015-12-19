@@ -135,7 +135,7 @@ static inline unsigned alloc_local_tag(struct percpu_ida_cpu *tags)
  * TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE, of course).
  *
  * @gfp indicates whether or not to wait until a free id is available (it's not
- * used for internal memory allocations); thus if passed __GFP_WAIT we may sleep
+ * used for internal memory allocations); thus if passed __GFP_RECLAIM we may sleep
  * however long it takes until another thread frees an id (same semantics as a
  * mempool).
  *

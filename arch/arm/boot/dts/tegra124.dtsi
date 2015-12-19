@@ -610,26 +610,20 @@
 
 	sata@0,70020000 {
 		compatible = "nvidia,tegra124-ahci";
-
 		reg = <0x0 0x70027000 0x0 0x2000>, /* AHCI */
-			<0x0 0x70020000 0x0 0x7000>; /* SATA */
-
+		      <0x0 0x70020000 0x0 0x7000>; /* SATA */
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-
 		clocks = <&tegra_car TEGRA124_CLK_SATA>,
-			<&tegra_car TEGRA124_CLK_SATA_OOB>,
-			<&tegra_car TEGRA124_CLK_CML1>,
-			<&tegra_car TEGRA124_CLK_PLL_E>;
+			 <&tegra_car TEGRA124_CLK_SATA_OOB>,
+			 <&tegra_car TEGRA124_CLK_CML1>,
+			 <&tegra_car TEGRA124_CLK_PLL_E>;
 		clock-names = "sata", "sata-oob", "cml1", "pll_e";
-
 		resets = <&tegra_car 124>,
-			<&tegra_car 123>,
-			<&tegra_car 129>;
+			 <&tegra_car 123>,
+			 <&tegra_car 129>;
 		reset-names = "sata", "sata-oob", "sata-cold";
-
 		phys = <&padctl TEGRA_XUSB_PADCTL_SATA>;
 		phy-names = "sata-phy";
-
 		status = "disabled";
 	};
 
@@ -638,7 +632,7 @@
 		reg = <0x0 0x70030000 0x0 0x10000>;
 		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_HDA>,
-		         <&tegra_car TEGRA124_CLK_HDA2HDMI>,
+			 <&tegra_car TEGRA124_CLK_HDA2HDMI>,
 			 <&tegra_car TEGRA124_CLK_HDA2CODEC_2X>;
 		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
 		resets = <&tegra_car 125>, /* hda */

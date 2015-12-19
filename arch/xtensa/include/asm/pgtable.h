@@ -18,7 +18,11 @@
  * We only use two ring levels, user and kernel space.
  */
 
+#ifdef CONFIG_MMU
 #define USER_RING		1	/* user ring level */
+#else
+#define USER_RING		0
+#endif
 #define KERNEL_RING		0	/* kernel ring level */
 
 /*

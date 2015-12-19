@@ -1339,7 +1339,6 @@ static int da7210_spi_remove(struct spi_device *spi)
 static struct spi_driver da7210_spi_driver = {
 	.driver = {
 		.name = "da7210",
-		.owner = THIS_MODULE,
 	},
 	.probe = da7210_spi_probe,
 	.remove = da7210_spi_remove

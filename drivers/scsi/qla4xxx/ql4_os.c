@@ -212,7 +212,6 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.shost_attrs		= qla4xxx_host_attrs,
 	.host_reset		= qla4xxx_host_reset,
 	.vendor_id		= SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_QLOGIC,
-	.use_blk_tags		= 1,
 };
 
 static struct iscsi_transport qla4xxx_iscsi_transport = {
@@ -8696,13 +8695,6 @@ static int qla4xxx_probe_adapter(struct pci_dev *pdev,
 	host->max_cmd_len = IOCB_MAX_CDB_LEN;
 	host->can_queue = MAX_SRBS ;
 	host->transportt = qla4xxx_scsi_transport;
-
-	ret = scsi_init_shared_tag_map(host, MAX_SRBS);
-	if (ret) {
-		ql4_printk(KERN_WARNING, ha,
-			   "%s: scsi_init_shared_tag_map failed\n", __func__);
-		goto probe_failed;
-	}
 
 	pci_set_drvdata(pdev, ha);
 

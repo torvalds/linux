@@ -255,5 +255,6 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev);
 /* sysfs stuff */
 extern struct attribute_group cros_ec_attr_group;
 extern struct attribute_group cros_ec_lightbar_attr_group;
+extern struct attribute_group cros_ec_vbc_attr_group;
 
 #endif /* __LINUX_MFD_CROS_EC_H */

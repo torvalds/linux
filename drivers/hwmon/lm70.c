@@ -199,7 +199,6 @@ MODULE_DEVICE_TABLE(spi, lm70_ids);
 static struct spi_driver lm70_driver = {
 	.driver = {
 		.name	= "lm70",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(lm70_of_ids),
 	},
 	.id_table = lm70_ids,

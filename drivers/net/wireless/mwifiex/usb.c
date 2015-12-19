@@ -42,11 +42,6 @@ static struct usb_device_id mwifiex_usb_table[] = {
 	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8801_PID_2,
 				       USB_CLASS_VENDOR_SPEC,
 				       USB_SUBCLASS_VENDOR_SPEC, 0xff)},
-	/* 8897 */
-	{USB_DEVICE(USB8XXX_VID, USB8897_PID_1)},
-	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8897_PID_2,
-				       USB_CLASS_VENDOR_SPEC,
-				       USB_SUBCLASS_VENDOR_SPEC, 0xff)},
 	/* 8997 */
 	{USB_DEVICE(USB8XXX_VID, USB8997_PID_1)},
 	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8997_PID_2,
@@ -264,6 +259,8 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 	struct urb_context *context = (struct urb_context *)(urb->context);
 	struct mwifiex_adapter *adapter = context->adapter;
 	struct usb_card_rec *card = adapter->card;
+	struct usb_tx_data_port *port;
+	int i;
 
 	mwifiex_dbg(adapter, INFO,
 		    "%s: status: %d\n", __func__, urb->status);
@@ -276,10 +273,21 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 	} else {
 		mwifiex_dbg(adapter, DATA,
 			    "%s: DATA\n", __func__);
-		atomic_dec(&card->tx_data_urb_pending);
+		for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+			port = &card->port[i];
+			if (context->ep == port->tx_data_ep) {
+				atomic_dec(&port->tx_data_urb_pending);
+				port->block_status = false;
+				break;
+			}
+		}
+		adapter->data_sent = false;
 		mwifiex_write_data_complete(adapter, context->skb, 0,
 					    urb->status ? -1 : 0);
 	}
+
+	if (card->mc_resync_flag)
+		mwifiex_multi_chan_resync(adapter);
 
 	mwifiex_queue_main_work(adapter);
 
@@ -327,7 +335,8 @@ static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size)
 
 static void mwifiex_usb_free(struct usb_card_rec *card)
 {
-	int i;
+	struct usb_tx_data_port *port;
+	int i, j;
 
 	if (atomic_read(&card->rx_cmd_urb_pending) && card->rx_cmd.urb)
 		usb_kill_urb(card->rx_cmd.urb);
@@ -345,9 +354,12 @@ static void mwifiex_usb_free(struct usb_card_rec *card)
 		card->rx_data_list[i].urb = NULL;
 	}
 
-	for (i = 0; i < MWIFIEX_TX_DATA_URB; i++) {
-		usb_free_urb(card->tx_data_list[i].urb);
-		card->tx_data_list[i].urb = NULL;
+	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+		port = &card->port[i];
+		for (j = 0; j < MWIFIEX_TX_DATA_URB; j++) {
+			usb_free_urb(port->tx_data_list[j].urb);
+			port->tx_data_list[j].urb = NULL;
+		}
 	}
 
 	usb_free_urb(card->tx_cmd.urb);
@@ -386,14 +398,12 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	case USB8766_PID_1:
 	case USB8797_PID_1:
 	case USB8801_PID_1:
-	case USB8897_PID_1:
 	case USB8997_PID_1:
 		card->usb_boot_state = USB8XXX_FW_DNLD;
 		break;
 	case USB8766_PID_2:
 	case USB8797_PID_2:
 	case USB8801_PID_2:
-	case USB8897_PID_2:
 	case USB8997_PID_2:
 		card->usb_boot_state = USB8XXX_FW_READY;
 		break;
@@ -437,8 +447,18 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 			pr_debug("info: bulk OUT: max pkt size: %d, addr: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
 				 epd->bEndpointAddress);
-			card->tx_data_ep = usb_endpoint_num(epd);
-			atomic_set(&card->tx_data_urb_pending, 0);
+			card->port[0].tx_data_ep = usb_endpoint_num(epd);
+			atomic_set(&card->port[0].tx_data_urb_pending, 0);
+		}
+		if (usb_endpoint_dir_out(epd) &&
+		    usb_endpoint_num(epd) == MWIFIEX_USB_EP_DATA_CH2 &&
+		    usb_endpoint_xfer_bulk(epd)) {
+			pr_debug("info: bulk OUT chan2:\t"
+				 "max pkt size: %d, addr: %d\n",
+				 le16_to_cpu(epd->wMaxPacketSize),
+				 epd->bEndpointAddress);
+			card->port[1].tx_data_ep = usb_endpoint_num(epd);
+			atomic_set(&card->port[1].tx_data_urb_pending, 0);
 		}
 		if (usb_endpoint_dir_out(epd) &&
 		    usb_endpoint_num(epd) == MWIFIEX_USB_EP_CMD_EVENT &&
@@ -480,7 +500,8 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usb_card_rec *card = usb_get_intfdata(intf);
 	struct mwifiex_adapter *adapter;
-	int i;
+	struct usb_tx_data_port *port;
+	int i, j;
 
 	if (!card || !card->adapter) {
 		pr_err("%s: card or card->adapter is NULL\n", __func__);
@@ -511,9 +532,13 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 			if (card->rx_data_list[i].urb)
 				usb_kill_urb(card->rx_data_list[i].urb);
 
-	for (i = 0; i < MWIFIEX_TX_DATA_URB; i++)
-		if (card->tx_data_list[i].urb)
-			usb_kill_urb(card->tx_data_list[i].urb);
+	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+		port = &card->port[i];
+		for (j = 0; j < MWIFIEX_TX_DATA_URB; j++) {
+			if (port->tx_data_list[j].urb)
+				usb_kill_urb(port->tx_data_list[j].urb);
+		}
+	}
 
 	if (card->tx_cmd.urb)
 		usb_kill_urb(card->tx_cmd.urb);
@@ -625,7 +650,8 @@ static struct usb_driver mwifiex_usb_driver = {
 static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 {
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
-	int i;
+	struct usb_tx_data_port *port;
+	int i, j;
 
 	card->tx_cmd.adapter = adapter;
 	card->tx_cmd.ep = card->tx_cmd_ep;
@@ -637,17 +663,25 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	card->tx_data_ix = 0;
-
-	for (i = 0; i < MWIFIEX_TX_DATA_URB; i++) {
-		card->tx_data_list[i].adapter = adapter;
-		card->tx_data_list[i].ep = card->tx_data_ep;
-
-		card->tx_data_list[i].urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!card->tx_data_list[i].urb) {
-			mwifiex_dbg(adapter, ERROR,
-				    "tx_data_list[] urb allocation failed\n");
-			return -ENOMEM;
+	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+		port = &card->port[i];
+		if (!port->tx_data_ep)
+			continue;
+		port->tx_data_ix = 0;
+		if (port->tx_data_ep == MWIFIEX_USB_EP_DATA)
+			port->block_status = false;
+		else
+			port->block_status = true;
+		for (j = 0; j < MWIFIEX_TX_DATA_URB; j++) {
+			port->tx_data_list[j].adapter = adapter;
+			port->tx_data_list[j].ep = port->tx_data_ep;
+			port->tx_data_list[j].urb =
+					usb_alloc_urb(0, GFP_KERNEL);
+			if (!port->tx_data_list[j].urb) {
+				mwifiex_dbg(adapter, ERROR,
+					    "urb allocation failed\n");
+				return -ENOMEM;
+			}
 		}
 	}
 
@@ -736,15 +770,89 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 	return ret;
 }
 
+static void mwifiex_usb_port_resync(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = adapter->card;
+	u8 active_port = MWIFIEX_USB_EP_DATA;
+	struct mwifiex_private *priv = NULL;
+	int i;
+
+	if (adapter->usb_mc_status) {
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (!priv)
+				continue;
+			if ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP &&
+			     !priv->bss_started) ||
+			    (priv->bss_role == MWIFIEX_BSS_ROLE_STA &&
+			     !priv->media_connected))
+				priv->usb_port = MWIFIEX_USB_EP_DATA;
+		}
+		for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++)
+			card->port[i].block_status = false;
+	} else {
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (!priv)
+				continue;
+			if ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP &&
+			     priv->bss_started) ||
+			    (priv->bss_role == MWIFIEX_BSS_ROLE_STA &&
+			     priv->media_connected)) {
+				active_port = priv->usb_port;
+				break;
+			}
+		}
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (priv)
+				priv->usb_port = active_port;
+		}
+		for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+			if (active_port == card->port[i].tx_data_ep)
+				card->port[i].block_status = false;
+			else
+				card->port[i].block_status = true;
+		}
+	}
+}
+
+static bool mwifiex_usb_is_port_ready(struct mwifiex_private *priv)
+{
+	struct usb_card_rec *card = priv->adapter->card;
+	int idx;
+
+	for (idx = 0; idx < MWIFIEX_TX_DATA_PORT; idx++) {
+		if (priv->usb_port == card->port[idx].tx_data_ep)
+			return !card->port[idx].block_status;
+	}
+
+	return false;
+}
+
+static inline u8 mwifiex_usb_data_sent(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = adapter->card;
+	int i;
+
+	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++)
+		if (!card->port[i].block_status)
+			return false;
+
+	return true;
+}
+
 /* This function write a command/data packet to card. */
 static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 				    struct sk_buff *skb,
 				    struct mwifiex_tx_param *tx_param)
 {
 	struct usb_card_rec *card = adapter->card;
-	struct urb_context *context;
+	struct urb_context *context = NULL;
+	struct usb_tx_data_port *port = NULL;
 	u8 *data = (u8 *)skb->data;
 	struct urb *tx_urb;
+	int idx, ret;
 
 	if (adapter->is_suspended) {
 		mwifiex_dbg(adapter, ERROR,
@@ -757,19 +865,31 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		return -1;
 	}
 
-	if (ep == card->tx_data_ep &&
-	    atomic_read(&card->tx_data_urb_pending) >= MWIFIEX_TX_DATA_URB) {
-		return -EBUSY;
-	}
-
 	mwifiex_dbg(adapter, INFO, "%s: ep=%d\n", __func__, ep);
 
 	if (ep == card->tx_cmd_ep) {
 		context = &card->tx_cmd;
 	} else {
-		if (card->tx_data_ix >= MWIFIEX_TX_DATA_URB)
-			card->tx_data_ix = 0;
-		context = &card->tx_data_list[card->tx_data_ix++];
+		for (idx = 0; idx < MWIFIEX_TX_DATA_PORT; idx++) {
+			if (ep == card->port[idx].tx_data_ep) {
+				port = &card->port[idx];
+				if (atomic_read(&port->tx_data_urb_pending)
+				    >= MWIFIEX_TX_DATA_URB) {
+					port->block_status = true;
+					ret = -EBUSY;
+					goto done;
+				}
+				if (port->tx_data_ix >= MWIFIEX_TX_DATA_URB)
+					port->tx_data_ix = 0;
+				context =
+					&port->tx_data_list[port->tx_data_ix++];
+				break;
+			}
+		}
+		if (!port) {
+			mwifiex_dbg(adapter, ERROR, "Wrong usb tx data port\n");
+			return -1;
+		}
 	}
 
 	context->adapter = adapter;
@@ -786,7 +906,7 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	if (ep == card->tx_cmd_ep)
 		atomic_inc(&card->tx_cmd_urb_pending);
 	else
-		atomic_inc(&card->tx_data_urb_pending);
+		atomic_inc(&port->tx_data_urb_pending);
 
 	if (usb_submit_urb(tx_urb, GFP_ATOMIC)) {
 		mwifiex_dbg(adapter, ERROR,
@@ -794,22 +914,32 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		if (ep == card->tx_cmd_ep) {
 			atomic_dec(&card->tx_cmd_urb_pending);
 		} else {
-			atomic_dec(&card->tx_data_urb_pending);
-			if (card->tx_data_ix)
-				card->tx_data_ix--;
+			atomic_dec(&port->tx_data_urb_pending);
+			port->block_status = false;
+			if (port->tx_data_ix)
+				port->tx_data_ix--;
 			else
-				card->tx_data_ix = MWIFIEX_TX_DATA_URB;
+				port->tx_data_ix = MWIFIEX_TX_DATA_URB;
 		}
 
 		return -1;
 	} else {
-		if (ep == card->tx_data_ep &&
-		    atomic_read(&card->tx_data_urb_pending) ==
-							MWIFIEX_TX_DATA_URB)
-			return -ENOSR;
+		if (ep != card->tx_cmd_ep &&
+		    atomic_read(&port->tx_data_urb_pending) ==
+							MWIFIEX_TX_DATA_URB) {
+			port->block_status = true;
+			ret = -ENOSR;
+			goto done;
+		}
 	}
 
 	return -EINPROGRESS;
+
+done:
+	if (ep != card->tx_cmd_ep)
+		adapter->data_sent = mwifiex_usb_data_sent(adapter);
+
+	return ret;
 }
 
 /* This function register usb device and initialize parameter. */
@@ -825,12 +955,6 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	case USB8997_PID_2:
 		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 		strcpy(adapter->fw_name, USB8997_DEFAULT_FW_NAME);
-		adapter->ext_scan = true;
-		break;
-	case USB8897_PID_1:
-	case USB8897_PID_2:
-		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
-		strcpy(adapter->fw_name, USB8897_DEFAULT_FW_NAME);
 		adapter->ext_scan = true;
 		break;
 	case USB8766_PID_1:
@@ -852,6 +976,9 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		strcpy(adapter->fw_name, USB8797_DEFAULT_FW_NAME);
 		break;
 	}
+
+	adapter->usb_mc_status = false;
+	adapter->usb_mc_setup = false;
 
 	return 0;
 }
@@ -1082,6 +1209,8 @@ static struct mwifiex_if_ops usb_ops = {
 	.event_complete =	mwifiex_usb_cmd_event_complete,
 	.host_to_card =		mwifiex_usb_host_to_card,
 	.submit_rem_rx_urbs =	mwifiex_usb_submit_rem_rx_urbs,
+	.multi_port_resync =	mwifiex_usb_port_resync,
+	.is_port_ready =	mwifiex_usb_is_port_ready,
 };
 
 /* This function initializes the USB driver module.
@@ -1135,5 +1264,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(USB8766_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8797_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8801_DEFAULT_FW_NAME);
-MODULE_FIRMWARE(USB8897_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8997_DEFAULT_FW_NAME);

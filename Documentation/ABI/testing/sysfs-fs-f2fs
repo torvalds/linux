@@ -80,3 +80,15 @@ Date:		February 2015
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:
 		 Controls the trimming rate in batch mode.
+
+What:		/sys/fs/f2fs/<disk>/cp_interval
+Date:		October 2015
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the checkpoint timing.
+
+What:		/sys/fs/f2fs/<disk>/ra_nid_pages
+Date:		October 2015
+Contact:	"Chao Yu" <chao2.yu@samsung.com>
+Description:
+		 Controls the count of nid pages to be readaheaded.

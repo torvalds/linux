@@ -15,7 +15,8 @@
 #include <linux/err.h>
 #include <linux/fips.h>
 #include <crypto/internal/rsa.h>
-#include "rsakey-asn1.h"
+#include "rsapubkey-asn1.h"
+#include "rsaprivkey-asn1.h"
 
 int rsa_get_n(void *context, size_t hdrlen, unsigned char tag,
 	      const void *value, size_t vlen)
@@ -94,8 +95,8 @@ void rsa_free_key(struct rsa_key *key)
 EXPORT_SYMBOL_GPL(rsa_free_key);
 
 /**
- * rsa_parse_key() - extracts an rsa key from BER encoded buffer
- *		     and stores it in the provided struct rsa_key
+ * rsa_parse_pub_key() - extracts an rsa public key from BER encoded buffer
+ *			 and stores it in the provided struct rsa_key
  *
  * @rsa_key:	struct rsa_key key representation
  * @key:	key in BER format
@@ -103,13 +104,13 @@ EXPORT_SYMBOL_GPL(rsa_free_key);
  *
  * Return:	0 on success or error code in case of error
  */
-int rsa_parse_key(struct rsa_key *rsa_key, const void *key,
-		  unsigned int key_len)
+int rsa_parse_pub_key(struct rsa_key *rsa_key, const void *key,
+		      unsigned int key_len)
 {
 	int ret;
 
 	free_mpis(rsa_key);
-	ret = asn1_ber_decoder(&rsakey_decoder, rsa_key, key, key_len);
+	ret = asn1_ber_decoder(&rsapubkey_decoder, rsa_key, key, key_len);
 	if (ret < 0)
 		goto error;
 
@@ -118,4 +119,31 @@ error:
 	free_mpis(rsa_key);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(rsa_parse_key);
+EXPORT_SYMBOL_GPL(rsa_parse_pub_key);
+
+/**
+ * rsa_parse_pub_key() - extracts an rsa private key from BER encoded buffer
+ *			 and stores it in the provided struct rsa_key
+ *
+ * @rsa_key:	struct rsa_key key representation
+ * @key:	key in BER format
+ * @key_len:	length of key
+ *
+ * Return:	0 on success or error code in case of error
+ */
+int rsa_parse_priv_key(struct rsa_key *rsa_key, const void *key,
+		       unsigned int key_len)
+{
+	int ret;
+
+	free_mpis(rsa_key);
+	ret = asn1_ber_decoder(&rsaprivkey_decoder, rsa_key, key, key_len);
+	if (ret < 0)
+		goto error;
+
+	return 0;
+error:
+	free_mpis(rsa_key);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rsa_parse_priv_key);

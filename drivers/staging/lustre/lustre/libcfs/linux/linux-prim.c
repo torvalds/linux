@@ -70,61 +70,6 @@ add_wait_queue_exclusive_head(wait_queue_head_t *waitq, wait_queue_t *link)
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive_head);
 
-void cfs_init_timer(struct timer_list *t)
-{
-	init_timer(t);
-}
-EXPORT_SYMBOL(cfs_init_timer);
-
-void cfs_timer_init(struct timer_list *t, cfs_timer_func_t *func, void *arg)
-{
-	init_timer(t);
-	t->function = func;
-	t->data = (unsigned long)arg;
-}
-EXPORT_SYMBOL(cfs_timer_init);
-
-void cfs_timer_done(struct timer_list *t)
-{
-	return;
-}
-EXPORT_SYMBOL(cfs_timer_done);
-
-void cfs_timer_arm(struct timer_list *t, unsigned long deadline)
-{
-	mod_timer(t, deadline);
-}
-EXPORT_SYMBOL(cfs_timer_arm);
-
-void cfs_timer_disarm(struct timer_list *t)
-{
-	del_timer(t);
-}
-EXPORT_SYMBOL(cfs_timer_disarm);
-
-int  cfs_timer_is_armed(struct timer_list *t)
-{
-	return timer_pending(t);
-}
-EXPORT_SYMBOL(cfs_timer_is_armed);
-
-unsigned long cfs_timer_deadline(struct timer_list *t)
-{
-	return t->expires;
-}
-EXPORT_SYMBOL(cfs_timer_deadline);
-
-void cfs_enter_debugger(void)
-{
-#if defined(CONFIG_KGDB)
-	/* BREAKPOINT(); */
-#else
-	/* nothing */
-#endif
-}
-EXPORT_SYMBOL(cfs_enter_debugger);
-
-
 sigset_t
 cfs_block_allsigs(void)
 {
@@ -200,18 +145,3 @@ cfs_clear_sigpending(void)
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 EXPORT_SYMBOL(cfs_clear_sigpending);
-
-int
-libcfs_arch_init(void)
-{
-	return 0;
-}
-EXPORT_SYMBOL(libcfs_arch_init);
-
-void
-libcfs_arch_cleanup(void)
-{
-	return;
-}
-EXPORT_SYMBOL(libcfs_arch_cleanup);
-

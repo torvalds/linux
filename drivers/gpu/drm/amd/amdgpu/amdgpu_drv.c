@@ -73,13 +73,15 @@ int amdgpu_hard_reset = 0;
 unsigned amdgpu_ip_block_mask = 0xffffffff;
 int amdgpu_bapm = -1;
 int amdgpu_deep_color = 0;
-int amdgpu_vm_size = 8;
+int amdgpu_vm_size = 64;
 int amdgpu_vm_block_size = -1;
+int amdgpu_vm_fault_stop = 0;
+int amdgpu_vm_debug = 0;
 int amdgpu_exp_hw_support = 0;
-int amdgpu_enable_scheduler = 0;
+int amdgpu_enable_scheduler = 1;
 int amdgpu_sched_jobs = 16;
 int amdgpu_sched_hw_submission = 2;
-int amdgpu_enable_semaphores = 1;
+int amdgpu_enable_semaphores = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -135,16 +137,22 @@ module_param_named(bapm, amdgpu_bapm, int, 0444);
 MODULE_PARM_DESC(deep_color, "Deep Color support (1 = enable, 0 = disable (default))");
 module_param_named(deep_color, amdgpu_deep_color, int, 0444);
 
-MODULE_PARM_DESC(vm_size, "VM address space size in gigabytes (default 8GB)");
+MODULE_PARM_DESC(vm_size, "VM address space size in gigabytes (default 64GB)");
 module_param_named(vm_size, amdgpu_vm_size, int, 0444);
 
 MODULE_PARM_DESC(vm_block_size, "VM page table size in bits (default depending on vm_size)");
 module_param_named(vm_block_size, amdgpu_vm_block_size, int, 0444);
 
+MODULE_PARM_DESC(vm_fault_stop, "Stop on VM fault (0 = never (default), 1 = print first, 2 = always)");
+module_param_named(vm_fault_stop, amdgpu_vm_fault_stop, int, 0444);
+
+MODULE_PARM_DESC(vm_debug, "Debug VM handling (0 = disabled (default), 1 = enabled)");
+module_param_named(vm_debug, amdgpu_vm_debug, int, 0644);
+
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
 module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 
-MODULE_PARM_DESC(enable_scheduler, "enable SW GPU scheduler (1 = enable, 0 = disable ((default))");
+MODULE_PARM_DESC(enable_scheduler, "enable SW GPU scheduler (1 = enable (default), 0 = disable)");
 module_param_named(enable_scheduler, amdgpu_enable_scheduler, int, 0444);
 
 MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 16)");
@@ -153,7 +161,7 @@ module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
 
-MODULE_PARM_DESC(enable_semaphores, "Enable semaphores (1 = enable (default), 0 = disable)");
+MODULE_PARM_DESC(enable_semaphores, "Enable semaphores (1 = enable, 0 = disable (default))");
 module_param_named(enable_semaphores, amdgpu_enable_semaphores, int, 0644);
 
 static struct pci_device_id pciidlist[] = {
@@ -265,6 +273,8 @@ static struct pci_device_id pciidlist[] = {
 	{0x1002, 0x9875, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},
 	{0x1002, 0x9876, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},
 	{0x1002, 0x9877, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},
+	/* stoney */
+	{0x1002, 0x98E4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_STONEY|AMD_IS_APU},
 
 	{0, 0, 0}
 };

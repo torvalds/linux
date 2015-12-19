@@ -158,6 +158,7 @@ struct lprocfs_counter {
 	 */
 	__s64	lc_array_sum[1];
 };
+
 #define lc_sum		lc_array_sum[0]
 #define lc_sum_irq	lc_array_sum[1]
 
@@ -206,7 +207,8 @@ struct lprocfs_stats {
 #define OPC_RANGE(seg) (seg ## _LAST_OPC - seg ## _FIRST_OPC)
 
 /* Pack all opcodes down into a single monotonically increasing index */
-static inline int opcode_offset(__u32 opc) {
+static inline int opcode_offset(__u32 opc)
+{
 	if (opc < OST_LAST_OPC) {
 		 /* OST opcode */
 		return (opc - OST_FIRST_OPC);
@@ -301,7 +303,6 @@ static inline int opcode_offset(__u32 opc) {
 	}
 }
 
-
 #define LUSTRE_MAX_OPCODES (OPC_RANGE(OST)  + \
 			    OPC_RANGE(MDS)  + \
 			    OPC_RANGE(LDLM) + \
@@ -358,15 +359,18 @@ struct obd_histogram;
 struct dhms {
 	int d, h, m, s;
 };
-static inline void s2dhms(struct dhms *ts, time_t secs)
+
+static inline void s2dhms(struct dhms *ts, time64_t secs64)
 {
-	ts->d = secs / 86400;
-	secs = secs % 86400;
+	unsigned int secs;
+
+	ts->d = div_u64_rem(secs64, 86400, &secs);
 	ts->h = secs / 3600;
 	secs = secs % 3600;
 	ts->m = secs / 60;
 	ts->s = secs % 60;
 }
+
 #define DHMS_FMT "%dd%dh%02dm%02ds"
 #define DHMS_VARS(x) (x)->d, (x)->h, (x)->m, (x)->s
 
@@ -536,26 +540,14 @@ extern struct lprocfs_stats *
 lprocfs_alloc_stats(unsigned int num, enum lprocfs_stats_flags flags);
 void lprocfs_clear_stats(struct lprocfs_stats *stats);
 void lprocfs_free_stats(struct lprocfs_stats **stats);
-void lprocfs_init_ops_stats(int num_private_stats, struct lprocfs_stats *stats);
-void lprocfs_init_mps_stats(int num_private_stats, struct lprocfs_stats *stats);
-void lprocfs_init_ldlm_stats(struct lprocfs_stats *ldlm_stats);
-int lprocfs_alloc_obd_stats(struct obd_device *obddev,
-			    unsigned int num_private_stats);
-int lprocfs_alloc_md_stats(struct obd_device *obddev,
-			   unsigned int num_private_stats);
 void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 			  unsigned conf, const char *name, const char *units);
-void lprocfs_free_obd_stats(struct obd_device *obddev);
-void lprocfs_free_md_stats(struct obd_device *obddev);
 struct obd_export;
 int lprocfs_exp_cleanup(struct obd_export *exp);
 struct dentry *ldebugfs_add_simple(struct dentry *root,
 				   char *name,
 				   void *data,
 				   struct file_operations *fops);
-struct dentry *
-ldebugfs_add_symlink(const char *name, struct dentry *parent,
-		     const char *format, ...);
 
 int ldebugfs_register_stats(struct dentry *parent,
 			    const char *name,
@@ -590,14 +582,9 @@ int ldebugfs_obd_seq_create(struct obd_device *dev,
 
 /* Generic callbacks */
 
-int lprocfs_rd_u64(struct seq_file *m, void *data);
-int lprocfs_rd_atomic(struct seq_file *m, void *data);
-int lprocfs_wr_atomic(struct file *file, const char __user *buffer,
-		      unsigned long count, void *data);
 int lprocfs_rd_uint(struct seq_file *m, void *data);
 int lprocfs_wr_uint(struct file *file, const char __user *buffer,
 		    unsigned long count, void *data);
-int lprocfs_rd_name(struct seq_file *m, void *data);
 int lprocfs_rd_server_uuid(struct seq_file *m, void *data);
 int lprocfs_rd_conn_uuid(struct seq_file *m, void *data);
 int lprocfs_rd_import(struct seq_file *m, void *data);
@@ -607,10 +594,6 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data);
 struct adaptive_timeout;
 int lprocfs_at_hist_helper(struct seq_file *m, struct adaptive_timeout *at);
 int lprocfs_rd_timeouts(struct seq_file *m, void *data);
-int lprocfs_wr_timeouts(struct file *file, const char __user *buffer,
-			unsigned long count, void *data);
-int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
-			    size_t count, loff_t *off);
 int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 		    size_t count, loff_t *off);
 int lprocfs_wr_import(struct file *file, const char __user *buffer,
@@ -623,7 +606,6 @@ int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 
 int lprocfs_write_helper(const char __user *buffer, unsigned long count,
 			 int *val);
-int lprocfs_seq_read_frac_helper(struct seq_file *m, long val, int mult);
 int lprocfs_write_u64_helper(const char __user *buffer,
 			     unsigned long count, __u64 *val);
 int lprocfs_write_frac_u64_helper(const char *buffer,
@@ -642,19 +624,8 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 int lprocfs_single_release(struct inode *, struct file *);
 int lprocfs_seq_release(struct inode *, struct file *);
 
-/* You must use these macros when you want to refer to
- * the import in a client obd_device for a lprocfs entry */
-#define LPROCFS_CLIMP_CHECK(obd) do {	   \
-	typecheck(struct obd_device *, obd);    \
-	down_read(&(obd)->u.cli.cl_sem);    \
-	if ((obd)->u.cli.cl_import == NULL) {   \
-	     up_read(&(obd)->u.cli.cl_sem); \
-	     return -ENODEV;		    \
-	}				       \
-} while (0)
 #define LPROCFS_CLIMP_EXIT(obd)		 \
 	up_read(&(obd)->u.cli.cl_sem)
-
 
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
   proc entries; otherwise, you will define name##_seq_write function also for
@@ -730,21 +701,7 @@ static struct lustre_attr lustre_attr_##name = __ATTR(name, mode, show, store)
 #define LUSTRE_RO_ATTR(name) LUSTRE_ATTR(name, 0444, name##_show, NULL)
 #define LUSTRE_RW_ATTR(name) LUSTRE_ATTR(name, 0644, name##_show, name##_store)
 
-ssize_t lustre_attr_show(struct kobject *kobj, struct attribute *attr,
-			 char *buf);
-ssize_t lustre_attr_store(struct kobject *kobj, struct attribute *attr,
-			  const char *buf, size_t len);
-
 extern const struct sysfs_ops lustre_sysfs_ops;
-
-/* lproc_ptlrpc.c */
-struct ptlrpc_request;
-void target_print_req(void *seq_file, struct ptlrpc_request *req);
-
-/* lproc_status.c */
-int lprocfs_obd_rd_max_pages_per_rpc(struct seq_file *m, void *data);
-int lprocfs_obd_wr_max_pages_per_rpc(struct file *file, const char *buffer,
-				     size_t count, loff_t *off);
 
 /* all quota proc functions */
 int lprocfs_quota_rd_bunit(char *page, char **start,

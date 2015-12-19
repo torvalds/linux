@@ -142,11 +142,11 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 	int more = 1;
 	int retval;
 
-	memset(pi_buff, 0x00, PAGE_SIZE);
 	/* invalid parameters */
 	if (!head || !pi_buff)
 		return -EINVAL;
 
+	memset(pi_buff, 0x00, PAGE_SIZE);
 	last_p_partition_ID = last_p_unit_address = ~0UL;
 	INIT_LIST_HEAD(head);
 

@@ -32,6 +32,7 @@
 static int kvmclock = 1;
 static int msr_kvm_system_time = MSR_KVM_SYSTEM_TIME;
 static int msr_kvm_wall_clock = MSR_KVM_WALL_CLOCK;
+static cycle_t kvm_sched_clock_offset;
 
 static int parse_no_kvmclock(char *arg)
 {
@@ -90,6 +91,29 @@ static cycle_t kvm_clock_read(void)
 static cycle_t kvm_clock_get_cycles(struct clocksource *cs)
 {
 	return kvm_clock_read();
+}
+
+static cycle_t kvm_sched_clock_read(void)
+{
+	return kvm_clock_read() - kvm_sched_clock_offset;
+}
+
+static inline void kvm_sched_clock_init(bool stable)
+{
+	if (!stable) {
+		pv_time_ops.sched_clock = kvm_clock_read;
+		return;
+	}
+
+	kvm_sched_clock_offset = kvm_clock_read();
+	pv_time_ops.sched_clock = kvm_sched_clock_read;
+	set_sched_clock_stable();
+
+	printk(KERN_INFO "kvm-clock: using sched offset of %llu cycles\n",
+			kvm_sched_clock_offset);
+
+	BUILD_BUG_ON(sizeof(kvm_sched_clock_offset) >
+	         sizeof(((struct pvclock_vcpu_time_info *)NULL)->system_time));
 }
 
 /*
@@ -248,7 +272,17 @@ void __init kvmclock_init(void)
 		memblock_free(mem, size);
 		return;
 	}
-	pv_time_ops.sched_clock = kvm_clock_read;
+
+	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT))
+		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
+
+	cpu = get_cpu();
+	vcpu_time = &hv_clock[cpu].pvti;
+	flags = pvclock_read_flags(vcpu_time);
+
+	kvm_sched_clock_init(flags & PVCLOCK_TSC_STABLE_BIT);
+	put_cpu();
+
 	x86_platform.calibrate_tsc = kvm_get_tsc_khz;
 	x86_platform.get_wallclock = kvm_get_wallclock;
 	x86_platform.set_wallclock = kvm_set_wallclock;
@@ -265,16 +299,6 @@ void __init kvmclock_init(void)
 	kvm_get_preset_lpj();
 	clocksource_register_hz(&kvm_clock, NSEC_PER_SEC);
 	pv_info.name = "KVM";
-
-	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT))
-		pvclock_set_flags(~0);
-
-	cpu = get_cpu();
-	vcpu_time = &hv_clock[cpu].pvti;
-	flags = pvclock_read_flags(vcpu_time);
-	if (flags & PVCLOCK_COUNTS_FROM_ZERO)
-		set_sched_clock_stable();
-	put_cpu();
 }
 
 int __init kvm_setup_vsyscall_timeinfo(void)

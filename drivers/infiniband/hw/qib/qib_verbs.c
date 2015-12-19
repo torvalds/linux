@@ -362,8 +362,8 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	 * undefined operations.
 	 * Make sure buffer is large enough to hold the result for atomics.
 	 */
-	if (wr->opcode == IB_WR_FAST_REG_MR) {
-		if (qib_fast_reg_mr(qp, wr))
+	if (wr->opcode == IB_WR_REG_MR) {
+		if (qib_reg_mr(qp, reg_wr(wr)))
 			goto bail_inval;
 	} else if (qp->ibqp.qp_type == IB_QPT_UC) {
 		if ((unsigned) wr->opcode >= IB_WR_RDMA_READ)
@@ -374,7 +374,7 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 		    wr->opcode != IB_WR_SEND_WITH_IMM)
 			goto bail_inval;
 		/* Check UD destination address PD */
-		if (qp->ibqp.pd != wr->wr.ud.ah->pd)
+		if (qp->ibqp.pd != ud_wr(wr)->ah->pd)
 			goto bail_inval;
 	} else if ((unsigned) wr->opcode > IB_WR_ATOMIC_FETCH_AND_ADD)
 		goto bail_inval;
@@ -397,7 +397,23 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	rkt = &to_idev(qp->ibqp.device)->lk_table;
 	pd = to_ipd(qp->ibqp.pd);
 	wqe = get_swqe_ptr(qp, qp->s_head);
-	wqe->wr = *wr;
+
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC)
+		memcpy(&wqe->ud_wr, ud_wr(wr), sizeof(wqe->ud_wr));
+	else if (wr->opcode == IB_WR_REG_MR)
+		memcpy(&wqe->reg_wr, reg_wr(wr),
+			sizeof(wqe->reg_wr));
+	else if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
+		 wr->opcode == IB_WR_RDMA_WRITE ||
+		 wr->opcode == IB_WR_RDMA_READ)
+		memcpy(&wqe->rdma_wr, rdma_wr(wr), sizeof(wqe->rdma_wr));
+	else if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+		 wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
+		memcpy(&wqe->atomic_wr, atomic_wr(wr), sizeof(wqe->atomic_wr));
+	else
+		memcpy(&wqe->wr, wr, sizeof(wqe->wr));
+
 	wqe->length = 0;
 	j = 0;
 	if (wr->num_sge) {
@@ -426,7 +442,7 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 				  qp->port_num - 1)->ibmtu)
 		goto bail_inval_free;
 	else
-		atomic_inc(&to_iah(wr->wr.ud.ah)->refcount);
+		atomic_inc(&to_iah(ud_wr(wr)->ah)->refcount);
 	wqe->ssn = qp->s_ssn++;
 	qp->s_head = next;
 
@@ -2244,8 +2260,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->reg_user_mr = qib_reg_user_mr;
 	ibdev->dereg_mr = qib_dereg_mr;
 	ibdev->alloc_mr = qib_alloc_mr;
-	ibdev->alloc_fast_reg_page_list = qib_alloc_fast_reg_page_list;
-	ibdev->free_fast_reg_page_list = qib_free_fast_reg_page_list;
+	ibdev->map_mr_sg = qib_map_mr_sg;
 	ibdev->alloc_fmr = qib_alloc_fmr;
 	ibdev->map_phys_fmr = qib_map_phys_fmr;
 	ibdev->unmap_fmr = qib_unmap_fmr;

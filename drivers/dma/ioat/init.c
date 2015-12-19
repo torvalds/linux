@@ -27,6 +27,7 @@
 #include <linux/workqueue.h>
 #include <linux/prefetch.h>
 #include <linux/dca.h>
+#include <linux/aer.h>
 #include "dma.h"
 #include "registers.h"
 #include "hw.h"
@@ -1186,13 +1187,116 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	return 0;
 }
 
+static void ioat_shutdown(struct pci_dev *pdev)
+{
+	struct ioatdma_device *ioat_dma = pci_get_drvdata(pdev);
+	struct ioatdma_chan *ioat_chan;
+	int i;
+
+	if (!ioat_dma)
+		return;
+
+	for (i = 0; i < IOAT_MAX_CHANS; i++) {
+		ioat_chan = ioat_dma->idx[i];
+		if (!ioat_chan)
+			continue;
+
+		spin_lock_bh(&ioat_chan->prep_lock);
+		set_bit(IOAT_CHAN_DOWN, &ioat_chan->state);
+		del_timer_sync(&ioat_chan->timer);
+		spin_unlock_bh(&ioat_chan->prep_lock);
+		/* this should quiesce then reset */
+		ioat_reset_hw(ioat_chan);
+	}
+
+	ioat_disable_interrupts(ioat_dma);
+}
+
+void ioat_resume(struct ioatdma_device *ioat_dma)
+{
+	struct ioatdma_chan *ioat_chan;
+	u32 chanerr;
+	int i;
+
+	for (i = 0; i < IOAT_MAX_CHANS; i++) {
+		ioat_chan = ioat_dma->idx[i];
+		if (!ioat_chan)
+			continue;
+
+		spin_lock_bh(&ioat_chan->prep_lock);
+		clear_bit(IOAT_CHAN_DOWN, &ioat_chan->state);
+		spin_unlock_bh(&ioat_chan->prep_lock);
+
+		chanerr = readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
+		writel(chanerr, ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
+
+		/* no need to reset as shutdown already did that */
+	}
+}
+
 #define DRV_NAME "ioatdma"
+
+static pci_ers_result_t ioat_pcie_error_detected(struct pci_dev *pdev,
+						 enum pci_channel_state error)
+{
+	dev_dbg(&pdev->dev, "%s: PCIe AER error %d\n", DRV_NAME, error);
+
+	/* quiesce and block I/O */
+	ioat_shutdown(pdev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t ioat_pcie_error_slot_reset(struct pci_dev *pdev)
+{
+	pci_ers_result_t result = PCI_ERS_RESULT_RECOVERED;
+	int err;
+
+	dev_dbg(&pdev->dev, "%s post reset handling\n", DRV_NAME);
+
+	if (pci_enable_device_mem(pdev) < 0) {
+		dev_err(&pdev->dev,
+			"Failed to enable PCIe device after reset.\n");
+		result = PCI_ERS_RESULT_DISCONNECT;
+	} else {
+		pci_set_master(pdev);
+		pci_restore_state(pdev);
+		pci_save_state(pdev);
+		pci_wake_from_d3(pdev, false);
+	}
+
+	err = pci_cleanup_aer_uncorrect_error_status(pdev);
+	if (err) {
+		dev_err(&pdev->dev,
+			"AER uncorrect error status clear failed: %#x\n", err);
+	}
+
+	return result;
+}
+
+static void ioat_pcie_error_resume(struct pci_dev *pdev)
+{
+	struct ioatdma_device *ioat_dma = pci_get_drvdata(pdev);
+
+	dev_dbg(&pdev->dev, "%s: AER handling resuming\n", DRV_NAME);
+
+	/* initialize and bring everything back */
+	ioat_resume(ioat_dma);
+}
+
+static const struct pci_error_handlers ioat_err_handler = {
+	.error_detected = ioat_pcie_error_detected,
+	.slot_reset = ioat_pcie_error_slot_reset,
+	.resume = ioat_pcie_error_resume,
+};
 
 static struct pci_driver ioat_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= ioat_pci_tbl,
 	.probe		= ioat_pci_probe,
 	.remove		= ioat_remove,
+	.shutdown	= ioat_shutdown,
+	.err_handler	= &ioat_err_handler,
 };
 
 static struct ioatdma_device *
@@ -1245,13 +1349,17 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, device);
 
 	device->version = readb(device->reg_base + IOAT_VER_OFFSET);
-	if (device->version >= IOAT_VER_3_0)
+	if (device->version >= IOAT_VER_3_0) {
 		err = ioat3_dma_probe(device, ioat_dca_enabled);
-	else
+
+		if (device->version >= IOAT_VER_3_3)
+			pci_enable_pcie_error_reporting(pdev);
+	} else
 		return -ENODEV;
 
 	if (err) {
 		dev_err(dev, "Intel(R) I/OAT DMA Engine init failed\n");
+		pci_disable_pcie_error_reporting(pdev);
 		return -ENODEV;
 	}
 
@@ -1271,6 +1379,8 @@ static void ioat_remove(struct pci_dev *pdev)
 		free_dca_provider(device->dca);
 		device->dca = NULL;
 	}
+
+	pci_disable_pcie_error_reporting(pdev);
 	ioat_dma_remove(device);
 }
 

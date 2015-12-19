@@ -47,7 +47,7 @@ Date:		June 2015
 KernelVersion:	4.3
 Contact:	Christian Gromm <christian.gromm@microchip.com>
 Description:
-		Indicates the type of peripherial interface the current device
+		Indicates the type of peripheral interface the current device
 		uses.
 Users:
 

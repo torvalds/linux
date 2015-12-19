@@ -278,8 +278,6 @@
 #define ISR_COMPLETE(err)	(ISR_COMPLETE_M | (ISR_STATUS_M & (err)))
 #define ISR_FATAL(err)		(ISR_COMPLETE(err) | ISR_FATAL_M)
 
-#define REL_SOC_IP_SCB_2_2_1	0x00020201
-
 enum img_i2c_mode {
 	MODE_INACTIVE,
 	MODE_RAW,
@@ -536,6 +534,7 @@ static void img_i2c_read_fifo(struct img_i2c *i2c)
 		u32 fifo_status;
 		u8 data;
 
+		img_i2c_wr_rd_fence(i2c);
 		fifo_status = img_i2c_readl(i2c, SCB_FIFO_STATUS_REG);
 		if (fifo_status & FIFO_READ_EMPTY)
 			break;
@@ -544,7 +543,6 @@ static void img_i2c_read_fifo(struct img_i2c *i2c)
 		*i2c->msg.buf = data;
 
 		img_i2c_writel(i2c, SCB_READ_FIFO_REG, 0xff);
-		img_i2c_wr_rd_fence(i2c);
 		i2c->msg.len--;
 		i2c->msg.buf++;
 	}
@@ -556,12 +554,12 @@ static void img_i2c_write_fifo(struct img_i2c *i2c)
 	while (i2c->msg.len) {
 		u32 fifo_status;
 
+		img_i2c_wr_rd_fence(i2c);
 		fifo_status = img_i2c_readl(i2c, SCB_FIFO_STATUS_REG);
 		if (fifo_status & FIFO_WRITE_FULL)
 			break;
 
 		img_i2c_writel(i2c, SCB_WRITE_DATA_REG, *i2c->msg.buf);
-		img_i2c_wr_rd_fence(i2c);
 		i2c->msg.len--;
 		i2c->msg.buf++;
 	}
@@ -859,7 +857,7 @@ static unsigned int img_i2c_auto(struct img_i2c *i2c,
 	}
 
 	/* Enable transaction halt on start bit */
-	if (!i2c->last_msg && i2c->line_status & LINESTAT_START_BIT_DET) {
+	if (!i2c->last_msg && line_status & LINESTAT_START_BIT_DET) {
 		img_i2c_transaction_halt(i2c, true);
 		/* we're no longer interested in the slave event */
 		i2c->int_enable &= ~INT_SLAVE_EVENT;
@@ -1062,6 +1060,15 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		i2c->last_msg = (i == num - 1);
 		reinit_completion(&i2c->msg_complete);
 
+		/*
+		 * Clear line status and all interrupts before starting a
+		 * transfer, as we may have unserviced interrupts from
+		 * previous transfers that might be handled in the context
+		 * of the new transfer.
+		 */
+		img_i2c_writel(i2c, SCB_INT_CLEAR_REG, ~0);
+		img_i2c_writel(i2c, SCB_CLEAR_REG, ~0);
+
 		if (atomic)
 			img_i2c_atomic_start(i2c);
 		else if (msg->flags & I2C_M_RD)
@@ -1120,13 +1127,8 @@ static int img_i2c_init(struct img_i2c *i2c)
 		return -EINVAL;
 	}
 
-	if (rev == REL_SOC_IP_SCB_2_2_1) {
-		i2c->need_wr_rd_fence = true;
-		dev_info(i2c->adap.dev.parent, "fence quirk enabled");
-	}
-
-	bitrate_khz = i2c->bitrate / 1000;
-	clk_khz = clk_get_rate(i2c->scb_clk) / 1000;
+	/* Fencing enabled by default. */
+	i2c->need_wr_rd_fence = true;
 
 	/* Determine what mode we're in from the bitrate */
 	timing = timings[0];
@@ -1136,6 +1138,17 @@ static int img_i2c_init(struct img_i2c *i2c)
 			break;
 		}
 	}
+	if (i2c->bitrate > timings[ARRAY_SIZE(timings) - 1].max_bitrate) {
+		dev_warn(i2c->adap.dev.parent,
+			 "requested bitrate (%u) is higher than the max bitrate supported (%u)\n",
+			 i2c->bitrate,
+			 timings[ARRAY_SIZE(timings) - 1].max_bitrate);
+		timing = timings[ARRAY_SIZE(timings) - 1];
+		i2c->bitrate = timing.max_bitrate;
+	}
+
+	bitrate_khz = i2c->bitrate / 1000;
+	clk_khz = clk_get_rate(i2c->scb_clk) / 1000;
 
 	/* Find the prescale that would give us that inc (approx delay = 0) */
 	prescale = SCB_OPT_INC * clk_khz / (256 * 16 * bitrate_khz);
@@ -1182,32 +1195,32 @@ static int img_i2c_init(struct img_i2c *i2c)
 	    ((bitrate_khz * clk_period) / 2))
 		int_bitrate++;
 
-	/* Setup TCKH value */
-	tckh = timing.tckh / clk_period;
-	if (timing.tckh % clk_period)
-		tckh++;
-
-	if (tckh > 0)
-		data = tckh - 1;
-	else
-		data = 0;
-
-	img_i2c_writel(i2c, SCB_TIME_TCKH_REG, data);
-
-	/* Setup TCKL value */
+	/*
+	 * Setup clock duty cycle, start with 50% and adjust TCKH and TCKL
+	 * values from there if they don't meet minimum timing requirements
+	 */
+	tckh = int_bitrate / 2;
 	tckl = int_bitrate - tckh;
 
-	if (tckl > 0)
-		data = tckl - 1;
-	else
-		data = 0;
+	/* Adjust TCKH and TCKL values */
+	data = DIV_ROUND_UP(timing.tckl, clk_period);
 
-	img_i2c_writel(i2c, SCB_TIME_TCKL_REG, data);
+	if (tckl < data) {
+		tckl = data;
+		tckh = int_bitrate - tckl;
+	}
+
+	if (tckh > 0)
+		--tckh;
+
+	if (tckl > 0)
+		--tckl;
+
+	img_i2c_writel(i2c, SCB_TIME_TCKH_REG, tckh);
+	img_i2c_writel(i2c, SCB_TIME_TCKL_REG, tckl);
 
 	/* Setup TSDH value */
-	tsdh = timing.tsdh / clk_period;
-	if (timing.tsdh % clk_period)
-		tsdh++;
+	tsdh = DIV_ROUND_UP(timing.tsdh, clk_period);
 
 	if (tsdh > 1)
 		data = tsdh - 1;

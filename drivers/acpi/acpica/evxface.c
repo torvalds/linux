@@ -405,7 +405,7 @@ cleanup:
 }
 
 ACPI_EXPORT_SYMBOL(acpi_install_exception_handler)
-#endif				/*  ACPI_FUTURE_USAGE  */
+#endif
 
 #if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************

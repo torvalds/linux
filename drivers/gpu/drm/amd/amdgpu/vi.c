@@ -232,6 +232,13 @@ static const u32 cz_mgcg_cgcg_init[] =
 	mmHDP_XDP_CGTT_BLK_CTRL, 0xc0000fff, 0x00000104,
 };
 
+static const u32 stoney_mgcg_cgcg_init[] =
+{
+	mmCGTT_DRM_CLK_CTRL0, 0xffffffff, 0x00000100,
+	mmHDP_XDP_CGTT_BLK_CTRL, 0xffffffff, 0x00000104,
+	mmHDP_HOST_PATH_CNTL, 0xffffffff, 0x0f000027,
+};
+
 static void vi_init_golden_registers(struct amdgpu_device *adev)
 {
 	/* Some of the registers might be dependent on GRBM_GFX_INDEX */
@@ -257,6 +264,11 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 cz_mgcg_cgcg_init,
 						 (const u32)ARRAY_SIZE(cz_mgcg_cgcg_init));
+		break;
+	case CHIP_STONEY:
+		amdgpu_program_register_sequence(adev,
+						 stoney_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
 		break;
 	default:
 		break;
@@ -488,6 +500,7 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 	case CHIP_FIJI:
 	case CHIP_TONGA:
 	case CHIP_CARRIZO:
+	case CHIP_STONEY:
 		asic_register_table = cz_allowed_read_registers;
 		size = ARRAY_SIZE(cz_allowed_read_registers);
 		break;
@@ -543,8 +556,10 @@ static void vi_print_gpu_status_regs(struct amdgpu_device *adev)
 		RREG32(mmSRBM_STATUS2));
 	dev_info(adev->dev, "  SDMA0_STATUS_REG   = 0x%08X\n",
 		RREG32(mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET));
-	dev_info(adev->dev, "  SDMA1_STATUS_REG   = 0x%08X\n",
-		 RREG32(mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET));
+	if (adev->sdma.num_instances > 1) {
+		dev_info(adev->dev, "  SDMA1_STATUS_REG   = 0x%08X\n",
+			RREG32(mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET));
+	}
 	dev_info(adev->dev, "  CP_STAT = 0x%08x\n", RREG32(mmCP_STAT));
 	dev_info(adev->dev, "  CP_STALLED_STAT1 = 0x%08x\n",
 		 RREG32(mmCP_STALLED_STAT1));
@@ -639,9 +654,11 @@ u32 vi_gpu_check_soft_reset(struct amdgpu_device *adev)
 		reset_mask |= AMDGPU_RESET_DMA;
 
 	/* SDMA1_STATUS_REG */
-	tmp = RREG32(mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET);
-	if (!(tmp & SDMA0_STATUS_REG__IDLE_MASK))
-		reset_mask |= AMDGPU_RESET_DMA1;
+	if (adev->sdma.num_instances > 1) {
+		tmp = RREG32(mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET);
+		if (!(tmp & SDMA0_STATUS_REG__IDLE_MASK))
+			reset_mask |= AMDGPU_RESET_DMA1;
+	}
 #if 0
 	/* VCE_STATUS */
 	if (adev->asic_type != CHIP_TOPAZ) {
@@ -1319,6 +1336,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		adev->num_ip_blocks = ARRAY_SIZE(tonga_ip_blocks);
 		break;
 	case CHIP_CARRIZO:
+	case CHIP_STONEY:
 		adev->ip_blocks = cz_ip_blocks;
 		adev->num_ip_blocks = ARRAY_SIZE(cz_ip_blocks);
 		break;
@@ -1330,11 +1348,18 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 	return 0;
 }
 
+#define ATI_REV_ID_FUSE_MACRO__ADDRESS      0xC0014044
+#define ATI_REV_ID_FUSE_MACRO__SHIFT        9
+#define ATI_REV_ID_FUSE_MACRO__MASK         0x00001E00
+
 static uint32_t vi_get_rev_id(struct amdgpu_device *adev)
 {
 	if (adev->asic_type == CHIP_TOPAZ)
 		return (RREG32(mmPCIE_EFUSE4) & PCIE_EFUSE4__STRAP_BIF_ATI_REV_ID_MASK)
 			>> PCIE_EFUSE4__STRAP_BIF_ATI_REV_ID__SHIFT;
+	else if (adev->flags & AMD_IS_APU)
+		return (RREG32_SMC(ATI_REV_ID_FUSE_MACRO__ADDRESS) & ATI_REV_ID_FUSE_MACRO__MASK)
+			>> ATI_REV_ID_FUSE_MACRO__SHIFT;
 	else
 		return (RREG32(mmCC_DRM_ID_STRAPS) & CC_DRM_ID_STRAPS__ATI_REV_ID_MASK)
 			>> CC_DRM_ID_STRAPS__ATI_REV_ID__SHIFT;
@@ -1388,31 +1413,34 @@ static int vi_common_early_init(void *handle)
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = 0x1;
-		if (amdgpu_smc_load_fw && smc_enabled)
-			adev->firmware.smu_load = true;
 		break;
 	case CHIP_FIJI:
+		adev->has_uvd = true;
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x3c;
+		break;
 	case CHIP_TONGA:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x14;
-		if (amdgpu_smc_load_fw && smc_enabled)
-			adev->firmware.smu_load = true;
 		break;
 	case CHIP_CARRIZO:
+	case CHIP_STONEY:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
 		/* Disable UVD pg */
 		adev->pg_flags = /* AMDGPU_PG_SUPPORT_UVD | */AMDGPU_PG_SUPPORT_VCE;
 		adev->external_rev_id = adev->rev_id + 0x1;
-		if (amdgpu_smc_load_fw && smc_enabled)
-			adev->firmware.smu_load = true;
 		break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	if (amdgpu_smc_load_fw && smc_enabled)
+		adev->firmware.smu_load = true;
 
 	return 0;
 }

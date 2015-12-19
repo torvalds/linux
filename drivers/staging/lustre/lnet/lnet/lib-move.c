@@ -275,7 +275,6 @@ lnet_extract_iov(int dst_niov, struct kvec *dst,
 }
 EXPORT_SYMBOL(lnet_extract_iov);
 
-
 unsigned int
 lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
 {
@@ -727,7 +726,6 @@ lnet_peer_is_alive(lnet_peer_t *lp, unsigned long now)
 	return alive;
 }
 
-
 /* NB: returns 1 when alive, 0 when dead, negative when error;
  *     may drop the lnet_net_lock */
 static int
@@ -866,7 +864,6 @@ lnet_post_send_locked(lnet_msg_t *msg, int do_send)
 	}
 	return 0;
 }
-
 
 static lnet_rtrbufpool_t *
 lnet_msg2bufpool(lnet_msg_t *msg)
@@ -1768,11 +1765,11 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 	}
 
 	if (the_lnet.ln_routing &&
-	    ni->ni_last_alive != get_seconds()) {
+	    ni->ni_last_alive != ktime_get_real_seconds()) {
 		lnet_ni_lock(ni);
 
 		/* NB: so far here is the only place to set NI status to "up */
-		ni->ni_last_alive = get_seconds();
+		ni->ni_last_alive = ktime_get_real_seconds();
 		if (ni->ni_status != NULL &&
 		    ni->ni_status->ns_status == LNET_NI_STATUS_DOWN)
 			ni->ni_status->ns_status = LNET_NI_STATUS_UP;

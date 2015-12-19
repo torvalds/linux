@@ -22,6 +22,8 @@
 #include <linux/skbuff.h>
 #include <net/nfc/nfc.h>
 
+struct st_nci_se_status;
+
 /* Low Level Transport description */
 struct llt_ndlc {
 	struct nci_dev *ndev;
@@ -55,6 +57,7 @@ void ndlc_close(struct llt_ndlc *ndlc);
 int ndlc_send(struct llt_ndlc *ndlc, struct sk_buff *skb);
 void ndlc_recv(struct llt_ndlc *ndlc, struct sk_buff *skb);
 int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
-	int phy_headroom, int phy_tailroom, struct llt_ndlc **ndlc_id);
+	       int phy_headroom, int phy_tailroom, struct llt_ndlc **ndlc_id,
+	       struct st_nci_se_status *se_status);
 void ndlc_remove(struct llt_ndlc *ndlc);
 #endif /* __LOCAL_NDLC_H__ */

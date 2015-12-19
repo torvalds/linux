@@ -7,11 +7,11 @@ Introduction
 The IEEE 802.15.4 working group focuses on standardization of bottom
 two layers: Medium Access Control (MAC) and Physical (PHY). And there
 are mainly two options available for upper layers:
- - ZigBee - proprietary protocol from ZigBee Alliance
- - 6LowPAN - IPv6 networking over low rate personal area networks
+ - ZigBee - proprietary protocol from the ZigBee Alliance
+ - 6LoWPAN - IPv6 networking over low rate personal area networks
 
-The Linux-ZigBee project goal is to provide complete implementation
-of IEEE 802.15.4 and 6LoWPAN protocols. IEEE 802.15.4 is a stack
+The linux-wpan project goal is to provide a complete implementation
+of the IEEE 802.15.4 and 6LoWPAN protocols. IEEE 802.15.4 is a stack
 of protocols for organizing Low-Rate Wireless Personal Area Networks.
 
 The stack is composed of three main parts:

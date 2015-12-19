@@ -793,7 +793,6 @@ static struct i2c_driver opt3001_driver = {
 	.driver = {
 		.name = "opt3001",
 		.of_match_table = of_match_ptr(opt3001_of_match),
-		.owner = THIS_MODULE,
 	},
 };
 
