@@ -272,6 +272,13 @@ static int uinput_create_device(struct uinput_device *udev)
 		input_set_events_per_packet(dev, 60);
 	}
 
+	if (test_bit(EV_FF, dev->evbit) && !udev->ff_effects_max) {
+		printk(KERN_DEBUG "%s: ff_effects_max should be non-zero when FF_BIT is set\n",
+			UINPUT_NAME);
+		error = -EINVAL;
+		goto fail1;
+	}
+
 	if (udev->ff_effects_max) {
 		error = input_ff_create(dev, udev->ff_effects_max);
 		if (error)
