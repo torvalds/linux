@@ -87,13 +87,10 @@ struct tcm *sita_init(u16 width, u16 height, struct tcm_pt *attr)
 	if (width == 0 || height == 0)
 		return NULL;
 
-	tcm = kmalloc(sizeof(*tcm), GFP_KERNEL);
-	pvt = kmalloc(sizeof(*pvt), GFP_KERNEL);
+	tcm = kzalloc(sizeof(*tcm), GFP_KERNEL);
+	pvt = kzalloc(sizeof(*pvt), GFP_KERNEL);
 	if (!tcm || !pvt)
 		goto error;
-
-	memset(tcm, 0, sizeof(*tcm));
-	memset(pvt, 0, sizeof(*pvt));
 
 	/* Updating the pointers to SiTA implementation APIs */
 	tcm->height = height;

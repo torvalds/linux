@@ -121,7 +121,7 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	return cma_obj;
 
 error:
-	drm_gem_cma_free_object(&cma_obj->base);
+	drm->driver->gem_free_object(&cma_obj->base);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_create);
@@ -171,7 +171,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 	return cma_obj;
 
 err_handle_create:
-	drm_gem_cma_free_object(gem_obj);
+	drm->driver->gem_free_object(gem_obj);
 
 	return ERR_PTR(ret);
 }

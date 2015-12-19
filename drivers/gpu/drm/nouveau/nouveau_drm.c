@@ -1046,10 +1046,6 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 	}
 
-	err = drm_dev_set_unique(drm, "%s", dev_name(&pdev->dev));
-	if (err < 0)
-		goto err_free;
-
 	drm->platformdev = pdev;
 	platform_set_drvdata(pdev, drm);
 

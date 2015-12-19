@@ -1074,7 +1074,7 @@ armada_drm_crtc_set_property(struct drm_crtc *crtc,
 	return 0;
 }
 
-static struct drm_crtc_funcs armada_crtc_funcs = {
+static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.cursor_set	= armada_drm_crtc_cursor_set,
 	.cursor_move	= armada_drm_crtc_cursor_move,
 	.destroy	= armada_drm_crtc_destroy,

@@ -470,7 +470,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 }
 
 
-static struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
+static const struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 	.destroy = vmw_framebuffer_surface_destroy,
 	.dirty = vmw_framebuffer_surface_dirty,
 };
@@ -647,7 +647,7 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	return ret;
 }
 
-static struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
+static const struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
 	.destroy = vmw_framebuffer_dmabuf_destroy,
 	.dirty = vmw_framebuffer_dmabuf_dirty,
 };

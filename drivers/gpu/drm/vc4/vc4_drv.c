@@ -184,8 +184,6 @@ static int vc4_drm_bind(struct device *dev)
 	vc4->dev = drm;
 	drm->dev_private = vc4;
 
-	drm_dev_set_unique(drm, dev_name(dev));
-
 	vc4_bo_cache_init(drm);
 
 	drm_mode_config_init(drm);
