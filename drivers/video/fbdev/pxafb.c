@@ -2249,6 +2249,8 @@ static int pxafb_probe(struct platform_device *dev)
 	ret = -ENOMEM;
 	pdata = dev_get_platdata(&dev->dev);
 	inf = devm_kmalloc(&dev->dev, sizeof(*inf), GFP_KERNEL);
+	if (!inf)
+		goto failed;
 
 	if (pdata) {
 		*inf = *pdata;
