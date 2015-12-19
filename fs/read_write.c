@@ -1489,7 +1489,7 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
 		return -EISDIR;
 	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	if (!(file_in->f_mode & FMODE_READ) ||
 	    !(file_out->f_mode & FMODE_WRITE) ||
