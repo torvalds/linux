@@ -1100,18 +1100,6 @@ static int rtl2832_enable_slave_ts(struct i2c_client *client)
 	if (ret)
 		goto err;
 
-	ret = rtl2832_bulk_write(client, 0x022, "\x01", 1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x026, "\x1f", 1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x027, "\xff", 1);
-	if (ret)
-		goto err;
-
 	ret = rtl2832_bulk_write(client, 0x192, "\x7f\xf7\xff", 3);
 	if (ret)
 		goto err;
