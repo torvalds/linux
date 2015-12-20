@@ -150,12 +150,6 @@ static bool r5l_has_free_space(struct r5l_log *log, sector_t size)
 	return log->device_size > used_size + size;
 }
 
-static void r5l_free_io_unit(struct r5l_log *log, struct r5l_io_unit *io)
-{
-	__free_page(io->meta_page);
-	kmem_cache_free(log->io_kc, io);
-}
-
 static void __r5l_set_io_unit_state(struct r5l_io_unit *io,
 				    enum r5l_io_unit_state state)
 {
@@ -215,6 +209,7 @@ static void r5l_log_endio(struct bio *bio)
 		md_error(log->rdev->mddev, log->rdev);
 
 	bio_put(bio);
+	__free_page(io->meta_page);
 
 	spin_lock_irqsave(&log->io_list_lock, flags);
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_END);
@@ -552,7 +547,7 @@ static bool r5l_complete_finished_ios(struct r5l_log *log)
 		log->next_cp_seq = io->seq;
 
 		list_del(&io->log_sibling);
-		r5l_free_io_unit(log, io);
+		kmem_cache_free(log->io_kc, io);
 
 		found = true;
 	}
