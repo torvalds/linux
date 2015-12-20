@@ -201,6 +201,13 @@ enum ib_device_cap_flags {
 	IB_DEVICE_MEM_WINDOW_TYPE_2B		= (1 << 24),
 	IB_DEVICE_RC_IP_CSUM			= (1 << 25),
 	IB_DEVICE_RAW_IP_CSUM			= (1 << 26),
+	/*
+	 * Devices should set IB_DEVICE_CROSS_CHANNEL if they
+	 * support execution of WQEs that involve synchronization
+	 * of I/O operations with single completion queue managed
+	 * by hardware.
+	 */
+	IB_DEVICE_CROSS_CHANNEL		= (1 << 27),
 	IB_DEVICE_MANAGED_FLOW_STEERING		= (1 << 29),
 	IB_DEVICE_SIGNATURE_HANDOVER		= (1 << 30),
 	IB_DEVICE_ON_DEMAND_PAGING		= (1 << 31),
@@ -246,6 +253,7 @@ struct ib_odp_caps {
 
 enum ib_cq_creation_flags {
 	IB_CQ_FLAGS_TIMESTAMP_COMPLETION   = 1 << 0,
+	IB_CQ_FLAGS_IGNORE_OVERRUN	   = 1 << 1,
 };
 
 struct ib_cq_init_attr {
@@ -950,6 +958,9 @@ enum ib_qp_type {
 enum ib_qp_create_flags {
 	IB_QP_CREATE_IPOIB_UD_LSO		= 1 << 0,
 	IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK	= 1 << 1,
+	IB_QP_CREATE_CROSS_CHANNEL              = 1 << 2,
+	IB_QP_CREATE_MANAGED_SEND               = 1 << 3,
+	IB_QP_CREATE_MANAGED_RECV               = 1 << 4,
 	IB_QP_CREATE_NETIF_QP			= 1 << 5,
 	IB_QP_CREATE_SIGNATURE_EN		= 1 << 6,
 	IB_QP_CREATE_USE_GFP_NOIO		= 1 << 7,

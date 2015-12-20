@@ -1824,7 +1824,10 @@ static int create_qp(struct ib_uverbs_file *file,
 		      sizeof(cmd->create_flags))
 		attr.create_flags = cmd->create_flags;
 
-	if (attr.create_flags & ~IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
+	if (attr.create_flags & ~(IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
+				IB_QP_CREATE_CROSS_CHANNEL |
+				IB_QP_CREATE_MANAGED_SEND |
+				IB_QP_CREATE_MANAGED_RECV)) {
 		ret = -EINVAL;
 		goto err_put;
 	}
