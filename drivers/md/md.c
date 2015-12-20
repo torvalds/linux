@@ -9106,7 +9106,6 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 				ret = remove_and_add_spares(mddev, rdev2);
 				pr_info("Activated spare: %s\n",
 						bdevname(rdev2->bdev,b));
-				continue;
 			}
 			/* device faulty
 			 * We just want to do the minimum to mark the disk
