@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -47,17 +48,17 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x3A, 0x05);
 
 	/* MEM ACCESS */
-	write_reg(par, 0x36, 0xC0);
+	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, 0xC0);
 
 	/* SLPOUT - Sleep out & booster on */
-	write_reg(par, 0x11);
+	write_reg(par, MIPI_DCS_EXIT_SLEEP_MODE);
 	mdelay(150);
 
 	/* DISPON - Display On */
-	write_reg(par, 0x29);
+	write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
 
 	/* RGBSET */
-	write_reg(par, 0x2D,
+	write_reg(par, MIPI_DCS_WRITE_LUT,
 		 0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
 		32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62,
 		 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -95,16 +96,20 @@ static int set_var(struct fbtft_par *par)
 		rgb-bgr order color filter panel: 0=rgb, 1=bgr */
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, mx | my | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  mx | my | (par->bgr << 3));
 		break;
 	case 270:
-		write_reg(par, 0x36, my | mv | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  my | mv | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, par->bgr << 3);
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  par->bgr << 3);
 		break;
 	case 90:
-		write_reg(par, 0x36, mx | mv | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  mx | mv | (par->bgr << 3));
 		break;
 	}
 
