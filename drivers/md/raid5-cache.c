@@ -799,10 +799,18 @@ void r5l_quiesce(struct r5l_log *log, int state)
 
 bool r5l_log_disk_error(struct r5conf *conf)
 {
+	struct r5l_log *log;
+	bool ret;
 	/* don't allow write if journal disk is missing */
-	if (!conf->log)
-		return test_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
-	return test_bit(Faulty, &conf->log->rdev->flags);
+	rcu_read_lock();
+	log = rcu_dereference(conf->log);
+
+	if (!log)
+		ret = test_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
+	else
+		ret = test_bit(Faulty, &log->rdev->flags);
+	rcu_read_unlock();
+	return ret;
 }
 
 struct r5l_recovery_ctx {
@@ -1165,7 +1173,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (r5l_load_log(log))
 		goto error;
 
-	conf->log = log;
+	rcu_assign_pointer(conf->log, log);
 	return 0;
 error:
 	md_unregister_thread(&log->reclaim_thread);

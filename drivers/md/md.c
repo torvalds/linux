@@ -2055,8 +2055,9 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 		return -EEXIST;
 
 	/* make sure rdev->sectors exceeds mddev->dev_sectors */
-	if (rdev->sectors && (mddev->dev_sectors == 0 ||
-			rdev->sectors < mddev->dev_sectors)) {
+	if (!test_bit(Journal, &rdev->flags) &&
+	    rdev->sectors &&
+	    (mddev->dev_sectors == 0 || rdev->sectors < mddev->dev_sectors)) {
 		if (mddev->pers) {
 			/* Cannot change size, so fail
 			 * If mddev->level <= 0, then we don't care
@@ -2087,7 +2088,8 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 		}
 	}
 	rcu_read_unlock();
-	if (mddev->max_disks && rdev->desc_nr >= mddev->max_disks) {
+	if (!test_bit(Journal, &rdev->flags) &&
+	    mddev->max_disks && rdev->desc_nr >= mddev->max_disks) {
 		printk(KERN_WARNING "md: %s: array is limited to %d devices\n",
 		       mdname(mddev), mddev->max_disks);
 		return -EBUSY;
@@ -6044,8 +6046,23 @@ static int add_new_disk(struct mddev *mddev, mdu_disk_info_t *info)
 		else
 			clear_bit(WriteMostly, &rdev->flags);
 
-		if (info->state & (1<<MD_DISK_JOURNAL))
+		if (info->state & (1<<MD_DISK_JOURNAL)) {
+			struct md_rdev *rdev2;
+			bool has_journal = false;
+
+			/* make sure no existing journal disk */
+			rdev_for_each(rdev2, mddev) {
+				if (test_bit(Journal, &rdev2->flags)) {
+					has_journal = true;
+					break;
+				}
+			}
+			if (has_journal) {
+				export_rdev(rdev);
+				return -EBUSY;
+			}
 			set_bit(Journal, &rdev->flags);
+		}
 		/*
 		 * check whether the device shows up in other nodes
 		 */
@@ -8181,19 +8198,20 @@ static int remove_and_add_spares(struct mddev *mddev,
 			continue;
 		if (test_bit(Faulty, &rdev->flags))
 			continue;
-		if (test_bit(Journal, &rdev->flags))
-			continue;
-		if (mddev->ro &&
-		    ! (rdev->saved_raid_disk >= 0 &&
-		       !test_bit(Bitmap_sync, &rdev->flags)))
-			continue;
+		if (!test_bit(Journal, &rdev->flags)) {
+			if (mddev->ro &&
+			    ! (rdev->saved_raid_disk >= 0 &&
+			       !test_bit(Bitmap_sync, &rdev->flags)))
+				continue;
 
-		rdev->recovery_offset = 0;
+			rdev->recovery_offset = 0;
+		}
 		if (mddev->pers->
 		    hot_add_disk(mddev, rdev) == 0) {
 			if (sysfs_link_rdev(mddev, rdev))
 				/* failure here is OK */;
-			spares++;
+			if (!test_bit(Journal, &rdev->flags))
+				spares++;
 			md_new_event(mddev);
 			set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		}
