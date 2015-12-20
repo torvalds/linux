@@ -1200,13 +1200,13 @@ static void super_90_sync(struct mddev *mddev, struct md_rdev *rdev)
 	memcpy(&sb->set_uuid2, mddev->uuid+8, 4);
 	memcpy(&sb->set_uuid3, mddev->uuid+12,4);
 
-	sb->ctime = mddev->ctime;
+	sb->ctime = clamp_t(time64_t, mddev->ctime, 0, U32_MAX);
 	sb->level = mddev->level;
 	sb->size = mddev->dev_sectors / 2;
 	sb->raid_disks = mddev->raid_disks;
 	sb->md_minor = mddev->md_minor;
 	sb->not_persistent = 0;
-	sb->utime = mddev->utime;
+	sb->utime = clamp_t(time64_t, mddev->utime, 0, U32_MAX);
 	sb->state = 0;
 	sb->events_hi = (mddev->events>>32);
 	sb->events_lo = (u32)mddev->events;
@@ -1547,8 +1547,8 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 		mddev->patch_version = 0;
 		mddev->external = 0;
 		mddev->chunk_sectors = le32_to_cpu(sb->chunksize);
-		mddev->ctime = le64_to_cpu(sb->ctime) & ((1ULL << 32)-1);
-		mddev->utime = le64_to_cpu(sb->utime) & ((1ULL << 32)-1);
+		mddev->ctime = le64_to_cpu(sb->ctime);
+		mddev->utime = le64_to_cpu(sb->utime);
 		mddev->level = le32_to_cpu(sb->level);
 		mddev->clevel[0] = 0;
 		mddev->layout = le32_to_cpu(sb->layout);
@@ -2336,7 +2336,7 @@ repeat:
 
 	spin_lock(&mddev->lock);
 
-	mddev->utime = get_seconds();
+	mddev->utime = ktime_get_real_seconds();
 
 	if (test_and_clear_bit(MD_CHANGE_DEVS, &mddev->flags))
 		force_change = 1;
@@ -5843,7 +5843,7 @@ static int get_array_info(struct mddev *mddev, void __user *arg)
 	info.major_version = mddev->major_version;
 	info.minor_version = mddev->minor_version;
 	info.patch_version = MD_PATCHLEVEL_VERSION;
-	info.ctime         = mddev->ctime;
+	info.ctime         = clamp_t(time64_t, mddev->ctime, 0, U32_MAX);
 	info.level         = mddev->level;
 	info.size          = mddev->dev_sectors / 2;
 	if (info.size != mddev->dev_sectors / 2) /* overflow */
@@ -5853,7 +5853,7 @@ static int get_array_info(struct mddev *mddev, void __user *arg)
 	info.md_minor      = mddev->md_minor;
 	info.not_persistent= !mddev->persistent;
 
-	info.utime         = mddev->utime;
+	info.utime         = clamp_t(time64_t, mddev->utime, 0, U32_MAX);
 	info.state         = 0;
 	if (mddev->in_sync)
 		info.state = (1<<MD_SB_CLEAN);
@@ -6353,13 +6353,13 @@ static int set_array_info(struct mddev *mddev, mdu_array_info_t *info)
 		/* ensure mddev_put doesn't delete this now that there
 		 * is some minimal configuration.
 		 */
-		mddev->ctime         = get_seconds();
+		mddev->ctime         = ktime_get_real_seconds();
 		return 0;
 	}
 	mddev->major_version = MD_MAJOR_VERSION;
 	mddev->minor_version = MD_MINOR_VERSION;
 	mddev->patch_version = MD_PATCHLEVEL_VERSION;
-	mddev->ctime         = get_seconds();
+	mddev->ctime         = ktime_get_real_seconds();
 
 	mddev->level         = info->level;
 	mddev->clevel[0]     = 0;
