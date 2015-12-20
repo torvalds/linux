@@ -111,7 +111,8 @@ static inline u16 qed_chain_get_elem_left(struct qed_chain *p_chain)
 	used = ((u32)0x10000u + (u32)(p_chain->prod_idx)) -
 		(u32)p_chain->cons_idx;
 	if (p_chain->mode == QED_CHAIN_MODE_NEXT_PTR)
-		used -= (used / p_chain->elem_per_page);
+		used -= p_chain->prod_idx / p_chain->elem_per_page -
+			p_chain->cons_idx / p_chain->elem_per_page;
 
 	return p_chain->capacity - used;
 }

@@ -23,7 +23,7 @@
  * @dt_compat:		Array of device tree 'compatible' strings
  * 			(XXX: although only 1st entry is looked at)
  * @init_early:		Very early callback [called from setup_arch()]
- * @init_cpu_smp:	for each CPU as it is coming up (SMP as well as UP)
+ * @init_per_cpu:	for each CPU as it is coming up (SMP as well as UP)
  * 			[(M):init_IRQ(), (o):start_kernel_secondary()]
  * @init_machine:	arch initcall level callback (e.g. populate static
  * 			platform devices or parse Devicetree)
@@ -35,7 +35,7 @@ struct machine_desc {
 	const char		**dt_compat;
 	void			(*init_early)(void);
 #ifdef CONFIG_SMP
-	void			(*init_cpu_smp)(unsigned int);
+	void			(*init_per_cpu)(unsigned int);
 #endif
 	void			(*init_machine)(void);
 	void			(*init_late)(void);
