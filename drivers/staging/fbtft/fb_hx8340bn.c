@@ -25,6 +25,7 @@
 #include <linux/vmalloc.h>
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -89,12 +90,12 @@ static int init_display(struct fbtft_par *par)
 	   This command is used to define the format of RGB picture data,
 	   which is to be transfer via the system and RGB interface. */
 	/* RGB interface: 16 Bit/Pixel	*/
-	write_reg(par, 0x3A, 0x05);
+	write_reg(par, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT);
 
 	/* Display on (29h)
 	   This command is used to recover from DISPLAY OFF mode.
 	   Output from the Frame Memory is enabled. */
-	write_reg(par, 0x29);
+	write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
 	mdelay(10);
 
 	return 0;
@@ -102,9 +103,9 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	write_reg(par, FBTFT_CASET, 0x00, xs, 0x00, xe);
-	write_reg(par, FBTFT_RASET, 0x00, ys, 0x00, ye);
-	write_reg(par, FBTFT_RAMWR);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS, 0x00, xs, 0x00, xe);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS, 0x00, ys, 0x00, ye);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
 static int set_var(struct fbtft_par *par)
@@ -116,16 +117,19 @@ static int set_var(struct fbtft_par *par)
 #define MV BIT(5)
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, par->bgr << 3);
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, par->bgr << 3);
 		break;
 	case 270:
-		write_reg(par, 0x36, MX | MV | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MX | MV | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, MX | MY | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MX | MY | (par->bgr << 3));
 		break;
 	case 90:
-		write_reg(par, 0x36, MY | MV | (par->bgr << 3));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MY | MV | (par->bgr << 3));
 		break;
 	}
 
@@ -154,7 +158,8 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 		for (j = 0; j < par->gamma.num_values; j++)
 			CURVE(i, j) &= mask[i * par->gamma.num_values + j];
 
-	write_reg(par, 0x26, 1 << CURVE(1, 14)); /* Gamma Set (26h) */
+	/* Gamma Set (26h) */
+	write_reg(par, MIPI_DCS_SET_GAMMA_CURVE, 1 << CURVE(1, 14));
 
 	if (CURVE(1, 14))
 		return 0; /* only GC0 can be customized */
