@@ -498,11 +498,11 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 			wcn36xx_rx_skb(wcn, skb);
 		} /* else keep old skb not submitted and use it for rx DMA */
 
-		wcn36xx_dxe_write_register(wcn, WCN36XX_DXE_ENCH_ADDR, int_mask);
 		dxe->ctrl = value;
 		ctl = ctl->next;
 		dxe = ctl->desc;
 	}
+	wcn36xx_dxe_write_register(wcn, WCN36XX_DXE_ENCH_ADDR, int_mask);
 
 	ch->head_blk_ctl = ctl;
 	return 0;
