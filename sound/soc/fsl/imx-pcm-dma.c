@@ -62,6 +62,8 @@ int imx_pcm_dma_init(struct platform_device *pdev, size_t size)
 
 	config = devm_kzalloc(&pdev->dev,
 			sizeof(struct snd_dmaengine_pcm_config), GFP_KERNEL);
+	if (!config)
+		return -ENOMEM;
 	*config = imx_dmaengine_pcm_config;
 	if (size)
 		config->prealloc_buffer_size = size;
