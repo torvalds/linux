@@ -997,7 +997,7 @@ static int remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	cmsg.type = cpu_to_le32(REMOVE);
 	cmsg.raid_slot = cpu_to_le32(rdev->desc_nr);
-	return __sendmsg(cinfo, &cmsg);
+	return sendmsg(cinfo, &cmsg);
 }
 
 static int gather_bitmaps(struct md_rdev *rdev)

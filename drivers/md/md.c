@@ -6134,14 +6134,10 @@ static int hot_remove_disk(struct mddev *mddev, dev_t dev)
 {
 	char b[BDEVNAME_SIZE];
 	struct md_rdev *rdev;
-	int ret = -1;
 
 	rdev = find_rdev(mddev, dev);
 	if (!rdev)
 		return -ENXIO;
-
-	if (mddev_is_clustered(mddev))
-		ret = md_cluster_ops->metadata_update_start(mddev);
 
 	if (rdev->raid_disk < 0)
 		goto kick_rdev;
@@ -6153,7 +6149,7 @@ static int hot_remove_disk(struct mddev *mddev, dev_t dev)
 		goto busy;
 
 kick_rdev:
-	if (mddev_is_clustered(mddev) && ret == 0)
+	if (mddev_is_clustered(mddev))
 		md_cluster_ops->remove_disk(mddev, rdev);
 
 	md_kick_rdev_from_array(rdev);
@@ -6162,9 +6158,6 @@ kick_rdev:
 
 	return 0;
 busy:
-	if (mddev_is_clustered(mddev) && ret == 0)
-		md_cluster_ops->metadata_update_cancel(mddev);
-
 	printk(KERN_WARNING "md: cannot remove active disk %s from %s ...\n",
 		bdevname(rdev->bdev,b), mdname(mddev));
 	return -EBUSY;
