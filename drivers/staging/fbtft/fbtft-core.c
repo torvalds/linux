@@ -35,6 +35,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 #include "internal.h"
@@ -319,16 +320,13 @@ EXPORT_SYMBOL(fbtft_unregister_backlight);
 static void fbtft_set_addr_win(struct fbtft_par *par, int xs, int ys, int xe,
 			       int ye)
 {
-	/* Column address set */
-	write_reg(par, 0x2A,
-		(xs >> 8) & 0xFF, xs & 0xFF, (xe >> 8) & 0xFF, xe & 0xFF);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  (xs >> 8) & 0xFF, xs & 0xFF, (xe >> 8) & 0xFF, xe & 0xFF);
 
-	/* Row address set */
-	write_reg(par, 0x2B,
-		(ys >> 8) & 0xFF, ys & 0xFF, (ye >> 8) & 0xFF, ye & 0xFF);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  (ys >> 8) & 0xFF, ys & 0xFF, (ye >> 8) & 0xFF, ye & 0xFF);
 
-	/* Memory write */
-	write_reg(par, 0x2C);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
 static void fbtft_reset(struct fbtft_par *par)
