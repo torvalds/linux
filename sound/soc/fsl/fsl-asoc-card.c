@@ -107,6 +107,13 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"CPU-Capture",  NULL, "Capture"},
 };
 
+static const struct snd_soc_dapm_route audio_map_ac97[] = {
+	{"AC97 Playback",  NULL, "ASRC-Playback"},
+	{"Playback",  NULL, "AC97 Playback"},
+	{"ASRC-Capture",  NULL, "AC97 Capture"},
+	{"AC97 Capture",  NULL, "Capture"},
+};
+
 /* Add all possible widgets into here without being redundant */
 static const struct snd_soc_dapm_widget fsl_asoc_card_dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("Line Out Jack", NULL),
@@ -574,7 +581,8 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	priv->card.dev = &pdev->dev;
 	priv->card.name = priv->name;
 	priv->card.dai_link = priv->dai_link;
-	priv->card.dapm_routes = audio_map;
+	priv->card.dapm_routes = fsl_asoc_card_is_ac97(priv) ?
+				 audio_map_ac97 : audio_map;
 	priv->card.late_probe = fsl_asoc_card_late_probe;
 	priv->card.num_dapm_routes = ARRAY_SIZE(audio_map);
 	priv->card.dapm_widgets = fsl_asoc_card_dapm_widgets;
