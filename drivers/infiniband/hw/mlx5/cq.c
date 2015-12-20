@@ -778,7 +778,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	int eqn;
 	int err;
 
-	if (attr->flags)
+	if (check_cq_create_flags(attr->flags))
 		return ERR_PTR(-EINVAL);
 
 	if (entries < 0)
@@ -800,6 +800,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	spin_lock_init(&cq->lock);
 	cq->resize_buf = NULL;
 	cq->resize_umem = NULL;
+	cq->create_flags = attr->flags;
 
 	if (context) {
 		err = create_cq_user(dev, udata, context, cq, entries,
@@ -817,6 +818,10 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 	cq->cqe_size = cqe_size;
 	cqb->ctx.cqe_sz_flags = cqe_sz_to_mlx_sz(cqe_size) << 5;
+
+	if (cq->create_flags & IB_CQ_FLAGS_IGNORE_OVERRUN)
+		cqb->ctx.cqe_sz_flags |= (1 << 1);
+
 	cqb->ctx.log_sz_usr_page = cpu_to_be32((ilog2(entries) << 24) | index);
 	err = mlx5_vector2eqn(dev->mdev, vector, &eqn, &irqn);
 	if (err)

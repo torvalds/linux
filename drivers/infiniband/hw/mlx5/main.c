@@ -512,6 +512,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->odp_caps = dev->odp_caps;
 #endif
 
+	if (MLX5_CAP_GEN(mdev, cd))
+		props->device_cap_flags |= IB_DEVICE_CROSS_CHANNEL;
+
 	return 0;
 }
 

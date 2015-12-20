@@ -616,18 +616,23 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	/*
 	 * TBD: should come from the verbs when we have the API
 	 */
-	uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_HIGH);
-	if (uuarn < 0) {
-		mlx5_ib_dbg(dev, "failed to allocate low latency UUAR\n");
-		mlx5_ib_dbg(dev, "reverting to medium latency\n");
-		uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_MEDIUM);
+	if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL)
+		/* In CROSS_CHANNEL CQ and QP must use the same UAR */
+		uuarn = MLX5_CROSS_CHANNEL_UUAR;
+	else {
+		uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_HIGH);
 		if (uuarn < 0) {
-			mlx5_ib_dbg(dev, "failed to allocate medium latency UUAR\n");
-			mlx5_ib_dbg(dev, "reverting to high latency\n");
-			uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_LOW);
+			mlx5_ib_dbg(dev, "failed to allocate low latency UUAR\n");
+			mlx5_ib_dbg(dev, "reverting to medium latency\n");
+			uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_MEDIUM);
 			if (uuarn < 0) {
-				mlx5_ib_warn(dev, "uuar allocation failed\n");
-				return uuarn;
+				mlx5_ib_dbg(dev, "failed to allocate medium latency UUAR\n");
+				mlx5_ib_dbg(dev, "reverting to high latency\n");
+				uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_LOW);
+				if (uuarn < 0) {
+					mlx5_ib_warn(dev, "uuar allocation failed\n");
+					return uuarn;
+				}
 			}
 		}
 	}
@@ -881,6 +886,21 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		}
 	}
 
+	if (init_attr->create_flags &
+			(IB_QP_CREATE_CROSS_CHANNEL |
+			 IB_QP_CREATE_MANAGED_SEND |
+			 IB_QP_CREATE_MANAGED_RECV)) {
+		if (!MLX5_CAP_GEN(mdev, cd)) {
+			mlx5_ib_dbg(dev, "cross-channel isn't supported\n");
+			return -EINVAL;
+		}
+		if (init_attr->create_flags & IB_QP_CREATE_CROSS_CHANNEL)
+			qp->flags |= MLX5_IB_QP_CROSS_CHANNEL;
+		if (init_attr->create_flags & IB_QP_CREATE_MANAGED_SEND)
+			qp->flags |= MLX5_IB_QP_MANAGED_SEND;
+		if (init_attr->create_flags & IB_QP_CREATE_MANAGED_RECV)
+			qp->flags |= MLX5_IB_QP_MANAGED_RECV;
+	}
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = MLX5_WQE_CTRL_CQ_UPDATE;
 
@@ -954,6 +974,13 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	if (qp->flags & MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK)
 		in->ctx.flags_pd |= cpu_to_be32(MLX5_QP_BLOCK_MCAST);
+
+	if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL)
+		in->ctx.params2 |= cpu_to_be32(MLX5_QP_BIT_CC_MASTER);
+	if (qp->flags & MLX5_IB_QP_MANAGED_SEND)
+		in->ctx.params2 |= cpu_to_be32(MLX5_QP_BIT_CC_SLAVE_SEND);
+	if (qp->flags & MLX5_IB_QP_MANAGED_RECV)
+		in->ctx.params2 |= cpu_to_be32(MLX5_QP_BIT_CC_SLAVE_RECV);
 
 	if (qp->scat_cqe && is_connected(init_attr->qp_type)) {
 		int rcqe_sz;
@@ -3129,6 +3156,13 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 	qp_init_attr->create_flags = 0;
 	if (qp->flags & MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK)
 		qp_init_attr->create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
+
+	if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL)
+		qp_init_attr->create_flags |= IB_QP_CREATE_CROSS_CHANNEL;
+	if (qp->flags & MLX5_IB_QP_MANAGED_SEND)
+		qp_init_attr->create_flags |= IB_QP_CREATE_MANAGED_SEND;
+	if (qp->flags & MLX5_IB_QP_MANAGED_RECV)
+		qp_init_attr->create_flags |= IB_QP_CREATE_MANAGED_RECV;
 
 	qp_init_attr->sq_sig_type = qp->sq_signal_bits & MLX5_WQE_CTRL_CQ_UPDATE ?
 		IB_SIGNAL_ALL_WR : IB_SIGNAL_REQ_WR;

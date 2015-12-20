@@ -130,6 +130,9 @@ enum {
 	MLX5_QP_BIT_RWE				= 1 << 14,
 	MLX5_QP_BIT_RAE				= 1 << 13,
 	MLX5_QP_BIT_RIC				= 1 <<	4,
+	MLX5_QP_BIT_CC_SLAVE_RECV		= 1 <<  2,
+	MLX5_QP_BIT_CC_SLAVE_SEND		= 1 <<  1,
+	MLX5_QP_BIT_CC_MASTER			= 1 <<  0
 };
 
 enum {
