@@ -75,7 +75,10 @@ struct r5l_log {
 	struct list_head finished_ios;	/* io_units which settle down in log disk */
 	struct bio flush_bio;
 
+	struct list_head no_mem_stripes;   /* pending stripes, -ENOMEM */
+
 	struct kmem_cache *io_kc;
+	mempool_t *io_pool;
 	struct bio_set *bs;
 	mempool_t *meta_pool;
 
@@ -287,8 +290,11 @@ static struct r5l_io_unit *r5l_new_meta(struct r5l_log *log)
 	struct r5l_io_unit *io;
 	struct r5l_meta_block *block;
 
-	/* We can't handle memory allocate failure so far */
-	io = kmem_cache_zalloc(log->io_kc, GFP_NOIO | __GFP_NOFAIL);
+	io = mempool_alloc(log->io_pool, GFP_ATOMIC);
+	if (!io)
+		return NULL;
+	memset(io, 0, sizeof(*io));
+
 	io->log = log;
 	INIT_LIST_HEAD(&io->log_sibling);
 	INIT_LIST_HEAD(&io->stripe_list);
@@ -326,8 +332,12 @@ static int r5l_get_meta(struct r5l_log *log, unsigned int payload_size)
 	    log->current_io->meta_offset + payload_size > PAGE_SIZE)
 		r5l_submit_current_io(log);
 
-	if (!log->current_io)
+	if (!log->current_io) {
 		log->current_io = r5l_new_meta(log);
+		if (!log->current_io)
+			return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -372,11 +382,12 @@ static void r5l_append_payload_page(struct r5l_log *log, struct page *page)
 	r5_reserve_log_entry(log, io);
 }
 
-static void r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
+static int r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 			   int data_pages, int parity_pages)
 {
 	int i;
 	int meta_size;
+	int ret;
 	struct r5l_io_unit *io;
 
 	meta_size =
@@ -385,7 +396,10 @@ static void r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 		sizeof(struct r5l_payload_data_parity) +
 		sizeof(__le32) * parity_pages;
 
-	r5l_get_meta(log, meta_size);
+	ret = r5l_get_meta(log, meta_size);
+	if (ret)
+		return ret;
+
 	io = log->current_io;
 
 	for (i = 0; i < sh->disks; i++) {
@@ -415,6 +429,8 @@ static void r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 	list_add_tail(&sh->log_list, &io->stripe_list);
 	atomic_inc(&io->pending_stripe);
 	sh->log_io = io;
+
+	return 0;
 }
 
 static void r5l_wake_reclaim(struct r5l_log *log, sector_t space);
@@ -429,6 +445,7 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 	int meta_size;
 	int reserve;
 	int i;
+	int ret = 0;
 
 	if (!log)
 		return -EAGAIN;
@@ -477,17 +494,22 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 	mutex_lock(&log->io_mutex);
 	/* meta + data */
 	reserve = (1 + write_disks) << (PAGE_SHIFT - 9);
-	if (r5l_has_free_space(log, reserve))
-		r5l_log_stripe(log, sh, data_pages, parity_pages);
-	else {
+	if (!r5l_has_free_space(log, reserve)) {
 		spin_lock(&log->no_space_stripes_lock);
 		list_add_tail(&sh->log_list, &log->no_space_stripes);
 		spin_unlock(&log->no_space_stripes_lock);
 
 		r5l_wake_reclaim(log, reserve);
+	} else {
+		ret = r5l_log_stripe(log, sh, data_pages, parity_pages);
+		if (ret) {
+			spin_lock_irq(&log->io_list_lock);
+			list_add_tail(&sh->log_list, &log->no_mem_stripes);
+			spin_unlock_irq(&log->io_list_lock);
+		}
 	}
-	mutex_unlock(&log->io_mutex);
 
+	mutex_unlock(&log->io_mutex);
 	return 0;
 }
 
@@ -540,6 +562,21 @@ static sector_t r5l_reclaimable_space(struct r5l_log *log)
 				 log->next_checkpoint);
 }
 
+static void r5l_run_no_mem_stripe(struct r5l_log *log)
+{
+	struct stripe_head *sh;
+
+	assert_spin_locked(&log->io_list_lock);
+
+	if (!list_empty(&log->no_mem_stripes)) {
+		sh = list_first_entry(&log->no_mem_stripes,
+				      struct stripe_head, log_list);
+		list_del_init(&sh->log_list);
+		set_bit(STRIPE_HANDLE, &sh->state);
+		raid5_release_stripe(sh);
+	}
+}
+
 static bool r5l_complete_finished_ios(struct r5l_log *log)
 {
 	struct r5l_io_unit *io, *next;
@@ -556,7 +593,8 @@ static bool r5l_complete_finished_ios(struct r5l_log *log)
 		log->next_cp_seq = io->seq;
 
 		list_del(&io->log_sibling);
-		kmem_cache_free(log->io_kc, io);
+		mempool_free(io, log->io_pool);
+		r5l_run_no_mem_stripe(log);
 
 		found = true;
 	}
@@ -1170,6 +1208,10 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (!log->io_kc)
 		goto io_kc;
 
+	log->io_pool = mempool_create_slab_pool(R5L_POOL_SIZE, log->io_kc);
+	if (!log->io_pool)
+		goto io_pool;
+
 	log->bs = bioset_create(R5L_POOL_SIZE, 0);
 	if (!log->bs)
 		goto io_bs;
@@ -1183,6 +1225,8 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (!log->reclaim_thread)
 		goto reclaim_thread;
 	init_waitqueue_head(&log->iounit_wait);
+
+	INIT_LIST_HEAD(&log->no_mem_stripes);
 
 	INIT_LIST_HEAD(&log->no_space_stripes);
 	spin_lock_init(&log->no_space_stripes_lock);
@@ -1200,6 +1244,8 @@ reclaim_thread:
 out_mempool:
 	bioset_free(log->bs);
 io_bs:
+	mempool_destroy(log->io_pool);
+io_pool:
 	kmem_cache_destroy(log->io_kc);
 io_kc:
 	kfree(log);
@@ -1211,6 +1257,7 @@ void r5l_exit_log(struct r5l_log *log)
 	md_unregister_thread(&log->reclaim_thread);
 	mempool_destroy(log->meta_pool);
 	bioset_free(log->bs);
+	mempool_destroy(log->io_pool);
 	kmem_cache_destroy(log->io_kc);
 	kfree(log);
 }
