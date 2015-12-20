@@ -717,6 +717,8 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		cpu_to_le32(vif->bss_conf.use_short_slot ?
 			    MAC_FLG_SHORT_SLOT : 0);
 
+	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP);
+
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		u8 txf = iwl_mvm_ac_to_tx_fifo[i];
 
@@ -730,10 +732,25 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		cmd->ac[txf].fifos_mask = BIT(txf);
 	}
 
-	/* in AP mode, the MCAST FIFO takes the EDCA params from VO */
-	if (vif->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP) {
+		/* in AP mode, the MCAST FIFO takes the EDCA params from VO */
 		cmd->ac[IWL_MVM_TX_FIFO_VO].fifos_mask |=
 			BIT(IWL_MVM_TX_FIFO_MCAST);
+
+		/*
+		 * in AP mode, pass probe requests and beacons from other APs
+		 * (needed for ht protection); when there're no any associated
+		 * station don't ask FW to pass beacons to prevent unnecessary
+		 * wake-ups.
+		 */
+		cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
+		if (mvmvif->ap_assoc_sta_count) {
+			cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
+			IWL_DEBUG_HC(mvm, "Asking FW to pass beacons\n");
+		} else {
+			IWL_DEBUG_HC(mvm, "No need to receive beacons\n");
+		}
+	}
 
 	if (vif->bss_conf.qos)
 		cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA);
@@ -748,8 +765,6 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_TGN);
 	if (ht_enabled)
 		iwl_mvm_mac_ctxt_set_ht_flags(mvm, vif, cmd);
-
-	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP);
 }
 
 static int iwl_mvm_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
@@ -1156,26 +1171,12 @@ static int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
 				   u32 action)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mac_ctx_cmd cmd = {};
 
 	WARN_ON(vif->type != NL80211_IFTYPE_AP || vif->p2p);
 
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, NULL, action);
-
-	/*
-	 * pass probe requests and beacons from other APs (needed
-	 * for ht protection); when there're no any associated station
-	 * don't ask FW to pass beacons to prevent unnecessary wake-ups.
-	 */
-	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
-	if (mvmvif->ap_assoc_sta_count) {
-		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
-		IWL_DEBUG_HC(mvm, "Asking FW to pass beacons\n");
-	} else {
-		IWL_DEBUG_HC(mvm, "No need to receive beacons\n");
-	}
 
 	/* Fill the data specific for ap mode */
 	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.ap,
@@ -1195,13 +1196,6 @@ static int iwl_mvm_mac_ctxt_cmd_go(struct iwl_mvm *mvm,
 
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, NULL, action);
-
-	/*
-	 * pass probe requests and beacons from other APs (needed
-	 * for ht protection)
-	 */
-	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST |
-					MAC_FILTER_IN_BEACON);
 
 	/* Fill the data specific for GO mode */
 	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.go.ap,
