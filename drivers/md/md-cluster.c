@@ -882,7 +882,15 @@ static int resync_start(struct mddev *mddev)
 static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct resync_info ri;
 	struct cluster_msg cmsg = {0};
+
+	/* do not send zero again, if we have sent before */
+	if (hi == 0) {
+		memcpy(&ri, cinfo->bitmap_lockres->lksb.sb_lvbptr, sizeof(struct resync_info));
+		if (le64_to_cpu(ri.hi) == 0)
+			return 0;
+	}
 
 	add_resync_info(cinfo->bitmap_lockres, lo, hi);
 	/* Re-acquire the lock to refresh LVB */
