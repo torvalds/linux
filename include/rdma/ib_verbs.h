@@ -149,21 +149,21 @@ enum rdma_link_layer {
 };
 
 enum ib_device_cap_flags {
-	IB_DEVICE_RESIZE_MAX_WR		= 1,
-	IB_DEVICE_BAD_PKEY_CNTR		= (1<<1),
-	IB_DEVICE_BAD_QKEY_CNTR		= (1<<2),
-	IB_DEVICE_RAW_MULTI		= (1<<3),
-	IB_DEVICE_AUTO_PATH_MIG		= (1<<4),
-	IB_DEVICE_CHANGE_PHY_PORT	= (1<<5),
-	IB_DEVICE_UD_AV_PORT_ENFORCE	= (1<<6),
-	IB_DEVICE_CURR_QP_STATE_MOD	= (1<<7),
-	IB_DEVICE_SHUTDOWN_PORT		= (1<<8),
-	IB_DEVICE_INIT_TYPE		= (1<<9),
-	IB_DEVICE_PORT_ACTIVE_EVENT	= (1<<10),
-	IB_DEVICE_SYS_IMAGE_GUID	= (1<<11),
-	IB_DEVICE_RC_RNR_NAK_GEN	= (1<<12),
-	IB_DEVICE_SRQ_RESIZE		= (1<<13),
-	IB_DEVICE_N_NOTIFY_CQ		= (1<<14),
+	IB_DEVICE_RESIZE_MAX_WR			= (1 << 0),
+	IB_DEVICE_BAD_PKEY_CNTR			= (1 << 1),
+	IB_DEVICE_BAD_QKEY_CNTR			= (1 << 2),
+	IB_DEVICE_RAW_MULTI			= (1 << 3),
+	IB_DEVICE_AUTO_PATH_MIG			= (1 << 4),
+	IB_DEVICE_CHANGE_PHY_PORT		= (1 << 5),
+	IB_DEVICE_UD_AV_PORT_ENFORCE		= (1 << 6),
+	IB_DEVICE_CURR_QP_STATE_MOD		= (1 << 7),
+	IB_DEVICE_SHUTDOWN_PORT			= (1 << 8),
+	IB_DEVICE_INIT_TYPE			= (1 << 9),
+	IB_DEVICE_PORT_ACTIVE_EVENT		= (1 << 10),
+	IB_DEVICE_SYS_IMAGE_GUID		= (1 << 11),
+	IB_DEVICE_RC_RNR_NAK_GEN		= (1 << 12),
+	IB_DEVICE_SRQ_RESIZE			= (1 << 13),
+	IB_DEVICE_N_NOTIFY_CQ			= (1 << 14),
 
 	/*
 	 * This device supports a per-device lkey or stag that can be
@@ -172,9 +172,9 @@ enum ib_device_cap_flags {
 	 * instead of use the local_dma_lkey flag in the ib_pd structure,
 	 * which will always contain a usable lkey.
 	 */
-	IB_DEVICE_LOCAL_DMA_LKEY	= (1<<15),
-	IB_DEVICE_RESERVED		= (1<<16), /* old SEND_W_INV */
-	IB_DEVICE_MEM_WINDOW		= (1<<17),
+	IB_DEVICE_LOCAL_DMA_LKEY		= (1 << 15),
+	IB_DEVICE_RESERVED /* old SEND_W_INV */	= (1 << 16),
+	IB_DEVICE_MEM_WINDOW			= (1 << 17),
 	/*
 	 * Devices should set IB_DEVICE_UD_IP_SUM if they support
 	 * insertion of UDP and TCP checksum on outgoing UD IPoIB
@@ -182,9 +182,9 @@ enum ib_device_cap_flags {
 	 * incoming messages.  Setting this flag implies that the
 	 * IPoIB driver may set NETIF_F_IP_CSUM for datagram mode.
 	 */
-	IB_DEVICE_UD_IP_CSUM		= (1<<18),
-	IB_DEVICE_UD_TSO		= (1<<19),
-	IB_DEVICE_XRC			= (1<<20),
+	IB_DEVICE_UD_IP_CSUM			= (1 << 18),
+	IB_DEVICE_UD_TSO			= (1 << 19),
+	IB_DEVICE_XRC				= (1 << 20),
 
 	/*
 	 * This device supports the IB "base memory management extension",
@@ -195,15 +195,15 @@ enum ib_device_cap_flags {
 	 * IB_WR_RDMA_READ_WITH_INV verb for RDMA READs that invalidate the
 	 * stag.
 	 */
-	IB_DEVICE_MEM_MGT_EXTENSIONS	= (1<<21),
-	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = (1<<22),
-	IB_DEVICE_MEM_WINDOW_TYPE_2A	= (1<<23),
-	IB_DEVICE_MEM_WINDOW_TYPE_2B	= (1<<24),
-	IB_DEVICE_RC_IP_CSUM		= (1<<25),
-	IB_DEVICE_RAW_IP_CSUM		= (1<<26),
-	IB_DEVICE_MANAGED_FLOW_STEERING = (1<<29),
-	IB_DEVICE_SIGNATURE_HANDOVER	= (1<<30),
-	IB_DEVICE_ON_DEMAND_PAGING	= (1<<31),
+	IB_DEVICE_MEM_MGT_EXTENSIONS		= (1 << 21),
+	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK	= (1 << 22),
+	IB_DEVICE_MEM_WINDOW_TYPE_2A		= (1 << 23),
+	IB_DEVICE_MEM_WINDOW_TYPE_2B		= (1 << 24),
+	IB_DEVICE_RC_IP_CSUM			= (1 << 25),
+	IB_DEVICE_RAW_IP_CSUM			= (1 << 26),
+	IB_DEVICE_MANAGED_FLOW_STEERING		= (1 << 29),
+	IB_DEVICE_SIGNATURE_HANDOVER		= (1 << 30),
+	IB_DEVICE_ON_DEMAND_PAGING		= (1 << 31),
 };
 
 enum ib_signature_prot_cap {
