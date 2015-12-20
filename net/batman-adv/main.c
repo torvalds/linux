@@ -697,6 +697,8 @@ static struct batadv_tvlv_container
 {
 	struct batadv_tvlv_container *tvlv_tmp, *tvlv = NULL;
 
+	lockdep_assert_held(&bat_priv->tvlv.container_list_lock);
+
 	hlist_for_each_entry(tvlv_tmp, &bat_priv->tvlv.container_list, list) {
 		if (tvlv_tmp->tvlv_hdr.type != type)
 			continue;
@@ -728,6 +730,8 @@ static u16 batadv_tvlv_container_list_size(struct batadv_priv *bat_priv)
 {
 	struct batadv_tvlv_container *tvlv;
 	u16 tvlv_len = 0;
+
+	lockdep_assert_held(&bat_priv->tvlv.container_list_lock);
 
 	hlist_for_each_entry(tvlv, &bat_priv->tvlv.container_list, list) {
 		tvlv_len += sizeof(struct batadv_tvlv_hdr);
