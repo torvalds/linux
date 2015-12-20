@@ -772,8 +772,6 @@ static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh
 	int hash;
 	int dd_idx;
 
-	if (!stripe_can_batch(sh))
-		return;
 	/* Don't cross chunks, so stripe pd_idx/qd_idx is the same */
 	tmp_sec = sh->sector;
 	if (!sector_div(tmp_sec, conf->chunk_sectors))
