@@ -55,6 +55,7 @@ struct md_cluster_info {
 	int slot_number;
 	struct completion completion;
 	struct dlm_lock_resource *bitmap_lockres;
+	struct dlm_lock_resource **other_bitmap_lockres;
 	struct dlm_lock_resource *resync_lockres;
 	struct list_head suspend_list;
 	spinlock_t suspend_lock;
@@ -803,6 +804,7 @@ static void resync_bitmap(struct mddev *mddev)
 			__func__, __LINE__, err);
 }
 
+static void unlock_all_bitmaps(struct mddev *mddev);
 static int leave(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
@@ -823,6 +825,7 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->ack_lockres);
 	lockres_free(cinfo->no_new_dev_lockres);
 	lockres_free(cinfo->bitmap_lockres);
+	unlock_all_bitmaps(mddev);
 	dlm_release_lockspace(cinfo->lockspace, 2);
 	return 0;
 }
@@ -1000,6 +1003,58 @@ static int remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	return sendmsg(cinfo, &cmsg);
 }
 
+static int lock_all_bitmaps(struct mddev *mddev)
+{
+	int slot, my_slot, ret, held = 1, i = 0;
+	char str[64];
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	cinfo->other_bitmap_lockres = kzalloc((mddev->bitmap_info.nodes - 1) *
+					     sizeof(struct dlm_lock_resource *),
+					     GFP_KERNEL);
+	if (!cinfo->other_bitmap_lockres) {
+		pr_err("md: can't alloc mem for other bitmap locks\n");
+		return 0;
+	}
+
+	my_slot = slot_number(mddev);
+	for (slot = 0; slot < mddev->bitmap_info.nodes; slot++) {
+		if (slot == my_slot)
+			continue;
+
+		memset(str, '\0', 64);
+		snprintf(str, 64, "bitmap%04d", slot);
+		cinfo->other_bitmap_lockres[i] = lockres_init(mddev, str, NULL, 1);
+		if (!cinfo->other_bitmap_lockres[i])
+			return -ENOMEM;
+
+		cinfo->other_bitmap_lockres[i]->flags |= DLM_LKF_NOQUEUE;
+		ret = dlm_lock_sync(cinfo->other_bitmap_lockres[i], DLM_LOCK_PW);
+		if (ret)
+			held = -1;
+		i++;
+	}
+
+	return held;
+}
+
+static void unlock_all_bitmaps(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	int i;
+
+	/* release other node's bitmap lock if they are existed */
+	if (cinfo->other_bitmap_lockres) {
+		for (i = 0; i < mddev->bitmap_info.nodes - 1; i++) {
+			if (cinfo->other_bitmap_lockres[i]) {
+				dlm_unlock_sync(cinfo->other_bitmap_lockres[i]);
+				lockres_free(cinfo->other_bitmap_lockres[i]);
+			}
+		}
+		kfree(cinfo->other_bitmap_lockres);
+	}
+}
+
 static int gather_bitmaps(struct md_rdev *rdev)
 {
 	int sn, err;
@@ -1045,6 +1100,8 @@ static struct md_cluster_operations cluster_ops = {
 	.new_disk_ack = new_disk_ack,
 	.remove_disk = remove_disk,
 	.gather_bitmaps = gather_bitmaps,
+	.lock_all_bitmaps = lock_all_bitmaps,
+	.unlock_all_bitmaps = unlock_all_bitmaps,
 };
 
 static int __init cluster_init(void)

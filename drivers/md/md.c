@@ -6599,6 +6599,19 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 				rv = -EINVAL;
 				goto err;
 			}
+			if (mddev->bitmap_info.nodes) {
+				/* hold PW on all the bitmap lock */
+				if (md_cluster_ops->lock_all_bitmaps(mddev) <= 0) {
+					printk("md: can't change bitmap to none since the"
+					       " array is in use by more than one node\n");
+					rv = -EPERM;
+					md_cluster_ops->unlock_all_bitmaps(mddev);
+					goto err;
+				}
+
+				mddev->bitmap_info.nodes = 0;
+				md_cluster_ops->leave(mddev);
+			}
 			mddev->pers->quiesce(mddev, 1);
 			bitmap_destroy(mddev);
 			mddev->pers->quiesce(mddev, 0);
