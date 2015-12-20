@@ -8318,6 +8318,18 @@ void md_check_recovery(struct mddev *mddev)
 			goto unlock;
 		}
 
+		if (mddev_is_clustered(mddev)) {
+			struct md_rdev *rdev;
+			/* kick the device if another node issued a
+			 * remove disk.
+			 */
+			rdev_for_each(rdev, mddev) {
+				if (test_and_clear_bit(ClusterRemove, &rdev->flags) &&
+						rdev->raid_disk < 0)
+					md_kick_rdev_from_array(rdev);
+			}
+		}
+
 		if (!mddev->external) {
 			int did_change = 0;
 			spin_lock(&mddev->lock);

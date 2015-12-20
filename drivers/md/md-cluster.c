@@ -440,8 +440,11 @@ static void process_remove_disk(struct mddev *mddev, struct cluster_msg *msg)
 	struct md_rdev *rdev = md_find_rdev_nr_rcu(mddev,
 						   le32_to_cpu(msg->raid_slot));
 
-	if (rdev)
-		md_kick_rdev_from_array(rdev);
+	if (rdev) {
+		set_bit(ClusterRemove, &rdev->flags);
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		md_wakeup_thread(mddev->thread);
+	}
 	else
 		pr_warn("%s: %d Could not find disk(%d) to REMOVE\n",
 			__func__, __LINE__, le32_to_cpu(msg->raid_slot));

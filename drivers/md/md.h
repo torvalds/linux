@@ -183,6 +183,7 @@ enum flag_bits {
 				 * Usually, this device should be faster
 				 * than other devices in the array
 				 */
+	ClusterRemove,
 };
 
 #define BB_LEN_MASK	(0x00000000000001FFULL)
