@@ -53,11 +53,12 @@ struct resync_info {
  * accomodate lock and hold. See next comment.
  */
 #define		MD_CLUSTER_SEND_LOCK			4
-/* If cluster operations must lock the communication channel,
- * so as to perform extra operations (and no other operation
- * is allowed on the MD, such as adding a disk. Token needs
- * to be locked and held until the operation completes with
- * a md_update_sb(), which would eventually release the lock.
+/* If cluster operations (such as adding a disk) must lock the
+ * communication channel, so as to perform extra operations
+ * (update metadata) and no other operation is allowed on the
+ * MD. Token needs to be locked and held until the operation
+ * completes witha md_update_sb(), which would eventually release
+ * the lock.
  */
 #define		MD_CLUSTER_SEND_LOCKED_ALREADY		5
 
@@ -1021,6 +1022,18 @@ static int add_new_disk(struct mddev *mddev, struct md_rdev *rdev)
 		unlock_comm(cinfo);
 	else {
 		dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
+		/* Since MD_CHANGE_DEVS will be set in add_bound_rdev which
+		 * will run soon after add_new_disk, the below path will be
+		 * invoked:
+		 *   md_wakeup_thread(mddev->thread)
+		 *	-> conf->thread (raid1d)
+		 *	-> md_check_recovery -> md_update_sb
+		 *	-> metadata_update_start/finish
+		 * MD_CLUSTER_SEND_LOCKED_ALREADY will be cleared eventually.
+		 *
+		 * For other failure cases, metadata_update_cancel and
+		 * add_new_disk_cancel also clear below bit as well.
+		 * */
 		set_bit(MD_CLUSTER_SEND_LOCKED_ALREADY, &cinfo->state);
 		wake_up(&cinfo->wait);
 	}
