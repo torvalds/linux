@@ -22,6 +22,90 @@
 #include <asm/kvm_mmu.h>
 #include "vgic.h"
 
+/* CREATION */
+
+/**
+ * kvm_vgic_create: triggered by the instantiation of the VGIC device by
+ * user space, either through the legacy KVM_CREATE_IRQCHIP ioctl (v2 only)
+ * or through the generic KVM_CREATE_DEVICE API ioctl.
+ * irqchip_in_kernel() tells you if this function succeeded or not.
+ */
+int kvm_vgic_create(struct kvm *kvm, u32 type)
+{
+	int i, vcpu_lock_idx = -1, ret;
+	struct kvm_vcpu *vcpu;
+
+	mutex_lock(&kvm->lock);
+
+	if (irqchip_in_kernel(kvm)) {
+		ret = -EEXIST;
+		goto out;
+	}
+
+	/*
+	 * This function is also called by the KVM_CREATE_IRQCHIP handler,
+	 * which had no chance yet to check the availability of the GICv2
+	 * emulation. So check this here again. KVM_CREATE_DEVICE does
+	 * the proper checks already.
+	 */
+	if (type == KVM_DEV_TYPE_ARM_VGIC_V2 &&
+		!kvm_vgic_global_state.can_emulate_gicv2) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	/*
+	 * Any time a vcpu is run, vcpu_load is called which tries to grab the
+	 * vcpu->mutex.  By grabbing the vcpu->mutex of all VCPUs we ensure
+	 * that no other VCPUs are run while we create the vgic.
+	 */
+	ret = -EBUSY;
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (!mutex_trylock(&vcpu->mutex))
+			goto out_unlock;
+		vcpu_lock_idx = i;
+	}
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (vcpu->arch.has_run_once)
+			goto out_unlock;
+	}
+	ret = 0;
+
+	if (type == KVM_DEV_TYPE_ARM_VGIC_V2)
+		kvm->arch.max_vcpus = VGIC_V2_MAX_CPUS;
+	else
+		kvm->arch.max_vcpus = VGIC_V3_MAX_CPUS;
+
+	if (atomic_read(&kvm->online_vcpus) > kvm->arch.max_vcpus) {
+		ret = -E2BIG;
+		goto out_unlock;
+	}
+
+	kvm->arch.vgic.in_kernel = true;
+	kvm->arch.vgic.vgic_model = type;
+
+	/*
+	 * kvm_vgic_global_state.vctrl_base is set on vgic probe (kvm_arch_init)
+	 * it is stored in distributor struct for asm save/restore purpose
+	 */
+	kvm->arch.vgic.vctrl_base = kvm_vgic_global_state.vctrl_base;
+
+	kvm->arch.vgic.vgic_dist_base = VGIC_ADDR_UNDEF;
+	kvm->arch.vgic.vgic_cpu_base = VGIC_ADDR_UNDEF;
+	kvm->arch.vgic.vgic_redist_base = VGIC_ADDR_UNDEF;
+
+out_unlock:
+	for (; vcpu_lock_idx >= 0; vcpu_lock_idx--) {
+		vcpu = kvm_get_vcpu(kvm, vcpu_lock_idx);
+		mutex_unlock(&vcpu->mutex);
+	}
+
+out:
+	mutex_unlock(&kvm->lock);
+	return ret;
+}
+
 /* GENERIC PROBE */
 
 static void vgic_init_maintenance_interrupt(void *info)
