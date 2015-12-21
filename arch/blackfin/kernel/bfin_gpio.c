@@ -1159,7 +1159,7 @@ static int bfin_gpiolib_direction_output(struct gpio_chip *chip, unsigned gpio, 
 
 static int bfin_gpiolib_get_value(struct gpio_chip *chip, unsigned gpio)
 {
-	return bfin_gpio_get_value(gpio);
+	return !!bfin_gpio_get_value(gpio);
 }
 
 static void bfin_gpiolib_set_value(struct gpio_chip *chip, unsigned gpio, int value)
