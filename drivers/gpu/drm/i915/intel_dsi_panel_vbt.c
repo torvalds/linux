@@ -232,11 +232,9 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 typedef const u8 * (*fn_mipi_elem_exec)(struct intel_dsi *intel_dsi,
 					const u8 *data);
 static const fn_mipi_elem_exec exec_elem[] = {
-	NULL, /* reserved */
-	mipi_exec_send_packet,
-	mipi_exec_delay,
-	mipi_exec_gpio,
-	NULL, /* status read; later */
+	[MIPI_SEQ_ELEM_SEND_PKT] = mipi_exec_send_packet,
+	[MIPI_SEQ_ELEM_DELAY] = mipi_exec_delay,
+	[MIPI_SEQ_ELEM_GPIO] = mipi_exec_gpio,
 };
 
 /*
@@ -264,7 +262,6 @@ static const char *sequence_name(enum mipi_seq seq_id)
 static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	fn_mipi_elem_exec mipi_elem_exec;
-	int index;
 
 	if (!data)
 		return;
@@ -277,15 +274,14 @@ static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 
 	/* parse each byte till we reach end of sequence byte - 0x00 */
 	while (1) {
-		index = *data;
-		mipi_elem_exec = exec_elem[index];
-		if (!mipi_elem_exec) {
-			DRM_ERROR("Unsupported MIPI element, skipping sequence execution\n");
+		u8 operation_byte = *data++;
+		if (operation_byte >= ARRAY_SIZE(exec_elem) ||
+		    !exec_elem[operation_byte]) {
+			DRM_ERROR("Unsupported MIPI operation byte %u\n",
+				  operation_byte);
 			return;
 		}
-
-		/* goto element payload */
-		data++;
+		mipi_elem_exec = exec_elem[operation_byte];
 
 		/* execute the element specific rotines */
 		data = mipi_elem_exec(intel_dsi, data);
