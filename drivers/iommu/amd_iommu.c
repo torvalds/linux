@@ -125,6 +125,7 @@ struct aperture_range {
 	/* address allocation bitmap */
 	unsigned long *bitmap;
 	unsigned long offset;
+	unsigned long next_bit;
 
 	/*
 	 * Array of PTE pages for the aperture. In this array we save all the
@@ -1519,7 +1520,6 @@ out_free:
 
 static dma_addr_t dma_ops_aperture_alloc(struct aperture_range *range,
 					 unsigned long pages,
-					 unsigned long next_bit,
 					 unsigned long dma_mask,
 					 unsigned long boundary_size,
 					 unsigned long align_mask)
@@ -1532,8 +1532,17 @@ static dma_addr_t dma_ops_aperture_alloc(struct aperture_range *range,
 					dma_mask >> PAGE_SHIFT);
 
 	spin_lock_irqsave(&range->bitmap_lock, flags);
-	address = iommu_area_alloc(range->bitmap, limit, next_bit, pages,
-				   offset, boundary_size, align_mask);
+	address = iommu_area_alloc(range->bitmap, limit, range->next_bit,
+				   pages, offset, boundary_size, align_mask);
+	if (address == -1)
+		/* Nothing found, retry one time */
+		address = iommu_area_alloc(range->bitmap, limit,
+					   0, pages, offset, boundary_size,
+					   align_mask);
+
+	if (address != -1)
+		range->next_bit = address + pages;
+
 	spin_unlock_irqrestore(&range->bitmap_lock, flags);
 
 	return address;
@@ -1546,13 +1555,10 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 					u64 dma_mask,
 					unsigned long start)
 {
-	unsigned long next_bit = dom->next_address % APERTURE_RANGE_SIZE;
 	int max_index = dom->aperture_size >> APERTURE_RANGE_SHIFT;
 	int i = start >> APERTURE_RANGE_SHIFT;
-	unsigned long boundary_size, mask;
+	unsigned long next_bit, boundary_size, mask;
 	unsigned long address = -1;
-
-	next_bit >>= PAGE_SHIFT;
 
 	mask = dma_get_seg_boundary(dev);
 
@@ -1563,9 +1569,11 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 		if (dom->aperture[i]->offset >= dma_mask)
 			break;
 
+		next_bit = dom->aperture[i]->next_bit;
+
 		address = dma_ops_aperture_alloc(dom->aperture[i], pages,
-						 next_bit, dma_mask,
-						 boundary_size, align_mask);
+						 dma_mask, boundary_size,
+						 align_mask);
 		if (address != -1) {
 			address = dom->aperture[i]->offset +
 				  (address << PAGE_SHIFT);
@@ -1573,7 +1581,8 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 			break;
 		}
 
-		next_bit = 0;
+		if (next_bit > dom->aperture[i]->next_bit)
+			dom->need_flush = true;
 	}
 
 	return address;
