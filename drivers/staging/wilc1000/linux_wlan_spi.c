@@ -15,7 +15,7 @@
 #include "linux_wlan_common.h"
 #include "wilc_wlan_if.h"
 
-#define USE_SPI_DMA     0       /* johnny add */
+#define USE_SPI_DMA     0
 
 static const struct wilc1000_ops wilc1000_spi_ops;
 
@@ -87,16 +87,13 @@ int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
 
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
-/* [[johnny add */
 		msg.spi = spi;
 		msg.is_dma_mapped = USE_SPI_DMA;
-/* ]] */
 		spi_message_add_tail(&tr, &msg);
 
 		ret = spi_sync(spi, &msg);
-		if (ret < 0) {
+		if (ret < 0)
 			dev_err(&spi->dev, "SPI transaction failed\n");
-		}
 
 		kfree(r_buffer);
 	} else {
@@ -137,16 +134,13 @@ int wilc_spi_read(struct wilc *wilc, u8 *rb, u32 rlen)
 
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
-/* [[ johnny add */
 		msg.spi = spi;
 		msg.is_dma_mapped = USE_SPI_DMA;
-/* ]] */
 		spi_message_add_tail(&tr, &msg);
 
 		ret = spi_sync(spi, &msg);
-		if (ret < 0) {
+		if (ret < 0)
 			dev_err(&spi->dev, "SPI transaction failed\n");
-		}
 		kfree(t_buffer);
 	} else {
 		dev_err(&spi->dev,
@@ -183,9 +177,8 @@ int wilc_spi_write_read(struct wilc *wilc, u8 *wb, u8 *rb, u32 rlen)
 
 		spi_message_add_tail(&tr, &msg);
 		ret = spi_sync(spi, &msg);
-		if (ret < 0) {
+		if (ret < 0)
 			dev_err(&spi->dev, "SPI transaction failed\n");
-		}
 	} else {
 		dev_err(&spi->dev,
 			"can't read data with the following length: %u\n",
