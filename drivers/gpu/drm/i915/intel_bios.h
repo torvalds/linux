@@ -960,6 +960,9 @@ enum mipi_seq {
 	MIPI_SEQ_DISPLAY_ON,
 	MIPI_SEQ_DISPLAY_OFF,
 	MIPI_SEQ_DEASSERT_RESET,
+	MIPI_SEQ_BACKLIGHT_ON,		/* sequence block v2+ */
+	MIPI_SEQ_BACKLIGHT_OFF,		/* sequence block v2+ */
+	MIPI_SEQ_TEAR_ON,		/* sequence block v2+ */
 	MIPI_SEQ_MAX
 };
 
