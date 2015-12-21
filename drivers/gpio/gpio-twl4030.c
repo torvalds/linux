@@ -327,7 +327,7 @@ static int twl_get(struct gpio_chip *chip, unsigned offset)
 	else
 		status = twl4030_get_gpio_datain(offset);
 
-	ret = (status <= 0) ? 0 : 1;
+	ret = (status < 0) ? status : !!status;
 out:
 	mutex_unlock(&priv->mutex);
 	return ret;
