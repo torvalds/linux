@@ -293,13 +293,13 @@ static void init_unwind_hdr(struct unwind_table *table,
 		const u32 *cie = cie_for_fde(fde, table);
 		signed ptrType;
 
-		if (cie == &not_fde)	/* only process FDE here */
+		if (cie == &not_fde)
 			continue;
 		if (cie == NULL || cie == &bad_cie)
-			continue;	/* say FDE->CIE.version != 1 */
+			return;
 		ptrType = fde_pointer_type(cie);
 		if (ptrType < 0)
-			continue;
+			return;
 
 		ptr = (const u8 *)(fde + 2);
 		if (!read_pointer(&ptr, (const u8 *)(fde + 1) + *fde,
@@ -343,10 +343,6 @@ static void init_unwind_hdr(struct unwind_table *table,
 
 		if (fde[1] == 0xffffffff)
 			continue;	/* this is a CIE */
-
-		if (*(u8 *)(cie + 2) != 1)
-			continue;	/* FDE->CIE.version not supported */
-
 		ptr = (const u8 *)(fde + 2);
 		header->table[n].start = read_pointer(&ptr,
 						      (const u8 *)(fde + 1) +
@@ -523,8 +519,7 @@ static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *table)
 
 	if (*cie <= sizeof(*cie) + 4 || *cie >= fde[1] - sizeof(*fde)
 	    || (*cie & (sizeof(*cie) - 1))
-	    || (cie[1] != 0xffffffff)
-	    || ( *(u8 *)(cie + 2) != 1))   /* version 1 supported */
+	    || (cie[1] != 0xffffffff))
 		return NULL;	/* this is not a (valid) CIE */
 	return cie;
 }
