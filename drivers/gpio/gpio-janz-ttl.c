@@ -76,7 +76,7 @@ static int ttl_get_value(struct gpio_chip *gpio, unsigned offset)
 	spin_lock(&mod->lock);
 	ret = *shadow & (1 << offset);
 	spin_unlock(&mod->lock);
-	return ret;
+	return !!ret;
 }
 
 static void ttl_set_value(struct gpio_chip *gpio, unsigned offset, int value)
