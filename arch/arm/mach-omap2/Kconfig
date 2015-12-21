@@ -121,6 +121,7 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select NEON if CPU_V7
 	select PM
 	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
 	select VFP
@@ -201,7 +202,6 @@ config MACH_OMAP3_PANDORA
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_NOKIA_N810
        bool

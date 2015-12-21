@@ -1464,7 +1464,7 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
 	entry->type      = dma_debug_coherent;
 	entry->dev       = dev;
 	entry->pfn	 = page_to_pfn(virt_to_page(virt));
-	entry->offset	 = (size_t) virt & PAGE_MASK;
+	entry->offset	 = (size_t) virt & ~PAGE_MASK;
 	entry->size      = size;
 	entry->dev_addr  = dma_addr;
 	entry->direction = DMA_BIDIRECTIONAL;
@@ -1480,7 +1480,7 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
 		.type           = dma_debug_coherent,
 		.dev            = dev,
 		.pfn		= page_to_pfn(virt_to_page(virt)),
-		.offset		= (size_t) virt & PAGE_MASK,
+		.offset		= (size_t) virt & ~PAGE_MASK,
 		.dev_addr       = addr,
 		.size           = size,
 		.direction      = DMA_BIDIRECTIONAL,
