@@ -1648,8 +1648,10 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 		return;
 #endif
 
-	if ((address >> APERTURE_RANGE_SHIFT) >= dom->next_index)
-		dom->need_flush = true;
+	if (address + pages > range->next_bit) {
+		domain_flush_tlb(&dom->domain);
+		domain_flush_complete(&dom->domain);
+	}
 
 	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
 
