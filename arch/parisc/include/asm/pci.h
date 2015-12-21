@@ -167,6 +167,7 @@ static inline void pcibios_register_hba(struct pci_hba_data *x)
 {
 }
 #endif
+extern void pcibios_init_bridge(struct pci_dev *);
 
 /*
  * pcibios_assign_all_busses() is used in drivers/pci/pci.c:pci_do_scan_bus()
