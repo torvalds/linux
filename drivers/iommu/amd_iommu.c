@@ -1563,35 +1563,36 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 					unsigned long align_mask,
 					u64 dma_mask)
 {
-	int max_index = dom->aperture_size >> APERTURE_RANGE_SHIFT;
 	unsigned long next_bit, boundary_size, mask;
 	unsigned long address = -1;
-	int i = dom->next_index;
+	int start = dom->next_index;
+	int i;
 
 	mask = dma_get_seg_boundary(dev);
 
 	boundary_size = mask + 1 ? ALIGN(mask + 1, PAGE_SIZE) >> PAGE_SHIFT :
 				   1UL << (BITS_PER_LONG - PAGE_SHIFT);
 
-	for (;i < max_index; ++i) {
-		struct aperture_range *range = dom->aperture[i];
+	for (i = 0; i < APERTURE_MAX_RANGES; ++i) {
+		struct aperture_range *range;
 
-		if (range->offset >= dma_mask)
-			break;
+		range = dom->aperture[(start + i) % APERTURE_MAX_RANGES];
+
+		if (!range || range->offset >= dma_mask)
+			continue;
 
 		next_bit  = range->next_bit;
 
-		address = dma_ops_aperture_alloc(dom, dom->aperture[i], pages,
+		address = dma_ops_aperture_alloc(dom, range, pages,
 						 dma_mask, boundary_size,
 						 align_mask);
 		if (address != -1) {
-			address = dom->aperture[i]->offset +
-				  (address << PAGE_SHIFT);
+			address = range->offset + (address << PAGE_SHIFT);
 			dom->next_index = i;
 			break;
 		}
 
-		if (next_bit > dom->aperture[i]->next_bit)
+		if (next_bit > range->next_bit)
 			dom->need_flush = true;
 	}
 
@@ -1612,13 +1613,6 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 #endif
 
 	address = dma_ops_area_alloc(dev, dom, pages, align_mask, dma_mask);
-
-	if (address == -1) {
-		dom->next_index = 0;
-		address = dma_ops_area_alloc(dev, dom, pages, align_mask,
-					     dma_mask);
-		dom->need_flush = true;
-	}
 
 	if (unlikely(address == -1))
 		address = DMA_ERROR_CODE;
