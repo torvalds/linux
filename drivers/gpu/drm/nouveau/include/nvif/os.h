@@ -27,6 +27,7 @@
 #include <linux/agp_backend.h>
 #include <linux/reset.h>
 #include <linux/iommu.h>
+#include <linux/of_device.h>
 
 #include <asm/unaligned.h>
 

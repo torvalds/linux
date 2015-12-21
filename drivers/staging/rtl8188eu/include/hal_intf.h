@@ -25,10 +25,10 @@
 #include <Hal8188EPhyCfg.h>
 
 enum RTL871X_HCI_TYPE {
-	RTW_PCIE	= BIT0,
-	RTW_USB		= BIT1,
-	RTW_SDIO	= BIT2,
-	RTW_GSPI	= BIT3,
+	RTW_PCIE	= BIT(0),
+	RTW_USB		= BIT(1),
+	RTW_SDIO	= BIT(2),
+	RTW_GSPI	= BIT(3),
 };
 
 enum _CHIP_TYPE {
@@ -226,10 +226,10 @@ enum rt_eeprom_type {
 };
 
 #define RF_CHANGE_BY_INIT	0
-#define RF_CHANGE_BY_IPS	BIT28
-#define RF_CHANGE_BY_PS		BIT29
-#define RF_CHANGE_BY_HW		BIT30
-#define RF_CHANGE_BY_SW		BIT31
+#define RF_CHANGE_BY_IPS	BIT(28)
+#define RF_CHANGE_BY_PS		BIT(29)
+#define RF_CHANGE_BY_HW		BIT(30)
+#define RF_CHANGE_BY_SW		BIT(31)
 
 enum hardware_type {
 	HARDWARE_TYPE_RTL8188EU,

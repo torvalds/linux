@@ -824,8 +824,11 @@ static void flush_all_alias_devices_on_lcu(struct alias_lcu *lcu)
 		 * were waiting for the flush
 		 */
 		if (device == list_first_entry(&active,
-					       struct dasd_device, alias_list))
+					       struct dasd_device, alias_list)) {
 			list_move(&device->alias_list, &lcu->active_devices);
+			private = (struct dasd_eckd_private *) device->private;
+			private->pavgroup = NULL;
+		}
 	}
 	spin_unlock_irqrestore(&lcu->lock, flags);
 }

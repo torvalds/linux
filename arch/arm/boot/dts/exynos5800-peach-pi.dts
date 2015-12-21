@@ -94,7 +94,7 @@
 		regulator-name = "P5.0V_USB3CON0";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gph0 0 0>;
+		gpio = <&gph0 0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb300_vbus_en>;
 		enable-active-high;
@@ -105,7 +105,7 @@
 		regulator-name = "P5.0V_USB3CON1";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gph0 1 0>;
+		gpio = <&gph0 1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb301_vbus_en>;
 		enable-active-high;
@@ -147,7 +147,7 @@
 	samsung,color-depth = <1>;
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <2>;
-	samsung,hpd-gpio = <&gpx2 6 0>;
+	samsung,hpd-gpio = <&gpx2 6 GPIO_ACTIVE_HIGH>;
 	panel = <&panel>;
 };
 
@@ -878,6 +878,11 @@
 	};
 };
 
+&pmu_system_controller {
+	assigned-clocks = <&pmu_system_controller 0>;
+	assigned-clock-parents = <&clock CLK_FIN_PLL>;
+};
+
 &rtc {
 	status = "okay";
 	clocks = <&clock CLK_RTC>, <&max77802 MAX77802_CLK_32K_AP>;
@@ -888,7 +893,7 @@
 	status = "okay";
 	num-cs = <1>;
 	samsung,spi-src-clk = <0>;
-	cs-gpios = <&gpb1 2 0>;
+	cs-gpios = <&gpb1 2 GPIO_ACTIVE_HIGH>;
 
 	cros_ec: cros-ec@0 {
 		compatible = "google,cros-ec-spi";
@@ -898,6 +903,7 @@
 		pinctrl-0 = <&ec_spi_cs &ec_irq>;
 		reg = <0>;
 		spi-max-frequency = <3125000>;
+		google,has-vbc-nvram;
 
 		controller-data {
 			samsung,spi-feedback-delay = <1>;

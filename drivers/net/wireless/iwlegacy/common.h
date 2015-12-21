@@ -1425,9 +1425,9 @@ struct il_priv {
 #endif				/* CONFIG_IWLEGACY_DEBUGFS */
 
 	struct work_struct txpower_work;
-	u32 disable_sens_cal;
-	u32 disable_chain_noise_cal;
-	u32 disable_tx_power_cal;
+	bool disable_sens_cal;
+	bool disable_chain_noise_cal;
+	bool disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
 	struct timer_list stats_periodic;
 	struct timer_list watchdog;

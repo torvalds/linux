@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
+#include <linux/acpi.h>
 #include "i2c-designware-core.h"
 
 #define DRIVER_NAME "i2c-designware-pci"
@@ -158,11 +159,6 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 	},
 };
 
-static struct i2c_algorithm i2c_dw_algo = {
-	.master_xfer	= i2c_dw_xfer,
-	.functionality	= i2c_dw_func,
-};
-
 #ifdef CONFIG_PM
 static int i2c_dw_pci_suspend(struct device *dev)
 {
@@ -222,13 +218,12 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	if (!dev)
 		return -ENOMEM;
 
-	init_completion(&dev->cmd_complete);
-	mutex_init(&dev->lock);
 	dev->clk = NULL;
 	dev->controller = controller;
 	dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
 	dev->base = pcim_iomap_table(pdev)[0];
 	dev->dev = &pdev->dev;
+	dev->irq = pdev->irq;
 	dev->functionality = controller->functionality |
 				DW_DEFAULT_FUNCTIONALITY;
 
@@ -246,34 +241,16 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 
 	dev->tx_fifo_depth = controller->tx_fifo_depth;
 	dev->rx_fifo_depth = controller->rx_fifo_depth;
-	r = i2c_dw_init(dev);
-	if (r)
-		return r;
 
 	adap = &dev->adapter;
-	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
 	adap->class = 0;
-	adap->algo = &i2c_dw_algo;
-	adap->dev.parent = &pdev->dev;
+	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->nr = controller->bus_num;
 
-	snprintf(adap->name, sizeof(adap->name), "i2c-designware-pci");
-
-	r = devm_request_irq(&pdev->dev, pdev->irq, i2c_dw_isr,
-			IRQF_SHARED | IRQF_COND_SUSPEND, adap->name, dev);
-	if (r) {
-		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
+	r = i2c_dw_probe(dev);
+	if (r)
 		return r;
-	}
-
-	i2c_dw_disable_int(dev);
-	i2c_dw_clear_int(dev);
-	r = i2c_add_numbered_adapter(adap);
-	if (r) {
-		dev_err(&pdev->dev, "failure adding adapter\n");
-		return r;
-	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
 	pm_runtime_use_autosuspend(&pdev->dev);

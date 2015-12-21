@@ -28,6 +28,7 @@
 #include <drm/bridge/dw_hdmi.h>
 
 #include "dw_hdmi.h"
+#include "dw_hdmi-audio.h"
 
 #define HDMI_EDID_LEN		512
 
@@ -104,6 +105,7 @@ struct dw_hdmi {
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
 
+	struct platform_device *audio;
 	enum dw_hdmi_devtype dev_type;
 	struct device *dev;
 	struct clk *isfr_clk;
@@ -126,7 +128,11 @@ struct dw_hdmi {
 	bool sink_has_audio;
 
 	struct mutex mutex;		/* for state below and previous_mode */
+	enum drm_connector_force force;	/* mutex-protected force state */
 	bool disabled;			/* DRM has disabled our bridge */
+	bool bridge_is_on;		/* indicates the bridge is on */
+	bool rxsense;			/* rxsense state */
+	u8 phy_mask;			/* desired phy int mask settings */
 
 	spinlock_t audio_lock;
 	struct mutex audio_mutex;
@@ -134,11 +140,18 @@ struct dw_hdmi {
 	unsigned int audio_cts;
 	unsigned int audio_n;
 	bool audio_enable;
-	int ratio;
 
 	void (*write)(struct dw_hdmi *hdmi, u8 val, int offset);
 	u8 (*read)(struct dw_hdmi *hdmi, int offset);
 };
+
+#define HDMI_IH_PHY_STAT0_RX_SENSE \
+	(HDMI_IH_PHY_STAT0_RX_SENSE0 | HDMI_IH_PHY_STAT0_RX_SENSE1 | \
+	 HDMI_IH_PHY_STAT0_RX_SENSE2 | HDMI_IH_PHY_STAT0_RX_SENSE3)
+
+#define HDMI_PHY_RX_SENSE \
+	(HDMI_PHY_RX_SENSE0 | HDMI_PHY_RX_SENSE1 | \
+	 HDMI_PHY_RX_SENSE2 | HDMI_PHY_RX_SENSE3)
 
 static void dw_hdmi_writel(struct dw_hdmi *hdmi, u8 val, int offset)
 {
@@ -203,61 +216,53 @@ static void hdmi_set_cts_n(struct dw_hdmi *hdmi, unsigned int cts,
 	hdmi_writeb(hdmi, n & 0xff, HDMI_AUD_N1);
 }
 
-static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
-				   unsigned int ratio)
+static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk)
 {
 	unsigned int n = (128 * freq) / 1000;
+	unsigned int mult = 1;
+
+	while (freq > 48000) {
+		mult *= 2;
+		freq /= 2;
+	}
 
 	switch (freq) {
 	case 32000:
-		if (pixel_clk == 25170000)
-			n = (ratio == 150) ? 9152 : 4576;
-		else if (pixel_clk == 27020000)
-			n = (ratio == 150) ? 8192 : 4096;
-		else if (pixel_clk == 74170000 || pixel_clk == 148350000)
+		if (pixel_clk == 25175000)
+			n = 4576;
+		else if (pixel_clk == 27027000)
+			n = 4096;
+		else if (pixel_clk == 74176000 || pixel_clk == 148352000)
 			n = 11648;
 		else
 			n = 4096;
+		n *= mult;
 		break;
 
 	case 44100:
-		if (pixel_clk == 25170000)
+		if (pixel_clk == 25175000)
 			n = 7007;
-		else if (pixel_clk == 74170000)
+		else if (pixel_clk == 74176000)
 			n = 17836;
-		else if (pixel_clk == 148350000)
-			n = (ratio == 150) ? 17836 : 8918;
+		else if (pixel_clk == 148352000)
+			n = 8918;
 		else
 			n = 6272;
+		n *= mult;
 		break;
 
 	case 48000:
-		if (pixel_clk == 25170000)
-			n = (ratio == 150) ? 9152 : 6864;
-		else if (pixel_clk == 27020000)
-			n = (ratio == 150) ? 8192 : 6144;
-		else if (pixel_clk == 74170000)
+		if (pixel_clk == 25175000)
+			n = 6864;
+		else if (pixel_clk == 27027000)
+			n = 6144;
+		else if (pixel_clk == 74176000)
 			n = 11648;
-		else if (pixel_clk == 148350000)
-			n = (ratio == 150) ? 11648 : 5824;
+		else if (pixel_clk == 148352000)
+			n = 5824;
 		else
 			n = 6144;
-		break;
-
-	case 88200:
-		n = hdmi_compute_n(44100, pixel_clk, ratio) * 2;
-		break;
-
-	case 96000:
-		n = hdmi_compute_n(48000, pixel_clk, ratio) * 2;
-		break;
-
-	case 176400:
-		n = hdmi_compute_n(44100, pixel_clk, ratio) * 4;
-		break;
-
-	case 192000:
-		n = hdmi_compute_n(48000, pixel_clk, ratio) * 4;
+		n *= mult;
 		break;
 
 	default:
@@ -267,93 +272,29 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
 	return n;
 }
 
-static unsigned int hdmi_compute_cts(unsigned int freq, unsigned long pixel_clk,
-				     unsigned int ratio)
-{
-	unsigned int cts = 0;
-
-	pr_debug("%s: freq: %d pixel_clk: %ld ratio: %d\n", __func__, freq,
-		 pixel_clk, ratio);
-
-	switch (freq) {
-	case 32000:
-		if (pixel_clk == 297000000) {
-			cts = 222750;
-			break;
-		}
-	case 48000:
-	case 96000:
-	case 192000:
-		switch (pixel_clk) {
-		case 25200000:
-		case 27000000:
-		case 54000000:
-		case 74250000:
-		case 148500000:
-			cts = pixel_clk / 1000;
-			break;
-		case 297000000:
-			cts = 247500;
-			break;
-		/*
-		 * All other TMDS clocks are not supported by
-		 * DWC_hdmi_tx. The TMDS clocks divided or
-		 * multiplied by 1,001 coefficients are not
-		 * supported.
-		 */
-		default:
-			break;
-		}
-		break;
-	case 44100:
-	case 88200:
-	case 176400:
-		switch (pixel_clk) {
-		case 25200000:
-			cts = 28000;
-			break;
-		case 27000000:
-			cts = 30000;
-			break;
-		case 54000000:
-			cts = 60000;
-			break;
-		case 74250000:
-			cts = 82500;
-			break;
-		case 148500000:
-			cts = 165000;
-			break;
-		case 297000000:
-			cts = 247500;
-			break;
-		default:
-			break;
-		}
-		break;
-	default:
-		break;
-	}
-	if (ratio == 100)
-		return cts;
-	return (cts * ratio) / 100;
-}
-
 static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
-	unsigned long pixel_clk, unsigned int sample_rate, unsigned int ratio)
+	unsigned long pixel_clk, unsigned int sample_rate)
 {
+	unsigned long ftdms = pixel_clk;
 	unsigned int n, cts;
+	u64 tmp;
 
-	n = hdmi_compute_n(sample_rate, pixel_clk, ratio);
-	cts = hdmi_compute_cts(sample_rate, pixel_clk, ratio);
-	if (!cts) {
-		dev_err(hdmi->dev,
-			"%s: pixel clock/sample rate not supported: %luMHz / %ukHz\n",
-			__func__, pixel_clk, sample_rate);
-	}
+	n = hdmi_compute_n(sample_rate, pixel_clk);
 
-	dev_dbg(hdmi->dev, "%s: samplerate=%ukHz ratio=%d pixelclk=%luMHz N=%d cts=%d\n",
-		__func__, sample_rate, ratio, pixel_clk, n, cts);
+	/*
+	 * Compute the CTS value from the N value.  Note that CTS and N
+	 * can be up to 20 bits in total, so we need 64-bit math.  Also
+	 * note that our TDMS clock is not fully accurate; it is accurate
+	 * to kHz.  This can introduce an unnecessary remainder in the
+	 * calculation below, so we don't try to warn about that.
+	 */
+	tmp = (u64)ftdms * n;
+	do_div(tmp, 128 * sample_rate);
+	cts = tmp;
+
+	dev_dbg(hdmi->dev, "%s: fs=%uHz ftdms=%lu.%03luMHz N=%d cts=%d\n",
+		__func__, sample_rate, ftdms / 1000000, (ftdms / 1000) % 1000,
+		n, cts);
 
 	spin_lock_irq(&hdmi->audio_lock);
 	hdmi->audio_n = n;
@@ -365,8 +306,7 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 static void hdmi_init_clk_regenerator(struct dw_hdmi *hdmi)
 {
 	mutex_lock(&hdmi->audio_mutex);
-	hdmi_set_clk_regenerator(hdmi, 74250000, hdmi->sample_rate,
-				 hdmi->ratio);
+	hdmi_set_clk_regenerator(hdmi, 74250000, hdmi->sample_rate);
 	mutex_unlock(&hdmi->audio_mutex);
 }
 
@@ -374,7 +314,7 @@ static void hdmi_clk_regenerator_update_pixel_clock(struct dw_hdmi *hdmi)
 {
 	mutex_lock(&hdmi->audio_mutex);
 	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mpixelclock,
-				 hdmi->sample_rate, hdmi->ratio);
+				 hdmi->sample_rate);
 	mutex_unlock(&hdmi->audio_mutex);
 }
 
@@ -383,7 +323,7 @@ void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate)
 	mutex_lock(&hdmi->audio_mutex);
 	hdmi->sample_rate = rate;
 	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mpixelclock,
-				 hdmi->sample_rate, hdmi->ratio);
+				 hdmi->sample_rate);
 	mutex_unlock(&hdmi->audio_mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_set_sample_rate);
@@ -1063,6 +1003,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	u8 inv_val;
 	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
 	int hblank, vblank, h_de_hs, v_de_vs, hsync_len, vsync_len;
+	unsigned int vdisplay;
 
 	vmode->mpixelclock = mode->clock * 1000;
 
@@ -1102,13 +1043,29 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 
 	hdmi_writeb(hdmi, inv_val, HDMI_FC_INVIDCONF);
 
+	vdisplay = mode->vdisplay;
+	vblank = mode->vtotal - mode->vdisplay;
+	v_de_vs = mode->vsync_start - mode->vdisplay;
+	vsync_len = mode->vsync_end - mode->vsync_start;
+
+	/*
+	 * When we're setting an interlaced mode, we need
+	 * to adjust the vertical timing to suit.
+	 */
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		vdisplay /= 2;
+		vblank /= 2;
+		v_de_vs /= 2;
+		vsync_len /= 2;
+	}
+
 	/* Set up horizontal active pixel width */
 	hdmi_writeb(hdmi, mode->hdisplay >> 8, HDMI_FC_INHACTV1);
 	hdmi_writeb(hdmi, mode->hdisplay, HDMI_FC_INHACTV0);
 
 	/* Set up vertical active lines */
-	hdmi_writeb(hdmi, mode->vdisplay >> 8, HDMI_FC_INVACTV1);
-	hdmi_writeb(hdmi, mode->vdisplay, HDMI_FC_INVACTV0);
+	hdmi_writeb(hdmi, vdisplay >> 8, HDMI_FC_INVACTV1);
+	hdmi_writeb(hdmi, vdisplay, HDMI_FC_INVACTV0);
 
 	/* Set up horizontal blanking pixel region width */
 	hblank = mode->htotal - mode->hdisplay;
@@ -1116,7 +1073,6 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	hdmi_writeb(hdmi, hblank, HDMI_FC_INHBLANK0);
 
 	/* Set up vertical blanking pixel region width */
-	vblank = mode->vtotal - mode->vdisplay;
 	hdmi_writeb(hdmi, vblank, HDMI_FC_INVBLANK);
 
 	/* Set up HSYNC active edge delay width (in pixel clks) */
@@ -1125,7 +1081,6 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	hdmi_writeb(hdmi, h_de_hs, HDMI_FC_HSYNCINDELAY0);
 
 	/* Set up VSYNC active edge delay (in lines) */
-	v_de_vs = mode->vsync_start - mode->vdisplay;
 	hdmi_writeb(hdmi, v_de_vs, HDMI_FC_VSYNCINDELAY);
 
 	/* Set up HSYNC active pulse width (in pixel clks) */
@@ -1134,7 +1089,6 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	hdmi_writeb(hdmi, hsync_len, HDMI_FC_HSYNCINWIDTH0);
 
 	/* Set up VSYNC active edge delay (in lines) */
-	vsync_len = mode->vsync_end - mode->vsync_start;
 	hdmi_writeb(hdmi, vsync_len, HDMI_FC_VSYNCINWIDTH);
 }
 
@@ -1302,10 +1256,11 @@ static int dw_hdmi_fb_registered(struct dw_hdmi *hdmi)
 		    HDMI_PHY_I2CM_CTLINT_ADDR);
 
 	/* enable cable hot plug irq */
-	hdmi_writeb(hdmi, (u8)~HDMI_PHY_HPD, HDMI_PHY_MASK0);
+	hdmi_writeb(hdmi, hdmi->phy_mask, HDMI_PHY_MASK0);
 
 	/* Clear Hotplug interrupts */
-	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD, HDMI_IH_PHY_STAT0);
+	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE,
+		    HDMI_IH_PHY_STAT0);
 
 	return 0;
 }
@@ -1364,12 +1319,61 @@ static void initialize_hdmi_ih_mutes(struct dw_hdmi *hdmi)
 
 static void dw_hdmi_poweron(struct dw_hdmi *hdmi)
 {
+	hdmi->bridge_is_on = true;
 	dw_hdmi_setup(hdmi, &hdmi->previous_mode);
 }
 
 static void dw_hdmi_poweroff(struct dw_hdmi *hdmi)
 {
 	dw_hdmi_phy_disable(hdmi);
+	hdmi->bridge_is_on = false;
+}
+
+static void dw_hdmi_update_power(struct dw_hdmi *hdmi)
+{
+	int force = hdmi->force;
+
+	if (hdmi->disabled) {
+		force = DRM_FORCE_OFF;
+	} else if (force == DRM_FORCE_UNSPECIFIED) {
+		if (hdmi->rxsense)
+			force = DRM_FORCE_ON;
+		else
+			force = DRM_FORCE_OFF;
+	}
+
+	if (force == DRM_FORCE_OFF) {
+		if (hdmi->bridge_is_on)
+			dw_hdmi_poweroff(hdmi);
+	} else {
+		if (!hdmi->bridge_is_on)
+			dw_hdmi_poweron(hdmi);
+	}
+}
+
+/*
+ * Adjust the detection of RXSENSE according to whether we have a forced
+ * connection mode enabled, or whether we have been disabled.  There is
+ * no point processing RXSENSE interrupts if we have a forced connection
+ * state, or DRM has us disabled.
+ *
+ * We also disable rxsense interrupts when we think we're disconnected
+ * to avoid floating TDMS signals giving false rxsense interrupts.
+ *
+ * Note: we still need to listen for HPD interrupts even when DRM has us
+ * disabled so that we can detect a connect event.
+ */
+static void dw_hdmi_update_phy_mask(struct dw_hdmi *hdmi)
+{
+	u8 old_mask = hdmi->phy_mask;
+
+	if (hdmi->force || hdmi->disabled || !hdmi->rxsense)
+		hdmi->phy_mask |= HDMI_PHY_RX_SENSE;
+	else
+		hdmi->phy_mask &= ~HDMI_PHY_RX_SENSE;
+
+	if (old_mask != hdmi->phy_mask)
+		hdmi_writeb(hdmi, hdmi->phy_mask, HDMI_PHY_MASK0);
 }
 
 static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
@@ -1399,7 +1403,8 @@ static void dw_hdmi_bridge_disable(struct drm_bridge *bridge)
 
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
-	dw_hdmi_poweroff(hdmi);
+	dw_hdmi_update_power(hdmi);
+	dw_hdmi_update_phy_mask(hdmi);
 	mutex_unlock(&hdmi->mutex);
 }
 
@@ -1408,8 +1413,9 @@ static void dw_hdmi_bridge_enable(struct drm_bridge *bridge)
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
 	mutex_lock(&hdmi->mutex);
-	dw_hdmi_poweron(hdmi);
 	hdmi->disabled = false;
+	dw_hdmi_update_power(hdmi);
+	dw_hdmi_update_phy_mask(hdmi);
 	mutex_unlock(&hdmi->mutex);
 }
 
@@ -1423,6 +1429,12 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
 					     connector);
+
+	mutex_lock(&hdmi->mutex);
+	hdmi->force = DRM_FORCE_UNSPECIFIED;
+	dw_hdmi_update_power(hdmi);
+	dw_hdmi_update_phy_mask(hdmi);
+	mutex_unlock(&hdmi->mutex);
 
 	return hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD ?
 		connector_status_connected : connector_status_disconnected;
@@ -1447,6 +1459,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
 		drm_mode_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
+		/* Store the ELD */
+		drm_edid_to_eld(connector, edid);
 		kfree(edid);
 	} else {
 		dev_dbg(hdmi->dev, "failed to get edid\n");
@@ -1488,11 +1502,24 @@ static void dw_hdmi_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
+static void dw_hdmi_connector_force(struct drm_connector *connector)
+{
+	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
+					     connector);
+
+	mutex_lock(&hdmi->mutex);
+	hdmi->force = connector->force;
+	dw_hdmi_update_power(hdmi);
+	dw_hdmi_update_phy_mask(hdmi);
+	mutex_unlock(&hdmi->mutex);
+}
+
 static struct drm_connector_funcs dw_hdmi_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = dw_hdmi_connector_detect,
 	.destroy = dw_hdmi_connector_destroy,
+	.force = dw_hdmi_connector_force,
 };
 
 static struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
@@ -1525,33 +1552,69 @@ static irqreturn_t dw_hdmi_hardirq(int irq, void *dev_id)
 static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 {
 	struct dw_hdmi *hdmi = dev_id;
-	u8 intr_stat;
-	u8 phy_int_pol;
+	u8 intr_stat, phy_int_pol, phy_pol_mask, phy_stat;
 
 	intr_stat = hdmi_readb(hdmi, HDMI_IH_PHY_STAT0);
-
 	phy_int_pol = hdmi_readb(hdmi, HDMI_PHY_POL0);
+	phy_stat = hdmi_readb(hdmi, HDMI_PHY_STAT0);
 
-	if (intr_stat & HDMI_IH_PHY_STAT0_HPD) {
-		hdmi_modb(hdmi, ~phy_int_pol, HDMI_PHY_HPD, HDMI_PHY_POL0);
+	phy_pol_mask = 0;
+	if (intr_stat & HDMI_IH_PHY_STAT0_HPD)
+		phy_pol_mask |= HDMI_PHY_HPD;
+	if (intr_stat & HDMI_IH_PHY_STAT0_RX_SENSE0)
+		phy_pol_mask |= HDMI_PHY_RX_SENSE0;
+	if (intr_stat & HDMI_IH_PHY_STAT0_RX_SENSE1)
+		phy_pol_mask |= HDMI_PHY_RX_SENSE1;
+	if (intr_stat & HDMI_IH_PHY_STAT0_RX_SENSE2)
+		phy_pol_mask |= HDMI_PHY_RX_SENSE2;
+	if (intr_stat & HDMI_IH_PHY_STAT0_RX_SENSE3)
+		phy_pol_mask |= HDMI_PHY_RX_SENSE3;
+
+	if (phy_pol_mask)
+		hdmi_modb(hdmi, ~phy_int_pol, phy_pol_mask, HDMI_PHY_POL0);
+
+	/*
+	 * RX sense tells us whether the TDMS transmitters are detecting
+	 * load - in other words, there's something listening on the
+	 * other end of the link.  Use this to decide whether we should
+	 * power on the phy as HPD may be toggled by the sink to merely
+	 * ask the source to re-read the EDID.
+	 */
+	if (intr_stat &
+	    (HDMI_IH_PHY_STAT0_RX_SENSE | HDMI_IH_PHY_STAT0_HPD)) {
 		mutex_lock(&hdmi->mutex);
-		if (phy_int_pol & HDMI_PHY_HPD) {
-			dev_dbg(hdmi->dev, "EVENT=plugin\n");
+		if (!hdmi->disabled && !hdmi->force) {
+			/*
+			 * If the RX sense status indicates we're disconnected,
+			 * clear the software rxsense status.
+			 */
+			if (!(phy_stat & HDMI_PHY_RX_SENSE))
+				hdmi->rxsense = false;
 
-			if (!hdmi->disabled)
-				dw_hdmi_poweron(hdmi);
-		} else {
-			dev_dbg(hdmi->dev, "EVENT=plugout\n");
+			/*
+			 * Only set the software rxsense status when both
+			 * rxsense and hpd indicates we're connected.
+			 * This avoids what seems to be bad behaviour in
+			 * at least iMX6S versions of the phy.
+			 */
+			if (phy_stat & HDMI_PHY_HPD)
+				hdmi->rxsense = true;
 
-			if (!hdmi->disabled)
-				dw_hdmi_poweroff(hdmi);
+			dw_hdmi_update_power(hdmi);
+			dw_hdmi_update_phy_mask(hdmi);
 		}
 		mutex_unlock(&hdmi->mutex);
+	}
+
+	if (intr_stat & HDMI_IH_PHY_STAT0_HPD) {
+		dev_dbg(hdmi->dev, "EVENT=%s\n",
+			phy_int_pol & HDMI_PHY_HPD ? "plugin" : "plugout");
 		drm_helper_hpd_irq_event(hdmi->bridge->dev);
 	}
 
 	hdmi_writeb(hdmi, intr_stat, HDMI_IH_PHY_STAT0);
-	hdmi_writeb(hdmi, ~HDMI_IH_PHY_STAT0_HPD, HDMI_IH_MUTE_PHY_STAT0);
+	hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE),
+		    HDMI_IH_MUTE_PHY_STAT0);
 
 	return IRQ_HANDLED;
 }
@@ -1599,7 +1662,9 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
+	struct platform_device_info pdevinfo;
 	struct device_node *ddc_node;
+	struct dw_hdmi_audio_data audio;
 	struct dw_hdmi *hdmi;
 	int ret;
 	u32 val = 1;
@@ -1608,13 +1673,16 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	if (!hdmi)
 		return -ENOMEM;
 
+	hdmi->connector.interlace_allowed = 1;
+
 	hdmi->plat_data = plat_data;
 	hdmi->dev = dev;
 	hdmi->dev_type = plat_data->dev_type;
 	hdmi->sample_rate = 48000;
-	hdmi->ratio = 100;
 	hdmi->encoder = encoder;
 	hdmi->disabled = true;
+	hdmi->rxsense = true;
+	hdmi->phy_mask = (u8)~(HDMI_PHY_HPD | HDMI_PHY_RX_SENSE);
 
 	mutex_init(&hdmi->mutex);
 	mutex_init(&hdmi->audio_mutex);
@@ -1705,10 +1773,11 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	 * Configure registers related to HDMI interrupt
 	 * generation before registering IRQ.
 	 */
-	hdmi_writeb(hdmi, HDMI_PHY_HPD, HDMI_PHY_POL0);
+	hdmi_writeb(hdmi, HDMI_PHY_HPD | HDMI_PHY_RX_SENSE, HDMI_PHY_POL0);
 
 	/* Clear Hotplug interrupts */
-	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD, HDMI_IH_PHY_STAT0);
+	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE,
+		    HDMI_IH_PHY_STAT0);
 
 	ret = dw_hdmi_fb_registered(hdmi);
 	if (ret)
@@ -1719,7 +1788,26 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		goto err_iahb;
 
 	/* Unmute interrupts */
-	hdmi_writeb(hdmi, ~HDMI_IH_PHY_STAT0_HPD, HDMI_IH_MUTE_PHY_STAT0);
+	hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE),
+		    HDMI_IH_MUTE_PHY_STAT0);
+
+	memset(&pdevinfo, 0, sizeof(pdevinfo));
+	pdevinfo.parent = dev;
+	pdevinfo.id = PLATFORM_DEVID_AUTO;
+
+	if (hdmi_readb(hdmi, HDMI_CONFIG1_ID) & HDMI_CONFIG1_AHB) {
+		audio.phys = iores->start;
+		audio.base = hdmi->regs;
+		audio.irq = irq;
+		audio.hdmi = hdmi;
+		audio.eld = hdmi->connector.eld;
+
+		pdevinfo.name = "dw-hdmi-ahb-audio";
+		pdevinfo.data = &audio;
+		pdevinfo.size_data = sizeof(audio);
+		pdevinfo.dma_mask = DMA_BIT_MASK(32);
+		hdmi->audio = platform_device_register_full(&pdevinfo);
+	}
 
 	dev_set_drvdata(dev, hdmi);
 
@@ -1737,6 +1825,9 @@ EXPORT_SYMBOL_GPL(dw_hdmi_bind);
 void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
+
+	if (hdmi->audio && !IS_ERR(hdmi->audio))
+		platform_device_unregister(hdmi->audio);
 
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);

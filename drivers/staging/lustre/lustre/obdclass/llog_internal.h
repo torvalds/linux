@@ -53,7 +53,6 @@ struct llog_process_info {
 struct llog_thread_info {
 	struct lu_attr			 lgi_attr;
 	struct lu_fid			 lgi_fid;
-	struct dt_object_format		 lgi_dof;
 	struct lu_buf			 lgi_buf;
 	loff_t				 lgi_off;
 	struct llog_rec_hdr		 lgi_lrh;
@@ -62,34 +61,14 @@ struct llog_thread_info {
 
 extern struct lu_context_key llog_thread_key;
 
-static inline struct llog_thread_info *llog_info(const struct lu_env *env)
-{
-	struct llog_thread_info *lgi;
-
-	lgi = lu_context_key_get(&env->le_ctx, &llog_thread_key);
-	LASSERT(lgi);
-	return lgi;
-}
-
-static inline void
-lustre_build_llog_lvfs_oid(struct llog_logid *logid, __u64 ino, __u32 gen)
-{
-	ostid_set_seq_llog(&logid->lgl_oi);
-	ostid_set_id(&logid->lgl_oi, ino);
-	logid->lgl_ogen = gen;
-}
-
 int llog_info_init(void);
 void llog_info_fini(void);
 
 void llog_handle_get(struct llog_handle *loghandle);
 void llog_handle_put(struct llog_handle *loghandle);
-int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
-		       struct llog_handle **res, struct llog_logid *logid);
 int class_config_dump_handler(const struct lu_env *env,
 			      struct llog_handle *handle,
 			      struct llog_rec_hdr *rec, void *data);
-int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf, int size);
 int llog_process_or_fork(const struct lu_env *env,
 			 struct llog_handle *loghandle,
 			 llog_cb_t cb, void *data, void *catdata, bool fork);

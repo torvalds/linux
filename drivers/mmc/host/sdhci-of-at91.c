@@ -111,7 +111,6 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to set gck");
 		goto hclock_disable_unprepare;
-		return -EINVAL;
 	}
 	/*
 	 * We need to check if we have the requested rate for gck because in

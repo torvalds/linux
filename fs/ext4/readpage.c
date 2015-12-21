@@ -62,7 +62,7 @@ static void completion_pages(struct work_struct *work)
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 
-		int ret = ext4_decrypt(ctx, page);
+		int ret = ext4_decrypt(page);
 		if (ret) {
 			WARN_ON_ONCE(1);
 			SetPageError(page);
@@ -165,8 +165,8 @@ int ext4_mpage_readpages(struct address_space *mapping,
 		if (pages) {
 			page = list_entry(pages->prev, struct page, lru);
 			list_del(&page->lru);
-			if (add_to_page_cache_lru(page, mapping,
-						  page->index, GFP_KERNEL))
+			if (add_to_page_cache_lru(page, mapping, page->index,
+				  mapping_gfp_constraint(mapping, GFP_KERNEL)))
 				goto next_page;
 		}
 

@@ -757,9 +757,9 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	if (txrc.reported_rate.idx < 0) {
 		txrc.reported_rate = tx->rate;
 		if (tx->sta && ieee80211_is_data(hdr->frame_control))
-			tx->sta->last_tx_rate = txrc.reported_rate;
+			tx->sta->tx_stats.last_rate = txrc.reported_rate;
 	} else if (tx->sta)
-		tx->sta->last_tx_rate = txrc.reported_rate;
+		tx->sta->tx_stats.last_rate = txrc.reported_rate;
 
 	if (ratetbl)
 		return TX_CONTINUE;
@@ -824,7 +824,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 		hdr->seq_ctrl = cpu_to_le16(tx->sdata->sequence_number);
 		tx->sdata->sequence_number += 0x10;
 		if (tx->sta)
-			tx->sta->tx_msdu[IEEE80211_NUM_TIDS]++;
+			tx->sta->tx_stats.msdu[IEEE80211_NUM_TIDS]++;
 		return TX_CONTINUE;
 	}
 
@@ -840,7 +840,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 
 	qc = ieee80211_get_qos_ctl(hdr);
 	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
-	tx->sta->tx_msdu[tid]++;
+	tx->sta->tx_stats.msdu[tid]++;
 
 	if (!tx->sta->sta.txq[0])
 		hdr->seq_ctrl = ieee80211_tx_next_seq(tx->sta, tid);
@@ -994,10 +994,10 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 
 	skb_queue_walk(&tx->skbs, skb) {
 		ac = skb_get_queue_mapping(skb);
-		tx->sta->tx_bytes[ac] += skb->len;
+		tx->sta->tx_stats.bytes[ac] += skb->len;
 	}
 	if (ac >= 0)
-		tx->sta->tx_packets[ac]++;
+		tx->sta->tx_stats.packets[ac]++;
 
 	return TX_CONTINUE;
 }
@@ -1218,8 +1218,10 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 
 	if (!tx->sta)
 		info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
-	else if (test_and_clear_sta_flag(tx->sta, WLAN_STA_CLEAR_PS_FILT))
+	else if (test_and_clear_sta_flag(tx->sta, WLAN_STA_CLEAR_PS_FILT)) {
 		info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
+		ieee80211_check_fast_xmit(tx->sta);
+	}
 
 	info->flags |= IEEE80211_TX_CTL_FIRST_FRAGMENT;
 
@@ -2451,7 +2453,8 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 
 	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
 	    test_sta_flag(sta, WLAN_STA_PS_DRIVER) ||
-	    test_sta_flag(sta, WLAN_STA_PS_DELIVER))
+	    test_sta_flag(sta, WLAN_STA_PS_DELIVER) ||
+	    test_sta_flag(sta, WLAN_STA_CLEAR_PS_FILT))
 		goto out;
 
 	if (sdata->noack_map)
@@ -2767,7 +2770,8 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
 		*ieee80211_get_qos_ctl(hdr) = tid;
-		hdr->seq_ctrl = ieee80211_tx_next_seq(sta, tid);
+		if (!sta->sta.txq[0])
+			hdr->seq_ctrl = ieee80211_tx_next_seq(sta, tid);
 	} else {
 		info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
 		hdr->seq_ctrl = cpu_to_le16(sdata->sequence_number);
@@ -2775,10 +2779,10 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (skb_shinfo(skb)->gso_size)
-		sta->tx_msdu[tid] +=
+		sta->tx_stats.msdu[tid] +=
 			DIV_ROUND_UP(skb->len, skb_shinfo(skb)->gso_size);
 	else
-		sta->tx_msdu[tid]++;
+		sta->tx_stats.msdu[tid]++;
 
 	info->hw_queue = sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
 
@@ -2809,8 +2813,8 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	/* statistics normally done by ieee80211_tx_h_stats (but that
 	 * has to consider fragmentation, so is more complex)
 	 */
-	sta->tx_bytes[skb_get_queue_mapping(skb)] += skb->len;
-	sta->tx_packets[skb_get_queue_mapping(skb)]++;
+	sta->tx_stats.bytes[skb_get_queue_mapping(skb)] += skb->len;
+	sta->tx_stats.packets[skb_get_queue_mapping(skb)]++;
 
 	if (fast_tx->pn_offs) {
 		u64 pn;
@@ -3512,12 +3516,31 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 {
 	struct ieee80211_mutable_offsets offs = {};
 	struct sk_buff *bcn = __ieee80211_beacon_get(hw, vif, &offs, false);
+	struct sk_buff *copy;
+	struct ieee80211_supported_band *sband;
+	int shift;
+
+	if (!bcn)
+		return bcn;
 
 	if (tim_offset)
 		*tim_offset = offs.tim_offset;
 
 	if (tim_length)
 		*tim_length = offs.tim_length;
+
+	if (ieee80211_hw_check(hw, BEACON_TX_STATUS) ||
+	    !hw_to_local(hw)->monitors)
+		return bcn;
+
+	/* send a copy to monitor interfaces */
+	copy = skb_copy(bcn, GFP_ATOMIC);
+	if (!copy)
+		return bcn;
+
+	shift = ieee80211_vif_get_shift(vif);
+	sband = hw->wiphy->bands[ieee80211_get_sdata_band(vif_to_sdata(vif))];
+	ieee80211_tx_monitor(hw_to_local(hw), copy, sband, 1, shift, false);
 
 	return bcn;
 }

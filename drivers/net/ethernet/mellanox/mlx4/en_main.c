@@ -123,6 +123,28 @@ void mlx4_en_update_loopback_state(struct net_device *dev,
 	 */
 	if (mlx4_is_mfunc(priv->mdev->dev) || priv->validate_loopback)
 		priv->flags |= MLX4_EN_FLAG_ENABLE_HW_LOOPBACK;
+
+	mutex_lock(&priv->mdev->state_lock);
+	if (priv->mdev->dev->caps.flags2 &
+	    MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB &&
+	    priv->rss_map.indir_qp.qpn) {
+		int i;
+		int err = 0;
+		int loopback = !!(features & NETIF_F_LOOPBACK);
+
+		for (i = 0; i < priv->rx_ring_num; i++) {
+			int ret;
+
+			ret = mlx4_en_change_mcast_lb(priv,
+						      &priv->rss_map.qps[i],
+						      loopback);
+			if (!err)
+				err = ret;
+		}
+		if (err)
+			mlx4_warn(priv->mdev, "failed to change mcast loopback\n");
+	}
+	mutex_unlock(&priv->mdev->state_lock);
 }
 
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)

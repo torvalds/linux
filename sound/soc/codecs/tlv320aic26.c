@@ -373,7 +373,6 @@ static int aic26_spi_remove(struct spi_device *spi)
 static struct spi_driver aic26_spi = {
 	.driver = {
 		.name = "tlv320aic26-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = aic26_spi_probe,
 	.remove = aic26_spi_remove,

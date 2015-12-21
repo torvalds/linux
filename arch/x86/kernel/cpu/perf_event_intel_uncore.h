@@ -117,6 +117,15 @@ struct uncore_event_desc {
 	const char *config;
 };
 
+struct pci2phy_map {
+	struct list_head list;
+	int segment;
+	int pbus_to_physid[256];
+};
+
+int uncore_pcibus_to_physid(struct pci_bus *bus);
+struct pci2phy_map *__find_pci2phy_map(int segment);
+
 ssize_t uncore_event_show(struct kobject *kobj,
 			  struct kobj_attribute *attr, char *buf);
 
@@ -317,7 +326,8 @@ u64 uncore_shared_reg_config(struct intel_uncore_box *box, int idx);
 extern struct intel_uncore_type **uncore_msr_uncores;
 extern struct intel_uncore_type **uncore_pci_uncores;
 extern struct pci_driver *uncore_pci_driver;
-extern int uncore_pcibus_to_physid[256];
+extern raw_spinlock_t pci2phy_map_lock;
+extern struct list_head pci2phy_map_head;
 extern struct pci_dev *uncore_extra_pci_dev[UNCORE_SOCKET_MAX][UNCORE_EXTRA_PCI_DEV_MAX];
 extern struct event_constraint uncore_constraint_empty;
 

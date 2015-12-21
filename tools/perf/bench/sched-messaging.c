@@ -33,7 +33,7 @@
 #define DATASIZE 100
 
 static bool use_pipes = false;
-static unsigned int loops = 100;
+static unsigned int nr_loops = 100;
 static bool thread_mode = false;
 static unsigned int num_groups = 10;
 
@@ -79,7 +79,7 @@ static void ready(int ready_out, int wakefd)
 		err(EXIT_FAILURE, "poll");
 }
 
-/* Sender sprays loops messages down each file descriptor */
+/* Sender sprays nr_loops messages down each file descriptor */
 static void *sender(struct sender_context *ctx)
 {
 	char data[DATASIZE];
@@ -88,7 +88,7 @@ static void *sender(struct sender_context *ctx)
 	ready(ctx->ready_out, ctx->wakefd);
 
 	/* Now pump to every receiver. */
-	for (i = 0; i < loops; i++) {
+	for (i = 0; i < nr_loops; i++) {
 		for (j = 0; j < ctx->num_fds; j++) {
 			int ret, done = 0;
 
@@ -213,7 +213,7 @@ static unsigned int group(pthread_t *pth,
 		/* Create the pipe between client and server */
 		fdpair(fds);
 
-		ctx->num_packets = num_fds * loops;
+		ctx->num_packets = num_fds * nr_loops;
 		ctx->in_fds[0] = fds[0];
 		ctx->in_fds[1] = fds[1];
 		ctx->ready_out = ready_out;
@@ -250,7 +250,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('t', "thread", &thread_mode,
 		    "Be multi thread instead of multi process"),
 	OPT_UINTEGER('g', "group", &num_groups, "Specify number of groups"),
-	OPT_UINTEGER('l', "loop", &loops, "Specify number of loops"),
+	OPT_UINTEGER('l', "nr_loops", &nr_loops, "Specify the number of loops to run (default: 100)"),
 	OPT_END()
 };
 

@@ -1,13 +1,3 @@
 #
 # MMC core configuration
 #
-
-config MMC_CLKGATE
-	bool "MMC host clock gating"
-	help
-	  This will attempt to aggressively gate the clock to the MMC card.
-	  This is done to save power due to gating off the logic and bus
-	  noise when the MMC card is not in use. Your host driver has to
-	  support handling this in order for it to be of any use.
-
-	  If unsure, say N.

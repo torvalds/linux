@@ -253,6 +253,7 @@ struct drm_dp_remote_dpcd_write {
 	u8 *bytes;
 };
 
+#define DP_REMOTE_I2C_READ_MAX_TRANSACTIONS 4
 struct drm_dp_remote_i2c_read {
 	u8 num_transactions;
 	u8 port_number;
@@ -262,7 +263,7 @@ struct drm_dp_remote_i2c_read {
 		u8 *bytes;
 		u8 no_stop_bit;
 		u8 i2c_transaction_delay;
-	} transactions[4];
+	} transactions[DP_REMOTE_I2C_READ_MAX_TRANSACTIONS];
 	u8 read_i2c_device_id;
 	u8 num_bytes_read;
 };

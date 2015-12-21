@@ -21,6 +21,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/pda_power.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
 #include <linux/wm97xx.h>
@@ -138,6 +139,11 @@ static struct platform_device palmte2_pxa_keys = {
 /******************************************************************************
  * Backlight
  ******************************************************************************/
+static struct pwm_lookup palmte2_pwm_lookup[] = {
+	PWM_LOOKUP("pxa25x-pwm.0", 0, "pwm-backlight.0", NULL,
+		   PALMTE2_PERIOD_NS, PWM_POLARITY_NORMAL),
+};
+
 static struct gpio palmte_bl_gpios[] = {
 	{ GPIO_NR_PALMTE2_BL_POWER, GPIOF_INIT_LOW, "Backlight power" },
 	{ GPIO_NR_PALMTE2_LCD_POWER, GPIOF_INIT_LOW, "LCD power" },
@@ -161,10 +167,8 @@ static void palmte2_backlight_exit(struct device *dev)
 }
 
 static struct platform_pwm_backlight_data palmte2_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= PALMTE2_MAX_INTENSITY,
 	.dft_brightness	= PALMTE2_MAX_INTENSITY,
-	.pwm_period_ns	= PALMTE2_PERIOD_NS,
 	.enable_gpio	= -1,
 	.init		= palmte2_backlight_init,
 	.notify		= palmte2_backlight_notify,
@@ -355,6 +359,7 @@ static void __init palmte2_init(void)
 	pxa_set_ac97_info(&palmte2_ac97_pdata);
 	pxa_set_ficp_info(&palmte2_ficp_platform_data);
 
+	pwm_add_table(palmte2_pwm_lookup, ARRAY_SIZE(palmte2_pwm_lookup));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

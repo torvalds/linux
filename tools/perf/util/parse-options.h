@@ -111,6 +111,7 @@ struct option {
 #define OPT_GROUP(h)                { .type = OPTION_GROUP, .help = (h) }
 #define OPT_BIT(s, l, v, h, b)      { .type = OPTION_BIT, .short_name = (s), .long_name = (l), .value = check_vtype(v, int *), .help = (h), .defval = (b) }
 #define OPT_BOOLEAN(s, l, v, h)     { .type = OPTION_BOOLEAN, .short_name = (s), .long_name = (l), .value = check_vtype(v, bool *), .help = (h) }
+#define OPT_BOOLEAN_FLAG(s, l, v, h, f)     { .type = OPTION_BOOLEAN, .short_name = (s), .long_name = (l), .value = check_vtype(v, bool *), .help = (h), .flags = (f) }
 #define OPT_BOOLEAN_SET(s, l, v, os, h) \
 	{ .type = OPTION_BOOLEAN, .short_name = (s), .long_name = (l), \
 	.value = check_vtype(v, bool *), .help = (h), \
@@ -160,6 +161,10 @@ extern int parse_options_subcommand(int argc, const char **argv,
 
 extern NORETURN void usage_with_options(const char * const *usagestr,
                                         const struct option *options);
+extern NORETURN __attribute__((format(printf,3,4)))
+void usage_with_options_msg(const char * const *usagestr,
+			    const struct option *options,
+			    const char *fmt, ...);
 
 /*----- incremantal advanced APIs -----*/
 

@@ -184,7 +184,7 @@ static void * unflatten_dt_node(const void *blob,
 	struct property *pp, **prev_pp = NULL;
 	const char *pathp;
 	unsigned int l, allocl;
-	static int depth = 0;
+	static int depth;
 	int old_depth;
 	int offset;
 	int has_name = 0;
@@ -813,20 +813,24 @@ static int __init early_init_dt_scan_chosen_serial(void)
 	if (!p || !l)
 		return -ENOENT;
 
+	/* Remove console options if present */
+	l = strchrnul(p, ':') - p;
+
 	/* Get the node specified by stdout-path */
-	offset = fdt_path_offset(fdt, p);
+	offset = fdt_path_offset_namelen(fdt, p, l);
 	if (offset < 0)
 		return -ENODEV;
 
 	while (match->compatible[0]) {
-		unsigned long addr;
+		u64 addr;
+
 		if (fdt_node_check_compatible(fdt, offset, match->compatible)) {
 			match++;
 			continue;
 		}
 
 		addr = fdt_translate_address(fdt, offset);
-		if (!addr)
+		if (addr == OF_BAD_ADDR)
 			return -ENXIO;
 
 		of_setup_earlycon(addr, match->data);

@@ -37,10 +37,10 @@
 #include "util/strfilter.h"
 #include "util/symbol.h"
 #include "util/debug.h"
-#include <api/fs/debugfs.h>
 #include "util/parse-options.h"
 #include "util/probe-finder.h"
 #include "util/probe-event.h"
+#include "util/probe-file.h"
 
 #define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
 #define DEFAULT_FUNC_FILTER "!_*"
@@ -182,10 +182,8 @@ static int opt_set_target(const struct option *opt, const char *str,
 	if  (str) {
 		if (!strcmp(opt->long_name, "exec"))
 			params.uprobes = true;
-#ifdef HAVE_DWARF_SUPPORT
 		else if (!strcmp(opt->long_name, "module"))
 			params.uprobes = false;
-#endif
 		else
 			return ret;
 
@@ -311,6 +309,119 @@ static void pr_err_with_code(const char *msg, int err)
 	pr_err("\n");
 }
 
+static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
+{
+	int ret;
+	int i, k;
+	const char *event = NULL, *group = NULL;
+
+	ret = init_probe_symbol_maps(pevs->uprobes);
+	if (ret < 0)
+		return ret;
+
+	ret = convert_perf_probe_events(pevs, npevs);
+	if (ret < 0)
+		goto out_cleanup;
+
+	ret = apply_perf_probe_events(pevs, npevs);
+	if (ret < 0)
+		goto out_cleanup;
+
+	for (i = k = 0; i < npevs; i++)
+		k += pevs[i].ntevs;
+
+	pr_info("Added new event%s\n", (k > 1) ? "s:" : ":");
+	for (i = 0; i < npevs; i++) {
+		struct perf_probe_event *pev = &pevs[i];
+
+		for (k = 0; k < pev->ntevs; k++) {
+			struct probe_trace_event *tev = &pev->tevs[k];
+
+			/* We use tev's name for showing new events */
+			show_perf_probe_event(tev->group, tev->event, pev,
+					      tev->point.module, false);
+
+			/* Save the last valid name */
+			event = tev->event;
+			group = tev->group;
+		}
+	}
+
+	/* Note that it is possible to skip all events because of blacklist */
+	if (event) {
+		/* Show how to use the event. */
+		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
+		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", group, event);
+	}
+
+out_cleanup:
+	cleanup_perf_probe_events(pevs, npevs);
+	exit_probe_symbol_maps();
+	return ret;
+}
+
+static int perf_del_probe_events(struct strfilter *filter)
+{
+	int ret, ret2, ufd = -1, kfd = -1;
+	char *str = strfilter__string(filter);
+	struct strlist *klist = NULL, *ulist = NULL;
+	struct str_node *ent;
+
+	if (!str)
+		return -EINVAL;
+
+	pr_debug("Delete filter: \'%s\'\n", str);
+
+	/* Get current event names */
+	ret = probe_file__open_both(&kfd, &ufd, PF_FL_RW);
+	if (ret < 0)
+		goto out;
+
+	klist = strlist__new(NULL, NULL);
+	ulist = strlist__new(NULL, NULL);
+	if (!klist || !ulist) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = probe_file__get_events(kfd, filter, klist);
+	if (ret == 0) {
+		strlist__for_each(ent, klist)
+			pr_info("Removed event: %s\n", ent->s);
+
+		ret = probe_file__del_strlist(kfd, klist);
+		if (ret < 0)
+			goto error;
+	}
+
+	ret2 = probe_file__get_events(ufd, filter, ulist);
+	if (ret2 == 0) {
+		strlist__for_each(ent, ulist)
+			pr_info("Removed event: %s\n", ent->s);
+
+		ret2 = probe_file__del_strlist(ufd, ulist);
+		if (ret2 < 0)
+			goto error;
+	}
+
+	if (ret == -ENOENT && ret2 == -ENOENT)
+		pr_debug("\"%s\" does not hit any event.\n", str);
+		/* Note that this is silently ignored */
+	ret = 0;
+
+error:
+	if (kfd >= 0)
+		close(kfd);
+	if (ufd >= 0)
+		close(ufd);
+out:
+	strlist__delete(klist);
+	strlist__delete(ulist);
+	free(str);
+
+	return ret;
+}
+
 static int
 __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -377,9 +488,6 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
 		   "directory", "path to kernel source"),
-	OPT_CALLBACK('m', "module", NULL, "modname|path",
-		"target module name (for online) or path (for offline)",
-		opt_set_target),
 	OPT_BOOLEAN('\0', "no-inlines", &probe_conf.no_inlines,
 		"Don't search inlined functions"),
 #endif
@@ -396,6 +504,9 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		     opt_set_filter),
 	OPT_CALLBACK('x', "exec", NULL, "executable|path",
 			"target executable name or path", opt_set_target),
+	OPT_CALLBACK('m', "module", NULL, "modname|path",
+		"target module name (for online) or path (for offline)",
+		opt_set_target),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
@@ -417,12 +528,12 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc > 0) {
 		if (strcmp(argv[0], "-") == 0) {
-			pr_warning("  Error: '-' is not supported.\n");
-			usage_with_options(probe_usage, options);
+			usage_with_options_msg(probe_usage, options,
+				"'-' is not supported.\n");
 		}
 		if (params.command && params.command != 'a') {
-			pr_warning("  Error: another command except --add is set.\n");
-			usage_with_options(probe_usage, options);
+			usage_with_options_msg(probe_usage, options,
+				"another command except --add is set.\n");
 		}
 		ret = parse_probe_event_argv(argc, argv);
 		if (ret < 0) {
@@ -451,8 +562,10 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	switch (params.command) {
 	case 'l':
 		if (params.uprobes) {
-			pr_warning("  Error: Don't use --list with --exec.\n");
-			usage_with_options(probe_usage, options);
+			pr_err("  Error: Don't use --list with --exec.\n");
+			parse_options_usage(probe_usage, options, "l", true);
+			parse_options_usage(NULL, options, "x", true);
+			return -EINVAL;
 		}
 		ret = show_perf_probe_events(params.filter);
 		if (ret < 0)
@@ -483,7 +596,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		return ret;
 #endif
 	case 'd':
-		ret = del_perf_probe_events(params.filter);
+		ret = perf_del_probe_events(params.filter);
 		if (ret < 0) {
 			pr_err_with_code("  Error: Failed to delete events.", ret);
 			return ret;
@@ -492,11 +605,13 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	case 'a':
 		/* Ensure the last given target is used */
 		if (params.target && !params.target_used) {
-			pr_warning("  Error: -x/-m must follow the probe definitions.\n");
-			usage_with_options(probe_usage, options);
+			pr_err("  Error: -x/-m must follow the probe definitions.\n");
+			parse_options_usage(probe_usage, options, "m", true);
+			parse_options_usage(NULL, options, "x", true);
+			return -EINVAL;
 		}
 
-		ret = add_perf_probe_events(params.events, params.nevents);
+		ret = perf_add_probe_events(params.events, params.nevents);
 		if (ret < 0) {
 			pr_err_with_code("  Error: Failed to add events.", ret);
 			return ret;

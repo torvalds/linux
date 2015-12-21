@@ -9,10 +9,11 @@
 
 #include <byteswap.h>
 #include <linux/bitops.h>
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
+#include <linux/err.h>
 #include <sys/resource.h>
 #include "asm/bug.h"
 #include "callchain.h"
@@ -207,6 +208,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->unit	   = "";
 	evsel->scale	   = 1.0;
 	evsel->evlist	   = NULL;
+	evsel->bpf_fd	   = -1;
 	INIT_LIST_HEAD(&evsel->node);
 	INIT_LIST_HEAD(&evsel->config_terms);
 	perf_evsel__object.init(evsel);
@@ -225,11 +227,17 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+/*
+ * Returns pointer with encoded error via <linux/err.h> interface.
+ */
 struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx)
 {
 	struct perf_evsel *evsel = zalloc(perf_evsel__object.size);
+	int err = -ENOMEM;
 
-	if (evsel != NULL) {
+	if (evsel == NULL) {
+		goto out_err;
+	} else {
 		struct perf_event_attr attr = {
 			.type	       = PERF_TYPE_TRACEPOINT,
 			.sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
@@ -240,8 +248,10 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 			goto out_free;
 
 		evsel->tp_format = trace_event__tp_format(sys, name);
-		if (evsel->tp_format == NULL)
+		if (IS_ERR(evsel->tp_format)) {
+			err = PTR_ERR(evsel->tp_format);
 			goto out_free;
+		}
 
 		event_attr_init(&attr);
 		attr.config = evsel->tp_format->id;
@@ -254,7 +264,8 @@ struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int 
 out_free:
 	zfree(&evsel->name);
 	free(evsel);
-	return NULL;
+out_err:
+	return ERR_PTR(err);
 }
 
 const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
@@ -642,6 +653,15 @@ static void apply_config_terms(struct perf_evsel *evsel,
 		case PERF_EVSEL__CONFIG_TERM_STACK_USER:
 			dump_size = term->val.stack_user;
 			break;
+		case PERF_EVSEL__CONFIG_TERM_INHERIT:
+			/*
+			 * attr->inherit should has already been set by
+			 * perf_evsel__config. If user explicitly set
+			 * inherit using config terms, override global
+			 * opt->no_inherit setting.
+			 */
+			attr->inherit = term->val.inherit ? 1 : 0;
+			break;
 		default:
 			break;
 		}
@@ -871,6 +891,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 		attr->use_clockid = 1;
 		attr->clockid = opts->clockid;
 	}
+
+	if (evsel->precise_max)
+		perf_event_attr__set_max_precise_ip(attr);
 
 	/*
 	 * Apply event specific term settings,
@@ -1168,7 +1191,7 @@ static void __p_sample_type(char *buf, size_t size, u64 value)
 		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
 		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
-		bit_name(IDENTIFIER), bit_name(REGS_INTR),
+		bit_name(IDENTIFIER), bit_name(REGS_INTR), bit_name(DATA_SRC),
 		{ .name = NULL, }
 	};
 #undef bit_name
@@ -1249,6 +1272,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(bp_type, p_unsigned);
 	PRINT_ATTRn("{ bp_addr, config1 }", bp_addr, p_hex);
 	PRINT_ATTRn("{ bp_len, config2 }", bp_len, p_hex);
+	PRINT_ATTRf(branch_sample_type, p_unsigned);
 	PRINT_ATTRf(sample_regs_user, p_hex);
 	PRINT_ATTRf(sample_stack_user, p_unsigned);
 	PRINT_ATTRf(clockid, p_signed);
@@ -1333,6 +1357,22 @@ retry_open:
 					  err);
 				goto try_fallback;
 			}
+
+			if (evsel->bpf_fd >= 0) {
+				int evt_fd = FD(evsel, cpu, thread);
+				int bpf_fd = evsel->bpf_fd;
+
+				err = ioctl(evt_fd,
+					    PERF_EVENT_IOC_SET_BPF,
+					    bpf_fd);
+				if (err && errno != EEXIST) {
+					pr_err("failed to attach bpf fd %d: %s\n",
+					       bpf_fd, strerror(errno));
+					err = -EINVAL;
+					goto out_close;
+				}
+			}
+
 			set_rlimit = NO_CHANGE;
 
 			/*

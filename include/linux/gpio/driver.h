@@ -206,6 +206,9 @@ int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 
+int gpiochip_generic_request(struct gpio_chip *chip, unsigned offset);
+void gpiochip_generic_free(struct gpio_chip *chip, unsigned offset);
+
 #ifdef CONFIG_PINCTRL
 
 /**

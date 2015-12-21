@@ -143,6 +143,9 @@ void print_results(int topology_depth, int cpu)
 	/* Be careful CPUs may got resorted for pkg value do not just use cpu */
 	if (!bitmask_isbitset(cpus_chosen, cpu_top.core_info[cpu].cpu))
 		return;
+	if (!cpu_top.core_info[cpu].is_online &&
+	    cpu_top.core_info[cpu].pkg == -1)
+		return;
 
 	if (topology_depth > 2)
 		printf("%4d|", cpu_top.core_info[cpu].pkg);
@@ -191,7 +194,8 @@ void print_results(int topology_depth, int cpu)
 	 * It's up to the monitor plug-in to check .is_online, this one
 	 * is just for additional info.
 	 */
-	if (!cpu_top.core_info[cpu].is_online) {
+	if (!cpu_top.core_info[cpu].is_online &&
+	    cpu_top.core_info[cpu].pkg != -1) {
 		printf(_(" *is offline\n"));
 		return;
 	} else
@@ -387,6 +391,9 @@ int cmd_monitor(int argc, char **argv)
 		printf(_("Cannot read number of available processors\n"));
 		return EXIT_FAILURE;
 	}
+
+	if (!cpu_top.core_info[0].is_online)
+		printf("WARNING: at least one cpu is offline\n");
 
 	/* Default is: monitor all CPUs */
 	if (bitmask_isallclear(cpus_chosen))

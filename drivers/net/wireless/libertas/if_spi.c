@@ -1283,7 +1283,6 @@ static struct spi_driver libertas_spi_driver = {
 	.remove = libertas_spi_remove,
 	.driver = {
 		.name	= "libertas_spi",
-		.owner	= THIS_MODULE,
 		.pm	= &if_spi_pm_ops,
 	},
 };

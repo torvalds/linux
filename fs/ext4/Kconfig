@@ -63,7 +63,7 @@ config EXT4_FS
 	  If unsure, say N.
 
 config EXT4_USE_FOR_EXT2
-	bool "Use ext4 for ext2/ext3 file systems"
+	bool "Use ext4 for ext2 file systems"
 	depends on EXT4_FS
 	depends on EXT2_FS=n
 	default y

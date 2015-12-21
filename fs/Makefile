@@ -63,10 +63,11 @@ obj-$(CONFIG_DLM)		+= dlm/
 # Do not add any filesystems before this line
 obj-$(CONFIG_FSCACHE)		+= fscache/
 obj-$(CONFIG_REISERFS_FS)	+= reiserfs/
-obj-$(CONFIG_EXT2_FS)		+= ext2/
-# We place ext4 after ext2 so plain ext2 root fs's are mounted using ext2
-# unless explicitly requested by rootfstype
 obj-$(CONFIG_EXT4_FS)		+= ext4/
+# We place ext4 before ext2 so that clean ext3 root fs's do NOT mount using the
+# ext2 driver, which doesn't know about journalling!  Explicitly request ext2
+# by giving the rootfstype= parameter.
+obj-$(CONFIG_EXT2_FS)		+= ext2/
 obj-$(CONFIG_JBD2)		+= jbd2/
 obj-$(CONFIG_CRAMFS)		+= cramfs/
 obj-$(CONFIG_SQUASHFS)		+= squashfs/

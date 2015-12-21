@@ -6,7 +6,7 @@ ifeq ($(ARCH),x86)
 TEST_PROGS := breakpoint_test
 endif
 
-all:
+all: $(TEST_PROGS)
 
 include ../lib.mk
 

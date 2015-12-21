@@ -71,7 +71,6 @@ static int ext4_derive_key_aes(char deriving_key[EXT4_AES_128_ECB_KEY_SIZE],
 				     EXT4_AES_256_XTS_KEY_SIZE, NULL);
 	res = crypto_ablkcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
-		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
@@ -121,7 +120,7 @@ int _ext4_get_encryption_info(struct inode *inode)
 	struct key *keyring_key = NULL;
 	struct ext4_encryption_key *master_key;
 	struct ext4_encryption_context ctx;
-	struct user_key_payload *ukp;
+	const struct user_key_payload *ukp;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct crypto_ablkcipher *ctfm;
 	const char *cipher_str;
@@ -208,8 +207,13 @@ retry:
 		goto out;
 	}
 	crypt_info->ci_keyring_key = keyring_key;
-	BUG_ON(keyring_key->type != &key_type_logon);
-	ukp = ((struct user_key_payload *)keyring_key->payload.data);
+	if (keyring_key->type != &key_type_logon) {
+		printk_once(KERN_WARNING
+			    "ext4: key type must be logon\n");
+		res = -ENOKEY;
+		goto out;
+	}
+	ukp = user_key_payload(keyring_key);
 	if (ukp->datalen != sizeof(struct ext4_encryption_key)) {
 		res = -EINVAL;
 		goto out;
@@ -217,7 +221,13 @@ retry:
 	master_key = (struct ext4_encryption_key *)ukp->data;
 	BUILD_BUG_ON(EXT4_AES_128_ECB_KEY_SIZE !=
 		     EXT4_KEY_DERIVATION_NONCE_SIZE);
-	BUG_ON(master_key->size != EXT4_AES_256_XTS_KEY_SIZE);
+	if (master_key->size != EXT4_AES_256_XTS_KEY_SIZE) {
+		printk_once(KERN_WARNING
+			    "ext4: key size incorrect: %d\n",
+			    master_key->size);
+		res = -ENOKEY;
+		goto out;
+	}
 	res = ext4_derive_key_aes(ctx.nonce, master_key->raw,
 				  raw_key);
 	if (res)

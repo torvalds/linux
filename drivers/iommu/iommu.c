@@ -728,15 +728,34 @@ static int get_pci_alias_or_group(struct pci_dev *pdev, u16 alias, void *opaque)
 }
 
 /*
+ * Generic device_group call-back function. It just allocates one
+ * iommu-group per device.
+ */
+struct iommu_group *generic_device_group(struct device *dev)
+{
+	struct iommu_group *group;
+
+	group = iommu_group_alloc();
+	if (IS_ERR(group))
+		return NULL;
+
+	return group;
+}
+
+/*
  * Use standard PCI bus topology, isolation features, and DMA alias quirks
  * to find or create an IOMMU group for a device.
  */
-static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
+struct iommu_group *pci_device_group(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct group_for_pci_data data;
 	struct pci_bus *bus;
 	struct iommu_group *group = NULL;
 	u64 devfns[4] = { 0 };
+
+	if (WARN_ON(!dev_is_pci(dev)))
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * Find the upstream DMA alias for the device.  A device must not
@@ -791,14 +810,6 @@ static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
 	if (IS_ERR(group))
 		return NULL;
 
-	/*
-	 * Try to allocate a default domain - needs support from the
-	 * IOMMU driver.
-	 */
-	group->default_domain = __iommu_domain_alloc(pdev->dev.bus,
-						     IOMMU_DOMAIN_DMA);
-	group->domain = group->default_domain;
-
 	return group;
 }
 
@@ -814,6 +825,7 @@ static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
  */
 struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 {
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
 	struct iommu_group *group;
 	int ret;
 
@@ -821,13 +833,23 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 	if (group)
 		return group;
 
-	if (!dev_is_pci(dev))
-		return ERR_PTR(-EINVAL);
+	group = ERR_PTR(-EINVAL);
 
-	group = iommu_group_get_for_pci_dev(to_pci_dev(dev));
+	if (ops && ops->device_group)
+		group = ops->device_group(dev);
 
 	if (IS_ERR(group))
 		return group;
+
+	/*
+	 * Try to allocate a default domain - needs support from the
+	 * IOMMU driver.
+	 */
+	if (!group->default_domain) {
+		group->default_domain = __iommu_domain_alloc(dev->bus,
+							     IOMMU_DOMAIN_DMA);
+		group->domain = group->default_domain;
+	}
 
 	ret = iommu_group_add_device(group, dev);
 	if (ret) {

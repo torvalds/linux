@@ -60,9 +60,8 @@ static int generic_onenand_probe(struct platform_device *pdev)
 	info->onenand.mmcontrol = pdata ? pdata->mmcontrol : NULL;
 	info->onenand.irq = platform_get_irq(pdev, 0);
 
-	info->mtd.name = dev_name(&pdev->dev);
+	info->mtd.dev.parent = &pdev->dev;
 	info->mtd.priv = &info->onenand;
-	info->mtd.owner = THIS_MODULE;
 
 	if (onenand_scan(&info->mtd, 1)) {
 		err = -ENXIO;

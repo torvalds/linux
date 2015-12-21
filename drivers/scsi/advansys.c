@@ -7803,7 +7803,7 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 		return ASC_BUSY;
 	}
 	scsiqp->sense_addr = cpu_to_le32(sense_addr);
-	scsiqp->sense_len = cpu_to_le32(SCSI_SENSE_BUFFERSIZE);
+	scsiqp->sense_len = SCSI_SENSE_BUFFERSIZE;
 
 	/* Build ADV_SCSI_REQ_Q */
 
@@ -10819,7 +10819,6 @@ static struct scsi_host_template advansys_template = {
 	 * by enabling clustering, I/O throughput increases as well.
 	 */
 	.use_clustering = ENABLE_CLUSTERING,
-	.use_blk_tags = 1,
 };
 
 static int advansys_wide_init_chip(struct Scsi_Host *shost)
@@ -11210,11 +11209,6 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 
 		/* Set maximum number of queues the adapter can handle. */
 		shost->can_queue = adv_dvc_varp->max_host_qng;
-	}
-	ret = scsi_init_shared_tag_map(shost, shost->can_queue);
-	if (ret) {
-		shost_printk(KERN_ERR, shost, "init tag map failed\n");
-		goto err_free_dma;
 	}
 
 	/*

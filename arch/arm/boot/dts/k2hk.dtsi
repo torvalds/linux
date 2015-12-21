@@ -9,6 +9,9 @@
  */
 
 / {
+	compatible = "ti,k2hk", "ti,keystone";
+	model = "Texas Instruments Keystone 2 Kepler/Hawking SoC";
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

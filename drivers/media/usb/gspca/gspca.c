@@ -436,7 +436,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		}
 		j = gspca_dev->fr_queue[i];
 		frame = &gspca_dev->frame[j];
-		frame->v4l2_buf.timestamp = ktime_to_timeval(ktime_get());
+		v4l2_get_timestamp(&frame->v4l2_buf.timestamp);
 		frame->v4l2_buf.sequence = gspca_dev->sequence++;
 		gspca_dev->image = frame->data;
 		gspca_dev->image_len = 0;
@@ -1909,7 +1909,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	}
 
 	/* get a frame */
-	timestamp = ktime_to_timeval(ktime_get());
+	v4l2_get_timestamp(&timestamp);
 	timestamp.tv_sec--;
 	n = 2;
 	for (;;) {

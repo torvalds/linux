@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/irqdomain.h>
+#include <linux/of_irq.h>
 
 #include "pci.h"
 
@@ -105,9 +106,12 @@ void __weak arch_teardown_msi_irq(unsigned int irq)
 
 int __weak arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
+	struct msi_controller *chip = dev->bus->msi;
 	struct msi_desc *entry;
 	int ret;
 
+	if (chip && chip->setup_irqs)
+		return chip->setup_irqs(chip, dev, nvec, type);
 	/*
 	 * If an architecture wants to support multiple MSI, it needs to
 	 * override arch_setup_msi_irqs()
@@ -475,10 +479,11 @@ static int populate_msi_sysfs(struct pci_dev *pdev)
 	int ret = -ENOMEM;
 	int num_msi = 0;
 	int count = 0;
+	int i;
 
 	/* Determine how many msi entries we have */
 	for_each_pci_msi_entry(entry, pdev)
-		++num_msi;
+		num_msi += entry->nvec_used;
 	if (!num_msi)
 		return 0;
 
@@ -487,19 +492,21 @@ static int populate_msi_sysfs(struct pci_dev *pdev)
 	if (!msi_attrs)
 		return -ENOMEM;
 	for_each_pci_msi_entry(entry, pdev) {
-		msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
-		if (!msi_dev_attr)
-			goto error_attrs;
-		msi_attrs[count] = &msi_dev_attr->attr;
+		for (i = 0; i < entry->nvec_used; i++) {
+			msi_dev_attr = kzalloc(sizeof(*msi_dev_attr), GFP_KERNEL);
+			if (!msi_dev_attr)
+				goto error_attrs;
+			msi_attrs[count] = &msi_dev_attr->attr;
 
-		sysfs_attr_init(&msi_dev_attr->attr);
-		msi_dev_attr->attr.name = kasprintf(GFP_KERNEL, "%d",
-						    entry->irq);
-		if (!msi_dev_attr->attr.name)
-			goto error_attrs;
-		msi_dev_attr->attr.mode = S_IRUGO;
-		msi_dev_attr->show = msi_mode_show;
-		++count;
+			sysfs_attr_init(&msi_dev_attr->attr);
+			msi_dev_attr->attr.name = kasprintf(GFP_KERNEL, "%d",
+							    entry->irq + i);
+			if (!msi_dev_attr->attr.name)
+				goto error_attrs;
+			msi_dev_attr->attr.mode = S_IRUGO;
+			msi_dev_attr->show = msi_mode_show;
+			++count;
+		}
 	}
 
 	msi_irq_group = kzalloc(sizeof(*msi_irq_group), GFP_KERNEL);
@@ -1243,11 +1250,15 @@ static void pci_msi_domain_update_chip_ops(struct msi_domain_info *info)
 	BUG_ON(!chip);
 	if (!chip->irq_write_msi_msg)
 		chip->irq_write_msi_msg = pci_msi_domain_write_msg;
+	if (!chip->irq_mask)
+		chip->irq_mask = pci_msi_mask_irq;
+	if (!chip->irq_unmask)
+		chip->irq_unmask = pci_msi_unmask_irq;
 }
 
 /**
- * pci_msi_create_irq_domain - Creat a MSI interrupt domain
- * @node:	Optional device-tree node of the interrupt controller
+ * pci_msi_create_irq_domain - Create a MSI interrupt domain
+ * @fwnode:	Optional fwnode of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
@@ -1256,7 +1267,7 @@ static void pci_msi_domain_update_chip_ops(struct msi_domain_info *info)
  * Returns:
  * A domain pointer or NULL in case of failure.
  */
-struct irq_domain *pci_msi_create_irq_domain(struct device_node *node,
+struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
 					     struct msi_domain_info *info,
 					     struct irq_domain *parent)
 {
@@ -1267,7 +1278,7 @@ struct irq_domain *pci_msi_create_irq_domain(struct device_node *node,
 	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
 		pci_msi_domain_update_chip_ops(info);
 
-	domain = msi_create_irq_domain(node, info, parent);
+	domain = msi_create_irq_domain(fwnode, info, parent);
 	if (!domain)
 		return NULL;
 
@@ -1303,14 +1314,14 @@ void pci_msi_domain_free_irqs(struct irq_domain *domain, struct pci_dev *dev)
 
 /**
  * pci_msi_create_default_irq_domain - Create a default MSI interrupt domain
- * @node:	Optional device-tree node of the interrupt controller
+ * @fwnode:	Optional fwnode of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
  * Returns: A domain pointer or NULL in case of failure. If successful
  * the default PCI/MSI irqdomain pointer is updated.
  */
-struct irq_domain *pci_msi_create_default_irq_domain(struct device_node *node,
+struct irq_domain *pci_msi_create_default_irq_domain(struct fwnode_handle *fwnode,
 		struct msi_domain_info *info, struct irq_domain *parent)
 {
 	struct irq_domain *domain;
@@ -1320,11 +1331,59 @@ struct irq_domain *pci_msi_create_default_irq_domain(struct device_node *node,
 		pr_err("PCI: default irq domain for PCI MSI has already been created.\n");
 		domain = NULL;
 	} else {
-		domain = pci_msi_create_irq_domain(node, info, parent);
+		domain = pci_msi_create_irq_domain(fwnode, info, parent);
 		pci_msi_default_domain = domain;
 	}
 	mutex_unlock(&pci_msi_domain_lock);
 
 	return domain;
+}
+
+static int get_msi_id_cb(struct pci_dev *pdev, u16 alias, void *data)
+{
+	u32 *pa = data;
+
+	*pa = alias;
+	return 0;
+}
+/**
+ * pci_msi_domain_get_msi_rid - Get the MSI requester id (RID)
+ * @domain:	The interrupt domain
+ * @pdev:	The PCI device.
+ *
+ * The RID for a device is formed from the alias, with a firmware
+ * supplied mapping applied
+ *
+ * Returns: The RID.
+ */
+u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev)
+{
+	struct device_node *of_node;
+	u32 rid = 0;
+
+	pci_for_each_dma_alias(pdev, get_msi_id_cb, &rid);
+
+	of_node = irq_domain_get_of_node(domain);
+	if (of_node)
+		rid = of_msi_map_rid(&pdev->dev, of_node, rid);
+
+	return rid;
+}
+
+/**
+ * pci_msi_get_device_domain - Get the MSI domain for a given PCI device
+ * @pdev:	The PCI device
+ *
+ * Use the firmware data to find a device-specific MSI domain
+ * (i.e. not one that is ste as a default).
+ *
+ * Returns: The coresponding MSI domain or NULL if none has been found.
+ */
+struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev)
+{
+	u32 rid = 0;
+
+	pci_for_each_dma_alias(pdev, get_msi_id_cb, &rid);
+	return of_msi_map_get_device_domain(&pdev->dev, rid);
 }
 #endif /* CONFIG_PCI_MSI_IRQ_DOMAIN */

@@ -52,6 +52,14 @@
 extern unsigned int compat_elf_hwcap, compat_elf_hwcap2;
 #endif
 
+enum {
+	CAP_HWCAP = 1,
+#ifdef CONFIG_COMPAT
+	CAP_COMPAT_HWCAP,
+	CAP_COMPAT_HWCAP2,
+#endif
+};
+
 extern unsigned long elf_hwcap;
 #endif
 #endif

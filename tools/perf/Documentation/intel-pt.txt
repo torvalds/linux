@@ -671,6 +671,7 @@ The letters are:
 	e	synthesize tracing error events
 	d	create a debug log
 	g	synthesize a call chain (use with i or x)
+	l	synthesize last branch entries (use with i or x)
 
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
@@ -707,11 +708,25 @@ on the sample is *not* adjusted and reflects the last known value of TSC.
 
 For Intel PT, the default period is 100us.
 
+Setting it to a zero period means "as often as possible".
+
+In the case of Intel PT that is the same as a period of 1 and a unit of
+'instructions' (i.e. --itrace=i1i).
+
 Also the call chain size (default 16, max. 1024) for instructions or
 transactions events can be specified. e.g.
 
 	--itrace=ig32
 	--itrace=xg32
+
+Also the number of last branch entries (default 64, max. 1024) for instructions or
+transactions events can be specified. e.g.
+
+       --itrace=il10
+       --itrace=xl10
+
+Note that last branch entries are cleared for each sample, so there is no overlap
+from one sample to the next.
 
 To disable trace decoding entirely, use the option --no-itrace.
 
@@ -749,3 +764,32 @@ perf inject also accepts the --itrace option in which case tracing data is
 removed and replaced with the synthesized events. e.g.
 
 	perf inject --itrace -i perf.data -o perf.data.new
+
+Below is an example of using Intel PT with autofdo.  It requires autofdo
+(https://github.com/google/autofdo) and gcc version 5.  The bubble
+sort example is from the AutoFDO tutorial (https://gcc.gnu.org/wiki/AutoFDO/Tutorial)
+amended to take the number of elements as a parameter.
+
+	$ gcc-5 -O3 sort.c -o sort_optimized
+	$ ./sort_optimized 30000
+	Bubble sorting array of 30000 elements
+	2254 ms
+
+	$ cat ~/.perfconfig
+	[intel-pt]
+		mispred-all
+
+	$ perf record -e intel_pt//u ./sort 3000
+	Bubble sorting array of 3000 elements
+	58 ms
+	[ perf record: Woken up 2 times to write data ]
+	[ perf record: Captured and wrote 3.939 MB perf.data ]
+	$ perf inject -i perf.data -o inj --itrace=i100usle --strip
+	$ ./create_gcov --binary=./sort --profile=inj --gcov=sort.gcov -gcov_version=1
+	$ gcc-5 -O3 -fauto-profile=sort.gcov sort.c -o sort_autofdo
+	$ ./sort_autofdo 30000
+	Bubble sorting array of 30000 elements
+	2155 ms
+
+Note there is currently no advantage to using Intel PT instead of LBR, but
+that may change in the future if greater use is made of the data.

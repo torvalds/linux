@@ -75,6 +75,8 @@ include config/utilities.mak
 # Define NO_LZMA if you do not want to support compressed (xz) kernel modules
 #
 # Define NO_AUXTRACE if you do not want AUX area tracing support
+#
+# Define NO_LIBBPF if you do not want BPF support
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -145,6 +147,7 @@ AWK     = awk
 
 LIB_DIR          = $(srctree)/tools/lib/api/
 TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
+BPF_DIR = $(srctree)/tools/lib/bpf/
 
 # include config/Makefile by default and rule out
 # non-config cases
@@ -180,6 +183,7 @@ strip-libs = $(filter-out -l%,$(1))
 
 ifneq ($(OUTPUT),)
   TE_PATH=$(OUTPUT)
+  BPF_PATH=$(OUTPUT)
 ifneq ($(subdir),)
   LIB_PATH=$(OUTPUT)/../lib/api/
 else
@@ -188,6 +192,7 @@ endif
 else
   TE_PATH=$(TRACE_EVENT_DIR)
   LIB_PATH=$(LIB_DIR)
+  BPF_PATH=$(BPF_DIR)
 endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
@@ -198,6 +203,8 @@ LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS = -Xlinker --dynamic-list=$(LIBTRACEEVENT_DYN
 
 LIBAPI = $(LIB_PATH)libapi.a
 export LIBAPI
+
+LIBBPF = $(BPF_PATH)libbpf.a
 
 # python extension build directories
 PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
@@ -251,6 +258,9 @@ export PERL_PATH
 LIB_FILE=$(OUTPUT)libperf.a
 
 PERFLIBS = $(LIB_FILE) $(LIBAPI) $(LIBTRACEEVENT)
+ifndef NO_LIBBPF
+  PERFLIBS += $(LIBBPF)
+endif
 
 # We choose to avoid "if .. else if .. else .. endif endif"
 # because maintaining the nesting to match is a pain.  If
@@ -297,16 +307,16 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 PERF_IN := $(OUTPUT)perf-in.o
 
 export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX AWK
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+include $(srctree)/tools/build/Makefile.include
 
-$(PERF_IN): $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h FORCE
+$(PERF_IN): prepare FORCE
 	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS) \
 		$(PERF_IN) $(LIBS) -o $@
 
-$(GTK_IN): FORCE
+$(GTK_IN): fixdep FORCE
 	$(Q)$(MAKE) $(build)=gtk
 
 $(OUTPUT)libperf-gtk.so: $(GTK_IN) $(PERFLIBS)
@@ -349,27 +359,27 @@ endif
 __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(if $(__build-dir),$(__build-dir),.)
 
-single_dep: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h fixdep
 
-$(OUTPUT)%.o: %.c single_dep FORCE
+$(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%.i: %.c single_dep FORCE
+$(OUTPUT)%.i: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%.s: %.c single_dep FORCE
+$(OUTPUT)%.s: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%-bison.o: %.c single_dep FORCE
+$(OUTPUT)%-bison.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%-flex.o: %.c single_dep FORCE
+$(OUTPUT)%-flex.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%.o: %.S single_dep FORCE
+$(OUTPUT)%.o: %.S prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%.i: %.S single_dep FORCE
+$(OUTPUT)%.i: %.S prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)perf-%: %.o $(PERFLIBS)
@@ -389,7 +399,7 @@ $(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
 
 LIBPERF_IN := $(OUTPUT)libperf-in.o
 
-$(LIBPERF_IN): FORCE
+$(LIBPERF_IN): fixdep FORCE
 	$(Q)$(MAKE) $(build)=libperf
 
 $(LIB_FILE): $(LIBPERF_IN)
@@ -397,10 +407,10 @@ $(LIB_FILE): $(LIBPERF_IN)
 
 LIBTRACEEVENT_FLAGS += plugin_dir=$(plugindir_SQ)
 
-$(LIBTRACEEVENT): FORCE
+$(LIBTRACEEVENT): fixdep FORCE
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) $(OUTPUT)libtraceevent.a
 
-libtraceevent_plugins: FORCE
+libtraceevent_plugins: fixdep FORCE
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) plugins
 
 $(LIBTRACEEVENT_DYNAMIC_LIST): libtraceevent_plugins
@@ -413,12 +423,19 @@ $(LIBTRACEEVENT)-clean:
 install-traceevent-plugins: $(LIBTRACEEVENT)
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
 
-$(LIBAPI): FORCE
+$(LIBAPI): fixdep FORCE
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapi.a
 
 $(LIBAPI)-clean:
 	$(call QUIET_CLEAN, libapi)
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
+
+$(LIBBPF): fixdep FORCE
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a
+
+$(LIBBPF)-clean:
+	$(call QUIET_CLEAN, libbpf)
+	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) clean >/dev/null
 
 help:
 	@echo 'Perf make targets:'
@@ -459,7 +476,7 @@ INSTALL_DOC_TARGETS += quick-install-doc quick-install-man quick-install-html
 $(DOC_TARGETS):
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) $(@:doc=all)
 
-TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol
+TAG_FOLDERS= . ../lib/traceevent ../lib/api ../lib/symbol ../include ../lib/bpf
 TAG_FILES= ../../include/uapi/linux/perf_event.h
 
 TAGS:
@@ -567,7 +584,7 @@ config-clean:
 	$(call QUIET_CLEAN, config)
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
 
-clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean config-clean
+clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
@@ -591,6 +608,6 @@ FORCE:
 
 .PHONY: all install clean config-clean strip install-gtk
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
-.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope FORCE single_dep
+.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope FORCE prepare
 .PHONY: libtraceevent_plugins
 

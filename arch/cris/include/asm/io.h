@@ -2,7 +2,9 @@
 #define _ASM_CRIS_IO_H
 
 #include <asm/page.h>   /* for __va, __pa */
+#ifdef CONFIG_ETRAX_ARCH_V10
 #include <arch/io.h>
+#endif
 #include <asm-generic/iomap.h>
 #include <linux/kernel.h>
 

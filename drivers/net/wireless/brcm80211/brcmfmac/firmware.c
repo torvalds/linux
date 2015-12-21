@@ -29,7 +29,7 @@
 #define BRCMF_FW_NVRAM_PCIEDEV_LEN		10	/* pcie/1/4/ + \0 */
 
 char brcmf_firmware_path[BRCMF_FW_PATH_LEN];
-module_param_string(firmware_path, brcmf_firmware_path,
+module_param_string(alternative_fw_path, brcmf_firmware_path,
 		    BRCMF_FW_PATH_LEN, 0440);
 
 enum nvram_parser_state {

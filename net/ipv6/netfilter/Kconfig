@@ -58,6 +58,7 @@ endif # NF_TABLES
 
 config NF_DUP_IPV6
 	tristate "Netfilter IPv6 packet duplication to alternate destination"
+	depends on !NF_CONNTRACK || NF_CONNTRACK
 	help
 	  This option enables the nf_dup_ipv6 core, which duplicates an IPv6
 	  packet to be rerouted to another destination.

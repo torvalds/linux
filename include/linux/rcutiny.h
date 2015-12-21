@@ -83,7 +83,7 @@ static inline void synchronize_sched_expedited(void)
 }
 
 static inline void kfree_call_rcu(struct rcu_head *head,
-				  void (*func)(struct rcu_head *rcu))
+				  rcu_callback_t func)
 {
 	call_rcu(head, func);
 }
@@ -216,6 +216,7 @@ static inline bool rcu_is_watching(void)
 
 static inline void rcu_all_qs(void)
 {
+	barrier(); /* Avoid RCU read-side critical sections leaking across. */
 }
 
 #endif /* __LINUX_RCUTINY_H */

@@ -120,7 +120,7 @@
 
 /* gcc builtin sr needs reg param to be long immediate */
 #define write_aux_reg(reg_immed, val)		\
-		__builtin_arc_sr((unsigned int)val, reg_immed)
+		__builtin_arc_sr((unsigned int)(val), reg_immed)
 
 #else
 
@@ -327,8 +327,8 @@ struct bcr_generic {
  */
 
 struct cpuinfo_arc_mmu {
-	unsigned int ver:4, pg_sz_k:8, s_pg_sz_m:8, u_dtlb:6, u_itlb:6;
-	unsigned int num_tlb:16, sets:12, ways:4;
+	unsigned int ver:4, pg_sz_k:8, s_pg_sz_m:8, pad:10, sasid:1, pae:1;
+	unsigned int sets:12, ways:4, u_dtlb:8, u_itlb:8;
 };
 
 struct cpuinfo_arc_cache {

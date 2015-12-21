@@ -444,8 +444,8 @@ struct igb_adapter {
 
 	struct ptp_pin_desc sdp_config[IGB_N_SDP];
 	struct {
-		struct timespec start;
-		struct timespec period;
+		struct timespec64 start;
+		struct timespec64 period;
 	} perout[IGB_N_PEROUT];
 
 	char fw_version[32];

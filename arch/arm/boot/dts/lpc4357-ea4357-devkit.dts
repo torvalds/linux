@@ -332,6 +332,14 @@
 		};
 	};
 
+	i2c0_pins: i2c0-pins {
+		i2c0_pins_cfg {
+			pins = "i2c0_scl", "i2c0_sda";
+			function = "i2c0";
+			input-enable;
+		};
+	};
+
 	sdmmc_pins: sdmmc-pins {
 		sdmmc_clk_cfg {
 			pins = "pc_0";
@@ -360,6 +368,49 @@
 			pins = "pc_9";
 			function = "sdmmc";
 			bias-pull-down;
+		};
+	};
+
+	spifi_pins: spifi-pins {
+		spifi_clk_cfg {
+			pins = "p3_3";
+			function = "spifi";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		spifi_mosi_miso_sio2_3_cfg {
+			pins = "p3_7", "p3_6", "p3_5", "p3_4";
+			function = "spifi";
+			slew-rate = <0>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		spifi_cs_cfg {
+			pins = "p3_8";
+			function = "spifi";
+			bias-disable;
+		};
+	};
+
+	ssp0_pins: ssp0-pins {
+		ssp0_sck_miso_mosi {
+			pins = "pf_0", "pf_2", "pf_3";
+			function = "ssp0";
+			slew-rate = <1>;
+			bias-pull-down;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		ssp0_ssel {
+			pins = "pf_1";
+			function = "ssp0";
+			bias-pull-up;
 		};
 	};
 
@@ -407,6 +458,23 @@
 			bias-disable;
 			input-enable;
 		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <400000>;
+
+	lm75@48 {
+		compatible = "nxp,lm75";
+		reg = <0x48>;
+	};
+
+	eeprom@57 {
+		compatible = "microchip,24c64";
+		reg = <0x57>;
 	};
 };
 
@@ -487,6 +555,33 @@
 	vmmc-supply = <&vmmc>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_pins>;
+};
+
+&spifi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spifi_pins>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		spi-rx-bus-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "data";
+			reg = <0 0x200000>;
+		};
+	};
+};
+
+&ssp0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ssp0_pins>;
+	num-cs = <1>;
 };
 
 &uart0 {

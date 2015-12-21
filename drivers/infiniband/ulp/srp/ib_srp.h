@@ -242,7 +242,6 @@ struct srp_iu {
 struct srp_fr_desc {
 	struct list_head		entry;
 	struct ib_mr			*mr;
-	struct ib_fast_reg_page_list	*frpl;
 };
 
 /**
@@ -294,11 +293,17 @@ struct srp_map_state {
 		} gen;
 	};
 	struct srp_direct_buf  *desc;
-	u64		       *pages;
+	union {
+		u64			*pages;
+		struct scatterlist	*sg;
+	};
 	dma_addr_t		base_dma_addr;
 	u32			dma_len;
 	u32			total_len;
-	unsigned int		npages;
+	union {
+		unsigned int	npages;
+		int		sg_nents;
+	};
 	unsigned int		nmdesc;
 	unsigned int		ndesc;
 };

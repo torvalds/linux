@@ -264,6 +264,7 @@ struct fib6_table *fib6_get_table(struct net *net, u32 id)
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(fib6_get_table);
 
 static void __net_init fib6_tables_init(struct net *net)
 {
@@ -285,7 +286,17 @@ struct fib6_table *fib6_get_table(struct net *net, u32 id)
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   int flags, pol_lookup_t lookup)
 {
-	return (struct dst_entry *) lookup(net, net->ipv6.fib6_main_tbl, fl6, flags);
+	struct rt6_info *rt;
+
+	rt = lookup(net, net->ipv6.fib6_main_tbl, fl6, flags);
+	if (rt->rt6i_flags & RTF_REJECT &&
+	    rt->dst.error == -EAGAIN) {
+		ip6_rt_put(rt);
+		rt = net->ipv6.ip6_null_entry;
+		dst_hold(&rt->dst);
+	}
+
+	return &rt->dst;
 }
 
 static void __net_init fib6_tables_init(struct net *net)

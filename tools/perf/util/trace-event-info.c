@@ -38,7 +38,7 @@
 
 #include "../perf.h"
 #include "trace-event.h"
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include "evsel.h"
 #include "debug.h"
 

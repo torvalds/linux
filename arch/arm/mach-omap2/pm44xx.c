@@ -210,7 +210,7 @@ static inline int omap4plus_init_static_deps(const struct static_dep_map *map)
 		}
 
 		map++;
-	};
+	}
 
 	return 0;
 }

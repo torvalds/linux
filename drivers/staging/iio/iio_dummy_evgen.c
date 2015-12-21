@@ -24,9 +24,21 @@
 #include "iio_dummy_evgen.h"
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/irq_work.h>
 
 /* Fiddly bit of faking and irq without hardware */
 #define IIO_EVENTGEN_NO 10
+
+/**
+ * struct iio_dummy_handle_irq - helper struct to simulate interrupt generation
+ * @work: irq_work used to run handlers from hardirq context
+ * @irq: fake irq line number to trigger an interrupt
+ */
+struct iio_dummy_handle_irq {
+	struct irq_work work;
+	int irq;
+};
+
 /**
  * struct iio_dummy_evgen - evgen state
  * @chip: irq chip we are faking
@@ -35,6 +47,7 @@
  * @inuse: mask of which irqs are connected
  * @regs: irq regs we are faking
  * @lock: protect the evgen state
+ * @handler: helper for a 'hardware-like' interrupt simulation
  */
 struct iio_dummy_eventgen {
 	struct irq_chip chip;
@@ -43,6 +56,7 @@ struct iio_dummy_eventgen {
 	bool inuse[IIO_EVENTGEN_NO];
 	struct iio_dummy_regs regs[IIO_EVENTGEN_NO];
 	struct mutex lock;
+	struct iio_dummy_handle_irq handler;
 };
 
 /* We can only ever have one instance of this 'device' */
@@ -65,6 +79,14 @@ static void iio_dummy_event_irqunmask(struct irq_data *d)
 		container_of(chip, struct iio_dummy_eventgen, chip);
 
 	evgen->enabled[d->irq - evgen->base] = true;
+}
+
+static void iio_dummy_work_handler(struct irq_work *work)
+{
+	struct iio_dummy_handle_irq *irq_handler;
+
+	irq_handler = container_of(work, struct iio_dummy_handle_irq, work);
+	handle_simple_irq(irq_to_desc(irq_handler->irq));
 }
 
 static int iio_dummy_evgen_create(void)
@@ -91,6 +113,7 @@ static int iio_dummy_evgen_create(void)
 				  IRQ_NOREQUEST | IRQ_NOAUTOEN,
 				  IRQ_NOPROBE);
 	}
+	init_irq_work(&iio_evgen->handler.work, iio_dummy_work_handler);
 	mutex_init(&iio_evgen->lock);
 	return 0;
 }
@@ -169,8 +192,9 @@ static ssize_t iio_evgen_poke(struct device *dev,
 	iio_evgen->regs[this_attr->address].reg_id   = this_attr->address;
 	iio_evgen->regs[this_attr->address].reg_data = event;
 
+	iio_evgen->handler.irq = iio_evgen->base + this_attr->address;
 	if (iio_evgen->enabled[this_attr->address])
-		handle_nested_irq(iio_evgen->base + this_attr->address);
+		irq_work_queue(&iio_evgen->handler.work);
 
 	return len;
 }

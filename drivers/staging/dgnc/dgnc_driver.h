@@ -61,7 +61,9 @@
 #define PORT_NUM(dev)	((dev) & 0x7f)
 #define IS_PRINT(dev)	(((dev) & 0xff) >= 0x80)
 
-/* MAX number of stop characters we will send when our read queue is getting full */
+/* MAX number of stop characters we will send
+ * when our read queue is getting full
+ */
 #define MAX_STOPS_SENT 5
 
 /* 4 extra for alignment play space */
@@ -165,12 +167,15 @@ struct dgnc_board {
 	uint		maxports;	/* MAX ports this board can handle */
 	unsigned char	dvid;		/* Board specific device id */
 	unsigned char	vpd[128];	/* VPD of board, if found */
-	unsigned char	serial_num[20];	/* Serial number of board, if found in VPD */
+	unsigned char	serial_num[20];	/* Serial number of board,
+					 * if found in VPD
+					 */
 
 	spinlock_t	bd_lock;	/* Used to protect board */
 
-	spinlock_t	bd_intr_lock;	/* Used to protect the poller tasklet and
-					 * the interrupt routine from each other.
+	spinlock_t	bd_intr_lock;	/* Used to protect the poller tasklet
+					 * and the interrupt routine from each
+					 * other.
 					 */
 
 	uint		state;		/* State of card. */
@@ -189,14 +194,16 @@ struct dgnc_board {
 	ulong		membase;	/* Start of base memory of the card */
 	ulong		membase_end;	/* End of base memory of the card */
 
-	u8 __iomem		*re_map_membase;/* Remapped memory of the card */
+	u8 __iomem	*re_map_membase; /* Remapped memory of the card */
 
 	ulong		iobase;		/* Start of io base of the card */
 	ulong		iobase_end;	/* End of io base of the card */
 
 	uint		bd_uart_offset;	/* Space between each UART */
 
-	struct channel_t *channels[MAXPORTS]; /* array of pointers to our channels. */
+	struct channel_t *channels[MAXPORTS];	/* array of pointers
+						 * to our channels.
+						 */
 
 	struct tty_driver	SerialDriver;
 	char		SerialName[200];
@@ -211,8 +218,12 @@ struct dgnc_board {
 
 	uint		TtyRefCnt;
 
-	u16		dpatype;	/* The board "type", as defined by DPA */
-	u16		dpastatus;	/* The board "status", as defined by DPA */
+	u16		dpatype;	/* The board "type",
+					 * as defined by DPA
+					 */
+	u16		dpastatus;	/* The board "status",
+					 * as defined by DPA
+					 */
 
 	/*
 	 *	Mgmt data.
@@ -304,7 +315,7 @@ struct un_t {
  ************************************************************************/
 struct channel_t {
 	int magic;			/* Channel Magic Number		*/
-	struct dgnc_board	*ch_bd;		/* Board structure pointer      */
+	struct dgnc_board	*ch_bd;		/* Board structure pointer */
 	struct digi_t	ch_digi;	/* Transparent Print structure  */
 	struct un_t	ch_tun;		/* Terminal unit info	   */
 	struct un_t	ch_pun;		/* Printer unit info	    */
@@ -316,7 +327,9 @@ struct channel_t {
 	uint		ch_open_count;	/* open count			*/
 	uint		ch_flags;	/* Channel flags		*/
 
-	ulong		ch_close_delay;	/* How long we should drop RTS/DTR for */
+	ulong		ch_close_delay;	/* How long we should
+					 * drop RTS/DTR for
+					 */
 
 	ulong		ch_cpstime;	/* Time for CPS calculations    */
 
@@ -332,11 +345,15 @@ struct channel_t {
 
 	uint		ch_wopen;	/* Waiting for open process cnt */
 
-	unsigned char		ch_mostat;	/* FEP output modem status      */
-	unsigned char		ch_mistat;	/* FEP input modem status       */
+	unsigned char		ch_mostat;	/* FEP output modem status */
+	unsigned char		ch_mistat;	/* FEP input modem status */
 
-	struct neo_uart_struct __iomem *ch_neo_uart;	/* Pointer to the "mapped" UART struct */
-	struct cls_uart_struct __iomem *ch_cls_uart;	/* Pointer to the "mapped" UART struct */
+	struct neo_uart_struct __iomem *ch_neo_uart;	/* Pointer to the
+							 * "mapped" UART struct
+							 */
+	struct cls_uart_struct __iomem *ch_cls_uart;	/* Pointer to the
+							 * "mapped" UART struct
+							 */
 
 	unsigned char	ch_cached_lsr;	/* Cached value of the LSR register */
 
@@ -360,10 +377,13 @@ struct channel_t {
 
 	unsigned char		ch_r_watermark;	/* Receive Watermark */
 
-	ulong		ch_stop_sending_break;	/* Time we should STOP sending a break */
+	ulong		ch_stop_sending_break;	/* Time we should STOP
+						 * sending a break
+						 */
 
-	uint		ch_stops_sent;	/* How many times I have sent a stop character
-					 * to try to stop the other guy sending.
+	uint		ch_stops_sent;	/* How many times I have sent a stop
+					 * character to try to stop the other
+					 * guy sending.
 					 */
 	ulong		ch_err_parity;	/* Count of parity errors on channel */
 	ulong		ch_err_frame;	/* Count of framing errors on channel */
@@ -390,7 +410,10 @@ struct channel_t {
 extern uint		dgnc_Major;		/* Our driver/mgmt major */
 extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
+extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
 extern uint		dgnc_NumBoards;		/* Total number of boards */
-extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs */
+extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board
+							 * structs
+							 */
 
 #endif

@@ -293,35 +293,21 @@ iser_alloc_reg_res(struct ib_device *ib_device,
 {
 	int ret;
 
-	res->frpl = ib_alloc_fast_reg_page_list(ib_device, size);
-	if (IS_ERR(res->frpl)) {
-		ret = PTR_ERR(res->frpl);
-		iser_err("Failed to allocate ib_fast_reg_page_list err=%d\n",
-			 ret);
-		return PTR_ERR(res->frpl);
-	}
-
 	res->mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, size);
 	if (IS_ERR(res->mr)) {
 		ret = PTR_ERR(res->mr);
 		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
-		goto fast_reg_mr_failure;
+		return ret;
 	}
 	res->mr_valid = 1;
 
 	return 0;
-
-fast_reg_mr_failure:
-	ib_free_fast_reg_page_list(res->frpl);
-
-	return ret;
 }
 
 static void
 iser_free_reg_res(struct iser_reg_resources *rsc)
 {
 	ib_dereg_mr(rsc->mr);
-	ib_free_fast_reg_page_list(rsc->frpl);
 }
 
 static int
@@ -1017,7 +1003,7 @@ int iser_connect(struct iser_conn   *iser_conn,
 	ib_conn->beacon.wr_id = ISER_BEACON_WRID;
 	ib_conn->beacon.opcode = IB_WR_SEND;
 
-	ib_conn->cma_id = rdma_create_id(iser_cma_handler,
+	ib_conn->cma_id = rdma_create_id(&init_net, iser_cma_handler,
 					 (void *)iser_conn,
 					 RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ib_conn->cma_id)) {
@@ -1135,7 +1121,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 	wr->opcode = IB_WR_SEND;
 	wr->send_flags = signal ? IB_SEND_SIGNALED : 0;
 
-	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0], &bad_wr);
+	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0].send, &bad_wr);
 	if (ib_ret)
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
 			 ib_ret, bad_wr->opcode);

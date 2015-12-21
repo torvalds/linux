@@ -237,6 +237,7 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 	backlight_update_status(bd);
 
 	DRM_INFO("radeon atom DIG backlight initialized\n");
+	rdev->mode_info.bl_encoder = radeon_encoder;
 
 	return;
 
@@ -1624,9 +1625,14 @@ radeon_atom_encoder_dpms_avivo(struct drm_encoder *encoder, int mode)
 		} else
 			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-			struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+			if (rdev->mode_info.bl_encoder) {
+				struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 
-			atombios_set_backlight_level(radeon_encoder, dig->backlight_level);
+				atombios_set_backlight_level(radeon_encoder, dig->backlight_level);
+			} else {
+				args.ucAction = ATOM_LCD_BLON;
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			}
 		}
 		break;
 	case DRM_MODE_DPMS_STANDBY:
@@ -1706,8 +1712,13 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 			if (ASIC_IS_DCE4(rdev))
 				atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_ON, 0);
 		}
-		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
-			atombios_set_backlight_level(radeon_encoder, dig->backlight_level);
+		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+			if (rdev->mode_info.bl_encoder)
+				atombios_set_backlight_level(radeon_encoder, dig->backlight_level);
+			else
+				atombios_dig_transmitter_setup(encoder,
+							       ATOM_TRANSMITTER_ACTION_LCD_BLON, 0, 0);
+		}
 		if (ext_encoder)
 			atombios_external_encoder_setup(encoder, ext_encoder, ATOM_ENABLE);
 		break;

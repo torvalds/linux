@@ -639,7 +639,7 @@ and don't use much of it.
 The default value is 0.
 
 See Documentation/vm/overcommit-accounting and
-security/commoncap.c::cap_vm_enough_memory() for more information.
+mm/mmap.c::__vm_enough_memory() for more information.
 
 ==============================================================
 

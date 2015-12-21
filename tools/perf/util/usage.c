@@ -50,6 +50,11 @@ void set_die_routine(void (*routine)(const char *err, va_list params) NORETURN)
 	die_routine = routine;
 }
 
+void set_warning_routine(void (*routine)(const char *err, va_list params))
+{
+	warn_routine = routine;
+}
+
 void usage(const char *err)
 {
 	usage_routine(err);

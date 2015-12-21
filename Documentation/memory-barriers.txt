@@ -617,16 +617,16 @@ case what's actually required is:
 However, stores are not speculated.  This means that ordering -is- provided
 for load-store control dependencies, as in the following example:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	if (q) {
 		WRITE_ONCE(b, p);
 	}
 
 Control dependencies pair normally with other types of barriers.  That
-said, please note that READ_ONCE_CTRL() is not optional!  Without the
-READ_ONCE_CTRL(), the compiler might combine the load from 'a' with
-other loads from 'a', and the store to 'b' with other stores to 'b',
-with possible highly counterintuitive effects on ordering.
+said, please note that READ_ONCE() is not optional! Without the
+READ_ONCE(), the compiler might combine the load from 'a' with other
+loads from 'a', and the store to 'b' with other stores to 'b', with
+possible highly counterintuitive effects on ordering.
 
 Worse yet, if the compiler is able to prove (say) that the value of
 variable 'a' is always non-zero, it would be well within its rights
@@ -636,15 +636,12 @@ as follows:
 	q = a;
 	b = p;  /* BUG: Compiler and CPU can both reorder!!! */
 
-Finally, the READ_ONCE_CTRL() includes an smp_read_barrier_depends()
-that DEC Alpha needs in order to respect control depedencies.
-
-So don't leave out the READ_ONCE_CTRL().
+So don't leave out the READ_ONCE().
 
 It is tempting to try to enforce ordering on identical stores on both
 branches of the "if" statement as follows:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	if (q) {
 		barrier();
 		WRITE_ONCE(b, p);
@@ -658,7 +655,7 @@ branches of the "if" statement as follows:
 Unfortunately, current compilers will transform this as follows at high
 optimization levels:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	barrier();
 	WRITE_ONCE(b, p);  /* BUG: No ordering vs. load from a!!! */
 	if (q) {
@@ -688,7 +685,7 @@ memory barriers, for example, smp_store_release():
 In contrast, without explicit memory barriers, two-legged-if control
 ordering is guaranteed only when the stores differ, for example:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	if (q) {
 		WRITE_ONCE(b, p);
 		do_something();
@@ -697,14 +694,14 @@ ordering is guaranteed only when the stores differ, for example:
 		do_something_else();
 	}
 
-The initial READ_ONCE_CTRL() is still required to prevent the compiler
-from proving the value of 'a'.
+The initial READ_ONCE() is still required to prevent the compiler from
+proving the value of 'a'.
 
 In addition, you need to be careful what you do with the local variable 'q',
 otherwise the compiler might be able to guess the value and again remove
 the needed conditional.  For example:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	if (q % MAX) {
 		WRITE_ONCE(b, p);
 		do_something();
@@ -717,7 +714,7 @@ If MAX is defined to be 1, then the compiler knows that (q % MAX) is
 equal to zero, in which case the compiler is within its rights to
 transform the above code into the following:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	WRITE_ONCE(b, p);
 	do_something_else();
 
@@ -728,7 +725,7 @@ is gone, and the barrier won't bring it back.  Therefore, if you are
 relying on this ordering, you should make sure that MAX is greater than
 one, perhaps as follows:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	BUILD_BUG_ON(MAX <= 1); /* Order load from a with store to b. */
 	if (q % MAX) {
 		WRITE_ONCE(b, p);
@@ -745,7 +742,7 @@ of the 'if' statement.
 You must also be careful not to rely too much on boolean short-circuit
 evaluation.  Consider this example:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	if (q || 1 > 0)
 		WRITE_ONCE(b, 1);
 
@@ -753,7 +750,7 @@ Because the first condition cannot fault and the second condition is
 always true, the compiler can transform this example as following,
 defeating control dependency:
 
-	q = READ_ONCE_CTRL(a);
+	q = READ_ONCE(a);
 	WRITE_ONCE(b, 1);
 
 This example underscores the need to ensure that the compiler cannot
@@ -767,7 +764,7 @@ x and y both being zero:
 
 	CPU 0                     CPU 1
 	=======================   =======================
-	r1 = READ_ONCE_CTRL(x);   r2 = READ_ONCE_CTRL(y);
+	r1 = READ_ONCE(x);        r2 = READ_ONCE(y);
 	if (r1 > 0)               if (r2 > 0)
 	  WRITE_ONCE(y, 1);         WRITE_ONCE(x, 1);
 
@@ -796,11 +793,6 @@ site: https://www.cl.cam.ac.uk/~pes20/ppcmem/index.html.
 
 In summary:
 
-  (*) Control dependencies must be headed by READ_ONCE_CTRL().
-      Or, as a much less preferable alternative, interpose
-      smp_read_barrier_depends() between a READ_ONCE() and the
-      control-dependent write.
-
   (*) Control dependencies can order prior loads against later stores.
       However, they do -not- guarantee any other sort of ordering:
       Not prior loads against later loads, nor prior stores against
@@ -816,14 +808,13 @@ In summary:
       between the prior load and the subsequent store, and this
       conditional must involve the prior load.  If the compiler is able
       to optimize the conditional away, it will have also optimized
-      away the ordering.  Careful use of READ_ONCE_CTRL() READ_ONCE(),
-      and WRITE_ONCE() can help to preserve the needed conditional.
+      away the ordering.  Careful use of READ_ONCE() and WRITE_ONCE()
+      can help to preserve the needed conditional.
 
   (*) Control dependencies require that the compiler avoid reordering the
-      dependency into nonexistence.  Careful use of READ_ONCE_CTRL()
-      or smp_read_barrier_depends() can help to preserve your control
-      dependency.  Please see the Compiler Barrier section for more
-      information.
+      dependency into nonexistence.  Careful use of READ_ONCE() or
+      atomic{,64}_read() can help to preserve your control dependency.
+      Please see the Compiler Barrier section for more information.
 
   (*) Control dependencies pair normally with other types of barriers.
 
@@ -1710,6 +1701,17 @@ There are some more advanced barrier functions:
      operations" subsection for information on where to use these.
 
 
+ (*) lockless_dereference();
+     This can be thought of as a pointer-fetch wrapper around the
+     smp_read_barrier_depends() data-dependency barrier.
+
+     This is also similar to rcu_dereference(), but in cases where
+     object lifetime is handled by some mechanism other than RCU, for
+     example, when the objects removed only when the system goes down.
+     In addition, lockless_dereference() is used in some data structures
+     that can be used both with and without RCU.
+
+
  (*) dma_wmb();
  (*) dma_rmb();
 
@@ -1789,7 +1791,6 @@ The Linux kernel has a number of locking constructs:
  (*) mutexes
  (*) semaphores
  (*) R/W semaphores
- (*) RCU
 
 In all cases there are variants on "ACQUIRE" operations and "RELEASE" operations
 for each construct.  These operations all imply certain barriers:

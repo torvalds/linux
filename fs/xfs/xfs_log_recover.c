@@ -3431,7 +3431,7 @@ xlog_recover_add_to_cont_trans(
 	 * previous record. Copy the rest of the header.
 	 */
 	if (list_empty(&trans->r_itemq)) {
-		ASSERT(len < sizeof(struct xfs_trans_header));
+		ASSERT(len <= sizeof(struct xfs_trans_header));
 		if (len > sizeof(struct xfs_trans_header)) {
 			xfs_warn(log->l_mp, "%s: bad header length", __func__);
 			return -EIO;
@@ -4609,8 +4609,18 @@ xlog_recover(
 	int		error;
 
 	/* find the tail of the log */
-	if ((error = xlog_find_tail(log, &head_blk, &tail_blk)))
+	error = xlog_find_tail(log, &head_blk, &tail_blk);
+	if (error)
 		return error;
+
+	/*
+	 * The superblock was read before the log was available and thus the LSN
+	 * could not be verified. Check the superblock LSN against the current
+	 * LSN now that it's known.
+	 */
+	if (xfs_sb_version_hascrc(&log->l_mp->m_sb) &&
+	    !xfs_log_check_lsn(log->l_mp, log->l_mp->m_sb.sb_lsn))
+		return -EINVAL;
 
 	if (tail_blk != head_blk) {
 		/* There used to be a comment here:

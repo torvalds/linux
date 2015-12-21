@@ -54,9 +54,6 @@ static void __dma_rx_complete(void *param)
 	struct dma_tx_state	state;
 	int			count;
 
-	dma_sync_single_for_cpu(dma->rxchan->device->dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
-
 	dma->rx_running = 0;
 	dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
 
@@ -80,10 +77,6 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 		return 0;
 
 	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
-	if (dma->tx_size < p->port.fifosize) {
-		ret = -EINVAL;
-		goto err;
-	}
 
 	desc = dmaengine_prep_slave_single(dma->txchan,
 					   dma->tx_addr + xmit->tail,
@@ -155,9 +148,6 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 	desc->callback_param = p;
 
 	dma->rx_cookie = dmaengine_submit(desc);
-
-	dma_sync_single_for_device(dma->rxchan->device->dev, dma->rx_addr,
-				   dma->rx_size, DMA_FROM_DEVICE);
 
 	dma_async_issue_pending(dma->rxchan);
 

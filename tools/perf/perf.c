@@ -8,14 +8,16 @@
  */
 #include "builtin.h"
 
+#include "util/env.h"
 #include "util/exec_cmd.h"
 #include "util/cache.h"
 #include "util/quote.h"
 #include "util/run-command.h"
 #include "util/parse-events.h"
 #include "util/parse-options.h"
+#include "util/bpf-loader.h"
 #include "util/debug.h"
-#include <api/fs/debugfs.h>
+#include <api/fs/tracing_path.h>
 #include <pthread.h>
 
 const char perf_usage_string[] =
@@ -161,6 +163,20 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			break;
 
 		/*
+		 * Shortcut for '-h' and '-v' options to invoke help
+		 * and version command.
+		 */
+		if (!strcmp(cmd, "-h")) {
+			(*argv)[0] = "--help";
+			break;
+		}
+
+		if (!strcmp(cmd, "-v")) {
+			(*argv)[0] = "--version";
+			break;
+		}
+
+		/*
 		 * Check remaining flags.
 		 */
 		if (!prefixcmp(cmd, CMD_EXEC_PATH)) {
@@ -214,7 +230,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				fprintf(stderr, "No directory given for --debugfs-dir.\n");
 				usage(perf_usage_string);
 			}
-			perf_debugfs_set_path((*argv)[1]);
+			tracing_path_set((*argv)[1]);
 			if (envchanged)
 				*envchanged = 1;
 			(*argv)++;
@@ -230,7 +246,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argv)++;
 			(*argc)--;
 		} else if (!prefixcmp(cmd, CMD_DEBUGFS_DIR)) {
-			perf_debugfs_set_path(cmd + strlen(CMD_DEBUGFS_DIR));
+			tracing_path_set(cmd + strlen(CMD_DEBUGFS_DIR));
 			fprintf(stderr, "dir: %s\n", tracing_path);
 			if (envchanged)
 				*envchanged = 1;
@@ -369,6 +385,8 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 
 	status = p->fn(argc, argv, prefix);
 	exit_browser(status);
+	perf_env__exit(&perf_env);
+	bpf__clear();
 
 	if (status)
 		return status & 0xff;
@@ -517,8 +535,10 @@ int main(int argc, const char **argv)
 	cmd = perf_extract_argv0_path(argv[0]);
 	if (!cmd)
 		cmd = "perf-help";
-	/* get debugfs mount point from /proc/mounts */
-	perf_debugfs_mount(NULL);
+
+	/* get debugfs/tracefs mount point from /proc/mounts */
+	tracing_path_mount();
+
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
 	 *

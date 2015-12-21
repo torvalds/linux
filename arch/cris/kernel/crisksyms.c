@@ -18,7 +18,6 @@
 #include <asm/pgtable.h>
 #include <asm/fasttimer.h>
 
-extern unsigned long get_cmos_time(void);
 extern void __Udiv(void);
 extern void __Umod(void);
 extern void __Div(void);
@@ -30,7 +29,6 @@ extern void __negdi2(void);
 extern void iounmap(volatile void * __iomem);
 
 /* Platform dependent support */
-EXPORT_SYMBOL(get_cmos_time);
 EXPORT_SYMBOL(loops_per_usec);
 
 /* Math functions */

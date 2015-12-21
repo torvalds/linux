@@ -264,7 +264,7 @@ typedef struct lnet_ni {
 	lnd_t			 *ni_lnd;	/* procedural interface */
 	struct lnet_tx_queue	**ni_tx_queues;	/* percpt TX queues */
 	int			**ni_refs;	/* percpt reference count */
-	long			  ni_last_alive;/* when I was last alive */
+	time64_t		  ni_last_alive;/* when I was last alive */
 	lnet_ni_status_t	 *ni_status;	/* my health status */
 	/* equivalent interfaces to use */
 	char			 *ni_interfaces[LNET_MAX_INTERFACES];

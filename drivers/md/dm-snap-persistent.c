@@ -322,7 +322,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 		    bdev_logical_block_size(dm_snap_cow(ps->store->snap)->
 					    bdev) >> 9);
 		ps->store->chunk_mask = ps->store->chunk_size - 1;
-		ps->store->chunk_shift = ffs(ps->store->chunk_size) - 1;
+		ps->store->chunk_shift = __ffs(ps->store->chunk_size);
 		chunk_size_supplied = 0;
 	}
 
@@ -847,6 +847,7 @@ static void persistent_drop_snapshot(struct dm_exception_store *store)
 static int persistent_ctr(struct dm_exception_store *store, char *options)
 {
 	struct pstore *ps;
+	int r;
 
 	/* allocate the pstore */
 	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
@@ -868,9 +869,9 @@ static int persistent_ctr(struct dm_exception_store *store, char *options)
 
 	ps->metadata_wq = alloc_workqueue("ksnaphd", WQ_MEM_RECLAIM, 0);
 	if (!ps->metadata_wq) {
-		kfree(ps);
 		DMERR("couldn't start header metadata update thread");
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto err_workqueue;
 	}
 
 	if (options) {
@@ -879,13 +880,21 @@ static int persistent_ctr(struct dm_exception_store *store, char *options)
 			store->userspace_supports_overflow = true;
 		else {
 			DMERR("Unsupported persistent store option: %s", options);
-			return -EINVAL;
+			r = -EINVAL;
+			goto err_options;
 		}
 	}
 
 	store->context = ps;
 
 	return 0;
+
+err_options:
+	destroy_workqueue(ps->metadata_wq);
+err_workqueue:
+	kfree(ps);
+
+	return r;
 }
 
 static unsigned persistent_status(struct dm_exception_store *store,

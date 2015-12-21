@@ -80,7 +80,7 @@ static int max77843_chg_init(struct max77693_dev *max77843)
 	if (!max77843->i2c_chg) {
 		dev_err(&max77843->i2c->dev,
 				"Cannot allocate I2C device for Charger\n");
-		return PTR_ERR(max77843->i2c_chg);
+		return -ENODEV;
 	}
 	i2c_set_clientdata(max77843->i2c_chg, max77843);
 

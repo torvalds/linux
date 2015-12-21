@@ -43,7 +43,6 @@
 #ifndef __LST_CONSOLE_H__
 #define __LST_CONSOLE_H__
 
-
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/linux/lnet/lnet.h"
 #include "../../include/linux/lnet/lib-types.h"
@@ -142,7 +141,7 @@ typedef struct {
 	int                 ses_key;          /* local session key */
 	int                 ses_state;        /* state of session */
 	int                 ses_timeout;      /* timeout in seconds */
-	time_t              ses_laststamp;    /* last operation stamp (seconds)
+	time64_t            ses_laststamp;    /* last operation stamp (seconds)
 					       */
 	unsigned            ses_features;     /* tests features of the session
 					       */

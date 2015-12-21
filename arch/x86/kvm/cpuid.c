@@ -30,7 +30,7 @@ static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 	int feature_bit = 0;
 	u32 ret = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
 
-	xstate_bv &= XSTATE_EXTEND_MASK;
+	xstate_bv &= XFEATURE_MASK_EXTEND;
 	while (xstate_bv) {
 		if (xstate_bv & 0x1) {
 		        u32 eax, ebx, ecx, edx, offset;
@@ -51,7 +51,7 @@ u64 kvm_supported_xcr0(void)
 	u64 xcr0 = KVM_SUPPORTED_XCR0 & host_xcr0;
 
 	if (!kvm_x86_ops->mpx_supported())
-		xcr0 &= ~(XSTATE_BNDREGS | XSTATE_BNDCSR);
+		xcr0 &= ~(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
 
 	return xcr0;
 }
@@ -348,7 +348,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		F(FSGSBASE) | F(BMI1) | F(HLE) | F(AVX2) | F(SMEP) |
 		F(BMI2) | F(ERMS) | f_invpcid | F(RTM) | f_mpx | F(RDSEED) |
 		F(ADX) | F(SMAP) | F(AVX512F) | F(AVX512PF) | F(AVX512ER) |
-		F(AVX512CD);
+		F(AVX512CD) | F(CLFLUSHOPT) | F(CLWB) | F(PCOMMIT);
 
 	/* cpuid 0xD.1.eax */
 	const u32 kvm_supported_word10_x86_features =

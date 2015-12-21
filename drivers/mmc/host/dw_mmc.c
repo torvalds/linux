@@ -56,7 +56,6 @@
 #define DW_MCI_FREQ_MAX	200000000	/* unit: HZ */
 #define DW_MCI_FREQ_MIN	400000		/* unit: HZ */
 
-#ifdef CONFIG_MMC_DW_IDMAC
 #define IDMAC_INT_CLR		(SDMMC_IDMAC_INT_AI | SDMMC_IDMAC_INT_NI | \
 				 SDMMC_IDMAC_INT_CES | SDMMC_IDMAC_INT_DU | \
 				 SDMMC_IDMAC_INT_FBE | SDMMC_IDMAC_INT_RI | \
@@ -102,7 +101,6 @@ struct idmac_desc {
 
 /* Each descriptor can transfer up to 4KB of data in chained mode */
 #define DW_MCI_DESC_DATA_LENGTH	0x1000
-#endif /* CONFIG_MMC_DW_IDMAC */
 
 static bool dw_mci_reset(struct dw_mci *host);
 static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset);
@@ -407,7 +405,6 @@ static int dw_mci_get_dma_dir(struct mmc_data *data)
 		return DMA_FROM_DEVICE;
 }
 
-#ifdef CONFIG_MMC_DW_IDMAC
 static void dw_mci_dma_cleanup(struct dw_mci *host)
 {
 	struct mmc_data *data = host->data;
@@ -445,11 +442,20 @@ static void dw_mci_idmac_stop_dma(struct dw_mci *host)
 	mci_writel(host, BMOD, temp);
 }
 
-static void dw_mci_idmac_complete_dma(struct dw_mci *host)
+static void dw_mci_dmac_complete_dma(void *arg)
 {
+	struct dw_mci *host = arg;
 	struct mmc_data *data = host->data;
 
 	dev_vdbg(host->dev, "DMA complete\n");
+
+	if ((host->use_dma == TRANS_MODE_EDMAC) &&
+	    data && (data->flags & MMC_DATA_READ))
+		/* Invalidate cache after read */
+		dma_sync_sg_for_cpu(mmc_dev(host->cur_slot->mmc),
+				    data->sg,
+				    data->sg_len,
+				    DMA_FROM_DEVICE);
 
 	host->dma_ops->cleanup(host);
 
@@ -564,7 +570,7 @@ static void dw_mci_translate_sglist(struct dw_mci *host, struct mmc_data *data,
 	wmb(); /* drain writebuffer */
 }
 
-static void dw_mci_idmac_start_dma(struct dw_mci *host, unsigned int sg_len)
+static int dw_mci_idmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 {
 	u32 temp;
 
@@ -589,6 +595,8 @@ static void dw_mci_idmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 
 	/* Start it running */
 	mci_writel(host, PLDMND, 1);
+
+	return 0;
 }
 
 static int dw_mci_idmac_init(struct dw_mci *host)
@@ -669,10 +677,110 @@ static const struct dw_mci_dma_ops dw_mci_idmac_ops = {
 	.init = dw_mci_idmac_init,
 	.start = dw_mci_idmac_start_dma,
 	.stop = dw_mci_idmac_stop_dma,
-	.complete = dw_mci_idmac_complete_dma,
+	.complete = dw_mci_dmac_complete_dma,
 	.cleanup = dw_mci_dma_cleanup,
 };
-#endif /* CONFIG_MMC_DW_IDMAC */
+
+static void dw_mci_edmac_stop_dma(struct dw_mci *host)
+{
+	dmaengine_terminate_all(host->dms->ch);
+}
+
+static int dw_mci_edmac_start_dma(struct dw_mci *host,
+					    unsigned int sg_len)
+{
+	struct dma_slave_config cfg;
+	struct dma_async_tx_descriptor *desc = NULL;
+	struct scatterlist *sgl = host->data->sg;
+	const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
+	u32 sg_elems = host->data->sg_len;
+	u32 fifoth_val;
+	u32 fifo_offset = host->fifo_reg - host->regs;
+	int ret = 0;
+
+	/* Set external dma config: burst size, burst width */
+	cfg.dst_addr = (dma_addr_t)(host->phy_regs + fifo_offset);
+	cfg.src_addr = cfg.dst_addr;
+	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+
+	/* Match burst msize with external dma config */
+	fifoth_val = mci_readl(host, FIFOTH);
+	cfg.dst_maxburst = mszs[(fifoth_val >> 28) & 0x7];
+	cfg.src_maxburst = cfg.dst_maxburst;
+
+	if (host->data->flags & MMC_DATA_WRITE)
+		cfg.direction = DMA_MEM_TO_DEV;
+	else
+		cfg.direction = DMA_DEV_TO_MEM;
+
+	ret = dmaengine_slave_config(host->dms->ch, &cfg);
+	if (ret) {
+		dev_err(host->dev, "Failed to config edmac.\n");
+		return -EBUSY;
+	}
+
+	desc = dmaengine_prep_slave_sg(host->dms->ch, sgl,
+				       sg_len, cfg.direction,
+				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc) {
+		dev_err(host->dev, "Can't prepare slave sg.\n");
+		return -EBUSY;
+	}
+
+	/* Set dw_mci_dmac_complete_dma as callback */
+	desc->callback = dw_mci_dmac_complete_dma;
+	desc->callback_param = (void *)host;
+	dmaengine_submit(desc);
+
+	/* Flush cache before write */
+	if (host->data->flags & MMC_DATA_WRITE)
+		dma_sync_sg_for_device(mmc_dev(host->cur_slot->mmc), sgl,
+				       sg_elems, DMA_TO_DEVICE);
+
+	dma_async_issue_pending(host->dms->ch);
+
+	return 0;
+}
+
+static int dw_mci_edmac_init(struct dw_mci *host)
+{
+	/* Request external dma channel */
+	host->dms = kzalloc(sizeof(struct dw_mci_dma_slave), GFP_KERNEL);
+	if (!host->dms)
+		return -ENOMEM;
+
+	host->dms->ch = dma_request_slave_channel(host->dev, "rx-tx");
+	if (!host->dms->ch) {
+		dev_err(host->dev, "Failed to get external DMA channel.\n");
+		kfree(host->dms);
+		host->dms = NULL;
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static void dw_mci_edmac_exit(struct dw_mci *host)
+{
+	if (host->dms) {
+		if (host->dms->ch) {
+			dma_release_channel(host->dms->ch);
+			host->dms->ch = NULL;
+		}
+		kfree(host->dms);
+		host->dms = NULL;
+	}
+}
+
+static const struct dw_mci_dma_ops dw_mci_edmac_ops = {
+	.init = dw_mci_edmac_init,
+	.exit = dw_mci_edmac_exit,
+	.start = dw_mci_edmac_start_dma,
+	.stop = dw_mci_edmac_stop_dma,
+	.complete = dw_mci_dmac_complete_dma,
+	.cleanup = dw_mci_dma_cleanup,
+};
 
 static int dw_mci_pre_dma_transfer(struct dw_mci *host,
 				   struct mmc_data *data,
@@ -752,13 +860,16 @@ static void dw_mci_post_req(struct mmc_host *mmc,
 
 static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 {
-#ifdef CONFIG_MMC_DW_IDMAC
 	unsigned int blksz = data->blksz;
 	const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
 	u32 fifo_width = 1 << host->data_shift;
 	u32 blksz_depth = blksz / fifo_width, fifoth_val;
 	u32 msize = 0, rx_wmark = 1, tx_wmark, tx_wmark_invers;
 	int idx = ARRAY_SIZE(mszs) - 1;
+
+	/* pio should ship this scenario */
+	if (!host->use_dma)
+		return;
 
 	tx_wmark = (host->fifo_depth) / 2;
 	tx_wmark_invers = host->fifo_depth - tx_wmark;
@@ -788,7 +899,6 @@ static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 done:
 	fifoth_val = SDMMC_SET_FIFOTH(msize, rx_wmark, tx_wmark);
 	mci_writel(host, FIFOTH, fifoth_val);
-#endif
 }
 
 static void dw_mci_ctrl_rd_thld(struct dw_mci *host, struct mmc_data *data)
@@ -850,10 +960,12 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 
 	host->using_dma = 1;
 
-	dev_vdbg(host->dev,
-		 "sd sg_cpu: %#lx sg_dma: %#lx sg_len: %d\n",
-		 (unsigned long)host->sg_cpu, (unsigned long)host->sg_dma,
-		 sg_len);
+	if (host->use_dma == TRANS_MODE_IDMAC)
+		dev_vdbg(host->dev,
+			 "sd sg_cpu: %#lx sg_dma: %#lx sg_len: %d\n",
+			 (unsigned long)host->sg_cpu,
+			 (unsigned long)host->sg_dma,
+			 sg_len);
 
 	/*
 	 * Decide the MSIZE and RX/TX Watermark.
@@ -875,7 +987,11 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	mci_writel(host, INTMASK, temp);
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
-	host->dma_ops->start(host, sg_len);
+	if (host->dma_ops->start(host, sg_len)) {
+		/* We can't do DMA */
+		dev_err(host->dev, "%s: failed to start DMA.\n", __func__);
+		return -ENODEV;
+	}
 
 	return 0;
 }
@@ -1177,6 +1293,7 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	/* DDR mode set */
 	if (ios->timing == MMC_TIMING_MMC_DDR52 ||
+	    ios->timing == MMC_TIMING_UHS_DDR50 ||
 	    ios->timing == MMC_TIMING_MMC_HS400)
 		regs |= ((0x1 << slot->id) << 16);
 	else
@@ -1279,7 +1396,6 @@ static int dw_mci_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	u32 uhs;
 	u32 v18 = SDMMC_UHS_18V << slot->id;
-	int min_uv, max_uv;
 	int ret;
 
 	if (drv_data && drv_data->switch_voltage)
@@ -1291,22 +1407,18 @@ static int dw_mci_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 	 * does no harm but you need to set the regulator directly.  Try both.
 	 */
 	uhs = mci_readl(host, UHS_REG);
-	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
-		min_uv = 2700000;
-		max_uv = 3600000;
+	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
 		uhs &= ~v18;
-	} else {
-		min_uv = 1700000;
-		max_uv = 1950000;
+	else
 		uhs |= v18;
-	}
+
 	if (!IS_ERR(mmc->supply.vqmmc)) {
-		ret = regulator_set_voltage(mmc->supply.vqmmc, min_uv, max_uv);
+		ret = mmc_regulator_set_vqmmc(mmc, ios);
 
 		if (ret) {
 			dev_dbg(&mmc->class_dev,
-					 "Regulator set error %d: %d - %d\n",
-					 ret, min_uv, max_uv);
+					 "Regulator set error %d - %s V\n",
+					 ret, uhs & v18 ? "1.8" : "3.3");
 			return ret;
 		}
 	}
@@ -1427,7 +1539,7 @@ static int dw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	int err = -EINVAL;
 
 	if (drv_data && drv_data->execute_tuning)
-		err = drv_data->execute_tuning(slot);
+		err = drv_data->execute_tuning(slot, opcode);
 	return err;
 }
 
@@ -2343,15 +2455,17 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 	}
 
-#ifdef CONFIG_MMC_DW_IDMAC
-	/* Handle DMA interrupts */
+	if (host->use_dma != TRANS_MODE_IDMAC)
+		return IRQ_HANDLED;
+
+	/* Handle IDMA interrupts */
 	if (host->dma_64bit_address == 1) {
 		pending = mci_readl(host, IDSTS64);
 		if (pending & (SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI)) {
 			mci_writel(host, IDSTS64, SDMMC_IDMAC_INT_TI |
 							SDMMC_IDMAC_INT_RI);
 			mci_writel(host, IDSTS64, SDMMC_IDMAC_INT_NI);
-			host->dma_ops->complete(host);
+			host->dma_ops->complete((void *)host);
 		}
 	} else {
 		pending = mci_readl(host, IDSTS);
@@ -2359,10 +2473,9 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			mci_writel(host, IDSTS, SDMMC_IDMAC_INT_TI |
 							SDMMC_IDMAC_INT_RI);
 			mci_writel(host, IDSTS, SDMMC_IDMAC_INT_NI);
-			host->dma_ops->complete(host);
+			host->dma_ops->complete((void *)host);
 		}
 	}
-#endif
 
 	return IRQ_HANDLED;
 }
@@ -2471,13 +2584,21 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		goto err_host_allocated;
 
 	/* Useful defaults if platform data is unset. */
-	if (host->use_dma) {
+	if (host->use_dma == TRANS_MODE_IDMAC) {
 		mmc->max_segs = host->ring_size;
 		mmc->max_blk_size = 65536;
 		mmc->max_seg_size = 0x1000;
 		mmc->max_req_size = mmc->max_seg_size * host->ring_size;
 		mmc->max_blk_count = mmc->max_req_size / 512;
+	} else if (host->use_dma == TRANS_MODE_EDMAC) {
+		mmc->max_segs = 64;
+		mmc->max_blk_size = 65536;
+		mmc->max_blk_count = 65535;
+		mmc->max_req_size =
+				mmc->max_blk_size * mmc->max_blk_count;
+		mmc->max_seg_size = mmc->max_req_size;
 	} else {
+		/* TRANS_MODE_PIO */
 		mmc->max_segs = 64;
 		mmc->max_blk_size = 65536; /* BLKSIZ is 16 bits */
 		mmc->max_blk_count = 512;
@@ -2517,38 +2638,74 @@ static void dw_mci_cleanup_slot(struct dw_mci_slot *slot, unsigned int id)
 static void dw_mci_init_dma(struct dw_mci *host)
 {
 	int addr_config;
-	/* Check ADDR_CONFIG bit in HCON to find IDMAC address bus width */
-	addr_config = (mci_readl(host, HCON) >> 27) & 0x01;
+	struct device *dev = host->dev;
+	struct device_node *np = dev->of_node;
 
-	if (addr_config == 1) {
-		/* host supports IDMAC in 64-bit address mode */
-		host->dma_64bit_address = 1;
-		dev_info(host->dev, "IDMAC supports 64-bit address mode.\n");
-		if (!dma_set_mask(host->dev, DMA_BIT_MASK(64)))
-			dma_set_coherent_mask(host->dev, DMA_BIT_MASK(64));
+	/*
+	* Check tansfer mode from HCON[17:16]
+	* Clear the ambiguous description of dw_mmc databook:
+	* 2b'00: No DMA Interface -> Actually means using Internal DMA block
+	* 2b'01: DesignWare DMA Interface -> Synopsys DW-DMA block
+	* 2b'10: Generic DMA Interface -> non-Synopsys generic DMA block
+	* 2b'11: Non DW DMA Interface -> pio only
+	* Compared to DesignWare DMA Interface, Generic DMA Interface has a
+	* simpler request/acknowledge handshake mechanism and both of them
+	* are regarded as external dma master for dw_mmc.
+	*/
+	host->use_dma = SDMMC_GET_TRANS_MODE(mci_readl(host, HCON));
+	if (host->use_dma == DMA_INTERFACE_IDMA) {
+		host->use_dma = TRANS_MODE_IDMAC;
+	} else if (host->use_dma == DMA_INTERFACE_DWDMA ||
+		   host->use_dma == DMA_INTERFACE_GDMA) {
+		host->use_dma = TRANS_MODE_EDMAC;
 	} else {
-		/* host supports IDMAC in 32-bit address mode */
-		host->dma_64bit_address = 0;
-		dev_info(host->dev, "IDMAC supports 32-bit address mode.\n");
-	}
-
-	/* Alloc memory for sg translation */
-	host->sg_cpu = dmam_alloc_coherent(host->dev, PAGE_SIZE,
-					  &host->sg_dma, GFP_KERNEL);
-	if (!host->sg_cpu) {
-		dev_err(host->dev, "%s: could not alloc DMA memory\n",
-			__func__);
 		goto no_dma;
 	}
 
 	/* Determine which DMA interface to use */
-#ifdef CONFIG_MMC_DW_IDMAC
-	host->dma_ops = &dw_mci_idmac_ops;
-	dev_info(host->dev, "Using internal DMA controller.\n");
-#endif
+	if (host->use_dma == TRANS_MODE_IDMAC) {
+		/*
+		* Check ADDR_CONFIG bit in HCON to find
+		* IDMAC address bus width
+		*/
+		addr_config = SDMMC_GET_ADDR_CONFIG(mci_readl(host, HCON));
 
-	if (!host->dma_ops)
-		goto no_dma;
+		if (addr_config == 1) {
+			/* host supports IDMAC in 64-bit address mode */
+			host->dma_64bit_address = 1;
+			dev_info(host->dev,
+				 "IDMAC supports 64-bit address mode.\n");
+			if (!dma_set_mask(host->dev, DMA_BIT_MASK(64)))
+				dma_set_coherent_mask(host->dev,
+						      DMA_BIT_MASK(64));
+		} else {
+			/* host supports IDMAC in 32-bit address mode */
+			host->dma_64bit_address = 0;
+			dev_info(host->dev,
+				 "IDMAC supports 32-bit address mode.\n");
+		}
+
+		/* Alloc memory for sg translation */
+		host->sg_cpu = dmam_alloc_coherent(host->dev, PAGE_SIZE,
+						   &host->sg_dma, GFP_KERNEL);
+		if (!host->sg_cpu) {
+			dev_err(host->dev,
+				"%s: could not alloc DMA memory\n",
+				__func__);
+			goto no_dma;
+		}
+
+		host->dma_ops = &dw_mci_idmac_ops;
+		dev_info(host->dev, "Using internal DMA controller.\n");
+	} else {
+		/* TRANS_MODE_EDMAC: check dma bindings again */
+		if ((of_property_count_strings(np, "dma-names") < 0) ||
+		    (!of_find_property(np, "dmas", NULL))) {
+			goto no_dma;
+		}
+		host->dma_ops = &dw_mci_edmac_ops;
+		dev_info(host->dev, "Using external DMA controller.\n");
+	}
 
 	if (host->dma_ops->init && host->dma_ops->start &&
 	    host->dma_ops->stop && host->dma_ops->cleanup) {
@@ -2562,12 +2719,11 @@ static void dw_mci_init_dma(struct dw_mci *host)
 		goto no_dma;
 	}
 
-	host->use_dma = 1;
 	return;
 
 no_dma:
 	dev_info(host->dev, "Using PIO mode.\n");
-	host->use_dma = 0;
+	host->use_dma = TRANS_MODE_PIO;
 }
 
 static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset)
@@ -2650,10 +2806,9 @@ static bool dw_mci_reset(struct dw_mci *host)
 		}
 	}
 
-#if IS_ENABLED(CONFIG_MMC_DW_IDMAC)
-	/* It is also recommended that we reset and reprogram idmac */
-	dw_mci_idmac_reset(host);
-#endif
+	if (host->use_dma == TRANS_MODE_IDMAC)
+		/* It is also recommended that we reset and reprogram idmac */
+		dw_mci_idmac_reset(host);
 
 	ret = true;
 
@@ -2890,7 +3045,7 @@ int dw_mci_probe(struct dw_mci *host)
 	 * Get the host data width - this assumes that HCON has been set with
 	 * the correct values.
 	 */
-	i = (mci_readl(host, HCON) >> 7) & 0x7;
+	i = SDMMC_GET_HDATA_WIDTH(mci_readl(host, HCON));
 	if (!i) {
 		host->push_data = dw_mci_push_data16;
 		host->pull_data = dw_mci_pull_data16;
@@ -2972,7 +3127,7 @@ int dw_mci_probe(struct dw_mci *host)
 	if (host->pdata->num_slots)
 		host->num_slots = host->pdata->num_slots;
 	else
-		host->num_slots = ((mci_readl(host, HCON) >> 1) & 0x1F) + 1;
+		host->num_slots = SDMMC_GET_SLOT_NUM(mci_readl(host, HCON));
 
 	/*
 	 * Enable interrupts for command done, data over, data empty,
@@ -3067,6 +3222,9 @@ EXPORT_SYMBOL(dw_mci_remove);
  */
 int dw_mci_suspend(struct dw_mci *host)
 {
+	if (host->use_dma && host->dma_ops->exit)
+		host->dma_ops->exit(host);
+
 	return 0;
 }
 EXPORT_SYMBOL(dw_mci_suspend);

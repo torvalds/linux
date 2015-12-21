@@ -87,36 +87,20 @@ static int menf21bmc_led_probe(struct platform_device *pdev)
 		leds[i].cdev.name = leds[i].name;
 		leds[i].cdev.brightness_set = menf21bmc_led_set;
 		leds[i].i2c_client = i2c_client;
-		ret = led_classdev_register(&pdev->dev, &leds[i].cdev);
-		if (ret < 0)
-			goto err_free_leds;
+		ret = devm_led_classdev_register(&pdev->dev, &leds[i].cdev);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to register LED device\n");
+			return ret;
+		}
 	}
 	dev_info(&pdev->dev, "MEN 140F21P00 BMC LED device enabled\n");
 
 	return 0;
 
-err_free_leds:
-	dev_err(&pdev->dev, "failed to register LED device\n");
-
-	for (i = i - 1; i >= 0; i--)
-		led_classdev_unregister(&leds[i].cdev);
-
-	return ret;
-}
-
-static int menf21bmc_led_remove(struct platform_device *pdev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(leds); i++)
-		led_classdev_unregister(&leds[i].cdev);
-
-	return 0;
 }
 
 static struct platform_driver menf21bmc_led = {
 	.probe		= menf21bmc_led_probe,
-	.remove		= menf21bmc_led_remove,
 	.driver		= {
 		.name		= "menf21bmc_led",
 	},

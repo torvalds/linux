@@ -628,6 +628,153 @@ static void sti_hqvdp_init(struct sti_hqvdp *hqvdp)
 	memset(hqvdp->hqvdp_cmd, 0, size);
 }
 
+static void sti_hqvdp_init_plugs(struct sti_hqvdp *hqvdp)
+{
+	/* Configure Plugs (same for RD & WR) */
+	writel(PLUG_PAGE_SIZE_256, hqvdp->regs + HQVDP_RD_PLUG_PAGE_SIZE);
+	writel(PLUG_MIN_OPC_8, hqvdp->regs + HQVDP_RD_PLUG_MIN_OPC);
+	writel(PLUG_MAX_OPC_64, hqvdp->regs + HQVDP_RD_PLUG_MAX_OPC);
+	writel(PLUG_MAX_CHK_2X, hqvdp->regs + HQVDP_RD_PLUG_MAX_CHK);
+	writel(PLUG_MAX_MSG_1X, hqvdp->regs + HQVDP_RD_PLUG_MAX_MSG);
+	writel(PLUG_MIN_SPACE_1, hqvdp->regs + HQVDP_RD_PLUG_MIN_SPACE);
+	writel(PLUG_CONTROL_ENABLE, hqvdp->regs + HQVDP_RD_PLUG_CONTROL);
+
+	writel(PLUG_PAGE_SIZE_256, hqvdp->regs + HQVDP_WR_PLUG_PAGE_SIZE);
+	writel(PLUG_MIN_OPC_8, hqvdp->regs + HQVDP_WR_PLUG_MIN_OPC);
+	writel(PLUG_MAX_OPC_64, hqvdp->regs + HQVDP_WR_PLUG_MAX_OPC);
+	writel(PLUG_MAX_CHK_2X, hqvdp->regs + HQVDP_WR_PLUG_MAX_CHK);
+	writel(PLUG_MAX_MSG_1X, hqvdp->regs + HQVDP_WR_PLUG_MAX_MSG);
+	writel(PLUG_MIN_SPACE_1, hqvdp->regs + HQVDP_WR_PLUG_MIN_SPACE);
+	writel(PLUG_CONTROL_ENABLE, hqvdp->regs + HQVDP_WR_PLUG_CONTROL);
+}
+
+/**
+ * sti_hqvdp_start_xp70
+ * @hqvdp: hqvdp pointer
+ *
+ * Run the xP70 initialization sequence
+ */
+static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
+{
+	const struct firmware *firmware;
+	u32 *fw_rd_plug, *fw_wr_plug, *fw_pmem, *fw_dmem;
+	u8 *data;
+	int i;
+	struct fw_header {
+		int rd_size;
+		int wr_size;
+		int pmem_size;
+		int dmem_size;
+	} *header;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	if (hqvdp->xp70_initialized) {
+		DRM_INFO("HQVDP XP70 already initialized\n");
+		return;
+	}
+
+	/* Request firmware */
+	if (request_firmware(&firmware, HQVDP_FMW_NAME, hqvdp->dev)) {
+		DRM_ERROR("Can't get HQVDP firmware\n");
+		return;
+	}
+
+	/* Check firmware parts */
+	if (!firmware) {
+		DRM_ERROR("Firmware not available\n");
+		return;
+	}
+
+	header = (struct fw_header *)firmware->data;
+	if (firmware->size < sizeof(*header)) {
+		DRM_ERROR("Invalid firmware size (%d)\n", firmware->size);
+		goto out;
+	}
+	if ((sizeof(*header) + header->rd_size + header->wr_size +
+		header->pmem_size + header->dmem_size) != firmware->size) {
+		DRM_ERROR("Invalid fmw structure (%d+%d+%d+%d+%d != %d)\n",
+			  sizeof(*header), header->rd_size, header->wr_size,
+			  header->pmem_size, header->dmem_size,
+			  firmware->size);
+		goto out;
+	}
+
+	data = (u8 *)firmware->data;
+	data += sizeof(*header);
+	fw_rd_plug = (void *)data;
+	data += header->rd_size;
+	fw_wr_plug = (void *)data;
+	data += header->wr_size;
+	fw_pmem = (void *)data;
+	data += header->pmem_size;
+	fw_dmem = (void *)data;
+
+	/* Enable clock */
+	if (clk_prepare_enable(hqvdp->clk))
+		DRM_ERROR("Failed to prepare/enable HQVDP clk\n");
+
+	/* Reset */
+	writel(SW_RESET_CTRL_FULL, hqvdp->regs + HQVDP_MBX_SW_RESET_CTRL);
+
+	for (i = 0; i < POLL_MAX_ATTEMPT; i++) {
+		if (readl(hqvdp->regs + HQVDP_MBX_STARTUP_CTRL1)
+				& STARTUP_CTRL1_RST_DONE)
+			break;
+		msleep(POLL_DELAY_MS);
+	}
+	if (i == POLL_MAX_ATTEMPT) {
+		DRM_ERROR("Could not reset\n");
+		goto out;
+	}
+
+	/* Init Read & Write plugs */
+	for (i = 0; i < header->rd_size / 4; i++)
+		writel(fw_rd_plug[i], hqvdp->regs + HQVDP_RD_PLUG + i * 4);
+	for (i = 0; i < header->wr_size / 4; i++)
+		writel(fw_wr_plug[i], hqvdp->regs + HQVDP_WR_PLUG + i * 4);
+
+	sti_hqvdp_init_plugs(hqvdp);
+
+	/* Authorize Idle Mode */
+	writel(STARTUP_CTRL1_AUTH_IDLE, hqvdp->regs + HQVDP_MBX_STARTUP_CTRL1);
+
+	/* Prevent VTG interruption during the boot */
+	writel(SOFT_VSYNC_SW_CTRL_IRQ, hqvdp->regs + HQVDP_MBX_SOFT_VSYNC);
+	writel(0, hqvdp->regs + HQVDP_MBX_NEXT_CMD);
+
+	/* Download PMEM & DMEM */
+	for (i = 0; i < header->pmem_size / 4; i++)
+		writel(fw_pmem[i], hqvdp->regs + HQVDP_PMEM + i * 4);
+	for (i = 0; i < header->dmem_size / 4; i++)
+		writel(fw_dmem[i], hqvdp->regs + HQVDP_DMEM + i * 4);
+
+	/* Enable fetch */
+	writel(STARTUP_CTRL2_FETCH_EN, hqvdp->regs + HQVDP_MBX_STARTUP_CTRL2);
+
+	/* Wait end of boot */
+	for (i = 0; i < POLL_MAX_ATTEMPT; i++) {
+		if (readl(hqvdp->regs + HQVDP_MBX_INFO_XP70)
+				& INFO_XP70_FW_READY)
+			break;
+		msleep(POLL_DELAY_MS);
+	}
+	if (i == POLL_MAX_ATTEMPT) {
+		DRM_ERROR("Could not boot\n");
+		goto out;
+	}
+
+	/* Launch Vsync */
+	writel(SOFT_VSYNC_HW, hqvdp->regs + HQVDP_MBX_SOFT_VSYNC);
+
+	DRM_INFO("HQVDP XP70 initialized\n");
+
+	hqvdp->xp70_initialized = true;
+
+out:
+	release_firmware(firmware);
+}
+
 static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 				    struct drm_plane_state *oldstate)
 {
@@ -754,6 +901,9 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	sti_hqvdp_update_hvsrc(HVSRC_VERT, scale_v, &cmd->hvsrc);
 
 	if (first_prepare) {
+		/* Start HQVDP XP70 coprocessor */
+		sti_hqvdp_start_xp70(hqvdp);
+
 		/* Prevent VTG shutdown */
 		if (clk_prepare_enable(hqvdp->clk_pix_main)) {
 			DRM_ERROR("Failed to prepare/enable pix main clk\n");
@@ -763,7 +913,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 		/* Register VTG Vsync callback to handle bottom fields */
 		if (sti_vtg_register_client(hqvdp->vtg,
 					    &hqvdp->vtg_nb,
-					    mixer->id)) {
+					    crtc)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
 			return;
 		}
@@ -836,167 +986,15 @@ static struct drm_plane *sti_hqvdp_create(struct drm_device *drm_dev,
 	return &hqvdp->plane.drm_plane;
 }
 
-static void sti_hqvdp_init_plugs(struct sti_hqvdp *hqvdp)
-{
-	/* Configure Plugs (same for RD & WR) */
-	writel(PLUG_PAGE_SIZE_256, hqvdp->regs + HQVDP_RD_PLUG_PAGE_SIZE);
-	writel(PLUG_MIN_OPC_8, hqvdp->regs + HQVDP_RD_PLUG_MIN_OPC);
-	writel(PLUG_MAX_OPC_64, hqvdp->regs + HQVDP_RD_PLUG_MAX_OPC);
-	writel(PLUG_MAX_CHK_2X, hqvdp->regs + HQVDP_RD_PLUG_MAX_CHK);
-	writel(PLUG_MAX_MSG_1X, hqvdp->regs + HQVDP_RD_PLUG_MAX_MSG);
-	writel(PLUG_MIN_SPACE_1, hqvdp->regs + HQVDP_RD_PLUG_MIN_SPACE);
-	writel(PLUG_CONTROL_ENABLE, hqvdp->regs + HQVDP_RD_PLUG_CONTROL);
-
-	writel(PLUG_PAGE_SIZE_256, hqvdp->regs + HQVDP_WR_PLUG_PAGE_SIZE);
-	writel(PLUG_MIN_OPC_8, hqvdp->regs + HQVDP_WR_PLUG_MIN_OPC);
-	writel(PLUG_MAX_OPC_64, hqvdp->regs + HQVDP_WR_PLUG_MAX_OPC);
-	writel(PLUG_MAX_CHK_2X, hqvdp->regs + HQVDP_WR_PLUG_MAX_CHK);
-	writel(PLUG_MAX_MSG_1X, hqvdp->regs + HQVDP_WR_PLUG_MAX_MSG);
-	writel(PLUG_MIN_SPACE_1, hqvdp->regs + HQVDP_WR_PLUG_MIN_SPACE);
-	writel(PLUG_CONTROL_ENABLE, hqvdp->regs + HQVDP_WR_PLUG_CONTROL);
-}
-
-/**
- * sti_hqvdp_start_xp70
- * @firmware: firmware found
- * @ctxt:     hqvdp structure
- *
- * Run the xP70 initialization sequence
- */
-static void sti_hqvdp_start_xp70(const struct firmware *firmware, void *ctxt)
-{
-	struct sti_hqvdp *hqvdp = ctxt;
-	u32 *fw_rd_plug, *fw_wr_plug, *fw_pmem, *fw_dmem;
-	u8 *data;
-	int i;
-	struct fw_header {
-		int rd_size;
-		int wr_size;
-		int pmem_size;
-		int dmem_size;
-	} *header;
-
-	DRM_DEBUG_DRIVER("\n");
-
-	if (hqvdp->xp70_initialized) {
-		DRM_INFO("HQVDP XP70 already initialized\n");
-		return;
-	}
-
-	/* Check firmware parts */
-	if (!firmware) {
-		DRM_ERROR("Firmware not available\n");
-		return;
-	}
-
-	header = (struct fw_header *) firmware->data;
-	if (firmware->size < sizeof(*header)) {
-		DRM_ERROR("Invalid firmware size (%d)\n", firmware->size);
-		goto out;
-	}
-	if ((sizeof(*header) + header->rd_size + header->wr_size +
-		header->pmem_size + header->dmem_size) != firmware->size) {
-		DRM_ERROR("Invalid fmw structure (%d+%d+%d+%d+%d != %d)\n",
-			   sizeof(*header), header->rd_size, header->wr_size,
-			   header->pmem_size, header->dmem_size,
-			   firmware->size);
-		goto out;
-	}
-
-	data = (u8 *) firmware->data;
-	data += sizeof(*header);
-	fw_rd_plug = (void *) data;
-	data += header->rd_size;
-	fw_wr_plug = (void *) data;
-	data += header->wr_size;
-	fw_pmem = (void *) data;
-	data += header->pmem_size;
-	fw_dmem = (void *) data;
-
-	/* Enable clock */
-	if (clk_prepare_enable(hqvdp->clk))
-		DRM_ERROR("Failed to prepare/enable HQVDP clk\n");
-
-	/* Reset */
-	writel(SW_RESET_CTRL_FULL, hqvdp->regs + HQVDP_MBX_SW_RESET_CTRL);
-
-	for (i = 0; i < POLL_MAX_ATTEMPT; i++) {
-		if (readl(hqvdp->regs + HQVDP_MBX_STARTUP_CTRL1)
-				& STARTUP_CTRL1_RST_DONE)
-			break;
-		msleep(POLL_DELAY_MS);
-	}
-	if (i == POLL_MAX_ATTEMPT) {
-		DRM_ERROR("Could not reset\n");
-		goto out;
-	}
-
-	/* Init Read & Write plugs */
-	for (i = 0; i < header->rd_size / 4; i++)
-		writel(fw_rd_plug[i], hqvdp->regs + HQVDP_RD_PLUG + i * 4);
-	for (i = 0; i < header->wr_size / 4; i++)
-		writel(fw_wr_plug[i], hqvdp->regs + HQVDP_WR_PLUG + i * 4);
-
-	sti_hqvdp_init_plugs(hqvdp);
-
-	/* Authorize Idle Mode */
-	writel(STARTUP_CTRL1_AUTH_IDLE, hqvdp->regs + HQVDP_MBX_STARTUP_CTRL1);
-
-	/* Prevent VTG interruption during the boot */
-	writel(SOFT_VSYNC_SW_CTRL_IRQ, hqvdp->regs + HQVDP_MBX_SOFT_VSYNC);
-	writel(0, hqvdp->regs + HQVDP_MBX_NEXT_CMD);
-
-	/* Download PMEM & DMEM */
-	for (i = 0; i < header->pmem_size / 4; i++)
-		writel(fw_pmem[i], hqvdp->regs + HQVDP_PMEM + i * 4);
-	for (i = 0; i < header->dmem_size / 4; i++)
-		writel(fw_dmem[i], hqvdp->regs + HQVDP_DMEM + i * 4);
-
-	/* Enable fetch */
-	writel(STARTUP_CTRL2_FETCH_EN, hqvdp->regs + HQVDP_MBX_STARTUP_CTRL2);
-
-	/* Wait end of boot */
-	for (i = 0; i < POLL_MAX_ATTEMPT; i++) {
-		if (readl(hqvdp->regs + HQVDP_MBX_INFO_XP70)
-				& INFO_XP70_FW_READY)
-			break;
-		msleep(POLL_DELAY_MS);
-	}
-	if (i == POLL_MAX_ATTEMPT) {
-		DRM_ERROR("Could not boot\n");
-		goto out;
-	}
-
-	/* Launch Vsync */
-	writel(SOFT_VSYNC_HW, hqvdp->regs + HQVDP_MBX_SOFT_VSYNC);
-
-	DRM_INFO("HQVDP XP70 initialized\n");
-
-	hqvdp->xp70_initialized = true;
-
-out:
-	release_firmware(firmware);
-}
-
 int sti_hqvdp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct sti_hqvdp *hqvdp = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct drm_plane *plane;
-	int err;
 
 	DRM_DEBUG_DRIVER("\n");
 
 	hqvdp->drm_dev = drm_dev;
-
-	/* Request for firmware */
-	err = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-				HQVDP_FMW_NAME,	hqvdp->dev,
-				GFP_KERNEL, hqvdp, sti_hqvdp_start_xp70);
-	if (err) {
-		DRM_ERROR("Can't get HQVDP firmware\n");
-		return err;
-	}
 
 	/* Create HQVDP plane once xp70 is initialized */
 	plane = sti_hqvdp_create(drm_dev, hqvdp->dev, STI_HQVDP_0);
@@ -1089,8 +1087,6 @@ struct platform_driver sti_hqvdp_driver = {
 	.probe = sti_hqvdp_probe,
 	.remove = sti_hqvdp_remove,
 };
-
-module_platform_driver(sti_hqvdp_driver);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

@@ -75,6 +75,10 @@ void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool include_reserve)
 	struct blk_mq_bitmap_tags *bt;
 	int i, wake_index;
 
+	/*
+	 * Make sure all changes prior to this are visible from other CPUs.
+	 */
+	smp_mb();
 	bt = &tags->bitmap_tags;
 	wake_index = atomic_read(&bt->wake_index);
 	for (i = 0; i < BT_WAIT_QUEUES; i++) {
@@ -264,7 +268,7 @@ static int bt_get(struct blk_mq_alloc_data *data,
 	if (tag != -1)
 		return tag;
 
-	if (!(data->gfp & __GFP_WAIT))
+	if (!gfpflags_allow_blocking(data->gfp))
 		return -1;
 
 	bs = bt_wait_ptr(bt, hctx);
@@ -641,6 +645,7 @@ void blk_mq_free_tags(struct blk_mq_tags *tags)
 {
 	bt_free(&tags->bitmap_tags);
 	bt_free(&tags->breserved_tags);
+	free_cpumask_var(tags->cpumask);
 	kfree(tags);
 }
 

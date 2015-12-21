@@ -302,6 +302,7 @@ mips_pci_controller:
 		return;
 	if (!register_vsmp_smp_ops())
 		return;
+	register_up_smp_ops();
 }
 
 void platform_early_l2_init(void)

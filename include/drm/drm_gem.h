@@ -142,8 +142,11 @@ drm_gem_object_reference(struct drm_gem_object *obj)
 static inline void
 drm_gem_object_unreference(struct drm_gem_object *obj)
 {
-	if (obj != NULL)
+	if (obj != NULL) {
+		WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+
 		kref_put(&obj->refcount, drm_gem_object_free);
+	}
 }
 
 static inline void

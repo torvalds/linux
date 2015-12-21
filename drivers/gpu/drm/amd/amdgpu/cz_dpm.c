@@ -596,6 +596,12 @@ static int cz_dpm_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (amdgpu_dpm) {
+		int ret;
+		/* init the sysfs and debugfs files late */
+		ret = amdgpu_pm_sysfs_init(adev);
+		if (ret)
+			return ret;
+
 		/* powerdown unused blocks for now */
 		cz_dpm_powergate_uvd(adev, true);
 		cz_dpm_powergate_vce(adev, true);
@@ -631,10 +637,6 @@ static int cz_dpm_sw_init(void *handle)
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
-
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		goto dpm_init_failed;
 
 	mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
@@ -1262,6 +1264,7 @@ static void cz_apply_state_adjust_rules(struct amdgpu_device *adev,
 
 static int cz_dpm_enable(struct amdgpu_device *adev)
 {
+	const char *chip_name;
 	int ret = 0;
 
 	/* renable will hang up SMU, so check first */
@@ -1270,21 +1273,33 @@ static int cz_dpm_enable(struct amdgpu_device *adev)
 
 	cz_program_voting_clients(adev);
 
+	switch (adev->asic_type) {
+	case CHIP_CARRIZO:
+		chip_name = "carrizo";
+		break;
+	case CHIP_STONEY:
+		chip_name = "stoney";
+		break;
+	default:
+		BUG();
+	}
+
+
 	ret = cz_start_dpm(adev);
 	if (ret) {
-		DRM_ERROR("Carrizo DPM enable failed\n");
+		DRM_ERROR("%s DPM enable failed\n", chip_name);
 		return -EINVAL;
 	}
 
 	ret = cz_program_bootup_state(adev);
 	if (ret) {
-		DRM_ERROR("Carrizo bootup state program failed\n");
+		DRM_ERROR("%s bootup state program failed\n", chip_name);
 		return -EINVAL;
 	}
 
 	ret = cz_enable_didt(adev, true);
 	if (ret) {
-		DRM_ERROR("Carrizo enable di/dt failed\n");
+		DRM_ERROR("%s enable di/dt failed\n", chip_name);
 		return -EINVAL;
 	}
 
@@ -1351,7 +1366,7 @@ static int cz_dpm_disable(struct amdgpu_device *adev)
 
 	ret = cz_enable_didt(adev, false);
 	if (ret) {
-		DRM_ERROR("Carrizo disable di/dt failed\n");
+		DRM_ERROR("disable di/dt failed\n");
 		return -EINVAL;
 	}
 

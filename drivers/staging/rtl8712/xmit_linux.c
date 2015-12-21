@@ -166,7 +166,7 @@ int r8712_xmit_entry(_pkt *pkt, struct  net_device *pnetdev)
 	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
 	int ret = 0;
 
-	if (r8712_if_up(padapter) == false) {
+	if (!r8712_if_up(padapter)) {
 		ret = 0;
 		goto _xmit_entry_drop;
 	}
@@ -181,7 +181,7 @@ int r8712_xmit_entry(_pkt *pkt, struct  net_device *pnetdev)
 	}
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_TX);
 	pxmitframe->pkt = pkt;
-	if (r8712_pre_xmit(padapter, pxmitframe) == true) {
+	if (r8712_pre_xmit(padapter, pxmitframe)) {
 		/*dump xmitframe directly or drop xframe*/
 		dev_kfree_skb_any(pkt);
 		pxmitframe->pkt = NULL;

@@ -4,8 +4,9 @@ include ../lib.mk
 
 .PHONY: all all_32 all_64 warn_32bit_failure clean
 
-TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs ldt_gdt syscall_nt
-TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault sigreturn
+TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs ldt_gdt syscall_nt ptrace_syscall
+TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault sigreturn test_syscall_vdso unwind_vdso \
+			test_FCMOV test_FCOMI test_FISTTP
 
 TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
 BINARIES_32 := $(TARGETS_C_32BIT_ALL:%=%_32)
@@ -35,7 +36,7 @@ clean:
 	$(RM) $(BINARIES_32) $(BINARIES_64)
 
 $(TARGETS_C_32BIT_ALL:%=%_32): %_32: %.c
-	$(CC) -m32 -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ -lrt -ldl
+	$(CC) -m32 -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ -lrt -ldl -lm
 
 $(TARGETS_C_BOTHBITS:%=%_64): %_64: %.c
 	$(CC) -m64 -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ -lrt -ldl
@@ -60,3 +61,5 @@ endif
 
 # Some tests have additional dependencies.
 sysret_ss_attrs_64: thunks.S
+ptrace_syscall_32: raw_syscall_helper_32.S
+test_syscall_vdso_32: thunks_32.S

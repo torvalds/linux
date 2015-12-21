@@ -12,7 +12,7 @@
 
 / {
 	model = "LogicPD Zoom DM3730 Torpedo Development Kit";
-	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap36xx";
+	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3630", "ti,omap3";
 
 	gpio_keys {
 		compatible = "gpio-keys";

@@ -42,6 +42,7 @@ static inc_group_count(struct list_head *list,
 %token PE_VALUE PE_VALUE_SYM_HW PE_VALUE_SYM_SW PE_RAW PE_TERM
 %token PE_EVENT_NAME
 %token PE_NAME
+%token PE_BPF_OBJECT PE_BPF_SOURCE
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP
 %token PE_NAME_CACHE_TYPE PE_NAME_CACHE_OP_RESULT
 %token PE_PREFIX_MEM PE_PREFIX_RAW PE_PREFIX_GROUP
@@ -53,6 +54,8 @@ static inc_group_count(struct list_head *list,
 %type <num> PE_RAW
 %type <num> PE_TERM
 %type <str> PE_NAME
+%type <str> PE_BPF_OBJECT
+%type <str> PE_BPF_SOURCE
 %type <str> PE_NAME_CACHE_TYPE
 %type <str> PE_NAME_CACHE_OP_RESULT
 %type <str> PE_MODIFIER_EVENT
@@ -67,8 +70,10 @@ static inc_group_count(struct list_head *list,
 %type <head> event_legacy_cache
 %type <head> event_legacy_mem
 %type <head> event_legacy_tracepoint
+%type <tracepoint_name> tracepoint_name
 %type <head> event_legacy_numeric
 %type <head> event_legacy_raw
+%type <head> event_bpf_file
 %type <head> event_def
 %type <head> event_mod
 %type <head> event_name
@@ -84,6 +89,10 @@ static inc_group_count(struct list_head *list,
 	u64 num;
 	struct list_head *head;
 	struct parse_events_term *term;
+	struct tracepoint_name {
+		char *sys;
+		char *event;
+	} tracepoint_name;
 }
 %%
 
@@ -198,7 +207,8 @@ event_def: event_pmu |
 	   event_legacy_mem |
 	   event_legacy_tracepoint sep_dc |
 	   event_legacy_numeric sep_dc |
-	   event_legacy_raw sep_dc
+	   event_legacy_raw sep_dc |
+	   event_bpf_file
 
 event_pmu:
 PE_NAME '/' event_config '/'
@@ -368,34 +378,58 @@ PE_PREFIX_MEM PE_VALUE sep_dc
 }
 
 event_legacy_tracepoint:
-PE_NAME '-' PE_NAME ':' PE_NAME
+tracepoint_name
 {
 	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
 	struct list_head *list;
-	char sys_name[128];
-	snprintf(&sys_name, 128, "%s-%s", $1, $3);
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_tracepoint(list, &data->idx, &sys_name, $5));
+	if (error)
+		error->idx = @1.first_column;
+
+	if (parse_events_add_tracepoint(list, &data->idx, $1.sys, $1.event,
+					error, NULL))
+		return -1;
+
 	$$ = list;
+}
+|
+tracepoint_name '/' event_config '/'
+{
+	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
+	struct list_head *list;
+
+	ALLOC_LIST(list);
+	if (error)
+		error->idx = @1.first_column;
+
+	if (parse_events_add_tracepoint(list, &data->idx, $1.sys, $1.event,
+					error, $3))
+		return -1;
+
+	$$ = list;
+}
+
+tracepoint_name:
+PE_NAME '-' PE_NAME ':' PE_NAME
+{
+	char sys_name[128];
+	struct tracepoint_name tracepoint;
+
+	snprintf(&sys_name, 128, "%s-%s", $1, $3);
+	tracepoint.sys = &sys_name;
+	tracepoint.event = $5;
+
+	$$ = tracepoint;
 }
 |
 PE_NAME ':' PE_NAME
 {
-	struct parse_events_evlist *data = _data;
-	struct list_head *list;
+	struct tracepoint_name tracepoint = {$1, $3};
 
-	ALLOC_LIST(list);
-	if (parse_events_add_tracepoint(list, &data->idx, $1, $3)) {
-		struct parse_events_error *error = data->error;
-
-		if (error) {
-			error->idx = @1.first_column;
-			error->str = strdup("unknown tracepoint");
-		}
-		return -1;
-	}
-	$$ = list;
+	$$ = tracepoint;
 }
 
 event_legacy_numeric:
@@ -417,6 +451,28 @@ PE_RAW
 
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_add_numeric(data, list, PERF_TYPE_RAW, $1, NULL));
+	$$ = list;
+}
+
+event_bpf_file:
+PE_BPF_OBJECT
+{
+	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
+	struct list_head *list;
+
+	ALLOC_LIST(list);
+	ABORT_ON(parse_events_load_bpf(data, list, $1, false));
+	$$ = list;
+}
+|
+PE_BPF_SOURCE
+{
+	struct parse_events_evlist *data = _data;
+	struct list_head *list;
+
+	ALLOC_LIST(list);
+	ABORT_ON(parse_events_load_bpf(data, list, $1, true));
 	$$ = list;
 }
 

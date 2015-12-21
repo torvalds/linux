@@ -1165,32 +1165,31 @@ static int patch_ad1882(struct hda_codec *codec)
 /*
  * patch entries
  */
-static const struct hda_codec_preset snd_hda_preset_analog[] = {
-	{ .id = 0x11d4184a, .name = "AD1884A", .patch = patch_ad1884 },
-	{ .id = 0x11d41882, .name = "AD1882", .patch = patch_ad1882 },
-	{ .id = 0x11d41883, .name = "AD1883", .patch = patch_ad1884 },
-	{ .id = 0x11d41884, .name = "AD1884", .patch = patch_ad1884 },
-	{ .id = 0x11d4194a, .name = "AD1984A", .patch = patch_ad1884 },
-	{ .id = 0x11d4194b, .name = "AD1984B", .patch = patch_ad1884 },
-	{ .id = 0x11d41981, .name = "AD1981", .patch = patch_ad1981 },
-	{ .id = 0x11d41983, .name = "AD1983", .patch = patch_ad1983 },
-	{ .id = 0x11d41984, .name = "AD1984", .patch = patch_ad1884 },
-	{ .id = 0x11d41986, .name = "AD1986A", .patch = patch_ad1986a },
-	{ .id = 0x11d41988, .name = "AD1988", .patch = patch_ad1988 },
-	{ .id = 0x11d4198b, .name = "AD1988B", .patch = patch_ad1988 },
-	{ .id = 0x11d4882a, .name = "AD1882A", .patch = patch_ad1882 },
-	{ .id = 0x11d4989a, .name = "AD1989A", .patch = patch_ad1988 },
-	{ .id = 0x11d4989b, .name = "AD1989B", .patch = patch_ad1988 },
+static const struct hda_device_id snd_hda_id_analog[] = {
+	HDA_CODEC_ENTRY(0x11d4184a, "AD1884A", patch_ad1884),
+	HDA_CODEC_ENTRY(0x11d41882, "AD1882", patch_ad1882),
+	HDA_CODEC_ENTRY(0x11d41883, "AD1883", patch_ad1884),
+	HDA_CODEC_ENTRY(0x11d41884, "AD1884", patch_ad1884),
+	HDA_CODEC_ENTRY(0x11d4194a, "AD1984A", patch_ad1884),
+	HDA_CODEC_ENTRY(0x11d4194b, "AD1984B", patch_ad1884),
+	HDA_CODEC_ENTRY(0x11d41981, "AD1981", patch_ad1981),
+	HDA_CODEC_ENTRY(0x11d41983, "AD1983", patch_ad1983),
+	HDA_CODEC_ENTRY(0x11d41984, "AD1984", patch_ad1884),
+	HDA_CODEC_ENTRY(0x11d41986, "AD1986A", patch_ad1986a),
+	HDA_CODEC_ENTRY(0x11d41988, "AD1988", patch_ad1988),
+	HDA_CODEC_ENTRY(0x11d4198b, "AD1988B", patch_ad1988),
+	HDA_CODEC_ENTRY(0x11d4882a, "AD1882A", patch_ad1882),
+	HDA_CODEC_ENTRY(0x11d4989a, "AD1989A", patch_ad1988),
+	HDA_CODEC_ENTRY(0x11d4989b, "AD1989B", patch_ad1988),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:11d4*");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_analog);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Analog Devices HD-audio codec");
 
 static struct hda_codec_driver analog_driver = {
-	.preset = snd_hda_preset_analog,
+	.id = snd_hda_id_analog,
 };
 
 module_hda_codec_driver(analog_driver);

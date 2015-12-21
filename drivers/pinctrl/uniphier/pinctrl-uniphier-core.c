@@ -539,6 +539,12 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 	unsigned reg, reg_end, shift, mask;
 	int ret;
 
+	/* some pins need input-enabling */
+	ret = uniphier_conf_pin_input_enable(pctldev,
+					     &pctldev->desc->pins[pin], 1);
+	if (ret)
+		return ret;
+
 	reg = UNIPHIER_PINCTRL_PINMUX_BASE + pin * mux_bits / 32 * reg_stride;
 	reg_end = reg + reg_stride;
 	shift = pin * mux_bits % 32;
@@ -563,9 +569,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 			return ret;
 	}
 
-	/* some pins need input-enabling */
-	return uniphier_conf_pin_input_enable(pctldev,
-					      &pctldev->desc->pins[pin], 1);
+	return 0;
 }
 
 static int uniphier_pmx_set_mux(struct pinctrl_dev *pctldev,

@@ -99,5 +99,11 @@
 			phys = <&usb2_picophy2>;
 			phy-names = "usb";
 		};
+
+		mmc0: sdhci@09060000 {
+			assigned-clocks = <&clk_s_c0_flexgen CLK_MMC_0>;
+			assigned-clock-parents = <&clk_s_c0_pll1 0>;
+			assigned-clock-rates = <200000000>;
+		};
 	};
 };

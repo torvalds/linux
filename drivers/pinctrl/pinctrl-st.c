@@ -742,16 +742,6 @@ static void st_gpio_direction(struct st_gpio_bank *bank,
 	}
 }
 
-static int st_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void st_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int st_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct st_gpio_bank *bank = gpio_chip_to_bank(chip);
@@ -1490,8 +1480,8 @@ static void st_gpio_irqmux_handler(struct irq_desc *desc)
 }
 
 static struct gpio_chip st_gpio_template = {
-	.request		= st_gpio_request,
-	.free			= st_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.get			= st_gpio_get,
 	.set			= st_gpio_set,
 	.direction_input	= st_gpio_direction_input,

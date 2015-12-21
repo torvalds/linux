@@ -41,31 +41,11 @@ struct zx_gpio {
 
 	void __iomem		*base;
 	struct gpio_chip	gc;
-	bool			uses_pinctrl;
 };
 
 static inline struct zx_gpio *to_zx(struct gpio_chip *gc)
 {
 	return container_of(gc, struct zx_gpio, gc);
-}
-
-static int zx_gpio_request(struct gpio_chip *gc, unsigned offset)
-{
-	struct zx_gpio *chip = to_zx(gc);
-	int gpio = gc->base + offset;
-
-	if (chip->uses_pinctrl)
-		return pinctrl_request_gpio(gpio);
-	return 0;
-}
-
-static void zx_gpio_free(struct gpio_chip *gc, unsigned offset)
-{
-	struct zx_gpio *chip = to_zx(gc);
-	int gpio = gc->base + offset;
-
-	if (chip->uses_pinctrl)
-		pinctrl_free_gpio(gpio);
 }
 
 static int zx_direction_input(struct gpio_chip *gc, unsigned offset)
@@ -252,12 +232,12 @@ static int zx_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->base);
 
 	spin_lock_init(&chip->lock);
-	if (of_property_read_bool(dev->of_node, "gpio-ranges"))
-		chip->uses_pinctrl = true;
+	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
+		chip->gc.request = gpiochip_generic_request;
+		chip->gc.free = gpiochip_generic_free;
+	}
 
 	id = of_alias_get_id(dev->of_node, "gpio");
-	chip->gc.request = zx_gpio_request;
-	chip->gc.free = zx_gpio_free;
 	chip->gc.direction_input = zx_direction_input;
 	chip->gc.direction_output = zx_direction_output;
 	chip->gc.get = zx_get_value;

@@ -13,6 +13,30 @@
 
 &msmgpio {
 
+	blsp1_uart1_default: blsp1_uart1_default {
+		pinmux {
+			function = "blsp_uart1";
+			pins = "gpio0", "gpio1";
+		};
+		pinconf {
+			pins = "gpio0", "gpio1";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	blsp1_uart1_sleep: blsp1_uart1_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio0", "gpio1";
+		};
+		pinconf {
+			pins = "gpio0", "gpio1";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
 	blsp1_uart2_default: blsp1_uart2_default {
 		pinmux {
 			function = "blsp_uart2";
@@ -27,7 +51,7 @@
 
 	blsp1_uart2_sleep: blsp1_uart2_sleep {
 		pinmux {
-			function = "blsp_uart2";
+			function = "gpio";
 			pins = "gpio4", "gpio5";
 		};
 		pinconf {
@@ -241,6 +265,30 @@
 		};
 	};
 
+	i2c2_default: i2c2_default {
+		pinmux {
+			function = "blsp_i2c2";
+			pins = "gpio6", "gpio7";
+		};
+		pinconf {
+			pins = "gpio6", "gpio7";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
+	i2c2_sleep: i2c2_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio6", "gpio7";
+		};
+		pinconf {
+			pins = "gpio6", "gpio7";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
 	i2c4_default: i2c4_default {
 		pinmux {
 			function = "blsp_i2c4";
@@ -255,11 +303,35 @@
 
 	i2c4_sleep: i2c4_sleep {
 		pinmux {
-			function = "blsp_i2c4";
+			function = "gpio";
 			pins = "gpio14", "gpio15";
 		};
 		pinconf {
 			pins = "gpio14", "gpio15";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
+	i2c6_default: i2c6_default {
+		pinmux {
+			function = "blsp_i2c6";
+			pins = "gpio22", "gpio23";
+		};
+		pinconf {
+			pins = "gpio22", "gpio23";
+			drive-strength = <2>;
+			bias-disable = <0>;
+		};
+	};
+
+	i2c6_sleep: i2c6_sleep {
+		pinmux {
+			function = "gpio";
+			pins = "gpio22", "gpio23";
+		};
+		pinconf {
+			pins = "gpio22", "gpio23";
 			drive-strength = <2>;
 			bias-disable = <0>;
 		};

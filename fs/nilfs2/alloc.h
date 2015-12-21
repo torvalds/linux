@@ -77,6 +77,7 @@ int nilfs_palloc_freev(struct inode *, __u64 *, size_t);
 #define nilfs_set_bit_atomic		ext2_set_bit_atomic
 #define nilfs_clear_bit_atomic		ext2_clear_bit_atomic
 #define nilfs_find_next_zero_bit	find_next_zero_bit_le
+#define nilfs_find_next_bit		find_next_bit_le
 
 /**
  * struct nilfs_bh_assoc - block offset and buffer head association

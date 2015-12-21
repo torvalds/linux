@@ -67,11 +67,12 @@ enum irqchip_irq_state;
  *				  request/setup_irq()
  * IRQ_NO_BALANCING		- Interrupt cannot be balanced (affinity set)
  * IRQ_MOVE_PCNTXT		- Interrupt can be migrated from process context
- * IRQ_NESTED_TRHEAD		- Interrupt nests into another thread
+ * IRQ_NESTED_THREAD		- Interrupt nests into another thread
  * IRQ_PER_CPU_DEVID		- Dev_id is a per-cpu variable
  * IRQ_IS_POLLED		- Always polled by another interrupt. Exclude
  *				  it from the spurious interrupt detection
  *				  mechanism and from core side polling.
+ * IRQ_DISABLE_UNLAZY		- Disable lazy irq disable
  */
 enum {
 	IRQ_TYPE_NONE		= 0x00000000,
@@ -97,13 +98,14 @@ enum {
 	IRQ_NOTHREAD		= (1 << 16),
 	IRQ_PER_CPU_DEVID	= (1 << 17),
 	IRQ_IS_POLLED		= (1 << 18),
+	IRQ_DISABLE_UNLAZY	= (1 << 19),
 };
 
 #define IRQF_MODIFY_MASK	\
 	(IRQ_TYPE_SENSE_MASK | IRQ_NOPROBE | IRQ_NOREQUEST | \
 	 IRQ_NOAUTOEN | IRQ_MOVE_PCNTXT | IRQ_LEVEL | IRQ_NO_BALANCING | \
 	 IRQ_PER_CPU | IRQ_NESTED_THREAD | IRQ_NOTHREAD | IRQ_PER_CPU_DEVID | \
-	 IRQ_IS_POLLED)
+	 IRQ_IS_POLLED | IRQ_DISABLE_UNLAZY)
 
 #define IRQ_NO_BALANCING_MASK	(IRQ_PER_CPU | IRQ_NO_BALANCING)
 
@@ -297,21 +299,6 @@ static inline void irqd_clr_forwarded_to_vcpu(struct irq_data *d)
 	__irqd_to_state(d) &= ~IRQD_FORWARDED_TO_VCPU;
 }
 
-/*
- * Functions for chained handlers which can be enabled/disabled by the
- * standard disable_irq/enable_irq calls. Must be called with
- * irq_desc->lock held.
- */
-static inline void irqd_set_chained_irq_inprogress(struct irq_data *d)
-{
-	__irqd_to_state(d) |= IRQD_IRQ_INPROGRESS;
-}
-
-static inline void irqd_clr_chained_irq_inprogress(struct irq_data *d)
-{
-	__irqd_to_state(d) &= ~IRQD_IRQ_INPROGRESS;
-}
-
 static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
 {
 	return d->hwirq;
@@ -451,6 +438,8 @@ extern void irq_cpu_offline(void);
 extern int irq_set_affinity_locked(struct irq_data *data,
 				   const struct cpumask *cpumask, bool force);
 extern int irq_set_vcpu_affinity(unsigned int irq, void *vcpu_info);
+
+extern void irq_migrate_all_off_this_cpu(void);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_PENDING_IRQ)
 void irq_move_irq(struct irq_data *data);

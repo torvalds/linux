@@ -257,7 +257,7 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 		goto clkerr;
 
 	if (devm_request_irq(dev, priv->irq, hix5hd2_ir_rx_interrupt,
-			     IRQF_NO_SUSPEND, pdev->name, priv) < 0) {
+			     0, pdev->name, priv) < 0) {
 		dev_err(dev, "IRQ %d register failed\n", priv->irq);
 		ret = -EINVAL;
 		goto regerr;

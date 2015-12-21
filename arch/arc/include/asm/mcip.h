@@ -86,9 +86,6 @@ static inline void __mcip_cmd_data(unsigned int cmd, unsigned int param,
 	__mcip_cmd(cmd, param);
 }
 
-extern void mcip_init_early_smp(void);
-extern void mcip_init_smp(unsigned int cpu);
-
 #endif
 
 #endif

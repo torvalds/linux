@@ -216,13 +216,13 @@ typedef struct {
 	wait_queue_head_t       ksnd_connd_waitq;       /* connds sleep here */
 	int                     ksnd_connd_connecting;  /* # connds connecting
 							 */
-	long                    ksnd_connd_failed_stamp;/* time stamp of the
+	time64_t                ksnd_connd_failed_stamp;/* time stamp of the
 							 * last failed
 							 * connecting attempt */
-	unsigned                ksnd_connd_starting;    /* # starting connd */
-	long                    ksnd_connd_starting_stamp;/* time stamp of the
+	time64_t                ksnd_connd_starting_stamp;/* time stamp of the
 							   * last starting connd
 							   */
+	unsigned                ksnd_connd_starting;    /* # starting connd */
 	unsigned                ksnd_connd_running;     /* # running connd */
 	spinlock_t              ksnd_connd_lock;        /* serialise */
 

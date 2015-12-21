@@ -657,7 +657,8 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 	struct vmw_resource *res = &user_srf->srf.res;
 
 	*p_base = NULL;
-	ttm_base_object_unref(&user_srf->backup_base);
+	if (user_srf->backup_base)
+		ttm_base_object_unref(&user_srf->backup_base);
 	vmw_resource_unreference(&res);
 }
 
@@ -1290,6 +1291,8 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	uint32_t size;
 	uint32_t backup_handle;
 
+	if (req->multisample_count != 0)
+		return -EINVAL;
 
 	if (unlikely(vmw_user_surface_size == 0))
 		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +

@@ -169,16 +169,6 @@ static struct pinmux_ops dc_pmxops = {
 	.gpio_request_enable	= dc_pmx_request_gpio,
 };
 
-static int dc_gpio_request(struct gpio_chip *chip, unsigned gpio)
-{
-	return pinctrl_request_gpio(chip->base + gpio);
-}
-
-static void dc_gpio_free(struct gpio_chip *chip, unsigned gpio)
-{
-	pinctrl_free_gpio(chip->base + gpio);
-}
-
 static int dc_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
 	struct dc_pinmap *pmap = container_of(chip, struct dc_pinmap, chip);
@@ -255,8 +245,8 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
 
 	chip->label		= DRIVER_NAME;
 	chip->dev		= pmap->dev;
-	chip->request		= dc_gpio_request;
-	chip->free		= dc_gpio_free;
+	chip->request		= gpiochip_generic_request;
+	chip->free		= gpiochip_generic_free;
 	chip->direction_input	= dc_gpio_direction_input;
 	chip->direction_output	= dc_gpio_direction_output;
 	chip->get		= dc_gpio_get;

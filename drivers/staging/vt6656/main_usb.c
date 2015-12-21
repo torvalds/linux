@@ -507,13 +507,8 @@ static void vnt_tx_80211(struct ieee80211_hw *hw,
 {
 	struct vnt_private *priv = hw->priv;
 
-	ieee80211_stop_queues(hw);
-
-	if (vnt_tx_packet(priv, skb)) {
+	if (vnt_tx_packet(priv, skb))
 		ieee80211_free_txskb(hw, skb);
-
-		ieee80211_wake_queues(hw);
-	}
 }
 
 static int vnt_start(struct ieee80211_hw *hw)
@@ -757,6 +752,26 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 			vnt_mac_reg_bits_off(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
 		}
 	}
+
+	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_BEACON_INFO) &&
+	    priv->op_mode != NL80211_IFTYPE_AP) {
+		if (conf->assoc && conf->beacon_rate) {
+			vnt_mac_reg_bits_on(priv, MAC_REG_TFTCTL,
+					    TFTCTL_TSFCNTREN);
+
+			vnt_adjust_tsf(priv, conf->beacon_rate->hw_value,
+				       conf->sync_tsf, priv->current_tsf);
+
+			vnt_mac_set_beacon_interval(priv, conf->beacon_int);
+
+			vnt_reset_next_tbtt(priv, conf->beacon_int);
+		} else {
+			vnt_clear_current_tsf(priv);
+
+			vnt_mac_reg_bits_off(priv, MAC_REG_TFTCTL,
+					     TFTCTL_TSFCNTREN);
+		}
+	}
 }
 
 static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
@@ -982,6 +997,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	ieee80211_hw_set(priv->hw, SIGNAL_DBM);
 	ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(priv->hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(priv->hw, SUPPORTS_PS);
 
 	priv->hw->max_signal = 100;
 

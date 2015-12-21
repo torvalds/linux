@@ -130,12 +130,12 @@ int rtw_check_network_type(unsigned char *rate, int ratelen, int channel)
 	}
 }
 
-u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *source,
-				unsigned int *frlen)
+u8 *rtw_set_fixed_ie(void *pbuf, unsigned int len, void *source,
+		     unsigned int *frlen)
 {
-	memcpy((void *)pbuf, (void *)source, len);
+	memcpy(pbuf, source, len);
 	*frlen = *frlen + len;
-	return pbuf + len;
+	return ((u8 *)pbuf) + len;
 }
 
 /*  rtw_set_ie will update frame length */
@@ -1103,7 +1103,7 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 
 void dump_ies(u8 *buf, u32 buf_len)
 {
-	u8 *pos = (u8 *)buf;
+	u8 *pos = buf;
 	u8 id, len;
 
 	while (pos-buf <= buf_len) {
@@ -1119,7 +1119,7 @@ void dump_ies(u8 *buf, u32 buf_len)
 
 void dump_wps_ie(u8 *ie, u32 ie_len)
 {
-	u8 *pos = (u8 *)ie;
+	u8 *pos = ie;
 	u16 id;
 	u16 len;
 	u8 *wps_ie;
@@ -1392,6 +1392,6 @@ static const char *_action_public_str[] = {
 
 const char *action_public_str(u8 action)
 {
-	action = (action >= ACT_PUBLIC_MAX) ? ACT_PUBLIC_MAX : action;
+	action = min_t(u8, action, ACT_PUBLIC_MAX);
 	return _action_public_str[action];
 }

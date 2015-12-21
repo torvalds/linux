@@ -393,6 +393,7 @@ int ui_browser__run(struct ui_browser *browser, int delay_secs)
 
 		if (browser->use_navkeypressed && !browser->navkeypressed) {
 			if (key == K_DOWN || key == K_UP ||
+			    (browser->columns && (key == K_LEFT || key == K_RIGHT)) ||
 			    key == K_PGDN || key == K_PGUP ||
 			    key == K_HOME || key == K_END ||
 			    key == ' ') {
@@ -420,6 +421,18 @@ int ui_browser__run(struct ui_browser *browser, int delay_secs)
 				--browser->top_idx;
 				browser->seek(browser, -1, SEEK_CUR);
 			}
+			break;
+		case K_RIGHT:
+			if (!browser->columns)
+				goto out;
+			if (browser->horiz_scroll < browser->columns - 1)
+				++browser->horiz_scroll;
+			break;
+		case K_LEFT:
+			if (!browser->columns)
+				goto out;
+			if (browser->horiz_scroll != 0)
+				--browser->horiz_scroll;
 			break;
 		case K_PGDN:
 		case ' ':
@@ -459,6 +472,7 @@ int ui_browser__run(struct ui_browser *browser, int delay_secs)
 			browser->seek(browser, -offset, SEEK_END);
 			break;
 		default:
+		out:
 			return key;
 		}
 	}

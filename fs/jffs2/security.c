@@ -48,8 +48,9 @@ int jffs2_init_security(struct inode *inode, struct inode *dir,
 }
 
 /* ---- XATTR Handler for "security.*" ----------------- */
-static int jffs2_security_getxattr(struct dentry *dentry, const char *name,
-				   void *buffer, size_t size, int type)
+static int jffs2_security_getxattr(const struct xattr_handler *handler,
+				   struct dentry *dentry, const char *name,
+				   void *buffer, size_t size)
 {
 	if (!strcmp(name, ""))
 		return -EINVAL;
@@ -58,8 +59,9 @@ static int jffs2_security_getxattr(struct dentry *dentry, const char *name,
 				 name, buffer, size);
 }
 
-static int jffs2_security_setxattr(struct dentry *dentry, const char *name,
-		const void *buffer, size_t size, int flags, int type)
+static int jffs2_security_setxattr(const struct xattr_handler *handler,
+				   struct dentry *dentry, const char *name,
+				   const void *buffer, size_t size, int flags)
 {
 	if (!strcmp(name, ""))
 		return -EINVAL;
@@ -68,8 +70,10 @@ static int jffs2_security_setxattr(struct dentry *dentry, const char *name,
 				 name, buffer, size, flags);
 }
 
-static size_t jffs2_security_listxattr(struct dentry *dentry, char *list,
-		size_t list_size, const char *name, size_t name_len, int type)
+static size_t jffs2_security_listxattr(const struct xattr_handler *handler,
+				       struct dentry *dentry, char *list,
+				       size_t list_size, const char *name,
+				       size_t name_len)
 {
 	size_t retlen = XATTR_SECURITY_PREFIX_LEN + name_len + 1;
 

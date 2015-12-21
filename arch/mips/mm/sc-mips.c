@@ -51,11 +51,69 @@ static void mips_sc_disable(void)
 	/* L2 cache is permanently enabled */
 }
 
+static void mips_sc_prefetch_enable(void)
+{
+	unsigned long pftctl;
+
+	if (mips_cm_revision() < CM_REV_CM2_5)
+		return;
+
+	/*
+	 * If there is one or more L2 prefetch unit present then enable
+	 * prefetching for both code & data, for all ports.
+	 */
+	pftctl = read_gcr_l2_pft_control();
+	if (pftctl & CM_GCR_L2_PFT_CONTROL_NPFT_MSK) {
+		pftctl &= ~CM_GCR_L2_PFT_CONTROL_PAGEMASK_MSK;
+		pftctl |= PAGE_MASK & CM_GCR_L2_PFT_CONTROL_PAGEMASK_MSK;
+		pftctl |= CM_GCR_L2_PFT_CONTROL_PFTEN_MSK;
+		write_gcr_l2_pft_control(pftctl);
+
+		pftctl = read_gcr_l2_pft_control_b();
+		pftctl |= CM_GCR_L2_PFT_CONTROL_B_PORTID_MSK;
+		pftctl |= CM_GCR_L2_PFT_CONTROL_B_CEN_MSK;
+		write_gcr_l2_pft_control_b(pftctl);
+	}
+}
+
+static void mips_sc_prefetch_disable(void)
+{
+	unsigned long pftctl;
+
+	if (mips_cm_revision() < CM_REV_CM2_5)
+		return;
+
+	pftctl = read_gcr_l2_pft_control();
+	pftctl &= ~CM_GCR_L2_PFT_CONTROL_PFTEN_MSK;
+	write_gcr_l2_pft_control(pftctl);
+
+	pftctl = read_gcr_l2_pft_control_b();
+	pftctl &= ~CM_GCR_L2_PFT_CONTROL_B_PORTID_MSK;
+	pftctl &= ~CM_GCR_L2_PFT_CONTROL_B_CEN_MSK;
+	write_gcr_l2_pft_control_b(pftctl);
+}
+
+static bool mips_sc_prefetch_is_enabled(void)
+{
+	unsigned long pftctl;
+
+	if (mips_cm_revision() < CM_REV_CM2_5)
+		return false;
+
+	pftctl = read_gcr_l2_pft_control();
+	if (!(pftctl & CM_GCR_L2_PFT_CONTROL_NPFT_MSK))
+		return false;
+	return !!(pftctl & CM_GCR_L2_PFT_CONTROL_PFTEN_MSK);
+}
+
 static struct bcache_ops mips_sc_ops = {
 	.bc_enable = mips_sc_enable,
 	.bc_disable = mips_sc_disable,
 	.bc_wback_inv = mips_sc_wback_inv,
-	.bc_inv = mips_sc_inv
+	.bc_inv = mips_sc_inv,
+	.bc_prefetch_enable = mips_sc_prefetch_enable,
+	.bc_prefetch_disable = mips_sc_prefetch_disable,
+	.bc_prefetch_is_enabled = mips_sc_prefetch_is_enabled,
 };
 
 /*
@@ -162,13 +220,13 @@ static inline int __init mips_sc_probe(void)
 		return 0;
 
 	tmp = (config2 >> 8) & 0x0f;
-	if (0 <= tmp && tmp <= 7)
+	if (tmp <= 7)
 		c->scache.sets = 64 << tmp;
 	else
 		return 0;
 
 	tmp = (config2 >> 0) & 0x0f;
-	if (0 <= tmp && tmp <= 7)
+	if (tmp <= 7)
 		c->scache.ways = tmp + 1;
 	else
 		return 0;
@@ -186,6 +244,7 @@ int mips_sc_init(void)
 	int found = mips_sc_probe();
 	if (found) {
 		mips_sc_enable();
+		mips_sc_prefetch_enable();
 		bcops = &mips_sc_ops;
 	}
 	return found;

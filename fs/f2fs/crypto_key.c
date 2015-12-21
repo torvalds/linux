@@ -122,7 +122,7 @@ int _f2fs_get_encryption_info(struct inode *inode)
 	struct key *keyring_key = NULL;
 	struct f2fs_encryption_key *master_key;
 	struct f2fs_encryption_context ctx;
-	struct user_key_payload *ukp;
+	const struct user_key_payload *ukp;
 	struct crypto_ablkcipher *ctfm;
 	const char *cipher_str;
 	char raw_key[F2FS_MAX_KEY_SIZE];
@@ -199,7 +199,7 @@ retry:
 	}
 	crypt_info->ci_keyring_key = keyring_key;
 	BUG_ON(keyring_key->type != &key_type_logon);
-	ukp = ((struct user_key_payload *)keyring_key->payload.data);
+	ukp = user_key_payload(keyring_key);
 	if (ukp->datalen != sizeof(struct f2fs_encryption_key)) {
 		res = -EINVAL;
 		goto out;

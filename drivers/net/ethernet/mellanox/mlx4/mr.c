@@ -318,7 +318,7 @@ int mlx4_mr_hw_get_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
 				key, NULL);
 	} else {
 		mailbox = mlx4_alloc_cmd_mailbox(dev);
-		if (IS_ERR_OR_NULL(mailbox))
+		if (IS_ERR(mailbox))
 			return PTR_ERR(mailbox);
 
 		err = mlx4_cmd_box(dev, 0, mailbox->dma, key,

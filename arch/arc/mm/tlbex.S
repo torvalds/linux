@@ -88,7 +88,7 @@ ex_saved_reg1:
 #ifdef CONFIG_SMP
 	sr  r0, [ARC_REG_SCRATCH_DATA0]	; freeup r0 to code with
 	GET_CPU_ID  r0			; get to per cpu scratch mem,
-	lsl r0, r0, L1_CACHE_SHIFT	; cache line wide per cpu
+	asl r0, r0, L1_CACHE_SHIFT	; cache line wide per cpu
 	add r0, @ex_saved_reg1, r0
 #else
 	st    r0, [@ex_saved_reg1]
@@ -107,7 +107,7 @@ ex_saved_reg1:
 .macro TLBMISS_RESTORE_REGS
 #ifdef CONFIG_SMP
 	GET_CPU_ID  r0			; get to per cpu scratch mem
-	lsl r0, r0, L1_CACHE_SHIFT	; each is cache line wide
+	asl r0, r0, L1_CACHE_SHIFT	; each is cache line wide
 	add r0, @ex_saved_reg1, r0
 	ld_s  r3, [r0,12]
 	ld_s  r2, [r0, 8]
@@ -205,20 +205,38 @@ ex_saved_reg1:
 #endif
 
 	lsr     r0, r2, PGDIR_SHIFT     ; Bits for indexing into PGD
-	ld.as   r1, [r1, r0]            ; PGD entry corresp to faulting addr
-	and.f   r1, r1, PAGE_MASK       ; Ignoring protection and other flags
-	;   contains Ptr to Page Table
-	bz.d    do_slow_path_pf         ; if no Page Table, do page fault
+	ld.as   r3, [r1, r0]            ; PGD entry corresp to faulting addr
+	tst	r3, r3
+	bz	do_slow_path_pf         ; if no Page Table, do page fault
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	and.f	0, r3, _PAGE_HW_SZ	; Is this Huge PMD (thp)
+	add2.nz	r1, r1, r0
+	bnz.d	2f		; YES: PGD == PMD has THP PTE: stop pgd walk
+	mov.nz	r0, r3
+
+#endif
+	and	r1, r3, PAGE_MASK
 
 	; Get the PTE entry: The idea is
 	; (1) x = addr >> PAGE_SHIFT 	-> masks page-off bits from @fault-addr
 	; (2) y = x & (PTRS_PER_PTE - 1) -> to get index
-	; (3) z = pgtbl[y]
-	; To avoid the multiply by in end, we do the -2, <<2 below
+	; (3) z = (pgtbl + y * 4)
 
-	lsr     r0, r2, (PAGE_SHIFT - 2)
-	and     r0, r0, ( (PTRS_PER_PTE - 1) << 2)
-	ld.aw   r0, [r1, r0]            ; get PTE and PTE ptr for fault addr
+#ifdef CONFIG_ARC_HAS_PAE40
+#define PTE_SIZE_LOG	3	/* 8 == 2 ^ 3 */
+#else
+#define PTE_SIZE_LOG	2	/* 4 == 2 ^ 2 */
+#endif
+
+	; multiply in step (3) above avoided by shifting lesser in step (1)
+	lsr     r0, r2, ( PAGE_SHIFT - PTE_SIZE_LOG )
+	and     r0, r0, ( (PTRS_PER_PTE - 1) << PTE_SIZE_LOG )
+	ld.aw   r0, [r1, r0]            ; r0: PTE (lower word only for PAE40)
+					; r1: PTE ptr
+
+2:
+
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	and.f 0, r0, _PAGE_PRESENT
 	bz   1f
@@ -233,18 +251,23 @@ ex_saved_reg1:
 ;-----------------------------------------------------------------
 ; Convert Linux PTE entry into TLB entry
 ; A one-word PTE entry is programmed as two-word TLB Entry [PD0:PD1] in mmu
+;    (for PAE40, two-words PTE, while three-word TLB Entry [PD0:PD1:PD1HI])
 ; IN: r0 = PTE, r1 = ptr to PTE
 
 .macro CONV_PTE_TO_TLB
-	and    r3, r0, PTE_BITS_RWX	;       r w x
-	lsl    r2, r3, 3		; r w x 0 0 0 (GLOBAL, kernel only)
+	and    r3, r0, PTE_BITS_RWX	;          r  w  x
+	asl    r2, r3, 3		; Kr Kw Kx 0  0  0 (GLOBAL, kernel only)
 	and.f  0,  r0, _PAGE_GLOBAL
-	or.z   r2, r2, r3		; r w x r w x (!GLOBAL, user page)
+	or.z   r2, r2, r3		; Kr Kw Kx Ur Uw Ux (!GLOBAL, user page)
 
 	and r3, r0, PTE_BITS_NON_RWX_IN_PD1 ; Extract PFN+cache bits from PTE
 	or  r3, r3, r2
 
-	sr  r3, [ARC_REG_TLBPD1]    	; these go in PD1
+	sr  r3, [ARC_REG_TLBPD1]    	; paddr[31..13] | Kr Kw Kx Ur Uw Ux | C
+#ifdef	CONFIG_ARC_HAS_PAE40
+	ld	r3, [r1, 4]		; paddr[39..32]
+	sr	r3, [ARC_REG_TLBPD1HI]
+#endif
 
 	and r2, r0, PTE_BITS_IN_PD0 ; Extract other PTE flags: (V)alid, (G)lb
 
@@ -365,7 +388,7 @@ ENTRY(EV_TLBMissD)
 	lr      r3, [ecr]
 	or      r0, r0, _PAGE_ACCESSED        ; Accessed bit always
 	btst_s  r3,  ECR_C_BIT_DTLB_ST_MISS   ; See if it was a Write Access ?
-	or.nz   r0, r0, _PAGE_MODIFIED        ; if Write, set Dirty bit as well
+	or.nz   r0, r0, _PAGE_DIRTY           ; if Write, set Dirty bit as well
 	st_s    r0, [r1]                      ; Write back PTE
 
 	CONV_PTE_TO_TLB

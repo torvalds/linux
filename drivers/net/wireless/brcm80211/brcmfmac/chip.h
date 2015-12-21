@@ -73,6 +73,7 @@ struct brcmf_buscore_ops {
 	u32 (*read32)(void *ctx, u32 addr);
 	void (*write32)(void *ctx, u32 addr, u32 value);
 	int (*prepare)(void *ctx);
+	int (*reset)(void *ctx, struct brcmf_chip *chip);
 	int (*setup)(void *ctx, struct brcmf_chip *chip);
 	void (*activate)(void *ctx, struct brcmf_chip *chip, u32 rstvec);
 };

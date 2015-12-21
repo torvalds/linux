@@ -337,7 +337,7 @@ int dso__load_sym(struct dso *dso, struct map *map __maybe_unused,
 		  symbol_filter_t filter __maybe_unused,
 		  int kmodule __maybe_unused)
 {
-	unsigned char *build_id[BUILD_ID_SIZE];
+	unsigned char build_id[BUILD_ID_SIZE];
 	int ret;
 
 	ret = fd__is_64_bit(ss->fd);

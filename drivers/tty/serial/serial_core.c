@@ -1437,7 +1437,6 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	clear_bit(ASYNCB_CLOSING, &port->flags);
 	spin_unlock_irq(&port->lock);
 	wake_up_interruptible(&port->open_wait);
-	wake_up_interruptible(&port->close_wait);
 
 	mutex_unlock(&port->mutex);
 
@@ -1819,8 +1818,8 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
  *	@options: ptr for <options> field; NULL if not present (out)
  *
  *	Decodes earlycon kernel command line parameters of the form
- *	   earlycon=<name>,io|mmio|mmio32|mmio32be,<addr>,<options>
- *	   console=<name>,io|mmio|mmio32|mmio32be,<addr>,<options>
+ *	   earlycon=<name>,io|mmio|mmio32|mmio32be|mmio32native,<addr>,<options>
+ *	   console=<name>,io|mmio|mmio32|mmio32be|mmio32native,<addr>,<options>
  *
  *	The optional form
  *	   earlycon=<name>,0x<addr>,<options>
@@ -1841,6 +1840,10 @@ int uart_parse_earlycon(char *p, unsigned char *iotype, unsigned long *addr,
 	} else if (strncmp(p, "mmio32be,", 9) == 0) {
 		*iotype = UPIO_MEM32BE;
 		p += 9;
+	} else if (strncmp(p, "mmio32native,", 13) == 0) {
+		*iotype = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) ?
+			UPIO_MEM32BE : UPIO_MEM32;
+		p += 13;
 	} else if (strncmp(p, "io,", 3) == 0) {
 		*iotype = UPIO_PORT;
 		p += 3;

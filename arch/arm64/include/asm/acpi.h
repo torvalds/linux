@@ -12,7 +12,6 @@
 #ifndef _ASM_ACPI_H
 #define _ASM_ACPI_H
 
-#include <linux/irqchip/arm-gic-acpi.h>
 #include <linux/mm.h>
 #include <linux/psci.h>
 
@@ -92,4 +91,9 @@ static inline const char *acpi_get_enable_method(int cpu)
 {
 	return acpi_psci_present() ? "psci" : NULL;
 }
+
+#ifdef	CONFIG_ACPI_APEI
+pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
+#endif
+
 #endif /*_ASM_ACPI_H*/

@@ -133,6 +133,23 @@ static int get_context_size(struct drm_device *dev)
 	return ret;
 }
 
+static void i915_gem_context_clean(struct intel_context *ctx)
+{
+	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
+	struct i915_vma *vma, *next;
+
+	if (!ppgtt)
+		return;
+
+	WARN_ON(!list_empty(&ppgtt->base.active_list));
+
+	list_for_each_entry_safe(vma, next, &ppgtt->base.inactive_list,
+				 mm_list) {
+		if (WARN_ON(__i915_vma_unbind_no_wait(vma)))
+			break;
+	}
+}
+
 void i915_gem_context_free(struct kref *ctx_ref)
 {
 	struct intel_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
@@ -141,6 +158,13 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 	if (i915.enable_execlists)
 		intel_lr_context_free(ctx);
+
+	/*
+	 * This context is going away and we need to remove all VMAs still
+	 * around. This is to handle imported shared objects for which
+	 * destructor did not run when their handles were closed.
+	 */
+	i915_gem_context_clean(ctx);
 
 	i915_ppgtt_put(ctx->ppgtt);
 
@@ -331,6 +355,13 @@ int i915_gem_context_init(struct drm_device *dev)
 	 * restriction on the context_disabled check can be loosened. */
 	if (WARN_ON(dev_priv->ring[RCS].default_context))
 		return 0;
+
+	if (intel_vgpu_active(dev) && HAS_LOGICAL_RING_CONTEXTS(dev)) {
+		if (!i915.enable_execlists) {
+			DRM_INFO("Only EXECLIST mode is supported in vgpu.\n");
+			return -EINVAL;
+		}
+	}
 
 	if (i915.enable_execlists) {
 		/* NB: intentionally left blank. We will allocate our own

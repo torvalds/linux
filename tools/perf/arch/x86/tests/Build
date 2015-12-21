@@ -1,2 +1,8 @@
-libperf-y += regs_load.o
-libperf-y += dwarf-unwind.o
+libperf-$(CONFIG_DWARF_UNWIND) += regs_load.o
+libperf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
+
+libperf-y += arch-tests.o
+libperf-y += rdpmc.o
+libperf-y += perf-time-to-tsc.o
+libperf-$(CONFIG_AUXTRACE) += insn-x86.o
+libperf-y += intel-cqm.o

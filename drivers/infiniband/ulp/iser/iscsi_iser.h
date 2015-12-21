@@ -227,18 +227,13 @@ enum iser_data_dir {
  * @size:         num entries of this sg
  * @data_len:     total beffer byte len
  * @dma_nents:    returned by dma_map_sg
- * @orig_sg:      pointer to the original sg list (in case
- *                we used a copy)
- * @orig_size:    num entris of orig sg list
  */
 struct iser_data_buf {
 	struct scatterlist *sg;
-	unsigned int       size;
+	int                size;
 	unsigned long      data_len;
 	unsigned int       dma_nents;
-	struct scatterlist *orig_sg;
-	unsigned int       orig_size;
-  };
+};
 
 /* fwd declarations */
 struct iser_device;
@@ -300,7 +295,11 @@ struct iser_tx_desc {
 	int                          num_sge;
 	bool			     mapped;
 	u8                           wr_idx;
-	struct ib_send_wr            wrs[ISER_MAX_WRS];
+	union iser_wr {
+		struct ib_send_wr		send;
+		struct ib_reg_wr		fast_reg;
+		struct ib_sig_handover_wr	sig;
+	} wrs[ISER_MAX_WRS];
 	struct iser_mem_reg          data_reg;
 	struct iser_mem_reg          prot_reg;
 	struct ib_sig_attrs          sig_attrs;
@@ -413,7 +412,6 @@ struct iser_device {
  *
  * @mr:         memory region
  * @fmr_pool:   pool of fmrs
- * @frpl:       fast reg page list used by frwrs
  * @page_vec:   fast reg page list used by fmr pool
  * @mr_valid:   is mr valid indicator
  */
@@ -422,10 +420,7 @@ struct iser_reg_resources {
 		struct ib_mr             *mr;
 		struct ib_fmr_pool       *fmr_pool;
 	};
-	union {
-		struct ib_fast_reg_page_list     *frpl;
-		struct iser_page_vec             *page_vec;
-	};
+	struct iser_page_vec             *page_vec;
 	u8				  mr_valid:1;
 };
 
@@ -712,11 +707,11 @@ iser_reg_desc_put_fmr(struct ib_conn *ib_conn,
 static inline struct ib_send_wr *
 iser_tx_next_wr(struct iser_tx_desc *tx_desc)
 {
-	struct ib_send_wr *cur_wr = &tx_desc->wrs[tx_desc->wr_idx];
+	struct ib_send_wr *cur_wr = &tx_desc->wrs[tx_desc->wr_idx].send;
 	struct ib_send_wr *last_wr;
 
 	if (tx_desc->wr_idx) {
-		last_wr = &tx_desc->wrs[tx_desc->wr_idx - 1];
+		last_wr = &tx_desc->wrs[tx_desc->wr_idx - 1].send;
 		last_wr->next = cur_wr;
 	}
 	tx_desc->wr_idx++;

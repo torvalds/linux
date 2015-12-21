@@ -209,7 +209,7 @@ static void dctcp_update_alpha(struct sock *sk, u32 flags)
 
 		/* alpha = (1 - g) * alpha + g * F */
 
-		alpha -= alpha >> dctcp_shift_g;
+		alpha -= min_not_zero(alpha, alpha >> dctcp_shift_g);
 		if (bytes_ecn) {
 			/* If dctcp_shift_g == 1, a 32bit value would overflow
 			 * after 8 Mbytes.

@@ -118,7 +118,7 @@ static inline void ftm_reset_counter(void __iomem *base)
 	ftm_writel(0x00, base + FTM_CNT);
 }
 
-static u64 ftm_read_sched_clock(void)
+static u64 notrace ftm_read_sched_clock(void)
 {
 	return ftm_readl(priv->clksrc_base + FTM_CNT);
 }
@@ -203,7 +203,7 @@ static int __init ftm_clockevent_init(unsigned long freq, int irq)
 	int err;
 
 	ftm_writel(0x00, priv->clkevt_base + FTM_CNTIN);
-	ftm_writel(~0UL, priv->clkevt_base + FTM_MOD);
+	ftm_writel(~0u, priv->clkevt_base + FTM_MOD);
 
 	ftm_reset_counter(priv->clkevt_base);
 
@@ -230,7 +230,7 @@ static int __init ftm_clocksource_init(unsigned long freq)
 	int err;
 
 	ftm_writel(0x00, priv->clksrc_base + FTM_CNTIN);
-	ftm_writel(~0UL, priv->clksrc_base + FTM_MOD);
+	ftm_writel(~0u, priv->clksrc_base + FTM_MOD);
 
 	ftm_reset_counter(priv->clksrc_base);
 

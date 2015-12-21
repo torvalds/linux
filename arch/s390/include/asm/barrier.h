@@ -22,10 +22,10 @@
 
 #define mb() do {  asm volatile(__ASM_BARRIER : : : "memory"); } while (0)
 
-#define rmb()				mb()
-#define wmb()				mb()
-#define dma_rmb()			rmb()
-#define dma_wmb()			wmb()
+#define rmb()				barrier()
+#define wmb()				barrier()
+#define dma_rmb()			mb()
+#define dma_wmb()			mb()
 #define smp_mb()			mb()
 #define smp_rmb()			rmb()
 #define smp_wmb()			wmb()

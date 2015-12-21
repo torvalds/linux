@@ -97,7 +97,7 @@ static char *initmac;
  */
 static int wifi_test;
 
-module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
+module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO | S_IWUSR);
 module_param(wifi_test, int, 0644);
 module_param(initmac, charp, 0644);
 module_param(video_mode, int, 0644);
@@ -177,7 +177,7 @@ static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
 	struct _adapter *padapter = netdev_priv(pnetdev);
 	struct sockaddr *addr = p;
 
-	if (padapter->bup == false)
+	if (!padapter->bup)
 		ether_addr_copy(pnetdev->dev_addr, addr->sa_data);
 	return 0;
 }
@@ -333,7 +333,7 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 
 u8 r8712_free_drv_sw(struct _adapter *padapter)
 {
-	struct net_device *pnetdev = (struct net_device *)padapter->pnetdev;
+	struct net_device *pnetdev = padapter->pnetdev;
 
 	r8712_free_cmd_priv(&padapter->cmdpriv);
 	r8712_free_evt_priv(&padapter->evtpriv);
@@ -366,7 +366,8 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 
 	if (cbw40_value) {
 		/* if the driver supports the 40M bandwidth,
-		 * we can enable the bit 9.*/
+		 * we can enable the bit 9.
+		 */
 		intcmd |= 0x200;
 	}
 	r8712_fw_cmd(padapter, intcmd);
@@ -383,7 +384,7 @@ static int netdev_open(struct net_device *pnetdev)
 	struct _adapter *padapter = netdev_priv(pnetdev);
 
 	mutex_lock(&padapter->mutex_start);
-	if (padapter->bup == false) {
+	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
 		padapter->bSurpriseRemoved = false;
 		padapter->bup = true;

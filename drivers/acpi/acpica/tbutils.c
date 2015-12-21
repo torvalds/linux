@@ -99,29 +99,6 @@ acpi_status acpi_tb_initialize_facs(void)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_tables_loaded
- *
- * PARAMETERS:  None
- *
- * RETURN:      TRUE if required ACPI tables are loaded
- *
- * DESCRIPTION: Determine if the minimum required ACPI tables are present
- *              (FADT, FACS, DSDT)
- *
- ******************************************************************************/
-
-u8 acpi_tb_tables_loaded(void)
-{
-
-	if (acpi_gbl_root_table_list.current_table_count >= 4) {
-		return (TRUE);
-	}
-
-	return (FALSE);
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_tb_check_dsdt_header
  *
  * PARAMETERS:  None
@@ -392,7 +369,8 @@ acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 		    ACPI_COMPARE_NAME(&acpi_gbl_root_table_list.
 				      tables[table_index].signature,
 				      ACPI_SIG_FADT)) {
-			acpi_tb_parse_fadt(table_index);
+			acpi_gbl_fadt_index = table_index;
+			acpi_tb_parse_fadt();
 		}
 
 next_table:

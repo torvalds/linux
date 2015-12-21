@@ -1034,7 +1034,7 @@ static int qat_hal_concat_micro_code(uint64_t *micro_inst,
 				     unsigned int inst_num, unsigned int size,
 				     unsigned int addr, unsigned int *value)
 {
-	int i, val_indx;
+	int i;
 	unsigned int cur_value;
 	const uint64_t *inst_arr;
 	int fixup_offset;
@@ -1042,8 +1042,7 @@ static int qat_hal_concat_micro_code(uint64_t *micro_inst,
 	int orig_num;
 
 	orig_num = inst_num;
-	val_indx = 0;
-	cur_value = value[val_indx++];
+	cur_value = value[0];
 	inst_arr = inst_4b;
 	usize = ARRAY_SIZE(inst_4b);
 	fixup_offset = inst_num;

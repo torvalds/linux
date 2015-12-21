@@ -127,7 +127,7 @@ static int odm_RateDown_8188E(struct odm_dm_struct *dm_odm,
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE,
 			ODM_DBG_TRACE, ("=====>odm_RateDown_8188E()\n"));
-	if (NULL == pRaInfo) {
+	if (!pRaInfo) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
 				("odm_RateDown_8188E(): pRaInfo is NULL\n"));
 		return -1;
@@ -193,7 +193,7 @@ static int odm_RateUp_8188E(
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE,
 			ODM_DBG_TRACE, ("=====>odm_RateUp_8188E()\n"));
-	if (NULL == pRaInfo) {
+	if (!pRaInfo) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
 				("odm_RateUp_8188E(): pRaInfo is NULL\n"));
 		return -1;
@@ -624,7 +624,7 @@ int ODM_RAInfo_Init_all(struct odm_dm_struct *dm_odm)
 
 u8 ODM_RA_GetShortGI_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((!dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
 		return 0;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 		     ("macid =%d SGI =%d\n", macid, dm_odm->RAInfo[macid].RateSGI));
@@ -635,7 +635,7 @@ u8 ODM_RA_GetDecisionRate_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	u8 DecisionRate = 0;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((!dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
 		return 0;
 	DecisionRate = dm_odm->RAInfo[macid].DecisionRate;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
@@ -647,7 +647,7 @@ u8 ODM_RA_GetHwPwrStatus_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	u8 PTStage = 5;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((!dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
 		return 0;
 	PTStage = dm_odm->RAInfo[macid].PTStage;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
@@ -659,7 +659,7 @@ void ODM_RA_UpdateRateInfo_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rate
 {
 	struct odm_ra_info *pRaInfo = NULL;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((!dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
 		return;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
 		     ("macid =%d RateID = 0x%x RateMask = 0x%x SGIEnable =%d\n",
@@ -676,7 +676,7 @@ void ODM_RA_SetRSSI_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rssi)
 {
 	struct odm_ra_info *pRaInfo = NULL;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((!dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
 		return;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 		     (" macid =%d Rssi =%d\n", macid, Rssi));

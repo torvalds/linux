@@ -63,7 +63,9 @@ enum itrace_period_type {
  * @calls: limit branch samples to calls (can be combined with @returns)
  * @returns: limit branch samples to returns (can be combined with @calls)
  * @callchain: add callchain to 'instructions' events
+ * @last_branch: add branch context to 'instruction' events
  * @callchain_sz: maximum callchain size
+ * @last_branch_sz: branch context size
  * @period: 'instructions' events period
  * @period_type: 'instructions' events period type
  */
@@ -79,7 +81,9 @@ struct itrace_synth_opts {
 	bool			calls;
 	bool			returns;
 	bool			callchain;
+	bool			last_branch;
 	unsigned int		callchain_sz;
+	unsigned int		last_branch_sz;
 	unsigned long long	period;
 	enum itrace_period_type	period_type;
 };

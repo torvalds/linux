@@ -174,11 +174,7 @@ static int da9052_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = da9052_device_init(da9052, id->driver_data);
-	if (ret != 0)
-		return ret;
-
-	return 0;
+	return da9052_device_init(da9052, id->driver_data);
 }
 
 static int da9052_i2c_remove(struct i2c_client *client)

@@ -672,14 +672,20 @@ EXPORT_SYMBOL(ib_query_port);
  * @port_num:Port number to query
  * @index:GID table index to query
  * @gid:Returned GID
+ * @attr: Returned GID attributes related to this GID index (only in RoCE).
+ *   NULL means ignore.
  *
  * ib_query_gid() fetches the specified GID table entry.
  */
 int ib_query_gid(struct ib_device *device,
-		 u8 port_num, int index, union ib_gid *gid)
+		 u8 port_num, int index, union ib_gid *gid,
+		 struct ib_gid_attr *attr)
 {
 	if (rdma_cap_roce_gid_table(device, port_num))
-		return ib_get_cached_gid(device, port_num, index, gid);
+		return ib_get_cached_gid(device, port_num, index, gid, attr);
+
+	if (attr)
+		return -EINVAL;
 
 	return device->query_gid(device, port_num, index, gid);
 }
@@ -819,27 +825,28 @@ EXPORT_SYMBOL(ib_modify_port);
  *   a specified GID value occurs.
  * @device: The device to query.
  * @gid: The GID value to search for.
+ * @ndev: The ndev related to the GID to search for.
  * @port_num: The port number of the device where the GID value was found.
  * @index: The index into the GID table where the GID was found.  This
  *   parameter may be NULL.
  */
 int ib_find_gid(struct ib_device *device, union ib_gid *gid,
-		u8 *port_num, u16 *index)
+		struct net_device *ndev, u8 *port_num, u16 *index)
 {
 	union ib_gid tmp_gid;
 	int ret, port, i;
 
 	for (port = rdma_start_port(device); port <= rdma_end_port(device); ++port) {
 		if (rdma_cap_roce_gid_table(device, port)) {
-			if (!ib_cache_gid_find_by_port(device, gid, port,
-						       NULL, index)) {
+			if (!ib_find_cached_gid_by_port(device, gid, port,
+							ndev, index)) {
 				*port_num = port;
 				return 0;
 			}
 		}
 
 		for (i = 0; i < device->port_immutable[port].gid_tbl_len; ++i) {
-			ret = ib_query_gid(device, port, i, &tmp_gid);
+			ret = ib_query_gid(device, port, i, &tmp_gid, NULL);
 			if (ret)
 				return ret;
 			if (!memcmp(&tmp_gid, gid, sizeof *gid)) {

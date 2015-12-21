@@ -407,6 +407,24 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clk_data.clk_num = ARRAY_SIZE(clks);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
+	/*
+	 * Lower the AHB clock rate before changing the parent clock source,
+	 * as AHB clock rate can NOT be higher than 133MHz, but its parent
+	 * will be switched from 396MHz PFD to 528MHz PLL in order to increase
+	 * AXI clock rate, so we need to lower AHB rate first to make sure at
+	 * any time, AHB rate is <= 133MHz.
+	 */
+	clk_set_rate(clks[IMX6UL_CLK_AHB], 99000000);
+
+	/* Change periph_pre clock to pll2_bus to adjust AXI rate to 264MHz */
+	clk_set_parent(clks[IMX6UL_CLK_PERIPH_CLK2_SEL], clks[IMX6UL_CLK_PLL3_USB_OTG]);
+	clk_set_parent(clks[IMX6UL_CLK_PERIPH], clks[IMX6UL_CLK_PERIPH_CLK2]);
+	clk_set_parent(clks[IMX6UL_CLK_PERIPH_PRE], clks[IMX6UL_CLK_PLL2_BUS]);
+	clk_set_parent(clks[IMX6UL_CLK_PERIPH], clks[IMX6UL_CLK_PERIPH_PRE]);
+
+	/* Make sure AHB rate is 132MHz  */
+	clk_set_rate(clks[IMX6UL_CLK_AHB], 132000000);
+
 	/* set perclk to from OSC */
 	clk_set_parent(clks[IMX6UL_CLK_PERCLK_SEL], clks[IMX6UL_CLK_OSC]);
 

@@ -35,6 +35,7 @@
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
 
+#include "ioapic.h"
 #include "irq.h"
 #include "i8254.h"
 #include "x86.h"
@@ -333,7 +334,8 @@ static void create_pit_timer(struct kvm *kvm, u32 val, int is_period)
 	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
 	s64 interval;
 
-	if (!irqchip_in_kernel(kvm) || ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)
+	if (!ioapic_in_kernel(kvm) ||
+	    ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)
 		return;
 
 	interval = muldiv64(val, NSEC_PER_SEC, KVM_PIT_FREQ);

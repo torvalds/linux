@@ -323,7 +323,7 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 		return -ERESTARTSYS;
 	err = -ENODEV;
 	list_for_each_entry(rng, &rng_list, list) {
-		if (strcmp(rng->name, buf) == 0) {
+		if (sysfs_streq(rng->name, buf)) {
 			err = 0;
 			if (rng != current_rng)
 				err = set_current_rng(rng);

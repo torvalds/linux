@@ -14,8 +14,7 @@
 
 #include <drm/drm_gem.h>
 
-#define to_exynos_gem_obj(x)	container_of(x,\
-			struct exynos_drm_gem_obj, base)
+#define to_exynos_gem(x)	container_of(x, struct exynos_drm_gem, base)
 
 #define IS_NONCONTIG_BUFFER(f)		(f & EXYNOS_BO_NONCONTIG)
 
@@ -44,7 +43,7 @@
  * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
-struct exynos_drm_gem_obj {
+struct exynos_drm_gem {
 	struct drm_gem_object	base;
 	unsigned int		flags;
 	unsigned long		size;
@@ -59,12 +58,12 @@ struct exynos_drm_gem_obj {
 struct page **exynos_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
 
 /* destroy a buffer with gem object */
-void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj);
+void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem);
 
 /* create a new buffer with gem object */
-struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
-						unsigned int flags,
-						unsigned long size);
+struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
+					     unsigned int flags,
+					     unsigned long size);
 
 /*
  * request gem object creation and buffer allocation as the size
@@ -106,7 +105,7 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 						struct drm_file *file_priv);
 
 /* free gem object. */
-void exynos_drm_gem_free_object(struct drm_gem_object *gem_obj);
+void exynos_drm_gem_free_object(struct drm_gem_object *obj);
 
 /* create memory region for drm framebuffer. */
 int exynos_drm_gem_dumb_create(struct drm_file *file_priv,

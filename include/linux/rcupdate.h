@@ -160,7 +160,7 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
  * more than one CPU).
  */
 void call_rcu(struct rcu_head *head,
-	      void (*func)(struct rcu_head *head));
+	      rcu_callback_t func);
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
@@ -191,7 +191,7 @@ void call_rcu(struct rcu_head *head,
  * memory ordering guarantees.
  */
 void call_rcu_bh(struct rcu_head *head,
-		 void (*func)(struct rcu_head *head));
+		 rcu_callback_t func);
 
 /**
  * call_rcu_sched() - Queue an RCU for invocation after sched grace period.
@@ -213,7 +213,7 @@ void call_rcu_bh(struct rcu_head *head,
  * memory ordering guarantees.
  */
 void call_rcu_sched(struct rcu_head *head,
-		    void (*func)(struct rcu_head *rcu));
+		    rcu_callback_t func);
 
 void synchronize_sched(void);
 
@@ -274,7 +274,7 @@ do {									\
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
  */
-void call_rcu_tasks(struct rcu_head *head, void (*func)(struct rcu_head *head));
+void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
 void synchronize_rcu_tasks(void);
 void rcu_barrier_tasks(void);
 
@@ -297,12 +297,14 @@ void synchronize_rcu(void);
 
 static inline void __rcu_read_lock(void)
 {
-	preempt_disable();
+	if (IS_ENABLED(CONFIG_PREEMPT_COUNT))
+		preempt_disable();
 }
 
 static inline void __rcu_read_unlock(void)
 {
-	preempt_enable();
+	if (IS_ENABLED(CONFIG_PREEMPT_COUNT))
+		preempt_enable();
 }
 
 static inline void synchronize_rcu(void)
@@ -535,27 +537,7 @@ static inline int rcu_read_lock_sched_held(void)
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-/* Deprecate rcu_lockdep_assert():  Use RCU_LOCKDEP_WARN() instead. */
-static inline void __attribute((deprecated)) deprecate_rcu_lockdep_assert(void)
-{
-}
-
 #ifdef CONFIG_PROVE_RCU
-
-/**
- * rcu_lockdep_assert - emit lockdep splat if specified condition not met
- * @c: condition to check
- * @s: informative message
- */
-#define rcu_lockdep_assert(c, s)					\
-	do {								\
-		static bool __section(.data.unlikely) __warned;		\
-		deprecate_rcu_lockdep_assert();				\
-		if (debug_lockdep_rcu_enabled() && !__warned && !(c)) {	\
-			__warned = true;				\
-			lockdep_rcu_suspicious(__FILE__, __LINE__, s);	\
-		}							\
-	} while (0)
 
 /**
  * RCU_LOCKDEP_WARN - emit lockdep splat if specified condition is met
@@ -594,7 +576,6 @@ static inline void rcu_preempt_sleep_check(void)
 
 #else /* #ifdef CONFIG_PROVE_RCU */
 
-#define rcu_lockdep_assert(c, s) deprecate_rcu_lockdep_assert()
 #define RCU_LOCKDEP_WARN(c, s) do { } while (0)
 #define rcu_sleep_check() do { } while (0)
 
@@ -809,6 +790,28 @@ static inline void rcu_preempt_sleep_check(void)
  * Makes rcu_dereference_check() do the dirty work.
  */
 #define rcu_dereference_sched(p) rcu_dereference_sched_check(p, 0)
+
+/**
+ * rcu_pointer_handoff() - Hand off a pointer from RCU to other mechanism
+ * @p: The pointer to hand off
+ *
+ * This is simply an identity function, but it documents where a pointer
+ * is handed off from RCU to some other synchronization mechanism, for
+ * example, reference counting or locking.  In C11, it would map to
+ * kill_dependency().  It could be used as follows:
+ *
+ *	rcu_read_lock();
+ *	p = rcu_dereference(gp);
+ *	long_lived = is_long_lived(p);
+ *	if (long_lived) {
+ *		if (!atomic_inc_not_zero(p->refcnt))
+ *			long_lived = false;
+ *		else
+ *			p = rcu_pointer_handoff(p);
+ *	}
+ *	rcu_read_unlock();
+ */
+#define rcu_pointer_handoff(p) (p)
 
 /**
  * rcu_read_lock() - mark the beginning of an RCU read-side critical section
@@ -1065,7 +1068,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define __kfree_rcu(head, offset) \
 	do { \
 		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
-		kfree_call_rcu(head, (void (*)(struct rcu_head *))(unsigned long)(offset)); \
+		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
 	} while (0)
 
 /**

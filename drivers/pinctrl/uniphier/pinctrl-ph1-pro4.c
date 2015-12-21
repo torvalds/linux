@@ -1031,6 +1031,11 @@ static const unsigned nand_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0};
 static const unsigned nand_cs1_pins[] = {131, 132};
 static const unsigned nand_cs1_muxvals[] = {1, 1};
+static const unsigned sd_pins[] = {150, 151, 152, 153, 154, 155, 156, 157, 158};
+static const unsigned sd_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned sd1_pins[] = {319, 320, 321, 322, 323, 324, 325, 326,
+				    327};
+static const unsigned sd1_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 static const unsigned uart0_pins[] = {127, 128};
 static const unsigned uart0_muxvals[] = {0, 0};
 static const unsigned uart1_pins[] = {129, 130};
@@ -1140,6 +1145,8 @@ static const struct uniphier_pinctrl_group ph1_pro4_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(i2c6),
 	UNIPHIER_PINCTRL_GROUP(nand),
 	UNIPHIER_PINCTRL_GROUP(nand_cs1),
+	UNIPHIER_PINCTRL_GROUP(sd),
+	UNIPHIER_PINCTRL_GROUP(sd1),
 	UNIPHIER_PINCTRL_GROUP(uart0),
 	UNIPHIER_PINCTRL_GROUP(uart1),
 	UNIPHIER_PINCTRL_GROUP(uart2),
@@ -1412,6 +1419,8 @@ static const char * const i2c2_groups[] = {"i2c2"};
 static const char * const i2c3_groups[] = {"i2c3"};
 static const char * const i2c6_groups[] = {"i2c6"};
 static const char * const nand_groups[] = {"nand", "nand_cs1"};
+static const char * const sd_groups[] = {"sd"};
+static const char * const sd1_groups[] = {"sd1"};
 static const char * const uart0_groups[] = {"uart0"};
 static const char * const uart1_groups[] = {"uart1"};
 static const char * const uart2_groups[] = {"uart2"};
@@ -1498,6 +1507,8 @@ static const struct uniphier_pinmux_function ph1_pro4_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(i2c3),
 	UNIPHIER_PINMUX_FUNCTION(i2c6),
 	UNIPHIER_PINMUX_FUNCTION(nand),
+	UNIPHIER_PINMUX_FUNCTION(sd),
+	UNIPHIER_PINMUX_FUNCTION(sd1),
 	UNIPHIER_PINMUX_FUNCTION(uart0),
 	UNIPHIER_PINMUX_FUNCTION(uart1),
 	UNIPHIER_PINMUX_FUNCTION(uart2),

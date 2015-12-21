@@ -21,6 +21,13 @@ endif
 
 build-dir := $(srctree)/tools/build
 
+# Define $(fixdep) for dep-cmd function
+ifeq ($(OUTPUT),)
+  fixdep := $(build-dir)/fixdep
+else
+  fixdep := $(OUTPUT)/fixdep
+endif
+
 # Generic definitions
 include $(build-dir)/Build.include
 

@@ -334,9 +334,8 @@ struct gfs2_glock {
 	struct lm_lockname gl_name;
 
 	struct lockref gl_lockref;
-#define gl_spin gl_lockref.lock
 
-	/* State fields protected by gl_spin */
+	/* State fields protected by gl_lockref.lock */
 	unsigned int gl_state:2,	/* Current state */
 		     gl_target:2,	/* Target state */
 		     gl_demote_state:2,	/* State requested by remote node */

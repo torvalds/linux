@@ -400,6 +400,7 @@ _GLOBAL(set_context)
  * extern void loadcam_entry(unsigned int index)
  *
  * Load TLBCAM[index] entry in to the L2 CAM MMU
+ * Must preserve r7, r8, r9, and r10
  */
 _GLOBAL(loadcam_entry)
 	mflr	r5
@@ -422,5 +423,67 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 	isync
 	tlbwe
 	isync
+	blr
+
+/*
+ * Load multiple TLB entries at once, using an alternate-space
+ * trampoline so that we don't have to care about whether the same
+ * TLB entry maps us before and after.
+ *
+ * r3 = first entry to write
+ * r4 = number of entries to write
+ * r5 = temporary tlb entry
+ */
+_GLOBAL(loadcam_multi)
+	mflr	r8
+
+	/*
+	 * Set up temporary TLB entry that is the same as what we're
+	 * running from, but in AS=1.
+	 */
+	bl	1f
+1:	mflr	r6
+	tlbsx	0,r8
+	mfspr	r6,SPRN_MAS1
+	ori	r6,r6,MAS1_TS
+	mtspr	SPRN_MAS1,r6
+	mfspr	r6,SPRN_MAS0
+	rlwimi	r6,r5,MAS0_ESEL_SHIFT,MAS0_ESEL_MASK
+	mr	r7,r5
+	mtspr	SPRN_MAS0,r6
+	isync
+	tlbwe
+	isync
+
+	/* Switch to AS=1 */
+	mfmsr	r6
+	ori	r6,r6,MSR_IS|MSR_DS
+	mtmsr	r6
+	isync
+
+	mr	r9,r3
+	add	r10,r3,r4
+2:	bl	loadcam_entry
+	addi	r9,r9,1
+	cmpw	r9,r10
+	mr	r3,r9
+	blt	2b
+
+	/* Return to AS=0 and clear the temporary entry */
+	mfmsr	r6
+	rlwinm.	r6,r6,0,~(MSR_IS|MSR_DS)
+	mtmsr	r6
+	isync
+
+	li	r6,0
+	mtspr	SPRN_MAS1,r6
+	rlwinm	r6,r7,MAS0_ESEL_SHIFT,MAS0_ESEL_MASK
+	oris	r6,r6,MAS0_TLBSEL(1)@h
+	mtspr	SPRN_MAS0,r6
+	isync
+	tlbwe
+	isync
+
+	mtlr	r8
 	blr
 #endif

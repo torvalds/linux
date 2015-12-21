@@ -662,8 +662,7 @@ static ssize_t store_enabled(struct device *dev,
 			dd->ipath_flags &= ~IPATH_DISABLED;
 			*dd->ipath_statusp &= ~IPATH_STATUS_ADMIN_DISABLED;
 		}
-	}
-	else if (!(dd->ipath_flags & IPATH_DISABLED)) {
+	} else if (!(dd->ipath_flags & IPATH_DISABLED)) {
 		dev_info(dev, "Disabling unit %d\n", dd->ipath_unit);
 		ipath_shutdown_device(dd);
 		dd->ipath_flags |= IPATH_DISABLED;
@@ -1176,9 +1175,9 @@ int ipath_expose_reset(struct device *dev)
 	if (!exposed) {
 		ret = device_create_file(dev, &dev_attr_reset);
 		exposed = 1;
-	}
-	else
+	} else {
 		ret = 0;
+	}
 
 	return ret;
 }

@@ -31,6 +31,6 @@
 
 #include "device.h"
 
-bool vnt_receive_frame(struct vnt_private *priv, PSRxDesc curr_rd);
+bool vnt_receive_frame(struct vnt_private *priv, struct vnt_rx_desc *curr_rd);
 
 #endif /* __RXTX_H__ */

@@ -119,6 +119,13 @@ config GPIO_ALTERA
 
 	  If driver is built as a module it will be called gpio-altera.
 
+config GPIO_AMDPT
+	tristate "AMD Promontory GPIO support"
+	depends on ACPI
+	help
+	  driver for GPIO functionality on Promontory IOHub
+	  Require ACPI ASL code to enumerate as a platform device.
+
 config GPIO_BCM_KONA
 	bool "Broadcom Kona GPIO"
 	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
@@ -176,16 +183,6 @@ config GPIO_ETRAXFS
 	help
 	  Say yes here to support the GPIO controller on Axis ETRAX FS SoCs.
 
-config GPIO_F7188X
-	tristate "F71869, F71869A, F71882FG and F71889F GPIO support"
-	depends on X86
-	help
-	  This option enables support for GPIOs found on Fintek Super-I/O
-	  chips F71869, F71869A, F71882FG and F71889F.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called f7188x-gpio.
-
 config GPIO_GE_FPGA
 	bool "GE FPGA based GPIO"
 	depends on GE_FPGA
@@ -234,12 +231,6 @@ config GPIO_IOP
 	  IOP32X or IOP33X.
 
 	  If unsure, say N.
-
-config GPIO_IT8761E
-	tristate "IT8761E GPIO support"
-	depends on X86  # unconditional access to IO space.
-	help
-	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
 config GPIO_LOONGSON
 	bool "Loongson-2/3 GPIO support"
@@ -296,14 +287,6 @@ config GPIO_MPC8XXX
 	help
 	  Say Y here if you're going to use hardware that connects to the
 	  MPC512x/831x/834x/837x/8572/8610 GPIOs.
-
-config GPIO_MSM_V2
-	tristate "Qualcomm MSM GPIO v2"
-	depends on GPIOLIB && OF && ARCH_QCOM
-	help
-	  Say yes here to support the GPIO interface on ARM v7 based
-	  Qualcomm MSM chips.  Most of the pins on the MSM can be
-	  selected for GPIO, and are controlled by this driver.
 
 config GPIO_MVEBU
 	def_bool y
@@ -368,42 +351,6 @@ config GPIO_SAMSUNG
 	  Legacy GPIO support. Use only for platforms without support for
 	  pinctrl.
 
-config GPIO_SCH
-	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
-	depends on PCI && X86
-	select MFD_CORE
-	select LPC_SCH
-	help
-	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
-	  Intel Tunnel Creek processor, Intel Centerton processor or
-	  Intel Quark X1000 SoC.
-
-	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
-	  powered by the core power rail and are turned off during sleep
-	  modes (S3 and higher). The remaining four GPIOs are powered by
-	  the Intel SCH suspend power supply. These GPIOs remain
-	  active during S3. The suspend powered GPIOs can be used to wake the
-	  system from the Suspend-to-RAM state.
-
-	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
-	  core power rail and 9 from suspend power supply.
-
-	  The Intel Centerton processor has a total of 30 GPIO pins.
-	  Twenty-one are powered by the core power rail and 9 from the
-	  suspend power supply.
-
-	  The Intel Quark X1000 SoC has 2 GPIOs powered by the core
-	  power well and 6 from the suspend power well.
-
-config GPIO_SCH311X
-	tristate "SMSC SCH311x SuperI/O GPIO"
-	help
-	  Driver to enable the GPIOs found on SMSC SMSC SCH3112, SCH3114 and
-	  SCH3116 "Super I/O" chipsets.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called gpio-sch311x.
-
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
@@ -439,15 +386,6 @@ config GPIO_TB10X
 	bool
 	select GENERIC_IRQ_CHIP
 	select OF_GPIO
-
-config GPIO_TS5500
-	tristate "TS-5500 DIO blocks and compatibles"
-	depends on TS5500 || COMPILE_TEST
-	help
-	  This driver supports Digital I/O exposed by pin blocks found on some
-	  Technologic Systems platforms. It includes, but is not limited to, 3
-	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
-	  LCD port.
 
 config GPIO_TZ1090
 	bool "Toumaz Xenif TZ1090 GPIO support"
@@ -508,13 +446,13 @@ config GPIO_XGENE_SB
 
 config GPIO_XILINX
 	tristate "Xilinx GPIO support"
-	depends on OF_GPIO && (PPC || MICROBLAZE || ARCH_ZYNQ || X86)
+	depends on OF_GPIO
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
 config GPIO_XLP
 	tristate "Netlogic XLP GPIO support"
-	depends on CPU_XLP
+	depends on CPU_XLP && OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
 	  This driver provides support for GPIO interface on Netlogic XLP MIPS64
@@ -545,6 +483,87 @@ config GPIO_ZYNQ
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.
 
+config GPIO_ZX
+	bool "ZTE ZX GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the GPIO device on ZTE ZX SoCs.
+
+endmenu
+
+menu "Port-mapped I/O GPIO drivers"
+	depends on X86 # Unconditional I/O space access
+
+config GPIO_104_IDIO_16
+	tristate "ACCES 104-IDIO-16 GPIO support"
+	help
+	  Enables GPIO support for the ACCES 104-IDIO-16 family.
+
+config GPIO_F7188X
+	tristate "F71869, F71869A, F71882FG and F71889F GPIO support"
+	help
+	  This option enables support for GPIOs found on Fintek Super-I/O
+	  chips F71869, F71869A, F71882FG and F71889F.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called f7188x-gpio.
+
+config GPIO_IT87
+	tristate "IT87xx GPIO support"
+	help
+	  Say yes here to support GPIO functionality of IT87xx Super I/O chips.
+
+	  This driver is tested with ITE IT8728 and IT8732 Super I/O chips, and
+	  supports the IT8761E Super I/O chip as well.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio_it87
+
+config GPIO_SCH
+	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
+	depends on PCI
+	select MFD_CORE
+	select LPC_SCH
+	help
+	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
+	  Intel Tunnel Creek processor, Intel Centerton processor or
+	  Intel Quark X1000 SoC.
+
+	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
+	  powered by the core power rail and are turned off during sleep
+	  modes (S3 and higher). The remaining four GPIOs are powered by
+	  the Intel SCH suspend power supply. These GPIOs remain
+	  active during S3. The suspend powered GPIOs can be used to wake the
+	  system from the Suspend-to-RAM state.
+
+	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
+	  core power rail and 9 from suspend power supply.
+
+	  The Intel Centerton processor has a total of 30 GPIO pins.
+	  Twenty-one are powered by the core power rail and 9 from the
+	  suspend power supply.
+
+	  The Intel Quark X1000 SoC has 2 GPIOs powered by the core
+	  power well and 6 from the suspend power well.
+
+config GPIO_SCH311X
+	tristate "SMSC SCH311x SuperI/O GPIO"
+	help
+	  Driver to enable the GPIOs found on SMSC SMSC SCH3112, SCH3114 and
+	  SCH3116 "Super I/O" chipsets.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-sch311x.
+
+config GPIO_TS5500
+	tristate "TS-5500 DIO blocks and compatibles"
+	depends on TS5500 || COMPILE_TEST
+	help
+	  This driver supports Digital I/O exposed by pin blocks found on some
+	  Technologic Systems platforms. It includes, but is not limited to, 3
+	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
+	  LCD port.
+
 endmenu
 
 menu "I2C GPIO expanders"
@@ -552,7 +571,6 @@ menu "I2C GPIO expanders"
 
 config GPIO_ADP5588
 	tristate "ADP5588 I2C GPIO expander"
-	depends on I2C
 	help
 	  This option enables support for 18 GPIOs found
 	  on Analog Devices ADP5588 GPIO Expanders.
@@ -566,7 +584,7 @@ config GPIO_ADP5588_IRQ
 
 config GPIO_ADNP
 	tristate "Avionic Design N-bit GPIO expander"
-	depends on I2C && OF_GPIO
+	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
 	  This option enables support for N GPIOs found on Avionic Design
@@ -578,14 +596,12 @@ config GPIO_ADNP
 
 config GPIO_MAX7300
 	tristate "Maxim MAX7300 GPIO expander"
-	depends on I2C
 	select GPIO_MAX730X
 	help
 	  GPIO driver for Maxim MAX7300 I2C-based GPIO expander.
 
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
-	depends on I2C
 	help
 	  Say yes here to support the MAX7319, MAX7320-7327 series of I2C
 	  Port Expanders. Each IO port on these chips has a fixed role of
@@ -618,7 +634,6 @@ config GPIO_MC9S08DZ60
 
 config GPIO_PCA953X
 	tristate "PCA95[357]x, PCA9698, TCA64xx, and MAX7310 I/O ports"
-	depends on I2C
 	help
 	  Say yes here to provide access to several register-oriented
 	  SMBus I/O expanders, made mostly by NXP or TI.  Compatible
@@ -646,7 +661,6 @@ config GPIO_PCA953X_IRQ
 
 config GPIO_PCF857X
 	tristate "PCF857x, PCA{85,96}7x, and MAX732[89] I2C GPIO expanders"
-	depends on I2C
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN
 	help
@@ -976,7 +990,7 @@ menu "SPI GPIO expanders"
 
 config GPIO_74X164
 	tristate "74x164 serial-in/parallel-out 8-bits shift register"
-	depends on SPI_MASTER && OF
+	depends on OF
 	help
 	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
 	  shift registers. This driver can be used to provide access
@@ -984,32 +998,28 @@ config GPIO_74X164
 
 config GPIO_MAX7301
 	tristate "Maxim MAX7301 GPIO expander"
-	depends on SPI_MASTER
 	select GPIO_MAX730X
 	help
 	  GPIO driver for Maxim MAX7301 SPI-based GPIO expander.
 
+config GPIO_MC33880
+	tristate "Freescale MC33880 high-side/low-side switch"
+	help
+	  SPI driver for Freescale MC33880 high-side/low-side switch.
+	  This provides GPIO interface supporting inputs and outputs.
+
+endmenu
+
+menu "SPI or I2C GPIO expanders"
+	depends on (SPI_MASTER && !I2C) || I2C
+
 config GPIO_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
-	depends on (SPI_MASTER && !I2C) || I2C
 	help
 	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
 	  I/O expanders.
 	  This provides a GPIO interface supporting inputs and outputs.
 	  The I2C versions of the chips can be used as interrupt-controller.
-
-config GPIO_MC33880
-	tristate "Freescale MC33880 high-side/low-side switch"
-	depends on SPI_MASTER
-	help
-	  SPI driver for Freescale MC33880 high-side/low-side switch.
-	  This provides GPIO interface supporting inputs and outputs.
-
-config GPIO_ZX
-	bool "ZTE ZX GPIO support"
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to support the GPIO device on ZTE ZX SoCs.
 
 endmenu
 

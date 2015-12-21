@@ -1715,7 +1715,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 	/*  now the station is qualified to join our BSS... */
-	if (pstat && pstat->state & WIFI_FW_ASSOC_SUCCESS &&
+	if (pstat->state & WIFI_FW_ASSOC_SUCCESS &&
 	    status == WLAN_STATUS_SUCCESS) {
 		/* 1 bss_cap_update & sta_info_update23a */
 		bss_cap_update_on_sta_join23a(padapter, pstat);
@@ -5934,11 +5934,8 @@ int set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 			   macid = aid+1; */
 			cam_id = psta->mac_id + 3;
 
-			DBG_8723A("Write CAM, mac_addr =%x:%x:%x:%x:%x:%x, "
-				  "cam_entry =%d\n", pparm->addr[0],
-				  pparm->addr[1], pparm->addr[2],
-				  pparm->addr[3], pparm->addr[4],
-				  pparm->addr[5], cam_id);
+			DBG_8723A("Write CAM, mac_addr =%pM, "
+				  "cam_entry =%d\n", pparm->addr, cam_id);
 
 			rtl8723a_cam_write(padapter, cam_id, ctrl,
 					   pparm->addr, pparm->key);

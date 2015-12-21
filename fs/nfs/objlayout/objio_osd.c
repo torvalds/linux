@@ -124,7 +124,7 @@ objio_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 
 retry_lookup:
 	od = osduld_info_lookup(&odi);
-	if (unlikely(IS_ERR(od))) {
+	if (IS_ERR(od)) {
 		err = PTR_ERR(od);
 		dprintk("%s: osduld_info_lookup => %d\n", __func__, err);
 		if (err == -ENODEV && retry_flag) {

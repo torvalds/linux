@@ -46,8 +46,8 @@ void ib_device_unregister_sysfs(struct ib_device *device);
 void ib_cache_setup(void);
 void ib_cache_cleanup(void);
 
-int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
-			    struct ib_qp_attr *qp_attr, int *qp_attr_mask);
+int ib_resolve_eth_dmac(struct ib_qp *qp,
+			struct ib_qp_attr *qp_attr, int *qp_attr_mask);
 
 typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
 	      struct net_device *idev, void *cookie);
@@ -64,11 +64,6 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 			      void *filter_cookie,
 			      roce_netdev_callback cb,
 			      void *cookie);
-
-int ib_cache_gid_find_by_port(struct ib_device *ib_dev,
-			      const union ib_gid *gid,
-			      u8 port, struct net_device *ndev,
-			      u16 *index);
 
 enum ib_cache_gid_default_mode {
 	IB_CACHE_GID_DEFAULT_MODE_SET,

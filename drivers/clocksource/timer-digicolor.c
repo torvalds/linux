@@ -143,7 +143,7 @@ static irqreturn_t digicolor_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static u64 digicolor_timer_sched_read(void)
+static u64 notrace digicolor_timer_sched_read(void)
 {
 	return ~readl(dc_timer_dev.base + COUNT(TIMER_B));
 }

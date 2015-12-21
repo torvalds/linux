@@ -261,7 +261,7 @@ static int pfkey_broadcast(struct sk_buff *skb,
 
 		err2 = pfkey_broadcast_one(skb, &skb2, GFP_ATOMIC, sk);
 
-		/* Error is cleare after succecful sending to at least one
+		/* Error is cleared after successful sending to at least one
 		 * registered KM */
 		if ((broadcast_flags & BROADCAST_REGISTERED) && err)
 			err = err2;

@@ -511,7 +511,8 @@ static ssize_t iwl_dbgfs_tof_enable_write(struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
-	int value, ret = -EINVAL;
+	u32 value;
+	int ret = -EINVAL;
 	char *data;
 
 	mutex_lock(&mvm->mutex);
@@ -599,7 +600,8 @@ static ssize_t iwl_dbgfs_tof_responder_params_write(struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
-	int value, ret = 0;
+	u32 value;
+	int ret = 0;
 	char *data;
 
 	mutex_lock(&mvm->mutex);
@@ -713,11 +715,30 @@ static ssize_t iwl_dbgfs_tof_responder_params_write(struct ieee80211_vif *vif,
 		goto out;
 	}
 
-	data = iwl_dbgfs_is_match("ctrl_ch_position=", buf);
+	data = iwl_dbgfs_is_match("center_freq=", buf);
 	if (data) {
+		struct iwl_tof_responder_config_cmd *cmd =
+			&mvm->tof_data.responder_cfg;
+
 		ret = kstrtou32(data, 10, &value);
-		if (ret == 0)
-			mvm->tof_data.responder_cfg.ctrl_ch_position = value;
+		if (ret == 0 && value) {
+			enum ieee80211_band band = (cmd->channel_num <= 14) ?
+						   IEEE80211_BAND_2GHZ :
+						   IEEE80211_BAND_5GHZ;
+			struct ieee80211_channel chn = {
+				.band = band,
+				.center_freq = ieee80211_channel_to_frequency(
+					cmd->channel_num, band),
+				};
+			struct cfg80211_chan_def chandef = {
+				.chan =  &chn,
+				.center_freq1 =
+					ieee80211_channel_to_frequency(value,
+								       band),
+			};
+
+			cmd->ctrl_ch_position = iwl_mvm_get_ctrl_pos(&chandef);
+		}
 		goto out;
 	}
 
@@ -822,7 +843,8 @@ static ssize_t iwl_dbgfs_tof_range_request_write(struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
-	int value, ret = 0;
+	u32 value;
+	int ret = 0;
 	char *data;
 
 	mutex_lock(&mvm->mutex);
@@ -892,6 +914,7 @@ static ssize_t iwl_dbgfs_tof_range_request_write(struct ieee80211_vif *vif,
 			goto out;
 		}
 		memcpy(mvm->tof_data.range_req.macaddr_template, mac, ETH_ALEN);
+		goto out;
 	}
 
 	data = iwl_dbgfs_is_match("macaddr_mask=", buf);
@@ -903,21 +926,22 @@ static ssize_t iwl_dbgfs_tof_range_request_write(struct ieee80211_vif *vif,
 			goto out;
 		}
 		memcpy(mvm->tof_data.range_req.macaddr_mask, mac, ETH_ALEN);
+		goto out;
 	}
 
 	data = iwl_dbgfs_is_match("ap=", buf);
 	if (data) {
-		struct iwl_tof_range_req_ap_entry ap;
+		struct iwl_tof_range_req_ap_entry ap = {};
 		int size = sizeof(struct iwl_tof_range_req_ap_entry);
 		u16 burst_period;
 		u8 *mac = ap.bssid;
 		unsigned int i;
 
-		if (sscanf(data, "%u %hhd %hhx %hhx"
+		if (sscanf(data, "%u %hhd %hhd %hhd"
 			   "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx"
-			   "%hhx %hhx %hx"
-			   "%hhx %hhx %x"
-			   "%hhx %hhx %hhx %hhx",
+			   "%hhd %hhd %hd"
+			   "%hhd %hhd %d"
+			   "%hhx %hhd %hhd %hhd",
 			   &i, &ap.channel_num, &ap.bandwidth,
 			   &ap.ctrl_ch_position,
 			   mac, mac + 1, mac + 2, mac + 3, mac + 4, mac + 5,
@@ -944,12 +968,12 @@ static ssize_t iwl_dbgfs_tof_range_request_write(struct ieee80211_vif *vif,
 	data = iwl_dbgfs_is_match("send_range_request=", buf);
 	if (data) {
 		ret = kstrtou32(data, 10, &value);
-		if (ret == 0 && value) {
+		if (ret == 0 && value)
 			ret = iwl_mvm_tof_range_request_cmd(mvm, vif);
-			goto out;
-		}
+		goto out;
 	}
 
+	ret = -EINVAL;
 out:
 	mutex_unlock(&mvm->mutex);
 	return ret ?: count;
@@ -994,16 +1018,18 @@ static ssize_t iwl_dbgfs_tof_range_request_read(struct file *file,
 		struct iwl_tof_range_req_ap_entry *ap = &cmd->ap[i];
 
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"ap %.2d: channel_num=%hhx bw=%hhx"
-				" control=%hhx bssid=%pM type=%hhx"
-				" num_of_bursts=%hhx burst_period=%hx ftm=%hhx"
-				" retries=%hhx tsf_delta=%x location_req=%hhx "
-				" asap=%hhx enable=%hhx rssi=%hhx\n",
+				"ap %.2d: channel_num=%hhd bw=%hhd"
+				" control=%hhd bssid=%pM type=%hhd"
+				" num_of_bursts=%hhd burst_period=%hd ftm=%hhd"
+				" retries=%hhd tsf_delta=%d"
+				" tsf_delta_direction=%hhd location_req=0x%hhx "
+				" asap=%hhd enable=%hhd rssi=%hhd\n",
 				i, ap->channel_num, ap->bandwidth,
 				ap->ctrl_ch_position, ap->bssid,
 				ap->measure_type, ap->num_of_bursts,
 				ap->burst_period, ap->samples_per_burst,
 				ap->retries_per_sample, ap->tsf_delta,
+				ap->tsf_delta_direction,
 				ap->location_req, ap->asap_mode,
 				ap->enable_dyn_ack, ap->rssi);
 	}
@@ -1019,7 +1045,8 @@ static ssize_t iwl_dbgfs_tof_range_req_ext_write(struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
-	int value, ret = 0;
+	u32 value;
+	int ret = 0;
 	char *data;
 
 	mutex_lock(&mvm->mutex);
@@ -1071,12 +1098,12 @@ static ssize_t iwl_dbgfs_tof_range_req_ext_write(struct ieee80211_vif *vif,
 	data = iwl_dbgfs_is_match("send_range_req_ext=", buf);
 	if (data) {
 		ret = kstrtou32(data, 10, &value);
-		if (ret == 0 && value) {
+		if (ret == 0 && value)
 			ret = iwl_mvm_tof_range_request_ext_cmd(mvm, vif);
-			goto out;
-		}
+		goto out;
 	}
 
+	ret = -EINVAL;
 out:
 	mutex_unlock(&mvm->mutex);
 	return ret ?: count;
@@ -1099,18 +1126,18 @@ static ssize_t iwl_dbgfs_tof_range_req_ext_read(struct file *file,
 	mutex_lock(&mvm->mutex);
 
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 "tsf_timer_offset_msec = %hx\n",
+			 "tsf_timer_offset_msec = %hd\n",
 			 cmd->tsf_timer_offset_msec);
-	pos += scnprintf(buf + pos, bufsz - pos, "min_delta_ftm = %hhx\n",
+	pos += scnprintf(buf + pos, bufsz - pos, "min_delta_ftm = %hhd\n",
 			 cmd->min_delta_ftm);
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 "ftm_format_and_bw20M = %hhx\n",
+			 "ftm_format_and_bw20M = %hhd\n",
 			 cmd->ftm_format_and_bw20M);
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 "ftm_format_and_bw40M = %hhx\n",
+			 "ftm_format_and_bw40M = %hhd\n",
 			 cmd->ftm_format_and_bw40M);
 	pos += scnprintf(buf + pos, bufsz - pos,
-			 "ftm_format_and_bw80M = %hhx\n",
+			 "ftm_format_and_bw80M = %hhd\n",
 			 cmd->ftm_format_and_bw80M);
 
 	mutex_unlock(&mvm->mutex);
@@ -1123,8 +1150,8 @@ static ssize_t iwl_dbgfs_tof_range_abort_write(struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
-	int value, ret = 0;
-	int abort_id;
+	u32 value;
+	int abort_id, ret = 0;
 	char *data;
 
 	mutex_lock(&mvm->mutex);
@@ -1205,11 +1232,11 @@ static ssize_t iwl_dbgfs_tof_range_response_read(struct file *file,
 		struct iwl_tof_range_rsp_ap_entry_ntfy *ap = &cmd->ap[i];
 
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"ap %.2d: bssid=%pM status=%hhx bw=%hhx"
-				" rtt=%x rtt_var=%x rtt_spread=%x"
-				" rssi=%hhx  rssi_spread=%hhx"
-				" range=%x range_var=%x"
-				" time_stamp=%x\n",
+				"ap %.2d: bssid=%pM status=%hhd bw=%hhd"
+				" rtt=%d rtt_var=%d rtt_spread=%d"
+				" rssi=%hhd  rssi_spread=%hhd"
+				" range=%d range_var=%d"
+				" time_stamp=%d\n",
 				i, ap->bssid, ap->measure_status,
 				ap->measure_bw,
 				ap->rtt, ap->rtt_variance, ap->rtt_spread,
@@ -1250,11 +1277,10 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 {
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	char buf[3];
+	char buf[2];
 
 	buf[0] = mvmvif->low_latency ? '1' : '0';
 	buf[1] = '\n';
-	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, sizeof(buf));
 }
 

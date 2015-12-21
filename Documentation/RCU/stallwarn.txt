@@ -205,6 +205,13 @@ o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the
 	behavior, you might need to replace some of the cond_resched()
 	calls with calls to cond_resched_rcu_qs().
 
+o	Booting Linux using a console connection that is too slow to
+	keep up with the boot-time console-message rate.  For example,
+	a 115Kbaud serial console can be -way- too slow to keep up
+	with boot-time message rates, and will frequently result in
+	RCU CPU stall warning messages.  Especially if you have added
+	debug printk()s.
+
 o	Anything that prevents RCU's grace-period kthreads from running.
 	This can result in the "All QSes seen" console-log message.
 	This message will include information on when the kthread last

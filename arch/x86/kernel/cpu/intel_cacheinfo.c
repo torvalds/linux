@@ -157,7 +157,7 @@ struct _cpuid4_info_regs {
 	struct amd_northbridge *nb;
 };
 
-unsigned short			num_cache_leaves;
+static unsigned short num_cache_leaves;
 
 /* AMD doesn't have CPUID4. Emulate it here to report the same
    information to the user.  This makes some assumptions about the machine:
@@ -326,7 +326,7 @@ static void amd_calc_l3_indices(struct amd_northbridge *nb)
  *
  * @returns: the disabled index if used or negative value if slot free.
  */
-int amd_get_l3_disable_slot(struct amd_northbridge *nb, unsigned slot)
+static int amd_get_l3_disable_slot(struct amd_northbridge *nb, unsigned slot)
 {
 	unsigned int reg = 0;
 
@@ -403,8 +403,8 @@ static void amd_l3_disable_index(struct amd_northbridge *nb, int cpu,
  *
  * @return: 0 on success, error status on failure
  */
-int amd_set_l3_disable_slot(struct amd_northbridge *nb, int cpu, unsigned slot,
-			    unsigned long index)
+static int amd_set_l3_disable_slot(struct amd_northbridge *nb, int cpu,
+			    unsigned slot, unsigned long index)
 {
 	int ret = 0;
 

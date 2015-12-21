@@ -64,7 +64,6 @@ MODULE_DEVICE_TABLE(spi, st_accel_id_table);
 
 static struct spi_driver st_accel_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "st-accel-spi",
 	},
 	.probe = st_accel_spi_probe,

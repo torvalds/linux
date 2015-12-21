@@ -105,18 +105,22 @@
 int scif_setup_qp_connect(struct scif_qp *qp, dma_addr_t *qp_offset,
 			  int local_size, struct scif_dev *scifdev)
 {
-	void *local_q = NULL;
+	void *local_q = qp->inbound_q.rb_base;
 	int err = 0;
 	u32 tmp_rd = 0;
 
 	spin_lock_init(&qp->send_lock);
 	spin_lock_init(&qp->recv_lock);
 
-	local_q = kzalloc(local_size, GFP_KERNEL);
+	/* Allocate rb only if not already allocated */
 	if (!local_q) {
-		err = -ENOMEM;
-		return err;
+		local_q = kzalloc(local_size, GFP_KERNEL);
+		if (!local_q) {
+			err = -ENOMEM;
+			return err;
+		}
 	}
+
 	err = scif_map_single(&qp->local_buf, local_q, scifdev, local_size);
 	if (err)
 		goto kfree;
@@ -259,6 +263,11 @@ int scif_setup_qp_connect_response(struct scif_dev *scifdev,
 		     &qp->remote_qp->local_write,
 		     r_buf,
 		     get_count_order(remote_size));
+	/*
+	 * Because the node QP may already be processing an INIT message, set
+	 * the read pointer so the cached read offset isn't lost
+	 */
+	qp->remote_qp->local_read = qp->inbound_q.current_read_offset;
 	/*
 	 * resetup the inbound_q now that we know where the
 	 * inbound_read really is.
@@ -426,6 +435,21 @@ free_p2p:
 	return NULL;
 }
 
+/* Uninitialize and release resources from a p2p mapping */
+static void scif_deinit_p2p_info(struct scif_dev *scifdev,
+				 struct scif_p2p_info *p2p)
+{
+	struct scif_hw_dev *sdev = scifdev->sdev;
+
+	dma_unmap_sg(&sdev->dev, p2p->ppi_sg[SCIF_PPI_MMIO],
+		     p2p->sg_nentries[SCIF_PPI_MMIO], DMA_BIDIRECTIONAL);
+	dma_unmap_sg(&sdev->dev, p2p->ppi_sg[SCIF_PPI_APER],
+		     p2p->sg_nentries[SCIF_PPI_APER], DMA_BIDIRECTIONAL);
+	scif_p2p_freesg(p2p->ppi_sg[SCIF_PPI_MMIO]);
+	scif_p2p_freesg(p2p->ppi_sg[SCIF_PPI_APER]);
+	kfree(p2p);
+}
+
 /**
  * scif_node_connect: Respond to SCIF_NODE_CONNECT interrupt message
  * @dst: Destination node
@@ -468,8 +492,10 @@ static void scif_node_connect(struct scif_dev *scifdev, int dst)
 	if (!p2p_ij)
 		return;
 	p2p_ji = scif_init_p2p_info(dev_j, dev_i);
-	if (!p2p_ji)
+	if (!p2p_ji) {
+		scif_deinit_p2p_info(dev_i, p2p_ij);
 		return;
+	}
 	list_add_tail(&p2p_ij->ppi_list, &dev_i->p2p);
 	list_add_tail(&p2p_ji->ppi_list, &dev_j->p2p);
 
@@ -529,27 +555,6 @@ static void scif_p2p_setup(void)
 	}
 }
 
-void scif_qp_response_ack(struct work_struct *work)
-{
-	struct scif_dev *scifdev = container_of(work, struct scif_dev,
-						init_msg_work);
-	struct scif_peer_dev *spdev;
-
-	/* Drop the INIT message if it has already been received */
-	if (_scifdev_alive(scifdev))
-		return;
-
-	spdev = scif_peer_register_device(scifdev);
-	if (IS_ERR(spdev))
-		return;
-
-	if (scif_is_mgmt_node()) {
-		mutex_lock(&scif_info.conflock);
-		scif_p2p_setup();
-		mutex_unlock(&scif_info.conflock);
-	}
-}
-
 static char *message_types[] = {"BAD",
 				"INIT",
 				"EXIT",
@@ -568,7 +573,29 @@ static char *message_types[] = {"BAD",
 				"DISCNT_ACK",
 				"CLIENT_SENT",
 				"CLIENT_RCVD",
-				"SCIF_GET_NODE_INFO"};
+				"SCIF_GET_NODE_INFO",
+				"REGISTER",
+				"REGISTER_ACK",
+				"REGISTER_NACK",
+				"UNREGISTER",
+				"UNREGISTER_ACK",
+				"UNREGISTER_NACK",
+				"ALLOC_REQ",
+				"ALLOC_GNT",
+				"ALLOC_REJ",
+				"FREE_PHYS",
+				"FREE_VIRT",
+				"MUNMAP",
+				"MARK",
+				"MARK_ACK",
+				"MARK_NACK",
+				"WAIT",
+				"WAIT_ACK",
+				"WAIT_NACK",
+				"SIGNAL_LOCAL",
+				"SIGNAL_REMOTE",
+				"SIG_ACK",
+				"SIG_NACK"};
 
 static void
 scif_display_message(struct scif_dev *scifdev, struct scifmsg *msg,
@@ -662,10 +689,16 @@ int scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
  *
  * Work queue handler for servicing miscellaneous SCIF tasks.
  * Examples include:
- * 1) Cleanup of zombie endpoints.
+ * 1) Remote fence requests.
+ * 2) Destruction of temporary registered windows
+ *    created during scif_vreadfrom()/scif_vwriteto().
+ * 3) Cleanup of zombie endpoints.
  */
 void scif_misc_handler(struct work_struct *work)
 {
+	scif_rma_handle_remote_fences();
+	scif_rma_destroy_windows();
+	scif_rma_destroy_tcw_invalid();
 	scif_cleanup_zombie_epd();
 }
 
@@ -682,13 +715,14 @@ scif_init(struct scif_dev *scifdev, struct scifmsg *msg)
 	 * address to complete initializing the inbound_q.
 	 */
 	flush_delayed_work(&scifdev->qp_dwork);
-	/*
-	 * Delegate the peer device registration to a workqueue, otherwise if
-	 * SCIF client probe (called during peer device registration) calls
-	 * scif_connect(..), it will block the message processing thread causing
-	 * a deadlock.
-	 */
-	schedule_work(&scifdev->init_msg_work);
+
+	scif_peer_register_device(scifdev);
+
+	if (scif_is_mgmt_node()) {
+		mutex_lock(&scif_info.conflock);
+		scif_p2p_setup();
+		mutex_unlock(&scif_info.conflock);
+	}
 }
 
 /**
@@ -838,13 +872,13 @@ void scif_poll_qp_state(struct work_struct *work)
 				      msecs_to_jiffies(SCIF_NODE_QP_TIMEOUT));
 		return;
 	}
-	scif_peer_register_device(peerdev);
 	return;
 timeout:
 	dev_err(&peerdev->sdev->dev,
 		"%s %d remote node %d offline,  state = 0x%x\n",
 		__func__, __LINE__, peerdev->node, qp->qp_state);
 	qp->remote_qp->qp_state = SCIF_QP_OFFLINE;
+	scif_peer_unregister_device(peerdev);
 	scif_cleanup_scifdev(peerdev);
 }
 
@@ -894,6 +928,9 @@ scif_node_add_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 		goto local_error;
 	peerdev->rdb = msg->payload[2];
 	qp->remote_qp->qp_state = SCIF_QP_ONLINE;
+
+	scif_peer_register_device(peerdev);
+
 	schedule_delayed_work(&peerdev->p2p_dwork, 0);
 	return;
 local_error:
@@ -1007,6 +1044,27 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 	scif_clientsend,	/* SCIF_CLIENT_SENT */
 	scif_clientrcvd,	/* SCIF_CLIENT_RCVD */
 	scif_get_node_info_resp,/* SCIF_GET_NODE_INFO */
+	scif_recv_reg,		/* SCIF_REGISTER */
+	scif_recv_reg_ack,	/* SCIF_REGISTER_ACK */
+	scif_recv_reg_nack,	/* SCIF_REGISTER_NACK */
+	scif_recv_unreg,	/* SCIF_UNREGISTER */
+	scif_recv_unreg_ack,	/* SCIF_UNREGISTER_ACK */
+	scif_recv_unreg_nack,	/* SCIF_UNREGISTER_NACK */
+	scif_alloc_req,		/* SCIF_ALLOC_REQ */
+	scif_alloc_gnt_rej,	/* SCIF_ALLOC_GNT */
+	scif_alloc_gnt_rej,	/* SCIF_ALLOC_REJ */
+	scif_free_virt,		/* SCIF_FREE_VIRT */
+	scif_recv_munmap,	/* SCIF_MUNMAP */
+	scif_recv_mark,		/* SCIF_MARK */
+	scif_recv_mark_resp,	/* SCIF_MARK_ACK */
+	scif_recv_mark_resp,	/* SCIF_MARK_NACK */
+	scif_recv_wait,		/* SCIF_WAIT */
+	scif_recv_wait_resp,	/* SCIF_WAIT_ACK */
+	scif_recv_wait_resp,	/* SCIF_WAIT_NACK */
+	scif_recv_sig_local,	/* SCIF_SIG_LOCAL */
+	scif_recv_sig_remote,	/* SCIF_SIG_REMOTE */
+	scif_recv_sig_resp,	/* SCIF_SIG_ACK */
+	scif_recv_sig_resp,	/* SCIF_SIG_NACK */
 };
 
 /**
@@ -1169,7 +1227,6 @@ int scif_setup_loopback_qp(struct scif_dev *scifdev)
 	int err = 0;
 	void *local_q;
 	struct scif_qp *qp;
-	struct scif_peer_dev *spdev;
 
 	err = scif_setup_intr_wq(scifdev);
 	if (err)
@@ -1216,15 +1273,11 @@ int scif_setup_loopback_qp(struct scif_dev *scifdev)
 		     &qp->local_write,
 		     local_q, get_count_order(SCIF_NODE_QP_SIZE));
 	scif_info.nodeid = scifdev->node;
-	spdev = scif_peer_register_device(scifdev);
-	if (IS_ERR(spdev)) {
-		err = PTR_ERR(spdev);
-		goto free_local_q;
-	}
+
+	scif_peer_register_device(scifdev);
+
 	scif_info.loopb_dev = scifdev;
 	return err;
-free_local_q:
-	kfree(local_q);
 free_qpairs:
 	kfree(scifdev->qpairs);
 destroy_loopb_wq:
@@ -1243,13 +1296,7 @@ exit:
  */
 int scif_destroy_loopback_qp(struct scif_dev *scifdev)
 {
-	struct scif_peer_dev *spdev;
-
-	rcu_read_lock();
-	spdev = rcu_dereference(scifdev->spdev);
-	rcu_read_unlock();
-	if (spdev)
-		scif_peer_unregister_device(spdev);
+	scif_peer_unregister_device(scifdev);
 	destroy_workqueue(scif_info.loopb_wq);
 	scif_destroy_intr_wq(scifdev);
 	kfree(scifdev->qpairs->outbound_q.rb_base);

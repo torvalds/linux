@@ -101,13 +101,21 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 	})
 
 /**
- * rbtree_postorder_for_each_entry_safe - iterate over rb_root in post order of
- * given type safe against removal of rb_node entry
+ * rbtree_postorder_for_each_entry_safe - iterate in post-order over rb_root of
+ * given type allowing the backing memory of @pos to be invalidated
  *
  * @pos:	the 'type *' to use as a loop cursor.
  * @n:		another 'type *' to use as temporary storage
  * @root:	'rb_root *' of the rbtree.
  * @field:	the name of the rb_node field within 'type'.
+ *
+ * rbtree_postorder_for_each_entry_safe() provides a similar guarantee as
+ * list_for_each_entry_safe() and allows the iteration to continue independent
+ * of changes to @pos by the body of the loop.
+ *
+ * Note, however, that it cannot handle other modifications that re-order the
+ * rbtree it is iterating over. This includes calling rb_erase() on @pos, as
+ * rb_erase() may rebalance the tree, causing us to miss some nodes.
  */
 #define rbtree_postorder_for_each_entry_safe(pos, n, root, field) \
 	for (pos = rb_entry_safe(rb_first_postorder(root), typeof(*pos), field); \

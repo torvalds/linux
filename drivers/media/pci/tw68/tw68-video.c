@@ -376,10 +376,11 @@ static int tw68_buffer_count(unsigned int size, unsigned int count)
 /* ------------------------------------------------------------- */
 /* vb2 queue operations                                          */
 
-static int tw68_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+static int tw68_queue_setup(struct vb2_queue *q, const void *parg,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct tw68_dev *dev = vb2_get_drv_priv(q);
 	unsigned tot_bufs = q->num_buffers + *num_buffers;
 
@@ -423,9 +424,10 @@ static int tw68_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
  */
 static void tw68_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct tw68_dev *dev = vb2_get_drv_priv(vq);
-	struct tw68_buf *buf = container_of(vb, struct tw68_buf, vb);
+	struct tw68_buf *buf = container_of(vbuf, struct tw68_buf, vb);
 	struct tw68_buf *prev;
 	unsigned long flags;
 
@@ -457,9 +459,10 @@ static void tw68_buf_queue(struct vb2_buffer *vb)
  */
 static int tw68_buf_prepare(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct tw68_dev *dev = vb2_get_drv_priv(vq);
-	struct tw68_buf *buf = container_of(vb, struct tw68_buf, vb);
+	struct tw68_buf *buf = container_of(vbuf, struct tw68_buf, vb);
 	struct sg_table *dma = vb2_dma_sg_plane_desc(vb, 0);
 	unsigned size, bpl;
 
@@ -499,9 +502,10 @@ static int tw68_buf_prepare(struct vb2_buffer *vb)
 
 static void tw68_buf_finish(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct tw68_dev *dev = vb2_get_drv_priv(vq);
-	struct tw68_buf *buf = container_of(vb, struct tw68_buf, vb);
+	struct tw68_buf *buf = container_of(vbuf, struct tw68_buf, vb);
 
 	pci_free_consistent(dev->pci, buf->size, buf->cpu, buf->dma);
 }
@@ -528,7 +532,7 @@ static void tw68_stop_streaming(struct vb2_queue *q)
 			container_of(dev->active.next, struct tw68_buf, list);
 
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 }
 
@@ -975,7 +979,7 @@ int tw68_video_init2(struct tw68_dev *dev, int video_nr)
 	dev->vidq.ops = &tw68_video_qops;
 	dev->vidq.mem_ops = &vb2_dma_sg_memops;
 	dev->vidq.drv_priv = dev;
-	dev->vidq.gfp_flags = __GFP_DMA32;
+	dev->vidq.gfp_flags = __GFP_DMA32 | __GFP_KSWAPD_RECLAIM;
 	dev->vidq.buf_struct_size = sizeof(struct tw68_buf);
 	dev->vidq.lock = &dev->lock;
 	dev->vidq.min_buffers_needed = 2;
@@ -1012,10 +1016,10 @@ void tw68_irq_video_done(struct tw68_dev *dev, unsigned long status)
 		buf = list_entry(dev->active.next, struct tw68_buf, list);
 		list_del(&buf->list);
 		spin_unlock(&dev->slock);
-		v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-		buf->vb.v4l2_buf.field = dev->field;
-		buf->vb.v4l2_buf.sequence = dev->seqnr++;
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+		v4l2_get_timestamp(&buf->vb.timestamp);
+		buf->vb.field = dev->field;
+		buf->vb.sequence = dev->seqnr++;
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		status &= ~(TW68_DMAPI);
 		if (0 == status)
 			return;

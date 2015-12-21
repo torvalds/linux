@@ -5,9 +5,10 @@
  * helpful for interrupt controllers to implement mapping between hardware
  * irq numbers and the Linux irq number space.
  *
- * irq_domains also have a hook for translating device tree interrupt
- * representation into a hardware irq number that can be mapped back to a
- * Linux irq number without any extra platform support code.
+ * irq_domains also have hooks for translating device tree or other
+ * firmware interrupt representations into a hardware irq number that
+ * can be mapped back to a Linux irq number without any extra platform
+ * support code.
  *
  * Interrupt controller "domain" data structure. This could be defined as a
  * irq domain controller. That is, it handles the mapping between hardware
@@ -17,16 +18,12 @@
  * model). It's the domain callbacks that are responsible for setting the
  * irq_chip on a given irq_desc after it's been mapped.
  *
- * The host code and data structures are agnostic to whether or not
- * we use an open firmware device-tree. We do have references to struct
- * device_node in two places: in irq_find_host() to find the host matching
- * a given interrupt controller node, and of course as an argument to its
- * counterpart domain->ops->match() callback. However, those are treated as
- * generic pointers by the core and the fact that it's actually a device-node
- * pointer is purely a convention between callers and implementation. This
- * code could thus be used on other architectures by replacing those two
- * by some sort of arch-specific void * "token" used to identify interrupt
- * controllers.
+ * The host code and data structures use a fwnode_handle pointer to
+ * identify the domain. In some cases, and in order to preserve source
+ * code compatibility, this fwnode pointer is "upgraded" to a DT
+ * device_node. For those firmware infrastructures that do not provide
+ * a unique identifier for an interrupt controller, the irq_domain
+ * code offers a fwnode allocator.
  */
 
 #ifndef _LINUX_IRQDOMAIN_H
@@ -34,6 +31,7 @@
 
 #include <linux/types.h>
 #include <linux/irqhandler.h>
+#include <linux/of.h>
 #include <linux/radix-tree.h>
 
 struct device_node;
@@ -44,6 +42,24 @@ struct irq_data;
 
 /* Number of irqs reserved for a legacy isa controller */
 #define NUM_ISA_INTERRUPTS	16
+
+#define IRQ_DOMAIN_IRQ_SPEC_PARAMS 16
+
+/**
+ * struct irq_fwspec - generic IRQ specifier structure
+ *
+ * @fwnode:		Pointer to a firmware-specific descriptor
+ * @param_count:	Number of device-specific parameters
+ * @param:		Device-specific parameters
+ *
+ * This structure, directly modeled after of_phandle_args, is used to
+ * pass a device-specific description of an interrupt.
+ */
+struct irq_fwspec {
+	struct fwnode_handle *fwnode;
+	int param_count;
+	u32 param[IRQ_DOMAIN_IRQ_SPEC_PARAMS];
+};
 
 /*
  * Should several domains have the same device node, but serve
@@ -91,6 +107,8 @@ struct irq_domain_ops {
 		     unsigned int nr_irqs);
 	void (*activate)(struct irq_domain *d, struct irq_data *irq_data);
 	void (*deactivate)(struct irq_domain *d, struct irq_data *irq_data);
+	int (*translate)(struct irq_domain *d, struct irq_fwspec *fwspec,
+			 unsigned long *out_hwirq, unsigned int *out_type);
 #endif
 };
 
@@ -130,7 +148,7 @@ struct irq_domain {
 	unsigned int flags;
 
 	/* Optional data */
-	struct device_node *of_node;
+	struct fwnode_handle *fwnode;
 	enum irq_domain_bus_token bus_token;
 	struct irq_domain_chip_generic *gc;
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
@@ -163,11 +181,13 @@ enum {
 
 static inline struct device_node *irq_domain_get_of_node(struct irq_domain *d)
 {
-	return d->of_node;
+	return to_of_node(d->fwnode);
 }
 
 #ifdef CONFIG_IRQ_DOMAIN
-struct irq_domain *__irq_domain_add(struct device_node *of_node, int size,
+struct fwnode_handle *irq_domain_alloc_fwnode(void *data);
+void irq_domain_free_fwnode(struct fwnode_handle *fwnode);
+struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 				    irq_hw_number_t hwirq_max, int direct_max,
 				    const struct irq_domain_ops *ops,
 				    void *host_data);
@@ -182,9 +202,20 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 irq_hw_number_t first_hwirq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data);
-extern struct irq_domain *irq_find_matching_host(struct device_node *node,
-						 enum irq_domain_bus_token bus_token);
+extern struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
+						   enum irq_domain_bus_token bus_token);
 extern void irq_set_default_host(struct irq_domain *host);
+
+static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
+{
+	return node ? &node->fwnode : NULL;
+}
+
+static inline struct irq_domain *irq_find_matching_host(struct device_node *node,
+							enum irq_domain_bus_token bus_token)
+{
+	return irq_find_matching_fwnode(of_node_to_fwnode(node), bus_token);
+}
 
 static inline struct irq_domain *irq_find_host(struct device_node *node)
 {
@@ -203,14 +234,14 @@ static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_no
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node, size, size, 0, ops, host_data);
+	return __irq_domain_add(of_node_to_fwnode(of_node), size, size, 0, ops, host_data);
 }
 static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
 					 unsigned int max_irq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node, 0, max_irq, max_irq, ops, host_data);
+	return __irq_domain_add(of_node_to_fwnode(of_node), 0, max_irq, max_irq, ops, host_data);
 }
 static inline struct irq_domain *irq_domain_add_legacy_isa(
 				struct device_node *of_node,
@@ -224,7 +255,22 @@ static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	return __irq_domain_add(of_node, 0, ~0, 0, ops, host_data);
+	return __irq_domain_add(of_node_to_fwnode(of_node), 0, ~0, 0, ops, host_data);
+}
+
+static inline struct irq_domain *irq_domain_create_linear(struct fwnode_handle *fwnode,
+					 unsigned int size,
+					 const struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	return __irq_domain_add(fwnode, size, size, 0, ops, host_data);
+}
+
+static inline struct irq_domain *irq_domain_create_tree(struct fwnode_handle *fwnode,
+					 const struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	return __irq_domain_add(fwnode, 0, ~0, 0, ops, host_data);
 }
 
 extern void irq_domain_remove(struct irq_domain *host);
@@ -239,6 +285,7 @@ extern void irq_domain_disassociate(struct irq_domain *domain,
 
 extern unsigned int irq_create_mapping(struct irq_domain *host,
 				       irq_hw_number_t hwirq);
+extern unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec);
 extern void irq_dispose_mapping(unsigned int virq);
 
 /**
@@ -290,10 +337,23 @@ extern void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
 				void *chip_data, irq_flow_handler_t handler,
 				void *handler_data, const char *handler_name);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
-extern struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *parent,
+extern struct irq_domain *irq_domain_create_hierarchy(struct irq_domain *parent,
 			unsigned int flags, unsigned int size,
-			struct device_node *node,
+			struct fwnode_handle *fwnode,
 			const struct irq_domain_ops *ops, void *host_data);
+
+static inline struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *parent,
+					    unsigned int flags,
+					    unsigned int size,
+					    struct device_node *node,
+					    const struct irq_domain_ops *ops,
+					    void *host_data)
+{
+	return irq_domain_create_hierarchy(parent, flags, size,
+					   of_node_to_fwnode(node),
+					   ops, host_data);
+}
+
 extern int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 				   unsigned int nr_irqs, int node, void *arg,
 				   bool realloc);

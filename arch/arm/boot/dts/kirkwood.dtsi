@@ -40,16 +40,6 @@
 		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256 MiB memory space */
 		pcie-io-aperture  = <0xf2000000 0x100000>;   /*   1 MiB    I/O space */
 
-		cesa: crypto@0301 {
-			compatible = "marvell,orion-crypto";
-			reg = <MBUS_ID(0xf0, 0x01) 0x30000 0x10000>,
-			      <MBUS_ID(0x03, 0x01) 0 0x800>;
-			reg-names = "regs", "sram";
-			interrupts = <22>;
-			clocks = <&gate_clk 17>;
-			status = "okay";
-		};
-
 		nand: nand@012f {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -64,6 +54,14 @@
 			pinctrl-0 = <&pmx_nand>;
 			pinctrl-names = "default";
 			status = "disabled";
+		};
+
+		crypto_sram: sa-sram@0301 {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x03, 0x01) 0x0 0x800>;
+			clocks = <&gate_clk 17>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 		};
 	};
 
@@ -249,6 +247,17 @@
 			interrupt-parent = <&bridge_intc>;
 			interrupts = <3>;
 			clocks = <&gate_clk 7>;
+			status = "okay";
+		};
+
+		cesa: crypto@30000 {
+			compatible = "marvell,kirkwood-crypto";
+			reg = <0x30000 0x10000>;
+			reg-names = "regs";
+			interrupts = <22>;
+			clocks = <&gate_clk 17>;
+			marvell,crypto-srams = <&crypto_sram>;
+			marvell,crypto-sram-size = <0x800>;
 			status = "okay";
 		};
 

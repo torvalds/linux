@@ -19,12 +19,11 @@
 struct drm_framebuffer *
 exynos_drm_framebuffer_init(struct drm_device *dev,
 			    struct drm_mode_fb_cmd2 *mode_cmd,
-			    struct exynos_drm_gem_obj **gem_obj,
+			    struct exynos_drm_gem **exynos_gem,
 			    int count);
 
 /* get gem object of a drm framebuffer */
-struct exynos_drm_gem_obj *exynos_drm_fb_gem_obj(struct drm_framebuffer *fb,
-						 int index);
+struct exynos_drm_gem *exynos_drm_fb_gem(struct drm_framebuffer *fb, int index);
 
 void exynos_drm_mode_config_init(struct drm_device *dev);
 

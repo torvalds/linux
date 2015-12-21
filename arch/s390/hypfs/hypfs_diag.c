@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+#include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include "hypfs.h"
 
@@ -336,7 +337,7 @@ static inline __u64 phys_cpu__ctidx(enum diag204_format type, void *hdr)
 
 /* Diagnose 204 functions */
 
-static int diag204(unsigned long subcode, unsigned long size, void *addr)
+static inline int __diag204(unsigned long subcode, unsigned long size, void *addr)
 {
 	register unsigned long _subcode asm("0") = subcode;
 	register unsigned long _size asm("1") = size;
@@ -349,6 +350,12 @@ static int diag204(unsigned long subcode, unsigned long size, void *addr)
 	if (_subcode)
 		return -1;
 	return _size;
+}
+
+static int diag204(unsigned long subcode, unsigned long size, void *addr)
+{
+	diag_stat_inc(DIAG_STAT_X204);
+	return __diag204(subcode, size, addr);
 }
 
 /*
@@ -505,6 +512,7 @@ static int diag224(void *ptr)
 {
 	int rc = -EOPNOTSUPP;
 
+	diag_stat_inc(DIAG_STAT_X224);
 	asm volatile(
 		"	diag	%1,%2,0x224\n"
 		"0:	lhi	%0,0x0\n"

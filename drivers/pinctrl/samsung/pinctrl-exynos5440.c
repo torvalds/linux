@@ -284,7 +284,7 @@ static void exynos5440_dt_free_map(struct pinctrl_dev *pctldev,
 			if (!idx)
 				kfree(map[idx].data.configs.group_or_pin);
 		}
-	};
+	}
 
 	kfree(map);
 }

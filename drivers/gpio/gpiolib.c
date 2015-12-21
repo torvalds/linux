@@ -15,6 +15,7 @@
 #include <linux/acpi.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "gpiolib.h"
 
@@ -46,8 +47,6 @@
  * each GPIO's "requested" flag serves as a lock and refcount.
  */
 DEFINE_SPINLOCK(gpio_lock);
-
-#define GPIO_OFFSET_VALID(chip, offset) (offset >= 0 && offset < chip->ngpio)
 
 static DEFINE_MUTEX(gpio_lookup_lock);
 static LIST_HEAD(gpio_lookup_list);
@@ -219,6 +218,68 @@ static int gpiochip_add_to_list(struct gpio_chip *chip)
 }
 
 /**
+ * Convert a GPIO name to its descriptor
+ */
+static struct gpio_desc *gpio_name_to_desc(const char * const name)
+{
+	struct gpio_chip *chip;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	list_for_each_entry(chip, &gpio_chips, list) {
+		int i;
+
+		for (i = 0; i != chip->ngpio; ++i) {
+			struct gpio_desc *gpio = &chip->desc[i];
+
+			if (!gpio->name || !name)
+				continue;
+
+			if (!strcmp(gpio->name, name)) {
+				spin_unlock_irqrestore(&gpio_lock, flags);
+				return gpio;
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return NULL;
+}
+
+/*
+ * Takes the names from gc->names and checks if they are all unique. If they
+ * are, they are assigned to their gpio descriptors.
+ *
+ * Returns -EEXIST if one of the names is already used for a different GPIO.
+ */
+static int gpiochip_set_desc_names(struct gpio_chip *gc)
+{
+	int i;
+
+	if (!gc->names)
+		return 0;
+
+	/* First check all names if they are unique */
+	for (i = 0; i != gc->ngpio; ++i) {
+		struct gpio_desc *gpio;
+
+		gpio = gpio_name_to_desc(gc->names[i]);
+		if (gpio)
+			dev_warn(gc->dev, "Detected name collision for "
+				 "GPIO name '%s'\n",
+				 gc->names[i]);
+	}
+
+	/* Then add all names to the GPIO descriptors */
+	for (i = 0; i != gc->ngpio; ++i)
+		gc->desc[i].name = gc->names[i];
+
+	return 0;
+}
+
+/**
  * gpiochip_add() - register a gpio_chip
  * @chip: the chip to register, with chip->base initialized
  * Context: potentially before irqs will work
@@ -290,6 +351,10 @@ int gpiochip_add(struct gpio_chip *chip)
 	if (!chip->owner && chip->dev && chip->dev->driver)
 		chip->owner = chip->dev->driver->owner;
 
+	status = gpiochip_set_desc_names(chip);
+	if (status)
+		goto err_remove_from_list;
+
 	status = of_gpiochip_add(chip);
 	if (status)
 		goto err_remove_chip;
@@ -310,6 +375,7 @@ err_remove_chip:
 	acpi_gpiochip_remove(chip);
 	gpiochip_free_hogs(chip);
 	of_gpiochip_remove(chip);
+err_remove_from_list:
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_del(&chip->list);
 	spin_unlock_irqrestore(&gpio_lock, flags);
@@ -680,6 +746,28 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip) {}
 
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 
+/**
+ * gpiochip_generic_request() - request the gpio function for a pin
+ * @chip: the gpiochip owning the GPIO
+ * @offset: the offset of the GPIO to request for GPIO function
+ */
+int gpiochip_generic_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(chip->base + offset);
+}
+EXPORT_SYMBOL_GPL(gpiochip_generic_request);
+
+/**
+ * gpiochip_generic_free() - free the gpio function from a pin
+ * @chip: the gpiochip to request the gpio function for
+ * @offset: the offset of the GPIO to free from GPIO function
+ */
+void gpiochip_generic_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(chip->base + offset);
+}
+EXPORT_SYMBOL_GPL(gpiochip_generic_free);
+
 #ifdef CONFIG_PINCTRL
 
 /**
@@ -839,6 +927,14 @@ static int __gpiod_request(struct gpio_desc *desc, const char *label)
 		spin_lock_irqsave(&gpio_lock, flags);
 	}
 done:
+	if (status < 0) {
+		/* Clear flags that might have been set by the caller before
+		 * requesting the GPIO.
+		 */
+		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
+		clear_bit(FLAG_OPEN_DRAIN, &desc->flags);
+		clear_bit(FLAG_OPEN_SOURCE, &desc->flags);
+	}
 	spin_unlock_irqrestore(&gpio_lock, flags);
 	return status;
 }
@@ -928,7 +1024,7 @@ const char *gpiochip_is_requested(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_desc *desc;
 
-	if (!GPIO_OFFSET_VALID(chip, offset))
+	if (offset >= chip->ngpio)
 		return NULL;
 
 	desc = &chip->desc[offset];
@@ -1735,6 +1831,13 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 	if (of_flags & OF_GPIO_ACTIVE_LOW)
 		*flags |= GPIO_ACTIVE_LOW;
 
+	if (of_flags & OF_GPIO_SINGLE_ENDED) {
+		if (of_flags & OF_GPIO_ACTIVE_LOW)
+			*flags |= GPIO_OPEN_DRAIN;
+		else
+			*flags |= GPIO_OPEN_SOURCE;
+	}
+
 	return desc;
 }
 
@@ -1953,13 +2056,28 @@ struct gpio_desc *__must_check gpiod_get_optional(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(gpiod_get_optional);
 
+/**
+ * gpiod_parse_flags - helper function to parse GPIO lookup flags
+ * @desc:	gpio to be setup
+ * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
+ *		of_get_gpio_hog()
+ *
+ * Set the GPIO descriptor flags based on the given GPIO lookup flags.
+ */
+static void gpiod_parse_flags(struct gpio_desc *desc, unsigned long lflags)
+{
+	if (lflags & GPIO_ACTIVE_LOW)
+		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	if (lflags & GPIO_OPEN_DRAIN)
+		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+	if (lflags & GPIO_OPEN_SOURCE)
+		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+}
 
 /**
  * gpiod_configure_flags - helper function to configure a given GPIO
  * @desc:	gpio whose value will be assigned
  * @con_id:	function within the GPIO consumer
- * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
- *		of_get_gpio_hog()
  * @dflags:	gpiod_flags - optional GPIO initialization flags
  *
  * Return 0 on success, -ENOENT if no GPIO has been assigned to the
@@ -1967,16 +2085,9 @@ EXPORT_SYMBOL_GPL(gpiod_get_optional);
  * occurred while trying to acquire the GPIO.
  */
 static int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
-		unsigned long lflags, enum gpiod_flags dflags)
+				 enum gpiod_flags dflags)
 {
 	int status;
-
-	if (lflags & GPIO_ACTIVE_LOW)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-	if (lflags & GPIO_OPEN_DRAIN)
-		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
-	if (lflags & GPIO_OPEN_SOURCE)
-		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
 
 	/* No particular flag request, return here... */
 	if (!(dflags & GPIOD_FLAGS_BIT_DIR_SET)) {
@@ -2044,11 +2155,13 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 		return desc;
 	}
 
+	gpiod_parse_flags(desc, lookupflags);
+
 	status = gpiod_request(desc, con_id);
 	if (status < 0)
 		return ERR_PTR(status);
 
-	status = gpiod_configure_flags(desc, con_id, lookupflags, flags);
+	status = gpiod_configure_flags(desc, con_id, flags);
 	if (status < 0) {
 		dev_dbg(dev, "setup of GPIO %s failed\n", con_id);
 		gpiod_put(desc);
@@ -2078,6 +2191,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 {
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
 	bool active_low = false;
+	bool single_ended = false;
 	int ret;
 
 	if (!fwnode)
@@ -2088,13 +2202,14 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 
 		desc = of_get_named_gpiod_flags(to_of_node(fwnode), propname, 0,
 						&flags);
-		if (!IS_ERR(desc))
+		if (!IS_ERR(desc)) {
 			active_low = flags & OF_GPIO_ACTIVE_LOW;
+			single_ended = flags & OF_GPIO_SINGLE_ENDED;
+		}
 	} else if (is_acpi_node(fwnode)) {
 		struct acpi_gpio_info info;
 
-		desc = acpi_get_gpiod_by_index(to_acpi_node(fwnode), propname, 0,
-					       &info);
+		desc = acpi_node_get_gpiod(fwnode, propname, 0, &info);
 		if (!IS_ERR(desc))
 			active_low = info.active_low;
 	}
@@ -2102,13 +2217,19 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	if (IS_ERR(desc))
 		return desc;
 
+	if (active_low)
+		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+
+	if (single_ended) {
+		if (active_low)
+			set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+		else
+			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+	}
+
 	ret = gpiod_request(desc, NULL);
 	if (ret)
 		return ERR_PTR(ret);
-
-	/* Only value flag can be set from both DT and ACPI is active_low */
-	if (active_low)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
 
 	return desc;
 }
@@ -2162,6 +2283,8 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 	chip = gpiod_to_chip(desc);
 	hwnum = gpio_chip_hwgpio(desc);
 
+	gpiod_parse_flags(desc, lflags);
+
 	local_desc = gpiochip_request_own_desc(chip, hwnum, name);
 	if (IS_ERR(local_desc)) {
 		pr_err("requesting hog GPIO %s (chip %s, offset %d) failed\n",
@@ -2169,7 +2292,7 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 		return PTR_ERR(local_desc);
 	}
 
-	status = gpiod_configure_flags(desc, name, lflags, dflags);
+	status = gpiod_configure_flags(desc, name, dflags);
 	if (status < 0) {
 		pr_err("setup of hog GPIO %s (chip %s, offset %d) failed\n",
 		       name, chip->label, hwnum);
@@ -2309,14 +2432,19 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	int			is_irq;
 
 	for (i = 0; i < chip->ngpio; i++, gpio++, gdesc++) {
-		if (!test_bit(FLAG_REQUESTED, &gdesc->flags))
+		if (!test_bit(FLAG_REQUESTED, &gdesc->flags)) {
+			if (gdesc->name) {
+				seq_printf(s, " gpio-%-3d (%-20.20s)\n",
+					   gpio, gdesc->name);
+			}
 			continue;
+		}
 
 		gpiod_get_direction(gdesc);
 		is_out = test_bit(FLAG_IS_OUT, &gdesc->flags);
 		is_irq = test_bit(FLAG_USED_AS_IRQ, &gdesc->flags);
-		seq_printf(s, " gpio-%-3d (%-20.20s) %s %s %s",
-			gpio, gdesc->label,
+		seq_printf(s, " gpio-%-3d (%-20.20s|%-20.20s) %s %s %s",
+			gpio, gdesc->name ? gdesc->name : "", gdesc->label,
 			is_out ? "out" : "in ",
 			chip->get
 				? (chip->get(chip, i) ? "hi" : "lo")

@@ -40,7 +40,7 @@
 static void gmc_v7_0_set_gart_funcs(struct amdgpu_device *adev);
 static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 
-MODULE_FIRMWARE("radeon/boniare_mc.bin");
+MODULE_FIRMWARE("radeon/bonaire_mc.bin");
 MODULE_FIRMWARE("radeon/hawaii_mc.bin");
 
 /**
@@ -436,6 +436,33 @@ static int gmc_v7_0_gart_set_pte_pde(struct amdgpu_device *adev,
 }
 
 /**
+ * gmc_v8_0_set_fault_enable_default - update VM fault handling
+ *
+ * @adev: amdgpu_device pointer
+ * @value: true redirects VM faults to the default page
+ */
+static void gmc_v7_0_set_fault_enable_default(struct amdgpu_device *adev,
+					      bool value)
+{
+	u32 tmp;
+
+	tmp = RREG32(mmVM_CONTEXT1_CNTL);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    PDE0_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    VALID_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    READ_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	WREG32(mmVM_CONTEXT1_CNTL, tmp);
+}
+
+/**
  * gmc_v7_0_gart_enable - gart enable
  *
  * @adev: amdgpu_device pointer
@@ -474,6 +501,7 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, EFFECTIVE_L2_QUEUE_SIZE, 7);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_DEFAULT_PAGE_OUT_TO_SYSTEM_MEMORY, 1);
 	WREG32(mmVM_L2_CNTL, tmp);
 	tmp = REG_SET_FIELD(0, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
@@ -485,7 +513,7 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	WREG32(mmVM_L2_CNTL3, tmp);
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->mc.gtt_start >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, (adev->mc.gtt_end >> 12) - 1);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->mc.gtt_end >> 12);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, adev->gart.table_addr >> 12);
 	WREG32(mmVM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(adev->dummy_page.addr >> 12));
@@ -523,15 +551,13 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	tmp = RREG32(mmVM_CONTEXT1_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PDE0_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, VALID_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, READ_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_BLOCK_SIZE,
 			    amdgpu_vm_block_size - 9);
 	WREG32(mmVM_CONTEXT1_CNTL, tmp);
+	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
+		gmc_v7_0_set_fault_enable_default(adev, false);
+	else
+		gmc_v7_0_set_fault_enable_default(adev, true);
 
 	if (adev->asic_type == CHIP_KAVERI) {
 		tmp = RREG32(mmCHUB_CONTROL);
@@ -935,12 +961,10 @@ static int gmc_v7_0_sw_init(void *handle)
 
 static int gmc_v7_0_sw_fini(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			amdgpu_fence_unref(&adev->vm_manager.active[i]);
+		amdgpu_vm_manager_fini(adev);
 		gmc_v7_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
@@ -985,12 +1009,10 @@ static int gmc_v7_0_hw_fini(void *handle)
 
 static int gmc_v7_0_suspend(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			amdgpu_fence_unref(&adev->vm_manager.active[i]);
+		amdgpu_vm_manager_fini(adev);
 		gmc_v7_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
@@ -1267,6 +1289,9 @@ static int gmc_v7_0_process_interrupt(struct amdgpu_device *adev,
 
 	if (!addr && !status)
 		return 0;
+
+	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_FIRST)
+		gmc_v7_0_set_fault_enable_default(adev, false);
 
 	dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
 		entry->src_id, entry->src_data);

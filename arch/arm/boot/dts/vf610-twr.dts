@@ -237,6 +237,33 @@
 			>;
 		};
 
+		pinctrl_nfc: nfcgrp {
+			fsl,pins = <
+				VF610_PAD_PTD31__NF_IO15	0x28df
+				VF610_PAD_PTD30__NF_IO14	0x28df
+				VF610_PAD_PTD29__NF_IO13	0x28df
+				VF610_PAD_PTD28__NF_IO12	0x28df
+				VF610_PAD_PTD27__NF_IO11	0x28df
+				VF610_PAD_PTD26__NF_IO10	0x28df
+				VF610_PAD_PTD25__NF_IO9		0x28df
+				VF610_PAD_PTD24__NF_IO8		0x28df
+				VF610_PAD_PTD23__NF_IO7		0x28df
+				VF610_PAD_PTD22__NF_IO6		0x28df
+				VF610_PAD_PTD21__NF_IO5		0x28df
+				VF610_PAD_PTD20__NF_IO4		0x28df
+				VF610_PAD_PTD19__NF_IO3		0x28df
+				VF610_PAD_PTD18__NF_IO2		0x28df
+				VF610_PAD_PTD17__NF_IO1		0x28df
+				VF610_PAD_PTD16__NF_IO0		0x28df
+				VF610_PAD_PTB24__NF_WE_B	0x28c2
+				VF610_PAD_PTB25__NF_CE0_B	0x28c2
+				VF610_PAD_PTB27__NF_RE_B	0x28c2
+				VF610_PAD_PTC26__NF_RB_B	0x283d
+				VF610_PAD_PTC27__NF_ALE		0x28c2
+				VF610_PAD_PTC28__NF_CLE		0x28c2
+			>;
+		};
+
 		pinctrl_pwm0: pwm0grp {
 			fsl,pins = <
 				VF610_PAD_PTB0__FTM0_CH0		0x1582
@@ -271,6 +298,26 @@
 				VF610_PAD_PTB7__UART2_RX		0x21a1
 			>;
 		};
+	};
+};
+
+&nfc {
+	assigned-clocks = <&clks VF610_CLK_NFC>;
+	assigned-clock-rates = <33000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nfc>;
+	status = "okay";
+
+	nand@0 {
+		compatible = "fsl,vf610-nfc-nandcs";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		nand-bus-width = <16>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <24>;
+		nand-ecc-step-size = <2048>;
+		nand-on-flash-bbt;
 	};
 };
 

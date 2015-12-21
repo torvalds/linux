@@ -70,6 +70,7 @@ static int debuginfo__init_offline_dwarf(struct debuginfo *dbg,
 	if (!dbg->dwfl)
 		goto error;
 
+	dwfl_report_begin(dbg->dwfl);
 	dbg->mod = dwfl_report_offline(dbg->dwfl, "", "", fd);
 	if (!dbg->mod)
 		goto error;
@@ -77,6 +78,8 @@ static int debuginfo__init_offline_dwarf(struct debuginfo *dbg,
 	dbg->dbg = dwfl_module_getdwarf(dbg->mod, &dbg->bias);
 	if (!dbg->dbg)
 		goto error;
+
+	dwfl_report_end(dbg->dwfl, NULL, NULL);
 
 	return 0;
 error:
@@ -591,6 +594,7 @@ static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 /* Convert subprogram DIE to trace point */
 static int convert_to_trace_point(Dwarf_Die *sp_die, Dwfl_Module *mod,
 				  Dwarf_Addr paddr, bool retprobe,
+				  const char *function,
 				  struct probe_trace_point *tp)
 {
 	Dwarf_Addr eaddr, highaddr;
@@ -634,8 +638,10 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwfl_Module *mod,
 	/* Return probe must be on the head of a subprogram */
 	if (retprobe) {
 		if (eaddr != paddr) {
-			pr_warning("Return probe must be on the head of"
-				   " a real function.\n");
+			pr_warning("Failed to find \"%s%%return\",\n"
+				   " because %s is an inlined function and"
+				   " has no return point.\n", function,
+				   function);
 			return -EINVAL;
 		}
 		tp->retprobe = true;
@@ -1175,8 +1181,9 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
 	struct trace_event_finder *tf =
 			container_of(pf, struct trace_event_finder, pf);
+	struct perf_probe_point *pp = &pf->pev->point;
 	struct probe_trace_event *tev;
-	struct perf_probe_arg *args;
+	struct perf_probe_arg *args = NULL;
 	int ret, i;
 
 	/* Check number of tevs */
@@ -1189,21 +1196,25 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 
 	/* Trace point should be converted from subprogram DIE */
 	ret = convert_to_trace_point(&pf->sp_die, tf->mod, pf->addr,
-				     pf->pev->point.retprobe, &tev->point);
+				     pp->retprobe, pp->function, &tev->point);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	tev->point.realname = strdup(dwarf_diename(sc_die));
-	if (!tev->point.realname)
-		return -ENOMEM;
+	if (!tev->point.realname) {
+		ret = -ENOMEM;
+		goto end;
+	}
 
 	pr_debug("Probe point found: %s+%lu\n", tev->point.symbol,
 		 tev->point.offset);
 
 	/* Expand special probe argument if exist */
 	args = zalloc(sizeof(struct perf_probe_arg) * MAX_PROBE_ARGS);
-	if (args == NULL)
-		return -ENOMEM;
+	if (args == NULL) {
+		ret = -ENOMEM;
+		goto end;
+	}
 
 	ret = expand_probe_args(sc_die, pf, args);
 	if (ret < 0)
@@ -1227,6 +1238,10 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 	}
 
 end:
+	if (ret) {
+		clear_probe_trace_event(tev);
+		tf->ntevs--;
+	}
 	free(args);
 	return ret;
 }
@@ -1239,7 +1254,7 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 	struct trace_event_finder tf = {
 			.pf = {.pev = pev, .callback = add_probe_trace_event},
 			.max_tevs = probe_conf.max_probes, .mod = dbg->mod};
-	int ret;
+	int ret, i;
 
 	/* Allocate result tevs array */
 	*tevs = zalloc(sizeof(struct probe_trace_event) * tf.max_tevs);
@@ -1251,6 +1266,8 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 
 	ret = debuginfo__find_probes(dbg, &tf.pf);
 	if (ret < 0) {
+		for (i = 0; i < tf.ntevs; i++)
+			clear_probe_trace_event(&tf.tevs[i]);
 		zfree(tevs);
 		return ret;
 	}
@@ -1319,6 +1336,7 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
 	struct available_var_finder *af =
 			container_of(pf, struct available_var_finder, pf);
+	struct perf_probe_point *pp = &pf->pev->point;
 	struct variable_list *vl;
 	Dwarf_Die die_mem;
 	int ret;
@@ -1332,7 +1350,7 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 
 	/* Trace point should be converted from subprogram DIE */
 	ret = convert_to_trace_point(&pf->sp_die, af->mod, pf->addr,
-				     pf->pev->point.retprobe, &vl->point);
+				     pp->retprobe, pp->function, &vl->point);
 	if (ret < 0)
 		return ret;
 
@@ -1399,6 +1417,41 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 	return (ret < 0) ? ret : af.nvls;
 }
 
+/* For the kernel module, we need a special code to get a DIE */
+static int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs)
+{
+	int n, i;
+	Elf32_Word shndx;
+	Elf_Scn *scn;
+	Elf *elf;
+	GElf_Shdr mem, *shdr;
+	const char *p;
+
+	elf = dwfl_module_getelf(dbg->mod, &dbg->bias);
+	if (!elf)
+		return -EINVAL;
+
+	/* Get the number of relocations */
+	n = dwfl_module_relocations(dbg->mod);
+	if (n < 0)
+		return -ENOENT;
+	/* Search the relocation related .text section */
+	for (i = 0; i < n; i++) {
+		p = dwfl_module_relocation_info(dbg->mod, i, &shndx);
+		if (strcmp(p, ".text") == 0) {
+			/* OK, get the section header */
+			scn = elf_getscn(elf, shndx);
+			if (!scn)
+				return -ENOENT;
+			shdr = gelf_getshdr(scn, &mem);
+			if (!shdr)
+				return -ENOENT;
+			*offs = shdr->sh_addr;
+		}
+	}
+	return 0;
+}
+
 /* Reverse search */
 int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
 				struct perf_probe_point *ppt)
@@ -1407,9 +1460,16 @@ int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
 	Dwarf_Addr _addr = 0, baseaddr = 0;
 	const char *fname = NULL, *func = NULL, *basefunc = NULL, *tmp;
 	int baseline = 0, lineno = 0, ret = 0;
+	bool reloc = false;
 
+retry:
 	/* Find cu die */
 	if (!dwarf_addrdie(dbg->dbg, (Dwarf_Addr)addr, &cudie)) {
+		if (!reloc && debuginfo__get_text_offset(dbg, &baseaddr) == 0) {
+			addr += baseaddr;
+			reloc = true;
+			goto retry;
+		}
 		pr_warning("Failed to find debug information for address %lx\n",
 			   addr);
 		ret = -EINVAL;

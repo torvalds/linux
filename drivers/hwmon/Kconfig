@@ -321,6 +321,15 @@ config SENSORS_APPLESMC
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
 
+config SENSORS_ARM_SCPI
+	tristate "ARM SCPI Sensors"
+	depends on ARM_SCPI_PROTOCOL
+	depends on THERMAL || !THERMAL_OF
+	help
+	  This driver provides support for temperature, voltage, current
+	  and power sensors available on ARM Ltd's SCP based platforms. The
+	  actual number and type of sensors exported depend on the platform.
+
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
 	depends on X86 && I2C
@@ -839,6 +848,16 @@ config SENSORS_MAX6697
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max6697.
+
+config SENSORS_MAX31790
+	tristate "Maxim MAX31790 sensor chip"
+	depends on I2C
+	help
+	  If you say yes here you get support for 6-Channel PWM-Output
+	  Fan RPM Controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max31790.
 
 config SENSORS_HTU21
 	tristate "Measurement Specialties HTU21D humidity/temperature sensors"
@@ -1453,6 +1472,7 @@ config SENSORS_INA209
 config SENSORS_INA2XX
 	tristate "Texas Instruments INA219 and compatibles"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for INA219, INA220, INA226,
 	  INA230, and INA231 power monitor chips.

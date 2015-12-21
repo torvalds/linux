@@ -31,6 +31,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
 	const struct net_device *in = pkt->in, *out = pkt->out;
+	struct sock *sk;
 	u32 *dest = &regs->data[priv->dreg];
 
 	switch (priv->key) {
@@ -42,7 +43,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*(__be16 *)dest = skb->protocol;
 		break;
 	case NFT_META_NFPROTO:
-		*dest = pkt->ops->pf;
+		*dest = pkt->pf;
 		break;
 	case NFT_META_L4PROTO:
 		*dest = pkt->tprot;
@@ -86,33 +87,35 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*(u16 *)dest = out->type;
 		break;
 	case NFT_META_SKUID:
-		if (skb->sk == NULL || !sk_fullsock(skb->sk))
+		sk = skb_to_full_sk(skb);
+		if (!sk || !sk_fullsock(sk))
 			goto err;
 
-		read_lock_bh(&skb->sk->sk_callback_lock);
-		if (skb->sk->sk_socket == NULL ||
-		    skb->sk->sk_socket->file == NULL) {
-			read_unlock_bh(&skb->sk->sk_callback_lock);
+		read_lock_bh(&sk->sk_callback_lock);
+		if (sk->sk_socket == NULL ||
+		    sk->sk_socket->file == NULL) {
+			read_unlock_bh(&sk->sk_callback_lock);
 			goto err;
 		}
 
 		*dest =	from_kuid_munged(&init_user_ns,
-				skb->sk->sk_socket->file->f_cred->fsuid);
-		read_unlock_bh(&skb->sk->sk_callback_lock);
+				sk->sk_socket->file->f_cred->fsuid);
+		read_unlock_bh(&sk->sk_callback_lock);
 		break;
 	case NFT_META_SKGID:
-		if (skb->sk == NULL || !sk_fullsock(skb->sk))
+		sk = skb_to_full_sk(skb);
+		if (!sk || !sk_fullsock(sk))
 			goto err;
 
-		read_lock_bh(&skb->sk->sk_callback_lock);
-		if (skb->sk->sk_socket == NULL ||
-		    skb->sk->sk_socket->file == NULL) {
-			read_unlock_bh(&skb->sk->sk_callback_lock);
+		read_lock_bh(&sk->sk_callback_lock);
+		if (sk->sk_socket == NULL ||
+		    sk->sk_socket->file == NULL) {
+			read_unlock_bh(&sk->sk_callback_lock);
 			goto err;
 		}
 		*dest =	from_kgid_munged(&init_user_ns,
-				 skb->sk->sk_socket->file->f_cred->fsgid);
-		read_unlock_bh(&skb->sk->sk_callback_lock);
+				 sk->sk_socket->file->f_cred->fsgid);
+		read_unlock_bh(&sk->sk_callback_lock);
 		break;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	case NFT_META_RTCLASSID: {
@@ -135,7 +138,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			break;
 		}
 
-		switch (pkt->ops->pf) {
+		switch (pkt->pf) {
 		case NFPROTO_IPV4:
 			if (ipv4_is_multicast(ip_hdr(skb)->daddr))
 				*dest = PACKET_MULTICAST;
@@ -168,9 +171,10 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		break;
 #ifdef CONFIG_CGROUP_NET_CLASSID
 	case NFT_META_CGROUP:
-		if (skb->sk == NULL || !sk_fullsock(skb->sk))
+		sk = skb_to_full_sk(skb);
+		if (!sk || !sk_fullsock(sk))
 			goto err;
-		*dest = skb->sk->sk_classid;
+		*dest = sk->sk_classid;
 		break;
 #endif
 	default:

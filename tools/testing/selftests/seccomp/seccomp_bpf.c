@@ -19,15 +19,19 @@
 #include <linux/prctl.h>
 #include <linux/ptrace.h>
 #include <linux/seccomp.h>
-#include <poll.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 #include <linux/elf.h>
 #include <sys/uio.h>
+#include <sys/utsname.h>
+#include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <sys/times.h>
 
 #define _GNU_SOURCE
 #include <unistd.h>
@@ -428,14 +432,16 @@ TEST_SIGNAL(KILL_one, SIGSYS)
 
 TEST_SIGNAL(KILL_one_arg_one, SIGSYS)
 {
+	void *fatal_address;
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_getpid, 1, 0),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_times, 1, 0),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 		/* Only both with lower 32-bit for now. */
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS, syscall_arg(0)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, 0x0C0FFEE, 0, 1),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,
+			(unsigned long)&fatal_address, 0, 1),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 	};
@@ -445,7 +451,8 @@ TEST_SIGNAL(KILL_one_arg_one, SIGSYS)
 	};
 	long ret;
 	pid_t parent = getppid();
-	pid_t pid = getpid();
+	struct tms timebuf;
+	clock_t clock = times(&timebuf);
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
@@ -454,17 +461,22 @@ TEST_SIGNAL(KILL_one_arg_one, SIGSYS)
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	EXPECT_EQ(pid, syscall(__NR_getpid));
-	/* getpid() should never return. */
-	EXPECT_EQ(0, syscall(__NR_getpid, 0x0C0FFEE));
+	EXPECT_LE(clock, syscall(__NR_times, &timebuf));
+	/* times() should never return. */
+	EXPECT_EQ(0, syscall(__NR_times, &fatal_address));
 }
 
 TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 {
+#ifndef __NR_mmap2
+	int sysno = __NR_mmap;
+#else
+	int sysno = __NR_mmap2;
+#endif
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_getpid, 1, 0),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, sysno, 1, 0),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 		/* Only both with lower 32-bit for now. */
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS, syscall_arg(5)),
@@ -478,7 +490,11 @@ TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 	};
 	long ret;
 	pid_t parent = getppid();
-	pid_t pid = getpid();
+	int fd;
+	void *map1, *map2;
+	int page_size = sysconf(_SC_PAGESIZE);
+
+	ASSERT_LT(0, page_size);
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
@@ -486,10 +502,22 @@ TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 	ASSERT_EQ(0, ret);
 
+	fd = open("/dev/zero", O_RDONLY);
+	ASSERT_NE(-1, fd);
+
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	EXPECT_EQ(pid, syscall(__NR_getpid));
-	/* getpid() should never return. */
-	EXPECT_EQ(0, syscall(__NR_getpid, 1, 2, 3, 4, 5, 0x0C0FFEE));
+	map1 = (void *)syscall(sysno,
+		NULL, page_size, PROT_READ, MAP_PRIVATE, fd, page_size);
+	EXPECT_NE(MAP_FAILED, map1);
+	/* mmap2() should never return. */
+	map2 = (void *)syscall(sysno,
+		 NULL, page_size, PROT_READ, MAP_PRIVATE, fd, 0x0C0FFEE);
+	EXPECT_EQ(MAP_FAILED, map2);
+
+	/* The test failed, so clean up the resources. */
+	munmap(map1, page_size);
+	munmap(map2, page_size);
+	close(fd);
 }
 
 /* TODO(wad) add 64-bit versus 32-bit arg tests. */
@@ -1247,8 +1275,8 @@ void change_syscall(struct __test_metadata *_metadata,
 	ret = ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov);
 	EXPECT_EQ(0, ret);
 
-#if defined(__x86_64__) || defined(__i386__) || defined(__aarch64__) || \
-    defined(__powerpc__) || defined(__s390__)
+#if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
+    defined(__s390__)
 	{
 		regs.SYSCALL_NUM = syscall;
 	}
@@ -1262,6 +1290,18 @@ void change_syscall(struct __test_metadata *_metadata,
 		EXPECT_EQ(0, ret);
 	}
 
+#elif defined(__aarch64__)
+# ifndef NT_ARM_SYSTEM_CALL
+#  define NT_ARM_SYSTEM_CALL 0x404
+# endif
+	{
+		iov.iov_base = &syscall;
+		iov.iov_len = sizeof(syscall);
+		ret = ptrace(PTRACE_SETREGSET, tracee, NT_ARM_SYSTEM_CALL,
+			     &iov);
+		EXPECT_EQ(0, ret);
+	}
+
 #else
 	ASSERT_EQ(1, 0) {
 		TH_LOG("How is the syscall changed on this architecture?");
@@ -1272,6 +1312,8 @@ void change_syscall(struct __test_metadata *_metadata,
 	if (syscall == -1)
 		regs.SYSCALL_RET = 1;
 
+	iov.iov_base = &regs;
+	iov.iov_len = sizeof(regs);
 	ret = ptrace(PTRACE_SETREGSET, tracee, NT_PRSTATUS, &iov);
 	EXPECT_EQ(0, ret);
 }
@@ -2005,20 +2047,25 @@ TEST(syscall_restart)
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_read, 5, 0),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_exit, 4, 0),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_rt_sigreturn, 3, 0),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_poll, 4, 0),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_nanosleep, 4, 0),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_restart_syscall, 4, 0),
 
 		/* Allow __NR_write for easy logging. */
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_write, 0, 1),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_TRACE|0x100), /* poll */
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_TRACE|0x200), /* restart */
+		/* The nanosleep jump target. */
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_TRACE|0x100),
+		/* The restart_syscall jump target. */
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_TRACE|0x200),
 	};
 	struct sock_fprog prog = {
 		.len = (unsigned short)ARRAY_SIZE(filter),
 		.filter = filter,
 	};
+#if defined(__arm__)
+	struct utsname utsbuf;
+#endif
 
 	ASSERT_EQ(0, pipe(pipefd));
 
@@ -2027,10 +2074,7 @@ TEST(syscall_restart)
 	if (child_pid == 0) {
 		/* Child uses EXPECT not ASSERT to deliver status correctly. */
 		char buf = ' ';
-		struct pollfd fds = {
-			.fd = pipefd[0],
-			.events = POLLIN,
-		};
+		struct timespec timeout = { };
 
 		/* Attach parent as tracer and stop. */
 		EXPECT_EQ(0, ptrace(PTRACE_TRACEME));
@@ -2054,10 +2098,11 @@ TEST(syscall_restart)
 			TH_LOG("Failed to get sync data from read()");
 		}
 
-		/* Start poll to be interrupted. */
+		/* Start nanosleep to be interrupted. */
+		timeout.tv_sec = 1;
 		errno = 0;
-		EXPECT_EQ(1, poll(&fds, 1, -1)) {
-			TH_LOG("Call to poll() failed (errno %d)", errno);
+		EXPECT_EQ(0, nanosleep(&timeout, NULL)) {
+			TH_LOG("Call to nanosleep() failed (errno %d)", errno);
 		}
 
 		/* Read final sync from parent. */
@@ -2082,14 +2127,14 @@ TEST(syscall_restart)
 	ASSERT_EQ(0, ptrace(PTRACE_CONT, child_pid, NULL, 0));
 	ASSERT_EQ(1, write(pipefd[1], ".", 1));
 
-	/* Wait for poll() to start. */
+	/* Wait for nanosleep() to start. */
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
 	ASSERT_EQ(true, WIFSTOPPED(status));
 	ASSERT_EQ(SIGTRAP, WSTOPSIG(status));
 	ASSERT_EQ(PTRACE_EVENT_SECCOMP, (status >> 16));
 	ASSERT_EQ(0, ptrace(PTRACE_GETEVENTMSG, child_pid, NULL, &msg));
 	ASSERT_EQ(0x100, msg);
-	EXPECT_EQ(__NR_poll, get_syscall(_metadata, child_pid));
+	EXPECT_EQ(__NR_nanosleep, get_syscall(_metadata, child_pid));
 
 	/* Might as well check siginfo for sanity while we're here. */
 	ASSERT_EQ(0, ptrace(PTRACE_GETSIGINFO, child_pid, NULL, &info));
@@ -2100,7 +2145,7 @@ TEST(syscall_restart)
 	/* Verify signal delivery came from child (seccomp-triggered). */
 	EXPECT_EQ(child_pid, info.si_pid);
 
-	/* Interrupt poll with SIGSTOP (which we'll need to handle). */
+	/* Interrupt nanosleep with SIGSTOP (which we'll need to handle). */
 	ASSERT_EQ(0, kill(child_pid, SIGSTOP));
 	ASSERT_EQ(0, ptrace(PTRACE_CONT, child_pid, NULL, 0));
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
@@ -2110,7 +2155,7 @@ TEST(syscall_restart)
 	ASSERT_EQ(0, ptrace(PTRACE_GETSIGINFO, child_pid, NULL, &info));
 	EXPECT_EQ(getpid(), info.si_pid);
 
-	/* Restart poll with SIGCONT, which triggers restart_syscall. */
+	/* Restart nanosleep with SIGCONT, which triggers restart_syscall. */
 	ASSERT_EQ(0, kill(child_pid, SIGCONT));
 	ASSERT_EQ(0, ptrace(PTRACE_CONT, child_pid, NULL, 0));
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
@@ -2124,16 +2169,25 @@ TEST(syscall_restart)
 	ASSERT_EQ(SIGTRAP, WSTOPSIG(status));
 	ASSERT_EQ(PTRACE_EVENT_SECCOMP, (status >> 16));
 	ASSERT_EQ(0, ptrace(PTRACE_GETEVENTMSG, child_pid, NULL, &msg));
+
 	ASSERT_EQ(0x200, msg);
 	ret = get_syscall(_metadata, child_pid);
 #if defined(__arm__)
-	/* FIXME: ARM does not expose true syscall in registers. */
-	EXPECT_EQ(__NR_poll, ret);
-#else
-	EXPECT_EQ(__NR_restart_syscall, ret);
+	/*
+	 * FIXME:
+	 * - native ARM registers do NOT expose true syscall.
+	 * - compat ARM registers on ARM64 DO expose true syscall.
+	 */
+	ASSERT_EQ(0, uname(&utsbuf));
+	if (strncmp(utsbuf.machine, "arm", 3) == 0) {
+		EXPECT_EQ(__NR_nanosleep, ret);
+	} else
 #endif
+	{
+		EXPECT_EQ(__NR_restart_syscall, ret);
+	}
 
-	/* Write again to end poll. */
+	/* Write again to end test. */
 	ASSERT_EQ(0, ptrace(PTRACE_CONT, child_pid, NULL, 0));
 	ASSERT_EQ(1, write(pipefd[1], "!", 1));
 	EXPECT_EQ(0, close(pipefd[1]));

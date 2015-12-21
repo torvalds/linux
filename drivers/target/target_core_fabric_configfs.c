@@ -35,8 +35,6 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_fabric_configfs.h>
-#include <target/configfs_macros.h>
 
 #include "target_core_internal.h"
 #include "target_core_alua.h"
@@ -152,17 +150,16 @@ static int target_fabric_mappedlun_unlink(
 	return core_dev_del_initiator_node_lun_acl(lun, lacl);
 }
 
-CONFIGFS_EATTR_STRUCT(target_fabric_mappedlun, se_lun_acl);
-#define TCM_MAPPEDLUN_ATTR(_name, _mode)				\
-static struct target_fabric_mappedlun_attribute target_fabric_mappedlun_##_name = \
-	__CONFIGFS_EATTR(_name, _mode,					\
-	target_fabric_mappedlun_show_##_name,				\
-	target_fabric_mappedlun_store_##_name);
-
-static ssize_t target_fabric_mappedlun_show_write_protect(
-	struct se_lun_acl *lacl,
-	char *page)
+static struct se_lun_acl *item_to_lun_acl(struct config_item *item)
 {
+	return container_of(to_config_group(item), struct se_lun_acl,
+			se_lun_group);
+}
+
+static ssize_t target_fabric_mappedlun_write_protect_show(
+		struct config_item *item, char *page)
+{
+	struct se_lun_acl *lacl = item_to_lun_acl(item);
 	struct se_node_acl *se_nacl = lacl->se_lun_nacl;
 	struct se_dev_entry *deve;
 	ssize_t len = 0;
@@ -178,11 +175,10 @@ static ssize_t target_fabric_mappedlun_show_write_protect(
 	return len;
 }
 
-static ssize_t target_fabric_mappedlun_store_write_protect(
-	struct se_lun_acl *lacl,
-	const char *page,
-	size_t count)
+static ssize_t target_fabric_mappedlun_write_protect_store(
+		struct config_item *item, const char *page, size_t count)
 {
+	struct se_lun_acl *lacl = item_to_lun_acl(item);
 	struct se_node_acl *se_nacl = lacl->se_lun_nacl;
 	struct se_portal_group *se_tpg = se_nacl->se_tpg;
 	unsigned long op;
@@ -209,9 +205,12 @@ static ssize_t target_fabric_mappedlun_store_write_protect(
 
 }
 
-TCM_MAPPEDLUN_ATTR(write_protect, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(target_fabric_mappedlun_, write_protect);
 
-CONFIGFS_EATTR_OPS(target_fabric_mappedlun, se_lun_acl, se_lun_group);
+static struct configfs_attribute *target_fabric_mappedlun_attrs[] = {
+	&target_fabric_mappedlun_attr_write_protect,
+	NULL,
+};
 
 static void target_fabric_mappedlun_release(struct config_item *item)
 {
@@ -222,15 +221,8 @@ static void target_fabric_mappedlun_release(struct config_item *item)
 	core_dev_free_initiator_node_lun_acl(se_tpg, lacl);
 }
 
-static struct configfs_attribute *target_fabric_mappedlun_attrs[] = {
-	&target_fabric_mappedlun_write_protect.attr,
-	NULL,
-};
-
 static struct configfs_item_operations target_fabric_mappedlun_item_ops = {
 	.release		= target_fabric_mappedlun_release,
-	.show_attribute		= target_fabric_mappedlun_attr_show,
-	.store_attribute	= target_fabric_mappedlun_attr_store,
 	.allow_link		= target_fabric_mappedlun_link,
 	.drop_link		= target_fabric_mappedlun_unlink,
 };
@@ -266,48 +258,11 @@ TF_CIT_SETUP(tpg_mappedlun_stat, NULL, &target_fabric_mappedlun_stat_group_ops,
 
 /* End of tfc_tpg_mappedlun_port_cit */
 
-/* Start of tfc_tpg_nacl_attrib_cit */
-
-CONFIGFS_EATTR_OPS(target_fabric_nacl_attrib, se_node_acl, acl_attrib_group);
-
-static struct configfs_item_operations target_fabric_nacl_attrib_item_ops = {
-	.show_attribute		= target_fabric_nacl_attrib_attr_show,
-	.store_attribute	= target_fabric_nacl_attrib_attr_store,
-};
-
-TF_CIT_SETUP_DRV(tpg_nacl_attrib, &target_fabric_nacl_attrib_item_ops, NULL);
-
-/* End of tfc_tpg_nacl_attrib_cit */
-
-/* Start of tfc_tpg_nacl_auth_cit */
-
-CONFIGFS_EATTR_OPS(target_fabric_nacl_auth, se_node_acl, acl_auth_group);
-
-static struct configfs_item_operations target_fabric_nacl_auth_item_ops = {
-	.show_attribute		= target_fabric_nacl_auth_attr_show,
-	.store_attribute	= target_fabric_nacl_auth_attr_store,
-};
-
-TF_CIT_SETUP_DRV(tpg_nacl_auth, &target_fabric_nacl_auth_item_ops, NULL);
-
-/* End of tfc_tpg_nacl_auth_cit */
-
-/* Start of tfc_tpg_nacl_param_cit */
-
-CONFIGFS_EATTR_OPS(target_fabric_nacl_param, se_node_acl, acl_param_group);
-
-static struct configfs_item_operations target_fabric_nacl_param_item_ops = {
-	.show_attribute		= target_fabric_nacl_param_attr_show,
-	.store_attribute	= target_fabric_nacl_param_attr_store,
-};
-
-TF_CIT_SETUP_DRV(tpg_nacl_param, &target_fabric_nacl_param_item_ops, NULL);
-
-/* End of tfc_tpg_nacl_param_cit */
+TF_CIT_SETUP_DRV(tpg_nacl_attrib, NULL, NULL);
+TF_CIT_SETUP_DRV(tpg_nacl_auth, NULL, NULL);
+TF_CIT_SETUP_DRV(tpg_nacl_param, NULL, NULL);
 
 /* Start of tfc_tpg_nacl_base_cit */
-
-CONFIGFS_EATTR_OPS(target_fabric_nacl_base, se_node_acl, acl_group);
 
 static struct config_group *target_fabric_make_mappedlun(
 	struct config_group *group,
@@ -438,8 +393,6 @@ static void target_fabric_nacl_base_release(struct config_item *item)
 
 static struct configfs_item_operations target_fabric_nacl_base_item_ops = {
 	.release		= target_fabric_nacl_base_release,
-	.show_attribute		= target_fabric_nacl_base_attr_show,
-	.store_attribute	= target_fabric_nacl_base_attr_store,
 };
 
 static struct configfs_group_operations target_fabric_nacl_base_group_ops = {
@@ -540,8 +493,6 @@ TF_CIT_SETUP(tpg_nacl, NULL, &target_fabric_nacl_group_ops, NULL);
 
 /* Start of tfc_tpg_np_base_cit */
 
-CONFIGFS_EATTR_OPS(target_fabric_np_base, se_tpg_np, tpg_np_group);
-
 static void target_fabric_np_base_release(struct config_item *item)
 {
 	struct se_tpg_np *se_tpg_np = container_of(to_config_group(item),
@@ -554,8 +505,6 @@ static void target_fabric_np_base_release(struct config_item *item)
 
 static struct configfs_item_operations target_fabric_np_base_item_ops = {
 	.release		= target_fabric_np_base_release,
-	.show_attribute		= target_fabric_np_base_attr_show,
-	.store_attribute	= target_fabric_np_base_attr_store,
 };
 
 TF_CIT_SETUP_DRV(tpg_np_base, &target_fabric_np_base_item_ops, NULL);
@@ -610,131 +559,112 @@ TF_CIT_SETUP(tpg_np, NULL, &target_fabric_np_group_ops, NULL);
 
 /* Start of tfc_tpg_port_cit */
 
-CONFIGFS_EATTR_STRUCT(target_fabric_port, se_lun);
-#define TCM_PORT_ATTR(_name, _mode)					\
-static struct target_fabric_port_attribute target_fabric_port_##_name =	\
-	__CONFIGFS_EATTR(_name, _mode,					\
-	target_fabric_port_show_attr_##_name,				\
-	target_fabric_port_store_attr_##_name);
-
-#define TCM_PORT_ATTOR_RO(_name)					\
-	__CONFIGFS_EATTR_RO(_name,					\
-	target_fabric_port_show_attr_##_name);
-
-/*
- * alua_tg_pt_gp
- */
-static ssize_t target_fabric_port_show_attr_alua_tg_pt_gp(
-	struct se_lun *lun,
-	char *page)
+static struct se_lun *item_to_lun(struct config_item *item)
 {
+	return container_of(to_config_group(item), struct se_lun,
+			lun_group);
+}
+
+static ssize_t target_fabric_port_alua_tg_pt_gp_show(struct config_item *item,
+		char *page)
+{
+	struct se_lun *lun = item_to_lun(item);
+
 	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_tg_pt_gp_info(lun, page);
 }
 
-static ssize_t target_fabric_port_store_attr_alua_tg_pt_gp(
-	struct se_lun *lun,
-	const char *page,
-	size_t count)
+static ssize_t target_fabric_port_alua_tg_pt_gp_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_lun *lun = item_to_lun(item);
+
 	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_tg_pt_gp_info(lun, page, count);
 }
 
-TCM_PORT_ATTR(alua_tg_pt_gp, S_IRUGO | S_IWUSR);
-
-/*
- * alua_tg_pt_offline
- */
-static ssize_t target_fabric_port_show_attr_alua_tg_pt_offline(
-	struct se_lun *lun,
-	char *page)
+static ssize_t target_fabric_port_alua_tg_pt_offline_show(
+		struct config_item *item, char *page)
 {
+	struct se_lun *lun = item_to_lun(item);
+
 	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_offline_bit(lun, page);
 }
 
-static ssize_t target_fabric_port_store_attr_alua_tg_pt_offline(
-	struct se_lun *lun,
-	const char *page,
-	size_t count)
+static ssize_t target_fabric_port_alua_tg_pt_offline_store(
+		struct config_item *item, const char *page, size_t count)
 {
+	struct se_lun *lun = item_to_lun(item);
+
 	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_offline_bit(lun, page, count);
 }
 
-TCM_PORT_ATTR(alua_tg_pt_offline, S_IRUGO | S_IWUSR);
-
-/*
- * alua_tg_pt_status
- */
-static ssize_t target_fabric_port_show_attr_alua_tg_pt_status(
-	struct se_lun *lun,
-	char *page)
+static ssize_t target_fabric_port_alua_tg_pt_status_show(
+		struct config_item *item, char *page)
 {
+	struct se_lun *lun = item_to_lun(item);
+
 	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_secondary_status(lun, page);
 }
 
-static ssize_t target_fabric_port_store_attr_alua_tg_pt_status(
-	struct se_lun *lun,
-	const char *page,
-	size_t count)
+static ssize_t target_fabric_port_alua_tg_pt_status_store(
+		struct config_item *item, const char *page, size_t count)
 {
+	struct se_lun *lun = item_to_lun(item);
+
 	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_secondary_status(lun, page, count);
 }
 
-TCM_PORT_ATTR(alua_tg_pt_status, S_IRUGO | S_IWUSR);
-
-/*
- * alua_tg_pt_write_md
- */
-static ssize_t target_fabric_port_show_attr_alua_tg_pt_write_md(
-	struct se_lun *lun,
-	char *page)
+static ssize_t target_fabric_port_alua_tg_pt_write_md_show(
+		struct config_item *item, char *page)
 {
+	struct se_lun *lun = item_to_lun(item);
+
 	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_secondary_write_metadata(lun, page);
 }
 
-static ssize_t target_fabric_port_store_attr_alua_tg_pt_write_md(
-	struct se_lun *lun,
-	const char *page,
-	size_t count)
+static ssize_t target_fabric_port_alua_tg_pt_write_md_store(
+		struct config_item *item, const char *page, size_t count)
 {
+	struct se_lun *lun = item_to_lun(item);
+
 	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_secondary_write_metadata(lun, page, count);
 }
 
-TCM_PORT_ATTR(alua_tg_pt_write_md, S_IRUGO | S_IWUSR);
-
+CONFIGFS_ATTR(target_fabric_port_, alua_tg_pt_gp);
+CONFIGFS_ATTR(target_fabric_port_, alua_tg_pt_offline);
+CONFIGFS_ATTR(target_fabric_port_, alua_tg_pt_status);
+CONFIGFS_ATTR(target_fabric_port_, alua_tg_pt_write_md);
 
 static struct configfs_attribute *target_fabric_port_attrs[] = {
-	&target_fabric_port_alua_tg_pt_gp.attr,
-	&target_fabric_port_alua_tg_pt_offline.attr,
-	&target_fabric_port_alua_tg_pt_status.attr,
-	&target_fabric_port_alua_tg_pt_write_md.attr,
+	&target_fabric_port_attr_alua_tg_pt_gp,
+	&target_fabric_port_attr_alua_tg_pt_offline,
+	&target_fabric_port_attr_alua_tg_pt_status,
+	&target_fabric_port_attr_alua_tg_pt_write_md,
 	NULL,
 };
-
-CONFIGFS_EATTR_OPS(target_fabric_port, se_lun, lun_group);
 
 static int target_fabric_port_link(
 	struct config_item *lun_ci,
@@ -821,8 +751,6 @@ static void target_fabric_port_release(struct config_item *item)
 }
 
 static struct configfs_item_operations target_fabric_port_item_ops = {
-	.show_attribute		= target_fabric_port_attr_show,
-	.store_attribute	= target_fabric_port_attr_store,
 	.release		= target_fabric_port_release,
 	.allow_link		= target_fabric_port_link,
 	.drop_link		= target_fabric_port_unlink,
@@ -952,50 +880,11 @@ TF_CIT_SETUP(tpg_lun, NULL, &target_fabric_lun_group_ops, NULL);
 
 /* End of tfc_tpg_lun_cit */
 
-/* Start of tfc_tpg_attrib_cit */
-
-CONFIGFS_EATTR_OPS(target_fabric_tpg_attrib, se_portal_group, tpg_attrib_group);
-
-static struct configfs_item_operations target_fabric_tpg_attrib_item_ops = {
-	.show_attribute		= target_fabric_tpg_attrib_attr_show,
-	.store_attribute	= target_fabric_tpg_attrib_attr_store,
-};
-
-TF_CIT_SETUP_DRV(tpg_attrib, &target_fabric_tpg_attrib_item_ops, NULL);
-
-/* End of tfc_tpg_attrib_cit */
-
-/* Start of tfc_tpg_auth_cit */
-
-CONFIGFS_EATTR_OPS(target_fabric_tpg_auth, se_portal_group, tpg_auth_group);
-
-static struct configfs_item_operations target_fabric_tpg_auth_item_ops = {
-	.show_attribute		= target_fabric_tpg_auth_attr_show,
-	.store_attribute	= target_fabric_tpg_auth_attr_store,
-};
-
-TF_CIT_SETUP_DRV(tpg_auth, &target_fabric_tpg_auth_item_ops, NULL);
-
-/* End of tfc_tpg_attrib_cit */
-
-/* Start of tfc_tpg_param_cit */
-
-CONFIGFS_EATTR_OPS(target_fabric_tpg_param, se_portal_group, tpg_param_group);
-
-static struct configfs_item_operations target_fabric_tpg_param_item_ops = {
-	.show_attribute		= target_fabric_tpg_param_attr_show,
-	.store_attribute	= target_fabric_tpg_param_attr_store,
-};
-
-TF_CIT_SETUP_DRV(tpg_param, &target_fabric_tpg_param_item_ops, NULL);
-
-/* End of tfc_tpg_param_cit */
+TF_CIT_SETUP_DRV(tpg_attrib, NULL, NULL);
+TF_CIT_SETUP_DRV(tpg_auth, NULL, NULL);
+TF_CIT_SETUP_DRV(tpg_param, NULL, NULL);
 
 /* Start of tfc_tpg_base_cit */
-/*
- * For use with TF_TPG_ATTR() and TF_TPG_ATTR_RO()
- */
-CONFIGFS_EATTR_OPS(target_fabric_tpg, se_portal_group, tpg_group);
 
 static void target_fabric_tpg_release(struct config_item *item)
 {
@@ -1009,8 +898,6 @@ static void target_fabric_tpg_release(struct config_item *item)
 
 static struct configfs_item_operations target_fabric_tpg_base_item_ops = {
 	.release		= target_fabric_tpg_release,
-	.show_attribute		= target_fabric_tpg_attr_show,
-	.store_attribute	= target_fabric_tpg_attr_store,
 };
 
 TF_CIT_SETUP_DRV(tpg_base, &target_fabric_tpg_base_item_ops, NULL);
@@ -1176,33 +1063,9 @@ static struct configfs_group_operations target_fabric_wwn_group_ops = {
 	.make_group	= target_fabric_make_wwn,
 	.drop_item	= target_fabric_drop_wwn,
 };
-/*
- * For use with TF_WWN_ATTR() and TF_WWN_ATTR_RO()
- */
-CONFIGFS_EATTR_OPS(target_fabric_wwn, target_fabric_configfs, tf_group);
 
-static struct configfs_item_operations target_fabric_wwn_item_ops = {
-	.show_attribute		= target_fabric_wwn_attr_show,
-	.store_attribute	= target_fabric_wwn_attr_store,
-};
-
-TF_CIT_SETUP_DRV(wwn, &target_fabric_wwn_item_ops, &target_fabric_wwn_group_ops);
-
-/* End of tfc_wwn_cit */
-
-/* Start of tfc_discovery_cit */
-
-CONFIGFS_EATTR_OPS(target_fabric_discovery, target_fabric_configfs,
-		tf_disc_group);
-
-static struct configfs_item_operations target_fabric_discovery_item_ops = {
-	.show_attribute		= target_fabric_discovery_attr_show,
-	.store_attribute	= target_fabric_discovery_attr_store,
-};
-
-TF_CIT_SETUP_DRV(discovery, &target_fabric_discovery_item_ops, NULL);
-
-/* End of tfc_discovery_cit */
+TF_CIT_SETUP_DRV(wwn, NULL, &target_fabric_wwn_group_ops);
+TF_CIT_SETUP_DRV(discovery, NULL, NULL);
 
 int target_fabric_setup_cits(struct target_fabric_configfs *tf)
 {

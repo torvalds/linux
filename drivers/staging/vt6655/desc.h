@@ -167,54 +167,42 @@
  * leads error.
  */
 
-typedef struct tagDEVICE_RD_INFO {
+struct vnt_rd_info {
 	struct sk_buff *skb;
 	dma_addr_t  skb_dma;
-} DEVICE_RD_INFO,   *PDEVICE_RD_INFO;
+};
 
+struct vnt_rdes0 {
+	volatile __le16 res_count;
 #ifdef __BIG_ENDIAN
-
-typedef struct tagRDES0 {
-	volatile __le16 wResCount;
 	union {
-		volatile u16    f15Reserved;
+		volatile u16 f15_reserved;
 		struct {
-			volatile u8 f8Reserved1;
-			volatile u8 f1Owner:1;
-			volatile u8 f7Reserved:7;
-		} __attribute__ ((__packed__));
-	} __attribute__ ((__packed__));
-} __attribute__ ((__packed__))
-SRDES0, *PSRDES0;
-
+			volatile u8 f8_reserved1;
+			volatile u8 owner:1;
+			volatile u8 f7_reserved:7;
+		} __packed;
+	} __packed;
 #else
-
-typedef struct tagRDES0 {
-	__le16         wResCount;
-	unsigned short f15Reserved:15;
-	unsigned short f1Owner:1;
-} __attribute__ ((__packed__))
-SRDES0;
-
+	u16 f15_reserved:15;
+	u16 owner:1;
 #endif
+} __packed;
 
-typedef struct tagRDES1 {
-	__le16	       wReqCount;
-	unsigned short wReserved;
-} __attribute__ ((__packed__))
-SRDES1;
+struct vnt_rdes1 {
+	__le16 req_count;
+	u16 reserved;
+} __packed;
 
 /* Rx descriptor*/
-typedef struct tagSRxDesc {
-	volatile SRDES0 m_rd0RD0;
-	volatile SRDES1 m_rd1RD1;
+struct vnt_rx_desc {
+	volatile struct vnt_rdes0 rd0;
+	volatile struct vnt_rdes1 rd1;
 	volatile __le32 buff_addr;
 	volatile __le32 next_desc;
-	struct tagSRxDesc *next __aligned(8);
-	volatile PDEVICE_RD_INFO pRDInfo __aligned(8);
-} __attribute__ ((__packed__))
-SRxDesc, *PSRxDesc;
-typedef const SRxDesc *PCSRxDesc;
+	struct vnt_rx_desc *next __aligned(8);
+	struct vnt_rd_info *rd_info __aligned(8);
+} __packed;
 
 struct vnt_tdes0 {
 	volatile u8 tsr0;

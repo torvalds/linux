@@ -61,7 +61,7 @@ static void virtio_timeline_value_str(struct fence *f, char *str, int size)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
-	snprintf(str, size, "%lu", atomic64_read(&fence->drv->last_seq));
+	snprintf(str, size, "%llu", (u64)atomic64_read(&fence->drv->last_seq));
 }
 
 static const struct fence_ops virtio_fence_ops = {
@@ -81,7 +81,7 @@ int virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 	struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
 	unsigned long irq_flags;
 
-	*fence = kmalloc(sizeof(struct virtio_gpu_fence), GFP_KERNEL);
+	*fence = kmalloc(sizeof(struct virtio_gpu_fence), GFP_ATOMIC);
 	if ((*fence) == NULL)
 		return -ENOMEM;
 

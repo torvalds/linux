@@ -783,17 +783,19 @@ void __init early_get_first_memblock_info(void *params, phys_addr_t *size)
 int of_get_ibm_chip_id(struct device_node *np)
 {
 	of_node_get(np);
-	while(np) {
-		struct device_node *old = np;
-		const __be32 *prop;
+	while (np) {
+		u32 chip_id;
 
-		prop = of_get_property(np, "ibm,chip-id", NULL);
-		if (prop) {
+		/*
+		 * Skiboot may produce memory nodes that contain more than one
+		 * cell in chip-id, we only read the first one here.
+		 */
+		if (!of_property_read_u32(np, "ibm,chip-id", &chip_id)) {
 			of_node_put(np);
-			return be32_to_cpup(prop);
+			return chip_id;
 		}
-		np = of_get_parent(np);
-		of_node_put(old);
+
+		np = of_get_next_parent(np);
 	}
 	return -1;
 }

@@ -45,12 +45,13 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 	if (!need_reset && btrfs_root_generation(item)
 		!= btrfs_root_generation_v2(item)) {
 		if (btrfs_root_generation_v2(item) != 0) {
-			printk(KERN_WARNING "BTRFS: mismatching "
+			btrfs_warn(eb->fs_info,
+					"mismatching "
 					"generation and generation_v2 "
 					"found in root item. This root "
 					"was probably mounted with an "
 					"older kernel. Resetting all "
-					"new fields.\n");
+					"new fields.");
 		}
 		need_reset = 1;
 	}
@@ -141,7 +142,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	int ret;
 	int slot;
 	unsigned long ptr;
-	int old_len;
+	u32 old_len;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -283,7 +284,7 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			trans = btrfs_join_transaction(tree_root);
 			if (IS_ERR(trans)) {
 				err = PTR_ERR(trans);
-				btrfs_error(tree_root->fs_info, err,
+				btrfs_std_error(tree_root->fs_info, err,
 					    "Failed to start trans to delete "
 					    "orphan item");
 				break;
@@ -292,7 +293,7 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 						    root_key.objectid);
 			btrfs_end_transaction(trans, tree_root);
 			if (err) {
-				btrfs_error(tree_root->fs_info, err,
+				btrfs_std_error(tree_root->fs_info, err,
 					    "Failed to delete root orphan "
 					    "item");
 				break;

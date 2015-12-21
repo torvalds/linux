@@ -15,9 +15,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
-#include <linux/pm_wakeirq.h>
 #include <linux/rtc/ds1307.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -117,7 +114,6 @@ struct ds1307 {
 #define HAS_ALARM	1		/* bit 1 == irq claimed */
 	struct i2c_client	*client;
 	struct rtc_device	*rtc;
-	int			wakeirq;
 	s32 (*read_block_data)(const struct i2c_client *client, u8 command,
 			       u8 length, u8 *values);
 	s32 (*write_block_data)(const struct i2c_client *client, u8 command,
@@ -718,9 +714,9 @@ static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	regs[3] = bin2bcd(t->time.tm_sec);
 	regs[4] = bin2bcd(t->time.tm_min);
 	regs[5] = bin2bcd(t->time.tm_hour);
-	regs[6] = bin2bcd(t->time.tm_wday) + 1;
+	regs[6] = bin2bcd(t->time.tm_wday + 1);
 	regs[7] = bin2bcd(t->time.tm_mday);
-	regs[8] = bin2bcd(t->time.tm_mon) + 1;
+	regs[8] = bin2bcd(t->time.tm_mon + 1);
 
 	/* Clear the alarm 0 interrupt flag. */
 	regs[6] &= ~MCP794XX_BIT_ALMX_IF;
@@ -1138,7 +1134,10 @@ read_rtc:
 				bin2bcd(tmp));
 	}
 
-	device_set_wakeup_capable(&client->dev, want_irq);
+	if (want_irq) {
+		device_set_wakeup_capable(&client->dev, true);
+		set_bit(HAS_ALARM, &ds1307->flags);
+	}
 	ds1307->rtc = devm_rtc_device_register(&client->dev, client->name,
 				rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1307->rtc)) {
@@ -1146,43 +1145,19 @@ read_rtc:
 	}
 
 	if (want_irq) {
-		struct device_node *node = client->dev.of_node;
-
 		err = devm_request_threaded_irq(&client->dev,
 						client->irq, NULL, irq_handler,
 						IRQF_SHARED | IRQF_ONESHOT,
 						ds1307->rtc->name, client);
 		if (err) {
 			client->irq = 0;
+			device_set_wakeup_capable(&client->dev, false);
+			clear_bit(HAS_ALARM, &ds1307->flags);
 			dev_err(&client->dev, "unable to request IRQ!\n");
-			goto no_irq;
-		}
-
-		set_bit(HAS_ALARM, &ds1307->flags);
-		dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
-
-		/* Currently supported by OF code only! */
-		if (!node)
-			goto no_irq;
-
-		err = of_irq_get(node, 1);
-		if (err <= 0) {
-			if (err == -EPROBE_DEFER)
-				goto exit;
-			goto no_irq;
-		}
-		ds1307->wakeirq = err;
-
-		err = dev_pm_set_dedicated_wake_irq(&client->dev,
-						    ds1307->wakeirq);
-		if (err) {
-			dev_err(&client->dev, "unable to setup wakeIRQ %d!\n",
-				err);
-			goto exit;
-		}
+		} else
+			dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
 	}
 
-no_irq:
 	if (chip->nvram_size) {
 
 		ds1307->nvram = devm_kzalloc(&client->dev,
@@ -1225,9 +1200,6 @@ exit:
 static int ds1307_remove(struct i2c_client *client)
 {
 	struct ds1307 *ds1307 = i2c_get_clientdata(client);
-
-	if (ds1307->wakeirq)
-		dev_pm_clear_wake_irq(&client->dev);
 
 	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags))
 		sysfs_remove_bin_file(&client->dev.kobj, ds1307->nvram);

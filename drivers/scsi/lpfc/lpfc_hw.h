@@ -33,7 +33,7 @@
 
 #define FF_DEF_EDTOV          2000	/* Default E_D_TOV (2000ms) */
 #define FF_DEF_ALTOV            15	/* Default AL_TIME (15ms) */
-#define FF_DEF_RATOV             2	/* Default RA_TOV (2s) */
+#define FF_DEF_RATOV            10	/* Default RA_TOV (10s) */
 #define FF_DEF_ARBTOV         1900	/* Default ARB_TOV (1900ms) */
 
 #define LPFC_BUF_RING0        64	/* Number of buffers to post to RING
@@ -1400,6 +1400,7 @@ struct lpfc_fdmi_reg_portattr {
 #define PCI_DEVICE_ID_LANCER_FC_VF  0xe208
 #define PCI_DEVICE_ID_LANCER_FCOE   0xe260
 #define PCI_DEVICE_ID_LANCER_FCOE_VF 0xe268
+#define PCI_DEVICE_ID_LANCER_G6_FC  0xe300
 #define PCI_DEVICE_ID_SAT_SMB       0xf011
 #define PCI_DEVICE_ID_SAT_MID       0xf015
 #define PCI_DEVICE_ID_RFLY          0xf095
@@ -2075,6 +2076,7 @@ typedef struct {
 #define LINK_SPEED_8G   0x8     /* 8 Gigabaud */
 #define LINK_SPEED_10G  0x10    /* 10 Gigabaud */
 #define LINK_SPEED_16G  0x11    /* 16 Gigabaud */
+#define LINK_SPEED_32G  0x14    /* 32 Gigabaud */
 
 } INIT_LINK_VAR;
 
@@ -2246,6 +2248,7 @@ typedef struct {
 #define LMT_8Gb       0x080
 #define LMT_10Gb      0x100
 #define LMT_16Gb      0x200
+#define LMT_32Gb      0x400
 	uint32_t rsvd2;
 	uint32_t rsvd3;
 	uint32_t max_xri;
@@ -2727,6 +2730,7 @@ struct lpfc_mbx_read_top {
 #define LPFC_LINK_SPEED_8GHZ	0x20
 #define LPFC_LINK_SPEED_10GHZ	0x40
 #define LPFC_LINK_SPEED_16GHZ	0x80
+#define LPFC_LINK_SPEED_32GHZ	0x90
 };
 
 /* Structure for MB Command CLEAR_LA (22) */

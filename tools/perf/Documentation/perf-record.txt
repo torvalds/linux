@@ -144,7 +144,7 @@ OPTIONS
 
 --call-graph::
 	Setup and enable call-graph (stack chain/backtrace) recording,
-	implies -g.
+	implies -g.  Default is "fp".
 
 	Allows specifying "fp" (frame pointer) or "dwarf"
 	(DWARF's CFI - Call Frame Information) or "lbr"
@@ -154,12 +154,17 @@ OPTIONS
 	In some systems, where binaries are build with gcc
 	--fomit-frame-pointer, using the "fp" method will produce bogus
 	call graphs, using "dwarf", if available (perf tools linked to
-	the libunwind library) should be used instead.
+	the libunwind or libdw library) should be used instead.
 	Using the "lbr" method doesn't require any compiler options. It
 	will produce call graphs from the hardware LBR registers. The
 	main limition is that it is only available on new Intel
 	platforms, such as Haswell. It can only get user call chain. It
 	doesn't work with branch stack sampling at the same time.
+
+	When "dwarf" recording is used, perf also records (user) stack dump
+	when sampled.  Default size of the stack dump is 8192 (bytes).
+	User can change the size by passing the size after comma like
+	"--call-graph dwarf,4096".
 
 -q::
 --quiet::
@@ -236,6 +241,7 @@ following filters are defined:
         - any_call: any function call or system call
         - any_ret: any function return or system call return
         - ind_call: any indirect branch
+        - call: direct calls, including far (to/from kernel) calls
         - u:  only when the branch target is at the user level
         - k: only when the branch target is in the kernel
         - hv: only when the target is at the hypervisor level
@@ -307,6 +313,12 @@ This option sets the time out limit. The default value is 500 ms.
 --switch-events::
 Record context switch events i.e. events of type PERF_RECORD_SWITCH or
 PERF_RECORD_SWITCH_CPU_WIDE.
+
+--clang-path::
+Path to clang binary to use for compiling BPF scriptlets.
+
+--clang-opt::
+Options passed to clang when compiling BPF scriptlets.
 
 SEE ALSO
 --------

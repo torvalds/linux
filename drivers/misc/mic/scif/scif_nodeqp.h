@@ -74,7 +74,28 @@
 #define SCIF_CLIENT_SENT 16 /* Notify the peer that data has been written */
 #define SCIF_CLIENT_RCVD 17 /* Notify the peer that data has been read */
 #define SCIF_GET_NODE_INFO 18 /* Get current node mask from the mgmt node*/
-#define SCIF_MAX_MSG SCIF_GET_NODE_INFO
+#define SCIF_REGISTER 19 /* Tell peer about a new registered window */
+#define SCIF_REGISTER_ACK 20 /* Notify peer about unregistration success */
+#define SCIF_REGISTER_NACK 21 /* Notify peer about registration success */
+#define SCIF_UNREGISTER 22 /* Tell peer about unregistering a window */
+#define SCIF_UNREGISTER_ACK 23 /* Notify peer about registration failure */
+#define SCIF_UNREGISTER_NACK 24 /* Notify peer about unregistration failure */
+#define SCIF_ALLOC_REQ 25 /* Request a mapped buffer */
+#define SCIF_ALLOC_GNT 26 /* Notify peer about allocation success */
+#define SCIF_ALLOC_REJ 27 /* Notify peer about allocation failure */
+#define SCIF_FREE_VIRT 28 /* Free previously allocated virtual memory */
+#define SCIF_MUNMAP 29 /* Acknowledgment for a SCIF_MMAP request */
+#define SCIF_MARK 30 /* SCIF Remote Fence Mark Request */
+#define SCIF_MARK_ACK 31 /* SCIF Remote Fence Mark Success */
+#define SCIF_MARK_NACK 32 /* SCIF Remote Fence Mark Failure */
+#define SCIF_WAIT 33 /* SCIF Remote Fence Wait Request */
+#define SCIF_WAIT_ACK 34 /* SCIF Remote Fence Wait Success */
+#define SCIF_WAIT_NACK 35 /* SCIF Remote Fence Wait Failure */
+#define SCIF_SIG_LOCAL 36 /* SCIF Remote Fence Local Signal Request */
+#define SCIF_SIG_REMOTE 37 /* SCIF Remote Fence Remote Signal Request */
+#define SCIF_SIG_ACK 38 /* SCIF Remote Fence Remote Signal Success */
+#define SCIF_SIG_NACK 39 /* SCIF Remote Fence Remote Signal Failure */
+#define SCIF_MAX_MSG SCIF_SIG_NACK
 
 /*
  * struct scifmsg - Node QP message format
@@ -90,6 +111,24 @@ struct scifmsg {
 	u32 uop;
 	u64 payload[4];
 } __packed;
+
+/*
+ * struct scif_allocmsg - Used with SCIF_ALLOC_REQ to request
+ * the remote note to allocate memory
+ *
+ * phys_addr: Physical address of the buffer
+ * vaddr: Virtual address of the buffer
+ * size: Size of the buffer
+ * state: Current state
+ * allocwq: wait queue for status
+ */
+struct scif_allocmsg {
+	dma_addr_t phys_addr;
+	unsigned long vaddr;
+	size_t size;
+	enum scif_msg_state state;
+	wait_queue_head_t allocwq;
+};
 
 /*
  * struct scif_qp - Node Queue Pair
@@ -158,7 +197,6 @@ int scif_setup_qp_connect_response(struct scif_dev *scifdev,
 int scif_setup_loopback_qp(struct scif_dev *scifdev);
 int scif_destroy_loopback_qp(struct scif_dev *scifdev);
 void scif_poll_qp_state(struct work_struct *work);
-void scif_qp_response_ack(struct work_struct *work);
 void scif_destroy_p2p(struct scif_dev *scifdev);
 void scif_send_exit(struct scif_dev *scifdev);
 static inline struct device *scif_get_peer_dev(struct scif_dev *scifdev)

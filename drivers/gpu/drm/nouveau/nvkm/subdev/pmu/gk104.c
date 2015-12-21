@@ -27,6 +27,7 @@
 #include "fuc/gf119.fuc4.h"
 
 #include <core/option.h>
+#include <subdev/fuse.h>
 #include <subdev/timer.h>
 
 static void
@@ -56,6 +57,9 @@ static void
 gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
 	struct nvkm_device *device = pmu->subdev.device;
+
+	if (!(nvkm_fuse_read(device->fuse, 0x31c) & 0x00000001))
+		return;
 
 	nvkm_mask(device, 0x000200, 0x00001000, 0x00000000);
 	nvkm_rd32(device, 0x000200);

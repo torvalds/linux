@@ -68,6 +68,18 @@ static inline const uuid_le *mei_me_cl_uuid(const struct mei_me_client *me_cl)
 	return &me_cl->props.protocol_name;
 }
 
+/**
+ * mei_me_cl_ver - return me client protocol version
+ *
+ * @me_cl: me client
+ *
+ * Return: me client protocol version
+ */
+static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
+{
+	return me_cl->props.protocol_version;
+}
+
 /*
  * MEI IO Functions
  */

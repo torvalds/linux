@@ -1839,14 +1839,18 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 					    bssid, timestamp,
 					    cap_info_bitmap, beacon_period,
 					    ie_buf, ie_len, rssi, GFP_KERNEL);
-			bss_priv = (struct mwifiex_bss_priv *)bss->priv;
-			bss_priv->band = band;
-			bss_priv->fw_tsf = fw_tsf;
-			if (priv->media_connected &&
-			    !memcmp(bssid, priv->curr_bss_params.bss_descriptor
-				    .mac_address, ETH_ALEN))
-				mwifiex_update_curr_bss_params(priv, bss);
-			cfg80211_put_bss(priv->wdev.wiphy, bss);
+			if (bss) {
+				bss_priv = (struct mwifiex_bss_priv *)bss->priv;
+				bss_priv->band = band;
+				bss_priv->fw_tsf = fw_tsf;
+				if (priv->media_connected &&
+				    !memcmp(bssid, priv->curr_bss_params.
+					    bss_descriptor.mac_address,
+					    ETH_ALEN))
+					mwifiex_update_curr_bss_params(priv,
+								       bss);
+				cfg80211_put_bss(priv->wdev.wiphy, bss);
+			}
 
 			if ((chan->flags & IEEE80211_CHAN_RADAR) ||
 			    (chan->flags & IEEE80211_CHAN_NO_IR)) {
@@ -1889,7 +1893,7 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 	u8 id = 0;
 	struct mwifiex_user_scan_cfg  *user_scan_cfg;
 
-	if (adapter->active_scan_triggered) {
+	if (adapter->active_scan_triggered || !priv->scan_request) {
 		adapter->active_scan_triggered = false;
 		return 0;
 	}

@@ -98,10 +98,6 @@ void jent_get_nstime(__u64 *out)
 	 * If random_get_entropy does not return a value (which is possible on,
 	 * for example, MIPS), invoke __getnstimeofday
 	 * hoping that there are timers we can work with.
-	 *
-	 * The list of available timers can be obtained from
-	 * /sys/devices/system/clocksource/clocksource0/available_clocksource
-	 * and are registered with clocksource_register()
 	 */
 	if ((0 == tmp) &&
 	   (0 == __getnstimeofday(&ts))) {

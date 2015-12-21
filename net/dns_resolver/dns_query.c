@@ -67,10 +67,10 @@
  * Returns the size of the result on success, -ve error code otherwise.
  */
 int dns_query(const char *type, const char *name, size_t namelen,
-	      const char *options, char **_result, time_t *_expiry)
+	      const char *options, char **_result, time64_t *_expiry)
 {
 	struct key *rkey;
-	struct user_key_payload *upayload;
+	const struct user_key_payload *upayload;
 	const struct cred *saved_cred;
 	size_t typelen, desclen;
 	char *desc, *cp;
@@ -137,12 +137,11 @@ int dns_query(const char *type, const char *name, size_t namelen,
 		goto put;
 
 	/* If the DNS server gave an error, return that to the caller */
-	ret = rkey->type_data.x[0];
+	ret = PTR_ERR(rkey->payload.data[dns_key_error]);
 	if (ret)
 		goto put;
 
-	upayload = rcu_dereference_protected(rkey->payload.data,
-					     lockdep_is_held(&rkey->sem));
+	upayload = user_key_payload(rkey);
 	len = upayload->datalen;
 
 	ret = -ENOMEM;

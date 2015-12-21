@@ -106,8 +106,6 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 static void ocfs2_double_unlock(struct inode *inode1, struct inode *inode2);
 /* An orphan dir name is an 8 byte value, printed as a hex string */
 #define OCFS2_ORPHAN_NAMELEN ((int)(2 * sizeof(u64)))
-#define OCFS2_DIO_ORPHAN_PREFIX "dio-"
-#define OCFS2_DIO_ORPHAN_PREFIX_LEN 4
 
 static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags)
@@ -374,6 +372,8 @@ static int ocfs2_mknod(struct inode *dir,
 		mlog_errno(status);
 		goto leave;
 	}
+	/* update inode->i_mode after mask with "umask". */
+	inode->i_mode = mode;
 
 	handle = ocfs2_start_trans(osb, ocfs2_mknod_credits(osb->sb,
 							    S_ISDIR(mode),
@@ -657,9 +657,18 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 		return status;
 	}
 
-	return __ocfs2_mknod_locked(dir, inode, dev, new_fe_bh,
+	status = __ocfs2_mknod_locked(dir, inode, dev, new_fe_bh,
 				    parent_fe_bh, handle, inode_ac,
 				    fe_blkno, suballoc_loc, suballoc_bit);
+	if (status < 0) {
+		u64 bg_blkno = ocfs2_which_suballoc_group(fe_blkno, suballoc_bit);
+		int tmp = ocfs2_free_suballoc_bits(handle, inode_ac->ac_inode,
+				inode_ac->ac_bh, suballoc_bit, bg_blkno, 1);
+		if (tmp)
+			mlog_errno(tmp);
+	}
+
+	return status;
 }
 
 static int ocfs2_mkdir(struct inode *dir,

@@ -203,7 +203,6 @@ MODULE_DEVICE_TABLE(spi, mcp4922_id);
 static struct spi_driver mcp4922_driver = {
 	.driver = {
 		   .name = "mcp4922",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = mcp4922_probe,
 	.remove = mcp4922_remove,

@@ -1567,6 +1567,9 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 	int ret, i;
 	u16 tmp16;
 
+	if (pci_is_root_bus(adev->pdev->bus))
+		return;
+
 	if (amdgpu_pcie_gen2 == 0)
 		return;
 

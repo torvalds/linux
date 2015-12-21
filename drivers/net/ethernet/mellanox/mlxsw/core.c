@@ -287,7 +287,7 @@ static void mlxsw_emad_pack_op_tlv(char *op_tlv,
 	mlxsw_emad_op_tlv_status_set(op_tlv, 0);
 	mlxsw_emad_op_tlv_register_id_set(op_tlv, reg->id);
 	mlxsw_emad_op_tlv_r_set(op_tlv, MLXSW_EMAD_OP_TLV_REQUEST);
-	if (MLXSW_CORE_REG_ACCESS_TYPE_QUERY == type)
+	if (type == MLXSW_CORE_REG_ACCESS_TYPE_QUERY)
 		mlxsw_emad_op_tlv_method_set(op_tlv,
 					     MLXSW_EMAD_OP_TLV_METHOD_QUERY);
 	else
@@ -362,7 +362,7 @@ static bool mlxsw_emad_is_resp(const struct sk_buff *skb)
 	char *op_tlv;
 
 	op_tlv = mlxsw_emad_op_tlv(skb);
-	return (MLXSW_EMAD_OP_TLV_RESPONSE == mlxsw_emad_op_tlv_r_get(op_tlv));
+	return (mlxsw_emad_op_tlv_r_get(op_tlv) == MLXSW_EMAD_OP_TLV_RESPONSE);
 }
 
 #define MLXSW_EMAD_TIMEOUT_MS 200
@@ -374,26 +374,31 @@ static int __mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 	int err;
 	int ret;
 
+	mlxsw_core->emad.trans_active = true;
+
 	err = mlxsw_core_skb_transmit(mlxsw_core->driver_priv, skb, tx_info);
 	if (err) {
 		dev_err(mlxsw_core->bus_info->dev, "Failed to transmit EMAD (tid=%llx)\n",
 			mlxsw_core->emad.tid);
 		dev_kfree_skb(skb);
-		return err;
+		goto trans_inactive_out;
 	}
 
-	mlxsw_core->emad.trans_active = true;
 	ret = wait_event_timeout(mlxsw_core->emad.wait,
 				 !(mlxsw_core->emad.trans_active),
 				 msecs_to_jiffies(MLXSW_EMAD_TIMEOUT_MS));
 	if (!ret) {
 		dev_warn(mlxsw_core->bus_info->dev, "EMAD timed-out (tid=%llx)\n",
 			 mlxsw_core->emad.tid);
-		mlxsw_core->emad.trans_active = false;
-		return -EIO;
+		err = -EIO;
+		goto trans_inactive_out;
 	}
 
 	return 0;
+
+trans_inactive_out:
+	mlxsw_core->emad.trans_active = false;
+	return err;
 }
 
 static int mlxsw_emad_process_status(struct mlxsw_core *mlxsw_core,
@@ -506,7 +511,6 @@ static int mlxsw_emad_traps_set(struct mlxsw_core *mlxsw_core)
 		return err;
 
 	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,
-			    MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
 			    MLXSW_TRAP_ID_ETHEMAD);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 }
@@ -551,8 +555,8 @@ static void mlxsw_emad_fini(struct mlxsw_core *mlxsw_core)
 {
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 
+	mlxsw_core->emad.use_emad = false;
 	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_DISCARD,
-			    MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
 			    MLXSW_TRAP_ID_ETHEMAD);
 	mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 

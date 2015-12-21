@@ -20,10 +20,10 @@ struct r8a7778_cpg {
 };
 
 /* PLL multipliers per bits 11, 12, and 18 of MODEMR */
-struct {
+static const struct {
 	unsigned long plla_mult;
 	unsigned long pllb_mult;
-} r8a7778_rates[] __initdata = {
+} r8a7778_rates[] __initconst = {
 	[0] = { 21, 21 },
 	[1] = { 24, 24 },
 	[2] = { 28, 28 },
@@ -34,10 +34,10 @@ struct {
 };
 
 /* Clock dividers per bits 1 and 2 of MODEMR */
-struct {
+static const struct {
 	const char *name;
 	unsigned int div[4];
-} r8a7778_divs[6] __initdata = {
+} r8a7778_divs[6] __initconst = {
 	{ "b",   { 12, 12, 16, 18 } },
 	{ "out", { 12, 12, 16, 18 } },
 	{ "p",   { 16, 12, 16, 12 } },

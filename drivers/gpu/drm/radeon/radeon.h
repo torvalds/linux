@@ -1658,6 +1658,7 @@ struct radeon_pm {
 	u8                      fan_max_rpm;
 	/* dpm */
 	bool                    dpm_enabled;
+	bool                    sysfs_initialized;
 	struct radeon_dpm       dpm;
 };
 
@@ -2413,7 +2414,7 @@ struct radeon_device {
 	struct r600_ih ih; /* r6/700 interrupt ring */
 	struct radeon_rlc rlc;
 	struct radeon_mec mec;
-	struct work_struct hotplug_work;
+	struct delayed_work hotplug_work;
 	struct work_struct dp_work;
 	struct work_struct audio_work;
 	int num_crtc; /* number of crtcs */

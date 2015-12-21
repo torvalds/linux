@@ -14,11 +14,11 @@
 #define ATOMIC_INIT(i)		{ (i) }
 #define ATOMIC64_INIT(i)	{ (i) }
 
-#define atomic_read(v)		ACCESS_ONCE((v)->counter)
-#define atomic64_read(v)	ACCESS_ONCE((v)->counter)
+#define atomic_read(v)		READ_ONCE((v)->counter)
+#define atomic64_read(v)	READ_ONCE((v)->counter)
 
-#define atomic_set(v, i)	(((v)->counter) = i)
-#define atomic64_set(v, i)	(((v)->counter) = i)
+#define atomic_set(v, i)	WRITE_ONCE(((v)->counter), (i))
+#define atomic64_set(v, i)	WRITE_ONCE(((v)->counter), (i))
 
 #define ATOMIC_OP(op)							\
 void atomic_##op(int, atomic_t *);					\

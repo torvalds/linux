@@ -107,12 +107,6 @@ root of unified hierarchy can be bound to other hierarchies.  This
 allows mixing unified hierarchy with the traditional multiple
 hierarchies in a fully backward compatible way.
 
-For development purposes, the following boot parameter makes all
-controllers to appear on the unified hierarchy whether supported or
-not.
-
- cgroup__DEVEL__legacy_files_on_dfl
-
 A controller can be moved across hierarchies only after the controller
 is no longer referenced in its current hierarchy.  Because per-cgroup
 controller states are destroyed asynchronously and controllers may
@@ -341,11 +335,11 @@ is riddled with issues.
   unnecessarily complicated and probably done this way because event
   delivery itself was expensive.
 
-Unified hierarchy implements an interface file "cgroup.populated"
-which can be used to monitor whether the cgroup's subhierarchy has
-tasks in it or not.  Its value is 0 if there is no task in the cgroup
-and its descendants; otherwise, 1.  poll and [id]notify events are
-triggered when the value changes.
+Unified hierarchy implements "populated" field in "cgroup.events"
+interface file which can be used to monitor whether the cgroup's
+subhierarchy has tasks in it or not.  Its value is 0 if there is no
+task in the cgroup and its descendants; otherwise, 1.  poll and
+[id]notify events are triggered when the value changes.
 
 This is significantly lighter and simpler and trivially allows
 delegating management of subhierarchy - subhierarchy monitoring can
@@ -373,6 +367,10 @@ supported and the interface files "release_agent" and
   they got recycled in-between reads.
 
 - The "cgroup.clone_children" file is removed.
+
+- /proc/PID/cgroup keeps reporting the cgroup that a zombie belonged
+  to before exiting.  If the cgroup is removed before the zombie is
+  reaped, " (deleted)" is appeneded to the path.
 
 
 5-3. Controller File Conventions
@@ -435,6 +433,11 @@ may be specified in any order and not all pairs have to be specified.
   the first entry in the file.  Specific entries can use "default" as
   its value to indicate inheritance of the default value.
 
+- For events which are not very high frequency, an interface file
+  "events" should be created which lists event key value pairs.
+  Whenever a notifiable event happens, file modified event should be
+  generated on the file.
+
 
 5-4. Per-Controller Changes
 
@@ -491,7 +494,7 @@ may be specified in any order and not all pairs have to be specified.
 	${R|W}BPS are read/write bytes per second and ${R|W}IOPS are
 	read/write IOs per second.  "max" indicates no limit.  Writing
 	to the file follows the same format but the individual
-	settings may be ommitted or specified in any order.
+	settings may be omitted or specified in any order.
 
 	This file is available only on non-root cgroups.
 

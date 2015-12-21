@@ -396,7 +396,9 @@ static int __superblock_all_zeroes(struct dm_block_manager *bm, int *result)
 		}
 	}
 
-	return dm_bm_unlock(b);
+	dm_bm_unlock(b);
+
+	return 0;
 }
 
 static void __setup_btree_details(struct dm_pool_metadata *pmd)
@@ -650,7 +652,9 @@ static int __open_metadata(struct dm_pool_metadata *pmd)
 	}
 
 	__setup_btree_details(pmd);
-	return dm_bm_unlock(sblock);
+	dm_bm_unlock(sblock);
+
+	return 0;
 
 bad_cleanup_data_sm:
 	dm_sm_destroy(pmd->data_sm);
@@ -1297,7 +1301,9 @@ static int __release_metadata_snap(struct dm_pool_metadata *pmd)
 	dm_btree_del(&pmd->details_info, le64_to_cpu(disk_super->device_details_root));
 	dm_sm_dec_block(pmd->metadata_sm, held_root);
 
-	return dm_tm_unlock(pmd->tm, copy);
+	dm_tm_unlock(pmd->tm, copy);
+
+	return 0;
 }
 
 int dm_pool_release_metadata_snap(struct dm_pool_metadata *pmd)
@@ -1327,7 +1333,9 @@ static int __get_metadata_snap(struct dm_pool_metadata *pmd,
 	disk_super = dm_block_data(sblock);
 	*result = le64_to_cpu(disk_super->held_root);
 
-	return dm_bm_unlock(sblock);
+	dm_bm_unlock(sblock);
+
+	return 0;
 }
 
 int dm_pool_get_metadata_snap(struct dm_pool_metadata *pmd,

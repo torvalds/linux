@@ -377,7 +377,7 @@ static int setup_irqs(struct platform_device *pdev)
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-		abx500_temp_irq_handler, IRQF_NO_SUSPEND, "abx500-temp", pdev);
+		abx500_temp_irq_handler, 0, "abx500-temp", pdev);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Request threaded irq failed (%d)\n", ret);
 

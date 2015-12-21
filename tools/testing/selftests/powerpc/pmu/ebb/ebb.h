@@ -52,6 +52,7 @@ void standard_ebb_callee(void);
 int ebb_event_enable(struct event *e);
 void ebb_global_enable(void);
 void ebb_global_disable(void);
+bool ebb_is_supported(void);
 void ebb_freeze_pmcs(void);
 void ebb_unfreeze_pmcs(void);
 void event_ebb_init(struct event *e);

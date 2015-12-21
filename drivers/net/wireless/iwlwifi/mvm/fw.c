@@ -616,12 +616,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 * will be empty.
 	 */
 
-	for (i = 0; i < IWL_MAX_HW_QUEUES; i++) {
-		if (i < mvm->first_agg_queue && i != IWL_MVM_CMD_QUEUE)
-			mvm->queue_to_mac80211[i] = i;
-		else
-			mvm->queue_to_mac80211[i] = IWL_INVALID_MAC80211_QUEUE;
-	}
+	memset(&mvm->queue_info, 0, sizeof(mvm->queue_info));
+	mvm->queue_info[IWL_MVM_CMD_QUEUE].hw_queue_refcount = 1;
 
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
 		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);
@@ -703,7 +699,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	 * abort after reading the nvm in case RF Kill is on, we will complete
 	 * the init seq later when RF kill will switch to off
 	 */
-	if (iwl_mvm_is_radio_killed(mvm)) {
+	if (iwl_mvm_is_radio_hw_killed(mvm)) {
 		IWL_DEBUG_RF_KILL(mvm,
 				  "jump over all phy activities due to RF kill\n");
 		iwl_remove_notification(&mvm->notif_wait, &calib_wait);
@@ -736,7 +732,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_wait_notification(&mvm->notif_wait, &calib_wait,
 			MVM_UCODE_CALIB_TIMEOUT);
 
-	if (ret && iwl_mvm_is_radio_killed(mvm)) {
+	if (ret && iwl_mvm_is_radio_hw_killed(mvm)) {
 		IWL_DEBUG_RF_KILL(mvm, "RFKILL while calibrating.\n");
 		ret = 1;
 	}
@@ -940,19 +936,6 @@ int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 conf_id)
 	return ret;
 }
 
-static int iwl_mvm_config_ltr_v1(struct iwl_mvm *mvm)
-{
-	struct iwl_ltr_config_cmd_v1 cmd_v1 = {
-		.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
-	};
-
-	if (!mvm->trans->ltr_enabled)
-		return 0;
-
-	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
-				    sizeof(cmd_v1), &cmd_v1);
-}
-
 static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 {
 	struct iwl_ltr_config_cmd cmd = {
@@ -961,9 +944,6 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 
 	if (!mvm->trans->ltr_enabled)
 		return 0;
-
-	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_HDC_PHASE_0))
-		return iwl_mvm_config_ltr_v1(mvm);
 
 	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
 				    sizeof(cmd), &cmd);

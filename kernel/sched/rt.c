@@ -64,7 +64,7 @@ static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 	raw_spin_unlock(&rt_b->rt_runtime_lock);
 }
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(HAVE_RT_PUSH_IPI)
 static void push_irq_work_func(struct irq_work *work);
 #endif
 
@@ -635,11 +635,11 @@ bool sched_rt_bandwidth_account(struct rt_rq *rt_rq)
 /*
  * We ran out of runtime, see if we can borrow some from our neighbours.
  */
-static int do_balance_runtime(struct rt_rq *rt_rq)
+static void do_balance_runtime(struct rt_rq *rt_rq)
 {
 	struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
 	struct root_domain *rd = rq_of_rt_rq(rt_rq)->rd;
-	int i, weight, more = 0;
+	int i, weight;
 	u64 rt_period;
 
 	weight = cpumask_weight(rd->span);
@@ -673,7 +673,6 @@ static int do_balance_runtime(struct rt_rq *rt_rq)
 				diff = rt_period - rt_rq->rt_runtime;
 			iter->rt_runtime -= diff;
 			rt_rq->rt_runtime += diff;
-			more = 1;
 			if (rt_rq->rt_runtime == rt_period) {
 				raw_spin_unlock(&iter->rt_runtime_lock);
 				break;
@@ -683,8 +682,6 @@ next:
 		raw_spin_unlock(&iter->rt_runtime_lock);
 	}
 	raw_spin_unlock(&rt_b->rt_runtime_lock);
-
-	return more;
 }
 
 /*
@@ -796,26 +793,19 @@ static void __enable_runtime(struct rq *rq)
 	}
 }
 
-static int balance_runtime(struct rt_rq *rt_rq)
+static void balance_runtime(struct rt_rq *rt_rq)
 {
-	int more = 0;
-
 	if (!sched_feat(RT_RUNTIME_SHARE))
-		return more;
+		return;
 
 	if (rt_rq->rt_time > rt_rq->rt_runtime) {
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
-		more = do_balance_runtime(rt_rq);
+		do_balance_runtime(rt_rq);
 		raw_spin_lock(&rt_rq->rt_runtime_lock);
 	}
-
-	return more;
 }
 #else /* !CONFIG_SMP */
-static inline int balance_runtime(struct rt_rq *rt_rq)
-{
-	return 0;
-}
+static inline void balance_runtime(struct rt_rq *rt_rq) {}
 #endif /* CONFIG_SMP */
 
 static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)

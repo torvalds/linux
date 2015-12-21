@@ -102,19 +102,6 @@ void get_online_cpus(void)
 }
 EXPORT_SYMBOL_GPL(get_online_cpus);
 
-bool try_get_online_cpus(void)
-{
-	if (cpu_hotplug.active_writer == current)
-		return true;
-	if (!mutex_trylock(&cpu_hotplug.lock))
-		return false;
-	cpuhp_lock_acquire_tryread();
-	atomic_inc(&cpu_hotplug.refcount);
-	mutex_unlock(&cpu_hotplug.lock);
-	return true;
-}
-EXPORT_SYMBOL_GPL(try_get_online_cpus);
-
 void put_online_cpus(void)
 {
 	int refcount;
@@ -304,8 +291,8 @@ static inline void check_for_tasks(int dead_cpu)
 {
 	struct task_struct *g, *p;
 
-	read_lock_irq(&tasklist_lock);
-	do_each_thread(g, p) {
+	read_lock(&tasklist_lock);
+	for_each_process_thread(g, p) {
 		if (!p->on_rq)
 			continue;
 		/*
@@ -320,8 +307,8 @@ static inline void check_for_tasks(int dead_cpu)
 
 		pr_warn("Task %s (pid=%d) is on cpu %d (state=%ld, flags=%x)\n",
 			p->comm, task_pid_nr(p), dead_cpu, p->state, p->flags);
-	} while_each_thread(g, p);
-	read_unlock_irq(&tasklist_lock);
+	}
+	read_unlock(&tasklist_lock);
 }
 
 struct take_cpu_down_param {
@@ -344,7 +331,7 @@ static int take_cpu_down(void *_param)
 	/* Give up timekeeping duties */
 	tick_handover_do_timer();
 	/* Park the stopper thread */
-	kthread_park(current);
+	stop_machine_park((long)param->hcpu);
 	return 0;
 }
 

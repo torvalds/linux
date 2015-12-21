@@ -54,7 +54,7 @@ config SW_SYNC
 	depends on SYNC
 	---help---
 	  A sync object driver that uses a 32bit counter to coordinate
-	  syncrhronization.  Useful when there is no hardware primitive backing
+	  synchronization.  Useful when there is no hardware primitive backing
 	  the synchronization.
 
 config SW_SYNC_USER

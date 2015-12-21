@@ -34,7 +34,7 @@ extern void do_signal(struct pt_regs *regs);
 
 #define __ARCH_HAS_SA_RESTORER
 
-#include <asm/sigcontext.h>
+#include <uapi/asm/sigcontext.h>
 
 #ifdef __i386__
 

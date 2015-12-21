@@ -4,6 +4,7 @@
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/types.h>
+#include <asm/debug.h>
 #include <asm/fpu_emulator.h>
 #include <asm/local.h>
 
@@ -27,7 +28,6 @@ static int fpuemu_stat_get(void *data, u64 *val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_fpuemu_stat, fpuemu_stat_get, NULL, "%llu\n");
 
-extern struct dentry *mips_debugfs_dir;
 static int __init debugfs_fpuemu(void)
 {
 	struct dentry *d, *dir;

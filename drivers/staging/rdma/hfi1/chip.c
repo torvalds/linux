@@ -1295,7 +1295,7 @@ static inline u64 read_write_csr(const struct hfi1_devdata *dd, u32 csr,
 static u64 dev_access_u32_csr(const struct cntr_entry *entry,
 			    void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1305,7 +1305,7 @@ static u64 dev_access_u32_csr(const struct cntr_entry *entry,
 static u64 dev_access_u64_csr(const struct cntr_entry *entry, void *context,
 			    int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	u64 val = 0;
 	u64 csr = entry->csr;
@@ -1326,7 +1326,7 @@ static u64 dev_access_u64_csr(const struct cntr_entry *entry, void *context,
 static u64 dc_access_lcb_cntr(const struct cntr_entry *entry, void *context,
 			    int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 	u32 csr = entry->csr;
 	int ret = 0;
 
@@ -1350,7 +1350,7 @@ static u64 dc_access_lcb_cntr(const struct cntr_entry *entry, void *context,
 static u64 port_access_u32_csr(const struct cntr_entry *entry, void *context,
 			     int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1360,7 +1360,7 @@ static u64 port_access_u32_csr(const struct cntr_entry *entry, void *context,
 static u64 port_access_u64_csr(const struct cntr_entry *entry,
 			     void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 	u64 val;
 	u64 csr = entry->csr;
 
@@ -1400,7 +1400,7 @@ static inline u64 read_write_sw(struct hfi1_devdata *dd, u64 *cntr, int mode,
 static u64 access_sw_link_dn_cnt(const struct cntr_entry *entry, void *context,
 			       int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1410,7 +1410,7 @@ static u64 access_sw_link_dn_cnt(const struct cntr_entry *entry, void *context,
 static u64 access_sw_link_up_cnt(const struct cntr_entry *entry, void *context,
 			       int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1420,7 +1420,7 @@ static u64 access_sw_link_up_cnt(const struct cntr_entry *entry, void *context,
 static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
 				    void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1431,7 +1431,7 @@ static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
 static u64 access_xmit_constraint_errs(const struct cntr_entry *entry,
 				     void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1443,7 +1443,7 @@ static u64 access_xmit_constraint_errs(const struct cntr_entry *entry,
 static u64 access_rcv_constraint_errs(const struct cntr_entry *entry,
 				     void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+	struct hfi1_pportdata *ppd = context;
 
 	if (vl != CNTR_INVALID_VL)
 		return 0;
@@ -1491,7 +1491,7 @@ static u64 read_write_cpu(struct hfi1_devdata *dd, u64 *z_val,
 static u64 access_sw_cpu_intr(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return read_write_cpu(dd, &dd->z_int_counter, dd->int_counter, vl,
 			      mode, data);
@@ -1500,7 +1500,7 @@ static u64 access_sw_cpu_intr(const struct cntr_entry *entry,
 static u64 access_sw_cpu_rcv_limit(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return read_write_cpu(dd, &dd->z_rcv_limit, dd->rcv_limit, vl,
 			      mode, data);
@@ -1509,7 +1509,7 @@ static u64 access_sw_cpu_rcv_limit(const struct cntr_entry *entry,
 static u64 access_sw_pio_wait(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return dd->verbs_dev.n_piowait;
 }
@@ -1517,7 +1517,7 @@ static u64 access_sw_pio_wait(const struct cntr_entry *entry,
 static u64 access_sw_vtx_wait(const struct cntr_entry *entry,
 			      void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return dd->verbs_dev.n_txwait;
 }
@@ -1525,9 +1525,17 @@ static u64 access_sw_vtx_wait(const struct cntr_entry *entry,
 static u64 access_sw_kmem_wait(const struct cntr_entry *entry,
 			       void *context, int vl, int mode, u64 data)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+	struct hfi1_devdata *dd = context;
 
 	return dd->verbs_dev.n_kmem_wait;
+}
+
+static u64 access_sw_send_schedule(const struct cntr_entry *entry,
+			       void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->verbs_dev.n_send_schedule;
 }
 
 #define def_access_sw_cpu(cntr) \
@@ -1720,6 +1728,8 @@ static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 			    access_sw_pio_wait),
 [C_SW_KMEM_WAIT] = CNTR_ELEM("KmemWait", 0, 0, CNTR_NORMAL,
 			    access_sw_kmem_wait),
+[C_SW_SEND_SCHED] = CNTR_ELEM("SendSched", 0, 0, CNTR_NORMAL,
+			    access_sw_send_schedule),
 };
 
 static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
@@ -2215,9 +2225,7 @@ static void update_rcverr_timer(unsigned long opaque)
 
 static int init_rcverr(struct hfi1_devdata *dd)
 {
-	init_timer(&dd->rcverr_timer);
-	dd->rcverr_timer.function = update_rcverr_timer;
-	dd->rcverr_timer.data = (unsigned long) dd;
+	setup_timer(&dd->rcverr_timer, update_rcverr_timer, (unsigned long)dd);
 	/* Assume the hardware counter has been reset */
 	dd->rcv_ovfl_cnt = 0;
 	return mod_timer(&dd->rcverr_timer, jiffies + HZ * RCVERR_CHECK_TIME);
@@ -4416,7 +4424,7 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 		rcd = dd->rcd[source];
 		if (rcd) {
 			if (source < dd->first_user_ctxt)
-				rcd->do_interrupt(rcd);
+				rcd->do_interrupt(rcd, 0);
 			else
 				handle_user_interrupt(rcd);
 			return;	/* OK */
@@ -4582,23 +4590,106 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 }
 
 /*
- * NOTE: this routine expects to be on its own MSI-X interrupt.  If
- * multiple receive contexts share the same MSI-X interrupt, then this
- * routine must check for who received it.
+ * Clear the receive interrupt, forcing the write and making sure
+ * we have data from the chip, pushing everything in front of it
+ * back to the host.
+ */
+static inline void clear_recv_intr(struct hfi1_ctxtdata *rcd)
+{
+	struct hfi1_devdata *dd = rcd->dd;
+	u32 addr = CCE_INT_CLEAR + (8 * rcd->ireg);
+
+	mmiowb();	/* make sure everything before is written */
+	write_csr(dd, addr, rcd->imask);
+	/* force the above write on the chip and get a value back */
+	(void)read_csr(dd, addr);
+}
+
+/* force the receive interrupt */
+static inline void force_recv_intr(struct hfi1_ctxtdata *rcd)
+{
+	write_csr(rcd->dd, CCE_INT_FORCE + (8 * rcd->ireg), rcd->imask);
+}
+
+/* return non-zero if a packet is present */
+static inline int check_packet_present(struct hfi1_ctxtdata *rcd)
+{
+	if (!HFI1_CAP_IS_KSET(DMA_RTAIL))
+		return (rcd->seq_cnt ==
+				rhf_rcv_seq(rhf_to_cpu(get_rhf_addr(rcd))));
+
+	/* else is RDMA rtail */
+	return (rcd->head != get_rcvhdrtail(rcd));
+}
+
+/*
+ * Receive packet IRQ handler.  This routine expects to be on its own IRQ.
+ * This routine will try to handle packets immediately (latency), but if
+ * it finds too many, it will invoke the thread handler (bandwitdh).  The
+ * chip receive interupt is *not* cleared down until this or the thread (if
+ * invoked) is finished.  The intent is to avoid extra interrupts while we
+ * are processing packets anyway.
  */
 static irqreturn_t receive_context_interrupt(int irq, void *data)
 {
 	struct hfi1_ctxtdata *rcd = data;
 	struct hfi1_devdata *dd = rcd->dd;
+	int disposition;
+	int present;
 
 	trace_hfi1_receive_interrupt(dd, rcd->ctxt);
 	this_cpu_inc(*dd->int_counter);
 
-	/* clear the interrupt */
-	write_csr(rcd->dd, CCE_INT_CLEAR + (8*rcd->ireg), rcd->imask);
+	/* receive interrupt remains blocked while processing packets */
+	disposition = rcd->do_interrupt(rcd, 0);
 
-	/* handle the interrupt */
-	rcd->do_interrupt(rcd);
+	/*
+	 * Too many packets were seen while processing packets in this
+	 * IRQ handler.  Invoke the handler thread.  The receive interrupt
+	 * remains blocked.
+	 */
+	if (disposition == RCV_PKT_LIMIT)
+		return IRQ_WAKE_THREAD;
+
+	/*
+	 * The packet processor detected no more packets.  Clear the receive
+	 * interrupt and recheck for a packet packet that may have arrived
+	 * after the previous check and interrupt clear.  If a packet arrived,
+	 * force another interrupt.
+	 */
+	clear_recv_intr(rcd);
+	present = check_packet_present(rcd);
+	if (present)
+		force_recv_intr(rcd);
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * Receive packet thread handler.  This expects to be invoked with the
+ * receive interrupt still blocked.
+ */
+static irqreturn_t receive_context_thread(int irq, void *data)
+{
+	struct hfi1_ctxtdata *rcd = data;
+	int present;
+
+	/* receive interrupt is still blocked from the IRQ handler */
+	(void)rcd->do_interrupt(rcd, 1);
+
+	/*
+	 * The packet processor will only return if it detected no more
+	 * packets.  Hold IRQs here so we can safely clear the interrupt and
+	 * recheck for a packet that may have arrived after the previous
+	 * check and the interrupt clear.  If a packet arrived, force another
+	 * interrupt.
+	 */
+	local_irq_disable();
+	clear_recv_intr(rcd);
+	present = check_packet_present(rcd);
+	if (present)
+		force_recv_intr(rcd);
+	local_irq_enable();
 
 	return IRQ_HANDLED;
 }
@@ -5407,6 +5498,8 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 		if (ppd->link_speed_enabled & OPA_LINK_SPEED_12_5G)
 			ppd->local_tx_rate |= 1;
 	}
+
+	enable_lane_tx = 0xF; /* enable all four lanes */
 	ret = write_tx_settings(dd, enable_lane_tx, tx_polarity_inversion,
 		     rx_polarity_inversion, ppd->local_tx_rate);
 	if (ret != HCMD_SUCCESS)
@@ -5716,8 +5809,7 @@ void init_qsfp(struct hfi1_pportdata *ppd)
 	u64 qsfp_mask;
 
 	if (loopback == LOOPBACK_SERDES || loopback == LOOPBACK_LCB ||
-			ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR ||
-			!HFI1_CAP_IS_KSET(QSFP_ENABLED)) {
+			ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
 		ppd->driver_link_ready = 1;
 		return;
 	}
@@ -6205,7 +6297,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 
 	if (do_wait) {
 		/* it can take a while for the link to go down */
-		ret = wait_phy_linkstate(dd, PLS_OFFLINE, 5000);
+		ret = wait_phy_linkstate(dd, PLS_OFFLINE, 10000);
 		if (ret < 0)
 			return ret;
 	}
@@ -8156,9 +8248,8 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	struct hfi1_pportdata *ppd;
 
 	/* set up the stats timer; the add_timer is done at the end */
-	init_timer(&dd->synth_stats_timer);
-	dd->synth_stats_timer.function = update_synth_timer;
-	dd->synth_stats_timer.data = (unsigned long) dd;
+	setup_timer(&dd->synth_stats_timer, update_synth_timer,
+		    (unsigned long)dd);
 
 	/***********************/
 	/* per device counters */
@@ -8850,6 +8941,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		struct hfi1_msix_entry *me = &dd->msix_entries[i];
 		const char *err_info;
 		irq_handler_t handler;
+		irq_handler_t thread = NULL;
 		void *arg;
 		int idx;
 		struct hfi1_ctxtdata *rcd = NULL;
@@ -8886,6 +8978,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			rcd->imask = ((u64)1) <<
 					((IS_RCVAVAIL_START+idx) % 64);
 			handler = receive_context_interrupt;
+			thread = receive_context_thread;
 			arg = rcd;
 			snprintf(me->name, sizeof(me->name),
 				DRIVER_NAME"_%d kctxt%d", dd->unit, idx);
@@ -8904,7 +8997,8 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		/* make sure the name is terminated */
 		me->name[sizeof(me->name)-1] = 0;
 
-		ret = request_irq(me->msix.vector, handler, 0, me->name, arg);
+		ret = request_threaded_irq(me->msix.vector, handler, thread, 0,
+						me->name, arg);
 		if (ret) {
 			dd_dev_err(dd,
 				"unable to allocate %s interrupt, vector %d, index %d, err %d\n",
@@ -8991,7 +9085,6 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 
 	entries = kcalloc(total, sizeof(*entries), GFP_KERNEL);
 	if (!entries) {
-		dd_dev_err(dd, "cannot allocate msix table\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -9328,8 +9421,6 @@ static void reset_cce_csrs(struct hfi1_devdata *dd)
 /* set ASIC CSRs to chip reset defaults */
 static void reset_asic_csrs(struct hfi1_devdata *dd)
 {
-	static DEFINE_MUTEX(asic_mutex);
-	static int called;
 	int i;
 
 	/*
@@ -9339,15 +9430,8 @@ static void reset_asic_csrs(struct hfi1_devdata *dd)
 	 * a known first load do the reset and blocking all others.
 	 */
 
-	/*
-	 * These CSRs should only be reset once - the first one here will
-	 * do the work.  Use a mutex so that a non-first caller waits until
-	 * the first is finished before it can proceed.
-	 */
-	mutex_lock(&asic_mutex);
-	if (called)
-		goto done;
-	called = 1;
+	if (!(dd->flags & HFI1_DO_INIT_ASIC))
+		return;
 
 	if (dd->icode != ICODE_FPGA_EMULATION) {
 		/* emulation does not have an SBus - leave these alone */
@@ -9367,7 +9451,10 @@ static void reset_asic_csrs(struct hfi1_devdata *dd)
 	for (i = 0; i < ASIC_NUM_SCRATCH; i++)
 		write_csr(dd, ASIC_CFG_SCRATCH + (8 * i), 0);
 	write_csr(dd, ASIC_CFG_MUTEX, 0);	/* this will clear it */
+
+	/* We might want to retain this state across FLR if we ever use it */
 	write_csr(dd, ASIC_CFG_DRV_STR, 0);
+
 	write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0);
 	/* ASIC_STS_THERM read-only */
 	/* ASIC_CFG_RESET leave alone */
@@ -9414,9 +9501,6 @@ static void reset_asic_csrs(struct hfi1_devdata *dd)
 	/* this also writes a NOP command, clearing paging mode */
 	write_csr(dd, ASIC_EEP_ADDR_CMD, 0);
 	write_csr(dd, ASIC_EEP_DATA, 0);
-
-done:
-	mutex_unlock(&asic_mutex);
 }
 
 /* set MISC CSRs to chip reset defaults */
@@ -9828,6 +9912,7 @@ static void init_chip(struct hfi1_devdata *dd)
 			restore_pci_variables(dd);
 		}
 
+		reset_asic_csrs(dd);
 	} else {
 		dd_dev_info(dd, "Resetting CSRs with writes\n");
 		reset_cce_csrs(dd);
@@ -9838,6 +9923,7 @@ static void init_chip(struct hfi1_devdata *dd)
 	}
 	/* clear the DC reset */
 	write_csr(dd, CCE_DC_CTRL, 0);
+
 	/* Set the LED off */
 	if (is_a0(dd))
 		setextled(dd, 0);
@@ -10333,7 +10419,7 @@ static void asic_should_init(struct hfi1_devdata *dd)
 }
 
 /**
- * Allocate an initialize the device structure for the hfi.
+ * Allocate and initialize the device structure for the hfi.
  * @dev: the pci_dev for hfi1_ib device
  * @ent: pci_device_id struct for this dev
  *
@@ -10489,6 +10575,12 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	else if (dd->rcv_intr_timeout_csr == 0 && rcv_intr_timeout)
 		dd->rcv_intr_timeout_csr = 1;
 
+	/* needs to be done before we look for the peer device */
+	read_guid(dd);
+
+	/* should this device init the ASIC block? */
+	asic_should_init(dd);
+
 	/* obtain chip sizes, reset chip CSRs */
 	init_chip(dd);
 
@@ -10496,11 +10588,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	ret = pcie_speeds(dd);
 	if (ret)
 		goto bail_cleanup;
-
-	/* needs to be done before we look for the peer device */
-	read_guid(dd);
-
-	asic_should_init(dd);
 
 	/* read in firmware */
 	ret = hfi1_firmware_init(dd);
@@ -10716,6 +10803,7 @@ static int thermal_init(struct hfi1_devdata *dd)
 
 	acquire_hw_mutex(dd);
 	dd_dev_info(dd, "Initializing thermal sensor\n");
+
 	/* Thermal Sensor Initialization */
 	/*    Step 1: Reset the Thermal SBus Receiver */
 	ret = sbus_request_slow(dd, SBUS_THERMAL, 0x0,

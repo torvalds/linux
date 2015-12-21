@@ -227,8 +227,6 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, de
 	int err;
 	if ((err = hpfs_chk_name(name, &len))) return err==-ENOENT ? -EINVAL : err;
 	if (hpfs_sb(dir->i_sb)->sb_eas < 2) return -EPERM;
-	if (!new_valid_dev(rdev))
-		return -EINVAL;
 	hpfs_lock(dir->i_sb);
 	err = -ENOSPC;
 	fnode = hpfs_alloc_fnode(dir->i_sb, hpfs_i(dir)->i_dno, &fno, &bh);

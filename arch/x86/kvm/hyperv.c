@@ -41,6 +41,7 @@ static bool kvm_hv_msr_partition_wide(u32 msr)
 	case HV_X64_MSR_TIME_REF_COUNT:
 	case HV_X64_MSR_CRASH_CTL:
 	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
+	case HV_X64_MSR_RESET:
 		r = true;
 		break;
 	}
@@ -163,6 +164,12 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 						 data);
 	case HV_X64_MSR_CRASH_CTL:
 		return kvm_hv_msr_set_crash_ctl(vcpu, data, host);
+	case HV_X64_MSR_RESET:
+		if (data == 1) {
+			vcpu_debug(vcpu, "hyper-v reset requested\n");
+			kvm_make_request(KVM_REQ_HV_RESET, vcpu);
+		}
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V uhandled wrmsr: 0x%x data 0x%llx\n",
 			    msr, data);
@@ -171,7 +178,16 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 	return 0;
 }
 
-static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+/* Calculate cpu time spent by current task in 100ns units */
+static u64 current_task_runtime_100ns(void)
+{
+	cputime_t utime, stime;
+
+	task_cputime_adjusted(current, &utime, &stime);
+	return div_u64(cputime_to_nsecs(utime + stime), 100);
+}
+
+static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 {
 	struct kvm_vcpu_hv *hv = &vcpu->arch.hyperv;
 
@@ -205,6 +221,11 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		return kvm_hv_vapic_msr_write(vcpu, APIC_ICR, data);
 	case HV_X64_MSR_TPR:
 		return kvm_hv_vapic_msr_write(vcpu, APIC_TASKPRI, data);
+	case HV_X64_MSR_VP_RUNTIME:
+		if (!host)
+			return 1;
+		hv->runtime_offset = data - current_task_runtime_100ns();
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V uhandled wrmsr: 0x%x data 0x%llx\n",
 			    msr, data);
@@ -241,6 +262,9 @@ static int kvm_hv_get_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 						 pdata);
 	case HV_X64_MSR_CRASH_CTL:
 		return kvm_hv_msr_get_crash_ctl(vcpu, pdata);
+	case HV_X64_MSR_RESET:
+		data = 0;
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;
@@ -277,6 +301,9 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case HV_X64_MSR_APIC_ASSIST_PAGE:
 		data = hv->hv_vapic;
 		break;
+	case HV_X64_MSR_VP_RUNTIME:
+		data = current_task_runtime_100ns() + hv->runtime_offset;
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;
@@ -295,7 +322,7 @@ int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 		mutex_unlock(&vcpu->kvm->lock);
 		return r;
 	} else
-		return kvm_hv_set_msr(vcpu, msr, data);
+		return kvm_hv_set_msr(vcpu, msr, data, host);
 }
 
 int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
