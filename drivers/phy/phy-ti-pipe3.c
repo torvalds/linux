@@ -65,6 +65,9 @@
 #define PIPE3_PHY_TX_RX_POWERON		0x3
 #define PIPE3_PHY_TX_RX_POWEROFF	0x0
 
+#define PCIE_PCS_MASK			0xFF0000
+#define PCIE_PCS_DELAY_COUNT_SHIFT	0x10
+
 /*
  * This is an Empirical value that works, need to confirm the actual
  * value required for the PIPE3PHY_PLL_CONFIGURATION2.PLL_IDLE status
@@ -96,9 +99,11 @@ struct ti_pipe3 {
 	struct clk		*div_clk;
 	struct pipe3_dpll_map	*dpll_map;
 	struct regmap		*phy_power_syscon; /* ctrl. reg. acces */
+	struct regmap		*pcs_syscon; /* ctrl. reg. acces */
 	struct regmap		*dpll_reset_syscon; /* ctrl. reg. acces */
 	unsigned int		dpll_reset_reg; /* reg. index within syscon */
 	unsigned int		power_reg; /* power reg. index within syscon */
+	unsigned int		pcie_pcs_reg; /* pcs reg. index in syscon */
 	bool			sata_refclk_enabled;
 };
 
@@ -269,8 +274,15 @@ static int ti_pipe3_init(struct phy *x)
 	 * 18-1804.
 	 */
 	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-pcie")) {
-		omap_control_pcie_pcs(phy->control_dev, 0x96);
-		return 0;
+		if (!phy->pcs_syscon) {
+			omap_control_pcie_pcs(phy->control_dev, 0x96);
+			return 0;
+		}
+
+		val = 0x96 << OMAP_CTRL_PCIE_PCS_DELAY_COUNT_SHIFT;
+		ret = regmap_update_bits(phy->pcs_syscon, phy->pcie_pcs_reg,
+					 PCIE_PCS_MASK, val);
+		return ret;
 	}
 
 	/* Bring it out of IDLE if it is IDLE */
@@ -453,6 +465,24 @@ static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
 		}
 
 		phy->control_dev = &control_pdev->dev;
+	}
+
+	if (of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
+		phy->pcs_syscon = syscon_regmap_lookup_by_phandle(node,
+								  "syscon-pcs");
+		if (IS_ERR(phy->pcs_syscon)) {
+			dev_dbg(dev,
+				"can't get syscon-pcs, using omap control\n");
+			phy->pcs_syscon = NULL;
+		} else {
+			if (of_property_read_u32_index(node,
+						       "syscon-pcs", 1,
+						       &phy->pcie_pcs_reg)) {
+				dev_err(dev,
+					"couldn't get pcie pcs reg. offset\n");
+				return -EINVAL;
+			}
+		}
 	}
 
 	if (of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
