@@ -142,7 +142,7 @@ static int via_gpio_get(struct gpio_chip *chip, unsigned int nr)
 	gpio = cfg->active_gpios[nr];
 	reg = via_read_reg(VIASR, gpio->vg_port_index);
 	spin_unlock_irqrestore(&cfg->vdev->reg_lock, flags);
-	return reg & (0x04 << gpio->vg_mask_shift);
+	return !!(reg & (0x04 << gpio->vg_mask_shift));
 }
 
 
