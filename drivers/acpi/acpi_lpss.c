@@ -95,7 +95,7 @@ static unsigned int lpss_quirks;
 /*
  * LPSS_QUIRK_ALWAYS_POWER_ON: override power state for LPSS DMA device.
  *
- * The LPSS DMA controller does not have neither _PS0 nor _PS3 method. Moreover
+ * The LPSS DMA controller has neither _PS0 nor _PS3 method. Moreover
  * it can be powered off automatically whenever the last LPSS device goes down.
  * In case of no power any access to the DMA controller will hang the system.
  * The behaviour is reproduced on some HP laptops based on Intel BayTrail as
