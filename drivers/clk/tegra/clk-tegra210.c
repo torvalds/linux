@@ -2507,7 +2507,7 @@ static void __init tegra210_pll_init(void __iomem *clk_base,
 
 	/* PLLU_VCO */
 	val = readl(clk_base + pll_u_vco_params.base_reg);
-	val &= ~BIT(24); /* disable PLLU_OVERRIDE */
+	val &= ~PLLU_BASE_OVERRIDE; /* disable PLLU_OVERRIDE */
 	writel(val, clk_base + pll_u_vco_params.base_reg);
 
 	clk = tegra_clk_register_pllre("pll_u_vco", "pll_ref", clk_base, pmc,
