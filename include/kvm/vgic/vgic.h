@@ -194,6 +194,8 @@ struct vgic_cpu {
 	u64 live_lrs;
 };
 
+int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
+
 int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
 			bool level);
 
