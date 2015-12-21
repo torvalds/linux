@@ -72,7 +72,7 @@ int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
 	int ret;
 	struct spi_message msg;
 
-	if (len > 0 && b != NULL) {
+	if (len > 0 && b) {
 		struct spi_transfer tr = {
 			.tx_buf = b,
 			.len = len,
