@@ -49,7 +49,7 @@ struct mlxsw_hwmon_attr {
 	struct device_attribute dev_attr;
 	struct mlxsw_hwmon *hwmon;
 	unsigned int type_index;
-	char name[16];
+	char name[32];
 };
 
 struct mlxsw_hwmon {
@@ -105,6 +105,32 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 	}
 	mlxsw_reg_mtmp_unpack(mtmp_pl, NULL, &temp_max, NULL);
 	return sprintf(buf, "%u\n", temp_max);
+}
+
+static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t len)
+{
+	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
+			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
+	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
+	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val != 1)
+		return -EINVAL;
+
+	mlxsw_reg_mtmp_pack(mtmp_pl, mlwsw_hwmon_attr->type_index, true, true);
+	err = mlxsw_reg_write(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err) {
+		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to reset temp sensor history\n");
+		return err;
+	}
+	return err ? err : len;
 }
 
 static ssize_t mlxsw_hwmon_fan_rpm_show(struct device *dev,
@@ -175,6 +201,7 @@ static ssize_t mlxsw_hwmon_pwm_store(struct device *dev,
 enum mlxsw_hwmon_attr_type {
 	MLXSW_HWMON_ATTR_TYPE_TEMP,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MAX,
+	MLXSW_HWMON_ATTR_TYPE_TEMP_RST,
 	MLXSW_HWMON_ATTR_TYPE_FAN_RPM,
 	MLXSW_HWMON_ATTR_TYPE_PWM,
 };
@@ -200,6 +227,12 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IRUGO;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_highest", num + 1);
+		break;
+	case MLXSW_HWMON_ATTR_TYPE_TEMP_RST:
+		mlxsw_hwmon_attr->dev_attr.store = mlxsw_hwmon_temp_rst_store;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IWUSR;
+		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
+			 "temp%u_reset_history", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_FAN_RPM:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_fan_rpm_show;
@@ -254,6 +287,8 @@ static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon *mlxsw_hwmon)
 				     MLXSW_HWMON_ATTR_TYPE_TEMP, i, i);
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
 				     MLXSW_HWMON_ATTR_TYPE_TEMP_MAX, i, i);
+		mlxsw_hwmon_attr_add(mlxsw_hwmon,
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_RST, i, i);
 	}
 	return 0;
 }
