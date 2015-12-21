@@ -954,7 +954,7 @@ struct bdb_mipi_sequence {
 
 /* MIPI Sequnece Block definitions */
 enum mipi_seq {
-	MIPI_SEQ_UNDEFINED = 0,
+	MIPI_SEQ_END = 0,
 	MIPI_SEQ_ASSERT_RESET,
 	MIPI_SEQ_INIT_OTP,
 	MIPI_SEQ_DISPLAY_ON,
@@ -964,7 +964,7 @@ enum mipi_seq {
 };
 
 enum mipi_seq_element {
-	MIPI_SEQ_ELEM_UNDEFINED = 0,
+	MIPI_SEQ_ELEM_END = 0,
 	MIPI_SEQ_ELEM_SEND_PKT,
 	MIPI_SEQ_ELEM_DELAY,
 	MIPI_SEQ_ELEM_GPIO,

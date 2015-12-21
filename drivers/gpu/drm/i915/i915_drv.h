@@ -1477,7 +1477,7 @@ struct intel_vbt_data {
 		u8 seq_version;
 		u32 size;
 		u8 *data;
-		u8 *sequence[MIPI_SEQ_MAX];
+		const u8 *sequence[MIPI_SEQ_MAX];
 	} dsi;
 
 	int crt_ddc_pin;
