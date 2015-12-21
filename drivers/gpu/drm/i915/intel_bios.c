@@ -58,6 +58,22 @@
 
 static int panel_type;
 
+/* Get BDB block size given a pointer to Block ID. */
+static u32 _get_blocksize(const u8 *block_base)
+{
+	/* The MIPI Sequence Block v3+ has a separate size field. */
+	if (*block_base == BDB_MIPI_SEQUENCE && *(block_base + 3) >= 3)
+		return *((const u32 *)(block_base + 4));
+	else
+		return *((const u16 *)(block_base + 1));
+}
+
+/* Get BDB block size give a pointer to data after Block ID and Block Size. */
+static u32 get_blocksize(const void *block_data)
+{
+	return _get_blocksize(block_data - 3);
+}
+
 static const void *
 find_section(const void *_bdb, int section_id)
 {
@@ -74,14 +90,8 @@ find_section(const void *_bdb, int section_id)
 	/* walk the sections looking for section_id */
 	while (index + 3 < total) {
 		current_id = *(base + index);
-		index++;
-
-		current_size = *((const u16 *)(base + index));
-		index += 2;
-
-		/* The MIPI Sequence Block v3+ has a separate size field. */
-		if (current_id == BDB_MIPI_SEQUENCE && *(base + index) >= 3)
-			current_size = *((const u32 *)(base + index + 1));
+		current_size = _get_blocksize(base + index);
+		index += 3;
 
 		if (index + current_size > total)
 			return NULL;
@@ -93,16 +103,6 @@ find_section(const void *_bdb, int section_id)
 	}
 
 	return NULL;
-}
-
-static u16
-get_blocksize(const void *p)
-{
-	u16 *block_ptr, block_size;
-
-	block_ptr = (u16 *)((char *)p - 2);
-	block_size = *block_ptr;
-	return block_size;
 }
 
 static void
