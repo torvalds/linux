@@ -259,7 +259,7 @@ static u8 mode_11i;
 static u8 auth_type;
 static u32 join_req_size;
 static u32 info_element_size;
-static struct host_if_drv *join_req_drv;
+static struct wilc_vif *join_req_vif;
 #define REAL_JOIN_REQ 0
 #define FLUSHED_JOIN_REQ 1
 #define FLUSHED_BYTE_POS 79
@@ -292,21 +292,6 @@ static int remove_handler_in_list(struct host_if_drv *handler)
 	}
 
 	return -EINVAL;
-}
-
-static int get_id_from_handler(struct host_if_drv *handler)
-{
-	int i;
-
-	if (!handler)
-		return 0;
-
-	for (i = 1; i < ARRAY_SIZE(wfidrv_list); i++) {
-		if (wfidrv_list[i] == handler)
-			return i;
-	}
-
-	return 0;
 }
 
 /* The u8IfIdx starts from 0 to NUM_CONCURRENT_IFC -1, but 0 index used as
@@ -1235,7 +1220,7 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 
 	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
 		memcpy(join_req, pu8CurrByte, join_req_size);
-		join_req_drv = hif_drv;
+		join_req_vif = vif;
 	}
 
 	PRINT_D(GENERIC_DBG, "send HOST_IF_WAITING_CONN_RESP\n");
@@ -1349,7 +1334,7 @@ static s32 Handle_FlushConnect(struct wilc_vif *vif)
 
 	result = wilc_send_config_pkt(hif_drv->wilc, SET_CFG, strWIDList,
 				      u32WidsCount,
-				      get_id_from_handler(join_req_drv));
+				      wilc_get_vif_idx(join_req_vif));
 	if (result) {
 		PRINT_ER("failed to send config packet\n");
 		result = -EINVAL;
@@ -1426,12 +1411,12 @@ static s32 Handle_ConnectTimeout(struct wilc_vif *vif)
 
 	eth_zero_addr(wilc_connected_ssid);
 
-	if (join_req && join_req_drv == hif_drv) {
+	if (join_req && join_req_vif == vif) {
 		kfree(join_req);
 		join_req = NULL;
 	}
 
-	if (info_element && join_req_drv == hif_drv) {
+	if (info_element && join_req_vif == vif) {
 		kfree(info_element);
 		info_element = NULL;
 	}
@@ -1724,12 +1709,12 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 			kfree(hif_drv->usr_conn_req.ies);
 			hif_drv->usr_conn_req.ies = NULL;
 
-			if (join_req && join_req_drv == hif_drv) {
+			if (join_req && join_req_vif == vif) {
 				kfree(join_req);
 				join_req = NULL;
 			}
 
-			if (info_element && join_req_drv == hif_drv) {
+			if (info_element && join_req_vif == vif) {
 				kfree(info_element);
 				info_element = NULL;
 			}
@@ -2101,12 +2086,12 @@ static void Handle_Disconnect(struct wilc_vif *vif)
 		kfree(hif_drv->usr_conn_req.ies);
 		hif_drv->usr_conn_req.ies = NULL;
 
-		if (join_req && join_req_drv == hif_drv) {
+		if (join_req && join_req_vif == vif) {
 			kfree(join_req);
 			join_req = NULL;
 		}
 
-		if (info_element && join_req_drv == hif_drv) {
+		if (info_element && join_req_vif == vif) {
 			kfree(info_element);
 			info_element = NULL;
 		}
