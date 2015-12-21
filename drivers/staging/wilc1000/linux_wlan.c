@@ -440,8 +440,8 @@ int wilc_wlan_get_firmware(struct net_device *dev)
 		goto _fail_;
 	}
 
-	if (!(&vif->wilc_netdev->dev)) {
-		PRINT_ER("&vif->wilc_netdev->dev  is NULL\n");
+	if (!(&vif->ndev->dev)) {
+		PRINT_ER("&vif->ndev->dev  is NULL\n");
 		goto _fail_;
 	}
 
@@ -1010,7 +1010,7 @@ int wilc_mac_open(struct net_device *ndev)
 
 	vif = netdev_priv(ndev);
 	wilc = vif->wilc;
-	priv = wiphy_priv(vif->wilc_netdev->ieee80211_ptr->wiphy);
+	priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
 	PRINT_D(INIT_DBG, "MAC OPEN[%p]\n", ndev);
 
 	ret = wilc_init_host_int(ndev);
@@ -1050,12 +1050,12 @@ int wilc_mac_open(struct net_device *ndev)
 		return -EINVAL;
 	}
 
-	wilc_mgmt_frame_register(vif->wilc_netdev->ieee80211_ptr->wiphy,
-				 vif->wilc_netdev->ieee80211_ptr,
+	wilc_mgmt_frame_register(vif->ndev->ieee80211_ptr->wiphy,
+				 vif->ndev->ieee80211_ptr,
 				 vif->g_struct_frame_reg[0].frame_type,
 				 vif->g_struct_frame_reg[0].reg);
-	wilc_mgmt_frame_register(vif->wilc_netdev->ieee80211_ptr->wiphy,
-				 vif->wilc_netdev->ieee80211_ptr,
+	wilc_mgmt_frame_register(vif->ndev->ieee80211_ptr->wiphy,
+				 vif->ndev->ieee80211_ptr,
 				 vif->g_struct_frame_reg[1].frame_type,
 				 vif->g_struct_frame_reg[1].reg);
 	netif_wake_queue(ndev);
@@ -1204,13 +1204,13 @@ int wilc_mac_close(struct net_device *ndev)
 
 	vif = netdev_priv(ndev);
 
-	if (!vif || !vif->wilc_netdev || !vif->wilc_netdev->ieee80211_ptr ||
-	    !vif->wilc_netdev->ieee80211_ptr->wiphy) {
+	if (!vif || !vif->ndev || !vif->ndev->ieee80211_ptr ||
+	    !vif->ndev->ieee80211_ptr->wiphy) {
 		PRINT_ER("vif = NULL\n");
 		return 0;
 	}
 
-	priv = wiphy_priv(vif->wilc_netdev->ieee80211_ptr->wiphy);
+	priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
 	wl = vif->wilc;
 
 	if (!priv) {
@@ -1239,10 +1239,10 @@ int wilc_mac_close(struct net_device *ndev)
 		return 0;
 	}
 
-	if (vif->wilc_netdev) {
-		netif_stop_queue(vif->wilc_netdev);
+	if (vif->ndev) {
+		netif_stop_queue(vif->ndev);
 
-		wilc_deinit_host_int(vif->wilc_netdev);
+		wilc_deinit_host_int(vif->ndev);
 	}
 
 	if (wl->open_ifcs == 0) {
@@ -1288,7 +1288,7 @@ static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 				return PTR_ERR(buff);
 
 			if (strncasecmp(buff, "RSSI", length) == 0) {
-				priv = wiphy_priv(vif->wilc_netdev->ieee80211_ptr->wiphy);
+				priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
 				ret = wilc_get_rssi(priv->hWILCWFIDrv, &rssi);
 				if (ret)
 					PRINT_ER("Failed to send get rssi param's message queue ");
@@ -1457,7 +1457,6 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 			strcpy(ndev->name, "p2p%d");
 
 		vif->u8IfIdx = wl->vif_num;
-		vif->wilc_netdev = ndev;
 		vif->wilc = *wilc;
 		wl->vif[i] = vif;
 		wl->vif[wl->vif_num]->ndev = ndev;
@@ -1476,9 +1475,9 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 				return -1;
 			}
 
-			vif->wilc_netdev->ieee80211_ptr = wdev;
-			vif->wilc_netdev->ml_priv = vif;
-			wdev->netdev = vif->wilc_netdev;
+			vif->ndev->ieee80211_ptr = wdev;
+			vif->ndev->ml_priv = vif;
+			wdev->netdev = vif->ndev;
 			vif->netstats.rx_packets = 0;
 			vif->netstats.tx_packets = 0;
 			vif->netstats.rx_bytes = 0;

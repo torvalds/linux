@@ -2621,8 +2621,8 @@ static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
 
 	if (type == NL80211_IFTYPE_MONITOR) {
 		PRINT_D(HOSTAPD_DBG, "Monitor interface mode: Initializing mon interface virtual device driver\n");
-		PRINT_D(HOSTAPD_DBG, "Adding monitor interface[%p]\n", vif->wilc_netdev);
-		new_ifc = WILC_WFI_init_mon_interface(name, vif->wilc_netdev);
+		PRINT_D(HOSTAPD_DBG, "Adding monitor interface[%p]\n", vif->ndev);
+		new_ifc = WILC_WFI_init_mon_interface(name, vif->ndev);
 		if (new_ifc) {
 			PRINT_D(HOSTAPD_DBG, "Setting monitor flag in private structure\n");
 			vif = netdev_priv(priv->wdev->netdev);

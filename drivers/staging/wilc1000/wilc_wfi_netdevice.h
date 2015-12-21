@@ -154,7 +154,6 @@ struct wilc_vif {
 	int monitor_flag;
 	int mac_opened;
 	struct_frame_reg g_struct_frame_reg[num_reg_frame];
-	struct net_device *wilc_netdev;
 	struct net_device_stats netstats;
 	struct wilc *wilc;
 	u8 src_addr[ETH_ALEN];
