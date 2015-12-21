@@ -323,6 +323,34 @@ int vgic_lazy_init(struct kvm *kvm)
 	return ret;
 }
 
+/* RESOURCE MAPPING */
+
+/**
+ * Map the MMIO regions depending on the VGIC model exposed to the guest
+ * called on the first VCPU run.
+ * Also map the virtual CPU interface into the VM.
+ * v2/v3 derivatives call vgic_init if not already done.
+ * vgic_ready() returns true if this function has succeeded.
+ * @kvm: kvm struct pointer
+ */
+int kvm_vgic_map_resources(struct kvm *kvm)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	int ret = 0;
+
+	mutex_lock(&kvm->lock);
+	if (!irqchip_in_kernel(kvm))
+		goto out;
+
+	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2)
+		ret = vgic_v2_map_resources(kvm);
+	else
+		ret = vgic_v3_map_resources(kvm);
+out:
+	mutex_unlock(&kvm->lock);
+	return ret;
+}
+
 /* GENERIC PROBE */
 
 static void vgic_init_maintenance_interrupt(void *info)

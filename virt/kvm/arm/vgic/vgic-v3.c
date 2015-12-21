@@ -191,6 +191,77 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 {
 }
 
+/* check for overlapping regions and for regions crossing the end of memory */
+static bool vgic_v3_check_base(struct kvm *kvm)
+{
+	struct vgic_dist *d = &kvm->arch.vgic;
+	gpa_t redist_size = KVM_VGIC_V3_REDIST_SIZE;
+
+	redist_size *= atomic_read(&kvm->online_vcpus);
+
+	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE < d->vgic_dist_base)
+		return false;
+	if (d->vgic_redist_base + redist_size < d->vgic_redist_base)
+		return false;
+
+	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE <= d->vgic_redist_base)
+		return true;
+	if (d->vgic_redist_base + redist_size <= d->vgic_dist_base)
+		return true;
+
+	return false;
+}
+
+int vgic_v3_map_resources(struct kvm *kvm)
+{
+	int ret = 0;
+	struct vgic_dist *dist = &kvm->arch.vgic;
+
+	if (vgic_ready(kvm))
+		goto out;
+
+	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
+	    IS_VGIC_ADDR_UNDEF(dist->vgic_redist_base)) {
+		kvm_err("Need to set vgic distributor addresses first\n");
+		ret = -ENXIO;
+		goto out;
+	}
+
+	if (!vgic_v3_check_base(kvm)) {
+		kvm_err("VGIC redist and dist frames overlap\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/*
+	 * For a VGICv3 we require the userland to explicitly initialize
+	 * the VGIC before we need to use it.
+	 */
+	if (!vgic_initialized(kvm)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ret = vgic_register_dist_iodev(kvm, dist->vgic_dist_base, VGIC_V3);
+	if (ret) {
+		kvm_err("Unable to register VGICv3 dist MMIO regions\n");
+		goto out;
+	}
+
+	ret = vgic_register_redist_iodevs(kvm, dist->vgic_redist_base);
+	if (ret) {
+		kvm_err("Unable to register VGICv3 redist MMIO regions\n");
+		goto out;
+	}
+
+	dist->ready = true;
+
+out:
+	if (ret)
+		kvm_vgic_destroy(kvm);
+	return ret;
+}
+
 /**
  * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
  * @node:	pointer to the DT node
