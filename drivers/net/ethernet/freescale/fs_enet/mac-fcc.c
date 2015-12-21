@@ -552,7 +552,7 @@ static void tx_restart(struct net_device *dev)
 	cbd_t __iomem *prev_bd;
 	cbd_t __iomem *last_tx_bd;
 
-	last_tx_bd = fep->tx_bd_base + (fpi->tx_ring * sizeof(cbd_t));
+	last_tx_bd = fep->tx_bd_base + ((fpi->tx_ring - 1) * sizeof(cbd_t));
 
 	/* get the current bd held in TBPTR  and scan back from this point */
 	recheck_bd = curr_tbptr = (cbd_t __iomem *)

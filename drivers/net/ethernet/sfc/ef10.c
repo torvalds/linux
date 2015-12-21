@@ -3299,7 +3299,8 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 
 		new_spec.priority = EFX_FILTER_PRI_AUTO;
 		new_spec.flags = (EFX_FILTER_FLAG_RX |
-				  EFX_FILTER_FLAG_RX_RSS);
+				  (efx_rss_enabled(efx) ?
+				   EFX_FILTER_FLAG_RX_RSS : 0));
 		new_spec.dmaq_id = 0;
 		new_spec.rss_context = EFX_FILTER_RSS_CONTEXT_DEFAULT;
 		rc = efx_ef10_filter_push(efx, &new_spec,
@@ -3921,6 +3922,7 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
 	struct efx_ef10_dev_addr *addr_list;
+	enum efx_filter_flags filter_flags;
 	struct efx_filter_spec spec;
 	u8 baddr[ETH_ALEN];
 	unsigned int i, j;
@@ -3935,11 +3937,11 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 		addr_count = table->dev_uc_count;
 	}
 
+	filter_flags = efx_rss_enabled(efx) ? EFX_FILTER_FLAG_RX_RSS : 0;
+
 	/* Insert/renew filters */
 	for (i = 0; i < addr_count; i++) {
-		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-				   EFX_FILTER_FLAG_RX_RSS,
-				   0);
+		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC,
 					 addr_list[i].addr);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -3968,9 +3970,7 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 
 	if (multicast && rollback) {
 		/* Also need an Ethernet broadcast filter */
-		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-				   EFX_FILTER_FLAG_RX_RSS,
-				   0);
+		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		eth_broadcast_addr(baddr);
 		efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC, baddr);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -4000,13 +4000,14 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx, bool multicast,
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	enum efx_filter_flags filter_flags;
 	struct efx_filter_spec spec;
 	u8 baddr[ETH_ALEN];
 	int rc;
 
-	efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-			   EFX_FILTER_FLAG_RX_RSS,
-			   0);
+	filter_flags = efx_rss_enabled(efx) ? EFX_FILTER_FLAG_RX_RSS : 0;
+
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 
 	if (multicast)
 		efx_filter_set_mc_def(&spec);
@@ -4023,8 +4024,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx, bool multicast,
 		if (!nic_data->workaround_26807) {
 			/* Also need an Ethernet broadcast filter */
 			efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-					   EFX_FILTER_FLAG_RX_RSS,
-					   0);
+					   filter_flags, 0);
 			eth_broadcast_addr(baddr);
 			efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC,
 						 baddr);
