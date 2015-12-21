@@ -212,7 +212,7 @@ int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				 PHM_PlatformCaps_TablelessHardwareInterface))
-		if (NULL != hwmgr->hwmgr_func->display_config_changed)
+		if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
 			hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment(hwmgr);
 
 	return 0;
