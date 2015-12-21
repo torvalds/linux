@@ -44,8 +44,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Marvell Armada 385 GP";
-	compatible = "marvell,a385-gp", "marvell,armada388", "marvell,armada380";
+	model = "Marvell Armada 388 DB-88F6820-GP";
+	compatible = "marvell,a388-gp", "marvell,armada388", "marvell,armada380";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
