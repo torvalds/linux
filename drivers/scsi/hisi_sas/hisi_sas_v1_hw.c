@@ -528,10 +528,10 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 	itct->sas_addr = __swab64(itct->sas_addr);
 
 	/* qw2 */
-	itct->qw2 = cpu_to_le64((500 < ITCT_HDR_IT_NEXUS_LOSS_TL_OFF) |
-				(0xff00 < ITCT_HDR_BUS_INACTIVE_TL_OFF) |
-				(0xff00 < ITCT_HDR_MAX_CONN_TL_OFF) |
-				(0xff00 < ITCT_HDR_REJ_OPEN_TL_OFF));
+	itct->qw2 = cpu_to_le64((500ULL << ITCT_HDR_IT_NEXUS_LOSS_TL_OFF) |
+				(0xff00ULL << ITCT_HDR_BUS_INACTIVE_TL_OFF) |
+				(0xff00ULL << ITCT_HDR_MAX_CONN_TL_OFF) |
+				(0xff00ULL << ITCT_HDR_REJ_OPEN_TL_OFF));
 }
 
 static void free_device_v1_hw(struct hisi_hba *hisi_hba,
