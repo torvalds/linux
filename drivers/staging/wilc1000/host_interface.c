@@ -2635,8 +2635,10 @@ static u32 Handle_ListenStateExpired(struct host_if_drv *hif_drv,
 		wid.size = 2;
 		wid.val = kmalloc(wid.size, GFP_KERNEL);
 
-		if (!wid.val)
+		if (!wid.val) {
 			PRINT_ER("Failed to allocate memory\n");
+			return -ENOMEM;
+		}
 
 		wid.val[0] = u8remain_on_chan_flag;
 		wid.val[1] = FALSE_FRMWR_CHANNEL;
