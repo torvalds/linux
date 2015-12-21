@@ -120,7 +120,7 @@ static int intel_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	void __iomem *gplr = gpio_reg(chip, offset, GPLR);
 
-	return readl(gplr) & BIT(offset % 32);
+	return !!(readl(gplr) & BIT(offset % 32));
 }
 
 static void intel_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
