@@ -17,7 +17,7 @@
 
 static int sa1100_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	return GPLR & GPIO_GPIO(offset);
+	return !!(GPLR & GPIO_GPIO(offset));
 }
 
 static void sa1100_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
