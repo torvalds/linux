@@ -1206,11 +1206,21 @@ static u64 *alloc_pte(struct protection_domain *domain,
 	end_lvl = PAGE_SIZE_LEVEL(page_size);
 
 	while (level > end_lvl) {
-		if (!IOMMU_PTE_PRESENT(*pte)) {
+		u64 __pte, __npte;
+
+		__pte = *pte;
+
+		if (!IOMMU_PTE_PRESENT(__pte)) {
 			page = (u64 *)get_zeroed_page(gfp);
 			if (!page)
 				return NULL;
-			*pte = PM_LEVEL_PDE(level, virt_to_phys(page));
+
+			__npte = PM_LEVEL_PDE(level, virt_to_phys(page));
+
+			if (cmpxchg64(pte, __pte, __npte)) {
+				free_page((unsigned long)page);
+				continue;
+			}
 		}
 
 		/* No level skipping support yet */
@@ -1607,7 +1617,7 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 		address = dma_ops_area_alloc(dev, dom, pages,
 					     align_mask, dma_mask);
 
-		if (address == -1 && alloc_new_range(dom, true, GFP_ATOMIC))
+		if (address == -1 && alloc_new_range(dom, false, GFP_ATOMIC))
 			break;
 	}
 
