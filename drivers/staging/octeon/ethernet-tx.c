@@ -403,7 +403,7 @@ dont_put_skbuff_in_hw:
 	    ((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
 	     (ip_hdr(skb)->protocol == IPPROTO_UDP))) {
 		/* Use hardware checksum calc */
-		pko_command.s.ipoffp1 = sizeof(struct ethhdr) + 1;
+		pko_command.s.ipoffp1 = skb_network_offset(skb) + 1;
 	}
 
 	if (USE_ASYNC_IOBDMA) {
