@@ -226,7 +226,6 @@ struct join_bss_param {
 	u8 start_time[4];
 };
 
-static struct host_if_drv *wfidrv_list[NUM_CONCURRENT_IFC + 1];
 struct host_if_drv *terminated_handle;
 bool wilc_optaining_ip;
 static u8 P2P_LISTEN_STATE;
@@ -265,34 +264,6 @@ static struct wilc_vif *join_req_vif;
 #define FLUSHED_BYTE_POS 79
 
 static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo);
-
-static int add_handler_in_list(struct host_if_drv *handler)
-{
-	int i;
-
-	for (i = 1; i < ARRAY_SIZE(wfidrv_list); i++) {
-		if (!wfidrv_list[i]) {
-			wfidrv_list[i] = handler;
-			return 0;
-		}
-	}
-
-	return -ENOBUFS;
-}
-
-static int remove_handler_in_list(struct host_if_drv *handler)
-{
-	int i;
-
-	for (i = 1; i < ARRAY_SIZE(wfidrv_list); i++) {
-		if (wfidrv_list[i] == handler) {
-			wfidrv_list[i] = NULL;
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
 
 /* The u8IfIdx starts from 0 to NUM_CONCURRENT_IFC -1, but 0 index used as
  * special purpose in wilc device, so we add 1 to the index to starts from 1.
@@ -3852,7 +3823,6 @@ s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 {
 	s32 result = 0;
 	struct host_if_drv *hif_drv;
-	int err;
 	struct wilc_vif *vif;
 	struct wilc *wilc;
 
@@ -3872,11 +3842,6 @@ s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	}
 	hif_drv->wilc = wilc;
 	*hif_drv_handler = hif_drv;
-	err = add_handler_in_list(hif_drv);
-	if (err) {
-		result = -EFAULT;
-		goto _fail_timer_2;
-	}
 
 	wilc_optaining_ip = false;
 
@@ -3946,10 +3911,6 @@ s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	return result;
 
-_fail_timer_2:
-	del_timer_sync(&hif_drv->connect_timer);
-	del_timer_sync(&hif_drv->scan_timer);
-	kthread_stop(hif_thread_handler);
 _fail_mq_:
 	wilc_mq_destroy(&hif_msg_q);
 _fail_:
@@ -3961,7 +3922,6 @@ s32 wilc_deinit(struct wilc_vif *vif)
 	s32 result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	int ret;
 
 	if (!hif_drv)	{
 		PRINT_ER("hif_drv = NULL\n");
@@ -4015,10 +3975,6 @@ s32 wilc_deinit(struct wilc_vif *vif)
 
 		wilc_mq_destroy(&hif_msg_q);
 	}
-
-	ret = remove_handler_in_list(hif_drv);
-	if (ret)
-		result = -ENOENT;
 
 	kfree(hif_drv);
 
