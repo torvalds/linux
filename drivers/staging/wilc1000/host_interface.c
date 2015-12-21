@@ -3940,8 +3940,6 @@ s32 wilc_deinit(struct host_if_drv *hif_drv)
 		wilc_mq_destroy(&hif_msg_q);
 	}
 
-	down(&hif_drv->sem_cfg_values);
-
 	ret = remove_handler_in_list(hif_drv);
 	if (ret)
 		result = -ENOENT;
