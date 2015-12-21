@@ -12,10 +12,8 @@ typedef struct {
 	u32 cfg_frame_offset;
 	int cfg_seq_no;
 
-	#ifdef MEMORY_STATIC
 	u8 *rx_buffer;
 	u32 rx_buffer_offset;
-	#endif
 	u8 *tx_buffer;
 	u32 tx_buffer_offset;
 
@@ -1050,9 +1048,6 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 			if (offset >= size)
 				break;
 		} while (1);
-#ifndef MEMORY_STATIC
-		kfree(buffer);
-#endif
 		kfree(rqe);
 
 		if (has_packet)
@@ -1097,9 +1092,7 @@ static void wilc_sleeptimer_isr_ext(struct wilc *wilc, u32 int_stats1)
 static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 {
 	wilc_wlan_dev_t *p = &g_wlan;
-#ifdef MEMORY_STATIC
 	u32 offset = p->rx_buffer_offset;
-#endif
 	u8 *buffer = NULL;
 	u32 size;
 	u32 retries = 0;
@@ -1118,7 +1111,6 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 	}
 
 	if (size > 0) {
-#ifdef MEMORY_STATIC
 		if (LINUX_RX_SIZE - offset < size)
 			offset = 0;
 
@@ -1129,13 +1121,6 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 			goto _end_;
 		}
 
-#else
-		buffer = kmalloc(size, GFP_KERNEL);
-		if (!buffer) {
-			usleep_range(100 * 1000, 100 * 1000);
-			goto _end_;
-		}
-#endif
 		p->hif_func.hif_clear_int_ext(wilc,
 					      DATA_INT_CLR | ENABLE_RX_VMM);
 		ret = p->hif_func.hif_block_rx_ext(wilc, 0, buffer, size);
@@ -1146,10 +1131,8 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 		}
 _end_:
 		if (ret) {
-#ifdef MEMORY_STATIC
 			offset += size;
 			p->rx_buffer_offset = offset;
-#endif
 			rqe = kmalloc(sizeof(*rqe), GFP_KERNEL);
 			if (rqe) {
 				rqe->buffer = buffer;
@@ -1157,10 +1140,6 @@ _end_:
 				PRINT_D(RX_DBG, "rxq entery Size= %d - Address = %p\n", rqe->buffer_size, rqe->buffer);
 				wilc_wlan_rxq_add(wilc, rqe);
 			}
-		} else {
-#ifndef MEMORY_STATIC
-			kfree(buffer);
-#endif
 		}
 	}
 	wilc_wlan_handle_rxq(wilc);
@@ -1442,16 +1421,11 @@ void wilc_wlan_cleanup(struct net_device *dev)
 		rqe = wilc_wlan_rxq_remove(wilc);
 		if (!rqe)
 			break;
-#ifndef MEMORY_STATIC
-		kfree(rqe->buffer);
-#endif
 		kfree(rqe);
 	} while (1);
 
-	#ifdef MEMORY_STATIC
 	kfree(p->rx_buffer);
 	p->rx_buffer = NULL;
-	#endif
 	kfree(p->tx_buffer);
 
 	acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
@@ -1691,7 +1665,6 @@ int wilc_wlan_init(struct net_device *dev)
 		goto _fail_;
 	}
 
-#if defined(MEMORY_STATIC)
 	if (!g_wlan.rx_buffer)
 		g_wlan.rx_buffer = kmalloc(LINUX_RX_SIZE, GFP_KERNEL);
 	PRINT_D(TX_DBG, "g_wlan.rx_buffer =%p\n", g_wlan.rx_buffer);
@@ -1700,7 +1673,6 @@ int wilc_wlan_init(struct net_device *dev)
 		PRINT_ER("Can't allocate Rx Buffer");
 		goto _fail_;
 	}
-#endif
 
 	if (!init_chip(dev)) {
 		ret = -EIO;
@@ -1714,10 +1686,8 @@ int wilc_wlan_init(struct net_device *dev)
 
 _fail_:
 
-  #ifdef MEMORY_STATIC
 	kfree(g_wlan.rx_buffer);
 	g_wlan.rx_buffer = NULL;
-  #endif
 	kfree(g_wlan.tx_buffer);
 	g_wlan.tx_buffer = NULL;
 

@@ -31,28 +31,6 @@ config WILC1000_SPI
 	  immediately following reset when pin 9 (SDIO_SPI_CFG) is tied to
 	  VDDIO. Select this if your platform is using the SPI bus.
 
-choice
-        prompt "WILC1000 Memory Allocation"
-        depends on WILC1000
-        default WILC1000_PREALLOCATE_AT_LOADING_DRIVER
-
-config WILC1000_PREALLOCATE_AT_LOADING_DRIVER
-	bool "Preallocate memory at loading driver"
-	---help---
-	  This choice supports static allocation of the memory
-	  for the receive buffer. The driver will allocate the RX buffer
-	  during initial time. The driver will also free the buffer
-	  by calling network device stop.
-
-config WILC1000_DYNAMICALLY_ALLOCATE_MEMROY
-        bool "Dynamically allocate memory in real time"
-        ---help---
-	  This choice supports dynamic allocation of the memory
-	  for the receive buffer. The driver will allocate the RX buffer
-	  when it is required.
-endchoice
-
-
 config WILC1000_HW_OOB_INTR
 	bool "WILC1000 out of band interrupt"
 	depends on WILC1000_SDIO

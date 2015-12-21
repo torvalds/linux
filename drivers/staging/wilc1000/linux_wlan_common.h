@@ -124,9 +124,7 @@ extern atomic_t WILC_DEBUG_LEVEL;
 #define FN_IN   /* PRINT_D(">>> \n") */
 #define FN_OUT  /* PRINT_D("<<<\n") */
 
-#ifdef MEMORY_STATIC
 #define LINUX_RX_SIZE	(96 * 1024)
-#endif
 #define LINUX_TX_SIZE	(64 * 1024)
 
 
