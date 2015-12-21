@@ -40,6 +40,7 @@
 #include <linux/netdevice.h>
 
 #include <rdma/ib_mad.h>
+#include <rdma/ib_pma.h>
 
 struct ib_port;
 
@@ -75,6 +76,7 @@ struct port_table_attribute {
 	struct port_attribute	attr;
 	char			name[8];
 	int			index;
+	int			attr_id;
 };
 
 static ssize_t port_attr_show(struct kobject *kobj,
@@ -395,7 +397,8 @@ static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
 #define PORT_PMA_ATTR(_name, _counter, _width, _offset)			\
 struct port_table_attribute port_pma_attr_##_name = {			\
 	.attr  = __ATTR(_name, S_IRUGO, show_pma_counter, NULL),	\
-	.index = (_offset) | ((_width) << 16) | ((_counter) << 24)	\
+	.index = (_offset) | ((_width) << 16) | ((_counter) << 24),	\
+	.attr_id = IB_PMA_PORT_COUNTERS ,				\
 }
 
 /*
@@ -457,7 +460,7 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 	ssize_t ret;
 	u8 data[8];
 
-	ret = get_perf_mad(p->ibdev, p->port_num, cpu_to_be16(0x12), &data,
+	ret = get_perf_mad(p->ibdev, p->port_num, tab_attr->attr_id, &data,
 			40 + offset / 8, sizeof(data));
 	if (ret < 0)
 		return sprintf(buf, "N/A (no PMA)\n");
