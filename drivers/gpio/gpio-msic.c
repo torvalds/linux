@@ -143,7 +143,7 @@ static int msic_gpio_get(struct gpio_chip *chip, unsigned offset)
 	if (ret < 0)
 		return ret;
 
-	return r & MSIC_GPIO_DIN_MASK;
+	return !!(r & MSIC_GPIO_DIN_MASK);
 }
 
 static void msic_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
