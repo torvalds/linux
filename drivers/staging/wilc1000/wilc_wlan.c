@@ -759,9 +759,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 					vmm_table[i] |= BIT(10);
 					PRINT_D(TX_DBG, "VMMTable entry changed for CFG packet = %d\n", vmm_table[i]);
 				}
-#ifdef BIG_ENDIAN
-				vmm_table[i] = BYTE_SWAP(vmm_table[i]);
-#endif
+				vmm_table[i] = cpu_to_le32(vmm_table[i]);
 
 				i++;
 				sum += vmm_sz;
@@ -886,9 +884,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 			if (tqe && (vmm_table[i] != 0)) {
 				u32 header, buffer_offset;
 
-#ifdef BIG_ENDIAN
-				vmm_table[i] = BYTE_SWAP(vmm_table[i]);
-#endif
+				vmm_table[i] = cpu_to_le32(vmm_table[i]);
 				vmm_sz = (vmm_table[i] & 0x3ff);
 				vmm_sz *= 4;
 				header = (tqe->type << 31) |
@@ -899,9 +895,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				else
 					header &= ~BIT(30);
 
-#ifdef BIG_ENDIAN
-				header = BYTE_SWAP(header);
-#endif
+				header = cpu_to_le32(header);
 				memcpy(&txb[offset], &header, 4);
 				if (tqe->type == WILC_CFG_PKT) {
 					buffer_offset = ETH_CONFIG_PKT_HDR_OFFSET;
@@ -993,9 +987,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 
 			PRINT_D(RX_DBG, "In the 2nd do-while\n");
 			memcpy(&header, &buffer[offset], 4);
-#ifdef BIG_ENDIAN
-			header = BYTE_SWAP(header);
-#endif
+			header = cpu_to_le32(header);
 			PRINT_D(RX_DBG, "Header = %04x - Offset = %d\n",
 				header, offset);
 
@@ -1194,10 +1186,8 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer, u32 buffer_
 	do {
 		memcpy(&addr, &buffer[offset], 4);
 		memcpy(&size, &buffer[offset + 4], 4);
-#ifdef BIG_ENDIAN
-		addr = BYTE_SWAP(addr);
-		size = BYTE_SWAP(size);
-#endif
+		addr = cpu_to_le32(addr);
+		size = cpu_to_le32(size);
 		acquire_bus(wilc, ACQUIRE_ONLY);
 		offset += 8;
 		while (((int)size) && (offset < buffer_size)) {

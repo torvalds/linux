@@ -529,9 +529,7 @@ static int spi_internal_write(struct wilc *wilc, u32 adr, u32 dat)
 {
 	int result;
 
-#ifdef BIG_ENDIAN
-	dat = BYTE_SWAP(dat);
-#endif
+	dat = cpu_to_le32(dat);
 	result = spi_cmd_complete(wilc, CMD_INTERNAL_WRITE, adr, (u8 *)&dat, 4,
 				  0);
 	if (result != N_OK) {
@@ -552,9 +550,7 @@ static int spi_internal_read(struct wilc *wilc, u32 adr, u32 *data)
 		return 0;
 	}
 
-#ifdef BIG_ENDIAN
-	*data = BYTE_SWAP(*data);
-#endif
+	*data = cpu_to_le32(*data);
 
 	return 1;
 }
@@ -571,9 +567,7 @@ static int wilc_spi_write_reg(struct wilc *wilc, u32 addr, u32 data)
 	u8 cmd = CMD_SINGLE_WRITE;
 	u8 clockless = 0;
 
-#ifdef BIG_ENDIAN
-	data = BYTE_SWAP(data);
-#endif
+	data = cpu_to_le32(data);
 	if (addr < 0x30) {
 		/* Clockless register*/
 		cmd = CMD_INTERNAL_WRITE;
@@ -635,9 +629,7 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		return 0;
 	}
 
-#ifdef BIG_ENDIAN
-	*data = BYTE_SWAP(*data);
-#endif
+	*data = cpu_to_le32(*data);
 
 	return 1;
 }

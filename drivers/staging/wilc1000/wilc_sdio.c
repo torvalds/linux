@@ -163,9 +163,7 @@ static int sdio_clear_int(struct wilc *wilc)
  ********************************************/
 static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 {
-#ifdef BIG_ENDIAN
-	data = BYTE_SWAP(data);
-#endif
+	data = cpu_to_le32(data);
 
 	if ((addr >= 0xf0) && (addr <= 0xff)) {
 		sdio_cmd52_t cmd;
@@ -330,9 +328,7 @@ static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		}
 	}
 
-#ifdef BIG_ENDIAN
-	*data = BYTE_SWAP(*data);
-#endif
+	*data = cpu_to_le32(*data);
 
 	return 1;
 
