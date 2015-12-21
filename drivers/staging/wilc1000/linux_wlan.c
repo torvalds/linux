@@ -750,9 +750,9 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 
 		PRINT_D(INIT_DBG, "Disabling IRQ\n");
 		if (!wl->dev_irq_num &&
-		    wl->ops->disable_interrupt) {
+		    wl->hif_func->disable_interrupt) {
 			mutex_lock(&wl->hif_cs);
-			wl->ops->disable_interrupt(wl);
+			wl->hif_func->disable_interrupt(wl);
 			mutex_unlock(&wl->hif_cs);
 		}
 		if (&wl->txq_event)
@@ -770,12 +770,12 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 		wilc_wlan_cleanup(dev);
 #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
 		if (!wl->dev_irq_num &&
-		    wl->ops->disable_interrupt) {
+		    wl->hif_func->disable_interrupt) {
 
 			PRINT_D(INIT_DBG, "Disabling IRQ 2\n");
 
 			mutex_lock(&wl->hif_cs);
-			wl->ops->disable_interrupt(wl);
+			wl->hif_func->disable_interrupt(wl);
 			mutex_unlock(&wl->hif_cs);
 		}
 #endif
@@ -911,8 +911,8 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 
 		if (!wl->dev_irq_num &&
-		    wl->ops->enable_interrupt &&
-		    wl->ops->enable_interrupt(wl)) {
+		    wl->hif_func->enable_interrupt &&
+		    wl->hif_func->enable_interrupt(wl)) {
 			PRINT_ER("couldn't initialize IRQ\n");
 			ret = -EIO;
 			goto _fail_irq_init_;
@@ -964,8 +964,8 @@ _fail_fw_start_:
 
 _fail_irq_enable_:
 		if (!wl->dev_irq_num &&
-		    wl->ops->disable_interrupt)
-			wl->ops->disable_interrupt(wl);
+		    wl->hif_func->disable_interrupt)
+			wl->hif_func->disable_interrupt(wl);
 _fail_irq_init_:
 		if (wl->dev_irq_num)
 			deinit_irq(dev);
@@ -1438,7 +1438,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->gpio = gpio;
-	wl->ops = ops;
+	wl->hif_func = ops;
 
 	register_inetaddr_notifier(&g_dev_notifier);
 

@@ -156,7 +156,7 @@ struct wilc_vif {
 };
 
 struct wilc {
-	const struct wilc_hif_func *ops;
+	const struct wilc_hif_func *hif_func;
 	int io_type;
 	int mac_status;
 	int gpio;
