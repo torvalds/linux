@@ -1,7 +1,5 @@
 obj-$(CONFIG_WILC1000) += wilc1000.o
 
-ccflags-$(CONFIG_WILC1000_SDIO) += -DCOMPLEMENT_BOOT
-
 ccflags-y += -DSTA_FIRMWARE=\"atmel/wilc1000_fw.bin\" \
 		-DAP_FIRMWARE=\"atmel/wilc1000_ap_fw.bin\" \
 		-DP2P_CONCURRENCY_FIRMWARE=\"atmel/wilc1000_p2p_fw.bin\"
