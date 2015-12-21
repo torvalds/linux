@@ -4028,7 +4028,8 @@ s32 wilc_deinit(struct wilc_vif *vif)
 	return result;
 }
 
-void wilc_network_info_received(u8 *pu8Buffer, u32 u32Length)
+void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
+				u32 u32Length)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
@@ -4057,7 +4058,8 @@ void wilc_network_info_received(u8 *pu8Buffer, u32 u32Length)
 		PRINT_ER("Error in sending network info message queue message parameters: Error(%d)\n", result);
 }
 
-void wilc_gnrl_async_info_received(u8 *pu8Buffer, u32 u32Length)
+void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
+				   u32 u32Length)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
@@ -4098,7 +4100,8 @@ void wilc_gnrl_async_info_received(u8 *pu8Buffer, u32 u32Length)
 	up(&hif_sema_deinit);
 }
 
-void wilc_scan_complete_received(u8 *pu8Buffer, u32 u32Length)
+void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
+				 u32 u32Length)
 {
 	s32 result = 0;
 	struct host_if_msg msg;

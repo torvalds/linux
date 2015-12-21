@@ -988,7 +988,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 				} else {
 					struct wilc_cfg_rsp rsp;
 
-					wilc_wlan_cfg_indicate_rx(&buffer[pkt_offset + offset], pkt_len, &rsp);
+					wilc_wlan_cfg_indicate_rx(wilc, &buffer[pkt_offset + offset], pkt_len, &rsp);
 					if (rsp.type == WILC_CFG_RSP) {
 						PRINT_D(RX_DBG, "wilc->cfg_seq_no = %d - rsp.seq_no = %d\n", wilc->cfg_seq_no, rsp.seq_no);
 						if (wilc->cfg_seq_no == rsp.seq_no)
