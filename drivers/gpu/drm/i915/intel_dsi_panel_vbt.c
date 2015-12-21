@@ -265,18 +265,30 @@ static const char *sequence_name(enum mipi_seq seq_id)
 		return "(unknown)";
 }
 
-static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
+static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 {
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
 	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
+	const u8 *data;
 	fn_mipi_elem_exec mipi_elem_exec;
 
-	if (!data)
+	if (WARN_ON(seq_id >= ARRAY_SIZE(dev_priv->vbt.dsi.sequence)))
 		return;
 
-	DRM_DEBUG_DRIVER("Starting MIPI sequence %u - %s\n",
-			 *data, sequence_name(*data));
+	data = dev_priv->vbt.dsi.sequence[seq_id];
+	if (!data) {
+		DRM_DEBUG_KMS("MIPI sequence %d - %s not available\n",
+			      seq_id, sequence_name(seq_id));
+		return;
+	}
 
-	/* go to the first element of the sequence */
+	WARN_ON(*data != seq_id);
+
+	DRM_DEBUG_KMS("Starting MIPI sequence %d - %s\n",
+		      seq_id, sequence_name(seq_id));
+
+	/* Skip Sequence Byte. */
 	data++;
 
 	/* Skip Size of Sequence. */
@@ -317,59 +329,29 @@ static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 
 static int vbt_panel_prepare(struct drm_panel *panel)
 {
-	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
-	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	const u8 *sequence;
-
-	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_ASSERT_RESET];
-	generic_exec_sequence(intel_dsi, sequence);
-
-	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
-	generic_exec_sequence(intel_dsi, sequence);
+	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
+	generic_exec_sequence(panel, MIPI_SEQ_INIT_OTP);
 
 	return 0;
 }
 
 static int vbt_panel_unprepare(struct drm_panel *panel)
 {
-	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
-	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	const u8 *sequence;
-
-	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET];
-	generic_exec_sequence(intel_dsi, sequence);
+	generic_exec_sequence(panel, MIPI_SEQ_DEASSERT_RESET);
 
 	return 0;
 }
 
 static int vbt_panel_enable(struct drm_panel *panel)
 {
-	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
-	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	const u8 *sequence;
-
-	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DISPLAY_ON];
-	generic_exec_sequence(intel_dsi, sequence);
+	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_ON);
 
 	return 0;
 }
 
 static int vbt_panel_disable(struct drm_panel *panel)
 {
-	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
-	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	const u8 *sequence;
-
-	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DISPLAY_OFF];
-	generic_exec_sequence(intel_dsi, sequence);
+	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_OFF);
 
 	return 0;
 }
