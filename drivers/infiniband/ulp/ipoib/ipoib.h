@@ -549,7 +549,8 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 int ipoib_mcast_attach(struct net_device *dev, u16 mlid,
 		       union ib_gid *mgid, int set_qkey);
 void ipoib_mcast_remove_list(struct net_device *dev, struct list_head *remove_list);
-struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, void *mgid);
+void ipoib_check_and_add_mcast_sendonly(struct ipoib_dev_priv *priv, u8 *mgid,
+				struct list_head *remove_list);
 
 int ipoib_init_qp(struct net_device *dev);
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca);
