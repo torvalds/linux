@@ -159,9 +159,8 @@ void wilc_sdio_disable_interrupt(struct wilc *dev)
 
 	sdio_claim_host(func);
 	ret = sdio_release_irq(func);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&func->dev, "can't release sdio_irq, err(%d)\n", ret);
-	}
 	sdio_release_host(func);
 
 	dev_info(&func->dev, "wilc_sdio_disable_interrupt OUT\n");
