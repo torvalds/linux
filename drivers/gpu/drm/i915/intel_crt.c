@@ -50,7 +50,7 @@ struct intel_crt {
 	 * encoder's enable/disable callbacks */
 	struct intel_connector *connector;
 	bool force_hotplug_required;
-	u32 adpa_reg;
+	i915_reg_t adpa_reg;
 };
 
 static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
@@ -480,12 +480,8 @@ intel_crt_load_detect(struct intel_crt *crt)
 	uint32_t vsample;
 	uint32_t vblank, vblank_start, vblank_end;
 	uint32_t dsl;
-	uint32_t bclrpat_reg;
-	uint32_t vtotal_reg;
-	uint32_t vblank_reg;
-	uint32_t vsync_reg;
-	uint32_t pipeconf_reg;
-	uint32_t pipe_dsl_reg;
+	i915_reg_t bclrpat_reg, vtotal_reg,
+		vblank_reg, vsync_reg, pipeconf_reg, pipe_dsl_reg;
 	uint8_t	st00;
 	enum drm_connector_status status;
 
@@ -518,7 +514,7 @@ intel_crt_load_detect(struct intel_crt *crt)
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
 		intel_wait_for_vblank(dev, pipe);
-		st00 = I915_READ8(VGA_MSR_WRITE);
+		st00 = I915_READ8(_VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :
 			connector_status_disconnected;
@@ -563,7 +559,7 @@ intel_crt_load_detect(struct intel_crt *crt)
 		do {
 			count++;
 			/* Read the ST00 VGA status register */
-			st00 = I915_READ8(VGA_MSR_WRITE);
+			st00 = I915_READ8(_VGA_MSR_WRITE);
 			if (st00 & (1 << 4))
 				detect++;
 		} while ((I915_READ(pipe_dsl_reg) == dsl));

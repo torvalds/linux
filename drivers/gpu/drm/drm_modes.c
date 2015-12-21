@@ -917,13 +917,30 @@ bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_displ
 	} else if (mode1->clock != mode2->clock)
 		return false;
 
+	return drm_mode_equal_no_clocks(mode1, mode2);
+}
+EXPORT_SYMBOL(drm_mode_equal);
+
+/**
+ * drm_mode_equal_no_clocks - test modes for equality
+ * @mode1: first mode
+ * @mode2: second mode
+ *
+ * Check to see if @mode1 and @mode2 are equivalent, but
+ * don't check the pixel clocks.
+ *
+ * Returns:
+ * True if the modes are equal, false otherwise.
+ */
+bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
+{
 	if ((mode1->flags & DRM_MODE_FLAG_3D_MASK) !=
 	    (mode2->flags & DRM_MODE_FLAG_3D_MASK))
 		return false;
 
 	return drm_mode_equal_no_clocks_no_stereo(mode1, mode2);
 }
-EXPORT_SYMBOL(drm_mode_equal);
+EXPORT_SYMBOL(drm_mode_equal_no_clocks);
 
 /**
  * drm_mode_equal_no_clocks_no_stereo - test modes for equality
@@ -1230,7 +1247,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	unsigned int xres = 0, yres = 0, bpp = 32, refresh = 0;
 	bool yres_specified = false, cvt = false, rb = false;
 	bool interlace = false, margins = false, was_digit = false;
-	int i;
+	int i, err;
 	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
 
 #ifdef CONFIG_FB
@@ -1250,7 +1267,9 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		case '@':
 			if (!refresh_specified && !bpp_specified &&
 			    !yres_specified && !cvt && !rb && was_digit) {
-				refresh = simple_strtol(&name[i+1], NULL, 10);
+				err = kstrtouint(&name[i + 1], 10, &refresh);
+				if (err)
+					return false;
 				refresh_specified = true;
 				was_digit = false;
 			} else
@@ -1259,7 +1278,9 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		case '-':
 			if (!bpp_specified && !yres_specified && !cvt &&
 			    !rb && was_digit) {
-				bpp = simple_strtol(&name[i+1], NULL, 10);
+				err = kstrtouint(&name[i + 1], 10, &bpp);
+				if (err)
+					return false;
 				bpp_specified = true;
 				was_digit = false;
 			} else
@@ -1267,7 +1288,9 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 			break;
 		case 'x':
 			if (!yres_specified && was_digit) {
-				yres = simple_strtol(&name[i+1], NULL, 10);
+				err = kstrtouint(&name[i + 1], 10, &yres);
+				if (err)
+					return false;
 				yres_specified = true;
 				was_digit = false;
 			} else
