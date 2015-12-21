@@ -512,7 +512,7 @@ static int sdio_sync(struct wilc *wilc)
 	return 1;
 }
 
-static int sdio_init(struct wilc *wilc, wilc_debug_func debug_func)
+static int sdio_init(struct wilc *wilc)
 {
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	sdio_cmd52_t cmd;

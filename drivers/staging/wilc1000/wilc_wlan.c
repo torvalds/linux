@@ -1587,7 +1587,7 @@ int wilc_wlan_init(struct net_device *dev)
 
 	PRINT_D(INIT_DBG, "Initializing WILC_Wlan ...\n");
 
-	if (!wilc->hif_func->hif_init(wilc, wilc_debug)) {
+	if (!wilc->hif_func->hif_init(wilc)) {
 		ret = -EIO;
 		goto _fail_;
 	}

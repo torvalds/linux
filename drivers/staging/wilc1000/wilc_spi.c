@@ -734,7 +734,7 @@ static int wilc_spi_sync(struct wilc *wilc)
 	return 1;
 }
 
-static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
+static int _wilc_spi_init(struct wilc *wilc)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	u32 reg;
