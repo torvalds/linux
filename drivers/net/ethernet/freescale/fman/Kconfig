@@ -1,0 +1,8 @@
+config FSL_FMAN
+	bool "FMan support"
+	depends on FSL_SOC || COMPILE_TEST
+	select GENERIC_ALLOCATOR
+	default n
+	help
+		Freescale Data-Path Acceleration Architecture Frame Manager
+		(FMan) support
