@@ -765,16 +765,12 @@ static u8 *goto_next_sequence(u8 *data, int *size)
 }
 
 static void
-parse_mipi(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
+parse_mipi_config(struct drm_i915_private *dev_priv,
+		  const struct bdb_header *bdb)
 {
 	const struct bdb_mipi_config *start;
-	const struct bdb_mipi_sequence *sequence;
 	const struct mipi_config *config;
 	const struct mipi_pps_data *pps;
-	u8 *data;
-	const u8 *seq_data;
-	int i, panel_id, seq_size;
-	u16 block_size;
 
 	/* parse MIPI blocks only if LFP type is MIPI */
 	if (!dev_priv->vbt.has_mipi)
@@ -820,8 +816,22 @@ parse_mipi(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 
 	/* We have mandatory mipi config blocks. Initialize as generic panel */
 	dev_priv->vbt.dsi.panel_id = MIPI_DSI_GENERIC_PANEL_ID;
+}
 
-	/* Check if we have sequence block as well */
+static void
+parse_mipi_sequence(struct drm_i915_private *dev_priv,
+		    const struct bdb_header *bdb)
+{
+	const struct bdb_mipi_sequence *sequence;
+	const u8 *seq_data;
+	u8 *data;
+	u16 block_size;
+	int i, panel_id, seq_size;
+
+	/* Only our generic panel driver uses the sequence block. */
+	if (dev_priv->vbt.dsi.panel_id != MIPI_DSI_GENERIC_PANEL_ID)
+		return;
+
 	sequence = find_section(bdb, BDB_MIPI_SEQUENCE);
 	if (!sequence) {
 		DRM_DEBUG_KMS("No MIPI Sequence found, parsing complete\n");
@@ -1359,7 +1369,8 @@ intel_bios_init(struct drm_i915_private *dev_priv)
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 	parse_psr(dev_priv, bdb);
-	parse_mipi(dev_priv, bdb);
+	parse_mipi_config(dev_priv, bdb);
+	parse_mipi_sequence(dev_priv, bdb);
 	parse_ddi_ports(dev_priv, bdb);
 
 	if (bios)
