@@ -125,7 +125,7 @@ static int davinci_gpio_get(struct gpio_chip *chip, unsigned offset)
 	struct davinci_gpio_controller *d = chip2controller(chip);
 	struct davinci_gpio_regs __iomem *g = d->regs;
 
-	return (1 << offset) & readl_relaxed(&g->in_data);
+	return !!((1 << offset) & readl_relaxed(&g->in_data));
 }
 
 /*
