@@ -181,6 +181,28 @@ struct wilc {
 
 	struct task_struct *txq_thread;
 
+	int quit;
+	int cfg_frame_in_use;
+	struct wilc_cfg_frame cfg_frame;
+	u32 cfg_frame_offset;
+	int cfg_seq_no;
+
+	u8 *rx_buffer;
+	u32 rx_buffer_offset;
+	u8 *tx_buffer;
+
+	unsigned long txq_spinlock_flags;
+
+	struct txq_entry_t *txq_head;
+	struct txq_entry_t *txq_tail;
+	int txq_entries;
+	int txq_exit;
+
+	struct rxq_entry_t *rxq_head;
+	struct rxq_entry_t *rxq_tail;
+	int rxq_entries;
+	int rxq_exit;
+
 	unsigned char eth_src_address[NUM_CONCURRENT_IFC][6];
 
 	const struct firmware *firmware;
