@@ -17,6 +17,7 @@
 #ifndef _CPUFREQ_GOVERNOR_H
 #define _CPUFREQ_GOVERNOR_H
 
+#include <linux/atomic.h>
 #include <linux/cpufreq.h>
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
@@ -132,12 +133,14 @@ static void *get_cpu_dbs_info_s(int cpu)				\
 struct cpu_common_dbs_info {
 	struct cpufreq_policy *policy;
 	/*
-	 * percpu mutex that serializes governor limit change with dbs_timer
-	 * invocation. We do not want dbs_timer to run when user is changing
-	 * the governor or limits.
+	 * Per policy mutex that serializes load evaluation from limit-change
+	 * and work-handler.
 	 */
 	struct mutex timer_mutex;
+
 	ktime_t time_stamp;
+	atomic_t skip_work;
+	struct work_struct work;
 };
 
 /* Per cpu structures */
@@ -152,7 +155,7 @@ struct cpu_dbs_info {
 	 * wake-up from idle.
 	 */
 	unsigned int prev_load;
-	struct delayed_work dwork;
+	struct timer_list timer;
 	struct cpu_common_dbs_info *shared;
 };
 
@@ -209,8 +212,7 @@ struct common_dbs_data {
 
 	struct cpu_dbs_info *(*get_cpu_cdbs)(int cpu);
 	void *(*get_cpu_dbs_info_s)(int cpu);
-	unsigned int (*gov_dbs_timer)(struct cpu_dbs_info *cdbs,
-				      struct dbs_data *dbs_data,
+	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy,
 				      bool modify_all);
 	void (*gov_check_cpu)(int cpu, unsigned int load);
 	int (*init)(struct dbs_data *dbs_data, bool notify);
@@ -269,11 +271,11 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 
 extern struct mutex cpufreq_governor_lock;
 
+void gov_add_timers(struct cpufreq_policy *policy, unsigned int delay);
+void gov_cancel_work(struct cpu_common_dbs_info *shared);
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		struct common_dbs_data *cdata, unsigned int event);
-void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
-		unsigned int delay, bool all_cpus);
 void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
 		unsigned int powersave_bias);
