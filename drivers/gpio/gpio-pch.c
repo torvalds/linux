@@ -127,7 +127,7 @@ static int pch_gpio_get(struct gpio_chip *gpio, unsigned nr)
 {
 	struct pch_gpio *chip =	container_of(gpio, struct pch_gpio, gpio);
 
-	return ioread32(&chip->reg->pi) & (1 << nr);
+	return !!(ioread32(&chip->reg->pi) & (1 << nr));
 }
 
 static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
