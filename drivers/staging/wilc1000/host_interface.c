@@ -313,7 +313,7 @@ static int get_id_from_handler(struct host_if_drv *handler)
  * special purpose in wilc device, so we add 1 to the index to starts from 1.
  * As a result, the returned index will be 1 to NUM_CONCURRENT_IFC.
  */
-static int wilc_get_vif_idx(struct wilc_vif *vif)
+int wilc_get_vif_idx(struct wilc_vif *vif)
 {
 	return vif->u8IfIdx + 1;
 }
@@ -363,17 +363,16 @@ static s32 handle_set_wfi_drv_handler(struct wilc_vif *vif,
 {
 	s32 result = 0;
 	struct wid wid;
-	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	wid.id = (u16)WID_SET_DRV_HANDLER;
 	wid.type = WID_INT;
 	wid.val = (s8 *)&hif_drv_handler->handler;
 	wid.size = sizeof(u32);
 
-	result = wilc_send_config_pkt(hif_drv->wilc, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
 				      hif_drv_handler->handler);
 
-	if (!hif_drv)
+	if (!hif_drv_handler->handler)
 		up(&hif_sema_driver);
 
 	if (result) {
@@ -3638,15 +3637,14 @@ int wilc_wait_msg_queue_idle(void)
 	return result;
 }
 
-int wilc_set_wfi_drv_handler(struct wilc_vif *vif, struct host_if_drv *hif_drv)
+int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index)
 {
 	int result = 0;
 	struct host_if_msg msg;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_WFIDRV_HANDLER;
-	msg.body.drv.handler = get_id_from_handler(hif_drv);
-	msg.drv = hif_drv;
+	msg.body.drv.handler = index;
 	msg.vif = vif;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
@@ -4001,7 +3999,7 @@ s32 wilc_deinit(struct wilc_vif *vif)
 
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
 
-	wilc_set_wfi_drv_handler(vif, NULL);
+	wilc_set_wfi_drv_handler(vif, 0);
 	down(&hif_sema_driver);
 
 	if (hif_drv->usr_scan_req.scan_result) {

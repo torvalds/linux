@@ -628,7 +628,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 
 	priv->u32RcvdChCount = 0;
 
-	wilc_set_wfi_drv_handler(vif, priv->hWILCWFIDrv);
+	wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif));
 	reset_shadow_found();
 
 	priv->bCfgScanning = true;
@@ -709,7 +709,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	vif = netdev_priv(priv->dev);
 	pstrWFIDrv = (struct host_if_drv *)(priv->hWILCWFIDrv);
 
-	wilc_set_wfi_drv_handler(vif, priv->hWILCWFIDrv);
+	wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif));
 
 	PRINT_D(CFG80211_DBG, "Connecting to SSID [%s] on netdev [%p] host if [%p]\n", sme->ssid, dev, priv->hWILCWFIDrv);
 	if (!(strncmp(sme->ssid, "DIRECT-", 7))) {
@@ -2142,7 +2142,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			wilc_initialized = 1;
 			vif->iftype = interface_type;
 
-			wilc_set_wfi_drv_handler(vif, wl->vif[0]->hif_drv);
+			wilc_set_wfi_drv_handler(vif,
+						 wilc_get_vif_idx(wl->vif[0]));
 			wilc_set_mac_address(wl->vif[0], wl->vif[0]->src_addr);
 			wilc_set_operation_mode(vif, STATION_MODE);
 
@@ -2217,7 +2218,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			wilc1000_wlan_init(dev, vif);
 			wilc_initialized = 1;
 
-			wilc_set_wfi_drv_handler(vif, wl->vif[0]->hif_drv);
+			wilc_set_wfi_drv_handler(vif,
+						 wilc_get_vif_idx(wl->vif[0]));
 			wilc_set_mac_address(wl->vif[0], wl->vif[0]->src_addr);
 			wilc_set_operation_mode(vif, STATION_MODE);
 
@@ -2320,7 +2322,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		wilc1000_wlan_init(dev, vif);
 		wilc_initialized = 1;
 
-		wilc_set_wfi_drv_handler(vif, wl->vif[0]->hif_drv);
+		wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(wl->vif[0]));
 		wilc_set_mac_address(wl->vif[0], wl->vif[0]->src_addr);
 		wilc_set_operation_mode(vif, AP_MODE);
 
