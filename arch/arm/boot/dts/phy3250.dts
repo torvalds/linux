@@ -45,6 +45,15 @@
 			enable-active-high;
 			regulator-boot-on;
 		};
+
+		sd_reg: regulator@2 {
+			compatible = "regulator-fixed";
+			regulator-name = "sd_reg";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio 5 5 0>;
+			enable-active-high;
+		};
 	};
 
 	ahb {
@@ -162,6 +171,7 @@
 				cd-gpios = <&gpio 3 1 0>;
 				cd-inverted;
 				bus-width = <4>;
+				vmmc-supply = <&sd_reg>;
 				status = "okay";
 			};
 		};
