@@ -3779,11 +3779,11 @@ s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	s32 result = 0;
 	struct host_if_drv *hif_drv;
 	int err;
-	perInterface_wlan_t *nic;
+	struct wilc_vif *vif;
 	struct wilc *wilc;
 
-	nic = netdev_priv(dev);
-	wilc = nic->wilc;
+	vif = netdev_priv(dev);
+	wilc = vif->wilc;
 
 	PRINT_D(HOSTINF_DBG, "Initializing host interface for client %d\n", clients_count + 1);
 

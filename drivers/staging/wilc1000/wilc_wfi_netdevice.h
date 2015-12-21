@@ -149,6 +149,14 @@ typedef struct {
 } struct_frame_reg;
 
 struct wilc_vif {
+	u8 u8IfIdx;
+	u8 iftype;
+	int monitor_flag;
+	int mac_opened;
+	struct_frame_reg g_struct_frame_reg[num_reg_frame];
+	struct net_device *wilc_netdev;
+	struct net_device_stats netstats;
+	struct wilc *wilc;
 	u8 src_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	struct host_if_drv *hif_drv;
@@ -210,22 +218,11 @@ struct wilc {
 	struct device *dev;
 };
 
-typedef struct {
-	u8 u8IfIdx;
-	u8 iftype;
-	int monitor_flag;
-	int mac_opened;
-	struct_frame_reg g_struct_frame_reg[num_reg_frame];
-	struct net_device *wilc_netdev;
-	struct net_device_stats netstats;
-	struct wilc *wilc;
-} perInterface_wlan_t;
-
 struct WILC_WFI_mon_priv {
 	struct net_device *real_ndev;
 };
 
-int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic);
+int wilc1000_wlan_init(struct net_device *dev, struct wilc_vif *vif);
 
 void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc, int flag);
