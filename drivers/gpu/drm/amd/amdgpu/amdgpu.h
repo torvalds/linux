@@ -1261,6 +1261,8 @@ struct amdgpu_cs_parser {
 	struct amdgpu_bo_list_entry	vm_pd;
 	struct list_head	validated;
 	struct fence		*fence;
+	uint64_t		bytes_moved_threshold;
+	uint64_t		bytes_moved;
 
 	struct amdgpu_ib	*ibs;
 	uint32_t		num_ibs;

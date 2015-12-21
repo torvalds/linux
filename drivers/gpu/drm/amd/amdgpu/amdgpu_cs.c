@@ -336,14 +336,14 @@ static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 	return max(bytes_moved_threshold, 1024*1024ull);
 }
 
-int amdgpu_cs_list_validate(struct amdgpu_device *adev,
-			    struct amdgpu_vm *vm,
+int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
+	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
+	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_list_entry *lobj;
 	struct amdgpu_bo *bo;
-	u64 bytes_moved = 0, initial_bytes_moved;
-	u64 bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(adev);
+	u64 initial_bytes_moved;
 	int r;
 
 	list_for_each_entry(lobj, validated, tv.head) {
@@ -363,16 +363,16 @@ int amdgpu_cs_list_validate(struct amdgpu_device *adev,
 			 */
 			if ((lobj->allowed_domains & current_domain) != 0 &&
 			    (domain & current_domain) == 0 && /* will be moved */
-			    bytes_moved > bytes_moved_threshold) {
+			    p->bytes_moved > p->bytes_moved_threshold) {
 				/* don't move it */
 				domain = current_domain;
 			}
 
 		retry:
 			amdgpu_ttm_placement_from_domain(bo, domain);
-			initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
+			initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-			bytes_moved += atomic64_read(&adev->num_bytes_moved) -
+			p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
 				       initial_bytes_moved;
 
 			if (unlikely(r)) {
@@ -421,11 +421,14 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 
 	amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
 
-	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &duplicates);
+	p->bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(p->adev);
+	p->bytes_moved = 0;
+
+	r = amdgpu_cs_list_validate(p, &duplicates);
 	if (r)
 		goto error_validate;
 
-	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
+	r = amdgpu_cs_list_validate(p, &p->validated);
 
 error_validate:
 	if (r) {
