@@ -378,7 +378,7 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 
 u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				  struct sta_info *sta, u8 opmode,
-				  enum ieee80211_band band, bool nss_only)
+				  enum ieee80211_band band)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
@@ -400,9 +400,6 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 		sta->sta.rx_nss = nss;
 		changed |= IEEE80211_RC_NSS_CHANGED;
 	}
-
-	if (nss_only)
-		return changed;
 
 	switch (opmode & IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK) {
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ:
@@ -430,13 +427,12 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 struct sta_info *sta, u8 opmode,
-				 enum ieee80211_band band, bool nss_only)
+				 enum ieee80211_band band)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 
-	u32 changed = __ieee80211_vht_handle_opmode(sdata, sta, opmode,
-						    band, nss_only);
+	u32 changed = __ieee80211_vht_handle_opmode(sdata, sta, opmode, band);
 
 	if (changed > 0)
 		rate_control_rate_update(local, sband, sta, changed);
