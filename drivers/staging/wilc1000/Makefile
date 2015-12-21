@@ -17,4 +17,4 @@ obj-$(CONFIG_WILC1000_SDIO) += wilc1000-sdio.o
 wilc1000-sdio-objs += wilc_sdio.o
 
 obj-$(CONFIG_WILC1000_SPI) += wilc1000-spi.o
-wilc1000-spi-objs += linux_wlan_spi.o wilc_spi.o
+wilc1000-spi-objs += wilc_spi.o
