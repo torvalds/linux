@@ -337,22 +337,6 @@ int hv_post_message(union hv_connection_id connection_id,
 	return status & 0xFFFF;
 }
 
-
-/*
- * hv_signal_event -
- * Signal an event on the specified connection using the hypervisor event IPC.
- *
- * This involves a hypercall.
- */
-int hv_signal_event(void *con_id)
-{
-	u64 status;
-
-	status = hv_do_hypercall(HVCALL_SIGNAL_EVENT, con_id, NULL);
-
-	return status & 0xFFFF;
-}
-
 static int hv_ce_set_next_event(unsigned long delta,
 				struct clock_event_device *evt)
 {
