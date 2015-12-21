@@ -10,15 +10,6 @@ config DRM_IMX
 	help
 	  enable i.MX graphics support
 
-config DRM_IMX_FB_HELPER
-	tristate "provide legacy framebuffer /dev/fb0"
-	select DRM_KMS_CMA_HELPER
-	depends on DRM_IMX
-	help
-	  The DRM framework can provide a legacy /dev/fb0 framebuffer
-	  for your device. This is necessary to get a framebuffer console
-	  and also for applications using the legacy framebuffer API
-
 config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
 	select DRM_PANEL

@@ -18,7 +18,7 @@ void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma);
 void drm_fbdev_cma_hotplug_event(struct drm_fbdev_cma *fbdev_cma);
 
 struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
-	struct drm_file *file_priv, struct drm_mode_fb_cmd2 *mode_cmd);
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd);
 
 struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 	unsigned int plane);

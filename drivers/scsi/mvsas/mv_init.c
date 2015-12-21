@@ -758,7 +758,7 @@ mvs_store_interrupt_coalescing(struct device *cdev,
 			struct device_attribute *attr,
 			const char *buffer, size_t size)
 {
-	int val = 0;
+	unsigned int val = 0;
 	struct mvs_info *mvi = NULL;
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
@@ -766,7 +766,7 @@ mvs_store_interrupt_coalescing(struct device *cdev,
 	if (buffer == NULL)
 		return size;
 
-	if (sscanf(buffer, "%d", &val) != 1)
+	if (sscanf(buffer, "%u", &val) != 1)
 		return -EINVAL;
 
 	if (val >= 0x10000) {

@@ -13,7 +13,7 @@ config SOC_ZX296702
 	select ARM_GLOBAL_TIMER
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select PM_GENERIC_DOMAINS
+	select PM_GENERIC_DOMAINS if PM
 	help
 	  Support for ZTE ZX296702 SoC which is a dual core CortexA9MP
 endif

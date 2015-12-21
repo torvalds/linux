@@ -29,8 +29,9 @@
 #define ARM64_HAS_PAN				4
 #define ARM64_HAS_LSE_ATOMICS			5
 #define ARM64_WORKAROUND_CAVIUM_23154		6
+#define ARM64_WORKAROUND_834220			7
 
-#define ARM64_NCAPS				7
+#define ARM64_NCAPS				8
 
 #ifndef __ASSEMBLY__
 
@@ -46,8 +47,12 @@ enum ftr_type {
 #define FTR_STRICT	true	/* SANITY check strict matching required */
 #define FTR_NONSTRICT	false	/* SANITY check ignored */
 
+#define FTR_SIGNED	true	/* Value should be treated as signed */
+#define FTR_UNSIGNED	false	/* Value should be treated as unsigned */
+
 struct arm64_ftr_bits {
-	bool		strict;	  /* CPU Sanity check: strict matching required ? */
+	bool		sign;	/* Value is signed ? */
+	bool		strict;	/* CPU Sanity check: strict matching required ? */
 	enum ftr_type	type;
 	u8		shift;
 	u8		width;
@@ -123,6 +128,18 @@ cpuid_feature_extract_field(u64 features, int field)
 	return cpuid_feature_extract_field_width(features, field, 4);
 }
 
+static inline unsigned int __attribute_const__
+cpuid_feature_extract_unsigned_field_width(u64 features, int field, int width)
+{
+	return (u64)(features << (64 - width - field)) >> (64 - width);
+}
+
+static inline unsigned int __attribute_const__
+cpuid_feature_extract_unsigned_field(u64 features, int field)
+{
+	return cpuid_feature_extract_unsigned_field_width(features, field, 4);
+}
+
 static inline u64 arm64_ftr_mask(struct arm64_ftr_bits *ftrp)
 {
 	return (u64)GENMASK(ftrp->shift + ftrp->width - 1, ftrp->shift);
@@ -130,7 +147,9 @@ static inline u64 arm64_ftr_mask(struct arm64_ftr_bits *ftrp)
 
 static inline s64 arm64_ftr_value(struct arm64_ftr_bits *ftrp, u64 val)
 {
-	return cpuid_feature_extract_field_width(val, ftrp->shift, ftrp->width);
+	return ftrp->sign ?
+		cpuid_feature_extract_field_width(val, ftrp->shift, ftrp->width) :
+		cpuid_feature_extract_unsigned_field_width(val, ftrp->shift, ftrp->width);
 }
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)

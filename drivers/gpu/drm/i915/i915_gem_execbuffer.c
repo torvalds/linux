@@ -1114,7 +1114,7 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 
 	for (i = 0; i < 4; i++) {
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit(ring, GEN7_SO_WRITE_OFFSET(i));
+		intel_ring_emit_reg(ring, GEN7_SO_WRITE_OFFSET(i));
 		intel_ring_emit(ring, 0);
 	}
 
@@ -1241,7 +1241,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 		intel_ring_emit(ring, MI_NOOP);
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit(ring, INSTPM);
+		intel_ring_emit_reg(ring, INSTPM);
 		intel_ring_emit(ring, instp_mask << 16 | instp_mode);
 		intel_ring_advance(ring);
 

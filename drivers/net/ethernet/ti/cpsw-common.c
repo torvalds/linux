@@ -78,6 +78,9 @@ static int cpsw_am33xx_cm_get_macid(struct device *dev, u16 offset, int slave,
 
 int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr)
 {
+	if (of_machine_is_compatible("ti,dm8148"))
+		return cpsw_am33xx_cm_get_macid(dev, 0x630, slave, mac_addr);
+
 	if (of_machine_is_compatible("ti,am33xx"))
 		return cpsw_am33xx_cm_get_macid(dev, 0x630, slave, mac_addr);
 

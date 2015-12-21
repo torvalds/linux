@@ -164,6 +164,8 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 	vscale = drm_rect_calc_vscale(src, dest, min_scale, max_scale);
 	if (hscale < 0 || vscale < 0) {
 		DRM_DEBUG_KMS("Invalid scaling of plane\n");
+		drm_rect_debug_print("src: ", src, true);
+		drm_rect_debug_print("dst: ", dest, false);
 		return -ERANGE;
 	}
 
@@ -180,6 +182,8 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 
 	if (!can_position && !drm_rect_equals(dest, clip)) {
 		DRM_DEBUG_KMS("Plane must cover entire CRTC\n");
+		drm_rect_debug_print("dst: ", dest, false);
+		drm_rect_debug_print("clip: ", clip, false);
 		return -EINVAL;
 	}
 
