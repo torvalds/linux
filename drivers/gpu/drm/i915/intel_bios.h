@@ -968,7 +968,7 @@ enum mipi_seq_element {
 	MIPI_SEQ_ELEM_SEND_PKT,
 	MIPI_SEQ_ELEM_DELAY,
 	MIPI_SEQ_ELEM_GPIO,
-	MIPI_SEQ_ELEM_STATUS,
+	MIPI_SEQ_ELEM_I2C,		/* sequence block v2+ */
 	MIPI_SEQ_ELEM_MAX
 };
 
