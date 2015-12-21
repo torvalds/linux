@@ -171,7 +171,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 #endif
 
 	skip = !!regs;
-	pr_emerg("Call trace:\n");
+	printk("Call trace:\n");
 	while (1) {
 		unsigned long where = frame.pc;
 		unsigned long stack;
@@ -482,22 +482,22 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 
 void __pte_error(const char *file, int line, unsigned long val)
 {
-	pr_crit("%s:%d: bad pte %016lx.\n", file, line, val);
+	pr_err("%s:%d: bad pte %016lx.\n", file, line, val);
 }
 
 void __pmd_error(const char *file, int line, unsigned long val)
 {
-	pr_crit("%s:%d: bad pmd %016lx.\n", file, line, val);
+	pr_err("%s:%d: bad pmd %016lx.\n", file, line, val);
 }
 
 void __pud_error(const char *file, int line, unsigned long val)
 {
-	pr_crit("%s:%d: bad pud %016lx.\n", file, line, val);
+	pr_err("%s:%d: bad pud %016lx.\n", file, line, val);
 }
 
 void __pgd_error(const char *file, int line, unsigned long val)
 {
-	pr_crit("%s:%d: bad pgd %016lx.\n", file, line, val);
+	pr_err("%s:%d: bad pgd %016lx.\n", file, line, val);
 }
 
 /* GENERIC_BUG traps */
