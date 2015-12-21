@@ -257,6 +257,10 @@ static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 
 	trace_vgic_update_irq_pending(cpuid, intid, level);
 
+	ret = vgic_lazy_init(kvm);
+	if (ret)
+		return ret;
+
 	vcpu = kvm_get_vcpu(kvm, cpuid);
 	if (!vcpu && intid < VGIC_NR_PRIVATE_IRQS)
 		return -EINVAL;
