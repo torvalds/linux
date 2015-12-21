@@ -13,7 +13,6 @@ typedef struct {
 	u8 *rx_buffer;
 	u32 rx_buffer_offset;
 	u8 *tx_buffer;
-	u32 tx_buffer_offset;
 
 	unsigned long txq_spinlock_flags;
 
