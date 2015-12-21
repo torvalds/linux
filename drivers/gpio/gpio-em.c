@@ -203,7 +203,7 @@ static int em_gio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int em_gio_get(struct gpio_chip *chip, unsigned offset)
 {
-	return (int)(em_gio_read(gpio_to_priv(chip), GIO_I) & BIT(offset));
+	return !!(em_gio_read(gpio_to_priv(chip), GIO_I) & BIT(offset));
 }
 
 static void __em_gio_set(struct gpio_chip *chip, unsigned int reg,
