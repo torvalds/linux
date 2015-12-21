@@ -2727,7 +2727,7 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		}
 
 		*((u64 *)val) = *reply;
-	out:
+out:
 		ptlrpc_req_finished(req);
 		return rc;
 	} else if (KEY_IS(KEY_FIEMAP)) {
