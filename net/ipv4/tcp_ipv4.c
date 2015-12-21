@@ -627,7 +627,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	net = sk ? sock_net(sk) : dev_net(skb_dst(skb)->dev);
 #ifdef CONFIG_TCP_MD5SIG
 	hash_location = tcp_parse_md5sig_option(th);
-	if (sk) {
+	if (sk && sk_fullsock(sk)) {
 		key = tcp_md5_do_lookup(sk, (union tcp_md5_addr *)
 					&ip_hdr(skb)->saddr, AF_INET);
 	} else if (hash_location) {
@@ -674,13 +674,17 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 				      ip_hdr(skb)->saddr, /* XXX */
 				      arg.iov[0].iov_len, IPPROTO_TCP, 0);
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
-	arg.flags = (sk && inet_sk(sk)->transparent) ? IP_REPLY_ARG_NOSRCCHECK : 0;
+	arg.flags = (sk && inet_sk_transparent(sk)) ? IP_REPLY_ARG_NOSRCCHECK : 0;
+
 	/* When socket is gone, all binding information is lost.
 	 * routing might fail in this case. No choice here, if we choose to force
 	 * input interface, we will misroute in case of asymmetric route.
 	 */
 	if (sk)
 		arg.bound_dev_if = sk->sk_bound_dev_if;
+
+	BUILD_BUG_ON(offsetof(struct sock, sk_bound_dev_if) !=
+		     offsetof(struct inet_timewait_sock, tw_bound_dev_if));
 
 	arg.tos = ip_hdr(skb)->tos;
 	ip_send_unicast_reply(*this_cpu_ptr(net->ipv4.tcp_sk),
@@ -1705,7 +1709,9 @@ do_time_wait:
 		tcp_v4_timewait_ack(sk, skb);
 		break;
 	case TCP_TW_RST:
-		goto no_tcp_socket;
+		tcp_v4_send_reset(sk, skb);
+		inet_twsk_deschedule_put(inet_twsk(sk));
+		goto discard_it;
 	case TCP_TW_SUCCESS:;
 	}
 	goto discard_it;
