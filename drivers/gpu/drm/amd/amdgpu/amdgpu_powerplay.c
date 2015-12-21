@@ -101,7 +101,7 @@ static int amdgpu_pp_early_init(void *handle)
 	switch (adev->asic_type) {
 		case CHIP_TONGA:
 		case CHIP_FIJI:
-			adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;
+			adev->pp_enabled = (amdgpu_powerplay > 0) ? true : false;
 			break;
 		default:
 			adev->pp_enabled = (amdgpu_powerplay > 0) ? true : false;
