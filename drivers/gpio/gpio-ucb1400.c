@@ -33,7 +33,7 @@ static int ucb1400_gpio_get(struct gpio_chip *gc, unsigned off)
 {
 	struct ucb1400_gpio *gpio;
 	gpio = container_of(gc, struct ucb1400_gpio, gc);
-	return ucb1400_gpio_get_value(gpio->ac97, off);
+	return !!ucb1400_gpio_get_value(gpio->ac97, off);
 }
 
 static void ucb1400_gpio_set(struct gpio_chip *gc, unsigned off, int val)
