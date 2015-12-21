@@ -207,9 +207,9 @@ static int max732x_gpio_get_value(struct gpio_chip *gc, unsigned off)
 
 	ret = max732x_readb(chip, is_group_a(chip, off), &reg_val);
 	if (ret < 0)
-		return 0;
+		return ret;
 
-	return reg_val & (1u << (off & 0x7));
+	return !!(reg_val & (1u << (off & 0x7)));
 }
 
 static void max732x_gpio_set_mask(struct gpio_chip *gc, unsigned off, int mask,
