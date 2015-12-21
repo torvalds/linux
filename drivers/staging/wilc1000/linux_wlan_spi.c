@@ -66,7 +66,7 @@ int wilc_spi_init(void)
 	return 1;
 }
 
-int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
+int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
@@ -110,7 +110,7 @@ int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
 	return ret;
 }
 
-int wilc_spi_read(struct wilc *wilc, u8 *rb, u32 rlen)
+int wilc_spi_rx(struct wilc *wilc, u8 *rb, u32 rlen)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
@@ -150,7 +150,7 @@ int wilc_spi_read(struct wilc *wilc, u8 *rb, u32 rlen)
 	return ret;
 }
 
-int wilc_spi_write_read(struct wilc *wilc, u8 *wb, u8 *rb, u32 rlen)
+int wilc_spi_tx_rx(struct wilc *wilc, u8 *wb, u8 *rb, u32 rlen)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
