@@ -3873,7 +3873,6 @@ s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	return result;
 
 _fail_timer_2:
-	up(&hif_drv->sem_cfg_values);
 	del_timer_sync(&hif_drv->connect_timer);
 	del_timer_sync(&hif_drv->scan_timer);
 	kthread_stop(hif_thread_handler);
