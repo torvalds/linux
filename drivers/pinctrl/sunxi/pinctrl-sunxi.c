@@ -469,7 +469,7 @@ static int sunxi_pinctrl_gpio_get(struct gpio_chip *chip, unsigned offset)
 	if (set_mux)
 		sunxi_pmx_set(pctl->pctl_dev, offset, SUN4I_FUNC_IRQ);
 
-	return val;
+	return !!val;
 }
 
 static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
