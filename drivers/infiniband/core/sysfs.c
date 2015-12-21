@@ -398,21 +398,21 @@ struct port_table_attribute port_pma_attr_##_name = {			\
 	.index = (_offset) | ((_width) << 16) | ((_counter) << 24)	\
 }
 
-static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
-				char *buf)
+/*
+ * Get a Perfmgmt MAD block of data.
+ * Returns error code or the number of bytes retrieved.
+ */
+static int get_perf_mad(struct ib_device *dev, int port_num, int attr,
+		void *data, int offset, size_t size)
 {
-	struct port_table_attribute *tab_attr =
-		container_of(attr, struct port_table_attribute, attr);
-	int offset = tab_attr->index & 0xffff;
-	int width  = (tab_attr->index >> 16) & 0xff;
-	struct ib_mad *in_mad  = NULL;
-	struct ib_mad *out_mad = NULL;
+	struct ib_mad *in_mad;
+	struct ib_mad *out_mad;
 	size_t mad_size = sizeof(*out_mad);
 	u16 out_mad_pkey_index = 0;
 	ssize_t ret;
 
-	if (!p->ibdev->process_mad)
-		return sprintf(buf, "N/A (no PMA)\n");
+	if (!dev->process_mad)
+		return -ENOSYS;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
@@ -425,12 +425,12 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 	in_mad->mad_hdr.mgmt_class    = IB_MGMT_CLASS_PERF_MGMT;
 	in_mad->mad_hdr.class_version = 1;
 	in_mad->mad_hdr.method        = IB_MGMT_METHOD_GET;
-	in_mad->mad_hdr.attr_id       = cpu_to_be16(0x12); /* PortCounters */
+	in_mad->mad_hdr.attr_id       = attr;
 
-	in_mad->data[41] = p->port_num;	/* PortSelect field */
+	in_mad->data[41] = port_num;	/* PortSelect field */
 
-	if ((p->ibdev->process_mad(p->ibdev, IB_MAD_IGNORE_MKEY,
-		 p->port_num, NULL, NULL,
+	if ((dev->process_mad(dev, IB_MAD_IGNORE_MKEY,
+		 port_num, NULL, NULL,
 		 (const struct ib_mad_hdr *)in_mad, mad_size,
 		 (struct ib_mad_hdr *)out_mad, &mad_size,
 		 &out_mad_pkey_index) &
@@ -439,30 +439,48 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 		ret = -EINVAL;
 		goto out;
 	}
+	memcpy(data, out_mad->data + offset, size);
+	ret = size;
+out:
+	kfree(in_mad);
+	kfree(out_mad);
+	return ret;
+}
+
+static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
+				char *buf)
+{
+	struct port_table_attribute *tab_attr =
+		container_of(attr, struct port_table_attribute, attr);
+	int offset = tab_attr->index & 0xffff;
+	int width  = (tab_attr->index >> 16) & 0xff;
+	ssize_t ret;
+	u8 data[8];
+
+	ret = get_perf_mad(p->ibdev, p->port_num, cpu_to_be16(0x12), &data,
+			40 + offset / 8, sizeof(data));
+	if (ret < 0)
+		return sprintf(buf, "N/A (no PMA)\n");
 
 	switch (width) {
 	case 4:
-		ret = sprintf(buf, "%u\n", (out_mad->data[40 + offset / 8] >>
+		ret = sprintf(buf, "%u\n", (*data >>
 					    (4 - (offset % 8))) & 0xf);
 		break;
 	case 8:
-		ret = sprintf(buf, "%u\n", out_mad->data[40 + offset / 8]);
+		ret = sprintf(buf, "%u\n", *data);
 		break;
 	case 16:
 		ret = sprintf(buf, "%u\n",
-			      be16_to_cpup((__be16 *)(out_mad->data + 40 + offset / 8)));
+			      be16_to_cpup((__be16 *)data));
 		break;
 	case 32:
 		ret = sprintf(buf, "%u\n",
-			      be32_to_cpup((__be32 *)(out_mad->data + 40 + offset / 8)));
+			      be32_to_cpup((__be32 *)data));
 		break;
 	default:
 		ret = 0;
 	}
-
-out:
-	kfree(in_mad);
-	kfree(out_mad);
 
 	return ret;
 }
