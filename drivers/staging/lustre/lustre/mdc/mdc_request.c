@@ -1181,7 +1181,6 @@ static int mdc_ioc_hsm_progress(struct obd_export *exp,
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_queue_wait(req);
-	goto out;
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1216,7 +1215,6 @@ static int mdc_ioc_hsm_ct_register(struct obd_import *imp, __u32 archives)
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_queue_wait(req);
-	goto out;
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1282,7 +1280,6 @@ static int mdc_ioc_hsm_ct_unregister(struct obd_import *imp)
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_queue_wait(req);
-	goto out;
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1362,8 +1359,6 @@ static int mdc_ioc_hsm_state_set(struct obd_export *exp,
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_queue_wait(req);
-	goto out;
-
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1427,8 +1422,6 @@ static int mdc_ioc_hsm_request(struct obd_export *exp,
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_queue_wait(req);
-	goto out;
-
 out:
 	ptlrpc_req_finished(req);
 	return rc;

@@ -556,7 +556,6 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 		retval = NULL;
 	else
 		retval = dentry;
-	goto out;
  out:
 	if (req)
 		ptlrpc_req_finished(req);
