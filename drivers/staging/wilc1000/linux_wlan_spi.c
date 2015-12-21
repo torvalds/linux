@@ -61,11 +61,6 @@ struct spi_driver wilc1000_spi_driver = {
 module_spi_driver(wilc1000_spi_driver);
 MODULE_LICENSE("GPL");
 
-int wilc_spi_init(void)
-{
-	return 1;
-}
-
 int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);

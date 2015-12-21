@@ -676,7 +676,7 @@ static int _wilc_spi_deinit(struct wilc *wilc)
 	return 1;
 }
 
-static int _wilc_spi_init(struct wilc *wilc)
+static int wilc_spi_init(struct wilc *wilc)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	u32 reg;
@@ -694,13 +694,6 @@ static int _wilc_spi_init(struct wilc *wilc)
 	}
 
 	memset(&g_spi, 0, sizeof(wilc_spi_t));
-
-	if (!wilc_spi_init()) {
-		dev_err(&spi->dev, "Failed io init bus...\n");
-		return 0;
-	} else {
-		return 0;
-	}
 
 	/**
 	 *      configure protocol
@@ -994,7 +987,7 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
  *
  ********************************************/
 const struct wilc_hif_func wilc_hif_spi = {
-	.hif_init = _wilc_spi_init,
+	.hif_init = wilc_spi_init,
 	.hif_deinit = _wilc_spi_deinit,
 	.hif_read_reg = wilc_spi_read_reg,
 	.hif_write_reg = wilc_spi_write_reg,
