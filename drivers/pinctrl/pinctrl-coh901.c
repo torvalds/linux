@@ -221,7 +221,7 @@ static int u300_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct u300_gpio *gpio = to_u300_gpio(chip);
 
-	return readl(U300_PIN_REG(offset, dir)) & U300_PIN_BIT(offset);
+	return !!(readl(U300_PIN_REG(offset, dir)) & U300_PIN_BIT(offset));
 }
 
 static void u300_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
