@@ -43,9 +43,6 @@
 #define smp_store_mb(var, value) do { WRITE_ONCE(var, value); barrier(); } while (0)
 #endif /* SMP */
 
-#define read_barrier_depends()		do { } while (0)
-#define smp_read_barrier_depends()	do { } while (0)
-
 #if defined(CONFIG_X86_PPRO_FENCE)
 
 /*
@@ -90,5 +87,7 @@ do {									\
 /* Atomic operations are already serializing on x86 */
 #define smp_mb__before_atomic()	barrier()
 #define smp_mb__after_atomic()	barrier()
+
+#include <asm-generic/barrier.h>
 
 #endif /* _ASM_X86_BARRIER_H */
