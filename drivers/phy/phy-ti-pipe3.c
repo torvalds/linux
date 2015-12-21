@@ -376,6 +376,48 @@ static int ti_pipe3_get_clk(struct ti_pipe3 *phy)
 	return 0;
 }
 
+static int ti_pipe3_get_sysctrl(struct ti_pipe3 *phy)
+{
+	struct device *dev = phy->dev;
+	struct device_node *node = dev->of_node;
+	struct device_node *control_node;
+	struct platform_device *control_pdev;
+
+	control_node = of_parse_phandle(node, "ctrl-module", 0);
+	if (!control_node) {
+		dev_err(dev, "Failed to get control device phandle\n");
+		return -EINVAL;
+	}
+
+	control_pdev = of_find_device_by_node(control_node);
+	if (!control_pdev) {
+		dev_err(dev, "Failed to get control device\n");
+		return -EINVAL;
+	}
+
+	phy->control_dev = &control_pdev->dev;
+
+	if (of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
+		phy->dpll_reset_syscon = syscon_regmap_lookup_by_phandle(node,
+							"syscon-pllreset");
+		if (IS_ERR(phy->dpll_reset_syscon)) {
+			dev_info(dev,
+				 "can't get syscon-pllreset, sata dpll won't idle\n");
+			phy->dpll_reset_syscon = NULL;
+		} else {
+			if (of_property_read_u32_index(node,
+						       "syscon-pllreset", 1,
+						       &phy->dpll_reset_reg)) {
+				dev_err(dev,
+					"couldn't get pllreset reg. offset\n");
+				return -EINVAL;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int ti_pipe3_probe(struct platform_device *pdev)
 {
 	struct ti_pipe3 *phy;
@@ -383,8 +425,6 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct resource *res;
 	struct device_node *node = pdev->dev.of_node;
-	struct device_node *control_node;
-	struct platform_device *control_pdev;
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	int ret;
@@ -413,41 +453,13 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 			return PTR_ERR(phy->pll_ctrl_base);
 	}
 
-	if (of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
-		phy->dpll_reset_syscon = syscon_regmap_lookup_by_phandle(node,
-							"syscon-pllreset");
-		if (IS_ERR(phy->dpll_reset_syscon)) {
-			dev_info(dev,
-				 "can't get syscon-pllreset, sata dpll won't idle\n");
-			phy->dpll_reset_syscon = NULL;
-		} else {
-			if (of_property_read_u32_index(node,
-						       "syscon-pllreset", 1,
-						       &phy->dpll_reset_reg)) {
-				dev_err(dev,
-					"couldn't get pllreset reg. offset\n");
-				return -EINVAL;
-			}
-		}
-	}
+	ret = ti_pipe3_get_sysctrl(phy);
+	if (ret)
+		return ret;
 
 	ret = ti_pipe3_get_clk(phy);
 	if (ret)
 		return ret;
-
-	control_node = of_parse_phandle(node, "ctrl-module", 0);
-	if (!control_node) {
-		dev_err(dev, "Failed to get control device phandle\n");
-		return -EINVAL;
-	}
-
-	control_pdev = of_find_device_by_node(control_node);
-	if (!control_pdev) {
-		dev_err(dev, "Failed to get control device\n");
-		return -EINVAL;
-	}
-
-	phy->control_dev = &control_pdev->dev;
 
 	omap_control_phy_power(phy->control_dev, 0);
 
