@@ -1374,6 +1374,7 @@ void wilc_wlan_cleanup(struct net_device *dev)
 	kfree(wilc->rx_buffer);
 	wilc->rx_buffer = NULL;
 	kfree(wilc->tx_buffer);
+	wilc->tx_buffer = NULL;
 
 	acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
 
