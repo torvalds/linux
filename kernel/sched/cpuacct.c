@@ -145,13 +145,16 @@ static u64 cpuusage_read(struct cgroup_subsys_state *css, struct cftype *cft)
 }
 
 static int cpuusage_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			  u64 reset)
+			  u64 val)
 {
 	struct cpuacct *ca = css_ca(css);
 	int err = 0;
 	int i;
 
-	if (reset) {
+	/*
+	 * Only allow '0' here to do a reset.
+	 */
+	if (val) {
 		err = -EINVAL;
 		goto out;
 	}
