@@ -819,7 +819,7 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 
 	rndis_set_param_medium(rndis->params, RNDIS_MEDIUM_802_3, 0);
 	rndis_set_host_mac(rndis->params, rndis->ethaddr);
-	rndis_set_max_pkt_xfer(rndis->config, rndis_ul_max_pkt_per_xfer);
+	rndis_set_max_pkt_xfer(rndis->params, rndis_ul_max_pkt_per_xfer);
 
 	if (rndis->manufacturer && rndis->vendorID &&
 			rndis_set_param_vendor(rndis->params, rndis->vendorID,
