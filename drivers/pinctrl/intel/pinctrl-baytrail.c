@@ -281,7 +281,7 @@ static int byt_gpio_get(struct gpio_chip *chip, unsigned offset)
 	val = readl(reg);
 	raw_spin_unlock_irqrestore(&vg->lock, flags);
 
-	return val & BYT_LEVEL;
+	return !!(val & BYT_LEVEL);
 }
 
 static void byt_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
