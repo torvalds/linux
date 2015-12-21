@@ -51,11 +51,9 @@ int wilc_sdio_cmd52(struct wilc *wilc, sdio_cmd52_t *cmd)
 
 	sdio_release_host(func);
 
-	if (ret < 0) {
+	if (ret)
 		dev_err(&func->dev, "wilc_sdio_cmd52..failed, err(%d)\n", ret);
-		return 0;
-	}
-	return 1;
+	return ret;
 }
 
 
