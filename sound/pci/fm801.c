@@ -1098,26 +1098,20 @@ static int wait_for_codec(struct fm801 *chip, unsigned int codec_id,
 	return -EIO;
 }
 
-static int snd_fm801_chip_init(struct fm801 *chip, int resume)
+static int reset_codec(struct fm801 *chip)
 {
-	unsigned short cmdw;
-
-	if (chip->tea575x_tuner & TUNER_ONLY)
-		goto __ac97_ok;
-
 	/* codec cold reset + AC'97 warm reset */
 	fm801_writew(chip, CODEC_CTRL, (1 << 5) | (1 << 6));
 	fm801_readw(chip, CODEC_CTRL); /* flush posting data */
 	udelay(100);
 	fm801_writew(chip, CODEC_CTRL, 0);
 
-	if (wait_for_codec(chip, 0, AC97_RESET, msecs_to_jiffies(750)) < 0)
-		if (!resume) {
-			dev_info(chip->card->dev,
-				 "Primary AC'97 codec not found, assume SF64-PCR (tuner-only)\n");
-			chip->tea575x_tuner = 3 | TUNER_ONLY;
-			goto __ac97_ok;
-		}
+	return wait_for_codec(chip, 0, AC97_RESET, msecs_to_jiffies(750));
+}
+
+static void snd_fm801_chip_multichannel_init(struct fm801 *chip)
+{
+	unsigned short cmdw;
 
 	if (chip->multichannel) {
 		if (chip->secondary_addr) {
@@ -1144,8 +1138,11 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 		/* cause timeout problems */
 		wait_for_codec(chip, 0, AC97_VENDOR_ID1, msecs_to_jiffies(750));
 	}
+}
 
-      __ac97_ok:
+static void snd_fm801_chip_init(struct fm801 *chip)
+{
+	unsigned short cmdw;
 
 	/* init volume */
 	fm801_writew(chip, PCM_VOL, 0x0808);
@@ -1166,10 +1163,7 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 	/* interrupt clear */
 	fm801_writew(chip, IRQ_STATUS,
 		     FM801_IRQ_PLAYBACK | FM801_IRQ_CAPTURE | FM801_IRQ_MPU);
-
-	return 0;
 }
-
 
 static int snd_fm801_free(struct fm801 *chip)
 {
@@ -1227,7 +1221,23 @@ static int snd_fm801_create(struct snd_card *card,
 	if ((err = pci_request_regions(pci, "FM801")) < 0)
 		return err;
 	chip->port = pci_resource_start(pci, 0);
-	if ((tea575x_tuner & TUNER_ONLY) == 0) {
+
+	if (pci->revision >= 0xb1)	/* FM801-AU */
+		chip->multichannel = 1;
+
+	if (!(chip->tea575x_tuner & TUNER_ONLY)) {
+		if (reset_codec(chip) < 0) {
+			dev_info(chip->card->dev,
+				 "Primary AC'97 codec not found, assume SF64-PCR (tuner-only)\n");
+			chip->tea575x_tuner = 3 | TUNER_ONLY;
+		} else {
+			snd_fm801_chip_multichannel_init(chip);
+		}
+	}
+
+	snd_fm801_chip_init(chip);
+
+	if ((chip->tea575x_tuner & TUNER_ONLY) == 0) {
 		if (devm_request_irq(&pci->dev, pci->irq, snd_fm801_interrupt,
 				IRQF_SHARED, KBUILD_MODNAME, chip)) {
 			dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
@@ -1237,13 +1247,6 @@ static int snd_fm801_create(struct snd_card *card,
 		chip->irq = pci->irq;
 		pci_set_master(pci);
 	}
-
-	if (pci->revision >= 0xb1)	/* FM801-AU */
-		chip->multichannel = 1;
-
-	snd_fm801_chip_init(chip, 0);
-	/* init might set tuner access method */
-	tea575x_tuner = chip->tea575x_tuner;
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_fm801_free(chip);
@@ -1261,15 +1264,15 @@ static int snd_fm801_create(struct snd_card *card,
 	chip->tea.private_data = chip;
 	chip->tea.ops = &snd_fm801_tea_ops;
 	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
-	if ((tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
-	    (tea575x_tuner & TUNER_TYPE_MASK) < 4) {
+	if ((chip->tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
+	    (chip->tea575x_tuner & TUNER_TYPE_MASK) < 4) {
 		if (snd_tea575x_init(&chip->tea, THIS_MODULE)) {
 			dev_err(card->dev, "TEA575x radio not found\n");
 			snd_fm801_free(chip);
 			return -ENODEV;
 		}
-	} else if ((tea575x_tuner & TUNER_TYPE_MASK) == 0) {
-		unsigned int tuner_only = tea575x_tuner & TUNER_ONLY;
+	} else if ((chip->tea575x_tuner & TUNER_TYPE_MASK) == 0) {
+		unsigned int tuner_only = chip->tea575x_tuner & TUNER_ONLY;
 
 		/* autodetect tuner connection */
 		for (tea575x_tuner = 1; tea575x_tuner <= 3; tea575x_tuner++) {
@@ -1405,7 +1408,13 @@ static int snd_fm801_resume(struct device *dev)
 	struct fm801 *chip = card->private_data;
 	int i;
 
-	snd_fm801_chip_init(chip, 1);
+	if (chip->tea575x_tuner & TUNER_ONLY) {
+		snd_fm801_chip_init(chip);
+	} else {
+		reset_codec(chip);
+		snd_fm801_chip_multichannel_init(chip);
+		snd_fm801_chip_init(chip);
+	}
 	snd_ac97_resume(chip->ac97);
 	snd_ac97_resume(chip->ac97_sec);
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
