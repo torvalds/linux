@@ -74,9 +74,11 @@ int wilc_sdio_cmd53(struct wilc *wilc, sdio_cmd53_t *cmd)
 		size = cmd->count;
 
 	if (cmd->read_write) {  /* write */
-		ret = sdio_memcpy_toio(func, cmd->address, (void *)cmd->buffer, size);
+		ret = sdio_memcpy_toio(func, cmd->address,
+				       (void *)cmd->buffer, size);
 	} else {        /* read */
-		ret = sdio_memcpy_fromio(func, (void *)cmd->buffer, cmd->address,  size);
+		ret = sdio_memcpy_fromio(func, (void *)cmd->buffer,
+					 cmd->address,  size);
 	}
 
 	sdio_release_host(func);
@@ -90,7 +92,8 @@ int wilc_sdio_cmd53(struct wilc *wilc, sdio_cmd53_t *cmd)
 	return 1;
 }
 
-static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
+static int linux_sdio_probe(struct sdio_func *func,
+			    const struct sdio_device_id *id)
 {
 	struct wilc *wilc;
 	int gpio;
@@ -126,7 +129,9 @@ static struct sdio_driver wilc1000_sdio_driver = {
 	.probe		= linux_sdio_probe,
 	.remove		= linux_sdio_remove,
 };
-module_driver(wilc1000_sdio_driver, sdio_register_driver, sdio_unregister_driver);
+module_driver(wilc1000_sdio_driver,
+	      sdio_register_driver,
+	      sdio_unregister_driver);
 MODULE_LICENSE("GPL");
 
 int wilc_sdio_enable_interrupt(struct wilc *dev)
