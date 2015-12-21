@@ -587,7 +587,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	} rep;
 	struct ip_reply_arg arg;
 #ifdef CONFIG_TCP_MD5SIG
-	struct tcp_md5sig_key *key;
+	struct tcp_md5sig_key *key = NULL;
 	const __u8 *hash_location = NULL;
 	unsigned char newhash[16];
 	int genhash;
@@ -627,7 +627,10 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	net = sk ? sock_net(sk) : dev_net(skb_dst(skb)->dev);
 #ifdef CONFIG_TCP_MD5SIG
 	hash_location = tcp_parse_md5sig_option(th);
-	if (!sk && hash_location) {
+	if (sk) {
+		key = tcp_md5_do_lookup(sk, (union tcp_md5_addr *)
+					&ip_hdr(skb)->saddr, AF_INET);
+	} else if (hash_location) {
 		/*
 		 * active side is lost. Try to find listening socket through
 		 * source port, and then find md5 key through listening socket.
@@ -651,10 +654,6 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 		genhash = tcp_v4_md5_hash_skb(newhash, key, NULL, skb);
 		if (genhash || memcmp(hash_location, newhash, 16) != 0)
 			goto release_sk1;
-	} else {
-		key = sk ? tcp_md5_do_lookup(sk, (union tcp_md5_addr *)
-					     &ip_hdr(skb)->saddr,
-					     AF_INET) : NULL;
 	}
 
 	if (key) {
