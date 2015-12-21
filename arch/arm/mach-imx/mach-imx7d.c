@@ -70,6 +70,23 @@ static void __init imx7d_enet_phy_init(void)
 	}
 }
 
+static void __init imx7d_enet_mdio_fixup(void)
+{
+	struct regmap *gpr;
+
+	/* The management data input/output (MDIO) bus where often high-speed,
+	 * open-drain operation is required. i.MX7D TO1.0 ENET MDIO pin has no
+	 * open drain as IC ticket number: TKT252980, i.MX7D TO1.1 fix the issue.
+	 * GPR1[8:7] are reserved bits at TO1.0, there no need to add version check.
+	 */
+	gpr = syscon_regmap_lookup_by_compatible("fsl,imx7d-iomuxc-gpr");
+	if (!IS_ERR(gpr))
+		regmap_update_bits(gpr, IOMUXC_GPR0, IMX7D_GPR0_ENET_MDIO_OPEN_DRAIN_MASK,
+				   IMX7D_GPR0_ENET_MDIO_OPEN_DRAIN_MASK);
+	else
+		pr_err("failed to find fsl,imx7d-iomux-gpr regmap\n");
+}
+
 static void __init imx7d_enet_clk_sel(void)
 {
 	struct regmap *gpr;
@@ -86,6 +103,7 @@ static void __init imx7d_enet_clk_sel(void)
 static inline void imx7d_enet_init(void)
 {
 	imx6_enet_mac_init("fsl,imx7d-fec", "fsl,imx7d-ocotp");
+	imx7d_enet_mdio_fixup();
 	imx7d_enet_phy_init();
 	imx7d_enet_clk_sel();
 }

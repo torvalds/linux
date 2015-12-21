@@ -36,6 +36,8 @@
 #define IOMUXC_GPR22	0x58
 
 /* For imx7d iomux gpr register field define */
+#define IMX7D_GPR0_ENET_MDIO_OPEN_DRAIN_MASK	(0x3 << 7)
+
 #define IMX7D_GPR1_IRQ_MASK			(0x1 << 12)
 #define IMX7D_GPR1_ENET1_TX_CLK_SEL_MASK	(0x1 << 13)
 #define IMX7D_GPR1_ENET2_TX_CLK_SEL_MASK	(0x1 << 14)
