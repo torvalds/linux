@@ -288,21 +288,21 @@ static int lpc32xx_gpio_get_value_p012(struct gpio_chip *chip, unsigned pin)
 {
 	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
 
-	return __get_gpio_state_p012(group, pin);
+	return !!__get_gpio_state_p012(group, pin);
 }
 
 static int lpc32xx_gpio_get_value_p3(struct gpio_chip *chip, unsigned pin)
 {
 	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
 
-	return __get_gpio_state_p3(group, pin);
+	return !!__get_gpio_state_p3(group, pin);
 }
 
 static int lpc32xx_gpi_get_value(struct gpio_chip *chip, unsigned pin)
 {
 	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
 
-	return __get_gpi_state_p3(group, pin);
+	return !!__get_gpi_state_p3(group, pin);
 }
 
 static int lpc32xx_gpio_dir_output_p012(struct gpio_chip *chip, unsigned pin,
@@ -364,7 +364,7 @@ static int lpc32xx_gpo_get_value(struct gpio_chip *chip, unsigned pin)
 {
 	struct lpc32xx_gpio_chip *group = to_lpc32xx_gpio(chip);
 
-	return __get_gpo_state_p3(group, pin);
+	return !!__get_gpo_state_p3(group, pin);
 }
 
 static int lpc32xx_gpio_request(struct gpio_chip *chip, unsigned pin)
