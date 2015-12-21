@@ -854,6 +854,17 @@
 			>;
 		};
 
+		pinctrl_usdhc1: usdhc1grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__SD1_CMD             0x17071
+				MX6QDL_PAD_SD1_CLK__SD1_CLK             0x10071
+				MX6QDL_PAD_SD1_DAT0__SD1_DATA0          0x17071
+				MX6QDL_PAD_SD1_DAT1__SD1_DATA1          0x17071
+				MX6QDL_PAD_SD1_DAT2__SD1_DATA2          0x17071
+				MX6QDL_PAD_SD1_DAT3__SD1_DATA3          0x17071
+			>;
+		};
+
 		pinctrl_usdhc3: usdhc3grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD3_CMD__SD3_CMD		0x17059
@@ -1073,6 +1084,16 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
+	status = "okay";
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+	no-1-8-v;
+	keep-power-in-suspend;
+	enable-sdio-wakeup;
 	status = "okay";
 };
 
