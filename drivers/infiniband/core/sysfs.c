@@ -57,6 +57,7 @@ struct ib_port {
 	struct attribute_group gid_group;
 	struct attribute_group pkey_group;
 	u8                     port_num;
+	struct attribute_group *pma_table;
 };
 
 struct port_attribute {
@@ -401,6 +402,13 @@ struct port_table_attribute port_pma_attr_##_name = {			\
 	.attr_id = IB_PMA_PORT_COUNTERS ,				\
 }
 
+#define PORT_PMA_ATTR_EXT(_name, _width, _offset)			\
+struct port_table_attribute port_pma_attr_ext_##_name = {		\
+	.attr  = __ATTR(_name, S_IRUGO, show_pma_counter, NULL),	\
+	.index = (_offset) | ((_width) << 16),				\
+	.attr_id = IB_PMA_PORT_COUNTERS_EXT ,				\
+}
+
 /*
  * Get a Perfmgmt MAD block of data.
  * Returns error code or the number of bytes retrieved.
@@ -481,6 +489,11 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 		ret = sprintf(buf, "%u\n",
 			      be32_to_cpup((__be32 *)data));
 		break;
+	case 64:
+		ret = sprintf(buf, "%llu\n",
+				be64_to_cpup((__be64 *)data));
+		break;
+
 	default:
 		ret = 0;
 	}
@@ -505,6 +518,18 @@ static PORT_PMA_ATTR(port_rcv_data		    , 13, 32, 224);
 static PORT_PMA_ATTR(port_xmit_packets		    , 14, 32, 256);
 static PORT_PMA_ATTR(port_rcv_packets		    , 15, 32, 288);
 
+/*
+ * Counters added by extended set
+ */
+static PORT_PMA_ATTR_EXT(port_xmit_data		    , 64,  64);
+static PORT_PMA_ATTR_EXT(port_rcv_data		    , 64, 128);
+static PORT_PMA_ATTR_EXT(port_xmit_packets	    , 64, 192);
+static PORT_PMA_ATTR_EXT(port_rcv_packets	    , 64, 256);
+static PORT_PMA_ATTR_EXT(unicast_xmit_packets	    , 64, 320);
+static PORT_PMA_ATTR_EXT(unicast_rcv_packets	    , 64, 384);
+static PORT_PMA_ATTR_EXT(multicast_xmit_packets	    , 64, 448);
+static PORT_PMA_ATTR_EXT(multicast_rcv_packets	    , 64, 512);
+
 static struct attribute *pma_attrs[] = {
 	&port_pma_attr_symbol_error.attr.attr,
 	&port_pma_attr_link_error_recovery.attr.attr,
@@ -525,9 +550,63 @@ static struct attribute *pma_attrs[] = {
 	NULL
 };
 
+static struct attribute *pma_attrs_ext[] = {
+	&port_pma_attr_symbol_error.attr.attr,
+	&port_pma_attr_link_error_recovery.attr.attr,
+	&port_pma_attr_link_downed.attr.attr,
+	&port_pma_attr_port_rcv_errors.attr.attr,
+	&port_pma_attr_port_rcv_remote_physical_errors.attr.attr,
+	&port_pma_attr_port_rcv_switch_relay_errors.attr.attr,
+	&port_pma_attr_port_xmit_discards.attr.attr,
+	&port_pma_attr_port_xmit_constraint_errors.attr.attr,
+	&port_pma_attr_port_rcv_constraint_errors.attr.attr,
+	&port_pma_attr_local_link_integrity_errors.attr.attr,
+	&port_pma_attr_excessive_buffer_overrun_errors.attr.attr,
+	&port_pma_attr_VL15_dropped.attr.attr,
+	&port_pma_attr_ext_port_xmit_data.attr.attr,
+	&port_pma_attr_ext_port_rcv_data.attr.attr,
+	&port_pma_attr_ext_port_xmit_packets.attr.attr,
+	&port_pma_attr_ext_port_rcv_packets.attr.attr,
+	&port_pma_attr_ext_unicast_rcv_packets.attr.attr,
+	&port_pma_attr_ext_unicast_xmit_packets.attr.attr,
+	&port_pma_attr_ext_multicast_rcv_packets.attr.attr,
+	&port_pma_attr_ext_multicast_xmit_packets.attr.attr,
+	NULL
+};
+
+static struct attribute *pma_attrs_noietf[] = {
+	&port_pma_attr_symbol_error.attr.attr,
+	&port_pma_attr_link_error_recovery.attr.attr,
+	&port_pma_attr_link_downed.attr.attr,
+	&port_pma_attr_port_rcv_errors.attr.attr,
+	&port_pma_attr_port_rcv_remote_physical_errors.attr.attr,
+	&port_pma_attr_port_rcv_switch_relay_errors.attr.attr,
+	&port_pma_attr_port_xmit_discards.attr.attr,
+	&port_pma_attr_port_xmit_constraint_errors.attr.attr,
+	&port_pma_attr_port_rcv_constraint_errors.attr.attr,
+	&port_pma_attr_local_link_integrity_errors.attr.attr,
+	&port_pma_attr_excessive_buffer_overrun_errors.attr.attr,
+	&port_pma_attr_VL15_dropped.attr.attr,
+	&port_pma_attr_ext_port_xmit_data.attr.attr,
+	&port_pma_attr_ext_port_rcv_data.attr.attr,
+	&port_pma_attr_ext_port_xmit_packets.attr.attr,
+	&port_pma_attr_ext_port_rcv_packets.attr.attr,
+	NULL
+};
+
 static struct attribute_group pma_group = {
 	.name  = "counters",
 	.attrs  = pma_attrs
+};
+
+static struct attribute_group pma_group_ext = {
+	.name  = "counters",
+	.attrs  = pma_attrs_ext
+};
+
+static struct attribute_group pma_group_noietf = {
+	.name  = "counters",
+	.attrs  = pma_attrs_noietf
 };
 
 static void ib_port_release(struct kobject *kobj)
@@ -631,6 +710,30 @@ err:
 	return NULL;
 }
 
+/*
+ * Figure out which counter table to use depending on
+ * the device capabilities.
+ */
+static struct attribute_group *get_counter_table(struct ib_device *dev)
+{
+	struct ib_class_port_info cpi;
+
+	if (get_perf_mad(dev, 0, IB_PMA_CLASS_PORT_INFO,
+				&cpi, 40, sizeof(cpi)) >= 0) {
+
+		if (cpi.capability_mask && IB_PMA_CLASS_CAP_EXT_WIDTH)
+			/* We have extended counters */
+			return &pma_group_ext;
+
+		if (cpi.capability_mask && IB_PMA_CLASS_CAP_EXT_WIDTH_NOIETF)
+			/* But not the IETF ones */
+			return &pma_group_noietf;
+	}
+
+	/* Fall back to normal counters */
+	return &pma_group;
+}
+
 static int add_port(struct ib_device *device, int port_num,
 		    int (*port_callback)(struct ib_device *,
 					 u8, struct kobject *))
@@ -673,7 +776,8 @@ static int add_port(struct ib_device *device, int port_num,
 		goto err_put;
 	}
 
-	ret = sysfs_create_group(&p->kobj, &pma_group);
+	p->pma_table = get_counter_table(device);
+	ret = sysfs_create_group(&p->kobj, p->pma_table);
 	if (ret)
 		goto err_put_gid_attrs;
 
@@ -780,7 +884,7 @@ err_free_gid:
 	p->gid_group.attrs = NULL;
 
 err_remove_pma:
-	sysfs_remove_group(&p->kobj, &pma_group);
+	sysfs_remove_group(&p->kobj, p->pma_table);
 
 err_put_gid_attrs:
 	kobject_put(&p->gid_attr_group->kobj);
@@ -990,7 +1094,7 @@ static void free_port_list_attributes(struct ib_device *device)
 	list_for_each_entry_safe(p, t, &device->port_list, entry) {
 		struct ib_port *port = container_of(p, struct ib_port, kobj);
 		list_del(&p->entry);
-		sysfs_remove_group(p, &pma_group);
+		sysfs_remove_group(p, port->pma_table);
 		sysfs_remove_group(p, &port->pkey_group);
 		sysfs_remove_group(p, &port->gid_group);
 		sysfs_remove_group(&port->gid_attr_group->kobj,
