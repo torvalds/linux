@@ -104,12 +104,8 @@ int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
 		dev_err(&spi->dev,
 			"FAILED due to NULL buffer or ZERO length check the following length: %d\n",
 			len);
-		ret = -1;
+		ret = -EINVAL;
 	}
-
-	/* change return value to match WILC interface */
-	(ret < 0) ? (ret = 0) : (ret = 1);
-
 
 	return ret;
 }
@@ -148,10 +144,8 @@ int wilc_spi_read(struct wilc *wilc, u8 *rb, u32 rlen)
 		dev_err(&spi->dev,
 			"can't read data with the following length: %u\n",
 			rlen);
-		ret = -1;
+		ret = -EINVAL;
 	}
-	/* change return value to match WILC interface */
-	(ret < 0) ? (ret = 0) : (ret = 1);
 
 	return ret;
 }
@@ -185,10 +179,8 @@ int wilc_spi_write_read(struct wilc *wilc, u8 *wb, u8 *rb, u32 rlen)
 		dev_err(&spi->dev,
 			"can't read data with the following length: %u\n",
 			rlen);
-		ret = -1;
+		ret = -EINVAL;
 	}
-	/* change return value to match WILC interface */
-	(ret < 0) ? (ret = 0) : (ret = 1);
 
 	return ret;
 }
