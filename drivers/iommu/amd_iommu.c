@@ -2328,7 +2328,7 @@ static dma_addr_t dma_ops_domain_map(struct dma_ops_domain *dom,
 	else if (direction == DMA_BIDIRECTIONAL)
 		__pte |= IOMMU_PTE_IR | IOMMU_PTE_IW;
 
-	WARN_ON(*pte);
+	WARN_ON_ONCE(*pte);
 
 	*pte = __pte;
 
@@ -2357,7 +2357,7 @@ static void dma_ops_domain_unmap(struct dma_ops_domain *dom,
 
 	pte += PM_LEVEL_INDEX(0, address);
 
-	WARN_ON(!*pte);
+	WARN_ON_ONCE(!*pte);
 
 	*pte = 0ULL;
 }
