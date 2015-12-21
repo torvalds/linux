@@ -12,7 +12,7 @@ Each key is represented as a sub-node of "allwinner,sun4i-a10-lradc-keys":
 Required subnode-properties:
 	- label: Descriptive name of the key.
 	- linux,code: Keycode to emit.
-	- channel: Channel this key is attached to, mut be 0 or 1.
+	- channel: Channel this key is attached to, must be 0 or 1.
 	- voltage: Voltage in µV at lradc input when this key is pressed.
 
 Example:

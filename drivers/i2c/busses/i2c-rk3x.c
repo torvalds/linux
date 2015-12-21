@@ -908,7 +908,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 				 &i2c->scl_fall_ns))
 		i2c->scl_fall_ns = 300;
 	if (of_property_read_u32(pdev->dev.of_node, "i2c-sda-falling-time-ns",
-				 &i2c->scl_fall_ns))
+				 &i2c->sda_fall_ns))
 		i2c->sda_fall_ns = i2c->scl_fall_ns;
 
 	strlcpy(i2c->adap.name, "rk3x-i2c", sizeof(i2c->adap.name));

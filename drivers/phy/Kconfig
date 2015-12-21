@@ -233,6 +233,7 @@ config PHY_SUN9I_USB
 	tristate "Allwinner sun9i SoC USB PHY driver"
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
 	depends on RESET_CONTROLLER
+	depends on USB_COMMON
 	select GENERIC_PHY
 	help
 	  Enable this to support the transceiver that is part of Allwinner
