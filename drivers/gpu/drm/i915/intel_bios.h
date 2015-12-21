@@ -28,22 +28,40 @@
 #ifndef _I830_BIOS_H_
 #define _I830_BIOS_H_
 
+/**
+ * struct vbt_header - VBT Header structure
+ * @signature:		VBT signature, always starts with "$VBT"
+ * @version:		Version of this structure
+ * @header_size:	Size of this structure
+ * @vbt_size:		Size of VBT (VBT Header, BDB Header and data blocks)
+ * @vbt_checksum:	Checksum
+ * @reserved0:		Reserved
+ * @bdb_offset:		Offset of &struct bdb_header from beginning of VBT
+ * @aim_offset:		Offsets of add-in data blocks from beginning of VBT
+ */
 struct vbt_header {
-	u8 signature[20];		/**< Always starts with 'VBT$' */
-	u16 version;			/**< decimal */
-	u16 header_size;		/**< in bytes */
-	u16 vbt_size;			/**< in bytes */
+	u8 signature[20];
+	u16 version;
+	u16 header_size;
+	u16 vbt_size;
 	u8 vbt_checksum;
 	u8 reserved0;
-	u32 bdb_offset;			/**< from beginning of VBT */
-	u32 aim_offset[4];		/**< from beginning of VBT */
+	u32 bdb_offset;
+	u32 aim_offset[4];
 } __packed;
 
+/**
+ * struct bdb_header - BDB Header structure
+ * @signature:		BDB signature "BIOS_DATA_BLOCK"
+ * @version:		Version of the data block definitions
+ * @header_size:	Size of this structure
+ * @bdb_size:		Size of BDB (BDB Header and data blocks)
+ */
 struct bdb_header {
-	u8 signature[16];		/**< Always 'BIOS_DATA_BLOCK' */
-	u16 version;			/**< decimal */
-	u16 header_size;		/**< in bytes */
-	u16 bdb_size;			/**< in bytes */
+	u8 signature[16];
+	u16 version;
+	u16 header_size;
+	u16 bdb_size;
 } __packed;
 
 /* strictly speaking, this is a "skip" block, but it has interesting info */

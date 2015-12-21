@@ -31,6 +31,28 @@
 #include "i915_drv.h"
 #include "intel_bios.h"
 
+/**
+ * DOC: Video BIOS Table (VBT)
+ *
+ * The Video BIOS Table, or VBT, provides platform and board specific
+ * configuration information to the driver that is not discoverable or available
+ * through other means. The configuration is mostly related to display
+ * hardware. The VBT is available via the ACPI OpRegion or, on older systems, in
+ * the PCI ROM.
+ *
+ * The VBT consists of a VBT Header (defined as &struct vbt_header), a BDB
+ * Header (&struct bdb_header), and a number of BIOS Data Blocks (BDB) that
+ * contain the actual configuration information. The VBT Header, and thus the
+ * VBT, begins with "$VBT" signature. The VBT Header contains the offset of the
+ * BDB Header. The data blocks are concatenated after the BDB Header. The data
+ * blocks have a 1-byte Block ID, 2-byte Block Size, and Block Size bytes of
+ * data. (Block 53, the MIPI Sequence Block is an exception.)
+ *
+ * The driver parses the VBT during load. The relevant information is stored in
+ * driver private data for ease of use, and the actual VBT is not read after
+ * that.
+ */
+
 #define	SLAVE_ADDR1	0x70
 #define	SLAVE_ADDR2	0x72
 
@@ -1285,7 +1307,7 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
 
 /**
  * intel_bios_init - find VBT and initialize settings from the BIOS
- * @dev: DRM device
+ * @dev_priv: i915 device instance
  *
  * Loads the Video BIOS and checks that the VBT exists.  Sets scratch registers
  * to appropriate values.
