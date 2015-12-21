@@ -95,7 +95,7 @@ static int vprbrd_gpioa_get(struct gpio_chip *chip,
 
 	/* if io is set to output, just return the saved value */
 	if (gpio->gpioa_out & (1 << offset))
-		return gpio->gpioa_val & (1 << offset);
+		return !!(gpio->gpioa_val & (1 << offset));
 
 	mutex_lock(&vb->lock);
 
