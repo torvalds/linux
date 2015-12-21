@@ -5369,13 +5369,10 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 		goto out;
 	}
 
-	if (!write) {
-		err = snprintf(str, sizeof(str), "%pI6",
-			       &secret->secret);
-		if (err >= sizeof(str)) {
-			err = -EIO;
-			goto out;
-		}
+	err = snprintf(str, sizeof(str), "%pI6", &secret->secret);
+	if (err >= sizeof(str)) {
+		err = -EIO;
+		goto out;
 	}
 
 	err = proc_dostring(&lctl, write, buffer, lenp, ppos);
