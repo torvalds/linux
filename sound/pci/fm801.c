@@ -1393,12 +1393,17 @@ static int snd_fm801_suspend(struct device *dev)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
-	snd_ac97_suspend(chip->ac97);
-	snd_ac97_suspend(chip->ac97_sec);
+
+	if (chip->tea575x_tuner & TUNER_ONLY) {
+		/* FIXME: tea575x suspend */
+	} else {
+		snd_pcm_suspend_all(chip->pcm);
+		snd_ac97_suspend(chip->ac97);
+		snd_ac97_suspend(chip->ac97_sec);
+	}
+
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		chip->saved_regs[i] = fm801_ioread16(chip, saved_regs[i]);
-	/* FIXME: tea575x suspend */
 	return 0;
 }
 
@@ -1414,9 +1419,10 @@ static int snd_fm801_resume(struct device *dev)
 		reset_codec(chip);
 		snd_fm801_chip_multichannel_init(chip);
 		snd_fm801_chip_init(chip);
+		snd_ac97_resume(chip->ac97);
+		snd_ac97_resume(chip->ac97_sec);
 	}
-	snd_ac97_resume(chip->ac97);
-	snd_ac97_resume(chip->ac97_sec);
+
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		fm801_iowrite16(chip, saved_regs[i], chip->saved_regs[i]);
 
