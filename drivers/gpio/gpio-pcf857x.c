@@ -154,7 +154,7 @@ static int pcf857x_get(struct gpio_chip *chip, unsigned offset)
 	int		value;
 
 	value = gpio->read(gpio->client);
-	return (value < 0) ? 0 : (value & (1 << offset));
+	return (value < 0) ? value : !!(value & (1 << offset));
 }
 
 static int pcf857x_output(struct gpio_chip *chip, unsigned offset, int value)
