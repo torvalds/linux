@@ -243,7 +243,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 
 	omap = devm_kzalloc(&pdev->dev, sizeof(*omap), GFP_KERNEL);
 	if (!omap) {
-		omap->pdata->free(dm_timer);
+		pdata->free(dm_timer);
 		return -ENOMEM;
 	}
 
