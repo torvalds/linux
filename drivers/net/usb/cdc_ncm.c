@@ -1558,6 +1558,24 @@ static const struct usb_device_id cdc_devs[] = {
 	  .driver_info = (unsigned long) &wwan_info,
 	},
 
+	/* DW5812 LTE Verizon Mobile Broadband Card
+	 * Unlike DW5550 this device requires FLAG_NOARP
+	 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x81bb,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&wwan_noarp_info,
+	},
+
+	/* DW5813 LTE AT&T Mobile Broadband Card
+	 * Unlike DW5550 this device requires FLAG_NOARP
+	 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x81bc,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&wwan_noarp_info,
+	},
+
 	/* Dell branded MBM devices like DW5550 */
 	{ .match_flags = USB_DEVICE_ID_MATCH_INT_INFO
 		| USB_DEVICE_ID_MATCH_VENDOR,
