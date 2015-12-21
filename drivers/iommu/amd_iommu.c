@@ -120,6 +120,8 @@ static int protection_domain_init(struct protection_domain *domain);
  */
 struct aperture_range {
 
+	spinlock_t bitmap_lock;
+
 	/* address allocation bitmap */
 	unsigned long *bitmap;
 
@@ -1436,6 +1438,8 @@ static int alloc_new_range(struct dma_ops_domain *dma_dom,
 
 	dma_dom->aperture[index]->offset = dma_dom->aperture_size;
 
+	spin_lock_init(&dma_dom->aperture[index]->bitmap_lock);
+
 	if (populate) {
 		unsigned long address = dma_dom->aperture_size;
 		int i, num_ptes = APERTURE_RANGE_PAGES / 512;
@@ -1527,6 +1531,7 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 	unsigned long boundary_size, mask;
 	unsigned long address = -1;
 	unsigned long limit;
+	unsigned long flags;
 
 	next_bit >>= PAGE_SHIFT;
 
@@ -1544,9 +1549,11 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 		limit = iommu_device_max_index(APERTURE_RANGE_PAGES, offset,
 					       dma_mask >> PAGE_SHIFT);
 
+		spin_lock_irqsave(&dom->aperture[i]->bitmap_lock, flags);
 		address = iommu_area_alloc(dom->aperture[i]->bitmap,
 					   limit, next_bit, pages, 0,
 					    boundary_size, align_mask);
+		spin_unlock_irqrestore(&dom->aperture[i]->bitmap_lock, flags);
 		if (address != -1) {
 			address = dom->aperture[i]->offset +
 				  (address << PAGE_SHIFT);
@@ -1602,6 +1609,7 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 {
 	unsigned i = address >> APERTURE_RANGE_SHIFT;
 	struct aperture_range *range = dom->aperture[i];
+	unsigned long flags;
 
 	BUG_ON(i >= APERTURE_MAX_RANGES || range == NULL);
 
@@ -1615,7 +1623,9 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 
 	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
 
+	spin_lock_irqsave(&range->bitmap_lock, flags);
 	bitmap_clear(range->bitmap, address, pages);
+	spin_unlock_irqrestore(&range->bitmap_lock, flags);
 
 }
 
