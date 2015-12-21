@@ -91,7 +91,7 @@ static int linux_sdio_probe(struct sdio_func *func,
 			    const struct sdio_device_id *id)
 {
 	struct wilc *wilc;
-	int gpio;
+	int gpio, ret;
 
 	gpio = -1;
 	if (IS_ENABLED(CONFIG_WILC1000_HW_OOB_INTR)) {
@@ -101,10 +101,11 @@ static int linux_sdio_probe(struct sdio_func *func,
 	}
 
 	dev_dbg(&func->dev, "Initializing netdev\n");
-	if (wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, gpio,
-			     &wilc_hif_sdio)) {
+	ret = wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, gpio,
+			     &wilc_hif_sdio);
+	if (ret) {
 		dev_err(&func->dev, "Couldn't initialize netdev\n");
-		return -1;
+		return ret;
 	}
 	sdio_set_drvdata(func, wilc);
 	wilc->dev = &func->dev;
