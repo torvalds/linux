@@ -2493,6 +2493,8 @@ out_unmap:
 		dma_ops_domain_unmap(dma_dom, start);
 	}
 
+	domain_flush_pages(&dma_dom->domain, address, size);
+
 	dma_ops_free_addresses(dma_dom, address, pages);
 
 	return DMA_ERROR_CODE;
