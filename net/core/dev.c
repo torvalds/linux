@@ -2403,17 +2403,20 @@ static void skb_warn_bad_offload(const struct sk_buff *skb)
 {
 	static const netdev_features_t null_features = 0;
 	struct net_device *dev = skb->dev;
-	const char *driver = "";
+	const char *name = "";
 
 	if (!net_ratelimit())
 		return;
 
-	if (dev && dev->dev.parent)
-		driver = dev_driver_string(dev->dev.parent);
-
+	if (dev) {
+		if (dev->dev.parent)
+			name = dev_driver_string(dev->dev.parent);
+		else
+			name = netdev_name(dev);
+	}
 	WARN(1, "%s: caps=(%pNF, %pNF) len=%d data_len=%d gso_size=%d "
 	     "gso_type=%d ip_summed=%d\n",
-	     driver, dev ? &dev->features : &null_features,
+	     name, dev ? &dev->features : &null_features,
 	     skb->sk ? &skb->sk->sk_route_caps : &null_features,
 	     skb->len, skb->data_len, skb_shinfo(skb)->gso_size,
 	     skb_shinfo(skb)->gso_type, skb->ip_summed);
@@ -6426,11 +6429,16 @@ int __netdev_update_features(struct net_device *dev)
 
 	if (dev->netdev_ops->ndo_set_features)
 		err = dev->netdev_ops->ndo_set_features(dev, features);
+	else
+		err = 0;
 
 	if (unlikely(err < 0)) {
 		netdev_err(dev,
 			"set_features() failed (%d); wanted %pNF, left %pNF\n",
 			err, &features, &dev->features);
+		/* return non-0 since some features might have changed and
+		 * it's better to fire a spurious notification than miss it
+		 */
 		return -1;
 	}
 

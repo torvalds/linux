@@ -1443,7 +1443,6 @@ struct vm_struct *remove_vm_area(const void *addr)
 		vmap_debug_free_range(va->va_start, va->va_end);
 		kasan_free_shadow(vm);
 		free_unmap_vmap_area(va);
-		vm->size -= PAGE_SIZE;
 
 		return vm;
 	}
@@ -1468,8 +1467,8 @@ static void __vunmap(const void *addr, int deallocate_pages)
 		return;
 	}
 
-	debug_check_no_locks_freed(addr, area->size);
-	debug_check_no_obj_freed(addr, area->size);
+	debug_check_no_locks_freed(addr, get_vm_area_size(area));
+	debug_check_no_obj_freed(addr, get_vm_area_size(area));
 
 	if (deallocate_pages) {
 		int i;

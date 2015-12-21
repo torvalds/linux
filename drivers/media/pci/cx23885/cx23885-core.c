@@ -1992,9 +1992,9 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 		(unsigned long long)pci_resource_start(pci_dev, 0));
 
 	pci_set_master(pci_dev);
-	if (!pci_set_dma_mask(pci_dev, 0xffffffff)) {
+	err = pci_set_dma_mask(pci_dev, 0xffffffff);
+	if (err) {
 		printk("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
-		err = -EIO;
 		goto fail_context;
 	}
 

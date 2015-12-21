@@ -80,7 +80,7 @@ static unsigned int heartbeat = DEFAULT_HEARTBEAT;
 
 static DEFINE_SPINLOCK(io_lock);
 static void __iomem	*wdt_base;
-struct clk		*wdt_clk;
+static struct clk	*wdt_clk;
 
 static int pnx4008_wdt_start(struct watchdog_device *wdd)
 {
@@ -161,7 +161,7 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt_clk))
 		return PTR_ERR(wdt_clk);
 
-	ret = clk_enable(wdt_clk);
+	ret = clk_prepare_enable(wdt_clk);
 	if (ret)
 		return ret;
 
@@ -184,7 +184,7 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 	return 0;
 
 disable_clk:
-	clk_disable(wdt_clk);
+	clk_disable_unprepare(wdt_clk);
 	return ret;
 }
 
@@ -192,7 +192,7 @@ static int pnx4008_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&pnx4008_wdd);
 
-	clk_disable(wdt_clk);
+	clk_disable_unprepare(wdt_clk);
 
 	return 0;
 }

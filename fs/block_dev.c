@@ -390,9 +390,17 @@ int bdev_read_page(struct block_device *bdev, sector_t sector,
 			struct page *page)
 {
 	const struct block_device_operations *ops = bdev->bd_disk->fops;
+	int result = -EOPNOTSUPP;
+
 	if (!ops->rw_page || bdev_get_integrity(bdev))
-		return -EOPNOTSUPP;
-	return ops->rw_page(bdev, sector + get_start_sect(bdev), page, READ);
+		return result;
+
+	result = blk_queue_enter(bdev->bd_queue, GFP_KERNEL);
+	if (result)
+		return result;
+	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, READ);
+	blk_queue_exit(bdev->bd_queue);
+	return result;
 }
 EXPORT_SYMBOL_GPL(bdev_read_page);
 
@@ -421,14 +429,20 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 	int result;
 	int rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE;
 	const struct block_device_operations *ops = bdev->bd_disk->fops;
+
 	if (!ops->rw_page || bdev_get_integrity(bdev))
 		return -EOPNOTSUPP;
+	result = blk_queue_enter(bdev->bd_queue, GFP_KERNEL);
+	if (result)
+		return result;
+
 	set_page_writeback(page);
 	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, rw);
 	if (result)
 		end_page_writeback(page);
 	else
 		unlock_page(page);
+	blk_queue_exit(bdev->bd_queue);
 	return result;
 }
 EXPORT_SYMBOL_GPL(bdev_write_page);
@@ -1509,11 +1523,14 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 		WARN_ON_ONCE(bdev->bd_holders);
 		sync_blockdev(bdev);
 		kill_bdev(bdev);
-		/*
-		 * ->release can cause the queue to disappear, so flush all
-		 * dirty data before.
-		 */
+
 		bdev_write_inode(bdev);
+		/*
+		 * Detaching bdev inode from its wb in __destroy_inode()
+		 * is too late: the queue which embeds its bdi (along with
+		 * root wb) can be gone as soon as we put_disk() below.
+		 */
+		inode_detach_wb(bdev->bd_inode);
 	}
 	if (bdev->bd_contains == bdev) {
 		if (disk->fops->release)

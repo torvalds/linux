@@ -77,8 +77,8 @@ struct btrfs_transaction {
 	 */
 	struct mutex cache_write_mutex;
 	spinlock_t dirty_bgs_lock;
+	/* Protected by spin lock fs_info->unused_bgs_lock. */
 	struct list_head deleted_bgs;
-	spinlock_t deleted_bgs_lock;
 	spinlock_t dropped_roots_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
@@ -185,6 +185,10 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   unsigned int num_items);
+struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
+					struct btrfs_root *root,
+					unsigned int num_items,
+					int min_factor);
 struct btrfs_trans_handle *btrfs_start_transaction_lflush(
 					struct btrfs_root *root,
 					unsigned int num_items);

@@ -274,7 +274,6 @@ loop:
 	cur_trans->num_dirty_bgs = 0;
 	spin_lock_init(&cur_trans->dirty_bgs_lock);
 	INIT_LIST_HEAD(&cur_trans->deleted_bgs);
-	spin_lock_init(&cur_trans->deleted_bgs_lock);
 	spin_lock_init(&cur_trans->dropped_roots_lock);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(&cur_trans->dirty_pages,
@@ -591,6 +590,38 @@ struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 {
 	return start_transaction(root, num_items, TRANS_START,
 				 BTRFS_RESERVE_FLUSH_ALL);
+}
+struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
+					struct btrfs_root *root,
+					unsigned int num_items,
+					int min_factor)
+{
+	struct btrfs_trans_handle *trans;
+	u64 num_bytes;
+	int ret;
+
+	trans = btrfs_start_transaction(root, num_items);
+	if (!IS_ERR(trans) || PTR_ERR(trans) != -ENOSPC)
+		return trans;
+
+	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans))
+		return trans;
+
+	num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
+	ret = btrfs_cond_migrate_bytes(root->fs_info,
+				       &root->fs_info->trans_block_rsv,
+				       num_bytes,
+				       min_factor);
+	if (ret) {
+		btrfs_end_transaction(trans, root);
+		return ERR_PTR(ret);
+	}
+
+	trans->block_rsv = &root->fs_info->trans_block_rsv;
+	trans->bytes_reserved = num_bytes;
+
+	return trans;
 }
 
 struct btrfs_trans_handle *btrfs_start_transaction_lflush(

@@ -209,6 +209,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 	struct sock *sk = skb->sk;
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct flowi6 *fl6 = &transport->fl.u.ip6;
+	int res;
 
 	pr_debug("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n", __func__, skb,
 		 skb->len, &fl6->saddr, &fl6->daddr);
@@ -220,7 +221,10 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 
 	SCTP_INC_STATS(sock_net(sk), SCTP_MIB_OUTSCTPPACKS);
 
-	return ip6_xmit(sk, skb, fl6, np->opt, np->tclass);
+	rcu_read_lock();
+	res = ip6_xmit(sk, skb, fl6, rcu_dereference(np->opt), np->tclass);
+	rcu_read_unlock();
+	return res;
 }
 
 /* Returns the dst cache entry for the given source and destination ip
@@ -262,7 +266,10 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		pr_debug("src=%pI6 - ", &fl6->saddr);
 	}
 
-	final_p = fl6_update_dst(fl6, np->opt, &final);
+	rcu_read_lock();
+	final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &final);
+	rcu_read_unlock();
+
 	dst = ip6_dst_lookup_flow(sk, fl6, final_p);
 	if (!asoc || saddr)
 		goto out;
@@ -316,14 +323,13 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 			}
 		}
 	}
-	rcu_read_unlock();
-
 	if (baddr) {
 		fl6->saddr = baddr->v6.sin6_addr;
 		fl6->fl6_sport = baddr->v6.sin6_port;
-		final_p = fl6_update_dst(fl6, np->opt, &final);
+		final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &final);
 		dst = ip6_dst_lookup_flow(sk, fl6, final_p);
 	}
+	rcu_read_unlock();
 
 out:
 	if (!IS_ERR_OR_NULL(dst)) {
@@ -635,6 +641,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	struct sock *newsk;
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct sctp6_sock *newsctp6sk;
+	struct ipv6_txoptions *opt;
 
 	newsk = sk_alloc(sock_net(sk), PF_INET6, GFP_KERNEL, sk->sk_prot, 0);
 	if (!newsk)
@@ -653,6 +660,13 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	newnp = inet6_sk(newsk);
 
 	memcpy(newnp, np, sizeof(struct ipv6_pinfo));
+
+	rcu_read_lock();
+	opt = rcu_dereference(np->opt);
+	if (opt)
+		opt = ipv6_dup_options(newsk, opt);
+	RCU_INIT_POINTER(newnp->opt, opt);
+	rcu_read_unlock();
 
 	/* Initialize sk's sport, dport, rcv_saddr and daddr for getsockname()
 	 * and getpeername().

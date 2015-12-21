@@ -117,7 +117,7 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 	struct scpi_ops *scpi_ops;
 	struct device *hwdev, *dev = &pdev->dev;
 	struct scpi_sensors *scpi_sensors;
-	int ret;
+	int ret, idx;
 
 	scpi_ops = get_scpi_ops();
 	if (!scpi_ops)
@@ -146,8 +146,8 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 
 	scpi_sensors->scpi_ops = scpi_ops;
 
-	for (i = 0; i < nr_sensors; i++) {
-		struct sensor_data *sensor = &scpi_sensors->data[i];
+	for (i = 0, idx = 0; i < nr_sensors; i++) {
+		struct sensor_data *sensor = &scpi_sensors->data[idx];
 
 		ret = scpi_ops->sensor_get_info(i, &sensor->info);
 		if (ret)
@@ -183,7 +183,7 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 			num_power++;
 			break;
 		default:
-			break;
+			continue;
 		}
 
 		sensor->dev_attr_input.attr.mode = S_IRUGO;
@@ -194,11 +194,12 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 		sensor->dev_attr_label.show = scpi_show_label;
 		sensor->dev_attr_label.attr.name = sensor->label;
 
-		scpi_sensors->attrs[i << 1] = &sensor->dev_attr_input.attr;
-		scpi_sensors->attrs[(i << 1) + 1] = &sensor->dev_attr_label.attr;
+		scpi_sensors->attrs[idx << 1] = &sensor->dev_attr_input.attr;
+		scpi_sensors->attrs[(idx << 1) + 1] = &sensor->dev_attr_label.attr;
 
-		sysfs_attr_init(scpi_sensors->attrs[i << 1]);
-		sysfs_attr_init(scpi_sensors->attrs[(i << 1) + 1]);
+		sysfs_attr_init(scpi_sensors->attrs[idx << 1]);
+		sysfs_attr_init(scpi_sensors->attrs[(idx << 1) + 1]);
+		idx++;
 	}
 
 	scpi_sensors->group.attrs = scpi_sensors->attrs;
@@ -236,8 +237,8 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 
 		zone->sensor_id = i;
 		zone->scpi_sensors = scpi_sensors;
-		zone->tzd = thermal_zone_of_sensor_register(dev, i, zone,
-							    &scpi_sensor_ops);
+		zone->tzd = thermal_zone_of_sensor_register(dev,
+				sensor->info.sensor_id, zone, &scpi_sensor_ops);
 		/*
 		 * The call to thermal_zone_of_sensor_register returns
 		 * an error for sensors that are not associated with

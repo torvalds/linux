@@ -132,7 +132,7 @@ static inline struct musb *dev_to_musb(struct device *dev)
 /*-------------------------------------------------------------------------*/
 
 #ifndef CONFIG_BLACKFIN
-static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
+static int musb_ulpi_read(struct usb_phy *phy, u32 reg)
 {
 	void __iomem *addr = phy->io_priv;
 	int	i = 0;
@@ -151,7 +151,7 @@ static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
 	 * ULPICarKitControlDisableUTMI after clearing POWER_SUSPENDM.
 	 */
 
-	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)offset);
+	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)reg);
 	musb_writeb(addr, MUSB_ULPI_REG_CONTROL,
 			MUSB_ULPI_REG_REQ | MUSB_ULPI_RDN_WR);
 
@@ -176,7 +176,7 @@ out:
 	return ret;
 }
 
-static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
+static int musb_ulpi_write(struct usb_phy *phy, u32 val, u32 reg)
 {
 	void __iomem *addr = phy->io_priv;
 	int	i = 0;
@@ -191,8 +191,8 @@ static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
 	power &= ~MUSB_POWER_SUSPENDM;
 	musb_writeb(addr, MUSB_POWER, power);
 
-	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)offset);
-	musb_writeb(addr, MUSB_ULPI_REG_DATA, (u8)data);
+	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)reg);
+	musb_writeb(addr, MUSB_ULPI_REG_DATA, (u8)val);
 	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, MUSB_ULPI_REG_REQ);
 
 	while (!(musb_readb(addr, MUSB_ULPI_REG_CONTROL)
@@ -1668,7 +1668,7 @@ EXPORT_SYMBOL_GPL(musb_interrupt);
 static bool use_dma = 1;
 
 /* "modprobe ... use_dma=0" etc */
-module_param(use_dma, bool, 0);
+module_param(use_dma, bool, 0644);
 MODULE_PARM_DESC(use_dma, "enable/disable use of DMA");
 
 void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit)
@@ -2017,7 +2017,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	/* We need musb_read/write functions initialized for PM */
 	pm_runtime_use_autosuspend(musb->controller);
 	pm_runtime_set_autosuspend_delay(musb->controller, 200);
-	pm_runtime_irq_safe(musb->controller);
 	pm_runtime_enable(musb->controller);
 
 	/* The musb_platform_init() call:
@@ -2095,6 +2094,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 #ifndef CONFIG_MUSB_PIO_ONLY
 	if (!musb->ops->dma_init || !musb->ops->dma_exit) {
 		dev_err(dev, "DMA controller not set\n");
+		status = -ENODEV;
 		goto fail2;
 	}
 	musb_dma_controller_create = musb->ops->dma_init;
@@ -2217,6 +2217,12 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		goto fail5;
 
 	pm_runtime_put(musb->controller);
+
+	/*
+	 * For why this is currently needed, see commit 3e43a0725637
+	 * ("usb: musb: core: add pm_runtime_irq_safe()")
+	 */
+	pm_runtime_irq_safe(musb->controller);
 
 	return 0;
 

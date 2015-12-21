@@ -298,7 +298,7 @@ static bool __match_event(struct perf_event *a, struct perf_event *b)
 static inline struct perf_cgroup *event_to_cgroup(struct perf_event *event)
 {
 	if (event->attach_state & PERF_ATTACH_TASK)
-		return perf_cgroup_from_task(event->hw.target);
+		return perf_cgroup_from_task(event->hw.target, event->ctx);
 
 	return event->cgrp;
 }

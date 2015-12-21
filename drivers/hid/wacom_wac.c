@@ -2481,7 +2481,7 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 		if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
 			if (features->touch_max)
 				features->device_type |= WACOM_DEVICETYPE_TOUCH;
-			if (features->type >= INTUOSHT || features->type <= BAMBOO_PT)
+			if (features->type >= INTUOSHT && features->type <= BAMBOO_PT)
 				features->device_type |= WACOM_DEVICETYPE_PAD;
 
 			features->x_max = 4096;
@@ -3213,7 +3213,8 @@ static const struct wacom_features wacom_features_0x32F =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x336 =
 	{ "Wacom DTU1141", 23472, 13203, 1023, 0,
-	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
+	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x57 =
 	{ "Wacom DTK2241", 95640, 54060, 2047, 63,
 	  DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 6,

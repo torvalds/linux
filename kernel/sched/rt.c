@@ -64,7 +64,7 @@ static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 	raw_spin_unlock(&rt_b->rt_runtime_lock);
 }
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(HAVE_RT_PUSH_IPI)
 static void push_irq_work_func(struct irq_work *work);
 #endif
 

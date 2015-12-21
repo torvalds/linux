@@ -5,8 +5,6 @@
 config PINCTRL
 	bool
 
-if PINCTRL
-
 menu "Pin controllers"
 	depends on PINCTRL
 
@@ -274,5 +272,3 @@ config PINCTRL_TB10X
 	select GPIOLIB
 
 endmenu
-
-endif

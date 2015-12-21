@@ -679,8 +679,11 @@ static int usb_dmac_runtime_suspend(struct device *dev)
 	struct usb_dmac *dmac = dev_get_drvdata(dev);
 	int i;
 
-	for (i = 0; i < dmac->n_channels; ++i)
+	for (i = 0; i < dmac->n_channels; ++i) {
+		if (!dmac->channels[i].iomem)
+			break;
 		usb_dmac_chan_halt(&dmac->channels[i]);
+	}
 
 	return 0;
 }
@@ -799,11 +802,10 @@ static int usb_dmac_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "runtime PM get sync failed (%d)\n", ret);
-		return ret;
+		goto error_pm;
 	}
 
 	ret = usb_dmac_init(dmac);
-	pm_runtime_put(&pdev->dev);
 
 	if (ret) {
 		dev_err(&pdev->dev, "failed to reset device\n");
@@ -851,10 +853,13 @@ static int usb_dmac_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error;
 
+	pm_runtime_put(&pdev->dev);
 	return 0;
 
 error:
 	of_dma_controller_free(pdev->dev.of_node);
+	pm_runtime_put(&pdev->dev);
+error_pm:
 	pm_runtime_disable(&pdev->dev);
 	return ret;
 }

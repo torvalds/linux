@@ -1,6 +1,7 @@
 #ifndef LINUX_MM_DEBUG_H
 #define LINUX_MM_DEBUG_H 1
 
+#include <linux/bug.h>
 #include <linux/stringify.h>
 
 struct page;
