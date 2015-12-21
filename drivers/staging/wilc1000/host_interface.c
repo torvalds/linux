@@ -451,7 +451,7 @@ static s32 handle_get_ip_address(struct wilc_vif *vif,
 	kfree(wid.val);
 
 	if (memcmp(get_ip[idx], set_ip[idx], IP_ALEN) != 0)
-		wilc_setup_ipaddress(vif, hif_drv, set_ip[idx], idx);
+		wilc_setup_ipaddress(vif, set_ip[idx], idx);
 
 	if (result != 0) {
 		PRINT_ER("Failed to get IP address\n");
@@ -1629,7 +1629,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 
 			if ((u8MacStatus == MAC_CONNECTED) &&
 			    (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE))	{
-				wilc_set_power_mgmt(vif, hif_drv, 0, 0);
+				wilc_set_power_mgmt(vif, 0, 0);
 
 				PRINT_D(HOSTINF_DBG, "MAC status : CONNECTED and Connect Status : Successful\n");
 				hif_drv->hif_state = HOST_IF_CONNECTED;
@@ -1675,7 +1675,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 
 			if (hif_drv->usr_conn_req.conn_result) {
 				wilc_optaining_ip = false;
-				wilc_set_power_mgmt(vif, hif_drv, 0, 0);
+				wilc_set_power_mgmt(vif, 0, 0);
 
 				hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
 								  NULL,
@@ -2016,7 +2016,7 @@ static void Handle_Disconnect(struct wilc_vif *vif,
 	PRINT_D(HOSTINF_DBG, "Sending disconnect request\n");
 
 	wilc_optaining_ip = false;
-	wilc_set_power_mgmt(vif, hif_drv, 0, 0);
+	wilc_set_power_mgmt(vif, 0, 0);
 
 	eth_zero_addr(wilc_connected_ssid);
 
@@ -2087,15 +2087,14 @@ static void Handle_Disconnect(struct wilc_vif *vif,
 	up(&hif_drv->sem_test_disconn_block);
 }
 
-void wilc_resolve_disconnect_aberration(struct wilc_vif *vif,
-					struct host_if_drv *hif_drv)
+void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
 {
-	if (!hif_drv)
+	if (!vif->hif_drv)
 		return;
-	if ((hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) ||
-	    (hif_drv->hif_state == HOST_IF_CONNECTING)) {
+	if ((vif->hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) ||
+	    (vif->hif_drv->hif_state == HOST_IF_CONNECTING)) {
 		PRINT_D(HOSTINF_DBG, "\n\n<< correcting Supplicant state machine >>\n\n");
-		wilc_disconnect(vif, hif_drv, 1);
+		wilc_disconnect(vif, 1);
 	}
 }
 
@@ -3045,11 +3044,11 @@ s32 wilc_remove_key(struct host_if_drv *hif_drv, const u8 *pu8StaAddress)
 	return 0;
 }
 
-int wilc_remove_wep_key(struct wilc_vif *vif,
-			struct host_if_drv *hif_drv, u8 index)
+int wilc_remove_wep_key(struct wilc_vif *vif, u8 index)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		result = -EFAULT;
@@ -3074,11 +3073,11 @@ int wilc_remove_wep_key(struct wilc_vif *vif,
 	return result;
 }
 
-int wilc_set_wep_default_keyid(struct wilc_vif *vif,
-			       struct host_if_drv *hif_drv, u8 index)
+int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		result = -EFAULT;
@@ -3103,11 +3102,12 @@ int wilc_set_wep_default_keyid(struct wilc_vif *vif,
 	return result;
 }
 
-int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			     const u8 *key, u8 len, u8 index)
+int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
+			     u8 index)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -3136,12 +3136,12 @@ int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			    const u8 *key, u8 len, u8 index, u8 mode,
-			    enum AUTHTYPE auth_type)
+int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
+			    u8 index, u8 mode, enum AUTHTYPE auth_type)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 	int i;
 
 	if (!hif_drv) {
@@ -3178,13 +3178,13 @@ int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-int wilc_add_ptk(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		 const u8 *ptk, u8 ptk_key_len, const u8 *mac_addr,
-		 const u8 *rx_mic, const u8 *tx_mic, u8 mode, u8 cipher_mode,
-		 u8 index)
+int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
+		 const u8 *mac_addr, const u8 *rx_mic, const u8 *tx_mic,
+		 u8 mode, u8 cipher_mode, u8 index)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 	u8 key_len = ptk_key_len;
 	int i;
 
@@ -3245,13 +3245,14 @@ int wilc_add_ptk(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-int wilc_add_rx_gtk(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		    const u8 *rx_gtk, u8 gtk_key_len,	u8 index,
-		    u32 key_rsc_len, const u8 *key_rsc, const u8 *rx_mic,
-		    const u8 *tx_mic, u8 mode, u8 cipher_mode)
+int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
+		    u8 index, u32 key_rsc_len, const u8 *key_rsc,
+		    const u8 *rx_mic, const u8 *tx_mic, u8 mode,
+		    u8 cipher_mode)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 	u8 key_len = gtk_key_len;
 
 	if (!hif_drv) {
@@ -3313,11 +3314,12 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_set_pmkid_info(struct wilc_vif *vif, struct host_if_drv *hif_drv,
+s32 wilc_set_pmkid_info(struct wilc_vif *vif,
 			struct host_if_pmkid_attr *pu8PmkidInfoArray)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 	u32 i;
 
 	if (!hif_drv) {
@@ -3347,11 +3349,11 @@ s32 wilc_set_pmkid_info(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_get_mac_address(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			 u8 *pu8MacAddress)
+s32 wilc_get_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
@@ -3370,11 +3372,11 @@ s32 wilc_get_mac_address(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_set_mac_address(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			 u8 *pu8MacAddress)
+s32 wilc_set_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	PRINT_D(GENERIC_DBG, "mac addr = %x:%x:%x\n", pu8MacAddress[0], pu8MacAddress[1], pu8MacAddress[2]);
 
@@ -3391,15 +3393,15 @@ s32 wilc_set_mac_address(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_set_join_req(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		      u8 *pu8bssid, const u8 *pu8ssid, size_t ssidLen,
-		      const u8 *pu8IEs, size_t IEsLen,
+s32 wilc_set_join_req(struct wilc_vif *vif, u8 *pu8bssid, const u8 *pu8ssid,
+		      size_t ssidLen, const u8 *pu8IEs, size_t IEsLen,
 		      wilc_connect_result pfConnectResult, void *pvUserArg,
 		      u8 u8security, enum AUTHTYPE tenuAuth_type,
 		      u8 u8channel, void *pJoinParams)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv || !pfConnectResult) {
 		PRINT_ER("Driver is null\n");
@@ -3459,10 +3461,11 @@ s32 wilc_set_join_req(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_flush_join_req(struct wilc_vif *vif, struct host_if_drv *hif_drv)
+s32 wilc_flush_join_req(struct wilc_vif *vif)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!join_req)
 		return -EFAULT;
@@ -3485,11 +3488,11 @@ s32 wilc_flush_join_req(struct wilc_vif *vif, struct host_if_drv *hif_drv)
 	return result;
 }
 
-s32 wilc_disconnect(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		    u16 u16ReasonCode)
+s32 wilc_disconnect(struct wilc_vif *vif, u16 u16ReasonCode)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("Driver is null\n");
@@ -3542,11 +3545,11 @@ static s32 host_int_get_assoc_res_info(struct host_if_drv *hif_drv,
 	return result;
 }
 
-int wilc_set_mac_chnl_num(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			  u8 channel)
+int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 {
 	int result;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -3606,11 +3609,11 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, struct host_if_drv *hif_drv)
 	return result;
 }
 
-int wilc_set_operation_mode(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			    u32 mode)
+int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_OPERATION_MODE;
@@ -3627,11 +3630,12 @@ int wilc_set_operation_mode(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_get_inactive_time(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			       const u8 *mac, u32 *pu32InactiveTime)
+s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
+			   u32 *pu32InactiveTime)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -3656,11 +3660,11 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_get_rssi(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		  s8 *ps8Rssi)
+s32 wilc_get_rssi(struct wilc_vif *vif, s8 *ps8Rssi)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_GET_RSSI;
@@ -3685,11 +3689,11 @@ s32 wilc_get_rssi(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_get_statistics(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			struct rf_info *pstrStatistics)
+s32 wilc_get_statistics(struct wilc_vif *vif, struct rf_info *pstrStatistics)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_GET_STATISTICS;
@@ -3707,14 +3711,14 @@ s32 wilc_get_statistics(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_scan(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-	      u8 u8ScanSource, u8 u8ScanType, u8 *pu8ChnlFreqList,
-	      u8 u8ChnlListLen, const u8 *pu8IEs,
-	      size_t IEsLen, wilc_scan_result ScanResult,
-	      void *pvUserArg, struct hidden_network *pstrHiddenNetwork)
+s32 wilc_scan(struct wilc_vif *vif, u8 u8ScanSource, u8 u8ScanType,
+	      u8 *pu8ChnlFreqList, u8 u8ChnlListLen, const u8 *pu8IEs,
+	      size_t IEsLen, wilc_scan_result ScanResult, void *pvUserArg,
+	      struct hidden_network *pstrHiddenNetwork)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv || !ScanResult) {
 		PRINT_ER("hif_drv or ScanResult = NULL\n");
@@ -3761,11 +3765,12 @@ s32 wilc_scan(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_hif_set_cfg(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		struct cfg_param_val *pstrCfgParamVal)
+s32 wilc_hif_set_cfg(struct wilc_vif *vif,
+		     struct cfg_param_val *pstrCfgParamVal)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("hif_drv NULL\n");
@@ -3919,10 +3924,11 @@ _fail_:
 	return result;
 }
 
-s32 wilc_deinit(struct wilc_vif *vif, struct host_if_drv *hif_drv)
+s32 wilc_deinit(struct wilc_vif *vif)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 	int ret;
 
 	if (!hif_drv)	{
@@ -4089,14 +4095,15 @@ void wilc_scan_complete_received(u8 *pu8Buffer, u32 u32Length)
 	return;
 }
 
-s32 wilc_remain_on_channel(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			   u32 u32SessionID, u32 u32duration, u16 chan,
+s32 wilc_remain_on_channel(struct wilc_vif *vif, u32 u32SessionID,
+			   u32 u32duration, u16 chan,
 			   wilc_remain_on_chan_expired RemainOnChanExpired,
 			   wilc_remain_on_chan_ready RemainOnChanReady,
 			   void *pvUserArg)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4122,11 +4129,11 @@ s32 wilc_remain_on_channel(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_listen_state_expired(struct wilc_vif *vif,
-			      struct host_if_drv *hif_drv, u32 u32SessionID)
+s32 wilc_listen_state_expired(struct wilc_vif *vif, u32 u32SessionID)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4148,11 +4155,11 @@ s32 wilc_listen_state_expired(struct wilc_vif *vif,
 	return result;
 }
 
-s32 wilc_frame_register(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			u16 u16FrameType, bool bReg)
+s32 wilc_frame_register(struct wilc_vif *vif, u16 u16FrameType, bool bReg)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4189,14 +4196,13 @@ s32 wilc_frame_register(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_add_beacon(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		    u32 u32Interval,
-		    u32 u32DTIMPeriod, u32 u32HeadLen, u8 *pu8Head,
-		    u32 u32TailLen, u8 *pu8Tail)
+s32 wilc_add_beacon(struct wilc_vif *vif, u32 u32Interval, u32 u32DTIMPeriod,
+		    u32 u32HeadLen, u8 *pu8Head, u32 u32TailLen, u8 *pu8Tail)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
 	struct beacon_attr *pstrSetBeaconParam = &msg.body.beacon_info;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4245,10 +4251,11 @@ ERRORHANDLER:
 	return result;
 }
 
-int wilc_del_beacon(struct wilc_vif *vif, struct host_if_drv *hif_drv)
+int wilc_del_beacon(struct wilc_vif *vif)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4267,12 +4274,12 @@ int wilc_del_beacon(struct wilc_vif *vif, struct host_if_drv *hif_drv)
 	return result;
 }
 
-int wilc_add_station(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		     struct add_sta_param *sta_param)
+int wilc_add_station(struct wilc_vif *vif, struct add_sta_param *sta_param)
 {
 	int result = 0;
 	struct host_if_msg msg;
 	struct add_sta_param *add_sta_info = &msg.body.add_sta_info;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4302,12 +4309,12 @@ int wilc_add_station(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-int wilc_del_station(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-		     const u8 *mac_addr)
+int wilc_del_station(struct wilc_vif *vif, const u8 *mac_addr)
 {
 	int result = 0;
 	struct host_if_msg msg;
 	struct del_sta *del_sta_info = &msg.body.del_sta_info;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4333,12 +4340,12 @@ int wilc_del_station(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_del_allstation(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			    u8 pu8MacAddr[][ETH_ALEN])
+s32 wilc_del_allstation(struct wilc_vif *vif, u8 pu8MacAddr[][ETH_ALEN])
 {
 	s32 result = 0;
 	struct host_if_msg msg;
 	struct del_all_sta *pstrDelAllStationMsg = &msg.body.del_all_sta_info;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 	u8 au8Zero_Buff[ETH_ALEN] = {0};
 	u32 i;
 	u8 u8AssocNumb = 0;
@@ -4385,12 +4392,13 @@ s32 wilc_del_allstation(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_edit_station(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			  struct add_sta_param *pstrStaParams)
+s32 wilc_edit_station(struct wilc_vif *vif,
+		      struct add_sta_param *pstrStaParams)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
 	struct add_sta_param *pstrAddStationMsg = &msg.body.add_sta_info;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4424,12 +4432,12 @@ s32 wilc_edit_station(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_set_power_mgmt(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			    bool bIsEnabled, u32 u32Timeout)
+s32 wilc_set_power_mgmt(struct wilc_vif *vif, bool bIsEnabled, u32 u32Timeout)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
 	struct power_mgmt_param *pstrPowerMgmtParam = &msg.body.pwr_mgmt_info;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	PRINT_INFO(HOSTINF_DBG, "\n\n>> Setting PS to %d <<\n\n", bIsEnabled);
 
@@ -4455,14 +4463,13 @@ s32 wilc_set_power_mgmt(struct wilc_vif *vif, struct host_if_drv *hif_drv,
 	return result;
 }
 
-s32 wilc_setup_multicast_filter(struct wilc_vif *vif,
-				struct host_if_drv *hif_drv,
-				bool bIsEnabled,
+s32 wilc_setup_multicast_filter(struct wilc_vif *vif, bool bIsEnabled,
 				u32 u32count)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
 	struct set_multicast *pstrMulticastFilterParam = &msg.body.multicast_info;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4651,14 +4658,12 @@ void wilc_free_join_params(void *pJoinParams)
 		PRINT_ER("Unable to FREE null pointer\n");
 }
 
-s32 wilc_del_all_rx_ba_session(struct wilc_vif *vif,
-			       struct host_if_drv *hif_drv,
-			       char *pBSSID,
-			       char TID)
+s32 wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *pBSSID, char TID)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
 	struct ba_session_info *pBASessionInfo = &msg.body.session_info;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4683,11 +4688,11 @@ s32 wilc_del_all_rx_ba_session(struct wilc_vif *vif,
 	return result;
 }
 
-s32 wilc_setup_ipaddress(struct wilc_vif *vif, struct host_if_drv *hif_drv,
-			 u8 *u16ipadd, u8 idx)
+s32 wilc_setup_ipaddress(struct wilc_vif *vif, u8 *u16ipadd, u8 idx)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	return 0;
 

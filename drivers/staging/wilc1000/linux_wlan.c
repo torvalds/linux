@@ -112,7 +112,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		}
 
 		if (wilc_enable_ps)
-			wilc_set_power_mgmt(vif, hif_drv, 1, 0);
+			wilc_set_power_mgmt(vif, 1, 0);
 
 		PRINT_D(GENERIC_DBG, "[%s] Up IP\n", dev_iface->ifa_label);
 
@@ -120,7 +120,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d\n",
 			ip_addr_buf[0], ip_addr_buf[1],
 			ip_addr_buf[2], ip_addr_buf[3]);
-		wilc_setup_ipaddress(vif, hif_drv, ip_addr_buf, vif->u8IfIdx);
+		wilc_setup_ipaddress(vif, ip_addr_buf, vif->u8IfIdx);
 
 		break;
 
@@ -134,9 +134,9 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		}
 
 		if (memcmp(dev_iface->ifa_label, wlan_dev_name, 5) == 0)
-			wilc_set_power_mgmt(vif, hif_drv, 0, 0);
+			wilc_set_power_mgmt(vif, 0, 0);
 
-		wilc_resolve_disconnect_aberration(vif, hif_drv);
+		wilc_resolve_disconnect_aberration(vif);
 
 		PRINT_D(GENERIC_DBG, "[%s] Down IP\n", dev_iface->ifa_label);
 
@@ -145,7 +145,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 			ip_addr_buf[0], ip_addr_buf[1],
 			ip_addr_buf[2], ip_addr_buf[3]);
 
-		wilc_setup_ipaddress(vif, hif_drv, ip_addr_buf, vif->u8IfIdx);
+		wilc_setup_ipaddress(vif, ip_addr_buf, vif->u8IfIdx);
 
 		break;
 
@@ -1030,7 +1030,7 @@ int wilc_mac_open(struct net_device *ndev)
 
 	wilc_set_machw_change_vir_if(ndev, false);
 
-	wilc_get_mac_address(vif, priv->hWILCWFIDrv, mac_add);
+	wilc_get_mac_address(vif, mac_add);
 	PRINT_D(INIT_DBG, "Mac address: %pM\n", mac_add);
 
 	for (i = 0; i < wl->vif_num; i++) {
@@ -1097,13 +1097,13 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	if ((dev->flags & IFF_ALLMULTI) ||
 	    (dev->mc.count) > WILC_MULTICAST_TABLE_SIZE) {
 		PRINT_D(INIT_DBG, "Disable multicast filter, retrive all multicast packets\n");
-		wilc_setup_multicast_filter(vif, hif_drv, false, 0);
+		wilc_setup_multicast_filter(vif, false, 0);
 		return;
 	}
 
 	if ((dev->mc.count) == 0) {
 		PRINT_D(INIT_DBG, "Enable multicast filter, retrive directed packets only.\n");
-		wilc_setup_multicast_filter(vif, hif_drv, true, 0);
+		wilc_setup_multicast_filter(vif, true, 0);
 		return;
 	}
 
@@ -1119,7 +1119,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 		i++;
 	}
 
-	wilc_setup_multicast_filter(vif, hif_drv, true, (dev->mc.count));
+	wilc_setup_multicast_filter(vif, true, (dev->mc.count));
 
 	return;
 }
@@ -1291,7 +1291,7 @@ static int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 
 			if (strncasecmp(buff, "RSSI", length) == 0) {
 				priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
-				ret = wilc_get_rssi(vif, priv->hWILCWFIDrv, &rssi);
+				ret = wilc_get_rssi(vif, &rssi);
 				if (ret)
 					PRINT_ER("Failed to send get rssi param's message queue ");
 				PRINT_INFO(GENERIC_DBG, "RSSI :%d\n", rssi);
