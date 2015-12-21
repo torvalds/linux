@@ -662,7 +662,9 @@ static struct omap_prcm_init_data am3_prm_data __initdata = {
 	.index = TI_CLKM_PRM,
 	.init = am33xx_prm_init,
 };
+#endif
 
+#ifdef CONFIG_SOC_TI81XX
 static struct omap_prcm_init_data dm814_pllss_data __initdata = {
 	.index = TI_CLKM_PLLSS,
 	.init = am33xx_prm_init,
