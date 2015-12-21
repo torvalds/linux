@@ -342,48 +342,44 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_list_entry *lobj;
-	struct amdgpu_bo *bo;
 	u64 initial_bytes_moved;
 	int r;
 
 	list_for_each_entry(lobj, validated, tv.head) {
-		bo = lobj->robj;
-		if (!bo->pin_count) {
-			u32 domain = lobj->prefered_domains;
-			u32 current_domain =
-				amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
+		struct amdgpu_bo *bo = lobj->robj;
+		uint32_t domain;
 
-			/* Check if this buffer will be moved and don't move it
-			 * if we have moved too many buffers for this IB already.
-			 *
-			 * Note that this allows moving at least one buffer of
-			 * any size, because it doesn't take the current "bo"
-			 * into account. We don't want to disallow buffer moves
-			 * completely.
-			 */
-			if ((lobj->allowed_domains & current_domain) != 0 &&
-			    (domain & current_domain) == 0 && /* will be moved */
-			    p->bytes_moved > p->bytes_moved_threshold) {
-				/* don't move it */
-				domain = current_domain;
-			}
-
-		retry:
-			amdgpu_ttm_placement_from_domain(bo, domain);
-			initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
-			r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-			p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
-				       initial_bytes_moved;
-
-			if (unlikely(r)) {
-				if (r != -ERESTARTSYS && domain != lobj->allowed_domains) {
-					domain = lobj->allowed_domains;
-					goto retry;
-				}
-				return r;
-			}
-		}
 		lobj->bo_va = amdgpu_vm_bo_find(vm, bo);
+		if (bo->pin_count)
+			continue;
+
+		/* Avoid moving this one if we have moved too many buffers
+		 * for this IB already.
+		 *
+		 * Note that this allows moving at least one buffer of
+		 * any size, because it doesn't take the current "bo"
+		 * into account. We don't want to disallow buffer moves
+		 * completely.
+		 */
+		if (p->bytes_moved <= p->bytes_moved_threshold)
+			domain = lobj->prefered_domains;
+		else
+			domain = lobj->allowed_domains;
+
+	retry:
+		amdgpu_ttm_placement_from_domain(bo, domain);
+		initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+		p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
+			       initial_bytes_moved;
+
+		if (unlikely(r)) {
+			if (r != -ERESTARTSYS && domain != lobj->allowed_domains) {
+				domain = lobj->allowed_domains;
+				goto retry;
+			}
+			return r;
+		}
 	}
 	return 0;
 }
