@@ -296,10 +296,10 @@ static void init_unwind_hdr(struct unwind_table *table,
 		if (cie == &not_fde)
 			continue;
 		if (cie == NULL || cie == &bad_cie)
-			return;
+			goto ret_err;
 		ptrType = fde_pointer_type(cie);
 		if (ptrType < 0)
-			return;
+			goto ret_err;
 
 		ptr = (const u8 *)(fde + 2);
 		if (!read_pointer(&ptr, (const u8 *)(fde + 1) + *fde,
@@ -315,14 +315,14 @@ static void init_unwind_hdr(struct unwind_table *table,
 	}
 
 	if (tableSize || !n)
-		return;
+		goto ret_err;
 
 	hdrSize = 4 + sizeof(unsigned long) + sizeof(unsigned int)
 	    + 2 * n * sizeof(unsigned long);
 
 	header = alloc(hdrSize);
 	if (!header)
-		return;
+		goto ret_err;
 
 	header->version = 1;
 	header->eh_frame_ptr_enc = DW_EH_PE_abs | DW_EH_PE_native;
@@ -361,6 +361,10 @@ static void init_unwind_hdr(struct unwind_table *table,
 	table->hdrsz = hdrSize;
 	smp_wmb();
 	table->header = (const void *)header;
+	return;
+
+ret_err:
+	panic("Attention !!! Dwarf FDE parsing errors\n");;
 }
 
 #ifdef CONFIG_MODULES
