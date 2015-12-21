@@ -1079,6 +1079,14 @@ u64 hv_do_hypercall(u64 control, void *input, void *output);
 			0x8b, 0xa1, 0xa1, 0xf3, 0xf9, 0x5a)
 
 /*
+ * Keyboard GUID
+ * {f912ad6d-2b17-48ea-bd65-f927a61c7684}
+ */
+#define HV_KBD_GUID \
+	.guid = UUID_LE(0xf912ad6d, 0x2b17, 0x48ea, 0xbd, 0x65, \
+			0xf9, 0x27, 0xa6, 0x1c, 0x76, 0x84)
+
+/*
  * VSS (Backup/Restore) GUID
  */
 #define HV_VSS_GUID \
