@@ -475,8 +475,6 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	omap_control_phy_power(phy->control_dev, 0);
-
 	platform_set_drvdata(pdev, phy);
 	pm_runtime_enable(dev);
 
@@ -495,6 +493,9 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 		return PTR_ERR(generic_phy);
 
 	phy_set_drvdata(generic_phy, phy);
+
+	ti_pipe3_power_off(generic_phy);
+
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(phy_provider))
 		return PTR_ERR(phy_provider);
