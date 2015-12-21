@@ -1394,6 +1394,9 @@ static int snd_fm801_suspend(struct device *dev)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
+	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
+		chip->saved_regs[i] = fm801_ioread16(chip, saved_regs[i]);
+
 	if (chip->tea575x_tuner & TUNER_ONLY) {
 		/* FIXME: tea575x suspend */
 	} else {
@@ -1402,8 +1405,6 @@ static int snd_fm801_suspend(struct device *dev)
 		snd_ac97_suspend(chip->ac97_sec);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
-		chip->saved_regs[i] = fm801_ioread16(chip, saved_regs[i]);
 	return 0;
 }
 
