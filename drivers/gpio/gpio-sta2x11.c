@@ -90,7 +90,7 @@ static int gsta_gpio_get(struct gpio_chip *gpio, unsigned nr)
 	struct gsta_regs __iomem *regs = __regs(chip, nr);
 	u32 bit = __bit(nr);
 
-	return readl(&regs->dat) & bit;
+	return !!(readl(&regs->dat) & bit);
 }
 
 static int gsta_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
