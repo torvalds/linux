@@ -79,7 +79,7 @@ static int mpc8572_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	val = in_be32(mm->regs + GPIO_DAT) & ~out_mask;
 	out_shadow = mpc8xxx_gc->data & out_mask;
 
-	return (val | out_shadow) & mpc8xxx_gpio2mask(gpio);
+	return !!((val | out_shadow) & mpc8xxx_gpio2mask(gpio));
 }
 
 static int mpc8xxx_gpio_get(struct gpio_chip *gc, unsigned int gpio)
