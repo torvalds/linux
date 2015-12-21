@@ -533,7 +533,7 @@ static int pmic_gpio_get(struct gpio_chip *chip, unsigned pin)
 		pad->out_value = ret & PMIC_MPP_REG_RT_STS_VAL_MASK;
 	}
 
-	return pad->out_value;
+	return !!pad->out_value;
 }
 
 static void pmic_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
