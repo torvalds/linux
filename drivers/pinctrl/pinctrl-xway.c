@@ -660,7 +660,7 @@ static int xway_gpio_get(struct gpio_chip *chip, unsigned int pin)
 {
 	struct ltq_pinmux_info *info = dev_get_drvdata(chip->parent);
 
-	return gpio_getbit(info->membase[0], GPIO_IN(pin), PORT_PIN(pin));
+	return !!gpio_getbit(info->membase[0], GPIO_IN(pin), PORT_PIN(pin));
 }
 
 static int xway_gpio_dir_in(struct gpio_chip *chip, unsigned int pin)
