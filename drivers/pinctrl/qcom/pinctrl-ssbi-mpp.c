@@ -502,13 +502,13 @@ static int pm8xxx_mpp_get(struct gpio_chip *chip, unsigned offset)
 	int ret;
 
 	if (!pin->input)
-		return pin->output_value;
+		return !!pin->output_value;
 
 	ret = irq_get_irqchip_state(pin->irq, IRQCHIP_STATE_LINE_LEVEL, &state);
 	if (!ret)
-		ret = !!state;
+		ret = state;
 
-	return ret;
+	return !!ret;
 }
 
 static void pm8xxx_mpp_set(struct gpio_chip *chip, unsigned offset, int value)
