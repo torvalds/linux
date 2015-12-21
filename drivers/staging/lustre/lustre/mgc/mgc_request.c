@@ -1293,7 +1293,7 @@ static int mgc_process_recover_log(struct obd_device *obd,
 	struct page **pages;
 	int nrpages;
 	bool eof = true;
-	bool mne_swab = false;
+	bool mne_swab;
 	int i;
 	int ealen;
 	int rc;
