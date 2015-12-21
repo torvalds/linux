@@ -1561,11 +1561,10 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 					struct dma_ops_domain *dom,
 					unsigned int pages,
 					unsigned long align_mask,
-					u64 dma_mask,
-					unsigned long start)
+					u64 dma_mask)
 {
 	int max_index = dom->aperture_size >> APERTURE_RANGE_SHIFT;
-	int i = start >> APERTURE_RANGE_SHIFT;
+	int i = dom->next_address >> APERTURE_RANGE_SHIFT;
 	unsigned long next_bit, boundary_size, mask;
 	unsigned long address = -1;
 
@@ -1612,13 +1611,12 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 	dom->need_flush = true;
 #endif
 
-	address = dma_ops_area_alloc(dev, dom, pages, align_mask,
-				     dma_mask, dom->next_address);
+	address = dma_ops_area_alloc(dev, dom, pages, align_mask, dma_mask);
 
 	if (address == -1) {
 		dom->next_address = 0;
 		address = dma_ops_area_alloc(dev, dom, pages, align_mask,
-					     dma_mask, 0);
+					     dma_mask);
 		dom->need_flush = true;
 	}
 
