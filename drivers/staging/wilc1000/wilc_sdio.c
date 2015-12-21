@@ -130,37 +130,6 @@ _fail_:
 	return 0;
 }
 
-static int sdio_clear_int(struct wilc *wilc)
-{
-	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
-
-	if (!g_sdio.irq_gpio) {
-		/* u32 sts; */
-		sdio_cmd52_t cmd;
-
-		cmd.read_write = 0;
-		cmd.function = 1;
-		cmd.raw = 0;
-		cmd.address = 0x4;
-		cmd.data = 0;
-		wilc_sdio_cmd52(wilc, &cmd);
-
-		return cmd.data;
-	} else {
-		u32 reg;
-
-		if (!sdio_read_reg(wilc, WILC_HOST_RX_CTRL_0, &reg)) {
-			dev_err(&func->dev, "Failed read reg (%08x)...\n",
-				WILC_HOST_RX_CTRL_0);
-			return 0;
-		}
-		reg &= ~0x1;
-		sdio_write_reg(wilc, WILC_HOST_RX_CTRL_0, reg);
-		return 1;
-	}
-
-}
-
 /********************************************
  *
  *      Sdio interfaces
@@ -448,67 +417,6 @@ _fail_:
 
 static int sdio_deinit(struct wilc *wilc)
 {
-	return 1;
-}
-
-static int sdio_sync(struct wilc *wilc)
-{
-	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
-	u32 reg;
-
-	/**
-	 *      Disable power sequencer
-	 **/
-	if (!sdio_read_reg(wilc, WILC_MISC, &reg)) {
-		dev_err(&func->dev, "Failed read misc reg...\n");
-		return 0;
-	}
-
-	reg &= ~BIT(8);
-	if (!sdio_write_reg(wilc, WILC_MISC, reg)) {
-		dev_err(&func->dev, "Failed write misc reg...\n");
-		return 0;
-	}
-
-	if (g_sdio.irq_gpio) {
-		u32 reg;
-		int ret;
-
-		/**
-		 *      interrupt pin mux select
-		 **/
-		ret = sdio_read_reg(wilc, WILC_PIN_MUX_0, &reg);
-		if (!ret) {
-			dev_err(&func->dev, "Failed read reg (%08x)...\n",
-				WILC_PIN_MUX_0);
-			return 0;
-		}
-		reg |= BIT(8);
-		ret = sdio_write_reg(wilc, WILC_PIN_MUX_0, reg);
-		if (!ret) {
-			dev_err(&func->dev, "Failed write reg (%08x)...\n",
-				WILC_PIN_MUX_0);
-			return 0;
-		}
-
-		/**
-		 *      interrupt enable
-		 **/
-		ret = sdio_read_reg(wilc, WILC_INTR_ENABLE, &reg);
-		if (!ret) {
-			dev_err(&func->dev, "Failed read reg (%08x)...\n",
-				WILC_INTR_ENABLE);
-			return 0;
-		}
-		reg |= BIT(16);
-		ret = sdio_write_reg(wilc, WILC_INTR_ENABLE, reg);
-		if (!ret) {
-			dev_err(&func->dev, "Failed write reg (%08x)...\n",
-				WILC_INTR_ENABLE);
-			return 0;
-		}
-	}
-
 	return 1;
 }
 
@@ -952,8 +860,6 @@ const struct wilc_hif_func wilc_hif_sdio = {
 	.hif_write_reg = sdio_write_reg,
 	.hif_block_rx = sdio_read,
 	.hif_block_tx = sdio_write,
-	.hif_sync = sdio_sync,
-	.hif_clear_int = sdio_clear_int,
 	.hif_read_int = sdio_read_int,
 	.hif_clear_int_ext = sdio_clear_int_ext,
 	.hif_read_size = sdio_read_size,

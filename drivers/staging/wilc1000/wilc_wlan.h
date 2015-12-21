@@ -232,8 +232,6 @@ struct wilc_hif_func {
 	int (*hif_write_reg)(struct wilc *, u32, u32);
 	int (*hif_block_rx)(struct wilc *, u32, u8 *, u32);
 	int (*hif_block_tx)(struct wilc *, u32, u8 *, u32);
-	int (*hif_sync)(struct wilc *);
-	int (*hif_clear_int)(struct wilc *);
 	int (*hif_read_int)(struct wilc *, u32 *);
 	int (*hif_clear_int_ext)(struct wilc *, u32);
 	int (*hif_read_size)(struct wilc *, u32 *);

@@ -668,69 +668,11 @@ static int _wilc_spi_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
  *
  ********************************************/
 
-static int wilc_spi_clear_int(struct wilc *wilc)
-{
-	struct spi_device *spi = to_spi_device(wilc->dev);
-	u32 reg;
-
-	if (!wilc_spi_read_reg(wilc, WILC_HOST_RX_CTRL_0, &reg)) {
-		dev_err(&spi->dev, "Failed read reg (%08x)...\n",
-			WILC_HOST_RX_CTRL_0);
-		return 0;
-	}
-	reg &= ~0x1;
-	wilc_spi_write_reg(wilc, WILC_HOST_RX_CTRL_0, reg);
-	return 1;
-}
-
 static int _wilc_spi_deinit(struct wilc *wilc)
 {
 	/**
 	 *      TODO:
 	 **/
-	return 1;
-}
-
-static int wilc_spi_sync(struct wilc *wilc)
-{
-	struct spi_device *spi = to_spi_device(wilc->dev);
-	u32 reg;
-	int ret;
-
-	/**
-	 *      interrupt pin mux select
-	 **/
-	ret = wilc_spi_read_reg(wilc, WILC_PIN_MUX_0, &reg);
-	if (!ret) {
-		dev_err(&spi->dev,"Failed read reg (%08x)...\n",
-			WILC_PIN_MUX_0);
-		return 0;
-	}
-	reg |= BIT(8);
-	ret = wilc_spi_write_reg(wilc, WILC_PIN_MUX_0, reg);
-	if (!ret) {
-		dev_err(&spi->dev, "Failed write reg (%08x)...\n",
-			WILC_PIN_MUX_0);
-		return 0;
-	}
-
-	/**
-	 *      interrupt enable
-	 **/
-	ret = wilc_spi_read_reg(wilc, WILC_INTR_ENABLE, &reg);
-	if (!ret) {
-		dev_err(&spi->dev, "Failed read reg (%08x)...\n",
-			WILC_INTR_ENABLE);
-		return 0;
-	}
-	reg |= BIT(16);
-	ret = wilc_spi_write_reg(wilc, WILC_INTR_ENABLE, reg);
-	if (!ret) {
-		dev_err(&spi->dev, "Failed write reg (%08x)...\n",
-			WILC_INTR_ENABLE);
-		return 0;
-	}
-
 	return 1;
 }
 
@@ -1058,8 +1000,6 @@ const struct wilc_hif_func wilc_hif_spi = {
 	.hif_write_reg = wilc_spi_write_reg,
 	.hif_block_rx = _wilc_spi_read,
 	.hif_block_tx = _wilc_spi_write,
-	.hif_sync = wilc_spi_sync,
-	.hif_clear_int = wilc_spi_clear_int,
 	.hif_read_int = wilc_spi_read_int,
 	.hif_clear_int_ext = wilc_spi_clear_int_ext,
 	.hif_read_size = wilc_spi_read_size,
