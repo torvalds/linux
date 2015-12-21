@@ -1427,6 +1427,11 @@ static int snd_fm801_resume(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		fm801_iowrite16(chip, saved_regs[i], chip->saved_regs[i]);
 
+#ifdef CONFIG_SND_FM801_TEA575X_BOOL
+	if (!(chip->tea575x_tuner & TUNER_DISABLED))
+		snd_tea575x_set_freq(&chip->tea);
+#endif
+
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
