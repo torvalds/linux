@@ -5,7 +5,6 @@
 
 typedef struct {
 	int quit;
-	int io_type;
 	int cfg_frame_in_use;
 	struct wilc_cfg_frame cfg_frame;
 	u32 cfg_frame_offset;
@@ -573,7 +572,7 @@ static inline void chip_wakeup(struct wilc *wilc)
 	u32 reg, clk_status_reg, trials = 0;
 	u32 sleep_time;
 
-	if ((g_wlan.io_type & 0x1) == HIF_SPI) {
+	if ((wilc->io_type & 0x1) == HIF_SPI) {
 		do {
 			wilc->hif_func->hif_read_reg(wilc, 1, &reg);
 			wilc->hif_func->hif_write_reg(wilc, 1, reg | BIT(1));
@@ -587,7 +586,7 @@ static inline void chip_wakeup(struct wilc *wilc)
 			} while ((wilc_get_chipid(wilc, true) == 0) && ((++trials % 3) == 0));
 
 		} while (wilc_get_chipid(wilc, true) == 0);
-	} else if ((g_wlan.io_type & 0x1) == HIF_SDIO)	 {
+	} else if ((wilc->io_type & 0x1) == HIF_SDIO)	 {
 		wilc->hif_func->hif_read_reg(wilc, 0xf0, &reg);
 		do {
 			wilc->hif_func->hif_write_reg(wilc, 0xf0,
@@ -636,12 +635,12 @@ static inline void chip_wakeup(struct wilc *wilc)
 	u32 reg, trials = 0;
 
 	do {
-		if ((g_wlan.io_type & 0x1) == HIF_SPI) {
+		if ((wilc->io_type & 0x1) == HIF_SPI) {
 			wilc->hif_func->hif_read_reg(wilc, 1, &reg);
 			wilc->hif_func->hif_write_reg(wilc, 1, reg & ~BIT(1));
 			wilc->hif_func->hif_write_reg(wilc, 1, reg | BIT(1));
 			wilc->hif_func->hif_write_reg(wilc, 1, reg  & ~BIT(1));
-		} else if ((g_wlan.io_type & 0x1) == HIF_SDIO)	 {
+		} else if ((wilc->io_type & 0x1) == HIF_SDIO)	 {
 			wilc->hif_func->hif_read_reg(wilc, 0xf0, &reg);
 			wilc->hif_func->hif_write_reg(wilc, 0xf0,
 						      reg & ~BIT(0));
@@ -1061,7 +1060,7 @@ static void wilc_pllupdate_isr_ext(struct wilc *wilc, u32 int_stats)
 
 	wilc->hif_func->hif_clear_int_ext(wilc, PLL_INT_CLR);
 
-	if (g_wlan.io_type == HIF_SDIO)
+	if (wilc->io_type == HIF_SDIO)
 		mdelay(WILC_PLL_TO_SDIO);
 	else
 		mdelay(WILC_PLL_TO_SPI);
@@ -1225,15 +1224,14 @@ _fail_1:
 
 int wilc_wlan_start(struct wilc *wilc)
 {
-	wilc_wlan_dev_t *p = &g_wlan;
 	u32 reg = 0;
 	int ret;
 	u32 chipid;
 
-	if (p->io_type == HIF_SDIO) {
+	if (wilc->io_type == HIF_SDIO) {
 		reg = 0;
 		reg |= BIT(3);
-	} else if (p->io_type == HIF_SPI) {
+	} else if (wilc->io_type == HIF_SPI) {
 		reg = 1;
 	}
 	acquire_bus(wilc, ACQUIRE_ONLY);
@@ -1245,7 +1243,7 @@ int wilc_wlan_start(struct wilc *wilc)
 		return ret;
 	}
 	reg = 0;
-	if (p->io_type == HIF_SDIO && wilc->dev_irq_num)
+	if (wilc->io_type == HIF_SDIO && wilc->dev_irq_num)
 		reg |= WILC_HAVE_SDIO_IRQ_GPIO;
 
 #ifdef WILC_DISABLE_PMU
@@ -1627,7 +1625,6 @@ int wilc_wlan_init(struct net_device *dev)
 	PRINT_D(INIT_DBG, "Initializing WILC_Wlan ...\n");
 
 	memset((void *)&g_wlan, 0, sizeof(wilc_wlan_dev_t));
-	g_wlan.io_type = wilc->io_type;
 	if (!wilc->hif_func->hif_init(wilc, wilc_debug)) {
 		ret = -EIO;
 		goto _fail_;
