@@ -319,40 +319,41 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	struct platform_device *control_pdev;
 	const struct of_device_id *match;
 	struct clk *clk;
+	struct device *dev = &pdev->dev;
 
-	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
+	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
-	phy->dev		= &pdev->dev;
+	phy->dev		= dev;
 
 	if (!of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
-		match = of_match_device(ti_pipe3_id_table, &pdev->dev);
+		match = of_match_device(ti_pipe3_id_table, dev);
 		if (!match)
 			return -EINVAL;
 
 		phy->dpll_map = (struct pipe3_dpll_map *)match->data;
 		if (!phy->dpll_map) {
-			dev_err(&pdev->dev, "no DPLL data\n");
+			dev_err(dev, "no DPLL data\n");
 			return -EINVAL;
 		}
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "pll_ctrl");
-		phy->pll_ctrl_base = devm_ioremap_resource(&pdev->dev, res);
+		phy->pll_ctrl_base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(phy->pll_ctrl_base))
 			return PTR_ERR(phy->pll_ctrl_base);
 
-		phy->sys_clk = devm_clk_get(phy->dev, "sysclk");
+		phy->sys_clk = devm_clk_get(dev, "sysclk");
 		if (IS_ERR(phy->sys_clk)) {
-			dev_err(&pdev->dev, "unable to get sysclk\n");
+			dev_err(dev, "unable to get sysclk\n");
 			return -EINVAL;
 		}
 	}
 
-	phy->refclk = devm_clk_get(phy->dev, "refclk");
+	phy->refclk = devm_clk_get(dev, "refclk");
 	if (IS_ERR(phy->refclk)) {
-		dev_err(&pdev->dev, "unable to get refclk\n");
+		dev_err(dev, "unable to get refclk\n");
 		/* older DTBs have missing refclk in SATA PHY
 		 * so don't bail out in case of SATA PHY.
 		 */
@@ -361,9 +362,9 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	}
 
 	if (!of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
-		phy->wkupclk = devm_clk_get(phy->dev, "wkupclk");
+		phy->wkupclk = devm_clk_get(dev, "wkupclk");
 		if (IS_ERR(phy->wkupclk)) {
-			dev_err(&pdev->dev, "unable to get wkupclk\n");
+			dev_err(dev, "unable to get wkupclk\n");
 			return PTR_ERR(phy->wkupclk);
 		}
 	} else {
@@ -371,14 +372,14 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 		phy->dpll_reset_syscon = syscon_regmap_lookup_by_phandle(node,
 							"syscon-pllreset");
 		if (IS_ERR(phy->dpll_reset_syscon)) {
-			dev_info(&pdev->dev,
+			dev_info(dev,
 				 "can't get syscon-pllreset, sata dpll won't idle\n");
 			phy->dpll_reset_syscon = NULL;
 		} else {
 			if (of_property_read_u32_index(node,
 						       "syscon-pllreset", 1,
 						       &phy->dpll_reset_reg)) {
-				dev_err(&pdev->dev,
+				dev_err(dev,
 					"couldn't get pllreset reg. offset\n");
 				return -EINVAL;
 			}
@@ -387,30 +388,30 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 
 	if (of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
 
-		clk = devm_clk_get(phy->dev, "dpll_ref");
+		clk = devm_clk_get(dev, "dpll_ref");
 		if (IS_ERR(clk)) {
-			dev_err(&pdev->dev, "unable to get dpll ref clk\n");
+			dev_err(dev, "unable to get dpll ref clk\n");
 			return PTR_ERR(clk);
 		}
 		clk_set_rate(clk, 1500000000);
 
-		clk = devm_clk_get(phy->dev, "dpll_ref_m2");
+		clk = devm_clk_get(dev, "dpll_ref_m2");
 		if (IS_ERR(clk)) {
-			dev_err(&pdev->dev, "unable to get dpll ref m2 clk\n");
+			dev_err(dev, "unable to get dpll ref m2 clk\n");
 			return PTR_ERR(clk);
 		}
 		clk_set_rate(clk, 100000000);
 
-		clk = devm_clk_get(phy->dev, "phy-div");
+		clk = devm_clk_get(dev, "phy-div");
 		if (IS_ERR(clk)) {
-			dev_err(&pdev->dev, "unable to get phy-div clk\n");
+			dev_err(dev, "unable to get phy-div clk\n");
 			return PTR_ERR(clk);
 		}
 		clk_set_rate(clk, 100000000);
 
-		phy->div_clk = devm_clk_get(phy->dev, "div-clk");
+		phy->div_clk = devm_clk_get(dev, "div-clk");
 		if (IS_ERR(phy->div_clk)) {
-			dev_err(&pdev->dev, "unable to get div-clk\n");
+			dev_err(dev, "unable to get div-clk\n");
 			return PTR_ERR(phy->div_clk);
 		}
 	} else {
@@ -419,13 +420,13 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 
 	control_node = of_parse_phandle(node, "ctrl-module", 0);
 	if (!control_node) {
-		dev_err(&pdev->dev, "Failed to get control device phandle\n");
+		dev_err(dev, "Failed to get control device phandle\n");
 		return -EINVAL;
 	}
 
 	control_pdev = of_find_device_by_node(control_node);
 	if (!control_pdev) {
-		dev_err(&pdev->dev, "Failed to get control device\n");
+		dev_err(dev, "Failed to get control device\n");
 		return -EINVAL;
 	}
 
@@ -434,7 +435,7 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	omap_control_phy_power(phy->control_dev, 0);
 
 	platform_set_drvdata(pdev, phy);
-	pm_runtime_enable(phy->dev);
+	pm_runtime_enable(dev);
 
 	/*
 	 * Prevent auto-disable of refclk for SATA PHY due to Errata i783
@@ -446,13 +447,12 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 		}
 	}
 
-	generic_phy = devm_phy_create(phy->dev, NULL, &ops);
+	generic_phy = devm_phy_create(dev, NULL, &ops);
 	if (IS_ERR(generic_phy))
 		return PTR_ERR(generic_phy);
 
 	phy_set_drvdata(generic_phy, phy);
-	phy_provider = devm_of_phy_provider_register(phy->dev,
-			of_phy_simple_xlate);
+	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(phy_provider))
 		return PTR_ERR(phy_provider);
 
