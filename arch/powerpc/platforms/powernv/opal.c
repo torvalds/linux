@@ -548,7 +548,7 @@ bool opal_mce_check_early_recovery(struct pt_regs *regs)
 		goto out;
 
 	if ((regs->nip >= opal.base) &&
-			(regs->nip <= (opal.base + opal.size)))
+			(regs->nip < (opal.base + opal.size)))
 		recover_addr = find_recovery_address(regs->nip);
 
 	/*
