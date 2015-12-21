@@ -1551,7 +1551,7 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 
 		spin_lock_irqsave(&dom->aperture[i]->bitmap_lock, flags);
 		address = iommu_area_alloc(dom->aperture[i]->bitmap,
-					   limit, next_bit, pages, 0,
+					   limit, next_bit, pages, offset,
 					    boundary_size, align_mask);
 		spin_unlock_irqrestore(&dom->aperture[i]->bitmap_lock, flags);
 		if (address != -1) {
