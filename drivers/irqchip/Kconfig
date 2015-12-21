@@ -151,6 +151,12 @@ config TB10X_IRQC
 	select IRQ_DOMAIN
 	select GENERIC_IRQ_CHIP
 
+config TS4800_IRQ
+	tristate "TS-4800 IRQ controller"
+	select IRQ_DOMAIN
+	help
+	  Support for the TS-4800 FPGA IRQ controller
+
 config VERSATILE_FPGA_IRQ
 	bool
 	select IRQ_DOMAIN
