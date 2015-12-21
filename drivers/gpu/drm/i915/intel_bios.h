@@ -25,8 +25,8 @@
  *
  */
 
-#ifndef _I830_BIOS_H_
-#define _I830_BIOS_H_
+#ifndef _INTEL_BIOS_H_
+#define _INTEL_BIOS_H_
 
 /**
  * struct vbt_header - VBT Header structure
@@ -983,4 +983,4 @@ enum mipi_gpio_pin_index {
 	MIPI_GPIO_MAX
 };
 
-#endif /* _I830_BIOS_H_ */
+#endif /* _INTEL_BIOS_H_ */
