@@ -83,7 +83,7 @@ int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
 			return -ENOMEM;
 
 		tr.rx_buf = r_buffer;
-		PRINT_D(BUS_DBG, "Request writing %d bytes\n", len);
+		dev_dbg(&spi->dev, "Request writing %d bytes\n", len);
 
 		memset(&msg, 0, sizeof(msg));
 		spi_message_init(&msg);
@@ -95,13 +95,17 @@ int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
 
 		ret = spi_sync(spi, &msg);
 		if (ret < 0) {
-			PRINT_ER("SPI transaction failed\n");
+			dev_err(&spi->dev, "SPI transaction failed\n");
 		}
 
 		kfree(r_buffer);
 	} else {
-		PRINT_ER("can't write data with the following length: %d\n", len);
-		PRINT_ER("FAILED due to NULL buffer or ZERO length check the following length: %d\n", len);
+		dev_err(&spi->dev,
+			"can't write data with the following length: %d\n",
+			len);
+		dev_err(&spi->dev,
+			"FAILED due to NULL buffer or ZERO length check the following length: %d\n",
+			len);
 		ret = -1;
 	}
 
@@ -141,11 +145,13 @@ int wilc_spi_read(struct wilc *wilc, u8 *rb, u32 rlen)
 
 		ret = spi_sync(spi, &msg);
 		if (ret < 0) {
-			PRINT_ER("SPI transaction failed\n");
+			dev_err(&spi->dev, "SPI transaction failed\n");
 		}
 		kfree(t_buffer);
 	} else {
-		PRINT_ER("can't read data with the following length: %u\n", rlen);
+		dev_err(&spi->dev,
+			"can't read data with the following length: %u\n",
+			rlen);
 		ret = -1;
 	}
 	/* change return value to match WILC interface */
@@ -178,10 +184,12 @@ int wilc_spi_write_read(struct wilc *wilc, u8 *wb, u8 *rb, u32 rlen)
 		spi_message_add_tail(&tr, &msg);
 		ret = spi_sync(spi, &msg);
 		if (ret < 0) {
-			PRINT_ER("SPI transaction failed\n");
+			dev_err(&spi->dev, "SPI transaction failed\n");
 		}
 	} else {
-		PRINT_ER("can't read data with the following length: %u\n", rlen);
+		dev_err(&spi->dev,
+			"can't read data with the following length: %u\n",
+			rlen);
 		ret = -1;
 	}
 	/* change return value to match WILC interface */

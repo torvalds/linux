@@ -14,7 +14,6 @@
 #include "wilc_wfi_netdevice.h"
 
 typedef struct {
-	wilc_debug_func dPrint;
 	int crc_off;
 	int nint;
 	int has_thrpt_enh;
@@ -111,6 +110,7 @@ static u8 crc7(u8 crc, const u8 *buffer, u32 len)
 static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			    u8 clockless)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	u8 wb[32], rb[32];
 	u8 wix, rix;
 	u32 len2;
@@ -239,7 +239,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 #undef NUM_DUMMY_BYTES
 
 	if (len2 > ARRAY_SIZE(wb)) {
-		PRINT_ER("[wilc spi]: spi buffer size too small (%d) (%zu)\n",
+		dev_err(&spi->dev, "spi buffer size too small (%d) (%zu)\n",
 			 len2, ARRAY_SIZE(wb));
 		result = N_FAIL;
 		return result;
@@ -251,7 +251,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	rix = len;
 
 	if (!wilc_spi_write_read(wilc, wb, rb, len2)) {
-		PRINT_ER("[wilc spi]: Failed cmd write, bus error...\n");
+		dev_err(&spi->dev, "Failed cmd write, bus error...\n");
 		result = N_FAIL;
 		return result;
 	}
@@ -271,7 +271,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	/* } while(&rptr[1] <= &rb[len2]); */
 
 	if (rsp != cmd) {
-		PRINT_ER("[wilc spi]: Failed cmd response, cmd (%02x)"
+		dev_err(&spi->dev, "Failed cmd response, cmd (%02x)"
 			 ", resp (%02x)\n", cmd, rsp);
 		result = N_FAIL;
 		return result;
@@ -282,8 +282,8 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	 **/
 	rsp = rb[rix++];
 	if (rsp != 0x00) {
-		PRINT_ER("[wilc spi]: Failed cmd state response "
-			 "state (%02x)\n", rsp);
+		dev_err(&spi->dev, "Failed cmd state response state (%02x)\n",
+			rsp);
 		result = N_FAIL;
 		return result;
 	}
@@ -310,8 +310,8 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 		} while (retry--);
 
 		if (retry <= 0) {
-			PRINT_ER("[wilc spi]: Error, data read "
-				 "response (%02x)\n", rsp);
+			dev_err(&spi->dev,
+				"Error, data read response (%02x)\n", rsp);
 			result = N_RESET;
 			return result;
 		}
@@ -326,7 +326,8 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				b[2] = rb[rix++];
 				b[3] = rb[rix++];
 			} else {
-				PRINT_ER("[wilc spi]: buffer overrun when reading data.\n");
+				dev_err(&spi->dev,
+					"buffer overrun when reading data.\n");
 				result = N_FAIL;
 				return result;
 			}
@@ -339,7 +340,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 					crc[0] = rb[rix++];
 					crc[1] = rb[rix++];
 				} else {
-					PRINT_ER("[wilc spi]: buffer overrun when reading crc.\n");
+					dev_err(&spi->dev,"buffer overrun when reading crc.\n");
 					result = N_FAIL;
 					return result;
 				}
@@ -366,7 +367,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				 * Read bytes
 				 **/
 				if (!wilc_spi_read(wilc, &b[ix], nbytes)) {
-					PRINT_ER("[wilc spi]: Failed data block read, bus error...\n");
+					dev_err(&spi->dev, "Failed data block read, bus error...\n");
 					result = N_FAIL;
 					goto _error_;
 				}
@@ -376,7 +377,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				 **/
 				if (!g_spi.crc_off) {
 					if (!wilc_spi_read(wilc, crc, 2)) {
-						PRINT_ER("[wilc spi]: Failed data block crc read, bus error...\n");
+						dev_err(&spi->dev, "Failed data block crc read, bus error...\n");
 						result = N_FAIL;
 						goto _error_;
 					}
@@ -407,7 +408,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				retry = 10;
 				do {
 					if (!wilc_spi_read(wilc, &rsp, 1)) {
-						PRINT_ER("[wilc spi]: Failed data response read, bus error...\n");
+						dev_err(&spi->dev, "Failed data response read, bus error...\n");
 						result = N_FAIL;
 						break;
 					}
@@ -423,7 +424,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				 * Read bytes
 				 **/
 				if (!wilc_spi_read(wilc, &b[ix], nbytes)) {
-					PRINT_ER("[wilc spi]: Failed data block read, bus error...\n");
+					dev_err(&spi->dev, "Failed data block read, bus error...\n");
 					result = N_FAIL;
 					break;
 				}
@@ -433,7 +434,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 				 **/
 				if (!g_spi.crc_off) {
 					if (!wilc_spi_read(wilc, crc, 2)) {
-						PRINT_ER("[wilc spi]: Failed data block crc read, bus error...\n");
+						dev_err(&spi->dev, "Failed data block crc read, bus error...\n");
 						result = N_FAIL;
 						break;
 					}
@@ -450,6 +451,7 @@ _error_:
 
 static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ix, nbytes;
 	int result = 1;
 	u8 cmd, order, crc[2] = {0};
@@ -483,7 +485,8 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 		}
 		cmd |= order;
 		if (!wilc_spi_write(wilc, &cmd, 1)) {
-			PRINT_ER("[wilc spi]: Failed data block cmd write, bus error...\n");
+			dev_err(&spi->dev,
+				"Failed data block cmd write, bus error...\n");
 			result = N_FAIL;
 			break;
 		}
@@ -492,7 +495,8 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 		 *      Write data
 		 **/
 		if (!wilc_spi_write(wilc, &b[ix], nbytes)) {
-			PRINT_ER("[wilc spi]: Failed data block write, bus error...\n");
+			dev_err(&spi->dev,
+				"Failed data block write, bus error...\n");
 			result = N_FAIL;
 			break;
 		}
@@ -502,7 +506,7 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 		 **/
 		if (!g_spi.crc_off) {
 			if (!wilc_spi_write(wilc, crc, 2)) {
-				PRINT_ER("[wilc spi]: Failed data block crc write, bus error...\n");
+				dev_err(&spi->dev,"Failed data block crc write, bus error...\n");
 				result = N_FAIL;
 				break;
 			}
@@ -527,13 +531,14 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 
 static int spi_internal_write(struct wilc *wilc, u32 adr, u32 dat)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int result;
 
 	dat = cpu_to_le32(dat);
 	result = spi_cmd_complete(wilc, CMD_INTERNAL_WRITE, adr, (u8 *)&dat, 4,
 				  0);
 	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed internal write cmd...\n");
+		dev_err(&spi->dev, "Failed internal write cmd...\n");
 	}
 
 	return result;
@@ -541,12 +546,13 @@ static int spi_internal_write(struct wilc *wilc, u32 adr, u32 dat)
 
 static int spi_internal_read(struct wilc *wilc, u32 adr, u32 *data)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int result;
 
 	result = spi_cmd_complete(wilc, CMD_INTERNAL_READ, adr, (u8 *)data, 4,
 				  0);
 	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed internal read cmd...\n");
+		dev_err(&spi->dev, "Failed internal read cmd...\n");
 		return 0;
 	}
 
@@ -563,6 +569,7 @@ static int spi_internal_read(struct wilc *wilc, u32 adr, u32 *data)
 
 static int wilc_spi_write_reg(struct wilc *wilc, u32 addr, u32 data)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int result = N_OK;
 	u8 cmd = CMD_SINGLE_WRITE;
 	u8 clockless = 0;
@@ -576,7 +583,7 @@ static int wilc_spi_write_reg(struct wilc *wilc, u32 addr, u32 data)
 
 	result = spi_cmd_complete(wilc, cmd, addr, (u8 *)&data, 4, clockless);
 	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd, write reg (%08x)...\n", addr);
+		dev_err(&spi->dev, "Failed cmd, write reg (%08x)...\n", addr);
 	}
 
 	return result;
@@ -584,6 +591,7 @@ static int wilc_spi_write_reg(struct wilc *wilc, u32 addr, u32 data)
 
 static int _wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int result;
 	u8 cmd = CMD_DMA_EXT_WRITE;
 
@@ -595,7 +603,8 @@ static int _wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 	result = spi_cmd_complete(wilc, cmd, addr, NULL, size, 0);
 	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd, write block (%08x)...\n", addr);
+		dev_err(&spi->dev,
+			"Failed cmd, write block (%08x)...\n", addr);
 		return 0;
 	}
 
@@ -604,7 +613,7 @@ static int _wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	 **/
 	result = spi_data_write(wilc, buf, size);
 	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed block data write...\n");
+		dev_err(&spi->dev, "Failed block data write...\n");
 	}
 
 	return 1;
@@ -612,12 +621,13 @@ static int _wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int result = N_OK;
 	u8 cmd = CMD_SINGLE_READ;
 	u8 clockless = 0;
 
 	if (addr < 0x30) {
-		/* PRINT_ER("***** read addr %d\n\n", addr); */
+		/* dev_err(&spi->dev, "***** read addr %d\n\n", addr); */
 		/* Clockless register*/
 		cmd = CMD_INTERNAL_READ;
 		clockless = 1;
@@ -625,7 +635,7 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 
 	result = spi_cmd_complete(wilc, cmd, addr, (u8 *)data, 4, clockless);
 	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd, read reg (%08x)...\n", addr);
+		dev_err(&spi->dev, "Failed cmd, read reg (%08x)...\n", addr);
 		return 0;
 	}
 
@@ -636,6 +646,7 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 
 static int _wilc_spi_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	u8 cmd = CMD_DMA_EXT_READ;
 	int result;
 
@@ -644,7 +655,7 @@ static int _wilc_spi_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 	result = spi_cmd_complete(wilc, cmd, addr, buf, size, 0);
 	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd, read block (%08x)...\n", addr);
+		dev_err(&spi->dev, "Failed cmd, read block (%08x)...\n", addr);
 		return 0;
 	}
 
@@ -659,10 +670,12 @@ static int _wilc_spi_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 static int wilc_spi_clear_int(struct wilc *wilc)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	u32 reg;
 
 	if (!wilc_spi_read_reg(wilc, WILC_HOST_RX_CTRL_0, &reg)) {
-		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_HOST_RX_CTRL_0);
+		dev_err(&spi->dev, "Failed read reg (%08x)...\n",
+			WILC_HOST_RX_CTRL_0);
 		return 0;
 	}
 	reg &= ~0x1;
@@ -680,6 +693,7 @@ static int _wilc_spi_deinit(struct wilc *wilc)
 
 static int wilc_spi_sync(struct wilc *wilc)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	u32 reg;
 	int ret;
 
@@ -688,13 +702,15 @@ static int wilc_spi_sync(struct wilc *wilc)
 	 **/
 	ret = wilc_spi_read_reg(wilc, WILC_PIN_MUX_0, &reg);
 	if (!ret) {
-		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_PIN_MUX_0);
+		dev_err(&spi->dev,"Failed read reg (%08x)...\n",
+			WILC_PIN_MUX_0);
 		return 0;
 	}
 	reg |= BIT(8);
 	ret = wilc_spi_write_reg(wilc, WILC_PIN_MUX_0, reg);
 	if (!ret) {
-		PRINT_ER("[wilc spi]: Failed write reg (%08x)...\n", WILC_PIN_MUX_0);
+		dev_err(&spi->dev, "Failed write reg (%08x)...\n",
+			WILC_PIN_MUX_0);
 		return 0;
 	}
 
@@ -703,13 +719,15 @@ static int wilc_spi_sync(struct wilc *wilc)
 	 **/
 	ret = wilc_spi_read_reg(wilc, WILC_INTR_ENABLE, &reg);
 	if (!ret) {
-		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_INTR_ENABLE);
+		dev_err(&spi->dev, "Failed read reg (%08x)...\n",
+			WILC_INTR_ENABLE);
 		return 0;
 	}
 	reg |= BIT(16);
 	ret = wilc_spi_write_reg(wilc, WILC_INTR_ENABLE, reg);
 	if (!ret) {
-		PRINT_ER("[wilc spi]: Failed write reg (%08x)...\n", WILC_INTR_ENABLE);
+		dev_err(&spi->dev, "Failed write reg (%08x)...\n",
+			WILC_INTR_ENABLE);
 		return 0;
 	}
 
@@ -718,6 +736,7 @@ static int wilc_spi_sync(struct wilc *wilc)
 
 static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	u32 reg;
 	u32 chipid;
 
@@ -726,7 +745,7 @@ static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 	if (isinit) {
 
 		if (!wilc_spi_read_reg(wilc, 0x1000, &chipid)) {
-			PRINT_ER("[wilc spi]: Fail cmd read chip id...\n");
+			dev_err(&spi->dev, "Fail cmd read chip id...\n");
 			return 0;
 		}
 		return 1;
@@ -734,9 +753,8 @@ static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 
 	memset(&g_spi, 0, sizeof(wilc_spi_t));
 
-	g_spi.dPrint = func;
 	if (!wilc_spi_init()) {
-		PRINT_ER("[wilc spi]: Failed io init bus...\n");
+		dev_err(&spi->dev, "Failed io init bus...\n");
 		return 0;
 	} else {
 		return 0;
@@ -753,10 +771,11 @@ static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 		/* Read failed. Try with CRC off. This might happen when module
 		 * is removed but chip isn't reset*/
 		g_spi.crc_off = 1;
-		PRINT_ER("[wilc spi]: Failed internal read protocol with CRC on, retyring with CRC off...\n");
+		dev_err(&spi->dev, "Failed internal read protocol with CRC on, retyring with CRC off...\n");
 		if (!spi_internal_read(wilc, WILC_SPI_PROTOCOL_OFFSET, &reg)) {
 			/* Reaad failed with both CRC on and off, something went bad */
-			PRINT_ER("[wilc spi]: Failed internal read protocol...\n");
+			dev_err(&spi->dev,
+				"Failed internal read protocol...\n");
 			return 0;
 		}
 	}
@@ -765,7 +784,7 @@ static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 		reg &= ~0x70;
 		reg |= (0x5 << 4);
 		if (!spi_internal_write(wilc, WILC_SPI_PROTOCOL_OFFSET, reg)) {
-			PRINT_ER("[wilc spi %d]: Failed internal write protocol reg...\n", __LINE__);
+			dev_err(&spi->dev, "[wilc spi %d]: Failed internal write protocol reg...\n", __LINE__);
 			return 0;
 		}
 		g_spi.crc_off = 1;
@@ -776,10 +795,10 @@ static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 	 *      make sure can read back chip id correctly
 	 **/
 	if (!wilc_spi_read_reg(wilc, 0x1000, &chipid)) {
-		PRINT_ER("[wilc spi]: Fail cmd read chip id...\n");
+		dev_err(&spi->dev, "Fail cmd read chip id...\n");
 		return 0;
 	}
-	/* PRINT_ER("[wilc spi]: chipid (%08x)\n", chipid); */
+	/* dev_err(&spi->dev, "chipid (%08x)\n", chipid); */
 
 	g_spi.has_thrpt_enh = 1;
 
@@ -790,6 +809,7 @@ static int _wilc_spi_init(struct wilc *wilc, wilc_debug_func func)
 
 static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
 
 	if (g_spi.has_thrpt_enh) {
@@ -803,7 +823,8 @@ static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 		ret = wilc_spi_read_reg(wilc, WILC_VMM_TO_HOST_SIZE,
 					&byte_cnt);
 		if (!ret) {
-			PRINT_ER("[wilc spi]: Failed read WILC_VMM_TO_HOST_SIZE ...\n");
+			dev_err(&spi->dev,
+				"Failed read WILC_VMM_TO_HOST_SIZE ...\n");
 			goto _fail_;
 		}
 		tmp = (byte_cnt >> 2) & IRQ_DMA_WD_CNT_MASK;
@@ -820,6 +841,7 @@ _fail_:
 
 static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
 
 	if (g_spi.has_thrpt_enh) {
@@ -832,7 +854,8 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 		ret = wilc_spi_read_reg(wilc, WILC_VMM_TO_HOST_SIZE,
 					&byte_cnt);
 		if (!ret) {
-			PRINT_ER("[wilc spi]: Failed read WILC_VMM_TO_HOST_SIZE ...\n");
+			dev_err(&spi->dev,
+				"Failed read WILC_VMM_TO_HOST_SIZE ...\n");
 			goto _fail_;
 		}
 		tmp = (byte_cnt >> 2) & IRQ_DMA_WD_CNT_MASK;
@@ -861,7 +884,7 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 					unkmown_mask = ~((1ul << g_spi.nint) - 1);
 
 					if ((tmp >> IRG_FLAGS_OFFSET) & unkmown_mask) {
-						PRINT_ER("[wilc spi]: Unexpected interrupt (2): j=%d, tmp=%x, mask=%x\n", j, tmp, unkmown_mask);
+						dev_err(&spi->dev, "Unexpected interrupt (2): j=%d, tmp=%x, mask=%x\n", j, tmp, unkmown_mask);
 						happended = 1;
 					}
 				}
@@ -879,6 +902,7 @@ _fail_:
 
 static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
 
 	if (g_spi.has_thrpt_enh) {
@@ -901,12 +925,16 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 				flags >>= 1;
 			}
 			if (!ret) {
-				PRINT_ER("[wilc spi]: Failed wilc_spi_write_reg, set reg %x ...\n", 0x10c8 + i * 4);
+				dev_err(&spi->dev,
+					"Failed wilc_spi_write_reg, set reg %x ...\n",
+					0x10c8 + i * 4);
 				goto _fail_;
 			}
 			for (i = g_spi.nint; i < MAX_NUM_INT; i++) {
 				if (flags & 1)
-					PRINT_ER("[wilc spi]: Unexpected interrupt cleared %d...\n", i);
+					dev_err(&spi->dev,
+						"Unexpected interrupt cleared %d...\n",
+						i);
 				flags >>= 1;
 			}
 		}
@@ -925,7 +953,8 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 			ret = wilc_spi_write_reg(wilc, WILC_VMM_TBL_CTL,
 						 tbl_ctl);
 			if (!ret) {
-				PRINT_ER("[wilc spi]: fail write reg vmm_tbl_ctl...\n");
+				dev_err(&spi->dev,
+					"fail write reg vmm_tbl_ctl...\n");
 				goto _fail_;
 			}
 
@@ -936,7 +965,7 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 				ret = wilc_spi_write_reg(wilc,
 							 WILC_VMM_CORE_CTL, 1);
 				if (!ret) {
-					PRINT_ER("[wilc spi]: fail write reg vmm_core_ctl...\n");
+					dev_err(&spi->dev,"fail write reg vmm_core_ctl...\n");
 					goto _fail_;
 				}
 			}
@@ -948,11 +977,12 @@ _fail_:
 
 static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 {
+	struct spi_device *spi = to_spi_device(wilc->dev);
 	u32 reg;
 	int ret, i;
 
 	if (nint > MAX_NUM_INT) {
-		PRINT_ER("[wilc spi]: Too many interupts (%d)...\n", nint);
+		dev_err(&spi->dev, "Too many interupts (%d)...\n", nint);
 		return 0;
 	}
 
@@ -963,13 +993,15 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 	 **/
 	ret = wilc_spi_read_reg(wilc, WILC_PIN_MUX_0, &reg);
 	if (!ret) {
-		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_PIN_MUX_0);
+		dev_err(&spi->dev, "Failed read reg (%08x)...\n",
+			WILC_PIN_MUX_0);
 		return 0;
 	}
 	reg |= BIT(8);
 	ret = wilc_spi_write_reg(wilc, WILC_PIN_MUX_0, reg);
 	if (!ret) {
-		PRINT_ER("[wilc spi]: Failed write reg (%08x)...\n", WILC_PIN_MUX_0);
+		dev_err(&spi->dev, "Failed write reg (%08x)...\n",
+			WILC_PIN_MUX_0);
 		return 0;
 	}
 
@@ -978,7 +1010,8 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 	 **/
 	ret = wilc_spi_read_reg(wilc, WILC_INTR_ENABLE, &reg);
 	if (!ret) {
-		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_INTR_ENABLE);
+		dev_err(&spi->dev, "Failed read reg (%08x)...\n",
+			WILC_INTR_ENABLE);
 		return 0;
 	}
 
@@ -987,13 +1020,15 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 	}
 	ret = wilc_spi_write_reg(wilc, WILC_INTR_ENABLE, reg);
 	if (!ret) {
-		PRINT_ER("[wilc spi]: Failed write reg (%08x)...\n", WILC_INTR_ENABLE);
+		dev_err(&spi->dev, "Failed write reg (%08x)...\n",
+			WILC_INTR_ENABLE);
 		return 0;
 	}
 	if (nint) {
 		ret = wilc_spi_read_reg(wilc, WILC_INTR2_ENABLE, &reg);
 		if (!ret) {
-			PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_INTR2_ENABLE);
+			dev_err(&spi->dev, "Failed read reg (%08x)...\n",
+				WILC_INTR2_ENABLE);
 			return 0;
 		}
 
@@ -1003,7 +1038,8 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 
 		ret = wilc_spi_read_reg(wilc, WILC_INTR2_ENABLE, &reg);
 		if (!ret) {
-			PRINT_ER("[wilc spi]: Failed write reg (%08x)...\n", WILC_INTR2_ENABLE);
+			dev_err(&spi->dev, "Failed write reg (%08x)...\n",
+				WILC_INTR2_ENABLE);
 			return 0;
 		}
 	}

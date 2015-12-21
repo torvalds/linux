@@ -52,7 +52,7 @@ int wilc_sdio_cmd52(struct wilc *wilc, sdio_cmd52_t *cmd)
 	sdio_release_host(func);
 
 	if (ret < 0) {
-		PRINT_ER("wilc_sdio_cmd52..failed, err(%d)\n", ret);
+		dev_err(&func->dev, "wilc_sdio_cmd52..failed, err(%d)\n", ret);
 		return 0;
 	}
 	return 1;
@@ -83,7 +83,7 @@ int wilc_sdio_cmd53(struct wilc *wilc, sdio_cmd53_t *cmd)
 
 
 	if (ret < 0) {
-		PRINT_ER("wilc_sdio_cmd53..failed, err(%d)\n", ret);
+		dev_err(&func->dev, "wilc_sdio_cmd53..failed, err(%d)\n", ret);
 		return 0;
 	}
 
@@ -102,16 +102,16 @@ static int linux_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 			gpio = GPIO_NUM;
 	}
 
-	PRINT_D(INIT_DBG, "Initializing netdev\n");
+	dev_dbg(&func->dev, "Initializing netdev\n");
 	if (wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, gpio,
 			     &wilc_hif_sdio)) {
-		PRINT_ER("Couldn't initialize netdev\n");
+		dev_err(&func->dev, "Couldn't initialize netdev\n");
 		return -1;
 	}
 	sdio_set_drvdata(func, wilc);
 	wilc->dev = &func->dev;
 
-	printk("Driver Initializing success\n");
+	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;
 }
 
@@ -139,7 +139,7 @@ int wilc_sdio_enable_interrupt(struct wilc *dev)
 	sdio_release_host(func);
 
 	if (ret < 0) {
-		PRINT_ER("can't claim sdio_irq, err(%d)\n", ret);
+		dev_err(&func->dev, "can't claim sdio_irq, err(%d)\n", ret);
 		ret = -EIO;
 	}
 	return ret;
@@ -150,16 +150,16 @@ void wilc_sdio_disable_interrupt(struct wilc *dev)
 	struct sdio_func *func = container_of(dev->dev, struct sdio_func, dev);
 	int ret;
 
-	PRINT_D(INIT_DBG, "wilc_sdio_disable_interrupt IN\n");
+	dev_dbg(&func->dev, "wilc_sdio_disable_interrupt IN\n");
 
 	sdio_claim_host(func);
 	ret = sdio_release_irq(func);
 	if (ret < 0) {
-		PRINT_ER("can't release sdio_irq, err(%d)\n", ret);
+		dev_err(&func->dev, "can't release sdio_irq, err(%d)\n", ret);
 	}
 	sdio_release_host(func);
 
-	PRINT_D(INIT_DBG, "wilc_sdio_disable_interrupt OUT\n");
+	dev_info(&func->dev, "wilc_sdio_disable_interrupt OUT\n");
 }
 
 int wilc_sdio_init(void)
