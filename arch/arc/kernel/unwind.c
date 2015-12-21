@@ -600,9 +600,6 @@ static signed fde_pointer_type(const u32 *cie)
 	const u8 *ptr = (const u8 *)(cie + 2);
 	unsigned version = *ptr;
 
-	if (version != 1)
-		return -1;	/* unsupported */
-
 	if (*++ptr) {
 		const char *aug;
 		const u8 *end = (const u8 *)(cie + 1) + *cie;
@@ -1014,9 +1011,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 		ptr = (const u8 *)(cie + 2);
 		end = (const u8 *)(cie + 1) + *cie;
 		frame->call_frame = 1;
-		if ((state.version = *ptr) != 1)
-			cie = NULL;	/* unsupported version */
-		else if (*++ptr) {
+		if (*++ptr) {
 			/* check if augmentation size is first (thus present) */
 			if (*ptr == 'z') {
 				while (++ptr < end && *ptr) {
