@@ -2527,14 +2527,14 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 		start += PAGE_SIZE;
 	}
 
-	SUB_STATS_COUNTER(alloced_io_mem, size);
-
-	dma_ops_free_addresses(dma_dom, dma_addr, pages);
-
 	if (amd_iommu_unmap_flush || dma_dom->need_flush) {
 		domain_flush_pages(&dma_dom->domain, flush_addr, size);
 		dma_dom->need_flush = false;
 	}
+
+	SUB_STATS_COUNTER(alloced_io_mem, size);
+
+	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 }
 
 /*
