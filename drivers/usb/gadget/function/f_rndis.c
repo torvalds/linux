@@ -459,6 +459,7 @@ static void rndis_response_complete(struct usb_ep *ep, struct usb_request *req)
 static void rndis_command_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct f_rndis			*rndis = req->context;
+	struct usb_composite_dev	*cdev = rndis->port.func.config->cdev;
 	int				status;
 	rndis_init_msg_type		*buf;
 
