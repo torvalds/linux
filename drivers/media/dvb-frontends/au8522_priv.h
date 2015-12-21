@@ -50,7 +50,7 @@ struct au8522_state {
 	struct list_head hybrid_tuner_instance_list;
 
 	/* configuration settings */
-	const struct au8522_config *config;
+	struct au8522_config config;
 
 	struct dvb_frontend frontend;
 
