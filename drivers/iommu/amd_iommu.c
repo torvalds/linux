@@ -1597,13 +1597,19 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 					     unsigned long align_mask,
 					     u64 dma_mask)
 {
-	unsigned long address;
+	unsigned long address = -1;
 
 #ifdef CONFIG_IOMMU_STRESS
 	dom->next_index = 0;
 #endif
 
-	address = dma_ops_area_alloc(dev, dom, pages, align_mask, dma_mask);
+	while (address == -1) {
+		address = dma_ops_area_alloc(dev, dom, pages,
+					     align_mask, dma_mask);
+
+		if (address == -1 && alloc_new_range(dom, true, GFP_ATOMIC))
+			break;
+	}
 
 	if (unlikely(address == -1))
 		address = DMA_ERROR_CODE;
@@ -2460,26 +2466,11 @@ static dma_addr_t __map_single(struct device *dev,
 	if (align)
 		align_mask = (1UL << get_order(size)) - 1;
 
-retry:
 	address = dma_ops_alloc_addresses(dev, dma_dom, pages, align_mask,
 					  dma_mask);
-	if (unlikely(address == DMA_ERROR_CODE)) {
-		if (alloc_new_range(dma_dom, false, GFP_ATOMIC))
-			goto out;
 
-		/*
-		 * setting next_index here will let the address
-		 * allocator only scan the new allocated range in the
-		 * first run. This is a small optimization.
-		 */
-		dma_dom->next_index = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
-
-		/*
-		 * aperture was successfully enlarged by 128 MB, try
-		 * allocation again
-		 */
-		goto retry;
-	}
+	if (address == DMA_ERROR_CODE)
+		goto out;
 
 	start = address;
 	for (i = 0; i < pages; ++i) {
