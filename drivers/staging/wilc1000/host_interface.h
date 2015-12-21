@@ -261,7 +261,6 @@ enum p2p_listen_state {
 
 struct wilc;
 struct host_if_drv {
-	struct wilc *wilc;
 	struct user_scan_req usr_scan_req;
 	struct user_conn_req usr_conn_req;
 	struct remain_ch remain_on_ch;
