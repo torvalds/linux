@@ -344,7 +344,7 @@ static int sx150x_gpio_get(struct gpio_chip *gc, unsigned offset)
 		mutex_unlock(&chip->lock);
 	}
 
-	return status;
+	return (status < 0) ? status : !!status;
 }
 
 static void sx150x_gpio_set(struct gpio_chip *gc, unsigned offset, int val)
