@@ -226,6 +226,21 @@ void kvm_register_vgic_device(unsigned long type)
 	}
 }
 
+/** vgic_attr_regs_access: allows user space to read/write VGIC registers
+ *
+ * @dev: kvm device handle
+ * @attr: kvm device attribute
+ * @reg: address the value is read or written
+ * @is_write: write flag
+ *
+ */
+static int vgic_attr_regs_access(struct kvm_device *dev,
+				 struct kvm_device_attr *attr,
+				 u32 *reg, bool is_write)
+{
+	return -ENXIO;
+}
+
 /* V2 ops */
 
 static int vgic_v2_set_attr(struct kvm_device *dev,
@@ -234,8 +249,23 @@ static int vgic_v2_set_attr(struct kvm_device *dev,
 	int ret;
 
 	ret = vgic_set_common_attr(dev, attr);
-	return ret;
+	if (ret != -ENXIO)
+		return ret;
 
+	switch (attr->group) {
+	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
+	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS: {
+		u32 __user *uaddr = (u32 __user *)(long)attr->addr;
+		u32 reg;
+
+		if (get_user(reg, uaddr))
+			return -EFAULT;
+
+		return vgic_attr_regs_access(dev, attr, &reg, true);
+	}
+	}
+
+	return -ENXIO;
 }
 
 static int vgic_v2_get_attr(struct kvm_device *dev,
@@ -244,7 +274,23 @@ static int vgic_v2_get_attr(struct kvm_device *dev,
 	int ret;
 
 	ret = vgic_get_common_attr(dev, attr);
-	return ret;
+	if (ret != -ENXIO)
+		return ret;
+
+	switch (attr->group) {
+	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
+	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS: {
+		u32 __user *uaddr = (u32 __user *)(long)attr->addr;
+		u32 reg = 0;
+
+		ret = vgic_attr_regs_access(dev, attr, &reg, false);
+		if (ret)
+			return ret;
+		return put_user(reg, uaddr);
+	}
+	}
+
+	return -ENXIO;
 }
 
 static int vgic_v2_has_attr(struct kvm_device *dev,
@@ -258,6 +304,9 @@ static int vgic_v2_has_attr(struct kvm_device *dev,
 			return 0;
 		}
 		break;
+	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
+	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS:
+		return vgic_v2_has_attr_regs(dev, attr);
 	case KVM_DEV_ARM_VGIC_GRP_NR_IRQS:
 		return 0;
 	case KVM_DEV_ARM_VGIC_GRP_CTRL:
