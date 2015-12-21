@@ -89,15 +89,12 @@ static int da9052_gpio_get(struct gpio_chip *gc, unsigned offset)
 					      DA9052_STATUS_D_REG);
 		if (ret < 0)
 			return ret;
-		if (ret & (1 << DA9052_GPIO_SHIFT_COUNT(offset)))
-			return 1;
-		else
-			return 0;
+		return !!(ret & (1 << DA9052_GPIO_SHIFT_COUNT(offset)));
 	case DA9052_OUTPUT_PUSHPULL:
 		if (da9052_gpio_port_odd(offset))
-			return ret & DA9052_GPIO_ODD_PORT_MODE;
+			return !!(ret & DA9052_GPIO_ODD_PORT_MODE);
 		else
-			return ret & DA9052_GPIO_EVEN_PORT_MODE;
+			return !!(ret & DA9052_GPIO_EVEN_PORT_MODE);
 	default:
 		return -EINVAL;
 	}
