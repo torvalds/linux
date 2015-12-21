@@ -24,6 +24,9 @@
 
 #define DEBUG_PASSUP
 
+int h_ipi_redirect = 1;
+EXPORT_SYMBOL(h_ipi_redirect);
+
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			    u32 new_irq);
 
@@ -148,7 +151,7 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 	cpu = vcpu->arch.thread_cpu;
 	if (cpu < 0 || cpu >= nr_cpu_ids) {
 		hcore = -1;
-		if (kvmppc_host_rm_ops_hv)
+		if (kvmppc_host_rm_ops_hv && h_ipi_redirect)
 			hcore = find_available_hostcore(XICS_RM_KICK_VCPU);
 		if (hcore != -1) {
 			icp_send_hcore_msg(hcore, vcpu);
