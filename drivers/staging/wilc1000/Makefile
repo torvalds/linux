@@ -14,7 +14,7 @@ wilc1000-objs := wilc_wfi_cfgoperations.o linux_wlan.o linux_mon.o \
 			wilc_wlan.o
 
 obj-$(CONFIG_WILC1000_SDIO) += wilc1000-sdio.o
-wilc1000-sdio-objs += linux_wlan_sdio.o wilc_sdio.o
+wilc1000-sdio-objs += wilc_sdio.o
 
 obj-$(CONFIG_WILC1000_SPI) += wilc1000-spi.o
 wilc1000-spi-objs += linux_wlan_spi.o wilc_spi.o
