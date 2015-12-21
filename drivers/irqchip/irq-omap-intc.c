@@ -207,7 +207,6 @@ static int __init omap_alloc_gc_of(struct irq_domain *d, void __iomem *base)
 		ct = gc->chip_types;
 
 		ct->type = IRQ_TYPE_LEVEL_MASK;
-		ct->handler = handle_level_irq;
 
 		ct->chip.irq_ack = omap_mask_ack_irq;
 		ct->chip.irq_mask = irq_gc_mask_disable_reg;
