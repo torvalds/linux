@@ -539,7 +539,8 @@ static void free_device_v1_hw(struct hisi_hba *hisi_hba,
 {
 	u64 dev_id = sas_dev->device_id;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[dev_id];
-	u32 qw0, reg_val = hisi_sas_read32(hisi_hba, CFG_AGING_TIME);
+	u64 qw0;
+	u32 reg_val = hisi_sas_read32(hisi_hba, CFG_AGING_TIME);
 
 	reg_val |= CFG_AGING_TIME_ITCT_REL_MSK;
 	hisi_sas_write32(hisi_hba, CFG_AGING_TIME, reg_val);
