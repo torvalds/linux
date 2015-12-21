@@ -1036,7 +1036,6 @@ int wilc_mac_open(struct net_device *ndev)
 	for (i = 0; i < wl->vif_num; i++) {
 		if (ndev == wl->vif[i]->ndev) {
 			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
-			wl->vif[i]->hif_drv = priv->hWILCWFIDrv;
 			break;
 		}
 	}

@@ -3782,6 +3782,7 @@ s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;
 	struct wilc *wilc;
+	int i;
 
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
@@ -3798,6 +3799,11 @@ s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		goto _fail_;
 	}
 	*hif_drv_handler = hif_drv;
+	for (i = 0; i < wilc->vif_num; i++)
+		if (dev == wilc->vif[i]->ndev) {
+			wilc->vif[i]->hif_drv = hif_drv;
+			break;
+		}
 
 	wilc_optaining_ip = false;
 
