@@ -1518,7 +1518,8 @@ out_free:
 	return -ENOMEM;
 }
 
-static dma_addr_t dma_ops_aperture_alloc(struct aperture_range *range,
+static dma_addr_t dma_ops_aperture_alloc(struct dma_ops_domain *dom,
+					 struct aperture_range *range,
 					 unsigned long pages,
 					 unsigned long dma_mask,
 					 unsigned long boundary_size,
@@ -1526,6 +1527,7 @@ static dma_addr_t dma_ops_aperture_alloc(struct aperture_range *range,
 {
 	unsigned long offset, limit, flags;
 	dma_addr_t address;
+	bool flush = false;
 
 	offset = range->offset >> PAGE_SHIFT;
 	limit  = iommu_device_max_index(APERTURE_RANGE_PAGES, offset,
@@ -1534,16 +1536,23 @@ static dma_addr_t dma_ops_aperture_alloc(struct aperture_range *range,
 	spin_lock_irqsave(&range->bitmap_lock, flags);
 	address = iommu_area_alloc(range->bitmap, limit, range->next_bit,
 				   pages, offset, boundary_size, align_mask);
-	if (address == -1)
+	if (address == -1) {
 		/* Nothing found, retry one time */
 		address = iommu_area_alloc(range->bitmap, limit,
 					   0, pages, offset, boundary_size,
 					   align_mask);
+		flush = true;
+	}
 
 	if (address != -1)
 		range->next_bit = address + pages;
 
 	spin_unlock_irqrestore(&range->bitmap_lock, flags);
+
+	if (flush) {
+		domain_flush_tlb(&dom->domain);
+		domain_flush_complete(&dom->domain);
+	}
 
 	return address;
 }
@@ -1566,12 +1575,14 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 				   1UL << (BITS_PER_LONG - PAGE_SHIFT);
 
 	for (;i < max_index; ++i) {
-		if (dom->aperture[i]->offset >= dma_mask)
+		struct aperture_range *range = dom->aperture[i];
+
+		if (range->offset >= dma_mask)
 			break;
 
-		next_bit = dom->aperture[i]->next_bit;
+		next_bit  = range->next_bit;
 
-		address = dma_ops_aperture_alloc(dom->aperture[i], pages,
+		address = dma_ops_aperture_alloc(dom, dom->aperture[i], pages,
 						 dma_mask, boundary_size,
 						 align_mask);
 		if (address != -1) {
