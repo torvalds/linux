@@ -30,4 +30,5 @@
 
 &mmc0 {	/* On-SoM eMMC */
 	bus-width = <8>;
+	status = "okay";
 };
