@@ -246,13 +246,20 @@ static const fn_mipi_elem_exec exec_elem[] = {
  */
 
 static const char * const seq_name[] = {
-	"UNDEFINED",
-	"MIPI_SEQ_ASSERT_RESET",
-	"MIPI_SEQ_INIT_OTP",
-	"MIPI_SEQ_DISPLAY_ON",
-	"MIPI_SEQ_DISPLAY_OFF",
-	"MIPI_SEQ_DEASSERT_RESET"
+	[MIPI_SEQ_ASSERT_RESET] = "MIPI_SEQ_ASSERT_RESET",
+	[MIPI_SEQ_INIT_OTP] = "MIPI_SEQ_INIT_OTP",
+	[MIPI_SEQ_DISPLAY_ON] = "MIPI_SEQ_DISPLAY_ON",
+	[MIPI_SEQ_DISPLAY_OFF]  = "MIPI_SEQ_DISPLAY_OFF",
+	[MIPI_SEQ_DEASSERT_RESET] = "MIPI_SEQ_DEASSERT_RESET",
 };
+
+static const char *sequence_name(enum mipi_seq seq_id)
+{
+	if (seq_id < ARRAY_SIZE(seq_name) && seq_name[seq_id])
+		return seq_name[seq_id];
+	else
+		return "(unknown)";
+}
 
 static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 {
@@ -262,7 +269,8 @@ static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 	if (!data)
 		return;
 
-	DRM_DEBUG_DRIVER("Starting MIPI sequence - %s\n", seq_name[*data]);
+	DRM_DEBUG_DRIVER("Starting MIPI sequence %u - %s\n",
+			 *data, sequence_name(*data));
 
 	/* go to the first element of the sequence */
 	data++;
