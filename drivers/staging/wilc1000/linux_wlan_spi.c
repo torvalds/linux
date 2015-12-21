@@ -79,6 +79,7 @@ int wilc_spi_write(struct wilc *wilc, u8 *b, u32 len)
 			.delay_usecs = 0,
 		};
 		char *r_buffer = kzalloc(len, GFP_KERNEL);
+
 		if (!r_buffer)
 			return -ENOMEM;
 
@@ -127,6 +128,7 @@ int wilc_spi_read(struct wilc *wilc, u8 *rb, u32 rlen)
 
 		};
 		char *t_buffer = kzalloc(rlen, GFP_KERNEL);
+
 		if (!t_buffer)
 			return -ENOMEM;
 
