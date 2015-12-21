@@ -289,9 +289,9 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	bssid1 = mac_header + 4;
 
 	for (i = 0; i < wilc->vif_num; i++)
-		if (!memcmp(bssid1, wilc->vif[i].bssid, ETH_ALEN) ||
-		    !memcmp(bssid, wilc->vif[i].bssid, ETH_ALEN))
-			return wilc->vif[i].ndev;
+		if (!memcmp(bssid1, wilc->vif[i]->bssid, ETH_ALEN) ||
+		    !memcmp(bssid, wilc->vif[i]->bssid, ETH_ALEN))
+			return wilc->vif[i]->ndev;
 
 	PRINT_INFO(INIT_DBG, "Invalide handle\n");
 	for (i = 0; i < 25; i++)
@@ -299,9 +299,9 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	bssid = mac_header + 18;
 	bssid1 = mac_header + 12;
 	for (i = 0; i < wilc->vif_num; i++)
-		if (!memcmp(bssid1, wilc->vif[i].bssid, ETH_ALEN) ||
-		    !memcmp(bssid, wilc->vif[i].bssid, ETH_ALEN))
-			return wilc->vif[i].ndev;
+		if (!memcmp(bssid1, wilc->vif[i]->bssid, ETH_ALEN) ||
+		    !memcmp(bssid, wilc->vif[i]->bssid, ETH_ALEN))
+			return wilc->vif[i]->ndev;
 
 	PRINT_INFO(INIT_DBG, "\n");
 	return NULL;
@@ -318,8 +318,8 @@ int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid)
 	wilc = vif->wilc;
 
 	for (i = 0; i < wilc->vif_num; i++)
-		if (wilc->vif[i].ndev == wilc_netdev) {
-			memcpy(wilc->vif[i].bssid, bssid, 6);
+		if (wilc->vif[i]->ndev == wilc_netdev) {
+			memcpy(wilc->vif[i]->bssid, bssid, 6);
 			ret = 0;
 			break;
 		}
@@ -334,7 +334,7 @@ int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 	u8 ret_val = 0;
 
 	for (i = 0; i < wilc->vif_num; i++)
-		if (memcmp(wilc->vif[i].bssid, null_bssid, 6))
+		if (memcmp(wilc->vif[i]->bssid, null_bssid, 6))
 			ret_val++;
 
 	return ret_val;
@@ -384,10 +384,10 @@ static int linux_wlan_txq_task(void *vp)
 			if (txq_count < FLOW_CONTROL_LOWER_THRESHOLD) {
 				PRINT_D(TX_DBG, "Waking up queue\n");
 
-				if (netif_queue_stopped(wl->vif[0].ndev))
-					netif_wake_queue(wl->vif[0].ndev);
-				if (netif_queue_stopped(wl->vif[1].ndev))
-					netif_wake_queue(wl->vif[1].ndev);
+				if (netif_queue_stopped(wl->vif[0]->ndev))
+					netif_wake_queue(wl->vif[0]->ndev);
+				if (netif_queue_stopped(wl->vif[1]->ndev))
+					netif_wake_queue(wl->vif[1]->ndev);
 			}
 
 			if (ret == WILC_TX_ERR_NO_BUF) {
@@ -1034,14 +1034,14 @@ int wilc_mac_open(struct net_device *ndev)
 	PRINT_D(INIT_DBG, "Mac address: %pM\n", mac_add);
 
 	for (i = 0; i < wl->vif_num; i++) {
-		if (ndev == wl->vif[i].ndev) {
-			memcpy(wl->vif[i].src_addr, mac_add, ETH_ALEN);
-			wl->vif[i].hif_drv = priv->hWILCWFIDrv;
+		if (ndev == wl->vif[i]->ndev) {
+			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
+			wl->vif[i]->hif_drv = priv->hWILCWFIDrv;
 			break;
 		}
 	}
 
-	memcpy(ndev->dev_addr, wl->vif[i].src_addr, ETH_ALEN);
+	memcpy(ndev->dev_addr, wl->vif[i]->src_addr, ETH_ALEN);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		PRINT_ER("Error: Wrong MAC address\n");
@@ -1182,14 +1182,14 @@ int wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	PRINT_D(TX_DBG, "Adding tx packet to TX Queue\n");
 	vif->netstats.tx_packets++;
 	vif->netstats.tx_bytes += tx_data->size;
-	tx_data->pBssid = wilc->vif[vif->u8IfIdx].bssid;
+	tx_data->pBssid = wilc->vif[vif->u8IfIdx]->bssid;
 	queue_count = wilc_wlan_txq_add_net_pkt(ndev, (void *)tx_data,
 						tx_data->buff, tx_data->size,
 						linux_wlan_tx_complete);
 
 	if (queue_count > FLOW_CONTROL_UPPER_THRESHOLD) {
-		netif_stop_queue(wilc->vif[0].ndev);
-		netif_stop_queue(wilc->vif[1].ndev);
+		netif_stop_queue(wilc->vif[0]->ndev);
+		netif_stop_queue(wilc->vif[1]->ndev);
 	}
 
 	return 0;
@@ -1373,17 +1373,17 @@ void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 	struct wilc_vif *vif;
 
 	for (i = 0; i < wilc->vif_num; i++) {
-		vif = netdev_priv(wilc->vif[i].ndev);
+		vif = netdev_priv(wilc->vif[i]->ndev);
 		if (vif->monitor_flag) {
 			WILC_WFI_monitor_rx(buff, size);
 			return;
 		}
 	}
 
-	vif = netdev_priv(wilc->vif[1].ndev);
+	vif = netdev_priv(wilc->vif[1]->ndev);
 	if ((buff[0] == vif->g_struct_frame_reg[0].frame_type && vif->g_struct_frame_reg[0].reg) ||
 	    (buff[0] == vif->g_struct_frame_reg[1].frame_type && vif->g_struct_frame_reg[1].reg))
-		WILC_WFI_p2p_rx(wilc->vif[1].ndev, buff, size);
+		WILC_WFI_p2p_rx(wilc->vif[1]->ndev, buff, size);
 }
 
 void wilc_netdev_cleanup(struct wilc *wilc)
@@ -1391,28 +1391,28 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	int i = 0;
 	struct wilc_vif *vif[NUM_CONCURRENT_IFC];
 
-	if (wilc && (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
+	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev)) {
 		unregister_inetaddr_notifier(&g_dev_notifier);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
-			vif[i] = netdev_priv(wilc->vif[i].ndev);
+			vif[i] = netdev_priv(wilc->vif[i]->ndev);
 	}
 
 	if (wilc && wilc->firmware)
 		release_firmware(wilc->firmware);
 
-	if (wilc && (wilc->vif[0].ndev || wilc->vif[1].ndev)) {
+	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev)) {
 		wilc_lock_timeout(wilc, &close_exit_sync, 12 * 1000);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
-			if (wilc->vif[i].ndev)
+			if (wilc->vif[i]->ndev)
 				if (vif[i]->mac_opened)
-					wilc_mac_close(wilc->vif[i].ndev);
+					wilc_mac_close(wilc->vif[i]->ndev);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
-			unregister_netdev(wilc->vif[i].ndev);
-			wilc_free_wiphy(wilc->vif[i].ndev);
-			free_netdev(wilc->vif[i].ndev);
+			unregister_netdev(wilc->vif[i]->ndev);
+			wilc_free_wiphy(wilc->vif[i]->ndev);
+			free_netdev(wilc->vif[i]->ndev);
 		}
 	}
 
@@ -1459,7 +1459,8 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		vif->u8IfIdx = wl->vif_num;
 		vif->wilc_netdev = ndev;
 		vif->wilc = *wilc;
-		wl->vif[wl->vif_num].ndev = ndev;
+		wl->vif[i] = vif;
+		wl->vif[wl->vif_num]->ndev = ndev;
 		wl->vif_num++;
 		ndev->netdev_ops = &wilc_netdev_ops;
 

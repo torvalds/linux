@@ -578,9 +578,9 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 
 		if (!pstrWFIDrv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;
-		if ((pstrWFIDrv->IFC_UP) && (dev == wl->vif[1].ndev)) {
+		if ((pstrWFIDrv->IFC_UP) && (dev == wl->vif[1]->ndev)) {
 			pstrDisconnectNotifInfo->u16reason = 3;
-		} else if ((!pstrWFIDrv->IFC_UP) && (dev == wl->vif[1].ndev)) {
+		} else if ((!pstrWFIDrv->IFC_UP) && (dev == wl->vif[1]->ndev)) {
 			pstrDisconnectNotifInfo->u16reason = 1;
 		}
 		cfg80211_disconnected(dev, pstrDisconnectNotifInfo->u16reason, pstrDisconnectNotifInfo->ie,
@@ -1118,7 +1118,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 					KeyLen = params->key_len - 16;
 				}
 
-				if (!g_gtk_keys_saved && netdev == wl->vif[0].ndev) {
+				if (!g_gtk_keys_saved && netdev == wl->vif[0]->ndev) {
 					g_add_gtk_key_params.key_idx = key_index;
 					g_add_gtk_key_params.pairwise = pairwise;
 					if (!mac_addr) {
@@ -1152,7 +1152,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 					KeyLen = params->key_len - 16;
 				}
 
-				if (!g_ptk_keys_saved && netdev == wl->vif[0].ndev) {
+				if (!g_ptk_keys_saved && netdev == wl->vif[0]->ndev) {
 					g_add_ptk_key_params.key_idx = key_index;
 					g_add_ptk_key_params.pairwise = pairwise;
 					if (!mac_addr) {
@@ -1209,7 +1209,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 	vif = netdev_priv(netdev);
 	wl = vif->wilc;
 
-	if (netdev == wl->vif[0].ndev) {
+	if (netdev == wl->vif[0]->ndev) {
 		g_ptk_keys_saved = false;
 		g_gtk_keys_saved = false;
 		g_wep_keys_saved = false;
@@ -2097,7 +2097,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		if (wl->initialized) {
 			wilc_del_all_rx_ba_session(priv->hWILCWFIDrv,
-						   wl->vif[0].bssid, TID);
+						   wl->vif[0]->bssid, TID);
 			wilc_wait_msg_queue_idle();
 
 			up(&wl->cfg_event);
@@ -2107,15 +2107,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			wilc_initialized = 1;
 			vif->iftype = interface_type;
 
-			wilc_set_wfi_drv_handler(wl->vif[0].hif_drv);
-			wilc_set_mac_address(wl->vif[0].hif_drv,
-						wl->vif[0].src_addr);
+			wilc_set_wfi_drv_handler(wl->vif[0]->hif_drv);
+			wilc_set_mac_address(wl->vif[0]->hif_drv,
+						wl->vif[0]->src_addr);
 			wilc_set_operation_mode(priv->hWILCWFIDrv, STATION_MODE);
 
 			if (g_wep_keys_saved) {
-				wilc_set_wep_default_keyid(wl->vif[0].hif_drv,
+				wilc_set_wep_default_keyid(wl->vif[0]->hif_drv,
 							     g_key_wep_params.key_idx);
-				wilc_add_wep_key_bss_sta(wl->vif[0].hif_drv,
+				wilc_add_wep_key_bss_sta(wl->vif[0]->hif_drv,
 							     g_key_wep_params.key,
 							     g_key_wep_params.key_len,
 							     g_key_wep_params.key_idx);
@@ -2130,15 +2130,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				PRINT_D(CFG80211_DBG, "gtk %x %x %x\n", g_key_gtk_params.key[0],
 					g_key_gtk_params.key[1],
 					g_key_gtk_params.key[2]);
-				add_key(wl->vif[0].ndev->ieee80211_ptr->wiphy,
-					wl->vif[0].ndev,
+				add_key(wl->vif[0]->ndev->ieee80211_ptr->wiphy,
+					wl->vif[0]->ndev,
 					g_add_ptk_key_params.key_idx,
 					g_add_ptk_key_params.pairwise,
 					g_add_ptk_key_params.mac_addr,
 					(struct key_params *)(&g_key_ptk_params));
 
-				add_key(wl->vif[0].ndev->ieee80211_ptr->wiphy,
-					wl->vif[0].ndev,
+				add_key(wl->vif[0]->ndev->ieee80211_ptr->wiphy,
+					wl->vif[0]->ndev,
 					g_add_gtk_key_params.key_idx,
 					g_add_gtk_key_params.pairwise,
 					g_add_gtk_key_params.mac_addr,
@@ -2167,7 +2167,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_P2P_CLIENT\n");
 
 		wilc_del_all_rx_ba_session(priv->hWILCWFIDrv,
-					   wl->vif[0].bssid, TID);
+					   wl->vif[0]->bssid, TID);
 
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
@@ -2184,15 +2184,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			wilc1000_wlan_init(dev, vif);
 			wilc_initialized = 1;
 
-			wilc_set_wfi_drv_handler(wl->vif[0].hif_drv);
-			wilc_set_mac_address(wl->vif[0].hif_drv,
-						wl->vif[0].src_addr);
+			wilc_set_wfi_drv_handler(wl->vif[0]->hif_drv);
+			wilc_set_mac_address(wl->vif[0]->hif_drv,
+						wl->vif[0]->src_addr);
 			wilc_set_operation_mode(priv->hWILCWFIDrv, STATION_MODE);
 
 			if (g_wep_keys_saved) {
-				wilc_set_wep_default_keyid(wl->vif[0].hif_drv,
+				wilc_set_wep_default_keyid(wl->vif[0]->hif_drv,
 							   g_key_wep_params.key_idx);
-				wilc_add_wep_key_bss_sta(wl->vif[0].hif_drv,
+				wilc_add_wep_key_bss_sta(wl->vif[0]->hif_drv,
 							 g_key_wep_params.key,
 							 g_key_wep_params.key_len,
 							 g_key_wep_params.key_idx);
@@ -2207,15 +2207,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				PRINT_D(CFG80211_DBG, "gtk %x %x %x\n", g_key_gtk_params.key[0],
 					g_key_gtk_params.key[1],
 					g_key_gtk_params.key[2]);
-				add_key(wl->vif[0].ndev->ieee80211_ptr->wiphy,
-					wl->vif[0].ndev,
+				add_key(wl->vif[0]->ndev->ieee80211_ptr->wiphy,
+					wl->vif[0]->ndev,
 					g_add_ptk_key_params.key_idx,
 					g_add_ptk_key_params.pairwise,
 					g_add_ptk_key_params.mac_addr,
 					(struct key_params *)(&g_key_ptk_params));
 
-				add_key(wl->vif[0].ndev->ieee80211_ptr->wiphy,
-					wl->vif[0].ndev,
+				add_key(wl->vif[0]->ndev->ieee80211_ptr->wiphy,
+					wl->vif[0]->ndev,
 					g_add_gtk_key_params.key_idx,
 					g_add_gtk_key_params.pairwise,
 					g_add_gtk_key_params.mac_addr,
@@ -2271,7 +2271,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			  jiffies + msecs_to_jiffies(during_ip_time));
 		wilc_set_power_mgmt(priv->hWILCWFIDrv, 0, 0);
 		wilc_del_all_rx_ba_session(priv->hWILCWFIDrv,
-					   wl->vif[0].bssid, TID);
+					   wl->vif[0]->bssid, TID);
 		wilc_enable_ps = false;
 		PRINT_D(HOSTAPD_DBG, "Interface type = NL80211_IFTYPE_GO\n");
 		dev->ieee80211_ptr->iftype = type;
@@ -2289,15 +2289,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		wilc1000_wlan_init(dev, vif);
 		wilc_initialized = 1;
 
-		wilc_set_wfi_drv_handler(wl->vif[0].hif_drv);
-		wilc_set_mac_address(wl->vif[0].hif_drv,
-				     wl->vif[0].src_addr);
+		wilc_set_wfi_drv_handler(wl->vif[0]->hif_drv);
+		wilc_set_mac_address(wl->vif[0]->hif_drv,
+				     wl->vif[0]->src_addr);
 		wilc_set_operation_mode(priv->hWILCWFIDrv, AP_MODE);
 
 		if (g_wep_keys_saved) {
-			wilc_set_wep_default_keyid(wl->vif[0].hif_drv,
+			wilc_set_wep_default_keyid(wl->vif[0]->hif_drv,
 						   g_key_wep_params.key_idx);
-			wilc_add_wep_key_bss_sta(wl->vif[0].hif_drv,
+			wilc_add_wep_key_bss_sta(wl->vif[0]->hif_drv,
 						     g_key_wep_params.key,
 						     g_key_wep_params.key_len,
 						     g_key_wep_params.key_idx);
@@ -2314,15 +2314,15 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				g_key_gtk_params.key[1],
 				g_key_gtk_params.key[2],
 				g_key_gtk_params.cipher);
-			add_key(wl->vif[0].ndev->ieee80211_ptr->wiphy,
-				wl->vif[0].ndev,
+			add_key(wl->vif[0]->ndev->ieee80211_ptr->wiphy,
+				wl->vif[0]->ndev,
 				g_add_ptk_key_params.key_idx,
 				g_add_ptk_key_params.pairwise,
 				g_add_ptk_key_params.mac_addr,
 				(struct key_params *)(&g_key_ptk_params));
 
-			add_key(wl->vif[0].ndev->ieee80211_ptr->wiphy,
-				wl->vif[0].ndev,
+			add_key(wl->vif[0]->ndev->ieee80211_ptr->wiphy,
+				wl->vif[0]->ndev,
 				g_add_gtk_key_params.key_idx,
 				g_add_gtk_key_params.pairwise,
 				g_add_gtk_key_params.mac_addr,
@@ -2370,7 +2370,7 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (s32Error != 0)
 		PRINT_ER("Error in setting channel\n");
 
-	wilc_wlan_set_bssid(dev, wl->vif[0].src_addr);
+	wilc_wlan_set_bssid(dev, wl->vif[0]->src_addr);
 
 	s32Error = wilc_add_beacon(priv->hWILCWFIDrv,
 					settings->beacon_interval,
