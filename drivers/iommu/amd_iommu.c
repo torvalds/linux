@@ -151,9 +151,6 @@ struct dma_ops_domain {
 
 	/* address space relevant data */
 	struct aperture_range *aperture[APERTURE_MAX_RANGES];
-
-	/* This will be set to true when TLB needs to be flushed */
-	bool need_flush;
 };
 
 /****************************************************************************
@@ -1563,7 +1560,7 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 					unsigned long align_mask,
 					u64 dma_mask)
 {
-	unsigned long next_bit, boundary_size, mask;
+	unsigned long boundary_size, mask;
 	unsigned long address = -1;
 	int start = dom->next_index;
 	int i;
@@ -1581,8 +1578,6 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 		if (!range || range->offset >= dma_mask)
 			continue;
 
-		next_bit  = range->next_bit;
-
 		address = dma_ops_aperture_alloc(dom, range, pages,
 						 dma_mask, boundary_size,
 						 align_mask);
@@ -1591,9 +1586,6 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 			dom->next_index = i;
 			break;
 		}
-
-		if (next_bit > range->next_bit)
-			dom->need_flush = true;
 	}
 
 	return address;
@@ -1609,7 +1601,6 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 
 #ifdef CONFIG_IOMMU_STRESS
 	dom->next_index = 0;
-	dom->need_flush = true;
 #endif
 
 	address = dma_ops_area_alloc(dev, dom, pages, align_mask, dma_mask);
@@ -1642,7 +1633,8 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 		return;
 #endif
 
-	if (address + pages > range->next_bit) {
+	if (amd_iommu_unmap_flush ||
+	    (address + pages > range->next_bit)) {
 		domain_flush_tlb(&dom->domain);
 		domain_flush_complete(&dom->domain);
 	}
@@ -1867,8 +1859,6 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 	dma_dom->domain.priv = dma_dom;
 	if (!dma_dom->domain.pt_root)
 		goto free_dma_dom;
-
-	dma_dom->need_flush = false;
 
 	add_domain_to_list(&dma_dom->domain);
 
@@ -2503,11 +2493,10 @@ retry:
 
 	ADD_STATS_COUNTER(alloced_io_mem, size);
 
-	if (unlikely(dma_dom->need_flush && !amd_iommu_unmap_flush)) {
-		domain_flush_tlb(&dma_dom->domain);
-		dma_dom->need_flush = false;
-	} else if (unlikely(amd_iommu_np_cache))
+	if (unlikely(amd_iommu_np_cache)) {
 		domain_flush_pages(&dma_dom->domain, address, size);
+		domain_flush_complete(&dma_dom->domain);
+	}
 
 out:
 	return address;
@@ -2518,8 +2507,6 @@ out_unmap:
 		start -= PAGE_SIZE;
 		dma_ops_domain_unmap(dma_dom, start);
 	}
-
-	domain_flush_pages(&dma_dom->domain, address, size);
 
 	dma_ops_free_addresses(dma_dom, address, pages);
 
@@ -2551,11 +2538,6 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 	for (i = 0; i < pages; ++i) {
 		dma_ops_domain_unmap(dma_dom, start);
 		start += PAGE_SIZE;
-	}
-
-	if (amd_iommu_unmap_flush || dma_dom->need_flush) {
-		domain_flush_pages(&dma_dom->domain, flush_addr, size);
-		dma_dom->need_flush = false;
 	}
 
 	SUB_STATS_COUNTER(alloced_io_mem, size);
