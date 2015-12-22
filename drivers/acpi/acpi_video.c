@@ -77,6 +77,13 @@ module_param(allow_duplicates, bool, 0644);
 static int disable_backlight_sysfs_if = -1;
 module_param(disable_backlight_sysfs_if, int, 0444);
 
+#define REPORT_OUTPUT_KEY_EVENTS		0x01
+#define REPORT_BRIGHTNESS_KEY_EVENTS		0x02
+static int report_key_events = -1;
+module_param(report_key_events, int, 0644);
+MODULE_PARM_DESC(report_key_events,
+	"0: none, 1: output changes, 2: brightness changes, 3: all");
+
 static bool device_id_scheme = false;
 module_param(device_id_scheme, bool, 0444);
 
@@ -1480,7 +1487,7 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 		/* Something vetoed the keypress. */
 		keycode = 0;
 
-	if (keycode) {
+	if (keycode && (report_key_events & REPORT_OUTPUT_KEY_EVENTS)) {
 		input_report_key(input, keycode, 1);
 		input_sync(input);
 		input_report_key(input, keycode, 0);
@@ -1544,7 +1551,7 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 
 	acpi_notifier_call_chain(device, event, 0);
 
-	if (keycode) {
+	if (keycode && (report_key_events & REPORT_BRIGHTNESS_KEY_EVENTS)) {
 		input_report_key(input, keycode, 1);
 		input_sync(input);
 		input_report_key(input, keycode, 0);
@@ -2080,7 +2087,8 @@ bool acpi_video_handles_brightness_key_presses(void)
 	have_video_busses = !list_empty(&video_bus_head);
 	mutex_unlock(&video_list_lock);
 
-	return have_video_busses;
+	return have_video_busses &&
+	       (report_key_events & REPORT_BRIGHTNESS_KEY_EVENTS);
 }
 EXPORT_SYMBOL(acpi_video_handles_brightness_key_presses);
 
