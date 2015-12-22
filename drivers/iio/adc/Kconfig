@@ -163,6 +163,15 @@ config EXYNOS_ADC
 	  of SoCs for drivers such as the touchscreen and hwmon to use to share
 	  this resource.
 
+config IMX7D_ADC
+	tristate "IMX7D ADC driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  Say yes here to build support for IMX7D ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called imx7d_adc.
+
 config LP8788_ADC
 	tristate "LP8788 ADC driver"
 	depends on MFD_LP8788
