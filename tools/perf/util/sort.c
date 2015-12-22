@@ -1531,6 +1531,216 @@ static int __sort_dimension__add_hpp_output(struct sort_dimension *sd)
 	return 0;
 }
 
+struct hpp_dynamic_entry {
+	struct perf_hpp_fmt hpp;
+	struct perf_evsel *evsel;
+	struct format_field *field;
+	unsigned dynamic_len;
+};
+
+static int hde_width(struct hpp_dynamic_entry *hde)
+{
+	if (!hde->hpp.len) {
+		int len = hde->dynamic_len;
+		int namelen = strlen(hde->field->name);
+		int fieldlen = hde->field->size;
+
+		if (namelen > len)
+			len = namelen;
+
+		if (!(hde->field->flags & FIELD_IS_STRING)) {
+			/* length for print hex numbers */
+			fieldlen = hde->field->size * 2 + 2;
+		}
+		if (fieldlen > len)
+			len = fieldlen;
+
+		hde->hpp.len = len;
+	}
+	return hde->hpp.len;
+}
+
+static int __sort__hde_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			      struct perf_evsel *evsel __maybe_unused)
+{
+	struct hpp_dynamic_entry *hde;
+	size_t len = fmt->user_len;
+
+	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
+
+	if (!len)
+		len = hde_width(hde);
+
+	return scnprintf(hpp->buf, hpp->size, "%*.*s", len, len, hde->field->name);
+}
+
+static int __sort__hde_width(struct perf_hpp_fmt *fmt,
+			     struct perf_hpp *hpp __maybe_unused,
+			     struct perf_evsel *evsel __maybe_unused)
+{
+	struct hpp_dynamic_entry *hde;
+	size_t len = fmt->user_len;
+
+	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
+
+	if (!len)
+		len = hde_width(hde);
+
+	return len;
+}
+
+static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+			     struct hist_entry *he)
+{
+	struct hpp_dynamic_entry *hde;
+	size_t len = fmt->user_len;
+	struct trace_seq seq;
+	int ret;
+
+	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
+
+	if (!len)
+		len = hde_width(hde);
+
+	if (hists_to_evsel(he->hists) != hde->evsel)
+		return scnprintf(hpp->buf, hpp->size, "%*.*s", len, len, "N/A");
+
+	trace_seq_init(&seq);
+	pevent_print_field(&seq, he->raw_data, hde->field);
+	ret = scnprintf(hpp->buf, hpp->size, "%*.*s", len, len, seq.buffer);
+	trace_seq_destroy(&seq);
+	return ret;
+}
+
+static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
+			       struct hist_entry *a, struct hist_entry *b)
+{
+	struct hpp_dynamic_entry *hde;
+	struct format_field *field;
+	unsigned offset, size;
+
+	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
+
+	if (hists_to_evsel(a->hists) != hde->evsel)
+		return 0;
+
+	field = hde->field;
+	if (field->flags & FIELD_IS_DYNAMIC) {
+		unsigned long long dyn;
+
+		pevent_read_number_field(field, a->raw_data, &dyn);
+		offset = dyn & 0xffff;
+		size = (dyn >> 16) & 0xffff;
+
+		/* record max width for output */
+		if (size > hde->dynamic_len)
+			hde->dynamic_len = size;
+	} else {
+		offset = field->offset;
+		size = field->size;
+	}
+
+	return memcmp(a->raw_data + offset, b->raw_data + offset, size);
+}
+
+static struct hpp_dynamic_entry *
+__alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field)
+{
+	struct hpp_dynamic_entry *hde;
+
+	hde = malloc(sizeof(*hde));
+	if (hde == NULL) {
+		pr_debug("Memory allocation failed\n");
+		return NULL;
+	}
+
+	hde->evsel = evsel;
+	hde->field = field;
+	hde->dynamic_len = 0;
+
+	hde->hpp.name = field->name;
+	hde->hpp.header = __sort__hde_header;
+	hde->hpp.width  = __sort__hde_width;
+	hde->hpp.entry  = __sort__hde_entry;
+	hde->hpp.color  = NULL;
+
+	hde->hpp.cmp = __sort__hde_cmp;
+	hde->hpp.collapse = __sort__hde_cmp;
+	hde->hpp.sort = __sort__hde_cmp;
+
+	INIT_LIST_HEAD(&hde->hpp.list);
+	INIT_LIST_HEAD(&hde->hpp.sort_list);
+	hde->hpp.elide = false;
+	hde->hpp.len = 0;
+	hde->hpp.user_len = 0;
+
+	return hde;
+}
+
+static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
+{
+	char *str, *event_name, *field_name;
+	struct perf_evsel *evsel, *pos;
+	struct format_field *field;
+	struct hpp_dynamic_entry *hde;
+	int ret = 0;
+
+	if (evlist == NULL)
+		return -ENOENT;
+
+	str = strdup(tok);
+	if (str == NULL)
+		return -ENOMEM;
+
+	event_name = str;
+	field_name = strchr(str, '.');
+	if (field_name == NULL) {
+		ret = -EINVAL;
+		goto out;
+	}
+	*field_name++ = '\0';
+
+	evsel = NULL;
+	evlist__for_each(evlist, pos) {
+		if (!strcmp(pos->name, event_name)) {
+			evsel = pos;
+			break;
+		}
+	}
+
+	if (evsel == NULL) {
+		pr_debug("Cannot find event: %s\n", event_name);
+		ret = -ENOENT;
+		goto out;
+	}
+
+	if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+		pr_debug("%s is not a tracepoint event\n", event_name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	field = pevent_find_any_field(evsel->tp_format, field_name);
+	if (field == NULL) {
+		pr_debug("Cannot find event field for %s.%s\n",
+		       event_name, field_name);
+		ret = -ENOENT;
+		goto out;
+	}
+
+	hde = __alloc_dynamic_entry(evsel, field);
+	if (hde == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	perf_hpp__register_sort_field(&hde->hpp);
+
+out:
+	free(str);
+	return ret;
+}
+
 static int __sort_dimension__add(struct sort_dimension *sd)
 {
 	if (sd->taken)
@@ -1666,6 +1876,9 @@ static int sort_dimension__add(const char *tok,
 		__sort_dimension__add(sd);
 		return 0;
 	}
+
+	if (!add_dynamic_entry(evlist, tok))
+		return 0;
 
 	return -ESRCH;
 }
