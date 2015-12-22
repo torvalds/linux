@@ -106,6 +106,34 @@ end:
 	fw_send_response(card, request, rcode);
 }
 
+static int midi_capture_open(struct snd_rawmidi_substream *stream)
+{
+	return 0;
+}
+
+static int midi_capture_close(struct snd_rawmidi_substream *stream)
+{
+	return 0;
+}
+
+static void midi_capture_trigger(struct snd_rawmidi_substream *stream, int up)
+{
+	struct fw_scs1x *scs = stream->rmidi->private_data;
+
+	if (up) {
+		scs->input_escape_count = 0;
+		ACCESS_ONCE(scs->input) = stream;
+	} else {
+		ACCESS_ONCE(scs->input) = NULL;
+	}
+}
+
+static struct snd_rawmidi_ops midi_capture_ops = {
+	.open    = midi_capture_open,
+	.close   = midi_capture_close,
+	.trigger = midi_capture_trigger,
+};
+
 static int register_address(struct snd_oxfw *oxfw)
 {
 	struct fw_scs1x *scs = oxfw->spec;
@@ -154,7 +182,7 @@ int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw)
 		goto err_allocated;
 
 	/* Use unique name for backward compatibility to scs1x module. */
-	err = snd_rawmidi_new(oxfw->card, "SCS.1x", 0, 0, 0, &rmidi);
+	err = snd_rawmidi_new(oxfw->card, "SCS.1x", 0, 0, 1, &rmidi);
 	if (err < 0)
 		goto err_allocated;
 	rmidi->private_data = scs;
@@ -162,6 +190,10 @@ int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw)
 
 	snprintf(rmidi->name, sizeof(rmidi->name),
 		 "%s MIDI", oxfw->card->shortname);
+
+	rmidi->info_flags = SNDRV_RAWMIDI_INFO_INPUT;
+	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT,
+			    &midi_capture_ops);
 
 	return 0;
 err_allocated:
