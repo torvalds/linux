@@ -41,7 +41,6 @@ struct aim_channel {
 	unsigned int channel_id;
 	dev_t devno;
 	size_t mbo_offs;
-	struct mbo *stacked_mbo;
 	DECLARE_KFIFO_PTR(fifo, typeof(struct mbo *));
 	int access_ref;
 	struct list_head list;
@@ -87,9 +86,6 @@ static void stop_channel(struct aim_channel *c)
 
 	while (kfifo_out((struct kfifo *)&c->fifo, &mbo, 1))
 		most_put_mbo(mbo);
-	if (c->stacked_mbo)
-		most_put_mbo(c->stacked_mbo);
-	c->stacked_mbo = NULL;
 	most_stop_channel(c->iface, c->channel_id, &cdev_aim);
 }
 
@@ -143,6 +139,7 @@ static int aim_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 	}
 
+	c->mbo_offs = 0;
 	ret = most_start_channel(c->iface, c->channel_id, &cdev_aim);
 	if (!ret)
 		c->access_ref = 1;
@@ -249,11 +246,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 	struct aim_channel *c = filp->private_data;
 
 	mutex_lock(&c->io_mutex);
-	if (c->stacked_mbo) {
-		mbo = c->stacked_mbo;
-		goto start_copy;
-	}
-	while ((!kfifo_out(&c->fifo, &mbo, 1)) && (c->dev)) {
+	while (c->dev && !kfifo_peek(&c->fifo, &mbo)) {
 		mutex_unlock(&c->io_mutex);
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
@@ -263,9 +256,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 			return -ERESTARTSYS;
 		mutex_lock(&c->io_mutex);
 	}
-	c->stacked_mbo = mbo;
 
-start_copy:
 	/* make sure we don't submit to gone devices */
 	if (unlikely(!c->dev)) {
 		mutex_unlock(&c->io_mutex);
@@ -284,9 +275,9 @@ start_copy:
 
 	c->mbo_offs += copied;
 	if (c->mbo_offs >= mbo->processed_length) {
+		kfifo_skip(&c->fifo);
 		most_put_mbo(mbo);
 		c->mbo_offs = 0;
-		c->stacked_mbo = NULL;
 	}
 	mutex_unlock(&c->io_mutex);
 	return copied;
@@ -466,7 +457,6 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 	c->iface = iface;
 	c->cfg = cfg;
 	c->channel_id = channel_id;
-	c->mbo_offs = 0;
 	c->access_ref = 0;
 	spin_lock_init(&c->unlink);
 	INIT_KFIFO(c->fifo);
