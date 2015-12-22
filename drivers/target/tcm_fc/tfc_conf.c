@@ -171,9 +171,31 @@ static ssize_t ft_nacl_node_name_store(struct config_item *item,
 CONFIGFS_ATTR(ft_nacl_, node_name);
 CONFIGFS_ATTR(ft_nacl_, port_name);
 
+static ssize_t ft_nacl_tag_show(struct config_item *item,
+		char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%s", acl_to_nacl(item)->acl_tag);
+}
+
+static ssize_t ft_nacl_tag_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_node_acl *se_nacl = acl_to_nacl(item);
+	int ret;
+
+	ret = core_tpg_set_initiator_node_tag(se_nacl->se_tpg, se_nacl, page);
+
+	if (ret < 0)
+		return ret;
+	return count;
+}
+
+CONFIGFS_ATTR(ft_nacl_, tag);
+
 static struct configfs_attribute *ft_nacl_base_attrs[] = {
 	&ft_nacl_attr_port_name,
 	&ft_nacl_attr_node_name,
+	&ft_nacl_attr_tag,
 	NULL,
 };
 
