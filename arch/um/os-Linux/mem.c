@@ -142,12 +142,6 @@ static int __init create_tmp_file(unsigned long long len)
 	if (fd < 0)
 		exit(1);
 
-	err = fchmod(fd, 0777);
-	if (err < 0) {
-		perror("fchmod");
-		exit(1);
-	}
-
 	/*
 	 * Seek to len - 1 because writing a character there will
 	 * increase the file size by one byte, to the desired length.
