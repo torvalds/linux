@@ -1803,19 +1803,6 @@ void most_deregister_interface(struct most_interface *iface)
 		c->aim1.ptr = NULL;
 	}
 
-	list_for_each_entry(c, &i->channel_list, list) {
-		if (c->aim0.refs + c->aim1.refs <= 0)
-			continue;
-
-		mutex_lock(&c->stop_task_mutex);
-		if (c->hdm_enqueue_task)
-			kthread_stop(c->hdm_enqueue_task);
-		c->hdm_enqueue_task = NULL;
-		mutex_unlock(&c->stop_task_mutex);
-
-		if (iface->poison_channel(iface, c->channel_id))
-			pr_err("Can't poison channel %d\n", c->channel_id);
-	}
 	ida_simple_remove(&mdev_id, i->dev_id);
 	list_del(&i->list);
 	destroy_most_inst_obj(i);
