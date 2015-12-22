@@ -1397,6 +1397,15 @@ static void ff_layout_read_count_stats(struct rpc_task *task, void *data)
 	    &NFS_CLIENT(hdr->inode)->cl_metrics[NFSPROC4_CLNT_READ]);
 }
 
+static void ff_layout_read_release(void *data)
+{
+	struct nfs_pgio_header *hdr = data;
+
+	ff_layout_read_record_layoutstats_done(&hdr->task, hdr);
+	pnfs_generic_rw_release(data);
+}
+
+
 static int ff_layout_write_done_cb(struct rpc_task *task,
 				struct nfs_pgio_header *hdr)
 {
@@ -1564,6 +1573,14 @@ static void ff_layout_write_count_stats(struct rpc_task *task, void *data)
 	    &NFS_CLIENT(hdr->inode)->cl_metrics[NFSPROC4_CLNT_WRITE]);
 }
 
+static void ff_layout_write_release(void *data)
+{
+	struct nfs_pgio_header *hdr = data;
+
+	ff_layout_write_record_layoutstats_done(&hdr->task, hdr);
+	pnfs_generic_rw_release(data);
+}
+
 static void ff_layout_commit_record_layoutstats_start(struct rpc_task *task,
 		struct nfs_commit_data *cdata)
 {
@@ -1630,46 +1647,54 @@ static void ff_layout_commit_count_stats(struct rpc_task *task, void *data)
 	    &NFS_CLIENT(cdata->inode)->cl_metrics[NFSPROC4_CLNT_COMMIT]);
 }
 
+static void ff_layout_commit_release(void *data)
+{
+	struct nfs_commit_data *cdata = data;
+
+	ff_layout_commit_record_layoutstats_done(&cdata->task, cdata);
+	pnfs_generic_commit_release(data);
+}
+
 static const struct rpc_call_ops ff_layout_read_call_ops_v3 = {
 	.rpc_call_prepare = ff_layout_read_prepare_v3,
 	.rpc_call_done = ff_layout_read_call_done,
 	.rpc_count_stats = ff_layout_read_count_stats,
-	.rpc_release = pnfs_generic_rw_release,
+	.rpc_release = ff_layout_read_release,
 };
 
 static const struct rpc_call_ops ff_layout_read_call_ops_v4 = {
 	.rpc_call_prepare = ff_layout_read_prepare_v4,
 	.rpc_call_done = ff_layout_read_call_done,
 	.rpc_count_stats = ff_layout_read_count_stats,
-	.rpc_release = pnfs_generic_rw_release,
+	.rpc_release = ff_layout_read_release,
 };
 
 static const struct rpc_call_ops ff_layout_write_call_ops_v3 = {
 	.rpc_call_prepare = ff_layout_write_prepare_v3,
 	.rpc_call_done = ff_layout_write_call_done,
 	.rpc_count_stats = ff_layout_write_count_stats,
-	.rpc_release = pnfs_generic_rw_release,
+	.rpc_release = ff_layout_write_release,
 };
 
 static const struct rpc_call_ops ff_layout_write_call_ops_v4 = {
 	.rpc_call_prepare = ff_layout_write_prepare_v4,
 	.rpc_call_done = ff_layout_write_call_done,
 	.rpc_count_stats = ff_layout_write_count_stats,
-	.rpc_release = pnfs_generic_rw_release,
+	.rpc_release = ff_layout_write_release,
 };
 
 static const struct rpc_call_ops ff_layout_commit_call_ops_v3 = {
 	.rpc_call_prepare = ff_layout_commit_prepare_v3,
 	.rpc_call_done = ff_layout_commit_done,
 	.rpc_count_stats = ff_layout_commit_count_stats,
-	.rpc_release = pnfs_generic_commit_release,
+	.rpc_release = ff_layout_commit_release,
 };
 
 static const struct rpc_call_ops ff_layout_commit_call_ops_v4 = {
 	.rpc_call_prepare = ff_layout_commit_prepare_v4,
 	.rpc_call_done = ff_layout_commit_done,
 	.rpc_count_stats = ff_layout_commit_count_stats,
-	.rpc_release = pnfs_generic_commit_release,
+	.rpc_release = ff_layout_commit_release,
 };
 
 static enum pnfs_try_status
