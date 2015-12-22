@@ -180,6 +180,7 @@ described under the RS1 memory mapping.
 Required properties (in root node):
 	compatible = "arm,juno";	/* For Juno r0 board */
 	compatible = "arm,juno-r1";	/* For Juno r1 board */
+	compatible = "arm,juno-r2";	/* For Juno r2 board */
 
 Required nodes:
 The description for the board must include:
