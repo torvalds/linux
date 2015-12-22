@@ -1410,6 +1410,8 @@ static enum da7219_micbias_voltage
 	da7219_of_micbias_lvl(struct snd_soc_codec *codec, u32 val)
 {
 	switch (val) {
+	case 1600:
+		return DA7219_MICBIAS_1_6V;
 	case 1800:
 		return DA7219_MICBIAS_1_8V;
 	case 2000:
@@ -1571,6 +1573,7 @@ static void da7219_handle_pdata(struct snd_soc_codec *codec)
 
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
+		case DA7219_MICBIAS_1_6V:
 		case DA7219_MICBIAS_1_8V:
 		case DA7219_MICBIAS_2_0V:
 		case DA7219_MICBIAS_2_2V:
