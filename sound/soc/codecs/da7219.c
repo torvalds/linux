@@ -1074,11 +1074,8 @@ static int da7219_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	u32 freq_ref;
 	u64 frac_div;
 
-	/* Verify 32KHz, 2MHz - 54MHz MCLK provided, and set input divider */
-	if (da7219->mclk_rate == 32768) {
-		indiv_bits = DA7219_PLL_INDIV_2_5_MHZ;
-		indiv = DA7219_PLL_INDIV_2_5_MHZ_VAL;
-	} else if (da7219->mclk_rate < 2000000) {
+	/* Verify 2MHz - 54MHz MCLK provided, and set input divider */
+	if (da7219->mclk_rate < 2000000) {
 		dev_err(codec->dev, "PLL input clock %d below valid range\n",
 			da7219->mclk_rate);
 		return -EINVAL;
@@ -1118,9 +1115,6 @@ static int da7219_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 		break;
 	case DA7219_SYSCLK_PLL_SRM:
 		pll_ctrl |= DA7219_PLL_MODE_SRM;
-		break;
-	case DA7219_SYSCLK_PLL_32KHZ:
-		pll_ctrl |= DA7219_PLL_MODE_32KHZ;
 		break;
 	default:
 		dev_err(codec->dev, "Invalid PLL config\n");
