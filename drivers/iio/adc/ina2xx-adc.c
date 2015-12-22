@@ -400,7 +400,7 @@ static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
 		.sign = 'u', \
 		.realbits = 16, \
 		.storagebits = 16, \
-		.endianness = IIO_LE, \
+		.endianness = IIO_CPU, \
 	} \
 }
 
