@@ -49,6 +49,7 @@ struct sdhci_tegra_soc_data {
 struct sdhci_tegra {
 	const struct sdhci_tegra_soc_data *soc_data;
 	struct gpio_desc *power_gpio;
+	bool ddr_signaling;
 };
 
 static u16 tegra_sdhci_readw(struct sdhci_host *host, int reg)
@@ -143,6 +144,8 @@ static void tegra_sdhci_reset(struct sdhci_host *host, u8 mask)
 	if (soc_data->nvquirks & NVQUIRK_DISABLE_SDR104)
 		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_SDR104;
 	sdhci_writew(host, misc_ctrl, SDHCI_TEGRA_VENDOR_MISC_CTRL);
+
+	tegra_host->ddr_signaling = false;
 }
 
 static void tegra_sdhci_set_bus_width(struct sdhci_host *host, int bus_width)
@@ -164,15 +167,54 @@ static void tegra_sdhci_set_bus_width(struct sdhci_host *host, int bus_width)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
+static void tegra_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = pltfm_host->priv;
+	unsigned long host_clk;
+
+	if (!clock)
+		return;
+
+	host_clk = tegra_host->ddr_signaling ? clock * 2 : clock;
+	clk_set_rate(pltfm_host->clk, host_clk);
+	host->max_clk = clk_get_rate(pltfm_host->clk);
+
+	return sdhci_set_clock(host, clock);
+}
+
+static void tegra_sdhci_set_uhs_signaling(struct sdhci_host *host,
+					  unsigned timing)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = pltfm_host->priv;
+
+	if (timing == MMC_TIMING_UHS_DDR50)
+		tegra_host->ddr_signaling = true;
+
+	return sdhci_set_uhs_signaling(host, timing);
+}
+
+static unsigned int tegra_sdhci_get_max_clock(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+
+	/*
+	 * DDR modes require the host to run at double the card frequency, so
+	 * the maximum rate we can support is half of the module input clock.
+	 */
+	return clk_round_rate(pltfm_host->clk, UINT_MAX) / 2;
+}
+
 static const struct sdhci_ops tegra_sdhci_ops = {
 	.get_ro     = tegra_sdhci_get_ro,
 	.read_w     = tegra_sdhci_readw,
 	.write_l    = tegra_sdhci_writel,
-	.set_clock  = sdhci_set_clock,
+	.set_clock  = tegra_sdhci_set_clock,
 	.set_bus_width = tegra_sdhci_set_bus_width,
 	.reset      = tegra_sdhci_reset,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
-	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.set_uhs_signaling = tegra_sdhci_set_uhs_signaling,
+	.get_max_clock = tegra_sdhci_get_max_clock,
 };
 
 static const struct sdhci_pltfm_data sdhci_tegra20_pdata = {
@@ -197,6 +239,7 @@ static const struct sdhci_pltfm_data sdhci_tegra30_pdata = {
 		  SDHCI_QUIRK_NO_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.ops  = &tegra_sdhci_ops,
 };
 
@@ -212,11 +255,11 @@ static const struct sdhci_ops tegra114_sdhci_ops = {
 	.read_w     = tegra_sdhci_readw,
 	.write_w    = tegra_sdhci_writew,
 	.write_l    = tegra_sdhci_writel,
-	.set_clock  = sdhci_set_clock,
+	.set_clock  = tegra_sdhci_set_clock,
 	.set_bus_width = tegra_sdhci_set_bus_width,
 	.reset      = tegra_sdhci_reset,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
-	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.set_uhs_signaling = tegra_sdhci_set_uhs_signaling,
+	.get_max_clock = tegra_sdhci_get_max_clock,
 };
 
 static const struct sdhci_pltfm_data sdhci_tegra114_pdata = {
@@ -226,6 +269,7 @@ static const struct sdhci_pltfm_data sdhci_tegra114_pdata = {
 		  SDHCI_QUIRK_NO_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.ops  = &tegra114_sdhci_ops,
 };
 
@@ -241,7 +285,9 @@ static const struct sdhci_pltfm_data sdhci_tegra210_pdata = {
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
 		  SDHCI_QUIRK_NO_HISPD_BIT |
-		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
+		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
+		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.ops  = &tegra114_sdhci_ops,
 };
 
@@ -288,6 +334,7 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 		rc = -ENOMEM;
 		goto err_alloc_tegra_host;
 	}
+	tegra_host->ddr_signaling = false;
 	tegra_host->soc_data = soc_data;
 	pltfm_host->priv = tegra_host;
 
