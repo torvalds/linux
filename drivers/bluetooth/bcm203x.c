@@ -178,10 +178,8 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		return -ENODEV;
 
 	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		BT_ERR("Can't allocate memory for data structure");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->udev  = udev;
 	data->state = BCM203X_LOAD_MINIDRV;
