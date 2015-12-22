@@ -72,18 +72,26 @@ int cmdline_find_option_bool(const char *cmdline, const char *option)
 				 */
 				if (!c || myisspace(c))
 					return wstart;
-				else
-					state = st_wordskip;
+				/*
+				 * We hit the end of the option, but _not_
+				 * the end of a word on the cmdline.  Not
+				 * a match.
+				 */
 			} else if (!c) {
 				/*
 				 * Hit the NULL terminator on the end of
 				 * cmdline.
 				 */
 				return 0;
-			} else if (c != *opptr++) {
-				state = st_wordskip;
+			} else if (c == *opptr++) {
+				/*
+				 * We are currently matching, so continue
+				 * to the next character on the cmdline.
+				 */
+				break;
 			}
-			break;
+			state = st_wordskip;
+			/* fall through */
 
 		case st_wordskip:
 			if (!c)
