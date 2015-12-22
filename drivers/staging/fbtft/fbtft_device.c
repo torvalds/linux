@@ -1312,7 +1312,7 @@ Device 'xxx' does not have a release() function, it is broken and must be fixed
 
 static int spi_device_found(struct device *dev, void *data)
 {
-	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct spi_device *spi = to_spi_device(dev);
 
 	dev_info(dev, "%s %s %dkHz %d bits mode=0x%02X\n", spi->modalias,
 		 dev_name(dev), spi->max_speed_hz / 1000, spi->bits_per_word,
