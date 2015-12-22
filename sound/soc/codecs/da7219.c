@@ -968,9 +968,10 @@ static const struct snd_soc_dapm_route da7219_audio_map[] = {
 	{"Mixin PGA", NULL, "Mic PGA"},
 	{"ADC", NULL, "Mixin PGA"},
 
-	{"Sidetone Filter", NULL, "ADC"},
 	{"Mixer In", NULL, "Mixer In Supply"},
 	{"Mixer In", "Mic Switch", "ADC"},
+
+	{"Sidetone Filter", NULL, "Mixer In"},
 
 	{"Tone Generator", NULL, "TONE"},
 
