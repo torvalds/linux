@@ -104,8 +104,8 @@
  * The default .clkctrl_offs field is offset from CM_DEFAULT, that's
  * TRM 18.7.6 CM_DEFAULT device register values minus 0x500
  */
-#define DM816X_CM_DEFAULT_OFFSET	0x500
-#define DM816X_CM_DEFAULT_USB_CLKCTRL	(0x558 - DM816X_CM_DEFAULT_OFFSET)
+#define DM81XX_CM_DEFAULT_OFFSET	0x500
+#define DM81XX_CM_DEFAULT_USB_CLKCTRL	(0x558 - DM81XX_CM_DEFAULT_OFFSET)
 
 /* L3 Interconnect entries clocked at 125, 250 and 500MHz */
 static struct omap_hwmod dm81xx_alwon_l3_slow_hwmod = {
@@ -555,22 +555,42 @@ static struct omap_hwmod_class dm81xx_usbotg_class = {
 	.sysc = &dm81xx_usbhsotg_sysc,
 };
 
-static struct omap_hwmod dm81xx_usbss_hwmod = {
+static struct omap_hwmod dm814x_usbss_hwmod = {
 	.name		= "usb_otg_hs",
 	.clkdm_name	= "default_l3_slow_clkdm",
-	.main_clk	= "sysclk6_ck",
+	.main_clk	= "pll260dcoclkldo",	/* 481c5260.adpll.dcoclkldo */
 	.prcm		= {
 		.omap4 = {
-			.clkctrl_offs = DM816X_CM_DEFAULT_USB_CLKCTRL,
+			.clkctrl_offs = DM81XX_CM_DEFAULT_USB_CLKCTRL,
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
 	.class		= &dm81xx_usbotg_class,
 };
 
-static struct omap_hwmod_ocp_if dm81xx_default_l3_slow__usbss = {
+static struct omap_hwmod_ocp_if dm814x_default_l3_slow__usbss = {
 	.master		= &dm81xx_default_l3_slow_hwmod,
-	.slave		= &dm81xx_usbss_hwmod,
+	.slave		= &dm814x_usbss_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod dm816x_usbss_hwmod = {
+	.name		= "usb_otg_hs",
+	.clkdm_name	= "default_l3_slow_clkdm",
+	.main_clk	= "sysclk6_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM81XX_CM_DEFAULT_USB_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.class		= &dm81xx_usbotg_class,
+};
+
+static struct omap_hwmod_ocp_if dm816x_default_l3_slow__usbss = {
+	.master		= &dm81xx_default_l3_slow_hwmod,
+	.slave		= &dm816x_usbss_hwmod,
 	.clk		= "sysclk6_ck",
 	.user		= OCP_USER_MPU,
 };
@@ -1334,8 +1354,6 @@ static struct omap_hwmod_ocp_if dm81xx_tptc3__alwon_l3_fast = {
  * dm81xx_l4_ls__gpio1
  * dm81xx_l4_ls__gpio2
  * dm81xx_l4_ls__mailbox
- * dm81xx_alwon_l3_slow__gpmc
- * dm81xx_default_l3_slow__usbss
  *
  * Also note that some devices share a single clkctrl_offs..
  * For example, i2c1 and 3 share one, and i2c2 and 4 share one.
@@ -1368,6 +1386,8 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm814x_l4_ls__timer2,
 	&dm814x_l4_hs__cpgmac0,
 	&dm814x_cpgmac0__mdio,
+	&dm81xx_alwon_l3_slow__gpmc,
+	&dm814x_default_l3_slow__usbss,
 	&dm814x_alwon_l3_med__mmc3,
 	NULL,
 };
@@ -1416,7 +1436,7 @@ static struct omap_hwmod_ocp_if *dm816x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_tptc2__alwon_l3_fast,
 	&dm81xx_tptc3__alwon_l3_fast,
 	&dm81xx_alwon_l3_slow__gpmc,
-	&dm81xx_default_l3_slow__usbss,
+	&dm816x_default_l3_slow__usbss,
 	NULL,
 };
 
