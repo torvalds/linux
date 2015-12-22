@@ -257,9 +257,8 @@ start_copy:
 
 	copied = to_copy - not_copied;
 
-	if (count < mbo->processed_length) {
-		channel->mbo_offs = copied;
-	} else {
+	channel->mbo_offs += copied;
+	if (channel->mbo_offs >= mbo->processed_length) {
 		most_put_mbo(mbo);
 		channel->mbo_offs = 0;
 		channel->stacked_mbo = NULL;
