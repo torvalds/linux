@@ -762,7 +762,7 @@ struct f2fs_sb_info {
 	struct rw_semaphore extent_tree_lock;	/* locking extent radix tree */
 	struct list_head extent_list;		/* lru list for shrinker */
 	spinlock_t extent_lock;			/* locking extent lru list */
-	int total_ext_tree;			/* extent tree count */
+	atomic_t total_ext_tree;		/* extent tree count */
 	atomic_t total_ext_node;		/* extent info count */
 
 	/* basic filesystem units */

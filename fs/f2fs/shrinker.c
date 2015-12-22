@@ -32,7 +32,8 @@ static unsigned long __count_free_nids(struct f2fs_sb_info *sbi)
 
 static unsigned long __count_extent_cache(struct f2fs_sb_info *sbi)
 {
-	return sbi->total_ext_tree + atomic_read(&sbi->total_ext_node);
+	return atomic_read(&sbi->total_ext_tree) +
+				atomic_read(&sbi->total_ext_node);
 }
 
 unsigned long f2fs_shrink_count(struct shrinker *shrink,
