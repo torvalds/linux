@@ -728,7 +728,8 @@ static const struct snd_soc_dapm_widget sun4i_codec_card_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route sun4i_codec_card_dapm_routes[] = {
-	{ "Speaker", NULL, "Power Amplifier" },
+	{ "Speaker", NULL, "HP Right" },
+	{ "Speaker", NULL, "HP Left" },
 };
 
 static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
