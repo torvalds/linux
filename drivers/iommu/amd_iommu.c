@@ -1633,8 +1633,7 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 		return;
 #endif
 
-	if (amd_iommu_unmap_flush ||
-	    (address + pages > range->next_bit)) {
+	if (amd_iommu_unmap_flush) {
 		domain_flush_tlb(&dom->domain);
 		domain_flush_complete(&dom->domain);
 	}
@@ -1642,6 +1641,8 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
 
 	spin_lock_irqsave(&range->bitmap_lock, flags);
+	if (address + pages > range->next_bit)
+		range->next_bit = address + pages;
 	bitmap_clear(range->bitmap, address, pages);
 	spin_unlock_irqrestore(&range->bitmap_lock, flags);
 
