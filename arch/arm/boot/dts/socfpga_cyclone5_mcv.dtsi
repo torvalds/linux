@@ -18,16 +18,17 @@
 #include "socfpga_cyclone5.dtsi"
 
 / {
-       model = "DENX MCV";
-       compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	model = "DENX MCV";
+	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
-       memory {
-               name = "memory";
-               device_type = "memory";
-               reg = <0x0 0x40000000>; /* 1 GiB */
-       };
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x0 0x40000000>; /* 1 GiB */
+	};
 };
 
-&mmc0 {        /* On-SoM eMMC */
-       bus-width = <8>;
+&mmc0 {	/* On-SoM eMMC */
+	bus-width = <8>;
+	status = "okay";
 };
