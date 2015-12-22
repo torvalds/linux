@@ -88,10 +88,23 @@
 #define CM_HSMDIV		0x08c
 #define CM_OTPCTL		0x090
 #define CM_OTPDIV		0x094
+#define CM_PCMCTL		0x098
+#define CM_PCMDIV		0x09c
 #define CM_PWMCTL		0x0a0
 #define CM_PWMDIV		0x0a4
+#define CM_SLIMCTL		0x0a8
+#define CM_SLIMDIV		0x0ac
 #define CM_SMICTL		0x0b0
 #define CM_SMIDIV		0x0b4
+/* no definition for 0x0b8  and 0x0bc */
+#define CM_TCNTCTL		0x0c0
+#define CM_TCNTDIV		0x0c4
+#define CM_TECCTL		0x0c8
+#define CM_TECDIV		0x0cc
+#define CM_TD0CTL		0x0d0
+#define CM_TD0DIV		0x0d4
+#define CM_TD1CTL		0x0d8
+#define CM_TD1DIV		0x0dc
 #define CM_TSENSCTL		0x0e0
 #define CM_TSENSDIV		0x0e4
 #define CM_TIMERCTL		0x0e8
