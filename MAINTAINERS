@@ -1401,11 +1401,13 @@ S:	Maintained
 
 ARM/QUALCOMM SUPPORT
 M:	Kumar Gala <galak@codeaurora.org>
-M:	Andy Gross <agross@codeaurora.org>
-M:	David Brown <davidb@codeaurora.org>
+M:	Andy Gross <andy.gross@linaro.org>
+M:	David Brown <david.brown@linaro.org>
 L:	linux-arm-msm@vger.kernel.org
 L:	linux-soc@vger.kernel.org
 S:	Maintained
+F:	arch/arm/boot/dts/qcom-*.dts
+F:	arch/arm/boot/dts/qcom-*.dtsi
 F:	arch/arm/mach-qcom/
 F:	drivers/soc/qcom/
 F:	drivers/tty/serial/msm_serial.h
@@ -1413,7 +1415,7 @@ F:	drivers/tty/serial/msm_serial.c
 F:	drivers/*/pm8???-*
 F:	drivers/mfd/ssbi.c
 F:	drivers/firmware/qcom_scm.c
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/galak/linux-qcom.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux.git
 
 ARM/RADISYS ENP2611 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
