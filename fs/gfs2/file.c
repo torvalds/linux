@@ -1027,7 +1027,10 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 		if (fl_gh->gh_state == state)
 			goto out;
 		locks_lock_file_wait(file,
-				     &(struct file_lock){.fl_type = F_UNLCK});
+				     &(struct file_lock) {
+					     .fl_type = F_UNLCK,
+					     .fl_flags = FL_FLOCK
+				     });
 		gfs2_glock_dq(fl_gh);
 		gfs2_holder_reinit(state, flags, fl_gh);
 	} else {
