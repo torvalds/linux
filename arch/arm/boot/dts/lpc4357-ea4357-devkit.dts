@@ -467,6 +467,11 @@
 	pinctrl-0 = <&i2c0_pins>;
 	clock-frequency = <400000>;
 
+	mma7455@1d {
+		compatible = "fsl,mma7455";
+		reg = <0x1d>;
+	};
+
 	lm75@48 {
 		compatible = "nxp,lm75";
 		reg = <0x48>;
