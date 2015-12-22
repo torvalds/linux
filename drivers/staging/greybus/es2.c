@@ -135,12 +135,12 @@ struct cport_to_ep {
 };
 
 struct es2_ap_csi_config_request {
-	u8 csi_id;
-	u8 clock_mode;
-	u8 num_lanes;
-	u8 padding;
+	__u8 csi_id;
+	__u8 clock_mode;
+	__u8 num_lanes;
+	__u8 padding;
 	__le32 bus_freq;
-} __attribute__((__packed__));
+} __packed;
 
 static inline struct es2_ap_dev *hd_to_es2(struct gb_host_device *hd)
 {
