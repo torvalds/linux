@@ -365,10 +365,9 @@ static ssize_t orangefs_debug_write(struct file *file,
 		count = ORANGEFS_MAX_DEBUG_STRING_LEN + 1;
 	}
 
-	buf = kmalloc(ORANGEFS_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
+	buf = kzalloc(ORANGEFS_MAX_DEBUG_STRING_LEN, GFP_KERNEL);
 	if (!buf)
 		goto out;
-	memset(buf, 0, ORANGEFS_MAX_DEBUG_STRING_LEN);
 
 	if (copy_from_user(buf, ubuf, count - 1)) {
 		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
