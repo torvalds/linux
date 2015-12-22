@@ -3346,9 +3346,9 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 	return result;
 }
 
-s32 wilc_set_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress)
+int wilc_set_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 
 	PRINT_D(GENERIC_DBG, "mac addr = %x:%x:%x\n", pu8MacAddress[0], pu8MacAddress[1], pu8MacAddress[2]);
