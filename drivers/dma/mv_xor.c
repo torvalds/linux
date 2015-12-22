@@ -139,44 +139,9 @@ static void mv_chan_clear_err_status(struct mv_xor_chan *chan)
 }
 
 static void mv_chan_set_mode(struct mv_xor_chan *chan,
-			     enum dma_transaction_type type)
+			     u32 op_mode)
 {
-	u32 op_mode;
 	u32 config = readl_relaxed(XOR_CONFIG(chan));
-
-	switch (type) {
-	case DMA_XOR:
-		op_mode = XOR_OPERATION_MODE_XOR;
-		break;
-	case DMA_MEMCPY:
-		op_mode = XOR_OPERATION_MODE_MEMCPY;
-		break;
-	default:
-		dev_err(mv_chan_to_devp(chan),
-			"error: unsupported operation %d\n",
-			type);
-		BUG();
-		return;
-	}
-
-	config &= ~0x7;
-	config |= op_mode;
-
-#if defined(__BIG_ENDIAN)
-	config |= XOR_DESCRIPTOR_SWAP;
-#else
-	config &= ~XOR_DESCRIPTOR_SWAP;
-#endif
-
-	writel_relaxed(config, XOR_CONFIG(chan));
-}
-
-static void mv_chan_set_mode_to_desc(struct mv_xor_chan *chan)
-{
-	u32 op_mode;
-	u32 config = readl_relaxed(XOR_CONFIG(chan));
-
-	op_mode = XOR_OPERATION_MODE_IN_DESC;
 
 	config &= ~0x7;
 	config |= op_mode;
@@ -1042,9 +1007,9 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	mv_chan_unmask_interrupts(mv_chan);
 
 	if (mv_chan->op_in_desc == XOR_MODE_IN_DESC)
-		mv_chan_set_mode_to_desc(mv_chan);
+		mv_chan_set_mode(mv_chan, XOR_OPERATION_MODE_IN_DESC);
 	else
-		mv_chan_set_mode(mv_chan, DMA_XOR);
+		mv_chan_set_mode(mv_chan, XOR_OPERATION_MODE_XOR);
 
 	spin_lock_init(&mv_chan->lock);
 	INIT_LIST_HEAD(&mv_chan->chain);
