@@ -1203,7 +1203,8 @@ static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 	 * extra usb_request ourselves so that it gets handled the same way as
 	 * any other request.
 	 */
-	if (ret == 0 && request->zero && (request->length % ep->maxpacket == 0))
+	if (ret == 0 && request->zero && request->length &&
+	    (request->length % ep->maxpacket == 0))
 		ret = __dwc3_gadget_ep_queue_zlp(dwc, dep);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
