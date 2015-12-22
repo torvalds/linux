@@ -248,7 +248,7 @@ static inline int tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 
 	eth_hdr_ptr = &buffer[0];
 	h_proto = ntohs(*((unsigned short *)&eth_hdr_ptr[12]));
-	if (h_proto == 0x0800) {
+	if (h_proto == ETH_P_IP) {
 		u8 *ip_hdr_ptr;
 		u8 protocol;
 
