@@ -67,6 +67,11 @@ static const struct pci_device_id intel_th_pci_id_table[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xa126),
 		.driver_data = (kernel_ulong_t)0,
 	},
+	{
+		/* Apollo Lake */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x5a8e),
+		.driver_data = (kernel_ulong_t)0,
+	},
 	{ 0 },
 };
 
