@@ -140,7 +140,7 @@ bool dim2_sysfs_get_state_cb(void)
  */
 u32 dimcb_io_read(u32 *ptr32)
 {
-	return __raw_readl(ptr32);
+	return readl(ptr32);
 }
 
 /**
@@ -150,7 +150,7 @@ u32 dimcb_io_read(u32 *ptr32)
  */
 void dimcb_io_write(u32 *ptr32, u32 value)
 {
-	__raw_writel(value, ptr32);
+	writel(value, ptr32);
 }
 
 /**
