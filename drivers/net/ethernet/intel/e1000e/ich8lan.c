@@ -1328,6 +1328,8 @@ static s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 		     I218_ULP_CONFIG1_RESET_TO_SMBUS |
 		     I218_ULP_CONFIG1_WOL_HOST |
 		     I218_ULP_CONFIG1_INBAND_EXIT |
+		     I218_ULP_CONFIG1_EN_ULP_LANPHYPC |
+		     I218_ULP_CONFIG1_DIS_CLR_STICKY_ON_PERST |
 		     I218_ULP_CONFIG1_DISABLE_SMB_PERST);
 	e1000_write_phy_reg_hv_locked(hw, I218_ULP_CONFIG1, phy_reg);
 

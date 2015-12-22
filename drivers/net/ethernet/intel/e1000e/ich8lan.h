@@ -188,6 +188,10 @@
 #define I218_ULP_CONFIG1_INBAND_EXIT	0x0020	/* Inband on ULP exit */
 #define I218_ULP_CONFIG1_WOL_HOST	0x0040	/* WoL Host on ULP exit */
 #define I218_ULP_CONFIG1_RESET_TO_SMBUS	0x0100	/* Reset to SMBus mode */
+/* enable ULP even if when phy powered down via lanphypc */
+#define I218_ULP_CONFIG1_EN_ULP_LANPHYPC	0x0400
+/* disable clear of sticky ULP on PERST */
+#define I218_ULP_CONFIG1_DIS_CLR_STICKY_ON_PERST	0x0800
 #define I218_ULP_CONFIG1_DISABLE_SMB_PERST	0x1000	/* Disable on PERST# */
 
 /* SMBus Address Phy Register */
