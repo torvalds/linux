@@ -92,7 +92,7 @@ static int snd_soc_ac97_gpio_get(struct gpio_chip *chip, unsigned offset)
 	dev_dbg(codec->dev, "get gpio %d : %d\n", offset,
 		ret < 0 ? ret : ret & (1 << offset));
 
-	return ret < 0 ? ret : ret & (1 << offset);
+	return ret < 0 ? ret : !!(ret & (1 << offset));
 }
 
 static void snd_soc_ac97_gpio_set(struct gpio_chip *chip, unsigned offset,
