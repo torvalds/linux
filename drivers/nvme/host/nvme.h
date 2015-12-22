@@ -102,6 +102,9 @@ struct nvme_ns {
 	struct gendisk *disk;
 	struct kref kref;
 
+	u8 eui[8];
+	u8 uuid[16];
+
 	unsigned ns_id;
 	int lba_shift;
 	u16 ms;
