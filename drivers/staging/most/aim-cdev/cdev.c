@@ -39,7 +39,7 @@ struct aim_channel {
 	struct most_channel_config *cfg;
 	unsigned int channel_id;
 	dev_t devno;
-	unsigned int mbo_offs;
+	size_t mbo_offs;
 	struct mbo *stacked_mbo;
 	DECLARE_KFIFO_PTR(fifo, typeof(struct mbo *));
 	atomic_t access_ref;
@@ -221,8 +221,7 @@ error:
 static ssize_t
 aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 {
-	ssize_t copied;
-	size_t to_copy, not_copied;
+	size_t to_copy, not_copied, copied;
 	struct mbo *mbo;
 	struct aim_channel *channel = filp->private_data;
 
@@ -247,8 +246,7 @@ start_copy:
 		return -EIO;
 	}
 
-	to_copy = min((int)count,
-		      (int)(mbo->processed_length - channel->mbo_offs));
+	to_copy = min(count, (size_t)mbo->processed_length - channel->mbo_offs);
 
 	not_copied = copy_to_user(buf,
 				  mbo->virt_address + channel->mbo_offs,
