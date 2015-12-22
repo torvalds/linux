@@ -795,7 +795,7 @@ static ssize_t path_info_show(struct device *dev,
 		if (hdev->external ||
 			hdev->devtype == TYPE_RAID ||
 			is_logical_device(hdev)) {
-			output_len += snprintf(buf + output_len,
+			output_len += scnprintf(buf + output_len,
 						PAGE_SIZE - output_len,
 						"%s\n", active);
 			continue;
@@ -809,28 +809,28 @@ static ssize_t path_info_show(struct device *dev,
 		if (phys_connector[1] < '0')
 			phys_connector[1] = '0';
 		if (hdev->phys_connector[i] > 0)
-			output_len += snprintf(buf + output_len,
+			output_len += scnprintf(buf + output_len,
 				PAGE_SIZE - output_len,
 				"PORT: %.2s ",
 				phys_connector);
 		if (hdev->devtype == TYPE_DISK && hdev->expose_device) {
 			if (box == 0 || box == 0xFF) {
-				output_len += snprintf(buf + output_len,
+				output_len += scnprintf(buf + output_len,
 					PAGE_SIZE - output_len,
 					"BAY: %hhu %s\n",
 					bay, active);
 			} else {
-				output_len += snprintf(buf + output_len,
+				output_len += scnprintf(buf + output_len,
 					PAGE_SIZE - output_len,
 					"BOX: %hhu BAY: %hhu %s\n",
 					box, bay, active);
 			}
 		} else if (box != 0 && box != 0xFF) {
-			output_len += snprintf(buf + output_len,
+			output_len += scnprintf(buf + output_len,
 				PAGE_SIZE - output_len, "BOX: %hhu %s\n",
 				box, active);
 		} else
-			output_len += snprintf(buf + output_len,
+			output_len += scnprintf(buf + output_len,
 				PAGE_SIZE - output_len, "%s\n", active);
 	}
 
