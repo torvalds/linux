@@ -55,6 +55,8 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		mshc0 = &emmc;
+		mshc1 = &sdmmc;
+		mshc2 = &sdio;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -181,6 +183,30 @@
 		clocks = <&cru HCLK_OTG1>;
 		clock-names = "otg";
 		dr_mode = "host";
+		status = "disabled";
+	};
+
+	sdmmc: dwmmc@10214000 {
+		compatible = "rockchip,rk3036-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x10214000 0x4000>;
+		clock-frequency = <37500000>;
+		clock-freq-min-max = <400000 37500000>;
+		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
+		clock-names = "biu", "ciu";
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	sdio: dwmmc@10218000 {
+		compatible = "rockchip,rk3036-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x10218000 0x4000>;
+		clock-freq-min-max = <400000 37500000>;
+		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
+			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu_drv", "ciu_sample";
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
@@ -427,12 +453,8 @@
 			#interrupt-cells = <2>;
 		};
 
-		pcfg_pull_up: pcfg-pull-up {
-			bias-pull-up;
-		};
-
-		pcfg_pull_down: pcfg-pull-down {
-			bias-pull-down;
+		pcfg_pull_default: pcfg_pull_default {
+			bias-pull-pin-default;
 		};
 
 		pcfg_pull_none: pcfg-pull-none {
@@ -463,6 +485,52 @@
 			};
 		};
 
+		sdmmc {
+			sdmmc_clk: sdmmc-clk {
+				rockchip,pins = <1 16 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			sdmmc_cmd: sdmmc-cmd {
+				rockchip,pins = <1 15 RK_FUNC_1 &pcfg_pull_default>;
+			};
+
+			sdmmc_cd: sdmcc-cd {
+				rockchip,pins = <1 17 RK_FUNC_1 &pcfg_pull_default>;
+			};
+
+			sdmmc_bus1: sdmmc-bus1 {
+				rockchip,pins = <1 18 RK_FUNC_1 &pcfg_pull_default>;
+			};
+
+			sdmmc_bus4: sdmmc-bus4 {
+				rockchip,pins = <1 18 RK_FUNC_1 &pcfg_pull_default>,
+						<1 19 RK_FUNC_1 &pcfg_pull_default>,
+						<1 20 RK_FUNC_1 &pcfg_pull_default>,
+						<1 21 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
+
+		sdio {
+			sdio_bus1: sdio-bus1 {
+				rockchip,pins = <0 11 RK_FUNC_1 &pcfg_pull_default>;
+			};
+
+			sdio_bus4: sdio-bus4 {
+				rockchip,pins = <0 11 RK_FUNC_1 &pcfg_pull_default>,
+						<0 12 RK_FUNC_1 &pcfg_pull_default>,
+						<0 13 RK_FUNC_1 &pcfg_pull_default>,
+						<0 14 RK_FUNC_1 &pcfg_pull_default>;
+			};
+
+			sdio_cmd: sdio-cmd {
+				rockchip,pins = <0 8 RK_FUNC_1 &pcfg_pull_default>;
+			};
+
+			sdio_clk: sdio-clk {
+				rockchip,pins = <0 9 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
 		emmc {
 			/*
 			 * We run eMMC at max speed; bump up drive strength.
@@ -473,18 +541,18 @@
 			};
 
 			emmc_cmd: emmc-cmd {
-				rockchip,pins = <2 1 RK_FUNC_2 &pcfg_pull_none>;
+				rockchip,pins = <2 1 RK_FUNC_2 &pcfg_pull_default>;
 			};
 
 			emmc_bus8: emmc-bus8 {
-				rockchip,pins = <1 24 RK_FUNC_2 &pcfg_pull_none>,
-						<1 25 RK_FUNC_2 &pcfg_pull_none>,
-						<1 26 RK_FUNC_2 &pcfg_pull_none>,
-						<1 27 RK_FUNC_2 &pcfg_pull_none>,
-						<1 28 RK_FUNC_2 &pcfg_pull_none>,
-						<1 29 RK_FUNC_2 &pcfg_pull_none>,
-						<1 30 RK_FUNC_2 &pcfg_pull_none>,
-						<1 31 RK_FUNC_2 &pcfg_pull_none>;
+				rockchip,pins = <1 24 RK_FUNC_2 &pcfg_pull_default>,
+						<1 25 RK_FUNC_2 &pcfg_pull_default>,
+						<1 26 RK_FUNC_2 &pcfg_pull_default>,
+						<1 27 RK_FUNC_2 &pcfg_pull_default>,
+						<1 28 RK_FUNC_2 &pcfg_pull_default>,
+						<1 29 RK_FUNC_2 &pcfg_pull_default>,
+						<1 30 RK_FUNC_2 &pcfg_pull_default>,
+						<1 31 RK_FUNC_2 &pcfg_pull_default>;
 			};
 		};
 
@@ -522,12 +590,12 @@
 
 		uart0 {
 			uart0_xfer: uart0-xfer {
-				rockchip,pins = <0 16 RK_FUNC_1 &pcfg_pull_up>,
+				rockchip,pins = <0 16 RK_FUNC_1 &pcfg_pull_default>,
 						<0 17 RK_FUNC_1 &pcfg_pull_none>;
 			};
 
 			uart0_cts: uart0-cts {
-				rockchip,pins = <0 18 RK_FUNC_1 &pcfg_pull_up>;
+				rockchip,pins = <0 18 RK_FUNC_1 &pcfg_pull_default>;
 			};
 
 			uart0_rts: uart0-rts {
@@ -537,7 +605,7 @@
 
 		uart1 {
 			uart1_xfer: uart1-xfer {
-				rockchip,pins = <2 22 RK_FUNC_1 &pcfg_pull_none>,
+				rockchip,pins = <2 22 RK_FUNC_1 &pcfg_pull_default>,
 						<2 23 RK_FUNC_1 &pcfg_pull_none>;
 			};
 			/* no rts / cts for uart1 */
@@ -545,7 +613,7 @@
 
 		uart2 {
 			uart2_xfer: uart2-xfer {
-				rockchip,pins = <1 18 RK_FUNC_2 &pcfg_pull_none>,
+				rockchip,pins = <1 18 RK_FUNC_2 &pcfg_pull_default>,
 						<1 19 RK_FUNC_2 &pcfg_pull_none>;
 			};
 			/* no rts / cts for uart2 */

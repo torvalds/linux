@@ -901,6 +901,19 @@
 		interrupts = <GIC_PPI 9 0xf04>;
 	};
 
+	efuse: efuse@ffb40000 {
+		compatible = "rockchip,rockchip-efuse";
+		reg = <0xffb40000 0x20>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru PCLK_EFUSE256>;
+		clock-names = "pclk_efuse";
+
+		cpu_leakage: cpu_leakage@17 {
+			reg = <0x17 0x1>;
+		};
+	};
+
 	usbphy: phy {
 		compatible = "rockchip,rk3288-usb-phy";
 		rockchip,grf = <&grf>;
@@ -1159,7 +1172,7 @@
 				rockchip,pins = <6 21 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
-			sdmmc_cd: sdmcc-cd {
+			sdmmc_cd: sdmmc-cd {
 				rockchip,pins = <6 22 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
