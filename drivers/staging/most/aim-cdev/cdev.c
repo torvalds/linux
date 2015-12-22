@@ -254,7 +254,7 @@ start_copy:
 				  mbo->virt_address + channel->mbo_offs,
 				  to_copy);
 
-	copied = not_copied ? to_copy - not_copied : to_copy;
+	copied = to_copy - not_copied;
 
 	if (count < mbo->processed_length) {
 		channel->mbo_offs = copied;
