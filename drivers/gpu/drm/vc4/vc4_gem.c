@@ -71,7 +71,7 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned long irqflags;
 	u32 i;
-	int ret;
+	int ret = 0;
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	kernel_state = vc4->hang_state;
@@ -119,9 +119,11 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 		bo_state[i].size = vc4_bo->base.base.size;
 	}
 
-	ret = copy_to_user((void __user *)(uintptr_t)get_state->bo,
-			   bo_state,
-			   state->bo_count * sizeof(*bo_state));
+	if (copy_to_user((void __user *)(uintptr_t)get_state->bo,
+			 bo_state,
+			 state->bo_count * sizeof(*bo_state)))
+		ret = -EFAULT;
+
 	kfree(bo_state);
 
 err_free:
@@ -143,7 +145,7 @@ vc4_save_hang_state(struct drm_device *dev)
 	unsigned long irqflags;
 	unsigned int i, unref_list_count;
 
-	kernel_state = kcalloc(1, sizeof(*state), GFP_KERNEL);
+	kernel_state = kcalloc(1, sizeof(*kernel_state), GFP_KERNEL);
 	if (!kernel_state)
 		return;
 
@@ -554,34 +556,31 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	exec->shader_state = temp + exec_size;
 	exec->shader_state_size = args->shader_rec_count;
 
-	ret = copy_from_user(bin,
-			     (void __user *)(uintptr_t)args->bin_cl,
-			     args->bin_cl_size);
-	if (ret) {
-		DRM_ERROR("Failed to copy in bin cl\n");
+	if (copy_from_user(bin,
+			   (void __user *)(uintptr_t)args->bin_cl,
+			   args->bin_cl_size)) {
+		ret = -EFAULT;
 		goto fail;
 	}
 
-	ret = copy_from_user(exec->shader_rec_u,
-			     (void __user *)(uintptr_t)args->shader_rec,
-			     args->shader_rec_size);
-	if (ret) {
-		DRM_ERROR("Failed to copy in shader recs\n");
+	if (copy_from_user(exec->shader_rec_u,
+			   (void __user *)(uintptr_t)args->shader_rec,
+			   args->shader_rec_size)) {
+		ret = -EFAULT;
 		goto fail;
 	}
 
-	ret = copy_from_user(exec->uniforms_u,
-			     (void __user *)(uintptr_t)args->uniforms,
-			     args->uniforms_size);
-	if (ret) {
-		DRM_ERROR("Failed to copy in uniforms cl\n");
+	if (copy_from_user(exec->uniforms_u,
+			   (void __user *)(uintptr_t)args->uniforms,
+			   args->uniforms_size)) {
+		ret = -EFAULT;
 		goto fail;
 	}
 
 	bo = vc4_bo_create(dev, exec_size, true);
 	if (!bo) {
 		DRM_ERROR("Couldn't allocate BO for binning\n");
-		ret = PTR_ERR(exec->exec_bo);
+		ret = -ENOMEM;
 		goto fail;
 	}
 	exec->exec_bo = &bo->base;
