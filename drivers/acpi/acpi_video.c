@@ -419,6 +419,13 @@ static int video_enable_only_lcd(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int video_set_report_key_events(const struct dmi_system_id *id)
+{
+	if (report_key_events == -1)
+		report_key_events = (uintptr_t)id->driver_data;
+	return 0;
+}
+
 static struct dmi_system_id video_dmi_table[] = {
 	/*
 	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
@@ -505,6 +512,24 @@ static struct dmi_system_id video_dmi_table[] = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO Mobile M9410"),
+		},
+	},
+	/*
+	 * Some machines report wrong key events on the acpi-bus, suppress
+	 * key event reporting on these.  Note this is only intended to work
+	 * around events which are plain wrong. In some cases we get double
+	 * events, in this case acpi-video is considered the canonical source
+	 * and the events from the other source should be filtered. E.g.
+	 * by calling acpi_video_handles_brightness_key_presses() from the
+	 * vendor acpi/wmi driver or by using /lib/udev/hwdb.d/60-keyboard.hwdb
+	 */
+	{
+	 .callback = video_set_report_key_events,
+	 .driver_data = (void *)((uintptr_t)REPORT_OUTPUT_KEY_EVENTS),
+	 .ident = "Dell Vostro V131",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Vostro V131"),
 		},
 	},
 	{}
