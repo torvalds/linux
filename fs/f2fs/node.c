@@ -542,6 +542,7 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 
 			set_nid(parent, offset[i - 1], nids[i], i == 1);
 			alloc_nid_done(sbi, nids[i]);
+			dn->node_changed = true;
 			done = true;
 		} else if (mode == LOOKUP_NODE_RA && i == level && level > 1) {
 			npage[i] = get_node_page_ra(parent, offset[i - 1]);
@@ -678,6 +679,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 			if (ret < 0)
 				goto out_err;
 			set_nid(page, i, 0, false);
+			dn->node_changed = true;
 		}
 	} else {
 		child_nofs = nofs + ofs * (NIDS_PER_BLOCK + 1) + 1;
@@ -691,6 +693,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 			ret = truncate_nodes(&rdn, child_nofs, 0, depth - 1);
 			if (ret == (NIDS_PER_BLOCK + 1)) {
 				set_nid(page, i, 0, false);
+				dn->node_changed = true;
 				child_nofs += ret;
 			} else if (ret < 0 && ret != -ENOENT) {
 				goto out_err;
@@ -752,6 +755,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		if (err < 0)
 			goto fail;
 		set_nid(pages[idx], i, 0, false);
+		dn->node_changed = true;
 	}
 
 	if (offset[idx + 1] == 0) {
@@ -1153,6 +1157,7 @@ void sync_inode_page(struct dnode_of_data *dn)
 	} else {
 		update_inode_page(dn->inode);
 	}
+	dn->node_changed = true;
 }
 
 int sync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,

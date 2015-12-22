@@ -546,6 +546,7 @@ struct dnode_of_data {
 	nid_t nid;			/* node id of the direct node block */
 	unsigned int ofs_in_node;	/* data offset in the node page */
 	bool inode_page_locked;		/* inode page is locked or not */
+	bool node_changed;		/* is node block changed */
 	block_t	data_blkaddr;		/* block address of the node block */
 };
 
