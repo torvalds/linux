@@ -928,30 +928,36 @@ struct amdgpu_bo_va_mapping *
 amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 		       uint64_t addr, struct amdgpu_bo **bo)
 {
-	struct amdgpu_bo_list_entry *reloc;
 	struct amdgpu_bo_va_mapping *mapping;
+	unsigned i;
+
+	if (!parser->bo_list)
+		return NULL;
 
 	addr /= AMDGPU_GPU_PAGE_SIZE;
 
-	list_for_each_entry(reloc, &parser->validated, tv.head) {
-		if (!reloc->bo_va)
+	for (i = 0; i < parser->bo_list->num_entries; i++) {
+		struct amdgpu_bo_list_entry *lobj;
+
+		lobj = &parser->bo_list->array[i];
+		if (!lobj->bo_va)
 			continue;
 
-		list_for_each_entry(mapping, &reloc->bo_va->valids, list) {
+		list_for_each_entry(mapping, &lobj->bo_va->valids, list) {
 			if (mapping->it.start > addr ||
 			    addr > mapping->it.last)
 				continue;
 
-			*bo = reloc->bo_va->bo;
+			*bo = lobj->bo_va->bo;
 			return mapping;
 		}
 
-		list_for_each_entry(mapping, &reloc->bo_va->invalids, list) {
+		list_for_each_entry(mapping, &lobj->bo_va->invalids, list) {
 			if (mapping->it.start > addr ||
 			    addr > mapping->it.last)
 				continue;
 
-			*bo = reloc->bo_va->bo;
+			*bo = lobj->bo_va->bo;
 			return mapping;
 		}
 	}
