@@ -489,7 +489,18 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 	struct spi_transfer *xfer;
 	u8 rxb, txb;
 	size_t i;
+	int ret;
 
+	/* checks rx_buffer pattern are valid with loopback or without */
+	ret = spi_check_rx_ranges(spi, msg, rx);
+	if (ret)
+		return ret;
+
+	/* if we run without loopback, then return now */
+	if (!loopback)
+		return 0;
+
+	/* if applicable to transfer check that rx_buf is equal to tx_buf */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/* if there is no rx, then no check is needed */
 		if (!xfer->rx_buf)
@@ -521,7 +532,7 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 		}
 	}
 
-	return spi_check_rx_ranges(spi, msg, rx);
+	return 0;
 
 mismatch_error:
 	dev_err(&spi->dev,
@@ -847,10 +858,8 @@ int spi_test_execute_msg(struct spi_device *spi, struct spi_test *test,
 			goto exit;
 		}
 
-		/* run rx-tests when in loopback mode */
-		if (loopback)
-			ret = spi_test_check_loopback_result(spi, msg,
-							     tx, rx);
+		/* run rx-buffer tests */
+		ret = spi_test_check_loopback_result(spi, msg, tx, rx);
 	}
 
 	/* if requested or on error dump message (including data) */
