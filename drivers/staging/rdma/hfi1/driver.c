@@ -368,7 +368,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		if (opcode == IB_OPCODE_CNP) {
 			/*
 			 * Only in pre-B0 h/w is the CNP_OPCODE handled
-			 * via this code path (errata 291394).
+			 * via this code path.
 			 */
 			struct hfi1_qp *qp = NULL;
 			u32 lqpn, rqpn;

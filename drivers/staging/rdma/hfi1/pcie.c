@@ -1063,7 +1063,7 @@ retry:
 	 * PcieCfgRegPl100 - Gen3 Control
 	 *
 	 * turn off PcieCfgRegPl100.Gen3ZRxDcNonCompl
-	 * turn on PcieCfgRegPl100.EqEieosCnt (erratum)
+	 * turn on PcieCfgRegPl100.EqEieosCnt
 	 * Everything else zero.
 	 */
 	reg32 = PCIE_CFG_REG_PL100_EQ_EIEOS_CNT_SMASK;
