@@ -33,24 +33,6 @@
 #include "mmc.h"
 #include "sram.h"
 
-#if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
-
-static struct platform_device omap_pcm = {
-	.name	= "omap-pcm-audio",
-	.id	= -1,
-};
-
-static void omap_init_audio(void)
-{
-	platform_device_register(&omap_pcm);
-}
-
-#else
-static inline void omap_init_audio(void) {}
-#endif
-
-/*-------------------------------------------------------------------------*/
-
 #if defined(CONFIG_RTC_DRV_OMAP) || defined(CONFIG_RTC_DRV_OMAP_MODULE)
 
 #define	OMAP_RTC_BASE		0xfffb4800
@@ -425,7 +407,6 @@ static int __init omap1_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 
-	omap_init_audio();
 	omap_init_mbox();
 	omap_init_rtc();
 	omap_init_spi100k();

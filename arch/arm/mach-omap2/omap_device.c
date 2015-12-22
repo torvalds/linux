@@ -869,7 +869,7 @@ static int __init omap_device_init(void)
 	bus_register_notifier(&platform_bus_type, &platform_nb);
 	return 0;
 }
-omap_core_initcall(omap_device_init);
+omap_postcore_initcall(omap_device_init);
 
 /**
  * omap_device_late_idle - idle devices without drivers
