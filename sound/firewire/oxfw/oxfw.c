@@ -19,6 +19,7 @@
 #define VENDOR_BEHRINGER	0x001564
 #define VENDOR_LACIE		0x00d04b
 #define VENDOR_TASCAM		0x00022e
+#define OUI_STANTON		0x001260
 
 #define MODEL_SATELLITE		0x00200f
 
@@ -29,6 +30,13 @@ MODULE_DESCRIPTION("Oxford Semiconductor FW970/971 driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("snd-firewire-speakers");
+MODULE_ALIAS("snd-scs1x");
+
+struct compat_info {
+	const char *driver_name;
+	const char *vendor_name;
+	const char *model_name;
+};
 
 static bool detect_loud_models(struct fw_unit *unit)
 {
@@ -59,7 +67,7 @@ static bool detect_loud_models(struct fw_unit *unit)
 static int name_card(struct snd_oxfw *oxfw)
 {
 	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
-	const struct device_info *info;
+	const struct compat_info *info;
 	char vendor[24];
 	char model[32];
 	const char *d, *v, *m;
@@ -87,7 +95,7 @@ static int name_card(struct snd_oxfw *oxfw)
 	/* to apply card definitions */
 	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN ||
 	    oxfw->entry->vendor_id == VENDOR_LACIE) {
-		info = (const struct device_info *)oxfw->entry->driver_data;
+		info = (const struct compat_info *)oxfw->entry->driver_data;
 		d = info->driver_name;
 		v = info->vendor_name;
 		m = info->model_name;
@@ -132,6 +140,7 @@ static void oxfw_card_free(struct snd_card *card)
 		kfree(oxfw->rx_stream_formats[i]);
 	}
 
+	kfree(oxfw->spec);
 	mutex_destroy(&oxfw->mutex);
 }
 
@@ -146,11 +155,24 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 	 * Add ALSA control elements for two models to keep compatibility to
 	 * old firewire-speaker module.
 	 */
-	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN ||
-	    oxfw->entry->vendor_id == VENDOR_LACIE) {
-		oxfw->device_info =
-			(const struct device_info *)oxfw->entry->driver_data;
-		return snd_oxfw_add_spkr(oxfw);
+	if (oxfw->entry->vendor_id == VENDOR_GRIFFIN)
+		return snd_oxfw_add_spkr(oxfw, false);
+	if (oxfw->entry->vendor_id == VENDOR_LACIE)
+		return snd_oxfw_add_spkr(oxfw, true);
+
+	/*
+	 * Stanton models supports asynchronous transactions for unique MIDI
+	 * messages.
+	 */
+	if (oxfw->entry->vendor_id == OUI_STANTON) {
+		/* No physical MIDI ports. */
+		oxfw->midi_input_ports = 0;
+		oxfw->midi_output_ports = 0;
+
+		/* Output stream exists but no data channels are useful. */
+		oxfw->has_output = false;
+
+		return snd_oxfw_scs1x_add(oxfw);
 	}
 
 	/*
@@ -211,11 +233,11 @@ static int oxfw_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	err = detect_quirks(oxfw);
+	err = name_card(oxfw);
 	if (err < 0)
 		goto error;
 
-	err = name_card(oxfw);
+	err = detect_quirks(oxfw);
 	if (err < 0)
 		goto error;
 
@@ -270,6 +292,9 @@ static void oxfw_bus_reset(struct fw_unit *unit)
 		snd_oxfw_stream_update_simplex(oxfw, &oxfw->tx_stream);
 
 	mutex_unlock(&oxfw->mutex);
+
+	if (oxfw->entry->vendor_id == OUI_STANTON)
+		snd_oxfw_scs1x_update(oxfw);
 }
 
 static void oxfw_remove(struct fw_unit *unit)
@@ -280,22 +305,16 @@ static void oxfw_remove(struct fw_unit *unit)
 	snd_card_free_when_closed(oxfw->card);
 }
 
-static const struct device_info griffin_firewave = {
+static const struct compat_info griffin_firewave = {
 	.driver_name = "FireWave",
 	.vendor_name = "Griffin",
 	.model_name = "FireWave",
-	.mixer_channels = 6,
-	.mute_fb_id   = 0x01,
-	.volume_fb_id = 0x02,
 };
 
-static const struct device_info lacie_speakers = {
+static const struct compat_info lacie_speakers = {
 	.driver_name = "FWSpeakers",
 	.vendor_name = "LaCie",
 	.model_name = "FireWire Speakers",
-	.mixer_channels = 1,
-	.mute_fb_id   = 0x01,
-	.volume_fb_id = 0x01,
 };
 
 static const struct ieee1394_device_id oxfw_id_table[] = {
@@ -352,6 +371,20 @@ static const struct ieee1394_device_id oxfw_id_table[] = {
 				  IEEE1394_MATCH_MODEL_ID,
 		.vendor_id	= VENDOR_TASCAM,
 		.model_id	= 0x800007,
+	},
+	/* Stanton, Stanton Controllers & Systems 1 Mixer (SCS.1m) */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_STANTON,
+		.model_id	= 0x001000,
+	},
+	/* Stanton, Stanton Controllers & Systems 1 Deck (SCS.1d) */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_STANTON,
+		.model_id	= 0x002000,
 	},
 	{ }
 };
