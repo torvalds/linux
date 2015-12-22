@@ -22,6 +22,7 @@
 #include <sound/asoundef.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
@@ -866,7 +867,10 @@ tda998x_encoder_mode_fixup(struct drm_encoder *encoder,
 static int tda998x_connector_mode_valid(struct drm_connector *connector,
 					struct drm_display_mode *mode)
 {
-	if (mode->clock > 150000)
+	/* TDA19988 dotclock can go up to 165MHz */
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
+
+	if (mode->clock > ((priv->rev == TDA19988) ? 165000 : 150000))
 		return MODE_CLOCK_HIGH;
 	if (mode->htotal >= BIT(13))
 		return MODE_BAD_HVALUE;
@@ -1379,10 +1383,13 @@ static void tda998x_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs tda998x_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = tda998x_connector_detect,
 	.destroy = tda998x_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int tda998x_bind(struct device *dev, struct device *master, void *data)
@@ -1458,6 +1465,7 @@ static void tda998x_unbind(struct device *dev, struct device *master,
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 
+	drm_connector_unregister(&priv->connector);
 	drm_connector_cleanup(&priv->connector);
 	drm_encoder_cleanup(&priv->encoder);
 	tda998x_destroy(priv);
