@@ -128,8 +128,6 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	nid_t ino = 0;
 	int err;
 
-	f2fs_balance_fs(sbi);
-
 	inode = f2fs_new_inode(dir, mode);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
@@ -141,6 +139,8 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	inode->i_fop = &f2fs_file_operations;
 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
 	ino = inode->i_ino;
+
+	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
@@ -288,11 +288,12 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	int err = -ENOENT;
 
 	trace_f2fs_unlink_enter(dir, dentry);
-	f2fs_balance_fs(sbi);
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
 	if (!de)
 		goto fail;
+
+	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
 	err = acquire_orphan_inode(sbi);
@@ -341,8 +342,6 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	if (len > dir->i_sb->s_blocksize)
 		return -ENAMETOOLONG;
 
-	f2fs_balance_fs(sbi);
-
 	inode = f2fs_new_inode(dir, S_IFLNK | S_IRWXUGO);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
@@ -352,6 +351,8 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	else
 		inode->i_op = &f2fs_symlink_inode_operations;
 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
+
+	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
@@ -433,8 +434,6 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	struct inode *inode;
 	int err;
 
-	f2fs_balance_fs(sbi);
-
 	inode = f2fs_new_inode(dir, S_IFDIR | mode);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
@@ -443,6 +442,8 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	inode->i_fop = &f2fs_dir_operations;
 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
 	mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_HIGH_ZERO);
+
+	f2fs_balance_fs(sbi);
 
 	set_inode_flag(F2FS_I(inode), FI_INC_LINK);
 	f2fs_lock_op(sbi);
@@ -481,14 +482,14 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	int err = 0;
 
-	f2fs_balance_fs(sbi);
-
 	inode = f2fs_new_inode(dir, mode);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
 	init_special_inode(inode, inode->i_mode, rdev);
 	inode->i_op = &f2fs_special_inode_operations;
+
+	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
@@ -516,9 +517,6 @@ static int __f2fs_tmpfile(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	int err;
 
-	if (!whiteout)
-		f2fs_balance_fs(sbi);
-
 	inode = f2fs_new_inode(dir, mode);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
@@ -531,6 +529,8 @@ static int __f2fs_tmpfile(struct inode *dir, struct dentry *dentry,
 		inode->i_fop = &f2fs_file_operations;
 		inode->i_mapping->a_ops = &f2fs_dblock_aops;
 	}
+
+	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
 	err = acquire_orphan_inode(sbi);
@@ -604,8 +604,6 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out;
 	}
 
-	f2fs_balance_fs(sbi);
-
 	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_entry)
 		goto out;
@@ -634,6 +632,8 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 						&new_page);
 		if (!new_entry)
 			goto out_whiteout;
+
+		f2fs_balance_fs(sbi);
 
 		f2fs_lock_op(sbi);
 
@@ -666,6 +666,8 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		update_inode_page(old_inode);
 		update_inode_page(new_inode);
 	} else {
+		f2fs_balance_fs(sbi);
+
 		f2fs_lock_op(sbi);
 
 		err = f2fs_add_link(new_dentry, old_inode);
@@ -763,8 +765,6 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 								new_inode)))
 		return -EPERM;
 
-	f2fs_balance_fs(sbi);
-
 	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_entry)
 		goto out;
@@ -806,6 +806,8 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 			(new_nlink > 0 && new_inode->i_nlink >= F2FS_LINK_MAX))
 			goto out_new_dir;
 	}
+
+	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
 
