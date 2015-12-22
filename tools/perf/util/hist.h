@@ -52,6 +52,7 @@ enum hist_column {
 	HISTC_MEM_IADDR_SYMBOL,
 	HISTC_TRANSACTION,
 	HISTC_CYCLES,
+	HISTC_TRACE,
 	HISTC_NR_COLS, /* Last entry */
 };
 

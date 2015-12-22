@@ -183,6 +183,7 @@ enum sort_type {
 	SORT_LOCAL_WEIGHT,
 	SORT_GLOBAL_WEIGHT,
 	SORT_TRANSACTION,
+	SORT_TRACE,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,

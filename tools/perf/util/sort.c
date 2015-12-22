@@ -445,6 +445,65 @@ struct sort_entry sort_socket = {
 	.se_width_idx	= HISTC_SOCKET,
 };
 
+/* --sort trace */
+
+static char *get_trace_output(struct hist_entry *he)
+{
+	struct trace_seq seq;
+	struct perf_evsel *evsel;
+	struct pevent_record rec = {
+		.data = he->raw_data,
+		.size = he->raw_size,
+	};
+
+	evsel = hists_to_evsel(he->hists);
+
+	trace_seq_init(&seq);
+	pevent_event_info(&seq, evsel->tp_format, &rec);
+	return seq.buffer;
+}
+
+static int64_t
+sort__trace_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	struct perf_evsel *evsel;
+
+	evsel = hists_to_evsel(left->hists);
+	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+		return 0;
+
+	if (left->trace_output == NULL)
+		left->trace_output = get_trace_output(left);
+	if (right->trace_output == NULL)
+		right->trace_output = get_trace_output(right);
+
+	hists__new_col_len(left->hists, HISTC_TRACE, strlen(left->trace_output));
+	hists__new_col_len(right->hists, HISTC_TRACE, strlen(right->trace_output));
+
+	return strcmp(right->trace_output, left->trace_output);
+}
+
+static int hist_entry__trace_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	struct perf_evsel *evsel;
+
+	evsel = hists_to_evsel(he->hists);
+	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+		return scnprintf(bf, size, "%-*.*s", width, width, "N/A");
+
+	if (he->trace_output == NULL)
+		he->trace_output = get_trace_output(he);
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->trace_output);
+}
+
+struct sort_entry sort_trace = {
+	.se_header      = "Trace output",
+	.se_cmp	        = sort__trace_cmp,
+	.se_snprintf    = hist_entry__trace_snprintf,
+	.se_width_idx	= HISTC_TRACE,
+};
+
 /* sort keys for branch stacks */
 
 static int64_t
@@ -1314,6 +1373,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_LOCAL_WEIGHT, "local_weight", sort_local_weight),
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
 	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
+	DIM(SORT_TRACE, "trace", sort_trace),
 };
 
 #undef DIM
@@ -1558,22 +1618,6 @@ static int hde_width(struct hpp_dynamic_entry *hde)
 		hde->hpp.len = len;
 	}
 	return hde->hpp.len;
-}
-
-static char *get_trace_output(struct hist_entry *he)
-{
-	struct trace_seq seq;
-	struct perf_evsel *evsel;
-	struct pevent_record rec = {
-		.data = he->raw_data,
-		.size = he->raw_size,
-	};
-
-	evsel = hists_to_evsel(he->hists);
-
-	trace_seq_init(&seq);
-	pevent_event_info(&seq, evsel->tp_format, &rec);
-	return seq.buffer;
 }
 
 static void update_dynamic_len(struct hpp_dynamic_entry *hde,
