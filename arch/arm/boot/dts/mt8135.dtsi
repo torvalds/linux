@@ -15,7 +15,7 @@
 #include <dt-bindings/clock/mt8135-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/reset-controller/mt8135-resets.h>
+#include <dt-bindings/reset/mt8135-resets.h>
 #include "skeleton64.dtsi"
 #include "mt8135-pinfunc.h"
 
