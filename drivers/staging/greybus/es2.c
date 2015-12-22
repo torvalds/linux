@@ -223,36 +223,33 @@ static int unmap_cport(struct es2_ap_dev *es2, u16 cport_id)
 int es2_ap_csi_setup(struct gb_host_device *hd, bool start,
 		     struct es2_ap_csi_config *cfg)
 {
-	struct es2_ap_csi_config_request cfg_req;
+	struct es2_ap_csi_config_request *cfg_req;
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
 	int retval;
 
-	cfg_req.csi_id = cfg->csi_id;
+	cfg_req = kzalloc(sizeof(*cfg_req), GFP_KERNEL);
+	if (!cfg_req)
+		return -ENOMEM;
+
+	cfg_req->csi_id = cfg->csi_id;
 
 	if (start) {
-		cfg_req.clock_mode = cfg->clock_mode;
-		cfg_req.num_lanes = cfg->num_lanes;
-		cfg_req.padding = 0;
-		cfg_req.bus_freq = cpu_to_le32(cfg->bus_freq);
-	} else {
-		cfg_req.clock_mode = 0;
-		cfg_req.num_lanes = 0;
-		cfg_req.padding = 0;
-		cfg_req.bus_freq = 0;
+		cfg_req->clock_mode = cfg->clock_mode;
+		cfg_req->num_lanes = cfg->num_lanes;
+		cfg_req->bus_freq = cpu_to_le32(cfg->bus_freq);
 	}
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 REQUEST_CSI_TX_CONTROL,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, 0, 0, &cfg_req,
-				 sizeof(cfg_req), ES2_TIMEOUT);
-	if (retval < 0) {
+				 USB_RECIP_INTERFACE, 0, 0, cfg_req,
+				 sizeof(*cfg_req), ES2_TIMEOUT);
+	if (retval < 0)
 		dev_err(&udev->dev, "failed to setup csi: %d\n", retval);
-		return retval;
-	}
 
-	return 0;
+	kfree(cfg_req);
+	return retval;
 }
 EXPORT_SYMBOL_GPL(es2_ap_csi_setup);
 
