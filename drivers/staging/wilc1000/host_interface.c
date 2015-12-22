@@ -3292,7 +3292,7 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 }
 
 int wilc_set_pmkid_info(struct wilc_vif *vif,
-			struct host_if_pmkid_attr *pu8PmkidInfoArray)
+			struct host_if_pmkid_attr *pmkid)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3311,11 +3311,11 @@ int wilc_set_pmkid_info(struct wilc_vif *vif,
 	msg.body.key_info.action = ADDKEY;
 	msg.vif = vif;
 
-	for (i = 0; i < pu8PmkidInfoArray->numpmkid; i++) {
+	for (i = 0; i < pmkid->numpmkid; i++) {
 		memcpy(msg.body.key_info.attr.pmkid.pmkidlist[i].bssid,
-		       &pu8PmkidInfoArray->pmkidlist[i].bssid, ETH_ALEN);
+		       &pmkid->pmkidlist[i].bssid, ETH_ALEN);
 		memcpy(msg.body.key_info.attr.pmkid.pmkidlist[i].pmkid,
-		       &pu8PmkidInfoArray->pmkidlist[i].pmkid, PMKID_LEN);
+		       &pmkid->pmkidlist[i].pmkid, PMKID_LEN);
 	}
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));

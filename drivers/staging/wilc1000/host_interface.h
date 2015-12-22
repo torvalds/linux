@@ -322,7 +322,7 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		    const u8 *rx_mic, const u8 *tx_mic, u8 mode,
 		    u8 cipher_mode);
 int wilc_set_pmkid_info(struct wilc_vif *vif,
-			struct host_if_pmkid_attr *pu8PmkidInfoArray);
+			struct host_if_pmkid_attr *pmkid);
 s32 wilc_get_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress);
 s32 wilc_set_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress);
 int wilc_wait_msg_queue_idle(void);
