@@ -996,11 +996,14 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 	else
 		return -ENOSPC;
 
+	*aim_ptr = aim_obj->driver;
 	ret = aim_obj->driver->probe_channel(c->iface, c->channel_id,
 					     &c->cfg, &c->kobj, mdev_devnod);
-	if (ret)
+	if (ret) {
+		*aim_ptr = NULL;
 		return ret;
-	*aim_ptr = aim_obj->driver;
+	}
+
 	return len;
 }
 
