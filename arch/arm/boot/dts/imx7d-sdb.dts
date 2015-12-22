@@ -46,7 +46,14 @@
 		codec-master;
 		/* JD2: hp detect high for headphone*/
 		hp-det = <2 0>;
+		hp-det-gpios = <&gpio2 28 0>;
 		audio-routing =
+			"Headphone Jack", "HP_L",
+			"Headphone Jack", "HP_R",
+			"Ext Spk", "SPK_LP",
+			"Ext Spk", "SPK_LN",
+			"Ext Spk", "SPK_RP",
+			"Ext Spk", "SPK_RN",
 			"LINPUT1", "Main MIC",
 			"Main MIC", "MICB";
 		assigned-clocks = <&clks IMX7D_AUDIO_MCLK_ROOT_SRC>,
@@ -515,6 +522,7 @@
 		pinctrl_hog_1: hoggrp-1 {
 			fsl,pins = <
 				MX7D_PAD_ECSPI2_SS0__GPIO4_IO23	0x80000000  /* bt reg on */
+				MX7D_PAD_EPDC_BDR0__GPIO2_IO28	0x59 /* headphone detect */
 			>;
 		};
 
@@ -989,7 +997,7 @@
 			  <&clks IMX7D_SAI3_ROOT_CLK>;
 	assigned-clock-parents = <&clks IMX7D_PLL_AUDIO_POST_DIV>;
 	assigned-clock-rates = <0>, <36864000>;
-	status = "disabled";
+	status = "okay";
 };
 
 &sdma {

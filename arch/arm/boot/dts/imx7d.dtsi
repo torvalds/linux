@@ -1012,7 +1012,7 @@
 						<&clks IMX7D_CLK_DUMMY>, <&clks IMX7D_CLK_DUMMY>;
 					clock-names = "bus", "mclk1", "mclk2", "mclk3";
 					dma-names = "rx", "tx";
-					dmas = <&sdma 10 25 0>, <&sdma 11 25 0>;
+					dmas = <&sdma 10 24 0>, <&sdma 11 24 0>;
 					status = "disabled";
 				};
 
@@ -1026,7 +1026,7 @@
 						<&clks IMX7D_CLK_DUMMY>, <&clks IMX7D_CLK_DUMMY>;
 					clock-names = "bus", "mclk1", "mclk2", "mclk3";
 					dma-names = "rx", "tx";
-					dmas = <&sdma 12 25 0>, <&sdma 13 25 0>;
+					dmas = <&sdma 12 24 0>, <&sdma 13 24 0>;
 					status = "disabled";
 				};
 			};
