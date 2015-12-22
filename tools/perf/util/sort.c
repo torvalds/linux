@@ -459,7 +459,12 @@ static char *get_trace_output(struct hist_entry *he)
 	evsel = hists_to_evsel(he->hists);
 
 	trace_seq_init(&seq);
-	pevent_event_info(&seq, evsel->tp_format, &rec);
+	if (symbol_conf.raw_trace) {
+		pevent_print_fields(&seq, he->raw_data, he->raw_size,
+				    evsel->tp_format);
+	} else {
+		pevent_event_info(&seq, evsel->tp_format, &rec);
+	}
 	return seq.buffer;
 }
 
@@ -1596,6 +1601,7 @@ struct hpp_dynamic_entry {
 	struct perf_evsel *evsel;
 	struct format_field *field;
 	unsigned dynamic_len;
+	bool raw_trace;
 };
 
 static int hde_width(struct hpp_dynamic_entry *hde)
@@ -1627,6 +1633,9 @@ static void update_dynamic_len(struct hpp_dynamic_entry *hde,
 	struct format_field *field = hde->field;
 	size_t namelen;
 	bool last = false;
+
+	if (hde->raw_trace)
+		return;
 
 	/* parse pretty print result and update max length */
 	if (!he->trace_output)
@@ -1708,8 +1717,10 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	if (hists_to_evsel(he->hists) != hde->evsel)
 		return scnprintf(hpp->buf, hpp->size, "%*.*s", len, len, "N/A");
 
-	field = hde->field;
+	if (hde->raw_trace)
+		goto raw_field;
 
+	field = hde->field;
 	namelen = strlen(field->name);
 	str = he->trace_output;
 
@@ -1738,6 +1749,7 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 
 	if (str == NULL) {
 		struct trace_seq seq;
+raw_field:
 		trace_seq_init(&seq);
 		pevent_print_field(&seq, he->raw_data, hde->field);
 		str = seq.buffer;
@@ -1818,10 +1830,11 @@ __alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field)
 
 static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 {
-	char *str, *event_name, *field_name;
+	char *str, *event_name, *field_name, *raw_opt;
 	struct perf_evsel *evsel, *pos;
 	struct format_field *field;
 	struct hpp_dynamic_entry *hde;
+	bool raw_trace = symbol_conf.raw_trace;
 	int ret = 0;
 
 	if (evlist == NULL)
@@ -1838,6 +1851,18 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 		goto out;
 	}
 	*field_name++ = '\0';
+
+	raw_opt = strchr(field_name, '/');
+	if (raw_opt) {
+		*raw_opt++ = '\0';
+
+		if (strcmp(raw_opt, "raw")) {
+			pr_err("Unsupported field option %s\n", raw_opt);
+			ret = -EINVAL;
+			goto out;
+		}
+		raw_trace = true;
+	}
 
 	evsel = NULL;
 	evlist__for_each(evlist, pos) {
@@ -1872,6 +1897,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 		ret = -ENOMEM;
 		goto out;
 	}
+	hde->raw_trace = raw_trace;
 
 	perf_hpp__register_sort_field(&hde->hpp);
 

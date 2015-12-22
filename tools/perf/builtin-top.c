@@ -1210,6 +1210,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK('j', "branch-filter", &opts->branch_stack,
 		     "branch filter mask", "branch stack filter modes",
 		     parse_branch_stack),
+	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
+		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {

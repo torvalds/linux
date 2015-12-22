@@ -371,6 +371,9 @@ include::itrace.txt[]
 --socket-filter::
 	Only report the samples on the processor socket that match with this filter
 
+--raw-trace::
+	When displaying traceevent output, do not use print fmt or plugins.
+
 include::callchain-overhead-calculation.txt[]
 
 SEE ALSO

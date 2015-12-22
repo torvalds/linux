@@ -788,6 +788,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show callgraph from reference event"),
 	OPT_INTEGER(0, "socket-filter", &report.socket_filter,
 		    "only show processor socket that match with this filter"),
+	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
+		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_END()
 	};
 	struct perf_data_file file = {
