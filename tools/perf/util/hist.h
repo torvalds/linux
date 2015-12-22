@@ -114,8 +114,8 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
 				      struct symbol *parent,
 				      struct branch_info *bi,
-				      struct mem_info *mi, u64 period,
-				      u64 weight, u64 transaction,
+				      struct mem_info *mi,
+				      struct perf_sample *sample,
 				      bool sample_self);
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 			 int max_stack_depth, void *arg);

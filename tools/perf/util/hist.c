@@ -461,7 +461,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct symbol *sym_parent,
 				      struct branch_info *bi,
 				      struct mem_info *mi,
-				      u64 period, u64 weight, u64 transaction,
+				      struct perf_sample *sample,
 				      bool sample_self)
 {
 	struct hist_entry entry = {
@@ -478,15 +478,15 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		.level	 = al->level,
 		.stat = {
 			.nr_events = 1,
-			.period	= period,
-			.weight = weight,
+			.period	= sample->period,
+			.weight = sample->weight,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent) | al->filtered,
 		.hists	= hists,
 		.branch_info = bi,
 		.mem_info = mi,
-		.transaction = transaction,
+		.transaction = sample->transaction,
 	};
 
 	return hists__findnew_entry(hists, &entry, al, sample_self);
@@ -526,12 +526,13 @@ iter_add_single_mem_entry(struct hist_entry_iter *iter, struct addr_location *al
 	u64 cost;
 	struct mem_info *mi = iter->priv;
 	struct hists *hists = evsel__hists(iter->evsel);
+	struct perf_sample *sample = iter->sample;
 	struct hist_entry *he;
 
 	if (mi == NULL)
 		return -EINVAL;
 
-	cost = iter->sample->weight;
+	cost = sample->weight;
 	if (!cost)
 		cost = 1;
 
@@ -542,8 +543,10 @@ iter_add_single_mem_entry(struct hist_entry_iter *iter, struct addr_location *al
 	 * and this is indirectly achieved by passing period=weight here
 	 * and the he_stat__add_period() function.
 	 */
+	sample->period = cost;
+
 	he = __hists__add_entry(hists, al, iter->parent, NULL, mi,
-				cost, cost, 0, true);
+				sample, true);
 	if (!he)
 		return -ENOMEM;
 
@@ -630,6 +633,7 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 	struct branch_info *bi;
 	struct perf_evsel *evsel = iter->evsel;
 	struct hists *hists = evsel__hists(evsel);
+	struct perf_sample *sample = iter->sample;
 	struct hist_entry *he = NULL;
 	int i = iter->curr;
 	int err = 0;
@@ -643,9 +647,11 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 	 * The report shows the percentage of total branches captured
 	 * and not events sampled. Thus we use a pseudo period of 1.
 	 */
+	sample->period = 1;
+	sample->weight = bi->flags.cycles ? bi->flags.cycles : 1;
+
 	he = __hists__add_entry(hists, al, iter->parent, &bi[i], NULL,
-				1, bi->flags.cycles ? bi->flags.cycles : 1,
-				0, true);
+				sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -682,8 +688,7 @@ iter_add_single_normal_entry(struct hist_entry_iter *iter, struct addr_location 
 	struct hist_entry *he;
 
 	he = __hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
-				sample->period, sample->weight,
-				sample->transaction, true);
+				sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -744,8 +749,7 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 	int err = 0;
 
 	he = __hists__add_entry(hists, al, iter->parent, NULL, NULL,
-				sample->period, sample->weight,
-				sample->transaction, true);
+				sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -818,8 +822,7 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	}
 
 	he = __hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
-				sample->period, sample->weight,
-				sample->transaction, false);
+				sample, false);
 	if (he == NULL)
 		return -ENOMEM;
 
