@@ -1932,6 +1932,38 @@ static int __dynamic_dimension__add(struct perf_evsel *evsel,
 	return 0;
 }
 
+static int add_evsel_fields(struct perf_evsel *evsel, bool raw_trace)
+{
+	int ret;
+	struct format_field *field;
+
+	field = evsel->tp_format->format.fields;
+	while (field) {
+		ret = __dynamic_dimension__add(evsel, field, raw_trace);
+		if (ret < 0)
+			return ret;
+
+		field = field->next;
+	}
+	return 0;
+}
+
+static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace)
+{
+	int ret;
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel) {
+		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+			continue;
+
+		ret = add_evsel_fields(evsel, raw_trace);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
 static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 {
 	char *str, *event_name, *field_name, *opt_name;
@@ -1961,6 +1993,11 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 		raw_trace = true;
 	}
 
+	if (!strcmp(field_name, "trace_fields")) {
+		ret = add_all_dynamic_fields(evlist, raw_trace);
+		goto out;
+	}
+
 	evsel = find_evsel(evlist, event_name);
 	if (evsel == NULL) {
 		pr_debug("Cannot find event: %s\n", event_name);
@@ -1975,15 +2012,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 	}
 
 	if (!strcmp(field_name, "*")) {
-		field = evsel->tp_format->format.fields;
-
-		while (field) {
-			ret = __dynamic_dimension__add(evsel, field, raw_trace);
-			if (ret < 0)
-				goto out;
-
-			field = field->next;
-		}
+		ret = add_evsel_fields(evsel, raw_trace);
 	} else {
 		field = pevent_find_any_field(evsel->tp_format, field_name);
 		if (field == NULL) {
