@@ -39,7 +39,6 @@ struct aim_channel {
 	struct most_channel_config *cfg;
 	unsigned int channel_id;
 	dev_t devno;
-	bool keep_mbo;
 	unsigned int mbo_offs;
 	struct mbo *stacked_mbo;
 	DECLARE_KFIFO_PTR(fifo, typeof(struct mbo *));
@@ -136,7 +135,7 @@ static int aim_close(struct inode *inode, struct file *filp)
 
 	while (kfifo_out((struct kfifo *)&channel->fifo, &mbo, 1))
 		most_put_mbo(mbo);
-	if (channel->keep_mbo)
+	if (channel->stacked_mbo)
 		most_put_mbo(channel->stacked_mbo);
 	ret = most_stop_channel(channel->iface, channel->channel_id, &cdev_aim);
 	atomic_dec(&channel->access_ref);
@@ -227,9 +226,8 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 	struct mbo *mbo;
 	struct aim_channel *channel = filp->private_data;
 
-	if (channel->keep_mbo) {
+	if (channel->stacked_mbo) {
 		mbo = channel->stacked_mbo;
-		channel->keep_mbo = false;
 		goto start_copy;
 	}
 	while ((!kfifo_out(&channel->fifo, &mbo, 1)) && (channel->dev)) {
@@ -249,9 +247,6 @@ start_copy:
 		return -EIO;
 	}
 
-	if (count < mbo->processed_length)
-		channel->keep_mbo = true;
-
 	proc_len = min((int)count,
 		       (int)(mbo->processed_length - channel->mbo_offs));
 
@@ -261,12 +256,13 @@ start_copy:
 
 	retval = not_copied ? proc_len - not_copied : proc_len;
 
-	if (channel->keep_mbo) {
+	if (count < mbo->processed_length) {
 		channel->mbo_offs = retval;
 		channel->stacked_mbo = mbo;
 	} else {
 		most_put_mbo(mbo);
 		channel->mbo_offs = 0;
+		channel->stacked_mbo = NULL;
 	}
 	mutex_unlock(&channel->io_mutex);
 	return retval;
