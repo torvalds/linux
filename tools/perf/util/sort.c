@@ -1908,12 +1908,27 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 	return evsel;
 }
 
+static int __dynamic_dimension__add(struct perf_evsel *evsel,
+				    struct format_field *field,
+				    bool raw_trace)
+{
+	struct hpp_dynamic_entry *hde;
+
+	hde = __alloc_dynamic_entry(evsel, field);
+	if (hde == NULL)
+		return -ENOMEM;
+
+	hde->raw_trace = raw_trace;
+
+	perf_hpp__register_sort_field(&hde->hpp);
+	return 0;
+}
+
 static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 {
 	char *str, *event_name, *field_name, *opt_name;
 	struct perf_evsel *evsel;
 	struct format_field *field;
-	struct hpp_dynamic_entry *hde;
 	bool raw_trace = symbol_conf.raw_trace;
 	int ret = 0;
 
@@ -1951,22 +1966,26 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 		goto out;
 	}
 
-	field = pevent_find_any_field(evsel->tp_format, field_name);
-	if (field == NULL) {
-		pr_debug("Cannot find event field for %s.%s\n",
-		       event_name, field_name);
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!strcmp(field_name, "*")) {
+		field = evsel->tp_format->format.fields;
 
-	hde = __alloc_dynamic_entry(evsel, field);
-	if (hde == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	hde->raw_trace = raw_trace;
+		while (field) {
+			ret = __dynamic_dimension__add(evsel, field, raw_trace);
+			if (ret < 0)
+				goto out;
 
-	perf_hpp__register_sort_field(&hde->hpp);
+			field = field->next;
+		}
+	} else {
+		field = pevent_find_any_field(evsel->tp_format, field_name);
+		if (field == NULL) {
+			pr_debug("Cannot find event field for %s.%s\n",
+				 event_name, field_name);
+			return -ENOENT;
+		}
+
+		ret = __dynamic_dimension__add(evsel, field, raw_trace);
+	}
 
 out:
 	free(str);
