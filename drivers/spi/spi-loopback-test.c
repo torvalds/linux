@@ -574,7 +574,8 @@ static int spi_test_translate(struct spi_device *spi,
 	return -EINVAL;
 }
 
-static int spi_test_fill_tx(struct spi_device *spi, struct spi_test *test)
+static int spi_test_fill_pattern(struct spi_device *spi,
+				 struct spi_test *test)
 {
 	struct spi_transfer *xfers = test->transfers;
 	u8 *tx_buf;
@@ -691,8 +692,8 @@ static int _spi_test_run_iter(struct spi_device *spi,
 		spi_message_add_tail(x, msg);
 	}
 
-	/* fill in the transfer data */
-	ret = spi_test_fill_tx(spi, test);
+	/* fill in the transfer buffers with pattern */
+	ret = spi_test_fill_pattern(spi, test);
 	if (ret)
 		return ret;
 
