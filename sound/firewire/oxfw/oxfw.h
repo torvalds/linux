@@ -135,3 +135,4 @@ int snd_oxfw_create_hwdep(struct snd_oxfw *oxfw);
 
 int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie);
 int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw);
+void snd_oxfw_scs1x_update(struct snd_oxfw *oxfw);
