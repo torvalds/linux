@@ -1830,15 +1830,14 @@ void most_deregister_interface(struct most_interface *iface)
 	struct most_inst_obj *i = iface->priv;
 	struct most_c_obj *c;
 
-	mutex_lock(&deregister_mutex);
 	if (unlikely(!i)) {
 		pr_info("Bad Interface\n");
-		mutex_unlock(&deregister_mutex);
 		return;
 	}
 	pr_info("deregistering MOST device %s (%s)\n", i->kobj.name,
 		iface->description);
 
+	mutex_lock(&deregister_mutex);
 	atomic_set(&i->tainted, 1);
 	mutex_unlock(&deregister_mutex);
 
