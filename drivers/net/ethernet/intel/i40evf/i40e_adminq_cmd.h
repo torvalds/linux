@@ -1755,7 +1755,12 @@ struct i40e_aqc_get_link_status {
 	u8	config;
 #define I40E_AQ_CONFIG_CRC_ENA		0x04
 #define I40E_AQ_CONFIG_PACING_MASK	0x78
-	u8	reserved[5];
+	u8	external_power_ability;
+#define I40E_AQ_LINK_POWER_CLASS_1	0x00
+#define I40E_AQ_LINK_POWER_CLASS_2	0x01
+#define I40E_AQ_LINK_POWER_CLASS_3	0x02
+#define I40E_AQ_LINK_POWER_CLASS_4	0x03
+	u8	reserved[4];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_get_link_status);
