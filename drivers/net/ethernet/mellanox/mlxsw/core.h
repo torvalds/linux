@@ -239,10 +239,6 @@ static inline int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 }
 
-static inline void mlxsw_hwmon_fini(struct mlxsw_hwmon *mlxsw_hwmon)
-{
-}
-
 #endif
 
 #endif

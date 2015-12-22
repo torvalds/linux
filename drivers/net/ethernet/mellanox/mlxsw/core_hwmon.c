@@ -334,7 +334,8 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	struct device *hwmon_dev;
 	int err;
 
-	mlxsw_hwmon = kzalloc(sizeof(*mlxsw_hwmon), GFP_KERNEL);
+	mlxsw_hwmon = devm_kzalloc(mlxsw_bus_info->dev, sizeof(*mlxsw_hwmon),
+				   GFP_KERNEL);
 	if (!mlxsw_hwmon)
 		return -ENOMEM;
 	mlxsw_hwmon->core = mlxsw_core;
@@ -367,11 +368,5 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 err_hwmon_register:
 err_fans_init:
 err_temp_init:
-	kfree(mlxsw_hwmon);
 	return err;
-}
-
-void mlxsw_hwmon_fini(struct mlxsw_hwmon *mlxsw_hwmon)
-{
-	kfree(mlxsw_hwmon);
 }
