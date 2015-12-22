@@ -1406,24 +1406,6 @@ static const struct of_device_id da7219_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, da7219_of_match);
 
-static enum da7219_ldo_lvl_sel da7219_of_ldo_lvl(struct snd_soc_codec *codec,
-						 u32 val)
-{
-	switch (val) {
-	case 1050:
-		return DA7219_LDO_LVL_SEL_1_05V;
-	case 1100:
-		return DA7219_LDO_LVL_SEL_1_10V;
-	case 1200:
-		return DA7219_LDO_LVL_SEL_1_20V;
-	case 1400:
-		return DA7219_LDO_LVL_SEL_1_40V;
-	default:
-		dev_warn(codec->dev, "Invalid LDO level");
-		return DA7219_LDO_LVL_SEL_1_05V;
-	}
-}
-
 static enum da7219_micbias_voltage
 	da7219_of_micbias_lvl(struct snd_soc_codec *codec, u32 val)
 {
@@ -1470,9 +1452,6 @@ static struct da7219_pdata *da7219_of_to_pdata(struct snd_soc_codec *codec)
 	if (!pdata)
 		return NULL;
 
-	if (of_property_read_u32(np, "dlg,ldo-lvl", &of_val32) >= 0)
-		pdata->ldo_lvl_sel = da7219_of_ldo_lvl(codec, of_val32);
-
 	if (of_property_read_u32(np, "dlg,micbias-lvl", &of_val32) >= 0)
 		pdata->micbias_lvl = da7219_of_micbias_lvl(codec, of_val32);
 	else
@@ -1517,24 +1496,13 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK,
 					    DA7219_BIAS_EN_MASK);
-
-			/* Enable Internal Digital LDO */
-			snd_soc_update_bits(codec, DA7219_LDO_CTRL,
-					    DA7219_LDO_EN_MASK,
-					    DA7219_LDO_EN_MASK);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* Only disable if jack detection not active */
-		if (!da7219->aad->jack) {
-			/* Bypass Internal Digital LDO */
-			snd_soc_update_bits(codec, DA7219_LDO_CTRL,
-					    DA7219_LDO_EN_MASK, 0);
-
-			/* Master bias */
+		/* Only disable master bias if jack detection not active */
+		if (!da7219->aad->jack)
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK, 0);
-		}
 
 		/* MCLK */
 		if (da7219->mclk)
@@ -1600,19 +1568,6 @@ static void da7219_handle_pdata(struct snd_soc_codec *codec)
 
 	if (pdata) {
 		u8 micbias_lvl = 0;
-
-		/* Internal LDO */
-		switch (pdata->ldo_lvl_sel) {
-		case DA7219_LDO_LVL_SEL_1_05V:
-		case DA7219_LDO_LVL_SEL_1_10V:
-		case DA7219_LDO_LVL_SEL_1_20V:
-		case DA7219_LDO_LVL_SEL_1_40V:
-			snd_soc_update_bits(codec, DA7219_LDO_CTRL,
-					    DA7219_LDO_LEVEL_SELECT_MASK,
-					    (pdata->ldo_lvl_sel <<
-					     DA7219_LDO_LEVEL_SELECT_SHIFT));
-			break;
-		}
 
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
@@ -1823,7 +1778,6 @@ static struct reg_default da7219_reg_defaults[] = {
 	{ DA7219_CHIP_ID1, 0x23 },
 	{ DA7219_CHIP_ID2, 0x93 },
 	{ DA7219_CHIP_REVISION, 0x00 },
-	{ DA7219_LDO_CTRL, 0x00 },
 	{ DA7219_IO_CTRL, 0x00 },
 	{ DA7219_GAIN_RAMP_CTRL, 0x00 },
 	{ DA7219_PC_COUNT, 0x02 },
