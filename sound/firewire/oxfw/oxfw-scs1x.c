@@ -11,18 +11,99 @@
 
 #define HSS1394_ADDRESS			0xc007dedadadaULL
 #define HSS1394_MAX_PACKET_SIZE		64
+#define HSS1394_TAG_USER_DATA		0x00
 #define HSS1394_TAG_CHANGE_ADDRESS	0xf1
 
 struct fw_scs1x {
 	struct fw_address_handler hss_handler;
+	u8 input_escape_count;
+	struct snd_rawmidi_substream *input;
 };
+
+static const u8 sysex_escape_prefix[] = {
+	0xf0,			/* SysEx begin */
+	0x00, 0x01, 0x60,	/* Stanton DJ */
+	0x48, 0x53, 0x53,	/* "HSS" */
+};
+
+static void midi_input_escaped_byte(struct snd_rawmidi_substream *stream,
+				    u8 byte)
+{
+	u8 nibbles[2];
+
+	nibbles[0] = byte >> 4;
+	nibbles[1] = byte & 0x0f;
+	snd_rawmidi_receive(stream, nibbles, 2);
+}
+
+static void midi_input_byte(struct fw_scs1x *scs,
+			    struct snd_rawmidi_substream *stream, u8 byte)
+{
+	const u8 eox = 0xf7;
+
+	if (scs->input_escape_count > 0) {
+		midi_input_escaped_byte(stream, byte);
+		scs->input_escape_count--;
+		if (scs->input_escape_count == 0)
+			snd_rawmidi_receive(stream, &eox, sizeof(eox));
+	} else if (byte == 0xf9) {
+		snd_rawmidi_receive(stream, sysex_escape_prefix,
+				    ARRAY_SIZE(sysex_escape_prefix));
+		midi_input_escaped_byte(stream, 0x00);
+		midi_input_escaped_byte(stream, 0xf9);
+		scs->input_escape_count = 3;
+	} else {
+		snd_rawmidi_receive(stream, &byte, 1);
+	}
+}
+
+static void midi_input_packet(struct fw_scs1x *scs,
+			      struct snd_rawmidi_substream *stream,
+			      const u8 *data, unsigned int bytes)
+{
+	unsigned int i;
+	const u8 eox = 0xf7;
+
+	if (data[0] == HSS1394_TAG_USER_DATA) {
+		for (i = 1; i < bytes; ++i)
+			midi_input_byte(scs, stream, data[i]);
+	} else {
+		snd_rawmidi_receive(stream, sysex_escape_prefix,
+				    ARRAY_SIZE(sysex_escape_prefix));
+		for (i = 0; i < bytes; ++i)
+			midi_input_escaped_byte(stream, data[i]);
+		snd_rawmidi_receive(stream, &eox, sizeof(eox));
+	}
+}
 
 static void handle_hss(struct fw_card *card, struct fw_request *request,
 		       int tcode, int destination, int source, int generation,
 		       unsigned long long offset, void *data, size_t length,
 		       void *callback_data)
 {
-	fw_send_response(card, request, RCODE_COMPLETE);
+	struct fw_scs1x *scs = callback_data;
+	struct snd_rawmidi_substream *stream;
+	int rcode;
+
+	if (offset != scs->hss_handler.offset) {
+		rcode = RCODE_ADDRESS_ERROR;
+		goto end;
+	}
+	if (tcode != TCODE_WRITE_QUADLET_REQUEST &&
+	    tcode != TCODE_WRITE_BLOCK_REQUEST) {
+		rcode = RCODE_TYPE_ERROR;
+		goto end;
+	}
+
+	if (length >= 1) {
+		stream = ACCESS_ONCE(scs->input);
+		if (stream)
+			midi_input_packet(scs, stream, data, length);
+	}
+
+	rcode = RCODE_COMPLETE;
+end:
+	fw_send_response(card, request, rcode);
 }
 
 static int register_address(struct snd_oxfw *oxfw)
