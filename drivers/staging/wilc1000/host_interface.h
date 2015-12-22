@@ -312,7 +312,7 @@ int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
 			     u8 index);
 int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
 			    u8 index, u8 mode, enum AUTHTYPE auth_type);
-s32 wilc_add_ptk(struct wilc_vif *vif, const u8 *pu8Ptk, u8 u8PtkKeylen,
+int wilc_add_ptk(struct wilc_vif *vif, const u8 *pu8Ptk, u8 u8PtkKeylen,
 		 const u8 *mac_addr, const u8 *pu8RxMic, const u8 *pu8TxMic,
 		 u8 mode, u8 u8Ciphermode, u8 u8Idx);
 s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
