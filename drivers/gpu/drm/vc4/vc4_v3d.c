@@ -144,19 +144,16 @@ int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 }
 #endif /* CONFIG_DEBUG_FS */
 
-/*
- * Asks the firmware to turn on power to the V3D engine.
- *
- * This may be doable with just the clocks interface, though this
- * packet does some other register setup from the firmware, too.
- */
 int
 vc4_v3d_set_power(struct vc4_dev *vc4, bool on)
 {
-	if (on)
-		return pm_generic_poweroff(&vc4->v3d->pdev->dev);
-	else
-		return pm_generic_resume(&vc4->v3d->pdev->dev);
+	/* XXX: This interface is needed for GPU reset, and the way to
+	 * do it is to turn our power domain off and back on.  We
+	 * can't just reset from within the driver, because the reset
+	 * bits are in the power domain's register area, and get set
+	 * during the poweron process.
+	 */
+	return 0;
 }
 
 static void vc4_v3d_init_hw(struct drm_device *dev)
