@@ -3325,9 +3325,9 @@ int wilc_set_pmkid_info(struct wilc_vif *vif,
 	return result;
 }
 
-s32 wilc_get_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress)
+int wilc_get_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
