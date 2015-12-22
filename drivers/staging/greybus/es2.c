@@ -234,7 +234,7 @@ int es2_ap_csi_setup(struct gb_host_device *hd, bool start,
 		cfg_req.clock_mode = cfg->clock_mode;
 		cfg_req.num_lanes = cfg->num_lanes;
 		cfg_req.padding = 0;
-		cfg_req.bus_freq = cfg->bus_freq;
+		cfg_req.bus_freq = cpu_to_le32(cfg->bus_freq);
 	} else {
 		cfg_req.clock_mode = 0;
 		cfg_req.num_lanes = 0;
