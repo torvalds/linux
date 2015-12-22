@@ -120,14 +120,22 @@ static u8 mtrr_default_type(struct kvm_mtrr *mtrr_state)
 	return mtrr_state->deftype & IA32_MTRR_DEF_TYPE_TYPE_MASK;
 }
 
-static u8 mtrr_disabled_type(void)
+static u8 mtrr_disabled_type(struct kvm_vcpu *vcpu)
 {
 	/*
 	 * Intel SDM 11.11.2.2: all MTRRs are disabled when
 	 * IA32_MTRR_DEF_TYPE.E bit is cleared, and the UC
 	 * memory type is applied to all of physical memory.
+	 *
+	 * However, virtual machines can be run with CPUID such that
+	 * there are no MTRRs.  In that case, the firmware will never
+	 * enable MTRRs and it is obviously undesirable to run the
+	 * guest entirely with UC memory and we use WB.
 	 */
-	return MTRR_TYPE_UNCACHABLE;
+	if (guest_cpuid_has_mtrr(vcpu))
+		return MTRR_TYPE_UNCACHABLE;
+	else
+		return MTRR_TYPE_WRBACK;
 }
 
 /*
@@ -675,7 +683,7 @@ u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 	}
 
 	if (iter.mtrr_disabled)
-		return mtrr_disabled_type();
+		return mtrr_disabled_type(vcpu);
 
 	/* not contained in any MTRRs. */
 	if (type == -1)
