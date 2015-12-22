@@ -1698,6 +1698,15 @@ static int __sort__hde_width(struct perf_hpp_fmt *fmt,
 	return len;
 }
 
+bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *hists)
+{
+	struct hpp_dynamic_entry *hde;
+
+	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
+
+	return hists_to_evsel(hists) == hde->evsel;
+}
+
 static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			     struct hist_entry *he)
 {
@@ -1713,9 +1722,6 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 
 	if (!len)
 		len = hde_width(hde);
-
-	if (hists_to_evsel(he->hists) != hde->evsel)
-		return scnprintf(hpp->buf, hpp->size, "%*.*s", len, len, "N/A");
 
 	if (hde->raw_trace)
 		goto raw_field;
@@ -1769,9 +1775,6 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 
 	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
 
-	if (hists_to_evsel(a->hists) != hde->evsel)
-		return 0;
-
 	field = hde->field;
 	if (field->flags & FIELD_IS_DYNAMIC) {
 		unsigned long long dyn;
@@ -1792,6 +1795,11 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 	}
 
 	return memcmp(a->raw_data + offset, b->raw_data + offset, size);
+}
+
+bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *fmt)
+{
+	return fmt->cmp == __sort__hde_cmp;
 }
 
 static struct hpp_dynamic_entry *

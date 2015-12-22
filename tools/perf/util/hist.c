@@ -1112,7 +1112,7 @@ static int hist_entry__sort(struct hist_entry *a, struct hist_entry *b)
 	int64_t cmp = 0;
 
 	perf_hpp__for_each_sort_list(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, a->hists))
 			continue;
 
 		cmp = fmt->sort(fmt, a, b);

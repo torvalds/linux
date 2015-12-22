@@ -385,7 +385,7 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 		return 0;
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, he->hists))
 			continue;
 
 		/*
@@ -464,7 +464,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	fprintf(fp, "# ");
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
 		if (!first)
@@ -490,7 +490,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	perf_hpp__for_each_format(fmt) {
 		unsigned int i;
 
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
 		if (!first)

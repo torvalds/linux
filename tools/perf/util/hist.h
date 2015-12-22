@@ -262,10 +262,20 @@ void perf_hpp__append_sort_keys(void);
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__same_sort_entry(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
+bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *format);
+bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *hists);
 
-static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format)
+static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format,
+					 struct hists *hists)
 {
-	return format->elide;
+	if (format->elide)
+		return true;
+
+	if (perf_hpp__is_dynamic_entry(format) &&
+	    !perf_hpp__defined_dynamic_entry(format, hists))
+		return true;
+
+	return false;
 }
 
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists);

@@ -619,7 +619,7 @@ unsigned int hists__sort_list_width(struct hists *hists)
 	struct perf_hpp dummy_hpp;
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
 		if (first)
