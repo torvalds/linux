@@ -166,6 +166,7 @@ void ima_update_policy(void);
 void ima_update_policy_flag(void);
 ssize_t ima_parse_add_rule(char *);
 void ima_delete_rules(void);
+int ima_check_policy(void);
 void *ima_policy_start(struct seq_file *m, loff_t *pos);
 void *ima_policy_next(struct seq_file *m, void *v, loff_t *pos);
 void ima_policy_stop(struct seq_file *m, void *v);
