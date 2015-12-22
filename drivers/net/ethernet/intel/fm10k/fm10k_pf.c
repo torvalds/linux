@@ -711,8 +711,8 @@ static s32 fm10k_iov_assign_resources_pf(struct fm10k_hw *hw, u16 num_vfs,
 					FM10K_RXDCTL_WRITE_BACK_MIN_DELAY |
 					FM10K_RXDCTL_DROP_ON_EMPTY);
 			fm10k_write_reg(hw, FM10K_RXQCTL(vf_q_idx),
-					FM10K_RXQCTL_VF |
-					(i << FM10K_RXQCTL_VF_SHIFT));
+					(i << FM10K_RXQCTL_VF_SHIFT) |
+					FM10K_RXQCTL_VF);
 
 			/* map queue pair to VF */
 			fm10k_write_reg(hw, FM10K_TQMAP(qmap_idx), vf_q_idx);
@@ -987,7 +987,7 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 	txqctl = ((u32)vf_vid << FM10K_TXQCTL_VID_SHIFT) |
 		 (vf_idx << FM10K_TXQCTL_TC_SHIFT) |
 		 FM10K_TXQCTL_VF | vf_idx;
-	rxqctl = FM10K_RXQCTL_VF | (vf_idx << FM10K_RXQCTL_VF_SHIFT);
+	rxqctl = (vf_idx << FM10K_RXQCTL_VF_SHIFT) | FM10K_RXQCTL_VF;
 
 	/* stop further DMA and reset queue ownership back to VF */
 	for (i = vf_q_idx; i < (queues_per_pool + vf_q_idx); i++) {
