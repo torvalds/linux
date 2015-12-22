@@ -115,7 +115,7 @@
 
 			pwm: pwm@80064000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&pwm3_pins_b>;
+				pinctrl-0 = <&pwm4_pins_a>;
 				status = "okay";
 			};
 
@@ -170,7 +170,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 3 5000000>;
+		pwms = <&pwm 4 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <7>;
 	};
