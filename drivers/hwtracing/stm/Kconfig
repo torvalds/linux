@@ -8,6 +8,8 @@ config STM
 
 	  Say Y here to enable System Trace Module device support.
 
+if STM
+
 config STM_DUMMY
 	tristate "Dummy STM driver"
 	help
@@ -24,3 +26,5 @@ config STM_SOURCE_CONSOLE
 
 	  If you want to send kernel console messages over STM devices,
 	  say Y.
+
+endif
