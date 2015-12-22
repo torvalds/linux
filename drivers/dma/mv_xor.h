@@ -110,7 +110,6 @@ struct mv_xor_chan {
 	void __iomem		*mmr_high_base;
 	unsigned int		idx;
 	int                     irq;
-	enum dma_transaction_type	current_type;
 	struct list_head	chain;
 	struct list_head	free_slots;
 	struct list_head	allocated_slots;

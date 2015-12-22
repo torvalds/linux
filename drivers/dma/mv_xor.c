@@ -169,7 +169,6 @@ static void mv_chan_set_mode(struct mv_xor_chan *chan,
 #endif
 
 	writel_relaxed(config, XOR_CONFIG(chan));
-	chan->current_type = type;
 }
 
 static void mv_chan_set_mode_to_desc(struct mv_xor_chan *chan)
