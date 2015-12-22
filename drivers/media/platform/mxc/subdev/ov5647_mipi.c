@@ -142,7 +142,7 @@ static int BG_Ratio_Typical = 0x70;
 
 static struct reg_value ov5647_init_setting[] = {
 
-	{0x0100, 0x00, 0, 0}, {0x0103, 0x01, 0, 0}, {0x3035, 0x11, 0, 0},
+	{0x0100, 0x00, 0, 0},                       {0x3035, 0x11, 0, 0},
 	{0x3036, 0x69, 0, 0}, {0x303c, 0x11, 0, 0}, {0x3821, 0x07, 0, 0},
 	{0x3820, 0x41, 0, 0}, {0x370c, 0x0f, 0, 0}, {0x3612, 0x59, 0, 0},
 	{0x3618, 0x00, 0, 0}, {0x5000, 0x06, 0, 0}, {0x5002, 0x40, 0, 0},
@@ -201,7 +201,7 @@ static struct reg_value ov5647_init_setting[] = {
 };
 
 static struct reg_value ov5647_setting_60fps_VGA_640_480[] = {
-	{0x0100, 0x00, 0, 0}, {0x0103, 0x01, 0, 0}, {0x3035, 0x11, 0, 0},
+	{0x0100, 0x00, 0, 0},                        {0x3035, 0x11, 0, 0},
 	{0x3036, 0x46, 0, 0}, {0x303c, 0x11, 0, 0}, {0x3821, 0x07, 0, 0},
 	{0x3820, 0x41, 0, 0}, {0x370c, 0x0f, 0, 0}, {0x3612, 0x59, 0, 0},
 	{0x3618, 0x00, 0, 0}, {0x5000, 0x06, 0, 0}, {0x5002, 0x40, 0, 0},
@@ -671,6 +671,8 @@ static void ov5647_stream_on(void)
 static void ov5647_stream_off(void)
 {
 	ov5647_write_reg(0x4202, 0x0f);
+	/* both clock and data lane in LP00 */
+	ov5647_write_reg(0x0100, 0x00);
 }
 
 static int ov5647_get_sysclk(void)
@@ -729,6 +731,16 @@ static int ov5647_get_HTS(void)
 	HTS = (HTS << 8) + ov5647_read_reg(0x380d, &temp);
 
 	return HTS;
+}
+
+static int ov5647_soft_reset(void)
+{
+	/* soft reset ov5647 */
+
+	ov5647_write_reg(0x0103, 0x1);
+	msleep(5);
+
+	return 0;
 }
 
 static int ov5647_get_VTS(void)
@@ -1110,6 +1122,7 @@ static int ov5647_init_mode(enum ov5647_frame_rate frame_rate,
 	dn_mode = ov5647_mode_info_data[frame_rate][mode].dn_mode;
 	orig_dn_mode = ov5647_mode_info_data[frame_rate][orig_mode].dn_mode;
 	if (mode == ov5647_mode_INIT) {
+		ov5647_soft_reset();
 		pModeSetting = ov5647_init_setting;
 		ArySize = ARRAY_SIZE(ov5647_init_setting);
 		retval = ov5647_download_firmware(pModeSetting, ArySize);
@@ -1667,6 +1680,7 @@ static int ov5647_probe(struct i2c_client *client,
 		dev_err(&client->dev,
 					"%s--Async register failed, ret=%d\n", __func__, retval);
 
+	ov5647_stream_off();
 	pr_info("camera ov5647_mipi is found\n");
 	return retval;
 }
