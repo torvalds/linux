@@ -1,4 +1,3 @@
-
 /*
  * This file is part of wlcore
  *
@@ -303,25 +302,11 @@ out:
 
 static void wlcore_adjust_conf(struct wl1271 *wl)
 {
-	/* Adjust settings according to optional module parameters */
-
-	/* Firmware Logger params */
-	if (fwlog_mem_blocks != -1) {
-		if (fwlog_mem_blocks >= CONF_FWLOG_MIN_MEM_BLOCKS &&
-		    fwlog_mem_blocks <= CONF_FWLOG_MAX_MEM_BLOCKS) {
-			wl->conf.fwlog.mem_blocks = fwlog_mem_blocks;
-		} else {
-			wl1271_error(
-				"Illegal fwlog_mem_blocks=%d using default %d",
-				fwlog_mem_blocks, wl->conf.fwlog.mem_blocks);
-		}
-	}
 
 	if (fwlog_param) {
 		if (!strcmp(fwlog_param, "continuous")) {
 			wl->conf.fwlog.mode = WL12XX_FWLOG_CONTINUOUS;
-		} else if (!strcmp(fwlog_param, "ondemand")) {
-			wl->conf.fwlog.mode = WL12XX_FWLOG_ON_DEMAND;
+			wl->conf.fwlog.output = WL12XX_FWLOG_OUTPUT_HOST;
 		} else if (!strcmp(fwlog_param, "dbgpins")) {
 			wl->conf.fwlog.mode = WL12XX_FWLOG_CONTINUOUS;
 			wl->conf.fwlog.output = WL12XX_FWLOG_OUTPUT_DBG_PINS;
@@ -825,22 +810,12 @@ size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen)
 
 static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 {
-	struct wlcore_partition_set part, old_part;
-	u32 addr;
-	u32 offset;
-	u32 end_of_log;
-	u8 *block;
-	int ret;
+	u32 end_of_log = 0;
 
-	if ((wl->quirks & WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED) ||
-	    (wl->conf.fwlog.mem_blocks == 0))
+	if (wl->quirks & WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED)
 		return;
 
 	wl1271_info("Reading FW panic log");
-
-	block = kmalloc(wl->fw_mem_block_size, GFP_KERNEL);
-	if (!block)
-		return;
 
 	/*
 	 * Make sure the chip is awake and the logger isn't active.
@@ -848,68 +823,19 @@ static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 	 * dbgpins are used (due to some fw bug).
 	 */
 	if (wl1271_ps_elp_wakeup(wl))
-		goto out;
+		return;
 	if (!wl->watchdog_recovery &&
 	    wl->conf.fwlog.output != WL12XX_FWLOG_OUTPUT_DBG_PINS)
 		wl12xx_cmd_stop_fwlog(wl);
 
-	/* Read the first memory block address */
-	ret = wlcore_fw_status(wl, wl->fw_status);
-	if (ret < 0)
-		goto out;
-
-	addr = wl->fw_status->log_start_addr;
-	if (!addr)
-		goto out;
-
-	if (wl->conf.fwlog.mode == WL12XX_FWLOG_CONTINUOUS) {
-		offset = sizeof(addr) + sizeof(struct wl1271_rx_descriptor);
-		end_of_log = wl->fwlog_end;
-	} else {
-		offset = sizeof(addr);
-		end_of_log = addr;
-	}
-
-	old_part = wl->curr_part;
-	memset(&part, 0, sizeof(part));
-
 	/* Traverse the memory blocks linked list */
 	do {
-		part.mem.start = wlcore_hw_convert_hwaddr(wl, addr);
-		part.mem.size  = PAGE_SIZE;
-
-		ret = wlcore_set_partition(wl, &part);
-		if (ret < 0) {
-			wl1271_error("%s: set_partition start=0x%X size=%d",
-				__func__, part.mem.start, part.mem.size);
-			goto out;
+		end_of_log = wlcore_event_fw_logger(wl);
+		if (end_of_log == 0) {
+			msleep(100);
+			end_of_log = wlcore_event_fw_logger(wl);
 		}
-
-		memset(block, 0, wl->fw_mem_block_size);
-		ret = wlcore_read_hwaddr(wl, addr, block,
-					wl->fw_mem_block_size, false);
-
-		if (ret < 0)
-			goto out;
-
-		/*
-		 * Memory blocks are linked to one another. The first 4 bytes
-		 * of each memory block hold the hardware address of the next
-		 * one. The last memory block points to the first one in
-		 * on demand mode and is equal to 0x2000000 in continuous mode.
-		 */
-		addr = le32_to_cpup((__le32 *)block);
-
-		if (!wl12xx_copy_fwlog(wl, block + offset,
-					wl->fw_mem_block_size - offset))
-			break;
-	} while (addr && (addr != end_of_log));
-
-	wake_up_interruptible(&wl->fwlog_waitq);
-
-out:
-	kfree(block);
-	wlcore_set_partition(wl, &old_part);
+	} while (end_of_log != 0);
 }
 
 static void wlcore_save_freed_pkts(struct wl1271 *wl, struct wl12xx_vif *wlvif,
@@ -6291,7 +6217,6 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 	wl->active_sta_count = 0;
 	wl->active_link_count = 0;
 	wl->fwlog_size = 0;
-	init_waitqueue_head(&wl->fwlog_waitq);
 
 	/* The system link is always allocated */
 	__set_bit(WL12XX_SYSTEM_HLID, wl->links_map);
@@ -6377,7 +6302,6 @@ int wlcore_free_hw(struct wl1271 *wl)
 	/* Unblock any fwlog readers */
 	mutex_lock(&wl->mutex);
 	wl->fwlog_size = -1;
-	wake_up_interruptible_all(&wl->fwlog_waitq);
 	mutex_unlock(&wl->mutex);
 
 	wlcore_sysfs_free(wl);
@@ -6584,7 +6508,7 @@ MODULE_PARM_DESC(debug_level, "wl12xx debugging level");
 
 module_param_named(fwlog, fwlog_param, charp, 0);
 MODULE_PARM_DESC(fwlog,
-		 "FW logger options: continuous, ondemand, dbgpins or disable");
+		 "FW logger options: continuous, dbgpins or disable");
 
 module_param(fwlog_mem_blocks, int, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(fwlog_mem_blocks, "fwlog mem_blocks");

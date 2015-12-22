@@ -472,7 +472,7 @@ static struct wlcore_conf wl18xx_conf = {
 	},
 	.fwlog = {
 		.mode                         = WL12XX_FWLOG_CONTINUOUS,
-		.mem_blocks                   = 2,
+		.mem_blocks                   = 0,
 		.severity                     = 0,
 		.timestamp                    = WL12XX_FWLOG_TIMESTAMP_DISABLED,
 		.output                       = WL12XX_FWLOG_OUTPUT_DBG_PINS,
@@ -595,7 +595,7 @@ static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 		.mem  = { .start = 0x00A00000, .size  = 0x00012000 },
 		.reg  = { .start = 0x00807000, .size  = 0x00005000 },
 		.mem2 = { .start = 0x00800000, .size  = 0x0000B000 },
-		.mem3 = { .start = 0x00000000, .size  = 0x00000000 },
+		.mem3 = { .start = 0x00401594, .size  = 0x00001020 },
 	},
 	[PART_DOWN] = {
 		.mem  = { .start = 0x00000000, .size  = 0x00014000 },
@@ -613,7 +613,7 @@ static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 		.mem  = { .start = 0x00800000, .size  = 0x000050FC },
 		.reg  = { .start = 0x00B00404, .size  = 0x00001000 },
 		.mem2 = { .start = 0x00C00000, .size  = 0x00000400 },
-		.mem3 = { .start = 0x00000000, .size  = 0x00000000 },
+		.mem3 = { .start = 0x00401594, .size  = 0x00001020 },
 	},
 	[PART_PHY_INIT] = {
 		.mem  = { .start = WL18XX_PHY_INIT_MEM_ADDR,
@@ -1040,7 +1040,8 @@ static int wl18xx_boot(struct wl1271 *wl)
 		DFS_CHANNELS_CONFIG_COMPLETE_EVENT |
 		SMART_CONFIG_SYNC_EVENT_ID |
 		SMART_CONFIG_DECODE_EVENT_ID |
-		TIME_SYNC_EVENT_ID;
+		TIME_SYNC_EVENT_ID |
+		FW_LOGGER_INDICATION;
 
 	wl->ap_event_mask = MAX_TX_FAILURE_EVENT_ID;
 
