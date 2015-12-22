@@ -19,6 +19,7 @@
 #define VENDOR_BEHRINGER	0x001564
 #define VENDOR_LACIE		0x00d04b
 #define VENDOR_TASCAM		0x00022e
+#define OUI_STANTON		0x001260
 
 #define MODEL_SATELLITE		0x00200f
 
@@ -29,6 +30,7 @@ MODULE_DESCRIPTION("Oxford Semiconductor FW970/971 driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("snd-firewire-speakers");
+MODULE_ALIAS("snd-scs1x");
 
 struct compat_info {
 	const char *driver_name;
@@ -159,6 +161,13 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 		return snd_oxfw_add_spkr(oxfw, true);
 
 	/*
+	 * Stanton models supports asynchronous transactions for unique MIDI
+	 * messages.
+	 */
+	if (oxfw->entry->vendor_id == OUI_STANTON)
+		return snd_oxfw_scs1x_add(oxfw);
+
+	/*
 	 * TASCAM FireOne has physical control and requires a pair of additional
 	 * MIDI ports.
 	 */
@@ -275,6 +284,9 @@ static void oxfw_bus_reset(struct fw_unit *unit)
 		snd_oxfw_stream_update_simplex(oxfw, &oxfw->tx_stream);
 
 	mutex_unlock(&oxfw->mutex);
+
+	if (oxfw->entry->vendor_id == OUI_STANTON)
+		snd_oxfw_scs1x_update(oxfw);
 }
 
 static void oxfw_remove(struct fw_unit *unit)
@@ -351,6 +363,20 @@ static const struct ieee1394_device_id oxfw_id_table[] = {
 				  IEEE1394_MATCH_MODEL_ID,
 		.vendor_id	= VENDOR_TASCAM,
 		.model_id	= 0x800007,
+	},
+	/* Stanton, Stanton Controllers & Systems 1 Mixer (SCS.1m) */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_STANTON,
+		.model_id	= 0x001000,
+	},
+	/* Stanton, Stanton Controllers & Systems 1 Deck (SCS.1d) */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_STANTON,
+		.model_id	= 0x002000,
 	},
 	{ }
 };
