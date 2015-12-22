@@ -1752,6 +1752,7 @@ struct kobject *most_register_interface(struct most_interface *iface)
 	inst = create_most_inst_obj(name);
 	if (!inst) {
 		pr_info("Failed to allocate interface instance\n");
+		ida_simple_remove(&mdev_id, id);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1808,6 +1809,7 @@ struct kobject *most_register_interface(struct most_interface *iface)
 free_instance:
 	pr_info("Failed allocate channel(s)\n");
 	list_del(&inst->list);
+	ida_simple_remove(&mdev_id, id);
 	destroy_most_inst_obj(inst);
 	return ERR_PTR(-ENOMEM);
 }
