@@ -127,7 +127,6 @@ static int aim_close(struct inode *inode, struct file *filp)
 		kfifo_free(&channel->fifo);
 		list_del(&channel->list);
 		ida_simple_remove(&minor_id, MINOR(channel->devno));
-		wake_up_interruptible(&channel->wq);
 		kfree(channel);
 		return 0;
 	}
@@ -139,7 +138,6 @@ static int aim_close(struct inode *inode, struct file *filp)
 		most_put_mbo(channel->stacked_mbo);
 	ret = most_stop_channel(channel->iface, channel->channel_id, &cdev_aim);
 	atomic_dec(&channel->access_ref);
-	wake_up_interruptible(&channel->wq);
 	return ret;
 }
 
