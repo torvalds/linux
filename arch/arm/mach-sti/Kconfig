@@ -1,5 +1,6 @@
 menuconfig ARCH_STI
-	bool "STMicroelectronics Consumer Electronics SOCs" if ARCH_MULTI_V7
+	bool "STMicroelectronics Consumer Electronics SOCs"
+	depends on ARCH_MULTI_V7
 	select ARM_GIC
 	select ST_IRQCHIP
 	select ARM_GLOBAL_TIMER

@@ -360,7 +360,7 @@ static const struct smp_operations rk3036_smp_ops __initconst = {
 #endif
 };
 
-static struct smp_operations rockchip_smp_ops __initdata = {
+static const struct smp_operations rockchip_smp_ops __initconst = {
 	.smp_prepare_cpus	= rockchip_smp_prepare_cpus,
 	.smp_boot_secondary	= rockchip_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

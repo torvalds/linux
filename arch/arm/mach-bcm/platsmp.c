@@ -276,7 +276,7 @@ out:
 	return ret;
 }
 
-static struct smp_operations bcm_smp_ops __initdata = {
+static const struct smp_operations bcm_smp_ops __initconst = {
 	.smp_prepare_cpus	= bcm_smp_prepare_cpus,
 	.smp_boot_secondary	= kona_boot_secondary,
 };

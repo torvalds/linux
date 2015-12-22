@@ -75,7 +75,7 @@ static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 		     __io_address(REALVIEW_SYS_FLAGSSET));
 }
 
-struct smp_operations realview_smp_ops __initdata = {
+const struct smp_operations realview_smp_ops __initconst = {
 	.smp_init_cpus		= realview_smp_init_cpus,
 	.smp_prepare_cpus	= realview_smp_prepare_cpus,
 	.smp_secondary_init	= versatile_secondary_init,

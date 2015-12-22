@@ -796,7 +796,8 @@ config ARCH_MULTI_CPU_AUTO
 endmenu
 
 config ARCH_VIRT
-	bool "Dummy Virtual Machine" if ARCH_MULTI_V7
+	bool "Dummy Virtual Machine"
+	depends on ARCH_MULTI_V7
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_GIC_V3
