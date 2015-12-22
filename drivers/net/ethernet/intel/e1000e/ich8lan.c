@@ -1479,6 +1479,18 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 				hw->phy.ops.release(hw);
 				if (ret_val)
 					return ret_val;
+			} else {
+				ret_val = hw->phy.ops.acquire(hw);
+				if (ret_val)
+					return ret_val;
+
+				ret_val = e1e_wphy_locked(hw,
+							  PHY_REG(776, 20),
+							  0xC023);
+				hw->phy.ops.release(hw);
+				if (ret_val)
+					return ret_val;
+
 			}
 		}
 	}
