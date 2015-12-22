@@ -186,7 +186,7 @@ MODULE_VERSION(BTTV_VERSION);
 static ssize_t show_card(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
-	struct video_device *vfd = container_of(cd, struct video_device, dev);
+	struct video_device *vfd = to_video_device(cd);
 	struct bttv *btv = video_get_drvdata(vfd);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
