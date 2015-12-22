@@ -58,6 +58,7 @@ struct ib_client_data {
 	bool		  going_down;
 };
 
+struct workqueue_struct *ib_comp_wq;
 struct workqueue_struct *ib_wq;
 EXPORT_SYMBOL_GPL(ib_wq);
 
@@ -943,10 +944,18 @@ static int __init ib_core_init(void)
 	if (!ib_wq)
 		return -ENOMEM;
 
+	ib_comp_wq = alloc_workqueue("ib-comp-wq",
+			WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
+			WQ_UNBOUND_MAX_ACTIVE);
+	if (!ib_comp_wq) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
 	ret = class_register(&ib_class);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't create InfiniBand device class\n");
-		goto err;
+		goto err_comp;
 	}
 
 	ret = ibnl_init();
@@ -961,7 +970,8 @@ static int __init ib_core_init(void)
 
 err_sysfs:
 	class_unregister(&ib_class);
-
+err_comp:
+	destroy_workqueue(ib_comp_wq);
 err:
 	destroy_workqueue(ib_wq);
 	return ret;
@@ -972,6 +982,7 @@ static void __exit ib_core_cleanup(void)
 	ib_cache_cleanup();
 	ibnl_cleanup();
 	class_unregister(&ib_class);
+	destroy_workqueue(ib_comp_wq);
 	/* Make sure that any pending umem accounting work is done. */
 	destroy_workqueue(ib_wq);
 }

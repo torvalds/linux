@@ -67,6 +67,11 @@ static struct iser_reg_ops fmr_ops = {
 	.reg_desc_put	= iser_reg_desc_put_fmr,
 };
 
+void iser_reg_comp(struct ib_cq *cq, struct ib_wc *wc)
+{
+	iser_err_comp(wc, "memreg");
+}
+
 int iser_assign_reg_ops(struct iser_device *device)
 {
 	struct ib_device *ib_dev = device->ib_device;
@@ -413,12 +418,14 @@ iser_set_prot_checks(struct scsi_cmnd *sc, u8 *mask)
 }
 
 static void
-iser_inv_rkey(struct ib_send_wr *inv_wr, struct ib_mr *mr)
+iser_inv_rkey(struct ib_send_wr *inv_wr,
+	      struct ib_mr *mr,
+	      struct ib_cqe *cqe)
 {
 	u32 rkey;
 
 	inv_wr->opcode = IB_WR_LOCAL_INV;
-	inv_wr->wr_id = ISER_FASTREG_LI_WRID;
+	inv_wr->wr_cqe = cqe;
 	inv_wr->ex.invalidate_rkey = mr->rkey;
 	inv_wr->send_flags = 0;
 	inv_wr->num_sge = 0;
@@ -436,6 +443,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 {
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
 	struct ib_sig_attrs *sig_attrs = &tx_desc->sig_attrs;
+	struct ib_cqe *cqe = &iser_task->iser_conn->ib_conn.reg_cqe;
 	struct ib_sig_handover_wr *wr;
 	int ret;
 
@@ -447,11 +455,11 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	iser_set_prot_checks(iser_task->sc, &sig_attrs->check_mask);
 
 	if (!pi_ctx->sig_mr_valid)
-		iser_inv_rkey(iser_tx_next_wr(tx_desc), pi_ctx->sig_mr);
+		iser_inv_rkey(iser_tx_next_wr(tx_desc), pi_ctx->sig_mr, cqe);
 
 	wr = sig_handover_wr(iser_tx_next_wr(tx_desc));
 	wr->wr.opcode = IB_WR_REG_SIG_MR;
-	wr->wr.wr_id = ISER_FASTREG_LI_WRID;
+	wr->wr.wr_cqe = cqe;
 	wr->wr.sg_list = &data_reg->sge;
 	wr->wr.num_sge = 1;
 	wr->wr.send_flags = 0;
@@ -484,12 +492,13 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 			    struct iser_mem_reg *reg)
 {
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
+	struct ib_cqe *cqe = &iser_task->iser_conn->ib_conn.reg_cqe;
 	struct ib_mr *mr = rsc->mr;
 	struct ib_reg_wr *wr;
 	int n;
 
 	if (!rsc->mr_valid)
-		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr);
+		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr, cqe);
 
 	n = ib_map_mr_sg(mr, mem->sg, mem->size, SIZE_4K);
 	if (unlikely(n != mem->size)) {
@@ -500,7 +509,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 
 	wr = reg_wr(iser_tx_next_wr(tx_desc));
 	wr->wr.opcode = IB_WR_REG_MR;
-	wr->wr.wr_id = ISER_FASTREG_LI_WRID;
+	wr->wr.wr_cqe = cqe;
 	wr->wr.send_flags = 0;
 	wr->wr.num_sge = 0;
 	wr->mr = mr;

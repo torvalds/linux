@@ -20,7 +20,7 @@
 
 #include <linux/pci.h>
 #include <linux/if_vlan.h>
-#include <linux/blk-iopoll.h>
+#include <linux/irq_poll.h>
 #define FW_VER_LEN	32
 #define MCC_Q_LEN	128
 #define MCC_CQ_LEN	256
@@ -101,7 +101,7 @@ struct be_eq_obj {
 	struct beiscsi_hba *phba;
 	struct be_queue_info *cq;
 	struct work_struct work_cqs; /* Work Item */
-	struct blk_iopoll	iopoll;
+	struct irq_poll	iopoll;
 };
 
 struct be_mcc_obj {

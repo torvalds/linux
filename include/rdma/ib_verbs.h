@@ -49,6 +49,7 @@
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 #include <linux/socket.h>
+#include <linux/irq_poll.h>
 #include <uapi/linux/if_ether.h>
 
 #include <linux/atomic.h>
@@ -56,6 +57,7 @@
 #include <asm/uaccess.h>
 
 extern struct workqueue_struct *ib_wq;
+extern struct workqueue_struct *ib_comp_wq;
 
 union ib_gid {
 	u8	raw[16];
@@ -758,7 +760,10 @@ enum ib_wc_flags {
 };
 
 struct ib_wc {
-	u64			wr_id;
+	union {
+		u64		wr_id;
+		struct ib_cqe	*wr_cqe;
+	};
 	enum ib_wc_status	status;
 	enum ib_wc_opcode	opcode;
 	u32			vendor_err;
@@ -1079,9 +1084,16 @@ struct ib_mw_bind_info {
 	int		mw_access_flags;
 };
 
+struct ib_cqe {
+	void (*done)(struct ib_cq *cq, struct ib_wc *wc);
+};
+
 struct ib_send_wr {
 	struct ib_send_wr      *next;
-	u64			wr_id;
+	union {
+		u64		wr_id;
+		struct ib_cqe	*wr_cqe;
+	};
 	struct ib_sge	       *sg_list;
 	int			num_sge;
 	enum ib_wr_opcode	opcode;
@@ -1175,7 +1187,10 @@ static inline struct ib_sig_handover_wr *sig_handover_wr(struct ib_send_wr *wr)
 
 struct ib_recv_wr {
 	struct ib_recv_wr      *next;
-	u64			wr_id;
+	union {
+		u64		wr_id;
+		struct ib_cqe	*wr_cqe;
+	};
 	struct ib_sge	       *sg_list;
 	int			num_sge;
 };
@@ -1307,6 +1322,12 @@ struct ib_ah {
 
 typedef void (*ib_comp_handler)(struct ib_cq *cq, void *cq_context);
 
+enum ib_poll_context {
+	IB_POLL_DIRECT,		/* caller context, no hw completions */
+	IB_POLL_SOFTIRQ,	/* poll from softirq context */
+	IB_POLL_WORKQUEUE,	/* poll from workqueue */
+};
+
 struct ib_cq {
 	struct ib_device       *device;
 	struct ib_uobject      *uobject;
@@ -1315,6 +1336,12 @@ struct ib_cq {
 	void                   *cq_context;
 	int               	cqe;
 	atomic_t          	usecnt; /* count number of work queues */
+	enum ib_poll_context	poll_ctx;
+	struct ib_wc		*wc;
+	union {
+		struct irq_poll		iop;
+		struct work_struct	work;
+	};
 };
 
 struct ib_srq {
@@ -2451,6 +2478,11 @@ static inline int ib_post_recv(struct ib_qp *qp,
 {
 	return qp->device->post_recv(qp, recv_wr, bad_recv_wr);
 }
+
+struct ib_cq *ib_alloc_cq(struct ib_device *dev, void *private,
+		int nr_cqe, int comp_vector, enum ib_poll_context poll_ctx);
+void ib_free_cq(struct ib_cq *cq);
+int ib_process_cq_direct(struct ib_cq *cq, int budget);
 
 /**
  * ib_create_cq - Creates a CQ on the specified device.
