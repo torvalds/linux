@@ -237,6 +237,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 					      (!channel->dev))))
 			return -ERESTARTSYS;
 	}
+	channel->stacked_mbo = mbo;
 
 start_copy:
 	/* make sure we don't submit to gone devices */
@@ -258,7 +259,6 @@ start_copy:
 
 	if (count < mbo->processed_length) {
 		channel->mbo_offs = copied;
-		channel->stacked_mbo = mbo;
 	} else {
 		most_put_mbo(mbo);
 		channel->mbo_offs = 0;
