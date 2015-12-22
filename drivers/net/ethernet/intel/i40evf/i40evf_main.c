@@ -69,6 +69,8 @@ MODULE_DESCRIPTION("Intel(R) XL710 X710 Virtual Function Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+static struct workqueue_struct *i40evf_wq;
+
 /**
  * i40evf_allocate_dma_mem_d - OS specific memory alloc for shared code
  * @hw:   pointer to the HW structure
@@ -182,7 +184,7 @@ static void i40evf_tx_timeout(struct net_device *netdev)
 	if (!(adapter->flags & (I40EVF_FLAG_RESET_PENDING |
 				I40EVF_FLAG_RESET_NEEDED))) {
 		adapter->flags |= I40EVF_FLAG_RESET_NEEDED;
-		schedule_work(&adapter->reset_task);
+		queue_work(i40evf_wq, &adapter->reset_task);
 	}
 }
 
@@ -2895,6 +2897,11 @@ static int __init i40evf_init_module(void)
 
 	pr_info("%s\n", i40evf_copyright);
 
+	i40evf_wq = create_singlethread_workqueue(i40evf_driver_name);
+	if (!i40evf_wq) {
+		pr_err("%s: Failed to create workqueue\n", i40evf_driver_name);
+		return -ENOMEM;
+	}
 	ret = pci_register_driver(&i40evf_driver);
 	return ret;
 }
@@ -2910,6 +2917,7 @@ module_init(i40evf_init_module);
 static void __exit i40evf_exit_module(void)
 {
 	pci_unregister_driver(&i40evf_driver);
+	destroy_workqueue(i40evf_wq);
 }
 
 module_exit(i40evf_exit_module);

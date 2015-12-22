@@ -112,6 +112,8 @@ MODULE_DESCRIPTION("Intel(R) Ethernet Connection XL710 Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+static struct workqueue_struct *i40e_wq;
+
 /**
  * i40e_allocate_dma_mem_d - OS specific memory alloc for shared code
  * @hw:   pointer to the HW structure
@@ -297,7 +299,7 @@ static void i40e_service_event_schedule(struct i40e_pf *pf)
 	if (!test_bit(__I40E_DOWN, &pf->state) &&
 	    !test_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state) &&
 	    !test_and_set_bit(__I40E_SERVICE_SCHED, &pf->state))
-		schedule_work(&pf->service_task);
+		queue_work(i40e_wq, &pf->service_task);
 }
 
 /**
@@ -11470,6 +11472,16 @@ static int __init i40e_init_module(void)
 		i40e_driver_string, i40e_driver_version_str);
 	pr_info("%s: %s\n", i40e_driver_name, i40e_copyright);
 
+	/* we will see if single thread per module is enough for now,
+	 * it can't be any worse than using the system workqueue which
+	 * was already single threaded
+	 */
+	i40e_wq = create_singlethread_workqueue(i40e_driver_name);
+	if (!i40e_wq) {
+		pr_err("%s: Failed to create workqueue\n", i40e_driver_name);
+		return -ENOMEM;
+	}
+
 	i40e_dbg_init();
 	return pci_register_driver(&i40e_driver);
 }
@@ -11484,6 +11496,7 @@ module_init(i40e_init_module);
 static void __exit i40e_exit_module(void)
 {
 	pci_unregister_driver(&i40e_driver);
+	destroy_workqueue(i40e_wq);
 	i40e_dbg_exit();
 }
 module_exit(i40e_exit_module);
