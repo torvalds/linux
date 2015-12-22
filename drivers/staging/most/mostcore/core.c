@@ -65,7 +65,6 @@ struct most_c_obj {
 	struct most_c_aim_obj aim1;
 	struct list_head trash_fifo;
 	struct task_struct *hdm_enqueue_task;
-	struct mutex stop_task_mutex;
 	wait_queue_head_t hdm_fifo_wq;
 };
 
@@ -92,8 +91,6 @@ struct most_inst_obj {
 	list_del(&_mbo->list);						\
 	_mbo;								\
 })
-
-static struct mutex deregister_mutex;
 
 /*		     ___	     ___
  *		     ___C H A N N E L___
@@ -737,10 +734,8 @@ static void destroy_most_inst_obj(struct most_inst_obj *inst)
 	struct most_c_obj *c, *tmp;
 
 	list_for_each_entry_safe(c, tmp, &inst->channel_list, list) {
-		mutex_lock(&deregister_mutex);
 		flush_trash_fifo(c);
 		flush_channel_fifos(c);
-		mutex_unlock(&deregister_mutex);
 		kobject_put(&c->kobj);
 	}
 	kobject_put(&inst->kobj);
@@ -1575,11 +1570,9 @@ int most_stop_channel(struct most_interface *iface, int id,
 	if (c->aim0.refs + c->aim1.refs >= 2)
 		goto out;
 
-	mutex_lock(&c->stop_task_mutex);
 	if (c->hdm_enqueue_task)
 		kthread_stop(c->hdm_enqueue_task);
 	c->hdm_enqueue_task = NULL;
-	mutex_unlock(&c->stop_task_mutex);
 
 	if (iface->mod)
 		module_put(iface->mod);
@@ -1757,7 +1750,6 @@ struct kobject *most_register_interface(struct most_interface *iface)
 		init_completion(&c->cleanup);
 		atomic_set(&c->mbo_ref, 0);
 		mutex_init(&c->start_mutex);
-		mutex_init(&c->stop_task_mutex);
 		list_add_tail(&c->list, &inst->channel_list);
 	}
 	pr_info("registered new MOST device mdev%d (%s)\n",
@@ -1853,7 +1845,6 @@ static int __init most_init(void)
 	pr_info("init()\n");
 	INIT_LIST_HEAD(&instance_list);
 	INIT_LIST_HEAD(&aim_list);
-	mutex_init(&deregister_mutex);
 	ida_init(&mdev_id);
 
 	if (bus_register(&most_bus)) {
