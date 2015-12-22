@@ -1046,12 +1046,12 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 	if (IS_ERR(c))
 		return -ENODEV;
 
+	if (aim_obj->driver->disconnect_channel(c->iface, c->channel_id))
+		return -EIO;
 	if (c->aim0.ptr == aim_obj->driver)
 		c->aim0.ptr = NULL;
 	if (c->aim1.ptr == aim_obj->driver)
 		c->aim1.ptr = NULL;
-	if (aim_obj->driver->disconnect_channel(c->iface, c->channel_id))
-		return -EIO;
 	return len;
 }
 
