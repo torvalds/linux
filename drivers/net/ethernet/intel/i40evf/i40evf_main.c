@@ -1456,7 +1456,11 @@ static int i40evf_init_rss(struct i40evf_adapter *adapter)
 	int ret;
 
 	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
-	hena = I40E_DEFAULT_RSS_HENA;
+	if (adapter->vf_res->vf_offload_flags &
+					I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+		hena = I40E_DEFAULT_RSS_HENA_EXPANDED;
+	else
+		hena = I40E_DEFAULT_RSS_HENA;
 	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
@@ -2507,8 +2511,6 @@ static void i40evf_init_task(struct work_struct *work)
 	if (adapter->vf_res->vf_offload_flags &
 		    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
 		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
-	if (!RSS_AQ(adapter))
-		i40evf_init_rss(adapter);
 	err = i40evf_request_misc_irq(adapter);
 	if (err)
 		goto err_sw_init;

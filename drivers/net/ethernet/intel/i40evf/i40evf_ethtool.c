@@ -459,6 +459,7 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 				   struct ethtool_rxnfc *nfc)
 {
 	struct i40e_hw *hw = &adapter->hw;
+	u32 flags = adapter->vf_res->vf_offload_flags;
 
 	u64 hena = (u64)rd32(hw, I40E_VFQF_HENA(0)) |
 		   ((u64)rd32(hw, I40E_VFQF_HENA(1)) << 32);
@@ -477,19 +478,34 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 
 	switch (nfc->flow_type) {
 	case TCP_V4_FLOW:
-		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3))
+		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			if (flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+				hena |=
+			   BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK);
+
 			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
-		else
+		} else {
 			return -EINVAL;
+		}
 		break;
 	case TCP_V6_FLOW:
-		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3))
+		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			if (flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+				hena |=
+			   BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK);
+
 			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
-		else
+		} else {
 			return -EINVAL;
+		}
 		break;
 	case UDP_V4_FLOW:
 		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			if (flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+				hena |=
+			    BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) |
+			    BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP);
+
 			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
 				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
 		} else {
@@ -498,6 +514,11 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 		break;
 	case UDP_V6_FLOW:
 		if (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			if (flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+				hena |=
+			    BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) |
+			    BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP);
+
 			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
 				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
 		} else {
