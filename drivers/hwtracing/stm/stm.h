@@ -45,6 +45,7 @@ struct stm_device {
 	int			major;
 	unsigned int		sw_nmasters;
 	struct stm_data		*data;
+	struct mutex		link_mutex;
 	spinlock_t		link_lock;
 	struct list_head	link_list;
 	/* master allocation */

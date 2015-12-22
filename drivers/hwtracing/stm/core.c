@@ -641,6 +641,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	if (err)
 		goto err_device;
 
+	mutex_init(&stm->link_mutex);
 	spin_lock_init(&stm->link_lock);
 	INIT_LIST_HEAD(&stm->link_list);
 
@@ -671,11 +672,11 @@ void stm_unregister_device(struct stm_data *stm_data)
 	struct stm_source_device *src, *iter;
 	int i;
 
-	spin_lock(&stm->link_lock);
+	mutex_lock(&stm->link_mutex);
 	list_for_each_entry_safe(src, iter, &stm->link_list, link_entry) {
 		__stm_source_link_drop(src, stm);
 	}
-	spin_unlock(&stm->link_lock);
+	mutex_unlock(&stm->link_mutex);
 
 	synchronize_srcu(&stm_source_srcu);
 
@@ -694,6 +695,17 @@ void stm_unregister_device(struct stm_data *stm_data)
 }
 EXPORT_SYMBOL_GPL(stm_unregister_device);
 
+/*
+ * stm::link_list access serialization uses a spinlock and a mutex; holding
+ * either of them guarantees that the list is stable; modification requires
+ * holding both of them.
+ *
+ * Lock ordering is as follows:
+ *   stm::link_mutex
+ *     stm::link_lock
+ *       src::link_lock
+ */
+
 /**
  * stm_source_link_add() - connect an stm_source device to an stm device
  * @src:	stm_source device
@@ -710,6 +722,7 @@ static int stm_source_link_add(struct stm_source_device *src,
 	char *id;
 	int err;
 
+	mutex_lock(&stm->link_mutex);
 	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 
@@ -719,6 +732,7 @@ static int stm_source_link_add(struct stm_source_device *src,
 
 	spin_unlock(&src->link_lock);
 	spin_unlock(&stm->link_lock);
+	mutex_unlock(&stm->link_mutex);
 
 	id = kstrdup(src->data->name, GFP_KERNEL);
 	if (id) {
@@ -756,6 +770,7 @@ fail_free_output:
 	stm_put_device(stm);
 
 fail_detach:
+	mutex_lock(&stm->link_mutex);
 	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 
@@ -764,6 +779,7 @@ fail_detach:
 
 	spin_unlock(&src->link_lock);
 	spin_unlock(&stm->link_lock);
+	mutex_unlock(&stm->link_mutex);
 
 	return err;
 }
@@ -776,13 +792,20 @@ fail_detach:
  * If @stm is @src::link, disconnect them from one another and put the
  * reference on the @stm device.
  *
- * Caller must hold stm::link_lock.
+ * Caller must hold stm::link_mutex.
  */
 static void __stm_source_link_drop(struct stm_source_device *src,
 				   struct stm_device *stm)
 {
 	struct stm_device *link;
 
+	lockdep_assert_held(&stm->link_mutex);
+
+	if (src->data->unlink)
+		src->data->unlink(src->data);
+
+	/* for stm::link_list modification, we hold both mutex and spinlock */
+	spin_lock(&stm->link_lock);
 	spin_lock(&src->link_lock);
 	link = srcu_dereference_check(src->link, &stm_source_srcu, 1);
 	if (WARN_ON_ONCE(link != stm)) {
@@ -791,13 +814,13 @@ static void __stm_source_link_drop(struct stm_source_device *src,
 	}
 
 	stm_output_free(link, &src->output);
-	/* caller must hold stm::link_lock */
 	list_del_init(&src->link_entry);
 	/* matches stm_find_device() from stm_source_link_store() */
 	stm_put_device(link);
 	rcu_assign_pointer(src->link, NULL);
 
 	spin_unlock(&src->link_lock);
+	spin_unlock(&stm->link_lock);
 }
 
 /**
@@ -819,12 +842,9 @@ static void stm_source_link_drop(struct stm_source_device *src)
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 
 	if (stm) {
-		if (src->data->unlink)
-			src->data->unlink(src->data);
-
-		spin_lock(&stm->link_lock);
+		mutex_lock(&stm->link_mutex);
 		__stm_source_link_drop(src, stm);
-		spin_unlock(&stm->link_lock);
+		mutex_unlock(&stm->link_mutex);
 	}
 
 	srcu_read_unlock(&stm_source_srcu, idx);
