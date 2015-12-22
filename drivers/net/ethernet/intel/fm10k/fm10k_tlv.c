@@ -755,7 +755,7 @@ parse_nested:
 		err = fm10k_tlv_attr_get_mac_vlan(
 					results[FM10K_TEST_MSG_MAC_ADDR],
 					result_mac, &result_vlan);
-		if (!err && memcmp(test_mac, result_mac, ETH_ALEN))
+		if (!err && !ether_addr_equal(test_mac, result_mac))
 			err = FM10K_ERR_INVALID_VALUE;
 		if (!err && test_vlan != result_vlan)
 			err = FM10K_ERR_INVALID_VALUE;

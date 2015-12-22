@@ -38,9 +38,9 @@ struct fm10k_msg_data;
  * mailbox size we will provide a message with the above header and it
  * will be segmented and transported to the mailbox to the other side where
  * it is reassembled.  It contains the following fields:
- * Len: Length of the message in bytes excluding the message header
+ * Length: Length of the message in bytes excluding the message header
  * Flags: TBD
- * Rule: These will be the message/argument types we pass
+ * Type/ID: These will be the message/argument types we pass
  */
 /* message data header */
 #define FM10K_TLV_ID_SHIFT		0

@@ -1250,7 +1250,7 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 
 		/* block attempts to set MAC for a locked device */
 		if (is_valid_ether_addr(vf_info->mac) &&
-		    memcmp(mac, vf_info->mac, ETH_ALEN))
+		    !ether_addr_equal(mac, vf_info->mac))
 			return FM10K_ERR_PARAM;
 
 		set = !(vlan & FM10K_VLAN_CLEAR);
@@ -1866,39 +1866,39 @@ static const struct fm10k_msg_data fm10k_msg_data_pf[] = {
 	FM10K_TLV_MSG_ERROR_HANDLER(fm10k_tlv_msg_error),
 };
 
-static struct fm10k_mac_ops mac_ops_pf = {
-	.get_bus_info		= &fm10k_get_bus_info_generic,
-	.reset_hw		= &fm10k_reset_hw_pf,
-	.init_hw		= &fm10k_init_hw_pf,
-	.start_hw		= &fm10k_start_hw_generic,
-	.stop_hw		= &fm10k_stop_hw_generic,
-	.update_vlan		= &fm10k_update_vlan_pf,
-	.read_mac_addr		= &fm10k_read_mac_addr_pf,
-	.update_uc_addr		= &fm10k_update_uc_addr_pf,
-	.update_mc_addr		= &fm10k_update_mc_addr_pf,
-	.update_xcast_mode	= &fm10k_update_xcast_mode_pf,
-	.update_int_moderator	= &fm10k_update_int_moderator_pf,
-	.update_lport_state	= &fm10k_update_lport_state_pf,
-	.update_hw_stats	= &fm10k_update_hw_stats_pf,
-	.rebind_hw_stats	= &fm10k_rebind_hw_stats_pf,
-	.configure_dglort_map	= &fm10k_configure_dglort_map_pf,
-	.set_dma_mask		= &fm10k_set_dma_mask_pf,
-	.get_fault		= &fm10k_get_fault_pf,
-	.get_host_state		= &fm10k_get_host_state_pf,
-	.adjust_systime		= &fm10k_adjust_systime_pf,
-	.read_systime		= &fm10k_read_systime_pf,
+static const struct fm10k_mac_ops mac_ops_pf = {
+	.get_bus_info		= fm10k_get_bus_info_generic,
+	.reset_hw		= fm10k_reset_hw_pf,
+	.init_hw		= fm10k_init_hw_pf,
+	.start_hw		= fm10k_start_hw_generic,
+	.stop_hw		= fm10k_stop_hw_generic,
+	.update_vlan		= fm10k_update_vlan_pf,
+	.read_mac_addr		= fm10k_read_mac_addr_pf,
+	.update_uc_addr		= fm10k_update_uc_addr_pf,
+	.update_mc_addr		= fm10k_update_mc_addr_pf,
+	.update_xcast_mode	= fm10k_update_xcast_mode_pf,
+	.update_int_moderator	= fm10k_update_int_moderator_pf,
+	.update_lport_state	= fm10k_update_lport_state_pf,
+	.update_hw_stats	= fm10k_update_hw_stats_pf,
+	.rebind_hw_stats	= fm10k_rebind_hw_stats_pf,
+	.configure_dglort_map	= fm10k_configure_dglort_map_pf,
+	.set_dma_mask		= fm10k_set_dma_mask_pf,
+	.get_fault		= fm10k_get_fault_pf,
+	.get_host_state		= fm10k_get_host_state_pf,
+	.adjust_systime		= fm10k_adjust_systime_pf,
+	.read_systime		= fm10k_read_systime_pf,
 };
 
-static struct fm10k_iov_ops iov_ops_pf = {
-	.assign_resources		= &fm10k_iov_assign_resources_pf,
-	.configure_tc			= &fm10k_iov_configure_tc_pf,
-	.assign_int_moderator		= &fm10k_iov_assign_int_moderator_pf,
+static const struct fm10k_iov_ops iov_ops_pf = {
+	.assign_resources		= fm10k_iov_assign_resources_pf,
+	.configure_tc			= fm10k_iov_configure_tc_pf,
+	.assign_int_moderator		= fm10k_iov_assign_int_moderator_pf,
 	.assign_default_mac_vlan	= fm10k_iov_assign_default_mac_vlan_pf,
-	.reset_resources		= &fm10k_iov_reset_resources_pf,
-	.set_lport			= &fm10k_iov_set_lport_pf,
-	.reset_lport			= &fm10k_iov_reset_lport_pf,
-	.update_stats			= &fm10k_iov_update_stats_pf,
-	.report_timestamp		= &fm10k_iov_report_timestamp_pf,
+	.reset_resources		= fm10k_iov_reset_resources_pf,
+	.set_lport			= fm10k_iov_set_lport_pf,
+	.reset_lport			= fm10k_iov_reset_lport_pf,
+	.update_stats			= fm10k_iov_update_stats_pf,
+	.report_timestamp		= fm10k_iov_report_timestamp_pf,
 };
 
 static s32 fm10k_get_invariants_pf(struct fm10k_hw *hw)
@@ -1908,9 +1908,9 @@ static s32 fm10k_get_invariants_pf(struct fm10k_hw *hw)
 	return fm10k_sm_mbx_init(hw, &hw->mbx, fm10k_msg_data_pf);
 }
 
-struct fm10k_info fm10k_pf_info = {
+const struct fm10k_info fm10k_pf_info = {
 	.mac		= fm10k_mac_pf,
-	.get_invariants	= &fm10k_get_invariants_pf,
+	.get_invariants	= fm10k_get_invariants_pf,
 	.mac_ops	= &mac_ops_pf,
 	.iov_ops	= &iov_ops_pf,
 };

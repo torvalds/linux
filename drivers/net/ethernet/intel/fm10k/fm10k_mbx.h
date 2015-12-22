@@ -128,11 +128,11 @@ enum fm10k_mbx_state {
  *		The maximum message size is provided during connect to avoid
  *		jamming the mailbox with messages that do not fit.
  * Err_no: Error number - Applies only to error headers
- *		The error number provides a indication of the type of error
+ *		The error number provides an indication of the type of error
  *		experienced.
  */
 
-/* macros for retriving and setting header values */
+/* macros for retrieving and setting header values */
 #define FM10K_MSG_HDR_MASK(name) \
 	((0x1u << FM10K_MSG_##name##_SIZE) - 1)
 #define FM10K_MSG_HDR_FIELD_SET(value, name) \

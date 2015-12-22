@@ -20,7 +20,7 @@
 
 #include "fm10k.h"
 #include <linux/vmalloc.h>
-#if IS_ENABLED(CONFIG_FM10K_VXLAN)
+#ifdef CONFIG_FM10K_VXLAN
 #include <net/vxlan.h>
 #endif /* CONFIG_FM10K_VXLAN */
 
@@ -556,11 +556,11 @@ int fm10k_open(struct net_device *netdev)
 	if (err)
 		goto err_set_queues;
 
-#if IS_ENABLED(CONFIG_FM10K_VXLAN)
+#ifdef CONFIG_FM10K_VXLAN
 	/* update VXLAN port configuration */
 	vxlan_get_rx_port(netdev);
-
 #endif
+
 	fm10k_up(interface);
 
 	return 0;
@@ -1153,6 +1153,7 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 int fm10k_setup_tc(struct net_device *dev, u8 tc)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
+	int err;
 
 	/* Currently only the PF supports priority classes */
 	if (tc && (interface->hw.mac.type != fm10k_mac_pf))
@@ -1177,17 +1178,30 @@ int fm10k_setup_tc(struct net_device *dev, u8 tc)
 	netdev_reset_tc(dev);
 	netdev_set_num_tc(dev, tc);
 
-	fm10k_init_queueing_scheme(interface);
+	err = fm10k_init_queueing_scheme(interface);
+	if (err)
+		goto err_queueing_scheme;
 
-	fm10k_mbx_request_irq(interface);
+	err = fm10k_mbx_request_irq(interface);
+	if (err)
+		goto err_mbx_irq;
 
-	if (netif_running(dev))
-		fm10k_open(dev);
+	err = netif_running(dev) ? fm10k_open(dev) : 0;
+	if (err)
+		goto err_open;
 
 	/* flag to indicate SWPRI has yet to be updated */
 	interface->flags |= FM10K_FLAG_SWPRI_CONFIG;
 
 	return 0;
+err_open:
+	fm10k_mbx_free_irq(interface);
+err_mbx_irq:
+	fm10k_clear_queueing_scheme(interface);
+err_queueing_scheme:
+	netif_device_detach(dev);
+
+	return err;
 }
 
 static int fm10k_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
