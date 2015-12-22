@@ -1663,10 +1663,12 @@ static int da7219_probe(struct snd_soc_codec *codec)
 	/* Check if MCLK provided */
 	da7219->mclk = devm_clk_get(codec->dev, "mclk");
 	if (IS_ERR(da7219->mclk)) {
-		if (PTR_ERR(da7219->mclk) != -ENOENT)
-			return PTR_ERR(da7219->mclk);
-		else
+		if (PTR_ERR(da7219->mclk) != -ENOENT) {
+			ret = PTR_ERR(da7219->mclk);
+			goto err_disable_reg;
+		} else {
 			da7219->mclk = NULL;
+		}
 	}
 
 	/* Default PC counter to free-running */
@@ -1694,7 +1696,16 @@ static int da7219_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, DA7219_TONE_GEN_CYCLES, DA7219_BEEP_CYCLES_MASK);
 
 	/* Initialise AAD block */
-	return da7219_aad_init(codec);
+	ret = da7219_aad_init(codec);
+	if (ret)
+		goto err_disable_reg;
+
+	return 0;
+
+err_disable_reg:
+	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
+
+	return ret;
 }
 
 static int da7219_remove(struct snd_soc_codec *codec)
