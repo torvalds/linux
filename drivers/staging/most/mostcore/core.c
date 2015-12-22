@@ -74,7 +74,6 @@ struct most_c_obj {
 
 struct most_inst_obj {
 	int dev_id;
-	atomic_t tainted;
 	struct most_interface *iface;
 	struct list_head channel_list;
 	struct most_c_obj *channel[MAX_CHANNELS];
@@ -1299,18 +1298,10 @@ _exit:
  */
 int most_submit_mbo(struct mbo *mbo)
 {
-	struct most_c_obj *c;
-	struct most_inst_obj *i;
-
 	if (unlikely((!mbo) || (!mbo->context))) {
 		pr_err("Bad MBO or missing channel reference\n");
 		return -EINVAL;
 	}
-	c = mbo->context;
-	i = c->inst;
-
-	if (unlikely(atomic_read(&i->tainted)))
-		return -ENODEV;
 
 	nq_hdm_mbo(mbo);
 	return 0;
@@ -1436,17 +1427,8 @@ EXPORT_SYMBOL_GPL(most_get_mbo);
  */
 void most_put_mbo(struct mbo *mbo)
 {
-	struct most_c_obj *c;
-	struct most_inst_obj *i;
+	struct most_c_obj *c = mbo->context;
 
-	c = mbo->context;
-	i = c->inst;
-
-	if (unlikely(atomic_read(&i->tainted))) {
-		mbo->status = MBO_E_CLOSE;
-		trash_mbo(mbo);
-		return;
-	}
 	if (c->cfg.direction == MOST_CH_TX) {
 		arm_mbo(mbo);
 		return;
@@ -1602,14 +1584,6 @@ int most_stop_channel(struct most_interface *iface, int id,
 	c->hdm_enqueue_task = NULL;
 	mutex_unlock(&c->stop_task_mutex);
 
-	mutex_lock(&deregister_mutex);
-	if (atomic_read(&c->inst->tainted)) {
-		mutex_unlock(&deregister_mutex);
-		mutex_unlock(&c->start_mutex);
-		return -ENODEV;
-	}
-	mutex_unlock(&deregister_mutex);
-
 	if (iface->mod && modref) {
 		module_put(iface->mod);
 		modref--;
@@ -1750,7 +1724,6 @@ struct kobject *most_register_interface(struct most_interface *iface)
 	INIT_LIST_HEAD(&inst->channel_list);
 	inst->iface = iface;
 	inst->dev_id = id;
-	atomic_set(&inst->tainted, 0);
 	list_add_tail(&inst->list, &instance_list);
 
 	for (i = 0; i < iface->num_channels; i++) {
@@ -1834,10 +1807,6 @@ void most_deregister_interface(struct most_interface *iface)
 		c->aim0.ptr = NULL;
 		c->aim1.ptr = NULL;
 	}
-
-	mutex_lock(&deregister_mutex);
-	atomic_set(&i->tainted, 1);
-	mutex_unlock(&deregister_mutex);
 
 	while (modref) {
 		if (iface->mod && modref)
