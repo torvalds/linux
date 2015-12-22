@@ -8369,6 +8369,7 @@ F:	drivers/pinctrl/intel/
 
 PIN CONTROLLER - RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+M:	Geert Uytterhoeven <geert+renesas@glider.be>
 L:	linux-sh@vger.kernel.org
 S:	Maintained
 F:	drivers/pinctrl/sh-pfc/
