@@ -591,6 +591,10 @@ static int spi_test_fill_tx(struct spi_device *spi, struct spi_test *test)
 
 	/* fill all transfers with the pattern requested */
 	for (i = 0; i < test->transfer_count; i++) {
+		/* fill rx_buf with SPI_TEST_PATTERN_UNWRITTEN */
+		if (xfers[i].rx_buf)
+			memset(xfers[i].rx_buf, SPI_TEST_PATTERN_UNWRITTEN,
+			       xfers[i].len);
 		/* if tx_buf is NULL then skip */
 		tx_buf = (u8 *)xfers[i].tx_buf;
 		if (!tx_buf)
@@ -648,10 +652,6 @@ static int spi_test_fill_tx(struct spi_device *spi, struct spi_test *test)
 				return -EINVAL;
 			}
 		}
-		/* fill rx_buf with SPI_TEST_PATTERN_UNWRITTEN */
-		if (xfers[i].rx_buf)
-			memset(xfers[i].rx_buf, SPI_TEST_PATTERN_UNWRITTEN,
-			       xfers[i].len);
 	}
 
 	return 0;
