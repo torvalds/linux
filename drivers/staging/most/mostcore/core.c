@@ -551,29 +551,6 @@ create_most_c_obj(const char *name, struct kobject *parent)
 	return c;
 }
 
-/**
- * destroy_most_c_obj - channel release function
- * @c: pointer to channel object
- *
- * This decrements the reference counter of the channel object.
- * If the reference count turns zero, its release function is called.
- */
-static void destroy_most_c_obj(struct most_c_obj *c)
-{
-	if (c->aim0.ptr)
-		c->aim0.ptr->disconnect_channel(c->iface, c->channel_id);
-	if (c->aim1.ptr)
-		c->aim1.ptr->disconnect_channel(c->iface, c->channel_id);
-	c->aim0.ptr = NULL;
-	c->aim1.ptr = NULL;
-
-	mutex_lock(&deregister_mutex);
-	flush_trash_fifo(c);
-	flush_channel_fifos(c);
-	mutex_unlock(&deregister_mutex);
-	kobject_put(&c->kobj);
-}
-
 /*		     ___	       ___
  *		     ___I N S T A N C E___
  */
@@ -766,7 +743,20 @@ static void destroy_most_inst_obj(struct most_inst_obj *inst)
 	 * reference count of the inst->kobj
 	 */
 	list_for_each_entry_safe(c, tmp, &inst->channel_list, list) {
-		destroy_most_c_obj(c);
+		if (c->aim0.ptr)
+			c->aim0.ptr->disconnect_channel(c->iface,
+							c->channel_id);
+		if (c->aim1.ptr)
+			c->aim1.ptr->disconnect_channel(c->iface,
+							c->channel_id);
+		c->aim0.ptr = NULL;
+		c->aim1.ptr = NULL;
+
+		mutex_lock(&deregister_mutex);
+		flush_trash_fifo(c);
+		flush_channel_fifos(c);
+		mutex_unlock(&deregister_mutex);
+		kobject_put(&c->kobj);
 	}
 	kobject_put(&inst->kobj);
 }
