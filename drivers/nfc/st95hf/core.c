@@ -762,7 +762,7 @@ static int st95hf_response_handler(struct st95hf_context *stcontext,
 	return result;
 }
 
-static irqreturn_t irq_handler(int irq, void  *st95hfcontext)
+static irqreturn_t st95hf_irq_handler(int irq, void  *st95hfcontext)
 {
 	struct st95hf_context *stcontext  =
 		(struct st95hf_context *)st95hfcontext;
@@ -776,7 +776,7 @@ static irqreturn_t irq_handler(int irq, void  *st95hfcontext)
 	return IRQ_WAKE_THREAD;
 }
 
-static irqreturn_t irq_thread_handler(int irq, void  *st95hfcontext)
+static irqreturn_t st95hf_irq_thread_handler(int irq, void  *st95hfcontext)
 {
 	int result = 0;
 	int res_len;
@@ -1140,8 +1140,8 @@ static int st95hf_probe(struct spi_device *nfc_spi_dev)
 	if (nfc_spi_dev->irq > 0) {
 		if (devm_request_threaded_irq(&nfc_spi_dev->dev,
 					      nfc_spi_dev->irq,
-					      irq_handler,
-					      irq_thread_handler,
+					      st95hf_irq_handler,
+					      st95hf_irq_thread_handler,
 					      IRQF_TRIGGER_FALLING,
 					      "st95hf",
 					      (void *)st95context) < 0) {
