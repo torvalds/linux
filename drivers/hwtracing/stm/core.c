@@ -406,6 +406,9 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 	char *kbuf;
 	int err;
 
+	if (count + 1 > PAGE_SIZE)
+		count = PAGE_SIZE - 1;
+
 	/*
 	 * if no m/c have been assigned to this writer up to this
 	 * point, use "default" policy entry
