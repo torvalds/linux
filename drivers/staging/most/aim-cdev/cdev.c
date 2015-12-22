@@ -69,6 +69,30 @@ static struct aim_channel *get_channel(struct most_interface *iface, int id)
 	return channel;
 }
 
+static void stop_channel(struct aim_channel *c)
+{
+	struct mbo *mbo;
+
+	while (kfifo_out((struct kfifo *)&c->fifo, &mbo, 1))
+		most_put_mbo(mbo);
+	if (c->stacked_mbo)
+		most_put_mbo(c->stacked_mbo);
+	most_stop_channel(c->iface, c->channel_id, &cdev_aim);
+}
+
+static void destroy_cdev(struct aim_channel *c)
+{
+	unsigned long flags;
+
+	device_destroy(aim_class, c->devno);
+	cdev_del(&c->cdev);
+	kfifo_free(&c->fifo);
+	spin_lock_irqsave(&ch_list_lock, flags);
+	list_del(&c->list);
+	spin_unlock_irqrestore(&ch_list_lock, flags);
+	ida_simple_remove(&minor_id, MINOR(c->devno));
+}
+
 /**
  * aim_open - implements the syscall to open the device
  * @inode: inode pointer
@@ -114,31 +138,21 @@ static int aim_open(struct inode *inode, struct file *filp)
  */
 static int aim_close(struct inode *inode, struct file *filp)
 {
-	int ret;
-	struct mbo *mbo;
 	struct aim_channel *channel = to_channel(inode->i_cdev);
 
 	mutex_lock(&channel->io_mutex);
 	if (!channel->dev) {
 		mutex_unlock(&channel->io_mutex);
 		atomic_dec(&channel->access_ref);
-		device_destroy(aim_class, channel->devno);
-		cdev_del(&channel->cdev);
-		kfifo_free(&channel->fifo);
-		list_del(&channel->list);
-		ida_simple_remove(&minor_id, MINOR(channel->devno));
+		destroy_cdev(channel);
 		kfree(channel);
 		return 0;
 	}
 	mutex_unlock(&channel->io_mutex);
 
-	while (kfifo_out((struct kfifo *)&channel->fifo, &mbo, 1))
-		most_put_mbo(mbo);
-	if (channel->stacked_mbo)
-		most_put_mbo(channel->stacked_mbo);
-	ret = most_stop_channel(channel->iface, channel->channel_id, &cdev_aim);
+	stop_channel(channel);
 	atomic_dec(&channel->access_ref);
-	return ret;
+	return 0;
 }
 
 /**
@@ -310,7 +324,6 @@ static const struct file_operations channel_fops = {
 static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
 {
 	struct aim_channel *channel;
-	unsigned long flags;
 
 	if (!iface) {
 		pr_info("Bad interface pointer\n");
@@ -326,13 +339,7 @@ static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
 	mutex_unlock(&channel->io_mutex);
 
 	if (atomic_read(&channel->access_ref)) {
-		device_destroy(aim_class, channel->devno);
-		cdev_del(&channel->cdev);
-		kfifo_free(&channel->fifo);
-		ida_simple_remove(&minor_id, MINOR(channel->devno));
-		spin_lock_irqsave(&ch_list_lock, flags);
-		list_del(&channel->list);
-		spin_unlock_irqrestore(&ch_list_lock, flags);
+		destroy_cdev(channel);
 		kfree(channel);
 	} else {
 		wake_up_interruptible(&channel->wq);
@@ -526,11 +533,7 @@ static void __exit mod_exit(void)
 	most_deregister_aim(&cdev_aim);
 
 	list_for_each_entry_safe(channel, tmp, &channel_list, list) {
-		device_destroy(aim_class, channel->devno);
-		cdev_del(&channel->cdev);
-		kfifo_free(&channel->fifo);
-		list_del(&channel->list);
-		ida_simple_remove(&minor_id, MINOR(channel->devno));
+		destroy_cdev(channel);
 		kfree(channel);
 	}
 	class_destroy(aim_class);
