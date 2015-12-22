@@ -20,6 +20,8 @@ static ssize_t field##_show(struct device *dev,				\
 }									\
 static DEVICE_ATTR_RO(field)
 
+gb_interface_attr(ddbl1_manufacturer_id, "0x%08x");
+gb_interface_attr(ddbl1_product_id, "0x%08x");
 gb_interface_attr(interface_id, "%u");
 gb_interface_attr(vendor_id, "0x%08x");
 gb_interface_attr(product_id, "0x%08x");
@@ -27,6 +29,8 @@ gb_interface_attr(vendor_string, "%s");
 gb_interface_attr(product_string, "%s");
 
 static struct attribute *interface_attrs[] = {
+	&dev_attr_ddbl1_manufacturer_id.attr,
+	&dev_attr_ddbl1_product_id.attr,
 	&dev_attr_interface_id.attr,
 	&dev_attr_vendor_id.attr,
 	&dev_attr_product_id.attr,

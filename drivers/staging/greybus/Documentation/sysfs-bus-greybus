@@ -14,6 +14,22 @@ Description:
 		An Interface I on the bus N, where I is the 1-byte interface
 		ID.
 
+What:		/sys/bus/greybus/device/N-I/ddbl1_manufacturer_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Unipro Device Descriptor Block Level 1 manufacturer ID for the
+		greybus Interface.
+
+What:		/sys/bus/greybus/device/N-I/ddbl1_product_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Unipro Device Descriptor Block Level 1 product ID for the
+		greybus Interface.
+
 What:		/sys/bus/greybus/device/N-I/interface_id
 Date:		October 2015
 KernelVersion:	4.XX
