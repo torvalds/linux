@@ -99,7 +99,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto done;
 	}
 
-	req->num_streams = nstreams;
+	req->num_streams = cpu_to_le16(nstreams);
 	req->padding = 0;
 
 	for (i = 0; i < nstreams; ++i) {
@@ -117,9 +117,9 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	if (ret < 0)
 		return ret;
 
-	if (resp->num_streams > nstreams) {
+	if (le16_to_cpu(resp->num_streams) > nstreams) {
 		gcam_dbg(gcam, "got #streams %u > request %u\n",
-			 resp->num_streams, nstreams);
+			 le16_to_cpu(resp->num_streams), nstreams);
 		ret = -EIO;
 		goto done;
 	}
@@ -169,7 +169,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		gcam_err(gcam, "failed to %s the CSI transmitter\n",
 			 nstreams ? "start" : "stop");
 
-	ret = resp->num_streams;
+	ret = le16_to_cpu(resp->num_streams);
 
 done:
 	kfree(req);
