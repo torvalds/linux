@@ -749,8 +749,8 @@ struct gb_svc_intf_device_id_request {
 struct gb_svc_intf_hotplug_request {
 	__u8	intf_id;
 	struct {
-		__le32	unipro_mfg_id;
-		__le32	unipro_prod_id;
+		__le32	ddbl1_mfr_id;
+		__le32	ddbl1_prod_id;
 		__le32	ara_vend_id;
 		__le32	ara_prod_id;
 	} data;

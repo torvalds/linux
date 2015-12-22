@@ -417,8 +417,8 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		goto destroy_interface;
 	}
 
-	intf->unipro_mfg_id = le32_to_cpu(request->data.unipro_mfg_id);
-	intf->unipro_prod_id = le32_to_cpu(request->data.unipro_prod_id);
+	intf->ddbl1_manufacturer_id = le32_to_cpu(request->data.ddbl1_mfr_id);
+	intf->ddbl1_product_id = le32_to_cpu(request->data.ddbl1_prod_id);
 	intf->vendor_id = le32_to_cpu(request->data.ara_vend_id);
 	intf->product_id = le32_to_cpu(request->data.ara_prod_id);
 

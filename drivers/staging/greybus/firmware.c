@@ -11,8 +11,8 @@
 
 #include "greybus.h"
 
-#define ES2_UNIPRO_MFG_ID	0x00000126
-#define ES2_UNIPRO_PROD_ID	0x00001000
+#define ES2_DDBL1_MFR_ID	0x00000126
+#define ES2_DDBL1_PROD_ID	0x00001000
 
 struct gb_firmware {
 	struct gb_connection	*connection;
@@ -49,8 +49,8 @@ static void firmware_es2_fixup_vid_pid(struct gb_firmware *firmware)
 	 * - Bridge ASIC chip isn't ES2
 	 * - Received non-zero Vendor/Product ids
 	 */
-	if (intf->unipro_mfg_id != ES2_UNIPRO_MFG_ID ||
-	    intf->unipro_prod_id != ES2_UNIPRO_PROD_ID ||
+	if (intf->ddbl1_manufacturer_id != ES2_DDBL1_MFR_ID ||
+	    intf->ddbl1_product_id != ES2_DDBL1_PROD_ID ||
 	    intf->vendor_id != 0 || intf->product_id != 0)
 		return;
 
@@ -84,7 +84,7 @@ static int download_firmware(struct gb_firmware *firmware, u8 stage)
 	 */
 	snprintf(firmware_name, sizeof(firmware_name),
 		 "ara:%08x:%08x:%08x:%08x:%02x.tftf",
-		 intf->unipro_mfg_id, intf->unipro_prod_id,
+		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id,
 		 firmware->vendor_id, firmware->product_id, stage);
 
 	return request_firmware(&firmware->fw, firmware_name,
