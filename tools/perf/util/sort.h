@@ -167,6 +167,7 @@ enum sort_mode {
 	SORT_MODE__MEMORY,
 	SORT_MODE__TOP,
 	SORT_MODE__DIFF,
+	SORT_MODE__TRACEPOINT,
 };
 
 enum sort_type {
