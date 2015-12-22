@@ -221,8 +221,8 @@ error:
 static ssize_t
 aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 {
-	ssize_t retval;
-	size_t not_copied, proc_len;
+	ssize_t copied;
+	size_t to_copy, not_copied;
 	struct mbo *mbo;
 	struct aim_channel *channel = filp->private_data;
 
@@ -247,17 +247,17 @@ start_copy:
 		return -EIO;
 	}
 
-	proc_len = min((int)count,
-		       (int)(mbo->processed_length - channel->mbo_offs));
+	to_copy = min((int)count,
+		      (int)(mbo->processed_length - channel->mbo_offs));
 
 	not_copied = copy_to_user(buf,
 				  mbo->virt_address + channel->mbo_offs,
-				  proc_len);
+				  to_copy);
 
-	retval = not_copied ? proc_len - not_copied : proc_len;
+	copied = not_copied ? to_copy - not_copied : to_copy;
 
 	if (count < mbo->processed_length) {
-		channel->mbo_offs = retval;
+		channel->mbo_offs = copied;
 		channel->stacked_mbo = mbo;
 	} else {
 		most_put_mbo(mbo);
@@ -265,7 +265,7 @@ start_copy:
 		channel->stacked_mbo = NULL;
 	}
 	mutex_unlock(&channel->io_mutex);
-	return retval;
+	return copied;
 }
 
 static inline bool __must_check IS_ERR_OR_FALSE(int x)
