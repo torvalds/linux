@@ -89,18 +89,19 @@
 		 */
 		hp-det = <3 0>;
 		hp-det-gpios = <&gpio5 4 0>;
+		mic-det-gpios = <&gpio5 4 0>;
 		audio-routing =
-			"Headset Jack", "HP_L",
-			"Headset Jack", "HP_R",
+			"Headphone Jack", "HP_L",
+			"Headphone Jack", "HP_R",
 			"Ext Spk", "SPK_LP",
 			"Ext Spk", "SPK_LN",
 			"Ext Spk", "SPK_RP",
 			"Ext Spk", "SPK_RN",
-			"LINPUT2", "Hp MIC",
-			"LINPUT3", "Hp MIC",
+			"LINPUT2", "Mic Jack",
+			"LINPUT3", "Mic Jack",
 			"RINPUT1", "Main MIC",
 			"RINPUT2", "Main MIC",
-			"Hp MIC", "MICB",
+			"Mic Jack", "MICB",
 			"Main MIC", "MICB",
 			"CPU-Playback", "ASRC-Playback",
 			"Playback", "CPU-Playback",
