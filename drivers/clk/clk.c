@@ -1944,7 +1944,7 @@ bool clk_is_match(const struct clk *p, const struct clk *q)
 	if (p == q)
 		return true;
 
-	/* true if clk->core pointers match. Avoid derefing garbage */
+	/* true if clk->core pointers match. Avoid dereferencing garbage */
 	if (!IS_ERR_OR_NULL(p) && !IS_ERR_OR_NULL(q))
 		if (p->core == q->core)
 			return true;
@@ -2482,7 +2482,7 @@ struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
 	struct clk *clk;
 
 	/* This is to allow this function to be chained to others */
-	if (!hw || IS_ERR(hw))
+	if (IS_ERR_OR_NULL(hw))
 		return (struct clk *) hw;
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
@@ -2806,10 +2806,9 @@ void __clk_put(struct clk *clk)
  * re-enter into the clk framework by calling any top-level clk APIs;
  * this will cause a nested prepare_lock mutex.
  *
- * In all notification cases cases (pre, post and abort rate change) the
- * original clock rate is passed to the callback via struct
- * clk_notifier_data.old_rate and the new frequency is passed via struct
- * clk_notifier_data.new_rate.
+ * In all notification cases (pre, post and abort rate change) the original
+ * clock rate is passed to the callback via struct clk_notifier_data.old_rate
+ * and the new frequency is passed via struct clk_notifier_data.new_rate.
  *
  * clk_notifier_register() must be called from non-atomic context.
  * Returns -EINVAL if called with null arguments, -ENOMEM upon
@@ -3062,9 +3061,6 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 	int count;
 	struct clk *clk;
 
-	if (index < 0)
-		return NULL;
-
 	rc = of_parse_phandle_with_args(np, "clocks", "#clock-cells", index,
 					&clkspec);
 	if (rc)
@@ -3083,6 +3079,9 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 		}
 		count++;
 	}
+	/* We went off the end of 'clock-indices' without finding it */
+	if (prop && !vp)
+		return NULL;
 
 	if (of_property_read_string_index(clkspec.np, "clock-output-names",
 					  index,

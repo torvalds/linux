@@ -3336,6 +3336,7 @@ static const struct regmap_config gcc_msm8916_regmap_config = {
 	.val_bits	= 32,
 	.max_register	= 0x80000,
 	.fast_io	= true,
+	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static const struct qcom_cc_desc gcc_msm8916_desc = {
@@ -3356,18 +3357,16 @@ MODULE_DEVICE_TABLE(of, gcc_msm8916_match_table);
 
 static int gcc_msm8916_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
+	int ret;
 	struct device *dev = &pdev->dev;
 
-	/* Temporary until RPM clocks supported */
-	clk = clk_register_fixed_rate(dev, "xo", NULL, CLK_IS_ROOT, 19200000);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_board_clk(dev, "xo_board", "xo", 19200000);
+	if (ret)
+		return ret;
 
-	clk = clk_register_fixed_rate(dev, "sleep_clk_src", NULL,
-				      CLK_IS_ROOT, 32768);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_sleep_clk(dev);
+	if (ret)
+		return ret;
 
 	return qcom_cc_probe(pdev, &gcc_msm8916_desc);
 }
