@@ -306,6 +306,17 @@
 		};
 	};
 
+	elan@10 {
+		compatible = "elan,elan-touch";
+		reg = <0x10>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <10 2>;
+		gpio_elan_cs = <&gpio2 9 0>;
+		gpio_elan_rst = <&gpio4 4 0>;
+		gpio_intr = <&gpio2 10 0>;
+		status = "okay";
+	};
+
 	mma8450@1c {
 		compatible = "fsl,mma8450";
 		reg = <0x1c>;
