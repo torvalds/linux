@@ -531,6 +531,18 @@ static const unsigned scorpion_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 	[C(BPU)][C(OP_WRITE)][C(RESULT_MISS)] = ARMV7_PERFCTR_PC_BRANCH_MIS_PRED,
 };
 
+PMU_FORMAT_ATTR(event, "config:0-7");
+
+static struct attribute *armv7_pmu_format_attrs[] = {
+	&format_attr_event.attr,
+	NULL,
+};
+
+static struct attribute_group armv7_pmu_format_attr_group = {
+	.name = "format",
+	.attrs = armv7_pmu_format_attrs,
+};
+
 #define ARMV7_EVENT_ATTR_RESOLVE(m) #m
 #define ARMV7_EVENT_ATTR(name, config) \
 	PMU_EVENT_ATTR_STRING(name, armv7_event_attr_##name, \
@@ -576,7 +588,7 @@ static struct attribute *armv7_pmuv1_event_attrs[] = {
 	&armv7_event_attr_br_mis_pred.attr.attr,
 	&armv7_event_attr_cpu_cycles.attr.attr,
 	&armv7_event_attr_br_pred.attr.attr,
-	NULL
+	NULL,
 };
 
 static struct attribute_group armv7_pmuv1_events_attr_group = {
@@ -586,7 +598,8 @@ static struct attribute_group armv7_pmuv1_events_attr_group = {
 
 static const struct attribute_group *armv7_pmuv1_attr_groups[] = {
 	&armv7_pmuv1_events_attr_group,
-	NULL
+	&armv7_pmu_format_attr_group,
+	NULL,
 };
 
 ARMV7_EVENT_ATTR(mem_access, ARMV7_PERFCTR_MEM_ACCESS);
@@ -632,7 +645,7 @@ static struct attribute *armv7_pmuv2_event_attrs[] = {
 	&armv7_event_attr_inst_spec.attr.attr,
 	&armv7_event_attr_ttbr_write_retired.attr.attr,
 	&armv7_event_attr_bus_cycles.attr.attr,
-	NULL
+	NULL,
 };
 
 static struct attribute_group armv7_pmuv2_events_attr_group = {
@@ -642,7 +655,8 @@ static struct attribute_group armv7_pmuv2_events_attr_group = {
 
 static const struct attribute_group *armv7_pmuv2_attr_groups[] = {
 	&armv7_pmuv2_events_attr_group,
-	NULL
+	&armv7_pmu_format_attr_group,
+	NULL,
 };
 
 /*
