@@ -82,7 +82,7 @@
 #define ADF_DH895XCC_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
 /* FW names */
 #define ADF_DH895XCC_FW "qat_895xcc.bin"
-#define ADF_DH895XCC_MMP "qat_mmp.bin"
+#define ADF_DH895XCC_MMP "qat_895xcc_mmp.bin"
 
 void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_dh895xcc(struct adf_hw_device_data *hw_data);
