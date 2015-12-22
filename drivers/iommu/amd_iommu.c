@@ -1892,6 +1892,23 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 	kfree(dom);
 }
 
+static int dma_ops_domain_alloc_apertures(struct dma_ops_domain *dma_dom,
+					  int max_apertures)
+{
+	int ret, i, apertures;
+
+	apertures = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
+	ret       = 0;
+
+	for (i = apertures; i < max_apertures; ++i) {
+		ret = alloc_new_range(dma_dom, false, GFP_KERNEL);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 /*
  * Allocates a new protection domain usable for the dma_ops functions.
  * It also initializes the page table and the address allocator data
@@ -2800,14 +2817,43 @@ static int amd_iommu_dma_supported(struct device *dev, u64 mask)
 	return check_device(dev);
 }
 
+static int set_dma_mask(struct device *dev, u64 mask)
+{
+	struct protection_domain *domain;
+	int max_apertures = 1;
+
+	domain = get_domain(dev);
+	if (IS_ERR(domain))
+		return PTR_ERR(domain);
+
+	if (mask == DMA_BIT_MASK(64))
+		max_apertures = 8;
+	else if (mask > DMA_BIT_MASK(32))
+		max_apertures = 4;
+
+	/*
+	 * To prevent lock contention it doesn't make sense to allocate more
+	 * apertures than online cpus
+	 */
+	if (max_apertures > num_online_cpus())
+		max_apertures = num_online_cpus();
+
+	if (dma_ops_domain_alloc_apertures(domain->priv, max_apertures))
+		dev_err(dev, "Can't allocate %d iommu apertures\n",
+			max_apertures);
+
+	return 0;
+}
+
 static struct dma_map_ops amd_iommu_dma_ops = {
-	.alloc = alloc_coherent,
-	.free = free_coherent,
-	.map_page = map_page,
-	.unmap_page = unmap_page,
-	.map_sg = map_sg,
-	.unmap_sg = unmap_sg,
-	.dma_supported = amd_iommu_dma_supported,
+	.alloc		= alloc_coherent,
+	.free		= free_coherent,
+	.map_page	= map_page,
+	.unmap_page	= unmap_page,
+	.map_sg		= map_sg,
+	.unmap_sg	= unmap_sg,
+	.dma_supported	= amd_iommu_dma_supported,
+	.set_dma_mask	= set_dma_mask,
 };
 
 int __init amd_iommu_init_api(void)
