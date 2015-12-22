@@ -297,7 +297,7 @@ static struct attribute *armv8_pmuv3_event_attrs[] = {
 	&armv8_event_attr_l21_tlb_refill.attr.attr,
 	&armv8_event_attr_l2d_tlb.attr.attr,
 	&armv8_event_attr_l21_tlb.attr.attr,
-	NULL
+	NULL,
 };
 
 static struct attribute_group armv8_pmuv3_events_attr_group = {
@@ -305,10 +305,24 @@ static struct attribute_group armv8_pmuv3_events_attr_group = {
 	.attrs = armv8_pmuv3_event_attrs,
 };
 
+PMU_FORMAT_ATTR(event, "config:0-9");
+
+static struct attribute *armv8_pmuv3_format_attrs[] = {
+	&format_attr_event.attr,
+	NULL,
+};
+
+static struct attribute_group armv8_pmuv3_format_attr_group = {
+	.name = "format",
+	.attrs = armv8_pmuv3_format_attrs,
+};
+
 static const struct attribute_group *armv8_pmuv3_attr_groups[] = {
 	&armv8_pmuv3_events_attr_group,
-	NULL
+	&armv8_pmuv3_format_attr_group,
+	NULL,
 };
+
 
 /*
  * Perf Events' indices
