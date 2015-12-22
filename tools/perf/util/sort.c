@@ -1828,10 +1828,90 @@ __alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field)
 	return hde;
 }
 
+static int parse_field_name(char *str, char **event, char **field, char **opt)
+{
+	char *event_name, *field_name, *opt_name;
+
+	event_name = str;
+	field_name = strchr(str, '.');
+
+	if (field_name) {
+		*field_name++ = '\0';
+	} else {
+		event_name = NULL;
+		field_name = str;
+	}
+
+	opt_name = strchr(field_name, '/');
+	if (opt_name)
+		*opt_name++ = '\0';
+
+	*event = event_name;
+	*field = field_name;
+	*opt   = opt_name;
+
+	return 0;
+}
+
+/* find match evsel using a given event name.  The event name can be:
+ *   1. NULL - only valid for single event session
+ *   2. '%' + event index (e.g. '%1' for first event)
+ *   3. full event name (e.g. sched:sched_switch)
+ *   4. partial event name (should not contain ':')
+ */
+static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_name)
+{
+	struct perf_evsel *evsel = NULL;
+	struct perf_evsel *pos;
+	bool full_name;
+
+	/* case 1 */
+	if (event_name == NULL) {
+		if (evlist->nr_entries != 1) {
+			pr_debug("event name should be given\n");
+			return NULL;
+		}
+
+		return perf_evlist__first(evlist);
+	}
+
+	/* case 2 */
+	if (event_name[0] == '%') {
+		int nr = strtol(event_name+1, NULL, 0);
+
+		if (nr > evlist->nr_entries)
+			return NULL;
+
+		evsel = perf_evlist__first(evlist);
+		while (--nr > 0)
+			evsel = perf_evsel__next(evsel);
+
+		return evsel;
+	}
+
+	full_name = !!strchr(event_name, ':');
+	evlist__for_each(evlist, pos) {
+		/* case 3 */
+		if (full_name && !strcmp(pos->name, event_name))
+			return pos;
+		/* case 4 */
+		if (!full_name && strstr(pos->name, event_name)) {
+			if (evsel) {
+				pr_debug("'%s' event is ambiguous: it can be %s or %s\n",
+					 event_name, evsel->name, pos->name);
+				return NULL;
+			}
+			evsel = pos;
+		}
+	}
+
+	return evsel;
+}
+
 static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 {
-	char *str, *event_name, *field_name, *raw_opt;
-	struct perf_evsel *evsel, *pos;
+	char *str, *event_name, *field_name, *opt_name;
+	struct perf_evsel *evsel;
 	struct format_field *field;
 	struct hpp_dynamic_entry *hde;
 	bool raw_trace = symbol_conf.raw_trace;
@@ -1844,34 +1924,21 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 	if (str == NULL)
 		return -ENOMEM;
 
-	event_name = str;
-	field_name = strchr(str, '.');
-	if (field_name == NULL) {
+	if (parse_field_name(str, &event_name, &field_name, &opt_name) < 0) {
 		ret = -EINVAL;
 		goto out;
 	}
-	*field_name++ = '\0';
 
-	raw_opt = strchr(field_name, '/');
-	if (raw_opt) {
-		*raw_opt++ = '\0';
-
-		if (strcmp(raw_opt, "raw")) {
-			pr_err("Unsupported field option %s\n", raw_opt);
+	if (opt_name) {
+		if (strcmp(opt_name, "raw")) {
+			pr_debug("unsupported field option %s\n", opt_name);
 			ret = -EINVAL;
 			goto out;
 		}
 		raw_trace = true;
 	}
 
-	evsel = NULL;
-	evlist__for_each(evlist, pos) {
-		if (!strcmp(pos->name, event_name)) {
-			evsel = pos;
-			break;
-		}
-	}
-
+	evsel = find_evsel(evlist, event_name);
 	if (evsel == NULL) {
 		pr_debug("Cannot find event: %s\n", event_name);
 		ret = -ENOENT;
