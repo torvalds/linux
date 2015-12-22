@@ -50,7 +50,7 @@
 
 &am33xx_pinmux {
 	pinctrl-names = "default";
-	pinctrl-0 = <>;
+	pinctrl-0 = <&bluetooth_pins>;
 
 	i2c0_pins: pinmux_i2c0_pins {
 		pinctrl-single,pins = <
@@ -118,6 +118,19 @@
 			AM33XX_IOPAD(0x970, PIN_INPUT_PULLUP | MUX_MODE0)
 			/* uart0_txd.uart0_txd */
 			AM33XX_IOPAD(0x974, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			/* uart1_ctsn.uart1_ctsn */
+			AM33XX_IOPAD(0x978, PIN_INPUT | MUX_MODE0)
+			/* uart1_rtsn.uart1_rtsn */
+			AM33XX_IOPAD(0x97C, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
+			/* uart1_rxd.uart1_rxd */
+			AM33XX_IOPAD(0x980, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* uart1_txd.uart1_txd */
+			AM33XX_IOPAD(0x984, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
 		>;
 	};
 
@@ -209,6 +222,14 @@
 			AM33XX_IOPAD(0x904, PIN_INPUT_PULLUP | MUX_MODE0)
 		>;
 	};
+
+	/* wl1271 bluetooth */
+	bluetooth_pins: pinmux_bluetooth_pins {
+		pinctrl-single,pins = <
+			/* XDMA_EVENT_INTR0.gpio0_19 - bluetooth enable */
+			AM33XX_IOPAD(0x9b0, PIN_OUTPUT_PULLUP | MUX_MODE7)
+		>;
+	};
 };
 
 &uart0 {
@@ -216,6 +237,14 @@
 	pinctrl-0 = <&uart0_pins>;
 
 	status = "okay";
+};
+
+/* WLS1271 bluetooth */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+
+status = "okay";
 };
 
 &i2c0 {
@@ -235,6 +264,26 @@
 		compatible = "emmicro,em3027";
 		reg = <0x56>;
 	};
+};
+
+&usb {
+	status = "okay";
+};
+
+&usb_ctrl_mod {
+	status = "okay";
+};
+
+&usb0_phy {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&cppi41dma  {
+	status = "okay";
 };
 
 &epwmss0 {

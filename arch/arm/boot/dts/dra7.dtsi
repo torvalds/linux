@@ -1154,8 +1154,10 @@
 
 		qspi: qspi@4b300000 {
 			compatible = "ti,dra7xxx-qspi";
-			reg = <0x4b300000 0x100>;
-			reg-names = "qspi_base";
+			reg = <0x4b300000 0x100>,
+			      <0x5c000000 0x4000000>;
+			reg-names = "qspi_base", "qspi_mmap";
+			syscon-chipselects = <&scm_conf 0x558>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "qspi";

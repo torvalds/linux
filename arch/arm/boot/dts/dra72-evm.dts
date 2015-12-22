@@ -373,6 +373,7 @@
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
 					regulator-boot-on;
+					regulator-allow-bypass;
 				};
 
 				ldo2_reg: ldo2 {
@@ -380,6 +381,7 @@
 					regulator-name = "ldo2";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <3300000>;
+					regulator-allow-bypass;
 				};
 
 				ldo3_reg: ldo3 {

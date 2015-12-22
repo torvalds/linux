@@ -80,7 +80,7 @@
 			label = "user";
 			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x114>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 	};

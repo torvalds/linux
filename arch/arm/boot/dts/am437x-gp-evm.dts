@@ -734,8 +734,8 @@
 	status = "okay";
 	/* these are on the crossbar and are outlined in the
 	   xbar-event-map element */
-	dmas = <&edma 30
-		&edma 31>;
+	dmas = <&edma_xbar 30 0 1>,
+		<&edma_xbar 31 0 2>;
 	dma-names = "tx", "rx";
 	vmmc-supply = <&vmmcwl_fixed>;
 	bus-width = <4>;
@@ -754,11 +754,6 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 	};
-};
-
-&edma {
-	ti,edma-xbar-event-map = /bits/ 16 <1 30
-					    2 31>;
 };
 
 &uart3 {
