@@ -216,11 +216,11 @@ static int oxfw_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
-	err = detect_quirks(oxfw);
+	err = name_card(oxfw);
 	if (err < 0)
 		goto error;
 
-	err = name_card(oxfw);
+	err = detect_quirks(oxfw);
 	if (err < 0)
 		goto error;
 
