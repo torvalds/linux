@@ -1085,6 +1085,57 @@ mv_xor_conf_mbus_windows(struct mv_xor_device *xordev,
 	writel(0, base + WINDOW_OVERRIDE_CTRL(1));
 }
 
+/*
+ * Since this XOR driver is basically used only for RAID5, we don't
+ * need to care about synchronizing ->suspend with DMA activity,
+ * because the DMA engine will naturally be quiet due to the block
+ * devices being suspended.
+ */
+static int mv_xor_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct mv_xor_device *xordev = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
+		struct mv_xor_chan *mv_chan = xordev->channels[i];
+
+		if (!mv_chan)
+			continue;
+
+		mv_chan->saved_config_reg =
+			readl_relaxed(XOR_CONFIG(mv_chan));
+		mv_chan->saved_int_mask_reg =
+			readl_relaxed(XOR_INTR_MASK(mv_chan));
+	}
+
+	return 0;
+}
+
+static int mv_xor_resume(struct platform_device *dev)
+{
+	struct mv_xor_device *xordev = platform_get_drvdata(dev);
+	const struct mbus_dram_target_info *dram;
+	int i;
+
+	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
+		struct mv_xor_chan *mv_chan = xordev->channels[i];
+
+		if (!mv_chan)
+			continue;
+
+		writel_relaxed(mv_chan->saved_config_reg,
+			       XOR_CONFIG(mv_chan));
+		writel_relaxed(mv_chan->saved_int_mask_reg,
+			       XOR_INTR_MASK(mv_chan));
+	}
+
+	dram = mv_mbus_dram_info();
+	if (dram)
+		mv_xor_conf_mbus_windows(xordev, dram);
+
+	return 0;
+}
+
 static const struct of_device_id mv_xor_dt_ids[] = {
 	{ .compatible = "marvell,orion-xor", .data = (void *)XOR_MODE_IN_REG },
 	{ .compatible = "marvell,armada-380-xor", .data = (void *)XOR_MODE_IN_DESC },
@@ -1246,6 +1297,8 @@ err_channel_add:
 
 static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
+	.suspend        = mv_xor_suspend,
+	.resume         = mv_xor_resume,
 	.driver		= {
 		.name	        = MV_XOR_NAME,
 		.of_match_table = of_match_ptr(mv_xor_dt_ids),

@@ -125,6 +125,7 @@ struct mv_xor_chan {
 	char			dummy_src[MV_XOR_MIN_BYTE_COUNT];
 	char			dummy_dst[MV_XOR_MIN_BYTE_COUNT];
 	dma_addr_t		dummy_src_addr, dummy_dst_addr;
+	u32                     saved_config_reg, saved_int_mask_reg;
 };
 
 /**
