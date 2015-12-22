@@ -2078,9 +2078,9 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	vf = &(pf->vf[vf_id]);
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
-		dev_err(&pf->pdev->dev,
-			"Uninitialized VF %d\n", vf_id);
-		ret = -EINVAL;
+		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
+			vf_id);
+		ret = -EAGAIN;
 		goto error_param;
 	}
 
@@ -2162,8 +2162,9 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 	vf = &(pf->vf[vf_id]);
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
-		dev_err(&pf->pdev->dev, "Uninitialized VF %d\n", vf_id);
-		ret = -EINVAL;
+		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
+			vf_id);
+		ret = -EAGAIN;
 		goto error_pvid;
 	}
 
@@ -2282,8 +2283,9 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	vf = &(pf->vf[vf_id]);
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
-		dev_err(&pf->pdev->dev, "Uninitialized VF %d.\n", vf_id);
-		ret = -EINVAL;
+		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
+			vf_id);
+		ret = -EAGAIN;
 		goto error;
 	}
 
@@ -2356,8 +2358,9 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 	/* first vsi is always the LAN vsi */
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
-		dev_err(&pf->pdev->dev, "Uninitialized VF %d\n", vf_id);
-		ret = -EINVAL;
+		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
+			vf_id);
+		ret = -EAGAIN;
 		goto error_param;
 	}
 
@@ -2472,6 +2475,12 @@ int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable)
 	}
 
 	vf = &(pf->vf[vf_id]);
+	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
+		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
+			vf_id);
+		ret = -EAGAIN;
+		goto out;
+	}
 
 	if (enable == vf->spoofchk)
 		goto out;
