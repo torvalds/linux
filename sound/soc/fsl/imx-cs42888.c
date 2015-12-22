@@ -55,12 +55,22 @@ static int imx_cs42888_surround_hw_params(struct snd_pcm_substream *substream,
 	dai_format = SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
 		     SND_SOC_DAIFMT_CBS_CFS;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKT_EXTAL,
+		ret = snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKT_EXTAL,
 			       priv->mclk_freq, SND_SOC_CLOCK_OUT);
 	else
-		snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKR_EXTAL,
+		ret = snd_soc_dai_set_sysclk(cpu_dai, ESAI_HCKR_EXTAL,
 			       priv->mclk_freq, SND_SOC_CLOCK_OUT);
-	snd_soc_dai_set_sysclk(codec_dai, 0, priv->mclk_freq, SND_SOC_CLOCK_IN);
+	if (ret) {
+		dev_err(dev, "failed to set cpu sysclk: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+				priv->mclk_freq, SND_SOC_CLOCK_IN);
+	if (ret) {
+		dev_err(dev, "failed to set codec sysclk: %d\n", ret);
+		return ret;
+	}
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
