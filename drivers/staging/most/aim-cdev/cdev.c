@@ -43,7 +43,7 @@ struct aim_channel {
 	size_t mbo_offs;
 	struct mbo *stacked_mbo;
 	DECLARE_KFIFO_PTR(fifo, typeof(struct mbo *));
-	atomic_t access_ref;
+	int access_ref;
 	struct list_head list;
 };
 
@@ -137,16 +137,15 @@ static int aim_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 	}
 
-	if (!atomic_inc_and_test(&c->access_ref)) {
+	if (c->access_ref) {
 		pr_info("WARN: Device is busy\n");
-		atomic_dec(&c->access_ref);
 		mutex_unlock(&c->io_mutex);
 		return -EBUSY;
 	}
 
 	ret = most_start_channel(c->iface, c->channel_id, &cdev_aim);
-	if (ret)
-		atomic_dec(&c->access_ref);
+	if (!ret)
+		c->access_ref = 1;
 	mutex_unlock(&c->io_mutex);
 	return ret;
 }
@@ -164,7 +163,7 @@ static int aim_close(struct inode *inode, struct file *filp)
 
 	mutex_lock(&c->io_mutex);
 	spin_lock(&c->unlink);
-	atomic_dec(&c->access_ref);
+	c->access_ref = 0;
 	spin_unlock(&c->unlink);
 	if (c->dev) {
 		stop_channel(c);
@@ -347,7 +346,7 @@ static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
 	spin_lock(&c->unlink);
 	c->dev = NULL;
 	spin_unlock(&c->unlink);
-	if (!atomic_read(&c->access_ref)) {
+	if (c->access_ref) {
 		stop_channel(c);
 		wake_up_interruptible(&c->wq);
 		mutex_unlock(&c->io_mutex);
@@ -378,7 +377,7 @@ static int aim_rx_completion(struct mbo *mbo)
 		return -ENXIO;
 
 	spin_lock(&c->unlink);
-	if (atomic_read(&c->access_ref) || !c->dev) {
+	if (!c->access_ref || !c->dev) {
 		spin_unlock(&c->unlink);
 		return -EFAULT;
 	}
@@ -468,7 +467,7 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 	c->cfg = cfg;
 	c->channel_id = channel_id;
 	c->mbo_offs = 0;
-	atomic_set(&c->access_ref, -1);
+	c->access_ref = 0;
 	spin_lock_init(&c->unlink);
 	INIT_KFIFO(c->fifo);
 	retval = kfifo_alloc(&c->fifo, cfg->num_buffers, GFP_KERNEL);
