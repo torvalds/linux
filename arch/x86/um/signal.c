@@ -470,7 +470,7 @@ long sys_sigreturn(void)
 	struct sigcontext __user *sc = &frame->sc;
 	int sig_size = (_NSIG_WORDS - 1) * sizeof(unsigned long);
 
-	if (copy_from_user(&set.sig[0], (void *)sc->oldmask, sizeof(set.sig[0])) ||
+	if (copy_from_user(&set.sig[0], &sc->oldmask, sizeof(set.sig[0])) ||
 	    copy_from_user(&set.sig[1], frame->extramask, sig_size))
 		goto segfault;
 
