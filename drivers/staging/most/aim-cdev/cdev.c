@@ -32,6 +32,7 @@ static struct most_aim cdev_aim;
 
 struct aim_channel {
 	wait_queue_head_t wq;
+	spinlock_t unlink;	/* synchronization lock to unlink channels */
 	struct cdev cdev;
 	struct device *dev;
 	struct mutex io_mutex;
@@ -53,6 +54,12 @@ static spinlock_t ch_list_lock;
 static inline bool ch_has_mbo(struct aim_channel *c)
 {
 	return channel_has_mbo(c->iface, c->channel_id, &cdev_aim) > 0;
+}
+
+static inline bool ch_get_mbo(struct aim_channel *c, struct mbo **mbo)
+{
+	*mbo = most_get_mbo(c->iface, c->channel_id, &cdev_aim);
+	return *mbo;
 }
 
 static struct aim_channel *get_channel(struct most_interface *iface, int id)
@@ -82,6 +89,7 @@ static void stop_channel(struct aim_channel *c)
 		most_put_mbo(mbo);
 	if (c->stacked_mbo)
 		most_put_mbo(c->stacked_mbo);
+	c->stacked_mbo = NULL;
 	most_stop_channel(c->iface, c->channel_id, &cdev_aim);
 }
 
@@ -121,16 +129,25 @@ static int aim_open(struct inode *inode, struct file *filp)
 		pr_info("WARN: Access flags mismatch\n");
 		return -EACCES;
 	}
-	if (!atomic_inc_and_test(&c->access_ref)) {
-		pr_info("WARN: Device is busy\n");
-		atomic_dec(&c->access_ref);
+
+	mutex_lock(&c->io_mutex);
+	if (!c->dev) {
+		pr_info("WARN: Device is destroyed\n");
+		mutex_unlock(&c->io_mutex);
 		return -EBUSY;
 	}
 
-	ret = most_start_channel(c->iface, c->channel_id,
-				 &cdev_aim);
+	if (!atomic_inc_and_test(&c->access_ref)) {
+		pr_info("WARN: Device is busy\n");
+		atomic_dec(&c->access_ref);
+		mutex_unlock(&c->io_mutex);
+		return -EBUSY;
+	}
+
+	ret = most_start_channel(c->iface, c->channel_id, &cdev_aim);
 	if (ret)
 		atomic_dec(&c->access_ref);
+	mutex_unlock(&c->io_mutex);
 	return ret;
 }
 
@@ -146,17 +163,17 @@ static int aim_close(struct inode *inode, struct file *filp)
 	struct aim_channel *c = to_channel(inode->i_cdev);
 
 	mutex_lock(&c->io_mutex);
-	if (!c->dev) {
-		mutex_unlock(&c->io_mutex);
-		atomic_dec(&c->access_ref);
-		destroy_cdev(c);
-		kfree(c);
-		return 0;
-	}
-	mutex_unlock(&c->io_mutex);
-
-	stop_channel(c);
+	spin_lock(&c->unlink);
 	atomic_dec(&c->access_ref);
+	spin_unlock(&c->unlink);
+	if (c->dev) {
+		stop_channel(c);
+		mutex_unlock(&c->io_mutex);
+	} else {
+		destroy_cdev(c);
+		mutex_unlock(&c->io_mutex);
+		kfree(c);
+	}
 	return 0;
 }
 
@@ -171,40 +188,27 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *offset)
 {
 	int ret, err;
-	size_t actual_len = 0;
-	size_t max_len = 0;
+	size_t actual_len;
+	size_t max_len;
 	ssize_t retval;
-	struct mbo *mbo;
+	struct mbo *mbo = NULL;
 	struct aim_channel *c = filp->private_data;
 
 	mutex_lock(&c->io_mutex);
-	if (unlikely(!c->dev)) {
+	while (c->dev && !ch_get_mbo(c, &mbo)) {
 		mutex_unlock(&c->io_mutex);
-		return -EPIPE;
-	}
-	mutex_unlock(&c->io_mutex);
 
-	mbo = most_get_mbo(c->iface, c->channel_id, &cdev_aim);
-
-	if (!mbo) {
 		if ((filp->f_flags & O_NONBLOCK))
 			return -EAGAIN;
-		if (wait_event_interruptible(
-			    c->wq,
-			    (mbo = most_get_mbo(c->iface,
-						c->channel_id,
-						&cdev_aim)) ||
-			    (!c->dev)))
+		if (wait_event_interruptible(c->wq, ch_has_mbo(c) || !c->dev))
 			return -ERESTARTSYS;
+		mutex_lock(&c->io_mutex);
 	}
 
-	mutex_lock(&c->io_mutex);
 	if (unlikely(!c->dev)) {
-		mutex_unlock(&c->io_mutex);
 		err = -EPIPE;
 		goto error;
 	}
-	mutex_unlock(&c->io_mutex);
 
 	max_len = c->cfg->buffer_size;
 	actual_len = min(count, max_len);
@@ -222,9 +226,12 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 		err = ret;
 		goto error;
 	}
+	mutex_unlock(&c->io_mutex);
 	return actual_len - retval;
 error:
-	most_put_mbo(mbo);
+	if (mbo)
+		most_put_mbo(mbo);
+	mutex_unlock(&c->io_mutex);
 	return err;
 }
 
@@ -242,23 +249,25 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 	struct mbo *mbo;
 	struct aim_channel *c = filp->private_data;
 
+	mutex_lock(&c->io_mutex);
 	if (c->stacked_mbo) {
 		mbo = c->stacked_mbo;
 		goto start_copy;
 	}
 	while ((!kfifo_out(&c->fifo, &mbo, 1)) && (c->dev)) {
+		mutex_unlock(&c->io_mutex);
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		if (wait_event_interruptible(c->wq,
 					     (!kfifo_is_empty(&c->fifo) ||
 					      (!c->dev))))
 			return -ERESTARTSYS;
+		mutex_lock(&c->io_mutex);
 	}
 	c->stacked_mbo = mbo;
 
 start_copy:
 	/* make sure we don't submit to gone devices */
-	mutex_lock(&c->io_mutex);
 	if (unlikely(!c->dev)) {
 		mutex_unlock(&c->io_mutex);
 		return -EIO;
@@ -335,14 +344,17 @@ static int aim_disconnect_channel(struct most_interface *iface, int channel_id)
 		return -ENXIO;
 
 	mutex_lock(&c->io_mutex);
+	spin_lock(&c->unlink);
 	c->dev = NULL;
-	mutex_unlock(&c->io_mutex);
-
-	if (atomic_read(&c->access_ref)) {
-		destroy_cdev(c);
-		kfree(c);
-	} else {
+	spin_unlock(&c->unlink);
+	if (!atomic_read(&c->access_ref)) {
+		stop_channel(c);
 		wake_up_interruptible(&c->wq);
+		mutex_unlock(&c->io_mutex);
+	} else {
+		destroy_cdev(c);
+		mutex_unlock(&c->io_mutex);
+		kfree(c);
 	}
 	return 0;
 }
@@ -365,7 +377,13 @@ static int aim_rx_completion(struct mbo *mbo)
 	if (!c)
 		return -ENXIO;
 
+	spin_lock(&c->unlink);
+	if (atomic_read(&c->access_ref) || !c->dev) {
+		spin_unlock(&c->unlink);
+		return -EFAULT;
+	}
 	kfifo_in(&c->fifo, &mbo, 1);
+	spin_unlock(&c->unlink);
 #ifdef DEBUG_MESG
 	if (kfifo_is_full(&c->fifo))
 		pr_info("WARN: Fifo is full\n");
@@ -451,6 +469,7 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 	c->channel_id = channel_id;
 	c->mbo_offs = 0;
 	atomic_set(&c->access_ref, -1);
+	spin_lock_init(&c->unlink);
 	INIT_KFIFO(c->fifo);
 	retval = kfifo_alloc(&c->fifo, cfg->num_buffers, GFP_KERNEL);
 	if (retval) {
