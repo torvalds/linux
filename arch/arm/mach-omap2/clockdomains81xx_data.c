@@ -83,6 +83,14 @@ static struct clockdomain mmu_cfg_81xx_clkdm = {
 	.flags		= CLKDM_CAN_SWSUP,
 };
 
+static struct clockdomain default_l3_slow_81xx_clkdm = {
+	.name		= "default_l3_slow_clkdm",
+	.pwrdm		= { .name = "default_pwrdm" },
+	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
+	.clkdm_offs	= TI816X_CM_DEFAULT_L3_SLOW_CLKDM,
+	.flags		= CLKDM_CAN_SWSUP,
+};
+
 /* 816x only */
 
 static struct clockdomain alwon_mpu_816x_clkdm = {
@@ -96,7 +104,7 @@ static struct clockdomain alwon_mpu_816x_clkdm = {
 static struct clockdomain active_gem_816x_clkdm = {
 	.name		= "active_gem_clkdm",
 	.pwrdm		= { .name = "active_pwrdm" },
-	.cm_inst	= TI816X_CM_ACTIVE_MOD,
+	.cm_inst	= TI81XX_CM_ACTIVE_MOD,
 	.clkdm_offs	= TI816X_CM_ACTIVE_GEM_CLKDM,
 	.flags		= CLKDM_CAN_SWSUP,
 };
@@ -128,7 +136,7 @@ static struct clockdomain ivahd2_816x_clkdm = {
 static struct clockdomain sgx_816x_clkdm = {
 	.name		= "sgx_clkdm",
 	.pwrdm		= { .name = "sgx_pwrdm" },
-	.cm_inst	= TI816X_CM_SGX_MOD,
+	.cm_inst	= TI81XX_CM_SGX_MOD,
 	.clkdm_offs	= TI816X_CM_SGX_CLKDM,
 	.flags		= CLKDM_CAN_SWSUP,
 };
@@ -136,7 +144,7 @@ static struct clockdomain sgx_816x_clkdm = {
 static struct clockdomain default_l3_med_816x_clkdm = {
 	.name		= "default_l3_med_clkdm",
 	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI816X_CM_DEFAULT_MOD,
+	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
 	.clkdm_offs	= TI816X_CM_DEFAULT_L3_MED_CLKDM,
 	.flags		= CLKDM_CAN_SWSUP,
 };
@@ -144,7 +152,7 @@ static struct clockdomain default_l3_med_816x_clkdm = {
 static struct clockdomain default_ducati_816x_clkdm = {
 	.name		= "default_ducati_clkdm",
 	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI816X_CM_DEFAULT_MOD,
+	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
 	.clkdm_offs	= TI816X_CM_DEFAULT_DUCATI_CLKDM,
 	.flags		= CLKDM_CAN_SWSUP,
 };
@@ -152,16 +160,8 @@ static struct clockdomain default_ducati_816x_clkdm = {
 static struct clockdomain default_pci_816x_clkdm = {
 	.name		= "default_pci_clkdm",
 	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI816X_CM_DEFAULT_MOD,
+	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
 	.clkdm_offs	= TI816X_CM_DEFAULT_PCI_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
-};
-
-static struct clockdomain default_l3_slow_816x_clkdm = {
-	.name		= "default_l3_slow_clkdm",
-	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI816X_CM_DEFAULT_MOD,
-	.clkdm_offs	= TI816X_CM_DEFAULT_L3_SLOW_CLKDM,
 	.flags		= CLKDM_CAN_SWSUP,
 };
 
@@ -172,6 +172,7 @@ static struct clockdomain *clockdomains_ti814x[] __initdata = {
 	&alwon_ethernet_81xx_clkdm,
 	&mmu_81xx_clkdm,
 	&mmu_cfg_81xx_clkdm,
+	&default_l3_slow_81xx_clkdm,
 	NULL,
 };
 
@@ -198,7 +199,7 @@ static struct clockdomain *clockdomains_ti816x[] __initdata = {
 	&default_l3_med_816x_clkdm,
 	&default_ducati_816x_clkdm,
 	&default_pci_816x_clkdm,
-	&default_l3_slow_816x_clkdm,
+	&default_l3_slow_81xx_clkdm,
 	NULL,
 };
 
