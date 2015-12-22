@@ -25,7 +25,9 @@ static inline int myisspace(u8 c)
  * as an entire word in @cmdline.  For instance, if @option="car"
  * then a cmdline which contains "cart" will not match.
  */
-int cmdline_find_option_bool(const char *cmdline, const char *option)
+static int
+__cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
+			   const char *option)
 {
 	char c;
 	int pos = 0, wstart = 0;
@@ -43,7 +45,7 @@ int cmdline_find_option_bool(const char *cmdline, const char *option)
 	 * This 'pos' check ensures we do not overrun
 	 * a non-NULL-terminated 'cmdline'
 	 */
-	while (pos < COMMAND_LINE_SIZE) {
+	while (pos < max_cmdline_size) {
 		c = *(char *)cmdline++;
 		pos++;
 
@@ -100,4 +102,9 @@ int cmdline_find_option_bool(const char *cmdline, const char *option)
 	}
 
 	return 0;	/* Buffer overrun */
+}
+
+int cmdline_find_option_bool(const char *cmdline, const char *option)
+{
+	return __cmdline_find_option_bool(cmdline, COMMAND_LINE_SIZE, option);
 }
