@@ -1542,7 +1542,8 @@ static dma_addr_t dma_ops_aperture_alloc(struct dma_ops_domain *dom,
 					 unsigned long pages,
 					 unsigned long dma_mask,
 					 unsigned long boundary_size,
-					 unsigned long align_mask)
+					 unsigned long align_mask,
+					 bool trylock)
 {
 	unsigned long offset, limit, flags;
 	dma_addr_t address;
@@ -1552,7 +1553,13 @@ static dma_addr_t dma_ops_aperture_alloc(struct dma_ops_domain *dom,
 	limit  = iommu_device_max_index(APERTURE_RANGE_PAGES, offset,
 					dma_mask >> PAGE_SHIFT);
 
-	spin_lock_irqsave(&range->bitmap_lock, flags);
+	if (trylock) {
+		if (!spin_trylock_irqsave(&range->bitmap_lock, flags))
+			return -1;
+	} else {
+		spin_lock_irqsave(&range->bitmap_lock, flags);
+	}
+
 	address = iommu_area_alloc(range->bitmap, limit, range->next_bit,
 				   pages, offset, boundary_size, align_mask);
 	if (address == -1) {
@@ -1584,12 +1591,14 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 {
 	unsigned long boundary_size, mask;
 	unsigned long address = -1;
+	bool first = true;
 	u32 start, i;
 
 	preempt_disable();
 
 	mask = dma_get_seg_boundary(dev);
 
+again:
 	start = this_cpu_read(*dom->next_index);
 
 	/* Sanity check - is it really necessary? */
@@ -1614,12 +1623,17 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 
 		address = dma_ops_aperture_alloc(dom, range, pages,
 						 dma_mask, boundary_size,
-						 align_mask);
+						 align_mask, first);
 		if (address != -1) {
 			address = range->offset + (address << PAGE_SHIFT);
 			this_cpu_write(*dom->next_index, index);
 			break;
 		}
+	}
+
+	if (address == -1 && first) {
+		first = false;
+		goto again;
 	}
 
 	preempt_enable();
