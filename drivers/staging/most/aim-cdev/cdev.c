@@ -405,8 +405,6 @@ static int aim_tx_completion(struct most_interface *iface, int channel_id)
 	return 0;
 }
 
-static struct most_aim cdev_aim;
-
 /**
  * aim_probe - probe function of the driver module
  * @iface: pointer to interface instance
