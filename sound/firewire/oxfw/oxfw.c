@@ -164,8 +164,16 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 	 * Stanton models supports asynchronous transactions for unique MIDI
 	 * messages.
 	 */
-	if (oxfw->entry->vendor_id == OUI_STANTON)
+	if (oxfw->entry->vendor_id == OUI_STANTON) {
+		/* No physical MIDI ports. */
+		oxfw->midi_input_ports = 0;
+		oxfw->midi_output_ports = 0;
+
+		/* Output stream exists but no data channels are useful. */
+		oxfw->has_output = false;
+
 		return snd_oxfw_scs1x_add(oxfw);
+	}
 
 	/*
 	 * TASCAM FireOne has physical control and requires a pair of additional
