@@ -39,9 +39,6 @@ int cmdline_find_option_bool(const char *cmdline, const char *option)
 	if (!cmdline)
 		return -1;      /* No command line */
 
-	if (!strlen(cmdline))
-		return 0;
-
 	/*
 	 * This 'pos' check ensures we do not overrun
 	 * a non-NULL-terminated 'cmdline'
