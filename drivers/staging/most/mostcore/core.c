@@ -35,7 +35,6 @@
 static struct class *most_class;
 static struct device *class_glue_dir;
 static struct ida mdev_id;
-static int modref;
 static int dummy_num_buffers;
 
 struct most_c_aim_obj {
@@ -1508,7 +1507,6 @@ int most_start_channel(struct most_interface *iface, int id,
 		mutex_unlock(&c->start_mutex);
 		return -ENOLCK;
 	}
-	modref++;
 
 	c->cfg.extra_len = 0;
 	if (c->iface->configure(c->iface, c->channel_id, &c->cfg)) {
@@ -1550,7 +1548,6 @@ out:
 
 error:
 	module_put(iface->mod);
-	modref--;
 	mutex_unlock(&c->start_mutex);
 	return ret;
 }
@@ -1584,10 +1581,8 @@ int most_stop_channel(struct most_interface *iface, int id,
 	c->hdm_enqueue_task = NULL;
 	mutex_unlock(&c->stop_task_mutex);
 
-	if (iface->mod && modref) {
+	if (iface->mod)
 		module_put(iface->mod);
-		modref--;
-	}
 
 	c->is_poisoned = true;
 	if (c->iface->poison_channel(c->iface, c->channel_id)) {
@@ -1806,12 +1801,6 @@ void most_deregister_interface(struct most_interface *iface)
 							c->channel_id);
 		c->aim0.ptr = NULL;
 		c->aim1.ptr = NULL;
-	}
-
-	while (modref) {
-		if (iface->mod && modref)
-			module_put(iface->mod);
-		modref--;
 	}
 
 	list_for_each_entry(c, &i->channel_list, list) {
