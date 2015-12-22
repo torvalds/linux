@@ -1231,6 +1231,12 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (argc)
 		usage_with_options(top_usage, options);
 
+	if (!top.evlist->nr_entries &&
+	    perf_evlist__add_default(top.evlist) < 0) {
+		pr_err("Not enough memory for event selector list\n");
+		goto out_delete_evlist;
+	}
+
 	sort__mode = SORT_MODE__TOP;
 	/* display thread wants entries to be collapsed in a different tree */
 	sort__need_collapse = 1;
@@ -1274,12 +1280,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (perf_evlist__create_maps(top.evlist, target) < 0) {
 		ui__error("Couldn't create thread/CPU maps: %s\n",
 			  errno == ENOENT ? "No such process" : strerror_r(errno, errbuf, sizeof(errbuf)));
-		goto out_delete_evlist;
-	}
-
-	if (!top.evlist->nr_entries &&
-	    perf_evlist__add_default(top.evlist) < 0) {
-		ui__error("Not enough memory for event selector list\n");
 		goto out_delete_evlist;
 	}
 
