@@ -738,20 +738,7 @@ static void destroy_most_inst_obj(struct most_inst_obj *inst)
 {
 	struct most_c_obj *c, *tmp;
 
-	/* need to destroy channels first, since
-	 * each channel incremented the
-	 * reference count of the inst->kobj
-	 */
 	list_for_each_entry_safe(c, tmp, &inst->channel_list, list) {
-		if (c->aim0.ptr)
-			c->aim0.ptr->disconnect_channel(c->iface,
-							c->channel_id);
-		if (c->aim1.ptr)
-			c->aim1.ptr->disconnect_channel(c->iface,
-							c->channel_id);
-		c->aim0.ptr = NULL;
-		c->aim1.ptr = NULL;
-
 		mutex_lock(&deregister_mutex);
 		flush_trash_fifo(c);
 		flush_channel_fifos(c);
@@ -1836,6 +1823,17 @@ void most_deregister_interface(struct most_interface *iface)
 	}
 	pr_info("deregistering MOST device %s (%s)\n", i->kobj.name,
 		iface->description);
+
+	list_for_each_entry(c, &i->channel_list, list) {
+		if (c->aim0.ptr)
+			c->aim0.ptr->disconnect_channel(c->iface,
+							c->channel_id);
+		if (c->aim1.ptr)
+			c->aim1.ptr->disconnect_channel(c->iface,
+							c->channel_id);
+		c->aim0.ptr = NULL;
+		c->aim1.ptr = NULL;
+	}
 
 	mutex_lock(&deregister_mutex);
 	atomic_set(&i->tainted, 1);
