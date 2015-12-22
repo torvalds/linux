@@ -1453,8 +1453,8 @@ static void netdev_release(struct device *d)
 
 static const void *net_namespace(struct device *d)
 {
-	struct net_device *dev;
-	dev = container_of(d, struct net_device, dev);
+	struct net_device *dev = to_net_dev(d);
+
 	return dev_net(dev);
 }
 
