@@ -99,7 +99,7 @@ void fm10k_service_event_schedule(struct fm10k_intfc *interface)
 
 static void fm10k_service_event_complete(struct fm10k_intfc *interface)
 {
-	BUG_ON(!test_bit(__FM10K_SERVICE_SCHED, &interface->state));
+	WARN_ON(!test_bit(__FM10K_SERVICE_SCHED, &interface->state));
 
 	/* flush memory to make sure state is correct before next watchog */
 	smp_mb__before_atomic();
