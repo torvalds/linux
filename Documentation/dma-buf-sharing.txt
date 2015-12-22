@@ -257,17 +257,15 @@ Access to a dma_buf from the kernel context involves three steps:
 
    Interface:
       int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
-				   size_t start, size_t len,
 				   enum dma_data_direction direction)
 
    This allows the exporter to ensure that the memory is actually available for
    cpu access - the exporter might need to allocate or swap-in and pin the
    backing storage. The exporter also needs to ensure that cpu access is
-   coherent for the given range and access direction. The range and access
-   direction can be used by the exporter to optimize the cache flushing, i.e.
-   access outside of the range or with a different direction (read instead of
-   write) might return stale or even bogus data (e.g. when the exporter needs to
-   copy the data to temporary storage).
+   coherent for the access direction. The direction can be used by the exporter
+   to optimize the cache flushing, i.e. access with a different direction (read
+   instead of write) might return stale or even bogus data (e.g. when the
+   exporter needs to copy the data to temporary storage).
 
    This step might fail, e.g. in oom conditions.
 
@@ -322,14 +320,13 @@ Access to a dma_buf from the kernel context involves three steps:
 
 3. Finish access
 
-   When the importer is done accessing the range specified in begin_cpu_access,
-   it needs to announce this to the exporter (to facilitate cache flushing and
-   unpinning of any pinned resources). The result of any dma_buf kmap calls
-   after end_cpu_access is undefined.
+   When the importer is done accessing the CPU, it needs to announce this to
+   the exporter (to facilitate cache flushing and unpinning of any pinned
+   resources). The result of any dma_buf kmap calls after end_cpu_access is
+   undefined.
 
    Interface:
       void dma_buf_end_cpu_access(struct dma_buf *dma_buf,
-				  size_t start, size_t len,
 				  enum dma_data_direction dir);
 
 
