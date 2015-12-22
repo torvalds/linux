@@ -502,7 +502,8 @@ static int asic3_gpio_get(struct gpio_chip *chip,
 		return -EINVAL;
 	}
 
-	return asic3_read_register(asic, gpio_base + ASIC3_GPIO_STATUS) & mask;
+	return !!(asic3_read_register(asic,
+				      gpio_base + ASIC3_GPIO_STATUS) & mask);
 }
 
 static void asic3_gpio_set(struct gpio_chip *chip,
