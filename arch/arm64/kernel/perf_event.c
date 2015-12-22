@@ -90,7 +90,7 @@
 /* ARMv8 Cortex-A53 specific event types. */
 #define ARMV8_A53_PERFCTR_PREFETCH_LINEFILL			0xC2
 
-/* ARMv8 Cortex-A57 specific event types. */
+/* ARMv8 Cortex-A57 and Cortex-A72 specific event types. */
 #define ARMV8_A57_PERFCTR_L1_DCACHE_ACCESS_LD			0x40
 #define ARMV8_A57_PERFCTR_L1_DCACHE_ACCESS_ST			0x41
 #define ARMV8_A57_PERFCTR_L1_DCACHE_REFILL_LD			0x42
@@ -120,6 +120,7 @@ static const unsigned armv8_a53_perf_map[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_BUS_CYCLES]		= ARMV8_PMUV3_PERFCTR_BUS_CYCLES,
 };
 
+/* ARM Cortex-A57 and Cortex-A72 events mapping. */
 static const unsigned armv8_a57_perf_map[PERF_COUNT_HW_MAX] = {
 	PERF_MAP_ALL_UNSUPPORTED,
 	[PERF_COUNT_HW_CPU_CYCLES]		= ARMV8_PMUV3_PERFCTR_CLOCK_CYCLES,
@@ -801,10 +802,20 @@ static int armv8_a57_pmu_init(struct arm_pmu *cpu_pmu)
 	return armv8pmu_probe_num_events(cpu_pmu);
 }
 
+static int armv8_a72_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	armv8_pmu_init(cpu_pmu);
+	cpu_pmu->name			= "armv8_cortex_a72";
+	cpu_pmu->map_event		= armv8_a57_map_event;
+	cpu_pmu->pmu.attr_groups	= armv8_pmuv3_attr_groups;
+	return armv8pmu_probe_num_events(cpu_pmu);
+}
+
 static const struct of_device_id armv8_pmu_of_device_ids[] = {
 	{.compatible = "arm,armv8-pmuv3",	.data = armv8_pmuv3_init},
 	{.compatible = "arm,cortex-a53-pmu",	.data = armv8_a53_pmu_init},
 	{.compatible = "arm,cortex-a57-pmu",	.data = armv8_a57_pmu_init},
+	{.compatible = "arm,cortex-a72-pmu",	.data = armv8_a72_pmu_init},
 	{},
 };
 
