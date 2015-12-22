@@ -425,7 +425,7 @@ static void fm10k_get_regs(struct net_device *netdev,
 	u32 *buff = p;
 	u16 i;
 
-	regs->version = (1 << 24) | (hw->revision_id << 16) | hw->device_id;
+	regs->version = BIT(24) | (hw->revision_id << 16) | hw->device_id;
 
 	switch (hw->mac.type) {
 	case fm10k_mac_pf:
@@ -942,8 +942,8 @@ static int fm10k_mbx_test(struct fm10k_intfc *interface, u64 *data)
 		return 0;
 
 	/* loop through both nested and unnested attribute types */
-	for (attr_flag = (1 << FM10K_TEST_MSG_UNSET);
-	     attr_flag < (1 << (2 * FM10K_TEST_MSG_NESTED));
+	for (attr_flag = BIT(FM10K_TEST_MSG_UNSET);
+	     attr_flag < BIT(2 * FM10K_TEST_MSG_NESTED);
 	     attr_flag += attr_flag) {
 		/* generate message to be tested */
 		fm10k_tlv_msg_test_create(test_msg, attr_flag);
@@ -1005,7 +1005,7 @@ static u32 fm10k_get_priv_flags(struct net_device *netdev)
 	u32 priv_flags = 0;
 
 	if (interface->flags & FM10K_FLAG_DEBUG_STATS)
-		priv_flags |= 1 << FM10K_PRV_FLAG_DEBUG_STATS;
+		priv_flags |= BIT(FM10K_PRV_FLAG_DEBUG_STATS);
 
 	return priv_flags;
 }
@@ -1014,10 +1014,10 @@ static int fm10k_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 
-	if (priv_flags >= (1 << FM10K_PRV_FLAG_LEN))
+	if (priv_flags >= BIT(FM10K_PRV_FLAG_LEN))
 		return -EINVAL;
 
-	if (priv_flags & (1 << FM10K_PRV_FLAG_DEBUG_STATS))
+	if (priv_flags & BIT(FM10K_PRV_FLAG_DEBUG_STATS))
 		interface->flags |= FM10K_FLAG_DEBUG_STATS;
 	else
 		interface->flags &= ~FM10K_FLAG_DEBUG_STATS;
@@ -1145,7 +1145,7 @@ static unsigned int fm10k_max_channels(struct net_device *dev)
 
 	/* For QoS report channels per traffic class */
 	if (tcs > 1)
-		max_combined = 1 << (fls(max_combined / tcs) - 1);
+		max_combined = BIT((fls(max_combined / tcs) - 1));
 
 	return max_combined;
 }
@@ -1210,11 +1210,9 @@ static int fm10k_get_ts_info(struct net_device *dev,
 	else
 		info->phc_index = -1;
 
-	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
-			 (1 << HWTSTAMP_TX_ON);
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
 
-	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
-			   (1 << HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
 }

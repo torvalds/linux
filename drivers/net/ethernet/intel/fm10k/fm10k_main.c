@@ -401,10 +401,10 @@ static inline void fm10k_rx_checksum(struct fm10k_ring *ring,
 }
 
 #define FM10K_RSS_L4_TYPES_MASK \
-	((1ul << FM10K_RSSTYPE_IPV4_TCP) | \
-	 (1ul << FM10K_RSSTYPE_IPV4_UDP) | \
-	 (1ul << FM10K_RSSTYPE_IPV6_TCP) | \
-	 (1ul << FM10K_RSSTYPE_IPV6_UDP))
+	(BIT(FM10K_RSSTYPE_IPV4_TCP) | \
+	 BIT(FM10K_RSSTYPE_IPV4_UDP) | \
+	 BIT(FM10K_RSSTYPE_IPV6_TCP) | \
+	 BIT(FM10K_RSSTYPE_IPV6_UDP))
 
 static inline void fm10k_rx_hash(struct fm10k_ring *ring,
 				 union fm10k_rx_desc *rx_desc,
@@ -420,7 +420,7 @@ static inline void fm10k_rx_hash(struct fm10k_ring *ring,
 		return;
 
 	skb_set_hash(skb, le32_to_cpu(rx_desc->d.rss),
-		     ((1ul << rss_type) & FM10K_RSS_L4_TYPES_MASK) ?
+		     (BIT(rss_type) & FM10K_RSS_L4_TYPES_MASK) ?
 		     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
 }
 
@@ -1409,7 +1409,7 @@ static void fm10k_update_itr(struct fm10k_ring_container *ring_container)
 	 * accounts for changes in the ITR due to PCIe link speed.
 	 */
 	itr_round = ACCESS_ONCE(ring_container->itr_scale) + 8;
-	avg_wire_size += (1 << itr_round) - 1;
+	avg_wire_size += BIT(itr_round) - 1;
 	avg_wire_size >>= itr_round;
 
 	/* write back value and retain adaptive flag */
@@ -1511,17 +1511,17 @@ static bool fm10k_set_qos_queues(struct fm10k_intfc *interface)
 	/* set QoS mask and indices */
 	f = &interface->ring_feature[RING_F_QOS];
 	f->indices = pcs;
-	f->mask = (1 << fls(pcs - 1)) - 1;
+	f->mask = BIT(fls(pcs - 1)) - 1;
 
 	/* determine the upper limit for our current DCB mode */
 	rss_i = interface->hw.mac.max_queues / pcs;
-	rss_i = 1 << (fls(rss_i) - 1);
+	rss_i = BIT(fls(rss_i) - 1);
 
 	/* set RSS mask and indices */
 	f = &interface->ring_feature[RING_F_RSS];
 	rss_i = min_t(u16, rss_i, f->limit);
 	f->indices = rss_i;
-	f->mask = (1 << fls(rss_i - 1)) - 1;
+	f->mask = BIT(fls(rss_i - 1)) - 1;
 
 	/* configure pause class to queue mapping */
 	for (i = 0; i < pcs; i++)
@@ -1551,7 +1551,7 @@ static bool fm10k_set_rss_queues(struct fm10k_intfc *interface)
 
 	/* record indices and power of 2 mask for RSS */
 	f->indices = rss_i;
-	f->mask = (1 << fls(rss_i - 1)) - 1;
+	f->mask = BIT(fls(rss_i - 1)) - 1;
 
 	interface->num_rx_queues = rss_i;
 	interface->num_tx_queues = rss_i;

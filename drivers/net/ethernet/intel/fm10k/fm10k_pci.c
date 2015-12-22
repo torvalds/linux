@@ -579,7 +579,7 @@ static void fm10k_configure_tx_ring(struct fm10k_intfc *interface,
 	u64 tdba = ring->dma;
 	u32 size = ring->count * sizeof(struct fm10k_tx_desc);
 	u32 txint = FM10K_INT_MAP_DISABLE;
-	u32 txdctl = (1 << FM10K_TXDCTL_MAX_TIME_SHIFT) | FM10K_TXDCTL_ENABLE;
+	u32 txdctl = BIT(FM10K_TXDCTL_MAX_TIME_SHIFT) | FM10K_TXDCTL_ENABLE;
 	u8 reg_idx = ring->reg_idx;
 
 	/* disable queue to avoid issues while updating state */
@@ -730,7 +730,7 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	if (interface->pfc_en)
 		rx_pause = interface->pfc_en;
 #endif
-	if (!(rx_pause & (1 << ring->qos_pc)))
+	if (!(rx_pause & BIT(ring->qos_pc)))
 		rxdctl |= FM10K_RXDCTL_DROP_ON_EMPTY;
 
 	fm10k_write_reg(hw, FM10K_RXDCTL(reg_idx), rxdctl);
@@ -779,7 +779,7 @@ void fm10k_update_rx_drop_en(struct fm10k_intfc *interface)
 		u32 rxdctl = FM10K_RXDCTL_WRITE_BACK_MIN_DELAY;
 		u8 reg_idx = ring->reg_idx;
 
-		if (!(rx_pause & (1 << ring->qos_pc)))
+		if (!(rx_pause & BIT(ring->qos_pc)))
 			rxdctl |= FM10K_RXDCTL_DROP_ON_EMPTY;
 
 		fm10k_write_reg(hw, FM10K_RXDCTL(reg_idx), rxdctl);
@@ -1065,7 +1065,7 @@ static void fm10k_reset_drop_on_empty(struct fm10k_intfc *interface, u32 eicr)
 	if (maxholdq)
 		fm10k_write_reg(hw, FM10K_MAXHOLDQ(7), maxholdq);
 	for (q = 255;;) {
-		if (maxholdq & (1 << 31)) {
+		if (maxholdq & BIT(31)) {
 			if (q < FM10K_MAX_QUEUES_PF) {
 				interface->rx_overrun_pf++;
 				fm10k_write_reg(hw, FM10K_RXDCTL(q), rxdctl);

@@ -1429,7 +1429,7 @@ struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info)
 
 	/* configure default debug level */
 	interface = netdev_priv(dev);
-	interface->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	interface->msg_enable = BIT(DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 
 	/* configure default features */
 	dev->features |= NETIF_F_IP_CSUM |
