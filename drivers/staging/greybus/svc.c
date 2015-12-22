@@ -270,7 +270,6 @@ static void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
 	}
 }
 
-/* Creates bi-directional routes between the devices */
 int gb_svc_link_config(struct gb_svc *svc, u8 intf_id,
 		       unsigned int burst, unsigned int gear,
 		       unsigned int nlanes, unsigned int flags)
