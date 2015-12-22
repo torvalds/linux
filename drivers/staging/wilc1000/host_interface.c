@@ -3346,16 +3346,16 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 	return result;
 }
 
-int wilc_set_mac_address(struct wilc_vif *vif, u8 *pu8MacAddress)
+int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 {
 	int result = 0;
 	struct host_if_msg msg;
 
-	PRINT_D(GENERIC_DBG, "mac addr = %x:%x:%x\n", pu8MacAddress[0], pu8MacAddress[1], pu8MacAddress[2]);
+	PRINT_D(GENERIC_DBG, "mac addr = %x:%x:%x\n", mac_addr[0], mac_addr[1], mac_addr[2]);
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_MAC_ADDRESS;
-	memcpy(msg.body.set_mac_info.mac_addr, pu8MacAddress, ETH_ALEN);
+	memcpy(msg.body.set_mac_info.mac_addr, mac_addr, ETH_ALEN);
 	msg.vif = vif;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
