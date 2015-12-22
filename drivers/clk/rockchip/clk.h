@@ -265,6 +265,7 @@ struct rockchip_clk_branch {
 	int				gate_offset;
 	u8				gate_shift;
 	u8				gate_flags;
+	struct rockchip_clk_branch	*child;
 };
 
 #define COMPOSITE(_id, cname, pnames, f, mo, ms, mw, mf, ds, dw,\
@@ -397,6 +398,24 @@ struct rockchip_clk_branch {
 		.gate_offset	= go,				\
 		.gate_shift	= gs,				\
 		.gate_flags	= gf,				\
+	}
+
+#define COMPOSITE_FRACMUX(_id, cname, pname, f, mo, df, go, gs, gf, ch) \
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_fraction_divider,	\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.div_shift	= 16,				\
+		.div_width	= 16,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+		.child		= &(struct rockchip_clk_branch)ch, \
 	}
 
 #define MUX(_id, cname, pnames, f, o, s, w, mf)			\
