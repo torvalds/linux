@@ -370,7 +370,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (ret < 0)
 		goto out_delete;
 
-	if (setup_sorting() < 0)
+	if (setup_sorting(NULL) < 0)
 		usage_with_options(annotate_usage, options);
 
 	if (annotate.use_stdio)

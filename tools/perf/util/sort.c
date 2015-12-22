@@ -4,6 +4,8 @@
 #include "comm.h"
 #include "symbol.h"
 #include "evsel.h"
+#include "evlist.h"
+#include <traceevent/event-parse.h>
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -1583,7 +1585,8 @@ int hpp_dimension__add_output(unsigned col)
 	return __hpp_dimension__add_output(&hpp_sort_dimensions[col]);
 }
 
-int sort_dimension__add(const char *tok)
+static int sort_dimension__add(const char *tok,
+			       struct perf_evlist *evlist __maybe_unused)
 {
 	unsigned int i;
 
@@ -1712,7 +1715,7 @@ static int setup_sort_order(void)
 	return 0;
 }
 
-static int __setup_sorting(void)
+static int __setup_sorting(struct perf_evlist *evlist)
 {
 	char *tmp, *tok, *str;
 	const char *sort_keys;
@@ -1743,7 +1746,7 @@ static int __setup_sorting(void)
 
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		ret = sort_dimension__add(tok);
+		ret = sort_dimension__add(tok, evlist);
 		if (ret == -EINVAL) {
 			error("Invalid --sort key: `%s'", tok);
 			break;
@@ -1954,16 +1957,16 @@ out:
 	return ret;
 }
 
-int setup_sorting(void)
+int setup_sorting(struct perf_evlist *evlist)
 {
 	int err;
 
-	err = __setup_sorting();
+	err = __setup_sorting(evlist);
 	if (err < 0)
 		return err;
 
 	if (parent_pattern != default_parent_pattern) {
-		err = sort_dimension__add("parent");
+		err = sort_dimension__add("parent", evlist);
 		if (err < 0)
 			return err;
 	}

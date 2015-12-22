@@ -226,10 +226,11 @@ struct sort_entry {
 extern struct sort_entry sort_thread;
 extern struct list_head hist_entry__sort_list;
 
-int setup_sorting(void);
+struct perf_evlist;
+struct pevent;
+int setup_sorting(struct perf_evlist *evlist);
 int setup_output_field(void);
 void reset_output_field(void);
-extern int sort_dimension__add(const char *);
 void sort__setup_elide(FILE *fp);
 void perf_hpp__set_elide(int idx, bool elide);
 

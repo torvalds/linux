@@ -294,7 +294,7 @@ int test__hists_link(int subtest __maybe_unused)
 		goto out;
 
 	/* default sort order (comm,dso,sym) will be used */
-	if (setup_sorting() < 0)
+	if (setup_sorting(NULL) < 0)
 		goto out;
 
 	machines__init(&machines);
