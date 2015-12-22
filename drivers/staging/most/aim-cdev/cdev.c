@@ -246,7 +246,9 @@ start_copy:
 		return -EIO;
 	}
 
-	to_copy = min(count, (size_t)mbo->processed_length - channel->mbo_offs);
+	to_copy = min_t(size_t,
+			count,
+			mbo->processed_length - channel->mbo_offs);
 
 	not_copied = copy_to_user(buf,
 				  mbo->virt_address + channel->mbo_offs,
