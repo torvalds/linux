@@ -411,6 +411,10 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 		if (pf->hw.mac.type == I40E_MAC_X722) {
 			ecmd->supported |= SUPPORTED_100baseT_Full;
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
+			if (pf->flags & I40E_FLAG_100M_SGMII_CAPABLE) {
+				ecmd->supported |= SUPPORTED_100baseT_Full;
+				ecmd->advertising |= ADVERTISED_100baseT_Full;
+			}
 		}
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_XAUI ||
