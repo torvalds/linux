@@ -2072,6 +2072,18 @@ void acpi_video_unregister_backlight(void)
 	mutex_unlock(&register_count_mutex);
 }
 
+bool acpi_video_handles_brightness_key_presses(void)
+{
+	bool have_video_busses;
+
+	mutex_lock(&video_list_lock);
+	have_video_busses = !list_empty(&video_bus_head);
+	mutex_unlock(&video_list_lock);
+
+	return have_video_busses;
+}
+EXPORT_SYMBOL(acpi_video_handles_brightness_key_presses);
+
 /*
  * This is kind of nasty. Hardware using Intel chipsets may require
  * the video opregion code to be run first in order to initialise
