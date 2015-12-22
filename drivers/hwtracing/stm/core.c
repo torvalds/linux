@@ -618,7 +618,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	if (!stm_data->packet || !stm_data->sw_nchannels)
 		return -EINVAL;
 
-	nmasters = stm_data->sw_end - stm_data->sw_start;
+	nmasters = stm_data->sw_end - stm_data->sw_start + 1;
 	stm = kzalloc(sizeof(*stm) + nmasters * sizeof(void *), GFP_KERNEL);
 	if (!stm)
 		return -ENOMEM;
