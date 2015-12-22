@@ -139,8 +139,8 @@ EXPORT_SYMBOL_GPL(gb_svc_dme_peer_set);
 
 /*
  * T_TstSrcIncrement is written by the module on ES2 as a stand-in for boot
- * status attribute. AP needs to read and clear it, after reading a non-zero
- * value from it.
+ * status attribute ES3_INIT_STATUS. AP needs to read and clear it, after
+ * reading a non-zero value from it.
  *
  * FIXME: This is module-hardware dependent and needs to be extended for every
  * type of module we want to support.
@@ -150,10 +150,22 @@ static int gb_svc_read_and_clear_module_boot_status(struct gb_interface *intf)
 	struct gb_host_device *hd = intf->hd;
 	int ret;
 	u32 value;
+	u16 attr;
+	u8 init_status;
 
-	/* Read and clear boot status in T_TstSrcIncrement */
-	ret = gb_svc_dme_peer_get(hd->svc, intf->interface_id,
-				  DME_ATTR_T_TST_SRC_INCREMENT,
+	/*
+	 * Check if the module is ES2 or ES3, and choose attr number
+	 * appropriately.
+	 * FIXME: Remove ES2 support from the kernel entirely.
+	 */
+	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
+				intf->ddbl1_product_id == ES2_DDBL1_PROD_ID)
+		attr = DME_ATTR_T_TST_SRC_INCREMENT;
+	else
+		attr = DME_ATTR_ES3_INIT_STATUS;
+
+	/* Read and clear boot status in ES3_INIT_STATUS */
+	ret = gb_svc_dme_peer_get(hd->svc, intf->interface_id, attr,
 				  DME_ATTR_SELECTOR_INDEX, &value);
 
 	if (ret)
@@ -169,19 +181,22 @@ static int gb_svc_read_and_clear_module_boot_status(struct gb_interface *intf)
 	}
 
 	/*
-	 * Check if the module needs to boot from unipro.
+	 * Check if the module needs to boot from UniPro.
 	 * For ES2: We need to check lowest 8 bits of 'value'.
 	 * For ES3: We need to check highest 8 bits out of 32 of 'value'.
-	 *
-	 * FIXME: Add code to find if we are on ES2 or ES3 to have separate
-	 * checks.
+	 * FIXME: Remove ES2 support from the kernel entirely.
 	 */
-	if (value == DME_TSI_UNIPRO_BOOT_STARTED ||
-	    value == DME_TSI_FALLBACK_UNIPRO_BOOT_STARTED)
+	if (intf->ddbl1_manufacturer_id == ES2_DDBL1_MFR_ID &&
+				intf->ddbl1_product_id == ES2_DDBL1_PROD_ID)
+		init_status = value;
+	else
+		init_status = value >> 24;
+
+	if (init_status == DME_DIS_UNIPRO_BOOT_STARTED ||
+				init_status == DME_DIS_FALLBACK_UNIPRO_BOOT_STARTED)
 		intf->boot_over_unipro = true;
 
-	return gb_svc_dme_peer_set(hd->svc, intf->interface_id,
-				   DME_ATTR_T_TST_SRC_INCREMENT,
+	return gb_svc_dme_peer_set(hd->svc, intf->interface_id, attr,
 				   DME_ATTR_SELECTOR_INDEX, 0);
 }
 

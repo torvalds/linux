@@ -11,9 +11,6 @@
 
 #include "greybus.h"
 
-#define ES2_DDBL1_MFR_ID	0x00000126
-#define ES2_DDBL1_PROD_ID	0x00001000
-
 struct gb_firmware {
 	struct gb_connection	*connection;
 	const struct firmware	*fw;

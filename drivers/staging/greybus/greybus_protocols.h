@@ -160,6 +160,10 @@ struct gb_control_disconnected_request {
 #define GB_FIRMWARE_TYPE_AP_READY		0x05	/* Request with no-payload */
 #define GB_FIRMWARE_TYPE_GET_VID_PID		0x06	/* Request with no-payload */
 
+/* FIXME: remove all ES2-specific identifiers from the kernel */
+#define ES2_DDBL1_MFR_ID	0x00000126
+#define ES2_DDBL1_PROD_ID	0x00001000
+
 /* Greybus firmware boot stages */
 #define GB_FIRMWARE_BOOT_STAGE_ONE		0x01 /* Reserved for the boot ROM */
 #define GB_FIRMWARE_BOOT_STAGE_TWO		0x02 /* Firmware package to be loaded by the boot ROM */
@@ -823,14 +827,16 @@ struct gb_svc_link_config_request {
 
 /* Attributes for peer get/set operations */
 #define DME_ATTR_SELECTOR_INDEX		0
+/* FIXME: remove ES2 support and DME_ATTR_T_TST_SRC_INCREMENT */
 #define DME_ATTR_T_TST_SRC_INCREMENT	0x4083
+#define DME_ATTR_ES3_INIT_STATUS		0x6101
 
-/* Return value from TST_SRC_INCREMENT */
-#define DME_TSI_SPI_BOOT_STARTED		0x02
-#define DME_TSI_TRUSTED_SPI_BOOT_FINISHED	0x03
-#define DME_TSI_UNTRUSTED_SPI_BOOT_FINISHED	0x04
-#define DME_TSI_UNIPRO_BOOT_STARTED		0x06
-#define DME_TSI_FALLBACK_UNIPRO_BOOT_STARTED	0x09
+/* Return value from init-status attributes listed above */
+#define DME_DIS_SPI_BOOT_STARTED		0x02
+#define DME_DIS_TRUSTED_SPI_BOOT_FINISHED	0x03
+#define DME_DIS_UNTRUSTED_SPI_BOOT_FINISHED	0x04
+#define DME_DIS_UNIPRO_BOOT_STARTED		0x06
+#define DME_DIS_FALLBACK_UNIPRO_BOOT_STARTED	0x09
 
 struct gb_svc_route_create_request {
 	__u8	intf1_id;
