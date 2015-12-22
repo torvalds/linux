@@ -309,7 +309,7 @@
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
-		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&expander0 2 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -318,7 +318,6 @@
 		regulator-name = "v5.0-sata0";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata0>;
 	};
 
@@ -327,7 +326,6 @@
 		regulator-name = "v12.0-sata0";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata0>;
 	};
 
@@ -337,7 +335,7 @@
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
-		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&expander0 3 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -346,7 +344,6 @@
 		regulator-name = "v5.0-sata1";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata1>;
 	};
 
@@ -355,7 +352,6 @@
 		regulator-name = "v12.0-sata1";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata1>;
 	};
 
@@ -363,7 +359,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "pwr_en_sata2";
 		enable-active-high;
-		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&expander0 11 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -372,7 +368,6 @@
 		regulator-name = "v5.0-sata2";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata2>;
 	};
 
@@ -381,7 +376,6 @@
 		regulator-name = "v12.0-sata2";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata2>;
 	};
 
@@ -389,7 +383,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "pwr_en_sata3";
 		enable-active-high;
-		regulator-always-on;
+		regulator-boot-on;
 		gpio = <&expander0 12 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -398,7 +392,6 @@
 		regulator-name = "v5.0-sata3";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata3>;
 	};
 
@@ -407,7 +400,6 @@
 		regulator-name = "v12.0-sata3";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
 		vin-supply = <&reg_sata3>;
 	};
 };
