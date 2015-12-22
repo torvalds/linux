@@ -909,7 +909,7 @@ static struct omap_hwmod_ocp_if dm816x_l4_hs__emac1 = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_class_sysconfig dm816x_mmc_sysc = {
+static struct omap_hwmod_class_sysconfig dm81xx_mmc_sysc = {
 	.rev_offs	= 0x0,
 	.sysc_offs	= 0x110,
 	.syss_offs	= 0x114,
@@ -920,24 +920,94 @@ static struct omap_hwmod_class_sysconfig dm816x_mmc_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-static struct omap_hwmod_class dm816x_mmc_class = {
+static struct omap_hwmod_class dm81xx_mmc_class = {
 	.name = "mmc",
-	.sysc = &dm816x_mmc_sysc,
+	.sysc = &dm81xx_mmc_sysc,
 };
 
-static struct omap_hwmod_opt_clk dm816x_mmc1_opt_clks[] = {
+static struct omap_hwmod_opt_clk dm81xx_mmc_opt_clks[] = {
 	{ .role = "dbck", .clk = "sysclk18_ck", },
 };
 
-static struct omap_hsmmc_dev_attr mmc1_dev_attr = {
-	.flags = OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
+static struct omap_hsmmc_dev_attr mmc_dev_attr = {
+};
+
+static struct omap_hwmod dm814x_mmc1_hwmod = {
+	.name		= "mmc1",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.opt_clks	= dm81xx_mmc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dm81xx_mmc_opt_clks),
+	.main_clk	= "sysclk8_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM814X_CM_ALWON_MMCHS_0_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.dev_attr	= &mmc_dev_attr,
+	.class		= &dm81xx_mmc_class,
+};
+
+static struct omap_hwmod_ocp_if dm814x_l4_ls__mmc1 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm814x_mmc1_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+	.flags		= OMAP_FIREWALL_L4
+};
+
+static struct omap_hwmod dm814x_mmc2_hwmod = {
+	.name		= "mmc2",
+	.clkdm_name	= "alwon_l3s_clkdm",
+	.opt_clks	= dm81xx_mmc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dm81xx_mmc_opt_clks),
+	.main_clk	= "sysclk8_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM814X_CM_ALWON_MMCHS_1_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.dev_attr	= &mmc_dev_attr,
+	.class		= &dm81xx_mmc_class,
+};
+
+static struct omap_hwmod_ocp_if dm814x_l4_ls__mmc2 = {
+	.master		= &dm81xx_l4_ls_hwmod,
+	.slave		= &dm814x_mmc2_hwmod,
+	.clk		= "sysclk6_ck",
+	.user		= OCP_USER_MPU,
+	.flags		= OMAP_FIREWALL_L4
+};
+
+static struct omap_hwmod dm814x_mmc3_hwmod = {
+	.name		= "mmc3",
+	.clkdm_name	= "alwon_l3_med_clkdm",
+	.opt_clks	= dm81xx_mmc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dm81xx_mmc_opt_clks),
+	.main_clk	= "sysclk8_ck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = DM814X_CM_ALWON_MMCHS_2_CLKCTRL,
+			.modulemode = MODULEMODE_SWCTRL,
+		},
+	},
+	.dev_attr	= &mmc_dev_attr,
+	.class		= &dm81xx_mmc_class,
+};
+
+static struct omap_hwmod_ocp_if dm814x_alwon_l3_med__mmc3 = {
+	.master		= &dm81xx_alwon_l3_med_hwmod,
+	.slave		= &dm814x_mmc3_hwmod,
+	.clk		= "sysclk4_ck",
+	.user		= OCP_USER_MPU,
 };
 
 static struct omap_hwmod dm816x_mmc1_hwmod = {
 	.name		= "mmc1",
 	.clkdm_name	= "alwon_l3s_clkdm",
-	.opt_clks	= dm816x_mmc1_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(dm816x_mmc1_opt_clks),
+	.opt_clks	= dm81xx_mmc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dm81xx_mmc_opt_clks),
 	.main_clk	= "sysclk10_ck",
 	.prcm		= {
 		.omap4 = {
@@ -945,8 +1015,8 @@ static struct omap_hwmod dm816x_mmc1_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mmc1_dev_attr,
-	.class		= &dm816x_mmc_class,
+	.dev_attr	= &mmc_dev_attr,
+	.class		= &dm81xx_mmc_class,
 };
 
 static struct omap_hwmod_ocp_if dm816x_l4_ls__mmc1 = {
@@ -1283,6 +1353,8 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm81xx_l4_ls__i2c2,
 	&dm81xx_l4_ls__elm,
 	&dm81xx_l4_ls__mcspi1,
+	&dm814x_l4_ls__mmc1,
+	&dm814x_l4_ls__mmc2,
 	&dm81xx_alwon_l3_fast__tpcc,
 	&dm81xx_alwon_l3_fast__tptc0,
 	&dm81xx_alwon_l3_fast__tptc1,
@@ -1296,6 +1368,7 @@ static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {
 	&dm814x_l4_ls__timer2,
 	&dm814x_l4_hs__cpgmac0,
 	&dm814x_cpgmac0__mdio,
+	&dm814x_alwon_l3_med__mmc3,
 	NULL,
 };
 
