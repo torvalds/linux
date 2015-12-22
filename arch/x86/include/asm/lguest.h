@@ -12,7 +12,9 @@
 #define GUEST_PL 1
 
 /* Page for Switcher text itself, then two pages per cpu */
-#define TOTAL_SWITCHER_PAGES (1 + 2 * nr_cpu_ids)
+#define SWITCHER_TEXT_PAGES (1)
+#define SWITCHER_STACK_PAGES (2 * nr_cpu_ids)
+#define TOTAL_SWITCHER_PAGES (SWITCHER_TEXT_PAGES + SWITCHER_STACK_PAGES)
 
 /* Where we map the Switcher, in both Host and Guest. */
 extern unsigned long switcher_addr;
