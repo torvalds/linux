@@ -295,7 +295,7 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 			RK3288_CLKGATE_CON(0), 4, GFLAGS),
 	GATE(0, "c2c_host", "aclk_cpu_src", 0,
 			RK3288_CLKGATE_CON(13), 8, GFLAGS),
-	COMPOSITE_NOMUX(0, "crypto", "aclk_cpu_pre", 0,
+	COMPOSITE_NOMUX(SCLK_CRYPTO, "crypto", "aclk_cpu_pre", 0,
 			RK3288_CLKSEL_CON(26), 6, 2, DFLAGS,
 			RK3288_CLKGATE_CON(5), 4, GFLAGS),
 	GATE(0, "aclk_bus_2pmu", "aclk_cpu_pre", CLK_IGNORE_UNUSED,
@@ -644,10 +644,10 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	GATE(PCLK_PUBL0, "pclk_publ0", "pclk_cpu", 0, RK3288_CLKGATE_CON(10), 15, GFLAGS),
 	GATE(PCLK_DDRUPCTL1, "pclk_ddrupctl1", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 0, GFLAGS),
 	GATE(PCLK_PUBL1, "pclk_publ1", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 1, GFLAGS),
-	GATE(0, "pclk_efuse_1024", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 2, GFLAGS),
+	GATE(PCLK_EFUSE1024, "pclk_efuse_1024", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 2, GFLAGS),
 	GATE(PCLK_TZPC, "pclk_tzpc", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 3, GFLAGS),
 	GATE(PCLK_UART2, "pclk_uart2", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 9, GFLAGS),
-	GATE(0, "pclk_efuse_256", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 10, GFLAGS),
+	GATE(PCLK_EFUSE256, "pclk_efuse_256", "pclk_cpu", 0, RK3288_CLKGATE_CON(11), 10, GFLAGS),
 	GATE(PCLK_RKPWM, "pclk_rkpwm", "pclk_cpu", CLK_IGNORE_UNUSED, RK3288_CLKGATE_CON(11), 11, GFLAGS),
 
 	/* ddrctrl [DDR Controller PHY clock] gates */
@@ -709,7 +709,7 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	GATE(SCLK_LCDC_PWM1, "sclk_lcdc_pwm1", "xin24m", 0, RK3288_CLKGATE_CON(13), 11, GFLAGS),
 	GATE(SCLK_PVTM_CORE, "sclk_pvtm_core", "xin24m", 0, RK3288_CLKGATE_CON(5), 9, GFLAGS),
 	GATE(SCLK_PVTM_GPU, "sclk_pvtm_gpu", "xin24m", 0, RK3288_CLKGATE_CON(5), 10, GFLAGS),
-	GATE(0, "sclk_mipidsi_24m", "xin24m", 0, RK3288_CLKGATE_CON(5), 15, GFLAGS),
+	GATE(SCLK_MIPIDSI_24M, "sclk_mipidsi_24m", "xin24m", 0, RK3288_CLKGATE_CON(5), 15, GFLAGS),
 
 	/* sclk_gpu gates */
 	GATE(ACLK_GPU, "aclk_gpu", "sclk_gpu", 0, RK3288_CLKGATE_CON(18), 0, GFLAGS),
@@ -783,10 +783,10 @@ static const char *const rk3288_critical_clocks[] __initconst = {
 	"pclk_pd_pmu",
 };
 
-#ifdef CONFIG_PM_SLEEP
 static void __iomem *rk3288_cru_base;
 
-/* Some CRU registers will be reset in maskrom when the system
+/*
+ * Some CRU registers will be reset in maskrom when the system
  * wakes up from fastboot.
  * So save them before suspend, restore them after resume.
  */
@@ -840,33 +840,27 @@ static void rk3288_clk_resume(void)
 	}
 }
 
+static void rk3288_clk_shutdown(void)
+{
+	writel_relaxed(0xf3030000, rk3288_cru_base + RK3288_MODE_CON);
+}
+
 static struct syscore_ops rk3288_clk_syscore_ops = {
 	.suspend = rk3288_clk_suspend,
 	.resume = rk3288_clk_resume,
 };
 
-static void rk3288_clk_sleep_init(void __iomem *reg_base)
-{
-	rk3288_cru_base = reg_base;
-	register_syscore_ops(&rk3288_clk_syscore_ops);
-}
-
-#else /* CONFIG_PM_SLEEP */
-static void rk3288_clk_sleep_init(void __iomem *reg_base) {}
-#endif
-
 static void __init rk3288_clk_init(struct device_node *np)
 {
-	void __iomem *reg_base;
 	struct clk *clk;
 
-	reg_base = of_iomap(np, 0);
-	if (!reg_base) {
+	rk3288_cru_base = of_iomap(np, 0);
+	if (!rk3288_cru_base) {
 		pr_err("%s: could not map cru region\n", __func__);
 		return;
 	}
 
-	rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
+	rockchip_clk_init(np, rk3288_cru_base, CLK_NR_CLKS);
 
 	/* xin12m is created by an cru-internal divider */
 	clk = clk_register_fixed_factor(NULL, "xin12m", "xin24m", 0, 1, 2);
@@ -907,10 +901,12 @@ static void __init rk3288_clk_init(struct device_node *np)
 			&rk3288_cpuclk_data, rk3288_cpuclk_rates,
 			ARRAY_SIZE(rk3288_cpuclk_rates));
 
-	rockchip_register_softrst(np, 12, reg_base + RK3288_SOFTRST_CON(0),
+	rockchip_register_softrst(np, 12,
+				  rk3288_cru_base + RK3288_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(RK3288_GLB_SRST_FST);
-	rk3288_clk_sleep_init(reg_base);
+	rockchip_register_restart_notifier(RK3288_GLB_SRST_FST,
+					   rk3288_clk_shutdown);
+	register_syscore_ops(&rk3288_clk_syscore_ops);
 }
 CLK_OF_DECLARE(rk3288_cru, "rockchip,rk3288-cru", rk3288_clk_init);

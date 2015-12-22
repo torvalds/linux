@@ -341,9 +341,13 @@ void __init rockchip_clk_protect_critical(const char *const clocks[],
 }
 
 static unsigned int reg_restart;
+static void (*cb_restart)(void);
 static int rockchip_restart_notify(struct notifier_block *this,
 				   unsigned long mode, void *cmd)
 {
+	if (cb_restart)
+		cb_restart();
+
 	writel(0xfdb9, reg_base + reg_restart);
 	return NOTIFY_DONE;
 }
@@ -353,11 +357,12 @@ static struct notifier_block rockchip_restart_handler = {
 	.priority = 128,
 };
 
-void __init rockchip_register_restart_notifier(unsigned int reg)
+void __init rockchip_register_restart_notifier(unsigned int reg, void (*cb)(void))
 {
 	int ret;
 
 	reg_restart = reg;
+	cb_restart = cb;
 	ret = register_restart_handler(&rockchip_restart_handler);
 	if (ret)
 		pr_err("%s: cannot register restart handler, %d\n",
