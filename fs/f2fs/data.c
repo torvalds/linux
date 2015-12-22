@@ -509,7 +509,6 @@ static void __allocate_data_blocks(struct inode *inode, loff_t offset,
 	u64 end_offset;
 
 	while (len) {
-		f2fs_balance_fs(sbi);
 		f2fs_lock_op(sbi);
 
 		/* When reading holes, we need its node page */
@@ -542,6 +541,9 @@ static void __allocate_data_blocks(struct inode *inode, loff_t offset,
 
 		f2fs_put_dnode(&dn);
 		f2fs_unlock_op(sbi);
+
+		if (dn.node_changed)
+			f2fs_balance_fs(sbi);
 	}
 	return;
 
@@ -551,6 +553,8 @@ sync_out:
 	f2fs_put_dnode(&dn);
 out:
 	f2fs_unlock_op(sbi);
+	if (dn.node_changed)
+		f2fs_balance_fs(sbi);
 	return;
 }
 
@@ -649,6 +653,8 @@ get_next:
 
 		if (create) {
 			f2fs_unlock_op(sbi);
+			if (dn.node_changed)
+				f2fs_balance_fs(sbi);
 			f2fs_lock_op(sbi);
 		}
 
@@ -706,8 +712,11 @@ sync_out:
 put_out:
 	f2fs_put_dnode(&dn);
 unlock_out:
-	if (create)
+	if (create) {
 		f2fs_unlock_op(sbi);
+		if (dn.node_changed)
+			f2fs_balance_fs(sbi);
+	}
 out:
 	trace_f2fs_map_blocks(inode, map, err);
 	return err;
@@ -1415,8 +1424,6 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 
 	trace_f2fs_write_begin(inode, pos, len, flags);
 
-	f2fs_balance_fs(sbi);
-
 	/*
 	 * We should check this at this moment to avoid deadlock on inode page
 	 * and #0 page. The locking rule for inline_data conversion should be:
@@ -1465,6 +1472,17 @@ repeat:
 put_next:
 	f2fs_put_dnode(&dn);
 	f2fs_unlock_op(sbi);
+
+	if (dn.node_changed && has_not_enough_free_secs(sbi, 0)) {
+		unlock_page(page);
+		f2fs_balance_fs(sbi);
+		lock_page(page);
+		if (page->mapping != mapping) {
+			/* The page got truncated from under us */
+			f2fs_put_page(page, 1);
+			goto repeat;
+		}
+	}
 
 	f2fs_wait_on_page_writeback(page, DATA);
 

@@ -202,6 +202,10 @@ out:
 	f2fs_unlock_op(sbi);
 
 	f2fs_put_page(page, 1);
+
+	if (dn.node_changed)
+		f2fs_balance_fs(sbi);
+
 	return err;
 }
 
