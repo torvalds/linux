@@ -143,7 +143,7 @@ ifneq ("$(FEATURE_DUMP)","$(FEATURE_DUMP_FILE)")
 endif
 
 feature_display_check = $(eval $(feature_check_display_code))
-define feature_display_check_code
+define feature_check_display_code
   ifneq ($(feature-$(1)), 1)
     feature_display := 1
   endif
