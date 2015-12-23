@@ -307,7 +307,8 @@ static void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector
 		if (q_vector->arm_wb_state)
 			return;
 
-		val = I40E_VFINT_DYN_CTLN1_WB_ON_ITR_MASK;
+		val = I40E_VFINT_DYN_CTLN1_WB_ON_ITR_MASK |
+		      I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK; /* set noitr */
 
 		wr32(&vsi->back->hw,
 		     I40E_VFINT_DYN_CTLN1(q_vector->v_idx +
