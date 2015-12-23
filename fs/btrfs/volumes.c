@@ -4825,20 +4825,32 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
+	/*
+	 * Take the device list mutex to prevent races with the final phase of
+	 * a device replace operation that replaces the device object associated
+	 * with the map's stripes, because the device object's id can change
+	 * at any time during that final phase of the device replace operation
+	 * (dev-replace.c:btrfs_dev_replace_finishing()).
+	 */
+	mutex_lock(&chunk_root->fs_info->fs_devices->device_list_mutex);
 	for (i = 0; i < map->num_stripes; i++) {
 		device = map->stripes[i].dev;
 		dev_offset = map->stripes[i].physical;
 
 		ret = btrfs_update_device(trans, device);
 		if (ret)
-			goto out;
+			break;
 		ret = btrfs_alloc_dev_extent(trans, device,
 					     chunk_root->root_key.objectid,
 					     BTRFS_FIRST_CHUNK_TREE_OBJECTID,
 					     chunk_offset, dev_offset,
 					     stripe_size);
 		if (ret)
-			goto out;
+			break;
+	}
+	if (ret) {
+		mutex_unlock(&chunk_root->fs_info->fs_devices->device_list_mutex);
+		goto out;
 	}
 
 	stripe = &chunk->stripe;
@@ -4851,6 +4863,7 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 		memcpy(stripe->dev_uuid, device->uuid, BTRFS_UUID_SIZE);
 		stripe++;
 	}
+	mutex_unlock(&chunk_root->fs_info->fs_devices->device_list_mutex);
 
 	btrfs_set_stack_chunk_length(chunk, chunk_size);
 	btrfs_set_stack_chunk_owner(chunk, extent_root->root_key.objectid);
