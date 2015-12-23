@@ -20,8 +20,10 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
+#include <linux/acpi.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
@@ -221,6 +223,43 @@ static struct nfc_phy_ops spi_phy_ops = {
 	.disable = st_nci_spi_disable,
 };
 
+static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
+{
+	struct st_nci_spi_phy *phy = spi_get_drvdata(spi_dev);
+	const struct acpi_device_id *id;
+	struct gpio_desc *gpiod_reset;
+	struct device *dev;
+
+	if (!spi_dev)
+		return -EINVAL;
+
+	dev = &spi_dev->dev;
+
+	/* Match the struct device against a given list of ACPI IDs */
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	/* Get RESET GPIO from ACPI */
+	gpiod_reset = devm_gpiod_get_index(dev, ST_NCI_GPIO_NAME_RESET, 1,
+					   GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod_reset)) {
+		nfc_err(dev, "Unable to get RESET GPIO\n");
+		return -ENODEV;
+	}
+
+	phy->gpio_reset = desc_to_gpio(gpiod_reset);
+
+	phy->irq_polarity = irq_get_trigger_type(spi_dev->irq);
+
+	phy->se_status.is_ese_present =
+				device_property_present(dev, "ese-present");
+	phy->se_status.is_uicc_present =
+				device_property_present(dev, "uicc-present");
+
+	return 0;
+}
+
 static int st_nci_spi_of_request_resources(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(dev);
@@ -328,6 +367,12 @@ static int st_nci_spi_probe(struct spi_device *dev)
 				"Cannot get platform resources\n");
 			return r;
 		}
+	} else if (ACPI_HANDLE(&dev->dev)) {
+		r = st_nci_spi_acpi_request_resources(dev);
+		if (r) {
+			nfc_err(&dev->dev, "Cannot get ACPI data\n");
+			return r;
+		}
 	} else {
 		nfc_err(&dev->dev,
 			"st_nci platform resources not available\n");
@@ -370,6 +415,12 @@ static struct spi_device_id st_nci_spi_id_table[] = {
 };
 MODULE_DEVICE_TABLE(spi, st_nci_spi_id_table);
 
+static const struct acpi_device_id st_nci_spi_acpi_match[] = {
+	{"SMO2101", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, st_nci_spi_acpi_match);
+
 static const struct of_device_id of_st_nci_spi_match[] = {
 	{ .compatible = "st,st21nfcb-spi", },
 	{}
@@ -380,6 +431,7 @@ static struct spi_driver st_nci_spi_driver = {
 	.driver = {
 		.name = ST_NCI_SPI_DRIVER_NAME,
 		.of_match_table = of_match_ptr(of_st_nci_spi_match),
+		.acpi_match_table = ACPI_PTR(st_nci_spi_acpi_match),
 	},
 	.probe = st_nci_spi_probe,
 	.id_table = st_nci_spi_id_table,
