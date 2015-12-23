@@ -256,6 +256,12 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		goto put;
 	}
 
+	/* If there's a gateway, we're definitely in RoCE v2 (as RoCE v1 isn't
+	 * routable) and we could set the network type accordingly.
+	 */
+	if (rt->rt_uses_gateway)
+		addr->network = RDMA_NETWORK_IPV4;
+
 	ret = dst_fetch_ha(&rt->dst, addr, &fl4.daddr);
 put:
 	ip_rt_put(rt);
@@ -270,6 +276,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 {
 	struct flowi6 fl6;
 	struct dst_entry *dst;
+	struct rt6_info *rt;
 	int ret;
 
 	memset(&fl6, 0, sizeof fl6);
@@ -281,6 +288,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	if ((ret = dst->error))
 		goto put;
 
+	rt = (struct rt6_info *)dst;
 	if (ipv6_addr_any(&fl6.saddr)) {
 		ret = ipv6_dev_get_saddr(addr->net, ip6_dst_idev(dst)->dev,
 					 &fl6.daddr, 0, &fl6.saddr);
@@ -303,6 +311,12 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		ret = rdma_copy_addr(addr, dst->dev, NULL);
 		goto put;
 	}
+
+	/* If there's a gateway, we're definitely in RoCE v2 (as RoCE v1 isn't
+	 * routable) and we could set the network type accordingly.
+	 */
+	if (rt->rt6i_flags & RTF_GATEWAY)
+		addr->network = RDMA_NETWORK_IPV6;
 
 	ret = dst_fetch_ha(dst, addr, &fl6.daddr);
 put:

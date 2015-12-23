@@ -83,6 +83,7 @@ struct rdma_dev_addr {
 	int bound_dev_if;
 	enum rdma_transport_type transport;
 	struct net *net;
+	enum rdma_network_type network;
 };
 
 /**
