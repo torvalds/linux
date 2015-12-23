@@ -2168,7 +2168,7 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 	if (sqp->qp.mlx4_ib_qp_type == MLX4_IB_QPT_PROXY_SMI_OWNER)
 		send_size += sizeof (struct mlx4_ib_tunnel_header);
 
-	ib_ud_header_init(send_size, 1, 0, 0, 0, 0, &sqp->ud_header);
+	ib_ud_header_init(send_size, 1, 0, 0, 0, 0, 0, 0, &sqp->ud_header);
 
 	if (sqp->qp.mlx4_ib_qp_type == MLX4_IB_QPT_PROXY_SMI_OWNER) {
 		sqp->ud_header.lrh.service_level =
@@ -2314,7 +2314,10 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 			is_vlan = 1;
 		}
 	}
-	ib_ud_header_init(send_size, !is_eth, is_eth, is_vlan, is_grh, 0, &sqp->ud_header);
+	err = ib_ud_header_init(send_size, !is_eth, is_eth, is_vlan, is_grh,
+				0, 0, 0, &sqp->ud_header);
+	if (err)
+		return err;
 
 	if (!is_eth) {
 		sqp->ud_header.lrh.service_level =
