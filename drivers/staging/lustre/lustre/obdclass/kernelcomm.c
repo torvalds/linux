@@ -154,7 +154,7 @@ int libcfs_kkuc_group_rem(int uid, unsigned int group)
 	if (!kkuc_groups[group].next)
 		return 0;
 
-	if (uid == 0) {
+	if (!uid) {
 		/* Broadcast a shutdown message */
 		struct kuc_hdr lh;
 
@@ -167,7 +167,7 @@ int libcfs_kkuc_group_rem(int uid, unsigned int group)
 
 	down_write(&kg_sem);
 	list_for_each_entry_safe(reg, next, &kkuc_groups[group], kr_chain) {
-		if ((uid == 0) || (uid == reg->kr_uid)) {
+		if (!uid || (uid == reg->kr_uid)) {
 			list_del(&reg->kr_chain);
 			CDEBUG(D_KUC, "Removed uid=%d fp=%p from group %d\n",
 			       reg->kr_uid, reg->kr_fp, group);
@@ -192,7 +192,7 @@ int libcfs_kkuc_group_put(unsigned int group, void *payload)
 	list_for_each_entry(reg, &kkuc_groups[group], kr_chain) {
 		if (reg->kr_fp) {
 			rc = libcfs_kkuc_msg_put(reg->kr_fp, payload);
-			if (rc == 0) {
+			if (!rc) {
 				one_success = 1;
 			} else if (rc == -EPIPE) {
 				fput(reg->kr_fp);
