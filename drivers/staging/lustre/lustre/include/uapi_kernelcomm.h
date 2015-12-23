@@ -45,11 +45,13 @@
  */
 struct kuc_hdr {
 	__u16 kuc_magic;
-	__u8  kuc_transport;  /* Each new Lustre feature should use a different
-				 transport */
+	/* Each new Lustre feature should use a different transport */
+	__u8  kuc_transport;
 	__u8  kuc_flags;
-	__u16 kuc_msgtype;    /* Message type or opcode, transport-specific */
-	__u16 kuc_msglen;     /* Including header */
+	/* Message type or opcode, transport-specific */
+	__u16 kuc_msgtype;
+	/* Including header */
+	__u16 kuc_msglen;
 } __aligned(sizeof(__u64));
 
 #define KUC_CHANGELOG_MSG_MAXSIZE (sizeof(struct kuc_hdr)+CR_MAXSIZE)

@@ -89,9 +89,11 @@ int libcfs_kkuc_msg_put(struct file *filp, void *payload)
 }
 EXPORT_SYMBOL(libcfs_kkuc_msg_put);
 
-/* Broadcast groups are global across all mounted filesystems;
+/*
+ * Broadcast groups are global across all mounted filesystems;
  * i.e. registering for a group on 1 fs will get messages for that
- * group from any fs */
+ * group from any fs
+ */
 /** A single group registration has a uid and a file pointer */
 struct kkuc_reg {
 	struct list_head kr_chain;
@@ -200,8 +202,10 @@ int libcfs_kkuc_group_put(unsigned int group, void *payload)
 	}
 	up_write(&kg_sem);
 
-	/* don't return an error if the message has been delivered
-	 * at least to one agent */
+	/*
+	 * don't return an error if the message has been delivered
+	 * at least to one agent
+	 */
 	if (one_success)
 		rc = 0;
 
