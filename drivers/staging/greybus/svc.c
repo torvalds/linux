@@ -425,17 +425,17 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		return;
 	}
 
+	intf->ddbl1_manufacturer_id = le32_to_cpu(request->data.ddbl1_mfr_id);
+	intf->ddbl1_product_id = le32_to_cpu(request->data.ddbl1_prod_id);
+	intf->vendor_id = le32_to_cpu(request->data.ara_vend_id);
+	intf->product_id = le32_to_cpu(request->data.ara_prod_id);
+
 	ret = gb_svc_read_and_clear_module_boot_status(intf);
 	if (ret) {
 		dev_err(&svc->dev, "failed to clear boot status of interface %u: %d\n",
 				intf_id, ret);
 		goto destroy_interface;
 	}
-
-	intf->ddbl1_manufacturer_id = le32_to_cpu(request->data.ddbl1_mfr_id);
-	intf->ddbl1_product_id = le32_to_cpu(request->data.ddbl1_prod_id);
-	intf->vendor_id = le32_to_cpu(request->data.ara_vend_id);
-	intf->product_id = le32_to_cpu(request->data.ara_prod_id);
 
 	/*
 	 * Create a device id for the interface:
