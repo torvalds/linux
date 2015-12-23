@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <sound/pcm.h>
+#include "../common/sst-acpi.h"
 #include "skl.h"
 
 /*
@@ -129,50 +130,12 @@ static int skl_acquire_irq(struct hdac_ext_bus *ebus, int do_disconnect)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-/*
- * power management
- */
-static int skl_suspend(struct device *dev)
-{
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
-
-	snd_hdac_bus_stop_chip(bus);
-	snd_hdac_bus_enter_link_reset(bus);
-
-	return 0;
-}
-
-static int skl_resume(struct device *dev)
-{
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl *hda = ebus_to_skl(ebus);
-
-	skl_init_pci(hda);
-
-	snd_hdac_bus_init_chip(bus, 1);
-
-	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
-
 #ifdef CONFIG_PM
-static int skl_runtime_suspend(struct device *dev)
+static int _skl_suspend(struct hdac_ext_bus *ebus)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	int ret;
-
-	dev_dbg(bus->dev, "in %s\n", __func__);
-
-	/* enable controller wake up event */
-	snd_hdac_chip_updatew(bus, WAKEEN, 0, STATESTS_INT_MASK);
 
 	snd_hdac_ext_bus_link_power_down_all(ebus);
 
@@ -186,25 +149,84 @@ static int skl_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+static int _skl_resume(struct hdac_ext_bus *ebus)
+{
+	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+
+	skl_init_pci(skl);
+	snd_hdac_bus_init_chip(bus, true);
+
+	return skl_resume_dsp(skl);
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+/*
+ * power management
+ */
+static int skl_suspend(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct skl *skl  = ebus_to_skl(ebus);
+
+	/*
+	 * Do not suspend if streams which are marked ignore suspend are
+	 * running, we need to save the state for these and continue
+	 */
+	if (skl->supend_active) {
+		pci_save_state(pci);
+		pci_disable_device(pci);
+		return 0;
+	} else {
+		return _skl_suspend(ebus);
+	}
+}
+
+static int skl_resume(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct skl *skl  = ebus_to_skl(ebus);
+	int ret;
+
+	/*
+	 * resume only when we are not in suspend active, otherwise need to
+	 * restore the device
+	 */
+	if (skl->supend_active) {
+		pci_restore_state(pci);
+		ret = pci_enable_device(pci);
+	} else {
+		ret = _skl_resume(ebus);
+	}
+
+	return ret;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
+static int skl_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+
+	dev_dbg(bus->dev, "in %s\n", __func__);
+
+	return _skl_suspend(ebus);
+}
+
 static int skl_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl *skl = ebus_to_skl(ebus);
-	int status;
 
 	dev_dbg(bus->dev, "in %s\n", __func__);
 
-	/* Read STATESTS before controller reset */
-	status = snd_hdac_chip_readw(bus, STATESTS);
-
-	skl_init_pci(skl);
-	snd_hdac_bus_init_chip(bus, true);
-	/* disable controller Wake Up event */
-	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, 0);
-
-	return skl_resume_dsp(skl);
+	return _skl_resume(ebus);
 }
 #endif /* CONFIG_PM */
 
@@ -239,6 +261,43 @@ static int skl_free(struct hdac_ext_bus *ebus)
 	snd_hdac_ext_bus_exit(ebus);
 
 	return 0;
+}
+
+static int skl_machine_device_register(struct skl *skl, void *driver_data)
+{
+	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct platform_device *pdev;
+	struct sst_acpi_mach *mach = driver_data;
+	int ret;
+
+	mach = sst_acpi_find_machine(mach);
+	if (mach == NULL) {
+		dev_err(bus->dev, "No matching machine driver found\n");
+		return -ENODEV;
+	}
+	skl->fw_name = mach->fw_filename;
+
+	pdev = platform_device_alloc(mach->drv_name, -1);
+	if (pdev == NULL) {
+		dev_err(bus->dev, "platform device alloc failed\n");
+		return -EIO;
+	}
+
+	ret = platform_device_add(pdev);
+	if (ret) {
+		dev_err(bus->dev, "failed to add machine device\n");
+		platform_device_put(pdev);
+		return -EIO;
+	}
+	skl->i2s_dev = pdev;
+
+	return 0;
+}
+
+static void skl_machine_device_unregister(struct skl *skl)
+{
+	if (skl->i2s_dev)
+		platform_device_unregister(skl->i2s_dev);
 }
 
 static int skl_dmic_device_register(struct skl *skl)
@@ -434,8 +493,7 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 
 	/* codec detection */
 	if (!bus->codec_mask) {
-		dev_err(bus->dev, "no codecs found!\n");
-		return -ENODEV;
+		dev_info(bus->dev, "no hda codecs found!\n");
 	}
 
 	return 0;
@@ -470,10 +528,15 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* check if dsp is there */
 	if (ebus->ppcap) {
+		err = skl_machine_device_register(skl,
+				  (void *)pci_id->driver_data);
+		if (err < 0)
+			goto out_free;
+
 		err = skl_init_dsp(skl);
 		if (err < 0) {
 			dev_dbg(bus->dev, "error failed to register dsp\n");
-			goto out_free;
+			goto out_mach_free;
 		}
 	}
 	if (ebus->mlcap)
@@ -508,6 +571,8 @@ out_dmic_free:
 	skl_dmic_device_unregister(skl);
 out_dsp_free:
 	skl_free_dsp(skl);
+out_mach_free:
+	skl_machine_device_unregister(skl);
 out_free:
 	skl->init_failed = 1;
 	skl_free(ebus);
@@ -525,15 +590,26 @@ static void skl_remove(struct pci_dev *pci)
 	pci_dev_put(pci);
 	skl_platform_unregister(&pci->dev);
 	skl_free_dsp(skl);
+	skl_machine_device_unregister(skl);
 	skl_dmic_device_unregister(skl);
 	skl_free(ebus);
 	dev_set_drvdata(&pci->dev, NULL);
 }
 
+static struct sst_acpi_mach sst_skl_devdata[] = {
+	{ "INT343A", "skl_alc286s_i2s", "intel/dsp_fw_release.bin", NULL, NULL, NULL },
+	{ "INT343B", "skl_nau88l25_ssm4567_i2s", "intel/dsp_fw_release.bin",
+				NULL, NULL, NULL },
+	{ "MX98357A", "skl_nau88l25_max98357a_i2s", "intel/dsp_fw_release.bin",
+				NULL, NULL, NULL },
+	{}
+};
+
 /* PCI IDs */
 static const struct pci_device_id skl_ids[] = {
 	/* Sunrise Point-LP */
-	{ PCI_DEVICE(0x8086, 0x9d70), 0},
+	{ PCI_DEVICE(0x8086, 0x9d70),
+		.driver_data = (unsigned long)&sst_skl_devdata},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);

@@ -175,8 +175,17 @@ static snd_pcm_uframes_t mtk_afe_pcm_pointer
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct mtk_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
 	struct mtk_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
+	unsigned int hw_ptr;
+	int ret;
 
-	return bytes_to_frames(substream->runtime, memif->hw_ptr);
+	ret = regmap_read(afe->regmap, memif->data->reg_ofs_cur, &hw_ptr);
+	if (ret || hw_ptr == 0) {
+		dev_err(afe->dev, "%s hw_ptr err\n", __func__);
+		hw_ptr = memif->phys_buf_addr;
+	}
+
+	return bytes_to_frames(substream->runtime,
+			       hw_ptr - memif->phys_buf_addr);
 }
 
 static const struct snd_pcm_ops mtk_afe_pcm_ops = {
@@ -299,8 +308,6 @@ static int mtk_afe_dais_enable_clks(struct mtk_afe *afe,
 			dev_err(afe->dev, "Failed to enable m_ck\n");
 			return ret;
 		}
-		regmap_update_bits(afe->regmap, AUDIO_TOP_CON0,
-				   AUD_TCON0_PDN_22M | AUD_TCON0_PDN_24M, 0);
 	}
 
 	if (b_ck) {
@@ -340,12 +347,8 @@ static int mtk_afe_dais_set_clks(struct mtk_afe *afe,
 static void mtk_afe_dais_disable_clks(struct mtk_afe *afe,
 				      struct clk *m_ck, struct clk *b_ck)
 {
-	if (m_ck) {
-		regmap_update_bits(afe->regmap, AUDIO_TOP_CON0,
-				   AUD_TCON0_PDN_22M | AUD_TCON0_PDN_24M,
-				   AUD_TCON0_PDN_22M | AUD_TCON0_PDN_24M);
+	if (m_ck)
 		clk_disable_unprepare(m_ck);
-	}
 	if (b_ck)
 		clk_disable_unprepare(b_ck);
 }
@@ -360,6 +363,8 @@ static int mtk_afe_i2s_startup(struct snd_pcm_substream *substream,
 		return 0;
 
 	mtk_afe_dais_enable_clks(afe, afe->clocks[MTK_CLK_I2S1_M], NULL);
+	regmap_update_bits(afe->regmap, AUDIO_TOP_CON0,
+			   AUD_TCON0_PDN_22M | AUD_TCON0_PDN_24M, 0);
 	return 0;
 }
 
@@ -373,10 +378,10 @@ static void mtk_afe_i2s_shutdown(struct snd_pcm_substream *substream,
 		return;
 
 	mtk_afe_set_i2s_enable(afe, false);
+	regmap_update_bits(afe->regmap, AUDIO_TOP_CON0,
+			   AUD_TCON0_PDN_22M | AUD_TCON0_PDN_24M,
+			   AUD_TCON0_PDN_22M | AUD_TCON0_PDN_24M);
 	mtk_afe_dais_disable_clks(afe, afe->clocks[MTK_CLK_I2S1_M], NULL);
-
-	/* disable AFE */
-	regmap_update_bits(afe->regmap, AFE_DAC_CON0, 0x1, 0);
 }
 
 static int mtk_afe_i2s_prepare(struct snd_pcm_substream *substream,
@@ -425,9 +430,6 @@ static void mtk_afe_hdmi_shutdown(struct snd_pcm_substream *substream,
 
 	mtk_afe_dais_disable_clks(afe, afe->clocks[MTK_CLK_I2S3_M],
 				  afe->clocks[MTK_CLK_I2S3_B]);
-
-	/* disable AFE */
-	regmap_update_bits(afe->regmap, AFE_DAC_CON0, 0x1, 0);
 }
 
 static int mtk_afe_hdmi_prepare(struct snd_pcm_substream *substream,
@@ -603,7 +605,6 @@ static int mtk_afe_dais_hw_params(struct snd_pcm_substream *substream,
 
 	memif->phys_buf_addr = substream->runtime->dma_addr;
 	memif->buffer_size = substream->runtime->dma_bytes;
-	memif->hw_ptr = 0;
 
 	/* start */
 	regmap_write(afe->regmap,
@@ -672,17 +673,6 @@ static int mtk_afe_dais_hw_free(struct snd_pcm_substream *substream,
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static int mtk_afe_dais_prepare(struct snd_pcm_substream *substream,
-				struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
-
-	/* enable AFE */
-	regmap_update_bits(afe->regmap, AFE_DAC_CON0, 0x1, 0x1);
-	return 0;
-}
-
 static int mtk_afe_dais_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
@@ -738,7 +728,6 @@ static int mtk_afe_dais_trigger(struct snd_pcm_substream *substream, int cmd,
 		/* and clear pending IRQ */
 		regmap_write(afe->regmap, AFE_IRQ_CLR,
 			     1 << memif->data->irq_clr_shift);
-		memif->hw_ptr = 0;
 		return 0;
 	default:
 		return -EINVAL;
@@ -751,7 +740,6 @@ static const struct snd_soc_dai_ops mtk_afe_dai_ops = {
 	.shutdown	= mtk_afe_dais_shutdown,
 	.hw_params	= mtk_afe_dais_hw_params,
 	.hw_free	= mtk_afe_dais_hw_free,
-	.prepare	= mtk_afe_dais_prepare,
 	.trigger	= mtk_afe_dais_trigger,
 };
 
@@ -1082,7 +1070,7 @@ static const struct regmap_config mtk_afe_regmap_config = {
 static irqreturn_t mtk_afe_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_afe *afe = dev_id;
-	unsigned int reg_value, hw_ptr;
+	unsigned int reg_value;
 	int i, ret;
 
 	ret = regmap_read(afe->regmap, AFE_IRQ_STATUS, &reg_value);
@@ -1098,13 +1086,6 @@ static irqreturn_t mtk_afe_irq_handler(int irq, void *dev_id)
 		if (!(reg_value & (1 << memif->data->irq_clr_shift)))
 			continue;
 
-		ret = regmap_read(afe->regmap, memif->data->reg_ofs_cur,
-				  &hw_ptr);
-		if (ret || hw_ptr == 0) {
-			dev_err(afe->dev, "%s hw_ptr err\n", __func__);
-			hw_ptr = memif->phys_buf_addr;
-		}
-		memif->hw_ptr = hw_ptr - memif->phys_buf_addr;
 		snd_pcm_period_elapsed(memif->substream);
 	}
 
@@ -1118,6 +1099,9 @@ err_irq:
 static int mtk_afe_runtime_suspend(struct device *dev)
 {
 	struct mtk_afe *afe = dev_get_drvdata(dev);
+
+	/* disable AFE */
+	regmap_update_bits(afe->regmap, AFE_DAC_CON0, 0x1, 0);
 
 	/* disable AFE clk */
 	regmap_update_bits(afe->regmap, AUDIO_TOP_CON0,
@@ -1165,6 +1149,9 @@ static int mtk_afe_runtime_resume(struct device *dev)
 
 	/* unmask all IRQs */
 	regmap_update_bits(afe->regmap, AFE_IRQ_MCU_EN, 0xff, 0xff);
+
+	/* enable AFE */
+	regmap_update_bits(afe->regmap, AFE_DAC_CON0, 0x1, 0x1);
 	return 0;
 
 err_bck0:

@@ -574,6 +574,7 @@ static const struct regmap_config wm8974_regmap = {
 	.max_register = WM8974_MONOMIX,
 	.reg_defaults = wm8974_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8974_reg_defaults),
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int wm8974_probe(struct snd_soc_codec *codec)
@@ -631,9 +632,16 @@ static const struct i2c_device_id wm8974_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8974_i2c_id);
 
+static const struct of_device_id wm8974_of_match[] = {
+       { .compatible = "wlf,wm8974", },
+       { }
+};
+MODULE_DEVICE_TABLE(of, wm8974_of_match);
+
 static struct i2c_driver wm8974_i2c_driver = {
 	.driver = {
 		.name = "wm8974",
+		.of_match_table = wm8974_of_match,
 	},
 	.probe =    wm8974_i2c_probe,
 	.remove =   wm8974_i2c_remove,

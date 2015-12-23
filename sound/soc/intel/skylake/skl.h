@@ -61,13 +61,17 @@ struct skl {
 
 	unsigned int init_failed:1; /* delayed init failed */
 	struct platform_device *dmic_dev;
+	struct platform_device *i2s_dev;
 
 	void *nhlt; /* nhlt ptr */
 	struct skl_sst *skl_sst; /* sst skl ctx */
 
 	struct skl_dsp_resource resource;
 	struct list_head ppl_list;
-	struct list_head dapm_path_list;
+
+	const char *fw_name;
+
+	int supend_active;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
