@@ -21,8 +21,10 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
+#include <linux/acpi.h>
 #include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -204,7 +206,6 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 	u8 tmp[ST21NFCA_HCI_LLC_MAX_SIZE * 2];
 
 	I2C_DUMP_SKB("st21nfca_hci_i2c_write", skb);
-
 
 	if (phy->hard_fault != 0)
 		return phy->hard_fault;
@@ -504,6 +505,41 @@ static struct nfc_phy_ops i2c_phy_ops = {
 	.disable = st21nfca_hci_i2c_disable,
 };
 
+static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
+{
+	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
+	const struct acpi_device_id *id;
+	struct gpio_desc *gpiod_ena;
+	struct device *dev;
+
+	if (!client)
+		return -EINVAL;
+
+	dev = &client->dev;
+
+	/* Match the struct device against a given list of ACPI IDs */
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	/* Get EN GPIO from ACPI */
+	gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
+					 GPIOD_OUT_LOW);
+	if (!IS_ERR(gpiod_ena))
+		phy->gpio_ena = desc_to_gpio(gpiod_ena);
+
+	phy->gpio_ena = desc_to_gpio(gpiod_ena);
+
+	phy->irq_polarity = irq_get_trigger_type(client->irq);
+
+	phy->se_status.is_ese_present =
+				device_property_present(dev, "ese-present");
+	phy->se_status.is_uicc_present =
+				device_property_present(dev, "uicc-present");
+
+	return 0;
+}
+
 static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 {
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
@@ -617,6 +653,12 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 			nfc_err(&client->dev, "Cannot get platform resources\n");
 			return r;
 		}
+	} else if (ACPI_HANDLE(&client->dev)) {
+		r = st21nfca_hci_i2c_acpi_request_resources(client);
+		if (r) {
+			nfc_err(&client->dev, "Cannot get ACPI data\n");
+			return r;
+		}
 	} else {
 		nfc_err(&client->dev, "st21nfca platform resources not available\n");
 		return -ENODEV;
@@ -665,6 +707,12 @@ static struct i2c_device_id st21nfca_hci_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, st21nfca_hci_i2c_id_table);
 
+static const struct acpi_device_id st21nfca_hci_i2c_acpi_match[] = {
+	{"SMO2100", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, st21nfca_hci_i2c_acpi_match);
+
 static const struct of_device_id of_st21nfca_i2c_match[] = {
 	{ .compatible = "st,st21nfca-i2c", },
 	{ .compatible = "st,st21nfca_i2c", },
@@ -677,6 +725,7 @@ static struct i2c_driver st21nfca_hci_i2c_driver = {
 		.owner = THIS_MODULE,
 		.name = ST21NFCA_HCI_I2C_DRIVER_NAME,
 		.of_match_table = of_match_ptr(of_st21nfca_i2c_match),
+		.acpi_match_table = ACPI_PTR(st21nfca_hci_i2c_acpi_match),
 	},
 	.probe = st21nfca_hci_i2c_probe,
 	.id_table = st21nfca_hci_i2c_id_table,
