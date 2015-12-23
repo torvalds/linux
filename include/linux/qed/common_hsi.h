@@ -9,6 +9,8 @@
 #ifndef __COMMON_HSI__
 #define __COMMON_HSI__
 
+#define CORE_SPQE_PAGE_SIZE_BYTES                       4096
+
 #define FW_MAJOR_VERSION	8
 #define FW_MINOR_VERSION	4
 #define FW_REVISION_VERSION	2
