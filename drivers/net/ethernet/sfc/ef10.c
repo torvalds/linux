@@ -486,10 +486,17 @@ static int efx_ef10_alloc_piobufs(struct efx_nic *efx, unsigned int n)
 	BUILD_BUG_ON(MC_CMD_ALLOC_PIOBUF_IN_LEN != 0);
 
 	for (i = 0; i < n; i++) {
-		rc = efx_mcdi_rpc(efx, MC_CMD_ALLOC_PIOBUF, NULL, 0,
-				  outbuf, sizeof(outbuf), &outlen);
-		if (rc)
+		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_ALLOC_PIOBUF, NULL, 0,
+					outbuf, sizeof(outbuf), &outlen);
+		if (rc) {
+			/* Don't display the MC error if we didn't have space
+			 * for a VF.
+			 */
+			if (!(efx_ef10_is_vf(efx) && rc == -ENOSPC))
+				efx_mcdi_display_error(efx, MC_CMD_ALLOC_PIOBUF,
+						       0, outbuf, outlen, rc);
 			break;
+		}
 		if (outlen < MC_CMD_ALLOC_PIOBUF_OUT_LEN) {
 			rc = -EIO;
 			break;
@@ -4028,9 +4035,10 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx, bool multicast,
 
 	rc = efx_ef10_filter_insert(efx, &spec, true);
 	if (rc < 0) {
-		netif_warn(efx, drv, efx->net_dev,
-			   "%scast mismatch filter insert failed rc=%d\n",
-			   multicast ? "Multi" : "Uni", rc);
+		netif_printk(efx, drv, rc == -EPERM ? KERN_DEBUG : KERN_WARNING,
+			     efx->net_dev,
+			     "%scast mismatch filter insert failed rc=%d\n",
+			     multicast ? "Multi" : "Uni", rc);
 	} else if (multicast) {
 		table->mcdef_id = efx_ef10_filter_get_unsafe_id(efx, rc);
 		if (!nic_data->workaround_26807) {
