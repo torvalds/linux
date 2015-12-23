@@ -264,8 +264,6 @@ exit_irq_none:
 	return IRQ_NONE;
 }
 
-#ifdef CONFIG_OF
-
 static int nxp_nci_i2c_parse_devtree(struct i2c_client *client)
 {
 	struct nxp_nci_i2c_phy *phy = i2c_get_clientdata(client);
@@ -303,15 +301,6 @@ static int nxp_nci_i2c_parse_devtree(struct i2c_client *client)
 
 	return 0;
 }
-
-#else
-
-static int nxp_nci_i2c_parse_devtree(struct i2c_client *client)
-{
-	return -ENODEV;
-}
-
-#endif
 
 static int nxp_nci_i2c_acpi_config(struct nxp_nci_i2c_phy *phy)
 {
