@@ -3319,10 +3319,9 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ibphysbuf.addr = nesqp->ietf_frame_pbase + mpa_frame_offset;
 		ibphysbuf.size = buff_len;
 		tagged_offset = (u64)(unsigned long)*start_buff;
-		ibmr = nesibdev->ibdev.reg_phys_mr((struct ib_pd *)nespd,
-						   &ibphysbuf, 1,
-						   IB_ACCESS_LOCAL_WRITE,
-						   &tagged_offset);
+		ibmr = nes_reg_phys_mr(&nespd->ibpd, &ibphysbuf, 1,
+					IB_ACCESS_LOCAL_WRITE,
+					&tagged_offset);
 		if (!ibmr) {
 			nes_debug(NES_DBG_CM, "Unable to register memory region"
 				  "for lSMM for cm_node = %p \n",

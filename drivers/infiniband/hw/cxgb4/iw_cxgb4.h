@@ -968,17 +968,6 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
-struct ib_mr *c4iw_register_phys_mem(struct ib_pd *pd,
-					struct ib_phys_buf *buffer_list,
-					int num_phys_buf,
-					int acc,
-					u64 *iova_start);
-int c4iw_reregister_phys_mem(struct ib_mr *mr,
-				     int mr_rereg_mask,
-				     struct ib_pd *pd,
-				     struct ib_phys_buf *buffer_list,
-				     int num_phys_buf,
-				     int acc, u64 *iova_start);
 int c4iw_dereg_mr(struct ib_mr *ib_mr);
 int c4iw_destroy_cq(struct ib_cq *ib_cq);
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,

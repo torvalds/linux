@@ -75,37 +75,6 @@ int iwch_register_mem(struct iwch_dev *rhp, struct iwch_pd *php,
 	return ret;
 }
 
-int iwch_reregister_mem(struct iwch_dev *rhp, struct iwch_pd *php,
-					struct iwch_mr *mhp,
-					int shift,
-					int npages)
-{
-	u32 stag;
-	int ret;
-
-	/* We could support this... */
-	if (npages > mhp->attr.pbl_size)
-		return -ENOMEM;
-
-	stag = mhp->attr.stag;
-	if (cxio_reregister_phys_mem(&rhp->rdev,
-				   &stag, mhp->attr.pdid,
-				   mhp->attr.perms,
-				   mhp->attr.zbva,
-				   mhp->attr.va_fbo,
-				   mhp->attr.len,
-				   shift - 12,
-				   mhp->attr.pbl_size, mhp->attr.pbl_addr))
-		return -ENOMEM;
-
-	ret = iwch_finish_mem_reg(mhp, stag);
-	if (ret)
-		cxio_dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
-		       mhp->attr.pbl_addr);
-
-	return ret;
-}
-
 int iwch_alloc_pbl(struct iwch_mr *mhp, int npages)
 {
 	mhp->attr.pbl_addr = cxio_hal_pblpool_alloc(&mhp->rhp->rdev,

@@ -1288,6 +1288,10 @@ struct ib_phys_buf {
 	u64      size;
 };
 
+/*
+ * XXX: these are apparently used for ->rereg_user_mr, no idea why they
+ * are hidden here instead of a uapi header!
+ */
 enum ib_mr_rereg_flags {
 	IB_MR_REREG_TRANS	= 1,
 	IB_MR_REREG_PD		= (1<<1),
@@ -1820,11 +1824,6 @@ struct ib_device {
 						      int wc_cnt);
 	struct ib_mr *             (*get_dma_mr)(struct ib_pd *pd,
 						 int mr_access_flags);
-	struct ib_mr *             (*reg_phys_mr)(struct ib_pd *pd,
-						  struct ib_phys_buf *phys_buf_array,
-						  int num_phys_buf,
-						  int mr_access_flags,
-						  u64 *iova_start);
 	struct ib_mr *             (*reg_user_mr)(struct ib_pd *pd,
 						  u64 start, u64 length,
 						  u64 virt_addr,
@@ -1844,13 +1843,6 @@ struct ib_device {
 	int                        (*map_mr_sg)(struct ib_mr *mr,
 						struct scatterlist *sg,
 						int sg_nents);
-	int                        (*rereg_phys_mr)(struct ib_mr *mr,
-						    int mr_rereg_mask,
-						    struct ib_pd *pd,
-						    struct ib_phys_buf *phys_buf_array,
-						    int num_phys_buf,
-						    int mr_access_flags,
-						    u64 *iova_start);
 	struct ib_mw *             (*alloc_mw)(struct ib_pd *pd,
 					       enum ib_mw_type type);
 	int                        (*bind_mw)(struct ib_qp *qp,

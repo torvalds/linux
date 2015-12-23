@@ -549,8 +549,6 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.resize_cq = c4iw_resize_cq;
 	dev->ibdev.poll_cq = c4iw_poll_cq;
 	dev->ibdev.get_dma_mr = c4iw_get_dma_mr;
-	dev->ibdev.reg_phys_mr = c4iw_register_phys_mem;
-	dev->ibdev.rereg_phys_mr = c4iw_reregister_phys_mem;
 	dev->ibdev.reg_user_mr = c4iw_reg_user_mr;
 	dev->ibdev.dereg_mr = c4iw_dereg_mr;
 	dev->ibdev.alloc_mw = c4iw_alloc_mw;

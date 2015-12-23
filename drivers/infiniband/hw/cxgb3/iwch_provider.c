@@ -556,73 +556,6 @@ err:
 
 }
 
-static int iwch_reregister_phys_mem(struct ib_mr *mr,
-				     int mr_rereg_mask,
-				     struct ib_pd *pd,
-	                             struct ib_phys_buf *buffer_list,
-	                             int num_phys_buf,
-	                             int acc, u64 * iova_start)
-{
-
-	struct iwch_mr mh, *mhp;
-	struct iwch_pd *php;
-	struct iwch_dev *rhp;
-	__be64 *page_list = NULL;
-	int shift = 0;
-	u64 total_size;
-	int npages = 0;
-	int ret;
-
-	PDBG("%s ib_mr %p ib_pd %p\n", __func__, mr, pd);
-
-	/* There can be no memory windows */
-	if (atomic_read(&mr->usecnt))
-		return -EINVAL;
-
-	mhp = to_iwch_mr(mr);
-	rhp = mhp->rhp;
-	php = to_iwch_pd(mr->pd);
-
-	/* make sure we are on the same adapter */
-	if (rhp != php->rhp)
-		return -EINVAL;
-
-	memcpy(&mh, mhp, sizeof *mhp);
-
-	if (mr_rereg_mask & IB_MR_REREG_PD)
-		php = to_iwch_pd(pd);
-	if (mr_rereg_mask & IB_MR_REREG_ACCESS)
-		mh.attr.perms = iwch_ib_to_tpt_access(acc);
-	if (mr_rereg_mask & IB_MR_REREG_TRANS) {
-		ret = build_phys_page_list(buffer_list, num_phys_buf,
-					   iova_start,
-					   &total_size, &npages,
-					   &shift, &page_list);
-		if (ret)
-			return ret;
-	}
-
-	ret = iwch_reregister_mem(rhp, php, &mh, shift, npages);
-	kfree(page_list);
-	if (ret) {
-		return ret;
-	}
-	if (mr_rereg_mask & IB_MR_REREG_PD)
-		mhp->attr.pdid = php->pdid;
-	if (mr_rereg_mask & IB_MR_REREG_ACCESS)
-		mhp->attr.perms = iwch_ib_to_tpt_access(acc);
-	if (mr_rereg_mask & IB_MR_REREG_TRANS) {
-		mhp->attr.zbva = 0;
-		mhp->attr.va_fbo = *iova_start;
-		mhp->attr.page_size = shift - 12;
-		mhp->attr.len = (u32) total_size;
-		mhp->attr.pbl_size = npages;
-	}
-
-	return 0;
-}
-
-
 static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				      u64 virt, int acc, struct ib_udata *udata)
 {
@@ -1452,8 +1385,6 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.resize_cq = iwch_resize_cq;
 	dev->ibdev.poll_cq = iwch_poll_cq;
 	dev->ibdev.get_dma_mr = iwch_get_dma_mr;
-	dev->ibdev.reg_phys_mr = iwch_register_phys_mem;
-	dev->ibdev.rereg_phys_mr = iwch_reregister_phys_mem;
 	dev->ibdev.reg_user_mr = iwch_reg_user_mr;
 	dev->ibdev.dereg_mr = iwch_dereg_mr;
 	dev->ibdev.alloc_mw = iwch_alloc_mw;

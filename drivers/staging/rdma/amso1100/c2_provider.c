@@ -846,7 +846,6 @@ int c2_register_device(struct c2_dev *dev)
 	dev->ibdev.destroy_cq = c2_destroy_cq;
 	dev->ibdev.poll_cq = c2_poll_cq;
 	dev->ibdev.get_dma_mr = c2_get_dma_mr;
-	dev->ibdev.reg_phys_mr = c2_reg_phys_mr;
 	dev->ibdev.reg_user_mr = c2_reg_user_mr;
 	dev->ibdev.dereg_mr = c2_dereg_mr;
 	dev->ibdev.get_port_immutable = c2_port_immutable;

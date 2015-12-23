@@ -341,10 +341,6 @@ void iwch_unregister_device(struct iwch_dev *dev);
 void stop_read_rep_timer(struct iwch_qp *qhp);
 int iwch_register_mem(struct iwch_dev *rhp, struct iwch_pd *php,
 		      struct iwch_mr *mhp, int shift);
-int iwch_reregister_mem(struct iwch_dev *rhp, struct iwch_pd *php,
-					struct iwch_mr *mhp,
-					int shift,
-					int npages);
 int iwch_alloc_pbl(struct iwch_mr *mhp, int npages);
 void iwch_free_pbl(struct iwch_mr *mhp);
 int iwch_write_pbl(struct iwch_mr *mhp, __be64 *pages, int npages, int offset);

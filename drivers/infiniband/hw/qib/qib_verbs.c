@@ -2256,7 +2256,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->poll_cq = qib_poll_cq;
 	ibdev->req_notify_cq = qib_req_notify_cq;
 	ibdev->get_dma_mr = qib_get_dma_mr;
-	ibdev->reg_phys_mr = qib_reg_phys_mr;
 	ibdev->reg_user_mr = qib_reg_user_mr;
 	ibdev->dereg_mr = qib_dereg_mr;
 	ibdev->alloc_mr = qib_alloc_mr;

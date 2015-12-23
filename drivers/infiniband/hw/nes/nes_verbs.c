@@ -2074,7 +2074,7 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 /**
  * nes_reg_phys_mr
  */
-static struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
+struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 		struct ib_phys_buf *buffer_list, int num_phys_buf, int acc,
 		u64 * iova_start)
 {
@@ -3888,7 +3888,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.destroy_cq = nes_destroy_cq;
 	nesibdev->ibdev.poll_cq = nes_poll_cq;
 	nesibdev->ibdev.get_dma_mr = nes_get_dma_mr;
-	nesibdev->ibdev.reg_phys_mr = nes_reg_phys_mr;
 	nesibdev->ibdev.reg_user_mr = nes_reg_user_mr;
 	nesibdev->ibdev.dereg_mr = nes_dereg_mr;
 	nesibdev->ibdev.alloc_mw = nes_alloc_mw;

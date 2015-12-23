@@ -80,20 +80,9 @@ int ehca_destroy_ah(struct ib_ah *ah);
 
 struct ib_mr *ehca_get_dma_mr(struct ib_pd *pd, int mr_access_flags);
 
-struct ib_mr *ehca_reg_phys_mr(struct ib_pd *pd,
-			       struct ib_phys_buf *phys_buf_array,
-			       int num_phys_buf,
-			       int mr_access_flags, u64 *iova_start);
-
 struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			       u64 virt, int mr_access_flags,
 			       struct ib_udata *udata);
-
-int ehca_rereg_phys_mr(struct ib_mr *mr,
-		       int mr_rereg_mask,
-		       struct ib_pd *pd,
-		       struct ib_phys_buf *phys_buf_array,
-		       int num_phys_buf, int mr_access_flags, u64 *iova_start);
 
 int ehca_dereg_mr(struct ib_mr *mr);
 
