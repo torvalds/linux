@@ -686,7 +686,7 @@ static int set_pauseparam(struct net_device *dev,
 	if (epause->tx_pause)
 		lc->requested_fc |= PAUSE_TX;
 	if (netif_running(dev))
-		return t4_link_l1cfg(p->adapter, p->adapter->pf, p->tx_chan,
+		return t4_link_l1cfg(p->adapter, p->adapter->mbox, p->tx_chan,
 				     lc);
 	return 0;
 }
