@@ -3173,8 +3173,7 @@ static int t4_sge_init_soft(struct adapter *adap)
 int t4_sge_init(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	u32 sge_control, sge_control2, sge_conm_ctrl;
-	unsigned int ingpadboundary, ingpackboundary;
+	u32 sge_control, sge_conm_ctrl;
 	int ret, egress_threshold;
 
 	/*
@@ -3185,35 +3184,7 @@ int t4_sge_init(struct adapter *adap)
 	s->pktshift = PKTSHIFT_G(sge_control);
 	s->stat_len = (sge_control & EGRSTATUSPAGESIZE_F) ? 128 : 64;
 
-	/* T4 uses a single control field to specify both the PCIe Padding and
-	 * Packing Boundary.  T5 introduced the ability to specify these
-	 * separately.  The actual Ingress Packet Data alignment boundary
-	 * within Packed Buffer Mode is the maximum of these two
-	 * specifications.  (Note that it makes no real practical sense to
-	 * have the Pading Boudary be larger than the Packing Boundary but you
-	 * could set the chip up that way and, in fact, legacy T4 code would
-	 * end doing this because it would initialize the Padding Boundary and
-	 * leave the Packing Boundary initialized to 0 (16 bytes).)
-	 */
-	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_control) +
-			       INGPADBOUNDARY_SHIFT_X);
-	if (is_t4(adap->params.chip)) {
-		s->fl_align = ingpadboundary;
-	} else {
-		/* T5 has a different interpretation of one of the PCIe Packing
-		 * Boundary values.
-		 */
-		sge_control2 = t4_read_reg(adap, SGE_CONTROL2_A);
-		ingpackboundary = INGPACKBOUNDARY_G(sge_control2);
-		if (ingpackboundary == INGPACKBOUNDARY_16B_X)
-			ingpackboundary = 16;
-		else
-			ingpackboundary = 1 << (ingpackboundary +
-						INGPACKBOUNDARY_SHIFT_X);
-
-		s->fl_align = max(ingpadboundary, ingpackboundary);
-	}
-
+	s->fl_align = t4_fl_pkt_align(adap);
 	ret = t4_sge_init_soft(adap);
 	if (ret < 0)
 		return ret;
