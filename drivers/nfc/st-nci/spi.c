@@ -225,7 +225,6 @@ static struct nfc_phy_ops spi_phy_ops = {
 	.disable = st_nci_spi_disable,
 };
 
-#ifdef CONFIG_OF
 static int st_nci_spi_of_request_resources(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(dev);
@@ -263,12 +262,6 @@ static int st_nci_spi_of_request_resources(struct spi_device *dev)
 
 	return 0;
 }
-#else
-static int st_nci_spi_of_request_resources(struct spi_device *dev)
-{
-	return -ENODEV;
-}
-#endif
 
 static int st_nci_spi_request_resources(struct spi_device *dev)
 {
@@ -374,13 +367,11 @@ static int st_nci_spi_remove(struct spi_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id of_st_nci_spi_match[] = {
 	{ .compatible = "st,st21nfcb-spi", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, of_st_nci_spi_match);
-#endif
 
 static struct spi_driver st_nci_spi_driver = {
 	.driver = {

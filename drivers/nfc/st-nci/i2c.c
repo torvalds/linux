@@ -210,7 +210,6 @@ static struct nfc_phy_ops i2c_phy_ops = {
 	.disable = st_nci_i2c_disable,
 };
 
-#ifdef CONFIG_OF
 static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 {
 	struct st_nci_i2c_phy *phy = i2c_get_clientdata(client);
@@ -248,12 +247,6 @@ static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 
 	return 0;
 }
-#else
-static int st_nci_i2c_of_request_resources(struct i2c_client *client)
-{
-	return -ENODEV;
-}
-#endif
 
 static int st_nci_i2c_request_resources(struct i2c_client *client)
 {
@@ -358,7 +351,6 @@ static int st_nci_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id of_st_nci_i2c_match[] = {
 	{ .compatible = "st,st21nfcb-i2c", },
 	{ .compatible = "st,st21nfcb_i2c", },
@@ -366,7 +358,6 @@ static const struct of_device_id of_st_nci_i2c_match[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, of_st_nci_i2c_match);
-#endif
 
 static struct i2c_driver st_nci_i2c_driver = {
 	.driver = {
