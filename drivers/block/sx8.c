@@ -673,7 +673,7 @@ static unsigned int carm_fill_sync_time(struct carm_host *host,
 {
 	struct carm_msg_sync_time *st = mem;
 
-	time64_t tv = ktime_get_seconds();
+	time64_t tv = ktime_get_real_seconds();
 
 	memset(st, 0, sizeof(*st));
 	st->type	= CARM_MSG_MISC;
