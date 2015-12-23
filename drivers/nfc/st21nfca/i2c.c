@@ -731,7 +731,6 @@ static struct i2c_driver st21nfca_hci_i2c_driver = {
 	.id_table = st21nfca_hci_i2c_id_table,
 	.remove = st21nfca_hci_i2c_remove,
 };
-
 module_i2c_driver(st21nfca_hci_i2c_driver);
 
 MODULE_LICENSE("GPL");
