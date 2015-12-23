@@ -697,6 +697,10 @@ struct iwl_mvm_baid_data {
  *	it. In this state, when a new queue is needed to be allocated but no
  *	such free queue exists, an inactive queue might be freed and given to
  *	the new RA/TID.
+ * @IWL_MVM_QUEUE_RECONFIGURING: queue is being reconfigured
+ *	This is the state of a queue that has had traffic pass through it, but
+ *	needs to be reconfigured for some reason, e.g. the queue needs to
+ *	become unshared and aggregations re-enabled on.
  */
 enum iwl_mvm_queue_status {
 	IWL_MVM_QUEUE_FREE,
@@ -704,6 +708,7 @@ enum iwl_mvm_queue_status {
 	IWL_MVM_QUEUE_READY,
 	IWL_MVM_QUEUE_SHARED,
 	IWL_MVM_QUEUE_INACTIVE,
+	IWL_MVM_QUEUE_RECONFIGURING,
 };
 
 #define IWL_MVM_DQA_QUEUE_TIMEOUT	(5 * HZ)
@@ -1120,6 +1125,18 @@ static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
 	 */
 	return (mvm->trans->system_pm_mode == IWL_PLAT_PM_MODE_D0I3) &&
 		(mvm->trans->runtime_pm_mode != IWL_PLAT_PM_MODE_D0I3);
+}
+
+static inline bool iwl_mvm_is_dqa_data_queue(struct iwl_mvm *mvm, u8 queue)
+{
+	return (queue >= IWL_MVM_DQA_MIN_DATA_QUEUE) &&
+	       (queue <= IWL_MVM_DQA_MAX_DATA_QUEUE);
+}
+
+static inline bool iwl_mvm_is_dqa_mgmt_queue(struct iwl_mvm *mvm, u8 queue)
+{
+	return (queue >= IWL_MVM_DQA_MIN_MGMT_QUEUE) &&
+	       (queue <= IWL_MVM_DQA_MAX_MGMT_QUEUE);
 }
 
 static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)

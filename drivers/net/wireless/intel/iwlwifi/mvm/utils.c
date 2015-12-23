@@ -1131,7 +1131,13 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 			BIT(mvmsta->vif->hw_queue[tid_to_mac80211_ac[tid]]);
 	}
 
-	/* TODO: if queue was shared - need to re-enable AGGs */
+	/* If the queue is marked as shared - "unshare" it */
+	if (mvm->queue_info[queue].hw_queue_refcount == 1 &&
+	    mvm->queue_info[queue].status == IWL_MVM_QUEUE_SHARED) {
+		mvm->queue_info[queue].status = IWL_MVM_QUEUE_RECONFIGURING;
+		IWL_DEBUG_TX_QUEUES(mvm, "Marking Q:%d for reconfig\n",
+				    queue);
+	}
 }
 
 void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
