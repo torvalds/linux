@@ -92,9 +92,8 @@ enum vstor_packet_operation {
  */
 
 struct hv_fc_wwn_packet {
-	bool	primary_active;
-	u8	reserved1;
-	u8	reserved2;
+	u8	primary_active;
+	u8	reserved1[3];
 	u8	primary_port_wwn[8];
 	u8	primary_node_wwn[8];
 	u8	secondary_port_wwn[8];
