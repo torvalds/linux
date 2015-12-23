@@ -730,7 +730,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_DME_PEER_SET	0x0a
 #define GB_SVC_TYPE_ROUTE_CREATE	0x0b
 #define GB_SVC_TYPE_ROUTE_DESTROY	0x0c
-#define GB_SVC_TYPE_LINK_CONFIG		0x0d
+#define GB_SVC_TYPE_LINK_CONFIG		0x10
 
 /*
  * SVC version request/response has the same payload as
