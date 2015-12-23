@@ -1410,6 +1410,51 @@ static void f2fs_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
+static int prepare_write_begin(struct f2fs_sb_info *sbi,
+			struct page *page, loff_t pos, unsigned len,
+			block_t *blk_addr, bool *node_changed)
+{
+	struct inode *inode = page->mapping->host;
+	pgoff_t index = page->index;
+	struct dnode_of_data dn;
+	struct page *ipage;
+	int err = 0;
+
+	f2fs_lock_op(sbi);
+
+	/* check inline_data */
+	ipage = get_node_page(sbi, inode->i_ino);
+	if (IS_ERR(ipage)) {
+		err = PTR_ERR(ipage);
+		goto unlock_out;
+	}
+
+	set_new_dnode(&dn, inode, ipage, ipage, 0);
+
+	if (f2fs_has_inline_data(inode)) {
+		if (pos + len <= MAX_INLINE_DATA) {
+			read_inline_data(page, ipage);
+			set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
+			sync_inode_page(&dn);
+			goto done;
+		} else {
+			err = f2fs_convert_inline_page(&dn, page);
+			if (err)
+				goto err_out;
+		}
+	}
+	err = f2fs_get_block(&dn, index);
+done:
+	/* convert_inline_page can make node_changed */
+	*blk_addr = dn.data_blkaddr;
+	*node_changed = dn.node_changed;
+err_out:
+	f2fs_put_dnode(&dn);
+unlock_out:
+	f2fs_unlock_op(sbi);
+	return err;
+}
+
 static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
 		struct page **pagep, void **fsdata)
@@ -1417,9 +1462,9 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct page *page = NULL;
-	struct page *ipage;
 	pgoff_t index = ((unsigned long long) pos) >> PAGE_CACHE_SHIFT;
-	struct dnode_of_data dn;
+	bool need_balance = false;
+	block_t blkaddr = NULL_ADDR;
 	int err = 0;
 
 	trace_f2fs_write_begin(inode, pos, len, flags);
@@ -1443,37 +1488,12 @@ repeat:
 
 	*pagep = page;
 
-	f2fs_lock_op(sbi);
-
-	/* check inline_data */
-	ipage = get_node_page(sbi, inode->i_ino);
-	if (IS_ERR(ipage)) {
-		err = PTR_ERR(ipage);
-		goto unlock_fail;
-	}
-
-	set_new_dnode(&dn, inode, ipage, ipage, 0);
-
-	if (f2fs_has_inline_data(inode)) {
-		if (pos + len <= MAX_INLINE_DATA) {
-			read_inline_data(page, ipage);
-			set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
-			sync_inode_page(&dn);
-			goto put_next;
-		}
-		err = f2fs_convert_inline_page(&dn, page);
-		if (err)
-			goto put_fail;
-	}
-
-	err = f2fs_get_block(&dn, index);
+	err = prepare_write_begin(sbi, page, pos, len,
+					&blkaddr, &need_balance);
 	if (err)
-		goto put_fail;
-put_next:
-	f2fs_put_dnode(&dn);
-	f2fs_unlock_op(sbi);
+		goto fail;
 
-	if (dn.node_changed && has_not_enough_free_secs(sbi, 0)) {
+	if (need_balance && has_not_enough_free_secs(sbi, 0)) {
 		unlock_page(page);
 		f2fs_balance_fs(sbi);
 		lock_page(page);
@@ -1488,7 +1508,7 @@ put_next:
 
 	/* wait for GCed encrypted page writeback */
 	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
-		f2fs_wait_on_encrypted_page_writeback(sbi, dn.data_blkaddr);
+		f2fs_wait_on_encrypted_page_writeback(sbi, blkaddr);
 
 	if (len == PAGE_CACHE_SIZE)
 		goto out_update;
@@ -1504,14 +1524,14 @@ put_next:
 		goto out_update;
 	}
 
-	if (dn.data_blkaddr == NEW_ADDR) {
+	if (blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 	} else {
 		struct f2fs_io_info fio = {
 			.sbi = sbi,
 			.type = DATA,
 			.rw = READ_SYNC,
-			.blk_addr = dn.data_blkaddr,
+			.blk_addr = blkaddr,
 			.page = page,
 			.encrypted_page = NULL,
 		};
@@ -1542,10 +1562,6 @@ out_clear:
 	clear_cold_data(page);
 	return 0;
 
-put_fail:
-	f2fs_put_dnode(&dn);
-unlock_fail:
-	f2fs_unlock_op(sbi);
 fail:
 	f2fs_put_page(page, 1);
 	f2fs_write_failed(mapping, pos + len);
