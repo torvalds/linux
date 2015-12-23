@@ -64,11 +64,9 @@ static char mlx5_version[] =
 	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
 
 static enum rdma_link_layer
-mlx5_ib_port_link_layer(struct ib_device *device)
+mlx5_port_type_cap_to_rdma_ll(int port_type_cap)
 {
-	struct mlx5_ib_dev *dev = to_mdev(device);
-
-	switch (MLX5_CAP_GEN(dev->mdev, port_type)) {
+	switch (port_type_cap) {
 	case MLX5_CAP_PORT_TYPE_IB:
 		return IB_LINK_LAYER_INFINIBAND;
 	case MLX5_CAP_PORT_TYPE_ETH:
@@ -76,6 +74,15 @@ mlx5_ib_port_link_layer(struct ib_device *device)
 	default:
 		return IB_LINK_LAYER_UNSPECIFIED;
 	}
+}
+
+static enum rdma_link_layer
+mlx5_ib_port_link_layer(struct ib_device *device, u8 port_num)
+{
+	struct mlx5_ib_dev *dev = to_mdev(device);
+	int port_type_cap = MLX5_CAP_GEN(dev->mdev, port_type);
+
+	return mlx5_port_type_cap_to_rdma_ll(port_type_cap);
 }
 
 static int mlx5_use_mad_ifc(struct mlx5_ib_dev *dev)
@@ -94,7 +101,7 @@ static int mlx5_get_vport_access_method(struct ib_device *ibdev)
 	if (mlx5_use_mad_ifc(to_mdev(ibdev)))
 		return MLX5_VPORT_ACCESS_METHOD_MAD;
 
-	if (mlx5_ib_port_link_layer(ibdev) ==
+	if (mlx5_ib_port_link_layer(ibdev, 1) ==
 	    IB_LINK_LAYER_ETHERNET)
 		return MLX5_VPORT_ACCESS_METHOD_NIC;
 
@@ -1325,11 +1332,16 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_ib_dev *dev;
+	enum rdma_link_layer ll;
+	int port_type_cap;
 	int err;
 	int i;
 
+	port_type_cap = MLX5_CAP_GEN(mdev, port_type);
+	ll = mlx5_port_type_cap_to_rdma_ll(port_type_cap);
+
 	/* don't create IB instance over Eth ports, no RoCE yet! */
-	if (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH)
+	if (ll == IB_LINK_LAYER_ETHERNET)
 		return NULL;
 
 	printk_once(KERN_INFO "%s", mlx5_version);
@@ -1389,6 +1401,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	dev->ib_dev.query_device	= mlx5_ib_query_device;
 	dev->ib_dev.query_port		= mlx5_ib_query_port;
+	dev->ib_dev.get_link_layer	= mlx5_ib_port_link_layer;
 	dev->ib_dev.query_gid		= mlx5_ib_query_gid;
 	dev->ib_dev.query_pkey		= mlx5_ib_query_pkey;
 	dev->ib_dev.modify_device	= mlx5_ib_modify_device;
