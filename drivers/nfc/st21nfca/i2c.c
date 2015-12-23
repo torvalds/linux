@@ -164,7 +164,6 @@ static void st21nfca_hci_i2c_disable(void *phy_id)
 {
 	struct st21nfca_i2c_phy *phy = phy_id;
 
-	pr_info("\n");
 	gpio_set_value(phy->gpio_ena, 0);
 
 	phy->powered = 0;
