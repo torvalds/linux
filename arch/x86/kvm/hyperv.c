@@ -405,6 +405,9 @@ static void stimer_cleanup(struct kvm_vcpu_hv_stimer *stimer)
 {
 	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
 
+	trace_kvm_hv_stimer_cleanup(stimer_to_vcpu(stimer)->vcpu_id,
+				    stimer->index);
+
 	hrtimer_cancel(&stimer->timer);
 	clear_bit(stimer->index,
 		  vcpu_to_hv_vcpu(vcpu)->stimer_pending_bitmap);
@@ -417,6 +420,8 @@ static enum hrtimer_restart stimer_timer_callback(struct hrtimer *timer)
 	struct kvm_vcpu_hv_stimer *stimer;
 
 	stimer = container_of(timer, struct kvm_vcpu_hv_stimer, timer);
+	trace_kvm_hv_stimer_callback(stimer_to_vcpu(stimer)->vcpu_id,
+				     stimer->index);
 	stimer_mark_pending(stimer, true);
 
 	return HRTIMER_NORESTART;
@@ -448,6 +453,11 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 		} else
 			stimer->exp_time = time_now + stimer->count;
 
+		trace_kvm_hv_stimer_start_periodic(
+					stimer_to_vcpu(stimer)->vcpu_id,
+					stimer->index,
+					time_now, stimer->exp_time);
+
 		hrtimer_start(&stimer->timer,
 			      ktime_add_ns(ktime_now,
 					   100 * (stimer->exp_time - time_now)),
@@ -466,6 +476,10 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 		return 0;
 	}
 
+	trace_kvm_hv_stimer_start_one_shot(stimer_to_vcpu(stimer)->vcpu_id,
+					   stimer->index,
+					   time_now, stimer->count);
+
 	hrtimer_start(&stimer->timer,
 		      ktime_add_ns(ktime_now, 100 * (stimer->count - time_now)),
 		      HRTIMER_MODE_ABS);
@@ -475,6 +489,9 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 			     bool host)
 {
+	trace_kvm_hv_stimer_set_config(stimer_to_vcpu(stimer)->vcpu_id,
+				       stimer->index, config, host);
+
 	stimer_cleanup(stimer);
 	if ((stimer->config & HV_STIMER_ENABLE) && HV_STIMER_SINT(config) == 0)
 		config &= ~HV_STIMER_ENABLE;
@@ -486,6 +503,9 @@ static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 static int stimer_set_count(struct kvm_vcpu_hv_stimer *stimer, u64 count,
 			    bool host)
 {
+	trace_kvm_hv_stimer_set_count(stimer_to_vcpu(stimer)->vcpu_id,
+				      stimer->index, count, host);
+
 	stimer_cleanup(stimer);
 	stimer->count = count;
 	if (stimer->count == 0)
@@ -564,8 +584,13 @@ static int stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
 
 static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 {
+	int r;
+
 	stimer->msg_pending = true;
-	if (!stimer_send_msg(stimer)) {
+	r = stimer_send_msg(stimer);
+	trace_kvm_hv_stimer_expiration(stimer_to_vcpu(stimer)->vcpu_id,
+				       stimer->index, r);
+	if (!r) {
 		stimer->msg_pending = false;
 		if (!(stimer->config & HV_STIMER_PERIODIC))
 			stimer->config &= ~HV_STIMER_ENABLE;
