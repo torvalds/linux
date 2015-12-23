@@ -910,7 +910,7 @@ static void wait_on_all_pages_writeback(struct f2fs_sb_info *sbi)
 	finish_wait(&sbi->cp_wait, &wait);
 }
 
-static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
+static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
@@ -936,7 +936,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	while (get_pages(sbi, F2FS_DIRTY_META)) {
 		sync_meta_pages(sbi, META, LONG_MAX);
 		if (unlikely(f2fs_cp_error(sbi)))
-			return;
+			return -EIO;
 	}
 
 	next_free_nid(sbi, &last_nid);
@@ -1021,7 +1021,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	/* need to wait for end_io results */
 	wait_on_all_pages_writeback(sbi);
 	if (unlikely(f2fs_cp_error(sbi)))
-		return;
+		return -EIO;
 
 	/* write out checkpoint buffer at block 0 */
 	update_meta_page(sbi, ckpt, start_blk++);
@@ -1049,7 +1049,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	wait_on_all_pages_writeback(sbi);
 
 	if (unlikely(f2fs_cp_error(sbi)))
-		return;
+		return -EIO;
 
 	filemap_fdatawait_range(NODE_MAPPING(sbi), 0, LONG_MAX);
 	filemap_fdatawait_range(META_MAPPING(sbi), 0, LONG_MAX);
@@ -1075,19 +1075,22 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	release_ino_entry(sbi);
 
 	if (unlikely(f2fs_cp_error(sbi)))
-		return;
+		return -EIO;
 
 	clear_prefree_segments(sbi, cpc);
 	clear_sbi_flag(sbi, SBI_IS_DIRTY);
+
+	return 0;
 }
 
 /*
  * We guarantee that this checkpoint procedure will not fail.
  */
-void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
+int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	unsigned long long ckpt_ver;
+	int err = 0;
 
 	mutex_lock(&sbi->cp_mutex);
 
@@ -1095,14 +1098,19 @@ void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		(cpc->reason == CP_FASTBOOT || cpc->reason == CP_SYNC ||
 		(cpc->reason == CP_DISCARD && !sbi->discard_blks)))
 		goto out;
-	if (unlikely(f2fs_cp_error(sbi)))
+	if (unlikely(f2fs_cp_error(sbi))) {
+		err = -EIO;
 		goto out;
-	if (f2fs_readonly(sbi->sb))
+	}
+	if (f2fs_readonly(sbi->sb)) {
+		err = -EROFS;
 		goto out;
+	}
 
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "start block_ops");
 
-	if (block_operations(sbi))
+	err = block_operations(sbi);
+	if (err)
 		goto out;
 
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish block_ops");
@@ -1124,7 +1132,7 @@ void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	flush_sit_entries(sbi, cpc);
 
 	/* unlock all the fs_lock[] in do_checkpoint() */
-	do_checkpoint(sbi, cpc);
+	err = do_checkpoint(sbi, cpc);
 
 	unblock_operations(sbi);
 	stat_inc_cp_count(sbi->stat_info);
@@ -1138,6 +1146,7 @@ void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish checkpoint");
 out:
 	mutex_unlock(&sbi->cp_mutex);
+	return err;
 }
 
 void init_ino_entry_info(struct f2fs_sb_info *sbi)

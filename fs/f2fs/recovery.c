@@ -623,7 +623,7 @@ out:
 			.reason = CP_RECOVERY,
 		};
 		mutex_unlock(&sbi->cp_mutex);
-		write_checkpoint(sbi, &cpc);
+		err = write_checkpoint(sbi, &cpc);
 	} else {
 		mutex_unlock(&sbi->cp_mutex);
 	}

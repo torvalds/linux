@@ -579,6 +579,7 @@ static void f2fs_put_super(struct super_block *sb)
 int f2fs_sync_fs(struct super_block *sb, int sync)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	int err = 0;
 
 	trace_f2fs_sync_fs(sb, sync);
 
@@ -588,14 +589,14 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 		cpc.reason = __get_cp_reason(sbi);
 
 		mutex_lock(&sbi->gc_mutex);
-		write_checkpoint(sbi, &cpc);
+		err = write_checkpoint(sbi, &cpc);
 		mutex_unlock(&sbi->gc_mutex);
 	} else {
 		f2fs_balance_fs(sbi);
 	}
 	f2fs_trace_ios(NULL, 1);
 
-	return 0;
+	return err;
 }
 
 static int f2fs_freeze(struct super_block *sb)

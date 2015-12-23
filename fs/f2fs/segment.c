@@ -1118,6 +1118,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	__u64 end = start + F2FS_BYTES_TO_BLK(range->len) - 1;
 	unsigned int start_segno, end_segno;
 	struct cp_control cpc;
+	int err = 0;
 
 	if (start >= MAX_BLKADDR(sbi) || range->len < sbi->blocksize)
 		return -EINVAL;
@@ -1148,12 +1149,12 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 				sbi->segs_per_sec) - 1, end_segno);
 
 		mutex_lock(&sbi->gc_mutex);
-		write_checkpoint(sbi, &cpc);
+		err = write_checkpoint(sbi, &cpc);
 		mutex_unlock(&sbi->gc_mutex);
 	}
 out:
 	range->len = F2FS_BLK_TO_BYTES(cpc.trimmed);
-	return 0;
+	return err;
 }
 
 static bool __has_curseg_space(struct f2fs_sb_info *sbi, int type)
