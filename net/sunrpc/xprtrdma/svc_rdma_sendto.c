@@ -342,13 +342,6 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 						arg_ch->rs_handle,
 						arg_ch->rs_offset,
 						write_len);
-
-		/* Do not send XDR pad bytes */
-		if (chunk_no && write_len < 4) {
-			chunk_no++;
-			break;
-		}
-
 		chunk_off = 0;
 		while (write_len) {
 			ret = send_write(xprt, rqstp,
