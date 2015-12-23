@@ -114,7 +114,6 @@ void cfs_get_random_bytes(void *buf, int size);
 #include "libcfs_prim.h"
 #include "libcfs_time.h"
 #include "libcfs_string.h"
-#include "libcfs_kernelcomm.h"
 #include "libcfs_workitem.h"
 #include "libcfs_hash.h"
 #include "libcfs_fail.h"

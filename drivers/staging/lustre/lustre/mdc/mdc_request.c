@@ -48,6 +48,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_param.h"
 #include "../include/lustre_log.h"
+#include "../include/lustre_kernelcomm.h"
 
 #include "mdc_internal.h"
 
