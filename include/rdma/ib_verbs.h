@@ -1288,15 +1288,6 @@ struct ib_phys_buf {
 	u64      size;
 };
 
-struct ib_mr_attr {
-	struct ib_pd	*pd;
-	u64		device_virt_addr;
-	u64		size;
-	int		mr_access_flags;
-	u32		lkey;
-	u32		rkey;
-};
-
 enum ib_mr_rereg_flags {
 	IB_MR_REREG_TRANS	= 1,
 	IB_MR_REREG_PD		= (1<<1),
@@ -1846,8 +1837,6 @@ struct ib_device {
 						    int mr_access_flags,
 						    struct ib_pd *pd,
 						    struct ib_udata *udata);
-	int                        (*query_mr)(struct ib_mr *mr,
-					       struct ib_mr_attr *mr_attr);
 	int                        (*dereg_mr)(struct ib_mr *mr);
 	struct ib_mr *		   (*alloc_mr)(struct ib_pd *pd,
 					       enum ib_mr_type mr_type,
@@ -2957,13 +2946,6 @@ static inline void ib_dma_free_coherent(struct ib_device *dev,
 	else
 		dma_free_coherent(dev->dma_device, size, cpu_addr, dma_handle);
 }
-
-/**
- * ib_query_mr - Retrieves information about a specific memory region.
- * @mr: The memory region to retrieve information about.
- * @mr_attr: The attributes of the specified memory region.
- */
-int ib_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr);
 
 /**
  * ib_dereg_mr - Deregisters a memory region and removes it from the

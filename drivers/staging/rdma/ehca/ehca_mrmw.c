@@ -589,55 +589,6 @@ rereg_phys_mr_exit0:
 	return ret;
 } /* end ehca_rereg_phys_mr() */
 
-/*----------------------------------------------------------------------*/
-
-int ehca_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr)
-{
-	int ret = 0;
-	u64 h_ret;
-	struct ehca_shca *shca =
-		container_of(mr->device, struct ehca_shca, ib_device);
-	struct ehca_mr *e_mr = container_of(mr, struct ehca_mr, ib.ib_mr);
-	unsigned long sl_flags;
-	struct ehca_mr_hipzout_parms hipzout;
-
-	if ((e_mr->flags & EHCA_MR_FLAG_FMR)) {
-		ehca_err(mr->device, "not supported for FMR, mr=%p e_mr=%p "
-			 "e_mr->flags=%x", mr, e_mr, e_mr->flags);
-		ret = -EINVAL;
-		goto query_mr_exit0;
-	}
-
-	memset(mr_attr, 0, sizeof(struct ib_mr_attr));
-	spin_lock_irqsave(&e_mr->mrlock, sl_flags);
-
-	h_ret = hipz_h_query_mr(shca->ipz_hca_handle, e_mr, &hipzout);
-	if (h_ret != H_SUCCESS) {
-		ehca_err(mr->device, "hipz_mr_query failed, h_ret=%lli mr=%p "
-			 "hca_hndl=%llx mr_hndl=%llx lkey=%x",
-			 h_ret, mr, shca->ipz_hca_handle.handle,
-			 e_mr->ipz_mr_handle.handle, mr->lkey);
-		ret = ehca2ib_return_code(h_ret);
-		goto query_mr_exit1;
-	}
-	mr_attr->pd = mr->pd;
-	mr_attr->device_virt_addr = hipzout.vaddr;
-	mr_attr->size = hipzout.len;
-	mr_attr->lkey = hipzout.lkey;
-	mr_attr->rkey = hipzout.rkey;
-	ehca_mrmw_reverse_map_acl(&hipzout.acl, &mr_attr->mr_access_flags);
-
-query_mr_exit1:
-	spin_unlock_irqrestore(&e_mr->mrlock, sl_flags);
-query_mr_exit0:
-	if (ret)
-		ehca_err(mr->device, "ret=%i mr=%p mr_attr=%p",
-			 ret, mr, mr_attr);
-	return ret;
-} /* end ehca_query_mr() */
-
-/*----------------------------------------------------------------------*/
-
 int ehca_dereg_mr(struct ib_mr *mr)
 {
 	int ret = 0;

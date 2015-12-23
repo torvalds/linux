@@ -514,7 +514,6 @@ static int ehca_init_device(struct ehca_shca *shca)
 	shca->ib_device.get_dma_mr	    = ehca_get_dma_mr;
 	shca->ib_device.reg_phys_mr	    = ehca_reg_phys_mr;
 	shca->ib_device.reg_user_mr	    = ehca_reg_user_mr;
-	shca->ib_device.query_mr	    = ehca_query_mr;
 	shca->ib_device.dereg_mr	    = ehca_dereg_mr;
 	shca->ib_device.rereg_phys_mr	    = ehca_rereg_phys_mr;
 	shca->ib_device.alloc_mw	    = ehca_alloc_mw;

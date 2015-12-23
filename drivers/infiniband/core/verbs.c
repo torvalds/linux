@@ -1352,13 +1352,6 @@ struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 }
 EXPORT_SYMBOL(ib_get_dma_mr);
 
-int ib_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr)
-{
-	return mr->device->query_mr ?
-		mr->device->query_mr(mr, mr_attr) : -ENOSYS;
-}
-EXPORT_SYMBOL(ib_query_mr);
-
 int ib_dereg_mr(struct ib_mr *mr)
 {
 	struct ib_pd *pd;

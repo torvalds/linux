@@ -95,8 +95,6 @@ int ehca_rereg_phys_mr(struct ib_mr *mr,
 		       struct ib_phys_buf *phys_buf_array,
 		       int num_phys_buf, int mr_access_flags, u64 *iova_start);
 
-int ehca_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr);
-
 int ehca_dereg_mr(struct ib_mr *mr);
 
 struct ib_mw *ehca_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
