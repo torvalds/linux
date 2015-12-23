@@ -1195,7 +1195,7 @@ next:
 	return 0;
 }
 
-int __f2fs_commit_super(struct f2fs_sb_info *sbi, int block)
+static int __f2fs_commit_super(struct f2fs_sb_info *sbi, int block)
 {
 	struct f2fs_super_block *super = F2FS_RAW_SUPER(sbi);
 	struct buffer_head *bh;
