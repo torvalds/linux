@@ -1082,9 +1082,10 @@ void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
 		code = MCDI_DWORD(outbuf, ERR_CODE);
 	if (outlen >= MC_CMD_ERR_ARG_OFST + 4)
 		err_arg = MCDI_DWORD(outbuf, ERR_ARG);
-	netif_err(efx, hw, efx->net_dev,
-		  "MC command 0x%x inlen %d failed rc=%d (raw=%d) arg=%d\n",
-		  cmd, (int)inlen, rc, code, err_arg);
+	netif_printk(efx, hw, rc == -EPERM ? KERN_DEBUG : KERN_ERR,
+		     efx->net_dev,
+		     "MC command 0x%x inlen %zu failed rc=%d (raw=%d) arg=%d\n",
+		     cmd, inlen, rc, code, err_arg);
 }
 
 /* Switch to polled MCDI completions.  This can be called in various
