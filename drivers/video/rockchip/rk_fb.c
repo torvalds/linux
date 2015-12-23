@@ -1938,9 +1938,9 @@ static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,
 		return -EINVAL;
 	}
 
-	if ((area_par->xpos + area_par->xsize > screen->mode.xres) ||
-	    (area_par->ypos + area_par->ysize > screen->mode.yres) ||
-	    (area_par->xsize <= 0) || (area_par->ysize <= 0)) {
+	if ((area_par->xpos >= screen->mode.xres) ||
+	    (area_par->ypos >= screen->mode.yres) ||
+	    ((area_par->xsize <= 0) || (area_par->ysize <= 0))) {
 		pr_warn("check config var fail 1:\n"
 		       "xpos=%d,xsize=%d,xres=%d\n"
 		       "ypos=%d,ysize=%d,yres=%d\n",
