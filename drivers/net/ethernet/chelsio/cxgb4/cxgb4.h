@@ -301,6 +301,7 @@ struct devlog_params {
 /* Stores chip specific parameters */
 struct arch_specific_params {
 	u8 nchan;
+	u8 pm_stats_cnt;
 	u16 mps_rplc_size;
 	u16 vfcount;
 	u32 sge_fl_db;

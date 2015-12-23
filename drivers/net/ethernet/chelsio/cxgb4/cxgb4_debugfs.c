@@ -757,8 +757,8 @@ static int pm_stats_show(struct seq_file *seq, void *v)
 	};
 
 	int i;
-	u32 tx_cnt[PM_NSTATS], rx_cnt[PM_NSTATS];
-	u64 tx_cyc[PM_NSTATS], rx_cyc[PM_NSTATS];
+	u32 tx_cnt[T6_PM_NSTATS], rx_cnt[T6_PM_NSTATS];
+	u64 tx_cyc[T6_PM_NSTATS], rx_cyc[T6_PM_NSTATS];
 	struct adapter *adap = seq->private;
 
 	t4_pmtx_get_stats(adap, tx_cnt, tx_cyc);
@@ -773,6 +773,32 @@ static int pm_stats_show(struct seq_file *seq, void *v)
 	for (i = 0; i < PM_NSTATS - 1; i++)
 		seq_printf(seq, "%-13s %10u  %20llu\n",
 			   rx_pm_stats[i], rx_cnt[i], rx_cyc[i]);
+
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+		/* In T5 the granularity of the total wait is too fine.
+		 * It is not useful as it reaches the max value too fast.
+		 * Hence display this Input FIFO wait for T6 onwards.
+		 */
+		seq_printf(seq, "%13s %10s  %20s\n",
+			   " ", "Total wait", "Total Occupancy");
+		seq_printf(seq, "Tx FIFO wait  %10u  %20llu\n",
+			   tx_cnt[i], tx_cyc[i]);
+		seq_printf(seq, "Rx FIFO wait  %10u  %20llu\n",
+			   rx_cnt[i], rx_cyc[i]);
+
+		/* Skip index 6 as there is nothing useful ihere */
+		i += 2;
+
+		/* At index 7, a new stat for read latency (count, total wait)
+		 * is added.
+		 */
+		seq_printf(seq, "%13s %10s  %20s\n",
+			   " ", "Reads", "Total wait");
+		seq_printf(seq, "Tx latency    %10u  %20llu\n",
+			   tx_cnt[i], tx_cyc[i]);
+		seq_printf(seq, "Rx latency    %10u  %20llu\n",
+			   rx_cnt[i], rx_cyc[i]);
+	}
 	return 0;
 }
 
