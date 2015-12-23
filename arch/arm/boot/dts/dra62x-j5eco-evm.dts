@@ -1,0 +1,28 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "dra62x.dtsi"
+
+/ {
+	model = "DRA62x J5 Eco EVM";
+	compatible = "ti,dra62x-j5eco-evm", "ti,dra62x", "ti,dm8148";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;	/* 1 GB */
+	};
+};
+
+&cpsw_emac0 {
+	phy_id = <&davinci_mdio>, <0>;
+	phy-mode = "rgmii";
+};
+
+&cpsw_emac1 {
+	phy_id = <&davinci_mdio>, <1>;
+	phy-mode = "rgmii";
+};
