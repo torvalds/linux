@@ -339,7 +339,7 @@
 
 	fan_ctrl_high_pin: fan-ctrl-high-pin {
 		marvell,pins = "mpp63";
-		marvell,function = "gpo";
+		marvell,function = "gpio";
 	};
 
 	fan_alarm_pin: fan-alarm-pin {
