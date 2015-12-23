@@ -6248,6 +6248,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		if (hw->debug_mask & I40E_DEBUG_AQ)
 			dev_info(&pf->pdev->dev, "ARQ Overflow Error detected\n");
 		val &= ~I40E_PF_ARQLEN_ARQOVFL_MASK;
+		pf->arq_overflows++;
 	}
 	if (val & I40E_PF_ARQLEN_ARQCRIT_MASK) {
 		if (hw->debug_mask & I40E_DEBUG_AQ)
