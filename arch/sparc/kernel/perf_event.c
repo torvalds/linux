@@ -1828,6 +1828,8 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 void
 perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
+	u64 saved_fault_address = current_thread_info()->fault_address;
+	u8 saved_fault_code = get_thread_fault_code();
 	mm_segment_t old_fs;
 
 	perf_callchain_store(entry, regs->tpc);
@@ -1850,4 +1852,6 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 	pagefault_enable();
 
 	set_fs(old_fs);
+	set_thread_fault_code(saved_fault_code);
+	current_thread_info()->fault_address = saved_fault_address;
 }
