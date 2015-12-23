@@ -229,13 +229,13 @@
 
 			/* CON5 */
 			usb3@f0000 {
-				vcc-supply = <&reg_usb2_1_vbus>;
+				usb-phy = <&usb2_1_phy>;
 				status = "okay";
 			};
 
 			/* CON7 */
 			usb3@f8000 {
-				vcc-supply = <&reg_usb3_vbus>;
+				usb-phy = <&usb3_phy>;
 				status = "okay";
 			};
 		};
@@ -273,13 +273,22 @@
 		};
 	};
 
+	usb2_1_phy: usb2_1_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_usb2_1_vbus>;
+	};
+
+	usb3_phy: usb3_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_usb3_vbus>;
+	};
+
 	reg_usb3_vbus: usb3-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb3-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		regulator-always-on;
 		gpio = <&expander1 15 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -299,7 +308,6 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		regulator-always-on;
 		gpio = <&expander0 4 GPIO_ACTIVE_HIGH>;
 	};
 
