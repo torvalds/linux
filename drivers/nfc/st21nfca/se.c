@@ -312,6 +312,7 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 
 	switch (event) {
 	case ST21NFCA_EVT_CONNECTIVITY:
+		r = nfc_se_connectivity(hdev->ndev, host);
 	break;
 	case ST21NFCA_EVT_TRANSACTION:
 		/*
