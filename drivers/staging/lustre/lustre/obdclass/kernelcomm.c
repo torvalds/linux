@@ -192,9 +192,9 @@ int libcfs_kkuc_group_put(unsigned int group, void *payload)
 	list_for_each_entry(reg, &kkuc_groups[group], kr_chain) {
 		if (reg->kr_fp) {
 			rc = libcfs_kkuc_msg_put(reg->kr_fp, payload);
-			if (rc == 0)
+			if (rc == 0) {
 				one_success = 1;
-			else if (rc == -EPIPE) {
+			} else if (rc == -EPIPE) {
 				fput(reg->kr_fp);
 				reg->kr_fp = NULL;
 			}
