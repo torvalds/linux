@@ -59,6 +59,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
+	select SND_SOC_DA7218 if I2C
 	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
@@ -449,6 +450,9 @@ config SND_SOC_DA7210
 
 config SND_SOC_DA7213
         tristate
+
+config SND_SOC_DA7218
+	tristate
 
 config SND_SOC_DA7219
         tristate
