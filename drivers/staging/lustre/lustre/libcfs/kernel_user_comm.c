@@ -95,10 +95,10 @@ EXPORT_SYMBOL(libcfs_kkuc_msg_put);
  * group from any fs */
 /** A single group registration has a uid and a file pointer */
 struct kkuc_reg {
-	struct list_head	kr_chain;
-	int		kr_uid;
+	struct list_head kr_chain;
+	int		 kr_uid;
 	struct file	*kr_fp;
-	__u32		kr_data;
+	void		*kr_data;
 };
 
 static struct list_head kkuc_groups[KUC_GRP_MAX+1] = {};
@@ -109,9 +109,10 @@ static DECLARE_RWSEM(kg_sem);
  * @param filp pipe to write into
  * @param uid identifier for this receiver
  * @param group group number
+ * @param data user data
  */
 int libcfs_kkuc_group_add(struct file *filp, int uid, unsigned int group,
-			  __u32 data)
+			  void *data)
 {
 	struct kkuc_reg *reg;
 
@@ -145,7 +146,7 @@ int libcfs_kkuc_group_add(struct file *filp, int uid, unsigned int group,
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_add);
 
-int libcfs_kkuc_group_rem(int uid, int group)
+int libcfs_kkuc_group_rem(int uid, int group, void **pdata)
 {
 	struct kkuc_reg *reg, *next;
 
@@ -171,6 +172,8 @@ int libcfs_kkuc_group_rem(int uid, int group)
 			       reg->kr_uid, reg->kr_fp, group);
 			if (reg->kr_fp != NULL)
 				fput(reg->kr_fp);
+			if (pdata)
+				*pdata = reg->kr_data;
 			kfree(reg);
 		}
 	}
@@ -213,7 +216,7 @@ EXPORT_SYMBOL(libcfs_kkuc_group_put);
  * Calls a callback function for each link of the given kuc group.
  * @param group the group to call the function on.
  * @param cb_func the function to be called.
- * @param cb_arg iextra argument to be passed to the callback function.
+ * @param cb_arg extra argument to be passed to the callback function.
  */
 int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
 			      void *cb_arg)

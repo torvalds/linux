@@ -2013,21 +2013,27 @@ static int mdc_hsm_copytool_send(int len, void *val)
 /**
  * callback function passed to kuc for re-registering each HSM copytool
  * running on MDC, after MDT shutdown/recovery.
- * @param data archive id served by the copytool
+ * @param data copytool registration data
  * @param cb_arg callback argument (obd_import)
  */
-static int mdc_hsm_ct_reregister(__u32 data, void *cb_arg)
+static int mdc_hsm_ct_reregister(void *data, void *cb_arg)
 {
+	struct kkuc_ct_data	*kcd = data;
 	struct obd_import	*imp = (struct obd_import *)cb_arg;
-	__u32			 archive = data;
 	int			 rc;
 
-	CDEBUG(D_HA, "recover copytool registration to MDT (archive=%#x)\n",
-	       archive);
-	rc = mdc_ioc_hsm_ct_register(imp, archive);
+	if (!kcd || kcd->kcd_magic != KKUC_CT_DATA_MAGIC)
+		return -EPROTO;
+
+	if (!obd_uuid_equals(&kcd->kcd_uuid, &imp->imp_obd->obd_uuid))
+		return 0;
+
+	CDEBUG(D_HA, "%s: recover copytool registration to MDT (archive=%#x)\n",
+	       imp->imp_obd->obd_name, kcd->kcd_archive);
+	rc = mdc_ioc_hsm_ct_register(imp, kcd->kcd_archive);
 
 	/* ignore error if the copytool is already registered */
-	return ((rc != 0) && (rc != -EEXIST)) ? rc : 0;
+	return (rc == -EEXIST) ? 0 : rc;
 }
 
 static int mdc_set_info_async(const struct lu_env *env,
@@ -2369,7 +2375,7 @@ static int mdc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 	case OBD_CLEANUP_EXPORTS:
 		/* Failsafe, ok if racy */
 		if (obd->obd_type->typ_refcnt <= 1)
-			libcfs_kkuc_group_rem(0, KUC_GRP_HSM);
+			libcfs_kkuc_group_rem(0, KUC_GRP_HSM, NULL);
 
 		obd_cleanup_client_import(obd);
 		ptlrpc_lprocfs_unregister_obd(obd);

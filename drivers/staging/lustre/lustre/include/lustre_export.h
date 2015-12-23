@@ -338,6 +338,13 @@ static inline bool imp_connect_disp_stripe(struct obd_import *imp)
 
 struct obd_export *class_conn2export(struct lustre_handle *conn);
 
+#define KKUC_CT_DATA_MAGIC	0x092013cea
+struct kkuc_ct_data {
+	__u32		kcd_magic;
+	struct obd_uuid	kcd_uuid;
+	__u32		kcd_archive;
+};
+
 /** @} export */
 
 #endif /* __EXPORT_H */

@@ -794,7 +794,9 @@ static void lmv_hsm_req_build(struct lmv_obd *lmv,
 static int lmv_hsm_ct_unregister(struct lmv_obd *lmv, unsigned int cmd, int len,
 				 struct lustre_kernelcomm *lk, void *uarg)
 {
-	int	i, rc = 0;
+	struct kkuc_ct_data *kcd = NULL;
+	int rc = 0;
+	__u32 i;
 
 	/* unregister request (call from llapi_hsm_copytool_fini) */
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
@@ -807,17 +809,21 @@ static int lmv_hsm_ct_unregister(struct lmv_obd *lmv, unsigned int cmd, int len,
 	 * Unreached coordinators will get EPIPE on next requests
 	 * and will unregister automatically.
 	 */
-	rc = libcfs_kkuc_group_rem(lk->lk_uid, lk->lk_group);
+	rc = libcfs_kkuc_group_rem(lk->lk_uid, lk->lk_group, (void **)&kcd);
+	if (kcd)
+		kfree(kcd);
+
 	return rc;
 }
 
 static int lmv_hsm_ct_register(struct lmv_obd *lmv, unsigned int cmd, int len,
 			       struct lustre_kernelcomm *lk, void *uarg)
 {
-	struct file	*filp;
-	int		 i, j, err;
-	int		 rc = 0;
-	bool		 any_set = false;
+	struct file *filp;
+	__u32 i, j;
+	int err, rc = 0;
+	bool any_set = false;
+	struct kkuc_ct_data *kcd;
 
 	/* All or nothing: try to register to all MDS.
 	 * In case of failure, unregister from previous MDS,
@@ -854,12 +860,25 @@ static int lmv_hsm_ct_register(struct lmv_obd *lmv, unsigned int cmd, int len,
 
 	/* at least one registration done, with no failure */
 	filp = fget(lk->lk_wfd);
-	if (filp == NULL) {
+	if (!filp)
 		return -EBADF;
-	}
-	rc = libcfs_kkuc_group_add(filp, lk->lk_uid, lk->lk_group, lk->lk_data);
-	if (rc != 0 && filp != NULL)
+
+	kcd = kzalloc(sizeof(*kcd), GFP_NOFS);
+	if (!kcd) {
 		fput(filp);
+		return -ENOMEM;
+	}
+	kcd->kcd_magic = KKUC_CT_DATA_MAGIC;
+	kcd->kcd_uuid = lmv->cluuid;
+	kcd->kcd_archive = lk->lk_data;
+
+	rc = libcfs_kkuc_group_add(filp, lk->lk_uid, lk->lk_group, kcd);
+	if (rc) {
+		if (filp)
+			fput(filp);
+		kfree(kcd);
+	}
+
 	return rc;
 }
 

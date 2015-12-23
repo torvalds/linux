@@ -77,7 +77,7 @@ enum kuc_generic_message_type {
 };
 
 /* prototype for callback function on kuc groups */
-typedef int (*libcfs_kkuc_cb_t)(__u32 data, void *cb_arg);
+typedef int (*libcfs_kkuc_cb_t)(void *data, void *cb_arg);
 
 /* KUC Broadcast Groups. This determines which userspace process hears which
  * messages.  Mutliple transports may be used within a group, or multiple
@@ -92,8 +92,8 @@ typedef int (*libcfs_kkuc_cb_t)(__u32 data, void *cb_arg);
 int libcfs_kkuc_msg_put(struct file *fp, void *payload);
 int libcfs_kkuc_group_put(int group, void *payload);
 int libcfs_kkuc_group_add(struct file *fp, int uid, unsigned int group,
-				 __u32 data);
-int libcfs_kkuc_group_rem(int uid, int group);
+			  void *data);
+int libcfs_kkuc_group_rem(int uid, int group, void **pdata);
 int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
 				     void *cb_arg);
 
