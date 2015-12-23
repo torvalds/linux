@@ -20,7 +20,6 @@
 #include <net/nfc/nci_core.h>
 
 #include "st-nci.h"
-#include "ndlc.h"
 
 #define NDLC_TIMER_T1		100
 #define NDLC_TIMER_T1_WAIT	400
