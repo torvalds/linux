@@ -41,12 +41,6 @@
 
 #define ST_NCI_SPI_DRIVER_NAME "st_nci_spi"
 
-static struct spi_device_id st_nci_spi_id_table[] = {
-	{ST_NCI_SPI_DRIVER_NAME, 0},
-	{}
-};
-MODULE_DEVICE_TABLE(spi, st_nci_spi_id_table);
-
 struct st_nci_spi_phy {
 	struct spi_device *spi_dev;
 	struct llt_ndlc *ndlc;
@@ -366,6 +360,12 @@ static int st_nci_spi_remove(struct spi_device *dev)
 
 	return 0;
 }
+
+static struct spi_device_id st_nci_spi_id_table[] = {
+	{ST_NCI_SPI_DRIVER_NAME, 0},
+	{}
+};
+MODULE_DEVICE_TABLE(spi, st_nci_spi_id_table);
 
 static const struct of_device_id of_st_nci_spi_match[] = {
 	{ .compatible = "st,st21nfcb-spi", },

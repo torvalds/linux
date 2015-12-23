@@ -40,11 +40,6 @@
 
 #define ST_NCI_I2C_DRIVER_NAME "st_nci_i2c"
 
-static struct i2c_device_id st_nci_i2c_id_table[] = {
-	{ST_NCI_DRIVER_NAME, 0},
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, st_nci_i2c_id_table);
 
 struct st_nci_i2c_phy {
 	struct i2c_client *i2c_dev;
@@ -350,6 +345,12 @@ static int st_nci_i2c_remove(struct i2c_client *client)
 
 	return 0;
 }
+
+static struct i2c_device_id st_nci_i2c_id_table[] = {
+	{ST_NCI_DRIVER_NAME, 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, st_nci_i2c_id_table);
 
 static const struct of_device_id of_st_nci_i2c_match[] = {
 	{ .compatible = "st,st21nfcb-i2c", },
