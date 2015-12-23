@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <linux/auxvec.h>
+#include "reg.h"
 
 /* Avoid headaches with PRI?64 - just use %ll? always */
 typedef unsigned long long u64;
