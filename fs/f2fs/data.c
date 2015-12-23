@@ -590,7 +590,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	}
 
 	if (create)
-		f2fs_lock_op(F2FS_I_SB(inode));
+		f2fs_lock_op(sbi);
 
 	/* When reading holes, we need its node page */
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
@@ -647,6 +647,11 @@ get_next:
 		allocated = false;
 		f2fs_put_dnode(&dn);
 
+		if (create) {
+			f2fs_unlock_op(sbi);
+			f2fs_lock_op(sbi);
+		}
+
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, pgofs, mode);
 		if (err) {
@@ -702,7 +707,7 @@ put_out:
 	f2fs_put_dnode(&dn);
 unlock_out:
 	if (create)
-		f2fs_unlock_op(F2FS_I_SB(inode));
+		f2fs_unlock_op(sbi);
 out:
 	trace_f2fs_map_blocks(inode, map, err);
 	return err;
