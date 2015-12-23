@@ -1592,9 +1592,14 @@ static void da7219_handle_pdata(struct snd_soc_codec *codec)
 	}
 }
 
+static struct reg_sequence da7219_rev_aa_patch[] = {
+	{ DA7219_REFERENCES, 0x08 },
+};
+
 static int da7219_probe(struct snd_soc_codec *codec)
 {
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
+	unsigned int rev;
 	int ret;
 
 	mutex_init(&da7219->lock);
@@ -1603,6 +1608,26 @@ static int da7219_probe(struct snd_soc_codec *codec)
 	ret = da7219_handle_supplies(codec);
 	if (ret)
 		return ret;
+
+	ret = regmap_read(da7219->regmap, DA7219_CHIP_REVISION, &rev);
+	if (ret) {
+		dev_err(codec->dev, "Failed to read chip revision: %d\n", ret);
+		goto err_disable_reg;
+	}
+
+	switch (rev & DA7219_CHIP_MINOR_MASK) {
+	case 0:
+		ret = regmap_register_patch(da7219->regmap, da7219_rev_aa_patch,
+					    ARRAY_SIZE(da7219_rev_aa_patch));
+		if (ret) {
+			dev_err(codec->dev, "Failed to register AA patch: %d\n",
+				ret);
+			goto err_disable_reg;
+		}
+		break;
+	default:
+		break;
+	}
 
 	/* Handle DT/Platform data */
 	if (codec->dev->of_node)
@@ -1774,7 +1799,6 @@ static struct reg_default da7219_reg_defaults[] = {
 	{ DA7219_MIXOUT_R_CTRL, 0x10 },
 	{ DA7219_CHIP_ID1, 0x23 },
 	{ DA7219_CHIP_ID2, 0x93 },
-	{ DA7219_CHIP_REVISION, 0x00 },
 	{ DA7219_IO_CTRL, 0x00 },
 	{ DA7219_GAIN_RAMP_CTRL, 0x00 },
 	{ DA7219_PC_COUNT, 0x02 },
