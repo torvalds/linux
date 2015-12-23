@@ -126,10 +126,6 @@ FEATURE_DUMP_FILENAME = $(OUTPUT)FEATURE-DUMP$(FEATURE_USER)
 FEATURE_DUMP := $(foreach feat,$(FEATURE_DISPLAY),feature-$(feat)($(feature-$(feat))))
 FEATURE_DUMP_FILE := $(shell touch $(FEATURE_DUMP_FILENAME); cat $(FEATURE_DUMP_FILENAME))
 
-ifeq ($(dwarf-post-unwind),1)
-  FEATURE_DUMP += dwarf-post-unwind($(dwarf-post-unwind-text))
-endif
-
 # The $(feature_display) controls the default detection message
 # output. It's set if:
 # - detected features differes from stored features from
@@ -160,11 +156,6 @@ ifeq ($(feature_display),1)
   $(info )
   $(info Auto-detecting system features:)
   $(foreach feat,$(FEATURE_DISPLAY),$(call feature_print_status,$(feat),))
-
-  ifeq ($(dwarf-post-unwind),1)
-    $(call feature_print_text,"DWARF post unwind library", $(dwarf-post-unwind-text))
-  endif
-
   ifneq ($(feature_verbose),1)
     $(info )
   endif

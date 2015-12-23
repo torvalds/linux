@@ -751,6 +751,10 @@ ifeq ($(VF),1)
   $(call print_var,sysconfdir)
   $(call print_var,LIBUNWIND_DIR)
   $(call print_var,LIBDW_DIR)
+
+  ifeq ($(dwarf-post-unwind),1)
+    $(call feature_print_text,"DWARF post unwind library", $(dwarf-post-unwind-text))
+  endif
   $(info )
 endif
 
