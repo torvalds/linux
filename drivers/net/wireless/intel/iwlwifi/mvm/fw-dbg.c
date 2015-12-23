@@ -435,6 +435,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	bool monitor_dump_only = false;
 	int i;
 
+	if (!IWL_MVM_COLLECT_FW_ERR_DUMP &&
+	    !mvm->trans->dbg_dest_tlv)
+		return;
+
 	lockdep_assert_held(&mvm->mutex);
 
 	/* there's no point in fw dump if the bus is dead */
