@@ -56,4 +56,25 @@
 			DM814X_IOPAD(0x093C, PIN_INPUT_PULLUP |  0x80)	/* GP1[6] */
 			>;
 	};
+
+	usb0_pins: pinmux_usb0_pins {
+		pinctrl-single,pins = <
+			DM814X_IOPAD(0x0c34, PIN_OUTPUT | 0x1)	/* USB0_DRVVBUS */
+			>;
+	};
+};
+
+/* USB0_ID pin state: SW10[1] = 0 cable detection, SW10[1] = 1 ID grounded */
+&usb0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins>;
+	dr_mode = "otg";
+};
+
+&usb1_phy {
+	status = "disabled";
+};
+
+&usb1 {
+	status = "disabled";
 };
