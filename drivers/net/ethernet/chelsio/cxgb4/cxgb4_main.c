@@ -4855,8 +4855,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* configure SGE_STAT_CFG_A to read WC stats */
 	if (!is_t4(adapter->params.chip))
-		t4_write_reg(adapter, SGE_STAT_CFG_A,
-			     STATSOURCE_T5_V(7) | STATMODE_V(0));
+		t4_write_reg(adapter, SGE_STAT_CFG_A, STATSOURCE_T5_V(7) |
+			     (is_t5(adapter->params.chip) ? STATMODE_V(0) :
+			      T6_STATMODE_V(0)));
 
 	for_each_port(adapter, i) {
 		struct net_device *netdev;

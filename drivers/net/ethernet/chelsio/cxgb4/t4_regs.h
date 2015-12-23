@@ -492,6 +492,9 @@
 #define STATSOURCE_T5_V(x) ((x) << STATSOURCE_T5_S)
 #define STATSOURCE_T5_G(x) (((x) >> STATSOURCE_T5_S) & STATSOURCE_T5_M)
 
+#define T6_STATMODE_S    0
+#define T6_STATMODE_V(x) ((x) << T6_STATMODE_S)
+
 #define SGE_DBFIFO_STATUS2_A 0x1118
 
 #define HP_INT_THRESH_T5_S    10

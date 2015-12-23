@@ -3202,10 +3202,21 @@ int t4_sge_init(struct adapter *adap)
 	 * buffers.
 	 */
 	sge_conm_ctrl = t4_read_reg(adap, SGE_CONM_CTRL_A);
-	if (is_t4(adap->params.chip))
+	switch (CHELSIO_CHIP_VERSION(adap->params.chip)) {
+	case CHELSIO_T4:
 		egress_threshold = EGRTHRESHOLD_G(sge_conm_ctrl);
-	else
+		break;
+	case CHELSIO_T5:
 		egress_threshold = EGRTHRESHOLDPACKING_G(sge_conm_ctrl);
+		break;
+	case CHELSIO_T6:
+		egress_threshold = T6_EGRTHRESHOLDPACKING_G(sge_conm_ctrl);
+		break;
+	default:
+		dev_err(adap->pdev_dev, "Unsupported Chip version %d\n",
+			CHELSIO_CHIP_VERSION(adap->params.chip));
+		return -EINVAL;
+	}
 	s->fl_starve_thres = 2*egress_threshold + 1;
 
 	t4_idma_monitor_init(adap, &s->idma_monitor);
