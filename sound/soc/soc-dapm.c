@@ -3905,13 +3905,10 @@ static void soc_dapm_dai_stream_event(struct snd_soc_dai *dai, int stream,
 
 void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 {
-	struct snd_soc_pcm_runtime *rtd = card->rtd;
-	int i;
+	struct snd_soc_pcm_runtime *rtd;
 
 	/* for each BE DAI link... */
-	for (i = 0; i < card->num_rtd; i++) {
-		rtd = &card->rtd[i];
-
+	list_for_each_entry(rtd, &card->rtd_list, list)  {
 		/*
 		 * dynamic FE links have no fixed DAI mapping.
 		 * CODEC<->CODEC links have no direct connection.

@@ -1040,6 +1040,9 @@ struct snd_soc_dai_link {
 
 	/* pmdown_time is ignored at stop */
 	unsigned int ignore_pmdown_time:1;
+
+	struct list_head list; /* DAI link list of the soc card */
+	struct snd_soc_dobj dobj; /* For topology */
 };
 
 struct snd_soc_codec_conf {
@@ -1104,12 +1107,20 @@ struct snd_soc_card {
 				   struct snd_soc_dapm_context *dapm,
 				   enum snd_soc_bias_level level);
 
+	int (*add_dai_link)(struct snd_soc_card *,
+			    struct snd_soc_dai_link *link);
+	void (*remove_dai_link)(struct snd_soc_card *,
+			    struct snd_soc_dai_link *link);
+
 	long pmdown_time;
 
 	/* CPU <--> Codec DAI links  */
-	struct snd_soc_dai_link *dai_link;
-	int num_links;
-	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai_link *dai_link;  /* predefined links only */
+	int num_links;  /* predefined links only */
+	struct list_head dai_link_list; /* all links */
+	int num_dai_links;
+
+	struct list_head rtd_list;
 	int num_rtd;
 
 	/* optional codec specific configuration */
@@ -1204,6 +1215,9 @@ struct snd_soc_pcm_runtime {
 	struct dentry *debugfs_dpcm_root;
 	struct dentry *debugfs_dpcm_state;
 #endif
+
+	unsigned int num; /* 0-based and monotonic increasing */
+	struct list_head list; /* rtd list of the soc card */
 };
 
 /* mixer control */
@@ -1646,6 +1660,11 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 int snd_soc_of_get_dai_link_codecs(struct device *dev,
 				   struct device_node *of_node,
 				   struct snd_soc_dai_link *dai_link);
+
+int snd_soc_add_dai_link(struct snd_soc_card *card,
+				struct snd_soc_dai_link *dai_link);
+void snd_soc_remove_dai_link(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *dai_link);
 
 #include <sound/soc-dai.h>
 

@@ -1213,11 +1213,10 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 		struct snd_soc_dapm_widget *widget, int stream)
 {
 	struct snd_soc_pcm_runtime *be;
-	int i, j;
+	int i;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		for (i = 0; i < card->num_links; i++) {
-			be = &card->rtd[i];
+		list_for_each_entry(be, &card->rtd_list, list) {
 
 			if (!be->dai_link->no_pcm)
 				continue;
@@ -1225,16 +1224,15 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 			if (be->cpu_dai->playback_widget == widget)
 				return be;
 
-			for (j = 0; j < be->num_codecs; j++) {
-				struct snd_soc_dai *dai = be->codec_dais[j];
+			for (i = 0; i < be->num_codecs; i++) {
+				struct snd_soc_dai *dai = be->codec_dais[i];
 				if (dai->playback_widget == widget)
 					return be;
 			}
 		}
 	} else {
 
-		for (i = 0; i < card->num_links; i++) {
-			be = &card->rtd[i];
+		list_for_each_entry(be, &card->rtd_list, list) {
 
 			if (!be->dai_link->no_pcm)
 				continue;
@@ -1242,8 +1240,8 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 			if (be->cpu_dai->capture_widget == widget)
 				return be;
 
-			for (j = 0; j < be->num_codecs; j++) {
-				struct snd_soc_dai *dai = be->codec_dais[j];
+			for (i = 0; i < be->num_codecs; i++) {
+				struct snd_soc_dai *dai = be->codec_dais[i];
 				if (dai->capture_widget == widget)
 					return be;
 			}
@@ -2343,12 +2341,12 @@ static int dpcm_run_old_update(struct snd_soc_pcm_runtime *fe, int stream)
  */
 int soc_dpcm_runtime_update(struct snd_soc_card *card)
 {
-	int i, old, new, paths;
+	struct snd_soc_pcm_runtime *fe;
+	int old, new, paths;
 
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
-	for (i = 0; i < card->num_rtd; i++) {
+	list_for_each_entry(fe, &card->rtd_list, list) {
 		struct snd_soc_dapm_widget_list *list;
-		struct snd_soc_pcm_runtime *fe = &card->rtd[i];
 
 		/* make sure link is FE */
 		if (!fe->dai_link->dynamic)
