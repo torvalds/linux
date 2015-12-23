@@ -148,8 +148,10 @@ static int receive_chars_read(struct uart_port *port)
 			uart_handle_dcd_change(port, 1);
 		}
 
-		for (i = 0; i < bytes_read; i++)
-			uart_handle_sysrq_char(port, con_read_page[i]);
+		if (port->sysrq != 0 &&  *con_read_page) {
+			for (i = 0; i < bytes_read; i++)
+				uart_handle_sysrq_char(port, con_read_page[i]);
+		}
 
 		if (port->state == NULL)
 			continue;
