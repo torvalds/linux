@@ -539,9 +539,18 @@ static int udf_do_extend_file(struct inode *inode,
 		udf_add_aext(inode, last_pos, &last_ext->extLocation,
 			     last_ext->extLength, 1);
 		count++;
-	} else
+	} else {
+		struct kernel_lb_addr tmploc;
+		uint32_t tmplen;
+
 		udf_write_aext(inode, last_pos, &last_ext->extLocation,
 				last_ext->extLength, 1);
+		/*
+		 * We've rewritten the last extent but there may be empty
+		 * indirect extent after it - enter it.
+		 */
+		udf_next_aext(inode, last_pos, &tmploc, &tmplen, 0);
+	}
 
 	/* Managed to do everything necessary? */
 	if (!blocks)
