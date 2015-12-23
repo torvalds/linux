@@ -152,7 +152,7 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	struct kvm_vcpu_hv_stimer *stimer;
 	int gsi, idx, stimers_pending;
 
-	vcpu_debug(vcpu, "Hyper-V SynIC acked sint %d\n", sint);
+	trace_kvm_hv_notify_acked_sint(vcpu->vcpu_id, sint);
 
 	if (synic->msg_page & HV_SYNIC_SIMP_ENABLE)
 		synic_clear_sint_msg_pending(synic, sint);
@@ -202,8 +202,8 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 	if (!synic->active)
 		return 1;
 
-	vcpu_debug(vcpu, "Hyper-V SynIC set msr 0x%x 0x%llx host %d\n",
-		   msr, data, host);
+	trace_kvm_hv_synic_set_msr(vcpu->vcpu_id, msr, data, host);
+
 	ret = 0;
 	switch (msr) {
 	case HV_X64_MSR_SCONTROL:
@@ -312,7 +312,7 @@ int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
 	irq.level = 1;
 
 	ret = kvm_irq_delivery_to_apic(vcpu->kvm, NULL, &irq, NULL);
-	vcpu_debug(vcpu, "Hyper-V SynIC set irq ret %d\n", ret);
+	trace_kvm_hv_synic_set_irq(vcpu->vcpu_id, sint, irq.vector, ret);
 	return ret;
 }
 
@@ -332,7 +332,7 @@ void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
 	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
 	int i;
 
-	vcpu_debug(vcpu, "Hyper-V SynIC send eoi vec %d\n", vector);
+	trace_kvm_hv_synic_send_eoi(vcpu->vcpu_id, vector);
 
 	for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
 		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)

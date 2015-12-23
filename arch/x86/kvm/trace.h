@@ -1025,6 +1025,99 @@ TRACE_EVENT(kvm_pi_irte_update,
 		  __entry->pi_desc_addr)
 );
 
+/*
+ * Tracepoint for kvm_hv_notify_acked_sint.
+ */
+TRACE_EVENT(kvm_hv_notify_acked_sint,
+	TP_PROTO(int vcpu_id, u32 sint),
+	TP_ARGS(vcpu_id, sint),
+
+	TP_STRUCT__entry(
+		__field(int, vcpu_id)
+		__field(u32, sint)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id = vcpu_id;
+		__entry->sint = sint;
+	),
+
+	TP_printk("vcpu_id %d sint %u", __entry->vcpu_id, __entry->sint)
+);
+
+/*
+ * Tracepoint for synic_set_irq.
+ */
+TRACE_EVENT(kvm_hv_synic_set_irq,
+	TP_PROTO(int vcpu_id, u32 sint, int vector, int ret),
+	TP_ARGS(vcpu_id, sint, vector, ret),
+
+	TP_STRUCT__entry(
+		__field(int, vcpu_id)
+		__field(u32, sint)
+		__field(int, vector)
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id = vcpu_id;
+		__entry->sint = sint;
+		__entry->vector = vector;
+		__entry->ret = ret;
+	),
+
+	TP_printk("vcpu_id %d sint %u vector %d ret %d",
+		  __entry->vcpu_id, __entry->sint, __entry->vector,
+		  __entry->ret)
+);
+
+/*
+ * Tracepoint for kvm_hv_synic_send_eoi.
+ */
+TRACE_EVENT(kvm_hv_synic_send_eoi,
+	TP_PROTO(int vcpu_id, int vector),
+	TP_ARGS(vcpu_id, vector),
+
+	TP_STRUCT__entry(
+		__field(int, vcpu_id)
+		__field(u32, sint)
+		__field(int, vector)
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id = vcpu_id;
+		__entry->vector	= vector;
+	),
+
+	TP_printk("vcpu_id %d vector %d", __entry->vcpu_id, __entry->vector)
+);
+
+/*
+ * Tracepoint for synic_set_msr.
+ */
+TRACE_EVENT(kvm_hv_synic_set_msr,
+	TP_PROTO(int vcpu_id, u32 msr, u64 data, bool host),
+	TP_ARGS(vcpu_id, msr, data, host),
+
+	TP_STRUCT__entry(
+		__field(int, vcpu_id)
+		__field(u32, msr)
+		__field(u64, data)
+		__field(bool, host)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id = vcpu_id;
+		__entry->msr = msr;
+		__entry->data = data;
+		__entry->host = host
+	),
+
+	TP_printk("vcpu_id %d msr 0x%x data 0x%llx host %d",
+		  __entry->vcpu_id, __entry->msr, __entry->data, __entry->host)
+);
+
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
