@@ -723,29 +723,17 @@ static void cache_wwn(struct storvsc_device *stor_device,
 	}
 }
 
-static int storvsc_channel_init(struct hv_device *device, bool is_fc)
+
+static int storvsc_execute_vstor_op(struct hv_device *device,
+				    struct storvsc_cmd_request *request,
+				    bool status_check)
 {
-	struct storvsc_device *stor_device;
-	struct storvsc_cmd_request *request;
 	struct vstor_packet *vstor_packet;
-	int ret, t, i;
-	int max_chns;
-	bool process_sub_channels = false;
+	int ret, t;
 
-	stor_device = get_out_stor_device(device);
-	if (!stor_device)
-		return -ENODEV;
-
-	request = &stor_device->init_request;
 	vstor_packet = &request->vstor_packet;
 
-	/*
-	 * Now, initiate the vsc/vsp initialization protocol on the open
-	 * channel
-	 */
-	memset(request, 0, sizeof(struct storvsc_cmd_request));
 	init_completion(&request->wait_event);
-	vstor_packet->operation = VSTOR_OPERATION_BEGIN_INITIALIZATION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
@@ -761,17 +749,50 @@ static int storvsc_channel_init(struct hv_device *device, bool is_fc)
 	if (t == 0)
 		return -ETIMEDOUT;
 
+	if (!status_check)
+		return ret;
+
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
 	    vstor_packet->status != 0)
 		return -EINVAL;
 
+	return ret;
+}
+
+static int storvsc_channel_init(struct hv_device *device, bool is_fc)
+{
+	struct storvsc_device *stor_device;
+	struct storvsc_cmd_request *request;
+	struct vstor_packet *vstor_packet;
+	int ret, i;
+	int max_chns;
+	bool process_sub_channels = false;
+
+	stor_device = get_out_stor_device(device);
+	if (!stor_device)
+		return -ENODEV;
+
+	request = &stor_device->init_request;
+	vstor_packet = &request->vstor_packet;
+
+	/*
+	 * Now, initiate the vsc/vsp initialization protocol on the open
+	 * channel
+	 */
+	memset(request, 0, sizeof(struct storvsc_cmd_request));
+	vstor_packet->operation = VSTOR_OPERATION_BEGIN_INITIALIZATION;
+	ret = storvsc_execute_vstor_op(device, request, true);
+	if (ret)
+		return ret;
+	/*
+	 * Query host supported protocol version.
+	 */
 
 	for (i = 0; i < ARRAY_SIZE(vmstor_protocols); i++) {
 		/* reuse the packet for version range supported */
 		memset(vstor_packet, 0, sizeof(struct vstor_packet));
 		vstor_packet->operation =
 			VSTOR_OPERATION_QUERY_PROTOCOL_VERSION;
-		vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
 		vstor_packet->version.major_minor =
 			vmstor_protocols[i].protocol_version;
@@ -780,19 +801,9 @@ static int storvsc_channel_init(struct hv_device *device, bool is_fc)
 		 * The revision number is only used in Windows; set it to 0.
 		 */
 		vstor_packet->version.revision = 0;
-
-		ret = vmbus_sendpacket(device->channel, vstor_packet,
-			       (sizeof(struct vstor_packet) -
-				vmscsi_size_delta),
-			       (unsigned long)request,
-			       VM_PKT_DATA_INBAND,
-			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = storvsc_execute_vstor_op(device, request, false);
 		if (ret != 0)
 			return ret;
-
-		t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
-		if (t == 0)
-			return -ETIMEDOUT;
 
 		if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO)
 			return -EINVAL;
@@ -817,25 +828,9 @@ static int storvsc_channel_init(struct hv_device *device, bool is_fc)
 
 	memset(vstor_packet, 0, sizeof(struct vstor_packet));
 	vstor_packet->operation = VSTOR_OPERATION_QUERY_PROPERTIES;
-	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
-
-	ret = vmbus_sendpacket(device->channel, vstor_packet,
-			       (sizeof(struct vstor_packet) -
-				vmscsi_size_delta),
-			       (unsigned long)request,
-			       VM_PKT_DATA_INBAND,
-			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-
+	ret = storvsc_execute_vstor_op(device, request, true);
 	if (ret != 0)
 		return ret;
-
-	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
-	if (t == 0)
-		return -ETIMEDOUT;
-
-	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
-		return -EINVAL;
 
 	/*
 	 * Check to see if multi-channel support is there.
@@ -854,27 +849,14 @@ static int storvsc_channel_init(struct hv_device *device, bool is_fc)
 	if (!is_fc)
 		goto done;
 
+	/*
+	 * For FC devices retrieve FC HBA data.
+	 */
 	memset(vstor_packet, 0, sizeof(struct vstor_packet));
 	vstor_packet->operation = VSTOR_OPERATION_FCHBA_DATA;
-	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
-
-	ret = vmbus_sendpacket(device->channel, vstor_packet,
-			       (sizeof(struct vstor_packet) -
-			       vmscsi_size_delta),
-			       (unsigned long)request,
-			       VM_PKT_DATA_INBAND,
-			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-
+	ret = storvsc_execute_vstor_op(device, request, true);
 	if (ret != 0)
 		return ret;
-
-	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
-	if (t == 0)
-		return -ETIMEDOUT;
-
-	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
-		return -EINVAL;
 
 	/*
 	 * Cache the currently active port and node ww names.
@@ -885,25 +867,9 @@ done:
 
 	memset(vstor_packet, 0, sizeof(struct vstor_packet));
 	vstor_packet->operation = VSTOR_OPERATION_END_INITIALIZATION;
-	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
-
-	ret = vmbus_sendpacket(device->channel, vstor_packet,
-			       (sizeof(struct vstor_packet) -
-				vmscsi_size_delta),
-			       (unsigned long)request,
-			       VM_PKT_DATA_INBAND,
-			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-
+	ret = storvsc_execute_vstor_op(device, request, true);
 	if (ret != 0)
 		return ret;
-
-	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
-	if (t == 0)
-		return -ETIMEDOUT;
-
-	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
-		return -EINVAL;
 
 	if (process_sub_channels)
 		handle_multichannel_storage(device, max_chns);
