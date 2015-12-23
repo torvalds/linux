@@ -53,7 +53,7 @@
 	compatible = "socionext,ph1-ld6b";
 };
 
-/* UART3 unavilable: the pads are not wired to the package balls */
+/* UART3 unavailable: the pads are not wired to the package balls */
 &serial3 {
 	status = "disabled";
 };
