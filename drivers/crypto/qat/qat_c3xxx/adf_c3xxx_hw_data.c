@@ -50,14 +50,9 @@
 #include "adf_c3xxx_hw_data.h"
 
 /* Worker thread to service arbiter mappings based on dev SKUs */
-static const u32 thrd_to_arb_map_8_me_sku[] = {
-	0x10000888, 0x11000888, 0x10000888, 0x11000888, 0x10000888,
-	0x11000888, 0x10000888, 0x11000888, 0, 0
-};
-
-static const u32 thrd_to_arb_map_10_me_sku[] = {
-	0x12222AAA, 0x11222AAA, 0x12222AAA, 0x11222AAA, 0x12222AAA,
-	0x11222AAA, 0x12222AAA, 0x11222AAA, 0x12222AAA, 0x11222AAA
+static const u32 thrd_to_arb_map_6_me_sku[] = {
+	0x12222AAA, 0x11222AAA, 0x12222AAA,
+	0x11222AAA, 0x12222AAA, 0x11222AAA
 };
 
 static struct adf_hw_device_class c3xxx_class = {
@@ -117,16 +112,14 @@ static u32 get_etr_bar_id(struct adf_hw_device_data *self)
 
 static u32 get_sram_bar_id(struct adf_hw_device_data *self)
 {
-	return ADF_C3XXX_SRAM_BAR;
+	return 0;
 }
 
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 {
 	int aes = get_num_aes(self);
 
-	if (aes == 8)
-		return DEV_SKU_2;
-	else if (aes == 10)
+	if (aes == 6)
 		return DEV_SKU_4;
 
 	return DEV_SKU_UNKNOWN;
@@ -136,11 +129,8 @@ static void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 				    u32 const **arb_map_config)
 {
 	switch (accel_dev->accel_pci_dev.sku) {
-	case DEV_SKU_2:
-		*arb_map_config = thrd_to_arb_map_8_me_sku;
-		break;
 	case DEV_SKU_4:
-		*arb_map_config = thrd_to_arb_map_10_me_sku;
+		*arb_map_config = thrd_to_arb_map_6_me_sku;
 		break;
 	default:
 		dev_err(&GET_DEV(accel_dev),

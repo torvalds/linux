@@ -48,9 +48,8 @@
 #define ADF_C3XXX_HW_DATA_H_
 
 /* PCIe configuration space */
-#define ADF_C3XXX_SRAM_BAR 0
-#define ADF_C3XXX_PMISC_BAR 1
-#define ADF_C3XXX_ETR_BAR 2
+#define ADF_C3XXX_PMISC_BAR 0
+#define ADF_C3XXX_ETR_BAR 1
 #define ADF_C3XXX_RX_RINGS_OFFSET 8
 #define ADF_C3XXX_TX_RINGS_MASK 0xFF
 #define ADF_C3XXX_MAX_ACCELERATORS 3
