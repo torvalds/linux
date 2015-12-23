@@ -122,8 +122,14 @@ define feature_print_text_code
     MSG = $(shell printf '...%30s: %s' $(1) $(2))
 endef
 
+#
+# generates feature value assignment for name, like:
+#   $(call feature_assign,dwarf) == feature-dwarf=1
+#
+feature_assign = feature-$(1)=$(feature-$(1))
+
 FEATURE_DUMP_FILENAME = $(OUTPUT)FEATURE-DUMP$(FEATURE_USER)
-FEATURE_DUMP := $(foreach feat,$(FEATURE_DISPLAY),feature-$(feat)($(feature-$(feat))))
+FEATURE_DUMP := $(foreach feat,$(FEATURE_DISPLAY),$(call feature_assign,$(feat)))
 FEATURE_DUMP_FILE := $(shell touch $(FEATURE_DUMP_FILENAME); cat $(FEATURE_DUMP_FILENAME))
 
 # The $(feature_display) controls the default detection message
