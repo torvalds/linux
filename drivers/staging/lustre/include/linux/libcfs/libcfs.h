@@ -90,7 +90,6 @@ void cfs_enter_debugger(void);
  * Defined by platform
  */
 int unshare_fs_struct(void);
-sigset_t cfs_get_blocked_sigs(void);
 sigset_t cfs_block_allsigs(void);
 sigset_t cfs_block_sigs(unsigned long sigs);
 sigset_t cfs_block_sigsinv(unsigned long sigs);
