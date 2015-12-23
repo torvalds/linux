@@ -454,8 +454,20 @@ static inline int cma_validate_port(struct ib_device *device, u8 port,
 	if ((dev_type != ARPHRD_INFINIBAND) && rdma_protocol_ib(device, port))
 		return ret;
 
-	if (dev_type == ARPHRD_ETHER)
+	if (dev_type == ARPHRD_ETHER) {
 		ndev = dev_get_by_index(&init_net, bound_if_index);
+		if (ndev && ndev->flags & IFF_LOOPBACK) {
+			pr_info("detected loopback device\n");
+			dev_put(ndev);
+
+			if (!device->get_netdev)
+				return -EOPNOTSUPP;
+
+			ndev = device->get_netdev(device, port);
+			if (!ndev)
+				return -ENODEV;
+		}
+	}
 
 	ret = ib_find_cached_gid_by_port(device, gid, IB_GID_TYPE_IB, port,
 					 ndev, NULL);
@@ -2314,8 +2326,22 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 
 	if (addr->dev_addr.bound_dev_if) {
 		ndev = dev_get_by_index(&init_net, addr->dev_addr.bound_dev_if);
+		if (!ndev)
+			return -ENODEV;
+
+		if (ndev->flags & IFF_LOOPBACK) {
+			dev_put(ndev);
+			if (!id_priv->id.device->get_netdev)
+				return -EOPNOTSUPP;
+
+			ndev = id_priv->id.device->get_netdev(id_priv->id.device,
+							      id_priv->id.port_num);
+			if (!ndev)
+				return -ENODEV;
+		}
+
 		route->path_rec->net = &init_net;
-		route->path_rec->ifindex = addr->dev_addr.bound_dev_if;
+		route->path_rec->ifindex = ndev->ifindex;
 		route->path_rec->gid_type = id_priv->gid_type;
 	}
 	if (!ndev) {

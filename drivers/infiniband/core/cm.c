@@ -1646,8 +1646,11 @@ static int cm_req_handler(struct cm_work *work)
 				cm_id_priv->av.ah_attr.grh.sgid_index,
 				&gid, &gid_attr);
 	if (!ret) {
-		if (gid_attr.ndev)
+		if (gid_attr.ndev) {
+			work->path[0].ifindex = gid_attr.ndev->ifindex;
+			work->path[0].net = dev_net(gid_attr.ndev);
 			dev_put(gid_attr.ndev);
+		}
 		work->path[0].gid_type = gid_attr.gid_type;
 		ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
 	}
@@ -1656,8 +1659,11 @@ static int cm_req_handler(struct cm_work *work)
 					    work->port->port_num, 0,
 					    &work->path[0].sgid,
 					    &gid_attr);
-		if (!err && gid_attr.ndev)
+		if (!err && gid_attr.ndev) {
+			work->path[0].ifindex = gid_attr.ndev->ifindex;
+			work->path[0].net = dev_net(gid_attr.ndev);
 			dev_put(gid_attr.ndev);
+		}
 		work->path[0].gid_type = gid_attr.gid_type;
 		ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
 			       &work->path[0].sgid, sizeof work->path[0].sgid,
