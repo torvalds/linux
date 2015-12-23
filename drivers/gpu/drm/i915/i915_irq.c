@@ -581,7 +581,7 @@ i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 {
 	u32 enable_mask;
 
-	if (IS_VALLEYVIEW(dev_priv->dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
 							   status_mask);
 	else
@@ -595,7 +595,7 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 {
 	u32 enable_mask;
 
-	if (IS_VALLEYVIEW(dev_priv->dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		enable_mask = vlv_get_pipestat_enable_mask(dev_priv->dev,
 							   status_mask);
 	else
@@ -1103,6 +1103,14 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		spin_unlock_irq(&dev_priv->irq_lock);
 		return;
 	}
+
+	/*
+	 * The RPS work is synced during runtime suspend, we don't require a
+	 * wakeref. TODO: instead of disabling the asserts make sure that we
+	 * always hold an RPM reference while the work is running.
+	 */
+	DISABLE_RPM_WAKEREF_ASSERTS(dev_priv);
+
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
@@ -1115,7 +1123,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	WARN_ON(pm_iir & ~dev_priv->pm_rps_events);
 
 	if ((pm_iir & dev_priv->pm_rps_events) == 0 && !client_boost)
-		return;
+		goto out;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
@@ -1170,6 +1178,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	intel_set_rps(dev_priv->dev, new_delay);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+out:
+	ENABLE_RPM_WAKEREF_ASSERTS(dev_priv);
 }
 
 
@@ -1723,7 +1733,7 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 	 */
 	POSTING_READ(PORT_HOTPLUG_STAT);
 
-	if (IS_G4X(dev) || IS_VALLEYVIEW(dev)) {
+	if (IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
 
 		if (hotplug_trigger) {
@@ -1757,6 +1767,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
+
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	disable_rpm_wakeref_asserts(dev_priv);
 
 	while (true) {
 		/* Find, clear, then process each source of interrupt */
@@ -1792,6 +1805,8 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 	}
 
 out:
+	enable_rpm_wakeref_asserts(dev_priv);
+
 	return ret;
 }
 
@@ -1804,6 +1819,9 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
+
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	disable_rpm_wakeref_asserts(dev_priv);
 
 	for (;;) {
 		master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~GEN8_MASTER_IRQ_CONTROL;
@@ -1834,6 +1852,8 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
 	}
+
+	enable_rpm_wakeref_asserts(dev_priv);
 
 	return ret;
 }
@@ -2165,6 +2185,9 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	disable_rpm_wakeref_asserts(dev_priv);
+
 	/* We get interrupts on unclaimed registers, so check for this before we
 	 * do any I915_{READ,WRITE}. */
 	intel_uncore_check_errors(dev);
@@ -2223,6 +2246,9 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		POSTING_READ(SDEIER);
 	}
 
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	enable_rpm_wakeref_asserts(dev_priv);
+
 	return ret;
 }
 
@@ -2255,6 +2281,9 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	disable_rpm_wakeref_asserts(dev_priv);
+
 	if (INTEL_INFO(dev_priv)->gen >= 9)
 		aux_mask |=  GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
 			GEN9_AUX_CHANNEL_D;
@@ -2262,7 +2291,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	master_ctl = I915_READ_FW(GEN8_MASTER_IRQ);
 	master_ctl &= ~GEN8_MASTER_IRQ_CONTROL;
 	if (!master_ctl)
-		return IRQ_NONE;
+		goto out;
 
 	I915_WRITE_FW(GEN8_MASTER_IRQ, 0);
 
@@ -2392,6 +2421,9 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 
 	I915_WRITE_FW(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 	POSTING_READ_FW(GEN8_MASTER_IRQ);
+
+out:
+	enable_rpm_wakeref_asserts(dev_priv);
 
 	return ret;
 }
@@ -2989,6 +3021,13 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	if (!i915.enable_hangcheck)
 		return;
 
+	/*
+	 * The hangcheck work is synced during runtime suspend, we don't
+	 * require a wakeref. TODO: instead of disabling the asserts make
+	 * sure that we hold a reference when this work is running.
+	 */
+	DISABLE_RPM_WAKEREF_ASSERTS(dev_priv);
+
 	for_each_ring(ring, dev_priv, i) {
 		u64 acthd;
 		u32 seqno;
@@ -3080,13 +3119,18 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		}
 	}
 
-	if (rings_hung)
-		return i915_handle_error(dev, true, "Ring hung");
+	if (rings_hung) {
+		i915_handle_error(dev, true, "Ring hung");
+		goto out;
+	}
 
 	if (busy_count)
 		/* Reset timer case chip hangs without another request
 		 * being added */
 		i915_queue_hangcheck(dev);
+
+out:
+	ENABLE_RPM_WAKEREF_ASSERTS(dev_priv);
 }
 
 void i915_queue_hangcheck(struct drm_device *dev)
@@ -3878,13 +3922,18 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 	u16 flip_mask =
 		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
 		I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+	irqreturn_t ret;
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	disable_rpm_wakeref_asserts(dev_priv);
+
+	ret = IRQ_NONE;
 	iir = I915_READ16(IIR);
 	if (iir == 0)
-		return IRQ_NONE;
+		goto out;
 
 	while (iir & ~flip_mask) {
 		/* Can't rely on pipestat interrupt bit in iir as it might
@@ -3933,8 +3982,12 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 
 		iir = new_iir;
 	}
+	ret = IRQ_HANDLED;
 
-	return IRQ_HANDLED;
+out:
+	enable_rpm_wakeref_asserts(dev_priv);
+
+	return ret;
 }
 
 static void i8xx_irq_uninstall(struct drm_device * dev)
@@ -4063,6 +4116,9 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	disable_rpm_wakeref_asserts(dev_priv);
+
 	iir = I915_READ(IIR);
 	do {
 		bool irq_received = (iir & ~flip_mask) != 0;
@@ -4144,6 +4200,8 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		ret = IRQ_HANDLED;
 		iir = new_iir;
 	} while (iir & ~flip_mask);
+
+	enable_rpm_wakeref_asserts(dev_priv);
 
 	return ret;
 }
@@ -4284,6 +4342,9 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	disable_rpm_wakeref_asserts(dev_priv);
+
 	iir = I915_READ(IIR);
 
 	for (;;) {
@@ -4369,6 +4430,8 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		iir = new_iir;
 	}
 
+	enable_rpm_wakeref_asserts(dev_priv);
+
 	return ret;
 }
 
@@ -4412,7 +4475,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 
 	/* Let's track the enabled rps events */
-	if (IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv))
 		/* WaGsvRC0ResidencyMethod:vlv */
 		dev_priv->pm_rps_events = GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED;
 	else

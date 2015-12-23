@@ -94,6 +94,7 @@ struct drm_dp_mst_port {
 	struct drm_dp_mst_topology_mgr *mgr;
 
 	struct edid *cached_edid; /* for DP logical ports - make tiling work */
+	bool has_audio;
 };
 
 /**
@@ -215,13 +216,13 @@ struct drm_dp_sideband_msg_rx {
 	struct drm_dp_sideband_msg_hdr initial_hdr;
 };
 
-
+#define DRM_DP_MAX_SDP_STREAMS 16
 struct drm_dp_allocate_payload {
 	u8 port_number;
 	u8 number_sdp_streams;
 	u8 vcpi;
 	u16 pbn;
-	u8 sdp_stream_sink[8];
+	u8 sdp_stream_sink[DRM_DP_MAX_SDP_STREAMS];
 };
 
 struct drm_dp_allocate_payload_ack_reply {
@@ -484,6 +485,8 @@ int drm_dp_mst_hpd_irq(struct drm_dp_mst_topology_mgr *mgr, u8 *esi, bool *handl
 
 enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
+bool drm_dp_mst_port_has_audio(struct drm_dp_mst_topology_mgr *mgr,
+					struct drm_dp_mst_port *port);
 struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
 

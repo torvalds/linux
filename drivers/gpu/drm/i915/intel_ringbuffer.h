@@ -350,7 +350,11 @@ struct  intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
-bool intel_ring_initialized(struct intel_engine_cs *ring);
+static inline bool
+intel_ring_initialized(struct intel_engine_cs *ring)
+{
+	return ring->dev != NULL;
+}
 
 static inline unsigned
 intel_ring_flag(struct intel_engine_cs *ring)

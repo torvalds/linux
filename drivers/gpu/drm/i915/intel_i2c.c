@@ -636,7 +636,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	if (HAS_PCH_NOP(dev))
 		return 0;
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
 	else if (!HAS_GMCH_DISPLAY(dev_priv))
 		dev_priv->gpio_mmio_base =

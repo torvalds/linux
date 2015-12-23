@@ -365,7 +365,9 @@ struct intel_crtc_state {
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
 	unsigned long quirks;
 
-	bool update_pipe;
+	bool update_pipe; /* can a fast modeset be performed? */
+	bool disable_cxsr;
+	bool wm_changed; /* watermarks are updated */
 
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
@@ -531,9 +533,7 @@ struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
 	bool disable_fbc;
 	bool disable_ips;
-	bool disable_cxsr;
 	bool pre_disable_primary;
-	bool update_wm_pre, update_wm_post;
 
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;
@@ -568,7 +568,6 @@ struct intel_crtc {
 	int adjusted_x;
 	int adjusted_y;
 
-	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	uint32_t cursor_cntl;
 	uint32_t cursor_size;
@@ -818,6 +817,8 @@ struct intel_digital_port {
 	struct intel_hdmi hdmi;
 	enum irqreturn (*hpd_pulse)(struct intel_digital_port *, bool);
 	bool release_cl2_override;
+	/* for communication with audio component; protected by av_mutex */
+	const struct drm_connector *audio_connector;
 };
 
 struct intel_dp_mst_encoder {
@@ -1012,6 +1013,8 @@ void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp);
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 void intel_ddi_fdi_disable(struct drm_crtc *crtc);
+bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
+				 struct intel_crtc *intel_crtc);
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config);
 struct intel_encoder *
@@ -1427,6 +1430,87 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
+
+static inline void
+assert_rpm_device_not_suspended(struct drm_i915_private *dev_priv)
+{
+	WARN_ONCE(dev_priv->pm.suspended,
+		  "Device suspended during HW access\n");
+}
+
+static inline void
+assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
+{
+	assert_rpm_device_not_suspended(dev_priv);
+	WARN_ONCE(!atomic_read(&dev_priv->pm.wakeref_count),
+		  "RPM wakelock ref not held during HW access");
+}
+
+static inline int
+assert_rpm_atomic_begin(struct drm_i915_private *dev_priv)
+{
+	int seq = atomic_read(&dev_priv->pm.atomic_seq);
+
+	assert_rpm_wakelock_held(dev_priv);
+
+	return seq;
+}
+
+static inline void
+assert_rpm_atomic_end(struct drm_i915_private *dev_priv, int begin_seq)
+{
+	WARN_ONCE(atomic_read(&dev_priv->pm.atomic_seq) != begin_seq,
+		  "HW access outside of RPM atomic section\n");
+}
+
+/**
+ * disable_rpm_wakeref_asserts - disable the RPM assert checks
+ * @dev_priv: i915 device instance
+ *
+ * This function disable asserts that check if we hold an RPM wakelock
+ * reference, while keeping the device-not-suspended checks still enabled.
+ * It's meant to be used only in special circumstances where our rule about
+ * the wakelock refcount wrt. the device power state doesn't hold. According
+ * to this rule at any point where we access the HW or want to keep the HW in
+ * an active state we must hold an RPM wakelock reference acquired via one of
+ * the intel_runtime_pm_get() helpers. Currently there are a few special spots
+ * where this rule doesn't hold: the IRQ and suspend/resume handlers, the
+ * forcewake release timer, and the GPU RPS and hangcheck works. All other
+ * users should avoid using this function.
+ *
+ * Any calls to this function must have a symmetric call to
+ * enable_rpm_wakeref_asserts().
+ */
+static inline void
+disable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
+{
+	atomic_inc(&dev_priv->pm.wakeref_count);
+}
+
+/**
+ * enable_rpm_wakeref_asserts - re-enable the RPM assert checks
+ * @dev_priv: i915 device instance
+ *
+ * This function re-enables the RPM assert checks after disabling them with
+ * disable_rpm_wakeref_asserts. It's meant to be used only in special
+ * circumstances otherwise its use should be avoided.
+ *
+ * Any calls to this function must have a symmetric call to
+ * disable_rpm_wakeref_asserts().
+ */
+static inline void
+enable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
+{
+	atomic_dec(&dev_priv->pm.wakeref_count);
+}
+
+/* TODO: convert users of these to rely instead on proper RPM refcounting */
+#define DISABLE_RPM_WAKEREF_ASSERTS(dev_priv)	\
+	disable_rpm_wakeref_asserts(dev_priv)
+
+#define ENABLE_RPM_WAKEREF_ASSERTS(dev_priv)	\
+	enable_rpm_wakeref_asserts(dev_priv)
+
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv);

@@ -7327,6 +7327,7 @@ enum skl_disp_power_wells {
 #define  SBI_READY			(0x0<<0)
 
 /* SBI offsets */
+#define  SBI_SSCDIVINTPHASE			0x0200
 #define  SBI_SSCDIVINTPHASE6			0x0600
 #define   SBI_SSCDIVINTPHASE_DIVSEL_MASK	((0x7f)<<1)
 #define   SBI_SSCDIVINTPHASE_DIVSEL(x)		((x)<<1)
@@ -7334,6 +7335,7 @@ enum skl_disp_power_wells {
 #define   SBI_SSCDIVINTPHASE_INCVAL(x)		((x)<<8)
 #define   SBI_SSCDIVINTPHASE_DIR(x)		((x)<<15)
 #define   SBI_SSCDIVINTPHASE_PROPAGATE		(1<<0)
+#define  SBI_SSCDITHPHASE			0x0204
 #define  SBI_SSCCTL				0x020c
 #define  SBI_SSCCTL6				0x060C
 #define   SBI_SSCCTL_PATHALT			(1<<3)
@@ -8100,9 +8102,7 @@ enum skl_disp_power_wells {
 #define  RGB_FLIP_TO_BGR				(1 << 2)
 
 #define  BXT_PIPE_SELECT_MASK				(7 << 7)
-#define  BXT_PIPE_SELECT_C				(2 << 7)
-#define  BXT_PIPE_SELECT_B				(1 << 7)
-#define  BXT_PIPE_SELECT_A				(0 << 7)
+#define  BXT_PIPE_SELECT(pipe)				((pipe) << 7)
 
 #define _MIPIA_DATA_ADDRESS		(dev_priv->mipi_mmio_base + 0xb108)
 #define _MIPIC_DATA_ADDRESS		(dev_priv->mipi_mmio_base + 0xb908)

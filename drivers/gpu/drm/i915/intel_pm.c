@@ -291,7 +291,7 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 	struct drm_device *dev = dev_priv->dev;
 	u32 val;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
 		POSTING_READ(FW_BLC_SELF_VLV);
 		dev_priv->wm.vlv.cxsr = enable;
@@ -3314,7 +3314,7 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_crtc *crtc;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+	for_each_intel_crtc(dev, crtc) {
 		int i, level, max_level = ilk_wm_max_level(dev);
 		enum pipe pipe = crtc->pipe;
 
@@ -3523,8 +3523,7 @@ static void skl_update_other_pipe_wm(struct drm_device *dev,
 	 * Otherwise, because of this_crtc being freshly enabled/disabled, the
 	 * other active pipes need new DDB allocation and WM values.
 	 */
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
-				base.head) {
+	for_each_intel_crtc(dev, intel_crtc) {
 		struct skl_pipe_wm pipe_wm = {};
 		bool wm_changed;
 
@@ -4405,7 +4404,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
-		if (IS_VALLEYVIEW(dev))
+		if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 			vlv_set_rps_idle(dev_priv);
 		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
@@ -4458,7 +4457,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 
 void intel_set_rps(struct drm_device *dev, u8 val)
 {
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		valleyview_set_rps(dev, val);
 	else
 		gen6_set_rps(dev, val);
@@ -4502,7 +4501,7 @@ static void valleyview_disable_rps(struct drm_device *dev)
 
 static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 {
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		if (mode & (GEN7_RC_CTL_TO_MODE | GEN6_RC_CTL_EI_MODE(1)))
 			mode = GEN6_RC_CTL_RC6_ENABLE;
 		else
@@ -4673,8 +4672,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	/* 2b: Program RC6 thresholds.*/
 
 	/* WaRsDoubleRc6WrlWithCoarsePowerGating: Doubling WRL only when CPG is enabled */
-	if (IS_SKYLAKE(dev) && !((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) &&
-				 IS_SKL_REVID(dev, 0, SKL_REVID_E0)))
+	if (IS_SKYLAKE(dev))
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 108 << 16);
 	else
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16);
@@ -4717,7 +4715,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	 */
 	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1) ||
 	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) &&
-	     IS_SKL_REVID(dev, 0, SKL_REVID_E0)))
+	     IS_SKL_REVID(dev, 0, SKL_REVID_F0)))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
 	else
 		I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
@@ -5101,7 +5099,17 @@ static int valleyview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 
 static int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
 {
-	return vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
+	u32 val;
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
+	/*
+	 * According to the BYT Punit GPU turbo HAS 1.1.6.3 the minimum value
+	 * for the minimum frequency in GPLL mode is 0xc1. Contrary to this on
+	 * a BYT-M B0 the above register contains 0xbf. Moreover when setting
+	 * a frequency Punit will not allow values below 0xc0. Clamp it 0xc0
+	 * to make sure it matches what Punit accepts.
+	 */
+	return max_t(u32, val, 0xc0);
 }
 
 /* Check that the pctx buffer wasn't move under us. */
@@ -6006,7 +6014,17 @@ static void intel_init_emon(struct drm_device *dev)
 
 void intel_init_gt_powersave(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	i915.enable_rc6 = sanitize_rc6_option(dev, i915.enable_rc6);
+	/*
+	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
+	 * requirement.
+	 */
+	if (!i915.enable_rc6) {
+		DRM_INFO("RC6 disabled, disabling runtime PM support\n");
+		intel_runtime_pm_get(dev_priv);
+	}
 
 	if (IS_CHERRYVIEW(dev))
 		cherryview_init_gt_powersave(dev);
@@ -6016,10 +6034,15 @@ void intel_init_gt_powersave(struct drm_device *dev)
 
 void intel_cleanup_gt_powersave(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	if (IS_CHERRYVIEW(dev))
 		return;
 	else if (IS_VALLEYVIEW(dev))
 		valleyview_cleanup_gt_powersave(dev);
+
+	if (!i915.enable_rc6)
+		intel_runtime_pm_put(dev_priv);
 }
 
 static void gen6_suspend_rps(struct drm_device *dev)
@@ -7223,4 +7246,6 @@ void intel_pm_setup(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->rps.mmioflips.link);
 
 	dev_priv->pm.suspended = false;
+	atomic_set(&dev_priv->pm.wakeref_count, 0);
+	atomic_set(&dev_priv->pm.atomic_seq, 0);
 }

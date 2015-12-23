@@ -27,28 +27,12 @@
  *
  */
 
+#include <linux/log2.h>
 #include <drm/drmP.h>
 #include "i915_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_trace.h"
 #include "intel_drv.h"
-
-bool
-intel_ring_initialized(struct intel_engine_cs *ring)
-{
-	struct drm_device *dev = ring->dev;
-
-	if (!dev)
-		return false;
-
-	if (i915.enable_execlists) {
-		struct intel_context *dctx = ring->default_context;
-		struct intel_ringbuffer *ringbuf = dctx->engine[ring->id].ringbuf;
-
-		return ringbuf->obj;
-	} else
-		return ring->buffer && ring->buffer->obj;
-}
 
 int __intel_ring_space(int head, int tail, int size)
 {
@@ -995,7 +979,7 @@ static int skl_tune_iz_hashing(struct intel_engine_cs *ring)
 		 * Only consider slices where one, and only one, subslice has 7
 		 * EUs
 		 */
-		if (hweight8(dev_priv->info.subslice_7eu[i]) != 1)
+		if (!is_power_of_2(dev_priv->info.subslice_7eu[i]))
 			continue;
 
 		/*
@@ -1034,10 +1018,6 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		return ret;
 
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0)) {
-		/* WaDisableHDCInvalidation:skl */
-		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
-			   BDW_DISABLE_HDC_INVALIDATION);
-
 		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
 		I915_WRITE(FF_SLICE_CS_CHICKEN2,
 			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
@@ -1062,7 +1042,7 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
-	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0)) {
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_F0)) {
 		/*
 		 *Use Force Non-Coherent whenever executing a 3D context. This
 		 * is a workaround for a possible hang in the unlikely event
@@ -1071,6 +1051,10 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		/* WaForceEnableNonCoherent:skl */
 		WA_SET_BIT_MASKED(HDC_CHICKEN0,
 				  HDC_FORCE_NON_COHERENT);
+
+		/* WaDisableHDCInvalidation:skl */
+		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+			   BDW_DISABLE_HDC_INVALIDATION);
 	}
 
 	/* WaBarrierPerformanceFixDisable:skl */
@@ -2167,8 +2151,10 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	init_waitqueue_head(&ring->irq_queue);
 
 	ringbuf = intel_engine_create_ringbuffer(ring, 32 * PAGE_SIZE);
-	if (IS_ERR(ringbuf))
-		return PTR_ERR(ringbuf);
+	if (IS_ERR(ringbuf)) {
+		ret = PTR_ERR(ringbuf);
+		goto error;
+	}
 	ring->buffer = ringbuf;
 
 	if (I915_NEED_GFX_HWS(dev)) {
@@ -2197,8 +2183,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	return 0;
 
 error:
-	intel_ringbuffer_free(ringbuf);
-	ring->buffer = NULL;
+	intel_cleanup_ring_buffer(ring);
 	return ret;
 }
 
@@ -2211,12 +2196,14 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 
 	dev_priv = to_i915(ring->dev);
 
-	intel_stop_ring_buffer(ring);
-	WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);
+	if (ring->buffer) {
+		intel_stop_ring_buffer(ring);
+		WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);
 
-	intel_unpin_ringbuffer_obj(ring->buffer);
-	intel_ringbuffer_free(ring->buffer);
-	ring->buffer = NULL;
+		intel_unpin_ringbuffer_obj(ring->buffer);
+		intel_ringbuffer_free(ring->buffer);
+		ring->buffer = NULL;
+	}
 
 	if (ring->cleanup)
 		ring->cleanup(ring);
@@ -2225,6 +2212,7 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 
 	i915_cmd_parser_fini_ring(ring);
 	i915_gem_batch_pool_fini(&ring->batch_pool);
+	ring->dev = NULL;
 }
 
 static int ring_wait_for_space(struct intel_engine_cs *ring, int n)

@@ -538,8 +538,7 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
 		  "DC5 already programmed to be enabled.\n");
-	WARN_ONCE(dev_priv->pm.suspended,
-		  "DC5 cannot be enabled, if platform is runtime-suspended.\n");
+	assert_rpm_wakelock_held(dev_priv);
 
 	assert_csr_loaded(dev_priv);
 }
@@ -553,8 +552,7 @@ static void assert_can_disable_dc5(struct drm_i915_private *dev_priv)
 	if (dev_priv->power_domains.initializing)
 		return;
 
-	WARN_ONCE(dev_priv->pm.suspended,
-		"Disabling of DC5 while platform is runtime-suspended should never happen.\n");
+	assert_rpm_wakelock_held(dev_priv);
 }
 
 static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
@@ -1975,14 +1973,29 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
  */
 void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 {
-	/* The i915.ko module is still not prepared to be loaded when
+	struct device *device = &dev_priv->dev->pdev->dev;
+
+	/*
+	 * The i915.ko module is still not prepared to be loaded when
 	 * the power well is not enabled, so just enable it in case
-	 * we're going to unload/reload. */
+	 * we're going to unload/reload.
+	 * The following also reacquires the RPM reference the core passed
+	 * to the driver during loading, which is dropped in
+	 * intel_runtime_pm_enable(). We have to hand back the control of the
+	 * device to the core with this reference held.
+	 */
 	intel_display_set_init_power(dev_priv, true);
 
 	/* Remove the refcount we took to keep power well support disabled. */
 	if (!i915.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+	/*
+	 * Remove the refcount we took in intel_runtime_pm_enable() in case
+	 * the platform doesn't support runtime PM.
+	 */
+	if (!HAS_RUNTIME_PM(dev_priv))
+		pm_runtime_put(device);
 }
 
 static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
@@ -2226,11 +2239,10 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
 
-	if (!HAS_RUNTIME_PM(dev))
-		return;
-
 	pm_runtime_get_sync(device);
-	WARN(dev_priv->pm.suspended, "Device still suspended.\n");
+
+	atomic_inc(&dev_priv->pm.wakeref_count);
+	assert_rpm_wakelock_held(dev_priv);
 }
 
 /**
@@ -2255,11 +2267,10 @@ void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
 
-	if (!HAS_RUNTIME_PM(dev))
-		return;
-
-	WARN(dev_priv->pm.suspended, "Getting nosync-ref while suspended.\n");
+	assert_rpm_wakelock_held(dev_priv);
 	pm_runtime_get_noresume(device);
+
+	atomic_inc(&dev_priv->pm.wakeref_count);
 }
 
 /**
@@ -2275,8 +2286,9 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
 
-	if (!HAS_RUNTIME_PM(dev))
-		return;
+	assert_rpm_wakelock_held(dev_priv);
+	if (atomic_dec_and_test(&dev_priv->pm.wakeref_count))
+		atomic_inc(&dev_priv->pm.atomic_seq);
 
 	pm_runtime_mark_last_busy(device);
 	pm_runtime_put_autosuspend(device);
@@ -2297,22 +2309,27 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	struct device *device = &dev->pdev->dev;
 
-	if (!HAS_RUNTIME_PM(dev))
-		return;
-
-	/*
-	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
-	 * requirement.
-	 */
-	if (!intel_enable_rc6(dev)) {
-		DRM_INFO("RC6 disabled, disabling runtime PM support\n");
-		return;
-	}
-
 	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
 	pm_runtime_mark_last_busy(device);
-	pm_runtime_use_autosuspend(device);
 
+	/*
+	 * Take a permanent reference to disable the RPM functionality and drop
+	 * it only when unloading the driver. Use the low level get/put helpers,
+	 * so the driver's own RPM reference tracking asserts also work on
+	 * platforms without RPM support.
+	 */
+	if (!HAS_RUNTIME_PM(dev)) {
+		pm_runtime_dont_use_autosuspend(device);
+		pm_runtime_get_sync(device);
+	} else {
+		pm_runtime_use_autosuspend(device);
+	}
+
+	/*
+	 * The core calls the driver load handler with an RPM reference held.
+	 * We drop that here and will reacquire it during unloading in
+	 * intel_power_domains_fini().
+	 */
 	pm_runtime_put_autosuspend(device);
 }
 

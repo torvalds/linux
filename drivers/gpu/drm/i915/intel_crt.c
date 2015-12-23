@@ -844,7 +844,7 @@ void intel_crt_init(struct drm_device *dev)
 	crt->adpa_reg = adpa_reg;
 
 	crt->base.compute_config = intel_crt_compute_config;
-	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		crt->base.disable = pch_disable_crt;
 		crt->base.post_disable = pch_post_disable_crt;
 	} else {

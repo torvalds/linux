@@ -264,7 +264,7 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
 				reloc->offset >> PAGE_SHIFT));
 	*(uint32_t *)(vaddr + page_offset) = lower_32_bits(delta);
 
@@ -273,7 +273,7 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 
 		if (page_offset == 0) {
 			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+			vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
 			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
 		}
 
@@ -355,7 +355,7 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
 				reloc->offset >> PAGE_SHIFT));
 	clflush_write32(vaddr + page_offset, lower_32_bits(delta));
 
@@ -364,7 +364,7 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 
 		if (page_offset == 0) {
 			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+			vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
 			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
 		}
 
@@ -599,6 +599,8 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 			flags |= PIN_GLOBAL | PIN_MAPPABLE;
 		if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
 			flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
+		if (entry->flags & EXEC_OBJECT_PINNED)
+			flags |= entry->offset | PIN_OFFSET_FIXED;
 		if ((flags & PIN_MAPPABLE) == 0)
 			flags |= PIN_HIGH;
 	}
@@ -670,6 +672,10 @@ eb_vma_misplaced(struct i915_vma *vma)
 	    vma->node.start & (entry->alignment - 1))
 		return true;
 
+	if (entry->flags & EXEC_OBJECT_PINNED &&
+	    vma->node.start != entry->offset)
+		return true;
+
 	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS &&
 	    vma->node.start < BATCH_OFFSET_BIAS)
 		return true;
@@ -695,6 +701,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 	struct i915_vma *vma;
 	struct i915_address_space *vm;
 	struct list_head ordered_vmas;
+	struct list_head pinned_vmas;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	int retry;
 
@@ -703,6 +710,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
 
 	INIT_LIST_HEAD(&ordered_vmas);
+	INIT_LIST_HEAD(&pinned_vmas);
 	while (!list_empty(vmas)) {
 		struct drm_i915_gem_exec_object2 *entry;
 		bool need_fence, need_mappable;
@@ -721,7 +729,9 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			obj->tiling_mode != I915_TILING_NONE;
 		need_mappable = need_fence || need_reloc_mappable(vma);
 
-		if (need_mappable) {
+		if (entry->flags & EXEC_OBJECT_PINNED)
+			list_move_tail(&vma->exec_list, &pinned_vmas);
+		else if (need_mappable) {
 			entry->flags |= __EXEC_OBJECT_NEEDS_MAP;
 			list_move(&vma->exec_list, &ordered_vmas);
 		} else
@@ -731,6 +741,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 		obj->base.pending_write_domain = 0;
 	}
 	list_splice(&ordered_vmas, vmas);
+	list_splice(&pinned_vmas, vmas);
 
 	/* Attempt to pin all of the buffers into the GTT.
 	 * This is done in 3 phases:
@@ -1317,7 +1328,8 @@ eb_get_batch(struct eb_vmas *eb)
 	 * Note that actual hangs have only been observed on gen7, but for
 	 * paranoia do it everywhere.
 	 */
-	vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
+	if ((vma->exec_entry->flags & EXEC_OBJECT_PINNED) == 0)
+		vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
 
 	return vma->obj;
 }

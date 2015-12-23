@@ -199,6 +199,45 @@ found:
 	return ret;
 }
 
+int
+i915_gem_evict_for_vma(struct i915_vma *target)
+{
+	struct drm_mm_node *node, *next;
+
+	list_for_each_entry_safe(node, next,
+			&target->vm->mm.head_node.node_list,
+			node_list) {
+		struct i915_vma *vma;
+		int ret;
+
+		if (node->start + node->size <= target->node.start)
+			continue;
+		if (node->start >= target->node.start + target->node.size)
+			break;
+
+		vma = container_of(node, typeof(*vma), node);
+
+		if (vma->pin_count) {
+			if (!vma->exec_entry || (vma->pin_count > 1))
+				/* Object is pinned for some other use */
+				return -EBUSY;
+
+			/* We need to evict a buffer in the same batch */
+			if (vma->exec_entry->flags & EXEC_OBJECT_PINNED)
+				/* Overlapping fixed objects in the same batch */
+				return -EINVAL;
+
+			return -ENOSPC;
+		}
+
+		ret = i915_vma_unbind(vma);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 /**
  * i915_gem_evict_vm - Evict all idle vmas from a vm
  * @vm: Address space to cleanse

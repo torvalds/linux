@@ -369,7 +369,7 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		vlv_dsi_device_ready(encoder);
 	else if (IS_BROXTON(dev))
 		bxt_dsi_device_ready(encoder);
@@ -487,7 +487,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	msleep(intel_dsi->panel_on_delay);
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		/*
 		 * Disable DPOunit clock gating, can stall pipe
 		 * and we need DPLL REFA always enabled
@@ -684,8 +684,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 		 * Enable bit does not get set. To check whether DSI Port C
 		 * was enabled in BIOS, check the Pipe B enable bit
 		 */
-		if (IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
-		    (port == PORT_C))
+		if (IS_VALLEYVIEW(dev) && port == PORT_C)
 			dpi_enabled = I915_READ(PIPECONF(PIPE_B)) &
 							PIPECONF_ENABLE;
 
@@ -716,7 +715,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 
 	if (IS_BROXTON(encoder->base.dev))
 		pclk = bxt_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
-	else if (IS_VALLEYVIEW(encoder->base.dev))
+	else if (IS_VALLEYVIEW(encoder->base.dev) ||
+		 IS_CHERRYVIEW(encoder->base.dev))
 		pclk = vlv_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
 
 	if (!pclk)
@@ -869,7 +869,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		if (IS_VALLEYVIEW(dev)) {
+		if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 			/*
 			 * escape clock divider, 20MHz, shared for A and C.
 			 * device ready must be off when doing this! txclkesc?
@@ -885,21 +885,12 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 			I915_WRITE(MIPI_CTRL(port), tmp |
 					READ_REQUEST_PRIORITY_HIGH);
 		} else if (IS_BROXTON(dev)) {
-			/*
-			 * FIXME:
-			 * BXT can connect any PIPE to any MIPI port.
-			 * Select the pipe based on the MIPI port read from
-			 * VBT for now. Pick PIPE A for MIPI port A and C
-			 * for port C.
-			 */
+			enum pipe pipe = intel_crtc->pipe;
+
 			tmp = I915_READ(MIPI_CTRL(port));
 			tmp &= ~BXT_PIPE_SELECT_MASK;
 
-			if (port == PORT_A)
-				tmp |= BXT_PIPE_SELECT_A;
-			else if (port == PORT_C)
-				tmp |= BXT_PIPE_SELECT_C;
-
+			tmp |= BXT_PIPE_SELECT(pipe);
 			I915_WRITE(MIPI_CTRL(port), tmp);
 		}
 
@@ -1129,7 +1120,7 @@ void intel_dsi_init(struct drm_device *dev)
 	if (!dev_priv->vbt.has_mipi)
 		return;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
 	} else {
 		DRM_ERROR("Unsupported Mipi device to reg base");
