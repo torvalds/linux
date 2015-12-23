@@ -1828,10 +1828,15 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 void
 perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
+	mm_segment_t old_fs;
+
 	perf_callchain_store(entry, regs->tpc);
 
 	if (!current->mm)
 		return;
+
+	old_fs = get_fs();
+	set_fs(USER_DS);
 
 	flushw_user();
 
@@ -1843,4 +1848,6 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		perf_callchain_user_64(entry, regs);
 
 	pagefault_enable();
+
+	set_fs(old_fs);
 }
