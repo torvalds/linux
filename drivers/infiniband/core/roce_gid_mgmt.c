@@ -71,7 +71,8 @@ static const struct {
 	bool (*is_supported)(const struct ib_device *device, u8 port_num);
 	enum ib_gid_type gid_type;
 } PORT_CAP_TO_GID_TYPE[] = {
-	{rdma_protocol_roce,   IB_GID_TYPE_ROCE},
+	{rdma_protocol_roce_eth_encap, IB_GID_TYPE_ROCE},
+	{rdma_protocol_roce_udp_encap, IB_GID_TYPE_ROCE_UDP_ENCAP},
 };
 
 #define CAP_TO_GID_TABLE_SIZE	ARRAY_SIZE(PORT_CAP_TO_GID_TYPE)
