@@ -102,7 +102,7 @@ struct kkuc_reg {
 	char		 kr_data[0];
 };
 
-static struct list_head kkuc_groups[KUC_GRP_MAX+1] = {};
+static struct list_head kkuc_groups[KUC_GRP_MAX + 1] = {};
 /* Protect message sending against remove and adds */
 static DECLARE_RWSEM(kg_sem);
 
