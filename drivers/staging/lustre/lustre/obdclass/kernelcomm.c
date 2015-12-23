@@ -97,7 +97,7 @@ struct kkuc_reg {
 	struct list_head kr_chain;
 	int		 kr_uid;
 	struct file	*kr_fp;
-	void		*kr_data;
+	char		 kr_data[0];
 };
 
 static struct list_head kkuc_groups[KUC_GRP_MAX+1] = {};
@@ -111,7 +111,7 @@ static DECLARE_RWSEM(kg_sem);
  * @param data user data
  */
 int libcfs_kkuc_group_add(struct file *filp, int uid, unsigned int group,
-			  void *data)
+			  void *data, size_t data_len)
 {
 	struct kkuc_reg *reg;
 
@@ -125,13 +125,13 @@ int libcfs_kkuc_group_add(struct file *filp, int uid, unsigned int group,
 		return -EBADF;
 
 	/* freed in group_rem */
-	reg = kmalloc(sizeof(*reg), 0);
+	reg = kmalloc(sizeof(*reg) + data_len, 0);
 	if (reg == NULL)
 		return -ENOMEM;
 
 	reg->kr_fp = filp;
 	reg->kr_uid = uid;
-	reg->kr_data = data;
+	memcpy(reg->kr_data, data, data_len);
 
 	down_write(&kg_sem);
 	if (kkuc_groups[group].next == NULL)
@@ -145,7 +145,7 @@ int libcfs_kkuc_group_add(struct file *filp, int uid, unsigned int group,
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_add);
 
-int libcfs_kkuc_group_rem(int uid, int group, void **pdata)
+int libcfs_kkuc_group_rem(int uid, int group)
 {
 	struct kkuc_reg *reg, *next;
 
@@ -171,8 +171,6 @@ int libcfs_kkuc_group_rem(int uid, int group, void **pdata)
 			       reg->kr_uid, reg->kr_fp, group);
 			if (reg->kr_fp != NULL)
 				fput(reg->kr_fp);
-			if (pdata)
-				*pdata = reg->kr_data;
 			kfree(reg);
 		}
 	}
