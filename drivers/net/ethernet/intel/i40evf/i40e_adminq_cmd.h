@@ -145,6 +145,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_remove_statistics		= 0x0202,
 	i40e_aqc_opc_set_port_parameters	= 0x0203,
 	i40e_aqc_opc_get_switch_resource_alloc	= 0x0204,
+	i40e_aqc_opc_set_switch_config		= 0x0205,
 
 	i40e_aqc_opc_add_vsi			= 0x0210,
 	i40e_aqc_opc_update_vsi_parameters	= 0x0211,
@@ -680,6 +681,17 @@ struct i40e_aqc_switch_resource_alloc_element_resp {
 
 I40E_CHECK_STRUCT_LEN(0x10, i40e_aqc_switch_resource_alloc_element_resp);
 
+/* Set Switch Configuration (direct 0x0205) */
+struct i40e_aqc_set_switch_config {
+	__le16	flags;
+#define I40E_AQ_SET_SWITCH_CFG_PROMISC		0x0001
+#define I40E_AQ_SET_SWITCH_CFG_L2_FILTER	0x0002
+	__le16	valid_flags;
+	u8	reserved[12];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_set_switch_config);
+
 /* Add VSI (indirect 0x0210)
  *    this indirect command uses struct i40e_aqc_vsi_properties_data
  *    as the indirect buffer (128 bytes)
@@ -906,7 +918,8 @@ struct i40e_aqc_add_veb {
 					I40E_AQC_ADD_VEB_PORT_TYPE_SHIFT)
 #define I40E_AQC_ADD_VEB_PORT_TYPE_DEFAULT	0x2
 #define I40E_AQC_ADD_VEB_PORT_TYPE_DATA		0x4
-#define I40E_AQC_ADD_VEB_ENABLE_L2_FILTER	0x8
+#define I40E_AQC_ADD_VEB_ENABLE_L2_FILTER	0x8     /* deprecated */
+#define I40E_AQC_ADD_VEB_ENABLE_DISABLE_STATS	0x10
 	u8	enable_tcs;
 	u8	reserved[9];
 };
