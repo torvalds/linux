@@ -4794,7 +4794,7 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 	u64 dev_offset;
 	u64 stripe_size;
 	int i = 0;
-	int ret;
+	int ret = 0;
 
 	em_tree = &extent_root->fs_info->mapping_tree.map_tree;
 	read_lock(&em_tree->lock);
