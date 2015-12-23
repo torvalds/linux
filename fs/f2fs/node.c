@@ -1059,6 +1059,10 @@ struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 {
 	struct page *page;
 	int err;
+
+	if (!nid)
+		return ERR_PTR(-ENOENT);
+	f2fs_bug_on(sbi, check_nid_range(sbi, nid));
 repeat:
 	page = grab_cache_page(NODE_MAPPING(sbi), nid);
 	if (!page)
