@@ -41,6 +41,8 @@
 
 #define ST_NCI_SPI_DRIVER_NAME "st_nci_spi"
 
+#define ST_NCI_GPIO_NAME_RESET "clf_reset"
+
 struct st_nci_spi_phy {
 	struct spi_device *spi_dev;
 	struct llt_ndlc *ndlc;
@@ -240,7 +242,7 @@ static int st_nci_spi_of_request_resources(struct spi_device *dev)
 
 	/* GPIO request and configuration */
 	r = devm_gpio_request_one(&dev->dev, gpio,
-				GPIOF_OUT_INIT_HIGH, "clf_reset");
+				GPIOF_OUT_INIT_HIGH, ST_NCI_GPIO_NAME_RESET);
 	if (r) {
 		nfc_err(&dev->dev, "Failed to request reset pin\n");
 		return r;
@@ -274,7 +276,8 @@ static int st_nci_spi_request_resources(struct spi_device *dev)
 	phy->irq_polarity = pdata->irq_polarity;
 
 	r = devm_gpio_request_one(&dev->dev,
-			phy->gpio_reset, GPIOF_OUT_INIT_HIGH, "clf_reset");
+			phy->gpio_reset, GPIOF_OUT_INIT_HIGH,
+			ST_NCI_GPIO_NAME_RESET);
 	if (r) {
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
 		return r;

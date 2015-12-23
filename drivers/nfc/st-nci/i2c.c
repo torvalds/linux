@@ -40,6 +40,7 @@
 
 #define ST_NCI_I2C_DRIVER_NAME "st_nci_i2c"
 
+#define ST_NCI_GPIO_NAME_RESET "clf_reset"
 
 struct st_nci_i2c_phy {
 	struct i2c_client *i2c_dev;
@@ -226,7 +227,7 @@ static int st_nci_i2c_of_request_resources(struct i2c_client *client)
 
 	/* GPIO request and configuration */
 	r = devm_gpio_request_one(&client->dev, gpio,
-				GPIOF_OUT_INIT_HIGH, "clf_reset");
+				GPIOF_OUT_INIT_HIGH, ST_NCI_GPIO_NAME_RESET);
 	if (r) {
 		nfc_err(&client->dev, "Failed to request reset pin\n");
 		return r;
@@ -260,7 +261,8 @@ static int st_nci_i2c_request_resources(struct i2c_client *client)
 	phy->irq_polarity = pdata->irq_polarity;
 
 	r = devm_gpio_request_one(&client->dev,
-			phy->gpio_reset, GPIOF_OUT_INIT_HIGH, "clf_reset");
+			phy->gpio_reset, GPIOF_OUT_INIT_HIGH,
+			ST_NCI_GPIO_NAME_RESET);
 	if (r) {
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
 		return r;
