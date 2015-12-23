@@ -162,6 +162,14 @@ enum ib_device_cap_flags {
 	IB_DEVICE_RC_RNR_NAK_GEN	= (1<<12),
 	IB_DEVICE_SRQ_RESIZE		= (1<<13),
 	IB_DEVICE_N_NOTIFY_CQ		= (1<<14),
+
+	/*
+	 * This device supports a per-device lkey or stag that can be
+	 * used without performing a memory registration for the local
+	 * memory.  Note that ULPs should never check this flag, but
+	 * instead of use the local_dma_lkey flag in the ib_pd structure,
+	 * which will always contain a usable lkey.
+	 */
 	IB_DEVICE_LOCAL_DMA_LKEY	= (1<<15),
 	IB_DEVICE_RESERVED		= (1<<16), /* old SEND_W_INV */
 	IB_DEVICE_MEM_WINDOW		= (1<<17),
@@ -175,6 +183,16 @@ enum ib_device_cap_flags {
 	IB_DEVICE_UD_IP_CSUM		= (1<<18),
 	IB_DEVICE_UD_TSO		= (1<<19),
 	IB_DEVICE_XRC			= (1<<20),
+
+	/*
+	 * This device supports the IB "base memory management extension",
+	 * which includes support for fast registrations (IB_WR_REG_MR,
+	 * IB_WR_LOCAL_INV and IB_WR_SEND_WITH_INV verbs).  This flag should
+	 * also be set by any iWarp device which must support FRs to comply
+	 * to the iWarp verbs spec.  iWarp devices also support the
+	 * IB_WR_RDMA_READ_WITH_INV verb for RDMA READs that invalidate the
+	 * stag.
+	 */
 	IB_DEVICE_MEM_MGT_EXTENSIONS	= (1<<21),
 	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = (1<<22),
 	IB_DEVICE_MEM_WINDOW_TYPE_2A	= (1<<23),
