@@ -71,6 +71,7 @@ struct efx_mcdi_iface {
 	unsigned int credits;
 	unsigned int seqno;
 	int resprc;
+	int resprc_raw;
 	size_t resp_hdr_len;
 	size_t resp_data_len;
 	spinlock_t async_lock;
