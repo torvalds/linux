@@ -365,9 +365,8 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
 
 	list_add_tail(&v2m->entry, &v2m_nodes);
 
-	pr_info("range[%#lx:%#lx], SPI[%d:%d]\n",
-		(unsigned long)res->start, (unsigned long)res->end,
-		v2m->spi_start, (v2m->spi_start + v2m->nr_spis));
+	pr_info("range%pR, SPI[%d:%d]\n", res,
+		v2m->spi_start, (v2m->spi_start + v2m->nr_spis - 1));
 	return 0;
 
 err_iounmap:
@@ -456,7 +455,8 @@ acpi_parse_madt_msi(struct acpi_subtable_header *header,
 		return -EINVAL;
 
 	res.start = m->base_address;
-	res.end = m->base_address + SZ_4K;
+	res.end = m->base_address + SZ_4K - 1;
+	res.flags = IORESOURCE_MEM;
 
 	if (m->flags & ACPI_MADT_OVERRIDE_SPI_VALUES) {
 		spi_start = m->spi_base;
