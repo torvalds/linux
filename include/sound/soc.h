@@ -110,6 +110,14 @@
 	.put = snd_soc_put_volsw, \
 	.private_value = SOC_DOUBLE_VALUE(reg, shift_left, shift_right, \
 					  max, invert, 0) }
+#define SOC_DOUBLE_STS(xname, reg, shift_left, shift_right, max, invert) \
+{									\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),		\
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,		\
+	.access = SNDRV_CTL_ELEM_ACCESS_READ |				\
+		SNDRV_CTL_ELEM_ACCESS_VOLATILE,				\
+	.private_value = SOC_DOUBLE_VALUE(reg, shift_left, shift_right,	\
+					  max, invert, 0) }
 #define SOC_DOUBLE_R(xname, reg_left, reg_right, xshift, xmax, xinvert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.info = snd_soc_info_volsw, \
