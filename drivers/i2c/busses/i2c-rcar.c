@@ -96,6 +96,9 @@
 #define ID_DONE		(1 << 2)
 #define ID_ARBLOST	(1 << 3)
 #define ID_NACK		(1 << 4)
+/* persistent flags */
+#define ID_P_PM_BLOCKED	(1 << 31)
+#define ID_P_MASK	ID_P_PM_BLOCKED
 
 enum rcar_i2c_type {
 	I2C_RCAR_GEN1,
@@ -277,7 +280,7 @@ static void rcar_i2c_next_msg(struct rcar_i2c_priv *priv)
 {
 	priv->msg++;
 	priv->msgs_left--;
-	priv->flags = 0;
+	priv->flags &= ID_P_MASK;
 	rcar_i2c_prepare_msg(priv);
 }
 
@@ -495,7 +498,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	/* init first message */
 	priv->msg = msgs;
 	priv->msgs_left = num;
-	priv->flags = ID_FIRST_MSG;
+	priv->flags = (priv->flags & ID_P_MASK) | ID_FIRST_MSG;
 	rcar_i2c_prepare_msg(priv);
 
 	time_left = wait_event_timeout(priv->wait, priv->flags & ID_DONE,
@@ -630,7 +633,13 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 		goto out_pm_put;
 
 	rcar_i2c_init(priv);
-	pm_runtime_put(dev);
+
+	/* Don't suspend when multi-master to keep arbitration working */
+	if (of_property_read_bool(dev->of_node, "multi-master"))
+		priv->flags |= ID_P_PM_BLOCKED;
+	else
+		pm_runtime_put(dev);
+
 
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(dev, irq, rcar_i2c_irq, 0, dev_name(dev), priv);
@@ -664,6 +673,8 @@ static int rcar_i2c_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	i2c_del_adapter(&priv->adap);
+	if (priv->flags & ID_P_PM_BLOCKED)
+		pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
 	return 0;
