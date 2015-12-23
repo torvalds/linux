@@ -129,8 +129,24 @@ endef
 feature_assign = feature-$(1)=$(feature-$(1))
 
 FEATURE_DUMP_FILENAME = $(OUTPUT)FEATURE-DUMP$(FEATURE_USER)
-FEATURE_DUMP := $(foreach feat,$(FEATURE_DISPLAY),$(call feature_assign,$(feat)))
-FEATURE_DUMP_FILE := $(shell touch $(FEATURE_DUMP_FILENAME); cat $(FEATURE_DUMP_FILENAME))
+FEATURE_DUMP := $(shell touch $(FEATURE_DUMP_FILENAME); cat $(FEATURE_DUMP_FILENAME))
+
+feature_dump_check = $(eval $(feature_dump_check_code))
+define feature_dump_check_code
+  ifeq ($(findstring $(1),$(FEATURE_DUMP)),)
+    $(2) := 1
+  endif
+endef
+
+#
+# First check if any test from FEATURE_DISPLAY
+# and set feature_display := 1 if it does
+$(foreach feat,$(FEATURE_DISPLAY),$(call feature_dump_check,$(call feature_assign,$(feat)),feature_display))
+
+#
+# Now also check if any other test changed,
+# so we force FEATURE-DUMP generation
+$(foreach feat,$(FEATURE_TESTS),$(call feature_dump_check,$(call feature_assign,$(feat)),feature_dump_changed))
 
 # The $(feature_display) controls the default detection message
 # output. It's set if:
@@ -139,9 +155,9 @@ FEATURE_DUMP_FILE := $(shell touch $(FEATURE_DUMP_FILENAME); cat $(FEATURE_DUMP_
 # - one of the $(FEATURE_DISPLAY) is not detected
 # - VF is enabled
 
-ifneq ("$(FEATURE_DUMP)","$(FEATURE_DUMP_FILE)")
-  $(shell echo "$(FEATURE_DUMP)" > $(FEATURE_DUMP_FILENAME))
-  feature_display := 1
+ifeq ($(feature_dump_changed),1)
+  $(shell rm -f $(FEATURE_DUMP_FILENAME))
+  $(foreach feat,$(FEATURE_TESTS),$(shell echo "$(call feature_assign,$(feat))" >> $(FEATURE_DUMP_FILENAME)))
 endif
 
 feature_display_check = $(eval $(feature_check_display_code))
