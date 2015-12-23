@@ -890,7 +890,8 @@ config SND_SOC_WM8971
 	tristate
 
 config SND_SOC_WM8974
-	tristate
+	tristate "Wolfson Microelectronics WM8974 codec"
+	depends on I2C
 
 config SND_SOC_WM8978
 	tristate "Wolfson Microelectronics WM8978 codec"
@@ -943,6 +944,7 @@ config SND_SOC_WM9712
 
 config SND_SOC_WM9713
 	tristate
+	select REGMAP_AC97
 
 # Amp
 config SND_SOC_LM4857
