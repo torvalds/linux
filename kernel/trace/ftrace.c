@@ -4982,14 +4982,11 @@ void ftrace_release_mod(struct module *mod)
 
 void ftrace_module_init(struct module *mod)
 {
-	unsigned long *start = mod->ftrace_callsites;
-	unsigned long *end = mod->ftrace_callsites +
-				mod->num_ftrace_callsites;
-
-	if (ftrace_disabled || start == end)
+	if (ftrace_disabled || !mod->num_ftrace_callsites)
 		return;
 
-	ftrace_process_locs(mod, start, end);
+	ftrace_process_locs(mod, mod->ftrace_callsites,
+			    mod->ftrace_callsites + mod->num_ftrace_callsites);
 }
 
 static int ftrace_module_notify_exit(struct notifier_block *self,
