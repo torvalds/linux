@@ -3,6 +3,7 @@
 
 #include <linux/io.h>
 #include <linux/pci.h>
+#include <linux/i2c.h>
 
 #define PCI_DEVICE_ID_AACPI		0x908f
 #define PCI_DEVICE_ID_AGBE		0x909e
@@ -138,6 +139,8 @@ struct apcie_icc_dev {
 	void *reply_buffer;
 	int reply_length;
 	wait_queue_head_t wq;
+
+	struct i2c_adapter i2c;
 };
 
 struct apcie_dev {

@@ -288,6 +288,8 @@ void do_icc_init(void) {
 		reply[0], reply[1], reply[2], reply[3],
 		reply[4], reply[5], reply[6], reply[7]);
 }
+int icc_i2c_init(struct apcie_dev *sc);
+void icc_i2c_remove(struct apcie_dev *sc);
 
 int apcie_icc_init(struct apcie_dev *sc)
 {
@@ -358,10 +360,21 @@ int apcie_icc_init(struct apcie_dev *sc)
 	icc_sc = sc;
 	mutex_unlock(&icc_mutex);
 
+	ret = icc_i2c_init(sc);
+	if (ret) {
+		sc_err("icc: i2c init failed: %d\n", ret);
+		goto unassign_global;
+	}
+
 	do_icc_init();
 
 	return 0;
 
+unassign_global:
+	mutex_lock(&icc_mutex);
+	icc_sc = NULL;
+	mutex_unlock(&icc_mutex);
+	iowrite32(0, sc->bar4 + APCIE_REG_ICC_IRQ_MASK);
 free_irq:
 	free_irq(apcie_irqnum(sc, APCIE_SUBFUNC_ICC), sc);
 iounmap:
@@ -376,6 +389,7 @@ release_icc:
 
 void apcie_icc_remove(struct apcie_dev *sc)
 {
+	icc_i2c_remove(sc);
 	mutex_lock(&icc_mutex);
 	icc_sc = NULL;
 	mutex_unlock(&icc_mutex);

@@ -5,3 +5,5 @@
 obj-y += ps4-apcie.o \
 	ps4-apcie-uart.o \
 	ps4-apcie-icc.o \
+	icc/i2c.o \
+
