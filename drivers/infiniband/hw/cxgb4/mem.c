@@ -704,9 +704,6 @@ int c4iw_dereg_mr(struct ib_mr *ib_mr)
 	u32 mmid;
 
 	PDBG("%s ib_mr %p\n", __func__, ib_mr);
-	/* There can be no memory windows */
-	if (atomic_read(&ib_mr->usecnt))
-		return -EINVAL;
 
 	mhp = to_c4iw_mr(ib_mr);
 	rhp = mhp->rhp;

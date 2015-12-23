@@ -993,7 +993,6 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	mr->pd      = pd;
 	mr->uobject = uobj;
 	atomic_inc(&pd->usecnt);
-	atomic_set(&mr->usecnt, 0);
 
 	uobj->object = mr;
 	ret = idr_add_uobj(&ib_uverbs_mr_idr, uobj);
@@ -1089,11 +1088,6 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 			ret = -EINVAL;
 			goto put_uobjs;
 		}
-	}
-
-	if (atomic_read(&mr->usecnt)) {
-		ret = -EBUSY;
-		goto put_uobj_pd;
 	}
 
 	old_pd = mr->pd;

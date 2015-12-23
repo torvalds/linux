@@ -1345,7 +1345,6 @@ struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 		mr->pd      = pd;
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
 	}
 
 	return mr;
@@ -1354,13 +1353,9 @@ EXPORT_SYMBOL(ib_get_dma_mr);
 
 int ib_dereg_mr(struct ib_mr *mr)
 {
-	struct ib_pd *pd;
+	struct ib_pd *pd = mr->pd;
 	int ret;
 
-	if (atomic_read(&mr->usecnt))
-		return -EBUSY;
-
-	pd = mr->pd;
 	ret = mr->device->dereg_mr(mr);
 	if (!ret)
 		atomic_dec(&pd->usecnt);
@@ -1396,7 +1391,6 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 		mr->pd      = pd;
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
 	}
 
 	return mr;

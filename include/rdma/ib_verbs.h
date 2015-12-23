@@ -1414,7 +1414,6 @@ struct ib_mr {
 	u64		   iova;
 	u32		   length;
 	unsigned int	   page_size;
-	atomic_t	   usecnt; /* count number of MWs */
 };
 
 struct ib_mw {

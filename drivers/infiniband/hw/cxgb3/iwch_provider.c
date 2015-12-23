@@ -458,9 +458,6 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 	u32 mmid;
 
 	PDBG("%s ib_mr %p\n", __func__, ib_mr);
-	/* There can be no memory windows */
-	if (atomic_read(&ib_mr->usecnt))
-		return -EINVAL;
 
 	mhp = to_iwch_mr(ib_mr);
 	kfree(mhp->pages);

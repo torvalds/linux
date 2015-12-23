@@ -1339,7 +1339,6 @@ int ehca_reg_internal_maxmr(
 	e_mr->ib.ib_mr.pd = &e_pd->ib_pd;
 	e_mr->ib.ib_mr.uobject = NULL;
 	atomic_inc(&(e_pd->ib_pd.usecnt));
-	atomic_set(&(e_mr->ib.ib_mr.usecnt), 0);
 	*e_maxmr = e_mr;
 	return 0;
 
