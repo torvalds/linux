@@ -905,11 +905,9 @@ struct i915_fbc {
 	 * it's the outer lock when overlapping with stolen_lock. */
 	struct mutex lock;
 	unsigned threshold;
-	unsigned int fb_id;
 	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
 	struct intel_crtc *crtc;
-	int y;
 
 	struct drm_mm_node compressed_fb;
 	struct drm_mm_node *compressed_llb;
@@ -918,6 +916,24 @@ struct i915_fbc {
 
 	bool enabled;
 	bool active;
+
+	struct intel_fbc_reg_params {
+		struct {
+			enum pipe pipe;
+			enum plane plane;
+			unsigned int fence_y_offset;
+		} crtc;
+
+		struct {
+			u64 ggtt_offset;
+			uint32_t id;
+			uint32_t pixel_format;
+			unsigned int stride;
+			int fence_reg;
+		} fb;
+
+		int cfb_size;
+	} params;
 
 	struct intel_fbc_work {
 		bool scheduled;
@@ -929,7 +945,7 @@ struct i915_fbc {
 	const char *no_fbc_reason;
 
 	bool (*is_active)(struct drm_i915_private *dev_priv);
-	void (*activate)(struct intel_crtc *crtc);
+	void (*activate)(struct drm_i915_private *dev_priv);
 	void (*deactivate)(struct drm_i915_private *dev_priv);
 };
 
