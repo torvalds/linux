@@ -241,7 +241,7 @@ static int __each_dev(struct device *dev, void *data)
 	if (!is_usb_device(dev))
 		return 0;
 
-	return arg->fn(container_of(dev, struct usb_device, dev), arg->data);
+	return arg->fn(to_usb_device(dev), arg->data);
 }
 
 /**

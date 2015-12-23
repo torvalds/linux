@@ -848,7 +848,7 @@ static struct usb_device *usbdev_lookup_by_devt(dev_t devt)
 			      (void *) (unsigned long) devt, match_devt);
 	if (!dev)
 		return NULL;
-	return container_of(dev, struct usb_device, dev);
+	return to_usb_device(dev);
 }
 
 /*
