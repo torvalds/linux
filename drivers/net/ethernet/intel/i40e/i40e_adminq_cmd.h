@@ -34,7 +34,7 @@
  */
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR	0x0004
+#define I40E_FW_API_VERSION_MINOR	0x0005
 
 struct i40e_aq_desc {
 	__le16 flags;
