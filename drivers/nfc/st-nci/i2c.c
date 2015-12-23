@@ -425,7 +425,6 @@ static struct i2c_driver st_nci_i2c_driver = {
 	.id_table = st_nci_i2c_id_table,
 	.remove = st_nci_i2c_remove,
 };
-
 module_i2c_driver(st_nci_i2c_driver);
 
 MODULE_LICENSE("GPL");

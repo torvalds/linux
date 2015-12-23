@@ -36,7 +36,7 @@
 
 /* ndlc header */
 #define ST_NCI_FRAME_HEADROOM	1
-#define ST_NCI_FRAME_TAILROOM 0
+#define ST_NCI_FRAME_TAILROOM	0
 
 #define ST_NCI_SPI_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */
 #define ST_NCI_SPI_MAX_SIZE 250 /* req 4.2.1 */
@@ -437,7 +437,6 @@ static struct spi_driver st_nci_spi_driver = {
 	.id_table = st_nci_spi_id_table,
 	.remove = st_nci_spi_remove,
 };
-
 module_spi_driver(st_nci_spi_driver);
 
 MODULE_LICENSE("GPL");

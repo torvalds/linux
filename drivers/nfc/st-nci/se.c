@@ -392,7 +392,6 @@ void st_nci_hci_event_received(struct nci_dev *ndev, u8 pipe,
 }
 EXPORT_SYMBOL_GPL(st_nci_hci_event_received);
 
-
 void st_nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe, u8 cmd,
 			       struct sk_buff *skb)
 {
