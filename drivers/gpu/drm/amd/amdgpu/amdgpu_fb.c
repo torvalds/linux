@@ -263,7 +263,7 @@ out_unref:
 
 	}
 	if (fb && ret) {
-		drm_gem_object_unreference(gobj);
+		drm_gem_object_unreference_unlocked(gobj);
 		drm_framebuffer_unregister_private(fb);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);

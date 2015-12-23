@@ -388,16 +388,17 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 		amdgpu_cs_buckets_get_list(&buckets, &p->validated);
 	}
 
-	p->vm_bos = amdgpu_vm_get_bos(p->adev, &fpriv->vm,
-				      &p->validated);
+	INIT_LIST_HEAD(&duplicates);
+	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
 
 	if (need_mmap_lock)
 		down_read(&current->mm->mmap_sem);
 
-	INIT_LIST_HEAD(&duplicates);
 	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true, &duplicates);
 	if (unlikely(r != 0))
 		goto error_reserve;
+
+	amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
 
 	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
 	if (r)
@@ -480,7 +481,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 	if (parser->bo_list)
 		amdgpu_bo_list_put(parser->bo_list);
 
-	drm_free_large(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);
