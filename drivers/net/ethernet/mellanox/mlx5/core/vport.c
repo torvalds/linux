@@ -57,12 +57,25 @@ u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod)
 }
 EXPORT_SYMBOL(mlx5_query_vport_state);
 
+static int mlx5_query_nic_vport_context(struct mlx5_core_dev *mdev, u32 *out,
+					int outlen)
+{
+	u32 in[MLX5_ST_SZ_DW(query_nic_vport_context_in)];
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(query_nic_vport_context_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_NIC_VPORT_CONTEXT);
+
+	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in), out, outlen);
+}
+
 void mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr)
 {
-	u32  in[MLX5_ST_SZ_DW(query_nic_vport_context_in)];
 	u32 *out;
 	int outlen = MLX5_ST_SZ_BYTES(query_nic_vport_context_out);
 	u8 *out_addr;
+	int err;
 
 	out = mlx5_vzalloc(outlen);
 	if (!out)
@@ -71,15 +84,9 @@ void mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev, u8 *addr)
 	out_addr = MLX5_ADDR_OF(query_nic_vport_context_out, out,
 				nic_vport_context.permanent_address);
 
-	memset(in, 0, sizeof(in));
-
-	MLX5_SET(query_nic_vport_context_in, in, opcode,
-		 MLX5_CMD_OP_QUERY_NIC_VPORT_CONTEXT);
-
-	memset(out, 0, outlen);
-	mlx5_cmd_exec_check_status(mdev, in, sizeof(in), out, outlen);
-
-	ether_addr_copy(addr, &out_addr[2]);
+	err = mlx5_query_nic_vport_context(mdev, out, outlen);
+	if (!err)
+		ether_addr_copy(addr, &out_addr[2]);
 
 	kvfree(out);
 }
