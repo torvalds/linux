@@ -288,6 +288,7 @@
 #define GLOBAL_STATS_OP_HIST_RX		((1 << 10) | GLOBAL_STATS_OP_BUSY)
 #define GLOBAL_STATS_OP_HIST_TX		((2 << 10) | GLOBAL_STATS_OP_BUSY)
 #define GLOBAL_STATS_OP_HIST_RX_TX	((3 << 10) | GLOBAL_STATS_OP_BUSY)
+#define GLOBAL_STATS_OP_BANK_1	BIT(9)
 #define GLOBAL_STATS_COUNTER_32	0x1e
 #define GLOBAL_STATS_COUNTER_01	0x1f
 
@@ -420,10 +421,17 @@ struct mv88e6xxx_priv_state {
 	struct work_struct bridge_work;
 };
 
+enum stat_type {
+	BANK0,
+	BANK1,
+	PORT,
+};
+
 struct mv88e6xxx_hw_stat {
 	char string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int reg;
+	enum stat_type type;
 };
 
 int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active);
