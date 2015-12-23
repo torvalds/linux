@@ -4,7 +4,7 @@ Allwinner Sunxi NMI Controller
 Required properties:
 
 - compatible : should be "allwinner,sun7i-a20-sc-nmi" or
-  "allwinner,sun6i-a31-sc-nmi"
+  "allwinner,sun6i-a31-sc-nmi" or "allwinner,sun9i-a80-nmi"
 - reg : Specifies base physical address and size of the registers.
 - interrupt-controller : Identifies the node as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode an
