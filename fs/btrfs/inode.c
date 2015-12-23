@@ -9418,14 +9418,10 @@ static void btrfs_run_delalloc_work(struct btrfs_work *work)
 	delalloc_work = container_of(work, struct btrfs_delalloc_work,
 				     work);
 	inode = delalloc_work->inode;
-	if (delalloc_work->wait) {
-		btrfs_wait_ordered_range(inode, 0, (u64)-1);
-	} else {
+	filemap_flush(inode->i_mapping);
+	if (test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
+				&BTRFS_I(inode)->runtime_flags))
 		filemap_flush(inode->i_mapping);
-		if (test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
-			     &BTRFS_I(inode)->runtime_flags))
-			filemap_flush(inode->i_mapping);
-	}
 
 	if (delalloc_work->delay_iput)
 		btrfs_add_delayed_iput(inode);
@@ -9435,7 +9431,7 @@ static void btrfs_run_delalloc_work(struct btrfs_work *work)
 }
 
 struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
-						    int wait, int delay_iput)
+						    int delay_iput)
 {
 	struct btrfs_delalloc_work *work;
 
@@ -9446,7 +9442,6 @@ struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode,
 	init_completion(&work->completion);
 	INIT_LIST_HEAD(&work->list);
 	work->inode = inode;
-	work->wait = wait;
 	work->delay_iput = delay_iput;
 	WARN_ON_ONCE(!inode);
 	btrfs_init_work(&work->work, btrfs_flush_delalloc_helper,
@@ -9494,7 +9489,7 @@ static int __start_delalloc_inodes(struct btrfs_root *root, int delay_iput,
 		}
 		spin_unlock(&root->delalloc_lock);
 
-		work = btrfs_alloc_delalloc_work(inode, 0, delay_iput);
+		work = btrfs_alloc_delalloc_work(inode, delay_iput);
 		if (!work) {
 			if (delay_iput)
 				btrfs_add_delayed_iput(inode);

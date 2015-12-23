@@ -3902,11 +3902,6 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 	return !ret;
 }
 
-int btrfs_set_buffer_uptodate(struct extent_buffer *buf)
-{
-	return set_extent_buffer_uptodate(buf);
-}
-
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 {
 	struct btrfs_root *root;

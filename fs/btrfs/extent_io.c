@@ -1451,7 +1451,7 @@ int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 				GFP_NOFS);
 }
 
-int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
+void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
 {
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
@@ -1464,10 +1464,9 @@ int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
 		page_cache_release(page);
 		index++;
 	}
-	return 0;
 }
 
-int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
+void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
 {
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
@@ -1481,13 +1480,12 @@ int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
 		page_cache_release(page);
 		index++;
 	}
-	return 0;
 }
 
 /*
  * helper function to set both pages and extents in the tree writeback
  */
-static int set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
+static void set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 {
 	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
@@ -1500,7 +1498,6 @@ static int set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 		page_cache_release(page);
 		index++;
 	}
-	return 0;
 }
 
 /* find the first state struct with 'bits' set after 'start', and
@@ -1820,7 +1817,7 @@ out_failed:
 	return found;
 }
 
-int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
+void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				 struct page *locked_page,
 				 unsigned clear_bits,
 				 unsigned long page_ops)
@@ -1835,7 +1832,7 @@ int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 
 	clear_extent_bit(tree, start, end, clear_bits, 1, 0, NULL, GFP_NOFS);
 	if (page_ops == 0)
-		return 0;
+		return;
 
 	if ((page_ops & PAGE_SET_ERROR) && nr_pages > 0)
 		mapping_set_error(inode->i_mapping, -EIO);
@@ -1869,7 +1866,6 @@ int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 		index += ret;
 		cond_resched();
 	}
-	return 0;
 }
 
 /*
@@ -2516,7 +2512,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 
 /* lots and lots of room for performance fixes in the end_bio funcs */
 
-int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
+void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 {
 	int uptodate = (err == 0);
 	struct extent_io_tree *tree;
@@ -2537,7 +2533,6 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 		ret = ret < 0 ? ret : -EIO;
 		mapping_set_error(page->mapping, ret);
 	}
-	return 0;
 }
 
 /*
@@ -2579,9 +2574,7 @@ static void end_bio_extent_writepage(struct bio *bio)
 		start = page_offset(page);
 		end = start + bvec->bv_offset + bvec->bv_len - 1;
 
-		if (end_extent_writepage(page, bio->bi_error, start, end))
-			continue;
-
+		end_extent_writepage(page, bio->bi_error, start, end);
 		end_page_writeback(page);
 	}
 
@@ -5227,7 +5220,7 @@ int set_extent_buffer_dirty(struct extent_buffer *eb)
 	return was_dirty;
 }
 
-int clear_extent_buffer_uptodate(struct extent_buffer *eb)
+void clear_extent_buffer_uptodate(struct extent_buffer *eb)
 {
 	unsigned long i;
 	struct page *page;
@@ -5240,10 +5233,9 @@ int clear_extent_buffer_uptodate(struct extent_buffer *eb)
 		if (page)
 			ClearPageUptodate(page);
 	}
-	return 0;
 }
 
-int set_extent_buffer_uptodate(struct extent_buffer *eb)
+void set_extent_buffer_uptodate(struct extent_buffer *eb)
 {
 	unsigned long i;
 	struct page *page;
@@ -5255,7 +5247,6 @@ int set_extent_buffer_uptodate(struct extent_buffer *eb)
 		page = eb->pages[i];
 		SetPageUptodate(page);
 	}
-	return 0;
 }
 
 int extent_buffer_uptodate(struct extent_buffer *eb)

@@ -330,17 +330,17 @@ void memset_extent_buffer(struct extent_buffer *eb, char c,
 			  unsigned long start, unsigned long len);
 void clear_extent_buffer_dirty(struct extent_buffer *eb);
 int set_extent_buffer_dirty(struct extent_buffer *eb);
-int set_extent_buffer_uptodate(struct extent_buffer *eb);
-int clear_extent_buffer_uptodate(struct extent_buffer *eb);
+void set_extent_buffer_uptodate(struct extent_buffer *eb);
+void clear_extent_buffer_uptodate(struct extent_buffer *eb);
 int extent_buffer_uptodate(struct extent_buffer *eb);
 int extent_buffer_under_io(struct extent_buffer *eb);
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long min_len, char **map,
 		      unsigned long *map_start,
 		      unsigned long *map_len);
-int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
-int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
-int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
+void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
+void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
+void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				 struct page *locked_page,
 				 unsigned bits_to_clear,
 				 unsigned long page_ops);
@@ -357,7 +357,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 		      int mirror_num);
 int clean_io_failure(struct inode *inode, u64 start, struct page *page,
 		     unsigned int pg_offset);
-int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
+void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 			 int mirror_num);
 
