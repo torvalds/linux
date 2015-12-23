@@ -3232,7 +3232,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int passive_state;
 	struct nes_ib_device *nesibdev;
 	struct ib_mr *ibmr = NULL;
-	struct ib_phys_buf ibphysbuf;
 	struct nes_pd *nespd;
 	u64 tagged_offset;
 	u8 mpa_frame_offset = 0;
@@ -3316,12 +3315,11 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		u64temp = (unsigned long)nesqp;
 		nesibdev = nesvnic->nesibdev;
 		nespd = nesqp->nespd;
-		ibphysbuf.addr = nesqp->ietf_frame_pbase + mpa_frame_offset;
-		ibphysbuf.size = buff_len;
 		tagged_offset = (u64)(unsigned long)*start_buff;
-		ibmr = nes_reg_phys_mr(&nespd->ibpd, &ibphysbuf, 1,
-					IB_ACCESS_LOCAL_WRITE,
-					&tagged_offset);
+		ibmr = nes_reg_phys_mr(&nespd->ibpd,
+				nesqp->ietf_frame_pbase + mpa_frame_offset,
+				buff_len, IB_ACCESS_LOCAL_WRITE,
+				&tagged_offset);
 		if (!ibmr) {
 			nes_debug(NES_DBG_CM, "Unable to register memory region"
 				  "for lSMM for cm_node = %p \n",

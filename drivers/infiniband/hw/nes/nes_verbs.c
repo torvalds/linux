@@ -2000,9 +2000,8 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 /**
  * nes_reg_phys_mr
  */
-struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
-		struct ib_phys_buf *buffer_list, int num_phys_buf, int acc,
-		u64 * iova_start)
+struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd, u64 addr, u64 size,
+		int acc, u64 *iova_start)
 {
 	u64 region_length;
 	struct nes_pd *nespd = to_nespd(ib_pd);
@@ -2014,13 +2013,10 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 	struct nes_vpbl vpbl;
 	struct nes_root_vpbl root_vpbl;
 	u32 stag;
-	u32 i;
 	unsigned long mask;
 	u32 stag_index = 0;
 	u32 next_stag_index = 0;
 	u32 driver_key = 0;
-	u32 root_pbl_index = 0;
-	u32 cur_pbl_index = 0;
 	int err = 0;
 	int ret = 0;
 	u16 pbl_count = 0;
@@ -2039,11 +2035,8 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 
 	next_stag_index >>= 8;
 	next_stag_index %= nesadapter->max_mr;
-	if (num_phys_buf > (1024*512)) {
-		return ERR_PTR(-E2BIG);
-	}
 
-	if ((buffer_list[0].addr ^ *iova_start) & ~PAGE_MASK)
+	if ((addr ^ *iova_start) & ~PAGE_MASK)
 		return ERR_PTR(-EINVAL);
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_mrs, nesadapter->max_mr,
@@ -2058,83 +2051,32 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	for (i = 0; i < num_phys_buf; i++) {
-
-		if ((i & 0x01FF) == 0) {
-			if (root_pbl_index == 1) {
-				/* Allocate the root PBL */
-				root_vpbl.pbl_vbase = pci_alloc_consistent(nesdev->pcidev, 8192,
-						&root_vpbl.pbl_pbase);
-				nes_debug(NES_DBG_MR, "Allocating root PBL, va = %p, pa = 0x%08X\n",
-						root_vpbl.pbl_vbase, (unsigned int)root_vpbl.pbl_pbase);
-				if (!root_vpbl.pbl_vbase) {
-					pci_free_consistent(nesdev->pcidev, 4096, vpbl.pbl_vbase,
-							vpbl.pbl_pbase);
-					nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
-					kfree(nesmr);
-					return ERR_PTR(-ENOMEM);
-				}
-				root_vpbl.leaf_vpbl = kzalloc(sizeof(*root_vpbl.leaf_vpbl)*1024, GFP_KERNEL);
-				if (!root_vpbl.leaf_vpbl) {
-					pci_free_consistent(nesdev->pcidev, 8192, root_vpbl.pbl_vbase,
-							root_vpbl.pbl_pbase);
-					pci_free_consistent(nesdev->pcidev, 4096, vpbl.pbl_vbase,
-							vpbl.pbl_pbase);
-					nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
-					kfree(nesmr);
-					return ERR_PTR(-ENOMEM);
-				}
-				root_vpbl.pbl_vbase[0].pa_low = cpu_to_le32((u32)vpbl.pbl_pbase);
-				root_vpbl.pbl_vbase[0].pa_high =
-						cpu_to_le32((u32)((((u64)vpbl.pbl_pbase) >> 32)));
-				root_vpbl.leaf_vpbl[0] = vpbl;
-			}
-			/* Allocate a 4K buffer for the PBL */
-			vpbl.pbl_vbase = pci_alloc_consistent(nesdev->pcidev, 4096,
-					&vpbl.pbl_pbase);
-			nes_debug(NES_DBG_MR, "Allocating leaf PBL, va = %p, pa = 0x%016lX\n",
-					vpbl.pbl_vbase, (unsigned long)vpbl.pbl_pbase);
-			if (!vpbl.pbl_vbase) {
-				nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
-				ibmr = ERR_PTR(-ENOMEM);
-				kfree(nesmr);
-				goto reg_phys_err;
-			}
-			/* Fill in the root table */
-			if (1 <= root_pbl_index) {
-				root_vpbl.pbl_vbase[root_pbl_index].pa_low =
-						cpu_to_le32((u32)vpbl.pbl_pbase);
-				root_vpbl.pbl_vbase[root_pbl_index].pa_high =
-						cpu_to_le32((u32)((((u64)vpbl.pbl_pbase) >> 32)));
-				root_vpbl.leaf_vpbl[root_pbl_index] = vpbl;
-			}
-			root_pbl_index++;
-			cur_pbl_index = 0;
-		}
-
-		mask = !buffer_list[i].size;
-		if (i != 0)
-			mask |= buffer_list[i].addr;
-		if (i != num_phys_buf - 1)
-			mask |= buffer_list[i].addr + buffer_list[i].size;
-
-		if (mask & ~PAGE_MASK) {
-			nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
-			nes_debug(NES_DBG_MR, "Invalid buffer addr or size\n");
-			ibmr = ERR_PTR(-EINVAL);
-			kfree(nesmr);
-			goto reg_phys_err;
-		}
-
-		region_length += buffer_list[i].size;
-		if ((i != 0) && (single_page)) {
-			if ((buffer_list[i-1].addr+PAGE_SIZE) != buffer_list[i].addr)
-				single_page = 0;
-		}
-		vpbl.pbl_vbase[cur_pbl_index].pa_low = cpu_to_le32((u32)buffer_list[i].addr & PAGE_MASK);
-		vpbl.pbl_vbase[cur_pbl_index++].pa_high =
-				cpu_to_le32((u32)((((u64)buffer_list[i].addr) >> 32)));
+	/* Allocate a 4K buffer for the PBL */
+	vpbl.pbl_vbase = pci_alloc_consistent(nesdev->pcidev, 4096,
+			&vpbl.pbl_pbase);
+	nes_debug(NES_DBG_MR, "Allocating leaf PBL, va = %p, pa = 0x%016lX\n",
+			vpbl.pbl_vbase, (unsigned long)vpbl.pbl_pbase);
+	if (!vpbl.pbl_vbase) {
+		nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
+		ibmr = ERR_PTR(-ENOMEM);
+		kfree(nesmr);
+		goto reg_phys_err;
 	}
+
+
+	mask = !size;
+
+	if (mask & ~PAGE_MASK) {
+		nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
+		nes_debug(NES_DBG_MR, "Invalid buffer addr or size\n");
+		ibmr = ERR_PTR(-EINVAL);
+		kfree(nesmr);
+		goto reg_phys_err;
+	}
+
+	region_length += size;
+	vpbl.pbl_vbase[0].pa_low = cpu_to_le32((u32)addr & PAGE_MASK);
+	vpbl.pbl_vbase[0].pa_high = cpu_to_le32((u32)((((u64)addr) >> 32)));
 
 	stag = stag_index << 8;
 	stag |= driver_key;
@@ -2145,17 +2087,15 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 			stag, (unsigned long)*iova_start, (unsigned long)region_length, stag_index);
 
 	/* Make the leaf PBL the root if only one PBL */
-	if (root_pbl_index == 1) {
-		root_vpbl.pbl_pbase = vpbl.pbl_pbase;
-	}
+	root_vpbl.pbl_pbase = vpbl.pbl_pbase;
 
 	if (single_page) {
 		pbl_count = 0;
 	} else {
-		pbl_count = root_pbl_index;
+		pbl_count = 1;
 	}
 	ret = nes_reg_mr(nesdev, nespd, stag, region_length, &root_vpbl,
-			buffer_list[0].addr, pbl_count, (u16)cur_pbl_index, acc, iova_start,
+			addr, pbl_count, 1, acc, iova_start,
 			&nesmr->pbls_used, &nesmr->pbl_4k);
 
 	if (ret == 0) {
@@ -2168,21 +2108,9 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
 		ibmr = ERR_PTR(-ENOMEM);
 	}
 
-	reg_phys_err:
-	/* free the resources */
-	if (root_pbl_index == 1) {
-		/* single PBL case */
-		pci_free_consistent(nesdev->pcidev, 4096, vpbl.pbl_vbase, vpbl.pbl_pbase);
-	} else {
-		for (i=0; i<root_pbl_index; i++) {
-			pci_free_consistent(nesdev->pcidev, 4096, root_vpbl.leaf_vpbl[i].pbl_vbase,
-					root_vpbl.leaf_vpbl[i].pbl_pbase);
-		}
-		kfree(root_vpbl.leaf_vpbl);
-		pci_free_consistent(nesdev->pcidev, 8192, root_vpbl.pbl_vbase,
-				root_vpbl.pbl_pbase);
-	}
-
+reg_phys_err:
+	/* single PBL case */
+	pci_free_consistent(nesdev->pcidev, 4096, vpbl.pbl_vbase, vpbl.pbl_pbase);
 	return ibmr;
 }
 
@@ -2192,16 +2120,12 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
  */
 static struct ib_mr *nes_get_dma_mr(struct ib_pd *pd, int acc)
 {
-	struct ib_phys_buf bl;
 	u64 kva = 0;
 
 	nes_debug(NES_DBG_MR, "\n");
 
-	bl.size = (u64)0xffffffffffULL;
-	bl.addr = 0;
-	return nes_reg_phys_mr(pd, &bl, 1, acc, &kva);
+	return nes_reg_phys_mr(pd, 0, 0xffffffffffULL, acc, &kva);
 }
-
 
 /**
  * nes_reg_user_mr
