@@ -122,9 +122,6 @@ struct rcar_i2c_priv {
 #define rcar_i2c_priv_to_dev(p)		((p)->adap.dev.parent)
 #define rcar_i2c_is_recv(p)		((p)->msg->flags & I2C_M_RD)
 
-#define rcar_i2c_flags_set(p, f)	((p)->flags |= (f))
-#define rcar_i2c_flags_has(p, f)	((p)->flags & (f))
-
 #define LOOP_TIMEOUT	1024
 
 
@@ -258,7 +255,7 @@ static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 
 	priv->pos = 0;
 	if (priv->msgs_left == 1)
-		rcar_i2c_flags_set(priv, ID_LAST_MSG);
+		priv->flags |= ID_LAST_MSG;
 
 	rcar_i2c_write(priv, ICMAR, (priv->msg->addr << 1) | read);
 	/*
@@ -266,7 +263,7 @@ static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 	 * of ICMSR and ICMCR depends on whether we issue START or REP_START. Since
 	 * it didn't cause a drawback for me, let's rather be safe than sorry.
 	 */
-	if (rcar_i2c_flags_has(priv, ID_FIRST_MSG)) {
+	if (priv->flags & ID_FIRST_MSG) {
 		rcar_i2c_write(priv, ICMSR, 0);
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
 	} else {
@@ -438,7 +435,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 
 	/* Arbitration lost */
 	if (msr & MAL) {
-		rcar_i2c_flags_set(priv, (ID_DONE | ID_ARBLOST));
+		priv->flags |= ID_DONE | ID_ARBLOST;
 		goto out;
 	}
 
@@ -446,14 +443,14 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 	if (msr & MNR) {
 		/* HW automatically sends STOP after received NACK */
 		rcar_i2c_write(priv, ICMIER, RCAR_IRQ_STOP);
-		rcar_i2c_flags_set(priv, ID_NACK);
+		priv->flags |= ID_NACK;
 		goto out;
 	}
 
 	/* Stop */
 	if (msr & MST) {
 		priv->msgs_left--; /* The last message also made it */
-		rcar_i2c_flags_set(priv, ID_DONE);
+		priv->flags |= ID_DONE;
 		goto out;
 	}
 
@@ -463,7 +460,7 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 		rcar_i2c_irq_send(priv, msr);
 
 out:
-	if (rcar_i2c_flags_has(priv, ID_DONE)) {
+	if (priv->flags & ID_DONE) {
 		rcar_i2c_write(priv, ICMIER, 0);
 		rcar_i2c_write(priv, ICMSR, 0);
 		wake_up(&priv->wait);
@@ -501,15 +498,14 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	priv->flags = ID_FIRST_MSG;
 	rcar_i2c_prepare_msg(priv);
 
-	time_left = wait_event_timeout(priv->wait,
-				     rcar_i2c_flags_has(priv, ID_DONE),
+	time_left = wait_event_timeout(priv->wait, priv->flags & ID_DONE,
 				     num * adap->timeout);
 	if (!time_left) {
 		rcar_i2c_init(priv);
 		ret = -ETIMEDOUT;
-	} else if (rcar_i2c_flags_has(priv, ID_NACK)) {
+	} else if (priv->flags & ID_NACK) {
 		ret = -ENXIO;
-	} else if (rcar_i2c_flags_has(priv, ID_ARBLOST)) {
+	} else if (priv->flags & ID_ARBLOST) {
 		ret = -EAGAIN;
 	} else {
 		ret = num - priv->msgs_left; /* The number of transfer */
