@@ -4532,6 +4532,79 @@ static int init_rss(struct adapter *adap)
 	return 0;
 }
 
+static int cxgb4_get_pcie_dev_link_caps(struct adapter *adap,
+					enum pci_bus_speed *speed,
+					enum pcie_link_width *width)
+{
+	u32 lnkcap1, lnkcap2;
+	int err1, err2;
+
+#define  PCIE_MLW_CAP_SHIFT 4   /* start of MLW mask in link capabilities */
+
+	*speed = PCI_SPEED_UNKNOWN;
+	*width = PCIE_LNK_WIDTH_UNKNOWN;
+
+	err1 = pcie_capability_read_dword(adap->pdev, PCI_EXP_LNKCAP,
+					  &lnkcap1);
+	err2 = pcie_capability_read_dword(adap->pdev, PCI_EXP_LNKCAP2,
+					  &lnkcap2);
+	if (!err2 && lnkcap2) { /* PCIe r3.0-compliant */
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_8_0GB)
+			*speed = PCIE_SPEED_8_0GT;
+		else if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_5_0GB)
+			*speed = PCIE_SPEED_5_0GT;
+		else if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_2_5GB)
+			*speed = PCIE_SPEED_2_5GT;
+	}
+	if (!err1) {
+		*width = (lnkcap1 & PCI_EXP_LNKCAP_MLW) >> PCIE_MLW_CAP_SHIFT;
+		if (!lnkcap2) { /* pre-r3.0 */
+			if (lnkcap1 & PCI_EXP_LNKCAP_SLS_5_0GB)
+				*speed = PCIE_SPEED_5_0GT;
+			else if (lnkcap1 & PCI_EXP_LNKCAP_SLS_2_5GB)
+				*speed = PCIE_SPEED_2_5GT;
+		}
+	}
+
+	if (*speed == PCI_SPEED_UNKNOWN || *width == PCIE_LNK_WIDTH_UNKNOWN)
+		return err1 ? err1 : err2 ? err2 : -EINVAL;
+	return 0;
+}
+
+static void cxgb4_check_pcie_caps(struct adapter *adap)
+{
+	enum pcie_link_width width, width_cap;
+	enum pci_bus_speed speed, speed_cap;
+
+#define PCIE_SPEED_STR(speed) \
+	(speed == PCIE_SPEED_8_0GT ? "8.0GT/s" : \
+	 speed == PCIE_SPEED_5_0GT ? "5.0GT/s" : \
+	 speed == PCIE_SPEED_2_5GT ? "2.5GT/s" : \
+	 "Unknown")
+
+	if (cxgb4_get_pcie_dev_link_caps(adap, &speed_cap, &width_cap)) {
+		dev_warn(adap->pdev_dev,
+			 "Unable to determine PCIe device BW capabilities\n");
+		return;
+	}
+
+	if (pcie_get_minimum_link(adap->pdev, &speed, &width) ||
+	    speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN) {
+		dev_warn(adap->pdev_dev,
+			 "Unable to determine PCI Express bandwidth.\n");
+		return;
+	}
+
+	dev_info(adap->pdev_dev, "PCIe link speed is %s, device supports %s\n",
+		 PCIE_SPEED_STR(speed), PCIE_SPEED_STR(speed_cap));
+	dev_info(adap->pdev_dev, "PCIe link width is x%d, device supports x%d\n",
+		 width, width_cap);
+	if (speed < speed_cap || width < width_cap)
+		dev_info(adap->pdev_dev,
+			 "A slot with more lanes and/or higher speed is "
+			 "suggested for optimal performance.\n");
+}
+
 static void print_port_info(const struct net_device *dev)
 {
 	char buf[80];
@@ -4559,10 +4632,10 @@ static void print_port_info(const struct net_device *dev)
 		--bufp;
 	sprintf(bufp, "BASE-%s", t4_get_port_type_description(pi->port_type));
 
-	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
+	netdev_info(dev, "Chelsio %s rev %d %s %sNIC %s\n",
 		    adap->params.vpd.id,
 		    CHELSIO_CHIP_RELEASE(adap->params.chip), buf,
-		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
+		    is_offload(adap) ? "R" : "",
 		    (adap->flags & USING_MSIX) ? " MSI-X" :
 		    (adap->flags & USING_MSI) ? " MSI" : "");
 	netdev_info(dev, "S/N: %s, P/N: %s\n",
@@ -4907,6 +4980,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->flags |= USING_MSIX;
 	else if (msi > 0 && pci_enable_msi(pdev) == 0)
 		adapter->flags |= USING_MSI;
+
+	/* check for PCI Express bandwidth capabiltites */
+	cxgb4_check_pcie_caps(adapter);
 
 	err = init_rss(adapter);
 	if (err)
