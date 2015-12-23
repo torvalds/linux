@@ -85,6 +85,8 @@ ldebugfs_fid_write_common(const char __user *buffer, size_t count,
 	rc = sscanf(kernbuf, "[%llx - %llx]\n",
 		    (unsigned long long *)&tmp.lsr_start,
 		    (unsigned long long *)&tmp.lsr_end);
+	if (rc != 2)
+		return -EINVAL;
 	if (!range_is_sane(&tmp) || range_is_zero(&tmp) ||
 	    tmp.lsr_start < range->lsr_start || tmp.lsr_end > range->lsr_end)
 		return -EINVAL;
