@@ -1585,25 +1585,35 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 {
 	struct adapter *adap = seq->private;
 	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adap->params.chip);
-
 	if (v == SEQ_START_TOKEN) {
-		if (adap->params.arch.mps_rplc_size > 128)
+		if (chip_ver > CHELSIO_T5) {
 			seq_puts(seq, "Idx  Ethernet address     Mask     "
+				 "  VNI   Mask   IVLAN Vld "
+				 "DIP_Hit   Lookup  Port "
 				 "Vld Ports PF  VF                           "
 				 "Replication                                "
 				 "    P0 P1 P2 P3  ML\n");
-		else
-			seq_puts(seq, "Idx  Ethernet address     Mask     "
-				 "Vld Ports PF  VF              Replication"
-				 "	         P0 P1 P2 P3  ML\n");
+		} else {
+			if (adap->params.arch.mps_rplc_size > 128)
+				seq_puts(seq, "Idx  Ethernet address     Mask     "
+					 "Vld Ports PF  VF                           "
+					 "Replication                                "
+					 "    P0 P1 P2 P3  ML\n");
+			else
+				seq_puts(seq, "Idx  Ethernet address     Mask     "
+					 "Vld Ports PF  VF              Replication"
+					 "	         P0 P1 P2 P3  ML\n");
+		}
 	} else {
 		u64 mask;
 		u8 addr[ETH_ALEN];
-		bool replicate;
+		bool replicate, dip_hit = false, vlan_vld = false;
 		unsigned int idx = (uintptr_t)v - 2;
 		u64 tcamy, tcamx, val;
-		u32 cls_lo, cls_hi, ctl;
+		u32 cls_lo, cls_hi, ctl, data2, vnix = 0, vniy = 0;
 		u32 rplc[8] = {0};
+		u8 lookup_type = 0, port_num = 0;
+		u16 ivlan = 0;
 
 		if (chip_ver > CHELSIO_T5) {
 			/* CtlCmdType - 0: Read, 1: Write
@@ -1622,6 +1632,22 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			val = t4_read_reg(adap, MPS_CLS_TCAM_DATA1_A);
 			tcamy = DMACH_G(val) << 32;
 			tcamy |= t4_read_reg(adap, MPS_CLS_TCAM_DATA0_A);
+			data2 = t4_read_reg(adap, MPS_CLS_TCAM_DATA2_CTL_A);
+			lookup_type = DATALKPTYPE_G(data2);
+			/* 0 - Outer header, 1 - Inner header
+			 * [71:48] bit locations are overloaded for
+			 * outer vs. inner lookup types.
+			 */
+			if (lookup_type && (lookup_type != DATALKPTYPE_M)) {
+				/* Inner header VNI */
+				vniy = ((data2 & DATAVIDH2_F) << 23) |
+				       (DATAVIDH1_G(data2) << 16) | VIDL_G(val);
+				dip_hit = data2 & DATADIPHIT_F;
+			} else {
+				vlan_vld = data2 & DATAVIDH2_F;
+				ivlan = VIDL_G(val);
+			}
+			port_num = DATAPORTNUM_G(data2);
 
 			/* Read tcamx. Change the control param */
 			ctl |= CTLXYBITSEL_V(1);
@@ -1629,6 +1655,12 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			val = t4_read_reg(adap, MPS_CLS_TCAM_DATA1_A);
 			tcamx = DMACH_G(val) << 32;
 			tcamx |= t4_read_reg(adap, MPS_CLS_TCAM_DATA0_A);
+			data2 = t4_read_reg(adap, MPS_CLS_TCAM_DATA2_CTL_A);
+			if (lookup_type && (lookup_type != DATALKPTYPE_M)) {
+				/* Inner header VNI mask */
+				vnix = ((data2 & DATAVIDH2_F) << 23) |
+				       (DATAVIDH1_G(data2) << 16) | VIDL_G(val);
+			}
 		} else {
 			tcamy = t4_read_reg64(adap, MPS_CLS_TCAM_Y_L(idx));
 			tcamx = t4_read_reg64(adap, MPS_CLS_TCAM_X_L(idx));
@@ -1688,17 +1720,47 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 		}
 
 		tcamxy2valmask(tcamx, tcamy, addr, &mask);
-		if (chip_ver > CHELSIO_T5)
-			seq_printf(seq, "%3u %02x:%02x:%02x:%02x:%02x:%02x "
-				   "%012llx%3c   %#x%4u%4d",
-				   idx, addr[0], addr[1], addr[2], addr[3],
-				   addr[4], addr[5], (unsigned long long)mask,
-				   (cls_lo & T6_SRAM_VLD_F) ? 'Y' : 'N',
-				   PORTMAP_G(cls_hi),
-				   T6_PF_G(cls_lo),
-				   (cls_lo & T6_VF_VALID_F) ?
-				   T6_VF_G(cls_lo) : -1);
-		else
+		if (chip_ver > CHELSIO_T5) {
+			/* Inner header lookup */
+			if (lookup_type && (lookup_type != DATALKPTYPE_M)) {
+				seq_printf(seq,
+					   "%3u %02x:%02x:%02x:%02x:%02x:%02x "
+					   "%012llx %06x %06x    -    -   %3c"
+					   "      %3c  %4x   "
+					   "%3c   %#x%4u%4d", idx, addr[0],
+					   addr[1], addr[2], addr[3],
+					   addr[4], addr[5],
+					   (unsigned long long)mask,
+					   vniy, vnix, dip_hit ? 'Y' : 'N',
+					   lookup_type ? 'I' : 'O', port_num,
+					   (cls_lo & T6_SRAM_VLD_F) ? 'Y' : 'N',
+					   PORTMAP_G(cls_hi),
+					   T6_PF_G(cls_lo),
+					   (cls_lo & T6_VF_VALID_F) ?
+					   T6_VF_G(cls_lo) : -1);
+			} else {
+				seq_printf(seq,
+					   "%3u %02x:%02x:%02x:%02x:%02x:%02x "
+					   "%012llx    -       -   ",
+					   idx, addr[0], addr[1], addr[2],
+					   addr[3], addr[4], addr[5],
+					   (unsigned long long)mask);
+
+				if (vlan_vld)
+					seq_printf(seq, "%4u   Y     ", ivlan);
+				else
+					seq_puts(seq, "  -    N     ");
+
+				seq_printf(seq,
+					   "-      %3c  %4x   %3c   %#x%4u%4d",
+					   lookup_type ? 'I' : 'O', port_num,
+					   (cls_lo & T6_SRAM_VLD_F) ? 'Y' : 'N',
+					   PORTMAP_G(cls_hi),
+					   T6_PF_G(cls_lo),
+					   (cls_lo & T6_VF_VALID_F) ?
+					   T6_VF_G(cls_lo) : -1);
+			}
+		} else
 			seq_printf(seq, "%3u %02x:%02x:%02x:%02x:%02x:%02x "
 				   "%012llx%3c   %#x%4u%4d",
 				   idx, addr[0], addr[1], addr[2], addr[3],
