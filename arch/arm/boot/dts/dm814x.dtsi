@@ -5,7 +5,7 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/omap.h>
+#include <dt-bindings/pinctrl/dm814x.h>
 
 #include "skeleton.dtsi"
 
