@@ -252,10 +252,6 @@ static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 
 static inline void lustre_cfg_free(struct lustre_cfg *lcfg)
 {
-	int len;
-
-	len = lustre_cfg_len(lcfg->lcfg_bufcount, lcfg->lcfg_buflens);
-
 	kfree(lcfg);
 	return;
 }
