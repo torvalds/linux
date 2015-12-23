@@ -407,9 +407,19 @@ struct mlx5_ib_resources {
 	struct ib_srq	*s1;
 };
 
+struct mlx5_roce {
+	/* Protect mlx5_ib_get_netdev from invoking dev_hold() with a NULL
+	 * netdev pointer
+	 */
+	rwlock_t		netdev_lock;
+	struct net_device	*netdev;
+	struct notifier_block	nb;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
+	struct mlx5_roce		roce;
 	MLX5_DECLARE_DOORBELL_LOCK(uar_lock);
 	int				num_ports;
 	/* serialize update of capability mask
