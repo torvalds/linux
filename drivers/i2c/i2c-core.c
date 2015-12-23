@@ -1564,6 +1564,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
 	pm_runtime_no_callbacks(&adap->dev);
+	pm_runtime_enable(&adap->dev);
 
 #ifdef CONFIG_I2C_COMPAT
 	res = class_compat_create_link(i2c_adapter_compat_class, &adap->dev,
@@ -1817,6 +1818,8 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 
 	/* device name is gone after device_unregister */
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
+
+	pm_runtime_disable(&adap->dev);
 
 	/* wait until all references to the device are gone
 	 *
