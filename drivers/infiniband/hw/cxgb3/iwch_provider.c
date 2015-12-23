@@ -479,24 +479,25 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 	return 0;
 }
 
-static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
-					struct ib_phys_buf *buffer_list,
-					int num_phys_buf,
-					int acc,
-					u64 *iova_start)
+static struct ib_mr *iwch_get_dma_mr(struct ib_pd *pd, int acc)
 {
-	__be64 *page_list;
-	int shift;
-	u64 total_size;
-	int npages;
-	struct iwch_dev *rhp;
-	struct iwch_pd *php;
+	const u64 total_size = 0xffffffff;
+	const u64 mask = (total_size + PAGE_SIZE - 1) & PAGE_MASK;
+	struct iwch_pd *php = to_iwch_pd(pd);
+	struct iwch_dev *rhp = php->rhp;
 	struct iwch_mr *mhp;
-	int ret;
+	__be64 *page_list;
+	int shift = 26, npages, ret, i;
 
 	PDBG("%s ib_pd %p\n", __func__, pd);
-	php = to_iwch_pd(pd);
-	rhp = php->rhp;
+
+	/*
+	 * T3 only supports 32 bits of size.
+	 */
+	if (sizeof(phys_addr_t) > 4) {
+		pr_warn_once(MOD "Cannot support dma_mrs on this platform.\n");
+		return ERR_PTR(-ENOTSUPP);
+	}
 
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp)
@@ -504,22 +505,23 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 
 	mhp->rhp = rhp;
 
-	/* First check that we have enough alignment */
-	if ((*iova_start & ~PAGE_MASK) != (buffer_list[0].addr & ~PAGE_MASK)) {
+	npages = (total_size + (1ULL << shift) - 1) >> shift;
+	if (!npages) {
 		ret = -EINVAL;
 		goto err;
 	}
 
-	if (num_phys_buf > 1 &&
-	    ((buffer_list[0].addr + buffer_list[0].size) & ~PAGE_MASK)) {
-		ret = -EINVAL;
+	page_list = kmalloc_array(npages, sizeof(u64), GFP_KERNEL);
+	if (!page_list) {
+		ret = -ENOMEM;
 		goto err;
 	}
 
-	ret = build_phys_page_list(buffer_list, num_phys_buf, iova_start,
-				   &total_size, &npages, &shift, &page_list);
-	if (ret)
-		goto err;
+	for (i = 0; i < npages; i++)
+		page_list[i] = cpu_to_be64((u64)i << shift);
+
+	PDBG("%s mask 0x%llx shift %d len %lld pbl_size %d\n",
+		__func__, mask, shift, total_size, npages);
 
 	ret = iwch_alloc_pbl(mhp, npages);
 	if (ret) {
@@ -536,7 +538,7 @@ static struct ib_mr *iwch_register_phys_mem(struct ib_pd *pd,
 	mhp->attr.zbva = 0;
 
 	mhp->attr.perms = iwch_ib_to_tpt_access(acc);
-	mhp->attr.va_fbo = *iova_start;
+	mhp->attr.va_fbo = 0;
 	mhp->attr.page_size = shift - 12;
 
 	mhp->attr.len = (u32) total_size;
@@ -553,7 +555,6 @@ err_pbl:
 err:
 	kfree(mhp);
 	return ERR_PTR(ret);
-
 }
 
 static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
@@ -657,28 +658,6 @@ err:
 	ib_umem_release(mhp->umem);
 	kfree(mhp);
 	return ERR_PTR(err);
-}
-
-static struct ib_mr *iwch_get_dma_mr(struct ib_pd *pd, int acc)
-{
-	struct ib_phys_buf bl;
-	u64 kva;
-	struct ib_mr *ibmr;
-
-	PDBG("%s ib_pd %p\n", __func__, pd);
-
-	/*
-	 * T3 only supports 32 bits of size.
-	 */
-	if (sizeof(phys_addr_t) > 4) {
-		pr_warn_once(MOD "Cannot support dma_mrs on this platform.\n");
-		return ERR_PTR(-ENOTSUPP);
-	}
-	bl.size = 0xffffffff;
-	bl.addr = 0;
-	kva = 0;
-	ibmr = iwch_register_phys_mem(pd, &bl, 1, acc, &kva);
-	return ibmr;
 }
 
 static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
