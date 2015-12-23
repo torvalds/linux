@@ -140,6 +140,8 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 	type_mask |= IORESOURCE_TYPE_BITS;
 
 	pci_bus_for_each_resource(bus, r, i) {
+		resource_size_t min_used = min;
+
 		if (!r)
 			continue;
 
@@ -163,12 +165,12 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 		 * overrides "min".
 		 */
 		if (avail.start)
-			min = avail.start;
+			min_used = avail.start;
 
 		max = avail.end;
 
 		/* Ok, try it out.. */
-		ret = allocate_resource(r, res, size, min, max,
+		ret = allocate_resource(r, res, size, min_used, max,
 					align, alignf, alignf_data);
 		if (ret == 0)
 			return 0;
