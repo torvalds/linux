@@ -7194,6 +7194,10 @@ int t4_prep_adapter(struct adapter *adapter)
 		adapter->params.arch.nchan = NCHAN;
 		adapter->params.arch.pm_stats_cnt = PM_NSTATS;
 		adapter->params.arch.vfcount = 128;
+		/* Congestion map is for 4 channels so that
+		 * MPS can have 4 priority per port.
+		 */
+		adapter->params.arch.cng_ch_bits_log = 2;
 		break;
 	case CHELSIO_T5:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
@@ -7204,6 +7208,7 @@ int t4_prep_adapter(struct adapter *adapter)
 		adapter->params.arch.nchan = NCHAN;
 		adapter->params.arch.pm_stats_cnt = PM_NSTATS;
 		adapter->params.arch.vfcount = 128;
+		adapter->params.arch.cng_ch_bits_log = 2;
 		break;
 	case CHELSIO_T6:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
@@ -7214,6 +7219,10 @@ int t4_prep_adapter(struct adapter *adapter)
 		adapter->params.arch.nchan = 2;
 		adapter->params.arch.pm_stats_cnt = T6_PM_NSTATS;
 		adapter->params.arch.vfcount = 256;
+		/* Congestion map will be for 2 channels so that
+		 * MPS can have 8 priority per port.
+		 */
+		adapter->params.arch.cng_ch_bits_log = 3;
 		break;
 	default:
 		dev_err(adapter->pdev_dev, "Device %d is not supported\n",

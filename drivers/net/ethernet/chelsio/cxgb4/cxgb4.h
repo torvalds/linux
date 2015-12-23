@@ -302,6 +302,7 @@ struct devlog_params {
 struct arch_specific_params {
 	u8 nchan;
 	u8 pm_stats_cnt;
+	u8 cng_ch_bits_log;		/* congestion channel map bits width */
 	u16 mps_rplc_size;
 	u16 vfcount;
 	u32 sge_fl_db;

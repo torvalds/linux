@@ -2670,8 +2670,9 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	 * simple (and hopefully less wrong).
 	 */
 	if (!is_t4(adap->params.chip) && cong >= 0) {
-		u32 param, val;
+		u32 param, val, ch_map = 0;
 		int i;
+		u16 cng_ch_bits_log = adap->params.arch.cng_ch_bits_log;
 
 		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
 			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
@@ -2683,9 +2684,9 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 			    CONMCTXT_CNGTPMODE_V(CONMCTXT_CNGTPMODE_CHANNEL_X);
 			for (i = 0; i < 4; i++) {
 				if (cong & (1 << i))
-					val |=
-					     CONMCTXT_CNGCHMAP_V(1 << (i << 2));
+					ch_map |= 1 << (i << cng_ch_bits_log);
 			}
+			val |= CONMCTXT_CNGCHMAP_V(ch_map);
 		}
 		ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1,
 				    &param, &val);
