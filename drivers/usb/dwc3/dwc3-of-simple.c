@@ -122,6 +122,7 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int dwc3_of_simple_runtime_suspend(struct device *dev)
 {
 	struct dwc3_of_simple	*simple = dev_get_drvdata(dev);
@@ -150,6 +151,7 @@ static int dwc3_of_simple_runtime_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops dwc3_of_simple_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(dwc3_of_simple_runtime_suspend,
