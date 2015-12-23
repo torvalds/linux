@@ -632,13 +632,6 @@ extern struct workqueue_struct *mlx5_core_wq;
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \
 	.struct_size_bytes   = sizeof((struct ib_unpacked_ ## header *)0)->field
 
-struct ib_field {
-	size_t struct_offset_bytes;
-	size_t struct_size_bytes;
-	int    offset_bits;
-	int    size_bits;
-};
-
 static inline struct mlx5_core_dev *pci2mlx5_core_dev(struct pci_dev *pdev)
 {
 	return pci_get_drvdata(pdev);
