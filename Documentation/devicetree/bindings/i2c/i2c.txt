@@ -54,6 +54,11 @@ wants to support one of the below features, it should adapt the bindings below.
 	"irq" and "wakeup" names are recognized by I2C core, other names are
 	left to individual drivers.
 
+- multi-master
+	states that there is another master active on this bus. The OS can use
+	this information to adapt power management to keep the arbitration awake
+	all the time, for example.
+
 - wakeup-source
 	device can be used as a wakeup source.
 
