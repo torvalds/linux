@@ -17,6 +17,15 @@
 
 static struct ida gb_hd_bus_id_map;
 
+int gb_hd_output(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
+		 bool async)
+{
+	if (!hd || !hd->driver || !hd->driver->output)
+		return -EINVAL;
+	return hd->driver->output(hd, req, size, cmd, async);
+}
+EXPORT_SYMBOL_GPL(gb_hd_output);
+
 static void gb_hd_release(struct device *dev)
 {
 	struct gb_host_device *hd = to_gb_host_device(dev);

@@ -13,7 +13,6 @@
 #include <linux/debugfs.h>
 #include <asm/unaligned.h>
 
-#include "es2.h"
 #include "greybus.h"
 #include "kernel_ver.h"
 #include "connection.h"
@@ -134,14 +133,6 @@ struct cport_to_ep {
 	__u8 endpoint_out;
 };
 
-struct es2_ap_csi_config_request {
-	__u8 csi_id;
-	__u8 clock_mode;
-	__u8 num_lanes;
-	__u8 padding;
-	__le32 bus_freq;
-} __packed;
-
 static inline struct es2_ap_dev *hd_to_es2(struct gb_host_device *hd)
 {
 	return (struct es2_ap_dev *)&hd->hd_priv;
@@ -220,38 +211,87 @@ static int unmap_cport(struct es2_ap_dev *es2, u16 cport_id)
 }
 #endif
 
-int es2_ap_csi_setup(struct gb_host_device *hd, bool start,
-		     struct es2_ap_csi_config *cfg)
+static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 {
-	struct es2_ap_csi_config_request *cfg_req;
-	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
+	u8 *data;
 	int retval;
 
-	cfg_req = kzalloc(sizeof(*cfg_req), GFP_KERNEL);
-	if (!cfg_req)
+	data = kmalloc(size, GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
-
-	cfg_req->csi_id = cfg->csi_id;
-
-	if (start) {
-		cfg_req->clock_mode = cfg->clock_mode;
-		cfg_req->num_lanes = cfg->num_lanes;
-		cfg_req->bus_freq = cpu_to_le32(cfg->bus_freq);
-	}
+	memcpy(data, req, size);
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 REQUEST_CSI_TX_CONTROL,
+				 cmd,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, 0, 0, cfg_req,
-				 sizeof(*cfg_req), ES2_TIMEOUT);
+				 USB_RECIP_INTERFACE,
+				 0, 0, data, size, ES2_TIMEOUT);
 	if (retval < 0)
-		dev_err(&udev->dev, "failed to setup csi: %d\n", retval);
+		dev_err(&udev->dev, "%s: return error %d\n", __func__, retval);
+	else
+		retval = 0;
 
-	kfree(cfg_req);
+	kfree(data);
 	return retval;
 }
-EXPORT_SYMBOL_GPL(es2_ap_csi_setup);
+
+static void ap_urb_complete(struct urb *urb)
+{
+	struct usb_ctrlrequest *dr = urb->context;
+
+	kfree(dr);
+	usb_free_urb(urb);
+}
+
+static int output_async(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
+{
+	struct usb_device *udev = es2->usb_dev;
+	struct urb *urb;
+	struct usb_ctrlrequest *dr;
+	u8 *buf;
+	int retval;
+
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb)
+		return -ENOMEM;
+
+	dr = kmalloc(sizeof(*dr) + size, GFP_ATOMIC);
+	if (!dr) {
+		usb_free_urb(urb);
+		return -ENOMEM;
+	}
+
+	buf = (u8 *)dr + sizeof(*dr);
+	memcpy(buf, req, size);
+
+	dr->bRequest = cmd;
+	dr->bRequestType = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE;
+	dr->wValue = 0;
+	dr->wIndex = 0;
+	dr->wLength = cpu_to_le16(size);
+
+	usb_fill_control_urb(urb, udev, usb_sndctrlpipe(udev, 0),
+			     (unsigned char *)dr, buf, size,
+			     ap_urb_complete, dr);
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval) {
+		usb_free_urb(urb);
+		kfree(dr);
+	}
+	return retval;
+}
+
+static int output(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
+		     bool async)
+{
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+
+	if (async)
+		return output_async(es2, req, size, cmd);
+
+	return output_sync(es2, req, size, cmd);
+}
 
 static int es2_cport_in_enable(struct es2_ap_dev *es2,
 				struct es2_cport_in *cport_in)
@@ -560,6 +600,7 @@ static struct gb_hd_driver es2_driver = {
 	.cport_enable		= cport_enable,
 	.latency_tag_enable	= latency_tag_enable,
 	.latency_tag_disable	= latency_tag_disable,
+	.output			= output,
 };
 
 /* Common function to report consistent warnings based on URB status */

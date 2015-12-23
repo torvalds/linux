@@ -16,7 +16,6 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
-#include "es2.h"
 #include "greybus.h"
 #include "greybus_protocols.h"
 
@@ -74,6 +73,17 @@ struct gb_camera_stream_config {
  * Camera Protocol Operations
  */
 
+/* vendor request to control the CSI transmitter */
+#define REQUEST_CSI_TX_CONTROL	0x08
+
+struct ap_csi_config_request {
+	__u8 csi_id;
+	__u8 clock_mode;
+	__u8 num_lanes;
+	__u8 padding;
+	__le32 bus_freq;
+} __packed;
+
 static int gb_camera_configure_streams(struct gb_camera *gcam,
 				       unsigned int nstreams,
 				       unsigned int flags,
@@ -81,7 +91,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 {
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
-	struct es2_ap_csi_config csi_cfg;
+	struct ap_csi_config_request csi_cfg;
 	unsigned int i;
 	size_t req_size;
 	size_t resp_size;
@@ -150,21 +160,22 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		}
 	}
 
+	memset(&csi_cfg, 0, sizeof(csi_cfg));
+
 	/* Configure the CSI transmitter. Hardcode the parameters for now. */
 	if (nstreams && !(resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED)) {
 		csi_cfg.csi_id = 1;
 		csi_cfg.clock_mode = 0;
 		csi_cfg.num_lanes = 4;
-		csi_cfg.bus_freq = 960000000;
-
-		ret = es2_ap_csi_setup(gcam->connection->hd, true, &csi_cfg);
+		csi_cfg.bus_freq = cpu_to_le32(960000000);
+		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
+				   sizeof(csi_cfg), REQUEST_CSI_TX_CONTROL,
+				   false);
 	} else if (nstreams == 0) {
 		csi_cfg.csi_id = 1;
-		csi_cfg.clock_mode = 0;
-		csi_cfg.num_lanes = 0;
-		csi_cfg.bus_freq = 0;
-
-		ret = es2_ap_csi_setup(gcam->connection->hd, false, &csi_cfg);
+		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
+				   sizeof(csi_cfg), REQUEST_CSI_TX_CONTROL,
+				   false);
 	}
 
 	if (ret < 0)
