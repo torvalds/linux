@@ -2141,7 +2141,15 @@ struct mlx5_ifc_nic_vport_context_bits {
 	u8         reserved_0[0x1f];
 	u8         roce_en[0x1];
 
-	u8         reserved_1[0x760];
+	u8         reserved_1[0x120];
+
+	u8         system_image_guid[0x40];
+	u8         port_guid[0x40];
+	u8         node_guid[0x40];
+
+	u8         reserved_5[0x140];
+	u8         qkey_violation_counter[0x10];
+	u8         reserved_6[0x430];
 
 	u8         reserved_2[0x5];
 	u8         allowed_list_type[0x3];
