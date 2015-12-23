@@ -4713,9 +4713,8 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
 	 * WaRsDisableCoarsePowerGating:skl,bxt - Render/Media PG need to be disabled with RC6.
 	 */
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1) ||
-	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) &&
-	     IS_SKL_REVID(dev, 0, SKL_REVID_F0)))
+	if ((IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
+	    ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && (INTEL_REVID(dev) <= SKL_REVID_F0)))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
 	else
 		I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?

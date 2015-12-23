@@ -2975,6 +2975,7 @@ F:	kernel/cpuset.c
 CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)
 M:	Johannes Weiner <hannes@cmpxchg.org>
 M:	Michal Hocko <mhocko@kernel.org>
+M:	Vladimir Davydov <vdavydov@virtuozzo.com>
 L:	cgroups@vger.kernel.org
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -5586,7 +5587,7 @@ R:	Jesse Brandeburg <jesse.brandeburg@intel.com>
 R:	Shannon Nelson <shannon.nelson@intel.com>
 R:	Carolyn Wyborny <carolyn.wyborny@intel.com>
 R:	Don Skidmore <donald.c.skidmore@intel.com>
-R:	Matthew Vick <matthew.vick@intel.com>
+R:	Bruce Allan <bruce.w.allan@intel.com>
 R:	John Ronciak <john.ronciak@intel.com>
 R:	Mitch Williams <mitch.a.williams@intel.com>
 L:	intel-wired-lan@lists.osuosl.org
@@ -8295,7 +8296,7 @@ F:	include/linux/delayacct.h
 F:	kernel/delayacct.c
 
 PERFORMANCE EVENTS SUBSYSTEM
-M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
+M:	Peter Zijlstra <peterz@infradead.org>
 M:	Ingo Molnar <mingo@redhat.com>
 M:	Arnaldo Carvalho de Melo <acme@kernel.org>
 L:	linux-kernel@vger.kernel.org
@@ -8387,6 +8388,14 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/pinctrl/samsung/
+
+PIN CONTROLLER - SINGLE
+M:	Tony Lindgren <tony@atomide.com>
+M:	Haojian Zhuang <haojian.zhuang@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/pinctrl/pinctrl-single.c
 
 PIN CONTROLLER - ST SPEAR
 M:	Viresh Kumar <vireshk@kernel.org>
@@ -8953,6 +8962,13 @@ S:	Maintained
 F:	drivers/rpmsg/
 F:	Documentation/rpmsg.txt
 F:	include/linux/rpmsg.h
+
+RENESAS ETHERNET DRIVERS
+R:	Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+L:	netdev@vger.kernel.org
+L:	linux-sh@vger.kernel.org
+F:	drivers/net/ethernet/renesas/
+F:	include/linux/sh_eth.h
 
 RESET CONTROLLER FRAMEWORK
 M:	Philipp Zabel <p.zabel@pengutronix.de>

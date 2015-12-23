@@ -195,7 +195,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	}
 
 	if (dev->ops->get_l2p_tbl) {
-		ret = dev->ops->get_l2p_tbl(dev->q, 0, dev->total_pages,
+		ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_pages,
 							gennvm_block_map, dev);
 		if (ret) {
 			pr_err("gennvm: could not read L2P table.\n");
@@ -218,6 +218,9 @@ static int gennvm_register(struct nvm_dev *dev)
 {
 	struct gen_nvm *gn;
 	int ret;
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
 
 	gn = kzalloc(sizeof(struct gen_nvm), GFP_KERNEL);
 	if (!gn)
@@ -242,12 +245,14 @@ static int gennvm_register(struct nvm_dev *dev)
 	return 1;
 err:
 	gennvm_free(dev);
+	module_put(THIS_MODULE);
 	return ret;
 }
 
 static void gennvm_unregister(struct nvm_dev *dev)
 {
 	gennvm_free(dev);
+	module_put(THIS_MODULE);
 }
 
 static struct nvm_block *gennvm_get_blk(struct nvm_dev *dev,
@@ -262,14 +267,11 @@ static struct nvm_block *gennvm_get_blk(struct nvm_dev *dev,
 	if (list_empty(&lun->free_list)) {
 		pr_err_ratelimited("gennvm: lun %u have no free pages available",
 								lun->vlun.id);
-		spin_unlock(&vlun->lock);
 		goto out;
 	}
 
-	while (!is_gc && lun->vlun.nr_free_blocks < lun->reserved_blocks) {
-		spin_unlock(&vlun->lock);
+	if (!is_gc && lun->vlun.nr_free_blocks < lun->reserved_blocks)
 		goto out;
-	}
 
 	blk = list_first_entry(&lun->free_list, struct nvm_block, list);
 	list_move_tail(&blk->list, &lun->used_list);
@@ -278,8 +280,8 @@ static struct nvm_block *gennvm_get_blk(struct nvm_dev *dev,
 	lun->vlun.nr_free_blocks--;
 	lun->vlun.nr_inuse_blocks++;
 
-	spin_unlock(&vlun->lock);
 out:
+	spin_unlock(&vlun->lock);
 	return blk;
 }
 
@@ -349,7 +351,7 @@ static int gennvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	gennvm_generic_to_addr_mode(dev, rqd);
 
 	rqd->dev = dev;
-	return dev->ops->submit_io(dev->q, rqd);
+	return dev->ops->submit_io(dev, rqd);
 }
 
 static void gennvm_blk_set_type(struct nvm_dev *dev, struct ppa_addr *ppa,
@@ -385,7 +387,7 @@ static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 	if (!dev->ops->set_bb_tbl)
 		return;
 
-	if (dev->ops->set_bb_tbl(dev->q, rqd, 1))
+	if (dev->ops->set_bb_tbl(dev, rqd, 1))
 		return;
 
 	gennvm_addr_to_generic_mode(dev, rqd);
@@ -453,7 +455,7 @@ static int gennvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk,
 
 	gennvm_generic_to_addr_mode(dev, &rqd);
 
-	ret = dev->ops->erase_block(dev->q, &rqd);
+	ret = dev->ops->erase_block(dev, &rqd);
 
 	if (plane_cnt)
 		nvm_dev_dma_free(dev, rqd.ppa_list, rqd.dma_ppa_list);

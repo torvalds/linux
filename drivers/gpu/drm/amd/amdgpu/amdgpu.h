@@ -1266,7 +1266,8 @@ struct amdgpu_cs_parser {
 	struct ww_acquire_ctx	ticket;
 
 	/* user fence */
-	struct amdgpu_user_fence uf;
+	struct amdgpu_user_fence	uf;
+	struct amdgpu_bo_list_entry	uf_entry;
 };
 
 struct amdgpu_job {

@@ -1041,7 +1041,7 @@ out_finish:
  *  Screen Target CRTC dispatch table
  */
 static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
-	.cursor_set = vmw_du_crtc_cursor_set,
+	.cursor_set2 = vmw_du_crtc_cursor_set2,
 	.cursor_move = vmw_du_crtc_cursor_move,
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_stdu_crtc_destroy,

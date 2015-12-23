@@ -1689,14 +1689,14 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 	struct request *req;
 	unsigned int request_count = 0;
 
-	blk_queue_split(q, &bio, q->bio_split);
-
 	/*
 	 * low level driver can indicate that it wants pages above a
 	 * certain limit bounced to low memory (ie for highmem, or even
 	 * ISA dma in theory)
 	 */
 	blk_queue_bounce(q, &bio);
+
+	blk_queue_split(q, &bio, q->bio_split);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
 		bio->bi_error = -EIO;
@@ -3405,6 +3405,9 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 {
 	int ret = 0;
 
+	if (!q->dev)
+		return ret;
+
 	spin_lock_irq(q->queue_lock);
 	if (q->nr_pending) {
 		ret = -EBUSY;
@@ -3432,6 +3435,9 @@ EXPORT_SYMBOL(blk_pre_runtime_suspend);
  */
 void blk_post_runtime_suspend(struct request_queue *q, int err)
 {
+	if (!q->dev)
+		return;
+
 	spin_lock_irq(q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_SUSPENDED;
@@ -3456,6 +3462,9 @@ EXPORT_SYMBOL(blk_post_runtime_suspend);
  */
 void blk_pre_runtime_resume(struct request_queue *q)
 {
+	if (!q->dev)
+		return;
+
 	spin_lock_irq(q->queue_lock);
 	q->rpm_status = RPM_RESUMING;
 	spin_unlock_irq(q->queue_lock);
@@ -3478,6 +3487,9 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
  */
 void blk_post_runtime_resume(struct request_queue *q, int err)
 {
+	if (!q->dev)
+		return;
+
 	spin_lock_irq(q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_ACTIVE;
