@@ -171,6 +171,7 @@ enum {
 static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 			     struct mlx5_ib_qp *qp)
 {
+	enum rdma_link_layer ll = rdma_port_get_link_layer(qp->ibqp.device, 1);
 	struct mlx5_ib_dev *dev = to_mdev(qp->ibqp.device);
 	struct mlx5_ib_srq *srq;
 	struct mlx5_ib_wq *wq;
@@ -236,6 +237,22 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	} else {
 		wc->pkey_index = 0;
 	}
+
+	if (ll != IB_LINK_LAYER_ETHERNET)
+		return;
+
+	switch (wc->sl & 0x3) {
+	case MLX5_CQE_ROCE_L3_HEADER_TYPE_GRH:
+		wc->network_hdr_type = RDMA_NETWORK_IB;
+		break;
+	case MLX5_CQE_ROCE_L3_HEADER_TYPE_IPV6:
+		wc->network_hdr_type = RDMA_NETWORK_IPV6;
+		break;
+	case MLX5_CQE_ROCE_L3_HEADER_TYPE_IPV4:
+		wc->network_hdr_type = RDMA_NETWORK_IPV4;
+		break;
+	}
+	wc->wc_flags |= IB_WC_WITH_NETWORK_HDR_TYPE;
 }
 
 static void dump_cqe(struct mlx5_ib_dev *dev, struct mlx5_err_cqe *cqe)
