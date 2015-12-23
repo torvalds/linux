@@ -2555,7 +2555,8 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	iq->size = roundup(iq->size, 16);
 
 	iq->desc = alloc_ring(adap->pdev_dev, iq->size, iq->iqe_len, 0,
-			      &iq->phys_addr, NULL, 0, NUMA_NO_NODE);
+			      &iq->phys_addr, NULL, 0,
+			      dev_to_node(adap->pdev_dev));
 	if (!iq->desc)
 		return -ENOMEM;
 
@@ -2595,7 +2596,8 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->size = roundup(fl->size, 8);
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
-				      &fl->sdesc, s->stat_len, NUMA_NO_NODE);
+				      &fl->sdesc, s->stat_len,
+				      dev_to_node(adap->pdev_dev));
 		if (!fl->desc)
 			goto fl_nomem;
 
