@@ -658,7 +658,7 @@ intvec_\vecname:
 	 */
 	mfspr   r32, SPR_EX_CONTEXT_K_1
 	{
-	 IS_KERNEL_EX1(r22, r22)
+	 IS_KERNEL_EX1(r32, r32)
 	 PTREGS_PTR(r21, PTREGS_OFFSET_FLAGS)
 	}
 	beqzt   r32, 1f       /* zero if from user space */
