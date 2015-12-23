@@ -1403,42 +1403,6 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 }
 EXPORT_SYMBOL(ib_alloc_mr);
 
-/* Memory windows */
-
-struct ib_mw *ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
-{
-	struct ib_mw *mw;
-
-	if (!pd->device->alloc_mw)
-		return ERR_PTR(-ENOSYS);
-
-	mw = pd->device->alloc_mw(pd, type);
-	if (!IS_ERR(mw)) {
-		mw->device  = pd->device;
-		mw->pd      = pd;
-		mw->uobject = NULL;
-		mw->type    = type;
-		atomic_inc(&pd->usecnt);
-	}
-
-	return mw;
-}
-EXPORT_SYMBOL(ib_alloc_mw);
-
-int ib_dealloc_mw(struct ib_mw *mw)
-{
-	struct ib_pd *pd;
-	int ret;
-
-	pd = mw->pd;
-	ret = mw->device->dealloc_mw(mw);
-	if (!ret)
-		atomic_dec(&pd->usecnt);
-
-	return ret;
-}
-EXPORT_SYMBOL(ib_dealloc_mw);
-
 /* "Fast" memory regions */
 
 struct ib_fmr *ib_alloc_fmr(struct ib_pd *pd,

@@ -206,80 +206,6 @@ static int nes_dealloc_mw(struct ib_mw *ibmw)
 }
 
 
-/**
- * nes_bind_mw
- */
-static int nes_bind_mw(struct ib_qp *ibqp, struct ib_mw *ibmw,
-		struct ib_mw_bind *ibmw_bind)
-{
-	u64 u64temp;
-	struct nes_vnic *nesvnic = to_nesvnic(ibqp->device);
-	struct nes_device *nesdev = nesvnic->nesdev;
-	/* struct nes_mr *nesmr = to_nesmw(ibmw); */
-	struct nes_qp *nesqp = to_nesqp(ibqp);
-	struct nes_hw_qp_wqe *wqe;
-	unsigned long flags = 0;
-	u32 head;
-	u32 wqe_misc = 0;
-	u32 qsize;
-
-	if (nesqp->ibqp_state > IB_QPS_RTS)
-		return -EINVAL;
-
-	spin_lock_irqsave(&nesqp->lock, flags);
-
-	head = nesqp->hwqp.sq_head;
-	qsize = nesqp->hwqp.sq_tail;
-
-	/* Check for SQ overflow */
-	if (((head + (2 * qsize) - nesqp->hwqp.sq_tail) % qsize) == (qsize - 1)) {
-		spin_unlock_irqrestore(&nesqp->lock, flags);
-		return -ENOMEM;
-	}
-
-	wqe = &nesqp->hwqp.sq_vbase[head];
-	/* nes_debug(NES_DBG_MR, "processing sq wqe at %p, head = %u.\n", wqe, head); */
-	nes_fill_init_qp_wqe(wqe, nesqp, head);
-	u64temp = ibmw_bind->wr_id;
-	set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_COMP_SCRATCH_LOW_IDX, u64temp);
-	wqe_misc = NES_IWARP_SQ_OP_BIND;
-
-	wqe_misc |= NES_IWARP_SQ_WQE_LOCAL_FENCE;
-
-	if (ibmw_bind->send_flags & IB_SEND_SIGNALED)
-		wqe_misc |= NES_IWARP_SQ_WQE_SIGNALED_COMPL;
-
-	if (ibmw_bind->bind_info.mw_access_flags & IB_ACCESS_REMOTE_WRITE)
-		wqe_misc |= NES_CQP_STAG_RIGHTS_REMOTE_WRITE;
-	if (ibmw_bind->bind_info.mw_access_flags & IB_ACCESS_REMOTE_READ)
-		wqe_misc |= NES_CQP_STAG_RIGHTS_REMOTE_READ;
-
-	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_MISC_IDX, wqe_misc);
-	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_MR_IDX,
-			    ibmw_bind->bind_info.mr->lkey);
-	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_MW_IDX, ibmw->rkey);
-	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_LENGTH_LOW_IDX,
-			ibmw_bind->bind_info.length);
-	wqe->wqe_words[NES_IWARP_SQ_BIND_WQE_LENGTH_HIGH_IDX] = 0;
-	u64temp = (u64)ibmw_bind->bind_info.addr;
-	set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_VA_FBO_LOW_IDX, u64temp);
-
-	head++;
-	if (head >= qsize)
-		head = 0;
-
-	nesqp->hwqp.sq_head = head;
-	barrier();
-
-	nes_write32(nesdev->regs+NES_WQE_ALLOC,
-			(1 << 24) | 0x00800000 | nesqp->hwqp.qp_id);
-
-	spin_unlock_irqrestore(&nesqp->lock, flags);
-
-	return 0;
-}
-
-
 /*
  * nes_alloc_fast_mr
  */
@@ -3892,7 +3818,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.dereg_mr = nes_dereg_mr;
 	nesibdev->ibdev.alloc_mw = nes_alloc_mw;
 	nesibdev->ibdev.dealloc_mw = nes_dealloc_mw;
-	nesibdev->ibdev.bind_mw = nes_bind_mw;
 
 	nesibdev->ibdev.alloc_mr = nes_alloc_mr;
 	nesibdev->ibdev.map_mr_sg = nes_map_mr_sg;

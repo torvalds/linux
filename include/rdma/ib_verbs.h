@@ -812,7 +812,6 @@ enum ib_wc_opcode {
 	IB_WC_RDMA_READ,
 	IB_WC_COMP_SWAP,
 	IB_WC_FETCH_ADD,
-	IB_WC_BIND_MW,
 	IB_WC_LSO,
 	IB_WC_LOCAL_INV,
 	IB_WC_REG_MR,
@@ -1110,7 +1109,6 @@ enum ib_wr_opcode {
 	IB_WR_REG_MR,
 	IB_WR_MASKED_ATOMIC_CMP_AND_SWP,
 	IB_WR_MASKED_ATOMIC_FETCH_AND_ADD,
-	IB_WR_BIND_MW,
 	IB_WR_REG_SIG_MR,
 	/* reserve values for low level drivers' internal use.
 	 * These values will not be used at all in the ib core layer.
@@ -1143,23 +1141,6 @@ struct ib_sge {
 	u64	addr;
 	u32	length;
 	u32	lkey;
-};
-
-/**
- * struct ib_mw_bind_info - Parameters for a memory window bind operation.
- * @mr: A memory region to bind the memory window to.
- * @addr: The address where the memory window should begin.
- * @length: The length of the memory window, in bytes.
- * @mw_access_flags: Access flags from enum ib_access_flags for the window.
- *
- * This struct contains the shared parameters for type 1 and type 2
- * memory window bind operations.
- */
-struct ib_mw_bind_info {
-	struct ib_mr   *mr;
-	u64		addr;
-	u64		length;
-	int		mw_access_flags;
 };
 
 struct ib_cqe {
@@ -1237,19 +1218,6 @@ static inline struct ib_reg_wr *reg_wr(struct ib_send_wr *wr)
 	return container_of(wr, struct ib_reg_wr, wr);
 }
 
-struct ib_bind_mw_wr {
-	struct ib_send_wr	wr;
-	struct ib_mw		*mw;
-	/* The new rkey for the memory window. */
-	u32			rkey;
-	struct ib_mw_bind_info	bind_info;
-};
-
-static inline struct ib_bind_mw_wr *bind_mw_wr(struct ib_send_wr *wr)
-{
-	return container_of(wr, struct ib_bind_mw_wr, wr);
-}
-
 struct ib_sig_handover_wr {
 	struct ib_send_wr	wr;
 	struct ib_sig_attrs    *sig_attrs;
@@ -1297,18 +1265,6 @@ enum ib_mr_rereg_flags {
 	IB_MR_REREG_PD		= (1<<1),
 	IB_MR_REREG_ACCESS	= (1<<2),
 	IB_MR_REREG_SUPPORTED	= ((IB_MR_REREG_ACCESS << 1) - 1)
-};
-
-/**
- * struct ib_mw_bind - Parameters for a type 1 memory window bind operation.
- * @wr_id:      Work request id.
- * @send_flags: Flags from ib_send_flags enum.
- * @bind_info:  More parameters of the bind operation.
- */
-struct ib_mw_bind {
-	u64                    wr_id;
-	int                    send_flags;
-	struct ib_mw_bind_info bind_info;
 };
 
 struct ib_fmr_attr {
@@ -1845,9 +1801,6 @@ struct ib_device {
 						int sg_nents);
 	struct ib_mw *             (*alloc_mw)(struct ib_pd *pd,
 					       enum ib_mw_type type);
-	int                        (*bind_mw)(struct ib_qp *qp,
-					      struct ib_mw *mw,
-					      struct ib_mw_bind *mw_bind);
 	int                        (*dealloc_mw)(struct ib_mw *mw);
 	struct ib_fmr *	           (*alloc_fmr)(struct ib_pd *pd,
 						int mr_access_flags,
@@ -2974,42 +2927,6 @@ static inline u32 ib_inc_rkey(u32 rkey)
 	const u32 mask = 0x000000ff;
 	return ((rkey + 1) & mask) | (rkey & ~mask);
 }
-
-/**
- * ib_alloc_mw - Allocates a memory window.
- * @pd: The protection domain associated with the memory window.
- * @type: The type of the memory window (1 or 2).
- */
-struct ib_mw *ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
-
-/**
- * ib_bind_mw - Posts a work request to the send queue of the specified
- *   QP, which binds the memory window to the given address range and
- *   remote access attributes.
- * @qp: QP to post the bind work request on.
- * @mw: The memory window to bind.
- * @mw_bind: Specifies information about the memory window, including
- *   its address range, remote access rights, and associated memory region.
- *
- * If there is no immediate error, the function will update the rkey member
- * of the mw parameter to its new value. The bind operation can still fail
- * asynchronously.
- */
-static inline int ib_bind_mw(struct ib_qp *qp,
-			     struct ib_mw *mw,
-			     struct ib_mw_bind *mw_bind)
-{
-	/* XXX reference counting in corresponding MR? */
-	return mw->device->bind_mw ?
-		mw->device->bind_mw(qp, mw, mw_bind) :
-		-ENOSYS;
-}
-
-/**
- * ib_dealloc_mw - Deallocates a memory window.
- * @mw: The memory window to deallocate.
- */
-int ib_dealloc_mw(struct ib_mw *mw);
 
 /**
  * ib_alloc_fmr - Allocates a unmapped fast memory region.

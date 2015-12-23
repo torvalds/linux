@@ -88,9 +88,6 @@ int ehca_dereg_mr(struct ib_mr *mr);
 
 struct ib_mw *ehca_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
 
-int ehca_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
-		 struct ib_mw_bind *mw_bind);
-
 int ehca_dealloc_mw(struct ib_mw *mw);
 
 struct ib_fmr *ehca_alloc_fmr(struct ib_pd *pd,

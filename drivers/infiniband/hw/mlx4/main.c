@@ -2283,7 +2283,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
 	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {
 		ibdev->ib_dev.alloc_mw = mlx4_ib_alloc_mw;
-		ibdev->ib_dev.bind_mw = mlx4_ib_bind_mw;
 		ibdev->ib_dev.dealloc_mw = mlx4_ib_dealloc_mw;
 
 		ibdev->ib_dev.uverbs_cmd_mask |=

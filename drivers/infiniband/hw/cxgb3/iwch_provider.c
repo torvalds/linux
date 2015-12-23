@@ -1388,7 +1388,6 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.reg_user_mr = iwch_reg_user_mr;
 	dev->ibdev.dereg_mr = iwch_dereg_mr;
 	dev->ibdev.alloc_mw = iwch_alloc_mw;
-	dev->ibdev.bind_mw = iwch_bind_mw;
 	dev->ibdev.dealloc_mw = iwch_dealloc_mw;
 	dev->ibdev.alloc_mr = iwch_alloc_mr;
 	dev->ibdev.map_mr_sg = iwch_map_mr_sg;

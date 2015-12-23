@@ -154,9 +154,6 @@ static void handle_good_req(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 		wc->opcode    = IB_WC_MASKED_FETCH_ADD;
 		wc->byte_len  = 8;
 		break;
-	case MLX5_OPCODE_BIND_MW:
-		wc->opcode    = IB_WC_BIND_MW;
-		break;
 	case MLX5_OPCODE_UMR:
 		wc->opcode = get_umr_comp(wq, idx);
 		break;

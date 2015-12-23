@@ -413,18 +413,6 @@ alloc_mw_exit0:
 
 /*----------------------------------------------------------------------*/
 
-int ehca_bind_mw(struct ib_qp *qp,
-		 struct ib_mw *mw,
-		 struct ib_mw_bind *mw_bind)
-{
-	/* TODO: not supported up to now */
-	ehca_gen_err("bind MW currently not supported by HCAD");
-
-	return -EPERM;
-} /* end ehca_bind_mw() */
-
-/*----------------------------------------------------------------------*/
-
 int ehca_dealloc_mw(struct ib_mw *mw)
 {
 	u64 h_ret;

@@ -744,9 +744,6 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 		case FW_RI_SEND_WITH_SE:
 			wc->opcode = IB_WC_SEND;
 			break;
-		case FW_RI_BIND_MW:
-			wc->opcode = IB_WC_BIND_MW;
-			break;
 
 		case FW_RI_LOCAL_INV:
 			wc->opcode = IB_WC_LOCAL_INV;
