@@ -1938,6 +1938,7 @@ static int get_write_extents(struct osc_object *obj, struct list_head *rpclist)
 static int
 osc_send_write_rpc(const struct lu_env *env, struct client_obd *cli,
 		   struct osc_object *osc)
+	__must_hold(osc)
 {
 	LIST_HEAD(rpclist);
 	struct osc_extent *ext;
@@ -2010,6 +2011,7 @@ osc_send_write_rpc(const struct lu_env *env, struct client_obd *cli,
 static int
 osc_send_read_rpc(const struct lu_env *env, struct client_obd *cli,
 		  struct osc_object *osc)
+	__must_hold(osc)
 {
 	struct osc_extent *ext;
 	struct osc_extent *next;
@@ -2083,6 +2085,7 @@ static struct osc_object *osc_next_obj(struct client_obd *cli)
 
 /* called with the loi list lock held */
 static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli)
+	__must_hold(&cli->cl_loi_list_lock)
 {
 	struct osc_object *osc;
 	int rc = 0;

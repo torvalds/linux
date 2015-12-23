@@ -353,6 +353,7 @@ static int unpack_reply(struct ptlrpc_request *req)
  * If anything goes wrong just ignore it - same as if it never happened
  */
 static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
+	__must_hold(&req->rq_lock)
 {
 	struct ptlrpc_request *early_req;
 	time64_t olddl;
