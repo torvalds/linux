@@ -60,6 +60,8 @@
 
 #define ST21NFCA_HCI_I2C_DRIVER_NAME "st21nfca_hci_i2c"
 
+#define ST21NFCA_GPIO_NAME_EN "clf_enable"
+
 struct st21nfca_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct nfc_hci_dev *hdev;
@@ -522,7 +524,7 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 
 	/* GPIO request and configuration */
 	r = devm_gpio_request_one(&client->dev, gpio, GPIOF_OUT_INIT_HIGH,
-				  "clf_enable");
+				  ST21NFCA_GPIO_NAME_EN);
 	if (r) {
 		nfc_err(&client->dev, "Failed to request enable pin\n");
 		return r;
@@ -558,7 +560,8 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 
 	if (phy->gpio_ena > 0) {
 		r = devm_gpio_request_one(&client->dev, phy->gpio_ena,
-					  GPIOF_OUT_INIT_HIGH, "clf_enable");
+					  GPIOF_OUT_INIT_HIGH,
+					  ST21NFCA_GPIO_NAME_EN);
 		if (r) {
 			pr_err("%s : ena gpio_request failed\n", __FILE__);
 			return r;
