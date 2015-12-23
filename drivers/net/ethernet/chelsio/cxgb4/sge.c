@@ -2288,7 +2288,7 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	if (likely(work_done < budget)) {
 		int timer_index;
 
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		timer_index = QINTR_TIMER_IDX_G(q->next_intr_params);
 
 		if (q->adaptive_rx) {
