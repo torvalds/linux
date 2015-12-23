@@ -58,6 +58,7 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 	LIBCFS_ALLOC(cptab, sizeof(*cptab));
 	if (cptab != NULL) {
 		cptab->ctb_version = CFS_CPU_VERSION_MAGIC;
+		node_set(0, cptab->ctb_nodemask);
 		cptab->ctb_nparts  = ncpt;
 	}
 
@@ -110,6 +111,13 @@ cfs_cpt_online(struct cfs_cpt_table *cptab, int cpt)
 	return 1;
 }
 EXPORT_SYMBOL(cfs_cpt_online);
+
+nodemask_t *
+cfs_cpt_nodemask(struct cfs_cpt_table *cptab, int cpt)
+{
+	return &cptab->ctb_nodemask;
+}
+EXPORT_SYMBOL(cfs_cpt_cpumask);
 
 int
 cfs_cpt_set_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu)
