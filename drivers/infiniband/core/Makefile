@@ -24,6 +24,8 @@ iw_cm-y :=			iwcm.o iwpm_util.o iwpm_msg.o
 
 rdma_cm-y :=			cma.o
 
+rdma_cm-$(CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS) += cma_configfs.o
+
 rdma_ucm-y :=			ucma.o
 
 ib_addr-y :=			addr.o

@@ -38,9 +38,31 @@
 
 #include <rdma/ib_verbs.h>
 
+#if IS_ENABLED(CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS)
+int cma_configfs_init(void);
+void cma_configfs_exit(void);
+#else
+static inline int cma_configfs_init(void)
+{
+	return 0;
+}
+
+static inline void cma_configfs_exit(void)
+{
+}
+#endif
 struct cma_device;
 void cma_ref_dev(struct cma_device *cma_dev);
 void cma_deref_dev(struct cma_device *cma_dev);
+typedef bool (*cma_device_filter)(struct ib_device *, void *);
+struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
+					     void		*cookie);
+int cma_get_default_gid_type(struct cma_device *cma_dev,
+			     unsigned int port);
+int cma_set_default_gid_type(struct cma_device *cma_dev,
+			     unsigned int port,
+			     enum ib_gid_type default_gid_type);
+struct ib_device *cma_get_ib_dev(struct cma_device *cma_dev);
 
 int  ib_device_register_sysfs(struct ib_device *device,
 			      int (*port_callback)(struct ib_device *,
@@ -73,6 +95,8 @@ enum ib_cache_gid_default_mode {
 	IB_CACHE_GID_DEFAULT_MODE_SET,
 	IB_CACHE_GID_DEFAULT_MODE_DELETE
 };
+
+int ib_cache_gid_parse_type_str(const char *buf);
 
 const char *ib_cache_gid_type_str(enum ib_gid_type gid_type);
 
