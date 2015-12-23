@@ -60,6 +60,8 @@
 #include <rdma/ib_sa.h>
 #include <rdma/iw_cm.h>
 
+#include "core_priv.h"
+
 MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("Generic RDMA CM Agent");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -184,6 +186,11 @@ static void cma_ps_remove(struct net *net, enum rdma_port_space ps, int snum)
 enum {
 	CMA_OPTION_AFONLY,
 };
+
+void cma_ref_dev(struct cma_device *cma_dev)
+{
+	atomic_inc(&cma_dev->refcount);
+}
 
 /*
  * Device removal can occur at anytime, so we need extra handling to
@@ -339,7 +346,7 @@ static inline void cma_set_ip_ver(struct cma_hdr *hdr, u8 ip_ver)
 static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 			      struct cma_device *cma_dev)
 {
-	atomic_inc(&cma_dev->refcount);
+	cma_ref_dev(cma_dev);
 	id_priv->cma_dev = cma_dev;
 	id_priv->id.device = cma_dev->device;
 	id_priv->id.route.addr.dev_addr.transport =
@@ -347,7 +354,7 @@ static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 	list_add_tail(&id_priv->list, &cma_dev->id_list);
 }
 
-static inline void cma_deref_dev(struct cma_device *cma_dev)
+void cma_deref_dev(struct cma_device *cma_dev)
 {
 	if (atomic_dec_and_test(&cma_dev->refcount))
 		complete(&cma_dev->comp);
