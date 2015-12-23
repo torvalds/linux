@@ -145,7 +145,7 @@ int libcfs_kkuc_group_add(struct file *filp, int uid, unsigned int group,
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_add);
 
-int libcfs_kkuc_group_rem(int uid, int group)
+int libcfs_kkuc_group_rem(int uid, unsigned int group)
 {
 	struct kkuc_reg *reg, *next;
 
@@ -180,7 +180,7 @@ int libcfs_kkuc_group_rem(int uid, int group)
 }
 EXPORT_SYMBOL(libcfs_kkuc_group_rem);
 
-int libcfs_kkuc_group_put(int group, void *payload)
+int libcfs_kkuc_group_put(unsigned int group, void *payload)
 {
 	struct kkuc_reg	*reg;
 	int		 rc = 0;
@@ -215,7 +215,7 @@ EXPORT_SYMBOL(libcfs_kkuc_group_put);
  * @param cb_func the function to be called.
  * @param cb_arg extra argument to be passed to the callback function.
  */
-int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
+int libcfs_kkuc_group_foreach(unsigned int group, libcfs_kkuc_cb_t cb_func,
 			      void *cb_arg)
 {
 	struct kkuc_reg *reg;
