@@ -5316,7 +5316,14 @@ unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 
 	if (n == 0)
 		return idx == 0 ? 0xf : 0;
-	if (n == 1)
+	/* In T6 (which is a 2 port card),
+	 * port 0 is mapped to channel 0 and port 1 is mapped to channel 1.
+	 * For 2 port T4/T5 adapter,
+	 * port 0 is mapped to channel 0 and 1,
+	 * port 1 is mapped to channel 2 and 3.
+	 */
+	if ((n == 1) &&
+	    (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5))
 		return idx < 2 ? (3 << (2 * idx)) : 0;
 	return 1 << idx;
 }
