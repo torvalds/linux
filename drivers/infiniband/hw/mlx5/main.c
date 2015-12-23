@@ -1517,6 +1517,32 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	mlx5_ib_dealloc_pd(devr->p0);
 }
 
+static u32 get_core_cap_flags(struct ib_device *ibdev)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+	enum rdma_link_layer ll = mlx5_ib_port_link_layer(ibdev, 1);
+	u8 l3_type_cap = MLX5_CAP_ROCE(dev->mdev, l3_type);
+	u8 roce_version_cap = MLX5_CAP_ROCE(dev->mdev, roce_version);
+	u32 ret = 0;
+
+	if (ll == IB_LINK_LAYER_INFINIBAND)
+		return RDMA_CORE_PORT_IBA_IB;
+
+	if (!(l3_type_cap & MLX5_ROCE_L3_TYPE_IPV4_CAP))
+		return 0;
+
+	if (!(l3_type_cap & MLX5_ROCE_L3_TYPE_IPV6_CAP))
+		return 0;
+
+	if (roce_version_cap & MLX5_ROCE_VERSION_1_CAP)
+		ret |= RDMA_CORE_PORT_IBA_ROCE;
+
+	if (roce_version_cap & MLX5_ROCE_VERSION_2_CAP)
+		ret |= RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+
+	return ret;
+}
+
 static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable)
 {
@@ -1529,7 +1555,7 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+	immutable->core_cap_flags = get_core_cap_flags(ibdev);
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 
 	return 0;
@@ -1537,12 +1563,27 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 
 static int mlx5_enable_roce(struct mlx5_ib_dev *dev)
 {
+	int err;
+
 	dev->roce.nb.notifier_call = mlx5_netdev_event;
-	return register_netdevice_notifier(&dev->roce.nb);
+	err = register_netdevice_notifier(&dev->roce.nb);
+	if (err)
+		return err;
+
+	err = mlx5_nic_vport_enable_roce(dev->mdev);
+	if (err)
+		goto err_unregister_netdevice_notifier;
+
+	return 0;
+
+err_unregister_netdevice_notifier:
+	unregister_netdevice_notifier(&dev->roce.nb);
+	return err;
 }
 
 static void mlx5_disable_roce(struct mlx5_ib_dev *dev)
 {
+	mlx5_nic_vport_disable_roce(dev->mdev);
 	unregister_netdevice_notifier(&dev->roce.nb);
 }
 
@@ -1557,8 +1598,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	port_type_cap = MLX5_CAP_GEN(mdev, port_type);
 	ll = mlx5_port_type_cap_to_rdma_ll(port_type_cap);
 
-	/* don't create IB instance over Eth ports, no RoCE yet! */
-	if (ll == IB_LINK_LAYER_ETHERNET)
+	if ((ll == IB_LINK_LAYER_ETHERNET) && !MLX5_CAP_GEN(mdev, roce))
 		return NULL;
 
 	printk_once(KERN_INFO "%s", mlx5_version);
