@@ -106,8 +106,6 @@ int adf_dev_start(struct adf_accel_dev *accel_dev);
 int adf_dev_stop(struct adf_accel_dev *accel_dev);
 void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
 
-void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
-void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
 int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
 void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
 int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev);
@@ -236,6 +234,8 @@ void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 				  uint32_t vf_mask);
 void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 				 uint32_t vf_mask);
+void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
+void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
 #else
 static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 {
@@ -243,6 +243,14 @@ static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 }
 
 static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
+{
+}
+
+static inline void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
+{
+}
+
+static inline void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 {
 }
 #endif
