@@ -4306,9 +4306,10 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		return -EOPNOTSUPP;
 
 	ctrl = (struct mlx4_net_trans_rule_hw_ctrl *)inbox->buf;
-	ctrl->port = mlx4_slave_convert_port(dev, slave, ctrl->port);
-	if (ctrl->port <= 0)
+	err = mlx4_slave_convert_port(dev, slave, ctrl->port);
+	if (err <= 0)
 		return -EINVAL;
+	ctrl->port = err;
 	qpn = be32_to_cpu(ctrl->qpn) & 0xffffff;
 	err = get_res(dev, slave, qpn, RES_QP, &rqp);
 	if (err) {

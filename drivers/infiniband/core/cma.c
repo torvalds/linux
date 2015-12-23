@@ -1126,10 +1126,7 @@ static bool validate_ipv4_net_dev(struct net_device *net_dev,
 
 	rcu_read_lock();
 	err = fib_lookup(dev_net(net_dev), &fl4, &res, 0);
-	if (err)
-		return false;
-
-	ret = FIB_RES_DEV(res) == net_dev;
+	ret = err == 0 && FIB_RES_DEV(res) == net_dev;
 	rcu_read_unlock();
 
 	return ret;

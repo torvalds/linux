@@ -237,6 +237,8 @@ struct ib_vendor_mad {
 	u8			data[IB_MGMT_VENDOR_DATA];
 };
 
+#define IB_MGMT_CLASSPORTINFO_ATTR_ID	cpu_to_be16(0x0001)
+
 struct ib_class_port_info {
 	u8			base_version;
 	u8			class_version;
