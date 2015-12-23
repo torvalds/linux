@@ -938,8 +938,6 @@ static int pn544_hci_i2c_acpi_request_resources(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_OF
-
 static int pn544_hci_i2c_of_request_resources(struct i2c_client *client)
 {
 	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
@@ -1014,15 +1012,6 @@ err_gpio_en:
 err_dt:
 	return ret;
 }
-
-#else
-
-static int pn544_hci_i2c_of_request_resources(struct i2c_client *client)
-{
-	return -ENODEV;
-}
-
-#endif
 
 static int pn544_hci_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
