@@ -84,7 +84,7 @@ struct slot {
 	u8 presence_save;
 	u8 pwr_save;
 	struct controller *ctrl;
-	struct hpc_ops *hpc_ops;
+	const struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
 	struct delayed_work work;	/* work for button event */
@@ -106,7 +106,7 @@ struct controller {
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
 	struct list_head slot_list;
-	struct hpc_ops *hpc_ops;
+	const struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u8 slot_device_offset;
 	u32 pcix_misc2_reg;	/* for amd pogo errata */
