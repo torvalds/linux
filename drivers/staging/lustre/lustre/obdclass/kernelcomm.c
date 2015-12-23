@@ -57,14 +57,14 @@ int libcfs_kkuc_msg_put(struct file *filp, void *payload)
 	ssize_t count = kuch->kuc_msglen;
 	loff_t offset = 0;
 	mm_segment_t fs;
-	int rc = -ENOSYS;
+	int rc = -ENXIO;
 
 	if (!filp || IS_ERR(filp))
 		return -EBADF;
 
 	if (kuch->kuc_magic != KUC_MAGIC) {
 		CERROR("KernelComm: bad magic %x\n", kuch->kuc_magic);
-		return -ENOSYS;
+		return rc;
 	}
 
 	fs = get_fs();
