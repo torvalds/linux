@@ -766,8 +766,8 @@ static void name_msix_vecs(struct adapter *adap)
 	}
 
 	/* offload queues */
-	for_each_ofldrxq(&adap->sge, i)
-		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-ofld%d",
+	for_each_iscsirxq(&adap->sge, i)
+		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-iscsi%d",
 			 adap->port[0]->name, i);
 
 	for_each_rdmarxq(&adap->sge, i)
@@ -782,7 +782,7 @@ static void name_msix_vecs(struct adapter *adap)
 static int request_msix_queue_irqs(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, rdmaciqqidx = 0;
+	int err, ethqidx, iscsiqidx = 0, rdmaqidx = 0, rdmaciqqidx = 0;
 	int msi_index = 2;
 
 	err = request_irq(adap->msix_info[1].vec, t4_sge_intr_msix, 0,
@@ -799,11 +799,11 @@ static int request_msix_queue_irqs(struct adapter *adap)
 			goto unwind;
 		msi_index++;
 	}
-	for_each_ofldrxq(s, ofldqidx) {
+	for_each_iscsirxq(s, iscsiqidx) {
 		err = request_irq(adap->msix_info[msi_index].vec,
 				  t4_sge_intr_msix, 0,
 				  adap->msix_info[msi_index].desc,
-				  &s->ofldrxq[ofldqidx].rspq);
+				  &s->iscsirxq[iscsiqidx].rspq);
 		if (err)
 			goto unwind;
 		msi_index++;
@@ -835,9 +835,9 @@ unwind:
 	while (--rdmaqidx >= 0)
 		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->rdmarxq[rdmaqidx].rspq);
-	while (--ofldqidx >= 0)
+	while (--iscsiqidx >= 0)
 		free_irq(adap->msix_info[--msi_index].vec,
-			 &s->ofldrxq[ofldqidx].rspq);
+			 &s->iscsirxq[iscsiqidx].rspq);
 	while (--ethqidx >= 0)
 		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->ethrxq[ethqidx].rspq);
@@ -853,8 +853,9 @@ static void free_msix_queue_irqs(struct adapter *adap)
 	free_irq(adap->msix_info[1].vec, &s->fw_evtq);
 	for_each_ethrxq(s, i)
 		free_irq(adap->msix_info[msi_index++].vec, &s->ethrxq[i].rspq);
-	for_each_ofldrxq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec, &s->ofldrxq[i].rspq);
+	for_each_iscsirxq(s, i)
+		free_irq(adap->msix_info[msi_index++].vec,
+			 &s->iscsirxq[i].rspq);
 	for_each_rdmarxq(s, i)
 		free_irq(adap->msix_info[msi_index++].vec, &s->rdmarxq[i].rspq);
 	for_each_rdmaciq(s, i)
@@ -1093,8 +1094,8 @@ freeout:	t4_free_sge_resources(adap);
 		}
 	}
 
-	j = s->ofldqsets / adap->params.nports; /* ofld queues per channel */
-	for_each_ofldrxq(s, i) {
+	j = s->iscsiqsets / adap->params.nports; /* iscsi queues per channel */
+	for_each_iscsirxq(s, i) {
 		err = t4_sge_alloc_ofld_txq(adap, &s->ofldtxq[i],
 					    adap->port[i / j],
 					    s->fw_evtq.cntxt_id);
@@ -1110,7 +1111,7 @@ freeout:	t4_free_sge_resources(adap);
 		msi_idx += nq; \
 } while (0)
 
-	ALLOC_OFLD_RXQS(s->ofldrxq, s->ofldqsets, j, s->ofld_rxq);
+	ALLOC_OFLD_RXQS(s->iscsirxq, s->iscsiqsets, j, s->iscsi_rxq);
 	ALLOC_OFLD_RXQS(s->rdmarxq, s->rdmaqs, 1, s->rdma_rxq);
 	j = s->rdmaciqs / adap->params.nports; /* rdmaq queues per channel */
 	ALLOC_OFLD_RXQS(s->rdmaciq, s->rdmaciqs, j, s->rdma_ciq);
@@ -2277,7 +2278,7 @@ static void disable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		disable_txq_db(&adap->sge.ethtxq[i].q);
-	for_each_ofldrxq(&adap->sge, i)
+	for_each_iscsirxq(&adap->sge, i)
 		disable_txq_db(&adap->sge.ofldtxq[i].q);
 	for_each_port(adap, i)
 		disable_txq_db(&adap->sge.ctrlq[i].q);
@@ -2289,7 +2290,7 @@ static void enable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		enable_txq_db(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldrxq(&adap->sge, i)
+	for_each_iscsirxq(&adap->sge, i)
 		enable_txq_db(adap, &adap->sge.ofldtxq[i].q);
 	for_each_port(adap, i)
 		enable_txq_db(adap, &adap->sge.ctrlq[i].q);
@@ -2359,7 +2360,7 @@ static void recover_all_queues(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		sync_txq_pidx(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldrxq(&adap->sge, i)
+	for_each_iscsirxq(&adap->sge, i)
 		sync_txq_pidx(adap, &adap->sge.ofldtxq[i].q);
 	for_each_port(adap, i)
 		sync_txq_pidx(adap, &adap->sge.ctrlq[i].q);
@@ -2443,10 +2444,10 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 		lli.nrxq = adap->sge.rdmaqs;
 		lli.nciq = adap->sge.rdmaciqs;
 	} else if (uld == CXGB4_ULD_ISCSI) {
-		lli.rxq_ids = adap->sge.ofld_rxq;
-		lli.nrxq = adap->sge.ofldqsets;
+		lli.rxq_ids = adap->sge.iscsi_rxq;
+		lli.nrxq = adap->sge.iscsiqsets;
 	}
-	lli.ntxq = adap->sge.ofldqsets;
+	lli.ntxq = adap->sge.iscsiqsets;
 	lli.nchan = adap->params.nports;
 	lli.nports = adap->params.nports;
 	lli.wr_cred = adap->params.ofldq_wr_cred;
@@ -4342,11 +4343,11 @@ static void cfg_queues(struct adapter *adap)
 		 * capped by the number of available cores.
 		 */
 		if (n10g) {
-			i = min_t(int, ARRAY_SIZE(s->ofldrxq),
+			i = min_t(int, ARRAY_SIZE(s->iscsirxq),
 				  num_online_cpus());
-			s->ofldqsets = roundup(i, adap->params.nports);
+			s->iscsiqsets = roundup(i, adap->params.nports);
 		} else
-			s->ofldqsets = adap->params.nports;
+			s->iscsiqsets = adap->params.nports;
 		/* For RDMA one Rx queue per channel suffices */
 		s->rdmaqs = adap->params.nports;
 		/* Try and allow at least 1 CIQ per cpu rounding down
@@ -4377,8 +4378,8 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->ofldtxq); i++)
 		s->ofldtxq[i].q.size = 1024;
 
-	for (i = 0; i < ARRAY_SIZE(s->ofldrxq); i++) {
-		struct sge_ofld_rxq *r = &s->ofldrxq[i];
+	for (i = 0; i < ARRAY_SIZE(s->iscsirxq); i++) {
+		struct sge_ofld_rxq *r = &s->iscsirxq[i];
 
 		init_rspq(adap, &r->rspq, 5, 1, 1024, 64);
 		r->rspq.uld = CXGB4_ULD_ISCSI;
@@ -4459,7 +4460,7 @@ static int enable_msix(struct adapter *adap)
 
 	want = s->max_ethqsets + EXTRA_VECS;
 	if (is_offload(adap)) {
-		want += s->rdmaqs + s->rdmaciqs + s->ofldqsets;
+		want += s->rdmaqs + s->rdmaciqs + s->iscsiqsets;
 		/* need nchan for each possible ULD */
 		ofld_need = 3 * nchan;
 	}
@@ -4498,13 +4499,13 @@ static int enable_msix(struct adapter *adap)
 		/* leftovers go to OFLD */
 		i = allocated - EXTRA_VECS - s->max_ethqsets -
 		    s->rdmaqs - s->rdmaciqs;
-		s->ofldqsets = (i / nchan) * nchan;  /* round down */
+		s->iscsiqsets = (i / nchan) * nchan;  /* round down */
 	}
 	for (i = 0; i < allocated; ++i)
 		adap->msix_info[i].vec = entries[i].vector;
 	dev_info(adap->pdev_dev, "%d MSI-X vectors allocated, "
 		 "nic %d iscsi %d rdma cpl %d rdma ciq %d\n",
-		 allocated, s->max_ethqsets, s->ofldqsets, s->rdmaqs,
+		 allocated, s->max_ethqsets, s->iscsiqsets, s->rdmaqs,
 		 s->rdmaciqs);
 
 	kfree(entries);

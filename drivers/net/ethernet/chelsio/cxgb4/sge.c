@@ -2978,7 +2978,7 @@ void t4_free_sge_resources(struct adapter *adap)
 	}
 
 	/* clean up RDMA and iSCSI Rx queues */
-	t4_free_ofld_rxqs(adap, adap->sge.ofldqsets, adap->sge.ofldrxq);
+	t4_free_ofld_rxqs(adap, adap->sge.iscsiqsets, adap->sge.iscsirxq);
 	t4_free_ofld_rxqs(adap, adap->sge.rdmaqs, adap->sge.rdmarxq);
 	t4_free_ofld_rxqs(adap, adap->sge.rdmaciqs, adap->sge.rdmaciq);
 
