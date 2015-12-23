@@ -18,6 +18,7 @@
 #include <linux/file.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
+#include <linux/fcntl.h>
 
 struct mali_sync_pt {
 	struct sync_pt         sync_pt;
@@ -298,7 +299,7 @@ s32 mali_sync_fence_fd_alloc(struct sync_fence *sync_fence)
 {
 	s32 fd = -1;
 
-	fd = get_unused_fd();
+	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0) {
 		sync_fence_put(sync_fence);
 		return -1;
