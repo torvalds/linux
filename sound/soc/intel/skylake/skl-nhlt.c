@@ -55,7 +55,7 @@ void skl_nhlt_free(void *addr)
 
 static struct nhlt_specific_cfg *skl_get_specific_cfg(
 		struct device *dev, struct nhlt_fmt *fmt,
-		u8 no_ch, u32 rate, u16 bps)
+		u8 no_ch, u32 rate, u16 bps, u8 linktype)
 {
 	struct nhlt_specific_cfg *sp_config;
 	struct wav_fmt *wfmt;
@@ -68,11 +68,17 @@ static struct nhlt_specific_cfg *skl_get_specific_cfg(
 		wfmt = &fmt_config->fmt_ext.fmt;
 		dev_dbg(dev, "ch=%d fmt=%d s_rate=%d\n", wfmt->channels,
 			 wfmt->bits_per_sample, wfmt->samples_per_sec);
-		if (wfmt->channels == no_ch && wfmt->samples_per_sec == rate &&
-					wfmt->bits_per_sample == bps) {
+		if (wfmt->channels == no_ch && wfmt->bits_per_sample == bps) {
+			/*
+			 * if link type is dmic ignore rate check as the blob is
+			 * generic for all rates
+			 */
 			sp_config = &fmt_config->config;
+			if (linktype == NHLT_LINK_DMIC)
+				return sp_config;
 
-			return sp_config;
+			if (wfmt->samples_per_sec == rate)
+				return sp_config;
 		}
 
 		fmt_config = (struct nhlt_fmt_cfg *)(fmt_config->config.caps +
@@ -115,7 +121,7 @@ struct nhlt_specific_cfg
 	struct device *dev = bus->dev;
 	struct nhlt_specific_cfg *sp_config;
 	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
-	u16 bps = num_ch * s_fmt;
+	u16 bps = (s_fmt == 16) ? 16 : 32;
 	u8 j;
 
 	dump_config(dev, instance, link_type, s_fmt, num_ch, s_rate, dirn, bps);
@@ -128,7 +134,8 @@ struct nhlt_specific_cfg
 		if (skl_check_ep_match(dev, epnt, instance, link_type, dirn)) {
 			fmt = (struct nhlt_fmt *)(epnt->config.caps +
 						 epnt->config.size);
-			sp_config = skl_get_specific_cfg(dev, fmt, num_ch, s_rate, bps);
+			sp_config = skl_get_specific_cfg(dev, fmt, num_ch,
+							s_rate, bps, link_type);
 			if (sp_config)
 				return sp_config;
 		}

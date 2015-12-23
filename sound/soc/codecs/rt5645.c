@@ -226,6 +226,163 @@ static const struct reg_default rt5645_reg[] = {
 	{ 0xff, 0x6308 },
 };
 
+static const struct reg_default rt5650_reg[] = {
+	{ 0x00, 0x0000 },
+	{ 0x01, 0xc8c8 },
+	{ 0x02, 0xc8c8 },
+	{ 0x03, 0xc8c8 },
+	{ 0x0a, 0x0002 },
+	{ 0x0b, 0x2827 },
+	{ 0x0c, 0xe000 },
+	{ 0x0d, 0x0000 },
+	{ 0x0e, 0x0000 },
+	{ 0x0f, 0x0808 },
+	{ 0x14, 0x3333 },
+	{ 0x16, 0x4b00 },
+	{ 0x18, 0x018b },
+	{ 0x19, 0xafaf },
+	{ 0x1a, 0xafaf },
+	{ 0x1b, 0x0001 },
+	{ 0x1c, 0x2f2f },
+	{ 0x1d, 0x2f2f },
+	{ 0x1e, 0x0000 },
+	{ 0x20, 0x0000 },
+	{ 0x27, 0x7060 },
+	{ 0x28, 0x7070 },
+	{ 0x29, 0x8080 },
+	{ 0x2a, 0x5656 },
+	{ 0x2b, 0x5454 },
+	{ 0x2c, 0xaaa0 },
+	{ 0x2d, 0x0000 },
+	{ 0x2f, 0x1002 },
+	{ 0x31, 0x5000 },
+	{ 0x32, 0x0000 },
+	{ 0x33, 0x0000 },
+	{ 0x34, 0x0000 },
+	{ 0x35, 0x0000 },
+	{ 0x3b, 0x0000 },
+	{ 0x3c, 0x007f },
+	{ 0x3d, 0x0000 },
+	{ 0x3e, 0x007f },
+	{ 0x3f, 0x0000 },
+	{ 0x40, 0x001f },
+	{ 0x41, 0x0000 },
+	{ 0x42, 0x001f },
+	{ 0x45, 0x6000 },
+	{ 0x46, 0x003e },
+	{ 0x47, 0x003e },
+	{ 0x48, 0xf807 },
+	{ 0x4a, 0x0004 },
+	{ 0x4d, 0x0000 },
+	{ 0x4e, 0x0000 },
+	{ 0x4f, 0x01ff },
+	{ 0x50, 0x0000 },
+	{ 0x51, 0x0000 },
+	{ 0x52, 0x01ff },
+	{ 0x53, 0xf000 },
+	{ 0x56, 0x0111 },
+	{ 0x57, 0x0064 },
+	{ 0x58, 0xef0e },
+	{ 0x59, 0xf0f0 },
+	{ 0x5a, 0xef0e },
+	{ 0x5b, 0xf0f0 },
+	{ 0x5c, 0xef0e },
+	{ 0x5d, 0xf0f0 },
+	{ 0x5e, 0xf000 },
+	{ 0x5f, 0x0000 },
+	{ 0x61, 0x0300 },
+	{ 0x62, 0x0000 },
+	{ 0x63, 0x00c2 },
+	{ 0x64, 0x0000 },
+	{ 0x65, 0x0000 },
+	{ 0x66, 0x0000 },
+	{ 0x6a, 0x0000 },
+	{ 0x6c, 0x0aaa },
+	{ 0x70, 0x8000 },
+	{ 0x71, 0x8000 },
+	{ 0x72, 0x8000 },
+	{ 0x73, 0x7770 },
+	{ 0x74, 0x3e00 },
+	{ 0x75, 0x2409 },
+	{ 0x76, 0x000a },
+	{ 0x77, 0x0c00 },
+	{ 0x78, 0x0000 },
+	{ 0x79, 0x0123 },
+	{ 0x7a, 0x0123 },
+	{ 0x80, 0x0000 },
+	{ 0x81, 0x0000 },
+	{ 0x82, 0x0000 },
+	{ 0x83, 0x0000 },
+	{ 0x84, 0x0000 },
+	{ 0x85, 0x0000 },
+	{ 0x8a, 0x0000 },
+	{ 0x8e, 0x0004 },
+	{ 0x8f, 0x1100 },
+	{ 0x90, 0x0646 },
+	{ 0x91, 0x0c06 },
+	{ 0x93, 0x0000 },
+	{ 0x94, 0x0200 },
+	{ 0x95, 0x0000 },
+	{ 0x9a, 0x2184 },
+	{ 0x9b, 0x010a },
+	{ 0x9c, 0x0aea },
+	{ 0x9d, 0x000c },
+	{ 0x9e, 0x0400 },
+	{ 0xa0, 0xa0a8 },
+	{ 0xa1, 0x0059 },
+	{ 0xa2, 0x0001 },
+	{ 0xae, 0x6000 },
+	{ 0xaf, 0x0000 },
+	{ 0xb0, 0x6000 },
+	{ 0xb1, 0x0000 },
+	{ 0xb2, 0x0000 },
+	{ 0xb3, 0x001f },
+	{ 0xb4, 0x020c },
+	{ 0xb5, 0x1f00 },
+	{ 0xb6, 0x0000 },
+	{ 0xbb, 0x0000 },
+	{ 0xbc, 0x0000 },
+	{ 0xbd, 0x0000 },
+	{ 0xbe, 0x0000 },
+	{ 0xbf, 0x3100 },
+	{ 0xc0, 0x0000 },
+	{ 0xc1, 0x0000 },
+	{ 0xc2, 0x0000 },
+	{ 0xc3, 0x2000 },
+	{ 0xcd, 0x0000 },
+	{ 0xce, 0x0000 },
+	{ 0xcf, 0x1813 },
+	{ 0xd0, 0x0690 },
+	{ 0xd1, 0x1c17 },
+	{ 0xd3, 0xb320 },
+	{ 0xd4, 0x0000 },
+	{ 0xd6, 0x0400 },
+	{ 0xd9, 0x0809 },
+	{ 0xda, 0x0000 },
+	{ 0xdb, 0x0003 },
+	{ 0xdc, 0x0049 },
+	{ 0xdd, 0x001b },
+	{ 0xdf, 0x0008 },
+	{ 0xe0, 0x4000 },
+	{ 0xe6, 0x8000 },
+	{ 0xe7, 0x0200 },
+	{ 0xec, 0xb300 },
+	{ 0xed, 0x0000 },
+	{ 0xf0, 0x001f },
+	{ 0xf1, 0x020c },
+	{ 0xf2, 0x1f00 },
+	{ 0xf3, 0x0000 },
+	{ 0xf4, 0x4000 },
+	{ 0xf8, 0x0000 },
+	{ 0xf9, 0x0000 },
+	{ 0xfa, 0x2060 },
+	{ 0xfb, 0x4040 },
+	{ 0xfc, 0x0000 },
+	{ 0xfd, 0x0002 },
+	{ 0xfe, 0x10ec },
+	{ 0xff, 0x6308 },
+};
+
 struct rt5645_eq_param_s {
 	unsigned short reg;
 	unsigned short val;
@@ -572,14 +729,12 @@ static int rt5645_spk_put_volsw(struct snd_kcontrol *kcontrol,
 	struct rt5645_priv *rt5645 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	cancel_delayed_work_sync(&rt5645->rcclock_work);
-
 	regmap_update_bits(rt5645->regmap, RT5645_MICBIAS,
 		RT5645_PWR_CLK25M_MASK, RT5645_PWR_CLK25M_PU);
 
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
-	queue_delayed_work(system_power_efficient_wq, &rt5645->rcclock_work,
+	mod_delayed_work(system_power_efficient_wq, &rt5645->rcclock_work,
 		msecs_to_jiffies(200));
 
 	return ret;
@@ -3318,6 +3473,31 @@ static const struct regmap_config rt5645_regmap = {
 	.num_ranges = ARRAY_SIZE(rt5645_ranges),
 };
 
+static const struct regmap_config rt5650_regmap = {
+	.reg_bits = 8,
+	.val_bits = 16,
+	.use_single_rw = true,
+	.max_register = RT5645_VENDOR_ID2 + 1 + (ARRAY_SIZE(rt5645_ranges) *
+					       RT5645_PR_SPACING),
+	.volatile_reg = rt5645_volatile_register,
+	.readable_reg = rt5645_readable_register,
+
+	.cache_type = REGCACHE_RBTREE,
+	.reg_defaults = rt5650_reg,
+	.num_reg_defaults = ARRAY_SIZE(rt5650_reg),
+	.ranges = rt5645_ranges,
+	.num_ranges = ARRAY_SIZE(rt5645_ranges),
+};
+
+static const struct regmap_config temp_regmap = {
+	.name="nocache",
+	.reg_bits = 8,
+	.val_bits = 16,
+	.use_single_rw = true,
+	.max_register = RT5645_VENDOR_ID2 + 1,
+	.cache_type = REGCACHE_NONE,
+};
+
 static const struct i2c_device_id rt5645_i2c_id[] = {
 	{ "rt5645", 0 },
 	{ "rt5650", 0 },
@@ -3334,69 +3514,23 @@ static struct acpi_device_id rt5645_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
 #endif
 
-static struct rt5645_platform_data *rt5645_pdata;
-
-static struct rt5645_platform_data strago_platform_data = {
+static struct rt5645_platform_data general_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC1_DISABLE,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
 };
 
-static int strago_quirk_cb(const struct dmi_system_id *id)
-{
-	rt5645_pdata = &strago_platform_data;
-
-	return 1;
-}
-
 static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 	{
 		.ident = "Intel Strago",
-		.callback = strago_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Strago"),
 		},
 	},
 	{
-		.ident = "Google Celes",
-		.callback = strago_quirk_cb,
+		.ident = "Google Chrome",
 		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Celes"),
-		},
-	},
-	{
-		.ident = "Google Ultima",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Ultima"),
-		},
-	},
-	{
-		.ident = "Google Reks",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Reks"),
-		},
-	},
-	{
-		.ident = "Google Edgar",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Edgar"),
-		},
-	},
-	{
-		.ident = "Google Wizpig",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Wizpig"),
-		},
-	},
-	{
-		.ident = "Google Terra",
-		.callback = strago_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Terra"),
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 		},
 	},
 	{ }
@@ -3409,17 +3543,9 @@ static struct rt5645_platform_data buddy_platform_data = {
 	.jd_invert = true,
 };
 
-static int buddy_quirk_cb(const struct dmi_system_id *id)
-{
-	rt5645_pdata = &buddy_platform_data;
-
-	return 1;
-}
-
 static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{
 		.ident = "Chrome Buddy",
-		.callback = buddy_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Buddy"),
 		},
@@ -3427,6 +3553,16 @@ static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{ }
 };
 
+static bool rt5645_check_dp(struct device *dev)
+{
+	if (device_property_present(dev, "realtek,in2-differential") ||
+		device_property_present(dev, "realtek,dmic1-data-pin") ||
+		device_property_present(dev, "realtek,dmic2-data-pin") ||
+		device_property_present(dev, "realtek,jd-mode"))
+		return true;
+
+	return false;
+}
 
 static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 {
@@ -3449,6 +3585,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	struct rt5645_priv *rt5645;
 	int ret, i;
 	unsigned int val;
+	struct regmap *regmap;
 
 	rt5645 = devm_kzalloc(&i2c->dev, sizeof(struct rt5645_priv),
 				GFP_KERNEL);
@@ -3460,11 +3597,12 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5645->pdata = *pdata;
-	else if (dmi_check_system(dmi_platform_intel_braswell) ||
-			dmi_check_system(dmi_platform_intel_broadwell))
-		rt5645->pdata = *rt5645_pdata;
-	else
+	else if (dmi_check_system(dmi_platform_intel_broadwell))
+		rt5645->pdata = buddy_platform_data;
+	else if (rt5645_check_dp(&i2c->dev))
 		rt5645_parse_dt(rt5645, &i2c->dev);
+	else if (dmi_check_system(dmi_platform_intel_braswell))
+		rt5645->pdata = general_platform_data;
 
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
 						       GPIOD_IN);
@@ -3472,14 +3610,6 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(rt5645->gpiod_hp_det)) {
 		dev_err(&i2c->dev, "failed to initialize gpiod\n");
 		return PTR_ERR(rt5645->gpiod_hp_det);
-	}
-
-	rt5645->regmap = devm_regmap_init_i2c(i2c, &rt5645_regmap);
-	if (IS_ERR(rt5645->regmap)) {
-		ret = PTR_ERR(rt5645->regmap);
-		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
-			ret);
-		return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(rt5645->supplies); i++)
@@ -3500,13 +3630,22 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	regmap_read(rt5645->regmap, RT5645_VENDOR_ID2, &val);
+	regmap = devm_regmap_init_i2c(i2c, &temp_regmap);
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		dev_err(&i2c->dev, "Failed to allocate temp register map: %d\n",
+			ret);
+		return ret;
+	}
+	regmap_read(regmap, RT5645_VENDOR_ID2, &val);
 
 	switch (val) {
 	case RT5645_DEVICE_ID:
+		rt5645->regmap = devm_regmap_init_i2c(i2c, &rt5645_regmap);
 		rt5645->codec_type = CODEC_TYPE_RT5645;
 		break;
 	case RT5650_DEVICE_ID:
+		rt5645->regmap = devm_regmap_init_i2c(i2c, &rt5650_regmap);
 		rt5645->codec_type = CODEC_TYPE_RT5650;
 		break;
 	default:
@@ -3515,6 +3654,13 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			val);
 		ret = -ENODEV;
 		goto err_enable;
+	}
+
+	if (IS_ERR(rt5645->regmap)) {
+		ret = PTR_ERR(rt5645->regmap);
+		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
+			ret);
+		return ret;
 	}
 
 	regmap_write(rt5645->regmap, RT5645_RESET, 0);

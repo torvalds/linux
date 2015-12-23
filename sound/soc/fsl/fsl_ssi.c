@@ -113,17 +113,17 @@ struct fsl_ssi_rxtx_reg_val {
 };
 
 static const struct reg_default fsl_ssi_reg_defaults[] = {
-	{0x10, 0x00000000},
-	{0x18, 0x00003003},
-	{0x1c, 0x00000200},
-	{0x20, 0x00000200},
-	{0x24, 0x00040000},
-	{0x28, 0x00040000},
-	{0x38, 0x00000000},
-	{0x48, 0x00000000},
-	{0x4c, 0x00000000},
-	{0x54, 0x00000000},
-	{0x58, 0x00000000},
+	{CCSR_SSI_SCR,     0x00000000},
+	{CCSR_SSI_SIER,    0x00003003},
+	{CCSR_SSI_STCR,    0x00000200},
+	{CCSR_SSI_SRCR,    0x00000200},
+	{CCSR_SSI_STCCR,   0x00040000},
+	{CCSR_SSI_SRCCR,   0x00040000},
+	{CCSR_SSI_SACNT,   0x00000000},
+	{CCSR_SSI_STMSK,   0x00000000},
+	{CCSR_SSI_SRMSK,   0x00000000},
+	{CCSR_SSI_SACCEN,  0x00000000},
+	{CCSR_SSI_SACCDIS, 0x00000000},
 };
 
 static bool fsl_ssi_readable_reg(struct device *dev, unsigned int reg)
@@ -767,8 +767,7 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
 	struct regmap *regs = ssi_private->regs;
 	unsigned int channels = params_channels(hw_params);
-	unsigned int sample_size =
-		snd_pcm_format_width(params_format(hw_params));
+	unsigned int sample_size = params_width(hw_params);
 	u32 wl = CCSR_SSI_SxCCR_WL(sample_size);
 	int ret;
 	u32 scr_val;
