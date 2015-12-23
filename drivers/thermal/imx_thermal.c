@@ -60,6 +60,7 @@
 #define TEMPSENSE2_PANIC_VALUE_MASK	0xfff0000
 
 /* i.MX7D specific */
+#define IMX7_ANADIG_DIGPROG			0x800
 #define IMX7_TEMPSENSE0				0X300
 #define IMX7_TEMPSENSE0_PANIC_ALARM_SHIFT	18
 #define IMX7_TEMPSENSE0_PANIC_ALARM_MASK	(0x1ff << 18)
@@ -234,6 +235,7 @@ struct imx_thermal_data {
 };
 
 static struct imx_thermal_data *imx_thermal_data;
+static int skip_finish_check;
 
 static void imx_set_panic_temp(struct imx_thermal_data *data,
 			       signed long panic_temp)
@@ -307,13 +309,13 @@ static int imx_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 	 * to complete a measurement.
 	 */
 	if (wait) {
-
-		/* On i.MX7, according to the design team, the finished bit can
-		 * only keep 1us after the measured data available. It is hard
-		 * for software to polling this bit. So wait for 20ms to make
-		 * sure the measured data is valid.
+		/*
+		 * On i.MX7 TO1.0, the finish bit can only keep 1us after
+		 * the measured data available. It is hard for software to
+		 * polling this bit. So wait for 20ms to make sure the
+		 * measured data is valid.
 		 */
-		if (data->socdata->version == TEMPMON_IMX7)
+		if (data->socdata->version == TEMPMON_IMX7 && skip_finish_check)
 			msleep(20);
 		 else
 			usleep_range(20, 50);
@@ -328,8 +330,7 @@ static int imx_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 		clk_disable_unprepare(data->thermal_clk);
 	}
 
-	if (data->socdata->version != TEMPMON_IMX7 &&
-	   ((val & soc_data->temp_valid_mask) == 0)) {
+	if (!skip_finish_check && ((val & soc_data->temp_valid_mask) == 0)) {
 		dev_dbg(&tz->device, "temp measurement never finished\n");
 		mutex_unlock(&data->mutex);
 		return -EAGAIN;
@@ -718,7 +719,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	struct imx_thermal_data *data;
 	struct regmap *map;
 	int measure_freq;
-	int ret;
+	int ret, revision;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -758,6 +759,14 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get sensor data\n");
 		return ret;
 	}
+
+	/*
+	 * for i.MX7D TO1.0, finish bit is not available, check the
+	 * SOC revision to skip checking the finish bit status.
+	 */
+	regmap_read(map, IMX7_ANADIG_DIGPROG, &revision);
+	if ((revision & 0xff) == 0x10)
+		skip_finish_check = 1;
 
 	/* Make sure sensor is in known good state for measurements */
 	regmap_write(map, data->socdata->sensor_ctrl + REG_CLR,
