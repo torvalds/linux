@@ -1418,10 +1418,16 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
 	pgoff_t index = page->index;
 	struct dnode_of_data dn;
 	struct page *ipage;
+	bool locked = false;
+	struct extent_info ei;
 	int err = 0;
 
-	f2fs_lock_op(sbi);
-
+	if (f2fs_has_inline_data(inode) ||
+			(pos & PAGE_CACHE_MASK) >= i_size_read(inode)) {
+		f2fs_lock_op(sbi);
+		locked = true;
+	}
+restart:
 	/* check inline_data */
 	ipage = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(ipage)) {
@@ -1436,22 +1442,42 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
 			read_inline_data(page, ipage);
 			set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
 			sync_inode_page(&dn);
-			goto done;
 		} else {
 			err = f2fs_convert_inline_page(&dn, page);
 			if (err)
-				goto err_out;
+				goto out;
+			if (dn.data_blkaddr == NULL_ADDR)
+				err = f2fs_get_block(&dn, index);
+		}
+	} else if (locked) {
+		err = f2fs_get_block(&dn, index);
+	} else {
+		if (f2fs_lookup_extent_cache(inode, index, &ei)) {
+			dn.data_blkaddr = ei.blk + index - ei.fofs;
+		} else {
+			bool restart = false;
+
+			/* hole case */
+			err = get_dnode_of_data(&dn, index, LOOKUP_NODE);
+			if (err || (!err && dn.data_blkaddr == NULL_ADDR))
+				restart = true;
+			if (restart) {
+				f2fs_put_dnode(&dn);
+				f2fs_lock_op(sbi);
+				locked = true;
+				goto restart;
+			}
 		}
 	}
-	err = f2fs_get_block(&dn, index);
-done:
+
 	/* convert_inline_page can make node_changed */
 	*blk_addr = dn.data_blkaddr;
 	*node_changed = dn.node_changed;
-err_out:
+out:
 	f2fs_put_dnode(&dn);
 unlock_out:
-	f2fs_unlock_op(sbi);
+	if (locked)
+		f2fs_unlock_op(sbi);
 	return err;
 }
 
