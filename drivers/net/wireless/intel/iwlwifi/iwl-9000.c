@@ -138,7 +138,8 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.smem_offset = IWL9000_SMEM_OFFSET,				\
 	.smem_len = IWL9000_SMEM_LEN,					\
 	.thermal_params = &iwl9000_tt_params,				\
-	.apmg_not_supported = true
+	.apmg_not_supported = true,					\
+	.mq_rx_supported = true
 
 const struct iwl_cfg iwl9260_2ac_cfg = {
 		.name = "Intel(R) Dual Band Wireless AC 9260",

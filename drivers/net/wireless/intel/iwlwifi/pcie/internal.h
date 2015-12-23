@@ -56,7 +56,6 @@
 #define RX_NUM_QUEUES 1
 #define RX_POST_REQ_ALLOC 2
 #define RX_CLAIM_REQ_ALLOC 8
-#define RX_POOL_SIZE ((RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC) * RX_NUM_QUEUES)
 #define RX_PENDING_WATERMARK 16
 
 struct iwl_host_cmd;
@@ -64,9 +63,16 @@ struct iwl_host_cmd;
 /*This file includes the declaration that are internal to the
  * trans_pcie layer */
 
+/**
+ * struct iwl_rx_mem_buffer
+ * @page_dma: bus address of rxb page
+ * @page: driver's pointer to the rxb page
+ * @vid: index of this rxb in the global table
+ */
 struct iwl_rx_mem_buffer {
 	dma_addr_t page_dma;
 	struct page *page;
+	u16 vid;
 	struct list_head list;
 };
 
@@ -90,8 +96,12 @@ struct isr_statistics {
 
 /**
  * struct iwl_rxq - Rx queue
- * @bd: driver's pointer to buffer of receive buffer descriptors (rbd)
+ * @id: queue index
+ * @bd: driver's pointer to buffer of receive buffer descriptors (rbd).
+ *	Address size is 32 bit in pre-9000 devices and 64 bit in 9000 devices.
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
+ * @ubd: driver's pointer to buffer of used receive buffer descriptors (rbd)
+ * @ubd_dma: physical address of buffer of used receive buffer descriptors (rbd)
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
@@ -103,18 +113,22 @@ struct isr_statistics {
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
  * @lock:
- * @queue: actual rx queue
+ * @queue: actual rx queue. Not used for multi-rx queue.
  *
  * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
  */
 struct iwl_rxq {
-	__le32 *bd;
+	int id;
+	void *bd;
 	dma_addr_t bd_dma;
+	__le32 *used_bd;
+	dma_addr_t used_bd_dma;
 	u32 read;
 	u32 write;
 	u32 free_count;
 	u32 used_count;
 	u32 write_actual;
+	u32 queue_size;
 	struct list_head rx_free;
 	struct list_head rx_used;
 	bool need_update;
@@ -126,7 +140,6 @@ struct iwl_rxq {
 
 /**
  * struct iwl_rb_allocator - Rx allocator
- * @pool: initial pool of allocator
  * @req_pending: number of requests the allcator had not processed yet
  * @req_ready: number of requests honored and ready for claiming
  * @rbd_allocated: RBDs with pages allocated and ready to be handled to
@@ -138,7 +151,6 @@ struct iwl_rxq {
  * @rx_alloc: work struct for background calls
  */
 struct iwl_rb_allocator {
-	struct iwl_rx_mem_buffer pool[RX_POOL_SIZE];
 	atomic_t req_pending;
 	atomic_t req_ready;
 	struct list_head rbd_allocated;
@@ -297,6 +309,7 @@ struct iwl_tso_hdr_page {
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
  * @rx_pool: initial pool of iwl_rx_mem_buffer for all the queues
+ * @global_table: table mapping received VID from hw to rxb
  * @rba: allocator for RX replenishing
  * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
@@ -324,7 +337,8 @@ struct iwl_tso_hdr_page {
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
-	struct iwl_rx_mem_buffer rx_pool[RX_QUEUE_SIZE];
+	struct iwl_rx_mem_buffer rx_pool[MQ_RX_POOL_SIZE];
+	struct iwl_rx_mem_buffer *global_table[MQ_RX_TABLE_SIZE];
 	struct iwl_rb_allocator rba;
 	struct iwl_trans *trans;
 	struct iwl_drv *drv;

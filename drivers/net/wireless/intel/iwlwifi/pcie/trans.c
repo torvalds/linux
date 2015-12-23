@@ -2403,7 +2403,8 @@ static struct iwl_trans_dump_data
 	u32 len, num_rbs;
 	u32 monitor_len;
 	int i, ptr;
-	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status);
+	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status) &&
+			!trans->cfg->mq_rx_supported;
 
 	/* transport dump header */
 	len = sizeof(*dump_data);
@@ -2562,7 +2563,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	struct iwl_trans_pcie *trans_pcie;
 	struct iwl_trans *trans;
 	u16 pci_cmd;
-	int ret;
+	int ret, addr_size;
 
 	trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
 				&pdev->dev, cfg, &trans_ops_pcie, 0);
@@ -2600,11 +2601,17 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       PCIE_LINK_STATE_CLKPM);
 	}
 
+	if (cfg->mq_rx_supported)
+		addr_size = 64;
+	else
+		addr_size = 36;
+
 	pci_set_master(pdev);
 
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(36));
+	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(addr_size));
 	if (!ret)
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(36));
+		ret = pci_set_consistent_dma_mask(pdev,
+						  DMA_BIT_MASK(addr_size));
 	if (ret) {
 		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (!ret)
