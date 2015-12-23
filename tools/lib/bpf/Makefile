@@ -80,7 +80,11 @@ endif
 endif
 
 ifeq ($(check_feat),1)
+ifeq ($(FEATURES_DUMP),)
 include $(srctree)/tools/build/Makefile.feature
+else
+include $(FEATURES_DUMP)
+endif
 endif
 
 export prefix libdir src obj
