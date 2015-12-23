@@ -517,8 +517,6 @@ void mlx5_ib_free_srq_wqe(struct mlx5_ib_srq *srq, int wqe_index);
 int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 		 u8 port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		 const void *in_mad, void *response_mad);
-struct ib_ah *create_ib_ah(struct ib_ah_attr *ah_attr,
-			   struct mlx5_ib_ah *ah);
 struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
 int mlx5_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
 int mlx5_ib_destroy_ah(struct ib_ah *ah);
@@ -646,6 +644,9 @@ static inline void mlx5_ib_qp_disable_pagefaults(struct mlx5_ib_qp *qp) {}
 static inline void mlx5_ib_qp_enable_pagefaults(struct mlx5_ib_qp *qp)  {}
 
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
+
+__be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
+			       int index);
 
 static inline void init_query_mad(struct ib_smp *mad)
 {

@@ -41,6 +41,7 @@
 #include <linux/sched.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_cache.h>
 #include <linux/mlx5/vport.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_umem.h>
@@ -250,6 +251,26 @@ static int mlx5_ib_del_gid(struct ib_device *device, u8 port_num,
 			   unsigned int index, __always_unused void **context)
 {
 	return set_roce_addr(device, port_num, index, NULL, NULL);
+}
+
+__be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
+			       int index)
+{
+	struct ib_gid_attr attr;
+	union ib_gid gid;
+
+	if (ib_get_cached_gid(&dev->ib_dev, port_num, index, &gid, &attr))
+		return 0;
+
+	if (!attr.ndev)
+		return 0;
+
+	dev_put(attr.ndev);
+
+	if (attr.gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP)
+		return 0;
+
+	return cpu_to_be16(MLX5_CAP_ROCE(dev->mdev, r_roce_min_src_udp_port));
 }
 
 static int mlx5_use_mad_ifc(struct mlx5_ib_dev *dev)

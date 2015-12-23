@@ -248,8 +248,12 @@ struct mlx5_av {
 	__be32	dqp_dct;
 	u8	stat_rate_sl;
 	u8	fl_mlid;
-	__be16	rlid;
-	u8	reserved0[10];
+	union {
+		__be16	rlid;
+		__be16  udp_sport;
+	};
+	u8	reserved0[4];
+	u8	rmac[6];
 	u8	tclass;
 	u8	hop_limit;
 	__be32	grh_gid_fl;
@@ -456,11 +460,16 @@ struct mlx5_qp_path {
 	u8			static_rate;
 	u8			hop_limit;
 	__be32			tclass_flowlabel;
-	u8			rgid[16];
-	u8			rsvd1[4];
-	u8			sl;
+	union {
+		u8		rgid[16];
+		u8		rip[16];
+	};
+	u8			f_dscp_ecn_prio;
+	u8			ecn_dscp;
+	__be16			udp_sport;
+	u8			dci_cfi_prio_sl;
 	u8			port;
-	u8			rsvd2[6];
+	u8			rmac[6];
 };
 
 struct mlx5_qp_context {
