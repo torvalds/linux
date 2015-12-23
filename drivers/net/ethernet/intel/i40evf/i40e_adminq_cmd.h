@@ -230,6 +230,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_nvm_config_read		= 0x0704,
 	i40e_aqc_opc_nvm_config_write		= 0x0705,
 	i40e_aqc_opc_oem_post_update		= 0x0720,
+	i40e_aqc_opc_thermal_sensor		= 0x0721,
 
 	/* virtualization commands */
 	i40e_aqc_opc_send_msg_to_pf		= 0x0801,
@@ -1948,6 +1949,22 @@ struct i40e_aqc_nvm_oem_post_update_buffer {
 };
 
 I40E_CHECK_STRUCT_LEN(0x28, i40e_aqc_nvm_oem_post_update_buffer);
+
+/* Thermal Sensor (indirect 0x0721)
+ *     read or set thermal sensor configs and values
+ *     takes a sensor and command specific data buffer, not detailed here
+ */
+struct i40e_aqc_thermal_sensor {
+	u8 sensor_action;
+#define I40E_AQ_THERMAL_SENSOR_READ_CONFIG	0
+#define I40E_AQ_THERMAL_SENSOR_SET_CONFIG	1
+#define I40E_AQ_THERMAL_SENSOR_READ_TEMP	2
+	u8 reserved[7];
+	__le32	addr_high;
+	__le32	addr_low;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_thermal_sensor);
 
 /* Send to PF command (indirect 0x0801) id is only used by PF
  * Send to VF command (indirect 0x0802) id is only used by PF
