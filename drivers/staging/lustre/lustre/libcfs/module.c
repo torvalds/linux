@@ -511,8 +511,6 @@ static const struct file_operations lnet_debugfs_file_operations = {
 void lustre_insert_debugfs(struct ctl_table *table,
 			   const struct lnet_debugfs_symlink_def *symlinks)
 {
-	struct dentry *entry;
-
 	if (lnet_debugfs_root == NULL)
 		lnet_debugfs_root = debugfs_create_dir("lnet", NULL);
 
@@ -520,15 +518,17 @@ void lustre_insert_debugfs(struct ctl_table *table,
 	if (IS_ERR_OR_NULL(lnet_debugfs_root))
 		return;
 
+	/* We don't save the dentry returned in next two calls, because
+	 * we don't call debugfs_remove() but rather remove_recursive()
+	 */
 	for (; table->procname; table++)
-		entry = debugfs_create_file(table->procname, table->mode,
-					    lnet_debugfs_root, table,
-					    &lnet_debugfs_file_operations);
+		debugfs_create_file(table->procname, table->mode,
+				    lnet_debugfs_root, table,
+				    &lnet_debugfs_file_operations);
 
 	for (; symlinks && symlinks->name; symlinks++)
-		entry = debugfs_create_symlink(symlinks->name,
-					       lnet_debugfs_root,
-					       symlinks->target);
+		debugfs_create_symlink(symlinks->name, lnet_debugfs_root,
+				       symlinks->target);
 
 }
 EXPORT_SYMBOL_GPL(lustre_insert_debugfs);
