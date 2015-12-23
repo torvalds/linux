@@ -185,7 +185,7 @@ EXPORT_SYMBOL(libcfs_kkuc_group_rem);
 int libcfs_kkuc_group_put(unsigned int group, void *payload)
 {
 	struct kkuc_reg	*reg;
-	int		 rc = 0;
+	int rc = 0;
 	int one_success = 0;
 
 	down_write(&kg_sem);

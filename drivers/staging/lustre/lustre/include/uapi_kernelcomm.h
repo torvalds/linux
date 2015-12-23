@@ -56,17 +56,17 @@ struct kuc_hdr {
 
 #define KUC_CHANGELOG_MSG_MAXSIZE (sizeof(struct kuc_hdr) + CR_MAXSIZE)
 
-#define KUC_MAGIC  0x191C /*Lustre9etLinC */
+#define KUC_MAGIC		0x191C /*Lustre9etLinC */
 
 /* kuc_msgtype values are defined in each transport */
 enum kuc_transport_type {
-	KUC_TRANSPORT_GENERIC   = 1,
-	KUC_TRANSPORT_HSM       = 2,
-	KUC_TRANSPORT_CHANGELOG = 3,
+	KUC_TRANSPORT_GENERIC	= 1,
+	KUC_TRANSPORT_HSM	= 2,
+	KUC_TRANSPORT_CHANGELOG	= 3,
 };
 
 enum kuc_generic_message_type {
-	KUC_MSG_SHUTDOWN = 1,
+	KUC_MSG_SHUTDOWN	= 1,
 };
 
 /* KUC Broadcast Groups. This determines which userspace process hears which
