@@ -1251,11 +1251,6 @@ enum ib_access_flags {
 	IB_ACCESS_ON_DEMAND     = (1<<6),
 };
 
-struct ib_phys_buf {
-	u64      addr;
-	u64      size;
-};
-
 /*
  * XXX: these are apparently used for ->rereg_user_mr, no idea why they
  * are hidden here instead of a uapi header!
