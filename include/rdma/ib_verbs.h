@@ -69,7 +69,15 @@ union ib_gid {
 
 extern union ib_gid zgid;
 
+enum ib_gid_type {
+	/* If link layer is Ethernet, this is RoCE V1 */
+	IB_GID_TYPE_IB        = 0,
+	IB_GID_TYPE_ROCE      = 0,
+	IB_GID_TYPE_SIZE
+};
+
 struct ib_gid_attr {
+	enum ib_gid_type	gid_type;
 	struct net_device	*ndev;
 };
 
@@ -2245,7 +2253,8 @@ int ib_modify_port(struct ib_device *device,
 		   struct ib_port_modify *port_modify);
 
 int ib_find_gid(struct ib_device *device, union ib_gid *gid,
-		struct net_device *ndev, u8 *port_num, u16 *index);
+		enum ib_gid_type gid_type, struct net_device *ndev,
+		u8 *port_num, u16 *index);
 
 int ib_find_pkey(struct ib_device *device,
 		 u8 port_num, u16 pkey, u16 *index);

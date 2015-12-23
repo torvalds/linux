@@ -160,6 +160,7 @@ struct ib_sa_path_rec {
 	int	     ifindex;
 	/* ignored in IB */
 	struct net  *net;
+	enum ib_gid_type gid_type;
 };
 
 static inline struct net_device *ib_get_ndev_from_path(struct ib_sa_path_rec *rec)

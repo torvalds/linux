@@ -381,6 +381,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 
 		if (!rdma_cap_eth_ah(device, port_num)) {
 			ret = ib_find_cached_gid_by_port(device, &grh->dgid,
+							 IB_GID_TYPE_IB,
 							 port_num, NULL,
 							 &gid_index);
 			if (ret)

@@ -70,8 +70,11 @@ enum ib_cache_gid_default_mode {
 	IB_CACHE_GID_DEFAULT_MODE_DELETE
 };
 
+const char *ib_cache_gid_type_str(enum ib_gid_type gid_type);
+
 void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 				  struct net_device *ndev,
+				  unsigned long gid_type_mask,
 				  enum ib_cache_gid_default_mode mode);
 
 int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
@@ -87,6 +90,7 @@ int roce_gid_mgmt_init(void);
 void roce_gid_mgmt_cleanup(void);
 
 int roce_rescan_device(struct ib_device *ib_dev);
+unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port);
 
 int ib_cache_setup_one(struct ib_device *device);
 void ib_cache_cleanup_one(struct ib_device *device);

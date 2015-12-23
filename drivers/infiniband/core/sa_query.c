@@ -1014,8 +1014,8 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 		ah_attr->ah_flags = IB_AH_GRH;
 		ah_attr->grh.dgid = rec->dgid;
 
-		ret = ib_find_cached_gid(device, &rec->sgid, ndev, &port_num,
-					 &gid_index);
+		ret = ib_find_cached_gid(device, &rec->sgid, rec->gid_type, ndev,
+					 &port_num, &gid_index);
 		if (ret) {
 			if (ndev)
 				dev_put(ndev);
@@ -1157,6 +1157,7 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 			  mad->data, &rec);
 		rec.net = NULL;
 		rec.ifindex = 0;
+		rec.gid_type = IB_GID_TYPE_IB;
 		memset(rec.dmac, 0, ETH_ALEN);
 		query->callback(status, &rec, query->context);
 	} else

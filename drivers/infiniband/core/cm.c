@@ -364,7 +364,7 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	read_lock_irqsave(&cm.device_lock, flags);
 	list_for_each_entry(cm_dev, &cm.device_list, list) {
 		if (!ib_find_cached_gid(cm_dev->ib_device, &path->sgid,
-					ndev, &p, NULL)) {
+					IB_GID_TYPE_IB, ndev, &p, NULL)) {
 			port = cm_dev->port[p-1];
 			break;
 		}

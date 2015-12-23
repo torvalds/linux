@@ -60,6 +60,7 @@ int ib_get_cached_gid(struct ib_device    *device,
  *   a specified GID value occurs.
  * @device: The device to query.
  * @gid: The GID value to search for.
+ * @gid_type: The GID type to search for.
  * @ndev: In RoCE, the net device of the device. NULL means ignore.
  * @port_num: The port number of the device where the GID value was found.
  * @index: The index into the cached GID table where the GID was found.  This
@@ -70,6 +71,7 @@ int ib_get_cached_gid(struct ib_device    *device,
  */
 int ib_find_cached_gid(struct ib_device *device,
 		       const union ib_gid *gid,
+		       enum ib_gid_type gid_type,
 		       struct net_device *ndev,
 		       u8               *port_num,
 		       u16              *index);
@@ -79,6 +81,7 @@ int ib_find_cached_gid(struct ib_device *device,
  * GID value occurs
  * @device: The device to query.
  * @gid: The GID value to search for.
+ * @gid_type: The GID type to search for.
  * @port_num: The port number of the device where the GID value sould be
  *   searched.
  * @ndev: In RoCE, the net device of the device. Null means ignore.
@@ -90,6 +93,7 @@ int ib_find_cached_gid(struct ib_device *device,
  */
 int ib_find_cached_gid_by_port(struct ib_device *device,
 			       const union ib_gid *gid,
+			       enum ib_gid_type gid_type,
 			       u8               port_num,
 			       struct net_device *ndev,
 			       u16              *index);
