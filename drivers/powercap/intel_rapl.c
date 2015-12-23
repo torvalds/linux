@@ -388,7 +388,7 @@ static int get_domain_enable(struct powercap_zone *power_zone, bool *mode)
 }
 
 /* per RAPL domain ops, in the order of rapl_domain_type */
-static struct powercap_zone_ops zone_ops[] = {
+static const struct powercap_zone_ops zone_ops[] = {
 	/* RAPL_DOMAIN_PACKAGE */
 	{
 		.get_energy_uj = get_energy_counter,
@@ -584,7 +584,7 @@ static int get_max_power(struct powercap_zone *power_zone, int id,
 	return ret;
 }
 
-static struct powercap_zone_constraint_ops constraint_ops = {
+static const struct powercap_zone_constraint_ops constraint_ops = {
 	.set_power_limit_uw = set_power_limit,
 	.get_power_limit_uw = get_current_power_limit,
 	.set_time_window_us = set_time_window,
