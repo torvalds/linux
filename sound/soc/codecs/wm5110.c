@@ -575,6 +575,33 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 	SOC_SINGLE(name " NG SPKDAT2L Switch", base, 10, 1, 0), \
 	SOC_SINGLE(name " NG SPKDAT2R Switch", base, 11, 1, 0)
 
+#define WM5110_RXANC_INPUT_ROUTES(widget, name) \
+	{ widget, NULL, name " NG Mux" }, \
+	{ name " NG Internal", NULL, "RXANC NG Clock" }, \
+	{ name " NG Internal", NULL, name " Channel" }, \
+	{ name " NG External", NULL, "RXANC NG External Clock" }, \
+	{ name " NG External", NULL, name " Channel" }, \
+	{ name " NG Mux", "None", name " Channel" }, \
+	{ name " NG Mux", "Internal", name " NG Internal" }, \
+	{ name " NG Mux", "External", name " NG External" }, \
+	{ name " Channel", "Left", name " Left Input" }, \
+	{ name " Channel", "Combine", name " Left Input" }, \
+	{ name " Channel", "Right", name " Right Input" }, \
+	{ name " Channel", "Combine", name " Right Input" }, \
+	{ name " Left Input", "IN1", "IN1L PGA" }, \
+	{ name " Right Input", "IN1", "IN1R PGA" }, \
+	{ name " Left Input", "IN2", "IN2L PGA" }, \
+	{ name " Right Input", "IN2", "IN2R PGA" }, \
+	{ name " Left Input", "IN3", "IN3L PGA" }, \
+	{ name " Right Input", "IN3", "IN3R PGA" }, \
+	{ name " Left Input", "IN4", "IN4L PGA" }, \
+	{ name " Right Input", "IN4", "IN4R PGA" }
+
+#define WM5110_RXANC_OUTPUT_ROUTES(widget, name) \
+	{ widget, NULL, name " ANC Source" }, \
+	{ name " ANC Source", "RXANCL", "RXANCL" }, \
+	{ name " ANC Source", "RXANCR", "RXANCR" }
+
 static const struct snd_kcontrol_new wm5110_snd_controls[] = {
 SOC_ENUM("IN1 OSR", arizona_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", arizona_in_dmic_osr[1]),
@@ -638,6 +665,15 @@ SOC_SINGLE_TLV("IN4R Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_4R,
 
 SOC_ENUM("Input Ramp Up", arizona_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", arizona_in_vd_ramp),
+
+SND_SOC_BYTES("RXANC Coefficients", ARIZONA_ANC_COEFF_START,
+	      ARIZONA_ANC_COEFF_END - ARIZONA_ANC_COEFF_START + 1),
+SND_SOC_BYTES("RXANCL Config", ARIZONA_FCL_FILTER_CONTROL, 1),
+SND_SOC_BYTES("RXANCL Coefficients", ARIZONA_FCL_COEFF_START,
+	      ARIZONA_FCL_COEFF_END - ARIZONA_FCL_COEFF_START + 1),
+SND_SOC_BYTES("RXANCR Config", ARIZONA_FCR_FILTER_CONTROL, 1),
+SND_SOC_BYTES("RXANCR Coefficients", ARIZONA_FCR_COEFF_START,
+	      ARIZONA_FCR_COEFF_END - ARIZONA_FCR_COEFF_START + 1),
 
 ARIZONA_MIXER_CONTROLS("EQ1", ARIZONA_EQ1MIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("EQ2", ARIZONA_EQ2MIX_INPUT_1_SOURCE),
@@ -995,6 +1031,31 @@ static const struct soc_enum wm5110_aec_loopback =
 static const struct snd_kcontrol_new wm5110_aec_loopback_mux =
 	SOC_DAPM_ENUM("AEC Loopback", wm5110_aec_loopback);
 
+static const struct snd_kcontrol_new wm5110_anc_input_mux[] = {
+	SOC_DAPM_ENUM("RXANCL Input", arizona_anc_input_src[0]),
+	SOC_DAPM_ENUM("RXANCL Channel", arizona_anc_input_src[1]),
+	SOC_DAPM_ENUM("RXANCR Input", arizona_anc_input_src[2]),
+	SOC_DAPM_ENUM("RXANCR Channel", arizona_anc_input_src[3]),
+};
+
+static const struct snd_kcontrol_new wm5110_anc_ng_mux =
+	SOC_DAPM_ENUM("RXANC NG Source", arizona_anc_ng_enum);
+
+static const struct snd_kcontrol_new wm5110_output_anc_src[] = {
+	SOC_DAPM_ENUM("HPOUT1L ANC Source", arizona_output_anc_src[0]),
+	SOC_DAPM_ENUM("HPOUT1R ANC Source", arizona_output_anc_src[1]),
+	SOC_DAPM_ENUM("HPOUT2L ANC Source", arizona_output_anc_src[2]),
+	SOC_DAPM_ENUM("HPOUT2R ANC Source", arizona_output_anc_src[3]),
+	SOC_DAPM_ENUM("HPOUT3L ANC Source", arizona_output_anc_src[4]),
+	SOC_DAPM_ENUM("HPOUT3R ANC Source", arizona_output_anc_src[5]),
+	SOC_DAPM_ENUM("SPKOUTL ANC Source", arizona_output_anc_src[6]),
+	SOC_DAPM_ENUM("SPKOUTR ANC Source", arizona_output_anc_src[7]),
+	SOC_DAPM_ENUM("SPKDAT1L ANC Source", arizona_output_anc_src[8]),
+	SOC_DAPM_ENUM("SPKDAT1R ANC Source", arizona_output_anc_src[9]),
+	SOC_DAPM_ENUM("SPKDAT2L ANC Source", arizona_output_anc_src[10]),
+	SOC_DAPM_ENUM("SPKDAT2R ANC Source", arizona_output_anc_src[11]),
+};
+
 static const struct snd_soc_dapm_widget wm5110_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
 		    0, wm5110_sysclk_ev, SND_SOC_DAPM_POST_PMU),
@@ -1184,6 +1245,65 @@ SND_SOC_DAPM_PGA("ISRC3DEC4", ARIZONA_ISRC_3_CTRL_3,
 SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
 		       &wm5110_aec_loopback_mux),
+
+SND_SOC_DAPM_SUPPLY("RXANC NG External Clock", SND_SOC_NOPM,
+		   ARIZONA_EXT_NG_SEL_SET_SHIFT, 0, arizona_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("RXANCL NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCR NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_SUPPLY("RXANC NG Clock", SND_SOC_NOPM,
+		   ARIZONA_CLK_NG_ENA_SET_SHIFT, 0, arizona_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("RXANCL NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCR NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_MUX("RXANCL Left Input", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[0]),
+SND_SOC_DAPM_MUX("RXANCL Right Input", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[0]),
+SND_SOC_DAPM_MUX("RXANCL Channel", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[1]),
+SND_SOC_DAPM_MUX("RXANCL NG Mux", SND_SOC_NOPM, 0, 0, &wm5110_anc_ng_mux),
+SND_SOC_DAPM_MUX("RXANCR Left Input", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[2]),
+SND_SOC_DAPM_MUX("RXANCR Right Input", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[2]),
+SND_SOC_DAPM_MUX("RXANCR Channel", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[3]),
+SND_SOC_DAPM_MUX("RXANCR NG Mux", SND_SOC_NOPM, 0, 0, &wm5110_anc_ng_mux),
+
+SND_SOC_DAPM_PGA_E("RXANCL", SND_SOC_NOPM, ARIZONA_CLK_L_ENA_SET_SHIFT,
+		   0, NULL, 0, arizona_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA_E("RXANCR", SND_SOC_NOPM, ARIZONA_CLK_R_ENA_SET_SHIFT,
+		   0, NULL, 0, arizona_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
+SND_SOC_DAPM_MUX("HPOUT1L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[0]),
+SND_SOC_DAPM_MUX("HPOUT1R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[1]),
+SND_SOC_DAPM_MUX("HPOUT2L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[2]),
+SND_SOC_DAPM_MUX("HPOUT2R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[3]),
+SND_SOC_DAPM_MUX("HPOUT3L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[4]),
+SND_SOC_DAPM_MUX("HPOUT3R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[5]),
+SND_SOC_DAPM_MUX("SPKOUTL ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[6]),
+SND_SOC_DAPM_MUX("SPKOUTR ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[7]),
+SND_SOC_DAPM_MUX("SPKDAT1L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[8]),
+SND_SOC_DAPM_MUX("SPKDAT1R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[9]),
+SND_SOC_DAPM_MUX("SPKDAT2L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[10]),
+SND_SOC_DAPM_MUX("SPKDAT2R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[11]),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 0,
 		     ARIZONA_AIF1_TX_ENABLES, ARIZONA_AIF1TX1_ENA_SHIFT, 0),
@@ -1837,6 +1957,22 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "AEC Loopback", "SPKDAT2R", "OUT6R" },
 	{ "SPKDAT2L", NULL, "OUT6L" },
 	{ "SPKDAT2R", NULL, "OUT6R" },
+
+	WM5110_RXANC_INPUT_ROUTES("RXANCL", "RXANCL"),
+	WM5110_RXANC_INPUT_ROUTES("RXANCR", "RXANCR"),
+
+	WM5110_RXANC_OUTPUT_ROUTES("OUT1L", "HPOUT1L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT1R", "HPOUT1R"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT2L", "HPOUT2L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT2R", "HPOUT2R"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT3L", "HPOUT3L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT3R", "HPOUT3R"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT4L", "SPKOUTL"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT4R", "SPKOUTR"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT5L", "SPKDAT1L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT5R", "SPKDAT1R"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT6L", "SPKDAT2L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT6R", "SPKDAT2R"),
 
 	{ "MICSUPP", NULL, "SYSCLK" },
 
