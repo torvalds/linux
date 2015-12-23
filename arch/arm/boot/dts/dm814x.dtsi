@@ -126,8 +126,8 @@
 				interrupts = <65>;
 				ti,spi-num-cs = <4>;
 				ti,hwmods = "mcspi1";
-				dmas = <&edma 16 &edma 17
-					&edma 18 &edma 19>;
+				dmas = <&edma 16 0 &edma 17 0
+					&edma 18 0 &edma 19 0>;
 				dma-names = "tx0", "rx0", "tx1", "rx1";
 			};
 
@@ -145,7 +145,7 @@
 				reg = <0x20000 0x2000>;
 				clock-frequency = <48000000>;
 				interrupts = <72>;
-				dmas = <&edma 26 &edma 27>;
+				dmas = <&edma 26 0 &edma 27 0>;
 				dma-names = "tx", "rx";
 			};
 
@@ -155,7 +155,7 @@
 				reg = <0x22000 0x2000>;
 				clock-frequency = <48000000>;
 				interrupts = <73>;
-				dmas = <&edma 28 &edma 29>;
+				dmas = <&edma 28 0 &edma 29 0>;
 				dma-names = "tx", "rx";
 			};
 
@@ -165,7 +165,7 @@
 				reg = <0x24000 0x2000>;
 				clock-frequency = <48000000>;
 				interrupts = <74>;
-				dmas = <&edma 30 &edma 31>;
+				dmas = <&edma 30 0 &edma 31 0>;
 				dma-names = "tx", "rx";
 			};
 
@@ -203,6 +203,14 @@
 
 					scm_clockdomains: clockdomains {
 					};
+				};
+
+				edma_xbar: dma-router@f90 {
+					compatible = "ti,am335x-edma-crossbar";
+					reg = <0xf90 0x40>;
+					#dma-cells = <3>;
+					dma-requests = <32>;
+					dma-masters = <&edma>;
 				};
 
 				/*
@@ -272,12 +280,52 @@
 		};
 
 		edma: edma@49000000 {
-			compatible = "ti,edma3";
-			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
-			reg =	<0x49000000 0x10000>,
-				<0x44e10f90 0x40>;
+			compatible = "ti,edma3-tpcc";
+			ti,hwmods = "tpcc";
+			reg =	<0x49000000 0x10000>;
+			reg-names = "edma3_cc";
 			interrupts = <12 13 14>;
-			#dma-cells = <1>;
+			interrupt-names = "edma3_ccint", "emda3_mperr",
+					  "edma3_ccerrint";
+			dma-requests = <64>;
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
+				   <&edma_tptc2 3>, <&edma_tptc3 0>;
+
+			ti,edma-memcpy-channels = <20 21>;
+		};
+
+		edma_tptc0: tptc@49800000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc0";
+			reg =	<0x49800000 0x100000>;
+			interrupts = <112>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc1: tptc@49900000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc1";
+			reg =	<0x49900000 0x100000>;
+			interrupts = <113>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc2: tptc@49a00000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc2";
+			reg =	<0x49a00000 0x100000>;
+			interrupts = <114>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc3: tptc@49b00000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc3";
+			reg =	<0x49b00000 0x100000>;
+			interrupts = <115>;
+			interrupt-names = "edma3_tcerrint";
 		};
 
 		/* See TRM "Table 1-318. L4HS Instance Summary" */
