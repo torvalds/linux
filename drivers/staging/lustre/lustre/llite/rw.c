@@ -764,7 +764,6 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	ret = ll_read_ahead_pages(env, io, queue,
 				  ria, &reserved, mapping, &ra_end);
 
-	LASSERTF(reserved >= 0, "reserved %lu\n", reserved);
 	if (reserved != 0)
 		ll_ra_count_put(ll_i2sbi(inode), reserved);
 
