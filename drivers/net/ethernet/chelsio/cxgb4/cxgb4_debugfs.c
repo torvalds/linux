@@ -2245,7 +2245,7 @@ static int sge_qinfo_show(struct seq_file *seq, void *v)
 {
 	struct adapter *adap = seq->private;
 	int eth_entries = DIV_ROUND_UP(adap->sge.ethqsets, 4);
-	int iscsi_entries = DIV_ROUND_UP(adap->sge.ofldqsets, 4);
+	int iscsi_entries = DIV_ROUND_UP(adap->sge.iscsiqsets, 4);
 	int rdma_entries = DIV_ROUND_UP(adap->sge.rdmaqs, 4);
 	int ciq_entries = DIV_ROUND_UP(adap->sge.rdmaciqs, 4);
 	int ctrl_entries = DIV_ROUND_UP(MAX_CTRL_QUEUES, 4);
@@ -2331,10 +2331,10 @@ do { \
 
 	} else if (iscsi_idx < iscsi_entries) {
 		const struct sge_ofld_rxq *rx =
-			&adap->sge.ofldrxq[iscsi_idx * 4];
+			&adap->sge.iscsirxq[iscsi_idx * 4];
 		const struct sge_ofld_txq *tx =
 			&adap->sge.ofldtxq[iscsi_idx * 4];
-		int n = min(4, adap->sge.ofldqsets - 4 * iscsi_idx);
+		int n = min(4, adap->sge.iscsiqsets - 4 * iscsi_idx);
 
 		S("QType:", "iSCSI");
 		T("TxQ ID:", q.cntxt_id);
@@ -2454,7 +2454,7 @@ do { \
 static int sge_queue_entries(const struct adapter *adap)
 {
 	return DIV_ROUND_UP(adap->sge.ethqsets, 4) +
-	       DIV_ROUND_UP(adap->sge.ofldqsets, 4) +
+	       DIV_ROUND_UP(adap->sge.iscsiqsets, 4) +
 	       DIV_ROUND_UP(adap->sge.rdmaqs, 4) +
 	       DIV_ROUND_UP(adap->sge.rdmaciqs, 4) +
 	       DIV_ROUND_UP(MAX_CTRL_QUEUES, 4) + 1;
