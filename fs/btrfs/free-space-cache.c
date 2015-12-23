@@ -1261,7 +1261,7 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 		goto out;
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, 0, i_size_read(inode) - 1,
-			 0, &cached_state);
+			 &cached_state);
 
 	io_ctl_set_generation(io_ctl, trans->transid);
 
