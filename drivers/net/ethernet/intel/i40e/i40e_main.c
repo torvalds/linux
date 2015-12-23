@@ -10637,7 +10637,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u16 wol_nvm_bits;
 	u16 link_status;
 	int err;
-	u32 len;
 	u32 val;
 	u32 i;
 	u8 set_fc_aq_fail;
@@ -10896,8 +10895,8 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pf->num_alloc_vsi = pf->hw.func_caps.num_vsis;
 
 	/* Set up the *vsi struct and our local tracking of the MAIN PF vsi. */
-	len = sizeof(struct i40e_vsi *) * pf->num_alloc_vsi;
-	pf->vsi = kzalloc(len, GFP_KERNEL);
+	pf->vsi = kcalloc(pf->num_alloc_vsi, sizeof(struct i40e_vsi *),
+			  GFP_KERNEL);
 	if (!pf->vsi) {
 		err = -ENOMEM;
 		goto err_switch_setup;
