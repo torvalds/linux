@@ -184,7 +184,7 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	if (err)
 		dev_warn(&pdev->dev, "failed to register restart handler\n");
 
-	dev_info(dev->wdt.dev, "SMP86xx/SMP87xx watchdog registered\n");
+	dev_info(&pdev->dev, "SMP86xx/SMP87xx watchdog registered\n");
 
 	return 0;
 }
