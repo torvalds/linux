@@ -3656,14 +3656,14 @@ int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level)
 	return result;
 }
 
-int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *pstrStatistics)
+int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 {
 	int result = 0;
 	struct host_if_msg msg;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_GET_STATISTICS;
-	msg.body.data = (char *)pstrStatistics;
+	msg.body.data = (char *)stats;
 	msg.vif = vif;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
