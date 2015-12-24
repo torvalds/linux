@@ -214,6 +214,8 @@ static int __recover_dot_dentries(struct inode *dir, nid_t pino)
 	struct page *page;
 	int err = 0;
 
+	f2fs_balance_fs(sbi);
+
 	f2fs_lock_op(sbi);
 
 	de = f2fs_find_entry(dir, &dot, &page);
