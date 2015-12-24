@@ -3366,7 +3366,7 @@ int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 }
 
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
-		      size_t ssid_len, const u8 *pu8IEs, size_t IEsLen,
+		      size_t ssid_len, const u8 *ies, size_t IEsLen,
 		      wilc_connect_result pfConnectResult, void *pvUserArg,
 		      u8 u8security, enum AUTHTYPE tenuAuth_type,
 		      u8 u8channel, void *pJoinParams)
@@ -3408,10 +3408,10 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		memcpy(msg.body.con_info.ssid, ssid, ssid_len);
 	}
 
-	if (pu8IEs) {
+	if (ies) {
 		msg.body.con_info.ies_len = IEsLen;
 		msg.body.con_info.ies = kmalloc(IEsLen, GFP_KERNEL);
-		memcpy(msg.body.con_info.ies, pu8IEs, IEsLen);
+		memcpy(msg.body.con_info.ies, ies, IEsLen);
 	}
 	if (hif_drv->hif_state < HOST_IF_CONNECTING)
 		hif_drv->hif_state = HOST_IF_CONNECTING;
