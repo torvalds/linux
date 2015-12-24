@@ -2515,9 +2515,10 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
 
-	if (vlan_id < 0x1000) {
-		if (dev->pfc_state) {
-			vlan_id = 0;
+	if (vlan_id == 0xFFFF)
+		vlan_id = 0;
+	if (vlan_id || dev->pfc_state) {
+		if (!vlan_id) {
 			pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
 			       dev->id);
 			pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
