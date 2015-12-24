@@ -56,19 +56,15 @@ static ssize_t lbs_sleepparams_write(struct file *file,
 				loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	ssize_t buf_size, ret;
+	ssize_t ret;
 	struct sleep_params sp;
 	int p1, p2, p3, p4, p5, p6;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	if (!buf)
-		return -ENOMEM;
+	char *buf;
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, user_buf, buf_size)) {
-		ret = -EFAULT;
-		goto out_unlock;
-	}
+	buf = memdup_user_nul(user_buf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	ret = sscanf(buf, "%d %d %d %d %d %d", &p1, &p2, &p3, &p4, &p5, &p6);
 	if (ret != 6) {
 		ret = -EINVAL;
@@ -88,7 +84,7 @@ static ssize_t lbs_sleepparams_write(struct file *file,
 		ret = -EINVAL;
 
 out_unlock:
-	free_page(addr);
+	kfree(buf);
 	return ret;
 }
 
@@ -125,18 +121,14 @@ static ssize_t lbs_host_sleep_write(struct file *file,
 				loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	ssize_t buf_size, ret;
+	ssize_t ret;
 	int host_sleep;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	if (!buf)
-		return -ENOMEM;
+	char *buf;
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, user_buf, buf_size)) {
-		ret = -EFAULT;
-		goto out_unlock;
-	}
+	buf = memdup_user_nul(user_buf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	ret = sscanf(buf, "%d", &host_sleep);
 	if (ret != 1) {
 		ret = -EINVAL;
@@ -162,7 +154,7 @@ static ssize_t lbs_host_sleep_write(struct file *file,
 		ret = count;
 
 out_unlock:
-	free_page(addr);
+	kfree(buf);
 	return ret;
 }
 
@@ -281,21 +273,15 @@ static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
 	struct cmd_ds_802_11_subscribe_event *events;
 	struct mrvl_ie_thresholds *tlv;
 	struct lbs_private *priv = file->private_data;
-	ssize_t buf_size;
 	int value, freq, new_mask;
 	uint16_t curr_mask;
 	char *buf;
 	int ret;
 
-	buf = (char *)get_zeroed_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	buf = memdup_user_nul(userbuf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		ret = -EFAULT;
-		goto out_page;
-	}
 	ret = sscanf(buf, "%d %d %d", &value, &freq, &new_mask);
 	if (ret != 3) {
 		ret = -EINVAL;
@@ -343,7 +329,7 @@ static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
  out_events:
 	kfree(events);
  out_page:
-	free_page((unsigned long)buf);
+	kfree(buf);
 	return ret;
 }
 
@@ -472,22 +458,15 @@ static ssize_t lbs_rdmac_write(struct file *file,
 				    size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	if (!buf)
-		return -ENOMEM;
+	char *buf;
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_unlock;
-	}
+	buf = memdup_user_nul(userbuf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	priv->mac_offset = simple_strtoul(buf, NULL, 16);
-	res = count;
-out_unlock:
-	free_page(addr);
-	return res;
+	kfree(buf);
+	return count;
 }
 
 static ssize_t lbs_wrmac_write(struct file *file,
@@ -496,18 +475,14 @@ static ssize_t lbs_wrmac_write(struct file *file,
 {
 
 	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
+	ssize_t res;
 	u32 offset, value;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	if (!buf)
-		return -ENOMEM;
+	char *buf;
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_unlock;
-	}
+	buf = memdup_user_nul(userbuf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	res = sscanf(buf, "%x %x", &offset, &value);
 	if (res != 2) {
 		res = -EFAULT;
@@ -520,7 +495,7 @@ static ssize_t lbs_wrmac_write(struct file *file,
 	if (!res)
 		res = count;
 out_unlock:
-	free_page(addr);
+	kfree(buf);
 	return res;
 }
 
@@ -554,22 +529,16 @@ static ssize_t lbs_rdbbp_write(struct file *file,
 				    size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	if (!buf)
-		return -ENOMEM;
+	char *buf;
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_unlock;
-	}
+	buf = memdup_user_nul(userbuf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	priv->bbp_offset = simple_strtoul(buf, NULL, 16);
-	res = count;
-out_unlock:
-	free_page(addr);
-	return res;
+	kfree(buf);
+
+	return count;
 }
 
 static ssize_t lbs_wrbbp_write(struct file *file,
@@ -578,18 +547,14 @@ static ssize_t lbs_wrbbp_write(struct file *file,
 {
 
 	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
+	ssize_t res;
 	u32 offset, value;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	if (!buf)
-		return -ENOMEM;
+	char *buf;
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_unlock;
-	}
+	buf = memdup_user_nul(userbuf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	res = sscanf(buf, "%x %x", &offset, &value);
 	if (res != 2) {
 		res = -EFAULT;
@@ -602,7 +567,7 @@ static ssize_t lbs_wrbbp_write(struct file *file,
 	if (!res)
 		res = count;
 out_unlock:
-	free_page(addr);
+	kfree(buf);
 	return res;
 }
 
@@ -636,22 +601,15 @@ static ssize_t lbs_rdrf_write(struct file *file,
 				    size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	if (!buf)
-		return -ENOMEM;
+	char *buf;
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_unlock;
-	}
+	buf = memdup_user_nul(userbuf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	priv->rf_offset = simple_strtoul(buf, NULL, 16);
-	res = count;
-out_unlock:
-	free_page(addr);
-	return res;
+	kfree(buf);
+	return count;
 }
 
 static ssize_t lbs_wrrf_write(struct file *file,
@@ -660,18 +618,14 @@ static ssize_t lbs_wrrf_write(struct file *file,
 {
 
 	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
+	ssize_t res;
 	u32 offset, value;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	if (!buf)
-		return -ENOMEM;
+	char *buf;
 
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_unlock;
-	}
+	buf = memdup_user_nul(userbuf, min(count, len - 1));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	res = sscanf(buf, "%x %x", &offset, &value);
 	if (res != 2) {
 		res = -EFAULT;
@@ -684,7 +638,7 @@ static ssize_t lbs_wrrf_write(struct file *file,
 	if (!res)
 		res = count;
 out_unlock:
-	free_page(addr);
+	kfree(buf);
 	return res;
 }
 
@@ -915,16 +869,9 @@ static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf,
 	if (cnt == 0)
 		return 0;
 
-	pdata = kmalloc(cnt + 1, GFP_KERNEL);
-	if (pdata == NULL)
-		return 0;
-
-	if (copy_from_user(pdata, buf, cnt)) {
-		lbs_deb_debugfs("Copy from user failed\n");
-		kfree(pdata);
-		return 0;
-	}
-	pdata[cnt] = '\0';
+	pdata = memdup_user_nul(buf, cnt);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
 
 	p0 = pdata;
 	for (i = 0; i < num_of_items; i++) {
