@@ -30,6 +30,10 @@
 #include <asm/msr.h>
 #include <asm/ps4.h>
 
+static bool is_ps4;
+bool apcie_initialized;
+EXPORT_SYMBOL(apcie_initialized);
+
 /*
  * The RTC is part of the Aeolia PCI device and will be implemented there as
  * an RTC class device; stub these out.
@@ -44,11 +48,23 @@ static int dummy_set_wallclock(const struct timespec *now)
 }
 
 /*
+ * Provide a way for generic drivers to query for the availability of the
+ * PS4 apcie driver/device, which is a dependency for them.
+ */
+int apcie_status(void)
+{
+	if (!is_ps4)
+		return -ENODEV;
+	return apcie_initialized;
+}
+
+/*
  * PS4 specific x86_init function overrides and early setup calls.
  */
 void __init x86_ps4_early_setup(void)
 {
 	pr_info("x86_ps4_early_setup: PS4 early setup\n");
+	is_ps4 = true;
 	x86_platform.calibrate_tsc = ps4_calibrate_tsc;
 	x86_platform.get_wallclock = dummy_get_wallclock;
 	x86_platform.set_wallclock = dummy_set_wallclock;

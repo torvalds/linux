@@ -382,6 +382,9 @@ void apcie_uart_suspend(struct apcie_dev *sc, pm_message_t state);
 void apcie_uart_resume(struct apcie_dev *sc);
 #endif
 
+/* From arch/x86/platform/ps4/ps4.c */
+extern bool apcie_initialized;
+
 static int apcie_probe(struct pci_dev *dev, const struct pci_device_id *id) {
 	struct apcie_dev *sc;
 	int ret;
@@ -422,6 +425,7 @@ static int apcie_probe(struct pci_dev *dev, const struct pci_device_id *id) {
 	if ((ret = apcie_uart_init(sc)) < 0)
 		goto remove_glue;
 
+	apcie_initialized = true;
 	return 0;
 
 remove_glue:

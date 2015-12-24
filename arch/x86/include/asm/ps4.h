@@ -32,12 +32,20 @@ extern unsigned long ps4_calibrate_tsc(void);
 extern int apcie_assign_irqs(struct pci_dev *dev, int nvec);
 #define apcie_free_irqs irq_domain_free_irqs
 
+extern int apcie_status(void);
+
 #else
 
-static inline int apcie_assign_irqs(struct pci_dev *dev, int nvec) {
+static inline int apcie_assign_irqs(struct pci_dev *dev, int nvec)
+{
 	return -ENODEV;
 }
-static inline void apcie_free_irqs(unsigned int virq, unsigned int nvec) {
+static inline void apcie_free_irqs(unsigned int virq, unsigned int nvec)
+{
+}
+static inline int apcie_status(void)
+{
+	return -ENODEV;
 }
 
 #endif
