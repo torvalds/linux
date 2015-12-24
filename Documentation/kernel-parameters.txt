@@ -3053,9 +3053,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	raid=		[HW,RAID]
 			See Documentation/md.txt.
 
-	ramdisk_blocksize=	[RAM]
-			See Documentation/blockdev/ramdisk.txt.
-
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.
 
