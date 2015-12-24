@@ -3108,7 +3108,7 @@ static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
  *
  * Permission check is handled by selinux_inode_getxattr hook.
  */
-static int selinux_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc)
+static int selinux_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
 {
 	u32 size;
 	int error;

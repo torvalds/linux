@@ -1413,7 +1413,7 @@ union security_list_options {
 	int (*inode_removexattr)(struct dentry *dentry, const char *name);
 	int (*inode_need_killpriv)(struct dentry *dentry);
 	int (*inode_killpriv)(struct dentry *dentry);
-	int (*inode_getsecurity)(const struct inode *inode, const char *name,
+	int (*inode_getsecurity)(struct inode *inode, const char *name,
 					void **buffer, bool alloc);
 	int (*inode_setsecurity)(struct inode *inode, const char *name,
 					const void *value, size_t size,
