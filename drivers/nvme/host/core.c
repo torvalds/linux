@@ -467,10 +467,12 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		return nvme_user_cmd(ns->ctrl, ns, (void __user *)arg);
 	case NVME_IOCTL_SUBMIT_IO:
 		return nvme_submit_io(ns, (void __user *)arg);
+#ifdef CONFIG_BLK_DEV_NVME_SCSI
 	case SG_GET_VERSION_NUM:
 		return nvme_sg_get_version_num((void __user *)arg);
 	case SG_IO:
 		return nvme_sg_io(ns, (void __user *)arg);
+#endif
 	default:
 		return -ENOTTY;
 	}
