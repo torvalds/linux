@@ -132,11 +132,15 @@ int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 		if (c < 0x80U)
 			utf_o->u_name[utf_o->u_len++] = (uint8_t)c;
 		else if (c < 0x800U) {
+			if (utf_o->u_len > (UDF_NAME_LEN - 4))
+				break;
 			utf_o->u_name[utf_o->u_len++] =
 						(uint8_t)(0xc0 | (c >> 6));
 			utf_o->u_name[utf_o->u_len++] =
 						(uint8_t)(0x80 | (c & 0x3f));
 		} else {
+			if (utf_o->u_len > (UDF_NAME_LEN - 5))
+				break;
 			utf_o->u_name[utf_o->u_len++] =
 						(uint8_t)(0xe0 | (c >> 12));
 			utf_o->u_name[utf_o->u_len++] =
@@ -281,7 +285,7 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 			c = (c << 8) | ocu[i++];
 
 		len = nls->uni2char(c, &utf_o->u_name[utf_o->u_len],
-				    UDF_NAME_LEN - utf_o->u_len);
+				    UDF_NAME_LEN - 2 - utf_o->u_len);
 		/* Valid character? */
 		if (len >= 0)
 			utf_o->u_len += len;
