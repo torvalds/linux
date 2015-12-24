@@ -590,6 +590,57 @@ void iser_login_rsp(struct ib_cq *cq, struct ib_wc *wc)
 	ib_conn->post_recv_buf_count--;
 }
 
+static inline void
+iser_inv_desc(struct iser_fr_desc *desc, u32 rkey)
+{
+	if (likely(rkey == desc->rsc.mr->rkey))
+		desc->rsc.mr_valid = 0;
+	else if (likely(rkey == desc->pi_ctx->sig_mr->rkey))
+		desc->pi_ctx->sig_mr_valid = 0;
+}
+
+static int
+iser_check_remote_inv(struct iser_conn *iser_conn,
+		      struct ib_wc *wc,
+		      struct iscsi_hdr *hdr)
+{
+	if (wc->wc_flags & IB_WC_WITH_INVALIDATE) {
+		struct iscsi_task *task;
+		u32 rkey = wc->ex.invalidate_rkey;
+
+		iser_dbg("conn %p: remote invalidation for rkey %#x\n",
+			 iser_conn, rkey);
+
+		if (unlikely(!iser_conn->snd_w_inv)) {
+			iser_err("conn %p: unexepected remote invalidation, "
+				 "terminating connection\n", iser_conn);
+			return -EPROTO;
+		}
+
+		task = iscsi_itt_to_ctask(iser_conn->iscsi_conn, hdr->itt);
+		if (likely(task)) {
+			struct iscsi_iser_task *iser_task = task->dd_data;
+			struct iser_fr_desc *desc;
+
+			if (iser_task->dir[ISER_DIR_IN]) {
+				desc = iser_task->rdma_reg[ISER_DIR_IN].mem_h;
+				iser_inv_desc(desc, rkey);
+			}
+
+			if (iser_task->dir[ISER_DIR_OUT]) {
+				desc = iser_task->rdma_reg[ISER_DIR_OUT].mem_h;
+				iser_inv_desc(desc, rkey);
+			}
+		} else {
+			iser_err("failed to get task for itt=%d\n", hdr->itt);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+
 void iser_task_rsp(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_conn *ib_conn = wc->qp->qp_context;
@@ -613,6 +664,12 @@ void iser_task_rsp(struct ib_cq *cq, struct ib_wc *wc)
 
 	iser_dbg("op 0x%x itt 0x%x dlen %d\n", hdr->opcode,
 		 hdr->itt, length);
+
+	if (iser_check_remote_inv(iser_conn, wc, hdr)) {
+		iscsi_conn_failure(iser_conn->iscsi_conn,
+				   ISCSI_ERR_CONN_FAILED);
+		return;
+	}
 
 	iscsi_iser_recv(iser_conn->iscsi_conn, hdr, desc->data, length);
 

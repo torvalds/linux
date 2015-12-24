@@ -369,6 +369,7 @@ struct iser_reg_ops {
  *                 cpus and device max completion vectors
  * @comps:         Dinamically allocated array of completion handlers
  * @reg_ops:       Registration ops
+ * @remote_inv_sup: Remote invalidate is supported on this device
  */
 struct iser_device {
 	struct ib_device             *ib_device;
@@ -380,6 +381,7 @@ struct iser_device {
 	int			     comps_used;
 	struct iser_comp	     *comps;
 	const struct iser_reg_ops    *reg_ops;
+	bool                         remote_inv_sup;
 };
 
 #define ISER_CHECK_GUARD	0xc0
@@ -525,6 +527,7 @@ struct iser_conn {
 	u32                          num_rx_descs;
 	unsigned short               scsi_sg_tablesize;
 	unsigned int                 scsi_max_sectors;
+	bool			     snd_w_inv;
 };
 
 /**
