@@ -516,10 +516,10 @@ static int acpi_aml_open(struct inode *inode, struct file *file)
 			ret = -EINVAL;
 			goto err_lock;
 		}
-		acpi_aml_io.flags |= ACPI_AML_OPENED;
 		pr_debug("Debugger thread initialized.\n");
 
 		mutex_lock(&acpi_aml_io.lock);
+		acpi_aml_io.flags |= ACPI_AML_OPENED;
 		acpi_aml_io.out_crc.head = acpi_aml_io.out_crc.tail = 0;
 		acpi_aml_io.in_crc.head = acpi_aml_io.in_crc.tail = 0;
 		pr_debug("Debugger interface opened.\n");
