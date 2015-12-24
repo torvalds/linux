@@ -3947,7 +3947,7 @@ static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp)
 	data = (ioffset_p3<<12)|(ioffset_p2<<8)|(ioffset_p1<<4)|(ioffset_p0);
 
 	if ((ioffset_p3 != 0x0f) || (ioffset_p2 != 0x0f) ||
-	    (ioffset_p1 != 0x0f) || (ioffset_p0 == 0x0f)) {
+	    (ioffset_p1 != 0x0f) || (ioffset_p0 != 0x0f)) {
 		rtl_writephy(tp, 0x1f, 0x0bcf);
 		rtl_writephy(tp, 0x16, data);
 		rtl_writephy(tp, 0x1f, 0x0000);
