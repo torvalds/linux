@@ -2753,13 +2753,11 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 				       void **value, size_t *len)
 {
 	const struct task_security_struct *tsec = current_security();
-	struct inode_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
 	u32 sid, newsid, clen;
 	int rc;
 	char *context;
 
-	dsec = dir->i_security;
 	sbsec = dir->i_sb->s_security;
 
 	sid = tsec->sid;
