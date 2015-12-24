@@ -1506,7 +1506,7 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data)
 		else
 			stid = -1;
 	} else {
-		stid = bitmap_find_free_region(t->stid_bmap, t->nstids, 2);
+		stid = bitmap_find_free_region(t->stid_bmap, t->nstids, 1);
 		if (stid < 0)
 			stid = -1;
 	}
@@ -1520,7 +1520,7 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data)
 		if (family == PF_INET)
 			t->stids_in_use++;
 		else
-			t->stids_in_use += 4;
+			t->stids_in_use += 2;
 	}
 	spin_unlock_bh(&t->stid_lock);
 	return stid;
@@ -1571,13 +1571,13 @@ void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family)
 	if (family == PF_INET)
 		__clear_bit(stid, t->stid_bmap);
 	else
-		bitmap_release_region(t->stid_bmap, stid, 2);
+		bitmap_release_region(t->stid_bmap, stid, 1);
 	t->stid_tab[stid].data = NULL;
 	if (stid < t->nstids) {
 		if (family == PF_INET)
 			t->stids_in_use--;
 		else
-			t->stids_in_use -= 4;
+			t->stids_in_use -= 2;
 	} else {
 		t->sftids_in_use--;
 	}
