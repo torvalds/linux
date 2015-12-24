@@ -31,6 +31,10 @@
 	};
 };
 
+&ecspi3 {
+	status = "disabled";
+};
+
 &epdc {
 	pinctrl-0 = <&pinctrl_epdc0>;
 	en-gpios = <&gpio_spi 5 GPIO_ACTIVE_LOW>;

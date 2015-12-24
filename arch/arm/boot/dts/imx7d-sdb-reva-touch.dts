@@ -6,4 +6,16 @@
  * published by the Free Software Foundation.
  */
 #include "imx7d-sdb-reva.dts"
-#include "imx7d-sdb-touch.dtsi"
+
+&sii902x {
+	status = "disabled";
+};
+
+&ecspi3 {
+	status = "okay";
+
+	tsc2046 {
+		interrupts = <13 0>;
+		pendown-gpio = <&gpio2 13 0>;
+	};
+};
