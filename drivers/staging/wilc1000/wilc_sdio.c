@@ -614,8 +614,6 @@ static int sdio_init(struct wilc *wilc)
 	if (!wilc_sdio_init()) {
 		dev_err(&func->dev, "Failed io init bus...\n");
 		return 0;
-	} else {
-		return 0;
 	}
 
 	/**
