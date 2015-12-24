@@ -3368,7 +3368,7 @@ int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssid_len, const u8 *ies, size_t ies_len,
 		      wilc_connect_result connect_result, void *user_arg,
-		      u8 u8security, enum AUTHTYPE tenuAuth_type,
+		      u8 security, enum AUTHTYPE tenuAuth_type,
 		      u8 u8channel, void *pJoinParams)
 {
 	int result = 0;
@@ -3389,7 +3389,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 
 	msg.id = HOST_IF_MSG_CONNECT;
 
-	msg.body.con_info.security = u8security;
+	msg.body.con_info.security = security;
 	msg.body.con_info.auth_type = tenuAuth_type;
 	msg.body.con_info.ch = u8channel;
 	msg.body.con_info.result = connect_result;

@@ -329,7 +329,7 @@ int wilc_wait_msg_queue_idle(void);
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssid_len, const u8 *ies, size_t ies_len,
 		      wilc_connect_result connect_result, void *user_arg,
-		      u8 u8security, enum AUTHTYPE tenuAuth_type,
+		      u8 security, enum AUTHTYPE tenuAuth_type,
 		      u8 u8channel, void *pJoinParams);
 int wilc_flush_join_req(struct wilc_vif *vif);
 s32 wilc_disconnect(struct wilc_vif *vif, u16 u16ReasonCode);
