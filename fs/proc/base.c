@@ -2359,7 +2359,7 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 				   size_t count, loff_t *ppos)
 {
 	struct inode * inode = file_inode(file);
-	char *page;
+	void *page;
 	ssize_t length;
 	struct task_struct *task = get_proc_task(inode);
 
@@ -2374,14 +2374,11 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 	if (*ppos != 0)
 		goto out;
 
-	length = -ENOMEM;
-	page = (char*)__get_free_page(GFP_TEMPORARY);
-	if (!page)
+	page = memdup_user(buf, count);
+	if (IS_ERR(page)) {
+		length = PTR_ERR(page);
 		goto out;
-
-	length = -EFAULT;
-	if (copy_from_user(page, buf, count))
-		goto out_free;
+	}
 
 	/* Guard against adverse ptrace interaction */
 	length = mutex_lock_interruptible(&task->signal->cred_guard_mutex);
@@ -2390,10 +2387,10 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 
 	length = security_setprocattr(task,
 				      (char*)file->f_path.dentry->d_name.name,
-				      (void*)page, count);
+				      page, count);
 	mutex_unlock(&task->signal->cred_guard_mutex);
 out_free:
-	free_page((unsigned long) page);
+	kfree(page);
 out:
 	put_task_struct(task);
 out_no_task:
