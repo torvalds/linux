@@ -353,6 +353,7 @@ int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen);
 int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid);
 void security_release_secctx(char *secdata, u32 seclen);
 
+void security_inode_invalidate_secctx(struct inode *inode);
 int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen);
 int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen);
 int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen);
@@ -1090,6 +1091,10 @@ static inline int security_secctx_to_secid(const char *secdata,
 }
 
 static inline void security_release_secctx(char *secdata, u32 seclen)
+{
+}
+
+static inline void security_inode_invalidate_secctx(struct inode *inode)
 {
 }
 

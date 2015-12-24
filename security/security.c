@@ -1161,6 +1161,12 @@ void security_release_secctx(char *secdata, u32 seclen)
 }
 EXPORT_SYMBOL(security_release_secctx);
 
+void security_inode_invalidate_secctx(struct inode *inode)
+{
+	call_void_hook(inode_invalidate_secctx, inode);
+}
+EXPORT_SYMBOL(security_inode_invalidate_secctx);
+
 int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
 {
 	return call_int_hook(inode_notifysecctx, 0, inode, ctx, ctxlen);
@@ -1763,6 +1769,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.secctx_to_secid),
 	.release_secctx =
 		LIST_HEAD_INIT(security_hook_heads.release_secctx),
+	.inode_invalidate_secctx =
+		LIST_HEAD_INIT(security_hook_heads.inode_invalidate_secctx),
 	.inode_notifysecctx =
 		LIST_HEAD_INIT(security_hook_heads.inode_notifysecctx),
 	.inode_setsecctx =
