@@ -3369,7 +3369,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssid_len, const u8 *ies, size_t ies_len,
 		      wilc_connect_result connect_result, void *user_arg,
 		      u8 security, enum AUTHTYPE auth_type,
-		      u8 channel, void *pJoinParams)
+		      u8 channel, void *join_params)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3380,7 +3380,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		return -EFAULT;
 	}
 
-	if (!pJoinParams) {
+	if (!join_params) {
 		PRINT_ER("Unable to Join - JoinParams is NULL\n");
 		return -EFAULT;
 	}
@@ -3394,7 +3394,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 	msg.body.con_info.ch = channel;
 	msg.body.con_info.result = connect_result;
 	msg.body.con_info.arg = user_arg;
-	msg.body.con_info.params = pJoinParams;
+	msg.body.con_info.params = join_params;
 	msg.vif = vif;
 
 	if (bssid) {
