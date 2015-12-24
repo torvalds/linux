@@ -259,8 +259,10 @@ sync_nodes:
 	sync_node_pages(sbi, ino, &wbc);
 
 	/* if cp_error was enabled, we should avoid infinite loop */
-	if (unlikely(f2fs_cp_error(sbi)))
+	if (unlikely(f2fs_cp_error(sbi))) {
+		ret = -EIO;
 		goto out;
+	}
 
 	if (need_inode_block_update(sbi, ino)) {
 		mark_inode_dirty_sync(inode);

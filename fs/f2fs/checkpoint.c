@@ -798,7 +798,7 @@ void remove_dirty_inode(struct inode *inode)
 	}
 }
 
-void sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type)
+int sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type)
 {
 	struct list_head *head;
 	struct inode *inode;
@@ -810,7 +810,7 @@ void sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type)
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
 retry:
 	if (unlikely(f2fs_cp_error(sbi)))
-		return;
+		return -EIO;
 
 	spin_lock(&sbi->inode_lock[type]);
 
@@ -820,7 +820,7 @@ retry:
 		trace_f2fs_sync_dirty_inodes_exit(sbi->sb, is_dir,
 				get_pages(sbi, is_dir ?
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
-		return;
+		return 0;
 	}
 	fi = list_entry(head->next, struct f2fs_inode_info, dirty_list);
 	inode = igrab(&fi->vfs_inode);
@@ -859,11 +859,9 @@ retry_flush_dents:
 	/* write all the dirty dentry pages */
 	if (get_pages(sbi, F2FS_DIRTY_DENTS)) {
 		f2fs_unlock_all(sbi);
-		sync_dirty_inodes(sbi, DIR_INODE);
-		if (unlikely(f2fs_cp_error(sbi))) {
-			err = -EIO;
+		err = sync_dirty_inodes(sbi, DIR_INODE);
+		if (err)
 			goto out;
-		}
 		goto retry_flush_dents;
 	}
 
@@ -876,10 +874,9 @@ retry_flush_nodes:
 
 	if (get_pages(sbi, F2FS_DIRTY_NODES)) {
 		up_write(&sbi->node_write);
-		sync_node_pages(sbi, 0, &wbc);
-		if (unlikely(f2fs_cp_error(sbi))) {
+		err = sync_node_pages(sbi, 0, &wbc);
+		if (err) {
 			f2fs_unlock_all(sbi);
-			err = -EIO;
 			goto out;
 		}
 		goto retry_flush_nodes;

@@ -498,7 +498,7 @@ alloc:
 	return 0;
 }
 
-static void __allocate_data_blocks(struct inode *inode, loff_t offset,
+static int __allocate_data_blocks(struct inode *inode, loff_t offset,
 							size_t count)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
@@ -507,13 +507,15 @@ static void __allocate_data_blocks(struct inode *inode, loff_t offset,
 	u64 len = F2FS_BYTES_TO_BLK(count);
 	bool allocated;
 	u64 end_offset;
+	int err = 0;
 
 	while (len) {
 		f2fs_lock_op(sbi);
 
 		/* When reading holes, we need its node page */
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
-		if (get_dnode_of_data(&dn, start, ALLOC_NODE))
+		err = get_dnode_of_data(&dn, start, ALLOC_NODE);
+		if (err)
 			goto out;
 
 		allocated = false;
@@ -522,12 +524,15 @@ static void __allocate_data_blocks(struct inode *inode, loff_t offset,
 		while (dn.ofs_in_node < end_offset && len) {
 			block_t blkaddr;
 
-			if (unlikely(f2fs_cp_error(sbi)))
+			if (unlikely(f2fs_cp_error(sbi))) {
+				err = -EIO;
 				goto sync_out;
+			}
 
 			blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
 			if (blkaddr == NULL_ADDR || blkaddr == NEW_ADDR) {
-				if (__allocate_data_block(&dn))
+				err = __allocate_data_block(&dn);
+				if (err)
 					goto sync_out;
 				allocated = true;
 			}
@@ -545,7 +550,7 @@ static void __allocate_data_blocks(struct inode *inode, loff_t offset,
 		if (dn.node_changed)
 			f2fs_balance_fs(sbi);
 	}
-	return;
+	return err;
 
 sync_out:
 	if (allocated)
@@ -555,7 +560,7 @@ out:
 	f2fs_unlock_op(sbi);
 	if (dn.node_changed)
 		f2fs_balance_fs(sbi);
-	return;
+	return err;
 }
 
 /*
@@ -1653,11 +1658,9 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	trace_f2fs_direct_IO_enter(inode, offset, count, iov_iter_rw(iter));
 
 	if (iov_iter_rw(iter) == WRITE) {
-		__allocate_data_blocks(inode, offset, count);
-		if (unlikely(f2fs_cp_error(F2FS_I_SB(inode)))) {
-			err = -EIO;
+		err = __allocate_data_blocks(inode, offset, count);
+		if (err)
 			goto out;
-		}
 	}
 
 	err = blockdev_direct_IO(iocb, inode, iter, offset, get_data_block_dio);

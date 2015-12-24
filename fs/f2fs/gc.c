@@ -832,8 +832,10 @@ gc_more:
 
 	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE)))
 		goto stop;
-	if (unlikely(f2fs_cp_error(sbi)))
+	if (unlikely(f2fs_cp_error(sbi))) {
+		ret = -EIO;
 		goto stop;
+	}
 
 	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, sec_freed)) {
 		gc_type = FG_GC;

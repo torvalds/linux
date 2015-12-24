@@ -1189,6 +1189,11 @@ next_step:
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 
+			if (unlikely(f2fs_cp_error(sbi))) {
+				pagevec_release(&pvec);
+				return -EIO;
+			}
+
 			/*
 			 * flushing sequence with step:
 			 * 0. indirect nodes
