@@ -3461,7 +3461,7 @@ int wilc_flush_join_req(struct wilc_vif *vif)
 	return result;
 }
 
-int wilc_disconnect(struct wilc_vif *vif, u16 u16ReasonCode)
+int wilc_disconnect(struct wilc_vif *vif, u16 reason_code)
 {
 	int result = 0;
 	struct host_if_msg msg;
