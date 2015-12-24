@@ -69,6 +69,7 @@ struct nvme_ctrl {
 	int instance;
 	struct blk_mq_tag_set *tagset;
 	struct list_head namespaces;
+	struct mutex namespaces_mutex;
 	struct device *device;	/* char device */
 	struct list_head node;
 
