@@ -610,8 +610,6 @@ static ssize_t acpi_aml_read(struct file *file, char __user *buf,
 	int ret = 0;
 	int size = 0;
 
-	if (!buf || count < 0)
-		return -EINVAL;
 	if (!count)
 		return 0;
 	if (!access_ok(VERIFY_WRITE, buf, count))
@@ -681,8 +679,6 @@ static ssize_t acpi_aml_write(struct file *file, const char __user *buf,
 	int ret = 0;
 	int size = 0;
 
-	if (!buf || count < 0)
-		return -EINVAL;
 	if (!count)
 		return 0;
 	if (!access_ok(VERIFY_READ, buf, count))
