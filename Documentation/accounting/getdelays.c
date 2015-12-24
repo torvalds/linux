@@ -375,7 +375,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if ((nl_sd = create_nl_socket(NETLINK_GENERIC)) < 0)
+	nl_sd = create_nl_socket(NETLINK_GENERIC);
+	if (nl_sd < 0)
 		err(1, "error creating Netlink socket\n");
 
 
