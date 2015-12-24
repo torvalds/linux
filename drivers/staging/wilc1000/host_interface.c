@@ -3398,20 +3398,23 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 	msg.vif = vif;
 
 	if (bssid) {
-		msg.body.con_info.bssid = kmalloc(6, GFP_KERNEL);
-		memcpy(msg.body.con_info.bssid, bssid, 6);
+		msg.body.con_info.bssid = kmemdup(bssid, 6, GFP_KERNEL);
+		if (!msg.body.con_info.bssid)
+			return -ENOMEM;
 	}
 
 	if (ssid) {
 		msg.body.con_info.ssid_len = ssid_len;
-		msg.body.con_info.ssid = kmalloc(ssid_len, GFP_KERNEL);
-		memcpy(msg.body.con_info.ssid, ssid, ssid_len);
+		msg.body.con_info.ssid = kmemdup(ssid, ssid_len, GFP_KERNEL);
+		if (!msg.body.con_info.ssid)
+			return -ENOMEM;
 	}
 
 	if (ies) {
 		msg.body.con_info.ies_len = ies_len;
-		msg.body.con_info.ies = kmalloc(ies_len, GFP_KERNEL);
-		memcpy(msg.body.con_info.ies, ies, ies_len);
+		msg.body.con_info.ies = kmemdup(ies, ies_len, GFP_KERNEL);
+		if (!msg.body.con_info.ies)
+			return -ENOMEM;
 	}
 	if (hif_drv->hif_state < HOST_IF_CONNECTING)
 		hif_drv->hif_state = HOST_IF_CONNECTING;
