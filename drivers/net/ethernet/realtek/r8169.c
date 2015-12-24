@@ -6136,7 +6136,7 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	rtl_pcie_state_l2l3_enable(tp, false);
 
 	rtl_writephy(tp, 0x1f, 0x0c42);
-	rg_saw_cnt = rtl_readphy(tp, 0x13);
+	rg_saw_cnt = (rtl_readphy(tp, 0x13) & 0x3fff);
 	rtl_writephy(tp, 0x1f, 0x0000);
 	if (rg_saw_cnt > 0) {
 		u16 sw_cnt_1ms_ini;
