@@ -386,30 +386,7 @@ static int ocrdma_open(struct ocrdma_dev *dev)
 
 static int ocrdma_close(struct ocrdma_dev *dev)
 {
-	int i;
-	struct ocrdma_qp *qp, **cur_qp;
 	struct ib_event err_event;
-	struct ib_qp_attr attrs;
-	int attr_mask = IB_QP_STATE;
-
-	attrs.qp_state = IB_QPS_ERR;
-	mutex_lock(&dev->dev_lock);
-	if (dev->qp_tbl) {
-		cur_qp = dev->qp_tbl;
-		for (i = 0; i < OCRDMA_MAX_QP; i++) {
-			qp = cur_qp[i];
-			if (qp && qp->ibqp.qp_type != IB_QPT_GSI) {
-				/* change the QP state to ERROR */
-				_ocrdma_modify_qp(&qp->ibqp, &attrs, attr_mask);
-
-				err_event.event = IB_EVENT_QP_FATAL;
-				err_event.element.qp = &qp->ibqp;
-				err_event.device = &dev->ibdev;
-				ib_dispatch_event(&err_event);
-			}
-		}
-	}
-	mutex_unlock(&dev->dev_lock);
 
 	err_event.event = IB_EVENT_PORT_ERR;
 	err_event.element.port_num = 1;
