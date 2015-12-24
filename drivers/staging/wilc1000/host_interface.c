@@ -3628,7 +3628,7 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
 	return result;
 }
 
-int wilc_get_rssi(struct wilc_vif *vif, s8 *ps8Rssi)
+int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3646,12 +3646,12 @@ int wilc_get_rssi(struct wilc_vif *vif, s8 *ps8Rssi)
 
 	down(&hif_drv->sem_get_rssi);
 
-	if (!ps8Rssi) {
+	if (!rssi_level) {
 		PRINT_ER("RSS pointer value is null");
 		return -EFAULT;
 	}
 
-	*ps8Rssi = rssi;
+	*rssi_level = rssi;
 
 	return result;
 }
