@@ -42,7 +42,10 @@
 #define MX7D_SRC_GPR4	0x80
 #define DDRC_STAT	0x4
 #define DDRC_PWRCTL	0x30
+#define DDRC_DBG1	0x304
+#define DDRC_DBGCAM	0x308
 #define DDRC_PSTAT	0x3fc
+#define DDRC_PCTRL_0	0x490
 
 /*
  * imx_pen_lock
@@ -218,6 +221,10 @@
 
 	ldr	r10, [r0, #PM_INFO_MX7D_DDRC_V_OFFSET]
 
+	/* disable port */
+	ldr	r7, =0x0
+	str	r7, [r10, #DDRC_PCTRL_0]
+
 	/* let DDR out of self-refresh */
 	ldr	r7, =0x0
 	str	r7, [r10, #DDRC_PWRCTL]
@@ -229,6 +236,16 @@
 	ldr	r7, [r10, #DDRC_PSTAT]
 	ands	r7, r7, r6
 	bne	2b
+
+	ldr	r7, =0x1
+	str	r7, [r10, #DDRC_DBG1]
+
+	ldr	r6, =0x36000000
+11:
+	ldr	r7, [r10, #DDRC_DBGCAM]
+	and	r7, r7, r6
+	cmp	r7, r6
+	bne	11b
 
 	/* enter self-refresh bit 5 */
 	ldr	r7, =(0x1 << 5)
@@ -250,14 +267,22 @@
 	orr	r7, r7, #(1 << 3)
 	str	r7, [r10, #DDRC_PWRCTL]
 
+	/*
+	 * TO1.1 adds feature of DDR pads power down,
+	 * although TO1.0 has no such function, but it is
+	 * NOT harmful to program GPR registers for TO1.0,
+	 * it can avoid the logic of version check in idle
+	 * thread.
+	 */
 	ldr	r10, [r0, #PM_INFO_MX7D_IOMUXC_GPR_V_OFFSET]
 	ldr	r7, =0xf0000
 	str	r7, [r10]
 
-	ldr	r7, =0x10000
-11:
+	/* assume ARM @ 1GHz, about delay 20us */
+	ldr	r7, =10000
+12:
 	subs	r7, r7, #0x1
-	bne	11b
+	bne	12b
 
 	.endm
 
@@ -267,17 +292,28 @@
 	cmp	r5, #0x1
 	ldreq	r10, [r0, #PM_INFO_MX7D_IOMUXC_GPR_P_OFFSET]
 	ldrne	r10, [r0, #PM_INFO_MX7D_IOMUXC_GPR_V_OFFSET]
+
 	ldr	r7, =0x0
 	str	r7, [r10]
 
-	ldr	r7, =0x10000
-12:
+	ldr	r7, =10000
+13:
 	subs	r7, r7, #0x1
-	bne	12b
+	bne	13b
 
 	cmp	r5, #0x1
 	ldreq	r10, [r0, #PM_INFO_MX7D_DDRC_P_OFFSET]
 	ldrne	r10, [r0, #PM_INFO_MX7D_DDRC_V_OFFSET]
+
+	ldr	r7, =0x0
+	str	r7, [r10, #DDRC_DBG1]
+
+	ldr	r6, =0x30000000
+14:
+	ldr	r7, [r10, #DDRC_DBGCAM]
+	and	r7, r7, r6
+	cmp	r7, r6
+	bne	14b
 
 	/* let DDR out of self-refresh */
 	ldr	r7, =0x0
@@ -294,6 +330,9 @@
 	ldr	r7, [r10, #DDRC_PWRCTL]
 	orr	r7, r7, #(1 << 0)
 	str	r7, [r10, #DDRC_PWRCTL]
+
+	ldr	r7, =0x1
+	str	r7, [r10, #DDRC_PCTRL_0]
 
 	.endm
 

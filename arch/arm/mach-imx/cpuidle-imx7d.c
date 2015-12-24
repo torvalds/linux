@@ -146,8 +146,8 @@ static struct cpuidle_driver imx7d_cpuidle_driver = {
 		},
 		/* LOW POWER IDLE */
 		{
-			.exit_latency = 300,
-			.target_residency = 500,
+			.exit_latency = 150,
+			.target_residency = 300,
 			.flags = CPUIDLE_FLAG_TIMER_STOP,
 			.enter = imx7d_enter_low_power_idle,
 			.name = "LOW-POWER-IDLE",
