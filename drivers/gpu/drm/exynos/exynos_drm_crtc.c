@@ -203,29 +203,6 @@ void exynos_drm_crtc_finish_update(struct exynos_drm_crtc *exynos_crtc,
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
-void exynos_drm_crtc_complete_scanout(struct drm_framebuffer *fb)
-{
-	struct exynos_drm_crtc *exynos_crtc;
-	struct drm_device *dev = fb->dev;
-	struct drm_crtc *crtc;
-
-	/*
-	 * make sure that overlay data are updated to real hardware
-	 * for all encoders.
-	 */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		exynos_crtc = to_exynos_crtc(crtc);
-
-		/*
-		 * wait for vblank interrupt
-		 * - this makes sure that overlay data are updated to
-		 *	real hardware.
-		 */
-		if (exynos_crtc->ops->wait_for_vblank)
-			exynos_crtc->ops->wait_for_vblank(exynos_crtc);
-	}
-}
-
 int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
 				       enum exynos_drm_output_type out_type)
 {

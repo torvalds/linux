@@ -71,9 +71,6 @@ static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
 	unsigned int i;
 
-	/* make sure that overlay data are updated before relesing fb. */
-	exynos_drm_crtc_complete_scanout(fb);
-
 	drm_framebuffer_cleanup(fb);
 
 	for (i = 0; i < ARRAY_SIZE(exynos_fb->exynos_gem); i++) {
