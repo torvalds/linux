@@ -1420,7 +1420,7 @@ union security_list_options {
 					int flags);
 	int (*inode_listsecurity)(struct inode *inode, char *buffer,
 					size_t buffer_size);
-	void (*inode_getsecid)(const struct inode *inode, u32 *secid);
+	void (*inode_getsecid)(struct inode *inode, u32 *secid);
 
 	int (*file_permission)(struct file *file, int mask);
 	int (*file_alloc_security)(struct file *file);
