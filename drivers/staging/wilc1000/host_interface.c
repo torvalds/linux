@@ -3656,9 +3656,9 @@ int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level)
 	return result;
 }
 
-s32 wilc_get_statistics(struct wilc_vif *vif, struct rf_info *pstrStatistics)
+int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *pstrStatistics)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
