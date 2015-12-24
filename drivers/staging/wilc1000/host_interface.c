@@ -3628,9 +3628,9 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
 	return result;
 }
 
-s32 wilc_get_rssi(struct wilc_vif *vif, s8 *ps8Rssi)
+int wilc_get_rssi(struct wilc_vif *vif, s8 *ps8Rssi)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
