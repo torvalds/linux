@@ -181,17 +181,22 @@ int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 static int udf_UTF8toCS0(dstring *ocu, struct ustr *utf, int length)
 {
 	unsigned c, i, max_val, utf_char;
-	int utf_cnt, u_len;
+	int utf_cnt, u_len, u_ch;
 
 	memset(ocu, 0, sizeof(dstring) * length);
 	ocu[0] = 8;
 	max_val = 0xffU;
+	u_ch = 1;
 
 try_again:
 	u_len = 0U;
 	utf_char = 0U;
 	utf_cnt = 0U;
 	for (i = 0U; i < utf->u_len; i++) {
+		/* Name didn't fit? */
+		if (u_len + 1 + u_ch >= length)
+			return 0;
+
 		c = (uint8_t)utf->u_name[i];
 
 		/* Complete a multi-byte UTF-8 character */
@@ -233,6 +238,7 @@ try_again:
 			if (max_val == 0xffU) {
 				max_val = 0xffffU;
 				ocu[0] = (uint8_t)0x10U;
+				u_ch = 2;
 				goto try_again;
 			}
 			goto error_out;
@@ -303,15 +309,19 @@ static int udf_NLStoCS0(struct nls_table *nls, dstring *ocu, struct ustr *uni,
 	int len;
 	unsigned i, max_val;
 	uint16_t uni_char;
-	int u_len;
+	int u_len, u_ch;
 
 	memset(ocu, 0, sizeof(dstring) * length);
 	ocu[0] = 8;
 	max_val = 0xffU;
+	u_ch = 1;
 
 try_again:
 	u_len = 0U;
 	for (i = 0U; i < uni->u_len; i++) {
+		/* Name didn't fit? */
+		if (u_len + 1 + u_ch >= length)
+			return 0;
 		len = nls->char2uni(&uni->u_name[i], uni->u_len - i, &uni_char);
 		if (!len)
 			continue;
@@ -324,6 +334,7 @@ try_again:
 		if (uni_char > max_val) {
 			max_val = 0xffffU;
 			ocu[0] = (uint8_t)0x10U;
+			u_ch = 2;
 			goto try_again;
 		}
 
