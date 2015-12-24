@@ -592,9 +592,10 @@ static int acpi_aml_read_user(char __user *buf, int len)
 	smp_rmb();
 	p = &crc->buf[crc->tail];
 	n = min(len, circ_count_to_end(crc));
-	ret = copy_to_user(buf, p, n);
-	if (IS_ERR_VALUE(ret))
+	if (copy_to_user(buf, p, n)) {
+		ret = -EFAULT;
 		goto out;
+	}
 	/* sync tail after removing logs */
 	smp_mb();
 	crc->tail = (crc->tail + n) & (ACPI_AML_BUF_SIZE - 1);
@@ -661,9 +662,10 @@ static int acpi_aml_write_user(const char __user *buf, int len)
 	smp_mb();
 	p = &crc->buf[crc->head];
 	n = min(len, circ_space_to_end(crc));
-	ret = copy_from_user(p, buf, n);
-	if (IS_ERR_VALUE(ret))
+	if (copy_from_user(p, buf, n)) {
+		ret = -EFAULT;
 		goto out;
+	}
 	/* sync head after inserting cmds */
 	smp_wmb();
 	crc->head = (crc->head + n) & (ACPI_AML_BUF_SIZE - 1);
