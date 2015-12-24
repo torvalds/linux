@@ -637,7 +637,8 @@ static void sci_clear_SCxSR(struct uart_port *port, unsigned int mask)
 	}
 }
 
-#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
+#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_SH_SCI_CONSOLE) || \
+    defined(CONFIG_SERIAL_SH_SCI_EARLYCON)
 
 #ifdef CONFIG_CONSOLE_POLL
 static int sci_poll_get_char(struct uart_port *port)
@@ -678,7 +679,8 @@ static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 	serial_port_out(port, SCxTDR, c);
 	sci_clear_SCxSR(port, SCxSR_TDxE_CLEAR(port) & ~SCxSR_TEND(port));
 }
-#endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE */
+#endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE ||
+	  CONFIG_SERIAL_SH_SCI_EARLYCON */
 
 static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
@@ -2632,7 +2634,8 @@ static void sci_cleanup_single(struct sci_port *port)
 	pm_runtime_disable(port->port.dev);
 }
 
-#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
+#if defined(CONFIG_SERIAL_SH_SCI_CONSOLE) || \
+    defined(CONFIG_SERIAL_SH_SCI_EARLYCON)
 static void serial_console_putchar(struct uart_port *port, int ch)
 {
 	sci_poll_put_char(port, ch);
@@ -2652,9 +2655,12 @@ static void serial_console_write(struct console *co, const char *s,
 	int locked = 1;
 
 	local_irq_save(flags);
+#if defined(SUPPORT_SYSRQ)
 	if (port->sysrq)
 		locked = 0;
-	else if (oops_in_progress)
+	else
+#endif
+	if (oops_in_progress)
 		locked = spin_trylock(&port->lock);
 	else
 		spin_lock(&port->lock);
@@ -2764,7 +2770,7 @@ static inline int sci_probe_earlyprintk(struct platform_device *pdev)
 
 #define SCI_CONSOLE	NULL
 
-#endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
+#endif /* CONFIG_SERIAL_SH_SCI_CONSOLE || CONFIG_SERIAL_SH_SCI_EARLYCON */
 
 static const char banner[] __initconst = "SuperH (H)SCI(F) driver initialized";
 
@@ -2998,6 +3004,67 @@ static void __exit sci_exit(void)
 early_platform_init_buffer("earlyprintk", &sci_driver,
 			   early_serial_buf, ARRAY_SIZE(early_serial_buf));
 #endif
+#ifdef CONFIG_SERIAL_SH_SCI_EARLYCON
+static struct __init plat_sci_port port_cfg;
+
+static int __init early_console_setup(struct earlycon_device *device,
+				      int type)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->port.serial_in = sci_serial_in;
+	device->port.serial_out	= sci_serial_out;
+	device->port.type = type;
+	memcpy(&sci_ports[0].port, &device->port, sizeof(struct uart_port));
+	sci_ports[0].cfg = &port_cfg;
+	sci_ports[0].cfg->type = type;
+	sci_probe_regmap(sci_ports[0].cfg);
+	port_cfg.scscr = sci_serial_in(&sci_ports[0].port, SCSCR) |
+			 SCSCR_RE | SCSCR_TE;
+	sci_serial_out(&sci_ports[0].port, SCSCR, port_cfg.scscr);
+
+	device->con->write = serial_console_write;
+	return 0;
+}
+static int __init sci_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	return early_console_setup(device, PORT_SCI);
+}
+static int __init scif_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	return early_console_setup(device, PORT_SCIF);
+}
+static int __init scifa_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	return early_console_setup(device, PORT_SCIFA);
+}
+static int __init scifb_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	return early_console_setup(device, PORT_SCIFB);
+}
+static int __init hscif_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	return early_console_setup(device, PORT_HSCIF);
+}
+
+EARLYCON_DECLARE(sci, sci_early_console_setup);
+OF_EARLYCON_DECLARE(sci, "renesas,sci", sci_early_console_setup);
+EARLYCON_DECLARE(scif, scif_early_console_setup);
+OF_EARLYCON_DECLARE(scif, "renesas,scif", scif_early_console_setup);
+EARLYCON_DECLARE(scifa, scifa_early_console_setup);
+OF_EARLYCON_DECLARE(scifa, "renesas,scifa", scifa_early_console_setup);
+EARLYCON_DECLARE(scifb, scifb_early_console_setup);
+OF_EARLYCON_DECLARE(scifb, "renesas,scifb", scifb_early_console_setup);
+EARLYCON_DECLARE(hscif, hscif_early_console_setup);
+OF_EARLYCON_DECLARE(hscif, "renesas,hscif", hscif_early_console_setup);
+#endif /* CONFIG_SERIAL_SH_SCI_EARLYCON */
+
 module_init(sci_init);
 module_exit(sci_exit);
 
