@@ -122,6 +122,8 @@ struct hist_entry {
 	struct branch_info	*branch_info;
 	struct hists		*hists;
 	struct mem_info		*mem_info;
+	void			*raw_data;
+	u32			raw_size;
 	struct callchain_root	callchain[0]; /* must be last member */
 };
 

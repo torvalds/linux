@@ -369,6 +369,25 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 		if (symbol_conf.use_callchain)
 			callchain_init(he->callchain);
 
+		if (he->raw_data) {
+			he->raw_data = memdup(he->raw_data, he->raw_size);
+
+			if (he->raw_data == NULL) {
+				map__put(he->ms.map);
+				if (he->branch_info) {
+					map__put(he->branch_info->from.map);
+					map__put(he->branch_info->to.map);
+					free(he->branch_info);
+				}
+				if (he->mem_info) {
+					map__put(he->mem_info->iaddr.map);
+					map__put(he->mem_info->daddr.map);
+				}
+				free(he->stat_acc);
+				free(he);
+				return NULL;
+			}
+		}
 		INIT_LIST_HEAD(&he->pairs.node);
 		thread__get(he->thread);
 	}
@@ -487,6 +506,8 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		.branch_info = bi,
 		.mem_info = mi,
 		.transaction = sample->transaction,
+		.raw_data = sample->raw_data,
+		.raw_size = sample->raw_size,
 	};
 
 	return hists__findnew_entry(hists, &entry, al, sample_self);
@@ -801,6 +822,8 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 			.sym = al->sym,
 		},
 		.parent = iter->parent,
+		.raw_data = sample->raw_data,
+		.raw_size = sample->raw_size,
 	};
 	int i;
 	struct callchain_cursor cursor;
@@ -974,6 +997,7 @@ void hist_entry__delete(struct hist_entry *he)
 	if (he->srcfile && he->srcfile[0])
 		free(he->srcfile);
 	free_callchain(he->callchain);
+	free(he->raw_data);
 	free(he);
 }
 
