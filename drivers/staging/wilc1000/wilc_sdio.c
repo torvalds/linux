@@ -185,11 +185,6 @@ static void wilc_sdio_disable_interrupt(struct wilc *dev)
 	dev_info(&func->dev, "wilc_sdio_disable_interrupt OUT\n");
 }
 
-static int wilc_sdio_init(void)
-{
-	return 1;
-}
-
 /********************************************
  *
  *      Function 0
@@ -610,11 +605,6 @@ static int sdio_init(struct wilc *wilc)
 	memset(&g_sdio, 0, sizeof(wilc_sdio_t));
 
 	g_sdio.irq_gpio = (wilc->dev_irq_num);
-
-	if (!wilc_sdio_init()) {
-		dev_err(&func->dev, "Failed io init bus...\n");
-		return 0;
-	}
 
 	/**
 	 *      function 0 csa enable
