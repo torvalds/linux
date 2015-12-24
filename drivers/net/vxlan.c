@@ -1841,9 +1841,10 @@ static int vxlan_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *sk
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
-	return udp_tunnel_xmit_skb(rt, sk, skb, src, dst, tos,
-				   ttl, df, src_port, dst_port, xnet,
-				   !(vxflags & VXLAN_F_UDP_CSUM));
+	udp_tunnel_xmit_skb(rt, sk, skb, src, dst, tos, ttl, df,
+			    src_port, dst_port, xnet,
+			    !(vxflags & VXLAN_F_UDP_CSUM));
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -2056,8 +2057,6 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			skb = NULL;
 			goto rt_tx_error;
 		}
-
-		iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
 		struct dst_entry *ndst;

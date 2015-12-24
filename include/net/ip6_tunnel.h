@@ -5,6 +5,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_tunnel.h>
 #include <linux/ip6_tunnel.h>
+#include <net/ip_tunnels.h>
 
 #define IP6TUNNEL_ERR_TIMEO (30*HZ)
 
@@ -83,22 +84,12 @@ int ip6_tnl_get_iflink(const struct net_device *dev);
 static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
 				  struct net_device *dev)
 {
-	struct net_device_stats *stats = &dev->stats;
 	int pkt_len, err;
 
 	pkt_len = skb->len - skb_inner_network_offset(skb);
 	err = ip6_local_out(dev_net(skb_dst(skb)->dev), sk, skb);
-
-	if (net_xmit_eval(err) == 0) {
-		struct pcpu_sw_netstats *tstats = get_cpu_ptr(dev->tstats);
-		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += pkt_len;
-		tstats->tx_packets++;
-		u64_stats_update_end(&tstats->syncp);
-		put_cpu_ptr(tstats);
-	} else {
-		stats->tx_errors++;
-		stats->tx_aborted_errors++;
-	}
+	if (unlikely(net_xmit_eval(err)))
+		pkt_len = -1;
+	iptunnel_xmit_stats(dev, pkt_len);
 }
 #endif

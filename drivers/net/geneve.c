@@ -918,12 +918,11 @@ static netdev_tx_t geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
 		df = 0;
 	}
-	err = udp_tunnel_xmit_skb(rt, gs4->sock->sk, skb, fl4.saddr, fl4.daddr,
-				  tos, ttl, df, sport, geneve->dst_port,
-				  !net_eq(geneve->net, dev_net(geneve->dev)),
-				  !(flags & GENEVE_F_UDP_CSUM));
+	udp_tunnel_xmit_skb(rt, gs4->sock->sk, skb, fl4.saddr, fl4.daddr,
+			    tos, ttl, df, sport, geneve->dst_port,
+			    !net_eq(geneve->net, dev_net(geneve->dev)),
+			    !(flags & GENEVE_F_UDP_CSUM));
 
-	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 	return NETDEV_TX_OK;
 
 tx_error:
@@ -1005,10 +1004,10 @@ static netdev_tx_t geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			ttl = 1;
 		ttl = ttl ? : ip6_dst_hoplimit(dst);
 	}
-	err = udp_tunnel6_xmit_skb(dst, gs6->sock->sk, skb, dev,
-				   &fl6.saddr, &fl6.daddr, prio, ttl,
-				   sport, geneve->dst_port,
-				   !!(flags & GENEVE_F_UDP_ZERO_CSUM6_TX));
+	udp_tunnel6_xmit_skb(dst, gs6->sock->sk, skb, dev,
+			     &fl6.saddr, &fl6.daddr, prio, ttl,
+			     sport, geneve->dst_port,
+			     !!(flags & GENEVE_F_UDP_ZERO_CSUM6_TX));
 	return NETDEV_TX_OK;
 
 tx_error:

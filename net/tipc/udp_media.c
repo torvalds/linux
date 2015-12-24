@@ -182,15 +182,9 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 			goto tx_error;
 		}
 		ttl = ip4_dst_hoplimit(&rt->dst);
-		err = udp_tunnel_xmit_skb(rt, ub->ubsock->sk, skb,
-					  src->ipv4.s_addr,
-					  dst->ipv4.s_addr, 0, ttl, 0,
-					  src->udp_port, dst->udp_port,
-					  false, true);
-		if (err < 0) {
-			ip_rt_put(rt);
-			goto tx_error;
-		}
+		udp_tunnel_xmit_skb(rt, ub->ubsock->sk, skb, src->ipv4.s_addr,
+				    dst->ipv4.s_addr, 0, ttl, 0, src->udp_port,
+				    dst->udp_port, false, true);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
 		struct dst_entry *ndst;
