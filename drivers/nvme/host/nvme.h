@@ -237,6 +237,9 @@ int nvme_init_identify(struct nvme_ctrl *ctrl);
 void nvme_scan_namespaces(struct nvme_ctrl *ctrl);
 void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
 
+void nvme_freeze_queues(struct nvme_ctrl *ctrl);
+void nvme_unfreeze_queues(struct nvme_ctrl *ctrl);
+
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags);
 void nvme_requeue_req(struct request *req);

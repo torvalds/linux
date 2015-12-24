@@ -1328,6 +1328,34 @@ out:
 	return ret;
 }
 
+void nvme_freeze_queues(struct nvme_ctrl *ctrl)
+{
+	struct nvme_ns *ns;
+
+	list_for_each_entry(ns, &ctrl->namespaces, list) {
+		blk_mq_freeze_queue_start(ns->queue);
+
+		spin_lock_irq(ns->queue->queue_lock);
+		queue_flag_set(QUEUE_FLAG_STOPPED, ns->queue);
+		spin_unlock_irq(ns->queue->queue_lock);
+
+		blk_mq_cancel_requeue_work(ns->queue);
+		blk_mq_stop_hw_queues(ns->queue);
+	}
+}
+
+void nvme_unfreeze_queues(struct nvme_ctrl *ctrl)
+{
+	struct nvme_ns *ns;
+
+	list_for_each_entry(ns, &ctrl->namespaces, list) {
+		queue_flag_clear_unlocked(QUEUE_FLAG_STOPPED, ns->queue);
+		blk_mq_unfreeze_queue(ns->queue);
+		blk_mq_start_stopped_hw_queues(ns->queue, true);
+		blk_mq_kick_requeue_list(ns->queue);
+	}
+}
+
 int __init nvme_core_init(void)
 {
 	int result;
