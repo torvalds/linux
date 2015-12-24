@@ -4609,14 +4609,6 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 	return (void *)pNewJoinBssParam;
 }
 
-void wilc_free_join_params(void *pJoinParams)
-{
-	if ((struct bss_param *)pJoinParams)
-		kfree((struct bss_param *)pJoinParams);
-	else
-		PRINT_ER("Unable to FREE null pointer\n");
-}
-
 s32 wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *pBSSID, char TID)
 {
 	s32 result = 0;

@@ -196,7 +196,7 @@ static void clear_shadow_scan(void)
 				last_scanned_shadow[last_scanned_cnt].pu8IEs = NULL;
 			}
 
-			wilc_free_join_params(last_scanned_shadow[i].pJoinParams);
+			kfree(last_scanned_shadow[i].pJoinParams);
 			last_scanned_shadow[i].pJoinParams = NULL;
 		}
 		last_scanned_cnt = 0;
@@ -282,7 +282,7 @@ static void remove_network_from_shadow(unsigned long arg)
 			kfree(last_scanned_shadow[i].pu8IEs);
 			last_scanned_shadow[i].pu8IEs = NULL;
 
-			wilc_free_join_params(last_scanned_shadow[i].pJoinParams);
+			kfree(last_scanned_shadow[i].pJoinParams);
 
 			for (j = i; (j < last_scanned_cnt - 1); j++)
 				last_scanned_shadow[j] = last_scanned_shadow[j + 1];
@@ -376,7 +376,7 @@ static void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo,
 	last_scanned_shadow[ap_index].u32TimeRcvdInScanCached = jiffies;
 	last_scanned_shadow[ap_index].u8Found = 1;
 	if (ap_found != -1)
-		wilc_free_join_params(last_scanned_shadow[ap_index].pJoinParams);
+		kfree(last_scanned_shadow[ap_index].pJoinParams);
 	last_scanned_shadow[ap_index].pJoinParams = pJoinParams;
 }
 
