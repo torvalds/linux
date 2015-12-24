@@ -3365,7 +3365,7 @@ int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 	return result;
 }
 
-int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *pu8ssid,
+int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssidLen, const u8 *pu8IEs, size_t IEsLen,
 		      wilc_connect_result pfConnectResult, void *pvUserArg,
 		      u8 u8security, enum AUTHTYPE tenuAuth_type,
@@ -3402,10 +3402,10 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *pu8ssid,
 		memcpy(msg.body.con_info.bssid, bssid, 6);
 	}
 
-	if (pu8ssid) {
+	if (ssid) {
 		msg.body.con_info.ssid_len = ssidLen;
 		msg.body.con_info.ssid = kmalloc(ssidLen, GFP_KERNEL);
-		memcpy(msg.body.con_info.ssid, pu8ssid, ssidLen);
+		memcpy(msg.body.con_info.ssid, ssid, ssidLen);
 	}
 
 	if (pu8IEs) {
