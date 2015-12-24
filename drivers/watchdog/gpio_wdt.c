@@ -54,7 +54,8 @@ static void gpio_wdt_hwping(unsigned long data)
 
 	if (priv->armed && time_after(jiffies, priv->last_jiffies +
 				      msecs_to_jiffies(wdd->timeout * 1000))) {
-		dev_crit(wdd->dev, "Timer expired. System will reboot soon!\n");
+		dev_crit(wdd->parent,
+			 "Timer expired. System will reboot soon!\n");
 		return;
 	}
 
