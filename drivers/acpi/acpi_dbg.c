@@ -514,7 +514,7 @@ static int acpi_aml_open(struct inode *inode, struct file *file)
 		if (ACPI_FAILURE(status)) {
 			pr_err("Failed to initialize debugger.\n");
 			ret = -EINVAL;
-			goto err_lock;
+			goto err_exit;
 		}
 		pr_debug("Debugger thread initialized.\n");
 
@@ -531,6 +531,7 @@ err_lock:
 			acpi_aml_active_reader = NULL;
 	}
 	mutex_unlock(&acpi_aml_io.lock);
+err_exit:
 	return ret;
 }
 
