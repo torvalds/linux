@@ -1044,7 +1044,7 @@ static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
 	snprintf(proppath, proppath_size, "mst:%d", mstb->mgr->conn_base_id);
 	for (i = 0; i < (mstb->lct - 1); i++) {
 		int shift = (i % 2) ? 0 : 4;
-		int port_num = mstb->rad[i / 2] >> shift;
+		int port_num = (mstb->rad[i / 2] >> shift) & 0xf;
 		snprintf(temp, sizeof(temp), "-%d", port_num);
 		strlcat(proppath, temp, proppath_size);
 	}
@@ -1195,7 +1195,7 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 
 	for (i = 0; i < lct - 1; i++) {
 		int shift = (i % 2) ? 0 : 4;
-		int port_num = rad[i / 2] >> shift;
+		int port_num = (rad[i / 2] >> shift) & 0xf;
 
 		list_for_each_entry(port, &mstb->ports, next) {
 			if (port->port_num == port_num) {
