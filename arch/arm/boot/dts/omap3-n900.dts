@@ -522,6 +522,21 @@
 		amstaos,cover-comp-gain = <16>;
 	};
 
+	adp1653: led-controller@30 {
+		compatible = "adi,adp1653";
+		reg = <0x30>;
+		enable-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>; /* 88 */
+
+		flash {
+			flash-timeout-us = <500000>;
+			flash-max-microamp = <320000>;
+			led-max-microamp = <50000>;
+		};
+		indicator {
+			led-max-microamp = <17500>;
+		};
+	};
+
 	lp5523: lp5523@32 {
 		compatible = "national,lp5523";
 		reg = <0x32>;
