@@ -978,17 +978,17 @@ static struct drm_dp_mst_port *drm_dp_get_port(struct drm_dp_mst_branch *mstb, u
 static u8 drm_dp_calculate_rad(struct drm_dp_mst_port *port,
 				 u8 *rad)
 {
-	int lct = port->parent->lct;
+	int parent_lct = port->parent->lct;
 	int shift = 4;
-	int idx = lct / 2;
-	if (lct > 1) {
-		memcpy(rad, port->parent->rad, idx);
-		shift = (lct % 2) ? 4 : 0;
+	int idx = (parent_lct - 1) / 2;
+	if (parent_lct > 1) {
+		memcpy(rad, port->parent->rad, idx + 1);
+		shift = (parent_lct % 2) ? 4 : 0;
 	} else
 		rad[0] = 0;
 
 	rad[idx] |= port->port_num << shift;
-	return lct + 1;
+	return parent_lct + 1;
 }
 
 /*
