@@ -80,7 +80,7 @@ config PINCTRL_QDF2XXX
 	  Qualcomm Technologies QDF2xxx SOCs.
 
 config PINCTRL_QCOM_SPMI_PMIC
-       tristate "Qualcomm SPMI PMIC pin controller driver"
+       bool "Qualcomm SPMI PMIC pin controller driver"
        depends on GPIOLIB && OF && SPMI
        select REGMAP_SPMI
        select PINMUX
@@ -93,7 +93,7 @@ config PINCTRL_QCOM_SPMI_PMIC
          devices are pm8841, pm8941 and pma8084.
 
 config PINCTRL_QCOM_SSBI_PMIC
-       tristate "Qualcomm SSBI PMIC pin controller driver"
+       bool "Qualcomm SSBI PMIC pin controller driver"
        depends on GPIOLIB && OF
        select PINMUX
        select PINCONF
