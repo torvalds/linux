@@ -529,6 +529,12 @@ static struct sdma_driver_data sdma_imx6sx = {
 	.script_addrs = &sdma_script_imx6sx,
 };
 
+static struct sdma_driver_data sdma_imx6ul = {
+	.chnenbl0 = SDMA_CHNENBL0_IMX35,
+	.num_events = 48,
+	.script_addrs = &sdma_script_imx6sx,
+};
+
 static struct sdma_script_start_addrs sdma_script_imx7d = {
 	.ap_2_ap_addr = 644,
 	.uart_2_mcu_addr = 819,
@@ -579,6 +585,7 @@ static struct platform_device_id sdma_devtypes[] = {
 MODULE_DEVICE_TABLE(platform, sdma_devtypes);
 
 static const struct of_device_id sdma_dt_ids[] = {
+	{ .compatible = "fsl,imx6ul-sdma", .data = &sdma_imx6ul, },
 	{ .compatible = "fsl,imx6sx-sdma", .data = &sdma_imx6sx, },
 	{ .compatible = "fsl,imx7d-sdma", .data = &sdma_imx7d, },
 	{ .compatible = "fsl,imx6q-sdma", .data = &sdma_imx6q, },
@@ -1136,8 +1143,15 @@ static int sdma_config_channel(struct dma_chan *chan)
 			if (sdmac->peripheral_type == IMX_DMATYPE_ASRC_SP ||
 			    sdmac->peripheral_type == IMX_DMATYPE_ASRC)
 				sdma_set_watermarklevel_for_p2p(sdmac);
-		} else
+		} else {
+			/* ERR008517 fixed on i.mx6ul, no workaround needed */
+			if (sdmac->peripheral_type == IMX_DMATYPE_CSPI &&
+			    sdmac->direction == DMA_MEM_TO_DEV &&
+			    sdmac->sdma->drvdata == &sdma_imx6ul)
+				__set_bit(31, &sdmac->watermark_level);
+
 			__set_bit(sdmac->event_id0, sdmac->event_mask);
+		}
 
 		/* Watermark Level */
 		sdmac->watermark_level |= sdmac->watermark_level;
@@ -2332,7 +2346,8 @@ static int sdma_suspend(struct device *dev)
 	sdma->suspend_off = false;
 
 	/* Do nothing if not i.MX6SX or i.MX7D*/
-	if (sdma->drvdata != &sdma_imx6sx && sdma->drvdata != &sdma_imx7d)
+	if (sdma->drvdata != &sdma_imx6sx && sdma->drvdata != &sdma_imx7d
+	    && sdma->drvdata != &sdma_imx6ul)
 		return 0;
 
 	clk_enable(sdma->clk_ipg);
@@ -2370,7 +2385,8 @@ static int sdma_resume(struct device *dev)
 	int i, ret;
 
 	/* Do nothing if not i.MX6SX or i.MX7D*/
-	if (sdma->drvdata != &sdma_imx6sx && sdma->drvdata != &sdma_imx7d)
+	if (sdma->drvdata != &sdma_imx6sx && sdma->drvdata != &sdma_imx7d
+	    && sdma->drvdata != &sdma_imx6ul)
 		return 0;
 
 	clk_enable(sdma->clk_ipg);
