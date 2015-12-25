@@ -30,6 +30,7 @@ struct nvdimm_bus {
 	struct list_head list;
 	struct device dev;
 	int id, probe_active;
+	struct list_head poison_list;
 	struct mutex reconfig_mutex;
 };
 
@@ -89,4 +90,6 @@ bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 ssize_t nd_namespace_store(struct device *dev,
 		struct nd_namespace_common **_ndns, const char *buf,
 		size_t len);
+int nvdimm_namespace_add_poison(struct gendisk *disk, resource_size_t offset,
+		struct nd_namespace_common *ndns);
 #endif /* __ND_CORE_H__ */

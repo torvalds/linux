@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/pmem.h>
 #include <linux/nd.h>
+#include "nd-core.h"
 #include "pfn.h"
 #include "nd.h"
 
@@ -168,6 +169,7 @@ static int pmem_attach_disk(struct device *dev,
 {
 	int nid = dev_to_node(dev);
 	struct gendisk *disk;
+	int ret;
 
 	pmem->pmem_queue = blk_alloc_queue_node(GFP_KERNEL, nid);
 	if (!pmem->pmem_queue)
@@ -195,6 +197,10 @@ static int pmem_attach_disk(struct device *dev,
 	disk->driverfs_dev = dev;
 	set_capacity(disk, (pmem->size - pmem->data_offset) / 512);
 	pmem->pmem_disk = disk;
+
+	ret = nvdimm_namespace_add_poison(disk, pmem->data_offset, ndns);
+	if (ret)
+		return ret;
 
 	add_disk(disk);
 	revalidate_disk(disk);
