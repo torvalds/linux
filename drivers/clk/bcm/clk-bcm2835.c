@@ -807,6 +807,16 @@ static const struct bcm2835_clock_data bcm2835_clock_emmc_data = {
 	.frac_bits = 8,
 };
 
+static const struct bcm2835_clock_data bcm2835_clock_pwm_data = {
+	.name = "pwm",
+	.num_mux_parents = ARRAY_SIZE(bcm2835_clock_per_parents),
+	.parents = bcm2835_clock_per_parents,
+	.ctl_reg = CM_PWMCTL,
+	.div_reg = CM_PWMDIV,
+	.int_bits = 12,
+	.frac_bits = 12,
+};
+
 struct bcm2835_pll {
 	struct clk_hw hw;
 	struct bcm2835_cprman *cprman;
@@ -1148,22 +1158,24 @@ static int bcm2835_clock_is_on(struct clk_hw *hw)
 
 static u32 bcm2835_clock_choose_div(struct clk_hw *hw,
 				    unsigned long rate,
-				    unsigned long parent_rate)
+				    unsigned long parent_rate,
+				    bool round_up)
 {
 	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	const struct bcm2835_clock_data *data = clock->data;
-	u32 unused_frac_mask = GENMASK(CM_DIV_FRAC_BITS - data->frac_bits, 0);
+	u32 unused_frac_mask =
+		GENMASK(CM_DIV_FRAC_BITS - data->frac_bits, 0) >> 1;
 	u64 temp = (u64)parent_rate << CM_DIV_FRAC_BITS;
+	u64 rem;
 	u32 div;
 
-	do_div(temp, rate);
+	rem = do_div(temp, rate);
 	div = temp;
 
-	/* Round and mask off the unused bits */
-	if (unused_frac_mask != 0) {
-		div += unused_frac_mask >> 1;
-		div &= ~unused_frac_mask;
-	}
+	/* Round up and mask off the unused bits */
+	if (round_up && ((div & unused_frac_mask) != 0 || rem != 0))
+		div += unused_frac_mask + 1;
+	div &= ~unused_frac_mask;
 
 	/* Clamp to the limits. */
 	div = max(div, unused_frac_mask + 1);
@@ -1195,16 +1207,6 @@ static long bcm2835_clock_rate_from_divisor(struct bcm2835_clock *clock,
 	do_div(temp, div);
 
 	return temp;
-}
-
-static long bcm2835_clock_round_rate(struct clk_hw *hw,
-				     unsigned long rate,
-				     unsigned long *parent_rate)
-{
-	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
-	u32 div = bcm2835_clock_choose_div(hw, rate, *parent_rate);
-
-	return bcm2835_clock_rate_from_divisor(clock, *parent_rate, div);
 }
 
 static unsigned long bcm2835_clock_get_rate(struct clk_hw *hw,
@@ -1271,12 +1273,72 @@ static int bcm2835_clock_set_rate(struct clk_hw *hw,
 	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	struct bcm2835_cprman *cprman = clock->cprman;
 	const struct bcm2835_clock_data *data = clock->data;
-	u32 div = bcm2835_clock_choose_div(hw, rate, parent_rate);
+	u32 div = bcm2835_clock_choose_div(hw, rate, parent_rate, false);
 
 	cprman_write(cprman, data->div_reg, div);
 
 	return 0;
 }
+
+static int bcm2835_clock_determine_rate(struct clk_hw *hw,
+		struct clk_rate_request *req)
+{
+	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
+	struct clk_hw *parent, *best_parent = NULL;
+	unsigned long rate, best_rate = 0;
+	unsigned long prate, best_prate = 0;
+	size_t i;
+	u32 div;
+
+	/*
+	 * Select parent clock that results in the closest but lower rate
+	 */
+	for (i = 0; i < clk_hw_get_num_parents(hw); ++i) {
+		parent = clk_hw_get_parent_by_index(hw, i);
+		if (!parent)
+			continue;
+		prate = clk_hw_get_rate(parent);
+		div = bcm2835_clock_choose_div(hw, req->rate, prate, true);
+		rate = bcm2835_clock_rate_from_divisor(clock, prate, div);
+		if (rate > best_rate && rate <= req->rate) {
+			best_parent = parent;
+			best_prate = prate;
+			best_rate = rate;
+		}
+	}
+
+	if (!best_parent)
+		return -EINVAL;
+
+	req->best_parent_hw = best_parent;
+	req->best_parent_rate = best_prate;
+
+	req->rate = best_rate;
+
+	return 0;
+}
+
+static int bcm2835_clock_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
+	struct bcm2835_cprman *cprman = clock->cprman;
+	const struct bcm2835_clock_data *data = clock->data;
+	u8 src = (index << CM_SRC_SHIFT) & CM_SRC_MASK;
+
+	cprman_write(cprman, data->ctl_reg, src);
+	return 0;
+}
+
+static u8 bcm2835_clock_get_parent(struct clk_hw *hw)
+{
+	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
+	struct bcm2835_cprman *cprman = clock->cprman;
+	const struct bcm2835_clock_data *data = clock->data;
+	u32 src = cprman_read(cprman, data->ctl_reg);
+
+	return (src & CM_SRC_MASK) >> CM_SRC_SHIFT;
+}
+
 
 static const struct clk_ops bcm2835_clock_clk_ops = {
 	.is_prepared = bcm2835_clock_is_on,
@@ -1284,7 +1346,9 @@ static const struct clk_ops bcm2835_clock_clk_ops = {
 	.unprepare = bcm2835_clock_off,
 	.recalc_rate = bcm2835_clock_get_rate,
 	.set_rate = bcm2835_clock_set_rate,
-	.round_rate = bcm2835_clock_round_rate,
+	.determine_rate = bcm2835_clock_determine_rate,
+	.set_parent = bcm2835_clock_set_parent,
+	.get_parent = bcm2835_clock_get_parent,
 };
 
 static int bcm2835_vpu_clock_is_on(struct clk_hw *hw)
@@ -1300,7 +1364,9 @@ static const struct clk_ops bcm2835_vpu_clock_clk_ops = {
 	.is_prepared = bcm2835_vpu_clock_is_on,
 	.recalc_rate = bcm2835_clock_get_rate,
 	.set_rate = bcm2835_clock_set_rate,
-	.round_rate = bcm2835_clock_round_rate,
+	.determine_rate = bcm2835_clock_determine_rate,
+	.set_parent = bcm2835_clock_set_parent,
+	.get_parent = bcm2835_clock_get_parent,
 };
 
 static struct clk *bcm2835_register_pll(struct bcm2835_cprman *cprman,
@@ -1394,45 +1460,23 @@ static struct clk *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 {
 	struct bcm2835_clock *clock;
 	struct clk_init_data init;
-	const char *parent;
+	const char *parents[1 << CM_SRC_BITS];
+	size_t i;
 
 	/*
-	 * Most of the clock generators have a mux field, so we
-	 * instantiate a generic mux as our parent to handle it.
+	 * Replace our "xosc" references with the oscillator's
+	 * actual name.
 	 */
-	if (data->num_mux_parents) {
-		const char *parents[1 << CM_SRC_BITS];
-		int i;
-
-		parent = devm_kasprintf(cprman->dev, GFP_KERNEL,
-					"mux_%s", data->name);
-		if (!parent)
-			return NULL;
-
-		/*
-		 * Replace our "xosc" references with the oscillator's
-		 * actual name.
-		 */
-		for (i = 0; i < data->num_mux_parents; i++) {
-			if (strcmp(data->parents[i], "xosc") == 0)
-				parents[i] = cprman->osc_name;
-			else
-				parents[i] = data->parents[i];
-		}
-
-		clk_register_mux(cprman->dev, parent,
-				 parents, data->num_mux_parents,
-				 CLK_SET_RATE_PARENT,
-				 cprman->regs + data->ctl_reg,
-				 CM_SRC_SHIFT, CM_SRC_BITS,
-				 0, &cprman->regs_lock);
-	} else {
-		parent = data->parents[0];
+	for (i = 0; i < data->num_mux_parents; i++) {
+		if (strcmp(data->parents[i], "xosc") == 0)
+			parents[i] = cprman->osc_name;
+		else
+			parents[i] = data->parents[i];
 	}
 
 	memset(&init, 0, sizeof(init));
-	init.parent_names = &parent;
-	init.num_parents = 1;
+	init.parent_names = parents;
+	init.num_parents = data->num_mux_parents;
 	init.name = data->name;
 	init.flags = CLK_IGNORE_UNUSED;
 
@@ -1549,6 +1593,9 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 				  CLK_IGNORE_UNUSED | CLK_SET_RATE_GATE,
 				  cprman->regs + CM_PERIICTL, CM_GATE_BIT,
 				  0, &cprman->regs_lock);
+
+	clks[BCM2835_CLOCK_PWM] =
+		bcm2835_register_clock(cprman, &bcm2835_clock_pwm_data);
 
 	return of_clk_add_provider(dev->of_node, of_clk_src_onecell_get,
 				   &cprman->onecell);
