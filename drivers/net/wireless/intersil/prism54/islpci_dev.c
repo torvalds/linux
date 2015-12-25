@@ -707,7 +707,9 @@ islpci_alloc_memory(islpci_private *priv)
 		    pci_map_single(priv->pdev, (void *) skb->data,
 				   MAX_FRAGMENT_SIZE_RX + 2,
 				   PCI_DMA_FROMDEVICE);
-		if (!priv->pci_map_rx_address[counter]) {
+		if (pci_dma_mapping_error(priv->pdev,
+					  priv->pci_map_rx_address[counter])) {
+			priv->pci_map_rx_address[counter] = 0;
 			/* error mapping the buffer to device
 			   accessible memory address */
 			printk(KERN_ERR "failed to map skb DMA'able\n");
