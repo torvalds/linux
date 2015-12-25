@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/mxcfb.h>
+#include <linux/platform_data/dma-imx.h>
 
 #include <media/videobuf-dma-contig.h>
 #include <media/v4l2-common.h>
@@ -242,6 +243,14 @@ static void video_dma_done(void *arg)
 	spin_unlock(&pxp->lock);
 }
 
+static bool chan_filter(struct dma_chan *chan, void *arg)
+{
+	if (imx_dma_is_pxp(chan))
+		return true;
+	else
+		return false;
+}
+
 static int acquire_dma_channel(struct pxps *pxp)
 {
 	dma_cap_mask_t mask;
@@ -263,7 +272,7 @@ static int acquire_dma_channel(struct pxps *pxp)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	dma_cap_set(DMA_PRIVATE, mask);
-	chan = dma_request_channel(mask, NULL, NULL);
+	chan = dma_request_channel(mask, chan_filter, NULL);
 	if (!chan)
 		return -EBUSY;
 
