@@ -31,6 +31,11 @@ struct skcipher_sg_list {
 	struct scatterlist sg[0];
 };
 
+struct skcipher_tfm {
+	struct crypto_skcipher *skcipher;
+	bool has_key;
+};
+
 struct skcipher_ctx {
 	struct list_head tsgl;
 	struct af_alg_sgl rsgl;
@@ -750,17 +755,41 @@ static struct proto_ops algif_skcipher_ops = {
 
 static void *skcipher_bind(const char *name, u32 type, u32 mask)
 {
-	return crypto_alloc_skcipher(name, type, mask);
+	struct skcipher_tfm *tfm;
+	struct crypto_skcipher *skcipher;
+
+	tfm = kzalloc(sizeof(*tfm), GFP_KERNEL);
+	if (!tfm)
+		return ERR_PTR(-ENOMEM);
+
+	skcipher = crypto_alloc_skcipher(name, type, mask);
+	if (IS_ERR(skcipher)) {
+		kfree(tfm);
+		return ERR_CAST(skcipher);
+	}
+
+	tfm->skcipher = skcipher;
+
+	return tfm;
 }
 
 static void skcipher_release(void *private)
 {
-	crypto_free_skcipher(private);
+	struct skcipher_tfm *tfm = private;
+
+	crypto_free_skcipher(tfm->skcipher);
+	kfree(tfm);
 }
 
 static int skcipher_setkey(void *private, const u8 *key, unsigned int keylen)
 {
-	return crypto_skcipher_setkey(private, key, keylen);
+	struct skcipher_tfm *tfm = private;
+	int err;
+
+	err = crypto_skcipher_setkey(tfm->skcipher, key, keylen);
+	tfm->has_key = !err;
+
+	return err;
 }
 
 static void skcipher_wait(struct sock *sk)
@@ -792,20 +821,25 @@ static int skcipher_accept_parent(void *private, struct sock *sk)
 {
 	struct skcipher_ctx *ctx;
 	struct alg_sock *ask = alg_sk(sk);
-	unsigned int len = sizeof(*ctx) + crypto_skcipher_reqsize(private);
+	struct skcipher_tfm *tfm = private;
+	struct crypto_skcipher *skcipher = tfm->skcipher;
+	unsigned int len = sizeof(*ctx) + crypto_skcipher_reqsize(skcipher);
+
+	if (!tfm->has_key)
+		return -ENOKEY;
 
 	ctx = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->iv = sock_kmalloc(sk, crypto_skcipher_ivsize(private),
+	ctx->iv = sock_kmalloc(sk, crypto_skcipher_ivsize(skcipher),
 			       GFP_KERNEL);
 	if (!ctx->iv) {
 		sock_kfree_s(sk, ctx, len);
 		return -ENOMEM;
 	}
 
-	memset(ctx->iv, 0, crypto_skcipher_ivsize(private));
+	memset(ctx->iv, 0, crypto_skcipher_ivsize(skcipher));
 
 	INIT_LIST_HEAD(&ctx->tsgl);
 	ctx->len = len;
@@ -818,7 +852,7 @@ static int skcipher_accept_parent(void *private, struct sock *sk)
 
 	ask->private = ctx;
 
-	skcipher_request_set_tfm(&ctx->req, private);
+	skcipher_request_set_tfm(&ctx->req, skcipher);
 	skcipher_request_set_callback(&ctx->req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				      af_alg_complete, &ctx->completion);
 
