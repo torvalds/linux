@@ -599,7 +599,7 @@ extern void __put_user_unknown(void);
  * On error, the variable @x is set to zero.
  */
 #define __get_user_unaligned(x,ptr) \
-	__get_user__unalignednocheck((x),(ptr),sizeof(*(ptr)))
+	__get_user_unaligned_nocheck((x),(ptr),sizeof(*(ptr)))
 
 /*
  * Yuck.  We need two variants, one for 64bit operation and one
@@ -620,8 +620,8 @@ extern void __get_user_unaligned_unknown(void);
 do {									\
 	switch (size) {							\
 	case 1: __get_data_asm(val, "lb", ptr); break;			\
-	case 2: __get_user_unaligned_asm(val, "ulh", ptr); break;	\
-	case 4: __get_user_unaligned_asm(val, "ulw", ptr); break;	\
+	case 2: __get_data_unaligned_asm(val, "ulh", ptr); break;	\
+	case 4: __get_data_unaligned_asm(val, "ulw", ptr); break;	\
 	case 8: __GET_USER_UNALIGNED_DW(val, ptr); break;		\
 	default: __get_user_unaligned_unknown(); break;			\
 	}								\
