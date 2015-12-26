@@ -561,13 +561,13 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 	goto put_node;
 
 pl310_cache_map_failed:
-	iounmap(&pm_info->gpc_base.vbase);
+	iounmap(pm_info->gpc_base.vbase);
 gpc_map_failed:
-	iounmap(&pm_info->iomuxc_base.vbase);
+	iounmap(pm_info->iomuxc_base.vbase);
 iomuxc_map_failed:
-	iounmap(&pm_info->src_base.vbase);
+	iounmap(pm_info->src_base.vbase);
 src_map_failed:
-	iounmap(&pm_info->mmdc_base.vbase);
+	iounmap(pm_info->mmdc_base.vbase);
 put_node:
 	of_node_put(node);
 
