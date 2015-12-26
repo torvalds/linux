@@ -265,11 +265,11 @@ config MCP320X
 	  called mcp320x.
 
 config MCP3422
-	tristate "Microchip Technology MCP3422/3/4/6/7/8 driver"
+	tristate "Microchip Technology MCP3421/2/3/4/5/6/7/8 driver"
 	depends on I2C
 	help
-	  Say yes here to build support for Microchip Technology's
-	  MCP3422, MCP3423, MCP3424, MCP3426, MCP3427 or MCP3428
+	  Say yes here to build support for Microchip Technology's MCP3421
+	  MCP3422, MCP3423, MCP3424, MCP3425, MCP3426, MCP3427 or MCP3428
 	  analog to digital converters.
 
 	  This driver can also be built as a module. If so, the module will be
