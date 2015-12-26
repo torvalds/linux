@@ -21,6 +21,9 @@
 #include <linux/irqdomain.h>
 #include <asm/exception.h>
 
+#define LOCAL_CONTROL			0x000
+#define LOCAL_PRESCALER			0x008
+
 /*
  * The low 2 bits identify the CPU that the GPU IRQ goes to, and the
  * next 2 bits identify the CPU that the GPU FIQ goes to.
@@ -237,6 +240,27 @@ bcm2836_arm_irqchip_smp_init(void)
 #endif
 }
 
+/*
+ * The LOCAL_IRQ_CNT* timer firings are based off of the external
+ * oscillator with some scaling.  The firmware sets up CNTFRQ to
+ * report 19.2Mhz, but doesn't set up the scaling registers.
+ */
+static void bcm2835_init_local_timer_frequency(void)
+{
+	/*
+	 * Set the timer to source from the 19.2Mhz crystal clock (bit
+	 * 8 unset), and only increment by 1 instead of 2 (bit 9
+	 * unset).
+	 */
+	writel(0, intc.base + LOCAL_CONTROL);
+
+	/*
+	 * Set the timer prescaler to 1:1 (timer freq = input freq *
+	 * 2**31 / prescaler)
+	 */
+	writel(0x80000000, intc.base + LOCAL_PRESCALER);
+}
+
 static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_node *node,
 						      struct device_node *parent)
 {
@@ -245,6 +269,8 @@ static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_node *node,
 		panic("%s: unable to map local interrupt registers\n",
 			node->full_name);
 	}
+
+	bcm2835_init_local_timer_frequency();
 
 	intc.domain = irq_domain_add_linear(node, LAST_IRQ + 1,
 					    &bcm2836_arm_irqchip_intc_ops,
