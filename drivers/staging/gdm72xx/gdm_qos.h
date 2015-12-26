@@ -62,7 +62,7 @@ struct qos_cb_s {
 	int			qos_list_cnt;
 	int			qos_null_idx;
 	struct gdm_wimax_csr_s	csr[QOS_MAX];
-	spinlock_t		qos_lock;
+	spinlock_t		qos_lock; /* Protect structure fields */
 	int			qos_limit_size;
 };
 

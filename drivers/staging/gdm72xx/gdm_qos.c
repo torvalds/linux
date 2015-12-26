@@ -28,7 +28,7 @@
 static struct {
 	struct list_head head;
 	int cnt;
-	spinlock_t lock;
+	spinlock_t lock; /* protect structure fields */
 } qos_free_list;
 
 static void init_qos_entry_list(void)

@@ -45,7 +45,7 @@ static struct {
 	int ref_cnt;
 	struct sock *sock;
 	struct list_head evtq;
-	spinlock_t evt_lock;
+	spinlock_t evt_lock; /*protect structure fields */
 	struct list_head freeq;
 	struct work_struct ws;
 } wm_event;

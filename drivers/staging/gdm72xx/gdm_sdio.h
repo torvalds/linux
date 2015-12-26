@@ -34,7 +34,7 @@ struct tx_cxt {
 	struct list_head	hci_list;
 	ktime_t			sdu_stamp;
 	u8			*sdu_buf;
-	spinlock_t		lock;
+	spinlock_t		lock; /* protect structure fields */
 	int			can_send;
 	int			stop_sdu_tx;
 };
@@ -50,7 +50,7 @@ struct rx_cxt {
 	struct list_head	free_list;
 	struct list_head	req_list;
 	u8			*rx_buf;
-	spinlock_t		lock;
+	spinlock_t		lock; /* protect structure fields */
 };
 
 struct sdiowm_dev {
