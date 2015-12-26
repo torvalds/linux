@@ -21,7 +21,7 @@
 #include "netlink_k.h"
 
 #if !defined(NLMSG_HDRLEN)
-#define NLMSG_HDRLEN	 ((int) NLMSG_ALIGN(sizeof(struct nlmsghdr)))
+#define NLMSG_HDRLEN	 ((int)NLMSG_ALIGN(sizeof(struct nlmsghdr)))
 #endif
 
 #define ND_MAX_GROUP			30
