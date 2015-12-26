@@ -198,10 +198,10 @@
 #define T_DUPLEX_MODE			(0xdb	| (4 << 16))
 
 /* T_CAPABILITY */
-#define T_CAPABILITY_MULTI_CS		(1 << 0)
-#define T_CAPABILITY_WIMAX		(1 << 1)
-#define T_CAPABILITY_QOS		(1 << 2)
-#define T_CAPABILITY_AGGREGATION	(1 << 3)
+#define T_CAPABILITY_MULTI_CS		BIT(0)
+#define T_CAPABILITY_WIMAX		BIT(1)
+#define T_CAPABILITY_QOS		BIT(2)
+#define T_CAPABILITY_AGGREGATION	BIT(3)
 
 struct hci_s {
 	__be16	cmd_evt;

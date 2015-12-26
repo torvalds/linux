@@ -18,8 +18,8 @@
 #include <linux/usb.h>
 #include <linux/list.h>
 
-#define B_DIFF_DL_DRV		(1 << 4)
-#define B_DOWNLOAD		(1 << 5)
+#define B_DIFF_DL_DRV		BIT(4)
+#define B_DOWNLOAD		BIT(5)
 #define MAX_NR_SDU_BUF		64
 
 struct usb_tx {
