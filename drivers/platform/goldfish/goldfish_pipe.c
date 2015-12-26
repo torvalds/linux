@@ -662,7 +662,6 @@ static struct platform_driver goldfish_pipe = {
 	.remove = goldfish_pipe_remove,
 	.driver = {
 		.name = "goldfish_pipe",
-		.owner = THIS_MODULE,
 		.of_match_table = goldfish_pipe_of_match,
 		.acpi_match_table = ACPI_PTR(goldfish_pipe_acpi_match),
 	}
