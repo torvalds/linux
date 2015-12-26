@@ -53,14 +53,16 @@
 /* Same status bits as above, but for FIQ. */
 #define LOCAL_FIQ_PENDING0		0x070
 /*
- * Mailbox0 write-to-set bits.  There are 16 mailboxes, 4 per CPU, and
+ * Mailbox write-to-set bits.  There are 16 mailboxes, 4 per CPU, and
  * these bits are organized by mailbox number and then CPU number.  We
  * use mailbox 0 for IPIs.  The mailbox's interrupt is raised while
  * any bit is set.
  */
 #define LOCAL_MAILBOX0_SET0		0x080
-/* Mailbox0 write-to-clear bits. */
+#define LOCAL_MAILBOX3_SET0		0x08c
+/* Mailbox write-to-clear bits. */
 #define LOCAL_MAILBOX0_CLR0		0x0c0
+#define LOCAL_MAILBOX3_CLR0		0x0cc
 
 #define LOCAL_IRQ_CNTPSIRQ	0
 #define LOCAL_IRQ_CNTPNSIRQ	1
@@ -220,6 +222,24 @@ static struct notifier_block bcm2836_arm_irqchip_cpu_notifier = {
 	.notifier_call = bcm2836_arm_irqchip_cpu_notify,
 	.priority = 100,
 };
+
+int __init bcm2836_smp_boot_secondary(unsigned int cpu,
+				      struct task_struct *idle)
+{
+	unsigned long secondary_startup_phys =
+		(unsigned long)virt_to_phys((void *)secondary_startup);
+
+	dsb();
+	writel(secondary_startup_phys,
+	       intc.base + LOCAL_MAILBOX3_SET0 + 16 * cpu);
+
+	return 0;
+}
+
+static const struct smp_operations bcm2836_smp_ops __initconst = {
+	.smp_boot_secondary	= bcm2836_smp_boot_secondary,
+};
+
 #endif
 
 static const struct irq_domain_ops bcm2836_arm_irqchip_intc_ops = {
@@ -237,6 +257,7 @@ bcm2836_arm_irqchip_smp_init(void)
 	register_cpu_notifier(&bcm2836_arm_irqchip_cpu_notifier);
 
 	set_smp_cross_call(bcm2836_arm_irqchip_send_ipi);
+	smp_set_ops(&bcm2836_smp_ops);
 #endif
 }
 
