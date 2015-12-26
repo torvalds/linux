@@ -1860,12 +1860,34 @@ static int smack_file_receive(struct file *file)
 	int may = 0;
 	struct smk_audit_info ad;
 	struct inode *inode = file_inode(file);
+	struct socket *sock;
+	struct task_smack *tsp;
+	struct socket_smack *ssp;
 
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
+
+	if (S_ISSOCK(inode->i_mode)) {
+		sock = SOCKET_I(inode);
+		ssp = sock->sk->sk_security;
+		tsp = current_security();
+		/*
+		 * If the receiving process can't write to the
+		 * passed socket or if the passed socket can't
+		 * write to the receiving process don't accept
+		 * the passed socket.
+		 */
+		rc = smk_access(tsp->smk_task, ssp->smk_out, MAY_WRITE, &ad);
+		rc = smk_bu_file(file, may, rc);
+		if (rc < 0)
+			return rc;
+		rc = smk_access(ssp->smk_in, tsp->smk_task, MAY_WRITE, &ad);
+		rc = smk_bu_file(file, may, rc);
+		return rc;
+	}
 	/*
 	 * This code relies on bitmasks.
 	 */
@@ -3758,7 +3780,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (sip == NULL)
 		return 0;
 
-	switch (sip->sin_family) {
+	switch (sock->sk->sk_family) {
 	case AF_INET:
 		rc = smack_netlabel_send(sock->sk, sip);
 		break;
