@@ -32,8 +32,122 @@
 
 #include "hyperv_vmbus.h"
 
-static void init_vp_index(struct vmbus_channel *channel,
-			  const uuid_le *type_guid);
+static void init_vp_index(struct vmbus_channel *channel, u16 dev_type);
+
+static const struct vmbus_device vmbus_devs[] = {
+	/* IDE */
+	{ .dev_type = HV_IDE,
+	  HV_IDE_GUID,
+	  .perf_device = true,
+	},
+
+	/* SCSI */
+	{ .dev_type = HV_SCSI,
+	  HV_SCSI_GUID,
+	  .perf_device = true,
+	},
+
+	/* Fibre Channel */
+	{ .dev_type = HV_FC,
+	  HV_SYNTHFC_GUID,
+	  .perf_device = true,
+	},
+
+	/* Synthetic NIC */
+	{ .dev_type = HV_NIC,
+	  HV_NIC_GUID,
+	  .perf_device = true,
+	},
+
+	/* Network Direct */
+	{ .dev_type = HV_ND,
+	  HV_ND_GUID,
+	  .perf_device = true,
+	},
+
+	/* PCIE */
+	{ .dev_type = HV_PCIE,
+	  HV_PCIE_GUID,
+	  .perf_device = true,
+	},
+
+	/* Synthetic Frame Buffer */
+	{ .dev_type = HV_FB,
+	  HV_SYNTHVID_GUID,
+	  .perf_device = false,
+	},
+
+	/* Synthetic Keyboard */
+	{ .dev_type = HV_KBD,
+	  HV_KBD_GUID,
+	  .perf_device = false,
+	},
+
+	/* Synthetic MOUSE */
+	{ .dev_type = HV_MOUSE,
+	  HV_MOUSE_GUID,
+	  .perf_device = false,
+	},
+
+	/* KVP */
+	{ .dev_type = HV_KVP,
+	  HV_KVP_GUID,
+	  .perf_device = false,
+	},
+
+	/* Time Synch */
+	{ .dev_type = HV_TS,
+	  HV_TS_GUID,
+	  .perf_device = false,
+	},
+
+	/* Heartbeat */
+	{ .dev_type = HV_HB,
+	  HV_HEART_BEAT_GUID,
+	  .perf_device = false,
+	},
+
+	/* Shutdown */
+	{ .dev_type = HV_SHUTDOWN,
+	  HV_SHUTDOWN_GUID,
+	  .perf_device = false,
+	},
+
+	/* File copy */
+	{ .dev_type = HV_FCOPY,
+	  HV_FCOPY_GUID,
+	  .perf_device = false,
+	},
+
+	/* Backup */
+	{ .dev_type = HV_BACKUP,
+	  HV_VSS_GUID,
+	  .perf_device = false,
+	},
+
+	/* Dynamic Memory */
+	{ .dev_type = HV_DM,
+	  HV_DM_GUID,
+	  .perf_device = false,
+	},
+
+	/* Unknown GUID */
+	{ .dev_type = HV_UNKOWN,
+	  .perf_device = false,
+	},
+};
+
+static u16 hv_get_dev_type(const uuid_le *guid)
+{
+	u16 i;
+
+	for (i = HV_IDE; i < HV_UNKOWN; i++) {
+		if (!uuid_le_cmp(*guid, vmbus_devs[i].guid))
+			return i;
+	}
+	pr_info("Unknown GUID: %pUl\n", guid);
+	return i;
+}
 
 /**
  * vmbus_prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
@@ -251,6 +365,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	struct vmbus_channel *channel;
 	bool fnew = true;
 	unsigned long flags;
+	u16 dev_type;
 
 	/* Make sure this is a new offer */
 	mutex_lock(&vmbus_connection.channel_mutex);
@@ -288,7 +403,9 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 			goto err_free_chan;
 	}
 
-	init_vp_index(newchannel, &newchannel->offermsg.offer.if_type);
+	dev_type = hv_get_dev_type(&newchannel->offermsg.offer.if_type);
+
+	init_vp_index(newchannel, dev_type);
 
 	if (newchannel->target_cpu != get_cpu()) {
 		put_cpu();
@@ -325,6 +442,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	if (!newchannel->device_obj)
 		goto err_deq_chan;
 
+	newchannel->device_obj->device_id = dev_type;
 	/*
 	 * Add the new device to the bus. This will kick off device-driver
 	 * binding which eventually invokes the device driver's AddDevice()
@@ -358,37 +476,6 @@ err_free_chan:
 	free_channel(newchannel);
 }
 
-enum {
-	IDE = 0,
-	SCSI,
-	FC,
-	NIC,
-	ND_NIC,
-	PCIE,
-	MAX_PERF_CHN,
-};
-
-/*
- * This is an array of device_ids (device types) that are performance critical.
- * We attempt to distribute the interrupt load for these devices across
- * all available CPUs.
- */
-static const struct hv_vmbus_device_id hp_devs[] = {
-	/* IDE */
-	{ HV_IDE_GUID, },
-	/* Storage - SCSI */
-	{ HV_SCSI_GUID, },
-	/* Storage - FC */
-	{ HV_SYNTHFC_GUID, },
-	/* Network */
-	{ HV_NIC_GUID, },
-	/* NetworkDirect Guest RDMA */
-	{ HV_ND_GUID, },
-	/* PCI Express Pass Through */
-	{ HV_PCIE_GUID, },
-};
-
-
 /*
  * We use this state to statically distribute the channel interrupt load.
  */
@@ -405,22 +492,15 @@ static int next_numa_node_id;
  * For pre-win8 hosts or non-performance critical channels we assign the
  * first CPU in the first NUMA node.
  */
-static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_guid)
+static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 {
 	u32 cur_cpu;
-	int i;
-	bool perf_chn = false;
+	bool perf_chn = vmbus_devs[dev_type].perf_device;
 	struct vmbus_channel *primary = channel->primary_channel;
 	int next_node;
 	struct cpumask available_mask;
 	struct cpumask *alloced_mask;
 
-	for (i = IDE; i < MAX_PERF_CHN; i++) {
-		if (!uuid_le_cmp(*type_guid, hp_devs[i].guid)) {
-			perf_chn = true;
-			break;
-		}
-	}
 	if ((vmbus_proto_version == VERSION_WS2008) ||
 	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn)) {
 		/*

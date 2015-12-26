@@ -633,6 +633,32 @@ enum hv_signal_policy {
 	HV_SIGNAL_POLICY_EXPLICIT,
 };
 
+enum vmbus_device_type {
+	HV_IDE = 0,
+	HV_SCSI,
+	HV_FC,
+	HV_NIC,
+	HV_ND,
+	HV_PCIE,
+	HV_FB,
+	HV_KBD,
+	HV_MOUSE,
+	HV_KVP,
+	HV_TS,
+	HV_HB,
+	HV_SHUTDOWN,
+	HV_FCOPY,
+	HV_BACKUP,
+	HV_DM,
+	HV_UNKOWN,
+};
+
+struct vmbus_device {
+	u16  dev_type;
+	uuid_le guid;
+	bool perf_device;
+};
+
 struct vmbus_channel {
 	/* Unique channel id */
 	int id;
@@ -959,6 +985,8 @@ struct hv_device {
 
 	/* the device instance id of this device */
 	uuid_le dev_instance;
+	u16 vendor_id;
+	u16 device_id;
 
 	struct device device;
 
