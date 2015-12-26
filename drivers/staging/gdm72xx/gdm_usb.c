@@ -544,7 +544,6 @@ static int gdm_usb_probe(struct usb_interface *intf,
 		 idVendor, idProduct);
 	dev_info(&intf->dev, "GCT WiMax driver version %s\n", DRIVER_VERSION);
 
-
 	if (idProduct == EMERGENCY_PID) {
 		ret = usb_emergency(usbdev);
 		goto out;

@@ -159,7 +159,6 @@
 #define T_TX_POWER			(0x6a   | (1 << 16))
 #define T_CUR_FREQ			(0x7f	| (4 << 16))
 
-
 /* WIMAX */
 #define T_MAX_SUBSCRIPTION		(0xa1	| (1 << 16))
 #define T_MAX_SF			(0xa2	| (1 << 16))
