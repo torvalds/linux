@@ -17,6 +17,7 @@
 
 struct watchdog_ops;
 struct watchdog_device;
+struct watchdog_core_data;
 
 /** struct watchdog_ops - The watchdog-devices operations
  *
@@ -28,8 +29,6 @@ struct watchdog_device;
  * @set_timeout:The routine for setting the watchdog devices timeout value (in seconds).
  * @get_timeleft:The routine that gets the time left before a reset (in seconds).
  * @restart:	The routine for restarting the machine.
- * @ref:	The ref operation for dyn. allocated watchdog_device structs
- * @unref:	The unref operation for dyn. allocated watchdog_device structs
  * @ioctl:	The routines that handles extra ioctl calls.
  *
  * The watchdog_ops structure contains a list of low-level operations
@@ -48,15 +47,14 @@ struct watchdog_ops {
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
 	unsigned int (*get_timeleft)(struct watchdog_device *);
 	int (*restart)(struct watchdog_device *);
-	void (*ref)(struct watchdog_device *);
-	void (*unref)(struct watchdog_device *);
+	void (*ref)(struct watchdog_device *) __deprecated;
+	void (*unref)(struct watchdog_device *) __deprecated;
 	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
 };
 
 /** struct watchdog_device - The structure that defines a watchdog device
  *
  * @id:		The watchdog's ID. (Allocated by watchdog_register_device)
- * @cdev:	The watchdog's Character device.
  * @dev:	The device for our watchdog
  * @parent:	The parent bus device
  * @info:	Pointer to a watchdog_info structure.
@@ -67,8 +65,8 @@ struct watchdog_ops {
  * @max_timeout:The watchdog devices maximum timeout value (in seconds).
  * @reboot_nb:	The notifier block to stop watchdog on reboot.
  * @restart_nb:	The notifier block to register a restart function.
- * @driver-data:Pointer to the drivers private data.
- * @lock:	Lock for watchdog core internal use only.
+ * @driver_data:Pointer to the drivers private data.
+ * @wd_data:	Pointer to watchdog core internal data.
  * @status:	Field that contains the devices internal status bits.
  * @deferred: entry in wtd_deferred_reg_list which is used to
  *			   register early initialized watchdogs.
@@ -84,7 +82,6 @@ struct watchdog_ops {
  */
 struct watchdog_device {
 	int id;
-	struct cdev cdev;
 	struct device *dev;
 	struct device *parent;
 	const struct watchdog_info *info;
@@ -96,15 +93,12 @@ struct watchdog_device {
 	struct notifier_block reboot_nb;
 	struct notifier_block restart_nb;
 	void *driver_data;
-	struct mutex lock;
+	struct watchdog_core_data *wd_data;
 	unsigned long status;
 /* Bit numbers for status flags */
 #define WDOG_ACTIVE		0	/* Is the watchdog running/active */
-#define WDOG_DEV_OPEN		1	/* Opened via /dev/watchdog ? */
-#define WDOG_ALLOW_RELEASE	2	/* Did we receive the magic char ? */
-#define WDOG_NO_WAY_OUT		3	/* Is 'nowayout' feature set ? */
-#define WDOG_UNREGISTERED	4	/* Has the device been unregistered */
-#define WDOG_STOP_ON_REBOOT	5	/* Should be stopped on reboot */
+#define WDOG_NO_WAY_OUT		1	/* Is 'nowayout' feature set ? */
+#define WDOG_STOP_ON_REBOOT	2	/* Should be stopped on reboot */
 	struct list_head deferred;
 };
 
