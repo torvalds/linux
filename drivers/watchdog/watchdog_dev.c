@@ -628,17 +628,18 @@ static struct miscdevice watchdog_miscdev = {
 };
 
 /*
- *	watchdog_dev_register: register a watchdog device
+ *	watchdog_cdev_register: register watchdog character device
  *	@wdd: watchdog device
+ *	@devno: character device number
  *
- *	Register a watchdog device including handling the legacy
+ *	Register a watchdog character device including handling the legacy
  *	/dev/watchdog node. /dev/watchdog is actually a miscdevice and
  *	thus we set it up like that.
  */
 
-int watchdog_dev_register(struct watchdog_device *wdd)
+static int watchdog_cdev_register(struct watchdog_device *wdd, dev_t devno)
 {
-	int err, devno;
+	int err;
 
 	if (wdd->id == 0) {
 		old_wdd = wdd;
@@ -656,7 +657,6 @@ int watchdog_dev_register(struct watchdog_device *wdd)
 	}
 
 	/* Fill in the data structures */
-	devno = MKDEV(MAJOR(watchdog_devt), wdd->id);
 	cdev_init(&wdd->cdev, &watchdog_fops);
 	wdd->cdev.owner = wdd->ops->owner;
 
@@ -674,13 +674,14 @@ int watchdog_dev_register(struct watchdog_device *wdd)
 }
 
 /*
- *	watchdog_dev_unregister: unregister a watchdog device
+ *	watchdog_cdev_unregister: unregister watchdog character device
  *	@watchdog: watchdog device
  *
- *	Unregister the watchdog and if needed the legacy /dev/watchdog device.
+ *	Unregister watchdog character device and if needed the legacy
+ *	/dev/watchdog device.
  */
 
-int watchdog_dev_unregister(struct watchdog_device *wdd)
+static void watchdog_cdev_unregister(struct watchdog_device *wdd)
 {
 	mutex_lock(&wdd->lock);
 	set_bit(WDOG_UNREGISTERED, &wdd->status);
@@ -691,7 +692,6 @@ int watchdog_dev_unregister(struct watchdog_device *wdd)
 		misc_deregister(&watchdog_miscdev);
 		old_wdd = NULL;
 	}
-	return 0;
 }
 
 static struct class watchdog_class = {
@@ -701,29 +701,76 @@ static struct class watchdog_class = {
 };
 
 /*
+ *	watchdog_dev_register: register a watchdog device
+ *	@wdd: watchdog device
+ *
+ *	Register a watchdog device including handling the legacy
+ *	/dev/watchdog node. /dev/watchdog is actually a miscdevice and
+ *	thus we set it up like that.
+ */
+
+int watchdog_dev_register(struct watchdog_device *wdd)
+{
+	struct device *dev;
+	dev_t devno;
+	int ret;
+
+	devno = MKDEV(MAJOR(watchdog_devt), wdd->id);
+
+	ret = watchdog_cdev_register(wdd, devno);
+	if (ret)
+		return ret;
+
+	dev = device_create(&watchdog_class, wdd->parent, devno, wdd,
+			    "watchdog%d", wdd->id);
+	if (IS_ERR(dev)) {
+		watchdog_cdev_unregister(wdd);
+		return PTR_ERR(dev);
+	}
+	wdd->dev = dev;
+
+	return ret;
+}
+
+/*
+ *	watchdog_dev_unregister: unregister a watchdog device
+ *	@watchdog: watchdog device
+ *
+ *	Unregister watchdog device and if needed the legacy
+ *	/dev/watchdog device.
+ */
+
+void watchdog_dev_unregister(struct watchdog_device *wdd)
+{
+	watchdog_cdev_unregister(wdd);
+	device_destroy(&watchdog_class, wdd->dev->devt);
+	wdd->dev = NULL;
+}
+
+/*
  *	watchdog_dev_init: init dev part of watchdog core
  *
  *	Allocate a range of chardev nodes to use for watchdog devices
  */
 
-struct class * __init watchdog_dev_init(void)
+int __init watchdog_dev_init(void)
 {
 	int err;
 
 	err = class_register(&watchdog_class);
 	if (err < 0) {
 		pr_err("couldn't register class\n");
-		return ERR_PTR(err);
+		return err;
 	}
 
 	err = alloc_chrdev_region(&watchdog_devt, 0, MAX_DOGS, "watchdog");
 	if (err < 0) {
 		pr_err("watchdog: unable to allocate char dev region\n");
 		class_unregister(&watchdog_class);
-		return ERR_PTR(err);
+		return err;
 	}
 
-	return &watchdog_class;
+	return 0;
 }
 
 /*
