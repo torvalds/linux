@@ -208,6 +208,9 @@ static const u32 nfs4_pnfs_open_bitmap[3] = {
 	| FATTR4_WORD1_TIME_METADATA
 	| FATTR4_WORD1_TIME_MODIFY,
 	FATTR4_WORD2_MDSTHRESHOLD
+#ifdef CONFIG_NFS_V4_SECURITY_LABEL
+	| FATTR4_WORD2_SECURITY_LABEL
+#endif
 };
 
 static const u32 nfs4_open_noattr_bitmap[3] = {
