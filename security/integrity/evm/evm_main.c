@@ -358,6 +358,15 @@ int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 	return evm_protect_xattr(dentry, xattr_name, NULL, 0);
 }
 
+static void evm_reset_status(struct inode *inode)
+{
+	struct integrity_iint_cache *iint;
+
+	iint = integrity_iint_find(inode);
+	if (iint)
+		iint->evm_status = INTEGRITY_UNKNOWN;
+}
+
 /**
  * evm_inode_post_setxattr - update 'security.evm' to reflect the changes
  * @dentry: pointer to the affected dentry
@@ -378,6 +387,8 @@ void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
 				 && !posix_xattr_acl(xattr_name)))
 		return;
 
+	evm_reset_status(dentry->d_inode);
+
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
 }
 
@@ -395,6 +406,8 @@ void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 {
 	if (!evm_initialized || !evm_protected_xattr(xattr_name))
 		return;
+
+	evm_reset_status(dentry->d_inode);
 
 	evm_update_evmxattr(dentry, xattr_name, NULL, 0);
 }
@@ -472,21 +485,34 @@ out:
 }
 EXPORT_SYMBOL_GPL(evm_inode_init_security);
 
+#ifdef CONFIG_EVM_LOAD_X509
+void __init evm_load_x509(void)
+{
+	int rc;
+
+	rc = integrity_load_x509(INTEGRITY_KEYRING_EVM, CONFIG_EVM_X509_PATH);
+	if (!rc)
+		evm_initialized |= EVM_INIT_X509;
+}
+#endif
+
 static int __init init_evm(void)
 {
 	int error;
 
 	evm_init_config();
 
+	error = integrity_init_keyring(INTEGRITY_KEYRING_EVM);
+	if (error)
+		return error;
+
 	error = evm_init_secfs();
 	if (error < 0) {
 		pr_info("Error registering secfs\n");
-		goto err;
+		return error;
 	}
 
 	return 0;
-err:
-	return error;
 }
 
 /*
