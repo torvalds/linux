@@ -1113,7 +1113,7 @@ mbx_err:
 static int ocrdma_nonemb_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe,
 				 void *payload_va)
 {
-	int status = 0;
+	int status;
 	struct ocrdma_mbx_rsp *rsp = payload_va;
 
 	if ((mqe->hdr.spcl_sge_cnt_emb & OCRDMA_MQE_HDR_EMB_MASK) >>
@@ -2893,7 +2893,7 @@ int ocrdma_mbx_destroy_srq(struct ocrdma_dev *dev, struct ocrdma_srq *srq)
 static int ocrdma_mbx_get_dcbx_config(struct ocrdma_dev *dev, u32 ptype,
 				      struct ocrdma_dcbx_cfg *dcbxcfg)
 {
-	int status = 0;
+	int status;
 	dma_addr_t pa;
 	struct ocrdma_mqe cmd;
 
