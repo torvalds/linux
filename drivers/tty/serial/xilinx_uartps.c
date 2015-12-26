@@ -758,12 +758,15 @@ static void cdns_uart_set_termios(struct uart_port *port,
  */
 static int cdns_uart_startup(struct uart_port *port)
 {
+	unsigned long flags;
 	unsigned int retval = 0, status = 0;
 
 	retval = request_irq(port->irq, cdns_uart_isr, 0, CDNS_UART_NAME,
 								(void *)port);
 	if (retval)
 		return retval;
+
+	spin_lock_irqsave(&port->lock, flags);
 
 	/* Disable the TX and RX */
 	writel(CDNS_UART_CR_TX_DIS | CDNS_UART_CR_RX_DIS,
@@ -775,15 +778,14 @@ static int cdns_uart_startup(struct uart_port *port)
 	writel(CDNS_UART_CR_TXRST | CDNS_UART_CR_RXRST,
 			port->membase + CDNS_UART_CR_OFFSET);
 
-	status = readl(port->membase + CDNS_UART_CR_OFFSET);
-
-	/* Clear the RX disable and TX disable bits and then set the TX enable
-	 * bit and RX enable bit to enable the transmitter and receiver.
+	/*
+	 * Clear the RX disable bit and then set the RX enable bit to enable
+	 * the receiver.
 	 */
-	writel((status & ~(CDNS_UART_CR_TX_DIS | CDNS_UART_CR_RX_DIS))
-			| (CDNS_UART_CR_TX_EN | CDNS_UART_CR_RX_EN |
-			CDNS_UART_CR_STOPBRK),
-			port->membase + CDNS_UART_CR_OFFSET);
+	status = readl(port->membase + CDNS_UART_CR_OFFSET);
+	status &= CDNS_UART_CR_RX_DIS;
+	status |= CDNS_UART_CR_RX_EN;
+	writel(status, port->membase + CDNS_UART_CR_OFFSET);
 
 	/* Set the Mode Register with normal mode,8 data bits,1 stop bit,
 	 * no parity.
@@ -813,6 +815,8 @@ static int cdns_uart_startup(struct uart_port *port)
 		CDNS_UART_IXR_FRAMING | CDNS_UART_IXR_OVERRUN |
 		CDNS_UART_IXR_RXTRIG | CDNS_UART_IXR_TOUT,
 		port->membase + CDNS_UART_IER_OFFSET);
+
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	return retval;
 }
