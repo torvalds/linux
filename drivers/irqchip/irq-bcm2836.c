@@ -167,7 +167,7 @@ __exception_irq_entry bcm2836_arm_irqchip_handle_irq(struct pt_regs *regs)
 	u32 stat;
 
 	stat = readl_relaxed(intc.base + LOCAL_IRQ_PENDING0 + 4 * cpu);
-	if (stat & 0x10) {
+	if (stat & BIT(LOCAL_IRQ_MAILBOX0)) {
 #ifdef CONFIG_SMP
 		void __iomem *mailbox0 = (intc.base +
 					  LOCAL_MAILBOX0_CLR0 + 16 * cpu);
