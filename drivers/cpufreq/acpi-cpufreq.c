@@ -164,7 +164,7 @@ static ssize_t store_cpb(struct cpufreq_policy *policy, const char *buf,
 	int ret;
 	unsigned int val = 0;
 
-	if (!acpi_cpufreq_driver.boost_supported)
+	if (!acpi_cpufreq_driver.set_boost)
 		return -EINVAL;
 
 	ret = kstrtouint(buf, 10, &val);
@@ -900,7 +900,6 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 	.resume		= acpi_cpufreq_resume,
 	.name		= "acpi-cpufreq",
 	.attr		= acpi_cpufreq_attr,
-	.set_boost      = set_boost,
 };
 
 static void __init acpi_cpufreq_boost_init(void)
@@ -911,7 +910,7 @@ static void __init acpi_cpufreq_boost_init(void)
 		if (!msrs)
 			return;
 
-		acpi_cpufreq_driver.boost_supported = true;
+		acpi_cpufreq_driver.set_boost = set_boost;
 		acpi_cpufreq_driver.boost_enabled = boost_state(0);
 
 		cpu_notifier_register_begin();

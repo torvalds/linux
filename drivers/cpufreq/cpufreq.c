@@ -2332,22 +2332,12 @@ int cpufreq_boost_trigger_state(int state)
 
 static bool cpufreq_boost_supported(void)
 {
-	return likely(cpufreq_driver) && cpufreq_driver->boost_supported;
+	return likely(cpufreq_driver) && cpufreq_driver->set_boost;
 }
 
 static int create_boost_sysfs_file(void)
 {
 	int ret;
-
-	if (!cpufreq_boost_supported())
-		return 0;
-
-	/*
-	 * Check if driver provides function to enable boost -
-	 * if not, use cpufreq_boost_set_sw as default
-	 */
-	if (!cpufreq_driver->set_boost)
-		cpufreq_driver->set_boost = cpufreq_boost_set_sw;
 
 	ret = sysfs_create_file(cpufreq_global_kobject, &boost.attr);
 	if (ret)
@@ -2371,7 +2361,7 @@ int cpufreq_enable_boost_support(void)
 	if (cpufreq_boost_supported())
 		return 0;
 
-	cpufreq_driver->boost_supported = true;
+	cpufreq_driver->set_boost = cpufreq_boost_set_sw;
 
 	/* This will get removed on driver unregister */
 	return create_boost_sysfs_file();
@@ -2431,9 +2421,11 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	if (driver_data->setpolicy)
 		driver_data->flags |= CPUFREQ_CONST_LOOPS;
 
-	ret = create_boost_sysfs_file();
-	if (ret)
-		goto err_null_driver;
+	if (cpufreq_boost_supported()) {
+		ret = create_boost_sysfs_file();
+		if (ret)
+			goto err_null_driver;
+	}
 
 	ret = subsys_interface_register(&cpufreq_interface);
 	if (ret)
