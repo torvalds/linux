@@ -2330,14 +2330,10 @@ int cpufreq_boost_trigger_state(int state)
 	return ret;
 }
 
-int cpufreq_boost_supported(void)
+static bool cpufreq_boost_supported(void)
 {
-	if (likely(cpufreq_driver))
-		return cpufreq_driver->boost_supported;
-
-	return 0;
+	return likely(cpufreq_driver) && cpufreq_driver->boost_supported;
 }
-EXPORT_SYMBOL_GPL(cpufreq_boost_supported);
 
 static int create_boost_sysfs_file(void)
 {
