@@ -512,7 +512,7 @@ static void cdns_uart_start_tx(struct uart_port *port)
 {
 	unsigned int status, numbytes = port->fifosize;
 
-	if (uart_circ_empty(&port->state->xmit) || uart_tx_stopped(port))
+	if (uart_tx_stopped(port))
 		return;
 
 	/*
@@ -523,6 +523,9 @@ static void cdns_uart_start_tx(struct uart_port *port)
 	status &= ~CDNS_UART_CR_TX_DIS;
 	status |= CDNS_UART_CR_TX_EN;
 	writel(status, port->membase + CDNS_UART_CR_OFFSET);
+
+	if (uart_circ_empty(&port->state->xmit))
+		return;
 
 	while (numbytes-- && ((readl(port->membase + CDNS_UART_SR_OFFSET) &
 				CDNS_UART_SR_TXFULL)) != CDNS_UART_SR_TXFULL) {
