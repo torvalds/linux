@@ -1461,10 +1461,10 @@ TRACE_EVENT(pnfs_update_layout,
 			loff_t pos,
 			u64 count,
 			enum pnfs_iomode iomode,
-			struct pnfs_layout_segment *lseg,
+			struct pnfs_layout_hdr *lo,
 			enum pnfs_update_layout_reason reason
 		),
-		TP_ARGS(inode, pos, count, iomode, lseg, reason),
+		TP_ARGS(inode, pos, count, iomode, lo, reason),
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
 			__field(u64, fileid)
@@ -1472,7 +1472,8 @@ TRACE_EVENT(pnfs_update_layout,
 			__field(loff_t, pos)
 			__field(u64, count)
 			__field(enum pnfs_iomode, iomode)
-			__field(struct pnfs_layout_segment *, lseg)
+			__field(int, layoutstateid_seq)
+			__field(u32, layoutstateid_hash)
 			__field(enum pnfs_update_layout_reason, reason)
 		),
 		TP_fast_assign(
@@ -1482,18 +1483,28 @@ TRACE_EVENT(pnfs_update_layout,
 			__entry->pos = pos;
 			__entry->count = count;
 			__entry->iomode = iomode;
-			__entry->lseg = lseg;
 			__entry->reason = reason;
+			if (lo != NULL) {
+				__entry->layoutstateid_seq =
+				be32_to_cpu(lo->plh_stateid.seqid);
+				__entry->layoutstateid_hash =
+				nfs_stateid_hash(&lo->plh_stateid);
+			} else {
+				__entry->layoutstateid_seq = 0;
+				__entry->layoutstateid_hash = 0;
+			}
 		),
 		TP_printk(
 			"fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"iomode=%s pos=%llu count=%llu lseg=%p (%s)",
+			"iomode=%s pos=%llu count=%llu "
+			"layoutstateid=%d:0x%08x (%s)",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
 			show_pnfs_iomode(__entry->iomode),
 			(unsigned long long)__entry->pos,
-			(unsigned long long)__entry->count, __entry->lseg,
+			(unsigned long long)__entry->count,
+			__entry->layoutstateid_seq, __entry->layoutstateid_hash,
 			show_pnfs_update_layout_reason(__entry->reason)
 		)
 );
