@@ -180,25 +180,25 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 		return -ENODEV;
 
 	sd->v4l2_dev = v4l2_dev;
-	if (sd->internal_ops && sd->internal_ops->registered) {
-		err = sd->internal_ops->registered(sd);
-		if (err)
-			goto error_module;
-	}
-
 	/* This just returns 0 if either of the two args is NULL */
 	err = v4l2_ctrl_add_handler(v4l2_dev->ctrl_handler, sd->ctrl_handler, NULL);
 	if (err)
-		goto error_unregister;
+		goto error_module;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	/* Register the entity. */
 	if (v4l2_dev->mdev) {
 		err = media_device_register_entity(v4l2_dev->mdev, entity);
 		if (err < 0)
-			goto error_unregister;
+			goto error_module;
 	}
 #endif
+
+	if (sd->internal_ops && sd->internal_ops->registered) {
+		err = sd->internal_ops->registered(sd);
+		if (err)
+			goto error_unregister;
+	}
 
 	spin_lock(&v4l2_dev->lock);
 	list_add_tail(&sd->list, &v4l2_dev->subdevs);
@@ -207,8 +207,9 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	return 0;
 
 error_unregister:
-	if (sd->internal_ops && sd->internal_ops->unregistered)
-		sd->internal_ops->unregistered(sd);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	media_device_unregister_entity(entity);
+#endif
 error_module:
 	if (!sd->owner_v4l2_dev)
 		module_put(sd->owner);
