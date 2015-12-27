@@ -1130,7 +1130,7 @@ static ssize_t wacom_show_remote_mode(struct kobject *kobj,
 				      struct kobj_attribute *kattr,
 				      char *buf, int index)
 {
-	struct device *dev = container_of(kobj->parent, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj->parent);
 	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	u8 mode;
@@ -1241,7 +1241,7 @@ static ssize_t wacom_store_unpair_remote(struct kobject *kobj,
 					 const char *buf, size_t count)
 {
 	unsigned char selector = 0;
-	struct device *dev = container_of(kobj->parent, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj->parent);
 	struct hid_device *hdev = to_hid_device(dev);
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	int err;
