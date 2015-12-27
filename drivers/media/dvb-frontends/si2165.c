@@ -225,22 +225,18 @@ static int si2165_writereg32(struct si2165_state *state, const u16 reg, u32 val)
 static int si2165_writereg_mask8(struct si2165_state *state, const u16 reg,
 				 u8 val, u8 mask)
 {
-	int ret;
-	u8 tmp;
-
 	if (mask != 0xff) {
-		ret = si2165_readreg8(state, reg, &tmp);
+		u8 tmp;
+		int ret = si2165_readreg8(state, reg, &tmp);
+
 		if (ret < 0)
-			goto err;
+			return ret;
 
 		val &= mask;
 		tmp &= ~mask;
 		val |= tmp;
 	}
-
-	ret = si2165_writereg8(state, reg, val);
-err:
-	return ret;
+	return si2165_writereg8(state, reg, val);
 }
 
 #define REG16(reg, val) { (reg), (val) & 0xff }, { (reg)+1, (val)>>8 & 0xff }
