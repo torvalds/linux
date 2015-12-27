@@ -4916,9 +4916,32 @@ skip_uc:
 	return rc;
 }
 
+static bool bnxt_rfs_capable(struct bnxt *bp)
+{
+#ifdef CONFIG_RFS_ACCEL
+	struct bnxt_pf_info *pf = &bp->pf;
+	int vnics;
+
+	if (BNXT_VF(bp) || !(bp->flags & BNXT_FLAG_MSIX_CAP))
+		return false;
+
+	vnics = 1 + bp->rx_nr_rings;
+	if (vnics > pf->max_rsscos_ctxs || vnics > pf->max_vnics)
+		return false;
+
+	return true;
+#else
+	return false;
+#endif
+}
+
 static netdev_features_t bnxt_fix_features(struct net_device *dev,
 					   netdev_features_t features)
 {
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (!bnxt_rfs_capable(bp))
+		features &= ~NETIF_F_NTUPLE;
 	return features;
 }
 
@@ -4959,7 +4982,7 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 
 		bp->flags = flags;
 
-		if (!netif_running(dev)) {
+		if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
 			if (update_tpa)
 				bnxt_set_ring_params(bp);
 			return rc;
@@ -5639,11 +5662,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (bnxt_vf_pciid(ent->driver_data))
 		bp->flags |= BNXT_FLAG_VF;
 
-	if (pdev->msix_cap) {
+	if (pdev->msix_cap)
 		bp->flags |= BNXT_FLAG_MSIX_CAP;
-		if (BNXT_PF(bp))
-			bp->flags |= BNXT_FLAG_RFS;
-	}
 
 	rc = bnxt_init_board(pdev, dev);
 	if (rc < 0)
@@ -5661,9 +5681,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT |
 			   NETIF_F_RXHASH |
 			   NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO;
-
-	if (bp->flags & BNXT_FLAG_RFS)
-		dev->hw_features |= NETIF_F_NTUPLE;
 
 	dev->hw_enc_features =
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
@@ -5722,6 +5739,14 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 	bp->cp_nr_rings = max_t(int, bp->rx_nr_rings, bp->tx_nr_rings);
 	bp->num_stat_ctxs = bp->cp_nr_rings;
+
+	if (BNXT_PF(bp)) {
+		dev->hw_features |= NETIF_F_NTUPLE;
+		if (bnxt_rfs_capable(bp)) {
+			bp->flags |= BNXT_FLAG_RFS;
+			dev->features |= NETIF_F_NTUPLE;
+		}
+	}
 
 	if (dev->hw_features & NETIF_F_HW_VLAN_CTAG_RX)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;

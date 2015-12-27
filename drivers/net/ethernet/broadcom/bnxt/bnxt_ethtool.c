@@ -266,6 +266,8 @@ static int bnxt_set_channels(struct net_device *dev,
 	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
 	bp->num_stat_ctxs = bp->cp_nr_rings;
 
+	/* After changing number of rx channels, update NTUPLE feature. */
+	netdev_update_features(dev);
 	if (netif_running(dev)) {
 		rc = bnxt_open_nic(bp, true, false);
 		if ((!rc) && BNXT_PF(bp)) {
