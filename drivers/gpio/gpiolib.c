@@ -189,23 +189,21 @@ EXPORT_SYMBOL_GPL(gpiod_get_direction);
  */
 static int gpiochip_add_to_list(struct gpio_chip *chip)
 {
-	struct list_head *pos;
 	struct gpio_chip *iterator;
 	struct gpio_chip *previous = NULL;
 
 	if (list_empty(&gpio_chips)) {
-		pos = gpio_chips.next;
-		goto found;
+		list_add_tail(&chip->list, &gpio_chips);
+		return 0;
 	}
 
-	list_for_each(pos, &gpio_chips) {
-		iterator = list_entry(pos, struct gpio_chip, list);
+	list_for_each_entry(iterator, &gpio_chips, list) {
 		if (iterator->base >= chip->base + chip->ngpio) {
 			/*
 			 * Iterator is the first GPIO chip so there is no
 			 * previous one
 			 */
-			if (previous == NULL) {
+			if (!previous) {
 				goto found;
 			} else {
 				/*
@@ -221,7 +219,13 @@ static int gpiochip_add_to_list(struct gpio_chip *chip)
 		previous = iterator;
 	}
 
-	/* We are beyond the last chip in the list */
+	/*
+	 * We are beyond the last chip in the list and iterator now
+	 * points to the head.
+	 * Let iterator point to the last chip in the list.
+	 */
+
+	iterator = list_last_entry(&gpio_chips, struct gpio_chip, list);
 	if (iterator->base + iterator->ngpio <= chip->base)
 		goto found;
 
@@ -230,7 +234,7 @@ static int gpiochip_add_to_list(struct gpio_chip *chip)
 	return -EBUSY;
 
 found:
-	list_add_tail(&chip->list, pos);
+	list_add_tail(&chip->list, &iterator->list);
 	return 0;
 }
 
