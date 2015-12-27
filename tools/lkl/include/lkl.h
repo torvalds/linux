@@ -152,4 +152,38 @@ int lkl_errdir(struct lkl_dir *dir);
  */
 int lkl_dirfd(struct lkl_dir *dir);
 
+/**
+ * lkl_if_up - activate network interface
+ *
+ * @ifindex - the ifindex of the interface
+ * @returns - return 0 if no error: otherwise negative value returns
+ */
+int lkl_if_up(int ifindex);
+
+/**
+ * lkl_if_down - deactivate network interface
+ *
+ * @ifindex - the ifindex of the interface
+ * @returns - return 0 if no error: otherwise negative value returns
+ */
+int lkl_if_down(int ifindex);
+
+/**
+ * lkl_if_set_ipv4 - set IPv4 address on interface
+ *
+ * @ifindex - the ifindex of the interface
+ * @addr - 4-byte IP address (i.e., struct in_addr)
+ * @netmask_len - prefix length of the @addr
+ * @returns - return 0 if no error: otherwise negative value returns
+ */
+int lkl_if_set_ipv4(int ifindex, unsigned int addr, unsigned int netmask_len);
+
+/**
+ * lkl_set_ipv4_gateway - add an IPv4 default route
+ *
+ * @addr - 4-byte IP address of the gateway (i.e., struct in_addr)
+ * @returns - return 0 if no error: otherwise negative value returns
+ */
+int lkl_set_ipv4_gateway(unsigned int addr);
+
 #endif
