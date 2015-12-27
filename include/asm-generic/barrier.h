@@ -196,5 +196,16 @@ do {									\
 
 #endif
 
+/* Barriers for virtual machine guests when talking to an SMP host */
+#define virt_mb() __smp_mb()
+#define virt_rmb() __smp_rmb()
+#define virt_wmb() __smp_wmb()
+#define virt_read_barrier_depends() __smp_read_barrier_depends()
+#define virt_store_mb(var, value) __smp_store_mb(var, value)
+#define virt_mb__before_atomic() __smp_mb__before_atomic()
+#define virt_mb__after_atomic()	__smp_mb__after_atomic()
+#define virt_store_release(p, v) __smp_store_release(p, v)
+#define virt_load_acquire(p) __smp_load_acquire(p)
+
 #endif /* !__ASSEMBLY__ */
 #endif /* __ASM_GENERIC_BARRIER_H */
