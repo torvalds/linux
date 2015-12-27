@@ -971,24 +971,12 @@ static void sh_eth_set_receive_align(struct sk_buff *skb)
 /* CPU <-> EDMAC endian convert */
 static inline __u32 cpu_to_edmac(struct sh_eth_private *mdp, u32 x)
 {
-	switch (mdp->edmac_endian) {
-	case EDMAC_LITTLE_ENDIAN:
-		return cpu_to_le32(x);
-	case EDMAC_BIG_ENDIAN:
-		return cpu_to_be32(x);
-	}
-	return x;
+	return cpu_to_le32(x);
 }
 
 static inline __u32 edmac_to_cpu(struct sh_eth_private *mdp, u32 x)
 {
-	switch (mdp->edmac_endian) {
-	case EDMAC_LITTLE_ENDIAN:
-		return le32_to_cpu(x);
-	case EDMAC_BIG_ENDIAN:
-		return be32_to_cpu(x);
-	}
-	return x;
+	return le32_to_cpu(x);
 }
 
 /* Program the hardware MAC address from dev->dev_addr. */
@@ -3097,8 +3085,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	/* get PHY ID */
 	mdp->phy_id = pd->phy;
 	mdp->phy_interface = pd->phy_interface;
-	/* EDMAC endian */
-	mdp->edmac_endian = pd->edmac_endian;
 	mdp->no_ether_link = pd->no_ether_link;
 	mdp->ether_link_active_low = pd->ether_link_active_low;
 
