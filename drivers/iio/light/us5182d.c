@@ -23,6 +23,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/mutex.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 
 #define US5182D_REG_CFG0				0x00
 #define US5182D_CFG0_ONESHOT_EN				BIT(6)
@@ -81,6 +83,7 @@
 #define US5182D_READ_BYTE			1
 #define US5182D_READ_WORD			2
 #define US5182D_OPSTORE_SLEEP_TIME		20 /* ms */
+#define US5182D_SLEEP_MS			3000 /* ms */
 
 /* Available ranges: [12354, 7065, 3998, 2202, 1285, 498, 256, 138] lux */
 static const int us5182d_scales[] = {188500, 107800, 61000, 33600, 19600, 7600,
@@ -99,6 +102,11 @@ enum mode {
 	US5182D_PX_ONLY
 };
 
+enum pmode {
+	US5182D_CONTINUOUS,
+	US5182D_ONESHOT
+};
+
 struct us5182d_data {
 	struct i2c_client *client;
 	struct mutex lock;
@@ -112,6 +120,12 @@ struct us5182d_data {
 	u16 *us5182d_dark_ths;
 
 	u8 opmode;
+	u8 power_mode;
+
+	bool als_enabled;
+	bool px_enabled;
+
+	bool default_continuous;
 };
 
 static IIO_CONST_ATTR(in_illuminance_scale_available,
@@ -130,13 +144,11 @@ static const struct {
 	u8 reg;
 	u8 val;
 } us5182d_regvals[] = {
-	{US5182D_REG_CFG0, (US5182D_CFG0_SHUTDOWN_EN |
-			    US5182D_CFG0_WORD_ENABLE)},
+	{US5182D_REG_CFG0, US5182D_CFG0_WORD_ENABLE},
 	{US5182D_REG_CFG1, US5182D_CFG1_ALS_RES16},
 	{US5182D_REG_CFG2, (US5182D_CFG2_PX_RES16 |
 			    US5182D_CFG2_PXGAIN_DEFAULT)},
 	{US5182D_REG_CFG3, US5182D_CFG3_LED_CURRENT100},
-	{US5182D_REG_MODE_STORE, US5182D_STORE_MODE},
 	{US5182D_REG_CFG4, 0x00},
 };
 
@@ -169,7 +181,7 @@ static int us5182d_get_als(struct us5182d_data *data)
 	return result;
 }
 
-static int us5182d_set_opmode(struct us5182d_data *data, u8 mode)
+static int us5182d_oneshot_en(struct us5182d_data *data)
 {
 	int ret;
 
@@ -182,6 +194,20 @@ static int us5182d_set_opmode(struct us5182d_data *data, u8 mode)
 	 * required measurement.
 	 */
 	ret = ret | US5182D_CFG0_ONESHOT_EN;
+
+	return i2c_smbus_write_byte_data(data->client, US5182D_REG_CFG0, ret);
+}
+
+static int us5182d_set_opmode(struct us5182d_data *data, u8 mode)
+{
+	int ret;
+
+	if (mode == data->opmode)
+		return 0;
+
+	ret = i2c_smbus_read_byte_data(data->client, US5182D_REG_CFG0);
+	if (ret < 0)
+		return ret;
 
 	/* update mode */
 	ret = ret & ~US5182D_OPMODE_MASK;
@@ -196,9 +222,6 @@ static int us5182d_set_opmode(struct us5182d_data *data, u8 mode)
 	if (ret < 0)
 		return ret;
 
-	if (mode == data->opmode)
-		return 0;
-
 	ret = i2c_smbus_write_byte_data(data->client, US5182D_REG_MODE_STORE,
 					US5182D_STORE_MODE);
 	if (ret < 0)
@@ -208,6 +231,96 @@ static int us5182d_set_opmode(struct us5182d_data *data, u8 mode)
 	msleep(US5182D_OPSTORE_SLEEP_TIME);
 
 	return 0;
+}
+
+static int us5182d_als_enable(struct us5182d_data *data)
+{
+	int ret;
+	u8 mode;
+
+	if (data->power_mode == US5182D_ONESHOT)
+		return us5182d_set_opmode(data, US5182D_ALS_ONLY);
+
+	if (data->als_enabled)
+		return 0;
+
+	mode = data->px_enabled ? US5182D_ALS_PX : US5182D_ALS_ONLY;
+
+	ret = us5182d_set_opmode(data, mode);
+	if (ret < 0)
+		return ret;
+
+	data->als_enabled = true;
+
+	return 0;
+}
+
+static int us5182d_px_enable(struct us5182d_data *data)
+{
+	int ret;
+	u8 mode;
+
+	if (data->power_mode == US5182D_ONESHOT)
+		return us5182d_set_opmode(data, US5182D_PX_ONLY);
+
+	if (data->px_enabled)
+		return 0;
+
+	mode = data->als_enabled ? US5182D_ALS_PX : US5182D_PX_ONLY;
+
+	ret = us5182d_set_opmode(data, mode);
+	if (ret < 0)
+		return ret;
+
+	data->px_enabled = true;
+
+	return 0;
+}
+
+static int us5182d_shutdown_en(struct us5182d_data *data, u8 state)
+{
+	int ret;
+
+	if (data->power_mode == US5182D_ONESHOT)
+		return 0;
+
+	ret = i2c_smbus_read_byte_data(data->client, US5182D_REG_CFG0);
+	if (ret < 0)
+		return ret;
+
+	ret = ret & ~US5182D_CFG0_SHUTDOWN_EN;
+	ret = ret | state;
+
+	ret = i2c_smbus_write_byte_data(data->client, US5182D_REG_CFG0, ret);
+	if (ret < 0)
+		return ret;
+
+	if (state & US5182D_CFG0_SHUTDOWN_EN) {
+		data->als_enabled = false;
+		data->px_enabled = false;
+	}
+
+	return ret;
+}
+
+
+static int us5182d_set_power_state(struct us5182d_data *data, bool on)
+{
+	int ret;
+
+	if (data->power_mode == US5182D_ONESHOT)
+		return 0;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&data->client->dev);
+		if (ret < 0)
+			pm_runtime_put_noidle(&data->client->dev);
+	} else {
+		pm_runtime_mark_last_busy(&data->client->dev);
+		ret = pm_runtime_put_autosuspend(&data->client->dev);
+	}
+
+	return ret;
 }
 
 static int us5182d_read_raw(struct iio_dev *indio_dev,
@@ -222,29 +335,49 @@ static int us5182d_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_LIGHT:
 			mutex_lock(&data->lock);
-			ret = us5182d_set_opmode(data, US5182D_OPMODE_ALS);
+			if (data->power_mode == US5182D_ONESHOT) {
+				ret = us5182d_oneshot_en(data);
+				if (ret < 0)
+					goto out_err;
+			}
+			ret = us5182d_set_power_state(data, true);
 			if (ret < 0)
 				goto out_err;
-
+			ret = us5182d_als_enable(data);
+			if (ret < 0)
+				goto out_poweroff;
 			ret = us5182d_get_als(data);
+			if (ret < 0)
+				goto out_poweroff;
+			*val = ret;
+			ret = us5182d_set_power_state(data, false);
 			if (ret < 0)
 				goto out_err;
 			mutex_unlock(&data->lock);
-			*val = ret;
 			return IIO_VAL_INT;
 		case IIO_PROXIMITY:
 			mutex_lock(&data->lock);
-			ret = us5182d_set_opmode(data, US5182D_OPMODE_PX);
+			if (data->power_mode == US5182D_ONESHOT) {
+				ret = us5182d_oneshot_en(data);
+				if (ret < 0)
+					goto out_err;
+			}
+			ret = us5182d_set_power_state(data, true);
 			if (ret < 0)
 				goto out_err;
-
+			ret = us5182d_px_enable(data);
+			if (ret < 0)
+				goto out_poweroff;
 			ret = i2c_smbus_read_word_data(data->client,
 						       US5182D_REG_PDL);
 			if (ret < 0)
+				goto out_poweroff;
+			*val = ret;
+			ret = us5182d_set_power_state(data, false);
+			if (ret < 0)
 				goto out_err;
 			mutex_unlock(&data->lock);
-			*val = ret;
-			return  IIO_VAL_INT;
+			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
 		}
@@ -263,6 +396,9 @@ static int us5182d_read_raw(struct iio_dev *indio_dev,
 	}
 
 	return -EINVAL;
+
+out_poweroff:
+	us5182d_set_power_state(data, false);
 out_err:
 	mutex_unlock(&data->lock);
 	return ret;
@@ -368,6 +504,7 @@ static int us5182d_init(struct iio_dev *indio_dev)
 		return ret;
 
 	data->opmode = 0;
+	data->power_mode = US5182D_CONTINUOUS;
 	for (i = 0; i < ARRAY_SIZE(us5182d_regvals); i++) {
 		ret = i2c_smbus_write_byte_data(data->client,
 						us5182d_regvals[i].reg,
@@ -376,7 +513,17 @@ static int us5182d_init(struct iio_dev *indio_dev)
 			return ret;
 	}
 
-	return 0;
+	data->als_enabled = true;
+	data->px_enabled = true;
+
+	if (!data->default_continuous) {
+		ret = us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+		if (ret < 0)
+			return ret;
+		data->power_mode = US5182D_ONESHOT;
+	}
+
+	return ret;
 }
 
 static void us5182d_get_platform_data(struct iio_dev *indio_dev)
@@ -399,6 +546,8 @@ static void us5182d_get_platform_data(struct iio_dev *indio_dev)
 				    "upisemi,lower-dark-gain",
 				    &data->lower_dark_gain))
 		data->lower_dark_gain = US5182D_REG_AUTO_LDARK_GAIN_DEFAULT;
+	data->default_continuous = device_property_read_bool(&data->client->dev,
+							     "upisemi,continuous");
 }
 
 static int  us5182d_dark_gain_config(struct iio_dev *indio_dev)
@@ -464,17 +613,72 @@ static int us5182d_probe(struct i2c_client *client,
 
 	ret = us5182d_dark_gain_config(indio_dev);
 	if (ret < 0)
-		return ret;
+		goto out_err;
 
-	return iio_device_register(indio_dev);
+	if (data->default_continuous) {
+		pm_runtime_set_active(&client->dev);
+		if (ret < 0)
+			goto out_err;
+	}
+
+	pm_runtime_enable(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev,
+					 US5182D_SLEEP_MS);
+	pm_runtime_use_autosuspend(&client->dev);
+
+	ret = iio_device_register(indio_dev);
+	if (ret < 0)
+		goto out_err;
+
+	return 0;
+
+out_err:
+	us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+	return ret;
+
 }
 
 static int us5182d_remove(struct i2c_client *client)
 {
+	struct us5182d_data *data = iio_priv(i2c_get_clientdata(client));
+
 	iio_device_unregister(i2c_get_clientdata(client));
-	return i2c_smbus_write_byte_data(client, US5182D_REG_CFG0,
-					 US5182D_CFG0_SHUTDOWN_EN);
+
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+
+	return us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
 }
+
+#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM)
+static int us5182d_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct us5182d_data *data = iio_priv(indio_dev);
+
+	if (data->power_mode == US5182D_CONTINUOUS)
+		return us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+
+	return 0;
+}
+
+static int us5182d_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct us5182d_data *data = iio_priv(indio_dev);
+
+	if (data->power_mode == US5182D_CONTINUOUS)
+		return us5182d_shutdown_en(data,
+					   ~US5182D_CFG0_SHUTDOWN_EN & 0xff);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops us5182d_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(us5182d_suspend, us5182d_resume)
+	SET_RUNTIME_PM_OPS(us5182d_suspend, us5182d_resume, NULL)
+};
 
 static const struct acpi_device_id us5182d_acpi_match[] = {
 	{ "USD5182", 0},
@@ -493,6 +697,7 @@ MODULE_DEVICE_TABLE(i2c, us5182d_id);
 static struct i2c_driver us5182d_driver = {
 	.driver = {
 		.name = US5182D_DRV_NAME,
+		.pm = &us5182d_pm_ops,
 		.acpi_match_table = ACPI_PTR(us5182d_acpi_match),
 	},
 	.probe = us5182d_probe,

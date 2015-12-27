@@ -305,6 +305,10 @@ static const struct attribute_group mcp3422_attribute_group = {
 	.attrs = mcp3422_attributes,
 };
 
+static const struct iio_chan_spec mcp3421_channels[] = {
+	MCP3422_CHAN(0),
+};
+
 static const struct iio_chan_spec mcp3422_channels[] = {
 	MCP3422_CHAN(0),
 	MCP3422_CHAN(1),
@@ -352,6 +356,10 @@ static int mcp3422_probe(struct i2c_client *client,
 	indio_dev->info = &mcp3422_info;
 
 	switch (adc->id) {
+	case 1:
+		indio_dev->channels = mcp3421_channels;
+		indio_dev->num_channels = ARRAY_SIZE(mcp3421_channels);
+		break;
 	case 2:
 	case 3:
 	case 6:
@@ -383,6 +391,7 @@ static int mcp3422_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id mcp3422_id[] = {
+	{ "mcp3421", 1 },
 	{ "mcp3422", 2 },
 	{ "mcp3423", 3 },
 	{ "mcp3424", 4 },

@@ -1898,7 +1898,7 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 	mutex_init(&chip->prox_mutex);
 
 	chip->tsl2x7x_chip_status = TSL2X7X_CHIP_UNKNOWN;
-	chip->pdata = clientp->dev.platform_data;
+	chip->pdata = dev_get_platdata(&clientp->dev);
 	chip->id = id->driver_data;
 	chip->chip_info =
 		&tsl2x7x_chip_info_tbl[device_channel_config[id->driver_data]];

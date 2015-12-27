@@ -194,6 +194,25 @@ config HI8435
 	  This driver can also be built as a module. If so, the module will be
 	  called hi8435.
 
+config INA2XX_ADC
+	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
+	depends on I2C && !SENSORS_INA2XX
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say yes here to build support for TI INA2xx family of Power Monitors.
+	  This driver is mutually exclusive with the HWMON version.
+
+config IMX7D_ADC
+	tristate "IMX7D ADC driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  Say yes here to build support for IMX7D ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called imx7d_adc.
+
 config LP8788_ADC
 	tristate "LP8788 ADC driver"
 	depends on MFD_LP8788
@@ -332,11 +351,11 @@ config TI_ADC081C
 	  called ti-adc081c.
 
 config TI_ADC128S052
-	tristate "Texas Instruments ADC128S052/ADC122S021"
+	tristate "Texas Instruments ADC128S052/ADC122S021/ADC124S021"
 	depends on SPI
 	help
-	  If you say yes here you get support for Texas Instruments ADC128S052
-	  and ADC122S021 chips.
+	  If you say yes here you get support for Texas Instruments ADC128S052,
+	  ADC122S021 and ADC124S021 chips.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc128s052.

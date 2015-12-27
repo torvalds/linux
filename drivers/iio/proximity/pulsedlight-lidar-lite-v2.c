@@ -36,8 +36,10 @@
 #define LIDAR_REG_STATUS_INVALID	BIT(3)
 #define LIDAR_REG_STATUS_READY		BIT(0)
 
-#define LIDAR_REG_DATA_HBYTE	0x0f
-#define LIDAR_REG_DATA_LBYTE	0x10
+#define LIDAR_REG_DATA_HBYTE		0x0f
+#define LIDAR_REG_DATA_LBYTE		0x10
+#define LIDAR_REG_DATA_WORD_READ	BIT(7)
+
 #define LIDAR_REG_PWR_CONTROL	0x65
 
 #define LIDAR_DRV_NAME "lidar"
@@ -45,6 +47,9 @@
 struct lidar_data {
 	struct iio_dev *indio_dev;
 	struct i2c_client *client;
+
+	int (*xfer)(struct lidar_data *data, u8 reg, u8 *val, int len);
+	int i2c_enabled;
 
 	u16 buffer[8]; /* 2 byte distance + 8 byte timestamp */
 };
@@ -64,7 +69,28 @@ static const struct iio_chan_spec lidar_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
-static int lidar_read_byte(struct lidar_data *data, int reg)
+static int lidar_i2c_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
+{
+	struct i2c_client *client = data->client;
+	struct i2c_msg msg[2];
+	int ret;
+
+	msg[0].addr = client->addr;
+	msg[0].flags = client->flags | I2C_M_STOP;
+	msg[0].len = 1;
+	msg[0].buf  = (char *) &reg;
+
+	msg[1].addr = client->addr;
+	msg[1].flags = client->flags | I2C_M_RD;
+	msg[1].len = len;
+	msg[1].buf = (char *) val;
+
+	ret = i2c_transfer(client->adapter, msg, 2);
+
+	return (ret == 2) ? 0 : ret;
+}
+
+static int lidar_smbus_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
 {
 	struct i2c_client *client = data->client;
 	int ret;
@@ -74,17 +100,35 @@ static int lidar_read_byte(struct lidar_data *data, int reg)
 	 * so in turn i2c_smbus_read_byte_data cannot be used
 	 */
 
-	ret = i2c_smbus_write_byte(client, reg);
-	if (ret < 0) {
-		dev_err(&client->dev, "cannot write addr value");
-		return ret;
+	while (len--) {
+		ret = i2c_smbus_write_byte(client, reg++);
+		if (ret < 0) {
+			dev_err(&client->dev, "cannot write addr value");
+			return ret;
+		}
+
+		ret = i2c_smbus_read_byte(client);
+		if (ret < 0) {
+			dev_err(&client->dev, "cannot read data value");
+			return ret;
+		}
+
+		*(val++) = ret;
 	}
 
-	ret = i2c_smbus_read_byte(client);
-	if (ret < 0)
-		dev_err(&client->dev, "cannot read data value");
+	return 0;
+}
 
-	return ret;
+static int lidar_read_byte(struct lidar_data *data, u8 reg)
+{
+	int ret;
+	u8 val;
+
+	ret = data->xfer(data, reg, &val, 1);
+	if (ret < 0)
+		return ret;
+
+	return val;
 }
 
 static inline int lidar_write_control(struct lidar_data *data, int val)
@@ -100,22 +144,14 @@ static inline int lidar_write_power(struct lidar_data *data, int val)
 
 static int lidar_read_measurement(struct lidar_data *data, u16 *reg)
 {
-	int ret;
-	int val;
+	int ret = data->xfer(data, LIDAR_REG_DATA_HBYTE |
+			(data->i2c_enabled ? LIDAR_REG_DATA_WORD_READ : 0),
+			(u8 *) reg, 2);
 
-	ret = lidar_read_byte(data, LIDAR_REG_DATA_HBYTE);
-	if (ret < 0)
-		return ret;
-	val = ret << 8;
+	if (!ret)
+		*reg = be16_to_cpu(*reg);
 
-	ret = lidar_read_byte(data, LIDAR_REG_DATA_LBYTE);
-	if (ret < 0)
-		return ret;
-
-	val |= ret;
-	*reg = val;
-
-	return 0;
+	return ret;
 }
 
 static int lidar_get_measurement(struct lidar_data *data, u16 *reg)
@@ -233,6 +269,16 @@ static int lidar_probe(struct i2c_client *client,
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
+	data = iio_priv(indio_dev);
+
+	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		data->xfer = lidar_i2c_xfer;
+		data->i2c_enabled = 1;
+	} else if (i2c_check_functionality(client->adapter,
+				I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE))
+		data->xfer = lidar_smbus_xfer;
+	else
+		return -ENOTSUPP;
 
 	indio_dev->info = &lidar_info;
 	indio_dev->name = LIDAR_DRV_NAME;
@@ -240,7 +286,6 @@ static int lidar_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(lidar_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 
 	data->client = client;
