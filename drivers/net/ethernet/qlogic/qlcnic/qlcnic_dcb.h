@@ -37,7 +37,7 @@ struct qlcnic_dcb {
 	struct qlcnic_adapter		*adapter;
 	struct delayed_work		aen_work;
 	struct workqueue_struct		*wq;
-	struct qlcnic_dcb_ops		*ops;
+	const struct qlcnic_dcb_ops	*ops;
 	struct qlcnic_dcb_cfg		*cfg;
 	unsigned long			state;
 };
