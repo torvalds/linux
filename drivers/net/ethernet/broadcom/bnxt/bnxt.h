@@ -722,9 +722,7 @@ struct bnxt_pf_info {
 	u16	max_rsscos_ctxs;
 	u16	max_cp_rings;
 	u16	max_tx_rings; /* HW assigned max tx rings for this PF */
-	u16	max_pf_tx_rings; /* runtime max tx rings owned by PF */
 	u16	max_rx_rings; /* HW assigned max rx rings for this PF */
-	u16	max_pf_rx_rings; /* runtime max rx rings owned by PF */
 	u16	max_irqs;
 	u16	max_l2_ctxs;
 	u16	max_vnics;
@@ -1084,6 +1082,7 @@ void bnxt_hwrm_cmd_hdr_init(struct bnxt *, void *, u16, u16, u16);
 int _hwrm_send_message(struct bnxt *, void *, u32, int);
 int hwrm_send_message(struct bnxt *, void *, u32, int);
 int bnxt_hwrm_set_coal(struct bnxt *);
+int bnxt_hwrm_func_qcaps(struct bnxt *);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool);
 int bnxt_open_nic(struct bnxt *, bool, bool);

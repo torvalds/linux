@@ -3592,7 +3592,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 	return 0;
 }
 
-static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
+int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 {
 	int rc = 0;
 	struct hwrm_func_qcaps_input req = {0};
@@ -3616,9 +3616,7 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		pf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
 		pf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
 		pf->max_tx_rings = le16_to_cpu(resp->max_tx_rings);
-		pf->max_pf_tx_rings = pf->max_tx_rings;
 		pf->max_rx_rings = le16_to_cpu(resp->max_rx_rings);
-		pf->max_pf_rx_rings = pf->max_rx_rings;
 		pf->max_l2_ctxs = le16_to_cpu(resp->max_l2_ctxs);
 		pf->max_vnics = le16_to_cpu(resp->max_vnics);
 		pf->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
@@ -5623,8 +5621,8 @@ void bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx)
 	int max_rings = 0;
 
 	if (BNXT_PF(bp)) {
-		*max_tx = bp->pf.max_pf_tx_rings;
-		*max_rx = bp->pf.max_pf_rx_rings;
+		*max_tx = bp->pf.max_tx_rings;
+		*max_rx = bp->pf.max_rx_rings;
 		max_rings = min_t(int, bp->pf.max_irqs, bp->pf.max_cp_rings);
 		max_rings = min_t(int, max_rings, bp->pf.max_stat_ctxs);
 	} else {

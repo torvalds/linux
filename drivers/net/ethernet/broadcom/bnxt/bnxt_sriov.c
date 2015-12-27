@@ -427,11 +427,12 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	if (!rc) {
-		pf->max_pf_tx_rings = bp->tx_nr_rings;
-		if (bp->flags & BNXT_FLAG_AGG_RINGS)
-			pf->max_pf_rx_rings = bp->rx_nr_rings * 2;
-		else
-			pf->max_pf_rx_rings = bp->rx_nr_rings;
+		pf->max_tx_rings -= vf_tx_rings * num_vfs;
+		pf->max_rx_rings -= vf_rx_rings * num_vfs;
+		pf->max_cp_rings -= vf_cp_rings * num_vfs;
+		pf->max_rsscos_ctxs -= num_vfs;
+		pf->max_stat_ctxs -= vf_stat_ctx * num_vfs;
+		pf->max_vnics -= vf_vnics * num_vfs;
 	}
 	return rc;
 }
@@ -535,8 +536,8 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	bnxt_free_vf_resources(bp);
 
 	bp->pf.active_vfs = 0;
-	bp->pf.max_pf_rx_rings = bp->pf.max_rx_rings;
-	bp->pf.max_pf_tx_rings = bp->pf.max_tx_rings;
+	/* Reclaim all resources for the PF. */
+	bnxt_hwrm_func_qcaps(bp);
 }
 
 int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
