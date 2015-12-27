@@ -33,8 +33,6 @@
 #include "hid-lg4ff.h"
 #include "hid-ids.h"
 
-#define to_hid_device(pdev) container_of(pdev, struct hid_device, dev)
-
 #define LG4FF_MMODE_IS_MULTIMODE 0
 #define LG4FF_MMODE_SWITCHED 1
 #define LG4FF_MMODE_NOT_MULTIMODE 2

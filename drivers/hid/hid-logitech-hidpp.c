@@ -1310,8 +1310,6 @@ struct g920_private_data {
 	u16 range;
 };
 
-#define to_hid_device(pdev) container_of(pdev, struct hid_device, dev)
-
 static ssize_t g920_range_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {

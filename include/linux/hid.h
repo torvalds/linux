@@ -565,6 +565,9 @@ struct hid_device {							/* device report descriptor */
 	wait_queue_head_t debug_wait;
 };
 
+#define to_hid_device(pdev) \
+	container_of(pdev, struct hid_device, dev)
+
 static inline void *hid_get_drvdata(struct hid_device *hdev)
 {
 	return dev_get_drvdata(&hdev->dev);
