@@ -220,7 +220,7 @@ static ssize_t attr_fn_lock_show_cptkbd(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", cptkbd_data->fn_lock);
@@ -231,7 +231,7 @@ static ssize_t attr_fn_lock_store_cptkbd(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
 	int value;
 
@@ -250,7 +250,7 @@ static ssize_t attr_sensitivity_show_cptkbd(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
@@ -262,7 +262,7 @@ static ssize_t attr_sensitivity_store_cptkbd(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
 	int value;
 
@@ -387,7 +387,7 @@ static ssize_t attr_press_to_select_show_tpkbd(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->press_to_select);
@@ -398,7 +398,7 @@ static ssize_t attr_press_to_select_store_tpkbd(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
@@ -417,7 +417,7 @@ static ssize_t attr_dragging_show_tpkbd(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->dragging);
@@ -428,7 +428,7 @@ static ssize_t attr_dragging_store_tpkbd(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
@@ -447,7 +447,7 @@ static ssize_t attr_release_to_select_show_tpkbd(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->release_to_select);
@@ -458,7 +458,7 @@ static ssize_t attr_release_to_select_store_tpkbd(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
@@ -477,7 +477,7 @@ static ssize_t attr_select_right_show_tpkbd(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->select_right);
@@ -488,7 +488,7 @@ static ssize_t attr_select_right_store_tpkbd(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
@@ -507,7 +507,7 @@ static ssize_t attr_sensitivity_show_tpkbd(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
@@ -519,7 +519,7 @@ static ssize_t attr_sensitivity_store_tpkbd(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
@@ -536,7 +536,7 @@ static ssize_t attr_press_speed_show_tpkbd(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
@@ -548,7 +548,7 @@ static ssize_t attr_press_speed_store_tpkbd(struct device *dev,
 		const char *buf,
 		size_t count)
 {
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
@@ -609,7 +609,7 @@ static enum led_brightness lenovo_led_brightness_get_tpkbd(
 			struct led_classdev *led_cdev)
 {
 	struct device *dev = led_cdev->dev->parent;
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 	int led_nr = 0;
 
@@ -625,7 +625,7 @@ static void lenovo_led_brightness_set_tpkbd(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
 	struct device *dev = led_cdev->dev->parent;
-	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_device *hdev = to_hid_device(dev);
 	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
 	struct hid_report *report;
 	int led_nr = 0;
