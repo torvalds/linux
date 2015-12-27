@@ -390,7 +390,15 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	/* Both presence and absence of sram regulator are valid cases. */
 	sram_reg = regulator_get_exclusive(cpu_dev, "sram");
 
-	ret = dev_pm_opp_of_add_table(cpu_dev);
+	/* Get OPP-sharing information from "operating-points-v2" bindings */
+	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, &info->cpus);
+	if (ret) {
+		pr_err("failed to get OPP-sharing information for cpu%d\n",
+		       cpu);
+		goto out_free_resources;
+	}
+
+	ret = dev_pm_opp_of_cpumask_add_table(&info->cpus);
 	if (ret) {
 		pr_warn("no OPP table for cpu%d\n", cpu);
 		goto out_free_resources;
@@ -421,13 +429,10 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	 */
 	info->need_voltage_tracking = !IS_ERR(sram_reg);
 
-	/* CPUs in the same cluster share a clock and power domain. */
-	cpumask_copy(&info->cpus, &cpu_topology[cpu].core_sibling);
-
 	return 0;
 
 out_free_opp_table:
-	dev_pm_opp_of_remove_table(cpu_dev);
+	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
 
 out_free_resources:
 	if (!IS_ERR(proc_reg))
@@ -453,7 +458,7 @@ static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
 	if (!IS_ERR(info->inter_clk))
 		clk_put(info->inter_clk);
 
-	dev_pm_opp_of_remove_table(info->cpu_dev);
+	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
 }
 
 static int mtk_cpufreq_init(struct cpufreq_policy *policy)
