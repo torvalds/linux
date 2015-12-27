@@ -499,8 +499,7 @@ void hns_rcb_get_cfg(struct rcb_common_cb *rcb_common)
 	int base_irq_idx = hns_rcb_get_base_irq_idx(rcb_common);
 	struct device_node *np = rcb_common->dsaf_dev->dev->of_node;
 	struct platform_device *pdev =
-		container_of(rcb_common->dsaf_dev->dev,
-			     struct platform_device, dev);
+		to_platform_device(rcb_common->dsaf_dev->dev);
 	bool is_ver1 = AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver);
 
 	for (i = 0; i < ring_num; i++) {
