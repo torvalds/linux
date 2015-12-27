@@ -60,7 +60,6 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
  * Control]
  */
 #define F15H_M60H_REPORTED_TEMP_CTRL_OFFSET	0xd8200ca4
-#define PCI_DEVICE_ID_AMD_15H_M60H_NB_F3	0x1573
 
 static void amd_nb_smu_index_read(struct pci_dev *pdev, unsigned int devfn,
 				  int offset, u32 *val)

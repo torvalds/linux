@@ -53,7 +53,7 @@ struct mips_cdmm_driver {
  * mips_cdmm_phys_base() - Choose a physical base address for CDMM region.
  *
  * Picking a suitable physical address at which to map the CDMM region is
- * platform specific, so this weak function can be defined by platform code to
+ * platform specific, so this function can be defined by platform code to
  * pick a suitable value if none is configured by the bootloader.
  *
  * This address must be 32kB aligned, and the region occupies a maximum of 32kB
@@ -61,7 +61,7 @@ struct mips_cdmm_driver {
  *
  * Returns:	Physical base address for CDMM region, or 0 on failure.
  */
-phys_addr_t __weak mips_cdmm_phys_base(void);
+phys_addr_t mips_cdmm_phys_base(void);
 
 extern struct bus_type mips_cdmm_bustype;
 void __iomem *mips_cdmm_early_probe(unsigned int dev_type);
@@ -83,6 +83,17 @@ void mips_cdmm_driver_unregister(struct mips_cdmm_driver *);
 #define module_mips_cdmm_driver(__mips_cdmm_driver) \
 	module_driver(__mips_cdmm_driver, mips_cdmm_driver_register, \
 			mips_cdmm_driver_unregister)
+
+/*
+ * builtin_mips_cdmm_driver() - Helper macro for drivers that don't do anything
+ * special in init and have no exit. This eliminates some boilerplate. Each
+ * driver may only use this macro once, and calling it replaces device_initcall
+ * (or in some cases, the legacy __initcall). This is meant to be a direct
+ * parallel of module_mips_cdmm_driver() above but without the __exit stuff that
+ * is not used for builtin cases.
+ */
+#define builtin_mips_cdmm_driver(__mips_cdmm_driver) \
+	builtin_driver(__mips_cdmm_driver, mips_cdmm_driver_register)
 
 /* drivers/tty/mips_ejtag_fdc.c */
 

@@ -5,6 +5,28 @@
 
 menu "Firmware Drivers"
 
+config ARM_PSCI_FW
+	bool
+
+config ARM_SCPI_PROTOCOL
+	tristate "ARM System Control and Power Interface (SCPI) Message Protocol"
+	depends on ARM_MHU
+	help
+	  System Control and Power Interface (SCPI) Message Protocol is
+	  defined for the purpose of communication between the Application
+	  Cores(AP) and the System Control Processor(SCP). The MHU peripheral
+	  provides a mechanism for inter-processor communication between SCP
+	  and AP.
+
+	  SCP controls most of the power managament on the Application
+	  Processors. It offers control and management of: the core/cluster
+	  power states, various power domain DVFS including the core/cluster,
+	  certain system clocks configuration, thermal sensors and many
+	  others.
+
+	  This protocol library provides interface for all the client drivers
+	  making use of the features offered by the SCP.
+
 config EDD
 	tristate "BIOS Enhanced Disk Drive calls determine boot disk"
 	depends on X86
@@ -132,10 +154,26 @@ config ISCSI_IBFT
 	  detect iSCSI boot parameters dynamically during system boot, say Y.
 	  Otherwise, say N.
 
+config RASPBERRYPI_FIRMWARE
+	tristate "Raspberry Pi Firmware Driver"
+	depends on BCM2835_MBOX
+	help
+	  This option enables support for communicating with the firmware on the
+	  Raspberry Pi.
+
 config QCOM_SCM
 	bool
 	depends on ARM || ARM64
 
+config QCOM_SCM_32
+	def_bool y
+	depends on QCOM_SCM && ARM
+
+config QCOM_SCM_64
+	def_bool y
+	depends on QCOM_SCM && ARM64
+
+source "drivers/firmware/broadcom/Kconfig"
 source "drivers/firmware/google/Kconfig"
 source "drivers/firmware/efi/Kconfig"
 

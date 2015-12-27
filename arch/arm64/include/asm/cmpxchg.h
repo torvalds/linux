@@ -21,231 +21,185 @@
 #include <linux/bug.h>
 #include <linux/mmdebug.h>
 
+#include <asm/atomic.h>
 #include <asm/barrier.h>
+#include <asm/lse.h>
 
-static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
-{
-	unsigned long ret, tmp;
-
-	switch (size) {
-	case 1:
-		asm volatile("//	__xchg1\n"
-		"1:	ldxrb	%w0, %2\n"
-		"	stlxrb	%w1, %w3, %2\n"
-		"	cbnz	%w1, 1b\n"
-			: "=&r" (ret), "=&r" (tmp), "+Q" (*(u8 *)ptr)
-			: "r" (x)
-			: "memory");
-		break;
-	case 2:
-		asm volatile("//	__xchg2\n"
-		"1:	ldxrh	%w0, %2\n"
-		"	stlxrh	%w1, %w3, %2\n"
-		"	cbnz	%w1, 1b\n"
-			: "=&r" (ret), "=&r" (tmp), "+Q" (*(u16 *)ptr)
-			: "r" (x)
-			: "memory");
-		break;
-	case 4:
-		asm volatile("//	__xchg4\n"
-		"1:	ldxr	%w0, %2\n"
-		"	stlxr	%w1, %w3, %2\n"
-		"	cbnz	%w1, 1b\n"
-			: "=&r" (ret), "=&r" (tmp), "+Q" (*(u32 *)ptr)
-			: "r" (x)
-			: "memory");
-		break;
-	case 8:
-		asm volatile("//	__xchg8\n"
-		"1:	ldxr	%0, %2\n"
-		"	stlxr	%w1, %3, %2\n"
-		"	cbnz	%w1, 1b\n"
-			: "=&r" (ret), "=&r" (tmp), "+Q" (*(u64 *)ptr)
-			: "r" (x)
-			: "memory");
-		break;
-	default:
-		BUILD_BUG();
-	}
-
-	smp_mb();
-	return ret;
+/*
+ * We need separate acquire parameters for ll/sc and lse, since the full
+ * barrier case is generated as release+dmb for the former and
+ * acquire+release for the latter.
+ */
+#define __XCHG_CASE(w, sz, name, mb, nop_lse, acq, acq_lse, rel, cl)	\
+static inline unsigned long __xchg_case_##name(unsigned long x,		\
+					       volatile void *ptr)	\
+{									\
+	unsigned long ret, tmp;						\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
+	/* LL/SC */							\
+	"	prfm	pstl1strm, %2\n"				\
+	"1:	ld" #acq "xr" #sz "\t%" #w "0, %2\n"			\
+	"	st" #rel "xr" #sz "\t%w1, %" #w "3, %2\n"		\
+	"	cbnz	%w1, 1b\n"					\
+	"	" #mb,							\
+	/* LSE atomics */						\
+	"	nop\n"							\
+	"	nop\n"							\
+	"	swp" #acq_lse #rel #sz "\t%" #w "3, %" #w "0, %2\n"	\
+	"	nop\n"							\
+	"	" #nop_lse)						\
+	: "=&r" (ret), "=&r" (tmp), "+Q" (*(u8 *)ptr)			\
+	: "r" (x)							\
+	: cl);								\
+									\
+	return ret;							\
 }
 
-#define xchg(ptr,x) \
-({ \
-	__typeof__(*(ptr)) __ret; \
-	__ret = (__typeof__(*(ptr))) \
-		__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))); \
-	__ret; \
+__XCHG_CASE(w, b,     1,        ,    ,  ,  ,  ,         )
+__XCHG_CASE(w, h,     2,        ,    ,  ,  ,  ,         )
+__XCHG_CASE(w,  ,     4,        ,    ,  ,  ,  ,         )
+__XCHG_CASE( ,  ,     8,        ,    ,  ,  ,  ,         )
+__XCHG_CASE(w, b, acq_1,        ,    , a, a,  , "memory")
+__XCHG_CASE(w, h, acq_2,        ,    , a, a,  , "memory")
+__XCHG_CASE(w,  , acq_4,        ,    , a, a,  , "memory")
+__XCHG_CASE( ,  , acq_8,        ,    , a, a,  , "memory")
+__XCHG_CASE(w, b, rel_1,        ,    ,  ,  , l, "memory")
+__XCHG_CASE(w, h, rel_2,        ,    ,  ,  , l, "memory")
+__XCHG_CASE(w,  , rel_4,        ,    ,  ,  , l, "memory")
+__XCHG_CASE( ,  , rel_8,        ,    ,  ,  , l, "memory")
+__XCHG_CASE(w, b,  mb_1, dmb ish, nop,  , a, l, "memory")
+__XCHG_CASE(w, h,  mb_2, dmb ish, nop,  , a, l, "memory")
+__XCHG_CASE(w,  ,  mb_4, dmb ish, nop,  , a, l, "memory")
+__XCHG_CASE( ,  ,  mb_8, dmb ish, nop,  , a, l, "memory")
+
+#undef __XCHG_CASE
+
+#define __XCHG_GEN(sfx)							\
+static inline unsigned long __xchg##sfx(unsigned long x,		\
+					volatile void *ptr,		\
+					int size)			\
+{									\
+	switch (size) {							\
+	case 1:								\
+		return __xchg_case##sfx##_1(x, ptr);			\
+	case 2:								\
+		return __xchg_case##sfx##_2(x, ptr);			\
+	case 4:								\
+		return __xchg_case##sfx##_4(x, ptr);			\
+	case 8:								\
+		return __xchg_case##sfx##_8(x, ptr);			\
+	default:							\
+		BUILD_BUG();						\
+	}								\
+									\
+	unreachable();							\
+}
+
+__XCHG_GEN()
+__XCHG_GEN(_acq)
+__XCHG_GEN(_rel)
+__XCHG_GEN(_mb)
+
+#undef __XCHG_GEN
+
+#define __xchg_wrapper(sfx, ptr, x)					\
+({									\
+	__typeof__(*(ptr)) __ret;					\
+	__ret = (__typeof__(*(ptr)))					\
+		__xchg##sfx((unsigned long)(x), (ptr), sizeof(*(ptr))); \
+	__ret;								\
 })
 
-static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
-				      unsigned long new, int size)
-{
-	unsigned long oldval = 0, res;
+/* xchg */
+#define xchg_relaxed(...)	__xchg_wrapper(    , __VA_ARGS__)
+#define xchg_acquire(...)	__xchg_wrapper(_acq, __VA_ARGS__)
+#define xchg_release(...)	__xchg_wrapper(_rel, __VA_ARGS__)
+#define xchg(...)		__xchg_wrapper( _mb, __VA_ARGS__)
 
-	switch (size) {
-	case 1:
-		do {
-			asm volatile("// __cmpxchg1\n"
-			"	ldxrb	%w1, %2\n"
-			"	mov	%w0, #0\n"
-			"	cmp	%w1, %w3\n"
-			"	b.ne	1f\n"
-			"	stxrb	%w0, %w4, %2\n"
-			"1:\n"
-				: "=&r" (res), "=&r" (oldval), "+Q" (*(u8 *)ptr)
-				: "Ir" (old), "r" (new)
-				: "cc");
-		} while (res);
-		break;
-
-	case 2:
-		do {
-			asm volatile("// __cmpxchg2\n"
-			"	ldxrh	%w1, %2\n"
-			"	mov	%w0, #0\n"
-			"	cmp	%w1, %w3\n"
-			"	b.ne	1f\n"
-			"	stxrh	%w0, %w4, %2\n"
-			"1:\n"
-				: "=&r" (res), "=&r" (oldval), "+Q" (*(u16 *)ptr)
-				: "Ir" (old), "r" (new)
-				: "cc");
-		} while (res);
-		break;
-
-	case 4:
-		do {
-			asm volatile("// __cmpxchg4\n"
-			"	ldxr	%w1, %2\n"
-			"	mov	%w0, #0\n"
-			"	cmp	%w1, %w3\n"
-			"	b.ne	1f\n"
-			"	stxr	%w0, %w4, %2\n"
-			"1:\n"
-				: "=&r" (res), "=&r" (oldval), "+Q" (*(u32 *)ptr)
-				: "Ir" (old), "r" (new)
-				: "cc");
-		} while (res);
-		break;
-
-	case 8:
-		do {
-			asm volatile("// __cmpxchg8\n"
-			"	ldxr	%1, %2\n"
-			"	mov	%w0, #0\n"
-			"	cmp	%1, %3\n"
-			"	b.ne	1f\n"
-			"	stxr	%w0, %4, %2\n"
-			"1:\n"
-				: "=&r" (res), "=&r" (oldval), "+Q" (*(u64 *)ptr)
-				: "Ir" (old), "r" (new)
-				: "cc");
-		} while (res);
-		break;
-
-	default:
-		BUILD_BUG();
-	}
-
-	return oldval;
+#define __CMPXCHG_GEN(sfx)						\
+static inline unsigned long __cmpxchg##sfx(volatile void *ptr,		\
+					   unsigned long old,		\
+					   unsigned long new,		\
+					   int size)			\
+{									\
+	switch (size) {							\
+	case 1:								\
+		return __cmpxchg_case##sfx##_1(ptr, (u8)old, new);	\
+	case 2:								\
+		return __cmpxchg_case##sfx##_2(ptr, (u16)old, new);	\
+	case 4:								\
+		return __cmpxchg_case##sfx##_4(ptr, old, new);		\
+	case 8:								\
+		return __cmpxchg_case##sfx##_8(ptr, old, new);		\
+	default:							\
+		BUILD_BUG();						\
+	}								\
+									\
+	unreachable();							\
 }
 
+__CMPXCHG_GEN()
+__CMPXCHG_GEN(_acq)
+__CMPXCHG_GEN(_rel)
+__CMPXCHG_GEN(_mb)
+
+#undef __CMPXCHG_GEN
+
+#define __cmpxchg_wrapper(sfx, ptr, o, n)				\
+({									\
+	__typeof__(*(ptr)) __ret;					\
+	__ret = (__typeof__(*(ptr)))					\
+		__cmpxchg##sfx((ptr), (unsigned long)(o),		\
+				(unsigned long)(n), sizeof(*(ptr)));	\
+	__ret;								\
+})
+
+/* cmpxchg */
+#define cmpxchg_relaxed(...)	__cmpxchg_wrapper(    , __VA_ARGS__)
+#define cmpxchg_acquire(...)	__cmpxchg_wrapper(_acq, __VA_ARGS__)
+#define cmpxchg_release(...)	__cmpxchg_wrapper(_rel, __VA_ARGS__)
+#define cmpxchg(...)		__cmpxchg_wrapper( _mb, __VA_ARGS__)
+#define cmpxchg_local		cmpxchg_relaxed
+
+/* cmpxchg64 */
+#define cmpxchg64_relaxed	cmpxchg_relaxed
+#define cmpxchg64_acquire	cmpxchg_acquire
+#define cmpxchg64_release	cmpxchg_release
+#define cmpxchg64		cmpxchg
+#define cmpxchg64_local		cmpxchg_local
+
+/* cmpxchg_double */
 #define system_has_cmpxchg_double()     1
 
-static inline int __cmpxchg_double(volatile void *ptr1, volatile void *ptr2,
-		unsigned long old1, unsigned long old2,
-		unsigned long new1, unsigned long new2, int size)
-{
-	unsigned long loop, lost;
-
-	switch (size) {
-	case 8:
-		VM_BUG_ON((unsigned long *)ptr2 - (unsigned long *)ptr1 != 1);
-		do {
-			asm volatile("// __cmpxchg_double8\n"
-			"	ldxp	%0, %1, %2\n"
-			"	eor	%0, %0, %3\n"
-			"	eor	%1, %1, %4\n"
-			"	orr	%1, %0, %1\n"
-			"	mov	%w0, #0\n"
-			"	cbnz	%1, 1f\n"
-			"	stxp	%w0, %5, %6, %2\n"
-			"1:\n"
-				: "=&r"(loop), "=&r"(lost), "+Q" (*(u64 *)ptr1)
-				: "r" (old1), "r"(old2), "r"(new1), "r"(new2));
-		} while (loop);
-		break;
-	default:
-		BUILD_BUG();
-	}
-
-	return !lost;
-}
-
-static inline int __cmpxchg_double_mb(volatile void *ptr1, volatile void *ptr2,
-			unsigned long old1, unsigned long old2,
-			unsigned long new1, unsigned long new2, int size)
-{
-	int ret;
-
-	smp_mb();
-	ret = __cmpxchg_double(ptr1, ptr2, old1, old2, new1, new2, size);
-	smp_mb();
-
-	return ret;
-}
-
-static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
-					 unsigned long new, int size)
-{
-	unsigned long ret;
-
-	smp_mb();
-	ret = __cmpxchg(ptr, old, new, size);
-	smp_mb();
-
-	return ret;
-}
-
-#define cmpxchg(ptr, o, n) \
-({ \
-	__typeof__(*(ptr)) __ret; \
-	__ret = (__typeof__(*(ptr))) \
-		__cmpxchg_mb((ptr), (unsigned long)(o), (unsigned long)(n), \
-			     sizeof(*(ptr))); \
-	__ret; \
-})
-
-#define cmpxchg_local(ptr, o, n) \
-({ \
-	__typeof__(*(ptr)) __ret; \
-	__ret = (__typeof__(*(ptr))) \
-		__cmpxchg((ptr), (unsigned long)(o), \
-			  (unsigned long)(n), sizeof(*(ptr))); \
-	__ret; \
+#define __cmpxchg_double_check(ptr1, ptr2)					\
+({										\
+	if (sizeof(*(ptr1)) != 8)						\
+		BUILD_BUG();							\
+	VM_BUG_ON((unsigned long *)(ptr2) - (unsigned long *)(ptr1) != 1);	\
 })
 
 #define cmpxchg_double(ptr1, ptr2, o1, o2, n1, n2) \
 ({\
 	int __ret;\
-	__ret = __cmpxchg_double_mb((ptr1), (ptr2), (unsigned long)(o1), \
-			(unsigned long)(o2), (unsigned long)(n1), \
-			(unsigned long)(n2), sizeof(*(ptr1)));\
+	__cmpxchg_double_check(ptr1, ptr2); \
+	__ret = !__cmpxchg_double_mb((unsigned long)(o1), (unsigned long)(o2), \
+				     (unsigned long)(n1), (unsigned long)(n2), \
+				     ptr1); \
 	__ret; \
 })
 
 #define cmpxchg_double_local(ptr1, ptr2, o1, o2, n1, n2) \
 ({\
 	int __ret;\
-	__ret = __cmpxchg_double((ptr1), (ptr2), (unsigned long)(o1), \
-			(unsigned long)(o2), (unsigned long)(n1), \
-			(unsigned long)(n2), sizeof(*(ptr1)));\
+	__cmpxchg_double_check(ptr1, ptr2); \
+	__ret = !__cmpxchg_double((unsigned long)(o1), (unsigned long)(o2), \
+				  (unsigned long)(n1), (unsigned long)(n2), \
+				  ptr1); \
 	__ret; \
 })
 
+/* this_cpu_cmpxchg */
 #define _protect_cmpxchg_local(pcp, o, n)			\
 ({								\
 	typeof(*raw_cpu_ptr(&(pcp))) __ret;			\
@@ -270,10 +224,5 @@ static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
 	preempt_enable();						\
 	__ret;								\
 })
-
-#define cmpxchg64(ptr,o,n)		cmpxchg((ptr),(o),(n))
-#define cmpxchg64_local(ptr,o,n)	cmpxchg_local((ptr),(o),(n))
-
-#define cmpxchg64_relaxed(ptr,o,n)	cmpxchg_local((ptr),(o),(n))
 
 #endif	/* __ASM_CMPXCHG_H */

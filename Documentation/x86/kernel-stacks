@@ -16,7 +16,7 @@ associated with each CPU.  These stacks are only used while the kernel
 is in control on that CPU; when a CPU returns to user space the
 specialized stacks contain no useful data.  The main CPU stacks are:
 
-* Interrupt stack.  IRQSTACKSIZE
+* Interrupt stack.  IRQ_STACK_SIZE
 
   Used for external hardware interrupts.  If this is the first external
   hardware interrupt (i.e. not a nested hardware interrupt) then the

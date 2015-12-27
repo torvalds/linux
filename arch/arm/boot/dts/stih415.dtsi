@@ -10,7 +10,7 @@
 #include "stih415-clock.dtsi"
 #include "stih415-pinctrl.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/reset-controller/stih415-resets.h>
+#include <dt-bindings/reset/stih415-resets.h>
 / {
 
 	L2: cache-controller {

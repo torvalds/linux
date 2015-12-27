@@ -27,7 +27,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 {
 	struct sysinfo i;
 	unsigned long committed;
-	struct vmalloc_info vmi;
 	long cached;
 	long available;
 	unsigned long pagecache;
@@ -48,8 +47,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 			total_swapcache_pages() - i.bufferram;
 	if (cached < 0)
 		cached = 0;
-
-	get_vmalloc_info(&vmi);
 
 	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
 		pages[lru] = global_page_state(NR_LRU_BASE + lru);
@@ -191,8 +188,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		K(vm_commit_limit()),
 		K(committed),
 		(unsigned long)VMALLOC_TOTAL >> 10,
-		vmi.used >> 10,
-		vmi.largest_chunk >> 10
+		0ul, // used to be vmalloc 'used'
+		0ul  // used to be vmalloc 'largest_chunk'
 #ifdef CONFIG_MEMORY_FAILURE
 		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
 #endif

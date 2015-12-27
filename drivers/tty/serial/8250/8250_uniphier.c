@@ -115,12 +115,16 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
  */
 static int uniphier_serial_dl_read(struct uart_8250_port *up)
 {
-	return readl(up->port.membase + UNIPHIER_UART_DLR);
+	int offset = UNIPHIER_UART_DLR << up->port.regshift;
+
+	return readl(up->port.membase + offset);
 }
 
 static void uniphier_serial_dl_write(struct uart_8250_port *up, int value)
 {
-	writel(value, up->port.membase + UNIPHIER_UART_DLR);
+	int offset = UNIPHIER_UART_DLR << up->port.regshift;
+
+	writel(value, up->port.membase + offset);
 }
 
 static int uniphier_of_serial_setup(struct device *dev, struct uart_port *port,
@@ -218,6 +222,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
 		dev_err(dev, "failed to register 8250 port\n");
+		clk_disable_unprepare(priv->clk);
 		return ret;
 	}
 

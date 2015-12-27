@@ -43,19 +43,19 @@ struct drm_modeset_acquire_ctx {
 
 	struct ww_acquire_ctx ww_ctx;
 
-	/**
+	/*
 	 * Contended lock: if a lock is contended you should only call
 	 * drm_modeset_backoff() which drops locks and slow-locks the
 	 * contended lock.
 	 */
 	struct drm_modeset_lock *contended;
 
-	/**
+	/*
 	 * list of held locks (drm_modeset_lock)
 	 */
 	struct list_head locked;
 
-	/**
+	/*
 	 * Trylock mode, use only for panic handlers!
 	 */
 	bool trylock_only;
@@ -70,12 +70,12 @@ struct drm_modeset_acquire_ctx {
  * Used for locking CRTCs and other modeset resources.
  */
 struct drm_modeset_lock {
-	/**
+	/*
 	 * modeset lock
 	 */
 	struct ww_mutex mutex;
 
-	/**
+	/*
 	 * Resources that are locked as part of an atomic update are added
 	 * to a list (so we know what to unlock at the end).
 	 */
@@ -130,7 +130,6 @@ struct drm_crtc;
 struct drm_plane;
 
 void drm_modeset_lock_all(struct drm_device *dev);
-int __drm_modeset_lock_all(struct drm_device *dev, bool trylock);
 void drm_modeset_unlock_all(struct drm_device *dev);
 void drm_modeset_lock_crtc(struct drm_crtc *crtc,
 			   struct drm_plane *plane);

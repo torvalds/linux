@@ -88,21 +88,7 @@ MODULE_PARM_DESC(bDeviceProtocol, "USB Device protocol");
 module_param_array_named(functions, func_names, charp, &func_num, 0);
 MODULE_PARM_DESC(functions, "USB Functions list");
 
-static const struct usb_descriptor_header *gfs_otg_desc[] = {
-	(const struct usb_descriptor_header *)
-	&(const struct usb_otg_descriptor) {
-		.bLength		= sizeof(struct usb_otg_descriptor),
-		.bDescriptorType	= USB_DT_OTG,
-
-		/*
-		 * REVISIT SRP-only hardware is possible, although
-		 * it would not be called "OTG" ...
-		 */
-		.bmAttributes		= USB_OTG_SRP | USB_OTG_HNP,
-	},
-
-	NULL
-};
+static const struct usb_descriptor_header *gfs_otg_desc[2];
 
 /* String IDs are assigned dynamically */
 static struct usb_string gfs_strings[] = {
@@ -412,6 +398,17 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		goto error_rndis;
 	gfs_dev_desc.iProduct = gfs_strings[USB_GADGET_PRODUCT_IDX].id;
 
+	if (gadget_is_otg(cdev->gadget) && !gfs_otg_desc[0]) {
+		struct usb_descriptor_header *usb_desc;
+
+		usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
+		if (!usb_desc)
+			goto error_rndis;
+		usb_otg_descriptor_init(cdev->gadget, usb_desc);
+		gfs_otg_desc[0] = usb_desc;
+		gfs_otg_desc[1] = NULL;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(gfs_configurations); ++i) {
 		struct gfs_configuration *c = gfs_configurations + i;
 		int sid = USB_GADGET_FIRST_AVAIL_IDX + i;
@@ -432,6 +429,8 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 /* TODO */
 error_unbind:
+	kfree(gfs_otg_desc[0]);
+	gfs_otg_desc[0] = NULL;
 error_rndis:
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	usb_put_function_instance(fi_rndis);
@@ -472,6 +471,9 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 #endif
 	for (i = 0; i < N_CONF * func_num; ++i)
 		usb_put_function(*(f_ffs[0] + i));
+
+	kfree(gfs_otg_desc[0]);
+	gfs_otg_desc[0] = NULL;
 
 	return 0;
 }

@@ -2145,27 +2145,7 @@ static struct platform_driver ds1685_rtc_driver = {
 	.probe		= ds1685_rtc_probe,
 	.remove		= ds1685_rtc_remove,
 };
-
-/**
- * ds1685_rtc_init - rtc module init.
- */
-static int __init
-ds1685_rtc_init(void)
-{
-	return platform_driver_register(&ds1685_rtc_driver);
-}
-
-/**
- * ds1685_rtc_exit - rtc module exit.
- */
-static void __exit
-ds1685_rtc_exit(void)
-{
-	platform_driver_unregister(&ds1685_rtc_driver);
-}
-
-module_init(ds1685_rtc_init);
-module_exit(ds1685_rtc_exit);
+module_platform_driver(ds1685_rtc_driver);
 /* ----------------------------------------------------------------------- */
 
 

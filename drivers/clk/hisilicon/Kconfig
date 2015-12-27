@@ -1,0 +1,12 @@
+config COMMON_CLK_HI6220
+	bool "Hi6220 Clock Driver"
+	depends on ARCH_HISI || COMPILE_TEST
+	default ARCH_HISI
+	help
+	  Build the Hisilicon Hi6220 clock driver based on the common clock framework.
+
+config STUB_CLK_HI6220
+	bool "Hi6220 Stub Clock Driver"
+	depends on COMMON_CLK_HI6220 && MAILBOX
+	help
+	  Build the Hisilicon Hi6220 stub clock driver.

@@ -73,7 +73,7 @@ static irqreturn_t sirfsoc_timer_interrupt(int irq, void *dev_id)
 }
 
 /* read 64-bit timer counter */
-static cycle_t sirfsoc_timer_read(struct clocksource *cs)
+static cycle_t notrace sirfsoc_timer_read(struct clocksource *cs)
 {
 	u64 cycles;
 
@@ -104,26 +104,21 @@ static int sirfsoc_timer_set_next_event(unsigned long delta,
 	return next - now > delta ? -ETIME : 0;
 }
 
-static void sirfsoc_timer_set_mode(enum clock_event_mode mode,
-	struct clock_event_device *ce)
+static int sirfsoc_timer_shutdown(struct clock_event_device *evt)
 {
 	u32 val = readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_INT_EN);
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		WARN_ON(1);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		writel_relaxed(val | BIT(0),
-			sirfsoc_timer_base + SIRFSOC_TIMER_INT_EN);
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		writel_relaxed(val & ~BIT(0),
-			sirfsoc_timer_base + SIRFSOC_TIMER_INT_EN);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+
+	writel_relaxed(val & ~BIT(0),
+		       sirfsoc_timer_base + SIRFSOC_TIMER_INT_EN);
+	return 0;
+}
+
+static int sirfsoc_timer_set_oneshot(struct clock_event_device *evt)
+{
+	u32 val = readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_INT_EN);
+
+	writel_relaxed(val | BIT(0), sirfsoc_timer_base + SIRFSOC_TIMER_INT_EN);
+	return 0;
 }
 
 static void sirfsoc_clocksource_suspend(struct clocksource *cs)
@@ -157,7 +152,8 @@ static struct clock_event_device sirfsoc_clockevent = {
 	.name = "sirfsoc_clockevent",
 	.rating = 200,
 	.features = CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode = sirfsoc_timer_set_mode,
+	.set_state_shutdown = sirfsoc_timer_shutdown,
+	.set_state_oneshot = sirfsoc_timer_set_oneshot,
 	.set_next_event = sirfsoc_timer_set_next_event,
 };
 

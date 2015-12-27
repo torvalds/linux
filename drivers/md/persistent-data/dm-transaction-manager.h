@@ -94,7 +94,7 @@ int dm_tm_read_lock(struct dm_transaction_manager *tm, dm_block_t b,
 		    struct dm_block_validator *v,
 		    struct dm_block **result);
 
-int dm_tm_unlock(struct dm_transaction_manager *tm, struct dm_block *b);
+void dm_tm_unlock(struct dm_transaction_manager *tm, struct dm_block *b);
 
 /*
  * Functions for altering the reference count of a block directly.

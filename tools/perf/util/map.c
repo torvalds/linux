@@ -224,6 +224,20 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 	return map;
 }
 
+/*
+ * Use this and __map__is_kmodule() for map instances that are in
+ * machine->kmaps, and thus have map->groups->machine all properly set, to
+ * disambiguate between the kernel and modules.
+ *
+ * When the need arises, introduce map__is_{kernel,kmodule)() that
+ * checks (map->groups != NULL && map->groups->machine != NULL &&
+ * map->dso->kernel) before calling __map__is_{kernel,kmodule}())
+ */
+bool __map__is_kernel(const struct map *map)
+{
+	return __machine__kernel_map(map->groups->machine, map->type) == map;
+}
+
 static void map__exit(struct map *map)
 {
 	BUG_ON(!RB_EMPTY_NODE(&map->rb_node));
@@ -334,9 +348,18 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name,
 	return dso__find_symbol_by_name(map->dso, map->type, name);
 }
 
-struct map *map__clone(struct map *map)
+struct map *map__clone(struct map *from)
 {
-	return memdup(map, sizeof(*map));
+	struct map *map = memdup(from, sizeof(*map));
+
+	if (map != NULL) {
+		atomic_set(&map->refcnt, 1);
+		RB_CLEAR_NODE(&map->rb_node);
+		dso__get(map->dso);
+		map->groups = NULL;
+	}
+
+	return map;
 }
 
 int map__overlap(struct map *l, struct map *r)
@@ -530,13 +553,9 @@ struct symbol *map_groups__find_symbol(struct map_groups *mg,
 	return NULL;
 }
 
-struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
-					       enum map_type type,
-					       const char *name,
-					       struct map **mapp,
-					       symbol_filter_t filter)
+struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
+					 struct map **mapp, symbol_filter_t filter)
 {
-	struct maps *maps = &mg->maps[type];
 	struct symbol *sym;
 	struct rb_node *nd;
 
@@ -557,6 +576,17 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 	sym = NULL;
 out:
 	pthread_rwlock_unlock(&maps->lock);
+	return sym;
+}
+
+struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
+					       enum map_type type,
+					       const char *name,
+					       struct map **mapp,
+					       symbol_filter_t filter)
+{
+	struct symbol *sym = maps__find_symbol_by_name(&mg->maps[type], name, mapp, filter);
+
 	return sym;
 }
 
@@ -614,6 +644,12 @@ size_t map_groups__fprintf(struct map_groups *mg, FILE *fp)
 	return printed;
 }
 
+static void __map_groups__insert(struct map_groups *mg, struct map *map)
+{
+	__maps__insert(&mg->maps[map->type], map);
+	map->groups = mg;
+}
+
 static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 {
 	struct rb_root *root;
@@ -652,7 +688,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			}
 
 			before->end = map->start;
-			__maps__insert(maps, before);
+			__map_groups__insert(pos->groups, before);
 			if (verbose >= 2)
 				map__fprintf(before, fp);
 		}
@@ -666,7 +702,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			}
 
 			after->start = map->end;
-			__maps__insert(maps, after);
+			__map_groups__insert(pos->groups, after);
 			if (verbose >= 2)
 				map__fprintf(after, fp);
 		}

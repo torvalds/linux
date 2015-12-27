@@ -425,7 +425,7 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 	pi->mgcg_cgtt_local1 = 0x0;
 	pi->clock_slow_down_step = 25000;
 	pi->skip_clock_slow_down = 1;
-	pi->enable_nb_ps_policy = 1;
+	pi->enable_nb_ps_policy = 0;
 	pi->caps_power_containment = true;
 	pi->caps_cac = true;
 	pi->didt_enabled = false;
@@ -494,29 +494,67 @@ static void cz_dpm_fini(struct amdgpu_device *adev)
 	amdgpu_free_extended_power_table(adev);
 }
 
+#define ixSMUSVI_NB_CURRENTVID 0xD8230044
+#define CURRENT_NB_VID_MASK 0xff000000
+#define CURRENT_NB_VID__SHIFT 24
+#define ixSMUSVI_GFX_CURRENTVID  0xD8230048
+#define CURRENT_GFX_VID_MASK 0xff000000
+#define CURRENT_GFX_VID__SHIFT 24
+
 static void
 cz_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
 					       struct seq_file *m)
 {
+	struct cz_power_info *pi = cz_get_pi(adev);
 	struct amdgpu_clock_voltage_dependency_table *table =
 		&adev->pm.dpm.dyn_state.vddc_dependency_on_sclk;
-	u32 current_index =
-		(RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX) &
-		TARGET_AND_CURRENT_PROFILE_INDEX__CURR_SCLK_INDEX_MASK) >>
-		TARGET_AND_CURRENT_PROFILE_INDEX__CURR_SCLK_INDEX__SHIFT;
-	u32 sclk, tmp;
-	u16 vddc;
+	struct amdgpu_uvd_clock_voltage_dependency_table *uvd_table =
+		&adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table;
+	struct amdgpu_vce_clock_voltage_dependency_table *vce_table =
+		&adev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table;
+	u32 sclk_index = REG_GET_FIELD(RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX),
+				       TARGET_AND_CURRENT_PROFILE_INDEX, CURR_SCLK_INDEX);
+	u32 uvd_index = REG_GET_FIELD(RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
+				      TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_UVD_INDEX);
+	u32 vce_index = REG_GET_FIELD(RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
+				      TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_VCE_INDEX);
+	u32 sclk, vclk, dclk, ecclk, tmp;
+	u16 vddnb, vddgfx;
 
-	if (current_index >= NUM_SCLK_LEVELS) {
-		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	if (sclk_index >= NUM_SCLK_LEVELS) {
+		seq_printf(m, "invalid sclk dpm profile %d\n", sclk_index);
 	} else {
-		sclk = table->entries[current_index].clk;
-		tmp = (RREG32_SMC(ixSMU_VOLTAGE_STATUS) &
-			SMU_VOLTAGE_STATUS__SMU_VOLTAGE_CURRENT_LEVEL_MASK) >>
-			SMU_VOLTAGE_STATUS__SMU_VOLTAGE_CURRENT_LEVEL__SHIFT;
-		vddc = cz_convert_8bit_index_to_voltage(adev, (u16)tmp);
-		seq_printf(m, "power level %d    sclk: %u vddc: %u\n",
-			   current_index, sclk, vddc);
+		sclk = table->entries[sclk_index].clk;
+		seq_printf(m, "%u sclk: %u\n", sclk_index, sclk);
+	}
+
+	tmp = (RREG32_SMC(ixSMUSVI_NB_CURRENTVID) &
+	       CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
+	vddnb = cz_convert_8bit_index_to_voltage(adev, (u16)tmp);
+	tmp = (RREG32_SMC(ixSMUSVI_GFX_CURRENTVID) &
+	       CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
+	vddgfx = cz_convert_8bit_index_to_voltage(adev, (u16)tmp);
+	seq_printf(m, "vddnb: %u vddgfx: %u\n", vddnb, vddgfx);
+
+	seq_printf(m, "uvd    %sabled\n", pi->uvd_power_gated ? "dis" : "en");
+	if (!pi->uvd_power_gated) {
+		if (uvd_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
+			seq_printf(m, "invalid uvd dpm level %d\n", uvd_index);
+		} else {
+			vclk = uvd_table->entries[uvd_index].vclk;
+			dclk = uvd_table->entries[uvd_index].dclk;
+			seq_printf(m, "%u uvd vclk: %u dclk: %u\n", uvd_index, vclk, dclk);
+		}
+	}
+
+	seq_printf(m, "vce    %sabled\n", pi->vce_power_gated ? "dis" : "en");
+	if (!pi->vce_power_gated) {
+		if (vce_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
+			seq_printf(m, "invalid vce dpm level %d\n", vce_index);
+		} else {
+			ecclk = vce_table->entries[vce_index].ecclk;
+			seq_printf(m, "%u vce ecclk: %u\n", vce_index, ecclk);
+		}
 	}
 }
 
@@ -558,6 +596,12 @@ static int cz_dpm_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (amdgpu_dpm) {
+		int ret;
+		/* init the sysfs and debugfs files late */
+		ret = amdgpu_pm_sysfs_init(adev);
+		if (ret)
+			return ret;
+
 		/* powerdown unused blocks for now */
 		cz_dpm_powergate_uvd(adev, true);
 		cz_dpm_powergate_vce(adev, true);
@@ -593,10 +637,6 @@ static int cz_dpm_sw_init(void *handle)
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
-
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		goto dpm_init_failed;
 
 	mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
@@ -1224,6 +1264,7 @@ static void cz_apply_state_adjust_rules(struct amdgpu_device *adev,
 
 static int cz_dpm_enable(struct amdgpu_device *adev)
 {
+	const char *chip_name;
 	int ret = 0;
 
 	/* renable will hang up SMU, so check first */
@@ -1232,21 +1273,33 @@ static int cz_dpm_enable(struct amdgpu_device *adev)
 
 	cz_program_voting_clients(adev);
 
+	switch (adev->asic_type) {
+	case CHIP_CARRIZO:
+		chip_name = "carrizo";
+		break;
+	case CHIP_STONEY:
+		chip_name = "stoney";
+		break;
+	default:
+		BUG();
+	}
+
+
 	ret = cz_start_dpm(adev);
 	if (ret) {
-		DRM_ERROR("Carrizo DPM enable failed\n");
+		DRM_ERROR("%s DPM enable failed\n", chip_name);
 		return -EINVAL;
 	}
 
 	ret = cz_program_bootup_state(adev);
 	if (ret) {
-		DRM_ERROR("Carrizo bootup state program failed\n");
+		DRM_ERROR("%s bootup state program failed\n", chip_name);
 		return -EINVAL;
 	}
 
 	ret = cz_enable_didt(adev, true);
 	if (ret) {
-		DRM_ERROR("Carrizo enable di/dt failed\n");
+		DRM_ERROR("%s enable di/dt failed\n", chip_name);
 		return -EINVAL;
 	}
 
@@ -1313,7 +1366,7 @@ static int cz_dpm_disable(struct amdgpu_device *adev)
 
 	ret = cz_enable_didt(adev, false);
 	if (ret) {
-		DRM_ERROR("Carrizo disable di/dt failed\n");
+		DRM_ERROR("disable di/dt failed\n");
 		return -EINVAL;
 	}
 
@@ -1558,9 +1611,9 @@ static int cz_dpm_update_low_memory_pstate(struct amdgpu_device *adev)
 
 	if (pi->sys_info.nb_dpm_enable) {
 		if (ps->force_high)
-			cz_dpm_nbdpm_lm_pstate_enable(adev, true);
-		else
 			cz_dpm_nbdpm_lm_pstate_enable(adev, false);
+		else
+			cz_dpm_nbdpm_lm_pstate_enable(adev, true);
 	}
 
 	return ret;
@@ -1679,25 +1732,31 @@ static int cz_dpm_unforce_dpm_levels(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
-	DRM_INFO("DPM unforce state min=%d, max=%d.\n",
-			pi->sclk_dpm.soft_min_clk,
-			pi->sclk_dpm.soft_max_clk);
+	DRM_DEBUG("DPM unforce state min=%d, max=%d.\n",
+		  pi->sclk_dpm.soft_min_clk,
+		  pi->sclk_dpm.soft_max_clk);
 
 	return 0;
 }
 
 static int cz_dpm_force_dpm_level(struct amdgpu_device *adev,
-				enum amdgpu_dpm_forced_level level)
+				  enum amdgpu_dpm_forced_level level)
 {
 	int ret = 0;
 
 	switch (level) {
 	case AMDGPU_DPM_FORCED_LEVEL_HIGH:
+		ret = cz_dpm_unforce_dpm_levels(adev);
+		if (ret)
+			return ret;
 		ret = cz_dpm_force_highest(adev);
 		if (ret)
 			return ret;
 		break;
 	case AMDGPU_DPM_FORCED_LEVEL_LOW:
+		ret = cz_dpm_unforce_dpm_levels(adev);
+		if (ret)
+			return ret;
 		ret = cz_dpm_force_lowest(adev);
 		if (ret)
 			return ret;
@@ -1710,6 +1769,8 @@ static int cz_dpm_force_dpm_level(struct amdgpu_device *adev,
 	default:
 		break;
 	}
+
+	adev->pm.dpm.forced_level = level;
 
 	return ret;
 }

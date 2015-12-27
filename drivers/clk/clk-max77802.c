@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/max77686-private.h>
 #include <linux/clk-provider.h>
@@ -93,5 +94,5 @@ static struct platform_driver max77802_clk_driver = {
 module_platform_driver(max77802_clk_driver);
 
 MODULE_DESCRIPTION("MAXIM 77802 Clock Driver");
-MODULE_AUTHOR("Javier Martinez Canillas <javier.martinez@collabora.co.uk>");
+MODULE_AUTHOR("Javier Martinez Canillas <javier@osg.samsung.com");
 MODULE_LICENSE("GPL");

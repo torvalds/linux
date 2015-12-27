@@ -90,7 +90,7 @@ acpi_status acpi_ns_initialize_objects(void)
 
 	/* Set all init info to zero */
 
-	ACPI_MEMSET(&info, 0, sizeof(struct acpi_init_walk_info));
+	memset(&info, 0, sizeof(struct acpi_init_walk_info));
 
 	/* Walk entire namespace from the supplied root */
 
@@ -566,7 +566,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
 			(ACPI_TYPE_METHOD, device_node, METHOD_NAME__INI));
 
-	ACPI_MEMSET(info, 0, sizeof(struct acpi_evaluate_info));
+	memset(info, 0, sizeof(struct acpi_evaluate_info));
 	info->prefix_node = device_node;
 	info->relative_pathname = METHOD_NAME__INI;
 	info->parameters = NULL;

@@ -38,8 +38,7 @@
  *
  * Author: Tom Tucker <tom@opengridcomputing.com>
  */
-#include <linux/module.h>
-#include <linux/init.h>
+
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/sysctl.h>
@@ -240,6 +239,9 @@ void svc_rdma_cleanup(void)
 		unregister_sysctl_table(svcrdma_table_header);
 		svcrdma_table_header = NULL;
 	}
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+	svc_unreg_xprt_class(&svc_rdma_bc_class);
+#endif
 	svc_unreg_xprt_class(&svc_rdma_class);
 	kmem_cache_destroy(svc_rdma_map_cachep);
 	kmem_cache_destroy(svc_rdma_ctxt_cachep);
@@ -287,6 +289,9 @@ int svc_rdma_init(void)
 
 	/* Register RDMA with the SVC transport switch */
 	svc_reg_xprt_class(&svc_rdma_class);
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+	svc_reg_xprt_class(&svc_rdma_bc_class);
+#endif
 	return 0;
  err1:
 	kmem_cache_destroy(svc_rdma_map_cachep);
@@ -295,8 +300,3 @@ int svc_rdma_init(void)
 	destroy_workqueue(svc_rdma_wq);
 	return -ENOMEM;
 }
-MODULE_AUTHOR("Tom Tucker <tom@opengridcomputing.com>");
-MODULE_DESCRIPTION("SVC RDMA Transport");
-MODULE_LICENSE("Dual BSD/GPL");
-module_init(svc_rdma_init);
-module_exit(svc_rdma_cleanup);

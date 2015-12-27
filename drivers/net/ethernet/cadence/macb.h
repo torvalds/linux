@@ -215,12 +215,17 @@
 /* GEM specific NCFGR bitfields. */
 #define GEM_GBE_OFFSET		10 /* Gigabit mode enable */
 #define GEM_GBE_SIZE		1
+#define GEM_PCSSEL_OFFSET	11
+#define GEM_PCSSEL_SIZE		1
 #define GEM_CLK_OFFSET		18 /* MDC clock division */
 #define GEM_CLK_SIZE		3
 #define GEM_DBW_OFFSET		21 /* Data bus width */
 #define GEM_DBW_SIZE		2
 #define GEM_RXCOEN_OFFSET	24
 #define GEM_RXCOEN_SIZE		1
+#define GEM_SGMIIEN_OFFSET	27
+#define GEM_SGMIIEN_SIZE	1
+
 
 /* Constants for data bus width. */
 #define GEM_DBW32		0 /* 32 bit AMBA AHB data bus width */
@@ -399,7 +404,7 @@
 #define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
 #define MACB_CAPS_SG_DISABLED			0x40000000
 #define MACB_CAPS_MACB_IS_GEM			0x80000000
-#define MACB_CAPS_JUMBO				0x00000008
+#define MACB_CAPS_JUMBO				0x00000010
 
 /* Bit manipulation macros */
 #define MACB_BIT(name)					\
@@ -429,18 +434,12 @@
 	 | GEM_BF(name, value))
 
 /* Register access macros */
-#define macb_readl(port,reg)				\
-	readl_relaxed((port)->regs + MACB_##reg)
-#define macb_writel(port,reg,value)			\
-	writel_relaxed((value), (port)->regs + MACB_##reg)
-#define gem_readl(port, reg)				\
-	readl_relaxed((port)->regs + GEM_##reg)
-#define gem_writel(port, reg, value)			\
-	writel_relaxed((value), (port)->regs + GEM_##reg)
-#define queue_readl(queue, reg)				\
-	readl_relaxed((queue)->bp->regs + (queue)->reg)
-#define queue_writel(queue, reg, value)			\
-	writel_relaxed((value), (queue)->bp->regs + (queue)->reg)
+#define macb_readl(port, reg)		(port)->macb_reg_readl((port), MACB_##reg)
+#define macb_writel(port, reg, value)	(port)->macb_reg_writel((port), MACB_##reg, (value))
+#define gem_readl(port, reg)		(port)->macb_reg_readl((port), GEM_##reg)
+#define gem_writel(port, reg, value)	(port)->macb_reg_writel((port), GEM_##reg, (value))
+#define queue_readl(queue, reg)		(queue)->bp->macb_reg_readl((queue)->bp, (queue)->reg)
+#define queue_writel(queue, reg, value)	(queue)->bp->macb_reg_writel((queue)->bp, (queue)->reg, (value))
 
 /* Conditional GEM/MACB macros.  These perform the operation to the correct
  * register dependent on whether the device is a GEM or a MACB.  For registers
@@ -785,6 +784,11 @@ struct macb_queue {
 
 struct macb {
 	void __iomem		*regs;
+	bool			native_io;
+
+	/* hardware IO accessors */
+	u32	(*macb_reg_readl)(struct macb *bp, int offset);
+	void	(*macb_reg_writel)(struct macb *bp, int offset, u32 value);
 
 	unsigned int		rx_tail;
 	unsigned int		rx_prepared_head;
@@ -817,9 +821,9 @@ struct macb {
 
 	struct mii_bus		*mii_bus;
 	struct phy_device	*phy_dev;
-	unsigned int 		link;
-	unsigned int 		speed;
-	unsigned int 		duplex;
+	int 			link;
+	int 			speed;
+	int 			duplex;
 
 	u32			caps;
 	unsigned int		dma_burst_length;
@@ -841,11 +845,6 @@ struct macb {
 static inline bool macb_is_gem(struct macb *bp)
 {
 	return !!(bp->caps & MACB_CAPS_MACB_IS_GEM);
-}
-
-static inline bool macb_is_gem_hw(void __iomem *addr)
-{
-	return !!(MACB_BFEXT(IDNUM, readl_relaxed(addr + MACB_MID)) >= 0x2);
 }
 
 #endif /* _MACB_H */

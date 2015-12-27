@@ -21,74 +21,24 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/mpeg.h>
+#include "priv.h"
 
-struct g84_mpeg_priv {
-	struct nvkm_mpeg base;
+#include <nvif/class.h>
+
+static const struct nvkm_engine_func
+g84_mpeg = {
+	.init = nv50_mpeg_init,
+	.intr = nv50_mpeg_intr,
+	.cclass = &nv50_mpeg_cclass,
+	.sclass = {
+		{ -1, -1, G82_MPEG, &nv31_mpeg_object },
+		{}
+	}
 };
 
-struct g84_mpeg_chan {
-	struct nvkm_mpeg_chan base;
-};
-
-/*******************************************************************************
- * MPEG object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g84_mpeg_sclass[] = {
-	{ 0x8274, &nv50_mpeg_ofuncs },
-	{}
-};
-
-/*******************************************************************************
- * PMPEG context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g84_mpeg_cclass = {
-	.handle = NV_ENGCTX(MPEG, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_mpeg_context_ctor,
-		.dtor = _nvkm_mpeg_context_dtor,
-		.init = _nvkm_mpeg_context_init,
-		.fini = _nvkm_mpeg_context_fini,
-		.rd32 = _nvkm_mpeg_context_rd32,
-		.wr32 = _nvkm_mpeg_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMPEG engine/subdev functions
- ******************************************************************************/
-
-static int
-g84_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+int
+g84_mpeg_new(struct nvkm_device *device, int index, struct nvkm_engine **pmpeg)
 {
-	struct g84_mpeg_priv *priv;
-	int ret;
-
-	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00000002;
-	nv_subdev(priv)->intr = nv50_mpeg_intr;
-	nv_engine(priv)->cclass = &g84_mpeg_cclass;
-	nv_engine(priv)->sclass = g84_mpeg_sclass;
-	return 0;
+	return nvkm_engine_new_(&g84_mpeg, device, index, 0x00000002,
+				true, pmpeg);
 }
-
-struct nvkm_oclass
-g84_mpeg_oclass = {
-	.handle = NV_ENGINE(MPEG, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_mpeg_ctor,
-		.dtor = _nvkm_mpeg_dtor,
-		.init = nv50_mpeg_init,
-		.fini = _nvkm_mpeg_fini,
-	},
-};

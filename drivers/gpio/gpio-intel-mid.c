@@ -301,7 +301,7 @@ static const struct pci_device_id intel_gpio_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, intel_gpio_ids);
 
-static void intel_mid_irq_handler(unsigned irq, struct irq_desc *desc)
+static void intel_mid_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct intel_mid_gpio *priv = to_intel_gpio_priv(gc);

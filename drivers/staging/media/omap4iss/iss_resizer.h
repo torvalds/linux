@@ -22,7 +22,7 @@ enum resizer_input_entity {
 	RESIZER_INPUT_IPIPEIF
 };
 
-#define RESIZER_OUTPUT_MEMORY		(1 << 0)
+#define RESIZER_OUTPUT_MEMORY			BIT(0)
 
 /* Sink and source RESIZER pads */
 #define RESIZER_PAD_SINK			0
@@ -63,13 +63,13 @@ struct iss_device;
 int omap4iss_resizer_init(struct iss_device *iss);
 void omap4iss_resizer_cleanup(struct iss_device *iss);
 int omap4iss_resizer_register_entities(struct iss_resizer_device *resizer,
-	struct v4l2_device *vdev);
+				       struct v4l2_device *vdev);
 void omap4iss_resizer_unregister_entities(struct iss_resizer_device *resizer);
 
 int omap4iss_resizer_busy(struct iss_resizer_device *resizer);
 void omap4iss_resizer_isr(struct iss_resizer_device *resizer, u32 events);
 void omap4iss_resizer_restore_context(struct iss_device *iss);
 void omap4iss_resizer_max_rate(struct iss_resizer_device *resizer,
-	unsigned int *max_rate);
+			       unsigned int *max_rate);
 
 #endif	/* OMAP4_ISS_RESIZER_H */

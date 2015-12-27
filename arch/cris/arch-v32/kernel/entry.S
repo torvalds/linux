@@ -240,6 +240,17 @@ ret_from_sys_call:
 
 	.type	_Rexit,@function
 _Rexit:
+#if defined(CONFIG_TRACE_IRQFLAGS)
+	addoq	+PT_ccs, $sp, $acr
+	move.d	[$acr], $r0
+	btstq	15, $r0		; I1
+	bpl	1f
+	nop
+	jsr	trace_hardirqs_on
+	nop
+1:
+#endif
+
 	;; This epilogue MUST match the prologues in multiple_interrupt, irq.h
 	;; and ptregs.h.
 	addq	4, $sp		; Skip orig_r10.
@@ -875,6 +886,14 @@ sys_call_table:
 	.long sys_process_vm_writev
 	.long sys_kcmp			/* 350 */
 	.long sys_finit_module
+	.long sys_sched_setattr
+	.long sys_sched_getattr
+	.long sys_renameat2
+	.long sys_seccomp		/* 355 */
+	.long sys_getrandom
+	.long sys_memfd_create
+	.long sys_bpf
+	.long sys_execveat
 
 	/*
 	 * NOTE!! This doesn't have to be exact - we just have

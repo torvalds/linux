@@ -38,8 +38,8 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 	 */
 	rc = pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &pin);
 	if (rc != 0)
-		return rc;
-	/* No pin, exit */
+		goto err;
+	/* No pin, exit with no error message. */
 	if (pin == 0)
 		return -ENODEV;
 
@@ -53,8 +53,10 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 			ppnode = pci_bus_to_OF_node(pdev->bus);
 
 			/* No node for host bridge ? give up */
-			if (ppnode == NULL)
-				return -EINVAL;
+			if (ppnode == NULL) {
+				rc = -EINVAL;
+				goto err;
+			}
 		} else {
 			/* We found a P2P bridge, check if it has a node */
 			ppnode = pci_device_to_OF_node(ppdev);
@@ -86,7 +88,13 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 	out_irq->args[0] = pin;
 	laddr[0] = cpu_to_be32((pdev->bus->number << 16) | (pdev->devfn << 8));
 	laddr[1] = laddr[2] = cpu_to_be32(0);
-	return of_irq_parse_raw(laddr, out_irq);
+	rc = of_irq_parse_raw(laddr, out_irq);
+	if (rc)
+		goto err;
+	return 0;
+err:
+	dev_err(&pdev->dev, "of_irq_parse_pci() failed with rc=%d\n", rc);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(of_irq_parse_pci);
 
@@ -105,10 +113,8 @@ int of_irq_parse_and_map_pci(const struct pci_dev *dev, u8 slot, u8 pin)
 	int ret;
 
 	ret = of_irq_parse_pci(dev, &oirq);
-	if (ret) {
-		dev_err(&dev->dev, "of_irq_parse_pci() failed with rc=%d\n", ret);
+	if (ret)
 		return 0; /* Proper return code 0 == NO_IRQ */
-	}
 
 	return irq_create_of_mapping(&oirq);
 }

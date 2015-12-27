@@ -39,7 +39,6 @@ static const struct xt_table packet_mangler = {
 static unsigned int
 ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 {
-	struct net_device *out = state->out;
 	unsigned int ret;
 	const struct iphdr *iph;
 	u_int8_t tos;
@@ -59,8 +58,7 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = ipt_do_table(skb, NF_INET_LOCAL_OUT, state,
-			   dev_net(out)->ipv4.iptable_mangle);
+	ret = ipt_do_table(skb, state, state->net->ipv4.iptable_mangle);
 	/* Reroute for ANY change. */
 	if (ret != NF_DROP && ret != NF_STOLEN) {
 		iph = ip_hdr(skb);
@@ -69,7 +67,7 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 		    iph->daddr != daddr ||
 		    skb->mark != mark ||
 		    iph->tos != tos) {
-			err = ip_route_me_harder(skb, RTN_UNSPEC);
+			err = ip_route_me_harder(state->net, skb, RTN_UNSPEC);
 			if (err < 0)
 				ret = NF_DROP_ERR(err);
 		}
@@ -80,18 +78,17 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-iptable_mangle_hook(const struct nf_hook_ops *ops,
+iptable_mangle_hook(void *priv,
 		     struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
-	if (ops->hooknum == NF_INET_LOCAL_OUT)
+	if (state->hook == NF_INET_LOCAL_OUT)
 		return ipt_mangle_out(skb, state);
-	if (ops->hooknum == NF_INET_POST_ROUTING)
-		return ipt_do_table(skb, ops->hooknum, state,
-				    dev_net(state->out)->ipv4.iptable_mangle);
+	if (state->hook == NF_INET_POST_ROUTING)
+		return ipt_do_table(skb, state,
+				    state->net->ipv4.iptable_mangle);
 	/* PREROUTING/INPUT/FORWARD: */
-	return ipt_do_table(skb, ops->hooknum, state,
-			    dev_net(state->in)->ipv4.iptable_mangle);
+	return ipt_do_table(skb, state, state->net->ipv4.iptable_mangle);
 }
 
 static struct nf_hook_ops *mangle_ops __read_mostly;

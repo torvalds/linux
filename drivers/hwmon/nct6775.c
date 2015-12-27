@@ -39,6 +39,7 @@
  * nct6779d    15      5       5       2+6    0xc560 0xc1    0x5ca3
  * nct6791d    15      6       6       2+6    0xc800 0xc1    0x5ca3
  * nct6792d    15      6       6       2+6    0xc910 0xc1    0x5ca3
+ * nct6793d    15      6       6       2+6    0xd120 0xc1    0x5ca3
  *
  * #temp lists the number of monitored temperature sources (first value) plus
  * the number of directly connectable temperature sensors (second value).
@@ -63,7 +64,7 @@
 
 #define USE_ALTERNATE
 
-enum kinds { nct6106, nct6775, nct6776, nct6779, nct6791, nct6792 };
+enum kinds { nct6106, nct6775, nct6776, nct6779, nct6791, nct6792, nct6793 };
 
 /* used to set data->name = nct6775_device_names[data->sio_kind] */
 static const char * const nct6775_device_names[] = {
@@ -73,6 +74,17 @@ static const char * const nct6775_device_names[] = {
 	"nct6779",
 	"nct6791",
 	"nct6792",
+	"nct6793",
+};
+
+static const char * const nct6775_sio_names[] __initconst = {
+	"NCT6106D",
+	"NCT6775F",
+	"NCT6776D/F",
+	"NCT6779D",
+	"NCT6791D",
+	"NCT6792D",
+	"NCT6793D",
 };
 
 static unsigned short force_id;
@@ -104,6 +116,7 @@ MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
 #define SIO_NCT6779_ID		0xc560
 #define SIO_NCT6791_ID		0xc800
 #define SIO_NCT6792_ID		0xc910
+#define SIO_NCT6793_ID		0xd120
 #define SIO_ID_MASK		0xFFF0
 
 enum pwm_enable { off, manual, thermal_cruise, speed_cruise, sf3, sf4 };
@@ -354,6 +367,10 @@ static const u16 NCT6775_REG_TEMP_CRIT[ARRAY_SIZE(nct6775_temp_label) - 1]
 
 /* NCT6776 specific data */
 
+/* STEP_UP_TIME and STEP_DOWN_TIME regs are swapped for all chips but NCT6775 */
+#define NCT6776_REG_FAN_STEP_UP_TIME NCT6775_REG_FAN_STEP_DOWN_TIME
+#define NCT6776_REG_FAN_STEP_DOWN_TIME NCT6775_REG_FAN_STEP_UP_TIME
+
 static const s8 NCT6776_ALARM_BITS[] = {
 	0, 1, 2, 3, 8, 21, 20, 16,	/* in0.. in7 */
 	17, -1, -1, -1, -1, -1, -1,	/* in8..in14 */
@@ -498,16 +515,24 @@ static const char *const nct6779_temp_label[] = {
 	"PCH_DIM1_TEMP",
 	"PCH_DIM2_TEMP",
 	"PCH_DIM3_TEMP",
-	"BYTE_TEMP"
+	"BYTE_TEMP",
+	"",
+	"",
+	"",
+	"",
+	"Virtual_TEMP"
 };
 
-static const u16 NCT6779_REG_TEMP_ALTERNATE[ARRAY_SIZE(nct6779_temp_label) - 1]
+#define NCT6779_NUM_LABELS	(ARRAY_SIZE(nct6779_temp_label) - 5)
+#define NCT6791_NUM_LABELS	ARRAY_SIZE(nct6779_temp_label)
+
+static const u16 NCT6779_REG_TEMP_ALTERNATE[NCT6791_NUM_LABELS - 1]
 	= { 0x490, 0x491, 0x492, 0x493, 0x494, 0x495, 0, 0,
 	    0, 0, 0, 0, 0, 0, 0, 0,
 	    0, 0x400, 0x401, 0x402, 0x404, 0x405, 0x406, 0x407,
 	    0x408, 0 };
 
-static const u16 NCT6779_REG_TEMP_CRIT[ARRAY_SIZE(nct6779_temp_label) - 1]
+static const u16 NCT6779_REG_TEMP_CRIT[NCT6791_NUM_LABELS - 1]
 	= { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x709, 0x70a };
 
 /* NCT6791 specific data */
@@ -533,12 +558,82 @@ static const s8 NCT6791_ALARM_BITS[] = {
 	4, 5, 13, -1, -1, -1,		/* temp1..temp6 */
 	12, 9 };			/* intrusion0, intrusion1 */
 
-/* NCT6792 specific data */
+/* NCT6792/NCT6793 specific data */
 
 static const u16 NCT6792_REG_TEMP_MON[] = {
 	0x73, 0x75, 0x77, 0x79, 0x7b, 0x7d };
 static const u16 NCT6792_REG_BEEP[NUM_REG_BEEP] = {
 	0xb2, 0xb3, 0xb4, 0xb5, 0xbf };
+
+static const char *const nct6792_temp_label[] = {
+	"",
+	"SYSTIN",
+	"CPUTIN",
+	"AUXTIN0",
+	"AUXTIN1",
+	"AUXTIN2",
+	"AUXTIN3",
+	"",
+	"SMBUSMASTER 0",
+	"SMBUSMASTER 1",
+	"SMBUSMASTER 2",
+	"SMBUSMASTER 3",
+	"SMBUSMASTER 4",
+	"SMBUSMASTER 5",
+	"SMBUSMASTER 6",
+	"SMBUSMASTER 7",
+	"PECI Agent 0",
+	"PECI Agent 1",
+	"PCH_CHIP_CPU_MAX_TEMP",
+	"PCH_CHIP_TEMP",
+	"PCH_CPU_TEMP",
+	"PCH_MCH_TEMP",
+	"PCH_DIM0_TEMP",
+	"PCH_DIM1_TEMP",
+	"PCH_DIM2_TEMP",
+	"PCH_DIM3_TEMP",
+	"BYTE_TEMP",
+	"PECI Agent 0 Calibration",
+	"PECI Agent 1 Calibration",
+	"",
+	"",
+	"Virtual_TEMP"
+};
+
+static const char *const nct6793_temp_label[] = {
+	"",
+	"SYSTIN",
+	"CPUTIN",
+	"AUXTIN0",
+	"AUXTIN1",
+	"AUXTIN2",
+	"AUXTIN3",
+	"",
+	"SMBUSMASTER 0",
+	"SMBUSMASTER 1",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"PECI Agent 0",
+	"PECI Agent 1",
+	"PCH_CHIP_CPU_MAX_TEMP",
+	"PCH_CHIP_TEMP",
+	"PCH_CPU_TEMP",
+	"PCH_MCH_TEMP",
+	"Agent0 Dimm0 ",
+	"Agent0 Dimm1",
+	"Agent1 Dimm0",
+	"Agent1 Dimm1",
+	"BYTE_TEMP0",
+	"BYTE_TEMP1",
+	"PECI Agent 0 Calibration",
+	"PECI Agent 1 Calibration",
+	"",
+	"Virtual_TEMP"
+};
 
 /* NCT6102D/NCT6106D specific data */
 
@@ -1056,6 +1151,7 @@ static bool is_word_sized(struct nct6775_data *data, u16 reg)
 	case nct6779:
 	case nct6791:
 	case nct6792:
+	case nct6793:
 		return reg == 0x150 || reg == 0x153 || reg == 0x155 ||
 		  ((reg & 0xfff0) == 0x4b0 && (reg & 0x000f) < 0x0b) ||
 		  reg == 0x402 ||
@@ -1407,6 +1503,7 @@ static void nct6775_update_pwm_limits(struct device *dev)
 		case nct6779:
 		case nct6791:
 		case nct6792:
+		case nct6793:
 			reg = nct6775_read_value(data,
 					data->REG_CRITICAL_PWM_ENABLE[i]);
 			if (reg & data->CRITICAL_PWM_ENABLE_MASK)
@@ -2822,6 +2919,7 @@ store_auto_pwm(struct device *dev, struct device_attribute *attr,
 		case nct6779:
 		case nct6791:
 		case nct6792:
+		case nct6793:
 			nct6775_write_value(data, data->REG_CRITICAL_PWM[nr],
 					    val);
 			reg = nct6775_read_value(data,
@@ -3256,7 +3354,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 		pwm4pin = false;
 		pwm5pin = false;
 		pwm6pin = false;
-	} else {	/* NCT6779D, NCT6791D, or NCT6792D */
+	} else {	/* NCT6779D, NCT6791D, NCT6792D, or NCT6793D */
 		regval = superio_inb(sioreg, 0x1c);
 
 		fan3pin = !(regval & (1 << 5));
@@ -3269,7 +3367,8 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 
 		fan4min = fan4pin;
 
-		if (data->kind == nct6791 || data->kind == nct6792) {
+		if (data->kind == nct6791 || data->kind == nct6792 ||
+		    data->kind == nct6793) {
 			regval = superio_inb(sioreg, 0x2d);
 			fan6pin = (regval & (1 << 1));
 			pwm6pin = (regval & (1 << 0));
@@ -3528,8 +3627,8 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_FAN_PULSES = NCT6776_REG_FAN_PULSES;
 		data->FAN_PULSE_SHIFT = NCT6775_FAN_PULSE_SHIFT;
 		data->REG_FAN_TIME[0] = NCT6775_REG_FAN_STOP_TIME;
-		data->REG_FAN_TIME[1] = NCT6775_REG_FAN_STEP_UP_TIME;
-		data->REG_FAN_TIME[2] = NCT6775_REG_FAN_STEP_DOWN_TIME;
+		data->REG_FAN_TIME[1] = NCT6776_REG_FAN_STEP_UP_TIME;
+		data->REG_FAN_TIME[2] = NCT6776_REG_FAN_STEP_DOWN_TIME;
 		data->REG_TOLERANCE_H = NCT6776_REG_TOLERANCE_H;
 		data->REG_PWM[0] = NCT6775_REG_PWM;
 		data->REG_PWM[1] = NCT6775_REG_FAN_START_OUTPUT;
@@ -3584,7 +3683,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->speed_tolerance_limit = 63;
 
 		data->temp_label = nct6779_temp_label;
-		data->temp_label_num = ARRAY_SIZE(nct6779_temp_label);
+		data->temp_label_num = NCT6779_NUM_LABELS;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3600,8 +3699,8 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_FAN_PULSES = NCT6779_REG_FAN_PULSES;
 		data->FAN_PULSE_SHIFT = NCT6775_FAN_PULSE_SHIFT;
 		data->REG_FAN_TIME[0] = NCT6775_REG_FAN_STOP_TIME;
-		data->REG_FAN_TIME[1] = NCT6775_REG_FAN_STEP_UP_TIME;
-		data->REG_FAN_TIME[2] = NCT6775_REG_FAN_STEP_DOWN_TIME;
+		data->REG_FAN_TIME[1] = NCT6776_REG_FAN_STEP_UP_TIME;
+		data->REG_FAN_TIME[2] = NCT6776_REG_FAN_STEP_DOWN_TIME;
 		data->REG_TOLERANCE_H = NCT6776_REG_TOLERANCE_H;
 		data->REG_PWM[0] = NCT6775_REG_PWM;
 		data->REG_PWM[1] = NCT6775_REG_FAN_START_OUTPUT;
@@ -3643,6 +3742,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		break;
 	case nct6791:
 	case nct6792:
+	case nct6793:
 		data->in_num = 15;
 		data->pwm_num = 6;
 		data->auto_pwm_num = 4;
@@ -3660,8 +3760,19 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->tolerance_mask = 0x07;
 		data->speed_tolerance_limit = 63;
 
-		data->temp_label = nct6779_temp_label;
-		data->temp_label_num = ARRAY_SIZE(nct6779_temp_label);
+		switch (data->kind) {
+		default:
+		case nct6791:
+			data->temp_label = nct6779_temp_label;
+			break;
+		case nct6792:
+			data->temp_label = nct6792_temp_label;
+			break;
+		case nct6793:
+			data->temp_label = nct6793_temp_label;
+			break;
+		}
+		data->temp_label_num = NCT6791_NUM_LABELS;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3677,8 +3788,8 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_FAN_PULSES = NCT6779_REG_FAN_PULSES;
 		data->FAN_PULSE_SHIFT = NCT6775_FAN_PULSE_SHIFT;
 		data->REG_FAN_TIME[0] = NCT6775_REG_FAN_STOP_TIME;
-		data->REG_FAN_TIME[1] = NCT6775_REG_FAN_STEP_UP_TIME;
-		data->REG_FAN_TIME[2] = NCT6775_REG_FAN_STEP_DOWN_TIME;
+		data->REG_FAN_TIME[1] = NCT6776_REG_FAN_STEP_UP_TIME;
+		data->REG_FAN_TIME[2] = NCT6776_REG_FAN_STEP_DOWN_TIME;
 		data->REG_TOLERANCE_H = NCT6776_REG_TOLERANCE_H;
 		data->REG_PWM[0] = NCT6775_REG_PWM;
 		data->REG_PWM[1] = NCT6775_REG_FAN_START_OUTPUT;
@@ -3918,6 +4029,7 @@ static int nct6775_probe(struct platform_device *pdev)
 	case nct6779:
 	case nct6791:
 	case nct6792:
+	case nct6793:
 		break;
 	}
 
@@ -3950,6 +4062,7 @@ static int nct6775_probe(struct platform_device *pdev)
 			break;
 		case nct6791:
 		case nct6792:
+		case nct6793:
 			tmp |= 0x7e;
 			break;
 		}
@@ -4047,7 +4160,8 @@ static int __maybe_unused nct6775_resume(struct device *dev)
 	if (reg != data->sio_reg_enable)
 		superio_outb(sioreg, SIO_REG_ENABLE, data->sio_reg_enable);
 
-	if (data->kind == nct6791 || data->kind == nct6792)
+	if (data->kind == nct6791 || data->kind == nct6792 ||
+	    data->kind == nct6793)
 		nct6791_enable_io_mapping(sioreg);
 
 	superio_exit(sioreg);
@@ -4106,15 +4220,6 @@ static struct platform_driver nct6775_driver = {
 	.probe		= nct6775_probe,
 };
 
-static const char * const nct6775_sio_names[] __initconst = {
-	"NCT6106D",
-	"NCT6775F",
-	"NCT6776D/F",
-	"NCT6779D",
-	"NCT6791D",
-	"NCT6792D",
-};
-
 /* nct6775_find() looks for a '627 in the Super-I/O config space */
 static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 {
@@ -4150,6 +4255,9 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	case SIO_NCT6792_ID:
 		sio_data->kind = nct6792;
 		break;
+	case SIO_NCT6793_ID:
+		sio_data->kind = nct6793;
+		break;
 	default:
 		if (val != 0xffff)
 			pr_debug("unsupported chip ID: 0x%04x\n", val);
@@ -4175,7 +4283,8 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
 	}
 
-	if (sio_data->kind == nct6791 || sio_data->kind == nct6792)
+	if (sio_data->kind == nct6791 || sio_data->kind == nct6792 ||
+	    sio_data->kind == nct6793)
 		nct6791_enable_io_mapping(sioaddr);
 
 	superio_exit(sioaddr);
@@ -4285,7 +4394,7 @@ static void __exit sensors_nct6775_exit(void)
 }
 
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
-MODULE_DESCRIPTION("NCT6106D/NCT6775F/NCT6776F/NCT6779D/NCT6791D/NCT6792D driver");
+MODULE_DESCRIPTION("Driver for NCT6775F and compatible chips");
 MODULE_LICENSE("GPL");
 
 module_init(sensors_nct6775_init);

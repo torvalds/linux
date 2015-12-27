@@ -339,8 +339,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 			if (sk_stream_is_writeable(sk)) {
 				mask |= POLLOUT | POLLWRNORM;
 			} else {  /* send SIGIO later */
-				set_bit(SOCK_ASYNC_NOSPACE,
-					&sk->sk_socket->flags);
+				sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 				set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 
 				/* Race breaker. If space is freed after
@@ -886,7 +885,7 @@ verify_sock_status:
 			break;
 		}
 
-		sk_wait_data(sk, &timeo);
+		sk_wait_data(sk, &timeo, NULL);
 		continue;
 	found_ok_skb:
 		if (len > skb->len)

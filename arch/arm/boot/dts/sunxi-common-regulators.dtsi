@@ -108,6 +108,7 @@
 		regulator-name = "usb1-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
 		enable-active-high;
 		gpio = <&pio 7 6 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
@@ -120,6 +121,7 @@
 		regulator-name = "usb2-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
 		enable-active-high;
 		gpio = <&pio 7 3 GPIO_ACTIVE_HIGH>;
 		status = "disabled";

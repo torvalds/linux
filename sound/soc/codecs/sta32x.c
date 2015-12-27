@@ -1144,7 +1144,6 @@ MODULE_DEVICE_TABLE(i2c, sta32x_i2c_id);
 static struct i2c_driver sta32x_i2c_driver = {
 	.driver = {
 		.name = "sta32x",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(st32x_dt_ids),
 	},
 	.probe =    sta32x_i2c_probe,

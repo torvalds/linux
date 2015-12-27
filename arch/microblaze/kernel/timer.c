@@ -122,37 +122,29 @@ static int xilinx_timer_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void xilinx_timer_set_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int xilinx_timer_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		pr_info("%s: periodic\n", __func__);
-		xilinx_timer0_start_periodic(freq_div_hz);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		pr_info("%s: oneshot\n", __func__);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-		pr_info("%s: unused\n", __func__);
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		pr_info("%s: shutdown\n", __func__);
-		xilinx_timer0_stop();
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		pr_info("%s: resume\n", __func__);
-		break;
-	}
+	pr_info("%s\n", __func__);
+	xilinx_timer0_stop();
+	return 0;
+}
+
+static int xilinx_timer_set_periodic(struct clock_event_device *evt)
+{
+	pr_info("%s\n", __func__);
+	xilinx_timer0_start_periodic(freq_div_hz);
+	return 0;
 }
 
 static struct clock_event_device clockevent_xilinx_timer = {
-	.name		= "xilinx_clockevent",
-	.features       = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
-	.shift		= 8,
-	.rating		= 300,
-	.set_next_event	= xilinx_timer_set_next_event,
-	.set_mode	= xilinx_timer_set_mode,
+	.name			= "xilinx_clockevent",
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERIODIC,
+	.shift			= 8,
+	.rating			= 300,
+	.set_next_event		= xilinx_timer_set_next_event,
+	.set_state_shutdown	= xilinx_timer_shutdown,
+	.set_state_periodic	= xilinx_timer_set_periodic,
 };
 
 static inline void timer_ack(void)

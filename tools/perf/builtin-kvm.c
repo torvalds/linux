@@ -13,7 +13,6 @@
 #include "util/parse-options.h"
 #include "util/trace-event.h"
 #include "util/debug.h"
-#include <api/fs/debugfs.h>
 #include "util/tool.h"
 #include "util/stat.h"
 #include "util/top.h"
@@ -1061,8 +1060,10 @@ static int read_events(struct perf_kvm_stat *kvm)
 
 	symbol__init(&kvm->session->header.env);
 
-	if (!perf_session__has_traces(kvm->session, "kvm record"))
-		return -EINVAL;
+	if (!perf_session__has_traces(kvm->session, "kvm record")) {
+		ret = -EINVAL;
+		goto out_delete;
+	}
 
 	/*
 	 * Do not use 'isa' recorded in kvm_exit tracepoint since it is not
@@ -1070,9 +1071,13 @@ static int read_events(struct perf_kvm_stat *kvm)
 	 */
 	ret = cpu_isa_config(kvm);
 	if (ret < 0)
-		return ret;
+		goto out_delete;
 
-	return perf_session__process_events(kvm->session);
+	ret = perf_session__process_events(kvm->session);
+
+out_delete:
+	perf_session__delete(kvm->session);
+	return ret;
 }
 
 static int parse_target_str(struct perf_kvm_stat *kvm)

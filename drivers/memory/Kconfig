@@ -7,6 +7,14 @@ menuconfig MEMORY
 
 if MEMORY
 
+config ARM_PL172_MPMC
+	tristate "ARM PL172 MPMC driver"
+	depends on ARM_AMBA && OF
+	help
+	  This selects the ARM PrimeCell PL172 MultiPort Memory Controller.
+	  If you have an embedded system with an AMBA bus and a PL172
+	  controller, say Y or M here.
+
 config ATMEL_SDRAMC
 	bool "Atmel (Multi-port DDR-)SDRAM Controller"
 	default y
@@ -50,12 +58,18 @@ config OMAP_GPMC
 	  memory drives like NOR, NAND, OneNAND, SRAM.
 
 config OMAP_GPMC_DEBUG
-	bool
+	bool "Enable GPMC debug output and skip reset of GPMC during init"
 	depends on OMAP_GPMC
 	help
 	  Enables verbose debugging mostly to decode the bootloader provided
-	  timings. Enable this during development to configure devices
-	  connected to the GPMC bus.
+	  timings. To preserve the bootloader provided timings, the reset
+	  of GPMC is skipped during init. Enable this during development to
+	  configure devices connected to the GPMC bus.
+
+	  NOTE: In addition to matching the register setup with the bootloader
+	  you also need to match the GPMC FCLK frequency used by the
+	  bootloader or else the GPMC timings won't be identical with the
+	  bootloader timings.
 
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"

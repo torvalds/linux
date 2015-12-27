@@ -107,7 +107,15 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 
 		sg_init_one(&rctx->buf_sg, rctx->buf, rctx->buf_count);
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, &rctx->buf_sg);
+		if (!sg) {
+			ret = -EINVAL;
+			goto e_free;
+		}
 		sg = ccp_crypto_sg_table_add(&rctx->data_sg, req->src);
+		if (!sg) {
+			ret = -EINVAL;
+			goto e_free;
+		}
 		sg_mark_end(sg);
 
 		sg = rctx->data_sg.sgl;
@@ -140,6 +148,11 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 	rctx->first = 0;
 
 	ret = ccp_crypto_enqueue_request(&req->base, &rctx->cmd);
+
+	return ret;
+
+e_free:
+	sg_free_table(&rctx->data_sg);
 
 	return ret;
 }

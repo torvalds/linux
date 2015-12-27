@@ -62,7 +62,7 @@ static void completion_pages(struct work_struct *work)
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 
-		int ret = ext4_decrypt(ctx, page);
+		int ret = ext4_decrypt(page);
 		if (ret) {
 			WARN_ON_ONCE(1);
 			SetPageError(page);
@@ -98,7 +98,7 @@ static inline bool ext4_bio_encrypted(struct bio *bio)
  * status of that page is hard.  See end_buffer_async_read() for the details.
  * There is no point in duplicating all that complexity.
  */
-static void mpage_end_io(struct bio *bio, int err)
+static void mpage_end_io(struct bio *bio)
 {
 	struct bio_vec *bv;
 	int i;
@@ -106,7 +106,7 @@ static void mpage_end_io(struct bio *bio, int err)
 	if (ext4_bio_encrypted(bio)) {
 		struct ext4_crypto_ctx *ctx = bio->bi_private;
 
-		if (err) {
+		if (bio->bi_error) {
 			ext4_release_crypto_ctx(ctx);
 		} else {
 			INIT_WORK(&ctx->r.work, completion_pages);
@@ -118,7 +118,7 @@ static void mpage_end_io(struct bio *bio, int err)
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 
-		if (!err) {
+		if (!bio->bi_error) {
 			SetPageUptodate(page);
 		} else {
 			ClearPageUptodate(page);
@@ -165,8 +165,8 @@ int ext4_mpage_readpages(struct address_space *mapping,
 		if (pages) {
 			page = list_entry(pages->prev, struct page, lru);
 			list_del(&page->lru);
-			if (add_to_page_cache_lru(page, mapping,
-						  page->index, GFP_KERNEL))
+			if (add_to_page_cache_lru(page, mapping, page->index,
+				  mapping_gfp_constraint(mapping, GFP_KERNEL)))
 				goto next_page;
 		}
 
@@ -284,7 +284,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 					goto set_error_page;
 			}
 			bio = bio_alloc(GFP_KERNEL,
-				min_t(int, nr_pages, bio_get_nr_vecs(bdev)));
+				min_t(int, nr_pages, BIO_MAX_PAGES));
 			if (!bio) {
 				if (ctx)
 					ext4_release_crypto_ctx(ctx);

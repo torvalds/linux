@@ -795,7 +795,7 @@ err_out_mem:
 	kfree(powernow_table);
 
 err_out:
-	acpi_processor_unregister_performance(&data->acpi_data, data->cpu);
+	acpi_processor_unregister_performance(data->cpu);
 
 	/* data->acpi_data.state_count informs us at ->exit()
 	 * whether ACPI was used */
@@ -863,8 +863,7 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 static void powernow_k8_cpu_exit_acpi(struct powernow_k8_data *data)
 {
 	if (data->acpi_data.state_count)
-		acpi_processor_unregister_performance(&data->acpi_data,
-				data->cpu);
+		acpi_processor_unregister_performance(data->cpu);
 	free_cpumask_var(data->acpi_data.shared_cpu_map);
 }
 

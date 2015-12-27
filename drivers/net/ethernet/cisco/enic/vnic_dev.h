@@ -70,7 +70,48 @@ struct vnic_dev_ring {
 	unsigned int desc_avail;
 };
 
-struct vnic_dev;
+enum vnic_proxy_type {
+	PROXY_NONE,
+	PROXY_BY_BDF,
+	PROXY_BY_INDEX,
+};
+
+struct vnic_res {
+	void __iomem *vaddr;
+	dma_addr_t bus_addr;
+	unsigned int count;
+};
+
+struct vnic_intr_coal_timer_info {
+	u32 mul;
+	u32 div;
+	u32 max_usec;
+};
+
+struct vnic_dev {
+	void *priv;
+	struct pci_dev *pdev;
+	struct vnic_res res[RES_TYPE_MAX];
+	enum vnic_dev_intr_mode intr_mode;
+	struct vnic_devcmd __iomem *devcmd;
+	struct vnic_devcmd_notify *notify;
+	struct vnic_devcmd_notify notify_copy;
+	dma_addr_t notify_pa;
+	u32 notify_sz;
+	dma_addr_t linkstatus_pa;
+	struct vnic_stats *stats;
+	dma_addr_t stats_pa;
+	struct vnic_devcmd_fw_info *fw_info;
+	dma_addr_t fw_info_pa;
+	enum vnic_proxy_type proxy;
+	u32 proxy_index;
+	u64 args[VNIC_DEVCMD_NARGS];
+	struct vnic_intr_coal_timer_info intr_coal_timer_info;
+	struct devcmd2_controller *devcmd2;
+	int (*devcmd_rtn)(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+			  int wait);
+};
+
 struct vnic_stats;
 
 void *vnic_dev_priv(struct vnic_dev *vdev);
@@ -114,7 +155,9 @@ int vnic_dev_deinit(struct vnic_dev *vdev);
 void vnic_dev_intr_coal_timer_info_default(struct vnic_dev *vdev);
 int vnic_dev_intr_coal_timer_info(struct vnic_dev *vdev);
 int vnic_dev_hang_reset(struct vnic_dev *vdev, int arg);
+int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg);
 int vnic_dev_hang_reset_done(struct vnic_dev *vdev, int *done);
+int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done);
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,
 	enum vnic_dev_intr_mode intr_mode);
 enum vnic_dev_intr_mode vnic_dev_get_intr_mode(struct vnic_dev *vdev);
@@ -135,5 +178,6 @@ int vnic_dev_deinit_done(struct vnic_dev *vdev, int *status);
 int vnic_dev_set_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
 int vnic_dev_classifier(struct vnic_dev *vdev, u8 cmd, u16 *entry,
 			struct filter *data);
+int vnic_devcmd_init(struct vnic_dev *vdev);
 
 #endif /* _VNIC_DEV_H_ */

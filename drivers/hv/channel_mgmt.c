@@ -204,6 +204,8 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 		list_del(&channel->listentry);
 		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+
+		primary_channel = channel;
 	} else {
 		primary_channel = channel->primary_channel;
 		spin_lock_irqsave(&primary_channel->lock, flags);
@@ -211,6 +213,14 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 		primary_channel->num_sc--;
 		spin_unlock_irqrestore(&primary_channel->lock, flags);
 	}
+
+	/*
+	 * We need to free the bit for init_vp_index() to work in the case
+	 * of sub-channel, when we reload drivers like hv_netvsc.
+	 */
+	cpumask_clear_cpu(channel->target_cpu,
+			  &primary_channel->alloced_cpus_in_node);
+
 	free_channel(channel);
 }
 
@@ -347,6 +357,7 @@ enum {
 	IDE = 0,
 	SCSI,
 	NIC,
+	ND_NIC,
 	MAX_PERF_CHN,
 };
 
@@ -391,6 +402,7 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 	struct vmbus_channel *primary = channel->primary_channel;
 	int next_node;
 	struct cpumask available_mask;
+	struct cpumask *alloced_mask;
 
 	for (i = IDE; i < MAX_PERF_CHN; i++) {
 		if (!memcmp(type_guid->b, hp_devs[i].guid,
@@ -408,7 +420,6 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		 * channel, bind it to cpu 0.
 		 */
 		channel->numa_node = 0;
-		cpumask_set_cpu(0, &channel->alloced_cpus_in_node);
 		channel->target_cpu = 0;
 		channel->target_vp = hv_context.vp_index[0];
 		return;
@@ -433,21 +444,45 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		channel->numa_node = next_node;
 		primary = channel;
 	}
+	alloced_mask = &hv_context.hv_numa_map[primary->numa_node];
 
-	if (cpumask_weight(&primary->alloced_cpus_in_node) ==
+	if (cpumask_weight(alloced_mask) ==
 	    cpumask_weight(cpumask_of_node(primary->numa_node))) {
 		/*
 		 * We have cycled through all the CPUs in the node;
 		 * reset the alloced map.
 		 */
-		cpumask_clear(&primary->alloced_cpus_in_node);
+		cpumask_clear(alloced_mask);
 	}
 
-	cpumask_xor(&available_mask, &primary->alloced_cpus_in_node,
+	cpumask_xor(&available_mask, alloced_mask,
 		    cpumask_of_node(primary->numa_node));
 
-	cur_cpu = cpumask_next(-1, &available_mask);
-	cpumask_set_cpu(cur_cpu, &primary->alloced_cpus_in_node);
+	cur_cpu = -1;
+	while (true) {
+		cur_cpu = cpumask_next(cur_cpu, &available_mask);
+		if (cur_cpu >= nr_cpu_ids) {
+			cur_cpu = -1;
+			cpumask_copy(&available_mask,
+				     cpumask_of_node(primary->numa_node));
+			continue;
+		}
+
+		/*
+		 * NOTE: in the case of sub-channel, we clear the sub-channel
+		 * related bit(s) in primary->alloced_cpus_in_node in
+		 * hv_process_channel_removal(), so when we reload drivers
+		 * like hv_netvsc in SMP guest, here we're able to re-allocate
+		 * bit from primary->alloced_cpus_in_node.
+		 */
+		if (!cpumask_test_cpu(cur_cpu,
+				&primary->alloced_cpus_in_node)) {
+			cpumask_set_cpu(cur_cpu,
+					&primary->alloced_cpus_in_node);
+			cpumask_set_cpu(cur_cpu, alloced_mask);
+			break;
+		}
+	}
 
 	channel->target_cpu = cur_cpu;
 	channel->target_vp = hv_context.vp_index[cur_cpu];
@@ -468,6 +503,10 @@ static void vmbus_unload_response(struct vmbus_channel_message_header *hdr)
 void vmbus_initiate_unload(void)
 {
 	struct vmbus_channel_message_header hdr;
+
+	/* Pre-Win2012R2 hosts don't support reconnect */
+	if (vmbus_proto_version < VERSION_WIN8_1)
+		return;
 
 	init_completion(&vmbus_connection.unload_event);
 	memset(&hdr, 0, sizeof(struct vmbus_channel_message_header));

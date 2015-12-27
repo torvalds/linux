@@ -62,6 +62,7 @@
 #include <asm/os_info.h>
 #include <asm/sclp.h>
 #include <asm/sysinfo.h>
+#include <asm/numa.h>
 #include "entry.h"
 
 /*
@@ -76,7 +77,7 @@ EXPORT_SYMBOL(console_devno);
 unsigned int console_irq = -1;
 EXPORT_SYMBOL(console_irq);
 
-unsigned long elf_hwcap = 0;
+unsigned long elf_hwcap __read_mostly = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
 int __initdata memory_end_set;
@@ -688,7 +689,7 @@ static void __init setup_memory(void)
 /*
  * Setup hardware capabilities.
  */
-static void __init setup_hwcaps(void)
+static int __init setup_hwcaps(void)
 {
 	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
 	struct cpuid cpu_id;
@@ -754,16 +755,15 @@ static void __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_S390_TE;
 
 	/*
-	 * Vector extension HWCAP_S390_VXRS is bit 11.
+	 * Vector extension HWCAP_S390_VXRS is bit 11. The Vector extension
+	 * can be disabled with the "novx" parameter. Use MACHINE_HAS_VX
+	 * instead of facility bit 129.
 	 */
-	if (test_facility(129))
+	if (MACHINE_HAS_VX)
 		elf_hwcap |= HWCAP_S390_VXRS;
 	get_cpu_id(&cpu_id);
 	add_device_randomness(&cpu_id, sizeof(cpu_id));
 	switch (cpu_id.machine) {
-	case 0x9672:
-		strcpy(elf_platform, "g5");
-		break;
 	case 0x2064:
 	case 0x2066:
 	default:	/* Use "z900" as default for 64 bit kernels. */
@@ -793,7 +793,9 @@ static void __init setup_hwcaps(void)
 		strcpy(elf_platform, "z13");
 		break;
 	}
+	return 0;
 }
+arch_initcall(setup_hwcaps);
 
 /*
  * Add system information as device randomness
@@ -868,19 +870,18 @@ void __init setup_arch(char **cmdline_p)
 
 	check_initrd();
 	reserve_crashkernel();
+	/*
+	 * Be aware that smp_save_dump_cpus() triggers a system reset.
+	 * Therefore CPU and device initialization should be done afterwards.
+	 */
+	smp_save_dump_cpus();
 
 	setup_resources();
 	setup_vmcoreinfo();
 	setup_lowcore();
 	smp_fill_possible_mask();
         cpu_init();
-
-	/*
-	 * Setup capabilities (ELF_HWCAP & ELF_PLATFORM).
-	 */
-	setup_hwcaps();
-
-	HPAGE_SHIFT = MACHINE_HAS_HPAGE ? 20 : 0;
+	numa_setup();
 
 	/*
 	 * Create kernel page tables and switch to virtual addressing.

@@ -128,8 +128,9 @@ perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- m
 
 -I msecs::
 --interval-print msecs::
-	Print count deltas every N milliseconds (minimum: 100ms)
-	example: perf stat -I 1000 -e cycles -a sleep 5
+Print count deltas every N milliseconds (minimum: 10ms)
+The overhead percentage could be high in some cases, for instance with small, sub 100ms intervals.  Use with caution.
+	example: 'perf stat -I 1000 -e cycles -a sleep 5'
 
 --per-socket::
 Aggregate counts per processor socket for system-wide mode measurements.  This
@@ -143,6 +144,10 @@ Aggregate counts per physical processor for system-wide mode measurements.  This
 is a useful mode to detect imbalance between physical cores.  To enable this mode,
 use --per-core in addition to -a. (system-wide).  The output includes the
 core number and the number of online logical processors on that physical processor.
+
+--per-thread::
+Aggregate counts per monitored threads, when monitoring threads (-t option)
+or processes (-p option).
 
 -D msecs::
 --delay msecs::

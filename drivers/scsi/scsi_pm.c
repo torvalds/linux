@@ -217,7 +217,7 @@ static int sdev_runtime_suspend(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	struct scsi_device *sdev = to_scsi_device(dev);
-	int err;
+	int err = 0;
 
 	err = blk_pre_runtime_suspend(sdev->request_queue);
 	if (err)

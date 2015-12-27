@@ -18,7 +18,8 @@ struct iio_chan_spec;
  * struct iio_dev_attr - iio specific device attribute
  * @dev_attr:	underlying device attribute
  * @address:	associated register address
- * @l:		list head for maintaining list of dynamically created attrs.
+ * @l:		list head for maintaining list of dynamically created attrs
+ * @c:		specification for the underlying channel
  */
 struct iio_dev_attr {
 	struct device_attribute dev_attr;

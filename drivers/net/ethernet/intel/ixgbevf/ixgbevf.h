@@ -144,9 +144,11 @@ struct ixgbevf_ring {
 
 #define MAX_RX_QUEUES IXGBE_VF_MAX_RX_QUEUES
 #define MAX_TX_QUEUES IXGBE_VF_MAX_TX_QUEUES
-#define IXGBEVF_MAX_RSS_QUEUES	2
-#define IXGBEVF_82599_RETA_SIZE	128
+#define IXGBEVF_MAX_RSS_QUEUES		2
+#define IXGBEVF_82599_RETA_SIZE		128	/* 128 entries */
+#define IXGBEVF_X550_VFRETA_SIZE	64	/* 64 entries */
 #define IXGBEVF_RSS_HASH_KEY_SIZE	40
+#define IXGBEVF_VFRSSRK_REGS		10	/* 10 registers for RSS key */
 
 #define IXGBEVF_DEFAULT_TXD	1024
 #define IXGBEVF_DEFAULT_RXD	512
@@ -447,6 +449,9 @@ struct ixgbevf_adapter {
 
 	spinlock_t mbx_lock;
 	unsigned long last_reset;
+
+	u32 rss_key[IXGBEVF_VFRSSRK_REGS];
+	u8 rss_indir_tbl[IXGBEVF_X550_VFRETA_SIZE];
 };
 
 enum ixbgevf_state_t {
@@ -464,6 +469,12 @@ enum ixgbevf_boards {
 	board_X540_vf,
 	board_X550_vf,
 	board_X550EM_x_vf,
+};
+
+enum ixgbevf_xcast_modes {
+	IXGBEVF_XCAST_MODE_NONE = 0,
+	IXGBEVF_XCAST_MODE_MULTI,
+	IXGBEVF_XCAST_MODE_ALLMULTI,
 };
 
 extern const struct ixgbevf_info ixgbevf_82599_vf_info;

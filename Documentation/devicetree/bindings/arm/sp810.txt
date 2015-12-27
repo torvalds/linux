@@ -1,0 +1,46 @@
+SP810 System Controller
+-----------------------
+
+Required properties:
+
+- compatible:	standard compatible string for a Primecell peripheral,
+		see Documentation/devicetree/bindings/arm/primecell.txt
+		for more details
+		should be: "arm,sp810", "arm,primecell"
+
+- reg:		standard registers property, physical address and size
+		of the control registers
+
+- clock-names:	from the common clock bindings, for more details see
+		Documentation/devicetree/bindings/clock/clock-bindings.txt;
+		should be: "refclk", "timclk", "apb_pclk"
+
+- clocks:	from the common clock bindings, phandle and clock
+		specifier pairs for the entries of clock-names property
+
+- #clock-cells: from the common clock bindings;
+		should be: <1>
+
+- clock-output-names: from the common clock bindings;
+		should be: "timerclken0", "timerclken1", "timerclken2", "timerclken3"
+
+- assigned-clocks: from the common clock binding;
+		should be: clock specifier for each output clock of this
+		provider node
+
+- assigned-clock-parents: from the common clock binding;
+		should be: phandle of input clock listed in clocks
+		property with the highest frequency
+
+Example:
+	v2m_sysctl: sysctl@020000 {
+		compatible = "arm,sp810", "arm,primecell";
+		reg = <0x020000 0x1000>;
+		clocks = <&v2m_refclk32khz>, <&v2m_refclk1mhz>, <&smbclk>;
+		clock-names = "refclk", "timclk", "apb_pclk";
+		#clock-cells = <1>;
+		clock-output-names = "timerclken0", "timerclken1", "timerclken2", "timerclken3";
+		assigned-clocks = <&v2m_sysctl 0>, <&v2m_sysctl 1>, <&v2m_sysctl 3>, <&v2m_sysctl 3>;
+		assigned-clock-parents = <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>;
+
+	};

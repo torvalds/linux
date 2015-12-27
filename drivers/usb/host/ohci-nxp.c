@@ -203,7 +203,7 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 		goto fail_disable;
 	}
 
-	ret = clk_enable(usb_pll_clk);
+	ret = clk_prepare_enable(usb_pll_clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to start USB PLL\n");
 		goto fail_disable;
@@ -223,7 +223,7 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 		goto fail_rate;
 	}
 
-	ret = clk_enable(usb_dev_clk);
+	ret = clk_prepare_enable(usb_dev_clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to start USB DEV Clock\n");
 		goto fail_rate;
@@ -239,7 +239,7 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 
 	__raw_writel(__raw_readl(USB_CTRL) | USB_HOST_NEED_CLK_EN, USB_CTRL);
 
-	ret = clk_enable(usb_otg_clk);
+	ret = clk_prepare_enable(usb_otg_clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to start USB DEV Clock\n");
 		goto fail_otg;
@@ -283,11 +283,11 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 fail_resource:
 	usb_put_hcd(hcd);
 fail_hcd:
-	clk_disable(usb_otg_clk);
+	clk_disable_unprepare(usb_otg_clk);
 fail_otg:
-	clk_disable(usb_dev_clk);
+	clk_disable_unprepare(usb_dev_clk);
 fail_rate:
-	clk_disable(usb_pll_clk);
+	clk_disable_unprepare(usb_pll_clk);
 fail_disable:
 	isp1301_i2c_client = NULL;
 	return ret;
@@ -300,9 +300,9 @@ static int ohci_hcd_nxp_remove(struct platform_device *pdev)
 	usb_remove_hcd(hcd);
 	ohci_nxp_stop_hc();
 	usb_put_hcd(hcd);
-	clk_disable(usb_pll_clk);
-	clk_disable(usb_dev_clk);
-	i2c_unregister_device(isp1301_i2c_client);
+	clk_disable_unprepare(usb_otg_clk);
+	clk_disable_unprepare(usb_dev_clk);
+	clk_disable_unprepare(usb_pll_clk);
 	isp1301_i2c_client = NULL;
 
 	return 0;

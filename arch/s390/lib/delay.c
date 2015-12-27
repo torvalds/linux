@@ -12,8 +12,10 @@
 #include <linux/module.h>
 #include <linux/irqflags.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <asm/vtimer.h>
 #include <asm/div64.h>
+#include <asm/idle.h>
 
 void __delay(unsigned long loops)
 {
@@ -26,29 +28,26 @@ void __delay(unsigned long loops)
          */
 	asm volatile("0: brct %0,0b" : : "d" ((loops/2) + 1));
 }
+EXPORT_SYMBOL(__delay);
 
 static void __udelay_disabled(unsigned long long usecs)
 {
-	unsigned long cr0, cr6, new;
-	u64 clock_saved, end;
+	unsigned long cr0, cr0_new, psw_mask;
+	struct s390_idle_data idle;
+	u64 end;
 
 	end = get_tod_clock() + (usecs << 12);
-	clock_saved = local_tick_disable();
 	__ctl_store(cr0, 0, 0);
-	__ctl_store(cr6, 6, 6);
-	new = (cr0 &  0xffff00e0) | 0x00000800;
-	__ctl_load(new , 0, 0);
-	new = 0;
-	__ctl_load(new, 6, 6);
-	lockdep_off();
-	do {
-		set_clock_comparator(end);
-		enabled_wait();
-	} while (get_tod_clock_fast() < end);
-	lockdep_on();
+	cr0_new = cr0 & ~CR0_IRQ_SUBCLASS_MASK;
+	cr0_new |= (1UL << (63 - 52)); /* enable clock comparator irq */
+	__ctl_load(cr0_new, 0, 0);
+	psw_mask = __extract_psw() | PSW_MASK_EXT | PSW_MASK_WAIT;
+	set_clock_comparator(end);
+	set_cpu_flag(CIF_IGNORE_IRQ);
+	psw_idle(&idle, psw_mask);
+	clear_cpu_flag(CIF_IGNORE_IRQ);
+	set_clock_comparator(S390_lowcore.clock_comparator);
 	__ctl_load(cr0, 0, 0);
-	__ctl_load(cr6, 6, 6);
-	local_tick_enable(clock_saved);
 }
 
 static void __udelay_enabled(unsigned long long usecs)

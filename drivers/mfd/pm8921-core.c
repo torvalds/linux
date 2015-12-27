@@ -156,7 +156,7 @@ static int pm8xxx_irq_master_handler(struct pm_irq_chip *chip, int master)
 	return ret;
 }
 
-static void pm8xxx_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void pm8xxx_irq_handler(struct irq_desc *desc)
 {
 	struct pm_irq_chip *chip = irq_desc_get_handler_data(desc);
 	struct irq_chip *irq_chip = irq_desc_get_chip(desc);
@@ -236,11 +236,49 @@ static int pm8xxx_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return pm8xxx_config_irq(chip, block, config);
 }
 
+static int pm8xxx_irq_get_irqchip_state(struct irq_data *d,
+					enum irqchip_irq_state which,
+					bool *state)
+{
+	struct pm_irq_chip *chip = irq_data_get_irq_chip_data(d);
+	unsigned int pmirq = irqd_to_hwirq(d);
+	unsigned int bits;
+	int irq_bit;
+	u8 block;
+	int rc;
+
+	if (which != IRQCHIP_STATE_LINE_LEVEL)
+		return -EINVAL;
+
+	block = pmirq / 8;
+	irq_bit = pmirq % 8;
+
+	spin_lock(&chip->pm_irq_lock);
+	rc = regmap_write(chip->regmap, SSBI_REG_ADDR_IRQ_BLK_SEL, block);
+	if (rc) {
+		pr_err("Failed Selecting Block %d rc=%d\n", block, rc);
+		goto bail;
+	}
+
+	rc = regmap_read(chip->regmap, SSBI_REG_ADDR_IRQ_RT_STATUS, &bits);
+	if (rc) {
+		pr_err("Failed Reading Status rc=%d\n", rc);
+		goto bail;
+	}
+
+	*state = !!(bits & BIT(irq_bit));
+bail:
+	spin_unlock(&chip->pm_irq_lock);
+
+	return rc;
+}
+
 static struct irq_chip pm8xxx_irq_chip = {
 	.name		= "pm8xxx",
 	.irq_mask_ack	= pm8xxx_irq_mask_ack,
 	.irq_unmask	= pm8xxx_irq_unmask,
 	.irq_set_type	= pm8xxx_irq_set_type,
+	.irq_get_irqchip_state = pm8xxx_irq_get_irqchip_state,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -251,11 +289,8 @@ static int pm8xxx_irq_domain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler(irq, &pm8xxx_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, chip);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
+
 	return 0;
 }
 
@@ -336,14 +371,12 @@ static int pm8921_probe(struct platform_device *pdev)
 	if (!chip->irqdomain)
 		return -ENODEV;
 
-	irq_set_handler_data(irq, chip);
-	irq_set_chained_handler(irq, pm8xxx_irq_handler);
+	irq_set_chained_handler_and_data(irq, pm8xxx_irq_handler, chip);
 	irq_set_irq_wake(irq, 1);
 
 	rc = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 	if (rc) {
-		irq_set_chained_handler(irq, NULL);
-		irq_set_handler_data(irq, NULL);
+		irq_set_chained_handler_and_data(irq, NULL, NULL);
 		irq_domain_remove(chip->irqdomain);
 	}
 
@@ -362,8 +395,7 @@ static int pm8921_remove(struct platform_device *pdev)
 	struct pm_irq_chip *chip = platform_get_drvdata(pdev);
 
 	device_for_each_child(&pdev->dev, NULL, pm8921_remove_child);
-	irq_set_chained_handler(irq, NULL);
-	irq_set_handler_data(irq, NULL);
+	irq_set_chained_handler_and_data(irq, NULL, NULL);
 	irq_domain_remove(chip->irqdomain);
 
 	return 0;

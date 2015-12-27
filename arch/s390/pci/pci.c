@@ -76,11 +76,6 @@ EXPORT_SYMBOL_GPL(zpci_iomap_start);
 
 static struct kmem_cache *zdev_fmb_cache;
 
-struct zpci_dev *get_zdev(struct pci_dev *pdev)
-{
-	return (struct zpci_dev *) pdev->sysdata;
-}
-
 struct zpci_dev *get_zdev_by_fid(u32 fid)
 {
 	struct zpci_dev *tmp, *zdev = NULL;
@@ -269,7 +264,7 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 			      unsigned long offset,
 			      unsigned long max)
 {
-	struct zpci_dev *zdev =	get_zdev(pdev);
+	struct zpci_dev *zdev =	to_zpci(pdev);
 	u64 addr;
 	int idx;
 
@@ -385,7 +380,7 @@ static void zpci_irq_handler(struct airq_struct *airq)
 
 int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	unsigned int hwirq, msi_vecs;
 	unsigned long aisb;
 	struct msi_desc *msi;
@@ -414,7 +409,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 	/* Request MSI interrupts */
 	hwirq = 0;
-	list_for_each_entry(msi, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(msi, pdev) {
 		rc = -EIO;
 		irq = irq_alloc_desc(0);	/* Alloc irq on node 0 */
 		if (irq < 0)
@@ -440,7 +435,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	return (msi_vecs == nvec) ? 0 : msi_vecs;
 
 out_msi:
-	list_for_each_entry(msi, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(msi, pdev) {
 		if (hwirq-- == 0)
 			break;
 		irq_set_msi_desc(msi->irq, NULL);
@@ -460,7 +455,7 @@ out:
 
 void arch_teardown_msi_irqs(struct pci_dev *pdev)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	struct msi_desc *msi;
 	int rc;
 
@@ -470,7 +465,7 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 		return;
 
 	/* Release MSI interrupts */
-	list_for_each_entry(msi, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(msi, pdev) {
 		if (msi->msi_attrib.is_msix)
 			__pci_msix_desc_mask_irq(msi, 1);
 		else
@@ -637,7 +632,7 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 	int i;
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {
-		if (!zdev->bars[i].size)
+		if (!zdev->bars[i].size || !zdev->bars[i].res)
 			continue;
 
 		zpci_free_iomap(zdev, zdev->bars[i].map_idx);
@@ -648,7 +643,7 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 
 int pcibios_add_device(struct pci_dev *pdev)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	struct resource *res;
 	int i;
 
@@ -673,7 +668,7 @@ void pcibios_release_device(struct pci_dev *pdev)
 
 int pcibios_enable_device(struct pci_dev *pdev, int mask)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 
 	zdev->pdev = pdev;
 	zpci_debug_init_device(zdev);
@@ -684,7 +679,7 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 
 void pcibios_disable_device(struct pci_dev *pdev)
 {
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 
 	zpci_fmb_disable_device(zdev);
 	zpci_debug_exit_device(zdev);
@@ -695,7 +690,7 @@ void pcibios_disable_device(struct pci_dev *pdev)
 static int zpci_restore(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 	int ret = 0;
 
 	if (zdev->state != ZPCI_FN_STATE_ONLINE)
@@ -717,7 +712,7 @@ out:
 static int zpci_freeze(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct zpci_dev *zdev = get_zdev(pdev);
+	struct zpci_dev *zdev = to_zpci(pdev);
 
 	if (zdev->state != ZPCI_FN_STATE_ONLINE)
 		return 0;
@@ -777,17 +772,22 @@ static int zpci_scan_bus(struct zpci_dev *zdev)
 
 	ret = zpci_setup_bus_resources(zdev, &resources);
 	if (ret)
-		return ret;
+		goto error;
 
 	zdev->bus = pci_scan_root_bus(NULL, ZPCI_BUS_NR, &pci_root_ops,
 				      zdev, &resources);
 	if (!zdev->bus) {
-		zpci_cleanup_bus_resources(zdev);
-		return -EIO;
+		ret = -EIO;
+		goto error;
 	}
 	zdev->bus->max_bus_speed = zdev->max_bus_speed;
 	pci_bus_add_devices(zdev->bus);
 	return 0;
+
+error:
+	zpci_cleanup_bus_resources(zdev);
+	pci_free_resource_list(&resources);
+	return ret;
 }
 
 int zpci_enable_device(struct zpci_dev *zdev)

@@ -28,6 +28,55 @@ struct hdmi_connector {
 };
 #define to_hdmi_connector(x) container_of(x, struct hdmi_connector, base)
 
+static void hdmi_phy_reset(struct hdmi *hdmi)
+{
+	unsigned int val;
+
+	val = hdmi_read(hdmi, REG_HDMI_PHY_CTRL);
+
+	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
+		/* pull low */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val & ~HDMI_PHY_CTRL_SW_RESET);
+	} else {
+		/* pull high */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val | HDMI_PHY_CTRL_SW_RESET);
+	}
+
+	if (val & HDMI_PHY_CTRL_SW_RESET_PLL_LOW) {
+		/* pull low */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val & ~HDMI_PHY_CTRL_SW_RESET_PLL);
+	} else {
+		/* pull high */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val | HDMI_PHY_CTRL_SW_RESET_PLL);
+	}
+
+	msleep(100);
+
+	if (val & HDMI_PHY_CTRL_SW_RESET_LOW) {
+		/* pull high */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val | HDMI_PHY_CTRL_SW_RESET);
+	} else {
+		/* pull low */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val & ~HDMI_PHY_CTRL_SW_RESET);
+	}
+
+	if (val & HDMI_PHY_CTRL_SW_RESET_PLL_LOW) {
+		/* pull high */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val | HDMI_PHY_CTRL_SW_RESET_PLL);
+	} else {
+		/* pull low */
+		hdmi_write(hdmi, REG_HDMI_PHY_CTRL,
+				val & ~HDMI_PHY_CTRL_SW_RESET_PLL);
+	}
+}
+
 static int gpio_config(struct hdmi *hdmi, bool on)
 {
 	struct device *dev = &hdmi->pdev->dev;
@@ -35,21 +84,25 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 	int ret;
 
 	if (on) {
-		ret = gpio_request(config->ddc_clk_gpio, "HDMI_DDC_CLK");
-		if (ret) {
-			dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-				"HDMI_DDC_CLK", config->ddc_clk_gpio, ret);
-			goto error1;
+		if (config->ddc_clk_gpio != -1) {
+			ret = gpio_request(config->ddc_clk_gpio, "HDMI_DDC_CLK");
+			if (ret) {
+				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
+					"HDMI_DDC_CLK", config->ddc_clk_gpio, ret);
+				goto error1;
+			}
+			gpio_set_value_cansleep(config->ddc_clk_gpio, 1);
 		}
-		gpio_set_value_cansleep(config->ddc_clk_gpio, 1);
 
-		ret = gpio_request(config->ddc_data_gpio, "HDMI_DDC_DATA");
-		if (ret) {
-			dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
-				"HDMI_DDC_DATA", config->ddc_data_gpio, ret);
-			goto error2;
+		if (config->ddc_data_gpio != -1) {
+			ret = gpio_request(config->ddc_data_gpio, "HDMI_DDC_DATA");
+			if (ret) {
+				dev_err(dev, "'%s'(%d) gpio_request failed: %d\n",
+					"HDMI_DDC_DATA", config->ddc_data_gpio, ret);
+				goto error2;
+			}
+			gpio_set_value_cansleep(config->ddc_data_gpio, 1);
 		}
-		gpio_set_value_cansleep(config->ddc_data_gpio, 1);
 
 		ret = gpio_request(config->hpd_gpio, "HDMI_HPD");
 		if (ret) {
@@ -94,8 +147,12 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 		}
 		DBG("gpio on");
 	} else {
-		gpio_free(config->ddc_clk_gpio);
-		gpio_free(config->ddc_data_gpio);
+		if (config->ddc_clk_gpio != -1)
+			gpio_free(config->ddc_clk_gpio);
+
+		if (config->ddc_data_gpio != -1)
+			gpio_free(config->ddc_data_gpio);
+
 		gpio_free(config->hpd_gpio);
 
 		if (config->mux_en_gpio != -1) {
@@ -126,9 +183,11 @@ error5:
 error4:
 	gpio_free(config->hpd_gpio);
 error3:
-	gpio_free(config->ddc_data_gpio);
+	if (config->ddc_data_gpio != -1)
+		gpio_free(config->ddc_data_gpio);
 error2:
-	gpio_free(config->ddc_clk_gpio);
+	if (config->ddc_clk_gpio != -1)
+		gpio_free(config->ddc_clk_gpio);
 error1:
 	return ret;
 }
@@ -138,9 +197,9 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
 	struct device *dev = &hdmi->pdev->dev;
-	struct hdmi_phy *phy = hdmi->phy;
 	uint32_t hpd_ctrl;
 	int i, ret;
+	unsigned long flags;
 
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		ret = regulator_enable(hdmi->hpd_regs[i]);
@@ -181,7 +240,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	}
 
 	hdmi_set_mode(hdmi, false);
-	phy->funcs->reset(phy);
+	hdmi_phy_reset(hdmi);
 	hdmi_set_mode(hdmi, true);
 
 	hdmi_write(hdmi, REG_HDMI_USEC_REFTIMER, 0x0001001b);
@@ -192,6 +251,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 			HDMI_HPD_INT_CTRL_INT_EN);
 
 	/* set timeout to 4.1ms (max) for hardware debounce */
+	spin_lock_irqsave(&hdmi->reg_lock, flags);
 	hpd_ctrl = hdmi_read(hdmi, REG_HDMI_HPD_CTRL);
 	hpd_ctrl |= HDMI_HPD_CTRL_TIMEOUT(0x1fff);
 
@@ -200,6 +260,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 			~HDMI_HPD_CTRL_ENABLE & hpd_ctrl);
 	hdmi_write(hdmi, REG_HDMI_HPD_CTRL,
 			HDMI_HPD_CTRL_ENABLE | hpd_ctrl);
+	spin_unlock_irqrestore(&hdmi->reg_lock, flags);
 
 	return 0;
 
@@ -250,7 +311,6 @@ hotplug_work(struct work_struct *work)
 void hdmi_connector_irq(struct drm_connector *connector)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
-	struct msm_drm_private *priv = connector->dev->dev_private;
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	uint32_t hpd_int_status, hpd_int_ctrl;
 
@@ -274,7 +334,7 @@ void hdmi_connector_irq(struct drm_connector *connector)
 			hpd_int_ctrl |= HDMI_HPD_INT_CTRL_INT_CONNECT;
 		hdmi_write(hdmi, REG_HDMI_HPD_INT_CTRL, hpd_int_ctrl);
 
-		queue_work(priv->wq, &hdmi_connector->hpd_work);
+		queue_work(hdmi->workq, &hdmi_connector->hpd_work);
 	}
 }
 
@@ -350,6 +410,7 @@ static int hdmi_connector_get_modes(struct drm_connector *connector)
 
 	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl);
 
+	hdmi->hdmi_mode = drm_detect_hdmi_monitor(edid);
 	drm_mode_connector_update_edid_property(connector, edid);
 
 	if (edid) {

@@ -74,8 +74,8 @@ struct wl18xx_cmd_scan_params {
 	u8 dfs;		   /* number of dfs channels in 5ghz */
 	u8 passive_active; /* number of passive before active channels 2.4ghz */
 
-	__le16 short_cycles_sec;
-	__le16 long_cycles_sec;
+	__le16 short_cycles_msec;
+	__le16 long_cycles_msec;
 	u8 short_cycles_count;
 	u8 total_cycles; /* 0 - infinite */
 	u8 padding[2];

@@ -58,16 +58,21 @@ void __init plat_mem_setup(void)
 		panic("Device-tree not present");
 
 	__dt_setup_arch((void *)fw_arg1);
-	strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
 
 	plat_setup_iocoherency();
 }
 
-#define DEFAULT_CPC_BASE_ADDR 0x1bde0000
+#define DEFAULT_CPC_BASE_ADDR	0x1bde0000
+#define DEFAULT_CDMM_BASE_ADDR	0x1bdd0000
 
 phys_addr_t mips_cpc_default_phys_base(void)
 {
 	return DEFAULT_CPC_BASE_ADDR;
+}
+
+phys_addr_t mips_cdmm_phys_base(void)
+{
+	return DEFAULT_CDMM_BASE_ADDR;
 }
 
 static void __init mips_nmi_setup(void)

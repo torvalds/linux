@@ -17,10 +17,7 @@
 #define PAGE_DEFAULT_ACC	0
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
-#include <asm/setup.h>
-#ifndef __ASSEMBLY__
-
-extern int HPAGE_SHIFT;
+#define HPAGE_SHIFT	20
 #define HPAGE_SIZE	(1UL << HPAGE_SHIFT)
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
@@ -29,6 +26,9 @@ extern int HPAGE_SHIFT;
 #define ARCH_HAS_HUGE_PTE_TYPE
 #define ARCH_HAS_PREPARE_HUGEPAGE
 #define ARCH_HAS_HUGEPAGE_CLEAR_FLUSH
+
+#include <asm/setup.h>
+#ifndef __ASSEMBLY__
 
 static inline void storage_key_init_range(unsigned long start, unsigned long end)
 {

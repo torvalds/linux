@@ -116,6 +116,9 @@ static void bdisp_dbg_dump_tty(struct seq_file *s, u32 val)
 	case BDISP_RGB565:
 		seq_puts(s, "RGB565 - ");
 		break;
+	case BDISP_RGB888:
+		seq_puts(s, "RGB888 - ");
+		break;
 	case BDISP_XRGB8888:
 		seq_puts(s, "xRGB888 - ");
 		break;
@@ -184,6 +187,9 @@ static void bdisp_dbg_dump_sty(struct seq_file *s,
 	switch ((val & BLT_TTY_COL_MASK) >> BLT_TTY_COL_SHIFT) {
 	case BDISP_RGB565:
 		seq_puts(s, "RGB565 - ");
+		break;
+	case BDISP_RGB888:
+		seq_puts(s, "RGB888 - ");
 		break;
 	case BDISP_XRGB8888:
 		seq_puts(s, "xRGB888 - ");
@@ -420,6 +426,8 @@ static const char *bdisp_fmt_to_str(struct bdisp_frame frame)
 			return "NV12";
 	case V4L2_PIX_FMT_RGB565:
 		return "RGB16";
+	case V4L2_PIX_FMT_RGB24:
+		return "RGB24";
 	case V4L2_PIX_FMT_XBGR32:
 		return "XRGB";
 	case V4L2_PIX_FMT_ABGR32:

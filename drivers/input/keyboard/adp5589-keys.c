@@ -1097,7 +1097,6 @@ MODULE_DEVICE_TABLE(i2c, adp5589_id);
 static struct i2c_driver adp5589_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.pm = &adp5589_dev_pm_ops,
 	},
 	.probe = adp5589_probe,

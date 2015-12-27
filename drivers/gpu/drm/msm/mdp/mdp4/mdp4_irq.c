@@ -19,8 +19,11 @@
 #include "msm_drv.h"
 #include "mdp4_kms.h"
 
-void mdp4_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask)
+void mdp4_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask,
+		uint32_t old_irqmask)
 {
+	mdp4_write(to_mdp4_kms(mdp_kms), REG_MDP4_INTR_CLEAR,
+		irqmask ^ (irqmask & old_irqmask));
 	mdp4_write(to_mdp4_kms(mdp_kms), REG_MDP4_INTR_ENABLE, irqmask);
 }
 
@@ -68,9 +71,10 @@ irqreturn_t mdp4_irq(struct msm_kms *kms)
 	struct drm_device *dev = mdp4_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	unsigned int id;
-	uint32_t status;
+	uint32_t status, enable;
 
-	status = mdp4_read(mdp4_kms, REG_MDP4_INTR_STATUS);
+	enable = mdp4_read(mdp4_kms, REG_MDP4_INTR_ENABLE);
+	status = mdp4_read(mdp4_kms, REG_MDP4_INTR_STATUS) & enable;
 	mdp4_write(mdp4_kms, REG_MDP4_INTR_CLEAR, status);
 
 	VERB("status=%08x", status);
@@ -86,13 +90,22 @@ irqreturn_t mdp4_irq(struct msm_kms *kms)
 
 int mdp4_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+
+	mdp4_enable(mdp4_kms);
 	mdp_update_vblank_mask(to_mdp_kms(kms),
 			mdp4_crtc_vblank(crtc), true);
+	mdp4_disable(mdp4_kms);
+
 	return 0;
 }
 
 void mdp4_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+
+	mdp4_enable(mdp4_kms);
 	mdp_update_vblank_mask(to_mdp_kms(kms),
 			mdp4_crtc_vblank(crtc), false);
+	mdp4_disable(mdp4_kms);
 }

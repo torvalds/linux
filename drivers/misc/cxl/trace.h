@@ -105,7 +105,7 @@ TRACE_EVENT(cxl_attach,
 		__entry->num_interrupts = num_interrupts;
 	),
 
-	TP_printk("afu%i.%i pid=%i pe=%i wed=0x%.16llx irqs=%i amr=0x%llx",
+	TP_printk("afu%i.%i pid=%i pe=%i wed=0x%016llx irqs=%i amr=0x%llx",
 		__entry->card,
 		__entry->afu,
 		__entry->pid,
@@ -177,7 +177,7 @@ TRACE_EVENT(cxl_psl_irq,
 		__entry->dar = dar;
 	),
 
-	TP_printk("afu%i.%i pe=%i irq=%i dsisr=%s dar=0x%.16llx",
+	TP_printk("afu%i.%i pe=%i irq=%i dsisr=%s dar=0x%016llx",
 		__entry->card,
 		__entry->afu,
 		__entry->pe,
@@ -233,7 +233,7 @@ TRACE_EVENT(cxl_ste_miss,
 		__entry->dar = dar;
 	),
 
-	TP_printk("afu%i.%i pe=%i dar=0x%.16llx",
+	TP_printk("afu%i.%i pe=%i dar=0x%016llx",
 		__entry->card,
 		__entry->afu,
 		__entry->pe,
@@ -264,7 +264,7 @@ TRACE_EVENT(cxl_ste_write,
 		__entry->v = v;
 	),
 
-	TP_printk("afu%i.%i pe=%i SSTE[%i] E=0x%.16llx V=0x%.16llx",
+	TP_printk("afu%i.%i pe=%i SSTE[%i] E=0x%016llx V=0x%016llx",
 		__entry->card,
 		__entry->afu,
 		__entry->pe,
@@ -295,7 +295,7 @@ TRACE_EVENT(cxl_pte_miss,
 		__entry->dar = dar;
 	),
 
-	TP_printk("afu%i.%i pe=%i dsisr=%s dar=0x%.16llx",
+	TP_printk("afu%i.%i pe=%i dsisr=%s dar=0x%016llx",
 		__entry->card,
 		__entry->afu,
 		__entry->pe,

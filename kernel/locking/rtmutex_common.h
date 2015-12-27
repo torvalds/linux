@@ -15,28 +15,6 @@
 #include <linux/rtmutex.h>
 
 /*
- * The rtmutex in kernel tester is independent of rtmutex debugging. We
- * call schedule_rt_mutex_test() instead of schedule() for the tasks which
- * belong to the tester. That way we can delay the wakeup path of those
- * threads to provoke lock stealing and testing of  complex boosting scenarios.
- */
-#ifdef CONFIG_RT_MUTEX_TESTER
-
-extern void schedule_rt_mutex_test(struct rt_mutex *lock);
-
-#define schedule_rt_mutex(_lock)				\
-  do {								\
-	if (!(current->flags & PF_MUTEX_TESTER))		\
-		schedule();					\
-	else							\
-		schedule_rt_mutex_test(_lock);			\
-  } while (0)
-
-#else
-# define schedule_rt_mutex(_lock)			schedule()
-#endif
-
-/*
  * This is the control structure for tasks blocked on a rt_mutex,
  * which is allocated on the kernel stack on of the blocked task.
  *

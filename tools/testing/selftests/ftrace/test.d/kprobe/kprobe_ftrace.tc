@@ -6,31 +6,31 @@ grep function available_tracers || exit_unsupported # this is configurable
 
 # prepare
 echo nop > current_tracer
-echo do_fork > set_ftrace_filter
+echo _do_fork > set_ftrace_filter
 echo 0 > events/enable
 echo > kprobe_events
-echo 'p:testprobe do_fork' > kprobe_events
+echo 'p:testprobe _do_fork' > kprobe_events
 
 # kprobe on / ftrace off
 echo 1 > events/kprobes/testprobe/enable
 echo > trace
 ( echo "forked")
 grep testprobe trace
-! grep 'do_fork <-' trace
+! grep '_do_fork <-' trace
 
 # kprobe on / ftrace on
 echo function > current_tracer
 echo > trace
 ( echo "forked")
 grep testprobe trace
-grep 'do_fork <-' trace
+grep '_do_fork <-' trace
 
 # kprobe off / ftrace on
 echo 0 > events/kprobes/testprobe/enable
 echo > trace
 ( echo "forked")
 ! grep testprobe trace
-grep 'do_fork <-' trace
+grep '_do_fork <-' trace
 
 # kprobe on / ftrace on
 echo 1 > events/kprobes/testprobe/enable
@@ -38,14 +38,14 @@ echo function > current_tracer
 echo > trace
 ( echo "forked")
 grep testprobe trace
-grep 'do_fork <-' trace
+grep '_do_fork <-' trace
 
 # kprobe on / ftrace off
 echo nop > current_tracer
 echo > trace
 ( echo "forked")
 grep testprobe trace
-! grep 'do_fork <-' trace
+! grep '_do_fork <-' trace
 
 # cleanup
 echo nop > current_tracer

@@ -15,6 +15,7 @@
 #include <linux/kmod.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
+#include <net/switchdev.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"
@@ -35,11 +36,22 @@ static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
 /* called under bridge lock */
 void br_init_port(struct net_bridge_port *p)
 {
+	struct switchdev_attr attr = {
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
+		.u.ageing_time = p->br->ageing_time,
+	};
+	int err;
+
 	p->port_id = br_make_port_id(p->priority, p->port_no);
 	br_become_designated_port(p);
 	br_set_state(p, BR_STATE_BLOCKING);
 	p->topology_change_ack = 0;
 	p->config_pending = 0;
+
+	err = switchdev_port_attr_set(p->dev, &attr);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(p->dev, "failed to set HW ageing time\n");
 }
 
 /* called under bridge lock */
@@ -48,7 +60,8 @@ void br_stp_enable_bridge(struct net_bridge *br)
 	struct net_bridge_port *p;
 
 	spin_lock_bh(&br->lock);
-	mod_timer(&br->hello_timer, jiffies + br->hello_time);
+	if (br->stp_enabled == BR_KERNEL_STP)
+		mod_timer(&br->hello_timer, jiffies + br->hello_time);
 	mod_timer(&br->gc_timer, jiffies + HZ/10);
 
 	br_config_bpdu_generation(br);
@@ -127,6 +140,7 @@ static void br_stp_start(struct net_bridge *br)
 	int r;
 	char *argv[] = { BR_STP_PROG, br->dev->name, "start", NULL };
 	char *envp[] = { NULL };
+	struct net_bridge_port *p;
 
 	r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
 
@@ -140,6 +154,10 @@ static void br_stp_start(struct net_bridge *br)
 	if (r == 0) {
 		br->stp_enabled = BR_USER_STP;
 		br_debug(br, "userspace STP started\n");
+		/* Stop hello and hold timers */
+		del_timer(&br->hello_timer);
+		list_for_each_entry(p, &br->port_list, list)
+			del_timer(&p->hold_timer);
 	} else {
 		br->stp_enabled = BR_KERNEL_STP;
 		br_debug(br, "using kernel STP\n");
@@ -156,12 +174,17 @@ static void br_stp_stop(struct net_bridge *br)
 	int r;
 	char *argv[] = { BR_STP_PROG, br->dev->name, "stop", NULL };
 	char *envp[] = { NULL };
+	struct net_bridge_port *p;
 
 	if (br->stp_enabled == BR_USER_STP) {
 		r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
 		br_info(br, "userspace STP stopped, return code %d\n", r);
 
 		/* To start timers on any ports left in blocking */
+		mod_timer(&br->hello_timer, jiffies + br->hello_time);
+		list_for_each_entry(p, &br->port_list, list)
+			mod_timer(&p->hold_timer,
+				  round_jiffies(jiffies + BR_HOLD_TIME));
 		spin_lock_bh(&br->lock);
 		br_port_state_selection(br);
 		spin_unlock_bh(&br->lock);

@@ -82,7 +82,7 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 	mutex_unlock(&adev->pm.mutex);
 
 	/* Can't set dpm state when the card is off */
-	if (!(adev->flags & AMDGPU_IS_PX) ||
+	if (!(adev->flags & AMD_IS_PX) ||
 	    (ddev->switch_power_state == DRM_SWITCH_POWER_ON))
 		amdgpu_pm_compute_clocks(adev);
 fail:
@@ -294,10 +294,14 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 
-	/* Skip limit attributes if DPM is not enabled */
+	/* Skip attributes if DPM is not enabled */
 	if (!adev->pm.dpm_enabled &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
+	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr ||
+	     attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
+	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
+	     attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
+	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
 		return 0;
 
 	/* Skip fan attributes if fan is not present */
@@ -538,7 +542,7 @@ static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 		/* vce just modifies an existing state so force a change */
 		if (ps->vce_active != adev->pm.dpm.vce_active)
 			goto force;
-		if (adev->flags & AMDGPU_IS_APU) {
+		if (adev->flags & AMD_IS_APU) {
 			/* for APUs if the num crtcs changed but state is the same,
 			 * all we need to do is update the display configuration.
 			 */
@@ -580,7 +584,6 @@ force:
 		amdgpu_dpm_print_power_state(adev, adev->pm.dpm.requested_ps);
 	}
 
-	mutex_lock(&adev->ddev->struct_mutex);
 	mutex_lock(&adev->ring_lock);
 
 	/* update whether vce is active */
@@ -628,7 +631,6 @@ force:
 
 done:
 	mutex_unlock(&adev->ring_lock);
-	mutex_unlock(&adev->ddev->struct_mutex);
 }
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
@@ -693,6 +695,9 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
 	int ret;
 
+	if (adev->pm.sysfs_initialized)
+		return 0;
+
 	if (adev->pm.funcs->get_temperature == NULL)
 		return 0;
 	adev->pm.int_hwmon_dev = hwmon_device_register_with_groups(adev->dev,
@@ -720,6 +725,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
 		return ret;
 	}
+
+	adev->pm.sysfs_initialized = true;
 
 	return 0;
 }

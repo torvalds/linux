@@ -47,7 +47,7 @@ static void tuntap_del_addr(unsigned char *addr, unsigned char *netmask,
 }
 
 struct tuntap_pre_exec_data {
-	int stdout;
+	int stdout_fd;
 	int close_me;
 };
 
@@ -55,7 +55,7 @@ static void tuntap_pre_exec(void *arg)
 {
 	struct tuntap_pre_exec_data *data = arg;
 
-	dup2(data->stdout, 1);
+	dup2(data->stdout_fd, 1);
 	close(data->close_me);
 }
 
@@ -74,7 +74,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 
 	sprintf(version_buf, "%d", UML_NET_VERSION);
 
-	data.stdout = remote;
+	data.stdout_fd = remote;
 	data.close_me = me;
 
 	pid = run_helper(tuntap_pre_exec, &data, argv);

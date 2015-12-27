@@ -78,7 +78,6 @@ struct hsu_dma_chan {
 	struct virt_dma_chan vchan;
 
 	void __iomem *reg;
-	spinlock_t lock;
 
 	/* hardware configuration */
 	enum dma_transfer_direction direction;
@@ -108,6 +107,7 @@ struct hsu_dma {
 
 	/* channels */
 	struct hsu_dma_chan		*chan;
+	unsigned short			nr_channels;
 };
 
 static inline struct hsu_dma *to_hsu_dma(struct dma_device *ddev)

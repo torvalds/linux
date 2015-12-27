@@ -136,6 +136,9 @@ drm_atomic_connectors_for_crtc(struct drm_atomic_state *state,
 
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state);
 
+void
+drm_atomic_clean_old_fb(struct drm_device *dev, unsigned plane_mask, int ret);
+
 int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);
 int __must_check drm_atomic_async_commit(struct drm_atomic_state *state);
@@ -166,7 +169,8 @@ int __must_check drm_atomic_async_commit(struct drm_atomic_state *state);
 static inline bool
 drm_atomic_crtc_needs_modeset(struct drm_crtc_state *state)
 {
-	return state->mode_changed || state->active_changed;
+	return state->mode_changed || state->active_changed ||
+	       state->connectors_changed;
 }
 
 

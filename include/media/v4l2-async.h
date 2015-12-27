@@ -32,7 +32,8 @@ enum v4l2_async_match_type {
 
 /**
  * struct v4l2_async_subdev - sub-device descriptor, as known to a bridge
- * @bus_type:	subdevice bus type to select the appropriate matching method
+ *
+ * @match_type:	type of match that will be used
  * @match:	union of per-bus type matching data sets
  * @list:	used to link struct v4l2_async_subdev objects, waiting to be
  *		probed, to a notifier->waiting list
@@ -62,8 +63,9 @@ struct v4l2_async_subdev {
 };
 
 /**
- * v4l2_async_notifier - v4l2_device notifier data
- * @num_subdevs:number of subdevices
+ * struct v4l2_async_notifier - v4l2_device notifier data
+ *
+ * @num_subdevs: number of subdevices
  * @subdevs:	array of pointers to subdevice descriptors
  * @v4l2_dev:	pointer to struct v4l2_device
  * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers

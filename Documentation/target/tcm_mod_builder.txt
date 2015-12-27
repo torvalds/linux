@@ -13,8 +13,8 @@ fabric skeleton, by simply using:
 This script will create a new drivers/target/$TCM_NEW_MOD/, and will do the following
 
 	*) Generate new API callers for drivers/target/target_core_fabric_configs.c logic
-	   ->make_nodeacl(), ->drop_nodeacl(), ->make_tpg(), ->drop_tpg()
-	   ->make_wwn(), ->drop_wwn().  These are created into $TCM_NEW_MOD/$TCM_NEW_MOD_configfs.c
+	   ->make_tpg(), ->drop_tpg(), ->make_wwn(), ->drop_wwn().  These are created
+	   into $TCM_NEW_MOD/$TCM_NEW_MOD_configfs.c
 	*) Generate basic infrastructure for loading/unloading LKMs and TCM/ConfigFS fabric module
 	   using a skeleton struct target_core_fabric_ops API template.
 	*) Based on user defined T10 Proto_Ident for the new fabric module being built,

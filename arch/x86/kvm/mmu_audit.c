@@ -297,7 +297,7 @@ static int mmu_audit_set(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops audit_param_ops = {
+static const struct kernel_param_ops audit_param_ops = {
 	.set = mmu_audit_set,
 	.get = param_get_bool,
 };

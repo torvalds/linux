@@ -391,9 +391,20 @@ static int omap2430_musb_init(struct musb *musb)
 	}
 	musb->isr = omap2430_musb_interrupt;
 
+	/*
+	 * Enable runtime PM for musb parent (this driver). We can't
+	 * do it earlier as struct musb is not yet allocated and we
+	 * need to touch the musb registers for runtime PM.
+	 */
+	pm_runtime_enable(glue->dev);
+	status = pm_runtime_get_sync(glue->dev);
+	if (status < 0)
+		goto err1;
+
 	status = pm_runtime_get_sync(dev);
 	if (status < 0) {
 		dev_err(dev, "pm_runtime_get_sync FAILED %d\n", status);
+		pm_runtime_put_sync(glue->dev);
 		goto err1;
 	}
 
@@ -426,6 +437,7 @@ static int omap2430_musb_init(struct musb *musb)
 	phy_power_on(musb->phy);
 
 	pm_runtime_put_noidle(musb->controller);
+	pm_runtime_put_noidle(glue->dev);
 	return 0;
 
 err1:
@@ -626,7 +638,11 @@ static int omap2430_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	pm_runtime_enable(&pdev->dev);
+	/*
+	 * Note that we cannot enable PM runtime yet for this
+	 * driver as we need struct musb initialized first.
+	 * See omap2430_musb_init above.
+	 */
 
 	ret = platform_device_add(musb);
 	if (ret) {
@@ -675,11 +691,12 @@ static int omap2430_runtime_resume(struct device *dev)
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
 
-	if (musb) {
-		omap2430_low_level_init(musb);
-		musb_writel(musb->mregs, OTG_INTERFSEL,
-				musb->context.otg_interfsel);
-	}
+	if (!musb)
+		return -EPROBE_DEFER;
+
+	omap2430_low_level_init(musb);
+	musb_writel(musb->mregs, OTG_INTERFSEL,
+		    musb->context.otg_interfsel);
 
 	return 0;
 }

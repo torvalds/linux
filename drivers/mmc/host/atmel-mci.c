@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/types.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/platform_data/mmc-atmel-mci.h>
 
 #include <linux/mmc/host.h>

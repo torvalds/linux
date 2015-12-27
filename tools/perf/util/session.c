@@ -29,7 +29,7 @@ static int perf_session__open(struct perf_session *session)
 	struct perf_data_file *file = session->file;
 
 	if (perf_session__read_header(session) < 0) {
-		pr_err("incompatible file format (rerun with -v to learn more)");
+		pr_err("incompatible file format (rerun with -v to learn more)\n");
 		return -1;
 	}
 
@@ -37,17 +37,17 @@ static int perf_session__open(struct perf_session *session)
 		return 0;
 
 	if (!perf_evlist__valid_sample_type(session->evlist)) {
-		pr_err("non matching sample_type");
+		pr_err("non matching sample_type\n");
 		return -1;
 	}
 
 	if (!perf_evlist__valid_sample_id_all(session->evlist)) {
-		pr_err("non matching sample_id_all");
+		pr_err("non matching sample_id_all\n");
 		return -1;
 	}
 
 	if (!perf_evlist__valid_read_format(session->evlist)) {
-		pr_err("non matching read_format");
+		pr_err("non matching read_format\n");
 		return -1;
 	}
 
@@ -138,6 +138,8 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 			perf_session__set_id_hdr_size(session);
 			perf_session__set_comm_exec(session);
 		}
+	} else  {
+		session->machines.host.env = &perf_env;
 	}
 
 	if (!file || perf_data_file__is_write(file)) {
@@ -170,29 +172,13 @@ static void perf_session__delete_threads(struct perf_session *session)
 	machine__delete_threads(&session->machines.host);
 }
 
-static void perf_session_env__delete(struct perf_session_env *env)
-{
-	zfree(&env->hostname);
-	zfree(&env->os_release);
-	zfree(&env->version);
-	zfree(&env->arch);
-	zfree(&env->cpu_desc);
-	zfree(&env->cpuid);
-
-	zfree(&env->cmdline);
-	zfree(&env->sibling_cores);
-	zfree(&env->sibling_threads);
-	zfree(&env->numa_nodes);
-	zfree(&env->pmu_mappings);
-}
-
 void perf_session__delete(struct perf_session *session)
 {
 	auxtrace__free(session);
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
-	perf_session_env__delete(&session->header.env);
+	perf_env__exit(&session->header.env);
 	machines__exit(&session->machines);
 	if (session->file)
 		perf_data_file__close(session->file);
@@ -332,6 +318,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->aux = perf_event__process_aux;
 	if (tool->itrace_start == NULL)
 		tool->itrace_start = perf_event__process_itrace_start;
+	if (tool->context_switch == NULL)
+		tool->context_switch = perf_event__process_switch;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -468,6 +456,19 @@ static void perf_event__itrace_start_swap(union perf_event *event,
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->itrace_start + 1);
+}
+
+static void perf_event__switch_swap(union perf_event *event, bool sample_id_all)
+{
+	if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE) {
+		event->context_switch.next_prev_pid =
+				bswap_32(event->context_switch.next_prev_pid);
+		event->context_switch.next_prev_tid =
+				bswap_32(event->context_switch.next_prev_tid);
+	}
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->context_switch + 1);
 }
 
 static void perf_event__throttle_swap(union perf_event *event,
@@ -632,6 +633,8 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_AUX]		  = perf_event__aux_swap,
 	[PERF_RECORD_ITRACE_START]	  = perf_event__itrace_start_swap,
 	[PERF_RECORD_LOST_SAMPLES]	  = perf_event__all64_swap,
+	[PERF_RECORD_SWITCH]		  = perf_event__switch_swap,
+	[PERF_RECORD_SWITCH_CPU_WIDE]	  = perf_event__switch_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -686,6 +689,8 @@ static int process_finished_round(struct perf_tool *tool __maybe_unused,
 				  union perf_event *event __maybe_unused,
 				  struct ordered_events *oe)
 {
+	if (dump_trace)
+		fprintf(stdout, "\n");
 	return ordered_events__flush(oe, OE_FLUSH__ROUND);
 }
 
@@ -764,10 +769,18 @@ static void branch_stack__printf(struct perf_sample *sample)
 
 	printf("... branch stack: nr:%" PRIu64 "\n", sample->branch_stack->nr);
 
-	for (i = 0; i < sample->branch_stack->nr; i++)
-		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 "\n",
-			i, sample->branch_stack->entries[i].from,
-			sample->branch_stack->entries[i].to);
+	for (i = 0; i < sample->branch_stack->nr; i++) {
+		struct branch_entry *e = &sample->branch_stack->entries[i];
+
+		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x\n",
+			i, e->from, e->to,
+			e->flags.cycles,
+			e->flags.mispred ? "M" : " ",
+			e->flags.predicted ? "P" : " ",
+			e->flags.abort ? "A" : " ",
+			e->flags.in_tx ? "T" : " ",
+			(unsigned)e->flags.reserved);
+	}
 }
 
 static void regs_dump__printf(u64 mask, u64 *regs)
@@ -1051,11 +1064,11 @@ static int machines__deliver_event(struct machines *machines,
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		dump_sample(evsel, event, sample);
 		if (evsel == NULL) {
 			++evlist->stats.nr_unknown_id;
 			return 0;
 		}
+		dump_sample(evsel, event, sample);
 		if (machine == NULL) {
 			++evlist->stats.nr_unprocessable_samples;
 			return 0;
@@ -1088,9 +1101,15 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
 	case PERF_RECORD_AUX:
+		if (tool->aux == perf_event__process_aux &&
+		    (event->aux.flags & PERF_AUX_FLAG_TRUNCATED))
+			evlist->stats.total_aux_lost += 1;
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
+	case PERF_RECORD_SWITCH:
+	case PERF_RECORD_SWITCH_CPU_WIDE:
+		return tool->context_switch(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;
@@ -1292,7 +1311,7 @@ struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 	return machine__findnew_thread(&session->machines.host, -1, pid);
 }
 
-static struct thread *perf_session__register_idle_thread(struct perf_session *session)
+struct thread *perf_session__register_idle_thread(struct perf_session *session)
 {
 	struct thread *thread;
 
@@ -1328,6 +1347,13 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 				    stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples,
 				    drop_rate * 100.0);
 		}
+	}
+
+	if (session->tool->aux == perf_event__process_aux &&
+	    stats->total_aux_lost != 0) {
+		ui__warning("AUX data lost %" PRIu64 " times out of %u!\n\n",
+			    stats->total_aux_lost,
+			    stats->nr_events[PERF_RECORD_AUX]);
 	}
 
 	if (stats->nr_unknown_events != 0) {
@@ -1549,7 +1575,10 @@ static int __perf_session__process_events(struct perf_session *session,
 	file_offset = page_offset;
 	head = data_offset - page_offset;
 
-	if (data_size && (data_offset + data_size < file_size))
+	if (data_size == 0)
+		goto out;
+
+	if (data_offset + data_size < file_size)
 		file_size = data_offset + data_size;
 
 	ui_progress__init(&prog, file_size, "Processing events...");
@@ -1726,7 +1755,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 	if (perf_header__has_feat(&session->header, HEADER_AUXTRACE))
 		msg = " (excludes AUX area (e.g. instruction trace) decoded / synthesized events)";
 
-	ret = fprintf(fp, "Aggregated stats:%s\n", msg);
+	ret = fprintf(fp, "\nAggregated stats:%s\n", msg);
 
 	ret += events_stats__fprintf(&session->evlist->stats, fp);
 	return ret;
@@ -1771,7 +1800,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 
 		if (thread__resolve_callchain(al->thread, evsel,
 					      sample, NULL, NULL,
-					      PERF_MAX_STACK_DEPTH) != 0) {
+					      stack_depth) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
 			return;
@@ -1893,7 +1922,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	err = 0;
 
 out_delete_map:
-	cpu_map__delete(map);
+	cpu_map__put(map);
 	return err;
 }
 

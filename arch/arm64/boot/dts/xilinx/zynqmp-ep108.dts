@@ -32,6 +32,10 @@
 	};
 };
 
+&can0 {
+	status = "okay";
+};
+
 &gem0 {
 	status = "okay";
 	phy-handle = <&phy0>;
@@ -42,6 +46,91 @@
 	};
 };
 
+&gpio {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
+	eeprom@54 {
+		compatible = "at,24c64";
+		reg = <0x54>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+	eeprom@55 {
+		compatible = "at,24c64";
+		reg = <0x55>;
+	};
+};
+
+&sata {
+	status = "okay";
+	ceva,broken-gen2;
+};
+
+&sdhci0 {
+	status = "okay";
+};
+
+&sdhci1 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	num-cs = <1>;
+	spi0_flash0: spi0_flash0@0 {
+		compatible = "m25p80";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+
+		spi0_flash0@00000000 {
+			label = "spi0_flash0";
+			reg = <0x0 0x100000>;
+		};
+	};
+};
+
+&spi1 {
+	status = "okay";
+	num-cs = <1>;
+	spi1_flash0: spi1_flash0@0 {
+		compatible = "m25p80";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+
+		spi1_flash0@00000000 {
+			label = "spi1_flash0";
+			reg = <0x0 0x100000>;
+		};
+	};
+};
+
 &uart0 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
+};
+
+&usb1 {
+	status = "okay";
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+};
+
+&watchdog0 {
 	status = "okay";
 };

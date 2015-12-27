@@ -52,7 +52,6 @@
 #include "../include/obd_support.h"
 #include "../include/lprocfs_status.h"
 
-#include "../include/dt_object.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"
 #include "../include/lustre_mdc.h"
@@ -222,7 +221,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 			fld->lcf_name, name, tar->ft_idx);
 
 	target = kzalloc(sizeof(*target), GFP_NOFS);
-	if (target == NULL)
+	if (!target)
 		return -ENOMEM;
 
 	spin_lock(&fld->lcf_lock);

@@ -52,7 +52,7 @@ static struct irqaction irq2 = {
 };
 
 DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
-	[0 ... NR_VECTORS - 1] = VECTOR_UNDEFINED,
+	[0 ... NR_VECTORS - 1] = VECTOR_UNUSED,
 };
 
 int vector_used_by_percpu_irq(unsigned int vector)
@@ -60,7 +60,7 @@ int vector_used_by_percpu_irq(unsigned int vector)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		if (per_cpu(vector_irq, cpu)[vector] > VECTOR_UNDEFINED)
+		if (!IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector]))
 			return 1;
 	}
 
@@ -94,7 +94,7 @@ void __init init_IRQ(void)
 	 * irq's migrate etc.
 	 */
 	for (i = 0; i < nr_legacy_irqs(); i++)
-		per_cpu(vector_irq, 0)[ISA_IRQ_VECTOR(i)] = i;
+		per_cpu(vector_irq, 0)[ISA_IRQ_VECTOR(i)] = irq_to_desc(i);
 
 	x86_init.irqs.intr_init();
 }

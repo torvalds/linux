@@ -461,10 +461,17 @@ void __timer_stats_timer_set_start_info(struct timer_list *timer, void *addr)
 
 static void timer_stats_account_timer(struct timer_list *timer)
 {
-	if (likely(!timer->start_site))
+	void *site;
+
+	/*
+	 * start_site can be concurrently reset by
+	 * timer_stats_timer_clear_start_info()
+	 */
+	site = READ_ONCE(timer->start_site);
+	if (likely(!site))
 		return;
 
-	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
+	timer_stats_update_stats(timer, timer->start_pid, site,
 				 timer->function, timer->start_comm,
 				 timer->flags);
 }
@@ -807,8 +814,8 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 			spin_unlock(&base->lock);
 			base = new_base;
 			spin_lock(&base->lock);
-			timer->flags &= ~TIMER_BASEMASK;
-			timer->flags |= base->cpu;
+			WRITE_ONCE(timer->flags,
+				   (timer->flags & ~TIMER_BASEMASK) | base->cpu);
 		}
 	}
 
@@ -867,7 +874,7 @@ unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 	if (mask == 0)
 		return expires;
 
-	bit = find_last_bit(&mask, BITS_PER_LONG);
+	bit = __fls(mask);
 
 	mask = (1UL << bit) - 1;
 
@@ -970,13 +977,29 @@ EXPORT_SYMBOL(add_timer);
  */
 void add_timer_on(struct timer_list *timer, int cpu)
 {
-	struct tvec_base *base = per_cpu_ptr(&tvec_bases, cpu);
+	struct tvec_base *new_base = per_cpu_ptr(&tvec_bases, cpu);
+	struct tvec_base *base;
 	unsigned long flags;
 
 	timer_stats_timer_set_start_info(timer);
 	BUG_ON(timer_pending(timer) || !timer->function);
-	spin_lock_irqsave(&base->lock, flags);
-	timer->flags = (timer->flags & ~TIMER_BASEMASK) | cpu;
+
+	/*
+	 * If @timer was on a different CPU, it should be migrated with the
+	 * old base locked to prevent other operations proceeding with the
+	 * wrong base locked.  See lock_timer_base().
+	 */
+	base = lock_timer_base(timer, &flags);
+	if (base != new_base) {
+		timer->flags |= TIMER_MIGRATING;
+
+		spin_unlock(&base->lock);
+		base = new_base;
+		spin_lock(&base->lock);
+		WRITE_ONCE(timer->flags,
+			   (timer->flags & ~TIMER_BASEMASK) | cpu);
+	}
+
 	debug_activate(timer, timer->expires);
 	internal_add_timer(base, timer);
 	spin_unlock_irqrestore(&base->lock, flags);
@@ -1566,7 +1589,7 @@ static void migrate_timers(int cpu)
 
 	BUG_ON(cpu_online(cpu));
 	old_base = per_cpu_ptr(&tvec_bases, cpu);
-	new_base = this_cpu_ptr(&tvec_bases);
+	new_base = get_cpu_ptr(&tvec_bases);
 	/*
 	 * The caller is globally serialized and nobody else
 	 * takes two locks at once, deadlock is not possible.
@@ -1590,6 +1613,7 @@ static void migrate_timers(int cpu)
 
 	spin_unlock(&old_base->lock);
 	spin_unlock_irq(&new_base->lock);
+	put_cpu_ptr(&tvec_bases);
 }
 
 static int timer_cpu_notify(struct notifier_block *self,

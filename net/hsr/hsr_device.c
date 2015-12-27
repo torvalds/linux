@@ -312,7 +312,7 @@ static void send_hsr_supervision_frame(struct hsr_port *master, u8 type)
 	return;
 
 out:
-	WARN_ON_ONCE("HSR: Could not send supervision frame\n");
+	WARN_ONCE(1, "HSR: Could not send supervision frame\n");
 	kfree_skb(skb);
 }
 
@@ -392,7 +392,7 @@ void hsr_dev_setup(struct net_device *dev)
 	dev->header_ops = &hsr_header_ops;
 	dev->netdev_ops = &hsr_device_ops;
 	SET_NETDEV_DEVTYPE(dev, &hsr_type);
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 
 	dev->destructor = hsr_dev_destroy;
 

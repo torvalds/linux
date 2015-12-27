@@ -109,13 +109,12 @@ static void snd_card_id_read(struct snd_info_entry *entry,
 
 static int init_info_for_card(struct snd_card *card)
 {
-	int err;
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_card_entry(card, "id", card->proc_root);
 	if (!entry) {
 		dev_dbg(card->dev, "unable to create card entry\n");
-		return err;
+		return -ENOMEM;
 	}
 	entry->c.text.read = snd_card_id_read;
 	card->proc_id = entry;

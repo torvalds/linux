@@ -140,7 +140,7 @@ affs_remove_link(struct dentry *dentry)
 {
 	struct inode *dir, *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
-	struct buffer_head *bh = NULL, *link_bh = NULL;
+	struct buffer_head *bh, *link_bh = NULL;
 	u32 link_ino, ino;
 	int retval;
 

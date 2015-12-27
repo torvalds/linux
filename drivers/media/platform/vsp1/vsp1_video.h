@@ -1,7 +1,7 @@
 /*
  * vsp1_video.h  --  R-Car VSP1 Video Node
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -18,7 +18,7 @@
 #include <linux/wait.h>
 
 #include <media/media-entity.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 struct vsp1_video;
 
@@ -94,7 +94,7 @@ static inline struct vsp1_pipeline *to_vsp1_pipeline(struct media_entity *e)
 }
 
 struct vsp1_video_buffer {
-	struct vb2_buffer buf;
+	struct vb2_v4l2_buffer buf;
 	struct list_head queue;
 
 	dma_addr_t addr[3];
@@ -102,9 +102,9 @@ struct vsp1_video_buffer {
 };
 
 static inline struct vsp1_video_buffer *
-to_vsp1_video_buffer(struct vb2_buffer *vb)
+to_vsp1_video_buffer(struct vb2_v4l2_buffer *vbuf)
 {
-	return container_of(vb, struct vsp1_video_buffer, buf);
+	return container_of(vbuf, struct vsp1_video_buffer, buf);
 }
 
 struct vsp1_video_operations {
@@ -148,5 +148,8 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 				   struct vsp1_entity *input,
 				   unsigned int alpha);
+
+void vsp1_pipelines_suspend(struct vsp1_device *vsp1);
+void vsp1_pipelines_resume(struct vsp1_device *vsp1);
 
 #endif /* __VSP1_VIDEO_H__ */

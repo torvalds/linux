@@ -12,23 +12,18 @@
 #include <linux/usb/phy.h>
 
 #if IS_ENABLED(CONFIG_OF)
-enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np);
-enum usb_device_speed of_usb_get_maximum_speed(struct device_node *np);
 bool of_usb_host_tpl_support(struct device_node *np);
+int of_usb_update_otg_caps(struct device_node *np,
+			struct usb_otg_caps *otg_caps);
 #else
-static inline enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np)
-{
-	return USB_DR_MODE_UNKNOWN;
-}
-
-static inline enum usb_device_speed
-of_usb_get_maximum_speed(struct device_node *np)
-{
-	return USB_SPEED_UNKNOWN;
-}
 static inline bool of_usb_host_tpl_support(struct device_node *np)
 {
 	return false;
+}
+static inline int of_usb_update_otg_caps(struct device_node *np,
+				struct usb_otg_caps *otg_caps)
+{
+	return 0;
 }
 #endif
 

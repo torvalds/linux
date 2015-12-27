@@ -34,7 +34,7 @@
 #include <sound/pcm_params.h>
 #include <sound/rawmidi.h>
 
-#include "../amdtp.h"
+#include "../amdtp-am824.h"
 #include "../iso-resources.h"
 #include "../lib.h"
 #include "dice-interface.h"

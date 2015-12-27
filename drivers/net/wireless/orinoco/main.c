@@ -2321,8 +2321,6 @@ void free_orinocodev(struct orinoco_private *priv)
 	struct orinoco_rx_data *rx_data, *temp;
 	struct orinoco_scan_data *sd, *sdtemp;
 
-	wiphy_unregister(wiphy);
-
 	/* If the tasklet is scheduled when we call tasklet_kill it
 	 * will run one final time. However the tasklet will only
 	 * drain priv->rx_list if the hw is still available. */

@@ -47,6 +47,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/extcon.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -64,6 +65,7 @@
 #include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/regulator/consumer.h>
+#include <linux/usb/ehci_def.h>
 
 #include "ci.h"
 #include "udc.h"
@@ -84,6 +86,8 @@ static const u8 ci_regs_nolpm[] = {
 	[OP_USBINTR]		= 0x08U,
 	[OP_DEVICEADDR]		= 0x14U,
 	[OP_ENDPTLISTADDR]	= 0x18U,
+	[OP_TTCTRL]		= 0x1CU,
+	[OP_BURSTSIZE]		= 0x20U,
 	[OP_PORTSC]		= 0x44U,
 	[OP_DEVLC]		= 0x84U,
 	[OP_OTGSC]		= 0x64U,
@@ -106,6 +110,8 @@ static const u8 ci_regs_lpm[] = {
 	[OP_USBINTR]		= 0x08U,
 	[OP_DEVICEADDR]		= 0x14U,
 	[OP_ENDPTLISTADDR]	= 0x18U,
+	[OP_TTCTRL]		= 0x1CU,
+	[OP_BURSTSIZE]		= 0x20U,
 	[OP_PORTSC]		= 0x44U,
 	[OP_DEVLC]		= 0x84U,
 	[OP_OTGSC]		= 0xC4U,
@@ -118,7 +124,7 @@ static const u8 ci_regs_lpm[] = {
 	[OP_ENDPTCTRL]		= 0xECU,
 };
 
-static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
+static void hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 {
 	int i;
 
@@ -134,7 +140,6 @@ static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 			 ? ci_regs_lpm[OP_ENDPTCTRL]
 			 : ci_regs_nolpm[OP_ENDPTCTRL]);
 
-	return 0;
 }
 
 static enum ci_revision ci_get_revision(struct ci_hdrc *ci)
@@ -403,6 +408,55 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 	return ret;
 }
 
+
+/**
+ * ci_platform_configure: do controller configure
+ * @ci: the controller
+ *
+ */
+void ci_platform_configure(struct ci_hdrc *ci)
+{
+	bool is_device_mode, is_host_mode;
+
+	is_device_mode = hw_read(ci, OP_USBMODE, USBMODE_CM) == USBMODE_CM_DC;
+	is_host_mode = hw_read(ci, OP_USBMODE, USBMODE_CM) == USBMODE_CM_HC;
+
+	if (is_device_mode &&
+		(ci->platdata->flags & CI_HDRC_DISABLE_DEVICE_STREAMING))
+		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
+
+	if (is_host_mode &&
+		(ci->platdata->flags & CI_HDRC_DISABLE_HOST_STREAMING))
+		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
+
+	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED) {
+		if (ci->hw_bank.lpm)
+			hw_write(ci, OP_DEVLC, DEVLC_PFSC, DEVLC_PFSC);
+		else
+			hw_write(ci, OP_PORTSC, PORTSC_PFSC, PORTSC_PFSC);
+	}
+
+	if (ci->platdata->flags & CI_HDRC_SET_NON_ZERO_TTHA)
+		hw_write(ci, OP_TTCTRL, TTCTRL_TTHA_MASK, TTCTRL_TTHA);
+
+	hw_write(ci, OP_USBCMD, 0xff0000, ci->platdata->itc_setting << 16);
+
+	if (ci->platdata->flags & CI_HDRC_OVERRIDE_AHB_BURST)
+		hw_write_id_reg(ci, ID_SBUSCFG, AHBBRST_MASK,
+			ci->platdata->ahb_burst_config);
+
+	/* override burst size, take effect only when ahb_burst_config is 0 */
+	if (!hw_read_id_reg(ci, ID_SBUSCFG, AHBBRST_MASK)) {
+		if (ci->platdata->flags & CI_HDRC_OVERRIDE_TX_BURST)
+			hw_write(ci, OP_BURSTSIZE, TX_BURST_MASK,
+			ci->platdata->tx_burst_size << __ffs(TX_BURST_MASK));
+
+		if (ci->platdata->flags & CI_HDRC_OVERRIDE_RX_BURST)
+			hw_write(ci, OP_BURSTSIZE, RX_BURST_MASK,
+				ci->platdata->rx_burst_size);
+	}
+}
+
 /**
  * hw_controller_reset: do controller reset
  * @ci: the controller
@@ -447,16 +501,6 @@ int hw_device_reset(struct ci_hdrc *ci)
 		ci->platdata->notify_event(ci,
 			CI_HDRC_CONTROLLER_RESET_EVENT);
 
-	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
-		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
-
-	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED) {
-		if (ci->hw_bank.lpm)
-			hw_write(ci, OP_DEVLC, DEVLC_PFSC, DEVLC_PFSC);
-		else
-			hw_write(ci, OP_PORTSC, PORTSC_PFSC, PORTSC_PFSC);
-	}
-
 	/* USBMODE should be configured step by step */
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_IDLE);
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_DC);
@@ -468,6 +512,8 @@ int hw_device_reset(struct ci_hdrc *ci)
 		pr_err("lpm = %i", ci->hw_bank.lpm);
 		return -ENODEV;
 	}
+
+	ci_platform_configure(ci);
 
 	return 0;
 }
@@ -557,14 +603,52 @@ static irqreturn_t ci_irq(int irq, void *data)
 	return ret;
 }
 
+static int ci_vbus_notifier(struct notifier_block *nb, unsigned long event,
+			    void *ptr)
+{
+	struct ci_hdrc_cable *vbus = container_of(nb, struct ci_hdrc_cable, nb);
+	struct ci_hdrc *ci = vbus->ci;
+
+	if (event)
+		vbus->state = true;
+	else
+		vbus->state = false;
+
+	vbus->changed = true;
+
+	ci_irq(ci->irq, ci);
+	return NOTIFY_DONE;
+}
+
+static int ci_id_notifier(struct notifier_block *nb, unsigned long event,
+			  void *ptr)
+{
+	struct ci_hdrc_cable *id = container_of(nb, struct ci_hdrc_cable, nb);
+	struct ci_hdrc *ci = id->ci;
+
+	if (event)
+		id->state = false;
+	else
+		id->state = true;
+
+	id->changed = true;
+
+	ci_irq(ci->irq, ci);
+	return NOTIFY_DONE;
+}
+
 static int ci_get_platdata(struct device *dev,
 		struct ci_hdrc_platform_data *platdata)
 {
+	struct extcon_dev *ext_vbus, *ext_id;
+	struct ci_hdrc_cable *cable;
+	int ret;
+
 	if (!platdata->phy_mode)
 		platdata->phy_mode = of_usb_get_phy_mode(dev->of_node);
 
 	if (!platdata->dr_mode)
-		platdata->dr_mode = of_usb_get_dr_mode(dev->of_node);
+		platdata->dr_mode = usb_get_dr_mode(dev);
 
 	if (platdata->dr_mode == USB_DR_MODE_UNKNOWN)
 		platdata->dr_mode = USB_DR_MODE_OTG;
@@ -588,10 +672,153 @@ static int ci_get_platdata(struct device *dev,
 				of_usb_host_tpl_support(dev->of_node);
 	}
 
-	if (of_usb_get_maximum_speed(dev->of_node) == USB_SPEED_FULL)
+	if (platdata->dr_mode == USB_DR_MODE_OTG) {
+		/* We can support HNP and SRP of OTG 2.0 */
+		platdata->ci_otg_caps.otg_rev = 0x0200;
+		platdata->ci_otg_caps.hnp_support = true;
+		platdata->ci_otg_caps.srp_support = true;
+
+		/* Update otg capabilities by DT properties */
+		ret = of_usb_update_otg_caps(dev->of_node,
+					&platdata->ci_otg_caps);
+		if (ret)
+			return ret;
+	}
+
+	if (usb_get_maximum_speed(dev) == USB_SPEED_FULL)
 		platdata->flags |= CI_HDRC_FORCE_FULLSPEED;
 
+	if (of_find_property(dev->of_node, "phy-clkgate-delay-us", NULL))
+		of_property_read_u32(dev->of_node, "phy-clkgate-delay-us",
+				     &platdata->phy_clkgate_delay_us);
+
+	platdata->itc_setting = 1;
+	if (of_find_property(dev->of_node, "itc-setting", NULL)) {
+		ret = of_property_read_u32(dev->of_node, "itc-setting",
+			&platdata->itc_setting);
+		if (ret) {
+			dev_err(dev,
+				"failed to get itc-setting\n");
+			return ret;
+		}
+	}
+
+	if (of_find_property(dev->of_node, "ahb-burst-config", NULL)) {
+		ret = of_property_read_u32(dev->of_node, "ahb-burst-config",
+			&platdata->ahb_burst_config);
+		if (ret) {
+			dev_err(dev,
+				"failed to get ahb-burst-config\n");
+			return ret;
+		}
+		platdata->flags |= CI_HDRC_OVERRIDE_AHB_BURST;
+	}
+
+	if (of_find_property(dev->of_node, "tx-burst-size-dword", NULL)) {
+		ret = of_property_read_u32(dev->of_node, "tx-burst-size-dword",
+			&platdata->tx_burst_size);
+		if (ret) {
+			dev_err(dev,
+				"failed to get tx-burst-size-dword\n");
+			return ret;
+		}
+		platdata->flags |= CI_HDRC_OVERRIDE_TX_BURST;
+	}
+
+	if (of_find_property(dev->of_node, "rx-burst-size-dword", NULL)) {
+		ret = of_property_read_u32(dev->of_node, "rx-burst-size-dword",
+			&platdata->rx_burst_size);
+		if (ret) {
+			dev_err(dev,
+				"failed to get rx-burst-size-dword\n");
+			return ret;
+		}
+		platdata->flags |= CI_HDRC_OVERRIDE_RX_BURST;
+	}
+
+	ext_id = ERR_PTR(-ENODEV);
+	ext_vbus = ERR_PTR(-ENODEV);
+	if (of_property_read_bool(dev->of_node, "extcon")) {
+		/* Each one of them is not mandatory */
+		ext_vbus = extcon_get_edev_by_phandle(dev, 0);
+		if (IS_ERR(ext_vbus) && PTR_ERR(ext_vbus) != -ENODEV)
+			return PTR_ERR(ext_vbus);
+
+		ext_id = extcon_get_edev_by_phandle(dev, 1);
+		if (IS_ERR(ext_id) && PTR_ERR(ext_id) != -ENODEV)
+			return PTR_ERR(ext_id);
+	}
+
+	cable = &platdata->vbus_extcon;
+	cable->nb.notifier_call = ci_vbus_notifier;
+	cable->edev = ext_vbus;
+
+	if (!IS_ERR(ext_vbus)) {
+		ret = extcon_get_cable_state_(cable->edev, EXTCON_USB);
+		if (ret)
+			cable->state = true;
+		else
+			cable->state = false;
+	}
+
+	cable = &platdata->id_extcon;
+	cable->nb.notifier_call = ci_id_notifier;
+	cable->edev = ext_id;
+
+	if (!IS_ERR(ext_id)) {
+		ret = extcon_get_cable_state_(cable->edev, EXTCON_USB_HOST);
+		if (ret)
+			cable->state = false;
+		else
+			cable->state = true;
+	}
 	return 0;
+}
+
+static int ci_extcon_register(struct ci_hdrc *ci)
+{
+	struct ci_hdrc_cable *id, *vbus;
+	int ret;
+
+	id = &ci->platdata->id_extcon;
+	id->ci = ci;
+	if (!IS_ERR(id->edev)) {
+		ret = extcon_register_notifier(id->edev, EXTCON_USB_HOST,
+					       &id->nb);
+		if (ret < 0) {
+			dev_err(ci->dev, "register ID failed\n");
+			return ret;
+		}
+	}
+
+	vbus = &ci->platdata->vbus_extcon;
+	vbus->ci = ci;
+	if (!IS_ERR(vbus->edev)) {
+		ret = extcon_register_notifier(vbus->edev, EXTCON_USB,
+					       &vbus->nb);
+		if (ret < 0) {
+			extcon_unregister_notifier(id->edev, EXTCON_USB_HOST,
+						   &id->nb);
+			dev_err(ci->dev, "register VBUS failed\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static void ci_extcon_unregister(struct ci_hdrc *ci)
+{
+	struct ci_hdrc_cable *cable;
+
+	cable = &ci->platdata->id_extcon;
+	if (!IS_ERR(cable->edev))
+		extcon_unregister_notifier(cable->edev, EXTCON_USB_HOST,
+					   &cable->nb);
+
+	cable = &ci->platdata->vbus_extcon;
+	if (!IS_ERR(cable->edev))
+		extcon_unregister_notifier(cable->edev, EXTCON_USB, &cable->nb);
 }
 
 static DEFINE_IDA(ci_ida);
@@ -817,6 +1044,10 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ret)
 		goto stop;
 
+	ret = ci_extcon_register(ci);
+	if (ret)
+		goto stop;
+
 	if (ci->supports_runtime_pm) {
 		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
@@ -834,6 +1065,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (!ret)
 		return 0;
 
+	ci_extcon_unregister(ci);
 stop:
 	ci_role_destroy(ci);
 deinit_phy:
@@ -853,6 +1085,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	}
 
 	dbg_remove_files(ci);
+	ci_extcon_unregister(ci);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
 	ci_usb_phy_exit(ci);
@@ -892,6 +1125,9 @@ static void ci_controller_suspend(struct ci_hdrc *ci)
 {
 	disable_irq(ci->irq);
 	ci_hdrc_enter_lpm(ci, true);
+	if (ci->platdata->phy_clkgate_delay_us)
+		usleep_range(ci->platdata->phy_clkgate_delay_us,
+			     ci->platdata->phy_clkgate_delay_us + 50);
 	usb_phy_set_suspend(ci->usb_phy, 1);
 	ci->in_lpm = true;
 	enable_irq(ci->irq);
@@ -1024,7 +1260,18 @@ static struct platform_driver ci_hdrc_driver = {
 	},
 };
 
-module_platform_driver(ci_hdrc_driver);
+static int __init ci_hdrc_platform_register(void)
+{
+	ci_hdrc_host_driver_init();
+	return platform_driver_register(&ci_hdrc_driver);
+}
+module_init(ci_hdrc_platform_register);
+
+static void __exit ci_hdrc_platform_unregister(void)
+{
+	platform_driver_unregister(&ci_hdrc_driver);
+}
+module_exit(ci_hdrc_platform_unregister);
 
 MODULE_ALIAS("platform:ci_hdrc");
 MODULE_LICENSE("GPL v2");

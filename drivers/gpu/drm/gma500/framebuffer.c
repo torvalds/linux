@@ -194,9 +194,9 @@ static struct fb_ops psbfb_ops = {
 	.fb_set_par = drm_fb_helper_set_par,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcolreg = psbfb_setcolreg,
-	.fb_fillrect = cfb_fillrect,
+	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = psbfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_mmap = psbfb_mmap,
 	.fb_sync = psbfb_sync,
 	.fb_ioctl = psbfb_ioctl,
@@ -208,9 +208,9 @@ static struct fb_ops psbfb_roll_ops = {
 	.fb_set_par = drm_fb_helper_set_par,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcolreg = psbfb_setcolreg,
-	.fb_fillrect = cfb_fillrect,
-	.fb_copyarea = cfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	.fb_fillrect = drm_fb_helper_cfb_fillrect,
+	.fb_copyarea = drm_fb_helper_cfb_copyarea,
+	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_pan_display = psbfb_pan,
 	.fb_mmap = psbfb_mmap,
 	.fb_ioctl = psbfb_ioctl,
@@ -222,9 +222,9 @@ static struct fb_ops psbfb_unaccel_ops = {
 	.fb_set_par = drm_fb_helper_set_par,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcolreg = psbfb_setcolreg,
-	.fb_fillrect = cfb_fillrect,
-	.fb_copyarea = cfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	.fb_fillrect = drm_fb_helper_cfb_fillrect,
+	.fb_copyarea = drm_fb_helper_cfb_copyarea,
+	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_mmap = psbfb_mmap,
 	.fb_ioctl = psbfb_ioctl,
 };
@@ -343,7 +343,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	struct drm_framebuffer *fb;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_mode_fb_cmd2 mode_cmd;
-	struct device *device = &dev->pdev->dev;
 	int size;
 	int ret;
 	struct gtt_range *backing;
@@ -409,9 +408,9 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	mutex_lock(&dev->struct_mutex);
 
-	info = framebuffer_alloc(0, device);
-	if (!info) {
-		ret = -ENOMEM;
+	info = drm_fb_helper_alloc_fbi(&fbdev->psb_fb_helper);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
 		goto out_err1;
 	}
 	info->par = fbdev;
@@ -426,7 +425,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	psbfb->fbdev = info;
 
 	fbdev->psb_fb_helper.fb = fb;
-	fbdev->psb_fb_helper.fbdev = info;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	strcpy(info->fix.id, "psbdrmfb");
@@ -440,12 +438,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	} else	/* Software */
 		info->fbops = &psbfb_unaccel_ops;
 
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		goto out_unref;
-	}
-
 	info->fix.smem_start = dev->mode_config.fb_base;
 	info->fix.smem_len = size;
 	info->fix.ywrapstep = gtt_roll;
@@ -456,11 +448,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->screen_size = size;
 
 	if (dev_priv->gtt.stolen_size) {
-		info->apertures = alloc_apertures(1);
-		if (!info->apertures) {
-			ret = -ENOMEM;
-			goto out_unref;
-		}
 		info->apertures->ranges[0].base = dev->mode_config.fb_base;
 		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
 	}
@@ -483,6 +470,8 @@ out_unref:
 		psb_gtt_free_range(dev, backing);
 	else
 		drm_gem_object_unreference(&backing->gem);
+
+	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
 out_err1:
 	mutex_unlock(&dev->struct_mutex);
 	psb_gtt_free_range(dev, backing);
@@ -570,16 +559,11 @@ static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 
 static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 {
-	struct fb_info *info;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 
-	if (fbdev->psb_fb_helper.fbdev) {
-		info = fbdev->psb_fb_helper.fbdev;
-		unregister_framebuffer(info);
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-		framebuffer_release(info);
-	}
+	drm_fb_helper_unregister_fbi(&fbdev->psb_fb_helper);
+	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
+
 	drm_fb_helper_fini(&fbdev->psb_fb_helper);
 	drm_framebuffer_unregister_private(&psbfb->base);
 	drm_framebuffer_cleanup(&psbfb->base);

@@ -32,6 +32,7 @@ static int ec_major;
 static const struct attribute_group *cros_ec_groups[] = {
 	&cros_ec_attr_group,
 	&cros_ec_lightbar_attr_group,
+	&cros_ec_vbc_attr_group,
 	NULL,
 };
 
@@ -286,6 +287,12 @@ static int ec_device_remove(struct platform_device *pdev)
 	device_unregister(&ec->class_dev);
 	return 0;
 }
+
+static const struct platform_device_id cros_ec_id[] = {
+	{ "cros-ec-ctl", 0 },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_id);
 
 static struct platform_driver cros_ec_dev_driver = {
 	.driver = {

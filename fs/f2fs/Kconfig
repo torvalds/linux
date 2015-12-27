@@ -45,7 +45,7 @@ config F2FS_FS_POSIX_ACL
 	default y
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
-	  gourps beyond the owner/group/world scheme.
+	  groups beyond the owner/group/world scheme.
 
 	  To learn more about Access Control Lists, visit the POSIX ACLs for
 	  Linux website <http://acl.bestbits.at/>.

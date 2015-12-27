@@ -41,8 +41,11 @@ static int get_available_index(struct snd_card *card, const char *name)
 	sid.iface = SNDRV_CTL_ELEM_IFACE_CARD;
 	strlcpy(sid.name, name, sizeof(sid.name));
 
-	while (snd_ctl_find_id(card, &sid))
+	while (snd_ctl_find_id(card, &sid)) {
 		sid.index++;
+		/* reset numid; otherwise snd_ctl_find_id() hits this again */
+		sid.numid = 0;
+	}
 
 	return sid.index;
 }

@@ -121,6 +121,10 @@ Messages
 
 	Output format:
 	  <region_id>: <start_sector>+<length> <step> <program_id> <aux_data>
+	        precise_timestamps histogram:n1,n2,n3,...
+
+	The strings "precise_timestamps" and "histogram" are printed only
+	if they were specified when creating the region.
 
     @stats_print <region_id> [<starting_line> <number_of_lines>]
 

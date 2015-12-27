@@ -329,7 +329,7 @@ static int build_alloc_func_list(void)
 		return -EINVAL;
 	}
 
-	kernel_map = machine->vmlinux_maps[MAP__FUNCTION];
+	kernel_map = machine__kernel_map(machine);
 	if (map__load(kernel_map, NULL) < 0) {
 		pr_err("cannot load kernel map\n");
 		return -ENOENT;
@@ -1916,7 +1916,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		if (!perf_evlist__find_tracepoint_by_name(session->evlist,
 							  "kmem:kmalloc")) {
 			pr_err(errmsg, "slab", "slab");
-			return -1;
+			goto out_delete;
 		}
 	}
 
@@ -1927,7 +1927,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 							     "kmem:mm_page_alloc");
 		if (evsel == NULL) {
 			pr_err(errmsg, "page", "page");
-			return -1;
+			goto out_delete;
 		}
 
 		kmem_page_size = pevent_get_page_size(evsel->tp_format->pevent);

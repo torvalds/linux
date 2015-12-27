@@ -1944,7 +1944,6 @@ static struct spi_driver max3421_driver = {
 	.remove		= max3421_remove,
 	.driver		= {
 		.name	= "max3421-hcd",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -3,7 +3,9 @@ ST Ericsson Nomadik pinmux controller
 Required properties:
 - compatible: "stericsson,db8500-pinctrl", "stericsson,db8540-pinctrl",
               "stericsson,stn8815-pinctrl"
-- reg: Should contain the register physical address and length of the PRCMU.
+- nomadik-gpio-chips: array of phandles to the corresponding GPIO chips
+              (these have the register ranges used by the pin controller).
+- prcm: phandle to the PRCMU managing the back end of this pin controller
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
@@ -74,7 +76,8 @@ Example board file extract:
 
 	pinctrl@80157000 {
 		compatible = "stericsson,db8500-pinctrl";
-		reg = <0x80157000 0x2000>;
+		nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>;
+		prcm = <&prcmu>;
 
 		pinctrl-names = "default";
 

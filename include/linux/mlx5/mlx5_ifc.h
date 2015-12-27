@@ -453,26 +453,28 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         lro_cap[0x1];
 	u8         lro_psh_flag[0x1];
 	u8         lro_time_stamp[0x1];
-	u8         reserved_0[0x6];
+	u8         reserved_0[0x3];
+	u8         self_lb_en_modifiable[0x1];
+	u8         reserved_1[0x2];
 	u8         max_lso_cap[0x5];
-	u8         reserved_1[0x4];
+	u8         reserved_2[0x4];
 	u8         rss_ind_tbl_cap[0x4];
-	u8         reserved_2[0x3];
+	u8         reserved_3[0x3];
 	u8         tunnel_lso_const_out_ip_id[0x1];
-	u8         reserved_3[0x2];
+	u8         reserved_4[0x2];
 	u8         tunnel_statless_gre[0x1];
 	u8         tunnel_stateless_vxlan[0x1];
 
-	u8         reserved_4[0x20];
+	u8         reserved_5[0x20];
 
-	u8         reserved_5[0x10];
+	u8         reserved_6[0x10];
 	u8         lro_min_mss_size[0x10];
 
-	u8         reserved_6[0x120];
+	u8         reserved_7[0x120];
 
 	u8         lro_timer_supported_periods[4][0x20];
 
-	u8         reserved_7[0x600];
+	u8         reserved_8[0x600];
 };
 
 struct mlx5_ifc_roce_cap_bits {
@@ -1936,9 +1938,9 @@ enum {
 };
 
 enum {
-	MLX5_TIRC_RX_HASH_FN_HASH_NONE           = 0x0,
-	MLX5_TIRC_RX_HASH_FN_HASH_INVERTED_XOR8  = 0x1,
-	MLX5_TIRC_RX_HASH_FN_HASH_TOEPLITZ       = 0x2,
+	MLX5_RX_HASH_FN_NONE           = 0x0,
+	MLX5_RX_HASH_FN_INVERTED_XOR8  = 0x1,
+	MLX5_RX_HASH_FN_TOEPLITZ       = 0x2,
 };
 
 enum {
@@ -4050,6 +4052,15 @@ struct mlx5_ifc_modify_tis_in_bits {
 	struct mlx5_ifc_tisc_bits ctx;
 };
 
+struct mlx5_ifc_modify_tir_bitmask_bits {
+	u8	   reserved_0[0x20];
+
+	u8         reserved_1[0x1b];
+	u8         self_lb_en[0x1];
+	u8         reserved_2[0x3];
+	u8         lro[0x1];
+};
+
 struct mlx5_ifc_modify_tir_out_bits {
 	u8         status[0x8];
 	u8         reserved_0[0x18];
@@ -4071,7 +4082,7 @@ struct mlx5_ifc_modify_tir_in_bits {
 
 	u8         reserved_3[0x20];
 
-	u8         modify_bitmask[0x40];
+	struct mlx5_ifc_modify_tir_bitmask_bits bitmask;
 
 	u8         reserved_4[0x40];
 
@@ -4116,6 +4127,13 @@ struct mlx5_ifc_modify_rqt_out_bits {
 	u8         reserved_1[0x40];
 };
 
+struct mlx5_ifc_rqt_bitmask_bits {
+	u8	   reserved[0x20];
+
+	u8         reserved1[0x1f];
+	u8         rqn_list[0x1];
+};
+
 struct mlx5_ifc_modify_rqt_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_0[0x10];
@@ -4128,7 +4146,7 @@ struct mlx5_ifc_modify_rqt_in_bits {
 
 	u8         reserved_3[0x20];
 
-	u8         modify_bitmask[0x40];
+	struct mlx5_ifc_rqt_bitmask_bits bitmask;
 
 	u8         reserved_4[0x40];
 

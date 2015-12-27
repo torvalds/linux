@@ -33,6 +33,13 @@ Optional properties:
 - interrupt-parent:
     phandle of the parent interrupt controller
 
+- interrupts-extended:
+    Alternate form of specifying interrupts and parents that allows for
+    multiple parents.  This takes precedence over 'interrupts' and
+    'interrupt-parent'.  Wakeup-capable GPIO controllers often route their
+    wakeup interrupt lines through a different interrupt controller than the
+    primary interrupt line, making this property necessary.
+
 - #interrupt-cells:
     Should be <2>.  The first cell is the GPIO number, the second should specify
     flags.  The following subset of flags is supported:
@@ -47,19 +54,33 @@ Optional properties:
 - interrupt-controller:
     Marks the device node as an interrupt controller
 
-- interrupt-names:
-    The name of the IRQ resource used by this controller
+- wakeup-source:
+    GPIOs for this controller can be used as a wakeup source
 
 Example:
 	upg_gio: gpio@f040a700 {
-		#gpio-cells = <0x2>;
-		#interrupt-cells = <0x2>;
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
 		compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
 		gpio-controller;
 		interrupt-controller;
 		reg = <0xf040a700 0x80>;
-		interrupt-parent = <0xf>;
+		interrupt-parent = <&irq0_intc>;
 		interrupts = <0x6>;
-		interrupt-names = "upg_gio";
-		brcm,gpio-bank-widths = <0x20 0x20 0x20 0x18>;
+		brcm,gpio-bank-widths = <32 32 32 24>;
+	};
+
+	upg_gio_aon: gpio@f04172c0 {
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
+		compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
+		gpio-controller;
+		interrupt-controller;
+		reg = <0xf04172c0 0x40>;
+		interrupt-parent = <&irq0_aon_intc>;
+		interrupts = <0x6>;
+		interrupts-extended = <&irq0_aon_intc 0x6>,
+			<&aon_pm_l2_intc 0x5>;
+		wakeup-source;
+		brcm,gpio-bank-widths = <18 4>;
 	};

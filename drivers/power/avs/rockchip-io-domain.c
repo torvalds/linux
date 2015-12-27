@@ -43,6 +43,10 @@
 #define RK3288_SOC_CON2_FLASH0		BIT(7)
 #define RK3288_SOC_FLASH_SUPPLY_NUM	2
 
+#define RK3368_SOC_CON15		0x43c
+#define RK3368_SOC_CON15_FLASH0		BIT(14)
+#define RK3368_SOC_FLASH_SUPPLY_NUM	2
+
 struct rockchip_iodomain;
 
 /**
@@ -158,6 +162,25 @@ static void rk3288_iodomain_init(struct rockchip_iodomain *iod)
 		dev_warn(iod->dev, "couldn't update flash0 ctrl\n");
 }
 
+static void rk3368_iodomain_init(struct rockchip_iodomain *iod)
+{
+	int ret;
+	u32 val;
+
+	/* if no flash supply we should leave things alone */
+	if (!iod->supplies[RK3368_SOC_FLASH_SUPPLY_NUM].reg)
+		return;
+
+	/*
+	 * set flash0 iodomain to also use this framework
+	 * instead of a special gpio.
+	 */
+	val = RK3368_SOC_CON15_FLASH0 | (RK3368_SOC_CON15_FLASH0 << 16);
+	ret = regmap_write(iod->grf, RK3368_SOC_CON15, val);
+	if (ret < 0)
+		dev_warn(iod->dev, "couldn't update flash0 ctrl\n");
+}
+
 /*
  * On the rk3188 the io-domains are handled by a shared register with the
  * lower 8 bits being still being continuing drive-strength settings.
@@ -201,6 +224,34 @@ static const struct rockchip_iodomain_soc_data soc_data_rk3288 = {
 	.init = rk3288_iodomain_init,
 };
 
+static const struct rockchip_iodomain_soc_data soc_data_rk3368 = {
+	.grf_offset = 0x900,
+	.supply_names = {
+		NULL,		/* reserved */
+		"dvp",		/* DVPIO_VDD */
+		"flash0",	/* FLASH0_VDD (emmc) */
+		"wifi",		/* APIO2_VDD (sdio0) */
+		NULL,
+		"audio",	/* APIO3_VDD */
+		"sdcard",	/* SDMMC0_VDD (sdmmc) */
+		"gpio30",	/* APIO1_VDD */
+		"gpio1830",	/* APIO4_VDD (gpujtag) */
+	},
+	.init = rk3368_iodomain_init,
+};
+
+static const struct rockchip_iodomain_soc_data soc_data_rk3368_pmu = {
+	.grf_offset = 0x100,
+	.supply_names = {
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		"pmu",	        /*PMU IO domain*/
+		"vop",	        /*LCDC IO domain*/
+	},
+};
+
 static const struct of_device_id rockchip_iodomain_match[] = {
 	{
 		.compatible = "rockchip,rk3188-io-voltage-domain",
@@ -210,8 +261,17 @@ static const struct of_device_id rockchip_iodomain_match[] = {
 		.compatible = "rockchip,rk3288-io-voltage-domain",
 		.data = (void *)&soc_data_rk3288
 	},
+	{
+		.compatible = "rockchip,rk3368-io-voltage-domain",
+		.data = (void *)&soc_data_rk3368
+	},
+	{
+		.compatible = "rockchip,rk3368-pmu-io-voltage-domain",
+		.data = (void *)&soc_data_rk3368_pmu
+	},
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, rockchip_iodomain_match);
 
 static int rockchip_iodomain_probe(struct platform_device *pdev)
 {

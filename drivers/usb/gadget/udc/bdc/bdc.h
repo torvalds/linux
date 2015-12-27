@@ -290,7 +290,7 @@ struct bdc_sr {
 	__le32 offset[4];
 };
 
-/* bd_table: contigous bd's in a table */
+/* bd_table: contiguous bd's in a table */
 struct bd_table {
 	struct bdc_bd *start_bd;
 	/* dma address of start bd of table*/

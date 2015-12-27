@@ -77,6 +77,7 @@
 #define GBENU_ALE_OFFSET		0x1e000
 #define GBENU_HOST_PORT_NUM		0
 #define GBENU_NUM_ALE_ENTRIES		1024
+#define GBENU_SGMII_MODULE_SIZE		0x100
 
 /* 10G Ethernet SS defines */
 #define XGBE_MODULE_NAME		"netcp-xgbe"
@@ -149,8 +150,8 @@
 #define XGBE_STATS2_MODULE			2
 
 /* s: 0-based slave_port */
-#define SGMII_BASE(s) \
-	(((s) < 2) ? gbe_dev->sgmii_port_regs : gbe_dev->sgmii_port34_regs)
+#define SGMII_BASE(d, s) \
+	(((s) < 2) ? (d)->sgmii_port_regs : (d)->sgmii_port34_regs)
 
 #define GBE_TX_QUEUE				648
 #define	GBE_TXHOOK_ORDER			0
@@ -294,8 +295,6 @@ struct xgbe_hw_stats {
 	u32	rx_mof_overruns;
 	u32	rx_dma_overruns;
 };
-
-#define XGBE10_NUM_STAT_ENTRIES (sizeof(struct xgbe_hw_stats)/sizeof(u32))
 
 struct gbenu_ss_regs {
 	u32	id_ver;
@@ -480,7 +479,6 @@ struct gbenu_hw_stats {
 	u32	tx_pri7_drop_bcnt;
 };
 
-#define GBENU_NUM_HW_STAT_ENTRIES (sizeof(struct gbenu_hw_stats) / sizeof(u32))
 #define GBENU_HW_STATS_REG_MAP_SZ	0x200
 
 struct gbe_ss_regs {
@@ -615,7 +613,6 @@ struct gbe_hw_stats {
 	u32	rx_dma_overruns;
 };
 
-#define GBE13_NUM_HW_STAT_ENTRIES (sizeof(struct gbe_hw_stats)/sizeof(u32))
 #define GBE_MAX_HW_STAT_MODS			9
 #define GBE_HW_STATS_REG_MAP_SZ			0x100
 
@@ -646,6 +643,7 @@ struct gbe_priv {
 	bool				enable_ale;
 	u8				max_num_slaves;
 	u8				max_num_ports; /* max_num_slaves + 1 */
+	u8				num_stats_mods;
 	struct netcp_tx_pipe		tx_pipe;
 
 	int				host_port;
@@ -675,6 +673,7 @@ struct gbe_priv {
 	struct net_device		*dummy_ndev;
 
 	u64				*hw_stats;
+	u32				*hw_stats_prev;
 	const struct netcp_ethtool_stat *et_stats;
 	int				num_et_stats;
 	/*  Lock for updating the hwstats */
@@ -874,7 +873,7 @@ static const struct netcp_ethtool_stat gbe13_et_stats[] = {
 };
 
 /* This is the size of entries in GBENU_STATS_HOST */
-#define GBENU_ET_STATS_HOST_SIZE	33
+#define GBENU_ET_STATS_HOST_SIZE	52
 
 #define GBENU_STATS_HOST(field)					\
 {								\
@@ -883,8 +882,8 @@ static const struct netcp_ethtool_stat gbe13_et_stats[] = {
 	offsetof(struct gbenu_hw_stats, field)			\
 }
 
-/* This is the size of entries in GBENU_STATS_HOST */
-#define GBENU_ET_STATS_PORT_SIZE	46
+/* This is the size of entries in GBENU_STATS_PORT */
+#define GBENU_ET_STATS_PORT_SIZE	65
 
 #define GBENU_STATS_P1(field)					\
 {								\
@@ -976,7 +975,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_HOST(ale_unknown_mcast_bytes),
 	GBENU_STATS_HOST(ale_unknown_bcast),
 	GBENU_STATS_HOST(ale_unknown_bcast_bytes),
+	GBENU_STATS_HOST(ale_pol_match),
+	GBENU_STATS_HOST(ale_pol_match_red),
+	GBENU_STATS_HOST(ale_pol_match_yellow),
 	GBENU_STATS_HOST(tx_mem_protect_err),
+	GBENU_STATS_HOST(tx_pri0_drop),
+	GBENU_STATS_HOST(tx_pri1_drop),
+	GBENU_STATS_HOST(tx_pri2_drop),
+	GBENU_STATS_HOST(tx_pri3_drop),
+	GBENU_STATS_HOST(tx_pri4_drop),
+	GBENU_STATS_HOST(tx_pri5_drop),
+	GBENU_STATS_HOST(tx_pri6_drop),
+	GBENU_STATS_HOST(tx_pri7_drop),
+	GBENU_STATS_HOST(tx_pri0_drop_bcnt),
+	GBENU_STATS_HOST(tx_pri1_drop_bcnt),
+	GBENU_STATS_HOST(tx_pri2_drop_bcnt),
+	GBENU_STATS_HOST(tx_pri3_drop_bcnt),
+	GBENU_STATS_HOST(tx_pri4_drop_bcnt),
+	GBENU_STATS_HOST(tx_pri5_drop_bcnt),
+	GBENU_STATS_HOST(tx_pri6_drop_bcnt),
+	GBENU_STATS_HOST(tx_pri7_drop_bcnt),
 	/* GBENU Module 1 */
 	GBENU_STATS_P1(rx_good_frames),
 	GBENU_STATS_P1(rx_broadcast_frames),
@@ -1023,7 +1041,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_P1(ale_unknown_mcast_bytes),
 	GBENU_STATS_P1(ale_unknown_bcast),
 	GBENU_STATS_P1(ale_unknown_bcast_bytes),
+	GBENU_STATS_P1(ale_pol_match),
+	GBENU_STATS_P1(ale_pol_match_red),
+	GBENU_STATS_P1(ale_pol_match_yellow),
 	GBENU_STATS_P1(tx_mem_protect_err),
+	GBENU_STATS_P1(tx_pri0_drop),
+	GBENU_STATS_P1(tx_pri1_drop),
+	GBENU_STATS_P1(tx_pri2_drop),
+	GBENU_STATS_P1(tx_pri3_drop),
+	GBENU_STATS_P1(tx_pri4_drop),
+	GBENU_STATS_P1(tx_pri5_drop),
+	GBENU_STATS_P1(tx_pri6_drop),
+	GBENU_STATS_P1(tx_pri7_drop),
+	GBENU_STATS_P1(tx_pri0_drop_bcnt),
+	GBENU_STATS_P1(tx_pri1_drop_bcnt),
+	GBENU_STATS_P1(tx_pri2_drop_bcnt),
+	GBENU_STATS_P1(tx_pri3_drop_bcnt),
+	GBENU_STATS_P1(tx_pri4_drop_bcnt),
+	GBENU_STATS_P1(tx_pri5_drop_bcnt),
+	GBENU_STATS_P1(tx_pri6_drop_bcnt),
+	GBENU_STATS_P1(tx_pri7_drop_bcnt),
 	/* GBENU Module 2 */
 	GBENU_STATS_P2(rx_good_frames),
 	GBENU_STATS_P2(rx_broadcast_frames),
@@ -1070,7 +1107,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_P2(ale_unknown_mcast_bytes),
 	GBENU_STATS_P2(ale_unknown_bcast),
 	GBENU_STATS_P2(ale_unknown_bcast_bytes),
+	GBENU_STATS_P2(ale_pol_match),
+	GBENU_STATS_P2(ale_pol_match_red),
+	GBENU_STATS_P2(ale_pol_match_yellow),
 	GBENU_STATS_P2(tx_mem_protect_err),
+	GBENU_STATS_P2(tx_pri0_drop),
+	GBENU_STATS_P2(tx_pri1_drop),
+	GBENU_STATS_P2(tx_pri2_drop),
+	GBENU_STATS_P2(tx_pri3_drop),
+	GBENU_STATS_P2(tx_pri4_drop),
+	GBENU_STATS_P2(tx_pri5_drop),
+	GBENU_STATS_P2(tx_pri6_drop),
+	GBENU_STATS_P2(tx_pri7_drop),
+	GBENU_STATS_P2(tx_pri0_drop_bcnt),
+	GBENU_STATS_P2(tx_pri1_drop_bcnt),
+	GBENU_STATS_P2(tx_pri2_drop_bcnt),
+	GBENU_STATS_P2(tx_pri3_drop_bcnt),
+	GBENU_STATS_P2(tx_pri4_drop_bcnt),
+	GBENU_STATS_P2(tx_pri5_drop_bcnt),
+	GBENU_STATS_P2(tx_pri6_drop_bcnt),
+	GBENU_STATS_P2(tx_pri7_drop_bcnt),
 	/* GBENU Module 3 */
 	GBENU_STATS_P3(rx_good_frames),
 	GBENU_STATS_P3(rx_broadcast_frames),
@@ -1117,7 +1173,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_P3(ale_unknown_mcast_bytes),
 	GBENU_STATS_P3(ale_unknown_bcast),
 	GBENU_STATS_P3(ale_unknown_bcast_bytes),
+	GBENU_STATS_P3(ale_pol_match),
+	GBENU_STATS_P3(ale_pol_match_red),
+	GBENU_STATS_P3(ale_pol_match_yellow),
 	GBENU_STATS_P3(tx_mem_protect_err),
+	GBENU_STATS_P3(tx_pri0_drop),
+	GBENU_STATS_P3(tx_pri1_drop),
+	GBENU_STATS_P3(tx_pri2_drop),
+	GBENU_STATS_P3(tx_pri3_drop),
+	GBENU_STATS_P3(tx_pri4_drop),
+	GBENU_STATS_P3(tx_pri5_drop),
+	GBENU_STATS_P3(tx_pri6_drop),
+	GBENU_STATS_P3(tx_pri7_drop),
+	GBENU_STATS_P3(tx_pri0_drop_bcnt),
+	GBENU_STATS_P3(tx_pri1_drop_bcnt),
+	GBENU_STATS_P3(tx_pri2_drop_bcnt),
+	GBENU_STATS_P3(tx_pri3_drop_bcnt),
+	GBENU_STATS_P3(tx_pri4_drop_bcnt),
+	GBENU_STATS_P3(tx_pri5_drop_bcnt),
+	GBENU_STATS_P3(tx_pri6_drop_bcnt),
+	GBENU_STATS_P3(tx_pri7_drop_bcnt),
 	/* GBENU Module 4 */
 	GBENU_STATS_P4(rx_good_frames),
 	GBENU_STATS_P4(rx_broadcast_frames),
@@ -1164,7 +1239,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_P4(ale_unknown_mcast_bytes),
 	GBENU_STATS_P4(ale_unknown_bcast),
 	GBENU_STATS_P4(ale_unknown_bcast_bytes),
+	GBENU_STATS_P4(ale_pol_match),
+	GBENU_STATS_P4(ale_pol_match_red),
+	GBENU_STATS_P4(ale_pol_match_yellow),
 	GBENU_STATS_P4(tx_mem_protect_err),
+	GBENU_STATS_P4(tx_pri0_drop),
+	GBENU_STATS_P4(tx_pri1_drop),
+	GBENU_STATS_P4(tx_pri2_drop),
+	GBENU_STATS_P4(tx_pri3_drop),
+	GBENU_STATS_P4(tx_pri4_drop),
+	GBENU_STATS_P4(tx_pri5_drop),
+	GBENU_STATS_P4(tx_pri6_drop),
+	GBENU_STATS_P4(tx_pri7_drop),
+	GBENU_STATS_P4(tx_pri0_drop_bcnt),
+	GBENU_STATS_P4(tx_pri1_drop_bcnt),
+	GBENU_STATS_P4(tx_pri2_drop_bcnt),
+	GBENU_STATS_P4(tx_pri3_drop_bcnt),
+	GBENU_STATS_P4(tx_pri4_drop_bcnt),
+	GBENU_STATS_P4(tx_pri5_drop_bcnt),
+	GBENU_STATS_P4(tx_pri6_drop_bcnt),
+	GBENU_STATS_P4(tx_pri7_drop_bcnt),
 	/* GBENU Module 5 */
 	GBENU_STATS_P5(rx_good_frames),
 	GBENU_STATS_P5(rx_broadcast_frames),
@@ -1211,7 +1305,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_P5(ale_unknown_mcast_bytes),
 	GBENU_STATS_P5(ale_unknown_bcast),
 	GBENU_STATS_P5(ale_unknown_bcast_bytes),
+	GBENU_STATS_P5(ale_pol_match),
+	GBENU_STATS_P5(ale_pol_match_red),
+	GBENU_STATS_P5(ale_pol_match_yellow),
 	GBENU_STATS_P5(tx_mem_protect_err),
+	GBENU_STATS_P5(tx_pri0_drop),
+	GBENU_STATS_P5(tx_pri1_drop),
+	GBENU_STATS_P5(tx_pri2_drop),
+	GBENU_STATS_P5(tx_pri3_drop),
+	GBENU_STATS_P5(tx_pri4_drop),
+	GBENU_STATS_P5(tx_pri5_drop),
+	GBENU_STATS_P5(tx_pri6_drop),
+	GBENU_STATS_P5(tx_pri7_drop),
+	GBENU_STATS_P5(tx_pri0_drop_bcnt),
+	GBENU_STATS_P5(tx_pri1_drop_bcnt),
+	GBENU_STATS_P5(tx_pri2_drop_bcnt),
+	GBENU_STATS_P5(tx_pri3_drop_bcnt),
+	GBENU_STATS_P5(tx_pri4_drop_bcnt),
+	GBENU_STATS_P5(tx_pri5_drop_bcnt),
+	GBENU_STATS_P5(tx_pri6_drop_bcnt),
+	GBENU_STATS_P5(tx_pri7_drop_bcnt),
 	/* GBENU Module 6 */
 	GBENU_STATS_P6(rx_good_frames),
 	GBENU_STATS_P6(rx_broadcast_frames),
@@ -1258,7 +1371,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_P6(ale_unknown_mcast_bytes),
 	GBENU_STATS_P6(ale_unknown_bcast),
 	GBENU_STATS_P6(ale_unknown_bcast_bytes),
+	GBENU_STATS_P6(ale_pol_match),
+	GBENU_STATS_P6(ale_pol_match_red),
+	GBENU_STATS_P6(ale_pol_match_yellow),
 	GBENU_STATS_P6(tx_mem_protect_err),
+	GBENU_STATS_P6(tx_pri0_drop),
+	GBENU_STATS_P6(tx_pri1_drop),
+	GBENU_STATS_P6(tx_pri2_drop),
+	GBENU_STATS_P6(tx_pri3_drop),
+	GBENU_STATS_P6(tx_pri4_drop),
+	GBENU_STATS_P6(tx_pri5_drop),
+	GBENU_STATS_P6(tx_pri6_drop),
+	GBENU_STATS_P6(tx_pri7_drop),
+	GBENU_STATS_P6(tx_pri0_drop_bcnt),
+	GBENU_STATS_P6(tx_pri1_drop_bcnt),
+	GBENU_STATS_P6(tx_pri2_drop_bcnt),
+	GBENU_STATS_P6(tx_pri3_drop_bcnt),
+	GBENU_STATS_P6(tx_pri4_drop_bcnt),
+	GBENU_STATS_P6(tx_pri5_drop_bcnt),
+	GBENU_STATS_P6(tx_pri6_drop_bcnt),
+	GBENU_STATS_P6(tx_pri7_drop_bcnt),
 	/* GBENU Module 7 */
 	GBENU_STATS_P7(rx_good_frames),
 	GBENU_STATS_P7(rx_broadcast_frames),
@@ -1305,7 +1437,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_P7(ale_unknown_mcast_bytes),
 	GBENU_STATS_P7(ale_unknown_bcast),
 	GBENU_STATS_P7(ale_unknown_bcast_bytes),
+	GBENU_STATS_P7(ale_pol_match),
+	GBENU_STATS_P7(ale_pol_match_red),
+	GBENU_STATS_P7(ale_pol_match_yellow),
 	GBENU_STATS_P7(tx_mem_protect_err),
+	GBENU_STATS_P7(tx_pri0_drop),
+	GBENU_STATS_P7(tx_pri1_drop),
+	GBENU_STATS_P7(tx_pri2_drop),
+	GBENU_STATS_P7(tx_pri3_drop),
+	GBENU_STATS_P7(tx_pri4_drop),
+	GBENU_STATS_P7(tx_pri5_drop),
+	GBENU_STATS_P7(tx_pri6_drop),
+	GBENU_STATS_P7(tx_pri7_drop),
+	GBENU_STATS_P7(tx_pri0_drop_bcnt),
+	GBENU_STATS_P7(tx_pri1_drop_bcnt),
+	GBENU_STATS_P7(tx_pri2_drop_bcnt),
+	GBENU_STATS_P7(tx_pri3_drop_bcnt),
+	GBENU_STATS_P7(tx_pri4_drop_bcnt),
+	GBENU_STATS_P7(tx_pri5_drop_bcnt),
+	GBENU_STATS_P7(tx_pri6_drop_bcnt),
+	GBENU_STATS_P7(tx_pri7_drop_bcnt),
 	/* GBENU Module 8 */
 	GBENU_STATS_P8(rx_good_frames),
 	GBENU_STATS_P8(rx_broadcast_frames),
@@ -1352,7 +1503,26 @@ static const struct netcp_ethtool_stat gbenu_et_stats[] = {
 	GBENU_STATS_P8(ale_unknown_mcast_bytes),
 	GBENU_STATS_P8(ale_unknown_bcast),
 	GBENU_STATS_P8(ale_unknown_bcast_bytes),
+	GBENU_STATS_P8(ale_pol_match),
+	GBENU_STATS_P8(ale_pol_match_red),
+	GBENU_STATS_P8(ale_pol_match_yellow),
 	GBENU_STATS_P8(tx_mem_protect_err),
+	GBENU_STATS_P8(tx_pri0_drop),
+	GBENU_STATS_P8(tx_pri1_drop),
+	GBENU_STATS_P8(tx_pri2_drop),
+	GBENU_STATS_P8(tx_pri3_drop),
+	GBENU_STATS_P8(tx_pri4_drop),
+	GBENU_STATS_P8(tx_pri5_drop),
+	GBENU_STATS_P8(tx_pri6_drop),
+	GBENU_STATS_P8(tx_pri7_drop),
+	GBENU_STATS_P8(tx_pri0_drop_bcnt),
+	GBENU_STATS_P8(tx_pri1_drop_bcnt),
+	GBENU_STATS_P8(tx_pri2_drop_bcnt),
+	GBENU_STATS_P8(tx_pri3_drop_bcnt),
+	GBENU_STATS_P8(tx_pri4_drop_bcnt),
+	GBENU_STATS_P8(tx_pri5_drop_bcnt),
+	GBENU_STATS_P8(tx_pri6_drop_bcnt),
+	GBENU_STATS_P8(tx_pri7_drop_bcnt),
 };
 
 #define XGBE_STATS0_INFO(field)				\
@@ -1554,70 +1724,97 @@ static int keystone_get_sset_count(struct net_device *ndev, int stringset)
 	}
 }
 
-static void gbe_update_stats(struct gbe_priv *gbe_dev, uint64_t *data)
+static void gbe_reset_mod_stats(struct gbe_priv *gbe_dev, int stats_mod)
 {
-	void __iomem *base = NULL;
-	u32  __iomem *p;
-	u32 tmp = 0;
+	void __iomem *base = gbe_dev->hw_stats_regs[stats_mod];
+	u32  __iomem *p_stats_entry;
 	int i;
 
 	for (i = 0; i < gbe_dev->num_et_stats; i++) {
-		base = gbe_dev->hw_stats_regs[gbe_dev->et_stats[i].type];
-		p = base + gbe_dev->et_stats[i].offset;
-		tmp = readl(p);
-		gbe_dev->hw_stats[i] = gbe_dev->hw_stats[i] + tmp;
+		if (gbe_dev->et_stats[i].type == stats_mod) {
+			p_stats_entry = base + gbe_dev->et_stats[i].offset;
+			gbe_dev->hw_stats[i] = 0;
+			gbe_dev->hw_stats_prev[i] = readl(p_stats_entry);
+		}
+	}
+}
+
+static inline void gbe_update_hw_stats_entry(struct gbe_priv *gbe_dev,
+					     int et_stats_entry)
+{
+	void __iomem *base = NULL;
+	u32  __iomem *p_stats_entry;
+	u32 curr, delta;
+
+	/* The hw_stats_regs pointers are already
+	 * properly set to point to the right base:
+	 */
+	base = gbe_dev->hw_stats_regs[gbe_dev->et_stats[et_stats_entry].type];
+	p_stats_entry = base + gbe_dev->et_stats[et_stats_entry].offset;
+	curr = readl(p_stats_entry);
+	delta = curr - gbe_dev->hw_stats_prev[et_stats_entry];
+	gbe_dev->hw_stats_prev[et_stats_entry] = curr;
+	gbe_dev->hw_stats[et_stats_entry] += delta;
+}
+
+static void gbe_update_stats(struct gbe_priv *gbe_dev, uint64_t *data)
+{
+	int i;
+
+	for (i = 0; i < gbe_dev->num_et_stats; i++) {
+		gbe_update_hw_stats_entry(gbe_dev, i);
+
 		if (data)
 			data[i] = gbe_dev->hw_stats[i];
-		/* write-to-decrement:
-		 * new register value = old register value - write value
-		 */
-		writel(tmp, p);
 	}
+}
+
+static inline void gbe_stats_mod_visible_ver14(struct gbe_priv *gbe_dev,
+					       int stats_mod)
+{
+	u32 val;
+
+	val = readl(GBE_REG_ADDR(gbe_dev, switch_regs, stat_port_en));
+
+	switch (stats_mod) {
+	case GBE_STATSA_MODULE:
+	case GBE_STATSB_MODULE:
+		val &= ~GBE_STATS_CD_SEL;
+		break;
+	case GBE_STATSC_MODULE:
+	case GBE_STATSD_MODULE:
+		val |= GBE_STATS_CD_SEL;
+		break;
+	default:
+		return;
+	}
+
+	/* make the stat module visible */
+	writel(val, GBE_REG_ADDR(gbe_dev, switch_regs, stat_port_en));
+}
+
+static void gbe_reset_mod_stats_ver14(struct gbe_priv *gbe_dev, int stats_mod)
+{
+	gbe_stats_mod_visible_ver14(gbe_dev, stats_mod);
+	gbe_reset_mod_stats(gbe_dev, stats_mod);
 }
 
 static void gbe_update_stats_ver14(struct gbe_priv *gbe_dev, uint64_t *data)
 {
-	void __iomem *gbe_statsa = gbe_dev->hw_stats_regs[0];
-	void __iomem *gbe_statsb = gbe_dev->hw_stats_regs[1];
-	u64 *hw_stats = &gbe_dev->hw_stats[0];
-	void __iomem *base = NULL;
-	u32  __iomem *p;
-	u32 tmp = 0, val, pair_size = (gbe_dev->num_et_stats / 2);
-	int i, j, pair;
+	u32 half_num_et_stats = (gbe_dev->num_et_stats / 2);
+	int et_entry, j, pair;
 
 	for (pair = 0; pair < 2; pair++) {
-		val = readl(GBE_REG_ADDR(gbe_dev, switch_regs, stat_port_en));
+		gbe_stats_mod_visible_ver14(gbe_dev, (pair ?
+						      GBE_STATSC_MODULE :
+						      GBE_STATSA_MODULE));
 
-		if (pair == 0)
-			val &= ~GBE_STATS_CD_SEL;
-		else
-			val |= GBE_STATS_CD_SEL;
+		for (j = 0; j < half_num_et_stats; j++) {
+			et_entry = pair * half_num_et_stats + j;
+			gbe_update_hw_stats_entry(gbe_dev, et_entry);
 
-		/* make the stat modules visible */
-		writel(val, GBE_REG_ADDR(gbe_dev, switch_regs, stat_port_en));
-
-		for (i = 0; i < pair_size; i++) {
-			j = pair * pair_size + i;
-			switch (gbe_dev->et_stats[j].type) {
-			case GBE_STATSA_MODULE:
-			case GBE_STATSC_MODULE:
-				base = gbe_statsa;
-			break;
-			case GBE_STATSB_MODULE:
-			case GBE_STATSD_MODULE:
-				base  = gbe_statsb;
-			break;
-			}
-
-			p = base + gbe_dev->et_stats[j].offset;
-			tmp = readl(p);
-			hw_stats[j] += tmp;
 			if (data)
-				data[j] = hw_stats[j];
-			/* write-to-decrement:
-			 * new register value = old register value - write value
-			 */
-			writel(tmp, p);
+				data[et_entry] = gbe_dev->hw_stats[et_entry];
 		}
 	}
 }
@@ -1801,13 +1998,8 @@ static void netcp_ethss_update_link_state(struct gbe_priv *gbe_dev,
 		return;
 
 	if (!SLAVE_LINK_IS_XGMII(slave)) {
-		if (gbe_dev->ss_version == GBE_SS_VERSION_14)
-			sgmii_link_state =
-				netcp_sgmii_get_port_link(SGMII_BASE(sp), sp);
-		else
-			sgmii_link_state =
-				netcp_sgmii_get_port_link(
-						gbe_dev->sgmii_port_regs, sp);
+		sgmii_link_state =
+			netcp_sgmii_get_port_link(SGMII_BASE(gbe_dev, sp), sp);
 	}
 
 	phy_link_state = gbe_phy_link_status(slave);
@@ -1901,11 +2093,22 @@ static void gbe_port_config(struct gbe_priv *gbe_dev, struct gbe_slave *slave,
 	writel(slave->mac_control, GBE_REG_ADDR(slave, emac_regs, mac_control));
 }
 
+static void gbe_sgmii_rtreset(struct gbe_priv *priv,
+			      struct gbe_slave *slave, bool set)
+{
+	if (SLAVE_LINK_IS_XGMII(slave))
+		return;
+
+	netcp_sgmii_rtreset(SGMII_BASE(priv, slave->slave_num),
+			    slave->slave_num, set);
+}
+
 static void gbe_slave_stop(struct gbe_intf *intf)
 {
 	struct gbe_priv *gbe_dev = intf->gbe_dev;
 	struct gbe_slave *slave = intf->slave;
 
+	gbe_sgmii_rtreset(gbe_dev, slave, true);
 	gbe_port_reset(slave);
 	/* Disable forwarding */
 	cpsw_ale_control_set(gbe_dev->ale, slave->port_num,
@@ -1923,17 +2126,12 @@ static void gbe_slave_stop(struct gbe_intf *intf)
 
 static void gbe_sgmii_config(struct gbe_priv *priv, struct gbe_slave *slave)
 {
-	void __iomem *sgmii_port_regs;
+	if (SLAVE_LINK_IS_XGMII(slave))
+		return;
 
-	sgmii_port_regs = priv->sgmii_port_regs;
-	if ((priv->ss_version == GBE_SS_VERSION_14) && (slave->slave_num >= 2))
-		sgmii_port_regs = priv->sgmii_port34_regs;
-
-	if (!SLAVE_LINK_IS_XGMII(slave)) {
-		netcp_sgmii_reset(sgmii_port_regs, slave->slave_num);
-		netcp_sgmii_config(sgmii_port_regs, slave->slave_num,
-				   slave->link_interface);
-	}
+	netcp_sgmii_reset(SGMII_BASE(priv, slave->slave_num), slave->slave_num);
+	netcp_sgmii_config(SGMII_BASE(priv, slave->slave_num), slave->slave_num,
+			   slave->link_interface);
 }
 
 static int gbe_slave_open(struct gbe_intf *gbe_intf)
@@ -1947,6 +2145,7 @@ static int gbe_slave_open(struct gbe_intf *gbe_intf)
 
 	gbe_sgmii_config(priv, slave);
 	gbe_port_reset(slave);
+	gbe_sgmii_rtreset(priv, slave, false);
 	gbe_port_config(priv, slave, priv->rx_packet_max);
 	gbe_set_slave_mac(slave, gbe_intf);
 	/* enable forwarding */
@@ -2189,14 +2388,15 @@ static void netcp_ethss_timer(unsigned long arg)
 		netcp_ethss_update_link_state(gbe_dev, slave, NULL);
 	}
 
-	spin_lock_bh(&gbe_dev->hw_stats_lock);
+	/* A timer runs as a BH, no need to block them */
+	spin_lock(&gbe_dev->hw_stats_lock);
 
 	if (gbe_dev->ss_version == GBE_SS_VERSION_14)
 		gbe_update_stats_ver14(gbe_dev, NULL);
 	else
 		gbe_update_stats(gbe_dev, NULL);
 
-	spin_unlock_bh(&gbe_dev->hw_stats_lock);
+	spin_unlock(&gbe_dev->hw_stats_lock);
 
 	gbe_dev->timer.expires	= jiffies + GBE_TIMER_INTERVAL;
 	add_timer(&gbe_dev->timer);
@@ -2437,8 +2637,10 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 			mac_phy_link = true;
 
 		slave->open = true;
-		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves)
+		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves) {
+			of_node_put(port);
 			break;
+		}
 	}
 
 	/* of_phy_connect() is needed only for MAC-PHY interface */
@@ -2490,10 +2692,9 @@ static void free_secondary_ports(struct gbe_priv *gbe_dev)
 {
 	struct gbe_slave *slave;
 
-	for (;;) {
+	while (!list_empty(&gbe_dev->secondary_slaves)) {
 		slave = first_sec_slave(gbe_dev);
-		if (!slave)
-			break;
+
 		if (slave->phy)
 			phy_disconnect(slave->phy);
 		list_del(&slave->slave_list);
@@ -2554,12 +2755,25 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	}
 	gbe_dev->xgbe_serdes_regs = regs;
 
+	gbe_dev->num_stats_mods = gbe_dev->max_num_ports;
+	gbe_dev->et_stats = xgbe10_et_stats;
+	gbe_dev->num_et_stats = ARRAY_SIZE(xgbe10_et_stats);
+
 	gbe_dev->hw_stats = devm_kzalloc(gbe_dev->dev,
-				  XGBE10_NUM_STAT_ENTRIES *
-				  (gbe_dev->max_num_ports) * sizeof(u64),
-				  GFP_KERNEL);
+					 gbe_dev->num_et_stats * sizeof(u64),
+					 GFP_KERNEL);
 	if (!gbe_dev->hw_stats) {
 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
+		return -ENOMEM;
+	}
+
+	gbe_dev->hw_stats_prev =
+		devm_kzalloc(gbe_dev->dev,
+			     gbe_dev->num_et_stats * sizeof(u32),
+			     GFP_KERNEL);
+	if (!gbe_dev->hw_stats_prev) {
+		dev_err(gbe_dev->dev,
+			"hw_stats_prev memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -2576,8 +2790,6 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
 	gbe_dev->ale_ports = gbe_dev->max_num_ports;
 	gbe_dev->host_port = XGBE10_HOST_PORT_NUM;
 	gbe_dev->ale_entries = XGBE10_NUM_ALE_ENTRIES;
-	gbe_dev->et_stats = xgbe10_et_stats;
-	gbe_dev->num_et_stats = ARRAY_SIZE(xgbe10_et_stats);
 	gbe_dev->stats_en_mask = (1 << (gbe_dev->max_num_ports)) - 1;
 
 	/* Subsystem registers */
@@ -2662,30 +2874,45 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
 	}
 	gbe_dev->switch_regs = regs;
 
+	gbe_dev->num_stats_mods = gbe_dev->max_num_slaves;
+	gbe_dev->et_stats = gbe13_et_stats;
+	gbe_dev->num_et_stats = ARRAY_SIZE(gbe13_et_stats);
+
 	gbe_dev->hw_stats = devm_kzalloc(gbe_dev->dev,
-					  GBE13_NUM_HW_STAT_ENTRIES *
-					  gbe_dev->max_num_slaves * sizeof(u64),
-					  GFP_KERNEL);
+					 gbe_dev->num_et_stats * sizeof(u64),
+					 GFP_KERNEL);
 	if (!gbe_dev->hw_stats) {
 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
+		return -ENOMEM;
+	}
+
+	gbe_dev->hw_stats_prev =
+		devm_kzalloc(gbe_dev->dev,
+			     gbe_dev->num_et_stats * sizeof(u32),
+			     GFP_KERNEL);
+	if (!gbe_dev->hw_stats_prev) {
+		dev_err(gbe_dev->dev,
+			"hw_stats_prev memory allocation failed\n");
 		return -ENOMEM;
 	}
 
 	gbe_dev->sgmii_port_regs = gbe_dev->ss_regs + GBE13_SGMII_MODULE_OFFSET;
 	gbe_dev->host_port_regs = gbe_dev->switch_regs + GBE13_HOST_PORT_OFFSET;
 
+	/* K2HK has only 2 hw stats modules visible at a time, so
+	 * module 0 & 2 points to one base and
+	 * module 1 & 3 points to the other base
+	 */
 	for (i = 0; i < gbe_dev->max_num_slaves; i++) {
 		gbe_dev->hw_stats_regs[i] =
 			gbe_dev->switch_regs + GBE13_HW_STATS_OFFSET +
-			(GBE_HW_STATS_REG_MAP_SZ * i);
+			(GBE_HW_STATS_REG_MAP_SZ * (i & 0x1));
 	}
 
 	gbe_dev->ale_reg = gbe_dev->switch_regs + GBE13_ALE_OFFSET;
 	gbe_dev->ale_ports = gbe_dev->max_num_ports;
 	gbe_dev->host_port = GBE13_HOST_PORT_NUM;
 	gbe_dev->ale_entries = GBE13_NUM_ALE_ENTRIES;
-	gbe_dev->et_stats = gbe13_et_stats;
-	gbe_dev->num_et_stats = ARRAY_SIZE(gbe13_et_stats);
 	gbe_dev->stats_en_mask = GBE13_REG_VAL_STAT_ENABLE_ALL;
 
 	/* Subsystem registers */
@@ -2712,12 +2939,31 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
 	void __iomem *regs;
 	int i, ret;
 
+	gbe_dev->num_stats_mods = gbe_dev->max_num_ports;
+	gbe_dev->et_stats = gbenu_et_stats;
+
+	if (IS_SS_ID_NU(gbe_dev))
+		gbe_dev->num_et_stats = GBENU_ET_STATS_HOST_SIZE +
+			(gbe_dev->max_num_slaves * GBENU_ET_STATS_PORT_SIZE);
+	else
+		gbe_dev->num_et_stats = GBENU_ET_STATS_HOST_SIZE +
+					GBENU_ET_STATS_PORT_SIZE;
+
 	gbe_dev->hw_stats = devm_kzalloc(gbe_dev->dev,
-				  GBENU_NUM_HW_STAT_ENTRIES *
-				  (gbe_dev->max_num_ports) * sizeof(u64),
-				  GFP_KERNEL);
+					 gbe_dev->num_et_stats * sizeof(u64),
+					 GFP_KERNEL);
 	if (!gbe_dev->hw_stats) {
 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
+		return -ENOMEM;
+	}
+
+	gbe_dev->hw_stats_prev =
+		devm_kzalloc(gbe_dev->dev,
+			     gbe_dev->num_et_stats * sizeof(u32),
+			     GFP_KERNEL);
+	if (!gbe_dev->hw_stats_prev) {
+		dev_err(gbe_dev->dev,
+			"hw_stats_prev memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -2738,6 +2984,14 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
 	gbe_dev->switch_regs = regs;
 
 	gbe_dev->sgmii_port_regs = gbe_dev->ss_regs + GBENU_SGMII_MODULE_OFFSET;
+
+	/* Although sgmii modules are mem mapped to one contiguous
+	 * region on GBENU devices, setting sgmii_port34_regs allows
+	 * consistent code when accessing sgmii api
+	 */
+	gbe_dev->sgmii_port34_regs = gbe_dev->sgmii_port_regs +
+				     (2 * GBENU_SGMII_MODULE_SIZE);
+
 	gbe_dev->host_port_regs = gbe_dev->switch_regs + GBENU_HOST_PORT_OFFSET;
 
 	for (i = 0; i < (gbe_dev->max_num_ports); i++)
@@ -2748,15 +3002,7 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
 	gbe_dev->ale_ports = gbe_dev->max_num_ports;
 	gbe_dev->host_port = GBENU_HOST_PORT_NUM;
 	gbe_dev->ale_entries = GBE13_NUM_ALE_ENTRIES;
-	gbe_dev->et_stats = gbenu_et_stats;
 	gbe_dev->stats_en_mask = (1 << (gbe_dev->max_num_ports)) - 1;
-
-	if (IS_SS_ID_NU(gbe_dev))
-		gbe_dev->num_et_stats = GBENU_ET_STATS_HOST_SIZE +
-			(gbe_dev->max_num_slaves * GBENU_ET_STATS_PORT_SIZE);
-	else
-		gbe_dev->num_et_stats = GBENU_ET_STATS_HOST_SIZE +
-					GBENU_ET_STATS_PORT_SIZE;
 
 	/* Subsystem registers */
 	GBENU_SET_REG_OFS(gbe_dev, ss_regs, id_ver);
@@ -2787,7 +3033,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	struct cpsw_ale_params ale_params;
 	struct gbe_priv *gbe_dev;
 	u32 slave_num;
-	int ret = 0;
+	int i, ret = 0;
 
 	if (!node) {
 		dev_err(dev, "device tree info unavailable\n");
@@ -2839,14 +3085,13 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 				      &gbe_dev->dma_chan_name);
 	if (ret < 0) {
 		dev_err(dev, "missing \"tx-channel\" parameter\n");
-		ret = -ENODEV;
-		goto quit;
+		return -EINVAL;
 	}
 
 	if (!strcmp(node->name, "gbe")) {
 		ret = get_gbe_resource_version(gbe_dev, node);
 		if (ret)
-			goto quit;
+			return ret;
 
 		dev_dbg(dev, "ss_version: 0x%08x\n", gbe_dev->ss_version);
 
@@ -2857,21 +3102,19 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		else
 			ret = -ENODEV;
 
-		if (ret)
-			goto quit;
 	} else if (!strcmp(node->name, "xgbe")) {
 		ret = set_xgbe_ethss10_priv(gbe_dev, node);
 		if (ret)
-			goto quit;
+			return ret;
 		ret = netcp_xgbe_serdes_init(gbe_dev->xgbe_serdes_regs,
 					     gbe_dev->ss_regs);
-		if (ret)
-			goto quit;
 	} else {
 		dev_err(dev, "unknown GBE node(%s)\n", node->name);
 		ret = -ENODEV;
-		goto quit;
 	}
+
+	if (ret)
+		return ret;
 
 	interfaces = of_get_child_by_name(node, "interfaces");
 	if (!interfaces)
@@ -2880,11 +3123,11 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	ret = netcp_txpipe_init(&gbe_dev->tx_pipe, netcp_device,
 				gbe_dev->dma_chan_name, gbe_dev->tx_queue_id);
 	if (ret)
-		goto quit;
+		return ret;
 
 	ret = netcp_txpipe_open(&gbe_dev->tx_pipe);
 	if (ret)
-		goto quit;
+		return ret;
 
 	/* Create network interfaces */
 	INIT_LIST_HEAD(&gbe_dev->gbe_intf_head);
@@ -2896,9 +3139,12 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 			continue;
 		}
 		gbe_dev->num_slaves++;
-		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves)
+		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves) {
+			of_node_put(interface);
 			break;
+		}
 	}
+	of_node_put(interfaces);
 
 	if (!gbe_dev->num_slaves)
 		dev_warn(dev, "No network interface configured\n");
@@ -2911,9 +3157,10 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	of_node_put(secondary_ports);
 
 	if (!gbe_dev->num_slaves) {
-		dev_err(dev, "No network interface or secondary ports configured\n");
+		dev_err(dev,
+			"No network interface or secondary ports configured\n");
 		ret = -ENODEV;
-		goto quit;
+		goto free_sec_ports;
 	}
 
 	memset(&ale_params, 0, sizeof(ale_params));
@@ -2927,13 +3174,22 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	if (!gbe_dev->ale) {
 		dev_err(gbe_dev->dev, "error initializing ale engine\n");
 		ret = -ENODEV;
-		goto quit;
+		goto free_sec_ports;
 	} else {
 		dev_dbg(gbe_dev->dev, "Created a gbe ale engine\n");
 	}
 
 	/* initialize host port */
 	gbe_init_host_port(gbe_dev);
+
+	spin_lock_bh(&gbe_dev->hw_stats_lock);
+	for (i = 0; i < gbe_dev->num_stats_mods; i++) {
+		if (gbe_dev->ss_version == GBE_SS_VERSION_14)
+			gbe_reset_mod_stats_ver14(gbe_dev, i);
+		else
+			gbe_reset_mod_stats(gbe_dev, i);
+	}
+	spin_unlock_bh(&gbe_dev->hw_stats_lock);
 
 	init_timer(&gbe_dev->timer);
 	gbe_dev->timer.data	 = (unsigned long)gbe_dev;
@@ -2943,14 +3199,8 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	*inst_priv = gbe_dev;
 	return 0;
 
-quit:
-	if (gbe_dev->hw_stats)
-		devm_kfree(dev, gbe_dev->hw_stats);
-	cpsw_ale_destroy(gbe_dev->ale);
-	if (gbe_dev->ss_regs)
-		devm_iounmap(dev, gbe_dev->ss_regs);
-	of_node_put(interfaces);
-	devm_kfree(dev, gbe_dev);
+free_sec_ports:
+	free_secondary_ports(gbe_dev);
 	return ret;
 }
 
@@ -3023,12 +3273,9 @@ static int gbe_remove(struct netcp_device *netcp_device, void *inst_priv)
 	free_secondary_ports(gbe_dev);
 
 	if (!list_empty(&gbe_dev->gbe_intf_head))
-		dev_alert(gbe_dev->dev, "unreleased ethss interfaces present\n");
+		dev_alert(gbe_dev->dev,
+			  "unreleased ethss interfaces present\n");
 
-	devm_kfree(gbe_dev->dev, gbe_dev->hw_stats);
-	devm_iounmap(gbe_dev->dev, gbe_dev->ss_regs);
-	memset(gbe_dev, 0x00, sizeof(*gbe_dev));
-	devm_kfree(gbe_dev->dev, gbe_dev);
 	return 0;
 }
 

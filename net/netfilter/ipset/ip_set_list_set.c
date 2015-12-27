@@ -31,7 +31,7 @@ struct set_elem {
 	struct rcu_head rcu;
 	struct list_head list;
 	ip_set_id_t id;
-};
+} __aligned(__alignof__(u64));
 
 struct set_adt_elem {
 	ip_set_id_t id;
@@ -297,7 +297,7 @@ list_set_uadd(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	      ip_set_timeout_expired(ext_timeout(n, set))))
 		n =  NULL;
 
-	e = kzalloc(set->dsize, GFP_KERNEL);
+	e = kzalloc(set->dsize, GFP_ATOMIC);
 	if (!e)
 		return -ENOMEM;
 	e->id = d->id;
@@ -618,7 +618,8 @@ list_set_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		size = IP_SET_LIST_MIN_SIZE;
 
 	set->variant = &set_variant;
-	set->dsize = ip_set_elem_len(set, tb, sizeof(struct set_elem));
+	set->dsize = ip_set_elem_len(set, tb, sizeof(struct set_elem),
+				     __alignof__(struct set_elem));
 	if (!init_list_set(net, set, size))
 		return -ENOMEM;
 	if (tb[IPSET_ATTR_TIMEOUT]) {

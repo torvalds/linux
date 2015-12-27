@@ -172,6 +172,9 @@ void sb1250_mailbox_interrupt(void)
 	if (action & SMP_RESCHEDULE_YOURSELF)
 		scheduler_ipi();
 
-	if (action & SMP_CALL_FUNCTION)
-		smp_call_function_interrupt();
+	if (action & SMP_CALL_FUNCTION) {
+		irq_enter();
+		generic_smp_call_function_interrupt();
+		irq_exit();
+	}
 }

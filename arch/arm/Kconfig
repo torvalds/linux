@@ -76,6 +76,8 @@ config ARM
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_REL
 	select NO_BOOTMEM
+	select OF_EARLY_FLATTREE if OF
+	select OF_RESERVED_MEM if OF
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
 	select PERF_USE_VMALLOC
@@ -188,6 +190,9 @@ config ARCH_HAS_ILOG2_U64
 config ARCH_HAS_BANDGAP
 	bool
 
+config FIX_EARLYCON_MEM
+	def_bool y if MMU
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -268,7 +273,6 @@ config PHYS_OFFSET
 	depends on !ARM_PATCH_PHYS_VIRT
 	default DRAM_BASE if !MMU
 	default 0x00000000 if ARCH_EBSA110 || \
-			EP93XX_SDCE3_SYNC_PHYS_OFFSET || \
 			ARCH_FOOTBRIDGE || \
 			ARCH_INTEGRATOR || \
 			ARCH_IOP13XX || \
@@ -277,10 +281,7 @@ config PHYS_OFFSET
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x20000000 if ARCH_S5PV210
 	default 0x70000000 if REALVIEW_HIGH_PHYS_OFFSET
-	default 0xc0000000 if EP93XX_SDCE0_PHYS_OFFSET || ARCH_SA1100
-	default 0xd0000000 if EP93XX_SDCE1_PHYS_OFFSET
-	default 0xe0000000 if EP93XX_SDCE2_PHYS_OFFSET
-	default 0xf0000000 if EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	default 0xc0000000 if ARCH_SA1100
 	help
 	  Please provide the physical address corresponding to the
 	  location of main memory in your system.
@@ -418,11 +419,14 @@ config ARCH_EP93XX
 	bool "EP93xx-based"
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_USES_GETTIMEOFFSET
 	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
+	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select CPU_ARM920T
+	select GENERIC_CLOCKEVENTS
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -536,6 +540,7 @@ config ARCH_ORION5X
 	select MVEBU_MBUS
 	select PCI
 	select PLAT_ORION_LEGACY
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
@@ -618,30 +623,9 @@ config ARCH_PXA
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
-config ARCH_SHMOBILE_LEGACY
-	bool "Renesas ARM SoCs (non-multiplatform)"
-	select ARCH_SHMOBILE
-	select ARM_PATCH_PHYS_VIRT if MMU
-	select CLKDEV_LOOKUP
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select MULTI_IRQ_HANDLER
-	select NO_IOPORT_MAP
-	select PINCTRL
-	select PM_GENERIC_DOMAINS if PM
-	select SH_CLK_CPG
-	select SPARSE_IRQ
-	help
-	  Support for Renesas ARM SoC platforms using a non-multiplatform
-	  kernel. This includes the SH-Mobile, R-Mobile, EMMA-Mobile, R-Car
-	  and RZ families.
-
 config ARCH_RPC
 	bool "RiscPC"
+	depends on MMU
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
@@ -733,7 +717,6 @@ config ARCH_DAVINCI
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
-	select TI_PRIV_EDMA
 	select USE_OF
 	select ZONE_DMA
 	help
@@ -816,6 +799,7 @@ config ARCH_VIRT
 	bool "Dummy Virtual Machine" if ARCH_MULTI_V7
 	select ARM_AMBA
 	select ARM_GIC
+	select ARM_GIC_V3
 	select ARM_PSCI
 	select HAVE_ARM_ARCH_TIMER
 
@@ -1407,7 +1391,6 @@ config HAVE_ARM_ARCH_TIMER
 
 config HAVE_ARM_TWD
 	bool
-	depends on SMP
 	select CLKSRC_OF if OF
 	help
 	  This options enables support for the ARM timer and watchdog unit
@@ -1467,6 +1450,8 @@ choice
 
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
+	config VMSPLIT_3G_OPT
+		bool "3G/1G user/kernel split (for full 1G low memory)"
 	config VMSPLIT_2G
 		bool "2G/2G user/kernel split"
 	config VMSPLIT_1G
@@ -1478,6 +1463,7 @@ config PAGE_OFFSET
 	default PHYS_OFFSET if !MMU
 	default 0x40000000 if VMSPLIT_1G
 	default 0x80000000 if VMSPLIT_2G
+	default 0xB0000000 if VMSPLIT_3G_OPT
 	default 0xC0000000
 
 config NR_CPUS
@@ -1496,6 +1482,7 @@ config HOTPLUG_CPU
 config ARM_PSCI
 	bool "Support for the ARM Power State Coordination Interface (PSCI)"
 	depends on CPU_V7
+	select ARM_PSCI_FW
 	help
 	  Say Y here if you want Linux to communicate with system firmware
 	  implementing the PSCI specification for CPU-centric power
@@ -1530,7 +1517,6 @@ config HZ_FIXED
 	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default 128 if SOC_AT91RM9200
-	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE_LEGACY
 	default 0
 
 choice
@@ -1691,16 +1677,34 @@ config HIGHMEM
 	  If unsure, say n.
 
 config HIGHPTE
-	bool "Allocate 2nd-level pagetables from highmem"
+	bool "Allocate 2nd-level pagetables from highmem" if EXPERT
 	depends on HIGHMEM
-
-config HW_PERF_EVENTS
-	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS
 	default y
 	help
-	  Enable hardware performance counter support for perf events. If
-	  disabled, perf events will use software events only.
+	  The VM uses one page of physical memory for each page table.
+	  For systems with a lot of processes, this can use a lot of
+	  precious low memory, eventually leading to low memory being
+	  consumed by page tables.  Setting this option will allow
+	  user-space 2nd level page tables to reside in high memory.
+
+config CPU_SW_DOMAIN_PAN
+	bool "Enable use of CPU domains to implement privileged no-access"
+	depends on MMU && !ARM_LPAE
+	default y
+	help
+	  Increase kernel security by ensuring that normal kernel accesses
+	  are unable to access userspace addresses.  This can help prevent
+	  use-after-free bugs becoming an exploitable privilege escalation
+	  by ensuring that magic values (such as LIST_POISON) will always
+	  fault when dereferenced.
+
+	  CPUs with low-vector mappings use a best-efforts implementation.
+	  Their lower 1MB needs to remain accessible for the vectors, but
+	  the remainder of userspace will become appropriately inaccessible.
+
+config HW_PERF_EVENTS
+	def_bool y
+	depends on ARM_PMU
 
 config SYS_SUPPORTS_HUGETLBFS
        def_bool y
@@ -1731,8 +1735,7 @@ config ARM_MODULE_PLTS
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
-	int "Maximum zone order" if ARCH_SHMOBILE_LEGACY
-	range 11 64 if ARCH_SHMOBILE_LEGACY
+	int "Maximum zone order"
 	default "12" if SOC_AM33XX
 	default "9" if SA1111 || ARCH_EFM32
 	default "11"
@@ -1821,8 +1824,6 @@ config USE_OF
 	bool "Flattened Device Tree support"
 	select IRQ_DOMAIN
 	select OF
-	select OF_EARLY_FLATTREE
-	select OF_RESERVED_MEM
 	help
 	  Include support for flattened device tree machine descriptions.
 
@@ -1999,6 +2000,7 @@ config KEXEC
 	bool "Kexec system call (EXPERIMENTAL)"
 	depends on (!SMP || PM_SLEEP_SMP)
 	depends on !CPU_V7M
+	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot

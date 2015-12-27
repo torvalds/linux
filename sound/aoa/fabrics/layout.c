@@ -1120,10 +1120,10 @@ static int aoa_fabric_layout_remove(struct soundbus_dev *sdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int aoa_fabric_layout_suspend(struct soundbus_dev *sdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int aoa_fabric_layout_suspend(struct device *dev)
 {
-	struct layout_dev *ldev = dev_get_drvdata(&sdev->ofdev.dev);
+	struct layout_dev *ldev = dev_get_drvdata(dev);
 
 	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_off)
 		ldev->gpio.methods->all_amps_off(&ldev->gpio);
@@ -1131,15 +1131,19 @@ static int aoa_fabric_layout_suspend(struct soundbus_dev *sdev, pm_message_t sta
 	return 0;
 }
 
-static int aoa_fabric_layout_resume(struct soundbus_dev *sdev)
+static int aoa_fabric_layout_resume(struct device *dev)
 {
-	struct layout_dev *ldev = dev_get_drvdata(&sdev->ofdev.dev);
+	struct layout_dev *ldev = dev_get_drvdata(dev);
 
 	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_restore)
 		ldev->gpio.methods->all_amps_restore(&ldev->gpio);
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(aoa_fabric_layout_pm_ops,
+	aoa_fabric_layout_suspend, aoa_fabric_layout_resume);
+
 #endif
 
 static struct soundbus_driver aoa_soundbus_driver = {
@@ -1147,12 +1151,11 @@ static struct soundbus_driver aoa_soundbus_driver = {
 	.owner = THIS_MODULE,
 	.probe = aoa_fabric_layout_probe,
 	.remove = aoa_fabric_layout_remove,
-#ifdef CONFIG_PM
-	.suspend = aoa_fabric_layout_suspend,
-	.resume = aoa_fabric_layout_resume,
-#endif
 	.driver = {
 		.owner = THIS_MODULE,
+#ifdef CONFIG_PM_SLEEP
+		.pm = &aoa_fabric_layout_pm_ops,
+#endif
 	}
 };
 

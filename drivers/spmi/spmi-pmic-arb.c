@@ -168,11 +168,6 @@ struct pmic_arb_ver_ops {
 	u32 (*irq_clear)(u8 n);
 };
 
-static inline u32 pmic_arb_base_read(struct spmi_pmic_arb_dev *dev, u32 offset)
-{
-	return readl_relaxed(dev->rd_base + offset);
-}
-
 static inline void pmic_arb_base_write(struct spmi_pmic_arb_dev *dev,
 				       u32 offset, u32 val)
 {
@@ -193,7 +188,7 @@ static inline void pmic_arb_set_rd_cmd(struct spmi_pmic_arb_dev *dev,
  */
 static void pa_read_data(struct spmi_pmic_arb_dev *dev, u8 *buf, u32 reg, u8 bc)
 {
-	u32 data = pmic_arb_base_read(dev, reg);
+	u32 data = __raw_readl(dev->rd_base + reg);
 	memcpy(buf, &data, (bc & 3) + 1);
 }
 
@@ -208,7 +203,7 @@ pa_write_data(struct spmi_pmic_arb_dev *dev, const u8 *buf, u32 reg, u8 bc)
 {
 	u32 data = 0;
 	memcpy(&data, buf, (bc & 3) + 1);
-	pmic_arb_base_write(dev, reg, data);
+	__raw_writel(data, dev->wr_base + reg);
 }
 
 static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
@@ -365,7 +360,7 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 		opc = PMIC_ARB_OP_EXT_WRITE;
 	else if (opc >= 0x30 && opc <= 0x37)
 		opc = PMIC_ARB_OP_EXT_WRITEL;
-	else if (opc >= 0x80 && opc <= 0xFF)
+	else if (opc >= 0x80)
 		opc = PMIC_ARB_OP_ZERO_WRITE;
 	else
 		return -EINVAL;
@@ -451,10 +446,10 @@ static void periph_interrupt(struct spmi_pmic_arb_dev *pa, u8 apid)
 	}
 }
 
-static void pmic_arb_chained_irq(unsigned int irq, struct irq_desc *desc)
+static void pmic_arb_chained_irq(struct irq_desc *desc)
 {
-	struct spmi_pmic_arb_dev *pa = irq_get_handler_data(irq);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct spmi_pmic_arb_dev *pa = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	void __iomem *intr = pa->intr;
 	int first = pa->min_apid >> 5;
 	int last = pa->max_apid >> 5;
@@ -575,6 +570,22 @@ static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
+static int qpnpint_get_irqchip_state(struct irq_data *d,
+				     enum irqchip_irq_state which,
+				     bool *state)
+{
+	u8 irq = d->hwirq >> 8;
+	u8 status = 0;
+
+	if (which != IRQCHIP_STATE_LINE_LEVEL)
+		return -EINVAL;
+
+	qpnpint_spmi_read(d, QPNPINT_REG_RT_STS, &status, 1);
+	*state = !!(status & BIT(irq));
+
+	return 0;
+}
+
 static struct irq_chip pmic_arb_irqchip = {
 	.name		= "pmic_arb",
 	.irq_enable	= qpnpint_irq_enable,
@@ -582,6 +593,7 @@ static struct irq_chip pmic_arb_irqchip = {
 	.irq_mask	= qpnpint_irq_mask,
 	.irq_unmask	= qpnpint_irq_unmask,
 	.irq_set_type	= qpnpint_irq_set_type,
+	.irq_get_irqchip_state	= qpnpint_get_irqchip_state,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND
 			| IRQCHIP_SKIP_SET_WAKE,
 };
@@ -640,7 +652,7 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 		"intspec[0] 0x%1x intspec[1] 0x%02x intspec[2] 0x%02x\n",
 		intspec[0], intspec[1], intspec[2]);
 
-	if (d->of_node != controller)
+	if (irq_domain_get_of_node(d) != controller)
 		return -EINVAL;
 	if (intsize != 4)
 		return -EINVAL;
@@ -928,8 +940,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 		goto err_put_ctrl;
 	}
 
-	irq_set_handler_data(pa->irq, pa);
-	irq_set_chained_handler(pa->irq, pmic_arb_chained_irq);
+	irq_set_chained_handler_and_data(pa->irq, pmic_arb_chained_irq, pa);
 
 	err = spmi_controller_add(ctrl);
 	if (err)
@@ -938,8 +949,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	return 0;
 
 err_domain_remove:
-	irq_set_chained_handler(pa->irq, NULL);
-	irq_set_handler_data(pa->irq, NULL);
+	irq_set_chained_handler_and_data(pa->irq, NULL, NULL);
 	irq_domain_remove(pa->domain);
 err_put_ctrl:
 	spmi_controller_put(ctrl);
@@ -951,8 +961,7 @@ static int spmi_pmic_arb_remove(struct platform_device *pdev)
 	struct spmi_controller *ctrl = platform_get_drvdata(pdev);
 	struct spmi_pmic_arb_dev *pa = spmi_controller_get_drvdata(ctrl);
 	spmi_controller_remove(ctrl);
-	irq_set_chained_handler(pa->irq, NULL);
-	irq_set_handler_data(pa->irq, NULL);
+	irq_set_chained_handler_and_data(pa->irq, NULL, NULL);
 	irq_domain_remove(pa->domain);
 	spmi_controller_put(ctrl);
 	return 0;

@@ -1225,6 +1225,15 @@ static int dss_add_child_component(struct device *dev, void *data)
 {
 	struct component_match **match = data;
 
+	/*
+	 * HACK
+	 * We don't have a working driver for rfbi, so skip it here always.
+	 * Otherwise dss will never get probed successfully, as it will wait
+	 * for rfbi to get probed.
+	 */
+	if (strstr(dev_name(dev), "rfbi"))
+		return 0;
+
 	component_match_add(dev->parent, match, dss_component_compare, dev);
 
 	return 0;

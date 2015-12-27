@@ -118,7 +118,11 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
-	cmd->params.role_id = wlvif->role_id;
+	/* scan on the dev role if the regular one is not started */
+	if (wlcore_is_p2p_mgmt(wlvif))
+		cmd->params.role_id = wlvif->dev_role_id;
+	else
+		cmd->params.role_id = wlvif->role_id;
 
 	if (WARN_ON(cmd->params.role_id == WL12XX_INVALID_ROLE_ID)) {
 		ret = -EINVAL;
@@ -346,7 +350,8 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	cfg->bss_type = SCAN_BSS_TYPE_ANY;
 	/* currently NL80211 supports only a single interval */
 	for (i = 0; i < SCAN_MAX_CYCLE_INTERVALS; i++)
-		cfg->intervals[i] = cpu_to_le32(req->interval);
+		cfg->intervals[i] = cpu_to_le32(req->scan_plans[0].interval *
+						MSEC_PER_SEC);
 
 	cfg->ssid_len = 0;
 	ret = wlcore_scan_sched_scan_ssid_list(wl, wlvif, req);

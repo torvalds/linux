@@ -191,7 +191,8 @@ static void etm_set_prog(struct etm_drvdata *drvdata)
 	isb();
 	if (coresight_timeout_etm(drvdata, ETMSR, ETMSR_PROG_BIT, 1)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n", ETMSR);
+			"%s: timeout observed when probing at offset %#x\n",
+			__func__, ETMSR);
 	}
 }
 
@@ -209,7 +210,8 @@ static void etm_clr_prog(struct etm_drvdata *drvdata)
 	isb();
 	if (coresight_timeout_etm(drvdata, ETMSR, ETMSR_PROG_BIT, 0)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n", ETMSR);
+			"%s: timeout observed when probing at offset %#x\n",
+			__func__, ETMSR);
 	}
 }
 
@@ -237,8 +239,11 @@ static void etm_set_default(struct etm_drvdata *drvdata)
 
 	drvdata->seq_curr_state = 0x0;
 	drvdata->ctxid_idx = 0x0;
-	for (i = 0; i < drvdata->nr_ctxid_cmp; i++)
-		drvdata->ctxid_val[i] = 0x0;
+	for (i = 0; i < drvdata->nr_ctxid_cmp; i++) {
+		drvdata->ctxid_pid[i] = 0x0;
+		drvdata->ctxid_vpid[i] = 0x0;
+	}
+
 	drvdata->ctxid_mask = 0x0;
 }
 
@@ -289,7 +294,7 @@ static void etm_enable_hw(void *info)
 	for (i = 0; i < drvdata->nr_ext_out; i++)
 		etm_writel(drvdata, ETM_DEFAULT_EVENT_VAL, ETMEXTOUTEVRn(i));
 	for (i = 0; i < drvdata->nr_ctxid_cmp; i++)
-		etm_writel(drvdata, drvdata->ctxid_val[i], ETMCIDCVRn(i));
+		etm_writel(drvdata, drvdata->ctxid_pid[i], ETMCIDCVRn(i));
 	etm_writel(drvdata, drvdata->ctxid_mask, ETMCIDCMR);
 	etm_writel(drvdata, drvdata->sync_freq, ETMSYNCFR);
 	/* No external input selected */
@@ -308,14 +313,6 @@ static void etm_enable_hw(void *info)
 	CS_LOCK(drvdata->base);
 
 	dev_dbg(drvdata->dev, "cpu: %d enable smp call done\n", drvdata->cpu);
-}
-
-static int etm_trace_id_simple(struct etm_drvdata *drvdata)
-{
-	if (!drvdata->enable)
-		return drvdata->traceid;
-
-	return (etm_readl(drvdata, ETMTRACEIDR) & ETM_TRACEID_MASK);
 }
 
 static int etm_trace_id(struct coresight_device *csdev)
@@ -1386,38 +1383,41 @@ static ssize_t ctxid_idx_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(ctxid_idx);
 
-static ssize_t ctxid_val_show(struct device *dev,
+static ssize_t ctxid_pid_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	unsigned long val;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
 	spin_lock(&drvdata->spinlock);
-	val = drvdata->ctxid_val[drvdata->ctxid_idx];
+	val = drvdata->ctxid_vpid[drvdata->ctxid_idx];
 	spin_unlock(&drvdata->spinlock);
 
 	return sprintf(buf, "%#lx\n", val);
 }
 
-static ssize_t ctxid_val_store(struct device *dev,
+static ssize_t ctxid_pid_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t size)
 {
 	int ret;
-	unsigned long val;
+	unsigned long vpid, pid;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
-	ret = kstrtoul(buf, 16, &val);
+	ret = kstrtoul(buf, 16, &vpid);
 	if (ret)
 		return ret;
 
+	pid = coresight_vpid_to_pid(vpid);
+
 	spin_lock(&drvdata->spinlock);
-	drvdata->ctxid_val[drvdata->ctxid_idx] = val;
+	drvdata->ctxid_pid[drvdata->ctxid_idx] = pid;
+	drvdata->ctxid_vpid[drvdata->ctxid_idx] = vpid;
 	spin_unlock(&drvdata->spinlock);
 
 	return size;
 }
-static DEVICE_ATTR_RW(ctxid_val);
+static DEVICE_ATTR_RW(ctxid_pid);
 
 static ssize_t ctxid_mask_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -1500,44 +1500,17 @@ static ssize_t timestamp_event_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(timestamp_event);
 
-static ssize_t status_show(struct device *dev,
-			   struct device_attribute *attr, char *buf)
+static ssize_t cpu_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
-	int ret;
-	unsigned long flags;
+	int val;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
-	pm_runtime_get_sync(drvdata->dev);
-	spin_lock_irqsave(&drvdata->spinlock, flags);
+	val = drvdata->cpu;
+	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 
-	CS_UNLOCK(drvdata->base);
-	ret = sprintf(buf,
-		      "ETMCCR: 0x%08x\n"
-		      "ETMCCER: 0x%08x\n"
-		      "ETMSCR: 0x%08x\n"
-		      "ETMIDR: 0x%08x\n"
-		      "ETMCR: 0x%08x\n"
-		      "ETMTRACEIDR: 0x%08x\n"
-		      "Enable event: 0x%08x\n"
-		      "Enable start/stop: 0x%08x\n"
-		      "Enable control: CR1 0x%08x CR2 0x%08x\n"
-		      "CPU affinity: %d\n",
-		      drvdata->etmccr, drvdata->etmccer,
-		      etm_readl(drvdata, ETMSCR), etm_readl(drvdata, ETMIDR),
-		      etm_readl(drvdata, ETMCR), etm_trace_id_simple(drvdata),
-		      etm_readl(drvdata, ETMTEEVR),
-		      etm_readl(drvdata, ETMTSSCR),
-		      etm_readl(drvdata, ETMTECR1),
-		      etm_readl(drvdata, ETMTECR2),
-		      drvdata->cpu);
-	CS_LOCK(drvdata->base);
-
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(drvdata->dev);
-
-	return ret;
 }
-static DEVICE_ATTR_RO(status);
+static DEVICE_ATTR_RO(cpu);
 
 static ssize_t traceid_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
@@ -1609,15 +1582,65 @@ static struct attribute *coresight_etm_attrs[] = {
 	&dev_attr_seq_13_event.attr,
 	&dev_attr_seq_curr_state.attr,
 	&dev_attr_ctxid_idx.attr,
-	&dev_attr_ctxid_val.attr,
+	&dev_attr_ctxid_pid.attr,
 	&dev_attr_ctxid_mask.attr,
 	&dev_attr_sync_freq.attr,
 	&dev_attr_timestamp_event.attr,
-	&dev_attr_status.attr,
 	&dev_attr_traceid.attr,
+	&dev_attr_cpu.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(coresight_etm);
+
+#define coresight_simple_func(name, offset)                             \
+static ssize_t name##_show(struct device *_dev,                         \
+			   struct device_attribute *attr, char *buf)    \
+{                                                                       \
+	struct etm_drvdata *drvdata = dev_get_drvdata(_dev->parent);    \
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n",                      \
+			 readl_relaxed(drvdata->base + offset));        \
+}                                                                       \
+DEVICE_ATTR_RO(name)
+
+coresight_simple_func(etmccr, ETMCCR);
+coresight_simple_func(etmccer, ETMCCER);
+coresight_simple_func(etmscr, ETMSCR);
+coresight_simple_func(etmidr, ETMIDR);
+coresight_simple_func(etmcr, ETMCR);
+coresight_simple_func(etmtraceidr, ETMTRACEIDR);
+coresight_simple_func(etmteevr, ETMTEEVR);
+coresight_simple_func(etmtssvr, ETMTSSCR);
+coresight_simple_func(etmtecr1, ETMTECR1);
+coresight_simple_func(etmtecr2, ETMTECR2);
+
+static struct attribute *coresight_etm_mgmt_attrs[] = {
+	&dev_attr_etmccr.attr,
+	&dev_attr_etmccer.attr,
+	&dev_attr_etmscr.attr,
+	&dev_attr_etmidr.attr,
+	&dev_attr_etmcr.attr,
+	&dev_attr_etmtraceidr.attr,
+	&dev_attr_etmteevr.attr,
+	&dev_attr_etmtssvr.attr,
+	&dev_attr_etmtecr1.attr,
+	&dev_attr_etmtecr2.attr,
+	NULL,
+};
+
+static const struct attribute_group coresight_etm_group = {
+	.attrs = coresight_etm_attrs,
+};
+
+
+static const struct attribute_group coresight_etm_mgmt_group = {
+	.attrs = coresight_etm_mgmt_attrs,
+	.name = "mgmt",
+};
+
+static const struct attribute_group *coresight_etm_groups[] = {
+	&coresight_etm_group,
+	&coresight_etm_mgmt_group,
+	NULL,
+};
 
 static int etm_cpu_callback(struct notifier_block *nfb, unsigned long action,
 			    void *hcpu)
@@ -1909,6 +1932,11 @@ static struct amba_id etm_ids[] = {
 	},
 	{	/* PTM 1.1 */
 		.id	= 0x0003b95f,
+		.mask	= 0x0003ffff,
+		.data	= "PTM 1.1",
+	},
+	{	/* PTM 1.1 Qualcomm */
+		.id	= 0x0003006f,
 		.mask	= 0x0003ffff,
 		.data	= "PTM 1.1",
 	},

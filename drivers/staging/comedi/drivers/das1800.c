@@ -1266,6 +1266,7 @@ static const struct das1800_board *das1800_probe(struct comedi_device *dev)
 		if (index == das1801hc || index == das1802hc)
 			return board;
 		index = das1801hc;
+		break;
 	default:
 		dev_err(dev->class_dev,
 			"Board model: probe returned 0x%x (unknown, please report)\n",

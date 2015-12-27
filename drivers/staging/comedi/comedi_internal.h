@@ -31,6 +31,7 @@ void comedi_buf_map_get(struct comedi_buf_map *bm);
 int comedi_buf_map_put(struct comedi_buf_map *bm);
 struct comedi_buf_map *comedi_buf_map_from_subdev_get(
 		struct comedi_subdevice *s);
+unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s);
 unsigned int comedi_buf_write_n_allocated(struct comedi_subdevice *s);
 void comedi_device_cancel_all(struct comedi_device *dev);
 bool comedi_can_auto_free_spriv(struct comedi_subdevice *s);

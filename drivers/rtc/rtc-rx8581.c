@@ -315,7 +315,6 @@ MODULE_DEVICE_TABLE(i2c, rx8581_id);
 static struct i2c_driver rx8581_driver = {
 	.driver		= {
 		.name	= "rtc-rx8581",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= rx8581_probe,
 	.id_table	= rx8581_id,

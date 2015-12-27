@@ -162,6 +162,7 @@ struct ath10k_pci {
 	struct device *dev;
 	struct ath10k *ar;
 	void __iomem *mem;
+	size_t mem_len;
 
 	/*
 	 * Number of MSI interrupts granted, 0 --> using legacy PCI line
@@ -173,8 +174,6 @@ struct ath10k_pci {
 	struct tasklet_struct msi_fw_err;
 
 	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
-
-	struct ath10k_hif_cb msg_callbacks_current;
 
 	/* Copy Engine used for Diagnostic Accesses */
 	struct ath10k_ce_pipe *ce_diag;
@@ -220,6 +219,12 @@ struct ath10k_pci {
 	 * powersave register state changes.
 	 */
 	bool ps_awake;
+
+	/* pci power save, disable for QCA988X and QCA99X0.
+	 * Writing 'false' to this variable avoids frequent locking
+	 * on MMIO read/write.
+	 */
+	bool pci_ps;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
@@ -229,24 +234,13 @@ static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 
 #define ATH10K_PCI_RX_POST_RETRY_MS 50
 #define ATH_PCI_RESET_WAIT_MAX 10 /* ms */
-#define PCIE_WAKE_TIMEOUT 10000	/* 10ms */
+#define PCIE_WAKE_TIMEOUT 30000	/* 30ms */
+#define PCIE_WAKE_LATE_US 10000	/* 10ms */
 
 #define BAR_NUM 0
 
 #define CDC_WAR_MAGIC_STR   0xceef0000
 #define CDC_WAR_DATA_CE     4
-
-/*
- * TODO: Should be a function call specific to each Target-type.
- * This convoluted macro converts from Target CPU Virtual Address Space to CE
- * Address Space. As part of this process, we conservatively fetch the current
- * PCIE_BAR. MOST of the time, this should match the upper bits of PCI space
- * for this device; but that's not guaranteed.
- */
-#define TARG_CPU_SPACE_TO_CE_SPACE(ar, pci_addr, addr)			\
-	(((ath10k_pci_read32(ar, (SOC_CORE_BASE_ADDRESS |		\
-	  CORE_CTRL_ADDRESS)) & 0x7ff) << 21) |				\
-	 0x100000 | ((addr) & 0xfffff))
 
 /* Wait up to this many Ms for a Diagnostic Access CE operation to complete */
 #define DIAG_ACCESS_CE_TIMEOUT_MS 10

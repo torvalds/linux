@@ -32,7 +32,7 @@
 #ifndef __AMDGPU_DRM_H__
 #define __AMDGPU_DRM_H__
 
-#include <drm/drm.h>
+#include "drm.h"
 
 #define DRM_AMDGPU_GEM_CREATE		0x00
 #define DRM_AMDGPU_GEM_MMAP		0x01
@@ -313,6 +313,9 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VA_OP_MAP			1
 #define AMDGPU_VA_OP_UNMAP			2
 
+/* Delay the page table update till the next CS */
+#define AMDGPU_VM_DELAY_UPDATE		(1 << 0)
+
 /* Mapping flags */
 /* readable mapping */
 #define AMDGPU_VM_PAGE_READABLE		(1 << 1)
@@ -348,6 +351,7 @@ struct drm_amdgpu_gem_va {
 
 #define AMDGPU_CHUNK_ID_IB		0x01
 #define AMDGPU_CHUNK_ID_FENCE		0x02
+#define AMDGPU_CHUNK_ID_DEPENDENCIES	0x03
 
 struct drm_amdgpu_cs_chunk {
 	uint32_t		chunk_id;
@@ -397,6 +401,14 @@ struct drm_amdgpu_cs_chunk_ib {
 	uint32_t ip_instance;
 	/** Ring index to submit to */
 	uint32_t ring;
+};
+
+struct drm_amdgpu_cs_chunk_dep {
+	uint32_t ip_type;
+	uint32_t ip_instance;
+	uint32_t ring;
+	uint32_t ctx_id;
+	uint64_t handle;
 };
 
 struct drm_amdgpu_cs_chunk_fence {
@@ -602,6 +614,8 @@ struct drm_amdgpu_info_device {
 	uint32_t vram_type;
 	/** video memory bit width*/
 	uint32_t vram_bit_width;
+	/* vce harvesting instance */
+	uint32_t vce_harvest_config;
 };
 
 struct drm_amdgpu_info_hw_ip {
@@ -626,6 +640,6 @@ struct drm_amdgpu_info_hw_ip {
 #define AMDGPU_FAMILY_CI			120 /* Bonaire, Hawaii */
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
-#define AMDGPU_FAMILY_CZ			135 /* Carrizo */
+#define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
 
 #endif

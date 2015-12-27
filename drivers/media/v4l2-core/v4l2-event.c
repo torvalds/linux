@@ -172,6 +172,9 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
 	unsigned long flags;
 	struct timespec timestamp;
 
+	if (vdev == NULL)
+		return;
+
 	ktime_get_ts(&timestamp);
 
 	spin_lock_irqsave(&vdev->fh_lock, flags);

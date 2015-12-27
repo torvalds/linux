@@ -54,28 +54,25 @@
 /* Timer0 Timeout Counter Register */
 #define T0TC_WATCHDOG		(0xff)		/* Enable watchdog mode */
 
-static void ks8695_set_mode(enum clock_event_mode mode,
-			    struct clock_event_device *evt)
+static int ks8695_set_periodic(struct clock_event_device *evt)
 {
+	u32 rate = DIV_ROUND_CLOSEST(KS8695_CLOCK_RATE, HZ);
+	u32 half = DIV_ROUND_CLOSEST(rate, 2);
 	u32 tmcon;
 
-	if (mode == CLOCK_EVT_FEAT_PERIODIC) {
-		u32 rate = DIV_ROUND_CLOSEST(KS8695_CLOCK_RATE, HZ);
-		u32 half = DIV_ROUND_CLOSEST(rate, 2);
+	/* Disable timer 1 */
+	tmcon = readl_relaxed(KS8695_TMR_VA + KS8695_TMCON);
+	tmcon &= ~TMCON_T1EN;
+	writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
 
-		/* Disable timer 1 */
-		tmcon = readl_relaxed(KS8695_TMR_VA + KS8695_TMCON);
-		tmcon &= ~TMCON_T1EN;
-		writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
+	/* Both registers need to count down */
+	writel_relaxed(half, KS8695_TMR_VA + KS8695_T1TC);
+	writel_relaxed(half, KS8695_TMR_VA + KS8695_T1PD);
 
-		/* Both registers need to count down */
-		writel_relaxed(half, KS8695_TMR_VA + KS8695_T1TC);
-		writel_relaxed(half, KS8695_TMR_VA + KS8695_T1PD);
-
-		/* Re-enable timer1 */
-		tmcon |= TMCON_T1EN;
-		writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
-	}
+	/* Re-enable timer1 */
+	tmcon |= TMCON_T1EN;
+	writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
+	return 0;
 }
 
 static int ks8695_set_next_event(unsigned long cycles,
@@ -102,11 +99,13 @@ static int ks8695_set_next_event(unsigned long cycles,
 }
 
 static struct clock_event_device clockevent_ks8695 = {
-	.name		= "ks8695_t1tc",
-	.rating		= 300, /* Reasonably fast and accurate clock event */
-	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
-	.set_next_event	= ks8695_set_next_event,
-	.set_mode	= ks8695_set_mode,
+	.name			= "ks8695_t1tc",
+	/* Reasonably fast and accurate clock event */
+	.rating			= 300,
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERIODIC,
+	.set_next_event		= ks8695_set_next_event,
+	.set_state_periodic	= ks8695_set_periodic,
 };
 
 /*

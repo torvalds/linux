@@ -135,8 +135,13 @@ struct dso {
 	pthread_mutex_t	 lock;
 	struct list_head node;
 	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
+	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
+	struct {
+		u64		addr;
+		struct symbol	*symbol;
+	} last_find_result[MAP__NR_TYPES];
 	void		 *a2l;
 	char		 *symsrc_filename;
 	unsigned int	 a2l_fails;
@@ -319,6 +324,8 @@ struct dso *dsos__find(struct dsos *dsos, const char *name, bool cmp_short);
 struct dso *__dsos__findnew(struct dsos *dsos, const char *name);
 struct dso *dsos__findnew(struct dsos *dsos, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
+
+void dso__reset_find_symbol_cache(struct dso *dso);
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
 			       bool (skip)(struct dso *dso, int parm), int parm);

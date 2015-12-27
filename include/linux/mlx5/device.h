@@ -429,7 +429,7 @@ struct health_buffer {
 	__be32		rsvd2;
 	u8		irisc_index;
 	u8		synd;
-	__be16		ext_sync;
+	__be16		ext_synd;
 };
 
 struct mlx5_init_seg {
@@ -439,7 +439,8 @@ struct mlx5_init_seg {
 	__be32			cmdq_addr_h;
 	__be32			cmdq_addr_l_sz;
 	__be32			cmd_dbell;
-	__be32			rsvd1[121];
+	__be32			rsvd1[120];
+	__be32			initializing;
 	struct health_buffer	health;
 	__be32			rsvd2[884];
 	__be32			health_counter;
@@ -1180,6 +1181,16 @@ enum {
 	MLX5_CMD_STAT_BAD_QP_STATE_ERR		= 0x10,
 	MLX5_CMD_STAT_BAD_PKT_ERR		= 0x30,
 	MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR	= 0x40,
+};
+
+enum {
+	MLX5_IEEE_802_3_COUNTERS_GROUP	      = 0x0,
+	MLX5_RFC_2863_COUNTERS_GROUP	      = 0x1,
+	MLX5_RFC_2819_COUNTERS_GROUP	      = 0x2,
+	MLX5_RFC_3635_COUNTERS_GROUP	      = 0x3,
+	MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP = 0x5,
+	MLX5_PER_PRIORITY_COUNTERS_GROUP      = 0x10,
+	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11
 };
 
 static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)

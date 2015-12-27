@@ -21,6 +21,7 @@
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 #include <linux/of.h>
+#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/at24.h>
 
@@ -131,6 +132,12 @@ static const struct i2c_device_id at24_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, at24_ids);
 
+static const struct acpi_device_id at24_acpi_ids[] = {
+	{ "INT3499", AT24_DEVICE_MAGIC(8192 / 8, 0) },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, at24_acpi_ids);
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -186,19 +193,11 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	if (count > io_limit)
 		count = io_limit;
 
-	switch (at24->use_smbus) {
-	case I2C_SMBUS_I2C_BLOCK_DATA:
+	if (at24->use_smbus) {
 		/* Smaller eeproms can work given some SMBus extension calls */
 		if (count > I2C_SMBUS_BLOCK_MAX)
 			count = I2C_SMBUS_BLOCK_MAX;
-		break;
-	case I2C_SMBUS_WORD_DATA:
-		count = 2;
-		break;
-	case I2C_SMBUS_BYTE_DATA:
-		count = 1;
-		break;
-	default:
+	} else {
 		/*
 		 * When we have a better choice than SMBus calls, use a
 		 * combined I2C message. Write address; then read up to
@@ -229,27 +228,10 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	timeout = jiffies + msecs_to_jiffies(write_timeout);
 	do {
 		read_time = jiffies;
-		switch (at24->use_smbus) {
-		case I2C_SMBUS_I2C_BLOCK_DATA:
-			status = i2c_smbus_read_i2c_block_data(client, offset,
-					count, buf);
-			break;
-		case I2C_SMBUS_WORD_DATA:
-			status = i2c_smbus_read_word_data(client, offset);
-			if (status >= 0) {
-				buf[0] = status & 0xff;
-				buf[1] = status >> 8;
-				status = count;
-			}
-			break;
-		case I2C_SMBUS_BYTE_DATA:
-			status = i2c_smbus_read_byte_data(client, offset);
-			if (status >= 0) {
-				buf[0] = status;
-				status = count;
-			}
-			break;
-		default:
+		if (at24->use_smbus) {
+			status = i2c_smbus_read_i2c_block_data_or_emulated(client, offset,
+									   count, buf);
+		} else {
 			status = i2c_transfer(client->adapter, msg, 2);
 			if (status == 2)
 				status = count;
@@ -438,9 +420,6 @@ static ssize_t at24_bin_write(struct file *filp, struct kobject *kobj,
 {
 	struct at24_data *at24;
 
-	if (unlikely(off >= attr->size))
-		return -EFBIG;
-
 	at24 = dev_get_drvdata(container_of(kobj, struct device, kobj));
 	return at24_write(at24, buf, off, count);
 }
@@ -495,21 +474,29 @@ static void at24_get_ofdata(struct i2c_client *client,
 static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct at24_platform_data chip;
+	kernel_ulong_t magic = 0;
 	bool writable;
 	int use_smbus = 0;
 	int use_smbus_write = 0;
 	struct at24_data *at24;
 	int err;
 	unsigned i, num_addresses;
-	kernel_ulong_t magic;
 
 	if (client->dev.platform_data) {
 		chip = *(struct at24_platform_data *)client->dev.platform_data;
 	} else {
-		if (!id->driver_data)
+		if (id) {
+			magic = id->driver_data;
+		} else {
+			const struct acpi_device_id *aid;
+
+			aid = acpi_match_device(at24_acpi_ids, &client->dev);
+			if (aid)
+				magic = aid->driver_data;
+		}
+		if (!magic)
 			return -ENODEV;
 
-		magic = id->driver_data;
 		chip.byte_len = BIT(magic & AT24_BITMASK(AT24_SIZE_BYTELEN));
 		magic >>= AT24_SIZE_BYTELEN;
 		chip.flags = magic & AT24_BITMASK(AT24_SIZE_FLAGS);
@@ -689,7 +676,7 @@ static int at24_remove(struct i2c_client *client)
 static struct i2c_driver at24_driver = {
 	.driver = {
 		.name = "at24",
-		.owner = THIS_MODULE,
+		.acpi_match_table = ACPI_PTR(at24_acpi_ids),
 	},
 	.probe = at24_probe,
 	.remove = at24_remove,

@@ -25,6 +25,9 @@
  */
 bool events_check_enabled __read_mostly;
 
+/* First wakeup IRQ seen by the kernel in the last cycle. */
+unsigned int pm_wakeup_irq __read_mostly;
+
 /* If set and the system is suspending, terminate the suspend. */
 static bool pm_abort_suspend __read_mostly;
 
@@ -91,7 +94,7 @@ struct wakeup_source *wakeup_source_create(const char *name)
 	if (!ws)
 		return NULL;
 
-	wakeup_source_prepare(ws, name ? kstrdup(name, GFP_KERNEL) : NULL);
+	wakeup_source_prepare(ws, name ? kstrdup_const(name, GFP_KERNEL) : NULL);
 	return ws;
 }
 EXPORT_SYMBOL_GPL(wakeup_source_create);
@@ -154,7 +157,7 @@ void wakeup_source_destroy(struct wakeup_source *ws)
 
 	wakeup_source_drop(ws);
 	wakeup_source_record(ws);
-	kfree(ws->name);
+	kfree_const(ws->name);
 	kfree(ws);
 }
 EXPORT_SYMBOL_GPL(wakeup_source_destroy);
@@ -281,32 +284,25 @@ EXPORT_SYMBOL_GPL(device_wakeup_enable);
  * Attach a device wakeirq to the wakeup source so the device
  * wake IRQ can be configured automatically for suspend and
  * resume.
+ *
+ * Call under the device's power.lock lock.
  */
 int device_wakeup_attach_irq(struct device *dev,
 			     struct wake_irq *wakeirq)
 {
 	struct wakeup_source *ws;
-	int ret = 0;
 
-	spin_lock_irq(&dev->power.lock);
 	ws = dev->power.wakeup;
 	if (!ws) {
 		dev_err(dev, "forgot to call call device_init_wakeup?\n");
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
-	if (ws->wakeirq) {
-		ret = -EEXIST;
-		goto unlock;
-	}
+	if (ws->wakeirq)
+		return -EEXIST;
 
 	ws->wakeirq = wakeirq;
-
-unlock:
-	spin_unlock_irq(&dev->power.lock);
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -314,20 +310,16 @@ unlock:
  * @dev: Device to handle
  *
  * Removes a device wakeirq from the wakeup source.
+ *
+ * Call under the device's power.lock lock.
  */
 void device_wakeup_detach_irq(struct device *dev)
 {
 	struct wakeup_source *ws;
 
-	spin_lock_irq(&dev->power.lock);
 	ws = dev->power.wakeup;
-	if (!ws)
-		goto unlock;
-
-	ws->wakeirq = NULL;
-
-unlock:
-	spin_unlock_irq(&dev->power.lock);
+	if (ws)
+		ws->wakeirq = NULL;
 }
 
 /**
@@ -879,6 +871,15 @@ EXPORT_SYMBOL_GPL(pm_system_wakeup);
 void pm_wakeup_clear(void)
 {
 	pm_abort_suspend = false;
+	pm_wakeup_irq = 0;
+}
+
+void pm_system_irq_wakeup(unsigned int irq_number)
+{
+	if (pm_wakeup_irq == 0) {
+		pm_wakeup_irq = irq_number;
+		pm_system_wakeup();
+	}
 }
 
 /**

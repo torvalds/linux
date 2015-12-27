@@ -3,7 +3,7 @@
 #
 menuconfig UNISYSSPAR
 	bool "Unisys SPAR driver support"
-	depends on X86_64
+	depends on X86_64 && !UML
 	select PCI
 	select ACPI
 	---help---
@@ -13,5 +13,7 @@ if UNISYSSPAR
 
 source "drivers/staging/unisys/visorbus/Kconfig"
 source "drivers/staging/unisys/visornic/Kconfig"
+source "drivers/staging/unisys/visorinput/Kconfig"
+source "drivers/staging/unisys/visorhba/Kconfig"
 
 endif # UNISYSSPAR

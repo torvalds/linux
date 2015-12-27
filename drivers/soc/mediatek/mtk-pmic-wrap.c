@@ -725,10 +725,6 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	pwrap_writel(wrp, 0x1, PWRAP_WACS2_EN);
 	pwrap_writel(wrp, 0x5, PWRAP_STAUPD_PRD);
 	pwrap_writel(wrp, 0xff, PWRAP_STAUPD_GRPEN);
-	pwrap_writel(wrp, 0xf, PWRAP_WDT_UNIT);
-	pwrap_writel(wrp, 0xffffffff, PWRAP_WDT_SRC_EN);
-	pwrap_writel(wrp, 0x1, PWRAP_TIMER_EN);
-	pwrap_writel(wrp, ~((1 << 31) | (1 << 1)), PWRAP_INT_EN);
 
 	if (pwrap_is_mt8135(wrp)) {
 		/* enable pwrap events and pwrap bridge in AP side */
@@ -896,6 +892,12 @@ static int pwrap_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/* Initialize watchdog, may not be done by the bootloader */
+	pwrap_writel(wrp, 0xf, PWRAP_WDT_UNIT);
+	pwrap_writel(wrp, 0xffffffff, PWRAP_WDT_SRC_EN);
+	pwrap_writel(wrp, 0x1, PWRAP_TIMER_EN);
+	pwrap_writel(wrp, ~((1 << 31) | (1 << 1)), PWRAP_INT_EN);
+
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(wrp->dev, irq, pwrap_interrupt, IRQF_TRIGGER_HIGH,
 			"mt-pmic-pwrap", wrp);
@@ -926,7 +928,6 @@ err_out1:
 static struct platform_driver pwrap_drv = {
 	.driver = {
 		.name = "mt-pmic-pwrap",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_pwrap_match_tbl),
 	},
 	.probe = pwrap_probe,

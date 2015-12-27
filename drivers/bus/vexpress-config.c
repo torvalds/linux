@@ -107,7 +107,7 @@ struct regmap *devm_regmap_init_vexpress_config(struct device *dev)
 	if (!res)
 		return ERR_PTR(-ENOMEM);
 
-	regmap = bridge->ops->regmap_init(dev, bridge->context);
+	regmap = (bridge->ops->regmap_init)(dev, bridge->context);
 	if (IS_ERR(regmap)) {
 		devres_free(res);
 		return regmap;

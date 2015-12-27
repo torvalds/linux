@@ -162,7 +162,7 @@ struct gs_can {
 	struct can_bittiming_const bt_const;
 	unsigned int channel;	/* channel number */
 
-	/* This lock prevents a race condition between xmit and recieve. */
+	/* This lock prevents a race condition between xmit and receive. */
 	spinlock_t tx_ctx_lock;
 	struct gs_tx_context tx_context[GS_MAX_TX_URBS];
 
@@ -274,7 +274,7 @@ static void gs_update_state(struct gs_can *dev, struct can_frame *cf)
 	}
 }
 
-static void gs_usb_recieve_bulk_callback(struct urb *urb)
+static void gs_usb_receive_bulk_callback(struct urb *urb)
 {
 	struct gs_usb *usbcan = urb->context;
 	struct gs_can *dev;
@@ -376,7 +376,7 @@ static void gs_usb_recieve_bulk_callback(struct urb *urb)
 			  usb_rcvbulkpipe(usbcan->udev, GSUSB_ENDPOINT_IN),
 			  hf,
 			  sizeof(struct gs_host_frame),
-			  gs_usb_recieve_bulk_callback,
+			  gs_usb_receive_bulk_callback,
 			  usbcan
 			  );
 
@@ -605,7 +605,7 @@ static int gs_can_open(struct net_device *netdev)
 							  GSUSB_ENDPOINT_IN),
 					  buf,
 					  sizeof(struct gs_host_frame),
-					  gs_usb_recieve_bulk_callback,
+					  gs_usb_receive_bulk_callback,
 					  parent);
 			urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 

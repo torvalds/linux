@@ -70,7 +70,7 @@ static sint _init_cmd_priv(struct cmd_priv *pcmdpriv)
 		return _FAIL;
 	pcmdpriv->cmd_buf = pcmdpriv->cmd_allocated_buf  +  CMDBUFF_ALIGN_SZ -
 			    ((addr_t)(pcmdpriv->cmd_allocated_buf) &
-			    (CMDBUFF_ALIGN_SZ-1));
+			    (CMDBUFF_ALIGN_SZ - 1));
 	pcmdpriv->rsp_allocated_buf = kmalloc(MAX_RSPSZ + 4, GFP_ATOMIC);
 	if (pcmdpriv->rsp_allocated_buf == NULL)
 		return _FAIL;
@@ -137,9 +137,9 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 	struct cmd_obj *obj;
 
 	spin_lock_irqsave(&(queue->lock), irqL);
-	if (list_empty(&(queue->queue)))
+	if (list_empty(&(queue->queue))) {
 		obj = NULL;
-	else {
+	} else {
 		obj = LIST_CONTAINOR(queue->queue.next,
 				     struct cmd_obj, list);
 		list_del_init(&obj->list);
@@ -172,7 +172,7 @@ u32 r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 {
 	int res;
 
-	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag == true)
+	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag)
 		return _FAIL;
 	res = _enqueue_cmd(&pcmdpriv->cmd_queue, obj);
 	up(&pcmdpriv->cmd_queue_sema);
@@ -186,7 +186,7 @@ u32 r8712_enqueue_cmd_ex(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 
 	if (obj == NULL)
 		return _SUCCESS;
-	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag == true)
+	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag)
 		return _FAIL;
 	queue = &pcmdpriv->cmd_queue;
 	spin_lock_irqsave(&queue->lock, irqL);
@@ -456,9 +456,7 @@ u8 r8712_createbss_cmd(struct _adapter *padapter)
 	INIT_LIST_HEAD(&pcmd->list);
 	pcmd->cmdcode = _CreateBss_CMD_;
 	pcmd->parmbuf = (unsigned char *)pdev_network;
-	pcmd->cmdsz = r8712_get_ndis_wlan_bssid_ex_sz((
-			struct ndis_wlan_bssid_ex *)
-			pdev_network);
+	pcmd->cmdsz = r8712_get_wlan_bssid_ex_sz(pdev_network);
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 	/* notes: translate IELength & Length after assign to cmdsz; */
@@ -471,8 +469,7 @@ u8 r8712_createbss_cmd(struct _adapter *padapter)
 
 u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 {
-	uint t_len = 0;
-	struct ndis_wlan_bssid_ex *psecnetwork;
+	struct wlan_bssid_ex *psecnetwork;
 	struct cmd_obj		*pcmd;
 	struct cmd_priv		*pcmdpriv = &padapter->cmdpriv;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
@@ -486,17 +483,9 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return _FAIL;
-	t_len = sizeof(u32) + 6 * sizeof(unsigned char) + 2 +
-			sizeof(struct ndis_802_11_ssid) + sizeof(u32) +
-			sizeof(s32) +
-			sizeof(enum NDIS_802_11_NETWORK_TYPE) +
-			sizeof(struct NDIS_802_11_CONFIGURATION) +
-			sizeof(enum NDIS_802_11_NETWORK_INFRASTRUCTURE) +
-			sizeof(NDIS_802_11_RATES_EX) +
-			sizeof(u32) + MAX_IE_SZ;
 
 	/* for hidden ap to set fw_state here */
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) !=
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_ADHOC_STATE) !=
 	    true) {
 		switch (ndis_network_mode) {
 		case Ndis802_11IBSS:
@@ -511,26 +500,26 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 			break;
 		}
 	}
-	psecnetwork = (struct ndis_wlan_bssid_ex *)&psecuritypriv->sec_bss;
+	psecnetwork = &psecuritypriv->sec_bss;
 	if (psecnetwork == NULL) {
 		kfree(pcmd);
 		return _FAIL;
 	}
-	memcpy(psecnetwork, &pnetwork->network, t_len);
+	memcpy(psecnetwork, &pnetwork->network, sizeof(*psecnetwork));
 	psecuritypriv->authenticator_ie[0] = (unsigned char)
 					     psecnetwork->IELength;
-	if ((psecnetwork->IELength-12) < (256 - 1))
+	if ((psecnetwork->IELength - 12) < (256 - 1))
 		memcpy(&psecuritypriv->authenticator_ie[1],
-			&psecnetwork->IEs[12], psecnetwork->IELength-12);
+			&psecnetwork->IEs[12], psecnetwork->IELength - 12);
 	else
 		memcpy(&psecuritypriv->authenticator_ie[1],
-			&psecnetwork->IEs[12], (256-1));
+			&psecnetwork->IEs[12], (256 - 1));
 	psecnetwork->IELength = 0;
 	/* If the driver wants to use the bssid to create the connection.
 	 * If not,  we copy the connecting AP's MAC address to it so that
 	 * the driver just has the bssid information for PMKIDList searching.
 	 */
-	if (pmlmepriv->assoc_by_bssid == false)
+	if (!pmlmepriv->assoc_by_bssid)
 		ether_addr_copy(&pmlmepriv->assoc_bssid[0],
 				&pnetwork->network.MacAddress[0]);
 	psecnetwork->IELength = r8712_restruct_sec_ie(padapter,
@@ -549,8 +538,9 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		if (psecnetwork->IELength != tmp_len) {
 			psecnetwork->IELength = tmp_len;
 			pqospriv->qos_option = 1; /* WMM IE in beacon */
-		} else
+		} else {
 			pqospriv->qos_option = 0; /* no WMM IE in beacon */
+		}
 	}
 	if (pregistrypriv->ht_enable) {
 		/* For WEP mode, we will use the bg mode to do the connection
@@ -575,7 +565,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		memcpy(&psecuritypriv->supplicant_ie[1], &psecnetwork->IEs[0],
 			255);
 	/* get cmdsz before endian conversion */
-	pcmd->cmdsz = r8712_get_ndis_wlan_bssid_ex_sz(psecnetwork);
+	pcmd->cmdsz = r8712_get_wlan_bssid_ex_sz(psecnetwork);
 #ifdef __BIG_ENDIAN
 	/* wlan_network endian conversion */
 	psecnetwork->Length = cpu_to_le32(psecnetwork->Length);
@@ -690,7 +680,7 @@ u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 	else
 		GET_ENCRY_ALGO(psecuritypriv, sta,
 			       psetstakey_para->algorithm, false);
-	if (unicast_key == true)
+	if (unicast_key)
 		memcpy(&psetstakey_para->key, &sta->x_UncstKey, 16);
 	else
 		memcpy(&psetstakey_para->key,
@@ -903,8 +893,7 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 	struct sta_info *psta = NULL;
 	struct wlan_network *pwlan = NULL;
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct ndis_wlan_bssid_ex *pnetwork = (struct ndis_wlan_bssid_ex *)
-					      pcmd->parmbuf;
+	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)pcmd->parmbuf;
 	struct wlan_network *tgt_network = &(pmlmepriv->cur_network);
 
 	if (pcmd->res != H2C_SUCCESS)
@@ -958,11 +947,11 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 		} else
 			list_add_tail(&(pwlan->list),
 					 &pmlmepriv->scanned_queue.queue);
-		pnetwork->Length = r8712_get_ndis_wlan_bssid_ex_sz(pnetwork);
+		pnetwork->Length = r8712_get_wlan_bssid_ex_sz(pnetwork);
 		memcpy(&(pwlan->network), pnetwork, pnetwork->Length);
 		pwlan->fixed = true;
 		memcpy(&tgt_network->network, pnetwork,
-			(r8712_get_ndis_wlan_bssid_ex_sz(pnetwork)));
+			(r8712_get_wlan_bssid_ex_sz(pnetwork)));
 		if (pmlmepriv->fw_state & _FW_UNDER_LINKING)
 			pmlmepriv->fw_state ^= _FW_UNDER_LINKING;
 		/* we will set _FW_LINKED when there is one more sat to

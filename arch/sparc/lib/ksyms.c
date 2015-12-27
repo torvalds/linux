@@ -111,6 +111,9 @@ EXPORT_SYMBOL(atomic64_##op##_return);
 
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
 
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
@@ -134,10 +137,6 @@ EXPORT_SYMBOL(copy_user_page);
 /* RAID code needs this */
 void VISenter(void);
 EXPORT_SYMBOL(VISenter);
-
-/* CRYPTO code needs this */
-void VISenterhalf(void);
-EXPORT_SYMBOL(VISenterhalf);
 
 extern void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
 extern void xor_vis_3(unsigned long, unsigned long *, unsigned long *,

@@ -36,30 +36,6 @@ config DRM_I915
 	  i810 driver instead, and the Atom z5xx series has an entirely
 	  different implementation.
 
-config DRM_I915_KMS
-	bool "Enable modesetting on intel by default"
-	depends on DRM_I915
-	default y
-	help
-	  Choose this option if you want kernel modesetting enabled by default.
-
-	  If in doubt, say "Y".
-
-config DRM_I915_FBDEV
-	bool "Enable legacy fbdev support for the modesetting intel driver"
-	depends on DRM_I915
-	select DRM_KMS_FB_HELPER
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	default y
-	help
-	  Choose this option if you have a need for the legacy fbdev
-	  support. Note that this support also provide the linux console
-	  support on top of the intel modesetting driver.
-
-	  If in doubt, say "Y".
-
 config DRM_I915_PRELIMINARY_HW_SUPPORT
 	bool "Enable preliminary support for prerelease Intel hardware by default"
 	depends on DRM_I915

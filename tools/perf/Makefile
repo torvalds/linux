@@ -78,13 +78,13 @@ clean:
 # The build-test target is not really parallel, don't print the jobs info:
 #
 build-test:
-	@$(MAKE) -f tests/make --no-print-directory
+	@$(MAKE) SHUF=1 -f tests/make --no-print-directory
 
 #
 # All other targets get passed through:
 #
-%:
+%: FORCE
 	$(print_msg)
 	$(make)
 
-.PHONY: tags TAGS
+.PHONY: tags TAGS FORCE Makefile

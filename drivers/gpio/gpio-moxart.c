@@ -29,16 +29,6 @@
 #define GPIO_DATA_IN		0x04
 #define GPIO_PIN_DIRECTION	0x08
 
-static int moxart_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(offset);
-}
-
-static void moxart_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(offset);
-}
-
 static int moxart_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -66,8 +56,8 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	}
 
 	bgc->gc.label = "moxart-gpio";
-	bgc->gc.request = moxart_gpio_request;
-	bgc->gc.free = moxart_gpio_free;
+	bgc->gc.request = gpiochip_generic_request;
+	bgc->gc.free = gpiochip_generic_free;
 	bgc->data = bgc->read_reg(bgc->reg_set);
 	bgc->gc.base = 0;
 	bgc->gc.ngpio = 32;

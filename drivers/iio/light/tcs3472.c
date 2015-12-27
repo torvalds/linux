@@ -366,7 +366,6 @@ static struct i2c_driver tcs3472_driver = {
 	.driver = {
 		.name	= TCS3472_DRV_NAME,
 		.pm	= &tcs3472_pm_ops,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= tcs3472_probe,
 	.remove		= tcs3472_remove,

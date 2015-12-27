@@ -674,9 +674,21 @@ struct usb_otg_descriptor {
 	__u8  bmAttributes;	/* support for HNP, SRP, etc */
 } __attribute__ ((packed));
 
+/* USB_DT_OTG (from OTG 2.0 supplement) */
+struct usb_otg20_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+
+	__u8  bmAttributes;	/* support for HNP, SRP and ADP, etc */
+	__le16 bcdOTG;		/* OTG and EH supplement release number
+				 * in binary-coded decimal(i.e. 2.0 is 0200H)
+				 */
+} __attribute__ ((packed));
+
 /* from usb_otg_descriptor.bmAttributes */
 #define USB_OTG_SRP		(1 << 0)
 #define USB_OTG_HNP		(1 << 1)	/* swap host/device roles */
+#define USB_OTG_ADP		(1 << 2)	/* support ADP */
 
 /*-------------------------------------------------------------------------*/
 
@@ -854,6 +866,35 @@ struct usb_ss_container_id_descriptor {
 } __attribute__((packed));
 
 #define USB_DT_USB_SS_CONTN_ID_SIZE	20
+
+/*
+ * SuperSpeed Plus USB Capability descriptor: Defines the set of
+ * SuperSpeed Plus USB specific device level capabilities
+ */
+#define	USB_SSP_CAP_TYPE	0xa
+struct usb_ssp_cap_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+	__u8  bReserved;
+	__le32 bmAttributes;
+#define USB_SSP_SUBLINK_SPEED_ATTRIBS	(0x1f << 0) /* sublink speed entries */
+#define USB_SSP_SUBLINK_SPEED_IDS	(0xf << 5)  /* speed ID entries */
+	__u16  wFunctionalitySupport;
+#define USB_SSP_MIN_SUBLINK_SPEED_ATTRIBUTE_ID	(0xf)
+#define USB_SSP_MIN_RX_LANE_COUNT		(0xf << 8)
+#define USB_SSP_MIN_TX_LANE_COUNT		(0xf << 12)
+	__le16 wReserved;
+	__le32 bmSublinkSpeedAttr[1]; /* list of sublink speed attrib entries */
+#define USB_SSP_SUBLINK_SPEED_SSID	(0xf)		/* sublink speed ID */
+#define USB_SSP_SUBLINK_SPEED_LSE	(0x3 << 4)	/* Lanespeed exponent */
+#define USB_SSP_SUBLINK_SPEED_ST	(0x3 << 6)	/* Sublink type */
+#define USB_SSP_SUBLINK_SPEED_RSVD	(0x3f << 8)	/* Reserved */
+#define USB_SSP_SUBLINK_SPEED_LP	(0x3 << 14)	/* Link protocol */
+#define USB_SSP_SUBLINK_SPEED_LSM	(0xff << 16)	/* Lanespeed mantissa */
+} __attribute__((packed));
+
+
 /*-------------------------------------------------------------------------*/
 
 /* USB_DT_WIRELESS_ENDPOINT_COMP:  companion descriptor associated with

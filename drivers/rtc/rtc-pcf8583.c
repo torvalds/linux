@@ -309,7 +309,6 @@ MODULE_DEVICE_TABLE(i2c, pcf8583_id);
 static struct i2c_driver pcf8583_driver = {
 	.driver = {
 		.name	= "pcf8583",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pcf8583_probe,
 	.id_table	= pcf8583_id,

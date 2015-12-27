@@ -125,7 +125,11 @@ struct device_list {
 /* The list of Guest devices, based on command line arguments. */
 static struct device_list devices;
 
-struct virtio_pci_cfg_cap {
+/*
+ * Just like struct virtio_pci_cfg_cap in uapi/linux/virtio_pci.h,
+ * but uses a u32 explicitly for the data.
+ */
+struct virtio_pci_cfg_cap_u32 {
 	struct virtio_pci_cap cap;
 	u32 pci_cfg_data; /* Data for BAR access. */
 };
@@ -157,7 +161,7 @@ struct pci_config {
 	struct virtio_pci_notify_cap notify;
 	struct virtio_pci_cap isr;
 	struct virtio_pci_cap device;
-	struct virtio_pci_cfg_cap cfg_access;
+	struct virtio_pci_cfg_cap_u32 cfg_access;
 };
 
 /* The device structure describes a single device. */
@@ -1291,7 +1295,7 @@ static struct device *dev_and_reg(u32 *reg)
  * only fault if they try to write with some invalid bar/offset/length.
  */
 static bool valid_bar_access(struct device *d,
-			     struct virtio_pci_cfg_cap *cfg_access)
+			     struct virtio_pci_cfg_cap_u32 *cfg_access)
 {
 	/* We only have 1 bar (BAR0) */
 	if (cfg_access->cap.bar != 0)

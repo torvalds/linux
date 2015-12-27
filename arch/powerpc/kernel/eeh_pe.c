@@ -657,6 +657,28 @@ void eeh_pe_state_clear(struct eeh_pe *pe, int state)
 	eeh_pe_traverse(pe, __eeh_pe_state_clear, &state);
 }
 
+/**
+ * eeh_pe_state_mark_with_cfg - Mark PE state with unblocked config space
+ * @pe: PE
+ * @state: PE state to be set
+ *
+ * Set specified flag to PE and its child PEs. The PCI config space
+ * of some PEs is blocked automatically when EEH_PE_ISOLATED is set,
+ * which isn't needed in some situations. The function allows to set
+ * the specified flag to indicated PEs without blocking their PCI
+ * config space.
+ */
+void eeh_pe_state_mark_with_cfg(struct eeh_pe *pe, int state)
+{
+	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
+	if (!(state & EEH_PE_ISOLATED))
+		return;
+
+	/* Clear EEH_PE_CFG_BLOCKED, which might be set just now */
+	state = EEH_PE_CFG_BLOCKED;
+	eeh_pe_traverse(pe, __eeh_pe_state_clear, &state);
+}
+
 /*
  * Some PCI bridges (e.g. PLX bridges) have primary/secondary
  * buses assigned explicitly by firmware, and we probably have

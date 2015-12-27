@@ -41,12 +41,6 @@ static int next_event(unsigned long delta,
 	return 0;
 }
 
-static void set_clock_mode(enum clock_event_mode mode,
-			   struct clock_event_device *evt)
-{
-	/* Nothing to do ...  */
-}
-
 static DEFINE_PER_CPU(struct clock_event_device, mn10300_clockevent_device);
 static DEFINE_PER_CPU(struct irqaction, timer_irq);
 
@@ -108,7 +102,6 @@ int __init init_clockevents(void)
 
 	cd->rating		= 200;
 	cd->cpumask		= cpumask_of(smp_processor_id());
-	cd->set_mode		= set_clock_mode;
 	cd->event_handler	= event_handler;
 	cd->set_next_event	= next_event;
 
@@ -123,7 +116,7 @@ int __init init_clockevents(void)
 	{
 		struct irq_data *data;
 		data = irq_get_irq_data(cd->irq);
-		cpumask_copy(data->affinity, cpumask_of(cpu));
+		cpumask_copy(irq_data_get_affinity_mask(data), cpumask_of(cpu));
 		iact->flags |= IRQF_NOBALANCING;
 	}
 #endif

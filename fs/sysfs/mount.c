@@ -31,9 +31,6 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	bool new_sb;
 
 	if (!(flags & MS_KERNMOUNT)) {
-		if (!capable(CAP_SYS_ADMIN) && !fs_fully_visible(fs_type))
-			return ERR_PTR(-EPERM);
-
 		if (!kobj_ns_current_may_mount(KOBJ_NS_TYPE_NET))
 			return ERR_PTR(-EPERM);
 	}
@@ -43,6 +40,10 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 				SYSFS_MAGIC, &new_sb, ns);
 	if (IS_ERR(root) || !new_sb)
 		kobj_ns_drop(KOBJ_NS_TYPE_NET, ns);
+	else if (new_sb)
+		/* Userspace would break if executables appear on sysfs */
+		root->d_sb->s_iflags |= SB_I_NOEXEC;
+
 	return root;
 }
 
@@ -58,7 +59,7 @@ static struct file_system_type sysfs_fs_type = {
 	.name		= "sysfs",
 	.mount		= sysfs_mount,
 	.kill_sb	= sysfs_kill_sb,
-	.fs_flags	= FS_USERNS_MOUNT,
+	.fs_flags	= FS_USERNS_VISIBLE | FS_USERNS_MOUNT,
 };
 
 int __init sysfs_init(void)

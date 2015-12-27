@@ -4,7 +4,6 @@ obj-$(CONFIG_MACH_RD88F5182)	+= rd88f5182-setup.o
 obj-$(CONFIG_MACH_KUROBOX_PRO)	+= kurobox_pro-setup.o
 obj-$(CONFIG_MACH_TERASTATION_PRO2)	+= terastation_pro2-setup.o
 obj-$(CONFIG_MACH_LINKSTATION_PRO) += kurobox_pro-setup.o
-obj-$(CONFIG_MACH_LINKSTATION_MINI) += lsmini-setup.o
 obj-$(CONFIG_MACH_LINKSTATION_LS_HGL) += ls_hgl-setup.o
 obj-$(CONFIG_MACH_DNS323)	+= dns323-setup.o
 obj-$(CONFIG_MACH_TS209)	+= ts209-setup.o tsx09-common.o

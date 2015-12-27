@@ -303,6 +303,7 @@ static const struct of_device_id gef_wdt_ids[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, gef_wdt_ids);
 
 static struct platform_driver gef_wdt_driver = {
 	.driver = {

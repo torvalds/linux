@@ -7,27 +7,12 @@
 struct iomap;
 struct xdr_stream;
 
-enum pnfs_block_extent_state {
-	PNFS_BLOCK_READWRITE_DATA	= 0,
-	PNFS_BLOCK_READ_DATA		= 1,
-	PNFS_BLOCK_INVALID_DATA		= 2,
-	PNFS_BLOCK_NONE_DATA		= 3,
-};
-
 struct pnfs_block_extent {
 	struct nfsd4_deviceid		vol_id;
 	u64				foff;
 	u64				len;
 	u64				soff;
 	enum pnfs_block_extent_state	es;
-};
-#define NFS4_BLOCK_EXTENT_SIZE		44
-
-enum pnfs_block_volume_type {
-	PNFS_BLOCK_VOLUME_SIMPLE	= 0,
-	PNFS_BLOCK_VOLUME_SLICE		= 1,
-	PNFS_BLOCK_VOLUME_CONCAT	= 2,
-	PNFS_BLOCK_VOLUME_STRIPE	= 3,
 };
 
 /*

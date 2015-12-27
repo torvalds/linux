@@ -11,7 +11,6 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/irqchip.h>
 

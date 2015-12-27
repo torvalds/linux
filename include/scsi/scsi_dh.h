@@ -55,11 +55,26 @@ enum {
 	SCSI_DH_NOSYS,
 	SCSI_DH_DRIVER_MAX,
 };
-#if defined(CONFIG_SCSI_DH) || defined(CONFIG_SCSI_DH_MODULE)
+
+typedef void (*activate_complete)(void *, int);
+struct scsi_device_handler {
+	/* Used by the infrastructure */
+	struct list_head list; /* list of scsi_device_handlers */
+
+	/* Filled by the hardware handler */
+	struct module *module;
+	const char *name;
+	int (*check_sense)(struct scsi_device *, struct scsi_sense_hdr *);
+	int (*attach)(struct scsi_device *);
+	void (*detach)(struct scsi_device *);
+	int (*activate)(struct scsi_device *, activate_complete, void *);
+	int (*prep_fn)(struct scsi_device *, struct request *);
+	int (*set_params)(struct scsi_device *, const char *);
+};
+
+#ifdef CONFIG_SCSI_DH
 extern int scsi_dh_activate(struct request_queue *, activate_complete, void *);
-extern int scsi_dh_handler_exist(const char *);
 extern int scsi_dh_attach(struct request_queue *, const char *);
-extern void scsi_dh_detach(struct request_queue *);
 extern const char *scsi_dh_attached_handler_name(struct request_queue *, gfp_t);
 extern int scsi_dh_set_params(struct request_queue *, const char *);
 #else
@@ -69,17 +84,9 @@ static inline int scsi_dh_activate(struct request_queue *req,
 	fn(data, 0);
 	return 0;
 }
-static inline int scsi_dh_handler_exist(const char *name)
-{
-	return 0;
-}
 static inline int scsi_dh_attach(struct request_queue *req, const char *name)
 {
 	return SCSI_DH_NOSYS;
-}
-static inline void scsi_dh_detach(struct request_queue *q)
-{
-	return;
 }
 static inline const char *scsi_dh_attached_handler_name(struct request_queue *q,
 							gfp_t gfp)

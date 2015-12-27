@@ -305,10 +305,17 @@ const char *cper_mem_err_unpack(struct trace_seq *p,
 	return ret;
 }
 
-static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem)
+static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem,
+	int len)
 {
 	struct cper_mem_err_compact cmem;
 
+	/* Don't trust UEFI 2.1/2.2 structure with bad validation bits */
+	if (len == sizeof(struct cper_sec_mem_err_old) &&
+	    (mem->validation_bits & ~(CPER_MEM_VALID_RANK_NUMBER - 1))) {
+		pr_err(FW_WARN "valid bits set for fields beyond structure\n");
+		return;
+	}
 	if (mem->validation_bits & CPER_MEM_VALID_ERROR_STATUS)
 		printk("%s""error_status: 0x%016llx\n", pfx, mem->error_status);
 	if (mem->validation_bits & CPER_MEM_VALID_PA)
@@ -405,8 +412,10 @@ static void cper_estatus_print_section(
 	} else if (!uuid_le_cmp(*sec_type, CPER_SEC_PLATFORM_MEM)) {
 		struct cper_sec_mem_err *mem_err = (void *)(gdata + 1);
 		printk("%s""section_type: memory error\n", newpfx);
-		if (gdata->error_data_length >= sizeof(*mem_err))
-			cper_print_mem(newpfx, mem_err);
+		if (gdata->error_data_length >=
+		    sizeof(struct cper_sec_mem_err_old))
+			cper_print_mem(newpfx, mem_err,
+				       gdata->error_data_length);
 		else
 			goto err_section_too_small;
 	} else if (!uuid_le_cmp(*sec_type, CPER_SEC_PCIE)) {

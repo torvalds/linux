@@ -28,7 +28,7 @@
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 1, struct vsp1_lut_config)
 
 struct vsp1_lut_config {
-	u32 lut[256];
+	__u32 lut[256];
 };
 
 #endif	/* __VSP1_USER_H__ */

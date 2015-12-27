@@ -377,7 +377,7 @@ static int setup_irqs(struct platform_device *pdev)
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-		abx500_temp_irq_handler, IRQF_NO_SUSPEND, "abx500-temp", pdev);
+		abx500_temp_irq_handler, 0, "abx500-temp", pdev);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Request threaded irq failed (%d)\n", ret);
 
@@ -470,6 +470,7 @@ static const struct of_device_id abx500_temp_match[] = {
 	{ .compatible = "stericsson,abx500-temp" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, abx500_temp_match);
 #endif
 
 static struct platform_driver abx500_temp_driver = {

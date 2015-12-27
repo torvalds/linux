@@ -525,7 +525,6 @@ static int ci_otg_start_host(struct otg_fsm *fsm, int on)
 		ci_role_start(ci, CI_ROLE_HOST);
 	} else {
 		ci_role_stop(ci);
-		hw_device_reset(ci);
 		ci_role_start(ci, CI_ROLE_GADGET);
 	}
 	return 0;

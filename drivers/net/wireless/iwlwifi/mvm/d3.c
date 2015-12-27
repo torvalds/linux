@@ -274,18 +274,13 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (sta) {
-			u8 *pn = seq.ccmp.pn;
+			u64 pn64;
 
 			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.unicast_rsc;
 			aes_tx_sc = &data->rsc_tsc->all_tsc_rsc.aes.tsc;
 
-			ieee80211_get_key_tx_seq(key, &seq);
-			aes_tx_sc->pn = cpu_to_le64((u64)pn[5] |
-						    ((u64)pn[4] << 8) |
-						    ((u64)pn[3] << 16) |
-						    ((u64)pn[2] << 24) |
-						    ((u64)pn[1] << 32) |
-						    ((u64)pn[0] << 40));
+			pn64 = atomic64_read(&key->tx_pn);
+			aes_tx_sc->pn = cpu_to_le64(pn64);
 		} else {
 			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.multicast_rsc;
 		}
@@ -298,12 +293,12 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 			u8 *pn = seq.ccmp.pn;
 
 			ieee80211_get_key_rx_seq(key, i, &seq);
-			aes_sc->pn = cpu_to_le64((u64)pn[5] |
-						 ((u64)pn[4] << 8) |
-						 ((u64)pn[3] << 16) |
-						 ((u64)pn[2] << 24) |
-						 ((u64)pn[1] << 32) |
-						 ((u64)pn[0] << 40));
+			aes_sc[i].pn = cpu_to_le64((u64)pn[5] |
+						   ((u64)pn[4] << 8) |
+						   ((u64)pn[3] << 16) |
+						   ((u64)pn[2] << 24) |
+						   ((u64)pn[1] << 32) |
+						   ((u64)pn[0] << 40));
 		}
 		data->use_rsc_tsc = true;
 		break;
@@ -314,9 +309,9 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 	 * to transmit packets to the AP, i.e. the PTK.
 	 */
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
-		key->hw_key_idx = 0;
 		mvm->ptk_ivlen = key->iv_len;
 		mvm->ptk_icvlen = key->icv_len;
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, 0);
 	} else {
 		/*
 		 * firmware only supports TSC/RSC for a single key,
@@ -324,12 +319,11 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		 * with new ones -- this relies on mac80211 doing
 		 * list_add_tail().
 		 */
-		key->hw_key_idx = 1;
 		mvm->gtk_ivlen = key->iv_len;
 		mvm->gtk_icvlen = key->icv_len;
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, 1);
 	}
 
-	ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, true);
 	data->error = ret != 0;
 out_unlock:
 	mutex_unlock(&mvm->mutex);
@@ -777,9 +771,6 @@ static int iwl_mvm_switch_to_d3(struct iwl_mvm *mvm)
 	 */
 	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
-	/* We reprogram keys and shouldn't allocate new key indices */
-	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
-
 	mvm->ptk_ivlen = 0;
 	mvm->ptk_icvlen = 0;
 	mvm->ptk_ivlen = 0;
@@ -1145,7 +1136,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 static int iwl_mvm_enter_d0i3_sync(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_d3;
-	static const u8 d3_notif[] = { D3_CONFIG_CMD };
+	static const u16 d3_notif[] = { D3_CONFIG_CMD };
 	int ret;
 
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_d3,
@@ -1168,13 +1159,20 @@ remove_notif:
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
 
-	iwl_trans_suspend(mvm->trans);
+	/* make sure the d0i3 exit work is not pending */
+	flush_work(&mvm->d0i3_exit_work);
+
+	ret = iwl_trans_suspend(mvm->trans);
+	if (ret)
+		return ret;
+
 	mvm->trans->wowlan_d0i3 = wowlan->any;
 	if (mvm->trans->wowlan_d0i3) {
 		/* 'any' trigger means d0i3 usage */
 		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
-			int ret = iwl_mvm_enter_d0i3_sync(mvm);
+			ret = iwl_mvm_enter_d0i3_sync(mvm);
 
 			if (ret)
 				return ret;
@@ -1183,6 +1181,9 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		mutex_lock(&mvm->d0i3_suspend_mutex);
 		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
 		mutex_unlock(&mvm->d0i3_suspend_mutex);
+
+		iwl_trans_d3_suspend(mvm->trans, false);
+
 		return 0;
 	}
 
@@ -1446,15 +1447,15 @@ static void iwl_mvm_d3_update_gtks(struct ieee80211_hw *hw,
 
 		switch (key->cipher) {
 		case WLAN_CIPHER_SUITE_CCMP:
-			iwl_mvm_aes_sc_to_seq(&sc->aes.tsc, &seq);
 			iwl_mvm_set_aes_rx_seq(sc->aes.unicast_rsc, key);
+			atomic64_set(&key->tx_pn, le64_to_cpu(sc->aes.tsc.pn));
 			break;
 		case WLAN_CIPHER_SUITE_TKIP:
 			iwl_mvm_tkip_sc_to_seq(&sc->tkip.tsc, &seq);
 			iwl_mvm_set_tkip_rx_seq(sc->tkip.unicast_rsc, key);
+			ieee80211_set_key_tx_seq(key, &seq);
 			break;
 		}
-		ieee80211_set_key_tx_seq(key, &seq);
 
 		/* that's it for this key */
 		return;
@@ -1935,28 +1936,59 @@ out:
 	return 1;
 }
 
+static int iwl_mvm_resume_d3(struct iwl_mvm *mvm)
+{
+	iwl_trans_resume(mvm->trans);
+
+	return __iwl_mvm_resume(mvm, false);
+}
+
+static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
+{
+	bool exit_now;
+	enum iwl_d3_status d3_status;
+
+	iwl_trans_d3_resume(mvm->trans, &d3_status, false);
+
+	/*
+	 * make sure to clear D0I3_DEFER_WAKEUP before
+	 * calling iwl_trans_resume(), which might wait
+	 * for d0i3 exit completion.
+	 */
+	mutex_lock(&mvm->d0i3_suspend_mutex);
+	__clear_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
+	exit_now = __test_and_clear_bit(D0I3_PENDING_WAKEUP,
+					&mvm->d0i3_suspend_flags);
+	mutex_unlock(&mvm->d0i3_suspend_mutex);
+	if (exit_now) {
+		IWL_DEBUG_RPM(mvm, "Run deferred d0i3 exit\n");
+		_iwl_mvm_exit_d0i3(mvm);
+	}
+
+	iwl_trans_resume(mvm->trans);
+
+	if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
+		int ret = iwl_mvm_exit_d0i3(mvm->hw->priv);
+
+		if (ret)
+			return ret;
+		/*
+		 * d0i3 exit will be deferred until reconfig_complete.
+		 * make sure there we are out of d0i3.
+		 */
+	}
+	return 0;
+}
+
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	iwl_trans_resume(mvm->trans);
-
-	if (mvm->hw->wiphy->wowlan_config->any) {
-		/* 'any' trigger means d0i3 usage */
-		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
-			int ret = iwl_mvm_exit_d0i3(hw->priv);
-
-			if (ret)
-				return ret;
-			/*
-			 * d0i3 exit will be deferred until reconfig_complete.
-			 * make sure there we are out of d0i3.
-			 */
-		}
-		return 0;
-	}
-
-	return __iwl_mvm_resume(mvm, false);
+	/* 'any' trigger means d0i3 was used */
+	if (hw->wiphy->wowlan_config->any)
+		return iwl_mvm_resume_d0i3(mvm);
+	else
+		return iwl_mvm_resume_d3(mvm);
 }
 
 void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled)

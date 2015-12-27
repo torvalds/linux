@@ -324,6 +324,7 @@ static const struct of_device_id rtc_mv_of_match_table[] = {
 	{ .compatible = "marvell,orion-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, rtc_mv_of_match_table);
 #endif
 
 static struct platform_driver mv_rtc_driver = {

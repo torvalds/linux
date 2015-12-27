@@ -57,7 +57,7 @@ static void ieee80211_offchannel_ps_enable(struct ieee80211_sub_if_data *sdata)
 		 * to send a new nullfunc frame to inform the AP that we
 		 * are again sleeping.
 		 */
-		ieee80211_send_nullfunc(local, sdata, 1);
+		ieee80211_send_nullfunc(local, sdata, true);
 }
 
 /* inform AP that we are awake again, unless power save is enabled */
@@ -66,7 +66,7 @@ static void ieee80211_offchannel_ps_disable(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 
 	if (!local->ps_sdata)
-		ieee80211_send_nullfunc(local, sdata, 0);
+		ieee80211_send_nullfunc(local, sdata, false);
 	else if (local->offchannel_ps_enabled) {
 		/*
 		 * In !IEEE80211_HW_PS_NULLFUNC_STACK case the hardware
@@ -93,7 +93,7 @@ static void ieee80211_offchannel_ps_disable(struct ieee80211_sub_if_data *sdata)
 		 * restart the timer now and send a nullfunc frame to inform
 		 * the AP that we are awake.
 		 */
-		ieee80211_send_nullfunc(local, sdata, 0);
+		ieee80211_send_nullfunc(local, sdata, false);
 		mod_timer(&local->dynamic_ps_timer, jiffies +
 			  msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
 	}

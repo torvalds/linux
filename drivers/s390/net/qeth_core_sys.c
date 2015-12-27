@@ -153,52 +153,17 @@ static DEVICE_ATTR(portno, 0644, qeth_dev_portno_show, qeth_dev_portno_store);
 static ssize_t qeth_dev_portname_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct qeth_card *card = dev_get_drvdata(dev);
-	char portname[9] = {0, };
-
-	if (!card)
-		return -EINVAL;
-
-	if (card->info.portname_required) {
-		memcpy(portname, card->info.portname + 1, 8);
-		EBCASC(portname, 8);
-		return sprintf(buf, "%s\n", portname);
-	} else
-		return sprintf(buf, "no portname required\n");
+	return sprintf(buf, "no portname required\n");
 }
 
 static ssize_t qeth_dev_portname_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int i, rc = 0;
 
-	if (!card)
-		return -EINVAL;
-
-	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
-		rc = -EPERM;
-		goto out;
-	}
-
-	tmp = strsep((char **) &buf, "\n");
-	if ((strlen(tmp) > 8) || (strlen(tmp) == 0)) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	card->info.portname[0] = strlen(tmp);
-	/* for beauty reasons */
-	for (i = 1; i < 9; i++)
-		card->info.portname[i] = ' ';
-	strcpy(card->info.portname + 1, tmp);
-	ASCEBC(card->info.portname + 1, 8);
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
+	dev_warn_once(&card->gdev->dev,
+		      "portname is deprecated and is ignored\n");
+	return count;
 }
 
 static DEVICE_ATTR(portname, 0644, qeth_dev_portname_show,

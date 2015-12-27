@@ -41,8 +41,8 @@
 	pinctrl-0 = <&pinctrl_esdhc2>,
 		    <&pinctrl_esdhc2_cdwp>;
 	vmmc-supply = <&reg_3p3v>;
-	wp-gpios = <&gpio1 2 0>;
-	cd-gpios = <&gpio1 4 0>;
+	wp-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 

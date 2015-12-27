@@ -35,6 +35,7 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/slab.h>
@@ -389,12 +390,11 @@ static long alchemy_calc_div(unsigned long rate, unsigned long prate,
 	return div1;
 }
 
-static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk,
-					int scale, int maxdiv)
+static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
+				 struct clk_rate_request *req,
+				 int scale, int maxdiv)
 {
-	struct clk *pc, *bpc, *free;
+	struct clk_hw *pc, *bpc, *free;
 	long tdv, tpr, pr, nr, br, bpr, diff, lastdiff;
 	int j;
 
@@ -408,7 +408,7 @@ static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 	 * the one that gets closest to but not over the requested rate.
 	 */
 	for (j = 0; j < 7; j++) {
-		pc = clk_get_parent_by_index(hw->clk, j);
+		pc = clk_hw_get_parent_by_index(hw, j);
 		if (!pc)
 			break;
 
@@ -416,20 +416,20 @@ static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 		 * XXX: we would actually want clk_has_active_children()
 		 * but this is a good-enough approximation for now.
 		 */
-		if (!__clk_is_prepared(pc)) {
+		if (!clk_hw_is_prepared(pc)) {
 			if (!free)
 				free = pc;
 		}
 
-		pr = clk_get_rate(pc);
-		if (pr < rate)
+		pr = clk_hw_get_rate(pc);
+		if (pr < req->rate)
 			continue;
 
 		/* what can hardware actually provide */
-		tdv = alchemy_calc_div(rate, pr, scale, maxdiv, NULL);
+		tdv = alchemy_calc_div(req->rate, pr, scale, maxdiv, NULL);
 		nr = pr / tdv;
-		diff = rate - nr;
-		if (nr > rate)
+		diff = req->rate - nr;
+		if (nr > req->rate)
 			continue;
 
 		if (diff < lastdiff) {
@@ -448,15 +448,16 @@ static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 	 */
 	if (lastdiff && free) {
 		for (j = (maxdiv == 4) ? 1 : scale; j <= maxdiv; j += scale) {
-			tpr = rate * j;
+			tpr = req->rate * j;
 			if (tpr < 0)
 				break;
-			pr = clk_round_rate(free, tpr);
+			pr = clk_hw_round_rate(free, tpr);
 
-			tdv = alchemy_calc_div(rate, pr, scale, maxdiv, NULL);
+			tdv = alchemy_calc_div(req->rate, pr, scale, maxdiv,
+					       NULL);
 			nr = pr / tdv;
-			diff = rate - nr;
-			if (nr > rate)
+			diff = req->rate - nr;
+			if (nr > req->rate)
 				continue;
 			if (diff < lastdiff) {
 				lastdiff = diff;
@@ -469,9 +470,14 @@ static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 		}
 	}
 
-	*best_parent_rate = bpr;
-	*best_parent_clk = __clk_get_hw(bpc);
-	return br;
+	if (br < 0)
+		return br;
+
+	req->best_parent_rate = bpr;
+	req->best_parent_hw = bpc;
+	req->rate = br;
+
+	return 0;
 }
 
 static int alchemy_clk_fgv1_en(struct clk_hw *hw)
@@ -562,14 +568,10 @@ static unsigned long alchemy_clk_fgv1_recalc(struct clk_hw *hw,
 	return parent_rate / v;
 }
 
-static long alchemy_clk_fgv1_detr(struct clk_hw *hw, unsigned long rate,
-					unsigned long min_rate,
-					unsigned long max_rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk)
+static int alchemy_clk_fgv1_detr(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
-	return alchemy_clk_fgcs_detr(hw, rate, best_parent_rate,
-				     best_parent_clk, 2, 512);
+	return alchemy_clk_fgcs_detr(hw, req, 2, 512);
 }
 
 /* Au1000, Au1100, Au15x0, Au12x0 */
@@ -696,11 +698,8 @@ static unsigned long alchemy_clk_fgv2_recalc(struct clk_hw *hw,
 	return t;
 }
 
-static long alchemy_clk_fgv2_detr(struct clk_hw *hw, unsigned long rate,
-					unsigned long min_rate,
-					unsigned long max_rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk)
+static int alchemy_clk_fgv2_detr(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
 	struct alchemy_fgcs_clk *c = to_fgcs_clk(hw);
 	int scale, maxdiv;
@@ -713,8 +712,7 @@ static long alchemy_clk_fgv2_detr(struct clk_hw *hw, unsigned long rate,
 		maxdiv = 512;
 	}
 
-	return alchemy_clk_fgcs_detr(hw, rate, best_parent_rate,
-				     best_parent_clk, scale, maxdiv);
+	return alchemy_clk_fgcs_detr(hw, req, scale, maxdiv);
 }
 
 /* Au1300 larger input mux, no separate disable bit, flexible divider */
@@ -752,12 +750,12 @@ static int __init alchemy_clk_init_fgens(int ctype)
 	switch (ctype) {
 	case ALCHEMY_CPU_AU1000...ALCHEMY_CPU_AU1200:
 		id.ops = &alchemy_clkops_fgenv1;
-		id.parent_names = (const char **)alchemy_clk_fgv1_parents;
+		id.parent_names = alchemy_clk_fgv1_parents;
 		id.num_parents = 2;
 		break;
 	case ALCHEMY_CPU_AU1300:
 		id.ops = &alchemy_clkops_fgenv2;
-		id.parent_names = (const char **)alchemy_clk_fgv2_parents;
+		id.parent_names = alchemy_clk_fgv2_parents;
 		id.num_parents = 3;
 		break;
 	default:
@@ -917,17 +915,13 @@ static int alchemy_clk_csrc_setr(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static long alchemy_clk_csrc_detr(struct clk_hw *hw, unsigned long rate,
-					unsigned long min_rate,
-					unsigned long max_rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk)
+static int alchemy_clk_csrc_detr(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
 	struct alchemy_fgcs_clk *c = to_fgcs_clk(hw);
 	int scale = c->dt[2] == 3 ? 1 : 2; /* au1300 check */
 
-	return alchemy_clk_fgcs_detr(hw, rate, best_parent_rate,
-				     best_parent_clk, scale, 4);
+	return alchemy_clk_fgcs_detr(hw, req, scale, 4);
 }
 
 static struct clk_ops alchemy_clkops_csrc = {
@@ -961,7 +955,7 @@ static int __init alchemy_clk_setup_imux(int ctype)
 	struct clk *c;
 
 	id.ops = &alchemy_clkops_csrc;
-	id.parent_names = (const char **)alchemy_clk_csrc_parents;
+	id.parent_names = alchemy_clk_csrc_parents;
 	id.num_parents = 7;
 	id.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE;
 

@@ -212,12 +212,17 @@ int __ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 	 * time before the ACK arrives.
 	 */
 	if (ps2_sendbyte(ps2dev, command & 0xff,
-			 command == PS2_CMD_RESET_BAT ? 1000 : 200))
-		goto out;
+			 command == PS2_CMD_RESET_BAT ? 1000 : 200)) {
+		serio_pause_rx(ps2dev->serio);
+		goto out_reset_flags;
+	}
 
-	for (i = 0; i < send; i++)
-		if (ps2_sendbyte(ps2dev, param[i], 200))
-			goto out;
+	for (i = 0; i < send; i++) {
+		if (ps2_sendbyte(ps2dev, param[i], 200)) {
+			serio_pause_rx(ps2dev->serio);
+			goto out_reset_flags;
+		}
+	}
 
 	/*
 	 * The reset command takes a long time to execute.
@@ -234,17 +239,18 @@ int __ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 				   !(ps2dev->flags & PS2_FLAG_CMD), timeout);
 	}
 
+	serio_pause_rx(ps2dev->serio);
+
 	if (param)
 		for (i = 0; i < receive; i++)
 			param[i] = ps2dev->cmdbuf[(receive - 1) - i];
 
 	if (ps2dev->cmdcnt && (command != PS2_CMD_RESET_BAT || ps2dev->cmdcnt != 1))
-		goto out;
+		goto out_reset_flags;
 
 	rc = 0;
 
- out:
-	serio_pause_rx(ps2dev->serio);
+ out_reset_flags:
 	ps2dev->flags = 0;
 	serio_continue_rx(ps2dev->serio);
 

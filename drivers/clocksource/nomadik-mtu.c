@@ -119,28 +119,27 @@ static void nmdk_clkevt_reset(void)
 	}
 }
 
-static void nmdk_clkevt_mode(enum clock_event_mode mode,
-			     struct clock_event_device *dev)
+static int nmdk_clkevt_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		clkevt_periodic = true;
-		nmdk_clkevt_reset();
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		clkevt_periodic = false;
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-		writel(0, mtu_base + MTU_IMSC);
-		/* disable timer */
-		writel(0, mtu_base + MTU_CR(1));
-		/* load some high default value */
-		writel(0xffffffff, mtu_base + MTU_LR(1));
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+	writel(0, mtu_base + MTU_IMSC);
+	/* disable timer */
+	writel(0, mtu_base + MTU_CR(1));
+	/* load some high default value */
+	writel(0xffffffff, mtu_base + MTU_LR(1));
+	return 0;
+}
+
+static int nmdk_clkevt_set_oneshot(struct clock_event_device *evt)
+{
+	clkevt_periodic = false;
+	return 0;
+}
+
+static int nmdk_clkevt_set_periodic(struct clock_event_device *evt)
+{
+	clkevt_periodic = true;
+	nmdk_clkevt_reset();
+	return 0;
 }
 
 static void nmdk_clksrc_reset(void)
@@ -163,13 +162,16 @@ static void nmdk_clkevt_resume(struct clock_event_device *cedev)
 }
 
 static struct clock_event_device nmdk_clkevt = {
-	.name		= "mtu_1",
-	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC |
-	                  CLOCK_EVT_FEAT_DYNIRQ,
-	.rating		= 200,
-	.set_mode	= nmdk_clkevt_mode,
-	.set_next_event	= nmdk_clkevt_next,
-	.resume		= nmdk_clkevt_resume,
+	.name			= "mtu_1",
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_DYNIRQ,
+	.rating			= 200,
+	.set_state_shutdown	= nmdk_clkevt_shutdown,
+	.set_state_periodic	= nmdk_clkevt_set_periodic,
+	.set_state_oneshot	= nmdk_clkevt_set_oneshot,
+	.set_next_event		= nmdk_clkevt_next,
+	.resume			= nmdk_clkevt_resume,
 };
 
 /*

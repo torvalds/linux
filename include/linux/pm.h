@@ -732,6 +732,7 @@ extern int pm_generic_poweroff_noirq(struct device *dev);
 extern int pm_generic_poweroff_late(struct device *dev);
 extern int pm_generic_poweroff(struct device *dev);
 extern void pm_generic_complete(struct device *dev);
+extern void pm_complete_with_resume_check(struct device *dev);
 
 #else /* !CONFIG_PM_SLEEP */
 

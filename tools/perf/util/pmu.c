@@ -1,4 +1,5 @@
 #include <linux/list.h>
+#include <linux/compiler.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -205,16 +206,11 @@ static int perf_pmu__parse_snapshot(struct perf_pmu_alias *alias,
 	return 0;
 }
 
-static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FILE *file)
+static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
+				 char *desc __maybe_unused, char *val)
 {
 	struct perf_pmu_alias *alias;
-	char buf[256];
 	int ret;
-
-	ret = fread(buf, 1, sizeof(buf), file);
-	if (ret == 0)
-		return -EINVAL;
-	buf[ret] = 0;
 
 	alias = malloc(sizeof(*alias));
 	if (!alias)
@@ -225,24 +221,41 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 	alias->unit[0] = '\0';
 	alias->per_pkg = false;
 
-	ret = parse_events_terms(&alias->terms, buf);
+	ret = parse_events_terms(&alias->terms, val);
 	if (ret) {
+		pr_err("Cannot parse alias %s: %d\n", val, ret);
 		free(alias);
 		return ret;
 	}
 
 	alias->name = strdup(name);
-	/*
-	 * load unit name and scale if available
-	 */
-	perf_pmu__parse_unit(alias, dir, name);
-	perf_pmu__parse_scale(alias, dir, name);
-	perf_pmu__parse_per_pkg(alias, dir, name);
-	perf_pmu__parse_snapshot(alias, dir, name);
+	if (dir) {
+		/*
+		 * load unit name and scale if available
+		 */
+		perf_pmu__parse_unit(alias, dir, name);
+		perf_pmu__parse_scale(alias, dir, name);
+		perf_pmu__parse_per_pkg(alias, dir, name);
+		perf_pmu__parse_snapshot(alias, dir, name);
+	}
 
 	list_add_tail(&alias->list, list);
 
 	return 0;
+}
+
+static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FILE *file)
+{
+	char buf[256];
+	int ret;
+
+	ret = fread(buf, 1, sizeof(buf), file);
+	if (ret == 0)
+		return -EINVAL;
+
+	buf[ret] = 0;
+
+	return __perf_pmu__new_alias(list, dir, name, NULL, buf);
 }
 
 static inline bool pmu_alias_info_file(char *name)
@@ -436,7 +449,7 @@ static struct cpu_map *pmu_cpumask(const char *name)
 	return cpus;
 }
 
-struct perf_event_attr *__attribute__((weak))
+struct perf_event_attr * __weak
 perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
 {
 	return NULL;
@@ -448,10 +461,6 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	LIST_HEAD(format);
 	LIST_HEAD(aliases);
 	__u32 type;
-
-	/* No support for intel_bts or intel_pt so disallow them */
-	if (!strcmp(name, "intel_bts") || !strcmp(name, "intel_pt"))
-		return NULL;
 
 	/*
 	 * The pmu data we store & need consists of the pmu
@@ -529,7 +538,7 @@ struct perf_pmu *perf_pmu__find(const char *name)
 }
 
 static struct perf_pmu_format *
-pmu_find_format(struct list_head *formats, char *name)
+pmu_find_format(struct list_head *formats, const char *name)
 {
 	struct perf_pmu_format *format;
 
@@ -538,6 +547,21 @@ pmu_find_format(struct list_head *formats, char *name)
 			return format;
 
 	return NULL;
+}
+
+__u64 perf_pmu__format_bits(struct list_head *formats, const char *name)
+{
+	struct perf_pmu_format *format = pmu_find_format(formats, name);
+	__u64 bits = 0;
+	int fbit;
+
+	if (!format)
+		return 0;
+
+	for_each_set_bit(fbit, format->bits, PERF_PMU_FORMAT_BITS)
+		bits |= 1ULL << fbit;
+
+	return bits;
 }
 
 /*
@@ -559,6 +583,18 @@ static void pmu_format_value(unsigned long *format, __u64 value, __u64 *v,
 		else if (zero)
 			*v &= ~(1llu << fbit);
 	}
+}
+
+static __u64 pmu_format_max_value(const unsigned long *format)
+{
+	int w;
+
+	w = bitmap_weight(format, PERF_PMU_FORMAT_BITS);
+	if (!w)
+		return 0;
+	if (w < 64)
+		return (1ULL << w) - 1;
+	return -1;
 }
 
 /*
@@ -590,36 +626,26 @@ static int pmu_resolve_param_term(struct parse_events_term *term,
 	return -1;
 }
 
-static char *formats_error_string(struct list_head *formats)
+static char *pmu_formats_string(struct list_head *formats)
 {
 	struct perf_pmu_format *format;
-	char *err, *str;
-	static const char *static_terms = "config,config1,config2,name,period,branch_type\n";
+	char *str;
+	struct strbuf buf;
 	unsigned i = 0;
 
-	if (!asprintf(&str, "valid terms:"))
+	if (!formats)
 		return NULL;
 
+	strbuf_init(&buf, 0);
 	/* sysfs exported terms */
-	list_for_each_entry(format, formats, list) {
-		char c = i++ ? ',' : ' ';
+	list_for_each_entry(format, formats, list)
+		strbuf_addf(&buf, i++ ? ",%s" : "%s",
+			    format->name);
 
-		err = str;
-		if (!asprintf(&str, "%s%c%s", err, c, format->name))
-			goto fail;
-		free(err);
-	}
+	str = strbuf_detach(&buf, NULL);
+	strbuf_release(&buf);
 
-	/* static terms */
-	err = str;
-	if (!asprintf(&str, "%s,%s", err, static_terms))
-		goto fail;
-
-	free(err);
 	return str;
-fail:
-	free(err);
-	return NULL;
 }
 
 /*
@@ -634,7 +660,7 @@ static int pmu_config_term(struct list_head *formats,
 {
 	struct perf_pmu_format *format;
 	__u64 *vp;
-	__u64 val;
+	__u64 val, max_val;
 
 	/*
 	 * If this is a parameter we've already used for parameterized-eval,
@@ -655,9 +681,12 @@ static int pmu_config_term(struct list_head *formats,
 		if (verbose)
 			printf("Invalid event/parameter '%s'\n", term->config);
 		if (err) {
+			char *pmu_term = pmu_formats_string(formats);
+
 			err->idx  = term->err_term;
 			err->str  = strdup("unknown term");
-			err->help = formats_error_string(formats);
+			err->help = parse_events_formats_error_string(pmu_term);
+			free(pmu_term);
 		}
 		return -EINVAL;
 	}
@@ -699,6 +728,22 @@ static int pmu_config_term(struct list_head *formats,
 			return -EINVAL;
 	} else
 		return -EINVAL;
+
+	max_val = pmu_format_max_value(format->bits);
+	if (val > max_val) {
+		if (err) {
+			err->idx = term->err_val;
+			if (asprintf(&err->str,
+				     "value too big for format, maximum is %llu",
+				     (unsigned long long)max_val) < 0)
+				err->str = strdup("value too big for format");
+			return -EINVAL;
+		}
+		/*
+		 * Assume we don't care if !err, in which case the value will be
+		 * silently truncated.
+		 */
+	}
 
 	pmu_format_value(format->bits, val, vp, zero);
 	return 0;
@@ -963,7 +1008,8 @@ void print_pmu_events(const char *event_glob, bool name_only)
 				goto out_enomem;
 			j++;
 		}
-		if (pmu->selectable) {
+		if (pmu->selectable &&
+		    (event_glob == NULL || strglobmatch(pmu->name, event_glob))) {
 			char *s;
 			if (asprintf(&s, "%s//", pmu->name) < 0)
 				goto out_enomem;
@@ -981,7 +1027,7 @@ void print_pmu_events(const char *event_glob, bool name_only)
 		printf("  %-50s [Kernel PMU event]\n", aliases[j]);
 		printed++;
 	}
-	if (printed)
+	if (printed && pager_in_use())
 		printf("\n");
 out_free:
 	for (j = 0; j < len; j++)

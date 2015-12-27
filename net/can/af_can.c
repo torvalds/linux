@@ -89,6 +89,8 @@ struct timer_list can_stattimer;   /* timer for statistics update */
 struct s_stats    can_stats;       /* packet statistics */
 struct s_pstats   can_pstats;      /* receive list statistics */
 
+static atomic_t skbcounter = ATOMIC_INIT(0);
+
 /*
  * af_can socket functions
  */
@@ -310,12 +312,8 @@ int can_send(struct sk_buff *skb, int loop)
 		return err;
 	}
 
-	if (newskb) {
-		if (!(newskb->tstamp.tv64))
-			__net_timestamp(newskb);
-
+	if (newskb)
 		netif_rx_ni(newskb);
-	}
 
 	/* update statistics */
 	can_stats.tx_frames++;
@@ -682,6 +680,10 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	/* update statistics */
 	can_stats.rx_frames++;
 	can_stats.rx_frames_delta++;
+
+	/* create non-zero unique skb identifier together with *skb */
+	while (!(can_skb_prv(skb)->skbcnt))
+		can_skb_prv(skb)->skbcnt = atomic_inc_return(&skbcounter);
 
 	rcu_read_lock();
 

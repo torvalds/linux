@@ -13,8 +13,9 @@
 
 #define __SWAB_64_THRU_32__
 
-#if (defined(__mips_isa_rev) && (__mips_isa_rev >= 2)) ||		\
-    defined(_MIPS_ARCH_LOONGSON3A)
+#if !defined(__mips16) &&					\
+	((defined(__mips_isa_rev) && (__mips_isa_rev >= 2)) ||	\
+	 defined(_MIPS_ARCH_LOONGSON3A))
 
 static inline __attribute_const__ __u16 __arch_swab16(__u16 x)
 {
@@ -65,5 +66,5 @@ static inline __attribute_const__ __u64 __arch_swab64(__u64 x)
 }
 #define __arch_swab64 __arch_swab64
 #endif /* __mips64 */
-#endif /* MIPS R2 or newer or Loongson 3A */
+#endif /* (not __mips16) and (MIPS R2 or newer or Loongson 3A) */
 #endif /* _ASM_SWAB_H */

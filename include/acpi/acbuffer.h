@@ -147,6 +147,7 @@ struct acpi_pld_info {
  *        (Intended for BIOS use only)
  */
 #define ACPI_PLD_REV1_BUFFER_SIZE               16	/* For Revision 1 of the buffer (From ACPI spec) */
+#define ACPI_PLD_REV2_BUFFER_SIZE               20	/* For Revision 2 of the buffer (From ACPI spec) */
 #define ACPI_PLD_BUFFER_SIZE                    20	/* For Revision 2 of the buffer (From ACPI spec) */
 
 /* First 32-bit dword, bits 0:32 */

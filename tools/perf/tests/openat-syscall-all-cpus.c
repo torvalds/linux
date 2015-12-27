@@ -1,3 +1,5 @@
+#include <api/fs/fs.h>
+#include <linux/err.h>
 #include "evsel.h"
 #include "tests.h"
 #include "thread_map.h"
@@ -14,6 +16,7 @@ int test__openat_syscall_event_on_all_cpus(void)
 	cpu_set_t cpu_set;
 	struct thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
 	char sbuf[STRERR_BUFSIZE];
+	char errbuf[BUFSIZ];
 
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
@@ -29,13 +32,9 @@ int test__openat_syscall_event_on_all_cpus(void)
 	CPU_ZERO(&cpu_set);
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
-	if (evsel == NULL) {
-		if (tracefs_configured())
-			pr_debug("is tracefs mounted on /sys/kernel/tracing?\n");
-		else if (debugfs_configured())
-			pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
-		else
-			pr_debug("Neither tracefs or debugfs is enabled in this kernel\n");
+	if (IS_ERR(evsel)) {
+		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
+		pr_debug("%s\n", errbuf);
 		goto out_thread_map_delete;
 	}
 
@@ -78,7 +77,7 @@ int test__openat_syscall_event_on_all_cpus(void)
 	 * we use the auto allocation it will allocate just for 1 cpu,
 	 * as we start by cpu 0.
 	 */
-	if (perf_evsel__alloc_counts(evsel, cpus->nr) < 0) {
+	if (perf_evsel__alloc_counts(evsel, cpus->nr, 1) < 0) {
 		pr_debug("perf_evsel__alloc_counts(ncpus=%d)\n", cpus->nr);
 		goto out_close_fd;
 	}
@@ -98,9 +97,9 @@ int test__openat_syscall_event_on_all_cpus(void)
 		}
 
 		expected = nr_openat_calls + cpu;
-		if (evsel->counts->cpu[cpu].val != expected) {
+		if (perf_counts(evsel->counts, cpu, 0)->val != expected) {
 			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
-				 expected, cpus->map[cpu], evsel->counts->cpu[cpu].val);
+				 expected, cpus->map[cpu], perf_counts(evsel->counts, cpu, 0)->val);
 			err = -1;
 		}
 	}
@@ -111,6 +110,6 @@ out_close_fd:
 out_evsel_delete:
 	perf_evsel__delete(evsel);
 out_thread_map_delete:
-	thread_map__delete(threads);
+	thread_map__put(threads);
 	return err;
 }

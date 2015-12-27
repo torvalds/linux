@@ -336,7 +336,6 @@ static void ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 			ieee80211_check_fast_xmit(sta);
 		} else {
 			rcu_assign_pointer(sta->gtk[idx], new);
-			sta->gtk_idx = idx;
 		}
 	} else {
 		defunikey = old &&

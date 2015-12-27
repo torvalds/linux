@@ -26,12 +26,16 @@
 
 #include "platform_data.h"
 
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3	0xabcd
-#define PCI_DEVICE_ID_INTEL_BYT		0x0f37
-#define PCI_DEVICE_ID_INTEL_MRFLD	0x119e
-#define PCI_DEVICE_ID_INTEL_BSW		0x22B7
-#define PCI_DEVICE_ID_INTEL_SPTLP	0x9d30
-#define PCI_DEVICE_ID_INTEL_SPTH	0xa130
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3		0xabcd
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI	0xabce
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31	0xabcf
+#define PCI_DEVICE_ID_INTEL_BYT			0x0f37
+#define PCI_DEVICE_ID_INTEL_MRFLD		0x119e
+#define PCI_DEVICE_ID_INTEL_BSW			0x22b7
+#define PCI_DEVICE_ID_INTEL_SPTLP		0x9d30
+#define PCI_DEVICE_ID_INTEL_SPTH		0xa130
+#define PCI_DEVICE_ID_INTEL_BXT			0x0aaa
+#define PCI_DEVICE_ID_INTEL_APL			0x5aaa
 
 static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
 static const struct acpi_gpio_params cs_gpios = { 1, 0, false };
@@ -83,21 +87,43 @@ static int dwc3_pci_quirks(struct pci_dev *pdev)
 		acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
 					  acpi_dwc3_byt_gpios);
 
-		/* These GPIOs will turn on the USB2 PHY */
-		gpio = gpiod_get(&pdev->dev, "cs");
-		if (!IS_ERR(gpio)) {
-			gpiod_direction_output(gpio, 0);
-			gpiod_set_value_cansleep(gpio, 1);
-			gpiod_put(gpio);
-		}
+		/*
+		 * These GPIOs will turn on the USB2 PHY. Note that we have to
+		 * put the gpio descriptors again here because the phy driver
+		 * might want to grab them, too.
+		 */
+		gpio = gpiod_get_optional(&pdev->dev, "cs", GPIOD_OUT_LOW);
+		if (IS_ERR(gpio))
+			return PTR_ERR(gpio);
 
-		gpio = gpiod_get(&pdev->dev, "reset");
-		if (!IS_ERR(gpio)) {
-			gpiod_direction_output(gpio, 0);
+		gpiod_set_value_cansleep(gpio, 1);
+		gpiod_put(gpio);
+
+		gpio = gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
+		if (IS_ERR(gpio))
+			return PTR_ERR(gpio);
+
+		if (gpio) {
 			gpiod_set_value_cansleep(gpio, 1);
 			gpiod_put(gpio);
 			usleep_range(10000, 11000);
 		}
+	}
+
+	if (pdev->vendor == PCI_VENDOR_ID_SYNOPSYS &&
+	    (pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3 ||
+	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI ||
+	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31)) {
+
+		struct dwc3_platform_data pdata;
+
+		memset(&pdata, 0, sizeof(pdata));
+		pdata.usb3_lpm_capable = true;
+		pdata.has_lpm_erratum = true;
+		pdata.dis_enblslpm_quirk = true;
+
+		return platform_device_add_data(pci_get_drvdata(pdev), &pdata,
+						sizeof(pdata));
 	}
 
 	return 0;
@@ -148,6 +174,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 		goto err;
 
 	dwc3->dev.parent = dev;
+	ACPI_COMPANION_SET(&dwc3->dev, ACPI_COMPANION(dev));
 
 	ret = platform_device_add(dwc3);
 	if (ret) {
@@ -172,11 +199,21 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
 				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3),
 	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
+				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI),
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
+				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31),
+	},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BYT), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_MRFLD), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SPTLP), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SPTH), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BXT), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_APL), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB), },
 	{  }	/* Terminating Entry */
 };

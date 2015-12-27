@@ -51,6 +51,127 @@ static void __iomem *twd_base;
 
 #define IRQ_LOCALTIMER		29
 
+#ifdef CONFIG_OMAP_INTERCONNECT_BARRIER
+
+/* Used to implement memory barrier on DRAM path */
+#define OMAP4_DRAM_BARRIER_VA			0xfe600000
+
+static void __iomem *dram_sync, *sram_sync;
+static phys_addr_t dram_sync_paddr;
+static u32 dram_sync_size;
+
+/*
+ * The OMAP4 bus structure contains asynchrnous bridges which can buffer
+ * data writes from the MPU. These asynchronous bridges can be found on
+ * paths between the MPU to EMIF, and the MPU to L3 interconnects.
+ *
+ * We need to be careful about re-ordering which can happen as a result
+ * of different accesses being performed via different paths, and
+ * therefore different asynchronous bridges.
+ */
+
+/*
+ * OMAP4 interconnect barrier which is called for each mb() and wmb().
+ * This is to ensure that normal paths to DRAM (normal memory, cacheable
+ * accesses) are properly synchronised with writes to DMA coherent memory
+ * (normal memory, uncacheable) and device writes.
+ *
+ * The mb() and wmb() barriers only operate only on the MPU->MA->EMIF
+ * path, as we need to ensure that data is visible to other system
+ * masters prior to writes to those system masters being seen.
+ *
+ * Note: the SRAM path is not synchronised via mb() and wmb().
+ */
+static void omap4_mb(void)
+{
+	if (dram_sync)
+		writel_relaxed(0, dram_sync);
+}
+
+/*
+ * OMAP4 Errata i688 - asynchronous bridge corruption when entering WFI.
+ *
+ * If a data is stalled inside asynchronous bridge because of back
+ * pressure, it may be accepted multiple times, creating pointer
+ * misalignment that will corrupt next transfers on that data path until
+ * next reset of the system. No recovery procedure once the issue is hit,
+ * the path remains consistently broken.
+ *
+ * Async bridges can be found on paths between MPU to EMIF and MPU to L3
+ * interconnects.
+ *
+ * This situation can happen only when the idle is initiated by a Master
+ * Request Disconnection (which is trigged by software when executing WFI
+ * on the CPU).
+ *
+ * The work-around for this errata needs all the initiators connected
+ * through an async bridge to ensure that data path is properly drained
+ * before issuing WFI. This condition will be met if one Strongly ordered
+ * access is performed to the target right before executing the WFI.
+ *
+ * In MPU case, L3 T2ASYNC FIFO and DDR T2ASYNC FIFO needs to be drained.
+ * IO barrier ensure that there is no synchronisation loss on initiators
+ * operating on both interconnect port simultaneously.
+ *
+ * This is a stronger version of the OMAP4 memory barrier below, and
+ * operates on both the MPU->MA->EMIF path but also the MPU->OCP path
+ * as well, and is necessary prior to executing a WFI.
+ */
+void omap_interconnect_sync(void)
+{
+	if (dram_sync && sram_sync) {
+		writel_relaxed(readl_relaxed(dram_sync), dram_sync);
+		writel_relaxed(readl_relaxed(sram_sync), sram_sync);
+		isb();
+	}
+}
+
+static int __init omap4_sram_init(void)
+{
+	struct device_node *np;
+	struct gen_pool *sram_pool;
+
+	np = of_find_compatible_node(NULL, NULL, "ti,omap4-mpu");
+	if (!np)
+		pr_warn("%s:Unable to allocate sram needed to handle errata I688\n",
+			__func__);
+	sram_pool = of_gen_pool_get(np, "sram", 0);
+	if (!sram_pool)
+		pr_warn("%s:Unable to get sram pool needed to handle errata I688\n",
+			__func__);
+	else
+		sram_sync = (void *)gen_pool_alloc(sram_pool, PAGE_SIZE);
+
+	return 0;
+}
+omap_arch_initcall(omap4_sram_init);
+
+/* Steal one page physical memory for barrier implementation */
+void __init omap_barrier_reserve_memblock(void)
+{
+	dram_sync_size = ALIGN(PAGE_SIZE, SZ_1M);
+	dram_sync_paddr = arm_memblock_steal(dram_sync_size, SZ_1M);
+}
+
+void __init omap_barriers_init(void)
+{
+	struct map_desc dram_io_desc[1];
+
+	dram_io_desc[0].virtual = OMAP4_DRAM_BARRIER_VA;
+	dram_io_desc[0].pfn = __phys_to_pfn(dram_sync_paddr);
+	dram_io_desc[0].length = dram_sync_size;
+	dram_io_desc[0].type = MT_MEMORY_RW_SO;
+	iotable_init(dram_io_desc, ARRAY_SIZE(dram_io_desc));
+	dram_sync = (void __iomem *) dram_io_desc[0].virtual;
+
+	pr_info("OMAP4: Map %pa to %p for dram barrier\n",
+		&dram_sync_paddr, dram_sync);
+
+	soc_mb = omap4_mb;
+}
+
+#endif
+
 void gic_dist_disable(void)
 {
 	if (gic_dist_base_addr)

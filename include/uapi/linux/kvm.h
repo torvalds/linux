@@ -183,6 +183,7 @@ struct kvm_s390_skeys {
 #define KVM_EXIT_EPR              23
 #define KVM_EXIT_SYSTEM_EVENT     24
 #define KVM_EXIT_S390_STSI        25
+#define KVM_EXIT_IOAPIC_EOI       26
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -237,6 +238,7 @@ struct kvm_run {
 			__u32 count;
 			__u64 data_offset; /* relative to kvm_run start */
 		} io;
+		/* KVM_EXIT_DEBUG */
 		struct {
 			struct kvm_debug_exit_arch arch;
 		} debug;
@@ -285,6 +287,7 @@ struct kvm_run {
 			__u32 data;
 			__u8  is_write;
 		} dcr;
+		/* KVM_EXIT_INTERNAL_ERROR */
 		struct {
 			__u32 suberror;
 			/* Available with KVM_CAP_INTERNAL_ERROR_DATA: */
@@ -295,6 +298,7 @@ struct kvm_run {
 		struct {
 			__u64 gprs[32];
 		} osi;
+		/* KVM_EXIT_PAPR_HCALL */
 		struct {
 			__u64 nr;
 			__u64 ret;
@@ -317,6 +321,7 @@ struct kvm_run {
 		struct {
 #define KVM_SYSTEM_EVENT_SHUTDOWN       1
 #define KVM_SYSTEM_EVENT_RESET          2
+#define KVM_SYSTEM_EVENT_CRASH          3
 			__u32 type;
 			__u64 flags;
 		} system_event;
@@ -329,6 +334,10 @@ struct kvm_run {
 			__u8 sel1;
 			__u16 sel2;
 		} s390_stsi;
+		/* KVM_EXIT_IOAPIC_EOI */
+		struct {
+			__u8 vector;
+		} eoi;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -481,6 +490,7 @@ struct kvm_s390_psw {
 	 ((ai) << 26))
 #define KVM_S390_INT_IO_MIN		0x00000000u
 #define KVM_S390_INT_IO_MAX		0xfffdffffu
+#define KVM_S390_INT_IO_AI_MASK		0x04000000u
 
 
 struct kvm_s390_interrupt {
@@ -817,6 +827,10 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_DISABLE_QUIRKS 116
 #define KVM_CAP_X86_SMM 117
 #define KVM_CAP_MULTI_ADDRESS_SPACE 118
+#define KVM_CAP_GUEST_DEBUG_HW_BPS 119
+#define KVM_CAP_GUEST_DEBUG_HW_WPS 120
+#define KVM_CAP_SPLIT_IRQCHIP 121
+#define KVM_CAP_IOEVENTFD_ANY_LENGTH 122
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

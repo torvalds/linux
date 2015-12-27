@@ -67,23 +67,6 @@ acpi_status __init acpi_terminate(void)
 
 	ACPI_FUNCTION_TRACE(acpi_terminate);
 
-	/* Just exit if subsystem is already shutdown */
-
-	if (acpi_gbl_shutdown) {
-		ACPI_ERROR((AE_INFO, "ACPI Subsystem is already terminated"));
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Subsystem appears active, go ahead and shut it down */
-
-	acpi_gbl_shutdown = TRUE;
-	acpi_gbl_startup_flags = 0;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
-
-	/* Terminate the AML Debugger if present */
-
-	ACPI_DEBUGGER_EXEC(acpi_gbl_db_terminate_threads = TRUE);
-
 	/* Shutdown and free all resources */
 
 	acpi_ut_subsystem_shutdown();
@@ -91,13 +74,6 @@ acpi_status __init acpi_terminate(void)
 	/* Free the mutex objects */
 
 	acpi_ut_mutex_terminate();
-
-#ifdef ACPI_DEBUGGER
-
-	/* Shut down the debugger */
-
-	acpi_db_terminate();
-#endif
 
 	/* Now we can shutdown the OS-dependent layer */
 
@@ -234,8 +210,8 @@ acpi_status acpi_get_statistics(struct acpi_statistics *stats)
 	stats->sci_count = acpi_sci_count;
 	stats->gpe_count = acpi_gpe_count;
 
-	ACPI_MEMCPY(stats->fixed_event_count, acpi_fixed_event_count,
-		    sizeof(acpi_fixed_event_count));
+	memcpy(stats->fixed_event_count, acpi_fixed_event_count,
+	       sizeof(acpi_fixed_event_count));
 
 	/* Other counters */
 
@@ -277,7 +253,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_install_initialization_handler)
-#endif				/*  ACPI_FUTURE_USAGE  */
+#endif
 
 /*****************************************************************************
  *
@@ -322,7 +298,7 @@ acpi_status acpi_install_interface(acpi_string interface_name)
 
 	/* Parameter validation */
 
-	if (!interface_name || (ACPI_STRLEN(interface_name) == 0)) {
+	if (!interface_name || (strlen(interface_name) == 0)) {
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -374,7 +350,7 @@ acpi_status acpi_remove_interface(acpi_string interface_name)
 
 	/* Parameter validation */
 
-	if (!interface_name || (ACPI_STRLEN(interface_name) == 0)) {
+	if (!interface_name || (strlen(interface_name) == 0)) {
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -517,7 +493,8 @@ acpi_decode_pld_buffer(u8 *in_buffer,
 
 	/* Parameter validation */
 
-	if (!in_buffer || !return_buffer || (length < 16)) {
+	if (!in_buffer || !return_buffer
+	    || (length < ACPI_PLD_REV1_BUFFER_SIZE)) {
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -567,7 +544,7 @@ acpi_decode_pld_buffer(u8 *in_buffer,
 	pld_info->rotation = ACPI_PLD_GET_ROTATION(&dword);
 	pld_info->order = ACPI_PLD_GET_ORDER(&dword);
 
-	if (length >= ACPI_PLD_BUFFER_SIZE) {
+	if (length >= ACPI_PLD_REV2_BUFFER_SIZE) {
 
 		/* Fifth 32-bit DWord (Revision 2 of _PLD) */
 

@@ -35,6 +35,8 @@
 #define APBC_SSP0	0x1c
 #define APBC_SSP1	0x20
 #define APBC_SSP2	0x4c
+#define APBC_TIMER0	0x30
+#define APBC_TIMER1	0x44
 #define APBCP_TWSI1	0x28
 #define APBCP_UART2	0x1c
 #define APMU_SDH0	0x54
@@ -57,6 +59,7 @@ static struct mmp_param_fixed_rate_clk fixed_rate_clks[] = {
 	{PXA910_CLK_CLK32, "clk32", NULL, CLK_IS_ROOT, 32768},
 	{PXA910_CLK_VCTCXO, "vctcxo", NULL, CLK_IS_ROOT, 26000000},
 	{PXA910_CLK_PLL1, "pll1", NULL, CLK_IS_ROOT, 624000000},
+	{PXA910_CLK_USB_PLL, "usb_pll", NULL, CLK_IS_ROOT, 480000000},
 };
 
 static struct mmp_param_fixed_factor_clk fixed_factor_clks[] = {
@@ -69,6 +72,7 @@ static struct mmp_param_fixed_factor_clk fixed_factor_clks[] = {
 	{PXA910_CLK_PLL1_24, "pll1_24", "pll1_12", 1, 2, 0},
 	{PXA910_CLK_PLL1_48, "pll1_48", "pll1_24", 1, 2, 0},
 	{PXA910_CLK_PLL1_96, "pll1_96", "pll1_48", 1, 2, 0},
+	{PXA910_CLK_PLL1_192, "pll1_192", "pll1_96", 1, 2, 0},
 	{PXA910_CLK_PLL1_13, "pll1_13", "pll1", 1, 13, 0},
 	{PXA910_CLK_PLL1_13_1_5, "pll1_13_1_5", "pll1_13", 2, 3, 0},
 	{PXA910_CLK_PLL1_2_1_5, "pll1_2_1_5", "pll1_2", 2, 3, 0},
@@ -115,6 +119,10 @@ static DEFINE_SPINLOCK(ssp0_lock);
 static DEFINE_SPINLOCK(ssp1_lock);
 static const char *ssp_parent_names[] = {"pll1_96", "pll1_48", "pll1_24", "pll1_12"};
 
+static DEFINE_SPINLOCK(timer0_lock);
+static DEFINE_SPINLOCK(timer1_lock);
+static const char *timer_parent_names[] = {"pll1_48", "clk32", "pll1_96"};
+
 static DEFINE_SPINLOCK(reset_lock);
 
 static struct mmp_param_mux_clk apbc_mux_clks[] = {
@@ -122,6 +130,8 @@ static struct mmp_param_mux_clk apbc_mux_clks[] = {
 	{0, "uart1_mux", uart_parent_names, ARRAY_SIZE(uart_parent_names), CLK_SET_RATE_PARENT, APBC_UART1, 4, 3, 0, &uart1_lock},
 	{0, "ssp0_mux", ssp_parent_names, ARRAY_SIZE(ssp_parent_names), CLK_SET_RATE_PARENT, APBC_SSP0, 4, 3, 0, &ssp0_lock},
 	{0, "ssp1_mux", ssp_parent_names, ARRAY_SIZE(ssp_parent_names), CLK_SET_RATE_PARENT, APBC_SSP1, 4, 3, 0, &ssp1_lock},
+	{0, "timer0_mux", timer_parent_names, ARRAY_SIZE(timer_parent_names), CLK_SET_RATE_PARENT, APBC_TIMER0, 4, 3, 0, &timer0_lock},
+	{0, "timer1_mux", timer_parent_names, ARRAY_SIZE(timer_parent_names), CLK_SET_RATE_PARENT, APBC_TIMER1, 4, 3, 0, &timer1_lock},
 };
 
 static struct mmp_param_mux_clk apbcp_mux_clks[] = {
@@ -142,6 +152,8 @@ static struct mmp_param_gate_clk apbc_gate_clks[] = {
 	{PXA910_CLK_UART1, "uart1_clk", "uart1_mux", CLK_SET_RATE_PARENT, APBC_UART1, 0x3, 0x3, 0x0, 0, &uart1_lock},
 	{PXA910_CLK_SSP0, "ssp0_clk", "ssp0_mux", CLK_SET_RATE_PARENT, APBC_SSP0, 0x3, 0x3, 0x0, 0, &ssp0_lock},
 	{PXA910_CLK_SSP1, "ssp1_clk", "ssp1_mux", CLK_SET_RATE_PARENT, APBC_SSP1, 0x3, 0x3, 0x0, 0, &ssp1_lock},
+	{PXA910_CLK_TIMER0, "timer0_clk", "timer0_mux", CLK_SET_RATE_PARENT, APBC_TIMER0, 0x3, 0x3, 0x0, 0, &timer0_lock},
+	{PXA910_CLK_TIMER1, "timer1_clk", "timer1_mux", CLK_SET_RATE_PARENT, APBC_TIMER1, 0x3, 0x3, 0x0, 0, &timer1_lock},
 };
 
 static struct mmp_param_gate_clk apbcp_gate_clks[] = {

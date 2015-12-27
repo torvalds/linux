@@ -23,7 +23,6 @@
 #include <linux/types.h>
 
 struct batadv_icmp_header;
-struct batadv_priv;
 
 #define BATADV_ICMP_SOCKET "socket"
 

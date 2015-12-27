@@ -21,89 +21,31 @@
  *
  * Authors: Ben Skeggs, Maarten Lankhorst, Ilia Mirkin
  */
-#include <engine/mspdec.h>
-#include <engine/falcon.h>
+#include "priv.h"
 
-struct g98_mspdec_priv {
-	struct nvkm_falcon base;
-};
+#include <nvif/class.h>
 
-/*******************************************************************************
- * MSPDEC object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_mspdec_sclass[] = {
-	{ 0x88b2, &nvkm_object_ofuncs },
-	{ 0x85b2, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PMSPDEC context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_mspdec_cclass = {
-	.handle = NV_ENGCTX(MSPDEC, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMSPDEC engine/subdev functions
- ******************************************************************************/
-
-static int
-g98_mspdec_init(struct nvkm_object *object)
+void
+g98_mspdec_init(struct nvkm_falcon *mspdec)
 {
-	struct g98_mspdec_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_falcon_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x085010, 0x0000ffd2);
-	nv_wr32(priv, 0x08501c, 0x0000fff2);
-	return 0;
+	struct nvkm_device *device = mspdec->engine.subdev.device;
+	nvkm_wr32(device, 0x085010, 0x0000ffd2);
+	nvkm_wr32(device, 0x08501c, 0x0000fff2);
 }
 
-static int
-g98_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
-{
-	struct g98_mspdec_priv *priv;
-	int ret;
-
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x085000, true,
-				 "PMSPDEC", "mspdec", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x01020000;
-	nv_engine(priv)->cclass = &g98_mspdec_cclass;
-	nv_engine(priv)->sclass = g98_mspdec_sclass;
-	return 0;
-}
-
-struct nvkm_oclass
-g98_mspdec_oclass = {
-	.handle = NV_ENGINE(MSPDEC, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g98_mspdec_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = g98_mspdec_init,
-		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
-	},
+static const struct nvkm_falcon_func
+g98_mspdec = {
+	.pmc_enable = 0x01020000,
+	.init = g98_mspdec_init,
+	.sclass = {
+		{ -1, -1, G98_MSPDEC },
+		{}
+	}
 };
+
+int
+g98_mspdec_new(struct nvkm_device *device, int index,
+	     struct nvkm_engine **pengine)
+{
+	return nvkm_mspdec_new_(&g98_mspdec, device, index, pengine);
+}

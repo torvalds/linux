@@ -127,14 +127,14 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 
 	/* Timing offset calculation (see 13.13.2.2.2) */
 	t_t = le64_to_cpu(mgmt->u.beacon.timestamp);
-	sta->t_offset = t_t - t_r;
+	sta->mesh->t_offset = t_t - t_r;
 
 	if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
-		s64 t_clockdrift = sta->t_offset_setpoint - sta->t_offset;
+		s64 t_clockdrift = sta->mesh->t_offset_setpoint - sta->mesh->t_offset;
 		msync_dbg(sdata,
-			  "STA %pM : sta->t_offset=%lld, sta->t_offset_setpoint=%lld, t_clockdrift=%lld\n",
-			  sta->sta.addr, (long long) sta->t_offset,
-			  (long long) sta->t_offset_setpoint,
+			  "STA %pM : t_offset=%lld, t_offset_setpoint=%lld, t_clockdrift=%lld\n",
+			  sta->sta.addr, (long long) sta->mesh->t_offset,
+			  (long long) sta->mesh->t_offset_setpoint,
 			  (long long) t_clockdrift);
 
 		if (t_clockdrift > TOFFSET_MAXIMUM_ADJUSTMENT ||
@@ -152,12 +152,12 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 			ifmsh->sync_offset_clockdrift_max = t_clockdrift;
 		spin_unlock_bh(&ifmsh->sync_offset_lock);
 	} else {
-		sta->t_offset_setpoint = sta->t_offset - TOFFSET_SET_MARGIN;
+		sta->mesh->t_offset_setpoint = sta->mesh->t_offset - TOFFSET_SET_MARGIN;
 		set_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
 		msync_dbg(sdata,
-			  "STA %pM : offset was invalid, sta->t_offset=%lld\n",
+			  "STA %pM : offset was invalid, t_offset=%lld\n",
 			  sta->sta.addr,
-			  (long long) sta->t_offset);
+			  (long long) sta->mesh->t_offset);
 	}
 
 no_sync:

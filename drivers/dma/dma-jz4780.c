@@ -145,7 +145,8 @@ struct jz4780_dma_dev {
 	struct jz4780_dma_chan chan[JZ_DMA_NR_CHANNELS];
 };
 
-struct jz4780_dma_data {
+struct jz4780_dma_filter_data {
+	struct device_node *of_node;
 	uint32_t transfer_type;
 	int channel;
 };
@@ -214,11 +215,25 @@ static void jz4780_dma_desc_free(struct virt_dma_desc *vdesc)
 	kfree(desc);
 }
 
-static uint32_t jz4780_dma_transfer_size(unsigned long val, int *ord)
+static uint32_t jz4780_dma_transfer_size(unsigned long val, uint32_t *shift)
 {
-	*ord = ffs(val) - 1;
+	int ord = ffs(val) - 1;
 
-	switch (*ord) {
+	/*
+	 * 8 byte transfer sizes unsupported so fall back on 4. If it's larger
+	 * than the maximum, just limit it. It is perfectly safe to fall back
+	 * in this way since we won't exceed the maximum burst size supported
+	 * by the device, the only effect is reduced efficiency. This is better
+	 * than refusing to perform the request at all.
+	 */
+	if (ord == 3)
+		ord = 2;
+	else if (ord > 7)
+		ord = 7;
+
+	*shift = ord;
+
+	switch (ord) {
 	case 0:
 		return JZ_DMA_SIZE_1_BYTE;
 	case 1:
@@ -231,20 +246,17 @@ static uint32_t jz4780_dma_transfer_size(unsigned long val, int *ord)
 		return JZ_DMA_SIZE_32_BYTE;
 	case 6:
 		return JZ_DMA_SIZE_64_BYTE;
-	case 7:
-		return JZ_DMA_SIZE_128_BYTE;
 	default:
-		return -EINVAL;
+		return JZ_DMA_SIZE_128_BYTE;
 	}
 }
 
-static uint32_t jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
+static int jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	struct jz4780_dma_hwdesc *desc, dma_addr_t addr, size_t len,
 	enum dma_transfer_direction direction)
 {
 	struct dma_slave_config *config = &jzchan->config;
 	uint32_t width, maxburst, tsz;
-	int ord;
 
 	if (direction == DMA_MEM_TO_DEV) {
 		desc->dcm = JZ_DMA_DCM_SAI;
@@ -271,8 +283,8 @@ static uint32_t jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	 * divisible by the transfer size, and we must not use more than the
 	 * maximum burst specified by the user.
 	 */
-	tsz = jz4780_dma_transfer_size(addr | len | (width * maxburst), &ord);
-	jzchan->transfer_shift = ord;
+	tsz = jz4780_dma_transfer_size(addr | len | (width * maxburst),
+				       &jzchan->transfer_shift);
 
 	switch (width) {
 	case DMA_SLAVE_BUSWIDTH_1_BYTE:
@@ -289,12 +301,14 @@ static uint32_t jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	desc->dcm |= width << JZ_DMA_DCM_SP_SHIFT;
 	desc->dcm |= width << JZ_DMA_DCM_DP_SHIFT;
 
-	desc->dtc = len >> ord;
+	desc->dtc = len >> jzchan->transfer_shift;
+	return 0;
 }
 
 static struct dma_async_tx_descriptor *jz4780_dma_prep_slave_sg(
 	struct dma_chan *chan, struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_transfer_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags,
+	void *context)
 {
 	struct jz4780_dma_chan *jzchan = to_jz4780_dma_chan(chan);
 	struct jz4780_dma_desc *desc;
@@ -307,12 +321,11 @@ static struct dma_async_tx_descriptor *jz4780_dma_prep_slave_sg(
 
 	for (i = 0; i < sg_len; i++) {
 		err = jz4780_dma_setup_hwdesc(jzchan, &desc->desc[i],
-					sg_dma_address(&sgl[i]),
-					sg_dma_len(&sgl[i]),
-					direction);
+					      sg_dma_address(&sgl[i]),
+					      sg_dma_len(&sgl[i]),
+					      direction);
 		if (err < 0)
-			return ERR_PTR(err);
-
+			return NULL;
 
 		desc->desc[i].dcm |= JZ_DMA_DCM_TIE;
 
@@ -354,9 +367,9 @@ static struct dma_async_tx_descriptor *jz4780_dma_prep_dma_cyclic(
 
 	for (i = 0; i < periods; i++) {
 		err = jz4780_dma_setup_hwdesc(jzchan, &desc->desc[i], buf_addr,
-					period_len, direction);
+					      period_len, direction);
 		if (err < 0)
-			return ERR_PTR(err);
+			return NULL;
 
 		buf_addr += period_len;
 
@@ -390,15 +403,13 @@ struct dma_async_tx_descriptor *jz4780_dma_prep_dma_memcpy(
 	struct jz4780_dma_chan *jzchan = to_jz4780_dma_chan(chan);
 	struct jz4780_dma_desc *desc;
 	uint32_t tsz;
-	int ord;
 
 	desc = jz4780_dma_desc_alloc(jzchan, 1, DMA_MEMCPY);
 	if (!desc)
 		return NULL;
 
-	tsz = jz4780_dma_transfer_size(dest | src | len, &ord);
-	if (tsz < 0)
-		return ERR_PTR(tsz);
+	tsz = jz4780_dma_transfer_size(dest | src | len,
+				       &jzchan->transfer_shift);
 
 	desc->desc[0].dsa = src;
 	desc->desc[0].dta = dest;
@@ -407,7 +418,7 @@ struct dma_async_tx_descriptor *jz4780_dma_prep_dma_memcpy(
 			    tsz << JZ_DMA_DCM_TSZ_SHIFT |
 			    JZ_DMA_WIDTH_32_BIT << JZ_DMA_DCM_SP_SHIFT |
 			    JZ_DMA_WIDTH_32_BIT << JZ_DMA_DCM_DP_SHIFT;
-	desc->desc[0].dtc = len >> ord;
+	desc->desc[0].dtc = len >> jzchan->transfer_shift;
 
 	return vchan_tx_prep(&jzchan->vchan, &desc->vdesc, flags);
 }
@@ -484,8 +495,9 @@ static void jz4780_dma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&jzchan->vchan.lock, flags);
 }
 
-static int jz4780_dma_terminate_all(struct jz4780_dma_chan *jzchan)
+static int jz4780_dma_terminate_all(struct dma_chan *chan)
 {
+	struct jz4780_dma_chan *jzchan = to_jz4780_dma_chan(chan);
 	struct jz4780_dma_dev *jzdma = jz4780_dma_chan_parent(jzchan);
 	unsigned long flags;
 	LIST_HEAD(head);
@@ -507,9 +519,11 @@ static int jz4780_dma_terminate_all(struct jz4780_dma_chan *jzchan)
 	return 0;
 }
 
-static int jz4780_dma_slave_config(struct jz4780_dma_chan *jzchan,
-	const struct dma_slave_config *config)
+static int jz4780_dma_config(struct dma_chan *chan,
+	struct dma_slave_config *config)
 {
+	struct jz4780_dma_chan *jzchan = to_jz4780_dma_chan(chan);
+
 	if ((config->src_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES)
 	   || (config->dst_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES))
 		return -EINVAL;
@@ -567,8 +581,8 @@ static enum dma_status jz4780_dma_tx_status(struct dma_chan *chan,
 		txstate->residue = 0;
 
 	if (vdesc && jzchan->desc && vdesc == &jzchan->desc->vdesc
-		&& jzchan->desc->status & (JZ_DMA_DCS_AR | JZ_DMA_DCS_HLT))
-			status = DMA_ERROR;
+	    && jzchan->desc->status & (JZ_DMA_DCS_AR | JZ_DMA_DCS_HLT))
+		status = DMA_ERROR;
 
 	spin_unlock_irqrestore(&jzchan->vchan.lock, flags);
 	return status;
@@ -671,7 +685,10 @@ static bool jz4780_dma_filter_fn(struct dma_chan *chan, void *param)
 {
 	struct jz4780_dma_chan *jzchan = to_jz4780_dma_chan(chan);
 	struct jz4780_dma_dev *jzdma = jz4780_dma_chan_parent(jzchan);
-	struct jz4780_dma_data *data = param;
+	struct jz4780_dma_filter_data *data = param;
+
+	if (jzdma->dma_device.dev->of_node != data->of_node)
+		return false;
 
 	if (data->channel > -1) {
 		if (data->channel != jzchan->id)
@@ -690,11 +707,12 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 {
 	struct jz4780_dma_dev *jzdma = ofdma->of_dma_data;
 	dma_cap_mask_t mask = jzdma->dma_device.cap_mask;
-	struct jz4780_dma_data data;
+	struct jz4780_dma_filter_data data;
 
 	if (dma_spec->args_count != 2)
 		return NULL;
 
+	data.of_node = ofdma->of_node;
 	data.transfer_type = dma_spec->args[0];
 	data.channel = dma_spec->args[1];
 
@@ -713,9 +731,14 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 				data.channel);
 			return NULL;
 		}
-	}
 
-	return dma_request_channel(mask, jz4780_dma_filter_fn, &data);
+		jzdma->chan[data.channel].transfer_type = data.transfer_type;
+
+		return dma_get_slave_channel(
+			&jzdma->chan[data.channel].vchan.chan);
+	} else {
+		return dma_request_channel(mask, jz4780_dma_filter_fn, &data);
+	}
 }
 
 static int jz4780_dma_probe(struct platform_device *pdev)
@@ -743,23 +766,26 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(jzdma->base))
 		return PTR_ERR(jzdma->base);
 
-	jzdma->irq = platform_get_irq(pdev, 0);
-	if (jzdma->irq < 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
 		dev_err(dev, "failed to get IRQ: %d\n", ret);
-		return jzdma->irq;
+		return ret;
 	}
 
-	ret = devm_request_irq(dev, jzdma->irq, jz4780_dma_irq_handler, 0,
-			       dev_name(dev), jzdma);
+	jzdma->irq = ret;
+
+	ret = request_irq(jzdma->irq, jz4780_dma_irq_handler, 0, dev_name(dev),
+			  jzdma);
 	if (ret) {
 		dev_err(dev, "failed to request IRQ %u!\n", jzdma->irq);
-		return -EINVAL;
+		return ret;
 	}
 
 	jzdma->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(jzdma->clk)) {
 		dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(jzdma->clk);
+		ret = PTR_ERR(jzdma->clk);
+		goto err_free_irq;
 	}
 
 	clk_prepare_enable(jzdma->clk);
@@ -775,13 +801,13 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, dd->cap_mask);
 
 	dd->dev = dev;
-	dd->copy_align = 2; /* 2^2 = 4 byte alignment */
+	dd->copy_align = DMAENGINE_ALIGN_4_BYTES;
 	dd->device_alloc_chan_resources = jz4780_dma_alloc_chan_resources;
 	dd->device_free_chan_resources = jz4780_dma_free_chan_resources;
 	dd->device_prep_slave_sg = jz4780_dma_prep_slave_sg;
 	dd->device_prep_dma_cyclic = jz4780_dma_prep_dma_cyclic;
 	dd->device_prep_dma_memcpy = jz4780_dma_prep_dma_memcpy;
-	dd->device_config = jz4780_dma_slave_config;
+	dd->device_config = jz4780_dma_config;
 	dd->device_terminate_all = jz4780_dma_terminate_all;
 	dd->device_tx_status = jz4780_dma_tx_status;
 	dd->device_issue_pending = jz4780_dma_issue_pending;
@@ -789,7 +815,6 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	dd->dst_addr_widths = JZ_DMA_BUSWIDTHS;
 	dd->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
-
 
 	/*
 	 * Enable DMA controller, mark all channels as not programmable.
@@ -832,15 +857,24 @@ err_unregister_dev:
 
 err_disable_clk:
 	clk_disable_unprepare(jzdma->clk);
+
+err_free_irq:
+	free_irq(jzdma->irq, jzdma);
 	return ret;
 }
 
 static int jz4780_dma_remove(struct platform_device *pdev)
 {
 	struct jz4780_dma_dev *jzdma = platform_get_drvdata(pdev);
+	int i;
 
 	of_dma_controller_free(pdev->dev.of_node);
-	devm_free_irq(&pdev->dev, jzdma->irq, jzdma);
+
+	free_irq(jzdma->irq, jzdma);
+
+	for (i = 0; i < JZ_DMA_NR_CHANNELS; i++)
+		tasklet_kill(&jzdma->chan[i].vchan.task);
+
 	dma_async_device_unregister(&jzdma->dma_device);
 	return 0;
 }

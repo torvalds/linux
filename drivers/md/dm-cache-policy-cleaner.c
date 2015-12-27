@@ -83,7 +83,7 @@ static struct list_head *list_pop(struct list_head *q)
 static int alloc_hash(struct hash *hash, unsigned elts)
 {
 	hash->nr_buckets = next_power(elts >> 4, 16);
-	hash->hash_bits = ffs(hash->nr_buckets) - 1;
+	hash->hash_bits = __ffs(hash->nr_buckets);
 	hash->table = vzalloc(sizeof(*hash->table) * hash->nr_buckets);
 
 	return hash->table ? 0 : -ENOMEM;
@@ -436,7 +436,7 @@ static struct dm_cache_policy *wb_create(dm_cblock_t cache_size,
 static struct dm_cache_policy_type wb_policy_type = {
 	.name = "cleaner",
 	.version = {1, 0, 0},
-	.hint_size = 0,
+	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = wb_create
 };

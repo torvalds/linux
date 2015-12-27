@@ -13,8 +13,15 @@
 #define NR_IRQS		128 /* allow some CPU external IRQ handling */
 
 /* Platform Independent IRQs */
+#ifdef CONFIG_ISA_ARCOMPACT
 #define TIMER0_IRQ      3
 #define TIMER1_IRQ      4
+#define IPI_IRQ		(NR_CPU_IRQS-1) /* dummy to enable SMP build for up hardware */
+#else
+#define TIMER0_IRQ      16
+#define TIMER1_IRQ      17
+#define IPI_IRQ         19
+#endif
 
 #include <linux/interrupt.h>
 #include <asm-generic/irq.h>

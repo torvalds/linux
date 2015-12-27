@@ -399,13 +399,8 @@ static int auo_pixcir_stop(struct auo_pixcir_ts *ts)
 static int auo_pixcir_input_open(struct input_dev *dev)
 {
 	struct auo_pixcir_ts *ts = input_get_drvdata(dev);
-	int ret;
 
-	ret = auo_pixcir_start(ts);
-	if (ret)
-		return ret;
-
-	return 0;
+	return auo_pixcir_start(ts);
 }
 
 static void auo_pixcir_input_close(struct input_dev *dev)
@@ -686,7 +681,6 @@ MODULE_DEVICE_TABLE(of, auo_pixcir_ts_dt_idtable);
 
 static struct i2c_driver auo_pixcir_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "auo_pixcir_ts",
 		.pm	= &auo_pixcir_pm_ops,
 		.of_match_table	= of_match_ptr(auo_pixcir_ts_dt_idtable),

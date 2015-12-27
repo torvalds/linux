@@ -794,8 +794,11 @@ void ath9k_htc_ani_work(struct work_struct *work)
 		common->ani.longcal_timer = timestamp;
 	}
 
-	/* Short calibration applies only while caldone is false */
-	if (!common->ani.caldone) {
+	/*
+	 * Short calibration applies only while caldone
+	 * is false or -ETIMEDOUT
+	 */
+	if (common->ani.caldone <= 0) {
 		if ((timestamp - common->ani.shortcal_timer) >=
 		    short_cal_interval) {
 			shortcal = true;
@@ -844,7 +847,11 @@ set_timer:
 	*/
 	cal_interval = ATH_LONG_CALINTERVAL;
 	cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
-	if (!common->ani.caldone)
+	/*
+	 * Short calibration applies only while caldone
+	 * is false or -ETIMEDOUT
+	 */
+	if (common->ani.caldone <= 0)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	ieee80211_queue_delayed_work(common->hw, &priv->ani_work,
@@ -1652,7 +1659,7 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  enum ieee80211_ampdu_mlme_action action,
 				  struct ieee80211_sta *sta,
-				  u16 tid, u16 *ssn, u8 buf_size)
+				  u16 tid, u16 *ssn, u8 buf_size, bool amsdu)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath9k_htc_sta *ista;

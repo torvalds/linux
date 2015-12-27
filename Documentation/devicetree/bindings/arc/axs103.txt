@@ -1,0 +1,8 @@
+Synopsys DesignWare ARC Software Development Platforms Device Tree Bindings
+---------------------------------------------------------------------------
+
+SDP Main Board with an AXC003 FPGA Card which can contain various flavours of
+HS38x cores.
+
+Required root node properties:
+    - compatible = "snps,axs103", "snps,arc-sdp";

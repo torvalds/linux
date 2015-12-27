@@ -119,8 +119,10 @@ ALPS Absolute Mode - Protocol Version 2
  byte 5:  0   z6   z5   z4   z3   z2   z1   z0
 
 Protocol Version 2 DualPoint devices send standard PS/2 mouse packets for
-the DualPoint Stick. For non interleaved dualpoint devices the pointingstick
-buttons get reported separately in the PSM, PSR and PSL bits.
+the DualPoint Stick. The M, R and L bits signal the combined status of both
+the pointingstick and touchpad buttons, except for Dell dualpoint devices
+where the pointingstick buttons get reported separately in the PSM, PSR
+and PSL bits.
 
 Dualpoint device -- interleaved packet format
 ---------------------------------------------

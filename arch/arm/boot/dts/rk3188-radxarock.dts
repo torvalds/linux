@@ -48,6 +48,7 @@
 	compatible = "radxa,rock", "rockchip,rk3188";
 
 	memory {
+		device_type = "memory";
 		reg = <0x60000000 0x80000000>;
 	};
 
@@ -87,6 +88,21 @@
 			gpios = <&gpio0 15 0>;
 			default-state = "off";
 		};
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SPDIF";
+
+		simple-audio-card,dai-link@1 {  /* S/PDIF - S/PDIF */
+			cpu { sound-dai = <&spdif>; };
+			codec { sound-dai = <&spdif_out>; };
+		};
+	};
+
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
 	};
 
 	ir_recv: gpio-ir-receiver {
@@ -288,6 +304,8 @@
 	vmmc-supply = <&vcc_sd0>;
 
 	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
 	disable-wp;
 };
 
@@ -342,6 +360,10 @@
 	};
 };
 
+&spdif {
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };
@@ -355,6 +377,10 @@
 };
 
 &uart3 {
+	status = "okay";
+};
+
+&usbphy {
 	status = "okay";
 };
 

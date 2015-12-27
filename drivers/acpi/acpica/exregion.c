@@ -517,15 +517,14 @@ acpi_ex_data_table_space_handler(u32 function,
 	switch (function) {
 	case ACPI_READ:
 
-		ACPI_MEMCPY(ACPI_CAST_PTR(char, value),
-			    ACPI_PHYSADDR_TO_PTR(address),
-			    ACPI_DIV_8(bit_width));
+		memcpy(ACPI_CAST_PTR(char, value),
+		       ACPI_PHYSADDR_TO_PTR(address), ACPI_DIV_8(bit_width));
 		break;
 
 	case ACPI_WRITE:
 
-		ACPI_MEMCPY(ACPI_PHYSADDR_TO_PTR(address),
-			    ACPI_CAST_PTR(char, value), ACPI_DIV_8(bit_width));
+		memcpy(ACPI_PHYSADDR_TO_PTR(address),
+		       ACPI_CAST_PTR(char, value), ACPI_DIV_8(bit_width));
 		break;
 
 	default:

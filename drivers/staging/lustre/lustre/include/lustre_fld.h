@@ -61,7 +61,6 @@ enum {
 	LUSTRE_CLI_FLD_HASH_RRB
 };
 
-
 struct lu_fld_target {
 	struct list_head	       ft_chain;
 	struct obd_export       *ft_exp;
@@ -70,10 +69,6 @@ struct lu_fld_target {
 };
 
 struct lu_server_fld {
-	/**
-	 * /fld file object device */
-	struct dt_object	*lsf_obj;
-
 	/**
 	 * super sequence controller export, needed to forward fld
 	 * lookup  request. */

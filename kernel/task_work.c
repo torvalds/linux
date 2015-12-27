@@ -18,6 +18,8 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * This is like the signal handler which runs in kernel mode, but it doesn't
  * try to wake up the @task.
  *
+ * Note: there is no ordering guarantee on works queued here.
+ *
  * RETURNS:
  * 0 if succeeds or -ESRCH.
  */
@@ -108,16 +110,6 @@ void task_work_run(void)
 		raw_spin_unlock_wait(&task->pi_lock);
 		smp_mb();
 
-		/* Reverse the list to run the works in fifo order */
-		head = NULL;
-		do {
-			next = work->next;
-			work->next = head;
-			head = work;
-			work = next;
-		} while (work);
-
-		work = head;
 		do {
 			next = work->next;
 			work->func(work);

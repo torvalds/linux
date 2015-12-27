@@ -21,89 +21,31 @@
  *
  * Authors: Maarten Lankhorst
  */
-#include <engine/msvld.h>
-#include <engine/falcon.h>
+#include "priv.h"
 
-struct gf100_msvld_priv {
-	struct nvkm_falcon base;
-};
+#include <nvif/class.h>
 
-/*******************************************************************************
- * MSVLD object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gf100_msvld_sclass[] = {
-	{ 0x90b1, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PMSVLD context
- ******************************************************************************/
-
-static struct nvkm_oclass
-gf100_msvld_cclass = {
-	.handle = NV_ENGCTX(MSVLD, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMSVLD engine/subdev functions
- ******************************************************************************/
-
-static int
-gf100_msvld_init(struct nvkm_object *object)
+void
+gf100_msvld_init(struct nvkm_falcon *msvld)
 {
-	struct gf100_msvld_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_falcon_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x084010, 0x0000fff2);
-	nv_wr32(priv, 0x08401c, 0x0000fff2);
-	return 0;
+	struct nvkm_device *device = msvld->engine.subdev.device;
+	nvkm_wr32(device, 0x084010, 0x0000fff2);
+	nvkm_wr32(device, 0x08401c, 0x0000fff2);
 }
 
-static int
-gf100_msvld_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, void *data, u32 size,
-		 struct nvkm_object **pobject)
-{
-	struct gf100_msvld_priv *priv;
-	int ret;
-
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x084000, true,
-				 "PMSVLD", "msvld", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00008000;
-	nv_subdev(priv)->intr = nvkm_falcon_intr;
-	nv_engine(priv)->cclass = &gf100_msvld_cclass;
-	nv_engine(priv)->sclass = gf100_msvld_sclass;
-	return 0;
-}
-
-struct nvkm_oclass
-gf100_msvld_oclass = {
-	.handle = NV_ENGINE(MSVLD, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_msvld_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = gf100_msvld_init,
-		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
-	},
+static const struct nvkm_falcon_func
+gf100_msvld = {
+	.pmc_enable = 0x00008000,
+	.init = gf100_msvld_init,
+	.sclass = {
+		{ -1, -1, GF100_MSVLD },
+		{}
+	}
 };
+
+int
+gf100_msvld_new(struct nvkm_device *device, int index,
+		struct nvkm_engine **pengine)
+{
+	return nvkm_msvld_new_(&gf100_msvld, device, index, pengine);
+}

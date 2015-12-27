@@ -41,9 +41,13 @@ useless and be disabled, returning errors.  So it is important to monitor
 the amount of free space and expand the <COW device> before it fills up.
 
 <persistent?> is P (Persistent) or N (Not persistent - will not survive
-after reboot).
-The difference is that for transient snapshots less metadata must be
-saved on disk - they can be kept in memory by the kernel.
+after reboot).  O (Overflow) can be added as a persistent store option
+to allow userspace to advertise its support for seeing "Overflow" in the
+snapshot status.  So supported store types are "P", "PO" and "N".
+
+The difference between persistent and transient is with transient
+snapshots less metadata must be saved on disk - they can be kept in
+memory by the kernel.
 
 
 * snapshot-merge <origin> <COW device> <persistent> <chunksize>

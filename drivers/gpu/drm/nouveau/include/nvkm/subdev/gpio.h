@@ -19,26 +19,21 @@ struct nvkm_gpio_ntfy_rep {
 };
 
 struct nvkm_gpio {
-	struct nvkm_subdev base;
+	const struct nvkm_gpio_func *func;
+	struct nvkm_subdev subdev;
 
 	struct nvkm_event event;
-
-	void (*reset)(struct nvkm_gpio *, u8 func);
-	int  (*find)(struct nvkm_gpio *, int idx, u8 tag, u8 line,
-		     struct dcb_gpio_func *);
-	int  (*set)(struct nvkm_gpio *, int idx, u8 tag, u8 line, int state);
-	int  (*get)(struct nvkm_gpio *, int idx, u8 tag, u8 line);
 };
 
-static inline struct nvkm_gpio *
-nvkm_gpio(void *obj)
-{
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_GPIO);
-}
+void nvkm_gpio_reset(struct nvkm_gpio *, u8 func);
+int nvkm_gpio_find(struct nvkm_gpio *, int idx, u8 tag, u8 line,
+		   struct dcb_gpio_func *);
+int nvkm_gpio_set(struct nvkm_gpio *, int idx, u8 tag, u8 line, int state);
+int nvkm_gpio_get(struct nvkm_gpio *, int idx, u8 tag, u8 line);
 
-extern struct nvkm_oclass *nv10_gpio_oclass;
-extern struct nvkm_oclass *nv50_gpio_oclass;
-extern struct nvkm_oclass *g94_gpio_oclass;
-extern struct nvkm_oclass *gf110_gpio_oclass;
-extern struct nvkm_oclass *gk104_gpio_oclass;
+int nv10_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
+int nv50_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
+int g94_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
+int gf119_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
+int gk104_gpio_new(struct nvkm_device *, int, struct nvkm_gpio **);
 #endif

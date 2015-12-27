@@ -650,14 +650,12 @@ void octeon_free_device_mem(struct octeon_device *oct)
 
 	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES; i++) {
 		/* could check  mask as well */
-		if (oct->droq[i])
-			vfree(oct->droq[i]);
+		vfree(oct->droq[i]);
 	}
 
 	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES; i++) {
 		/* could check mask as well */
-		if (oct->instr_queue[i])
-			vfree(oct->instr_queue[i]);
+		vfree(oct->instr_queue[i]);
 	}
 
 	i = oct->octeon_id;
@@ -1078,10 +1076,7 @@ octeon_unregister_dispatch_fn(struct octeon_device *oct, u16 opcode,
 		oct->dispatch.count--;
 
 	spin_unlock_bh(&oct->dispatch.lock);
-
-	if (dfree)
-		vfree(dfree);
-
+	vfree(dfree);
 	return retval;
 }
 

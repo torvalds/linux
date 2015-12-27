@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -33,13 +29,13 @@
 
 int pmd_huge(pmd_t pmd)
 {
-	return !(pmd_val(pmd) & PMD_TABLE_BIT);
+	return pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
 }
 
 int pud_huge(pud_t pud)
 {
 #ifndef __PAGETABLE_PMD_FOLDED
-	return !(pud_val(pud) & PUD_TABLE_BIT);
+	return pud_val(pud) && !(pud_val(pud) & PUD_TABLE_BIT);
 #else
 	return 0;
 #endif

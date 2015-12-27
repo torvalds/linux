@@ -569,6 +569,8 @@ show_ata_dev_trim(struct device *dev,
 
 	if (!ata_id_has_trim(ata_dev->id))
 		mode = "unsupported";
+	else if (ata_dev->horkage & ATA_HORKAGE_NOTRIM)
+		mode = "forced_unsupported";
 	else if (ata_dev->horkage & ATA_HORKAGE_NO_NCQ_TRIM)
 			mode = "forced_unqueued";
 	else if (ata_fpdma_dsm_supported(ata_dev))

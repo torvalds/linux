@@ -16,7 +16,6 @@
 
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/of.h>
@@ -679,7 +678,7 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .dev_id = "tegra30-dam.1", .dt_id = TEGRA30_CLK_DAM1 },
 	{ .dev_id = "tegra30-dam.2", .dt_id = TEGRA30_CLK_DAM2 },
 	{ .con_id = "hda", .dev_id = "tegra30-hda", .dt_id = TEGRA30_CLK_HDA },
-	{ .con_id = "hda2codec", .dev_id = "tegra30-hda", .dt_id = TEGRA30_CLK_HDA2CODEC_2X },
+	{ .con_id = "hda2codec_2x", .dev_id = "tegra30-hda", .dt_id = TEGRA30_CLK_HDA2CODEC_2X },
 	{ .dev_id = "spi_tegra.0", .dt_id = TEGRA30_CLK_SBC1 },
 	{ .dev_id = "spi_tegra.1", .dt_id = TEGRA30_CLK_SBC2 },
 	{ .dev_id = "spi_tegra.2", .dt_id = TEGRA30_CLK_SBC3 },
@@ -1406,6 +1405,10 @@ static const struct of_device_id pmc_match[] __initconst = {
 	{},
 };
 
+static struct tegra_audio_clk_info tegra30_audio_plls[] = {
+	{ "pll_a", &pll_a_params, tegra_clk_pll_a, "pll_p_out1" },
+};
+
 static void __init tegra30_clock_init(struct device_node *np)
 {
 	struct device_node *node;
@@ -1443,7 +1446,9 @@ static void __init tegra30_clock_init(struct device_node *np)
 	tegra30_pll_init();
 	tegra30_super_clk_init();
 	tegra30_periph_clk_init();
-	tegra_audio_clk_init(clk_base, pmc_base, tegra30_clks, &pll_a_params);
+	tegra_audio_clk_init(clk_base, pmc_base, tegra30_clks,
+			     tegra30_audio_plls,
+			     ARRAY_SIZE(tegra30_audio_plls));
 	tegra_pmc_clk_init(pmc_base, tegra30_clks);
 
 	tegra_init_dup_clks(tegra_clk_duplicates, clks, TEGRA30_CLK_CLK_MAX);

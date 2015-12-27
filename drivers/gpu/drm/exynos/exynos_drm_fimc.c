@@ -466,7 +466,7 @@ static int fimc_src_set_fmt_order(struct fimc_context *ctx, u32 fmt)
 			EXYNOS_MSCTRL_C_INT_IN_2PLANE);
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid source yuv order 0x%x.\n", fmt);
+		dev_err(ippdrv->dev, "invalid source yuv order 0x%x.\n", fmt);
 		return -EINVAL;
 	}
 
@@ -513,7 +513,7 @@ static int fimc_src_set_fmt(struct device *dev, u32 fmt)
 		cfg |= EXYNOS_MSCTRL_INFORMAT_YCBCR420;
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid source format 0x%x.\n", fmt);
+		dev_err(ippdrv->dev, "invalid source format 0x%x.\n", fmt);
 		return -EINVAL;
 	}
 
@@ -578,7 +578,7 @@ static int fimc_src_set_transf(struct device *dev,
 			cfg1 &= ~EXYNOS_MSCTRL_FLIP_Y_MIRROR;
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid degree value %d.\n", degree);
+		dev_err(ippdrv->dev, "invalid degree value %d.\n", degree);
 		return -EINVAL;
 	}
 
@@ -701,7 +701,7 @@ static int fimc_src_set_addr(struct device *dev,
 		property->prop_id, buf_id, buf_type);
 
 	if (buf_id > FIMC_MAX_SRC) {
-		dev_info(ippdrv->dev, "inavlid buf_id %d.\n", buf_id);
+		dev_info(ippdrv->dev, "invalid buf_id %d.\n", buf_id);
 		return -ENOMEM;
 	}
 
@@ -812,7 +812,7 @@ static int fimc_dst_set_fmt_order(struct fimc_context *ctx, u32 fmt)
 		cfg |= EXYNOS_CIOCTRL_YCBCR_2PLANE;
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid target yuv order 0x%x.\n", fmt);
+		dev_err(ippdrv->dev, "invalid target yuv order 0x%x.\n", fmt);
 		return -EINVAL;
 	}
 
@@ -865,7 +865,7 @@ static int fimc_dst_set_fmt(struct device *dev, u32 fmt)
 			cfg |= EXYNOS_CITRGFMT_OUTFORMAT_YCBCR420;
 			break;
 		default:
-			dev_err(ippdrv->dev, "inavlid target format 0x%x.\n",
+			dev_err(ippdrv->dev, "invalid target format 0x%x.\n",
 				fmt);
 			return -EINVAL;
 		}
@@ -929,7 +929,7 @@ static int fimc_dst_set_transf(struct device *dev,
 			cfg &= ~EXYNOS_CITRGFMT_FLIP_Y_MIRROR;
 		break;
 	default:
-		dev_err(ippdrv->dev, "inavlid degree value %d.\n", degree);
+		dev_err(ippdrv->dev, "invalid degree value %d.\n", degree);
 		return -EINVAL;
 	}
 
@@ -1160,7 +1160,7 @@ static int fimc_dst_set_addr(struct device *dev,
 		property->prop_id, buf_id, buf_type);
 
 	if (buf_id > FIMC_MAX_DST) {
-		dev_info(ippdrv->dev, "inavlid buf_id %d.\n", buf_id);
+		dev_info(ippdrv->dev, "invalid buf_id %d.\n", buf_id);
 		return -ENOMEM;
 	}
 
@@ -1205,23 +1205,6 @@ static struct exynos_drm_ipp_ops fimc_dst_ops = {
 	.set_size = fimc_dst_set_size,
 	.set_addr = fimc_dst_set_addr,
 };
-
-static int fimc_clk_ctrl(struct fimc_context *ctx, bool enable)
-{
-	DRM_DEBUG_KMS("enable[%d]\n", enable);
-
-	if (enable) {
-		clk_prepare_enable(ctx->clocks[FIMC_CLK_GATE]);
-		clk_prepare_enable(ctx->clocks[FIMC_CLK_WB_A]);
-		ctx->suspended = false;
-	} else {
-		clk_disable_unprepare(ctx->clocks[FIMC_CLK_GATE]);
-		clk_disable_unprepare(ctx->clocks[FIMC_CLK_WB_A]);
-		ctx->suspended = true;
-	}
-
-	return 0;
-}
 
 static irqreturn_t fimc_irq_handler(int irq, void *dev_id)
 {
@@ -1745,7 +1728,6 @@ static int fimc_probe(struct platform_device *pdev)
 	spin_lock_init(&ctx->lock);
 	platform_set_drvdata(pdev, ctx);
 
-	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
 	ret = exynos_drm_ippdrv_register(ippdrv);
@@ -1781,6 +1763,24 @@ static int fimc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int fimc_clk_ctrl(struct fimc_context *ctx, bool enable)
+{
+	DRM_DEBUG_KMS("enable[%d]\n", enable);
+
+	if (enable) {
+		clk_prepare_enable(ctx->clocks[FIMC_CLK_GATE]);
+		clk_prepare_enable(ctx->clocks[FIMC_CLK_WB_A]);
+		ctx->suspended = false;
+	} else {
+		clk_disable_unprepare(ctx->clocks[FIMC_CLK_GATE]);
+		clk_disable_unprepare(ctx->clocks[FIMC_CLK_WB_A]);
+		ctx->suspended = true;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int fimc_suspend(struct device *dev)
 {
@@ -1807,7 +1807,6 @@ static int fimc_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
 static int fimc_runtime_suspend(struct device *dev)
 {
 	struct fimc_context *ctx = get_fimc_context(dev);

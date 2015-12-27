@@ -22,54 +22,50 @@ static int apci3501_config_insn_timer(struct comedi_device *dev,
 				      unsigned int *data)
 {
 	struct apci3501_private *devpriv = dev->private;
-	unsigned int ul_Command1 = 0;
+	unsigned int ctrl;
+
+	if (data[0] != ADDIDATA_WATCHDOG &&
+	    data[0] != ADDIDATA_TIMER)
+		return -EINVAL;
 
 	devpriv->tsk_Current = current;
-	if (data[0] == ADDIDATA_WATCHDOG) {
 
-		devpriv->b_TimerSelectMode = ADDIDATA_WATCHDOG;
-		/* Disable the watchdog */
-		outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	devpriv->timer_mode = data[0];
 
-		if (data[1] == 1) {
-			/* Enable TIMER int & DISABLE ALL THE OTHER int SOURCES */
-			outl(0x02, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else {
-			/* disable Timer interrupt */
-			outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
-
-		outl(data[2], dev->iobase + APCI3501_TIMER_TIMEBASE_REG);
-		outl(data[3], dev->iobase + APCI3501_TIMER_RELOAD_REG);
-
-		/* Set the mode (e2->e0) */
-		ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG) | 0xFFF819E0UL;
-		outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	/* first, disable the watchdog or stop the timer */
+	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
+		ctrl = 0;
+	} else {
+		ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
+		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+			  ADDI_TCW_CTRL_ENA);
 	}
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
-	else if (data[0] == ADDIDATA_TIMER) {
-		/* First Stop The Timer */
-		ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-		ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
-		outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		devpriv->b_TimerSelectMode = ADDIDATA_TIMER;
-		if (data[1] == 1) {
-			/* Enable TIMER int & DISABLE ALL THE OTHER int SOURCES */
-			outl(0x02, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else {
-			/* disable Timer interrupt */
-			outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
+	/* enable/disable the timer interrupt */
+	ctrl = (data[1] == 1) ? ADDI_TCW_CTRL_IRQ_ENA : 0;
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
-		outl(data[2], dev->iobase + APCI3501_TIMER_TIMEBASE_REG);
-		outl(data[3], dev->iobase + APCI3501_TIMER_RELOAD_REG);
+	outl(data[2], devpriv->tcw + ADDI_TCW_TIMEBASE_REG);
+	outl(data[3], devpriv->tcw + ADDI_TCW_RELOAD_REG);
 
+	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
+	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
+		/* Set the mode (e2->e0) NOTE: this doesn't look correct */
+		ctrl |= ~(ADDI_TCW_CTRL_CNT_UP | ADDI_TCW_CTRL_EXT_CLK_MASK |
+			  ADDI_TCW_CTRL_MODE_MASK | ADDI_TCW_CTRL_GATE |
+			  ADDI_TCW_CTRL_TRIG | ADDI_TCW_CTRL_TIMER_ENA |
+			  ADDI_TCW_CTRL_RESET_ENA | ADDI_TCW_CTRL_WARN_ENA |
+			  ADDI_TCW_CTRL_IRQ_ENA | ADDI_TCW_CTRL_ENA);
+	} else {
 		/* mode 2 */
-		ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-		ul_Command1 =
-			(ul_Command1 & 0xFFF719E2UL) | 2UL << 13UL | 0x10UL;
-		outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+		ctrl &= ~(ADDI_TCW_CTRL_CNTR_ENA | ADDI_TCW_CTRL_MODE_MASK |
+			  ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+			  ADDI_TCW_CTRL_TIMER_ENA | ADDI_TCW_CTRL_RESET_ENA |
+			  ADDI_TCW_CTRL_WARN_ENA | ADDI_TCW_CTRL_ENA);
+		ctrl |= ADDI_TCW_CTRL_MODE(2) | ADDI_TCW_CTRL_TIMER_ENA;
 	}
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
 	return insn->n;
 }
@@ -92,49 +88,27 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	struct apci3501_private *devpriv = dev->private;
-	unsigned int ul_Command1 = 0;
+	unsigned int ctrl;
 
-	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
+	if (devpriv->timer_mode == ADDIDATA_WATCHDOG ||
+	    devpriv->timer_mode == ADDIDATA_TIMER) {
+		ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
+		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
 
-		if (data[1] == 1) {
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
-			/* Enable the Watchdog */
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else if (data[1] == 0) { /* Stop The Watchdog */
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
-			outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else if (data[1] == 2) {
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x200UL;
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+		if (data[1] == 1) {		/* enable */
+			ctrl |= ADDI_TCW_CTRL_ENA;
+		} else if (data[1] == 0) {	/* stop */
+			if (devpriv->timer_mode == ADDIDATA_WATCHDOG)
+				ctrl = 0;
+			else
+				ctrl &= ~ADDI_TCW_CTRL_ENA;
+		} else if (data[1] == 2) {	/* trigger */
+			ctrl |= ADDI_TCW_CTRL_TRIG;
 		}
+		outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 	}
 
-	if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
-		if (data[1] == 1) {
-
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
-			/* Enable the Timer */
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else if (data[1] == 0) {
-			/* Stop The Timer */
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
-
-		else if (data[1] == 2) {
-			/* Trigger the Timer */
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x200UL;
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
-	}
-
-	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
+	inl(devpriv->tcw + ADDI_TCW_STATUS_REG);
 	return insn->n;
 }
 
@@ -155,19 +129,13 @@ static int apci3501_read_insn_timer(struct comedi_device *dev,
 {
 	struct apci3501_private *devpriv = dev->private;
 
-	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
-		data[0] = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
-		data[1] = inl(dev->iobase + APCI3501_TIMER_SYNC_REG);
-	}
+	if (devpriv->timer_mode != ADDIDATA_TIMER &&
+	    devpriv->timer_mode != ADDIDATA_WATCHDOG)
+		return -EINVAL;
 
-	else if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
-		data[0] = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
-		data[1] = inl(dev->iobase + APCI3501_TIMER_SYNC_REG);
-	}
+	data[0] = inl(devpriv->tcw + ADDI_TCW_STATUS_REG) &
+		  ADDI_TCW_STATUS_OVERFLOW;
+	data[1] = inl(devpriv->tcw + ADDI_TCW_VAL_REG);
 
-	else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
-		&& (devpriv->b_TimerSelectMode != ADDIDATA_WATCHDOG)) {
-		dev_err(dev->class_dev, "Invalid subdevice.\n");
-	}
 	return insn->n;
 }

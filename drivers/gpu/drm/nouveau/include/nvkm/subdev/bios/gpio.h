@@ -15,6 +15,7 @@ enum dcb_gpio_func_name {
 	DCB_GPIO_VID5 = 0x74,
 	DCB_GPIO_VID6 = 0x75,
 	DCB_GPIO_VID7 = 0x76,
+	DCB_GPIO_VID_PWM = 0x81,
 };
 
 #define DCB_GPIO_LOG_DIR     0x02

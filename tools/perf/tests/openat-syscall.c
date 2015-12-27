@@ -1,3 +1,5 @@
+#include <api/fs/tracing_path.h>
+#include <linux/err.h>
 #include "thread_map.h"
 #include "evsel.h"
 #include "debug.h"
@@ -10,6 +12,7 @@ int test__openat_syscall_event(void)
 	unsigned int nr_openat_calls = 111, i;
 	struct thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
 	char sbuf[STRERR_BUFSIZE];
+	char errbuf[BUFSIZ];
 
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
@@ -17,13 +20,9 @@ int test__openat_syscall_event(void)
 	}
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
-	if (evsel == NULL) {
-		if (tracefs_configured())
-			pr_debug("is tracefs mounted on /sys/kernel/tracing?\n");
-		else if (debugfs_configured())
-			pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
-		else
-			pr_debug("Neither tracefs or debugfs is enabled in this kernel\n");
+	if (IS_ERR(evsel)) {
+		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
+		pr_debug("%s\n", errbuf);
 		goto out_thread_map_delete;
 	}
 
@@ -44,9 +43,9 @@ int test__openat_syscall_event(void)
 		goto out_close_fd;
 	}
 
-	if (evsel->counts->cpu[0].val != nr_openat_calls) {
+	if (perf_counts(evsel->counts, 0, 0)->val != nr_openat_calls) {
 		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %" PRIu64 "\n",
-			 nr_openat_calls, evsel->counts->cpu[0].val);
+			 nr_openat_calls, perf_counts(evsel->counts, 0, 0)->val);
 		goto out_close_fd;
 	}
 
@@ -56,6 +55,6 @@ out_close_fd:
 out_evsel_delete:
 	perf_evsel__delete(evsel);
 out_thread_map_delete:
-	thread_map__delete(threads);
+	thread_map__put(threads);
 	return err;
 }

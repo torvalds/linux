@@ -38,7 +38,7 @@ struct spear_thermal_dev {
 };
 
 static inline int thermal_get_temp(struct thermal_zone_device *thermal,
-				unsigned long *temp)
+				int *temp)
 {
 	struct spear_thermal_dev *stdev = thermal->devdata;
 

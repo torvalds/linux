@@ -9,3 +9,34 @@ Description:
 		automated testing or in situations, where other trigger methods
 		are not applicable. For example no RTC or spare GPIOs.
 		X is the IIO index of the trigger.
+
+What:		/sys/bus/iio/devices/triggerX/name
+KernelVersion:	2.6.39
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The name attribute holds a description string for the current
+		trigger. In order to associate the trigger with an IIO device
+		one should write this name string to
+		/sys/bus/iio/devices/iio:deviceY/trigger/current_trigger.
+
+What:		/sys/bus/iio/devices/iio_sysfs_trigger/add_trigger
+KernelVersion:	2.6.39
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is provided by the iio-trig-sysfs stand-alone
+		driver and it is used to activate the creation of a new trigger.
+		In order to achieve this, one should write a positive integer
+		into the associated file, which will serve as the id of the
+		trigger. If the trigger with the specified id is already present
+		in the system, an invalid argument message will be returned.
+
+What:		/sys/bus/iio/devices/iio_sysfs_trigger/remove_trigger
+KernelVersion:	2.6.39
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to unregister and delete a previously
+		created trigger from the list of available triggers. In order to
+		achieve this, one should write a positive integer into the
+		associated file, representing the id of the trigger that needs
+		to be removed. If the trigger can't be found, an invalid
+		argument message will be returned to the user.

@@ -360,6 +360,9 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 			}
 		}
 
+		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RBU))
+			pdata->ext_stats.rx_buffer_unavailable++;
+
 		/* Restart the device on a Fatal Bus Error */
 		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, FBE))
 			schedule_work(&pdata->restart_work);
@@ -384,7 +387,8 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 				/* Read Tx Timestamp to clear interrupt */
 				pdata->tx_tstamp =
 					hw_if->get_tx_tstamp(pdata);
-				schedule_work(&pdata->tx_tstamp_work);
+				queue_work(pdata->dev_workqueue,
+					   &pdata->tx_tstamp_work);
 			}
 		}
 	}
@@ -450,7 +454,7 @@ static void xgbe_service_timer(unsigned long data)
 {
 	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
 
-	schedule_work(&pdata->service_work);
+	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
 	mod_timer(&pdata->service_timer, jiffies + HZ);
 }
@@ -891,7 +895,7 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	netif_tx_start_all_queues(netdev);
 
 	xgbe_start_timers(pdata);
-	schedule_work(&pdata->service_work);
+	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
 	DBGPR("<--xgbe_start\n");
 
@@ -1765,8 +1769,9 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 	/* Start with the header buffer which may contain just the header
 	 * or the header plus data
 	 */
-	dma_sync_single_for_cpu(pdata->dev, rdata->rx.hdr.dma,
-				rdata->rx.hdr.dma_len, DMA_FROM_DEVICE);
+	dma_sync_single_range_for_cpu(pdata->dev, rdata->rx.hdr.dma_base,
+				      rdata->rx.hdr.dma_off,
+				      rdata->rx.hdr.dma_len, DMA_FROM_DEVICE);
 
 	packet = page_address(rdata->rx.hdr.pa.pages) +
 		 rdata->rx.hdr.pa.pages_offset;
@@ -1778,8 +1783,11 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 	len -= copy_len;
 	if (len) {
 		/* Add the remaining data as a frag */
-		dma_sync_single_for_cpu(pdata->dev, rdata->rx.buf.dma,
-					rdata->rx.buf.dma_len, DMA_FROM_DEVICE);
+		dma_sync_single_range_for_cpu(pdata->dev,
+					      rdata->rx.buf.dma_base,
+					      rdata->rx.buf.dma_off,
+					      rdata->rx.buf.dma_len,
+					      DMA_FROM_DEVICE);
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 				rdata->rx.buf.pa.pages,
@@ -1803,6 +1811,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	struct netdev_queue *txq;
 	int processed = 0;
 	unsigned int tx_packets = 0, tx_bytes = 0;
+	unsigned int cur;
 
 	DBGPR("-->xgbe_tx_poll\n");
 
@@ -1810,10 +1819,15 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	if (!ring)
 		return 0;
 
+	cur = ring->cur;
+
+	/* Be sure we get ring->cur before accessing descriptor data */
+	smp_rmb();
+
 	txq = netdev_get_tx_queue(netdev, channel->queue_index);
 
 	while ((processed < XGBE_TX_DESC_MAX_PROC) &&
-	       (ring->dirty != ring->cur)) {
+	       (ring->dirty != cur)) {
 		rdata = XGBE_GET_DESC_DATA(ring, ring->dirty);
 		rdesc = rdata->rdesc;
 
@@ -1945,8 +1959,9 @@ read_again:
 				if (!skb)
 					error = 1;
 			} else if (rdesc_len) {
-				dma_sync_single_for_cpu(pdata->dev,
-							rdata->rx.buf.dma,
+				dma_sync_single_range_for_cpu(pdata->dev,
+							rdata->rx.buf.dma_base,
+							rdata->rx.buf.dma_off,
 							rdata->rx.buf.dma_len,
 							DMA_FROM_DEVICE);
 

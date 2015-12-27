@@ -23,7 +23,8 @@ static inline struct cgroup_cls_state *css_cls_state(struct cgroup_subsys_state 
 
 struct cgroup_cls_state *task_cls_state(struct task_struct *p)
 {
-	return css_cls_state(task_css(p, net_cls_cgrp_id));
+	return css_cls_state(task_css_check(p, net_cls_cgrp_id,
+					    rcu_read_lock_bh_held()));
 }
 EXPORT_SYMBOL_GPL(task_cls_state);
 
@@ -55,7 +56,7 @@ static void cgrp_css_free(struct cgroup_subsys_state *css)
 	kfree(css_cls_state(css));
 }
 
-static int update_classid(const void *v, struct file *file, unsigned n)
+static int update_classid_sock(const void *v, struct file *file, unsigned n)
 {
 	int err;
 	struct socket *sock = sock_from_file(file, &err);
@@ -66,18 +67,27 @@ static int update_classid(const void *v, struct file *file, unsigned n)
 	return 0;
 }
 
-static void cgrp_attach(struct cgroup_subsys_state *css,
-			struct cgroup_taskset *tset)
+static void update_classid(struct cgroup_subsys_state *css, void *v)
 {
-	struct cgroup_cls_state *cs = css_cls_state(css);
-	void *v = (void *)(unsigned long)cs->classid;
+	struct css_task_iter it;
 	struct task_struct *p;
 
-	cgroup_taskset_for_each(p, tset) {
+	css_task_iter_start(css, &it);
+	while ((p = css_task_iter_next(&it))) {
 		task_lock(p);
-		iterate_fd(p->files, 0, update_classid, v);
+		iterate_fd(p->files, 0, update_classid_sock, v);
 		task_unlock(p);
 	}
+	css_task_iter_end(&it);
+}
+
+static void cgrp_attach(struct cgroup_taskset *tset)
+{
+	struct cgroup_subsys_state *css;
+
+	cgroup_taskset_first(tset, &css);
+	update_classid(css,
+		       (void *)(unsigned long)css_cls_state(css)->classid);
 }
 
 static u64 read_classid(struct cgroup_subsys_state *css, struct cftype *cft)
@@ -88,8 +98,11 @@ static u64 read_classid(struct cgroup_subsys_state *css, struct cftype *cft)
 static int write_classid(struct cgroup_subsys_state *css, struct cftype *cft,
 			 u64 value)
 {
-	css_cls_state(css)->classid = (u32) value;
+	struct cgroup_cls_state *cs = css_cls_state(css);
 
+	cs->classid = (u32)value;
+
+	update_classid(css, (void *)(unsigned long)cs->classid);
 	return 0;
 }
 

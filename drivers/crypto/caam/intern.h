@@ -91,6 +91,11 @@ struct caam_drv_private {
 				   Handles of the RNG4 block are initialized
 				   by this driver */
 
+	struct clk *caam_ipg;
+	struct clk *caam_mem;
+	struct clk *caam_aclk;
+	struct clk *caam_emi_slow;
+
 	/*
 	 * debugfs entries for developer view into driver/device
 	 * variables at runtime.

@@ -16,7 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/linkage.h>
+
+#include <asm/alternative.h>
 #include <asm/assembler.h>
+#include <asm/cpufeature.h>
+#include <asm/sysreg.h>
 
 	.text
 
@@ -29,6 +33,8 @@
  * Alignment fixed up by hardware.
  */
 ENTRY(__clear_user)
+ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_HAS_PAN, \
+	    CONFIG_ARM64_PAN)
 	mov	x2, x1			// save the size for fixup return
 	subs	x1, x1, #8
 	b.mi	2f
@@ -48,6 +54,8 @@ USER(9f, strh	wzr, [x0], #2	)
 	b.mi	5f
 USER(9f, strb	wzr, [x0]	)
 5:	mov	x0, #0
+ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_HAS_PAN, \
+	    CONFIG_ARM64_PAN)
 	ret
 ENDPROC(__clear_user)
 

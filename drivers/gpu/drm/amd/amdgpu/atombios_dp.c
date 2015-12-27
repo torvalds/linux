@@ -139,7 +139,8 @@ amdgpu_atombios_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *m
 
 	tx_buf[0] = msg->address & 0xff;
 	tx_buf[1] = msg->address >> 8;
-	tx_buf[2] = msg->request << 4;
+	tx_buf[2] = (msg->request << 4) |
+		((msg->address >> 16) & 0xf);
 	tx_buf[3] = msg->size ? (msg->size - 1) : 0;
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {

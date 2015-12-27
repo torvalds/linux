@@ -118,9 +118,10 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 	}
 
 	/* Since the 10Mbps preamble workaround is allowed we need to enable
-	   preamble checking, FCS stripping, and clear error bits on
-	   every speed change. If errors occur during 10Mbps operation
-	   the above code will change this stuff */
+	 * preamble checking, FCS stripping, and clear error bits on
+	 * every speed change. If errors occur during 10Mbps operation
+	 * the above code will change this stuff
+	 */
 	cvm_oct_set_hw_preamble(priv, true);
 
 	if (priv->phydev == NULL) {
@@ -206,7 +207,7 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 
 int cvm_oct_rgmii_open(struct net_device *dev)
 {
-	return cvm_oct_common_open(dev, cvm_oct_rgmii_poll, false);
+	return cvm_oct_common_open(dev, cvm_oct_rgmii_poll);
 }
 
 static void cvm_oct_rgmii_immediate_poll(struct work_struct *work)

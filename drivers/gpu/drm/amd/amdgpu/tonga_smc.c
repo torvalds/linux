@@ -761,7 +761,9 @@ int tonga_smu_init(struct amdgpu_device *adev)
 
 	/* Allocate FW image data structure and header buffer */
 	ret = amdgpu_bo_create(adev, image_size, PAGE_SIZE,
-				true, AMDGPU_GEM_DOMAIN_VRAM, 0, NULL, toc_buf);
+			       true, AMDGPU_GEM_DOMAIN_VRAM,
+			       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			       NULL, NULL, toc_buf);
 	if (ret) {
 		DRM_ERROR("Failed to allocate memory for TOC buffer\n");
 		return -ENOMEM;
@@ -769,7 +771,9 @@ int tonga_smu_init(struct amdgpu_device *adev)
 
 	/* Allocate buffer for SMU internal buffer */
 	ret = amdgpu_bo_create(adev, smu_internal_buffer_size, PAGE_SIZE,
-				true, AMDGPU_GEM_DOMAIN_VRAM, 0, NULL, smu_buf);
+			       true, AMDGPU_GEM_DOMAIN_VRAM,
+			       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			       NULL, NULL, smu_buf);
 	if (ret) {
 		DRM_ERROR("Failed to allocate memory for SMU internal buffer\n");
 		return -ENOMEM;

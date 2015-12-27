@@ -708,7 +708,6 @@ MODULE_DEVICE_TABLE(i2c, ks0127_id);
 
 static struct i2c_driver ks0127_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "ks0127",
 	},
 	.probe		= ks0127_probe,

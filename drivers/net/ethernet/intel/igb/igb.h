@@ -444,8 +444,8 @@ struct igb_adapter {
 
 	struct ptp_pin_desc sdp_config[IGB_N_SDP];
 	struct {
-		struct timespec start;
-		struct timespec period;
+		struct timespec64 start;
+		struct timespec64 period;
 	} perout[IGB_N_PEROUT];
 
 	char fw_version[32];
@@ -540,6 +540,7 @@ void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, unsigned char *va,
 			 struct sk_buff *skb);
 int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr);
 int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr);
+void igb_set_flag_queue_pairs(struct igb_adapter *, const u32);
 #ifdef CONFIG_IGB_HWMON
 void igb_sysfs_exit(struct igb_adapter *adapter);
 int igb_sysfs_init(struct igb_adapter *adapter);

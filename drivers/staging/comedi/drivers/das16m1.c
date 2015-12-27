@@ -69,18 +69,18 @@ irq can be omitted, although the cmd interface will not work without it.
 
     "cio-das16/m1"
 
-  0	a/d bits 0-3, mux		start 12 bit
-  1	a/d bits 4-11		unused
-  2	status		control
-  3	di 4 bit		do 4 bit
-  4	unused			clear interrupt
-  5	interrupt, pacer
-  6	channel/gain queue address
-  7	channel/gain queue data
-  89ab	8254
-  cdef	8254
-  400	8255
-  404-407 	8254
+  0		a/d bits 0-3, mux		start 12 bit
+  1		a/d bits 4-11		unused
+  2		status		control
+  3		di 4 bit		do 4 bit
+  4		unused			clear interrupt
+  5		interrupt, pacer
+  6		channel/gain queue address
+  7		channel/gain queue data
+  89ab		8254
+  cdef		8254
+  400		8255
+  404-407	8254
 
 */
 
@@ -411,15 +411,18 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	hw_counter = comedi_8254_read(devpriv->counter, 1);
 	/* make sure hardware counter reading is not bogus due to initial value
 	 * not having been loaded yet */
-	if (devpriv->adc_count == 0 && hw_counter == devpriv->initial_hw_count) {
+	if (devpriv->adc_count == 0 &&
+	    hw_counter == devpriv->initial_hw_count) {
 		num_samples = 0;
 	} else {
-		/* The calculation of num_samples looks odd, but it uses the following facts.
-		 * 16 bit hardware counter is initialized with value of zero (which really
-		 * means 0x1000).  The counter decrements by one on each conversion
-		 * (when the counter decrements from zero it goes to 0xffff).  num_samples
-		 * is a 16 bit variable, so it will roll over in a similar fashion to the
-		 * hardware counter.  Work it out, and this is what you get. */
+		/* The calculation of num_samples looks odd, but it uses the
+		 * following facts. 16 bit hardware counter is initialized with
+		 * value of zero (which really means 0x1000).  The counter
+		 * decrements by one on each conversion (when the counter
+		 * decrements from zero it goes to 0xffff).  num_samples is a
+		 * 16 bit variable, so it will roll over in a similar fashion
+		 * to the hardware counter.  Work it out, and this is what you
+		 * get. */
 		num_samples = -hw_counter - devpriv->adc_count;
 	}
 	/*  check if we only need some of the points */

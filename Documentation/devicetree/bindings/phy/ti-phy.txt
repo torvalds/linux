@@ -82,6 +82,9 @@ Optional properties:
  - id: If there are multiple instance of the same type, in order to
    differentiate between each instance "id" can be used (e.g., multi-lane PCIe
    PHY). If "id" is not provided, it is set to default value of '1'.
+ - syscon-pllreset: Handle to system control region that contains the
+   CTRL_CORE_SMA_SW_0 register and register offset to the CTRL_CORE_SMA_SW_0
+   register that contains the SATA_PLL_SOFT_RESET bit. Only valid for sata_phy.
 
 This is usually a subnode of ocp2scp to which it is connected.
 
@@ -99,4 +102,17 @@ usb3phy@4a084400 {
 	clock-names =	"wkupclk",
 			"sysclk",
 			"refclk";
+};
+
+sata_phy: phy@4A096000 {
+	compatible = "ti,phy-pipe3-sata";
+	reg = <0x4A096000 0x80>, /* phy_rx */
+	      <0x4A096400 0x64>, /* phy_tx */
+	      <0x4A096800 0x40>; /* pll_ctrl */
+	reg-names = "phy_rx", "phy_tx", "pll_ctrl";
+	ctrl-module = <&omap_control_sata>;
+	clocks = <&sys_clkin1>, <&sata_ref_clk>;
+	clock-names = "sysclk", "refclk";
+	syscon-pllreset = <&scm_conf 0x3fc>;
+	#phy-cells = <0>;
 };

@@ -61,6 +61,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
+#include <linux/skbuff.h>
 #include "iwl-trans.h"
 #include "mvm.h"
 #include "fw-api.h"
@@ -71,8 +72,7 @@
  * Copies the phy information in mvm->last_phy_info, it will be used when the
  * actual data will come from the fw in the next packet.
  */
-int iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
@@ -86,8 +86,6 @@ int iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		spin_unlock(&mvm->drv_stats_lock);
 	}
 #endif
-
-	return 0;
 }
 
 /*
@@ -96,6 +94,7 @@ int iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
  * Adds the rxb to a new skb and give it to mac80211
  */
 static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
+					    struct napi_struct *napi,
 					    struct sk_buff *skb,
 					    struct ieee80211_hdr *hdr, u16 len,
 					    u32 ampdu_status, u8 crypt_len,
@@ -129,7 +128,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 				fraglen, rxb->truesize);
 	}
 
-	ieee80211_rx(mvm->hw, skb);
+	ieee80211_rx_napi(mvm->hw, skb, napi);
 }
 
 /*
@@ -203,7 +202,6 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 			return -1;
 
 		stats->flag |= RX_FLAG_DECRYPTED;
-		IWL_DEBUG_WEP(mvm, "hw decrypted CCMP successfully\n");
 		*crypt_len = IEEE80211_CCMP_HDR_LEN;
 		return 0;
 
@@ -237,13 +235,26 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static void iwl_mvm_rx_csum(struct ieee80211_sta *sta,
+			    struct sk_buff *skb,
+			    u32 status)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+
+	if (mvmvif->features & NETIF_F_RXCSUM &&
+	    status & RX_MPDU_RES_STATUS_CSUM_DONE &&
+	    status & RX_MPDU_RES_STATUS_CSUM_OK)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+}
+
 /*
  * iwl_mvm_rx_rx_mpdu - REPLY_RX_MPDU_CMD handler
  *
  * Handles the actual data of the Rx packet from the fw
  */
-int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-		       struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
+			struct iwl_rx_cmd_buffer *rxb)
 {
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_rx_status *rx_status;
@@ -271,7 +282,7 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	skb = alloc_skb(128, GFP_ATOMIC);
 	if (!skb) {
 		IWL_ERR(mvm, "alloc_skb failed\n");
-		return 0;
+		return;
 	}
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
@@ -284,14 +295,7 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		IWL_DEBUG_DROP(mvm, "Bad decryption results 0x%08x\n",
 			       rx_pkt_status);
 		kfree_skb(skb);
-		return 0;
-	}
-
-	if ((unlikely(phy_info->cfg_phy_cnt > 20))) {
-		IWL_DEBUG_DROP(mvm, "dsp size out of range [0,20]: %d\n",
-			       phy_info->cfg_phy_cnt);
-		kfree_skb(skb);
-		return 0;
+		return;
 	}
 
 	/*
@@ -342,8 +346,8 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	/* This is fine since we don't support multiple AP interfaces */
 	sta = ieee80211_find_sta_by_ifaddr(mvm->hw, hdr->addr2, NULL);
 	if (sta) {
-		struct iwl_mvm_sta *mvmsta;
-		mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
 		rs_update_last_rssi(mvm, &mvmsta->lq_sta, rx_status);
 
 		if (iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_RSSI) &&
@@ -365,6 +369,9 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL);
 		}
 	}
+
+	if (sta && ieee80211_is_data(hdr->frame_control))
+		iwl_mvm_rx_csum(sta, skb, rx_pkt_status);
 
 	rcu_read_unlock();
 
@@ -429,9 +436,8 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	iwl_mvm_update_frame_stats(mvm, rate_n_flags,
 				   rx_status->flag & RX_FLAG_AMPDU_DETAILS);
 #endif
-	iwl_mvm_pass_packet_to_mac80211(mvm, skb, hdr, len, ampdu_status,
+	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, hdr, len, ampdu_status,
 					crypt_len, rxb);
-	return 0;
 }
 
 static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
@@ -445,7 +451,7 @@ static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
 struct iwl_mvm_stat_data {
 	struct iwl_mvm *mvm;
 	__le32 mac_id;
-	__s8 beacon_filter_average_energy;
+	u8 beacon_filter_average_energy;
 	struct mvm_statistics_general_v8 *general;
 };
 
@@ -563,55 +569,32 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt)
 {
-	size_t v8_len = sizeof(struct iwl_notif_statistics_v8);
-	size_t v10_len = sizeof(struct iwl_notif_statistics_v10);
+	struct iwl_notif_statistics_v10 *stats = (void *)&pkt->data;
 	struct iwl_mvm_stat_data data = {
 		.mvm = mvm,
 	};
 	u32 temperature;
 
-	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_STATS_V10)) {
-		struct iwl_notif_statistics_v10 *stats = (void *)&pkt->data;
+	if (iwl_rx_packet_payload_len(pkt) != sizeof(*stats))
+		goto invalid;
 
-		if (iwl_rx_packet_payload_len(pkt) != v10_len)
-			goto invalid;
+	temperature = le32_to_cpu(stats->general.radio_temperature);
+	data.mac_id = stats->rx.general.mac_id;
+	data.beacon_filter_average_energy =
+		stats->general.beacon_filter_average_energy;
 
-		temperature = le32_to_cpu(stats->general.radio_temperature);
-		data.mac_id = stats->rx.general.mac_id;
-		data.beacon_filter_average_energy =
-			stats->general.beacon_filter_average_energy;
+	iwl_mvm_update_rx_statistics(mvm, &stats->rx);
 
-		iwl_mvm_update_rx_statistics(mvm, &stats->rx);
+	mvm->radio_stats.rx_time = le64_to_cpu(stats->general.rx_time);
+	mvm->radio_stats.tx_time = le64_to_cpu(stats->general.tx_time);
+	mvm->radio_stats.on_time_rf =
+		le64_to_cpu(stats->general.on_time_rf);
+	mvm->radio_stats.on_time_scan =
+		le64_to_cpu(stats->general.on_time_scan);
 
-		mvm->radio_stats.rx_time = le64_to_cpu(stats->general.rx_time);
-		mvm->radio_stats.tx_time = le64_to_cpu(stats->general.tx_time);
-		mvm->radio_stats.on_time_rf =
-			le64_to_cpu(stats->general.on_time_rf);
-		mvm->radio_stats.on_time_scan =
-			le64_to_cpu(stats->general.on_time_scan);
-
-		data.general = &stats->general;
-	} else {
-		struct iwl_notif_statistics_v8 *stats = (void *)&pkt->data;
-
-		if (iwl_rx_packet_payload_len(pkt) != v8_len)
-			goto invalid;
-
-		temperature = le32_to_cpu(stats->general.radio_temperature);
-		data.mac_id = stats->rx.general.mac_id;
-		data.beacon_filter_average_energy =
-			stats->general.beacon_filter_average_energy;
-
-		iwl_mvm_update_rx_statistics(mvm, &stats->rx);
-	}
+	data.general = &stats->general;
 
 	iwl_mvm_rx_stats_check_trigger(mvm, pkt);
-
-	/* Only handle rx statistics temperature changes if async temp
-	 * notifications are not supported
-	 */
-	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_ASYNC_DTM))
-		iwl_mvm_tt_temp_changed(mvm, temperature);
 
 	ieee80211_iterate_active_interfaces(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
@@ -623,10 +606,7 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		iwl_rx_packet_payload_len(pkt));
 }
 
-int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
-			  struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_statistics(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	iwl_mvm_handle_rx_statistics(mvm, rxb_addr(rxb));
-	return 0;
 }

@@ -145,7 +145,7 @@ static int get_tjmax(void)
 	return -EINVAL;
 }
 
-static int read_temp_msr(unsigned long *temp)
+static int read_temp_msr(int *temp)
 {
 	int cpu;
 	u32 eax, edx;
@@ -177,7 +177,7 @@ err_ret:
 }
 
 static int proc_thermal_get_zone_temp(struct thermal_zone_device *zone,
-					 unsigned long *temp)
+					 int *temp)
 {
 	int ret;
 

@@ -24,6 +24,7 @@
 #include <linux/dm9000.h>
 #include <linux/ucb1400.h>
 #include <linux/ata_platform.h>
+#include <linux/regulator/machine.h>
 #include <linux/regulator/max1586.h>
 #include <linux/i2c/pxa-i2c.h>
 
@@ -711,6 +712,8 @@ static void __init vpac270_init(void)
 	vpac270_ts_init();
 	vpac270_rtc_init();
 	vpac270_ide_init();
+
+	regulator_has_full_constraints();
 }
 
 MACHINE_START(VPAC270, "Voipac PXA270")

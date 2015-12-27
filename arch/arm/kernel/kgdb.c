@@ -74,7 +74,7 @@ int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
 void
 sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 {
-	struct pt_regs *thread_regs;
+	struct thread_info *ti;
 	int regno;
 
 	/* Just making sure... */
@@ -86,24 +86,17 @@ sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 		gdb_regs[regno] = 0;
 
 	/* Otherwise, we have only some registers from switch_to() */
-	thread_regs		= task_pt_regs(task);
-	gdb_regs[_R0]		= thread_regs->ARM_r0;
-	gdb_regs[_R1]		= thread_regs->ARM_r1;
-	gdb_regs[_R2]		= thread_regs->ARM_r2;
-	gdb_regs[_R3]		= thread_regs->ARM_r3;
-	gdb_regs[_R4]		= thread_regs->ARM_r4;
-	gdb_regs[_R5]		= thread_regs->ARM_r5;
-	gdb_regs[_R6]		= thread_regs->ARM_r6;
-	gdb_regs[_R7]		= thread_regs->ARM_r7;
-	gdb_regs[_R8]		= thread_regs->ARM_r8;
-	gdb_regs[_R9]		= thread_regs->ARM_r9;
-	gdb_regs[_R10]		= thread_regs->ARM_r10;
-	gdb_regs[_FP]		= thread_regs->ARM_fp;
-	gdb_regs[_IP]		= thread_regs->ARM_ip;
-	gdb_regs[_SPT]		= thread_regs->ARM_sp;
-	gdb_regs[_LR]		= thread_regs->ARM_lr;
-	gdb_regs[_PC]		= thread_regs->ARM_pc;
-	gdb_regs[_CPSR]		= thread_regs->ARM_cpsr;
+	ti			= task_thread_info(task);
+	gdb_regs[_R4]		= ti->cpu_context.r4;
+	gdb_regs[_R5]		= ti->cpu_context.r5;
+	gdb_regs[_R6]		= ti->cpu_context.r6;
+	gdb_regs[_R7]		= ti->cpu_context.r7;
+	gdb_regs[_R8]		= ti->cpu_context.r8;
+	gdb_regs[_R9]		= ti->cpu_context.r9;
+	gdb_regs[_R10]		= ti->cpu_context.sl;
+	gdb_regs[_FP]		= ti->cpu_context.fp;
+	gdb_regs[_SPT]		= ti->cpu_context.sp;
+	gdb_regs[_PC]		= ti->cpu_context.pc;
 }
 
 void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
@@ -259,15 +252,17 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 	if (err)
 		return err;
 
-	patch_text((void *)bpt->bpt_addr,
-		   *(unsigned int *)arch_kgdb_ops.gdb_bpt_instr);
+	/* Machine is already stopped, so we can use __patch_text() directly */
+	__patch_text((void *)bpt->bpt_addr,
+		     *(unsigned int *)arch_kgdb_ops.gdb_bpt_instr);
 
 	return err;
 }
 
 int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 {
-	patch_text((void *)bpt->bpt_addr, *(unsigned int *)bpt->saved_instr);
+	/* Machine is already stopped, so we can use __patch_text() directly */
+	__patch_text((void *)bpt->bpt_addr, *(unsigned int *)bpt->saved_instr);
 
 	return 0;
 }

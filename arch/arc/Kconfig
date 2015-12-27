@@ -8,6 +8,7 @@
 
 config ARC
 	def_bool y
+	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select BUILDTIME_EXTABLE_SORT
 	select COMMON_CLK
 	select CLONE_BACKWARDS
@@ -22,6 +23,7 @@ config ARC
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_FUTEX_CMPXCHG
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
@@ -74,6 +76,10 @@ config STACKTRACE_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	def_bool y
+	depends on ARC_MMU_V4
+
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
@@ -81,26 +87,47 @@ menu "ARC Architecture Configuration"
 
 menu "ARC Platform/SoC/Board"
 
-source "arch/arc/plat-arcfpga/Kconfig"
+source "arch/arc/plat-sim/Kconfig"
 source "arch/arc/plat-tb10x/Kconfig"
+source "arch/arc/plat-axs10x/Kconfig"
 #New platform adds here
 
 endmenu
+
+choice
+	prompt "ARC Instruction Set"
+	default ISA_ARCOMPACT
+
+config ISA_ARCOMPACT
+	bool "ARCompact ISA"
+	help
+	  The original ARC ISA of ARC600/700 cores
+
+config ISA_ARCV2
+	bool "ARC ISA v2"
+	help
+	  ISA for the Next Generation ARC-HS cores
+
+endchoice
 
 menu "ARC CPU Configuration"
 
 choice
 	prompt "ARC Core"
-	default ARC_CPU_770
+	default ARC_CPU_770 if ISA_ARCOMPACT
+	default ARC_CPU_HS if ISA_ARCV2
+
+if ISA_ARCOMPACT
 
 config ARC_CPU_750D
 	bool "ARC750D"
+	select ARC_CANT_LLSC
 	help
 	  Support for ARC750 core
 
 config ARC_CPU_770
 	bool "ARC770"
-	select ARC_CPU_REL_4_10
+	select ARC_HAS_SWAPE
 	help
 	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
 	  This core has a bunch of cool new features:
@@ -108,6 +135,27 @@ config ARC_CPU_770
                    Shared Address Spaces (for sharing TLB entires in MMU)
 	  -Caches: New Prog Model, Region Flush
 	  -Insns: endian swap, load-locked/store-conditional, time-stamp-ctr
+
+endif	#ISA_ARCOMPACT
+
+config ARC_CPU_HS
+	bool "ARC-HS"
+	depends on ISA_ARCV2
+	help
+	  Support for ARC HS38x Cores based on ARCv2 ISA
+	  The notable features are:
+	    - SMP configurations of upto 4 core with coherency
+	    - Optional L2 Cache and IO-Coherency
+	    - Revised Interrupt Architecture (multiple priorites, reg banks,
+	        auto stack switch, auto regfile save/restore)
+	    - MMUv4 (PIPT dcache, Huge Pages)
+	    - Instructions for
+		* 64bit load/store: LDD, STD
+		* Hardware assisted divide/remainder: DIV, REM
+		* Function prologue/epilogue: ENTER_S, LEAVE_S
+		* IRQ enable/disable: CLRI, SETI
+		* pop count: FFS, FLS
+		* SETcc, BMSKN, XBFU...
 
 endchoice
 
@@ -117,17 +165,13 @@ config CPU_BIG_ENDIAN
 	help
 	  Build kernel for Big Endian Mode of ARC CPU
 
-# If a platform can't work with 0x8000_0000 based dma_addr_t
-config ARC_PLAT_NEEDS_CPU_TO_DMA
-	bool
-
 config SMP
-	bool "Symmetric Multi-Processing (Incomplete)"
+	bool "Symmetric Multi-Processing"
 	default n
+	select ARC_HAS_COH_CACHES if ISA_ARCV2
+	select ARC_MCIP if ISA_ARCV2
 	help
-	  This enables support for systems with more than one CPU. If you have
-	  a system with only one CPU, say N. If you have a system with more
-	  than one CPU, say Y.
+	  This enables support for systems with more than one CPU.
 
 if SMP
 
@@ -137,13 +181,30 @@ config ARC_HAS_COH_CACHES
 config ARC_HAS_REENTRANT_IRQ_LV2
 	def_bool n
 
-endif
+config ARC_MCIP
+	bool "ARConnect Multicore IP (MCIP) Support "
+	depends on ISA_ARCV2
+	help
+	  This IP block enables SMP in ARC-HS38 cores.
+	  It provides for cross-core interrupts, multi-core debug
+	  hardware semaphores, shared memory,....
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
-	depends on SMP
-	default "2"
+	default "4"
+
+config ARC_SMP_HALT_ON_RESET
+	bool "Enable Halt-on-reset boot mode"
+	default y if ARC_UBOOT_SUPPORT
+	help
+	  In SMP configuration cores can be configured as Halt-on-reset
+	  or they could all start at same time. For Halt-on-reset, non
+	  masters are parked until Master kicks them so they can start of
+	  at designated entry point. For other case, all jump to common
+	  entry point and spin wait for Master's signal.
+
+endif	#SMP
 
 menuconfig ARC_CACHE
 	bool "Enable Cache Support"
@@ -185,7 +246,7 @@ config ARC_CACHE_PAGES
 
 config ARC_CACHE_VIPT_ALIASING
 	bool "Support VIPT Aliasing D$"
-	depends on ARC_HAS_DCACHE
+	depends on ARC_HAS_DCACHE && ISA_ARCOMPACT
 	default n
 
 endif	#ARC_CACHE
@@ -226,9 +287,12 @@ config ARC_HAS_HW_MPY
 	  Multipler. Otherwise software multipy lib is used
 
 choice
-	prompt "ARC700 MMU Version"
+	prompt "MMU Version"
 	default ARC_MMU_V3 if ARC_CPU_770
 	default ARC_MMU_V2 if ARC_CPU_750D
+	default ARC_MMU_V4 if ARC_CPU_HS
+
+if ISA_ARCOMPACT
 
 config ARC_MMU_V1
 	bool "MMU v1"
@@ -249,6 +313,12 @@ config ARC_MMU_V3
 	  Variable Page size (1k-16k), var JTLB size 128 x (2 or 4)
 	  Shared Address Spaces (SASID)
 
+endif
+
+config ARC_MMU_V4
+	bool "MMU v4"
+	depends on ISA_ARCV2
+
 endchoice
 
 
@@ -263,13 +333,15 @@ config ARC_PAGE_SIZE_8K
 
 config ARC_PAGE_SIZE_16K
 	bool "16KB"
-	depends on ARC_MMU_V3
+	depends on ARC_MMU_V3 || ARC_MMU_V4
 
 config ARC_PAGE_SIZE_4K
 	bool "4KB"
-	depends on ARC_MMU_V3
+	depends on ARC_MMU_V3 || ARC_MMU_V4
 
 endchoice
+
+if ISA_ARCOMPACT
 
 config ARC_COMPACT_IRQ_LEVELS
 	bool "ARCompact IRQ Priorities: High(2)/Low(1)"
@@ -290,7 +362,7 @@ config ARC_IRQ5_LV2
 config ARC_IRQ6_LV2
 	bool
 
-endif
+endif	#ARC_COMPACT_IRQ_LEVELS
 
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
@@ -303,31 +375,61 @@ config ARC_FPU_SAVE_RESTORE
 	  based on actual usage of FPU by a task. Thus our implemn does
 	  this for all tasks in system.
 
+endif	#ISA_ARCOMPACT
+
 config ARC_CANT_LLSC
 	def_bool n
-
-menuconfig ARC_CPU_REL_4_10
-	bool "Enable support for Rel 4.10 features"
-	default n
-	help
-	  -ARC770 (and dependent features) enabled
-	  -ARC750 also shares some of the new features with 770
 
 config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
-	depends on ARC_CPU_770 && !ARC_CANT_LLSC
+	depends on !ARC_CANT_LLSC
+
+config ARC_STAR_9000923308
+	bool "Workaround for llock/scond livelock"
+	default y
+	depends on ISA_ARCV2 && SMP && ARC_HAS_LLSC
 
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
 	default y
-	depends on ARC_CPU_REL_4_10
 
-config ARC_HAS_RTSC
-	bool "Insn: RTSC (64-bit r/o cycle counter)"
+if ISA_ARCV2
+
+config ARC_HAS_LL64
+	bool "Insn: 64bit LDD/STD"
+	help
+	  Enable gcc to generate 64-bit load/store instructions
+	  ISA mandates even/odd registers to allow encoding of two
+	  dest operands with 2 possible source operands.
 	default y
-	depends on ARC_CPU_REL_4_10
+
+config ARC_HAS_DIV_REM
+	bool "Insn: div, divu, rem, remu"
+	default y
+
+config ARC_HAS_RTC
+	bool "Local 64-bit r/o cycle counter"
+	default n
 	depends on !SMP
+
+config ARC_HAS_GRTC
+	bool "SMP synchronized 64-bit cycle counter"
+	default y
+	depends on SMP
+
+config ARC_NUMBER_OF_INTERRUPTS
+	int "Number of interrupts"
+	range 8 240
+	default 32
+	help
+	  This defines the number of interrupts on the ARCv2HS core.
+	  It affects the size of vector table.
+	  The initial 8 IRQs are fixed (Timer, ICI etc) and although configurable
+	  in hardware, it keep things simple for Linux to assume they are always
+	  present.
+
+endif	# ISA_ARCV2
 
 endmenu   # "ARC CPU Configuration"
 
@@ -343,6 +445,29 @@ config LINUX_LINK_BASE
 	  However some customers have peripherals mapped at this addr, so
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
+	  This needs to match memory start address specified in Device Tree
+
+config HIGHMEM
+	bool "High Memory Support"
+	help
+	  With ARC 2G:2G address split, only upper 2G is directly addressable by
+	  kernel. Enable this to potentially allow access to rest of 2G and PAE
+	  in future
+
+config ARC_HAS_PAE40
+	bool "Support for the 40-bit Physical Address Extension"
+	default n
+	depends on ISA_ARCV2
+	select HIGHMEM
+	help
+	  Enable access to physical memory beyond 4G, only supported on
+	  ARC cores with 40 bit Physical Addressing support
+
+config ARCH_PHYS_ADDR_T_64BIT
+	def_bool ARC_HAS_PAE40
+
+config ARCH_DMA_ADDR_T_64BIT
+	bool
 
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"
@@ -354,8 +479,10 @@ config ARC_CURR_IN_REG
 
 config ARC_EMUL_UNALIGNED
 	bool "Emulate unaligned memory access (userspace only)"
+	default N
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
+	depends on ISA_ARCOMPACT
 	help
 	  This enables misaligned 16 & 32 bit memory access from user space.
 	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
@@ -378,9 +505,10 @@ menuconfig ARC_DBG
 	bool "ARC debugging"
 	default y
 
+if ARC_DBG
+
 config ARC_DW2_UNWIND
 	bool "Enable DWARF specific kernel stack unwind"
-	depends on ARC_DBG
 	default y
 	select KALLSYMS
 	help
@@ -394,17 +522,37 @@ config ARC_DW2_UNWIND
 
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
-	depends on ARC_DBG
 	default n
 
 config ARC_DBG_TLB_MISS_COUNT
 	bool "Profile TLB Misses"
 	default n
 	select DEBUG_FS
-	depends on ARC_DBG
 	help
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
+
+if SMP
+
+config ARC_IPI_DBG
+	bool "Debug Inter Core interrupts"
+	default n
+
+endif
+
+endif
+
+config ARC_UBOOT_SUPPORT
+	bool "Support uboot arg Handling"
+	default n
+	help
+	  ARC Linux by default checks for uboot provided args as pointers to
+	  external cmdline or DTB. This however breaks in absence of uboot,
+	  when booting from Metaware debugger directly, as the registers are
+	  not zeroed out on reset by mdb and/or ARCv2 based cores. The bogus
+	  registers look like uboot args to kernel which then chokes.
+	  So only enable the uboot arg checking/processing if users are sure
+	  of uboot being in play.
 
 config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"

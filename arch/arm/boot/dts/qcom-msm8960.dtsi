@@ -4,6 +4,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8960.h>
+#include <dt-bindings/mfd/qcom-rpm.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
 
 / {
@@ -73,11 +74,10 @@
 			cpu-offset = <0x80000>;
 		};
 
-		msmgpio: gpio@800000 {
-			compatible = "qcom,msm-gpio";
+		msmgpio: pinctrl@800000 {
+			compatible = "qcom,msm8960-pinctrl";
 			gpio-controller;
 			#gpio-cells = <2>;
-			ngpio = <150>;
 			interrupts = <0 16 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -103,6 +103,24 @@
 			reg = <0x4000000 0x1000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+		};
+
+		l2cc: clock-controller@2011000 {
+			compatible	= "syscon";
+			reg		= <0x2011000 0x1000>;
+		};
+
+		rpm@108000 {
+			compatible	= "qcom,rpm-msm8960";
+			reg		= <0x108000 0x1000>;
+			qcom,ipc	= <&l2cc 0x8 2>;
+
+			interrupts	= <0 19 0>, <0 21 0>, <0 22 0>;
+			interrupt-names	= "ack", "err", "wakeup";
+
+			regulators {
+				compatible = "qcom,rpm-pm8921-regulators";
+			};
 		};
 
 		acc0: clock-controller@2088000 {
@@ -139,7 +157,7 @@
 
 			syscon-tcsr = <&tcsr>;
 
-			serial@16440000 {
+			gsbi5_serial: serial@16440000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16440000 0x1000>,
 				      <0x16400000 0x1000>;
@@ -252,6 +270,31 @@
 		tcsr: syscon@1a400000 {
 			compatible = "qcom,tcsr-msm8960", "syscon";
 			reg = <0x1a400000 0x100>;
+		};
+
+		gsbi@16000000 {
+			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <1>;
+			reg = <0x16000000 0x100>;
+			clocks = <&gcc GSBI1_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			spi@16080000 {
+				compatible = "qcom,spi-qup-v1.1.1";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x16080000 0x1000>;
+				interrupts = <0 147 0>;
+				spi-max-frequency = <24000000>;
+				cs-gpios = <&msmgpio 8 0>;
+
+				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+			};
 		};
 	};
 };

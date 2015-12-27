@@ -53,57 +53,14 @@ struct mv643xx_eth_platform_data qnap_tsx09_eth_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
-static int __init qnap_tsx09_parse_hex_nibble(char n)
-{
-	if (n >= '0' && n <= '9')
-		return n - '0';
-
-	if (n >= 'A' && n <= 'F')
-		return n - 'A' + 10;
-
-	if (n >= 'a' && n <= 'f')
-		return n - 'a' + 10;
-
-	return -1;
-}
-
-static int __init qnap_tsx09_parse_hex_byte(const char *b)
-{
-	int hi;
-	int lo;
-
-	hi = qnap_tsx09_parse_hex_nibble(b[0]);
-	lo = qnap_tsx09_parse_hex_nibble(b[1]);
-
-	if (hi < 0 || lo < 0)
-		return -1;
-
-	return (hi << 4) | lo;
-}
-
 static int __init qnap_tsx09_check_mac_addr(const char *addr_str)
 {
 	u_int8_t addr[6];
-	int i;
 
-	for (i = 0; i < 6; i++) {
-		int byte;
+	if (!mac_pton(addr_str, addr))
+		return -1;
 
-		/*
-		 * Enforce "xx:xx:xx:xx:xx:xx\n" format.
-		 */
-		if (addr_str[(i * 3) + 2] != ((i < 5) ? ':' : '\n'))
-			return -1;
-
-		byte = qnap_tsx09_parse_hex_byte(addr_str + (i * 3));
-		if (byte < 0)
-			return -1;
-		addr[i] = byte;
-	}
-
-	printk(KERN_INFO "tsx09: found ethernet mac address ");
-	for (i = 0; i < 6; i++)
-		printk("%.2x%s", addr[i], (i < 5) ? ":" : ".\n");
+	printk(KERN_INFO "tsx09: found ethernet mac address %pM\n", addr);
 
 	memcpy(qnap_tsx09_eth_data.mac_addr, addr, 6);
 
@@ -120,12 +77,12 @@ void __init qnap_tsx09_find_mac_addr(u32 mem_base, u32 size)
 	unsigned long addr;
 
 	for (addr = mem_base; addr < (mem_base + size); addr += 1024) {
-		char *nor_page;
+		void __iomem *nor_page;
 		int ret = 0;
 
 		nor_page = ioremap(addr, 1024);
 		if (nor_page != NULL) {
-			ret = qnap_tsx09_check_mac_addr(nor_page);
+			ret = qnap_tsx09_check_mac_addr((__force const char *)nor_page);
 			iounmap(nor_page);
 		}
 

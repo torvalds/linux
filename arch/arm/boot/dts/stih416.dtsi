@@ -12,7 +12,7 @@
 
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/reset-controller/stih416-resets.h>
+#include <dt-bindings/reset/stih416-resets.h>
 #include <dt-bindings/interrupt-controller/irq-st.h>
 / {
 	L2: cache-controller {

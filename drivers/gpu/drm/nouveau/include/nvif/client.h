@@ -4,36 +4,25 @@
 #include <nvif/object.h>
 
 struct nvif_client {
-	struct nvif_object base;
-	struct nvif_object *object; /*XXX: hack for nvif_object() */
+	struct nvif_object object;
 	const struct nvif_driver *driver;
+	u64 version;
+	u8 route;
 	bool super;
 };
 
-static inline struct nvif_client *
-nvif_client(struct nvif_object *object)
-{
-	while (object && object->parent != object)
-		object = object->parent;
-	return (void *)object;
-}
-
-int  nvif_client_init(void (*dtor)(struct nvif_client *), const char *,
-		      const char *, u64, const char *, const char *,
+int  nvif_client_init(const char *drv, const char *name, u64 device,
+		      const char *cfg, const char *dbg,
 		      struct nvif_client *);
 void nvif_client_fini(struct nvif_client *);
-int  nvif_client_new(const char *, const char *, u64, const char *,
-		     const char *, struct nvif_client **);
-void nvif_client_ref(struct nvif_client *, struct nvif_client **);
 int  nvif_client_ioctl(struct nvif_client *, void *, u32);
 int  nvif_client_suspend(struct nvif_client *);
 int  nvif_client_resume(struct nvif_client *);
 
 /*XXX*/
 #include <core/client.h>
-#define nvxx_client(a) ({ \
-	struct nvif_client *_client = nvif_client(nvif_object(a)); \
-	nvkm_client(_client->base.priv); \
+#define nvxx_client(a) ({                                                      \
+	struct nvif_client *_client = (a);                                     \
+	(struct nvkm_client *)_client->object.priv;                            \
 })
-
 #endif

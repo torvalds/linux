@@ -12,10 +12,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #include <linux/kernel.h>
@@ -151,8 +147,6 @@ static int power_saving_thread(void *data)
 
 	while (!kthread_should_stop()) {
 		unsigned long expire_time;
-
-		try_to_freeze();
 
 		/* round robin to cpus */
 		expire_time = last_jiffies + round_robin_time * HZ;

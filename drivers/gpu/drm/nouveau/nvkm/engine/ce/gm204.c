@@ -21,153 +21,34 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/ce.h>
+#include "priv.h"
 
-#include <core/engctx.h>
+#include <nvif/class.h>
 
-struct gm204_ce_priv {
-	struct nvkm_engine base;
-};
-
-/*******************************************************************************
- * Copy object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gm204_ce_sclass[] = {
-	{ 0xb0b5, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PCE context
- ******************************************************************************/
-
-static struct nvkm_ofuncs
-gm204_ce_context_ofuncs = {
-	.ctor = _nvkm_engctx_ctor,
-	.dtor = _nvkm_engctx_dtor,
-	.init = _nvkm_engctx_init,
-	.fini = _nvkm_engctx_fini,
-	.rd32 = _nvkm_engctx_rd32,
-	.wr32 = _nvkm_engctx_wr32,
-};
-
-static struct nvkm_oclass
-gm204_ce_cclass = {
-	.handle = NV_ENGCTX(CE0, 0x24),
-	.ofuncs = &gm204_ce_context_ofuncs,
-};
-
-/*******************************************************************************
- * PCE engine/subdev functions
- ******************************************************************************/
-
-static void
-gm204_ce_intr(struct nvkm_subdev *subdev)
-{
-	const int ce = nv_subidx(subdev) - NVDEV_ENGINE_CE0;
-	struct gm204_ce_priv *priv = (void *)subdev;
-	u32 stat = nv_rd32(priv, 0x104908 + (ce * 0x1000));
-
-	if (stat) {
-		nv_warn(priv, "unhandled intr 0x%08x\n", stat);
-		nv_wr32(priv, 0x104908 + (ce * 0x1000), stat);
+static const struct nvkm_engine_func
+gm204_ce = {
+	.intr = gk104_ce_intr,
+	.sclass = {
+		{ -1, -1, MAXWELL_DMA_COPY_A },
+		{}
 	}
-}
-
-static int
-gm204_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct gm204_ce_priv *priv;
-	int ret;
-
-	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE0", "ce0", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00000040;
-	nv_subdev(priv)->intr = gm204_ce_intr;
-	nv_engine(priv)->cclass = &gm204_ce_cclass;
-	nv_engine(priv)->sclass = gm204_ce_sclass;
-	return 0;
-}
-
-static int
-gm204_ce1_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct gm204_ce_priv *priv;
-	int ret;
-
-	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE1", "ce1", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00000080;
-	nv_subdev(priv)->intr = gm204_ce_intr;
-	nv_engine(priv)->cclass = &gm204_ce_cclass;
-	nv_engine(priv)->sclass = gm204_ce_sclass;
-	return 0;
-}
-
-static int
-gm204_ce2_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct gm204_ce_priv *priv;
-	int ret;
-
-	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE2", "ce2", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00200000;
-	nv_subdev(priv)->intr = gm204_ce_intr;
-	nv_engine(priv)->cclass = &gm204_ce_cclass;
-	nv_engine(priv)->sclass = gm204_ce_sclass;
-	return 0;
-}
-
-struct nvkm_oclass
-gm204_ce0_oclass = {
-	.handle = NV_ENGINE(CE0, 0x24),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm204_ce0_ctor,
-		.dtor = _nvkm_engine_dtor,
-		.init = _nvkm_engine_init,
-		.fini = _nvkm_engine_fini,
-	},
 };
 
-struct nvkm_oclass
-gm204_ce1_oclass = {
-	.handle = NV_ENGINE(CE1, 0x24),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm204_ce1_ctor,
-		.dtor = _nvkm_engine_dtor,
-		.init = _nvkm_engine_init,
-		.fini = _nvkm_engine_fini,
-	},
-};
-
-struct nvkm_oclass
-gm204_ce2_oclass = {
-	.handle = NV_ENGINE(CE2, 0x24),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm204_ce2_ctor,
-		.dtor = _nvkm_engine_dtor,
-		.init = _nvkm_engine_init,
-		.fini = _nvkm_engine_fini,
-	},
-};
+int
+gm204_ce_new(struct nvkm_device *device, int index,
+	     struct nvkm_engine **pengine)
+{
+	if (index == NVKM_ENGINE_CE0) {
+		return nvkm_engine_new_(&gm204_ce, device, index,
+					0x00000040, true, pengine);
+	} else
+	if (index == NVKM_ENGINE_CE1) {
+		return nvkm_engine_new_(&gm204_ce, device, index,
+					0x00000080, true, pengine);
+	} else
+	if (index == NVKM_ENGINE_CE2) {
+		return nvkm_engine_new_(&gm204_ce, device, index,
+					0x00200000, true, pengine);
+	}
+	return -ENODEV;
+}

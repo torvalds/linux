@@ -1779,7 +1779,7 @@ alloc_highmem_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
 	while (to_alloc-- > 0) {
 		struct page *page;
 
-		page = alloc_image_page(__GFP_HIGHMEM);
+		page = alloc_image_page(__GFP_HIGHMEM|__GFP_KSWAPD_RECLAIM);
 		memory_bm_set_bit(bm, page_to_pfn(page));
 	}
 	return nr_highmem;

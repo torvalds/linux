@@ -365,8 +365,8 @@ int iwl_mvm_rm_sta_id(struct iwl_mvm *mvm,
 int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 			struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta,
-			struct ieee80211_key_conf *key,
-			bool have_key_offset);
+			struct ieee80211_key_conf *keyconf,
+			u8 key_offset);
 int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta,
@@ -378,9 +378,8 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 			     struct ieee80211_sta *sta, u32 iv32,
 			     u16 *phase1key);
 
-int iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
-			  struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd);
+void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
+			   struct iwl_rx_cmd_buffer *rxb);
 
 /* AMPDU */
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,

@@ -162,23 +162,20 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Timed out waiting for DC Servo\n");
 }
 
-static const unsigned int in_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
+static const DECLARE_TLV_DB_RANGE(in_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(-600, 0, 0),
 	1, 3, TLV_DB_SCALE_ITEM(-350, 350, 0),
-	4, 6, TLV_DB_SCALE_ITEM(600, 600, 0),
-};
-static const unsigned int mix_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+	4, 6, TLV_DB_SCALE_ITEM(600, 600, 0)
+);
+static const DECLARE_TLV_DB_RANGE(mix_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(-1200, 300, 0),
-	3, 3, TLV_DB_SCALE_ITEM(0, 0, 0),
-};
+	3, 3, TLV_DB_SCALE_ITEM(0, 0, 0)
+);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -5700, 100, 0);
-static const unsigned int spkboost_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(spkboost_tlv,
 	0, 6, TLV_DB_SCALE_ITEM(0, 150, 0),
-	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0),
-};
+	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0)
+);
 
 static const struct snd_kcontrol_new wm9090_controls[] = {
 SOC_SINGLE_TLV("IN1A Volume", WM9090_IN1_LINE_INPUT_A_VOLUME, 0, 6, 0,
@@ -636,7 +633,6 @@ MODULE_DEVICE_TABLE(i2c, wm9090_id);
 static struct i2c_driver wm9090_i2c_driver = {
 	.driver = {
 		.name = "wm9090",
-		.owner = THIS_MODULE,
 	},
 	.probe = wm9090_i2c_probe,
 	.remove = wm9090_i2c_remove,

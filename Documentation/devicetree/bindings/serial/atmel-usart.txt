@@ -22,6 +22,8 @@ Optional properties:
 		memory peripheral interface and USART DMA channel ID, FIFO configuration.
 		Refer to dma.txt and atmel-dma.txt for details.
 	- dma-names: "rx" for RX channel, "tx" for TX channel.
+- atmel,fifo-size: maximum number of data the RX and TX FIFOs can store for FIFO
+  capable USARTs.
 
 <chip> compatible description:
 - at91rm9200:  legacy USART support
@@ -57,4 +59,5 @@ Example:
 		dmas = <&dma0 2 0x3>,
 		       <&dma0 2 0x204>;
 		dma-names = "tx", "rx";
+		atmel,fifo-size = <32>;
 	};

@@ -2,6 +2,7 @@
  * R-Car MSTP clocks
  *
  * Copyright (C) 2013 Ideas On Board SPRL
+ * Copyright (C) 2015 Glider bvba
  *
  * Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *
@@ -10,11 +11,16 @@
  * the Free Software Foundation; version 2 of the License.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/clk/shmobile.h>
+#include <linux/device.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/pm_clock.h>
+#include <linux/pm_domain.h>
 #include <linux/spinlock.h>
 
 /*
@@ -208,7 +214,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 			break;
 
 		if (clkidx >= MSTP_MAX_CLOCKS) {
-			pr_err("%s: invalid clock %s %s index %u)\n",
+			pr_err("%s: invalid clock %s %s index %u\n",
 			       __func__, np->name, name, clkidx);
 			continue;
 		}
@@ -236,3 +242,88 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 	of_clk_add_provider(np, of_clk_src_onecell_get, &group->data);
 }
 CLK_OF_DECLARE(cpg_mstp_clks, "renesas,cpg-mstp-clocks", cpg_mstp_clocks_init);
+
+
+#ifdef CONFIG_PM_GENERIC_DOMAINS_OF
+int cpg_mstp_attach_dev(struct generic_pm_domain *domain, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct of_phandle_args clkspec;
+	struct clk *clk;
+	int i = 0;
+	int error;
+
+	while (!of_parse_phandle_with_args(np, "clocks", "#clock-cells", i,
+					   &clkspec)) {
+		if (of_device_is_compatible(clkspec.np,
+					    "renesas,cpg-mstp-clocks"))
+			goto found;
+
+		/* BSC on r8a73a4/sh73a0 uses zb_clk instead of an mstp clock */
+		if (!strcmp(clkspec.np->name, "zb_clk"))
+			goto found;
+
+		of_node_put(clkspec.np);
+		i++;
+	}
+
+	return 0;
+
+found:
+	clk = of_clk_get_from_provider(&clkspec);
+	of_node_put(clkspec.np);
+
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	error = pm_clk_create(dev);
+	if (error) {
+		dev_err(dev, "pm_clk_create failed %d\n", error);
+		goto fail_put;
+	}
+
+	error = pm_clk_add_clk(dev, clk);
+	if (error) {
+		dev_err(dev, "pm_clk_add_clk %pC failed %d\n", clk, error);
+		goto fail_destroy;
+	}
+
+	return 0;
+
+fail_destroy:
+	pm_clk_destroy(dev);
+fail_put:
+	clk_put(clk);
+	return error;
+}
+
+void cpg_mstp_detach_dev(struct generic_pm_domain *domain, struct device *dev)
+{
+	if (!list_empty(&dev->power.subsys_data->clock_list))
+		pm_clk_destroy(dev);
+}
+
+void __init cpg_mstp_add_clk_domain(struct device_node *np)
+{
+	struct generic_pm_domain *pd;
+	u32 ncells;
+
+	if (of_property_read_u32(np, "#power-domain-cells", &ncells)) {
+		pr_warn("%s lacks #power-domain-cells\n", np->full_name);
+		return;
+	}
+
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	if (!pd)
+		return;
+
+	pd->name = np->name;
+
+	pd->flags = GENPD_FLAG_PM_CLK;
+	pm_genpd_init(pd, &simple_qos_governor, false);
+	pd->attach_dev = cpg_mstp_attach_dev;
+	pd->detach_dev = cpg_mstp_detach_dev;
+
+	of_genpd_add_provider_simple(np, pd);
+}
+#endif /* !CONFIG_PM_GENERIC_DOMAINS_OF */

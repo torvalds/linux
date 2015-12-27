@@ -16,29 +16,21 @@
 #include <asm/watch.h>
 #include <asm/dsp.h>
 #include <asm/cop2.h>
-#include <asm/msa.h>
+#include <asm/fpu.h>
 
 struct task_struct;
-
-enum {
-	FP_SAVE_NONE	= 0,
-	FP_SAVE_VECTOR	= -1,
-	FP_SAVE_SCALAR	= 1,
-};
 
 /**
  * resume - resume execution of a task
  * @prev:	The task previously executed.
  * @next:	The task to begin executing.
  * @next_ti:	task_thread_info(next).
- * @fp_save:	Which, if any, FP context to save for prev.
  *
  * This function is used whilst scheduling to save the context of prev & load
  * the context of next. Returns prev.
  */
 extern asmlinkage struct task_struct *resume(struct task_struct *prev,
-		struct task_struct *next, struct thread_info *next_ti,
-		s32 fp_save);
+		struct task_struct *next, struct thread_info *next_ti);
 
 extern unsigned int ll_bit;
 extern struct task_struct *ll_task;
@@ -83,45 +75,38 @@ do {	if (cpu_has_rw_llb) {						\
 	}								\
 } while (0)
 
+/*
+ * For newly created kernel threads switch_to() will return to
+ * ret_from_kernel_thread, newly created user threads to ret_from_fork.
+ * That is, everything following resume() will be skipped for new threads.
+ * So everything that matters to new threads should be placed before resume().
+ */
 #define switch_to(prev, next, last)					\
 do {									\
-	u32 __c0_stat;							\
-	s32 __fpsave = FP_SAVE_NONE;					\
 	__mips_mt_fpaff_switch_to(prev);				\
-	if (cpu_has_dsp)						\
+	lose_fpu_inatomic(1, prev);					\
+	if (cpu_has_dsp) {						\
 		__save_dsp(prev);					\
-	if (cop2_present && (KSTK_STATUS(prev) & ST0_CU2)) {		\
-		if (cop2_lazy_restore)					\
-			KSTK_STATUS(prev) &= ~ST0_CU2;			\
-		__c0_stat = read_c0_status();				\
-		write_c0_status(__c0_stat | ST0_CU2);			\
-		cop2_save(prev);					\
-		write_c0_status(__c0_stat & ~ST0_CU2);			\
+		__restore_dsp(next);					\
+	}								\
+	if (cop2_present) {						\
+		set_c0_status(ST0_CU2);					\
+		if ((KSTK_STATUS(prev) & ST0_CU2)) {			\
+			if (cop2_lazy_restore)				\
+				KSTK_STATUS(prev) &= ~ST0_CU2;		\
+			cop2_save(prev);				\
+		}							\
+		if (KSTK_STATUS(next) & ST0_CU2 &&			\
+		    !cop2_lazy_restore) {				\
+			cop2_restore(next);				\
+		}							\
+		clear_c0_status(ST0_CU2);				\
 	}								\
 	__clear_software_ll_bit();					\
-	if (test_and_clear_tsk_thread_flag(prev, TIF_USEDFPU))		\
-		__fpsave = FP_SAVE_SCALAR;				\
-	if (test_and_clear_tsk_thread_flag(prev, TIF_USEDMSA))		\
-		__fpsave = FP_SAVE_VECTOR;				\
-	(last) = resume(prev, next, task_thread_info(next), __fpsave);	\
-} while (0)
-
-#define finish_arch_switch(prev)					\
-do {									\
-	u32 __c0_stat;							\
-	if (cop2_present && !cop2_lazy_restore &&			\
-			(KSTK_STATUS(current) & ST0_CU2)) {		\
-		__c0_stat = read_c0_status();				\
-		write_c0_status(__c0_stat | ST0_CU2);			\
-		cop2_restore(current);					\
-		write_c0_status(__c0_stat & ~ST0_CU2);			\
-	}								\
-	if (cpu_has_dsp)						\
-		__restore_dsp(current);					\
 	if (cpu_has_userlocal)						\
-		write_c0_userlocal(current_thread_info()->tp_value);	\
+		write_c0_userlocal(task_thread_info(next)->tp_value);	\
 	__restore_watch();						\
-	disable_msa();							\
+	(last) = resume(prev, next, task_thread_info(next));		\
 } while (0)
 
 #endif /* _ASM_SWITCH_TO_H */

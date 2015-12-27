@@ -126,35 +126,37 @@ static int next_event(unsigned long delta,
 	return 0;
 }
 
-static void set_clock_mode(enum clock_event_mode mode,
-			   struct clock_event_device *evt)
+static int set_periodic(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		timer64_enable();
-		timer64_mode = TIMER64_MODE_PERIODIC;
-		timer64_config(TIMER64_RATE / HZ);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		timer64_enable();
-		timer64_mode = TIMER64_MODE_ONE_SHOT;
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		timer64_mode = TIMER64_MODE_DISABLED;
-		timer64_disable();
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+	timer64_enable();
+	timer64_mode = TIMER64_MODE_PERIODIC;
+	timer64_config(TIMER64_RATE / HZ);
+	return 0;
+}
+
+static int set_oneshot(struct clock_event_device *evt)
+{
+	timer64_enable();
+	timer64_mode = TIMER64_MODE_ONE_SHOT;
+	return 0;
+}
+
+static int shutdown(struct clock_event_device *evt)
+{
+	timer64_mode = TIMER64_MODE_DISABLED;
+	timer64_disable();
+	return 0;
 }
 
 static struct clock_event_device t64_clockevent_device = {
-	.name		= "TIMER64_EVT32_TIMER",
-	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
-	.rating		= 200,
-	.set_mode	= set_clock_mode,
-	.set_next_event	= next_event,
+	.name			= "TIMER64_EVT32_TIMER",
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERIODIC,
+	.rating			= 200,
+	.set_state_shutdown	= shutdown,
+	.set_state_periodic	= set_periodic,
+	.set_state_oneshot	= set_oneshot,
+	.set_next_event		= next_event,
 };
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id)

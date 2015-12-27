@@ -57,9 +57,11 @@ static inline int cpu_idle_poll(void)
 	rcu_idle_enter();
 	trace_cpu_idle_rcuidle(0, smp_processor_id());
 	local_irq_enable();
+	stop_critical_timings();
 	while (!tif_need_resched() &&
 		(cpu_idle_force_poll || tick_check_broadcast_expired()))
 		cpu_relax();
+	start_critical_timings();
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
 	rcu_idle_exit();
 	return 1;
@@ -83,10 +85,13 @@ void __weak arch_cpu_idle(void)
  */
 void default_idle_call(void)
 {
-	if (current_clr_polling_and_test())
+	if (current_clr_polling_and_test()) {
 		local_irq_enable();
-	else
+	} else {
+		stop_critical_timings();
 		arch_cpu_idle();
+		start_critical_timings();
+	}
 }
 
 static int call_cpuidle(struct cpuidle_driver *drv, struct cpuidle_device *dev,
@@ -141,12 +146,6 @@ static void cpuidle_idle_call(void)
 	}
 
 	/*
-	 * During the idle period, stop measuring the disabled irqs
-	 * critical sections latencies
-	 */
-	stop_critical_timings();
-
-	/*
 	 * Tell the RCU framework we are entering an idle section,
 	 * so no more rcu read side critical sections and one more
 	 * step to the grace period
@@ -198,7 +197,6 @@ exit_idle:
 		local_irq_enable();
 
 	rcu_idle_exit();
-	start_critical_timings();
 }
 
 DEFINE_PER_CPU(bool, cpu_dead_idle);

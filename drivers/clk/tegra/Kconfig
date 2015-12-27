@@ -1,0 +1,3 @@
+config TEGRA_CLK_EMC
+	def_bool y
+	depends on TEGRA124_EMC

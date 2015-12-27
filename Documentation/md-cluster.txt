@@ -91,7 +91,7 @@ The algorithm is:
     this message inappropriate or redundant.
 
  3. sender write LVB.
-    sender down-convert MESSAGE from EX to CR
+    sender down-convert MESSAGE from EX to CW
     sender try to get EX of ACK
     [ wait until all receiver has *processed* the MESSAGE ]
 
@@ -112,7 +112,7 @@ The algorithm is:
     sender down-convert ACK from EX to CR
     sender release MESSAGE
     sender release TOKEN
-                               receiver upconvert to EX of MESSAGE
+                               receiver upconvert to PR of MESSAGE
                                receiver get CR of ACK
                                receiver release MESSAGE
 

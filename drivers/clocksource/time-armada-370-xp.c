@@ -45,6 +45,8 @@
 #include <linux/percpu.h>
 #include <linux/syscore_ops.h>
 
+#include <asm/delay.h>
+
 /*
  * Timer block registers.
  */
@@ -121,33 +123,33 @@ armada_370_xp_clkevt_next_event(unsigned long delta,
 	return 0;
 }
 
-static void
-armada_370_xp_clkevt_mode(enum clock_event_mode mode,
-			  struct clock_event_device *dev)
+static int armada_370_xp_clkevt_shutdown(struct clock_event_device *evt)
 {
-	if (mode == CLOCK_EVT_MODE_PERIODIC) {
+	/*
+	 * Disable timer.
+	 */
+	local_timer_ctrl_clrset(TIMER0_EN, 0);
 
-		/*
-		 * Setup timer to fire at 1/HZ intervals.
-		 */
-		writel(ticks_per_jiffy - 1, local_base + TIMER0_RELOAD_OFF);
-		writel(ticks_per_jiffy - 1, local_base + TIMER0_VAL_OFF);
+	/*
+	 * ACK pending timer interrupt.
+	 */
+	writel(TIMER0_CLR_MASK, local_base + LCL_TIMER_EVENTS_STATUS);
+	return 0;
+}
 
-		/*
-		 * Enable timer.
-		 */
-		local_timer_ctrl_clrset(0, TIMER0_RELOAD_EN | enable_mask);
-	} else {
-		/*
-		 * Disable timer.
-		 */
-		local_timer_ctrl_clrset(TIMER0_EN, 0);
+static int armada_370_xp_clkevt_set_periodic(struct clock_event_device *evt)
+{
+	/*
+	 * Setup timer to fire at 1/HZ intervals.
+	 */
+	writel(ticks_per_jiffy - 1, local_base + TIMER0_RELOAD_OFF);
+	writel(ticks_per_jiffy - 1, local_base + TIMER0_VAL_OFF);
 
-		/*
-		 * ACK pending timer interrupt.
-		 */
-		writel(TIMER0_CLR_MASK, local_base + LCL_TIMER_EVENTS_STATUS);
-	}
+	/*
+	 * Enable timer.
+	 */
+	local_timer_ctrl_clrset(0, TIMER0_RELOAD_EN | enable_mask);
+	return 0;
 }
 
 static int armada_370_xp_clkevt_irq;
@@ -185,7 +187,10 @@ static int armada_370_xp_timer_setup(struct clock_event_device *evt)
 	evt->shift		= 32,
 	evt->rating		= 300,
 	evt->set_next_event	= armada_370_xp_clkevt_next_event,
-	evt->set_mode		= armada_370_xp_clkevt_mode,
+	evt->set_state_shutdown	= armada_370_xp_clkevt_shutdown;
+	evt->set_state_periodic	= armada_370_xp_clkevt_set_periodic;
+	evt->set_state_oneshot	= armada_370_xp_clkevt_shutdown;
+	evt->tick_resume	= armada_370_xp_clkevt_shutdown;
 	evt->irq		= armada_370_xp_clkevt_irq;
 	evt->cpumask		= cpumask_of(cpu);
 
@@ -197,7 +202,7 @@ static int armada_370_xp_timer_setup(struct clock_event_device *evt)
 
 static void armada_370_xp_timer_stop(struct clock_event_device *evt)
 {
-	evt->set_mode(CLOCK_EVT_MODE_UNUSED, evt);
+	evt->set_state_shutdown(evt);
 	disable_percpu_irq(evt->irq);
 }
 
@@ -246,6 +251,15 @@ struct syscore_ops armada_370_xp_timer_syscore_ops = {
 	.resume		= armada_370_xp_timer_resume,
 };
 
+static unsigned long armada_370_delay_timer_read(void)
+{
+	return ~readl(timer_base + TIMER0_VAL_OFF);
+}
+
+static struct delay_timer armada_370_delay_timer = {
+	.read_current_timer = armada_370_delay_timer_read,
+};
+
 static void __init armada_370_xp_timer_common_init(struct device_node *np)
 {
 	u32 clr = 0, set = 0;
@@ -283,6 +297,9 @@ static void __init armada_370_xp_timer_common_init(struct device_node *np)
 	atomic_io_modify(timer_base + TIMER_CTRL_OFF,
 		TIMER0_RELOAD_EN | enable_mask,
 		TIMER0_RELOAD_EN | enable_mask);
+
+	armada_370_delay_timer.freq = timer_clk;
+	register_current_timer_delay(&armada_370_delay_timer);
 
 	/*
 	 * Set scale and timer for sched_clock.

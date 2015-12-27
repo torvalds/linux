@@ -80,13 +80,7 @@ static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	pcf85063->c_polarity = (buf[PCF85063_REG_MO] & PCF85063_MO_C) ?
 		(tm->tm_year >= 100) : (tm->tm_year < 100);
 
-	/* the clock can give out invalid datetime, but we cannot return
-	 * -EINVAL otherwise hwclock will refuse to set the time on bootup.
-	 */
-	if (rtc_valid_tm(tm) < 0)
-		dev_err(&client->dev, "retrieved date/time is not valid.\n");
-
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
@@ -189,7 +183,6 @@ MODULE_DEVICE_TABLE(of, pcf85063_of_match);
 static struct i2c_driver pcf85063_driver = {
 	.driver		= {
 		.name	= "rtc-pcf85063",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pcf85063_of_match),
 	},
 	.probe		= pcf85063_probe,

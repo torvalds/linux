@@ -141,6 +141,22 @@ config DELL_SMO8800
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-smo8800.
 
+config DELL_RBTN
+	tristate "Dell Airplane Mode Switch driver"
+	depends on ACPI
+	depends on INPUT
+	depends on RFKILL
+	---help---
+	  Say Y here if you want to support Dell Airplane Mode Switch ACPI
+	  device on Dell laptops. Sometimes it has names: DELLABCE or DELRBTN.
+	  This driver register rfkill device or input hotkey device depending
+	  on hardware type (hw switch slider or keyboard toggle button). For
+	  rfkill devices it receive HW switch events and set correct hard
+	  rfkill state.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-rbtn.
+
 
 config FUJITSU_LAPTOP
 	tristate "Fujitsu Laptop Extras"
@@ -293,8 +309,8 @@ config COMPAL_LAPTOP
 	  This is a driver for laptops built by Compal, and some models by
 	  other brands (e.g. Dell, Toshiba).
 
-	  It adds support for rfkill, Bluetooth, WLAN and LCD brightness
-	  control.
+	  It adds support for rfkill, Bluetooth, WLAN, LCD brightness, hwmon
+	  and battery charging level control.
 
 	  For a (possibly incomplete) list of supported laptops, please refer
 	  to: Documentation/platform/x86-laptop-drivers.txt
@@ -329,6 +345,7 @@ config IDEAPAD_LAPTOP
 	depends on SERIO_I8042
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on ACPI_WMI || ACPI_WMI = n
 	select INPUT_SPARSEKMAP
 	help
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
@@ -622,7 +639,6 @@ config ACPI_TOSHIBA
 	select NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
-	depends on RFKILL || RFKILL = n
 	depends on SERIO_I8042 || SERIO_I8042 = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_POLLDEV
@@ -653,6 +669,7 @@ config ACPI_TOSHIBA
 config TOSHIBA_BT_RFKILL
 	tristate "Toshiba Bluetooth RFKill switch support"
 	depends on ACPI
+	depends on RFKILL || RFKILL = n
 	---help---
 	  This driver adds support for Bluetooth events for the RFKill
 	  switch on modern Toshiba laptops with full ACPI support and
@@ -683,6 +700,24 @@ config TOSHIBA_HAPS
 
 	  If you have a recent Toshiba laptop with a built-in accelerometer
 	  device, say Y.
+
+config TOSHIBA_WMI
+	tristate "Toshiba WMI Hotkeys Driver (EXPERIMENTAL)"
+	default n
+	depends on ACPI_WMI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	---help---
+	  This driver adds hotkey monitoring support to some Toshiba models
+	  that manage the hotkeys via WMI events.
+
+	  WARNING: This driver is incomplete as it lacks a proper keymap and the
+	  *notify function only prints the ACPI event type value. Be warned that
+	  you will need to provide some information if you have a Toshiba model
+	  with WMI event hotkeys and want to help with the develpment of this
+	  driver.
+
+	  If you have a WMI-based hotkeys Toshiba laptop, say Y or M here.
 
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
@@ -896,4 +931,17 @@ config PVPANIC
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
 
+config INTEL_PMC_IPC
+	tristate "Intel PMC IPC Driver"
+	depends on ACPI
+	---help---
+	This driver provides support for PMC control on some Intel platforms.
+	The PMC is an ARC processor which defines IPC commands for communication
+	with other entities in the CPU.
+
+config SURFACE_PRO3_BUTTON
+	tristate "Power/home/volume buttons driver for Microsoft Surface Pro 3 tablet"
+	depends on ACPI && INPUT
+	---help---
+	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3 tablet.
 endif # X86_PLATFORM_DEVICES

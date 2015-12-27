@@ -84,6 +84,13 @@ MODULE_PARM_DESC(max_persistent_grants,
                  "Maximum number of grants to map persistently");
 
 /*
+ * Maximum order of pages to be used for the shared ring between front and
+ * backend, 4KB page granularity is used.
+ */
+unsigned int xen_blkif_max_ring_order = XENBUS_MAX_RING_GRANT_ORDER;
+module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, S_IRUGO);
+MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the shared ring");
+/*
  * The LRU mechanism to clean the lists of persistent grants needs to
  * be executed periodically. The time interval between consecutive executions
  * of the purge mechanism is set in ms.
@@ -362,8 +369,8 @@ static void purge_persistent_gnt(struct xen_blkif *blkif)
 		return;
 	}
 
-	if (work_pending(&blkif->persistent_purge_work)) {
-		pr_alert_ratelimited("Scheduled work from previous purge is still pending, cannot purge list\n");
+	if (work_busy(&blkif->persistent_purge_work)) {
+		pr_alert_ratelimited("Scheduled work from previous purge is still busy, cannot purge list\n");
 		return;
 	}
 
@@ -729,7 +736,7 @@ static void xen_blkbk_unmap_and_respond(struct pending_req *req)
 	struct grant_page **pages = req->segments;
 	unsigned int invcount;
 
-	invcount = xen_blkbk_unmap_prepare(blkif, pages, req->nr_pages,
+	invcount = xen_blkbk_unmap_prepare(blkif, pages, req->nr_segs,
 					   req->unmap, req->unmap_pages);
 
 	work->data = req;
@@ -915,7 +922,7 @@ static int xen_blkbk_map_seg(struct pending_req *pending_req)
 	int rc;
 
 	rc = xen_blkbk_map(pending_req->blkif, pending_req->segments,
-			   pending_req->nr_pages,
+			   pending_req->nr_segs,
 	                   (pending_req->operation != BLKIF_OP_READ));
 
 	return rc;
@@ -931,7 +938,7 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 	int indirect_grefs, rc, n, nseg, i;
 	struct blkif_request_segment *segments = NULL;
 
-	nseg = pending_req->nr_pages;
+	nseg = pending_req->nr_segs;
 	indirect_grefs = INDIRECT_PAGES(nseg);
 	BUG_ON(indirect_grefs > BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST);
 
@@ -943,6 +950,8 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 		goto unmap;
 
 	for (n = 0, i = 0; n < nseg; n++) {
+		uint8_t first_sect, last_sect;
+
 		if ((n % SEGS_PER_INDIRECT_FRAME) == 0) {
 			/* Map indirect segments */
 			if (segments)
@@ -950,15 +959,18 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 			segments = kmap_atomic(pages[n/SEGS_PER_INDIRECT_FRAME]->page);
 		}
 		i = n % SEGS_PER_INDIRECT_FRAME;
+
 		pending_req->segments[n]->gref = segments[i].gref;
-		seg[n].nsec = segments[i].last_sect -
-			segments[i].first_sect + 1;
-		seg[n].offset = (segments[i].first_sect << 9);
-		if ((segments[i].last_sect >= (PAGE_SIZE >> 9)) ||
-		    (segments[i].last_sect < segments[i].first_sect)) {
+
+		first_sect = READ_ONCE(segments[i].first_sect);
+		last_sect = READ_ONCE(segments[i].last_sect);
+		if (last_sect >= (XEN_PAGE_SIZE >> 9) || last_sect < first_sect) {
 			rc = -EINVAL;
 			goto unmap;
 		}
+
+		seg[n].nsec = last_sect - first_sect + 1;
+		seg[n].offset = first_sect << 9;
 		preq->nr_sects += seg[n].nsec;
 	}
 
@@ -1071,9 +1083,9 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 /*
  * bio callback.
  */
-static void end_block_io_op(struct bio *bio, int error)
+static void end_block_io_op(struct bio *bio)
 {
-	__end_block_io_op(bio->bi_private, error);
+	__end_block_io_op(bio->bi_private, bio->bi_error);
 	bio_put(bio);
 }
 
@@ -1203,6 +1215,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 
 	req_operation = req->operation == BLKIF_OP_INDIRECT ?
 			req->u.indirect.indirect_op : req->operation;
+
 	if ((req->operation == BLKIF_OP_INDIRECT) &&
 	    (req_operation != BLKIF_OP_READ) &&
 	    (req_operation != BLKIF_OP_WRITE)) {
@@ -1251,7 +1264,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	pending_req->id        = req->u.rw.id;
 	pending_req->operation = req_operation;
 	pending_req->status    = BLKIF_RSP_OKAY;
-	pending_req->nr_pages  = nseg;
+	pending_req->nr_segs   = nseg;
 
 	if (req->operation != BLKIF_OP_INDIRECT) {
 		preq.dev               = req->u.rw.handle;
@@ -1261,7 +1274,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 			seg[i].nsec = req->u.rw.seg[i].last_sect -
 				req->u.rw.seg[i].first_sect + 1;
 			seg[i].offset = (req->u.rw.seg[i].first_sect << 9);
-			if ((req->u.rw.seg[i].last_sect >= (PAGE_SIZE >> 9)) ||
+			if ((req->u.rw.seg[i].last_sect >= (XEN_PAGE_SIZE >> 9)) ||
 			    (req->u.rw.seg[i].last_sect <
 			     req->u.rw.seg[i].first_sect))
 				goto fail_response;
@@ -1372,7 +1385,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 
  fail_flush:
 	xen_blkbk_unmap(blkif, pending_req->segments,
-	                pending_req->nr_pages);
+	                pending_req->nr_segs);
  fail_response:
 	/* Haven't submitted any bio's yet. */
 	make_response(blkif, req->u.rw.id, req_operation, BLKIF_RSP_ERROR);
@@ -1437,6 +1450,12 @@ static int __init xen_blkif_init(void)
 
 	if (!xen_domain())
 		return -ENODEV;
+
+	if (xen_blkif_max_ring_order > XENBUS_MAX_RING_GRANT_ORDER) {
+		pr_info("Invalid max_ring_order (%d), will use default max: %d.\n",
+			xen_blkif_max_ring_order, XENBUS_MAX_RING_GRANT_ORDER);
+		xen_blkif_max_ring_order = XENBUS_MAX_RING_GRANT_ORDER;
+	}
 
 	rc = xen_blkif_interface_init();
 	if (rc)

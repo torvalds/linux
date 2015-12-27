@@ -1,12 +1,11 @@
 /* visorbus_main.c
  *
- * Copyright � 2010 - 2013 UNISYS CORPORATION
+ * Copyright � 2010 - 2015 UNISYS CORPORATION
  * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -37,6 +36,8 @@ static int visorbus_debugref;
 #define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
 #define POLLJIFFIES_TESTWORK         100
 #define POLLJIFFIES_NORMALCHANNEL     10
+
+static int busreg_rc = -ENODEV; /* stores the result from bus registration */
 
 static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env);
 static int visorbus_match(struct device *xdev, struct device_driver *xdrv);
@@ -70,6 +71,38 @@ static const struct attribute_group *visorbus_bus_groups[] = {
 	NULL,
 };
 
+/*
+ * DEVICE type attributes
+ *
+ * The modalias file will contain the guid of the device.
+ */
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct visor_device *vdev;
+	uuid_le guid;
+
+	vdev = to_visor_device(dev);
+	guid = visorchannel_get_uuid(vdev->visorchannel);
+	return snprintf(buf, PAGE_SIZE, "visorbus:%pUl\n", &guid);
+}
+static DEVICE_ATTR_RO(modalias);
+
+static struct attribute *visorbus_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
+};
+
+/* sysfs example for bridge-only sysfs files using device_type's */
+static const struct attribute_group visorbus_dev_group = {
+	.attrs = visorbus_dev_attrs,
+};
+
+static const struct attribute_group *visorbus_dev_groups[] = {
+	&visorbus_dev_group,
+	NULL,
+};
+
 /** This describes the TYPE of bus.
  *  (Don't confuse this with an INSTANCE of the bus.)
  */
@@ -77,6 +110,7 @@ struct bus_type visorbus_type = {
 	.name = "visorbus",
 	.match = visorbus_match,
 	.uevent = visorbus_uevent,
+	.dev_groups = visorbus_dev_groups,
 	.bus_groups = visorbus_bus_groups,
 };
 
@@ -129,7 +163,13 @@ static LIST_HEAD(list_all_device_instances);
 static int
 visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
 {
-	if (add_uevent_var(env, "VERSION=%s", VERSION))
+	struct visor_device *dev;
+	uuid_le guid;
+
+	dev = to_visor_device(xdev);
+	guid = visorchannel_get_uuid(dev->visorchannel);
+
+	if (add_uevent_var(env, "MODALIAS=visorbus:%pUl", &guid))
 		return -ENOMEM;
 	return 0;
 }
@@ -218,9 +258,9 @@ visorbus_release_device(struct device *xdev)
 struct devmajorminor_attribute {
 	struct attribute attr;
 	int slot;
-	 ssize_t (*show)(struct visor_device *, int slot, char *buf);
-	 ssize_t (*store)(struct visor_device *, int slot, const char *buf,
-			  size_t count);
+	ssize_t (*show)(struct visor_device *, int slot, char *buf);
+	ssize_t (*store)(struct visor_device *, int slot, const char *buf,
+			 size_t count);
 };
 
 static ssize_t DEVMAJORMINOR_ATTR(struct visor_device *dev, int slot, char *buf)
@@ -281,12 +321,11 @@ devmajorminor_create_file(struct visor_device *dev, const char *name,
 		rc = -ENOMEM;
 		goto away;
 	}
-	myattr = kmalloc(sizeof(*myattr), GFP_KERNEL);
+	myattr = kzalloc(sizeof(*myattr), GFP_KERNEL);
 	if (!myattr) {
 		rc = -ENOMEM;
 		goto away;
 	}
-	memset(myattr, 0, sizeof(struct devmajorminor_attribute));
 	myattr->show = DEVMAJORMINOR_ATTR;
 	myattr->store = NULL;
 	myattr->slot = slot;
@@ -471,6 +510,7 @@ static struct attribute *channel_attrs[] = {
 		&dev_attr_typeguid.attr,
 		&dev_attr_zoneguid.attr,
 		&dev_attr_typename.attr,
+		NULL
 };
 
 static struct attribute_group channel_attr_grp = {
@@ -478,7 +518,7 @@ static struct attribute_group channel_attr_grp = {
 		.attrs = channel_attrs,
 };
 
-static const struct attribute_group *visorbus_dev_groups[] = {
+static const struct attribute_group *visorbus_channel_groups[] = {
 		&channel_attr_grp,
 		NULL
 };
@@ -678,7 +718,7 @@ unregister_driver_attributes(struct visor_driver *drv)
 static void
 dev_periodic_work(void *xdev)
 {
-	struct visor_device *dev = (struct visor_device *)xdev;
+	struct visor_device *dev = xdev;
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
 
 	down(&dev->visordriver_callback_lock);
@@ -825,6 +865,9 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 {
 	int rc = 0;
 
+	if (busreg_rc < 0)
+		return -ENODEV; /*can't register on a nonexistent bus*/
+
 	drv->driver.name = drv->name;
 	drv->driver.bus = &visorbus_type;
 	drv->driver.probe = visordriver_probe_device;
@@ -847,6 +890,8 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 	if (rc < 0)
 		return rc;
 	rc = register_driver_attributes(drv);
+	if (rc < 0)
+		driver_unregister(&drv->driver);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visorbus_register_visor_driver);
@@ -937,7 +982,7 @@ create_visor_device(struct visor_device *dev)
 
 	sema_init(&dev->visordriver_callback_lock, 1);	/* unlocked */
 	dev->device.bus = &visorbus_type;
-	dev->device.groups = visorbus_dev_groups;
+	dev->device.groups = visorbus_channel_groups;
 	device_initialize(&dev->device);
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
@@ -1043,10 +1088,10 @@ write_vbus_chp_info(struct visorchannel *chan,
 	int off = sizeof(struct channel_header) + hdr_info->chp_info_offset;
 
 	if (hdr_info->chp_info_offset == 0)
-			return -1;
+		return -1;
 
 	if (visorchannel_write(chan, off, info, sizeof(*info)) < 0)
-			return -1;
+		return -1;
 	return 0;
 }
 
@@ -1061,10 +1106,10 @@ write_vbus_bus_info(struct visorchannel *chan,
 	int off = sizeof(struct channel_header) + hdr_info->bus_info_offset;
 
 	if (hdr_info->bus_info_offset == 0)
-			return -1;
+		return -1;
 
 	if (visorchannel_write(chan, off, info, sizeof(*info)) < 0)
-			return -1;
+		return -1;
 	return 0;
 }
 
@@ -1081,10 +1126,10 @@ write_vbus_dev_info(struct visorchannel *chan,
 	    (hdr_info->device_info_struct_bytes * devix);
 
 	if (hdr_info->dev_info_offset == 0)
-			return -1;
+		return -1;
 
 	if (visorchannel_write(chan, off, info, sizeof(*info)) < 0)
-			return -1;
+		return -1;
 	return 0;
 }
 
@@ -1106,7 +1151,7 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	struct spar_vbus_headerinfo *hdr_info;
 
 	if (!visordev->device.driver)
-			return;
+		return;
 
 	hdr_info = (struct spar_vbus_headerinfo *)visordev->vbus_hdr_info;
 	if (!hdr_info)
@@ -1222,10 +1267,8 @@ remove_bus_instance(struct visor_device *dev)
 static int
 create_bus_type(void)
 {
-	int rc = 0;
-
-	rc = bus_register(&visorbus_type);
-	return rc;
+	busreg_rc = bus_register(&visorbus_type);
+	return busreg_rc;
 }
 
 /** Remove the one-and-only one instance of the visor bus type (visorbus_type).
@@ -1319,11 +1362,11 @@ static void
 pause_state_change_complete(struct visor_device *dev, int status)
 {
 	if (!dev->pausing)
-			return;
+		return;
 
 	dev->pausing = false;
 	if (!chipset_responders.device_pause) /* this can never happen! */
-			return;
+		return;
 
 	/* Notify the chipset driver that the pause is complete, which
 	* will presumably want to send some sort of response to the
@@ -1339,11 +1382,11 @@ static void
 resume_state_change_complete(struct visor_device *dev, int status)
 {
 	if (!dev->resuming)
-			return;
+		return;
 
 	dev->resuming = false;
 	if (!chipset_responders.device_resume) /* this can never happen! */
-			return;
+		return;
 
 	/* Notify the chipset driver that the resume is complete,
 	 * which will presumably want to send some sort of response to
@@ -1367,14 +1410,14 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 	else
 		notify_func = chipset_responders.device_resume;
 	if (!notify_func)
-			goto away;
+		goto away;
 
 	drv = to_visor_driver(dev->device.driver);
 	if (!drv)
-			goto away;
+		goto away;
 
 	if (dev->pausing || dev->resuming)
-			goto away;
+		goto away;
 
 	/* Note that even though both drv->pause() and drv->resume
 	 * specify a callback function, it is NOT necessary for us to
@@ -1385,7 +1428,7 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 	 */
 	if (is_pause) {
 		if (!drv->pause)
-				goto away;
+			goto away;
 
 		dev->pausing = true;
 		x = drv->pause(dev, pause_state_change_complete);
@@ -1397,7 +1440,7 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 		 * would never even get here in that case. */
 		fix_vbus_dev_info(dev);
 		if (!drv->resume)
-				goto away;
+			goto away;
 
 		dev->resuming = true;
 		x = drv->resume(dev, resume_state_change_complete);
@@ -1413,7 +1456,7 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 away:
 	if (rc < 0) {
 		if (notify_func)
-				(*notify_func)(dev, rc);
+			(*notify_func)(dev, rc);
 	}
 }
 
@@ -1469,8 +1512,8 @@ visorbus_init(void)
 
 away:
 	if (rc)
-			POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, rc,
-					 POSTCODE_SEVERITY_ERR);
+		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, rc,
+				 POSTCODE_SEVERITY_ERR);
 	return rc;
 }
 
@@ -1495,9 +1538,8 @@ visorbus_exit(void)
 
 	list_for_each_safe(listentry, listtmp, &list_all_bus_instances) {
 		struct visor_device *dev = list_entry(listentry,
-							      struct
-							      visor_device,
-							      list_all);
+						      struct visor_device,
+						      list_all);
 		remove_bus_instance(dev);
 	}
 	remove_bus_type();

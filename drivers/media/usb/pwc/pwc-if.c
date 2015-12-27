@@ -240,9 +240,9 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 			PWC_DEBUG_FLOW("Frame buffer underflow (%d bytes);"
 				       " discarded.\n", fbuf->filled);
 		} else {
-			fbuf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
-			fbuf->vb.v4l2_buf.sequence = pdev->vframe_count;
-			vb2_buffer_done(&fbuf->vb, VB2_BUF_STATE_DONE);
+			fbuf->vb.field = V4L2_FIELD_NONE;
+			fbuf->vb.sequence = pdev->vframe_count;
+			vb2_buffer_done(&fbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			pdev->fill_buf = NULL;
 			pdev->vsync = 0;
 		}
@@ -287,7 +287,7 @@ static void pwc_isoc_handler(struct urb *urb)
 		{
 			PWC_ERROR("Too many ISOC errors, bailing out.\n");
 			if (pdev->fill_buf) {
-				vb2_buffer_done(&pdev->fill_buf->vb,
+				vb2_buffer_done(&pdev->fill_buf->vb.vb2_buf,
 						VB2_BUF_STATE_ERROR);
 				pdev->fill_buf = NULL;
 			}
@@ -317,7 +317,7 @@ static void pwc_isoc_handler(struct urb *urb)
 
 			if (pdev->vsync == 1) {
 				v4l2_get_timestamp(
-					&fbuf->vb.v4l2_buf.timestamp);
+					&fbuf->vb.timestamp);
 				pdev->vsync = 2;
 			}
 
@@ -520,7 +520,7 @@ static void pwc_cleanup_queued_bufs(struct pwc_device *pdev,
 		buf = list_entry(pdev->queued_bufs.next, struct pwc_frame_buf,
 				 list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, state);
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
 	spin_unlock_irqrestore(&pdev->queued_bufs_lock, flags);
 }
@@ -571,7 +571,7 @@ static void pwc_video_release(struct v4l2_device *v)
 /***************************************************************************/
 /* Videobuf2 operations */
 
-static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int queue_setup(struct vb2_queue *vq, const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -594,7 +594,9 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 static int buffer_init(struct vb2_buffer *vb)
 {
-	struct pwc_frame_buf *buf = container_of(vb, struct pwc_frame_buf, vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct pwc_frame_buf *buf =
+		container_of(vbuf, struct pwc_frame_buf, vb);
 
 	/* need vmalloc since frame buffer > 128K */
 	buf->data = vzalloc(PWC_FRAME_SIZE);
@@ -618,7 +620,9 @@ static int buffer_prepare(struct vb2_buffer *vb)
 static void buffer_finish(struct vb2_buffer *vb)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vb->vb2_queue);
-	struct pwc_frame_buf *buf = container_of(vb, struct pwc_frame_buf, vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct pwc_frame_buf *buf =
+		container_of(vbuf, struct pwc_frame_buf, vb);
 
 	if (vb->state == VB2_BUF_STATE_DONE) {
 		/*
@@ -633,7 +637,9 @@ static void buffer_finish(struct vb2_buffer *vb)
 
 static void buffer_cleanup(struct vb2_buffer *vb)
 {
-	struct pwc_frame_buf *buf = container_of(vb, struct pwc_frame_buf, vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct pwc_frame_buf *buf =
+		container_of(vbuf, struct pwc_frame_buf, vb);
 
 	vfree(buf->data);
 }
@@ -641,12 +647,14 @@ static void buffer_cleanup(struct vb2_buffer *vb)
 static void buffer_queue(struct vb2_buffer *vb)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vb->vb2_queue);
-	struct pwc_frame_buf *buf = container_of(vb, struct pwc_frame_buf, vb);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct pwc_frame_buf *buf =
+		container_of(vbuf, struct pwc_frame_buf, vb);
 	unsigned long flags = 0;
 
 	/* Check the device has not disconnected between prep and queuing */
 	if (!pdev->udev) {
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 		return;
 	}
 
@@ -695,7 +703,8 @@ static void stop_streaming(struct vb2_queue *vq)
 
 	pwc_cleanup_queued_bufs(pdev, VB2_BUF_STATE_ERROR);
 	if (pdev->fill_buf)
-		vb2_buffer_done(&pdev->fill_buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&pdev->fill_buf->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	mutex_unlock(&pdev->v4l2_lock);
 }
 

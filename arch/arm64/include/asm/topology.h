@@ -1,8 +1,6 @@
 #ifndef __ASM_TOPOLOGY_H
 #define __ASM_TOPOLOGY_H
 
-#ifdef CONFIG_SMP
-
 #include <linux/cpumask.h>
 
 struct cpu_topology {
@@ -23,13 +21,6 @@ extern struct cpu_topology cpu_topology[NR_CPUS];
 void init_cpu_topology(void);
 void store_cpu_topology(unsigned int cpuid);
 const struct cpumask *cpu_coregroup_mask(int cpu);
-
-#else
-
-static inline void init_cpu_topology(void) { }
-static inline void store_cpu_topology(unsigned int cpuid) { }
-
-#endif
 
 #include <asm-generic/topology.h>
 

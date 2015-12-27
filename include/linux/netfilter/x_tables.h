@@ -3,6 +3,7 @@
 
 
 #include <linux/netdevice.h>
+#include <linux/static_key.h>
 #include <uapi/linux/netfilter/x_tables.h>
 
 /**
@@ -12,6 +13,7 @@
  * @target:	the target extension
  * @matchinfo:	per-match data
  * @targetinfo:	per-target data
+ * @net		network namespace through which the action was invoked
  * @in:		input netdevice
  * @out:	output netdevice
  * @fragoff:	packet is a fragment, this is the data offset
@@ -23,7 +25,6 @@
  * Fields written to by extensions:
  *
  * @hotdrop:	drop packet if we had inspection problems
- * Network namespace obtainable using dev_net(in/out)
  */
 struct xt_action_param {
 	union {
@@ -33,6 +34,7 @@ struct xt_action_param {
 	union {
 		const void *matchinfo, *targinfo;
 	};
+	struct net *net;
 	const struct net_device *in, *out;
 	int fragoff;
 	unsigned int thoff;
@@ -222,7 +224,6 @@ struct xt_table_info {
 	 * @stacksize jumps (number of user chains) can possibly be made.
 	 */
 	unsigned int stacksize;
-	unsigned int __percpu *stackptr;
 	void ***jumpstack;
 
 	unsigned char entries[0] __aligned(8);
@@ -280,6 +281,12 @@ void xt_free_table_info(struct xt_table_info *info);
  * Low order bit set to 1 if a writer is active.
  */
 DECLARE_PER_CPU(seqcount_t, xt_recseq);
+
+/* xt_tee_enabled - true if x_tables needs to handle reentrancy
+ *
+ * Enabled if current ip(6)tables ruleset has at least one -j TEE rule.
+ */
+extern struct static_key xt_tee_enabled;
 
 /**
  * xt_write_recseq_begin - start of a write section

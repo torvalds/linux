@@ -239,8 +239,9 @@ static int mpc52xx_psc_tx_rdy(struct uart_port *port)
 
 static int mpc52xx_psc_tx_empty(struct uart_port *port)
 {
-	return in_be16(&PSC(port)->mpc52xx_psc_status)
-	    & MPC52xx_PSC_SR_TXEMP;
+	u16 sts = in_be16(&PSC(port)->mpc52xx_psc_status);
+
+	return (sts & MPC52xx_PSC_SR_TXEMP) ? TIOCSER_TEMT : 0;
 }
 
 static void mpc52xx_psc_start_tx(struct uart_port *port)
@@ -1133,6 +1134,13 @@ mpc52xx_uart_startup(struct uart_port *port)
 	/* Reset/activate the port, clear and enable interrupts */
 	psc_ops->command(port, MPC52xx_PSC_RST_RX);
 	psc_ops->command(port, MPC52xx_PSC_RST_TX);
+
+	/*
+	 * According to Freescale's support the RST_TX command can produce a
+	 * spike on the TX pin. So they recommend to delay "for one character".
+	 * One millisecond should be enough for everyone.
+	 */
+	msleep(1);
 
 	psc_ops->set_sicr(port, 0);	/* UART mode DCD ignored */
 

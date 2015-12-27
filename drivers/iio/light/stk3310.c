@@ -35,20 +35,18 @@
 #define STK3310_REG_ID				0x3E
 #define STK3310_MAX_REG				0x80
 
-#define STK3310_STATE_EN_PS			0x01
-#define STK3310_STATE_EN_ALS			0x02
+#define STK3310_STATE_EN_PS			BIT(0)
+#define STK3310_STATE_EN_ALS			BIT(1)
 #define STK3310_STATE_STANDBY			0x00
 
 #define STK3310_CHIP_ID_VAL			0x13
 #define STK3311_CHIP_ID_VAL			0x1D
 #define STK3310_PSINT_EN			0x01
 #define STK3310_PS_MAX_VAL			0xFFFF
-#define STK3310_THRESH_MAX			0xFFFF
 
 #define STK3310_DRIVER_NAME			"stk3310"
 #define STK3310_REGMAP_NAME			"stk3310_regmap"
 #define STK3310_EVENT				"stk3310_event"
-#define STK3310_GPIO				"stk3310_gpio"
 
 #define STK3310_SCALE_AVAILABLE			"6.4 1.6 0.4 0.1"
 
@@ -84,15 +82,13 @@ static const struct reg_field stk3310_reg_field_flag_psint =
 				REG_FIELD(STK3310_REG_FLAG, 4, 4);
 static const struct reg_field stk3310_reg_field_flag_nf =
 				REG_FIELD(STK3310_REG_FLAG, 0, 0);
-/*
- * Maximum PS values with regard to scale. Used to export the 'inverse'
- * PS value (high values for far objects, low values for near objects).
- */
+
+/* Estimate maximum proximity values with regard to measurement scale. */
 static const int stk3310_ps_max[4] = {
-	STK3310_PS_MAX_VAL / 64,
-	STK3310_PS_MAX_VAL / 16,
-	STK3310_PS_MAX_VAL /  4,
-	STK3310_PS_MAX_VAL,
+	STK3310_PS_MAX_VAL / 640,
+	STK3310_PS_MAX_VAL / 160,
+	STK3310_PS_MAX_VAL /  40,
+	STK3310_PS_MAX_VAL /  10
 };
 
 static const int stk3310_scale_table[][2] = {
@@ -128,14 +124,14 @@ static const struct iio_event_spec stk3310_events[] = {
 	/* Proximity event */
 	{
 		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_FALLING,
+		.dir = IIO_EV_DIR_RISING,
 		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
 				 BIT(IIO_EV_INFO_ENABLE),
 	},
 	/* Out-of-proximity event */
 	{
 		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_RISING,
+		.dir = IIO_EV_DIR_FALLING,
 		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
 				 BIT(IIO_EV_INFO_ENABLE),
 	},
@@ -203,25 +199,18 @@ static int stk3310_read_event(struct iio_dev *indio_dev,
 			      int *val, int *val2)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
-	unsigned int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
 
 	if (info != IIO_EV_INFO_VALUE)
 		return -EINVAL;
 
-	/*
-	 * Only proximity interrupts are implemented at the moment.
-	 * Since we're inverting proximity values, the sensor's 'high'
-	 * threshold will become our 'low' threshold, associated with
-	 * 'near' events. Similarly, the sensor's 'low' threshold will
-	 * be our 'high' threshold, associated with 'far' events.
-	 */
+	/* Only proximity interrupts are implemented at the moment. */
 	if (dir == IIO_EV_DIR_RISING)
-		reg = STK3310_REG_THDL_PS;
-	else if (dir == IIO_EV_DIR_FALLING)
 		reg = STK3310_REG_THDH_PS;
+	else if (dir == IIO_EV_DIR_FALLING)
+		reg = STK3310_REG_THDL_PS;
 	else
 		return -EINVAL;
 
@@ -232,8 +221,7 @@ static int stk3310_read_event(struct iio_dev *indio_dev,
 		dev_err(&data->client->dev, "register read failed\n");
 		return ret;
 	}
-	regmap_field_read(data->reg_ps_gain, &index);
-	*val = swab16(stk3310_ps_max[index] - buf);
+	*val = be16_to_cpu(buf);
 
 	return IIO_VAL_INT;
 }
@@ -246,24 +234,27 @@ static int stk3310_write_event(struct iio_dev *indio_dev,
 			       int val, int val2)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
 	unsigned int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
 
-	regmap_field_read(data->reg_ps_gain, &index);
-	if (val > stk3310_ps_max[index])
+	ret = regmap_field_read(data->reg_ps_gain, &index);
+	if (ret < 0)
+		return ret;
+
+	if (val < 0 || val > stk3310_ps_max[index])
 		return -EINVAL;
 
 	if (dir == IIO_EV_DIR_RISING)
-		reg = STK3310_REG_THDL_PS;
-	else if (dir == IIO_EV_DIR_FALLING)
 		reg = STK3310_REG_THDH_PS;
+	else if (dir == IIO_EV_DIR_FALLING)
+		reg = STK3310_REG_THDL_PS;
 	else
 		return -EINVAL;
 
-	buf = swab16(stk3310_ps_max[index] - val);
+	buf = cpu_to_be16(val);
 	ret = regmap_bulk_write(data->regmap, reg, &buf, 2);
 	if (ret < 0)
 		dev_err(&client->dev, "failed to set PS threshold!\n");
@@ -277,9 +268,12 @@ static int stk3310_read_event_config(struct iio_dev *indio_dev,
 				     enum iio_event_direction dir)
 {
 	unsigned int event_val;
+	int ret;
 	struct stk3310_data *data = iio_priv(indio_dev);
 
-	regmap_field_read(data->reg_int_ps, &event_val);
+	ret = regmap_field_read(data->reg_int_ps, &event_val);
+	if (ret < 0)
+		return ret;
 
 	return event_val;
 }
@@ -312,20 +306,22 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	u8 reg;
-	u16 buf;
+	__be16 buf;
 	int ret;
 	unsigned int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
 
+	if (chan->type != IIO_LIGHT && chan->type != IIO_PROXIMITY)
+		return -EINVAL;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (chan->type == IIO_LIGHT)
 			reg = STK3310_REG_ALS_DATA_MSB;
-		else if (chan->type == IIO_PROXIMITY)
-			reg = STK3310_REG_PS_DATA_MSB;
 		else
-			return -EINVAL;
+			reg = STK3310_REG_PS_DATA_MSB;
+
 		mutex_lock(&data->lock);
 		ret = regmap_bulk_read(data->regmap, reg, &buf, 2);
 		if (ret < 0) {
@@ -333,30 +329,28 @@ static int stk3310_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&data->lock);
 			return ret;
 		}
-		*val = swab16(buf);
-		if (chan->type == IIO_PROXIMITY) {
-			/*
-			 * Invert the proximity data so we return low values
-			 * for close objects and high values for far ones.
-			 */
-			regmap_field_read(data->reg_ps_gain, &index);
-			*val = stk3310_ps_max[index] - *val;
-		}
+		*val = be16_to_cpu(buf);
 		mutex_unlock(&data->lock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
 		if (chan->type == IIO_LIGHT)
-			regmap_field_read(data->reg_als_it, &index);
+			ret = regmap_field_read(data->reg_als_it, &index);
 		else
-			regmap_field_read(data->reg_ps_it, &index);
+			ret = regmap_field_read(data->reg_ps_it, &index);
+		if (ret < 0)
+			return ret;
+
 		*val = stk3310_it_table[index][0];
 		*val2 = stk3310_it_table[index][1];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_LIGHT)
-			regmap_field_read(data->reg_als_gain, &index);
+			ret = regmap_field_read(data->reg_als_gain, &index);
 		else
-			regmap_field_read(data->reg_ps_gain, &index);
+			ret = regmap_field_read(data->reg_ps_gain, &index);
+		if (ret < 0)
+			return ret;
+
 		*val = stk3310_scale_table[index][0];
 		*val2 = stk3310_scale_table[index][1];
 		return IIO_VAL_INT_PLUS_MICRO;
@@ -373,6 +367,9 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 	int index;
 	struct stk3310_data *data = iio_priv(indio_dev);
 
+	if (chan->type != IIO_LIGHT && chan->type != IIO_PROXIMITY)
+		return -EINVAL;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
 		index = stk3310_get_index(stk3310_it_table,
@@ -387,7 +384,7 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 			ret = regmap_field_write(data->reg_ps_it, index);
 		if (ret < 0)
 			dev_err(&data->client->dev,
-					"sensor configuration failed\n");
+				"sensor configuration failed\n");
 		mutex_unlock(&data->lock);
 		return ret;
 
@@ -404,7 +401,7 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 			ret = regmap_field_write(data->reg_ps_gain, index);
 		if (ret < 0)
 			dev_err(&data->client->dev,
-					"sensor configuration failed\n");
+				"sensor configuration failed\n");
 		mutex_unlock(&data->lock);
 		return ret;
 	}
@@ -438,8 +435,8 @@ static int stk3310_set_state(struct stk3310_data *data, u8 state)
 		dev_err(&client->dev, "failed to change sensor state\n");
 	} else if (state != STK3310_STATE_STANDBY) {
 		/* Don't reset the 'enabled' flags if we're going in standby */
-		data->ps_enabled  = !!(state & 0x01);
-		data->als_enabled = !!(state & 0x02);
+		data->ps_enabled  = !!(state & STK3310_STATE_EN_PS);
+		data->als_enabled = !!(state & STK3310_STATE_EN_ALS);
 	}
 	mutex_unlock(&data->lock);
 
@@ -454,7 +451,10 @@ static int stk3310_init(struct iio_dev *indio_dev)
 	struct stk3310_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
 
-	regmap_read(data->regmap, STK3310_REG_ID, &chipid);
+	ret = regmap_read(data->regmap, STK3310_REG_ID, &chipid);
+	if (ret < 0)
+		return ret;
+
 	if (chipid != STK3310_CHIP_ID_VAL &&
 	    chipid != STK3311_CHIP_ID_VAL) {
 		dev_err(&client->dev, "invalid chip id: 0x%x\n", chipid);
@@ -472,34 +472,6 @@ static int stk3310_init(struct iio_dev *indio_dev)
 	ret = regmap_field_write(data->reg_int_ps, STK3310_PSINT_EN);
 	if (ret < 0)
 		dev_err(&client->dev, "failed to enable interrupts!\n");
-
-	return ret;
-}
-
-static int stk3310_gpio_probe(struct i2c_client *client)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, STK3310_GPIO, 0);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_direction_input(gpio);
-	if (ret)
-		return ret;
-
-	ret = gpiod_to_irq(gpio);
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
 
 	return ret;
 }
@@ -581,8 +553,8 @@ static irqreturn_t stk3310_irq_event_handler(int irq, void *private)
 	}
 	event = IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 1,
 				     IIO_EV_TYPE_THRESH,
-				     (dir ? IIO_EV_DIR_RISING :
-					    IIO_EV_DIR_FALLING));
+				     (dir ? IIO_EV_DIR_FALLING :
+					    IIO_EV_DIR_RISING));
 	iio_push_event(indio_dev, event, data->timestamp);
 
 	/* Reset the interrupt flag */
@@ -627,27 +599,30 @@ static int stk3310_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "device_register failed\n");
-		stk3310_set_state(data, STK3310_STATE_STANDBY);
-	}
-
-	if (client->irq <= 0)
-		client->irq = stk3310_gpio_probe(client);
-
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						stk3310_irq_handler,
 						stk3310_irq_event_handler,
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
 						STK3310_EVENT, indio_dev);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d failed\n",
-					client->irq);
+				client->irq);
+			goto err_standby;
+		}
 	}
 
+	ret = iio_device_register(indio_dev);
+	if (ret < 0) {
+		dev_err(&client->dev, "device_register failed\n");
+		goto err_standby;
+	}
+
+	return 0;
+
+err_standby:
+	stk3310_set_state(data, STK3310_STATE_STANDBY);
 	return ret;
 }
 
@@ -671,7 +646,7 @@ static int stk3310_suspend(struct device *dev)
 
 static int stk3310_resume(struct device *dev)
 {
-	int state = 0;
+	u8 state = 0;
 	struct stk3310_data *data;
 
 	data = iio_priv(i2c_get_clientdata(to_i2c_client(dev)));
@@ -695,6 +670,7 @@ static const struct i2c_device_id stk3310_i2c_id[] = {
 	{"STK3311", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, stk3310_i2c_id);
 
 static const struct acpi_device_id stk3310_acpi_id[] = {
 	{"STK3310", 0},

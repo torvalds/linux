@@ -65,6 +65,9 @@ startup_64:
 	 * tables and then reload them.
 	 */
 
+	/* Sanitize CPU configuration */
+	call verify_cpu
+
 	/*
 	 * Compute the delta between the address I am compiled to run at and the
 	 * address I am actually running at.
@@ -173,6 +176,9 @@ ENTRY(secondary_startup_64)
 	 * to have any identity mapped pages in the kernel page table
 	 * after the boot processor executes this code.
 	 */
+
+	/* Sanitize CPU configuration */
+	call verify_cpu
 
 	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
 1:
@@ -287,6 +293,8 @@ ENTRY(secondary_startup_64)
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
+
+#include "verify_cpu.S"
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
@@ -516,38 +524,9 @@ ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */
 	.quad   0x0000000000000000
 
-#ifdef CONFIG_KASAN
-#define FILL(VAL, COUNT)				\
-	.rept (COUNT) ;					\
-	.quad	(VAL) ;					\
-	.endr
-
-NEXT_PAGE(kasan_zero_pte)
-	FILL(kasan_zero_page - __START_KERNEL_map + _KERNPG_TABLE, 512)
-NEXT_PAGE(kasan_zero_pmd)
-	FILL(kasan_zero_pte - __START_KERNEL_map + _KERNPG_TABLE, 512)
-NEXT_PAGE(kasan_zero_pud)
-	FILL(kasan_zero_pmd - __START_KERNEL_map + _KERNPG_TABLE, 512)
-
-#undef FILL
-#endif
-
-
 #include "../../x86/xen/xen-head.S"
 	
 	__PAGE_ALIGNED_BSS
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE
 
-#ifdef CONFIG_KASAN
-/*
- * This page used as early shadow. We don't use empty_zero_page
- * at early stages, stack instrumentation could write some garbage
- * to this page.
- * Latter we reuse it as zero shadow for large ranges of memory
- * that allowed to access, but not instrumented by kasan
- * (vmalloc/vmemmap ...).
- */
-NEXT_PAGE(kasan_zero_page)
-	.skip PAGE_SIZE
-#endif

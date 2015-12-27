@@ -48,6 +48,7 @@
 	compatible = "chipspark,rayeager-px2", "rockchip,rk3066a";
 
 	memory {
+		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
 	};
 
@@ -329,6 +330,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk>, <&sd0_cmd>, <&sd0_cd>, <&sd0_bus4>;
 	vmmc-supply = <&vcc_sd>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
 	status = "okay";
 };
 
@@ -456,6 +459,10 @@
 &usb_host {
 	pinctrl-names = "default";
 	pinctrl-0 = <&hub_rst>, <&sata_reset>;
+	status = "okay";
+};
+
+&usbphy {
 	status = "okay";
 };
 

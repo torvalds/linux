@@ -122,7 +122,7 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 	 */
 	chan = get_pcc_channel(subspace_id);
 
-	if (!chan || chan->cl) {
+	if (IS_ERR(chan) || chan->cl) {
 		dev_err(dev, "Channel not found for idx: %d\n", subspace_id);
 		return ERR_PTR(-EBUSY);
 	}
@@ -352,4 +352,10 @@ static int __init pcc_init(void)
 
 	return 0;
 }
-device_initcall(pcc_init);
+
+/*
+ * Make PCC init postcore so that users of this mailbox
+ * such as the ACPI Processor driver have it available
+ * at their init.
+ */
+postcore_initcall(pcc_init);

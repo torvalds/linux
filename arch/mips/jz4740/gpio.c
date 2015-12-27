@@ -21,14 +21,14 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/ingenic.h>
 #include <linux/bitops.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
 #include <asm/mach-jz4740/base.h>
-
-#include "irq.h"
+#include <asm/mach-jz4740/gpio.h>
 
 #define JZ4740_GPIO_BASE_A (32*0)
 #define JZ4740_GPIO_BASE_B (32*1)
@@ -232,6 +232,13 @@ static int jz_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 	return 0;
 }
 
+static int jz_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
+{
+	struct jz_gpio_chip *jz_gpio = gpio_chip_to_jz_gpio_chip(chip);
+
+	return jz_gpio->irq_base + gpio;
+}
+
 int jz_gpio_port_direction_input(int port, uint32_t mask)
 {
 	writel(mask, GPIO_TO_REG(port, JZ_REG_GPIO_DIRECTION_CLEAR));
@@ -263,18 +270,6 @@ uint32_t jz_gpio_port_get_value(int port, uint32_t mask)
 }
 EXPORT_SYMBOL(jz_gpio_port_get_value);
 
-int gpio_to_irq(unsigned gpio)
-{
-	return JZ4740_IRQ_GPIO(0) + gpio;
-}
-EXPORT_SYMBOL_GPL(gpio_to_irq);
-
-int irq_to_gpio(unsigned irq)
-{
-	return irq - JZ4740_IRQ_GPIO(0);
-}
-EXPORT_SYMBOL_GPL(irq_to_gpio);
-
 #define IRQ_TO_BIT(irq) BIT(irq_to_gpio(irq) & 0x1f)
 
 static void jz_gpio_check_trigger_both(struct jz_gpio_chip *chip, unsigned int irq)
@@ -297,7 +292,7 @@ static void jz_gpio_check_trigger_both(struct jz_gpio_chip *chip, unsigned int i
 	writel(mask, reg);
 }
 
-static void jz_gpio_irq_demux_handler(unsigned int irq, struct irq_desc *desc)
+static void jz_gpio_irq_demux_handler(struct irq_desc *desc)
 {
 	uint32_t flag;
 	unsigned int gpio_irq;
@@ -404,6 +399,7 @@ static int jz_gpio_irq_set_wake(struct irq_data *data, unsigned int on)
 		.get = jz_gpio_get_value, \
 		.direction_output = jz_gpio_direction_output, \
 		.direction_input = jz_gpio_direction_input, \
+		.to_irq = jz_gpio_to_irq, \
 		.base = JZ4740_GPIO_BASE_ ## _bank, \
 		.ngpio = JZ4740_GPIO_NUM_ ## _bank, \
 	}, \
@@ -424,8 +420,8 @@ static void jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	chip->base = ioremap(JZ4740_GPIO_BASE_ADDR + (id * 0x100), 0x100);
 
 	chip->irq = JZ4740_IRQ_INTC_GPIO(id);
-	irq_set_handler_data(chip->irq, chip);
-	irq_set_chained_handler(chip->irq, jz_gpio_irq_demux_handler);
+	irq_set_chained_handler_and_data(chip->irq,
+					 jz_gpio_irq_demux_handler, chip);
 
 	gc = irq_alloc_generic_chip(chip->gpio_chip.label, 1, chip->irq_base,
 		chip->base, handle_level_irq);
@@ -442,8 +438,8 @@ static void jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	ct->chip.irq_mask = irq_gc_mask_disable_reg;
 	ct->chip.irq_unmask = jz_gpio_irq_unmask;
 	ct->chip.irq_ack = irq_gc_ack_set_bit;
-	ct->chip.irq_suspend = jz4740_irq_suspend;
-	ct->chip.irq_resume = jz4740_irq_resume;
+	ct->chip.irq_suspend = ingenic_intc_irq_suspend;
+	ct->chip.irq_resume = ingenic_intc_irq_resume;
 	ct->chip.irq_startup = jz_gpio_irq_startup;
 	ct->chip.irq_shutdown = jz_gpio_irq_shutdown;
 	ct->chip.irq_set_type = jz_gpio_irq_set_type;

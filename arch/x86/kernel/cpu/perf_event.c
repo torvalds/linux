@@ -5,7 +5,7 @@
  *  Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar
  *  Copyright (C) 2009 Jaswinder Singh Rajput
  *  Copyright (C) 2009 Advanced Micro Devices, Inc., Robert Richter
- *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra
  *  Copyright (C) 2009 Intel Corporation, <markus.t.metzger@intel.com>
  *  Copyright (C) 2009 Google, Inc., Stephane Eranian
  *
@@ -357,34 +357,24 @@ void x86_release_hardware(void)
  */
 int x86_add_exclusive(unsigned int what)
 {
-	int ret = -EBUSY, i;
+	int i;
 
-	if (atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what]))
-		return 0;
-
-	mutex_lock(&pmc_reserve_mutex);
-	for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
-		if (i != what && atomic_read(&x86_pmu.lbr_exclusive[i]))
-			goto out;
+	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
+		mutex_lock(&pmc_reserve_mutex);
+		for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
+			if (i != what && atomic_read(&x86_pmu.lbr_exclusive[i]))
+				goto fail_unlock;
+		}
+		atomic_inc(&x86_pmu.lbr_exclusive[what]);
+		mutex_unlock(&pmc_reserve_mutex);
 	}
 
-	atomic_inc(&x86_pmu.lbr_exclusive[what]);
-	ret = 0;
+	atomic_inc(&active_events);
+	return 0;
 
-out:
+fail_unlock:
 	mutex_unlock(&pmc_reserve_mutex);
-
-	/*
-	 * Assuming that all exclusive events will share the PMI handler
-	 * (which checks active_events for whether there is work to do),
-	 * we can bump active_events counter right here, except for
-	 * x86_lbr_exclusive_lbr events that go through x86_pmu_event_init()
-	 * path, which already bumps active_events for them.
-	 */
-	if (!ret && what != x86_lbr_exclusive_lbr)
-		atomic_inc(&active_events);
-
-	return ret;
+	return -EBUSY;
 }
 
 void x86_del_exclusive(unsigned int what)
@@ -1185,7 +1175,7 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 	 * skip the schedulability test here, it will be performed
 	 * at commit time (->commit_txn) as a whole.
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN)
+	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
 		goto done_collect;
 
 	ret = x86_pmu.schedule_events(cpuc, n, assign);
@@ -1336,7 +1326,7 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	 * XXX assumes any ->del() called during a TXN will only be on
 	 * an event added during that same TXN.
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN)
+	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
 		return;
 
 	/*
@@ -1561,7 +1551,7 @@ static void __init filter_events(struct attribute **attrs)
 }
 
 /* Merge two pointer arrays */
-static __init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
+__init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
 {
 	struct attribute **new;
 	int j, i;
@@ -1758,11 +1748,22 @@ static inline void x86_pmu_read(struct perf_event *event)
  * Start group events scheduling transaction
  * Set the flag to make pmu::enable() not perform the
  * schedulability test, it will be performed at commit time
+ *
+ * We only support PERF_PMU_TXN_ADD transactions. Save the
+ * transaction flags but otherwise ignore non-PERF_PMU_TXN_ADD
+ * transactions.
  */
-static void x86_pmu_start_txn(struct pmu *pmu)
+static void x86_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
 {
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	WARN_ON_ONCE(cpuc->txn_flags);		/* txn already in flight */
+
+	cpuc->txn_flags = txn_flags;
+	if (txn_flags & ~PERF_PMU_TXN_ADD)
+		return;
+
 	perf_pmu_disable(pmu);
-	__this_cpu_or(cpu_hw_events.group_flag, PERF_EVENT_TXN);
 	__this_cpu_write(cpu_hw_events.n_txn, 0);
 }
 
@@ -1773,7 +1774,16 @@ static void x86_pmu_start_txn(struct pmu *pmu)
  */
 static void x86_pmu_cancel_txn(struct pmu *pmu)
 {
-	__this_cpu_and(cpu_hw_events.group_flag, ~PERF_EVENT_TXN);
+	unsigned int txn_flags;
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+
+	txn_flags = cpuc->txn_flags;
+	cpuc->txn_flags = 0;
+	if (txn_flags & ~PERF_PMU_TXN_ADD)
+		return;
+
 	/*
 	 * Truncate collected array by the number of events added in this
 	 * transaction. See x86_pmu_add() and x86_pmu_*_txn().
@@ -1796,6 +1806,13 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 	int assign[X86_PMC_IDX_MAX];
 	int n, ret;
 
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+
+	if (cpuc->txn_flags & ~PERF_PMU_TXN_ADD) {
+		cpuc->txn_flags = 0;
+		return 0;
+	}
+
 	n = cpuc->n_events;
 
 	if (!x86_pmu_initialized())
@@ -1811,7 +1828,7 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 	 */
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
-	cpuc->group_flag &= ~PERF_EVENT_TXN;
+	cpuc->txn_flags = 0;
 	perf_pmu_enable(pmu);
 	return 0;
 }
@@ -2189,24 +2206,32 @@ static unsigned long get_segment_base(unsigned int segment)
 	int idx = segment >> 3;
 
 	if ((segment & SEGMENT_TI_MASK) == SEGMENT_LDT) {
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+		struct ldt_struct *ldt;
+
 		if (idx > LDT_ENTRIES)
 			return 0;
 
-		if (idx > current->active_mm->context.size)
+		/* IRQs are off, so this synchronizes with smp_store_release */
+		ldt = lockless_dereference(current->active_mm->context.ldt);
+		if (!ldt || idx > ldt->size)
 			return 0;
 
-		desc = current->active_mm->context.ldt;
+		desc = &ldt->entries[idx];
+#else
+		return 0;
+#endif
 	} else {
 		if (idx > GDT_ENTRIES)
 			return 0;
 
-		desc = raw_cpu_ptr(gdt_page.gdt);
+		desc = raw_cpu_ptr(gdt_page.gdt) + idx;
 	}
 
-	return get_desc_base(desc + idx);
+	return get_desc_base(desc);
 }
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_IA32_EMULATION
 
 #include <asm/compat.h>
 

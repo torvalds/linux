@@ -49,7 +49,7 @@ static long xenbus_alloc(domid_t domid)
 		goto out_err;
 
 	gnttab_grant_foreign_access_ref(GNTTAB_RESERVED_XENSTORE, domid,
-			virt_to_mfn(xen_store_interface), 0 /* writable */);
+			virt_to_gfn(xen_store_interface), 0 /* writable */);
 
 	arg.dom = DOMID_SELF;
 	arg.remote_dom = domid;

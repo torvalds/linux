@@ -6,7 +6,7 @@
  * Original author: Hans Petter Selasky <hans.petter.selasky@stericsson.com>
  *
  * USB Host Driver for Network Control Model (NCM)
- * http://www.usb.org/developers/devclass_docs/NCM10.zip
+ * http://www.usb.org/developers/docs/devclass_docs/NCM10_012011.zip
  *
  * The NCM encoding, decoding and initialization logic
  * derives from FreeBSD 8.x. if_cdce.c and if_cdcereg.h
@@ -684,18 +684,20 @@ static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
 		ctx->tx_curr_skb = NULL;
 	}
 
+	kfree(ctx->delayed_ndp16);
+
 	kfree(ctx);
 }
 
-int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting)
+int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting, int drvflags)
 {
-	const struct usb_cdc_union_desc *union_desc = NULL;
 	struct cdc_ncm_ctx *ctx;
 	struct usb_driver *driver;
 	u8 *buf;
 	int len;
 	int temp;
 	u8 iface_no;
+	struct usb_cdc_parsed_header hdr;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -720,69 +722,18 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	len = intf->cur_altsetting->extralen;
 
 	/* parse through descriptors associated with control interface */
-	while ((len > 0) && (buf[0] > 2) && (buf[0] <= len)) {
+	cdc_parse_cdc_header(&hdr, intf, buf, len);
 
-		if (buf[1] != USB_DT_CS_INTERFACE)
-			goto advance;
-
-		switch (buf[2]) {
-		case USB_CDC_UNION_TYPE:
-			if (buf[0] < sizeof(*union_desc))
-				break;
-
-			union_desc = (const struct usb_cdc_union_desc *)buf;
-			/* the master must be the interface we are probing */
-			if (intf->cur_altsetting->desc.bInterfaceNumber !=
-			    union_desc->bMasterInterface0) {
-				dev_dbg(&intf->dev, "bogus CDC Union\n");
-				goto error;
-			}
-			ctx->data = usb_ifnum_to_if(dev->udev,
-						    union_desc->bSlaveInterface0);
-			break;
-
-		case USB_CDC_ETHERNET_TYPE:
-			if (buf[0] < sizeof(*(ctx->ether_desc)))
-				break;
-
-			ctx->ether_desc =
-					(const struct usb_cdc_ether_desc *)buf;
-			break;
-
-		case USB_CDC_NCM_TYPE:
-			if (buf[0] < sizeof(*(ctx->func_desc)))
-				break;
-
-			ctx->func_desc = (const struct usb_cdc_ncm_desc *)buf;
-			break;
-
-		case USB_CDC_MBIM_TYPE:
-			if (buf[0] < sizeof(*(ctx->mbim_desc)))
-				break;
-
-			ctx->mbim_desc = (const struct usb_cdc_mbim_desc *)buf;
-			break;
-
-		case USB_CDC_MBIM_EXTENDED_TYPE:
-			if (buf[0] < sizeof(*(ctx->mbim_extended_desc)))
-				break;
-
-			ctx->mbim_extended_desc =
-				(const struct usb_cdc_mbim_extended_desc *)buf;
-			break;
-
-		default:
-			break;
-		}
-advance:
-		/* advance to next descriptor */
-		temp = buf[0];
-		buf += temp;
-		len -= temp;
-	}
+	if (hdr.usb_cdc_union_desc)
+		ctx->data = usb_ifnum_to_if(dev->udev,
+					    hdr.usb_cdc_union_desc->bSlaveInterface0);
+	ctx->ether_desc = hdr.usb_cdc_ether_desc;
+	ctx->func_desc = hdr.usb_cdc_ncm_desc;
+	ctx->mbim_desc = hdr.usb_cdc_mbim_desc;
+	ctx->mbim_extended_desc = hdr.usb_cdc_mbim_extended_desc;
 
 	/* some buggy devices have an IAD but no CDC Union */
-	if (!union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
+	if (!hdr.usb_cdc_union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
 		ctx->data = usb_ifnum_to_if(dev->udev, intf->cur_altsetting->desc.bInterfaceNumber + 1);
 		dev_dbg(&intf->dev, "CDC Union missing - got slave from IAD\n");
 	}
@@ -854,6 +805,17 @@ advance:
 
 	/* finish setting up the device specific data */
 	cdc_ncm_setup(dev);
+
+	/* Device-specific flags */
+	ctx->drvflags = drvflags;
+
+	/* Allocate the delayed NDP if needed. */
+	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END) {
+		ctx->delayed_ndp16 = kzalloc(ctx->max_ndp_size, GFP_KERNEL);
+		if (!ctx->delayed_ndp16)
+			goto error2;
+		dev_info(&intf->dev, "NDP will be placed at end of frame for this device.");
+	}
 
 	/* override ethtool_ops */
 	dev->net->ethtool_ops = &cdc_ncm_ethtool_ops;
@@ -954,8 +916,11 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (cdc_ncm_select_altsetting(intf) != CDC_NCM_COMM_ALTSETTING_NCM)
 		return -ENODEV;
 
-	/* The NCM data altsetting is fixed */
-	ret = cdc_ncm_bind_common(dev, intf, CDC_NCM_DATA_ALTSETTING_NCM);
+	/* The NCM data altsetting is fixed, so we hard-coded it.
+	 * Additionally, generic NCM devices are assumed to accept arbitrarily
+	 * placed NDP.
+	 */
+	ret = cdc_ncm_bind_common(dev, intf, CDC_NCM_DATA_ALTSETTING_NCM, 0);
 
 	/*
 	 * We should get an event when network connection is "connected" or
@@ -986,6 +951,22 @@ static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_
 	struct usb_cdc_ncm_nth16 *nth16 = (void *)skb->data;
 	size_t ndpoffset = le16_to_cpu(nth16->wNdpIndex);
 
+	/* If NDP should be moved to the end of the NCM package, we can't follow the
+	* NTH16 header as we would normally do. NDP isn't written to the SKB yet, and
+	* the wNdpIndex field in the header is actually not consistent with reality. It will be later.
+	*/
+	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END) {
+		if (ctx->delayed_ndp16->dwSignature == sign)
+			return ctx->delayed_ndp16;
+
+		/* We can only push a single NDP to the end. Return
+		 * NULL to send what we've already got and queue this
+		 * skb for later.
+		 */
+		else if (ctx->delayed_ndp16->dwSignature)
+			return NULL;
+	}
+
 	/* follow the chain of NDPs, looking for a match */
 	while (ndpoffset) {
 		ndp16 = (struct usb_cdc_ncm_ndp16 *)(skb->data + ndpoffset);
@@ -995,7 +976,8 @@ static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_
 	}
 
 	/* align new NDP */
-	cdc_ncm_align_tail(skb, ctx->tx_ndp_modulus, 0, ctx->tx_max);
+	if (!(ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END))
+		cdc_ncm_align_tail(skb, ctx->tx_ndp_modulus, 0, ctx->tx_max);
 
 	/* verify that there is room for the NDP and the datagram (reserve) */
 	if ((ctx->tx_max - skb->len - reserve) < ctx->max_ndp_size)
@@ -1008,7 +990,11 @@ static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_
 		nth16->wNdpIndex = cpu_to_le16(skb->len);
 
 	/* push a new empty NDP */
-	ndp16 = (struct usb_cdc_ncm_ndp16 *)memset(skb_put(skb, ctx->max_ndp_size), 0, ctx->max_ndp_size);
+	if (!(ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END))
+		ndp16 = (struct usb_cdc_ncm_ndp16 *)memset(skb_put(skb, ctx->max_ndp_size), 0, ctx->max_ndp_size);
+	else
+		ndp16 = ctx->delayed_ndp16;
+
 	ndp16->dwSignature = sign;
 	ndp16->wLength = cpu_to_le16(sizeof(struct usb_cdc_ncm_ndp16) + sizeof(struct usb_cdc_ncm_dpe16));
 	return ndp16;
@@ -1023,6 +1009,15 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	struct sk_buff *skb_out;
 	u16 n = 0, index, ndplen;
 	u8 ready2send = 0;
+	u32 delayed_ndp_size;
+
+	/* When our NDP gets written in cdc_ncm_ndp(), then skb_out->len gets updated
+	 * accordingly. Otherwise, we should check here.
+	 */
+	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END)
+		delayed_ndp_size = ctx->max_ndp_size;
+	else
+		delayed_ndp_size = 0;
 
 	/* if there is a remaining skb, it gets priority */
 	if (skb != NULL) {
@@ -1077,7 +1072,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		cdc_ncm_align_tail(skb_out,  ctx->tx_modulus, ctx->tx_remainder, ctx->tx_max);
 
 		/* check if we had enough room left for both NDP and frame */
-		if (!ndp16 || skb_out->len + skb->len > ctx->tx_max) {
+		if (!ndp16 || skb_out->len + skb->len + delayed_ndp_size > ctx->tx_max) {
 			if (n == 0) {
 				/* won't fit, MTU problem? */
 				dev_kfree_skb_any(skb);
@@ -1148,6 +1143,17 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 			ctx->tx_reason_max_datagram++;	/* count reason for transmitting */
 		/* frame goes out */
 		/* variables will be reset at next call */
+	}
+
+	/* If requested, put NDP at end of frame. */
+	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END) {
+		nth16 = (struct usb_cdc_ncm_nth16 *)skb_out->data;
+		cdc_ncm_align_tail(skb_out, ctx->tx_ndp_modulus, 0, ctx->tx_max);
+		nth16->wNdpIndex = cpu_to_le16(skb_out->len);
+		memcpy(skb_put(skb_out, ctx->max_ndp_size), ctx->delayed_ndp16, ctx->max_ndp_size);
+
+		/* Zero out delayed NDP - signature checking will naturally fail. */
+		ndp16 = memset(ctx->delayed_ndp16, 0, ctx->max_ndp_size);
 	}
 
 	/* If collected data size is less or equal ctx->min_tx_pkt

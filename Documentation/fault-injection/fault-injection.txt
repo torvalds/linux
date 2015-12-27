@@ -15,6 +15,10 @@ o fail_page_alloc
 
   injects page allocation failures. (alloc_pages(), get_free_pages(), ...)
 
+o fail_futex
+
+  injects futex deadlock and uaddr fault errors.
+
 o fail_make_request
 
   injects disk IO errors on devices permitted by setting
@@ -113,6 +117,12 @@ configuration of fault-injection capabilities.
 	specifies the minimum page allocation order to be injected
 	failures.
 
+- /sys/kernel/debug/fail_futex/ignore-private:
+
+	Format: { 'Y' | 'N' }
+	default is 'N', setting it to 'Y' will disable failure injections
+	when dealing with private (address space) futexes.
+
 o Boot option
 
 In order to inject faults while debugfs is not available (early boot time),
@@ -121,6 +131,7 @@ use the boot option:
 	failslab=
 	fail_page_alloc=
 	fail_make_request=
+	fail_futex=
 	mmc_core.fail_request=<interval>,<probability>,<space>,<times>
 
 How to add new fault injection capability

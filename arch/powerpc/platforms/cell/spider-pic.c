@@ -199,7 +199,7 @@ static const struct irq_domain_ops spider_host_ops = {
 	.xlate = spider_host_xlate,
 };
 
-static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc)
+static void spider_irq_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct spider_pic *pic = irq_desc_get_handler_data(desc);
@@ -231,20 +231,23 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	const u32 *imap, *tmp;
 	int imaplen, intsize, unit;
 	struct device_node *iic;
+	struct device_node *of_node;
+
+	of_node = irq_domain_get_of_node(pic->host);
 
 	/* First, we check whether we have a real "interrupts" in the device
 	 * tree in case the device-tree is ever fixed
 	 */
-	virq = irq_of_parse_and_map(pic->host->of_node, 0);
+	virq = irq_of_parse_and_map(of_node, 0);
 	if (virq)
 		return virq;
 
 	/* Now do the horrible hacks */
-	tmp = of_get_property(pic->host->of_node, "#interrupt-cells", NULL);
+	tmp = of_get_property(of_node, "#interrupt-cells", NULL);
 	if (tmp == NULL)
 		return NO_IRQ;
 	intsize = *tmp;
-	imap = of_get_property(pic->host->of_node, "interrupt-map", &imaplen);
+	imap = of_get_property(of_node, "interrupt-map", &imaplen);
 	if (imap == NULL || imaplen < (intsize + 1))
 		return NO_IRQ;
 	iic = of_find_node_by_phandle(imap[intsize]);

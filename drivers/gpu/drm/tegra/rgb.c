@@ -18,7 +18,6 @@
 struct tegra_rgb {
 	struct tegra_output output;
 	struct tegra_dc *dc;
-	bool enabled;
 
 	struct clk *clk_parent;
 	struct clk *clk;
@@ -88,13 +87,8 @@ static void tegra_dc_write_regs(struct tegra_dc *dc,
 		tegra_dc_writel(dc, table[i].value, table[i].offset);
 }
 
-static void tegra_rgb_connector_dpms(struct drm_connector *connector,
-				     int mode)
-{
-}
-
 static const struct drm_connector_funcs tegra_rgb_connector_funcs = {
-	.dpms = tegra_rgb_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -125,21 +119,22 @@ static const struct drm_encoder_funcs tegra_rgb_encoder_funcs = {
 	.destroy = tegra_output_encoder_destroy,
 };
 
-static void tegra_rgb_encoder_dpms(struct drm_encoder *encoder, int mode)
+static void tegra_rgb_encoder_disable(struct drm_encoder *encoder)
 {
+	struct tegra_output *output = encoder_to_output(encoder);
+	struct tegra_rgb *rgb = to_rgb(output);
+
+	if (output->panel)
+		drm_panel_disable(output->panel);
+
+	tegra_dc_write_regs(rgb->dc, rgb_disable, ARRAY_SIZE(rgb_disable));
+	tegra_dc_commit(rgb->dc);
+
+	if (output->panel)
+		drm_panel_unprepare(output->panel);
 }
 
-static void tegra_rgb_encoder_prepare(struct drm_encoder *encoder)
-{
-}
-
-static void tegra_rgb_encoder_commit(struct drm_encoder *encoder)
-{
-}
-
-static void tegra_rgb_encoder_mode_set(struct drm_encoder *encoder,
-				       struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted)
+static void tegra_rgb_encoder_enable(struct drm_encoder *encoder)
 {
 	struct tegra_output *output = encoder_to_output(encoder);
 	struct tegra_rgb *rgb = to_rgb(output);
@@ -172,21 +167,6 @@ static void tegra_rgb_encoder_mode_set(struct drm_encoder *encoder,
 
 	if (output->panel)
 		drm_panel_enable(output->panel);
-}
-
-static void tegra_rgb_encoder_disable(struct drm_encoder *encoder)
-{
-	struct tegra_output *output = encoder_to_output(encoder);
-	struct tegra_rgb *rgb = to_rgb(output);
-
-	if (output->panel)
-		drm_panel_disable(output->panel);
-
-	tegra_dc_write_regs(rgb->dc, rgb_disable, ARRAY_SIZE(rgb_disable));
-	tegra_dc_commit(rgb->dc);
-
-	if (output->panel)
-		drm_panel_unprepare(output->panel);
 }
 
 static int
@@ -231,11 +211,8 @@ tegra_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs tegra_rgb_encoder_helper_funcs = {
-	.dpms = tegra_rgb_encoder_dpms,
-	.prepare = tegra_rgb_encoder_prepare,
-	.commit = tegra_rgb_encoder_commit,
-	.mode_set = tegra_rgb_encoder_mode_set,
 	.disable = tegra_rgb_encoder_disable,
+	.enable = tegra_rgb_encoder_enable,
 	.atomic_check = tegra_rgb_encoder_atomic_check,
 };
 

@@ -299,8 +299,10 @@ samsung_keypad_parse_dt(struct device *dev)
 	if (of_get_property(np, "linux,input-no-autorepeat", NULL))
 		pdata->no_autorepeat = true;
 
-	if (of_get_property(np, "linux,input-wakeup", NULL))
-		pdata->wakeup = true;
+	pdata->wakeup = of_property_read_bool(np, "wakeup-source") ||
+			/* legacy name */
+			of_property_read_bool(np, "linux,input-wakeup");
+
 
 	return pdata;
 }

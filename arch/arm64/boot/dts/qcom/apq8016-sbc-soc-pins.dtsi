@@ -3,17 +3,9 @@
 
 &msmgpio {
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&soc_gpios_default>;
-
-	soc_gpios_default: default {
-		usr_led_1_ctrl_default: usr_led_1_ctrl_default {
-			pins = "gpio21";
-			function = "gpio";
-			output-low;
-		};
-		usr_led_2_ctrl_default: usr_led_2_ctrl_default {
-			pins = "gpio120";
+	msmgpio_leds: msmgpio_leds {
+		pinconf {
+			pins = "gpio21", "gpio120";
 			function = "gpio";
 			output-low;
 		};

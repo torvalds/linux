@@ -7,7 +7,8 @@ OHCI and EHCI controllers.
 
 Required properties:
 - compatible: "renesas,pci-r8a7790" for the R8A7790 SoC;
-	      "renesas,pci-r8a7791" for the R8A7791 SoC.
+	      "renesas,pci-r8a7791" for the R8A7791 SoC;
+	      "renesas,pci-r8a7794" for the R8A7794 SoC.
 - reg:	A list of physical regions to access the device: the first is
 	the operational registers for the OHCI/EHCI controllers and the
 	second is for the bridge configuration and control registers.

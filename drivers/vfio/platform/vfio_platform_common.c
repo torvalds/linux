@@ -23,7 +23,48 @@
 
 #include "vfio_platform_private.h"
 
+#define DRIVER_VERSION  "0.10"
+#define DRIVER_AUTHOR   "Antonios Motakis <a.motakis@virtualopensystems.com>"
+#define DRIVER_DESC     "VFIO platform base module"
+
+static LIST_HEAD(reset_list);
 static DEFINE_MUTEX(driver_lock);
+
+static vfio_platform_reset_fn_t vfio_platform_lookup_reset(const char *compat,
+					struct module **module)
+{
+	struct vfio_platform_reset_node *iter;
+	vfio_platform_reset_fn_t reset_fn = NULL;
+
+	mutex_lock(&driver_lock);
+	list_for_each_entry(iter, &reset_list, link) {
+		if (!strcmp(iter->compat, compat) &&
+			try_module_get(iter->owner)) {
+			*module = iter->owner;
+			reset_fn = iter->reset;
+			break;
+		}
+	}
+	mutex_unlock(&driver_lock);
+	return reset_fn;
+}
+
+static void vfio_platform_get_reset(struct vfio_platform_device *vdev)
+{
+	vdev->reset = vfio_platform_lookup_reset(vdev->compat,
+						&vdev->reset_module);
+	if (!vdev->reset) {
+		request_module("vfio-reset:%s", vdev->compat);
+		vdev->reset = vfio_platform_lookup_reset(vdev->compat,
+							 &vdev->reset_module);
+	}
+}
+
+static void vfio_platform_put_reset(struct vfio_platform_device *vdev)
+{
+	if (vdev->reset)
+		module_put(vdev->reset_module);
+}
 
 static int vfio_platform_regions_init(struct vfio_platform_device *vdev)
 {
@@ -100,13 +141,19 @@ static void vfio_platform_release(void *device_data)
 	mutex_lock(&driver_lock);
 
 	if (!(--vdev->refcnt)) {
+		if (vdev->reset) {
+			dev_info(vdev->device, "reset\n");
+			vdev->reset(vdev);
+		} else {
+			dev_warn(vdev->device, "no reset function found!\n");
+		}
 		vfio_platform_regions_cleanup(vdev);
 		vfio_platform_irq_cleanup(vdev);
 	}
 
 	mutex_unlock(&driver_lock);
 
-	module_put(THIS_MODULE);
+	module_put(vdev->parent_module);
 }
 
 static int vfio_platform_open(void *device_data)
@@ -114,7 +161,7 @@ static int vfio_platform_open(void *device_data)
 	struct vfio_platform_device *vdev = device_data;
 	int ret;
 
-	if (!try_module_get(THIS_MODULE))
+	if (!try_module_get(vdev->parent_module))
 		return -ENODEV;
 
 	mutex_lock(&driver_lock);
@@ -127,6 +174,13 @@ static int vfio_platform_open(void *device_data)
 		ret = vfio_platform_irq_init(vdev);
 		if (ret)
 			goto err_irq;
+
+		if (vdev->reset) {
+			dev_info(vdev->device, "reset\n");
+			vdev->reset(vdev);
+		} else {
+			dev_warn(vdev->device, "no reset function found!\n");
+		}
 	}
 
 	vdev->refcnt++;
@@ -159,6 +213,8 @@ static long vfio_platform_ioctl(void *device_data,
 		if (info.argsz < minsz)
 			return -EINVAL;
 
+		if (vdev->reset)
+			vdev->flags |= VFIO_DEVICE_FLAGS_RESET;
 		info.flags = vdev->flags;
 		info.num_regions = vdev->num_regions;
 		info.num_irqs = vdev->num_irqs;
@@ -252,23 +308,27 @@ static long vfio_platform_ioctl(void *device_data,
 
 		return ret;
 
-	} else if (cmd == VFIO_DEVICE_RESET)
-		return -EINVAL;
+	} else if (cmd == VFIO_DEVICE_RESET) {
+		if (vdev->reset)
+			return vdev->reset(vdev);
+		else
+			return -EINVAL;
+	}
 
 	return -ENOTTY;
 }
 
-static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
+static ssize_t vfio_platform_read_mmio(struct vfio_platform_region *reg,
 				       char __user *buf, size_t count,
 				       loff_t off)
 {
 	unsigned int done = 0;
 
-	if (!reg.ioaddr) {
-		reg.ioaddr =
-			ioremap_nocache(reg.addr, reg.size);
+	if (!reg->ioaddr) {
+		reg->ioaddr =
+			ioremap_nocache(reg->addr, reg->size);
 
-		if (!reg.ioaddr)
+		if (!reg->ioaddr)
 			return -ENOMEM;
 	}
 
@@ -278,7 +338,7 @@ static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
 		if (count >= 4 && !(off % 4)) {
 			u32 val;
 
-			val = ioread32(reg.ioaddr + off);
+			val = ioread32(reg->ioaddr + off);
 			if (copy_to_user(buf, &val, 4))
 				goto err;
 
@@ -286,7 +346,7 @@ static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
 		} else if (count >= 2 && !(off % 2)) {
 			u16 val;
 
-			val = ioread16(reg.ioaddr + off);
+			val = ioread16(reg->ioaddr + off);
 			if (copy_to_user(buf, &val, 2))
 				goto err;
 
@@ -294,7 +354,7 @@ static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
 		} else {
 			u8 val;
 
-			val = ioread8(reg.ioaddr + off);
+			val = ioread8(reg->ioaddr + off);
 			if (copy_to_user(buf, &val, 1))
 				goto err;
 
@@ -327,7 +387,7 @@ static ssize_t vfio_platform_read(void *device_data, char __user *buf,
 		return -EINVAL;
 
 	if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_MMIO)
-		return vfio_platform_read_mmio(vdev->regions[index],
+		return vfio_platform_read_mmio(&vdev->regions[index],
 							buf, count, off);
 	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
 		return -EINVAL; /* not implemented */
@@ -335,17 +395,17 @@ static ssize_t vfio_platform_read(void *device_data, char __user *buf,
 	return -EINVAL;
 }
 
-static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
+static ssize_t vfio_platform_write_mmio(struct vfio_platform_region *reg,
 					const char __user *buf, size_t count,
 					loff_t off)
 {
 	unsigned int done = 0;
 
-	if (!reg.ioaddr) {
-		reg.ioaddr =
-			ioremap_nocache(reg.addr, reg.size);
+	if (!reg->ioaddr) {
+		reg->ioaddr =
+			ioremap_nocache(reg->addr, reg->size);
 
-		if (!reg.ioaddr)
+		if (!reg->ioaddr)
 			return -ENOMEM;
 	}
 
@@ -357,7 +417,7 @@ static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
 
 			if (copy_from_user(&val, buf, 4))
 				goto err;
-			iowrite32(val, reg.ioaddr + off);
+			iowrite32(val, reg->ioaddr + off);
 
 			filled = 4;
 		} else if (count >= 2 && !(off % 2)) {
@@ -365,7 +425,7 @@ static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
 
 			if (copy_from_user(&val, buf, 2))
 				goto err;
-			iowrite16(val, reg.ioaddr + off);
+			iowrite16(val, reg->ioaddr + off);
 
 			filled = 2;
 		} else {
@@ -373,7 +433,7 @@ static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
 
 			if (copy_from_user(&val, buf, 1))
 				goto err;
-			iowrite8(val, reg.ioaddr + off);
+			iowrite8(val, reg->ioaddr + off);
 
 			filled = 1;
 		}
@@ -403,7 +463,7 @@ static ssize_t vfio_platform_write(void *device_data, const char __user *buf,
 		return -EINVAL;
 
 	if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_MMIO)
-		return vfio_platform_write_mmio(vdev->regions[index],
+		return vfio_platform_write_mmio(&vdev->regions[index],
 							buf, count, off);
 	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
 		return -EINVAL; /* not implemented */
@@ -490,6 +550,14 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 	if (!vdev)
 		return -EINVAL;
 
+	ret = device_property_read_string(dev, "compatible", &vdev->compat);
+	if (ret) {
+		pr_err("VFIO: cannot retrieve compat for %s\n", vdev->name);
+		return -EINVAL;
+	}
+
+	vdev->device = dev;
+
 	group = iommu_group_get(dev);
 	if (!group) {
 		pr_err("VFIO: No IOMMU group for device %s\n", vdev->name);
@@ -502,6 +570,8 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 		return ret;
 	}
 
+	vfio_platform_get_reset(vdev);
+
 	mutex_init(&vdev->igate);
 
 	return 0;
@@ -513,9 +583,43 @@ struct vfio_platform_device *vfio_platform_remove_common(struct device *dev)
 	struct vfio_platform_device *vdev;
 
 	vdev = vfio_del_group_dev(dev);
-	if (vdev)
+
+	if (vdev) {
+		vfio_platform_put_reset(vdev);
 		iommu_group_put(dev->iommu_group);
+	}
 
 	return vdev;
 }
 EXPORT_SYMBOL_GPL(vfio_platform_remove_common);
+
+void __vfio_platform_register_reset(struct vfio_platform_reset_node *node)
+{
+	mutex_lock(&driver_lock);
+	list_add(&node->link, &reset_list);
+	mutex_unlock(&driver_lock);
+}
+EXPORT_SYMBOL_GPL(__vfio_platform_register_reset);
+
+void vfio_platform_unregister_reset(const char *compat,
+				    vfio_platform_reset_fn_t fn)
+{
+	struct vfio_platform_reset_node *iter, *temp;
+
+	mutex_lock(&driver_lock);
+	list_for_each_entry_safe(iter, temp, &reset_list, link) {
+		if (!strcmp(iter->compat, compat) && (iter->reset == fn)) {
+			list_del(&iter->link);
+			break;
+		}
+	}
+
+	mutex_unlock(&driver_lock);
+
+}
+EXPORT_SYMBOL_GPL(vfio_platform_unregister_reset);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);

@@ -52,35 +52,11 @@ struct pl061_gpio {
 
 	void __iomem		*base;
 	struct gpio_chip	gc;
-	bool			uses_pinctrl;
 
 #ifdef CONFIG_PM
 	struct pl061_context_save_regs csave_regs;
 #endif
 };
-
-static int pl061_gpio_request(struct gpio_chip *gc, unsigned offset)
-{
-	/*
-	 * Map back to global GPIO space and request muxing, the direction
-	 * parameter does not matter for this controller.
-	 */
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
-	int gpio = gc->base + offset;
-
-	if (chip->uses_pinctrl)
-		return pinctrl_request_gpio(gpio);
-	return 0;
-}
-
-static void pl061_gpio_free(struct gpio_chip *gc, unsigned offset)
-{
-	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
-	int gpio = gc->base + offset;
-
-	if (chip->uses_pinctrl)
-		pinctrl_free_gpio(gpio);
-}
 
 static int pl061_direction_input(struct gpio_chip *gc, unsigned offset)
 {
@@ -152,6 +128,17 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	if (offset < 0 || offset >= PL061_GPIO_NR)
 		return -EINVAL;
 
+	if ((trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) &&
+	    (trigger & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)))
+	{
+		dev_err(gc->dev,
+			"trying to configure line %d for both level and edge "
+			"detection, choose one!\n",
+			offset);
+		return -EINVAL;
+	}
+
+
 	spin_lock_irqsave(&chip->lock, flags);
 
 	gpioiev = readb(chip->base + GPIOIEV);
@@ -159,23 +146,53 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	gpioibe = readb(chip->base + GPIOIBE);
 
 	if (trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
+		bool polarity = trigger & IRQ_TYPE_LEVEL_HIGH;
+
+		/* Disable edge detection */
+		gpioibe &= ~bit;
+		/* Enable level detection */
 		gpiois |= bit;
-		if (trigger & IRQ_TYPE_LEVEL_HIGH)
+		/* Select polarity */
+		if (polarity)
 			gpioiev |= bit;
 		else
 			gpioiev &= ~bit;
-	} else
+		irq_set_handler_locked(d, handle_level_irq);
+		dev_dbg(gc->dev, "line %d: IRQ on %s level\n",
+			offset,
+			polarity ? "HIGH" : "LOW");
+	} else if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
+		/* Disable level detection */
 		gpiois &= ~bit;
-
-	if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH)
-		/* Setting this makes GPIOEV be ignored */
+		/* Select both edges, setting this makes GPIOEV be ignored */
 		gpioibe |= bit;
-	else {
+		irq_set_handler_locked(d, handle_edge_irq);
+		dev_dbg(gc->dev, "line %d: IRQ on both edges\n", offset);
+	} else if ((trigger & IRQ_TYPE_EDGE_RISING) ||
+		   (trigger & IRQ_TYPE_EDGE_FALLING)) {
+		bool rising = trigger & IRQ_TYPE_EDGE_RISING;
+
+		/* Disable level detection */
+		gpiois &= ~bit;
+		/* Clear detection on both edges */
 		gpioibe &= ~bit;
-		if (trigger & IRQ_TYPE_EDGE_RISING)
+		/* Select edge */
+		if (rising)
 			gpioiev |= bit;
-		else if (trigger & IRQ_TYPE_EDGE_FALLING)
+		else
 			gpioiev &= ~bit;
+		irq_set_handler_locked(d, handle_edge_irq);
+		dev_dbg(gc->dev, "line %d: IRQ on %s edge\n",
+			offset,
+			rising ? "RISING" : "FALLING");
+	} else {
+		/* No trigger: disable everything */
+		gpiois &= ~bit;
+		gpioibe &= ~bit;
+		gpioiev &= ~bit;
+		irq_set_handler_locked(d, handle_bad_irq);
+		dev_warn(gc->dev, "no trigger selected for line %d\n",
+			 offset);
 	}
 
 	writeb(gpiois, chip->base + GPIOIS);
@@ -187,7 +204,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	return 0;
 }
 
-static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
+static void pl061_irq_handler(struct irq_desc *desc)
 {
 	unsigned long pending;
 	int offset;
@@ -198,7 +215,6 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 	chained_irq_enter(irqchip, desc);
 
 	pending = readb(chip->base + GPIOMIS);
-	writeb(pending, chip->base + GPIOIC);
 	if (pending) {
 		for_each_set_bit(offset, &pending, PL061_GPIO_NR)
 			generic_handle_irq(irq_find_mapping(gc->irqdomain,
@@ -234,8 +250,28 @@ static void pl061_irq_unmask(struct irq_data *d)
 	spin_unlock(&chip->lock);
 }
 
+/**
+ * pl061_irq_ack() - ACK an edge IRQ
+ * @d: IRQ data for this IRQ
+ *
+ * This gets called from the edge IRQ handler to ACK the edge IRQ
+ * in the GPIOIC (interrupt-clear) register. For level IRQs this is
+ * not needed: these go away when the level signal goes away.
+ */
+static void pl061_irq_ack(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	u8 mask = BIT(irqd_to_hwirq(d) % PL061_GPIO_NR);
+
+	spin_lock(&chip->lock);
+	writeb(mask, chip->base + GPIOIC);
+	spin_unlock(&chip->lock);
+}
+
 static struct irq_chip pl061_irqchip = {
 	.name		= "pl061",
+	.irq_ack	= pl061_irq_ack,
 	.irq_mask	= pl061_irq_mask,
 	.irq_unmask	= pl061_irq_unmask,
 	.irq_set_type	= pl061_irq_type,
@@ -269,11 +305,11 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(chip->base);
 
 	spin_lock_init(&chip->lock);
-	if (of_property_read_bool(dev->of_node, "gpio-ranges"))
-		chip->uses_pinctrl = true;
+	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
+		chip->gc.request = gpiochip_generic_request;
+		chip->gc.free = gpiochip_generic_free;
+	}
 
-	chip->gc.request = pl061_gpio_request;
-	chip->gc.free = pl061_gpio_free;
 	chip->gc.direction_input = pl061_direction_input;
 	chip->gc.direction_output = pl061_direction_output;
 	chip->gc.get = pl061_get_value;
@@ -298,7 +334,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	ret = gpiochip_irqchip_add(&chip->gc, &pl061_irqchip,
-				   irq_base, handle_simple_irq,
+				   irq_base, handle_bad_irq,
 				   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_info(&adev->dev, "could not add irqchip\n");

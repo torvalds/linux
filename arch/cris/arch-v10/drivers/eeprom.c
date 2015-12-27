@@ -848,5 +848,4 @@ static void eeprom_disable_write_protect(void)
     /* Write protect disabled */
   }
 }
-
-module_init(eeprom_init);
+device_initcall(eeprom_init);

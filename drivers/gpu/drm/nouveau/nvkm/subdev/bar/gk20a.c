@@ -19,32 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "gf100.h"
+
+static const struct nvkm_bar_func
+gk20a_bar_func = {
+	.dtor = gf100_bar_dtor,
+	.oneinit = gf100_bar_oneinit,
+	.init = gf100_bar_init,
+	.umap = gf100_bar_umap,
+	.flush = g84_bar_flush,
+};
 
 int
-gk20a_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+gk20a_bar_new(struct nvkm_device *device, int index, struct nvkm_bar **pbar)
 {
-	struct nvkm_bar *bar;
-	int ret;
-
-	ret = gf100_bar_ctor(parent, engine, oclass, data, size, pobject);
-	if (ret)
-		return ret;
-
-	bar = (struct nvkm_bar *)*pobject;
-	bar->iomap_uncached = true;
-	return 0;
+	int ret = gf100_bar_new_(&gk20a_bar_func, device, index, pbar);
+	if (ret == 0)
+		(*pbar)->iomap_uncached = true;
+	return ret;
 }
-
-struct nvkm_oclass
-gk20a_bar_oclass = {
-	.handle = NV_SUBDEV(BAR, 0xea),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk20a_bar_ctor,
-		.dtor = gf100_bar_dtor,
-		.init = gf100_bar_init,
-		.fini = _nvkm_bar_fini,
-	},
-};

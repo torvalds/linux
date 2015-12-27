@@ -109,7 +109,7 @@ static int bochs_pm_suspend(struct device *dev)
 
 	if (bochs->fb.initialized) {
 		console_lock();
-		fb_set_suspend(bochs->fb.helper.fbdev, 1);
+		drm_fb_helper_set_suspend(&bochs->fb.helper, 1);
 		console_unlock();
 	}
 
@@ -126,7 +126,7 @@ static int bochs_pm_resume(struct device *dev)
 
 	if (bochs->fb.initialized) {
 		console_lock();
-		fb_set_suspend(bochs->fb.helper.fbdev, 0);
+		drm_fb_helper_set_suspend(&bochs->fb.helper, 0);
 		console_unlock();
 	}
 

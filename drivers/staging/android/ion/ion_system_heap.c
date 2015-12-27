@@ -27,7 +27,7 @@
 #include "ion_priv.h"
 
 static gfp_t high_order_gfp_flags = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN |
-				     __GFP_NORETRY) & ~__GFP_WAIT;
+				     __GFP_NORETRY) & ~__GFP_DIRECT_RECLAIM;
 static gfp_t low_order_gfp_flags  = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN);
 static const unsigned int orders[] = {8, 4, 0};
 static const int num_orders = ARRAY_SIZE(orders);
@@ -185,8 +185,11 @@ static void ion_system_heap_free(struct ion_buffer *buffer)
 	struct scatterlist *sg;
 	int i;
 
-	/* uncached pages come from the page pools, zero them before returning
-	   for security purposes (other allocations are zerod at alloc time */
+	/*
+	 *  uncached pages come from the page pools, zero them before returning
+	 *  for security purposes (other allocations are zerod at
+	 *  alloc time
+	 */
 	if (!cached && !(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE))
 		ion_heap_buffer_zero(buffer);
 
@@ -212,14 +215,26 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
 {
 	struct ion_system_heap *sys_heap;
 	int nr_total = 0;
-	int i;
+	int i, nr_freed;
+	int only_scan = 0;
 
 	sys_heap = container_of(heap, struct ion_system_heap, heap);
+
+	if (!nr_to_scan)
+		only_scan = 1;
 
 	for (i = 0; i < num_orders; i++) {
 		struct ion_page_pool *pool = sys_heap->pools[i];
 
-		nr_total += ion_page_pool_shrink(pool, gfp_mask, nr_to_scan);
+		nr_freed = ion_page_pool_shrink(pool, gfp_mask, nr_to_scan);
+		nr_total += nr_freed;
+
+		if (!only_scan) {
+			nr_to_scan -= nr_freed;
+			/* shrink completed */
+			if (nr_to_scan <= 0)
+				break;
+		}
 	}
 
 	return nr_total;

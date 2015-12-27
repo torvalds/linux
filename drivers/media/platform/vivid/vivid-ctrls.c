@@ -99,6 +99,7 @@
 
 #define VIVID_CID_RADIO_TX_RDS_BLOCKIO	(VIVID_CID_VIVID_BASE + 94)
 
+#define VIVID_CID_SDR_CAP_FM_DEVIATION	(VIVID_CID_VIVID_BASE + 110)
 
 /* General User Controls */
 
@@ -342,6 +343,7 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		V4L2_COLORSPACE_SRGB,
 		V4L2_COLORSPACE_ADOBERGB,
 		V4L2_COLORSPACE_BT2020,
+		V4L2_COLORSPACE_DCI_P3,
 		V4L2_COLORSPACE_SMPTE240M,
 		V4L2_COLORSPACE_470_SYSTEM_M,
 		V4L2_COLORSPACE_470_SYSTEM_BG,
@@ -548,7 +550,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_osd_mode = {
 	.id = VIVID_CID_OSD_TEXT_MODE,
 	.name = "OSD Text Mode",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 2,
+	.max = ARRAY_SIZE(vivid_ctrl_osd_mode_strings) - 2,
 	.qmenu = vivid_ctrl_osd_mode_strings,
 };
 
@@ -640,7 +642,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_tstamp_src = {
 	.id = VIVID_CID_TSTAMP_SRC,
 	.name = "Timestamp Source",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 1,
+	.max = ARRAY_SIZE(vivid_ctrl_tstamp_src_strings) - 2,
 	.qmenu = vivid_ctrl_tstamp_src_strings,
 };
 
@@ -701,6 +703,7 @@ static const char * const vivid_ctrl_colorspace_strings[] = {
 	"sRGB",
 	"AdobeRGB",
 	"BT.2020",
+	"DCI-P3",
 	"SMPTE 240M",
 	"470 System M",
 	"470 System BG",
@@ -712,7 +715,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_colorspace = {
 	.id = VIVID_CID_COLORSPACE,
 	.name = "Colorspace",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 7,
+	.max = ARRAY_SIZE(vivid_ctrl_colorspace_strings) - 2,
 	.def = 2,
 	.qmenu = vivid_ctrl_colorspace_strings,
 };
@@ -724,6 +727,8 @@ static const char * const vivid_ctrl_xfer_func_strings[] = {
 	"AdobeRGB",
 	"SMPTE 240M",
 	"None",
+	"DCI-P3",
+	"SMPTE 2084",
 	NULL,
 };
 
@@ -732,7 +737,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_xfer_func = {
 	.id = VIVID_CID_XFER_FUNC,
 	.name = "Transfer Function",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 5,
+	.max = ARRAY_SIZE(vivid_ctrl_xfer_func_strings) - 2,
 	.qmenu = vivid_ctrl_xfer_func_strings,
 };
 
@@ -754,7 +759,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_ycbcr_enc = {
 	.id = VIVID_CID_YCBCR_ENC,
 	.name = "Y'CbCr Encoding",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 8,
+	.max = ARRAY_SIZE(vivid_ctrl_ycbcr_enc_strings) - 2,
 	.qmenu = vivid_ctrl_ycbcr_enc_strings,
 };
 
@@ -770,7 +775,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_quantization = {
 	.id = VIVID_CID_QUANTIZATION,
 	.name = "Quantization",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 2,
+	.max = ARRAY_SIZE(vivid_ctrl_quantization_strings) - 2,
 	.qmenu = vivid_ctrl_quantization_strings,
 };
 
@@ -1088,7 +1093,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_std_signal_mode = {
 	.id = VIVID_CID_STD_SIGNAL_MODE,
 	.name = "Standard Signal Mode",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.max = 5,
+	.max = ARRAY_SIZE(vivid_ctrl_std_signal_mode_strings) - 2,
 	.menu_skip_mask = 1 << 3,
 	.qmenu = vivid_ctrl_std_signal_mode_strings,
 };
@@ -1257,6 +1262,36 @@ static const struct v4l2_ctrl_config vivid_ctrl_radio_tx_rds_blockio = {
 };
 
 
+/* SDR Capture Controls */
+
+static int vivid_sdr_cap_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_sdr_cap);
+
+	switch (ctrl->id) {
+	case VIVID_CID_SDR_CAP_FM_DEVIATION:
+		dev->sdr_fm_deviation = ctrl->val;
+		break;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vivid_sdr_cap_ctrl_ops = {
+	.s_ctrl = vivid_sdr_cap_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_sdr_cap_fm_deviation = {
+	.ops = &vivid_sdr_cap_ctrl_ops,
+	.id = VIVID_CID_SDR_CAP_FM_DEVIATION,
+	.name = "FM Deviation",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min =    100,
+	.max = 200000,
+	.def =  75000,
+	.step =     1,
+};
+
+
 static const struct v4l2_ctrl_config vivid_ctrl_class = {
 	.ops = &vivid_user_gen_ctrl_ops,
 	.flags = V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY,
@@ -1314,7 +1349,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	v4l2_ctrl_new_custom(hdl_radio_rx, &vivid_ctrl_class, NULL);
 	v4l2_ctrl_handler_init(hdl_radio_tx, 17);
 	v4l2_ctrl_new_custom(hdl_radio_tx, &vivid_ctrl_class, NULL);
-	v4l2_ctrl_handler_init(hdl_sdr_cap, 18);
+	v4l2_ctrl_handler_init(hdl_sdr_cap, 19);
 	v4l2_ctrl_new_custom(hdl_sdr_cap, &vivid_ctrl_class, NULL);
 
 	/* User Controls */
@@ -1544,6 +1579,10 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		dev->radio_tx_rds_ms = v4l2_ctrl_new_std(hdl_radio_tx,
 			&vivid_radio_tx_ctrl_ops,
 			V4L2_CID_RDS_TX_MUSIC_SPEECH, 0, 1, 1, 1);
+	}
+	if (dev->has_sdr_cap) {
+		v4l2_ctrl_new_custom(hdl_sdr_cap,
+			&vivid_ctrl_sdr_cap_fm_deviation, NULL);
 	}
 	if (hdl_user_gen->error)
 		return hdl_user_gen->error;

@@ -40,8 +40,6 @@ static struct ep93xx_eth_data __initdata simone_eth_data = {
 };
 
 static struct ep93xxfb_mach_info __initdata simone_fb_info = {
-	.num_modes	= EP93XXFB_USE_MODEDB,
-	.bpp		= 16,
 	.flags		= EP93XXFB_USE_SDCSN0 | EP93XXFB_PCLK_FALLING,
 };
 
@@ -169,6 +167,7 @@ static struct spi_board_info simone_spi_devices[] __initdata = {
 
 static struct ep93xx_spi_info simone_spi_info __initdata = {
 	.num_chipselect	= ARRAY_SIZE(simone_spi_devices),
+	.use_dma = 1,
 };
 
 static struct i2c_gpio_platform_data __initdata simone_i2c_gpio_data = {

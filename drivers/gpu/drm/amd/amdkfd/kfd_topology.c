@@ -1186,6 +1186,11 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	 * TODO: Retrieve max engine clock values from KGD
 	 */
 
+	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
+		dev->node_props.capability |= HSA_CAP_DOORBELL_PACKET_TYPE;
+		pr_info("amdkfd: adding doorbell packet type capability\n");
+	}
+
 	res = 0;
 
 err:

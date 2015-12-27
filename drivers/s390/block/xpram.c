@@ -181,7 +181,7 @@ static unsigned long xpram_highest_page_index(void)
 /*
  * Block device make request function.
  */
-static void xpram_make_request(struct request_queue *q, struct bio *bio)
+static blk_qc_t xpram_make_request(struct request_queue *q, struct bio *bio)
 {
 	xpram_device_t *xdev = bio->bi_bdev->bd_disk->private_data;
 	struct bio_vec bvec;
@@ -189,6 +189,8 @@ static void xpram_make_request(struct request_queue *q, struct bio *bio)
 	unsigned int index;
 	unsigned long page_addr;
 	unsigned long bytes;
+
+	blk_queue_split(q, &bio, q->bio_split);
 
 	if ((bio->bi_iter.bi_sector & 7) != 0 ||
 	    (bio->bi_iter.bi_size & 4095) != 0)
@@ -220,11 +222,11 @@ static void xpram_make_request(struct request_queue *q, struct bio *bio)
 			index++;
 		}
 	}
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bio_endio(bio, 0);
-	return;
+	bio_endio(bio);
+	return BLK_QC_T_NONE;
 fail:
 	bio_io_error(bio);
+	return BLK_QC_T_NONE;
 }
 
 static int xpram_getgeo(struct block_device *bdev, struct hd_geometry *geo)

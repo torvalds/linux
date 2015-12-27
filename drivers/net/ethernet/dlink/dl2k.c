@@ -253,6 +253,19 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_out_unmap_rx;
 
+	if (np->chip_id == CHIP_IP1000A &&
+	    (np->pdev->revision == 0x40 || np->pdev->revision == 0x41)) {
+		/* PHY magic taken from ipg driver, undocumented registers */
+		mii_write(dev, np->phy_addr, 31, 0x0001);
+		mii_write(dev, np->phy_addr, 27, 0x01e0);
+		mii_write(dev, np->phy_addr, 31, 0x0002);
+		mii_write(dev, np->phy_addr, 27, 0xeb8e);
+		mii_write(dev, np->phy_addr, 31, 0x0000);
+		mii_write(dev, np->phy_addr, 30, 0x005e);
+		/* advertise 1000BASE-T half & full duplex, prefer MASTER */
+		mii_write(dev, np->phy_addr, MII_CTRL1000, 0x0700);
+	}
+
 	/* Fiber device? */
 	np->phy_media = (dr16(ASICCtrl) & PhyMedia) ? 1 : 0;
 	np->link_status = 0;
@@ -361,6 +374,11 @@ parse_eeprom (struct net_device *dev)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = psrom->mac_addr[i];
 
+	if (np->chip_id == CHIP_IP1000A) {
+		np->led_mode = psrom->led_mode;
+		return 0;
+	}
+
 	if (np->pdev->vendor != PCI_VENDOR_ID_DLINK) {
 		return 0;
 	}
@@ -406,6 +424,28 @@ parse_eeprom (struct net_device *dev)
 	return 0;
 }
 
+static void rio_set_led_mode(struct net_device *dev)
+{
+	struct netdev_private *np = netdev_priv(dev);
+	void __iomem *ioaddr = np->ioaddr;
+	u32 mode;
+
+	if (np->chip_id != CHIP_IP1000A)
+		return;
+
+	mode = dr32(ASICCtrl);
+	mode &= ~(IPG_AC_LED_MODE_BIT_1 | IPG_AC_LED_MODE | IPG_AC_LED_SPEED);
+
+	if (np->led_mode & 0x01)
+		mode |= IPG_AC_LED_MODE;
+	if (np->led_mode & 0x02)
+		mode |= IPG_AC_LED_MODE_BIT_1;
+	if (np->led_mode & 0x08)
+		mode |= IPG_AC_LED_SPEED;
+
+	dw32(ASICCtrl, mode);
+}
+
 static int
 rio_open (struct net_device *dev)
 {
@@ -424,6 +464,8 @@ rio_open (struct net_device *dev)
 	     GlobalReset | DMAReset | FIFOReset | NetworkReset | HostReset);
 	mdelay(10);
 
+	rio_set_led_mode(dev);
+
 	/* DebugCtrl bit 4, 5, 9 must set */
 	dw32(DebugCtrl, dr32(DebugCtrl) | 0x0230);
 
@@ -433,9 +475,13 @@ rio_open (struct net_device *dev)
 
 	alloc_list (dev);
 
-	/* Get station address */
-	for (i = 0; i < 6; i++)
-		dw8(StationAddr0 + i, dev->dev_addr[i]);
+	/* Set station address */
+	/* 16 or 32-bit access is required by TC9020 datasheet but 8-bit works
+	 * too. However, it doesn't work on IP1000A so we use 16-bit access.
+	 */
+	for (i = 0; i < 3; i++)
+		dw16(StationAddr0 + 2 * i,
+		     cpu_to_le16(((u16 *)dev->dev_addr)[i]));
 
 	set_multicast (dev);
 	if (np->coalesce) {
@@ -780,6 +826,7 @@ tx_error (struct net_device *dev, int tx_status)
 				break;
 			mdelay (1);
 		}
+		rio_set_led_mode(dev);
 		rio_free_tx (dev, 1);
 		/* Reset TFDListPtr */
 		dw32(TFDListPtr0, np->tx_ring_dma +
@@ -799,6 +846,7 @@ tx_error (struct net_device *dev, int tx_status)
 				break;
 			mdelay (1);
 		}
+		rio_set_led_mode(dev);
 		/* Let TxStartThresh stay default value */
 	}
 	/* Maximum Collisions */
@@ -965,6 +1013,7 @@ rio_error (struct net_device *dev, int int_status)
 			dev->name, int_status);
 		dw16(ASICCtrl + 2, GlobalReset | HostReset);
 		mdelay (500);
+		rio_set_led_mode(dev);
 	}
 }
 

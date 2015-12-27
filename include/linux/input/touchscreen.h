@@ -9,14 +9,8 @@
 #ifndef _TOUCHSCREEN_H
 #define _TOUCHSCREEN_H
 
-#include <linux/input.h>
+struct input_dev;
 
-#ifdef CONFIG_OF
-void touchscreen_parse_of_params(struct input_dev *dev);
-#else
-static inline void touchscreen_parse_of_params(struct input_dev *dev)
-{
-}
-#endif
+void touchscreen_parse_properties(struct input_dev *dev, bool multitouch);
 
 #endif

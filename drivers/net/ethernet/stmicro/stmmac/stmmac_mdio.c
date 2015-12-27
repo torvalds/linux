@@ -138,7 +138,6 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 
 #ifdef CONFIG_OF
 	if (priv->device->of_node) {
-		int reset_gpio, active_low;
 
 		if (data->reset_gpio < 0) {
 			struct device_node *np = priv->device->of_node;
@@ -154,19 +153,23 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 						"snps,reset-active-low");
 			of_property_read_u32_array(np,
 				"snps,reset-delays-us", data->delays, 3);
+
+			if (gpio_request(data->reset_gpio, "mdio-reset"))
+				return 0;
 		}
 
-		reset_gpio = data->reset_gpio;
-		active_low = data->active_low;
+		gpio_direction_output(data->reset_gpio,
+				      data->active_low ? 1 : 0);
+		if (data->delays[0])
+			msleep(DIV_ROUND_UP(data->delays[0], 1000));
 
-		if (!gpio_request(reset_gpio, "mdio-reset")) {
-			gpio_direction_output(reset_gpio, active_low ? 1 : 0);
-			udelay(data->delays[0]);
-			gpio_set_value(reset_gpio, active_low ? 0 : 1);
-			udelay(data->delays[1]);
-			gpio_set_value(reset_gpio, active_low ? 1 : 0);
-			udelay(data->delays[2]);
-		}
+		gpio_set_value(data->reset_gpio, data->active_low ? 0 : 1);
+		if (data->delays[1])
+			msleep(DIV_ROUND_UP(data->delays[1], 1000));
+
+		gpio_set_value(data->reset_gpio, data->active_low ? 1 : 0);
+		if (data->delays[2])
+			msleep(DIV_ROUND_UP(data->delays[2], 1000));
 	}
 #endif
 

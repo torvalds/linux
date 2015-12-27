@@ -18,7 +18,7 @@
 #define NV_MEM_TARGET_VM          3
 #define NV_MEM_TARGET_GART        4
 
-#define NV_MEM_TYPE_VM 0x7f
+#define NVKM_RAM_TYPE_VM 0x7f
 #define NV_MEM_COMP_VM 0x03
 
 struct nvkm_mem {
@@ -46,62 +46,47 @@ struct nvkm_fb_tile {
 };
 
 struct nvkm_fb {
-	struct nvkm_subdev base;
-
-	bool (*memtype_valid)(struct nvkm_fb *, u32 memtype);
+	const struct nvkm_fb_func *func;
+	struct nvkm_subdev subdev;
 
 	struct nvkm_ram *ram;
-
-	struct nvkm_mm vram;
-	struct nvkm_mm tags;
 
 	struct {
 		struct nvkm_fb_tile region[16];
 		int regions;
-		void (*init)(struct nvkm_fb *, int i, u32 addr, u32 size,
-			     u32 pitch, u32 flags, struct nvkm_fb_tile *);
-		void (*comp)(struct nvkm_fb *, int i, u32 size, u32 flags,
-			     struct nvkm_fb_tile *);
-		void (*fini)(struct nvkm_fb *, int i, struct nvkm_fb_tile *);
-		void (*prog)(struct nvkm_fb *, int i, struct nvkm_fb_tile *);
 	} tile;
 };
 
-static inline struct nvkm_fb *
-nvkm_fb(void *obj)
-{
-	/* fbram uses this before device subdev pointer is valid */
-	if (nv_iclass(obj, NV_SUBDEV_CLASS) &&
-	    nv_subidx(obj) == NVDEV_SUBDEV_FB)
-		return obj;
+bool nvkm_fb_memtype_valid(struct nvkm_fb *, u32 memtype);
+void nvkm_fb_tile_init(struct nvkm_fb *, int region, u32 addr, u32 size,
+		       u32 pitch, u32 flags, struct nvkm_fb_tile *);
+void nvkm_fb_tile_fini(struct nvkm_fb *, int region, struct nvkm_fb_tile *);
+void nvkm_fb_tile_prog(struct nvkm_fb *, int region, struct nvkm_fb_tile *);
 
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_FB);
-}
-
-extern struct nvkm_oclass *nv04_fb_oclass;
-extern struct nvkm_oclass *nv10_fb_oclass;
-extern struct nvkm_oclass *nv1a_fb_oclass;
-extern struct nvkm_oclass *nv20_fb_oclass;
-extern struct nvkm_oclass *nv25_fb_oclass;
-extern struct nvkm_oclass *nv30_fb_oclass;
-extern struct nvkm_oclass *nv35_fb_oclass;
-extern struct nvkm_oclass *nv36_fb_oclass;
-extern struct nvkm_oclass *nv40_fb_oclass;
-extern struct nvkm_oclass *nv41_fb_oclass;
-extern struct nvkm_oclass *nv44_fb_oclass;
-extern struct nvkm_oclass *nv46_fb_oclass;
-extern struct nvkm_oclass *nv47_fb_oclass;
-extern struct nvkm_oclass *nv49_fb_oclass;
-extern struct nvkm_oclass *nv4e_fb_oclass;
-extern struct nvkm_oclass *nv50_fb_oclass;
-extern struct nvkm_oclass *g84_fb_oclass;
-extern struct nvkm_oclass *gt215_fb_oclass;
-extern struct nvkm_oclass *mcp77_fb_oclass;
-extern struct nvkm_oclass *mcp89_fb_oclass;
-extern struct nvkm_oclass *gf100_fb_oclass;
-extern struct nvkm_oclass *gk104_fb_oclass;
-extern struct nvkm_oclass *gk20a_fb_oclass;
-extern struct nvkm_oclass *gm107_fb_oclass;
+int nv04_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv10_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv1a_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv20_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv25_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv30_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv35_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv36_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv40_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv41_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv44_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv46_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv47_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv49_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv4e_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv50_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int g84_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gt215_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int mcp77_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int mcp89_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gf100_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gk104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gk20a_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gm107_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 
 #include <subdev/bios.h>
 #include <subdev/bios/ramcfg.h>
@@ -112,36 +97,35 @@ struct nvkm_ram_data {
 	u32 freq;
 };
 
+enum nvkm_ram_type {
+	NVKM_RAM_TYPE_UNKNOWN = 0,
+	NVKM_RAM_TYPE_STOLEN,
+	NVKM_RAM_TYPE_SGRAM,
+	NVKM_RAM_TYPE_SDRAM,
+	NVKM_RAM_TYPE_DDR1,
+	NVKM_RAM_TYPE_DDR2,
+	NVKM_RAM_TYPE_DDR3,
+	NVKM_RAM_TYPE_GDDR2,
+	NVKM_RAM_TYPE_GDDR3,
+	NVKM_RAM_TYPE_GDDR4,
+	NVKM_RAM_TYPE_GDDR5
+};
+
 struct nvkm_ram {
-	struct nvkm_object base;
-	enum {
-		NV_MEM_TYPE_UNKNOWN = 0,
-		NV_MEM_TYPE_STOLEN,
-		NV_MEM_TYPE_SGRAM,
-		NV_MEM_TYPE_SDRAM,
-		NV_MEM_TYPE_DDR1,
-		NV_MEM_TYPE_DDR2,
-		NV_MEM_TYPE_DDR3,
-		NV_MEM_TYPE_GDDR2,
-		NV_MEM_TYPE_GDDR3,
-		NV_MEM_TYPE_GDDR4,
-		NV_MEM_TYPE_GDDR5
-	} type;
-	u64 stolen;
+	const struct nvkm_ram_func *func;
+	struct nvkm_fb *fb;
+	enum nvkm_ram_type type;
 	u64 size;
-	u32 tags;
+
+#define NVKM_RAM_MM_SHIFT 12
+	struct nvkm_mm vram;
+	struct nvkm_mm tags;
+	u64 stolen;
 
 	int ranks;
 	int parts;
 	int part_mask;
 
-	int  (*get)(struct nvkm_fb *, u64 size, u32 align, u32 size_nc,
-		    u32 type, struct nvkm_mem **);
-	void (*put)(struct nvkm_fb *, struct nvkm_mem **);
-
-	int  (*calc)(struct nvkm_fb *, u32 freq);
-	int  (*prog)(struct nvkm_fb *);
-	void (*tidy)(struct nvkm_fb *);
 	u32 freq;
 	u32 mr[16];
 	u32 mr1_nuts;
@@ -150,5 +134,18 @@ struct nvkm_ram {
 	struct nvkm_ram_data former;
 	struct nvkm_ram_data xition;
 	struct nvkm_ram_data target;
+};
+
+struct nvkm_ram_func {
+	void *(*dtor)(struct nvkm_ram *);
+	int (*init)(struct nvkm_ram *);
+
+	int (*get)(struct nvkm_ram *, u64 size, u32 align, u32 size_nc,
+		   u32 type, struct nvkm_mem **);
+	void (*put)(struct nvkm_ram *, struct nvkm_mem **);
+
+	int (*calc)(struct nvkm_ram *, u32 freq);
+	int (*prog)(struct nvkm_ram *);
+	void (*tidy)(struct nvkm_ram *);
 };
 #endif

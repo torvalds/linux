@@ -26,12 +26,6 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	Stall-warning messages may be enabled and disabled completely via
 	/sys/module/rcupdate/parameters/rcu_cpu_stall_suppress.
 
-CONFIG_RCU_CPU_STALL_INFO
-
-	This kernel configuration parameter causes the stall warning to
-	print out additional per-CPU diagnostic information, including
-	information on scheduling-clock ticks and RCU's idle-CPU tracking.
-
 RCU_STALL_DELAY_DELTA
 
 	Although the lockdep facility is extremely useful, it does add
@@ -101,15 +95,13 @@ interact.  Please note that it is not possible to entirely eliminate this
 sort of false positive without resorting to things like stop_machine(),
 which is overkill for this sort of problem.
 
-If the CONFIG_RCU_CPU_STALL_INFO kernel configuration parameter is set,
-more information is printed with the stall-warning message, for example:
+Recent kernels will print a long form of the stall-warning message:
 
 	INFO: rcu_preempt detected stall on CPU
 	0: (63959 ticks this GP) idle=241/3fffffffffffffff/0 softirq=82/543
 	   (t=65000 jiffies)
 
-In kernels with CONFIG_RCU_FAST_NO_HZ, even more information is
-printed:
+In kernels with CONFIG_RCU_FAST_NO_HZ, more information is printed:
 
 	INFO: rcu_preempt detected stall on CPU
 	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 softirq=82/543 last_accelerate: a345/d342 nonlazy_posted: 25 .D
@@ -171,6 +163,23 @@ message will be about three times the interval between the beginning
 of the stall and the first message.
 
 
+Stall Warnings for Expedited Grace Periods
+
+If an expedited grace period detects a stall, it will place a message
+like the following in dmesg:
+
+	INFO: rcu_sched detected expedited stalls on CPUs: { 1 2 6 } 26009 jiffies s: 1043
+
+This indicates that CPUs 1, 2, and 6 have failed to respond to a
+reschedule IPI, that the expedited grace period has been going on for
+26,009 jiffies, and that the expedited grace-period sequence counter is
+1043.  The fact that this last value is odd indicates that an expedited
+grace period is in flight.
+
+It is entirely possible to see stall warnings from normal and from
+expedited grace periods at about the same time from the same run.
+
+
 What Causes RCU CPU Stall Warnings?
 
 So your kernel printed an RCU CPU stall warning.  The next question is
@@ -195,6 +204,13 @@ o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the
 	if the looping in the kernel is really expected and desirable
 	behavior, you might need to replace some of the cond_resched()
 	calls with calls to cond_resched_rcu_qs().
+
+o	Booting Linux using a console connection that is too slow to
+	keep up with the boot-time console-message rate.  For example,
+	a 115Kbaud serial console can be -way- too slow to keep up
+	with boot-time message rates, and will frequently result in
+	RCU CPU stall warning messages.  Especially if you have added
+	debug printk()s.
 
 o	Anything that prevents RCU's grace-period kthreads from running.
 	This can result in the "All QSes seen" console-log message.

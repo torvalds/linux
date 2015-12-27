@@ -12,6 +12,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/pm.h>
@@ -79,12 +80,20 @@ static void jz4740_power_off(void)
 	void __iomem *rtc_base = ioremap(JZ4740_RTC_BASE_ADDR, 0x38);
 	unsigned long wakeup_filter_ticks;
 	unsigned long reset_counter_ticks;
+	struct clk *rtc_clk;
+	unsigned long rtc_rate;
+
+	rtc_clk = clk_get(NULL, "rtc");
+	if (IS_ERR(rtc_clk))
+		panic("unable to get RTC clock");
+	rtc_rate = clk_get_rate(rtc_clk);
+	clk_put(rtc_clk);
 
 	/*
 	 * Set minimum wakeup pin assertion time: 100 ms.
 	 * Range is 0 to 2 sec if RTC is clocked at 32 kHz.
 	 */
-	wakeup_filter_ticks = (100 * jz4740_clock_bdata.rtc_rate) / 1000;
+	wakeup_filter_ticks = (100 * rtc_rate) / 1000;
 	if (wakeup_filter_ticks < JZ_RTC_WAKEUP_FILTER_MASK)
 		wakeup_filter_ticks &= JZ_RTC_WAKEUP_FILTER_MASK;
 	else
@@ -96,7 +105,7 @@ static void jz4740_power_off(void)
 	 * Set reset pin low-level assertion time after wakeup: 60 ms.
 	 * Range is 0 to 125 ms if RTC is clocked at 32 kHz.
 	 */
-	reset_counter_ticks = (60 * jz4740_clock_bdata.rtc_rate) / 1000;
+	reset_counter_ticks = (60 * rtc_rate) / 1000;
 	if (reset_counter_ticks < JZ_RTC_RESET_COUNTER_MASK)
 		reset_counter_ticks &= JZ_RTC_RESET_COUNTER_MASK;
 	else

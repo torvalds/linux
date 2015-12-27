@@ -887,11 +887,32 @@ EXPORT_SYMBOL_GPL(snd_hda_apply_fixup);
 static bool pin_config_match(struct hda_codec *codec,
 			     const struct hda_pintbl *pins)
 {
-	for (; pins->nid; pins++) {
-		u32 def_conf = snd_hda_codec_get_pincfg(codec, pins->nid);
-		if (pins->val != def_conf)
+	int i;
+
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		hda_nid_t nid = pin->nid;
+		u32 cfg = pin->cfg;
+		const struct hda_pintbl *t_pins;
+		int found;
+
+		t_pins = pins;
+		found = 0;
+		for (; t_pins->nid; t_pins++) {
+			if (t_pins->nid == nid) {
+				found = 1;
+				if (t_pins->val == cfg)
+					break;
+				else if ((cfg & 0xf0000000) == 0x40000000 && (t_pins->val & 0xf0000000) == 0x40000000)
+					break;
+				else
+					return false;
+			}
+		}
+		if (!found && (cfg & 0xf0000000) != 0x40000000)
 			return false;
 	}
+
 	return true;
 }
 

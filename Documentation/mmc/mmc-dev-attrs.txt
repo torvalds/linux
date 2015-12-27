@@ -72,13 +72,3 @@ Note on raw_rpmb_size_mult:
 	"raw_rpmb_size_mult" is a mutliple of 128kB block.
 	RPMB size in byte is calculated by using the following equation:
 	RPMB partition size = 128kB x raw_rpmb_size_mult
-
-SD/MMC/SDIO Clock Gating Attribute
-==================================
-
-Read and write access is provided to following attribute.
-This attribute appears only if CONFIG_MMC_CLKGATE is enabled.
-
-	clkgate_delay	Tune the clock gating delay with desired value in milliseconds.
-
-echo <desired delay> > /sys/class/mmc_host/mmcX/clkgate_delay

@@ -25,12 +25,22 @@
 
 #include <linux/types.h>
 #include <linux/random.h>
-#include <asm/byteorder.h>
 
 #define IEEE802154_MTU			127
 #define IEEE802154_ACK_PSDU_LEN		5
 #define IEEE802154_MIN_PSDU_LEN		9
 #define IEEE802154_FCS_LEN		2
+#define IEEE802154_MAX_AUTH_TAG_LEN	16
+
+/*  General MAC frame format:
+ *  2 bytes: Frame Control
+ *  1 byte:  Sequence Number
+ * 20 bytes: Addressing fields
+ * 14 bytes: Auxiliary Security Header
+ */
+#define IEEE802154_MAX_HEADER_LEN	(2 + 1 + 20 + 14)
+#define IEEE802154_MIN_HEADER_LEN	(IEEE802154_ACK_PSDU_LEN - \
+					 IEEE802154_FCS_LEN)
 
 #define IEEE802154_PAN_ID_BROADCAST	0xffff
 #define IEEE802154_ADDR_SHORT_BROADCAST	0xffff
@@ -204,6 +214,41 @@ enum {
 	 */
 	IEEE802154_SCAN_IN_PROGRESS = 0xfc,
 };
+
+/* frame control handling */
+#define IEEE802154_FCTL_FTYPE		0x0003
+#define IEEE802154_FCTL_ACKREQ		0x0020
+#define IEEE802154_FCTL_INTRA_PAN	0x0040
+
+#define IEEE802154_FTYPE_DATA		0x0001
+
+/*
+ * ieee802154_is_data - check if type is IEEE802154_FTYPE_DATA
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline int ieee802154_is_data(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
+		cpu_to_le16(IEEE802154_FTYPE_DATA);
+}
+
+/**
+ * ieee802154_is_ackreq - check if acknowledgment request bit is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_ackreq(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_ACKREQ);
+}
+
+/**
+ * ieee802154_is_intra_pan - check if intra pan id communication
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_intra_pan(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_INTRA_PAN);
+}
 
 /**
  * ieee802154_is_valid_psdu_len - check if psdu len is valid

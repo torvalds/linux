@@ -133,50 +133,50 @@ static irqreturn_t sp804_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void sp804_set_mode(enum clock_event_mode mode,
-	struct clock_event_device *evt)
+static inline void timer_shutdown(struct clock_event_device *evt)
 {
-	unsigned long ctrl = TIMER_CTRL_32BIT | TIMER_CTRL_IE;
+	writel(0, clkevt_base + TIMER_CTRL);
+}
 
+static int sp804_shutdown(struct clock_event_device *evt)
+{
+	timer_shutdown(evt);
+	return 0;
+}
+
+static int sp804_set_periodic(struct clock_event_device *evt)
+{
+	unsigned long ctrl = TIMER_CTRL_32BIT | TIMER_CTRL_IE |
+			     TIMER_CTRL_PERIODIC | TIMER_CTRL_ENABLE;
+
+	timer_shutdown(evt);
+	writel(clkevt_reload, clkevt_base + TIMER_LOAD);
 	writel(ctrl, clkevt_base + TIMER_CTRL);
-
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		writel(clkevt_reload, clkevt_base + TIMER_LOAD);
-		ctrl |= TIMER_CTRL_PERIODIC | TIMER_CTRL_ENABLE;
-		break;
-
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* period set, and timer enabled in 'next_event' hook */
-		ctrl |= TIMER_CTRL_ONESHOT;
-		break;
-
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	default:
-		break;
-	}
-
-	writel(ctrl, clkevt_base + TIMER_CTRL);
+	return 0;
 }
 
 static int sp804_set_next_event(unsigned long next,
 	struct clock_event_device *evt)
 {
-	unsigned long ctrl = readl(clkevt_base + TIMER_CTRL);
+	unsigned long ctrl = TIMER_CTRL_32BIT | TIMER_CTRL_IE |
+			     TIMER_CTRL_ONESHOT | TIMER_CTRL_ENABLE;
 
 	writel(next, clkevt_base + TIMER_LOAD);
-	writel(ctrl | TIMER_CTRL_ENABLE, clkevt_base + TIMER_CTRL);
+	writel(ctrl, clkevt_base + TIMER_CTRL);
 
 	return 0;
 }
 
 static struct clock_event_device sp804_clockevent = {
-	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
-		CLOCK_EVT_FEAT_DYNIRQ,
-	.set_mode	= sp804_set_mode,
-	.set_next_event	= sp804_set_next_event,
-	.rating		= 300,
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_DYNIRQ,
+	.set_state_shutdown	= sp804_shutdown,
+	.set_state_periodic	= sp804_set_periodic,
+	.set_state_oneshot	= sp804_shutdown,
+	.tick_resume		= sp804_shutdown,
+	.set_next_event		= sp804_set_next_event,
+	.rating			= 300,
 };
 
 static struct irqaction sp804_timer_irq = {

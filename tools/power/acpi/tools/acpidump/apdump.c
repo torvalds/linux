@@ -329,7 +329,7 @@ int ap_dump_table_by_name(char *signature)
 	acpi_status status;
 	int table_status;
 
-	if (ACPI_STRLEN(signature) != ACPI_NAME_SIZE) {
+	if (strlen(signature) != ACPI_NAME_SIZE) {
 		acpi_log_error
 		    ("Invalid table signature [%s]: must be exactly 4 characters\n",
 		     signature);
@@ -338,15 +338,15 @@ int ap_dump_table_by_name(char *signature)
 
 	/* Table signatures are expected to be uppercase */
 
-	ACPI_STRCPY(local_signature, signature);
+	strcpy(local_signature, signature);
 	acpi_ut_strupr(local_signature);
 
 	/* To be friendly, handle tables whose signatures do not match the name */
 
 	if (ACPI_COMPARE_NAME(local_signature, "FADT")) {
-		ACPI_STRCPY(local_signature, ACPI_SIG_FADT);
+		strcpy(local_signature, ACPI_SIG_FADT);
 	} else if (ACPI_COMPARE_NAME(local_signature, "MADT")) {
-		ACPI_STRCPY(local_signature, ACPI_SIG_MADT);
+		strcpy(local_signature, ACPI_SIG_MADT);
 	}
 
 	/* Dump all instances of this signature (to handle multiple SSDTs) */

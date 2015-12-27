@@ -556,7 +556,7 @@ static int axmclk_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 
 	num_clks = ARRAY_SIZE(axmclk_clocks);
-	pr_info("axmclk: supporting %u clocks\n", num_clks);
+	pr_info("axmclk: supporting %zu clocks\n", num_clks);
 	priv = devm_kzalloc(dev, sizeof(*priv) + sizeof(*priv->clks) * num_clks,
 			    GFP_KERNEL);
 	if (!priv)

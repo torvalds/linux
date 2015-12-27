@@ -102,7 +102,7 @@
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>media_version</structfield></entry>
+	    <entry><structfield>driver_version</structfield></entry>
 	    <entry>Media device driver version, formatted with the
 	    <constant>KERNEL_VERSION()</constant> macro. Together with the
 	    <structfield>driver</structfield> field this identifies a particular

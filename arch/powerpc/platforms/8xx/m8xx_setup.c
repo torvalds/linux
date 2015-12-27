@@ -214,7 +214,7 @@ void mpc8xx_restart(char *cmd)
 	panic("Restart failed\n");
 }
 
-static void cpm_cascade(unsigned int irq, struct irq_desc *desc)
+static void cpm_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int cascade_irq = cpm_get_irq();

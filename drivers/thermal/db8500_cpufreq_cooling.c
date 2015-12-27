@@ -72,6 +72,7 @@ static const struct of_device_id db8500_cpufreq_cooling_match[] = {
 	{ .compatible = "stericsson,db8500-cpufreq-cooling" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, db8500_cpufreq_cooling_match);
 #endif
 
 static struct platform_driver db8500_cpufreq_cooling_driver = {

@@ -44,12 +44,6 @@ static inline void exofs_put_page(struct page *page)
 	page_cache_release(page);
 }
 
-/* Accesses dir's inode->i_size must be called under inode lock */
-static inline unsigned long dir_pages(struct inode *inode)
-{
-	return (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-}
-
 static unsigned exofs_last_byte(struct inode *inode, unsigned long page_nr)
 {
 	loff_t last_byte = inode->i_size;

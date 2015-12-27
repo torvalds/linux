@@ -9,6 +9,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netlink.h>
@@ -16,6 +17,53 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
+
+/* add vlan header into the user buffer for if tag was removed by offloads */
+static bool
+nft_payload_copy_vlan(u32 *d, const struct sk_buff *skb, u8 offset, u8 len)
+{
+	int mac_off = skb_mac_header(skb) - skb->data;
+	u8 vlan_len, *vlanh, *dst_u8 = (u8 *) d;
+	struct vlan_ethhdr veth;
+
+	vlanh = (u8 *) &veth;
+	if (offset < ETH_HLEN) {
+		u8 ethlen = min_t(u8, len, ETH_HLEN - offset);
+
+		if (skb_copy_bits(skb, mac_off, &veth, ETH_HLEN))
+			return false;
+
+		veth.h_vlan_proto = skb->vlan_proto;
+
+		memcpy(dst_u8, vlanh + offset, ethlen);
+
+		len -= ethlen;
+		if (len == 0)
+			return true;
+
+		dst_u8 += ethlen;
+		offset = ETH_HLEN;
+	} else if (offset >= VLAN_ETH_HLEN) {
+		offset -= VLAN_HLEN;
+		goto skip;
+	}
+
+	veth.h_vlan_TCI = htons(skb_vlan_tag_get(skb));
+	veth.h_vlan_encapsulated_proto = skb->protocol;
+
+	vlanh += offset;
+
+	vlan_len = min_t(u8, len, VLAN_ETH_HLEN - offset);
+	memcpy(dst_u8, vlanh, vlan_len);
+
+	len -= vlan_len;
+	if (!len)
+		return true;
+
+	dst_u8 += vlan_len;
+ skip:
+	return skb_copy_bits(skb, offset + mac_off, dst_u8, len) == 0;
+}
 
 static void nft_payload_eval(const struct nft_expr *expr,
 			     struct nft_regs *regs,
@@ -26,10 +74,18 @@ static void nft_payload_eval(const struct nft_expr *expr,
 	u32 *dest = &regs->data[priv->dreg];
 	int offset;
 
+	dest[priv->len / NFT_REG32_SIZE] = 0;
 	switch (priv->base) {
 	case NFT_PAYLOAD_LL_HEADER:
 		if (!skb_mac_header_was_set(skb))
 			goto err;
+
+		if (skb_vlan_tag_present(skb)) {
+			if (!nft_payload_copy_vlan(dest, skb,
+						   priv->offset, priv->len))
+				goto err;
+			return;
+		}
 		offset = skb_mac_header(skb) - skb->data;
 		break;
 	case NFT_PAYLOAD_NETWORK_HEADER:
@@ -43,7 +99,6 @@ static void nft_payload_eval(const struct nft_expr *expr,
 	}
 	offset += priv->offset;
 
-	dest[priv->len / NFT_REG32_SIZE] = 0;
 	if (skb_copy_bits(skb, offset, dest, priv->len) < 0)
 		goto err;
 	return;

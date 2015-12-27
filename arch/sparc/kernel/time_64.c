@@ -674,32 +674,19 @@ static int sparc64_next_event(unsigned long delta,
 	return tick_ops->add_compare(delta) ? -ETIME : 0;
 }
 
-static void sparc64_timer_setup(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int sparc64_timer_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		tick_ops->disable_irq();
-		break;
-
-	case CLOCK_EVT_MODE_PERIODIC:
-	case CLOCK_EVT_MODE_UNUSED:
-		WARN_ON(1);
-		break;
-	}
+	tick_ops->disable_irq();
+	return 0;
 }
 
 static struct clock_event_device sparc64_clockevent = {
-	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= sparc64_timer_setup,
-	.set_next_event	= sparc64_next_event,
-	.rating		= 100,
-	.shift		= 30,
-	.irq		= -1,
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
+	.set_state_shutdown	= sparc64_timer_shutdown,
+	.set_next_event		= sparc64_next_event,
+	.rating			= 100,
+	.shift			= 30,
+	.irq			= -1,
 };
 static DEFINE_PER_CPU(struct clock_event_device, sparc64_events);
 

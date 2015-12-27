@@ -98,15 +98,16 @@ ATOMIC_OP_RETURN(add, +)
 ATOMIC_OP_RETURN(sub, -)
 #endif
 
-#ifndef atomic_clear_mask
+#ifndef atomic_and
 ATOMIC_OP(and, &)
-#define atomic_clear_mask(i, v) atomic_and(~(i), (v))
 #endif
 
-#ifndef atomic_set_mask
-#define CONFIG_ARCH_HAS_ATOMIC_OR
+#ifndef atomic_or
 ATOMIC_OP(or, |)
-#define atomic_set_mask(i, v)	atomic_or((i), (v))
+#endif
+
+#ifndef atomic_xor
+ATOMIC_OP(xor, ^)
 #endif
 
 #undef ATOMIC_OP_RETURN
@@ -126,7 +127,7 @@ ATOMIC_OP(or, |)
  * Atomically reads the value of @v.
  */
 #ifndef atomic_read
-#define atomic_read(v)	ACCESS_ONCE((v)->counter)
+#define atomic_read(v)	READ_ONCE((v)->counter)
 #endif
 
 /**
@@ -136,7 +137,7 @@ ATOMIC_OP(or, |)
  *
  * Atomically sets the value of @v to @i.
  */
-#define atomic_set(v, i) (((v)->counter) = (i))
+#define atomic_set(v, i) WRITE_ONCE(((v)->counter), (i))
 
 #include <linux/irqflags.h>
 

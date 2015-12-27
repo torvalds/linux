@@ -169,7 +169,7 @@ void
 nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_chan *fctx)
 {
 	struct nouveau_fence_priv *priv = (void*)chan->drm->fence;
-	struct nouveau_cli *cli = (void *)nvif_client(chan->object);
+	struct nouveau_cli *cli = (void *)chan->user.client;
 	int ret;
 
 	INIT_LIST_HEAD(&fctx->flip);
@@ -188,13 +188,12 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	if (!priv->uevent)
 		return;
 
-	ret = nvif_notify_init(chan->object, NULL,
-			 nouveau_fence_wait_uevent_handler, false,
-			 G82_CHANNEL_DMA_V0_NTFY_UEVENT,
-			 &(struct nvif_notify_uevent_req) { },
-			 sizeof(struct nvif_notify_uevent_req),
-			 sizeof(struct nvif_notify_uevent_rep),
-			 &fctx->notify);
+	ret = nvif_notify_init(&chan->user, nouveau_fence_wait_uevent_handler,
+			       false, G82_CHANNEL_DMA_V0_NTFY_UEVENT,
+			       &(struct nvif_notify_uevent_req) { },
+			       sizeof(struct nvif_notify_uevent_req),
+			       sizeof(struct nvif_notify_uevent_rep),
+			       &fctx->notify);
 
 	WARN_ON(ret);
 }

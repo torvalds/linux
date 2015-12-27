@@ -33,6 +33,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 #include <dt-bindings/pinctrl/mt65xx.h>
 
 #include "../core.h"
@@ -702,7 +703,7 @@ static int mtk_pmx_set_mux(struct pinctrl_dev *pctldev,
 
 	ret = mtk_pctrl_is_function_valid(pctl, g->pin, function);
 	if (!ret) {
-		dev_err(pctl->dev, "invaild function %d on group %d .\n",
+		dev_err(pctl->dev, "invalid function %d on group %d .\n",
 				function, group);
 		return -EINVAL;
 	}
@@ -721,16 +722,6 @@ static const struct pinmux_ops mtk_pmx_ops = {
 	.set_mux		= mtk_pmx_set_mux,
 	.gpio_set_direction	= mtk_pmx_gpio_set_direction,
 };
-
-static int mtk_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void mtk_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
 
 static int mtk_gpio_direction_input(struct gpio_chip *chip,
 					unsigned offset)
@@ -756,7 +747,7 @@ static int mtk_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	reg_addr =  mtk_get_port(pctl, offset) + pctl->devdata->dir_offset;
 	bit = BIT(offset & 0xf);
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
-	return !!(read_val & bit);
+	return !(read_val & bit);
 }
 
 static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -766,12 +757,8 @@ static int mtk_gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned int read_val = 0;
 	struct mtk_pinctrl *pctl = dev_get_drvdata(chip->dev);
 
-	if (mtk_gpio_get_direction(chip, offset))
-		reg_addr = mtk_get_port(pctl, offset) +
-			pctl->devdata->dout_offset;
-	else
-		reg_addr = mtk_get_port(pctl, offset) +
-			pctl->devdata->din_offset;
+	reg_addr = mtk_get_port(pctl, offset) +
+		pctl->devdata->din_offset;
 
 	bit = BIT(offset & 0xf);
 	regmap_read(pctl->regmap1, reg_addr, &read_val);
@@ -898,7 +885,7 @@ static int mtk_eint_flip_edge(struct mtk_pinctrl *pctl, int hwirq)
 	int start_level, curr_level;
 	unsigned int reg_offset;
 	const struct mtk_eint_offsets *eint_offsets = &(pctl->devdata->eint_offsets);
-	u32 mask = 1 << (hwirq & 0x1f);
+	u32 mask = BIT(hwirq & 0x1f);
 	u32 port = (hwirq >> 5) & eint_offsets->port_mask;
 	void __iomem *reg = pctl->eint_reg_base + (port << 2);
 	const struct mtk_desc_pin *pin;
@@ -1004,8 +991,9 @@ static int mtk_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 
 static struct gpio_chip mtk_gpio_chip = {
 	.owner			= THIS_MODULE,
-	.request		= mtk_gpio_request,
-	.free			= mtk_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
+	.get_direction		= mtk_gpio_get_direction,
 	.direction_input	= mtk_gpio_direction_input,
 	.direction_output	= mtk_gpio_direction_output,
 	.get			= mtk_gpio_get,
@@ -1062,6 +1050,77 @@ static int mtk_eint_set_type(struct irq_data *d,
 	return 0;
 }
 
+static int mtk_eint_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
+	int shift = d->hwirq & 0x1f;
+	int reg = d->hwirq >> 5;
+
+	if (on)
+		pctl->wake_mask[reg] |= BIT(shift);
+	else
+		pctl->wake_mask[reg] &= ~BIT(shift);
+
+	return 0;
+}
+
+static void mtk_eint_chip_write_mask(const struct mtk_eint_offsets *chip,
+		void __iomem *eint_reg_base, u32 *buf)
+{
+	int port;
+	void __iomem *reg;
+
+	for (port = 0; port < chip->ports; port++) {
+		reg = eint_reg_base + (port << 2);
+		writel_relaxed(~buf[port], reg + chip->mask_set);
+		writel_relaxed(buf[port], reg + chip->mask_clr);
+	}
+}
+
+static void mtk_eint_chip_read_mask(const struct mtk_eint_offsets *chip,
+		void __iomem *eint_reg_base, u32 *buf)
+{
+	int port;
+	void __iomem *reg;
+
+	for (port = 0; port < chip->ports; port++) {
+		reg = eint_reg_base + chip->mask + (port << 2);
+		buf[port] = ~readl_relaxed(reg);
+		/* Mask is 0 when irq is enabled, and 1 when disabled. */
+	}
+}
+
+static int mtk_eint_suspend(struct device *device)
+{
+	void __iomem *reg;
+	struct mtk_pinctrl *pctl = dev_get_drvdata(device);
+	const struct mtk_eint_offsets *eint_offsets =
+			&pctl->devdata->eint_offsets;
+
+	reg = pctl->eint_reg_base;
+	mtk_eint_chip_read_mask(eint_offsets, reg, pctl->cur_mask);
+	mtk_eint_chip_write_mask(eint_offsets, reg, pctl->wake_mask);
+
+	return 0;
+}
+
+static int mtk_eint_resume(struct device *device)
+{
+	struct mtk_pinctrl *pctl = dev_get_drvdata(device);
+	const struct mtk_eint_offsets *eint_offsets =
+			&pctl->devdata->eint_offsets;
+
+	mtk_eint_chip_write_mask(eint_offsets,
+			pctl->eint_reg_base, pctl->cur_mask);
+
+	return 0;
+}
+
+const struct dev_pm_ops mtk_eint_pm_ops = {
+	.suspend = mtk_eint_suspend,
+	.resume = mtk_eint_resume,
+};
+
 static void mtk_eint_ack(struct irq_data *d)
 {
 	struct mtk_pinctrl *pctl = irq_data_get_irq_chip_data(d);
@@ -1076,10 +1135,12 @@ static void mtk_eint_ack(struct irq_data *d)
 
 static struct irq_chip mtk_pinctrl_irq_chip = {
 	.name = "mt-eint",
+	.irq_disable = mtk_eint_mask,
 	.irq_mask = mtk_eint_mask,
 	.irq_unmask = mtk_eint_unmask,
 	.irq_ack = mtk_eint_ack,
 	.irq_set_type = mtk_eint_set_type,
+	.irq_set_wake = mtk_eint_irq_set_wake,
 	.irq_request_resources = mtk_pinctrl_irq_request_resources,
 	.irq_release_resources = mtk_pinctrl_irq_release_resources,
 };
@@ -1116,10 +1177,10 @@ mtk_eint_debounce_process(struct mtk_pinctrl *pctl, int index)
 	}
 }
 
-static void mtk_eint_irq_handler(unsigned irq, struct irq_desc *desc)
+static void mtk_eint_irq_handler(struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
-	struct mtk_pinctrl *pctl = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct mtk_pinctrl *pctl = irq_desc_get_handler_data(desc);
 	unsigned int status, eint_num;
 	int offset, index, virq;
 	const struct mtk_eint_offsets *eint_offsets =
@@ -1202,12 +1263,6 @@ static int mtk_pctrl_build_state(struct platform_device *pdev)
 	return 0;
 }
 
-static struct pinctrl_desc mtk_pctrl_desc = {
-	.confops	= &mtk_pconf_ops,
-	.pctlops	= &mtk_pctrl_ops,
-	.pmxops		= &mtk_pmx_ops,
-};
-
 int mtk_pctrl_init(struct platform_device *pdev,
 		const struct mtk_pinctrl_devdata *data,
 		struct regmap *regmap)
@@ -1217,7 +1272,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node, *node;
 	struct property *prop;
 	struct resource *res;
-	int i, ret, irq;
+	int i, ret, irq, ports_buf;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
@@ -1265,12 +1320,17 @@ int mtk_pctrl_init(struct platform_device *pdev,
 
 	for (i = 0; i < pctl->devdata->npins; i++)
 		pins[i] = pctl->devdata->pins[i].pin;
-	mtk_pctrl_desc.name = dev_name(&pdev->dev);
-	mtk_pctrl_desc.owner = THIS_MODULE;
-	mtk_pctrl_desc.pins = pins;
-	mtk_pctrl_desc.npins = pctl->devdata->npins;
+
+	pctl->pctl_desc.name = dev_name(&pdev->dev);
+	pctl->pctl_desc.owner = THIS_MODULE;
+	pctl->pctl_desc.pins = pins;
+	pctl->pctl_desc.npins = pctl->devdata->npins;
+	pctl->pctl_desc.confops = &mtk_pconf_ops;
+	pctl->pctl_desc.pctlops = &mtk_pctrl_ops;
+	pctl->pctl_desc.pmxops = &mtk_pmx_ops;
 	pctl->dev = &pdev->dev;
-	pctl->pctl_dev = pinctrl_register(&mtk_pctrl_desc, &pdev->dev, pctl);
+
+	pctl->pctl_dev = pinctrl_register(&pctl->pctl_desc, &pdev->dev, pctl);
 	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
 		return PTR_ERR(pctl->pctl_dev);
@@ -1319,6 +1379,21 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		goto chip_error;
 	}
 
+	ports_buf = pctl->devdata->eint_offsets.ports;
+	pctl->wake_mask = devm_kcalloc(&pdev->dev, ports_buf,
+					sizeof(*pctl->wake_mask), GFP_KERNEL);
+	if (!pctl->wake_mask) {
+		ret = -ENOMEM;
+		goto chip_error;
+	}
+
+	pctl->cur_mask = devm_kcalloc(&pdev->dev, ports_buf,
+					sizeof(*pctl->cur_mask), GFP_KERNEL);
+	if (!pctl->cur_mask) {
+		ret = -ENOMEM;
+		goto chip_error;
+	}
+
 	pctl->eint_dual_edges = devm_kcalloc(&pdev->dev, pctl->devdata->ap_num,
 					     sizeof(int), GFP_KERNEL);
 	if (!pctl->eint_dual_edges) {
@@ -1348,12 +1423,9 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		irq_set_chip_and_handler(virq, &mtk_pinctrl_irq_chip,
 			handle_level_irq);
 		irq_set_chip_data(virq, pctl);
-		set_irq_flags(virq, IRQF_VALID);
-	};
+	}
 
-	irq_set_chained_handler(irq, mtk_eint_irq_handler);
-	irq_set_handler_data(irq, pctl);
-	set_irq_flags(irq, IRQF_VALID);
+	irq_set_chained_handler_and_data(irq, mtk_eint_irq_handler, pctl);
 	return 0;
 
 chip_error:

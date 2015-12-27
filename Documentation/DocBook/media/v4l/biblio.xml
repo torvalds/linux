@@ -177,6 +177,24 @@ Signal - NTSC for Studio Applications"</title>
 1125-Line High-Definition Production"</title>
     </biblioentry>
 
+    <biblioentry id="smpte431">
+      <abbrev>SMPTE&nbsp;RP&nbsp;431-2</abbrev>
+      <authorgroup>
+	<corpauthor>Society of Motion Picture and Television Engineers
+(<ulink url="http://www.smpte.org">http://www.smpte.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>SMPTE RP 431-2:2011 "D-Cinema Quality - Reference Projector and Environment"</title>
+    </biblioentry>
+
+    <biblioentry id="smpte2084">
+      <abbrev>SMPTE&nbsp;ST&nbsp;2084</abbrev>
+      <authorgroup>
+	<corpauthor>Society of Motion Picture and Television Engineers
+(<ulink url="http://www.smpte.org">http://www.smpte.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>SMPTE ST 2084:2014 "High Dynamic Range Electro-Optical Transfer Function of Master Reference Displays"</title>
+    </biblioentry>
+
     <biblioentry id="srgb">
       <abbrev>sRGB</abbrev>
       <authorgroup>

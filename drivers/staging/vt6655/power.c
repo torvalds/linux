@@ -157,10 +157,18 @@ PSbIsNextTBTTWakeUp(
 	struct ieee80211_conf *conf = &hw->conf;
 	bool bWakeUp = false;
 
-	if (conf->listen_interval == 1) {
-		/* Turn on wake up to listen next beacon */
-		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_LNBCN);
-		bWakeUp = true;
+	if (conf->listen_interval > 1) {
+		if (!pDevice->wake_up_count)
+			pDevice->wake_up_count = conf->listen_interval;
+
+		--pDevice->wake_up_count;
+
+		if (pDevice->wake_up_count == 1) {
+			/* Turn on wake up to listen next beacon */
+			MACvRegBitsOn(pDevice->PortOffset,
+				      MAC_REG_PSCTL, PSCTL_LNBCN);
+			bWakeUp = true;
+		}
 	}
 
 	return bWakeUp;

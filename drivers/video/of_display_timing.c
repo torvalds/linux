@@ -210,6 +210,7 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 			 */
 			pr_err("%s: error in timing %d\n",
 				of_node_full_name(np), disp->num_timings + 1);
+			kfree(dt);
 			goto timingfail;
 		}
 

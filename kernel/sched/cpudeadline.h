@@ -2,6 +2,7 @@
 #define _LINUX_CPUDL_H
 
 #include <linux/sched.h>
+#include <linux/sched/deadline.h>
 
 #define IDX_INVALID     -1
 

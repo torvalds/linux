@@ -112,7 +112,9 @@ static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
 	if (!skb)
 		return;
 
-	ieee80211_rx_ni(dev->hw, skb);
+	spin_lock(&dev->mac_lock);
+	ieee80211_rx(dev->hw, skb);
+	spin_unlock(&dev->mac_lock);
 }
 
 static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
@@ -236,23 +238,42 @@ static void mt7601u_complete_tx(struct urb *urb)
 	skb = q->e[q->start].skb;
 	trace_mt_tx_dma_done(dev, skb);
 
-	mt7601u_tx_status(dev, skb);
+	__skb_queue_tail(&dev->tx_skb_done, skb);
+	tasklet_schedule(&dev->tx_tasklet);
 
 	if (q->used == q->entries - q->entries / 8)
 		ieee80211_wake_queue(dev->hw, skb_get_queue_mapping(skb));
 
 	q->start = (q->start + 1) % q->entries;
 	q->used--;
+out:
+	spin_unlock_irqrestore(&dev->tx_lock, flags);
+}
 
-	if (urb->status)
-		goto out;
+static void mt7601u_tx_tasklet(unsigned long data)
+{
+	struct mt7601u_dev *dev = (struct mt7601u_dev *) data;
+	struct sk_buff_head skbs;
+	unsigned long flags;
+
+	__skb_queue_head_init(&skbs);
+
+	spin_lock_irqsave(&dev->tx_lock, flags);
 
 	set_bit(MT7601U_STATE_MORE_STATS, &dev->state);
 	if (!test_and_set_bit(MT7601U_STATE_READING_STATS, &dev->state))
 		queue_delayed_work(dev->stat_wq, &dev->stat_work,
 				   msecs_to_jiffies(10));
-out:
+
+	skb_queue_splice_init(&dev->tx_skb_done, &skbs);
+
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
+
+	while (!skb_queue_empty(&skbs)) {
+		struct sk_buff *skb = __skb_dequeue(&skbs);
+
+		mt7601u_tx_status(dev, skb);
+	}
 }
 
 static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
@@ -475,6 +496,7 @@ int mt7601u_dma_init(struct mt7601u_dev *dev)
 {
 	int ret = -ENOMEM;
 
+	tasklet_init(&dev->tx_tasklet, mt7601u_tx_tasklet, (unsigned long) dev);
 	tasklet_init(&dev->rx_tasklet, mt7601u_rx_tasklet, (unsigned long) dev);
 
 	ret = mt7601u_alloc_tx(dev);
@@ -502,4 +524,6 @@ void mt7601u_dma_cleanup(struct mt7601u_dev *dev)
 
 	mt7601u_free_rx(dev);
 	mt7601u_free_tx(dev);
+
+	tasklet_kill(&dev->tx_tasklet);
 }

@@ -104,11 +104,4 @@ config USB_DWC3_QCOM
 	  Recent Qualcomm SoCs ship with one DesignWare Core USB3 IP inside,
 	  say 'Y' or 'M' if you have one such device.
 
-comment "Debugging features"
-
-config USB_DWC3_DEBUG
-	bool "Enable Debugging Messages"
-	help
-	  Say Y here to enable debugging messages on DWC3 Driver.
-
 endif

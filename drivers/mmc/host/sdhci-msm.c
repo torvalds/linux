@@ -373,7 +373,7 @@ retry:
 		if (rc)
 			return rc;
 
-		rc = mmc_send_tuning(mmc);
+		rc = mmc_send_tuning(mmc, opcode, NULL);
 		if (!rc) {
 			/* Tuning is successful at this tuning point */
 			tuned_phases[tuned_phase_cnt++] = phase;
@@ -488,6 +488,11 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "SDC MMC clk setup failed (%d)\n", ret);
 		goto pclk_disable;
 	}
+
+	/* Vote for maximum clock rate for maximum performance */
+	ret = clk_set_rate(msm_host->clk, INT_MAX);
+	if (ret)
+		dev_warn(&pdev->dev, "core clock boost failed\n");
 
 	ret = clk_prepare_enable(msm_host->clk);
 	if (ret)

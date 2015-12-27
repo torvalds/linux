@@ -338,13 +338,6 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		goto error1;
 	}
 
-	mad_agent_priv->agent.mr = ib_get_dma_mr(port_priv->qp_info[qpn].qp->pd,
-						 IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(mad_agent_priv->agent.mr)) {
-		ret = ERR_PTR(-ENOMEM);
-		goto error2;
-	}
-
 	if (mad_reg_req) {
 		reg_req = kmemdup(mad_reg_req, sizeof *reg_req, GFP_KERNEL);
 		if (!reg_req) {
@@ -429,8 +422,6 @@ error4:
 	spin_unlock_irqrestore(&port_priv->reg_lock, flags);
 	kfree(reg_req);
 error3:
-	ib_dereg_mr(mad_agent_priv->agent.mr);
-error2:
 	kfree(mad_agent_priv);
 error1:
 	return ret;
@@ -590,7 +581,6 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	wait_for_completion(&mad_agent_priv->comp);
 
 	kfree(mad_agent_priv->reg_req);
-	ib_dereg_mr(mad_agent_priv->agent.mr);
 	kfree(mad_agent_priv);
 }
 
@@ -762,16 +752,16 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	struct ib_device *device = mad_agent_priv->agent.device;
 	u8 port_num;
 	struct ib_wc mad_wc;
-	struct ib_send_wr *send_wr = &mad_send_wr->send_wr;
+	struct ib_ud_wr *send_wr = &mad_send_wr->send_wr;
 	size_t mad_size = port_mad_size(mad_agent_priv->qp_info->port_priv);
 	u16 out_mad_pkey_index = 0;
 	u16 drslid;
 	bool opa = rdma_cap_opa_mad(mad_agent_priv->qp_info->port_priv->device,
 				    mad_agent_priv->qp_info->port_priv->port_num);
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH &&
+	if (rdma_cap_ib_switch(device) &&
 	    smp->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
-		port_num = send_wr->wr.ud.port_num;
+		port_num = send_wr->port_num;
 	else
 		port_num = mad_agent_priv->agent.port_num;
 
@@ -787,14 +777,15 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		if ((opa_get_smp_direction(opa_smp)
 		     ? opa_smp->route.dr.dr_dlid : opa_smp->route.dr.dr_slid) ==
 		     OPA_LID_PERMISSIVE &&
-		     opa_smi_handle_dr_smp_send(opa_smp, device->node_type,
+		     opa_smi_handle_dr_smp_send(opa_smp,
+						rdma_cap_ib_switch(device),
 						port_num) == IB_SMI_DISCARD) {
 			ret = -EINVAL;
 			dev_err(&device->dev, "OPA Invalid directed route\n");
 			goto out;
 		}
 		opa_drslid = be32_to_cpu(opa_smp->route.dr.dr_slid);
-		if (opa_drslid != OPA_LID_PERMISSIVE &&
+		if (opa_drslid != be32_to_cpu(OPA_LID_PERMISSIVE) &&
 		    opa_drslid & 0xffff0000) {
 			ret = -EINVAL;
 			dev_err(&device->dev, "OPA Invalid dr_slid 0x%x\n",
@@ -810,7 +801,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	} else {
 		if ((ib_get_smp_direction(smp) ? smp->dr_dlid : smp->dr_slid) ==
 		     IB_LID_PERMISSIVE &&
-		     smi_handle_dr_smp_send(smp, device->node_type, port_num) ==
+		     smi_handle_dr_smp_send(smp, rdma_cap_ib_switch(device), port_num) ==
 		     IB_SMI_DISCARD) {
 			ret = -EINVAL;
 			dev_err(&device->dev, "Invalid directed route\n");
@@ -841,9 +832,9 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	}
 
 	build_smp_wc(mad_agent_priv->agent.qp,
-		     send_wr->wr_id, drslid,
-		     send_wr->wr.ud.pkey_index,
-		     send_wr->wr.ud.port_num, &mad_wc);
+		     send_wr->wr.wr_id, drslid,
+		     send_wr->pkey_index,
+		     send_wr->port_num, &mad_wc);
 
 	if (opa && smp->base_version == OPA_MGMT_BASE_VERSION) {
 		mad_wc.byte_len = mad_send_wr->send_buf.hdr_len
@@ -903,7 +894,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 
 	local->mad_send_wr = mad_send_wr;
 	if (opa) {
-		local->mad_send_wr->send_wr.wr.ud.pkey_index = out_mad_pkey_index;
+		local->mad_send_wr->send_wr.pkey_index = out_mad_pkey_index;
 		local->return_wc_byte_len = mad_size;
 	}
 	/* Reference MAD agent until send side of local completion handled */
@@ -1037,7 +1028,7 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 
 	mad_send_wr->mad_agent_priv = mad_agent_priv;
 	mad_send_wr->sg_list[0].length = hdr_len;
-	mad_send_wr->sg_list[0].lkey = mad_agent->mr->lkey;
+	mad_send_wr->sg_list[0].lkey = mad_agent->qp->pd->local_dma_lkey;
 
 	/* OPA MADs don't have to be the full 2048 bytes */
 	if (opa && base_version == OPA_MGMT_BASE_VERSION &&
@@ -1046,16 +1037,16 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 	else
 		mad_send_wr->sg_list[1].length = mad_size - hdr_len;
 
-	mad_send_wr->sg_list[1].lkey = mad_agent->mr->lkey;
+	mad_send_wr->sg_list[1].lkey = mad_agent->qp->pd->local_dma_lkey;
 
-	mad_send_wr->send_wr.wr_id = (unsigned long) mad_send_wr;
-	mad_send_wr->send_wr.sg_list = mad_send_wr->sg_list;
-	mad_send_wr->send_wr.num_sge = 2;
-	mad_send_wr->send_wr.opcode = IB_WR_SEND;
-	mad_send_wr->send_wr.send_flags = IB_SEND_SIGNALED;
-	mad_send_wr->send_wr.wr.ud.remote_qpn = remote_qpn;
-	mad_send_wr->send_wr.wr.ud.remote_qkey = IB_QP_SET_QKEY;
-	mad_send_wr->send_wr.wr.ud.pkey_index = pkey_index;
+	mad_send_wr->send_wr.wr.wr_id = (unsigned long) mad_send_wr;
+	mad_send_wr->send_wr.wr.sg_list = mad_send_wr->sg_list;
+	mad_send_wr->send_wr.wr.num_sge = 2;
+	mad_send_wr->send_wr.wr.opcode = IB_WR_SEND;
+	mad_send_wr->send_wr.wr.send_flags = IB_SEND_SIGNALED;
+	mad_send_wr->send_wr.remote_qpn = remote_qpn;
+	mad_send_wr->send_wr.remote_qkey = IB_QP_SET_QKEY;
+	mad_send_wr->send_wr.pkey_index = pkey_index;
 
 	if (rmpp_active) {
 		ret = alloc_send_rmpp_list(mad_send_wr, mad_size, gfp_mask);
@@ -1160,7 +1151,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 
 	/* Set WR ID to find mad_send_wr upon completion */
 	qp_info = mad_send_wr->mad_agent_priv->qp_info;
-	mad_send_wr->send_wr.wr_id = (unsigned long)&mad_send_wr->mad_list;
+	mad_send_wr->send_wr.wr.wr_id = (unsigned long)&mad_send_wr->mad_list;
 	mad_send_wr->mad_list.mad_queue = &qp_info->send_queue;
 
 	mad_agent = mad_send_wr->send_buf.mad_agent;
@@ -1188,7 +1179,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
 	if (qp_info->send_queue.count < qp_info->send_queue.max_active) {
-		ret = ib_post_send(mad_agent->qp, &mad_send_wr->send_wr,
+		ret = ib_post_send(mad_agent->qp, &mad_send_wr->send_wr.wr,
 				   &bad_send_wr);
 		list = &qp_info->send_queue.list;
 	} else {
@@ -1253,7 +1244,7 @@ int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 		 * request associated with the completion
 		 */
 		next_send_buf = send_buf->next;
-		mad_send_wr->send_wr.wr.ud.ah = send_buf->ah;
+		mad_send_wr->send_wr.ah = send_buf->ah;
 
 		if (((struct ib_mad_hdr *) send_buf->mad)->mgmt_class ==
 		    IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) {
@@ -1820,6 +1811,11 @@ static int validate_mad(const struct ib_mad_hdr *mad_hdr,
 		if (qp_num == 0)
 			valid = 1;
 	} else {
+		/* CM attributes other than ClassPortInfo only use Send method */
+		if ((mad_hdr->mgmt_class == IB_MGMT_CLASS_CM) &&
+		    (mad_hdr->attr_id != IB_MGMT_CLASSPORTINFO_ATTR_ID) &&
+		    (mad_hdr->method != IB_MGMT_METHOD_SEND))
+			goto out;
 		/* Filter GSI packets sent to QP0 */
 		if (qp_num != 0)
 			valid = 1;
@@ -1886,7 +1882,7 @@ static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_
 					  ((1 << lmc) - 1)));
 		} else {
 			if (ib_get_cached_gid(device, port_num,
-					      attr.grh.sgid_index, &sgid))
+					      attr.grh.sgid_index, &sgid, NULL))
 				return 0;
 			return !memcmp(sgid.raw, rwc->recv_buf.grh->dgid.raw,
 				       16);
@@ -2030,7 +2026,7 @@ static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv
 	struct ib_smp *smp = (struct ib_smp *)recv->mad;
 
 	if (smi_handle_dr_smp_recv(smp,
-				   port_priv->device->node_type,
+				   rdma_cap_ib_switch(port_priv->device),
 				   port_num,
 				   port_priv->device->phys_port_cnt) ==
 				   IB_SMI_DISCARD)
@@ -2042,13 +2038,13 @@ static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv
 
 	if (retsmi == IB_SMI_SEND) { /* don't forward */
 		if (smi_handle_dr_smp_send(smp,
-					   port_priv->device->node_type,
+					   rdma_cap_ib_switch(port_priv->device),
 					   port_num) == IB_SMI_DISCARD)
 			return IB_SMI_DISCARD;
 
 		if (smi_check_local_smp(smp, port_priv->device) == IB_SMI_DISCARD)
 			return IB_SMI_DISCARD;
-	} else if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH) {
+	} else if (rdma_cap_ib_switch(port_priv->device)) {
 		/* forward case for switches */
 		memcpy(response, recv, mad_priv_size(response));
 		response->header.recv_wc.wc = &response->header.wc;
@@ -2115,7 +2111,7 @@ handle_opa_smi(struct ib_mad_port_private *port_priv,
 	struct opa_smp *smp = (struct opa_smp *)recv->mad;
 
 	if (opa_smi_handle_dr_smp_recv(smp,
-				   port_priv->device->node_type,
+				   rdma_cap_ib_switch(port_priv->device),
 				   port_num,
 				   port_priv->device->phys_port_cnt) ==
 				   IB_SMI_DISCARD)
@@ -2127,7 +2123,7 @@ handle_opa_smi(struct ib_mad_port_private *port_priv,
 
 	if (retsmi == IB_SMI_SEND) { /* don't forward */
 		if (opa_smi_handle_dr_smp_send(smp,
-					   port_priv->device->node_type,
+					   rdma_cap_ib_switch(port_priv->device),
 					   port_num) == IB_SMI_DISCARD)
 			return IB_SMI_DISCARD;
 
@@ -2135,7 +2131,7 @@ handle_opa_smi(struct ib_mad_port_private *port_priv,
 		    IB_SMI_DISCARD)
 			return IB_SMI_DISCARD;
 
-	} else if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH) {
+	} else if (rdma_cap_ib_switch(port_priv->device)) {
 		/* forward case for switches */
 		memcpy(response, recv, mad_priv_size(response));
 		response->header.recv_wc.wc = &response->header.wc;
@@ -2235,7 +2231,7 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 		goto out;
 	}
 
-	if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH)
+	if (rdma_cap_ib_switch(port_priv->device))
 		port_num = wc->port_num;
 	else
 		port_num = port_priv->port_num;
@@ -2466,7 +2462,7 @@ retry:
 	ib_mad_complete_send_wr(mad_send_wr, &mad_send_wc);
 
 	if (queued_send_wr) {
-		ret = ib_post_send(qp_info->qp, &queued_send_wr->send_wr,
+		ret = ib_post_send(qp_info->qp, &queued_send_wr->send_wr.wr,
 				   &bad_send_wr);
 		if (ret) {
 			dev_err(&port_priv->device->dev,
@@ -2524,7 +2520,7 @@ static void mad_error_handler(struct ib_mad_port_private *port_priv,
 			struct ib_send_wr *bad_send_wr;
 
 			mad_send_wr->retry = 0;
-			ret = ib_post_send(qp_info->qp, &mad_send_wr->send_wr,
+			ret = ib_post_send(qp_info->qp, &mad_send_wr->send_wr.wr,
 					&bad_send_wr);
 			if (ret)
 				ib_mad_send_done_handler(port_priv, wc);
@@ -2722,7 +2718,7 @@ static void local_completions(struct work_struct *work)
 			build_smp_wc(recv_mad_agent->agent.qp,
 				     (unsigned long) local->mad_send_wr,
 				     be16_to_cpu(IB_LID_PERMISSIVE),
-				     local->mad_send_wr->send_wr.wr.ud.pkey_index,
+				     local->mad_send_wr->send_wr.pkey_index,
 				     recv_mad_agent->agent.port_num, &wc);
 
 			local->mad_priv->header.recv_wc.wc = &wc;
@@ -2884,7 +2880,7 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 	struct ib_mad_queue *recv_queue = &qp_info->recv_queue;
 
 	/* Initialize common scatter list fields */
-	sg_list.lkey = (*qp_info->port_priv->mr).lkey;
+	sg_list.lkey = qp_info->port_priv->pd->local_dma_lkey;
 
 	/* Initialize common receive WR fields */
 	recv_wr.next = NULL;
@@ -3200,13 +3196,6 @@ static int ib_mad_port_open(struct ib_device *device,
 		goto error4;
 	}
 
-	port_priv->mr = ib_get_dma_mr(port_priv->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(port_priv->mr)) {
-		dev_err(&device->dev, "Couldn't get ib_mad DMA MR\n");
-		ret = PTR_ERR(port_priv->mr);
-		goto error5;
-	}
-
 	if (has_smi) {
 		ret = create_mad_qp(&port_priv->qp_info[0], IB_QPT_SMI);
 		if (ret)
@@ -3247,8 +3236,6 @@ error8:
 error7:
 	destroy_mad_qp(&port_priv->qp_info[0]);
 error6:
-	ib_dereg_mr(port_priv->mr);
-error5:
 	ib_dealloc_pd(port_priv->pd);
 error4:
 	ib_destroy_cq(port_priv->cq);
@@ -3283,7 +3270,6 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 	destroy_workqueue(port_priv->wq);
 	destroy_mad_qp(&port_priv->qp_info[1]);
 	destroy_mad_qp(&port_priv->qp_info[0]);
-	ib_dereg_mr(port_priv->mr);
 	ib_dealloc_pd(port_priv->pd);
 	ib_destroy_cq(port_priv->cq);
 	cleanup_recv_queue(&port_priv->qp_info[1]);
@@ -3297,17 +3283,11 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 
 static void ib_mad_init_device(struct ib_device *device)
 {
-	int start, end, i;
+	int start, i;
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		start = 0;
-		end   = 0;
-	} else {
-		start = 1;
-		end   = device->phys_port_cnt;
-	}
+	start = rdma_start_port(device);
 
-	for (i = start; i <= end; i++) {
+	for (i = start; i <= rdma_end_port(device); i++) {
 		if (!rdma_cap_ib_mad(device, i))
 			continue;
 
@@ -3340,19 +3320,11 @@ error:
 	}
 }
 
-static void ib_mad_remove_device(struct ib_device *device)
+static void ib_mad_remove_device(struct ib_device *device, void *client_data)
 {
-	int start, end, i;
+	int i;
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		start = 0;
-		end   = 0;
-	} else {
-		start = 1;
-		end   = device->phys_port_cnt;
-	}
-
-	for (i = start; i <= end; i++) {
+	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
 		if (!rdma_cap_ib_mad(device, i))
 			continue;
 

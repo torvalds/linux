@@ -10,6 +10,10 @@
 #include "stih407-family.dtsi"
 #include "stih410-pinctrl.dtsi"
 / {
+	aliases {
+		bdisp0 = &bdisp0;
+	};
+
 	soc {
 		usb2_picophy1: phy2 {
 			compatible = "st,stih407-usb2-phy";
@@ -18,6 +22,8 @@
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
 				 <&picophyreset STIH407_PICOPHY0_RESET>;
 			reset-names = "global", "port";
+
+			status = "disabled";
 		};
 
 		usb2_picophy2: phy3 {
@@ -27,6 +33,8 @@
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
 				 <&picophyreset STIH407_PICOPHY1_RESET>;
 			reset-names = "global", "port";
+
+			status = "disabled";
 		};
 
 		ohci0: usb@9a03c00 {
@@ -39,6 +47,8 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy1>;
 			phy-names = "usb";
+
+			status = "disabled";
 		};
 
 		ehci0: usb@9a03e00 {
@@ -53,6 +63,8 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy1>;
 			phy-names = "usb";
+
+			status = "disabled";
 		};
 
 		ohci1: usb@9a83c00 {
@@ -65,6 +77,8 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy2>;
 			phy-names = "usb";
+
+			status = "disabled";
 		};
 
 		ehci1: usb@9a83e00 {
@@ -79,19 +93,8 @@
 			reset-names = "power", "softreset";
 			phys = <&usb2_picophy2>;
 			phy-names = "usb";
-		};
 
-		/* Display */
-		vtg_main: sti-vtg-main@8d02800 {
-			compatible = "st,vtg";
-			reg = <0x8d02800 0x200>;
-			interrupts = <GIC_SPI 108 IRQ_TYPE_NONE>;
-		};
-
-		vtg_aux: sti-vtg-aux@8d00200 {
-			compatible = "st,vtg";
-			reg = <0x8d00200 0x100>;
-			interrupts = <GIC_SPI 109 IRQ_TYPE_NONE>;
+			status = "disabled";
 		};
 
 		sti-display-subsystem {
@@ -174,49 +177,55 @@
 							 <&clk_s_d0_quadfs 0>,
 							 <&clk_s_d2_quadfs 0>,
 							 <&clk_s_d2_quadfs 0>;
-				ranges;
-
-				sti-hdmi@8d04000 {
-					compatible = "st,stih407-hdmi";
-					reg = <0x8d04000 0x1000>;
-					reg-names = "hdmi-reg";
-					interrupts = <GIC_SPI 106 IRQ_TYPE_NONE>;
-					interrupt-names	= "irq";
-					clock-names = "pix",
-						      "tmds",
-						      "phy",
-						      "audio",
-						      "main_parent",
-						      "aux_parent";
-
-					clocks = <&clk_s_d2_flexgen CLK_PIX_HDMI>,
-						 <&clk_s_d2_flexgen CLK_TMDS_HDMI>,
-						 <&clk_s_d2_flexgen CLK_REF_HDMIPHY>,
-						 <&clk_s_d0_flexgen CLK_PCM_0>,
-						 <&clk_s_d2_quadfs 0>,
-						 <&clk_s_d2_quadfs 1>;
-
-					hdmi,hpd-gpio = <&pio5 3>;
-					reset-names = "hdmi";
-					resets = <&softreset STIH407_HDMI_TX_PHY_SOFTRESET>;
-					ddc = <&hdmiddc>;
-
-				};
-
-				sti-hda@8d02000 {
-					compatible = "st,stih407-hda";
-					reg = <0x8d02000 0x400>, <0x92b0120 0x4>;
-					reg-names = "hda-reg", "video-dacs-ctrl";
-					clock-names = "pix",
-						      "hddac",
-						      "main_parent",
-						      "aux_parent";
-					clocks = <&clk_s_d2_flexgen CLK_PIX_HDDAC>,
-						 <&clk_s_d2_flexgen CLK_HDDAC>,
-						 <&clk_s_d2_quadfs 0>,
-						 <&clk_s_d2_quadfs 1>;
-				};
 			};
+
+			sti-hdmi@8d04000 {
+				compatible = "st,stih407-hdmi";
+				reg = <0x8d04000 0x1000>;
+				reg-names = "hdmi-reg";
+				interrupts = <GIC_SPI 106 IRQ_TYPE_NONE>;
+				interrupt-names	= "irq";
+				clock-names = "pix",
+					      "tmds",
+					      "phy",
+					      "audio",
+					      "main_parent",
+					      "aux_parent";
+
+				clocks = <&clk_s_d2_flexgen CLK_PIX_HDMI>,
+					 <&clk_s_d2_flexgen CLK_TMDS_HDMI>,
+					 <&clk_s_d2_flexgen CLK_REF_HDMIPHY>,
+					 <&clk_s_d0_flexgen CLK_PCM_0>,
+					 <&clk_s_d2_quadfs 0>,
+					 <&clk_s_d2_quadfs 1>;
+
+				hdmi,hpd-gpio = <&pio5 3>;
+				reset-names = "hdmi";
+				resets = <&softreset STIH407_HDMI_TX_PHY_SOFTRESET>;
+				ddc = <&hdmiddc>;
+			};
+
+			sti-hda@8d02000 {
+				compatible = "st,stih407-hda";
+				reg = <0x8d02000 0x400>, <0x92b0120 0x4>;
+				reg-names = "hda-reg", "video-dacs-ctrl";
+				clock-names = "pix",
+					      "hddac",
+					      "main_parent",
+					      "aux_parent";
+				clocks = <&clk_s_d2_flexgen CLK_PIX_HDDAC>,
+					 <&clk_s_d2_flexgen CLK_HDDAC>,
+					 <&clk_s_d2_quadfs 0>,
+					 <&clk_s_d2_quadfs 1>;
+			};
+		};
+
+		bdisp0:bdisp@9f10000 {
+			compatible = "st,stih407-bdisp";
+			reg = <0x9f10000 0x1000>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_NONE>;
+			clock-names = "bdisp";
+			clocks = <&clk_s_c0_flexgen CLK_IC_BDISP_0>;
 		};
 	};
 };

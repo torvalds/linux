@@ -560,7 +560,7 @@ static int liquidio_resume(struct pci_dev *pdev)
 #endif
 
 /* For PCI-E Advanced Error Recovery (AER) Interface */
-static struct pci_error_handlers liquidio_err_handler = {
+static const struct pci_error_handlers liquidio_err_handler = {
 	.error_detected = liquidio_pcie_error_detected,
 	.mmio_enabled	= liquidio_pcie_mmio_enabled,
 	.slot_reset	= liquidio_pcie_slot_reset,
@@ -818,10 +818,9 @@ static int setup_glist(struct lio *lio)
 	INIT_LIST_HEAD(&lio->glist);
 
 	for (i = 0; i < lio->tx_qsize; i++) {
-		g = kmalloc(sizeof(*g), GFP_KERNEL);
+		g = kzalloc(sizeof(*g), GFP_KERNEL);
 		if (!g)
 			break;
-		memset(g, 0, sizeof(struct octnic_gather));
 
 		g->sg_size =
 			((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);

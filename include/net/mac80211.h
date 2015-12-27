@@ -5,6 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -477,9 +478,13 @@ struct ieee80211_event {
  * @chandef: Channel definition for this BSS -- the hardware might be
  *	configured a higher bandwidth than this BSS uses, for example.
  * @ht_operation_mode: HT operation mode like in &struct ieee80211_ht_operation.
- *	This field is only valid when the channel type is one of the HT types.
+ *	This field is only valid when the channel is a wide HT/VHT channel.
+ *	Note that with TDLS this can be the case (channel is HT, protection must
+ *	be used from this field) even when the BSS association isn't using HT.
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
- *	implies disabled
+ *	implies disabled. As with the cfg80211 callback, a change here should
+ *	cause an event to be sent indicating where the current value is in
+ *	relation to the newly configured threshold.
  * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
  * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
  *	may filter ARP queries targeted for other addresses than listed here.
@@ -973,6 +978,10 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_IV_STRIPPED: The IV/ICV are stripped from this frame.
  *	If this flag is set, the stack cannot do any replay detection
  *	hence the driver or hardware will have to do that.
+ * @RX_FLAG_PN_VALIDATED: Currently only valid for CCMP/GCMP frames, this
+ *	flag indicates that the PN was verified for replay protection.
+ *	Note that this flag is also currently only supported when a frame
+ *	is also decrypted (ie. @RX_FLAG_DECRYPTED must be set)
  * @RX_FLAG_FAILED_FCS_CRC: Set this flag if the FCS check failed on
  *	the frame.
  * @RX_FLAG_FAILED_PLCP_CRC: Set this flag if the PCLP check failed on
@@ -997,9 +1006,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_AMPDU_DETAILS: A-MPDU details are known, in particular the reference
  *	number (@ampdu_reference) must be populated and be a distinct number for
  *	each A-MPDU
- * @RX_FLAG_AMPDU_REPORT_ZEROLEN: driver reports 0-length subframes
- * @RX_FLAG_AMPDU_IS_ZEROLEN: This is a zero-length subframe, for
- *	monitoring purposes only
  * @RX_FLAG_AMPDU_LAST_KNOWN: last subframe is known, should be set on all
  *	subframes of a single A-MPDU
  * @RX_FLAG_AMPDU_IS_LAST: this subframe is the last subframe of the A-MPDU
@@ -1039,8 +1045,8 @@ enum mac80211_rx_flags {
 	RX_FLAG_NO_SIGNAL_VAL		= BIT(12),
 	RX_FLAG_HT_GF			= BIT(13),
 	RX_FLAG_AMPDU_DETAILS		= BIT(14),
-	RX_FLAG_AMPDU_REPORT_ZEROLEN	= BIT(15),
-	RX_FLAG_AMPDU_IS_ZEROLEN	= BIT(16),
+	RX_FLAG_PN_VALIDATED		= BIT(15),
+	/* bit 16 free */
 	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(17),
 	RX_FLAG_AMPDU_IS_LAST		= BIT(18),
 	RX_FLAG_AMPDU_DELIM_CRC_ERROR	= BIT(19),
@@ -1237,11 +1243,6 @@ enum ieee80211_smps_mode {
  * @flags: configuration flags defined above
  *
  * @listen_interval: listen interval in units of beacon interval
- * @max_sleep_period: the maximum number of beacon intervals to sleep for
- *	before checking the beacon for a TIM bit (managed mode only); this
- *	value will be only achievable between DTIM frames, the hardware
- *	needs to check for the multicast traffic bit in DTIM beacons.
- *	This variable is valid only when the CONF_PS flag is set.
  * @ps_dtim_period: The DTIM period of the AP we're connected to, for use
  *	in power saving. Power saving will not be enabled until a beacon
  *	has been received and the DTIM period is known.
@@ -1271,7 +1272,6 @@ enum ieee80211_smps_mode {
 struct ieee80211_conf {
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
-	int max_sleep_period;
 
 	u16 listen_interval;
 	u8 ps_dtim_period;
@@ -1357,6 +1357,8 @@ enum ieee80211_vif_flags {
  * @debugfs_dir: debugfs dentry, can be used by drivers to create own per
  *	interface debug files. Note that it will be NULL for the virtual
  *	monitor interface (if that is requested.)
+ * @probe_req_reg: probe requests should be reported to mac80211 for this
+ *	interface.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  * @txq: the multicast data TX queue (if driver uses the TXQ abstraction)
@@ -1380,6 +1382,8 @@ struct ieee80211_vif {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *debugfs_dir;
 #endif
+
+	unsigned int probe_req_reg;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -1888,6 +1892,15 @@ struct ieee80211_txq {
  * @IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS: The HW supports scanning on all bands
  *	in one command, mac80211 doesn't have to run separate scans per band.
  *
+ * @IEEE80211_HW_TDLS_WIDER_BW: The device/driver supports wider bandwidth
+ *	than then BSS bandwidth for a TDLS link on the base channel.
+ *
+ * @IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU: The driver supports receiving A-MSDUs
+ *	within A-MPDU.
+ *
+ * @IEEE80211_HW_BEACON_TX_STATUS: The device/driver provides TX status
+ *	for sent beacons.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -1920,6 +1933,9 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_CHANCTX_STA_CSA,
 	IEEE80211_HW_SUPPORTS_CLONED_SKBS,
 	IEEE80211_HW_SINGLE_SCAN_ON_ALL_BANDS,
+	IEEE80211_HW_TDLS_WIDER_BW,
+	IEEE80211_HW_SUPPORTS_AMSDU_IN_AMPDU,
+	IEEE80211_HW_BEACON_TX_STATUS,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -1987,8 +2003,10 @@ enum ieee80211_hw_flags {
  *	it shouldn't be set.
  *
  * @max_tx_aggregation_subframes: maximum number of subframes in an
- *	aggregate an HT driver will transmit, used by the peer as a
- *	hint to size its reorder buffer.
+ *	aggregate an HT driver will transmit. Though ADDBA will advertise
+ *	a constant value of 64 as some older APs can crash if the window
+ *	size is smaller (an example is LinkSys WRT120N with FW v1.0.07
+ *	build 002 Jun 18 2012).
  *
  * @offchannel_tx_hw_queue: HW queue ID to use for offchannel TX
  *	(if %IEEE80211_HW_QUEUE_CONTROL is set)
@@ -2820,6 +2838,13 @@ enum ieee80211_reconfig_type {
  *	See the section "Frame filtering" for more information.
  *	This callback must be implemented and can sleep.
  *
+ * @config_iface_filter: Configure the interface's RX filter.
+ *	This callback is optional and is used to configure which frames
+ *	should be passed to mac80211. The filter_flags is the combination
+ *	of FIF_* flags. The changed_flags is a bit mask that indicates
+ *	which flags are changed.
+ *	This callback can sleep.
+ *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
  * 	must be set or cleared for a given STA. Must be atomic.
  *
@@ -3009,6 +3034,9 @@ enum ieee80211_reconfig_type {
  *	buffer size of 8. Correct ways to retransmit #1 would be:
  *	 - TX:       1 or 18 or 81
  *	Even "189" would be wrong since 1 could be lost again.
+ *	The @amsdu parameter is valid when the action is set to
+ *	%IEEE80211_AMPDU_TX_OPERATIONAL and indicates the peer's ability
+ *	to receive A-MSDU within A-MPDU.
  *
  *	Returns a negative error code on failure.
  *	The callback can sleep.
@@ -3146,18 +3174,24 @@ enum ieee80211_reconfig_type {
  *	The callback is optional and can sleep.
  *
  * @add_chanctx: Notifies device driver about new channel context creation.
+ *	This callback may sleep.
  * @remove_chanctx: Notifies device driver about channel context destruction.
+ *	This callback may sleep.
  * @change_chanctx: Notifies device driver about channel context changes that
  *	may happen when combining different virtual interfaces on the same
  *	channel context with different settings
+ *	This callback may sleep.
  * @assign_vif_chanctx: Notifies device driver about channel context being bound
  *	to vif. Possible use is for hw queue remapping.
+ *	This callback may sleep.
  * @unassign_vif_chanctx: Notifies device driver about channel context being
  *	unbound from vif.
+ *	This callback may sleep.
  * @switch_vif_chanctx: switch a number of vifs from one chanctx to
  *	another, as specified in the list of
  *	@ieee80211_vif_chanctx_switch passed to the driver, according
  *	to the mode defined in &ieee80211_chanctx_switch_mode.
+ *	This callback may sleep.
  *
  * @start_ap: Start operation on the AP interface, this is called after all the
  *	information in bss_conf is set and beacon can be retrieved. A channel
@@ -3259,6 +3293,10 @@ struct ieee80211_ops {
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
 				 u64 multicast);
+	void (*config_iface_filter)(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    unsigned int filter_flags,
+				    unsigned int changed_flags);
 	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -3342,7 +3380,7 @@ struct ieee80211_ops {
 			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			    u8 buf_size);
+			    u8 buf_size, bool amsdu);
 	int (*get_survey)(struct ieee80211_hw *hw, int idx,
 		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
@@ -3696,20 +3734,28 @@ void ieee80211_free_hw(struct ieee80211_hw *hw);
 void ieee80211_restart_hw(struct ieee80211_hw *hw);
 
 /**
- * ieee80211_napi_add - initialize mac80211 NAPI context
- * @hw: the hardware to initialize the NAPI context on
- * @napi: the NAPI context to initialize
- * @napi_dev: dummy NAPI netdevice, here to not waste the space if the
- *	driver doesn't use NAPI
- * @poll: poll function
- * @weight: default weight
+ * ieee80211_rx_napi - receive frame from NAPI context
  *
- * See also netif_napi_add().
+ * Use this function to hand received frames to mac80211. The receive
+ * buffer in @skb must start with an IEEE 802.11 header. In case of a
+ * paged @skb is used, the driver is recommended to put the ieee80211
+ * header of the frame on the linear part of the @skb to avoid memory
+ * allocation and/or memcpy by the stack.
+ *
+ * This function may not be called in IRQ context. Calls to this function
+ * for a single hardware must be synchronized against each other. Calls to
+ * this function, ieee80211_rx_ni() and ieee80211_rx_irqsafe() may not be
+ * mixed for a single hardware. Must not run concurrently with
+ * ieee80211_tx_status() or ieee80211_tx_status_ni().
+ *
+ * This function must be called with BHs disabled.
+ *
+ * @hw: the hardware this frame came in on
+ * @skb: the buffer to receive, owned by mac80211 after this call
+ * @napi: the NAPI context
  */
-void ieee80211_napi_add(struct ieee80211_hw *hw, struct napi_struct *napi,
-			struct net_device *napi_dev,
-			int (*poll)(struct napi_struct *, int),
-			int weight);
+void ieee80211_rx_napi(struct ieee80211_hw *hw, struct sk_buff *skb,
+		       struct napi_struct *napi);
 
 /**
  * ieee80211_rx - receive frame
@@ -3731,7 +3777,10 @@ void ieee80211_napi_add(struct ieee80211_hw *hw, struct napi_struct *napi,
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
  */
-void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
+static inline void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	ieee80211_rx_napi(hw, skb, NULL);
+}
 
 /**
  * ieee80211_rx_irqsafe - receive frame
@@ -4313,19 +4362,6 @@ void ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
  */
 void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
 			    struct sk_buff *skb, u8 *p2k);
-
-/**
- * ieee80211_aes_cmac_calculate_k1_k2 - calculate the AES-CMAC sub keys
- *
- * This function computes the two AES-CMAC sub-keys, based on the
- * previously installed master key.
- *
- * @keyconf: the parameter passed with the set key
- * @k1: a buffer to be filled with the 1st sub-key
- * @k2: a buffer to be filled with the 2nd sub-key
- */
-void ieee80211_aes_cmac_calculate_k1_k2(struct ieee80211_key_conf *keyconf,
-					u8 *k1, u8 *k2);
 
 /**
  * ieee80211_get_key_tx_seq - get key TX sequence counter

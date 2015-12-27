@@ -515,7 +515,6 @@ MODULE_DEVICE_TABLE(i2c, apds9300_id);
 static struct i2c_driver apds9300_driver = {
 	.driver = {
 		.name	= APDS9300_DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= APDS9300_PM_OPS,
 	},
 	.probe		= apds9300_probe,

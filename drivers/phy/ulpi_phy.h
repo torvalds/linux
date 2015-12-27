@@ -5,7 +5,7 @@
  * and it's controller, which is always the parent.
  */
 static inline struct phy
-*ulpi_phy_create(struct ulpi *ulpi, struct phy_ops *ops)
+*ulpi_phy_create(struct ulpi *ulpi, const struct phy_ops *ops)
 {
 	struct phy *phy;
 	int ret;

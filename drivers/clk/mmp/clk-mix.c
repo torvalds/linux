@@ -63,7 +63,7 @@ static unsigned int _get_div(struct mmp_clk_mix *mix, unsigned int val)
 
 static unsigned int _get_mux(struct mmp_clk_mix *mix, unsigned int val)
 {
-	int num_parents = __clk_get_num_parents(mix->hw.clk);
+	int num_parents = clk_hw_get_num_parents(&mix->hw);
 	int i;
 
 	if (mix->mux_flags & CLK_MUX_INDEX_BIT)
@@ -113,15 +113,15 @@ static void _filter_clk_table(struct mmp_clk_mix *mix,
 {
 	int i;
 	struct mmp_clk_mix_clk_table *item;
-	struct clk *parent, *clk;
+	struct clk_hw *parent, *hw;
 	unsigned long parent_rate;
 
-	clk = mix->hw.clk;
+	hw = &mix->hw;
 
 	for (i = 0; i < table_size; i++) {
 		item = &table[i];
-		parent = clk_get_parent_by_index(clk, item->parent_index);
-		parent_rate = __clk_get_rate(parent);
+		parent = clk_hw_get_parent_by_index(hw, item->parent_index);
+		parent_rate = clk_hw_get_rate(parent);
 		if (parent_rate % item->rate) {
 			item->valid = 0;
 		} else {
@@ -181,7 +181,7 @@ static int _set_rate(struct mmp_clk_mix *mix, u32 mux_val, u32 div_val,
 
 		if (timeout == 0) {
 			pr_err("%s:%s cannot do frequency change\n",
-				__func__, __clk_get_name(mix->hw.clk));
+				__func__, clk_hw_get_name(&mix->hw));
 			ret = -EBUSY;
 			goto error;
 		}
@@ -201,27 +201,22 @@ error:
 	return ret;
 }
 
-static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
-					unsigned long min_rate,
-					unsigned long max_rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk)
+static int mmp_clk_mix_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
 	struct mmp_clk_mix *mix = to_clk_mix(hw);
 	struct mmp_clk_mix_clk_table *item;
-	struct clk *parent, *parent_best, *mix_clk;
+	struct clk_hw *parent, *parent_best;
 	unsigned long parent_rate, mix_rate, mix_rate_best, parent_rate_best;
 	unsigned long gap, gap_best;
 	u32 div_val_max;
 	unsigned int div;
 	int i, j;
 
-	mix_clk = hw->clk;
 
-	parent = NULL;
 	mix_rate_best = 0;
 	parent_rate_best = 0;
-	gap_best = rate;
+	gap_best = ULONG_MAX;
 	parent_best = NULL;
 
 	if (mix->table) {
@@ -229,11 +224,11 @@ static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
 			item = &mix->table[i];
 			if (item->valid == 0)
 				continue;
-			parent = clk_get_parent_by_index(mix_clk,
+			parent = clk_hw_get_parent_by_index(hw,
 							item->parent_index);
-			parent_rate = __clk_get_rate(parent);
+			parent_rate = clk_hw_get_rate(parent);
 			mix_rate = parent_rate / item->divisor;
-			gap = abs(mix_rate - rate);
+			gap = abs(mix_rate - req->rate);
 			if (parent_best == NULL || gap < gap_best) {
 				parent_best = parent;
 				parent_rate_best = parent_rate;
@@ -244,14 +239,14 @@ static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
 			}
 		}
 	} else {
-		for (i = 0; i < __clk_get_num_parents(mix_clk); i++) {
-			parent = clk_get_parent_by_index(mix_clk, i);
-			parent_rate = __clk_get_rate(parent);
+		for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
+			parent = clk_hw_get_parent_by_index(hw, i);
+			parent_rate = clk_hw_get_rate(parent);
 			div_val_max = _get_maxdiv(mix);
 			for (j = 0; j < div_val_max; j++) {
 				div = _get_div(mix, j);
 				mix_rate = parent_rate / div;
-				gap = abs(mix_rate - rate);
+				gap = abs(mix_rate - req->rate);
 				if (parent_best == NULL || gap < gap_best) {
 					parent_best = parent;
 					parent_rate_best = parent_rate;
@@ -265,10 +260,14 @@ static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 found:
-	*best_parent_rate = parent_rate_best;
-	*best_parent_clk = __clk_get_hw(parent_best);
+	if (!parent_best)
+		return -EINVAL;
 
-	return mix_rate_best;
+	req->best_parent_rate = parent_rate_best;
+	req->best_parent_hw = parent_best;
+	req->rate = mix_rate_best;
+
+	return 0;
 }
 
 static int mmp_clk_mix_set_rate_and_parent(struct clk_hw *hw,
@@ -381,20 +380,19 @@ static int mmp_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct mmp_clk_mix_clk_table *item;
 	unsigned long parent_rate;
 	unsigned int best_divisor;
-	struct clk *mix_clk, *parent;
+	struct clk_hw *parent;
 	int i;
 
 	best_divisor = best_parent_rate / rate;
 
-	mix_clk = hw->clk;
 	if (mix->table) {
 		for (i = 0; i < mix->table_size; i++) {
 			item = &mix->table[i];
 			if (item->valid == 0)
 				continue;
-			parent = clk_get_parent_by_index(mix_clk,
+			parent = clk_hw_get_parent_by_index(hw,
 							item->parent_index);
-			parent_rate = __clk_get_rate(parent);
+			parent_rate = clk_hw_get_rate(parent);
 			if (parent_rate == best_parent_rate
 				&& item->divisor == best_divisor)
 				break;
@@ -407,13 +405,13 @@ static int mmp_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		else
 			return -EINVAL;
 	} else {
-		for (i = 0; i < __clk_get_num_parents(mix_clk); i++) {
-			parent = clk_get_parent_by_index(mix_clk, i);
-			parent_rate = __clk_get_rate(parent);
+		for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
+			parent = clk_hw_get_parent_by_index(hw, i);
+			parent_rate = clk_hw_get_rate(parent);
 			if (parent_rate == best_parent_rate)
 				break;
 		}
-		if (i < __clk_get_num_parents(mix_clk))
+		if (i < clk_hw_get_num_parents(hw))
 			return _set_rate(mix, _get_mux_val(mix, i),
 					_get_div_val(mix, best_divisor), 1, 1);
 		else
@@ -468,20 +466,20 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 	memcpy(&mix->reg_info, &config->reg_info, sizeof(config->reg_info));
 	if (config->table) {
 		table_bytes = sizeof(*config->table) * config->table_size;
-		mix->table = kzalloc(table_bytes, GFP_KERNEL);
+		mix->table = kmemdup(config->table, table_bytes, GFP_KERNEL);
 		if (!mix->table) {
 			pr_err("%s:%s: could not allocate mmp mix table\n",
 				__func__, name);
 			kfree(mix);
 			return ERR_PTR(-ENOMEM);
 		}
-		memcpy(mix->table, config->table, table_bytes);
 		mix->table_size = config->table_size;
 	}
 
 	if (config->mux_table) {
 		table_bytes = sizeof(u32) * num_parents;
-		mix->mux_table = kzalloc(table_bytes, GFP_KERNEL);
+		mix->mux_table = kmemdup(config->mux_table, table_bytes,
+					 GFP_KERNEL);
 		if (!mix->mux_table) {
 			pr_err("%s:%s: could not allocate mmp mix mux-table\n",
 				__func__, name);
@@ -489,7 +487,6 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 			kfree(mix);
 			return ERR_PTR(-ENOMEM);
 		}
-		memcpy(mix->mux_table, config->mux_table, table_bytes);
 	}
 
 	mix->div_flags = config->div_flags;

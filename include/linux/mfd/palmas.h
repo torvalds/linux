@@ -21,6 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/extcon.h>
+#include <linux/of_gpio.h>
 #include <linux/usb/phy_companion.h>
 
 #define PALMAS_NUM_CLIENTS		3
@@ -551,10 +552,16 @@ struct palmas_usb {
 	int vbus_otg_irq;
 	int vbus_irq;
 
+	int gpio_id_irq;
+	struct gpio_desc *id_gpiod;
+	unsigned long sw_debounce_jiffies;
+	struct delayed_work wq_detectid;
+
 	enum palmas_usb_state linkstat;
 	int wakeup;
 	bool enable_vbus_detection;
 	bool enable_id_detection;
+	bool enable_gpio_id_detection;
 };
 
 #define comparator_to_palmas(x) container_of((x), struct palmas_usb, comparator)

@@ -184,7 +184,7 @@ static struct key_type key_type_id_resolver = {
 	.read		= user_read,
 };
 
-static int nfs_idmap_init_keyring(void)
+int nfs_idmap_init(void)
 {
 	struct cred *cred;
 	struct key *keyring;
@@ -230,7 +230,7 @@ failed_put_cred:
 	return ret;
 }
 
-static void nfs_idmap_quit_keyring(void)
+void nfs_idmap_quit(void)
 {
 	key_revoke(id_resolver_cache->thread_keyring);
 	unregister_key_type(&key_type_id_resolver);
@@ -297,7 +297,7 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 {
 	const struct cred *saved_cred;
 	struct key *rkey;
-	struct user_key_payload *payload;
+	const struct user_key_payload *payload;
 	ssize_t ret;
 
 	saved_cred = override_creds(id_resolver_cache);
@@ -316,7 +316,7 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 	if (ret < 0)
 		goto out_up;
 
-	payload = rcu_dereference(rkey->payload.rcudata);
+	payload = user_key_payload(rkey);
 	if (IS_ERR_OR_NULL(payload)) {
 		ret = PTR_ERR(payload);
 		goto out_up;
@@ -490,21 +490,6 @@ nfs_idmap_delete(struct nfs_client *clp)
 			&idmap->idmap_pdo);
 	rpc_destroy_pipe_data(idmap->idmap_pipe);
 	kfree(idmap);
-}
-
-int nfs_idmap_init(void)
-{
-	int ret;
-	ret = nfs_idmap_init_keyring();
-	if (ret != 0)
-		goto out;
-out:
-	return ret;
-}
-
-void nfs_idmap_quit(void)
-{
-	nfs_idmap_quit_keyring();
 }
 
 static int nfs_idmap_prepare_message(char *desc, struct idmap *idmap,

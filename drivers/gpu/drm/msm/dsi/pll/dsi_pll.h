@@ -27,6 +27,7 @@ struct msm_dsi_pll {
 
 	struct clk_hw	clk_hw;
 	bool		pll_on;
+	bool		state_saved;
 
 	unsigned long	min_rate;
 	unsigned long	max_rate;
@@ -82,8 +83,16 @@ void msm_dsi_pll_helper_unregister_clks(struct platform_device *pdev,
 /*
  * Initialization for Each PLL Type
  */
+#ifdef CONFIG_DRM_MSM_DSI_28NM_PHY
 struct msm_dsi_pll *msm_dsi_pll_28nm_init(struct platform_device *pdev,
 					enum msm_dsi_phy_type type, int id);
+#else
+static inline struct msm_dsi_pll *msm_dsi_pll_28nm_init(
+	struct platform_device *pdev, enum msm_dsi_phy_type type, int id)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 
 #endif /* __DSI_PLL_H__ */
 

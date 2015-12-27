@@ -311,7 +311,6 @@ MODULE_DEVICE_TABLE(i2c, retu_id);
 static struct i2c_driver retu_driver = {
 	.driver		= {
 		.name = "retu-mfd",
-		.owner = THIS_MODULE,
 	},
 	.probe		= retu_probe,
 	.remove		= retu_remove,

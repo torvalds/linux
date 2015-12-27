@@ -240,7 +240,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		/*
 		 * Step 2+n. Apply classifier.
 		 */
-		result = tc_classify_compat(skb, fl, &res);
+		result = tc_classify(skb, fl, &res, true);
 		if (!fl || result < 0)
 			goto fallback;
 

@@ -1,6 +1,8 @@
-/* bnx2x_reg.h: Broadcom Everest network driver.
+/* bnx2x_reg.h: Qlogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -2137,6 +2139,10 @@
 /* [RW 1] When this bit is set; the LLH will expect all packets to be with
    e1hov */
 #define NIG_REG_LLH_E1HOV_MODE					 0x160d8
+/* [RW 16] Outer VLAN type identifier for multi-function mode. In non
+ * multi-function mode; it will hold the inner VLAN type. Typically 0x8100.
+ */
+#define NIG_REG_LLH_E1HOV_TYPE_1				 0x16028
 /* [RW 1] When this bit is set; the LLH will classify the packet before
    sending it to the BRB or calculating WoL on it. */
 #define NIG_REG_LLH_MF_MODE					 0x16024
@@ -2953,7 +2959,12 @@
 #define PBF_REG_TQ_OCCUPANCY_Q0					 0x1403ac
 /* [R 13] Number of 8 bytes lines occupied in the task queue of queue 1. */
 #define PBF_REG_TQ_OCCUPANCY_Q1					 0x1403b0
-#define PB_REG_CONTROL						 0
+/* [RW 16] One of 8 values that should be compared to type in Ethernet
+ * parsing. If there is a match; the field after Ethernet is the first VLAN.
+ * Reset value is 0x8100 which is the standard VLAN type. Note that when
+ * checking second VLAN; type is compared only to 0x8100.
+ */
+#define PBF_REG_VLAN_TYPE_0					 0x15c06c
 /* [RW 2] Interrupt mask register #0 read/write */
 #define PB_REG_PB_INT_MASK					 0x28
 /* [R 2] Interrupt register #0 read */
@@ -3372,6 +3383,12 @@
 #define PRS_REG_TCM_CURRENT_CREDIT				 0x40160
 /* [R 8] debug only: TSDM current credit. Transaction based. */
 #define PRS_REG_TSDM_CURRENT_CREDIT				 0x4015c
+/* [RW 16] One of 8 values that should be compared to type in Ethernet
+ * parsing. If there is a match; the field after Ethernet is the first VLAN.
+ * Reset value is 0x8100 which is the standard VLAN type. Note that when
+ * checking second VLAN; type is compared only to 0x8100.
+ */
+#define PRS_REG_VLAN_TYPE_0					 0x401a8
 #define PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_AFT			 (0x1<<19)
 #define PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_OF			 (0x1<<20)
 #define PXP2_PXP2_INT_MASK_0_REG_PGL_PCIE_ATTN			 (0x1<<22)
@@ -7240,6 +7257,9 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_AN_REG_8481_LEGACY_MII_CTRL	0xffe0
 #define MDIO_AN_REG_8481_MII_CTRL_FORCE_1G	0x40
 #define MDIO_AN_REG_8481_LEGACY_MII_STATUS	0xffe1
+#define MDIO_AN_REG_848xx_ID_MSB		0xffe2
+#define BCM84858_PHY_ID					0x600d
+#define MDIO_AN_REG_848xx_ID_LSB		0xffe3
 #define MDIO_AN_REG_8481_LEGACY_AN_ADV		0xffe4
 #define MDIO_AN_REG_8481_LEGACY_AN_EXPANSION	0xffe6
 #define MDIO_AN_REG_8481_1000T_CTRL		0xffe9
@@ -7283,31 +7303,31 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_84833_TOP_CFG_FW_NO_EEE		0x1f81
 #define MDIO_84833_TOP_CFG_XGPHY_STRAP1			0x401a
 #define MDIO_84833_SUPER_ISOLATE		0x8000
-/* These are mailbox register set used by 84833. */
-#define MDIO_84833_TOP_CFG_SCRATCH_REG0			0x4005
-#define MDIO_84833_TOP_CFG_SCRATCH_REG1			0x4006
-#define MDIO_84833_TOP_CFG_SCRATCH_REG2			0x4007
-#define MDIO_84833_TOP_CFG_SCRATCH_REG3			0x4008
-#define MDIO_84833_TOP_CFG_SCRATCH_REG4			0x4009
-#define MDIO_84833_TOP_CFG_SCRATCH_REG26		0x4037
-#define MDIO_84833_TOP_CFG_SCRATCH_REG27		0x4038
-#define MDIO_84833_TOP_CFG_SCRATCH_REG28		0x4039
-#define MDIO_84833_TOP_CFG_SCRATCH_REG29		0x403a
-#define MDIO_84833_TOP_CFG_SCRATCH_REG30		0x403b
-#define MDIO_84833_TOP_CFG_SCRATCH_REG31		0x403c
-#define MDIO_84833_CMD_HDLR_COMMAND	MDIO_84833_TOP_CFG_SCRATCH_REG0
-#define MDIO_84833_CMD_HDLR_STATUS	MDIO_84833_TOP_CFG_SCRATCH_REG26
-#define MDIO_84833_CMD_HDLR_DATA1	MDIO_84833_TOP_CFG_SCRATCH_REG27
-#define MDIO_84833_CMD_HDLR_DATA2	MDIO_84833_TOP_CFG_SCRATCH_REG28
-#define MDIO_84833_CMD_HDLR_DATA3	MDIO_84833_TOP_CFG_SCRATCH_REG29
-#define MDIO_84833_CMD_HDLR_DATA4	MDIO_84833_TOP_CFG_SCRATCH_REG30
-#define MDIO_84833_CMD_HDLR_DATA5	MDIO_84833_TOP_CFG_SCRATCH_REG31
+/* These are mailbox register set used by 84833/84858. */
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG0			0x4005
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG1			0x4006
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG2			0x4007
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG3			0x4008
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG4			0x4009
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG26		0x4037
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG27		0x4038
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG28		0x4039
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG29		0x403a
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG30		0x403b
+#define MDIO_848xx_TOP_CFG_SCRATCH_REG31		0x403c
+#define MDIO_848xx_CMD_HDLR_COMMAND	(MDIO_848xx_TOP_CFG_SCRATCH_REG0)
+#define MDIO_848xx_CMD_HDLR_STATUS	(MDIO_848xx_TOP_CFG_SCRATCH_REG26)
+#define MDIO_848xx_CMD_HDLR_DATA1	(MDIO_848xx_TOP_CFG_SCRATCH_REG27)
+#define MDIO_848xx_CMD_HDLR_DATA2	(MDIO_848xx_TOP_CFG_SCRATCH_REG28)
+#define MDIO_848xx_CMD_HDLR_DATA3	(MDIO_848xx_TOP_CFG_SCRATCH_REG29)
+#define MDIO_848xx_CMD_HDLR_DATA4	(MDIO_848xx_TOP_CFG_SCRATCH_REG30)
+#define MDIO_848xx_CMD_HDLR_DATA5	(MDIO_848xx_TOP_CFG_SCRATCH_REG31)
 
-/* Mailbox command set used by 84833. */
-#define PHY84833_CMD_SET_PAIR_SWAP			0x8001
-#define PHY84833_CMD_GET_EEE_MODE			0x8008
-#define PHY84833_CMD_SET_EEE_MODE			0x8009
-/* Mailbox status set used by 84833. */
+/* Mailbox command set used by 84833/84858 */
+#define PHY848xx_CMD_SET_PAIR_SWAP			0x8001
+#define PHY848xx_CMD_GET_EEE_MODE			0x8008
+#define PHY848xx_CMD_SET_EEE_MODE			0x8009
+/* Mailbox status set used by 84833 only */
 #define PHY84833_STATUS_CMD_RECEIVED			0x0001
 #define PHY84833_STATUS_CMD_IN_PROGRESS			0x0002
 #define PHY84833_STATUS_CMD_COMPLETE_PASS		0x0004
@@ -7317,6 +7337,13 @@ Theotherbitsarereservedandshouldbezero*/
 #define PHY84833_STATUS_CMD_NOT_OPEN_FOR_CMDS		0x0040
 #define PHY84833_STATUS_CMD_CLEAR_COMPLETE		0x0080
 #define PHY84833_STATUS_CMD_OPEN_OVERRIDE		0xa5a5
+
+/* Mailbox status set used by 84858 only */
+#define PHY84858_STATUS_CMD_RECEIVED			0x0001
+#define PHY84858_STATUS_CMD_IN_PROGRESS			0x0002
+#define PHY84858_STATUS_CMD_COMPLETE_PASS		0x0004
+#define PHY84858_STATUS_CMD_COMPLETE_ERROR		0x0008
+#define PHY84858_STATUS_CMD_SYSTEM_BUSY			0xbbbb
 
 
 /* Warpcore clause 45 addressing */

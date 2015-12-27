@@ -182,7 +182,7 @@ update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return notifier_from_errno(err);
 }
 
-static struct notifier_block __refdata x2apic_cpu_notifier = {
+static struct notifier_block x2apic_cpu_notifier = {
 	.notifier_call = update_clusterinfo,
 };
 
@@ -272,7 +272,6 @@ static struct apic apic_x2apic_cluster = {
 	.send_IPI_all			= x2apic_send_IPI_all,
 	.send_IPI_self			= x2apic_send_IPI_self,
 
-	.wait_for_init_deassert		= false,
 	.inquire_remote_apic		= NULL,
 
 	.read				= native_apic_msr_read,

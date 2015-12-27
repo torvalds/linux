@@ -705,7 +705,6 @@ static int p54spi_remove(struct spi_device *spi)
 static struct spi_driver p54spi_driver = {
 	.driver = {
 		.name		= "p54spi",
-		.owner		= THIS_MODULE,
 	},
 
 	.probe		= p54spi_probe,

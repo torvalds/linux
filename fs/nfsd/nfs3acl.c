@@ -41,7 +41,7 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst * rqstp,
 
 	inode = d_inode(fh->fh_dentry);
 
-	if (argp->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT))
+	if (argp->mask & ~NFS_ACL_MASK)
 		RETURN_STATUS(nfserr_inval);
 	resp->mask = argp->mask;
 
@@ -148,7 +148,7 @@ static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
 	if (!p)
 		return 0;
 	args->mask = ntohl(*p++);
-	if (args->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT) ||
+	if (args->mask & ~NFS_ACL_MASK ||
 	    !xdr_argsize_check(rqstp, p))
 		return 0;
 

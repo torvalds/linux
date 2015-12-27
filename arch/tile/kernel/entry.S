@@ -27,13 +27,6 @@ STD_ENTRY(current_text_addr)
 	{ move r0, lr; jrp lr }
 	STD_ENDPROC(current_text_addr)
 
-STD_ENTRY(dump_stack)
-	{ move r2, lr; lnk r1 }
-	{ move r4, r52; addli r1, r1, dump_stack - . }
-	{ move r3, sp; j _dump_stack }
-	jrp lr   /* keep backtracer happy */
-	STD_ENDPROC(dump_stack)
-
 STD_ENTRY(KBacktraceIterator_init_current)
 	{ move r2, lr; lnk r1 }
 	{ move r4, r52; addli r1, r1, KBacktraceIterator_init_current - . }

@@ -539,6 +539,7 @@ static const struct of_device_id of_gpio_fan_match[] = {
 	{ .compatible = "gpio-fan", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_gpio_fan_match);
 #endif /* CONFIG_OF_GPIO */
 
 static int gpio_fan_probe(struct platform_device *pdev)

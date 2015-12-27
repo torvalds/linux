@@ -166,7 +166,7 @@ static struct sa1100_port_fns neponset_port_fns = {
  * ensure that the IRQ signal is deasserted before returning.  This
  * is rather unfortunate.
  */
-static void neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void neponset_irq_handler(struct irq_desc *desc)
 {
 	struct neponset_drvdata *d = irq_desc_get_handler_data(desc);
 	unsigned int irr;
@@ -320,10 +320,10 @@ static int neponset_probe(struct platform_device *dev)
 
 	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_SMC91X, &nochip,
 		handle_simple_irq);
-	set_irq_flags(d->irq_base + NEP_IRQ_SMC91X, IRQF_VALID | IRQF_PROBE);
+	irq_clear_status_flags(d->irq_base + NEP_IRQ_SMC91X, IRQ_NOREQUEST | IRQ_NOPROBE);
 	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_USAR, &nochip,
 		handle_simple_irq);
-	set_irq_flags(d->irq_base + NEP_IRQ_USAR, IRQF_VALID | IRQF_PROBE);
+	irq_clear_status_flags(d->irq_base + NEP_IRQ_USAR, IRQ_NOREQUEST | IRQ_NOPROBE);
 	irq_set_chip(d->irq_base + NEP_IRQ_SA1111, &nochip);
 
 	irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);

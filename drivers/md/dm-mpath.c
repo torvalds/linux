@@ -159,12 +159,9 @@ static struct priority_group *alloc_priority_group(void)
 static void free_pgpaths(struct list_head *pgpaths, struct dm_target *ti)
 {
 	struct pgpath *pgpath, *tmp;
-	struct multipath *m = ti->private;
 
 	list_for_each_entry_safe(pgpath, tmp, pgpaths, list) {
 		list_del(&pgpath->list);
-		if (m->hw_handler_name)
-			scsi_dh_detach(bdev_get_queue(pgpath->path.dev->bdev));
 		dm_put_device(ti, pgpath->path.dev);
 		free_pgpath(pgpath);
 	}
@@ -580,6 +577,7 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 		q = bdev_get_queue(p->path.dev->bdev);
 
 	if (m->retain_attached_hw_handler) {
+retain:
 		attached_handler_name = scsi_dh_attached_handler_name(q, GFP_KERNEL);
 		if (attached_handler_name) {
 			/*
@@ -599,20 +597,14 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 	}
 
 	if (m->hw_handler_name) {
-		/*
-		 * Increments scsi_dh reference, even when using an
-		 * already-attached handler.
-		 */
 		r = scsi_dh_attach(q, m->hw_handler_name);
 		if (r == -EBUSY) {
-			/*
-			 * Already attached to different hw_handler:
-			 * try to reattach with correct one.
-			 */
-			scsi_dh_detach(q);
-			r = scsi_dh_attach(q, m->hw_handler_name);
-		}
+			char b[BDEVNAME_SIZE];
 
+			printk(KERN_INFO "dm-mpath: retaining handler on device %s\n",
+				bdevname(p->path.dev->bdev, b));
+			goto retain;
+		}
 		if (r < 0) {
 			ti->error = "error attaching hardware handler";
 			dm_put_device(ti, p->path.dev);
@@ -624,7 +616,6 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 			if (r < 0) {
 				ti->error = "unable to set hardware "
 							"handler parameters";
-				scsi_dh_detach(q);
 				dm_put_device(ti, p->path.dev);
 				goto bad;
 			}
@@ -734,12 +725,6 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 		return 0;
 
 	m->hw_handler_name = kstrdup(dm_shift_arg(as), GFP_KERNEL);
-	if (!try_then_request_module(scsi_dh_handler_exist(m->hw_handler_name),
-				     "scsi_dh_%s", m->hw_handler_name)) {
-		ti->error = "unknown hardware handler type";
-		ret = -EINVAL;
-		goto fail;
-	}
 
 	if (hw_argc > 1) {
 		char *p;
@@ -1548,49 +1533,38 @@ out:
 	return r;
 }
 
-static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
-			   unsigned long arg)
+static int multipath_prepare_ioctl(struct dm_target *ti,
+		struct block_device **bdev, fmode_t *mode)
 {
 	struct multipath *m = ti->private;
-	struct pgpath *pgpath;
-	struct block_device *bdev;
-	fmode_t mode;
 	unsigned long flags;
 	int r;
-
-	bdev = NULL;
-	mode = 0;
-	r = 0;
 
 	spin_lock_irqsave(&m->lock, flags);
 
 	if (!m->current_pgpath)
 		__choose_pgpath(m, 0);
 
-	pgpath = m->current_pgpath;
-
-	if (pgpath) {
-		bdev = pgpath->path.dev->bdev;
-		mode = pgpath->path.dev->mode;
+	if (m->current_pgpath) {
+		if (!m->queue_io) {
+			*bdev = m->current_pgpath->path.dev->bdev;
+			*mode = m->current_pgpath->path.dev->mode;
+			r = 0;
+		} else {
+			/* pg_init has not started or completed */
+			r = -ENOTCONN;
+		}
+	} else {
+		/* No path is available */
+		if (m->queue_if_no_path)
+			r = -ENOTCONN;
+		else
+			r = -EIO;
 	}
-
-	if ((pgpath && m->queue_io) || (!pgpath && m->queue_if_no_path))
-		r = -ENOTCONN;
-	else if (!bdev)
-		r = -EIO;
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	/*
-	 * Only pass ioctls through if the device sizes match exactly.
-	 */
-	if (!bdev || ti->len != i_size_read(bdev->bd_inode) >> SECTOR_SHIFT) {
-		int err = scsi_verify_blk_ioctl(NULL, cmd);
-		if (err)
-			r = err;
-	}
-
-	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
+	if (r == -ENOTCONN) {
 		spin_lock_irqsave(&m->lock, flags);
 		if (!m->current_pg) {
 			/* Path status changed, redo selection */
@@ -1602,7 +1576,12 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 		dm_table_run_md_queue_async(m->ti->table);
 	}
 
-	return r ? : __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	/*
+	 * Only pass ioctls through if the device sizes match exactly.
+	 */
+	if (!r && ti->len != i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+		return 1;
+	return r;
 }
 
 static int multipath_iterate_devices(struct dm_target *ti,
@@ -1705,7 +1684,7 @@ out:
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 9, 0},
+	.version = {1, 10, 0},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,
@@ -1718,7 +1697,7 @@ static struct target_type multipath_target = {
 	.resume = multipath_resume,
 	.status = multipath_status,
 	.message = multipath_message,
-	.ioctl  = multipath_ioctl,
+	.prepare_ioctl = multipath_prepare_ioctl,
 	.iterate_devices = multipath_iterate_devices,
 	.busy = multipath_busy,
 };

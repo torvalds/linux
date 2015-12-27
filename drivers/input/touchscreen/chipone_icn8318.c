@@ -300,7 +300,6 @@ MODULE_DEVICE_TABLE(i2c, icn8318_i2c_id);
 
 static struct i2c_driver icn8318_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "chipone_icn8318",
 		.pm	= &icn8318_pm_ops,
 		.of_match_table = icn8318_of_match,

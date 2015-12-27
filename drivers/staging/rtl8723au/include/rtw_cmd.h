@@ -725,11 +725,9 @@ void rtw_disassoc_cmd23a_callback(struct rtw_adapter  *padapter, struct cmd_obj 
 void rtw_joinbss_cmd23a_callback(struct rtw_adapter  *padapter, struct cmd_obj *pcmd);
 void rtw_createbss_cmd23a_callback(struct rtw_adapter  *padapter, struct cmd_obj *pcmd);
 void rtw_getbbrfreg_cmdrsp_callback23a(struct rtw_adapter  *padapter, struct cmd_obj *pcmd);
-void rtw_readtssi_cmdrsp_callback(struct rtw_adapter*	padapter,  struct cmd_obj *pcmd);
 
 void rtw_setstaKey_cmdrsp_callback23a(struct rtw_adapter  *padapter,  struct cmd_obj *pcmd);
 void rtw_setassocsta_cmdrsp_callback23a(struct rtw_adapter  *padapter,  struct cmd_obj *pcmd);
-void rtw_getrttbl_cmdrsp_callback(struct rtw_adapter  *padapter,  struct cmd_obj *pcmd);
 
 struct _cmd_callback {
 	u32	cmd_code;

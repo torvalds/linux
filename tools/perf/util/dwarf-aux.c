@@ -734,15 +734,18 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	Dwarf_Lines *lines;
 	Dwarf_Line *line;
 	Dwarf_Addr addr;
-	const char *fname;
+	const char *fname, *decf = NULL;
 	int lineno, ret = 0;
+	int decl = 0, inl;
 	Dwarf_Die die_mem, *cu_die;
 	size_t nlines, i;
 
 	/* Get the CU die */
-	if (dwarf_tag(rt_die) != DW_TAG_compile_unit)
+	if (dwarf_tag(rt_die) != DW_TAG_compile_unit) {
 		cu_die = dwarf_diecu(rt_die, &die_mem, NULL, NULL);
-	else
+		dwarf_decl_line(rt_die, &decl);
+		decf = dwarf_decl_file(rt_die);
+	} else
 		cu_die = rt_die;
 	if (!cu_die) {
 		pr_debug2("Failed to get CU from given DIE.\n");
@@ -767,15 +770,21 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 			continue;
 		}
 		/* Filter lines based on address */
-		if (rt_die != cu_die)
+		if (rt_die != cu_die) {
 			/*
 			 * Address filtering
 			 * The line is included in given function, and
 			 * no inline block includes it.
 			 */
-			if (!dwarf_haspc(rt_die, addr) ||
-			    die_find_inlinefunc(rt_die, addr, &die_mem))
+			if (!dwarf_haspc(rt_die, addr))
 				continue;
+			if (die_find_inlinefunc(rt_die, addr, &die_mem)) {
+				dwarf_decl_line(&die_mem, &inl);
+				if (inl != decl ||
+				    decf != dwarf_decl_file(&die_mem))
+					continue;
+			}
+		}
 		/* Get source line */
 		fname = dwarf_linesrc(line, NULL, NULL);
 

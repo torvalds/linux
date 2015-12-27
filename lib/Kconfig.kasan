@@ -15,12 +15,7 @@ config KASAN
 	  global variables requires gcc 5.0 or later.
 	  This feature consumes about 1/8 of available memory and brings about
 	  ~x3 performance slowdown.
-	  For better error detection enable CONFIG_STACKTRACE,
-	  and add slub_debug=U to boot cmdline.
-
-config KASAN_SHADOW_OFFSET
-	hex
-	default 0xdffffc0000000000 if X86_64
+	  For better error detection enable CONFIG_STACKTRACE.
 
 choice
 	prompt "Instrumentation type"

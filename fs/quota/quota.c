@@ -141,9 +141,9 @@ static int quota_getinfo(struct super_block *sb, int type, void __user *addr)
 	if (tstate->flags & QCI_ROOT_SQUASH)
 		uinfo.dqi_flags |= DQF_ROOT_SQUASH;
 	uinfo.dqi_valid = IIF_ALL;
-	if (!ret && copy_to_user(addr, &uinfo, sizeof(uinfo)))
+	if (copy_to_user(addr, &uinfo, sizeof(uinfo)))
 		return -EFAULT;
-	return ret;
+	return 0;
 }
 
 static int quota_setinfo(struct super_block *sb, int type, void __user *addr)

@@ -268,7 +268,6 @@
 			};
 
 			eth0: ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
 				reg = <0x70000 0x4000>;
 				interrupts = <8>;
 				clocks = <&gateclk 4>;
@@ -284,7 +283,6 @@
 			};
 
 			eth1: ethernet@74000 {
-				compatible = "marvell,armada-370-neta";
 				reg = <0x74000 0x4000>;
 				interrupts = <10>;
 				clocks = <&gateclk 3>;

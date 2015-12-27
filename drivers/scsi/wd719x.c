@@ -590,7 +590,7 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 		dev_dbg(&wd->pdev->dev, "selection timeout\n");
 		break;
 	case WD719X_SUE_RESET:
-		dev_dbg(&wd->pdev->dev, "bus reset occured\n");
+		dev_dbg(&wd->pdev->dev, "bus reset occurred\n");
 		result = DID_RESET;
 		break;
 	case WD719X_SUE_BUSERROR:

@@ -154,7 +154,6 @@ static int ds1347_probe(struct spi_device *spi)
 static struct spi_driver ds1347_driver = {
 	.driver = {
 		.name = "ds1347",
-		.owner = THIS_MODULE,
 	},
 	.probe = ds1347_probe,
 };

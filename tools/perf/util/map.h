@@ -190,6 +190,8 @@ void maps__remove(struct maps *maps, struct map *map);
 struct map *maps__find(struct maps *maps, u64 addr);
 struct map *maps__first(struct maps *maps);
 struct map *map__next(struct map *map);
+struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
+                                         struct map **mapp, symbol_filter_t filter);
 void map_groups__init(struct map_groups *mg, struct machine *machine);
 void map_groups__exit(struct map_groups *mg);
 int map_groups__clone(struct map_groups *mg,
@@ -255,5 +257,12 @@ int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 
 struct map *map_groups__find_by_name(struct map_groups *mg,
 				     enum map_type type, const char *name);
+
+bool __map__is_kernel(const struct map *map);
+
+static inline bool __map__is_kmodule(const struct map *map)
+{
+	return !__map__is_kernel(map);
+}
 
 #endif /* __PERF_MAP_H */

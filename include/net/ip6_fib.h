@@ -51,6 +51,8 @@ struct fib6_config {
 	struct nlattr	*fc_mp;
 
 	struct nl_info	fc_nlinfo;
+	struct nlattr	*fc_encap;
+	u16		fc_encap_type;
 };
 
 struct fib6_node {
@@ -165,7 +167,8 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 
 static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 {
-	if (rt->rt6i_flags & RTF_PCPU || unlikely(rt->dst.flags & DST_NOCACHE))
+	if (rt->rt6i_flags & RTF_PCPU ||
+	    (unlikely(rt->dst.flags & DST_NOCACHE) && rt->dst.from))
 		rt = (struct rt6_info *)(rt->dst.from);
 
 	return rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
@@ -273,7 +276,8 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 	     struct nl_info *info, struct mx6_config *mxc);
 int fib6_del(struct rt6_info *rt, struct nl_info *info);
 
-void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info);
+void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info,
+		     unsigned int flags);
 
 void fib6_run_gc(unsigned long expires, struct net *net, bool force);
 

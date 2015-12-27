@@ -111,45 +111,14 @@ static bool wm8991_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static const unsigned int rec_mix_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 7, TLV_DB_LINEAR_ITEM(-1500, 600),
-};
-
-static const unsigned int in_pga_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 0x1F, TLV_DB_LINEAR_ITEM(-1650, 3000),
-};
-
-static const unsigned int out_mix_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 7, TLV_DB_LINEAR_ITEM(0, -2100),
-};
-
-static const unsigned int out_pga_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 127, TLV_DB_LINEAR_ITEM(-7300, 600),
-};
-
-static const unsigned int out_omix_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 7, TLV_DB_LINEAR_ITEM(-600, 0),
-};
-
-static const unsigned int out_dac_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 255, TLV_DB_LINEAR_ITEM(-7163, 0),
-};
-
-static const unsigned int in_adc_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 255, TLV_DB_LINEAR_ITEM(-7163, 1763),
-};
-
-static const unsigned int out_sidetone_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 31, TLV_DB_LINEAR_ITEM(-3600, 0),
-};
+static const DECLARE_TLV_DB_LINEAR(rec_mix_tlv, -1500, 600);
+static const DECLARE_TLV_DB_LINEAR(in_pga_tlv, -1650, 3000);
+static const DECLARE_TLV_DB_LINEAR(out_mix_tlv, 0, -2100);
+static const DECLARE_TLV_DB_LINEAR(out_pga_tlv, -7300, 600);
+static const DECLARE_TLV_DB_LINEAR(out_omix_tlv, -600, 0);
+static const DECLARE_TLV_DB_LINEAR(out_dac_tlv, -7163, 0);
+static const DECLARE_TLV_DB_LINEAR(in_adc_tlv, -7163, 1763);
+static const DECLARE_TLV_DB_LINEAR(out_sidetone_tlv, -3600, 0);
 
 static int wm899x_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
@@ -429,10 +398,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 }
 
 /* INMIX dB values */
-static const unsigned int in_mix_tlv[] = {
-	TLV_DB_RANGE_HEAD(1),
-	0, 7, TLV_DB_LINEAR_ITEM(-1200, 600),
-};
+static const DECLARE_TLV_DB_LINEAR(in_mix_tlv, -1200, 600);
 
 /* Left In PGA Connections */
 static const struct snd_kcontrol_new wm8991_dapm_lin12_pga_controls[] = {
@@ -1363,7 +1329,6 @@ MODULE_DEVICE_TABLE(i2c, wm8991_i2c_id);
 static struct i2c_driver wm8991_i2c_driver = {
 	.driver = {
 		.name = "wm8991",
-		.owner = THIS_MODULE,
 	},
 	.probe = wm8991_i2c_probe,
 	.remove = wm8991_i2c_remove,

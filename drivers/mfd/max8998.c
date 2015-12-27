@@ -377,7 +377,6 @@ static const struct dev_pm_ops max8998_pm = {
 static struct i2c_driver max8998_i2c_driver = {
 	.driver = {
 		   .name = "max8998",
-		   .owner = THIS_MODULE,
 		   .pm = &max8998_pm,
 		   .of_match_table = of_match_ptr(max8998_dt_match),
 	},

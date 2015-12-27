@@ -30,7 +30,7 @@
 #include <sound/wm9081.h>
 #include "wm9081.h"
 
-static struct reg_default wm9081_reg[] = {
+static const struct reg_default wm9081_reg[] = {
 	{  2, 0x00B9 },     /* R2  - Analogue Lineout */
 	{  3, 0x00B9 },     /* R3  - Analogue Speaker PGA */
 	{  4, 0x0001 },     /* R4  - VMID Control */
@@ -243,13 +243,12 @@ static int wm9081_reset(struct regmap *map)
 static const DECLARE_TLV_DB_SCALE(drc_in_tlv, -4500, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_out_tlv, -2250, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_min_tlv, -1800, 600, 0);
-static unsigned int drc_max_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+static const DECLARE_TLV_DB_RANGE(drc_max_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(1200, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(1800, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(2400, 0, 0),
-	3, 3, TLV_DB_SCALE_ITEM(3600, 0, 0),
-};
+	3, 3, TLV_DB_SCALE_ITEM(3600, 0, 0)
+);
 static const DECLARE_TLV_DB_SCALE(drc_qr_tlv, 1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(drc_startup_tlv, -300, 50, 0);
 
@@ -1378,7 +1377,6 @@ MODULE_DEVICE_TABLE(i2c, wm9081_i2c_id);
 static struct i2c_driver wm9081_i2c_driver = {
 	.driver = {
 		.name = "wm9081",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm9081_i2c_probe,
 	.remove =   wm9081_i2c_remove,

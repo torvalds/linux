@@ -540,13 +540,11 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 		hw_addr = (const u8 *)(mac_override +
 				 MAC_ADDRESS_OVERRIDE_FAMILY_8000);
 
-		/* The byte order is little endian 16 bit, meaning 214365 */
-		data->hw_addr[0] = hw_addr[1];
-		data->hw_addr[1] = hw_addr[0];
-		data->hw_addr[2] = hw_addr[3];
-		data->hw_addr[3] = hw_addr[2];
-		data->hw_addr[4] = hw_addr[5];
-		data->hw_addr[5] = hw_addr[4];
+		/*
+		 * Store the MAC address from MAO section.
+		 * No byte swapping is required in MAO section
+		 */
+		memcpy(data->hw_addr, hw_addr, ETH_ALEN);
 
 		/*
 		 * Force the use of the OTP MAC address in case of reserved MAC
@@ -582,13 +580,15 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 	IWL_ERR_DEV(dev, "mac address is not found\n");
 }
 
+#define IWL_4165_DEVICE_ID 0x5501
+
 struct iwl_nvm_data *
 iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, const __le16 *phy_sku,
 		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported,
-		   u32 mac_addr0, u32 mac_addr1)
+		   u32 mac_addr0, u32 mac_addr1, u32 hw_id)
 {
 	struct iwl_nvm_data *data;
 	u32 sku;
@@ -626,6 +626,17 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	data->sku_cap_11ac_enable = data->sku_cap_11n_enable &&
 				    (sku & NVM_SKU_CAP_11AC_ENABLE);
 	data->sku_cap_mimo_disabled = sku & NVM_SKU_CAP_MIMO_DISABLE;
+
+	/*
+	 * OTP 0x52 bug work around
+	 * define antenna 1x1 according to MIMO disabled
+	 */
+	if (hw_id == IWL_4165_DEVICE_ID && data->sku_cap_mimo_disabled) {
+		data->valid_tx_ant = ANT_B;
+		data->valid_rx_ant = ANT_B;
+		tx_chains = ANT_B;
+		rx_chains = ANT_B;
+	}
 
 	data->n_hw_addrs = iwl_get_n_hw_addrs(cfg, nvm_sw);
 

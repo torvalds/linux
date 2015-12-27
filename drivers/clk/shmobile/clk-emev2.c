@@ -28,13 +28,15 @@
 #define USIBU1_RSTCTRL 0x0ac
 #define USIBU2_RSTCTRL 0x0b0
 #define USIBU3_RSTCTRL 0x0b4
+#define IIC0_RSTCTRL 0x0dc
+#define IIC1_RSTCTRL 0x0e0
 #define STI_RSTCTRL 0x124
 #define STI_CLKSEL 0x688
 
 static DEFINE_SPINLOCK(lock);
 
 /* not pretty, but hey */
-void __iomem *smu_base;
+static void __iomem *smu_base;
 
 static void __init emev2_smu_write(unsigned long value, int offs)
 {
@@ -66,6 +68,10 @@ static void __init emev2_smu_init(void)
 	emev2_smu_write(2, USIBU1_RSTCTRL);
 	emev2_smu_write(2, USIBU2_RSTCTRL);
 	emev2_smu_write(2, USIBU3_RSTCTRL);
+
+	/* deassert reset for IIC0->IIC1 */
+	emev2_smu_write(1, IIC0_RSTCTRL);
+	emev2_smu_write(1, IIC1_RSTCTRL);
 }
 
 static void __init emev2_smu_clkdiv_init(struct device_node *np)

@@ -52,6 +52,7 @@ static int mgc_ir_state_seq_show(struct seq_file *m, void *v)
 {
 	return lprocfs_mgc_rd_ir_state(m, m->private);
 }
+
 LPROC_SEQ_FOPS_RO(mgc_ir_state);
 
 static struct lprocfs_vars lprocfs_mgc_obd_vars[] = {

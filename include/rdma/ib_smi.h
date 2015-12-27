@@ -119,10 +119,57 @@ struct ib_port_info {
 	u8 link_roundtrip_latency[3];
 };
 
+struct ib_node_info {
+	u8 base_version;
+	u8 class_version;
+	u8 node_type;
+	u8 num_ports;
+	__be64 sys_guid;
+	__be64 node_guid;
+	__be64 port_guid;
+	__be16 partition_cap;
+	__be16 device_id;
+	__be32 revision;
+	u8 local_port_num;
+	u8 vendor_id[3];
+} __packed;
+
+struct ib_vl_weight_elem {
+	u8      vl;     /* IB: VL is low 4 bits, upper 4 bits reserved */
+                        /* OPA: VL is low 5 bits, upper 3 bits reserved */
+	u8      weight;
+};
+
 static inline u8
 ib_get_smp_direction(struct ib_smp *smp)
 {
 	return ((smp->status & IB_SMP_DIRECTION) == IB_SMP_DIRECTION);
 }
+
+/*
+ * SM Trap/Notice numbers
+ */
+#define IB_NOTICE_TRAP_LLI_THRESH	cpu_to_be16(129)
+#define IB_NOTICE_TRAP_EBO_THRESH	cpu_to_be16(130)
+#define IB_NOTICE_TRAP_FLOW_UPDATE	cpu_to_be16(131)
+#define IB_NOTICE_TRAP_CAP_MASK_CHG	cpu_to_be16(144)
+#define IB_NOTICE_TRAP_SYS_GUID_CHG	cpu_to_be16(145)
+#define IB_NOTICE_TRAP_BAD_MKEY		cpu_to_be16(256)
+#define IB_NOTICE_TRAP_BAD_PKEY		cpu_to_be16(257)
+#define IB_NOTICE_TRAP_BAD_QKEY		cpu_to_be16(258)
+
+/*
+ * Other local changes flags (trap 144).
+ */
+#define IB_NOTICE_TRAP_LSE_CHG		0x04	/* Link Speed Enable changed */
+#define IB_NOTICE_TRAP_LWE_CHG		0x02	/* Link Width Enable changed */
+#define IB_NOTICE_TRAP_NODE_DESC_CHG	0x01
+
+/*
+ * M_Key volation flags in dr_trunc_hop (trap 256).
+ */
+#define IB_NOTICE_TRAP_DR_NOTICE	0x80
+#define IB_NOTICE_TRAP_DR_TRUNC		0x40
+
 
 #endif /* IB_SMI_H */

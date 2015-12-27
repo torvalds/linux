@@ -171,7 +171,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		uint32_t w = win->src_w;
 		uint32_t h = win->src_h;
 
-		switch (win->rotation & 0xf) {
+		switch (win->rotation & DRM_ROTATE_MASK) {
 		default:
 			dev_err(fb->dev->dev, "invalid rotation: %02x",
 					(uint32_t)win->rotation);
@@ -209,7 +209,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		info->rotation_type = OMAP_DSS_ROT_TILER;
 		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
 	} else {
-		switch (win->rotation & 0xf) {
+		switch (win->rotation & DRM_ROTATE_MASK) {
 		case 0:
 		case BIT(DRM_ROTATE_0):
 			/* OK */
@@ -287,10 +287,10 @@ fail:
 }
 
 /* unpin, no longer being scanned out: */
-int omap_framebuffer_unpin(struct drm_framebuffer *fb)
+void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	int ret, i, n = drm_format_num_planes(fb->pixel_format);
+	int i, n = drm_format_num_planes(fb->pixel_format);
 
 	mutex_lock(&omap_fb->lock);
 
@@ -298,24 +298,16 @@ int omap_framebuffer_unpin(struct drm_framebuffer *fb)
 
 	if (omap_fb->pin_count > 0) {
 		mutex_unlock(&omap_fb->lock);
-		return 0;
+		return;
 	}
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		ret = omap_gem_put_paddr(plane->bo);
-		if (ret)
-			goto fail;
+		omap_gem_put_paddr(plane->bo);
 		plane->paddr = 0;
 	}
 
 	mutex_unlock(&omap_fb->lock);
-
-	return 0;
-
-fail:
-	mutex_unlock(&omap_fb->lock);
-	return ret;
 }
 
 struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p)

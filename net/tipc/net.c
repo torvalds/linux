@@ -112,14 +112,11 @@ int tipc_net_start(struct net *net, u32 addr)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	char addr_string[16];
-	int res;
 
 	tn->own_addr = addr;
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
-	res = tipc_bclink_init(net);
-	if (res)
-		return res;
+	tipc_bcast_reinit(net);
 
 	tipc_nametbl_publish(net, TIPC_CFG_SRV, tn->own_addr, tn->own_addr,
 			     TIPC_ZONE_SCOPE, 0, tn->own_addr);
@@ -142,7 +139,6 @@ void tipc_net_stop(struct net *net)
 			      tn->own_addr);
 	rtnl_lock();
 	tipc_bearer_stop(net);
-	tipc_bclink_stop(net);
 	tipc_node_stop(net);
 	rtnl_unlock();
 

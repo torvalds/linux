@@ -25,16 +25,16 @@ struct un_t;
 struct pci_driver;
 struct class_device;
 
-extern void dgnc_create_ports_sysfiles(struct dgnc_board *bd);
-extern void dgnc_remove_ports_sysfiles(struct dgnc_board *bd);
+void dgnc_create_ports_sysfiles(struct dgnc_board *bd);
+void dgnc_remove_ports_sysfiles(struct dgnc_board *bd);
 
-extern void dgnc_create_driver_sysfiles(struct pci_driver *);
-extern void dgnc_remove_driver_sysfiles(struct pci_driver *);
+void dgnc_create_driver_sysfiles(struct pci_driver *);
+void dgnc_remove_driver_sysfiles(struct pci_driver *);
 
-extern int dgnc_tty_class_init(void);
-extern int dgnc_tty_class_destroy(void);
+int dgnc_tty_class_init(void);
+int dgnc_tty_class_destroy(void);
 
-extern void dgnc_create_tty_sysfs(struct un_t *un, struct device *c);
-extern void dgnc_remove_tty_sysfs(struct device *c);
+void dgnc_create_tty_sysfs(struct un_t *un, struct device *c);
+void dgnc_remove_tty_sysfs(struct device *c);
 
 #endif

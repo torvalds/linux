@@ -33,7 +33,7 @@ struct kirkwood_thermal_priv {
 };
 
 static int kirkwood_get_temp(struct thermal_zone_device *thermal,
-			  unsigned long *temp)
+			  int *temp)
 {
 	unsigned long reg;
 	struct kirkwood_thermal_priv *priv = thermal->devdata;

@@ -1404,6 +1404,17 @@ net2272_usb_reinit(struct net2272 *dev)
 		else
 			ep->fifo_size = 64;
 		net2272_ep_reset(ep);
+
+		if (i == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 	}
 	usb_ep_set_maxpacket_limit(&dev->ep[0].ep, 64);
 
@@ -1826,9 +1837,9 @@ net2272_handle_stat0_irqs(struct net2272 *dev, u8 stat)
 				if (!e || u.r.wLength > 2)
 					goto do_stall;
 				if (net2272_ep_read(e, EP_RSPSET) & (1 << ENDPOINT_HALT))
-					status = __constant_cpu_to_le16(1);
+					status = cpu_to_le16(1);
 				else
-					status = __constant_cpu_to_le16(0);
+					status = cpu_to_le16(0);
 
 				/* don't bother with a request object! */
 				net2272_ep_write(&dev->ep[0], EP_IRQENB, 0);

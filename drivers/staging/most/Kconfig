@@ -1,0 +1,31 @@
+menuconfig MOST
+        tristate "MOST driver"
+	depends on HAS_DMA
+        select MOSTCORE
+        default n
+        ---help---
+          This option allows you to enable support for MOST Network transceivers.
+
+          If in doubt, say N here.
+
+
+
+if MOST
+
+source "drivers/staging/most/mostcore/Kconfig"
+
+source "drivers/staging/most/aim-cdev/Kconfig"
+
+source "drivers/staging/most/aim-network/Kconfig"
+
+source "drivers/staging/most/aim-sound/Kconfig"
+
+source "drivers/staging/most/aim-v4l2/Kconfig"
+
+source "drivers/staging/most/hdm-dim2/Kconfig"
+
+source "drivers/staging/most/hdm-i2c/Kconfig"
+
+source "drivers/staging/most/hdm-usb/Kconfig"
+
+endif

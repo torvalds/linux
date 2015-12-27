@@ -1,7 +1,7 @@
 /*
  * Board-level suspend/resume support.
  *
- * Copyright (C) 2014 Marvell
+ * Copyright (C) 2014-2015 Marvell
  *
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
@@ -20,28 +20,31 @@
 #include <linux/slab.h>
 #include "common.h"
 
-#define ARMADA_XP_GP_PIC_NR_GPIOS 3
+#define ARMADA_PIC_NR_GPIOS 3
 
 static void __iomem *gpio_ctrl;
-static int pic_gpios[ARMADA_XP_GP_PIC_NR_GPIOS];
-static int pic_raw_gpios[ARMADA_XP_GP_PIC_NR_GPIOS];
+static int pic_gpios[ARMADA_PIC_NR_GPIOS];
+static int pic_raw_gpios[ARMADA_PIC_NR_GPIOS];
 
-static void mvebu_armada_xp_gp_pm_enter(void __iomem *sdram_reg, u32 srcmd)
+static void mvebu_armada_pm_enter(void __iomem *sdram_reg, u32 srcmd)
 {
 	u32 reg, ackcmd;
 	int i;
 
 	/* Put 001 as value on the GPIOs */
 	reg = readl(gpio_ctrl);
-	for (i = 0; i < ARMADA_XP_GP_PIC_NR_GPIOS; i++)
+	for (i = 0; i < ARMADA_PIC_NR_GPIOS; i++)
 		reg &= ~BIT(pic_raw_gpios[i]);
 	reg |= BIT(pic_raw_gpios[0]);
 	writel(reg, gpio_ctrl);
 
 	/* Prepare writing 111 to the GPIOs */
 	ackcmd = readl(gpio_ctrl);
-	for (i = 0; i < ARMADA_XP_GP_PIC_NR_GPIOS; i++)
+	for (i = 0; i < ARMADA_PIC_NR_GPIOS; i++)
 		ackcmd |= BIT(pic_raw_gpios[i]);
+
+	srcmd = cpu_to_le32(srcmd);
+	ackcmd = cpu_to_le32(ackcmd);
 
 	/*
 	 * Wait a while, the PIC needs quite a bit of time between the
@@ -73,7 +76,7 @@ static void mvebu_armada_xp_gp_pm_enter(void __iomem *sdram_reg, u32 srcmd)
 		  [ackcmd] "r" (ackcmd), [gpio_ctrl] "r" (gpio_ctrl) : "r1");
 }
 
-static int mvebu_armada_xp_gp_pm_init(void)
+static int __init mvebu_armada_pm_init(void)
 {
 	struct device_node *np;
 	struct device_node *gpio_ctrl_np;
@@ -86,7 +89,7 @@ static int mvebu_armada_xp_gp_pm_init(void)
 	if (!np)
 		return -ENODEV;
 
-	for (i = 0; i < ARMADA_XP_GP_PIC_NR_GPIOS; i++) {
+	for (i = 0; i < ARMADA_PIC_NR_GPIOS; i++) {
 		char *name;
 		struct of_phandle_args args;
 
@@ -131,11 +134,19 @@ static int mvebu_armada_xp_gp_pm_init(void)
 	if (!gpio_ctrl)
 		return -ENOMEM;
 
-	mvebu_pm_init(mvebu_armada_xp_gp_pm_enter);
+	mvebu_pm_suspend_init(mvebu_armada_pm_enter);
 
 out:
 	of_node_put(np);
 	return ret;
 }
 
-late_initcall(mvebu_armada_xp_gp_pm_init);
+/*
+ * Registering the mvebu_board_pm_enter callback must be done before
+ * the platform_suspend_ops will be registered. In the same time we
+ * also need to have the gpio devices registered. That's why we use a
+ * device_initcall_sync which is called after all the device_initcall
+ * (used by the gpio device) but before the late_initcall (used to
+ * register the platform_suspend_ops)
+ */
+device_initcall_sync(mvebu_armada_pm_init);

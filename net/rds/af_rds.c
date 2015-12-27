@@ -72,13 +72,7 @@ static int rds_release(struct socket *sock)
 	rds_clear_recv_queue(rs);
 	rds_cong_remove_socket(rs);
 
-	/*
-	 * the binding lookup hash uses rcu, we need to
-	 * make sure we synchronize_rcu before we free our
-	 * entry
-	 */
 	rds_remove_bound(rs);
-	synchronize_rcu();
 
 	rds_send_drop_to(rs, NULL);
 	rds_rdma_drop_keys(rs);
@@ -438,6 +432,14 @@ static const struct proto_ops rds_proto_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
+static void rds_sock_destruct(struct sock *sk)
+{
+	struct rds_sock *rs = rds_sk_to_rs(sk);
+
+	WARN_ON((&rs->rs_item != rs->rs_item.next ||
+		 &rs->rs_item != rs->rs_item.prev));
+}
+
 static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 {
 	struct rds_sock *rs;
@@ -445,6 +447,7 @@ static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 	sock_init_data(sock, sk);
 	sock->ops		= &rds_proto_ops;
 	sk->sk_protocol		= protocol;
+	sk->sk_destruct		= rds_sock_destruct;
 
 	rs = rds_sk_to_rs(sk);
 	spin_lock_init(&rs->rs_lock);
@@ -570,6 +573,7 @@ static void rds_exit(void)
 	rds_threads_exit();
 	rds_stats_exit();
 	rds_page_exit();
+	rds_bind_lock_destroy();
 	rds_info_deregister_func(RDS_INFO_SOCKETS, rds_sock_info);
 	rds_info_deregister_func(RDS_INFO_RECV_MESSAGES, rds_sock_inc_info);
 }
@@ -579,9 +583,14 @@ static int rds_init(void)
 {
 	int ret;
 
-	ret = rds_conn_init();
+	ret = rds_bind_lock_init();
 	if (ret)
 		goto out;
+
+	ret = rds_conn_init();
+	if (ret)
+		goto out_bind;
+
 	ret = rds_threads_init();
 	if (ret)
 		goto out_conn;
@@ -615,6 +624,8 @@ out_conn:
 	rds_conn_exit();
 	rds_cong_exit();
 	rds_page_exit();
+out_bind:
+	rds_bind_lock_destroy();
 out:
 	return ret;
 }

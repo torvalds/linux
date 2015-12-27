@@ -49,9 +49,38 @@ static inline void sock_update_classid(struct sock *sk)
 	if (classid != sk->sk_classid)
 		sk->sk_classid = classid;
 }
+
+static inline u32 task_get_classid(const struct sk_buff *skb)
+{
+	u32 classid = task_cls_state(current)->classid;
+
+	/* Due to the nature of the classifier it is required to ignore all
+	 * packets originating from softirq context as accessing `current'
+	 * would lead to false results.
+	 *
+	 * This test assumes that all callers of dev_queue_xmit() explicitly
+	 * disable bh. Knowing this, it is possible to detect softirq based
+	 * calls by looking at the number of nested bh disable calls because
+	 * softirqs always disables bh.
+	 */
+	if (in_serving_softirq()) {
+		/* If there is an sk_classid we'll use that. */
+		if (!skb->sk)
+			return 0;
+
+		classid = skb->sk->sk_classid;
+	}
+
+	return classid;
+}
 #else /* !CONFIG_CGROUP_NET_CLASSID */
 static inline void sock_update_classid(struct sock *sk)
 {
+}
+
+static inline u32 task_get_classid(const struct sk_buff *skb)
+{
+	return 0;
 }
 #endif /* CONFIG_CGROUP_NET_CLASSID */
 #endif  /* _NET_CLS_CGROUP_H */

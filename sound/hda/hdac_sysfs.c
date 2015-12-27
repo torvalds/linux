@@ -45,6 +45,13 @@ CODEC_ATTR(mfg);
 CODEC_ATTR_STR(vendor_name);
 CODEC_ATTR_STR(chip_name);
 
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return snd_hdac_codec_modalias(dev_to_hdac_dev(dev), buf, 256);
+}
+static DEVICE_ATTR_RO(modalias);
+
 static struct attribute *hdac_dev_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_vendor_id.attr,
@@ -54,6 +61,7 @@ static struct attribute *hdac_dev_attrs[] = {
 	&dev_attr_mfg.attr,
 	&dev_attr_vendor_name.attr,
 	&dev_attr_chip_name.attr,
+	&dev_attr_modalias.attr,
 	NULL
 };
 
@@ -321,8 +329,7 @@ static void widget_tree_free(struct hdac_device *codec)
 			free_widget_node(*p, &widget_node_group);
 		kfree(tree->nodes);
 	}
-	if (tree->root)
-		kobject_put(tree->root);
+	kobject_put(tree->root);
 	kfree(tree);
 	codec->widgets = NULL;
 }
@@ -390,6 +397,9 @@ static int widget_tree_create(struct hdac_device *codec)
 int hda_widget_sysfs_init(struct hdac_device *codec)
 {
 	int err;
+
+	if (codec->widgets)
+		return 0; /* already created */
 
 	err = widget_tree_create(codec);
 	if (err < 0) {

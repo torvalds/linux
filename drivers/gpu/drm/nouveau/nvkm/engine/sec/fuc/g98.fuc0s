@@ -1,5 +1,5 @@
 /*
- *  fuc microcode for g98 psec engine
+ *  fuc microcode for g98 sec engine
  *  Copyright (C) 2010  Marcin Kościelnicki
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-.section #g98_psec_data
+.section #g98_sec_data
 
 ctx_dma:
 ctx_dma_query:		.b32 0
@@ -94,7 +94,7 @@ sec_dtable:
 
 .align 0x100
 
-.section #g98_psec_code
+.section #g98_sec_code
 
 	// $r0 is always set to 0 in our code - this allows some space savings.
 	clear b32 $r0

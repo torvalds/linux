@@ -336,7 +336,7 @@
 
 #define TRF7970A_NFC_TARGET_LEVEL_RFDET(v)	((v) & 0x07)
 #define TRF7970A_NFC_TARGET_LEVEL_HI_RF		BIT(3)
-#define TRF7970A_NFC_TARGET_LEVEL_SDD_EN	BIT(3)
+#define TRF7970A_NFC_TARGET_LEVEL_SDD_EN	BIT(5)
 #define TRF7970A_NFC_TARGET_LEVEL_LD_S_4BYTES	(0x0 << 6)
 #define TRF7970A_NFC_TARGET_LEVEL_LD_S_7BYTES	(0x1 << 6)
 #define TRF7970A_NFC_TARGET_LEVEL_LD_S_10BYTES	(0x2 << 6)
@@ -629,7 +629,9 @@ static void trf7970a_send_upstream(struct trf7970a *trf)
 	}
 
 	if (trf->adjust_resp_len) {
-		skb_trim(trf->rx_skb, trf->rx_skb->len - 1);
+		if (trf->rx_skb)
+			skb_trim(trf->rx_skb, trf->rx_skb->len - 1);
+
 		trf->adjust_resp_len = false;
 	}
 
@@ -2209,6 +2211,12 @@ static const struct dev_pm_ops trf7970a_pm_ops = {
 			trf7970a_pm_runtime_resume, NULL)
 };
 
+static const struct of_device_id trf7970a_of_match[] = {
+	{ .compatible = "ti,trf7970a", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, trf7970a_of_match);
+
 static const struct spi_device_id trf7970a_id_table[] = {
 	{ "trf7970a", 0 },
 	{ }
@@ -2221,7 +2229,7 @@ static struct spi_driver trf7970a_spi_driver = {
 	.id_table	= trf7970a_id_table,
 	.driver		= {
 		.name	= "trf7970a",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(trf7970a_of_match),
 		.pm	= &trf7970a_pm_ops,
 	},
 };

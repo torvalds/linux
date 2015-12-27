@@ -354,63 +354,6 @@ no_command_line:
 	blo	1b
 	nop
 
-#ifdef CONFIG_BLK_DEV_ETRAXIDE
-	;; disable ATA before enabling it in genconfig below
-	moveq	0,$r0
-	move.d	$r0,[R_ATA_CTRL_DATA]
-	move.d	$r0,[R_ATA_TRANSFER_CNT]
-	move.d	$r0,[R_ATA_CONFIG]
-#if 0
-	move.d	R_PORT_G_DATA, $r1
-	move.d	$r0, [$r1]; assert ATA bus-reset
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	move.d	0x08000000,$r0
-	move.d	$r0,[$r1]
-#endif
-#endif
-
-#ifdef CONFIG_JULIETTE
-	;; configure external DMA channel 0 before enabling it in genconfig
-
-	moveq	0,$r0
-	move.d	$r0,[R_EXT_DMA_0_ADDR]
-	; cnt enable, word size, output, stop, size 0
-	move.d	  IO_STATE (R_EXT_DMA_0_CMD, cnt, enable)	\
-		| IO_STATE (R_EXT_DMA_0_CMD, rqpol, ahigh)	\
-		| IO_STATE (R_EXT_DMA_0_CMD, apol, ahigh)	\
-		| IO_STATE (R_EXT_DMA_0_CMD, rq_ack, burst)	\
-		| IO_STATE (R_EXT_DMA_0_CMD, wid, word)		\
-		| IO_STATE (R_EXT_DMA_0_CMD, dir, output)	\
-		| IO_STATE (R_EXT_DMA_0_CMD, run, stop)		\
-		| IO_FIELD (R_EXT_DMA_0_CMD, trf_count, 0),$r0
-	move.d	$r0,[R_EXT_DMA_0_CMD]
-
-	;; reset dma4 and wait for completion
-
-	moveq	IO_STATE (R_DMA_CH4_CMD, cmd, reset),$r0
-	move.b	$r0,[R_DMA_CH4_CMD]
-1:	move.b	[R_DMA_CH4_CMD],$r0
-	and.b	IO_MASK (R_DMA_CH4_CMD, cmd),$r0
-	cmp.b	IO_STATE (R_DMA_CH4_CMD, cmd, reset),$r0
-	beq	1b
-	nop
-
-	;; reset dma5 and wait for completion
-
-	moveq	IO_STATE (R_DMA_CH5_CMD, cmd, reset),$r0
-	move.b	$r0,[R_DMA_CH5_CMD]
-1:	move.b	[R_DMA_CH5_CMD],$r0
-	and.b	IO_MASK (R_DMA_CH5_CMD, cmd),$r0
-	cmp.b	IO_STATE (R_DMA_CH5_CMD, cmd, reset),$r0
-	beq	1b
-	nop
-#endif
-
 	;; Etrax product HW genconfig setup
 
 	moveq	0,$r0
@@ -446,21 +389,6 @@ no_command_line:
 		| IO_STATE (R_GEN_CONFIG, dma8, usb) \
 		| IO_STATE (R_GEN_CONFIG, dma9, usb),$r0
 
-
-#if defined(CONFIG_ETRAX_DEF_R_PORT_G0_DIR_OUT)
-        or.d      IO_STATE (R_GEN_CONFIG, g0dir, out),$r0
-#endif
-
-#if defined(CONFIG_ETRAX_DEF_R_PORT_G8_15_DIR_OUT)
-        or.d      IO_STATE (R_GEN_CONFIG, g8_15dir, out),$r0
-#endif
-#if defined(CONFIG_ETRAX_DEF_R_PORT_G16_23_DIR_OUT)
-       or.d      IO_STATE (R_GEN_CONFIG, g16_23dir, out),$r0
-#endif
-
-#if defined(CONFIG_ETRAX_DEF_R_PORT_G24_DIR_OUT)
-       or.d      IO_STATE (R_GEN_CONFIG, g24dir, out),$r0
-#endif
 
 	move.d	$r0,[genconfig_shadow] ; init a shadow register of R_GEN_CONFIG
 
@@ -500,19 +428,9 @@ no_command_line:
 	;; including their shadow registers
 
 	move.b	CONFIG_ETRAX_DEF_R_PORT_PA_DIR,$r0
-#if defined(CONFIG_BLUETOOTH) && defined(CONFIG_BLUETOOTH_RESET_PA7)
-	or.b	IO_STATE (R_PORT_PA_DIR, dir7, output),$r0
-#endif
 	move.b	$r0,[port_pa_dir_shadow]
 	move.b	$r0,[R_PORT_PA_DIR]
 	move.b	CONFIG_ETRAX_DEF_R_PORT_PA_DATA,$r0
-#if defined(CONFIG_BLUETOOTH) && defined(CONFIG_BLUETOOTH_RESET_PA7)
-#if defined(CONFIG_BLUETOOTH_RESET_ACTIVE_HIGH)
-	and.b	~(1 << 7),$r0
-#else
-	or.b	(1 << 7),$r0
-#endif
-#endif
 	move.b	$r0,[port_pa_data_shadow]
 	move.b	$r0,[R_PORT_PA_DATA]
 
@@ -520,19 +438,9 @@ no_command_line:
 	move.b	$r0,[port_pb_config_shadow]
 	move.b	$r0,[R_PORT_PB_CONFIG]
 	move.b	CONFIG_ETRAX_DEF_R_PORT_PB_DIR,$r0
-#if defined(CONFIG_BLUETOOTH) && defined(CONFIG_BLUETOOTH_RESET_PB5)
-	or.b	IO_STATE (R_PORT_PB_DIR, dir5, output),$r0
-#endif
 	move.b	$r0,[port_pb_dir_shadow]
 	move.b	$r0,[R_PORT_PB_DIR]
 	move.b	CONFIG_ETRAX_DEF_R_PORT_PB_DATA,$r0
-#if defined(CONFIG_BLUETOOTH) && defined(CONFIG_BLUETOOTH_RESET_PB5)
-#if defined(CONFIG_BLUETOOTH_RESET_ACTIVE_HIGH)
-	and.b	~(1 << 5),$r0
-#else
-	or.b	(1 << 5),$r0
-#endif
-#endif
 	move.b	$r0,[port_pb_data_shadow]
 	move.b	$r0,[R_PORT_PB_DATA]
 
@@ -541,20 +449,6 @@ no_command_line:
 	move.d  $r0, [R_PORT_PB_I2C]
 
 	moveq	0,$r0
-#if defined(CONFIG_BLUETOOTH) && defined(CONFIG_BLUETOOTH_RESET_G10)
-#if defined(CONFIG_BLUETOOTH_RESET_ACTIVE_HIGH)
-	and.d	~(1 << 10),$r0
-#else
-	or.d	(1 << 10),$r0
-#endif
-#endif
-#if defined(CONFIG_BLUETOOTH) && defined(CONFIG_BLUETOOTH_RESET_G11)
-#if defined(CONFIG_BLUETOOTH_RESET_ACTIVE_HIGH)
-	and.d	~(1 << 11),$r0
-#else
-	or.d	(1 << 11),$r0
-#endif
-#endif
 	move.d	$r0,[port_g_data_shadow]
 	move.d	$r0,[R_PORT_G_DATA]
 

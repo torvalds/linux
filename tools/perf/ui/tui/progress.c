@@ -33,9 +33,26 @@ static void tui_progress__update(struct ui_progress *p)
 	pthread_mutex_unlock(&ui__lock);
 }
 
+static void tui_progress__finish(void)
+{
+	int y;
+
+	if (use_browser <= 0)
+		return;
+
+	ui__refresh_dimensions(false);
+	pthread_mutex_lock(&ui__lock);
+	y = SLtt_Screen_Rows / 2 - 2;
+	SLsmg_set_color(0);
+	SLsmg_fill_region(y, 0, 3, SLtt_Screen_Cols, ' ');
+	SLsmg_refresh();
+	pthread_mutex_unlock(&ui__lock);
+}
+
 static struct ui_progress_ops tui_progress__ops =
 {
-	.update		= tui_progress__update,
+	.update = tui_progress__update,
+	.finish = tui_progress__finish,
 };
 
 void tui_progress__init(void)

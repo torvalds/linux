@@ -124,6 +124,13 @@ int __cvmx_helper_xaui_enable(int interface)
 	union cvmx_gmxx_tx_int_en gmx_tx_int_en;
 	union cvmx_pcsxx_int_en_reg pcsx_int_en_reg;
 
+	/* Setup PKND */
+	if (octeon_has_feature(OCTEON_FEATURE_PKND)) {
+		gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(0, interface));
+		gmx_cfg.s.pknd = cvmx_helper_get_ipd_port(interface, 0);
+		cvmx_write_csr(CVMX_GMXX_PRTX_CFG(0, interface), gmx_cfg.u64);
+	}
+
 	/* (1) Interface has already been enabled. */
 
 	/* (2) Disable GMX. */
@@ -151,7 +158,12 @@ int __cvmx_helper_xaui_enable(int interface)
 	/* (4)c Aply reset sequence */
 	xauiCtl.u64 = cvmx_read_csr(CVMX_PCSXX_CONTROL1_REG(interface));
 	xauiCtl.s.lo_pwr = 0;
-	xauiCtl.s.reset = 1;
+
+	/* Issuing a reset here seems to hang some CN68XX chips. */
+	if (!OCTEON_IS_MODEL(OCTEON_CN68XX_PASS1_X) &&
+	    !OCTEON_IS_MODEL(OCTEON_CN68XX_PASS2_X))
+		xauiCtl.s.reset = 1;
+
 	cvmx_write_csr(CVMX_PCSXX_CONTROL1_REG(interface), xauiCtl.u64);
 
 	/* Wait for PCS to come out of reset */

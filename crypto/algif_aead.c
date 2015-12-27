@@ -90,6 +90,7 @@ static void aead_put_sgl(struct sock *sk)
 		put_page(sg_page(sg + i));
 		sg_assign_page(sg + i, NULL);
 	}
+	sg_init_table(sg, ALG_MAX_PAGES);
 	sgl->cur = 0;
 	ctx->used = 0;
 	ctx->more = 0;
@@ -124,7 +125,7 @@ static int aead_wait_for_data(struct sock *sk, unsigned flags)
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
 
-	set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 
 	for (;;) {
 		if (signal_pending(current))
@@ -138,7 +139,7 @@ static int aead_wait_for_data(struct sock *sk, unsigned flags)
 	}
 	finish_wait(sk_sleep(sk), &wait);
 
-	clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
+	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 
 	return err;
 }
@@ -514,8 +515,7 @@ static struct proto_ops algif_aead_ops = {
 
 static void *aead_bind(const char *name, u32 type, u32 mask)
 {
-	return crypto_alloc_aead(name, type | CRYPTO_ALG_AEAD_NEW,
-				 mask | CRYPTO_ALG_AEAD_NEW);
+	return crypto_alloc_aead(name, type, mask);
 }
 
 static void aead_release(void *private)

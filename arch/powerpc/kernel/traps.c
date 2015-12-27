@@ -297,6 +297,8 @@ long machine_check_early(struct pt_regs *regs)
 
 	__this_cpu_inc(irq_stat.mce_exceptions);
 
+	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+
 	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
 		handled = cur_cpu_spec->machine_check_early(regs);
 	return handled;

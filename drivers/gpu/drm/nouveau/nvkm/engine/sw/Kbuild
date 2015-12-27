@@ -1,4 +1,9 @@
+nvkm-y += nvkm/engine/sw/base.o
 nvkm-y += nvkm/engine/sw/nv04.o
 nvkm-y += nvkm/engine/sw/nv10.o
 nvkm-y += nvkm/engine/sw/nv50.o
 nvkm-y += nvkm/engine/sw/gf100.o
+
+nvkm-y += nvkm/engine/sw/chan.o
+
+nvkm-y += nvkm/engine/sw/nvsw.o

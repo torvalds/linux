@@ -17,11 +17,22 @@
 	};
 
 	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
 		stmpe-i2c0 = &stmpe0;
 		stmpe-i2c1 = &stmpe1;
 	};
 
 	pinctrl {
+		uart0 {
+			uart0_nhk_mode: uart0_mux {
+				u0_default_mux {
+					function = "u0";
+					groups = "u0txrx_a_1", "u0ctsrts_a_1";
+				};
+			};
+		};
+
 		stmpe2401_1 {
 			stmpe2401_1_nhk_mode: stmpe2401_1_nhk {
 				nhk_cfg1 {
@@ -72,6 +83,11 @@
 	};
 
 	i2c0 {
+		lis3lv02dl@1d {
+			/* Accelerometer */
+			compatible = "st,lis3lv02dl-accel";
+			reg = <0x1d>;
+		};
 		stmpe0: stmpe2401@43 {
 			compatible = "st,stmpe2401";
 			reg = <0x43>;
@@ -130,22 +146,30 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				/*
+				 * This will turn off SATA so that MMC/SD
+				 * can thrive
+				 */
+				mmcsd-gpio {
+					gpio-hog;
+					gpios = <2 0x0>;
+					output-low;
+					line-name = "SATA EN";
+				};
 			};
 		};
 	};
 
 	amba {
+		/* Activate RX/TX and CTS/RTS on UART 0 */
+		uart0: uart@101fd000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_nhk_mode>;
+			status = "okay";
+		};
 		mmcsd: sdi@101f6000 {
 			cd-gpios = <&stmpe_gpio44 7 GPIO_ACTIVE_LOW>;
 			wp-gpios = <&stmpe_gpio44 18 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	/* Custom board node with GPIO pins to active etc */
-	usb-s8815 {
-		/* This will turn off SATA so that MMC/SD can thrive */
-		mmcsd-gpio {
-			gpios = <&stmpe_gpio44 2 0x1>;
 		};
 	};
 };

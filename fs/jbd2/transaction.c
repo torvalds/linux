@@ -204,6 +204,20 @@ static int add_transaction_credits(journal_t *journal, int blocks,
 		 * attach this handle to a new transaction.
 		 */
 		atomic_sub(total, &t->t_outstanding_credits);
+
+		/*
+		 * Is the number of reserved credits in the current transaction too
+		 * big to fit this handle? Wait until reserved credits are freed.
+		 */
+		if (atomic_read(&journal->j_reserved_credits) + total >
+		    journal->j_max_transaction_buffers) {
+			read_unlock(&journal->j_state_lock);
+			wait_event(journal->j_wait_reserved,
+				   atomic_read(&journal->j_reserved_credits) + total <=
+				   journal->j_max_transaction_buffers);
+			return 1;
+		}
+
 		wait_transaction_locked(journal);
 		return 1;
 	}
@@ -262,19 +276,23 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 	int		rsv_blocks = 0;
 	unsigned long ts = jiffies;
 
-	/*
-	 * 1/2 of transaction can be reserved so we can practically handle
-	 * only 1/2 of maximum transaction size per operation
-	 */
-	if (WARN_ON(blocks > journal->j_max_transaction_buffers / 2)) {
-		printk(KERN_ERR "JBD2: %s wants too many credits (%d > %d)\n",
-		       current->comm, blocks,
-		       journal->j_max_transaction_buffers / 2);
-		return -ENOSPC;
-	}
-
 	if (handle->h_rsv_handle)
 		rsv_blocks = handle->h_rsv_handle->h_buffer_credits;
+
+	/*
+	 * Limit the number of reserved credits to 1/2 of maximum transaction
+	 * size and limit the number of total credits to not exceed maximum
+	 * transaction size per operation.
+	 */
+	if ((rsv_blocks > journal->j_max_transaction_buffers / 2) ||
+	    (rsv_blocks + blocks > journal->j_max_transaction_buffers)) {
+		printk(KERN_ERR "JBD2: %s wants too many credits "
+		       "credits:%d rsv_credits:%d max:%d\n",
+		       current->comm, blocks, rsv_blocks,
+		       journal->j_max_transaction_buffers);
+		WARN_ON(1);
+		return -ENOSPC;
+	}
 
 alloc_transaction:
 	if (!journal->j_running_transaction) {
@@ -991,7 +1009,8 @@ out:
 }
 
 /* Fast check whether buffer is already attached to the required transaction */
-static bool jbd2_write_access_granted(handle_t *handle, struct buffer_head *bh)
+static bool jbd2_write_access_granted(handle_t *handle, struct buffer_head *bh,
+							bool undo)
 {
 	struct journal_head *jh;
 	bool ret = false;
@@ -1017,6 +1036,9 @@ static bool jbd2_write_access_granted(handle_t *handle, struct buffer_head *bh)
 	/* This should be bh2jh() but that doesn't work with inline functions */
 	jh = READ_ONCE(bh->b_private);
 	if (!jh)
+		goto out;
+	/* For undo access buffer must have data copied */
+	if (undo && !jh->b_committed_data)
 		goto out;
 	if (jh->b_transaction != handle->h_transaction &&
 	    jh->b_next_transaction != handle->h_transaction)
@@ -1055,7 +1077,7 @@ int jbd2_journal_get_write_access(handle_t *handle, struct buffer_head *bh)
 	struct journal_head *jh;
 	int rc;
 
-	if (jbd2_write_access_granted(handle, bh))
+	if (jbd2_write_access_granted(handle, bh, false))
 		return 0;
 
 	jh = jbd2_journal_add_journal_head(bh);
@@ -1192,7 +1214,7 @@ int jbd2_journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
 	char *committed_data = NULL;
 
 	JBUFFER_TRACE(jh, "entry");
-	if (jbd2_write_access_granted(handle, bh))
+	if (jbd2_write_access_granted(handle, bh, true))
 		return 0;
 
 	jh = jbd2_journal_add_journal_head(bh);
@@ -1321,16 +1343,21 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 	 * of the running transaction.
 	 */
 	jh = bh2jh(bh);
-	J_ASSERT_JH(jh, jh->b_transaction == transaction ||
-			jh->b_next_transaction == transaction);
+	/*
+	 * This and the following assertions are unreliable since we may see jh
+	 * in inconsistent state unless we grab bh_state lock. But this is
+	 * crucial to catch bugs so let's do a reliable check until the
+	 * lockless handling is fully proven.
+	 */
+	if (jh->b_transaction != transaction &&
+	    jh->b_next_transaction != transaction) {
+		jbd_lock_bh_state(bh);
+		J_ASSERT_JH(jh, jh->b_transaction == transaction ||
+				jh->b_next_transaction == transaction);
+		jbd_unlock_bh_state(bh);
+	}
 	if (jh->b_modified == 1) {
-		/*
-		 * If it's in our transaction it must be in BJ_Metadata list.
-		 * The assertion is unreliable since we may see jh in
-		 * inconsistent state unless we grab bh_state lock. But this
-		 * is crutial to catch bugs so let's do a reliable check until
-		 * the lockless handling is fully proven.
-		 */
+		/* If it's in our transaction it must be in BJ_Metadata list. */
 		if (jh->b_transaction == transaction &&
 		    jh->b_jlist != BJ_Metadata) {
 			jbd_lock_bh_state(bh);
@@ -1914,8 +1941,8 @@ out:
  * @journal: journal for operation
  * @page: to try and free
  * @gfp_mask: we use the mask to detect how hard should we try to release
- * buffers. If __GFP_WAIT and __GFP_FS is set, we wait for commit code to
- * release the buffers.
+ * buffers. If __GFP_DIRECT_RECLAIM and __GFP_FS is set, we wait for commit
+ * code to release the buffers.
  *
  *
  * For all the buffers on this page,
@@ -2129,6 +2156,7 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh,
 
 		if (!buffer_dirty(bh)) {
 			/* bdflush has written it.  We can drop it now */
+			__jbd2_journal_remove_checkpoint(jh);
 			goto zap_buffer;
 		}
 
@@ -2158,6 +2186,7 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh,
 				/* The orphan record's transaction has
 				 * committed.  We can cleanse this buffer */
 				clear_buffer_jbddirty(bh);
+				__jbd2_journal_remove_checkpoint(jh);
 				goto zap_buffer;
 			}
 		}

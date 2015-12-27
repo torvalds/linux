@@ -53,7 +53,7 @@ static const struct ramxlat
 ramddr3_wr[] = {
 	{ 5, 1 }, { 6, 2 }, { 7, 3 }, { 8, 4 }, { 10, 5 }, { 12, 6 },
 	/* the below are mentioned in some, but not all, ddr3 docs */
-	{ 14, 7 }, { 16, 0 },
+	{ 14, 7 }, { 15, 7 }, { 16, 0 },
 	{ -1 }
 };
 
@@ -61,7 +61,7 @@ static const struct ramxlat
 ramddr3_cwl[] = {
 	{ 5, 0 }, { 6, 1 }, { 7, 2 }, { 8, 3 },
 	/* the below are mentioned in some, but not all, ddr3 docs */
-	{ 9, 4 },
+	{ 9, 4 }, { 10, 5 },
 	{ -1 }
 };
 
@@ -69,6 +69,8 @@ int
 nvkm_sddr3_calc(struct nvkm_ram *ram)
 {
 	int CWL, CL, WR, DLL = 0, ODT = 0;
+
+	DLL = !ram->next->bios.ramcfg_DLLoff;
 
 	switch (ram->next->bios.timing_ver) {
 	case 0x10:
@@ -79,7 +81,6 @@ nvkm_sddr3_calc(struct nvkm_ram *ram)
 		CWL = ram->next->bios.timing_10_CWL;
 		CL  = ram->next->bios.timing_10_CL;
 		WR  = ram->next->bios.timing_10_WR;
-		DLL = !ram->next->bios.ramcfg_10_DLLoff;
 		ODT = ram->next->bios.timing_10_ODT;
 		break;
 	case 0x20:
@@ -87,7 +88,6 @@ nvkm_sddr3_calc(struct nvkm_ram *ram)
 		CL  = (ram->next->bios.timing[1] & 0x0000001f) >> 0;
 		WR  = (ram->next->bios.timing[2] & 0x007f0000) >> 16;
 		/* XXX: Get these values from the VBIOS instead */
-		DLL = !(ram->mr[1] & 0x1);
 		ODT =   (ram->mr[1] & 0x004) >> 2 |
 			(ram->mr[1] & 0x040) >> 5 |
 		        (ram->mr[1] & 0x200) >> 7;

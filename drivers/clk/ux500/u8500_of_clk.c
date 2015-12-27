@@ -8,8 +8,7 @@
  */
 
 #include <linux/of.h>
-#include <linux/clk.h>
-#include <linux/clkdev.h>
+#include <linux/of_address.h>
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/platform_data/clk-ux500.h>
@@ -54,20 +53,40 @@ static const struct of_device_id u8500_clk_of_match[] = {
 	{ },
 };
 
-void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
-		       u32 clkrst5_base, u32 clkrst6_base)
+/* CLKRST4 is missing making it hard to index things */
+enum clkrst_index {
+	CLKRST1_INDEX = 0,
+	CLKRST2_INDEX,
+	CLKRST3_INDEX,
+	CLKRST5_INDEX,
+	CLKRST6_INDEX,
+	CLKRST_MAX,
+};
+
+void u8500_clk_init(void)
 {
 	struct prcmu_fw_version *fw_version;
 	struct device_node *np = NULL;
 	struct device_node *child = NULL;
 	const char *sgaclk_parent = NULL;
 	struct clk *clk, *rtc_clk, *twd_clk;
+	u32 bases[CLKRST_MAX];
+	int i;
 
 	if (of_have_populated_dt())
 		np = of_find_matching_node(NULL, u8500_clk_of_match);
 	if (!np) {
 		pr_err("Either DT or U8500 Clock node not found\n");
 		return;
+	}
+	for (i = 0; i < ARRAY_SIZE(bases); i++) {
+		struct resource r;
+
+		if (of_address_to_resource(np, i, &r))
+			/* Not much choice but to continue */
+			pr_err("failed to get CLKRST %d base address\n",
+			       i + 1);
+		bases[i] = r.start;
 	}
 
 	/* Clock sources */
@@ -166,8 +185,8 @@ void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 	clk = clk_reg_prcmu_gate("apeatclk", NULL, PRCMU_APEATCLK, CLK_IS_ROOT);
 	prcmu_clk[PRCMU_APEATCLK] = clk;
 
-	clk = clk_reg_prcmu_gate("apetraceclk", NULL, PRCMU_APETRACECLK,
-				CLK_IS_ROOT);
+	clk = clk_reg_prcmu_scalable("apetraceclk", NULL, PRCMU_APETRACECLK, 0,
+				CLK_IS_ROOT|CLK_SET_RATE_GATE);
 	prcmu_clk[PRCMU_APETRACECLK] = clk;
 
 	clk = clk_reg_prcmu_gate("mcdeclk", NULL, PRCMU_MCDECLK, CLK_IS_ROOT);
@@ -246,179 +265,179 @@ void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 	 */
 
 	/* PRCC P-clocks */
-	clk = clk_reg_prcc_pclk("p1_pclk0", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk0", "per1clk", bases[CLKRST1_INDEX],
 				BIT(0), 0);
 	PRCC_PCLK_STORE(clk, 1, 0);
 
-	clk = clk_reg_prcc_pclk("p1_pclk1", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk1", "per1clk", bases[CLKRST1_INDEX],
 				BIT(1), 0);
 	PRCC_PCLK_STORE(clk, 1, 1);
 
-	clk = clk_reg_prcc_pclk("p1_pclk2", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk2", "per1clk", bases[CLKRST1_INDEX],
 				BIT(2), 0);
 	PRCC_PCLK_STORE(clk, 1, 2);
 
-	clk = clk_reg_prcc_pclk("p1_pclk3", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk3", "per1clk", bases[CLKRST1_INDEX],
 				BIT(3), 0);
 	PRCC_PCLK_STORE(clk, 1, 3);
 
-	clk = clk_reg_prcc_pclk("p1_pclk4", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk4", "per1clk", bases[CLKRST1_INDEX],
 				BIT(4), 0);
 	PRCC_PCLK_STORE(clk, 1, 4);
 
-	clk = clk_reg_prcc_pclk("p1_pclk5", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk5", "per1clk", bases[CLKRST1_INDEX],
 				BIT(5), 0);
 	PRCC_PCLK_STORE(clk, 1, 5);
 
-	clk = clk_reg_prcc_pclk("p1_pclk6", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk6", "per1clk", bases[CLKRST1_INDEX],
 				BIT(6), 0);
 	PRCC_PCLK_STORE(clk, 1, 6);
 
-	clk = clk_reg_prcc_pclk("p1_pclk7", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk7", "per1clk", bases[CLKRST1_INDEX],
 				BIT(7), 0);
 	PRCC_PCLK_STORE(clk, 1, 7);
 
-	clk = clk_reg_prcc_pclk("p1_pclk8", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk8", "per1clk", bases[CLKRST1_INDEX],
 				BIT(8), 0);
 	PRCC_PCLK_STORE(clk, 1, 8);
 
-	clk = clk_reg_prcc_pclk("p1_pclk9", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk9", "per1clk", bases[CLKRST1_INDEX],
 				BIT(9), 0);
 	PRCC_PCLK_STORE(clk, 1, 9);
 
-	clk = clk_reg_prcc_pclk("p1_pclk10", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk10", "per1clk", bases[CLKRST1_INDEX],
 				BIT(10), 0);
 	PRCC_PCLK_STORE(clk, 1, 10);
 
-	clk = clk_reg_prcc_pclk("p1_pclk11", "per1clk", clkrst1_base,
+	clk = clk_reg_prcc_pclk("p1_pclk11", "per1clk", bases[CLKRST1_INDEX],
 				BIT(11), 0);
 	PRCC_PCLK_STORE(clk, 1, 11);
 
-	clk = clk_reg_prcc_pclk("p2_pclk0", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk0", "per2clk", bases[CLKRST2_INDEX],
 				BIT(0), 0);
 	PRCC_PCLK_STORE(clk, 2, 0);
 
-	clk = clk_reg_prcc_pclk("p2_pclk1", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk1", "per2clk", bases[CLKRST2_INDEX],
 				BIT(1), 0);
 	PRCC_PCLK_STORE(clk, 2, 1);
 
-	clk = clk_reg_prcc_pclk("p2_pclk2", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk2", "per2clk", bases[CLKRST2_INDEX],
 				BIT(2), 0);
 	PRCC_PCLK_STORE(clk, 2, 2);
 
-	clk = clk_reg_prcc_pclk("p2_pclk3", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk3", "per2clk", bases[CLKRST2_INDEX],
 				BIT(3), 0);
 	PRCC_PCLK_STORE(clk, 2, 3);
 
-	clk = clk_reg_prcc_pclk("p2_pclk4", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk4", "per2clk", bases[CLKRST2_INDEX],
 				BIT(4), 0);
 	PRCC_PCLK_STORE(clk, 2, 4);
 
-	clk = clk_reg_prcc_pclk("p2_pclk5", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk5", "per2clk", bases[CLKRST2_INDEX],
 				BIT(5), 0);
 	PRCC_PCLK_STORE(clk, 2, 5);
 
-	clk = clk_reg_prcc_pclk("p2_pclk6", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk6", "per2clk", bases[CLKRST2_INDEX],
 				BIT(6), 0);
 	PRCC_PCLK_STORE(clk, 2, 6);
 
-	clk = clk_reg_prcc_pclk("p2_pclk7", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk7", "per2clk", bases[CLKRST2_INDEX],
 				BIT(7), 0);
 	PRCC_PCLK_STORE(clk, 2, 7);
 
-	clk = clk_reg_prcc_pclk("p2_pclk8", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk8", "per2clk", bases[CLKRST2_INDEX],
 				BIT(8), 0);
 	PRCC_PCLK_STORE(clk, 2, 8);
 
-	clk = clk_reg_prcc_pclk("p2_pclk9", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk9", "per2clk", bases[CLKRST2_INDEX],
 				BIT(9), 0);
 	PRCC_PCLK_STORE(clk, 2, 9);
 
-	clk = clk_reg_prcc_pclk("p2_pclk10", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk10", "per2clk", bases[CLKRST2_INDEX],
 				BIT(10), 0);
 	PRCC_PCLK_STORE(clk, 2, 10);
 
-	clk = clk_reg_prcc_pclk("p2_pclk11", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk11", "per2clk", bases[CLKRST2_INDEX],
 				BIT(11), 0);
 	PRCC_PCLK_STORE(clk, 2, 11);
 
-	clk = clk_reg_prcc_pclk("p2_pclk12", "per2clk", clkrst2_base,
+	clk = clk_reg_prcc_pclk("p2_pclk12", "per2clk", bases[CLKRST2_INDEX],
 				BIT(12), 0);
 	PRCC_PCLK_STORE(clk, 2, 12);
 
-	clk = clk_reg_prcc_pclk("p3_pclk0", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk0", "per3clk", bases[CLKRST3_INDEX],
 				BIT(0), 0);
 	PRCC_PCLK_STORE(clk, 3, 0);
 
-	clk = clk_reg_prcc_pclk("p3_pclk1", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk1", "per3clk", bases[CLKRST3_INDEX],
 				BIT(1), 0);
 	PRCC_PCLK_STORE(clk, 3, 1);
 
-	clk = clk_reg_prcc_pclk("p3_pclk2", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk2", "per3clk", bases[CLKRST3_INDEX],
 				BIT(2), 0);
 	PRCC_PCLK_STORE(clk, 3, 2);
 
-	clk = clk_reg_prcc_pclk("p3_pclk3", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk3", "per3clk", bases[CLKRST3_INDEX],
 				BIT(3), 0);
 	PRCC_PCLK_STORE(clk, 3, 3);
 
-	clk = clk_reg_prcc_pclk("p3_pclk4", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk4", "per3clk", bases[CLKRST3_INDEX],
 				BIT(4), 0);
 	PRCC_PCLK_STORE(clk, 3, 4);
 
-	clk = clk_reg_prcc_pclk("p3_pclk5", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk5", "per3clk", bases[CLKRST3_INDEX],
 				BIT(5), 0);
 	PRCC_PCLK_STORE(clk, 3, 5);
 
-	clk = clk_reg_prcc_pclk("p3_pclk6", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk6", "per3clk", bases[CLKRST3_INDEX],
 				BIT(6), 0);
 	PRCC_PCLK_STORE(clk, 3, 6);
 
-	clk = clk_reg_prcc_pclk("p3_pclk7", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk7", "per3clk", bases[CLKRST3_INDEX],
 				BIT(7), 0);
 	PRCC_PCLK_STORE(clk, 3, 7);
 
-	clk = clk_reg_prcc_pclk("p3_pclk8", "per3clk", clkrst3_base,
+	clk = clk_reg_prcc_pclk("p3_pclk8", "per3clk", bases[CLKRST3_INDEX],
 				BIT(8), 0);
 	PRCC_PCLK_STORE(clk, 3, 8);
 
-	clk = clk_reg_prcc_pclk("p5_pclk0", "per5clk", clkrst5_base,
+	clk = clk_reg_prcc_pclk("p5_pclk0", "per5clk", bases[CLKRST5_INDEX],
 				BIT(0), 0);
 	PRCC_PCLK_STORE(clk, 5, 0);
 
-	clk = clk_reg_prcc_pclk("p5_pclk1", "per5clk", clkrst5_base,
+	clk = clk_reg_prcc_pclk("p5_pclk1", "per5clk", bases[CLKRST5_INDEX],
 				BIT(1), 0);
 	PRCC_PCLK_STORE(clk, 5, 1);
 
-	clk = clk_reg_prcc_pclk("p6_pclk0", "per6clk", clkrst6_base,
+	clk = clk_reg_prcc_pclk("p6_pclk0", "per6clk", bases[CLKRST6_INDEX],
 				BIT(0), 0);
 	PRCC_PCLK_STORE(clk, 6, 0);
 
-	clk = clk_reg_prcc_pclk("p6_pclk1", "per6clk", clkrst6_base,
+	clk = clk_reg_prcc_pclk("p6_pclk1", "per6clk", bases[CLKRST6_INDEX],
 				BIT(1), 0);
 	PRCC_PCLK_STORE(clk, 6, 1);
 
-	clk = clk_reg_prcc_pclk("p6_pclk2", "per6clk", clkrst6_base,
+	clk = clk_reg_prcc_pclk("p6_pclk2", "per6clk", bases[CLKRST6_INDEX],
 				BIT(2), 0);
 	PRCC_PCLK_STORE(clk, 6, 2);
 
-	clk = clk_reg_prcc_pclk("p6_pclk3", "per6clk", clkrst6_base,
+	clk = clk_reg_prcc_pclk("p6_pclk3", "per6clk", bases[CLKRST6_INDEX],
 				BIT(3), 0);
 	PRCC_PCLK_STORE(clk, 6, 3);
 
-	clk = clk_reg_prcc_pclk("p6_pclk4", "per6clk", clkrst6_base,
+	clk = clk_reg_prcc_pclk("p6_pclk4", "per6clk", bases[CLKRST6_INDEX],
 				BIT(4), 0);
 	PRCC_PCLK_STORE(clk, 6, 4);
 
-	clk = clk_reg_prcc_pclk("p6_pclk5", "per6clk", clkrst6_base,
+	clk = clk_reg_prcc_pclk("p6_pclk5", "per6clk", bases[CLKRST6_INDEX],
 				BIT(5), 0);
 	PRCC_PCLK_STORE(clk, 6, 5);
 
-	clk = clk_reg_prcc_pclk("p6_pclk6", "per6clk", clkrst6_base,
+	clk = clk_reg_prcc_pclk("p6_pclk6", "per6clk", bases[CLKRST6_INDEX],
 				BIT(6), 0);
 	PRCC_PCLK_STORE(clk, 6, 6);
 
-	clk = clk_reg_prcc_pclk("p6_pclk7", "per6clk", clkrst6_base,
+	clk = clk_reg_prcc_pclk("p6_pclk7", "per6clk", bases[CLKRST6_INDEX],
 				BIT(7), 0);
 	PRCC_PCLK_STORE(clk, 6, 7);
 
@@ -432,109 +451,109 @@ void u8500_of_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 
 	/* Periph1 */
 	clk = clk_reg_prcc_kclk("p1_uart0_kclk", "uartclk",
-			clkrst1_base, BIT(0), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(0), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 0);
 
 	clk = clk_reg_prcc_kclk("p1_uart1_kclk", "uartclk",
-			clkrst1_base, BIT(1), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(1), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 1);
 
 	clk = clk_reg_prcc_kclk("p1_i2c1_kclk", "i2cclk",
-			clkrst1_base, BIT(2), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(2), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 2);
 
 	clk = clk_reg_prcc_kclk("p1_msp0_kclk", "msp02clk",
-			clkrst1_base, BIT(3), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(3), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 3);
 
 	clk = clk_reg_prcc_kclk("p1_msp1_kclk", "msp1clk",
-			clkrst1_base, BIT(4), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(4), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 4);
 
 	clk = clk_reg_prcc_kclk("p1_sdi0_kclk", "sdmmcclk",
-			clkrst1_base, BIT(5), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(5), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 5);
 
 	clk = clk_reg_prcc_kclk("p1_i2c2_kclk", "i2cclk",
-			clkrst1_base, BIT(6), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(6), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 6);
 
 	clk = clk_reg_prcc_kclk("p1_slimbus0_kclk", "slimclk",
-			clkrst1_base, BIT(8), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(8), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 8);
 
 	clk = clk_reg_prcc_kclk("p1_i2c4_kclk", "i2cclk",
-			clkrst1_base, BIT(9), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(9), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 9);
 
 	clk = clk_reg_prcc_kclk("p1_msp3_kclk", "msp1clk",
-			clkrst1_base, BIT(10), CLK_SET_RATE_GATE);
+			bases[CLKRST1_INDEX], BIT(10), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 1, 10);
 
 	/* Periph2 */
 	clk = clk_reg_prcc_kclk("p2_i2c3_kclk", "i2cclk",
-			clkrst2_base, BIT(0), CLK_SET_RATE_GATE);
+			bases[CLKRST2_INDEX], BIT(0), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 2, 0);
 
 	clk = clk_reg_prcc_kclk("p2_sdi4_kclk", "sdmmcclk",
-			clkrst2_base, BIT(2), CLK_SET_RATE_GATE);
+			bases[CLKRST2_INDEX], BIT(2), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 2, 2);
 
 	clk = clk_reg_prcc_kclk("p2_msp2_kclk", "msp02clk",
-			clkrst2_base, BIT(3), CLK_SET_RATE_GATE);
+			bases[CLKRST2_INDEX], BIT(3), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 2, 3);
 
 	clk = clk_reg_prcc_kclk("p2_sdi1_kclk", "sdmmcclk",
-			clkrst2_base, BIT(4), CLK_SET_RATE_GATE);
+			bases[CLKRST2_INDEX], BIT(4), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 2, 4);
 
 	clk = clk_reg_prcc_kclk("p2_sdi3_kclk", "sdmmcclk",
-			clkrst2_base, BIT(5), CLK_SET_RATE_GATE);
+			bases[CLKRST2_INDEX], BIT(5), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 2, 5);
 
 	/* Note that rate is received from parent. */
 	clk = clk_reg_prcc_kclk("p2_ssirx_kclk", "hsirxclk",
-			clkrst2_base, BIT(6),
+			bases[CLKRST2_INDEX], BIT(6),
 			CLK_SET_RATE_GATE|CLK_SET_RATE_PARENT);
 	PRCC_KCLK_STORE(clk, 2, 6);
 
 	clk = clk_reg_prcc_kclk("p2_ssitx_kclk", "hsitxclk",
-			clkrst2_base, BIT(7),
+			bases[CLKRST2_INDEX], BIT(7),
 			CLK_SET_RATE_GATE|CLK_SET_RATE_PARENT);
 	PRCC_KCLK_STORE(clk, 2, 7);
 
 	/* Periph3 */
 	clk = clk_reg_prcc_kclk("p3_ssp0_kclk", "sspclk",
-			clkrst3_base, BIT(1), CLK_SET_RATE_GATE);
+			bases[CLKRST3_INDEX], BIT(1), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 3, 1);
 
 	clk = clk_reg_prcc_kclk("p3_ssp1_kclk", "sspclk",
-			clkrst3_base, BIT(2), CLK_SET_RATE_GATE);
+			bases[CLKRST3_INDEX], BIT(2), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 3, 2);
 
 	clk = clk_reg_prcc_kclk("p3_i2c0_kclk", "i2cclk",
-			clkrst3_base, BIT(3), CLK_SET_RATE_GATE);
+			bases[CLKRST3_INDEX], BIT(3), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 3, 3);
 
 	clk = clk_reg_prcc_kclk("p3_sdi2_kclk", "sdmmcclk",
-			clkrst3_base, BIT(4), CLK_SET_RATE_GATE);
+			bases[CLKRST3_INDEX], BIT(4), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 3, 4);
 
 	clk = clk_reg_prcc_kclk("p3_ske_kclk", "rtc32k",
-			clkrst3_base, BIT(5), CLK_SET_RATE_GATE);
+			bases[CLKRST3_INDEX], BIT(5), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 3, 5);
 
 	clk = clk_reg_prcc_kclk("p3_uart2_kclk", "uartclk",
-			clkrst3_base, BIT(6), CLK_SET_RATE_GATE);
+			bases[CLKRST3_INDEX], BIT(6), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 3, 6);
 
 	clk = clk_reg_prcc_kclk("p3_sdi5_kclk", "sdmmcclk",
-			clkrst3_base, BIT(7), CLK_SET_RATE_GATE);
+			bases[CLKRST3_INDEX], BIT(7), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 3, 7);
 
 	/* Periph6 */
 	clk = clk_reg_prcc_kclk("p3_rng_kclk", "rngclk",
-			clkrst6_base, BIT(0), CLK_SET_RATE_GATE);
+			bases[CLKRST6_INDEX], BIT(0), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 6, 0);
 
 	for_each_child_of_node(np, child) {

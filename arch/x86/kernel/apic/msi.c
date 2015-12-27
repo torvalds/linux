@@ -264,7 +264,7 @@ static inline int hpet_dev_id(struct irq_domain *domain)
 
 static void hpet_msi_write_msg(struct irq_data *data, struct msi_msg *msg)
 {
-	hpet_msi_write(data->handler_data, msg);
+	hpet_msi_write(irq_data_get_irq_handler_data(data), msg);
 }
 
 static struct irq_chip hpet_msi_controller = {

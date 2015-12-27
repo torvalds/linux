@@ -21,6 +21,7 @@ Required properties:
 Optional properties:
 - img,supports-quad-mode: Should be set if the interface supports quad mode
   SPI transfers.
+- spfi-max-frequency: Maximum speed supported by the spfi block.
 
 Example:
 

@@ -30,6 +30,7 @@
 
 #include <drm/drmP.h>
 #include "amdgpu.h"
+#include "amdgpu_trace.h"
 
 static int amdgpu_bo_list_create(struct amdgpu_fpriv *fpriv,
 				 struct amdgpu_bo_list **result,
@@ -124,6 +125,8 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 			gws_obj = entry->robj;
 		if (entry->prefered_domains == AMDGPU_GEM_DOMAIN_OA)
 			oa_obj = entry->robj;
+
+		trace_amdgpu_bo_list_set(list, entry->robj);
 	}
 
 	for (i = 0; i < list->num_entries; ++i)

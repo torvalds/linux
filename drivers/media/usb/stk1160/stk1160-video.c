@@ -96,15 +96,13 @@ void stk1160_buffer_done(struct stk1160 *dev)
 {
 	struct stk1160_buffer *buf = dev->isoc_ctl.buf;
 
-	dev->field_count++;
+	buf->vb.sequence = dev->sequence++;
+	buf->vb.field = V4L2_FIELD_INTERLACED;
+	buf->vb.vb2_buf.planes[0].bytesused = buf->bytesused;
+	v4l2_get_timestamp(&buf->vb.timestamp);
 
-	buf->vb.v4l2_buf.sequence = dev->field_count >> 1;
-	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
-	buf->vb.v4l2_buf.bytesused = buf->bytesused;
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-
-	vb2_set_plane_payload(&buf->vb, 0, buf->bytesused);
-	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+	vb2_set_plane_payload(&buf->vb.vb2_buf, 0, buf->bytesused);
+	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 
 	dev->isoc_ctl.buf = NULL;
 }

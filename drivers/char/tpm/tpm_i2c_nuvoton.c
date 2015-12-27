@@ -641,7 +641,6 @@ static struct i2c_driver i2c_nuvoton_driver = {
 	.remove = i2c_nuvoton_remove,
 	.driver = {
 		.name = I2C_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &i2c_nuvoton_pm_ops,
 		.of_match_table = of_match_ptr(i2c_nuvoton_of_match),
 	},

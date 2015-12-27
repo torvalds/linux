@@ -271,7 +271,6 @@ MODULE_DEVICE_TABLE(i2c, wacom_i2c_id);
 static struct i2c_driver wacom_i2c_driver = {
 	.driver	= {
 		.name	= "wacom_i2c",
-		.owner	= THIS_MODULE,
 		.pm	= &wacom_i2c_pm,
 	},
 

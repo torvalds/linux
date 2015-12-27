@@ -331,20 +331,6 @@ config NET_FOU_IP_TUNNELS
 	  When this option is enabled IP tunnels can be configured to use
 	  FOU or GUE encapsulation.
 
-config GENEVE_CORE
-	tristate "Generic Network Virtualization Encapsulation library"
-	depends on INET
-	select NET_UDP_TUNNEL
-	---help---
-	This allows one to create Geneve virtual interfaces that provide
-	Layer 2 Networks over Layer 3 Networks. Geneve is often used
-	to tunnel virtual network infrastructure in virtualized environments.
-	For more information see:
-	  http://tools.ietf.org/html/draft-gross-geneve-01
-
-	  To compile this driver as a module, choose M here: the module
-
-
 config INET_AH
 	tristate "IP: AH transformation"
 	select XFRM_ALGO

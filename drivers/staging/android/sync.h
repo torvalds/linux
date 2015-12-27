@@ -337,11 +337,11 @@ int sync_fence_wait(struct sync_fence *fence, long timeout);
 
 #ifdef CONFIG_DEBUG_FS
 
-extern void sync_timeline_debug_add(struct sync_timeline *obj);
-extern void sync_timeline_debug_remove(struct sync_timeline *obj);
-extern void sync_fence_debug_add(struct sync_fence *fence);
-extern void sync_fence_debug_remove(struct sync_fence *fence);
-extern void sync_dump(void);
+void sync_timeline_debug_add(struct sync_timeline *obj);
+void sync_timeline_debug_remove(struct sync_timeline *obj);
+void sync_fence_debug_add(struct sync_fence *fence);
+void sync_fence_debug_remove(struct sync_fence *fence);
+void sync_dump(void);
 
 #else
 # define sync_timeline_debug_add(obj)

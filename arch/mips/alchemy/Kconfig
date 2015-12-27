@@ -6,13 +6,6 @@ config ALCHEMY_GPIOINT_AU1000
 config ALCHEMY_GPIOINT_AU1300
 	bool
 
-# select this in your board config if you don't want to use the gpio
-# namespace as documented in the manuals.  In this case however you need
-# to create the necessary gpio_* functions in your board code/headers!
-# see arch/mips/include/asm/mach-au1x00/gpio.h   for more information.
-config ALCHEMY_GPIO_INDIRECT
-	def_bool n
-
 choice
 	prompt "Machine type"
 	depends on MIPS_ALCHEMY

@@ -34,16 +34,16 @@ nvbios_M0209Te(struct nvkm_bios *bios,
 
 	if (!bit_entry(bios, 'M', &bit_M)) {
 		if (bit_M.version == 2 && bit_M.length > 0x0c)
-			data = nv_ro32(bios, bit_M.offset + 0x09);
+			data = nvbios_rd32(bios, bit_M.offset + 0x09);
 		if (data) {
-			*ver = nv_ro08(bios, data + 0x00);
+			*ver = nvbios_rd08(bios, data + 0x00);
 			switch (*ver) {
 			case 0x10:
-				*hdr = nv_ro08(bios, data + 0x01);
-				*len = nv_ro08(bios, data + 0x02);
-				*ssz = nv_ro08(bios, data + 0x03);
+				*hdr = nvbios_rd08(bios, data + 0x01);
+				*len = nvbios_rd08(bios, data + 0x02);
+				*ssz = nvbios_rd08(bios, data + 0x03);
 				*snr = 1;
-				*cnt = nv_ro08(bios, data + 0x04);
+				*cnt = nvbios_rd08(bios, data + 0x04);
 				return data;
 			default:
 				break;
@@ -78,12 +78,12 @@ nvbios_M0209Ep(struct nvkm_bios *bios, int idx,
 	memset(info, 0x00, sizeof(*info));
 	switch (!!data * *ver) {
 	case 0x10:
-		info->v00_40 = (nv_ro08(bios, data + 0x00) & 0x40) >> 6;
-		info->bits   =  nv_ro08(bios, data + 0x00) & 0x3f;
-		info->modulo =  nv_ro08(bios, data + 0x01);
-		info->v02_40 = (nv_ro08(bios, data + 0x02) & 0x40) >> 6;
-		info->v02_07 =  nv_ro08(bios, data + 0x02) & 0x07;
-		info->v03    =  nv_ro08(bios, data + 0x03);
+		info->v00_40 = (nvbios_rd08(bios, data + 0x00) & 0x40) >> 6;
+		info->bits   =  nvbios_rd08(bios, data + 0x00) & 0x3f;
+		info->modulo =  nvbios_rd08(bios, data + 0x01);
+		info->v02_40 = (nvbios_rd08(bios, data + 0x02) & 0x40) >> 6;
+		info->v02_07 =  nvbios_rd08(bios, data + 0x02) & 0x07;
+		info->v03    =  nvbios_rd08(bios, data + 0x03);
 		return data;
 	default:
 		break;
@@ -122,7 +122,7 @@ nvbios_M0209Sp(struct nvkm_bios *bios, int ent, int idx, u8 *ver, u8 *hdr,
 				u32 mask = (1ULL << M0209E.bits) - 1;
 				u16  off = bits / 8;
 				u8   mod = bits % 8;
-				info->data[i] = nv_ro32(bios, data + off);
+				info->data[i] = nvbios_rd32(bios, data + off);
 				info->data[i] = info->data[i] >> mod;
 				info->data[i] = info->data[i] & mask;
 			}

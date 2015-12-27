@@ -138,9 +138,9 @@ Installation
   - Build, install, reboot
 
     The NFS/RDMA code will be enabled automatically if NFS and RDMA
-    are turned on. The NFS/RDMA client and server are configured via the
-    SUNRPC_XPRT_RDMA_CLIENT and SUNRPC_XPRT_RDMA_SERVER config options that both
-    depend on SUNRPC and INFINIBAND. The default value of both options will be:
+    are turned on. The NFS/RDMA client and server are configured via the hidden
+    SUNRPC_XPRT_RDMA config option that depends on SUNRPC and INFINIBAND. The
+    value of SUNRPC_XPRT_RDMA will be:
 
      - N if either SUNRPC or INFINIBAND are N, in this case the NFS/RDMA client
        and server will not be built
@@ -238,9 +238,8 @@ NFS/RDMA Setup
 
   - Start the NFS server
 
-    If the NFS/RDMA server was built as a module
-    (CONFIG_SUNRPC_XPRT_RDMA_SERVER=m in kernel config), load the RDMA
-    transport module:
+    If the NFS/RDMA server was built as a module (CONFIG_SUNRPC_XPRT_RDMA=m in
+    kernel config), load the RDMA transport module:
 
     $ modprobe svcrdma
 
@@ -259,9 +258,8 @@ NFS/RDMA Setup
 
   - On the client system
 
-    If the NFS/RDMA client was built as a module
-    (CONFIG_SUNRPC_XPRT_RDMA_CLIENT=m in kernel config), load the RDMA client
-    module:
+    If the NFS/RDMA client was built as a module (CONFIG_SUNRPC_XPRT_RDMA=m in
+    kernel config), load the RDMA client module:
 
     $ modprobe xprtrdma.ko
 

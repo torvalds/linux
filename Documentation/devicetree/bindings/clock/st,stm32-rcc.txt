@@ -1,0 +1,65 @@
+STMicroelectronics STM32 Reset and Clock Controller
+===================================================
+
+The RCC IP is both a reset and a clock controller. This documentation only
+describes the clock part.
+
+Please also refer to clock-bindings.txt in this directory for common clock
+controller binding usage.
+
+Required properties:
+- compatible: Should be "st,stm32f42xx-rcc"
+- reg: should be register base and length as documented in the
+  datasheet
+- #clock-cells: 2, device nodes should specify the clock in their "clocks"
+  property, containing a phandle to the clock device node, an index selecting
+  between gated clocks and other clocks and an index specifying the clock to
+  use.
+
+Example:
+
+	rcc: rcc@40023800 {
+		#clock-cells = <2>
+		compatible = "st,stm32f42xx-rcc", "st,stm32-rcc";
+		reg = <0x40023800 0x400>;
+	};
+
+Specifying gated clocks
+=======================
+
+The primary index must be set to 0.
+
+The secondary index is the bit number within the RCC register bank, starting
+from the first RCC clock enable register (RCC_AHB1ENR, address offset 0x30).
+
+It is calculated as: index = register_offset / 4 * 32 + bit_offset.
+Where bit_offset is the bit offset within the register (LSB is 0, MSB is 31).
+
+Example:
+
+	/* Gated clock, AHB1 bit 0 (GPIOA) */
+	... {
+		clocks = <&rcc 0 0>
+	};
+
+	/* Gated clock, AHB2 bit 4 (CRYP) */
+	... {
+		clocks = <&rcc 0 36>
+	};
+
+Specifying other clocks
+=======================
+
+The primary index must be set to 1.
+
+The secondary index is bound with the following magic numbers:
+
+	0	SYSTICK
+	1	FCLK
+
+Example:
+
+	/* Misc clock, FCLK */
+	... {
+		clocks = <&rcc 1 1>
+	};

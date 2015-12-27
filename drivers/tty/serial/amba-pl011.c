@@ -191,8 +191,8 @@ struct uart_amba_port {
  */
 static int pl011_fifo_to_tty(struct uart_amba_port *uap)
 {
-	u16 status, ch;
-	unsigned int flag, max_count = 256;
+	u16 status;
+	unsigned int ch, flag, max_count = 256;
 	int fifotaken = 0;
 
 	while (max_count--) {
@@ -2310,8 +2310,8 @@ static int pl011_setup_port(struct device *dev, struct uart_amba_port *uap,
 	void __iomem *base;
 
 	base = devm_ioremap_resource(dev, mmiobase);
-	if (!base)
-		return -ENOMEM;
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	index = pl011_probe_dt_alias(index, dev);
 

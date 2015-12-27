@@ -406,6 +406,7 @@ static const struct of_device_id mpc5121_rtc_match[] = {
 	{ .compatible = "fsl,mpc5200-rtc", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc5121_rtc_match);
 #endif
 
 static struct platform_driver mpc5121_rtc_driver = {

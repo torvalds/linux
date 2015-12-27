@@ -97,6 +97,15 @@ int mscode_note_digest_algo(void *context, size_t hdrlen,
 	case OID_sha256:
 		ctx->digest_algo = HASH_ALGO_SHA256;
 		break;
+	case OID_sha384:
+		ctx->digest_algo = HASH_ALGO_SHA384;
+		break;
+	case OID_sha512:
+		ctx->digest_algo = HASH_ALGO_SHA512;
+		break;
+	case OID_sha224:
+		ctx->digest_algo = HASH_ALGO_SHA224;
+		break;
 
 	case OID__NR:
 		sprint_oid(value, vlen, buffer, sizeof(buffer));

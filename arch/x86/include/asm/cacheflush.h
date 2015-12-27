@@ -4,6 +4,7 @@
 /* Caches aren't brain-dead on the intel. */
 #include <asm-generic/cacheflush.h>
 #include <asm/special_insns.h>
+#include <asm/uaccess.h>
 
 /*
  * The set_memory_* API can be used to change various attributes of a virtual
@@ -87,6 +88,8 @@ int set_pages_rw(struct page *page, int numpages);
 
 
 void clflush_cache_range(void *addr, unsigned int size);
+
+#define mmio_flush_range(addr, size) clflush_cache_range(addr, size)
 
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);

@@ -29,7 +29,6 @@
 #include <sound/jack.h>
 #include <linux/workqueue.h>
 #include <sound/rt286.h>
-#include <sound/hda_verbs.h>
 
 #include "rl6347a.h"
 #include "rt286.h"
@@ -50,7 +49,7 @@ struct rt286_priv {
 	int clk_id;
 };
 
-static struct reg_default rt286_index_def[] = {
+static const struct reg_default rt286_index_def[] = {
 	{ 0x01, 0xaaaa },
 	{ 0x02, 0x8aaa },
 	{ 0x03, 0x0002 },
@@ -1108,7 +1107,7 @@ static const struct acpi_device_id rt286_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, rt286_acpi_match);
 
-static struct dmi_system_id force_combo_jack_table[] = {
+static const struct dmi_system_id force_combo_jack_table[] = {
 	{
 		.ident = "Intel Wilson Beach",
 		.matches = {
@@ -1118,7 +1117,7 @@ static struct dmi_system_id force_combo_jack_table[] = {
 	{ }
 };
 
-static struct dmi_system_id dmi_dell_dino[] = {
+static const struct dmi_system_id dmi_dell_dino[] = {
 	{
 		.ident = "Dell Dino",
 		.matches = {
@@ -1157,11 +1156,15 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	}
 	if (val != RT286_VENDOR_ID && val != RT288_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt286\n", val);
+			"Device with ID register %#x is not rt286\n", val);
 		return -ENODEV;
 	}
 
-	rt286->index_cache = rt286_index_def;
+	rt286->index_cache = devm_kmemdup(&i2c->dev, rt286_index_def,
+					  sizeof(rt286_index_def), GFP_KERNEL);
+	if (!rt286->index_cache)
+		return -ENOMEM;
+
 	rt286->index_cache_size = INDEX_CACHE_SIZE;
 	rt286->i2c = i2c;
 	i2c_set_clientdata(i2c, rt286);
@@ -1259,7 +1262,6 @@ static int rt286_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver rt286_i2c_driver = {
 	.driver = {
 		   .name = "rt286",
-		   .owner = THIS_MODULE,
 		   .acpi_match_table = ACPI_PTR(rt286_acpi_match),
 		   },
 	.probe = rt286_i2c_probe,

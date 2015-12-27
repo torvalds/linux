@@ -1,13 +1,28 @@
-config NTB
-       tristate "Intel Non-Transparent Bridge support"
-       depends on PCI
-       depends on X86
-       help
-        The PCI-E Non-transparent bridge hardware is a point-to-point PCI-E bus
-        connecting 2 systems.  When configured, writes to the device's PCI
-        mapped memory will be mirrored to a buffer on the remote system.  The
-        ntb Linux driver uses this point-to-point communication as a method to
-        transfer data from one system to the other.
+menuconfig NTB
+	tristate "Non-Transparent Bridge support"
+	depends on PCI
+	help
+	 The PCI-E Non-transparent bridge hardware is a point-to-point PCI-E bus
+	 connecting 2 systems.  When configured, writes to the device's PCI
+	 mapped memory will be mirrored to a buffer on the remote system.  The
+	 ntb Linux driver uses this point-to-point communication as a method to
+	 transfer data from one system to the other.
 
-        If unsure, say N.
+	 If unsure, say N.
 
+if NTB
+
+source "drivers/ntb/hw/Kconfig"
+
+source "drivers/ntb/test/Kconfig"
+
+config NTB_TRANSPORT
+	tristate "NTB Transport Client"
+	help
+	 This is a transport driver that enables connected systems to exchange
+	 messages over the ntb hardware.  The transport exposes a queue pair api
+	 to client drivers.
+
+	 If unsure, say N.
+
+endif # NTB

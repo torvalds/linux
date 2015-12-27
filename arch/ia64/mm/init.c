@@ -215,10 +215,6 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 	pmd_t *pmd;
 	pte_t *pte;
 
-	if (!PageReserved(page))
-		printk(KERN_ERR "put_kernel_page: page at 0x%p not in reserved memory\n",
-		       page_address(page));
-
 	pgd = pgd_offset_k(address);		/* note: this is NOT pgd_offset()! */
 
 	{
@@ -649,7 +645,7 @@ mem_init (void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int arch_add_memory(int nid, u64 start, u64 size)
+int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
 	pg_data_t *pgdat;
 	struct zone *zone;
@@ -660,7 +656,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	pgdat = NODE_DATA(nid);
 
 	zone = pgdat->node_zones +
-		zone_for_memory(nid, start, size, ZONE_NORMAL);
+		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
 
 	if (ret)

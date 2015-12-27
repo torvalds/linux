@@ -94,6 +94,22 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	jr	t0
 0:
 
+#ifdef CONFIG_MIPS_RAW_APPENDED_DTB
+	PTR_LA		t0, __appended_dtb
+
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	li		t1, 0xd00dfeed
+#else
+	li		t1, 0xedfe0dd0
+#endif
+	lw		t2, (t0)
+	bne		t1, t2, not_found
+	 nop
+
+	move		a1, t0
+	PTR_LI		a0, -2
+not_found:
+#endif
 	PTR_LA		t0, __bss_start		# clear .bss
 	LONG_S		zero, (t0)
 	PTR_LA		t1, __bss_stop - LONGSIZE

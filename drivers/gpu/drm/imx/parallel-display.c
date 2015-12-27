@@ -21,6 +21,7 @@
 #include <drm/drm_panel.h>
 #include <linux/videodev2.h>
 #include <video/of_display_timing.h>
+#include <linux/of_graph.h>
 
 #include "imx-drm.h"
 
@@ -53,7 +54,11 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 
 	if (imxpd->panel && imxpd->panel->funcs &&
 	    imxpd->panel->funcs->get_modes) {
+		struct drm_display_info *di = &connector->display_info;
+
 		num_modes = imxpd->panel->funcs->get_modes(imxpd->panel);
+		if (!imxpd->bus_format && di->num_bus_formats)
+			imxpd->bus_format = di->bus_formats[0];
 		if (num_modes > 0)
 			return num_modes;
 	}
@@ -208,7 +213,7 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
-	struct device_node *panel_node;
+	struct device_node *port;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
 	int ret;
@@ -234,11 +239,19 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 			imxpd->bus_format = MEDIA_BUS_FMT_RGB666_1X24_CPADHI;
 	}
 
-	panel_node = of_parse_phandle(np, "fsl,panel", 0);
-	if (panel_node) {
-		imxpd->panel = of_drm_find_panel(panel_node);
-		if (!imxpd->panel)
-			return -EPROBE_DEFER;
+	/* port@1 is the output port */
+	port = of_graph_get_port_by_id(np, 1);
+	if (port) {
+		struct device_node *endpoint, *remote;
+
+		endpoint = of_get_child_by_name(port, "endpoint");
+		if (endpoint) {
+			remote = of_graph_get_remote_port_parent(endpoint);
+			if (remote)
+				imxpd->panel = of_drm_find_panel(remote);
+			if (!imxpd->panel)
+				return -EPROBE_DEFER;
+		}
 	}
 
 	imxpd->dev = dev;

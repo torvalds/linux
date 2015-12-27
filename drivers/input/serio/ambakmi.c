@@ -175,15 +175,17 @@ static int amba_kmi_remove(struct amba_device *dev)
 	return 0;
 }
 
-static int amba_kmi_resume(struct amba_device *dev)
+static int __maybe_unused amba_kmi_resume(struct device *dev)
 {
-	struct amba_kmi_port *kmi = amba_get_drvdata(dev);
+	struct amba_kmi_port *kmi = dev_get_drvdata(dev);
 
 	/* kick the serio layer to rescan this port */
 	serio_reconnect(kmi->io);
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(amba_kmi_dev_pm_ops, NULL, amba_kmi_resume);
 
 static struct amba_id amba_kmi_idtable[] = {
 	{
@@ -199,11 +201,11 @@ static struct amba_driver ambakmi_driver = {
 	.drv		= {
 		.name	= "kmi-pl050",
 		.owner	= THIS_MODULE,
+		.pm	= &amba_kmi_dev_pm_ops,
 	},
 	.id_table	= amba_kmi_idtable,
 	.probe		= amba_kmi_probe,
 	.remove		= amba_kmi_remove,
-	.resume		= amba_kmi_resume,
 };
 
 module_amba_driver(ambakmi_driver);

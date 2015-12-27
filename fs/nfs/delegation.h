@@ -18,7 +18,7 @@ struct nfs_delegation {
 	struct inode *inode;
 	nfs4_stateid stateid;
 	fmode_t type;
-	loff_t maxsize;
+	unsigned long pagemod_limit;
 	__u64 change_attr;
 	unsigned long flags;
 	spinlock_t lock;
@@ -54,13 +54,14 @@ void nfs_delegation_reap_unclaimed(struct nfs_client *clp);
 
 /* NFSv4 delegation-related procedures */
 int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid, int issync);
-int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid);
+int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid, fmode_t type);
 int nfs4_lock_delegation_recall(struct file_lock *fl, struct nfs4_state *state, const nfs4_stateid *stateid);
 bool nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode, fmode_t flags);
 
 void nfs_mark_delegation_referenced(struct nfs_delegation *delegation);
 int nfs4_have_delegation(struct inode *inode, fmode_t flags);
 int nfs4_check_delegation(struct inode *inode, fmode_t flags);
+bool nfs4_delegation_flush_on_close(const struct inode *inode);
 
 #endif
 

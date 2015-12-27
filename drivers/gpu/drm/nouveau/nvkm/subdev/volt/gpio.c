@@ -34,13 +34,13 @@ static const u8 tags[] = {
 int
 nvkm_voltgpio_get(struct nvkm_volt *volt)
 {
-	struct nvkm_gpio *gpio = nvkm_gpio(volt);
+	struct nvkm_gpio *gpio = volt->subdev.device->gpio;
 	u8 vid = 0;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tags); i++) {
 		if (volt->vid_mask & (1 << i)) {
-			int ret = gpio->get(gpio, 0, tags[i], 0xff);
+			int ret = nvkm_gpio_get(gpio, 0, tags[i], 0xff);
 			if (ret < 0)
 				return ret;
 			vid |= ret << i;
@@ -53,12 +53,12 @@ nvkm_voltgpio_get(struct nvkm_volt *volt)
 int
 nvkm_voltgpio_set(struct nvkm_volt *volt, u8 vid)
 {
-	struct nvkm_gpio *gpio = nvkm_gpio(volt);
+	struct nvkm_gpio *gpio = volt->subdev.device->gpio;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tags); i++, vid >>= 1) {
 		if (volt->vid_mask & (1 << i)) {
-			int ret = gpio->set(gpio, 0, tags[i], 0xff, vid & 1);
+			int ret = nvkm_gpio_set(gpio, 0, tags[i], 0xff, vid & 1);
 			if (ret < 0)
 				return ret;
 		}
@@ -70,7 +70,8 @@ nvkm_voltgpio_set(struct nvkm_volt *volt, u8 vid)
 int
 nvkm_voltgpio_init(struct nvkm_volt *volt)
 {
-	struct nvkm_gpio *gpio = nvkm_gpio(volt);
+	struct nvkm_subdev *subdev = &volt->subdev;
+	struct nvkm_gpio *gpio = subdev->device->gpio;
 	struct dcb_gpio_func func;
 	int i;
 
@@ -82,11 +83,11 @@ nvkm_voltgpio_init(struct nvkm_volt *volt)
 	 */
 	for (i = 0; i < ARRAY_SIZE(tags); i++) {
 		if (volt->vid_mask & (1 << i)) {
-			int ret = gpio->find(gpio, 0, tags[i], 0xff, &func);
+			int ret = nvkm_gpio_find(gpio, 0, tags[i], 0xff, &func);
 			if (ret) {
 				if (ret != -ENOENT)
 					return ret;
-				nv_debug(volt, "VID bit %d has no GPIO\n", i);
+				nvkm_debug(subdev, "VID bit %d has no GPIO\n", i);
 				volt->vid_mask &= ~(1 << i);
 			}
 		}

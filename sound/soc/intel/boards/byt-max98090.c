@@ -126,6 +126,7 @@ static struct snd_soc_dai_link byt_max98090_dais[] = {
 
 static struct snd_soc_card byt_max98090_card = {
 	.name = "byt-max98090",
+	.owner = THIS_MODULE,
 	.dai_link = byt_max98090_dais,
 	.num_links = ARRAY_SIZE(byt_max98090_dais),
 	.dapm_widgets = byt_max98090_widgets,

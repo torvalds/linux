@@ -420,7 +420,7 @@ config CRYPTO_DEV_CCP
 	bool "Support for AMD Cryptographic Coprocessor"
 	depends on ((X86 && PCI) || (ARM64 && (OF_ADDRESS || ACPI))) && HAS_IOMEM
 	help
-	  The AMD Cryptographic Coprocessor provides hardware support
+	  The AMD Cryptographic Coprocessor provides hardware offload support
 	  for encryption, hashing and related operations.
 
 if CRYPTO_DEV_CCP
@@ -429,7 +429,8 @@ endif
 
 config CRYPTO_DEV_MXS_DCP
 	tristate "Support for Freescale MXS DCP"
-	depends on ARCH_MXS
+	depends on (ARCH_MXS || ARCH_MXC)
+	select STMP_DEVICE
 	select CRYPTO_CBC
 	select CRYPTO_ECB
 	select CRYPTO_AES
@@ -461,7 +462,7 @@ config CRYPTO_DEV_QCE
 
 config CRYPTO_DEV_VMX
 	bool "Support for VMX cryptographic acceleration instructions"
-	depends on PPC64
+	depends on PPC64 && VSX
 	help
 	  Support for VMX cryptographic acceleration instructions.
 
@@ -479,5 +480,22 @@ config CRYPTO_DEV_IMGTEC_HASH
 	  This driver interfaces with the Imagination Technologies
 	  hardware hash accelerator. Supporting MD5/SHA1/SHA224/SHA256
 	  hashing algorithms.
+
+config CRYPTO_DEV_SUN4I_SS
+	tristate "Support for Allwinner Security System cryptographic accelerator"
+	depends on ARCH_SUNXI
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_BLKCIPHER
+	help
+	  Some Allwinner SoC have a crypto accelerator named
+	  Security System. Select this if you want to use it.
+	  The Security System handle AES/DES/3DES ciphers in CBC mode
+	  and SHA1 and MD5 hash algorithms.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sun4i-ss.
 
 endif # CRYPTO_HW

@@ -786,6 +786,7 @@ static int rotator_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int rotator_clk_crtl(struct rot_context *rot, bool enable)
 {
 	if (enable) {
@@ -822,7 +823,6 @@ static int rotator_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
 static int rotator_runtime_suspend(struct device *dev)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);

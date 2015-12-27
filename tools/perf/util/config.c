@@ -12,6 +12,7 @@
 #include "cache.h"
 #include "exec_cmd.h"
 #include "util/hist.h"  /* perf_hist_config */
+#include "util/llvm-utils.h"   /* perf_llvm_config */
 
 #define MAXNAME (256)
 
@@ -407,6 +408,9 @@ int perf_default_config(const char *var, const char *value,
 
 	if (!prefixcmp(var, "call-graph."))
 		return perf_callchain_config(var, value);
+
+	if (!prefixcmp(var, "llvm."))
+		return perf_llvm_config(var, value);
 
 	/* Add other config variables here. */
 	return 0;

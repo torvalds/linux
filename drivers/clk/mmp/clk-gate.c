@@ -27,7 +27,6 @@
 static int mmp_clk_gate_enable(struct clk_hw *hw)
 {
 	struct mmp_clk_gate *gate = to_clk_mmp_gate(hw);
-	struct clk *clk = hw->clk;
 	unsigned long flags = 0;
 	unsigned long rate;
 	u32 tmp;
@@ -44,7 +43,7 @@ static int mmp_clk_gate_enable(struct clk_hw *hw)
 		spin_unlock_irqrestore(gate->lock, flags);
 
 	if (gate->flags & MMP_CLK_GATE_NEED_DELAY) {
-		rate = __clk_get_rate(clk);
+		rate = clk_hw_get_rate(hw);
 		/* Need delay 2 cycles. */
 		udelay(2000000/rate);
 	}

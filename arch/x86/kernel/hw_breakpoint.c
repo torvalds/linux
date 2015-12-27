@@ -32,6 +32,7 @@
 #include <linux/irqflags.h>
 #include <linux/notifier.h>
 #include <linux/kallsyms.h>
+#include <linux/kprobes.h>
 #include <linux/percpu.h>
 #include <linux/kdebug.h>
 #include <linux/kernel.h>
@@ -179,7 +180,11 @@ int arch_check_bp_in_kernelspace(struct perf_event *bp)
 	va = info->address;
 	len = bp->attr.bp_len;
 
-	return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
+	/*
+	 * We don't need to worry about va + len - 1 overflowing:
+	 * we already require that va is aligned to a multiple of len.
+	 */
+	return (va >= TASK_SIZE_MAX) || ((va + len - 1) >= TASK_SIZE_MAX);
 }
 
 int arch_bp_generic_fields(int x86_len, int x86_type,
@@ -243,6 +248,20 @@ static int arch_build_bp_info(struct perf_event *bp)
 		info->type = X86_BREAKPOINT_RW;
 		break;
 	case HW_BREAKPOINT_X:
+		/*
+		 * We don't allow kernel breakpoints in places that are not
+		 * acceptable for kprobes.  On non-kprobes kernels, we don't
+		 * allow kernel breakpoints at all.
+		 */
+		if (bp->attr.bp_addr >= TASK_SIZE_MAX) {
+#ifdef CONFIG_KPROBES
+			if (within_kprobe_blacklist(bp->attr.bp_addr))
+				return -EINVAL;
+#else
+			return -EINVAL;
+#endif
+		}
+
 		info->type = X86_BREAKPOINT_EXECUTE;
 		/*
 		 * x86 inst breakpoints need to have a specific undefined len.
@@ -276,8 +295,18 @@ static int arch_build_bp_info(struct perf_event *bp)
 		break;
 #endif
 	default:
+		/* AMD range breakpoint */
 		if (!is_power_of_2(bp->attr.bp_len))
 			return -EINVAL;
+		if (bp->attr.bp_addr & (bp->attr.bp_len - 1))
+			return -EINVAL;
+		/*
+		 * It's impossible to use a range breakpoint to fake out
+		 * user vs kernel detection because bp_len - 1 can't
+		 * have the high bit set.  If we ever allow range instruction
+		 * breakpoints, then we'll have to check for kprobe-blacklisted
+		 * addresses anywhere in the range.
+		 */
 		if (!cpu_has_bpext)
 			return -EOPNOTSUPP;
 		info->mask = bp->attr.bp_len - 1;

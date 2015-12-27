@@ -24,6 +24,7 @@
 #define __LINUX_HSI_OMAP_SSI_H__
 
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/hsi/hsi.h>
 #include <linux/gpio.h>

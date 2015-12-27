@@ -11,7 +11,14 @@ extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 
-#define activate_mm(prev,next) switch_mm((prev),(next),NULL)
+static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	switch_mm(prev, next, NULL);
+	local_irq_restore(flags);
+}
 
 /* current active pgd - this is similar to other processors pgd 
  * registers like cr3 on the i386

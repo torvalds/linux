@@ -39,11 +39,11 @@
 char *xstrdup(const char *s)
 {
 	int len = strlen(s) + 1;
-	char *dup = xmalloc(len);
+	char *d = xmalloc(len);
 
-	memcpy(dup, s, len);
+	memcpy(d, s, len);
 
-	return dup;
+	return d;
 }
 
 char *join_path(const char *path, const char *name)
@@ -70,7 +70,7 @@ char *join_path(const char *path, const char *name)
 	return str;
 }
 
-int util_is_printable_string(const void *data, int len)
+bool util_is_printable_string(const void *data, int len)
 {
 	const char *s = data;
 	const char *ss, *se;
@@ -87,7 +87,7 @@ int util_is_printable_string(const void *data, int len)
 
 	while (s < se) {
 		ss = s;
-		while (s < se && *s && isprint(*s))
+		while (s < se && *s && isprint((unsigned char)*s))
 			s++;
 
 		/* not zero, or not done yet */
@@ -219,10 +219,6 @@ int utilfdt_read_err_len(const char *filename, char **buffp, off_t *len)
 		if (offset == bufsize) {
 			bufsize *= 2;
 			buf = xrealloc(buf, bufsize);
-			if (!buf) {
-				ret = ENOMEM;
-				break;
-			}
 		}
 
 		ret = read(fd, &buf[offset], bufsize - offset);
@@ -375,9 +371,9 @@ void utilfdt_print_data(const char *data, int len)
 		const uint32_t *cell = (const uint32_t *)data;
 
 		printf(" = <");
-		for (i = 0; i < len; i += 4)
+		for (i = 0, len /= 4; i < len; i++)
 			printf("0x%08x%s", fdt32_to_cpu(cell[i]),
-			       i < (len - 4) ? " " : "");
+			       i < (len - 1) ? " " : "");
 		printf(">");
 	} else {
 		printf(" = [");

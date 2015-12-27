@@ -29,47 +29,48 @@
 #include <subdev/bios/init.h>
 #include <subdev/bios/pll.h>
 #include <subdev/clk/pll.h>
-#include <subdev/ibus.h>
 #include <subdev/vga.h>
 
 int
-nv50_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
+nv50_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	struct nvkm_bios *bios = nvkm_bios(priv);
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_bios *bios = device->bios;
 	struct nvbios_pll info;
 	int N1, M1, N2, M2, P;
 	int ret;
 
 	ret = nvbios_pll_parse(bios, type, &info);
 	if (ret) {
-		nv_error(devinit, "failed to retrieve pll data, %d\n", ret);
+		nvkm_error(subdev, "failed to retrieve pll data, %d\n", ret);
 		return ret;
 	}
 
-	ret = nv04_pll_calc(nv_subdev(devinit), &info, freq, &N1, &M1, &N2, &M2, &P);
+	ret = nv04_pll_calc(subdev, &info, freq, &N1, &M1, &N2, &M2, &P);
 	if (!ret) {
-		nv_error(devinit, "failed pll calculation\n");
+		nvkm_error(subdev, "failed pll calculation\n");
 		return ret;
 	}
 
 	switch (info.type) {
 	case PLL_VPLL0:
 	case PLL_VPLL1:
-		nv_wr32(priv, info.reg + 0, 0x10000611);
-		nv_mask(priv, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
-		nv_mask(priv, info.reg + 8, 0x7fff00ff, (P  << 28) |
-							(M2 << 16) | N2);
+		nvkm_wr32(device, info.reg + 0, 0x10000611);
+		nvkm_mask(device, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
+		nvkm_mask(device, info.reg + 8, 0x7fff00ff, (P  << 28) |
+							    (M2 << 16) | N2);
 		break;
 	case PLL_MEMORY:
-		nv_mask(priv, info.reg + 0, 0x01ff0000, (P << 22) |
-						        (info.bias_p << 19) |
-							(P << 16));
-		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
+		nvkm_mask(device, info.reg + 0, 0x01ff0000,
+					        (P << 22) |
+						(info.bias_p << 19) |
+						(P << 16));
+		nvkm_wr32(device, info.reg + 4, (N1 << 8) | M1);
 		break;
 	default:
-		nv_mask(priv, info.reg + 0, 0x00070000, (P << 16));
-		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
+		nvkm_mask(device, info.reg + 0, 0x00070000, (P << 16));
+		nvkm_wr32(device, info.reg + 4, (N1 << 8) | M1);
 		break;
 	}
 
@@ -77,57 +78,68 @@ nv50_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 }
 
 static u64
-nv50_devinit_disable(struct nvkm_devinit *devinit)
+nv50_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 r001540 = nv_rd32(priv, 0x001540);
+	struct nvkm_device *device = init->subdev.device;
+	u32 r001540 = nvkm_rd32(device, 0x001540);
 	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000))
-		disable |= (1ULL << NVDEV_ENGINE_MPEG);
+		disable |= (1ULL << NVKM_ENGINE_MPEG);
 
 	return disable;
 }
 
-int
-nv50_devinit_init(struct nvkm_object *object)
+void
+nv50_devinit_preinit(struct nvkm_devinit *base)
 {
-	struct nvkm_bios *bios = nvkm_bios(object);
-	struct nvkm_ibus *ibus = nvkm_ibus(object);
-	struct nv50_devinit_priv *priv = (void *)object;
+	struct nv50_devinit *init = nv50_devinit(base);
+	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_device *device = subdev->device;
+
+	/* our heuristics can't detect whether the board has had its
+	 * devinit scripts executed or not if the display engine is
+	 * missing, assume it's a secondary gpu which requires post
+	 */
+	if (!init->base.post) {
+		u64 disable = nvkm_devinit_disable(&init->base);
+		if (disable & (1ULL << NVKM_ENGINE_DISP))
+			init->base.post = true;
+	}
+
+	/* magic to detect whether or not x86 vbios code has executed
+	 * the devinit scripts to initialise the board
+	 */
+	if (!init->base.post) {
+		if (!nvkm_rdvgac(device, 0, 0x00) &&
+		    !nvkm_rdvgac(device, 0, 0x1a)) {
+			nvkm_debug(subdev, "adaptor not initialised\n");
+			init->base.post = true;
+		}
+	}
+}
+
+void
+nv50_devinit_init(struct nvkm_devinit *base)
+{
+	struct nv50_devinit *init = nv50_devinit(base);
+	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_bios *bios = device->bios;
 	struct nvbios_outp info;
 	struct dcb_output outp;
 	u8  ver = 0xff, hdr, cnt, len;
-	int ret, i = 0;
-
-	if (!priv->base.post) {
-		if (!nv_rdvgac(priv, 0, 0x00) &&
-		    !nv_rdvgac(priv, 0, 0x1a)) {
-			nv_info(priv, "adaptor not initialised\n");
-			priv->base.post = true;
-		}
-	}
-
-	/* some boards appear to require certain priv register timeouts
-	 * to be bumped before runing devinit scripts.  not a clue why
-	 * the vbios engineers didn't make the scripts just work...
-	 */
-	if (priv->base.post && ibus)
-		nv_ofuncs(ibus)->init(nv_object(ibus));
-
-	ret = nvkm_devinit_init(&priv->base);
-	if (ret)
-		return ret;
+	int i = 0;
 
 	/* if we ran the init tables, we have to execute the first script
 	 * pointer of each dcb entry's display encoder table in order
 	 * to properly initialise each encoder.
 	 */
-	while (priv->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
+	while (init->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
 		if (nvbios_outp_match(bios, outp.hasht, outp.hashm,
 				      &ver, &hdr, &cnt, &len, &info)) {
-			struct nvbios_init init = {
-				.subdev = nv_subdev(priv),
+			struct nvbios_init exec = {
+				.subdev = subdev,
 				.bios = bios,
 				.offset = info.script[0],
 				.outp = &outp,
@@ -135,40 +147,39 @@ nv50_devinit_init(struct nvkm_object *object)
 				.execute = 1,
 			};
 
-			nvbios_exec(&init);
+			nvbios_exec(&exec);
 		}
 		i++;
 	}
-
-	return 0;
 }
 
 int
-nv50_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+nv50_devinit_new_(const struct nvkm_devinit_func *func,
+		  struct nvkm_device *device, int index,
+		  struct nvkm_devinit **pinit)
 {
-	struct nv50_devinit_priv *priv;
-	int ret;
+	struct nv50_devinit *init;
 
-	ret = nvkm_devinit_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
+	if (!(init = kzalloc(sizeof(*init), GFP_KERNEL)))
+		return -ENOMEM;
+	*pinit = &init->base;
 
+	nvkm_devinit_ctor(func, device, index, &init->base);
 	return 0;
 }
 
-struct nvkm_oclass *
-nv50_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x50),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_devinit_ctor,
-		.dtor = _nvkm_devinit_dtor,
-		.init = nv50_devinit_init,
-		.fini = _nvkm_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+nv50_devinit = {
+	.preinit = nv50_devinit_preinit,
+	.init = nv50_devinit_init,
+	.post = nv04_devinit_post,
 	.pll_set = nv50_devinit_pll_set,
 	.disable = nv50_devinit_disable,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+nv50_devinit_new(struct nvkm_device *device, int index,
+		 struct nvkm_devinit **pinit)
+{
+	return nv50_devinit_new_(&nv50_devinit, device, index, pinit);
+}

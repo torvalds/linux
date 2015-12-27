@@ -21,6 +21,10 @@
 #include <linux/nwpserial.h>
 #include <linux/clk.h>
 
+#ifdef CONFIG_SERIAL_8250_MODULE
+#define CONFIG_SERIAL_8250 CONFIG_SERIAL_8250_MODULE
+#endif
+
 #include "8250/8250.h"
 
 struct of_serial_info {
@@ -149,6 +153,11 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		port->iotype = UPIO_AU;
 		break;
 	}
+
+	if (IS_ENABLED(CONFIG_SERIAL_8250_FSL) &&
+	    (of_device_is_compatible(np, "fsl,ns16550") ||
+	     of_device_is_compatible(np, "fsl,16550-FIFO64")))
+		port->handle_irq = fsl8250_handle_irq;
 
 	return 0;
 out:
@@ -350,6 +359,7 @@ static const struct of_device_id of_platform_serial_table[] = {
 #endif
 	{ /* end of list */ },
 };
+MODULE_DEVICE_TABLE(of, of_platform_serial_table);
 
 static struct platform_driver of_platform_serial_driver = {
 	.driver = {

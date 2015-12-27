@@ -40,7 +40,14 @@ static DEFINE_MUTEX(iio_trigger_list_lock);
 
 /**
  * iio_trigger_read_name() - retrieve useful identifying name
- **/
+ * @dev:	device associated with the iio_trigger
+ * @attr:	pointer to the device_attribute structure that is
+ *		being processed
+ * @buf:	buffer to print the name into
+ *
+ * Return: a negative number on failure or the number of written
+ *	   characters on success.
+ */
 static ssize_t iio_trigger_read_name(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
@@ -288,10 +295,17 @@ EXPORT_SYMBOL_GPL(iio_dealloc_pollfunc);
 
 /**
  * iio_trigger_read_current() - trigger consumer sysfs query current trigger
+ * @dev:	device associated with an industrial I/O device
+ * @attr:	pointer to the device_attribute structure that
+ *		is being processed
+ * @buf:	buffer where the current trigger name will be printed into
  *
  * For trigger consumers the current_trigger interface allows the trigger
  * used by the device to be queried.
- **/
+ *
+ * Return: a negative number on failure, the number of characters written
+ *	   on success or 0 if no trigger is available
+ */
 static ssize_t iio_trigger_read_current(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -305,11 +319,18 @@ static ssize_t iio_trigger_read_current(struct device *dev,
 
 /**
  * iio_trigger_write_current() - trigger consumer sysfs set current trigger
+ * @dev:	device associated with an industrial I/O device
+ * @attr:	device attribute that is being processed
+ * @buf:	string buffer that holds the name of the trigger
+ * @len:	length of the trigger name held by buf
  *
  * For trigger consumers the current_trigger interface allows the trigger
  * used for this device to be specified at run time based on the trigger's
  * name.
- **/
+ *
+ * Return: negative error code on failure or length of the buffer
+ *	   on success
+ */
 static ssize_t iio_trigger_write_current(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf,
@@ -345,10 +366,18 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 
 	indio_dev->trig = trig;
 
-	if (oldtrig)
+	if (oldtrig) {
+		if (indio_dev->modes & INDIO_EVENT_TRIGGERED)
+			iio_trigger_detach_poll_func(oldtrig,
+						     indio_dev->pollfunc_event);
 		iio_trigger_put(oldtrig);
-	if (indio_dev->trig)
+	}
+	if (indio_dev->trig) {
 		iio_trigger_get(indio_dev->trig);
+		if (indio_dev->modes & INDIO_EVENT_TRIGGERED)
+			iio_trigger_attach_poll_func(indio_dev->trig,
+						     indio_dev->pollfunc_event);
+	}
 
 	return len;
 }

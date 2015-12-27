@@ -24,7 +24,7 @@ enum acpi_backlight_type {
 	acpi_backlight_native,
 };
 
-#if (defined CONFIG_ACPI_VIDEO || defined CONFIG_ACPI_VIDEO_MODULE)
+#if IS_ENABLED(CONFIG_ACPI_VIDEO)
 extern int acpi_video_register(void);
 extern void acpi_video_unregister(void);
 extern int acpi_video_get_edid(struct acpi_device *device, int type,
@@ -43,7 +43,7 @@ static inline enum acpi_backlight_type acpi_video_get_backlight_type(void)
 {
 	return acpi_backlight_vendor;
 }
-static void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
+static inline void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
 {
 }
 #endif

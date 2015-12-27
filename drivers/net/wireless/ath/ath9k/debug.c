@@ -741,8 +741,8 @@ static int read_file_misc(struct seq_file *file, void *data)
 			   i++, (int)(ctx->assigned), iter_data.naps,
 			   iter_data.nstations,
 			   iter_data.nmeshes, iter_data.nwds);
-		seq_printf(file, " ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
-			   iter_data.nadhocs, sc->cur_chan->nvifs,
+		seq_printf(file, " ADHOC: %i OCB: %i TOTAL: %hi BEACON-VIF: %hi\n",
+			   iter_data.nadhocs, iter_data.nocbs, sc->cur_chan->nvifs,
 			   sc->nbcnvifs);
 	}
 
@@ -765,6 +765,8 @@ static int read_file_reset(struct seq_file *file, void *data)
 		[RESET_TYPE_BEACON_STUCK] = "Stuck Beacon",
 		[RESET_TYPE_MCI] = "MCI Reset",
 		[RESET_TYPE_CALIBRATION] = "Calibration error",
+		[RESET_TX_DMA_ERROR] = "Tx DMA stop error",
+		[RESET_RX_DMA_ERROR] = "Rx DMA stop error",
 	};
 	int i;
 

@@ -138,6 +138,8 @@ int init_cache_level(unsigned int cpu)
 	union cache_topology ct;
 	enum cache_type ctype;
 
+	if (!test_facility(34))
+		return -EOPNOTSUPP;
 	if (!this_cpu_ci)
 		return -EINVAL;
 	ct.raw = ecag(EXTRACT_TOPOLOGY, 0, 0);

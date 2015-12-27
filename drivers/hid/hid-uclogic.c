@@ -731,7 +731,7 @@ static int uclogic_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 0;
 }
 
-static void uclogic_input_configured(struct hid_device *hdev,
+static int uclogic_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 {
 	char *name;
@@ -741,7 +741,7 @@ static void uclogic_input_configured(struct hid_device *hdev,
 
 	/* no report associated (HID_QUIRK_MULTI_INPUT not set) */
 	if (!hi->report)
-		return;
+		return 0;
 
 	field = hi->report->field[0];
 
@@ -774,6 +774,8 @@ static void uclogic_input_configured(struct hid_device *hdev,
 			hi->input->name = name;
 		}
 	}
+
+	return 0;
 }
 
 /**
@@ -858,7 +860,7 @@ static int uclogic_tablet_enable(struct hid_device *hdev)
 	for (p = drvdata->rdesc;
 	     p <= drvdata->rdesc + drvdata->rsize - 4;) {
 		if (p[0] == 0xFE && p[1] == 0xED && p[2] == 0x1D &&
-		    p[3] < sizeof(params)) {
+		    p[3] < ARRAY_SIZE(params)) {
 			v = params[p[3]];
 			put_unaligned(cpu_to_le32(v), (s32 *)p);
 			p += 4;

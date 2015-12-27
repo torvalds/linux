@@ -584,7 +584,7 @@ static void __init intel_graphics_stolen(int num, int slot, int func)
 static void __init force_disable_hpet(int num, int slot, int func)
 {
 #ifdef CONFIG_HPET_TIMER
-	boot_hpet_disable = 1;
+	boot_hpet_disable = true;
 	pr_info("x86/hpet: Will disable the HPET for this platform because it's not reliable\n");
 #endif
 }

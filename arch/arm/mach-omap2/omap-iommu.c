@@ -11,7 +11,6 @@
  */
 
 #include <linux/of.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -63,15 +62,5 @@ static int __init omap_iommu_init(void)
 
 	return omap_hwmod_for_each_by_class("mmu", omap_iommu_dev_init, NULL);
 }
-/* must be ready before omap3isp is probed */
 omap_subsys_initcall(omap_iommu_init);
-
-static void __exit omap_iommu_exit(void)
-{
-	/* Do nothing */
-}
-module_exit(omap_iommu_exit);
-
-MODULE_AUTHOR("Hiroshi DOYU");
-MODULE_DESCRIPTION("omap iommu: omap device registration");
-MODULE_LICENSE("GPL v2");
+/* must be ready before omap3isp is probed */

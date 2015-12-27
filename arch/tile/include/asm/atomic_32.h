@@ -34,6 +34,19 @@ static inline void atomic_add(int i, atomic_t *v)
 	_atomic_xchg_add(&v->counter, i);
 }
 
+#define ATOMIC_OP(op)							\
+unsigned long _atomic_##op(volatile unsigned long *p, unsigned long mask); \
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	_atomic_##op((unsigned long *)&v->counter, i);			\
+}
+
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
+
+#undef ATOMIC_OP
+
 /**
  * atomic_add_return - add integer and return
  * @v: pointer of type atomic_t
@@ -112,6 +125,17 @@ static inline void atomic64_add(long long i, atomic64_t *v)
 {
 	_atomic64_xchg_add(&v->counter, i);
 }
+
+#define ATOMIC64_OP(op)						\
+long long _atomic64_##op(long long *v, long long n);		\
+static inline void atomic64_##op(long long i, atomic64_t *v)	\
+{								\
+	_atomic64_##op(&v->counter, i);				\
+}
+
+ATOMIC64_OP(and)
+ATOMIC64_OP(or)
+ATOMIC64_OP(xor)
 
 /**
  * atomic64_add_return - add integer and return
@@ -225,6 +249,7 @@ extern struct __get_user __atomic_xchg_add(volatile int *p, int *lock, int n);
 extern struct __get_user __atomic_xchg_add_unless(volatile int *p,
 						  int *lock, int o, int n);
 extern struct __get_user __atomic_or(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic_and(volatile int *p, int *lock, int n);
 extern struct __get_user __atomic_andn(volatile int *p, int *lock, int n);
 extern struct __get_user __atomic_xor(volatile int *p, int *lock, int n);
 extern long long __atomic64_cmpxchg(volatile long long *p, int *lock,
@@ -234,6 +259,9 @@ extern long long __atomic64_xchg_add(volatile long long *p, int *lock,
 					long long n);
 extern long long __atomic64_xchg_add_unless(volatile long long *p,
 					int *lock, long long o, long long n);
+extern long long __atomic64_and(volatile long long *p, int *lock, long long n);
+extern long long __atomic64_or(volatile long long *p, int *lock, long long n);
+extern long long __atomic64_xor(volatile long long *p, int *lock, long long n);
 
 /* Return failure from the atomic wrappers. */
 struct __get_user __atomic_bad_address(int __user *addr);

@@ -39,6 +39,8 @@
 #include <asm/mshyperv.h>
 #include <linux/notifier.h>
 #include <linux/ptrace.h>
+#include <linux/screen_info.h>
+#include <linux/kdebug.h>
 #include "hyperv_vmbus.h"
 
 static struct acpi_device  *hv_acpi_dev;
@@ -48,12 +50,18 @@ static struct completion probe_event;
 static int irq;
 
 
-static int hyperv_panic_event(struct notifier_block *nb,
-			unsigned long event, void *ptr)
+static void hyperv_report_panic(struct pt_regs *regs)
 {
-	struct pt_regs *regs;
+	static bool panic_reported;
 
-	regs = current_pt_regs();
+	/*
+	 * We prefer to report panic on 'die' chain as we have proper
+	 * registers to report, but if we miss it (e.g. on BUG()) we need
+	 * to report it on 'panic'.
+	 */
+	if (panic_reported)
+		return;
+	panic_reported = true;
 
 	wrmsrl(HV_X64_MSR_CRASH_P0, regs->ip);
 	wrmsrl(HV_X64_MSR_CRASH_P1, regs->ax);
@@ -65,18 +73,37 @@ static int hyperv_panic_event(struct notifier_block *nb,
 	 * Let Hyper-V know there is crash data available
 	 */
 	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
+}
+
+static int hyperv_panic_event(struct notifier_block *nb, unsigned long val,
+			      void *args)
+{
+	struct pt_regs *regs;
+
+	regs = current_pt_regs();
+
+	hyperv_report_panic(regs);
 	return NOTIFY_DONE;
 }
 
+static int hyperv_die_event(struct notifier_block *nb, unsigned long val,
+			    void *args)
+{
+	struct die_args *die = (struct die_args *)args;
+	struct pt_regs *regs = die->regs;
+
+	hyperv_report_panic(regs);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block hyperv_die_block = {
+	.notifier_call = hyperv_die_event,
+};
 static struct notifier_block hyperv_panic_block = {
 	.notifier_call = hyperv_panic_event,
 };
 
-struct resource hyperv_mmio = {
-	.name  = "hyperv mmio",
-	.flags = IORESOURCE_MEM,
-};
-EXPORT_SYMBOL_GPL(hyperv_mmio);
+struct resource *hyperv_mmio;
 
 static int vmbus_exists(void)
 {
@@ -414,6 +441,43 @@ static ssize_t in_write_bytes_avail_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(in_write_bytes_avail);
 
+static ssize_t channel_vp_mapping_show(struct device *dev,
+				       struct device_attribute *dev_attr,
+				       char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct vmbus_channel *channel = hv_dev->channel, *cur_sc;
+	unsigned long flags;
+	int buf_size = PAGE_SIZE, n_written, tot_written;
+	struct list_head *cur;
+
+	if (!channel)
+		return -ENODEV;
+
+	tot_written = snprintf(buf, buf_size, "%u:%u\n",
+		channel->offermsg.child_relid, channel->target_cpu);
+
+	spin_lock_irqsave(&channel->lock, flags);
+
+	list_for_each(cur, &channel->sc_list) {
+		if (tot_written >= buf_size - 1)
+			break;
+
+		cur_sc = list_entry(cur, struct vmbus_channel, sc_list);
+		n_written = scnprintf(buf + tot_written,
+				     buf_size - tot_written,
+				     "%u:%u\n",
+				     cur_sc->offermsg.child_relid,
+				     cur_sc->target_cpu);
+		tot_written += n_written;
+	}
+
+	spin_unlock_irqrestore(&channel->lock, flags);
+
+	return tot_written;
+}
+static DEVICE_ATTR_RO(channel_vp_mapping);
+
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 static struct attribute *vmbus_attrs[] = {
 	&dev_attr_id.attr,
@@ -438,6 +502,7 @@ static struct attribute *vmbus_attrs[] = {
 	&dev_attr_in_write_index.attr,
 	&dev_attr_in_read_bytes_avail.attr,
 	&dev_attr_in_write_bytes_avail.attr,
+	&dev_attr_channel_vp_mapping.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(vmbus);
@@ -763,38 +828,6 @@ static void vmbus_isr(void)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static int hyperv_cpu_disable(void)
-{
-	return -ENOSYS;
-}
-
-static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
-{
-	static void *previous_cpu_disable;
-
-	/*
-	 * Offlining a CPU when running on newer hypervisors (WS2012R2, Win8,
-	 * ...) is not supported at this moment as channel interrupts are
-	 * distributed across all of them.
-	 */
-
-	if ((vmbus_proto_version == VERSION_WS2008) ||
-	    (vmbus_proto_version == VERSION_WIN7))
-		return;
-
-	if (vmbus_loaded) {
-		previous_cpu_disable = smp_ops.cpu_disable;
-		smp_ops.cpu_disable = hyperv_cpu_disable;
-		pr_notice("CPU offlining is not supported by hypervisor\n");
-	} else if (previous_cpu_disable)
-		smp_ops.cpu_disable = previous_cpu_disable;
-}
-#else
-static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
-{
-}
-#endif
 
 /*
  * vmbus_bus_init -Main vmbus driver initialization routine.
@@ -836,12 +869,14 @@ static int vmbus_bus_init(int irq)
 	if (ret)
 		goto err_alloc;
 
-	hv_cpu_hotplug_quirk(true);
+	if (vmbus_proto_version > VERSION_WIN7)
+		cpu_hotplug_disable();
 
 	/*
 	 * Only register if the crash MSRs are available
 	 */
-	if (ms_hyperv.features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
+	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
+		register_die_notifier(&hyperv_die_block);
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &hyperv_panic_block);
 	}
@@ -863,8 +898,8 @@ err_cleanup:
 }
 
 /**
- * __vmbus_child_driver_register - Register a vmbus's driver
- * @drv: Pointer to driver structure you want to register
+ * __vmbus_child_driver_register() - Register a vmbus's driver
+ * @hv_driver: Pointer to driver structure you want to register
  * @owner: owner module of the drv
  * @mod_name: module name string
  *
@@ -896,7 +931,8 @@ EXPORT_SYMBOL_GPL(__vmbus_driver_register);
 
 /**
  * vmbus_driver_unregister() - Unregister a vmbus's driver
- * @drv: Pointer to driver structure you want to un-register
+ * @hv_driver: Pointer to driver structure you want to
+ *             un-register
  *
  * Un-register the given driver that was previous registered with a call to
  * vmbus_driver_register()
@@ -982,30 +1018,184 @@ void vmbus_device_unregister(struct hv_device *device_obj)
 
 
 /*
- * VMBUS is an acpi enumerated device. Get the the information we
+ * VMBUS is an acpi enumerated device. Get the information we
  * need from DSDT.
  */
-
+#define VTPM_BASE_ADDRESS 0xfed40000
 static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 {
+	resource_size_t start = 0;
+	resource_size_t end = 0;
+	struct resource *new_res;
+	struct resource **old_res = &hyperv_mmio;
+	struct resource **prev_res = NULL;
+
 	switch (res->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
 		irq = res->data.irq.interrupts[0];
+		return AE_OK;
+
+	/*
+	 * "Address" descriptors are for bus windows. Ignore
+	 * "memory" descriptors, which are for registers on
+	 * devices.
+	 */
+	case ACPI_RESOURCE_TYPE_ADDRESS32:
+		start = res->data.address32.address.minimum;
+		end = res->data.address32.address.maximum;
 		break;
 
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		hyperv_mmio.start = res->data.address64.address.minimum;
-		hyperv_mmio.end = res->data.address64.address.maximum;
+		start = res->data.address64.address.minimum;
+		end = res->data.address64.address.maximum;
 		break;
+
+	default:
+		/* Unused resource type */
+		return AE_OK;
+
 	}
+	/*
+	 * Ignore ranges that are below 1MB, as they're not
+	 * necessary or useful here.
+	 */
+	if (end < 0x100000)
+		return AE_OK;
+
+	new_res = kzalloc(sizeof(*new_res), GFP_ATOMIC);
+	if (!new_res)
+		return AE_NO_MEMORY;
+
+	/* If this range overlaps the virtual TPM, truncate it. */
+	if (end > VTPM_BASE_ADDRESS && start < VTPM_BASE_ADDRESS)
+		end = VTPM_BASE_ADDRESS;
+
+	new_res->name = "hyperv mmio";
+	new_res->flags = IORESOURCE_MEM;
+	new_res->start = start;
+	new_res->end = end;
+
+	do {
+		if (!*old_res) {
+			*old_res = new_res;
+			break;
+		}
+
+		if ((*old_res)->end < new_res->start) {
+			new_res->sibling = *old_res;
+			if (prev_res)
+				(*prev_res)->sibling = new_res;
+			*old_res = new_res;
+			break;
+		}
+
+		prev_res = old_res;
+		old_res = &(*old_res)->sibling;
+
+	} while (1);
 
 	return AE_OK;
 }
+
+static int vmbus_acpi_remove(struct acpi_device *device)
+{
+	struct resource *cur_res;
+	struct resource *next_res;
+
+	if (hyperv_mmio) {
+		for (cur_res = hyperv_mmio; cur_res; cur_res = next_res) {
+			next_res = cur_res->sibling;
+			kfree(cur_res);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * vmbus_allocate_mmio() - Pick a memory-mapped I/O range.
+ * @new:		If successful, supplied a pointer to the
+ *			allocated MMIO space.
+ * @device_obj:		Identifies the caller
+ * @min:		Minimum guest physical address of the
+ *			allocation
+ * @max:		Maximum guest physical address
+ * @size:		Size of the range to be allocated
+ * @align:		Alignment of the range to be allocated
+ * @fb_overlap_ok:	Whether this allocation can be allowed
+ *			to overlap the video frame buffer.
+ *
+ * This function walks the resources granted to VMBus by the
+ * _CRS object in the ACPI namespace underneath the parent
+ * "bridge" whether that's a root PCI bus in the Generation 1
+ * case or a Module Device in the Generation 2 case.  It then
+ * attempts to allocate from the global MMIO pool in a way that
+ * matches the constraints supplied in these parameters and by
+ * that _CRS.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
+			resource_size_t min, resource_size_t max,
+			resource_size_t size, resource_size_t align,
+			bool fb_overlap_ok)
+{
+	struct resource *iter;
+	resource_size_t range_min, range_max, start, local_min, local_max;
+	const char *dev_n = dev_name(&device_obj->device);
+	u32 fb_end = screen_info.lfb_base + (screen_info.lfb_size << 1);
+	int i;
+
+	for (iter = hyperv_mmio; iter; iter = iter->sibling) {
+		if ((iter->start >= max) || (iter->end <= min))
+			continue;
+
+		range_min = iter->start;
+		range_max = iter->end;
+
+		/* If this range overlaps the frame buffer, split it into
+		   two tries. */
+		for (i = 0; i < 2; i++) {
+			local_min = range_min;
+			local_max = range_max;
+			if (fb_overlap_ok || (range_min >= fb_end) ||
+			    (range_max <= screen_info.lfb_base)) {
+				i++;
+			} else {
+				if ((range_min <= screen_info.lfb_base) &&
+				    (range_max >= screen_info.lfb_base)) {
+					/*
+					 * The frame buffer is in this window,
+					 * so trim this into the part that
+					 * preceeds the frame buffer.
+					 */
+					local_max = screen_info.lfb_base - 1;
+					range_min = fb_end;
+				} else {
+					range_min = fb_end;
+					continue;
+				}
+			}
+
+			start = (local_min + align - 1) & ~(align - 1);
+			for (; start + size - 1 <= local_max; start += align) {
+				*new = request_mem_region_exclusive(start, size,
+								    dev_n);
+				if (*new)
+					return 0;
+			}
+		}
+	}
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(vmbus_allocate_mmio);
 
 static int vmbus_acpi_add(struct acpi_device *device)
 {
 	acpi_status result;
 	int ret_val = -ENODEV;
+	struct acpi_device *ancestor;
 
 	hv_acpi_dev = device;
 
@@ -1015,33 +1205,25 @@ static int vmbus_acpi_add(struct acpi_device *device)
 	if (ACPI_FAILURE(result))
 		goto acpi_walk_err;
 	/*
-	 * The parent of the vmbus acpi device (Gen2 firmware) is the VMOD that
-	 * has the mmio ranges. Get that.
+	 * Some ancestor of the vmbus acpi device (Gen1 or Gen2
+	 * firmware) is the VMOD that has the mmio ranges. Get that.
 	 */
-	if (device->parent) {
-		result = acpi_walk_resources(device->parent->handle,
-					METHOD_NAME__CRS,
-					vmbus_walk_resources, NULL);
+	for (ancestor = device->parent; ancestor; ancestor = ancestor->parent) {
+		result = acpi_walk_resources(ancestor->handle, METHOD_NAME__CRS,
+					     vmbus_walk_resources, NULL);
 
 		if (ACPI_FAILURE(result))
-			goto acpi_walk_err;
-		if (hyperv_mmio.start && hyperv_mmio.end)
-			request_resource(&iomem_resource, &hyperv_mmio);
+			continue;
+		if (hyperv_mmio)
+			break;
 	}
 	ret_val = 0;
 
 acpi_walk_err:
 	complete(&probe_event);
+	if (ret_val)
+		vmbus_acpi_remove(device);
 	return ret_val;
-}
-
-static int vmbus_acpi_remove(struct acpi_device *device)
-{
-	int ret = 0;
-
-	if (hyperv_mmio.start && hyperv_mmio.end)
-		ret = release_resource(&hyperv_mmio);
-	return ret;
 }
 
 static const struct acpi_device_id vmbus_acpi_device_ids[] = {
@@ -1058,6 +1240,29 @@ static struct acpi_driver vmbus_acpi_driver = {
 		.add = vmbus_acpi_add,
 		.remove = vmbus_acpi_remove,
 	},
+};
+
+static void hv_kexec_handler(void)
+{
+	int cpu;
+
+	hv_synic_clockevents_cleanup();
+	vmbus_initiate_unload();
+	for_each_online_cpu(cpu)
+		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
+	hv_cleanup();
+};
+
+static void hv_crash_handler(struct pt_regs *regs)
+{
+	vmbus_initiate_unload();
+	/*
+	 * In crash handler we can't schedule synic cleanup for all CPUs,
+	 * doing the cleanup for current CPU only. This should be sufficient
+	 * for kdump.
+	 */
+	hv_synic_cleanup(NULL);
+	hv_cleanup();
 };
 
 static int __init hv_acpi_init(void)
@@ -1092,6 +1297,9 @@ static int __init hv_acpi_init(void)
 	if (ret)
 		goto cleanup;
 
+	hv_setup_kexec_handler(hv_kexec_handler);
+	hv_setup_crash_handler(hv_crash_handler);
+
 	return 0;
 
 cleanup:
@@ -1104,13 +1312,16 @@ static void __exit vmbus_exit(void)
 {
 	int cpu;
 
+	hv_remove_kexec_handler();
+	hv_remove_crash_handler();
 	vmbus_connection.conn_state = DISCONNECTED;
 	hv_synic_clockevents_cleanup();
 	vmbus_disconnect();
 	hv_remove_vmbus_irq();
 	tasklet_kill(&msg_dpc);
 	vmbus_free_channels();
-	if (ms_hyperv.features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
+	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
+		unregister_die_notifier(&hyperv_die_block);
 		atomic_notifier_chain_unregister(&panic_notifier_list,
 						 &hyperv_panic_block);
 	}
@@ -1120,8 +1331,10 @@ static void __exit vmbus_exit(void)
 		tasklet_kill(hv_context.event_dpc[cpu]);
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
 	}
+	hv_synic_free();
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
-	hv_cpu_hotplug_quirk(false);
+	if (vmbus_proto_version > VERSION_WIN7)
+		cpu_hotplug_enable();
 }
 
 

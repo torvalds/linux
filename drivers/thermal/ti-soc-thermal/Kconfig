@@ -1,7 +1,5 @@
 config TI_SOC_THERMAL
 	tristate "Texas Instruments SoCs temperature sensor driver"
-	depends on THERMAL
-	depends on ARCH_HAS_BANDGAP
 	help
 	  If you say yes here you get support for the Texas Instruments
 	  OMAP4460+ on die bandgap temperature sensor support. The register
@@ -21,10 +19,25 @@ config TI_THERMAL
 	  This includes trip points definitions, extrapolation rules and
 	  CPU cooling device bindings.
 
+config OMAP3_THERMAL
+	bool "Texas Instruments OMAP3 thermal support"
+	depends on TI_SOC_THERMAL
+	depends on ARCH_OMAP3 || COMPILE_TEST
+	help
+	  If you say yes here you get thermal support for the Texas Instruments
+	  OMAP3 SoC family. The current chips supported are:
+	   - OMAP3430
+
+	  OMAP3 chips normally don't need thermal management, and sensors in
+	  this generation are not accurate, nor they are very close to
+	  the important hotspots.
+
+	  Say 'N' here.
+
 config OMAP4_THERMAL
 	bool "Texas Instruments OMAP4 thermal support"
 	depends on TI_SOC_THERMAL
-	depends on ARCH_OMAP4
+	depends on ARCH_OMAP4 || COMPILE_TEST
 	help
 	  If you say yes here you get thermal support for the Texas Instruments
 	  OMAP4 SoC family. The current chip supported are:
@@ -38,7 +51,7 @@ config OMAP4_THERMAL
 config OMAP5_THERMAL
 	bool "Texas Instruments OMAP5 thermal support"
 	depends on TI_SOC_THERMAL
-	depends on SOC_OMAP5
+	depends on SOC_OMAP5 || COMPILE_TEST
 	help
 	  If you say yes here you get thermal support for the Texas Instruments
 	  OMAP5 SoC family. The current chip supported are:
@@ -50,7 +63,7 @@ config OMAP5_THERMAL
 config DRA752_THERMAL
 	bool "Texas Instruments DRA752 thermal support"
 	depends on TI_SOC_THERMAL
-	depends on SOC_DRA7XX
+	depends on SOC_DRA7XX || COMPILE_TEST
 	help
 	  If you say yes here you get thermal support for the Texas Instruments
 	  DRA752 SoC family. The current chip supported are:

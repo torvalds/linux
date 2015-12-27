@@ -1578,9 +1578,7 @@ he_stop(struct he_dev *he_dev)
 
 	kfree(he_dev->rbpl_virt);
 	kfree(he_dev->rbpl_table);
-
-	if (he_dev->rbpl_pool)
-		dma_pool_destroy(he_dev->rbpl_pool);
+	dma_pool_destroy(he_dev->rbpl_pool);
 
 	if (he_dev->rbrq_base)
 		dma_free_coherent(&he_dev->pci_dev->dev, CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
@@ -1594,8 +1592,7 @@ he_stop(struct he_dev *he_dev)
 		dma_free_coherent(&he_dev->pci_dev->dev, CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
 				  he_dev->tpdrq_base, he_dev->tpdrq_phys);
 
-	if (he_dev->tpd_pool)
-		dma_pool_destroy(he_dev->tpd_pool);
+	dma_pool_destroy(he_dev->tpd_pool);
 
 	if (he_dev->pci_dev) {
 		pci_read_config_word(he_dev->pci_dev, PCI_COMMAND, &command);

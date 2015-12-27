@@ -72,7 +72,6 @@
 #define DCMD_WIDTH4	(3 << 14)	/* 4 byte width (Word) */
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
-#define PDMA_ALIGNMENT		3
 #define PDMA_MAX_DESC_BYTES	DCMD_LENGTH
 
 struct mmp_pdma_desc_hw {
@@ -1071,7 +1070,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 	pdev->device.device_issue_pending = mmp_pdma_issue_pending;
 	pdev->device.device_config = mmp_pdma_config;
 	pdev->device.device_terminate_all = mmp_pdma_terminate_all;
-	pdev->device.copy_align = PDMA_ALIGNMENT;
+	pdev->device.copy_align = DMAENGINE_ALIGN_8_BYTES;
 	pdev->device.src_addr_widths = widths;
 	pdev->device.dst_addr_widths = widths;
 	pdev->device.directions = BIT(DMA_MEM_TO_DEV) | BIT(DMA_DEV_TO_MEM);

@@ -685,10 +685,7 @@ static inline void *cxgbi_alloc_big_mem(unsigned int size,
 
 static inline void cxgbi_free_big_mem(void *addr)
 {
-	if (is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
+	kvfree(addr);
 }
 
 static inline void cxgbi_set_iscsi_ipv4(struct cxgbi_hba *chba, __be32 ipaddr)

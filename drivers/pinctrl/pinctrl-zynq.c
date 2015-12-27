@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2014 Xilinx
  *
- *  SÃ¶ren Brinkmann <soren.brinkmann@xilinx.com>
+ *  Sören Brinkmann <soren.brinkmann@xilinx.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -706,10 +706,10 @@ static const char * const sdio1_wp_groups[] = {"gpio0_0_grp",
 		"gpio0_39_grp", "gpio0_41_grp", "gpio0_43_grp",
 		"gpio0_45_grp", "gpio0_47_grp", "gpio0_49_grp",
 		"gpio0_51_grp", "gpio0_53_grp", "sdio1_emio_wp_grp"};
-static const char * const smc0_nor_groups[] = {"smc0_nor"};
+static const char * const smc0_nor_groups[] = {"smc0_nor_grp"};
 static const char * const smc0_nor_cs1_groups[] = {"smc0_nor_cs1_grp"};
 static const char * const smc0_nor_addr25_groups[] = {"smc0_nor_addr25_grp"};
-static const char * const smc0_nand_groups[] = {"smc0_nand"};
+static const char * const smc0_nand_groups[] = {"smc0_nand_grp"};
 static const char * const can0_groups[] = {"can0_0_grp", "can0_1_grp",
 		"can0_2_grp", "can0_3_grp", "can0_4_grp", "can0_5_grp",
 		"can0_6_grp", "can0_7_grp", "can0_8_grp", "can0_9_grp",
@@ -1230,8 +1230,18 @@ static struct platform_driver zynq_pinctrl_driver = {
 	.remove = zynq_pinctrl_remove,
 };
 
-module_platform_driver(zynq_pinctrl_driver);
+static int __init zynq_pinctrl_init(void)
+{
+	return platform_driver_register(&zynq_pinctrl_driver);
+}
+arch_initcall(zynq_pinctrl_init);
 
-MODULE_AUTHOR("SÃ¶ren Brinkmann <soren.brinkmann@xilinx.com>");
+static void __exit zynq_pinctrl_exit(void)
+{
+	platform_driver_unregister(&zynq_pinctrl_driver);
+}
+module_exit(zynq_pinctrl_exit);
+
+MODULE_AUTHOR("Sören Brinkmann <soren.brinkmann@xilinx.com>");
 MODULE_DESCRIPTION("Xilinx Zynq pinctrl driver");
 MODULE_LICENSE("GPL");

@@ -26,10 +26,8 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/gpio.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -109,40 +107,6 @@ static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 	writel(1, srcbase + 0x18);
 }
 
-/*
- * This GPIO pin turns on a line that is used to detect card insertion
- * on this board.
- */
-static int __init cpu8815_mmcsd_init(void)
-{
-	struct device_node *cdbias;
-	int gpio, err;
-
-	cdbias = of_find_node_by_path("/usb-s8815/mmcsd-gpio");
-	if (!cdbias) {
-		pr_info("could not find MMC/SD card detect bias node\n");
-		return 0;
-	}
-	gpio = of_get_gpio(cdbias, 0);
-	if (gpio < 0) {
-		pr_info("could not obtain MMC/SD card detect bias GPIO\n");
-		return 0;
-	}
-	err = gpio_request(gpio, "card detect bias");
-	if (err) {
-		pr_info("failed to request card detect bias GPIO %d\n", gpio);
-		return -ENODEV;
-	}
-	err = gpio_direction_output(gpio, 0);
-	if (err){
-		pr_info("failed to set GPIO %d as output, low\n", gpio);
-		return err;
-	}
-	pr_info("enabled USB-S8815 CD bias GPIO %d, low\n", gpio);
-	return 0;
-}
-device_initcall(cpu8815_mmcsd_init);
-
 static const char * cpu8815_board_compat[] = {
 	"st,nomadik-nhk-15",
 	"calaosystems,usb-s8815",
@@ -150,9 +114,8 @@ static const char * cpu8815_board_compat[] = {
 };
 
 DT_MACHINE_START(NOMADIK_DT, "Nomadik STn8815")
-	/* At full speed latency must be >=2, so 0x249 in low bits */
-	.l2c_aux_val	= 0x00700249,
-	.l2c_aux_mask	= 0xfe0fefff,
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.map_io		= cpu8815_map_io,
 	.restart	= cpu8815_restart,
 	.dt_compat      = cpu8815_board_compat,

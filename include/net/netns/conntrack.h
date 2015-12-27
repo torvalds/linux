@@ -68,7 +68,6 @@ struct ct_pcpu {
 	spinlock_t		lock;
 	struct hlist_nulls_head unconfirmed;
 	struct hlist_nulls_head dying;
-	struct hlist_nulls_head tmpl;
 };
 
 struct netns_ct {

@@ -7,7 +7,7 @@
 
 #include <asm/addrspace.h>
 
-#if defined(CONFIG_MACH_LOONGSON) || defined(CONFIG_MIPS_MALTA)
+#if defined(CONFIG_MACH_LOONGSON64) || defined(CONFIG_MIPS_MALTA)
 #define UART_BASE 0x1fd003f8
 #define PORT(offset) (CKSEG1ADDR(UART_BASE) + (offset))
 #endif

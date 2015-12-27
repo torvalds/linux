@@ -29,4 +29,13 @@ struct clk_zx_pll {
 struct clk *clk_register_zx_pll(const char *name, const char *parent_name,
 	unsigned long flags, void __iomem *reg_base,
 	const struct zx_pll_config *lookup_table, int count, spinlock_t *lock);
+
+struct clk_zx_audio {
+	struct clk_hw hw;
+	void __iomem *reg_base;
+};
+
+struct clk *clk_register_zx_audio(const char *name,
+				  const char * const parent_name,
+				  unsigned long flags, void __iomem *reg_base);
 #endif

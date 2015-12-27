@@ -17,12 +17,11 @@
 #include <linux/io.h>
 
 #include <asm/exception.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-
-#include "irqchip.h"
 
 /* Define these here for now until we drop all board-files */
 #define OMAP24XX_IC_BASE	0x480fe000
@@ -331,37 +330,12 @@ static int __init omap_init_irq(u32 base, struct device_node *node)
 static asmlinkage void __exception_irq_entry
 omap_intc_handle_irq(struct pt_regs *regs)
 {
-	u32 irqnr = 0;
-	int handled_irq = 0;
-	int i;
+	u32 irqnr;
 
-	do {
-		for (i = 0; i < omap_nr_pending; i++) {
-			irqnr = intc_readl(INTC_PENDING_IRQ0 + (0x20 * i));
-			if (irqnr)
-				goto out;
-		}
-
-out:
-		if (!irqnr)
-			break;
-
-		irqnr = intc_readl(INTC_SIR);
-		irqnr &= ACTIVEIRQ_MASK;
-
-		if (irqnr) {
-			handle_domain_irq(domain, irqnr, regs);
-			handled_irq = 1;
-		}
-	} while (irqnr);
-
-	/*
-	 * If an irq is masked or deasserted while active, we will
-	 * keep ending up here with no irq handled. So remove it from
-	 * the INTC with an ack.
-	 */
-	if (!handled_irq)
-		omap_ack_irq(NULL);
+	irqnr = intc_readl(INTC_SIR);
+	irqnr &= ACTIVEIRQ_MASK;
+	WARN_ONCE(!irqnr, "Spurious IRQ ?\n");
+	handle_domain_irq(domain, irqnr, regs);
 }
 
 void __init omap3_init_irq(void)

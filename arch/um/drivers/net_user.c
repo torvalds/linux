@@ -166,7 +166,7 @@ int net_sendto(int fd, void *buf, int len, void *to, int sock_len)
 
 struct change_pre_exec_data {
 	int close_me;
-	int stdout;
+	int stdout_fd;
 };
 
 static void change_pre_exec(void *arg)
@@ -174,7 +174,7 @@ static void change_pre_exec(void *arg)
 	struct change_pre_exec_data *data = arg;
 
 	close(data->close_me);
-	dup2(data->stdout, 1);
+	dup2(data->stdout_fd, 1);
 }
 
 static int change_tramp(char **argv, char *output, int output_len)
@@ -189,7 +189,7 @@ static int change_tramp(char **argv, char *output, int output_len)
 		return err;
 	}
 	pe_data.close_me = fds[0];
-	pe_data.stdout = fds[1];
+	pe_data.stdout_fd = fds[1];
 	pid = run_helper(change_pre_exec, &pe_data, argv);
 
 	if (pid > 0)	/* Avoid hang as we won't get data in failure case. */
@@ -249,21 +249,23 @@ void close_addr(unsigned char *addr, unsigned char *netmask, void *arg)
 
 char *split_if_spec(char *str, ...)
 {
-	char **arg, *end;
+	char **arg, *end, *ret = NULL;
 	va_list ap;
 
 	va_start(ap, str);
 	while ((arg = va_arg(ap, char **)) != NULL) {
 		if (*str == '\0')
-			return NULL;
+			goto out;
 		end = strchr(str, ',');
 		if (end != str)
 			*arg = str;
 		if (end == NULL)
-			return NULL;
+			goto out;
 		*end++ = '\0';
 		str = end;
 	}
+	ret = str;
+out:
 	va_end(ap);
-	return str;
+	return ret;
 }

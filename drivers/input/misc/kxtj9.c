@@ -635,7 +635,6 @@ static int __maybe_unused kxtj9_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
 	struct input_dev *input_dev = tj9->input_dev;
-	int retval = 0;
 
 	mutex_lock(&input_dev->mutex);
 
@@ -643,7 +642,7 @@ static int __maybe_unused kxtj9_resume(struct device *dev)
 		kxtj9_enable(tj9);
 
 	mutex_unlock(&input_dev->mutex);
-	return retval;
+	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(kxtj9_pm_ops, kxtj9_suspend, kxtj9_resume);
@@ -658,7 +657,6 @@ MODULE_DEVICE_TABLE(i2c, kxtj9_id);
 static struct i2c_driver kxtj9_driver = {
 	.driver = {
 		.name	= NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &kxtj9_pm_ops,
 	},
 	.probe		= kxtj9_probe,

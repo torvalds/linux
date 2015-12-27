@@ -32,21 +32,21 @@ dcb_i2c_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	u16 dcb = dcb_table(bios, ver, hdr, cnt, len);
 	if (dcb) {
 		if (*ver >= 0x15)
-			i2c = nv_ro16(bios, dcb + 2);
+			i2c = nvbios_rd16(bios, dcb + 2);
 		if (*ver >= 0x30)
-			i2c = nv_ro16(bios, dcb + 4);
+			i2c = nvbios_rd16(bios, dcb + 4);
 	}
 
 	if (i2c && *ver >= 0x42) {
-		nv_warn(bios, "ccb %02x not supported\n", *ver);
+		nvkm_warn(&bios->subdev, "ccb %02x not supported\n", *ver);
 		return 0x0000;
 	}
 
 	if (i2c && *ver >= 0x30) {
-		*ver = nv_ro08(bios, i2c + 0);
-		*hdr = nv_ro08(bios, i2c + 1);
-		*cnt = nv_ro08(bios, i2c + 2);
-		*len = nv_ro08(bios, i2c + 3);
+		*ver = nvbios_rd08(bios, i2c + 0);
+		*hdr = nvbios_rd08(bios, i2c + 1);
+		*cnt = nvbios_rd08(bios, i2c + 2);
+		*len = nvbios_rd08(bios, i2c + 3);
 	} else {
 		*ver = *ver; /* use DCB version */
 		*hdr = 0;
@@ -70,13 +70,14 @@ dcb_i2c_entry(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len)
 int
 dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	u8  ver, len;
 	u16 ent = dcb_i2c_entry(bios, idx, &ver, &len);
 	if (ent) {
 		if (ver >= 0x41) {
-			u32 ent_value = nv_ro32(bios, ent);
-			u8 i2c_port = (ent_value >> 27) & 0x1f;
-			u8 dpaux_port = (ent_value >> 22) & 0x1f;
+			u32 ent_value = nvbios_rd32(bios, ent);
+			u8 i2c_port = (ent_value >> 0) & 0x1f;
+			u8 dpaux_port = (ent_value >> 5) & 0x1f;
 			/* value 0x1f means unused according to DCB 4.x spec */
 			if (i2c_port == 0x1f && dpaux_port == 0x1f)
 				info->type = DCB_I2C_UNUSED;
@@ -84,9 +85,9 @@ dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 				info->type = DCB_I2C_PMGR;
 		} else
 		if (ver >= 0x30) {
-			info->type = nv_ro08(bios, ent + 0x03);
+			info->type = nvbios_rd08(bios, ent + 0x03);
 		} else {
-			info->type = nv_ro08(bios, ent + 0x03) & 0x07;
+			info->type = nvbios_rd08(bios, ent + 0x03) & 0x07;
 			if (info->type == 0x07)
 				info->type = DCB_I2C_UNUSED;
 		}
@@ -98,27 +99,27 @@ dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 
 		switch (info->type) {
 		case DCB_I2C_NV04_BIT:
-			info->drive = nv_ro08(bios, ent + 0);
-			info->sense = nv_ro08(bios, ent + 1);
+			info->drive = nvbios_rd08(bios, ent + 0);
+			info->sense = nvbios_rd08(bios, ent + 1);
 			return 0;
 		case DCB_I2C_NV4E_BIT:
-			info->drive = nv_ro08(bios, ent + 1);
+			info->drive = nvbios_rd08(bios, ent + 1);
 			return 0;
 		case DCB_I2C_NVIO_BIT:
-			info->drive = nv_ro08(bios, ent + 0) & 0x0f;
-			if (nv_ro08(bios, ent + 1) & 0x01)
-				info->share = nv_ro08(bios, ent + 1) >> 1;
+			info->drive = nvbios_rd08(bios, ent + 0) & 0x0f;
+			if (nvbios_rd08(bios, ent + 1) & 0x01)
+				info->share = nvbios_rd08(bios, ent + 1) >> 1;
 			return 0;
 		case DCB_I2C_NVIO_AUX:
-			info->auxch = nv_ro08(bios, ent + 0) & 0x0f;
-			if (nv_ro08(bios, ent + 1) & 0x01)
+			info->auxch = nvbios_rd08(bios, ent + 0) & 0x0f;
+			if (nvbios_rd08(bios, ent + 1) & 0x01)
 					info->share = info->auxch;
 			return 0;
 		case DCB_I2C_PMGR:
-			info->drive = (nv_ro16(bios, ent + 0) & 0x01f) >> 0;
+			info->drive = (nvbios_rd16(bios, ent + 0) & 0x01f) >> 0;
 			if (info->drive == 0x1f)
 				info->drive = DCB_I2C_UNUSED;
-			info->auxch = (nv_ro16(bios, ent + 0) & 0x3e0) >> 5;
+			info->auxch = (nvbios_rd16(bios, ent + 0) & 0x3e0) >> 5;
 			if (info->auxch == 0x1f)
 				info->auxch = DCB_I2C_UNUSED;
 			info->share = info->auxch;
@@ -126,7 +127,7 @@ dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 		case DCB_I2C_UNUSED:
 			return 0;
 		default:
-			nv_warn(bios, "unknown i2c type %d\n", info->type);
+			nvkm_warn(subdev, "unknown i2c type %d\n", info->type);
 			info->type = DCB_I2C_UNUSED;
 			return 0;
 		}
@@ -136,21 +137,21 @@ dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 		/* BMP (from v4.0 has i2c info in the structure, it's in a
 		 * fixed location on earlier VBIOS
 		 */
-		if (nv_ro08(bios, bios->bmp_offset + 5) < 4)
+		if (nvbios_rd08(bios, bios->bmp_offset + 5) < 4)
 			ent = 0x0048;
 		else
 			ent = 0x0036 + bios->bmp_offset;
 
 		if (idx == 0) {
-			info->drive = nv_ro08(bios, ent + 4);
+			info->drive = nvbios_rd08(bios, ent + 4);
 			if (!info->drive) info->drive = 0x3f;
-			info->sense = nv_ro08(bios, ent + 5);
+			info->sense = nvbios_rd08(bios, ent + 5);
 			if (!info->sense) info->sense = 0x3e;
 		} else
 		if (idx == 1) {
-			info->drive = nv_ro08(bios, ent + 6);
+			info->drive = nvbios_rd08(bios, ent + 6);
 			if (!info->drive) info->drive = 0x37;
-			info->sense = nv_ro08(bios, ent + 7);
+			info->sense = nvbios_rd08(bios, ent + 7);
 			if (!info->sense) info->sense = 0x36;
 		}
 

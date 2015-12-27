@@ -29,7 +29,7 @@ int bpf_prog1(struct pt_regs *ctx)
 	int len;
 
 	/* non-portable! works for the given kernel only */
-	skb = (struct sk_buff *) ctx->di;
+	skb = (struct sk_buff *) PT_REGS_PARM1(ctx);
 
 	dev = _(skb->dev);
 

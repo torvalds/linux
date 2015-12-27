@@ -153,7 +153,6 @@ lio_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	strncpy(drvinfo->fw_version, oct->fw_info.liquidio_firmware_version,
 		ETHTOOL_FWVERS_LEN);
 	strncpy(drvinfo->bus_info, pci_name(oct->pci_dev), 32);
-	drvinfo->regdump_len = OCT_ETHTOOL_REGDUMP_LEN;
 }
 
 static void
@@ -434,8 +433,9 @@ static int lio_set_phys_id(struct net_device *netdev,
 			if (ret)
 				return ret;
 
-			octnet_mdio45_access(lio, 1, LIO68XX_LED_BEACON_ADDR,
-					     &lio->phy_beacon_val);
+			ret = octnet_mdio45_access(lio, 1,
+						   LIO68XX_LED_BEACON_ADDR,
+						   &lio->phy_beacon_val);
 			if (ret)
 				return ret;
 

@@ -353,6 +353,9 @@ kvp_send_key(struct work_struct *dummy)
 		return;
 
 	message = kzalloc(sizeof(*message), GFP_KERNEL);
+	if (!message)
+		return;
+
 	message->kvp_hdr.operation = operation;
 	message->kvp_hdr.pool = pool;
 	in_msg = kvp_transaction.kvp_msg;

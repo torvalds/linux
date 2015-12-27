@@ -21,46 +21,29 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv40.h"
+#include "ramnv40.h"
 
-static int
-nv49_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+int
+nv49_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
-	struct nvkm_fb *pfb = nvkm_fb(parent);
-	struct nv40_ram *ram;
-	u32 pfb914 = nv_rd32(pfb, 0x100914);
+	struct nvkm_device *device = fb->subdev.device;
+	u32  size = nvkm_rd32(device, 0x10020c) & 0xff000000;
+	u32  tags = nvkm_rd32(device, 0x100320);
+	u32 fb914 = nvkm_rd32(device, 0x100914);
+	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
 	int ret;
 
-	ret = nvkm_ram_create(parent, engine, oclass, &ram);
-	*pobject = nv_object(ram);
-	if (ret)
-		return ret;
-
-	switch (pfb914 & 0x00000003) {
-	case 0x00000000: ram->base.type = NV_MEM_TYPE_DDR1; break;
-	case 0x00000001: ram->base.type = NV_MEM_TYPE_DDR2; break;
-	case 0x00000002: ram->base.type = NV_MEM_TYPE_GDDR3; break;
+	switch (fb914 & 0x00000003) {
+	case 0x00000000: type = NVKM_RAM_TYPE_DDR1 ; break;
+	case 0x00000001: type = NVKM_RAM_TYPE_DDR2 ; break;
+	case 0x00000002: type = NVKM_RAM_TYPE_GDDR3; break;
 	case 0x00000003: break;
 	}
 
-	ram->base.size  =  nv_rd32(pfb, 0x10020c) & 0xff000000;
-	ram->base.parts = (nv_rd32(pfb, 0x100200) & 0x00000003) + 1;
-	ram->base.tags  =  nv_rd32(pfb, 0x100320);
-	ram->base.calc = nv40_ram_calc;
-	ram->base.prog = nv40_ram_prog;
-	ram->base.tidy = nv40_ram_tidy;
+	ret = nv40_ram_new_(fb, type, size, tags, pram);
+	if (ret)
+		return ret;
+
+	(*pram)->parts = (nvkm_rd32(device, 0x100200) & 0x00000003) + 1;
 	return 0;
 }
-
-struct nvkm_oclass
-nv49_ram_oclass = {
-	.handle = 0,
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv49_ram_create,
-		.dtor = _nvkm_ram_dtor,
-		.init = _nvkm_ram_init,
-		.fini = _nvkm_ram_fini,
-	}
-};

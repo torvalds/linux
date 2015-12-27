@@ -36,6 +36,11 @@ static int _eprintf(int level, int var, const char *fmt, va_list args)
 	return ret;
 }
 
+int veprintf(int level, int var, const char *fmt, va_list args)
+{
+	return _eprintf(level, var, fmt, args);
+}
+
 int eprintf(int level, int var, const char *fmt, ...)
 {
 	va_list args;
