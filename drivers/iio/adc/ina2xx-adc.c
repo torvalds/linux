@@ -400,7 +400,7 @@ static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
 		.sign = 'u', \
 		.realbits = 16, \
 		.storagebits = 16, \
-		.endianness = IIO_LE, \
+		.endianness = IIO_CPU, \
 	} \
 }
 
@@ -428,8 +428,8 @@ static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
 static const struct iio_chan_spec ina2xx_channels[] = {
 	INA2XX_CHAN_VOLTAGE(0, INA2XX_SHUNT_VOLTAGE),
 	INA2XX_CHAN_VOLTAGE(1, INA2XX_BUS_VOLTAGE),
-	INA2XX_CHAN(IIO_CURRENT, 2, INA2XX_CURRENT),
-	INA2XX_CHAN(IIO_POWER, 3, INA2XX_POWER),
+	INA2XX_CHAN(IIO_POWER, 2, INA2XX_POWER),
+	INA2XX_CHAN(IIO_CURRENT, 3, INA2XX_CURRENT),
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 

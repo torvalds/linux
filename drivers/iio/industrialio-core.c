@@ -470,6 +470,7 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 		return 0;
 	}
 }
+EXPORT_SYMBOL_GPL(iio_format_value);
 
 static ssize_t iio_read_channel_info(struct device *dev,
 				     struct device_attribute *attr,
