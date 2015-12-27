@@ -363,7 +363,7 @@ static int bnxt_hwrm_func_buf_rgtr(struct bnxt *bp)
 }
 
 /* only call by PF to reserve resources for VF */
-static int bnxt_hwrm_func_cfg(struct bnxt *bp, int *num_vfs)
+static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 {
 	u32 rc = 0, mtu, i;
 	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings, vf_stat_ctx, vf_vnics;
@@ -378,18 +378,17 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int *num_vfs)
 	 * be removed once new HWRM provides HW ring groups capability in
 	 * hwrm_func_qcap.
 	 */
-	vf_cp_rings = min_t(u16, bp->pf.max_cp_rings, bp->pf.max_stat_ctxs);
-	vf_cp_rings = (vf_cp_rings - bp->cp_nr_rings) / *num_vfs;
+	vf_cp_rings = min_t(u16, pf->max_cp_rings, pf->max_stat_ctxs);
+	vf_cp_rings = (vf_cp_rings - bp->cp_nr_rings) / num_vfs;
 	/* TODO: restore this logic below once the WA above is removed */
-	/* vf_cp_rings = (bp->pf.max_cp_rings - bp->cp_nr_rings) / *num_vfs; */
-	vf_stat_ctx = (bp->pf.max_stat_ctxs - bp->num_stat_ctxs) / *num_vfs;
+	/* vf_cp_rings = (pf->max_cp_rings - bp->cp_nr_rings) / num_vfs; */
+	vf_stat_ctx = (pf->max_stat_ctxs - bp->num_stat_ctxs) / num_vfs;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		vf_rx_rings = (bp->pf.max_rx_rings - bp->rx_nr_rings * 2) /
-			      *num_vfs;
+		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings * 2) /
+			      num_vfs;
 	else
-		vf_rx_rings = (bp->pf.max_rx_rings - bp->rx_nr_rings) /
-			      *num_vfs;
-	vf_tx_rings = (bp->pf.max_tx_rings - bp->tx_nr_rings) / *num_vfs;
+		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings) / num_vfs;
+	vf_tx_rings = (pf->max_tx_rings - bp->tx_nr_rings) / num_vfs;
 
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
 				  FUNC_CFG_REQ_ENABLES_MRU |
@@ -417,22 +416,22 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int *num_vfs)
 	req.num_stat_ctxs = cpu_to_le16(vf_stat_ctx);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
-	for (i = 0; i < *num_vfs; i++) {
+	for (i = 0; i < num_vfs; i++) {
 		req.vf_id = cpu_to_le16(pf->first_vf_id + i);
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
 		if (rc)
 			break;
-		bp->pf.active_vfs = i + 1;
-		bp->pf.vf[i].fw_fid = le16_to_cpu(req.vf_id);
+		pf->active_vfs = i + 1;
+		pf->vf[i].fw_fid = le16_to_cpu(req.vf_id);
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	if (!rc) {
-		bp->pf.max_pf_tx_rings = bp->tx_nr_rings;
+		pf->max_pf_tx_rings = bp->tx_nr_rings;
 		if (bp->flags & BNXT_FLAG_AGG_RINGS)
-			bp->pf.max_pf_rx_rings = bp->rx_nr_rings * 2;
+			pf->max_pf_rx_rings = bp->rx_nr_rings * 2;
 		else
-			bp->pf.max_pf_rx_rings = bp->rx_nr_rings;
+			pf->max_pf_rx_rings = bp->rx_nr_rings;
 	}
 	return rc;
 }
@@ -492,7 +491,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 		goto err_out1;
 
 	/* Reserve resources for VFs */
-	rc = bnxt_hwrm_func_cfg(bp, num_vfs);
+	rc = bnxt_hwrm_func_cfg(bp, *num_vfs);
 	if (rc)
 		goto err_out2;
 
