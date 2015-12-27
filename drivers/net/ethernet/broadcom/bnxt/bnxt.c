@@ -2787,7 +2787,7 @@ static int bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt *bp, u16 vnic_id)
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_L2_SET_RX_MASK, -1, -1);
-	req.dflt_vnic_id = cpu_to_le32(vnic->fw_vnic_id);
+	req.vnic_id = cpu_to_le32(vnic->fw_vnic_id);
 
 	req.num_mc_entries = cpu_to_le32(vnic->mc_list_count);
 	req.mc_tbl_addr = cpu_to_le64(vnic->mc_list_mapping);
@@ -2820,7 +2820,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_SRC_PORT_MASK |	\
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_DST_PORT |		\
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_DST_PORT_MASK |	\
-	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_DST_VNIC_ID)
+	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_DST_ID)
 
 static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 					     struct bnxt_ntuple_filter *fltr)
@@ -2839,7 +2839,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 
 	req.ethertype = htons(ETH_P_IP);
 	memcpy(req.src_macaddr, fltr->src_mac_addr, ETH_ALEN);
-	req.ipaddr_type = 4;
+	req.ip_addr_type = CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV4;
 	req.ip_protocol = keys->basic.ip_proto;
 
 	req.src_ipaddr[0] = keys->addrs.v4addrs.src;
@@ -2852,7 +2852,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.dst_port = keys->ports.dst;
 	req.dst_port_mask = cpu_to_be16(0xffff);
 
-	req.dst_vnic_id = cpu_to_le16(vnic->fw_vnic_id);
+	req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc)
@@ -2872,10 +2872,10 @@ static int bnxt_hwrm_set_vnic_filter(struct bnxt *bp, u16 vnic_id, u16 idx,
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_L2_FILTER_ALLOC, -1, -1);
 	req.flags = cpu_to_le32(CFA_L2_FILTER_ALLOC_REQ_FLAGS_PATH_RX |
 				CFA_L2_FILTER_ALLOC_REQ_FLAGS_OUTERMOST);
-	req.dst_vnic_id = cpu_to_le16(bp->vnic_info[vnic_id].fw_vnic_id);
+	req.dst_id = cpu_to_le16(bp->vnic_info[vnic_id].fw_vnic_id);
 	req.enables =
 		cpu_to_le32(CFA_L2_FILTER_ALLOC_REQ_ENABLES_L2_ADDR |
-			    CFA_L2_FILTER_ALLOC_REQ_ENABLES_DST_VNIC_ID |
+			    CFA_L2_FILTER_ALLOC_REQ_ENABLES_DST_ID |
 			    CFA_L2_FILTER_ALLOC_REQ_ENABLES_L2_ADDR_MASK);
 	memcpy(req.l2_addr, mac_addr, ETH_ALEN);
 	req.l2_addr_mask[0] = 0xff;
@@ -2945,7 +2945,8 @@ static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 
 		req.enables =
 			cpu_to_le32(VNIC_TPA_CFG_REQ_ENABLES_MAX_AGG_SEGS |
-				    VNIC_TPA_CFG_REQ_ENABLES_MAX_AGGS);
+				    VNIC_TPA_CFG_REQ_ENABLES_MAX_AGGS |
+				    VNIC_TPA_CFG_REQ_ENABLES_MIN_AGG_LEN);
 
 		/* Number of segs are log2 units, and first packet is not
 		 * included as part of this units.
@@ -2963,6 +2964,8 @@ static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 		segs = ilog2(nsegs);
 		req.max_agg_segs = cpu_to_le16(segs);
 		req.max_aggs = cpu_to_le16(VNIC_TPA_CFG_REQ_MAX_AGGS_MAX);
+
+		req.min_agg_len = cpu_to_le32(512);
 	}
 	req.vnic_id = cpu_to_le16(vnic->fw_vnic_id);
 
@@ -3726,14 +3729,11 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 
 	memcpy(&bp->ver_resp, resp, sizeof(struct hwrm_ver_get_output));
 
-	if (req.hwrm_intf_maj != resp->hwrm_intf_maj ||
-	    req.hwrm_intf_min != resp->hwrm_intf_min ||
-	    req.hwrm_intf_upd != resp->hwrm_intf_upd) {
-		netdev_warn(bp->dev, "HWRM interface %d.%d.%d does not match driver interface %d.%d.%d.\n",
+	if (resp->hwrm_intf_maj < 1) {
+		netdev_warn(bp->dev, "HWRM interface %d.%d.%d is older than 1.0.0.\n",
 			    resp->hwrm_intf_maj, resp->hwrm_intf_min,
-			    resp->hwrm_intf_upd, req.hwrm_intf_maj,
-			    req.hwrm_intf_min, req.hwrm_intf_upd);
-		netdev_warn(bp->dev, "Please update driver or firmware with matching interface versions.\n");
+			    resp->hwrm_intf_upd);
+		netdev_warn(bp->dev, "Please update firmware with HWRM interface 1.0.0 or newer.\n");
 	}
 	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "bc %d.%d.%d rm %d.%d.%d",
 		 resp->hwrm_fw_maj, resp->hwrm_fw_min, resp->hwrm_fw_bld,
@@ -3936,8 +3936,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	}
 	bp->vnic_info[0].uc_filter_count = 1;
 
-	bp->vnic_info[0].rx_mask = CFA_L2_SET_RX_MASK_REQ_MASK_UNICAST |
-				   CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
+	bp->vnic_info[0].rx_mask = CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
 
 	if ((bp->dev->flags & IFF_PROMISC) && BNXT_PF(bp))
 		bp->vnic_info[0].rx_mask |=
@@ -4343,7 +4342,7 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->auto_mode = resp->auto_mode;
 	link_info->auto_pause_setting = resp->auto_pause;
 	link_info->force_pause_setting = resp->force_pause;
-	link_info->duplex_setting = resp->duplex_setting;
+	link_info->duplex_setting = resp->duplex;
 	if (link_info->phy_link_status == BNXT_LINK_LINK)
 		link_info->link_speed = le16_to_cpu(resp->link_speed);
 	else

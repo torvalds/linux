@@ -11,11 +11,11 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"0.1.24"
+#define DRV_MODULE_VERSION	"1.0.0"
 
-#define DRV_VER_MAJ	0
-#define DRV_VER_MIN	1
-#define DRV_VER_UPD	24
+#define DRV_VER_MAJ	1
+#define DRV_VER_MIN	0
+#define DRV_VER_UPD	0
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
