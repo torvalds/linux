@@ -818,6 +818,9 @@ static int bnxt_flash_firmware(struct net_device *dev,
 	case BNX_DIR_TYPE_BOOTCODE_2:
 		code_type = CODE_BOOT;
 		break;
+	case BNX_DIR_TYPE_APE_FW:
+		code_type = CODE_MCTP_PASSTHRU;
+		break;
 	default:
 		netdev_err(dev, "Unsupported directory entry type: %u\n",
 			   dir_type);
