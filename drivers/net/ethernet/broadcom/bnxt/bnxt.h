@@ -695,6 +695,7 @@ struct bnxt_vf_info {
 	u16	max_cp_rings;
 	u16	max_tx_rings;
 	u16	max_rx_rings;
+	u16	max_hw_ring_grps;
 	u16	max_l2_ctxs;
 	u16	max_irqs;
 	u16	max_vnics;
@@ -723,6 +724,7 @@ struct bnxt_pf_info {
 	u16	max_cp_rings;
 	u16	max_tx_rings; /* HW assigned max tx rings for this PF */
 	u16	max_rx_rings; /* HW assigned max rx rings for this PF */
+	u16	max_hw_ring_grps;
 	u16	max_irqs;
 	u16	max_l2_ctxs;
 	u16	max_vnics;

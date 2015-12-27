@@ -367,6 +367,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 {
 	u32 rc = 0, mtu, i;
 	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings, vf_stat_ctx, vf_vnics;
+	u16 vf_ring_grps;
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt_pf_info *pf = &bp->pf;
 
@@ -388,6 +389,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 			      num_vfs;
 	else
 		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings) / num_vfs;
+	vf_ring_grps = (bp->pf.max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
 	vf_tx_rings = (pf->max_tx_rings - bp->tx_nr_rings) / num_vfs;
 
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
@@ -398,7 +400,8 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 				  FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS |
 				  FUNC_CFG_REQ_ENABLES_NUM_RX_RINGS |
 				  FUNC_CFG_REQ_ENABLES_NUM_L2_CTXS |
-				  FUNC_CFG_REQ_ENABLES_NUM_VNICS);
+				  FUNC_CFG_REQ_ENABLES_NUM_VNICS |
+				  FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS);
 
 	mtu = bp->dev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	req.mru = cpu_to_le16(mtu);
@@ -408,6 +411,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	req.num_cmpl_rings = cpu_to_le16(vf_cp_rings);
 	req.num_tx_rings = cpu_to_le16(vf_tx_rings);
 	req.num_rx_rings = cpu_to_le16(vf_rx_rings);
+	req.num_hw_ring_grps = cpu_to_le16(vf_ring_grps);
 	req.num_l2_ctxs = cpu_to_le16(4);
 	vf_vnics = 1;
 
@@ -429,6 +433,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	if (!rc) {
 		pf->max_tx_rings -= vf_tx_rings * num_vfs;
 		pf->max_rx_rings -= vf_rx_rings * num_vfs;
+		pf->max_hw_ring_grps -= vf_ring_grps * num_vfs;
 		pf->max_cp_rings -= vf_cp_rings * num_vfs;
 		pf->max_rsscos_ctxs -= num_vfs;
 		pf->max_stat_ctxs -= vf_stat_ctx * num_vfs;
