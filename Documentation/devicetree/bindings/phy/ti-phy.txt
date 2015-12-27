@@ -31,6 +31,8 @@ OMAP USB2 PHY
 
 Required properties:
  - compatible: Should be "ti,omap-usb2"
+	       Should be "ti,dra7x-usb2-phy2" for the 2nd instance of USB2 PHY
+	       in DRA7x
  - reg : Address and length of the register set for the device.
  - #phy-cells: determine the number of cells that should be given in the
    phandle while referencing this phy.
@@ -40,9 +42,13 @@ Required properties:
    * "wkupclk" - wakeup clock.
    * "refclk" - reference clock (optional).
 
-Optional properties:
+Deprecated properties:
  - ctrl-module : phandle of the control module used by PHY driver to power on
    the PHY.
+
+Recommended properies:
+- syscon-phy-power : phandle/offset pair. Phandle to the system control
+  module and the register offset to power on/off the PHY.
 
 This is usually a subnode of ocp2scp to which it is connected.
 
@@ -77,14 +83,22 @@ Required properties:
    * "div-clk" - apll clock
 
 Optional properties:
- - ctrl-module : phandle of the control module used by PHY driver to power on
-   the PHY.
  - id: If there are multiple instance of the same type, in order to
    differentiate between each instance "id" can be used (e.g., multi-lane PCIe
    PHY). If "id" is not provided, it is set to default value of '1'.
  - syscon-pllreset: Handle to system control region that contains the
    CTRL_CORE_SMA_SW_0 register and register offset to the CTRL_CORE_SMA_SW_0
    register that contains the SATA_PLL_SOFT_RESET bit. Only valid for sata_phy.
+ - syscon-pcs : phandle/offset pair. Phandle to the system control module and the
+   register offset to write the PCS delay value.
+
+Deprecated properties:
+ - ctrl-module : phandle of the control module used by PHY driver to power on
+   the PHY.
+
+Recommended properies:
+ - syscon-phy-power : phandle/offset pair. Phandle to the system control
+   module and the register offset to power on/off the PHY.
 
 This is usually a subnode of ocp2scp to which it is connected.
 

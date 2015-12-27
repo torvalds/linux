@@ -1,7 +1,10 @@
 ROCKCHIP USB2 PHY
 
 Required properties:
- - compatible: rockchip,rk3288-usb-phy
+ - compatible: matching the soc type, one of
+     "rockchip,rk3066a-usb-phy"
+     "rockchip,rk3188-usb-phy"
+     "rockchip,rk3288-usb-phy"
  - rockchip,grf : phandle to the syscon managing the "general
    register files"
  - #address-cells: should be 1
@@ -21,6 +24,7 @@ required properties:
 Optional Properties:
 - clocks : phandle + clock specifier for the phy clocks
 - clock-names: string, clock name, must be "phyclk"
+- #clock-cells: for users of the phy-pll, should be 0
 
 Example:
 
