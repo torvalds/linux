@@ -1187,8 +1187,10 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 			skb->csum_level = RX_CMP_ENCAP(rxcmp1);
 		}
 	} else {
-		if (rxcmp1->rx_cmp_cfa_code_errors_v2 & RX_CMP_L4_CS_ERR_BITS)
-			cpr->rx_l4_csum_errors++;
+		if (rxcmp1->rx_cmp_cfa_code_errors_v2 & RX_CMP_L4_CS_ERR_BITS) {
+			if (dev->features & NETIF_F_RXCSUM)
+				cpr->rx_l4_csum_errors++;
+		}
 	}
 
 	skb_record_rx_queue(skb, bnapi->index);
