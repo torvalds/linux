@@ -34,6 +34,11 @@
  * @timer_set_periodic - arm the timer to fire periodically, with a period of
  * delta ns.
  *
+ * @ioremap - searches for an I/O memory region identified by addr and size and
+ * returns a pointer to the start of the address range that can be used by
+ * iomem_access
+ * @iomem_acess - reads or writes to and I/O memory region; addr must be in the
+ * range returned by ioremap
  */
 struct lkl_host_operations {
 	const char *virtio_devices;
