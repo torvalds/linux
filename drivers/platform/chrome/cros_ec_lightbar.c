@@ -412,8 +412,7 @@ static umode_t cros_ec_lightbar_attrs_are_visible(struct kobject *kobj,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct cros_ec_dev *ec = container_of(dev,
 					      struct cros_ec_dev, class_dev);
-	struct platform_device *pdev = container_of(ec->dev,
-						   struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(ec->dev);
 	if (pdev->id != 0)
 		return 0;
 
