@@ -1,5 +1,6 @@
 #include <lkl_host.h>
 #include "virtio.h"
+#include "endian.h"
 
 struct virtio_blk_dev {
 	struct virtio_dev dev;

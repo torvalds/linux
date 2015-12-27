@@ -3,6 +3,7 @@
 #include <lkl_host.h>
 #include "iomem.h"
 #include "virtio.h"
+#include "endian.h"
 
 #define VIRTIO_DEV_MAGIC		0x74726976
 #define VIRTIO_DEV_VERSION		2
