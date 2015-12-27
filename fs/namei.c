@@ -2663,10 +2663,6 @@ static int may_open(struct path *path, int acc_mode, int flag)
 	struct inode *inode = dentry->d_inode;
 	int error;
 
-	/* O_PATH? */
-	if (!acc_mode)
-		return 0;
-
 	if (!inode)
 		return -ENOENT;
 
@@ -2688,7 +2684,7 @@ static int may_open(struct path *path, int acc_mode, int flag)
 		break;
 	}
 
-	error = inode_permission(inode, acc_mode);
+	error = inode_permission(inode, MAY_OPEN | acc_mode);
 	if (error)
 		return error;
 
@@ -2880,7 +2876,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	if (*opened & FILE_CREATED) {
 		WARN_ON(!(open_flag & O_CREAT));
 		fsnotify_create(dir, dentry);
-		acc_mode = MAY_OPEN;
+		acc_mode = 0;
 	}
 	error = may_open(&file->f_path, acc_mode, open_flag);
 	if (error)
@@ -3093,7 +3089,7 @@ retry_lookup:
 		/* Don't check for write permission, don't truncate */
 		open_flag &= ~O_TRUNC;
 		will_truncate = false;
-		acc_mode = MAY_OPEN;
+		acc_mode = 0;
 		path_to_nameidata(&path, nd);
 		goto finish_open_created;
 	}
@@ -3177,10 +3173,11 @@ finish_open:
 		got_write = true;
 	}
 finish_open_created:
-	error = may_open(&nd->path, acc_mode, open_flag);
-	if (error)
-		goto out;
-
+	if (likely(!(open_flag & O_PATH))) {
+		error = may_open(&nd->path, acc_mode, open_flag);
+		if (error)
+			goto out;
+	}
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 	error = vfs_open(&nd->path, file, current_cred());
 	if (!error) {
@@ -3267,7 +3264,7 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		goto out2;
 	audit_inode(nd->name, child, 0);
 	/* Don't check for other permissions, the inode was just created */
-	error = may_open(&path, MAY_OPEN, op->open_flag);
+	error = may_open(&path, 0, op->open_flag);
 	if (error)
 		goto out2;
 	file->f_path.mnt = path.mnt;
