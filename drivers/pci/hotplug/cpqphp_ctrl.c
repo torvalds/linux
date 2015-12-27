@@ -155,7 +155,7 @@ static u8 handle_presence_change(u16 change, struct controller *ctrl)
 	 * Presence Change
 	 */
 	dbg("cpqsbd:  Presence/Notify input change.\n");
-	dbg("         Changed bits are 0x%4.4x\n", change );
+	dbg("         Changed bits are 0x%4.4x\n", change);
 
 	for (hp_slot = 0; hp_slot < 6; hp_slot++) {
 		if (change & (0x0101 << hp_slot)) {
@@ -276,9 +276,9 @@ static u8 handle_power_fault(u8 change, struct controller *ctrl)
 				taskInfo->event_type = INT_POWER_FAULT;
 
 				if (ctrl->rev < 4) {
-					amber_LED_on (ctrl, hp_slot);
-					green_LED_off (ctrl, hp_slot);
-					set_SOGO (ctrl);
+					amber_LED_on(ctrl, hp_slot);
+					green_LED_off(ctrl, hp_slot);
+					set_SOGO(ctrl);
 
 					/* this is a fatal condition, we want
 					 * to crash the machine to protect from
@@ -438,7 +438,7 @@ static struct pci_resource *do_pre_bridge_resource_split(struct pci_resource **h
 
 	node = *head;
 
-	if (node->length & (alignment -1)) {
+	if (node->length & (alignment - 1)) {
 		/* this one isn't an aligned length, so we'll make a new entry
 		 * and split it up.
 		 */
@@ -835,13 +835,13 @@ int cpqhp_resource_sort_and_combine(struct pci_resource **head)
 	if (!(*head))
 		return 1;
 
-	dbg("*head->next = %p\n",(*head)->next);
+	dbg("*head->next = %p\n", (*head)->next);
 
 	if (!(*head)->next)
 		return 0;	/* only one item on the list, already sorted! */
 
-	dbg("*head->base = 0x%x\n",(*head)->base);
-	dbg("*head->next->base = 0x%x\n",(*head)->next->base);
+	dbg("*head->base = 0x%x\n", (*head)->base);
+	dbg("*head->next->base = 0x%x\n", (*head)->next->base);
 	while (out_of_order) {
 		out_of_order = 0;
 
@@ -917,7 +917,7 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 		/* Read to clear posted writes */
 		misc = readw(ctrl->hpc_reg + MISC);
 
-		dbg ("%s - waking up\n", __func__);
+		dbg("%s - waking up\n", __func__);
 		wake_up_interruptible(&ctrl->queue);
 	}
 
@@ -1285,18 +1285,18 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 	/*
 	 * The board is already on
 	 */
-	else if (is_slot_enabled (ctrl, hp_slot))
+	else if (is_slot_enabled(ctrl, hp_slot))
 		rc = CARD_FUNCTIONING;
 	else {
 		mutex_lock(&ctrl->crit_sect);
 
 		/* turn on board without attaching to the bus */
-		enable_slot_power (ctrl, hp_slot);
+		enable_slot_power(ctrl, hp_slot);
 
 		set_SOGO(ctrl);
 
 		/* Wait for SOBS to be unset */
-		wait_for_ctrl_irq (ctrl);
+		wait_for_ctrl_irq(ctrl);
 
 		/* Change bits in slot power register to force another shift out
 		 * NOTE: this is to work around the timer bug */
@@ -1307,7 +1307,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 		set_SOGO(ctrl);
 
 		/* Wait for SOBS to be unset */
-		wait_for_ctrl_irq (ctrl);
+		wait_for_ctrl_irq(ctrl);
 
 		adapter_speed = get_adapter_speed(ctrl, hp_slot);
 		if (bus->cur_bus_speed != adapter_speed)
@@ -1315,12 +1315,12 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 				rc = WRONG_BUS_FREQUENCY;
 
 		/* turn off board without attaching to the bus */
-		disable_slot_power (ctrl, hp_slot);
+		disable_slot_power(ctrl, hp_slot);
 
 		set_SOGO(ctrl);
 
 		/* Wait for SOBS to be unset */
-		wait_for_ctrl_irq (ctrl);
+		wait_for_ctrl_irq(ctrl);
 
 		mutex_unlock(&ctrl->crit_sect);
 
@@ -1329,15 +1329,15 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 
 		mutex_lock(&ctrl->crit_sect);
 
-		slot_enable (ctrl, hp_slot);
-		green_LED_blink (ctrl, hp_slot);
+		slot_enable(ctrl, hp_slot);
+		green_LED_blink(ctrl, hp_slot);
 
-		amber_LED_off (ctrl, hp_slot);
+		amber_LED_off(ctrl, hp_slot);
 
 		set_SOGO(ctrl);
 
 		/* Wait for SOBS to be unset */
-		wait_for_ctrl_irq (ctrl);
+		wait_for_ctrl_irq(ctrl);
 
 		mutex_unlock(&ctrl->crit_sect);
 
@@ -1366,14 +1366,14 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 
 			mutex_lock(&ctrl->crit_sect);
 
-			amber_LED_on (ctrl, hp_slot);
-			green_LED_off (ctrl, hp_slot);
-			slot_disable (ctrl, hp_slot);
+			amber_LED_on(ctrl, hp_slot);
+			green_LED_off(ctrl, hp_slot);
+			slot_disable(ctrl, hp_slot);
 
 			set_SOGO(ctrl);
 
 			/* Wait for SOBS to be unset */
-			wait_for_ctrl_irq (ctrl);
+			wait_for_ctrl_irq(ctrl);
 
 			mutex_unlock(&ctrl->crit_sect);
 
@@ -1392,14 +1392,14 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 
 			mutex_lock(&ctrl->crit_sect);
 
-			amber_LED_on (ctrl, hp_slot);
-			green_LED_off (ctrl, hp_slot);
-			slot_disable (ctrl, hp_slot);
+			amber_LED_on(ctrl, hp_slot);
+			green_LED_off(ctrl, hp_slot);
+			slot_disable(ctrl, hp_slot);
 
 			set_SOGO(ctrl);
 
 			/* Wait for SOBS to be unset */
-			wait_for_ctrl_irq (ctrl);
+			wait_for_ctrl_irq(ctrl);
 
 			mutex_unlock(&ctrl->crit_sect);
 		}
@@ -1443,7 +1443,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	set_SOGO(ctrl);
 
 	/* Wait for SOBS to be unset */
-	wait_for_ctrl_irq (ctrl);
+	wait_for_ctrl_irq(ctrl);
 
 	/* Change bits in slot power register to force another shift out
 	 * NOTE: this is to work around the timer bug
@@ -1455,7 +1455,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	set_SOGO(ctrl);
 
 	/* Wait for SOBS to be unset */
-	wait_for_ctrl_irq (ctrl);
+	wait_for_ctrl_irq(ctrl);
 
 	adapter_speed = get_adapter_speed(ctrl, hp_slot);
 	if (bus->cur_bus_speed != adapter_speed)
@@ -1463,7 +1463,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 			rc = WRONG_BUS_FREQUENCY;
 
 	/* turn off board without attaching to the bus */
-	disable_slot_power (ctrl, hp_slot);
+	disable_slot_power(ctrl, hp_slot);
 
 	set_SOGO(ctrl);
 
@@ -1484,20 +1484,20 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	dbg("%s: after down\n", __func__);
 
 	dbg("%s: before slot_enable\n", __func__);
-	slot_enable (ctrl, hp_slot);
+	slot_enable(ctrl, hp_slot);
 
 	dbg("%s: before green_LED_blink\n", __func__);
-	green_LED_blink (ctrl, hp_slot);
+	green_LED_blink(ctrl, hp_slot);
 
 	dbg("%s: before amber_LED_blink\n", __func__);
-	amber_LED_off (ctrl, hp_slot);
+	amber_LED_off(ctrl, hp_slot);
 
 	dbg("%s: before set_SOGO\n", __func__);
 	set_SOGO(ctrl);
 
 	/* Wait for SOBS to be unset */
 	dbg("%s: before wait_for_ctrl_irq\n", __func__);
-	wait_for_ctrl_irq (ctrl);
+	wait_for_ctrl_irq(ctrl);
 	dbg("%s: after wait_for_ctrl_irq\n", __func__);
 
 	dbg("%s: before up\n", __func__);
@@ -1520,7 +1520,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	} else {
 		/* Get vendor/device ID u32 */
 		ctrl->pci_bus->number = func->bus;
-		rc = pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(func->device, func->function), PCI_VENDOR_ID, &temp_register);
+		rc = pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(func->device, func->function), PCI_VENDOR_ID, &temp_register);
 		dbg("%s: pci_read_config_dword returns %d\n", __func__, rc);
 		dbg("%s: temp_register is %x\n", __func__, temp_register);
 
@@ -1557,14 +1557,14 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 		if (rc) {
 			mutex_lock(&ctrl->crit_sect);
 
-			amber_LED_on (ctrl, hp_slot);
-			green_LED_off (ctrl, hp_slot);
-			slot_disable (ctrl, hp_slot);
+			amber_LED_on(ctrl, hp_slot);
+			green_LED_off(ctrl, hp_slot);
+			slot_disable(ctrl, hp_slot);
 
 			set_SOGO(ctrl);
 
 			/* Wait for SOBS to be unset */
-			wait_for_ctrl_irq (ctrl);
+			wait_for_ctrl_irq(ctrl);
 
 			mutex_unlock(&ctrl->crit_sect);
 			return rc;
@@ -1589,25 +1589,25 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 
 		mutex_lock(&ctrl->crit_sect);
 
-		green_LED_on (ctrl, hp_slot);
+		green_LED_on(ctrl, hp_slot);
 
 		set_SOGO(ctrl);
 
 		/* Wait for SOBS to be unset */
-		wait_for_ctrl_irq (ctrl);
+		wait_for_ctrl_irq(ctrl);
 
 		mutex_unlock(&ctrl->crit_sect);
 	} else {
 		mutex_lock(&ctrl->crit_sect);
 
-		amber_LED_on (ctrl, hp_slot);
-		green_LED_off (ctrl, hp_slot);
-		slot_disable (ctrl, hp_slot);
+		amber_LED_on(ctrl, hp_slot);
+		green_LED_off(ctrl, hp_slot);
+		slot_disable(ctrl, hp_slot);
 
 		set_SOGO(ctrl);
 
 		/* Wait for SOBS to be unset */
-		wait_for_ctrl_irq (ctrl);
+		wait_for_ctrl_irq(ctrl);
 
 		mutex_unlock(&ctrl->crit_sect);
 
@@ -1672,8 +1672,8 @@ static u32 remove_board(struct pci_func *func, u32 replace_flag, struct controll
 
 	mutex_lock(&ctrl->crit_sect);
 
-	green_LED_off (ctrl, hp_slot);
-	slot_disable (ctrl, hp_slot);
+	green_LED_off(ctrl, hp_slot);
+	slot_disable(ctrl, hp_slot);
 
 	set_SOGO(ctrl);
 
@@ -1683,7 +1683,7 @@ static u32 remove_board(struct pci_func *func, u32 replace_flag, struct controll
 	writeb(temp_byte, ctrl->hpc_reg + SLOT_SERR);
 
 	/* Wait for SOBS to be unset */
-	wait_for_ctrl_irq (ctrl);
+	wait_for_ctrl_irq(ctrl);
 
 	mutex_unlock(&ctrl->crit_sect);
 
@@ -1755,7 +1755,7 @@ static int event_thread(void *data)
 		if (pushbutton_pending)
 			cpqhp_pushbutton_thread(pushbutton_pending);
 		else
-			for (ctrl = cpqhp_ctrl_list; ctrl; ctrl=ctrl->next)
+			for (ctrl = cpqhp_ctrl_list; ctrl; ctrl = ctrl->next)
 				interrupt_event_handler(ctrl);
 	}
 	dbg("event_thread signals exit\n");
@@ -1766,7 +1766,7 @@ int cpqhp_event_start_thread(void)
 {
 	cpqhp_event_thread = kthread_run(event_thread, NULL, "phpd_event");
 	if (IS_ERR(cpqhp_event_thread)) {
-		err ("Can't start up our event thread\n");
+		err("Can't start up our event thread\n");
 		return PTR_ERR(cpqhp_event_thread);
 	}
 
@@ -1794,7 +1794,7 @@ static int update_slot_info(struct controller *ctrl, struct slot *slot)
 	info->latch_status = cpq_get_latch_status(ctrl, slot);
 	info->adapter_status = get_presence_status(ctrl, slot);
 	result = pci_hp_change_slot_info(slot->hotplug_slot, info);
-	kfree (info);
+	kfree(info);
 	return result;
 }
 
@@ -1837,23 +1837,23 @@ static void interrupt_event_handler(struct controller *ctrl)
 					if (p_slot->state == BLINKINGOFF_STATE) {
 						/* slot is on */
 						dbg("turn on green LED\n");
-						green_LED_on (ctrl, hp_slot);
+						green_LED_on(ctrl, hp_slot);
 					} else if (p_slot->state == BLINKINGON_STATE) {
 						/* slot is off */
 						dbg("turn off green LED\n");
-						green_LED_off (ctrl, hp_slot);
+						green_LED_off(ctrl, hp_slot);
 					}
 
 					info(msg_button_cancel, p_slot->number);
 
 					p_slot->state = STATIC_STATE;
 
-					amber_LED_off (ctrl, hp_slot);
+					amber_LED_off(ctrl, hp_slot);
 
 					set_SOGO(ctrl);
 
 					/* Wait for SOBS to be unset */
-					wait_for_ctrl_irq (ctrl);
+					wait_for_ctrl_irq(ctrl);
 
 					mutex_unlock(&ctrl->crit_sect);
 				}
@@ -1861,7 +1861,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 				else if (ctrl->event_queue[loop].event_type == INT_BUTTON_RELEASE) {
 					dbg("button release\n");
 
-					if (is_slot_enabled (ctrl, hp_slot)) {
+					if (is_slot_enabled(ctrl, hp_slot)) {
 						dbg("slot is on\n");
 						p_slot->state = BLINKINGOFF_STATE;
 						info(msg_button_off, p_slot->number);
@@ -1874,13 +1874,13 @@ static void interrupt_event_handler(struct controller *ctrl)
 
 					dbg("blink green LED and turn off amber\n");
 
-					amber_LED_off (ctrl, hp_slot);
-					green_LED_blink (ctrl, hp_slot);
+					amber_LED_off(ctrl, hp_slot);
+					green_LED_blink(ctrl, hp_slot);
 
 					set_SOGO(ctrl);
 
 					/* Wait for SOBS to be unset */
-					wait_for_ctrl_irq (ctrl);
+					wait_for_ctrl_irq(ctrl);
 
 					mutex_unlock(&ctrl->crit_sect);
 					init_timer(&p_slot->task_event);
@@ -1940,7 +1940,7 @@ void cpqhp_pushbutton_thread(unsigned long slot)
 		dbg("In power_down_board, func = %p, ctrl = %p\n", func, ctrl);
 		if (!func) {
 			dbg("Error! func NULL in %s\n", __func__);
-			return ;
+			return;
 		}
 
 		if (cpqhp_process_SS(ctrl, func) != 0) {
@@ -1962,7 +1962,7 @@ void cpqhp_pushbutton_thread(unsigned long slot)
 		dbg("In add_board, func = %p, ctrl = %p\n", func, ctrl);
 		if (!func) {
 			dbg("Error! func NULL in %s\n", __func__);
-			return ;
+			return;
 		}
 
 		if (ctrl != NULL) {
@@ -1973,7 +1973,7 @@ void cpqhp_pushbutton_thread(unsigned long slot)
 				set_SOGO(ctrl);
 
 				/* Wait for SOBS to be unset */
-				wait_for_ctrl_irq (ctrl);
+				wait_for_ctrl_irq(ctrl);
 			}
 		}
 
@@ -2086,7 +2086,7 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 	unsigned int devfn;
 	struct slot *p_slot;
 	struct pci_bus *pci_bus = ctrl->pci_bus;
-	int physical_slot=0;
+	int physical_slot = 0;
 
 	device = func->device;
 	func = cpqhp_slot_find(ctrl->bus, device, index++);
@@ -2100,7 +2100,7 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 		devfn = PCI_DEVFN(func->device, func->function);
 
 		/* Check the Class Code */
-		rc = pci_bus_read_config_byte (pci_bus, devfn, 0x0B, &class_code);
+		rc = pci_bus_read_config_byte(pci_bus, devfn, 0x0B, &class_code);
 		if (rc)
 			return rc;
 
@@ -2109,13 +2109,13 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 			rc = REMOVE_NOT_SUPPORTED;
 		} else {
 			/* See if it's a bridge */
-			rc = pci_bus_read_config_byte (pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
+			rc = pci_bus_read_config_byte(pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
 			if (rc)
 				return rc;
 
 			/* If it's a bridge, check the VGA Enable bit */
 			if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
-				rc = pci_bus_read_config_byte (pci_bus, devfn, PCI_BRIDGE_CONTROL, &BCR);
+				rc = pci_bus_read_config_byte(pci_bus, devfn, PCI_BRIDGE_CONTROL, &BCR);
 				if (rc)
 					return rc;
 
@@ -2217,7 +2217,7 @@ int cpqhp_hardware_test(struct controller *ctrl, int test_num)
 			set_SOGO(ctrl);
 
 			/* Wait for SOGO interrupt */
-			wait_for_ctrl_irq (ctrl);
+			wait_for_ctrl_irq(ctrl);
 
 			/* Get ready for next iteration */
 			long_delay((3*HZ)/10);
@@ -2227,7 +2227,7 @@ int cpqhp_hardware_test(struct controller *ctrl, int test_num)
 			set_SOGO(ctrl);
 
 			/* Wait for SOGO interrupt */
-			wait_for_ctrl_irq (ctrl);
+			wait_for_ctrl_irq(ctrl);
 
 			/* Get ready for next iteration */
 			long_delay((3*HZ)/10);
@@ -2243,7 +2243,7 @@ int cpqhp_hardware_test(struct controller *ctrl, int test_num)
 		set_SOGO(ctrl);
 
 		/* Wait for SOBS to be unset */
-		wait_for_ctrl_irq (ctrl);
+		wait_for_ctrl_irq(ctrl);
 		break;
 	case 2:
 		/* Do other stuff here! */
@@ -2279,7 +2279,7 @@ static u32 configure_new_device(struct controller  *ctrl, struct pci_func  *func
 	dbg("%s\n", __func__);
 	/* Check for Multi-function device */
 	ctrl->pci_bus->number = func->bus;
-	rc = pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(func->device, func->function), 0x0E, &temp_byte);
+	rc = pci_bus_read_config_byte(ctrl->pci_bus, PCI_DEVFN(func->device, func->function), 0x0E, &temp_byte);
 	if (rc) {
 		dbg("%s: rc = %d\n", __func__, rc);
 		return rc;
@@ -2296,7 +2296,7 @@ static u32 configure_new_device(struct controller  *ctrl, struct pci_func  *func
 		rc = configure_new_function(ctrl, new_slot, behind_bridge, resources);
 
 		if (rc) {
-			dbg("configure_new_function failed %d\n",rc);
+			dbg("configure_new_function failed %d\n", rc);
 			index = 0;
 
 			while (new_slot) {
@@ -2317,7 +2317,7 @@ static u32 configure_new_device(struct controller  *ctrl, struct pci_func  *func
 		 * and creates a board structure */
 
 		while ((function < max_functions) && (!stop_it)) {
-			pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(func->device, function), 0x00, &ID);
+			pci_bus_read_config_dword(ctrl->pci_bus, PCI_DEVFN(func->device, function), 0x00, &ID);
 
 			if (ID == 0xFFFFFFFF) {
 				function++;
@@ -2543,10 +2543,10 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 		/* set Pre Mem base and Limit registers */
 		temp_word = p_mem_node->base >> 16;
-		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
+		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
 
 		temp_word = (p_mem_node->base + p_mem_node->length - 1) >> 16;
-		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
+		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
 
 		/* Adjust this to compensate for extra adjustment in first loop
 		 */
@@ -2560,7 +2560,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 			ID = 0xFFFFFFFF;
 			pci_bus->number = hold_bus_node->base;
-			pci_bus_read_config_dword (pci_bus, PCI_DEVFN(device, 0), 0x00, &ID);
+			pci_bus_read_config_dword(pci_bus, PCI_DEVFN(device, 0), 0x00, &ID);
 			pci_bus->number = func->bus;
 
 			if (ID != 0xFFFFFFFF) {	  /*  device present */
@@ -2579,7 +2579,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 				new_slot->status = 0;
 
 				rc = configure_new_device(ctrl, new_slot, 1, &temp_resources);
-				dbg("configure_new_device rc=0x%x\n",rc);
+				dbg("configure_new_device rc=0x%x\n", rc);
 			}	/* End of IF (device in slot?) */
 		}		/* End of FOR loop */
 
@@ -2615,7 +2615,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			temp_byte = temp_resources.bus_head->base - 1;
 
 			/* set subordinate bus */
-			rc = pci_bus_write_config_byte (pci_bus, devfn, PCI_SUBORDINATE_BUS, temp_byte);
+			rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_SUBORDINATE_BUS, temp_byte);
 
 			if (temp_resources.bus_head->length == 0) {
 				kfree(temp_resources.bus_head);
@@ -2636,7 +2636,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 				hold_IO_node->base = io_node->base + io_node->length;
 
 				temp_byte = (hold_IO_node->base) >> 8;
-				rc = pci_bus_write_config_word (pci_bus, devfn, PCI_IO_BASE, temp_byte);
+				rc = pci_bus_write_config_word(pci_bus, devfn, PCI_IO_BASE, temp_byte);
 
 				return_resource(&(resources->io_head), io_node);
 			}
@@ -2655,13 +2655,13 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 					func->io_head = hold_IO_node;
 
 					temp_byte = (io_node->base - 1) >> 8;
-					rc = pci_bus_write_config_byte (pci_bus, devfn, PCI_IO_LIMIT, temp_byte);
+					rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_IO_LIMIT, temp_byte);
 
 					return_resource(&(resources->io_head), io_node);
 				} else {
 					/* it doesn't need any IO */
 					temp_word = 0x0000;
-					rc = pci_bus_write_config_word (pci_bus, devfn, PCI_IO_LIMIT, temp_word);
+					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_IO_LIMIT, temp_word);
 
 					return_resource(&(resources->io_head), io_node);
 					kfree(hold_IO_node);
@@ -2687,7 +2687,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 				hold_mem_node->base = mem_node->base + mem_node->length;
 
 				temp_word = (hold_mem_node->base) >> 16;
-				rc = pci_bus_write_config_word (pci_bus, devfn, PCI_MEMORY_BASE, temp_word);
+				rc = pci_bus_write_config_word(pci_bus, devfn, PCI_MEMORY_BASE, temp_word);
 
 				return_resource(&(resources->mem_head), mem_node);
 			}
@@ -2706,14 +2706,14 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 					/* configure end address */
 					temp_word = (mem_node->base - 1) >> 16;
-					rc = pci_bus_write_config_word (pci_bus, devfn, PCI_MEMORY_LIMIT, temp_word);
+					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_MEMORY_LIMIT, temp_word);
 
 					/* Return unused resources to the pool */
 					return_resource(&(resources->mem_head), mem_node);
 				} else {
 					/* it doesn't need any Mem */
 					temp_word = 0x0000;
-					rc = pci_bus_write_config_word (pci_bus, devfn, PCI_MEMORY_LIMIT, temp_word);
+					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_MEMORY_LIMIT, temp_word);
 
 					return_resource(&(resources->mem_head), mem_node);
 					kfree(hold_mem_node);
@@ -2739,7 +2739,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 				hold_p_mem_node->base = p_mem_node->base + p_mem_node->length;
 
 				temp_word = (hold_p_mem_node->base) >> 16;
-				rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
+				rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
 
 				return_resource(&(resources->p_mem_head), p_mem_node);
 			}
@@ -2758,13 +2758,13 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 					func->p_mem_head = hold_p_mem_node;
 
 					temp_word = (p_mem_node->base - 1) >> 16;
-					rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
+					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
 
 					return_resource(&(resources->p_mem_head), p_mem_node);
 				} else {
 					/* it doesn't need any PMem */
 					temp_word = 0x0000;
-					rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
+					rc = pci_bus_write_config_word(pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
 
 					return_resource(&(resources->p_mem_head), p_mem_node);
 					kfree(hold_p_mem_node);
@@ -2790,16 +2790,16 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 					 *   PCI_COMMAND_INVALIDATE |
 					 *   PCI_COMMAND_PARITY |
 					 *   PCI_COMMAND_SERR */
-		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_COMMAND, command);
+		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_COMMAND, command);
 
 		/* set Bridge Control Register */
 		command = 0x07;		/* = PCI_BRIDGE_CTL_PARITY |
 					 *   PCI_BRIDGE_CTL_SERR |
 					 *   PCI_BRIDGE_CTL_NO_ISA */
-		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_BRIDGE_CONTROL, command);
+		rc = pci_bus_write_config_word(pci_bus, devfn, PCI_BRIDGE_CONTROL, command);
 	} else if ((temp_byte & 0x7F) == PCI_HEADER_TYPE_NORMAL) {
 		/* Standard device */
-		rc = pci_bus_read_config_byte (pci_bus, devfn, 0x0B, &class_code);
+		rc = pci_bus_read_config_byte(pci_bus, devfn, 0x0B, &class_code);
 
 		if (class_code == PCI_BASE_CLASS_DISPLAY) {
 			/* Display (video) adapter (not supported) */
@@ -2810,9 +2810,9 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			temp_register = 0xFFFFFFFF;
 
 			dbg("CND: bus=%d, devfn=%d, offset=%d\n", pci_bus->number, devfn, cloop);
-			rc = pci_bus_write_config_dword (pci_bus, devfn, cloop, temp_register);
+			rc = pci_bus_write_config_dword(pci_bus, devfn, cloop, temp_register);
 
-			rc = pci_bus_read_config_dword (pci_bus, devfn, cloop, &temp_register);
+			rc = pci_bus_read_config_dword(pci_bus, devfn, cloop, &temp_register);
 			dbg("CND: base = 0x%x\n", temp_register);
 
 			if (temp_register) {	  /* If this register is implemented */
@@ -2891,7 +2891,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		}		/* End of base register loop */
 		if (cpqhp_legacy_mode) {
 			/* Figure out which interrupt pin this function uses */
-			rc = pci_bus_read_config_byte (pci_bus, devfn,
+			rc = pci_bus_read_config_byte(pci_bus, devfn,
 				PCI_INTERRUPT_PIN, &temp_byte);
 
 			/* If this function needs an interrupt and we are behind
@@ -2905,7 +2905,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 					resources->irqs->barber_pole - 1) & 0x03];
 			} else {
 				/* Program IRQ based on card type */
-				rc = pci_bus_read_config_byte (pci_bus, devfn, 0x0B, &class_code);
+				rc = pci_bus_read_config_byte(pci_bus, devfn, 0x0B, &class_code);
 
 				if (class_code == PCI_BASE_CLASS_STORAGE)
 					IRQ = cpqhp_disk_irq;
@@ -2914,7 +2914,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			}
 
 			/* IRQ Line */
-			rc = pci_bus_write_config_byte (pci_bus, devfn, PCI_INTERRUPT_LINE, IRQ);
+			rc = pci_bus_write_config_byte(pci_bus, devfn, PCI_INTERRUPT_LINE, IRQ);
 		}
 
 		if (!behind_bridge) {
@@ -2950,7 +2950,7 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 					 *   PCI_COMMAND_INVALIDATE |
 					 *   PCI_COMMAND_PARITY |
 					 *   PCI_COMMAND_SERR */
-		rc = pci_bus_write_config_word (pci_bus, devfn,
+		rc = pci_bus_write_config_word(pci_bus, devfn,
 					PCI_COMMAND, temp_word);
 	} else {		/* End of Not-A-Bridge else */
 		/* It's some strange type of PCI adapter (Cardbus?) */
@@ -2961,11 +2961,11 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 
 	return 0;
 free_and_out:
-	cpqhp_destroy_resource_list (&temp_resources);
+	cpqhp_destroy_resource_list(&temp_resources);
 
-	return_resource(&(resources-> bus_head), hold_bus_node);
-	return_resource(&(resources-> io_head), hold_IO_node);
-	return_resource(&(resources-> mem_head), hold_mem_node);
-	return_resource(&(resources-> p_mem_head), hold_p_mem_node);
+	return_resource(&(resources->bus_head), hold_bus_node);
+	return_resource(&(resources->io_head), hold_IO_node);
+	return_resource(&(resources->mem_head), hold_mem_node);
+	return_resource(&(resources->p_mem_head), hold_p_mem_node);
 	return rc;
 }

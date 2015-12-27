@@ -542,7 +542,7 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 	u8 slot_cmd = 0;
 
 	switch (value) {
-		case 0 :
+		case 0:
 			slot_cmd = SET_ATTN_OFF;	/* OFF */
 			break;
 		case 1:

@@ -325,7 +325,7 @@ static int ibm_get_table_from_acpi(char **bufp)
 	}
 
 	size = 0;
-	for (i=0; i<package->package.count; i++) {
+	for (i = 0; i < package->package.count; i++) {
 		memcpy(&lbuf[size],
 				package->package.elements[i].buffer.pointer,
 				package->package.elements[i].buffer.length);
