@@ -4009,10 +4009,8 @@ static int bnxt_set_real_num_queues(struct bnxt *bp)
 		return rc;
 
 #ifdef CONFIG_RFS_ACCEL
-	if (bp->rx_nr_rings)
+	if (bp->flags & BNXT_FLAG_RFS)
 		dev->rx_cpu_rmap = alloc_irq_cpu_rmap(bp->rx_nr_rings);
-	if (!dev->rx_cpu_rmap)
-		rc = -ENOMEM;
 #endif
 
 	return rc;
