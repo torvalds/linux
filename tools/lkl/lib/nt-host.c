@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <assert.h>
 #include <unistd.h>
+#undef s_addr
 #include <lkl_host.h>
 #include "iomem.h"
 
