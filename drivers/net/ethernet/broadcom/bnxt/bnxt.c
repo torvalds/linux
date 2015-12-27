@@ -856,8 +856,13 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt_tpa_info *tpa_info,
 	struct tcphdr *th;
 	int payload_off, tcp_opt_len = 0;
 	int len, nw_off;
+	u16 segs;
 
-	NAPI_GRO_CB(skb)->count = TPA_END_TPA_SEGS(tpa_end);
+	segs = TPA_END_TPA_SEGS(tpa_end);
+	if (segs == 1)
+		return skb;
+
+	NAPI_GRO_CB(skb)->count = segs;
 	skb_shinfo(skb)->gso_size =
 		le32_to_cpu(tpa_end1->rx_tpa_end_cmp_seg_len);
 	skb_shinfo(skb)->gso_type = tpa_info->gso_type;
