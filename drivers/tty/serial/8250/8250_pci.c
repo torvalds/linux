@@ -1541,10 +1541,9 @@ pci_brcm_trumanage_setup(struct serial_private *priv,
 static int pci_fintek_rs485_config(struct uart_port *port,
 			       struct serial_rs485 *rs485)
 {
+	struct pci_dev *pci_dev = to_pci_dev(port->dev);
 	u8 setting;
 	u8 *index = (u8 *) port->private_data;
-	struct pci_dev *pci_dev = container_of(port->dev, struct pci_dev,
-						dev);
 
 	pci_read_config_byte(pci_dev, 0x40 + 8 * *index + 7, &setting);
 
