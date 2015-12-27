@@ -2105,3 +2105,16 @@ int mvs_int_rx(struct mvs_info *mvi, bool self_clear)
 	return 0;
 }
 
+int mvs_gpio_write(struct sas_ha_struct *sha, u8 reg_type, u8 reg_index,
+			u8 reg_count, u8 *write_data)
+{
+	struct mvs_prv_info *mvs_prv = sha->lldd_ha;
+	struct mvs_info *mvi = mvs_prv->mvi[0];
+
+	if (MVS_CHIP_DISP->gpio_write) {
+		return MVS_CHIP_DISP->gpio_write(mvs_prv, reg_type,
+			reg_index, reg_count, write_data);
+	}
+
+	return -ENOSYS;
+}
