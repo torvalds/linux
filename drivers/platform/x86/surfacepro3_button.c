@@ -111,7 +111,7 @@ static void surface_button_notify(struct acpi_device *device, u32 event)
 		break;
 	}
 	input = button->input;
-	if (KEY_RESERVED == key_code)
+	if (key_code == KEY_RESERVED)
 		return;
 	if (pressed)
 		pm_wakeup_event(&device->dev, 0);
