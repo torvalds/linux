@@ -261,17 +261,18 @@ static ssize_t iwl_dbgfs_nic_temp_read(struct file *file,
 {
 	struct iwl_mvm *mvm = file->private_data;
 	char buf[16];
-	int pos, temp;
+	int pos, ret;
+	s32 temp;
 
 	if (!mvm->ucode_loaded)
 		return -EIO;
 
 	mutex_lock(&mvm->mutex);
-	temp = iwl_mvm_get_temp(mvm);
+	ret = iwl_mvm_get_temp(mvm, &temp);
 	mutex_unlock(&mvm->mutex);
 
-	if (temp < 0)
-		return temp;
+	if (ret)
+		return -EIO;
 
 	pos = scnprintf(buf , sizeof(buf), "%d\n", temp);
 

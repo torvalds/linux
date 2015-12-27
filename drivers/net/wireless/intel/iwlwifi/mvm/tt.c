@@ -194,12 +194,12 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 	return iwl_mvm_send_cmd_pdu(mvm, cmdid, 0, sizeof(extcmd), &extcmd);
 }
 
-int iwl_mvm_get_temp(struct iwl_mvm *mvm)
+int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp)
 {
 	struct iwl_notification_wait wait_temp_notif;
 	static u16 temp_notif[] = { WIDE_ID(PHY_OPS_GROUP,
 					    DTS_MEASUREMENT_NOTIF_WIDE) };
-	int ret, temp;
+	int ret;
 
 	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_WIDE_CMD_HDR))
 		temp_notif[0] = DTS_MEASUREMENT_NOTIFICATION;
@@ -208,7 +208,7 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm)
 
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_temp_notif,
 				   temp_notif, ARRAY_SIZE(temp_notif),
-				   iwl_mvm_temp_notif_wait, &temp);
+				   iwl_mvm_temp_notif_wait, temp);
 
 	ret = iwl_mvm_get_temp_cmd(mvm);
 	if (ret) {
@@ -219,12 +219,10 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm)
 
 	ret = iwl_wait_notification(&mvm->notif_wait, &wait_temp_notif,
 				    IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT);
-	if (ret) {
+	if (ret)
 		IWL_ERR(mvm, "Getting the temperature timed out\n");
-		return ret;
-	}
 
-	return temp;
+	return ret;
 }
 
 static void check_exit_ctkill(struct work_struct *work)
@@ -233,6 +231,7 @@ static void check_exit_ctkill(struct work_struct *work)
 	struct iwl_mvm *mvm;
 	u32 duration;
 	s32 temp;
+	int ret;
 
 	tt = container_of(work, struct iwl_mvm_tt_mgmt, ct_kill_exit.work);
 	mvm = container_of(tt, struct iwl_mvm, thermal_throttle);
@@ -250,13 +249,13 @@ static void check_exit_ctkill(struct work_struct *work)
 		goto reschedule;
 	}
 
-	temp = iwl_mvm_get_temp(mvm);
+	ret = iwl_mvm_get_temp(mvm, &temp);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_CHECK_CTKILL);
 
 	__iwl_mvm_mac_stop(mvm);
 
-	if (temp < 0)
+	if (ret)
 		goto reschedule;
 
 	IWL_DEBUG_TEMP(mvm, "NIC temperature: %d\n", temp);
