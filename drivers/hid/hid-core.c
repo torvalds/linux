@@ -2077,7 +2077,7 @@ struct hid_dynid {
 static ssize_t store_new_id(struct device_driver *drv, const char *buf,
 		size_t count)
 {
-	struct hid_driver *hdrv = container_of(drv, struct hid_driver, driver);
+	struct hid_driver *hdrv = to_hid_driver(drv);
 	struct hid_dynid *dynid;
 	__u32 bus, vendor, product;
 	unsigned long driver_data = 0;
@@ -2139,7 +2139,7 @@ static const struct hid_device_id *hid_match_device(struct hid_device *hdev,
 
 static int hid_bus_match(struct device *dev, struct device_driver *drv)
 {
-	struct hid_driver *hdrv = container_of(drv, struct hid_driver, driver);
+	struct hid_driver *hdrv = to_hid_driver(drv);
 	struct hid_device *hdev = to_hid_device(dev);
 
 	return hid_match_device(hdev, hdrv) != NULL;
@@ -2147,8 +2147,7 @@ static int hid_bus_match(struct device *dev, struct device_driver *drv)
 
 static int hid_device_probe(struct device *dev)
 {
-	struct hid_driver *hdrv = container_of(dev->driver,
-			struct hid_driver, driver);
+	struct hid_driver *hdrv = to_hid_driver(dev->driver);
 	struct hid_device *hdev = to_hid_device(dev);
 	const struct hid_device_id *id;
 	int ret = 0;

@@ -717,6 +717,9 @@ struct hid_driver {
 	struct device_driver driver;
 };
 
+#define to_hid_driver(pdrv) \
+	container_of(pdrv, struct hid_driver, driver)
+
 /**
  * hid_ll_driver - low level driver callbacks
  * @start: called on probe to start the device
