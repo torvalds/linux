@@ -1330,7 +1330,7 @@ static void pr_spi_devices(void)
 static int p_device_found(struct device *dev, void *data)
 {
 	struct platform_device
-	*pdev = container_of(dev, struct platform_device, dev);
+	*pdev = to_platform_device(dev);
 
 	if (strstr(pdev->name, "fb"))
 		dev_info(dev, "%s id=%d pdata? %s\n", pdev->name, pdev->id,
