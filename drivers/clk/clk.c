@@ -1748,13 +1748,13 @@ static int clk_core_set_parent(struct clk_core *core, struct clk_core *parent)
 	/* try finding the new parent index */
 	if (parent) {
 		p_index = clk_fetch_parent_index(core, parent);
-		p_rate = parent->rate;
 		if (p_index < 0) {
 			pr_debug("%s: clk %s can not be parent of clk %s\n",
 					__func__, parent->name, core->name);
 			ret = p_index;
 			goto out;
 		}
+		p_rate = parent->rate;
 	}
 
 	/* propagate PRE_RATE_CHANGE notifications */
