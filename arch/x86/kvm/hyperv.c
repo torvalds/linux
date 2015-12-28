@@ -72,12 +72,13 @@ static bool synic_has_vector_auto_eoi(struct kvm_vcpu_hv_synic *synic,
 	return false;
 }
 
-static int synic_set_sint(struct kvm_vcpu_hv_synic *synic, int sint, u64 data)
+static int synic_set_sint(struct kvm_vcpu_hv_synic *synic, int sint,
+			  u64 data, bool host)
 {
 	int vector;
 
 	vector = data & HV_SYNIC_SINT_VECTOR_MASK;
-	if (vector < 16)
+	if (vector < 16 && !host)
 		return 1;
 	/*
 	 * Guest may configure multiple SINTs to use the same vector, so
@@ -247,7 +248,7 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 		break;
 	}
 	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
-		ret = synic_set_sint(synic, msr - HV_X64_MSR_SINT0, data);
+		ret = synic_set_sint(synic, msr - HV_X64_MSR_SINT0, data, host);
 		break;
 	default:
 		ret = 1;
