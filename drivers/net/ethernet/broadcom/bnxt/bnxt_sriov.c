@@ -64,7 +64,7 @@ int bnxt_set_vf_spoofchk(struct net_device *dev, int vf_id, bool setting)
 	 * the spoof check should also include vlan anti-spoofing
 	 */
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
-	req.vf_id = cpu_to_le16(vf->fw_fid);
+	req.fid = cpu_to_le16(vf->fw_fid);
 	req.flags = cpu_to_le32(func_flags);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc) {
@@ -128,7 +128,7 @@ int bnxt_set_vf_mac(struct net_device *dev, int vf_id, u8 *mac)
 
 	memcpy(vf->mac_addr, mac, ETH_ALEN);
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
-	req.vf_id = cpu_to_le16(vf->fw_fid);
+	req.fid = cpu_to_le16(vf->fw_fid);
 	req.flags = cpu_to_le32(vf->func_flags);
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_DFLT_MAC_ADDR);
 	memcpy(req.dflt_mac_addr, mac, ETH_ALEN);
@@ -159,7 +159,7 @@ int bnxt_set_vf_vlan(struct net_device *dev, int vf_id, u16 vlan_id, u8 qos)
 		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
-	req.vf_id = cpu_to_le16(vf->fw_fid);
+	req.fid = cpu_to_le16(vf->fw_fid);
 	req.flags = cpu_to_le32(vf->func_flags);
 	req.dflt_vlan = cpu_to_le16(vlan_tag);
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_DFLT_VLAN);
@@ -198,7 +198,7 @@ int bnxt_set_vf_bw(struct net_device *dev, int vf_id, int min_tx_rate,
 	if (min_tx_rate == vf->min_tx_rate && max_tx_rate == vf->max_tx_rate)
 		return 0;
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
-	req.vf_id = cpu_to_le16(vf->fw_fid);
+	req.fid = cpu_to_le16(vf->fw_fid);
 	req.flags = cpu_to_le32(vf->func_flags);
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MAX_BW);
 	req.max_bw = cpu_to_le32(max_tx_rate);
@@ -363,10 +363,11 @@ static int bnxt_hwrm_func_buf_rgtr(struct bnxt *bp)
 }
 
 /* only call by PF to reserve resources for VF */
-static int bnxt_hwrm_func_cfg(struct bnxt *bp, int *num_vfs)
+static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 {
 	u32 rc = 0, mtu, i;
 	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings, vf_stat_ctx, vf_vnics;
+	u16 vf_ring_grps;
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt_pf_info *pf = &bp->pf;
 
@@ -378,18 +379,18 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int *num_vfs)
 	 * be removed once new HWRM provides HW ring groups capability in
 	 * hwrm_func_qcap.
 	 */
-	vf_cp_rings = min_t(u16, bp->pf.max_cp_rings, bp->pf.max_stat_ctxs);
-	vf_cp_rings = (vf_cp_rings - bp->cp_nr_rings) / *num_vfs;
+	vf_cp_rings = min_t(u16, pf->max_cp_rings, pf->max_stat_ctxs);
+	vf_cp_rings = (vf_cp_rings - bp->cp_nr_rings) / num_vfs;
 	/* TODO: restore this logic below once the WA above is removed */
-	/* vf_cp_rings = (bp->pf.max_cp_rings - bp->cp_nr_rings) / *num_vfs; */
-	vf_stat_ctx = (bp->pf.max_stat_ctxs - bp->num_stat_ctxs) / *num_vfs;
+	/* vf_cp_rings = (pf->max_cp_rings - bp->cp_nr_rings) / num_vfs; */
+	vf_stat_ctx = (pf->max_stat_ctxs - bp->num_stat_ctxs) / num_vfs;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		vf_rx_rings = (bp->pf.max_rx_rings - bp->rx_nr_rings * 2) /
-			      *num_vfs;
+		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings * 2) /
+			      num_vfs;
 	else
-		vf_rx_rings = (bp->pf.max_rx_rings - bp->rx_nr_rings) /
-			      *num_vfs;
-	vf_tx_rings = (bp->pf.max_tx_rings - bp->tx_nr_rings) / *num_vfs;
+		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings) / num_vfs;
+	vf_ring_grps = (bp->pf.max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
+	vf_tx_rings = (pf->max_tx_rings - bp->tx_nr_rings) / num_vfs;
 
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
 				  FUNC_CFG_REQ_ENABLES_MRU |
@@ -399,7 +400,8 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int *num_vfs)
 				  FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS |
 				  FUNC_CFG_REQ_ENABLES_NUM_RX_RINGS |
 				  FUNC_CFG_REQ_ENABLES_NUM_L2_CTXS |
-				  FUNC_CFG_REQ_ENABLES_NUM_VNICS);
+				  FUNC_CFG_REQ_ENABLES_NUM_VNICS |
+				  FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS);
 
 	mtu = bp->dev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	req.mru = cpu_to_le16(mtu);
@@ -409,6 +411,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int *num_vfs)
 	req.num_cmpl_rings = cpu_to_le16(vf_cp_rings);
 	req.num_tx_rings = cpu_to_le16(vf_tx_rings);
 	req.num_rx_rings = cpu_to_le16(vf_rx_rings);
+	req.num_hw_ring_grps = cpu_to_le16(vf_ring_grps);
 	req.num_l2_ctxs = cpu_to_le16(4);
 	vf_vnics = 1;
 
@@ -417,22 +420,24 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int *num_vfs)
 	req.num_stat_ctxs = cpu_to_le16(vf_stat_ctx);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
-	for (i = 0; i < *num_vfs; i++) {
-		req.vf_id = cpu_to_le16(pf->first_vf_id + i);
+	for (i = 0; i < num_vfs; i++) {
+		req.fid = cpu_to_le16(pf->first_vf_id + i);
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
 		if (rc)
 			break;
-		bp->pf.active_vfs = i + 1;
-		bp->pf.vf[i].fw_fid = le16_to_cpu(req.vf_id);
+		pf->active_vfs = i + 1;
+		pf->vf[i].fw_fid = le16_to_cpu(req.fid);
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	if (!rc) {
-		bp->pf.max_pf_tx_rings = bp->tx_nr_rings;
-		if (bp->flags & BNXT_FLAG_AGG_RINGS)
-			bp->pf.max_pf_rx_rings = bp->rx_nr_rings * 2;
-		else
-			bp->pf.max_pf_rx_rings = bp->rx_nr_rings;
+		pf->max_tx_rings -= vf_tx_rings * num_vfs;
+		pf->max_rx_rings -= vf_rx_rings * num_vfs;
+		pf->max_hw_ring_grps -= vf_ring_grps * num_vfs;
+		pf->max_cp_rings -= vf_cp_rings * num_vfs;
+		pf->max_rsscos_ctxs -= num_vfs;
+		pf->max_stat_ctxs -= vf_stat_ctx * num_vfs;
+		pf->max_vnics -= vf_vnics * num_vfs;
 	}
 	return rc;
 }
@@ -492,7 +497,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 		goto err_out1;
 
 	/* Reserve resources for VFs */
-	rc = bnxt_hwrm_func_cfg(bp, num_vfs);
+	rc = bnxt_hwrm_func_cfg(bp, *num_vfs);
 	if (rc)
 		goto err_out2;
 
@@ -536,8 +541,8 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	bnxt_free_vf_resources(bp);
 
 	bp->pf.active_vfs = 0;
-	bp->pf.max_pf_rx_rings = bp->pf.max_rx_rings;
-	bp->pf.max_pf_tx_rings = bp->pf.max_tx_rings;
+	/* Reclaim all resources for the PF. */
+	bnxt_hwrm_func_qcaps(bp);
 }
 
 int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
@@ -595,6 +600,7 @@ static int bnxt_hwrm_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 
 	/* Set the new target id */
 	req.target_id = cpu_to_le16(vf->fw_fid);
+	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
 	req.encap_resp_len = cpu_to_le16(msg_size);
 	req.encap_resp_addr = encap_resp_addr;
 	req.encap_resp_cmpl_ring = encap_resp_cpr;
@@ -629,6 +635,7 @@ static int bnxt_hwrm_fwd_err_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_REJECT_FWD_RESP, -1, -1);
 	/* Set the new target id */
 	req.target_id = cpu_to_le16(vf->fw_fid);
+	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
 	memcpy(req.encap_request, vf->hwrm_cmd_req_addr, msg_size);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
@@ -660,6 +667,7 @@ static int bnxt_hwrm_exec_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_EXEC_FWD_RESP, -1, -1);
 	/* Set the new target id */
 	req.target_id = cpu_to_le16(vf->fw_fid);
+	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
 	memcpy(req.encap_request, vf->hwrm_cmd_req_addr, msg_size);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
