@@ -181,9 +181,19 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	pnfs_layoutcommit_inode(ino, false);
 
 	spin_lock(&ino->i_lock);
-	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
-	    pnfs_mark_matching_lsegs_invalid(lo, &free_me_list,
+	/*
+	 * Enforce RFC5661 Section 12.5.5.2.1.5 (Bulk Recall and Return)
+	 */
+	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
+		rv = NFS4ERR_DELAY;
+		goto unlock;
+	}
+
+	if (pnfs_mark_matching_lsegs_invalid(lo, &free_me_list,
 					&args->cbl_range)) {
+		pnfs_mark_matching_lsegs_return(lo,
+				&free_me_list,
+				&args->cbl_range);
 		rv = NFS4ERR_DELAY;
 		goto unlock;
 	}
