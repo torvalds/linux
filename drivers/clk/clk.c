@@ -2320,22 +2320,22 @@ static int __clk_core_init(struct clk_core *core)
 	if (core->ops->set_rate &&
 	    !((core->ops->round_rate || core->ops->determine_rate) &&
 	      core->ops->recalc_rate)) {
-		pr_warning("%s: %s must implement .round_rate or .determine_rate in addition to .recalc_rate\n",
-				__func__, core->name);
+		pr_err("%s: %s must implement .round_rate or .determine_rate in addition to .recalc_rate\n",
+		       __func__, core->name);
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (core->ops->set_parent && !core->ops->get_parent) {
-		pr_warning("%s: %s must implement .get_parent & .set_parent\n",
-				__func__, core->name);
+		pr_err("%s: %s must implement .get_parent & .set_parent\n",
+		       __func__, core->name);
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (core->ops->set_rate_and_parent &&
 			!(core->ops->set_parent && core->ops->set_rate)) {
-		pr_warn("%s: %s must implement .set_parent & .set_rate\n",
+		pr_err("%s: %s must implement .set_parent & .set_rate\n",
 				__func__, core->name);
 		ret = -EINVAL;
 		goto out;
