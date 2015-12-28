@@ -1069,7 +1069,7 @@ static int clk_fetch_parent_index(struct clk_core *core,
 
 	if (!core->parents) {
 		core->parents = kcalloc(core->num_parents,
-					sizeof(struct clk *), GFP_KERNEL);
+					sizeof(*core->parents), GFP_KERNEL);
 		if (!core->parents)
 			return -ENOMEM;
 	}
@@ -1720,7 +1720,7 @@ static struct clk_core *__clk_init_parent(struct clk_core *core)
 
 	if (!core->parents)
 		core->parents =
-			kcalloc(core->num_parents, sizeof(struct clk *),
+			kcalloc(core->num_parents, sizeof(*core->parents),
 					GFP_KERNEL);
 
 	ret = clk_core_get_parent_by_index(core, index);
@@ -2368,8 +2368,8 @@ static int __clk_core_init(struct clk_core *core)
 	 * necessary.
 	 */
 	if (core->num_parents > 1) {
-		core->parents = kcalloc(core->num_parents, sizeof(struct clk *),
-					GFP_KERNEL);
+		core->parents = kcalloc(core->num_parents,
+					sizeof(*core->parents), GFP_KERNEL);
 		/*
 		 * clk_core_lookup returns NULL for parents that have not been
 		 * clk_init'd; thus any access to clk->parents[] must check
