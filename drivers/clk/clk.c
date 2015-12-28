@@ -1069,23 +1069,9 @@ static int clk_fetch_parent_index(struct clk_core *core,
 	if (!parent)
 		return -EINVAL;
 
-	/*
-	 * find index of new parent clock using cached parent ptrs,
-	 * or if not yet cached, use string name comparison and cache
-	 * them now to avoid future calls to clk_core_lookup.
-	 */
-	for (i = 0; i < core->num_parents; i++) {
-		if (core->parents[i] == parent)
+	for (i = 0; i < core->num_parents; i++)
+		if (clk_core_get_parent_by_index(core, i) == parent)
 			return i;
-
-		if (core->parents[i])
-			continue;
-
-		if (!strcmp(core->parent_names[i], parent->name)) {
-			core->parents[i] = clk_core_lookup(parent->name);
-			return i;
-		}
-	}
 
 	return -EINVAL;
 }
