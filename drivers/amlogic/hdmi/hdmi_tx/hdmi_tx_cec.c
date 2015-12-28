@@ -1010,7 +1010,7 @@ void cec_give_deck_status(cec_rx_message_t* pcec_message)
 
     msg[0] = ((index & 0xf) << 4) | CEC_TV_ADDR;
     msg[1] = CEC_OC_DECK_STATUS;
-    msg[2] = 0x1a;
+    msg[2] = 0x20;
     cec_ll_tx(msg, 3);
 }
 
@@ -1228,6 +1228,15 @@ void cec_handle_message(cec_rx_message_t* pcec_message)
                     break;
             }
             break;
+        case CEC_OC_VENDOR_COMMAND:
+	    if (pcec_message->content.msg.operands[0] == 0x1) {
+		    cec_report_power_status(pcec_message);
+		    cec_send_simplink_alive(pcec_message);
+	    } else if (pcec_message->content.msg.operands[0]
+			    == 0x4) {
+		    cec_send_simplink_ack(pcec_message);
+	    }
+	    break;
         case CEC_OC_GET_MENU_LANGUAGE:
         case CEC_OC_VENDOR_REMOTE_BUTTON_DOWN:
         case CEC_OC_VENDOR_REMOTE_BUTTON_UP:
@@ -1247,7 +1256,6 @@ void cec_handle_message(cec_rx_message_t* pcec_message)
         case CEC_OC_TUNER_DEVICE_STATUS:
         case CEC_OC_TUNER_STEP_DECREMENT:
         case CEC_OC_TUNER_STEP_INCREMENT:
-        case CEC_OC_VENDOR_COMMAND:
         case CEC_OC_SELECT_ANALOGUE_SERVICE:
         case CEC_OC_SELECT_DIGITAL_SERVICE:
         case CEC_OC_SET_ANALOGUE_TIMER :
@@ -1558,6 +1566,32 @@ void cec_routing_information(cec_rx_message_t* pcec_message)
 	}else{
 	    cec_global_info.cec_node_info[cec_global_info.my_node_index].menu_status = DEVICE_MENU_INACTIVE;
 	}
+}
+
+void cec_send_simplink_alive(cec_rx_message_t *pcec_message)
+{
+	unsigned char index = cec_global_info.my_node_index;
+	unsigned char msg[4];
+
+	msg[0] = ((index & 0xf) << 4) | CEC_TV_ADDR;
+	msg[1] = CEC_OC_VENDOR_COMMAND;
+	msg[2] = 0x2;
+	msg[3] = 0x5;
+
+	cec_ll_tx(msg, 4);
+}
+
+void cec_send_simplink_ack(cec_rx_message_t *pcec_message)
+{
+	unsigned char index = cec_global_info.my_node_index;
+	unsigned char msg[4];
+
+	msg[0] = ((index & 0xf) << 4) | CEC_TV_ADDR;
+	msg[1] = CEC_OC_VENDOR_COMMAND;
+	msg[2] = 0x5;
+	msg[3] = 0x1;
+
+	cec_ll_tx(msg, 4);
 }
 /***************************** cec middle level code end *****************************/
 

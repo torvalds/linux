@@ -598,6 +598,8 @@ void cec_send_event(cec_rx_message_t* pcec_message);
 void cec_user_control_pressed(cec_rx_message_t* pcec_message);
 void cec_user_control_released(cec_rx_message_t* pcec_message);  
 void cec_standby(cec_rx_message_t* pcec_message);
+void cec_send_simplink_alive(cec_rx_message_t *pcec_message);
+void cec_send_simplink_ack(cec_rx_message_t *pcec_message);
 extern void cec_key_init(void);
 
 extern __u16 cec_key_map[];
