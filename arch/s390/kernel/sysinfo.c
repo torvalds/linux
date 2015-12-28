@@ -122,7 +122,7 @@ static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		seq_printf(m, " %d", info->mag[i]);
 	seq_putc(m, '\n');
-#ifdef CONFIG_SCHED_MC
+#ifdef CONFIG_SCHED_TOPOLOGY
 	store_topology(info);
 	seq_printf(m, "CPU Topology SW:     ");
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)

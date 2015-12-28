@@ -389,9 +389,6 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-config SCHED_SMT
-	def_bool n
-
 # Some NUMA nodes have memory ranges that span
 # other nodes.	Even though a pfn is valid and
 # between a node's start and end pfns, it may not
@@ -461,6 +458,9 @@ config EMU_SIZE
 	  supported.
 
 endmenu
+
+config SCHED_SMT
+	def_bool n
 
 config SCHED_MC
 	def_bool n
