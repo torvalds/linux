@@ -2253,6 +2253,38 @@ static inline void clk_debug_unregister(struct clk_core *core)
 #endif
 
 /**
+ * __clk_is_ancestor - check if a clk_core is a possible ancestor of another
+ * @core: clock core
+ * @ancestor: ancestor clock core
+ *
+ * Returns true if there is a possibility that @ancestor can be an ancestor
+ * of @core, false otherwise.
+ *
+ * This function can be used against @core or @ancestor that has not been
+ * registered yet.
+ */
+static bool __clk_is_ancestor(struct clk_core *core, struct clk_core *ancestor)
+{
+	struct clk_core *parent;
+	int i;
+
+	for (i = 0; i < core->num_parents; i++) {
+		parent = clk_core_get_parent_by_index(core, i);
+		/*
+		 * If ancestor has not been added to clk_{root,orphan}_list
+		 * yet, clk_core_lookup() cannot find it.  If parent is NULL,
+		 * compare the name strings, too.
+		 */
+		if ((parent && (parent == ancestor ||
+				__clk_is_ancestor(parent, ancestor))) ||
+		    (!parent && !strcmp(core->parent_names[i], ancestor->name)))
+			return true;
+	}
+
+	return false;
+}
+
+/**
  * __clk_core_init - initialize the data structures in a struct clk_core
  * @core:	clk_core being initialized
  *
@@ -2316,6 +2348,14 @@ static int __clk_core_init(struct clk_core *core)
 		WARN(!core->parent_names[i],
 				"%s: invalid NULL in %s's .parent_names\n",
 				__func__, core->name);
+
+	/* If core is an ancestor of itself, it would make a loop. */
+	if (__clk_is_ancestor(core, core)) {
+		pr_err("%s: %s would create circular parent\n", __func__,
+		       core->name);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	core->parent = __clk_init_parent(core);
 
