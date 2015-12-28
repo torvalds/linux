@@ -217,15 +217,15 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	au0828_usb_release(dev);
 }
 
-static void au0828_media_device_init(struct au0828_dev *dev,
-				     struct usb_device *udev)
+static int au0828_media_device_init(struct au0828_dev *dev,
+				    struct usb_device *udev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return;
+		return -ENOMEM;
 
 	mdev->dev = &udev->dev;
 
@@ -243,6 +243,7 @@ static void au0828_media_device_init(struct au0828_dev *dev,
 
 	dev->media_dev = mdev;
 #endif
+	return 0;
 }
 
 
@@ -368,7 +369,14 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	dev->board = au0828_boards[dev->boardnr];
 
 	/* Initialize the media controller */
-	au0828_media_device_init(dev, usbdev);
+	retval = au0828_media_device_init(dev, usbdev);
+	if (retval) {
+		pr_err("%s() au0828_media_device_init failed\n",
+		       __func__);
+		mutex_unlock(&dev->lock);
+		kfree(dev);
+		return retval;
+	}
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
 	dev->v4l2_dev.release = au0828_usb_v4l2_release;

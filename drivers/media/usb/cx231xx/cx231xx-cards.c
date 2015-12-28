@@ -1206,7 +1206,7 @@ void cx231xx_release_resources(struct cx231xx *dev)
 	clear_bit(dev->devno, &cx231xx_devused);
 }
 
-static void cx231xx_media_device_init(struct cx231xx *dev,
+static int cx231xx_media_device_init(struct cx231xx *dev,
 				      struct usb_device *udev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
@@ -1214,7 +1214,7 @@ static void cx231xx_media_device_init(struct cx231xx *dev,
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return;
+		return -ENOMEM;
 
 	mdev->dev = dev->dev;
 	strlcpy(mdev->model, dev->board.name, sizeof(mdev->model));
@@ -1228,6 +1228,7 @@ static void cx231xx_media_device_init(struct cx231xx *dev,
 
 	dev->media_dev = mdev;
 #endif
+	return 0;
 }
 
 static int cx231xx_create_media_graph(struct cx231xx *dev)
@@ -1663,7 +1664,11 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, dev);
 
 	/* Initialize the media controller */
-	cx231xx_media_device_init(dev, udev);
+	retval = cx231xx_media_device_init(dev, udev);
+	if (retval) {
+		dev_err(d, "cx231xx_media_device_init failed\n");
+		goto err_media_init;
+	}
 
 	/* Create v4l2 device */
 #ifdef CONFIG_MEDIA_CONTROLLER
@@ -1758,6 +1763,8 @@ err_video_alt:
 err_init:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_v4l2:
+	cx231xx_unregister_media_device(dev);
+err_media_init:
 	usb_set_intfdata(interface, NULL);
 err_if:
 	usb_put_dev(udev);

@@ -400,7 +400,7 @@ skip_feed_stop:
 	return ret;
 }
 
-static void dvb_usbv2_media_device_init(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_media_device_init(struct dvb_usb_adapter *adap)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	struct media_device *mdev;
@@ -409,7 +409,7 @@ static void dvb_usbv2_media_device_init(struct dvb_usb_adapter *adap)
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return;
+		return -ENOMEM;
 
 	mdev->dev = &udev->dev;
 	strlcpy(mdev->model, d->name, sizeof(mdev->model));
@@ -425,12 +425,15 @@ static void dvb_usbv2_media_device_init(struct dvb_usb_adapter *adap)
 
 	dev_info(&d->udev->dev, "media controller created\n");
 #endif
+	return 0;
 }
 
-static void dvb_usbv2_media_device_register(struct dvb_usb_adapter *adap)
+static int dvb_usbv2_media_device_register(struct dvb_usb_adapter *adap)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
-	media_device_register(adap->dvb_adap.mdev);
+	return media_device_register(adap->dvb_adap.mdev);
+#else
+	return 0;
 #endif
 }
 
@@ -466,7 +469,12 @@ static int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 
 	adap->dvb_adap.priv = adap;
 
-	dvb_usbv2_media_device_init(adap);
+	ret = dvb_usbv2_media_device_init(adap);
+	if (ret < 0) {
+		dev_dbg(&d->udev->dev, "%s: dvb_usbv2_media_device_init() failed=%d\n",
+				__func__, ret);
+		goto err_dvb_register_mc;
+	}
 
 	if (d->props->read_mac_address) {
 		ret = d->props->read_mac_address(adap,
@@ -517,6 +525,7 @@ err_dvb_dmxdev_init:
 	dvb_dmx_release(&adap->demux);
 err_dvb_dmx_init:
 	dvb_usbv2_media_device_unregister(adap);
+err_dvb_register_mc:
 	dvb_unregister_adapter(&adap->dvb_adap);
 err_dvb_register_adapter:
 	adap->dvb_adap.priv = NULL;
@@ -701,9 +710,9 @@ static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	if (ret < 0)
 		goto err_dvb_unregister_frontend;
 
-	dvb_usbv2_media_device_register(adap);
+	ret = dvb_usbv2_media_device_register(adap);
 
-	return 0;
+	return ret;
 
 err_dvb_unregister_frontend:
 	for (i = count_registered - 1; i >= 0; i--)
