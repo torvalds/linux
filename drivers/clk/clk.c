@@ -1695,13 +1695,6 @@ static struct clk_core *__clk_init_parent(struct clk_core *core)
 		goto out;
 	}
 
-	if (!core->ops->get_parent) {
-		WARN(!core->ops->get_parent,
-			"%s: multi-parent clocks must implement .get_parent\n",
-			__func__);
-		goto out;
-	}
-
 	/*
 	 * Do our best to cache parent clocks in core->parents.  This prevents
 	 * unnecessary and expensive lookups.  We don't set core->parent here;
@@ -2328,6 +2321,13 @@ static int __clk_core_init(struct clk_core *core)
 
 	if (core->ops->set_parent && !core->ops->get_parent) {
 		pr_err("%s: %s must implement .get_parent & .set_parent\n",
+		       __func__, core->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (core->num_parents > 1 && !core->ops->get_parent) {
+		pr_err("%s: %s must implement .get_parent as it has multi parents\n",
 		       __func__, core->name);
 		ret = -EINVAL;
 		goto out;
