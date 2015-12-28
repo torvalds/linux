@@ -244,7 +244,7 @@ static int wb_priority(struct writeback_control *wbc)
 {
 	int ret = 0;
 	if (wbc->for_reclaim)
-		return FLUSH_HIGHPRI | FLUSH_STABLE;
+		return FLUSH_HIGHPRI | FLUSH_COND_STABLE;
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		ret = FLUSH_COND_STABLE;
 	return ret;
