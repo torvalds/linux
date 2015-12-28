@@ -1669,44 +1669,14 @@ struct clk *clk_get_parent(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_get_parent);
 
-/*
- * .get_parent is mandatory for clocks with multiple possible parents.  It is
- * optional for single-parent clocks.  Always call .get_parent if it is
- * available and WARN if it is missing for multi-parent clocks.
- *
- * For single-parent clocks without .get_parent, first check to see if the
- * .parents array exists, and if so use it to avoid an expensive tree
- * traversal.  If .parents does not exist then walk the tree.
- */
 static struct clk_core *__clk_init_parent(struct clk_core *core)
 {
-	struct clk_core *ret = NULL;
-	u8 index;
+	u8 index = 0;
 
-	/* handle the trivial cases */
+	if (core->ops->get_parent)
+		index = core->ops->get_parent(core->hw);
 
-	if (!core->num_parents)
-		goto out;
-
-	if (core->num_parents == 1) {
-		if (IS_ERR_OR_NULL(core->parent))
-			core->parent = clk_core_lookup(core->parent_names[0]);
-		ret = core->parent;
-		goto out;
-	}
-
-	/*
-	 * Do our best to cache parent clocks in core->parents.  This prevents
-	 * unnecessary and expensive lookups.  We don't set core->parent here;
-	 * that is done by the calling function.
-	 */
-
-	index = core->ops->get_parent(core->hw);
-
-	ret = clk_core_get_parent_by_index(core, index);
-
-out:
-	return ret;
+	return clk_core_get_parent_by_index(core, index);
 }
 
 static void clk_core_reparent(struct clk_core *core,
