@@ -47,6 +47,8 @@ struct vc4_plane_state {
 
 	/* Clipped coordinates of the plane on the display. */
 	int crtc_x, crtc_y, crtc_w, crtc_h;
+	/* Clipped size of the area scanned from in the FB. */
+	u32 src_w, src_h;
 
 	/* Offset to start scanning out from the start of the plane's
 	 * BO.
@@ -170,11 +172,6 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 
 	vc4_state->offset = fb->offsets[0];
 
-	vc4_state->crtc_x = state->crtc_x;
-	vc4_state->crtc_y = state->crtc_y;
-	vc4_state->crtc_w = state->crtc_w;
-	vc4_state->crtc_h = state->crtc_h;
-
 	if (state->crtc_w << 16 != state->src_w ||
 	    state->crtc_h << 16 != state->src_h) {
 		/* We don't support scaling yet, which involves
@@ -185,17 +182,25 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 		return -EINVAL;
 	}
 
+	vc4_state->src_w = state->src_w >> 16;
+	vc4_state->src_h = state->src_h >> 16;
+
+	vc4_state->crtc_x = state->crtc_x;
+	vc4_state->crtc_y = state->crtc_y;
+	vc4_state->crtc_w = state->crtc_w;
+	vc4_state->crtc_h = state->crtc_h;
+
 	if (vc4_state->crtc_x < 0) {
 		vc4_state->offset += (drm_format_plane_cpp(fb->pixel_format,
 							   0) *
 				      -vc4_state->crtc_x);
-		vc4_state->crtc_w += vc4_state->crtc_x;
+		vc4_state->src_w += vc4_state->crtc_x;
 		vc4_state->crtc_x = 0;
 	}
 
 	if (vc4_state->crtc_y < 0) {
 		vc4_state->offset += fb->pitches[0] * -vc4_state->crtc_y;
-		vc4_state->crtc_h += vc4_state->crtc_y;
+		vc4_state->src_h += vc4_state->crtc_y;
 		vc4_state->crtc_y = 0;
 	}
 
@@ -244,8 +249,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 				      SCALER_POS2_ALPHA_MODE_PIPELINE :
 				      SCALER_POS2_ALPHA_MODE_FIXED,
 				      SCALER_POS2_ALPHA_MODE) |
-			VC4_SET_FIELD(vc4_state->crtc_w, SCALER_POS2_WIDTH) |
-			VC4_SET_FIELD(vc4_state->crtc_h, SCALER_POS2_HEIGHT));
+			VC4_SET_FIELD(vc4_state->src_w, SCALER_POS2_WIDTH) |
+			VC4_SET_FIELD(vc4_state->src_h, SCALER_POS2_HEIGHT));
 
 	/* Position Word 3: Context.  Written by the HVS. */
 	vc4_dlist_write(vc4_state, 0xc0c0c0c0);
