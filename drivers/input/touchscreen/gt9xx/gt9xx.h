@@ -27,7 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/proc_fs.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
