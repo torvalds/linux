@@ -599,8 +599,10 @@ static enum ap_wait ap_sm_read(struct ap_device *ap_dev)
 	status = ap_sm_recv(ap_dev);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
-		if (ap_dev->queue_count > 0)
+		if (ap_dev->queue_count > 0) {
+			ap_dev->state = AP_STATE_WORKING;
 			return AP_WAIT_AGAIN;
+		}
 		ap_dev->state = AP_STATE_IDLE;
 		return AP_WAIT_NONE;
 	case AP_RESPONSE_NO_PENDING_REPLY:
