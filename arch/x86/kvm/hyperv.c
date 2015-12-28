@@ -408,6 +408,7 @@ static void stimer_cleanup(struct kvm_vcpu_hv_stimer *stimer)
 	clear_bit(stimer->index,
 		  vcpu_to_hv_vcpu(vcpu)->stimer_pending_bitmap);
 	stimer->msg_pending = false;
+	stimer->exp_time = 0;
 }
 
 static enum hrtimer_restart stimer_timer_callback(struct hrtimer *timer)
@@ -420,24 +421,11 @@ static enum hrtimer_restart stimer_timer_callback(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void stimer_restart(struct kvm_vcpu_hv_stimer *stimer)
-{
-	u64 time_now;
-	ktime_t ktime_now;
-	u64 remainder;
-
-	time_now = get_time_ref_counter(stimer_to_vcpu(stimer)->kvm);
-	ktime_now = ktime_get();
-
-	div64_u64_rem(time_now - stimer->exp_time, stimer->count, &remainder);
-	stimer->exp_time = time_now + (stimer->count - remainder);
-
-	hrtimer_start(&stimer->timer,
-		      ktime_add_ns(ktime_now,
-				   100 * (stimer->exp_time - time_now)),
-		      HRTIMER_MODE_ABS);
-}
-
+/*
+ * stimer_start() assumptions:
+ * a) stimer->count is not equal to 0
+ * b) stimer->config has HV_STIMER_ENABLE flag
+ */
 static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 {
 	u64 time_now;
@@ -447,12 +435,21 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 	ktime_now = ktime_get();
 
 	if (stimer->config & HV_STIMER_PERIODIC) {
-		if (stimer->count == 0)
-			return -EINVAL;
+		if (stimer->exp_time) {
+			if (time_now >= stimer->exp_time) {
+				u64 remainder;
 
-		stimer->exp_time = time_now + stimer->count;
+				div64_u64_rem(time_now - stimer->exp_time,
+					      stimer->count, &remainder);
+				stimer->exp_time =
+					time_now + (stimer->count - remainder);
+			}
+		} else
+			stimer->exp_time = time_now + stimer->count;
+
 		hrtimer_start(&stimer->timer,
-			      ktime_add_ns(ktime_now, 100 * stimer->count),
+			      ktime_add_ns(ktime_now,
+					   100 * (stimer->exp_time - time_now)),
 			      HRTIMER_MODE_ABS);
 		return 0;
 	}
@@ -580,7 +577,7 @@ static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 	if (!(stimer->config & HV_STIMER_PERIODIC))
 		stimer->config &= ~HV_STIMER_ENABLE;
 	else
-		stimer_restart(stimer);
+		stimer_start(stimer);
 }
 
 void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
