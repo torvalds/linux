@@ -166,8 +166,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config PGTABLE_LEVELS
 	int
-	default 4 if 64BIT
-	default 2
+	default 4
 
 source "init/Kconfig"
 
@@ -403,7 +402,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA
 	bool "NUMA support"
-	depends on SMP && 64BIT && SCHED_TOPOLOGY
+	depends on SMP && SCHED_TOPOLOGY
 	default n
 	help
 	  Enable NUMA support
