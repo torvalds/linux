@@ -9,7 +9,7 @@ Please see https://www.kernel.org/ for a list of supported kernels.  Any
 kernel marked with [EOL] is "end of life" and will not have any fixes
 backported to it.
 
-If you've found a bug on a kernel version isn't listed on kernel.org,
+If you've found a bug on a kernel version that isn't listed on kernel.org,
 contact your Linux distribution or embedded vendor for support.
 Alternatively, you can attempt to run one of the supported stable or -rc
 kernels, and see if you can reproduce the bug on that.  It's preferable
