@@ -1067,13 +1067,6 @@ static int clk_fetch_parent_index(struct clk_core *core,
 {
 	int i;
 
-	if (!core->parents) {
-		core->parents = kcalloc(core->num_parents,
-					sizeof(*core->parents), GFP_KERNEL);
-		if (!core->parents)
-			return -ENOMEM;
-	}
-
 	/*
 	 * find index of new parent clock using cached parent ptrs,
 	 * or if not yet cached, use string name comparison and cache
@@ -1718,11 +1711,6 @@ static struct clk_core *__clk_init_parent(struct clk_core *core)
 
 	index = core->ops->get_parent(core->hw);
 
-	if (!core->parents)
-		core->parents =
-			kcalloc(core->num_parents, sizeof(*core->parents),
-					GFP_KERNEL);
-
 	ret = clk_core_get_parent_by_index(core, index);
 
 out:
@@ -2361,26 +2349,15 @@ static int __clk_core_init(struct clk_core *core)
 				__func__, core->name);
 
 	/*
-	 * Allocate an array of struct clk *'s to avoid unnecessary string
-	 * look-ups of clk's possible parents.  This can fail for clocks passed
-	 * in to clk_init during early boot; thus any access to core->parents[]
-	 * must always check for a NULL pointer and try to populate it if
-	 * necessary.
+	 * clk_core_lookup returns NULL for parents that have not been
+	 * clk_init'd; thus any access to clk->parents[] must check
+	 * for a NULL pointer.  We can always perform lazy lookups for
+	 * missing parents later on.
 	 */
-	if (core->num_parents > 1) {
-		core->parents = kcalloc(core->num_parents,
-					sizeof(*core->parents), GFP_KERNEL);
-		/*
-		 * clk_core_lookup returns NULL for parents that have not been
-		 * clk_init'd; thus any access to clk->parents[] must check
-		 * for a NULL pointer.  We can always perform lazy lookups for
-		 * missing parents later on.
-		 */
-		if (core->parents)
-			for (i = 0; i < core->num_parents; i++)
-				core->parents[i] =
-					clk_core_lookup(core->parent_names[i]);
-	}
+	if (core->parents)
+		for (i = 0; i < core->num_parents; i++)
+			core->parents[i] =
+				clk_core_lookup(core->parent_names[i]);
 
 	core->parent = __clk_init_parent(core);
 
@@ -2578,12 +2555,20 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 		}
 	}
 
+	/* avoid unnecessary string look-ups of clk_core's possible parents. */
+	core->parents = kcalloc(core->num_parents, sizeof(*core->parents),
+				GFP_KERNEL);
+	if (!core->parents) {
+		ret = -ENOMEM;
+		goto fail_parents;
+	};
+
 	INIT_HLIST_HEAD(&core->clks);
 
 	hw->clk = __clk_create_clk(hw, NULL, NULL);
 	if (IS_ERR(hw->clk)) {
 		ret = PTR_ERR(hw->clk);
-		goto fail_parent_names_copy;
+		goto fail_parents;
 	}
 
 	ret = __clk_core_init(core);
@@ -2593,6 +2578,8 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 	__clk_free_clk(hw->clk);
 	hw->clk = NULL;
 
+fail_parents:
+	kfree(core->parents);
 fail_parent_names_copy:
 	while (--i >= 0)
 		kfree_const(core->parent_names[i]);
