@@ -40,6 +40,14 @@ struct vc4_plane_state {
 	 * hardware at vc4_crtc_atomic_flush() time.
 	 */
 	u32 __iomem *hw_dlist;
+
+	/* Clipped coordinates of the plane on the display. */
+	int crtc_x, crtc_y, crtc_w, crtc_h;
+
+	/* Offset to start scanning out from the start of the plane's
+	 * BO.
+	 */
+	u32 offset;
 };
 
 static inline struct vc4_plane_state *
@@ -151,22 +159,17 @@ static void vc4_dlist_write(struct vc4_plane_state *vc4_state, u32 val)
 	vc4_state->dlist[vc4_state->dlist_count++] = val;
 }
 
-/* Writes out a full display list for an active plane to the plane's
- * private dlist state.
- */
-static int vc4_plane_mode_set(struct drm_plane *plane,
-			      struct drm_plane_state *state)
+static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
-	u32 ctl0_offset = vc4_state->dlist_count;
-	const struct hvs_format *format = vc4_get_hvs_format(fb->pixel_format);
-	uint32_t offset = fb->offsets[0];
-	int crtc_x = state->crtc_x;
-	int crtc_y = state->crtc_y;
-	int crtc_w = state->crtc_w;
-	int crtc_h = state->crtc_h;
+
+	vc4_state->offset = fb->offsets[0];
+
+	vc4_state->crtc_x = state->crtc_x;
+	vc4_state->crtc_y = state->crtc_y;
+	vc4_state->crtc_w = state->crtc_w;
+	vc4_state->crtc_h = state->crtc_h;
 
 	if (state->crtc_w << 16 != state->src_w ||
 	    state->crtc_h << 16 != state->src_h) {
@@ -178,17 +181,40 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	if (crtc_x < 0) {
-		offset += drm_format_plane_cpp(fb->pixel_format, 0) * -crtc_x;
-		crtc_w += crtc_x;
-		crtc_x = 0;
+	if (vc4_state->crtc_x < 0) {
+		vc4_state->offset += (drm_format_plane_cpp(fb->pixel_format,
+							   0) *
+				      -vc4_state->crtc_x);
+		vc4_state->crtc_w += vc4_state->crtc_x;
+		vc4_state->crtc_x = 0;
 	}
 
-	if (crtc_y < 0) {
-		offset += fb->pitches[0] * -crtc_y;
-		crtc_h += crtc_y;
-		crtc_y = 0;
+	if (vc4_state->crtc_y < 0) {
+		vc4_state->offset += fb->pitches[0] * -vc4_state->crtc_y;
+		vc4_state->crtc_h += vc4_state->crtc_y;
+		vc4_state->crtc_y = 0;
 	}
+
+	return 0;
+}
+
+
+/* Writes out a full display list for an active plane to the plane's
+ * private dlist state.
+ */
+static int vc4_plane_mode_set(struct drm_plane *plane,
+			      struct drm_plane_state *state)
+{
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
+	u32 ctl0_offset = vc4_state->dlist_count;
+	const struct hvs_format *format = vc4_get_hvs_format(fb->pixel_format);
+	int ret;
+
+	ret = vc4_plane_setup_clipping_and_scaling(state);
+	if (ret)
+		return ret;
 
 	vc4_dlist_write(vc4_state,
 			SCALER_CTL0_VALID |
@@ -199,8 +225,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Position Word 0: Image Positions and Alpha Value */
 	vc4_dlist_write(vc4_state,
 			VC4_SET_FIELD(0xff, SCALER_POS0_FIXED_ALPHA) |
-			VC4_SET_FIELD(crtc_x, SCALER_POS0_START_X) |
-			VC4_SET_FIELD(crtc_y, SCALER_POS0_START_Y));
+			VC4_SET_FIELD(vc4_state->crtc_x, SCALER_POS0_START_X) |
+			VC4_SET_FIELD(vc4_state->crtc_y, SCALER_POS0_START_Y));
 
 	/* Position Word 1: Scaled Image Dimensions.
 	 * Skipped due to SCALER_CTL0_UNITY scaling.
@@ -212,8 +238,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 				      SCALER_POS2_ALPHA_MODE_PIPELINE :
 				      SCALER_POS2_ALPHA_MODE_FIXED,
 				      SCALER_POS2_ALPHA_MODE) |
-			VC4_SET_FIELD(crtc_w, SCALER_POS2_WIDTH) |
-			VC4_SET_FIELD(crtc_h, SCALER_POS2_HEIGHT));
+			VC4_SET_FIELD(vc4_state->crtc_w, SCALER_POS2_WIDTH) |
+			VC4_SET_FIELD(vc4_state->crtc_h, SCALER_POS2_HEIGHT));
 
 	/* Position Word 3: Context.  Written by the HVS. */
 	vc4_dlist_write(vc4_state, 0xc0c0c0c0);
@@ -221,7 +247,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	vc4_state->pw0_offset = vc4_state->dlist_count;
 
 	/* Pointer Word 0: RGB / Y Pointer */
-	vc4_dlist_write(vc4_state, bo->paddr + offset);
+	vc4_dlist_write(vc4_state, bo->paddr + vc4_state->offset);
 
 	/* Pointer Context Word 0: Written by the HVS */
 	vc4_dlist_write(vc4_state, 0xc0c0c0c0);
