@@ -179,6 +179,69 @@ out_maperr:
 	return rc;
 }
 
+static void
+__fmr_dma_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
+{
+	struct ib_device *device = r_xprt->rx_ia.ri_device;
+	struct rpcrdma_mw *mw = seg->rl_mw;
+	int nsegs = seg->mr_nsegs;
+
+	seg->rl_mw = NULL;
+
+	while (nsegs--)
+		rpcrdma_unmap_one(device, seg++);
+
+	rpcrdma_put_mw(r_xprt, mw);
+}
+
+/* Invalidate all memory regions that were registered for "req".
+ *
+ * Sleeps until it is safe for the host CPU to access the
+ * previously mapped memory regions.
+ */
+static void
+fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
+{
+	struct rpcrdma_mr_seg *seg;
+	unsigned int i, nchunks;
+	struct rpcrdma_mw *mw;
+	LIST_HEAD(unmap_list);
+	int rc;
+
+	dprintk("RPC:       %s: req %p\n", __func__, req);
+
+	/* ORDER: Invalidate all of the req's MRs first
+	 *
+	 * ib_unmap_fmr() is slow, so use a single call instead
+	 * of one call per mapped MR.
+	 */
+	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
+		seg = &req->rl_segments[i];
+		mw = seg->rl_mw;
+
+		list_add(&mw->r.fmr.fmr->list, &unmap_list);
+
+		i += seg->mr_nsegs;
+	}
+	rc = ib_unmap_fmr(&unmap_list);
+	if (rc)
+		pr_warn("%s: ib_unmap_fmr failed (%i)\n", __func__, rc);
+
+	/* ORDER: Now DMA unmap all of the req's MRs, and return
+	 * them to the free MW list.
+	 */
+	for (i = 0, nchunks = req->rl_nchunks; nchunks; nchunks--) {
+		seg = &req->rl_segments[i];
+
+		__fmr_dma_unmap(r_xprt, seg);
+
+		i += seg->mr_nsegs;
+		seg->mr_nsegs = 0;
+	}
+
+	req->rl_nchunks = 0;
+}
+
 /* Use the ib_unmap_fmr() verb to prevent further remote
  * access via RDMA READ or RDMA WRITE.
  */
@@ -231,6 +294,7 @@ fmr_op_destroy(struct rpcrdma_buffer *buf)
 
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
+	.ro_unmap_sync			= fmr_op_unmap_sync,
 	.ro_unmap			= fmr_op_unmap,
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,
