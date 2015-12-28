@@ -160,6 +160,22 @@ static struct pnfs_layout_hdr * get_layout_by_fh(struct nfs_client *clp,
 	return lo;
 }
 
+/*
+ * Enforce RFC5661 section 12.5.5.2.1. (Layout Recall and Return Sequencing)
+ */
+static bool pnfs_check_stateid_sequence(struct pnfs_layout_hdr *lo,
+					const nfs4_stateid *new)
+{
+	u32 oldseq, newseq;
+
+	oldseq = be32_to_cpu(lo->plh_stateid.seqid);
+	newseq = be32_to_cpu(new->seqid);
+
+	if (newseq > oldseq + 1)
+		return false;
+	return true;
+}
+
 static u32 initiate_file_draining(struct nfs_client *clp,
 				  struct cb_layoutrecallargs *args)
 {
@@ -175,6 +191,10 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	ino = lo->plh_inode;
 
 	spin_lock(&ino->i_lock);
+	if (!pnfs_check_stateid_sequence(lo, &args->cbl_stateid)) {
+		rv = NFS4ERR_DELAY;
+		goto unlock;
+	}
 	pnfs_set_layout_stateid(lo, &args->cbl_stateid, true);
 	spin_unlock(&ino->i_lock);
 
