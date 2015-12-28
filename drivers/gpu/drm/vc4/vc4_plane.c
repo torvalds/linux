@@ -26,16 +26,19 @@
 
 struct vc4_plane_state {
 	struct drm_plane_state base;
+	/* System memory copy of the display list for this element, computed
+	 * at atomic_check time.
+	 */
 	u32 *dlist;
-	u32 dlist_size; /* Number of dwords in allocated for the display list */
+	u32 dlist_size; /* Number of dwords allocated for the display list */
 	u32 dlist_count; /* Number of used dwords in the display list. */
 
 	/* Offset in the dlist to pointer word 0. */
 	u32 pw0_offset;
 
 	/* Offset where the plane's dlist was last stored in the
-	   hardware at vc4_crtc_atomic_flush() time.
-	*/
+	 * hardware at vc4_crtc_atomic_flush() time.
+	 */
 	u32 *hw_dlist;
 };
 
