@@ -487,7 +487,7 @@ EXPORT_SYMBOL(ieee80211_softmac_scan_syncro);
 
 static void ieee80211_softmac_scan_wq(struct work_struct *work)
 {
-	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, softmac_scan_wq);
 	static short watchdog;
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
@@ -2330,7 +2330,7 @@ static void ieee80211_start_monitor_mode(struct ieee80211_device *ieee)
 static void ieee80211_start_ibss_wq(struct work_struct *work)
 {
 
-	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, start_ibss_wq);
 	/* iwconfig mode ad-hoc will schedule this and return
 	 * on the other hand this will block further iwconfig SET
@@ -2504,7 +2504,7 @@ EXPORT_SYMBOL(ieee80211_disassociate);
 
 static void ieee80211_associate_retry_wq(struct work_struct *work)
 {
-	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, associate_retry_wq);
 	unsigned long flags;
 

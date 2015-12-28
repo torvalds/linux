@@ -3436,8 +3436,7 @@ static void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 
 static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
-	struct delayed_work *dwork = container_of(work,
-						  struct delayed_work, work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct r8192_priv *priv = container_of(dwork,
 					       struct r8192_priv, watch_dog_wq);
 	struct net_device *dev = priv->ieee80211->dev;
