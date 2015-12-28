@@ -757,6 +757,7 @@ struct gb_svc_intf_hotplug_request {
 		__le32	ddbl1_prod_id;
 		__le32	ara_vend_id;
 		__le32	ara_prod_id;
+		__le64	serial_number;
 	} data;
 } __packed;
 /* hotplug response has no payload */

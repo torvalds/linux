@@ -27,6 +27,7 @@ gb_interface_attr(vendor_id, "0x%08x");
 gb_interface_attr(product_id, "0x%08x");
 gb_interface_attr(vendor_string, "%s");
 gb_interface_attr(product_string, "%s");
+gb_interface_attr(serial_number, "0x%016llx");
 
 static struct attribute *interface_attrs[] = {
 	&dev_attr_ddbl1_manufacturer_id.attr,
@@ -36,6 +37,7 @@ static struct attribute *interface_attrs[] = {
 	&dev_attr_product_id.attr,
 	&dev_attr_vendor_string.attr,
 	&dev_attr_product_string.attr,
+	&dev_attr_serial_number.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(interface);

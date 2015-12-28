@@ -429,6 +429,7 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	intf->ddbl1_product_id = le32_to_cpu(request->data.ddbl1_prod_id);
 	intf->vendor_id = le32_to_cpu(request->data.ara_vend_id);
 	intf->product_id = le32_to_cpu(request->data.ara_prod_id);
+	intf->serial_number = le64_to_cpu(request->data.serial_number);
 
 	ret = gb_svc_read_and_clear_module_boot_status(intf);
 	if (ret) {

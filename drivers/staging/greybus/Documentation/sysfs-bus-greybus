@@ -37,6 +37,14 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The ID of a Greybus interface.
 
+What:		/sys/bus/greybus/device/N-I/serial_number
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Serial Number of the Greybus interface, represented by a 64 bit
+		hexadecimal number.
+
 What:		/sys/bus/greybus/device/N-I/product_id
 Date:		October 2015
 KernelVersion:	4.XX
