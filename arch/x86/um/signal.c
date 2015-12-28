@@ -211,7 +211,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 		if (err)
 			return 1;
 
-		err = convert_fxsr_from_user(&fpx, sc.fpstate);
+		err = convert_fxsr_from_user(&fpx, (void *)sc.fpstate);
 		if (err)
 			return 1;
 
@@ -227,7 +227,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 	{
 		struct user_i387_struct fp;
 
-		err = copy_from_user(&fp, sc.fpstate,
+		err = copy_from_user(&fp, (void *)sc.fpstate,
 				     sizeof(struct user_i387_struct));
 		if (err)
 			return 1;
@@ -291,7 +291,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 #endif
 #undef PUTREG
 	sc.oldmask = mask;
-	sc.fpstate = to_fp;
+	sc.fpstate = (unsigned long)to_fp;
 
 	err = copy_to_user(to, &sc, sizeof(struct sigcontext));
 	if (err)
@@ -468,12 +468,10 @@ long sys_sigreturn(void)
 	struct sigframe __user *frame = (struct sigframe __user *)(sp - 8);
 	sigset_t set;
 	struct sigcontext __user *sc = &frame->sc;
-	unsigned long __user *oldmask = &sc->oldmask;
-	unsigned long __user *extramask = frame->extramask;
 	int sig_size = (_NSIG_WORDS - 1) * sizeof(unsigned long);
 
-	if (copy_from_user(&set.sig[0], oldmask, sizeof(set.sig[0])) ||
-	    copy_from_user(&set.sig[1], extramask, sig_size))
+	if (copy_from_user(&set.sig[0], &sc->oldmask, sizeof(set.sig[0])) ||
+	    copy_from_user(&set.sig[1], frame->extramask, sig_size))
 		goto segfault;
 
 	set_current_blocked(&set);
@@ -505,6 +503,7 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 {
 	struct rt_sigframe __user *frame;
 	int err = 0, sig = ksig->sig;
+	unsigned long fp_to;
 
 	frame = (struct rt_sigframe __user *)
 		round_down(stack_top - sizeof(struct rt_sigframe), 16);
@@ -526,7 +525,10 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	err |= __save_altstack(&frame->uc.uc_stack, PT_REGS_SP(regs));
 	err |= copy_sc_to_user(&frame->uc.uc_mcontext, &frame->fpstate, regs,
 			       set->sig[0]);
-	err |= __put_user(&frame->fpstate, &frame->uc.uc_mcontext.fpstate);
+
+	fp_to = (unsigned long)&frame->fpstate;
+
+	err |= __put_user(fp_to, &frame->uc.uc_mcontext.fpstate);
 	if (sizeof(*set) == 16) {
 		err |= __put_user(set->sig[0], &frame->uc.uc_sigmask.sig[0]);
 		err |= __put_user(set->sig[1], &frame->uc.uc_sigmask.sig[1]);

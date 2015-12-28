@@ -370,6 +370,7 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (err) {
 			ERROR(midi, "%s queue req: %d\n",
 				    midi->out_ep->name, err);
+			free_ep_req(midi->out_ep, req);
 		}
 	}
 
@@ -545,7 +546,7 @@ static void f_midi_transmit(struct f_midi *midi, struct usb_request *req)
 		}
 	}
 
-	if (req->length > 0) {
+	if (req->length > 0 && ep->enabled) {
 		int err;
 
 		err = usb_ep_queue(ep, req, GFP_ATOMIC);
