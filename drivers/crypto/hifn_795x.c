@@ -1943,7 +1943,7 @@ static void hifn_flush(struct hifn_device *dev)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	while ((async_req = crypto_dequeue_request(&dev->queue))) {
-		req = container_of(async_req, struct ablkcipher_request, base);
+		req = ablkcipher_request_cast(async_req);
 		spin_unlock_irqrestore(&dev->lock, flags);
 
 		hifn_process_ready(req, -ENODEV);
@@ -2062,7 +2062,7 @@ static int hifn_process_queue(struct hifn_device *dev)
 		if (backlog)
 			backlog->complete(backlog, -EINPROGRESS);
 
-		req = container_of(async_req, struct ablkcipher_request, base);
+		req = ablkcipher_request_cast(async_req);
 
 		err = hifn_handle_req(req);
 		if (err)
