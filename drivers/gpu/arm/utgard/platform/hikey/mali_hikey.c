@@ -638,9 +638,6 @@ int mali_platform_device_init(struct platform_device *pdev)
 	pdev->dev.type = &mali_gpu_device_device_type;
 	pdev->dev.platform_data = &mali_gpu_data;
 	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-#if defined(CONFIG_ARM64)
-	pdev->dev.archdata.dma_ops = dma_ops;
-#endif
 	mali_np = pdev->dev.of_node;
 
 	if (mali_get_gpu_type() != MALI_CORE_450_MP4) {
