@@ -125,6 +125,7 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_TYPE_GET_MANIFEST		0x04
 #define GB_CONTROL_TYPE_CONNECTED		0x05
 #define GB_CONTROL_TYPE_DISCONNECTED		0x06
+#define GB_CONTROL_TYPE_INTERFACE_VERSION	0x0a
 
 /* Control protocol manifest get size request has no payload*/
 struct gb_control_get_manifest_size_response {
@@ -145,6 +146,12 @@ struct gb_control_disconnected_request {
 	__le16			cport_id;
 } __packed;
 /* Control protocol [dis]connected response has no payload */
+
+/* Control protocol interface version request has no payload */
+struct gb_control_interface_version_response {
+	__le16			major;
+	__le16			minor;
+} __packed;
 
 
 /* Firmware Protocol */

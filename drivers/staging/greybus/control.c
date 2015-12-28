@@ -59,6 +59,35 @@ int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id)
 				 sizeof(request), NULL, 0);
 }
 
+int gb_control_get_interface_version_operation(struct gb_interface *intf)
+{
+	struct gb_control_interface_version_response response;
+	struct gb_connection *connection = intf->control->connection;
+	int ret;
+
+	/* The ES3 bootrom fails to boot if this request it sent to it */
+	if (intf->boot_over_unipro)
+		return 0;
+
+	ret = gb_operation_sync(connection, GB_CONTROL_TYPE_INTERFACE_VERSION,
+				NULL, 0, &response, sizeof(response));
+	if (ret) {
+		dev_err(&connection->intf->dev,
+			"failed to get interface version: %d\n", ret);
+		/*
+		 * FIXME: Return success until the time we bump version of
+		 * control protocol. The interface-version is already set to
+		 * 0.0, so no need to update that.
+		 */
+		return 0;
+	}
+
+	intf->version_major = le16_to_cpu(response.major);
+	intf->version_minor = le16_to_cpu(response.minor);
+
+	return 0;
+}
+
 struct gb_control *gb_control_create(struct gb_interface *intf)
 {
 	struct gb_control *control;

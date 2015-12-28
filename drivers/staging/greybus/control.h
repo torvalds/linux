@@ -24,6 +24,7 @@ int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id);
 int gb_control_get_manifest_size_operation(struct gb_interface *intf);
 int gb_control_get_manifest_operation(struct gb_interface *intf, void *manifest,
 				      size_t size);
+int gb_control_get_interface_version_operation(struct gb_interface *intf);
 
 int gb_control_protocol_init(void);
 void gb_control_protocol_exit(void);

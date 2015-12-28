@@ -29,6 +29,16 @@ gb_interface_attr(vendor_string, "%s");
 gb_interface_attr(product_string, "%s");
 gb_interface_attr(serial_number, "0x%016llx");
 
+static ssize_t version_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%u.%u\n", intf->version_major,
+			 intf->version_minor);
+}
+static DEVICE_ATTR_RO(version);
+
 static struct attribute *interface_attrs[] = {
 	&dev_attr_ddbl1_manufacturer_id.attr,
 	&dev_attr_ddbl1_product_id.attr,
@@ -38,6 +48,7 @@ static struct attribute *interface_attrs[] = {
 	&dev_attr_vendor_string.attr,
 	&dev_attr_product_string.attr,
 	&dev_attr_serial_number.attr,
+	&dev_attr_version.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(interface);
@@ -213,6 +224,10 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 		ret = -EINVAL;
 		goto free_manifest;
 	}
+
+	ret = gb_control_get_interface_version_operation(intf);
+	if (ret)
+		goto free_manifest;
 
 	/* Register the interface and its bundles. */
 	ret = device_add(&intf->dev);
