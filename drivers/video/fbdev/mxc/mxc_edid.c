@@ -578,8 +578,10 @@ int mxc_edid_parse_ext_blk(unsigned char *edid,
 
 	m = kmalloc((num + specs->modedb_len) *
 			sizeof(struct fb_videomode), GFP_KERNEL);
-	if (!m)
+	if (!m) {
+		kfree(mode);
 		return 0;
+	}
 
 	if (specs->modedb_len) {
 		memmove(m, specs->modedb,
