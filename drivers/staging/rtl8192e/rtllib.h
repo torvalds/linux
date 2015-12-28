@@ -76,7 +76,7 @@
 
 #define container_of_work_rsl(x, y, z) container_of(x, y, z)
 #define container_of_dwork_rsl(x, y, z)				\
-	container_of(container_of(x, struct delayed_work, work), y, z)
+	container_of(to_delayed_work(x), y, z)
 
 #define iwe_stream_add_event_rsl(info, start, stop, iwe, len)	\
 	iwe_stream_add_event(info, start, stop, iwe, len)
