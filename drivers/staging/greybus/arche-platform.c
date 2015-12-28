@@ -149,9 +149,20 @@ static int arche_platform_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int arche_remove_child(struct device *dev, void *unused)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	platform_device_unregister(pdev);
+
+	return 0;
+}
+
 static int arche_platform_remove(struct platform_device *pdev)
 {
 	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
+
+	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 
 	if (arche_pdata)
 		arche_platform_cleanup(arche_pdata);
