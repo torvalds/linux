@@ -113,6 +113,35 @@ static void iwl_mvm_free_coredump(const void *data)
 	kfree(fw_error_dump);
 }
 
+#define RADIO_REG_MAX_READ 0x2ad
+static void iwl_mvm_read_radio_reg(struct iwl_mvm *mvm,
+				   struct iwl_fw_error_dump_data **dump_data)
+{
+	u8 *pos = (void *)(*dump_data)->data;
+	unsigned long flags;
+	int i;
+
+	if (!iwl_trans_grab_nic_access(mvm->trans, &flags))
+		return;
+
+	(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RADIO_REG);
+	(*dump_data)->len = cpu_to_le32(RADIO_REG_MAX_READ);
+
+	for (i = 0; i < RADIO_REG_MAX_READ; i++) {
+		u32 rd_cmd = RADIO_RSP_RD_CMD;
+
+		rd_cmd |= i << RADIO_RSP_ADDR_POS;
+		iwl_write_prph_no_grab(mvm->trans, RSP_RADIO_CMD, rd_cmd);
+		*pos =  (u8)iwl_read_prph_no_grab(mvm->trans, RSP_RADIO_RDDAT);
+
+		pos++;
+	}
+
+	*dump_data = iwl_fw_error_next_data(*dump_data);
+
+	iwl_trans_release_nic_access(mvm->trans, &flags);
+}
+
 static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 			       struct iwl_fw_error_dump_data **dump_data)
 {
@@ -401,7 +430,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	struct iwl_fw_error_dump_trigger_desc *dump_trig;
 	struct iwl_mvm_dump_ptrs *fw_error_dump;
 	u32 sram_len, sram_ofs;
-	u32 file_len, fifo_data_len = 0, prph_len = 0;
+	u32 file_len, fifo_data_len = 0, prph_len = 0, radio_len = 0;
 	u32 smem_len = mvm->cfg->smem_len;
 	u32 sram2_len = mvm->cfg->dccm2_len;
 	bool monitor_dump_only = false;
@@ -472,6 +501,9 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 				sizeof(struct iwl_fw_error_dump_prph) +
 				num_bytes_in_chunk;
 		}
+
+		if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000)
+			radio_len = sizeof(*dump_data) + RADIO_REG_MAX_READ;
 	}
 
 	file_len = sizeof(*dump_file) +
@@ -479,6 +511,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		   sram_len + sizeof(*dump_mem) +
 		   fifo_data_len +
 		   prph_len +
+		   radio_len +
 		   sizeof(*dump_info);
 
 	/* Make room for the SMEM, if it exists */
@@ -543,8 +576,11 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	dump_data = iwl_fw_error_next_data(dump_data);
 	/* We only dump the FIFOs if the FW is in error state */
-	if (test_bit(STATUS_FW_ERROR, &mvm->trans->status))
+	if (test_bit(STATUS_FW_ERROR, &mvm->trans->status)) {
 		iwl_mvm_dump_fifos(mvm, &dump_data);
+		if (radio_len)
+			iwl_mvm_read_radio_reg(mvm, &dump_data);
+	}
 
 	if (mvm->fw_dump_desc) {
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_ERROR_INFO);

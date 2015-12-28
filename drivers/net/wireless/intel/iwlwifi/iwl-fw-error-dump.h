@@ -88,6 +88,7 @@
  *	&struct iwl_fw_error_dump_rb
  * @IWL_FW_ERROR_PAGING: UMAC's image memory segments which were
  *	paged to the DRAM.
+ * @IWL_FW_ERROR_DUMP_RADIO_REG: Dump the radio registers.
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -103,6 +104,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_ERROR_INFO = 10,
 	IWL_FW_ERROR_DUMP_RB = 11,
 	IWL_FW_ERROR_DUMP_PAGING = 12,
+	IWL_FW_ERROR_DUMP_RADIO_REG = 13,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
