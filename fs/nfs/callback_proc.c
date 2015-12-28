@@ -83,8 +83,11 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
 
 	res = htonl(NFS4ERR_BADHANDLE);
 	inode = nfs_delegation_find_inode(cps->clp, &args->fh);
-	if (inode == NULL)
+	if (inode == NULL) {
+		trace_nfs4_cb_recall(cps->clp, &args->fh, NULL,
+				&args->stateid, -ntohl(res));
 		goto out;
+	}
 	/* Set up a helper thread to actually return the delegation */
 	switch (nfs_async_inode_return_delegation(inode, &args->stateid)) {
 	case 0:
@@ -96,7 +99,8 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
 	default:
 		res = htonl(NFS4ERR_RESOURCE);
 	}
-	trace_nfs4_recall_delegation(inode, -ntohl(res));
+	trace_nfs4_cb_recall(cps->clp, &args->fh, inode,
+			&args->stateid, -ntohl(res));
 	iput(inode);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(res));
@@ -185,8 +189,11 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	LIST_HEAD(free_me_list);
 
 	lo = get_layout_by_fh(clp, &args->cbl_fh, &args->cbl_stateid);
-	if (!lo)
+	if (!lo) {
+		trace_nfs4_cb_layoutrecall_file(clp, &args->cbl_fh, NULL,
+				&args->cbl_stateid, -rv);
 		goto out;
+	}
 
 	ino = lo->plh_inode;
 
@@ -227,7 +234,8 @@ unlock:
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me_list);
 	pnfs_put_layout_hdr(lo);
-	trace_nfs4_cb_layoutrecall_inode(clp, &args->cbl_fh, ino, -rv);
+	trace_nfs4_cb_layoutrecall_file(clp, &args->cbl_fh, ino,
+			&args->cbl_stateid, -rv);
 	iput(ino);
 out:
 	return rv;
