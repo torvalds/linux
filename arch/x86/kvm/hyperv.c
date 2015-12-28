@@ -389,7 +389,7 @@ static u64 get_time_ref_counter(struct kvm *kvm)
 	return div_u64(get_kernel_ns() + kvm->arch.kvmclock_offset, 100);
 }
 
-static void stimer_mark_expired(struct kvm_vcpu_hv_stimer *stimer,
+static void stimer_mark_pending(struct kvm_vcpu_hv_stimer *stimer,
 				bool vcpu_kick)
 {
 	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
@@ -417,7 +417,7 @@ static enum hrtimer_restart stimer_timer_callback(struct hrtimer *timer)
 	struct kvm_vcpu_hv_stimer *stimer;
 
 	stimer = container_of(timer, struct kvm_vcpu_hv_stimer, timer);
-	stimer_mark_expired(stimer, true);
+	stimer_mark_pending(stimer, true);
 
 	return HRTIMER_NORESTART;
 }
@@ -462,7 +462,7 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 		 * "If a one shot is enabled and the specified count is in
 		 * the past, it will expire immediately."
 		 */
-		stimer_mark_expired(stimer, false);
+		stimer_mark_pending(stimer, false);
 		return 0;
 	}
 
@@ -475,30 +475,24 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 			     bool host)
 {
+	stimer_cleanup(stimer);
 	if ((stimer->config & HV_STIMER_ENABLE) && HV_STIMER_SINT(config) == 0)
 		config &= ~HV_STIMER_ENABLE;
 	stimer->config = config;
-	stimer_cleanup(stimer);
-	if (stimer->config & HV_STIMER_ENABLE)
-		if (stimer_start(stimer))
-			return 1;
+	stimer_mark_pending(stimer, false);
 	return 0;
 }
 
 static int stimer_set_count(struct kvm_vcpu_hv_stimer *stimer, u64 count,
 			    bool host)
 {
-	stimer->count = count;
-
 	stimer_cleanup(stimer);
+	stimer->count = count;
 	if (stimer->count == 0)
 		stimer->config &= ~HV_STIMER_ENABLE;
-	else if (stimer->config & HV_STIMER_AUTOENABLE) {
+	else if (stimer->config & HV_STIMER_AUTOENABLE)
 		stimer->config |= HV_STIMER_ENABLE;
-		if (stimer_start(stimer))
-			return 1;
-	}
-
+	stimer_mark_pending(stimer, false);
 	return 0;
 }
 
@@ -582,18 +576,24 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
 	struct kvm_vcpu_hv_stimer *stimer;
-	u64 time_now;
+	u64 time_now, exp_time;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
 		if (test_and_clear_bit(i, hv_vcpu->stimer_pending_bitmap)) {
 			stimer = &hv_vcpu->stimer[i];
 			if (stimer->config & HV_STIMER_ENABLE) {
-				time_now = get_time_ref_counter(vcpu->kvm);
-				if (time_now >= stimer->exp_time)
-					stimer_expiration(stimer);
+				exp_time = stimer->exp_time;
 
-				if (stimer->config & HV_STIMER_ENABLE)
+				if (exp_time) {
+					time_now =
+						get_time_ref_counter(vcpu->kvm);
+					if (time_now >= exp_time)
+						stimer_expiration(stimer);
+				}
+
+				if ((stimer->config & HV_STIMER_ENABLE) &&
+				    stimer->count)
 					stimer_start(stimer);
 				else
 					stimer_cleanup(stimer);
