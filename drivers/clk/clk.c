@@ -2366,11 +2366,8 @@ static int __clk_core_init(struct clk_core *core)
 	 * in to clk_init during early boot; thus any access to core->parents[]
 	 * must always check for a NULL pointer and try to populate it if
 	 * necessary.
-	 *
-	 * If core->parents is not NULL we skip this entire block.  This allows
-	 * for clock drivers to statically initialize core->parents.
 	 */
-	if (core->num_parents > 1 && !core->parents) {
+	if (core->num_parents > 1) {
 		core->parents = kcalloc(core->num_parents, sizeof(struct clk *),
 					GFP_KERNEL);
 		/*
