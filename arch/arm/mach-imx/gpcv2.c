@@ -385,9 +385,9 @@ void imx_gpcv2_set_cpu_power_gate_in_idle(bool pdn)
 			imx_gpcv2_set_slot_ack(1, CORE1_A7, false, false);
 		imx_gpcv2_set_slot_ack(2, SCU_A7, false, true);
 		imx_gpcv2_set_slot_ack(6, SCU_A7, true, false);
-		imx_gpcv2_set_slot_ack(7, CORE0_A7, true, false);
 		if (num_online_cpus() > 1)
-			imx_gpcv2_set_slot_ack(8, CORE1_A7, true, true);
+			imx_gpcv2_set_slot_ack(7, CORE1_A7, true, false);
+		imx_gpcv2_set_slot_ack(8, CORE0_A7, true, true);
 	} else {
 		writel_relaxed(0x0, gpc_base + GPC_SLOT0_CFG + 0 * 0x4);
 		writel_relaxed(0x0, gpc_base + GPC_SLOT0_CFG + 1 * 0x4);

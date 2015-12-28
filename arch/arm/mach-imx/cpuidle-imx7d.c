@@ -158,6 +158,26 @@ static struct cpuidle_driver imx7d_cpuidle_driver = {
 	.safe_state_index = 0,
 };
 
+#ifdef CONFIG_HOTPLUG_CPU
+static int cpu_hotplug_notify(struct notifier_block *self,
+				  unsigned long action, void *hcpu)
+{
+	switch (action) {
+	case CPU_UP_PREPARE:
+		cpuidle_pm_info->cpu1_wfi = 0;
+		break;
+	case CPU_DEAD:
+		cpuidle_pm_info->cpu1_wfi = 1;
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __refdata cpu_hotplug_notifier = {
+	.notifier_call = cpu_hotplug_notify,
+};
+#endif
+
 int imx7d_enable_rcosc(void)
 {
 	void __iomem *anatop_base =
@@ -232,7 +252,10 @@ int __init imx7d_cpuidle_init(void)
 	cpuidle_pm_info->pbase = (phys_addr_t) wfi_iram_base_phys;
 	cpuidle_pm_info->pm_info_size = sizeof(*cpuidle_pm_info);
 	cpuidle_pm_info->resume_addr = virt_to_phys(ca7_cpu_resume);
-	cpuidle_pm_info->cpu1_wfi = 0;
+	if (num_online_cpus() == 1)
+		cpuidle_pm_info->cpu1_wfi = 1;
+	else
+		cpuidle_pm_info->cpu1_wfi = 0;
 	cpuidle_pm_info->lpi_enter = 0;
 	/* initialize the last cpu id to invalid here */
 	cpuidle_pm_info->last_cpu = -1;
@@ -259,6 +282,9 @@ int __init imx7d_cpuidle_init(void)
 
 	imx7d_enable_rcosc();
 
+#ifdef CONFIG_HOTPLUG_CPU
+	register_hotcpu_notifier(&cpu_hotplug_notifier);
+#endif
 	/* code size should include cpuidle_pm_info size */
 	imx7d_wfi_in_iram_fn = (void *)fncpy(wfi_iram_base +
 		sizeof(*cpuidle_pm_info),
