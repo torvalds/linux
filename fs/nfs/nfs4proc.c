@@ -8049,9 +8049,10 @@ static void nfs4_layoutreturn_release(void *calldata)
 
 	dprintk("--> %s\n", __func__);
 	spin_lock(&lo->plh_inode->i_lock);
+	pnfs_mark_matching_lsegs_invalid(lo, &freeme, &lrp->args.range);
+	pnfs_mark_layout_returned_if_empty(lo);
 	if (lrp->res.lrs_present)
 		pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
-	pnfs_mark_matching_lsegs_invalid(lo, &freeme, &lrp->args.range);
 	pnfs_clear_layoutreturn_waitbit(lo);
 	lo->plh_block_lgets--;
 	spin_unlock(&lo->plh_inode->i_lock);

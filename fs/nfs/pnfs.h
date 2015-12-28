@@ -556,6 +556,19 @@ pnfs_calc_offset_length(u64 offset, u64 end)
 	return 1 + end - offset;
 }
 
+/**
+ * pnfs_mark_layout_returned_if_empty - marks the layout as returned
+ * @lo: layout header
+ *
+ * Note: Caller must hold inode->i_lock
+ */
+static inline void
+pnfs_mark_layout_returned_if_empty(struct pnfs_layout_hdr *lo)
+{
+	if (list_empty(&lo->plh_segs))
+		set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+}
+
 extern unsigned int layoutstats_timer;
 
 #ifdef NFS_DEBUG
