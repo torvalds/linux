@@ -2347,17 +2347,6 @@ static int __clk_core_init(struct clk_core *core)
 				"%s: invalid NULL in %s's .parent_names\n",
 				__func__, core->name);
 
-	/*
-	 * clk_core_lookup returns NULL for parents that have not been
-	 * clk_init'd; thus any access to clk->parents[] must check
-	 * for a NULL pointer.  We can always perform lazy lookups for
-	 * missing parents later on.
-	 */
-	if (core->parents)
-		for (i = 0; i < core->num_parents; i++)
-			core->parents[i] =
-				clk_core_lookup(core->parent_names[i]);
-
 	core->parent = __clk_init_parent(core);
 
 	/*
