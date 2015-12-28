@@ -663,7 +663,7 @@ MODULE_DEVICE_TABLE(of, rt8973a_dt_match);
 #ifdef CONFIG_PM_SLEEP
 static int rt8973a_muic_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct rt8973a_muic_info *info = i2c_get_clientdata(i2c);
 
 	enable_irq_wake(info->irq);
@@ -673,7 +673,7 @@ static int rt8973a_muic_suspend(struct device *dev)
 
 static int rt8973a_muic_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct rt8973a_muic_info *info = i2c_get_clientdata(i2c);
 
 	disable_irq_wake(info->irq);
