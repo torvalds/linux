@@ -400,16 +400,11 @@ static void stimer_mark_expired(struct kvm_vcpu_hv_stimer *stimer,
 		kvm_vcpu_kick(vcpu);
 }
 
-static void stimer_stop(struct kvm_vcpu_hv_stimer *stimer)
-{
-	hrtimer_cancel(&stimer->timer);
-}
-
 static void stimer_cleanup(struct kvm_vcpu_hv_stimer *stimer)
 {
 	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
 
-	stimer_stop(stimer);
+	hrtimer_cancel(&stimer->timer);
 	clear_bit(stimer->index,
 		  vcpu_to_hv_vcpu(vcpu)->stimer_pending_bitmap);
 	stimer->msg_pending = false;
