@@ -669,6 +669,8 @@ static void reset_connection(struct ceph_connection *con)
 	}
 	con->in_seq = 0;
 	con->in_seq_acked = 0;
+
+	con->out_skip = 0;
 }
 
 /*
@@ -768,6 +770,8 @@ static u32 get_global_seq(struct ceph_messenger *msgr, u32 gt)
 
 static void con_out_kvec_reset(struct ceph_connection *con)
 {
+	BUG_ON(con->out_skip);
+
 	con->out_kvec_left = 0;
 	con->out_kvec_bytes = 0;
 	con->out_kvec_cur = &con->out_kvec[0];
@@ -776,15 +780,36 @@ static void con_out_kvec_reset(struct ceph_connection *con)
 static void con_out_kvec_add(struct ceph_connection *con,
 				size_t size, void *data)
 {
-	int index;
+	int index = con->out_kvec_left;
 
-	index = con->out_kvec_left;
+	BUG_ON(con->out_skip);
 	BUG_ON(index >= ARRAY_SIZE(con->out_kvec));
 
 	con->out_kvec[index].iov_len = size;
 	con->out_kvec[index].iov_base = data;
 	con->out_kvec_left++;
 	con->out_kvec_bytes += size;
+}
+
+/*
+ * Chop off a kvec from the end.  Return residual number of bytes for
+ * that kvec, i.e. how many bytes would have been written if the kvec
+ * hadn't been nuked.
+ */
+static int con_out_kvec_skip(struct ceph_connection *con)
+{
+	int off = con->out_kvec_cur - con->out_kvec;
+	int skip = 0;
+
+	if (con->out_kvec_bytes > 0) {
+		skip = con->out_kvec[off + con->out_kvec_left - 1].iov_len;
+		BUG_ON(con->out_kvec_bytes < skip);
+		BUG_ON(!con->out_kvec_left);
+		con->out_kvec_bytes -= skip;
+		con->out_kvec_left--;
+	}
+
+	return skip;
 }
 
 #ifdef CONFIG_BLOCK
@@ -1194,7 +1219,6 @@ static void prepare_write_message_footer(struct ceph_connection *con)
 	m->footer.flags |= CEPH_MSG_FOOTER_COMPLETE;
 
 	dout("prepare_write_message_footer %p\n", con);
-	con->out_kvec_is_msg = true;
 	con->out_kvec[v].iov_base = &m->footer;
 	if (con->peer_features & CEPH_FEATURE_MSG_AUTH) {
 		if (con->ops->sign_message)
@@ -1222,7 +1246,6 @@ static void prepare_write_message(struct ceph_connection *con)
 	u32 crc;
 
 	con_out_kvec_reset(con);
-	con->out_kvec_is_msg = true;
 	con->out_msg_done = false;
 
 	/* Sneak an ack in there first?  If we can get it into the same
@@ -1262,18 +1285,19 @@ static void prepare_write_message(struct ceph_connection *con)
 
 	/* tag + hdr + front + middle */
 	con_out_kvec_add(con, sizeof (tag_msg), &tag_msg);
-	con_out_kvec_add(con, sizeof (m->hdr), &m->hdr);
+	con_out_kvec_add(con, sizeof(con->out_hdr), &con->out_hdr);
 	con_out_kvec_add(con, m->front.iov_len, m->front.iov_base);
 
 	if (m->middle)
 		con_out_kvec_add(con, m->middle->vec.iov_len,
 			m->middle->vec.iov_base);
 
-	/* fill in crc (except data pages), footer */
+	/* fill in hdr crc and finalize hdr */
 	crc = crc32c(0, &m->hdr, offsetof(struct ceph_msg_header, crc));
 	con->out_msg->hdr.crc = cpu_to_le32(crc);
-	con->out_msg->footer.flags = 0;
+	memcpy(&con->out_hdr, &con->out_msg->hdr, sizeof(con->out_hdr));
 
+	/* fill in front and middle crc, footer */
 	crc = crc32c(0, m->front.iov_base, m->front.iov_len);
 	con->out_msg->footer.front_crc = cpu_to_le32(crc);
 	if (m->middle) {
@@ -1285,6 +1309,7 @@ static void prepare_write_message(struct ceph_connection *con)
 	dout("%s front_crc %u middle_crc %u\n", __func__,
 	     le32_to_cpu(con->out_msg->footer.front_crc),
 	     le32_to_cpu(con->out_msg->footer.middle_crc));
+	con->out_msg->footer.flags = 0;
 
 	/* is there a data payload? */
 	con->out_msg->footer.data_crc = 0;
@@ -1489,7 +1514,6 @@ static int write_partial_kvec(struct ceph_connection *con)
 		}
 	}
 	con->out_kvec_left = 0;
-	con->out_kvec_is_msg = false;
 	ret = 1;
 out:
 	dout("write_partial_kvec %p %d left in %d kvecs ret = %d\n", con,
@@ -1581,6 +1605,7 @@ static int write_partial_skip(struct ceph_connection *con)
 {
 	int ret;
 
+	dout("%s %p %d left\n", __func__, con, con->out_skip);
 	while (con->out_skip > 0) {
 		size_t size = min(con->out_skip, (int) PAGE_CACHE_SIZE);
 
@@ -2503,13 +2528,13 @@ more:
 
 more_kvec:
 	/* kvec data queued? */
-	if (con->out_skip) {
-		ret = write_partial_skip(con);
+	if (con->out_kvec_left) {
+		ret = write_partial_kvec(con);
 		if (ret <= 0)
 			goto out;
 	}
-	if (con->out_kvec_left) {
-		ret = write_partial_kvec(con);
+	if (con->out_skip) {
+		ret = write_partial_skip(con);
 		if (ret <= 0)
 			goto out;
 	}
@@ -3047,16 +3072,31 @@ void ceph_msg_revoke(struct ceph_msg *msg)
 		ceph_msg_put(msg);
 	}
 	if (con->out_msg == msg) {
-		dout("%s %p msg %p - was sending\n", __func__, con, msg);
-		con->out_msg = NULL;
-		if (con->out_kvec_is_msg) {
-			con->out_skip = con->out_kvec_bytes;
-			con->out_kvec_is_msg = false;
+		BUG_ON(con->out_skip);
+		/* footer */
+		if (con->out_msg_done) {
+			con->out_skip += con_out_kvec_skip(con);
+		} else {
+			BUG_ON(!msg->data_length);
+			if (con->peer_features & CEPH_FEATURE_MSG_AUTH)
+				con->out_skip += sizeof(msg->footer);
+			else
+				con->out_skip += sizeof(msg->old_footer);
 		}
-		msg->hdr.seq = 0;
+		/* data, middle, front */
+		if (msg->data_length)
+			con->out_skip += msg->cursor.total_resid;
+		if (msg->middle)
+			con->out_skip += con_out_kvec_skip(con);
+		con->out_skip += con_out_kvec_skip(con);
 
+		dout("%s %p msg %p - was sending, will write %d skip %d\n",
+		     __func__, con, msg, con->out_kvec_bytes, con->out_skip);
+		msg->hdr.seq = 0;
+		con->out_msg = NULL;
 		ceph_msg_put(msg);
 	}
+
 	mutex_unlock(&con->mutex);
 }
 
