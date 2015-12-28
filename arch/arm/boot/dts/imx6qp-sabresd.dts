@@ -76,7 +76,6 @@
 };
 
 &pcie {
-	power-on-gpio = <&gpio3 19 0>;
 	reset-gpio = <&gpio7 12 0>;
 	status = "okay";
 };
