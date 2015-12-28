@@ -554,30 +554,27 @@ static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
 	return r;
 }
 
-static void stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
+static int stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
 {
 	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
 	struct hv_message *msg = &stimer->msg;
 	struct hv_timer_message_payload *payload =
 			(struct hv_timer_message_payload *)&msg->u.payload;
-	int r;
 
-	stimer->msg_pending = true;
 	payload->expiration_time = stimer->exp_time;
 	payload->delivery_time = get_time_ref_counter(vcpu->kvm);
-	r = synic_deliver_msg(vcpu_to_synic(vcpu),
-			      HV_STIMER_SINT(stimer->config), msg);
-	if (!r)
-		stimer->msg_pending = false;
+	return synic_deliver_msg(vcpu_to_synic(vcpu),
+				 HV_STIMER_SINT(stimer->config), msg);
 }
 
 static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 {
-	stimer_send_msg(stimer);
-	if (!(stimer->config & HV_STIMER_PERIODIC))
-		stimer->config &= ~HV_STIMER_ENABLE;
-	else
-		stimer_start(stimer);
+	stimer->msg_pending = true;
+	if (!stimer_send_msg(stimer)) {
+		stimer->msg_pending = false;
+		if (!(stimer->config & HV_STIMER_PERIODIC))
+			stimer->config &= ~HV_STIMER_ENABLE;
+	}
 }
 
 void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
@@ -594,6 +591,11 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 				time_now = get_time_ref_counter(vcpu->kvm);
 				if (time_now >= stimer->exp_time)
 					stimer_expiration(stimer);
+
+				if (stimer->config & HV_STIMER_ENABLE)
+					stimer_start(stimer);
+				else
+					stimer_cleanup(stimer);
 			}
 		}
 }
