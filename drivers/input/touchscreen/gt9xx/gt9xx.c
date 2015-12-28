@@ -158,15 +158,18 @@ s32 gtp_i2c_read(struct i2c_client *client, u8 *buf, s32 len)
     msgs[0].addr  = client->addr;
     msgs[0].len   = GTP_ADDR_LENGTH;
     msgs[0].buf   = &buf[0];
+#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
     msgs[0].scl_rate=200 * 1000;
     //msgs[0].scl_rate = 300 * 1000;    // for Rockchip, etc.
-    
+#endif
     msgs[1].flags = I2C_M_RD;
     msgs[1].addr  = client->addr;
     msgs[1].len   = len - GTP_ADDR_LENGTH;
     msgs[1].buf   = &buf[GTP_ADDR_LENGTH];
+#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
     msgs[1].scl_rate=200 * 1000;
-    //msgs[1].scl_rate = 300 * 1000;
+    //msgs[1].scl_rate = 300 * 1000;    // for Rockchip, etc.
+#endif
 
     while(retries < 5)
     {
@@ -228,9 +231,10 @@ s32 gtp_i2c_write(struct i2c_client *client,u8 *buf,s32 len)
     msg.addr  = client->addr;
     msg.len   = len;
     msg.buf   = buf;
+#ifdef CONFIG_I2C_ROCKCHIP_COMPAT
     msg.scl_rate=200 * 1000;
     //msg.scl_rate = 300 * 1000;    // for Rockchip, etc
-
+#endif
     while(retries < 5)
     {
         ret = i2c_transfer(client->adapter, &msg, 1);
@@ -1676,8 +1680,6 @@ static ssize_t gt91xx_config_write_proc(struct file *filp, const char __user *bu
 {
     s32 ret = 0;
 
-    GTP_DEBUG("write count %d\n", count);
-
     if (count > GTP_CONFIG_MAX_LENGTH)
     {
         GTP_ERROR("size not match [%d:%zu]\n", GTP_CONFIG_MAX_LENGTH, count);
@@ -1943,7 +1945,7 @@ static int goodix_ts_early_suspend(struct tp_device *tp_d)
     //  delay 48 + 10ms to ensure reliability
     msleep(58);
 	regulator_tp = regulator_get(NULL,"vcc_tp");
-	if(regulator_tp ==NULL)
+	if(IS_ERR(regulator_tp))
 	{
 		printk("!!!!%s:%d:get regulator_tp failed\n",__func__,__LINE__);
 		return 0;
@@ -1978,7 +1980,7 @@ static int goodix_ts_early_resume(struct tp_device *tp_d)
     GTP_INFO("System resume.");
 
 	regulator_tp = regulator_get(NULL, "vcc_tp");
-	if(regulator_tp ==NULL)
+	if(IS_ERR(regulator_tp))
 	{
 		printk("!!!!%s:%d:get regulator_tp failed\n",__func__,__LINE__);
 		return 0;
@@ -2567,14 +2569,13 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     struct device_node *np = client->dev.of_node;
     enum of_gpio_flags rst_flags, pwr_flags;
     u32 val;
-	printk("___%s() start____ \n", __func__);
+	printk("%s() start\n", __func__);
 
     
     GTP_DEBUG_FUNC();
     
     //do NOT remove these logs
     GTP_INFO("GTP Driver Version: %s", GTP_DRIVER_VERSION);
-    GTP_INFO("GTP Driver Built@%s, %s", __TIME__, __DATE__);
     GTP_INFO("GTP I2C Address: 0x%02x", client->addr);
 
     i2c_connect_client = client;

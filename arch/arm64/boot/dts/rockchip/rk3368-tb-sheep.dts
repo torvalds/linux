@@ -48,7 +48,7 @@
 	compatible = "rockchip,sheep", "rockchip,rk3368";
 };
 
-&gt911 {
+&gt9xx {
 	status = "okay";
 };
 
