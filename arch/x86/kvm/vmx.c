@@ -2803,7 +2803,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.ia32_xss;
 		break;
 	case MSR_TSC_AUX:
-		if (!guest_cpuid_has_rdtscp(vcpu))
+		if (!guest_cpuid_has_rdtscp(vcpu) && !msr_info->host_initiated)
 			return 1;
 		/* Otherwise falls through */
 	default:
@@ -2909,7 +2909,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			clear_atomic_switch_msr(vmx, MSR_IA32_XSS);
 		break;
 	case MSR_TSC_AUX:
-		if (!guest_cpuid_has_rdtscp(vcpu))
+		if (!guest_cpuid_has_rdtscp(vcpu) && !msr_info->host_initiated)
 			return 1;
 		/* Check reserved bit, higher 32 bits should be zero */
 		if ((data >> 32) != 0)
@@ -8042,6 +8042,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
 
+	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
+
 	/*
 	 * Flush logged GPAs PML buffer, this will make dirty_bitmap more
 	 * updated. Another good is, in kvm_vm_ioctl_get_dirty_log, before
@@ -8668,7 +8670,6 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx->loaded_vmcs->launched = 1;
 
 	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
-	trace_kvm_exit(vmx->exit_reason, vcpu, KVM_ISA_VMX);
 
 	/*
 	 * the KVM_REQ_EVENT optimization bit is only on for one entry, and if

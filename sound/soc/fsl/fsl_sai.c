@@ -505,6 +505,24 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
 			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
 					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
+
+			/*
+			 * For sai master mode, after several open/close sai,
+			 * there will be no frame clock, and can't recover
+			 * anymore. Add software reset to fix this issue.
+			 * This is a hardware bug, and will be fix in the
+			 * next sai version.
+			 */
+			if (!sai->is_slave_mode) {
+				/* Software Reset for both Tx and Rx */
+				regmap_write(sai->regmap,
+					     FSL_SAI_TCSR, FSL_SAI_CSR_SR);
+				regmap_write(sai->regmap,
+					     FSL_SAI_RCSR, FSL_SAI_CSR_SR);
+				/* Clear SR bit to finish the reset */
+				regmap_write(sai->regmap, FSL_SAI_TCSR, 0);
+				regmap_write(sai->regmap, FSL_SAI_RCSR, 0);
+			}
 		}
 		break;
 	default:
