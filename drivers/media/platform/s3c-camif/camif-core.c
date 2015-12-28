@@ -324,11 +324,11 @@ static int camif_media_dev_init(struct camif_dev *camif)
 	strlcpy(v4l2_dev->name, "s3c-camif", sizeof(v4l2_dev->name));
 	v4l2_dev->mdev = md;
 
+	media_device_init(md);
+
 	ret = v4l2_device_register(camif->dev, v4l2_dev);
 	if (ret < 0)
 		return ret;
-
-	media_device_init(md);
 
 	return ret;
 }

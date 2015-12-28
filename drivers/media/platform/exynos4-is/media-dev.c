@@ -1356,13 +1356,13 @@ static int fimc_md_probe(struct platform_device *pdev)
 	fmd->use_isp = fimc_md_is_isp_available(dev->of_node);
 	fmd->user_subdev_api = true;
 
+	media_device_init(&fmd->media_dev);
+
 	ret = v4l2_device_register(dev, &fmd->v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
 		return ret;
 	}
-
-	media_device_init(&fmd->media_dev);
 
 	ret = fimc_md_get_clocks(fmd);
 	if (ret)
