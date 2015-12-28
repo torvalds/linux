@@ -119,6 +119,17 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	hvs->dlist = hvs->regs + SCALER_DLIST_START;
 
+	spin_lock_init(&hvs->mm_lock);
+
+	/* Set up the HVS display list memory manager.  We never
+	 * overwrite the setup from the bootloader (just 128b out of
+	 * our 16K), since we don't want to scramble the screen when
+	 * transitioning from the firmware's boot setup to runtime.
+	 */
+	drm_mm_init(&hvs->dlist_mm,
+		    HVS_BOOTLOADER_DLIST_END,
+		    (SCALER_DLIST_SIZE >> 2) - HVS_BOOTLOADER_DLIST_END);
+
 	vc4->hvs = hvs;
 	return 0;
 }
@@ -128,6 +139,8 @@ static void vc4_hvs_unbind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = drm->dev_private;
+
+	drm_mm_takedown(&vc4->hvs->dlist_mm);
 
 	vc4->hvs = NULL;
 }

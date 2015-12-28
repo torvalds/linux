@@ -149,7 +149,13 @@ struct vc4_v3d {
 struct vc4_hvs {
 	struct platform_device *pdev;
 	void __iomem *regs;
-	void __iomem *dlist;
+	u32 __iomem *dlist;
+
+	/* Memory manager for CRTCs to allocate space in the display
+	 * list.  Units are dwords.
+	 */
+	struct drm_mm dlist_mm;
+	spinlock_t mm_lock;
 };
 
 struct vc4_plane {
