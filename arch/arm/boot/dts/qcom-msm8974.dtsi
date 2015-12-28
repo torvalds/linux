@@ -14,8 +14,48 @@
 		#size-cells = <1>;
 		ranges;
 
+		mpss@08000000 {
+			reg = <0x08000000 0x5100000>;
+			no-map;
+		};
+
+		mba@00d100000 {
+			reg = <0x0d100000 0x100000>;
+			no-map;
+		};
+
+		reserved@0d200000 {
+			reg = <0x0d200000 0xa00000>;
+			no-map;
+		};
+
+		adsp@0dc00000 {
+			reg = <0x0dc00000 0x1900000>;
+			no-map;
+		};
+
+		venus@0f500000 {
+			reg = <0x0f500000 0x500000>;
+			no-map;
+		};
+
 		smem_region: smem@fa00000 {
 			reg = <0xfa00000 0x200000>;
+			no-map;
+		};
+
+		tz@0fc00000 {
+			reg = <0x0fc00000 0x160000>;
+			no-map;
+		};
+
+		efs@0fd600000 {
+			reg = <0x0fd60000 0x1a0000>;
+			no-map;
+		};
+
+		unused@0ff00000 {
+			reg = <0x0ff00000 0x10100000>;
 			no-map;
 		};
 	};
