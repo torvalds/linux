@@ -216,10 +216,10 @@ static void dvb_media_device_free(struct dvb_device *dvbdev)
 #endif
 }
 
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
 static int dvb_create_tsout_entity(struct dvb_device *dvbdev,
 				    const char *name, int npads)
 {
-#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
 	int i, ret = 0;
 
 	dvbdev->tsout_pads = kcalloc(npads, sizeof(*dvbdev->tsout_pads),
@@ -254,7 +254,6 @@ static int dvb_create_tsout_entity(struct dvb_device *dvbdev,
 		if (ret < 0)
 			return ret;
 	}
-#endif
 	return 0;
 }
 
@@ -264,7 +263,6 @@ static int dvb_create_tsout_entity(struct dvb_device *dvbdev,
 static int dvb_create_media_entity(struct dvb_device *dvbdev,
 				   int type, int demux_sink_pads)
 {
-#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
 	int i, ret, npads;
 
 	switch (type) {
@@ -352,9 +350,9 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 	printk(KERN_DEBUG "%s: media entity '%s' registered.\n",
 		__func__, dvbdev->entity->name);
 
-#endif
 	return 0;
 }
+#endif
 
 static int dvb_register_media_device(struct dvb_device *dvbdev,
 				     int type, int minor,
