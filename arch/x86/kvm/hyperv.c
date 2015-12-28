@@ -474,7 +474,7 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 			     bool host)
 {
-	if (stimer->count == 0 || HV_STIMER_SINT(config) == 0)
+	if ((stimer->config & HV_STIMER_ENABLE) && HV_STIMER_SINT(config) == 0)
 		config &= ~HV_STIMER_ENABLE;
 	stimer->config = config;
 	stimer_cleanup(stimer);
