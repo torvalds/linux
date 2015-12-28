@@ -583,7 +583,7 @@ static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 {
 	stimer_send_msg(stimer);
 	if (!(stimer->config & HV_STIMER_PERIODIC))
-		stimer->config |= ~HV_STIMER_ENABLE;
+		stimer->config &= ~HV_STIMER_ENABLE;
 	else
 		stimer_restart(stimer);
 }
