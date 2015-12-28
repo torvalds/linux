@@ -115,7 +115,6 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return ftrace_modify_code(ip, old, new);
 }
 
-/* run from kstop_machine */
 int __init ftrace_dyn_arch_init(void)
 {
 	return 0;
