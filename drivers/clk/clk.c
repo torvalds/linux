@@ -2422,24 +2422,15 @@ static int __clk_core_init(struct clk_core *core)
 	core->rate = core->req_rate = rate;
 
 	/*
-	 * walk the list of orphan clocks and reparent any that are children of
-	 * this clock
+	 * walk the list of orphan clocks and reparent any that newly finds a
+	 * parent.
 	 */
 	hlist_for_each_entry_safe(orphan, tmp2, &clk_orphan_list, child_node) {
-		if (orphan->num_parents && orphan->ops->get_parent) {
-			i = orphan->ops->get_parent(orphan->hw);
-			if (i >= 0 && i < orphan->num_parents &&
-			    !strcmp(core->name, orphan->parent_names[i]))
-				clk_core_reparent(orphan, core);
-			continue;
-		}
+		struct clk_core *parent = __clk_init_parent(orphan);
 
-		for (i = 0; i < orphan->num_parents; i++)
-			if (!strcmp(core->name, orphan->parent_names[i])) {
-				clk_core_reparent(orphan, core);
-				break;
-			}
-	 }
+		if (parent)
+			clk_core_reparent(orphan, parent);
+	}
 
 	/*
 	 * optional platform-specific magic
