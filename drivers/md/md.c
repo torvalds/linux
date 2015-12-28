@@ -205,15 +205,6 @@ void md_new_event(struct mddev *mddev)
 }
 EXPORT_SYMBOL_GPL(md_new_event);
 
-/* Alternate version that can be called from interrupts
- * when calling sysfs_notify isn't needed.
- */
-static void md_new_event_inintr(struct mddev *mddev)
-{
-	atomic_inc(&md_event_count);
-	wake_up(&md_event_waiters);
-}
-
 /*
  * Enables to iterate over all existing md arrays
  * all_mddevs_lock protects this list.
@@ -7209,7 +7200,7 @@ void md_error(struct mddev *mddev, struct md_rdev *rdev)
 	md_wakeup_thread(mddev->thread);
 	if (mddev->event_work.func)
 		queue_work(md_misc_wq, &mddev->event_work);
-	md_new_event_inintr(mddev);
+	md_new_event(mddev);
 }
 EXPORT_SYMBOL(md_error);
 
