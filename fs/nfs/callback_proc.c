@@ -214,7 +214,7 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 		pnfs_mark_matching_lsegs_return(lo,
 				&free_me_list,
 				&args->cbl_range);
-		rv = NFS4ERR_DELAY;
+		rv = NFS4_OK;
 		goto unlock;
 	}
 
