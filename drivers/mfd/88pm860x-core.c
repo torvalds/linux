@@ -1218,7 +1218,7 @@ static int pm860x_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int pm860x_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)
@@ -1228,7 +1228,7 @@ static int pm860x_suspend(struct device *dev)
 
 static int pm860x_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(dev) && chip->wakeup_flag)

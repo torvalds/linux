@@ -536,7 +536,7 @@ static void sec_pmic_shutdown(struct i2c_client *i2c)
 #ifdef CONFIG_PM_SLEEP
 static int sec_pmic_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct sec_pmic_dev *sec_pmic = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -557,7 +557,7 @@ static int sec_pmic_suspend(struct device *dev)
 
 static int sec_pmic_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct sec_pmic_dev *sec_pmic = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
