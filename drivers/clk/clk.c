@@ -1066,6 +1066,9 @@ static int clk_fetch_parent_index(struct clk_core *core,
 {
 	int i;
 
+	if (!parent)
+		return -EINVAL;
+
 	/*
 	 * find index of new parent clock using cached parent ptrs,
 	 * or if not yet cached, use string name comparison and cache
