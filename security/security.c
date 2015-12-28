@@ -910,6 +910,12 @@ int security_kernel_module_from_file(struct file *file)
 	return ima_module_check(file);
 }
 
+int security_kernel_post_read_file(struct file *file, char *buf, loff_t size)
+{
+	return call_int_hook(kernel_post_read_file, 0, file, buf, size);
+}
+EXPORT_SYMBOL_GPL(security_kernel_post_read_file);
+
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags)
 {
@@ -1697,6 +1703,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.kernel_module_request),
 	.kernel_module_from_file =
 		LIST_HEAD_INIT(security_hook_heads.kernel_module_from_file),
+	.kernel_post_read_file =
+		LIST_HEAD_INIT(security_hook_heads.kernel_post_read_file),
 	.task_fix_setuid =
 		LIST_HEAD_INIT(security_hook_heads.task_fix_setuid),
 	.task_setpgid =	LIST_HEAD_INIT(security_hook_heads.task_setpgid),
