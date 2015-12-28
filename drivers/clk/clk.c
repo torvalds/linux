@@ -2303,13 +2303,13 @@ static inline void clk_debug_unregister(struct clk_core *core)
 #endif
 
 /**
- * __clk_init - initialize the data structures in a struct clk_core
+ * __clk_core_init - initialize the data structures in a struct clk_core
  * @core:	clk_core being initialized
  *
  * Initializes the lists in struct clk_core, queries the hardware for the
  * parent and rate and sets them both.
  */
-static int __clk_init(struct clk_core *core)
+static int __clk_core_init(struct clk_core *core)
 {
 	int i, ret = 0;
 	struct clk_core *orphan;
@@ -2589,7 +2589,7 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 		goto fail_parent_names_copy;
 	}
 
-	ret = __clk_init(core);
+	ret = __clk_core_init(core);
 	if (!ret)
 		return hw->clk;
 
