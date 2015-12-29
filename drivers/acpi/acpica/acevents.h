@@ -161,6 +161,11 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 /*
  * evhandler - Address space handling
  */
+union acpi_operand_object *acpi_ev_find_region_handler(acpi_adr_space_type
+						       space_id,
+						       union acpi_operand_object
+						       *handler_obj);
+
 u8
 acpi_ev_has_default_handler(struct acpi_namespace_node *node,
 			    acpi_adr_space_type space_id);

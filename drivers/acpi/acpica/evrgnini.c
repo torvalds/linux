@@ -602,60 +602,49 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 				break;
 			}
 
-			while (handler_obj) {
+			handler_obj =
+			    acpi_ev_find_region_handler(space_id, handler_obj);
+			if (handler_obj) {
 
-				/* Is this handler of the correct type? */
+				/* Found correct handler */
 
-				if (handler_obj->address_space.space_id ==
-				    space_id) {
+				ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+						  "Found handler %p for region %p in obj %p\n",
+						  handler_obj, region_obj,
+						  obj_desc));
 
-					/* Found correct handler */
-
-					ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-							  "Found handler %p for region %p in obj %p\n",
-							  handler_obj,
+				status =
+				    acpi_ev_attach_region(handler_obj,
 							  region_obj,
-							  obj_desc));
+							  acpi_ns_locked);
 
+				/*
+				 * Tell all users that this region is usable by
+				 * running the _REG method
+				 */
+				if (acpi_ns_locked) {
 					status =
-					    acpi_ev_attach_region(handler_obj,
-								  region_obj,
-								  acpi_ns_locked);
-
-					/*
-					 * Tell all users that this region is usable by
-					 * running the _REG method
-					 */
-					if (acpi_ns_locked) {
-						status =
-						    acpi_ut_release_mutex
-						    (ACPI_MTX_NAMESPACE);
-						if (ACPI_FAILURE(status)) {
-							return_ACPI_STATUS
-							    (status);
-						}
+					    acpi_ut_release_mutex
+					    (ACPI_MTX_NAMESPACE);
+					if (ACPI_FAILURE(status)) {
+						return_ACPI_STATUS(status);
 					}
-
-					status =
-					    acpi_ev_execute_reg_method
-					    (region_obj, ACPI_REG_CONNECT);
-
-					if (acpi_ns_locked) {
-						status =
-						    acpi_ut_acquire_mutex
-						    (ACPI_MTX_NAMESPACE);
-						if (ACPI_FAILURE(status)) {
-							return_ACPI_STATUS
-							    (status);
-						}
-					}
-
-					return_ACPI_STATUS(AE_OK);
 				}
 
-				/* Try next handler in the list */
+				status =
+				    acpi_ev_execute_reg_method(region_obj,
+							       ACPI_REG_CONNECT);
 
-				handler_obj = handler_obj->address_space.next;
+				if (acpi_ns_locked) {
+					status =
+					    acpi_ut_acquire_mutex
+					    (ACPI_MTX_NAMESPACE);
+					if (ACPI_FAILURE(status)) {
+						return_ACPI_STATUS(status);
+					}
+				}
+
+				return_ACPI_STATUS(AE_OK);
 			}
 		}
 

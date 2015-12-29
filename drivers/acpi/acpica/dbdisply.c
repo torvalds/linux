@@ -48,6 +48,7 @@
 #include "acnamesp.h"
 #include "acparser.h"
 #include "acinterp.h"
+#include "acevents.h"
 #include "acdebug.h"
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
@@ -949,28 +950,25 @@ void acpi_db_display_handlers(void)
 	if (obj_desc) {
 		for (i = 0; i < ACPI_ARRAY_LENGTH(acpi_gbl_space_id_list); i++) {
 			space_id = acpi_gbl_space_id_list[i];
-			handler_obj = obj_desc->device.handler;
 
 			acpi_os_printf(ACPI_PREDEFINED_PREFIX,
 				       acpi_ut_get_region_name((u8)space_id),
 				       space_id);
 
-			while (handler_obj) {
-				if (acpi_gbl_space_id_list[i] ==
-				    handler_obj->address_space.space_id) {
-					acpi_os_printf
-					    (ACPI_HANDLER_PRESENT_STRING,
-					     (handler_obj->address_space.
-					      handler_flags &
-					      ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
-					     ? "Default" : "User",
-					     handler_obj->address_space.
-					     handler);
+			handler_obj =
+			    acpi_ev_find_region_handler(space_id,
+							obj_desc->device.
+							handler);
+			if (handler_obj) {
+				acpi_os_printf(ACPI_HANDLER_PRESENT_STRING,
+					       (handler_obj->address_space.
+						handler_flags &
+						ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
+					       ? "Default" : "User",
+					       handler_obj->address_space.
+					       handler);
 
-					goto found_handler;
-				}
-
-				handler_obj = handler_obj->address_space.next;
+				goto found_handler;
 			}
 
 			/* There is no handler for this space_id */

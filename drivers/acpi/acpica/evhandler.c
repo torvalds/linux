@@ -55,10 +55,6 @@ static acpi_status
 acpi_ev_install_handler(acpi_handle obj_handle,
 			u32 level, void *context, void **return_value);
 
-static union acpi_operand_object
-    *acpi_ev_find_region_handler(acpi_adr_space_type space_id,
-				 union acpi_operand_object *handler_obj);
-
 /* These are the address spaces that will get default handlers */
 
 u8 acpi_gbl_default_address_spaces[ACPI_NUM_DEFAULT_SPACES] = {
@@ -251,35 +247,30 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 
 		/* Check if this Device already has a handler for this address space */
 
-		next_handler_obj = obj_desc->device.handler;
-		while (next_handler_obj) {
+		next_handler_obj =
+		    acpi_ev_find_region_handler(handler_obj->address_space.
+						space_id,
+						obj_desc->device.handler);
+		if (next_handler_obj) {
 
 			/* Found a handler, is it for the same address space? */
 
-			if (next_handler_obj->address_space.space_id ==
-			    handler_obj->address_space.space_id) {
-				ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-						  "Found handler for region [%s] in device %p(%p) "
-						  "handler %p\n",
-						  acpi_ut_get_region_name
-						  (handler_obj->address_space.
-						   space_id), obj_desc,
-						  next_handler_obj,
-						  handler_obj));
+			ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+					  "Found handler for region [%s] in device %p(%p) handler %p\n",
+					  acpi_ut_get_region_name(handler_obj->
+								  address_space.
+								  space_id),
+					  obj_desc, next_handler_obj,
+					  handler_obj));
 
-				/*
-				 * Since the object we found it on was a device, then it
-				 * means that someone has already installed a handler for
-				 * the branch of the namespace from this device on. Just
-				 * bail out telling the walk routine to not traverse this
-				 * branch. This preserves the scoping rule for handlers.
-				 */
-				return (AE_CTRL_DEPTH);
-			}
-
-			/* Walk the linked list of handlers attached to this device */
-
-			next_handler_obj = next_handler_obj->address_space.next;
+			/*
+			 * Since the object we found it on was a device, then it means
+			 * that someone has already installed a handler for the branch
+			 * of the namespace from this device on. Just bail out telling
+			 * the walk routine to not traverse this branch. This preserves
+			 * the scoping rule for handlers.
+			 */
+			return (AE_CTRL_DEPTH);
 		}
 
 		/*
@@ -325,9 +316,10 @@ acpi_ev_install_handler(acpi_handle obj_handle,
  *
  ******************************************************************************/
 
-static union acpi_operand_object
-    *acpi_ev_find_region_handler(acpi_adr_space_type space_id,
-				 union acpi_operand_object *handler_obj)
+union acpi_operand_object *acpi_ev_find_region_handler(acpi_adr_space_type
+						       space_id,
+						       union acpi_operand_object
+						       *handler_obj)
 {
 
 	/* Walk the handler list for this device */
