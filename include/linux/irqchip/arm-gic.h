@@ -116,7 +116,8 @@ int gic_of_init(struct device_node *node, struct device_node *parent);
 void gic_init(unsigned int nr, int start,
 	      void __iomem *dist , void __iomem *cpu);
 
-int gicv2m_of_init(struct device_node *node, struct irq_domain *parent);
+int gicv2m_init(struct fwnode_handle *parent_handle,
+		struct irq_domain *parent);
 
 void gic_send_sgi(unsigned int cpu_id, unsigned int irq);
 int gic_get_cpu_id(unsigned int cpu);
