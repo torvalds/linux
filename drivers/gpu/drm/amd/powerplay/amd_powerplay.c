@@ -786,7 +786,9 @@ int amd_powerplay_get_current_clocks(void *handle,
 	struct amd_pp_simple_clock_info simple_clocks;
 	struct pp_clock_info hw_clocks;
 
-	if (handle == NULL || clocks == NULL)
+	PP_CHECK((struct pp_instance *)handle);
+
+	if (clocks == NULL)
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
@@ -828,7 +830,9 @@ int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, s
 
 	struct pp_hwmgr *hwmgr;
 
-	if (handle == NULL || clocks == NULL)
+	PP_CHECK((struct pp_instance *)handle);
+
+	if (clocks == NULL)
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
@@ -844,7 +848,9 @@ int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 	int result = -1;
 	struct pp_hwmgr  *hwmgr;
 
-	if (handle == NULL || clocks == NULL)
+	PP_CHECK((struct pp_instance *)handle);
+
+	if (clocks == NULL)
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
