@@ -2,7 +2,14 @@
 
 Required properties:
 - compatible: should be one of:
+	"fsl,imx23-usb"
 	"fsl,imx27-usb"
+	"fsl,imx28-usb"
+	"fsl,imx6q-usb"
+	"fsl,imx6sl-usb"
+	"fsl,imx6sx-usb"
+	"fsl,imx6ul-usb"
+	"fsl,imx7d-usb"
 	"lsi,zevio-usb"
 	"qcom,ci-hdrc"
 	"chipidea,usb2"
