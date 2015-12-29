@@ -411,8 +411,19 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 
 				obj_desc->method.mutex->mutex.thread_id =
 				    walk_state->thread->thread_id;
-				walk_state->thread->current_sync_level =
-				    obj_desc->method.sync_level;
+
+				/*
+				 * Update the current sync_level only if this is not an auto-
+				 * serialized method. In the auto case, we have to ignore
+				 * the sync level for the method mutex (created for the
+				 * auto-serialization) because we have no idea of what the
+				 * sync level should be. Therefore, just ignore it.
+				 */
+				if (!(obj_desc->method.info_flags &
+				      ACPI_METHOD_IGNORE_SYNC_LEVEL)) {
+					walk_state->thread->current_sync_level =
+					    obj_desc->method.sync_level;
+				}
 			} else {
 				obj_desc->method.mutex->mutex.
 				    original_sync_level =
