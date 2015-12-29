@@ -21,8 +21,8 @@
  */
 
 #define AD7150_STATUS              0
-#define AD7150_STATUS_OUT1         (1 << 3)
-#define AD7150_STATUS_OUT2         (1 << 5)
+#define AD7150_STATUS_OUT1         BIT(3)
+#define AD7150_STATUS_OUT2         BIT(5)
 #define AD7150_CH1_DATA_HIGH       1
 #define AD7150_CH2_DATA_HIGH       3
 #define AD7150_CH1_AVG_HIGH        5
@@ -36,7 +36,7 @@
 #define AD7150_CH2_TIMEOUT         13
 #define AD7150_CH2_SETUP           14
 #define AD7150_CFG                 15
-#define AD7150_CFG_FIX             (1 << 7)
+#define AD7150_CFG_FIX             BIT(7)
 #define AD7150_PD_TIMER            16
 #define AD7150_CH1_CAPDAC          17
 #define AD7150_CH2_CAPDAC          18
