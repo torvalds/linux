@@ -925,6 +925,54 @@ static struct phm_master_table_header cz_setup_asic_master = {
 	cz_setup_asic_list
 };
 
+static int cz_tf_power_up_display_clock_sys_pll(struct pp_hwmgr *hwmgr,
+					void *input, void *output,
+					void *storage, int result)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	hw_data->disp_clk_bypass_pending = false;
+	hw_data->disp_clk_bypass = false;
+
+	return 0;
+}
+
+static int cz_tf_clear_nb_dpm_flag(struct pp_hwmgr *hwmgr,
+					void *input, void *output,
+					void *storage, int result)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	hw_data->is_nb_dpm_enabled = false;
+
+	return 0;
+}
+
+static int cz_tf_reset_cc6_data(struct pp_hwmgr *hwmgr,
+					void *input, void *output,
+					void *storage, int result)
+{
+	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+
+	hw_data->cc6_settings.cc6_setting_changed = false;
+	hw_data->cc6_settings.cpu_pstate_separation_time = 0;
+	hw_data->cc6_settings.cpu_cc6_disable = false;
+	hw_data->cc6_settings.cpu_pstate_disable = false;
+
+	return 0;
+}
+
+static struct phm_master_table_item cz_power_down_asic_list[] = {
+	{NULL, cz_tf_power_up_display_clock_sys_pll},
+	{NULL, cz_tf_clear_nb_dpm_flag},
+	{NULL, cz_tf_reset_cc6_data},
+	{NULL, NULL}
+};
+
+static struct phm_master_table_header cz_power_down_asic_master = {
+	0,
+	PHM_MasterTableFlag_None,
+	cz_power_down_asic_list
+};
+
 static int cz_tf_program_voting_clients(struct pp_hwmgr *hwmgr, void *input,
 				void *output, void *storage, int result)
 {
@@ -1123,6 +1171,13 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 				&(hwmgr->setup_asic));
 	if (result != 0) {
 		printk(KERN_ERR "[ powerplay ] Fail to construct setup ASIC\n");
+		return result;
+	}
+
+	result = phm_construct_table(hwmgr, &cz_power_down_asic_master,
+				&(hwmgr->power_down_asic));
+	if (result != 0) {
+		printk(KERN_ERR "[ powerplay ] Fail to construct power down ASIC\n");
 		return result;
 	}
 
