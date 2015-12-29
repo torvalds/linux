@@ -759,14 +759,14 @@
 			clocks = <&sdioclk 0>, <&ahbclk 0>;
 		};
 
-		gfcgpio: gfcgpio0@1701c000 {
+		gfcgpio: gpio0@1701c000 {
 			compatible = "apm,xgene-gpio";
 			reg = <0x0 0x1701c000 0x0 0x40>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
-		dwgpio: dwgpio@1c024000 {
+		dwgpio: gpio@1c024000 {
 			compatible = "snps,dw-apb-gpio";
 			reg = <0x0 0x1c024000 0x0 0x1000>;
 			reg-io-width = <4>;
@@ -781,7 +781,7 @@
 			};
 		};
 
-		i2c0: i2c0@10512000 {
+		i2c0: i2c@10512000 {
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -886,7 +886,7 @@
 			dr_mode = "host";
 		};
 
-		sbgpio: sbgpio@17001000{
+		sbgpio: gpio@17001000{
 			compatible = "apm,xgene-gpio-sb";
 			reg = <0x0 0x17001000 0x0 0x400>;
 			#gpio-cells = <2>;

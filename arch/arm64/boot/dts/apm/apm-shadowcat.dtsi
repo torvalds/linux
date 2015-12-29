@@ -476,6 +476,7 @@
 			interrupts = <0x0 0x4c 0x4>;
 		};
 
+		/* Do not change dwusb name, coded for backward compatibility */
 		usb0: dwusb@19000000 {
 			status = "disabled";
 			compatible = "snps,dwc3";
@@ -575,14 +576,14 @@
 			clocks = <&sdioclk 0>, <&ahbclk 0>;
 		};
 
-		gfcgpio: gfcgpio@1f63c000 {
+		gfcgpio: gpio@1f63c000 {
 			compatible = "apm,xgene-gpio";
 			reg = <0x0 0x1f63c000 0x0 0x40>;
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
-		dwgpio: dwgpio@1c024000 {
+		dwgpio: gpio@1c024000 {
 			compatible = "snps,dw-apb-gpio";
 			reg = <0x0 0x1c024000 0x0 0x1000>;
 			reg-io-width = <4>;
@@ -597,7 +598,7 @@
 			};
 		};
 
-		sbgpio: sbgpio@17001000{
+		sbgpio: gpio@17001000{
 			compatible = "apm,xgene-gpio-sb";
 			reg = <0x0 0x17001000 0x0 0x400>;
 			#gpio-cells = <2>;
@@ -648,7 +649,7 @@
 			clocks = <&rngpkaclk 0>;
 		};
 
-		i2c1: i2c1@10511000 {
+		i2c1: i2c@10511000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
@@ -659,7 +660,7 @@
 			bus_num = <1>;
 		};
 
-		i2c4: i2c4@10640000 {
+		i2c4: i2c@10640000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
