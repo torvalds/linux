@@ -538,8 +538,8 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 				WARN(1, "Preemption without Lite Restore\n");
 		}
 
-		 if ((status & GEN8_CTX_STATUS_ACTIVE_IDLE) ||
-		     (status & GEN8_CTX_STATUS_ELEMENT_SWITCH)) {
+		if ((status & GEN8_CTX_STATUS_ACTIVE_IDLE) ||
+		    (status & GEN8_CTX_STATUS_ELEMENT_SWITCH)) {
 			if (execlists_check_remove_request(ring, status_id))
 				submit_contexts++;
 		}
