@@ -8220,7 +8220,7 @@ restart_ih:
 		return IRQ_NONE;
 
 	rptr = rdev->ih.rptr;
-	DRM_DEBUG("cik_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
+	//DRM_DEBUG("cik_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
 
 	/* Order reading of wptr vs. reading of IH ring data */
 	rmb();
