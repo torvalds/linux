@@ -3805,7 +3805,6 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
 		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
-	case CHIP_LIVERPOOL:
 		rdev->config.cik.max_shader_engines = 2;
 		rdev->config.cik.max_tile_pipes = 4;
 		rdev->config.cik.max_cu_per_sh = 7;
@@ -3881,6 +3880,24 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		rdev->config.cik.sc_hiz_tile_fifo_size = 0x30;
 		rdev->config.cik.sc_earlyz_tile_fifo_size = 0x130;
 		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_LIVERPOOL:
+		rdev->config.cik.max_shader_engines = 2; // VERIFIED
+		rdev->config.cik.max_tile_pipes = 4; // ??
+		rdev->config.cik.max_cu_per_sh = 10; // PROBABLY OK
+		rdev->config.cik.max_sh_per_se = 1; // VERIFIED
+		rdev->config.cik.max_backends_per_se = 2; // PROBABLY OK, >1?
+		rdev->config.cik.max_texture_channel_caches = 4; // ??
+		rdev->config.cik.max_gprs = 256;
+		rdev->config.cik.max_gs_threads = 32; // ??
+		rdev->config.cik.max_hw_contexts = 8;
+
+		rdev->config.cik.sc_prim_fifo_size_frontend = 0x20;
+		rdev->config.cik.sc_prim_fifo_size_backend = 0x100;
+		rdev->config.cik.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.cik.sc_earlyz_tile_fifo_size = 0x130;
+
+		gb_addr_config = HAWAII_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
