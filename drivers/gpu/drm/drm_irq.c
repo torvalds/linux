@@ -753,7 +753,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	 * Happens during initial modesetting of a crtc.
 	 */
 	if (mode->crtc_clock == 0) {
-		DRM_DEBUG("crtc %u: Noop due to uninitialized mode.\n", pipe);
+		//DRM_DEBUG("crtc %u: Noop due to uninitialized mode.\n", pipe);
 		return -EAGAIN;
 	}
 
