@@ -9101,8 +9101,10 @@ static int cik_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+#if 0
 	cik_uvd_resume(rdev);
 	cik_vce_resume(rdev);
+#endif
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
