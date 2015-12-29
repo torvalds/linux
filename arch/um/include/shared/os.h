@@ -284,7 +284,6 @@ extern void initial_thread_cb_skas(void (*proc)(void *),
 				 void *arg);
 extern void halt_skas(void);
 extern void reboot_skas(void);
-extern int get_syscall(struct uml_pt_regs *regs);
 
 /* irq.c */
 extern int os_waiting_for_events(struct irq_fd *active_fds);
