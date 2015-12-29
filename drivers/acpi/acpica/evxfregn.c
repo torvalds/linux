@@ -114,7 +114,7 @@ acpi_install_address_space_handler(acpi_handle device,
 
 	/* Run all _REG methods for this address space */
 
-	status = acpi_ev_execute_reg_methods(node, space_id);
+	acpi_ev_execute_reg_methods(node, space_id, ACPI_REG_CONNECT);
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);

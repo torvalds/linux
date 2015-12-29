@@ -428,6 +428,7 @@ struct acpi_simple_repair_info {
 
 struct acpi_reg_walk_info {
 	acpi_adr_space_type space_id;
+	u32 function;
 	u32 reg_run_count;
 };
 

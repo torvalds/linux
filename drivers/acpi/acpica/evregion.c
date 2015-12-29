@@ -97,10 +97,9 @@ acpi_status acpi_ev_initialize_op_regions(void)
 		if (acpi_ev_has_default_handler(acpi_gbl_root_node,
 						acpi_gbl_default_address_spaces
 						[i])) {
-			status =
-			    acpi_ev_execute_reg_methods(acpi_gbl_root_node,
-							acpi_gbl_default_address_spaces
-							[i]);
+			acpi_ev_execute_reg_methods(acpi_gbl_root_node,
+						    acpi_gbl_default_address_spaces
+						    [i], ACPI_REG_CONNECT);
 		}
 	}
 
@@ -683,24 +682,25 @@ cleanup1:
  *
  * PARAMETERS:  node            - Namespace node for the device
  *              space_id        - The address space ID
+ *              function        - Passed to _REG: On (1) or Off (0)
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Run all _REG methods for the input Space ID;
  *              Note: assumes namespace is locked, or system init time.
  *
  ******************************************************************************/
 
-acpi_status
+void
 acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
-			    acpi_adr_space_type space_id)
+			    acpi_adr_space_type space_id, u32 function)
 {
-	acpi_status status;
 	struct acpi_reg_walk_info info;
 
 	ACPI_FUNCTION_TRACE(ev_execute_reg_methods);
 
 	info.space_id = space_id;
+	info.function = function;
 	info.reg_run_count = 0;
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES,
@@ -713,9 +713,9 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 	 * regions and _REG methods. (i.e. handlers must be installed for all
 	 * regions of this Space ID before we can run any _REG methods)
 	 */
-	status = acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, ACPI_UINT32_MAX,
-					ACPI_NS_WALK_UNLOCK, acpi_ev_reg_run,
-					NULL, &info, NULL);
+	(void)acpi_ns_walk_namespace(ACPI_TYPE_ANY, node, ACPI_UINT32_MAX,
+				     ACPI_NS_WALK_UNLOCK, acpi_ev_reg_run, NULL,
+				     &info, NULL);
 
 	/* Special case for EC: handle "orphan" _REG methods with no region */
 
@@ -728,7 +728,7 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 			      info.reg_run_count,
 			      acpi_ut_get_region_name(info.space_id)));
 
-	return_ACPI_STATUS(status);
+	return_VOID;
 }
 
 /*******************************************************************************
@@ -787,7 +787,7 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 	}
 
 	info->reg_run_count++;
-	status = acpi_ev_execute_reg_method(obj_desc, ACPI_REG_CONNECT);
+	status = acpi_ev_execute_reg_method(obj_desc, info->function);
 	return (status);
 }
 
