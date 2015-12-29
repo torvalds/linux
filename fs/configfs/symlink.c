@@ -282,29 +282,29 @@ static int configfs_getlink(struct dentry *dentry, char * path)
 static const char *configfs_get_link(struct dentry *dentry,
 				     struct inode *inode, void **cookie)
 {
-	unsigned long page;
+	char *page;
 	int error;
 
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
 
-	page = get_zeroed_page(GFP_KERNEL);
+	page = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	error = configfs_getlink(dentry, (char *)page);
+	error = configfs_getlink(dentry, page);
 	if (!error) {
-		return *cookie = (void *)page;
+		return *cookie = page;
 	}
 
-	free_page(page);
+	kfree(page);
 	return ERR_PTR(error);
 }
 
 const struct inode_operations configfs_symlink_inode_operations = {
 	.get_link = configfs_get_link,
 	.readlink = generic_readlink,
-	.put_link = free_page_put_link,
+	.put_link = kfree_put_link,
 	.setattr = configfs_setattr,
 };
 
