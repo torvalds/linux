@@ -389,7 +389,7 @@ next_table:
  *
  * PARAMETERS:  signature           - Sig string to be validated
  *
- * RETURN:      TRUE if signature is correct length and has valid characters
+ * RETURN:      TRUE if signature is has 4 valid ACPI characters
  *
  * DESCRIPTION: Validate an ACPI table signature.
  *
@@ -398,12 +398,6 @@ next_table:
 u8 acpi_is_valid_signature(char *signature)
 {
 	u32 i;
-
-	/* Validate the signature length */
-
-	if (strlen(signature) != ACPI_NAME_SIZE) {
-		return (FALSE);
-	}
 
 	/* Validate each character in the signature */
 

@@ -1056,10 +1056,9 @@ acpi_db_command_dispatch(char *input_buffer,
 			struct acpi_new_table_desc *list_head = NULL;
 
 			status =
-			    acpi_ac_get_all_tables_from_file(acpi_gbl_db_args
-							     [1],
-							     ACPI_GET_ALL_TABLES,
-							     &list_head);
+			    ac_get_all_tables_from_file(acpi_gbl_db_args[1],
+							ACPI_GET_ALL_TABLES,
+							&list_head);
 			if (ACPI_SUCCESS(status)) {
 				acpi_db_load_tables(list_head);
 			}

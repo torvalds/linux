@@ -98,9 +98,9 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 
 		default:
 
-			ACPI_ERROR((AE_INFO, "Unknown Reference Class 0x%2.2X",
+			ACPI_ERROR((AE_INFO, "Invalid Reference Class 0x%2.2X",
 				    obj_desc->reference.class));
-			return_ACPI_STATUS(AE_AML_INTERNAL);
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 		break;
 
