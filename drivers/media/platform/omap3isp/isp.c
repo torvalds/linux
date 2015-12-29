@@ -449,7 +449,7 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	case CCDC_INPUT_PARALLEL:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_PARALLEL;
 		ispctrl_val |= parcfg->clk_pol << ISPCTRL_PAR_CLK_POL_SHIFT;
-		shift += parcfg->data_lane_shift * 2;
+		shift += parcfg->data_lane_shift;
 		break;
 
 	case CCDC_INPUT_CSI2A:
