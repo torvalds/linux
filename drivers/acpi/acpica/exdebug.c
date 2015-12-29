@@ -90,7 +90,8 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	/* Null string or newline -- don't emit the line header */
 
-	if ((ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) &&
+	if (source_desc &&
+	    (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) &&
 	    (source_desc->common.type == ACPI_TYPE_STRING)) {
 		if ((source_desc->string.length == 0) ||
 		    ((source_desc->string.length == 1) &&
