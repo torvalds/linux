@@ -18,7 +18,7 @@ struct bpf_htab {
 	struct bpf_map map;
 	struct hlist_head *buckets;
 	raw_spinlock_t lock;
-	u32 count;	/* number of elements in this hashtable */
+	atomic_t count;	/* number of elements in this hashtable */
 	u32 n_buckets;	/* number of hash buckets */
 	u32 elem_size;	/* size of each element in bytes */
 };
@@ -106,7 +106,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		INIT_HLIST_HEAD(&htab->buckets[i]);
 
 	raw_spin_lock_init(&htab->lock);
-	htab->count = 0;
+	atomic_set(&htab->count, 0);
 
 	return &htab->map;
 
@@ -256,7 +256,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 
 	l_old = lookup_elem_raw(head, l_new->hash, key, key_size);
 
-	if (!l_old && unlikely(htab->count >= map->max_entries)) {
+	if (!l_old && unlikely(atomic_read(&htab->count) >= map->max_entries)) {
 		/* if elem with this 'key' doesn't exist and we've reached
 		 * max_entries limit, fail insertion of new elem
 		 */
@@ -284,7 +284,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 		hlist_del_rcu(&l_old->hash_node);
 		kfree_rcu(l_old, rcu);
 	} else {
-		htab->count++;
+		atomic_inc(&htab->count);
 	}
 	raw_spin_unlock_irqrestore(&htab->lock, flags);
 
@@ -319,7 +319,7 @@ static int htab_map_delete_elem(struct bpf_map *map, void *key)
 
 	if (l) {
 		hlist_del_rcu(&l->hash_node);
-		htab->count--;
+		atomic_dec(&htab->count);
 		kfree_rcu(l, rcu);
 		ret = 0;
 	}
@@ -339,7 +339,7 @@ static void delete_all_elements(struct bpf_htab *htab)
 
 		hlist_for_each_entry_safe(l, n, head, hash_node) {
 			hlist_del_rcu(&l->hash_node);
-			htab->count--;
+			atomic_dec(&htab->count);
 			kfree(l);
 		}
 	}
