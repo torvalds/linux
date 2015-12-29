@@ -377,7 +377,6 @@ static int mxu1_startup(struct usb_serial *serial)
 	char fw_name[32];
 	const struct firmware *fw_p = NULL;
 	int err;
-	int status = 0;
 
 	dev_dbg(&serial->interface->dev, "%s - product 0x%04X, num configurations %d, configuration value %d\n",
 		__func__, le16_to_cpu(dev->descriptor.idProduct),
@@ -407,22 +406,26 @@ static int mxu1_startup(struct usb_serial *serial)
 		if (err) {
 			dev_err(&serial->interface->dev, "failed to request firmware: %d\n",
 				err);
-			kfree(mxdev);
-			return err;
+			goto err_free_mxdev;
 		}
 
 		err = mxu1_download_firmware(serial, fw_p);
-		if (err) {
-			release_firmware(fw_p);
-			kfree(mxdev);
-			return err;
-		}
+		if (err)
+			goto err_release_firmware;
 
-		status = -ENODEV;
-		release_firmware(fw_p);
+		/* device is being reset */
+		err = -ENODEV;
+		goto err_release_firmware;
 	}
 
-	return status;
+	return 0;
+
+err_release_firmware:
+	release_firmware(fw_p);
+err_free_mxdev:
+	kfree(mxdev);
+
+	return err;
 }
 
 static int mxu1_write_byte(struct usb_serial_port *port, u32 addr,
