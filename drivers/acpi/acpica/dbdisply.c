@@ -588,7 +588,7 @@ void acpi_db_display_calling_tree(void)
  *
  * FUNCTION:    acpi_db_display_object_type
  *
- * PARAMETERS:  name            - User entered NS node handle or name
+ * PARAMETERS:  object_arg      - User entered NS node handle
  *
  * RETURN:      None
  *
@@ -596,44 +596,34 @@ void acpi_db_display_calling_tree(void)
  *
  ******************************************************************************/
 
-void acpi_db_display_object_type(char *name)
+void acpi_db_display_object_type(char *object_arg)
 {
-	struct acpi_namespace_node *node;
+	acpi_handle handle;
 	struct acpi_device_info *info;
 	acpi_status status;
 	u32 i;
 
-	node = acpi_db_convert_to_node(name);
-	if (!node) {
-		return;
-	}
+	handle = ACPI_TO_POINTER(strtoul(object_arg, NULL, 16));
 
-	status = acpi_get_object_info(ACPI_CAST_PTR(acpi_handle, node), &info);
+	status = acpi_get_object_info(handle, &info);
 	if (ACPI_FAILURE(status)) {
 		acpi_os_printf("Could not get object info, %s\n",
 			       acpi_format_exception(status));
 		return;
 	}
 
-	if (info->valid & ACPI_VALID_ADR) {
-		acpi_os_printf("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
-			       ACPI_FORMAT_UINT64(info->address),
-			       info->current_status, info->flags);
-	}
-	if (info->valid & ACPI_VALID_SXDS) {
-		acpi_os_printf("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
-			       info->highest_dstates[0],
-			       info->highest_dstates[1],
-			       info->highest_dstates[2],
-			       info->highest_dstates[3]);
-	}
-	if (info->valid & ACPI_VALID_SXWS) {
-		acpi_os_printf
-		    ("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
-		     info->lowest_dstates[0], info->lowest_dstates[1],
-		     info->lowest_dstates[2], info->lowest_dstates[3],
-		     info->lowest_dstates[4]);
-	}
+	acpi_os_printf("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
+		       ACPI_FORMAT_UINT64(info->address),
+		       info->current_status, info->flags);
+
+	acpi_os_printf("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
+		       info->highest_dstates[0], info->highest_dstates[1],
+		       info->highest_dstates[2], info->highest_dstates[3]);
+
+	acpi_os_printf("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
+		       info->lowest_dstates[0], info->lowest_dstates[1],
+		       info->lowest_dstates[2], info->lowest_dstates[3],
+		       info->lowest_dstates[4]);
 
 	if (info->valid & ACPI_VALID_HID) {
 		acpi_os_printf("HID: %s\n", info->hardware_id.string);
@@ -641,10 +631,6 @@ void acpi_db_display_object_type(char *name)
 
 	if (info->valid & ACPI_VALID_UID) {
 		acpi_os_printf("UID: %s\n", info->unique_id.string);
-	}
-
-	if (info->valid & ACPI_VALID_SUB) {
-		acpi_os_printf("SUB: %s\n", info->subsystem_id.string);
 	}
 
 	if (info->valid & ACPI_VALID_CID) {
