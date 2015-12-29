@@ -25,7 +25,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -473,13 +473,4 @@ do {									\
 } while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
-extern const char *const iwl_dvm_cmd_strings[REPLY_MAX + 1];
-
-static inline const char *iwl_dvm_get_cmd_string(u8 cmd)
-{
-	const char *s = iwl_dvm_cmd_strings[cmd];
-	if (s)
-		return s;
-	return "UNKNOWN";
-}
 #endif /* __iwl_agn_h__ */

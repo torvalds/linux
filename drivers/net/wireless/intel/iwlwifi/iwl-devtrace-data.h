@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -47,6 +48,22 @@ TRACE_EVENT(iwlwifi_dev_tx_data,
 		if (iwl_trace_data(skb))
 			skb_copy_bits(skb, hdr_len,
 				      __get_dynamic_array(data), data_len);
+	),
+	TP_printk("[%s] TX frame data", __get_str(dev))
+);
+
+TRACE_EVENT(iwlwifi_dev_tx_tso_chunk,
+	TP_PROTO(const struct device *dev,
+		 u8 *data_src, size_t data_len),
+	TP_ARGS(dev, data_src, data_len),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+
+		__dynamic_array(u8, data, data_len)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		memcpy(__get_dynamic_array(data), data_src, data_len);
 	),
 	TP_printk("[%s] TX frame data", __get_str(dev))
 );

@@ -26,7 +26,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -106,6 +106,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		.add_modify = update ? 1 : 0,
 		.station_flags_msk = cpu_to_le32(STA_FLG_FAT_EN_MSK |
 						 STA_FLG_MIMO_EN_MSK),
+		.tid_disable_tx = cpu_to_le16(mvm_sta->tid_disable_agg),
 	};
 	int ret;
 	u32 status;
@@ -276,11 +277,6 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 
 	if (sta_id == IWL_MVM_STATION_COUNT)
 		return -ENOSPC;
-
-	if (vif->type == NL80211_IFTYPE_AP) {
-		mvmvif->ap_assoc_sta_count++;
-		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
-	}
 
 	spin_lock_init(&mvm_sta->lock);
 
@@ -580,9 +576,9 @@ int iwl_mvm_rm_sta_id(struct iwl_mvm *mvm,
 	return ret;
 }
 
-static int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
-				    struct iwl_mvm_int_sta *sta,
-				    u32 qmask, enum nl80211_iftype iftype)
+int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
+			     struct iwl_mvm_int_sta *sta,
+			     u32 qmask, enum nl80211_iftype iftype)
 {
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		sta->sta_id = iwl_mvm_find_free_sta_id(mvm, iftype);
@@ -622,6 +618,7 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 							     color));
 
 	cmd.tfd_queue_msk = cpu_to_le32(sta->tfd_queue_msk);
+	cmd.tid_disable_tx = cpu_to_le16(0xffff);
 
 	if (addr)
 		memcpy(cmd.addr, addr, ETH_ALEN);
@@ -669,6 +666,33 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	if (ret)
 		iwl_mvm_dealloc_int_sta(mvm, &mvm->aux_sta);
 	return ret;
+}
+
+int iwl_mvm_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+	return iwl_mvm_add_int_sta_common(mvm, &mvm->snif_sta, vif->addr,
+					 mvmvif->id, 0);
+}
+
+int iwl_mvm_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_rm_sta_common(mvm, mvm->snif_sta.sta_id);
+	if (ret)
+		IWL_WARN(mvm, "Failed sending remove station\n");
+
+	return ret;
+}
+
+void iwl_mvm_dealloc_snif_sta(struct iwl_mvm *mvm)
+{
+	iwl_mvm_dealloc_int_sta(mvm, &mvm->snif_sta);
 }
 
 void iwl_mvm_del_aux_sta(struct iwl_mvm *mvm)
@@ -1196,22 +1220,17 @@ static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm)
 	if (max_offs < 0)
 		return STA_KEY_IDX_INVALID;
 
-	__set_bit(max_offs, mvm->fw_key_table);
-
 	return max_offs;
 }
 
-static u8 iwl_mvm_get_key_sta_id(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta)
+static struct iwl_mvm_sta *iwl_mvm_get_key_sta(struct iwl_mvm *mvm,
+					       struct ieee80211_vif *vif,
+					       struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (sta) {
-		struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-
-		return mvm_sta->sta_id;
-	}
+	if (sta)
+		return iwl_mvm_sta_from_mac80211(sta);
 
 	/*
 	 * The device expects GTKs for station interfaces to be
@@ -1222,20 +1241,20 @@ static u8 iwl_mvm_get_key_sta_id(struct iwl_mvm *mvm,
 	    mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 		u8 sta_id = mvmvif->ap_sta_id;
 
-		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
-						lockdep_is_held(&mvm->mutex));
+		sta = rcu_dereference_check(mvm->fw_id_to_mac_id[sta_id],
+					    lockdep_is_held(&mvm->mutex));
 		/*
 		 * It is possible that the 'sta' parameter is NULL,
 		 * for example when a GTK is removed - the sta_id will then
 		 * be the AP ID, and no station was passed by mac80211.
 		 */
 		if (IS_ERR_OR_NULL(sta))
-			return IWL_MVM_STATION_COUNT;
+			return NULL;
 
-		return sta_id;
+		return iwl_mvm_sta_from_mac80211(sta);
 	}
 
-	return IWL_MVM_STATION_COUNT;
+	return NULL;
 }
 
 static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
@@ -1452,6 +1471,7 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 			u8 key_offset)
 {
 	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
+	struct iwl_mvm_sta *mvm_sta;
 	u8 sta_id;
 	int ret;
 	static const u8 __maybe_unused zero_addr[ETH_ALEN] = {0};
@@ -1459,11 +1479,12 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Get the station id from the mvm local station table */
-	sta_id = iwl_mvm_get_key_sta_id(mvm, vif, sta);
-	if (sta_id == IWL_MVM_STATION_COUNT) {
-		IWL_ERR(mvm, "Failed to find station id\n");
+	mvm_sta = iwl_mvm_get_key_sta(mvm, vif, sta);
+	if (!mvm_sta) {
+		IWL_ERR(mvm, "Failed to find station\n");
 		return -EINVAL;
 	}
+	sta_id = mvm_sta->sta_id;
 
 	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
 		ret = iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, false);
@@ -1505,10 +1526,8 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	}
 
 	ret = __iwl_mvm_set_sta_key(mvm, vif, sta, keyconf, key_offset, mcast);
-	if (ret) {
-		__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
+	if (ret)
 		goto end;
-	}
 
 	/*
 	 * For WEP, the same key is used for multicast and unicast. Upload it
@@ -1521,10 +1540,12 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		ret = __iwl_mvm_set_sta_key(mvm, vif, sta, keyconf,
 					    key_offset, !mcast);
 		if (ret) {
-			__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
 			__iwl_mvm_remove_sta_key(mvm, sta_id, keyconf, mcast);
+			goto end;
 		}
 	}
+
+	__set_bit(key_offset, mvm->fw_key_table);
 
 end:
 	IWL_DEBUG_WEP(mvm, "key: cipher=%x len=%d idx=%d sta=%pM ret=%d\n",
@@ -1539,13 +1560,14 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 			   struct ieee80211_key_conf *keyconf)
 {
 	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
-	u8 sta_id;
+	struct iwl_mvm_sta *mvm_sta;
+	u8 sta_id = IWL_MVM_STATION_COUNT;
 	int ret, i;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* Get the station id from the mvm local station table */
-	sta_id = iwl_mvm_get_key_sta_id(mvm, vif, sta);
+	/* Get the station from the mvm local station table */
+	mvm_sta = iwl_mvm_get_key_sta(mvm, vif, sta);
 
 	IWL_DEBUG_WEP(mvm, "mvm remove dynamic key: idx=%d sta=%d\n",
 		      keyconf->keyidx, sta_id);
@@ -1566,10 +1588,12 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 	}
 	mvm->fw_key_deleted[keyconf->hw_key_idx] = 0;
 
-	if (sta_id == IWL_MVM_STATION_COUNT) {
+	if (!mvm_sta) {
 		IWL_DEBUG_WEP(mvm, "station non-existent, early return.\n");
 		return 0;
 	}
+
+	sta_id = mvm_sta->sta_id;
 
 	ret = __iwl_mvm_remove_sta_key(mvm, sta_id, keyconf, mcast);
 	if (ret)
@@ -1590,25 +1614,17 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 			     u16 *phase1key)
 {
 	struct iwl_mvm_sta *mvm_sta;
-	u8 sta_id = iwl_mvm_get_key_sta_id(mvm, vif, sta);
 	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
-
-	if (WARN_ON_ONCE(sta_id == IWL_MVM_STATION_COUNT))
-		return;
 
 	rcu_read_lock();
 
-	if (!sta) {
-		sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-		if (WARN_ON(IS_ERR_OR_NULL(sta))) {
-			rcu_read_unlock();
-			return;
-		}
-	}
-
-	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	mvm_sta = iwl_mvm_get_key_sta(mvm, vif, sta);
+	if (WARN_ON_ONCE(!mvm_sta))
+		goto unlock;
 	iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, mcast,
 			     iv32, phase1key, CMD_ASYNC, keyconf->hw_key_idx);
+
+ unlock:
 	rcu_read_unlock();
 }
 
@@ -1662,6 +1678,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 	 */
 	if (agg) {
 		int remaining = cnt;
+		int sleep_tx_count;
 
 		spin_lock_bh(&mvmsta->lock);
 		for_each_set_bit(tid, &_tids, IWL_MAX_TID_COUNT) {
@@ -1686,9 +1703,12 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 			}
 			remaining -= n_queued;
 		}
+		sleep_tx_count = cnt - remaining;
+		if (reason == IEEE80211_FRAME_RELEASE_UAPSD)
+			mvmsta->sleep_tx_count = sleep_tx_count;
 		spin_unlock_bh(&mvmsta->lock);
 
-		cmd.sleep_tx_count = cpu_to_le16(cnt - remaining);
+		cmd.sleep_tx_count = cpu_to_le16(sleep_tx_count);
 		if (WARN_ON(cnt - remaining == 0)) {
 			ieee80211_sta_eosp(sta);
 			return;
@@ -1706,7 +1726,12 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 		cmd.sleep_state_flags |= cpu_to_le16(STA_SLEEP_STATE_UAPSD);
 	}
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
+	/* block the Tx queues until the FW updated the sleep Tx count */
+	iwl_trans_block_txq_ptrs(mvm->trans, true);
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA,
+				   CMD_ASYNC | CMD_WANT_ASYNC_CALLBACK,
+				   sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }

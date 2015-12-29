@@ -23,7 +23,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -278,6 +278,7 @@ struct iwl_txq {
 	bool frozen;
 	u8 active;
 	bool ampdu;
+	bool block;
 	unsigned long wd_timeout;
 };
 
@@ -287,6 +288,11 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
 	return txq->scratchbufs_dma +
 	       sizeof(struct iwl_pcie_txq_scratch_buf) * idx;
 }
+
+struct iwl_tso_hdr_page {
+	struct page *page;
+	u8 *pos;
+};
 
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
@@ -306,6 +312,8 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @wide_cmd_header: true when ucode supports wide command header format
+ * @sw_csum_tx: if true, then the transport will compute the csum of the TXed
+ *	frame.
  * @rx_page_order: page order for receive buffer size
  * @reg_lock: protect hw register access
  * @mutex: to protect stop_device / start_fw / start_hw
@@ -322,6 +330,8 @@ struct iwl_trans_pcie {
 
 	struct net_device napi_dev;
 	struct napi_struct napi;
+
+	struct __percpu iwl_tso_hdr_page *tso_hdr_page;
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;
@@ -360,9 +370,8 @@ struct iwl_trans_pcie {
 	bool bc_table_dword;
 	bool scd_set_active;
 	bool wide_cmd_header;
+	bool sw_csum_tx;
 	u32 rx_page_order;
-
-	const char *const *command_names;
 
 	/*protect hw register */
 	spinlock_t reg_lock;
@@ -524,14 +533,6 @@ static inline bool iwl_queue_used(const struct iwl_queue *q, int i)
 static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
 {
 	return index & (q->n_window - 1);
-}
-
-static inline const char *get_cmd_string(struct iwl_trans_pcie *trans_pcie,
-					 u8 cmd)
-{
-	if (!trans_pcie->command_names || !trans_pcie->command_names[cmd])
-		return "UNKNOWN";
-	return trans_pcie->command_names[cmd];
 }
 
 static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)

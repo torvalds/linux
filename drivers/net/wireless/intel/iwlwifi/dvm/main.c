@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -22,7 +23,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -68,6 +69,93 @@
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
+
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search.
+ * A warning will be triggered on violation.
+ */
+static const struct iwl_hcmd_names iwl_dvm_cmd_names[] = {
+	HCMD_NAME(REPLY_ALIVE),
+	HCMD_NAME(REPLY_ERROR),
+	HCMD_NAME(REPLY_ECHO),
+	HCMD_NAME(REPLY_RXON),
+	HCMD_NAME(REPLY_RXON_ASSOC),
+	HCMD_NAME(REPLY_QOS_PARAM),
+	HCMD_NAME(REPLY_RXON_TIMING),
+	HCMD_NAME(REPLY_ADD_STA),
+	HCMD_NAME(REPLY_REMOVE_STA),
+	HCMD_NAME(REPLY_REMOVE_ALL_STA),
+	HCMD_NAME(REPLY_TX),
+	HCMD_NAME(REPLY_TXFIFO_FLUSH),
+	HCMD_NAME(REPLY_WEPKEY),
+	HCMD_NAME(REPLY_LEDS_CMD),
+	HCMD_NAME(REPLY_TX_LINK_QUALITY_CMD),
+	HCMD_NAME(COEX_PRIORITY_TABLE_CMD),
+	HCMD_NAME(COEX_MEDIUM_NOTIFICATION),
+	HCMD_NAME(COEX_EVENT_CMD),
+	HCMD_NAME(TEMPERATURE_NOTIFICATION),
+	HCMD_NAME(CALIBRATION_CFG_CMD),
+	HCMD_NAME(CALIBRATION_RES_NOTIFICATION),
+	HCMD_NAME(CALIBRATION_COMPLETE_NOTIFICATION),
+	HCMD_NAME(REPLY_QUIET_CMD),
+	HCMD_NAME(REPLY_CHANNEL_SWITCH),
+	HCMD_NAME(CHANNEL_SWITCH_NOTIFICATION),
+	HCMD_NAME(REPLY_SPECTRUM_MEASUREMENT_CMD),
+	HCMD_NAME(SPECTRUM_MEASURE_NOTIFICATION),
+	HCMD_NAME(POWER_TABLE_CMD),
+	HCMD_NAME(PM_SLEEP_NOTIFICATION),
+	HCMD_NAME(PM_DEBUG_STATISTIC_NOTIFIC),
+	HCMD_NAME(REPLY_SCAN_CMD),
+	HCMD_NAME(REPLY_SCAN_ABORT_CMD),
+	HCMD_NAME(SCAN_START_NOTIFICATION),
+	HCMD_NAME(SCAN_RESULTS_NOTIFICATION),
+	HCMD_NAME(SCAN_COMPLETE_NOTIFICATION),
+	HCMD_NAME(BEACON_NOTIFICATION),
+	HCMD_NAME(REPLY_TX_BEACON),
+	HCMD_NAME(WHO_IS_AWAKE_NOTIFICATION),
+	HCMD_NAME(REPLY_TX_POWER_DBM_CMD),
+	HCMD_NAME(QUIET_NOTIFICATION),
+	HCMD_NAME(REPLY_TX_PWR_TABLE_CMD),
+	HCMD_NAME(REPLY_TX_POWER_DBM_CMD_V1),
+	HCMD_NAME(TX_ANT_CONFIGURATION_CMD),
+	HCMD_NAME(MEASURE_ABORT_NOTIFICATION),
+	HCMD_NAME(REPLY_BT_CONFIG),
+	HCMD_NAME(REPLY_STATISTICS_CMD),
+	HCMD_NAME(STATISTICS_NOTIFICATION),
+	HCMD_NAME(REPLY_CARD_STATE_CMD),
+	HCMD_NAME(CARD_STATE_NOTIFICATION),
+	HCMD_NAME(MISSED_BEACONS_NOTIFICATION),
+	HCMD_NAME(REPLY_CT_KILL_CONFIG_CMD),
+	HCMD_NAME(SENSITIVITY_CMD),
+	HCMD_NAME(REPLY_PHY_CALIBRATION_CMD),
+	HCMD_NAME(REPLY_WIPAN_PARAMS),
+	HCMD_NAME(REPLY_WIPAN_RXON),
+	HCMD_NAME(REPLY_WIPAN_RXON_TIMING),
+	HCMD_NAME(REPLY_WIPAN_RXON_ASSOC),
+	HCMD_NAME(REPLY_WIPAN_QOS_PARAM),
+	HCMD_NAME(REPLY_WIPAN_WEPKEY),
+	HCMD_NAME(REPLY_WIPAN_P2P_CHANNEL_SWITCH),
+	HCMD_NAME(REPLY_WIPAN_NOA_NOTIFICATION),
+	HCMD_NAME(REPLY_WIPAN_DEACTIVATION_COMPLETE),
+	HCMD_NAME(REPLY_RX_PHY_CMD),
+	HCMD_NAME(REPLY_RX_MPDU_CMD),
+	HCMD_NAME(REPLY_RX),
+	HCMD_NAME(REPLY_COMPRESSED_BA),
+	HCMD_NAME(REPLY_BT_COEX_PRIO_TABLE),
+	HCMD_NAME(REPLY_BT_COEX_PROT_ENV),
+	HCMD_NAME(REPLY_BT_COEX_PROFILE_NOTIF),
+	HCMD_NAME(REPLY_D3_CONFIG),
+	HCMD_NAME(REPLY_WOWLAN_PATTERNS),
+	HCMD_NAME(REPLY_WOWLAN_WAKEUP_FILTER),
+	HCMD_NAME(REPLY_WOWLAN_TSC_RSC_PARAMS),
+	HCMD_NAME(REPLY_WOWLAN_TKIP_PARAMS),
+	HCMD_NAME(REPLY_WOWLAN_KEK_KCK_MATERIAL),
+	HCMD_NAME(REPLY_WOWLAN_GET_STATUS),
+};
+
+static const struct iwl_hcmd_arr iwl_dvm_groups[] = {
+	[0x0] = HCMD_ARR(iwl_dvm_cmd_names),
+};
 
 static const struct iwl_op_mode_ops iwl_dvm_ops;
 
@@ -341,7 +429,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
 
 	/* Make sure device is powered up for SRAM reads */
-	if (!iwl_trans_grab_nic_access(priv->trans, false, &reg_flags))
+	if (!iwl_trans_grab_nic_access(priv->trans, &reg_flags))
 		return;
 
 	/* Set starting address; reads will auto-increment */
@@ -1244,7 +1332,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 
 	trans_cfg.cmd_q_wdg_timeout = IWL_WATCHDOG_DISABLED;
 
-	trans_cfg.command_names = iwl_dvm_cmd_strings;
+	trans_cfg.command_groups = iwl_dvm_groups;
+	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);
+
 	trans_cfg.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
 
 	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
@@ -1265,6 +1355,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 
 	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
 	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
+	trans->command_groups = trans_cfg.command_groups;
+	trans->command_groups_size = trans_cfg.command_groups_size;
 
 	/* At this point both hw and priv are allocated. */
 
@@ -1639,7 +1731,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
 
 	/* Make sure device is powered up for SRAM reads */
-	if (!iwl_trans_grab_nic_access(trans, false, &reg_flags))
+	if (!iwl_trans_grab_nic_access(trans, &reg_flags))
 		return pos;
 
 	/* Set starting address; reads will auto-increment */
