@@ -686,7 +686,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		status = acpi_ex_store(return_desc, operand[0], walk_state);
 		break;
 
-	case AML_TYPE_OP:	/* object_type (source_object) */
+	case AML_OBJECT_TYPE_OP:	/* object_type (source_object) */
 		/*
 		 * Note: The operand is not resolved at this point because we want to
 		 * get the associated object, not its value. For example, we don't
