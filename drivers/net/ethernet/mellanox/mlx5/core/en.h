@@ -328,13 +328,11 @@ struct mlx5e_rq {
 	struct mlx5e_priv     *priv;
 } ____cacheline_aligned_in_smp;
 
-struct mlx5e_tx_skb_cb {
+struct mlx5e_tx_wqe_info {
 	u32 num_bytes;
 	u8  num_wqebbs;
 	u8  num_dma;
 };
-
-#define MLX5E_TX_SKB_CB(__skb) ((struct mlx5e_tx_skb_cb *)__skb->cb)
 
 enum mlx5e_dma_map_type {
 	MLX5E_DMA_MAP_SINGLE,
@@ -371,6 +369,7 @@ struct mlx5e_sq {
 	/* pointers to per packet info: write@xmit, read@completion */
 	struct sk_buff           **skb;
 	struct mlx5e_sq_dma       *dma_fifo;
+	struct mlx5e_tx_wqe_info  *wqe_info;
 
 	/* read only */
 	struct mlx5_wq_cyc         wq;
