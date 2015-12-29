@@ -821,7 +821,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				status =
 				    acpi_ps_get_next_namepath(walk_state,
 							      parser_state, arg,
-							      1);
+							      ACPI_POSSIBLE_METHOD_CALL);
 
 				/*
 				 * If the super_name arg of Unload is a method call,
@@ -836,7 +836,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				status =
 				    acpi_ps_get_next_namepath(walk_state,
 							      parser_state, arg,
-							      0);
+							      ACPI_NOT_METHOD_CALL);
 			}
 		} else {
 			/* Single complex argument, nothing returned */

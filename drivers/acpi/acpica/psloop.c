@@ -109,10 +109,10 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 	case AML_INT_NAMEPATH_OP:	/* AML_NAMESTRING_ARG */
 
-		status =
-		    acpi_ps_get_next_namepath(walk_state,
-					      &(walk_state->parser_state), op,
-					      1);
+		status = acpi_ps_get_next_namepath(walk_state,
+						   &(walk_state->parser_state),
+						   op,
+						   ACPI_POSSIBLE_METHOD_CALL);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
