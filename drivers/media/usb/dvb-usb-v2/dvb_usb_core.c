@@ -542,7 +542,6 @@ static int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 		adap->demux.dmx.close(&adap->demux.dmx);
 		dvb_dmxdev_release(&adap->dmxdev);
 		dvb_dmx_release(&adap->demux);
-		dvb_usbv2_media_device_unregister(adap);
 		dvb_unregister_adapter(&adap->dvb_adap);
 	}
 
@@ -852,6 +851,7 @@ static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 			dvb_usbv2_adapter_dvb_exit(&d->adapter[i]);
 			dvb_usbv2_adapter_stream_exit(&d->adapter[i]);
 			dvb_usbv2_adapter_frontend_exit(&d->adapter[i]);
+			dvb_usbv2_media_device_unregister(&d->adapter[i]);
 		}
 	}
 
