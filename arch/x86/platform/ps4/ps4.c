@@ -32,7 +32,6 @@
 
 static bool is_ps4;
 bool apcie_initialized;
-EXPORT_SYMBOL(apcie_initialized);
 
 /*
  * The RTC is part of the Aeolia PCI device and will be implemented there as
@@ -57,6 +56,7 @@ int apcie_status(void)
 		return -ENODEV;
 	return apcie_initialized;
 }
+EXPORT_SYMBOL_GPL(apcie_status);
 
 /*
  * PS4 specific x86_init function overrides and early setup calls.
