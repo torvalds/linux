@@ -800,6 +800,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_TARGET:
 	case ARGP_SUPERNAME:
 	case ARGP_SIMPLENAME:
+	case ARGP_NAME_OR_REF:
 
 		subop = acpi_ps_peek_opcode(parser_state);
 		if (subop == 0 ||
@@ -825,8 +826,8 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 							      ACPI_POSSIBLE_METHOD_CALL);
 
 				/*
-				 * If the super_name arg of Unload is a method call,
-				 * we have restored the AML pointer, just free this Arg
+				 * If the super_name argument is a method call, we have
+				 * already restored the AML pointer, just free this Arg
 				 */
 				if (arg->common.aml_opcode ==
 				    AML_INT_METHODCALL_OP) {
