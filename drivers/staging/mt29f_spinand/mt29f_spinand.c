@@ -483,8 +483,11 @@ static int spinand_program_page(struct spi_device *spi_nand,
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
 	unsigned int i, j;
 
-	enable_read_hw_ecc = 0;
 	wbuf = devm_kzalloc(&spi_nand->dev, CACHE_BUF, GFP_KERNEL);
+	if (!wbuf)
+		return -ENOMEM;
+
+	enable_read_hw_ecc = 0;
 	spinand_read_page(spi_nand, page_id, 0, CACHE_BUF, wbuf);
 
 	for (i = offset, j = 0; i < len; i++, j++)
