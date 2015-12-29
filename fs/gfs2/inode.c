@@ -1715,7 +1715,7 @@ static int gfs2_rename2(struct inode *odir, struct dentry *odentry,
  * gfs2_get_link - Follow a symbolic link
  * @dentry: The dentry of the link
  * @inode: The inode of the link
- * @cookie: place to store the information for ->put_link()
+ * @done: destructor for return value
  *
  * This can handle symlinks of any size.
  *
@@ -1723,7 +1723,8 @@ static int gfs2_rename2(struct inode *odir, struct dentry *odentry,
  */
 
 static const char *gfs2_get_link(struct dentry *dentry,
-				 struct inode *inode, void **cookie)
+				 struct inode *inode,
+				 struct delayed_call *done)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder i_gh;
@@ -1764,7 +1765,7 @@ static const char *gfs2_get_link(struct dentry *dentry,
 out:
 	gfs2_glock_dq_uninit(&i_gh);
 	if (!IS_ERR(buf))
-		*cookie = buf;
+		set_delayed_call(done, kfree_link, buf);
 	return buf;
 }
 
@@ -2138,7 +2139,6 @@ const struct inode_operations gfs2_dir_iops = {
 const struct inode_operations gfs2_symlink_iops = {
 	.readlink = generic_readlink,
 	.get_link = gfs2_get_link,
-	.put_link = kfree_put_link,
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,

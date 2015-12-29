@@ -280,31 +280,32 @@ static int configfs_getlink(struct dentry *dentry, char * path)
 }
 
 static const char *configfs_get_link(struct dentry *dentry,
-				     struct inode *inode, void **cookie)
+				     struct inode *inode,
+				     struct delayed_call *done)
 {
-	char *page;
+	char *body;
 	int error;
 
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
 
-	page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!page)
+	body = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!body)
 		return ERR_PTR(-ENOMEM);
 
-	error = configfs_getlink(dentry, page);
+	error = configfs_getlink(dentry, body);
 	if (!error) {
-		return *cookie = page;
+		set_delayed_call(done, kfree_link, body);
+		return body;
 	}
 
-	kfree(page);
+	kfree(body);
 	return ERR_PTR(error);
 }
 
 const struct inode_operations configfs_symlink_inode_operations = {
 	.get_link = configfs_get_link,
 	.readlink = generic_readlink,
-	.put_link = kfree_put_link,
 	.setattr = configfs_setattr,
 };
 

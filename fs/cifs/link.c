@@ -627,7 +627,8 @@ cifs_hl_exit:
 }
 
 const char *
-cifs_get_link(struct dentry *direntry, struct inode *inode, void **cookie)
+cifs_get_link(struct dentry *direntry, struct inode *inode,
+	      struct delayed_call *done)
 {
 	int rc = -ENOMEM;
 	unsigned int xid;
@@ -680,7 +681,8 @@ cifs_get_link(struct dentry *direntry, struct inode *inode, void **cookie)
 		kfree(target_path);
 		return ERR_PTR(rc);
 	}
-	return *cookie = target_path;
+	set_delayed_call(done, kfree_link, target_path);
+	return target_path;
 }
 
 int

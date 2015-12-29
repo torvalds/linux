@@ -505,13 +505,13 @@ struct nameidata {
 	int		total_link_count;
 	struct saved {
 		struct path link;
-		void *cookie;
+		struct delayed_call done;
 		const char *name;
-		struct inode *inode;
 		unsigned seq;
 	} *stack, internal[EMBEDDED_LEVELS];
 	struct filename	*name;
 	struct nameidata *saved;
+	struct inode	*link_inode;
 	unsigned	root_seq;
 	int		dfd;
 };
@@ -592,11 +592,8 @@ static void drop_links(struct nameidata *nd)
 	int i = nd->depth;
 	while (i--) {
 		struct saved *last = nd->stack + i;
-		struct inode *inode = last->inode;
-		if (last->cookie && inode->i_op->put_link) {
-			inode->i_op->put_link(inode, last->cookie);
-			last->cookie = NULL;
-		}
+		do_delayed_call(&last->done);
+		clear_delayed_call(&last->done);
 	}
 }
 
@@ -858,9 +855,7 @@ void nd_jump_link(struct path *path)
 static inline void put_link(struct nameidata *nd)
 {
 	struct saved *last = nd->stack + --nd->depth;
-	struct inode *inode = last->inode;
-	if (last->cookie && inode->i_op->put_link)
-		inode->i_op->put_link(inode, last->cookie);
+	do_delayed_call(&last->done);
 	if (!(nd->flags & LOOKUP_RCU))
 		path_put(&last->link);
 }
@@ -892,7 +887,7 @@ static inline int may_follow_link(struct nameidata *nd)
 		return 0;
 
 	/* Allowed if owner and follower match. */
-	inode = nd->stack[0].inode;
+	inode = nd->link_inode;
 	if (uid_eq(current_cred()->fsuid, inode->i_uid))
 		return 0;
 
@@ -983,7 +978,7 @@ const char *get_link(struct nameidata *nd)
 {
 	struct saved *last = nd->stack + nd->depth - 1;
 	struct dentry *dentry = last->link.dentry;
-	struct inode *inode = last->inode;
+	struct inode *inode = nd->link_inode;
 	int error;
 	const char *res;
 
@@ -1004,23 +999,21 @@ const char *get_link(struct nameidata *nd)
 	nd->last_type = LAST_BIND;
 	res = inode->i_link;
 	if (!res) {
+		const char * (*get)(struct dentry *, struct inode *,
+				struct delayed_call *);
+		get = inode->i_op->get_link;
 		if (nd->flags & LOOKUP_RCU) {
-			res = inode->i_op->get_link(NULL, inode,
-						    &last->cookie);
+			res = get(NULL, inode, &last->done);
 			if (res == ERR_PTR(-ECHILD)) {
 				if (unlikely(unlazy_walk(nd, NULL, 0)))
 					return ERR_PTR(-ECHILD);
-				res = inode->i_op->get_link(dentry, inode,
-						            &last->cookie);
+				res = get(dentry, inode, &last->done);
 			}
 		} else {
-			res = inode->i_op->get_link(dentry, inode,
-						    &last->cookie);
+			res = get(dentry, inode, &last->done);
 		}
-		if (IS_ERR_OR_NULL(res)) {
-			last->cookie = NULL;
+		if (IS_ERR_OR_NULL(res))
 			return res;
-		}
 	}
 	if (*res == '/') {
 		if (nd->flags & LOOKUP_RCU) {
@@ -1699,8 +1692,8 @@ static int pick_link(struct nameidata *nd, struct path *link,
 
 	last = nd->stack + nd->depth++;
 	last->link = *link;
-	last->cookie = NULL;
-	last->inode = inode;
+	clear_delayed_call(&last->done);
+	nd->link_inode = inode;
 	last->seq = seq;
 	return 1;
 }
@@ -4508,26 +4501,25 @@ EXPORT_SYMBOL(readlink_copy);
  */
 int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
-	void *cookie;
+	DEFINE_DELAYED_CALL(done);
 	struct inode *inode = d_inode(dentry);
 	const char *link = inode->i_link;
 	int res;
 
 	if (!link) {
-		link = inode->i_op->get_link(dentry, inode, &cookie);
+		link = inode->i_op->get_link(dentry, inode, &done);
 		if (IS_ERR(link))
 			return PTR_ERR(link);
 	}
 	res = readlink_copy(buffer, buflen, link);
-	if (inode->i_op->put_link)
-		inode->i_op->put_link(inode, cookie);
+	do_delayed_call(&done);
 	return res;
 }
 EXPORT_SYMBOL(generic_readlink);
 
 /* get the link contents into pagecache */
 const char *page_get_link(struct dentry *dentry, struct inode *inode,
-				 void **cookie)
+			  struct delayed_call *callback)
 {
 	char *kaddr;
 	struct page *page;
@@ -4546,7 +4538,7 @@ const char *page_get_link(struct dentry *dentry, struct inode *inode,
 		if (IS_ERR(page))
 			return (char*)page;
 	}
-	*cookie = page;
+	set_delayed_call(callback, page_put_link, page);
 	BUG_ON(mapping_gfp_mask(mapping) & __GFP_HIGHMEM);
 	kaddr = page_address(page);
 	nd_terminate_link(kaddr, inode->i_size, PAGE_SIZE - 1);
@@ -4555,21 +4547,19 @@ const char *page_get_link(struct dentry *dentry, struct inode *inode,
 
 EXPORT_SYMBOL(page_get_link);
 
-void page_put_link(struct inode *unused, void *cookie)
+void page_put_link(void *arg)
 {
-	struct page *page = cookie;
-	page_cache_release(page);
+	put_page(arg);
 }
 EXPORT_SYMBOL(page_put_link);
 
 int page_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
-	void *cookie = NULL;
+	DEFINE_DELAYED_CALL(done);
 	int res = readlink_copy(buffer, buflen,
 				page_get_link(dentry, d_inode(dentry),
-					      &cookie));
-	if (cookie)
-		page_put_link(NULL, cookie);
+					      &done));
+	do_delayed_call(&done);
 	return res;
 }
 EXPORT_SYMBOL(page_readlink);
@@ -4619,6 +4609,5 @@ EXPORT_SYMBOL(page_symlink);
 const struct inode_operations page_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
-	.put_link	= page_put_link,
 };
 EXPORT_SYMBOL(page_symlink_inode_operations);

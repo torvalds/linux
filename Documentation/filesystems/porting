@@ -515,3 +515,9 @@ in your dentry operations instead.
 		* ->get_link() gets inode as a separate argument
 		* ->get_link() may be called in RCU mode - in that case NULL
 		  dentry is passed
+--
+[mandatory]
+	->get_link() gets struct delayed_call *done now, and should do
+	set_delayed_call() where it used to set *cookie.
+	->put_link() is gone - just give the destructor to set_delayed_call()
+	in ->get_link().

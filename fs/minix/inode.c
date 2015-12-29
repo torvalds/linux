@@ -436,7 +436,6 @@ static const struct address_space_operations minix_aops = {
 static const struct inode_operations minix_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
-	.put_link	= page_put_link,
 	.getattr	= minix_getattr,
 };
 

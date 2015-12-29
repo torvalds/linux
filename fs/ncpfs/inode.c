@@ -245,7 +245,6 @@ static void ncp_set_attr(struct inode *inode, struct ncp_entry_info *nwinfo)
 static const struct inode_operations ncp_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
-	.put_link	= page_put_link,
 	.setattr	= ncp_notify_change,
 };
 #endif

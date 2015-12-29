@@ -393,25 +393,25 @@ static const struct file_operations proc_reg_file_ops_no_compat = {
 };
 #endif
 
+static void proc_put_link(void *p)
+{
+	unuse_pde(p);
+}
+
 static const char *proc_get_link(struct dentry *dentry,
-				 struct inode *inode, void **cookie)
+				 struct inode *inode,
+				 struct delayed_call *done)
 {
 	struct proc_dir_entry *pde = PDE(inode);
 	if (unlikely(!use_pde(pde)))
 		return ERR_PTR(-EINVAL);
-	*cookie = pde;
+	set_delayed_call(done, proc_put_link, pde);
 	return pde->data;
-}
-
-static void proc_put_link(struct inode *unused, void *p)
-{
-	unuse_pde(p);
 }
 
 const struct inode_operations proc_link_inode_operations = {
 	.readlink	= generic_readlink,
 	.get_link	= proc_get_link,
-	.put_link	= proc_put_link,
 };
 
 struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)

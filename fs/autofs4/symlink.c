@@ -13,7 +13,8 @@
 #include "autofs_i.h"
 
 static const char *autofs4_get_link(struct dentry *dentry,
-				    struct inode *inode, void **cookie)
+				    struct inode *inode,
+				    struct delayed_call *done)
 {
 	struct autofs_sb_info *sbi;
 	struct autofs_info *ino;

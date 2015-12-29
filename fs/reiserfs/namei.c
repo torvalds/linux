@@ -1666,7 +1666,6 @@ const struct inode_operations reiserfs_dir_inode_operations = {
 const struct inode_operations reiserfs_symlink_inode_operations = {
 	.readlink = generic_readlink,
 	.get_link	= page_get_link,
-	.put_link = page_put_link,
 	.setattr = reiserfs_setattr,
 	.setxattr = reiserfs_setxattr,
 	.getxattr = reiserfs_getxattr,

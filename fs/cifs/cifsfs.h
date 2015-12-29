@@ -120,7 +120,8 @@ extern struct vfsmount *cifs_dfs_d_automount(struct path *path);
 #endif
 
 /* Functions related to symlinks */
-extern const char *cifs_get_link(struct dentry *, struct inode *, void **);
+extern const char *cifs_get_link(struct dentry *, struct inode *,
+			struct delayed_call *);
 extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
 			const char *symname);
 extern int	cifs_removexattr(struct dentry *, const char *);

@@ -31,7 +31,8 @@ static const struct proc_ns_operations *ns_entries[] = {
 };
 
 static const char *proc_ns_get_link(struct dentry *dentry,
-				    struct inode *inode, void **cookie)
+				    struct inode *inode,
+				    struct delayed_call *done)
 {
 	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
 	struct task_struct *task;

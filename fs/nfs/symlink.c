@@ -43,7 +43,8 @@ error:
 }
 
 static const char *nfs_get_link(struct dentry *dentry,
-				struct inode *inode, void **cookie)
+				struct inode *inode,
+				struct delayed_call *done)
 {
 	struct page *page;
 	void *err;
@@ -68,7 +69,7 @@ static const char *nfs_get_link(struct dentry *dentry,
 		if (IS_ERR(page))
 			return ERR_CAST(page);
 	}
-	*cookie = page;
+	set_delayed_call(done, page_put_link, page);
 	return page_address(page);
 }
 
@@ -78,7 +79,6 @@ static const char *nfs_get_link(struct dentry *dentry,
 const struct inode_operations nfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.get_link	= nfs_get_link,
-	.put_link	= page_put_link,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
 };

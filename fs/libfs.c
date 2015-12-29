@@ -1019,11 +1019,12 @@ int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 EXPORT_SYMBOL(noop_fsync);
 
-void kfree_put_link(struct inode *unused, void *cookie)
+/* Because kfree isn't assignment-compatible with void(void*) ;-/ */
+void kfree_link(void *p)
 {
-	kfree(cookie);
+	kfree(p);
 }
-EXPORT_SYMBOL(kfree_put_link);
+EXPORT_SYMBOL(kfree_link);
 
 /*
  * nop .set_page_dirty method so that people can use .page_mkwrite on
@@ -1087,7 +1088,7 @@ simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
 EXPORT_SYMBOL(simple_nosetlease);
 
 const char *simple_get_link(struct dentry *dentry, struct inode *inode,
-			    void **cookie)
+			    struct delayed_call *done)
 {
 	return inode->i_link;
 }

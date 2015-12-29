@@ -1226,11 +1226,12 @@ ino_t v9fs_qid2ino(struct p9_qid *qid)
  * v9fs_vfs_get_link - follow a symlink path
  * @dentry: dentry for symlink
  * @inode: inode for symlink
- * @cookie: place to pass the data to put_link()
+ * @done: delayed call for when we are done with the return value
  */
 
 static const char *v9fs_vfs_get_link(struct dentry *dentry,
-				     struct inode *inode, void **cookie)
+				     struct inode *inode,
+				     struct delayed_call *done)
 {
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
@@ -1266,7 +1267,8 @@ static const char *v9fs_vfs_get_link(struct dentry *dentry,
 
 	p9stat_free(st);
 	kfree(st);
-	return *cookie = res;
+	set_delayed_call(done, kfree_link, res);
+	return res;
 }
 
 /**
@@ -1460,7 +1462,6 @@ static const struct inode_operations v9fs_file_inode_operations = {
 static const struct inode_operations v9fs_symlink_inode_operations = {
 	.readlink = generic_readlink,
 	.get_link = v9fs_vfs_get_link,
-	.put_link = kfree_put_link,
 	.getattr = v9fs_vfs_getattr,
 	.setattr = v9fs_vfs_setattr,
 };

@@ -902,12 +902,13 @@ error:
  * v9fs_vfs_get_link_dotl - follow a symlink path
  * @dentry: dentry for symlink
  * @inode: inode for symlink
- * @cookie: place to pass the data to put_link()
+ * @done: destructor for return value
  */
 
 static const char *
 v9fs_vfs_get_link_dotl(struct dentry *dentry,
-		       struct inode *inode, void **cookie)
+		       struct inode *inode,
+		       struct delayed_call *done)
 {
 	struct p9_fid *fid;
 	char *target;
@@ -924,7 +925,8 @@ v9fs_vfs_get_link_dotl(struct dentry *dentry,
 	retval = p9_client_readlink(fid, &target);
 	if (retval)
 		return ERR_PTR(retval);
-	return *cookie = target;
+	set_delayed_call(done, kfree_link, target);
+	return target;
 }
 
 int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)
@@ -991,7 +993,6 @@ const struct inode_operations v9fs_file_inode_operations_dotl = {
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {
 	.readlink = generic_readlink,
 	.get_link = v9fs_vfs_get_link_dotl,
-	.put_link = kfree_put_link,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
 	.setxattr = generic_setxattr,

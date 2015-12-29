@@ -1565,7 +1565,8 @@ static int proc_exe_link(struct dentry *dentry, struct path *exe_path)
 }
 
 static const char *proc_pid_get_link(struct dentry *dentry,
-				     struct inode *inode, void **cookie)
+				     struct inode *inode,
+				     struct delayed_call *done)
 {
 	struct path path;
 	int error = -EACCES;
@@ -1949,12 +1950,13 @@ struct map_files_info {
  */
 static const char *
 proc_map_files_get_link(struct dentry *dentry,
-			struct inode *inode, void **cookie)
+			struct inode *inode,
+		        struct delayed_call *done)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	return proc_pid_get_link(dentry, inode, NULL);
+	return proc_pid_get_link(dentry, inode, done);
 }
 
 /*

@@ -417,7 +417,7 @@ STATIC const char *
 xfs_vn_get_link(
 	struct dentry		*dentry,
 	struct inode		*inode,
-	void			**cookie)
+	struct delayed_call	*done)
 {
 	char			*link;
 	int			error = -ENOMEM;
@@ -433,7 +433,8 @@ xfs_vn_get_link(
 	if (unlikely(error))
 		goto out_kfree;
 
-	return *cookie = link;
+	set_delayed_call(done, kfree_link, link);
+	return link;
 
  out_kfree:
 	kfree(link);
@@ -1177,7 +1178,6 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 static const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
 	.get_link		= xfs_vn_get_link,
-	.put_link		= kfree_put_link,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,

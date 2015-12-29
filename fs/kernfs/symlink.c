@@ -113,22 +113,24 @@ static int kernfs_getlink(struct dentry *dentry, char *path)
 }
 
 static const char *kernfs_iop_get_link(struct dentry *dentry,
-				       struct inode *inode, void **cookie)
+				       struct inode *inode,
+				       struct delayed_call *done)
 {
-	int error = -ENOMEM;
-	char *page;
+	char *body;
+	int error;
 
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
-	page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!page)
+	body = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!body)
 		return ERR_PTR(-ENOMEM);
-	error = kernfs_getlink(dentry, page);
+	error = kernfs_getlink(dentry, body);
 	if (unlikely(error < 0)) {
-		kfree(page);
+		kfree(body);
 		return ERR_PTR(error);
 	}
-	return *cookie = page;
+	set_delayed_call(done, kfree_link, body);
+	return body;
 }
 
 const struct inode_operations kernfs_symlink_iops = {
@@ -138,7 +140,6 @@ const struct inode_operations kernfs_symlink_iops = {
 	.listxattr	= kernfs_iop_listxattr,
 	.readlink	= generic_readlink,
 	.get_link	= kernfs_iop_get_link,
-	.put_link	= kfree_put_link,
 	.setattr	= kernfs_iop_setattr,
 	.getattr	= kernfs_iop_getattr,
 	.permission	= kernfs_iop_permission,
