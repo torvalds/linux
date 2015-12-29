@@ -10,7 +10,7 @@ menuconfig GOLDFISH
 if GOLDFISH
 
 config GOLDFISH_BUS
-	tristate "Goldfish platform bus"
+	bool "Goldfish platform bus"
 	---help---
 	  This is a virtual bus to host Goldfish Android Virtual Devices.
 
