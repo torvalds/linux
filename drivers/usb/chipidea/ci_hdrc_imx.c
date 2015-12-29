@@ -28,6 +28,11 @@ struct ci_hdrc_imx_platform_flag {
 	bool runtime_pm;
 };
 
+static const struct ci_hdrc_imx_platform_flag imx23_usb_data = {
+	.flags = CI_HDRC_TURN_VBUS_EARLY_ON |
+		CI_HDRC_DISABLE_STREAMING,
+};
+
 static const struct ci_hdrc_imx_platform_flag imx27_usb_data = {
 		CI_HDRC_DISABLE_STREAMING,
 };
@@ -66,6 +71,7 @@ static const struct ci_hdrc_imx_platform_flag imx7d_usb_data = {
 };
 
 static const struct of_device_id ci_hdrc_imx_dt_ids[] = {
+	{ .compatible = "fsl,imx23-usb", .data = &imx23_usb_data},
 	{ .compatible = "fsl,imx28-usb", .data = &imx28_usb_data},
 	{ .compatible = "fsl,imx27-usb", .data = &imx27_usb_data},
 	{ .compatible = "fsl,imx6q-usb", .data = &imx6q_usb_data},
