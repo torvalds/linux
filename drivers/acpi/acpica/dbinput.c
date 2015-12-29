@@ -625,9 +625,7 @@ static u32 acpi_db_get_line(char *input_buffer)
 
 	/* Uppercase the actual command */
 
-	if (acpi_gbl_db_args[0]) {
-		acpi_ut_strupr(acpi_gbl_db_args[0]);
-	}
+	acpi_ut_strupr(acpi_gbl_db_args[0]);
 
 	count = i;
 	if (count) {

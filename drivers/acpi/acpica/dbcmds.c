@@ -1131,13 +1131,8 @@ void acpi_db_trace(char *enable_arg, char *method_arg, char *once_arg)
 	u32 debug_layer = 0;
 	u32 flags = 0;
 
-	if (enable_arg) {
-		acpi_ut_strupr(enable_arg);
-	}
-
-	if (once_arg) {
-		acpi_ut_strupr(once_arg);
-	}
+	acpi_ut_strupr(enable_arg);
+	acpi_ut_strupr(once_arg);
 
 	if (method_arg) {
 		if (acpi_db_trace_method_name) {
