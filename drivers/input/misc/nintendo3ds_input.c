@@ -162,40 +162,62 @@ static void fbbot_draw_textf(void __iomem *fb_base, const struct font_desc *font
 
 /***** Virtual keyboard *****/
 
-#define VKB_ROWS (5)
-#define VKB_COLS (14)
-
-static const char *vkb_map_ascii[VKB_ROWS][VKB_COLS] = {
-	{"`   ", "1",     "2",  "3",  "4",  "5",  "6",  "7",  "8",  "9",  "0",  "-",   "=",    "Del"  },
-	{"TAB ", "Q",     "W",  "E",  "R",  "T",  "Y",  "U",  "I",  "O",  "P",  "{",   "}",     "\\"  },
-	{"CAPS", "A",     "S",  "D",  "F",  "G",  "H",  "J",  "K",  "L",  ":",  "´",   "Enter", NULL  },
-	{"SHFT", "Z",     "X",  "C",  "V",  "B",  "N",  "M",  ",",  ".",  "/",  "SHFT", NULL,   NULL  },
-	{"CTRL", "SPACE", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,   NULL,   "CTRL"}
-};
-
-
-static const char vkb_map_keys[VKB_ROWS][VKB_COLS] = {
-	{KEY_GRAVE, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL, KEY_BACKSPACE},
-	{KEY_TAB, KEY_Q, KEY_W, KEY_E, KEY_R, KEY_T, KEY_Y, KEY_U, KEY_I, KEY_O, KEY_P, KEY_LEFTBRACE, KEY_RIGHTBRACE, KEY_BACKSLASH},
-	{KEY_CAPSLOCK, KEY_A, KEY_S, KEY_D, KEY_F, KEY_G, KEY_H, KEY_J, KEY_K, KEY_L, KEY_SEMICOLON, KEY_APOSTROPHE, KEY_ENTER, 0},
-	{KEY_LEFTSHIFT, KEY_Z, KEY_X, KEY_C, KEY_V, KEY_B, KEY_N, KEY_M, KEY_COMMA, KEY_DOT, KEY_SLASH, KEY_RIGHTSHIFT, 0, 0},
-	{KEY_LEFTCTRL, KEY_SPACE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, KEY_RIGHTCTRL}
+enum vkb_mode_t {
+	VKB_MODE_KEYBOARD,
+	VKB_MODE_MOUSE,
+	VKB_MODE_ARROW, // switch TTY
 };
 
 struct vkb_ctx_t {
+	void __iomem *fbbase;
+	const struct font_desc *font;
+	enum vkb_mode_t mode;
+	unsigned int old_buttons;
 	int curx;
 	int cury;
 	int tty;
 };
 
-static void vkb_init(struct vkb_ctx_t *vkb)
-{
-	vkb->curx = VKB_COLS/2;
-	vkb->cury = VKB_ROWS/2;
-	vkb->tty = 1;
-}
+typedef void (*vkb_input_poll_cb_t)(struct vkb_ctx_t *vkb, int buttons, struct input_dev *idev);
 
-static void fbbot_draw_vkb(void __iomem *fb_base, const struct font_desc *font, int x, int y, const struct vkb_ctx_t *vkb)
+static void vkb_input_poll_cb_keyboard(struct vkb_ctx_t *vkb, int buttons, struct input_dev *idev);
+static void vkb_input_poll_cb_mouse(struct vkb_ctx_t *vkb, int buttons, struct input_dev *idev);
+static void vkb_input_poll_cb_arrow(struct vkb_ctx_t *vkb, int buttons, struct input_dev *idev);
+
+static const vkb_input_poll_cb_t vkb_input_poll_cbs[] = {
+	vkb_input_poll_cb_keyboard,
+	vkb_input_poll_cb_mouse,
+	vkb_input_poll_cb_arrow
+};
+
+static const char *vkb_input_mode_str[] = {
+	"keyboard",
+	"mouse",
+	"arrows/change tty"
+};
+
+#define VKB_NUM_MODES (sizeof(vkb_input_poll_cbs)/sizeof(*vkb_input_poll_cbs))
+
+#define VKB_ROWS (5)
+#define VKB_COLS (14)
+
+static const char *vkb_map_ascii[VKB_ROWS][VKB_COLS] = {
+	{ "`   ", "1",     "2",    "3",  "4",  "5",  "6",  "7",  "8",  "9",  "0",  "-",   "=",    "Del" },
+	{ "TAB ", "Q",     "W",    "E",  "R",  "T",  "Y",  "U",  "I",  "O",  "P",  "{",   "}",     "\\" },
+	{ "CAPS", "A",     "S",    "D",  "F",  "G",  "H",  "J",  "K",  "L",  ":",  "´",   "Enter", NULL },
+	{ "SHFT", "Z",     "X",    "C",  "V",  "B",  "N",  "M",  ",",  ".",  "/",  "SHFT", NULL,   NULL },
+	{ "CTRL", "SPACE", "CTRL", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,   NULL,   NULL }
+};
+
+static const char vkb_map_keys[VKB_ROWS][VKB_COLS] = {
+	{ KEY_GRAVE,     KEY_1,     KEY_2,         KEY_3,  KEY_4, KEY_5, KEY_6, KEY_7, KEY_8,     KEY_9,   KEY_0,         KEY_MINUS,      KEY_EQUAL,      KEY_BACKSPACE },
+	{ KEY_TAB,       KEY_Q,     KEY_W,         KEY_E,  KEY_R, KEY_T, KEY_Y, KEY_U, KEY_I,     KEY_O,   KEY_P,         KEY_LEFTBRACE,  KEY_RIGHTBRACE, KEY_BACKSLASH },
+	{ KEY_CAPSLOCK,  KEY_A,     KEY_S,         KEY_D,  KEY_F, KEY_G, KEY_H, KEY_J, KEY_K,     KEY_L,   KEY_SEMICOLON, KEY_APOSTROPHE, KEY_ENTER,      0             },
+	{ KEY_LEFTSHIFT, KEY_Z,     KEY_X,         KEY_C,  KEY_V, KEY_B, KEY_N, KEY_M, KEY_COMMA, KEY_DOT, KEY_SLASH,     KEY_RIGHTSHIFT, 0,              0             },
+	{ KEY_LEFTCTRL,  KEY_SPACE, KEY_RIGHTCTRL, 0,      0,     0,     0,     0,     0,         0,       0,             0,              0,              0             }
+};
+
+static void fbbot_draw_vkb(const struct vkb_ctx_t *vkb, int x, int y)
 {
 	int i, j;
 	int dx = x;
@@ -204,20 +226,71 @@ static void fbbot_draw_vkb(void __iomem *fb_base, const struct font_desc *font, 
 	for (i = 0; i < VKB_ROWS; i++) {
 		for (j = 0; j < VKB_COLS; j++) {
 			if (vkb_map_ascii[i][j]) {
-				dx += fbbot_draw_text(fb_base, font, dx, dy,
+				dx += fbbot_draw_text(vkb->fbbase, vkb->font, dx, dy,
 					(vkb->curx == j && vkb->cury == i) ? RED : WHITE,
-					vkb_map_ascii[i][j]) + font->width;
+					vkb_map_ascii[i][j]) + vkb->font->width;
 			}
 		}
 		dx = x;
-		dy += font->height;
+		dy += vkb->font->height;
 	}
+
+	fbbot_draw_fillrect(vkb->fbbase, x, y + (VKB_ROWS + 1)*vkb->font->height,
+		300, vkb->font->height, BLACK);
+
+	fbbot_draw_textf(vkb->fbbase, vkb->font, x, y + (VKB_ROWS + 1)*vkb->font->height,
+		GREEN, "Input mode: %s", vkb_input_mode_str[vkb->mode]);
 }
+
+static int vkb_init(struct vkb_ctx_t *vkb)
+{
+	int error;
+	void *fbbot;
+
+	/* Map bottom screen FB */
+	if (request_mem_region(FB_BOT_1, FB_BOT_SIZE, "N3DS_BOT_FB")) {
+		fbbot = ioremap_nocache(FB_BOT_1, FB_BOT_SIZE);
+
+		printk("Bottom fb mapped to: %p - %p\n", fbbot,
+			fbbot + FB_BOT_SIZE);
+	} else {
+		printk("Bottom fb region not available.\n");
+		error = -ENOMEM;
+		goto error;
+	}
+
+	vkb->fbbase = fbbot;
+	vkb->font = get_default_font(SCREEN_BOT_W, SCREEN_BOT_H, -1, -1);
+	vkb->mode = VKB_MODE_KEYBOARD;
+	vkb->old_buttons = 0xFFF;
+	vkb->curx = VKB_COLS/2;
+	vkb->cury = VKB_ROWS/2;
+	vkb->tty = 1;
+
+	map_lcd_bot_fb();
+	fbbot_clear_screen(vkb->fbbase, BLACK);
+	fbbot_draw_vkb(vkb, 0, 0);
+
+	return 0;
+
+error:
+	return error;
+}
+
+static void vkb_free(struct vkb_ctx_t *vkb)
+{
+	if (!vkb)
+		return;
+
+	iounmap(vkb->fbbase);
+	release_mem_region(FB_BOT_1, FB_BOT_SIZE);
+}
+
 
 /***** Buttons *****/
 
 /* We poll keys - msecs */
-#define POLL_INTERVAL_DEFAULT	25
+#define POLL_INTERVAL_DEFAULT	20
 
 #define HID_INPUT_PA   (0x10146000)
 #define HID_INPUT_SIZE (4)
@@ -235,35 +308,124 @@ static void fbbot_draw_vkb(void __iomem *fb_base, const struct font_desc *font, 
 #define BUTTON_X      (1 << 10)
 #define BUTTON_Y      (1 << 11)
 
-#define BUTTON_PRESSED(b, m) (~(b) & (m))
-#define BUTTON_CHANGED(b, o, m) ((b ^ o) & (m))
-
-/*static const struct {
-	unsigned int button;
-	unsigned int code;
-} button_map[] = {
-	{BUTTON_A,	KEY_L},
-	{BUTTON_B,	KEY_S},
-	{BUTTON_Y,	KEY_BACKSPACE},
-	{BUTTON_X,	KEY_SPACE},
-	{BUTTON_START,	KEY_ENTER},
-	{BUTTON_SELECT,	KEY_TAB},
-	{BUTTON_UP,	KEY_UP},
-	{BUTTON_DOWN,	KEY_DOWN},
-	{BUTTON_RIGHT,	KEY_RIGHT},
-	{BUTTON_LEFT,	KEY_LEFT},
-	{BUTTON_L1,	KEY_HOME},
-	{BUTTON_R1,	KEY_END}
-};*/
+#define BUTTON_HELD(b, m) (~(b) & (m))
+#define BUTTON_PRESSED(b, o, m) ((~(b) & (o)) & (m))
+#define BUTTON_CHANGED(b, o, m) (((b) ^ (o)) & (m))
 
 struct nintendo3ds_input_dev {
 	struct input_polled_dev *pdev;
 	void __iomem *hid_input;
-	void __iomem *fbbot;
-	unsigned int old_buttons;
-	const struct font_desc *font;
 	struct vkb_ctx_t vkb;
 };
+
+#define report_key_button(key, button) \
+	do { \
+		input_report_key(idev, key, BUTTON_HELD(buttons, button)); \
+		input_sync(idev); \
+	} while (0)
+
+
+static void vkb_input_poll_cb_keyboard(struct vkb_ctx_t *vkb, int buttons, struct input_dev *idev)
+{
+	int old_buttons = vkb->old_buttons;
+
+	/* Crappy code (will change it soon) */
+	if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_A))
+			report_key_button(vkb_map_keys[vkb->cury][vkb->curx], BUTTON_A);
+	else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_START))
+			report_key_button(KEY_ENTER, BUTTON_START);
+	else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_B))
+			report_key_button(KEY_BACKSPACE, BUTTON_B);
+	else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_X))
+			report_key_button(KEY_SPACE, BUTTON_X);
+	else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_Y)) {
+			input_report_key(idev, KEY_LEFTCTRL, BUTTON_HELD(buttons, BUTTON_Y));
+			input_report_key(idev, KEY_LEFTALT, BUTTON_HELD(buttons, BUTTON_Y));
+			input_report_key(idev, KEY_BACKSPACE, BUTTON_HELD(buttons, BUTTON_Y));
+			input_report_key(idev, KEY_C, BUTTON_HELD(buttons, BUTTON_Y));
+			input_sync(idev);
+	} else if (buttons ^ old_buttons) {
+		if (BUTTON_HELD(buttons, BUTTON_UP)) {
+			if (--vkb->cury < 0)
+				vkb->cury = VKB_ROWS - 1;
+		} else if (BUTTON_HELD(buttons, BUTTON_DOWN)) {
+			if (++vkb->cury > VKB_ROWS-1)
+				vkb->cury = 0;
+		} else if (BUTTON_HELD(buttons, BUTTON_LEFT)) {
+			if (--vkb->curx < 0)
+				vkb->curx = VKB_COLS-1;
+		} else if (BUTTON_HELD(buttons, BUTTON_RIGHT)) {
+			if (++vkb->curx > VKB_COLS-1)
+				vkb->curx = 0;
+		}
+
+		fbbot_draw_vkb(vkb, 0, 0);
+	}
+}
+
+static void vkb_input_poll_cb_mouse(struct vkb_ctx_t *vkb, int buttons, struct input_dev *idev)
+{
+	int old_buttons = vkb->old_buttons;
+
+	if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_A))
+			report_key_button(BTN_LEFT, BUTTON_A);
+	else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_Y))
+			report_key_button(BTN_RIGHT, BUTTON_Y);
+	else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_X))
+			report_key_button(BTN_MIDDLE, BUTTON_X);
+
+	if (BUTTON_HELD(buttons, BUTTON_UP)) {
+		input_report_rel(idev, REL_Y, -10);
+		input_sync(idev);
+	} else if (BUTTON_HELD(buttons, BUTTON_DOWN)) {
+		input_report_rel(idev, REL_Y, +10);
+		input_sync(idev);
+	} else if (BUTTON_HELD(buttons, BUTTON_LEFT)) {
+		input_report_rel(idev, REL_X, -10);
+		input_sync(idev);
+	} else if (BUTTON_HELD(buttons, BUTTON_RIGHT)) {
+		input_report_rel(idev, REL_X, +10);
+		input_sync(idev);
+	}
+
+}
+
+static void vkb_input_poll_cb_arrow(struct vkb_ctx_t *vkb, int buttons, struct input_dev *idev)
+{
+	int old_buttons = vkb->old_buttons;
+
+	if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_R1)) {
+			if (BUTTON_HELD(buttons, BUTTON_R1))
+				if ((++vkb->tty) > 10)
+					vkb->tty = 1;
+			input_report_key(idev, KEY_LEFTCTRL,
+				BUTTON_HELD(buttons, BUTTON_R1));
+			input_report_key(idev, KEY_LEFTALT,
+				BUTTON_HELD(buttons, BUTTON_R1));
+			input_report_key(idev, KEY_F1 + vkb->tty - 1,
+				BUTTON_HELD(buttons, BUTTON_R1));
+			input_sync(idev);
+	} else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_L1)) {
+			if (BUTTON_HELD(buttons, BUTTON_L1))
+				if ((--vkb->tty) < 1)
+					vkb->tty = 10;
+			input_report_key(idev, KEY_LEFTCTRL,
+				BUTTON_HELD(buttons, BUTTON_L1));
+			input_report_key(idev, KEY_LEFTALT,
+				BUTTON_HELD(buttons, BUTTON_L1));
+			input_report_key(idev, KEY_F1 + vkb->tty - 1,
+				BUTTON_HELD(buttons, BUTTON_L1));
+			input_sync(idev);
+	} else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_UP)) {
+		report_key_button(KEY_UP, BUTTON_UP);
+	} else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_DOWN)) {
+		report_key_button(KEY_DOWN, BUTTON_DOWN);
+	} else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_LEFT)) {
+		report_key_button(KEY_LEFT, BUTTON_LEFT);
+	} else if (BUTTON_CHANGED(buttons, old_buttons, BUTTON_RIGHT)) {
+		report_key_button(KEY_RIGHT, BUTTON_RIGHT);
+	}
+}
 
 static void nintendo3ds_input_poll(struct input_polled_dev *pdev)
 {
@@ -274,115 +436,24 @@ static void nintendo3ds_input_poll(struct input_polled_dev *pdev)
 
 	buttons = ioread32(n3ds_input_dev->hid_input);
 
-	if (buttons ^ n3ds_input_dev->old_buttons) {
-
-		/* Crappy code (will change it soon) */
-		if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_A)) {
-				input_report_key(idev, vkb_map_keys[vkb->cury][vkb->curx],
-					BUTTON_PRESSED(buttons, BUTTON_A));
-				input_sync(idev);
-		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_START)) {
-				input_report_key(idev, KEY_ENTER,
-					BUTTON_PRESSED(buttons, BUTTON_START));
-				input_sync(idev);
-		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_B)) {
-				input_report_key(idev, KEY_BACKSPACE,
-					BUTTON_PRESSED(buttons, BUTTON_B));
-				input_sync(idev);
-		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_X)) {
-				input_report_key(idev, KEY_SPACE,
-					BUTTON_PRESSED(buttons, BUTTON_X));
-				input_sync(idev);
-		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_Y)) {
-				input_report_key(idev, KEY_LEFTCTRL,
-					BUTTON_PRESSED(buttons, BUTTON_Y));
-				input_report_key(idev, KEY_LEFTALT,
-					BUTTON_PRESSED(buttons, BUTTON_Y));
-				input_report_key(idev, KEY_BACKSPACE,
-					BUTTON_PRESSED(buttons, BUTTON_Y));
-				input_report_key(idev, KEY_C,
-					BUTTON_PRESSED(buttons, BUTTON_Y));
-				input_sync(idev);
-		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_R1)) {
-				if (BUTTON_PRESSED(buttons, BUTTON_R1))
-					vkb->tty++; if (vkb->tty > 10) vkb->tty = 1;
-				input_report_key(idev, KEY_LEFTCTRL,
-					BUTTON_PRESSED(buttons, BUTTON_R1));
-				input_report_key(idev, KEY_LEFTALT,
-					BUTTON_PRESSED(buttons, BUTTON_R1));
-				input_report_key(idev, KEY_F1 + vkb->tty - 1,
-					BUTTON_PRESSED(buttons, BUTTON_R1));
-				input_sync(idev);
-		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_L1)) {
-				if (BUTTON_PRESSED(buttons, BUTTON_L1))
-					vkb->tty--; if (vkb->tty < 1) vkb->tty = 10;
-				input_report_key(idev, KEY_LEFTCTRL,
-					BUTTON_PRESSED(buttons, BUTTON_L1));
-				input_report_key(idev, KEY_LEFTALT,
-					BUTTON_PRESSED(buttons, BUTTON_L1));
-				input_report_key(idev, KEY_F1 + vkb->tty - 1,
-					BUTTON_PRESSED(buttons, BUTTON_L1));
-				input_sync(idev);
-		} else if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons, BUTTON_SELECT)) {
-				input_report_key(idev, KEY_LEFTSHIFT,
-					BUTTON_PRESSED(buttons, BUTTON_SELECT));
-				input_report_key(idev, KEY_BACKSLASH,
-					BUTTON_PRESSED(buttons, BUTTON_SELECT));
-				input_sync(idev);
-		} else {
-			if (BUTTON_PRESSED(buttons, BUTTON_UP)) {
-				if (--vkb->cury < 0)
-					vkb->cury = VKB_ROWS - 1;
-			} else if (BUTTON_PRESSED(buttons, BUTTON_DOWN)) {
-				if (++vkb->cury > VKB_ROWS-1)
-					vkb->cury = 0;
-			} else if (BUTTON_PRESSED(buttons, BUTTON_LEFT)) {
-				if (--vkb->curx < 0)
-					vkb->curx = VKB_COLS-1;
-			} else if (BUTTON_PRESSED(buttons, BUTTON_RIGHT)) {
-				if (++vkb->curx > VKB_COLS-1)
-					vkb->curx = 0;
-			}
-
-			fbbot_draw_vkb(n3ds_input_dev->fbbot, n3ds_input_dev->font, 0, 0, &n3ds_input_dev->vkb);
-		}
+	if (BUTTON_PRESSED(buttons, vkb->old_buttons, BUTTON_SELECT)) {
+		vkb->mode = (vkb->mode + 1)%VKB_NUM_MODES;
+		fbbot_draw_vkb(vkb, 0, 0);
 	}
 
-	n3ds_input_dev->old_buttons = buttons;
+	vkb_input_poll_cbs[vkb->mode](vkb, buttons, idev);
+
+	vkb->old_buttons = buttons;
 }
-
-/*static void nintendo3ds_input_poll(struct input_polled_dev *pdev)
-{
-	int i;
-	unsigned int buttons;
-	struct nintendo3ds_input_dev *n3ds_input_dev = pdev->private;
-	struct input_dev *idev = pdev->input;
-
-	buttons = ioread32(n3ds_input_dev->hid_input);
-
-	if (buttons ^ n3ds_input_dev->old_buttons) {
-		for (i = 0; i < sizeof(button_map)/sizeof(*button_map); i++) {
-			if (BUTTON_CHANGED(buttons, n3ds_input_dev->old_buttons,
-				button_map[i].button)) {
-				input_report_key(idev, button_map[i].code,
-					BUTTON_PRESSED(buttons, button_map[i].button));
-			}
-		}
-		input_sync(idev);
-	}
-
-	n3ds_input_dev->old_buttons = buttons;
-}*/
 
 static int nintendo3ds_input_probe(struct platform_device *plat_dev)
 {
-	int i, j;
+	int i;
 	int error;
 	struct nintendo3ds_input_dev *n3ds_input_dev;
 	struct input_polled_dev *pdev;
 	struct input_dev *idev;
 	void *hid_input;
-	void *fbbot;
 
 	n3ds_input_dev = kzalloc(sizeof(*n3ds_input_dev), GFP_KERNEL);
 	if (!n3ds_input_dev) {
@@ -402,18 +473,6 @@ static int nintendo3ds_input_probe(struct platform_device *plat_dev)
 		goto err_hidmem;
 	}
 
-	/* Map bottom screen FB */
-	if (request_mem_region(FB_BOT_1, FB_BOT_SIZE, "N3DS_BOT_FB")) {
-		fbbot = ioremap_nocache(FB_BOT_1, FB_BOT_SIZE);
-
-		printk("Bottom fb mapped to: %p - %p\n", fbbot,
-			fbbot + FB_BOT_SIZE);
-	} else {
-		printk("Bottom fb region not available.\n");
-		error = -ENOMEM;
-		goto err_fbbotmem;
-	}
-
 	pdev = input_allocate_polled_device();
 	if (!pdev) {
 		printk(KERN_ERR "nintendo3ds_input.c: Not enough memory\n");
@@ -431,7 +490,15 @@ static int nintendo3ds_input_probe(struct platform_device *plat_dev)
 	idev->id.bustype = BUS_HOST;
 	idev->dev.parent = &plat_dev->dev;
 
-	idev->evbit[0] |= BIT(EV_KEY);
+	__set_bit(EV_REL, idev->evbit);
+	__set_bit(REL_X, idev->relbit);
+	__set_bit(REL_Y, idev->relbit);
+	__set_bit(REL_WHEEL,idev->relbit);
+
+	__set_bit(EV_KEY, idev->evbit);
+	__set_bit(BTN_LEFT, idev->keybit);
+	__set_bit(BTN_RIGHT, idev->keybit);
+	__set_bit(BTN_MIDDLE, idev->keybit);
 
 	/* Direct button to key mapping
 	for (i = 0; i < sizeof(button_map)/sizeof(*button_map); i++) {
@@ -444,7 +511,7 @@ static int nintendo3ds_input_probe(struct platform_device *plat_dev)
 				set_bit(vkb_map_keys[i][j], idev->keybit);
 		}
 	}*/
-	/* Enable all keys */
+	/* Enable all the keys */
 	for (i = KEY_ESC; i < KEY_MICMUTE; i++) {
 		set_bit(i, idev->keybit);
 	}
@@ -453,18 +520,7 @@ static int nintendo3ds_input_probe(struct platform_device *plat_dev)
 
 	n3ds_input_dev->pdev = pdev;
 	n3ds_input_dev->hid_input = hid_input;
-	n3ds_input_dev->old_buttons = 0xFFF;
-	n3ds_input_dev->fbbot = fbbot;
-	n3ds_input_dev->font = get_default_font(SCREEN_BOT_W, SCREEN_BOT_H, -1, -1);
 	vkb_init(&n3ds_input_dev->vkb);
-
-
-	map_lcd_bot_fb();
-	fbbot_clear_screen(fbbot, BLACK);
-	fbbot_draw_vkb(fbbot, n3ds_input_dev->font, 0, 0, &n3ds_input_dev->vkb);
-	//fbbot_draw_fillrect(fbbot, 50, 50, 70, 20, BLUE);
-	//fbbot_draw_char(fbbot, n3ds_input_dev->font, 10, 10, GREEN, '@');
-	//fbbot_draw_textf(fbbot, n3ds_input_dev->font, 10, 40, RED, "TROLOLOLO %d\nlel", n3ds_input_dev->old_buttons);
 
 	error = input_register_polled_device(pdev);
 	if (error) {
@@ -477,9 +533,6 @@ static int nintendo3ds_input_probe(struct platform_device *plat_dev)
 err_free_dev:
 	input_free_polled_device(pdev);
 err_alloc_pdev:
-	iounmap(fbbot);
-	release_mem_region(FB_BOT_1, FB_BOT_SIZE);
-err_fbbotmem:
 	iounmap(hid_input);
 	release_mem_region(HID_INPUT_PA, HID_INPUT_SIZE);
 err_hidmem:
@@ -497,6 +550,8 @@ static int nintendo3ds_input_remove(struct platform_device *plat_pdev)
 
 	iounmap(dev->hid_input);
 	release_mem_region(HID_INPUT_PA, HID_INPUT_SIZE);
+
+	vkb_free(&dev->vkb);
 
 	kfree(dev);
 
