@@ -776,24 +776,22 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = mxu1_send_ctrl_urb(serial, MXU1_OPEN_PORT,
 				    open_settings, MXU1_UART1_PORT);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send open command: %d\n",
-			__func__, status);
+		dev_err(&port->dev, "cannot send open command: %d\n", status);
 		goto unlink_int_urb;
 	}
 
 	status = mxu1_send_ctrl_urb(serial, MXU1_START_PORT,
 				    0, MXU1_UART1_PORT);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send start command: %d\n",
-			__func__, status);
+		dev_err(&port->dev, "cannot send start command: %d\n", status);
 		goto unlink_int_urb;
 	}
 
 	status = mxu1_send_ctrl_urb(serial, MXU1_PURGE_PORT,
 				    MXU1_PURGE_INPUT, MXU1_UART1_PORT);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot clear input buffers: %d\n",
-			__func__, status);
+		dev_err(&port->dev, "cannot clear input buffers: %d\n",
+			status);
 
 		goto unlink_int_urb;
 	}
@@ -801,8 +799,8 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = mxu1_send_ctrl_urb(serial, MXU1_PURGE_PORT,
 				    MXU1_PURGE_OUTPUT, MXU1_UART1_PORT);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot clear output buffers: %d\n",
-			__func__, status);
+		dev_err(&port->dev, "cannot clear output buffers: %d\n",
+			status);
 
 		goto unlink_int_urb;
 	}
@@ -820,25 +818,20 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = mxu1_send_ctrl_urb(serial, MXU1_OPEN_PORT,
 				    open_settings, MXU1_UART1_PORT);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send open command: %d\n",
-			__func__, status);
+		dev_err(&port->dev, "cannot send open command: %d\n", status);
 		goto unlink_int_urb;
 	}
 
 	status = mxu1_send_ctrl_urb(serial, MXU1_START_PORT,
 				    0, MXU1_UART1_PORT);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send start command: %d\n",
-			__func__, status);
+		dev_err(&port->dev, "cannot send start command: %d\n", status);
 		goto unlink_int_urb;
 	}
 
 	status = usb_serial_generic_open(tty, port);
-	if (status) {
-		dev_err(&port->dev, "%s - submit read urb failed: %d\n",
-			__func__, status);
+	if (status)
 		goto unlink_int_urb;
-	}
 
 	return 0;
 
@@ -921,8 +914,7 @@ static void mxu1_interrupt_callback(struct urb *urb)
 	}
 
 	if (data[0] == MXU1_CODE_HARDWARE_ERROR) {
-		dev_err(&port->dev, "%s - hardware error: %d\n",
-			__func__, data[1]);
+		dev_err(&port->dev, "hardware error: %d\n", data[1]);
 		goto exit;
 	}
 
@@ -943,8 +935,8 @@ static void mxu1_interrupt_callback(struct urb *urb)
 		break;
 
 	default:
-		dev_err(&port->dev, "%s - unknown interrupt code: 0x%02X\n",
-			__func__, data[1]);
+		dev_err(&port->dev, "unknown interrupt code: 0x%02X\n",
+			data[1]);
 		break;
 	}
 
