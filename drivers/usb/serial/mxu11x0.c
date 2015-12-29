@@ -333,7 +333,11 @@ static int mxu1_port_probe(struct usb_serial_port *port)
 {
 	struct mxu1_port *mxport;
 	struct mxu1_device *mxdev;
-	struct urb *urb;
+
+	if (!port->interrupt_in_urb) {
+		dev_err(&port->dev, "no interrupt urb\n");
+		return -ENODEV;
+	}
 
 	mxport = kzalloc(sizeof(struct mxu1_port), GFP_KERNEL);
 	if (!mxport)
@@ -343,12 +347,6 @@ static int mxu1_port_probe(struct usb_serial_port *port)
 	mutex_init(&mxport->mutex);
 
 	mxdev = usb_get_serial_data(port->serial);
-
-	urb = port->interrupt_in_urb;
-	if (!urb) {
-		dev_err(&port->dev, "%s - no interrupt urb\n", __func__);
-		return -EINVAL;
-	}
 
 	switch (mxdev->mxd_model) {
 	case MXU1_1110_PRODUCT_ID:
