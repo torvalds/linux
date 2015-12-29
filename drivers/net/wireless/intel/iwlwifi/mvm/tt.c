@@ -65,6 +65,8 @@
  *
  *****************************************************************************/
 
+#include <linux/sort.h>
+
 #include "mvm.h"
 
 #define IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT	HZ
@@ -80,8 +82,10 @@ static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "Enter CT Kill\n");
 	iwl_mvm_set_hw_ctkill_state(mvm, true);
 
-	tt->throttle = false;
-	tt->dynamic_smps = false;
+	if (!iwl_mvm_is_tt_in_fw(mvm)) {
+		tt->throttle = false;
+		tt->dynamic_smps = false;
+	}
 
 	/* Don't schedule an exit work if we're in test mode, since
 	 * the temperature will not change unless we manually set it
@@ -117,18 +121,21 @@ void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp)
 static int iwl_mvm_temp_notif_parse(struct iwl_mvm *mvm,
 				    struct iwl_rx_packet *pkt)
 {
-	struct iwl_dts_measurement_notif *notif;
+	struct iwl_dts_measurement_notif_v1 *notif_v1;
 	int len = iwl_rx_packet_payload_len(pkt);
 	int temp;
 
-	if (WARN_ON_ONCE(len < sizeof(*notif))) {
+	/* we can use notif_v1 only, because v2 only adds an additional
+	 * parameter, which is not used in this function.
+	*/
+	if (WARN_ON_ONCE(len < sizeof(*notif_v1))) {
 		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
 		return -EINVAL;
 	}
 
-	notif = (void *)pkt->data;
+	notif_v1 = (void *)pkt->data;
 
-	temp = le32_to_cpu(notif->temp);
+	temp = le32_to_cpu(notif_v1->temp);
 
 	/* shouldn't be negative, but since it's s32, make sure it isn't */
 	if (WARN_ON_ONCE(temp < 0))
@@ -159,17 +166,56 @@ static bool iwl_mvm_temp_notif_wait(struct iwl_notif_wait_data *notif_wait,
 void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_dts_measurement_notif_v2 *notif_v2;
+	int len = iwl_rx_packet_payload_len(pkt);
 	int temp;
+	u32 ths_crossed;
 
 	/* the notification is handled synchronously in ctkill, so skip here */
 	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
 		return;
 
 	temp = iwl_mvm_temp_notif_parse(mvm, pkt);
-	if (temp < 0)
+
+	if (!iwl_mvm_is_tt_in_fw(mvm)) {
+		if (temp >= 0)
+			iwl_mvm_tt_temp_changed(mvm, temp);
+		return;
+	}
+
+	if (WARN_ON_ONCE(len < sizeof(*notif_v2))) {
+		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
+		return;
+	}
+
+	notif_v2 = (void *)pkt->data;
+	ths_crossed = le32_to_cpu(notif_v2->threshold_idx);
+
+	/* 0xFF in ths_crossed means the notification is not related
+	 * to a trip, so we can ignore it here.
+	 */
+	if (ths_crossed == 0xFF)
 		return;
 
-	iwl_mvm_tt_temp_changed(mvm, temp);
+	IWL_DEBUG_TEMP(mvm, "Temp = %d Threshold crossed = %d\n",
+		       temp, ths_crossed);
+
+#ifdef CONFIG_THERMAL
+	if (WARN_ON(ths_crossed >= IWL_MAX_DTS_TRIPS))
+		return;
+
+	/*
+	 * We are now handling a temperature notification from the firmware
+	 * in ASYNC and hold the mutex. thermal_notify_framework will call
+	 * us back through get_temp() which ought to send a SYNC command to
+	 * the firmware and hence to take the mutex.
+	 * Avoid the deadlock by unlocking the mutex here.
+	 */
+	mutex_unlock(&mvm->mutex);
+	thermal_notify_framework(mvm->tz_device.tzone,
+				 mvm->tz_device.fw_trips_index[ths_crossed]);
+	mutex_lock(&mvm->mutex);
+#endif /* CONFIG_THERMAL */
 }
 
 void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
@@ -460,7 +506,220 @@ static const struct iwl_tt_params iwl_mvm_default_tt_params = {
 	.support_tx_backoff = true,
 };
 
-void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff)
+#ifdef CONFIG_THERMAL
+static int compare_temps(const void *a, const void *b)
+{
+	return ((s16)le16_to_cpu(*(__le16 *)a) -
+		(s16)le16_to_cpu(*(__le16 *)b));
+}
+
+int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
+{
+	struct temp_report_ths_cmd cmd = {0};
+	int ret, i, j, idx = 0;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* The driver holds array of temperature trips that are unsorted
+	 * and uncompressed, the FW should get it compressed and sorted
+	 */
+
+	/* compress temp_trips to cmd array, remove uninitialized values*/
+	for (i = 0; i < IWL_MAX_DTS_TRIPS; i++)
+		if (mvm->tz_device.temp_trips[i] != S16_MIN) {
+			cmd.thresholds[idx++] =
+				cpu_to_le16(mvm->tz_device.temp_trips[i]);
+		}
+	cmd.num_temps = cpu_to_le32(idx);
+
+	if (!idx)
+		goto send;
+
+	/*sort cmd array*/
+	sort(cmd.thresholds, idx, sizeof(s16), compare_temps, NULL);
+
+	/* we should save the indexes of trips because we sort
+	 * and compress the orginal array
+	 */
+	for (i = 0; i < idx; i++) {
+		for (j = 0; j < IWL_MAX_DTS_TRIPS; j++) {
+			if (le16_to_cpu(cmd.thresholds[i]) ==
+				mvm->tz_device.temp_trips[j])
+				mvm->tz_device.fw_trips_index[i] = j;
+		}
+	}
+
+send:
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(PHY_OPS_GROUP,
+						TEMP_REPORTING_THRESHOLDS_CMD),
+				   0, sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERR(mvm, "TEMP_REPORT_THS_CMD command failed (err=%d)\n",
+			ret);
+
+	return ret;
+}
+
+static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
+				  int *temperature)
+{
+	struct iwl_mvm *mvm = (struct iwl_mvm *)device->devdata;
+	int ret;
+	int temp;
+
+	mutex_lock(&mvm->mutex);
+
+	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR)) {
+		ret = -EIO;
+		goto out;
+	}
+
+	ret = iwl_mvm_get_temp(mvm, &temp);
+	if (ret)
+		goto out;
+
+	*temperature = temp * 1000;
+
+out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
+static int iwl_mvm_tzone_get_trip_temp(struct thermal_zone_device *device,
+				       int trip, int *temp)
+{
+	struct iwl_mvm *mvm = (struct iwl_mvm *)device->devdata;
+
+	if (trip < 0 || trip >= IWL_MAX_DTS_TRIPS)
+		return -EINVAL;
+
+	*temp = mvm->tz_device.temp_trips[trip] * 1000;
+
+	return 0;
+}
+
+static int iwl_mvm_tzone_get_trip_type(struct thermal_zone_device *device,
+				       int trip, enum thermal_trip_type *type)
+{
+	if (trip < 0 || trip >= IWL_MAX_DTS_TRIPS)
+		return -EINVAL;
+
+	*type = THERMAL_TRIP_PASSIVE;
+
+	return 0;
+}
+
+static int iwl_mvm_tzone_set_trip_temp(struct thermal_zone_device *device,
+				       int trip, int temp)
+{
+	struct iwl_mvm *mvm = (struct iwl_mvm *)device->devdata;
+	struct iwl_mvm_thermal_device *tzone;
+	int i, ret;
+	s16 temperature;
+
+	mutex_lock(&mvm->mutex);
+
+	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR)) {
+		ret = -EIO;
+		goto out;
+	}
+
+	if (trip < 0 || trip >= IWL_MAX_DTS_TRIPS) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if ((temp / 1000) > S16_MAX) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	temperature = (s16)(temp / 1000);
+	tzone = &mvm->tz_device;
+
+	if (!tzone) {
+		ret = -EIO;
+		goto out;
+	}
+
+	/* no updates*/
+	if (tzone->temp_trips[trip] == temperature) {
+		ret = 0;
+		goto out;
+	}
+
+	/* already existing temperature */
+	for (i = 0; i < IWL_MAX_DTS_TRIPS; i++) {
+		if (tzone->temp_trips[i] == temperature) {
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	tzone->temp_trips[trip] = temperature;
+
+	ret = iwl_mvm_send_temp_report_ths_cmd(mvm);
+out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
+static  struct thermal_zone_device_ops tzone_ops = {
+	.get_temp = iwl_mvm_tzone_get_temp,
+	.get_trip_temp = iwl_mvm_tzone_get_trip_temp,
+	.get_trip_type = iwl_mvm_tzone_get_trip_type,
+	.set_trip_temp = iwl_mvm_tzone_set_trip_temp,
+};
+
+/* make all trips writable */
+#define IWL_WRITABLE_TRIPS_MSK (BIT(IWL_MAX_DTS_TRIPS) - 1)
+
+static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
+{
+	int i;
+	char name[] = "iwlwifi";
+
+	if (!iwl_mvm_is_tt_in_fw(mvm)) {
+		mvm->tz_device.tzone = NULL;
+
+		return;
+	}
+
+	BUILD_BUG_ON(ARRAY_SIZE(name) >= THERMAL_NAME_LENGTH);
+
+	mvm->tz_device.tzone = thermal_zone_device_register(name,
+							IWL_MAX_DTS_TRIPS,
+							IWL_WRITABLE_TRIPS_MSK,
+							mvm, &tzone_ops,
+							NULL, 0, 0);
+	if (IS_ERR(mvm->tz_device.tzone)) {
+		IWL_DEBUG_TEMP(mvm,
+			       "Failed to register to thermal zone (err = %ld)\n",
+			       PTR_ERR(mvm->tz_device.tzone));
+		return;
+	}
+
+	/* 0 is a valid temperature,
+	 * so initialize the array with S16_MIN which invalid temperature
+	 */
+	for (i = 0 ; i < IWL_MAX_DTS_TRIPS; i++)
+		mvm->tz_device.temp_trips[i] = S16_MIN;
+}
+
+static void iwl_mvm_thermal_zone_unregister(struct iwl_mvm *mvm)
+{
+	if (!iwl_mvm_is_tt_in_fw(mvm))
+		return;
+
+	if (mvm->tz_device.tzone) {
+		IWL_DEBUG_TEMP(mvm, "Thermal zone device unregister\n");
+		thermal_zone_device_unregister(mvm->tz_device.tzone);
+		mvm->tz_device.tzone = NULL;
+	}
+}
+#endif /* CONFIG_THERMAL */
+
+void iwl_mvm_thermal_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 {
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 
@@ -475,10 +734,18 @@ void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 	tt->dynamic_smps = false;
 	tt->min_backoff = min_backoff;
 	INIT_DELAYED_WORK(&tt->ct_kill_exit, check_exit_ctkill);
+
+#ifdef CONFIG_THERMAL
+	iwl_mvm_thermal_zone_register(mvm);
+#endif
 }
 
-void iwl_mvm_tt_exit(struct iwl_mvm *mvm)
+void iwl_mvm_thermal_exit(struct iwl_mvm *mvm)
 {
 	cancel_delayed_work_sync(&mvm->thermal_throttle.ct_kill_exit);
 	IWL_DEBUG_TEMP(mvm, "Exit Thermal Throttling\n");
+
+#ifdef CONFIG_THERMAL
+	iwl_mvm_thermal_zone_unregister(mvm);
+#endif
 }

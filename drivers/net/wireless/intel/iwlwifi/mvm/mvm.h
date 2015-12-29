@@ -73,6 +73,10 @@
 #include <linux/leds.h>
 #include <linux/in6.h>
 
+#ifdef CONFIG_THERMAL
+#include <linux/thermal.h>
+#endif
+
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
 #include "iwl-notif-wait.h"
@@ -519,6 +523,20 @@ struct iwl_mvm_tt_mgmt {
 	bool throttle;
 };
 
+#ifdef CONFIG_THERMAL
+/**
+ *struct iwl_mvm_thermal_device - thermal zone related data
+ * @temp_trips: temperature thresholds for report
+ * @fw_trips_index: keep indexes to original array - temp_trips
+ * @tzone: thermal zone device data
+*/
+struct iwl_mvm_thermal_device {
+	s16 temp_trips[IWL_MAX_DTS_TRIPS];
+	u8 fw_trips_index[IWL_MAX_DTS_TRIPS];
+	struct thermal_zone_device *tzone;
+};
+#endif
+
 #define IWL_MVM_NUM_LAST_FRAMES_UCODE_RATES 8
 
 struct iwl_mvm_frame_stats {
@@ -799,6 +817,10 @@ struct iwl_mvm {
 
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;
+#ifdef CONFIG_THERMAL
+	struct iwl_mvm_thermal_device tz_device;
+#endif
+
 	s32 temperature;	/* Celsius */
 	/*
 	 * Debug option to set the NIC temperature. This option makes the
@@ -1032,6 +1054,7 @@ static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
 {
+#ifdef CONFIG_THERMAL
 	/* these two TLV are redundant since the responsibility to CT-kill by
 	 * FW happens only after we send at least one command of
 	 * temperature THs report.
@@ -1040,6 +1063,9 @@ static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_CT_KILL_BY_FW) &&
 	       fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_TEMP_THS_REPORT_SUPPORT);
+#else /* CONFIG_THERMAL */
+	return false;
+#endif /* CONFIG_THERMAL */
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1512,11 +1538,12 @@ void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp);
 void iwl_mvm_temp_notif(struct iwl_mvm *mvm,
 			struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
-void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff);
-void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
+void iwl_mvm_thermal_initialize(struct iwl_mvm *mvm, u32 min_backoff);
+void iwl_mvm_thermal_exit(struct iwl_mvm *mvm);
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
 int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp);
 void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
+int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm);
 
 /* Location Aware Regulatory */
 struct iwl_mcc_update_resp *

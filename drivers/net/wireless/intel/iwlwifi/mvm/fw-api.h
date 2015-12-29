@@ -279,6 +279,7 @@ enum {
  */
 enum iwl_phy_ops_subcmd_ids {
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+	TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
 	CT_KILL_NOTIFICATION = 0xFE,
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
@@ -1676,15 +1677,28 @@ struct iwl_ext_dts_measurement_cmd {
 } __packed; /* XVT_FW_DTS_CONTROL_MEASUREMENT_REQUEST_API_S */
 
 /**
- * iwl_dts_measurement_notif - notification received with the measurements
+ * struct iwl_dts_measurement_notif_v1 - measurements notification
  *
  * @temp: the measured temperature
  * @voltage: the measured voltage
  */
-struct iwl_dts_measurement_notif {
+struct iwl_dts_measurement_notif_v1 {
 	__le32 temp;
 	__le32 voltage;
-} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S */
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
+
+/**
+ * struct iwl_dts_measurement_notif_v2 - measurements notification
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ * @threshold_idx: the trip index that was crossed
+ */
+struct iwl_dts_measurement_notif_v2 {
+	__le32 temp;
+	__le32 voltage;
+	__le32 threshold_idx;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_2 */
 
 /**
  * struct ct_kill_notif - CT-kill entry notification
@@ -1696,6 +1710,19 @@ struct ct_kill_notif {
 	__le16 temperature;
 	__le16 reserved;
 } __packed; /* GRP_PHY_CT_KILL_NTF */
+
+#define IWL_MAX_DTS_TRIPS	8
+
+/**
+ * struct iwl_temp_report_ths_cmd - set temperature thresholds
+ *
+ * @num_temps: number of temperature thresholds passed
+ * @thresholds: array with the thresholds to be configured
+ */
+struct temp_report_ths_cmd {
+	__le32 num_temps;
+	__le16 thresholds[IWL_MAX_DTS_TRIPS];
+} __packed; /* GRP_PHY_TEMP_REPORTING_THRESHOLDS_CMD */
 
 /***********************************
  * TDLS API

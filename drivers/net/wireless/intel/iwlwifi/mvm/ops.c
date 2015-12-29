@@ -389,6 +389,7 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
  */
 static const struct iwl_hcmd_names iwl_mvm_phy_names[] = {
 	HCMD_NAME(CMD_DTS_MEASUREMENT_TRIGGER_WIDE),
+	HCMD_NAME(TEMP_REPORTING_THRESHOLDS_CMD),
 	HCMD_NAME(CT_KILL_NOTIFICATION),
 	HCMD_NAME(DTS_MEASUREMENT_NOTIF_WIDE),
 };
@@ -591,7 +592,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		 mvm->cfg->name, mvm->trans->hw_rev);
 
 	min_backoff = calc_min_backoff(trans, cfg);
-	iwl_mvm_tt_initialize(mvm, min_backoff);
+	iwl_mvm_thermal_initialize(mvm, min_backoff);
 
 	if (iwlwifi_mod_params.nvm_file)
 		mvm->nvm_file_name = iwlwifi_mod_params.nvm_file;
@@ -664,6 +665,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  out_unregister:
 	ieee80211_unregister_hw(mvm->hw);
 	iwl_mvm_leds_exit(mvm);
+	iwl_mvm_thermal_exit(mvm);
  out_free:
 	flush_delayed_work(&mvm->fw_dump_wk);
 	iwl_phy_db_free(mvm->phy_db);
@@ -681,7 +683,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 
 	iwl_mvm_leds_exit(mvm);
 
-	iwl_mvm_tt_exit(mvm);
+	iwl_mvm_thermal_exit(mvm);
 
 	ieee80211_unregister_hw(mvm->hw);
 

@@ -952,8 +952,21 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+#ifdef CONFIG_THERMAL
+	if (iwl_mvm_is_tt_in_fw(mvm)) {
+		/* in order to give the responsibility of ct-kill and
+		 * TX backoff to FW we need to send empty temperature reporting
+		 * cmd during init time
+		 */
+		iwl_mvm_send_temp_report_ths_cmd(mvm);
+	} else {
+		/* Initialize tx backoffs to the minimal possible */
+		iwl_mvm_tt_tx_backoff(mvm, 0);
+	}
+#else
 	/* Initialize tx backoffs to the minimal possible */
 	iwl_mvm_tt_tx_backoff(mvm, 0);
+#endif
 
 	WARN_ON(iwl_mvm_config_ltr(mvm));
 
