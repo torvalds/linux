@@ -219,6 +219,13 @@ struct acpi_table_list {
 #define ACPI_ROOT_ORIGIN_ALLOCATED      (1)
 #define ACPI_ROOT_ALLOW_RESIZE          (2)
 
+/* List to manage incoming ACPI tables */
+
+struct acpi_new_table_desc {
+	struct acpi_table_header *table;
+	struct acpi_new_table_desc *next;
+};
+
 /* Predefined table indexes */
 
 #define ACPI_INVALID_TABLE_INDEX        (0xFFFFFFFF)

@@ -44,6 +44,8 @@
 #ifndef _ACAPPS
 #define _ACAPPS
 
+#include <stdio.h>
+
 /* Common info for tool signons */
 
 #define ACPICA_NAME                 "Intel ACPI Component Architecture"
@@ -90,6 +92,18 @@
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
 #define FILE_SUFFIX_BINARY_TABLE    ".dat"	/* Needs the dot */
 
+/* acfileio */
+
+acpi_status
+acpi_ac_get_all_tables_from_file(char *filename,
+				 u8 get_only_aml_tables,
+				 struct acpi_new_table_desc **return_list_head);
+
+/* Values for get_only_aml_tables */
+
+#define ACPI_GET_ONLY_AML_TABLES    TRUE
+#define ACPI_GET_ALL_TABLES         FALSE
+
 /*
  * getopt
  */
@@ -106,30 +120,6 @@ extern char *acpi_gbl_optarg;
  * cmfsize - Common get file size function
  */
 u32 cm_get_file_size(ACPI_FILE file);
-
-#ifndef ACPI_DUMP_APP
-/*
- * adisasm
- */
-acpi_status
-ad_aml_disassemble(u8 out_to_file,
-		   char *filename, char *prefix, char **out_filename);
-
-void ad_print_statistics(void);
-
-acpi_status ad_find_dsdt(u8 **dsdt_ptr, u32 *dsdt_length);
-
-void ad_dump_tables(void);
-
-acpi_status ad_get_local_tables(void);
-
-acpi_status
-ad_parse_table(struct acpi_table_header *table,
-	       acpi_owner_id * owner_id, u8 load_table, u8 external);
-
-acpi_status ad_display_tables(char *filename, struct acpi_table_header *table);
-
-acpi_status ad_display_statistics(void);
 
 /*
  * adwalk
@@ -168,6 +158,5 @@ char *ad_generate_filename(char *prefix, char *table_id);
 void
 ad_write_table(struct acpi_table_header *table,
 	       u32 length, char *table_name, char *oem_table_id);
-#endif
 
 #endif				/* _ACAPPS */

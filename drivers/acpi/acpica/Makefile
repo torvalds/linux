@@ -197,7 +197,6 @@ acpi-$(ACPI_FUTURE_USAGE) +=	\
 	dbfileio.o		\
 	dbtest.o		\
 	utcache.o		\
-	utfileio.o		\
 	utprint.o		\
 	uttrack.o		\
 	utuuid.o
