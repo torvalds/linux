@@ -1357,12 +1357,6 @@ static const struct platform_device_id s3c64xx_spi_driver_ids[] = {
 	}, {
 		.name		= "s3c6410-spi",
 		.driver_data	= (kernel_ulong_t)&s3c6410_spi_port_config,
-	}, {
-		.name		= "s5pv210-spi",
-		.driver_data	= (kernel_ulong_t)&s5pv210_spi_port_config,
-	}, {
-		.name		= "exynos4210-spi",
-		.driver_data	= (kernel_ulong_t)&exynos4_spi_port_config,
 	},
 	{ },
 };
