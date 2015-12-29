@@ -282,6 +282,9 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	netdev_tx_sent_queue(sq->txq, wi->num_bytes);
 
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
 	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM))) {
 		netif_tx_stop_queue(sq->txq);
 		sq->stats.stopped++;
@@ -378,6 +381,15 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 				sq->stats.nop++;
 				sqcc++;
 				continue;
+			}
+
+			if (unlikely(skb_shinfo(skb)->tx_flags &
+				     SKBTX_HW_TSTAMP)) {
+				struct skb_shared_hwtstamps hwts = {};
+
+				mlx5e_fill_hwstamp(sq->tstamp,
+						   get_cqe_ts(cqe), &hwts);
+				skb_tstamp_tx(skb, &hwts);
 			}
 
 			for (j = 0; j < wi->num_dma; j++) {

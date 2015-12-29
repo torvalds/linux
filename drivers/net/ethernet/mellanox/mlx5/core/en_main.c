@@ -351,6 +351,7 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 
 	rq->pdev    = c->pdev;
 	rq->netdev  = c->netdev;
+	rq->tstamp  = &priv->tstamp;
 	rq->channel = c;
 	rq->ix      = c->ix;
 	rq->priv    = c->priv;
@@ -571,6 +572,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->txq = netdev_get_tx_queue(priv->netdev, txq_ix);
 
 	sq->pdev      = c->pdev;
+	sq->tstamp    = &priv->tstamp;
 	sq->mkey_be   = c->mkey_be;
 	sq->channel   = c;
 	sq->tc        = tc;
@@ -1430,6 +1432,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 
 	mlx5e_update_carrier(priv);
 	mlx5e_redirect_rqts(priv);
+	mlx5e_timestamp_init(priv);
 
 	schedule_delayed_work(&priv->update_stats_work, 0);
 
@@ -1466,6 +1469,7 @@ int mlx5e_close_locked(struct net_device *netdev)
 
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
+	mlx5e_timestamp_cleanup(priv);
 	mlx5e_redirect_rqts(priv);
 	netif_carrier_off(priv->netdev);
 	mlx5e_close_channels(priv);
@@ -1935,6 +1939,18 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 	return err;
 }
 
+static int mlx5e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return mlx5e_hwstamp_set(dev, ifr);
+	case SIOCGHWTSTAMP:
+		return mlx5e_hwstamp_get(dev, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int mlx5e_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -2018,7 +2034,8 @@ static struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_vlan_rx_add_vid	 = mlx5e_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	 = mlx5e_vlan_rx_kill_vid,
 	.ndo_set_features        = mlx5e_set_features,
-	.ndo_change_mtu		 = mlx5e_change_mtu
+	.ndo_change_mtu		 = mlx5e_change_mtu,
+	.ndo_do_ioctl		 = mlx5e_ioctl,
 };
 
 static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)

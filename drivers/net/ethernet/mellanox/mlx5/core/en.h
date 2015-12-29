@@ -32,6 +32,8 @@
 
 #include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
+#include <linux/timecounter.h>
+#include <linux/net_tstamp.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/cq.h>
@@ -284,6 +286,17 @@ struct mlx5e_params {
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
 };
 
+struct mlx5e_tstamp {
+	rwlock_t                   lock;
+	struct cyclecounter        cycles;
+	struct timecounter         clock;
+	struct hwtstamp_config     hwtstamp_config;
+	u32                        nominal_c_mult;
+	unsigned long              overflow_period;
+	struct delayed_work        overflow_work;
+	struct mlx5_core_dev      *mdev;
+};
+
 enum {
 	MLX5E_RQ_STATE_POST_WQES_ENABLE,
 };
@@ -315,6 +328,7 @@ struct mlx5e_rq {
 
 	struct device         *pdev;
 	struct net_device     *netdev;
+	struct mlx5e_tstamp   *tstamp;
 	struct mlx5e_rq_stats  stats;
 	struct mlx5e_cq        cq;
 
@@ -382,6 +396,7 @@ struct mlx5e_sq {
 	u16                        max_inline;
 	u16                        edge;
 	struct device             *pdev;
+	struct mlx5e_tstamp       *tstamp;
 	__be32                     mkey_be;
 	unsigned long              state;
 
@@ -518,6 +533,7 @@ struct mlx5e_priv {
 	struct mlx5_core_dev      *mdev;
 	struct net_device         *netdev;
 	struct mlx5e_stats         stats;
+	struct mlx5e_tstamp        tstamp;
 };
 
 #define MLX5E_NET_IP_ALIGN 2
@@ -583,6 +599,13 @@ int mlx5e_create_flow_tables(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv);
 void mlx5e_init_eth_addr(struct mlx5e_priv *priv);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
+
+void mlx5e_fill_hwstamp(struct mlx5e_tstamp *clock, u64 timestamp,
+			struct skb_shared_hwtstamps *hwts);
+void mlx5e_timestamp_init(struct mlx5e_priv *priv);
+void mlx5e_timestamp_cleanup(struct mlx5e_priv *priv);
+int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr);
+int mlx5e_hwstamp_get(struct net_device *dev, struct ifreq *ifr);
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid);
