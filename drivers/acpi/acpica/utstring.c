@@ -240,6 +240,14 @@ void acpi_ut_repair_name(char *name)
 
 	ACPI_FUNCTION_NAME(ut_repair_name);
 
+	/*
+	 * Special case for the root node. This can happen if we get an
+	 * error during the execution of module-level code.
+	 */
+	if (ACPI_COMPARE_NAME(name, "\\___")) {
+		return;
+	}
+
 	ACPI_MOVE_NAME(&original_name, name);
 
 	/* Check each character in the name */
