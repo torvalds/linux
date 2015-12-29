@@ -1,5 +1,4 @@
 /*
- *
  * USB Moxa UPORT 11x0 Serial Driver
  *
  * Copyright (C) 2007 MOXA Technologies Co., Ltd.
@@ -494,10 +493,10 @@ static void mxu1_set_termios(struct tty_struct *tty,
 	}
 
 	dev_dbg(&port->dev,
-		"%s - clfag %08x, iflag %08x\n", __func__, cflag, iflag);
+		"%s - cflag 0x%08x, iflag 0x%08x\n", __func__, cflag, iflag);
 
 	if (old_termios) {
-		dev_dbg(&port->dev, "%s - old clfag %08x, old iflag %08x\n",
+		dev_dbg(&port->dev, "%s - old cflag 0x%08x, old iflag 0x%08x\n",
 			__func__,
 			old_termios->c_cflag,
 			old_termios->c_iflag);
@@ -764,7 +763,6 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	mxport->msr = 0;
 
-	dev_dbg(&port->dev, "%s - start interrupt in urb\n", __func__);
 	status = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (status) {
 		dev_err(&port->dev, "failed to submit interrupt urb: %d\n",
@@ -842,7 +840,7 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto unlink_int_urb;
 	}
 
-	return status;
+	return 0;
 
 unlink_int_urb:
 	usb_kill_urb(port->interrupt_in_urb);
@@ -859,20 +857,19 @@ static void mxu1_close(struct usb_serial_port *port)
 
 	status = mxu1_send_ctrl_urb(port->serial, MXU1_CLOSE_PORT,
 				    0, MXU1_UART1_PORT);
-	if (status)
+	if (status) {
 		dev_err(&port->dev, "failed to send close port command: %d\n",
 			status);
+	}
 }
 
 static void mxu1_handle_new_msr(struct usb_serial_port *port, u8 msr)
 {
+	struct mxu1_port *mxport = usb_get_serial_port_data(port);
 	struct async_icount *icount;
-	struct mxu1_port *mxport;
 	unsigned long flags;
 
 	dev_dbg(&port->dev, "%s - msr 0x%02X\n", __func__, msr);
-
-	mxport = usb_get_serial_port_data(port);
 
 	spin_lock_irqsave(&mxport->spinlock, flags);
 	mxport->msr = msr & MXU1_MSR_MASK;
@@ -953,9 +950,10 @@ static void mxu1_interrupt_callback(struct urb *urb)
 
 exit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status)
+	if (status) {
 		dev_err(&port->dev, "resubmit interrupt urb failed: %d\n",
 			status);
+	}
 }
 
 static struct usb_serial_driver mxu11x0_device = {
