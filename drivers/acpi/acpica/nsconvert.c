@@ -306,7 +306,8 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  *
  * FUNCTION:    acpi_ns_convert_to_unicode
  *
- * PARAMETERS:  original_object     - ASCII String Object to be converted
+ * PARAMETERS:  scope               - Namespace node for the method/object
+ *              original_object     - ASCII String Object to be converted
  *              return_object       - Where the new converted object is returned
  *
  * RETURN:      Status. AE_OK if conversion was successful.
@@ -316,7 +317,8 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
+acpi_ns_convert_to_unicode(struct acpi_namespace_node * scope,
+			   union acpi_operand_object *original_object,
 			   union acpi_operand_object **return_object)
 {
 	union acpi_operand_object *new_object;
@@ -370,7 +372,8 @@ acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
  *
  * FUNCTION:    acpi_ns_convert_to_resource
  *
- * PARAMETERS:  original_object     - Object to be converted
+ * PARAMETERS:  scope               - Namespace node for the method/object
+ *              original_object     - Object to be converted
  *              return_object       - Where the new converted object is returned
  *
  * RETURN:      Status. AE_OK if conversion was successful
@@ -381,7 +384,8 @@ acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_convert_to_resource(union acpi_operand_object *original_object,
+acpi_ns_convert_to_resource(struct acpi_namespace_node * scope,
+			    union acpi_operand_object *original_object,
 			    union acpi_operand_object **return_object)
 {
 	union acpi_operand_object *new_object;

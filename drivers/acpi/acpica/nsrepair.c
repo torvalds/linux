@@ -172,8 +172,8 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 					      "Missing expected return value"));
 		}
 
-		status =
-		    predefined->object_converter(return_object, &new_object);
+		status = predefined->object_converter(info->node, return_object,
+						      &new_object);
 		if (ACPI_FAILURE(status)) {
 
 			/* A fatal error occurred during a conversion */

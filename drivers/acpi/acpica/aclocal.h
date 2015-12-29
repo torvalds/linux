@@ -395,7 +395,8 @@ union acpi_predefined_info {
 
 /* Return object auto-repair info */
 
-typedef acpi_status(*acpi_object_converter) (union acpi_operand_object
+typedef acpi_status(*acpi_object_converter) (struct acpi_namespace_node * scope,
+					     union acpi_operand_object
 					     *original_object,
 					     union acpi_operand_object
 					     **converted_object);
