@@ -1037,7 +1037,6 @@ static int gmc_v8_0_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		amdgpu_vm_manager_fini(adev);
 		gmc_v8_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
