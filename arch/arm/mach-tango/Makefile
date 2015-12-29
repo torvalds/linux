@@ -1,2 +1,3 @@
-asflags-y += -mcpu=cortex-a9
+plus_sec := $(call as-instr,.arch_extension sec,+sec)
+AFLAGS_smc.o		:=-Wa,-march=armv7-a$(plus_sec)
 obj-y += setup.o smc.o
