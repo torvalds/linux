@@ -184,24 +184,24 @@ acpi_status acpi_ut_init_globals(void);
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-char *acpi_ut_get_mutex_name(u32 mutex_id);
+const char *acpi_ut_get_mutex_name(u32 mutex_id);
 
 const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type);
 #endif
 
-char *acpi_ut_get_type_name(acpi_object_type type);
+const char *acpi_ut_get_type_name(acpi_object_type type);
 
-char *acpi_ut_get_node_name(void *object);
+const char *acpi_ut_get_node_name(void *object);
 
-char *acpi_ut_get_descriptor_name(void *object);
+const char *acpi_ut_get_descriptor_name(void *object);
 
 const char *acpi_ut_get_reference_name(union acpi_operand_object *object);
 
-char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc);
+const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc);
 
-char *acpi_ut_get_region_name(u8 space_id);
+const char *acpi_ut_get_region_name(u8 space_id);
 
-char *acpi_ut_get_event_name(u32 event_id);
+const char *acpi_ut_get_event_name(u32 event_id);
 
 char acpi_ut_hex_to_ascii_char(u64 integer, u32 position);
 

@@ -159,7 +159,7 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node;
-	char *node_name;
+	const char *node_name;
 
 	/* Parameter validation */
 
