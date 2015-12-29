@@ -267,6 +267,13 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  *
  * Note: Allocates the return buffer, must be freed by the caller.
  *
+ * Note: This interface is intended to be used during the initial device
+ * discovery namespace traversal. Therefore, no complex methods can be
+ * executed, especially those that access operation regions. Therefore, do
+ * not add any additional methods that could cause problems in this area.
+ * this was the fate of the _SUB method which was found to cause such
+ * problems and was removed (11/2015).
+ *
  ******************************************************************************/
 
 acpi_status
