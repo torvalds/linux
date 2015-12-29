@@ -87,7 +87,7 @@
 	acpi_os_printf (description);
 
 #define ACPI_OPTION(name, description) \
-	acpi_os_printf (" %-18s%s\n", name, description);
+	acpi_os_printf (" %-20s%s\n", name, description);
 
 /* Check for unexpected exceptions */
 
