@@ -89,6 +89,19 @@
 #define ACPI_OPTION(name, description) \
 	acpi_os_printf (" %-18s%s\n", name, description);
 
+/* Check for unexpected exceptions */
+
+#define ACPI_CHECK_STATUS(name, status, expected) \
+	if (status != expected) \
+	{ \
+		acpi_os_printf ("Unexpected %s from %s (%s-%d)\n", \
+			acpi_format_exception (status), #name, _acpi_module_name, __LINE__); \
+	}
+
+/* Check for unexpected non-AE_OK errors */
+
+#define ACPI_CHECK_OK(name, status)   ACPI_CHECK_STATUS (name, status, AE_OK);
+
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
 #define FILE_SUFFIX_BINARY_TABLE    ".dat"	/* Needs the dot */
 
