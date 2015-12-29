@@ -310,9 +310,14 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 				case ACPI_TYPE_PACKAGE:
 
 					acpi_os_printf("Package[%u] = ", value);
-					acpi_ex_do_debug_object(*source_desc->
-								reference.where,
-								level + 4, 0);
+					if (!(*source_desc->reference.where)) {
+						acpi_os_printf
+						    ("[Uninitialized Package Element]\n");
+					} else {
+						acpi_ex_do_debug_object
+						    (*source_desc->reference.
+						     where, level + 4, 0);
+					}
 					break;
 
 				default:
