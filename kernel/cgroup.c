@@ -5169,7 +5169,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 {
 	struct cgroup_subsys_state *css;
 
-	printk(KERN_INFO "Initializing cgroup subsys %s\n", ss->name);
+	pr_debug("Initializing cgroup subsys %s\n", ss->name);
 
 	mutex_lock(&cgroup_mutex);
 
