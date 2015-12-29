@@ -507,9 +507,6 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 	acpi_adr_space_type space_id;
 	struct acpi_namespace_node *node;
 	acpi_status status;
-	struct acpi_namespace_node *method_node;
-	acpi_name *reg_name_ptr = (acpi_name *) METHOD_NAME__REG;
-	union acpi_operand_object *region_obj2;
 
 	ACPI_FUNCTION_TRACE_U32(ev_initialize_region, acpi_ns_locked);
 
@@ -521,34 +518,11 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	region_obj2 = acpi_ns_get_secondary_object(region_obj);
-	if (!region_obj2) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
-	}
+	acpi_ev_associate_reg_method(region_obj);
+	region_obj->common.flags |= AOPOBJ_OBJECT_INITIALIZED;
 
 	node = region_obj->region.node->parent;
 	space_id = region_obj->region.space_id;
-
-	/* Setup defaults */
-
-	region_obj->region.handler = NULL;
-	region_obj2->extra.method_REG = NULL;
-	region_obj->common.flags &= ~(AOPOBJ_SETUP_COMPLETE);
-	region_obj->common.flags |= AOPOBJ_OBJECT_INITIALIZED;
-
-	/* Find any "_REG" method associated with this region definition */
-
-	status =
-	    acpi_ns_search_one_scope(*reg_name_ptr, node, ACPI_TYPE_METHOD,
-				     &method_node);
-	if (ACPI_SUCCESS(status)) {
-		/*
-		 * The _REG method is optional and there can be only one per region
-		 * definition. This will be executed when the handler is attached
-		 * or removed
-		 */
-		region_obj2->extra.method_REG = method_node;
-	}
 
 	/*
 	 * The following loop depends upon the root Node having no parent
