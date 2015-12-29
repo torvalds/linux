@@ -88,20 +88,39 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		return_VOID;
 	}
 
-	/*
-	 * We will emit the current timer value (in microseconds) with each
-	 * debug output. Only need the lower 26 bits. This allows for 67
-	 * million microseconds or 67 seconds before rollover.
-	 */
-	timer = ((u32)acpi_os_get_timer() / 10);	/* (100 nanoseconds to microseconds) */
-	timer &= 0x03FFFFFF;
+	/* Null string or newline -- don't emit the line header */
+
+	if ((ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) &&
+	    (source_desc->common.type == ACPI_TYPE_STRING)) {
+		if ((source_desc->string.length == 0) ||
+		    ((source_desc->string.length == 1) &&
+		     (*source_desc->string.pointer == '\n'))) {
+			acpi_os_printf("\n");
+			return_VOID;
+		}
+	}
 
 	/*
 	 * Print line header as long as we are not in the middle of an
 	 * object display
 	 */
 	if (!((level > 0) && index == 0)) {
-		acpi_os_printf("[ACPI Debug %.8u] %*s", timer, level, " ");
+		if (acpi_gbl_display_debug_timer) {
+			/*
+			 * We will emit the current timer value (in microseconds) with each
+			 * debug output. Only need the lower 26 bits. This allows for 67
+			 * million microseconds or 67 seconds before rollover.
+			 *
+			 * Convert 100 nanosecond units to microseconds
+			 */
+			timer = ((u32)acpi_os_get_timer() / 10);
+			timer &= 0x03FFFFFF;
+
+			acpi_os_printf("[ACPI Debug T=0x%8.8X] %*s", timer,
+				       level, " ");
+		} else {
+			acpi_os_printf("[ACPI Debug] %*s", level, " ");
+		}
 	}
 
 	/* Display the index for package output only */
@@ -116,8 +135,15 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) {
-		acpi_os_printf("%s ",
-			       acpi_ut_get_object_type_name(source_desc));
+
+		/* No object type prefix needed for integers and strings */
+
+		if ((source_desc->common.type != ACPI_TYPE_INTEGER) &&
+		    (source_desc->common.type != ACPI_TYPE_STRING)) {
+			acpi_os_printf("%s ",
+				       acpi_ut_get_object_type_name
+				       (source_desc));
+		}
 
 		if (!acpi_ut_valid_internal_object(source_desc)) {
 			acpi_os_printf("%p, Invalid Internal Object!\n",
@@ -126,7 +152,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		}
 	} else if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) ==
 		   ACPI_DESC_TYPE_NAMED) {
-		acpi_os_printf("%s: %p\n",
+		acpi_os_printf("%s (Node %p)\n",
 			       acpi_ut_get_type_name(((struct
 						       acpi_namespace_node *)
 						      source_desc)->type),
@@ -164,14 +190,12 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_STRING:
 
-		acpi_os_printf("[0x%.2X] \"%s\"\n",
-			       source_desc->string.length,
-			       source_desc->string.pointer);
+		acpi_os_printf("\"%s\"\n", source_desc->string.pointer);
 		break;
 
 	case ACPI_TYPE_PACKAGE:
 
-		acpi_os_printf("[Contains 0x%.2X Elements]\n",
+		acpi_os_printf("(Contains 0x%.2X Elements):\n",
 			       source_desc->package.count);
 
 		/* Output the entire contents of the package */
@@ -250,11 +274,14 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			if (ACPI_GET_DESCRIPTOR_TYPE
 			    (source_desc->reference.object) ==
 			    ACPI_DESC_TYPE_NAMED) {
-				acpi_ex_do_debug_object(((struct
-							  acpi_namespace_node *)
+
+				/* Reference object is a namespace node */
+
+				acpi_ex_do_debug_object(ACPI_CAST_PTR
+							(union
+							 acpi_operand_object,
 							 source_desc->reference.
-							 object)->object,
-							level + 4, 0);
+							 object), level + 4, 0);
 			} else {
 				object_desc = source_desc->reference.object;
 				value = source_desc->reference.value;
@@ -300,7 +327,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	default:
 
-		acpi_os_printf("%p\n", source_desc);
+		acpi_os_printf("(Descriptor %p)\n", source_desc);
 		break;
 	}
 
