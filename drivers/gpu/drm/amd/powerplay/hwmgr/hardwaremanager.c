@@ -90,6 +90,22 @@ int phm_setup_asic(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+int phm_power_down_asic(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+		PHM_PlatformCaps_TablelessHardwareInterface)) {
+		if (NULL != hwmgr->hwmgr_func->power_off_asic)
+			return hwmgr->hwmgr_func->power_off_asic(hwmgr);
+	} else {
+		return phm_dispatch_table(hwmgr, &(hwmgr->power_down_asic),
+					  NULL, NULL);
+	}
+
+	return 0;
+}
+
 int phm_set_power_state(struct pp_hwmgr *hwmgr,
 		    const struct pp_hw_power_state *pcurrent_state,
 		    const struct pp_hw_power_state *pnew_power_state)
@@ -247,7 +263,6 @@ int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
 */
 int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *temperature_range)
 {
-
 	return phm_dispatch_table(hwmgr, &(hwmgr->start_thermal_controller), temperature_range, NULL);
 }
 

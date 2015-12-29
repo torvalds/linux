@@ -379,5 +379,7 @@ extern int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
 
 extern int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr);
 
+extern int phm_power_down_asic(struct pp_hwmgr *hwmgr);
+
 #endif /* _HARDWARE_MANAGER_H_ */
 

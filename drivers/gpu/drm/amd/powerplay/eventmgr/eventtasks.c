@@ -68,8 +68,7 @@ int pem_task_adjust_power_state(struct pp_eventmgr *eventmgr, struct pem_event_d
 
 int pem_task_power_down_asic(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
-	/* TODO */
-	return 0;
+	return phm_power_down_asic(eventmgr->hwmgr);
 }
 
 int pem_task_set_boot_state(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
