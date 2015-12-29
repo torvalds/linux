@@ -6127,7 +6127,7 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	RTL_W8(EEE_LED, RTL_R8(EEE_LED) & ~0x07);
 
 	RTL_W8(DLLPR, RTL_R8(DLLPR) & ~PFM_EN);
-	RTL_W8(DLLPR, RTL_R8(MISC_1) & ~PFM_D3COLD_EN);
+	RTL_W8(MISC_1, RTL_R8(MISC_1) & ~PFM_D3COLD_EN);
 
 	RTL_W8(DLLPR, RTL_R8(DLLPR) & ~TX_10M_PS_EN);
 
@@ -6252,7 +6252,7 @@ static void rtl_hw_start_8168ep_2(struct rtl8169_private *tp)
 	rtl_hw_start_8168ep(tp);
 
 	RTL_W8(DLLPR, RTL_R8(DLLPR) & ~PFM_EN);
-	RTL_W8(DLLPR, RTL_R8(MISC_1) & ~PFM_D3COLD_EN);
+	RTL_W8(MISC_1, RTL_R8(MISC_1) & ~PFM_D3COLD_EN);
 }
 
 static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
@@ -6274,7 +6274,7 @@ static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
 	rtl_hw_start_8168ep(tp);
 
 	RTL_W8(DLLPR, RTL_R8(DLLPR) & ~PFM_EN);
-	RTL_W8(DLLPR, RTL_R8(MISC_1) & ~PFM_D3COLD_EN);
+	RTL_W8(MISC_1, RTL_R8(MISC_1) & ~PFM_D3COLD_EN);
 
 	data = r8168_mac_ocp_read(tp, 0xd3e2);
 	data &= 0xf000;
