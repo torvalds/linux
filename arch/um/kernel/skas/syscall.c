@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
+#include <linux/seccomp.h>
 #include <kern_util.h>
 #include <sysdep/ptrace.h>
 #include <sysdep/ptrace_user.h>
@@ -18,6 +19,10 @@ void handle_syscall(struct uml_pt_regs *r)
 	/* Initialize the syscall number and default return value. */
 	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);
 	PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
+
+	/* Do the secure computing check first; failures should be fast. */
+	if (secure_computing() == -1)
+		return;
 
 	if (syscall_trace_enter(regs))
 		goto out;
