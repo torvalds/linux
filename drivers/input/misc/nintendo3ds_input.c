@@ -345,21 +345,25 @@ static void vkb_input_poll_cb_keyboard(struct vkb_ctx_t *vkb, int buttons, struc
 			input_report_key(idev, KEY_C, BUTTON_HELD(buttons, BUTTON_Y));
 			input_sync(idev);
 	} else if (buttons ^ old_buttons) {
-		if (BUTTON_HELD(buttons, BUTTON_UP)) {
+		if (BUTTON_PRESSED(buttons, old_buttons, BUTTON_UP)) {
 			if (--vkb->cury < 0)
 				vkb->cury = VKB_ROWS - 1;
-		} else if (BUTTON_HELD(buttons, BUTTON_DOWN)) {
+		} else if (BUTTON_PRESSED(buttons, old_buttons, BUTTON_DOWN)) {
 			if (++vkb->cury > VKB_ROWS-1)
 				vkb->cury = 0;
-		} else if (BUTTON_HELD(buttons, BUTTON_LEFT)) {
+		} else if (BUTTON_PRESSED(buttons, old_buttons, BUTTON_LEFT)) {
 			if (--vkb->curx < 0)
 				vkb->curx = VKB_COLS-1;
-		} else if (BUTTON_HELD(buttons, BUTTON_RIGHT)) {
-			if (++vkb->curx > VKB_COLS-1)
+		} else if (BUTTON_PRESSED(buttons, old_buttons, BUTTON_RIGHT)) {
+			if ((++vkb->curx > VKB_COLS-1) || (vkb_map_keys[vkb->cury][vkb->curx] == 0))
 				vkb->curx = 0;
 		}
-
-		fbbot_draw_vkb(vkb, 0, 0);
+		if (BUTTON_PRESSED(buttons, old_buttons,
+		    BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT)) {
+			while (vkb_map_keys[vkb->cury][vkb->curx] == 0)
+				vkb->curx--;
+			fbbot_draw_vkb(vkb, 0, 0);
+		}
 	}
 }
 
@@ -375,16 +379,16 @@ static void vkb_input_poll_cb_mouse(struct vkb_ctx_t *vkb, int buttons, struct i
 			report_key_button(BTN_MIDDLE, BUTTON_X);
 
 	if (BUTTON_HELD(buttons, BUTTON_UP)) {
-		input_report_rel(idev, REL_Y, -10);
+		input_report_rel(idev, REL_X, +5);
 		input_sync(idev);
 	} else if (BUTTON_HELD(buttons, BUTTON_DOWN)) {
-		input_report_rel(idev, REL_Y, +10);
+		input_report_rel(idev, REL_X, -5);
 		input_sync(idev);
 	} else if (BUTTON_HELD(buttons, BUTTON_LEFT)) {
-		input_report_rel(idev, REL_X, -10);
+		input_report_rel(idev, REL_Y, -5);
 		input_sync(idev);
 	} else if (BUTTON_HELD(buttons, BUTTON_RIGHT)) {
-		input_report_rel(idev, REL_X, +10);
+		input_report_rel(idev, REL_Y, +5);
 		input_sync(idev);
 	}
 
