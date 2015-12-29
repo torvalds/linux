@@ -292,6 +292,29 @@ acpi_ut_read_table(FILE * fp,
  ******************************************************************************/
 
 acpi_status
+acpi_ut_read_tables_from_file(FILE * file, struct acpi_table_header ** table)
+{
+	struct acpi_table_header table_header;
+	s32 count;
+	long position;
+
+	position = ftell(file);
+	count = fread(&table_header, 1, sizeof(struct acpi_table_header), file);
+	if (count < sizeof(struct acpi_table_header)) {
+		return (AE_CTRL_TERMINATE);
+	}
+
+	/* Allocate a buffer for the table */
+
+	*table = acpi_os_allocate((size_t) table_header.length);
+	fseek(file, position, SEEK_SET);
+
+	count = fread(*table, 1, table_header.length, file);
+
+	return (AE_OK);
+}
+
+acpi_status
 acpi_ut_read_table_from_file(char *filename, struct acpi_table_header ** table)
 {
 	FILE *file;

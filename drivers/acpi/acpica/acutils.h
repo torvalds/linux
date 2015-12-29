@@ -356,6 +356,10 @@ acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
  * utfileio - file operations
  */
 #ifdef ACPI_APPLICATION
+
+acpi_status
+acpi_ut_read_tables_from_file(FILE * file, struct acpi_table_header **table);
+
 acpi_status
 acpi_ut_read_table_from_file(char *filename, struct acpi_table_header **table);
 #endif
