@@ -1114,7 +1114,7 @@ bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, struct irq_phys_map *map)
 			return true;
 	}
 
-	return dist_active_irq(vcpu);
+	return vgic_irq_is_active(vcpu, map->virt_irq);
 }
 
 /*
