@@ -254,7 +254,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}
 
-	status = acpi_ex_acquire_mutex_object((u16) time_desc->integer.value,
+	status = acpi_ex_acquire_mutex_object((u16)time_desc->integer.value,
 					      obj_desc,
 					      walk_state->thread->thread_id);
 	if (ACPI_SUCCESS(status) && obj_desc->mutex.acquisition_depth == 1) {

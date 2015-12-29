@@ -136,6 +136,7 @@ static inline acpi_status acpi_os_initialize_command_signals(void)
 
 static inline void acpi_os_terminate_command_signals(void)
 {
+	return;
 }
 
 /*

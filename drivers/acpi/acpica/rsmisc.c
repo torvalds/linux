@@ -446,7 +446,7 @@ exit:
 		/* Round the resource struct length up to the next boundary (32 or 64) */
 
 		resource->length =
-		    (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(resource->length);
+		    (u32)ACPI_ROUND_UP_TO_NATIVE_WORD(resource->length);
 	}
 	return_ACPI_STATUS(AE_OK);
 }
@@ -551,8 +551,8 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			ACPI_SET8(destination, item_count);
 
 			aml_length =
-			    (u16) (aml_length +
-				   (info->value * (item_count - 1)));
+			    (u16)(aml_length +
+				  (info->value * (item_count - 1)));
 			break;
 
 		case ACPI_RSC_COUNT16:

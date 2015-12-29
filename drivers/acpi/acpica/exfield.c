@@ -439,7 +439,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		 * same buffer)
 		 */
 		status = acpi_ex_access_region(obj_desc, 0,
-					       (u64 *) buffer, function);
+					       (u64 *)buffer, function);
 		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
 		*result_desc = buffer_desc;

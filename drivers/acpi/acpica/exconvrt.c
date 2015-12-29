@@ -355,8 +355,8 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
 			/* Get one hex digit, most significant digits first */
 
 			string[k] =
-			    (u8) acpi_ut_hex_to_ascii_char(integer,
-							   ACPI_MUL_4(j));
+			    (u8)acpi_ut_hex_to_ascii_char(integer,
+							  ACPI_MUL_4(j));
 			k++;
 		}
 		break;

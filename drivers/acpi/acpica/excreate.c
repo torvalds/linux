@@ -492,10 +492,9 @@ acpi_ex_create_method(u8 * aml_start,
 	 * Disassemble the method flags. Split off the arg_count, Serialized
 	 * flag, and sync_level for efficiency.
 	 */
-	method_flags = (u8) operand[1]->integer.value;
-
+	method_flags = (u8)operand[1]->integer.value;
 	obj_desc->method.param_count =
-	    (u8) (method_flags & AML_METHOD_ARG_COUNT);
+	    (u8)(method_flags & AML_METHOD_ARG_COUNT);
 
 	/*
 	 * Get the sync_level. If method is serialized, a mutex will be

@@ -710,7 +710,7 @@ acpi_ns_repair_PSS(struct acpi_evaluate_info *info,
 		elements = (*outer_elements)->package.elements;
 		obj_desc = elements[1];	/* Index1 = power_dissipation */
 
-		if ((u32) obj_desc->integer.value > previous_value) {
+		if ((u32)obj_desc->integer.value > previous_value) {
 			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
 					      info->node_flags,
 					      "SubPackage[%u,%u] - suspicious power dissipation values",

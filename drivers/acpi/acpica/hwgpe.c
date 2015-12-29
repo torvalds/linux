@@ -298,6 +298,7 @@ acpi_hw_gpe_enable_write(u8 enable_mask,
 
 	gpe_register_info->enable_mask = enable_mask;
 	status = acpi_hw_write(enable_mask, &gpe_register_info->enable_address);
+
 	return (status);
 }
 

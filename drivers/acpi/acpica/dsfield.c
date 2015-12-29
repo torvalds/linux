@@ -310,8 +310,8 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 		switch (arg->common.aml_opcode) {
 		case AML_INT_RESERVEDFIELD_OP:
 
-			position = (u64) info->field_bit_position
-			    + (u64) arg->common.value.size;
+			position = (u64)info->field_bit_position
+			    + (u64)arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
 				ACPI_ERROR((AE_INFO,
@@ -425,8 +425,8 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 
 			/* Keep track of bit position for the next field */
 
-			position = (u64) info->field_bit_position
-			    + (u64) arg->common.value.size;
+			position = (u64)info->field_bit_position
+			    + (u64)arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
 				ACPI_ERROR((AE_INFO,

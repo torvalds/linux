@@ -253,7 +253,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
 		buffer = ACPI_ALLOCATE_ZEROED(buffer_size);
 		if (!buffer) {
 			ACPI_ERROR((AE_INFO, "Could not allocate size %u",
-				    (u32) buffer_size));
+				    (u32)buffer_size));
 			acpi_ut_remove_reference(buffer_desc);
 			return_PTR(NULL);
 		}
@@ -305,7 +305,7 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size)
 	string = ACPI_ALLOCATE_ZEROED(string_size + 1);
 	if (!string) {
 		ACPI_ERROR((AE_INFO, "Could not allocate size %u",
-			    (u32) string_size));
+			    (u32)string_size));
 		acpi_ut_remove_reference(string_desc);
 		return_PTR(NULL);
 	}

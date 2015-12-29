@@ -504,8 +504,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		if ((walk_state->deferred_node) &&
 		    (walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD)
 		    && (arg_index ==
-			(u32) ((walk_state->opcode ==
-				AML_CREATE_FIELD_OP) ? 3 : 2))) {
+			(u32)((walk_state->opcode ==
+			       AML_CREATE_FIELD_OP) ? 3 : 2))) {
 			obj_desc =
 			    ACPI_CAST_PTR(union acpi_operand_object,
 					  walk_state->deferred_node);

@@ -96,9 +96,9 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "FatalOp: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
-				  (u32) operand[0]->integer.value,
-				  (u32) operand[1]->integer.value,
-				  (u32) operand[2]->integer.value));
+				  (u32)operand[0]->integer.value,
+				  (u32)operand[1]->integer.value,
+				  (u32)operand[2]->integer.value));
 
 		fatal = ACPI_ALLOCATE(sizeof(struct acpi_signal_fatal_info));
 		if (fatal) {
