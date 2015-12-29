@@ -7,6 +7,7 @@ buffer to an external LCD interface.
 Required properties:
 - compatible: value should be one of the following
 		"rockchip,rk3288-vop";
+		"rockchip,rk3036-vop";
 
 - interrupts: should contain a list of all VOP IP block interrupts in the
 		 order: VSYNC, LCD_SYSTEM. The interrupt specifier
