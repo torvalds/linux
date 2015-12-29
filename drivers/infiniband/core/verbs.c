@@ -1611,7 +1611,7 @@ int ib_sg_to_pages(struct ib_mr *mr,
 		   int (*set_page)(struct ib_mr *, u64))
 {
 	struct scatterlist *sg;
-	u64 last_end_dma_addr = 0, last_page_addr = 0;
+	u64 last_end_dma_addr = 0;
 	unsigned int last_page_off = 0;
 	u64 page_mask = ~((u64)mr->page_size - 1);
 	int i, ret;
@@ -1653,7 +1653,6 @@ next_page:
 
 		mr->length += dma_len;
 		last_end_dma_addr = end_dma_addr;
-		last_page_addr = end_dma_addr & page_mask;
 		last_page_off = end_dma_addr & ~page_mask;
 	}
 
