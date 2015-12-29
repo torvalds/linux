@@ -292,8 +292,14 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 	 * outside of any control method is wrapped with a temporary control
 	 * method object and placed on a global list. The methods on this list
 	 * are executed below.
+	 *
+	 * This case executes the module-level code for all tables only after
+	 * all of the tables have been loaded. It is a legacy option and is
+	 * not compatible with other ACPI implementations. See acpi_ns_load_table.
 	 */
-	acpi_ns_exec_module_code_list();
+	if (acpi_gbl_group_module_level_code) {
+		acpi_ns_exec_module_code_list();
+	}
 
 	/*
 	 * Initialize the objects that remain uninitialized. This runs the

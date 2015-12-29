@@ -149,6 +149,23 @@ unlock:
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "**** Completed Table Object Initialization\n"));
 
+	/*
+	 * Execute any module-level code that was detected during the table load
+	 * phase. Although illegal since ACPI 2.0, there are many machines that
+	 * contain this type of code. Each block of detected executable AML code
+	 * outside of any control method is wrapped with a temporary control
+	 * method object and placed on a global list. The methods on this list
+	 * are executed below.
+	 *
+	 * This case executes the module-level code for each table immediately
+	 * after the table has been loaded. This provides compatibility with
+	 * other ACPI implementations. Optionally, the execution can be deferred
+	 * until later, see acpi_initialize_objects.
+	 */
+	if (!acpi_gbl_group_module_level_code) {
+		acpi_ns_exec_module_code_list();
+	}
+
 	return_ACPI_STATUS(status);
 }
 
