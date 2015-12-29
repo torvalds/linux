@@ -30,6 +30,12 @@
 #include "power_state.h"
 #include "eventmanager.h"
 
+#define PP_CHECK(handle)						\
+	do {								\
+		if ((handle) == NULL || (handle)->pp_valid != PP_VALID)	\
+			return -EINVAL;					\
+	} while (0)
+
 static int pp_early_init(void *handle)
 {
 	return 0;
@@ -537,6 +543,8 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 	if (handle == NULL)
 		return -ENOMEM;
 
+	handle->pp_valid = PP_VALID;
+
 	ret = smum_init(pp_init, handle);
 	if (ret)
 		goto fail_smum;
@@ -611,8 +619,7 @@ int amd_powerplay_display_configuration_change(void *handle, const void *input)
 	struct pp_hwmgr  *hwmgr;
 	const struct amd_pp_display_configuration *display_config = input;
 
-	if (handle == NULL)
-		return -EINVAL;
+	PP_CHECK((struct pp_instance *)handle);
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
@@ -625,7 +632,9 @@ int amd_powerplay_get_display_power_level(void *handle,
 {
 	struct pp_hwmgr  *hwmgr;
 
-	if (handle == NULL || output == NULL)
+	PP_CHECK((struct pp_instance *)handle);
+
+	if (output == NULL)
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
