@@ -595,7 +595,7 @@ static void mxu1_set_termios(struct tty_struct *tty,
 	if (C_BAUD(tty) == B0)
 		mcr &= ~(MXU1_MCR_DTR | MXU1_MCR_RTS);
 	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
-		mcr |= ~(MXU1_MCR_DTR | MXU1_MCR_RTS);
+		mcr |= MXU1_MCR_DTR | MXU1_MCR_RTS;
 
 	status = mxu1_set_mcr(port, mcr);
 	if (status)
