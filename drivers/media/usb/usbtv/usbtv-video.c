@@ -393,6 +393,10 @@ static struct urb *usbtv_setup_iso_transfer(struct usbtv *usbtv)
 	ip->transfer_flags = URB_ISO_ASAP;
 	ip->transfer_buffer = kzalloc(size * USBTV_ISOC_PACKETS,
 						GFP_KERNEL);
+	if (!ip->transfer_buffer) {
+		usb_free_urb(ip);
+		return NULL;
+	}
 	ip->complete = usbtv_iso_cb;
 	ip->number_of_packets = USBTV_ISOC_PACKETS;
 	ip->transfer_buffer_length = size * USBTV_ISOC_PACKETS;
