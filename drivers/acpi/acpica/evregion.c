@@ -504,6 +504,12 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 
 	ACPI_FUNCTION_TRACE(ev_attach_region);
 
+	/* Install the region's handler */
+
+	if (region_obj->region.handler) {
+		return_ACPI_STATUS(AE_ALREADY_EXISTS);
+	}
+
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
 			  "Adding Region [%4.4s] %p to address handler %p [%s]\n",
 			  acpi_ut_get_node_name(region_obj->region.node),
@@ -515,13 +521,6 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 
 	region_obj->region.next = handler_obj->address_space.region_list;
 	handler_obj->address_space.region_list = region_obj;
-
-	/* Install the region's handler */
-
-	if (region_obj->region.handler) {
-		return_ACPI_STATUS(AE_ALREADY_EXISTS);
-	}
-
 	region_obj->region.handler = handler_obj;
 	acpi_ut_add_reference(handler_obj);
 
