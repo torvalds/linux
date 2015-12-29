@@ -958,10 +958,10 @@ exit:
 			status);
 }
 
-static struct usb_serial_driver mxuport11_device = {
+static struct usb_serial_driver mxu11x0_device = {
 	.driver = {
 		.owner		= THIS_MODULE,
-		.name		= "mxuport11",
+		.name		= "mxu11x0",
 	},
 	.description		= "MOXA UPort 11x0",
 	.id_table		= mxu1_idtable,
@@ -981,7 +981,7 @@ static struct usb_serial_driver mxuport11_device = {
 };
 
 static struct usb_serial_driver *const serial_drivers[] = {
-	&mxuport11_device, NULL
+	&mxu11x0_device, NULL
 };
 
 module_usb_serial_driver(serial_drivers, mxu1_idtable);
