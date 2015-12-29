@@ -551,7 +551,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 
 	/* register network adapter */
 	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
-	result = dvb_create_media_graph(&dvb->adapter);
+	result = dvb_create_media_graph(&dvb->adapter, false);
 	if (result < 0)
 		goto fail_create_graph;
 

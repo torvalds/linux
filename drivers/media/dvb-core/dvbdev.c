@@ -213,6 +213,13 @@ static void dvb_media_device_free(struct dvb_device *dvbdev)
 		media_devnode_remove(dvbdev->intf_devnode);
 		dvbdev->intf_devnode = NULL;
 	}
+
+	if (dvbdev->adapter->conn) {
+		media_device_unregister_entity(dvbdev->adapter->conn);
+		dvbdev->adapter->conn = NULL;
+		kfree(dvbdev->adapter->conn_pads);
+		dvbdev->adapter->conn_pads = NULL;
+	}
 #endif
 }
 
@@ -559,16 +566,18 @@ static int dvb_create_io_intf_links(struct dvb_adapter *adap,
 	return 0;
 }
 
-int dvb_create_media_graph(struct dvb_adapter *adap)
+int dvb_create_media_graph(struct dvb_adapter *adap,
+			   bool create_rf_connector)
 {
 	struct media_device *mdev = adap->mdev;
-	struct media_entity *entity, *tuner = NULL, *demod = NULL;
+	struct media_entity *entity, *tuner = NULL, *demod = NULL, *conn;
 	struct media_entity *demux = NULL, *ca = NULL;
 	struct media_link *link;
 	struct media_interface *intf;
 	unsigned demux_pad = 0;
 	unsigned dvr_pad = 0;
 	int ret;
+	static const char *connector_name = "Television";
 
 	if (!mdev)
 		return 0;
@@ -588,6 +597,42 @@ int dvb_create_media_graph(struct dvb_adapter *adap)
 			ca = entity;
 			break;
 		}
+	}
+
+	if (create_rf_connector) {
+		conn = kzalloc(sizeof(*conn), GFP_KERNEL);
+		if (!conn)
+			return -ENOMEM;
+		adap->conn = conn;
+
+		adap->conn_pads = kcalloc(1, sizeof(*adap->conn_pads),
+					    GFP_KERNEL);
+		if (!adap->conn_pads)
+			return -ENOMEM;
+
+		conn->flags = MEDIA_ENT_FL_CONNECTOR;
+		conn->function = MEDIA_ENT_F_CONN_RF;
+		conn->name = connector_name;
+		adap->conn_pads->flags = MEDIA_PAD_FL_SOURCE;
+
+		ret = media_entity_pads_init(conn, 1, adap->conn_pads);
+		if (ret)
+			return ret;
+
+		ret = media_device_register_entity(mdev, conn);
+		if (ret)
+			return ret;
+
+		if (!tuner)
+			ret = media_create_pad_link(conn, 0,
+						    demod, 0,
+						    MEDIA_LNK_FL_ENABLED);
+		else
+			ret = media_create_pad_link(conn, 0,
+						    tuner, TUNER_PAD_RF_INPUT,
+						    MEDIA_LNK_FL_ENABLED);
+		if (ret)
+			return ret;
 	}
 
 	if (tuner && demod) {

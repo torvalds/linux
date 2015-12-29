@@ -75,6 +75,9 @@ struct dvb_frontend;
  *			used.
  * @mdev:		pointer to struct media_device, used when the media
  *			controller is used.
+ * @conn:		RF connector. Used only if the device has no separate
+ *			tuner.
+ * @conn_pads:		pointer to struct media_pad associated with @conn;
  */
 struct dvb_adapter {
 	int num;
@@ -94,6 +97,8 @@ struct dvb_adapter {
 
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
 	struct media_device *mdev;
+	struct media_entity *conn;
+	struct media_pad *conn_pads;
 #endif
 };
 
@@ -214,7 +219,16 @@ int dvb_register_device(struct dvb_adapter *adap,
 void dvb_unregister_device(struct dvb_device *dvbdev);
 
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
-__must_check int dvb_create_media_graph(struct dvb_adapter *adap);
+/**
+ * dvb_create_media_graph - Creates media graph for the Digital TV part of the
+ * 				device.
+ *
+ * @adap:			pointer to struct dvb_adapter
+ * @create_rf_connector:	if true, it creates the RF connector too
+ */
+__must_check int dvb_create_media_graph(struct dvb_adapter *adap,
+					bool create_rf_connector);
+
 static inline void dvb_register_media_controller(struct dvb_adapter *adap,
 						 struct media_device *mdev)
 {
@@ -222,7 +236,9 @@ static inline void dvb_register_media_controller(struct dvb_adapter *adap,
 }
 
 #else
-static inline int dvb_create_media_graph(struct dvb_adapter *adap)
+static inline
+int dvb_create_media_graph(struct dvb_adapter *adap,
+			   bool create_rf_connector)
 {
 	return 0;
 };

@@ -330,7 +330,7 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	if (ret)
 		return ret;
 
-	ret = dvb_create_media_graph(&adap->dvb_adap);
+	ret = dvb_create_media_graph(&adap->dvb_adap, true);
 	if (ret)
 		return ret;
 

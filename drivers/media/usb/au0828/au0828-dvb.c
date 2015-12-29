@@ -486,7 +486,7 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->start_count = 0;
 	dvb->stop_count = 0;
 
-	result = dvb_create_media_graph(&dvb->adapter);
+	result = dvb_create_media_graph(&dvb->adapter, false);
 	if (result < 0)
 		goto fail_create_graph;
 
