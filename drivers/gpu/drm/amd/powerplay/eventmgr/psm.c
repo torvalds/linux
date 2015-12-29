@@ -62,7 +62,7 @@ int psm_get_state_by_classification(struct pp_eventmgr *eventmgr, enum PP_StateC
 	return -1;
 }
 
-int psm_set_performance_states(struct pp_eventmgr *eventmgr, unsigned long *state_id)
+int psm_set_states(struct pp_eventmgr *eventmgr, unsigned long *state_id)
 {
 	struct pp_power_state *state;
 	int table_entries;
@@ -81,7 +81,6 @@ int psm_set_performance_states(struct pp_eventmgr *eventmgr, unsigned long *stat
 	}
 	return -1;
 }
-
 
 int psm_adjust_power_state_dynamic(struct pp_eventmgr *eventmgr, bool skip)
 {

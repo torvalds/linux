@@ -74,7 +74,9 @@ int pem_task_power_down_asic(struct pp_eventmgr *eventmgr, struct pem_event_data
 
 int pem_task_set_boot_state(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
-	/* TODO */
+	if (pem_is_event_data_valid(event_data->valid_fields, PEM_EventDataValid_RequestedStateID))
+		return psm_set_states(eventmgr, &(event_data->requested_state_id));
+
 	return 0;
 }
 
@@ -343,7 +345,7 @@ int pem_task_disable_gfx_clock_gating(struct pp_eventmgr *eventmgr, struct pem_e
 int pem_task_set_performance_state(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
 	if (pem_is_event_data_valid(event_data->valid_fields, PEM_EventDataValid_RequestedStateID))
-		return psm_set_performance_states(eventmgr, &(event_data->requested_state_id));
+		return psm_set_states(eventmgr, &(event_data->requested_state_id));
 
 	return 0;
 }
