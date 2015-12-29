@@ -438,7 +438,8 @@ static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 	in_mad->mad_hdr.method        = IB_MGMT_METHOD_GET;
 	in_mad->mad_hdr.attr_id       = attr;
 
-	in_mad->data[41] = port_num;	/* PortSelect field */
+	if (attr != IB_PMA_CLASS_PORT_INFO)
+		in_mad->data[41] = port_num;	/* PortSelect field */
 
 	if ((dev->process_mad(dev, IB_MAD_IGNORE_MKEY,
 		 port_num, NULL, NULL,
@@ -714,11 +715,12 @@ err:
  * Figure out which counter table to use depending on
  * the device capabilities.
  */
-static struct attribute_group *get_counter_table(struct ib_device *dev)
+static struct attribute_group *get_counter_table(struct ib_device *dev,
+						 int port_num)
 {
 	struct ib_class_port_info cpi;
 
-	if (get_perf_mad(dev, 0, IB_PMA_CLASS_PORT_INFO,
+	if (get_perf_mad(dev, port_num, IB_PMA_CLASS_PORT_INFO,
 				&cpi, 40, sizeof(cpi)) >= 0) {
 
 		if (cpi.capability_mask && IB_PMA_CLASS_CAP_EXT_WIDTH)
@@ -776,7 +778,7 @@ static int add_port(struct ib_device *device, int port_num,
 		goto err_put;
 	}
 
-	p->pma_table = get_counter_table(device);
+	p->pma_table = get_counter_table(device, port_num);
 	ret = sysfs_create_group(&p->kobj, p->pma_table);
 	if (ret)
 		goto err_put_gid_attrs;
