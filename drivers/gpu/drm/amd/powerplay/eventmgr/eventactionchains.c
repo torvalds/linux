@@ -143,6 +143,7 @@ static const pem_event_action *resume_event[] = {
 	enable_dynamic_state_management_tasks,
 	enable_clock_power_gatings_tasks,
 	enable_disable_bapm_tasks,
+	initialize_thermal_controller_tasks,
 	reset_boot_state_tasks,
 	adjust_power_state_tasks,
 	enable_disable_fps_tasks,
