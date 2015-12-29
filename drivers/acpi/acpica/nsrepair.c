@@ -116,6 +116,11 @@ static const struct acpi_simple_repair_info acpi_object_repair_info[] = {
 	 ACPI_NOT_PACKAGE_ELEMENT,
 	 acpi_ns_convert_to_resource},
 
+	/* Object reference conversions */
+
+	{"_DEP", ACPI_RTYPE_STRING, ACPI_ALL_PACKAGE_ELEMENTS,
+	 acpi_ns_convert_to_reference},
+
 	/* Unicode conversions */
 
 	{"_MLS", ACPI_RTYPE_STRING, 1,
@@ -360,7 +365,9 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
 			/* Check if we can actually repair this name/type combination */
 
 			if ((return_btype & this_name->unexpected_btypes) &&
-			    (package_index == this_name->package_index)) {
+			    (this_name->package_index ==
+			     ACPI_ALL_PACKAGE_ELEMENTS
+			     || package_index == this_name->package_index)) {
 				return (this_name);
 			}
 

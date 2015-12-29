@@ -446,3 +446,78 @@ acpi_ns_convert_to_resource(struct acpi_namespace_node * scope,
 	*return_object = new_object;
 	return (AE_OK);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_convert_to_reference
+ *
+ * PARAMETERS:  scope               - Namespace node for the method/object
+ *              original_object     - Object to be converted
+ *              return_object       - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful
+ *
+ * DESCRIPTION: Attempt to convert a Integer object to a object_reference.
+ *              Buffer.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_convert_to_reference(struct acpi_namespace_node * scope,
+			     union acpi_operand_object *original_object,
+			     union acpi_operand_object **return_object)
+{
+	union acpi_operand_object *new_object = NULL;
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	union acpi_generic_state scope_info;
+	char *name;
+
+	ACPI_FUNCTION_NAME(ns_convert_to_reference);
+
+	/* Convert path into internal presentation */
+
+	status =
+	    acpi_ns_internalize_name(original_object->string.pointer, &name);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Find the namespace node */
+
+	scope_info.scope.node =
+	    ACPI_CAST_PTR(struct acpi_namespace_node, scope);
+	status =
+	    acpi_ns_lookup(&scope_info, name, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+			   ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+			   NULL, &node);
+	if (ACPI_FAILURE(status)) {
+
+		/* Check if we are resolving a named reference within a package */
+
+		ACPI_ERROR_NAMESPACE(original_object->string.pointer, status);
+		goto error_exit;
+	}
+
+	/* Create and init a new internal ACPI object */
+
+	new_object = acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_REFERENCE);
+	if (!new_object) {
+		status = AE_NO_MEMORY;
+		goto error_exit;
+	}
+	new_object->reference.node = node;
+	new_object->reference.object = node->object;
+	new_object->reference.class = ACPI_REFCLASS_NAME;
+
+	/*
+	 * Increase reference of the object if needed (the object is likely a
+	 * null for device nodes).
+	 */
+	acpi_ut_add_reference(node->object);
+
+error_exit:
+	ACPI_FREE(name);
+	*return_object = new_object;
+	return (AE_OK);
+}
