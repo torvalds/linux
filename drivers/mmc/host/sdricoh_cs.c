@@ -398,10 +398,10 @@ static struct mmc_host_ops sdricoh_ops = {
 static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 			    struct pcmcia_device *pcmcia_dev)
 {
-	int result = 0;
-	void __iomem *iobase = NULL;
+	int result;
+	void __iomem *iobase;
 	struct mmc_host *mmc = NULL;
-	struct sdricoh_host *host = NULL;
+	struct sdricoh_host *host;
 	struct device *dev = &pcmcia_dev->dev;
 	/* map iomem */
 	if (pci_resource_len(pci_dev, SDRICOH_PCI_REGION) !=
