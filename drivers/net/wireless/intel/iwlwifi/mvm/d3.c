@@ -853,7 +853,8 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	wowlan_config_cmd->is_11n_connection =
 					ap_sta->ht_cap.ht_supported;
 	wowlan_config_cmd->flags = ENABLE_L3_FILTERING |
-		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING;
+		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING |
+		ENABLE_STORE_BEACON;
 
 	/* Query the last used seqno and set it */
 	ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);

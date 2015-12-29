@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -903,9 +903,9 @@ static int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 	return _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd, 0, false);
 }
 
-int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif,
-				  u32 flags)
+static int _iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  u32 flags, bool d0i3)
 {
 	struct iwl_beacon_filter_cmd cmd = {};
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -916,10 +916,18 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd, flags);
 
-	if (!ret)
+	/* don't change bf_enabled in case of temporary d0i3 configuration */
+	if (!ret && !d0i3)
 		mvmvif->bf_data.bf_enabled = false;
 
 	return ret;
+}
+
+int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif,
+				  u32 flags)
+{
+	return _iwl_mvm_disable_beacon_filter(mvm, vif, flags, false);
 }
 
 static int iwl_mvm_power_set_ps(struct iwl_mvm *mvm)
@@ -1058,8 +1066,17 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 			IWL_BF_CMD_CONFIG_D0I3,
 			.bf_enable_beacon_filter = cpu_to_le32(1),
 		};
-		ret = _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd_bf,
-						    flags, true);
+		/*
+		 * When beacon storing is supported - disable beacon filtering
+		 * altogether - the latest beacon will be sent when exiting d0i3
+		 */
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_BEACON_STORING))
+			ret = _iwl_mvm_disable_beacon_filter(mvm, vif, flags,
+							     true);
+		else
+			ret = _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd_bf,
+							    flags, true);
 	} else {
 		if (mvmvif->bf_data.bf_enabled)
 			ret = iwl_mvm_enable_beacon_filter(mvm, vif, flags);
