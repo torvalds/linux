@@ -34,6 +34,7 @@
 #include <linux/etherdevice.h>
 #include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/cq.h>
@@ -295,6 +296,8 @@ struct mlx5e_tstamp {
 	unsigned long              overflow_period;
 	struct delayed_work        overflow_work;
 	struct mlx5_core_dev      *mdev;
+	struct ptp_clock          *ptp;
+	struct ptp_clock_info      ptp_info;
 };
 
 enum {

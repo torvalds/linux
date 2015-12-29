@@ -865,7 +865,8 @@ static int mlx5e_get_ts_info(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	info->phc_index = -1;
+	info->phc_index = priv->tstamp.ptp ?
+			  ptp_clock_index(priv->tstamp.ptp) : -1;
 
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
 		return 0;
