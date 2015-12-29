@@ -582,7 +582,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 
 		/* Ignore error and move on to next device */
 
-		char *scope_name = acpi_ns_get_external_pathname(info->node);
+		char *scope_name = acpi_ns_get_external_pathname(device_node);
 
 		ACPI_EXCEPTION((AE_INFO, status, "during %s._INI execution",
 				scope_name));
