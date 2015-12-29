@@ -1776,8 +1776,8 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 		netdev->addr_assign_type |= NET_ADDR_RANDOM;
 	}
 
-	memcpy(netdev->dev_addr, hw->mac.addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, hw->mac.addr, netdev->addr_len);
+	ether_addr_copy(netdev->dev_addr, hw->mac.addr);
+	ether_addr_copy(netdev->perm_addr, hw->mac.addr);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
 		dev_err(&pdev->dev, "Invalid MAC Address\n");
