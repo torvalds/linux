@@ -346,6 +346,7 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 					ACPI_FREE(notify);
 					notify = next;
 				}
+
 				gpe_event_info->dispatch.notify_list = NULL;
 				gpe_event_info->flags &=
 				    ~ACPI_GPE_DISPATCH_MASK;

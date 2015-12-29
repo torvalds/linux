@@ -85,6 +85,7 @@ static int current_char_ptr = 1;
 
 int acpi_getopt_argument(int argc, char **argv)
 {
+
 	acpi_gbl_optind--;
 	current_char_ptr++;
 

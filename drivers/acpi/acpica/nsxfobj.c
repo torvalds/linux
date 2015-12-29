@@ -74,10 +74,8 @@ acpi_status acpi_get_type(acpi_handle handle, acpi_object_type * ret_type)
 		return (AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * Special case for the predefined Root Node
-	 * (return type ANY)
-	 */
+	/* Special case for the predefined Root Node (return type ANY) */
+
 	if (handle == ACPI_ROOT_OBJECT) {
 		*ret_type = ACPI_TYPE_ANY;
 		return (AE_OK);

@@ -591,6 +591,7 @@ acpi_status acpi_install_method(u8 *buffer)
 	parser_state.aml += acpi_ps_get_opcode_size(opcode);
 	parser_state.pkg_end = acpi_ps_get_next_package_end(&parser_state);
 	path = acpi_ps_get_next_namestring(&parser_state);
+
 	method_flags = *parser_state.aml++;
 	aml_start = parser_state.aml;
 	aml_length = ACPI_PTR_DIFF(parser_state.pkg_end, aml_start);

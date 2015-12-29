@@ -121,6 +121,7 @@ void acpi_tb_check_dsdt_header(void)
 		ACPI_BIOS_ERROR((AE_INFO,
 				 "The DSDT has been corrupted or replaced - "
 				 "old, new headers below"));
+
 		acpi_tb_print_table_header(0, &acpi_gbl_original_dsdt_header);
 		acpi_tb_print_table_header(0, acpi_gbl_DSDT);
 
@@ -379,7 +380,6 @@ next_table:
 	}
 
 	acpi_os_unmap_memory(table, length);
-
 	return_ACPI_STATUS(AE_OK);
 }
 

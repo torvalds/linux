@@ -310,6 +310,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 
 		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
+
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}

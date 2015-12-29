@@ -189,9 +189,9 @@ acpi_status acpi_ex_create_event(struct acpi_walk_state *walk_state)
 
 	/* Attach object to the Node */
 
-	status =
-	    acpi_ns_attach_object((struct acpi_namespace_node *)walk_state->
-				  operands[0], obj_desc, ACPI_TYPE_EVENT);
+	status = acpi_ns_attach_object((struct acpi_namespace_node *)
+				       walk_state->operands[0], obj_desc,
+				       ACPI_TYPE_EVENT);
 
 cleanup:
 	/*
@@ -493,8 +493,8 @@ acpi_ex_create_method(u8 * aml_start,
 	 * flag, and sync_level for efficiency.
 	 */
 	method_flags = (u8)operand[1]->integer.value;
-	obj_desc->method.param_count =
-	    (u8)(method_flags & AML_METHOD_ARG_COUNT);
+	obj_desc->method.param_count = (u8)
+	    (method_flags & AML_METHOD_ARG_COUNT);
 
 	/*
 	 * Get the sync_level. If method is serialized, a mutex will be

@@ -106,6 +106,7 @@ acpi_ut_check_text_mode_corruption(u8 *table, u32 table_length, u32 file_length)
 
 				pairs++;
 			}
+
 			i++;
 		}
 	}
@@ -125,6 +126,7 @@ acpi_ut_check_text_mode_corruption(u8 *table, u32 table_length, u32 file_length)
 	acpi_os_printf("Table has been corrupted by text mode conversion\n");
 	acpi_os_printf("All LFs (%u) were changed to CR/LF pairs\n", pairs);
 	acpi_os_printf("Table cannot be repaired!\n");
+
 	return (AE_BAD_VALUE);
 }
 

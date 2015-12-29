@@ -491,6 +491,7 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
 			acpi_dbg_layer = acpi_gbl_trace_dbg_layer;
 		}
 	}
+
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 exit:

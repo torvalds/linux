@@ -191,6 +191,7 @@ acpi_status acpi_tb_load_namespace(void)
 					"(%4.4s:%8.8s) while loading table",
 					table->signature.ascii,
 					table->pointer->oem_table_id));
+
 			tables_failed++;
 
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,

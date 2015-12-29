@@ -135,6 +135,7 @@ acpi_install_address_space_handler(acpi_handle device,
 		if (!acpi_gbl_reg_methods_executed) {
 
 			/* We will defer execution of the _REG methods for this space */
+
 			goto unlock_and_exit;
 		}
 		break;

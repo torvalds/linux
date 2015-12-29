@@ -286,6 +286,7 @@ acpi_status acpi_enter_sleep_state_s4bios(void)
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
+
 	} while (!in_value);
 
 	return_ACPI_STATUS(AE_OK);

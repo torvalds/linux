@@ -99,6 +99,7 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 		if (op == subtree_root) {
 			return_VOID;
 		}
+
 		if (next) {
 			op = next;
 		} else {

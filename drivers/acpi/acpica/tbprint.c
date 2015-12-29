@@ -76,6 +76,7 @@ static void acpi_tb_fix_string(char *string, acpi_size length)
 		if (!isprint((int)*string)) {
 			*string = '?';
 		}
+
 		string++;
 		length--;
 	}

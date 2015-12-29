@@ -135,6 +135,7 @@ void acpi_ut_print_string(char *string, u16 max_length)
 			break;
 		}
 	}
+
 	acpi_os_printf("\"");
 
 	if (i == max_length && string[i]) {

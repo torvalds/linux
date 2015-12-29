@@ -124,8 +124,8 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		/*
 		 * Op is not a constant or string, append each argument to the Op
 		 */
-		while (GET_CURRENT_ARG_TYPE(walk_state->arg_types)
-		       && !walk_state->arg_count) {
+		while (GET_CURRENT_ARG_TYPE(walk_state->arg_types) &&
+		       !walk_state->arg_count) {
 			walk_state->aml = walk_state->parser_state.aml;
 
 			status =

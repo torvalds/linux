@@ -96,9 +96,9 @@ acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
 		/* Extract each buffer byte to create the integer */
 
 		for (i = 0; i < original_object->buffer.length; i++) {
-			value |=
-			    ((u64)original_object->buffer.
-			     pointer[i] << (i * 8));
+			value |= ((u64)
+				  original_object->buffer.pointer[i] << (i *
+									 8));
 		}
 		break;
 
@@ -153,10 +153,9 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
 				return (AE_NO_MEMORY);
 			}
 		} else {
-			status =
-			    acpi_ex_convert_to_string(original_object,
-						      &new_object,
-						      ACPI_IMPLICIT_CONVERT_HEX);
+			status = acpi_ex_convert_to_string(original_object,
+							   &new_object,
+							   ACPI_IMPLICIT_CONVERT_HEX);
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}
@@ -244,9 +243,8 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 
 		/* String-to-Buffer conversion. Simple data copy */
 
-		new_object =
-		    acpi_ut_create_buffer_object(original_object->string.
-						 length);
+		new_object = acpi_ut_create_buffer_object
+		    (original_object->string.length);
 		if (!new_object) {
 			return (AE_NO_MEMORY);
 		}

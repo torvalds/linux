@@ -366,6 +366,7 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
 
 			return (NULL);
 		}
+
 		this_name++;
 	}
 
@@ -521,6 +522,7 @@ acpi_ns_remove_null_elements(struct acpi_evaluate_info *info,
 			*dest = *source;
 			dest++;
 		}
+
 		source++;
 	}
 
@@ -572,8 +574,8 @@ acpi_ns_wrap_with_package(struct acpi_evaluate_info *info,
 	ACPI_FUNCTION_NAME(ns_wrap_with_package);
 
 	/*
-	 * Create the new outer package and populate it. The new package will
-	 * have a single element, the lone sub-object.
+	 * Create the new outer package and populate it. The new
+	 * package will have a single element, the lone sub-object.
 	 */
 	pkg_obj_desc = acpi_ut_create_package_object(1);
 	if (!pkg_obj_desc) {

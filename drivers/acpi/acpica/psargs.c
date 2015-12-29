@@ -733,6 +733,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 		if (!arg) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
+
 		acpi_ps_get_next_simple_arg(parser_state, arg_type, arg);
 		break;
 

@@ -267,8 +267,9 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 	case ACPI_TYPE_STRING:
 
-		status = acpi_ex_convert_to_string(operand1, &local_operand1,
-						   ACPI_IMPLICIT_CONVERT_HEX);
+		status =
+		    acpi_ex_convert_to_string(operand1, &local_operand1,
+					      ACPI_IMPLICIT_CONVERT_HEX);
 		break;
 
 	case ACPI_TYPE_BUFFER:
@@ -591,8 +592,9 @@ acpi_ex_do_logical_op(u16 opcode,
 
 	case ACPI_TYPE_STRING:
 
-		status = acpi_ex_convert_to_string(operand1, &local_operand1,
-						   ACPI_IMPLICIT_CONVERT_HEX);
+		status =
+		    acpi_ex_convert_to_string(operand1, &local_operand1,
+					      ACPI_IMPLICIT_CONVERT_HEX);
 		break;
 
 	case ACPI_TYPE_BUFFER:

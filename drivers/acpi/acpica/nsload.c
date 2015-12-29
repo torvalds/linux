@@ -321,7 +321,6 @@ acpi_status acpi_ns_unload_namespace(acpi_handle handle)
 	/* This function does the real work */
 
 	status = acpi_ns_delete_subtree(handle);
-
 	return_ACPI_STATUS(status);
 }
 #endif

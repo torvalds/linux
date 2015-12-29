@@ -273,8 +273,9 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 			  (u32)this_thread_id,
 			  acpi_ut_get_mutex_name(mutex_id)));
 
-	status = acpi_os_acquire_mutex(acpi_gbl_mutex_info[mutex_id].mutex,
-				       ACPI_WAIT_FOREVER);
+	status =
+	    acpi_os_acquire_mutex(acpi_gbl_mutex_info[mutex_id].mutex,
+				  ACPI_WAIT_FOREVER);
 	if (ACPI_SUCCESS(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
 				  "Thread %u acquired Mutex [%s]\n",
