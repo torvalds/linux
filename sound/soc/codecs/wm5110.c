@@ -439,18 +439,17 @@ static int wm5110_in_pga_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_card *card = dapm->card;
 	int ret;
 
 	/*
 	 * PGA Volume is also used as part of the enable sequence, so
 	 * usage of it should be avoided whilst that is running.
 	 */
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	ret = snd_soc_get_volsw_range(kcontrol, ucontrol);
 
-	mutex_unlock(&card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return ret;
 }
@@ -460,18 +459,17 @@ static int wm5110_in_pga_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_card *card = dapm->card;
 	int ret;
 
 	/*
 	 * PGA Volume is also used as part of the enable sequence, so
 	 * usage of it should be avoided whilst that is running.
 	 */
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	ret = snd_soc_put_volsw_range(kcontrol, ucontrol);
 
-	mutex_unlock(&card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return ret;
 }
