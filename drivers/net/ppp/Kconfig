@@ -150,7 +150,7 @@ config PPPOL2TP
 if TTY
 
 config PPPOLAC
-	tristate "PPP on L2TP Access Concentrator"
+	bool "PPP on L2TP Access Concentrator"
 	depends on PPP && INET
 	help
 	  L2TP (RFC 2661) is a tunneling protocol widely used in virtual private
@@ -159,7 +159,7 @@ config PPPOLAC
 	  fairly simple and suited for clients.
 
 config PPPOPNS
-	tristate "PPP on PPTP Network Server"
+	bool "PPP on PPTP Network Server"
 	depends on PPP && INET
 	help
 	  PPTP (RFC 2637) is a tunneling protocol widely used in virtual private
