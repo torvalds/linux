@@ -957,7 +957,7 @@ void acpi_db_display_handlers(void)
 
 			handler_obj =
 			    acpi_ev_find_region_handler(space_id,
-							obj_desc->device.
+							obj_desc->common_notify.
 							handler);
 			if (handler_obj) {
 				acpi_os_printf(ACPI_HANDLER_PRESENT_STRING,
@@ -980,7 +980,7 @@ found_handler:		;
 
 		/* Find all handlers for user-defined space_IDs */
 
-		handler_obj = obj_desc->device.handler;
+		handler_obj = obj_desc->common_notify.handler;
 		while (handler_obj) {
 			if (handler_obj->address_space.space_id >=
 			    ACPI_USER_REGION_BEGIN) {
@@ -1082,7 +1082,7 @@ acpi_db_display_non_root_handlers(acpi_handle obj_handle,
 
 	/* Display all handlers associated with this device */
 
-	handler_obj = obj_desc->device.handler;
+	handler_obj = obj_desc->common_notify.handler;
 	while (handler_obj) {
 		acpi_os_printf(ACPI_PREDEFINED_PREFIX,
 			       acpi_ut_get_region_name((u8)handler_obj->

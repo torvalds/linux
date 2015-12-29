@@ -566,18 +566,10 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 
 			switch (node->type) {
 			case ACPI_TYPE_DEVICE:
-
-				handler_obj = obj_desc->device.handler;
-				break;
-
 			case ACPI_TYPE_PROCESSOR:
-
-				handler_obj = obj_desc->processor.handler;
-				break;
-
 			case ACPI_TYPE_THERMAL:
 
-				handler_obj = obj_desc->thermal_zone.handler;
+				handler_obj = obj_desc->common_notify.handler;
 				break;
 
 			case ACPI_TYPE_METHOD:

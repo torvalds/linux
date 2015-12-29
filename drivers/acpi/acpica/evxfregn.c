@@ -216,8 +216,8 @@ acpi_remove_address_space_handler(acpi_handle device,
 
 	/* Find the address handler the user requested */
 
-	handler_obj = obj_desc->device.handler;
-	last_obj_ptr = &obj_desc->device.handler;
+	handler_obj = obj_desc->common_notify.handler;
+	last_obj_ptr = &obj_desc->common_notify.handler;
 	while (handler_obj) {
 
 		/* We have a handler, see if user requested this one */

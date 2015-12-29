@@ -159,7 +159,7 @@ acpi_ev_has_default_handler(struct acpi_namespace_node *node,
 
 	obj_desc = acpi_ns_get_attached_object(node);
 	if (obj_desc) {
-		handler_obj = obj_desc->device.handler;
+		handler_obj = obj_desc->common_notify.handler;
 
 		/* Walk the linked list of handlers for this object */
 
@@ -250,7 +250,8 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 		next_handler_obj =
 		    acpi_ev_find_region_handler(handler_obj->address_space.
 						space_id,
-						obj_desc->device.handler);
+						obj_desc->common_notify.
+						handler);
 		if (next_handler_obj) {
 
 			/* Found a handler, is it for the same address space? */
@@ -444,7 +445,8 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 		 * the handler is not already installed.
 		 */
 		handler_obj = acpi_ev_find_region_handler(space_id,
-							  obj_desc->device.
+							  obj_desc->
+							  common_notify.
 							  handler);
 
 		if (handler_obj) {
@@ -531,13 +533,13 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 
 	/* Install at head of Device.address_space list */
 
-	handler_obj->address_space.next = obj_desc->device.handler;
+	handler_obj->address_space.next = obj_desc->common_notify.handler;
 
 	/*
 	 * The Device object is the first reference on the handler_obj.
 	 * Each region that uses the handler adds a reference.
 	 */
-	obj_desc->device.handler = handler_obj;
+	obj_desc->common_notify.handler = handler_obj;
 
 	/*
 	 * Walk the namespace finding all of the regions this handler will
