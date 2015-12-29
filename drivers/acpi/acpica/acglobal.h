@@ -145,6 +145,7 @@ ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_operand_cache);
 
 ACPI_INIT_GLOBAL(u32, acpi_gbl_startup_flags, 0);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_shutdown, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_early_initialization, TRUE);
 
 /* Global handlers */
 

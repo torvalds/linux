@@ -552,7 +552,7 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 
 	/*
 	 * The following loop depends upon the root Node having no parent
-	 * ie: acpi_gbl_root_node->parent_entry being set to NULL
+	 * ie: acpi_gbl_root_node->Parent being set to NULL
 	 */
 	while (node) {
 

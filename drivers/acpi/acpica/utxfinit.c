@@ -147,6 +147,13 @@ acpi_status __init acpi_enable_subsystem(u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_enable_subsystem);
 
+	/*
+	 * The early initialization phase is complete. The namespace is loaded,
+	 * and we can now support address spaces other than Memory, I/O, and
+	 * PCI_Config.
+	 */
+	acpi_gbl_early_initialization = FALSE;
+
 #if (!ACPI_REDUCED_HARDWARE)
 
 	/* Enable ACPI mode */
