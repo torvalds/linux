@@ -160,8 +160,9 @@ static int ad7150_read_event_config(struct iio_dev *indio_dev,
 
 /* lock should be held */
 static int ad7150_write_event_params(struct iio_dev *indio_dev,
-	 unsigned int chan, enum iio_event_type type,
-	 enum iio_event_direction dir)
+				     unsigned int chan,
+				     enum iio_event_type type,
+				     enum iio_event_direction dir)
 {
 	int ret;
 	u16 value;
@@ -209,8 +210,9 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 }
 
 static int ad7150_write_event_config(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir, int state)
+				     const struct iio_chan_spec *chan,
+				     enum iio_event_type type,
+				     enum iio_event_direction dir, int state)
 {
 	u8 thresh_type, cfg, adaptive;
 	int ret;
@@ -302,11 +304,11 @@ static int ad7150_read_event_value(struct iio_dev *indio_dev,
 }
 
 static int ad7150_write_event_value(struct iio_dev *indio_dev,
-				   const struct iio_chan_spec *chan,
-				   enum iio_event_type type,
-				   enum iio_event_direction dir,
-				   enum iio_event_info info,
-				   int val, int val2)
+				    const struct iio_chan_spec *chan,
+				    enum iio_event_type type,
+				    enum iio_event_direction dir,
+				    enum iio_event_info info,
+				    int val, int val2)
 {
 	int ret;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
@@ -365,9 +367,9 @@ static ssize_t ad7150_show_timeout(struct device *dev,
 }
 
 static ssize_t ad7150_store_timeout(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
@@ -580,7 +582,7 @@ static const struct iio_info ad7150_info = {
  */
 
 static int ad7150_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
 	int ret;
 	struct ad7150_chip_info *chip;
