@@ -104,8 +104,6 @@ acpi_status acpi_ev_initialize_op_regions(void)
 		}
 	}
 
-	acpi_gbl_reg_methods_executed = TRUE;
-
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }
@@ -601,7 +599,18 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	if (region_obj2->extra.method_REG == NULL) {
+	if (region_obj2->extra.method_REG == NULL ||
+	    region_obj->region.handler == NULL ||
+	    !acpi_gbl_reg_methods_enabled) {
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* _REG(DISCONNECT) should be paired with _REG(CONNECT) */
+
+	if ((function == ACPI_REG_CONNECT &&
+	     region_obj->common.flags & AOPOBJ_REG_CONNECTED) ||
+	    (function == ACPI_REG_DISCONNECT &&
+	     !(region_obj->common.flags & AOPOBJ_REG_CONNECTED))) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -649,6 +658,16 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 
 	status = acpi_ns_evaluate(info);
 	acpi_ut_remove_reference(args[1]);
+
+	if (ACPI_FAILURE(status)) {
+		goto cleanup2;
+	}
+
+	if (function == ACPI_REG_CONNECT) {
+		region_obj->common.flags |= AOPOBJ_REG_CONNECTED;
+	} else {
+		region_obj->common.flags &= ~AOPOBJ_REG_CONNECTED;
+	}
 
 cleanup2:
 	acpi_ut_remove_reference(args[0]);

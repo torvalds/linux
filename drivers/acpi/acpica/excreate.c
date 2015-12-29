@@ -345,7 +345,8 @@ acpi_ex_create_region(u8 * aml_start,
 	obj_desc->region.node = node;
 	obj_desc->region.handler = NULL;
 	obj_desc->common.flags &=
-	    ~(AOPOBJ_SETUP_COMPLETE | AOPOBJ_OBJECT_INITIALIZED);
+	    ~(AOPOBJ_SETUP_COMPLETE | AOPOBJ_REG_CONNECTED |
+	      AOPOBJ_OBJECT_INITIALIZED);
 
 	/* Install the new region object in the parent Node */
 

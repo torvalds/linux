@@ -267,6 +267,7 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 	 * initialized, even if they contain executable AML (see the call to
 	 * acpi_ns_initialize_objects below).
 	 */
+	acpi_gbl_reg_methods_enabled = TRUE;
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "[Init] Executing _REG OpRegion methods\n"));
