@@ -438,7 +438,7 @@ acpi_db_walk_for_predefined_names(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
 	if (!pathname) {
 		return (AE_OK);
 	}

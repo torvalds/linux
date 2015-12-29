@@ -798,7 +798,7 @@ acpi_db_device_resources(acpi_handle obj_handle,
 	acpi_status status;
 
 	node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
-	parent_path = acpi_ns_get_external_pathname(node);
+	parent_path = acpi_ns_get_normalized_pathname(node, TRUE);
 	if (!parent_path) {
 		return (AE_NO_MEMORY);
 	}

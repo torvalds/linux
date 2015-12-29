@@ -717,7 +717,7 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
 
 	path_indent = 1;
 	if (level <= max_level) {
