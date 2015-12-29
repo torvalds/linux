@@ -7,3 +7,4 @@ obj-$(CONFIG_LCDC_RK3036) += rk3036_lcdc.o
 obj-$(CONFIG_LCDC_RK312X) += rk312x_lcdc.o
 obj-$(CONFIG_LCDC_RK3368) += rk3368_lcdc.o
 obj-$(CONFIG_LCDC_RK322X) += rk322x_lcdc.o
+obj-$(CONFIG_LCDC_LITE_RK3X) += rk_vop_lite.o

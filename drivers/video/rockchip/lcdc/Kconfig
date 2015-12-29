@@ -56,3 +56,10 @@ config LCDC_RK322X
 	depends on FB_ROCKCHIP
 	help
 	  Driver for rk322x lcdc.There are one lcd controllers on rk322x
+
+config LCDC_LITE_RK3X
+	bool "rk lcdc lite support"
+	depends on FB_ROCKCHIP
+	help
+	  Driver for rk lcdc lite.There are one lcd controllers on rk3366 or
+	  on other chips in future
