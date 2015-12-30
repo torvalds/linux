@@ -362,7 +362,7 @@ static s32 handle_set_operation_mode(struct wilc_vif *vif,
 	return result;
 }
 
-static s32 host_int_get_ipaddress(struct wilc_vif *vif,
+static int host_int_get_ipaddress(struct wilc_vif *vif,
 				  struct host_if_drv *hif_drv,
 				  u8 *u16ipadd, u8 idx);
 
@@ -4664,11 +4664,11 @@ int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 	return result;
 }
 
-static s32 host_int_get_ipaddress(struct wilc_vif *vif,
+static int host_int_get_ipaddress(struct wilc_vif *vif,
 				  struct host_if_drv *hif_drv,
 				  u8 *u16ipadd, u8 idx)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 
 	if (!hif_drv) {
