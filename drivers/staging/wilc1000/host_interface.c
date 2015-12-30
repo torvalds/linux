@@ -4393,14 +4393,14 @@ s32 wilc_edit_station(struct wilc_vif *vif,
 	return result;
 }
 
-int wilc_set_power_mgmt(struct wilc_vif *vif, bool bIsEnabled, u32 u32Timeout)
+int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 u32Timeout)
 {
 	int result = 0;
 	struct host_if_msg msg;
 	struct power_mgmt_param *pstrPowerMgmtParam = &msg.body.pwr_mgmt_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	PRINT_INFO(HOSTINF_DBG, "\n\n>> Setting PS to %d <<\n\n", bIsEnabled);
+	PRINT_INFO(HOSTINF_DBG, "\n\n>> Setting PS to %d <<\n\n", enabled);
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4414,7 +4414,7 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool bIsEnabled, u32 u32Timeout)
 	msg.id = HOST_IF_MSG_POWER_MGMT;
 	msg.vif = vif;
 
-	pstrPowerMgmtParam->enabled = bIsEnabled;
+	pstrPowerMgmtParam->enabled = enabled;
 	pstrPowerMgmtParam->timeout = u32Timeout;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
