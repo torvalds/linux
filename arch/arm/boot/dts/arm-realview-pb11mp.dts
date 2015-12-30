@@ -99,6 +99,19 @@
 			     <0 31 IRQ_TYPE_LEVEL_HIGH>;
 		cache-unified;
 		cache-level = <2>;
+		/*
+		 * Override default cache size, sets and
+		 * associativity as these may be erroneously set
+		 * up by boot loader(s), probably for safety
+		 * since th outer sync operation can cause the
+		 * cache to hang unless disabled.
+		 */
+		cache-size = <1048576>; // 1MB
+		cache-sets = <4096>;
+		cache-line-size = <32>;
+		arm,shared-override;
+		arm,parity-enable;
+		arm,outer-sync-disable;
 	};
 
 	scu@1f000000 {
