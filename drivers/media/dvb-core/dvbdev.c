@@ -576,6 +576,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	struct media_interface *intf;
 	unsigned demux_pad = 0;
 	unsigned dvr_pad = 0;
+	unsigned ntuner = 0, ndemod = 0;
 	int ret;
 	static const char *connector_name = "Television";
 
@@ -586,9 +587,11 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 		switch (entity->function) {
 		case MEDIA_ENT_F_TUNER:
 			tuner = entity;
+			ntuner++;
 			break;
 		case MEDIA_ENT_F_DTV_DEMOD:
 			demod = entity;
+			ndemod++;
 			break;
 		case MEDIA_ENT_F_TS_DEMUX:
 			demux = entity;
@@ -598,6 +601,18 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 			break;
 		}
 	}
+
+	/*
+	 * Prepare to signalize to media_create_pad_links() that multiple
+	 * entities of the same type exists and a 1:n or n:1 links need to be
+	 * created.
+	 * NOTE: if both tuner and demod have multiple instances, it is up
+	 * to the caller driver to create such links.
+	 */
+	if (ntuner > 1)
+		tuner = NULL;
+	if (ndemod > 1)
+		demod = NULL;
 
 	if (create_rf_connector) {
 		conn = kzalloc(sizeof(*conn), GFP_KERNEL);
@@ -623,28 +638,44 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 		if (ret)
 			return ret;
 
-		if (!tuner)
-			ret = media_create_pad_link(conn, 0,
-						    demod, 0,
-						    MEDIA_LNK_FL_ENABLED);
+		if (!ntuner)
+			ret = media_create_pad_links(mdev,
+						     MEDIA_ENT_F_CONN_RF,
+						     conn, 0,
+						     MEDIA_ENT_F_DTV_DEMOD,
+						     demod, 0,
+						     MEDIA_LNK_FL_ENABLED,
+						     false);
 		else
-			ret = media_create_pad_link(conn, 0,
-						    tuner, TUNER_PAD_RF_INPUT,
-						    MEDIA_LNK_FL_ENABLED);
+			ret = media_create_pad_links(mdev,
+						     MEDIA_ENT_F_CONN_RF,
+						     conn, 0,
+						     MEDIA_ENT_F_TUNER,
+						     tuner, TUNER_PAD_RF_INPUT,
+						     MEDIA_LNK_FL_ENABLED,
+						     false);
 		if (ret)
 			return ret;
 	}
 
-	if (tuner && demod) {
-		ret = media_create_pad_link(tuner, TUNER_PAD_IF_OUTPUT,
-					    demod, 0, MEDIA_LNK_FL_ENABLED);
+	if (ntuner && ndemod) {
+		ret = media_create_pad_links(mdev,
+					     MEDIA_ENT_F_TUNER,
+					     tuner, TUNER_PAD_IF_OUTPUT,
+					     MEDIA_ENT_F_DTV_DEMOD,
+					     demod, 0, MEDIA_LNK_FL_ENABLED,
+					     false);
 		if (ret)
 			return ret;
 	}
 
-	if (demod && demux) {
-		ret = media_create_pad_link(demod, 1, demux,
-					    0, MEDIA_LNK_FL_ENABLED);
+	if (ndemod && demux) {
+		ret = media_create_pad_links(mdev,
+					     MEDIA_ENT_F_DTV_DEMOD,
+					     demod, 1,
+					     MEDIA_ENT_F_TS_DEMUX,
+					     demux, 0, MEDIA_LNK_FL_ENABLED,
+					     false);
 		if (ret)
 			return -ENOMEM;
 	}
