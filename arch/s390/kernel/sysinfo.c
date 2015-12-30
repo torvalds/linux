@@ -144,6 +144,10 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 	seq_printf(m, "CPUs Configured:      %d\n", info->cpus_configured);
 	seq_printf(m, "CPUs Standby:         %d\n", info->cpus_standby);
 	seq_printf(m, "CPUs Reserved:        %d\n", info->cpus_reserved);
+	if (info->mt_installed) {
+		seq_printf(m, "CPUs G-MTID:          %d\n", info->mt_gtid);
+		seq_printf(m, "CPUs S-MTID:          %d\n", info->mt_stid);
+	}
 	/*
 	 * Sigh 2. According to the specification the alternate
 	 * capability field is a 32 bit floating point number
@@ -193,13 +197,10 @@ static void stsi_2_2_2(struct seq_file *m, struct sysinfo_2_2_2 *info)
 	seq_printf(m, "LPAR CPUs Reserved:   %d\n", info->cpus_reserved);
 	seq_printf(m, "LPAR CPUs Dedicated:  %d\n", info->cpus_dedicated);
 	seq_printf(m, "LPAR CPUs Shared:     %d\n", info->cpus_shared);
-	if (info->mt_installed & 0x80) {
-		seq_printf(m, "LPAR CPUs G-MTID:     %d\n",
-			   info->mt_general & 0x1f);
-		seq_printf(m, "LPAR CPUs S-MTID:     %d\n",
-			   info->mt_installed & 0x1f);
-		seq_printf(m, "LPAR CPUs PS-MTID:    %d\n",
-			   info->mt_psmtid & 0x1f);
+	if (info->mt_installed) {
+		seq_printf(m, "LPAR CPUs G-MTID:     %d\n", info->mt_gtid);
+		seq_printf(m, "LPAR CPUs S-MTID:     %d\n", info->mt_stid);
+		seq_printf(m, "LPAR CPUs PS-MTID:    %d\n", info->mt_psmtid);
 	}
 }
 
