@@ -666,6 +666,8 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	/* This is cheating a bit with the cleanup. */
 	vbt_panel = devm_kzalloc(dev->dev, sizeof(*vbt_panel), GFP_KERNEL);
+	if (!vbt_panel)
+		return NULL;
 
 	vbt_panel->intel_dsi = intel_dsi;
 	drm_panel_init(&vbt_panel->panel);
