@@ -503,7 +503,12 @@ enum hvs_pixel_format {
 	HVS_PIXEL_FORMAT_RGB888 = 5,
 	HVS_PIXEL_FORMAT_RGBA6666 = 6,
 	/* 32bpp */
-	HVS_PIXEL_FORMAT_RGBA8888 = 7
+	HVS_PIXEL_FORMAT_RGBA8888 = 7,
+
+	HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE = 8,
+	HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE = 9,
+	HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE = 10,
+	HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE = 11,
 };
 
 /* Note: the LSB is the rightmost character shown.  Only valid for
@@ -584,6 +589,55 @@ enum hvs_pixel_format {
 
 #define SCALER_POS2_WIDTH_MASK			VC4_MASK(11, 0)
 #define SCALER_POS2_WIDTH_SHIFT			0
+
+/* Color Space Conversion words.  Some values are S2.8 signed
+ * integers, except that the 2 integer bits map as {0x0: 0, 0x1: 1,
+ * 0x2: 2, 0x3: -1}
+ */
+/* bottom 8 bits of S2.8 contribution of Cr to Blue */
+#define SCALER_CSC0_COEF_CR_BLU_MASK		VC4_MASK(31, 24)
+#define SCALER_CSC0_COEF_CR_BLU_SHIFT		24
+/* Signed offset to apply to Y before CSC. (Y' = Y + YY_OFS) */
+#define SCALER_CSC0_COEF_YY_OFS_MASK		VC4_MASK(23, 16)
+#define SCALER_CSC0_COEF_YY_OFS_SHIFT		16
+/* Signed offset to apply to CB before CSC (Cb' = Cb - 128 + CB_OFS). */
+#define SCALER_CSC0_COEF_CB_OFS_MASK		VC4_MASK(15, 8)
+#define SCALER_CSC0_COEF_CB_OFS_SHIFT		8
+/* Signed offset to apply to CB before CSC (Cr' = Cr - 128 + CR_OFS). */
+#define SCALER_CSC0_COEF_CR_OFS_MASK		VC4_MASK(7, 0)
+#define SCALER_CSC0_COEF_CR_OFS_SHIFT		0
+#define SCALER_CSC0_ITR_R_601_5			0x00f00000
+#define SCALER_CSC0_ITR_R_709_3			0x00f00000
+#define SCALER_CSC0_JPEG_JFIF			0x00000000
+
+/* S2.8 contribution of Cb to Green */
+#define SCALER_CSC1_COEF_CB_GRN_MASK		VC4_MASK(31, 22)
+#define SCALER_CSC1_COEF_CB_GRN_SHIFT		22
+/* S2.8 contribution of Cr to Green */
+#define SCALER_CSC1_COEF_CR_GRN_MASK		VC4_MASK(21, 12)
+#define SCALER_CSC1_COEF_CR_GRN_SHIFT		12
+/* S2.8 contribution of Y to all of RGB */
+#define SCALER_CSC1_COEF_YY_ALL_MASK		VC4_MASK(11, 2)
+#define SCALER_CSC1_COEF_YY_ALL_SHIFT		2
+/* top 2 bits of S2.8 contribution of Cr to Blue */
+#define SCALER_CSC1_COEF_CR_BLU_MASK		VC4_MASK(1, 0)
+#define SCALER_CSC1_COEF_CR_BLU_SHIFT		0
+#define SCALER_CSC1_ITR_R_601_5			0xe73304a8
+#define SCALER_CSC1_ITR_R_709_3			0xf2b784a8
+#define SCALER_CSC1_JPEG_JFIF			0xea34a400
+
+/* S2.8 contribution of Cb to Red */
+#define SCALER_CSC2_COEF_CB_RED_MASK		VC4_MASK(29, 20)
+#define SCALER_CSC2_COEF_CB_RED_SHIFT		20
+/* S2.8 contribution of Cr to Red */
+#define SCALER_CSC2_COEF_CR_RED_MASK		VC4_MASK(19, 10)
+#define SCALER_CSC2_COEF_CR_RED_SHIFT		10
+/* S2.8 contribution of Cb to Blue */
+#define SCALER_CSC2_COEF_CB_BLU_MASK		VC4_MASK(19, 10)
+#define SCALER_CSC2_COEF_CB_BLU_SHIFT		10
+#define SCALER_CSC2_ITR_R_601_5			0x00066204
+#define SCALER_CSC2_ITR_R_709_3			0x00072a1c
+#define SCALER_CSC2_JPEG_JFIF			0x000599c5
 
 #define SCALER_TPZ0_VERT_RECALC			BIT(31)
 #define SCALER_TPZ0_SCALE_MASK			VC4_MASK(28, 8)
