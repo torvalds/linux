@@ -547,10 +547,6 @@ struct be_adapter {
 
 	u32 beacon_state;	/* for set_phys_id */
 
-	bool eeh_error;
-	bool fw_timeout;
-	bool hw_error;
-
 	u32 port_num;
 	char port_name;
 	u8 mc_type;
