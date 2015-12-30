@@ -424,3 +424,20 @@ status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&dcan1_pins>;
 };
+
+/* Touschscreen and analog digital converter */
+&tscadc {
+	status = "okay";
+	tsc {
+		ti,wires = <4>;
+		ti,x-plate-resistance = <200>;
+		ti,coordinate-readouts = <5>;
+		ti,wire-config = <0x01 0x10 0x23 0x32>;
+		ti,charge-delay = <0x400>;
+	};
+
+	adc {
+		ti,adc-channels = <4 5 6 7>;
+	};
+};
+
