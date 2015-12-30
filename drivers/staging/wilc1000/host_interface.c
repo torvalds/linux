@@ -4098,9 +4098,9 @@ s32 wilc_remain_on_channel(struct wilc_vif *vif, u32 u32SessionID,
 	return result;
 }
 
-s32 wilc_listen_state_expired(struct wilc_vif *vif, u32 u32SessionID)
+int wilc_listen_state_expired(struct wilc_vif *vif, u32 u32SessionID)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
