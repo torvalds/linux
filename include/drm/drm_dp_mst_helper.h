@@ -420,7 +420,7 @@ struct drm_dp_payload {
 struct drm_dp_mst_topology_mgr {
 
 	struct device *dev;
-	struct drm_dp_mst_topology_cbs *cbs;
+	const struct drm_dp_mst_topology_cbs *cbs;
 	int max_dpcd_transaction_bytes;
 	struct drm_dp_aux *aux; /* auxch for this topology mgr to use */
 	int max_payloads;
