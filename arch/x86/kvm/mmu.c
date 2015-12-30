@@ -4024,10 +4024,12 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	g_context->inject_page_fault = kvm_inject_page_fault;
 
 	/*
-	 * Note that arch.mmu.gva_to_gpa translates l2_gva to l1_gpa. The
-	 * translation of l2_gpa to l1_gpa addresses is done using the
-	 * arch.nested_mmu.gva_to_gpa function. Basically the gva_to_gpa
-	 * functions between mmu and nested_mmu are swapped.
+	 * Note that arch.mmu.gva_to_gpa translates l2_gpa to l1_gpa using
+	 * L1's nested page tables (e.g. EPT12). The nested translation
+	 * of l2_gva to l1_gpa is done by arch.nested_mmu.gva_to_gpa using
+	 * L2's page tables as the first level of translation and L1's
+	 * nested page tables as the second level of translation. Basically
+	 * the gva_to_gpa functions between mmu and nested_mmu are swapped.
 	 */
 	if (!is_paging(vcpu)) {
 		g_context->nx = false;
