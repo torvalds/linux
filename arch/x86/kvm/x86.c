@@ -1169,7 +1169,8 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 
 	++version;
 
-	kvm_write_guest(kvm, wall_clock, &version, sizeof(version));
+	if (kvm_write_guest(kvm, wall_clock, &version, sizeof(version)))
+		return;
 
 	/*
 	 * The guest calculates current wall clock time by adding
