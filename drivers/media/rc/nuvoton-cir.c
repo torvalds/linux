@@ -110,6 +110,15 @@ static inline void nvt_select_logical_dev(struct nvt_dev *nvt, u8 ldev)
 	nvt_cr_write(nvt, ldev, CR_LOGICAL_DEV_SEL);
 }
 
+/* select and enable logical device with setting EFM mode*/
+static inline void nvt_enable_logical_dev(struct nvt_dev *nvt, u8 ldev)
+{
+	nvt_efm_enable(nvt);
+	nvt_select_logical_dev(nvt, ldev);
+	nvt_cr_write(nvt, LOGICAL_DEV_ENABLE, CR_LOGICAL_DEV_EN);
+	nvt_efm_disable(nvt);
+}
+
 /* select and disable logical device with setting EFM mode*/
 static inline void nvt_disable_logical_dev(struct nvt_dev *nvt, u8 ldev)
 {
@@ -924,13 +933,8 @@ static void nvt_enable_cir(struct nvt_dev *nvt)
 			  CIR_IRCON_RXINV | CIR_IRCON_SAMPLE_PERIOD_SEL,
 			  CIR_IRCON);
 
-	nvt_efm_enable(nvt);
-
 	/* enable the CIR logical device */
-	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR);
-	nvt_cr_write(nvt, LOGICAL_DEV_ENABLE, CR_LOGICAL_DEV_EN);
-
-	nvt_efm_disable(nvt);
+	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
 
 	/* clear all pending interrupts */
 	nvt_cir_reg_write(nvt, 0xff, CIR_IRSTS);
@@ -1176,11 +1180,7 @@ static int nvt_resume(struct pnp_dev *pdev)
 	nvt_set_cir_iren(nvt);
 
 	/* Enable CIR logical device */
-	nvt_efm_enable(nvt);
-	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR);
-	nvt_cr_write(nvt, LOGICAL_DEV_ENABLE, CR_LOGICAL_DEV_EN);
-
-	nvt_efm_disable(nvt);
+	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
 
 	nvt_cir_regs_init(nvt);
 	nvt_cir_wake_regs_init(nvt);
