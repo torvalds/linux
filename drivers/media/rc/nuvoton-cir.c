@@ -107,8 +107,7 @@ static inline void nvt_efm_disable(struct nvt_dev *nvt)
  */
 static inline void nvt_select_logical_dev(struct nvt_dev *nvt, u8 ldev)
 {
-	outb(CR_LOGICAL_DEV_SEL, nvt->cr_efir);
-	outb(ldev, nvt->cr_efdr);
+	nvt_cr_write(nvt, ldev, CR_LOGICAL_DEV_SEL);
 }
 
 /* write val to cir config register */
