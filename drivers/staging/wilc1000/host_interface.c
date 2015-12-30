@@ -4123,7 +4123,7 @@ s32 wilc_listen_state_expired(struct wilc_vif *vif, u32 u32SessionID)
 	return result;
 }
 
-int wilc_frame_register(struct wilc_vif *vif, u16 u16FrameType, bool bReg)
+int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool bReg)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4137,7 +4137,7 @@ int wilc_frame_register(struct wilc_vif *vif, u16 u16FrameType, bool bReg)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	msg.id = HOST_IF_MSG_REGISTER_FRAME;
-	switch (u16FrameType) {
+	switch (frame_type) {
 	case ACTION:
 		PRINT_D(HOSTINF_DBG, "ACTION\n");
 		msg.body.reg_frame.reg_id = ACTION_FRM_IDX;
@@ -4152,7 +4152,7 @@ int wilc_frame_register(struct wilc_vif *vif, u16 u16FrameType, bool bReg)
 		PRINT_D(HOSTINF_DBG, "Not valid frame type\n");
 		break;
 	}
-	msg.body.reg_frame.frame_type = u16FrameType;
+	msg.body.reg_frame.frame_type = frame_type;
 	msg.body.reg_frame.reg = bReg;
 	msg.vif = vif;
 
