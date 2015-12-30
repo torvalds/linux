@@ -362,7 +362,7 @@ static s32 handle_set_operation_mode(struct wilc_vif *vif,
 	return result;
 }
 
-static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *u16ipadd, u8 idx);
+static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
 
 static s32 handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 {
@@ -4661,7 +4661,7 @@ int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 	return result;
 }
 
-static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *u16ipadd, u8 idx)
+static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4676,7 +4676,7 @@ static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *u16ipadd, u8 idx)
 
 	msg.id = HOST_IF_MSG_GET_IPADDRESS;
 
-	msg.body.ip_info.ip_addr = u16ipadd;
+	msg.body.ip_info.ip_addr = ip_addr;
 	msg.vif = vif;
 	msg.body.ip_info.idx = idx;
 
