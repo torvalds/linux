@@ -55,9 +55,9 @@ struct s5m_rtc_reg_config {
 	 * will enable update of time or alarm register. Then it will be
 	 * auto-cleared after successful update.
 	 */
-	unsigned int rtc_udr_update;
-	/* Mask for UDR field in 'rtc_udr_update' register */
-	unsigned int rtc_udr_mask;
+	unsigned int udr_update;
+	/* Mask for UDR field in 'udr_update' register */
+	unsigned int udr_mask;
 };
 
 /* Register map for S5M8763 and S5M8767 */
@@ -67,8 +67,8 @@ static const struct s5m_rtc_reg_config s5m_rtc_regs = {
 	.ctrl			= S5M_ALARM1_CONF,
 	.alarm0			= S5M_ALARM0_SEC,
 	.alarm1			= S5M_ALARM1_SEC,
-	.rtc_udr_update		= S5M_RTC_UDR_CON,
-	.rtc_udr_mask		= S5M_RTC_UDR_MASK,
+	.udr_update		= S5M_RTC_UDR_CON,
+	.udr_mask		= S5M_RTC_UDR_MASK,
 };
 
 /*
@@ -81,8 +81,8 @@ static const struct s5m_rtc_reg_config s2mps_rtc_regs = {
 	.ctrl			= S2MPS_RTC_CTRL,
 	.alarm0			= S2MPS_ALARM0_SEC,
 	.alarm1			= S2MPS_ALARM1_SEC,
-	.rtc_udr_update		= S2MPS_RTC_UDR_CON,
-	.rtc_udr_mask		= S2MPS_RTC_WUDR_MASK,
+	.udr_update		= S2MPS_RTC_UDR_CON,
+	.udr_mask		= S2MPS_RTC_WUDR_MASK,
 };
 
 struct s5m_rtc_info {
@@ -166,9 +166,8 @@ static inline int s5m8767_wait_for_udr_update(struct s5m_rtc_info *info)
 	unsigned int data;
 
 	do {
-		ret = regmap_read(info->regmap, info->regs->rtc_udr_update,
-				&data);
-	} while (--retry && (data & info->regs->rtc_udr_mask) && !ret);
+		ret = regmap_read(info->regmap, info->regs->udr_update, &data);
+	} while (--retry && (data & info->regs->udr_mask) && !ret);
 
 	if (!retry)
 		dev_err(info->dev, "waiting for UDR update, reached max number of retries\n");
@@ -214,7 +213,7 @@ static inline int s5m8767_rtc_set_time_reg(struct s5m_rtc_info *info)
 	int ret;
 	unsigned int data;
 
-	ret = regmap_read(info->regmap, info->regs->rtc_udr_update, &data);
+	ret = regmap_read(info->regmap, info->regs->udr_update, &data);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to read update reg(%d)\n", ret);
 		return ret;
@@ -223,21 +222,20 @@ static inline int s5m8767_rtc_set_time_reg(struct s5m_rtc_info *info)
 	switch (info->device_type) {
 	case S5M8763X:
 	case S5M8767X:
-		data |= info->regs->rtc_udr_mask | S5M_RTC_TIME_EN_MASK;
+		data |= info->regs->udr_mask | S5M_RTC_TIME_EN_MASK;
 	case S2MPS15X:
 		/* As per UM, for write time register, set WUDR bit to high */
 		data |= S2MPS15_RTC_WUDR_MASK;
 		break;
 	case S2MPS14X:
 	case S2MPS13X:
-		data |= info->regs->rtc_udr_mask;
+		data |= info->regs->udr_mask;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-
-	ret = regmap_write(info->regmap, info->regs->rtc_udr_update, data);
+	ret = regmap_write(info->regmap, info->regs->udr_update, data);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to write update reg(%d)\n", ret);
 		return ret;
@@ -253,14 +251,14 @@ static inline int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 	int ret;
 	unsigned int data;
 
-	ret = regmap_read(info->regmap, info->regs->rtc_udr_update, &data);
+	ret = regmap_read(info->regmap, info->regs->udr_update, &data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to read update reg(%d)\n",
 			__func__, ret);
 		return ret;
 	}
 
-	data |= info->regs->rtc_udr_mask;
+	data |= info->regs->udr_mask;
 	switch (info->device_type) {
 	case S5M8763X:
 	case S5M8767X:
@@ -268,7 +266,7 @@ static inline int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 		break;
 	case S2MPS15X:
 		/* As per UM, for write alarm, set A_UDR(bit[4]) to high
-		 * rtc_udr_mask above sets bit[4]
+		 * udr_mask above sets bit[4]
 		 */
 		break;
 	case S2MPS14X:
@@ -281,7 +279,7 @@ static inline int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 		return -EINVAL;
 	}
 
-	ret = regmap_write(info->regmap, info->regs->rtc_udr_update, data);
+	ret = regmap_write(info->regmap, info->regs->udr_update, data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write update reg(%d)\n",
 			__func__, ret);
@@ -292,7 +290,7 @@ static inline int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 
 	/* On S2MPS13 the AUDR is not auto-cleared */
 	if (info->device_type == S2MPS13X)
-		regmap_update_bits(info->regmap, info->regs->rtc_udr_update,
+		regmap_update_bits(info->regmap, info->regs->udr_update,
 				   S2MPS13_RTC_AUDR_MASK, 0);
 
 	return ret;
@@ -339,7 +337,7 @@ static int s5m_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (info->device_type == S2MPS15X || info->device_type == S2MPS14X ||
 			info->device_type == S2MPS13X) {
 		ret = regmap_update_bits(info->regmap,
-				info->regs->rtc_udr_update,
+				info->regs->udr_update,
 				S2MPS_RTC_RUDR_MASK, S2MPS_RTC_RUDR_MASK);
 		if (ret) {
 			dev_err(dev,
