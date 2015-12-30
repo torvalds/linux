@@ -4424,7 +4424,7 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 }
 
 int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
-				u32 u32count)
+				u32 count)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4444,7 +4444,7 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
 	msg.vif = vif;
 
 	pstrMulticastFilterParam->enabled = enabled;
-	pstrMulticastFilterParam->cnt = u32count;
+	pstrMulticastFilterParam->cnt = count;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
