@@ -782,6 +782,137 @@ hit:
 	return ep;
 }
 
+/* rhashtable for transport */
+struct sctp_hash_cmp_arg {
+	const union sctp_addr		*laddr;
+	const union sctp_addr		*paddr;
+	const struct net		*net;
+};
+
+static inline int sctp_hash_cmp(struct rhashtable_compare_arg *arg,
+				const void *ptr)
+{
+	const struct sctp_hash_cmp_arg *x = arg->key;
+	const struct sctp_transport *t = ptr;
+	struct sctp_association *asoc = t->asoc;
+	const struct net *net = x->net;
+
+	if (x->laddr->v4.sin_port != htons(asoc->base.bind_addr.port))
+		return 1;
+	if (!sctp_cmp_addr_exact(&t->ipaddr, x->paddr))
+		return 1;
+	if (!net_eq(sock_net(asoc->base.sk), net))
+		return 1;
+	if (!sctp_bind_addr_match(&asoc->base.bind_addr,
+				  x->laddr, sctp_sk(asoc->base.sk)))
+		return 1;
+
+	return 0;
+}
+
+static inline u32 sctp_hash_obj(const void *data, u32 len, u32 seed)
+{
+	const struct sctp_transport *t = data;
+	const union sctp_addr *paddr = &t->ipaddr;
+	const struct net *net = sock_net(t->asoc->base.sk);
+	u16 lport = htons(t->asoc->base.bind_addr.port);
+	u32 addr;
+
+	if (paddr->sa.sa_family == AF_INET6)
+		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
+	else
+		addr = paddr->v4.sin_addr.s_addr;
+
+	return  jhash_3words(addr, ((__u32)paddr->v4.sin_port) << 16 |
+			     (__force __u32)lport, net_hash_mix(net), seed);
+}
+
+static inline u32 sctp_hash_key(const void *data, u32 len, u32 seed)
+{
+	const struct sctp_hash_cmp_arg *x = data;
+	const union sctp_addr *paddr = x->paddr;
+	const struct net *net = x->net;
+	u16 lport = x->laddr->v4.sin_port;
+	u32 addr;
+
+	if (paddr->sa.sa_family == AF_INET6)
+		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
+	else
+		addr = paddr->v4.sin_addr.s_addr;
+
+	return  jhash_3words(addr, ((__u32)paddr->v4.sin_port) << 16 |
+			     (__force __u32)lport, net_hash_mix(net), seed);
+}
+
+static const struct rhashtable_params sctp_hash_params = {
+	.head_offset		= offsetof(struct sctp_transport, node),
+	.hashfn			= sctp_hash_key,
+	.obj_hashfn		= sctp_hash_obj,
+	.obj_cmpfn		= sctp_hash_cmp,
+	.automatic_shrinking	= true,
+};
+
+int sctp_transport_hashtable_init(void)
+{
+	return rhashtable_init(&sctp_transport_hashtable, &sctp_hash_params);
+}
+
+void sctp_transport_hashtable_destroy(void)
+{
+	rhashtable_destroy(&sctp_transport_hashtable);
+}
+
+void sctp_hash_transport(struct sctp_transport *t)
+{
+	struct sctp_sockaddr_entry *addr;
+	struct sctp_hash_cmp_arg arg;
+
+	addr = list_entry(t->asoc->base.bind_addr.address_list.next,
+			  struct sctp_sockaddr_entry, list);
+	arg.laddr = &addr->a;
+	arg.paddr = &t->ipaddr;
+	arg.net   = sock_net(t->asoc->base.sk);
+
+reinsert:
+	if (rhashtable_lookup_insert_key(&sctp_transport_hashtable, &arg,
+					 &t->node, sctp_hash_params) == -EBUSY)
+		goto reinsert;
+}
+
+void sctp_unhash_transport(struct sctp_transport *t)
+{
+	rhashtable_remove_fast(&sctp_transport_hashtable, &t->node,
+			       sctp_hash_params);
+}
+
+struct sctp_transport *sctp_addrs_lookup_transport(
+				struct net *net,
+				const union sctp_addr *laddr,
+				const union sctp_addr *paddr)
+{
+	struct sctp_hash_cmp_arg arg = {
+		.laddr = laddr,
+		.paddr = paddr,
+		.net   = net,
+	};
+
+	return rhashtable_lookup_fast(&sctp_transport_hashtable, &arg,
+				      sctp_hash_params);
+}
+
+struct sctp_transport *sctp_epaddr_lookup_transport(
+				const struct sctp_endpoint *ep,
+				const union sctp_addr *paddr)
+{
+	struct sctp_sockaddr_entry *addr;
+	struct net *net = sock_net(ep->base.sk);
+
+	addr = list_entry(ep->base.bind_addr.address_list.next,
+			  struct sctp_sockaddr_entry, list);
+
+	return sctp_addrs_lookup_transport(net, &addr->a, paddr);
+}
+
 /* Insert association into the hash table.  */
 static void __sctp_hash_established(struct sctp_association *asoc)
 {

@@ -143,6 +143,17 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 				 struct sctp_transport *t);
 void sctp_backlog_migrate(struct sctp_association *assoc,
 			  struct sock *oldsk, struct sock *newsk);
+int sctp_transport_hashtable_init(void);
+void sctp_transport_hashtable_destroy(void);
+void sctp_hash_transport(struct sctp_transport *t);
+void sctp_unhash_transport(struct sctp_transport *t);
+struct sctp_transport *sctp_addrs_lookup_transport(
+				struct net *net,
+				const union sctp_addr *laddr,
+				const union sctp_addr *paddr);
+struct sctp_transport *sctp_epaddr_lookup_transport(
+				const struct sctp_endpoint *ep,
+				const union sctp_addr *paddr);
 
 /*
  * sctp/proc.c

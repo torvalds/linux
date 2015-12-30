@@ -48,6 +48,7 @@
 #define __sctp_structs_h__
 
 #include <linux/ktime.h>
+#include <linux/rhashtable.h>
 #include <linux/socket.h>	/* linux/in.h needs this!!    */
 #include <linux/in.h>		/* We get struct sockaddr_in. */
 #include <linux/in6.h>		/* We get struct in6_addr     */
@@ -123,6 +124,8 @@ extern struct sctp_globals {
 	struct sctp_hashbucket *assoc_hashtable;
 	/* This is the sctp port control hash.	*/
 	struct sctp_bind_hashbucket *port_hashtable;
+	/* This is the hash of all transports. */
+	struct rhashtable transport_hashtable;
 
 	/* Sizes of above hashtables. */
 	int ep_hashsize;
@@ -147,6 +150,7 @@ extern struct sctp_globals {
 #define sctp_assoc_hashtable		(sctp_globals.assoc_hashtable)
 #define sctp_port_hashsize		(sctp_globals.port_hashsize)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
+#define sctp_transport_hashtable	(sctp_globals.transport_hashtable)
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
 
 /* SCTP Socket type: UDP or TCP style. */
@@ -753,6 +757,7 @@ static inline int sctp_packet_empty(struct sctp_packet *packet)
 struct sctp_transport {
 	/* A list of transports. */
 	struct list_head transports;
+	struct rhash_head node;
 
 	/* Reference counting. */
 	atomic_t refcnt;
