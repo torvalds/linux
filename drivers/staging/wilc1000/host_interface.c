@@ -4423,10 +4423,10 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	return result;
 }
 
-s32 wilc_setup_multicast_filter(struct wilc_vif *vif, bool bIsEnabled,
+int wilc_setup_multicast_filter(struct wilc_vif *vif, bool bIsEnabled,
 				u32 u32count)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct set_multicast *pstrMulticastFilterParam = &msg.body.multicast_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
