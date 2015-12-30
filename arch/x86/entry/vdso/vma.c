@@ -27,13 +27,7 @@ unsigned int __read_mostly vdso64_enabled = 1;
 
 void __init init_vdso_image(const struct vdso_image *image)
 {
-	int i;
-	int npages = (image->size) / PAGE_SIZE;
-
 	BUG_ON(image->size % PAGE_SIZE != 0);
-	for (i = 0; i < npages; i++)
-		image->text_mapping.pages[i] =
-			virt_to_page(image->data + i*PAGE_SIZE);
 
 	apply_alternatives((struct alt_instr *)(image->data + image->alt),
 			   (struct alt_instr *)(image->data + image->alt +
@@ -90,6 +84,24 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
 #endif
 }
 
+static int vdso_fault(const struct vm_special_mapping *sm,
+		      struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	const struct vdso_image *image = vma->vm_mm->context.vdso_image;
+
+	if (!image || (vmf->pgoff << PAGE_SHIFT) >= image->size)
+		return VM_FAULT_SIGBUS;
+
+	vmf->page = virt_to_page(image->data + (vmf->pgoff << PAGE_SHIFT));
+	get_page(vmf->page);
+	return 0;
+}
+
+static const struct vm_special_mapping text_mapping = {
+	.name = "[vdso]",
+	.fault = vdso_fault,
+};
+
 static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 {
 	struct mm_struct *mm = current->mm;
@@ -131,7 +143,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 				       image->size,
 				       VM_READ|VM_EXEC|
 				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				       &image->text_mapping);
+				       &text_mapping);
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
