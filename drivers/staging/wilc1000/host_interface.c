@@ -4393,7 +4393,7 @@ s32 wilc_edit_station(struct wilc_vif *vif,
 	return result;
 }
 
-int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 u32Timeout)
+int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4415,7 +4415,7 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 u32Timeout)
 	msg.vif = vif;
 
 	pstrPowerMgmtParam->enabled = enabled;
-	pstrPowerMgmtParam->timeout = u32Timeout;
+	pstrPowerMgmtParam->timeout = timeout;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
