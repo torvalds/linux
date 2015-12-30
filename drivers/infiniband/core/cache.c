@@ -174,6 +174,7 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 		     const struct ib_gid_attr *attr,
 		     enum gid_table_write_action action,
 		     bool  default_gid)
+	__releases(&table->rwlock) __acquires(&table->rwlock)
 {
 	int ret = 0;
 	struct net_device *old_net_dev;
