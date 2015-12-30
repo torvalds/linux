@@ -11,6 +11,7 @@
 /dts-v1/;
 
 #include "am33xx.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "CompuLab CM-T335";
@@ -38,6 +39,15 @@
 		regulator-name = "vmmc_fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	/* Regulator for WiFi */
+	vwlan_fixed: fixedregulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "vwlan_fixed";
+		gpio = <&gpio0 20 GPIO_ACTIVE_HIGH>; /* gpio0_20 */
+		enable-active-high;
+		regulator-boot-off;
 	};
 
 	backlight {
@@ -271,6 +281,21 @@
 		>;
 	};
 
+	spi0_pins: pinmux_spi0_pins {
+		pinctrl-single,pins = <
+			/* spi0_sclk.spi0_sclk */
+			AM33XX_IOPAD(0x950, PIN_INPUT | MUX_MODE0)
+			/* spi0_d0.spi0_d0 */
+			AM33XX_IOPAD(0x954, PIN_OUTPUT_PULLUP | MUX_MODE0)
+			/* spi0_d1.spi0_d1 */
+			AM33XX_IOPAD(0x958, PIN_INPUT | MUX_MODE0)
+			/* spi0_cs0.spi0_cs0 */
+			AM33XX_IOPAD(0x95C, PIN_OUTPUT | MUX_MODE0)
+			/* spi0_cs1.spi0_cs1 */
+			AM33XX_IOPAD(0x960, PIN_OUTPUT | MUX_MODE0)
+		>;
+	};
+
 	/* wl1271 bluetooth */
 	bluetooth_pins: pinmux_bluetooth_pins {
 		pinctrl-single,pins = <
@@ -290,6 +315,16 @@
 			AM33XX_IOPAD(0x908, PIN_INPUT_PULLDOWN | MUX_MODE4)
 			/* RMII1_REF_CLK.mcasp1_axr3 */
 			AM33XX_IOPAD(0x944, PIN_INPUT_PULLDOWN | MUX_MODE4)
+		>;
+	};
+
+	/* wl1271 WiFi */
+	wifi_pins: pinmux_wifi_pins {
+		pinctrl-single,pins = <
+			/* EMU1.gpio3_8 - WiFi IRQ */
+			AM33XX_IOPAD(0x9e8, PIN_INPUT_PULLUP | MUX_MODE7)
+			/* XDMA_EVENT_INTR1.gpio0_20 - WiFi enable */
+			AM33XX_IOPAD(0x9b4, PIN_OUTPUT | MUX_MODE7)
 		>;
 	};
 };
@@ -509,4 +544,24 @@ status = "okay";
 
 		#sound-dai-cells= <0>;
 		status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+	ti,pindir-d0-out-d1-in = <1>;
+	/* WLS1271 WiFi */
+	wlcore: wlcore@1 {
+		compatible = "ti,wl1271";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_pins>;
+		reg = <1>;
+		spi-max-frequency = <48000000>;
+		clock-xtal;
+		ref-clock-frequency = <38400000>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		vwlan-supply = <&vwlan_fixed>;
+	};
 };
