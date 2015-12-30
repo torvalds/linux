@@ -790,10 +790,6 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 
 	nvt_dbg_verbose("%s firing", __func__);
 
-	nvt_efm_enable(nvt);
-	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR);
-	nvt_efm_disable(nvt);
-
 	/*
 	 * Get IR Status register contents. Write 1 to ack/clear
 	 *
