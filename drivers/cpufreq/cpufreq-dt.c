@@ -50,7 +50,8 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 	struct private_data *priv = policy->driver_data;
 	struct device *cpu_dev = priv->cpu_dev;
 	struct regulator *cpu_reg = priv->cpu_reg;
-	unsigned long volt = 0, volt_old = 0, tol = 0;
+	unsigned long volt = 0, tol = 0;
+	int volt_old = 0;
 	unsigned int old_freq, new_freq;
 	long freq_Hz, freq_exact;
 	int ret;
@@ -83,7 +84,7 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 			opp_freq / 1000, volt);
 	}
 
-	dev_dbg(cpu_dev, "%u MHz, %ld mV --> %u MHz, %ld mV\n",
+	dev_dbg(cpu_dev, "%u MHz, %d mV --> %u MHz, %ld mV\n",
 		old_freq / 1000, (volt_old > 0) ? volt_old / 1000 : -1,
 		new_freq / 1000, volt ? volt / 1000 : -1);
 
