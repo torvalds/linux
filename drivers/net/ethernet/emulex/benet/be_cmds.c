@@ -1712,49 +1712,40 @@ err:
 }
 
 /* Uses synchronous mcc */
-int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size)
+int be_cmd_get_fat_dump_len(struct be_adapter *adapter, u32 *dump_size)
 {
-	struct be_mcc_wrb *wrb;
+	struct be_mcc_wrb wrb = {0};
 	struct be_cmd_req_get_fat *req;
 	int status;
 
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-	req = embedded_payload(wrb);
+	req = embedded_payload(&wrb);
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_MANAGE_FAT, sizeof(*req), wrb,
-			       NULL);
+			       OPCODE_COMMON_MANAGE_FAT, sizeof(*req),
+			       &wrb, NULL);
 	req->fat_operation = cpu_to_le32(QUERY_FAT);
-	status = be_mcc_notify_wait(adapter);
+	status = be_cmd_notify_wait(adapter, &wrb);
 	if (!status) {
-		struct be_cmd_resp_get_fat *resp = embedded_payload(wrb);
+		struct be_cmd_resp_get_fat *resp = embedded_payload(&wrb);
 
-		if (log_size && resp->log_size)
-			*log_size = le32_to_cpu(resp->log_size) -
+		if (dump_size && resp->log_size)
+			*dump_size = le32_to_cpu(resp->log_size) -
 					sizeof(u32);
 	}
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
-int be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
+int be_cmd_get_fat_dump(struct be_adapter *adapter, u32 buf_len, void *buf)
 {
 	struct be_dma_mem get_fat_cmd;
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_fat *req;
 	u32 offset = 0, total_size, buf_size,
 				log_offset = sizeof(u32), payload_len;
-	int status = 0;
+	int status;
 
 	if (buf_len == 0)
-		return -EIO;
+		return 0;
 
 	total_size = buf_len;
 
@@ -1762,11 +1753,8 @@ int be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
 	get_fat_cmd.va = dma_zalloc_coherent(&adapter->pdev->dev,
 					     get_fat_cmd.size,
 					     &get_fat_cmd.dma, GFP_ATOMIC);
-	if (!get_fat_cmd.va) {
-		dev_err(&adapter->pdev->dev,
-			"Memory allocation failure while reading FAT data\n");
+	if (!get_fat_cmd.va)
 		return -ENOMEM;
-	}
 
 	spin_lock_bh(&adapter->mcc_lock);
 

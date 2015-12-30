@@ -2365,9 +2365,9 @@ int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate,
 void be_detect_error(struct be_adapter *adapter);
 int be_cmd_get_die_temperature(struct be_adapter *adapter);
 int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
+int be_cmd_get_fat_dump_len(struct be_adapter *adapter, u32 *dump_size);
+int be_cmd_get_fat_dump(struct be_adapter *adapter, u32 buf_len, void *buf);
 int be_cmd_req_native_mode(struct be_adapter *adapter);
-int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
-int be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
 int be_cmd_get_fn_privileges(struct be_adapter *adapter, u32 *privilege,
 			     u32 domain);
 int be_cmd_set_fn_privileges(struct be_adapter *adapter, u32 privileges,

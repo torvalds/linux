@@ -4212,6 +4212,9 @@ static int be_get_config(struct be_adapter *adapter)
 	if (status)
 		return status;
 
+	if (!lancer_chip(adapter) && be_physfn(adapter))
+		be_cmd_get_fat_dump_len(adapter, &adapter->fat_dump_len);
+
 	if (BEx_chip(adapter)) {
 		level = be_cmd_get_fw_log_level(adapter);
 		adapter->msg_enable =
