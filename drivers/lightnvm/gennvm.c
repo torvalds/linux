@@ -75,7 +75,7 @@ static int gennvm_block_bb(struct ppa_addr ppa, int nr_blocks, u8 *blks,
 	struct nvm_block *blk;
 	int i;
 
-	lun = &gn->luns[(dev->nr_luns * ppa.g.ch) + ppa.g.lun];
+	lun = &gn->luns[(dev->luns_per_chnl * ppa.g.ch) + ppa.g.lun];
 
 	for (i = 0; i < nr_blocks; i++) {
 		if (blks[i] == 0)
