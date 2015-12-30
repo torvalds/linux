@@ -33,8 +33,12 @@ struct vc4_plane_state {
 	u32 dlist_size; /* Number of dwords allocated for the display list */
 	u32 dlist_count; /* Number of used dwords in the display list. */
 
-	/* Offset in the dlist to pointer word 0. */
-	u32 pw0_offset;
+	/* Offset in the dlist to various words, for pageflip or
+	 * cursor updates.
+	 */
+	u32 pos0_offset;
+	u32 pos2_offset;
+	u32 ptr0_offset;
 
 	/* Offset where the plane's dlist was last stored in the
 	 * hardware at vc4_crtc_atomic_flush() time.
@@ -223,6 +227,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 			SCALER_CTL0_UNITY);
 
 	/* Position Word 0: Image Positions and Alpha Value */
+	vc4_state->pos0_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
 			VC4_SET_FIELD(0xff, SCALER_POS0_FIXED_ALPHA) |
 			VC4_SET_FIELD(vc4_state->crtc_x, SCALER_POS0_START_X) |
@@ -233,6 +238,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	 */
 
 	/* Position Word 2: Source Image Size, Alpha Mode */
+	vc4_state->pos2_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
 			VC4_SET_FIELD(format->has_alpha ?
 				      SCALER_POS2_ALPHA_MODE_PIPELINE :
@@ -244,9 +250,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Position Word 3: Context.  Written by the HVS. */
 	vc4_dlist_write(vc4_state, 0xc0c0c0c0);
 
-	vc4_state->pw0_offset = vc4_state->dlist_count;
-
 	/* Pointer Word 0: RGB / Y Pointer */
+	vc4_state->ptr0_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state, bo->paddr + vc4_state->offset);
 
 	/* Pointer Context Word 0: Written by the HVS */
@@ -332,13 +337,13 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	 * scanout will start from this address as soon as the FIFO
 	 * needs to refill with pixels.
 	 */
-	writel(addr, &vc4_state->hw_dlist[vc4_state->pw0_offset]);
+	writel(addr, &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
 
 	/* Also update the CPU-side dlist copy, so that any later
 	 * atomic updates that don't do a new modeset on our plane
 	 * also use our updated address.
 	 */
-	vc4_state->dlist[vc4_state->pw0_offset] = addr;
+	vc4_state->dlist[vc4_state->ptr0_offset] = addr;
 }
 
 static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
@@ -354,8 +359,83 @@ static void vc4_plane_destroy(struct drm_plane *plane)
 	drm_plane_cleanup(plane);
 }
 
+/* Implements immediate (non-vblank-synced) updates of the cursor
+ * position, or falls back to the atomic helper otherwise.
+ */
+static int
+vc4_update_plane(struct drm_plane *plane,
+		 struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
+		 int crtc_x, int crtc_y,
+		 unsigned int crtc_w, unsigned int crtc_h,
+		 uint32_t src_x, uint32_t src_y,
+		 uint32_t src_w, uint32_t src_h)
+{
+	struct drm_plane_state *plane_state;
+	struct vc4_plane_state *vc4_state;
+
+	if (plane != crtc->cursor)
+		goto out;
+
+	plane_state = plane->state;
+	vc4_state = to_vc4_plane_state(plane_state);
+
+	if (!plane_state)
+		goto out;
+
+	/* If we're changing the cursor contents, do that in the
+	 * normal vblank-synced atomic path.
+	 */
+	if (fb != plane_state->fb)
+		goto out;
+
+	/* No configuring new scaling in the fast path. */
+	if (crtc_w != plane_state->crtc_w ||
+	    crtc_h != plane_state->crtc_h ||
+	    src_w != plane_state->src_w ||
+	    src_h != plane_state->src_h) {
+		goto out;
+	}
+
+	/* Set the cursor's position on the screen.  This is the
+	 * expected change from the drm_mode_cursor_universal()
+	 * helper.
+	 */
+	plane_state->crtc_x = crtc_x;
+	plane_state->crtc_y = crtc_y;
+
+	/* Allow changing the start position within the cursor BO, if
+	 * that matters.
+	 */
+	plane_state->src_x = src_x;
+	plane_state->src_y = src_y;
+
+	/* Update the display list based on the new crtc_x/y. */
+	vc4_plane_atomic_check(plane, plane_state);
+
+	/* Note that we can't just call vc4_plane_write_dlist()
+	 * because that would smash the context data that the HVS is
+	 * currently using.
+	 */
+	writel(vc4_state->dlist[vc4_state->pos0_offset],
+	       &vc4_state->hw_dlist[vc4_state->pos0_offset]);
+	writel(vc4_state->dlist[vc4_state->pos2_offset],
+	       &vc4_state->hw_dlist[vc4_state->pos2_offset]);
+	writel(vc4_state->dlist[vc4_state->ptr0_offset],
+	       &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
+
+	return 0;
+
+out:
+	return drm_atomic_helper_update_plane(plane, crtc, fb,
+					      crtc_x, crtc_y,
+					      crtc_w, crtc_h,
+					      src_x, src_y,
+					      src_w, src_h);
+}
+
 static const struct drm_plane_funcs vc4_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
+	.update_plane = vc4_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = vc4_plane_destroy,
 	.set_property = NULL,
