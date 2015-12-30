@@ -334,19 +334,6 @@
 				clock-output-names = "rngpkaclk";
 			};
 
-			i2c1clk: i2c1clk@17000000 {
-				compatible = "apm,xgene-device-clock";
-				#clock-cells = <1>;
-				clocks = <&sbapbclk 0>;
-				reg = <0x0 0x17000000 0x0 0x2000>;
-				reg-names = "csr-reg";
-				csr-offset = <0xc>;
-				csr-mask = <0x4>;
-				enable-offset = <0x10>;
-				enable-mask = <0x4>;
-				clock-output-names = "i2c1clk";
-			};
-
 			i2c4clk: i2c4clk@1704c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
@@ -656,7 +643,7 @@
 			reg = <0x0 0x10511000 0x0 0x1000>;
 			interrupts = <0 0x45 0x4>;
 			#clock-cells = <1>;
-			clocks = <&i2c1clk 0>;
+			clocks = <&sbapbclk 0>;
 			bus_num = <1>;
 		};
 
