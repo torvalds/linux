@@ -405,6 +405,7 @@ struct rt5645_priv {
 	struct delayed_work jack_detect_work, rcclock_work;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(rt5645_supply_names)];
 	struct rt5645_eq_param_s *eq_param;
+	struct timer_list btn_check_timer;
 
 	int codec_type;
 	int sysclk;
@@ -3130,7 +3131,7 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		}
 		if (rt5645->pdata.jd_invert)
 			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
-				RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
+				RT5645_JD_1_1_MASK, RT5645_JD_1_1_NOR);
 	} else { /* jack out */
 		rt5645->jack_type = 0;
 
@@ -3151,7 +3152,7 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		snd_soc_dapm_sync(dapm);
 		if (rt5645->pdata.jd_invert)
 			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
-				RT5645_JD_1_1_MASK, RT5645_JD_1_1_NOR);
+				RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
 	}
 
 	return rt5645->jack_type;
@@ -3275,6 +3276,12 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 		}
 		if (btn_type == 0)/* button release */
 			report =  rt5645->jack_type;
+		else {
+			if (rt5645->pdata.jd_invert) {
+				mod_timer(&rt5645->btn_check_timer,
+					msecs_to_jiffies(100));
+			}
+		}
 
 		break;
 	/* jack out */
@@ -3315,6 +3322,14 @@ static irqreturn_t rt5645_irq(int irq, void *data)
 			   &rt5645->jack_detect_work, msecs_to_jiffies(250));
 
 	return IRQ_HANDLED;
+}
+
+static void rt5645_btn_check_callback(unsigned long data)
+{
+	struct rt5645_priv *rt5645 = (struct rt5645_priv *)data;
+
+	queue_delayed_work(system_power_efficient_wq,
+		   &rt5645->jack_detect_work, msecs_to_jiffies(5));
 }
 
 static int rt5645_probe(struct snd_soc_codec *codec)
@@ -3781,6 +3796,13 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		default:
 			break;
 		}
+	}
+
+	if (rt5645->pdata.jd_invert) {
+		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
+			RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
+		setup_timer(&rt5645->btn_check_timer,
+			rt5645_btn_check_callback, (unsigned long)rt5645);
 	}
 
 	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
