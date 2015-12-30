@@ -825,22 +825,19 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	 *   0: CIR_IRSTS_GH  - Min Length Detected
 	 */
 	status = nvt_cir_reg_read(nvt, CIR_IRSTS);
-	if (!status) {
+	iren = nvt_cir_reg_read(nvt, CIR_IREN);
+
+	/* IRQ may be shared with CIR WAKE, therefore check for each
+	 * status bit whether the related interrupt source is enabled
+	 */
+	if (!(status & iren)) {
 		nvt_dbg_verbose("%s exiting, IRSTS 0x0", __func__);
-		nvt_cir_reg_write(nvt, 0xff, CIR_IRSTS);
 		return IRQ_NONE;
 	}
 
 	/* ack/clear all irq flags we've got */
 	nvt_cir_reg_write(nvt, status, CIR_IRSTS);
 	nvt_cir_reg_write(nvt, 0, CIR_IRSTS);
-
-	/* Interrupt may be shared with CIR Wake, bail if CIR not enabled */
-	iren = nvt_cir_reg_read(nvt, CIR_IREN);
-	if (!iren) {
-		nvt_dbg_verbose("%s exiting, CIR not enabled", __func__);
-		return IRQ_NONE;
-	}
 
 	nvt_cir_log_irqs(status, iren);
 
@@ -914,7 +911,12 @@ static irqreturn_t nvt_cir_wake_isr(int irq, void *data)
 	nvt_dbg_wake("%s firing", __func__);
 
 	status = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRSTS);
-	if (!status)
+	iren = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IREN);
+
+	/* IRQ may be shared with CIR, therefore check for each
+	 * status bit whether the related interrupt source is enabled
+	 */
+	if (!(status & iren))
 		return IRQ_NONE;
 
 	if (status & CIR_WAKE_IRSTS_IR_PENDING)
@@ -922,13 +924,6 @@ static irqreturn_t nvt_cir_wake_isr(int irq, void *data)
 
 	nvt_cir_wake_reg_write(nvt, status, CIR_WAKE_IRSTS);
 	nvt_cir_wake_reg_write(nvt, 0, CIR_WAKE_IRSTS);
-
-	/* Interrupt may be shared with CIR, bail if Wake not enabled */
-	iren = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IREN);
-	if (!iren) {
-		nvt_dbg_wake("%s exiting, wake not enabled", __func__);
-		return IRQ_HANDLED;
-	}
 
 	if ((status & CIR_WAKE_IRSTS_PE) &&
 	    (nvt->wake_state == ST_WAKE_START)) {
