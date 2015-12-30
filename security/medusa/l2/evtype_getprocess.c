@@ -2,6 +2,7 @@
 
 #include <linux/medusa/l3/registry.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 #include "kobject_process.h"
 #include <linux/medusa/l1/process_handlers.h>
@@ -31,6 +32,9 @@ int process_kobj_validate_task(struct task_struct * ts)
 	medusa_answer_t retval;
 	struct getprocess_event event;
 	struct process_kobject proc;
+
+        memset(&event, '\0', sizeof(struct getprocess_event));
+        memset(&proc, '\0', sizeof(struct process_kobject));
 
 	INIT_MEDUSA_OBJECT_VARS(&task_security(ts));
 	INIT_MEDUSA_SUBJECT_VARS(&task_security(ts));

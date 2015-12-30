@@ -247,6 +247,9 @@ static medusa_answer_t do_file_kobj_validate_dentry(struct path* ndcurrent,
 	medusa_answer_t retval;
 
         memset(&event, '\0', sizeof(struct getfile_event));
+        memset(&file, '\0', sizeof(struct file_kobject));
+        memset(&directory, '\0', sizeof(struct file_kobject));
+
 	file_kern2kobj(&file, ndcurrent->dentry->d_inode);
 	file_kobj_dentry2string(ndupper->dentry, event.filename);
 	file_kern2kobj(&directory, ndparent->dentry->d_inode);

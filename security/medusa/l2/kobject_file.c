@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/mm.h>
 #include <linux/medusa/l3/registry.h>
 #include <linux/medusa/l1/inode.h>
 
@@ -27,6 +28,8 @@ int file_kobj2kern(struct file_kobject * fk, struct inode * inode)
 
 int file_kern2kobj(struct file_kobject * fk, struct inode * inode)
 {
+        memset( fk, '\0', sizeof(struct file_kobject));
+
 	fk->dev = (inode->i_sb->s_dev);
 	fk->ino = inode->i_ino;
 	fk->mode = inode->i_mode;
