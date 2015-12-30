@@ -742,16 +742,13 @@ static void nvt_cir_log_irqs(u8 status, u8 iren)
 static bool nvt_cir_tx_inactive(struct nvt_dev *nvt)
 {
 	unsigned long flags;
-	bool tx_inactive;
 	u8 tx_state;
 
 	spin_lock_irqsave(&nvt->tx.lock, flags);
 	tx_state = nvt->tx.tx_state;
 	spin_unlock_irqrestore(&nvt->tx.lock, flags);
 
-	tx_inactive = (tx_state == ST_TX_NONE);
-
-	return tx_inactive;
+	return tx_state == ST_TX_NONE;
 }
 
 /* interrupt service routine for incoming and outgoing CIR data */
