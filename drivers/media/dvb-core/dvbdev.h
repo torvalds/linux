@@ -242,6 +242,11 @@ static inline void dvb_register_media_controller(struct dvb_adapter *adap,
 	adap->mdev = mdev;
 }
 
+static inline struct media_device
+*dvb_get_media_controller(struct dvb_adapter *adap)
+{
+	return adap->mdev;
+}
 #else
 static inline
 int dvb_create_media_graph(struct dvb_adapter *adap,
@@ -250,6 +255,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 	return 0;
 };
 #define dvb_register_media_controller(a, b) {}
+#define dvb_get_media_controller(a) NULL
 #endif
 
 int dvb_generic_open (struct inode *inode, struct file *file);
