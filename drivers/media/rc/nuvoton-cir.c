@@ -80,17 +80,24 @@ static inline void nvt_clear_reg_bit(struct nvt_dev *nvt, u8 val, u8 reg)
 }
 
 /* enter extended function mode */
-static inline void nvt_efm_enable(struct nvt_dev *nvt)
+static inline int nvt_efm_enable(struct nvt_dev *nvt)
 {
+	if (!request_muxed_region(nvt->cr_efir, 2, NVT_DRIVER_NAME))
+		return -EBUSY;
+
 	/* Enabling Extended Function Mode explicitly requires writing 2x */
 	outb(EFER_EFM_ENABLE, nvt->cr_efir);
 	outb(EFER_EFM_ENABLE, nvt->cr_efir);
+
+	return 0;
 }
 
 /* exit extended function mode */
 static inline void nvt_efm_disable(struct nvt_dev *nvt)
 {
 	outb(EFER_EFM_DISABLE, nvt->cr_efir);
+
+	release_region(nvt->cr_efir, 2);
 }
 
 /*
