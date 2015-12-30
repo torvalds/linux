@@ -134,6 +134,24 @@
 		>;
 	};
 
+	dcan0_pins: pinmux_dcan0_pins {
+		pinctrl-single,pins = <
+			/* uart1_ctsn.dcan0_tx */
+			AM33XX_IOPAD(0x978, PIN_OUTPUT | MUX_MODE2)
+			/* uart1_rtsn.dcan0_rx */
+			AM33XX_IOPAD(0x97C, PIN_INPUT | MUX_MODE2)
+		>;
+	};
+
+	dcan1_pins: pinmux_dcan1_pins {
+		pinctrl-single,pins = <
+			/* uart1_rxd.dcan1_tx */
+			AM33XX_IOPAD(0x980, PIN_OUTPUT | MUX_MODE2)
+			/* uart1_txd.dcan1_rx */
+			AM33XX_IOPAD(0x984, PIN_INPUT | MUX_MODE2)
+		>;
+	};
+
 	ecap0_pins: pinmux_ecap0_pins {
 		pinctrl-single,pins = <
 			/* eCAP0_in_PWM0_out.eCAP0_in_PWM0_out MODE0 */
@@ -393,4 +411,16 @@ status = "okay";
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
+};
+
+&dcan0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan0_pins>;
+};
+
+&dcan1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan1_pins>;
 };
