@@ -74,10 +74,6 @@ struct doc_priv {
 	int (*late_init)(struct mtd_info *mtd);
 };
 
-/* This is the syndrome computed by the HW ecc generator upon reading an empty
-   page, one with all 0xff for data and stored ecc code. */
-static u_char empty_read_syndrome[6] = { 0x26, 0xff, 0x6d, 0x47, 0x73, 0x7a };
-
 /* This is the ecc value computed by the HW ecc generator upon writing an empty
    page, one with all 0xff for data. */
 static u_char empty_write_ecc[6] = { 0x4b, 0x00, 0xe2, 0x0e, 0x93, 0xf7 };
@@ -912,7 +908,6 @@ static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat,
 	void __iomem *docptr = doc->virtadr;
 	uint8_t calc_ecc[6];
 	volatile u_char dummy;
-	int emptymatch = 1;
 
 	/* flush the pipeline */
 	if (DoC_is_2000(doc)) {
@@ -936,37 +931,9 @@ static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat,
 				calc_ecc[i] = ReadDOC_(docptr, DoC_Mplus_ECCSyndrome0 + i);
 			else
 				calc_ecc[i] = ReadDOC_(docptr, DoC_ECCSyndrome0 + i);
-			if (calc_ecc[i] != empty_read_syndrome[i])
-				emptymatch = 0;
 		}
-		/* If emptymatch=1, the read syndrome is consistent with an
-		   all-0xff data and stored ecc block.  Check the stored ecc. */
-		if (emptymatch) {
-			for (i = 0; i < 6; i++) {
-				if (read_ecc[i] == 0xff)
-					continue;
-				emptymatch = 0;
-				break;
-			}
-		}
-		/* If emptymatch still =1, check the data block. */
-		if (emptymatch) {
-			/* Note: this somewhat expensive test should not be triggered
-			   often.  It could be optimized away by examining the data in
-			   the readbuf routine, and remembering the result. */
-			for (i = 0; i < 512; i++) {
-				if (dat[i] == 0xff)
-					continue;
-				emptymatch = 0;
-				break;
-			}
-		}
-		/* If emptymatch still =1, this is almost certainly a freshly-
-		   erased block, in which case the ECC will not come out right.
-		   We'll suppress the error and tell the caller everything's
-		   OK.  Because it is. */
-		if (!emptymatch)
-			ret = doc_ecc_decode(rs_decoder, dat, calc_ecc);
+
+		ret = doc_ecc_decode(rs_decoder, dat, calc_ecc);
 		if (ret > 0)
 			printk(KERN_ERR "doc200x_correct_data corrected %d errors\n", ret);
 	}
@@ -1586,6 +1553,7 @@ static int __init doc_probe(unsigned long physadr)
 	nand->ecc.size		= 512;
 	nand->ecc.bytes		= 6;
 	nand->ecc.strength	= 2;
+	nand->ecc.options	= NAND_ECC_GENERIC_ERASED_CHECK;
 	nand->bbt_options	= NAND_BBT_USE_FLASH;
 	/* Skip the automatic BBT scan so we can run it manually */
 	nand->options		|= NAND_SKIP_BBTSCAN;
