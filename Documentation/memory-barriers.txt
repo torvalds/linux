@@ -800,9 +800,13 @@ In summary:
       use smp_rmb(), smp_wmb(), or, in the case of prior stores and
       later loads, smp_mb().
 
-  (*) If both legs of the "if" statement begin with identical stores
-      to the same variable, a barrier() statement is required at the
-      beginning of each leg of the "if" statement.
+  (*) If both legs of the "if" statement begin with identical stores to
+      the same variable, then those stores must be ordered, either by
+      preceding both of them with smp_mb() or by using smp_store_release()
+      to carry out the stores.  Please note that it is -not- sufficient
+      to use barrier() at beginning of each leg of the "if" statement,
+      as optimizing compilers do not necessarily respect barrier()
+      in this case.
 
   (*) Control dependencies require at least one run-time conditional
       between the prior load and the subsequent store, and this
