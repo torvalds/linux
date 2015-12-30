@@ -5108,6 +5108,9 @@ static int be_ndo_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 			return -EINVAL;
 
 		mode = nla_get_u16(attr);
+		if (BE3_chip(adapter) && mode == BRIDGE_MODE_VEPA)
+			return -EOPNOTSUPP;
+
 		if (mode != BRIDGE_MODE_VEPA && mode != BRIDGE_MODE_VEB)
 			return -EINVAL;
 
