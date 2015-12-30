@@ -115,7 +115,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 				GB_CAMERA_TYPE_CONFIGURE_STREAMS,
 				req, req_size, resp, resp_size);
 	if (ret < 0)
-		return ret;
+		goto done;
 
 	if (le16_to_cpu(resp->num_streams) > nstreams) {
 		gcam_dbg(gcam, "got #streams %u > request %u\n",
