@@ -362,16 +362,13 @@ static s32 handle_set_operation_mode(struct wilc_vif *vif,
 	return result;
 }
 
-static int host_int_get_ipaddress(struct wilc_vif *vif,
-				  struct host_if_drv *hif_drv,
-				  u8 *u16ipadd, u8 idx);
+static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *u16ipadd, u8 idx);
 
 static s32 handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 {
 	s32 result = 0;
 	struct wid wid;
 	char firmware_ip_addr[4] = {0};
-	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (ip_addr[0] < 192)
 		ip_addr[0] = 0;
@@ -389,7 +386,7 @@ static s32 handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 	result = wilc_send_config_pkt(vif->wilc, SET_CFG, &wid, 1,
 				 wilc_get_vif_idx(vif));
 
-	host_int_get_ipaddress(vif, hif_drv, firmware_ip_addr, idx);
+	host_int_get_ipaddress(vif, firmware_ip_addr, idx);
 
 	if (result) {
 		PRINT_ER("Failed to set IP address\n");
@@ -4664,12 +4661,11 @@ int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 	return result;
 }
 
-static int host_int_get_ipaddress(struct wilc_vif *vif,
-				  struct host_if_drv *hif_drv,
-				  u8 *u16ipadd, u8 idx)
+static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *u16ipadd, u8 idx)
 {
 	int result = 0;
 	struct host_if_msg msg;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
