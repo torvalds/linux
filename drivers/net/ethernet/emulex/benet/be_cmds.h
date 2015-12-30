@@ -1411,6 +1411,9 @@ struct be_cmd_read_flash_crc {
 } __packed;
 
 /**************** Lancer Firmware Flash ************/
+#define LANCER_FW_DOWNLOAD_CHUNK      (32 * 1024)
+#define LANCER_FW_DOWNLOAD_LOCATION   "/prg"
+
 struct amap_lancer_write_obj_context {
 	u8 write_length[24];
 	u8 reserved1[7];
@@ -2339,19 +2342,11 @@ int be_cmd_read_port_transceiver_data(struct be_adapter *adapter,
 				      u8 page_num, u8 *data);
 int be_cmd_query_cable_type(struct be_adapter *adapter);
 int be_cmd_query_sfp_info(struct be_adapter *adapter);
-int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			  u32 flash_oper, u32 flash_opcode, u32 img_offset,
-			  u32 buf_size);
-int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			    u32 data_size, u32 data_offset,
-			    const char *obj_name, u32 *data_written,
-			    u8 *change_status, u8 *addn_status);
 int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			   u32 data_size, u32 data_offset, const char *obj_name,
 			   u32 *data_read, u32 *eof, u8 *addn_status);
-int lancer_cmd_delete_object(struct be_adapter *adapter, const char *obj_name);
-int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			 u16 img_optype, u32 img_offset, u32 crc_offset);
+int lancer_fw_download(struct be_adapter *adapter, const struct firmware *fw);
+int be_fw_download(struct be_adapter *adapter, const struct firmware *fw);
 int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 			    struct be_dma_mem *nonemb_cmd);
 int be_cmd_fw_init(struct be_adapter *adapter);
