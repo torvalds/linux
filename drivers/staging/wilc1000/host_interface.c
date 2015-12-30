@@ -4644,8 +4644,6 @@ int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	return 0;
-
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
 		return -EFAULT;
