@@ -33,6 +33,10 @@ struct wmi_device {
 extern union acpi_object *wmidev_block_query(struct wmi_device *wdev,
 					     u8 instance);
 
+/* Gets another device on the same bus.  Caller must put_device the result. */
+extern struct wmi_device *wmidev_get_other_guid(struct wmi_device *wdev,
+						const char *guid_string);
+
 struct wmi_device_id {
 	const char *guid_string;
 };

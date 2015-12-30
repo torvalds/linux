@@ -344,6 +344,23 @@ union acpi_object *wmidev_block_query(struct wmi_device *wdev, u8 instance)
 }
 EXPORT_SYMBOL_GPL(wmidev_block_query);
 
+struct wmi_device *wmidev_get_other_guid(struct wmi_device *wdev,
+					 const char *guid_string)
+{
+	struct wmi_block *this_wb = container_of(wdev, struct wmi_block, dev);
+	struct wmi_block *other_wb;
+
+	if (!find_guid(guid_string, &other_wb))
+		return NULL;
+
+	if (other_wb->acpi_device != this_wb->acpi_device)
+		return NULL;
+
+	get_device(&other_wb->dev.dev);
+	return &other_wb->dev;
+}
+EXPORT_SYMBOL_GPL(wmidev_get_other_guid);
+
 /**
  * wmi_set_block - Write to a WMI block
  * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
