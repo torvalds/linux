@@ -625,6 +625,71 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 }
 EXPORT_SYMBOL_GPL(media_create_pad_link);
 
+int media_create_pad_links(const struct media_device *mdev,
+			   const u32 source_function,
+			   struct media_entity *source,
+			   const u16 source_pad,
+			   const u32 sink_function,
+			   struct media_entity *sink,
+			   const u16 sink_pad,
+			   u32 flags,
+			   const bool allow_both_undefined)
+{
+	struct media_entity *entity;
+	unsigned function;
+	int ret;
+
+	/* Trivial case: 1:1 relation */
+	if (source && sink)
+		return media_create_pad_link(source, source_pad,
+					     sink, sink_pad, flags);
+
+	/* Worse case scenario: n:n relation */
+	if (!source && !sink) {
+		if (!allow_both_undefined)
+			return 0;
+		media_device_for_each_entity(source, mdev) {
+			if (source->function != source_function)
+				continue;
+			media_device_for_each_entity(sink, mdev) {
+				if (sink->function != sink_function)
+					continue;
+				ret = media_create_pad_link(source, source_pad,
+							    sink, sink_pad,
+							    flags);
+				if (ret)
+					return ret;
+				flags &= ~(MEDIA_LNK_FL_ENABLED |
+					   MEDIA_LNK_FL_IMMUTABLE);
+			}
+		}
+		return 0;
+	}
+
+	/* Handle 1:n and n:1 cases */
+	if (source)
+		function = sink_function;
+	else
+		function = source_function;
+
+	media_device_for_each_entity(entity, mdev) {
+		if (entity->function != function)
+			continue;
+
+		if (source)
+			ret = media_create_pad_link(source, source_pad,
+						    entity, sink_pad, flags);
+		else
+			ret = media_create_pad_link(entity, source_pad,
+						    sink, sink_pad, flags);
+		if (ret)
+			return ret;
+		flags &= ~(MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(media_create_pad_links);
+
 void __media_entity_remove_links(struct media_entity *entity)
 {
 	struct media_link *link, *tmp;
