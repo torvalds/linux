@@ -3065,6 +3065,18 @@ retry_root_backup:
 	if (sb->s_flags & MS_RDONLY)
 		return 0;
 
+	if (btrfs_test_opt(tree_root, FREE_SPACE_TREE) &&
+	    !btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE)) {
+		pr_info("BTRFS: creating free space tree\n");
+		ret = btrfs_create_free_space_tree(fs_info);
+		if (ret) {
+			pr_warn("BTRFS: failed to create free space tree %d\n",
+				ret);
+			close_ctree(tree_root);
+			return ret;
+		}
+	}
+
 	down_read(&fs_info->cleanup_work_sem);
 	if ((ret = btrfs_orphan_cleanup(fs_info->fs_root)) ||
 	    (ret = btrfs_orphan_cleanup(fs_info->tree_root))) {
@@ -3096,18 +3108,6 @@ retry_root_backup:
 		ret = btrfs_clear_free_space_tree(fs_info);
 		if (ret) {
 			pr_warn("BTRFS: failed to clear free space tree %d\n",
-				ret);
-			close_ctree(tree_root);
-			return ret;
-		}
-	}
-
-	if (btrfs_test_opt(tree_root, FREE_SPACE_TREE) &&
-	    !btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE)) {
-		pr_info("BTRFS: creating free space tree\n");
-		ret = btrfs_create_free_space_tree(fs_info);
-		if (ret) {
-			pr_warn("BTRFS: failed to create free space tree %d\n",
 				ret);
 			close_ctree(tree_root);
 			return ret;

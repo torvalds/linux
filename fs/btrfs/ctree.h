@@ -1856,6 +1856,8 @@ struct btrfs_fs_info {
 	 * and will be latter freed. Protected by fs_info->chunk_mutex.
 	 */
 	struct list_head pinned_chunks;
+
+	int creating_free_space_tree;
 };
 
 struct btrfs_subvolume_writers {

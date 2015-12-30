@@ -1067,6 +1067,8 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
+	mutex_lock(&block_group->free_space_lock);
+
 	/*
 	 * Iterate through all of the extent and metadata items in this block
 	 * group, adding the free space between them and the free space at the
@@ -1080,7 +1082,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_search_slot_for_read(extent_root, &key, path, 1, 0);
 	if (ret < 0)
-		goto out;
+		goto out_locked;
 	ASSERT(ret == 0);
 
 	start = block_group->key.objectid;
@@ -1100,7 +1102,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 							       key.objectid -
 							       start);
 				if (ret)
-					goto out;
+					goto out_locked;
 			}
 			start = key.objectid;
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
@@ -1114,7 +1116,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_next_item(extent_root, path);
 		if (ret < 0)
-			goto out;
+			goto out_locked;
 		if (ret)
 			break;
 	}
@@ -1122,10 +1124,12 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 		ret = __add_to_free_space_tree(trans, fs_info, block_group,
 					       path2, start, end - start);
 		if (ret)
-			goto out;
+			goto out_locked;
 	}
 
 	ret = 0;
+out_locked:
+	mutex_unlock(&block_group->free_space_lock);
 out:
 	btrfs_free_path(path2);
 	btrfs_free_path(path);
@@ -1145,6 +1149,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
+	fs_info->creating_free_space_tree = 1;
 	free_space_root = btrfs_create_tree(trans, fs_info,
 					    BTRFS_FREE_SPACE_TREE_OBJECTID);
 	if (IS_ERR(free_space_root)) {
@@ -1164,6 +1169,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	}
 
 	btrfs_set_fs_compat_ro(fs_info, FREE_SPACE_TREE);
+	fs_info->creating_free_space_tree = 0;
 
 	ret = btrfs_commit_transaction(trans, tree_root);
 	if (ret)
@@ -1172,6 +1178,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	return 0;
 
 abort:
+	fs_info->creating_free_space_tree = 0;
 	btrfs_abort_transaction(trans, tree_root, ret);
 	btrfs_end_transaction(trans, tree_root);
 	return ret;

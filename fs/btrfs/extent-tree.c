@@ -2926,6 +2926,9 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	if (trans->aborted)
 		return 0;
 
+	if (root->fs_info->creating_free_space_tree)
+		return 0;
+
 	if (root == root->fs_info->extent_root)
 		root = root->fs_info->tree_root;
 
