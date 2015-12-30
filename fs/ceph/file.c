@@ -417,6 +417,7 @@ static int striped_read(struct inode *inode,
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 pos, this_len, left;
+	loff_t i_size;
 	int page_align, pages_left;
 	int read, ret;
 	struct page **page_pos;
@@ -446,11 +447,11 @@ more:
 	dout("striped_read %llu~%llu (read %u) got %d%s%s\n", pos, left, read,
 	     ret, hit_stripe ? " HITSTRIPE" : "", was_short ? " SHORT" : "");
 
+	i_size = i_size_read(inode);
 	if (ret >= 0) {
 		int didpages;
-		if (was_short && (pos + ret < inode->i_size)) {
-			int zlen = min(this_len - ret,
-				       inode->i_size - pos - ret);
+		if (was_short && (pos + ret < i_size)) {
+			int zlen = min(this_len - ret, i_size - pos - ret);
 			int zoff = (off & ~PAGE_MASK) + read + ret;
 			dout(" zero gap %llu to %llu\n",
 				pos + ret, pos + ret + zlen);
@@ -466,14 +467,14 @@ more:
 		pages_left -= didpages;
 
 		/* hit stripe and need continue*/
-		if (left && hit_stripe && pos < inode->i_size)
+		if (left && hit_stripe && pos < i_size)
 			goto more;
 	}
 
 	if (read > 0) {
 		ret = read;
 		/* did we bounce off eof? */
-		if (pos + left > inode->i_size)
+		if (pos + left > i_size)
 			*checkeof = CHECK_EOF;
 	}
 
@@ -1209,8 +1210,7 @@ again:
 		if (retry_op == CHECK_EOF && iocb->ki_pos < i_size &&
 		    ret < len) {
 			dout("sync_read hit hole, ppos %lld < size %lld"
-			     ", reading more\n", iocb->ki_pos,
-			     inode->i_size);
+			     ", reading more\n", iocb->ki_pos, i_size);
 
 			read += ret;
 			len -= ret;
@@ -1293,7 +1293,7 @@ retry_snap:
 	}
 
 	dout("aio_write %p %llx.%llx %llu~%zd getting caps. i_size %llu\n",
-	     inode, ceph_vinop(inode), pos, count, inode->i_size);
+	     inode, ceph_vinop(inode), pos, count, i_size_read(inode));
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
 	else
@@ -1345,7 +1345,7 @@ retry_snap:
 			iov_iter_advance(from, written);
 		ceph_put_snap_context(snapc);
 	} else {
-		loff_t old_size = inode->i_size;
+		loff_t old_size = i_size_read(inode);
 		/*
 		 * No need to acquire the i_truncate_mutex. Because
 		 * the MDS revokes Fwb caps before sending truncate
@@ -1356,7 +1356,7 @@ retry_snap:
 		written = generic_perform_write(file, from, pos);
 		if (likely(written >= 0))
 			iocb->ki_pos = pos + written;
-		if (inode->i_size > old_size)
+		if (i_size_read(inode) > old_size)
 			ceph_fscache_update_objectsize(inode);
 		mutex_unlock(&inode->i_mutex);
 	}
@@ -1401,6 +1401,7 @@ out_unlocked:
 static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
+	loff_t i_size;
 	int ret;
 
 	mutex_lock(&inode->i_mutex);
@@ -1413,9 +1414,10 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 		}
 	}
 
+	i_size = i_size_read(inode);
 	switch (whence) {
 	case SEEK_END:
-		offset += inode->i_size;
+		offset += i_size;
 		break;
 	case SEEK_CUR:
 		/*
@@ -1431,17 +1433,17 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 		offset += file->f_pos;
 		break;
 	case SEEK_DATA:
-		if (offset >= inode->i_size) {
+		if (offset >= i_size) {
 			ret = -ENXIO;
 			goto out;
 		}
 		break;
 	case SEEK_HOLE:
-		if (offset >= inode->i_size) {
+		if (offset >= i_size) {
 			ret = -ENXIO;
 			goto out;
 		}
-		offset = inode->i_size;
+		offset = i_size;
 		break;
 	}
 

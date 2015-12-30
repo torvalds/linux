@@ -1108,7 +1108,7 @@ retry_locked:
 		return 0;
 
 	/* past end of file? */
-	i_size = inode->i_size;   /* caller holds i_mutex */
+	i_size = i_size_read(inode);
 
 	if (page_off >= i_size ||
 	    (pos_in_page == 0 && (pos+len) >= i_size &&
@@ -1183,8 +1183,7 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 		zero_user_segment(page, from+copied, len);
 
 	/* did file size increase? */
-	/* (no need for i_size_read(); we caller holds i_mutex */
-	if (pos+copied > inode->i_size)
+	if (pos+copied > i_size_read(inode))
 		check_cap = ceph_inode_set_size(inode, pos+copied);
 
 	if (!PageUptodate(page))
