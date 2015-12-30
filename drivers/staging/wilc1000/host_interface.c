@@ -4123,9 +4123,9 @@ s32 wilc_listen_state_expired(struct wilc_vif *vif, u32 u32SessionID)
 	return result;
 }
 
-s32 wilc_frame_register(struct wilc_vif *vif, u16 u16FrameType, bool bReg)
+int wilc_frame_register(struct wilc_vif *vif, u16 u16FrameType, bool bReg)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
