@@ -497,13 +497,14 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 	struct sockaddr_storage ssrc_addr = {};
 	struct sockaddr *src_in = (struct sockaddr *)&ssrc_addr;
 
-	if (src_addr->sa_family != dst_addr->sa_family)
-		return -EINVAL;
+	if (src_addr) {
+		if (src_addr->sa_family != dst_addr->sa_family)
+			return -EINVAL;
 
-	if (src_addr)
 		memcpy(src_in, src_addr, rdma_addr_size(src_addr));
-	else
+	} else {
 		src_in->sa_family = dst_addr->sa_family;
+	}
 
 	return addr_resolve(src_in, dst_addr, addr, false);
 }
