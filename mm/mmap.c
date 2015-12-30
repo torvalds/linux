@@ -3030,11 +3030,16 @@ static int special_mapping_fault(struct vm_area_struct *vma,
 	pgoff_t pgoff;
 	struct page **pages;
 
-	if (vma->vm_ops == &legacy_special_mapping_vmops)
+	if (vma->vm_ops == &legacy_special_mapping_vmops) {
 		pages = vma->vm_private_data;
-	else
-		pages = ((struct vm_special_mapping *)vma->vm_private_data)->
-			pages;
+	} else {
+		struct vm_special_mapping *sm = vma->vm_private_data;
+
+		if (sm->fault)
+			return sm->fault(sm, vma, vmf);
+
+		pages = sm->pages;
+	}
 
 	for (pgoff = vmf->pgoff; pgoff && *pages; ++pages)
 		pgoff--;
