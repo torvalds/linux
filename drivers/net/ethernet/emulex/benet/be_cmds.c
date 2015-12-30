@@ -308,8 +308,7 @@ static void be_async_grp5_cos_priority_process(struct be_adapter *adapter,
 
 	if (evt->valid) {
 		adapter->vlan_prio_bmap = evt->available_priority_bmap;
-		adapter->recommended_prio &= ~VLAN_PRIO_MASK;
-		adapter->recommended_prio =
+		adapter->recommended_prio_bits =
 			evt->reco_default_priority << VLAN_PRIO_SHIFT;
 	}
 }

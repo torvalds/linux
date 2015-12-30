@@ -729,7 +729,7 @@ static inline u16 be_get_tx_vlan_tag(struct be_adapter *adapter,
 	/* If vlan priority provided by OS is NOT in available bmap */
 	if (!(adapter->vlan_prio_bmap & (1 << vlan_prio)))
 		vlan_tag = (vlan_tag & ~VLAN_PRIO_MASK) |
-				adapter->recommended_prio;
+				adapter->recommended_prio_bits;
 
 	return vlan_tag;
 }
