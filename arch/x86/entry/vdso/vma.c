@@ -121,6 +121,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 
 	text_start = addr - image->sym_vvar_start;
 	current->mm->context.vdso = (void __user *)text_start;
+	current->mm->context.vdso_image = image;
 
 	/*
 	 * MAYWRITE to allow gdb to COW and set breakpoints
