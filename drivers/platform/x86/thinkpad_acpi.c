@@ -303,6 +303,7 @@ static struct {
 	u32 hotkey_mask:1;
 	u32 hotkey_wlsw:1;
 	u32 hotkey_tablet:1;
+	u32 kbdlight:1;
 	u32 light:1;
 	u32 light_status:1;
 	u32 bright_acpimode:1;
@@ -4986,6 +4987,207 @@ static struct ibm_struct video_driver_data = {
 #endif /* CONFIG_THINKPAD_ACPI_VIDEO */
 
 /*************************************************************************
+ * Keyboard backlight subdriver
+ */
+
+static int kbdlight_set_level(int level)
+{
+	if (!hkey_handle)
+		return -ENXIO;
+
+	if (!acpi_evalf(hkey_handle, NULL, "MLCS", "dd", level))
+		return -EIO;
+
+	return 0;
+}
+
+static int kbdlight_get_level(void)
+{
+	int status = 0;
+
+	if (!hkey_handle)
+		return -ENXIO;
+
+	if (!acpi_evalf(hkey_handle, &status, "MLCG", "dd", 0))
+		return -EIO;
+
+	if (status < 0)
+		return status;
+
+	return status & 0x3;
+}
+
+static bool kbdlight_is_supported(void)
+{
+	int status = 0;
+
+	if (!hkey_handle)
+		return false;
+
+	if (!acpi_has_method(hkey_handle, "MLCG")) {
+		vdbg_printk(TPACPI_DBG_INIT, "kbdlight MLCG is unavailable\n");
+		return false;
+	}
+
+	if (!acpi_evalf(hkey_handle, &status, "MLCG", "qdd", 0)) {
+		vdbg_printk(TPACPI_DBG_INIT, "kbdlight MLCG failed\n");
+		return false;
+	}
+
+	if (status < 0) {
+		vdbg_printk(TPACPI_DBG_INIT, "kbdlight MLCG err: %d\n", status);
+		return false;
+	}
+
+	vdbg_printk(TPACPI_DBG_INIT, "kbdlight MLCG returned 0x%x\n", status);
+	/*
+	 * Guessed test for keyboard backlight:
+	 *
+	 * Machines with backlight keyboard return:
+	 *   b010100000010000000XX - ThinkPad X1 Carbon 3rd
+	 *   b110100010010000000XX - ThinkPad x230
+	 *   b010100000010000000XX - ThinkPad x240
+	 *   b010100000010000000XX - ThinkPad W541
+	 * (XX is current backlight level)
+	 *
+	 * Machines without backlight keyboard return:
+	 *   b10100001000000000000 - ThinkPad x230
+	 *   b10110001000000000000 - ThinkPad E430
+	 *   b00000000000000000000 - ThinkPad E450
+	 *
+	 * Candidate BITs for detection test (XOR):
+	 *   b01000000001000000000
+	 *              ^
+	 */
+	return status & BIT(9);
+}
+
+static void kbdlight_set_worker(struct work_struct *work)
+{
+	struct tpacpi_led_classdev *data =
+			container_of(work, struct tpacpi_led_classdev, work);
+
+	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
+		kbdlight_set_level(data->new_state);
+}
+
+static void kbdlight_sysfs_set(struct led_classdev *led_cdev,
+			enum led_brightness brightness)
+{
+	struct tpacpi_led_classdev *data =
+			container_of(led_cdev,
+				     struct tpacpi_led_classdev,
+				     led_classdev);
+	data->new_state = brightness;
+	queue_work(tpacpi_wq, &data->work);
+}
+
+static enum led_brightness kbdlight_sysfs_get(struct led_classdev *led_cdev)
+{
+	int level;
+
+	level = kbdlight_get_level();
+	if (level < 0)
+		return 0;
+
+	return level;
+}
+
+static struct tpacpi_led_classdev tpacpi_led_kbdlight = {
+	.led_classdev = {
+		.name		= "tpacpi::kbd_backlight",
+		.max_brightness	= 2,
+		.brightness_set	= &kbdlight_sysfs_set,
+		.brightness_get	= &kbdlight_sysfs_get,
+		.flags		= LED_CORE_SUSPENDRESUME,
+	}
+};
+
+static int __init kbdlight_init(struct ibm_init_struct *iibm)
+{
+	int rc;
+
+	vdbg_printk(TPACPI_DBG_INIT, "initializing kbdlight subdriver\n");
+
+	TPACPI_ACPIHANDLE_INIT(hkey);
+	INIT_WORK(&tpacpi_led_kbdlight.work, kbdlight_set_worker);
+
+	if (!kbdlight_is_supported()) {
+		tp_features.kbdlight = 0;
+		vdbg_printk(TPACPI_DBG_INIT, "kbdlight is unsupported\n");
+		return 1;
+	}
+
+	tp_features.kbdlight = 1;
+
+	rc = led_classdev_register(&tpacpi_pdev->dev,
+				   &tpacpi_led_kbdlight.led_classdev);
+	if (rc < 0) {
+		tp_features.kbdlight = 0;
+		return rc;
+	}
+
+	return 0;
+}
+
+static void kbdlight_exit(void)
+{
+	if (tp_features.kbdlight)
+		led_classdev_unregister(&tpacpi_led_kbdlight.led_classdev);
+	flush_workqueue(tpacpi_wq);
+}
+
+static int kbdlight_read(struct seq_file *m)
+{
+	int level;
+
+	if (!tp_features.kbdlight) {
+		seq_printf(m, "status:\t\tnot supported\n");
+	} else {
+		level = kbdlight_get_level();
+		if (level < 0)
+			seq_printf(m, "status:\t\terror %d\n", level);
+		else
+			seq_printf(m, "status:\t\t%d\n", level);
+		seq_printf(m, "commands:\t0, 1, 2\n");
+	}
+
+	return 0;
+}
+
+static int kbdlight_write(char *buf)
+{
+	char *cmd;
+	int level = -1;
+
+	if (!tp_features.kbdlight)
+		return -ENODEV;
+
+	while ((cmd = next_cmd(&buf))) {
+		if (strlencmp(cmd, "0") == 0)
+			level = 0;
+		else if (strlencmp(cmd, "1") == 0)
+			level = 1;
+		else if (strlencmp(cmd, "2") == 0)
+			level = 2;
+		else
+			return -EINVAL;
+	}
+
+	if (level == -1)
+		return -EINVAL;
+
+	return kbdlight_set_level(level);
+}
+
+static struct ibm_struct kbdlight_driver_data = {
+	.name = "kbdlight",
+	.read = kbdlight_read,
+	.write = kbdlight_write,
+	.exit = kbdlight_exit,
+};
+
+/*************************************************************************
  * Light (thinklight) subdriver
  */
 
@@ -9206,6 +9408,10 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 		.data = &video_driver_data,
 	},
 #endif
+	{
+		.init = kbdlight_init,
+		.data = &kbdlight_driver_data,
+	},
 	{
 		.init = light_init,
 		.data = &light_driver_data,
