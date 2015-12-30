@@ -889,16 +889,6 @@ int security_kernel_module_request(char *kmod_name)
 	return call_int_hook(kernel_module_request, 0, kmod_name);
 }
 
-int security_kernel_module_from_file(struct file *file)
-{
-	int ret;
-
-	ret = call_int_hook(kernel_module_from_file, 0, file);
-	if (ret)
-		return ret;
-	return ima_module_check(file);
-}
-
 int security_kernel_read_file(struct file *file, enum kernel_read_file_id id)
 {
 	int ret;
@@ -1705,8 +1695,6 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.kernel_create_files_as),
 	.kernel_module_request =
 		LIST_HEAD_INIT(security_hook_heads.kernel_module_request),
-	.kernel_module_from_file =
-		LIST_HEAD_INIT(security_hook_heads.kernel_module_from_file),
 	.kernel_read_file =
 		LIST_HEAD_INIT(security_hook_heads.kernel_read_file),
 	.kernel_post_read_file =

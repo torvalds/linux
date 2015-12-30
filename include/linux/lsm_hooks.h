@@ -546,12 +546,6 @@
  *	userspace to load a kernel module with the given name.
  *	@kmod_name name of the module requested by the kernel
  *	Return 0 if successful.
- * @kernel_module_from_file:
- *	Load a kernel module from userspace.
- *	@file contains the file structure pointing to the file containing
- *	the kernel module to load. If the module is being loaded from a blob,
- *	this argument will be NULL.
- *	Return 0 if permission is granted.
  * @kernel_read_file:
  *	Read a file specified by userspace.
  *	@file contains the file structure pointing to the file being read
@@ -1725,7 +1719,6 @@ struct security_hook_heads {
 	struct list_head kernel_read_file;
 	struct list_head kernel_post_read_file;
 	struct list_head kernel_module_request;
-	struct list_head kernel_module_from_file;
 	struct list_head task_fix_setuid;
 	struct list_head task_setpgid;
 	struct list_head task_getpgid;

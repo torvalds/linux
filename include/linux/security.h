@@ -859,11 +859,6 @@ static inline int security_kernel_module_request(char *kmod_name)
 	return 0;
 }
 
-static inline int security_kernel_module_from_file(struct file *file)
-{
-	return 0;
-}
-
 static inline int security_kernel_read_file(struct file *file,
 					    enum kernel_read_file_id id)
 {

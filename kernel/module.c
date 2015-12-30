@@ -2654,7 +2654,7 @@ static int copy_module_from_user(const void __user *umod, unsigned long len,
 	if (info->len < sizeof(*(info->hdr)))
 		return -ENOEXEC;
 
-	err = security_kernel_module_from_file(NULL);
+	err = security_kernel_read_file(NULL, READING_MODULE);
 	if (err)
 		return err;
 
@@ -2670,63 +2670,6 @@ static int copy_module_from_user(const void __user *umod, unsigned long len,
 	}
 
 	return 0;
-}
-
-/* Sets info->hdr and info->len. */
-static int copy_module_from_fd(int fd, struct load_info *info)
-{
-	struct fd f = fdget(fd);
-	int err;
-	struct kstat stat;
-	loff_t pos;
-	ssize_t bytes = 0;
-
-	if (!f.file)
-		return -ENOEXEC;
-
-	err = security_kernel_module_from_file(f.file);
-	if (err)
-		goto out;
-
-	err = vfs_getattr(&f.file->f_path, &stat);
-	if (err)
-		goto out;
-
-	if (stat.size > INT_MAX) {
-		err = -EFBIG;
-		goto out;
-	}
-
-	/* Don't hand 0 to vmalloc, it whines. */
-	if (stat.size == 0) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	info->hdr = vmalloc(stat.size);
-	if (!info->hdr) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	pos = 0;
-	while (pos < stat.size) {
-		bytes = kernel_read(f.file, pos, (char *)(info->hdr) + pos,
-				    stat.size - pos);
-		if (bytes < 0) {
-			vfree(info->hdr);
-			err = bytes;
-			goto out;
-		}
-		if (bytes == 0)
-			break;
-		pos += bytes;
-	}
-	info->len = pos;
-
-out:
-	fdput(f);
-	return err;
 }
 
 static void free_copy(struct load_info *info)
@@ -3589,8 +3532,10 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 
 SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 {
-	int err;
 	struct load_info info = { };
+	loff_t size;
+	void *hdr;
+	int err;
 
 	err = may_init_module();
 	if (err)
@@ -3602,9 +3547,12 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 		      |MODULE_INIT_IGNORE_VERMAGIC))
 		return -EINVAL;
 
-	err = copy_module_from_fd(fd, &info);
+	err = kernel_read_file_from_fd(fd, &hdr, &size, INT_MAX,
+				       READING_MODULE);
 	if (err)
 		return err;
+	info.hdr = hdr;
+	info.len = size;
 
 	return load_module(&info, uargs, flags);
 }

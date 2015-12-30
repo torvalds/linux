@@ -316,28 +316,6 @@ int ima_file_check(struct file *file, int mask, int opened)
 EXPORT_SYMBOL_GPL(ima_file_check);
 
 /**
- * ima_module_check - based on policy, collect/store/appraise measurement.
- * @file: pointer to the file to be measured/appraised
- *
- * Measure/appraise kernel modules based on policy.
- *
- * On success return 0.  On integrity appraisal error, assuming the file
- * is in policy and IMA-appraisal is in enforcing mode, return -EACCES.
- */
-int ima_module_check(struct file *file)
-{
-	if (!file) {
-#ifndef CONFIG_MODULE_SIG_FORCE
-		if ((ima_appraise & IMA_APPRAISE_MODULES) &&
-		    (ima_appraise & IMA_APPRAISE_ENFORCE))
-			return -EACCES;	/* INTEGRITY_UNKNOWN */
-#endif
-		return 0;	/* We rely on module signature checking */
-	}
-	return process_measurement(file, NULL, 0, MAY_EXEC, MODULE_CHECK, 0);
-}
-
-/**
  * ima_read_file - pre-measure/appraise hook decision based on policy
  * @file: pointer to the file to be measured/appraised/audit
  * @read_id: caller identifier
@@ -350,6 +328,14 @@ int ima_module_check(struct file *file)
  */
 int ima_read_file(struct file *file, enum kernel_read_file_id read_id)
 {
+	if (!file && read_id == READING_MODULE) {
+#ifndef CONFIG_MODULE_SIG_FORCE
+		if ((ima_appraise & IMA_APPRAISE_MODULES) &&
+		    (ima_appraise & IMA_APPRAISE_ENFORCE))
+			return -EACCES;	/* INTEGRITY_UNKNOWN */
+#endif
+		return 0;	/* We rely on module signature checking */
+	}
 	return 0;
 }
 
@@ -378,6 +364,9 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 		return 0;
 	}
 
+	if (!file && read_id == READING_MODULE) /* MODULE_SIG_FORCE enabled */
+		return 0;
+
 	if (!file || !buf || size == 0) { /* should never happen */
 		if (ima_appraise & IMA_APPRAISE_ENFORCE)
 			return -EACCES;
@@ -386,6 +375,8 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 
 	if (read_id == READING_FIRMWARE)
 		func = FIRMWARE_CHECK;
+	else if (read_id == READING_MODULE)
+		func = MODULE_CHECK;
 
 	return process_measurement(file, buf, size, MAY_READ, func, 0);
 }
