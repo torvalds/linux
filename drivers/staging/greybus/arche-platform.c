@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
+#include "arche_platform.h"
 
 struct arche_platform_drvdata {
 	/* Control GPIO signals to and from AP <=> SVC */
@@ -208,7 +209,18 @@ static struct of_device_id arche_platform_of_match[] = {
 	{ .compatible = "google,arche-platform", }, /* Use PID/VID of SVC device */
 	{ },
 };
-MODULE_DEVICE_TABLE(of, arche_platform_of_match);
+
+static struct of_device_id arche_apb_ctrl_of_match[] = {
+	{ .compatible = "usbffff,2", },
+	{ },
+};
+
+static struct of_device_id arche_combined_id[] = {
+	{ .compatible = "google,arche-platform", }, /* Use PID/VID of SVC device */
+	{ .compatible = "usbffff,2", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, arche_combined_id);
 
 static struct platform_driver arche_platform_device_driver = {
 	.probe		= arche_platform_probe,
@@ -216,11 +228,42 @@ static struct platform_driver arche_platform_device_driver = {
 	.driver		= {
 		.name	= "arche-platform-ctrl",
 		.pm	= &arche_platform_pm_ops,
-		.of_match_table = of_match_ptr(arche_platform_of_match),
+		.of_match_table = arche_platform_of_match,
 	}
 };
 
-module_platform_driver(arche_platform_device_driver);
+static struct platform_driver arche_apb_ctrl_device_driver = {
+	.probe		= arche_apb_ctrl_probe,
+	.remove		= arche_apb_ctrl_remove,
+	.driver		= {
+		.name	= "arche-apb-ctrl",
+		.pm	= &arche_apb_ctrl_pm_ops,
+		.of_match_table = arche_apb_ctrl_of_match,
+	}
+};
+
+static int __init arche_init(void)
+{
+	int retval;
+
+	retval = platform_driver_register(&arche_platform_device_driver);
+	if (retval)
+		return retval;
+
+	retval = platform_driver_register(&arche_apb_ctrl_device_driver);
+	if (retval)
+		platform_driver_unregister(&arche_platform_device_driver);
+
+	return retval;
+}
+module_init(arche_init);
+
+static void __exit arche_exit(void)
+{
+	platform_driver_unregister(&arche_apb_ctrl_device_driver);
+	platform_driver_unregister(&arche_platform_device_driver);
+}
+module_exit(arche_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vaibhav Hiremath <vaibhav.hiremath@linaro.org>");

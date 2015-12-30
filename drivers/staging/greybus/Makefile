@@ -28,8 +28,7 @@ gb-light-y := light.o
 gb-raw-y := raw.o
 gb-hid-y := hid.o
 gb-es2-y := es2.o
-gb-arche-y := arche-platform.o
-gb-arche-apb-ctrl-y := arche-apb-ctrl.o
+gb-arche-y := arche-platform.o arche-apb-ctrl.o
 gb-audio-codec-y := audio-codec.o
 gb-camera-y := camera.o
 
@@ -43,7 +42,6 @@ obj-m += gb-hid.o
 obj-m += gb-raw.o
 obj-m += gb-es2.o
 obj-m += gb-arche.o
-obj-m += gb-arche-apb-ctrl.o
 obj-m += gb-audio-codec.o
 obj-m += gb-camera.o
 

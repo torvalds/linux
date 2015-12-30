@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
+#include "arche_platform.h"
 
 enum apb_state {
 	APB_STATE_OFF,
@@ -279,7 +280,7 @@ static void apb_ctrl_cleanup(struct arche_apb_ctrl_drvdata *apb)
 	/* TODO: May have to send an event to SVC about this exit */
 }
 
-static int arche_apb_ctrl_probe(struct platform_device *pdev)
+int arche_apb_ctrl_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct arche_apb_ctrl_drvdata *apb;
@@ -335,7 +336,7 @@ exit:
 	return ret;
 }
 
-static int arche_apb_ctrl_remove(struct platform_device *pdev)
+int arche_apb_ctrl_remove(struct platform_device *pdev)
 {
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
@@ -375,28 +376,8 @@ static int arche_apb_ctrl_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(arche_apb_ctrl_pm_ops,
-			arche_apb_ctrl_suspend,
-			arche_apb_ctrl_resume);
+SIMPLE_DEV_PM_OPS(arche_apb_ctrl_pm_ops,
+		  arche_apb_ctrl_suspend,
+		  arche_apb_ctrl_resume);
 
-static struct of_device_id arche_apb_ctrl_of_match[] = {
-	{ .compatible = "usbffff,2", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, arche_apb_ctrl_of_match);
 
-static struct platform_driver arche_apb_ctrl_device_driver = {
-	.probe		= arche_apb_ctrl_probe,
-	.remove		= arche_apb_ctrl_remove,
-	.driver		= {
-		.name	= "arche-apb-ctrl",
-		.pm	= &arche_apb_ctrl_pm_ops,
-		.of_match_table = of_match_ptr(arche_apb_ctrl_of_match),
-	}
-};
-
-module_platform_driver(arche_apb_ctrl_device_driver);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Vaibhav Hiremath <vaibhav.hiremath@linaro.org>");
-MODULE_DESCRIPTION("Arche APB control Driver");
