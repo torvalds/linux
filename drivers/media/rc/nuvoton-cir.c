@@ -291,7 +291,7 @@ static inline const char *nvt_find_chip(struct nvt_dev *nvt, int id)
 
 
 /* detect hardware features */
-static void nvt_hw_detect(struct nvt_dev *nvt)
+static int nvt_hw_detect(struct nvt_dev *nvt)
 {
 	const char *chip_name;
 	int chip_id;
@@ -306,10 +306,17 @@ static void nvt_hw_detect(struct nvt_dev *nvt)
 		nvt_efm_enable(nvt);
 		nvt->chip_major = nvt_cr_read(nvt, CR_CHIP_ID_HI);
 	}
-
 	nvt->chip_minor = nvt_cr_read(nvt, CR_CHIP_ID_LO);
 
+	nvt_efm_disable(nvt);
+
 	chip_id = nvt->chip_major << 8 | nvt->chip_minor;
+	if (chip_id == NVT_INVALID) {
+		dev_err(&nvt->pdev->dev,
+			"No device found on either EFM port\n");
+		return -ENODEV;
+	}
+
 	chip_name = nvt_find_chip(nvt, chip_id);
 
 	/* warn, but still let the driver load, if we don't know this chip */
@@ -322,7 +329,7 @@ static void nvt_hw_detect(struct nvt_dev *nvt)
 			 "found %s or compatible: chip id: 0x%02x 0x%02x",
 			 chip_name, nvt->chip_major, nvt->chip_minor);
 
-	nvt_efm_disable(nvt);
+	return 0;
 }
 
 static void nvt_cir_ldev_init(struct nvt_dev *nvt)
@@ -1057,7 +1064,9 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	init_waitqueue_head(&nvt->tx.queue);
 
-	nvt_hw_detect(nvt);
+	ret = nvt_hw_detect(nvt);
+	if (ret)
+		goto exit_free_dev_rdev;
 
 	/* Initialize CIR & CIR Wake Logical Devices */
 	nvt_efm_enable(nvt);

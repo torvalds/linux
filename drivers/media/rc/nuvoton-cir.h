@@ -68,7 +68,8 @@ enum nvt_chip_ver {
 	NVT_W83667HG	= 0xa510,
 	NVT_6775F	= 0xb470,
 	NVT_6776F	= 0xc330,
-	NVT_6779D	= 0xc560
+	NVT_6779D	= 0xc560,
+	NVT_INVALID	= 0xffff,
 };
 
 struct nvt_chip {
