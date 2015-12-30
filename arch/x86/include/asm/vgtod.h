@@ -37,6 +37,12 @@ struct vsyscall_gtod_data {
 };
 extern struct vsyscall_gtod_data vsyscall_gtod_data;
 
+extern int vclocks_used;
+static inline bool vclock_was_used(int vclock)
+{
+	return READ_ONCE(vclocks_used) & (1 << vclock);
+}
+
 static inline unsigned gtod_read_begin(const struct vsyscall_gtod_data *s)
 {
 	unsigned ret;
