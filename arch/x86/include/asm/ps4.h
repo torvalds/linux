@@ -30,7 +30,7 @@ extern unsigned long ps4_calibrate_tsc(void);
  * error. Assigned IRQ(s) start at dev->irq.
  */
 extern int apcie_assign_irqs(struct pci_dev *dev, int nvec);
-#define apcie_free_irqs irq_domain_free_irqs
+extern void apcie_free_irqs(unsigned int virq, unsigned int nr_irqs);
 
 extern int apcie_status(void);
 extern int apcie_icc_cmd(u8 major, u16 minor, const void *data,

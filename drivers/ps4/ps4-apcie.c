@@ -277,6 +277,12 @@ fail:
 }
 EXPORT_SYMBOL(apcie_assign_irqs);
 
+void apcie_free_irqs(unsigned int virq, unsigned int nr_irqs)
+{
+	irq_domain_free_irqs(virq, nr_irqs);
+}
+EXPORT_SYMBOL(apcie_free_irqs);
+
 static void apcie_glue_remove(struct apcie_dev *sc);
 
 static int apcie_glue_init(struct apcie_dev *sc)
