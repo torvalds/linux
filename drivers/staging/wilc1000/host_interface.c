@@ -4638,7 +4638,7 @@ s32 wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *pBSSID, char TID)
 	return result;
 }
 
-int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *u16ipadd, u8 idx)
+int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4655,7 +4655,7 @@ int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *u16ipadd, u8 idx)
 
 	msg.id = HOST_IF_MSG_SET_IPADDRESS;
 
-	msg.body.ip_info.ip_addr = u16ipadd;
+	msg.body.ip_info.ip_addr = ip_addr;
 	msg.vif = vif;
 	msg.body.ip_info.idx = idx;
 
