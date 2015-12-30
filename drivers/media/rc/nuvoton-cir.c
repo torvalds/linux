@@ -1179,9 +1179,6 @@ static int nvt_resume(struct pnp_dev *pdev)
 
 	nvt_dbg("%s called", __func__);
 
-	/* open interrupt */
-	nvt_set_cir_iren(nvt);
-
 	nvt_cir_regs_init(nvt);
 	nvt_cir_wake_regs_init(nvt);
 
