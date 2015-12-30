@@ -4123,7 +4123,7 @@ s32 wilc_listen_state_expired(struct wilc_vif *vif, u32 u32SessionID)
 	return result;
 }
 
-int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool bReg)
+int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4153,7 +4153,7 @@ int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool bReg)
 		break;
 	}
 	msg.body.reg_frame.frame_type = frame_type;
-	msg.body.reg_frame.reg = bReg;
+	msg.body.reg_frame.reg = reg;
 	msg.vif = vif;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
