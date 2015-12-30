@@ -214,6 +214,13 @@ static int __recover_dot_dentries(struct inode *dir, nid_t pino)
 	struct page *page;
 	int err = 0;
 
+	if (f2fs_readonly(sbi->sb)) {
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"skip recovering inline_dots inode (ino:%lu, pino:%u) "
+			"in readonly mountpoint", dir->i_ino, pino);
+		return 0;
+	}
+
 	f2fs_balance_fs(sbi);
 
 	f2fs_lock_op(sbi);
