@@ -254,7 +254,7 @@ static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
 	} while (!(status & JZ_NAND_STATUS_DEC_FINISH) && --timeout);
 
 	if (timeout == 0)
-	    return -1;
+		return -ETIMEDOUT;
 
 	reg = readl(nand->base + JZ_REG_NAND_ECC_CTRL);
 	reg &= ~JZ_NAND_ECC_CTRL_ENABLE;
@@ -262,7 +262,7 @@ static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
 
 	if (status & JZ_NAND_STATUS_ERROR) {
 		if (status & JZ_NAND_STATUS_UNCOR_ERROR)
-			return -1;
+			return -EBADMSG;
 
 		error_count = (status & JZ_NAND_STATUS_ERR_COUNT) >> 29;
 

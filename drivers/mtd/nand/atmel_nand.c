@@ -1445,7 +1445,7 @@ static int atmel_nand_correct(struct mtd_info *mtd, u_char *dat,
 		 * We can't correct so many errors */
 		dev_dbg(host->dev, "atmel_nand : multiple errors detected."
 				" Unable to correct.\n");
-		return -EIO;
+		return -EBADMSG;
 	}
 
 	/* if there's a single bit error : we can correct it */

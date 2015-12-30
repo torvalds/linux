@@ -674,7 +674,7 @@ static int mxc_nand_correct_data_v1(struct mtd_info *mtd, u_char *dat,
 
 	if (((ecc_status & 0x3) == 2) || ((ecc_status >> 2) == 2)) {
 		pr_debug("MXC_NAND: HWECC uncorrectable 2-bit ECC error\n");
-		return -1;
+		return -EBADMSG;
 	}
 
 	return 0;
@@ -701,7 +701,7 @@ static int mxc_nand_correct_data_v2_v3(struct mtd_info *mtd, u_char *dat,
 		err = ecc_stat & ecc_bit_mask;
 		if (err > err_limit) {
 			printk(KERN_WARNING "UnCorrectable RS-ECC Error\n");
-			return -1;
+			return -EBADMSG;
 		} else {
 			ret += err;
 		}

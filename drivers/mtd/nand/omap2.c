@@ -826,12 +826,12 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 	case 1:
 		/* Uncorrectable error */
 		pr_debug("ECC UNCORRECTED_ERROR 1\n");
-		return -1;
+		return -EBADMSG;
 
 	case 11:
 		/* UN-Correctable error */
 		pr_debug("ECC UNCORRECTED_ERROR B\n");
-		return -1;
+		return -EBADMSG;
 
 	case 12:
 		/* Correctable error */
@@ -861,7 +861,7 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 				return 0;
 		}
 		pr_debug("UNCORRECTED_ERROR default\n");
-		return -1;
+		return -EBADMSG;
 	}
 }
 

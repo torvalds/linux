@@ -507,7 +507,7 @@ int __nand_correct_data(unsigned char *buf,
 		return 1;	/* error in ECC data; no action needed */
 
 	pr_err("%s: uncorrectable ECC error\n", __func__);
-	return -1;
+	return -EBADMSG;
 }
 EXPORT_SYMBOL(__nand_correct_data);
 

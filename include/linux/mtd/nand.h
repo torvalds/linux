@@ -456,7 +456,13 @@ struct nand_hw_control {
  * @hwctl:	function to control hardware ECC generator. Must only
  *		be provided if an hardware ECC is available
  * @calculate:	function for ECC calculation or readback from ECC hardware
- * @correct:	function for ECC correction, matching to ECC generator (sw/hw)
+ * @correct:	function for ECC correction, matching to ECC generator (sw/hw).
+ *		Should return a positive number representing the number of
+ *		corrected bitflips, -EBADMSG if the number of bitflips exceed
+ *		ECC strength, or any other error code if the error is not
+ *		directly related to correction.
+ *		If -EBADMSG is returned the input buffers should be left
+ *		untouched.
  * @read_page_raw:	function to read a raw page without ECC. This function
  *			should hide the specific layout used by the ECC
  *			controller and always return contiguous in-band and

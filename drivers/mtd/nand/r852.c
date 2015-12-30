@@ -477,7 +477,7 @@ static int r852_ecc_correct(struct mtd_info *mtd, uint8_t *dat,
 
 	if (dev->dma_error) {
 		dev->dma_error = 0;
-		return -1;
+		return -EIO;
 	}
 
 	r852_write_reg(dev, R852_CTL, dev->ctlreg | R852_CTL_ECC_ACCESS);
@@ -491,7 +491,7 @@ static int r852_ecc_correct(struct mtd_info *mtd, uint8_t *dat,
 		/* ecc uncorrectable error */
 		if (ecc_status & R852_ECC_FAIL) {
 			dbg("ecc: unrecoverable error, in half %d", i);
-			error = -1;
+			error = -EBADMSG;
 			goto exit;
 		}
 
