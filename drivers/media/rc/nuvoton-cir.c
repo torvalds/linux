@@ -329,9 +329,8 @@ static void nvt_cir_ldev_init(struct nvt_dev *nvt)
 	val |= psval;
 	nvt_cr_write(nvt, val, psreg);
 
-	/* Select CIR logical device and enable */
+	/* Select CIR logical device */
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR);
-	nvt_cr_write(nvt, LOGICAL_DEV_ENABLE, CR_LOGICAL_DEV_EN);
 
 	nvt_cr_write(nvt, nvt->cir_addr >> 8, CR_CIR_BASE_ADDR_HI);
 	nvt_cr_write(nvt, nvt->cir_addr & 0xff, CR_CIR_BASE_ADDR_LO);
@@ -344,7 +343,7 @@ static void nvt_cir_ldev_init(struct nvt_dev *nvt)
 
 static void nvt_cir_wake_ldev_init(struct nvt_dev *nvt)
 {
-	/* Select ACPI logical device, enable it and CIR Wake */
+	/* Select ACPI logical device and anable it */
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_ACPI);
 	nvt_cr_write(nvt, LOGICAL_DEV_ENABLE, CR_LOGICAL_DEV_EN);
 
@@ -354,9 +353,8 @@ static void nvt_cir_wake_ldev_init(struct nvt_dev *nvt)
 	/* enable pme interrupt of cir wakeup event */
 	nvt_set_reg_bit(nvt, PME_INTR_CIR_PASS_BIT, CR_ACPI_IRQ_EVENTS2);
 
-	/* Select CIR Wake logical device and enable */
+	/* Select CIR Wake logical device */
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
-	nvt_cr_write(nvt, LOGICAL_DEV_ENABLE, CR_LOGICAL_DEV_EN);
 
 	nvt_cr_write(nvt, nvt->cir_wake_addr >> 8, CR_CIR_BASE_ADDR_HI);
 	nvt_cr_write(nvt, nvt->cir_wake_addr & 0xff, CR_CIR_BASE_ADDR_LO);
@@ -440,6 +438,9 @@ static void nvt_cir_regs_init(struct nvt_dev *nvt)
 
 	/* and finally, enable interrupts */
 	nvt_set_cir_iren(nvt);
+
+	/* enable the CIR logical device */
+	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
 }
 
 static void nvt_cir_wake_regs_init(struct nvt_dev *nvt)
@@ -474,6 +475,9 @@ static void nvt_cir_wake_regs_init(struct nvt_dev *nvt)
 
 	/* clear any and all stray interrupts */
 	nvt_cir_wake_reg_write(nvt, 0xff, CIR_WAKE_IRSTS);
+
+	/* enable the CIR WAKE logical device */
+	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
 }
 
 static void nvt_enable_wake(struct nvt_dev *nvt)
@@ -1051,7 +1055,10 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	nvt_cir_wake_ldev_init(nvt);
 	nvt_efm_disable(nvt);
 
-	/* Initialize CIR & CIR Wake Config Registers */
+	/*
+	 * Initialize CIR & CIR Wake Config Registers
+	 * and enable logical devices
+	 */
 	nvt_cir_regs_init(nvt);
 	nvt_cir_wake_regs_init(nvt);
 
@@ -1178,9 +1185,6 @@ static int nvt_resume(struct pnp_dev *pdev)
 
 	/* open interrupt */
 	nvt_set_cir_iren(nvt);
-
-	/* Enable CIR logical device */
-	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
 
 	nvt_cir_regs_init(nvt);
 	nvt_cir_wake_regs_init(nvt);
