@@ -4260,15 +4260,12 @@ err:
 	return status;
 }
 
-int be_cmd_set_logical_link_config(struct be_adapter *adapter,
-				   int link_state, u8 domain)
+int __be_cmd_set_logical_link_config(struct be_adapter *adapter,
+				     int link_state, int version, u8 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_set_ll_link *req;
 	int status;
-
-	if (BEx_chip(adapter) || lancer_chip(adapter))
-		return -EOPNOTSUPP;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -4284,14 +4281,15 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 			       OPCODE_COMMON_SET_LOGICAL_LINK_CONFIG,
 			       sizeof(*req), wrb, NULL);
 
-	req->hdr.version = 1;
+	req->hdr.version = version;
 	req->hdr.domain = domain;
 
-	if (link_state == IFLA_VF_LINK_STATE_ENABLE)
-		req->link_config |= 1;
+	if (link_state == IFLA_VF_LINK_STATE_ENABLE ||
+	    link_state == IFLA_VF_LINK_STATE_AUTO)
+		req->link_config |= PLINK_ENABLE;
 
 	if (link_state == IFLA_VF_LINK_STATE_AUTO)
-		req->link_config |= 1 << PLINK_TRACK_SHIFT;
+		req->link_config |= PLINK_TRACK;
 
 	status = be_mcc_notify_wait(adapter);
 err:
@@ -4299,6 +4297,25 @@ err:
 	return status;
 }
 
+int be_cmd_set_logical_link_config(struct be_adapter *adapter,
+				   int link_state, u8 domain)
+{
+	int status;
+
+	if (BEx_chip(adapter))
+		return -EOPNOTSUPP;
+
+	status = __be_cmd_set_logical_link_config(adapter, link_state,
+						  2, domain);
+
+	/* Version 2 of the command will not be recognized by older FW.
+	 * On such a failure issue version 1 of the command.
+	 */
+	if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST)
+		status = __be_cmd_set_logical_link_config(adapter, link_state,
+							  1, domain);
+	return status;
+}
 int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
 		    int wrb_payload_size, u16 *cmd_status, u16 *ext_status)
 {

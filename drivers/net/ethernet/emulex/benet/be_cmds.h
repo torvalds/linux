@@ -2246,7 +2246,8 @@ struct be_cmd_resp_get_iface_list {
 };
 
 /*************** Set logical link ********************/
-#define PLINK_TRACK_SHIFT	8
+#define PLINK_ENABLE            BIT(0)
+#define PLINK_TRACK             BIT(8)
 struct be_cmd_req_set_ll_link {
 	struct be_cmd_req_hdr hdr;
 	u32 link_config; /* Bit 0: UP_DOWN, Bit 9: PLINK */
