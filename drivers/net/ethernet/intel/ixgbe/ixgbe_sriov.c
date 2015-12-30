@@ -593,11 +593,11 @@ static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* post increment loop, covers VLVF_ENTRIES - 1 to 0 */
 	for (i = IXGBE_VLVF_ENTRIES; i--;) {
-		u32 word = IXGBE_VLVFB(i * 2 + vf / 32);
 		u32 bits[2], vlvfb, vid, vfta, vlvf;
-		u32 mask = 1 << (vf / 32);
+		u32 word = i * 2 + vf / 32;
+		u32 mask = 1 << (vf % 32);
 
-		vlvfb = IXGBE_READ_REG(hw, word);
+		vlvfb = IXGBE_READ_REG(hw, IXGBE_VLVFB(word));
 
 		/* if our bit isn't set we can skip it */
 		if (!(vlvfb & mask))
@@ -608,7 +608,7 @@ static void ixgbe_clear_vf_vlans(struct ixgbe_adapter *adapter, u32 vf)
 
 		/* create 64b mask to chedk to see if we should clear VLVF */
 		bits[word % 2] = vlvfb;
-		bits[(word % 2) ^ 1] = IXGBE_READ_REG(hw, word ^ 1);
+		bits[~word % 2] = IXGBE_READ_REG(hw, IXGBE_VLVFB(word ^ 1));
 
 		/* if promisc is enabled, PF will be present, leave VFTA */
 		if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC) {
