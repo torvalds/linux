@@ -183,6 +183,7 @@ static int gb_camera_capture(struct gb_camera *gcam, u32 request_id,
 {
 	struct gb_camera_capture_request *req;
 	size_t req_size;
+	int ret;
 
 	if (settings_size > GB_CAMERA_MAX_SETTINGS_SIZE)
 		return -EINVAL;
@@ -198,8 +199,12 @@ static int gb_camera_capture(struct gb_camera *gcam, u32 request_id,
 	req->num_frames = cpu_to_le16(num_frames);
 	memcpy(req->settings, settings, settings_size);
 
-	return gb_operation_sync(gcam->connection, GB_CAMERA_TYPE_CAPTURE,
+	ret = gb_operation_sync(gcam->connection, GB_CAMERA_TYPE_CAPTURE,
 				 req, req_size, NULL, 0);
+
+	kfree(req);
+
+	return ret;
 }
 
 static int gb_camera_flush(struct gb_camera *gcam, u32 *request_id)
