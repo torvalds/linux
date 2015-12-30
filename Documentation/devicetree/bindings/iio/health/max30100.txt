@@ -11,11 +11,19 @@ Required properties:
   Refer to interrupt-controller/interrupts.txt for generic
   interrupt client node bindings.
 
+Optional properties:
+  - maxim,led-current-microamp: configuration for LED current in microamperes
+    while the engine is running. First indexed value is the configuration for
+    the RED LED, and second value is for the IR LED.
+
+    Refer to the datasheet for the allowed current values.
+
 Example:
 
 max30100@057 {
 	compatible = "maxim,max30100";
 	reg = <57>;
+	maxim,led-current-microamp = <24000 50000>;
 	interrupt-parent = <&gpio1>;
 	interrupts = <16 2>;
 };
