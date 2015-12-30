@@ -981,38 +981,19 @@ static struct sctp_association *__sctp_lookup_association(
 					const union sctp_addr *peer,
 					struct sctp_transport **pt)
 {
-	struct sctp_hashbucket *head;
-	struct sctp_ep_common *epb;
-	struct sctp_association *asoc;
-	struct sctp_transport *transport;
-	int hash;
+	struct sctp_transport *t;
 
-	/* Optimize here for direct hit, only listening connections can
-	 * have wildcards anyways.
-	 */
-	hash = sctp_assoc_hashfn(net, ntohs(local->v4.sin_port),
-				 ntohs(peer->v4.sin_port));
-	head = &sctp_assoc_hashtable[hash];
-	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, &head->chain) {
-		asoc = sctp_assoc(epb);
-		transport = sctp_assoc_is_match(asoc, net, local, peer);
-		if (transport)
-			goto hit;
-	}
+	t = sctp_addrs_lookup_transport(net, local, peer);
+	if (!t || t->dead || t->asoc->temp)
+		return NULL;
 
-	read_unlock(&head->lock);
+	sctp_association_hold(t->asoc);
+	*pt = t;
 
-	return NULL;
-
-hit:
-	*pt = transport;
-	sctp_association_hold(asoc);
-	read_unlock(&head->lock);
-	return asoc;
+	return t->asoc;
 }
 
-/* Look up an association. BH-safe. */
+/* Look up an association. protected by RCU read lock */
 static
 struct sctp_association *sctp_lookup_association(struct net *net,
 						 const union sctp_addr *laddr,
@@ -1021,9 +1002,9 @@ struct sctp_association *sctp_lookup_association(struct net *net,
 {
 	struct sctp_association *asoc;
 
-	local_bh_disable();
+	rcu_read_lock();
 	asoc = __sctp_lookup_association(net, laddr, paddr, transportp);
-	local_bh_enable();
+	rcu_read_unlock();
 
 	return asoc;
 }
