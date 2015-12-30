@@ -560,8 +560,6 @@
 		extcon_usb2: tps659038_usb {
 			compatible = "ti,palmas-usb-vid";
 			ti,enable-vbus-detection;
-			ti,enable-id-detection;
-			id-gpios = <&gpio7 24 GPIO_ACTIVE_HIGH>;
 		};
 
 	};
