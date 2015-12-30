@@ -4428,7 +4428,7 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
 {
 	int result = 0;
 	struct host_if_msg msg;
-	struct set_multicast *pstrMulticastFilterParam = &msg.body.multicast_info;
+	struct set_multicast *multicast_filter_param = &msg.body.multicast_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
@@ -4443,8 +4443,8 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
 	msg.id = HOST_IF_MSG_SET_MULTICAST_FILTER;
 	msg.vif = vif;
 
-	pstrMulticastFilterParam->enabled = enabled;
-	pstrMulticastFilterParam->cnt = count;
+	multicast_filter_param->enabled = enabled;
+	multicast_filter_param->cnt = count;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
