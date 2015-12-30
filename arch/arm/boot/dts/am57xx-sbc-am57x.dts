@@ -108,9 +108,9 @@
 	pinctrl-0 = <&i2c5_pins_default>;
 	clock-frequency = <400000>;
 
-	eeprom_base: atmel@50 {
+	eeprom_base: atmel@54 {
 		compatible = "atmel,24c08";
-		reg = <0x50>;
+		reg = <0x54>;
 		pagesize = <16>;
 	};
 
