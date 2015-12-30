@@ -77,7 +77,7 @@ out_drop:
 /*
  * Verify that dentry is valid.
  *
- * Should return 1 if dentry can still be trusted, else 0
+ * Should return 1 if dentry can still be trusted, else 0.
  */
 static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
@@ -92,49 +92,27 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	/* find inode from dentry */
 	if (!dentry->d_inode) {
-		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: negative dentry.\n",
+		gossip_debug(GOSSIP_DCACHE_DEBUG,
+			     "%s: negative dentry.\n",
 			     __func__);
-		goto invalid_exit;
+		goto out;
 	}
 
 	gossip_debug(GOSSIP_DCACHE_DEBUG, "%s: inode valid.\n", __func__);
 	inode = dentry->d_inode;
 
-	/*
-	 * first perform a lookup to make sure that the object not only
-	 * exists, but is still in the expected place in the name space
-	 */
-	if (!is_root_handle(inode)) {
-		if (!orangefs_revalidate_lookup(dentry))
-			goto invalid_exit;
-	} else {
-		gossip_debug(GOSSIP_DCACHE_DEBUG,
-			     "%s: root handle, lookup skipped.\n",
-			     __func__);
+	/* skip root handle lookups. */
+	if (is_root_handle(inode)) {
+		ret = 1;
+		goto out;
 	}
 
-	/* now perform getattr */
-	gossip_debug(GOSSIP_DCACHE_DEBUG,
-		     "%s: doing getattr: inode: %p, handle: %pU\n",
-		     __func__,
-		     inode,
-		     get_khandle_from_ino(inode));
-	ret = orangefs_inode_getattr(inode, ORANGEFS_ATTR_SYS_ALL_NOHINT);
-	gossip_debug(GOSSIP_DCACHE_DEBUG,
-		     "%s: getattr %s (ret = %d), returning %s for dentry i_count=%d\n",
-		     __func__,
-		     (ret == 0 ? "succeeded" : "failed"),
-		     ret,
-		     (ret == 0 ? "valid" : "INVALID"),
-		     atomic_read(&inode->i_count));
-	if (ret != 0)
-		goto invalid_exit;
+	/* lookup the object. */
+	if (orangefs_revalidate_lookup(dentry))
+		ret = 1;
 
-	/* dentry is valid! */
-	return 1;
-
-invalid_exit:
-	return 0;
+out:
+	return ret;
 }
 
 const struct dentry_operations orangefs_dentry_operations = {
