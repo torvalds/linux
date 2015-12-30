@@ -432,8 +432,7 @@ static struct irq_chip *davinci_gpio_get_irq_chip(unsigned int irq)
 {
 	static struct irq_chip_type gpio_unbanked;
 
-	gpio_unbanked = *container_of(irq_get_chip(irq),
-				      struct irq_chip_type, chip);
+	gpio_unbanked = *irq_data_get_chip_type(irq_get_irq_data(irq));
 
 	return &gpio_unbanked.chip;
 };
