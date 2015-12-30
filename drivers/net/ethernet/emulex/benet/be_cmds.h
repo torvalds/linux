@@ -291,9 +291,7 @@ struct be_cmd_req_hdr {
 	u32 timeout;		/* dword 1 */
 	u32 request_length;	/* dword 2 */
 	u8 version;		/* dword 3 */
-	u8 rsvd1;		/* dword 3 */
-	u8 pf_num;		/* dword 3 */
-	u8 rsvd2;		/* dword 3 */
+	u8 rsvd[3];		/* dword 3 */
 };
 
 #define RESP_HDR_INFO_OPCODE_SHIFT	0	/* bits 0 - 7 */
@@ -1676,11 +1674,7 @@ struct mgmt_hba_attribs {
 
 struct mgmt_controller_attrib {
 	struct mgmt_hba_attribs hba_attribs;
-	u32 rsvd0[2];
-	u16 rsvd1;
-	u8 pci_func_num;
-	u8 rsvd2;
-	u32 rsvd3[7];
+	u32 rsvd0[10];
 } __packed;
 
 struct be_cmd_req_cntl_attribs {
@@ -2105,6 +2099,7 @@ struct be_port_res_desc {
 #define NV_TYPE_VXLAN				3
 #define SOCVID_SHIFT				2	/* Strip outer vlan */
 #define RCVID_SHIFT				4	/* Report vlan */
+#define PF_NUM_IGNORE				255
 	u8 nv_flags;
 	u8 rsvd2;
 	__le16 nv_port;					/* vxlan/gre port */

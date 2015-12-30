@@ -570,6 +570,8 @@ struct be_adapter {
 	struct be_resources pool_res;	/* resources available for the port */
 	struct be_resources res;	/* resources available for the func */
 	u16 num_vfs;			/* Number of VFs provisioned by PF */
+	u8 pf_num;			/* Numbering used by FW, starts at 0 */
+	u8 vf_num;			/* Numbering used by FW, starts at 1 */
 	u8 virtfn;
 	struct be_vf_cfg *vf_cfg;
 	bool be3_native;
@@ -587,8 +589,6 @@ struct be_adapter {
 	u32 msg_enable;
 	int be_get_temp_freq;
 	struct be_hwmon hwmon_info;
-	u8 pf_number;
-	u8 pci_func_num;
 	struct rss_info rss_info;
 	/* Filters for packets that need to be sent to BMC */
 	u32 bmc_filt_mask;
