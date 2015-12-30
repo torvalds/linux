@@ -30,6 +30,7 @@
 #include <linux/spi/spi.h>
 #include <linux/wl12xx.h>
 #include <linux/platform_device.h>
+#include <linux/of_irq.h>
 #include <linux/regulator/consumer.h>
 
 #include "wlcore.h"
@@ -357,6 +358,39 @@ static struct wl1271_if_operations spi_ops = {
 	.set_block_size = NULL,
 };
 
+static const struct of_device_id wlcore_spi_of_match_table[] = {
+	{ .compatible = "ti,wl1271" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wlcore_spi_of_match_table);
+
+/**
+ * wlcore_probe_of - DT node parsing.
+ * @spi: SPI slave device parameters.
+ * @res: resource parameters.
+ * @glue: wl12xx SPI bus to slave device glue parameters.
+ * @pdev_data: wlcore device parameters
+ */
+static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
+			   struct wlcore_platdev_data *pdev_data)
+{
+	struct device_node *dt_node = spi->dev.of_node;
+	int ret;
+
+	if (of_find_property(dt_node, "clock-xtal", NULL))
+		pdev_data->ref_clock_xtal = true;
+
+	ret = of_property_read_u32(dt_node, "ref-clock-frequency",
+				   &pdev_data->ref_clock_freq);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(glue->dev,
+			"can't get reference clock frequency (%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int wl1271_probe(struct spi_device *spi)
 {
 	struct wl12xx_spi_glue *glue;
@@ -365,8 +399,6 @@ static int wl1271_probe(struct spi_device *spi)
 	int ret;
 
 	memset(&pdev_data, 0x00, sizeof(pdev_data));
-
-	/* TODO: add DT parsing when needed */
 
 	pdev_data.if_ops = &spi_ops;
 
@@ -392,6 +424,13 @@ static int wl1271_probe(struct spi_device *spi)
 		return PTR_ERR(glue->reg);
 	}
 
+	ret = wlcore_probe_of(spi, glue, &pdev_data);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(glue->dev,
+			"can't get device tree parameters (%d)\n", ret);
+		return ret;
+	}
+
 	ret = spi_setup(spi);
 	if (ret < 0) {
 		dev_err(glue->dev, "spi_setup failed\n");
@@ -409,7 +448,7 @@ static int wl1271_probe(struct spi_device *spi)
 	memset(res, 0x00, sizeof(res));
 
 	res[0].start = spi->irq;
-	res[0].flags = IORESOURCE_IRQ;
+	res[0].flags = IORESOURCE_IRQ | irq_get_trigger_type(spi->irq);
 	res[0].name = "irq";
 
 	ret = platform_device_add_resources(glue->core, res, ARRAY_SIZE(res));
@@ -447,10 +486,10 @@ static int wl1271_remove(struct spi_device *spi)
 	return 0;
 }
 
-
 static struct spi_driver wl1271_spi_driver = {
 	.driver = {
 		.name		= "wl1271_spi",
+		.of_match_table = of_match_ptr(wlcore_spi_of_match_table),
 	},
 
 	.probe		= wl1271_probe,
