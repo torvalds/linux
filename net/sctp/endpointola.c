@@ -317,7 +317,7 @@ struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *ep,
  * We lookup the transport from hashtable at first, then get association
  * through t->assoc.
  */
-static struct sctp_association *__sctp_endpoint_lookup_assoc(
+struct sctp_association *sctp_endpoint_lookup_assoc(
 	const struct sctp_endpoint *ep,
 	const union sctp_addr *paddr,
 	struct sctp_transport **transport)
@@ -339,21 +339,6 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	*transport = t;
 	asoc = t->asoc;
 out:
-	return asoc;
-}
-
-/* Lookup association on an endpoint based on a peer address.  BH-safe.  */
-struct sctp_association *sctp_endpoint_lookup_assoc(
-	const struct sctp_endpoint *ep,
-	const union sctp_addr *paddr,
-	struct sctp_transport **transport)
-{
-	struct sctp_association *asoc;
-
-	local_bh_disable();
-	asoc = __sctp_endpoint_lookup_assoc(ep, paddr, transport);
-	local_bh_enable();
-
 	return asoc;
 }
 
