@@ -161,6 +161,22 @@ static u8 nvt_cir_wake_reg_read(struct nvt_dev *nvt, u8 offset)
 	return val;
 }
 
+/* don't override io address if one is set already */
+static void nvt_set_ioaddr(struct nvt_dev *nvt, unsigned long *ioaddr)
+{
+	unsigned long old_addr;
+
+	old_addr = nvt_cr_read(nvt, CR_CIR_BASE_ADDR_HI) << 8;
+	old_addr |= nvt_cr_read(nvt, CR_CIR_BASE_ADDR_LO);
+
+	if (old_addr)
+		*ioaddr = old_addr;
+	else {
+		nvt_cr_write(nvt, *ioaddr >> 8, CR_CIR_BASE_ADDR_HI);
+		nvt_cr_write(nvt, *ioaddr & 0xff, CR_CIR_BASE_ADDR_LO);
+	}
+}
+
 /* dump current cir register contents */
 static void cir_dump_regs(struct nvt_dev *nvt)
 {
@@ -332,8 +348,7 @@ static void nvt_cir_ldev_init(struct nvt_dev *nvt)
 	/* Select CIR logical device */
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR);
 
-	nvt_cr_write(nvt, nvt->cir_addr >> 8, CR_CIR_BASE_ADDR_HI);
-	nvt_cr_write(nvt, nvt->cir_addr & 0xff, CR_CIR_BASE_ADDR_LO);
+	nvt_set_ioaddr(nvt, &nvt->cir_addr);
 
 	nvt_cr_write(nvt, nvt->cir_irq, CR_CIR_IRQ_RSRC);
 
@@ -356,8 +371,7 @@ static void nvt_cir_wake_ldev_init(struct nvt_dev *nvt)
 	/* Select CIR Wake logical device */
 	nvt_select_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
 
-	nvt_cr_write(nvt, nvt->cir_wake_addr >> 8, CR_CIR_BASE_ADDR_HI);
-	nvt_cr_write(nvt, nvt->cir_wake_addr & 0xff, CR_CIR_BASE_ADDR_LO);
+	nvt_set_ioaddr(nvt, &nvt->cir_wake_addr);
 
 	nvt_cr_write(nvt, nvt->cir_wake_irq, CR_CIR_IRQ_RSRC);
 
