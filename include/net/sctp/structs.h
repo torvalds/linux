@@ -120,8 +120,6 @@ extern struct sctp_globals {
 
 	/* This is the hash of all endpoints. */
 	struct sctp_hashbucket *ep_hashtable;
-	/* This is the hash of all associations. */
-	struct sctp_hashbucket *assoc_hashtable;
 	/* This is the sctp port control hash.	*/
 	struct sctp_bind_hashbucket *port_hashtable;
 	/* This is the hash of all transports. */
@@ -129,7 +127,6 @@ extern struct sctp_globals {
 
 	/* Sizes of above hashtables. */
 	int ep_hashsize;
-	int assoc_hashsize;
 	int port_hashsize;
 
 	/* Default initialization values to be applied to new associations. */
@@ -146,8 +143,6 @@ extern struct sctp_globals {
 #define sctp_address_families		(sctp_globals.address_families)
 #define sctp_ep_hashsize		(sctp_globals.ep_hashsize)
 #define sctp_ep_hashtable		(sctp_globals.ep_hashtable)
-#define sctp_assoc_hashsize		(sctp_globals.assoc_hashsize)
-#define sctp_assoc_hashtable		(sctp_globals.assoc_hashtable)
 #define sctp_port_hashsize		(sctp_globals.port_hashsize)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
 #define sctp_transport_hashtable	(sctp_globals.transport_hashtable)

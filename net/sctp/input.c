@@ -913,67 +913,6 @@ struct sctp_transport *sctp_epaddr_lookup_transport(
 	return sctp_addrs_lookup_transport(net, &addr->a, paddr);
 }
 
-/* Insert association into the hash table.  */
-static void __sctp_hash_established(struct sctp_association *asoc)
-{
-	struct net *net = sock_net(asoc->base.sk);
-	struct sctp_ep_common *epb;
-	struct sctp_hashbucket *head;
-
-	epb = &asoc->base;
-
-	/* Calculate which chain this entry will belong to. */
-	epb->hashent = sctp_assoc_hashfn(net, epb->bind_addr.port,
-					 asoc->peer.port);
-
-	head = &sctp_assoc_hashtable[epb->hashent];
-
-	write_lock(&head->lock);
-	hlist_add_head(&epb->node, &head->chain);
-	write_unlock(&head->lock);
-}
-
-/* Add an association to the hash. Local BH-safe. */
-void sctp_hash_established(struct sctp_association *asoc)
-{
-	if (asoc->temp)
-		return;
-
-	local_bh_disable();
-	__sctp_hash_established(asoc);
-	local_bh_enable();
-}
-
-/* Remove association from the hash table.  */
-static void __sctp_unhash_established(struct sctp_association *asoc)
-{
-	struct net *net = sock_net(asoc->base.sk);
-	struct sctp_hashbucket *head;
-	struct sctp_ep_common *epb;
-
-	epb = &asoc->base;
-
-	epb->hashent = sctp_assoc_hashfn(net, epb->bind_addr.port,
-					 asoc->peer.port);
-
-	head = &sctp_assoc_hashtable[epb->hashent];
-
-	write_lock(&head->lock);
-	hlist_del_init(&epb->node);
-	write_unlock(&head->lock);
-}
-
-/* Remove association from the hash table.  Local BH-safe. */
-void sctp_unhash_established(struct sctp_association *asoc)
-{
-	if (asoc->temp)
-		return;
-
-	local_bh_disable();
-	__sctp_unhash_established(asoc);
-	local_bh_enable();
-}
-
 /* Look up an association. */
 static struct sctp_association *__sctp_lookup_association(
 					struct net *net,

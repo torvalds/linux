@@ -866,7 +866,6 @@ static void sctp_cmd_delete_tcb(sctp_cmd_seq_t *cmds,
 	    (!asoc->temp) && (sk->sk_shutdown != SHUTDOWN_MASK))
 		return;
 
-	sctp_unhash_established(asoc);
 	sctp_association_free(asoc);
 }
 
@@ -1269,7 +1268,6 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			asoc = cmd->obj.asoc;
 			BUG_ON(asoc->peer.primary_path == NULL);
 			sctp_endpoint_add_asoc(ep, asoc);
-			sctp_hash_established(asoc);
 			break;
 
 		case SCTP_CMD_UPDATE_ASSOC:
