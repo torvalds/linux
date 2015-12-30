@@ -280,6 +280,8 @@ static int32_t dwc_otg_hcd_disconnect_cb(void *p)
 {
 	gintsts_data_t intr;
 	dwc_otg_hcd_t *dwc_otg_hcd = p;
+	struct usb_hcd *usb_hcd = dwc_otg_hcd_get_priv_data(dwc_otg_hcd);
+	struct usb_bus *bus = hcd_to_bus(usb_hcd);
 	hprt0_data_t hprt0;
 
 	dwc_otg_hcd->non_periodic_qh_ptr = &dwc_otg_hcd->non_periodic_sched_active;
@@ -412,6 +414,9 @@ out:
 		dwc_otg_hcd->fops->disconnect(dwc_otg_hcd);
 	}
 
+	if ((bus->root_hub) && (usb_hcd->state == HC_STATE_SUSPENDED))
+		usb_hcd_resume_root_hub(usb_hcd);
+
 	return 1;
 }
 
@@ -476,6 +481,8 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	hprt0_data_t hprt0 = {.d32 = 0 };
 	struct dwc_otg_platform_data *pldata;
 	dwc_irqflags_t flags;
+	struct usb_hcd *usb_hcd = dwc_otg_hcd_get_priv_data(hcd);
+	struct usb_bus *bus = hcd_to_bus(usb_hcd);
 
 	pldata = hcd->core_if->otg_dev->pldata;
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD STOP\n");
@@ -505,6 +512,9 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 
 	if (pldata->power_enable)
 		pldata->power_enable(0);
+
+	if ((bus->root_hub) && (usb_hcd->state == HC_STATE_SUSPENDED))
+		usb_hcd_resume_root_hub(usb_hcd);
 
 	dwc_mdelay(1);
 }
