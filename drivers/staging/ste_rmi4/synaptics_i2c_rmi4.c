@@ -870,7 +870,7 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
  * Descriptor structure.
  * Describes the number of i2c devices on the bus that speak RMI.
  */
-static struct synaptics_rmi4_platform_data synaptics_rmi4_platformdata = {
+static const struct synaptics_rmi4_platform_data synaptics_rmi4_platformdata = {
 	.irq_type       = (IRQF_TRIGGER_FALLING | IRQF_SHARED),
 	.x_flip		= false,
 	.y_flip		= true,
