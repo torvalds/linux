@@ -30,6 +30,8 @@ struct alg_sock {
 
 	struct sock *parent;
 
+	unsigned int refcnt;
+
 	const struct af_alg_type *type;
 	void *private;
 };
@@ -67,6 +69,7 @@ int af_alg_register_type(const struct af_alg_type *type);
 int af_alg_unregister_type(const struct af_alg_type *type);
 
 int af_alg_release(struct socket *sock);
+void af_alg_release_parent(struct sock *sk);
 int af_alg_accept(struct sock *sk, struct socket *newsock);
 
 int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len);
@@ -81,11 +84,6 @@ void af_alg_complete(struct crypto_async_request *req, int err);
 static inline struct alg_sock *alg_sk(struct sock *sk)
 {
 	return (struct alg_sock *)sk;
-}
-
-static inline void af_alg_release_parent(struct sock *sk)
-{
-	sock_put(alg_sk(sk)->parent);
 }
 
 static inline void af_alg_init_completion(struct af_alg_completion *completion)
