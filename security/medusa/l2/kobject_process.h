@@ -35,6 +35,7 @@ struct process_kobject { /* was: m_proc_inf */
 	struct pid* pgrp;
 	kuid_t uid, euid, suid, fsuid;
 	kgid_t gid, egid, sgid, fsgid;
+        char cmdline[1024];
 
 	kuid_t luid;
 	kernel_cap_t ecap, icap, pcap;
