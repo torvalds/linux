@@ -51,6 +51,7 @@
 #define  PMC_CNTRL_CPU_PWRREQ_POLARITY	(1 << 15)  /* CPU pwr req polarity */
 #define  PMC_CNTRL_CPU_PWRREQ_OE	(1 << 16)  /* CPU pwr req enable */
 #define  PMC_CNTRL_INTR_POLARITY	(1 << 17)  /* inverts INTR polarity */
+#define  PMC_CNTRL_MAIN_RST		(1 <<  4)
 
 #define DPD_SAMPLE			0x020
 #define  DPD_SAMPLE_ENABLE		(1 << 0)
@@ -79,6 +80,14 @@
 #define PMC_SENSOR_CTRL			0x1b0
 #define PMC_SENSOR_CTRL_SCRATCH_WRITE	(1 << 2)
 #define PMC_SENSOR_CTRL_ENABLE_RST	(1 << 1)
+
+#define PMC_RST_STATUS			0x1b4
+#define  PMC_RST_STATUS_POR		0
+#define  PMC_RST_STATUS_WATCHDOG	1
+#define  PMC_RST_STATUS_SENSOR		2
+#define  PMC_RST_STATUS_SW_MAIN		3
+#define  PMC_RST_STATUS_LP0		4
+#define  PMC_RST_STATUS_AOTAG		5
 
 #define IO_DPD_REQ			0x1b8
 #define  IO_DPD_REQ_CODE_IDLE		(0 << 30)
@@ -638,9 +647,10 @@ static int tegra_pmc_restart_notify(struct notifier_block *this,
 
 	tegra_pmc_writel(value, PMC_SCRATCH0);
 
-	value = tegra_pmc_readl(0);
-	value |= 0x10;
-	tegra_pmc_writel(value, 0);
+	/* reset everything but PMC_SCRATCH0 and PMC_RST_STATUS */
+	value = tegra_pmc_readl(PMC_CNTRL);
+	value |= PMC_CNTRL_MAIN_RST;
+	tegra_pmc_writel(value, PMC_CNTRL);
 
 	return NOTIFY_DONE;
 }
