@@ -20,6 +20,8 @@
 #include <linux/component.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/suspend.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -59,9 +61,78 @@ static void tilcdc_fb_output_poll_changed(struct drm_device *dev)
 	drm_fbdev_cma_hotplug_event(priv->fbdev);
 }
 
+int tilcdc_atomic_check(struct drm_device *dev,
+			struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/*
+	 * tilcdc ->atomic_check can update ->mode_changed if pixel format
+	 * changes, hence will we check modeset changes again.
+	 */
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int tilcdc_commit(struct drm_device *dev,
+		  struct drm_atomic_state *state,
+		  bool async)
+{
+	int ret;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	drm_atomic_helper_swap_state(state, true);
+
+	/*
+	 * Everything below can be run asynchronously without the need to grab
+	 * any modeset locks at all under one condition: It must be guaranteed
+	 * that the asynchronous work has either been cancelled (if the driver
+	 * supports it, which at least requires that the framebuffers get
+	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
+	 * before the new state gets committed on the software side with
+	 * drm_atomic_helper_swap_state().
+	 *
+	 * This scheme allows new atomic state updates to be prepared and
+	 * checked in parallel to the asynchronous completion of the previous
+	 * update. Which is important since compositors need to figure out the
+	 * composition of the next frame right after having submitted the
+	 * current layout.
+	 */
+
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+
+	drm_atomic_helper_commit_planes(dev, state, false);
+
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
+
+	drm_atomic_state_free(state);
+
+	return 0;
+}
+
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = tilcdc_fb_create,
 	.output_poll_changed = tilcdc_fb_output_poll_changed,
+	.atomic_check = tilcdc_atomic_check,
+	.atomic_commit = tilcdc_commit,
 };
 
 static int modeset_init(struct drm_device *dev)
