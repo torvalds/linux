@@ -3768,6 +3768,25 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		}
 		if (!ret) {
 			ret = write_one_cache_group(trans, root, path, cache);
+			/*
+			 * One of the free space endio workers might have
+			 * created a new block group while updating a free space
+			 * cache's inode (at inode.c:btrfs_finish_ordered_io())
+			 * and hasn't released its transaction handle yet, in
+			 * which case the new block group is still attached to
+			 * its transaction handle and its creation has not
+			 * finished yet (no block group item in the extent tree
+			 * yet, etc). If this is the case, wait for all free
+			 * space endio workers to finish and retry. This is a
+			 * a very rare case so no need for a more efficient and
+			 * complex approach.
+			 */
+			if (ret == -ENOENT) {
+				wait_event(cur_trans->writer_wait,
+				   atomic_read(&cur_trans->num_writers) == 1);
+				ret = write_one_cache_group(trans, root, path,
+							    cache);
+			}
 			if (ret)
 				btrfs_abort_transaction(trans, root, ret);
 		}
