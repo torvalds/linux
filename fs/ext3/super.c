@@ -412,6 +412,22 @@ static void dump_orphan_list(struct super_block *sb, struct ext3_sb_info *sbi)
 	}
 }
 
+/*
+ * The del_gendisk() function uninitializes the disk-specific data
+ * structures, including the bdi structure, without telling anyone
+ * else.  Once this happens, any attempt to call mark_buffer_dirty()
+ * (for example, by ext4_commit_super), will cause a kernel OOPS.
+ * This is a kludge to prevent these oops until we can put in a proper
+ * hook in del_gendisk() to inform the VFS and file system layers.
+ */
+static int ext3_block_device_ejected(struct super_block *sb)
+{
+	struct inode *bd_inode = sb->s_bdev->bd_inode;
+	struct backing_dev_info *bdi = inode_to_bdi(bd_inode);
+
+	return bdi->dev == NULL;
+}
+
 static void ext3_put_super (struct super_block * sb)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
@@ -428,9 +444,11 @@ static void ext3_put_super (struct super_block * sb)
 	if (!(sb->s_flags & MS_RDONLY)) {
 		EXT3_CLEAR_INCOMPAT_FEATURE(sb, EXT3_FEATURE_INCOMPAT_RECOVER);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
-		BUFFER_TRACE(sbi->s_sbh, "marking dirty");
-		mark_buffer_dirty(sbi->s_sbh);
-		ext3_commit_super(sb, es, 1);
+		if (!ext3_block_device_ejected(sb)) {
+			BUFFER_TRACE(sbi->s_sbh, "marking dirty");
+			mark_buffer_dirty(sbi->s_sbh);
+			ext3_commit_super(sb, es, 1);
+		}
 	}
 
 	for (i = 0; i < sbi->s_gdb_count; i++)
