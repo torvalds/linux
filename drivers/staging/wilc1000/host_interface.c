@@ -4098,7 +4098,7 @@ s32 wilc_remain_on_channel(struct wilc_vif *vif, u32 u32SessionID,
 	return result;
 }
 
-int wilc_listen_state_expired(struct wilc_vif *vif, u32 u32SessionID)
+int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4114,7 +4114,7 @@ int wilc_listen_state_expired(struct wilc_vif *vif, u32 u32SessionID)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_LISTEN_TIMER_FIRED;
 	msg.vif = vif;
-	msg.body.remain_on_ch.id = u32SessionID;
+	msg.body.remain_on_ch.id = session_id;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
