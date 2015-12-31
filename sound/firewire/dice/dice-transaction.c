@@ -65,16 +65,15 @@ static unsigned int get_clock_info(struct snd_dice *dice, __be32 *info)
 static int set_clock_info(struct snd_dice *dice,
 			  unsigned int rate, unsigned int source)
 {
-	unsigned int retries = 3;
 	unsigned int i;
 	__be32 info;
 	u32 mask;
 	u32 clock;
 	int err;
-retry:
+
 	err = get_clock_info(dice, &info);
 	if (err < 0)
-		goto end;
+		return err;
 
 	clock = be32_to_cpu(info);
 	if (source != UINT_MAX) {
@@ -87,10 +86,8 @@ retry:
 			if (snd_dice_rates[i] == rate)
 				break;
 		}
-		if (i == ARRAY_SIZE(snd_dice_rates)) {
-			err = -EINVAL;
-			goto end;
-		}
+		if (i == ARRAY_SIZE(snd_dice_rates))
+			return -EINVAL;
 
 		mask = CLOCK_RATE_MASK;
 		clock &= ~mask;
@@ -104,25 +101,13 @@ retry:
 	err = snd_dice_transaction_write_global(dice, GLOBAL_CLOCK_SELECT,
 						&info, 4);
 	if (err < 0)
-		goto end;
+		return err;
 
-	/* Timeout means it's invalid request, probably bus reset occurred. */
 	if (wait_for_completion_timeout(&dice->clock_accepted,
-			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0) {
-		if (retries-- == 0) {
-			err = -ETIMEDOUT;
-			goto end;
-		}
+			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0)
+		return -ETIMEDOUT;
 
-		err = snd_dice_transaction_reinit(dice);
-		if (err < 0)
-			goto end;
-
-		msleep(500);	/* arbitrary */
-		goto retry;
-	}
-end:
-	return err;
+	return 0;
 }
 
 int snd_dice_transaction_get_clock_source(struct snd_dice *dice,
