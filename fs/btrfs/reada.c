@@ -708,7 +708,7 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	logical = re->logical;
 
 	spin_lock(&re->lock);
-	if (re->scheduled_for == NULL) {
+	if (!re->scheduled_for && !list_empty(&re->extctl)) {
 		re->scheduled_for = dev;
 		need_kick = 1;
 	}
