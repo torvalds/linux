@@ -783,6 +783,7 @@ struct f2fs_sb_info {
 	unsigned int total_node_count;		/* total node block count */
 	unsigned int total_valid_node_count;	/* valid node block count */
 	unsigned int total_valid_inode_count;	/* valid inode count */
+	loff_t max_file_blocks;			/* max block index of file */
 	int active_logs;			/* # of active logs */
 	int dir_level;				/* directory level */
 
@@ -1727,7 +1728,6 @@ static inline int f2fs_add_link(struct dentry *dentry, struct inode *inode)
  * super.c
  */
 int f2fs_commit_super(struct f2fs_sb_info *, bool);
-loff_t max_file_size(unsigned bits);
 int f2fs_sync_fs(struct super_block *, int);
 extern __printf(3, 4)
 void f2fs_msg(struct super_block *, const char *, const char *, ...);
