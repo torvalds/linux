@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -943,6 +944,47 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
+					       char *buf, size_t count,
+					       loff_t *ppos)
+{
+	struct iwl_rss_config_cmd cmd = {
+		.flags = cpu_to_le32(IWL_RSS_ENABLE),
+		.hash_mask = IWL_RSS_HASH_TYPE_IPV4_TCP |
+			     IWL_RSS_HASH_TYPE_IPV4_PAYLOAD |
+			     IWL_RSS_HASH_TYPE_IPV6_TCP |
+			     IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
+	};
+	int ret, i, num_repeats, nbytes = count / 2;
+
+	ret = hex2bin(cmd.indirection_table, buf, nbytes);
+	if (ret)
+		return ret;
+
+	/*
+	 * The input is the redirection table, partial or full.
+	 * Repeat the pattern if needed.
+	 * For example, input of 01020F will be repeated 42 times,
+	 * indirecting RSS hash results to queues 1, 2, 15 (skipping
+	 * queues 3 - 14).
+	 */
+	num_repeats = ARRAY_SIZE(cmd.indirection_table) / nbytes;
+	for (i = 1; i < num_repeats; i++)
+		memcpy(&cmd.indirection_table[i * nbytes],
+		       cmd.indirection_table, nbytes);
+	/* handle cut in the middle pattern for the last places */
+	memcpy(&cmd.indirection_table[i * nbytes], cmd.indirection_table,
+	       ARRAY_SIZE(cmd.indirection_table) % nbytes);
+
+	memcpy(cmd.secret_key, mvm->secret_key, ARRAY_SIZE(cmd.secret_key));
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
 static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
@@ -1455,6 +1497,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(cont_recording, 8);
+MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl, 16);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -1499,6 +1542,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(cont_recording, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, S_IWUSR);
 	if (!debugfs_create_bool("enable_scan_iteration_notif",
 				 S_IRUSR | S_IWUSR,
 				 mvm->debugfs_dir,

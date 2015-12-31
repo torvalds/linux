@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -361,5 +361,34 @@ struct iwl_frame_release {
 	u8 reserved;
 	__le16 nssn;
 };
+
+enum iwl_rss_hash_func_en {
+	IWL_RSS_HASH_TYPE_IPV4_TCP,
+	IWL_RSS_HASH_TYPE_IPV4_UDP,
+	IWL_RSS_HASH_TYPE_IPV4_PAYLOAD,
+	IWL_RSS_HASH_TYPE_IPV6_TCP,
+	IWL_RSS_HASH_TYPE_IPV6_UDP,
+	IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
+};
+
+#define IWL_RSS_HASH_KEY_CNT 10
+#define IWL_RSS_INDIRECTION_TABLE_SIZE 128
+#define IWL_RSS_ENABLE 1
+
+/**
+ * struct iwl_rss_config_cmd - RSS (Receive Side Scaling) configuration
+ *
+ * @flags: 1 - enable, 0 - disable
+ * @hash_mask: Type of RSS to use. Values are from %iwl_rss_hash_func_en
+ * @secret_key: 320 bit input of random key configuration from driver
+ * @indirection_table: indirection table
+ */
+struct iwl_rss_config_cmd {
+	__le32 flags;
+	u8 hash_mask;
+	u8 reserved[3];
+	__le32 secret_key[IWL_RSS_HASH_KEY_CNT];
+	u8 indirection_table[IWL_RSS_INDIRECTION_TABLE_SIZE];
+} __packed; /* RSS_CONFIG_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_rx_h__ */

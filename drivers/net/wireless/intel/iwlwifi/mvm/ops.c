@@ -347,6 +347,7 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(MAC_PM_POWER_TABLE),
 	HCMD_NAME(TDLS_CHANNEL_SWITCH_NOTIFICATION),
 	HCMD_NAME(MFUART_LOAD_NOTIFICATION),
+	HCMD_NAME(RSS_CONFIG_CMD),
 	HCMD_NAME(SCAN_ITERATION_COMPLETE_UMAC),
 	HCMD_NAME(REPLY_RX_PHY_CMD),
 	HCMD_NAME(REPLY_RX_MPDU_CMD),
@@ -650,6 +651,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_trans_unref(mvm->trans);
 
 	iwl_mvm_tof_init(mvm);
+
+	/* init RSS hash key */
+	get_random_bytes(mvm->secret_key, ARRAY_SIZE(mvm->secret_key));
 
 	return op_mode;
 

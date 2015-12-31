@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -105,6 +106,24 @@ static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 	IWL_DEBUG_FW(mvm, "select valid tx ant: %u\n", valid_tx_ant);
 	return iwl_mvm_send_cmd_pdu(mvm, TX_ANT_CONFIGURATION_CMD, 0,
 				    sizeof(tx_ant_cmd), &tx_ant_cmd);
+}
+
+static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
+{
+	int i;
+	struct iwl_rss_config_cmd cmd = {
+		.flags = cpu_to_le32(IWL_RSS_ENABLE),
+		.hash_mask = IWL_RSS_HASH_TYPE_IPV4_TCP |
+			     IWL_RSS_HASH_TYPE_IPV4_PAYLOAD |
+			     IWL_RSS_HASH_TYPE_IPV6_TCP |
+			     IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
+	};
+
+	for (i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
+		cmd.indirection_table[i] = i % mvm->trans->num_rx_queues;
+	memcpy(cmd.secret_key, mvm->secret_key, ARRAY_SIZE(cmd.secret_key));
+
+	return iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
 }
 
 static void iwl_free_fw_paging(struct iwl_mvm *mvm)
@@ -893,6 +912,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	ret = iwl_send_phy_cfg_cmd(mvm);
 	if (ret)
 		goto error;
+
+	/* Init RSS configuration */
+	if (iwl_mvm_has_new_rx_api(mvm)) {
+		ret = iwl_send_rss_cfg_cmd(mvm);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to configure RSS queues: %d\n",
+				ret);
+			goto error;
+		}
+	}
 
 	/* init the fw <-> mac80211 STA mapping */
 	for (i = 0; i < IWL_MVM_STATION_COUNT; i++)

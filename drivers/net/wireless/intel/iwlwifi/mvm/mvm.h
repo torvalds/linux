@@ -647,6 +647,7 @@ struct iwl_mvm {
 	atomic_t pending_frames[IWL_MVM_STATION_COUNT];
 	u32 tfd_drained[IWL_MVM_STATION_COUNT];
 	u8 rx_ba_sessions;
+	u32 secret_key[IWL_RSS_HASH_KEY_CNT];
 
 	/* configured by mac80211 */
 	u32 rts_threshold;
