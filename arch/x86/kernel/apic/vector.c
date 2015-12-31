@@ -31,7 +31,7 @@ struct apic_chip_data {
 struct irq_domain *x86_vector_domain;
 EXPORT_SYMBOL_GPL(x86_vector_domain);
 static DEFINE_RAW_SPINLOCK(vector_lock);
-static cpumask_var_t vector_cpumask;
+static cpumask_var_t vector_cpumask, searched_cpumask;
 static struct irq_chip lapic_controller;
 #ifdef	CONFIG_X86_IO_APIC
 static struct apic_chip_data *legacy_irq_data[NR_IRQS_LEGACY];
@@ -126,6 +126,7 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 	/* Only try and allocate irqs on cpus that are present */
 	err = -ENOSPC;
 	cpumask_clear(d->old_domain);
+	cpumask_clear(searched_cpumask);
 	cpu = cpumask_first_and(mask, cpu_online_mask);
 	while (cpu < nr_cpu_ids) {
 		int new_cpu, vector, offset;
@@ -159,9 +160,9 @@ next:
 		}
 
 		if (unlikely(current_vector == vector)) {
-			cpumask_or(d->old_domain, d->old_domain,
+			cpumask_or(searched_cpumask, searched_cpumask,
 				   vector_cpumask);
-			cpumask_andnot(vector_cpumask, mask, d->old_domain);
+			cpumask_andnot(vector_cpumask, mask, searched_cpumask);
 			cpu = cpumask_first_and(vector_cpumask,
 						cpu_online_mask);
 			continue;
@@ -406,6 +407,7 @@ int __init arch_early_irq_init(void)
 	arch_init_htirq_domain(x86_vector_domain);
 
 	BUG_ON(!alloc_cpumask_var(&vector_cpumask, GFP_KERNEL));
+	BUG_ON(!alloc_cpumask_var(&searched_cpumask, GFP_KERNEL));
 
 	return arch_early_ioapic_init();
 }
