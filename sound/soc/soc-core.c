@@ -2744,6 +2744,56 @@ static void snd_soc_unregister_dais(struct snd_soc_component *component)
 	}
 }
 
+/* Create a DAI and add it to the component's DAI list */
+static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
+	struct snd_soc_dai_driver *dai_drv,
+	bool legacy_dai_naming)
+{
+	struct device *dev = component->dev;
+	struct snd_soc_dai *dai;
+
+	dev_dbg(dev, "ASoC: dynamically register DAI %s\n", dev_name(dev));
+
+	dai = kzalloc(sizeof(struct snd_soc_dai), GFP_KERNEL);
+	if (dai == NULL)
+		return NULL;
+
+	/*
+	 * Back in the old days when we still had component-less DAIs,
+	 * instead of having a static name, component-less DAIs would
+	 * inherit the name of the parent device so it is possible to
+	 * register multiple instances of the DAI. We still need to keep
+	 * the same naming style even though those DAIs are not
+	 * component-less anymore.
+	 */
+	if (legacy_dai_naming &&
+	   (dai_drv->id == 0 || dai_drv->name == NULL)) {
+		dai->name = fmt_single_name(dev, &dai->id);
+	} else {
+		dai->name = fmt_multiple_name(dev, dai_drv);
+		if (dai_drv->id)
+			dai->id = dai_drv->id;
+		else
+			dai->id = component->num_dai;
+	}
+	if (dai->name == NULL) {
+		kfree(dai);
+		return NULL;
+	}
+
+	dai->component = component;
+	dai->dev = dev;
+	dai->driver = dai_drv;
+	if (!dai->driver->ops)
+		dai->driver->ops = &null_dai_ops;
+
+	list_add(&dai->list, &component->dai_list);
+	component->num_dai++;
+
+	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
+	return dai;
+}
+
 /**
  * snd_soc_register_dais - Register a DAI with the ASoC core
  *
@@ -2765,49 +2815,15 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 	dev_dbg(dev, "ASoC: dai register %s #%Zu\n", dev_name(dev), count);
 
 	component->dai_drv = dai_drv;
-	component->num_dai = count;
 
 	for (i = 0; i < count; i++) {
 
-		dai = kzalloc(sizeof(struct snd_soc_dai), GFP_KERNEL);
+		dai = soc_add_dai(component, dai_drv + i,
+				count == 1 && legacy_dai_naming);
 		if (dai == NULL) {
 			ret = -ENOMEM;
 			goto err;
 		}
-
-		/*
-		 * Back in the old days when we still had component-less DAIs,
-		 * instead of having a static name, component-less DAIs would
-		 * inherit the name of the parent device so it is possible to
-		 * register multiple instances of the DAI. We still need to keep
-		 * the same naming style even though those DAIs are not
-		 * component-less anymore.
-		 */
-		if (count == 1 && legacy_dai_naming &&
-			(dai_drv[i].id == 0 || dai_drv[i].name == NULL)) {
-			dai->name = fmt_single_name(dev, &dai->id);
-		} else {
-			dai->name = fmt_multiple_name(dev, &dai_drv[i]);
-			if (dai_drv[i].id)
-				dai->id = dai_drv[i].id;
-			else
-				dai->id = i;
-		}
-		if (dai->name == NULL) {
-			kfree(dai);
-			ret = -ENOMEM;
-			goto err;
-		}
-
-		dai->component = component;
-		dai->dev = dev;
-		dai->driver = &dai_drv[i];
-		if (!dai->driver->ops)
-			dai->driver->ops = &null_dai_ops;
-
-		list_add(&dai->list, &component->dai_list);
-
-		dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
 	}
 
 	return 0;
