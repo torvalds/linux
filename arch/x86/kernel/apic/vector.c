@@ -633,9 +633,23 @@ void irq_complete_move(struct irq_cfg *cfg)
 void irq_force_complete_move(int irq)
 {
 	struct irq_cfg *cfg = irq_cfg(irq);
+	struct apic_chip_data *data;
 
-	if (cfg)
-		__irq_complete_move(cfg, cfg->vector);
+	if (!cfg)
+		return;
+
+	__irq_complete_move(cfg, cfg->vector);
+
+	/*
+	 * Remove this cpu from the cleanup mask. The IPI might have been sent
+	 * just before the cpu was removed from the offline mask, but has not
+	 * been processed because the CPU has interrupts disabled and is on
+	 * the way out.
+	 */
+	raw_spin_lock(&vector_lock);
+	data = container_of(cfg, struct apic_chip_data, cfg);
+	cpumask_clear_cpu(smp_processor_id(), data->old_domain);
+	raw_spin_unlock(&vector_lock);
 }
 #endif
 
