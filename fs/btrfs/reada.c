@@ -130,26 +130,26 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 	re->scheduled_for = NULL;
 	spin_unlock(&re->lock);
 
-	if (err == 0) {
-		nritems = level ? btrfs_header_nritems(eb) : 0;
-		generation = btrfs_header_generation(eb);
-		/*
-		 * FIXME: currently we just set nritems to 0 if this is a leaf,
-		 * effectively ignoring the content. In a next step we could
-		 * trigger more readahead depending from the content, e.g.
-		 * fetch the checksums for the extents in the leaf.
-		 */
-	} else {
-		/*
-		 * this is the error case, the extent buffer has not been
-		 * read correctly. We won't access anything from it and
-		 * just cleanup our data structures. Effectively this will
-		 * cut the branch below this node from read ahead.
-		 */
-		nritems = 0;
-		generation = 0;
-	}
+	/*
+	 * this is the error case, the extent buffer has not been
+	 * read correctly. We won't access anything from it and
+	 * just cleanup our data structures. Effectively this will
+	 * cut the branch below this node from read ahead.
+	 */
+	if (err)
+		goto cleanup;
 
+	/*
+	 * FIXME: currently we just set nritems to 0 if this is a leaf,
+	 * effectively ignoring the content. In a next step we could
+	 * trigger more readahead depending from the content, e.g.
+	 * fetch the checksums for the extents in the leaf.
+	 */
+	if (!level)
+		goto cleanup;
+
+	nritems = btrfs_header_nritems(eb);
+	generation = btrfs_header_generation(eb);
 	for (i = 0; i < nritems; i++) {
 		struct reada_extctl *rec;
 		u64 n_gen;
@@ -188,6 +188,8 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 				reada_add_block(rc, bytenr, &next_key, n_gen);
 		}
 	}
+
+cleanup:
 	/*
 	 * free extctl records
 	 */
