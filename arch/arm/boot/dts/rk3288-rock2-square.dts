@@ -49,6 +49,22 @@
 		stdout-path = "serial2:115200n8";
 	};
 
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		heartbeat {
+			gpios = <&gpio7 15 GPIO_ACTIVE_LOW>;
+			label = "rock2:green:state1";
+			linux,default-trigger = "heartbeat";
+		};
+
+		mmc {
+			gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
+			label = "rock2:blue:state2";
+			linux,default-trigger = "mmc0";
+		};
+	};
+
 	ir: ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio8 1 GPIO_ACTIVE_LOW>;
