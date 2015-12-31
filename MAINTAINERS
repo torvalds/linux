@@ -6429,7 +6429,7 @@ S:	Maintained
 F:	arch/powerpc/platforms/8xx/
 
 LINUX FOR POWERPC EMBEDDED PPC83XX AND PPC85XX
-M:	Scott Wood <scottwood@freescale.com>
+M:	Scott Wood <oss@buserror.net>
 M:	Kumar Gala <galak@kernel.crashing.org>
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@lists.ozlabs.org
