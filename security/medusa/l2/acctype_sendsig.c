@@ -6,6 +6,7 @@
 #include "kobject_process.h"
 #include <linux/medusa/l1/task.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 /* let's define the 'kill' access type, with object=task and subject=task. */
 
@@ -33,6 +34,10 @@ medusa_answer_t medusa_sendsig(int sig, struct siginfo *info, struct task_struct
 	struct send_signal access;
 	struct process_kobject sender;
 	struct process_kobject receiver;
+
+        memset(&access, '\0', sizeof(struct send_signal));
+        /* process_kobject sender is zeroed by process_kern2kobj function */
+        /* process_kobject receiver is zeroed by process_kern2kobj function */
 
 	if (in_interrupt())
 		return MED_OK;

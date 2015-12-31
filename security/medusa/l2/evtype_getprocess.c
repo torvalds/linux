@@ -34,7 +34,7 @@ int process_kobj_validate_task(struct task_struct * ts)
 	struct process_kobject proc;
 
         memset(&event, '\0', sizeof(struct getprocess_event));
-        memset(&proc, '\0', sizeof(struct process_kobject));
+        /* process_kobject proc is zeroed by process_kern2kobj function */
 
 	INIT_MEDUSA_OBJECT_VARS(&task_security(ts));
 	INIT_MEDUSA_SUBJECT_VARS(&task_security(ts));

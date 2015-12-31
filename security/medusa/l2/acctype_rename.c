@@ -2,6 +2,7 @@
 #include <linux/dcache.h>
 #include <linux/limits.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 #include "kobject_process.h"
 #include "kobject_file.h"
@@ -64,6 +65,10 @@ static medusa_answer_t medusa_do_rename(struct dentry *dentry, const char * newn
 	struct process_kobject process;
 	struct file_kobject file;
 	medusa_answer_t retval;
+
+        memset(&access, '\0', sizeof(struct rename_access));
+        /* process_kobject process is zeroed by process_kern2kobj function */
+        /* file_kobject file is zeroed by file_kern2kobj function */
 
 	file_kobj_dentry2string(dentry, access.filename);
 	memcpy(access.newname, newname, sizeof(access.newname)-1);

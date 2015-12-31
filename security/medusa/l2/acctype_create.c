@@ -4,6 +4,7 @@
 #include <linux/limits.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
 
 #include "kobject_process.h"
 #include "kobject_file.h"
@@ -73,6 +74,10 @@ static medusa_answer_t medusa_do_create(struct dentry * parent, struct dentry *d
 	struct process_kobject process;
 	struct file_kobject file;
 	medusa_answer_t retval;
+
+        memset(&access, '\0', sizeof(struct create_access));
+        /* process_kobject process is zeroed by process_kern2kobj function */
+        /* process_kobject file is zeroed by file_kern2kobj function */
 
 	file_kobj_dentry2string(dentry, access.filename);
 	access.mode = mode;

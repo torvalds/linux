@@ -1,6 +1,7 @@
 #include <linux/medusa/l3/registry.h>
 #include <linux/dcache.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 
 #include "kobject_process.h"
 
@@ -32,6 +33,9 @@ medusa_answer_t medusa_afterexec(char *filename, char **argv, char **envp)
 	struct afterexec_access access;
 	struct process_kobject process;
 	medusa_answer_t retval;
+
+        memset(&access, '\0', sizeof(struct afterexec_access));
+        /* process_kobject process is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(current)) &&
 		process_kobj_validate_task(current) <= 0)
