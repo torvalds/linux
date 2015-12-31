@@ -717,8 +717,6 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	}
 	logical = re->logical;
 
-	reada_extent_put(fs_info, re);
-
 	atomic_inc(&dev->reada_in_flight);
 	ret = reada_tree_block_flagged(fs_info->extent_root, logical,
 			mirror_num, &eb);
@@ -729,6 +727,8 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 
 	if (eb)
 		free_extent_buffer(eb);
+
+	reada_extent_put(fs_info, re);
 
 	return 1;
 
