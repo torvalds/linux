@@ -328,7 +328,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	u64 length;
 	int real_stripes;
 	int nzones = 0;
-	int i;
 	unsigned long index = logical >> PAGE_CACHE_SHIFT;
 	int dev_replace_is_ongoing;
 
@@ -375,9 +374,9 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 		dev = bbio->stripes[nzones].dev;
 		zone = reada_find_zone(fs_info, dev, logical, bbio);
 		if (!zone)
-			break;
+			continue;
 
-		re->zones[nzones] = zone;
+		re->zones[re->nzones++] = zone;
 		spin_lock(&zone->lock);
 		if (!zone->elems)
 			kref_get(&zone->refcnt);
@@ -387,8 +386,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 		kref_put(&zone->refcnt, reada_zone_release);
 		spin_unlock(&fs_info->reada_lock);
 	}
-	re->nzones = nzones;
-	if (nzones == 0) {
+	if (re->nzones == 0) {
 		/* not a single zone found, error and out */
 		goto error;
 	}
@@ -413,8 +411,9 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	prev_dev = NULL;
 	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(
 			&fs_info->dev_replace);
-	for (i = 0; i < nzones; ++i) {
-		dev = bbio->stripes[i].dev;
+	for (nzones = 0; nzones < re->nzones; ++nzones) {
+		dev = re->zones[nzones]->device;
+
 		if (dev == prev_dev) {
 			/*
 			 * in case of DUP, just add the first zone. As both
@@ -445,8 +444,8 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 		prev_dev = dev;
 		ret = radix_tree_insert(&dev->reada_extents, index, re);
 		if (ret) {
-			while (--i >= 0) {
-				dev = bbio->stripes[i].dev;
+			while (--nzones >= 0) {
+				dev = re->zones[nzones]->device;
 				BUG_ON(dev == NULL);
 				/* ignore whether the entry was inserted */
 				radix_tree_delete(&dev->reada_extents, index);
@@ -465,10 +464,9 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	return re;
 
 error:
-	while (nzones) {
+	for (nzones = 0; nzones < re->nzones; ++nzones) {
 		struct reada_zone *zone;
 
-		--nzones;
 		zone = re->zones[nzones];
 		kref_get(&zone->refcnt);
 		spin_lock(&zone->lock);
