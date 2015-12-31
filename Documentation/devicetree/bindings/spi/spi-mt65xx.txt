@@ -2,9 +2,10 @@ Binding for MTK SPI controller
 
 Required properties:
 - compatible: should be one of the following.
-    - mediatek,mt8173-spi: for mt8173 platforms
-    - mediatek,mt8135-spi: for mt8135 platforms
+    - mediatek,mt2701-spi: for mt2701 platforms
     - mediatek,mt6589-spi: for mt6589 platforms
+    - mediatek,mt8135-spi: for mt8135 platforms
+    - mediatek,mt8173-spi: for mt8173 platforms
 
 - #address-cells: should be 1.
 
