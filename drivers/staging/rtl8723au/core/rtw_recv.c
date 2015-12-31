@@ -361,33 +361,19 @@ int recvframe_chkmic(struct rtw_adapter *adapter,
 				int i;
 
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
-					 "*(pframemic-8)-*(pframemic-1) =0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
-					 *(pframemic - 8), *(pframemic - 7),
-					 *(pframemic - 6), *(pframemic - 5),
-					 *(pframemic - 4), *(pframemic - 3),
-					 *(pframemic - 2), *(pframemic - 1));
+					 "*(pframemic-8)-*(pframemic-1) =%*phC\n",
+					 8, pframemic - 8);
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
-					 "*(pframemic-16)-*(pframemic-9) =0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
-					 *(pframemic - 16), *(pframemic - 15),
-					 *(pframemic - 14), *(pframemic - 13),
-					 *(pframemic - 12), *(pframemic - 11),
-					 *(pframemic - 10), *(pframemic - 9));
+					 "*(pframemic-16)-*(pframemic-9) =%*phC\n",
+					 8, pframemic - 16);
 
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 					 "====== demp packet (len =%d) ======\n",
 					 precvframe->pkt->len);
 				for (i = 0; i < precvframe->pkt->len; i = i + 8) {
 					RT_TRACE(_module_rtl871x_recv_c_,
-						 _drv_err_,
-						 "0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
-						 *(precvframe->pkt->data+i),
-						 *(precvframe->pkt->data+i+1),
-						 *(precvframe->pkt->data+i+2),
-						 *(precvframe->pkt->data+i+3),
-						 *(precvframe->pkt->data+i+4),
-						 *(precvframe->pkt->data+i+5),
-						 *(precvframe->pkt->data+i+6),
-						 *(precvframe->pkt->data+i+7));
+						 _drv_err_, "%*phC\n",
+						 8, precvframe->pkt->data + i);
 				}
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 					 "====== demp packet end [len =%d]======\n",
@@ -1402,11 +1388,7 @@ static void dump_rx_pkt(struct sk_buff *skb, u16 type, int level)
 		DBG_8723A("#############################\n");
 
 		for (i = 0; i < 64; i = i + 8)
-			DBG_8723A("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n",
-				  *(ptr + i), *(ptr + i + 1), *(ptr + i + 2),
-				  *(ptr + i + 3), *(ptr + i + 4),
-				  *(ptr + i + 5), *(ptr + i + 6),
-				  *(ptr + i + 7));
+			DBG_8723A("%*phC:\n", 8, ptr + i);
 		DBG_8723A("#############################\n");
 	}
 }

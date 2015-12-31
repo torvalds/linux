@@ -1021,10 +1021,8 @@ static void Hal_EfuseParseMACAddr_8723AU(struct rtw_adapter *padapter,
 	}
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 "Hal_EfuseParseMACAddr_8723AU: Permanent Address =%02x:%02x:%02x:%02x:%02x:%02x\n",
-		 pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
-		 pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
-		 pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
+		 "Hal_EfuseParseMACAddr_8723AU: Permanent Address =%pM\n",
+		 pEEPROM->mac_addr);
 }
 
 static void readAdapterInfo(struct rtw_adapter *padapter)
