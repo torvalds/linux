@@ -152,8 +152,8 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	if (nstreams && !(resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED)) {
 		csi_cfg.csi_id = 1;
 		csi_cfg.clock_mode = 0;
-		csi_cfg.num_lanes = 2;
-		csi_cfg.bus_freq = 250000000;
+		csi_cfg.num_lanes = 4;
+		csi_cfg.bus_freq = 960000000;
 
 		ret = es2_ap_csi_setup(gcam->connection->hd, true, &csi_cfg);
 	} else if (nstreams == 0) {
