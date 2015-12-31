@@ -139,7 +139,10 @@ static ulong registerMemSizeDEC300 = 2 << 10;
 module_param(registerMemSizeDEC300, ulong, 0644);
 #endif
 
-static ulong contiguousSize = 0;
+#ifndef gcdDEFAULT_CONTIGUOUS_SIZE
+#define gcdDEFAULT_CONTIGUOUS_SIZE (4 << 20)
+#endif
+static ulong contiguousSize = gcdDEFAULT_CONTIGUOUS_SIZE;
 module_param(contiguousSize, ulong, 0644);
 
 static ulong contiguousBase = 0;

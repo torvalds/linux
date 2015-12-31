@@ -322,6 +322,8 @@ typedef enum _gceFEATURE
     gcvFEATURE_PE_DITHER_FIX2,
     gcvFEATURE_LOD_FIX_FOR_BASELEVEL,
 
+    gcvFEATURE_MSAA_OQ_FIX,
+
     /* Insert features above this comment only. */
     gcvFEATURE_COUNT                /* Not a feature. */
 }
@@ -341,7 +343,7 @@ gceSWWA;
 
 
 /* Option Set*/
-typedef enum _gceOPITON
+typedef enum _gceOPTION
 {
     /* HW setting we take PREFER */
     gcvOPTION_PREFER_MULTIPIPE_RS = 0,

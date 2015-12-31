@@ -64,6 +64,6 @@
 
 #define gcvVERSION_BUILD     41671
 
-#define gcvVERSION_STRING    "5.0.11.p8.pre.41671"
+#define gcvVERSION_STRING    "5.0.11.p8.pre2.41671"
 
 #endif /* __gc_hal_version_h_ */
