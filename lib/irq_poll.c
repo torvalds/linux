@@ -29,7 +29,7 @@ void irq_poll_sched(struct irq_poll *iop)
 
 	if (test_bit(IRQ_POLL_F_DISABLE, &iop->state))
 		return;
-	if (!test_and_set_bit(IRQ_POLL_F_SCHED, &iop->state))
+	if (test_and_set_bit(IRQ_POLL_F_SCHED, &iop->state))
 		return;
 
 	local_irq_save(flags);
