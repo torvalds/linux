@@ -101,7 +101,7 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info);
 static void __reada_start_machine(struct btrfs_fs_info *fs_info);
 
 static int reada_add_block(struct reada_control *rc, u64 logical,
-			   struct btrfs_key *top, int level, u64 generation);
+			   struct btrfs_key *top, u64 generation);
 
 /* recurses */
 /* in case of err, eb might be NULL */
@@ -197,8 +197,7 @@ static int __readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 			if (rec->generation == generation &&
 			    btrfs_comp_cpu_keys(&key, &rc->key_end) < 0 &&
 			    btrfs_comp_cpu_keys(&next_key, &rc->key_start) > 0)
-				reada_add_block(rc, bytenr, &next_key,
-						level - 1, n_gen);
+				reada_add_block(rc, bytenr, &next_key, n_gen);
 		}
 	}
 	/*
@@ -315,7 +314,7 @@ static struct reada_zone *reada_find_zone(struct btrfs_fs_info *fs_info,
 
 static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 					      u64 logical,
-					      struct btrfs_key *top, int level)
+					      struct btrfs_key *top)
 {
 	int ret;
 	struct reada_extent *re = NULL;
@@ -557,13 +556,13 @@ static void reada_control_release(struct kref *kref)
 }
 
 static int reada_add_block(struct reada_control *rc, u64 logical,
-			   struct btrfs_key *top, int level, u64 generation)
+			   struct btrfs_key *top, u64 generation)
 {
 	struct btrfs_root *root = rc->root;
 	struct reada_extent *re;
 	struct reada_extctl *rec;
 
-	re = reada_find_extent(root, logical, top, level); /* takes one ref */
+	re = reada_find_extent(root, logical, top); /* takes one ref */
 	if (!re)
 		return -1;
 
@@ -916,7 +915,6 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	struct reada_control *rc;
 	u64 start;
 	u64 generation;
-	int level;
 	int ret;
 	struct extent_buffer *node;
 	static struct btrfs_key max_key = {
@@ -939,11 +937,10 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 
 	node = btrfs_root_node(root);
 	start = node->start;
-	level = btrfs_header_level(node);
 	generation = btrfs_header_generation(node);
 	free_extent_buffer(node);
 
-	ret = reada_add_block(rc, start, &max_key, level, generation);
+	ret = reada_add_block(rc, start, &max_key, generation);
 	if (ret) {
 		kfree(rc);
 		return ERR_PTR(ret);
