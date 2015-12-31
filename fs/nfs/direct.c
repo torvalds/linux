@@ -721,8 +721,20 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 		nfs_direct_write_complete(dreq, data->inode);
 }
 
+static void nfs_direct_resched_write(struct nfs_commit_info *cinfo,
+		struct nfs_page *req)
+{
+	struct nfs_direct_req *dreq = cinfo->dreq;
+
+	spin_lock(&dreq->lock);
+	dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
+	spin_unlock(&dreq->lock);
+	nfs_mark_request_commit(req, NULL, cinfo, 0);
+}
+
 static const struct nfs_commit_completion_ops nfs_direct_commit_completion_ops = {
 	.completion = nfs_direct_commit_complete,
+	.resched_write = nfs_direct_resched_write,
 };
 
 static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)

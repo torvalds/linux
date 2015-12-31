@@ -703,6 +703,8 @@ pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
 			ret = -EAGAIN;
 		spin_unlock(&inode->i_lock);
 		pnfs_free_lseg_list(&lseg_list);
+		/* Free all lsegs that are attached to commit buckets */
+		nfs_commit_inode(inode, 0);
 		pnfs_put_layout_hdr(lo);
 		iput(inode);
 	}
@@ -1811,6 +1813,7 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 	pnfs_mark_matching_lsegs_return(lo, &free_me, &range);
 	spin_unlock(&inode->i_lock);
 	pnfs_free_lseg_list(&free_me);
+	nfs_commit_inode(inode, 0);
 }
 EXPORT_SYMBOL_GPL(pnfs_error_mark_layout_for_return);
 

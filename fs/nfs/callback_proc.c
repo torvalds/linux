@@ -233,6 +233,8 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 unlock:
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&free_me_list);
+	/* Free all lsegs that are attached to commit buckets */
+	nfs_commit_inode(ino, 0);
 	pnfs_put_layout_hdr(lo);
 	trace_nfs4_cb_layoutrecall_file(clp, &args->cbl_fh, ino,
 			&args->cbl_stateid, -rv);

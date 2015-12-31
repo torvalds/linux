@@ -868,6 +868,11 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 	buckets = cinfo->ds->buckets;
 	list = &buckets[ds_commit_idx].written;
 	if (list_empty(list)) {
+		if (!pnfs_is_valid_lseg(lseg)) {
+			spin_unlock(cinfo->lock);
+			cinfo->completion_ops->resched_write(cinfo, req);
+			return;
+		}
 		/* Non-empty buckets hold a reference on the lseg.  That ref
 		 * is normally transferred to the COMMIT call and released
 		 * there.  It could also be released if the last req is pulled

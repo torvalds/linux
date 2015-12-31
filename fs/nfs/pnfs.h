@@ -412,6 +412,12 @@ pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 	return lseg;
 }
 
+static inline bool
+pnfs_is_valid_lseg(struct pnfs_layout_segment *lseg)
+{
+	return test_bit(NFS_LSEG_VALID, &lseg->pls_flags) != 0;
+}
+
 /* Return true if a layout driver is being used for this mountpoint */
 static inline int pnfs_enabled_sb(struct nfs_server *nfss)
 {

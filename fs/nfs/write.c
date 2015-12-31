@@ -1676,6 +1676,13 @@ void nfs_retry_commit(struct list_head *page_list,
 }
 EXPORT_SYMBOL_GPL(nfs_retry_commit);
 
+static void
+nfs_commit_resched_write(struct nfs_commit_info *cinfo,
+		struct nfs_page *req)
+{
+	__set_page_dirty_nobuffers(req->wb_page);
+}
+
 /*
  * Commit dirty pages
  */
@@ -1777,6 +1784,7 @@ static const struct rpc_call_ops nfs_commit_ops = {
 
 static const struct nfs_commit_completion_ops nfs_commit_completion_ops = {
 	.completion = nfs_commit_release_pages,
+	.resched_write = nfs_commit_resched_write,
 };
 
 int nfs_generic_commit_list(struct inode *inode, struct list_head *head,
@@ -1823,6 +1831,7 @@ out_mark_dirty:
 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 	return res;
 }
+EXPORT_SYMBOL_GPL(nfs_commit_inode);
 
 int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {

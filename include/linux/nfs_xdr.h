@@ -1420,10 +1420,12 @@ struct nfs_mds_commit_info {
 	struct list_head	list;
 };
 
+struct nfs_commit_info;
 struct nfs_commit_data;
 struct nfs_inode;
 struct nfs_commit_completion_ops {
 	void (*completion) (struct nfs_commit_data *data);
+	void (*resched_write) (struct nfs_commit_info *, struct nfs_page *);
 };
 
 struct nfs_commit_info {
