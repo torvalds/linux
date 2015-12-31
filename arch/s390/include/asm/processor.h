@@ -60,7 +60,7 @@ static inline int test_cpu_flag(int flag)
  */
 static inline int test_cpu_flag_of(int flag, int cpu)
 {
-	struct _lowcore *lc = lowcore_ptr[cpu];
+	struct lowcore *lc = lowcore_ptr[cpu];
 	return !!(lc->cpu_flags & (1UL << flag));
 }
 

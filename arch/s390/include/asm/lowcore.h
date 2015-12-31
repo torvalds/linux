@@ -16,7 +16,7 @@
 #define LC_ORDER 1
 #define LC_PAGES 2
 
-struct _lowcore {
+struct lowcore {
 	__u8	pad_0x0000[0x0014-0x0000];	/* 0x0000 */
 	__u32	ipl_parmblock_ptr;		/* 0x0014 */
 	__u8	pad_0x0018[0x0080-0x0018];	/* 0x0018 */
@@ -183,9 +183,9 @@ struct _lowcore {
 	__u8	vector_save_area[1024];		/* 0x1c00 */
 } __packed;
 
-#define S390_lowcore (*((struct _lowcore *) 0))
+#define S390_lowcore (*((struct lowcore *) 0))
 
-extern struct _lowcore *lowcore_ptr[];
+extern struct lowcore *lowcore_ptr[];
 
 static inline void set_prefix(__u32 address)
 {

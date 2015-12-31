@@ -90,7 +90,7 @@ static void vdso_init_data(struct vdso_data *vd)
  */
 #define SEGMENT_ORDER	2
 
-int vdso_alloc_per_cpu(struct _lowcore *lowcore)
+int vdso_alloc_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
 	u32 *psal, *aste;
@@ -138,7 +138,7 @@ out:
 	return -ENOMEM;
 }
 
-void vdso_free_per_cpu(struct _lowcore *lowcore)
+void vdso_free_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
 	u32 *psal, *aste;
@@ -163,7 +163,7 @@ static void vdso_init_cr5(void)
 
 	if (!vdso_enabled)
 		return;
-	cr5 = offsetof(struct _lowcore, paste);
+	cr5 = offsetof(struct lowcore, paste);
 	__ctl_load(cr5, 5, 5);
 }
 

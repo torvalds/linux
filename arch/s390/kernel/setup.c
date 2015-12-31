@@ -97,7 +97,7 @@ unsigned long MODULES_VADDR;
 unsigned long MODULES_END;
 
 /* An array with a pointer to the lowcore of every CPU. */
-struct _lowcore *lowcore_ptr[NR_CPUS];
+struct lowcore *lowcore_ptr[NR_CPUS];
 EXPORT_SYMBOL(lowcore_ptr);
 
 /*
@@ -291,12 +291,12 @@ void *restart_stack __attribute__((__section__(".data")));
 
 static void __init setup_lowcore(void)
 {
-	struct _lowcore *lc;
+	struct lowcore *lc;
 
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
+	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * 4096);
 	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr =

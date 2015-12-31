@@ -64,7 +64,7 @@ enum {
 static DEFINE_PER_CPU(struct cpu *, cpu_device);
 
 struct pcpu {
-	struct _lowcore *lowcore;	/* lowcore page(s) for the cpu */
+	struct lowcore *lowcore;	/* lowcore page(s) for the cpu */
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
 	unsigned long ec_clk;		/* sigp timestamp for ec_xxx */
 	signed char state;		/* physical cpu state */
@@ -185,10 +185,10 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 {
 	unsigned long async_stack, panic_stack;
-	struct _lowcore *lc;
+	struct lowcore *lc;
 
 	if (pcpu != &pcpu_devices[0]) {
-		pcpu->lowcore =	(struct _lowcore *)
+		pcpu->lowcore =	(struct lowcore *)
 			__get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
 		async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
 		panic_stack = __get_free_page(GFP_KERNEL);
@@ -240,7 +240,7 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 
 static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {
-	struct _lowcore *lc = pcpu->lowcore;
+	struct lowcore *lc = pcpu->lowcore;
 
 	if (MACHINE_HAS_TLB_LC)
 		cpumask_set_cpu(cpu, &init_mm.context.cpu_attach_mask);
@@ -260,7 +260,7 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 
 static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 {
-	struct _lowcore *lc = pcpu->lowcore;
+	struct lowcore *lc = pcpu->lowcore;
 	struct thread_info *ti = task_thread_info(tsk);
 
 	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
@@ -276,7 +276,7 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 
 static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 {
-	struct _lowcore *lc = pcpu->lowcore;
+	struct lowcore *lc = pcpu->lowcore;
 
 	lc->restart_stack = lc->kernel_stack;
 	lc->restart_fn = (unsigned long) func;
@@ -291,7 +291,7 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 			  void *data, unsigned long stack)
 {
-	struct _lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
+	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
 	__load_psw_mask(PSW_KERNEL_BITS);
@@ -923,7 +923,7 @@ void __init smp_prepare_boot_cpu(void)
 
 	pcpu->state = CPU_STATE_CONFIGURED;
 	pcpu->address = stap();
-	pcpu->lowcore = (struct _lowcore *)(unsigned long) store_prefix();
+	pcpu->lowcore = (struct lowcore *)(unsigned long) store_prefix();
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 	set_cpu_present(0, true);

@@ -399,9 +399,9 @@ static int __must_check __deliver_restart(struct kvm_vcpu *vcpu)
 	trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, KVM_S390_RESTART, 0, 0);
 
 	rc  = write_guest_lc(vcpu,
-			     offsetof(struct _lowcore, restart_old_psw),
+			     offsetof(struct lowcore, restart_old_psw),
 			     &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
-	rc |= read_guest_lc(vcpu, offsetof(struct _lowcore, restart_psw),
+	rc |= read_guest_lc(vcpu, offsetof(struct lowcore, restart_psw),
 			    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 	clear_bit(IRQ_PEND_RESTART, &li->pending_irqs);
 	return rc ? -EFAULT : 0;

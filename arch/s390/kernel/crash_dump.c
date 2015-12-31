@@ -83,9 +83,9 @@ struct save_area * __init save_area_boot_cpu(void)
  */
 void __init save_area_add_regs(struct save_area *sa, void *regs)
 {
-	struct _lowcore *lc;
+	struct lowcore *lc;
 
-	lc = (struct _lowcore *)(regs - __LC_FPREGS_SAVE_AREA);
+	lc = (struct lowcore *)(regs - __LC_FPREGS_SAVE_AREA);
 	memcpy(&sa->psw, &lc->psw_save_area, sizeof(sa->psw));
 	memcpy(&sa->ctrs, &lc->cregs_save_area, sizeof(sa->ctrs));
 	memcpy(&sa->gprs, &lc->gpregs_save_area, sizeof(sa->gprs));
