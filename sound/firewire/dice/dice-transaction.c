@@ -9,7 +9,7 @@
 
 #include "dice.h"
 
-#define NOTIFICATION_TIMEOUT_MS	100
+#define NOTIFICATION_TIMEOUT_MS	(2 * MSEC_PER_SEC)
 
 static u64 get_subaddr(struct snd_dice *dice, enum snd_dice_addr_type type,
 		       u64 offset)
