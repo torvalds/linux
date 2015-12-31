@@ -156,7 +156,7 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 				       vector_cpumask);
 			d->move_in_progress =
 			   cpumask_intersects(d->old_domain, cpu_online_mask);
-			cpumask_and(d->domain, d->domain, vector_cpumask);
+			cpumask_copy(d->domain, vector_cpumask);
 			goto success;
 		}
 
