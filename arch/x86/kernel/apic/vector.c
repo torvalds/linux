@@ -530,21 +530,11 @@ static struct irq_chip lapic_controller = {
 #ifdef CONFIG_SMP
 static void __send_cleanup_vector(struct apic_chip_data *data)
 {
-	cpumask_var_t cleanup_mask;
-
 	raw_spin_lock(&vector_lock);
+	cpumask_and(data->old_domain, data->old_domain, cpu_online_mask);
 	data->move_in_progress = 0;
-	if (unlikely(!alloc_cpumask_var(&cleanup_mask, GFP_ATOMIC))) {
-		unsigned int i;
-
-		for_each_cpu_and(i, data->old_domain, cpu_online_mask)
-			apic->send_IPI_mask(cpumask_of(i),
-					    IRQ_MOVE_CLEANUP_VECTOR);
-	} else {
-		cpumask_and(cleanup_mask, data->old_domain, cpu_online_mask);
-		apic->send_IPI_mask(cleanup_mask, IRQ_MOVE_CLEANUP_VECTOR);
-		free_cpumask_var(cleanup_mask);
-	}
+	if (!cpumask_empty(data->old_domain))
+		apic->send_IPI_mask(data->old_domain, IRQ_MOVE_CLEANUP_VECTOR);
 	raw_spin_unlock(&vector_lock);
 }
 
