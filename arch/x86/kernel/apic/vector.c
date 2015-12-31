@@ -31,7 +31,7 @@ struct apic_chip_data {
 struct irq_domain *x86_vector_domain;
 EXPORT_SYMBOL_GPL(x86_vector_domain);
 static DEFINE_RAW_SPINLOCK(vector_lock);
-static cpumask_var_t vector_cpumask, searched_cpumask;
+static cpumask_var_t vector_cpumask, vector_searchmask, searched_cpumask;
 static struct irq_chip lapic_controller;
 #ifdef	CONFIG_X86_IO_APIC
 static struct apic_chip_data *legacy_irq_data[NR_IRQS_LEGACY];
@@ -130,7 +130,19 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 	while (cpu < nr_cpu_ids) {
 		int new_cpu, vector, offset;
 
+		/* Get the possible target cpus for @mask/@cpu from the apic */
 		apic->vector_allocation_domain(cpu, vector_cpumask, mask);
+
+		/*
+		 * Clear the offline cpus from @vector_cpumask for searching
+		 * and verify whether the result overlaps with @mask. If true,
+		 * then the call to apic->cpu_mask_to_apicid_and() will
+		 * succeed as well. If not, no point in trying to find a
+		 * vector in this mask.
+		 */
+		cpumask_and(vector_searchmask, vector_cpumask, cpu_online_mask);
+		if (!cpumask_intersects(vector_searchmask, mask))
+			goto next_cpu;
 
 		if (cpumask_subset(vector_cpumask, d->domain)) {
 			if (cpumask_equal(vector_cpumask, d->domain))
@@ -164,7 +176,7 @@ next:
 		if (test_bit(vector, used_vectors))
 			goto next;
 
-		for_each_cpu_and(new_cpu, vector_cpumask, cpu_online_mask) {
+		for_each_cpu(new_cpu, vector_searchmask) {
 			if (!IS_ERR_OR_NULL(per_cpu(vector_irq, new_cpu)[vector]))
 				goto next;
 		}
@@ -176,7 +188,7 @@ next:
 			d->move_in_progress =
 			   cpumask_intersects(d->old_domain, cpu_online_mask);
 		}
-		for_each_cpu_and(new_cpu, vector_cpumask, cpu_online_mask)
+		for_each_cpu(new_cpu, vector_searchmask)
 			per_cpu(vector_irq, new_cpu)[vector] = irq_to_desc(irq);
 		d->cfg.vector = vector;
 		cpumask_copy(d->domain, vector_cpumask);
@@ -198,8 +210,14 @@ next_cpu:
 	return -ENOSPC;
 
 success:
-	/* cache destination APIC IDs into cfg->dest_apicid */
-	return apic->cpu_mask_to_apicid_and(mask, d->domain, &d->cfg.dest_apicid);
+	/*
+	 * Cache destination APIC IDs into cfg->dest_apicid. This cannot fail
+	 * as we already established, that mask & d->domain & cpu_online_mask
+	 * is not empty.
+	 */
+	BUG_ON(apic->cpu_mask_to_apicid_and(mask, d->domain,
+					    &d->cfg.dest_apicid));
+	return 0;
 }
 
 static int assign_irq_vector(int irq, struct apic_chip_data *data,
@@ -409,6 +427,7 @@ int __init arch_early_irq_init(void)
 	arch_init_htirq_domain(x86_vector_domain);
 
 	BUG_ON(!alloc_cpumask_var(&vector_cpumask, GFP_KERNEL));
+	BUG_ON(!alloc_cpumask_var(&vector_searchmask, GFP_KERNEL));
 	BUG_ON(!alloc_cpumask_var(&searched_cpumask, GFP_KERNEL));
 
 	return arch_early_ioapic_init();
@@ -498,14 +517,7 @@ static int apic_set_affinity(struct irq_data *irq_data,
 		return -EINVAL;
 
 	err = assign_irq_vector(irq, data, dest);
-	if (err) {
-		if (assign_irq_vector(irq, data,
-				      irq_data_get_affinity_mask(irq_data)))
-			pr_err("Failed to recover vector for irq %d\n", irq);
-		return err;
-	}
-
-	return IRQ_SET_MASK_OK;
+	return err ? err : IRQ_SET_MASK_OK;
 }
 
 static struct irq_chip lapic_controller = {
