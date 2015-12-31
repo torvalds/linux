@@ -39,6 +39,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->hit_total = si->hit_largest + si->hit_cached + si->hit_rbtree;
 	si->total_ext = atomic64_read(&sbi->total_hit_ext);
 	si->ext_tree = atomic_read(&sbi->total_ext_tree);
+	si->zombie_tree = atomic_read(&sbi->total_zombie_tree);
 	si->ext_node = atomic_read(&sbi->total_ext_node);
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
 	si->ndirty_dent = get_pages(sbi, F2FS_DIRTY_DENTS);
@@ -292,8 +293,8 @@ static int stat_show(struct seq_file *s, void *v)
 				!si->total_ext ? 0 :
 				div64_u64(si->hit_total * 100, si->total_ext),
 				si->hit_total, si->total_ext);
-		seq_printf(s, "  - Inner Struct Count: tree: %d, node: %d\n",
-				si->ext_tree, si->ext_node);
+		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
+				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
 		seq_printf(s, "  - inmem: %4d, wb: %4d\n",
 			   si->inmem_pages, si->wb_pages);
