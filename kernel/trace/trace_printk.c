@@ -273,6 +273,7 @@ static const char **find_next(void *v, loff_t *pos)
 	if (*pos < last_index + start_index)
 		return __start___tracepoint_str + (*pos - last_index);
 
+	start_index += last_index;
 	return find_next_mod_format(start_index, v, fmt, pos);
 }
 
