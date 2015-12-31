@@ -157,14 +157,9 @@ next:
 			vector = FIRST_EXTERNAL_VECTOR + offset;
 		}
 
-		if (unlikely(current_vector == vector)) {
-			cpumask_or(searched_cpumask, searched_cpumask,
-				   vector_cpumask);
-			cpumask_andnot(vector_cpumask, mask, searched_cpumask);
-			cpu = cpumask_first_and(vector_cpumask,
-						cpu_online_mask);
-			continue;
-		}
+		/* If the search wrapped around, try the next cpu */
+		if (unlikely(current_vector == vector))
+			goto next_cpu;
 
 		if (test_bit(vector, used_vectors))
 			goto next;
@@ -186,6 +181,19 @@ next:
 		d->cfg.vector = vector;
 		cpumask_copy(d->domain, vector_cpumask);
 		goto success;
+
+next_cpu:
+		/*
+		 * We exclude the current @vector_cpumask from the requested
+		 * @mask and try again with the next online cpu in the
+		 * result. We cannot modify @mask, so we use @vector_cpumask
+		 * as a temporary buffer here as it will be reassigned when
+		 * calling apic->vector_allocation_domain() above.
+		 */
+		cpumask_or(searched_cpumask, searched_cpumask, vector_cpumask);
+		cpumask_andnot(vector_cpumask, mask, searched_cpumask);
+		cpu = cpumask_first_and(vector_cpumask, cpu_online_mask);
+		continue;
 	}
 	return -ENOSPC;
 
