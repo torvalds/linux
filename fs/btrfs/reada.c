@@ -330,6 +330,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	int nzones = 0;
 	unsigned long index = logical >> PAGE_CACHE_SHIFT;
 	int dev_replace_is_ongoing;
+	int have_zone = 0;
 
 	spin_lock(&fs_info->reada_lock);
 	re = radix_tree_lookup(&fs_info->reada_tree, index);
@@ -456,9 +457,13 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 			btrfs_dev_replace_unlock(&fs_info->dev_replace);
 			goto error;
 		}
+		have_zone = 1;
 	}
 	spin_unlock(&fs_info->reada_lock);
 	btrfs_dev_replace_unlock(&fs_info->dev_replace);
+
+	if (!have_zone)
+		goto error;
 
 	btrfs_put_bbio(bbio);
 	return re;
