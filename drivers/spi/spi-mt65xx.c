@@ -95,8 +95,7 @@ struct mtk_spi {
 	const struct mtk_spi_compatible *dev_comp;
 };
 
-static const struct mtk_spi_compatible mt6589_compat;
-static const struct mtk_spi_compatible mt8135_compat;
+static const struct mtk_spi_compatible mtk_common_compat;
 static const struct mtk_spi_compatible mt8173_compat = {
 	.need_pad_sel = true,
 	.must_tx = true,
@@ -112,9 +111,15 @@ static const struct mtk_chip_config mtk_default_chip_info = {
 };
 
 static const struct of_device_id mtk_spi_of_match[] = {
-	{ .compatible = "mediatek,mt6589-spi", .data = (void *)&mt6589_compat },
-	{ .compatible = "mediatek,mt8135-spi", .data = (void *)&mt8135_compat },
-	{ .compatible = "mediatek,mt8173-spi", .data = (void *)&mt8173_compat },
+	{ .compatible = "mediatek,mt6589-spi",
+		.data = (void *)&mtk_common_compat,
+	},
+	{ .compatible = "mediatek,mt8135-spi",
+		.data = (void *)&mtk_common_compat,
+	},
+	{ .compatible = "mediatek,mt8173-spi",
+		.data = (void *)&mt8173_compat,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, mtk_spi_of_match);
