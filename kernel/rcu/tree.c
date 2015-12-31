@@ -1224,8 +1224,10 @@ static void rcu_check_gp_kthread_starvation(struct rcu_state *rsp)
 		       rsp->gp_flags,
 		       gp_state_getname(rsp->gp_state), rsp->gp_state,
 		       rsp->gp_kthread ? rsp->gp_kthread->state : ~0);
-		if (rsp->gp_kthread)
+		if (rsp->gp_kthread) {
 			sched_show_task(rsp->gp_kthread);
+			wake_up_process(rsp->gp_kthread);
+		}
 	}
 }
 
