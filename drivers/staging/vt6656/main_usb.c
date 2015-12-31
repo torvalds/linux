@@ -74,10 +74,10 @@ MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
 #define LONG_RETRY_DEF     4
 
 /* BasebandType[] baseband type selected
-   0: indicate 802.11a type
-   1: indicate 802.11b type
-   2: indicate 802.11g type
-*/
+ * 0: indicate 802.11a type
+ * 1: indicate 802.11b type
+ * 2: indicate 802.11g type
+ */
 
 #define BBP_TYPE_DEF     2
 
@@ -284,7 +284,8 @@ static int vnt_init_registers(struct vnt_private *priv)
 			calib_rx_iq = priv->eeprom[EEP_OFS_CALIB_RX_IQ];
 			if (calib_tx_iq || calib_tx_dc || calib_rx_iq) {
 				/* CR255, enable TX/RX IQ and
-				   DC compensation mode */
+				 * DC compensation mode
+				 */
 				vnt_control_out_u8(priv,
 						   MESSAGE_REQUEST_BBREG,
 						   0xff,
@@ -306,7 +307,8 @@ static int vnt_init_registers(struct vnt_private *priv)
 						   calib_rx_iq);
 			} else {
 				/* CR255, turn off
-				   BB Calibration compensation */
+				 * BB Calibration compensation
+				 */
 				vnt_control_out_u8(priv,
 						   MESSAGE_REQUEST_BBREG,
 						   0xff,
