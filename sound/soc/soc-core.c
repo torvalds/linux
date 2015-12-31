@@ -2834,6 +2834,48 @@ err:
 	return ret;
 }
 
+/**
+ * snd_soc_register_dai - Register a DAI dynamically & create its widgets
+ *
+ * @component: The component the DAIs are registered for
+ * @dai_drv: DAI driver to use for the DAI
+ *
+ * Topology can use this API to register DAIs when probing a component.
+ * These DAIs's widgets will be freed in the card cleanup and the DAIs
+ * will be freed in the component cleanup.
+ */
+int snd_soc_register_dai(struct snd_soc_component *component,
+	struct snd_soc_dai_driver *dai_drv)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	struct snd_soc_dai *dai;
+	int ret;
+
+	if (dai_drv->dobj.type != SND_SOC_DOBJ_PCM) {
+		dev_err(component->dev, "Invalid dai type %d\n",
+			dai_drv->dobj.type);
+		return -EINVAL;
+	}
+
+	lockdep_assert_held(&client_mutex);
+	dai = soc_add_dai(component, dai_drv, false);
+	if (!dai)
+		return -ENOMEM;
+
+	/* Create the DAI widgets here. After adding DAIs, topology may
+	 * also add routes that need these widgets as source or sink.
+	 */
+	ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
+	if (ret != 0) {
+		dev_err(component->dev,
+			"Failed to create DAI widgets %d\n", ret);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_register_dai);
+
 static void snd_soc_component_seq_notifier(struct snd_soc_dapm_context *dapm,
 	enum snd_soc_dapm_type type, int subseq)
 {
