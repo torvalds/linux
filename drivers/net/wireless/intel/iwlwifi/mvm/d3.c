@@ -1843,6 +1843,7 @@ void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
 			      struct iwl_wowlan_status *status)
 {
 	struct iwl_mvm_d3_gtk_iter_data gtkdata = {
+		.mvm = mvm,
 		.status = status,
 	};
 
