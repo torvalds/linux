@@ -174,13 +174,13 @@ EXPORT_SYMBOL(bt_accept_unlink);
 
 struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 {
-	struct list_head *p, *n;
+	struct bt_sock *s, *n;
 	struct sock *sk;
 
 	BT_DBG("parent %p", parent);
 
-	list_for_each_safe(p, n, &bt_sk(parent)->accept_q) {
-		sk = (struct sock *) list_entry(p, struct bt_sock, accept_q);
+	list_for_each_entry_safe(s, n, &bt_sk(parent)->accept_q, accept_q) {
+		sk = (struct sock *)s;
 
 		lock_sock(sk);
 
@@ -388,11 +388,11 @@ EXPORT_SYMBOL(bt_sock_stream_recvmsg);
 
 static inline unsigned int bt_accept_poll(struct sock *parent)
 {
-	struct list_head *p, *n;
+	struct bt_sock *s, *n;
 	struct sock *sk;
 
-	list_for_each_safe(p, n, &bt_sk(parent)->accept_q) {
-		sk = (struct sock *) list_entry(p, struct bt_sock, accept_q);
+	list_for_each_entry_safe(s, n, &bt_sk(parent)->accept_q, accept_q) {
+		sk = (struct sock *)s;
 		if (sk->sk_state == BT_CONNECTED ||
 		    (test_bit(BT_SK_DEFER_SETUP, &bt_sk(parent)->flags) &&
 		     sk->sk_state == BT_CONNECT2))

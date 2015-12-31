@@ -636,10 +636,8 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	/* Initialize control structure and load firmware */
 	data = devm_kzalloc(&intf->dev, sizeof(struct bfusb_data), GFP_KERNEL);
-	if (!data) {
-		BT_ERR("Can't allocate memory for control structure");
-		goto done;
-	}
+	if (!data)
+		return -ENOMEM;
 
 	data->udev = udev;
 	data->bulk_in_ep    = bulk_in_ep->desc.bEndpointAddress;

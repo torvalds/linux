@@ -29,13 +29,13 @@ int lowpan_register_netdevice(struct net_device *dev,
 
 	lowpan_priv(dev)->lltype = lltype;
 
-	ret = lowpan_dev_debugfs_init(dev);
+	ret = register_netdevice(dev);
 	if (ret < 0)
 		return ret;
 
-	ret = register_netdevice(dev);
+	ret = lowpan_dev_debugfs_init(dev);
 	if (ret < 0)
-		lowpan_dev_debugfs_exit(dev);
+		unregister_netdevice(dev);
 
 	return ret;
 }
