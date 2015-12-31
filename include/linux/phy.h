@@ -589,6 +589,12 @@ struct phy_driver {
 	int (*module_eeprom)(struct phy_device *dev,
 			     struct ethtool_eeprom *ee, u8 *data);
 
+	/* Get statistics from the phy using ethtool */
+	int (*get_sset_count)(struct phy_device *dev);
+	void (*get_strings)(struct phy_device *dev, u8 *data);
+	void (*get_stats)(struct phy_device *dev,
+			  struct ethtool_stats *stats, u64 *data);
+
 	struct device_driver driver;
 };
 #define to_phy_driver(d) container_of(d, struct phy_driver, driver)

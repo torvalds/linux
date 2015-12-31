@@ -191,6 +191,23 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
+static int phy_get_sset_count(struct phy_device *phydev)
+{
+	int ret;
+
+	if (phydev->drv->get_sset_count &&
+	    phydev->drv->get_strings &&
+	    phydev->drv->get_stats) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->get_sset_count(phydev);
+		mutex_unlock(&phydev->lock);
+
+		return ret;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -203,6 +220,13 @@ static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 
 	if (sset == ETH_SS_TUNABLES)
 		return ARRAY_SIZE(tunable_strings);
+
+	if (sset == ETH_SS_PHY_STATS) {
+		if (dev->phydev)
+			return phy_get_sset_count(dev->phydev);
+		else
+			return -EOPNOTSUPP;
+	}
 
 	if (ops->get_sset_count && ops->get_strings)
 		return ops->get_sset_count(dev, sset);
@@ -223,7 +247,17 @@ static void __ethtool_get_strings(struct net_device *dev,
 		       sizeof(rss_hash_func_strings));
 	else if (stringset == ETH_SS_TUNABLES)
 		memcpy(data, tunable_strings, sizeof(tunable_strings));
-	else
+	else if (stringset == ETH_SS_PHY_STATS) {
+		struct phy_device *phydev = dev->phydev;
+
+		if (phydev) {
+			mutex_lock(&phydev->lock);
+			phydev->drv->get_strings(phydev, data);
+			mutex_unlock(&phydev->lock);
+		} else {
+			return;
+		}
+	} else
 		/* ops->get_strings is valid because checked earlier */
 		ops->get_strings(dev, stringset, data);
 }
@@ -1401,6 +1435,47 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
+static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_stats stats;
+	struct phy_device *phydev = dev->phydev;
+	u64 *data;
+	int ret, n_stats;
+
+	if (!phydev)
+		return -EOPNOTSUPP;
+
+	n_stats = phy_get_sset_count(phydev);
+
+	if (n_stats < 0)
+		return n_stats;
+	WARN_ON(n_stats == 0);
+
+	if (copy_from_user(&stats, useraddr, sizeof(stats)))
+		return -EFAULT;
+
+	stats.n_stats = n_stats;
+	data = kmalloc_array(n_stats, sizeof(u64), GFP_USER);
+	if (!data)
+		return -ENOMEM;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_stats(phydev, &stats, data);
+	mutex_unlock(&phydev->lock);
+
+	ret = -EFAULT;
+	if (copy_to_user(useraddr, &stats, sizeof(stats)))
+		goto out;
+	useraddr += sizeof(stats);
+	if (copy_to_user(useraddr, data, stats.n_stats * sizeof(u64)))
+		goto out;
+	ret = 0;
+
+ out:
+	kfree(data);
+	return ret;
+}
+
 static int ethtool_get_perm_addr(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_perm_addr epaddr;
@@ -1779,6 +1854,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GSSET_INFO:
 	case ETHTOOL_GSTRINGS:
 	case ETHTOOL_GSTATS:
+	case ETHTOOL_GPHYSTATS:
 	case ETHTOOL_GTSO:
 	case ETHTOOL_GPERMADDR:
 	case ETHTOOL_GUFO:
@@ -1990,6 +2066,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_STUNABLE:
 		rc = ethtool_set_tunable(dev, useraddr);
+		break;
+	case ETHTOOL_GPHYSTATS:
+		rc = ethtool_get_phy_stats(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
