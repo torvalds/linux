@@ -893,14 +893,9 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 			printk(KERN_CONT " zone %llu-%llu devs",
 				re->zones[i]->start,
 				re->zones[i]->end);
-			for (i = 0; i < re->nzones; ++i) {
-				printk(KERN_CONT " zone %llu-%llu devs",
-					re->zones[i]->start,
-					re->zones[i]->end);
-				for (j = 0; j < re->zones[i]->ndevs; ++j) {
-					printk(KERN_CONT " %lld",
-						re->zones[i]->devs[j]->devid);
-				}
+			for (j = 0; j < re->zones[i]->ndevs; ++j) {
+				printk(KERN_CONT " %lld",
+				       re->zones[i]->devs[j]->devid);
 			}
 		}
 		printk(KERN_CONT "\n");
