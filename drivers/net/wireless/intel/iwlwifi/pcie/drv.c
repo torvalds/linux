@@ -787,7 +787,7 @@ static int iwl_pci_runtime_suspend(struct device *device)
 
 	trans->system_pm_mode = IWL_PLAT_PM_MODE_D0I3;
 
-	iwl_trans_d3_suspend(trans, false);
+	iwl_trans_d3_suspend(trans, false, false);
 
 	return 0;
 }
@@ -800,7 +800,7 @@ static int iwl_pci_runtime_resume(struct device *device)
 
 	IWL_DEBUG_RPM(trans, "exiting runtime suspend (resume)\n");
 
-	iwl_trans_d3_resume(trans, &d3_status, false);
+	iwl_trans_d3_resume(trans, &d3_status, false, false);
 
 	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status))
 		return iwl_pci_fw_exit_d0i3(trans);

@@ -396,7 +396,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
 		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
-	iwl_trans_d3_suspend(priv->trans, false);
+	iwl_trans_d3_suspend(priv->trans, false, true);
 
 	goto out;
 
@@ -469,7 +469,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	/* we'll clear ctx->vif during iwlagn_prepare_restart() */
 	vif = ctx->vif;
 
-	ret = iwl_trans_d3_resume(priv->trans, &d3_status, false);
+	ret = iwl_trans_d3_resume(priv->trans, &d3_status, false, true);
 	if (ret)
 		goto out_unlock;
 
