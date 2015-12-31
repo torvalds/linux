@@ -2129,14 +2129,14 @@ static irqreturn_t mwifiex_pcie_interrupt(int irq, void *context)
 	struct mwifiex_adapter *adapter;
 
 	if (!pdev) {
-		pr_debug("info: %s: pdev is NULL\n", (u8 *)pdev);
+		pr_err("info: %s: pdev is NULL\n", __func__);
 		goto exit;
 	}
 
 	card = pci_get_drvdata(pdev);
 	if (!card || !card->adapter) {
-		pr_debug("info: %s: card=%p adapter=%p\n", __func__, card,
-			 card ? card->adapter : NULL);
+		pr_err("info: %s: card=%p adapter=%p\n", __func__, card,
+		       card ? card->adapter : NULL);
 		goto exit;
 	}
 	adapter = card->adapter;

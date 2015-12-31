@@ -796,8 +796,8 @@ mwifiex_sdio_interrupt(struct sdio_func *func)
 
 	card = sdio_get_drvdata(func);
 	if (!card || !card->adapter) {
-		pr_debug("int: func=%p card=%p adapter=%p\n",
-			 func, card, card ? card->adapter : NULL);
+		pr_err("int: func=%p card=%p adapter=%p\n",
+		       func, card, card ? card->adapter : NULL);
 		return;
 	}
 	adapter = card->adapter;
