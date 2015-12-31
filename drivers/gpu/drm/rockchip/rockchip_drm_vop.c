@@ -1395,3 +1395,4 @@ const struct component_ops vop_component_ops = {
 	.bind = vop_bind,
 	.unbind = vop_unbind,
 };
+EXPORT_SYMBOL_GPL(vop_component_ops);
