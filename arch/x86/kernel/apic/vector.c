@@ -120,7 +120,12 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 	static int current_offset = VECTOR_OFFSET_START % 16;
 	int cpu, vector;
 
-	if (d->move_in_progress)
+	/*
+	 * If there is still a move in progress or the previous move has not
+	 * been cleaned up completely, tell the caller to come back later.
+	 */
+	if (d->move_in_progress ||
+	    cpumask_intersects(d->old_domain, cpu_online_mask))
 		return -EBUSY;
 
 	/* Only try and allocate irqs on cpus that are present */
@@ -259,7 +264,12 @@ static void clear_irq_vector(int irq, struct apic_chip_data *data)
 	data->cfg.vector = 0;
 	cpumask_clear(data->domain);
 
-	if (likely(!data->move_in_progress))
+	/*
+	 * If move is in progress or the old_domain mask is not empty,
+	 * i.e. the cleanup IPI has not been processed yet, we need to remove
+	 * the old references to desc from all cpus vector tables.
+	 */
+	if (!data->move_in_progress && cpumask_empty(data->old_domain))
 		return;
 
 	desc = irq_to_desc(irq);
@@ -579,12 +589,25 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 			goto unlock;
 
 		/*
-		 * Check if the irq migration is in progress. If so, we
-		 * haven't received the cleanup request yet for this irq.
+		 * Nothing to cleanup if irq migration is in progress
+		 * or this cpu is not set in the cleanup mask.
 		 */
-		if (data->move_in_progress)
+		if (data->move_in_progress ||
+		    !cpumask_test_cpu(me, data->old_domain))
 			goto unlock;
 
+		/*
+		 * We have two cases to handle here:
+		 * 1) vector is unchanged but the target mask got reduced
+		 * 2) vector and the target mask has changed
+		 *
+		 * #1 is obvious, but in #2 we have two vectors with the same
+		 * irq descriptor: the old and the new vector. So we need to
+		 * make sure that we only cleanup the old vector. The new
+		 * vector has the current @vector number in the config and
+		 * this cpu is part of the target mask. We better leave that
+		 * one alone.
+		 */
 		if (vector == data->cfg.vector &&
 		    cpumask_test_cpu(me, data->domain))
 			goto unlock;
@@ -602,6 +625,7 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 			goto unlock;
 		}
 		__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
+		cpumask_clear_cpu(me, data->old_domain);
 unlock:
 		raw_spin_unlock(&desc->lock);
 	}
@@ -645,13 +669,32 @@ void irq_force_complete_move(struct irq_desc *desc)
 	__irq_complete_move(cfg, cfg->vector);
 
 	/*
-	 * Remove this cpu from the cleanup mask. The IPI might have been sent
-	 * just before the cpu was removed from the offline mask, but has not
-	 * been processed because the CPU has interrupts disabled and is on
-	 * the way out.
+	 * This is tricky. If the cleanup of @data->old_domain has not been
+	 * done yet, then the following setaffinity call will fail with
+	 * -EBUSY. This can leave the interrupt in a stale state.
+	 *
+	 * The cleanup cannot make progress because we hold @desc->lock. So in
+	 * case @data->old_domain is not yet cleaned up, we need to drop the
+	 * lock and acquire it again. @desc cannot go away, because the
+	 * hotplug code holds the sparse irq lock.
 	 */
 	raw_spin_lock(&vector_lock);
-	cpumask_clear_cpu(smp_processor_id(), data->old_domain);
+	/* Clean out all offline cpus (including ourself) first. */
+	cpumask_and(data->old_domain, data->old_domain, cpu_online_mask);
+	while (!cpumask_empty(data->old_domain)) {
+		raw_spin_unlock(&vector_lock);
+		raw_spin_unlock(&desc->lock);
+		cpu_relax();
+		raw_spin_lock(&desc->lock);
+		/*
+		 * Reevaluate apic_chip_data. It might have been cleared after
+		 * we dropped @desc->lock.
+		 */
+		data = apic_chip_data(irqdata);
+		if (!data)
+			return;
+		raw_spin_lock(&vector_lock);
+	}
 	raw_spin_unlock(&vector_lock);
 }
 #endif
