@@ -118,7 +118,7 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 	 */
 	static int current_vector = FIRST_EXTERNAL_VECTOR + VECTOR_OFFSET_START;
 	static int current_offset = VECTOR_OFFSET_START % 16;
-	int cpu;
+	int cpu, vector;
 
 	if (d->move_in_progress)
 		return -EBUSY;
@@ -128,7 +128,7 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 	cpumask_clear(searched_cpumask);
 	cpu = cpumask_first_and(mask, cpu_online_mask);
 	while (cpu < nr_cpu_ids) {
-		int new_cpu, vector, offset;
+		int new_cpu, offset;
 
 		/* Get the possible target cpus for @mask/@cpu from the apic */
 		apic->vector_allocation_domain(cpu, vector_cpumask, mask);
@@ -148,16 +148,12 @@ static int __assign_irq_vector(int irq, struct apic_chip_data *d,
 			if (cpumask_equal(vector_cpumask, d->domain))
 				goto success;
 			/*
-			 * New cpumask using the vector is a proper subset of
-			 * the current in use mask. So cleanup the vector
-			 * allocation for the members that are not used anymore.
+			 * Mark the cpus which are not longer in the mask for
+			 * cleanup.
 			 */
-			cpumask_andnot(d->old_domain, d->domain,
-				       vector_cpumask);
-			d->move_in_progress =
-			   cpumask_intersects(d->old_domain, cpu_online_mask);
-			cpumask_copy(d->domain, vector_cpumask);
-			goto success;
+			cpumask_andnot(d->old_domain, d->domain, vector_cpumask);
+			vector = d->cfg.vector;
+			goto update;
 		}
 
 		vector = current_vector;
@@ -183,16 +179,12 @@ next:
 		/* Found one! */
 		current_vector = vector;
 		current_offset = offset;
-		if (d->cfg.vector) {
+		/* Schedule the old vector for cleanup on all cpus */
+		if (d->cfg.vector)
 			cpumask_copy(d->old_domain, d->domain);
-			d->move_in_progress =
-			   cpumask_intersects(d->old_domain, cpu_online_mask);
-		}
 		for_each_cpu(new_cpu, vector_searchmask)
 			per_cpu(vector_irq, new_cpu)[vector] = irq_to_desc(irq);
-		d->cfg.vector = vector;
-		cpumask_copy(d->domain, vector_cpumask);
-		goto success;
+		goto update;
 
 next_cpu:
 		/*
@@ -209,6 +201,11 @@ next_cpu:
 	}
 	return -ENOSPC;
 
+update:
+	/* Cleanup required ? */
+	d->move_in_progress = cpumask_intersects(d->old_domain, cpu_online_mask);
+	d->cfg.vector = vector;
+	cpumask_copy(d->domain, vector_cpumask);
 success:
 	/*
 	 * Cache destination APIC IDs into cfg->dest_apicid. This cannot fail
