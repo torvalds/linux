@@ -105,32 +105,20 @@ static int reada_add_block(struct reada_control *rc, u64 logical,
 
 /* recurses */
 /* in case of err, eb might be NULL */
-static int __readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
-			    u64 start, int err)
+static void __readahead_hook(struct btrfs_root *root, struct reada_extent *re,
+			     struct extent_buffer *eb, u64 start, int err)
 {
 	int level = 0;
 	int nritems;
 	int i;
 	u64 bytenr;
 	u64 generation;
-	struct reada_extent *re;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct list_head list;
-	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	struct btrfs_device *for_dev;
 
 	if (eb)
 		level = btrfs_header_level(eb);
-
-	/* find extent */
-	spin_lock(&fs_info->reada_lock);
-	re = radix_tree_lookup(&fs_info->reada_tree, index);
-	if (re)
-		re->refcnt++;
-	spin_unlock(&fs_info->reada_lock);
-
-	if (!re)
-		return -1;
 
 	spin_lock(&re->lock);
 	/*
@@ -221,11 +209,11 @@ static int __readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 
 		reada_extent_put(fs_info, re);	/* one ref for each entry */
 	}
-	reada_extent_put(fs_info, re);	/* our ref */
+
 	if (for_dev)
 		atomic_dec(&for_dev->reada_in_flight);
 
-	return 0;
+	return;
 }
 
 /*
@@ -235,12 +223,27 @@ static int __readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 int btree_readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 			 u64 start, int err)
 {
-	int ret;
+	int ret = 0;
+	struct reada_extent *re;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	ret = __readahead_hook(root, eb, start, err);
+	/* find extent */
+	spin_lock(&fs_info->reada_lock);
+	re = radix_tree_lookup(&fs_info->reada_tree,
+			       start >> PAGE_CACHE_SHIFT);
+	if (re)
+		re->refcnt++;
+	spin_unlock(&fs_info->reada_lock);
+	if (!re) {
+		ret = -1;
+		goto start_machine;
+	}
 
-	reada_start_machine(root->fs_info);
+	__readahead_hook(fs_info, re, eb, start, err);
+	reada_extent_put(fs_info, re);	/* our ref */
 
+start_machine:
+	reada_start_machine(fs_info);
 	return ret;
 }
 
@@ -721,9 +724,9 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	ret = reada_tree_block_flagged(fs_info->extent_root, logical,
 			mirror_num, &eb);
 	if (ret)
-		__readahead_hook(fs_info->extent_root, NULL, logical, ret);
+		__readahead_hook(fs_info->extent_root, re, NULL, logical, ret);
 	else if (eb)
-		__readahead_hook(fs_info->extent_root, eb, eb->start, ret);
+		__readahead_hook(fs_info->extent_root, re, eb, eb->start, ret);
 
 	if (eb)
 		free_extent_buffer(eb);
