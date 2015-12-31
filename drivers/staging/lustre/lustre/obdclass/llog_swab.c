@@ -346,7 +346,6 @@ void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
 		__swab32s(&lcfg->lcfg_buflens[i]);
 
 	print_lustre_cfg(lcfg);
-	return;
 }
 EXPORT_SYMBOL(lustre_swab_lustre_cfg);
 
