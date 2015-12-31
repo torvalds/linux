@@ -753,8 +753,8 @@ static int spidev_probe(struct spi_device *spi)
 	 */
 	if (spi->dev.of_node && !of_match_device(spidev_dt_ids, &spi->dev)) {
 		dev_err(&spi->dev, "buggy DT: spidev listed directly in DT\n");
-		WARN_ON(spi->dev.of_node &&
-			!of_match_device(spidev_dt_ids, &spi->dev));
+//		WARN_ON(spi->dev.of_node &&
+//			!of_match_device(spidev_dt_ids, &spi->dev));
 	}
 
 	spidev_probe_acpi(spi);
