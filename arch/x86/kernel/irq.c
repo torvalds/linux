@@ -462,7 +462,7 @@ void fixup_irqs(void)
 		 * non intr-remapping case, we can't wait till this interrupt
 		 * arrives at this cpu before completing the irq move.
 		 */
-		irq_force_complete_move(irq);
+		irq_force_complete_move(desc);
 
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			break_affinity = 1;

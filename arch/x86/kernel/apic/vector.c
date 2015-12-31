@@ -630,10 +630,14 @@ void irq_complete_move(struct irq_cfg *cfg)
 	__irq_complete_move(cfg, ~get_irq_regs()->orig_ax);
 }
 
-void irq_force_complete_move(int irq)
+/*
+ * Called with @desc->lock held and interrupts disabled.
+ */
+void irq_force_complete_move(struct irq_desc *desc)
 {
-	struct irq_cfg *cfg = irq_cfg(irq);
-	struct apic_chip_data *data;
+	struct irq_data *irqdata = irq_desc_get_irq_data(desc);
+	struct apic_chip_data *data = apic_chip_data(irqdata);
+	struct irq_cfg *cfg = data ? &data->cfg : NULL;
 
 	if (!cfg)
 		return;
@@ -647,7 +651,6 @@ void irq_force_complete_move(int irq)
 	 * the way out.
 	 */
 	raw_spin_lock(&vector_lock);
-	data = container_of(cfg, struct apic_chip_data, cfg);
 	cpumask_clear_cpu(smp_processor_id(), data->old_domain);
 	raw_spin_unlock(&vector_lock);
 }
