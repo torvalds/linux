@@ -23,7 +23,7 @@ config REALVIEW_DT
 	select POWER_RESET
 	select POWER_RESET_VERSATILE
 	select POWER_SUPPLY
-	select SMP_ON_UP
+	select SMP_ON_UP if SMP
 	select SOC_REALVIEW
 	select USE_OF
 	help
