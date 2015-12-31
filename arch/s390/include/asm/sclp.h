@@ -57,12 +57,12 @@ struct sclp_info {
 	unsigned int mtid;
 	unsigned int mtid_cp;
 	unsigned int mtid_prev;
-	unsigned long long rzm;
-	unsigned long long rnmax;
-	unsigned long long hamax;
+	unsigned long rzm;
+	unsigned long rnmax;
+	unsigned long hamax;
 	unsigned int max_cores;
 	unsigned long hsa_size;
-	unsigned long long facilities;
+	unsigned long facilities;
 };
 extern struct sclp_info sclp;
 
