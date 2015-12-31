@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
+#include <asm/div64.h>
 #include "tonga_thermal.h"
 #include "tonga_hwmgr.h"
 #include "tonga_smumgr.h"

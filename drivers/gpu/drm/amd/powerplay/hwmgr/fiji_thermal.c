@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
+#include <asm/div64.h>
 #include "fiji_thermal.h"
 #include "fiji_hwmgr.h"
 #include "fiji_smumgr.h"
