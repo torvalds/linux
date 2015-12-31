@@ -40,7 +40,7 @@ void br_init_port(struct net_bridge_port *p)
 		.orig_dev = p->dev,
 		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
 		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
-		.u.ageing_time = p->br->ageing_time,
+		.u.ageing_time = jiffies_to_clock_t(p->br->ageing_time),
 	};
 	int err;
 

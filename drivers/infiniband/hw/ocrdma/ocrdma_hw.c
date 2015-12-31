@@ -579,6 +579,8 @@ static int ocrdma_mbx_create_mq(struct ocrdma_dev *dev,
 
 	cmd->async_event_bitmap = BIT(OCRDMA_ASYNC_GRP5_EVE_CODE);
 	cmd->async_event_bitmap |= BIT(OCRDMA_ASYNC_RDMA_EVE_CODE);
+	/* Request link events on this  MQ. */
+	cmd->async_event_bitmap |= BIT(OCRDMA_ASYNC_LINK_EVE_CODE);
 
 	cmd->async_cqid_ringsize = cq->id;
 	cmd->async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
@@ -819,20 +821,42 @@ static void ocrdma_process_grp5_aync(struct ocrdma_dev *dev,
 	}
 }
 
+static void ocrdma_process_link_state(struct ocrdma_dev *dev,
+				      struct ocrdma_ae_mcqe *cqe)
+{
+	struct ocrdma_ae_lnkst_mcqe *evt;
+	u8 lstate;
+
+	evt = (struct ocrdma_ae_lnkst_mcqe *)cqe;
+	lstate = ocrdma_get_ae_link_state(evt->speed_state_ptn);
+
+	if (!(lstate & OCRDMA_AE_LSC_LLINK_MASK))
+		return;
+
+	if (dev->flags & OCRDMA_FLAGS_LINK_STATUS_INIT)
+		ocrdma_update_link_state(dev, (lstate & OCRDMA_LINK_ST_MASK));
+}
+
 static void ocrdma_process_acqe(struct ocrdma_dev *dev, void *ae_cqe)
 {
 	/* async CQE processing */
 	struct ocrdma_ae_mcqe *cqe = ae_cqe;
 	u32 evt_code = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_CODE_MASK) >>
 			OCRDMA_AE_MCQE_EVENT_CODE_SHIFT;
-
-	if (evt_code == OCRDMA_ASYNC_RDMA_EVE_CODE)
+	switch (evt_code) {
+	case OCRDMA_ASYNC_LINK_EVE_CODE:
+		ocrdma_process_link_state(dev, cqe);
+		break;
+	case OCRDMA_ASYNC_RDMA_EVE_CODE:
 		ocrdma_dispatch_ibevent(dev, cqe);
-	else if (evt_code == OCRDMA_ASYNC_GRP5_EVE_CODE)
+		break;
+	case OCRDMA_ASYNC_GRP5_EVE_CODE:
 		ocrdma_process_grp5_aync(dev, cqe);
-	else
+		break;
+	default:
 		pr_err("%s(%d) invalid evt code=0x%x\n", __func__,
 		       dev->id, evt_code);
+	}
 }
 
 static void ocrdma_process_mcqe(struct ocrdma_dev *dev, struct ocrdma_mcqe *cqe)
@@ -1363,7 +1387,8 @@ mbx_err:
 	return status;
 }
 
-int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
+int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed,
+			      u8 *lnk_state)
 {
 	int status = -ENOMEM;
 	struct ocrdma_get_link_speed_rsp *rsp;
@@ -1384,8 +1409,11 @@ int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
 		goto mbx_err;
 
 	rsp = (struct ocrdma_get_link_speed_rsp *)cmd;
-	*lnk_speed = (rsp->pflt_pps_ld_pnum & OCRDMA_PHY_PS_MASK)
-			>> OCRDMA_PHY_PS_SHIFT;
+	if (lnk_speed)
+		*lnk_speed = (rsp->pflt_pps_ld_pnum & OCRDMA_PHY_PS_MASK)
+			      >> OCRDMA_PHY_PS_SHIFT;
+	if (lnk_state)
+		*lnk_state = (rsp->res_lnk_st & OCRDMA_LINK_ST_MASK);
 
 mbx_err:
 	kfree(cmd);
@@ -2515,9 +2543,10 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
 
-	if (vlan_id < 0x1000) {
-		if (dev->pfc_state) {
-			vlan_id = 0;
+	if (vlan_id == 0xFFFF)
+		vlan_id = 0;
+	if (vlan_id || dev->pfc_state) {
+		if (!vlan_id) {
 			pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
 			       dev->id);
 			pr_err("ocrdma%d:Using VLAN 0 for this connection\n",

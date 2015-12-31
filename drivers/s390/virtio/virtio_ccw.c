@@ -984,32 +984,9 @@ static struct virtqueue *virtio_ccw_vq_by_ind(struct virtio_ccw_device *vcdev,
 	return vq;
 }
 
-static void virtio_ccw_int_handler(struct ccw_device *cdev,
-				   unsigned long intparm,
-				   struct irb *irb)
+static void virtio_ccw_check_activity(struct virtio_ccw_device *vcdev,
+				      __u32 activity)
 {
-	__u32 activity = intparm & VIRTIO_CCW_INTPARM_MASK;
-	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
-	int i;
-	struct virtqueue *vq;
-
-	if (!vcdev)
-		return;
-	/* Check if it's a notification from the host. */
-	if ((intparm == 0) &&
-	    (scsw_stctl(&irb->scsw) ==
-	     (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND))) {
-		/* OK */
-	}
-	if (irb_is_error(irb)) {
-		/* Command reject? */
-		if ((scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK) &&
-		    (irb->ecw[0] & SNS0_CMD_REJECT))
-			vcdev->err = -EOPNOTSUPP;
-		else
-			/* Map everything else to -EIO. */
-			vcdev->err = -EIO;
-	}
 	if (vcdev->curr_io & activity) {
 		switch (activity) {
 		case VIRTIO_CCW_DOING_READ_FEAT:
@@ -1029,12 +1006,47 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 			break;
 		default:
 			/* don't know what to do... */
-			dev_warn(&cdev->dev, "Suspicious activity '%08x'\n",
-				 activity);
+			dev_warn(&vcdev->cdev->dev,
+				 "Suspicious activity '%08x'\n", activity);
 			WARN_ON(1);
 			break;
 		}
 	}
+}
+
+static void virtio_ccw_int_handler(struct ccw_device *cdev,
+				   unsigned long intparm,
+				   struct irb *irb)
+{
+	__u32 activity = intparm & VIRTIO_CCW_INTPARM_MASK;
+	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
+	int i;
+	struct virtqueue *vq;
+
+	if (!vcdev)
+		return;
+	if (IS_ERR(irb)) {
+		vcdev->err = PTR_ERR(irb);
+		virtio_ccw_check_activity(vcdev, activity);
+		/* Don't poke around indicators, something's wrong. */
+		return;
+	}
+	/* Check if it's a notification from the host. */
+	if ((intparm == 0) &&
+	    (scsw_stctl(&irb->scsw) ==
+	     (SCSW_STCTL_ALERT_STATUS | SCSW_STCTL_STATUS_PEND))) {
+		/* OK */
+	}
+	if (irb_is_error(irb)) {
+		/* Command reject? */
+		if ((scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK) &&
+		    (irb->ecw[0] & SNS0_CMD_REJECT))
+			vcdev->err = -EOPNOTSUPP;
+		else
+			/* Map everything else to -EIO. */
+			vcdev->err = -EIO;
+	}
+	virtio_ccw_check_activity(vcdev, activity);
 	for_each_set_bit(i, &vcdev->indicators,
 			 sizeof(vcdev->indicators) * BITS_PER_BYTE) {
 		/* The bit clear must happen before the vring kick. */

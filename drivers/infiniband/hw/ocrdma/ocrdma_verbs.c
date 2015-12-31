@@ -171,7 +171,7 @@ static inline void get_link_speed_and_width(struct ocrdma_dev *dev,
 	int status;
 	u8 speed;
 
-	status = ocrdma_mbx_get_link_speed(dev, &speed);
+	status = ocrdma_mbx_get_link_speed(dev, &speed, NULL);
 	if (status)
 		speed = OCRDMA_PHYS_LINK_SPEED_ZERO;
 
