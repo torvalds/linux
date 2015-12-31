@@ -154,6 +154,28 @@ struct gb_control_interface_version_response {
 } __packed;
 
 
+/* APBridge protocol */
+
+/* request APB1 log */
+#define GB_APB_REQUEST_LOG		0x02
+
+/* request to map a cport to bulk in and bulk out endpoints */
+#define GB_APB_REQUEST_EP_MAPPING	0x03
+
+/* request to get the number of cports available */
+#define GB_APB_REQUEST_CPORT_COUNT	0x04
+
+/* request to reset a cport state */
+#define GB_APB_REQUEST_RESET_CPORT	0x05
+
+/* request to time the latency of messages on a given cport */
+#define GB_APB_REQUEST_LATENCY_TAG_EN	0x06
+#define GB_APB_REQUEST_LATENCY_TAG_DIS	0x07
+
+/* request to control the CSI transmitter */
+#define GB_APB_REQUEST_CSI_TX_CONTROL	0x08
+
+
 /* Firmware Protocol */
 
 /* Version of the Greybus firmware protocol we support */

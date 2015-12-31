@@ -73,9 +73,6 @@ struct gb_camera_stream_config {
  * Camera Protocol Operations
  */
 
-/* vendor request to control the CSI transmitter */
-#define REQUEST_CSI_TX_CONTROL	0x08
-
 struct ap_csi_config_request {
 	__u8 csi_id;
 	__u8 clock_mode;
@@ -169,13 +166,13 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		csi_cfg.num_lanes = 4;
 		csi_cfg.bus_freq = cpu_to_le32(960000000);
 		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
-				   sizeof(csi_cfg), REQUEST_CSI_TX_CONTROL,
-				   false);
+				   sizeof(csi_cfg),
+				   GB_APB_REQUEST_CSI_TX_CONTROL, false);
 	} else if (nstreams == 0) {
 		csi_cfg.csi_id = 1;
 		ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
-				   sizeof(csi_cfg), REQUEST_CSI_TX_CONTROL,
-				   false);
+				   sizeof(csi_cfg),
+				   GB_APB_REQUEST_CSI_TX_CONTROL, false);
 	}
 
 	if (ret < 0)

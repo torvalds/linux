@@ -44,25 +44,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
  */
 #define NUM_CPORT_OUT_URB	(8 * NUM_BULKS)
 
-/* vendor request APB1 log */
-#define REQUEST_LOG		0x02
-
-/* vendor request to map a cport to bulk in and bulk out endpoints */
-#define REQUEST_EP_MAPPING	0x03
-
-/* vendor request to get the number of cports available */
-#define REQUEST_CPORT_COUNT	0x04
-
-/* vendor request to reset a cport state */
-#define REQUEST_RESET_CPORT	0x05
-
-/* vendor request to time the latency of messages on a given cport */
-#define REQUEST_LATENCY_TAG_EN	0x06
-#define REQUEST_LATENCY_TAG_DIS	0x07
-
-/* vendor request to control the CSI transmitter */
-#define REQUEST_CSI_TX_CONTROL	0x08
-
 /*
  * @endpoint: bulk in endpoint for CPort data
  * @urb: array of urbs for the CPort in messages
@@ -191,7 +172,7 @@ static int map_cport_to_ep(struct es2_ap_dev *es2,
 
 	retval = usb_control_msg(es2->usb_dev,
 				 usb_sndctrlpipe(es2->usb_dev, 0),
-				 REQUEST_EP_MAPPING,
+				 GB_APB_REQUEST_EP_MAPPING,
 				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				 0x00, 0x00,
 				 (char *)cport_to_ep,
@@ -521,7 +502,7 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 	int retval;
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 REQUEST_RESET_CPORT,
+				 GB_APB_REQUEST_RESET_CPORT,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0,
 				 NULL, 0, ES2_TIMEOUT);
@@ -559,7 +540,7 @@ static int latency_tag_enable(struct gb_host_device *hd, u16 cport_id)
 	}
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 REQUEST_LATENCY_TAG_EN,
+				 GB_APB_REQUEST_LATENCY_TAG_EN,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
 				 0, ES2_TIMEOUT);
@@ -582,7 +563,7 @@ static int latency_tag_disable(struct gb_host_device *hd, u16 cport_id)
 	}
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 REQUEST_LATENCY_TAG_DIS,
+				 GB_APB_REQUEST_LATENCY_TAG_DIS,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
 				 0, ES2_TIMEOUT);
@@ -756,7 +737,7 @@ static void apb_log_get(struct es2_ap_dev *es2, char *buf)
 	do {
 		retval = usb_control_msg(es2->usb_dev,
 					usb_rcvctrlpipe(es2->usb_dev, 0),
-					REQUEST_LOG,
+					GB_APB_REQUEST_LOG,
 					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 					0x00, 0x00,
 					buf,
@@ -885,7 +866,7 @@ static int apb_get_cport_count(struct usb_device *udev)
 		return -ENOMEM;
 
 	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
-				 REQUEST_CPORT_COUNT,
+				 GB_APB_REQUEST_CPORT_COUNT,
 				 USB_DIR_IN | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, cport_count,
 				 sizeof(*cport_count), ES2_TIMEOUT);
