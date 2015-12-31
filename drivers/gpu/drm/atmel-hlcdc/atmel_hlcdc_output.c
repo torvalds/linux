@@ -256,7 +256,7 @@ static int atmel_hlcdc_create_panel_output(struct drm_device *dev,
 			       &atmel_hlcdc_panel_encoder_helper_funcs);
 	ret = drm_encoder_init(dev, &panel->base.encoder,
 			       &atmel_hlcdc_panel_encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS, NULL);
+			       DRM_MODE_ENCODER_NONE, NULL);
 	if (ret)
 		return ret;
 
@@ -266,7 +266,7 @@ static int atmel_hlcdc_create_panel_output(struct drm_device *dev,
 				 &atmel_hlcdc_panel_connector_helper_funcs);
 	ret = drm_connector_init(dev, &panel->base.connector,
 				 &atmel_hlcdc_panel_connector_funcs,
-				 DRM_MODE_CONNECTOR_LVDS);
+				 DRM_MODE_CONNECTOR_Unknown);
 	if (ret)
 		goto err_encoder_cleanup;
 
