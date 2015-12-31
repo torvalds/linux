@@ -1155,7 +1155,7 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_dev *t, *geneve = netdev_priv(dev);
 	bool tun_collect_md, tun_on_same_port;
-	int err;
+	int err, encap_len;
 
 	if (!remote)
 		return -EINVAL;
@@ -1186,6 +1186,14 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 			    &tun_on_same_port, &tun_collect_md);
 	if (t)
 		return -EBUSY;
+
+	/* make enough headroom for basic scenario */
+	encap_len = GENEVE_BASE_HLEN + ETH_HLEN;
+	if (remote->sa.sa_family == AF_INET)
+		encap_len += sizeof(struct iphdr);
+	else
+		encap_len += sizeof(struct ipv6hdr);
+	dev->needed_headroom = encap_len + ETH_HLEN;
 
 	if (metadata) {
 		if (tun_on_same_port)
