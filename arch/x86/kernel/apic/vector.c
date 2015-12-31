@@ -532,6 +532,8 @@ static void __send_cleanup_vector(struct apic_chip_data *data)
 {
 	cpumask_var_t cleanup_mask;
 
+	raw_spin_lock(&vector_lock);
+	data->move_in_progress = 0;
 	if (unlikely(!alloc_cpumask_var(&cleanup_mask, GFP_ATOMIC))) {
 		unsigned int i;
 
@@ -543,7 +545,7 @@ static void __send_cleanup_vector(struct apic_chip_data *data)
 		apic->send_IPI_mask(cleanup_mask, IRQ_MOVE_CLEANUP_VECTOR);
 		free_cpumask_var(cleanup_mask);
 	}
-	data->move_in_progress = 0;
+	raw_spin_unlock(&vector_lock);
 }
 
 void send_cleanup_vector(struct irq_cfg *cfg)
