@@ -1326,9 +1326,15 @@ static void nfs_async_write_error(struct list_head *head)
 	}
 }
 
+static void nfs_async_write_reschedule_io(struct nfs_pgio_header *hdr)
+{
+	nfs_async_write_error(&hdr->pages);
+}
+
 static const struct nfs_pgio_completion_ops nfs_async_write_completion_ops = {
 	.error_cleanup = nfs_async_write_error,
 	.completion = nfs_write_completion,
+	.reschedule_io = nfs_async_write_reschedule_io,
 };
 
 void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,

@@ -1460,6 +1460,7 @@ struct nfs_pgio_completion_ops {
 	void	(*error_cleanup)(struct list_head *head);
 	void	(*init_hdr)(struct nfs_pgio_header *hdr);
 	void	(*completion)(struct nfs_pgio_header *hdr);
+	void	(*reschedule_io)(struct nfs_pgio_header *hdr);
 };
 
 struct nfs_unlinkdata {

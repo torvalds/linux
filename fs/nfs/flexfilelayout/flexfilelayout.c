@@ -912,18 +912,7 @@ static void ff_layout_reset_write(struct nfs_pgio_header *hdr, bool retry_pnfs)
 			hdr->args.count,
 			(unsigned long long)hdr->args.offset);
 
-		if (!hdr->dreq) {
-			struct nfs_open_context *ctx;
-
-			ctx = nfs_list_entry(hdr->pages.next)->wb_context;
-			set_bit(NFS_CONTEXT_RESEND_WRITES, &ctx->flags);
-			hdr->completion_ops->error_cleanup(&hdr->pages);
-		} else {
-			nfs_direct_set_resched_writes(hdr->dreq);
-			/* fake unstable write to let common nfs resend pages */
-			hdr->verf.committed = NFS_UNSTABLE;
-			hdr->good_bytes = hdr->args.count;
-		}
+		hdr->completion_ops->reschedule_io(hdr);
 		return;
 	}
 

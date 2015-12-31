@@ -117,12 +117,6 @@ static inline int put_dreq(struct nfs_direct_req *dreq)
 	return atomic_dec_and_test(&dreq->io_count);
 }
 
-void nfs_direct_set_resched_writes(struct nfs_direct_req *dreq)
-{
-	dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
-}
-EXPORT_SYMBOL_GPL(nfs_direct_set_resched_writes);
-
 static void
 nfs_direct_good_bytes(struct nfs_direct_req *dreq, struct nfs_pgio_header *hdr)
 {
@@ -839,10 +833,25 @@ static void nfs_write_sync_pgio_error(struct list_head *head)
 	}
 }
 
+static void nfs_direct_write_reschedule_io(struct nfs_pgio_header *hdr)
+{
+	struct nfs_direct_req *dreq = hdr->dreq;
+
+	spin_lock(&dreq->lock);
+	if (dreq->error == 0) {
+		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
+		/* fake unstable write to let common nfs resend pages */
+		hdr->verf.committed = NFS_UNSTABLE;
+		hdr->good_bytes = hdr->args.count;
+	}
+	spin_unlock(&dreq->lock);
+}
+
 static const struct nfs_pgio_completion_ops nfs_direct_write_completion_ops = {
 	.error_cleanup = nfs_write_sync_pgio_error,
 	.init_hdr = nfs_direct_pgio_init,
 	.completion = nfs_direct_write_completion,
+	.reschedule_io = nfs_direct_write_reschedule_io,
 };
 
 
