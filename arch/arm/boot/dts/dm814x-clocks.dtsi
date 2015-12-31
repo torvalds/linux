@@ -4,18 +4,41 @@
  * published by the Free Software Foundation.
  */
 
-&scm_clocks {
-
-	tclkin_ck: tclkin_ck {
+&pllss_clocks {
+	timer1_fck: timer1_fck {
 		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
+		compatible = "ti,mux-clock";
+		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
+			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
+		ti,bit-shift = <3>;
+		reg = <0x2e0>;
 	};
 
+	timer2_fck: timer2_fck {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
+			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
+		ti,bit-shift = <6>;
+		reg = <0x2e0>;
+	};
+
+	sysclk18_ck: sysclk18_ck {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&rtcosc_ck>, <&rtcdivider_ck>;
+		ti,bit-shift = <0>;
+		reg = <0x02f0>;
+	};
+};
+
+&scm_clocks {
 	devosc_ck: devosc_ck {
 		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <20000000>;
+		compatible = "ti,mux-clock";
+		clocks = <&virt_20000000_ck>, <&virt_19200000_ck>;
+		ti,bit-shift = <21>;
+		reg = <0x0040>;
 	};
 
 	/* Optional auxosc, 20 - 30 MHz range, assume 27 MHz by default */
@@ -23,6 +46,32 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <27000000>;
+	};
+
+	/* Optional 32768Hz crystal or clock on RTCOSC pins */
+	rtcosc_ck: rtcosc_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+	};
+
+	/* Optional external clock on TCLKIN pin, set rate in baord dts file */
+	tclkin_ck: tclkin_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+	};
+
+	virt_20000000_ck: virt_20000000_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
+	};
+
+	virt_19200000_ck: virt_19200000_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <19200000>;
 	};
 
 	mpu_ck: mpu_ck {
@@ -49,12 +98,6 @@
 		clock-frequency = <48000000>;
 	};
 
-	sysclk18_ck: sysclk18_ck {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-	};
-
         cpsw_125mhz_gclk: cpsw_125mhz_gclk {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -69,7 +112,31 @@
 
 };
 
-&pllss_clocks {
+&prcm_clocks {
+	osc_src_ck: osc_src_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&devosc_ck>;
+		clock-mult = <1>;
+		clock-div = <1>;
+	};
+
+	mpu_clksrc_ck: mpu_clksrc_ck {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&devosc_ck>, <&rtcdivider_ck>;
+		ti,bit-shift = <0>;
+		reg = <0x0040>;
+	};
+
+	/* Fixed divider clock 0.0016384 * devosc */
+	rtcdivider_ck: rtcdivider_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&devosc_ck>;
+		clock-mult = <128>;
+		clock-div = <78125>;
+	};
 
 	aud_clkin0_ck: aud_clkin0_ck {
 		#clock-cells = <0>;
@@ -87,23 +154,5 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <20000000>;
-	};
-
-	timer1_mux_ck: timer1_mux_ck {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
-			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
-		ti,bit-shift = <3>;
-		reg = <0x2e0>;
-	};
-
-	timer2_mux_ck: timer2_mux_ck {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
-			  &aud_clkin2_ck &devosc_ck &auxosc_ck &tclkin_ck>;
-		ti,bit-shift = <6>;
-		reg = <0x2e0>;
 	};
 };
