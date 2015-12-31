@@ -202,8 +202,12 @@ next_cpu:
 	return -ENOSPC;
 
 update:
-	/* Cleanup required ? */
-	d->move_in_progress = cpumask_intersects(d->old_domain, cpu_online_mask);
+	/*
+	 * Exclude offline cpus from the cleanup mask and set the
+	 * move_in_progress flag when the result is not empty.
+	 */
+	cpumask_and(d->old_domain, d->old_domain, cpu_online_mask);
+	d->move_in_progress = !cpumask_empty(d->old_domain);
 	d->cfg.vector = vector;
 	cpumask_copy(d->domain, vector_cpumask);
 success:
