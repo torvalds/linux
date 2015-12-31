@@ -660,7 +660,6 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	u64 logical;
 	int ret;
 	int i;
-	int need_kick = 0;
 
 	spin_lock(&fs_info->reada_lock);
 	if (dev->reada_curr_zone == NULL) {
@@ -696,6 +695,15 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 
 	spin_unlock(&fs_info->reada_lock);
 
+	spin_lock(&re->lock);
+	if (re->scheduled_for || list_empty(&re->extctl)) {
+		spin_unlock(&re->lock);
+		reada_extent_put(fs_info, re);
+		return 0;
+	}
+	re->scheduled_for = dev;
+	spin_unlock(&re->lock);
+
 	/*
 	 * find mirror num
 	 */
@@ -707,17 +715,7 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	}
 	logical = re->logical;
 
-	spin_lock(&re->lock);
-	if (!re->scheduled_for && !list_empty(&re->extctl)) {
-		re->scheduled_for = dev;
-		need_kick = 1;
-	}
-	spin_unlock(&re->lock);
-
 	reada_extent_put(fs_info, re);
-
-	if (!need_kick)
-		return 0;
 
 	atomic_inc(&dev->reada_in_flight);
 	ret = reada_tree_block_flagged(fs_info->extent_root, logical,
