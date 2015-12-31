@@ -1016,10 +1016,12 @@ const struct inode_operations f2fs_encrypted_symlink_inode_operations = {
 	.put_link       = kfree_put_link,
 	.getattr	= f2fs_getattr,
 	.setattr	= f2fs_setattr,
+#ifdef CONFIG_F2FS_FS_XATTR
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
 	.listxattr	= f2fs_listxattr,
 	.removexattr	= generic_removexattr,
+#endif
 };
 #endif
 
