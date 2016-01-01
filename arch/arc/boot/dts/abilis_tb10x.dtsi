@@ -35,6 +35,20 @@
 		};
 	};
 
+	/* TIMER0 with interrupt for clockevent */
+	timer0 {
+		compatible = "snps,arc-timer";
+		interrupts = <3>;
+		interrupt-parent = <&intc>;
+		clocks = <&cpu_clk>;
+	};
+
+	/* TIMER1 for free running clocksource */
+	timer1 {
+		compatible = "snps,arc-timer";
+		clocks = <&cpu_clk>;
+	};
+
 	soc100 {
 		#address-cells	= <1>;
 		#size-cells	= <1>;

@@ -1,0 +1,31 @@
+Synopsys ARC Local Timer with Interrupt Capabilities
+- Found on all ARC CPUs (ARC700/ARCHS)
+- Can be optionally programmed to interrupt on Limit
+- Two idential copies TIMER0 and TIMER1 exist in ARC cores and historically
+  TIMER0 used as clockevent provider (true for all ARC cores)
+  TIMER1 used for clocksource (mandatory for ARC700, optional for ARC HS)
+
+Required properties:
+
+- compatible : should be "snps,arc-timer"
+- interrupts : single Interrupt going into parent intc
+	       (16 for ARCHS cores, 3 for ARC700 cores)
+- clocks     : phandle to the source clock
+
+Optional properties:
+
+- interrupt-parent : phandle to parent intc
+
+Example:
+
+	timer0 {
+		compatible = "snps,arc-timer";
+		interrupts = <3>;
+		interrupt-parent = <&core_intc>;
+		clocks = <&core_clk>;
+	};
+
+	timer1 {
+		compatible = "snps,arc-timer";
+		clocks = <&core_clk>;
+	};
