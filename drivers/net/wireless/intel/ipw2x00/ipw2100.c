@@ -2311,8 +2311,10 @@ static int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 	packet->dma_addr = pci_map_single(priv->pci_dev, packet->skb->data,
 					  sizeof(struct ipw2100_rx),
 					  PCI_DMA_FROMDEVICE);
-	/* NOTE: pci_map_single does not return an error code, and 0 is a valid
-	 *       dma_addr */
+	if (pci_dma_mapping_error(priv->pci_dev, packet->dma_addr)) {
+		dev_kfree_skb(packet->skb);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -3183,6 +3185,11 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 							LIBIPW_3ADDR_LEN,
 							tbd->buf_length,
 							PCI_DMA_TODEVICE);
+			if (pci_dma_mapping_error(priv->pci_dev,
+						  tbd->host_addr)) {
+				IPW_DEBUG_TX("dma mapping error\n");
+				break;
+			}
 
 			IPW_DEBUG_TX("data frag tbd TX%d P=%08x L=%d\n",
 				     txq->next, tbd->host_addr,
