@@ -36,11 +36,11 @@
 #define VERIFY_WRITE 1
 
 /*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
+ * The exception table consists of pairs of relative offsets: the first
+ * is the relative offset to an instruction that is allowed to fault,
+ * and the second is the relative offset at which the program should
+ * continue. No registers are modified, so it is entirely up to the
+ * continuation code to figure out what to do.
  *
  * All the routines below use bits of fixup code that are out of line
  * with the main instruction path.  This means when everything is well,
@@ -50,8 +50,10 @@
 
 struct exception_table_entry
 {
-	unsigned long insn, fixup;
+	int insn, fixup;
 };
+
+#define ARCH_HAS_RELATIVE_EXTABLE
 
 extern int fixup_exception(struct pt_regs *regs);
 
@@ -115,6 +117,12 @@ static inline void set_fs(mm_segment_t fs)
 #define access_ok(type, addr, size)	__range_ok(addr, size)
 #define user_addr_max			get_fs
 
+#define _ASM_EXTABLE(from, to)						\
+	"	.pushsection	__ex_table, \"a\"\n"			\
+	"	.align		3\n"					\
+	"	.long		(" #from " - .), (" #to " - .)\n"	\
+	"	.popsection\n"
+
 /*
  * The "__xxx" versions of the user access functions do not verify the address
  * space - it must have been done previously with a separate "access_ok()"
@@ -134,10 +142,7 @@ static inline void set_fs(mm_segment_t fs)
 	"	mov	%1, #0\n"					\
 	"	b	2b\n"						\
 	"	.previous\n"						\
-	"	.section __ex_table,\"a\"\n"				\
-	"	.align	3\n"						\
-	"	.quad	1b, 3b\n"					\
-	"	.previous"						\
+	_ASM_EXTABLE(1b, 3b)						\
 	: "+r" (err), "=&r" (x)						\
 	: "r" (addr), "i" (-EFAULT))
 
@@ -206,10 +211,7 @@ do {									\
 	"3:	mov	%w0, %3\n"					\
 	"	b	2b\n"						\
 	"	.previous\n"						\
-	"	.section __ex_table,\"a\"\n"				\
-	"	.align	3\n"						\
-	"	.quad	1b, 3b\n"					\
-	"	.previous"						\
+	_ASM_EXTABLE(1b, 3b)						\
 	: "+r" (err)							\
 	: "r" (x), "r" (addr), "i" (-EFAULT))
 

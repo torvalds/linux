@@ -157,11 +157,8 @@ void apply_alternatives(void *start, size_t length);
 			add	\addr, \addr, \post_inc;
 		alternative_endif
 
-		.section __ex_table,"a";
-		.align	3;
-		.quad	8888b,\l;
-		.quad	8889b,\l;
-		.previous;
+		_asm_extable	8888b,\l;
+		_asm_extable	8889b,\l;
 	.endm
 
 	.macro uao_stp l, reg1, reg2, addr, post_inc
@@ -175,11 +172,8 @@ void apply_alternatives(void *start, size_t length);
 			add	\addr, \addr, \post_inc;
 		alternative_endif
 
-		.section __ex_table,"a";
-		.align	3;
-		.quad	8888b,\l;
-		.quad	8889b,\l;
-		.previous
+		_asm_extable	8888b,\l;
+		_asm_extable	8889b,\l;
 	.endm
 
 	.macro uao_user_alternative l, inst, alt_inst, reg, addr, post_inc
@@ -191,10 +185,7 @@ void apply_alternatives(void *start, size_t length);
 			add		\addr, \addr, \post_inc;
 		alternative_endif
 
-		.section __ex_table,"a";
-		.align	3;
-		.quad	8888b,\l;
-		.previous
+		_asm_extable	8888b,\l;
 	.endm
 #else
 	.macro uao_ldp l, reg1, reg2, addr, post_inc
