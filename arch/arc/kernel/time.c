@@ -30,19 +30,15 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/time.h>
-#include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 #include <asm/irq.h>
 #include <asm/arcregs.h>
-#include <asm/clk.h>
-#include <asm/mach_desc.h>
 
 #include <asm/mcip.h>
 
@@ -58,6 +54,30 @@
 #define TIMER_CTRL_NH	(1 << 1) /* Count only when CPU NOT halted */
 
 #define ARC_TIMER_MAX	0xFFFFFFFF
+
+static unsigned long arc_timer_freq;
+
+static int noinline arc_get_timer_clk(struct device_node *node)
+{
+	struct clk *clk;
+	int ret;
+
+	clk = of_clk_get(node, 0);
+	if (IS_ERR(clk)) {
+		pr_err("timer missing clk");
+		return PTR_ERR(clk);
+	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		pr_err("Couldn't enable parent clk\n");
+		return ret;
+	}
+
+	arc_timer_freq = clk_get_rate(clk);
+
+	return 0;
+}
 
 /********** Clock Source Device *********/
 
@@ -182,7 +202,7 @@ static struct clocksource arc_counter = {
 
 /********** Clock Event Device *********/
 
-static int arc_timer_irq = TIMER0_IRQ;
+static int arc_timer_irq;
 
 /*
  * Arm the timer to interrupt after @cycles
@@ -210,7 +230,7 @@ static int arc_clkevent_set_periodic(struct clock_event_device *dev)
 	 * At X Hz, 1 sec = 1000ms -> X cycles;
 	 *		      10ms -> X / 100 cycles
 	 */
-	arc_timer_event_setup(arc_get_core_freq() / HZ);
+	arc_timer_event_setup(arc_timer_freq / HZ);
 	return 0;
 }
 
@@ -253,7 +273,7 @@ static int arc_timer_cpu_notify(struct notifier_block *self,
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_STARTING:
-		clockevents_config_and_register(evt, arc_get_core_freq(),
+		clockevents_config_and_register(evt, arc_timer_freq,
 						0, ULONG_MAX);
 		enable_percpu_irq(arc_timer_irq, 0);
 		break;
@@ -272,25 +292,35 @@ static struct notifier_block arc_timer_cpu_nb = {
 /*
  * clockevent setup for boot CPU
  */
-static void __init arc_clockevent_setup(void)
+static void __init arc_clockevent_setup(struct device_node *node)
 {
 	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
 	int ret;
 
 	register_cpu_notifier(&arc_timer_cpu_nb);
 
+	arc_timer_irq = irq_of_parse_and_map(node, 0);
+	if (arc_timer_irq <= 0)
+		panic("clockevent: missing irq");
+
+	ret = arc_get_timer_clk(node);
+	if (ret)
+		panic("clockevent: missing clk");
+
+	evt->irq = arc_timer_irq;
 	evt->cpumask = cpumask_of(smp_processor_id());
-	clockevents_config_and_register(evt, arc_get_core_freq(),
+	clockevents_config_and_register(evt, arc_timer_freq,
 					0, ARC_TIMER_MAX);
 
 	/* Needs apriori irq_set_percpu_devid() done in intc map function */
 	ret = request_percpu_irq(arc_timer_irq, timer_irq_handler,
 				 "Timer0 (per-cpu-tick)", evt);
 	if (ret)
-		pr_err("Unable to register interrupt\n");
+		panic("clockevent: unable to request irq\n");
 
 	enable_percpu_irq(arc_timer_irq, 0);
 }
+CLOCKSOURCE_OF_DECLARE(arc_clkevt, "snps,arc-timer", arc_clockevent_setup);
 
 /*
  * Called from start_kernel() - boot CPU only
@@ -299,7 +329,6 @@ static void __init arc_clockevent_setup(void)
  * -Also sets up any global state needed for timer subsystem:
  *    - for "counting" timer, registers a clocksource, usable across CPUs
  *      (provided that underlying counter h/w is synchronized across cores)
- *    - for "event" timer, sets up TIMER0 IRQ (as that is platform agnostic)
  */
 void __init time_init(void)
 {
@@ -315,7 +344,5 @@ void __init time_init(void)
 		 * CLK upto 4.29 GHz can be safely represented in 32 bits
 		 * because Max 32 bit number is 4,294,967,295
 		 */
-		clocksource_register_hz(&arc_counter, arc_get_core_freq());
-
-	arc_clockevent_setup();
+		clocksource_register_hz(&arc_counter, arc_timer_freq);
 }

@@ -14,6 +14,8 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+#define TIMER0_IRQ	3	/* Fixed by ISA */
+
 /*
  * Early Hardware specific Interrupt setup
  * -Platform independent, needed for each CPU (not foldable into init_IRQ)
