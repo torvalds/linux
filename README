@@ -1,4 +1,3 @@
-
 MDB (Merkey's Kernel Debugger) was written in 1998 and was one of the earliest debuggers on Linux. It was originally developed for Linux kernel file system development on the 2.2 series Linux kernels to be used as a loadable module.
 
 MDB supports a lot of features and capabilities and enhances the range of tools for debugging kernel applications on Linux. If MDB is useful to you, please feel free to contribute any changes or enhancements back. MDB is fast, loads as a module, and supports complex conditional breakpoints and disassembly on the fly, and is extremely useful for debugging in the field.
