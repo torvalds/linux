@@ -379,7 +379,7 @@ fInt fDivide (fInt X, fInt Y)
 
     longlongX = longlongX << 16; /*Q(16,16) -> Q(32,32) */
 
-    do_div(longlongX, longlongY); /*Q(32,32) divided by Q(16,16) = Q(16,16) Back to original format */
+    div64_s64(longlongX, longlongY); /*Q(32,32) divided by Q(16,16) = Q(16,16) Back to original format */
 
     fQuotient.full = (int)longlongX;
     return fQuotient;
