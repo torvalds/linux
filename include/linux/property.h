@@ -175,12 +175,19 @@ struct property_entry {
 	};
 };
 
+/*
+ * Note: the below four initializers for the anonymous union are carefully
+ * crafted to avoid gcc-4.4.4's problems with initialization of anon unions
+ * and structs.
+ */
+
 #define PROPERTY_ENTRY_INTEGER_ARRAY(_name_, _type_, _val_)	\
 {								\
 	.name = _name_,						\
 	.length = ARRAY_SIZE(_val_) * sizeof(_type_),		\
 	.is_array = true,					\
-	.pointer._type_##_data = _val_,				\
+	.is_string = false,					\
+	{ .pointer = { _type_##_data = _val_ } },		\
 }
 
 #define PROPERTY_ENTRY_U8_ARRAY(_name_, _val_)			\
@@ -198,14 +205,15 @@ struct property_entry {
 	.length = ARRAY_SIZE(_val_) * sizeof(const char *),	\
 	.is_array = true,					\
 	.is_string = true,					\
-	.pointer.str = _val_,					\
+	{ .pointer = { .str = _val_ } },			\
 }
 
 #define PROPERTY_ENTRY_INTEGER(_name_, _type_, _val_)	\
 {							\
 	.name = _name_,					\
 	.length = sizeof(_type_),			\
-	.value._type_##_data = _val_,			\
+	.is_string = false,				\
+	{ .value = { ._type_##_data = _val_ } },	\
 }
 
 #define PROPERTY_ENTRY_U8(_name_, _val_)		\
@@ -222,7 +230,7 @@ struct property_entry {
 	.name = _name_,					\
 	.length = sizeof(_val_),			\
 	.is_string = true,				\
-	.value.str = _val_,				\
+	{ .value = {.str = _val_} },			\
 }
 
 #define PROPERTY_ENTRY_BOOL(_name_)		\
