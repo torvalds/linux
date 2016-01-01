@@ -213,7 +213,7 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 것은 Linux Cross-Reference project이며 그것은 자기 참조 방식이며
 소스코드를 인덱스된 웹 페이지들의 형태로 보여준다. 최신의 멋진 커널
 코드 저장소는 다음을 통하여 참조할 수 있다.
-      http://lxr.linux.no/+trees
+      http://lxr.free-electrons.com/
 
 
 개발 프로세스
