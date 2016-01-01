@@ -916,7 +916,7 @@ rcu_torture_fqs(void *arg)
 static int
 rcu_torture_writer(void *arg)
 {
-	bool can_expedite = !rcu_gp_is_expedited();
+	bool can_expedite = !rcu_gp_is_expedited() && !rcu_gp_is_normal();
 	int expediting = 0;
 	unsigned long gp_snap;
 	bool gp_cond1 = gp_cond, gp_exp1 = gp_exp, gp_normal1 = gp_normal;
@@ -932,7 +932,7 @@ rcu_torture_writer(void *arg)
 	VERBOSE_TOROUT_STRING("rcu_torture_writer task started");
 	if (!can_expedite) {
 		pr_alert("%s" TORTURE_FLAG
-			 " Grace periods expedited from boot/sysfs for %s,\n",
+			 " GP expediting controlled from boot/sysfs for %s,\n",
 			 torture_type, cur_ops->name);
 		pr_alert("%s" TORTURE_FLAG
 			 " Disabled dynamic grace-period expediting.\n",
