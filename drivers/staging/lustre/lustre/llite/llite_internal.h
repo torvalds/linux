@@ -796,7 +796,7 @@ char *ll_get_fsname(struct super_block *sb, char *buf, int buflen);
 void ll_open_cleanup(struct super_block *sb, struct ptlrpc_request *open_req);
 
 /* llite/llite_nfs.c */
-extern struct export_operations lustre_export_operations;
+extern const struct export_operations lustre_export_operations;
 __u32 get_uuid2int(const char *name, int len);
 void get_uuid2fsid(const char *name, int len, __kernel_fsid_t *fsid);
 struct inode *search_inode_for_lustre(struct super_block *sb,

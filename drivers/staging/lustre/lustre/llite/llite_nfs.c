@@ -323,7 +323,7 @@ static struct dentry *ll_get_parent(struct dentry *dchild)
 	return result;
 }
 
-struct export_operations lustre_export_operations = {
+const struct export_operations lustre_export_operations = {
        .get_parent = ll_get_parent,
        .encode_fh  = ll_encode_fh,
        .get_name   = ll_get_name,
