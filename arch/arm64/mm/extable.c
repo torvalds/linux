@@ -11,7 +11,7 @@ int fixup_exception(struct pt_regs *regs)
 
 	fixup = search_exception_tables(instruction_pointer(regs));
 	if (fixup)
-		regs->pc = fixup->fixup;
+		regs->pc = (unsigned long)&fixup->fixup + fixup->fixup;
 
 	return fixup != NULL;
 }
