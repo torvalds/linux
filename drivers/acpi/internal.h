@@ -88,7 +88,7 @@ bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
 
 extern struct list_head acpi_bus_id_list;
 
-struct acpi_device_bus_id{
+struct acpi_device_bus_id {
 	char bus_id[15];
 	unsigned int instance_no;
 	struct list_head node;
