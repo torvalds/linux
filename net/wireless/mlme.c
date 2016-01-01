@@ -711,7 +711,7 @@ EXPORT_SYMBOL(cfg80211_rx_mgmt);
 
 void cfg80211_dfs_channels_update_work(struct work_struct *work)
 {
-	struct delayed_work *delayed_work;
+	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct cfg80211_registered_device *rdev;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_supported_band *sband;
@@ -721,7 +721,6 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 	unsigned long timeout, next_time = 0;
 	int bandid, i;
 
-	delayed_work = container_of(work, struct delayed_work, work);
 	rdev = container_of(delayed_work, struct cfg80211_registered_device,
 			    dfs_update_channels_wk);
 	wiphy = &rdev->wiphy;
