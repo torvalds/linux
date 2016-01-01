@@ -10,7 +10,7 @@ Installation
 
 There are several options for installing MDB on your linux systems. You can download or clone the entire repository from git, you can download a simple patch or diff and patch your kernel (diff is easiest), or you can download a tar.gz file of all the current source code for each branch as a completely integrated kernel source tree. The simplest and fastest method is to download a diff and patch and build your kernel.
 
-Download the diff which matches your particular linux version, then apply the patch from your linux build directory. To download the diff and convert it into a patch file, click on the link for your kernel version for your system, then the patch text will display in your browser window, use your mouse to right click, then save as and save the patch into any filename you wish. It does not matter what filename you save the file under, you can choose any filename you wish, so long as it matches the filename you specify when you run the patch utility. To patch the kernel, from the linux build directory, type:
+Download the diff which matches your particular linux version from http://jeffmerkey.github.io/linux, then apply the patch from your linux build directory. To download the diff and convert it into a patch file, click on the link for your kernel version for your system, then the patch text will display in your browser window, use your mouse to right click, then save as and save the patch into any filename you wish. It does not matter what filename you save the file under, you can choose any filename you wish, so long as it matches the filename you specify when you run the patch utility. To patch the kernel, from the linux build directory, type:
 
 (linux build directory) patch -p1 < filename.diff
 
