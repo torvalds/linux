@@ -6445,8 +6445,8 @@ static struct loaded_vmcs *nested_get_current_vmcs02(struct vcpu_vmx *vmx)
 
 	if (vmx->nested.vmcs02_num >= max(VMCS02_POOL_SIZE, 1)) {
 		/* Recycle the least recently used VMCS. */
-		item = list_entry(vmx->nested.vmcs02_pool.prev,
-			struct vmcs02_list, list);
+		item = list_last_entry(&vmx->nested.vmcs02_pool,
+				       struct vmcs02_list, list);
 		item->vmptr = vmx->nested.current_vmptr;
 		list_move(&item->list, &vmx->nested.vmcs02_pool);
 		return &item->vmcs02;
