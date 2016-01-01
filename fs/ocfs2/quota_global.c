@@ -123,7 +123,7 @@ static int ocfs2_global_is_id(void *dp, struct dquot *dquot)
 		      dquot->dq_id);
 }
 
-struct qtree_fmt_operations ocfs2_global_ops = {
+const struct qtree_fmt_operations ocfs2_global_ops = {
 	.mem2disk_dqblk = ocfs2_global_mem2diskdqb,
 	.disk2mem_dqblk = ocfs2_global_disk2memdqb,
 	.is_id = ocfs2_global_is_id,
