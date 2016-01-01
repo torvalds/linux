@@ -313,9 +313,6 @@ static void arc_chk_core_config(void)
 	if (!cpu->extn.timer1)
 		panic("Timer1 is not present!\n");
 
-	if (IS_ENABLED(CONFIG_ARC_HAS_RTC) && !cpu->extn.rtc)
-		panic("RTC is not present\n");
-
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
 	 * DCCM can be arbit placed in hardware.
