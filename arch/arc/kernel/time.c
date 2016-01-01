@@ -29,17 +29,14 @@
  * which however is currently broken
  */
 
-#include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/init.h>
-#include <linux/timex.h>
-#include <linux/profile.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/cpu.h>
 #include <asm/irq.h>
 #include <asm/arcregs.h>
 #include <asm/clk.h>
@@ -183,6 +180,8 @@ static struct clocksource arc_counter = {
 
 /********** Clock Event Device *********/
 
+static int arc_timer_irq = TIMER0_IRQ;
+
 /*
  * Arm the timer to interrupt after @cycles
  * The distinction for oneshot/periodic is done in arc_event_timer_ack() below
@@ -218,7 +217,6 @@ static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 	.features		= CLOCK_EVT_FEAT_ONESHOT |
 				  CLOCK_EVT_FEAT_PERIODIC,
 	.rating			= 300,
-	.irq			= TIMER0_IRQ,	/* hardwired, no need for resources */
 	.set_next_event		= arc_clkevent_set_next_event,
 	.set_state_periodic	= arc_clkevent_set_periodic,
 };
@@ -244,29 +242,52 @@ static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/*
- * Setup the local event timer for @cpu
- */
-void arc_local_timer_setup()
+static int arc_timer_cpu_notify(struct notifier_block *self,
+				unsigned long action, void *hcpu)
 {
 	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
-	int cpu = smp_processor_id();
-	int irq = TIMER0_IRQ;
 
-	evt->cpumask = cpumask_of(cpu);
+	evt->cpumask = cpumask_of(smp_processor_id());
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_STARTING:
+		clockevents_config_and_register(evt, arc_get_core_freq(),
+						0, ULONG_MAX);
+		enable_percpu_irq(arc_timer_irq, 0);
+		break;
+	case CPU_DYING:
+		disable_percpu_irq(arc_timer_irq);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block arc_timer_cpu_nb = {
+	.notifier_call = arc_timer_cpu_notify,
+};
+
+/*
+ * clockevent setup for boot CPU
+ */
+static void __init arc_clockevent_setup(void)
+{
+	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
+	int ret;
+
+	register_cpu_notifier(&arc_timer_cpu_nb);
+
+	evt->cpumask = cpumask_of(smp_processor_id());
 	clockevents_config_and_register(evt, arc_get_core_freq(),
 					0, ARC_TIMER_MAX);
 
-	if (!cpu) {
-		int rc;
+	/* Needs apriori irq_set_percpu_devid() done in intc map function */
+	ret = request_percpu_irq(arc_timer_irq, timer_irq_handler,
+				 "Timer0 (per-cpu-tick)", evt);
+	if (ret)
+		pr_err("Unable to register interrupt\n");
 
-		rc = request_percpu_irq(irq, timer_irq_handler,
-					"Timer0 (per-cpu-tick)", evt);
-		if (rc)
-			panic("Percpu IRQ request failed for TIMER\n");
-	}
-
-	enable_percpu_irq(irq, 0);
+	enable_percpu_irq(arc_timer_irq, 0);
 }
 
 /*
@@ -291,6 +312,5 @@ void __init time_init(void)
 		 */
 		clocksource_register_hz(&arc_counter, arc_get_core_freq());
 
-	/* sets up the periodic event timer */
-	arc_local_timer_setup();
+	arc_clockevent_setup();
 }

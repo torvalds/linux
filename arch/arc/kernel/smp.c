@@ -138,8 +138,6 @@ void start_kernel_secondary(void)
 	if (machine_desc->init_per_cpu)
 		machine_desc->init_per_cpu(cpu);
 
-	arc_local_timer_setup();
-
 	local_irq_enable();
 	preempt_disable();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
