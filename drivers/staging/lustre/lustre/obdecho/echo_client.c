@@ -582,13 +582,13 @@ static struct lu_object *echo_object_alloc(const struct lu_env *env,
 	return obj;
 }
 
-static struct lu_device_operations echo_device_lu_ops = {
+static const struct lu_device_operations echo_device_lu_ops = {
 	.ldo_object_alloc   = echo_object_alloc,
 };
 
 /** @} echo_lu_dev_ops */
 
-static struct cl_device_operations echo_device_cl_ops = {
+static const struct cl_device_operations echo_device_cl_ops = {
 };
 
 /** \defgroup echo_init Setup and teardown
