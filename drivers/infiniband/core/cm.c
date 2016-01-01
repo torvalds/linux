@@ -782,11 +782,11 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 	wait_time = cm_convert_to_ms(cm_id_priv->av.timeout);
 
 	/* Check if the device started its remove_one */
-	spin_lock_irq(&cm.lock);
+	spin_lock_irqsave(&cm.lock, flags);
 	if (!cm_dev->going_down)
 		queue_delayed_work(cm.wq, &cm_id_priv->timewait_info->work.work,
 				   msecs_to_jiffies(wait_time));
-	spin_unlock_irq(&cm.lock);
+	spin_unlock_irqrestore(&cm.lock, flags);
 
 	cm_id_priv->timewait_info = NULL;
 }
