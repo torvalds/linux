@@ -32,6 +32,12 @@
 		/* child and parent address space 1:1 mapped */
 		ranges;
 
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <80000000>;
+		};
+
 		core_intc: interrupt-controller {
 			compatible = "snps,arc700-intc";
 			interrupt-controller;

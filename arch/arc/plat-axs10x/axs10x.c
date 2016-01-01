@@ -14,7 +14,9 @@
  *
  */
 
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
+#include <linux/libfdt.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/clk.h>
@@ -389,7 +391,12 @@ axs103_set_freq(unsigned int id, unsigned int fd, unsigned int od)
 
 static void __init axs103_early_init(void)
 {
-	u32 freq = arc_get_core_freq(), orig = freq;
+	int offset = fdt_path_offset(initial_boot_params, "/cpu_card/core_clk");
+	const struct fdt_property *prop = fdt_get_property(initial_boot_params,
+							   offset,
+							   "clock-frequency",
+							   NULL);
+	u32 freq = be32_to_cpu(*(u32*)(prop->data)) / 1000000, orig = freq;
 
 	/*
 	 * AXS103 configurations for SMP/QUAD configurations share device tree
@@ -438,8 +445,13 @@ static void __init axs103_early_init(void)
 	}
 
 	pr_info("Freq is %dMHz\n", freq);
+
+	/* Patching .dtb in-place with new core clock value */
 	if (freq != orig ) {
 		arc_set_core_freq(freq * 1000000);
+		freq = cpu_to_be32(freq * 1000000);
+		fdt_setprop_inplace(initial_boot_params, offset,
+				    "clock-frequency", &freq, sizeof(freq));
 	}
 
 	/* Memory maps already config in pre-bootloader */

@@ -39,6 +39,12 @@
 			 bus addr,   parent bus addr, size */
 		ranges = <0x80000000 0x0 0x80000000 0x80000000>;
 
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <80000000>;
+		};
+
 		core_intc: core-interrupt-controller {
 			compatible = "snps,archs-intc";
 			interrupt-controller;
