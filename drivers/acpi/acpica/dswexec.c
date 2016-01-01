@@ -178,8 +178,7 @@ cleanup:
 
 	/* Break to debugger to display result */
 
-	ACPI_DEBUGGER_EXEC(acpi_db_display_result_object
-			   (local_obj_desc, walk_state));
+	acpi_db_display_result_object(local_obj_desc, walk_state);
 
 	/*
 	 * Delete the predicate result object (we know that
@@ -386,11 +385,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 	/* Call debugger for single step support (DEBUG build only) */
 
-	ACPI_DEBUGGER_EXEC(status =
-			   acpi_db_single_step(walk_state, op, op_class));
-	ACPI_DEBUGGER_EXEC(if (ACPI_FAILURE(status)) {
-			   return_ACPI_STATUS(status);}
-	) ;
+	status = acpi_db_single_step(walk_state, op, op_class);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	/* Decode the Opcode Class */
 
@@ -728,8 +726,8 @@ cleanup:
 
 		/* Break to debugger to display result */
 
-		ACPI_DEBUGGER_EXEC(acpi_db_display_result_object
-				   (walk_state->result_obj, walk_state));
+		acpi_db_display_result_object(walk_state->result_obj,
+					      walk_state);
 
 		/*
 		 * Delete the result op if and only if:
