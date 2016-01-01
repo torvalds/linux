@@ -97,21 +97,23 @@ static const struct irq_domain_ops arc_intc_domain_ops = {
 	.map = arc_intc_domain_map,
 };
 
-static struct irq_domain *root_domain;
-
 static int __init
 init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
+	struct irq_domain *root_domain;
+
 	if (parent)
 		panic("DeviceTree incore intc not a root irq controller\n");
 
 	root_domain = irq_domain_add_legacy(intc, NR_CPU_IRQS, 0, 0,
 					    &arc_intc_domain_ops, NULL);
-
 	if (!root_domain)
 		panic("root irq domain not avail\n");
 
-	/* with this we don't need to export root_domain */
+	/*
+	 * Needed for primary domain lookup to succeed
+	 * This is a primary irqchip, and can never have a parent
+	 */
 	irq_set_default_host(root_domain);
 
 	return 0;

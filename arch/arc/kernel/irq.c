@@ -41,12 +41,7 @@ void __init init_IRQ(void)
  * "C" Entry point for any ARC ISR, called from low level vector handler
  * @irq is the vector number read from ICAUSE reg of on-chip intc
  */
-void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
+void arch_do_IRQ(unsigned int hwirq, struct pt_regs *regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	irq_enter();
-	generic_handle_irq(irq);
-	irq_exit();
-	set_irq_regs(old_regs);
+	handle_domain_irq(NULL, hwirq, regs);
 }
