@@ -6,6 +6,7 @@ MDB supports a lot of features and capabilities and enhances the range of tools 
 Hardware Required: x86-64 or ia-32 system with Standard Keyboard or remote serial port. USB Keyboard not supported.
 
 Installation
+
 There are several options for installing MDB on your linux systems. You can download or clone the entire repository from git, you can download a simple patch or diff and patch your kernel (diff is easiest), or you can download a tar.gz file of all the current source code for each branch as a completely integrated kernel source tree. The simplest and fastest method is to download a diff and patch and build your kernel.
 
 Download the diff which matches your particular linux version, then apply the patch from your linux build directory. To download the diff and convert it into a patch file, click on the link for your kernel version for your system, then the patch text will display in your browser window, use your mouse to right click, then save as and save the patch into any filename you wish. It does not matter what filename you save the file under, you can choose any filename you wish, so long as it matches the filename you specify when you run the patch utility. To patch the kernel, from the linux build directory, type:
@@ -36,6 +37,7 @@ CONFIG_MDB_DIRECT_MODE
 Disable the default hardware breakpoint facility in Linux and allow MDB to control the debugger registers directly. This feature will disable KGBD, KDB-KGDB, and Ptrace but will still allow the userspace GDB debugger to function concurrently with MDB. Use this option if you want to disable other kernel debugging facilities other than mdb. Not recommended unless you really know what you are doing.
 
 Loading MDB
+
 To load MDB as a module, type:
 
 modprobe mdb
@@ -47,6 +49,7 @@ echo a > /proc/sysrq-trigger
 The debugger has excellent online help, just type 'h' or 'help' from the debugger console for a list of commands. For help with a specific command, just type 'help (command)' where (command) is the command you need help with.
 
 Using MDB over a serial port
+
 MDB is designed to be used from the local system console via keyboard, but can also be operated over a serial port and has very basic serial support. To set the serial port address, simply write the serial port address you wish to use into the MDB module parameter mdb_serial_port located at sys/module/mdb/parameters/mdb_serial_port after you have loaded the MDB module.
 
 cat /sys/module/mdb/parameters/mdb_serial_port
@@ -89,6 +92,7 @@ echo "" > /sys/module/kgdboc/parameters/kgdboc
 which will disable kgdb and kdb and allow MDB to function correctly.
 
 Using Git to pull remote MDB Branches
+
 You can also use git to pull any of the debugger branches into your local git clone of the default linux and linux-stable git trees from www.kernel.org and build MDB directly from your tree as each branch corresponds to a particular kernel build and revision. To pull a remote branch from your local repository type:
 
 git remote add mdb https://github.com/jeffmerkey/linux.git
@@ -120,10 +124,12 @@ make bzImage modules modules_install install
 then follow the instructions above for loading MDB from the linux command line.
 
 Limitations of Linux with Kernel Debuggers
+
 Linux x86_64 kernels are not architected to support kernel debuggers natively and there are several areas of Linux which are blacked out to kernel debuggers due to how Linux is designed for its x86_64 architecture kernels. Linux uses the swapgs instruction in x86_64 mode to swap gs frames between user space and kernel space transitions. You can set breakpoints on and around a swapgs instruction, however, the system may crash due to how the instruction works if you attempt to step between user space and kernel space after this instruction has been executed up to the instruction that performs a sysret. This is a very rare instance that typically will not be encountered but don't try to step into a section of code with a swapgs instruction that subsequently calls some sort of system return. On Linux you will see something like this in the disassembly:
 
 swapgs
 rex64 sysret
+
 Don't try to step in between these two instructions. It's safe to do so after the sysret executes but not between them. Debugging NMI handlers in Linux can be done but the system may not be recoverable after you have debugged these sections of code in the NMI handlers due to a how Linux designed it's NMI callbacks. If you want to debug linux without many of these limitations use MDB in Direct Mode when you compile it. Direct Mode allows MDB to take control of the debugger hardware from the operating system and removes many of the blacked out areas of the operating system and allows you to debug them. Direct Mode will not help you with the swapgs instruction problem however.
 
 Support or Contact
