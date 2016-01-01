@@ -50,6 +50,8 @@
 
 #define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
 
+#define MIN_OSCR_DELTA		16
+
 static void __iomem *regbase;
 
 static cycle_t vt8500_timer_read(struct clocksource *cs)
@@ -80,7 +82,7 @@ static int vt8500_timer_set_next_event(unsigned long cycles,
 		cpu_relax();
 	writel((unsigned long)alarm, regbase + TIMER_MATCH_VAL);
 
-	if ((signed)(alarm - clocksource.read(&clocksource)) <= 16)
+	if ((signed)(alarm - clocksource.read(&clocksource)) <= MIN_OSCR_DELTA)
 		return -ETIME;
 
 	writel(1, regbase + TIMER_IER_VAL);
@@ -162,7 +164,7 @@ static void __init vt8500_timer_init(struct device_node *np)
 		pr_err("%s: setup_irq failed for %s\n", __func__,
 							clockevent.name);
 	clockevents_config_and_register(&clockevent, VT8500_TIMER_HZ,
-					4, 0xf0000000);
+					MIN_OSCR_DELTA * 2, 0xf0000000);
 }
 
 CLOCKSOURCE_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init);
