@@ -64,7 +64,6 @@ static const struct reg_sequence init_list[] = {
 	{RT5645_PR_BASE + 0x21,	0x4040},
 	{RT5645_PR_BASE + 0x23,	0x0004},
 };
-#define RT5645_INIT_REG_LEN ARRAY_SIZE(init_list)
 
 static const struct reg_sequence rt5650_init_list[] = {
 	{0xf6,	0x0100},
@@ -3521,7 +3520,7 @@ static const struct i2c_device_id rt5645_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, rt5645_i2c_id);
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt5645_acpi_match[] = {
+static const struct acpi_device_id rt5645_acpi_match[] = {
 	{ "10EC5645", 0 },
 	{ "10EC5650", 0 },
 	{},
