@@ -80,7 +80,7 @@ retry_servicing:
 
 	/* mask out signals if this operation is not to be interrupted */
 	if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
-		block_signals(&orig_sigset);
+		orangefs_block_signals(&orig_sigset);
 
 	if (!(flags & ORANGEFS_OP_NO_SEMAPHORE)) {
 		ret = mutex_lock_interruptible(&request_mutex);
@@ -90,7 +90,7 @@ retry_servicing:
 		 */
 		if (ret < 0) {
 			if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
-				set_signals(&orig_sigset);
+				orangefs_set_signals(&orig_sigset);
 			op->downcall.status = ret;
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "orangefs: service_operation interrupted.\n");
@@ -160,7 +160,7 @@ retry_servicing:
 	}
 
 	if (!(flags & ORANGEFS_OP_INTERRUPTIBLE))
-		set_signals(&orig_sigset);
+		orangefs_set_signals(&orig_sigset);
 
 	BUG_ON(ret != op->downcall.status);
 	/* retry if operation has not been serviced and if requested */

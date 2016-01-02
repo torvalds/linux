@@ -576,9 +576,9 @@ void orangefs_op_initialize(struct orangefs_kernel_op_s *op);
 
 void orangefs_make_bad_inode(struct inode *inode);
 
-void block_signals(sigset_t *);
+void orangefs_block_signals(sigset_t *);
 
-void set_signals(sigset_t *);
+void orangefs_set_signals(sigset_t *);
 
 int orangefs_unmount_sb(struct super_block *sb);
 

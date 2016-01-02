@@ -633,7 +633,7 @@ void orangefs_make_bad_inode(struct inode *inode)
 }
 
 /* Block all blockable signals... */
-void block_signals(sigset_t *orig_sigset)
+void orangefs_block_signals(sigset_t *orig_sigset)
 {
 	sigset_t mask;
 
@@ -648,7 +648,7 @@ void block_signals(sigset_t *orig_sigset)
 }
 
 /* set the signal mask to the given template... */
-void set_signals(sigset_t *sigset)
+void orangefs_set_signals(sigset_t *sigset)
 {
 	sigprocmask(SIG_SETMASK, sigset, NULL);
 }
