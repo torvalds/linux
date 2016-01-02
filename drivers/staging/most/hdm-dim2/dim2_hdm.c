@@ -99,7 +99,7 @@ struct dim2_hdm {
 	struct most_channel_capability capabilities[DMA_CHANNELS];
 	struct most_interface most_iface;
 	char name[16 + sizeof "dim2-"];
-	void *io_base;
+	void __iomem *io_base;
 	unsigned int irq_ahb0;
 	int clk_speed;
 	struct task_struct *netinfo_task;
@@ -138,7 +138,7 @@ bool dim2_sysfs_get_state_cb(void)
  * dimcb_io_read - callback from HAL to read an I/O register
  * @ptr32: register address
  */
-u32 dimcb_io_read(u32 *ptr32)
+u32 dimcb_io_read(u32 __iomem *ptr32)
 {
 	return readl(ptr32);
 }
@@ -148,7 +148,7 @@ u32 dimcb_io_read(u32 *ptr32)
  * @ptr32: register address
  * @value: value to write
  */
-void dimcb_io_write(u32 *ptr32, u32 value)
+void dimcb_io_write(u32 __iomem *ptr32, u32 value)
 {
 	writel(value, ptr32);
 }
