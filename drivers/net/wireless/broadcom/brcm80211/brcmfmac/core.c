@@ -57,16 +57,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define BRCMF_BSSIDX_INVALID			-1
 
-/* Error bits */
-int brcmf_msg_level;
-module_param_named(debug, brcmf_msg_level, int, S_IRUSR | S_IWUSR);
-MODULE_PARM_DESC(debug, "level of debug output");
-
-/* P2P0 enable */
-static int brcmf_p2p_enable;
-module_param_named(p2pon, brcmf_p2p_enable, int, 0);
-MODULE_PARM_DESC(p2pon, "enable legacy p2p management functionality");
-
 char *brcmf_ifname(struct brcmf_if *ifp)
 {
 	if (!ifp)
@@ -827,7 +817,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 		}
 	}
 
-	if (!brcmf_p2p_enable && is_p2pdev) {
+	if (!drvr->settings->p2p_enable && is_p2pdev) {
 		/* this is P2P_DEVICE interface */
 		brcmf_dbg(INFO, "allocate non-netdev interface\n");
 		ifp = kzalloc(sizeof(*ifp), GFP_KERNEL);
@@ -1058,6 +1048,10 @@ int brcmf_attach(struct device *dev)
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;
 
+	/* Initialize device specific settings */
+	if (brcmf_mp_device_attach(drvr))
+		goto fail;
+
 	/* attach debug facilities */
 	brcmf_debug_attach(drvr);
 
@@ -1150,7 +1144,7 @@ int brcmf_bus_start(struct device *dev)
 	brcmf_fws_add_interface(ifp);
 
 	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev,
-					     brcmf_p2p_enable);
+					     drvr->settings->p2p_enable);
 	if (drvr->config == NULL) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1158,7 +1152,7 @@ int brcmf_bus_start(struct device *dev)
 
 	ret = brcmf_net_attach(ifp, false);
 
-	if ((!ret) && (brcmf_p2p_enable)) {
+	if ((!ret) && (drvr->settings->p2p_enable)) {
 		p2p_ifp = drvr->iflist[1];
 		if (p2p_ifp)
 			ret = brcmf_net_p2p_attach(p2p_ifp);
@@ -1259,6 +1253,8 @@ void brcmf_detach(struct device *dev)
 	brcmf_bus_detach(drvr);
 
 	brcmf_proto_detach(drvr);
+
+	brcmf_mp_device_detach(drvr);
 
 	brcmf_debug_detach(drvr);
 	bus_if->drvr = NULL;

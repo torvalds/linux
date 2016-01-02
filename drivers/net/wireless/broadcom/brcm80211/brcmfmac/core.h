@@ -69,8 +69,8 @@ struct brcmf_ampdu_rx_reorder {
 
 /* Forward decls for struct brcmf_pub (see below) */
 struct brcmf_proto;	/* device communication protocol info */
-struct brcmf_cfg80211_dev; /* cfg80211 device info */
-struct brcmf_fws_info; /* firmware signalling info */
+struct brcmf_fws_info;	/* firmware signalling info */
+struct brcmf_mp_device;	/* module paramateres, device specific */
 
 /*
  * struct brcmf_rev_info
@@ -143,6 +143,7 @@ struct brcmf_pub {
 #endif
 
 	struct notifier_block inetaddr_notifier;
+	struct brcmf_mp_device *settings;
 };
 
 /* forward declarations */

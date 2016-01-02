@@ -35,6 +35,40 @@ const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 /* boost value for RSSI_DELTA in preferred join selection */
 #define BRCMF_JOIN_PREF_RSSI_BOOST	8
 
+#define BRCMF_DEFAULT_TXGLOM_SIZE	32  /* max tx frames in glom chain */
+
+static int brcmf_sdiod_txglomsz = BRCMF_DEFAULT_TXGLOM_SIZE;
+module_param_named(txglomsz, brcmf_sdiod_txglomsz, int, 0);
+MODULE_PARM_DESC(txglomsz, "Maximum tx packet chain size [SDIO]");
+
+/* Debug level configuration. See debug.h for bits, sysfs modifiable */
+int brcmf_msg_level;
+module_param_named(debug, brcmf_msg_level, int, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(debug, "Level of debug output");
+
+static int brcmf_p2p_enable;
+module_param_named(p2pon, brcmf_p2p_enable, int, 0);
+MODULE_PARM_DESC(p2pon, "Enable legacy p2p management functionality");
+
+static int brcmf_feature_disable;
+module_param_named(feature_disable, brcmf_feature_disable, int, 0);
+MODULE_PARM_DESC(feature_disable, "Disable features");
+
+static char brcmf_firmware_path[BRCMF_FW_ALTPATH_LEN];
+module_param_string(alternative_fw_path, brcmf_firmware_path,
+		    BRCMF_FW_ALTPATH_LEN, S_IRUSR);
+MODULE_PARM_DESC(alternative_fw_path, "Alternative firmware path");
+
+static int brcmf_fcmode;
+module_param_named(fcmode, brcmf_fcmode, int, 0);
+MODULE_PARM_DESC(fcmode, "Mode of firmware signalled flow control");
+
+static int brcmf_roamoff;
+module_param_named(roamoff, brcmf_roamoff, int, S_IRUSR);
+MODULE_PARM_DESC(roamoff, "Do not use internal roaming engine");
+
+struct brcmf_mp_global_t brcmf_mp_global;
+
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 {
 	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
@@ -178,3 +212,32 @@ void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 	va_end(args);
 }
 #endif
+
+void brcmf_mp_attach(void)
+{
+	strlcpy(brcmf_mp_global.firmware_path, brcmf_firmware_path,
+		BRCMF_FW_ALTPATH_LEN);
+}
+
+int brcmf_mp_device_attach(struct brcmf_pub *drvr)
+{
+	drvr->settings = kzalloc(sizeof(*drvr->settings), GFP_ATOMIC);
+	if (!drvr->settings) {
+		brcmf_err("Failed to alloca storage space for settings\n");
+		return -ENOMEM;
+	}
+
+	drvr->settings->sdiod_txglomsz = brcmf_sdiod_txglomsz;
+	drvr->settings->p2p_enable = !!brcmf_p2p_enable;
+	drvr->settings->feature_disable = brcmf_feature_disable;
+	drvr->settings->fcmode = brcmf_fcmode;
+	drvr->settings->roamoff = !!brcmf_roamoff;
+
+	return 0;
+}
+
+void brcmf_mp_device_detach(struct brcmf_pub *drvr)
+{
+	kfree(drvr->settings);
+}
+

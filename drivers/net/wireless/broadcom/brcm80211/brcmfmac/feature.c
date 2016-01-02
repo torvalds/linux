@@ -25,12 +25,8 @@
 #include "fwil.h"
 #include "fwil_types.h"
 #include "feature.h"
+#include "common.h"
 
-
-/* Module param feature_disable (global for all devices) */
-static int brcmf_feature_disable;
-module_param_named(feature_disable, brcmf_feature_disable, int, 0);
-MODULE_PARM_DESC(feature_disable, "Disable features");
 
 /*
  * expand feature list to array of feature strings.
@@ -159,10 +155,11 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	if (!err)
 		ifp->drvr->feat_flags |= BIT(BRCMF_FEAT_SCAN_RANDOM_MAC);
 
-	if (brcmf_feature_disable) {
+	if (drvr->settings->feature_disable) {
 		brcmf_dbg(INFO, "Features: 0x%02x, disable: 0x%02x\n",
-			  ifp->drvr->feat_flags, brcmf_feature_disable);
-		ifp->drvr->feat_flags &= ~brcmf_feature_disable;
+			  ifp->drvr->feat_flags,
+			  drvr->settings->feature_disable);
+		ifp->drvr->feat_flags &= ~drvr->settings->feature_disable;
 	}
 
 	/* set chip related quirks */
