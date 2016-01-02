@@ -148,6 +148,7 @@ config PWM_EP93XX
 
 config PWM_FSL_FTM
 	tristate "Freescale FlexTimer Module (FTM) PWM support"
+	depends on HAS_IOMEM
 	depends on OF
 	select REGMAP_MMIO
 	help
