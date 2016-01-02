@@ -42,4 +42,9 @@
 })
 #define read_sysreg(...)		__read_sysreg(__VA_ARGS__)
 
+#define VTTBR		__ACCESS_CP15_64(6, c2)
+#define ICIALLUIS	__ACCESS_CP15(c7, 0, c1, 0)
+#define TLBIALLIS	__ACCESS_CP15(c8, 0, c3, 0)
+#define TLBIALLNSNHIS	__ACCESS_CP15(c8, 4, c3, 4)
+
 #endif /* __ARM_KVM_HYP_H__ */
