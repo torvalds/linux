@@ -105,7 +105,7 @@ static struct list_head virtio_chan_list;
 /* How many bytes left in this page. */
 static unsigned int rest_of_page(void *data)
 {
-	return PAGE_SIZE - ((unsigned long)data % PAGE_SIZE);
+	return PAGE_SIZE - offset_in_page(data);
 }
 
 /**
@@ -365,7 +365,7 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 			return -ENOMEM;
 
 		*need_drop = 0;
-		p -= (*offs = (unsigned long)p % PAGE_SIZE);
+		p -= (*offs = offset_in_page(p));
 		for (index = 0; index < nr_pages; index++) {
 			if (is_vmalloc_addr(p))
 				(*pages)[index] = vmalloc_to_page(p);
