@@ -152,7 +152,7 @@ config CLKSRC_EFM32
 
 config CLKSRC_LPC32XX
 	bool "Clocksource for LPC32XX" if COMPILE_TEST
-	depends on GENERIC_CLOCKEVENTS
+	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	help
@@ -160,6 +160,7 @@ config CLKSRC_LPC32XX
 
 config CLKSRC_PISTACHIO
 	bool "Clocksource for Pistachio SoC" if COMPILE_TEST
+	depends on HAS_IOMEM
 	select CLKSRC_OF
 	help
 	  Enables the clocksource for the Pistachio SoC.
@@ -269,7 +270,7 @@ config SYS_SUPPORTS_SH_CMT
 
 config MTK_TIMER
 	bool "Mediatek timer driver" if COMPILE_TEST
-	depends on GENERIC_CLOCKEVENTS
+	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	select CLKSRC_OF
 	select CLKSRC_MMIO
 	help
@@ -365,20 +366,20 @@ config CLKSRC_PXA
 
 config H8300_TMR8
         bool "Clockevent timer for the H8300 platform" if COMPILE_TEST
-        depends on GENERIC_CLOCKEVENTS
+        depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	help
 	  This enables the 8 bits timer for the H8300 platform.
 
 config H8300_TMR16
         bool "Clockevent timer for the H83069 platform" if COMPILE_TEST
-        depends on GENERIC_CLOCKEVENTS
+        depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	help
 	  This enables the 16 bits timer for the H8300 platform with the
 	  H83069 cpu.
 
 config H8300_TPU
         bool "Clocksource for the H8300 platform" if COMPILE_TEST
-        depends on GENERIC_CLOCKEVENTS
+        depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	help
 	  This enables the clocksource for the H8300 platform with the
 	  H8S2678 cpu.
@@ -391,6 +392,7 @@ config CLKSRC_IMX_GPT
 config CLKSRC_ST_LPC
 	bool "Low power clocksource found in the LPC" if COMPILE_TEST
 	select CLKSRC_OF if OF
+	depends on HAS_IOMEM
 	help
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
