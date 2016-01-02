@@ -141,6 +141,8 @@ struct brcmf_pub {
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
+
+	struct notifier_block inetaddr_notifier;
 };
 
 /* forward declarations */

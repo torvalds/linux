@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
+#include <linux/inetdevice.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
 #include <brcmu_utils.h>
@@ -620,6 +621,8 @@ static int brcmf_netdev_stop(struct net_device *ndev)
 
 	brcmf_cfg80211_down(ndev);
 
+	brcmf_fil_iovar_data_set(ifp, "arp_hostip_clear", NULL, 0);
+
 	brcmf_net_setcarrier(ifp, false);
 
 	return 0;
@@ -940,6 +943,98 @@ int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
 	return available ? bsscfgidx : -ENOMEM;
 }
 
+#ifdef CONFIG_INET
+#define ARPOL_MAX_ENTRIES	8
+static int brcmf_inetaddr_changed(struct notifier_block *nb,
+				  unsigned long action, void *data)
+{
+	struct brcmf_pub *drvr = container_of(nb, struct brcmf_pub,
+					      inetaddr_notifier);
+	struct in_ifaddr *ifa = data;
+	struct net_device *ndev = ifa->ifa_dev->dev;
+	struct brcmf_if *ifp;
+	int idx, i, ret;
+	u32 val;
+	__be32 addr_table[ARPOL_MAX_ENTRIES] = {0};
+
+	/* Find out if the notification is meant for us */
+	for (idx = 0; idx < BRCMF_MAX_IFS; idx++) {
+		ifp = drvr->iflist[idx];
+		if (ifp && ifp->ndev == ndev)
+			break;
+		if (idx == BRCMF_MAX_IFS - 1)
+			return NOTIFY_DONE;
+	}
+
+	/* check if arp offload is supported */
+	ret = brcmf_fil_iovar_int_get(ifp, "arpoe", &val);
+	if (ret)
+		return NOTIFY_OK;
+
+	/* old version only support primary index */
+	ret = brcmf_fil_iovar_int_get(ifp, "arp_version", &val);
+	if (ret)
+		val = 1;
+	if (val == 1)
+		ifp = drvr->iflist[0];
+
+	/* retrieve the table from firmware */
+	ret = brcmf_fil_iovar_data_get(ifp, "arp_hostip", addr_table,
+				       sizeof(addr_table));
+	if (ret) {
+		brcmf_err("fail to get arp ip table err:%d\n", ret);
+		return NOTIFY_OK;
+	}
+
+	for (i = 0; i < ARPOL_MAX_ENTRIES; i++)
+		if (ifa->ifa_address == addr_table[i])
+			break;
+
+	switch (action) {
+	case NETDEV_UP:
+		if (i == ARPOL_MAX_ENTRIES) {
+			brcmf_dbg(TRACE, "add %pI4 to arp table\n",
+				  &ifa->ifa_address);
+			/* set it directly */
+			ret = brcmf_fil_iovar_data_set(ifp, "arp_hostip",
+				&ifa->ifa_address, sizeof(ifa->ifa_address));
+			if (ret)
+				brcmf_err("add arp ip err %d\n", ret);
+		}
+		break;
+	case NETDEV_DOWN:
+		if (i < ARPOL_MAX_ENTRIES) {
+			addr_table[i] = 0;
+			brcmf_dbg(TRACE, "remove %pI4 from arp table\n",
+				  &ifa->ifa_address);
+			/* clear the table in firmware */
+			ret = brcmf_fil_iovar_data_set(ifp, "arp_hostip_clear",
+						       NULL, 0);
+			if (ret) {
+				brcmf_err("fail to clear arp ip table err:%d\n",
+					  ret);
+				return NOTIFY_OK;
+			}
+			for (i = 0; i < ARPOL_MAX_ENTRIES; i++) {
+				if (addr_table[i] != 0) {
+					brcmf_fil_iovar_data_set(ifp,
+						"arp_hostip", &addr_table[i],
+						sizeof(addr_table[i]));
+					if (ret)
+						brcmf_err("add arp ip err %d\n",
+							  ret);
+				}
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+#endif
+
 int brcmf_attach(struct device *dev)
 {
 	struct brcmf_pub *drvr = NULL;
@@ -1068,6 +1163,15 @@ int brcmf_bus_start(struct device *dev)
 		if (p2p_ifp)
 			ret = brcmf_net_p2p_attach(p2p_ifp);
 	}
+
+	if (ret)
+		goto fail;
+
+#ifdef CONFIG_INET
+	drvr->inetaddr_notifier.notifier_call = brcmf_inetaddr_changed;
+	ret = register_inetaddr_notifier(&drvr->inetaddr_notifier);
+#endif
+
 fail:
 	if (ret < 0) {
 		brcmf_err("failed: %d\n", ret);
@@ -1132,6 +1236,10 @@ void brcmf_detach(struct device *dev)
 
 	if (drvr == NULL)
 		return;
+
+#ifdef CONFIG_INET
+	unregister_inetaddr_notifier(&drvr->inetaddr_notifier);
+#endif
 
 	/* stop firmware event handling */
 	brcmf_fweh_detach(drvr);
