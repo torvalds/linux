@@ -141,11 +141,23 @@ void cik_sdma_ring_ib_execute(struct radeon_device *rdev,
 		while ((next_rptr & 7) != 4)
 			next_rptr++;
 		next_rptr += 4;
-		radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0));
-		radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
-		radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
-		radeon_ring_write(ring, 1); /* number of DWs to follow */
-		radeon_ring_write(ring, next_rptr);
+		if (rdev->family == CHIP_LIVERPOOL) {
+			/* SDMA_OPCODE_WRITE is broken on Liverpool when used
+			 * in the ring (works in IBs) */
+			radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_CONSTANT_FILL, 0,
+						SDMA_CONSTANT_FILL_EXTRA_SIZE(2)));
+			radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
+			radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
+			radeon_ring_write(ring, next_rptr);
+			radeon_ring_write(ring, 4);
+		} else {
+			radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_WRITE,
+						SDMA_WRITE_SUB_OPCODE_LINEAR, 0));
+			radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
+			radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
+			radeon_ring_write(ring, 1); /* number of DWs to follow */
+			radeon_ring_write(ring, next_rptr);
+		}
 	}
 
 	/* IB packet must end on a 8 DW boundary */
@@ -666,11 +678,25 @@ int cik_sdma_ring_test(struct radeon_device *rdev,
 		DRM_ERROR("radeon: dma failed to lock ring %d (%d).\n", ring->idx, r);
 		return r;
 	}
-	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0));
-	radeon_ring_write(ring, lower_32_bits(gpu_addr));
-	radeon_ring_write(ring, upper_32_bits(gpu_addr));
-	radeon_ring_write(ring, 1); /* number of DWs to follow */
-	radeon_ring_write(ring, 0xDEADBEEF);
+
+	if (rdev->family == CHIP_LIVERPOOL) {
+		/* SDMA_OPCODE_WRITE is broken on Liverpool when used in the
+		 * ring (works in IBs) */
+		radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_CONSTANT_FILL, 0,
+					SDMA_CONSTANT_FILL_EXTRA_SIZE(2)));
+		radeon_ring_write(ring, lower_32_bits(gpu_addr));
+		radeon_ring_write(ring, upper_32_bits(gpu_addr));
+		radeon_ring_write(ring, 0xDEADBEEF); /* Fill value */
+		radeon_ring_write(ring, 4); /* number of bytes */
+	} else {
+		radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_WRITE,
+					SDMA_WRITE_SUB_OPCODE_LINEAR, 0));
+		radeon_ring_write(ring, lower_32_bits(gpu_addr));
+		radeon_ring_write(ring, upper_32_bits(gpu_addr));
+		radeon_ring_write(ring, 1); /* number of DWs to follow */
+		radeon_ring_write(ring, 0xDEADBEEF);
+	}
+
 	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
