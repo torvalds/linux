@@ -424,7 +424,7 @@ struct rockchip_clk_branch {
 		.gate_offset	= go,				\
 		.gate_shift	= gs,				\
 		.gate_flags	= gf,				\
-		.child		= &(struct rockchip_clk_branch)ch, \
+		.child		= ch,				\
 	}
 
 #define MUX(_id, cname, pnames, f, o, s, w, mf)			\
