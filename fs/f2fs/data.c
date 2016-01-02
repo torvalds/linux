@@ -413,7 +413,7 @@ struct page *get_new_data_page(struct inode *inode,
 	struct page *page;
 	struct dnode_of_data dn;
 	int err;
-repeat:
+
 	page = f2fs_grab_cache_page(mapping, index, true);
 	if (!page) {
 		/*
@@ -442,12 +442,11 @@ repeat:
 	} else {
 		f2fs_put_page(page, 1);
 
-		page = get_read_data_page(inode, index, READ_SYNC, true);
+		/* if ipage exists, blkaddr should be NEW_ADDR */
+		f2fs_bug_on(F2FS_I_SB(inode), ipage);
+		page = get_lock_data_page(inode, index, true);
 		if (IS_ERR(page))
-			goto repeat;
-
-		/* wait for read completion */
-		lock_page(page);
+			return page;
 	}
 got_it:
 	if (new_i_size && i_size_read(inode) <
