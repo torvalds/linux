@@ -1602,8 +1602,6 @@ retry:
 
 	/* We should not use stale free nids created by build_free_nids */
 	if (nm_i->fcnt && !on_build_free_nids(nm_i)) {
-		struct node_info ni;
-
 		f2fs_bug_on(sbi, list_empty(&nm_i->free_nid_list));
 		list_for_each_entry(i, &nm_i->free_nid_list, list)
 			if (i->state == NID_NEW)
@@ -1614,13 +1612,6 @@ retry:
 		i->state = NID_ALLOC;
 		nm_i->fcnt--;
 		spin_unlock(&nm_i->free_nid_list_lock);
-
-		/* check nid is allocated already */
-		get_node_info(sbi, *nid, &ni);
-		if (ni.blk_addr != NULL_ADDR) {
-			alloc_nid_done(sbi, *nid);
-			goto retry;
-		}
 		return true;
 	}
 	spin_unlock(&nm_i->free_nid_list_lock);
