@@ -1371,7 +1371,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 */
 static u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 {
-	u8 QueueSelect = 0x0;       /* defualt set to */
+	u8 QueueSelect = 0x0;       /* default set to */
 
 	switch (QueueID) {
 	case BE_QUEUE:
@@ -4296,7 +4296,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 	if (is_cck_rate) {
 		/* (1)Hardware does not provide RSSI for CCK */
 
-		/* (2)PWDB, Average PWDB cacluated by hardware
+		/* (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */
 		u8 report;
@@ -4397,7 +4397,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 		}
 
 
-		/* (2)PWDB, Average PWDB cacluated by hardware
+		/* (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */
 		rx_pwr_all = (((pofdm_buf->pwdb_all) >> 1) & 0x7f) - 106;
