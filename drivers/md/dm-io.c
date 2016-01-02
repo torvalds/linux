@@ -246,7 +246,7 @@ static void vm_dp_init(struct dpages *dp, void *data)
 {
 	dp->get_page = vm_get_page;
 	dp->next_page = vm_next_page;
-	dp->context_u = ((unsigned long) data) & (PAGE_SIZE - 1);
+	dp->context_u = offset_in_page(data);
 	dp->context_ptr = data;
 }
 
@@ -271,7 +271,7 @@ static void km_dp_init(struct dpages *dp, void *data)
 {
 	dp->get_page = km_get_page;
 	dp->next_page = km_next_page;
-	dp->context_u = ((unsigned long) data) & (PAGE_SIZE - 1);
+	dp->context_u = offset_in_page(data);
 	dp->context_ptr = data;
 }
 
