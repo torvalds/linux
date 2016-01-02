@@ -18,10 +18,12 @@
 #include <linux/module.h>
 
 #include <brcm_hw_ids.h>
+#include <brcmu_wifi.h>
 #include "core.h"
 #include "bus.h"
 #include "debug.h"
 #include "fwil.h"
+#include "fwil_types.h"
 #include "feature.h"
 
 
@@ -129,6 +131,8 @@ static void brcmf_feat_iovar_int_set(struct brcmf_if *ifp,
 void brcmf_feat_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
+	struct brcmf_pno_macaddr_le pfn_mac;
+	s32 err;
 
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_MCHAN, "mchan");
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_PNO, "pfn");
@@ -139,6 +143,12 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_P2P, "p2p");
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_RSDB, "rsdb_mode");
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_TDLS, "tdls_enable");
+
+	pfn_mac.version = BRCMF_PFN_MACADDR_CFG_VER;
+	err = brcmf_fil_iovar_data_get(ifp, "pfn_macaddr", &pfn_mac,
+				       sizeof(pfn_mac));
+	if (!err)
+		ifp->drvr->feat_flags |= BIT(BRCMF_FEAT_SCAN_RANDOM_MAC);
 
 	if (brcmf_feature_disable) {
 		brcmf_dbg(INFO, "Features: 0x%02x, disable: 0x%02x\n",

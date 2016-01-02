@@ -128,6 +128,10 @@
 
 #define	BRCMF_MAXPMKID			16	/* max # PMKID cache entries */
 
+#define BRCMF_PFN_MACADDR_CFG_VER	1
+#define BRCMF_PFN_MAC_OUI_ONLY		BIT(0)
+#define BRCMF_PFN_SET_MAC_UNASSOC	BIT(1)
+
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
 	BRCMF_JOIN_PREF_RSSI = 1,
@@ -749,6 +753,19 @@ struct brcmf_pno_scanresults_le {
 	__le32 version;
 	__le32 status;
 	__le32 count;
+};
+
+/**
+ * struct brcmf_pno_macaddr_le - to configure PNO macaddr randomization.
+ *
+ * @version: PNO version identifier.
+ * @flags: Flags defining how mac addrss should be used.
+ * @mac: MAC address.
+ */
+struct brcmf_pno_macaddr_le {
+	u8 version;
+	u8 flags;
+	u8 mac[ETH_ALEN];
 };
 
 /**
