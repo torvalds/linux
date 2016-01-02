@@ -28,9 +28,7 @@
 #include "interrupts_head.S"
 
 	.text
-
-__kvm_hyp_code_start:
-	.globl __kvm_hyp_code_start
+	.pushsection	.hyp.text, "ax"
 
 /********************************************************************
  * Flush per-VMID TLBs
@@ -314,8 +312,6 @@ THUMB(	orr	r2, r2, #PSR_T_BIT	)
 	eret
 .endm
 
-	.text
-
 	.align 5
 __kvm_hyp_vector:
 	.globl __kvm_hyp_vector
@@ -511,10 +507,9 @@ hyp_fiq:
 
 	.ltorg
 
-__kvm_hyp_code_end:
-	.globl	__kvm_hyp_code_end
+	.popsection
 
-	.section ".rodata"
+	.pushsection ".rodata"
 
 und_die_str:
 	.ascii	"unexpected undefined exception in Hyp mode at: %#08x\n"
@@ -524,3 +519,5 @@ dabt_die_str:
 	.ascii	"unexpected data abort in Hyp mode at: %#08x\n"
 svc_die_str:
 	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x\n"
+
+	.popsection
