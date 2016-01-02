@@ -55,11 +55,24 @@ struct brcmf_mp_device {
 	int	feature_disable;
 	int	fcmode;
 	bool	roamoff;
+	bool	ignore_probe_fail;
 };
 
 void brcmf_mp_attach(void);
 int brcmf_mp_device_attach(struct brcmf_pub *drvr);
 void brcmf_mp_device_detach(struct brcmf_pub *drvr);
+#ifdef DEBUG
+static inline bool brcmf_ignoring_probe_fail(struct brcmf_pub *drvr)
+{
+	return drvr->settings->ignore_probe_fail;
+}
+#else
+static inline bool brcmf_ignoring_probe_fail(struct brcmf_pub *drvr)
+{
+	return false;
+}
+#endif
+
 /* Sets dongle media info (drv_version, mac address). */
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
 

@@ -1183,6 +1183,8 @@ fail:
 			brcmf_net_detach(p2p_ifp->ndev);
 		drvr->iflist[0] = NULL;
 		drvr->iflist[1] = NULL;
+		if (brcmf_ignoring_probe_fail(drvr))
+			ret = 0;
 		return ret;
 	}
 	return 0;

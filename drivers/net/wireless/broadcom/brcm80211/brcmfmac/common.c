@@ -67,6 +67,13 @@ static int brcmf_roamoff;
 module_param_named(roamoff, brcmf_roamoff, int, S_IRUSR);
 MODULE_PARM_DESC(roamoff, "Do not use internal roaming engine");
 
+#ifdef DEBUG
+/* always succeed brcmf_bus_start() */
+static int brcmf_ignore_probe_fail;
+module_param_named(ignore_probe_fail, brcmf_ignore_probe_fail, int, 0);
+MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for debugging");
+#endif
+
 struct brcmf_mp_global_t brcmf_mp_global;
 
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
@@ -232,7 +239,9 @@ int brcmf_mp_device_attach(struct brcmf_pub *drvr)
 	drvr->settings->feature_disable = brcmf_feature_disable;
 	drvr->settings->fcmode = brcmf_fcmode;
 	drvr->settings->roamoff = !!brcmf_roamoff;
-
+#ifdef DEBUG
+	drvr->settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
+#endif
 	return 0;
 }
 
