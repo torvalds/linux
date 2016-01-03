@@ -376,7 +376,7 @@ int lov_unpackmd(struct obd_export *exp,  struct lov_stripe_md **lsmp,
  * lmm_magic must be LOV_USER_MAGIC.
  */
 int lov_getstripe(struct obd_export *exp, struct lov_stripe_md *lsm,
-		  struct lov_user_md *lump)
+		  struct lov_user_md __user *lump)
 {
 	/*
 	 * XXX huge struct allocated on stack.
