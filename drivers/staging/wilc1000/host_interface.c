@@ -4303,7 +4303,7 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 {
 	int result = 0;
 	struct host_if_msg msg;
-	struct del_all_sta *pstrDelAllStationMsg = &msg.body.del_all_sta_info;
+	struct del_all_sta *del_all_sta_info = &msg.body.del_all_sta_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	u8 au8Zero_Buff[ETH_ALEN] = {0};
 	u32 i;
@@ -4323,14 +4323,14 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 
 	for (i = 0; i < MAX_NUM_STA; i++) {
 		if (memcmp(mac_addr[i], au8Zero_Buff, ETH_ALEN)) {
-			memcpy(pstrDelAllStationMsg->del_all_sta[i], mac_addr[i], ETH_ALEN);
+			memcpy(del_all_sta_info->del_all_sta[i], mac_addr[i], ETH_ALEN);
 			PRINT_D(CFG80211_DBG, "BSSID = %x%x%x%x%x%x\n",
-				pstrDelAllStationMsg->del_all_sta[i][0],
-				pstrDelAllStationMsg->del_all_sta[i][1],
-				pstrDelAllStationMsg->del_all_sta[i][2],
-				pstrDelAllStationMsg->del_all_sta[i][3],
-				pstrDelAllStationMsg->del_all_sta[i][4],
-				pstrDelAllStationMsg->del_all_sta[i][5]);
+				del_all_sta_info->del_all_sta[i][0],
+				del_all_sta_info->del_all_sta[i][1],
+				del_all_sta_info->del_all_sta[i][2],
+				del_all_sta_info->del_all_sta[i][3],
+				del_all_sta_info->del_all_sta[i][4],
+				del_all_sta_info->del_all_sta[i][5]);
 			u8AssocNumb++;
 		}
 	}
@@ -4339,7 +4339,7 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 		return result;
 	}
 
-	pstrDelAllStationMsg->assoc_sta = u8AssocNumb;
+	del_all_sta_info->assoc_sta = u8AssocNumb;
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 
 	if (result)
