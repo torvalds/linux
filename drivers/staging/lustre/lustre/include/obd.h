@@ -375,7 +375,6 @@ struct echo_client_obd {
 	spinlock_t		ec_lock;
 	struct list_head	   ec_objects;
 	struct list_head	   ec_locks;
-	int		  ec_nstripes;
 	__u64		ec_unique;
 };
 
