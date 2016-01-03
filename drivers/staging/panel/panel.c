@@ -1805,7 +1805,7 @@ static void phys_scan_contacts(void)
 
 			w_dtr(pprt, oldval & ~bitval);	/* enable this output */
 			bitmask = PNL_PINPUT(r_str(pprt)) & ~gndmask;
-			phys_read |= (pmask_t) bitmask << (5 * bit);
+			phys_read |= (pmask_t)bitmask << (5 * bit);
 		}
 		w_dtr(pprt, oldval);	/* disable all outputs */
 	}
