@@ -2213,7 +2213,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						  "completed\n", HOSTNO, cmd->device->id, cmd->device->lun);
 
 					local_irq_save(flags);
-					hostdata->retain_dma_intr++;
 					hostdata->connected = NULL;
 #ifdef SUPPORT_TAGS
 					cmd_free_tag(cmd);
@@ -2282,8 +2281,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						cmd->scsi_done(cmd);
 					}
 
-					local_irq_restore(flags);
-
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					/*
 					 * Restore phase bits to 0 so an interrupted selection,
@@ -2291,11 +2288,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					 */
 					NCR5380_write(TARGET_COMMAND_REG, 0);
 
-					while ((NCR5380_read(STATUS_REG) & SR_BSY) && !hostdata->connected)
-						barrier();
-
-					local_irq_save(flags);
-					hostdata->retain_dma_intr--;
 					/* ++roman: For Falcon SCSI, release the lock on the
 					 * ST-DMA here if no other commands are waiting on the
 					 * disconnected queue.
@@ -2349,9 +2341,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 					/* Enable reselect interrupts */
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-					/* Wait for bus free to avoid nasty timeouts */
-					while ((NCR5380_read(STATUS_REG) & SR_BSY) && !hostdata->connected)
-						barrier();
 #ifdef SUN3_SCSI_VME
 					dregs->csr |= CSR_DMA_ENABLE;
 #endif

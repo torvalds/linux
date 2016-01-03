@@ -1976,9 +1976,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 					 * arbitration can resume.
 					 */
 					NCR5380_write(TARGET_COMMAND_REG, 0);
-
-					while ((NCR5380_read(STATUS_REG) & SR_BSY) && !hostdata->connected)
-						barrier();
 					return;
 				case MESSAGE_REJECT:
 					/* Accept message by clearing ACK */
@@ -2011,10 +2008,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 
 						/* Enable reselect interrupts */
 						NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-						/* Wait for bus free to avoid nasty timeouts - FIXME timeout !*/
-						/* NCR538_poll_politely(instance, STATUS_REG, SR_BSY, 0, 30 * HZ); */
-						while ((NCR5380_read(STATUS_REG) & SR_BSY) && !hostdata->connected)
-							barrier();
 						return;
 					}
 					/* 
