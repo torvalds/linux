@@ -777,8 +777,7 @@ static void lprint_opcode(int opcode, struct seq_file *m)
 
 static int NCR5380_init(struct Scsi_Host *instance, int flags)
 {
-	int i, pass;
-	unsigned long timeout;
+	int i;
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 
 	if(in_interrupt())
@@ -831,18 +830,26 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 		NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE);
 	}
 #endif
+	return 0;
+}
 
-	/* 
-	 * Detect and correct bus wedge problems.
-	 *
-	 * If the system crashed, it may have crashed in a state 
-	 * where a SCSI command was still executing, and the 
-	 * SCSI bus is not in a BUS FREE STATE.
-	 *
-	 * If this is the case, we'll try to abort the currently
-	 * established nexus which we know nothing about, and that
-	 * failing, do a hard reset of the SCSI bus 
-	 */
+/**
+ * NCR5380_maybe_reset_bus - Detect and correct bus wedge problems.
+ * @instance: adapter to check
+ *
+ * If the system crashed, it may have crashed with a connected target and
+ * the SCSI bus busy. Check for BUS FREE phase. If not, try to abort the
+ * currently established nexus, which we know nothing about. Failing that
+ * do a bus reset.
+ *
+ * Note that a bus reset will cause the chip to assert IRQ.
+ *
+ * Returns 0 if successful, otherwise -ENXIO.
+ */
+
+static int NCR5380_maybe_reset_bus(struct Scsi_Host *instance)
+{
+	int pass;
 
 	for (pass = 1; (NCR5380_read(STATUS_REG) & SR_BSY) && pass <= 6; ++pass) {
 		switch (pass) {
@@ -850,7 +857,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 		case 3:
 		case 5:
 			printk(KERN_INFO "scsi%d: SCSI bus busy, waiting up to five seconds\n", instance->host_no);
-			timeout = jiffies + 5 * HZ;
 			NCR5380_poll_politely(instance, STATUS_REG, SR_BSY, 0, 5*HZ);
 			break;
 		case 2:

@@ -145,6 +145,8 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	NCR5380_init(host, 0);
 
+	NCR5380_maybe_reset_bus(host);
+
 	ret = scsi_add_host(host, &ec->dev);
 	if (ret)
 		goto out_unmap;

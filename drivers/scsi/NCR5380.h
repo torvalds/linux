@@ -318,6 +318,7 @@ static void NCR5380_print(struct Scsi_Host *instance);
 static int NCR5380_probe_irq(struct Scsi_Host *instance, int possible);
 #endif
 static int NCR5380_init(struct Scsi_Host *instance, int flags);
+static int NCR5380_maybe_reset_bus(struct Scsi_Host *);
 static void NCR5380_exit(struct Scsi_Host *instance);
 static void NCR5380_information_transfer(struct Scsi_Host *instance);
 #ifndef DONT_USE_INTR

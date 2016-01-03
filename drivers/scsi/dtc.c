@@ -237,6 +237,8 @@ found:
 
 		NCR5380_init(instance, 0);
 
+		NCR5380_maybe_reset_bus(instance);
+
 		NCR5380_write(DTC_CONTROL_REG, CSR_5380_INTR);	/* Enable int's */
 		if (overrides[current_override].irq != IRQ_AUTO)
 			instance->irq = overrides[current_override].irq;

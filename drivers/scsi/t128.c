@@ -215,6 +215,8 @@ found:
 
 	NCR5380_init(instance, 0);
 
+	NCR5380_maybe_reset_bus(instance);
+
 	if (overrides[current_override].irq != IRQ_AUTO)
 	    instance->irq = overrides[current_override].irq;
 	else 

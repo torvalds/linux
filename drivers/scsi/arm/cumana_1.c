@@ -240,6 +240,8 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 
 	NCR5380_init(host, 0);
 
+	NCR5380_maybe_reset_bus(host);
+
         priv(host)->ctrl = 0;
         writeb(0, priv(host)->base + CTRL);
 

@@ -97,6 +97,8 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 
 	NCR5380_init(shost, FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E);
 
+	NCR5380_maybe_reset_bus(shost);
+
 	pci_set_drvdata(pdev, shost);
 
 	error = scsi_add_host(shost, &pdev->dev);
