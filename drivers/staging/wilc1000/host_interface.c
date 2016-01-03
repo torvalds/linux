@@ -4307,7 +4307,7 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	u8 zero_addr[ETH_ALEN] = {0};
 	int i;
-	u8 u8AssocNumb = 0;
+	u8 assoc_sta = 0;
 
 	if (!hif_drv) {
 		PRINT_ER("driver is null\n");
@@ -4331,15 +4331,15 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 				del_all_sta_info->del_all_sta[i][3],
 				del_all_sta_info->del_all_sta[i][4],
 				del_all_sta_info->del_all_sta[i][5]);
-			u8AssocNumb++;
+			assoc_sta++;
 		}
 	}
-	if (!u8AssocNumb) {
+	if (!assoc_sta) {
 		PRINT_D(CFG80211_DBG, "NO ASSOCIATED STAS\n");
 		return result;
 	}
 
-	del_all_sta_info->assoc_sta = u8AssocNumb;
+	del_all_sta_info->assoc_sta = assoc_sta;
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 
 	if (result)
