@@ -21,27 +21,22 @@ syscall_handler_t syscall_table[__NR_syscalls] = {
 #include <asm/unistd.h>
 };
 
-static struct syscall_queue {
-	struct list_head list;
-	wait_queue_head_t wqh;
-} syscall_queue;
-
 struct syscall {
 	long no, *params, ret;
 	void *sem;
-	struct list_head lh;
 };
 
-static struct syscall *dequeue_syscall(struct syscall_queue *sq)
+static struct syscall_thread_data {
+	wait_queue_head_t wqh;
+	struct syscall *s;
+	void *mutex, *completion;
+} syscall_thread_data;
+
+
+static struct syscall *dequeue_syscall(struct syscall_thread_data *data)
 {
-	struct syscall *s = NULL;
 
-	if (!list_empty(&sq->list)) {
-		s = list_first_entry(&sq->list, typeof(*s), lh);
-		list_del(&s->lh);
-	}
-
-	return s;
+	return (struct syscall *)__sync_fetch_and_and((long *)&data->s, 0);
 }
 
 static long run_syscall(struct syscall *s)
@@ -65,7 +60,7 @@ static long run_syscall(struct syscall *s)
 
 int run_syscalls(void)
 {
-	struct syscall_queue *sq = &syscall_queue;
+	struct syscall_thread_data *data = &syscall_thread_data;
 	struct syscall *s;
 
 	current->flags &= ~PF_KTHREAD;
@@ -73,7 +68,7 @@ int run_syscalls(void)
 	snprintf(current->comm, sizeof(current->comm), "init");
 
 	while (1) {
-		wait_event(sq->wqh, (s = dequeue_syscall(sq)) != NULL);
+		wait_event(data->wqh, (s = dequeue_syscall(data)) != NULL);
 
 		if (s->no == __NR_reboot)
 			break;
@@ -89,11 +84,7 @@ int run_syscalls(void)
 
 static irqreturn_t syscall_irq_handler(int irq, void *dev_id)
 {
-	struct pt_regs *regs = get_irq_regs();
-	struct syscall *s = regs->irq_data;
-
-	list_add_tail(&s->lh, &syscall_queue.list);
-	wake_up(&syscall_queue.wqh);
+	wake_up(&syscall_thread_data.wqh);
 
 	return IRQ_HANDLED;
 }
@@ -109,19 +100,18 @@ static int syscall_irq;
 
 long lkl_syscall(long no, long *params)
 {
+	struct syscall_thread_data *data = &syscall_thread_data;
 	struct syscall s;
 
 	s.no = no;
 	s.params = params;
+	s.sem = data->completion;
 
-	s.sem = lkl_ops->sem_alloc(0);
-	if (!s.sem)
-		return -ENOMEM;
-
-	lkl_trigger_irq(syscall_irq, &s);
-
-	lkl_ops->sem_down(s.sem);
-	lkl_ops->sem_free(s.sem);
+	lkl_ops->sem_down(data->mutex);
+	data->s = &s;
+	lkl_trigger_irq(syscall_irq, NULL);
+	lkl_ops->sem_down(data->completion);
+	lkl_ops->sem_up(data->mutex);
 
 	return s.ret;
 }
@@ -142,13 +132,17 @@ ssize_t sys_lkl_pread64(unsigned int fd, char *buf, size_t count,
 
 int __init syscall_init(void)
 {
-	INIT_LIST_HEAD(&syscall_queue.list);
-	init_waitqueue_head(&syscall_queue.wqh);
+	struct syscall_thread_data *data = &syscall_thread_data;
+
+	init_waitqueue_head(&data->wqh);
+	data->mutex = lkl_ops->sem_alloc(1);
+	data->completion = lkl_ops->sem_alloc(0);
+	BUG_ON(!data->mutex || !data->completion);
 
 	syscall_irq = lkl_get_free_irq("syscall");
 	setup_irq(syscall_irq, &syscall_irqaction);
 
-	pr_info("lkl: syscall interface initialized\n");
+	pr_info("lkl: syscall interface initialized (irq%d)\n", syscall_irq);
 	return 0;
 }
 late_initcall(syscall_init);
