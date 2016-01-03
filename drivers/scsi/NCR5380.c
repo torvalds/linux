@@ -1393,8 +1393,10 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase
 			NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ACK);
 		}
 
-		/* FIXME - if this fails bus reset ?? */
-		NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, 0, 5*HZ);
+		if (NCR5380_poll_politely(instance,
+		                          STATUS_REG, SR_REQ, 0, 5 * HZ) < 0)
+			break;
+
 		dprintk(NDEBUG_HANDSHAKE, "scsi%d : req false, handshake complete\n", instance->host_no);
 
 /*
@@ -1421,7 +1423,11 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase
 	*count = c;
 	*data = d;
 	tmp = NCR5380_read(STATUS_REG);
-	if (tmp & SR_REQ)
+	/* The phase read from the bus is valid if either REQ is (already)
+	 * asserted or if ACK hasn't been released yet. The latter applies if
+	 * we're in MSG IN, DATA IN or STATUS and all bytes have been received.
+	 */
+	if ((tmp & SR_REQ) || ((tmp & SR_IO) && c == 0))
 		*phase = tmp & PHASE_MASK;
 	else
 		*phase = PHASE_UNKNOWN;
