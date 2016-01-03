@@ -943,6 +943,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
+		mvm->scan_type = IWL_SCAN_TYPE_NOT_SET;
 		ret = iwl_mvm_config_scan(mvm);
 		if (ret)
 			goto error;

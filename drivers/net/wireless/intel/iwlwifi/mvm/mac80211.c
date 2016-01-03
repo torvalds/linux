@@ -1002,7 +1002,6 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
 	mvm->fw_dbg_conf = FW_DBG_INVALID;
-	mvm->scan_type = IWL_SCAN_TYPE_NOT_SET;
 
 	/* keep statistics ticking */
 	iwl_mvm_accu_radio_stats(mvm);
