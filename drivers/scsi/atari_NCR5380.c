@@ -657,94 +657,6 @@ static void prepare_info(struct Scsi_Host *instance)
 }
 
 /**
- * NCR5380_print_status - dump controller info
- * @instance: controller to dump
- *
- * Print commands in the various queues, called from NCR5380_abort
- * to aid debugging.
- */
-
-static void lprint_Scsi_Cmnd(struct scsi_cmnd *cmd)
-{
-	int i, s;
-	unsigned char *command;
-	printk("scsi%d: destination target %d, lun %llu\n",
-		H_NO(cmd), cmd->device->id, cmd->device->lun);
-	printk(KERN_CONT "        command = ");
-	command = cmd->cmnd;
-	printk(KERN_CONT "%2d (0x%02x)", command[0], command[0]);
-	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
-		printk(KERN_CONT " %02x", command[i]);
-	printk("\n");
-}
-
-static void __maybe_unused NCR5380_print_status(struct Scsi_Host *instance)
-{
-	struct NCR5380_hostdata *hostdata;
-	struct scsi_cmnd *ptr;
-
-	NCR5380_dprint(NDEBUG_ANY, instance);
-	NCR5380_dprint_phase(NDEBUG_ANY, instance);
-
-	hostdata = (struct NCR5380_hostdata *)instance->hostdata;
-
-	if (!hostdata->connected)
-		printk("scsi%d: no currently connected command\n", HOSTNO);
-	else
-		lprint_Scsi_Cmnd((struct scsi_cmnd *) hostdata->connected);
-	printk("scsi%d: issue_queue\n", HOSTNO);
-	for (ptr = (struct scsi_cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr))
-		lprint_Scsi_Cmnd(ptr);
-
-	printk("scsi%d: disconnected_queue\n", HOSTNO);
-	for (ptr = (struct scsi_cmnd *) hostdata->disconnected_queue; ptr;
-	     ptr = NEXT(ptr))
-		lprint_Scsi_Cmnd(ptr);
-	printk("\n");
-}
-
-static void show_Scsi_Cmnd(struct scsi_cmnd *cmd, struct seq_file *m)
-{
-	int i, s;
-	unsigned char *command;
-	seq_printf(m, "scsi%d: destination target %d, lun %llu\n",
-		H_NO(cmd), cmd->device->id, cmd->device->lun);
-	seq_puts(m, "        command = ");
-	command = cmd->cmnd;
-	seq_printf(m, "%2d (0x%02x)", command[0], command[0]);
-	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
-		seq_printf(m, " %02x", command[i]);
-	seq_putc(m, '\n');
-}
-
-static int __maybe_unused NCR5380_show_info(struct seq_file *m,
-                                            struct Scsi_Host *instance)
-{
-	struct NCR5380_hostdata *hostdata;
-	struct scsi_cmnd *ptr;
-	unsigned long flags;
-
-	hostdata = (struct NCR5380_hostdata *)instance->hostdata;
-
-	spin_lock_irqsave(&hostdata->lock, flags);
-	if (!hostdata->connected)
-		seq_printf(m, "scsi%d: no currently connected command\n", HOSTNO);
-	else
-		show_Scsi_Cmnd((struct scsi_cmnd *) hostdata->connected, m);
-	seq_printf(m, "scsi%d: issue_queue\n", HOSTNO);
-	for (ptr = (struct scsi_cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr))
-		show_Scsi_Cmnd(ptr, m);
-
-	seq_printf(m, "scsi%d: disconnected_queue\n", HOSTNO);
-	for (ptr = (struct scsi_cmnd *) hostdata->disconnected_queue; ptr;
-	     ptr = NEXT(ptr))
-		show_Scsi_Cmnd(ptr, m);
-
-	spin_unlock_irqrestore(&hostdata->lock, flags);
-	return 0;
-}
-
-/**
  * NCR5380_init - initialise an NCR5380
  * @instance: adapter to configure
  * @flags: control flags
@@ -2617,7 +2529,8 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 
 	spin_lock_irqsave(&hostdata->lock, flags);
 
-	NCR5380_print_status(instance);
+	NCR5380_dprint(NDEBUG_ANY, instance);
+	NCR5380_dprint_phase(NDEBUG_ANY, instance);
 
 	dprintk(NDEBUG_ABORT, "scsi%d: abort called basr 0x%02x, sr 0x%02x\n", HOSTNO,
 		    NCR5380_read(BUS_AND_STATUS_REG),
@@ -2815,8 +2728,9 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 
 #if (NDEBUG & NDEBUG_ANY)
 	scmd_printk(KERN_INFO, cmd, "performing bus reset\n");
-	NCR5380_print_status(instance);
 #endif
+	NCR5380_dprint(NDEBUG_ANY, instance);
+	NCR5380_dprint_phase(NDEBUG_ANY, instance);
 
 	do_reset(instance);
 

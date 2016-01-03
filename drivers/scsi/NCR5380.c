@@ -558,22 +558,6 @@ static void prepare_info(struct Scsi_Host *instance)
 	         "");
 }
 
-/**
- *	NCR5380_print_status 	-	dump controller info
- *	@instance: controller to dump
- *
- *	Print commands in the various queues, called from NCR5380_abort 
- *	and NCR5380_debug to aid debugging.
- *
- *	Locks: called functions disable irqs
- */
-
-static void __maybe_unused NCR5380_print_status(struct Scsi_Host *instance)
-{
-	NCR5380_dprint(NDEBUG_ANY, instance);
-	NCR5380_dprint_phase(NDEBUG_ANY, instance);
-}
-
 #ifdef PSEUDO_DMA
 /******************************************/
 /*
@@ -598,65 +582,19 @@ static int __maybe_unused NCR5380_write_info(struct Scsi_Host *instance,
 	hostdata->spin_max_w = 0;
 	return 0;
 }
-#endif
-
-static
-void lprint_Scsi_Cmnd(struct scsi_cmnd *cmd, struct seq_file *m);
-static
-void lprint_command(unsigned char *cmd, struct seq_file *m);
-static
-void lprint_opcode(int opcode, struct seq_file *m);
 
 static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 	struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata;
-	struct scsi_cmnd *ptr;
-	unsigned long flags;
 
 	hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 
-#ifdef PSEUDO_DMA
 	seq_printf(m, "Highwater I/O busy spin counts: write %d, read %d\n",
 	        hostdata->spin_max_w, hostdata->spin_max_r);
-#endif
-	spin_lock_irqsave(&hostdata->lock, flags);
-	if (!hostdata->connected)
-		seq_printf(m, "scsi%d: no currently connected command\n", instance->host_no);
-	else
-		lprint_Scsi_Cmnd((struct scsi_cmnd *) hostdata->connected, m);
-	seq_printf(m, "scsi%d: issue_queue\n", instance->host_no);
-	for (ptr = (struct scsi_cmnd *) hostdata->issue_queue; ptr; ptr = (struct scsi_cmnd *) ptr->host_scribble)
-		lprint_Scsi_Cmnd(ptr, m);
-
-	seq_printf(m, "scsi%d: disconnected_queue\n", instance->host_no);
-	for (ptr = (struct scsi_cmnd *) hostdata->disconnected_queue; ptr; ptr = (struct scsi_cmnd *) ptr->host_scribble)
-		lprint_Scsi_Cmnd(ptr, m);
-	spin_unlock_irqrestore(&hostdata->lock, flags);
 	return 0;
 }
-
-static void lprint_Scsi_Cmnd(struct scsi_cmnd *cmd, struct seq_file *m)
-{
-	seq_printf(m, "scsi%d : destination target %d, lun %llu\n", cmd->device->host->host_no, cmd->device->id, cmd->device->lun);
-	seq_puts(m, "        command = ");
-	lprint_command(cmd->cmnd, m);
-}
-
-static void lprint_command(unsigned char *command, struct seq_file *m)
-{
-	int i, s;
-	lprint_opcode(command[0], m);
-	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
-		seq_printf(m, "%02x ", command[i]);
-	seq_putc(m, '\n');
-}
-
-static void lprint_opcode(int opcode, struct seq_file *m)
-{
-	seq_printf(m, "%2d (0x%02x)", opcode, opcode);
-}
-
+#endif
 
 /**
  *	NCR5380_init	-	initialise an NCR5380
@@ -2335,7 +2273,8 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 
 	spin_lock_irqsave(&hostdata->lock, flags);
 
-	NCR5380_print_status(instance);
+	NCR5380_dprint(NDEBUG_ANY, instance);
+	NCR5380_dprint_phase(NDEBUG_ANY, instance);
 
 	dprintk(NDEBUG_ABORT, "scsi%d : abort called\n", instance->host_no);
 	dprintk(NDEBUG_ABORT, "        basr 0x%X, sr 0x%X\n", NCR5380_read(BUS_AND_STATUS_REG), NCR5380_read(STATUS_REG));
@@ -2490,8 +2429,9 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 
 #if (NDEBUG & NDEBUG_ANY)
 	scmd_printk(KERN_INFO, cmd, "performing bus reset\n");
-	NCR5380_print_status(instance);
 #endif
+	NCR5380_dprint(NDEBUG_ANY, instance);
+	NCR5380_dprint_phase(NDEBUG_ANY, instance);
 
 	do_reset(instance);
 

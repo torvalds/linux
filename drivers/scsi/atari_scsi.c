@@ -97,7 +97,6 @@
 
 #define NCR5380_queue_command           atari_scsi_queue_command
 #define NCR5380_abort                   atari_scsi_abort
-#define NCR5380_show_info               atari_scsi_show_info
 #define NCR5380_info                    atari_scsi_info
 
 #define NCR5380_dma_read_setup(instance, data, count) \
@@ -774,7 +773,6 @@ static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 static struct scsi_host_template atari_scsi_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= DRV_MODULE_NAME,
-	.show_info		= atari_scsi_show_info,
 	.name			= "Atari native SCSI",
 	.info			= atari_scsi_info,
 	.queuecommand		= atari_scsi_queue_command,

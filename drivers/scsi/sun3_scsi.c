@@ -53,7 +53,6 @@
 #define NCR5380_queue_command           sun3scsi_queue_command
 #define NCR5380_bus_reset               sun3scsi_bus_reset
 #define NCR5380_abort                   sun3scsi_abort
-#define NCR5380_show_info               sun3scsi_show_info
 #define NCR5380_info                    sun3scsi_info
 
 #define NCR5380_dma_read_setup(instance, data, count) \
@@ -459,7 +458,6 @@ static int sun3scsi_dma_finish(int write_flag)
 static struct scsi_host_template sun3_scsi_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= DRV_MODULE_NAME,
-	.show_info		= sun3scsi_show_info,
 	.name			= SUN3_SCSI_NAME,
 	.info			= sun3scsi_info,
 	.queuecommand		= sun3scsi_queue_command,

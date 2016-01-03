@@ -715,7 +715,6 @@ static int generic_NCR5380_dma_xfer_len(struct scsi_cmnd *cmd)
 
 static struct scsi_host_template driver_template = {
 	.proc_name		= DRV_MODULE_NAME,
-	.show_info		= generic_NCR5380_show_info,
 	.name			= "Generic NCR5380/NCR53C400 SCSI",
 	.detect			= generic_NCR5380_detect,
 	.release		= generic_NCR5380_release_resources,
