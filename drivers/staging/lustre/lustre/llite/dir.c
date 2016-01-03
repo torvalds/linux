@@ -1434,7 +1434,7 @@ free_lmv:
 	case LL_IOC_LOV_SWAP_LAYOUTS:
 		return -EPERM;
 	case LL_IOC_OBD_STATFS:
-		return ll_obd_statfs(inode, (void *)arg);
+		return ll_obd_statfs(inode, (void __user *)arg);
 	case LL_IOC_LOV_GETSTRIPE:
 	case LL_IOC_MDC_GETINFO:
 	case IOC_MDC_GETFILEINFO:

@@ -782,7 +782,7 @@ int ll_show_options(struct seq_file *seq, struct dentry *dentry);
 void ll_dirty_page_discard_warn(struct page *page, int ioret);
 int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 		  struct super_block *, struct lookup_intent *);
-int ll_obd_statfs(struct inode *inode, void *arg);
+int ll_obd_statfs(struct inode *inode, void __user *arg);
 int ll_get_max_mdsize(struct ll_sb_info *sbi, int *max_mdsize);
 int ll_get_default_mdsize(struct ll_sb_info *sbi, int *default_mdsize);
 int ll_process_config(struct lustre_cfg *lcfg);

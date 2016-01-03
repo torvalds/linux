@@ -2278,7 +2278,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LL_IOC_GROUP_UNLOCK:
 		return ll_put_grouplock(inode, file, arg);
 	case IOC_OBD_STATFS:
-		return ll_obd_statfs(inode, (void *)arg);
+		return ll_obd_statfs(inode, (void __user *)arg);
 
 	/* We need to special case any other ioctls we want to handle,
 	 * to send them to the MDS/OST as appropriate and to properly

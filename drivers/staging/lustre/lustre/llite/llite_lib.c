@@ -2019,7 +2019,7 @@ cleanup:
 	return rc;
 }
 
-int ll_obd_statfs(struct inode *inode, void *arg)
+int ll_obd_statfs(struct inode *inode, void __user *arg)
 {
 	struct ll_sb_info *sbi = NULL;
 	struct obd_export *exp;
