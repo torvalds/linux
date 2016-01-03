@@ -1009,7 +1009,7 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int transferred;
 	unsigned char **data;
-	volatile int *count;
+	int *count;
 	int saved_data = 0, overrun = 0;
 	unsigned char p;
 

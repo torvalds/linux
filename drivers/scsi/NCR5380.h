@@ -248,14 +248,14 @@ struct NCR5380_hostdata {
 	NCR5380_implementation_fields;		/* implementation specific */
 	struct Scsi_Host *host;			/* Host backpointer */
 	unsigned char id_mask, id_higher_mask;	/* 1 << id, all bits greater */
-	volatile unsigned char busy[8];		/* index = target, bit = lun */
+	unsigned char busy[8];			/* index = target, bit = lun */
 #if defined(REAL_DMA) || defined(REAL_DMA_POLL)
-	volatile int dma_len;			/* requested length of DMA */
+	int dma_len;				/* requested length of DMA */
 #endif
-	volatile unsigned char last_message;	/* last message OUT */
-	volatile struct scsi_cmnd *connected;	/* currently connected command */
-	volatile struct scsi_cmnd *issue_queue;	/* waiting to be issued */
-	volatile struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
+	unsigned char last_message;		/* last message OUT */
+	struct scsi_cmnd *connected;		/* currently connected cmnd */
+	struct scsi_cmnd *issue_queue;		/* waiting to be issued */
+	struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
 	spinlock_t lock;			/* protects this struct */
 	int flags;
 	struct scsi_eh_save ses;
