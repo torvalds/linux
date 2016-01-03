@@ -293,44 +293,48 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
 }
 
 /**
- *	NCR5380_poll_politely	-	wait for NCR5380 status bits
- *	@instance: controller to poll
- *	@reg: 5380 register to poll
- *	@bit: Bitmask to check
- *	@val: Value required to exit
+ * NCR5380_poll_politely - wait for chip register value
+ * @instance: controller to poll
+ * @reg: 5380 register to poll
+ * @bit: Bitmask to check
+ * @val: Value required to exit
+ * @wait: Time-out in jiffies
  *
- *	Polls the NCR5380 in a reasonably efficient manner waiting for
- *	an event to occur, after a short quick poll we begin giving the
- *	CPU back in non IRQ contexts
+ * Polls the chip in a reasonably efficient manner waiting for an
+ * event to occur. After a short quick poll we begin to yield the CPU
+ * (if possible). In irq contexts the time-out is arbitrarily limited.
+ * Callers may hold locks as long as they are held in irq mode.
  *
- *	Returns the value of the register or a negative error code.
+ * Returns 0 if event occurred otherwise -ETIMEDOUT.
  */
- 
-static int NCR5380_poll_politely(struct Scsi_Host *instance, int reg, int bit, int val, int t)
-{
-	int n = 500;		/* At about 8uS a cycle for the cpu access */
-	unsigned long end = jiffies + t;
-	int r;
 
-	while( n-- > 0)
-	{
-		r = NCR5380_read(reg);
-		if((r & bit) == val)
+static int NCR5380_poll_politely(struct Scsi_Host *instance,
+                                 int reg, int bit, int val, int wait)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	unsigned long deadline = jiffies + wait;
+	unsigned long n;
+
+	/* Busy-wait for up to 10 ms */
+	n = min(10000U, jiffies_to_usecs(wait));
+	n *= hostdata->accesses_per_ms;
+	n /= 1000;
+	do {
+		if ((NCR5380_read(reg) & bit) == val)
 			return 0;
 		cpu_relax();
-	}
-	
-	/* t time yet ? */
-	while(time_before(jiffies, end))
-	{
-		r = NCR5380_read(reg);
-		if((r & bit) == val)
+	} while (n--);
+
+	if (irqs_disabled() || in_interrupt())
+		return -ETIMEDOUT;
+
+	/* Repeatedly sleep for 1 ms until deadline */
+	while (time_is_after_jiffies(deadline)) {
+		schedule_timeout_uninterruptible(1);
+		if ((NCR5380_read(reg) & bit) == val)
 			return 0;
-		if(!in_interrupt())
-			cond_resched();
-		else
-			cpu_relax();
 	}
+
 	return -ETIMEDOUT;
 }
 
@@ -773,6 +777,7 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 {
 	int i;
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	unsigned long deadline;
 
 	if(in_interrupt())
 		printk(KERN_ERR "NCR5380_init called with interrupts off!\n");
@@ -812,6 +817,21 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	NCR5380_write(MODE_REG, MR_BASE);
 	NCR5380_write(TARGET_COMMAND_REG, 0);
 	NCR5380_write(SELECT_ENABLE_REG, 0);
+
+	/* Calibrate register polling loop */
+	i = 0;
+	deadline = jiffies + 1;
+	do {
+		cpu_relax();
+	} while (time_is_after_jiffies(deadline));
+	deadline += msecs_to_jiffies(256);
+	do {
+		NCR5380_read(STATUS_REG);
+		++i;
+		cpu_relax();
+	} while (time_is_after_jiffies(deadline));
+	hostdata->accesses_per_ms = i / 256;
+
 	return 0;
 }
 

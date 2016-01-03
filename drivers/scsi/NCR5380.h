@@ -285,6 +285,7 @@ struct NCR5380_hostdata {
 	unsigned spin_max_w;
 #endif
 	struct workqueue_struct *work_q;
+	unsigned long accesses_per_ms;	/* chip register accesses per ms */
 };
 
 #ifdef __KERNEL__
