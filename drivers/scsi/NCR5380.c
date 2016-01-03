@@ -468,10 +468,6 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
 #ifndef USLEEP_POLL
 #define USLEEP_POLL msecs_to_jiffies(200)
 #endif
-#ifndef USLEEP_WAITLONG
-/* RvC: (reasonable time to wait on select error) */
-#define USLEEP_WAITLONG USLEEP_SLEEP
-#endif
 
 /* 
  * Function : int should_disconnect (unsigned char cmd)
@@ -619,8 +615,8 @@ static void prepare_info(struct Scsi_Host *instance)
 	         "can_queue %d, cmd_per_lun %d, "
 	         "sg_tablesize %d, this_id %d, "
 	         "flags { %s%s%s%s}, "
-#if defined(USLEEP_POLL) && defined(USLEEP_WAITLONG)
-		 "USLEEP_POLL %lu, USLEEP_WAITLONG %lu, "
+#if defined(USLEEP_POLL) && defined(USLEEP_SLEEP)
+		 "USLEEP_POLL %lu, USLEEP_SLEEP %lu, "
 #endif
 	         "options { %s} ",
 	         instance->hostt->name, instance->io_port, instance->n_io_port,
@@ -631,8 +627,8 @@ static void prepare_info(struct Scsi_Host *instance)
 	         hostdata->flags & FLAG_DTC3181E      ? "DTC3181E "      : "",
 	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
 	         hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY "  : "",
-#if defined(USLEEP_POLL) && defined(USLEEP_WAITLONG)
-	         USLEEP_POLL, USLEEP_WAITLONG,
+#if defined(USLEEP_POLL) && defined(USLEEP_SLEEP)
+	         USLEEP_POLL, USLEEP_SLEEP,
 #endif
 #ifdef AUTOPROBE_IRQ
 	         "AUTOPROBE_IRQ "
@@ -1030,15 +1026,10 @@ static void NCR5380_main(struct work_struct *work)
 			if (!NCR5380_select(instance, tmp)) {
 				/* OK or bad target */
 			} else {
-				/* RvC: device failed, so we wait a long time
-				   this is needed for Mustek scanners, that
-				   do not respond to commands immediately
-				   after a scan */
-				printk(KERN_DEBUG "scsi%d: device %d did not respond in time\n", instance->host_no, tmp->device->id);
 				LIST(tmp, hostdata->issue_queue);
 				tmp->host_scribble = (unsigned char *) hostdata->issue_queue;
 				hostdata->issue_queue = tmp;
-				NCR5380_set_timer(hostdata, USLEEP_WAITLONG);
+				done = 0;
 			}
 		}	/* if hostdata->selecting */
 		if (hostdata->connected
