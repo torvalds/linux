@@ -781,7 +781,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	if(in_interrupt())
 		printk(KERN_ERR "NCR5380_init called with interrupts off!\n");
 
-	hostdata->aborted = 0;
 	hostdata->id_mask = 1 << instance->this_id;
 	for (i = hostdata->id_mask; i <= 0x80; i <<= 1)
 		if (i > hostdata->id_mask)
@@ -2574,7 +2573,6 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 
 	if (hostdata->connected == cmd) {
 		dprintk(NDEBUG_ABORT, "scsi%d : aborting connected command\n", instance->host_no);
-		hostdata->aborted = 1;
 /*
  * We should perform BSY checking, and make sure we haven't slipped
  * into BUS FREE.

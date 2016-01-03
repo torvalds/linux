@@ -813,7 +813,6 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 	SETUP_HOSTDATA(instance);
 
 	hostdata->host = instance;
-	hostdata->aborted = 0;
 	hostdata->id_mask = 1 << instance->this_id;
 	hostdata->id_higher_mask = 0;
 	for (i = hostdata->id_mask; i <= 0x80; i <<= 1)
@@ -2834,7 +2833,6 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 		 */
 
 		if (do_abort(instance) == 0) {
-			hostdata->aborted = 1;
 			hostdata->connected = NULL;
 			cmd->result = DID_ABORT << 16;
 #ifdef SUPPORT_TAGS
