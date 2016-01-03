@@ -153,9 +153,9 @@ struct obd_ioctl_data {
 
 	/* buffers the kernel will treat as user pointers */
 	__u32  ioc_plen1;
-	char  *ioc_pbuf1;
+	void __user *ioc_pbuf1;
 	__u32  ioc_plen2;
-	char  *ioc_pbuf2;
+	void __user *ioc_pbuf2;
 
 	/* inline buffers for various arguments */
 	__u32  ioc_inllen1;
