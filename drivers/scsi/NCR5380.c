@@ -838,19 +838,20 @@ static int NCR5380_maybe_reset_bus(struct Scsi_Host *instance)
 		case 1:
 		case 3:
 		case 5:
-			printk(KERN_INFO "scsi%d: SCSI bus busy, waiting up to five seconds\n", instance->host_no);
-			NCR5380_poll_politely(instance, STATUS_REG, SR_BSY, 0, 5*HZ);
+			shost_printk(KERN_ERR, instance, "SCSI bus busy, waiting up to five seconds\n");
+			NCR5380_poll_politely(instance,
+			                      STATUS_REG, SR_BSY, 0, 5 * HZ);
 			break;
 		case 2:
-			printk(KERN_WARNING "scsi%d: bus busy, attempting abort\n", instance->host_no);
+			shost_printk(KERN_ERR, instance, "bus busy, attempting abort\n");
 			do_abort(instance);
 			break;
 		case 4:
-			printk(KERN_WARNING "scsi%d: bus busy, attempting reset\n", instance->host_no);
+			shost_printk(KERN_ERR, instance, "bus busy, attempting reset\n");
 			do_reset(instance);
 			break;
 		case 6:
-			printk(KERN_ERR "scsi%d: bus locked solid or invalid override\n", instance->host_no);
+			shost_printk(KERN_ERR, instance, "bus locked solid\n");
 			return -ENXIO;
 		}
 	}
@@ -1579,21 +1580,29 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase
 }
 
 /**
- *	do_reset	-	issue a reset command
- *	@host: adapter to reset
+ * do_reset - issue a reset command
+ * @instance: adapter to reset
  *
- *	Issue a reset sequence to the NCR5380 and try and get the bus
- *	back into sane shape.
+ * Issue a reset sequence to the NCR5380 and try and get the bus
+ * back into sane shape.
  *
- *	Locks: caller holds queue lock
+ * This clears the reset interrupt flag because there may be no handler for
+ * it. When the driver is initialized, the NCR5380_intr() handler has not yet
+ * been installed. And when in EH we may have released the ST DMA interrupt.
  */
  
 static void do_reset(struct Scsi_Host *instance)
 {
-	NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(NCR5380_read(STATUS_REG) & PHASE_MASK));
+	unsigned long flags;
+
+	local_irq_save(flags);
+	NCR5380_write(TARGET_COMMAND_REG,
+	              PHASE_SR_TO_TCR(NCR5380_read(STATUS_REG) & PHASE_MASK));
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_RST);
-	udelay(25);
+	udelay(50);
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+	(void)NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+	local_irq_restore(flags);
 }
 
 /*
