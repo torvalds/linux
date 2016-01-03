@@ -61,9 +61,9 @@ struct libcfs_ioctl_data {
 	char *ioc_inlbuf2;
 
 	__u32 ioc_plen1; /* buffers in userspace */
-	char *ioc_pbuf1;
+	void __user *ioc_pbuf1;
 	__u32 ioc_plen2; /* buffers in userspace */
-	char *ioc_pbuf2;
+	void __user *ioc_pbuf2;
 
 	char ioc_bulk[0];
 };
