@@ -3033,19 +3033,26 @@ static int ll_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	fiemap->fm_extent_count = fieinfo->fi_extents_max;
 	fiemap->fm_start = start;
 	fiemap->fm_length = len;
-	if (extent_count > 0)
-		memcpy(&fiemap->fm_extents[0], fieinfo->fi_extents_start,
-		       sizeof(struct ll_fiemap_extent));
+	if (extent_count > 0 &&
+	    copy_from_user(&fiemap->fm_extents[0], fieinfo->fi_extents_start,
+			   sizeof(struct ll_fiemap_extent)) != 0) {
+		rc = -EFAULT;
+		goto out;
+	}
 
 	rc = ll_do_fiemap(inode, fiemap, num_bytes);
 
 	fieinfo->fi_flags = fiemap->fm_flags;
 	fieinfo->fi_extents_mapped = fiemap->fm_mapped_extents;
-	if (extent_count > 0)
-		memcpy(fieinfo->fi_extents_start, &fiemap->fm_extents[0],
-		       fiemap->fm_mapped_extents *
-		       sizeof(struct ll_fiemap_extent));
+	if (extent_count > 0 &&
+	    copy_to_user(fieinfo->fi_extents_start, &fiemap->fm_extents[0],
+			 fiemap->fm_mapped_extents *
+			 sizeof(struct ll_fiemap_extent)) != 0) {
+		rc = -EFAULT;
+		goto out;
+	}
 
+out:
 	kvfree(fiemap);
 	return rc;
 }
