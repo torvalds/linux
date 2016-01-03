@@ -44,7 +44,8 @@
 #define NCR5380_implementation_fields \
 	int c400_ctl_status; \
 	int c400_blk_cnt; \
-	int c400_host_buf;
+	int c400_host_buf; \
+	int io_width;
 
 #else 
 /* therefore SCSI_G_NCR5380_MEM */
