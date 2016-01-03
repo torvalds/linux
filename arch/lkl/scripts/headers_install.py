@@ -101,6 +101,22 @@ args = parser.parse_args()
 find_headers("arch/lkl/include/uapi/asm/syscalls.h")
 headers.add("arch/lkl/include/uapi/asm/host_ops.h")
 
+new_headers = set()
+
+for h in headers:
+    dir = os.path.dirname(h)
+    out_dir = args.path + "/" + re.sub("(arch/lkl/include/uapi/|arch/lkl/include/generated/uapi/|include/uapi/|include/generated/uapi/|include/generated)(.*)", "lkl/\\2", dir)
+    try:
+        os.makedirs(out_dir)
+    except:
+        pass
+    print("  INSTALL\t%s" % (out_dir + "/" + os.path.basename(h)))
+    os.system("scripts/headers_install.sh %s %s %s" % (out_dir, dir,
+                                                       os.path.basename(h)))
+    new_headers.add(out_dir + "/" + os.path.basename(h))
+
+headers = new_headers
+
 defines = set()
 structs = set()
 unions = set()
@@ -120,16 +136,8 @@ p = re.compile("union\s+(\w+)\s*\{")
 find_symbols(p, unions)
 
 def process_header(h):
-    dir = os.path.dirname(h)
-    out_dir = args.path + "/" + re.sub("(arch/lkl/include/uapi/|arch/lkl/include/generated/uapi/|include/uapi/|include/generated/uapi/|include/generated)(.*)", "lkl/\\2", dir)
-    try:
-        os.makedirs(out_dir)
-    except:
-        pass
-    print("  INSTALL\t%s" % (out_dir + "/" + os.path.basename(h)))
-    os.system("scripts/headers_install.sh %s %s %s" % (out_dir, dir,
-                                                       os.path.basename(h)))
-    replace(out_dir + "/" + os.path.basename(h))
+    print("  REPLACE\t%s" % (out_dir + "/" + os.path.basename(h)))
+    replace(h)
 
 p = multiprocessing.Pool(args.jobs)
 try:
