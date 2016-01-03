@@ -2047,8 +2047,8 @@ static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 	u8 im, om;
 	__u64 m, v;
 
-	om = 0ULL;
-	im = 0ULL;
+	om = 0;
+	im = 0;
 	m = 0ULL;
 	v = 0ULL;
 	while (*name) {
