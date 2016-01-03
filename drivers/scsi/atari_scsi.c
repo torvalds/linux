@@ -164,15 +164,6 @@ static inline unsigned long SCSI_DMA_GETADR(void)
 #define HOSTDATA_DMALEN		(((struct NCR5380_hostdata *) \
 				(atari_scsi_host->hostdata))->dma_len)
 
-/* Time (in jiffies) to wait after a reset; the SCSI standard calls for 250ms,
- * we usually do 0.5s to be on the safe side. But Toshiba CD-ROMs once more
- * need ten times the standard value... */
-#ifndef CONFIG_ATARI_SCSI_TOSHIBA_DELAY
-#define	AFTER_RESET_DELAY	(HZ/2)
-#else
-#define	AFTER_RESET_DELAY	(5*HZ/2)
-#endif
-
 #ifdef REAL_DMA
 static void atari_scsi_fetch_restbytes(void);
 #endif
@@ -208,12 +199,12 @@ static int setup_cmd_per_lun = -1;
 module_param(setup_cmd_per_lun, int, 0);
 static int setup_sg_tablesize = -1;
 module_param(setup_sg_tablesize, int, 0);
-#ifdef SUPPORT_TAGS
 static int setup_use_tagged_queuing = -1;
 module_param(setup_use_tagged_queuing, int, 0);
-#endif
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
+static int setup_toshiba_delay = -1;
+module_param(setup_toshiba_delay, int, 0);
 
 
 #if defined(REAL_DMA)
@@ -488,7 +479,7 @@ static int __init atari_scsi_setup(char *str)
 	 * Defaults depend on TT or Falcon, determined at run time.
 	 * Negative values mean don't change.
 	 */
-	int ints[6];
+	int ints[8];
 
 	get_options(str, ARRAY_SIZE(ints), ints);
 
@@ -504,10 +495,11 @@ static int __init atari_scsi_setup(char *str)
 		setup_sg_tablesize = ints[3];
 	if (ints[0] >= 4)
 		setup_hostid = ints[4];
-#ifdef SUPPORT_TAGS
 	if (ints[0] >= 5)
 		setup_use_tagged_queuing = ints[5];
-#endif
+	/* ints[6] (use_pdma) is ignored */
+	if (ints[0] >= 7)
+		setup_toshiba_delay = ints[7];
 
 	return 1;
 }
@@ -515,38 +507,6 @@ static int __init atari_scsi_setup(char *str)
 __setup("atascsi=", atari_scsi_setup);
 #endif /* !MODULE */
 
-
-#ifdef CONFIG_ATARI_SCSI_RESET_BOOT
-static void __init atari_scsi_reset_boot(void)
-{
-	unsigned long end;
-
-	/*
-	 * Do a SCSI reset to clean up the bus during initialization. No messing
-	 * with the queues, interrupts, or locks necessary here.
-	 */
-
-	printk("Atari SCSI: resetting the SCSI bus...");
-
-	/* get in phase */
-	NCR5380_write(TARGET_COMMAND_REG,
-		      PHASE_SR_TO_TCR(NCR5380_read(STATUS_REG)));
-
-	/* assert RST */
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_RST);
-	/* The min. reset hold time is 25us, so 40us should be enough */
-	udelay(50);
-	/* reset RST and interrupt */
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-
-	end = jiffies + AFTER_RESET_DELAY;
-	while (time_before(jiffies, end))
-		barrier();
-
-	printk(" done\n");
-}
-#endif
 
 #if defined(REAL_DMA)
 
@@ -917,17 +877,13 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	}
 	atari_scsi_host = instance;
 
-#ifdef CONFIG_ATARI_SCSI_RESET_BOOT
-	atari_scsi_reset_boot();
-#endif
-
 	instance->irq = irq->start;
 
 	host_flags |= IS_A_TT() ? 0 : FLAG_LATE_DMA_SETUP;
-
 #ifdef SUPPORT_TAGS
 	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
 #endif
+	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
 
 	NCR5380_init(instance, host_flags);
 
@@ -974,6 +930,8 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 					: 0xff000000);
 #endif
 	}
+
+	NCR5380_maybe_reset_bus(instance);
 
 	error = scsi_add_host(instance, NULL);
 	if (error)

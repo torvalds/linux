@@ -674,13 +674,14 @@ static void prepare_info(struct Scsi_Host *instance)
 	         "base 0x%lx, irq %d, "
 	         "can_queue %d, cmd_per_lun %d, "
 	         "sg_tablesize %d, this_id %d, "
-	         "flags { %s}, "
+	         "flags { %s%s}, "
 	         "options { %s} ",
 	         instance->hostt->name, instance->io_port, instance->n_io_port,
 	         instance->base, instance->irq,
 	         instance->can_queue, instance->cmd_per_lun,
 	         instance->sg_tablesize, instance->this_id,
 	         hostdata->flags & FLAG_TAGGED_QUEUING ? "TAGGED_QUEUING " : "",
+	         hostdata->flags & FLAG_TOSHIBA_DELAY  ? "TOSHIBA_DELAY "  : "",
 #ifdef DIFFERENTIAL
 	         "DIFFERENTIAL "
 #endif
@@ -860,6 +861,7 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 
 static int NCR5380_maybe_reset_bus(struct Scsi_Host *instance)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int pass;
 
 	for (pass = 1; (NCR5380_read(STATUS_REG) & SR_BSY) && pass <= 6; ++pass) {
@@ -878,6 +880,14 @@ static int NCR5380_maybe_reset_bus(struct Scsi_Host *instance)
 		case 4:
 			shost_printk(KERN_ERR, instance, "bus busy, attempting reset\n");
 			do_reset(instance);
+			/* Wait after a reset; the SCSI standard calls for
+			 * 250ms, we wait 500ms to be on the safe side.
+			 * But some Toshiba CD-ROMs need ten times that.
+			 */
+			if (hostdata->flags & FLAG_TOSHIBA_DELAY)
+				msleep(2500);
+			else
+				msleep(500);
 			break;
 		case 6:
 			shost_printk(KERN_ERR, instance, "bus locked solid\n");
@@ -1493,12 +1503,10 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	 * a minimum so we'll udelay ceil(1.2)
 	 */
 
-#ifdef CONFIG_ATARI_SCSI_TOSHIBA_DELAY
-	/* ++roman: But some targets (see above :-) seem to need a bit more... */
-	udelay(15);
-#else
-	udelay(2);
-#endif
+	if (hostdata->flags & FLAG_TOSHIBA_DELAY)
+		udelay(15);
+	else
+		udelay(2);
 
 	if (hostdata->connected) {
 		NCR5380_write(MODE_REG, MR_BASE);

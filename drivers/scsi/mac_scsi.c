@@ -49,8 +49,6 @@
 
 #include "NCR5380.h"
 
-#define RESET_BOOT
-
 static int setup_can_queue = -1;
 module_param(setup_can_queue, int, 0);
 static int setup_cmd_per_lun = -1;
@@ -63,17 +61,8 @@ static int setup_use_tagged_queuing = -1;
 module_param(setup_use_tagged_queuing, int, 0);
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
-
-/* Time (in jiffies) to wait after a reset; the SCSI standard calls for 250ms,
- * we usually do 0.5s to be on the safe side. But Toshiba CD-ROMs once more
- * need ten times the standard value... */
-#define TOSHIBA_DELAY
-
-#ifdef TOSHIBA_DELAY
-#define	AFTER_RESET_DELAY	(5*HZ/2)
-#else
-#define	AFTER_RESET_DELAY	(HZ/2)
-#endif
+static int setup_toshiba_delay = -1;
+module_param(setup_toshiba_delay, int, 0);
 
 /*
  * NCR 5380 register access functions
@@ -92,12 +81,12 @@ static inline void macscsi_write(struct Scsi_Host *instance, int reg, int value)
 #ifndef MODULE
 static int __init mac_scsi_setup(char *str)
 {
-	int ints[7];
+	int ints[8];
 
 	(void)get_options(str, ARRAY_SIZE(ints), ints);
 
-	if (ints[0] < 1 || ints[0] > 6) {
-		pr_err("Usage: mac5380=<can_queue>[,<cmd_per_lun>[,<sg_tablesize>[,<hostid>[,<use_tags>[,<use_pdma>]]]]]\n");
+	if (ints[0] < 1) {
+		pr_err("Usage: mac5380=<can_queue>[,<cmd_per_lun>[,<sg_tablesize>[,<hostid>[,<use_tags>[,<use_pdma>[,<toshiba_delay>]]]]]]\n");
 		return 0;
 	}
 	if (ints[0] >= 1)
@@ -112,46 +101,13 @@ static int __init mac_scsi_setup(char *str)
 		setup_use_tagged_queuing = ints[5];
 	if (ints[0] >= 6)
 		setup_use_pdma = ints[6];
+	if (ints[0] >= 7)
+		setup_toshiba_delay = ints[7];
 	return 1;
 }
 
 __setup("mac5380=", mac_scsi_setup);
 #endif /* !MODULE */
-
-#ifdef RESET_BOOT
-/*
- * Our 'bus reset on boot' function
- */
-
-static void mac_scsi_reset_boot(struct Scsi_Host *instance)
-{
-	unsigned long end;
-
-	/*
-	 * Do a SCSI reset to clean up the bus during initialization. No messing
-	 * with the queues, interrupts, or locks necessary here.
-	 */
-
-	printk(KERN_INFO "Macintosh SCSI: resetting the SCSI bus..." );
-
-	/* get in phase */
-	NCR5380_write( TARGET_COMMAND_REG,
-		      PHASE_SR_TO_TCR( NCR5380_read(STATUS_REG) ));
-
-	/* assert RST */
-	NCR5380_write( INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_RST );
-	/* The min. reset hold time is 25us, so 40us should be enough */
-	udelay( 50 );
-	/* reset RST and interrupt */
-	NCR5380_write( INITIATOR_COMMAND_REG, ICR_BASE );
-	NCR5380_read( RESET_PARITY_INTERRUPT_REG );
-
-	for( end = jiffies + AFTER_RESET_DELAY; time_before(jiffies, end); )
-		barrier();
-
-	printk(KERN_INFO " done\n" );
-}
-#endif
 
 #ifdef PSEUDO_DMA
 /* 
@@ -421,13 +377,10 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	} else
 		host_flags |= FLAG_NO_PSEUDO_DMA;
 
-#ifdef RESET_BOOT
-	mac_scsi_reset_boot(instance);
-#endif
-
 #ifdef SUPPORT_TAGS
 	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
 #endif
+	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
 
 	NCR5380_init(instance, host_flags);
 
@@ -437,6 +390,8 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 		if (error)
 			goto fail_irq;
 	}
+
+	NCR5380_maybe_reset_bus(instance);
 
 	error = scsi_add_host(instance, NULL);
 	if (error)

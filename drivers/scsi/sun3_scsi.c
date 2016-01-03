@@ -86,10 +86,6 @@ module_param(setup_use_tagged_queuing, int, 0);
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 
-/* #define RESET_BOOT */
-
-#define	AFTER_RESET_DELAY	(HZ/2)
-
 /* ms to wait after hitting dma regs */
 #define SUN3_DMA_DELAY 10
 
@@ -141,45 +137,6 @@ static inline void sun3_udc_write(unsigned short val, unsigned char reg)
 	udelay(SUN3_DMA_DELAY);
 	dregs->udc_data = val;
 	udelay(SUN3_DMA_DELAY);
-}
-#endif
-
-#ifdef RESET_BOOT
-static void sun3_scsi_reset_boot(struct Scsi_Host *instance)
-{
-	unsigned long end;
-	
-	/*
-	 * Do a SCSI reset to clean up the bus during initialization. No
-	 * messing with the queues, interrupts, or locks necessary here.
-	 */
-
-	printk( "Sun3 SCSI: resetting the SCSI bus..." );
-
-	/* switch off SCSI IRQ - catch an interrupt without IRQ bit set else */
-//       	sun3_disable_irq( IRQ_SUN3_SCSI );
-
-	/* get in phase */
-	NCR5380_write( TARGET_COMMAND_REG,
-		      PHASE_SR_TO_TCR( NCR5380_read(STATUS_REG) ));
-
-	/* assert RST */
-	NCR5380_write( INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_RST );
-
-	/* The min. reset hold time is 25us, so 40us should be enough */
-	udelay( 50 );
-
-	/* reset RST and interrupt */
-	NCR5380_write( INITIATOR_COMMAND_REG, ICR_BASE );
-	NCR5380_read( RESET_PARITY_INTERRUPT_REG );
-
-	for( end = jiffies + AFTER_RESET_DELAY; time_before(jiffies, end); )
-		barrier();
-
-	/* switch on SCSI IRQ again */
-//       	sun3_enable_irq( IRQ_SUN3_SCSI );
-
-	printk( " done\n" );
 }
 #endif
 
@@ -631,9 +588,7 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	dregs->ivect = VME_DATA24 | (instance->irq & 0xff);
 #endif
 
-#ifdef RESET_BOOT
-	sun3_scsi_reset_boot(instance);
-#endif
+	NCR5380_maybe_reset_bus(instance);
 
 	error = scsi_add_host(instance, NULL);
 	if (error)

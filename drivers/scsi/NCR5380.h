@@ -243,6 +243,7 @@
 #define FLAG_DTC3181E			16	/* DTC3181E */
 #define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */
 #define FLAG_TAGGED_QUEUING		64	/* as X3T9.2 spelled it */
+#define FLAG_TOSHIBA_DELAY		128	/* Allow for borken CD-ROMs */
 
 #ifdef SUPPORT_TAGS
 struct tag_alloc {

@@ -618,7 +618,7 @@ static void prepare_info(struct Scsi_Host *instance)
 	         "base 0x%lx, irq %d, "
 	         "can_queue %d, cmd_per_lun %d, "
 	         "sg_tablesize %d, this_id %d, "
-	         "flags { %s%s%s}, "
+	         "flags { %s%s%s%s}, "
 #if defined(USLEEP_POLL) && defined(USLEEP_WAITLONG)
 		 "USLEEP_POLL %lu, USLEEP_WAITLONG %lu, "
 #endif
@@ -630,6 +630,7 @@ static void prepare_info(struct Scsi_Host *instance)
 	         hostdata->flags & FLAG_NCR53C400     ? "NCR53C400 "     : "",
 	         hostdata->flags & FLAG_DTC3181E      ? "DTC3181E "      : "",
 	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
+	         hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY "  : "",
 #if defined(USLEEP_POLL) && defined(USLEEP_WAITLONG)
 	         USLEEP_POLL, USLEEP_WAITLONG,
 #endif
@@ -831,6 +832,7 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 
 static int NCR5380_maybe_reset_bus(struct Scsi_Host *instance)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int pass;
 
 	for (pass = 1; (NCR5380_read(STATUS_REG) & SR_BSY) && pass <= 6; ++pass) {
@@ -849,6 +851,14 @@ static int NCR5380_maybe_reset_bus(struct Scsi_Host *instance)
 		case 4:
 			shost_printk(KERN_ERR, instance, "bus busy, attempting reset\n");
 			do_reset(instance);
+			/* Wait after a reset; the SCSI standard calls for
+			 * 250ms, we wait 500ms to be on the safe side.
+			 * But some Toshiba CD-ROMs need ten times that.
+			 */
+			if (hostdata->flags & FLAG_TOSHIBA_DELAY)
+				msleep(2500);
+			else
+				msleep(500);
 			break;
 		case 6:
 			shost_printk(KERN_ERR, instance, "bus locked solid\n");
@@ -1253,7 +1263,10 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	 * a minimum so we'll udelay ceil(1.2)
 	 */
 
-	udelay(2);
+	if (hostdata->flags & FLAG_TOSHIBA_DELAY)
+		udelay(15);
+	else
+		udelay(2);
 
 	dprintk(NDEBUG_ARBITRATION, "scsi%d : won arbitration\n", instance->host_no);
 
