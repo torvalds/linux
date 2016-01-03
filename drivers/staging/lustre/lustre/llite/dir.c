@@ -1736,7 +1736,7 @@ out_quotactl:
 				    sizeof(struct ioc_changelog));
 		return rc;
 	case OBD_IOC_FID2PATH:
-		return ll_fid2path(inode, (void *)arg);
+		return ll_fid2path(inode, (void __user *)arg);
 	case LL_IOC_HSM_REQUEST: {
 		struct hsm_user_request	*hur;
 		ssize_t			 totalsize;
