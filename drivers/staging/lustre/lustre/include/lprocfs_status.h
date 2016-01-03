@@ -608,7 +608,7 @@ int lprocfs_write_helper(const char __user *buffer, unsigned long count,
 			 int *val);
 int lprocfs_write_u64_helper(const char __user *buffer,
 			     unsigned long count, __u64 *val);
-int lprocfs_write_frac_u64_helper(const char *buffer,
+int lprocfs_write_frac_u64_helper(const char __user *buffer,
 				  unsigned long count,
 				  __u64 *val, int mult);
 char *lprocfs_find_named_value(const char *buffer, const char *name,

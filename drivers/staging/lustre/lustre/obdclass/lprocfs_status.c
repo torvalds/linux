@@ -1319,8 +1319,8 @@ int lprocfs_write_u64_helper(const char __user *buffer, unsigned long count,
 }
 EXPORT_SYMBOL(lprocfs_write_u64_helper);
 
-int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
-			      __u64 *val, int mult)
+int lprocfs_write_frac_u64_helper(const char __user *buffer,
+				  unsigned long count, __u64 *val, int mult)
 {
 	char kernbuf[22], *end, *pbuf;
 	__u64 whole, frac = 0, units;
