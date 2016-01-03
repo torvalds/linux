@@ -1431,7 +1431,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	unsigned char tmp[3], phase;
 	unsigned char *data;
 	int len;
-	unsigned long timeout;
+	int err;
 	unsigned long flags;
 
 	NCR5380_dprint(NDEBUG_ARBITRATION, instance);
@@ -1605,25 +1605,8 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	 * selection.
 	 */
 
-	timeout = jiffies + msecs_to_jiffies(250);
-
-	/*
-	 * XXX very interesting - we're seeing a bounce where the BSY we
-	 * asserted is being reflected / still asserted (propagation delay?)
-	 * and it's detecting as true.  Sigh.
-	 */
-
-#if 0
-	/* ++roman: If a target conformed to the SCSI standard, it wouldn't assert
-	 * IO while SEL is true. But again, there are some disks out the in the
-	 * world that do that nevertheless. (Somebody claimed that this announces
-	 * reselection capability of the target.) So we better skip that test and
-	 * only wait for BSY... (Famous german words: Der Klügere gibt nach :-)
-	 */
-
-	while (time_before(jiffies, timeout) &&
-	       !(NCR5380_read(STATUS_REG) & (SR_BSY | SR_IO)))
-		;
+	err = NCR5380_poll_politely(instance, STATUS_REG, SR_BSY, SR_BSY,
+	                            msecs_to_jiffies(250));
 
 	if ((NCR5380_read(STATUS_REG) & (SR_SEL | SR_IO)) == (SR_SEL | SR_IO)) {
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
@@ -1633,22 +1616,8 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		return -1;
 	}
-#else
-	while (time_before(jiffies, timeout) && !(NCR5380_read(STATUS_REG) & SR_BSY))
-		;
-#endif
 
-	/*
-	 * No less than two deskew delays after the initiator detects the
-	 * BSY signal is true, it shall release the SEL signal and may
-	 * change the DATA BUS.                                     -wingel
-	 */
-
-	udelay(1);
-
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
-
-	if (!(NCR5380_read(STATUS_REG) & SR_BSY)) {
+	if (err < 0) {
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		cmd->result = DID_BAD_TARGET << 16;
 #ifdef SUPPORT_TAGS
@@ -1659,6 +1628,16 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		dprintk(NDEBUG_SELECTION, "scsi%d: target did not respond within 250ms\n", HOSTNO);
 		return 0;
 	}
+
+	/*
+	 * No less than two deskew delays after the initiator detects the
+	 * BSY signal is true, it shall release the SEL signal and may
+	 * change the DATA BUS.                                     -wingel
+	 */
+
+	udelay(1);
+
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
 
 	/*
 	 * Since we followed the SCSI spec, and raised ATN while SEL

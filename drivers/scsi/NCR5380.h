@@ -267,8 +267,6 @@ struct NCR5380_hostdata {
 	volatile struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
 	int flags;
 	unsigned long time_expires;		/* in jiffies, set prior to sleeping */
-	int select_time;			/* timer in select for target response */
-	volatile struct scsi_cmnd *selecting;
 	struct delayed_work coroutine;		/* our co-routine */
 	struct scsi_eh_save ses;
 	char info[256];

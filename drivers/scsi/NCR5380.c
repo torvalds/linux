@@ -988,7 +988,7 @@ static void NCR5380_main(struct work_struct *work)
 	do {
 		/* Lock held here */
 		done = 1;
-		if (!hostdata->connected && !hostdata->selecting) {
+		if (!hostdata->connected) {
 			dprintk(NDEBUG_MAIN, "scsi%d : not connected\n", instance->host_no);
 			/*
 			 * Search through the issue_queue for a command destined
@@ -1018,9 +1018,6 @@ static void NCR5380_main(struct work_struct *work)
 					 */
 					dprintk(NDEBUG_MAIN|NDEBUG_QUEUES, "scsi%d : main() : command for target %d lun %llu removed from issue_queue\n", instance->host_no, tmp->device->id, tmp->device->lun);
 	
-					hostdata->selecting = NULL;
-					/* RvC: have to preset this to indicate a new command is being performed */
-
 					/*
 					 * REQUEST SENSE commands are issued without tagged
 					 * queueing, even on SCSI-II devices because the
@@ -1038,26 +1035,13 @@ static void NCR5380_main(struct work_struct *work)
 						done = 0;
 						dprintk(NDEBUG_MAIN|NDEBUG_QUEUES, "scsi%d : main(): select() failed, returned to issue_queue\n", instance->host_no);
 					}
-					if (hostdata->connected ||
-					    hostdata->selecting)
+					if (hostdata->connected)
 						break;
 					/* lock held here still */
 				}	/* if target/lun is not busy */
 			}	/* for */
 			/* exited locked */
 		}	/* if (!hostdata->connected) */
-		if (hostdata->selecting) {
-			tmp = (struct scsi_cmnd *) hostdata->selecting;
-			/* Selection will drop and retake the lock */
-			if (!NCR5380_select(instance, tmp)) {
-				/* OK or bad target */
-			} else {
-				LIST(tmp, hostdata->issue_queue);
-				tmp->host_scribble = (unsigned char *) hostdata->issue_queue;
-				hostdata->issue_queue = tmp;
-				done = 0;
-			}
-		}	/* if hostdata->selecting */
 		if (hostdata->connected
 #ifdef REAL_DMA
 		    && !hostdata->dmalen
@@ -1176,7 +1160,6 @@ static irqreturn_t NCR5380_intr(int dummy, void *dev_id)
  * Returns : -1 if selection failed but should be retried.
  *      0 if selection failed and should not be retried.
  *      0 if selection succeeded completely (hostdata->connected == cmd).
- *      0 if selection in progress (hostdata->selecting == cmd).
  *
  * Side effects : 
  *      If bus busy, arbitration failed, etc, NCR5380_select() will exit 
@@ -1200,12 +1183,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	unsigned char tmp[3], phase;
 	unsigned char *data;
 	int len;
-	unsigned long timeout;
-	unsigned char value;
 	int err;
-
-	if (hostdata->selecting)
-		goto part2;
 
 	NCR5380_dprint(NDEBUG_ARBITRATION, instance);
 	dprintk(NDEBUG_ARBITRATION, "scsi%d : starting arbitration, id = %d\n", instance->host_no, instance->this_id);
@@ -1342,33 +1320,9 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	 * selection.
 	 */
 
-	timeout = jiffies + msecs_to_jiffies(250);
+	err = NCR5380_poll_politely(instance, STATUS_REG, SR_BSY, SR_BSY,
+	                            msecs_to_jiffies(250));
 
-	/* 
-	 * XXX very interesting - we're seeing a bounce where the BSY we 
-	 * asserted is being reflected / still asserted (propagation delay?)
-	 * and it's detecting as true.  Sigh.
-	 */
-
-	hostdata->select_time = 0;	/* we count the clock ticks at which we polled */
-	hostdata->selecting = cmd;
-
-part2:
-	/* RvC: here we enter after a sleeping period, or immediately after
-	   execution of part 1
-	   we poll only once ech clock tick */
-	value = NCR5380_read(STATUS_REG) & (SR_BSY | SR_IO);
-
-	if (!value && (hostdata->select_time < HZ/4)) {
-		/* RvC: we still must wait for a device response */
-		hostdata->select_time++;	/* after 25 ticks the device has failed */
-		NCR5380_set_timer(hostdata, 1);
-		return 0;	/* RvC: we return here with hostdata->selecting set,
-				   to go to sleep */
-	}
-
-	hostdata->selecting = NULL;/* clear this pointer, because we passed the
-					   waiting period */
 	if ((NCR5380_read(STATUS_REG) & (SR_SEL | SR_IO)) == (SR_SEL | SR_IO)) {
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		NCR5380_reselect(instance);
@@ -1376,6 +1330,17 @@ part2:
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		return -1;
 	}
+
+	if (err < 0) {
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+		cmd->result = DID_BAD_TARGET << 16;
+		cmd->scsi_done(cmd);
+		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
+		dprintk(NDEBUG_SELECTION, "scsi%d : target did not respond within 250ms\n",
+		        instance->host_no);
+		return 0;
+	}
+
 	/* 
 	 * No less than two deskew delays after the initiator detects the 
 	 * BSY signal is true, it shall release the SEL signal and may 
@@ -1385,15 +1350,6 @@ part2:
 	udelay(1);
 
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
-
-	if (!(NCR5380_read(STATUS_REG) & SR_BSY)) {
-		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-		cmd->result = DID_BAD_TARGET << 16;
-		cmd->scsi_done(cmd);
-		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-		dprintk(NDEBUG_SELECTION, "scsi%d : target did not respond within 250ms\n", instance->host_no);
-		return 0;
-	}
 
 	/*
 	 * Since we followed the SCSI spec, and raised ATN while SEL 
