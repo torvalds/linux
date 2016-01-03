@@ -4065,7 +4065,7 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 			   u32 duration, u16 chan,
 			   wilc_remain_on_chan_expired expired,
 			   wilc_remain_on_chan_ready ready,
-			   void *pvUserArg)
+			   void *user_arg)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4082,7 +4082,7 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 	msg.body.remain_on_ch.ch = chan;
 	msg.body.remain_on_ch.expired = expired;
 	msg.body.remain_on_ch.ready = ready;
-	msg.body.remain_on_ch.arg = pvUserArg;
+	msg.body.remain_on_ch.arg = user_arg;
 	msg.body.remain_on_ch.duration = duration;
 	msg.body.remain_on_ch.id = session_id;
 	msg.vif = vif;
