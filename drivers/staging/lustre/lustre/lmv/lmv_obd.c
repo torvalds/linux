@@ -794,7 +794,8 @@ static void lmv_hsm_req_build(struct lmv_obd *lmv,
 }
 
 static int lmv_hsm_ct_unregister(struct lmv_obd *lmv, unsigned int cmd, int len,
-				 struct lustre_kernelcomm *lk, void *uarg)
+				 struct lustre_kernelcomm *lk,
+				 void __user *uarg)
 {
 	int rc = 0;
 	__u32 i;
@@ -816,7 +817,7 @@ static int lmv_hsm_ct_unregister(struct lmv_obd *lmv, unsigned int cmd, int len,
 }
 
 static int lmv_hsm_ct_register(struct lmv_obd *lmv, unsigned int cmd, int len,
-			       struct lustre_kernelcomm *lk, void *uarg)
+			       struct lustre_kernelcomm *lk, void __user *uarg)
 {
 	struct file *filp;
 	__u32 i, j;
