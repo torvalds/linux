@@ -1,7 +1,5 @@
-
 #define PSEUDO_DMA
 #define DONT_USE_INTR
-#define UNSAFE			/* Leave interrupts enabled during pseudo-dma I/O */
 #define DMA_WORKS_RIGHT
 
 

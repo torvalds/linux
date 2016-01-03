@@ -195,12 +195,6 @@
  *      rely on phase mismatch and EOP interrupts to determine end 
  *      of phase.
  *
- * UNSAFE - leave interrupts enabled during pseudo-DMA transfers.  You
- *          only really want to use this if you're having a problem with
- *          dropped characters during high speed communications, and even
- *          then, you're going to be better off twiddling with transfersize
- *          in the high level code.
- *
  * Defaults for these will be provided although the user may want to adjust 
  * these to allocate CPU resources to the SCSI driver or "real" code.
  * 
@@ -553,9 +547,6 @@ static void prepare_info(struct Scsi_Host *instance)
 #endif
 #ifdef PSEUDO_DMA
 	         "PSEUDO_DMA "
-#endif
-#ifdef UNSAFE
-	         "UNSAFE "
 #endif
 	         "");
 }
@@ -1582,9 +1573,6 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 	 * before the setting of DMA mode to after transfer of the last byte.
 	 */
 
-#if defined(PSEUDO_DMA) && defined(UNSAFE)
-	spin_unlock_irq(instance->host_lock);
-#endif
 	/* KLL May need eop and parity in 53c400 */
 	if (hostdata->flags & FLAG_NCR53C400)
 		NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE |
@@ -1793,9 +1781,6 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 	*data = d + c;
 	*count = 0;
 	*phase = NCR5380_read(STATUS_REG) & PHASE_MASK;
-#if defined(PSEUDO_DMA) && defined(UNSAFE)
-	spin_lock_irq(instance->host_lock);
-#endif				/* defined(REAL_DMA_POLL) */
 	return foo;
 #endif				/* def REAL_DMA */
 }
