@@ -94,11 +94,6 @@
 #undef REAL_DMA
 #endif
 
-#ifdef REAL_DMA_POLL
-#undef READ_OVERRUNS
-#define READ_OVERRUNS
-#endif
-
 #ifdef BOARD_REQUIRES_NO_DELAY
 #define io_recovery_delay(x)
 #else
@@ -1586,11 +1581,10 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 		return -1;
 	}
 #if defined(REAL_DMA) || defined(REAL_DMA_POLL)
-#ifdef READ_OVERRUNS
 	if (p & SR_IO) {
-		c -= 2;
+		if (!(hostdata->flags & FLAG_NO_DMA_FIXUPS))
+			c -= 2;
 	}
-#endif
 	dprintk(NDEBUG_DMA, "scsi%d : initializing DMA channel %d for %s, %d bytes %s %0x\n", instance->host_no, instance->dma_channel, (p & SR_IO) ? "reading" : "writing", c, (p & SR_IO) ? "to" : "from", (unsigned) d);
 	hostdata->dma_len = (p & SR_IO) ? NCR5380_dma_read_setup(instance, d, c) : NCR5380_dma_write_setup(instance, d, c);
 #endif
@@ -1676,13 +1670,14 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
  */
 
 	if (p & SR_IO) {
-#ifdef READ_OVERRUNS
-		udelay(10);
-		if (((NCR5380_read(BUS_AND_STATUS_REG) & (BASR_PHASE_MATCH | BASR_ACK)) == (BASR_PHASE_MATCH | BASR_ACK))) {
-			saved_data = NCR5380_read(INPUT_DATA_REGISTER);
-			overrun = 1;
+		if (!(hostdata->flags & FLAG_NO_DMA_FIXUPS)) {
+			udelay(10);
+			if ((NCR5380_read(BUS_AND_STATUS_REG) & (BASR_PHASE_MATCH | BASR_ACK)) ==
+			    (BASR_PHASE_MATCH | BASR_ACK)) {
+				saved_data = NCR5380_read(INPUT_DATA_REGISTER);
+				overrun = 1;
+			}
 		}
-#endif
 	} else {
 		int limit = 100;
 		while (((tmp = NCR5380_read(BUS_AND_STATUS_REG)) & BASR_ACK) || (NCR5380_read(STATUS_REG) & SR_REQ)) {
@@ -1704,8 +1699,8 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 	*data += c;
 	*phase = NCR5380_read(STATUS_REG) & PHASE_MASK;
 
-#ifdef READ_OVERRUNS
-	if (*phase == p && (p & SR_IO) && residue == 0) {
+	if (!(hostdata->flags & FLAG_NO_DMA_FIXUPS) &&
+	    *phase == p && (p & SR_IO) && residue == 0) {
 		if (overrun) {
 			dprintk(NDEBUG_DMA, "Got an input overrun, using saved byte\n");
 			**data = saved_data;
@@ -1720,7 +1715,6 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 		NCR5380_transfer_pio(instance, phase, &cnt, data);
 		*count -= toPIO - cnt;
 	}
-#endif
 
 	dprintk(NDEBUG_DMA, "Return with data ptr = 0x%X, count %d, last 0x%X, next 0x%X\n", *data, *count, *(*data + *count - 1), *(*data + *count));
 	return 0;
