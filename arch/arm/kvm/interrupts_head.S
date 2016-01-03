@@ -4,7 +4,8 @@
 #define VCPU_USR_REG(_reg_nr)	(VCPU_USR_REGS + (_reg_nr * 4))
 #define VCPU_USR_SP		(VCPU_USR_REG(13))
 #define VCPU_USR_LR		(VCPU_USR_REG(14))
-#define CP15_OFFSET(_cp15_reg_idx) (VCPU_CP15 + (_cp15_reg_idx * 4))
+#define VCPU_CP15_BASE		(VCPU_GUEST_CTXT + CPU_CTXT_CP15)
+#define CP15_OFFSET(_cp15_reg_idx) (VCPU_CP15_BASE + (_cp15_reg_idx * 4))
 
 /*
  * Many of these macros need to access the VCPU structure, which is always

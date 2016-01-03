@@ -266,8 +266,8 @@ void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr)
 
 static u32 exc_vector_base(struct kvm_vcpu *vcpu)
 {
-	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
-	u32 vbar = vcpu->arch.cp15[c12_VBAR];
+	u32 sctlr = vcpu_cp15(vcpu, c1_SCTLR);
+	u32 vbar = vcpu_cp15(vcpu, c12_VBAR);
 
 	if (sctlr & SCTLR_V)
 		return 0xffff0000;
@@ -282,7 +282,7 @@ static u32 exc_vector_base(struct kvm_vcpu *vcpu)
 static void kvm_update_psr(struct kvm_vcpu *vcpu, unsigned long mode)
 {
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
+	u32 sctlr = vcpu_cp15(vcpu, c1_SCTLR);
 
 	*vcpu_cpsr(vcpu) = (cpsr & ~MODE_MASK) | mode;
 
@@ -357,22 +357,22 @@ static void inject_abt(struct kvm_vcpu *vcpu, bool is_pabt, unsigned long addr)
 
 	if (is_pabt) {
 		/* Set IFAR and IFSR */
-		vcpu->arch.cp15[c6_IFAR] = addr;
-		is_lpae = (vcpu->arch.cp15[c2_TTBCR] >> 31);
+		vcpu_cp15(vcpu, c6_IFAR) = addr;
+		is_lpae = (vcpu_cp15(vcpu, c2_TTBCR) >> 31);
 		/* Always give debug fault for now - should give guest a clue */
 		if (is_lpae)
-			vcpu->arch.cp15[c5_IFSR] = 1 << 9 | 0x22;
+			vcpu_cp15(vcpu, c5_IFSR) = 1 << 9 | 0x22;
 		else
-			vcpu->arch.cp15[c5_IFSR] = 2;
+			vcpu_cp15(vcpu, c5_IFSR) = 2;
 	} else { /* !iabt */
 		/* Set DFAR and DFSR */
-		vcpu->arch.cp15[c6_DFAR] = addr;
-		is_lpae = (vcpu->arch.cp15[c2_TTBCR] >> 31);
+		vcpu_cp15(vcpu, c6_DFAR) = addr;
+		is_lpae = (vcpu_cp15(vcpu, c2_TTBCR) >> 31);
 		/* Always give debug fault for now - should give guest a clue */
 		if (is_lpae)
-			vcpu->arch.cp15[c5_DFSR] = 1 << 9 | 0x22;
+			vcpu_cp15(vcpu, c5_DFSR) = 1 << 9 | 0x22;
 		else
-			vcpu->arch.cp15[c5_DFSR] = 2;
+			vcpu_cp15(vcpu, c5_DFSR) = 2;
 	}
 
 }

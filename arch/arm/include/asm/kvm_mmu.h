@@ -179,7 +179,7 @@ struct kvm;
 
 static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 {
-	return (vcpu->arch.cp15[c1_SCTLR] & 0b101) == 0b101;
+	return (vcpu_cp15(vcpu, c1_SCTLR) & 0b101) == 0b101;
 }
 
 static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,

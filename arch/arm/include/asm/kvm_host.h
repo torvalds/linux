@@ -90,6 +90,7 @@ struct kvm_vcpu_fault_info {
 
 struct kvm_cpu_context {
 	struct vfp_hard_struct vfp;
+	u32 cp15[NR_CP15_REGS];
 };
 
 typedef struct kvm_cpu_context kvm_cpu_context_t;
@@ -101,9 +102,6 @@ struct kvm_vcpu_arch {
 
 	int target; /* Processor target */
 	DECLARE_BITMAP(features, KVM_VCPU_MAX_FEATURES);
-
-	/* System control coprocessor (cp15) */
-	u32 cp15[NR_CP15_REGS];
 
 	/* The CPU type we expose to the VM */
 	u32 midr;
@@ -160,6 +158,8 @@ struct kvm_vcpu_stat {
 	u64 mmio_exit_kernel;
 	u64 exits;
 };
+
+#define vcpu_cp15(v,r)	(v)->arch.ctxt.cp15[r]
 
 int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init);
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);

@@ -54,8 +54,8 @@ static inline void vcpu_cp15_reg64_set(struct kvm_vcpu *vcpu,
 				       const struct coproc_reg *r,
 				       u64 val)
 {
-	vcpu->arch.cp15[r->reg] = val & 0xffffffff;
-	vcpu->arch.cp15[r->reg + 1] = val >> 32;
+	vcpu_cp15(vcpu, r->reg) = val & 0xffffffff;
+	vcpu_cp15(vcpu, r->reg + 1) = val >> 32;
 }
 
 static inline u64 vcpu_cp15_reg64_get(struct kvm_vcpu *vcpu,
@@ -63,9 +63,9 @@ static inline u64 vcpu_cp15_reg64_get(struct kvm_vcpu *vcpu,
 {
 	u64 val;
 
-	val = vcpu->arch.cp15[r->reg + 1];
+	val = vcpu_cp15(vcpu, r->reg + 1);
 	val = val << 32;
-	val = val | vcpu->arch.cp15[r->reg];
+	val = val | vcpu_cp15(vcpu, r->reg);
 	return val;
 }
 
@@ -104,7 +104,7 @@ static void reset_mpidr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 	 * vcpu_id, but we read the 'U' bit from the underlying
 	 * hardware directly.
 	 */
-	vcpu->arch.cp15[c0_MPIDR] = ((read_cpuid_mpidr() & MPIDR_SMP_BITMASK) |
+	vcpu_cp15(vcpu, c0_MPIDR) = ((read_cpuid_mpidr() & MPIDR_SMP_BITMASK) |
 				     ((vcpu->vcpu_id >> 2) << MPIDR_LEVEL_BITS) |
 				     (vcpu->vcpu_id & 3));
 }
@@ -117,7 +117,7 @@ static bool access_actlr(struct kvm_vcpu *vcpu,
 	if (p->is_write)
 		return ignore_write(vcpu, p);
 
-	*vcpu_reg(vcpu, p->Rt1) = vcpu->arch.cp15[c1_ACTLR];
+	*vcpu_reg(vcpu, p->Rt1) = vcpu_cp15(vcpu, c1_ACTLR);
 	return true;
 }
 
@@ -139,7 +139,7 @@ static bool access_l2ctlr(struct kvm_vcpu *vcpu,
 	if (p->is_write)
 		return ignore_write(vcpu, p);
 
-	*vcpu_reg(vcpu, p->Rt1) = vcpu->arch.cp15[c9_L2CTLR];
+	*vcpu_reg(vcpu, p->Rt1) = vcpu_cp15(vcpu, c9_L2CTLR);
 	return true;
 }
 
@@ -156,7 +156,7 @@ static void reset_l2ctlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 	ncores = min(ncores, 3U);
 	l2ctlr |= (ncores & 3) << 24;
 
-	vcpu->arch.cp15[c9_L2CTLR] = l2ctlr;
+	vcpu_cp15(vcpu, c9_L2CTLR) = l2ctlr;
 }
 
 static void reset_actlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
@@ -171,7 +171,7 @@ static void reset_actlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 	else
 		actlr &= ~(1U << 6);
 
-	vcpu->arch.cp15[c1_ACTLR] = actlr;
+	vcpu_cp15(vcpu, c1_ACTLR) = actlr;
 }
 
 /*
@@ -218,9 +218,9 @@ bool access_vm_reg(struct kvm_vcpu *vcpu,
 
 	BUG_ON(!p->is_write);
 
-	vcpu->arch.cp15[r->reg] = *vcpu_reg(vcpu, p->Rt1);
+	vcpu_cp15(vcpu, r->reg) = *vcpu_reg(vcpu, p->Rt1);
 	if (p->is_64bit)
-		vcpu->arch.cp15[r->reg + 1] = *vcpu_reg(vcpu, p->Rt2);
+		vcpu_cp15(vcpu, r->reg + 1) = *vcpu_reg(vcpu, p->Rt2);
 
 	kvm_toggle_cache(vcpu, was_enabled);
 	return true;
@@ -1030,7 +1030,7 @@ int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		val = vcpu_cp15_reg64_get(vcpu, r);
 		ret = reg_to_user(uaddr, &val, reg->id);
 	} else if (KVM_REG_SIZE(reg->id) == 4) {
-		ret = reg_to_user(uaddr, &vcpu->arch.cp15[r->reg], reg->id);
+		ret = reg_to_user(uaddr, &vcpu_cp15(vcpu, r->reg), reg->id);
 	}
 
 	return ret;
@@ -1060,7 +1060,7 @@ int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		if (!ret)
 			vcpu_cp15_reg64_set(vcpu, r, val);
 	} else if (KVM_REG_SIZE(reg->id) == 4) {
-		ret = reg_from_user(&vcpu->arch.cp15[r->reg], uaddr, reg->id);
+		ret = reg_from_user(&vcpu_cp15(vcpu, r->reg), uaddr, reg->id);
 	}
 
 	return ret;
@@ -1248,7 +1248,7 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 	const struct coproc_reg *table;
 
 	/* Catch someone adding a register without putting in reset entry. */
-	memset(vcpu->arch.cp15, 0x42, sizeof(vcpu->arch.cp15));
+	memset(vcpu->arch.ctxt.cp15, 0x42, sizeof(vcpu->arch.ctxt.cp15));
 
 	/* Generic chip reset first (so target could override). */
 	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs));
@@ -1257,6 +1257,6 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 	reset_coproc_regs(vcpu, table, num);
 
 	for (num = 1; num < NR_CP15_REGS; num++)
-		if (vcpu->arch.cp15[num] == 0x42424242)
-			panic("Didn't reset vcpu->arch.cp15[%zi]", num);
+		if (vcpu_cp15(vcpu, num) == 0x42424242)
+			panic("Didn't reset vcpu_cp15(vcpu, %zi)", num);
 }
