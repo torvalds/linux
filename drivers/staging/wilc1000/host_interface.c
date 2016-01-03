@@ -4350,10 +4350,10 @@ s32 wilc_del_allstation(struct wilc_vif *vif, u8 pu8MacAddr[][ETH_ALEN])
 	return result;
 }
 
-s32 wilc_edit_station(struct wilc_vif *vif,
+int wilc_edit_station(struct wilc_vif *vif,
 		      struct add_sta_param *pstrStaParams)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct add_sta_param *pstrAddStationMsg = &msg.body.add_sta_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
