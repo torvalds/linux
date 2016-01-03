@@ -463,13 +463,13 @@ static struct scsi_host_template sun3_scsi_template = {
 	.name			= SUN3_SCSI_NAME,
 	.info			= sun3scsi_info,
 	.queuecommand		= sun3scsi_queue_command,
-	.eh_abort_handler      	= sun3scsi_abort,
-	.eh_bus_reset_handler  	= sun3scsi_bus_reset,
+	.eh_abort_handler	= sun3scsi_abort,
+	.eh_bus_reset_handler	= sun3scsi_bus_reset,
 	.can_queue		= 16,
 	.this_id		= 7,
 	.sg_tablesize		= SG_NONE,
 	.cmd_per_lun		= 2,
-	.use_clustering		= DISABLE_CLUSTERING
+	.use_clustering		= DISABLE_CLUSTERING,
 };
 
 static int __init sun3_scsi_probe(struct platform_device *pdev)

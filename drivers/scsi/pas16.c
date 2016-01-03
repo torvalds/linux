@@ -546,22 +546,22 @@ static int pas16_release(struct Scsi_Host *shost)
 }
 
 static struct scsi_host_template driver_template = {
-	.name           = "Pro Audio Spectrum-16 SCSI",
-	.detect         = pas16_detect,
-	.release        = pas16_release,
-	.proc_name      = "pas16",
-	.show_info      = pas16_show_info,
-	.write_info     = pas16_write_info,
-	.info           = pas16_info,
-	.queuecommand   = pas16_queue_command,
-	.eh_abort_handler = pas16_abort,
-	.eh_bus_reset_handler = pas16_bus_reset,
-	.bios_param     = pas16_biosparam, 
-	.can_queue      = CAN_QUEUE,
-	.this_id        = 7,
-	.sg_tablesize   = SG_ALL,
-	.cmd_per_lun    = CMD_PER_LUN,
-	.use_clustering = DISABLE_CLUSTERING,
+	.name			= "Pro Audio Spectrum-16 SCSI",
+	.detect			= pas16_detect,
+	.release		= pas16_release,
+	.proc_name		= "pas16",
+	.show_info		= pas16_show_info,
+	.write_info		= pas16_write_info,
+	.info			= pas16_info,
+	.queuecommand		= pas16_queue_command,
+	.eh_abort_handler	= pas16_abort,
+	.eh_bus_reset_handler	= pas16_bus_reset,
+	.bios_param		= pas16_biosparam,
+	.can_queue		= 32,
+	.this_id		= 7,
+	.sg_tablesize		= SG_ALL,
+	.cmd_per_lun		= 2,
+	.use_clustering		= DISABLE_CLUSTERING,
 };
 #include "scsi_module.c"
 

@@ -10,14 +10,6 @@
 #ifndef DTC3280_H
 #define DTC3280_H
 
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 32 
-#endif
-
 #define NCR5380_implementation_fields \
     void __iomem *base
 

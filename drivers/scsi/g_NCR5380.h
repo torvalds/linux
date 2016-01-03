@@ -21,18 +21,11 @@
 #define NCR5380_BIOSPARAM NULL
 #endif
 
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 16
-#endif
-
 #define __STRVAL(x) #x
 #define STRVAL(x) __STRVAL(x)
 
 #ifndef SCSI_G_NCR5380_MEM
+#define DRV_MODULE_NAME "g_NCR5380"
 
 #define NCR5380_map_type int
 #define NCR5380_map_name port
@@ -53,6 +46,7 @@
 
 #else 
 /* therefore SCSI_G_NCR5380_MEM */
+#define DRV_MODULE_NAME "g_NCR5380_mmio"
 
 #define NCR5380_map_type unsigned long
 #define NCR5380_map_name base

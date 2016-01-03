@@ -309,20 +309,20 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 #define PFX                     DRV_MODULE_NAME ": "
 
 static struct scsi_host_template mac_scsi_template = {
-	.module				= THIS_MODULE,
-	.proc_name			= DRV_MODULE_NAME,
-	.show_info			= macscsi_show_info,
-	.write_info			= macscsi_write_info,
-	.name				= "Macintosh NCR5380 SCSI",
-	.info				= macscsi_info,
-	.queuecommand			= macscsi_queue_command,
-	.eh_abort_handler		= macscsi_abort,
-	.eh_bus_reset_handler		= macscsi_bus_reset,
-	.can_queue			= 16,
-	.this_id			= 7,
-	.sg_tablesize			= SG_ALL,
-	.cmd_per_lun			= 2,
-	.use_clustering			= DISABLE_CLUSTERING
+	.module			= THIS_MODULE,
+	.proc_name		= DRV_MODULE_NAME,
+	.show_info		= macscsi_show_info,
+	.write_info		= macscsi_write_info,
+	.name			= "Macintosh NCR5380 SCSI",
+	.info			= macscsi_info,
+	.queuecommand		= macscsi_queue_command,
+	.eh_abort_handler	= macscsi_abort,
+	.eh_bus_reset_handler	= macscsi_bus_reset,
+	.can_queue		= 16,
+	.this_id		= 7,
+	.sg_tablesize		= SG_ALL,
+	.cmd_per_lun		= 2,
+	.use_clustering		= DISABLE_CLUSTERING,
 };
 
 static int __init mac_scsi_probe(struct platform_device *pdev)

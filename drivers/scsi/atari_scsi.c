@@ -781,7 +781,7 @@ static struct scsi_host_template atari_scsi_template = {
 	.eh_abort_handler	= atari_scsi_abort,
 	.eh_bus_reset_handler	= atari_scsi_bus_reset,
 	.this_id		= 7,
-	.use_clustering		= DISABLE_CLUSTERING
+	.use_clustering		= DISABLE_CLUSTERING,
 };
 
 static int __init atari_scsi_probe(struct platform_device *pdev)

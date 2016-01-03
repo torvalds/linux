@@ -305,7 +305,6 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		}
 	}
 #endif
-	tpnt->proc_name = "g_NCR5380";
 
 	for (count = 0; current_override < NO_OVERRIDES; ++current_override) {
 		if (!(overrides[current_override].NCR5380_map_name))
@@ -715,20 +714,21 @@ static int generic_NCR5380_dma_xfer_len(struct scsi_cmnd *cmd)
 #include "NCR5380.c"
 
 static struct scsi_host_template driver_template = {
-	.show_info      	= generic_NCR5380_show_info,
-	.name           	= "Generic NCR5380/NCR53C400 SCSI",
-	.detect         	= generic_NCR5380_detect,
-	.release        	= generic_NCR5380_release_resources,
-	.info           	= generic_NCR5380_info,
-	.queuecommand   	= generic_NCR5380_queue_command,
+	.proc_name		= DRV_MODULE_NAME,
+	.show_info		= generic_NCR5380_show_info,
+	.name			= "Generic NCR5380/NCR53C400 SCSI",
+	.detect			= generic_NCR5380_detect,
+	.release		= generic_NCR5380_release_resources,
+	.info			= generic_NCR5380_info,
+	.queuecommand		= generic_NCR5380_queue_command,
 	.eh_abort_handler	= generic_NCR5380_abort,
 	.eh_bus_reset_handler	= generic_NCR5380_bus_reset,
-	.bios_param     	= NCR5380_BIOSPARAM,
-	.can_queue      	= CAN_QUEUE,
-        .this_id        	= 7,
-        .sg_tablesize   	= SG_ALL,
-	.cmd_per_lun    	= CMD_PER_LUN,
-        .use_clustering		= DISABLE_CLUSTERING,
+	.bios_param		= NCR5380_BIOSPARAM,
+	.can_queue		= 16,
+	.this_id		= 7,
+	.sg_tablesize		= SG_ALL,
+	.cmd_per_lun		= 2,
+	.use_clustering		= DISABLE_CLUSTERING,
 };
 
 #include "scsi_module.c"

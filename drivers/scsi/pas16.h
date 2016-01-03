@@ -95,14 +95,6 @@
 #define OPERATION_MODE_1 0xec03
 #define IO_CONFIG_3 0xf002
 
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 32 
-#endif
-
 #define NCR5380_implementation_fields /* none */
 
 #define PAS16_io_port(reg) (instance->io_port + pas16_offset[(reg)])

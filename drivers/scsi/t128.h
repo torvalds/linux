@@ -67,14 +67,6 @@
 
 #define T_DATA_REG_OFFSET	0x1e00	/* rw 512 bytes long */
 
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 32
-#endif
-
 #define NCR5380_implementation_fields \
     void __iomem *base
 
