@@ -1744,14 +1744,14 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 
 		ptlrpc_req_finished(req);
 
-		return put_user(flags, (int *)arg);
+		return put_user(flags, (int __user *)arg);
 	}
 	case FSFILT_IOC_SETFLAGS: {
 		struct lov_stripe_md *lsm;
 		struct obd_info oinfo = { };
 		struct md_op_data *op_data;
 
-		if (get_user(flags, (int *)arg))
+		if (get_user(flags, (int __user *)arg))
 			return -EFAULT;
 
 		op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
@@ -2219,8 +2219,8 @@ int ll_get_obd_name(struct inode *inode, unsigned int cmd, unsigned long arg)
 	if (!obd)
 		return -ENOENT;
 
-	if (copy_to_user((void *)arg, obd->obd_name,
-			     strlen(obd->obd_name) + 1))
+	if (copy_to_user((void __user *)arg, obd->obd_name,
+			 strlen(obd->obd_name) + 1))
 		return -EFAULT;
 
 	return 0;
