@@ -1181,6 +1181,7 @@ static void NCR5380_main(struct work_struct *work)
 #endif
 						hostdata->retain_dma_intr--;
 						local_irq_restore(flags);
+						done = 0;
 						dprintk(NDEBUG_MAIN, "scsi%d: main(): select() failed, "
 							    "returned to issue_queue\n", HOSTNO);
 					}

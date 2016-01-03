@@ -1052,8 +1052,7 @@ static void NCR5380_main(struct work_struct *work)
 			NCR5380_information_transfer(instance);
 			dprintk(NDEBUG_MAIN, "scsi%d : main() : done set false\n", instance->host_no);
 			done = 0;
-		} else
-			break;
+		}
 	} while (!done);
 	
 	spin_unlock_irq(instance->host_lock);
