@@ -4299,7 +4299,7 @@ int wilc_del_station(struct wilc_vif *vif, const u8 *mac_addr)
 	return result;
 }
 
-int wilc_del_allstation(struct wilc_vif *vif, u8 pu8MacAddr[][ETH_ALEN])
+int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4322,8 +4322,8 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 pu8MacAddr[][ETH_ALEN])
 	msg.vif = vif;
 
 	for (i = 0; i < MAX_NUM_STA; i++) {
-		if (memcmp(pu8MacAddr[i], au8Zero_Buff, ETH_ALEN)) {
-			memcpy(pstrDelAllStationMsg->del_all_sta[i], pu8MacAddr[i], ETH_ALEN);
+		if (memcmp(mac_addr[i], au8Zero_Buff, ETH_ALEN)) {
+			memcpy(pstrDelAllStationMsg->del_all_sta[i], mac_addr[i], ETH_ALEN);
 			PRINT_D(CFG80211_DBG, "BSSID = %x%x%x%x%x%x\n",
 				pstrDelAllStationMsg->del_all_sta[i][0],
 				pstrDelAllStationMsg->del_all_sta[i][1],
