@@ -663,7 +663,8 @@ out_local:
 	return rc;
 }
 
-static int lmv_fid2path(struct obd_export *exp, int len, void *karg, void *uarg)
+static int lmv_fid2path(struct obd_export *exp, int len, void *karg,
+			void __user *uarg)
 {
 	struct obd_device	*obddev = class_exp2obd(exp);
 	struct lmv_obd		*lmv = &obddev->u.lmv;
