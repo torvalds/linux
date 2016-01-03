@@ -357,7 +357,7 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
 int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
 s32 wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *pBSSID, char TID);
 int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
-			   u32 u32duration, u16 chan,
+			   u32 duration, u16 chan,
 			   wilc_remain_on_chan_expired RemainOnChanExpired,
 			   wilc_remain_on_chan_ready RemainOnChanReady,
 			   void *pvUserArg);
