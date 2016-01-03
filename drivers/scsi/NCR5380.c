@@ -622,8 +622,9 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 #endif
 	spin_lock_init(&hostdata->lock);
 	hostdata->connected = NULL;
-	hostdata->issue_queue = NULL;
-	hostdata->disconnected_queue = NULL;
+	INIT_LIST_HEAD(&hostdata->unissued);
+	INIT_LIST_HEAD(&hostdata->disconnected);
+
 	hostdata->flags = flags;
 	
 	INIT_WORK(&hostdata->main_task, NCR5380_main);
@@ -738,7 +739,7 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
                                  struct scsi_cmnd *cmd)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	struct scsi_cmnd *tmp;
+	struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
 	unsigned long flags;
 
 #if (NDEBUG & NDEBUG_NO_WRITE)
@@ -752,12 +753,6 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	}
 #endif				/* (NDEBUG & NDEBUG_NO_WRITE) */
 
-	/* 
-	 * We use the host_scribble field as a pointer to the next command  
-	 * in a queue 
-	 */
-
-	cmd->host_scribble = NULL;
 	cmd->result = 0;
 
 	spin_lock_irqsave(&hostdata->lock, flags);
@@ -769,13 +764,11 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	 * sense data is only guaranteed to be valid while the condition exists.
 	 */
 
-	if (!(hostdata->issue_queue) || (cmd->cmnd[0] == REQUEST_SENSE)) {
-		cmd->host_scribble = (unsigned char *) hostdata->issue_queue;
-		hostdata->issue_queue = cmd;
-	} else {
-		for (tmp = (struct scsi_cmnd *) hostdata->issue_queue; tmp->host_scribble; tmp = (struct scsi_cmnd *) tmp->host_scribble);
-		tmp->host_scribble = (unsigned char *) cmd;
-	}
+	if (cmd->cmnd[0] == REQUEST_SENSE)
+		list_add(&ncmd->list, &hostdata->unissued);
+	else
+		list_add_tail(&ncmd->list, &hostdata->unissued);
+
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 
 	dsprintk(NDEBUG_QUEUES, instance, "command %p added to %s of queue\n",
@@ -803,7 +796,7 @@ static void NCR5380_main(struct work_struct *work)
 	struct NCR5380_hostdata *hostdata =
 		container_of(work, struct NCR5380_hostdata, main_task);
 	struct Scsi_Host *instance = hostdata->host;
-	struct scsi_cmnd *tmp, *prev;
+	struct NCR5380_cmd *ncmd, *n;
 	int done;
 	
 	spin_lock_irq(&hostdata->lock);
@@ -816,23 +809,20 @@ static void NCR5380_main(struct work_struct *work)
 			 * Search through the issue_queue for a command destined
 			 * for a target that's not busy.
 			 */
-			for (tmp = (struct scsi_cmnd *) hostdata->issue_queue, prev = NULL; tmp; prev = tmp, tmp = (struct scsi_cmnd *) tmp->host_scribble)
-			{
+			list_for_each_entry_safe(ncmd, n, &hostdata->unissued,
+			                         list) {
+				struct scsi_cmnd *tmp = NCR5380_to_scmd(ncmd);
+
 				dsprintk(NDEBUG_QUEUES, instance, "main: tmp=%p target=%d busy=%d lun=%llu\n",
 				         tmp, scmd_id(tmp), hostdata->busy[scmd_id(tmp)],
 				         tmp->device->lun);
 				/*  When we find one, remove it from the issue queue. */
 				if (!(hostdata->busy[tmp->device->id] &
 				      (1 << (u8)(tmp->device->lun & 0xff)))) {
-					if (prev) {
-						prev->host_scribble = tmp->host_scribble;
-					} else {
-						hostdata->issue_queue = (struct scsi_cmnd *) tmp->host_scribble;
-					}
-					tmp->host_scribble = NULL;
+					list_del(&ncmd->list);
 					dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES,
-					         instance, "main: removed %p from issue queue %p\n",
-					         tmp, prev);
+					         instance, "main: removed %p from issue queue\n",
+					         tmp);
 
 					/* 
 					 * Attempt to establish an I_T_L nexus here. 
@@ -851,8 +841,7 @@ static void NCR5380_main(struct work_struct *work)
 						/* OK or bad target */
 					} else {
 						/* Need to retry */
-						tmp->host_scribble = (unsigned char *) hostdata->issue_queue;
-						hostdata->issue_queue = tmp;
+						list_add(&ncmd->list, &hostdata->unissued);
 						dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES,
 						         instance, "main: select() failed, %p returned to issue queue\n",
 						         tmp);
@@ -1744,6 +1733,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 	struct scsi_cmnd *cmd;
 
 	while ((cmd = hostdata->connected)) {
+		struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
+
 		tmp = NCR5380_read(STATUS_REG);
 		/* We only have a valid SCSI phase when REQ is asserted */
 		if (tmp & SR_REQ) {
@@ -1875,9 +1866,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 					if ((cmd->cmnd[0] != REQUEST_SENSE) && (status_byte(cmd->SCp.Status) == CHECK_CONDITION)) {
 						scsi_eh_prep_cmnd(cmd, &hostdata->ses, NULL, 0, ~0);
 
-						cmd->host_scribble = (unsigned char *)
-						    hostdata->issue_queue;
-						hostdata->issue_queue = (struct scsi_cmnd *) cmd;
+						list_add(&ncmd->list, &hostdata->unissued);
 						dsprintk(NDEBUG_AUTOSENSE | NDEBUG_QUEUES,
 						         instance, "REQUEST SENSE cmd %p added to head of issue queue\n",
 						         cmd);
@@ -1911,10 +1900,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				case DISCONNECT:{
 						/* Accept message by clearing ACK */
 						NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-						cmd->host_scribble = (unsigned char *)
-						    hostdata->disconnected_queue;
 						hostdata->connected = NULL;
-						hostdata->disconnected_queue = cmd;
+						list_add(&ncmd->list, &hostdata->disconnected);
 						dsprintk(NDEBUG_INFORMATION | NDEBUG_QUEUES,
 						         instance, "connected command %p for target %d lun %llu moved to disconnected queue\n",
 						         cmd, scmd_id(cmd), cmd->device->lun);
@@ -2087,7 +2074,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	int len;
 	unsigned char msg[3];
 	unsigned char *data;
-	struct scsi_cmnd *tmp = NULL, *prev;
+	struct NCR5380_cmd *ncmd;
+	struct scsi_cmnd *tmp;
 
 	/*
 	 * Disable arbitration, etc. since the host adapter obviously
@@ -2156,16 +2144,14 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	 * just reestablished, and remove it from the disconnected queue.
 	 */
 
-	for (tmp = (struct scsi_cmnd *) hostdata->disconnected_queue, prev = NULL;
-	     tmp; prev = tmp, tmp = (struct scsi_cmnd *) tmp->host_scribble) {
-		if ((target_mask == (1 << tmp->device->id)) && (lun == (u8)tmp->device->lun)) {
-			if (prev) {
-				prev->host_scribble = tmp->host_scribble;
-			} else {
-				hostdata->disconnected_queue =
-					(struct scsi_cmnd *) tmp->host_scribble;
-			}
-			tmp->host_scribble = NULL;
+	tmp = NULL;
+	list_for_each_entry(ncmd, &hostdata->disconnected, list) {
+		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
+
+		if (target_mask == (1 << scmd_id(cmd)) &&
+		    lun == (u8)cmd->device->lun) {
+			list_del(&ncmd->list);
+			tmp = cmd;
 			break;
 		}
 	}
@@ -2261,146 +2247,18 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *instance = cmd->device->host;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	struct scsi_cmnd *tmp, **prev;
 	unsigned long flags;
-
-	scmd_printk(KERN_WARNING, cmd, "aborting command\n");
 
 	spin_lock_irqsave(&hostdata->lock, flags);
 
+#if (NDEBUG & NDEBUG_ANY)
+	scmd_printk(KERN_INFO, cmd, "aborting command\n");
+#endif
 	NCR5380_dprint(NDEBUG_ANY, instance);
 	NCR5380_dprint_phase(NDEBUG_ANY, instance);
 
-	dprintk(NDEBUG_ABORT, "scsi%d : abort called\n", instance->host_no);
-	dprintk(NDEBUG_ABORT, "        basr 0x%X, sr 0x%X\n", NCR5380_read(BUS_AND_STATUS_REG), NCR5380_read(STATUS_REG));
-
-#if 0
-/*
- * Case 1 : If the command is the currently executing command, 
- * we'll set the aborted flag and return control so that 
- * information transfer routine can exit cleanly.
- */
-
-	if (hostdata->connected == cmd) {
-		dprintk(NDEBUG_ABORT, "scsi%d : aborting connected command\n", instance->host_no);
-/*
- * We should perform BSY checking, and make sure we haven't slipped
- * into BUS FREE.
- */
-
-		NCR5380_write(INITIATOR_COMMAND_REG, ICR_ASSERT_ATN);
-/* 
- * Since we can't change phases until we've completed the current 
- * handshake, we have to source or sink a byte of data if the current
- * phase is not MSGOUT.
- */
-
-/* 
- * Return control to the executing NCR drive so we can clear the
- * aborted flag and get back into our main loop.
- */
-
-		return SUCCESS;
-	}
-#endif
-
-/* 
- * Case 2 : If the command hasn't been issued yet, we simply remove it 
- *          from the issue queue.
- */
- 
-	dprintk(NDEBUG_ABORT, "scsi%d : abort going into loop.\n", instance->host_no);
-	for (prev = (struct scsi_cmnd **) &(hostdata->issue_queue), tmp = (struct scsi_cmnd *) hostdata->issue_queue; tmp; prev = (struct scsi_cmnd **) &(tmp->host_scribble), tmp = (struct scsi_cmnd *) tmp->host_scribble)
-		if (cmd == tmp) {
-			(*prev) = (struct scsi_cmnd *) tmp->host_scribble;
-			tmp->host_scribble = NULL;
-			spin_unlock_irqrestore(&hostdata->lock, flags);
-			tmp->result = DID_ABORT << 16;
-			dprintk(NDEBUG_ABORT, "scsi%d : abort removed command from issue queue.\n", instance->host_no);
-			tmp->scsi_done(tmp);
-			return SUCCESS;
-		}
-#if (NDEBUG  & NDEBUG_ABORT)
-	/* KLL */
-		else if (prev == tmp)
-			printk(KERN_ERR "scsi%d : LOOP\n", instance->host_no);
-#endif
-
-/* 
- * Case 3 : If any commands are connected, we're going to fail the abort
- *          and let the high level SCSI driver retry at a later time or 
- *          issue a reset.
- *
- *          Timeouts, and therefore aborted commands, will be highly unlikely
- *          and handling them cleanly in this situation would make the common
- *          case of noresets less efficient, and would pollute our code.  So,
- *          we fail.
- */
-
-	if (hostdata->connected) {
-		spin_unlock_irqrestore(&hostdata->lock, flags);
-		dprintk(NDEBUG_ABORT, "scsi%d : abort failed, command connected.\n", instance->host_no);
-		return FAILED;
-	}
-/*
- * Case 4: If the command is currently disconnected from the bus, and 
- *      there are no connected commands, we reconnect the I_T_L or 
- *      I_T_L_Q nexus associated with it, go into message out, and send 
- *      an abort message.
- *
- * This case is especially ugly. In order to reestablish the nexus, we
- * need to call NCR5380_select().  The easiest way to implement this 
- * function was to abort if the bus was busy, and let the interrupt
- * handler triggered on the SEL for reselect take care of lost arbitrations
- * where necessary, meaning interrupts need to be enabled.
- *
- * When interrupts are enabled, the queues may change - so we 
- * can't remove it from the disconnected queue before selecting it
- * because that could cause a failure in hashing the nexus if that 
- * device reselected.
- * 
- * Since the queues may change, we can't use the pointers from when we
- * first locate it.
- *
- * So, we must first locate the command, and if NCR5380_select()
- * succeeds, then issue the abort, relocate the command and remove
- * it from the disconnected queue.
- */
-
-	for (tmp = (struct scsi_cmnd *) hostdata->disconnected_queue; tmp; tmp = (struct scsi_cmnd *) tmp->host_scribble)
-		if (cmd == tmp) {
-			dprintk(NDEBUG_ABORT, "scsi%d : aborting disconnected command.\n", instance->host_no);
-
-			if (NCR5380_select(instance, cmd)) {
-				spin_unlock_irq(&hostdata->lock);
-				return FAILED;
-			}
-			dprintk(NDEBUG_ABORT, "scsi%d : nexus reestablished.\n", instance->host_no);
-
-			do_abort(instance);
-
-			for (prev = (struct scsi_cmnd **) &(hostdata->disconnected_queue), tmp = (struct scsi_cmnd *) hostdata->disconnected_queue; tmp; prev = (struct scsi_cmnd **) &(tmp->host_scribble), tmp = (struct scsi_cmnd *) tmp->host_scribble)
-				if (cmd == tmp) {
-					*prev = (struct scsi_cmnd *) tmp->host_scribble;
-					tmp->host_scribble = NULL;
-					spin_unlock_irqrestore(&hostdata->lock, flags);
-					tmp->result = DID_ABORT << 16;
-					tmp->scsi_done(tmp);
-					return SUCCESS;
-				}
-		}
-/*
- * Case 5 : If we reached this point, the command was not found in any of 
- *          the queues.
- *
- * We probably reached this point because of an unlikely race condition
- * between the command completing successfully and the abortion code,
- * so we won't panic, but we will notify the user in case something really
- * broke.
- */
 	spin_unlock_irqrestore(&hostdata->lock, flags);
-	printk(KERN_WARNING "scsi%d : warning : SCSI command probably completed successfully\n"
-			"         before abortion\n", instance->host_no);
+
 	return FAILED;
 }
 

@@ -208,6 +208,7 @@ static struct scsi_host_template cumanascsi_template = {
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.proc_name		= "CumanaSCSI-1",
+	.cmd_size		= NCR5380_CMD_SIZE,
 };
 
 static int cumanascsi1_probe(struct expansion_card *ec,

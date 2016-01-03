@@ -114,6 +114,7 @@ static struct scsi_host_template oakscsi_template = {
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.proc_name		= "oakscsi",
+	.cmd_size		= NCR5380_CMD_SIZE,
 };
 
 static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)

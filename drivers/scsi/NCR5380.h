@@ -24,6 +24,7 @@
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/list.h>
 #include <linux/workqueue.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_eh.h>
@@ -254,8 +255,8 @@ struct NCR5380_hostdata {
 #endif
 	unsigned char last_message;		/* last message OUT */
 	struct scsi_cmnd *connected;		/* currently connected cmnd */
-	struct scsi_cmnd *issue_queue;		/* waiting to be issued */
-	struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
+	struct list_head unissued;		/* waiting to be issued */
+	struct list_head disconnected;		/* waiting for reconnect */
 	spinlock_t lock;			/* protects this struct */
 	int flags;
 	struct scsi_eh_save ses;
@@ -276,6 +277,17 @@ struct NCR5380_hostdata {
 };
 
 #ifdef __KERNEL__
+
+struct NCR5380_cmd {
+	struct list_head list;
+};
+
+#define NCR5380_CMD_SIZE		(sizeof(struct NCR5380_cmd))
+
+static inline struct scsi_cmnd *NCR5380_to_scmd(struct NCR5380_cmd *ncmd_ptr)
+{
+	return ((struct scsi_cmnd *)ncmd_ptr) - 1;
+}
 
 #ifndef NDEBUG
 #define NDEBUG (0)
