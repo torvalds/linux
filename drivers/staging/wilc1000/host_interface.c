@@ -4605,9 +4605,9 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 	return (void *)pNewJoinBssParam;
 }
 
-s32 wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *pBSSID, char TID)
+int wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *pBSSID, char TID)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct ba_session_info *pBASessionInfo = &msg.body.session_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
