@@ -438,13 +438,10 @@ int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
 	__u32 best_order = 0;
 	int count = 0;
 	int rc = -ENOENT;
-	int portals_compatibility;
 	int dist;
 	__u32 order;
 	lnet_nid_t dst_nid;
 	lnet_nid_t src_nid;
-
-	portals_compatibility = LNetCtl(IOC_LIBCFS_PORTALS_COMPATIBILITY, NULL);
 
 	peer->pid = LUSTRE_SRV_LNET_PID;
 
@@ -466,14 +463,6 @@ int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
 			best_dist = dist;
 			best_order = order;
 
-			if (portals_compatibility > 1) {
-				/* Strong portals compatibility: Zero the nid's
-				 * NET, so if I'm reading new config logs, or
-				 * getting configured by (new) lconf I can
-				 * still talk to old servers. */
-				dst_nid = LNET_MKNID(0, LNET_NIDADDR(dst_nid));
-				src_nid = LNET_MKNID(0, LNET_NIDADDR(src_nid));
-			}
 			peer->nid = dst_nid;
 			*self = src_nid;
 			rc = 0;

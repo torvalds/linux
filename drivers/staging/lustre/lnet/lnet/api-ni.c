@@ -1318,8 +1318,6 @@ EXPORT_SYMBOL(LNetNIFini);
 /**
  * LNet ioctl handler.
  *
- * IOC_LIBCFS_PORTALS_COMPATIBILITY is now deprecated, don't use it.
- *
  */
 int
 LNetCtl(unsigned int cmd, void *arg)
@@ -1359,10 +1357,6 @@ LNetCtl(unsigned int cmd, void *arg)
 		secs_passed = (ktime_get_real_seconds() - data->ioc_u64[0]);
 		return lnet_notify(NULL, data->ioc_nid, data->ioc_flags,
 				   jiffies - secs_passed * HZ);
-
-	case IOC_LIBCFS_PORTALS_COMPATIBILITY:
-		/* This can be removed once lustre stops calling it */
-		return 0;
 
 	case IOC_LIBCFS_LNET_DIST:
 		rc = LNetDist(data->ioc_nid, &data->ioc_nid, &data->ioc_u32[1]);

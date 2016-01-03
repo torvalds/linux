@@ -118,7 +118,7 @@ struct libcfs_ioctl_handler {
 #define IOC_LIBCFS_GET_ROUTE	       _IOWR('e', 54, long)
 #define IOC_LIBCFS_NOTIFY_ROUTER	   _IOWR('e', 55, long)
 #define IOC_LIBCFS_UNCONFIGURE	     _IOWR('e', 56, long)
-#define IOC_LIBCFS_PORTALS_COMPATIBILITY   _IOWR('e', 57, long)
+/*	#define IOC_LIBCFS_PORTALS_COMPATIBILITY   _IOWR('e', 57, long) */
 #define IOC_LIBCFS_LNET_DIST	       _IOWR('e', 58, long)
 #define IOC_LIBCFS_CONFIGURE	       _IOWR('e', 59, long)
 #define IOC_LIBCFS_TESTPROTOCOMPAT	 _IOWR('e', 60, long)
