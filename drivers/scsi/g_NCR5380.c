@@ -253,6 +253,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 	};
 	int flags;
 	struct Scsi_Host *instance;
+	struct NCR5380_hostdata *hostdata;
 #ifdef SCSI_G_NCR5380_MEM
 	unsigned long base;
 	void __iomem *iomem;
@@ -394,6 +395,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		instance = scsi_register(tpnt, sizeof(struct NCR5380_hostdata));
 		if (instance == NULL)
 			goto out_release;
+		hostdata = shost_priv(instance);
 
 #ifndef SCSI_G_NCR5380_MEM
 		instance->io_port = overrides[current_override].NCR5380_map_name;
@@ -403,18 +405,27 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		 * On NCR53C400 boards, NCR5380 registers are mapped 8 past
 		 * the base address.
 		 */
-		if (overrides[current_override].board == BOARD_NCR53C400)
+		if (overrides[current_override].board == BOARD_NCR53C400) {
 			instance->io_port += 8;
+			hostdata->c400_ctl_status = 0;
+			hostdata->c400_blk_cnt = 1;
+			hostdata->c400_host_buf = 4;
+		}
 #else
 		instance->base = overrides[current_override].NCR5380_map_name;
-		((struct NCR5380_hostdata *)instance->hostdata)->iomem = iomem;
+		hostdata->iomem = iomem;
+		if (overrides[current_override].board == BOARD_NCR53C400) {
+			hostdata->c400_ctl_status = 0x100;
+			hostdata->c400_blk_cnt = 0x101;
+			hostdata->c400_host_buf = 0x104;
+		}
 #endif
 
 		if (NCR5380_init(instance, flags))
 			goto out_unregister;
 
 		if (overrides[current_override].board == BOARD_NCR53C400)
-			NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE);
+			NCR5380_write(hostdata->c400_ctl_status, CSR_BASE);
 
 		NCR5380_maybe_reset_bus(instance);
 
@@ -522,31 +533,25 @@ generic_NCR5380_biosparam(struct scsi_device *sdev, struct block_device *bdev,
  
 static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
 {
-#ifdef SCSI_G_NCR5380_MEM
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-#endif
 	int blocks = len / 128;
 	int start = 0;
-	int bl;
 
-	NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE | CSR_TRANS_DIR);
-	NCR5380_write(C400_BLOCK_COUNTER_REG, blocks);
+	NCR5380_write(hostdata->c400_ctl_status, CSR_BASE | CSR_TRANS_DIR);
+	NCR5380_write(hostdata->c400_blk_cnt, blocks);
 	while (1) {
-		if ((bl = NCR5380_read(C400_BLOCK_COUNTER_REG)) == 0) {
+		if (NCR5380_read(hostdata->c400_blk_cnt) == 0)
 			break;
-		}
-		if (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_GATED_53C80_IRQ) {
+		if (NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ) {
 			printk(KERN_ERR "53C400r: Got 53C80_IRQ start=%d, blocks=%d\n", start, blocks);
 			return -1;
 		}
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY);
+		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
+			; /* FIXME - no timeout */
 
 #ifndef SCSI_G_NCR5380_MEM
-		{
-			int i;
-			for (i = 0; i < 128; i++)
-				dst[start + i] = NCR5380_read(C400_HOST_BUFFER);
-		}
+		insb(instance->io_port + hostdata->c400_host_buf,
+							dst + start, 128);
 #else
 		/* implies SCSI_G_NCR5380_MEM */
 		memcpy_fromio(dst + start,
@@ -557,17 +562,12 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	}
 
 	if (blocks) {
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY)
-		{
-			// FIXME - no timeout
-		}
+		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
+			; /* FIXME - no timeout */
 
 #ifndef SCSI_G_NCR5380_MEM
-		{
-			int i;	
-			for (i = 0; i < 128; i++)
-				dst[start + i] = NCR5380_read(C400_HOST_BUFFER);
-		}
+		insb(instance->io_port + hostdata->c400_host_buf,
+							dst + start, 128);
 #else
 		/* implies SCSI_G_NCR5380_MEM */
 		memcpy_fromio(dst + start,
@@ -577,7 +577,7 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 		blocks--;
 	}
 
-	if (!(NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_GATED_53C80_IRQ))
+	if (!(NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ))
 		printk("53C400r: no 53C80 gated irq after transfer");
 
 #if 0
@@ -585,7 +585,7 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	 *	DON'T DO THIS - THEY NEVER ARRIVE!
 	 */
 	printk("53C400r: Waiting for 53C80 registers\n");
-	while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_53C80_REG)
+	while (NCR5380_read(hostdata->c400_ctl_status) & CSR_53C80_REG)
 		;
 #endif
 	if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_END_DMA_TRANSFER))
@@ -606,32 +606,26 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 
 static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
 {
-#ifdef SCSI_G_NCR5380_MEM
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-#endif
 	int blocks = len / 128;
 	int start = 0;
-	int bl;
 	int i;
 
-	NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE);
-	NCR5380_write(C400_BLOCK_COUNTER_REG, blocks);
+	NCR5380_write(hostdata->c400_ctl_status, CSR_BASE);
+	NCR5380_write(hostdata->c400_blk_cnt, blocks);
 	while (1) {
-		if (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_GATED_53C80_IRQ) {
+		if (NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ) {
 			printk(KERN_ERR "53C400w: Got 53C80_IRQ start=%d, blocks=%d\n", start, blocks);
 			return -1;
 		}
 
-		if ((bl = NCR5380_read(C400_BLOCK_COUNTER_REG)) == 0) {
+		if (NCR5380_read(hostdata->c400_blk_cnt) == 0)
 			break;
-		}
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY)
+		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; // FIXME - timeout
 #ifndef SCSI_G_NCR5380_MEM
-		{
-			for (i = 0; i < 128; i++)
-				NCR5380_write(C400_HOST_BUFFER, src[start + i]);
-		}
+		outsb(instance->io_port + hostdata->c400_host_buf,
+							src + start, 128);
 #else
 		/* implies SCSI_G_NCR5380_MEM */
 		memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
@@ -641,14 +635,12 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 		blocks--;
 	}
 	if (blocks) {
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY)
+		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; // FIXME - no timeout
 
 #ifndef SCSI_G_NCR5380_MEM
-		{
-			for (i = 0; i < 128; i++)
-				NCR5380_write(C400_HOST_BUFFER, src[start + i]);
-		}
+		outsb(instance->io_port + hostdata->c400_host_buf,
+							src + start, 128);
 #else
 		/* implies SCSI_G_NCR5380_MEM */
 		memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
@@ -660,7 +652,7 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 
 #if 0
 	printk("53C400w: waiting for registers to be available\n");
-	THEY NEVER DO ! while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_53C80_REG);
+	THEY NEVER DO ! while (NCR5380_read(hostdata->c400_ctl_status) & CSR_53C80_REG);
 	printk("53C400w: Got em\n");
 #endif
 
@@ -668,7 +660,7 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 	/* All documentation says to check for this. Maybe my hardware is too
 	 * fast. Waiting for it seems to work fine! KLL
 	 */
-	while (!(i = NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_GATED_53C80_IRQ))
+	while (!(i = NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ))
 		;	// FIXME - no timeout
 
 	/*

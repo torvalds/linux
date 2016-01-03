@@ -29,7 +29,6 @@
 
 #define NCR5380_map_type int
 #define NCR5380_map_name port
-#define NCR53C400_register_offset 0
 
 #ifdef CONFIG_SCSI_GENERIC_NCR53C400
 #define NCR5380_region_size 16
@@ -42,7 +41,10 @@
 #define NCR5380_write(reg, value) \
 	outb(value, instance->io_port + (reg))
 
-#define NCR5380_implementation_fields /* none */
+#define NCR5380_implementation_fields \
+	int c400_ctl_status; \
+	int c400_blk_cnt; \
+	int c400_host_buf;
 
 #else 
 /* therefore SCSI_G_NCR5380_MEM */
@@ -50,7 +52,6 @@
 
 #define NCR5380_map_type unsigned long
 #define NCR5380_map_name base
-#define NCR53C400_register_offset 0x108
 #define NCR53C400_mem_base 0x3880
 #define NCR53C400_host_buffer 0x3900
 #define NCR5380_region_size 0x3a00
@@ -63,7 +64,10 @@
 	       NCR53C400_mem_base + (reg))
 
 #define NCR5380_implementation_fields \
-    void __iomem *iomem;
+	void __iomem *iomem; \
+	int c400_ctl_status; \
+	int c400_blk_cnt; \
+	int c400_host_buf;
 
 #endif
 

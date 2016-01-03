@@ -163,8 +163,7 @@
 /* Write any value to this register to start an ini mode DMA receive */
 #define START_DMA_INITIATOR_RECEIVE_REG 7	/* wo */
 
-#define C400_CONTROL_STATUS_REG NCR53C400_register_offset-8	/* rw */
-
+/* NCR 53C400(A) Control Status Register bits: */
 #define CSR_RESET              0x80	/* wo  Resets 53c400 */
 #define CSR_53C80_REG          0x80	/* ro  5380 registers busy */
 #define CSR_TRANS_DIR          0x40	/* rw  Data transfer direction */
@@ -180,16 +179,6 @@
 #else
 #define CSR_BASE CSR_53C80_INTR
 #endif
-
-/* Number of 128-byte blocks to be transferred */
-#define C400_BLOCK_COUNTER_REG   NCR53C400_register_offset-7	/* rw */
-
-/* Resume transfer after disconnect */
-#define C400_RESUME_TRANSFER_REG NCR53C400_register_offset-6	/* wo */
-
-/* Access to host buffer stack */
-#define C400_HOST_BUFFER         NCR53C400_register_offset-4	/* rw */
-
 
 /* Note : PHASE_* macros are based on the values of the STATUS register */
 #define PHASE_MASK 	(SR_MSG | SR_CD | SR_IO)
