@@ -46,6 +46,7 @@ struct watchdog_device {
 	int id;
 	struct device *dev;
 	struct device *parent;
+	const struct attribute_group **groups;
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
 	unsigned int bootstatus;
@@ -68,6 +69,8 @@ It contains following fields:
 * dev: device under the watchdog class (created by watchdog_register_device).
 * parent: set this to the parent device (or NULL) before calling
   watchdog_register_device.
+* groups: List of sysfs attribute groups to create when creating the watchdog
+  device.
 * info: a pointer to a watchdog_info structure. This structure gives some
   additional information about the watchdog timer itself. (Like it's unique name)
 * ops: a pointer to the list of watchdog operations that the watchdog supports.

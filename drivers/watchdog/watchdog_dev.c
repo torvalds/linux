@@ -744,8 +744,9 @@ int watchdog_dev_register(struct watchdog_device *wdd)
 	if (ret)
 		return ret;
 
-	dev = device_create(&watchdog_class, wdd->parent, devno, wdd,
-			    "watchdog%d", wdd->id);
+	dev = device_create_with_groups(&watchdog_class, wdd->parent,
+					devno, wdd, wdd->groups,
+					"watchdog%d", wdd->id);
 	if (IS_ERR(dev)) {
 		watchdog_cdev_unregister(wdd);
 		return PTR_ERR(dev);
