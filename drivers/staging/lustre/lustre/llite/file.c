@@ -1307,7 +1307,7 @@ static int ll_lov_recreate_obj(struct inode *inode, unsigned long arg)
 	if (!capable(CFS_CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (copy_from_user(&ucreat, (struct ll_recreate_obj *)arg,
+	if (copy_from_user(&ucreat, (struct ll_recreate_obj __user *)arg,
 			   sizeof(ucreat)))
 		return -EFAULT;
 
@@ -1325,7 +1325,7 @@ static int ll_lov_recreate_fid(struct inode *inode, unsigned long arg)
 	if (!capable(CFS_CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (copy_from_user(&fid, (struct lu_fid *)arg, sizeof(fid)))
+	if (copy_from_user(&fid, (struct lu_fid __user *)arg, sizeof(fid)))
 		return -EFAULT;
 
 	fid_to_ostid(&fid, &oi);
@@ -1472,7 +1472,7 @@ static int ll_lov_setea(struct inode *inode, struct file *file,
 	if (lump == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(lump, (struct lov_user_md *)arg, lum_size)) {
+	if (copy_from_user(lump, (struct lov_user_md __user *)arg, lum_size)) {
 		kvfree(lump);
 		return -EFAULT;
 	}
@@ -1488,12 +1488,12 @@ static int ll_lov_setea(struct inode *inode, struct file *file,
 static int ll_lov_setstripe(struct inode *inode, struct file *file,
 			    unsigned long arg)
 {
-	struct lov_user_md_v3	 lumv3;
-	struct lov_user_md_v1	*lumv1 = (struct lov_user_md_v1 *)&lumv3;
-	struct lov_user_md_v1	*lumv1p = (struct lov_user_md_v1 *)arg;
-	struct lov_user_md_v3	*lumv3p = (struct lov_user_md_v3 *)arg;
-	int			 lum_size, rc;
-	int			 flags = FMODE_WRITE;
+	struct lov_user_md_v3 lumv3;
+	struct lov_user_md_v1 *lumv1 = (struct lov_user_md_v1 *)&lumv3;
+	struct lov_user_md_v1 __user *lumv1p = (void __user *)arg;
+	struct lov_user_md_v3 __user *lumv3p = (void __user *)arg;
+	int lum_size, rc;
+	int flags = FMODE_WRITE;
 
 	/* first try with v1 which is smaller than v3 */
 	lum_size = sizeof(struct lov_user_md_v1);
@@ -1826,7 +1826,7 @@ static int ll_ioctl_fiemap(struct inode *inode, unsigned long arg)
 		ret_bytes += (fiemap_s->fm_mapped_extents *
 				 sizeof(struct ll_fiemap_extent));
 
-	if (copy_to_user((void *)arg, fiemap_s, ret_bytes))
+	if (copy_to_user((void __user *)arg, fiemap_s, ret_bytes))
 		rc = -EFAULT;
 
 error:
@@ -2211,14 +2211,14 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case LL_IOC_GETFLAGS:
 		/* Get the current value of the file flags */
-		return put_user(fd->fd_flags, (int *)arg);
+		return put_user(fd->fd_flags, (int __user *)arg);
 	case LL_IOC_SETFLAGS:
 	case LL_IOC_CLRFLAGS:
 		/* Set or clear specific file flags */
 		/* XXX This probably needs checks to ensure the flags are
 		 *     not abused, and to handle any flag side effects.
 		 */
-		if (get_user(flags, (int *) arg))
+		if (get_user(flags, (int __user *)arg))
 			return -EFAULT;
 
 		if (cmd == LL_IOC_SETFLAGS) {
@@ -2242,8 +2242,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct file *file2;
 		struct lustre_swap_layouts lsl;
 
-		if (copy_from_user(&lsl, (char *)arg,
-				       sizeof(struct lustre_swap_layouts)))
+		if (copy_from_user(&lsl, (char __user *)arg,
+				   sizeof(struct lustre_swap_layouts)))
 			return -EFAULT;
 
 		if ((file->f_flags & O_ACCMODE) == 0) /* O_RDONLY */
@@ -2272,7 +2272,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return ll_iocontrol(inode, file, cmd, arg);
 	case FSFILT_IOC_GETVERSION_OLD:
 	case FSFILT_IOC_GETVERSION:
-		return put_user(inode->i_generation, (int *)arg);
+		return put_user(inode->i_generation, (int __user *)arg);
 	case LL_IOC_GROUP_LOCK:
 		return ll_get_grouplock(inode, file, arg);
 	case LL_IOC_GROUP_UNLOCK:
@@ -2289,7 +2289,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LL_IOC_FLUSHCTX:
 		return ll_flush_ctx(inode);
 	case LL_IOC_PATH2FID: {
-		if (copy_to_user((void *)arg, ll_inode2fid(inode),
+		if (copy_to_user((void __user *)arg, ll_inode2fid(inode),
 				 sizeof(struct lu_fid)))
 			return -EFAULT;
 
@@ -2301,13 +2301,14 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct ioc_data_version	idv;
 		int			rc;
 
-		if (copy_from_user(&idv, (char *)arg, sizeof(idv)))
+		if (copy_from_user(&idv, (char __user *)arg, sizeof(idv)))
 			return -EFAULT;
 
 		rc = ll_data_version(inode, &idv.idv_version,
 				!(idv.idv_flags & LL_DV_NOFLUSH));
 
-		if (rc == 0 && copy_to_user((char *) arg, &idv, sizeof(idv)))
+		if (rc == 0 && copy_to_user((char __user *)arg, &idv,
+					    sizeof(idv)))
 			return -EFAULT;
 
 		return rc;
@@ -2320,7 +2321,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (mdtidx < 0)
 			return mdtidx;
 
-		if (put_user((int)mdtidx, (int *)arg))
+		if (put_user(mdtidx, (int __user *)arg))
 			return -EFAULT;
 
 		return 0;
@@ -2347,7 +2348,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = obd_iocontrol(cmd, ll_i2mdexp(inode), sizeof(*op_data),
 				   op_data, NULL);
 
-		if (copy_to_user((void *)arg, hus, sizeof(*hus)))
+		if (copy_to_user((void __user *)arg, hus, sizeof(*hus)))
 			rc = -EFAULT;
 
 		ll_finish_md_op_data(op_data);
@@ -2358,7 +2359,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct hsm_state_set	*hss;
 		int			 rc;
 
-		hss = memdup_user((char *)arg, sizeof(*hss));
+		hss = memdup_user((char __user *)arg, sizeof(*hss));
 		if (IS_ERR(hss))
 			return PTR_ERR(hss);
 
@@ -2386,7 +2387,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = obd_iocontrol(cmd, ll_i2mdexp(inode), sizeof(*op_data),
 				   op_data, NULL);
 
-		if (copy_to_user((char *)arg, hca, sizeof(*hca)))
+		if (copy_to_user((char __user *)arg, hca, sizeof(*hca)))
 			rc = -EFAULT;
 
 		ll_finish_md_op_data(op_data);
@@ -2480,7 +2481,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LL_IOC_HSM_IMPORT: {
 		struct hsm_user_import *hui;
 
-		hui = memdup_user((void *)arg, sizeof(*hui));
+		hui = memdup_user((void __user *)arg, sizeof(*hui));
 		if (IS_ERR(hui))
 			return PTR_ERR(hui);
 
