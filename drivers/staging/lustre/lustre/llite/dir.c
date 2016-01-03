@@ -1253,7 +1253,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return ll_iocontrol(inode, file, cmd, arg);
 	case FSFILT_IOC_GETVERSION_OLD:
 	case FSFILT_IOC_GETVERSION:
-		return put_user(inode->i_generation, (int *)arg);
+		return put_user(inode->i_generation, (int __user *)arg);
 	/* We need to special case any other ioctls we want to handle,
 	 * to send them to the MDS/OST as appropriate and to properly
 	 * network encode the arg field.
@@ -1267,7 +1267,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (mdtidx < 0)
 			return mdtidx;
 
-		if (put_user((int)mdtidx, (int *)arg))
+		if (put_user((int)mdtidx, (int __user *)arg))
 			return -EFAULT;
 
 		return 0;
@@ -1364,8 +1364,8 @@ lmv_out_free:
 	case LL_IOC_LOV_SETSTRIPE: {
 		struct lov_user_md_v3 lumv3;
 		struct lov_user_md_v1 *lumv1 = (struct lov_user_md_v1 *)&lumv3;
-		struct lov_user_md_v1 *lumv1p = (struct lov_user_md_v1 *)arg;
-		struct lov_user_md_v3 *lumv3p = (struct lov_user_md_v3 *)arg;
+		struct lov_user_md_v1 __user *lumv1p = (void __user *)arg;
+		struct lov_user_md_v3 __user *lumv3p = (void __user *)arg;
 
 		int set_default = 0;
 
@@ -1390,7 +1390,7 @@ lmv_out_free:
 		return rc;
 	}
 	case LL_IOC_LMV_GETSTRIPE: {
-		struct lmv_user_md *lump = (struct lmv_user_md *)arg;
+		struct lmv_user_md __user *lump = (void __user *)arg;
 		struct lmv_user_md lum;
 		struct lmv_user_md *tmp;
 		int lum_size;
@@ -1423,7 +1423,7 @@ lmv_out_free:
 		tmp->lum_objects[0].lum_mds = mdtindex;
 		memcpy(&tmp->lum_objects[0].lum_fid, ll_inode2fid(inode),
 		       sizeof(struct lu_fid));
-		if (copy_to_user((void *)arg, tmp, lum_size)) {
+		if (copy_to_user((void __user *)arg, tmp, lum_size)) {
 			rc = -EFAULT;
 			goto free_lmv;
 		}
@@ -1440,7 +1440,7 @@ free_lmv:
 	case IOC_MDC_GETFILEINFO:
 	case IOC_MDC_GETFILESTRIPE: {
 		struct ptlrpc_request *request = NULL;
-		struct lov_user_md *lump;
+		struct lov_user_md __user *lump;
 		struct lov_mds_md *lmm = NULL;
 		struct mdt_body *body;
 		char *filename = NULL;
@@ -1477,11 +1477,11 @@ free_lmv:
 
 		if (cmd == IOC_MDC_GETFILESTRIPE ||
 		    cmd == LL_IOC_LOV_GETSTRIPE) {
-			lump = (struct lov_user_md *)arg;
+			lump = (struct lov_user_md __user *)arg;
 		} else {
-			struct lov_user_mds_data *lmdp;
+			struct lov_user_mds_data __user *lmdp;
 
-			lmdp = (struct lov_user_mds_data *)arg;
+			lmdp = (struct lov_user_mds_data __user *)arg;
 			lump = &lmdp->lmd_lmm;
 		}
 		if (copy_to_user(lump, lmm, lmmsize)) {
@@ -1493,7 +1493,7 @@ free_lmv:
 		}
 skip_lmm:
 		if (cmd == IOC_MDC_GETFILEINFO || cmd == LL_IOC_MDC_GETINFO) {
-			struct lov_user_mds_data *lmdp;
+			struct lov_user_mds_data __user *lmdp;
 			lstat_t st = { 0 };
 
 			st.st_dev     = inode->i_sb->s_dev;
@@ -1510,7 +1510,7 @@ skip_lmm:
 			st.st_ctime   = body->ctime;
 			st.st_ino     = inode->i_ino;
 
-			lmdp = (struct lov_user_mds_data *)arg;
+			lmdp = (struct lov_user_mds_data __user *)arg;
 			if (copy_to_user(&lmdp->lmd_st, &st, sizeof(st))) {
 				rc = -EFAULT;
 				goto out_req;
@@ -1524,14 +1524,14 @@ out_req:
 		return rc;
 	}
 	case IOC_LOV_GETINFO: {
-		struct lov_user_mds_data *lumd;
+		struct lov_user_mds_data __user *lumd;
 		struct lov_stripe_md *lsm;
-		struct lov_user_md *lum;
+		struct lov_user_md __user *lum;
 		struct lov_mds_md *lmm;
 		int lmmsize;
 		lstat_t st;
 
-		lumd = (struct lov_user_mds_data *)arg;
+		lumd = (struct lov_user_mds_data __user *)arg;
 		lum = &lumd->lmd_lmm;
 
 		rc = ll_get_max_mdsize(sbi, &lmmsize);
@@ -1637,8 +1637,8 @@ free_lmm:
 				   NULL);
 		if (rc) {
 			CDEBUG(D_QUOTA, "mdc ioctl %d failed: %d\n", cmd, rc);
-			if (copy_to_user((void *)arg, check,
-					     sizeof(*check)))
+			if (copy_to_user((void __user *)arg, check,
+					 sizeof(*check)))
 				CDEBUG(D_QUOTA, "copy_to_user failed\n");
 			goto out_poll;
 		}
@@ -1647,8 +1647,8 @@ free_lmm:
 				   NULL);
 		if (rc) {
 			CDEBUG(D_QUOTA, "osc ioctl %d failed: %d\n", cmd, rc);
-			if (copy_to_user((void *)arg, check,
-					     sizeof(*check)))
+			if (copy_to_user((void __user *)arg, check,
+					 sizeof(*check)))
 				CDEBUG(D_QUOTA, "copy_to_user failed\n");
 			goto out_poll;
 		}
@@ -1663,14 +1663,15 @@ out_poll:
 		if (!qctl)
 			return -ENOMEM;
 
-		if (copy_from_user(qctl, (void *)arg, sizeof(*qctl))) {
+		if (copy_from_user(qctl, (void __user *)arg, sizeof(*qctl))) {
 			rc = -EFAULT;
 			goto out_quotactl;
 		}
 
 		rc = quotactl_ioctl(sbi, qctl);
 
-		if (rc == 0 && copy_to_user((void *)arg, qctl, sizeof(*qctl)))
+		if (rc == 0 && copy_to_user((void __user *)arg, qctl,
+					    sizeof(*qctl)))
 			rc = -EFAULT;
 
 out_quotactl:
@@ -1700,7 +1701,7 @@ out_quotactl:
 		int count, vallen;
 		struct obd_export *exp;
 
-		if (copy_from_user(&count, (int *)arg, sizeof(int)))
+		if (copy_from_user(&count, (int __user *)arg, sizeof(int)))
 			return -EFAULT;
 
 		/* get ost count when count is zero, get mdt count otherwise */
@@ -1713,14 +1714,14 @@ out_quotactl:
 			return rc;
 		}
 
-		if (copy_to_user((int *)arg, &count, sizeof(int)))
+		if (copy_to_user((int __user *)arg, &count, sizeof(int)))
 			return -EFAULT;
 
 		return 0;
 	}
 	case LL_IOC_PATH2FID:
-		if (copy_to_user((void *)arg, ll_inode2fid(inode),
-				     sizeof(struct lu_fid)))
+		if (copy_to_user((void __user *)arg, ll_inode2fid(inode),
+				 sizeof(struct lu_fid)))
 			return -EFAULT;
 		return 0;
 	case LL_IOC_GET_CONNECT_FLAGS: {
@@ -1732,7 +1733,7 @@ out_quotactl:
 		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 
-		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void *)arg,
+		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void __user *)arg,
 				    sizeof(struct ioc_changelog));
 		return rc;
 	case OBD_IOC_FID2PATH:
@@ -1741,7 +1742,7 @@ out_quotactl:
 		struct hsm_user_request	*hur;
 		ssize_t			 totalsize;
 
-		hur = memdup_user((void *)arg, sizeof(*hur));
+		hur = memdup_user((void __user *)arg, sizeof(*hur));
 		if (IS_ERR(hur))
 			return PTR_ERR(hur);
 
@@ -1760,7 +1761,7 @@ out_quotactl:
 			return -ENOMEM;
 
 		/* Copy the whole struct */
-		if (copy_from_user(hur, (void *)arg, totalsize)) {
+		if (copy_from_user(hur, (void __user *)arg, totalsize)) {
 			kvfree(hur);
 			return -EFAULT;
 		}
@@ -1796,7 +1797,7 @@ out_quotactl:
 		struct hsm_progress_kernel	hpk;
 		struct hsm_progress		hp;
 
-		if (copy_from_user(&hp, (void *)arg, sizeof(hp)))
+		if (copy_from_user(&hp, (void __user *)arg, sizeof(hp)))
 			return -EFAULT;
 
 		hpk.hpk_fid = hp.hp_fid;
@@ -1813,7 +1814,7 @@ out_quotactl:
 		return rc;
 	}
 	case LL_IOC_HSM_CT_START:
-		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void *)arg,
+		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void __user *)arg,
 				    sizeof(struct lustre_kernelcomm));
 		return rc;
 
@@ -1821,12 +1822,12 @@ out_quotactl:
 		struct hsm_copy	*copy;
 		int		 rc;
 
-		copy = memdup_user((char *)arg, sizeof(*copy));
+		copy = memdup_user((char __user *)arg, sizeof(*copy));
 		if (IS_ERR(copy))
 			return PTR_ERR(copy);
 
 		rc = ll_ioc_copy_start(inode->i_sb, copy);
-		if (copy_to_user((char *)arg, copy, sizeof(*copy)))
+		if (copy_to_user((char __user *)arg, copy, sizeof(*copy)))
 			rc = -EFAULT;
 
 		kfree(copy);
@@ -1836,12 +1837,12 @@ out_quotactl:
 		struct hsm_copy	*copy;
 		int		 rc;
 
-		copy = memdup_user((char *)arg, sizeof(*copy));
+		copy = memdup_user((char __user *)arg, sizeof(*copy));
 		if (IS_ERR(copy))
 			return PTR_ERR(copy);
 
 		rc = ll_ioc_copy_end(inode->i_sb, copy);
-		if (copy_to_user((char *)arg, copy, sizeof(*copy)))
+		if (copy_to_user((char __user *)arg, copy, sizeof(*copy)))
 			rc = -EFAULT;
 
 		kfree(copy);
