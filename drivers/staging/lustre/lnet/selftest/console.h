@@ -188,47 +188,51 @@ int lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data);
 int lstcon_console_fini(void);
 int lstcon_session_match(lst_sid_t sid);
 int lstcon_session_new(char *name, int key, unsigned version,
-		       int timeout, int flags, lst_sid_t *sid_up);
-int lstcon_session_info(lst_sid_t *sid_up, int *key, unsigned *verp,
-			lstcon_ndlist_ent_t *entp, char *name_up, int len);
+		       int timeout, int flags, lst_sid_t __user *sid_up);
+int lstcon_session_info(lst_sid_t __user *sid_up, int __user *key,
+			unsigned __user *verp, lstcon_ndlist_ent_t __user *entp,
+			char __user *name_up, int len);
 int lstcon_session_end(void);
-int lstcon_session_debug(int timeout, struct list_head *result_up);
+int lstcon_session_debug(int timeout, struct list_head __user *result_up);
 int lstcon_session_feats_check(unsigned feats);
 int lstcon_batch_debug(int timeout, char *name,
-		       int client, struct list_head *result_up);
+		       int client, struct list_head __user *result_up);
 int lstcon_group_debug(int timeout, char *name,
-		       struct list_head *result_up);
-int lstcon_nodes_debug(int timeout, int nnd, lnet_process_id_t *nds_up,
-		       struct list_head *result_up);
+		       struct list_head __user *result_up);
+int lstcon_nodes_debug(int timeout, int nnd, lnet_process_id_t __user *nds_up,
+		       struct list_head __user *result_up);
 int lstcon_group_add(char *name);
 int lstcon_group_del(char *name);
 int lstcon_group_clean(char *name, int args);
-int lstcon_group_refresh(char *name, struct list_head *result_up);
-int lstcon_nodes_add(char *name, int nnd, lnet_process_id_t *nds_up,
-		     unsigned *featp, struct list_head *result_up);
-int lstcon_nodes_remove(char *name, int nnd, lnet_process_id_t *nds_up,
-			struct list_head *result_up);
-int lstcon_group_info(char *name, lstcon_ndlist_ent_t *gent_up,
-		      int *index_p, int *ndent_p, lstcon_node_ent_t *ndents_up);
-int lstcon_group_list(int idx, int len, char *name_up);
+int lstcon_group_refresh(char *name, struct list_head __user *result_up);
+int lstcon_nodes_add(char *name, int nnd, lnet_process_id_t __user *nds_up,
+		     unsigned *featp, struct list_head __user *result_up);
+int lstcon_nodes_remove(char *name, int nnd, lnet_process_id_t __user *nds_up,
+			struct list_head __user *result_up);
+int lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gent_up,
+		      int *index_p, int *ndent_p,
+		      lstcon_node_ent_t __user *ndents_up);
+int lstcon_group_list(int idx, int len, char __user *name_up);
 int lstcon_batch_add(char *name);
-int lstcon_batch_run(char *name, int timeout, struct list_head *result_up);
-int lstcon_batch_stop(char *name, int force, struct list_head *result_up);
+int lstcon_batch_run(char *name, int timeout,
+		     struct list_head __user *result_up);
+int lstcon_batch_stop(char *name, int force,
+		      struct list_head __user *result_up);
 int lstcon_test_batch_query(char *name, int testidx,
 			    int client, int timeout,
-			    struct list_head *result_up);
+			    struct list_head __user *result_up);
 int lstcon_batch_del(char *name);
-int lstcon_batch_list(int idx, int namelen, char *name_up);
-int lstcon_batch_info(char *name, lstcon_test_batch_ent_t *ent_up,
+int lstcon_batch_list(int idx, int namelen, char __user *name_up);
+int lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 		      int server, int testidx, int *index_p,
-		      int *ndent_p, lstcon_node_ent_t *dents_up);
+		      int *ndent_p, lstcon_node_ent_t __user *dents_up);
 int lstcon_group_stat(char *grp_name, int timeout,
-		      struct list_head *result_up);
-int lstcon_nodes_stat(int count, lnet_process_id_t *ids_up,
-		      int timeout, struct list_head *result_up);
+		      struct list_head __user *result_up);
+int lstcon_nodes_stat(int count, lnet_process_id_t __user *ids_up,
+		      int timeout, struct list_head __user *result_up);
 int lstcon_test_add(char *batch_name, int type, int loop,
 		    int concur, int dist, int span,
 		    char *src_name, char *dst_name,
 		    void *param, int paramlen, int *retp,
-		    struct list_head *result_up);
+		    struct list_head __user *result_up);
 #endif

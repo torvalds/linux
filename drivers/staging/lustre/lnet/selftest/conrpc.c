@@ -466,11 +466,11 @@ lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 
 int
 lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
-			     struct list_head *head_up,
+			     struct list_head __user *head_up,
 			     lstcon_rpc_readent_func_t readent)
 {
 	struct list_head tmp;
-	struct list_head *next;
+	struct list_head __user *next;
 	lstcon_rpc_ent_t *ent;
 	srpc_generic_reply_t *rep;
 	lstcon_rpc_t *crpc;

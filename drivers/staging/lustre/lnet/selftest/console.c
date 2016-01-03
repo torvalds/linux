@@ -363,7 +363,7 @@ lstcon_sesrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 
 static int
 lstcon_sesrpc_readent(int transop, srpc_msg_t *msg,
-		      lstcon_rpc_ent_t *ent_up)
+		      lstcon_rpc_ent_t __user *ent_up)
 {
 	srpc_debug_reply_t *rep;
 
@@ -392,8 +392,8 @@ lstcon_sesrpc_readent(int transop, srpc_msg_t *msg,
 
 static int
 lstcon_group_nodes_add(lstcon_group_t *grp,
-		       int count, lnet_process_id_t *ids_up,
-		       unsigned *featp, struct list_head *result_up)
+		       int count, lnet_process_id_t __user *ids_up,
+		       unsigned *featp, struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
 	lstcon_ndlink_t *ndl;
@@ -459,8 +459,8 @@ lstcon_group_nodes_add(lstcon_group_t *grp,
 
 static int
 lstcon_group_nodes_remove(lstcon_group_t *grp,
-			  int count, lnet_process_id_t *ids_up,
-			  struct list_head *result_up)
+			  int count, lnet_process_id_t __user *ids_up,
+			  struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
 	lstcon_ndlink_t *ndl;
@@ -537,8 +537,8 @@ lstcon_group_add(char *name)
 }
 
 int
-lstcon_nodes_add(char *name, int count, lnet_process_id_t *ids_up,
-		 unsigned *featp, struct list_head *result_up)
+lstcon_nodes_add(char *name, int count, lnet_process_id_t __user *ids_up,
+		 unsigned *featp, struct list_head __user *result_up)
 {
 	lstcon_group_t *grp;
 	int rc;
@@ -641,8 +641,8 @@ lstcon_group_clean(char *name, int args)
 }
 
 int
-lstcon_nodes_remove(char *name, int count,
-		    lnet_process_id_t *ids_up, struct list_head *result_up)
+lstcon_nodes_remove(char *name, int count, lnet_process_id_t __user *ids_up,
+		    struct list_head __user *result_up)
 {
 	lstcon_group_t *grp = NULL;
 	int rc;
@@ -671,7 +671,7 @@ lstcon_nodes_remove(char *name, int count,
 }
 
 int
-lstcon_group_refresh(char *name, struct list_head *result_up)
+lstcon_group_refresh(char *name, struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
 	lstcon_group_t *grp;
@@ -713,7 +713,7 @@ lstcon_group_refresh(char *name, struct list_head *result_up)
 }
 
 int
-lstcon_group_list(int index, int len, char *name_up)
+lstcon_group_list(int index, int len, char __user *name_up)
 {
 	lstcon_group_t *grp;
 
@@ -732,7 +732,7 @@ lstcon_group_list(int index, int len, char *name_up)
 
 static int
 lstcon_nodes_getent(struct list_head *head, int *index_p,
-		    int *count_p, lstcon_node_ent_t *dents_up)
+		    int *count_p, lstcon_node_ent_t __user *dents_up)
 {
 	lstcon_ndlink_t *ndl;
 	lstcon_node_t *nd;
@@ -771,8 +771,9 @@ lstcon_nodes_getent(struct list_head *head, int *index_p,
 }
 
 int
-lstcon_group_info(char *name, lstcon_ndlist_ent_t *gents_p,
-		  int *index_p, int *count_p, lstcon_node_ent_t *dents_up)
+lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gents_p,
+		  int *index_p, int *count_p,
+		  lstcon_node_ent_t __user *dents_up)
 {
 	lstcon_ndlist_ent_t *gentp;
 	lstcon_group_t *grp;
@@ -892,7 +893,7 @@ lstcon_batch_add(char *name)
 }
 
 int
-lstcon_batch_list(int index, int len, char *name_up)
+lstcon_batch_list(int index, int len, char __user *name_up)
 {
 	lstcon_batch_t *bat;
 
@@ -910,9 +911,9 @@ lstcon_batch_list(int index, int len, char *name_up)
 }
 
 int
-lstcon_batch_info(char *name, lstcon_test_batch_ent_t *ent_up, int server,
-		  int testidx, int *index_p, int *ndent_p,
-		  lstcon_node_ent_t *dents_up)
+lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
+		  int server, int testidx, int *index_p, int *ndent_p,
+		  lstcon_node_ent_t __user *dents_up)
 {
 	lstcon_test_batch_ent_t *entp;
 	struct list_head *clilst;
@@ -1006,7 +1007,7 @@ lstcon_batrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 
 static int
 lstcon_batch_op(lstcon_batch_t *bat, int transop,
-		struct list_head *result_up)
+		struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
 	int rc;
@@ -1029,7 +1030,7 @@ lstcon_batch_op(lstcon_batch_t *bat, int transop,
 }
 
 int
-lstcon_batch_run(char *name, int timeout, struct list_head *result_up)
+lstcon_batch_run(char *name, int timeout, struct list_head __user *result_up)
 {
 	lstcon_batch_t *bat;
 	int rc;
@@ -1051,7 +1052,7 @@ lstcon_batch_run(char *name, int timeout, struct list_head *result_up)
 }
 
 int
-lstcon_batch_stop(char *name, int force, struct list_head *result_up)
+lstcon_batch_stop(char *name, int force, struct list_head __user *result_up)
 {
 	lstcon_batch_t *bat;
 	int rc;
@@ -1170,7 +1171,7 @@ lstcon_testrpc_condition(int transop, lstcon_node_t *nd, void *arg)
 }
 
 static int
-lstcon_test_nodes_add(lstcon_test_t *test, struct list_head *result_up)
+lstcon_test_nodes_add(lstcon_test_t *test, struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
 	lstcon_group_t *grp;
@@ -1266,7 +1267,7 @@ lstcon_test_add(char *batch_name, int type, int loop,
 		int concur, int dist, int span,
 		char *src_name, char *dst_name,
 		void *param, int paramlen, int *retp,
-		struct list_head *result_up)
+		struct list_head __user *result_up)
 {
 	lstcon_test_t	 *test	 = NULL;
 	int		 rc;
@@ -1369,7 +1370,7 @@ lstcon_test_find(lstcon_batch_t *batch, int idx, lstcon_test_t **testpp)
 
 static int
 lstcon_tsbrpc_readent(int transop, srpc_msg_t *msg,
-		      lstcon_rpc_ent_t *ent_up)
+		      lstcon_rpc_ent_t __user *ent_up)
 {
 	srpc_batch_reply_t *rep = &msg->msg_body.bat_reply;
 
@@ -1386,7 +1387,7 @@ lstcon_tsbrpc_readent(int transop, srpc_msg_t *msg,
 
 int
 lstcon_test_batch_query(char *name, int testidx, int client,
-			int timeout, struct list_head *result_up)
+			int timeout, struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
 	struct list_head *translist;
@@ -1448,19 +1449,21 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 
 static int
 lstcon_statrpc_readent(int transop, srpc_msg_t *msg,
-		       lstcon_rpc_ent_t *ent_up)
+		       lstcon_rpc_ent_t __user *ent_up)
 {
 	srpc_stat_reply_t *rep = &msg->msg_body.stat_reply;
-	sfw_counters_t *sfwk_stat;
-	srpc_counters_t *srpc_stat;
-	lnet_counters_t *lnet_stat;
+	sfw_counters_t __user *sfwk_stat;
+	srpc_counters_t __user *srpc_stat;
+	lnet_counters_t __user *lnet_stat;
 
 	if (rep->str_status != 0)
 		return 0;
 
-	sfwk_stat = (sfw_counters_t *)&ent_up->rpe_payload[0];
-	srpc_stat = (srpc_counters_t *)((char *)sfwk_stat + sizeof(*sfwk_stat));
-	lnet_stat = (lnet_counters_t *)((char *)srpc_stat + sizeof(*srpc_stat));
+	sfwk_stat = (sfw_counters_t __user *)&ent_up->rpe_payload[0];
+	srpc_stat = (srpc_counters_t __user *)
+				      ((char *)sfwk_stat + sizeof(*sfwk_stat));
+	lnet_stat = (lnet_counters_t __user *)
+				      ((char *)srpc_stat + sizeof(*srpc_stat));
 
 	if (copy_to_user(sfwk_stat, &rep->str_fw, sizeof(*sfwk_stat)) ||
 	    copy_to_user(srpc_stat, &rep->str_rpc, sizeof(*srpc_stat)) ||
@@ -1472,7 +1475,7 @@ lstcon_statrpc_readent(int transop, srpc_msg_t *msg,
 
 static int
 lstcon_ndlist_stat(struct list_head *ndlist,
-		   int timeout, struct list_head *result_up)
+		   int timeout, struct list_head __user *result_up)
 {
 	struct list_head head;
 	lstcon_rpc_trans_t *trans;
@@ -1497,7 +1500,8 @@ lstcon_ndlist_stat(struct list_head *ndlist,
 }
 
 int
-lstcon_group_stat(char *grp_name, int timeout, struct list_head *result_up)
+lstcon_group_stat(char *grp_name, int timeout,
+		  struct list_head __user *result_up)
 {
 	lstcon_group_t *grp;
 	int rc;
@@ -1516,8 +1520,8 @@ lstcon_group_stat(char *grp_name, int timeout, struct list_head *result_up)
 }
 
 int
-lstcon_nodes_stat(int count, lnet_process_id_t *ids_up,
-		  int timeout, struct list_head *result_up)
+lstcon_nodes_stat(int count, lnet_process_id_t __user *ids_up,
+		  int timeout, struct list_head __user *result_up)
 {
 	lstcon_ndlink_t *ndl;
 	lstcon_group_t *tmp;
@@ -1562,7 +1566,7 @@ lstcon_nodes_stat(int count, lnet_process_id_t *ids_up,
 static int
 lstcon_debug_ndlist(struct list_head *ndlist,
 		    struct list_head *translist,
-		    int timeout, struct list_head *result_up)
+		    int timeout, struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
 	int		 rc;
@@ -1584,7 +1588,7 @@ lstcon_debug_ndlist(struct list_head *ndlist,
 }
 
 int
-lstcon_session_debug(int timeout, struct list_head *result_up)
+lstcon_session_debug(int timeout, struct list_head __user *result_up)
 {
 	return lstcon_debug_ndlist(&console_session.ses_ndl_list,
 				   NULL, timeout, result_up);
@@ -1592,7 +1596,7 @@ lstcon_session_debug(int timeout, struct list_head *result_up)
 
 int
 lstcon_batch_debug(int timeout, char *name,
-		   int client, struct list_head *result_up)
+		   int client, struct list_head __user *result_up)
 {
 	lstcon_batch_t *bat;
 	int rc;
@@ -1610,7 +1614,7 @@ lstcon_batch_debug(int timeout, char *name,
 
 int
 lstcon_group_debug(int timeout, char *name,
-		   struct list_head *result_up)
+		   struct list_head __user *result_up)
 {
 	lstcon_group_t *grp;
 	int rc;
@@ -1628,8 +1632,8 @@ lstcon_group_debug(int timeout, char *name,
 
 int
 lstcon_nodes_debug(int timeout,
-		   int count, lnet_process_id_t *ids_up,
-		   struct list_head *result_up)
+		   int count, lnet_process_id_t __user *ids_up,
+		   struct list_head __user *result_up)
 {
 	lnet_process_id_t id;
 	lstcon_ndlink_t *ndl;
@@ -1693,7 +1697,7 @@ extern srpc_service_t lstcon_acceptor_service;
 
 int
 lstcon_session_new(char *name, int key, unsigned feats,
-		   int timeout, int force, lst_sid_t *sid_up)
+		   int timeout, int force, lst_sid_t __user *sid_up)
 {
 	int rc = 0;
 	int i;
@@ -1758,8 +1762,10 @@ lstcon_session_new(char *name, int key, unsigned feats,
 }
 
 int
-lstcon_session_info(lst_sid_t *sid_up, int *key_up, unsigned *featp,
-		    lstcon_ndlist_ent_t *ndinfo_up, char *name_up, int len)
+lstcon_session_info(lst_sid_t __user *sid_up, int __user *key_up,
+		    unsigned __user *featp,
+		    lstcon_ndlist_ent_t __user *ndinfo_up,
+		    char __user *name_up, int len)
 {
 	lstcon_ndlist_ent_t *entp;
 	lstcon_ndlink_t *ndl;

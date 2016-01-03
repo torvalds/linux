@@ -106,7 +106,8 @@ typedef struct lstcon_rpc_trans {
 #define LST_TRANS_STATQRY       0x21
 
 typedef int (*lstcon_rpc_cond_func_t)(int, struct lstcon_node *, void *);
-typedef int (*lstcon_rpc_readent_func_t)(int, srpc_msg_t *, lstcon_rpc_ent_t *);
+typedef int (*lstcon_rpc_readent_func_t)(int, srpc_msg_t *,
+					 lstcon_rpc_ent_t __user *);
 
 int  lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 			unsigned version, lstcon_rpc_t **crpc);
@@ -128,7 +129,7 @@ int  lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 void lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans,
 			   lstcon_trans_stat_t *stat);
 int  lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
-				  struct list_head *head_up,
+				  struct list_head __user *head_up,
 				  lstcon_rpc_readent_func_t readent);
 void lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error);
 void lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans);
