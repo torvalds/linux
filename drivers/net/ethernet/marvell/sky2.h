@@ -817,7 +817,13 @@ enum {
 
 /* Different PHY Types */
 enum {
+#ifdef CONFIG_X86_PS4
+	// On ps4, 1 is the phy in-use and 2 is a (possibly nonexistant) switch
+	// Change it here for now to keep diffs small
+	PHY_ADDR_MARV	= 1,
+#else
 	PHY_ADDR_MARV	= 0,
+#endif
 };
 
 #define RB_ADDR(offs, queue) ((u16) B16_RAM_REGS + (queue) + (offs))
@@ -2292,6 +2298,7 @@ struct sky2_hw {
 #define SKY2_HW_VLAN_BROKEN     0x00000200
 #define SKY2_HW_RSS_CHKSUM	0x00000400	/* RSS requires chksum */
 #define SKY2_HW_IRQ_SETUP	0x00000800
+#define SKY2_HW_USE_AEOLIA_MSI	0x00001000
 
 	u8	     	     chip_id;
 	u8		     chip_rev;

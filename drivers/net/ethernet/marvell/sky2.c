@@ -49,6 +49,10 @@
 
 #include <asm/irq.h>
 
+#ifdef CONFIG_X86_PS4
+#include <asm/ps4.h>
+#endif
+
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
@@ -144,6 +148,7 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4380) }, /* 88E8057 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4381) }, /* 88E8059 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4382) }, /* 88E8079 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_SONY, 0x909e) },
 	{ 0 }
 };
 
@@ -3258,6 +3263,19 @@ static void sky2_reset(struct sky2_hw *hw)
 	u16 status;
 	int i;
 	u32 hwe_mask = Y2_HWE_ALL_MASK;
+	u32 val1, val2;
+
+	sky2_write32(hw, 0x60, 0x32100);
+	sky2_write32(hw, 0x64, 6);
+	sky2_write32(hw, 0x68, 0x63b9c);
+	sky2_write32(hw, 0x6c, 0x300);
+	val1 = sky2_read32(hw, 0x158);
+	val2 = sky2_read32(hw, 0x160);
+	printk("sky2_probe:unk-vals:%08x %08x\n", val1, val2);
+	val1 &= ~0x33333333;
+	val2 &= ~0xCC00000;
+	sky2_write32(hw, 0x158, val1);
+	sky2_write32(hw, 0x160, val2);
 
 	/* disable ASF */
 	if (hw->chip_id == CHIP_ID_YUKON_EX
@@ -3323,55 +3341,56 @@ static void sky2_reset(struct sky2_hw *hw)
 		sky2_pci_write32(hw, PCI_DEV_REG3, P_CLK_MACSEC_DIS);
 	}
 
-	if (hw->chip_id == CHIP_ID_YUKON_OPT ||
-	    hw->chip_id == CHIP_ID_YUKON_PRM ||
-	    hw->chip_id == CHIP_ID_YUKON_OP_2) {
-		u16 reg;
-
-		if (hw->chip_id == CHIP_ID_YUKON_OPT && hw->chip_rev == 0) {
-			/* disable PCI-E PHY power down (set PHY reg 0x80, bit 7 */
-			sky2_write32(hw, Y2_PEX_PHY_DATA, (0x80UL << 16) | (1 << 7));
-
-			/* set PHY Link Detect Timer to 1.1 second (11x 100ms) */
-			reg = 10;
-
-			/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
-			sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
-		} else {
-			/* set PHY Link Detect Timer to 0.4 second (4x 100ms) */
-			reg = 3;
-		}
-
-		reg <<= PSM_CONFIG_REG4_TIMER_PHY_LINK_DETECT_BASE;
-		reg |= PSM_CONFIG_REG4_RST_PHY_LINK_DETECT;
-
-		/* reset PHY Link Detect */
-		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-		sky2_pci_write16(hw, PSM_CONFIG_REG4, reg);
-
-		/* check if PSMv2 was running before */
-		reg = sky2_pci_read16(hw, PSM_CONFIG_REG3);
-		if (reg & PCI_EXP_LNKCTL_ASPMC)
-			/* restore the PCIe Link Control register */
-			sky2_pci_write16(hw, pdev->pcie_cap + PCI_EXP_LNKCTL,
-					 reg);
-
-		if (hw->chip_id == CHIP_ID_YUKON_PRM &&
-			hw->chip_rev == CHIP_REV_YU_PRM_A0) {
-			/* change PHY Interrupt polarity to low active */
-			reg = sky2_read16(hw, GPHY_CTRL);
-			sky2_write16(hw, GPHY_CTRL, reg | GPC_INTPOL);
-
-			/* adapt HW for low active PHY Interrupt */
-			reg = sky2_read16(hw, Y2_CFG_SPC + PCI_LDO_CTRL);
-			sky2_write16(hw, Y2_CFG_SPC + PCI_LDO_CTRL, reg | PHY_M_UNDOC1);
-		}
-
-		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-
-		/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
-		sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
-	}
+	// This causes the device to hang on aeolia
+	//if (hw->chip_id == CHIP_ID_YUKON_OPT ||
+	//    hw->chip_id == CHIP_ID_YUKON_PRM ||
+	//    hw->chip_id == CHIP_ID_YUKON_OP_2) {
+	//	u16 reg;
+	//
+	//	if (hw->chip_id == CHIP_ID_YUKON_OPT && hw->chip_rev == 0) {
+	//		/* disable PCI-E PHY power down (set PHY reg 0x80, bit 7 */
+	//		sky2_write32(hw, Y2_PEX_PHY_DATA, (0x80UL << 16) | (1 << 7));
+	//
+	//		/* set PHY Link Detect Timer to 1.1 second (11x 100ms) */
+	//		reg = 10;
+	//
+	//		/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
+	//		sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
+	//	} else {
+	//		/* set PHY Link Detect Timer to 0.4 second (4x 100ms) */
+	//		reg = 3;
+	//	}
+	//
+	//	reg <<= PSM_CONFIG_REG4_TIMER_PHY_LINK_DETECT_BASE;
+	//	reg |= PSM_CONFIG_REG4_RST_PHY_LINK_DETECT;
+	//
+	//	/* reset PHY Link Detect */
+	//	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+	//	sky2_pci_write16(hw, PSM_CONFIG_REG4, reg);
+	//
+	//	/* check if PSMv2 was running before */
+	//	reg = sky2_pci_read16(hw, PSM_CONFIG_REG3);
+	//	if (reg & PCI_EXP_LNKCTL_ASPMC)
+	//		/* restore the PCIe Link Control register */
+	//		sky2_pci_write16(hw, pdev->pcie_cap + PCI_EXP_LNKCTL,
+	//				 reg);
+	//
+	//	if (hw->chip_id == CHIP_ID_YUKON_PRM &&
+	//		hw->chip_rev == CHIP_REV_YU_PRM_A0) {
+	//		/* change PHY Interrupt polarity to low active */
+	//		reg = sky2_read16(hw, GPHY_CTRL);
+	//		sky2_write16(hw, GPHY_CTRL, reg | GPC_INTPOL);
+	//
+	//		/* adapt HW for low active PHY Interrupt */
+	//		reg = sky2_read16(hw, Y2_CFG_SPC + PCI_LDO_CTRL);
+	//		sky2_write16(hw, Y2_CFG_SPC + PCI_LDO_CTRL, reg | PHY_M_UNDOC1);
+	//	}
+	//
+	//	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
+	//
+	//	/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
+	//	sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
+	//}
 
 	/* Clear I2C IRQ noise */
 	sky2_write32(hw, B2_I2C_IRQ, 1);
@@ -4750,7 +4769,9 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 {
 	struct sky2_port *sky2;
 	struct net_device *dev = alloc_etherdev(sizeof(*sky2));
-	const void *iap;
+	//const void *iap;
+	// TODO this should be read from SPM
+	u8 mac_address[ETH_ALEN] = { 0x52, 0x54, 0x00, 0xf0, 0xff, 0x0f };
 
 	if (!dev)
 		return NULL;
@@ -4812,12 +4833,16 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	 * 1) from device tree data
 	 * 2) from internal registers set by bootloader
 	 */
+	/*
 	iap = of_get_mac_address(hw->pdev->dev.of_node);
 	if (iap)
 		memcpy(dev->dev_addr, iap, ETH_ALEN);
 	else
 		memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8,
 			      ETH_ALEN);
+	*/
+	printk("FIXME: Using static eth0 mac addr\n");
+	memcpy(dev->dev_addr, mac_address, ETH_ALEN);
 
 	/* if the address is invalid, use a random value */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
@@ -4931,6 +4956,11 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 reg;
 	char buf1[16];
 
+#ifdef CONFIG_X86_PS4
+	if (apcie_status() == 0)
+		return -EPROBE_DEFER;
+#endif
+
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "cannot enable PCI device\n");
@@ -5034,6 +5064,18 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_pci;
 	}
 
+#ifdef CONFIG_X86_PS4
+	err = apcie_assign_irqs(pdev, 1);
+	if (err > 0) {
+		err = sky2_test_msi(hw);
+		if (err) {
+			apcie_free_irqs(pdev->irq, 1);
+			/* PS4 requires MSI, so if it fails, bail out. */
+			goto err_out_free_netdev;
+		}
+		hw->flags |= SKY2_HW_USE_AEOLIA_MSI;
+	} else
+#endif
 	if (!disable_msi && pci_enable_msi(pdev) == 0) {
 		err = sky2_test_msi(hw);
 		if (err) {
@@ -5090,6 +5132,11 @@ err_out_free_dev1:
 err_out_unregister:
 	unregister_netdev(dev);
 err_out_free_netdev:
+#ifdef CONFIG_X86_PS4
+	if (hw->flags & SKY2_HW_USE_AEOLIA_MSI)
+		apcie_free_irqs(pdev->irq, 1);
+	else
+#endif
 	if (hw->flags & SKY2_HW_USE_MSI)
 		pci_disable_msi(pdev);
 	free_netdev(dev);
@@ -5136,7 +5183,11 @@ static void sky2_remove(struct pci_dev *pdev)
 		napi_disable(&hw->napi);
 		free_irq(pdev->irq, hw);
 	}
-
+#ifdef CONFIG_X86_PS4
+	if (hw->flags & SKY2_HW_USE_AEOLIA_MSI)
+		apcie_free_irqs(pdev->irq, 1);
+	else
+#endif
 	if (hw->flags & SKY2_HW_USE_MSI)
 		pci_disable_msi(pdev);
 	pci_free_consistent(pdev, hw->st_size * sizeof(struct sky2_status_le),
