@@ -4299,9 +4299,9 @@ int wilc_del_station(struct wilc_vif *vif, const u8 *mac_addr)
 	return result;
 }
 
-s32 wilc_del_allstation(struct wilc_vif *vif, u8 pu8MacAddr[][ETH_ALEN])
+int wilc_del_allstation(struct wilc_vif *vif, u8 pu8MacAddr[][ETH_ALEN])
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct del_all_sta *pstrDelAllStationMsg = &msg.body.del_all_sta_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
