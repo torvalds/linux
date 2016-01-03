@@ -20,10 +20,8 @@
 #define PSEUDO_DMA
 
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
-#define NCR5380_local_declare()		struct Scsi_Host *_instance
-#define NCR5380_setup(instance)		_instance = instance
-#define NCR5380_read(reg)		cumanascsi_read(_instance, reg)
-#define NCR5380_write(reg, value)	cumanascsi_write(_instance, reg, value)
+#define NCR5380_read(reg)		cumanascsi_read(instance, reg)
+#define NCR5380_write(reg, value)	cumanascsi_write(instance, reg, value)
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
 #define NCR5380_info			cumanascsi_info

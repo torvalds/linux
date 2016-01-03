@@ -248,15 +248,15 @@ found:
 
 static int t128_release(struct Scsi_Host *shost)
 {
-	NCR5380_local_declare();
-	NCR5380_setup(shost);
+	struct NCR5380_hostdata *hostdata = shost_priv(shost);
+
 	if (shost->irq != NO_IRQ)
 		free_irq(shost->irq, shost);
 	NCR5380_exit(shost);
 	if (shost->io_port && shost->n_io_port)
 		release_region(shost->io_port, shost->n_io_port);
 	scsi_unregister(shost);
-	iounmap(base);
+	iounmap(hostdata->base);
 	return 0;
 }
 
@@ -302,14 +302,14 @@ static int t128_biosparam(struct scsi_device *sdev, struct block_device *bdev,
  * 	timeout.
  */
 
-static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
-    int len) {
-    NCR5380_local_declare();
-    void __iomem *reg;
+static inline int
+NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	void __iomem *reg, *base = hostdata->base;
     unsigned char *d = dst;
     register int i = len;
 
-    NCR5380_setup(instance);
     reg = base + T_DATA_REG_OFFSET;
 
 #if 0
@@ -348,14 +348,14 @@ static inline int NCR5380_pread (struct Scsi_Host *instance, unsigned char *dst,
  * 	timeout.
  */
 
-static inline int NCR5380_pwrite (struct Scsi_Host *instance, unsigned char *src,
-    int len) {
-    NCR5380_local_declare();
-    void __iomem *reg;
+static inline int
+NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	void __iomem *reg, *base = hostdata->base;
     unsigned char *s = src;
     register int i = len;
 
-    NCR5380_setup(instance);
     reg = base + T_DATA_REG_OFFSET;
 
 #if 0

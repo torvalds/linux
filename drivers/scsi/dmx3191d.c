@@ -36,12 +36,10 @@
 
 #define DONT_USE_INTR
 
-#define NCR5380_read(reg)		inb(port + reg)
-#define NCR5380_write(reg, value)	outb(value, port + reg)
+#define NCR5380_read(reg)		inb(instance->io_port + reg)
+#define NCR5380_write(reg, value)	outb(value, instance->io_port + reg)
 
 #define NCR5380_implementation_fields	/* none */
-#define NCR5380_local_declare()		unsigned int port
-#define NCR5380_setup(instance)		port = instance->io_port
 
 /*
  * Includes needed for NCR5380.[ch] (XXX: Move them to NCR5380.h)

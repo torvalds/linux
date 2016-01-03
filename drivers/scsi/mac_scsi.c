@@ -32,11 +32,9 @@
 #define PSEUDO_DMA
 
 #define NCR5380_implementation_fields   unsigned char *pdma_base
-#define NCR5380_local_declare()         struct Scsi_Host *_instance
-#define NCR5380_setup(instance)         _instance = instance
 
-#define NCR5380_read(reg)               macscsi_read(_instance, reg)
-#define NCR5380_write(reg, value)       macscsi_write(_instance, reg, value)
+#define NCR5380_read(reg)               macscsi_read(instance, reg)
+#define NCR5380_write(reg, value)       macscsi_write(instance, reg, value)
 
 #define NCR5380_pread                   macscsi_pread
 #define NCR5380_pwrite                  macscsi_pwrite
@@ -129,9 +127,6 @@ static void mac_scsi_reset_boot(struct Scsi_Host *instance)
 {
 	unsigned long end;
 
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
-	
 	/*
 	 * Do a SCSI reset to clean up the bus during initialization. No messing
 	 * with the queues, interrupts, or locks necessary here.
@@ -235,9 +230,6 @@ static int macscsi_pread(struct Scsi_Host *instance,
 	unsigned char *d;
 	unsigned char *s;
 
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
-
 	s = hostdata->pdma_base + (INPUT_DATA_REG << 4);
 	d = dst;
 
@@ -328,9 +320,6 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char *s;
 	unsigned char *d;
-
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
 
 	s = src;
 	d = hostdata->pdma_base + (OUTPUT_DATA_REG << 4);

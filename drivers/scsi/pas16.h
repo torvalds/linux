@@ -103,16 +103,9 @@
 #define CAN_QUEUE 32 
 #endif
 
-#define NCR5380_implementation_fields \
-    volatile unsigned short io_port
+#define NCR5380_implementation_fields /* none */
 
-#define NCR5380_local_declare() \
-    volatile unsigned short io_port
-
-#define NCR5380_setup(instance) \
-    io_port = (instance)->io_port
-
-#define PAS16_io_port(reg) ( io_port + pas16_offset[(reg)] )
+#define PAS16_io_port(reg) (instance->io_port + pas16_offset[(reg)])
 
 #define NCR5380_read(reg) ( inb(PAS16_io_port(reg)) )
 #define NCR5380_write(reg, value) ( outb((value),PAS16_io_port(reg)) )

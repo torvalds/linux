@@ -188,7 +188,7 @@ static void __init
 	outb( 0x01, io_port + P_TIMEOUT_STATUS_REG_OFFSET );   /* Reset TC */
 	outb( 0x01, io_port + WAIT_STATE );   /* 1 Wait state */
 
-	NCR5380_read( RESET_PARITY_INTERRUPT_REG );
+	inb(io_port + pas16_offset[RESET_PARITY_INTERRUPT_REG]);
 
 	/* Set the SCSI interrupt pointer without mucking up the sound
 	 * interrupt pointer in the same byte.
@@ -263,13 +263,13 @@ static int __init
      * put in an additional test to try to weed them out.
      */
 
-    outb( 0x01, io_port + WAIT_STATE ); 	/* 1 Wait state */
-    NCR5380_write( MODE_REG, 0x20 );		/* Is it really SCSI? */
-    if( NCR5380_read( MODE_REG ) != 0x20 )	/* Write to a reg.    */
-	return 0;				/* and try to read    */
-    NCR5380_write( MODE_REG, 0x00 );		/* it back.	      */
-    if( NCR5380_read( MODE_REG ) != 0x00 )
-	return 0;
+	outb(0x01, io_port + WAIT_STATE);             /* 1 Wait state */
+	outb(0x20, io_port + pas16_offset[MODE_REG]); /* Is it really SCSI? */
+	if (inb(io_port + pas16_offset[MODE_REG]) != 0x20) /* Write to a reg. */
+		return 0;                                  /* and try to read */
+	outb(0x00, io_port + pas16_offset[MODE_REG]);      /* it back. */
+	if (inb(io_port + pas16_offset[MODE_REG]) != 0x00)
+		return 0;
 
     return 1;
 }

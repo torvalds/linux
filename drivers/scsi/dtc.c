@@ -325,8 +325,6 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	unsigned char *d = dst;
 	int i;			/* For counting time spent in the poll-loop */
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
 
 	i = 0;
 	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
@@ -342,7 +340,7 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 		while (NCR5380_read(DTC_CONTROL_REG) & CSR_HOST_BUF_NOT_RDY)
 			++i;
 		rtrc(3);
-		memcpy_fromio(d, base + DTC_DATA_BUF, 128);
+		memcpy_fromio(d, hostdata->base + DTC_DATA_BUF, 128);
 		d += 128;
 		len -= 128;
 		rtrc(7);
@@ -377,8 +375,6 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 {
 	int i;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
 
 	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 	NCR5380_write(MODE_REG, MR_ENABLE_EOP_INTR | MR_DMA_MODE);
@@ -394,7 +390,7 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 		while (NCR5380_read(DTC_CONTROL_REG) & CSR_HOST_BUF_NOT_RDY)
 			++i;
 		rtrc(3);
-		memcpy_toio(base + DTC_DATA_BUF, src, 128);
+		memcpy_toio(hostdata->base + DTC_DATA_BUF, src, 128);
 		src += 128;
 		len -= 128;
 	}
@@ -420,15 +416,15 @@ MODULE_LICENSE("GPL");
 
 static int dtc_release(struct Scsi_Host *shost)
 {
-	NCR5380_local_declare();
-	NCR5380_setup(shost);
+	struct NCR5380_hostdata *hostdata = shost_priv(shost);
+
 	if (shost->irq != NO_IRQ)
 		free_irq(shost->irq, shost);
 	NCR5380_exit(shost);
 	if (shost->io_port && shost->n_io_port)
 		release_region(shost->io_port, shost->n_io_port);
 	scsi_unregister(shost);
-	iounmap(base);
+	iounmap(hostdata->base);
 	return 0;
 }
 

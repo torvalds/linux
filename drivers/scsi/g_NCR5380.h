@@ -46,17 +46,12 @@
 #define NCR5380_region_size 8
 #endif
 
-#define NCR5380_read(reg) (inb(NCR5380_map_name + (reg)))
-#define NCR5380_write(reg, value) (outb((value), (NCR5380_map_name + (reg))))
+#define NCR5380_read(reg) \
+	inb(instance->io_port + (reg))
+#define NCR5380_write(reg, value) \
+	outb(value, instance->io_port + (reg))
 
-#define NCR5380_implementation_fields \
-    NCR5380_map_type NCR5380_map_name
-
-#define NCR5380_local_declare() \
-    register NCR5380_implementation_fields
-
-#define NCR5380_setup(instance) \
-    NCR5380_map_name = (NCR5380_map_type)((instance)->NCR5380_instance_name)
+#define NCR5380_implementation_fields /* none */
 
 #else 
 /* therefore SCSI_G_NCR5380_MEM */
@@ -70,18 +65,15 @@
 #define NCR53C400_host_buffer 0x3900
 #define NCR5380_region_size 0x3a00
 
-#define NCR5380_read(reg) readb(iomem + NCR53C400_mem_base + (reg))
-#define NCR5380_write(reg, value) writeb(value, iomem + NCR53C400_mem_base + (reg))
+#define NCR5380_read(reg) \
+	readb(((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
+	      NCR53C400_mem_base + (reg))
+#define NCR5380_write(reg, value) \
+	writeb(value, ((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
+	       NCR53C400_mem_base + (reg))
 
 #define NCR5380_implementation_fields \
-    NCR5380_map_type NCR5380_map_name; \
     void __iomem *iomem;
-
-#define NCR5380_local_declare() \
-    register void __iomem *iomem
-
-#define NCR5380_setup(instance) \
-    iomem = (((struct NCR5380_hostdata *)(instance)->hostdata)->iomem)
 
 #endif
 

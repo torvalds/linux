@@ -21,13 +21,8 @@
 #define NCR5380_implementation_fields \
     void __iomem *base
 
-#define NCR5380_local_declare() \
-    void __iomem *base
-
-#define NCR5380_setup(instance) \
-    base = ((struct NCR5380_hostdata *)(instance)->hostdata)->base
-
-#define DTC_address(reg) (base + DTC_5380_OFFSET + reg)
+#define DTC_address(reg) \
+	(((struct NCR5380_hostdata *)shost_priv(instance))->base + DTC_5380_OFFSET + reg)
 
 #define NCR5380_read(reg) (readb(DTC_address(reg)))
 #define NCR5380_write(reg, value) (writeb(value, DTC_address(reg)))

@@ -20,11 +20,12 @@
 #define DONT_USE_INTR
 
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
-#define NCR5380_local_declare()		void __iomem *_base
-#define NCR5380_setup(host)		_base = priv(host)->base
 
-#define NCR5380_read(reg)		readb(_base + ((reg) << 2))
-#define NCR5380_write(reg, value)	writeb(value, _base + ((reg) << 2))
+#define NCR5380_read(reg) \
+	readb(priv(instance)->base + ((reg) << 2))
+#define NCR5380_write(reg, value) \
+	writeb(value, priv(instance)->base + ((reg) << 2))
+
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info
 #define NCR5380_show_info		oakscsi_show_info

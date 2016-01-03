@@ -459,9 +459,6 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
  
 static int generic_NCR5380_release_resources(struct Scsi_Host *instance)
 {
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
-	
 	if (instance->irq != NO_IRQ)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
@@ -520,12 +517,12 @@ generic_NCR5380_biosparam(struct scsi_device *sdev, struct block_device *bdev,
  
 static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
 {
+#ifdef SCSI_G_NCR5380_MEM
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+#endif
 	int blocks = len / 128;
 	int start = 0;
 	int bl;
-
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
 
 	NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE | CSR_TRANS_DIR);
 	NCR5380_write(C400_BLOCK_COUNTER_REG, blocks);
@@ -547,7 +544,8 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 		}
 #else
 		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_fromio(dst + start, iomem + NCR53C400_host_buffer, 128);
+		memcpy_fromio(dst + start,
+		              hostdata->iomem + NCR53C400_host_buffer, 128);
 #endif
 		start += 128;
 		blocks--;
@@ -567,7 +565,8 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 		}
 #else
 		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_fromio(dst + start, iomem + NCR53C400_host_buffer, 128);
+		memcpy_fromio(dst + start,
+		              hostdata->iomem + NCR53C400_host_buffer, 128);
 #endif
 		start += 128;
 		blocks--;
@@ -604,13 +603,13 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 
 static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
 {
+#ifdef SCSI_G_NCR5380_MEM
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+#endif
 	int blocks = len / 128;
 	int start = 0;
 	int bl;
 	int i;
-
-	NCR5380_local_declare();
-	NCR5380_setup(instance);
 
 	NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE);
 	NCR5380_write(C400_BLOCK_COUNTER_REG, blocks);
@@ -632,7 +631,8 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 		}
 #else
 		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_toio(iomem + NCR53C400_host_buffer, src + start, 128);
+		memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
+		            src + start, 128);
 #endif
 		start += 128;
 		blocks--;
@@ -648,7 +648,8 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 		}
 #else
 		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_toio(iomem + NCR53C400_host_buffer, src + start, 128);
+		memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
+		            src + start, 128);
 #endif
 		start += 128;
 		blocks--;

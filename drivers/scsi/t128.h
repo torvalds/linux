@@ -78,13 +78,8 @@
 #define NCR5380_implementation_fields \
     void __iomem *base
 
-#define NCR5380_local_declare() \
-    void __iomem *base
-
-#define NCR5380_setup(instance) \
-    base = ((struct NCR5380_hostdata *)(instance->hostdata))->base
-
-#define T128_address(reg) (base + T_5380_OFFSET + ((reg) * 0x20))
+#define T128_address(reg) \
+	(((struct NCR5380_hostdata *)shost_priv(instance))->base + T_5380_OFFSET + ((reg) * 0x20))
 
 #define NCR5380_read(reg) readb(T128_address(reg))
 #define NCR5380_write(reg, value) writeb((value),(T128_address(reg)))
