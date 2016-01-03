@@ -4159,10 +4159,10 @@ int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 	return result;
 }
 
-s32 wilc_add_beacon(struct wilc_vif *vif, u32 u32Interval, u32 u32DTIMPeriod,
+int wilc_add_beacon(struct wilc_vif *vif, u32 u32Interval, u32 u32DTIMPeriod,
 		    u32 u32HeadLen, u8 *pu8Head, u32 u32TailLen, u8 *pu8Tail)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct beacon_attr *pstrSetBeaconParam = &msg.body.beacon_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
