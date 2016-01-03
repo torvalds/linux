@@ -876,7 +876,7 @@ static int lmv_hsm_ct_register(struct lmv_obd *lmv, unsigned int cmd, int len,
 }
 
 static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
-			 int len, void *karg, void *uarg)
+			 int len, void *karg, void __user *uarg)
 {
 	struct obd_device    *obddev = class_exp2obd(exp);
 	struct lmv_obd       *lmv = &obddev->u.lmv;

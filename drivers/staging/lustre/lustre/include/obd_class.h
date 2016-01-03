@@ -1155,7 +1155,7 @@ static inline int obd_adjust_kms(struct obd_export *exp,
 }
 
 static inline int obd_iocontrol(unsigned int cmd, struct obd_export *exp,
-				int len, void *karg, void *uarg)
+				int len, void *karg, void __user *uarg)
 {
 	int rc;
 

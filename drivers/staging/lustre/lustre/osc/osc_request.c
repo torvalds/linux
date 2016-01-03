@@ -2591,7 +2591,7 @@ static int osc_getstripe(struct lov_stripe_md *lsm, struct lov_user_md *lump)
 }
 
 static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
-			 void *karg, void *uarg)
+			 void *karg, void __user *uarg)
 {
 	struct obd_device *obd = exp->exp_obd;
 	struct obd_ioctl_data *data = karg;

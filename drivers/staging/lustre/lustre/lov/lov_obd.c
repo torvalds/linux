@@ -1385,7 +1385,7 @@ static int lov_statfs(const struct lu_env *env, struct obd_export *exp,
 }
 
 static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
-			 void *karg, void *uarg)
+			 void *karg, void __user *uarg)
 {
 	struct obd_device *obddev = class_exp2obd(exp);
 	struct lov_obd *lov = &obddev->u.lov;

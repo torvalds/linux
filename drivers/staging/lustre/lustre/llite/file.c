@@ -1518,7 +1518,7 @@ static int ll_lov_setstripe(struct inode *inode, struct file *file,
 		ll_layout_refresh(inode, &gen);
 		lsm = ccc_inode_lsm_get(inode);
 		rc = obd_iocontrol(LL_IOC_LOV_GETSTRIPE, ll_i2dtexp(inode),
-				   0, lsm, (void *)arg);
+				   0, lsm, (void __user *)arg);
 		ccc_inode_lsm_put(inode, lsm);
 	}
 	return rc;
@@ -1532,7 +1532,7 @@ static int ll_lov_getstripe(struct inode *inode, unsigned long arg)
 	lsm = ccc_inode_lsm_get(inode);
 	if (lsm != NULL)
 		rc = obd_iocontrol(LL_IOC_LOV_GETSTRIPE, ll_i2dtexp(inode), 0,
-				   lsm, (void *)arg);
+				   lsm, (void __user *)arg);
 	ccc_inode_lsm_put(inode, lsm);
 	return rc;
 }
@@ -2497,7 +2497,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return err;
 
 		return obd_iocontrol(cmd, ll_i2dtexp(inode), 0, NULL,
-				     (void *)arg);
+				     (void __user *)arg);
 	}
 	}
 }

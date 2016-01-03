@@ -1722,7 +1722,7 @@ static int mdc_ioc_swap_layouts(struct obd_export *exp,
 }
 
 static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
-			 void *karg, void *uarg)
+			 void *karg, void __user *uarg)
 {
 	struct obd_device *obd = exp->exp_obd;
 	struct obd_ioctl_data *data = karg;

@@ -1619,7 +1619,7 @@ static int echo_client_brw_ioctl(const struct lu_env *env, int rw,
 
 static int
 echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
-		      void *karg, void *uarg)
+		      void *karg, void __user *uarg)
 {
 	struct obd_device      *obd = exp->exp_obd;
 	struct echo_device     *ed = obd2echo_dev(obd);
