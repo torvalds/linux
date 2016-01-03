@@ -61,6 +61,9 @@ static int rnet_htable_size = LNET_REMOTE_NETS_HASH_DEFAULT;
 module_param(rnet_htable_size, int, 0444);
 MODULE_PARM_DESC(rnet_htable_size, "size of remote network hash table");
 
+static int lnet_ping(lnet_process_id_t id, int timeout_ms,
+		     lnet_process_id_t *ids, int n_ids);
+
 static char *
 lnet_get_routes(void)
 {
@@ -1672,8 +1675,8 @@ lnet_ping_target_fini(void)
 	cfs_restore_sigs(blocked);
 }
 
-int
-lnet_ping(lnet_process_id_t id, int timeout_ms, lnet_process_id_t *ids, int n_ids)
+static int lnet_ping(lnet_process_id_t id, int timeout_ms,
+		     lnet_process_id_t *ids, int n_ids)
 {
 	lnet_handle_eq_t eqh;
 	lnet_handle_md_t mdh;
