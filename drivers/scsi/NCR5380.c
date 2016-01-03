@@ -2039,7 +2039,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 
 					dprintk(NDEBUG_EXTENDED, "scsi%d : length=%d, code=0x%02x\n", instance->host_no, (int) extended_msg[1], (int) extended_msg[2]);
 
-					if (!len && extended_msg[1] <= (sizeof(extended_msg) - 1)) {
+					if (!len && extended_msg[1] > 0 &&
+					    extended_msg[1] <= sizeof(extended_msg) - 2) {
 						/* Accept third byte by clearing ACK */
 						NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 						len = extended_msg[1] - 1;
