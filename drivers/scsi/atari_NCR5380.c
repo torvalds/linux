@@ -418,6 +418,9 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
 		cmd->SCp.ptr = NULL;
 		cmd->SCp.this_residual = 0;
 	}
+
+	cmd->SCp.Status = 0;
+	cmd->SCp.Message = 0;
 }
 
 /**
@@ -661,6 +664,8 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 #endif
 	spin_lock_init(&hostdata->lock);
 	hostdata->connected = NULL;
+	hostdata->sensing = NULL;
+	INIT_LIST_HEAD(&hostdata->autosense);
 	INIT_LIST_HEAD(&hostdata->unissued);
 	INIT_LIST_HEAD(&hostdata->disconnected);
 
@@ -777,6 +782,16 @@ static void complete_cmd(struct Scsi_Host *instance,
 
 	dsprintk(NDEBUG_QUEUES, instance, "complete_cmd: cmd %p\n", cmd);
 
+	if (hostdata->sensing == cmd) {
+		/* Autosense processing ends here */
+		if ((cmd->result & 0xff) != SAM_STAT_GOOD) {
+			scsi_eh_restore_cmnd(cmd, &hostdata->ses);
+			set_host_byte(cmd, DID_ERROR);
+		} else
+			scsi_eh_restore_cmnd(cmd, &hostdata->ses);
+		hostdata->sensing = NULL;
+	}
+
 #ifdef SUPPORT_TAGS
 	cmd_free_tag(cmd);
 #else
@@ -868,9 +883,74 @@ static inline void maybe_release_dma_irq(struct Scsi_Host *instance)
 	/* Caller does the locking needed to set & test these data atomically */
 	if (list_empty(&hostdata->disconnected) &&
 	    list_empty(&hostdata->unissued) &&
+	    list_empty(&hostdata->autosense) &&
 	    !hostdata->connected &&
 	    !hostdata->retain_dma_intr)
 		NCR5380_release_dma_irq(instance);
+}
+
+/**
+ * dequeue_next_cmd - dequeue a command for processing
+ * @instance: the scsi host instance
+ *
+ * Priority is given to commands on the autosense queue. These commands
+ * need autosense because of a CHECK CONDITION result.
+ *
+ * Returns a command pointer if a command is found for a target that is
+ * not already busy. Otherwise returns NULL.
+ */
+
+static struct scsi_cmnd *dequeue_next_cmd(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	struct NCR5380_cmd *ncmd;
+	struct scsi_cmnd *cmd;
+
+	if (list_empty(&hostdata->autosense)) {
+		list_for_each_entry(ncmd, &hostdata->unissued, list) {
+			cmd = NCR5380_to_scmd(ncmd);
+			dsprintk(NDEBUG_QUEUES, instance, "dequeue: cmd=%p target=%d busy=0x%02x lun=%llu\n",
+			         cmd, scmd_id(cmd), hostdata->busy[scmd_id(cmd)], cmd->device->lun);
+
+			if (
+#ifdef SUPPORT_TAGS
+			    !is_lun_busy(cmd, 1)
+#else
+			    !(hostdata->busy[scmd_id(cmd)] & (1 << cmd->device->lun))
+#endif
+			) {
+				list_del(&ncmd->list);
+				dsprintk(NDEBUG_QUEUES, instance,
+				         "dequeue: removed %p from issue queue\n", cmd);
+				return cmd;
+			}
+		}
+	} else {
+		/* Autosense processing begins here */
+		ncmd = list_first_entry(&hostdata->autosense,
+		                        struct NCR5380_cmd, list);
+		list_del(&ncmd->list);
+		cmd = NCR5380_to_scmd(ncmd);
+		dsprintk(NDEBUG_QUEUES, instance,
+		         "dequeue: removed %p from autosense queue\n", cmd);
+		scsi_eh_prep_cmnd(cmd, &hostdata->ses, NULL, 0, ~0);
+		hostdata->sensing = cmd;
+		return cmd;
+	}
+	return NULL;
+}
+
+static void requeue_cmd(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
+
+	if (hostdata->sensing) {
+		scsi_eh_restore_cmnd(cmd, &hostdata->ses);
+		list_add(&ncmd->list, &hostdata->autosense);
+		hostdata->sensing = NULL;
+	} else
+		list_add(&ncmd->list, &hostdata->unissued);
 }
 
 /**
@@ -889,7 +969,7 @@ static void NCR5380_main(struct work_struct *work)
 	struct NCR5380_hostdata *hostdata =
 		container_of(work, struct NCR5380_hostdata, main_task);
 	struct Scsi_Host *instance = hostdata->host;
-	struct NCR5380_cmd *ncmd, *n;
+	struct scsi_cmnd *cmd;
 	int done;
 
 	/*
@@ -902,75 +982,46 @@ static void NCR5380_main(struct work_struct *work)
 	do {
 		done = 1;
 
-		if (!hostdata->connected) {
-			dprintk(NDEBUG_MAIN, "scsi%d: not connected\n", HOSTNO);
+		while (!hostdata->connected &&
+		       (cmd = dequeue_next_cmd(instance))) {
+
+			dsprintk(NDEBUG_MAIN, instance, "main: dequeued %p\n", cmd);
+
 			/*
-			 * Search through the issue_queue for a command destined
-			 * for a target that's not busy.
+			 * Attempt to establish an I_T_L nexus here.
+			 * On success, instance->hostdata->connected is set.
+			 * On failure, we must add the command back to the
+			 * issue queue so we can keep trying.
 			 */
-			list_for_each_entry_safe(ncmd, n, &hostdata->unissued,
-			                         list) {
-				struct scsi_cmnd *tmp = NCR5380_to_scmd(ncmd);
-				u8 lun = tmp->device->lun;
-
-				dsprintk(NDEBUG_QUEUES, instance, "main: tmp=%p target=%d busy=%d lun=%d\n",
-				         tmp, scmd_id(tmp), hostdata->busy[scmd_id(tmp)], lun);
-				/*  When we find one, remove it from the issue queue. */
-				if (
-#ifdef SUPPORT_TAGS
-				    !is_lun_busy( tmp, tmp->cmnd[0] != REQUEST_SENSE)
-#else
-				    !(hostdata->busy[tmp->device->id] & (1 << lun))
-#endif
-				    ) {
-					list_del(&ncmd->list);
-					dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES,
-					         instance, "main: removed %p from issue queue\n",
-					         tmp);
-
-					hostdata->retain_dma_intr++;
-
-					/*
-					 * Attempt to establish an I_T_L nexus here.
-					 * On success, instance->hostdata->connected is set.
-					 * On failure, we must add the command back to the
-					 *   issue queue so we can keep trying.
-					 */
-					/*
-					 * REQUEST SENSE commands are issued without tagged
-					 * queueing, even on SCSI-II devices because the
-					 * contingent allegiance condition exists for the
-					 * entire unit.
-					 */
-					/* ++roman: ...and the standard also requires that
-					 * REQUEST SENSE command are untagged.
-					 */
+			/*
+			 * REQUEST SENSE commands are issued without tagged
+			 * queueing, even on SCSI-II devices because the
+			 * contingent allegiance condition exists for the
+			 * entire unit.
+			 */
+			/* ++roman: ...and the standard also requires that
+			 * REQUEST SENSE command are untagged.
+			 */
 
 #ifdef SUPPORT_TAGS
-					cmd_get_tag(tmp, tmp->cmnd[0] != REQUEST_SENSE);
+			cmd_get_tag(cmd, cmd->cmnd[0] != REQUEST_SENSE);
 #endif
-					if (!NCR5380_select(instance, tmp)) {
-						/* OK or bad target */
-						hostdata->retain_dma_intr--;
-						maybe_release_dma_irq(instance);
-					} else {
-						/* Need to retry */
-						list_add(&ncmd->list, &hostdata->unissued);
-						dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES,
-						         instance, "main: select() failed, %p returned to issue queue\n",
-						         tmp);
+			hostdata->retain_dma_intr++;
+			if (!NCR5380_select(instance, cmd)) {
+				dsprintk(NDEBUG_MAIN, instance, "main: selected target %d for command %p\n",
+				         scmd_id(cmd), cmd);
+				hostdata->retain_dma_intr--;
+				maybe_release_dma_irq(instance);
+			} else {
+				hostdata->retain_dma_intr--;
+				dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES, instance,
+				         "main: select failed, returning %p to queue\n", cmd);
+				requeue_cmd(instance, cmd);
 #ifdef SUPPORT_TAGS
-						cmd_free_tag(tmp);
+				cmd_free_tag(cmd);
 #endif
-						hostdata->retain_dma_intr--;
-						done = 0;
-					}
-					if (hostdata->connected)
-						break;
-				} /* if target/lun/target queue is not busy */
-			} /* for issue_queue */
-		} /* if (!hostdata->connected) */
-
+			}
+		}
 		if (hostdata->connected
 #ifdef REAL_DMA
 		    && !hostdata->dma_len
@@ -2002,48 +2053,21 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					}
 #endif
 
-					/*
-					 * I'm not sure what the correct thing to do here is :
-					 *
-					 * If the command that just executed is NOT a request
-					 * sense, the obvious thing to do is to set the result
-					 * code to the values of the stored parameters.
-					 *
-					 * If it was a REQUEST SENSE command, we need some way to
-					 * differentiate between the failure code of the original
-					 * and the failure code of the REQUEST sense - the obvious
-					 * case is success, where we fall through and leave the
-					 * result code unchanged.
-					 *
-					 * The non-obvious place is where the REQUEST SENSE failed
-					 */
+					cmd->result &= ~0xffff;
+					cmd->result |= cmd->SCp.Status;
+					cmd->result |= cmd->SCp.Message << 8;
 
-					if (cmd->cmnd[0] != REQUEST_SENSE)
-						cmd->result = cmd->SCp.Status | (cmd->SCp.Message << 8);
-					else if (status_byte(cmd->SCp.Status) != GOOD)
-						cmd->result = (cmd->result & 0x00ffff) | (DID_ERROR << 16);
-
-					if ((cmd->cmnd[0] == REQUEST_SENSE) &&
-						hostdata->ses.cmd_len) {
-						scsi_eh_restore_cmnd(cmd, &hostdata->ses);
-						hostdata->ses.cmd_len = 0 ;
-					}
-
-					if ((cmd->cmnd[0] != REQUEST_SENSE) &&
-					    (status_byte(cmd->SCp.Status) == CHECK_CONDITION)) {
-						scsi_eh_prep_cmnd(cmd, &hostdata->ses, NULL, 0, ~0);
-
-						list_add(&ncmd->list, &hostdata->unissued);
-						dsprintk(NDEBUG_AUTOSENSE | NDEBUG_QUEUES,
-						         instance, "REQUEST SENSE cmd %p added to head of issue queue\n",
-						         cmd);
-#ifdef SUPPORT_TAGS
-						cmd_free_tag(cmd);
-#else
-						hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
-#endif
-					} else {
+					if (cmd->cmnd[0] == REQUEST_SENSE)
 						complete_cmd(instance, cmd);
+					else {
+						if (cmd->SCp.Status == SAM_STAT_CHECK_CONDITION ||
+						    cmd->SCp.Status == SAM_STAT_COMMAND_TERMINATED) {
+							dsprintk(NDEBUG_QUEUES, instance, "autosense: adding cmd %p to tail of autosense queue\n",
+							         cmd);
+							list_add_tail(&ncmd->list,
+							              &hostdata->autosense);
+						} else
+							complete_cmd(instance, cmd);
 					}
 
 					/*
@@ -2532,6 +2556,15 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	if (hostdata->connected)
 		dsprintk(NDEBUG_ABORT, instance, "reset aborted a connected command\n");
 	hostdata->connected = NULL;
+
+	if (hostdata->sensing) {
+		complete_cmd(instance, hostdata->sensing);
+		hostdata->sensing = NULL;
+	}
+
+	if (!list_empty(&hostdata->autosense))
+		dsprintk(NDEBUG_ABORT, instance, "reset aborted autosense list\n");
+	INIT_LIST_HEAD(&hostdata->autosense);
 
 	if (!list_empty(&hostdata->unissued))
 		dsprintk(NDEBUG_ABORT, instance, "reset aborted unissued list\n");

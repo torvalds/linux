@@ -256,10 +256,12 @@ struct NCR5380_hostdata {
 	unsigned char last_message;		/* last message OUT */
 	struct scsi_cmnd *connected;		/* currently connected cmnd */
 	struct list_head unissued;		/* waiting to be issued */
+	struct list_head autosense;		/* priority issue queue */
 	struct list_head disconnected;		/* waiting for reconnect */
 	spinlock_t lock;			/* protects this struct */
 	int flags;
 	struct scsi_eh_save ses;
+	struct scsi_cmnd *sensing;
 	char info[256];
 	int read_overruns;                /* number of bytes to cut from a
 	                                   * transfer to handle chip overruns */
