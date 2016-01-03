@@ -1384,7 +1384,6 @@ part2:
 		cmd->scsi_done(cmd);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		dprintk(NDEBUG_SELECTION, "scsi%d : target did not respond within 250ms\n", instance->host_no);
-		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		return 0;
 	}
 	hostdata->targets_present |= (1 << scmd_id(cmd));
@@ -2076,7 +2075,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						scmd_printk(KERN_INFO, cmd,
 							    "switching to slow handshake\n");
 						cmd->device->borken = 1;
-						NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
 						sink = 1;
 						do_abort(instance);
 						cmd->result = DID_ERROR << 16;
