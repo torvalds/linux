@@ -4061,7 +4061,7 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
 	return;
 }
 
-int wilc_remain_on_channel(struct wilc_vif *vif, u32 u32SessionID,
+int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 			   u32 u32duration, u16 chan,
 			   wilc_remain_on_chan_expired RemainOnChanExpired,
 			   wilc_remain_on_chan_ready RemainOnChanReady,
@@ -4084,7 +4084,7 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u32 u32SessionID,
 	msg.body.remain_on_ch.ready = RemainOnChanReady;
 	msg.body.remain_on_ch.arg = pvUserArg;
 	msg.body.remain_on_ch.duration = u32duration;
-	msg.body.remain_on_ch.id = u32SessionID;
+	msg.body.remain_on_ch.id = session_id;
 	msg.vif = vif;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
