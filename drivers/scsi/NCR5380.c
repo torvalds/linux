@@ -654,9 +654,6 @@ static void prepare_info(struct Scsi_Host *instance)
 #ifdef UNSAFE
 	         "UNSAFE "
 #endif
-#ifdef NCR53C400
-	         "NCR53C400 "
-#endif
 	         "");
 }
 
@@ -782,15 +779,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 
 	if(in_interrupt())
 		printk(KERN_ERR "NCR5380_init called with interrupts off!\n");
-	/* 
-	 * On NCR53C400 boards, NCR5380 registers are mapped 8 past 
-	 * the base address.
-	 */
-
-#ifdef NCR53C400
-	if (flags & FLAG_NCR53C400)
-		instance->io_port += NCR53C400_address_adjust;
-#endif
 
 	hostdata->aborted = 0;
 	hostdata->id_mask = 1 << instance->this_id;
@@ -824,12 +812,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	NCR5380_write(MODE_REG, MR_BASE);
 	NCR5380_write(TARGET_COMMAND_REG, 0);
 	NCR5380_write(SELECT_ENABLE_REG, 0);
-
-#ifdef NCR53C400
-	if (hostdata->flags & FLAG_NCR53C400) {
-		NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE);
-	}
-#endif
 	return 0;
 }
 

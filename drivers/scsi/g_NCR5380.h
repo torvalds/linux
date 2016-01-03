@@ -14,7 +14,7 @@
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 
-#ifdef NCR53C400
+#ifdef CONFIG_SCSI_GENERIC_NCR53C400
 #define BIOSPARAM
 #define NCR5380_BIOSPARAM generic_NCR5380_biosparam
 #else
@@ -37,9 +37,8 @@
 #define NCR5380_map_type int
 #define NCR5380_map_name port
 #define NCR53C400_register_offset 0
-#define NCR53C400_address_adjust 8
 
-#ifdef NCR53C400
+#ifdef CONFIG_SCSI_GENERIC_NCR53C400
 #define NCR5380_region_size 16
 #else
 #define NCR5380_region_size 8
@@ -58,7 +57,6 @@
 #define NCR5380_map_type unsigned long
 #define NCR5380_map_name base
 #define NCR53C400_register_offset 0x108
-#define NCR53C400_address_adjust 0
 #define NCR53C400_mem_base 0x3880
 #define NCR53C400_host_buffer 0x3900
 #define NCR5380_region_size 0x3a00

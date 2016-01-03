@@ -64,9 +64,7 @@
 #define AUTOPROBE_IRQ
 
 #ifdef CONFIG_SCSI_GENERIC_NCR53C400
-#define NCR53C400_PSEUDO_DMA 1
 #define PSEUDO_DMA
-#define NCR53C400
 #endif
 
 #include <asm/io.h>
@@ -263,7 +261,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 	static unsigned int __initdata dtc_3181e_ports[] = {
 		0x220, 0x240, 0x280, 0x2a0, 0x2c0, 0x300, 0x320, 0x340, 0
 	};
-	int flags = 0;
+	int flags;
 	struct Scsi_Host *instance;
 #ifdef SCSI_G_NCR5380_MEM
 	unsigned long base;
@@ -324,12 +322,15 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 			continue;
 
 		ports = NULL;
+		flags = 0;
 		switch (overrides[current_override].board) {
 		case BOARD_NCR5380:
 			flags = FLAG_NO_PSEUDO_DMA;
 			break;
 		case BOARD_NCR53C400:
+#ifdef PSEUDO_DMA
 			flags = FLAG_NCR53C400;
+#endif
 			break;
 		case BOARD_NCR53C400A:
 			flags = FLAG_NO_PSEUDO_DMA;
@@ -415,12 +416,22 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 #ifndef SCSI_G_NCR5380_MEM
 		instance->io_port = overrides[current_override].NCR5380_map_name;
 		instance->n_io_port = region_size;
+
+		/*
+		 * On NCR53C400 boards, NCR5380 registers are mapped 8 past
+		 * the base address.
+		 */
+		if (overrides[current_override].board == BOARD_NCR53C400)
+			instance->io_port += 8;
 #else
 		instance->base = overrides[current_override].NCR5380_map_name;
 		((struct NCR5380_hostdata *)instance->hostdata)->iomem = iomem;
 #endif
 
 		NCR5380_init(instance, flags);
+
+		if (overrides[current_override].board == BOARD_NCR53C400)
+			NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE);
 
 		NCR5380_maybe_reset_bus(instance);
 
@@ -506,7 +517,7 @@ generic_NCR5380_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 }
 #endif
 
-#ifdef NCR53C400_PSEUDO_DMA
+#ifdef PSEUDO_DMA
 
 /**
  *	NCR5380_pread		-	pseudo DMA read
@@ -690,7 +701,7 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 		; 	// TIMEOUT
 	return 0;
 }
-#endif				/* PSEUDO_DMA */
+#endif /* PSEUDO_DMA */
 
 /*
  *	Include the NCR5380 core code that we build our driver around	
