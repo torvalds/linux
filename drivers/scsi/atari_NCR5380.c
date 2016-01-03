@@ -1,15 +1,15 @@
 /*
  * NCR 5380 generic driver routines.  These should make it *trivial*
- *	to implement 5380 SCSI drivers under Linux with a non-trantor
- *	architecture.
+ * to implement 5380 SCSI drivers under Linux with a non-trantor
+ * architecture.
  *
- *	Note that these routines also work with NR53c400 family chips.
+ * Note that these routines also work with NR53c400 family chips.
  *
  * Copyright 1993, Drew Eckhardt
- *	Visionary Computing
- *	(Unix and Linux consulting and custom programming)
- *	drew@colorado.edu
- *	+1 (303) 666-5836
+ * Visionary Computing
+ * (Unix and Linux consulting and custom programming)
+ * drew@colorado.edu
+ * +1 (303) 666-5836
  *
  * For more information, please consult
  *
@@ -93,10 +93,10 @@
  *
  * These macros control options :
  * AUTOSENSE - if defined, REQUEST SENSE will be performed automatically
- *	for commands that return with a CHECK CONDITION status.
+ * for commands that return with a CHECK CONDITION status.
  *
  * DIFFERENTIAL - if defined, NCR53c81 chips will use external differential
- *	transceivers.
+ * transceivers.
  *
  * REAL_DMA - if defined, REAL DMA is used during the data transfer phases.
  *
@@ -109,17 +109,17 @@
  * NCR5380_write(register, value) - write to the specific register
  *
  * NCR5380_implementation_fields  - additional fields needed for this
- *      specific implementation of the NCR5380
+ * specific implementation of the NCR5380
  *
  * Either real DMA *or* pseudo DMA may be implemented
  * REAL functions :
  * NCR5380_REAL_DMA should be defined if real DMA is to be used.
  * Note that the DMA setup functions should return the number of bytes
- *	that they were able to program the controller for.
+ * that they were able to program the controller for.
  *
  * Also note that generic i386/PC versions of these macros are
- *	available as NCR5380_i386_dma_write_setup,
- *	NCR5380_i386_dma_read_setup, and NCR5380_i386_dma_residual.
+ * available as NCR5380_i386_dma_write_setup,
+ * NCR5380_i386_dma_read_setup, and NCR5380_i386_dma_residual.
  *
  * NCR5380_dma_write_setup(instance, src, count) - initialize
  * NCR5380_dma_read_setup(instance, dst, count) - initialize
@@ -974,7 +974,7 @@ static void NCR5380_main(struct work_struct *work)
  * Function : void NCR5380_dma_complete (struct Scsi_Host *instance)
  *
  * Purpose : Called by interrupt handler when DMA finishes or a phase
- *	mismatch occurs (which would finish the DMA transfer).
+ * mismatch occurs (which would finish the DMA transfer).
  *
  * Inputs : instance - this instance of the NCR5380.
  */
@@ -1161,31 +1161,31 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 
 /*
  * Function : int NCR5380_select(struct Scsi_Host *instance,
- *                               struct scsi_cmnd *cmd)
+ * struct scsi_cmnd *cmd)
  *
  * Purpose : establishes I_T_L or I_T_L_Q nexus for new or existing command,
- *	including ARBITRATION, SELECTION, and initial message out for
- *	IDENTIFY and queue messages.
+ * including ARBITRATION, SELECTION, and initial message out for
+ * IDENTIFY and queue messages.
  *
  * Inputs : instance - instantiation of the 5380 driver on which this
- *	target lives, cmd - SCSI command to execute.
+ * target lives, cmd - SCSI command to execute.
  *
  * Returns cmd if selection failed but should be retried,
  * NULL if selection failed and should not be retried, or
  * NULL if selection succeeded (hostdata->connected == cmd).
  *
  * Side effects :
- *	If bus busy, arbitration failed, etc, NCR5380_select() will exit
- *		with registers as they should have been on entry - ie
- *		SELECT_ENABLE will be set appropriately, the NCR5380
- *		will cease to drive any SCSI bus signals.
+ * If bus busy, arbitration failed, etc, NCR5380_select() will exit
+ * with registers as they should have been on entry - ie
+ * SELECT_ENABLE will be set appropriately, the NCR5380
+ * will cease to drive any SCSI bus signals.
  *
- *	If successful : I_T_L or I_T_L_Q nexus will be established,
- *		instance->connected will be set to cmd.
- *		SELECT interrupt will be disabled.
+ * If successful : I_T_L or I_T_L_Q nexus will be established,
+ * instance->connected will be set to cmd.
+ * SELECT interrupt will be disabled.
  *
- *	If failed (no target) : cmd->scsi_done() will be called, and the
- *		cmd->result host byte set to DID_BAD_TARGET.
+ * If failed (no target) : cmd->scsi_done() will be called, and the
+ * cmd->result host byte set to DID_BAD_TARGET.
  */
 
 static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
@@ -1398,8 +1398,8 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	 * until it wraps back to 0.
 	 *
 	 * XXX - it turns out that there are some broken SCSI-II devices,
-	 *	     which claim to support tagged queuing but fail when more than
-	 *	     some number of commands are issued at once.
+	 * which claim to support tagged queuing but fail when more than
+	 * some number of commands are issued at once.
 	 */
 
 	/* Wait for start of REQ/ACK handshake */
@@ -1461,19 +1461,19 @@ out:
 
 /*
  * Function : int NCR5380_transfer_pio (struct Scsi_Host *instance,
- *      unsigned char *phase, int *count, unsigned char **data)
+ * unsigned char *phase, int *count, unsigned char **data)
  *
  * Purpose : transfers data in given phase using polled I/O
  *
  * Inputs : instance - instance of driver, *phase - pointer to
- *	what phase is expected, *count - pointer to number of
- *	bytes to transfer, **data - pointer to data pointer.
+ * what phase is expected, *count - pointer to number of
+ * bytes to transfer, **data - pointer to data pointer.
  *
  * Returns : -1 when different phase is entered without transferring
- *	maximum number of bytes, 0 if all bytes are transferred or exit
- *	is in same phase.
+ * maximum number of bytes, 0 if all bytes are transferred or exit
+ * is in same phase.
  *
- *	Also, *phase, *count, *data are modified in place.
+ * Also, *phase, *count, *data are modified in place.
  *
  * XXX Note : handling for bus free may be useful.
  */
@@ -1560,11 +1560,11 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 		/*
 		 * We have several special cases to consider during REQ/ACK handshaking :
 		 * 1.  We were in MSGOUT phase, and we are on the last byte of the
-		 *	message.  ATN must be dropped as ACK is dropped.
+		 * message.  ATN must be dropped as ACK is dropped.
 		 *
 		 * 2.  We are in a MSGIN phase, and we are on the last byte of the
-		 *	message.  We must exit with ACK asserted, so that the calling
-		 *	code may raise ATN before dropping ACK to reject the message.
+		 * message.  We must exit with ACK asserted, so that the calling
+		 * code may raise ATN before dropping ACK to reject the message.
 		 *
 		 * 3.  ACK and ATN are clear and the target may proceed as normal.
 		 */
@@ -1687,20 +1687,20 @@ timeout:
 #if defined(REAL_DMA)
 /*
  * Function : int NCR5380_transfer_dma (struct Scsi_Host *instance,
- *      unsigned char *phase, int *count, unsigned char **data)
+ * unsigned char *phase, int *count, unsigned char **data)
  *
  * Purpose : transfers data in given phase using either real
- *	or pseudo DMA.
+ * or pseudo DMA.
  *
  * Inputs : instance - instance of driver, *phase - pointer to
- *	what phase is expected, *count - pointer to number of
- *	bytes to transfer, **data - pointer to data pointer.
+ * what phase is expected, *count - pointer to number of
+ * bytes to transfer, **data - pointer to data pointer.
  *
  * Returns : -1 when different phase is entered without transferring
- *	maximum number of bytes, 0 if all bytes or transferred or exit
- *	is in same phase.
+ * maximum number of bytes, 0 if all bytes or transferred or exit
+ * is in same phase.
  *
- *	Also, *phase, *count, *data are modified in place.
+ * Also, *phase, *count, *data are modified in place.
  */
 
 
@@ -1799,17 +1799,17 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
  * Function : NCR5380_information_transfer (struct Scsi_Host *instance)
  *
  * Purpose : run through the various SCSI phases and do as the target
- *	directs us to.  Operates on the currently connected command,
- *	instance->connected.
+ * directs us to.  Operates on the currently connected command,
+ * instance->connected.
  *
  * Inputs : instance, instance for which we are doing commands
  *
  * Side effects : SCSI things happen, the disconnected queue will be
- *	modified if a command disconnects, *instance->connected will
- *	change.
+ * modified if a command disconnects, *instance->connected will
+ * change.
  *
  * XXX Note : we need to watch for bus free or a reset condition here
- *	to recover from an unexpected bus free condition.
+ * to recover from an unexpected bus free condition.
  */
 
 static void NCR5380_information_transfer(struct Scsi_Host *instance)
@@ -1919,7 +1919,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				 */
 
 				/* ++roman: I suggest, this should be
-				 *   #if def(REAL_DMA)
+				 * #if def(REAL_DMA)
 				 * instead of leaving REAL_DMA out.
 				 */
 
@@ -2215,8 +2215,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
  * Function : void NCR5380_reselect (struct Scsi_Host *instance)
  *
  * Purpose : does reselection, initializing the instance->connected
- *	field to point to the scsi_cmnd for which the I_T_L or I_T_L_Q
- *	nexus has been reestablished,
+ * field to point to the scsi_cmnd for which the I_T_L or I_T_L_Q
+ * nexus has been reestablished,
  *
  * Inputs : instance - this instance of the NCR5380.
  */
