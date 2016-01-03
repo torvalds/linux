@@ -729,6 +729,7 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.cmd_size		= NCR5380_CMD_SIZE,
+	.max_sectors		= 128,
 };
 
 #include "scsi_module.c"

@@ -324,6 +324,7 @@ static struct scsi_host_template mac_scsi_template = {
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.cmd_size		= NCR5380_CMD_SIZE,
+	.max_sectors		= 128,
 };
 
 static int __init mac_scsi_probe(struct platform_device *pdev)

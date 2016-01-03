@@ -976,10 +976,10 @@ static void NCR5380_main(struct work_struct *work)
 	 * alter queues and touch the Falcon lock.
 	 */
 
-	spin_lock_irq(&hostdata->lock);
 	do {
 		done = 1;
 
+		spin_lock_irq(&hostdata->lock);
 		while (!hostdata->connected &&
 		       (cmd = dequeue_next_cmd(instance))) {
 
@@ -1026,8 +1026,10 @@ static void NCR5380_main(struct work_struct *work)
 			NCR5380_information_transfer(instance);
 			done = 0;
 		}
+		spin_unlock_irq(&hostdata->lock);
+		if (!done)
+			cond_resched();
 	} while (!done);
-	spin_unlock_irq(&hostdata->lock);
 }
 
 
