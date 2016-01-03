@@ -262,11 +262,14 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
 }
 
 /**
- * NCR5380_poll_politely - wait for chip register value
+ * NCR5380_poll_politely2 - wait for two chip register values
  * @instance: controller to poll
- * @reg: 5380 register to poll
- * @bit: Bitmask to check
- * @val: Value required to exit
+ * @reg1: 5380 register to poll
+ * @bit1: Bitmask to check
+ * @val1: Expected value
+ * @reg2: Second 5380 register to poll
+ * @bit2: Second bitmask to check
+ * @val2: Second expected value
  * @wait: Time-out in jiffies
  *
  * Polls the chip in a reasonably efficient manner waiting for an
@@ -274,11 +277,12 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
  * (if possible). In irq contexts the time-out is arbitrarily limited.
  * Callers may hold locks as long as they are held in irq mode.
  *
- * Returns 0 if event occurred otherwise -ETIMEDOUT.
+ * Returns 0 if either or both event(s) occurred otherwise -ETIMEDOUT.
  */
 
-static int NCR5380_poll_politely(struct Scsi_Host *instance,
-                                 int reg, int bit, int val, int wait)
+static int NCR5380_poll_politely2(struct Scsi_Host *instance,
+                                  int reg1, int bit1, int val1,
+                                  int reg2, int bit2, int val2, int wait)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned long deadline = jiffies + wait;
@@ -287,9 +291,11 @@ static int NCR5380_poll_politely(struct Scsi_Host *instance,
 	/* Busy-wait for up to 10 ms */
 	n = min(10000U, jiffies_to_usecs(wait));
 	n *= hostdata->accesses_per_ms;
-	n /= 1000;
+	n /= 2000;
 	do {
-		if ((NCR5380_read(reg) & bit) == val)
+		if ((NCR5380_read(reg1) & bit1) == val1)
+			return 0;
+		if ((NCR5380_read(reg2) & bit2) == val2)
 			return 0;
 		cpu_relax();
 	} while (n--);
@@ -300,11 +306,20 @@ static int NCR5380_poll_politely(struct Scsi_Host *instance,
 	/* Repeatedly sleep for 1 ms until deadline */
 	while (time_is_after_jiffies(deadline)) {
 		schedule_timeout_uninterruptible(1);
-		if ((NCR5380_read(reg) & bit) == val)
+		if ((NCR5380_read(reg1) & bit1) == val1)
+			return 0;
+		if ((NCR5380_read(reg2) & bit2) == val2)
 			return 0;
 	}
 
 	return -ETIMEDOUT;
+}
+
+static inline int NCR5380_poll_politely(struct Scsi_Host *instance,
+                                        int reg, int bit, int val, int wait)
+{
+	return NCR5380_poll_politely2(instance, reg, bit, val,
+	                                        reg, bit, val, wait);
 }
 
 static struct {
@@ -1101,7 +1116,6 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	unsigned char *data;
 	int len;
 	int err;
-	unsigned long timeout;
 
 	NCR5380_dprint(NDEBUG_ARBITRATION, instance);
 	dprintk(NDEBUG_ARBITRATION, "scsi%d : starting arbitration, id = %d\n", instance->host_no, instance->this_id);
@@ -1125,23 +1139,19 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	 */
 
 	spin_unlock_irq(instance->host_lock);
-	timeout = jiffies + HZ;
-	while (1) {
-		if (time_is_before_jiffies(timeout)) {
-			NCR5380_write(MODE_REG, MR_BASE);
-			shost_printk(KERN_ERR, instance,
-			             "select: arbitration timeout\n");
-			spin_lock_irq(instance->host_lock);
-			return -1;
-		}
-		spin_lock_irq(instance->host_lock);
-		if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE)) {
-			/* Reselection interrupt */
-			return -1;
-		}
-		if (NCR5380_read(INITIATOR_COMMAND_REG) & ICR_ARBITRATION_PROGRESS)
-			break;
-		spin_unlock_irq(instance->host_lock);
+	err = NCR5380_poll_politely2(instance, MODE_REG, MR_ARBITRATE, 0,
+	                INITIATOR_COMMAND_REG, ICR_ARBITRATION_PROGRESS,
+	                                       ICR_ARBITRATION_PROGRESS, HZ);
+	spin_lock_irq(instance->host_lock);
+	if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE)) {
+		/* Reselection interrupt */
+		return -1;
+	}
+	if (err < 0) {
+		NCR5380_write(MODE_REG, MR_BASE);
+		shost_printk(KERN_ERR, instance,
+		             "select: arbitration timeout\n");
+		return -1;
 	}
 
 	/* The SCSI-2 arbitration delay is 2.4 us */
