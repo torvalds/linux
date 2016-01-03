@@ -790,7 +790,7 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 
 #ifdef NCR53C400
 	if (flags & FLAG_NCR53C400)
-		instance->NCR5380_instance_name += NCR53C400_address_adjust;
+		instance->io_port += NCR53C400_address_adjust;
 #endif
 
 	hostdata->aborted = 0;

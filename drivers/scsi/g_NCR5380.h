@@ -36,7 +36,6 @@
 
 #define NCR5380_map_type int
 #define NCR5380_map_name port
-#define NCR5380_instance_name io_port
 #define NCR53C400_register_offset 0
 #define NCR53C400_address_adjust 8
 
@@ -58,7 +57,6 @@
 
 #define NCR5380_map_type unsigned long
 #define NCR5380_map_name base
-#define NCR5380_instance_name base
 #define NCR53C400_register_offset 0x108
 #define NCR53C400_address_adjust 0
 #define NCR53C400_mem_base 0x3880

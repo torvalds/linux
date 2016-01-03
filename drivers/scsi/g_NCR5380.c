@@ -412,10 +412,11 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 			continue;
 		}
 
-		instance->NCR5380_instance_name = overrides[current_override].NCR5380_map_name;
 #ifndef SCSI_G_NCR5380_MEM
+		instance->io_port = overrides[current_override].NCR5380_map_name;
 		instance->n_io_port = region_size;
 #else
+		instance->base = overrides[current_override].NCR5380_map_name;
 		((struct NCR5380_hostdata *)instance->hostdata)->iomem = iomem;
 #endif
 
@@ -464,10 +465,10 @@ static int generic_NCR5380_release_resources(struct Scsi_Host *instance)
 	NCR5380_exit(instance);
 
 #ifndef SCSI_G_NCR5380_MEM
-	release_region(instance->NCR5380_instance_name, instance->n_io_port);
+	release_region(instance->io_port, instance->n_io_port);
 #else
 	iounmap(((struct NCR5380_hostdata *)instance->hostdata)->iomem);
-	release_mem_region(instance->NCR5380_instance_name, NCR5380_region_size);
+	release_mem_region(instance->base, NCR5380_region_size);
 #endif
 
 
