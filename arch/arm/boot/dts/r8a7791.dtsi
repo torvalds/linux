@@ -822,7 +822,7 @@
 	};
 
 	hsusb: usb@e6590000 {
-		compatible = "renesas,usbhs-r8a7791";
+		compatible = "renesas,usbhs-r8a7791", "renesas,rcar-gen2-usbhs";
 		reg = <0 0xe6590000 0 0x100>;
 		interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp7_clks R8A7791_CLK_HSUSB>;
