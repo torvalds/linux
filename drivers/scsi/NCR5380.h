@@ -285,6 +285,11 @@ struct NCR5380_hostdata {
 	do { if ((NDEBUG) & (flg)) \
 		printk(KERN_DEBUG fmt, ## __VA_ARGS__); } while (0)
 
+#define dsprintk(flg, host, fmt, ...) \
+	do { if ((NDEBUG) & (flg)) \
+		shost_printk(KERN_DEBUG, host, fmt, ## __VA_ARGS__); \
+	} while (0)
+
 #if NDEBUG
 #define NCR5380_dprint(flg, arg) \
 	do { if ((NDEBUG) & (flg)) NCR5380_print(arg); } while (0)

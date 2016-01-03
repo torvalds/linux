@@ -755,7 +755,7 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	switch (cmd->cmnd[0]) {
 	case WRITE_6:
 	case WRITE_10:
-		printk("scsi%d : WRITE attempted with NO_WRITE debugging flag set\n", instance->host_no);
+		shost_printk(KERN_DEBUG, instance, "WRITE attempted with NDEBUG_NO_WRITE set\n");
 		cmd->result = (DID_ERROR << 16);
 		cmd->scsi_done(cmd);
 		return 0;
@@ -790,7 +790,8 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	}
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 
-	dprintk(NDEBUG_QUEUES, "scsi%d : command added to %s of queue\n", instance->host_no, (cmd->cmnd[0] == REQUEST_SENSE) ? "head" : "tail");
+	dsprintk(NDEBUG_QUEUES, instance, "command %p added to %s of queue\n",
+	         cmd, (cmd->cmnd[0] == REQUEST_SENSE) ? "head" : "tail");
 
 	/* Kick off command processing */
 	queue_work(hostdata->work_q, &hostdata->main_task);
@@ -1888,7 +1889,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						cmd->host_scribble = (unsigned char *)
 						    hostdata->issue_queue;
 						hostdata->issue_queue = (struct scsi_cmnd *) cmd;
-						dprintk(NDEBUG_QUEUES, "scsi%d : REQUEST SENSE added to head of issue queue\n", instance->host_no);
+						dsprintk(NDEBUG_QUEUES, instance,
+						         "REQUEST SENSE cmd %p added to head of issue queue\n",
+						         cmd);
 					} else {
 						cmd->scsi_done(cmd);
 					}
