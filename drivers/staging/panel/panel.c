@@ -2065,7 +2065,7 @@ static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 		im |= BIT(in);
 
 		name++;
-		if (isdigit(*name)) {
+		if (*name >= '0' && *name <= '7') {
 			out = *name - '0';
 			om |= BIT(out);
 		} else if (*name == '-') {
