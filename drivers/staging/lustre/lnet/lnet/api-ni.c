@@ -62,7 +62,7 @@ module_param(rnet_htable_size, int, 0444);
 MODULE_PARM_DESC(rnet_htable_size, "size of remote network hash table");
 
 static int lnet_ping(lnet_process_id_t id, int timeout_ms,
-		     lnet_process_id_t *ids, int n_ids);
+		     lnet_process_id_t __user *ids, int n_ids);
 
 static char *
 lnet_get_routes(void)
@@ -1376,7 +1376,7 @@ LNetCtl(unsigned int cmd, void *arg)
 		id.nid = data->ioc_nid;
 		id.pid = data->ioc_u32[0];
 		rc = lnet_ping(id, data->ioc_u32[1], /* timeout */
-			       (lnet_process_id_t *)data->ioc_pbuf1,
+			       data->ioc_pbuf1,
 			       data->ioc_plen1/sizeof(lnet_process_id_t));
 		if (rc < 0)
 			return rc;
@@ -1646,7 +1646,7 @@ lnet_ping_target_fini(void)
 }
 
 static int lnet_ping(lnet_process_id_t id, int timeout_ms,
-		     lnet_process_id_t *ids, int n_ids)
+		     lnet_process_id_t __user *ids, int n_ids)
 {
 	lnet_handle_eq_t eqh;
 	lnet_handle_md_t mdh;
