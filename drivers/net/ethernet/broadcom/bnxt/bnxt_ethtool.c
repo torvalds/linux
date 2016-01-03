@@ -211,7 +211,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	int max_rx_rings, max_tx_rings, tcs;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings);
+	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
 	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1)
 		max_tx_rings /= tcs;
@@ -235,7 +235,7 @@ static int bnxt_set_channels(struct net_device *dev,
 	    !channel->rx_count || !channel->tx_count)
 		return -EINVAL;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings);
+	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
 	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1)
 		max_tx_rings /= tcs;
