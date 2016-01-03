@@ -702,6 +702,10 @@ static int generic_NCR5380_dma_xfer_len(struct scsi_cmnd *cmd)
 	    !(cmd->SCp.this_residual % transfersize))
 		transfersize = 32 * 1024;
 
+	/* 53C400 datasheet: non-modulo-128-byte transfers should use PIO */
+	if (transfersize % 128)
+		transfersize = 0;
+
 	return transfersize;
 }
 
