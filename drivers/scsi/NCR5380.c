@@ -726,6 +726,24 @@ static void NCR5380_exit(struct Scsi_Host *instance)
 }
 
 /**
+ * complete_cmd - finish processing a command and return it to the SCSI ML
+ * @instance: the host instance
+ * @cmd: command to complete
+ */
+
+static void complete_cmd(struct Scsi_Host *instance,
+                         struct scsi_cmnd *cmd)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	dsprintk(NDEBUG_QUEUES, instance, "complete_cmd: cmd %p\n", cmd);
+
+	hostdata->busy[scmd_id(cmd)] &= ~(1 << cmd->device->lun);
+
+	cmd->scsi_done(cmd);
+}
+
+/**
  * NCR5380_queue_command - queue a command
  * @instance: the relevant SCSI adapter
  * @cmd: SCSI command
@@ -1171,7 +1189,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		spin_lock_irq(&hostdata->lock);
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		cmd->result = DID_BAD_TARGET << 16;
-		cmd->scsi_done(cmd);
+		complete_cmd(instance, cmd);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		dprintk(NDEBUG_SELECTION, "scsi%d : target did not respond within 250ms\n",
 		        instance->host_no);
@@ -1759,7 +1777,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				sink = 1;
 				do_abort(instance);
 				cmd->result = DID_ERROR << 16;
-				cmd->scsi_done(cmd);
+				complete_cmd(instance, cmd);
 				return;
 #endif
 			case PHASE_DATAIN:
@@ -1804,7 +1822,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						sink = 1;
 						do_abort(instance);
 						cmd->result = DID_ERROR << 16;
-						cmd->scsi_done(cmd);
+						complete_cmd(instance, cmd);
 						/* XXX - need to source or sink data here, as appropriate */
 					} else
 						cmd->SCp.this_residual -= transfersize - len;
@@ -1834,7 +1852,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 					         cmd, scmd_id(cmd), cmd->device->lun);
 
 					hostdata->connected = NULL;
-					hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xFF));
 
 					/* 
 					 * I'm not sure what the correct thing to do here is : 
@@ -1870,8 +1887,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						dsprintk(NDEBUG_AUTOSENSE | NDEBUG_QUEUES,
 						         instance, "REQUEST SENSE cmd %p added to head of issue queue\n",
 						         cmd);
+						hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xFF));
 					} else {
-						cmd->scsi_done(cmd);
+						complete_cmd(instance, cmd);
 					}
 
 					/* 
@@ -2018,10 +2036,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				hostdata->last_message = msgout;
 				NCR5380_transfer_pio(instance, &phase, &len, &data);
 				if (msgout == ABORT) {
-					hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xFF));
 					hostdata->connected = NULL;
 					cmd->result = DID_ERROR << 16;
-					cmd->scsi_done(cmd);
+					complete_cmd(instance, cmd);
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					return;
 				}
