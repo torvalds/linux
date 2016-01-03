@@ -2534,7 +2534,8 @@ static int osc_statfs(const struct lu_env *env, struct obd_export *exp,
  * the maximum number of OST indices which will fit in the user buffer.
  * lmm_magic must be LOV_MAGIC (we only use 1 slot here).
  */
-static int osc_getstripe(struct lov_stripe_md *lsm, struct lov_user_md *lump)
+static int osc_getstripe(struct lov_stripe_md *lsm,
+			 struct lov_user_md __user *lump)
 {
 	/* we use lov_user_md_v3 because it is larger than lov_user_md_v1 */
 	struct lov_user_md_v3 lum, *lumk;
