@@ -207,10 +207,7 @@ static struct attribute *ziirave_wdt_attrs[] = {
 	&dev_attr_reset_reason.attr,
 	NULL
 };
-
-static const struct attribute_group ziirave_wdt_sysfs_files = {
-	.attrs  = ziirave_wdt_attrs,
-};
+ATTRIBUTE_GROUPS(ziirave_wdt);
 
 static int ziirave_wdt_init_duration(struct i2c_client *client)
 {
@@ -260,6 +257,7 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 	w_priv->wdd.min_timeout = ZIIRAVE_TIMEOUT_MIN;
 	w_priv->wdd.max_timeout = ZIIRAVE_TIMEOUT_MAX;
 	w_priv->wdd.parent = &client->dev;
+	w_priv->wdd.groups = ziirave_wdt_groups;
 
 	ret = watchdog_init_timeout(&w_priv->wdd, wdt_timeout, &client->dev);
 	if (ret) {
@@ -327,25 +325,13 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 		return -ENODEV;
 
 	ret = watchdog_register_device(&w_priv->wdd);
-	if (ret)
-		return ret;
 
-	ret = sysfs_create_group(&w_priv->wdd.dev->kobj,
-				 &ziirave_wdt_sysfs_files);
-	if (ret) {
-		watchdog_unregister_device(&w_priv->wdd);
-
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 static int ziirave_wdt_remove(struct i2c_client *client)
 {
 	struct ziirave_wdt_data *w_priv = i2c_get_clientdata(client);
-
-	sysfs_remove_group(&client->dev.kobj, &ziirave_wdt_sysfs_files);
 
 	watchdog_unregister_device(&w_priv->wdd);
 
