@@ -1382,9 +1382,9 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
  * Inputs : instance - instantiation of the 5380 driver on which this
  *	target lives, cmd - SCSI command to execute.
  *
- * Returns : -1 if selection could not execute for some reason,
- *	0 if selection succeeded or failed because the target
- *	did not respond.
+ * Returns : -1 if selection failed but should be retried.
+ *      0 if selection failed and should not be retried.
+ *      0 if selection succeeded completely (hostdata->connected == cmd).
  *
  * Side effects :
  *	If bus busy, arbitration failed, etc, NCR5380_select() will exit

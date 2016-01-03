@@ -997,16 +997,6 @@ static void NCR5380_main(struct work_struct *work)
 					 */
 					dprintk(NDEBUG_MAIN|NDEBUG_QUEUES, "scsi%d : main() : command for target %d lun %llu removed from issue_queue\n", instance->host_no, tmp->device->id, tmp->device->lun);
 	
-					/*
-					 * A successful selection is defined as one that 
-					 * leaves us with the command connected and 
-					 * in hostdata->connected, OR has terminated the
-					 * command.
-					 *
-					 * With successful commands, we fall through
-					 * and see if we can do an information transfer,
-					 * with failures we will restart.
-					 */
 					hostdata->selecting = NULL;
 					/* RvC: have to preset this to indicate a new command is being performed */
 
@@ -1162,9 +1152,10 @@ static irqreturn_t NCR5380_intr(int dummy, void *dev_id)
  * Inputs : instance - instantiation of the 5380 driver on which this 
  *      target lives, cmd - SCSI command to execute.
  * 
- * Returns : -1 if selection could not execute for some reason,
- *      0 if selection succeeded or failed because the target 
- *      did not respond.
+ * Returns : -1 if selection failed but should be retried.
+ *      0 if selection failed and should not be retried.
+ *      0 if selection succeeded completely (hostdata->connected == cmd).
+ *      0 if selection in progress (hostdata->selecting == cmd).
  *
  * Side effects : 
  *      If bus busy, arbitration failed, etc, NCR5380_select() will exit 
@@ -1224,7 +1215,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		printk(KERN_DEBUG "scsi: arbitration timeout at %d\n", __LINE__);
 		NCR5380_write(MODE_REG, MR_BASE);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-		goto failed;
+		return -1;
 	}
 
 	dprintk(NDEBUG_ARBITRATION, "scsi%d : arbitration complete\n", instance->host_no);
@@ -1242,7 +1233,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	if ((NCR5380_read(INITIATOR_COMMAND_REG) & ICR_ARBITRATION_LOST) || (NCR5380_read(CURRENT_SCSI_DATA_REG) & hostdata->id_higher_mask) || (NCR5380_read(INITIATOR_COMMAND_REG) & ICR_ARBITRATION_LOST)) {
 		NCR5380_write(MODE_REG, MR_BASE);
 		dprintk(NDEBUG_ARBITRATION, "scsi%d : lost arbitration, deasserting MR_ARBITRATE\n", instance->host_no);
-		goto failed;
+		return -1;
 	}
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_SEL);
 
@@ -1255,7 +1246,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		NCR5380_write(MODE_REG, MR_BASE);
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		dprintk(NDEBUG_ARBITRATION, "scsi%d : lost arbitration, deasserting ICR_ASSERT_SEL\n", instance->host_no);
-		goto failed;
+		return -1;
 	}
 	/* 
 	 * Again, bus clear + bus settle time is 1.2us, however, this is 
@@ -1412,7 +1403,7 @@ part2:
 	if(err) {
 		printk(KERN_ERR "scsi%d: timeout at NCR5380.c:%d\n", instance->host_no, __LINE__);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-		goto failed;
+		return -1;
 	}
 
 	dprintk(NDEBUG_SELECTION, "scsi%d : target %d selected, going into MESSAGE OUT phase.\n", instance->host_no, cmd->device->id);
@@ -1433,11 +1424,6 @@ part2:
 	initialize_SCp(cmd);
 
 	return 0;
-
-	/* Selection failed */
-failed:
-	return -1;
-
 }
 
 /* 
