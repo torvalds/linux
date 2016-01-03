@@ -1920,7 +1920,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				/* this command setup for dma yet? */
 				if ((count >= DMA_MIN_SIZE) && (sun3_dma_setup_done != cmd)) {
 					if (cmd->request->cmd_type == REQ_TYPE_FS) {
-						sun3scsi_dma_setup(d, count,
+						sun3scsi_dma_setup(instance, d, count,
 						                   rq_data_dir(cmd->request));
 						sun3_dma_setup_done = cmd;
 					}
@@ -2458,7 +2458,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 		}
 		/* setup this command for dma if not already */
 		if ((count >= DMA_MIN_SIZE) && (sun3_dma_setup_done != tmp)) {
-			sun3scsi_dma_setup(d, count, rq_data_dir(tmp->request));
+			sun3scsi_dma_setup(instance, d, count,
+			                   rq_data_dir(tmp->request));
 			sun3_dma_setup_done = tmp;
 		}
 	}

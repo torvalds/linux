@@ -159,14 +159,10 @@ static inline unsigned long SCSI_DMA_GETADR(void)
 	return adr;
 }
 
-#define HOSTDATA_DMALEN		(((struct NCR5380_hostdata *) \
-				(atari_scsi_host->hostdata))->dma_len)
-
 #ifdef REAL_DMA
 static void atari_scsi_fetch_restbytes(void);
 #endif
 
-static struct Scsi_Host *atari_scsi_host;
 static unsigned char (*atari_scsi_reg_read)(unsigned char reg);
 static void (*atari_scsi_reg_write)(unsigned char reg, unsigned char value);
 
@@ -262,15 +258,17 @@ static void scsi_dma_buserr(int irq, void *dummy)
 #endif
 
 
-static irqreturn_t scsi_tt_intr(int irq, void *dummy)
+static irqreturn_t scsi_tt_intr(int irq, void *dev)
 {
 #ifdef REAL_DMA
+	struct Scsi_Host *instance = dev;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int dma_stat;
 
 	dma_stat = tt_scsi_dma.dma_ctrl;
 
-	dprintk(NDEBUG_INTR, "scsi%d: NCR5380 interrupt, DMA status = %02x\n",
-		   atari_scsi_host->host_no, dma_stat & 0xff);
+	dsprintk(NDEBUG_INTR, instance, "NCR5380 interrupt, DMA status = %02x\n",
+	         dma_stat & 0xff);
 
 	/* Look if it was the DMA that has interrupted: First possibility
 	 * is that a bus error occurred...
@@ -293,7 +291,8 @@ static irqreturn_t scsi_tt_intr(int irq, void *dummy)
 	 * data reg!
 	 */
 	if ((dma_stat & 0x02) && !(dma_stat & 0x40)) {
-		atari_dma_residual = HOSTDATA_DMALEN - (SCSI_DMA_READ_P(dma_addr) - atari_dma_startaddr);
+		atari_dma_residual = hostdata->dma_len -
+			(SCSI_DMA_READ_P(dma_addr) - atari_dma_startaddr);
 
 		dprintk(NDEBUG_DMA, "SCSI DMA: There are %ld residual bytes.\n",
 			   atari_dma_residual);
@@ -345,15 +344,17 @@ static irqreturn_t scsi_tt_intr(int irq, void *dummy)
 
 #endif /* REAL_DMA */
 
-	NCR5380_intr(irq, dummy);
+	NCR5380_intr(irq, dev);
 
 	return IRQ_HANDLED;
 }
 
 
-static irqreturn_t scsi_falcon_intr(int irq, void *dummy)
+static irqreturn_t scsi_falcon_intr(int irq, void *dev)
 {
 #ifdef REAL_DMA
+	struct Scsi_Host *instance = dev;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int dma_stat;
 
 	/* Turn off DMA and select sector counter register before
@@ -388,7 +389,7 @@ static irqreturn_t scsi_falcon_intr(int irq, void *dummy)
 			printk(KERN_ERR "SCSI DMA error: %ld bytes lost in "
 			       "ST-DMA fifo\n", transferred & 15);
 
-		atari_dma_residual = HOSTDATA_DMALEN - transferred;
+		atari_dma_residual = hostdata->dma_len - transferred;
 		dprintk(NDEBUG_DMA, "SCSI DMA: There are %ld residual bytes.\n",
 			   atari_dma_residual);
 	} else
@@ -400,13 +401,14 @@ static irqreturn_t scsi_falcon_intr(int irq, void *dummy)
 		 * data to the original destination address.
 		 */
 		memcpy(atari_dma_orig_addr, phys_to_virt(atari_dma_startaddr),
-		       HOSTDATA_DMALEN - atari_dma_residual);
+		       hostdata->dma_len - atari_dma_residual);
 		atari_dma_orig_addr = NULL;
 	}
 
 #endif /* REAL_DMA */
 
-	NCR5380_intr(irq, dummy);
+	NCR5380_intr(irq, dev);
+
 	return IRQ_HANDLED;
 }
 
@@ -873,7 +875,6 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		error = -ENOMEM;
 		goto fail_alloc;
 	}
-	atari_scsi_host = instance;
 
 	instance->irq = irq->start;
 

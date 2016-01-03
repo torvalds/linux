@@ -56,9 +56,9 @@
 #define NCR5380_info                    sun3scsi_info
 
 #define NCR5380_dma_read_setup(instance, data, count) \
-        sun3scsi_dma_setup(data, count, 0)
+        sun3scsi_dma_setup(instance, data, count, 0)
 #define NCR5380_dma_write_setup(instance, data, count) \
-        sun3scsi_dma_setup(data, count, 1)
+        sun3scsi_dma_setup(instance, data, count, 1)
 #define NCR5380_dma_residual(instance) \
         sun3scsi_dma_residual(instance)
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
@@ -99,7 +99,6 @@ static unsigned char *sun3_dma_orig_addr;
 static unsigned long sun3_dma_orig_count;
 static int sun3_dma_active;
 static unsigned long last_residual;
-static struct Scsi_Host *default_instance;
 
 /*
  * NCR 5380 register access functions
@@ -142,8 +141,9 @@ static inline void sun3_udc_write(unsigned short val, unsigned char reg)
 // safe bits for the CSR
 #define CSR_GOOD 0x060f
 
-static irqreturn_t scsi_sun3_intr(int irq, void *dummy)
+static irqreturn_t scsi_sun3_intr(int irq, void *dev)
 {
+	struct Scsi_Host *instance = dev;
 	unsigned short csr = dregs->csr;
 	int handled = 0;
 
@@ -152,46 +152,24 @@ static irqreturn_t scsi_sun3_intr(int irq, void *dummy)
 #endif
 
 	if(csr & ~CSR_GOOD) {
-		if(csr & CSR_DMA_BUSERR) {
-			printk("scsi%d: bus error in dma\n", default_instance->host_no);
-		}
-
-		if(csr & CSR_DMA_CONFLICT) {
-			printk("scsi%d: dma conflict\n", default_instance->host_no);
-		}
+		if (csr & CSR_DMA_BUSERR)
+			shost_printk(KERN_ERR, instance, "bus error in DMA\n");
+		if (csr & CSR_DMA_CONFLICT)
+			shost_printk(KERN_ERR, instance, "DMA conflict\n");
 		handled = 1;
 	}
 
 	if(csr & (CSR_SDB_INT | CSR_DMA_INT)) {
-		NCR5380_intr(irq, dummy);
+		NCR5380_intr(irq, dev);
 		handled = 1;
 	}
 
 	return IRQ_RETVAL(handled);
 }
 
-/*
- * Debug stuff - to be called on NMI, or sysrq key. Use at your own risk; 
- * reentering NCR5380_print_status seems to have ugly side effects
- */
-
-/* this doesn't seem to get used at all -- sam */
-#if 0
-void sun3_sun3_debug (void)
-{
-	unsigned long flags;
-
-	if (default_instance) {
-			local_irq_save(flags);
-			NCR5380_print_status(default_instance);
-			local_irq_restore(flags);
-	}
-}
-#endif
-
-
 /* sun3scsi_dma_setup() -- initialize the dma controller for a read/write */
-static unsigned long sun3scsi_dma_setup(void *data, unsigned long count, int write_flag)
+static unsigned long sun3scsi_dma_setup(struct Scsi_Host *instance,
+                                void *data, unsigned long count, int write_flag)
 {
 	void *addr;
 
@@ -243,10 +221,9 @@ static unsigned long sun3scsi_dma_setup(void *data, unsigned long count, int wri
 	dregs->csr |= CSR_FIFO;
 	
 	if(dregs->fifo_count != count) { 
-		printk("scsi%d: fifo_mismatch %04x not %04x\n",
-		       default_instance->host_no, dregs->fifo_count,
-		       (unsigned int) count);
-		NCR5380_dprint(NDEBUG_DMA, default_instance);
+		shost_printk(KERN_ERR, instance, "FIFO mismatch %04x not %04x\n",
+		             dregs->fifo_count, (unsigned int) count);
+		NCR5380_dprint(NDEBUG_DMA, instance);
 	}
 
 	/* setup udc */
@@ -280,21 +257,6 @@ static unsigned long sun3scsi_dma_setup(void *data, unsigned long count, int wri
        	return count;
 
 }
-
-#ifndef SUN3_SCSI_VME
-static inline unsigned long sun3scsi_dma_count(struct Scsi_Host *instance)
-{
-	unsigned short resid;
-
-	dregs->udc_addr = 0x32; 
-	udelay(SUN3_DMA_DELAY);
-	resid = dregs->udc_data;
-	udelay(SUN3_DMA_DELAY);
-	resid *= 2;
-
-	return (unsigned long) resid;
-}
-#endif
 
 static inline unsigned long sun3scsi_dma_residual(struct Scsi_Host *instance)
 {
@@ -393,7 +355,10 @@ static int sun3scsi_dma_finish(int write_flag)
 		}
 	}
 
-	count = sun3scsi_dma_count(default_instance);
+	dregs->udc_addr = 0x32;
+	udelay(SUN3_DMA_DELAY);
+	count = 2 * dregs->udc_data;
+	udelay(SUN3_DMA_DELAY);
 
 	fifo = dregs->fifo_count;
 	last_residual = fifo;
@@ -547,7 +512,6 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 		error = -ENOMEM;
 		goto fail_alloc;
 	}
-	default_instance = instance;
 
 	instance->io_port = (unsigned long)ioaddr;
 	instance->irq = irq->start;
