@@ -557,7 +557,9 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
 #endif
 
-	NCR5380_init(instance, host_flags);
+	error = NCR5380_init(instance, host_flags);
+	if (error)
+		goto fail_init;
 
 	error = request_irq(instance->irq, scsi_sun3_intr, 0,
 	                    "NCR5380", instance);
@@ -604,6 +606,7 @@ fail_host:
 		free_irq(instance->irq, instance);
 fail_irq:
 	NCR5380_exit(instance);
+fail_init:
 	scsi_host_put(instance);
 fail_alloc:
 	if (udc_regs)

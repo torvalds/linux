@@ -238,7 +238,9 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 
 	host->irq = ec->irq;
 
-	NCR5380_init(host, 0);
+	ret = NCR5380_init(host, 0);
+	if (ret)
+		goto out_unmap;
 
 	NCR5380_maybe_reset_bus(host);
 
@@ -250,7 +252,7 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 	if (ret) {
 		printk("scsi%d: IRQ%d not free: %d\n",
 		    host->host_no, host->irq, ret);
-		goto out_unmap;
+		goto out_exit;
 	}
 
 	ret = scsi_add_host(host, &ec->dev);
@@ -262,6 +264,8 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 
  out_free_irq:
 	free_irq(host->irq, host);
+ out_exit:
+	NCR5380_exit(host);
  out_unmap:
 	iounmap(priv(host)->base);
 	iounmap(priv(host)->dma);

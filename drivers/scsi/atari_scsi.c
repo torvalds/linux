@@ -885,7 +885,9 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 #endif
 	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
 
-	NCR5380_init(instance, host_flags);
+	error = NCR5380_init(instance, host_flags);
+	if (error)
+		goto fail_init;
 
 	if (IS_A_TT()) {
 		error = request_irq(instance->irq, scsi_tt_intr, 0,
@@ -947,6 +949,7 @@ fail_host:
 		free_irq(instance->irq, instance);
 fail_irq:
 	NCR5380_exit(instance);
+fail_init:
 	scsi_host_put(instance);
 fail_alloc:
 	if (atari_dma_buffer)

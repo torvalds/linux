@@ -239,9 +239,6 @@ static int __init do_DTC3181E_setup(char *str)
  *	and DTC436(ISAPnP) controllers. If overrides have been set we use
  *	them.
  *
- *	The caller supplied NCR5380_init function is invoked from here, before
- *	the interrupt line is taken.
- *
  *	Locks: none
  */
 
@@ -402,15 +399,8 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		}
 #endif
 		instance = scsi_register(tpnt, sizeof(struct NCR5380_hostdata));
-		if (instance == NULL) {
-#ifndef SCSI_G_NCR5380_MEM
-			release_region(overrides[current_override].NCR5380_map_name, region_size);
-#else
-			iounmap(iomem);
-			release_mem_region(base, NCR5380_region_size);
-#endif
-			continue;
-		}
+		if (instance == NULL)
+			goto out_release;
 
 #ifndef SCSI_G_NCR5380_MEM
 		instance->io_port = overrides[current_override].NCR5380_map_name;
@@ -427,7 +417,8 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		((struct NCR5380_hostdata *)instance->hostdata)->iomem = iomem;
 #endif
 
-		NCR5380_init(instance, flags);
+		if (NCR5380_init(instance, flags))
+			goto out_unregister;
 
 		if (overrides[current_override].board == BOARD_NCR53C400)
 			NCR5380_write(C400_CONTROL_STATUS_REG, CSR_BASE);
@@ -459,6 +450,17 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		++count;
 	}
 	return count;
+
+out_unregister:
+	scsi_unregister(instance);
+out_release:
+#ifndef SCSI_G_NCR5380_MEM
+	release_region(overrides[current_override].NCR5380_map_name, region_size);
+#else
+	iounmap(iomem);
+	release_mem_region(base, NCR5380_region_size);
+#endif
+	return count;
 }
 
 /**
@@ -475,15 +477,12 @@ static int generic_NCR5380_release_resources(struct Scsi_Host *instance)
 	if (instance->irq != NO_IRQ)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
-
 #ifndef SCSI_G_NCR5380_MEM
 	release_region(instance->io_port, instance->n_io_port);
 #else
 	iounmap(((struct NCR5380_hostdata *)instance->hostdata)->iomem);
 	release_mem_region(instance->base, NCR5380_region_size);
 #endif
-
-
 	return 0;
 }
 

@@ -643,7 +643,7 @@ static inline void queue_main(struct NCR5380_hostdata *hostdata)
 		   queue it on the 'immediate' task queue, to be processed
 		   immediately after the current interrupt processing has
 		   finished. */
-		schedule_work(&hostdata->main_task);
+		queue_work(hostdata->work_q, &hostdata->main_task);
 	}
 	/* else: nothing to do: the running NCR5380_main() will pick up
 	   any newly queued command. */
@@ -832,6 +832,11 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 	hostdata->flags = flags;
 
 	INIT_WORK(&hostdata->main_task, NCR5380_main);
+	hostdata->work_q = alloc_workqueue("ncr5380_%d",
+	                        WQ_UNBOUND | WQ_MEM_RECLAIM,
+	                        1, instance->host_no);
+	if (!hostdata->work_q)
+		return -ENOMEM;
 
 	prepare_info(instance);
 
@@ -907,6 +912,7 @@ static void NCR5380_exit(struct Scsi_Host *instance)
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
 	cancel_work_sync(&hostdata->main_task);
+	destroy_workqueue(hostdata->work_q);
 }
 
 /**

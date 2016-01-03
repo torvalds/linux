@@ -284,6 +284,7 @@ struct NCR5380_hostdata {
 	unsigned spin_max_r;
 	unsigned spin_max_w;
 #endif
+	struct workqueue_struct *work_q;
 };
 
 #ifdef __KERNEL__

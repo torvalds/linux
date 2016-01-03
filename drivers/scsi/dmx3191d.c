@@ -95,7 +95,9 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	 */
 	shost->irq = NO_IRQ;
 
-	NCR5380_init(shost, FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E);
+	error = NCR5380_init(shost, FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E);
+	if (error)
+		goto out_host_put;
 
 	NCR5380_maybe_reset_bus(shost);
 
@@ -103,11 +105,15 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 
 	error = scsi_add_host(shost, &pdev->dev);
 	if (error)
-		goto out_release_region;
+		goto out_exit;
 
 	scsi_scan_host(shost);
 	return 0;
 
+out_exit:
+	NCR5380_exit(shost);
+out_host_put:
+	scsi_host_put(shost);
  out_release_region:
 	release_region(io, DMX3191D_REGION_LEN);
  out_disable_device:
@@ -119,15 +125,14 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 static void dmx3191d_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	unsigned long io = shost->io_port;
 
 	scsi_remove_host(shost);
 
 	NCR5380_exit(shost);
-
-	release_region(shost->io_port, DMX3191D_REGION_LEN);
-	pci_disable_device(pdev);
-
 	scsi_host_put(shost);
+	release_region(io, DMX3191D_REGION_LEN);
+	pci_disable_device(pdev);
 }
 
 static struct pci_device_id dmx3191d_pci_tbl[] = {

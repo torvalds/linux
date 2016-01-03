@@ -230,12 +230,13 @@ static int __init dtc_detect(struct scsi_host_template * tpnt)
 found:
 		instance = scsi_register(tpnt, sizeof(struct NCR5380_hostdata));
 		if (instance == NULL)
-			break;
+			goto out_unmap;
 
 		instance->base = addr;
 		((struct NCR5380_hostdata *)(instance)->hostdata)->base = base;
 
-		NCR5380_init(instance, 0);
+		if (NCR5380_init(instance, 0))
+			goto out_unregister;
 
 		NCR5380_maybe_reset_bus(instance);
 
@@ -274,6 +275,12 @@ found:
 		++current_override;
 		++count;
 	}
+	return count;
+
+out_unregister:
+	scsi_unregister(instance);
+out_unmap:
+	iounmap(base);
 	return count;
 }
 

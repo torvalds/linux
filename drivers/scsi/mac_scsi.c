@@ -382,7 +382,9 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 #endif
 	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;
 
-	NCR5380_init(instance, host_flags);
+	error = NCR5380_init(instance, host_flags);
+	if (error)
+		goto fail_init;
 
 	if (instance->irq != NO_IRQ) {
 		error = request_irq(instance->irq, macscsi_intr, IRQF_SHARED,
@@ -407,6 +409,7 @@ fail_host:
 		free_irq(instance->irq, instance);
 fail_irq:
 	NCR5380_exit(instance);
+fail_init:
 	scsi_host_put(instance);
 	return error;
 }

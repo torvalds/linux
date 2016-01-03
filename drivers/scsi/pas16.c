@@ -378,11 +378,12 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 
 	instance = scsi_register (tpnt, sizeof(struct NCR5380_hostdata));
 	if(instance == NULL)
-		break;
+		goto out;
 		
 	instance->io_port = io_port;
 
-	NCR5380_init(instance, 0);
+	if (NCR5380_init(instance, 0))
+		goto out_unregister;
 
 	NCR5380_maybe_reset_bus(instance);
 
@@ -418,6 +419,11 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 	++count;
     }
     return count;
+
+out_unregister:
+	scsi_unregister(instance);
+out:
+	return count;
 }
 
 /*

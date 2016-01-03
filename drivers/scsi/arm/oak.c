@@ -143,17 +143,21 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	host->irq = NO_IRQ;
 	host->n_io_port = 255;
 
-	NCR5380_init(host, 0);
+	ret = NCR5380_init(host, 0);
+	if (ret)
+		goto out_unmap;
 
 	NCR5380_maybe_reset_bus(host);
 
 	ret = scsi_add_host(host, &ec->dev);
 	if (ret)
-		goto out_unmap;
+		goto out_exit;
 
 	scsi_scan_host(host);
 	goto out;
 
+ out_exit:
+	NCR5380_exit(host);
  out_unmap:
 	iounmap(priv(host)->base);
  unreg:
