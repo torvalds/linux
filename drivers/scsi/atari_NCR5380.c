@@ -1412,6 +1412,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	int len;
 	int err;
 	unsigned long flags;
+	unsigned long timeout;
 
 	NCR5380_dprint(NDEBUG_ARBITRATION, instance);
 	dprintk(NDEBUG_ARBITRATION, "scsi%d: starting arbitration, id = %d\n", HOSTNO,
@@ -1436,42 +1437,28 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	NCR5380_write(OUTPUT_DATA_REG, hostdata->id_mask);
 	NCR5380_write(MODE_REG, MR_ARBITRATE);
 
-	local_irq_restore(flags);
-
-	/* Wait for arbitration logic to complete */
-#if defined(NCR_TIMEOUT)
-	{
-		unsigned long timeout = jiffies + 2*NCR_TIMEOUT;
-
-		while (!(NCR5380_read(INITIATOR_COMMAND_REG) & ICR_ARBITRATION_PROGRESS) &&
-		       time_before(jiffies, timeout) && !hostdata->connected)
-			;
-		if (time_after_eq(jiffies, timeout)) {
-			printk("scsi : arbitration timeout at %d\n", __LINE__);
-			NCR5380_write(MODE_REG, MR_BASE);
-			NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-			return -1;
-		}
-	}
-#else /* NCR_TIMEOUT */
-	while (!(NCR5380_read(INITIATOR_COMMAND_REG) & ICR_ARBITRATION_PROGRESS) &&
-	       !hostdata->connected)
-		;
-#endif
-
-	dprintk(NDEBUG_ARBITRATION, "scsi%d: arbitration complete\n", HOSTNO);
-
-	if (hostdata->connected) {
-		NCR5380_write(MODE_REG, MR_BASE);
-		return -1;
-	}
-	/*
-	 * The arbitration delay is 2.2us, but this is a minimum and there is
-	 * no maximum so we can safely sleep for ceil(2.2) usecs to accommodate
-	 * the integral nature of udelay().
-	 *
+	/* The chip now waits for BUS FREE phase. Then after the 800 ns
+	 * Bus Free Delay, arbitration will begin.
 	 */
 
+	local_irq_restore(flags);
+	timeout = jiffies + HZ;
+	while (1) {
+		if (time_is_before_jiffies(timeout)) {
+			NCR5380_write(MODE_REG, MR_BASE);
+			shost_printk(KERN_ERR, instance,
+			             "select: arbitration timeout\n");
+			return -1;
+		}
+		if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE)) {
+			/* Reselection interrupt */
+			return -1;
+		}
+		if (NCR5380_read(INITIATOR_COMMAND_REG) & ICR_ARBITRATION_PROGRESS)
+			break;
+	}
+
+	/* The SCSI-2 arbitration delay is 2.4 us */
 	udelay(3);
 
 	/* Check for lost arbitration */
@@ -1634,8 +1621,14 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	 */
 
 	/* Wait for start of REQ/ACK handshake */
-	while (!(NCR5380_read(STATUS_REG) & SR_REQ))
-		;
+
+	err = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ);
+	if (err < 0) {
+		shost_printk(KERN_ERR, instance, "select: REQ timeout\n");
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
+		return -1;
+	}
 
 	dprintk(NDEBUG_SELECTION, "scsi%d: target %d selected, going into MESSAGE OUT phase.\n",
 		   HOSTNO, cmd->device->id);

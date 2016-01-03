@@ -1083,6 +1083,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	unsigned char *data;
 	int len;
 	int err;
+	unsigned long timeout;
 
 	NCR5380_dprint(NDEBUG_ARBITRATION, instance);
 	dprintk(NDEBUG_ARBITRATION, "scsi%d : starting arbitration, id = %d\n", instance->host_no, instance->this_id);
@@ -1101,28 +1102,31 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	NCR5380_write(OUTPUT_DATA_REG, hostdata->id_mask);
 	NCR5380_write(MODE_REG, MR_ARBITRATE);
 
-
-	/* We can be relaxed here, interrupts are on, we are
-	   in workqueue context, the birds are singing in the trees */
-	spin_unlock_irq(instance->host_lock);
-	err = NCR5380_poll_politely(instance, INITIATOR_COMMAND_REG, ICR_ARBITRATION_PROGRESS, ICR_ARBITRATION_PROGRESS, 5*HZ);
-	spin_lock_irq(instance->host_lock);
-	if (err < 0) {
-		printk(KERN_DEBUG "scsi: arbitration timeout at %d\n", __LINE__);
-		NCR5380_write(MODE_REG, MR_BASE);
-		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-		return -1;
-	}
-
-	dprintk(NDEBUG_ARBITRATION, "scsi%d : arbitration complete\n", instance->host_no);
-
-	/* 
-	 * The arbitration delay is 2.2us, but this is a minimum and there is 
-	 * no maximum so we can safely sleep for ceil(2.2) usecs to accommodate
-	 * the integral nature of udelay().
-	 *
+	/* The chip now waits for BUS FREE phase. Then after the 800 ns
+	 * Bus Free Delay, arbitration will begin.
 	 */
 
+	spin_unlock_irq(instance->host_lock);
+	timeout = jiffies + HZ;
+	while (1) {
+		if (time_is_before_jiffies(timeout)) {
+			NCR5380_write(MODE_REG, MR_BASE);
+			shost_printk(KERN_ERR, instance,
+			             "select: arbitration timeout\n");
+			spin_lock_irq(instance->host_lock);
+			return -1;
+		}
+		spin_lock_irq(instance->host_lock);
+		if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE)) {
+			/* Reselection interrupt */
+			return -1;
+		}
+		if (NCR5380_read(INITIATOR_COMMAND_REG) & ICR_ARBITRATION_PROGRESS)
+			break;
+		spin_unlock_irq(instance->host_lock);
+	}
+
+	/* The SCSI-2 arbitration delay is 2.4 us */
 	udelay(3);
 
 	/* Check for lost arbitration */
@@ -1270,9 +1274,9 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	spin_unlock_irq(instance->host_lock);
 	err = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ);
 	spin_lock_irq(instance->host_lock);
-	
 	if (err < 0) {
-		printk(KERN_ERR "scsi%d: timeout at NCR5380.c:%d\n", instance->host_no, __LINE__);
+		shost_printk(KERN_ERR, instance, "select: REQ timeout\n");
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		return -1;
 	}
