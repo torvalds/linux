@@ -464,7 +464,7 @@ static irqreturn_t __init probe_intr(int irq, void *dev_id)
 static int __init __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
 						int possible)
 {
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned long timeout;
 	int trying_irqs, i, mask;
 
@@ -586,9 +586,7 @@ static int __maybe_unused NCR5380_write_info(struct Scsi_Host *instance,
 static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 	struct Scsi_Host *instance)
 {
-	struct NCR5380_hostdata *hostdata;
-
-	hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
 	seq_printf(m, "Highwater I/O busy spin counts: write %d, read %d\n",
 	        hostdata->spin_max_w, hostdata->spin_max_r);
@@ -614,8 +612,8 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 
 static int NCR5380_init(struct Scsi_Host *instance, int flags)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int i;
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 	unsigned long deadline;
 
 	if(in_interrupt())
@@ -728,7 +726,7 @@ static int NCR5380_maybe_reset_bus(struct Scsi_Host *instance)
 
 static void NCR5380_exit(struct Scsi_Host *instance)
 {
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
 	cancel_work_sync(&hostdata->main_task);
 	destroy_workqueue(hostdata->work_q);
@@ -1037,7 +1035,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
  
 static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 {
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char tmp[3], phase;
 	unsigned char *data;
 	int len;
@@ -1511,7 +1509,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 	unsigned char saved_data = 0, overrun = 0, residue;
 #endif
 
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
 	if ((tmp = (NCR5380_read(STATUS_REG) & PHASE_MASK)) != p) {
 		*phase = tmp;
@@ -1743,7 +1741,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
  */
 
 static void NCR5380_information_transfer(struct Scsi_Host *instance) {
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *)instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char msgout = NOP;
 	int sink = 0;
 	int len;
@@ -2090,8 +2088,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
  */
 
 static void NCR5380_reselect(struct Scsi_Host *instance) {
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *)
-	 instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char target_mask;
 	unsigned char lun, phase;
 	int len;
@@ -2214,7 +2211,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 
 #ifdef REAL_DMA
 static void NCR5380_dma_complete(NCR5380_instance * instance) {
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int transferred;
 
 	/*
@@ -2268,7 +2265,7 @@ static void NCR5380_dma_complete(NCR5380_instance * instance) {
 static int NCR5380_abort(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *instance = cmd->device->host;
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	struct scsi_cmnd *tmp, **prev;
 	unsigned long flags;
 

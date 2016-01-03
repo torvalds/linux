@@ -196,12 +196,6 @@
  * possible) function may be used.
  */
 
-/* Macros ease life... :-) */
-#define	SETUP_HOSTDATA(in)				\
-    struct NCR5380_hostdata *hostdata =			\
-	(struct NCR5380_hostdata *)(in)->hostdata
-#define	HOSTDATA(in) ((struct NCR5380_hostdata *)(in)->hostdata)
-
 #define	NEXT(cmd)		((struct scsi_cmnd *)(cmd)->host_scribble)
 #define	SET_NEXT(cmd,next)	((cmd)->host_scribble = (void *)(next))
 #define	NEXTADDR(cmd)		((struct scsi_cmnd **)&(cmd)->host_scribble)
@@ -672,8 +666,8 @@ static void prepare_info(struct Scsi_Host *instance)
 
 static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int i;
-	SETUP_HOSTDATA(instance);
 	unsigned long deadline;
 
 	hostdata->host = instance;
@@ -1038,7 +1032,7 @@ static void NCR5380_main(struct work_struct *work)
 
 static void NCR5380_dma_complete(struct Scsi_Host *instance)
 {
-	SETUP_HOSTDATA(instance);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int transferred;
 	unsigned char **data;
 	volatile int *count;
@@ -1248,7 +1242,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 
 static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 {
-	SETUP_HOSTDATA(instance);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char tmp[3], phase;
 	unsigned char *data;
 	int len;
@@ -1742,7 +1736,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 				unsigned char *phase, int *count,
 				unsigned char **data)
 {
-	SETUP_HOSTDATA(instance);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	register int c = *count;
 	register unsigned char p = *phase;
 
@@ -1850,7 +1844,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 
 static void NCR5380_information_transfer(struct Scsi_Host *instance)
 {
-	SETUP_HOSTDATA(instance);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char msgout = NOP;
 	int sink = 0;
 	int len;
@@ -2314,7 +2308,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 static void NCR5380_reselect(struct Scsi_Host *instance)
 {
-	SETUP_HOSTDATA(instance);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char target_mask;
 	unsigned char lun;
 #ifdef SUPPORT_TAGS
@@ -2521,7 +2515,7 @@ static
 int NCR5380_abort(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *instance = cmd->device->host;
-	SETUP_HOSTDATA(instance);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	struct scsi_cmnd *tmp, **prev;
 	unsigned long flags;
 
