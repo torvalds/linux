@@ -172,8 +172,6 @@ static __u8 scan_mask_o;
 /* logical or of the input bits involved in the scan matrix */
 static __u8 scan_mask_i;
 
-typedef __u64 pmask_t;
-
 enum input_type {
 	INPUT_TYPE_STD,
 	INPUT_TYPE_KBD,
@@ -188,8 +186,8 @@ enum input_state {
 
 struct logical_input {
 	struct list_head list;
-	pmask_t mask;
-	pmask_t value;
+	__u64 mask;
+	__u64 value;
 	enum input_type type;
 	enum input_state state;
 	__u8 rise_time, fall_time;
@@ -219,19 +217,19 @@ static LIST_HEAD(logical_inputs);	/* list of all defined logical inputs */
  * corresponds to the ground.
  * Within each group, bits are stored in the same order as read on the port :
  * BAPSE (busy=4, ack=3, paper empty=2, select=1, error=0).
- * So, each __u64 (or pmask_t) is represented like this :
+ * So, each __u64 is represented like this :
  * 0000000000000000000BAPSEBAPSEBAPSEBAPSEBAPSEBAPSEBAPSEBAPSEBAPSE
  * <-----unused------><gnd><d07><d06><d05><d04><d03><d02><d01><d00>
  */
 
 /* what has just been read from the I/O ports */
-static pmask_t phys_read;
+static __u64 phys_read;
 /* previous phys_read */
-static pmask_t phys_read_prev;
+static __u64 phys_read_prev;
 /* stabilized phys_read (phys_read|phys_read_prev) */
-static pmask_t phys_curr;
+static __u64 phys_curr;
 /* previous phys_curr */
-static pmask_t phys_prev;
+static __u64 phys_prev;
 /* 0 means that at least one logical signal needs be computed */
 static char inputs_stable;
 
@@ -1789,7 +1787,7 @@ static void phys_scan_contacts(void)
 	gndmask = PNL_PINPUT(r_str(pprt)) & scan_mask_i;
 
 	/* grounded inputs are signals 40-44 */
-	phys_read |= (pmask_t)gndmask << 40;
+	phys_read |= (__u64)gndmask << 40;
 
 	if (bitmask != gndmask) {
 		/*
@@ -1805,7 +1803,7 @@ static void phys_scan_contacts(void)
 
 			w_dtr(pprt, oldval & ~bitval);	/* enable this output */
 			bitmask = PNL_PINPUT(r_str(pprt)) & ~gndmask;
-			phys_read |= (pmask_t)bitmask << (5 * bit);
+			phys_read |= (__u64)bitmask << (5 * bit);
 		}
 		w_dtr(pprt, oldval);	/* disable all outputs */
 	}
@@ -2042,12 +2040,12 @@ static void init_scan_timer(void)
  * corresponding to out and in bits respectively.
  * returns 1 if ok, 0 if error (in which case, nothing is written).
  */
-static u8 input_name2mask(const char *name, pmask_t *mask, pmask_t *value,
+static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 			  u8 *imask, u8 *omask)
 {
 	static char sigtab[10] = "EeSsPpAaBb";
 	u8 im, om;
-	pmask_t m, v;
+	__u64 m, v;
 
 	om = 0ULL;
 	im = 0ULL;
