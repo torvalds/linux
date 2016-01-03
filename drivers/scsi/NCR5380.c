@@ -80,14 +80,6 @@
  *      tagged queueing)
  */
 
-#if (NDEBUG & NDEBUG_LISTS)
-#define LIST(x,y) {printk("LINE:%d   Adding %p to %p\n", __LINE__, (void*)(x), (void*)(y)); if ((x)==(y)) udelay(5); }
-#define REMOVE(w,x,y,z) {printk("LINE:%d   Removing: %p->%p  %p->%p \n", __LINE__, (void*)(w), (void*)(x), (void*)(y), (void*)(z)); if ((x)==(y)) udelay(5); }
-#else
-#define LIST(x,y)
-#define REMOVE(w,x,y,z)
-#endif
-
 #ifndef notyet
 #undef REAL_DMA
 #endif
@@ -778,12 +770,10 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	 */
 
 	if (!(hostdata->issue_queue) || (cmd->cmnd[0] == REQUEST_SENSE)) {
-		LIST(cmd, hostdata->issue_queue);
 		cmd->host_scribble = (unsigned char *) hostdata->issue_queue;
 		hostdata->issue_queue = cmd;
 	} else {
 		for (tmp = (struct scsi_cmnd *) hostdata->issue_queue; tmp->host_scribble; tmp = (struct scsi_cmnd *) tmp->host_scribble);
-		LIST(cmd, tmp);
 		tmp->host_scribble = (unsigned char *) cmd;
 	}
 	spin_unlock_irqrestore(&hostdata->lock, flags);
@@ -835,10 +825,8 @@ static void NCR5380_main(struct work_struct *work)
 				if (!(hostdata->busy[tmp->device->id] &
 				      (1 << (u8)(tmp->device->lun & 0xff)))) {
 					if (prev) {
-						REMOVE(prev, prev->host_scribble, tmp, tmp->host_scribble);
 						prev->host_scribble = tmp->host_scribble;
 					} else {
-						REMOVE(-1, hostdata->issue_queue, tmp, tmp->host_scribble);
 						hostdata->issue_queue = (struct scsi_cmnd *) tmp->host_scribble;
 					}
 					tmp->host_scribble = NULL;
@@ -863,7 +851,6 @@ static void NCR5380_main(struct work_struct *work)
 						/* OK or bad target */
 					} else {
 						/* Need to retry */
-						LIST(tmp, hostdata->issue_queue);
 						tmp->host_scribble = (unsigned char *) hostdata->issue_queue;
 						hostdata->issue_queue = tmp;
 						dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES,
@@ -1888,7 +1875,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 					if ((cmd->cmnd[0] != REQUEST_SENSE) && (status_byte(cmd->SCp.Status) == CHECK_CONDITION)) {
 						scsi_eh_prep_cmnd(cmd, &hostdata->ses, NULL, 0, ~0);
 
-						LIST(cmd, hostdata->issue_queue);
 						cmd->host_scribble = (unsigned char *)
 						    hostdata->issue_queue;
 						hostdata->issue_queue = (struct scsi_cmnd *) cmd;
@@ -1925,7 +1911,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				case DISCONNECT:{
 						/* Accept message by clearing ACK */
 						NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-						LIST(cmd, hostdata->disconnected_queue);
 						cmd->host_scribble = (unsigned char *)
 						    hostdata->disconnected_queue;
 						hostdata->connected = NULL;
@@ -2175,10 +2160,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	     tmp; prev = tmp, tmp = (struct scsi_cmnd *) tmp->host_scribble) {
 		if ((target_mask == (1 << tmp->device->id)) && (lun == (u8)tmp->device->lun)) {
 			if (prev) {
-				REMOVE(prev, prev->host_scribble, tmp, tmp->host_scribble);
 				prev->host_scribble = tmp->host_scribble;
 			} else {
-				REMOVE(-1, hostdata->disconnected_queue, tmp, tmp->host_scribble);
 				hostdata->disconnected_queue =
 					(struct scsi_cmnd *) tmp->host_scribble;
 			}
@@ -2329,7 +2312,6 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 	dprintk(NDEBUG_ABORT, "scsi%d : abort going into loop.\n", instance->host_no);
 	for (prev = (struct scsi_cmnd **) &(hostdata->issue_queue), tmp = (struct scsi_cmnd *) hostdata->issue_queue; tmp; prev = (struct scsi_cmnd **) &(tmp->host_scribble), tmp = (struct scsi_cmnd *) tmp->host_scribble)
 		if (cmd == tmp) {
-			REMOVE(5, *prev, tmp, tmp->host_scribble);
 			(*prev) = (struct scsi_cmnd *) tmp->host_scribble;
 			tmp->host_scribble = NULL;
 			spin_unlock_irqrestore(&hostdata->lock, flags);
@@ -2399,7 +2381,6 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 
 			for (prev = (struct scsi_cmnd **) &(hostdata->disconnected_queue), tmp = (struct scsi_cmnd *) hostdata->disconnected_queue; tmp; prev = (struct scsi_cmnd **) &(tmp->host_scribble), tmp = (struct scsi_cmnd *) tmp->host_scribble)
 				if (cmd == tmp) {
-					REMOVE(5, *prev, tmp, tmp->host_scribble);
 					*prev = (struct scsi_cmnd *) tmp->host_scribble;
 					tmp->host_scribble = NULL;
 					spin_unlock_irqrestore(&hostdata->lock, flags);

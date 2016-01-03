@@ -68,27 +68,6 @@
 
 /* Adapted for the sun3 by Sam Creasey. */
 
-#if (NDEBUG & NDEBUG_LISTS)
-#define LIST(x, y)						\
-	do {							\
-		printk("LINE:%d   Adding %p to %p\n",		\
-		       __LINE__, (void*)(x), (void*)(y));	\
-		if ((x) == (y))					\
-			udelay(5);				\
-	} while (0)
-#define REMOVE(w, x, y, z)					\
-	do {							\
-		printk("LINE:%d   Removing: %p->%p  %p->%p \n",	\
-		       __LINE__, (void*)(w), (void*)(x),	\
-		       (void*)(y), (void*)(z));			\
-		if ((x) == (y))					\
-			udelay(5);				\
-	} while (0)
-#else
-#define LIST(x,y)
-#define REMOVE(w,x,y,z)
-#endif
-
 /*
  * Design
  *
@@ -856,14 +835,12 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	 */
 
 	if (!(hostdata->issue_queue) || (cmd->cmnd[0] == REQUEST_SENSE)) {
-		LIST(cmd, hostdata->issue_queue);
 		SET_NEXT(cmd, hostdata->issue_queue);
 		hostdata->issue_queue = cmd;
 	} else {
 		for (tmp = (struct scsi_cmnd *)hostdata->issue_queue;
 		     NEXT(tmp); tmp = NEXT(tmp))
 			;
-		LIST(cmd, tmp);
 		SET_NEXT(tmp, cmd);
 	}
 	spin_unlock_irqrestore(&hostdata->lock, flags);
@@ -947,10 +924,8 @@ static void NCR5380_main(struct work_struct *work)
 #endif
 				    ) {
 					if (prev) {
-						REMOVE(prev, NEXT(prev), tmp, NEXT(tmp));
 						SET_NEXT(prev, NEXT(tmp));
 					} else {
-						REMOVE(-1, hostdata->issue_queue, tmp, NEXT(tmp));
 						hostdata->issue_queue = NEXT(tmp);
 					}
 					SET_NEXT(tmp, NULL);
@@ -985,7 +960,6 @@ static void NCR5380_main(struct work_struct *work)
 						maybe_release_dma_irq(instance);
 					} else {
 						/* Need to retry */
-						LIST(tmp, hostdata->issue_queue);
 						SET_NEXT(tmp, hostdata->issue_queue);
 						hostdata->issue_queue = tmp;
 						dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES,
@@ -2068,7 +2042,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					    (status_byte(cmd->SCp.Status) == CHECK_CONDITION)) {
 						scsi_eh_prep_cmnd(cmd, &hostdata->ses, NULL, 0, ~0);
 
-						LIST(cmd,hostdata->issue_queue);
 						SET_NEXT(cmd, hostdata->issue_queue);
 						hostdata->issue_queue = (struct scsi_cmnd *) cmd;
 						dsprintk(NDEBUG_AUTOSENSE | NDEBUG_QUEUES,
@@ -2119,7 +2092,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				case DISCONNECT:
 					/* Accept message by clearing ACK */
 					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-					LIST(cmd,hostdata->disconnected_queue);
 					SET_NEXT(cmd, hostdata->disconnected_queue);
 					hostdata->connected = NULL;
 					hostdata->disconnected_queue = cmd;
@@ -2415,10 +2387,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 #endif
 		    ) {
 			if (prev) {
-				REMOVE(prev, NEXT(prev), tmp, NEXT(tmp));
 				SET_NEXT(prev, NEXT(tmp));
 			} else {
-				REMOVE(-1, hostdata->disconnected_queue, tmp, NEXT(tmp));
 				hostdata->disconnected_queue = NEXT(tmp);
 			}
 			SET_NEXT(tmp, NULL);
@@ -2588,7 +2558,6 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 	     tmp = (struct scsi_cmnd *)hostdata->issue_queue;
 	     tmp; prev = NEXTADDR(tmp), tmp = NEXT(tmp)) {
 		if (cmd == tmp) {
-			REMOVE(5, *prev, tmp, NEXT(tmp));
 			(*prev) = NEXT(tmp);
 			SET_NEXT(tmp, NULL);
 			tmp->result = DID_ABORT << 16;
@@ -2662,7 +2631,6 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 			     tmp = (struct scsi_cmnd *)hostdata->disconnected_queue;
 			     tmp; prev = NEXTADDR(tmp), tmp = NEXT(tmp)) {
 				if (cmd == tmp) {
-					REMOVE(5, *prev, tmp, NEXT(tmp));
 					*prev = NEXT(tmp);
 					SET_NEXT(tmp, NULL);
 					tmp->result = DID_ABORT << 16;
