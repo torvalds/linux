@@ -12,7 +12,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/init.h>

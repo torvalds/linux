@@ -68,9 +68,6 @@
 
 /* Adapted for the sun3 by Sam Creasey. */
 
-#include <scsi/scsi_dbg.h>
-#include <scsi/scsi_transport_spi.h>
-
 #if (NDEBUG & NDEBUG_LISTS)
 #define LIST(x, y)						\
 	do {							\
@@ -516,8 +513,6 @@ static inline int NCR5380_poll_politely(struct Scsi_Host *instance,
 	return NCR5380_poll_politely2(instance, reg, bit, val,
 	                                        reg, bit, val, wait);
 }
-
-#include <linux/delay.h>
 
 #if NDEBUG
 static struct {

@@ -4,9 +4,7 @@
  * Copyright 1995-2002, Russell King
  */
 #include <linux/module.h>
-#include <linux/signal.h>
 #include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/blkdev.h>
 #include <linux/init.h>
 
@@ -14,8 +12,6 @@
 #include <asm/io.h>
 
 #include <scsi/scsi_host.h>
-
-#include <scsi/scsicam.h>
 
 #define PSEUDO_DMA
 

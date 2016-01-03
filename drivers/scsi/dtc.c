@@ -46,15 +46,13 @@
 
 
 #include <linux/module.h>
-#include <linux/signal.h>
 #include <linux/blkdev.h>
-#include <linux/delay.h>
-#include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <scsi/scsi_host.h>
+
 #include "dtc.h"
 #define AUTOPROBE_IRQ
 #include "NCR5380.h"

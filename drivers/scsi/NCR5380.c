@@ -79,8 +79,6 @@
  * 4.  Test SCSI-II tagged queueing (I have no devices which support 
  *      tagged queueing)
  */
-#include <scsi/scsi_dbg.h>
-#include <scsi/scsi_transport_spi.h>
 
 #if (NDEBUG & NDEBUG_LISTS)
 #define LIST(x,y) {printk("LINE:%d   Adding %p to %p\n", __LINE__, (void*)(x), (void*)(y)); if ((x)==(y)) udelay(5); }

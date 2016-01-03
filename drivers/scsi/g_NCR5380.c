@@ -63,16 +63,14 @@
 #endif
 
 #include <asm/io.h>
-#include <linux/signal.h>
 #include <linux/blkdev.h>
+#include <linux/module.h>
 #include <scsi/scsi_host.h>
 #include "g_NCR5380.h"
 #include "NCR5380.h"
-#include <linux/stat.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/isapnp.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 
 static int ncr_irq;
@@ -732,7 +730,7 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun    	= CMD_PER_LUN,
         .use_clustering		= DISABLE_CLUSTERING,
 };
-#include <linux/module.h>
+
 #include "scsi_module.c"
 
 module_param(ncr_irq, int, 0);

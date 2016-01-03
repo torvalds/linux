@@ -68,14 +68,11 @@
  * 15 9-11
  */
  
-#include <linux/signal.h>
 #include <linux/io.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
-#include <linux/stat.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/delay.h>
 
 #include <scsi/scsi_host.h>
 #include "t128.h"

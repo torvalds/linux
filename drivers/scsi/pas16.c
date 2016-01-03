@@ -69,14 +69,10 @@
  
 #include <linux/module.h>
 
-#include <linux/signal.h>
-#include <linux/proc_fs.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <linux/blkdev.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/stat.h>
 #include <linux/init.h>
 
 #include <scsi/scsi_host.h>

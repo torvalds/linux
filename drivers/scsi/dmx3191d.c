@@ -41,11 +41,6 @@
 
 #define NCR5380_implementation_fields	/* none */
 
-/*
- * Includes needed for NCR5380.[ch] (XXX: Move them to NCR5380.h)
- */
-#include <linux/delay.h>
-
 #include "NCR5380.h"
 #include "NCR5380.c"
 
