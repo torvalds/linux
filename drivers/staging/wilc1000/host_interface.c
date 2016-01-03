@@ -4160,7 +4160,7 @@ int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 }
 
 int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,
-		    u32 u32HeadLen, u8 *pu8Head, u32 u32TailLen, u8 *pu8Tail)
+		    u32 head_len, u8 *pu8Head, u32 u32TailLen, u8 *pu8Tail)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4180,8 +4180,8 @@ int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,
 	msg.vif = vif;
 	pstrSetBeaconParam->interval = interval;
 	pstrSetBeaconParam->dtim_period = dtim_period;
-	pstrSetBeaconParam->head_len = u32HeadLen;
-	pstrSetBeaconParam->head = kmemdup(pu8Head, u32HeadLen, GFP_KERNEL);
+	pstrSetBeaconParam->head_len = head_len;
+	pstrSetBeaconParam->head = kmemdup(pu8Head, head_len, GFP_KERNEL);
 	if (!pstrSetBeaconParam->head) {
 		result = -ENOMEM;
 		goto ERRORHANDLER;
