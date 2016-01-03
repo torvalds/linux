@@ -365,10 +365,10 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 /* OBD_IOC_LLOG_CATINFO is deprecated */
 #define OBD_IOC_LLOG_CATINFO	   _IOWR('f', 196, OBD_IOC_DATA_TYPE)
 
-#define ECHO_IOC_GET_STRIPE	    _IOWR('f', 200, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_SET_STRIPE	    _IOWR('f', 201, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_ENQUEUE	       _IOWR('f', 202, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_CANCEL		_IOWR('f', 203, OBD_IOC_DATA_TYPE)
+/*	#define ECHO_IOC_GET_STRIPE    _IOWR('f', 200, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_SET_STRIPE    _IOWR('f', 201, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_ENQUEUE       _IOWR('f', 202, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_CANCEL        _IOWR('f', 203, OBD_IOC_DATA_TYPE) */
 
 #define OBD_IOC_GET_OBJ_VERSION	_IOR('f', 210, OBD_IOC_DATA_TYPE)
 
