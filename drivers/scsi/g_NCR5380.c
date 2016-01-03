@@ -594,8 +594,6 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_END_DMA_TRANSFER))
 		printk(KERN_ERR "53C400r: no end dma signal\n");
 		
-	NCR5380_write(MODE_REG, MR_BASE);
-	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 	return 0;
 }
 

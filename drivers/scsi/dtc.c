@@ -334,8 +334,6 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
 	i = 0;
-	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-	NCR5380_write(MODE_REG, MR_ENABLE_EOP_INTR | MR_DMA_MODE);
 	if (instance->irq == NO_IRQ)
 		NCR5380_write(DTC_CONTROL_REG, CSR_DIR_READ);
 	else
@@ -357,9 +355,7 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	rtrc(4);
 	while (!(NCR5380_read(DTC_CONTROL_REG) & D_CR_ACCESS))
 		++i;
-	NCR5380_write(MODE_REG, 0);	/* Clear the operating mode */
 	rtrc(0);
-	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 	if (i > hostdata->spin_max_r)
 		hostdata->spin_max_r = i;
 	return (0);
@@ -383,9 +379,6 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 	int i;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
-	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-	NCR5380_write(MODE_REG, MR_ENABLE_EOP_INTR | MR_DMA_MODE);
-	/* set direction (write) */
 	if (instance->irq == NO_IRQ)
 		NCR5380_write(DTC_CONTROL_REG, 0);
 	else
@@ -410,7 +403,6 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 		++i;
 	rtrc(7);
 	/* Check for parity error here. fixme. */
-	NCR5380_write(MODE_REG, 0);	/* Clear the operating mode */
 	rtrc(0);
 	if (i > hostdata->spin_max_w)
 		hostdata->spin_max_w = i;
