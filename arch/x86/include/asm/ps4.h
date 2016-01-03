@@ -9,7 +9,9 @@
 #ifndef _ASM_X86_PS4_H
 #define _ASM_X86_PS4_H
 
-#include <linux/time.h>
+#ifdef CONFIG_X86_PS4
+
+#include <linux/irqdomain.h>
 
 #define PS4_DEFAULT_TSC_FREQ 1594000000
 
@@ -18,4 +20,25 @@
 
 extern unsigned long ps4_calibrate_tsc(void);
 
+/*
+ * The PS4 Aeolia southbridge device is a composite device containing some
+ * standard-ish, some not-so-standard, and some completely custom functions,
+ * all using special MSI handling. This function does the equivalent of
+ * pci_enable_msi_range and friends, for those devices. Only works after the
+ * Aeolia MSR routing function device (function 4) has been probed.
+ * Returns 1 or count, depending on IRQ allocation constraints, or negative on
+ * error. Assigned IRQ(s) start at dev->irq.
+ */
+extern int apcie_assign_irqs(struct pci_dev *dev, int nvec);
+#define apcie_free_irqs irq_domain_free_irqs
+
+#else
+
+static inline int apcie_assign_irqs(struct pci_dev *dev, int nvec) {
+	return -ENODEV;
+}
+static inline void apcie_free_irqs(unsigned int virq, unsigned int nvec) {
+}
+
+#endif
 #endif
