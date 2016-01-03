@@ -22,6 +22,9 @@
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 #define NCR5380_read(reg)		cumanascsi_read(instance, reg)
 #define NCR5380_write(reg, value)	cumanascsi_write(instance, reg, value)
+
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
 #define NCR5380_info			cumanascsi_info

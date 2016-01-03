@@ -2170,11 +2170,13 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				 */
 
 #if defined(REAL_DMA)
-				if (
 #if !defined(CONFIG_SUN3)
-				    !cmd->device->borken &&
+				transfersize = 0;
+				if (!cmd->device->borken)
 #endif
-				    (transfersize = NCR5380_dma_xfer_len(instance, cmd, phase)) >= DMA_MIN_SIZE) {
+					transfersize = NCR5380_dma_xfer_len(instance, cmd, phase);
+
+				if (transfersize >= DMA_MIN_SIZE) {
 					len = transfersize;
 					cmd->SCp.phase = phase;
 					if (NCR5380_transfer_dma(instance, &phase,

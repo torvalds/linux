@@ -26,6 +26,8 @@
 #define NCR5380_write(reg, value) \
 	writeb(value, priv(instance)->base + ((reg) << 2))
 
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info
 #define NCR5380_show_info		oakscsi_show_info

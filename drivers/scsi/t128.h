@@ -84,6 +84,8 @@
 #define NCR5380_read(reg) readb(T128_address(reg))
 #define NCR5380_write(reg, value) writeb((value),(T128_address(reg)))
 
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+
 #define NCR5380_intr t128_intr
 #define NCR5380_queue_command t128_queue_command
 #define NCR5380_abort t128_abort
