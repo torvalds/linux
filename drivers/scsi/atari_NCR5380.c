@@ -936,10 +936,8 @@ static void NCR5380_main(struct work_struct *work)
 			     prev = NULL; tmp; prev = tmp, tmp = NEXT(tmp)) {
 				u8 lun = tmp->device->lun;
 
-				dprintk(NDEBUG_LISTS,
-				        "MAIN tmp=%p target=%d busy=%d lun=%d\n",
-				        tmp, scmd_id(tmp), hostdata->busy[scmd_id(tmp)],
-				        lun);
+				dsprintk(NDEBUG_QUEUES, instance, "main: tmp=%p target=%d busy=%d lun=%d\n",
+				         tmp, scmd_id(tmp), hostdata->busy[scmd_id(tmp)], lun);
 				/*  When we find one, remove it from the issue queue. */
 				if (
 #ifdef SUPPORT_TAGS
@@ -956,6 +954,10 @@ static void NCR5380_main(struct work_struct *work)
 						hostdata->issue_queue = NEXT(tmp);
 					}
 					SET_NEXT(tmp, NULL);
+					dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES,
+					         instance, "main: removed %p from issue queue %p\n",
+					         tmp, prev);
+
 					hostdata->retain_dma_intr++;
 
 					/*
@@ -964,9 +966,6 @@ static void NCR5380_main(struct work_struct *work)
 					 * On failure, we must add the command back to the
 					 *   issue queue so we can keep trying.
 					 */
-					dprintk(NDEBUG_MAIN, "scsi%d: main(): command for target %d "
-						    "lun %d removed from issue_queue\n",
-						    HOSTNO, tmp->device->id, lun);
 					/*
 					 * REQUEST SENSE commands are issued without tagged
 					 * queueing, even on SCSI-II devices because the
@@ -989,13 +988,14 @@ static void NCR5380_main(struct work_struct *work)
 						LIST(tmp, hostdata->issue_queue);
 						SET_NEXT(tmp, hostdata->issue_queue);
 						hostdata->issue_queue = tmp;
+						dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES,
+						         instance, "main: select() failed, %p returned to issue queue\n",
+						         tmp);
 #ifdef SUPPORT_TAGS
 						cmd_free_tag(tmp);
 #endif
 						hostdata->retain_dma_intr--;
 						done = 0;
-						dprintk(NDEBUG_MAIN, "scsi%d: main(): select() failed, "
-							    "returned to issue_queue\n", HOSTNO);
 					}
 					if (hostdata->connected)
 						break;
@@ -2017,8 +2017,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				case COMMAND_COMPLETE:
 					/* Accept message by clearing ACK */
 					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-					dprintk(NDEBUG_QUEUES, "scsi%d: command for target %d, lun %llu "
-						  "completed\n", HOSTNO, cmd->device->id, cmd->device->lun);
+					dsprintk(NDEBUG_QUEUES, instance,
+					         "COMMAND COMPLETE %p target %d lun %llu\n",
+					         cmd, scmd_id(cmd), cmd->device->lun);
 
 					hostdata->connected = NULL;
 #ifdef SUPPORT_TAGS
@@ -2067,13 +2068,11 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					    (status_byte(cmd->SCp.Status) == CHECK_CONDITION)) {
 						scsi_eh_prep_cmnd(cmd, &hostdata->ses, NULL, 0, ~0);
 
-						dprintk(NDEBUG_AUTOSENSE, "scsi%d: performing request sense\n", HOSTNO);
-
 						LIST(cmd,hostdata->issue_queue);
 						SET_NEXT(cmd, hostdata->issue_queue);
 						hostdata->issue_queue = (struct scsi_cmnd *) cmd;
-						dsprintk(NDEBUG_QUEUES, instance,
-						         "REQUEST SENSE cmd %p added to head of issue queue\n",
+						dsprintk(NDEBUG_AUTOSENSE | NDEBUG_QUEUES,
+						         instance, "REQUEST SENSE cmd %p added to head of issue queue\n",
 						         cmd);
 					} else {
 						cmd->scsi_done(cmd);
@@ -2124,10 +2123,10 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					SET_NEXT(cmd, hostdata->disconnected_queue);
 					hostdata->connected = NULL;
 					hostdata->disconnected_queue = cmd;
-					dprintk(NDEBUG_QUEUES, "scsi%d: command for target %d lun %llu was "
-						  "moved from connected to the "
-						  "disconnected_queue\n", HOSTNO,
-						  cmd->device->id, cmd->device->lun);
+					dsprintk(NDEBUG_INFORMATION | NDEBUG_QUEUES,
+					         instance, "connected command %p for target %d lun %llu moved to disconnected queue\n",
+					         cmd, scmd_id(cmd), cmd->device->lun);
+
 					/*
 					 * Restore phase bits to 0 so an interrupted selection,
 					 * arbitration can resume.
@@ -2427,7 +2426,11 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 		}
 	}
 
-	if (!tmp) {
+	if (tmp) {
+		dsprintk(NDEBUG_RESELECTION | NDEBUG_QUEUES, instance,
+		         "reselect: removed %p from disconnected queue\n", tmp);
+	} else {
+
 #ifdef SUPPORT_TAGS
 		shost_printk(KERN_ERR, instance, "target bitmask 0x%02x lun %d tag %d not in disconnected queue.\n",
 		             target_mask, lun, tag);
