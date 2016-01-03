@@ -40,7 +40,7 @@
 
 #define LNET_MINOR 240
 
-int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
+int libcfs_ioctl_getdata(char *buf, char *end, void __user *arg)
 {
 	struct libcfs_ioctl_hdr   *hdr;
 	struct libcfs_ioctl_data  *data;
@@ -88,9 +88,9 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 	return 0;
 }
 
-int libcfs_ioctl_popdata(void *arg, void *data, int size)
+int libcfs_ioctl_popdata(void __user *arg, void *data, int size)
 {
-	if (copy_to_user((char *)arg, data, size))
+	if (copy_to_user(arg, data, size))
 		return -EFAULT;
 	return 0;
 }
