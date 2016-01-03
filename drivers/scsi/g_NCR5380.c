@@ -56,10 +56,6 @@
  *     
  */
 
-/* settings for DTC3181E card with only Mustek scanner attached */
-#define USLEEP_POLL	msecs_to_jiffies(10)
-#define USLEEP_SLEEP	msecs_to_jiffies(200)
-
 #define AUTOPROBE_IRQ
 
 #ifdef CONFIG_SCSI_GENERIC_NCR53C400

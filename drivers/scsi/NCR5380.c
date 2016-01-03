@@ -139,17 +139,7 @@
  * piece of hardware that requires you to sit in a loop polling for 
  * the REQ signal as long as you are connected.  Some devices are 
  * brain dead (ie, many TEXEL CD ROM drives) and won't disconnect 
- * while doing long seek operations.
- * 
- * The workaround for this is to keep track of devices that have
- * disconnected.  If the device hasn't disconnected, for commands that
- * should disconnect, we do something like 
- *
- * while (!REQ is asserted) { sleep for N usecs; poll for M usecs }
- * 
- * Some tweaking of N and M needs to be done.  An algorithm based 
- * on "time to data" would give the best results as long as short time
- * to datas (ie, on the same track) were considered, however these 
+ * while doing long seek operations. [...] These
  * broken devices are the exception rather than the rule and I'd rather
  * spend my time optimizing for the normal case.
  *
@@ -220,10 +210,6 @@
  * Defaults for these will be provided although the user may want to adjust 
  * these to allocate CPU resources to the SCSI driver or "real" code.
  * 
- * USLEEP_SLEEP - amount of time, in jiffies, to sleep
- *
- * USLEEP_POLL - amount of time, in jiffies, to poll
- *
  * These macros MUST be defined :
  * 
  * NCR5380_read(register)  - read from the specified register
@@ -449,73 +435,6 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
 }
 #endif
 
-/*
- * These need tweaking, and would probably work best as per-device 
- * flags initialized differently for disk, tape, cd, etc devices.
- * People with broken devices are free to experiment as to what gives
- * the best results for them.
- *
- * USLEEP_SLEEP should be a minimum seek time.
- *
- * USLEEP_POLL should be a maximum rotational latency.
- */
-#ifndef USLEEP_SLEEP
-/* 20 ms (reasonable hard disk speed) */
-#define USLEEP_SLEEP msecs_to_jiffies(20)
-#endif
-/* 300 RPM (floppy speed) */
-#ifndef USLEEP_POLL
-#define USLEEP_POLL msecs_to_jiffies(200)
-#endif
-
-/* 
- * Function : int should_disconnect (unsigned char cmd)
- *
- * Purpose : decide whether a command would normally disconnect or 
- *      not, since if it won't disconnect we should go to sleep.
- *
- * Input : cmd - opcode of SCSI command
- *
- * Returns : DISCONNECT_LONG if we should disconnect for a really long 
- *      time (ie always, sleep, look for REQ active, sleep), 
- *      DISCONNECT_TIME_TO_DATA if we would only disconnect for a normal
- *      time-to-data delay, DISCONNECT_NONE if this command would return
- *      immediately.
- *
- *      Future sleep algorithms based on time to data can exploit 
- *      something like this so they can differentiate between "normal" 
- *      (ie, read, write, seek) and unusual commands (ie, * format).
- *
- * Note : We don't deal with commands that handle an immediate disconnect,
- *        
- */
-
-static int should_disconnect(unsigned char cmd)
-{
-	switch (cmd) {
-	case READ_6:
-	case WRITE_6:
-	case SEEK_6:
-	case READ_10:
-	case WRITE_10:
-	case SEEK_10:
-		return DISCONNECT_TIME_TO_DATA;
-	case FORMAT_UNIT:
-	case SEARCH_HIGH:
-	case SEARCH_LOW:
-	case SEARCH_EQUAL:
-		return DISCONNECT_LONG;
-	default:
-		return DISCONNECT_NONE;
-	}
-}
-
-static void NCR5380_set_timer(struct NCR5380_hostdata *hostdata, unsigned long timeout)
-{
-	hostdata->time_expires = jiffies + timeout;
-	queue_delayed_work(hostdata->work_q, &hostdata->coroutine, timeout);
-}
-
 
 static int probe_irq __initdata;
 
@@ -614,9 +533,6 @@ static void prepare_info(struct Scsi_Host *instance)
 	         "can_queue %d, cmd_per_lun %d, "
 	         "sg_tablesize %d, this_id %d, "
 	         "flags { %s%s%s%s}, "
-#if defined(USLEEP_POLL) && defined(USLEEP_SLEEP)
-		 "USLEEP_POLL %lu, USLEEP_SLEEP %lu, "
-#endif
 	         "options { %s} ",
 	         instance->hostt->name, instance->io_port, instance->n_io_port,
 	         instance->base, instance->irq,
@@ -626,9 +542,6 @@ static void prepare_info(struct Scsi_Host *instance)
 	         hostdata->flags & FLAG_DTC3181E      ? "DTC3181E "      : "",
 	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
 	         hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY "  : "",
-#if defined(USLEEP_POLL) && defined(USLEEP_SLEEP)
-	         USLEEP_POLL, USLEEP_SLEEP,
-#endif
 #ifdef AUTOPROBE_IRQ
 	         "AUTOPROBE_IRQ "
 #endif
@@ -804,7 +717,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 		hostdata->flags = FLAG_CHECK_LAST_BYTE_SENT | flags;
 
 	hostdata->host = instance;
-	hostdata->time_expires = 0;
 
 	prepare_info(instance);
 
@@ -1041,7 +953,6 @@ static void NCR5380_main(struct work_struct *work)
 #ifdef REAL_DMA
 		    && !hostdata->dmalen
 #endif
-		    && (!hostdata->time_expires || time_before_eq(hostdata->time_expires, jiffies))
 		    ) {
 			dprintk(NDEBUG_MAIN, "scsi%d : main() : performing information transfer\n", instance->host_no);
 			NCR5380_information_transfer(instance);
@@ -1421,11 +1332,6 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase
 	unsigned char p = *phase, tmp;
 	int c = *count;
 	unsigned char *d = *data;
-	/*
-	 *      RvC: some administrative data to process polling time
-	 */
-	int break_allowed = 0;
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 
 	if (!(p & SR_IO))
 		dprintk(NDEBUG_PIO, "scsi%d : pio write %d bytes\n", instance->host_no, c);
@@ -1440,35 +1346,19 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase
 
 	 NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(p));
 
-	/* RvC: don't know if this is necessary, but other SCSI I/O is short
-	 *      so breaks are not necessary there
-	 */
-	if ((p == PHASE_DATAIN) || (p == PHASE_DATAOUT)) {
-		break_allowed = 1;
-	}
 	do {
 		/* 
 		 * Wait for assertion of REQ, after which the phase bits will be 
 		 * valid 
 		 */
 
-		/* RvC: we simply poll once, after that we stop temporarily
-		 *      and let the device buffer fill up
-		 *      if breaking is not allowed, we keep polling as long as needed
-		 */
-
-		/* FIXME */
-		while (!((tmp = NCR5380_read(STATUS_REG)) & SR_REQ) && !break_allowed);
-		if (!(tmp & SR_REQ)) {
-			/* timeout condition */
-			NCR5380_set_timer(hostdata, USLEEP_SLEEP);
+		if (NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ) < 0)
 			break;
-		}
 
 		dprintk(NDEBUG_HANDSHAKE, "scsi%d : REQ detected\n", instance->host_no);
 
 		/* Check for phase mismatch */
-		if ((tmp & PHASE_MASK) != p) {
+		if ((NCR5380_read(STATUS_REG) & PHASE_MASK) != p) {
 			dprintk(NDEBUG_HANDSHAKE, "scsi%d : phase mismatch\n", instance->host_no);
 			NCR5380_dprint_phase(NDEBUG_HANDSHAKE, instance);
 			break;
@@ -1940,8 +1830,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 	unsigned char *data;
 	unsigned char phase, tmp, extended_msg[10], old_phase = 0xff;
 	struct scsi_cmnd *cmd = (struct scsi_cmnd *) hostdata->connected;
-	/* RvC: we need to set the end of the polling time */
-	unsigned long poll_time = jiffies + USLEEP_POLL;
 
 	while (1) {
 		tmp = NCR5380_read(STATUS_REG);
@@ -2141,7 +2029,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				case DISCONNECT:{
 						/* Accept message by clearing ACK */
 						NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-						cmd->device->disconnect = 1;
 						LIST(cmd, hostdata->disconnected_queue);
 						cmd->host_scribble = (unsigned char *)
 						    hostdata->disconnected_queue;
@@ -2273,11 +2160,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				 * use the dma transfer function.  
 				 */
 				NCR5380_transfer_pio(instance, &phase, &len, &data);
-				if (!cmd->device->disconnect && should_disconnect(cmd->cmnd[0])) {
-					NCR5380_set_timer(hostdata, USLEEP_SLEEP);
-					dprintk(NDEBUG_USLEEP, "scsi%d : issued command, sleeping until %lu\n", instance->host_no, hostdata->time_expires);
-					return;
-				}
 				break;
 			case PHASE_STATIN:
 				len = 1;
@@ -2289,15 +2171,10 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				printk("scsi%d : unknown phase\n", instance->host_no);
 				NCR5380_dprint(NDEBUG_ANY, instance);
 			}	/* switch(phase) */
-		}		/* if (tmp * SR_REQ) */
-		else {
-			/* RvC: go to sleep if polling time expired
-			 */
-			if (!cmd->device->disconnect && time_after_eq(jiffies, poll_time)) {
-				NCR5380_set_timer(hostdata, USLEEP_SLEEP);
-				dprintk(NDEBUG_USLEEP, "scsi%d : poll timed out, sleeping until %lu\n", instance->host_no, hostdata->time_expires);
-				return;
-			}
+		} else {
+			spin_unlock_irq(instance->host_lock);
+			NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ);
+			spin_lock_irq(instance->host_lock);
 		}
 	}			/* while (1) */
 }

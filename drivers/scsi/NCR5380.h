@@ -205,16 +205,6 @@
 
 #define PHASE_SR_TO_TCR(phase) ((phase) >> 2)
 
-/*
- * The internal should_disconnect() function returns these based on the 
- * expected length of a disconnect if a device supports disconnect/
- * reconnect.
- */
-
-#define DISCONNECT_NONE		0
-#define DISCONNECT_TIME_TO_DATA	1
-#define DISCONNECT_LONG		2
-
 /* 
  * "Special" value for the (unsigned char) command tag, to indicate
  * I_T_L nexus instead of I_T_L_Q.
@@ -266,7 +256,6 @@ struct NCR5380_hostdata {
 	volatile struct scsi_cmnd *issue_queue;	/* waiting to be issued */
 	volatile struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
 	int flags;
-	unsigned long time_expires;		/* in jiffies, set prior to sleeping */
 	struct delayed_work coroutine;		/* our co-routine */
 	struct scsi_eh_save ses;
 	char info[256];

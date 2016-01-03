@@ -126,17 +126,7 @@
  * piece of hardware that requires you to sit in a loop polling for
  * the REQ signal as long as you are connected.  Some devices are
  * brain dead (ie, many TEXEL CD ROM drives) and won't disconnect
- * while doing long seek operations.
- *
- * The workaround for this is to keep track of devices that have
- * disconnected.  If the device hasn't disconnected, for commands that
- * should disconnect, we do something like
- *
- * while (!REQ is asserted) { sleep for N usecs; poll for M usecs }
- *
- * Some tweaking of N and M needs to be done.  An algorithm based
- * on "time to data" would give the best results as long as short time
- * to datas (ie, on the same track) were considered, however these
+ * while doing long seek operations. [...] These
  * broken devices are the exception rather than the rule and I'd rather
  * spend my time optimizing for the normal case.
  *
@@ -1740,13 +1730,14 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 		 * Wait for assertion of REQ, after which the phase bits will be
 		 * valid
 		 */
-		while (!((tmp = NCR5380_read(STATUS_REG)) & SR_REQ))
-			;
+
+		if (NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ) < 0)
+			break;
 
 		dprintk(NDEBUG_HANDSHAKE, "scsi%d: REQ detected\n", HOSTNO);
 
 		/* Check for phase mismatch */
-		if ((tmp & PHASE_MASK) != p) {
+		if ((NCR5380_read(STATUS_REG) & PHASE_MASK) != p) {
 			dprintk(NDEBUG_PIO, "scsi%d: phase mismatch\n", HOSTNO);
 			NCR5380_dprint_phase(NDEBUG_PIO, instance);
 			break;
@@ -2399,7 +2390,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					/* Accept message by clearing ACK */
 					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 					local_irq_save(flags);
-					cmd->device->disconnect = 1;
 					LIST(cmd,hostdata->disconnected_queue);
 					SET_NEXT(cmd, hostdata->disconnected_queue);
 					hostdata->connected = NULL;
@@ -2564,7 +2554,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				printk("scsi%d: unknown phase\n", HOSTNO);
 				NCR5380_dprint(NDEBUG_ANY, instance);
 			} /* switch(phase) */
-		} /* if (tmp * SR_REQ) */
+		} else {
+			NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ);
+		}
 	} /* while (1) */
 }
 
