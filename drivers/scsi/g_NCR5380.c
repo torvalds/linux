@@ -326,7 +326,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 			ports = ncr_53c400a_ports;
 			break;
 		case BOARD_DTC3181E:
-			flags = FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E;
+			flags = FLAG_NO_PSEUDO_DMA;
 			ports = dtc_3181e_ports;
 			break;
 		}

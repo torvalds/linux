@@ -91,7 +91,7 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	 */
 	shost->irq = NO_IRQ;
 
-	error = NCR5380_init(shost, FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E);
+	error = NCR5380_init(shost, FLAG_NO_PSEUDO_DMA);
 	if (error)
 		goto out_host_put;
 
