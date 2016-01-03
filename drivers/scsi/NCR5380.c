@@ -1236,7 +1236,13 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		dprintk(NDEBUG_ARBITRATION, "scsi%d : lost arbitration, deasserting MR_ARBITRATE\n", instance->host_no);
 		return -1;
 	}
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_SEL);
+
+	/* After/during arbitration, BSY should be asserted.
+	 * IBM DPES-31080 Version S31Q works now
+	 * Tnx to Thomas_Roesch@m2.maus.de for finding this! (Roman)
+	 */
+	NCR5380_write(INITIATOR_COMMAND_REG,
+		      ICR_BASE | ICR_ASSERT_SEL | ICR_ASSERT_BSY);
 
 	if (!(hostdata->flags & FLAG_DTC3181E) &&
 	    /* RvC: DTC3181E has some trouble with this

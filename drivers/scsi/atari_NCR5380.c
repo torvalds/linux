@@ -1480,9 +1480,10 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		return -1;
 	}
 
-	/* after/during arbitration, BSY should be asserted.
-	   IBM DPES-31080 Version S31Q works now */
-	/* Tnx to Thomas_Roesch@m2.maus.de for finding this! (Roman) */
+	/* After/during arbitration, BSY should be asserted.
+	 * IBM DPES-31080 Version S31Q works now
+	 * Tnx to Thomas_Roesch@m2.maus.de for finding this! (Roman)
+	 */
 	NCR5380_write(INITIATOR_COMMAND_REG,
 		      ICR_BASE | ICR_ASSERT_SEL | ICR_ASSERT_BSY);
 
