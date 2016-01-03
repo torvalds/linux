@@ -1316,17 +1316,10 @@ LNetNIFini(void)
 EXPORT_SYMBOL(LNetNIFini);
 
 /**
- * This is an ugly hack to export IOC_LIBCFS_DEBUG_PEER and
- * IOC_LIBCFS_PORTALS_COMPATIBILITY commands to users, by tweaking the LNet
- * internal ioctl handler.
+ * LNet ioctl handler.
  *
  * IOC_LIBCFS_PORTALS_COMPATIBILITY is now deprecated, don't use it.
  *
- * \param cmd IOC_LIBCFS_DEBUG_PEER to print debugging data about a peer.
- * The data will be printed to system console. Don't use it excessively.
- * \param arg A pointer to lnet_process_id_t, process ID of the peer.
- *
- * \return Always return 0 when called by users directly (i.e., not via ioctl).
  */
 int
 LNetCtl(unsigned int cmd, void *arg)
@@ -1396,29 +1389,6 @@ LNetCtl(unsigned int cmd, void *arg)
 		data->ioc_count = rc;
 		return 0;
 
-	case IOC_LIBCFS_DEBUG_PEER: {
-		/* CAVEAT EMPTOR: this one designed for calling directly; not
-		 * via an ioctl */
-		id = *((lnet_process_id_t *) arg);
-
-		lnet_debug_peer(id.nid);
-
-		ni = lnet_net2ni(LNET_NIDNET(id.nid));
-		if (ni == NULL) {
-			CDEBUG(D_WARNING, "No NI for %s\n", libcfs_id2str(id));
-		} else {
-			if (ni->ni_lnd->lnd_ctl == NULL) {
-				CDEBUG(D_WARNING, "No ctl for %s\n",
-				       libcfs_id2str(id));
-			} else {
-				(void)ni->ni_lnd->lnd_ctl(ni, cmd, arg);
-			}
-
-			lnet_ni_decref(ni);
-		}
-		return 0;
-	}
-
 	default:
 		ni = lnet_net2ni(data->ioc_net);
 		if (ni == NULL)
@@ -1435,6 +1405,12 @@ LNetCtl(unsigned int cmd, void *arg)
 	/* not reached */
 }
 EXPORT_SYMBOL(LNetCtl);
+
+void LNetDebugPeer(lnet_process_id_t id)
+{
+	lnet_debug_peer(id.nid);
+}
+EXPORT_SYMBOL(LNetDebugPeer);
 
 /**
  * Retrieve the lnet_process_id_t ID of LNet interface at \a index. Note that

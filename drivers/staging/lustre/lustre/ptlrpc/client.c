@@ -1884,7 +1884,7 @@ int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink)
 		  (s64)req->rq_sent, (s64)req->rq_real_sent);
 
 	if (imp != NULL && obd_debug_peer_on_timeout)
-		LNetCtl(IOC_LIBCFS_DEBUG_PEER, &imp->imp_connection->c_peer);
+		LNetDebugPeer(imp->imp_connection->c_peer);
 
 	ptlrpc_unregister_reply(req, async_unlink);
 	ptlrpc_unregister_bulk(req, async_unlink);
