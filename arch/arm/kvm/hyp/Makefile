@@ -3,3 +3,4 @@
 #
 
 obj-$(CONFIG_KVM_ARM_HOST) += tlb.o
+obj-$(CONFIG_KVM_ARM_HOST) += cp15-sr.o
