@@ -4061,13 +4061,13 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
 	return;
 }
 
-s32 wilc_remain_on_channel(struct wilc_vif *vif, u32 u32SessionID,
+int wilc_remain_on_channel(struct wilc_vif *vif, u32 u32SessionID,
 			   u32 u32duration, u16 chan,
 			   wilc_remain_on_chan_expired RemainOnChanExpired,
 			   wilc_remain_on_chan_ready RemainOnChanReady,
 			   void *pvUserArg)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
