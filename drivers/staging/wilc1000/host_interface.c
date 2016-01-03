@@ -4372,13 +4372,11 @@ int wilc_edit_station(struct wilc_vif *vif,
 
 	memcpy(add_sta_info, sta_param, sizeof(struct add_sta_param));
 	if (add_sta_info->rates_len > 0) {
-		u8 *rates = kmalloc(add_sta_info->rates_len, GFP_KERNEL);
-
+		u8 *rates = kmemdup(sta_param->rates,
+				    add_sta_info->rates_len,
+				    GFP_KERNEL);
 		if (!rates)
 			return -ENOMEM;
-
-		memcpy(rates, sta_param->rates,
-		       add_sta_info->rates_len);
 		add_sta_info->rates = rates;
 	}
 
