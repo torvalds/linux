@@ -2042,11 +2042,11 @@ static void init_scan_timer(void)
  * corresponding to out and in bits respectively.
  * returns 1 if ok, 0 if error (in which case, nothing is written).
  */
-static int input_name2mask(const char *name, pmask_t *mask, pmask_t *value,
-			   char *imask, char *omask)
+static u8 input_name2mask(const char *name, pmask_t *mask, pmask_t *value,
+			  u8 *imask, u8 *omask)
 {
 	static char sigtab[10] = "EeSsPpAaBb";
-	char im, om;
+	u8 im, om;
 	pmask_t m, v;
 
 	om = 0ULL;
