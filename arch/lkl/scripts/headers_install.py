@@ -129,6 +129,7 @@ p = re.compile("typedef\s+(struct|union)\s+\w*\s*{[^\\{\}]*}\W*(\w+)\s*;", re.M|
 find_ml_symbols(p, defines)
 defines.add("siginfo_t")
 defines.add("sigevent_t")
+defines.add("IPPROTO_MAX")
 p = re.compile("struct\s+(\w+)\s*\{")
 find_symbols(p, structs)
 structs.add("iovec")
