@@ -697,7 +697,7 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	hostdata->issue_queue = NULL;
 	hostdata->disconnected_queue = NULL;
 	
-	INIT_DELAYED_WORK(&hostdata->coroutine, NCR5380_main);
+	INIT_WORK(&hostdata->main_task, NCR5380_main);
 	hostdata->work_q = alloc_workqueue("ncr5380_%d",
 	                        WQ_UNBOUND | WQ_MEM_RECLAIM,
 	                        1, instance->host_no);
@@ -797,7 +797,7 @@ static void NCR5380_exit(struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 
-	cancel_delayed_work_sync(&hostdata->coroutine);
+	cancel_work_sync(&hostdata->main_task);
 	destroy_workqueue(hostdata->work_q);
 }
 
@@ -859,9 +859,8 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 
 	dprintk(NDEBUG_QUEUES, "scsi%d : command added to %s of queue\n", instance->host_no, (cmd->cmnd[0] == REQUEST_SENSE) ? "head" : "tail");
 
-	/* Run the coroutine if it isn't already running. */
 	/* Kick off command processing */
-	queue_delayed_work(hostdata->work_q, &hostdata->coroutine, 0);
+	queue_work(hostdata->work_q, &hostdata->main_task);
 	return 0;
 }
 
@@ -880,7 +879,7 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 static void NCR5380_main(struct work_struct *work)
 {
 	struct NCR5380_hostdata *hostdata =
-		container_of(work, struct NCR5380_hostdata, coroutine.work);
+		container_of(work, struct NCR5380_hostdata, main_task);
 	struct Scsi_Host *instance = hostdata->host;
 	struct scsi_cmnd *tmp, *prev;
 	int done;
@@ -1037,8 +1036,7 @@ static irqreturn_t NCR5380_intr(int dummy, void *dev_id)
 		}	/* if BASR_IRQ */
 		spin_unlock_irqrestore(instance->host_lock, flags);
 		if(!done)
-			queue_delayed_work(hostdata->work_q,
-			                   &hostdata->coroutine, 0);
+			queue_work(hostdata->work_q, &hostdata->main_task);
 	} while (!done);
 	return IRQ_HANDLED;
 }
