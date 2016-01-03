@@ -172,10 +172,11 @@ __kvm_vcpu_return:
 
 #ifdef CONFIG_VFPv3
 	@ Switch VFP/NEON hardware state to the host's
-	add	r7, vcpu, #VCPU_VFP_GUEST
+	add	r7, vcpu, #(VCPU_GUEST_CTXT + CPU_CTXT_VFP)
 	store_vfp_state r7
-	add	r7, vcpu, #VCPU_VFP_HOST
+	add	r7, vcpu, #VCPU_HOST_CTXT
 	ldr	r7, [r7]
+	add	r7, r7, #CPU_CTXT_VFP
 	restore_vfp_state r7
 
 after_vfp_restore:
@@ -482,10 +483,11 @@ switch_to_guest_vfp:
 	set_hcptr vmtrap, (HCPTR_TCP(10) | HCPTR_TCP(11))
 
 	@ Switch VFP/NEON hardware state to the guest's
-	add	r7, r0, #VCPU_VFP_HOST
+	add	r7, r0, #VCPU_HOST_CTXT
 	ldr	r7, [r7]
+	add	r7, r7, #CPU_CTXT_VFP
 	store_vfp_state r7
-	add	r7, r0, #VCPU_VFP_GUEST
+	add	r7, r0, #(VCPU_GUEST_CTXT + CPU_CTXT_VFP)
 	restore_vfp_state r7
 
 	pop	{r3-r7}
