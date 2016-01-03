@@ -88,6 +88,7 @@
 #define BOARD_NCR53C400	1
 #define BOARD_NCR53C400A 2
 #define BOARD_DTC3181E	3
+#define BOARD_HP_C2502	4
 
 #endif /* GENERIC_NCR5380_H */
 
