@@ -668,7 +668,7 @@ static void prepare_info(struct Scsi_Host *instance)
  *	Locks: called functions disable irqs
  */
 
-static void NCR5380_print_status(struct Scsi_Host *instance)
+static void __maybe_unused NCR5380_print_status(struct Scsi_Host *instance)
 {
 	NCR5380_dprint(NDEBUG_ANY, instance);
 	NCR5380_dprint_phase(NDEBUG_ANY, instance);
@@ -2693,24 +2693,26 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 }
 
 
-/* 
- * Function : int NCR5380_bus_reset (struct scsi_cmnd *cmd)
- * 
- * Purpose : reset the SCSI bus.
+/**
+ * NCR5380_bus_reset - reset the SCSI bus
+ * @cmd: SCSI command undergoing EH
  *
- * Returns : SUCCESS
- *
- * Locks: host lock taken by caller
+ * Returns SUCCESS
  */
 
 static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *instance = cmd->device->host;
 
-	NCR5380_print_status(instance);
-
 	spin_lock_irq(instance->host_lock);
+
+#if (NDEBUG & NDEBUG_ANY)
+	scmd_printk(KERN_INFO, cmd, "performing bus reset\n");
+	NCR5380_print_status(instance);
+#endif
+
 	do_reset(instance);
+
 	spin_unlock_irq(instance->host_lock);
 
 	return SUCCESS;

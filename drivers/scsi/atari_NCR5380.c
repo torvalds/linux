@@ -719,7 +719,7 @@ static void lprint_Scsi_Cmnd(struct scsi_cmnd *cmd)
 	printk("\n");
 }
 
-static void NCR5380_print_status(struct Scsi_Host *instance)
+static void __maybe_unused NCR5380_print_status(struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata;
 	struct scsi_cmnd *ptr;
@@ -2982,13 +2982,11 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 }
 
 
-/*
- * Function : int NCR5380_reset (struct scsi_cmnd *cmd)
+/**
+ * NCR5380_bus_reset - reset the SCSI bus
+ * @cmd: SCSI command undergoing EH
  *
- * Purpose : reset the SCSI bus.
- *
- * Returns : SUCCESS or FAILURE
- *
+ * Returns SUCCESS
  */
 
 static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
@@ -2998,22 +2996,19 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	int i;
 	unsigned long flags;
 
-	NCR5380_print_status(instance);
+	local_irq_save(flags);
 
-	/* get in phase */
-	NCR5380_write(TARGET_COMMAND_REG,
-		      PHASE_SR_TO_TCR(NCR5380_read(STATUS_REG)));
-	/* assert RST */
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_RST);
-	udelay(40);
+#if (NDEBUG & NDEBUG_ANY)
+	scmd_printk(KERN_INFO, cmd, "performing bus reset\n");
+	NCR5380_print_status(instance);
+#endif
+
+	do_reset(instance);
+
 	/* reset NCR registers */
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 	NCR5380_write(MODE_REG, MR_BASE);
 	NCR5380_write(TARGET_COMMAND_REG, 0);
 	NCR5380_write(SELECT_ENABLE_REG, 0);
-	/* ++roman: reset interrupt condition! otherwise no interrupts don't get
-	 * through anymore ... */
-	(void)NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 
 	/* After the reset, there are no more connected or disconnected commands
 	 * and no busy units; so clear the low-level status here to avoid
@@ -3028,7 +3023,6 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	if (hostdata->disconnected_queue)
 		dprintk(NDEBUG_ABORT, "scsi%d: reset aborted disconnected command(s)\n", H_NO(cmd));
 
-	local_irq_save(flags);
 	hostdata->issue_queue = NULL;
 	hostdata->connected = NULL;
 	hostdata->disconnected_queue = NULL;
