@@ -2694,11 +2694,12 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int i;
 	unsigned long flags;
+	struct NCR5380_cmd *ncmd;
 
 	spin_lock_irqsave(&hostdata->lock, flags);
 
 #if (NDEBUG & NDEBUG_ANY)
-	scmd_printk(KERN_INFO, cmd, "performing bus reset\n");
+	scmd_printk(KERN_INFO, cmd, __func__);
 #endif
 	NCR5380_dprint(NDEBUG_ANY, instance);
 	NCR5380_dprint_phase(NDEBUG_ANY, instance);
@@ -2718,26 +2719,31 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 
 	hostdata->selecting = NULL;
 
-	if (hostdata->connected)
-		dsprintk(NDEBUG_ABORT, instance, "reset aborted a connected command\n");
-	hostdata->connected = NULL;
+	list_for_each_entry(ncmd, &hostdata->disconnected, list) {
+		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
+
+		set_host_byte(cmd, DID_RESET);
+		cmd->scsi_done(cmd);
+	}
+
+	list_for_each_entry(ncmd, &hostdata->autosense, list) {
+		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
+
+		set_host_byte(cmd, DID_RESET);
+		cmd->scsi_done(cmd);
+	}
+
+	if (hostdata->connected) {
+		set_host_byte(hostdata->connected, DID_RESET);
+		complete_cmd(instance, hostdata->connected);
+		hostdata->connected = NULL;
+	}
 
 	if (hostdata->sensing) {
+		set_host_byte(hostdata->connected, DID_RESET);
 		complete_cmd(instance, hostdata->sensing);
 		hostdata->sensing = NULL;
 	}
-
-	if (!list_empty(&hostdata->autosense))
-		dsprintk(NDEBUG_ABORT, instance, "reset aborted autosense list\n");
-	INIT_LIST_HEAD(&hostdata->autosense);
-
-	if (!list_empty(&hostdata->unissued))
-		dsprintk(NDEBUG_ABORT, instance, "reset aborted unissued list\n");
-	INIT_LIST_HEAD(&hostdata->unissued);
-
-	if (!list_empty(&hostdata->disconnected))
-		dsprintk(NDEBUG_ABORT, instance, "reset aborted disconnected list\n");
-	INIT_LIST_HEAD(&hostdata->disconnected);
 
 #ifdef SUPPORT_TAGS
 	free_all_tags(hostdata);
@@ -2748,6 +2754,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	hostdata->dma_len = 0;
 #endif
 
+	queue_work(hostdata->work_q, &hostdata->main_task);
 	maybe_release_dma_irq(instance);
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 

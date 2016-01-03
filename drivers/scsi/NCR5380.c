@@ -2482,18 +2482,66 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *instance = cmd->device->host;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	int i;
 	unsigned long flags;
+	struct NCR5380_cmd *ncmd;
 
 	spin_lock_irqsave(&hostdata->lock, flags);
 
 #if (NDEBUG & NDEBUG_ANY)
-	scmd_printk(KERN_INFO, cmd, "performing bus reset\n");
+	scmd_printk(KERN_INFO, cmd, __func__);
 #endif
 	NCR5380_dprint(NDEBUG_ANY, instance);
 	NCR5380_dprint_phase(NDEBUG_ANY, instance);
 
 	do_reset(instance);
 
+	/* reset NCR registers */
+	NCR5380_write(MODE_REG, MR_BASE);
+	NCR5380_write(TARGET_COMMAND_REG, 0);
+	NCR5380_write(SELECT_ENABLE_REG, 0);
+
+	/* After the reset, there are no more connected or disconnected commands
+	 * and no busy units; so clear the low-level status here to avoid
+	 * conflicts when the mid-level code tries to wake up the affected
+	 * commands!
+	 */
+
+	hostdata->selecting = NULL;
+
+	list_for_each_entry(ncmd, &hostdata->disconnected, list) {
+		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
+
+		set_host_byte(cmd, DID_RESET);
+		cmd->scsi_done(cmd);
+	}
+
+	list_for_each_entry(ncmd, &hostdata->autosense, list) {
+		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
+
+		set_host_byte(cmd, DID_RESET);
+		cmd->scsi_done(cmd);
+	}
+
+	if (hostdata->connected) {
+		set_host_byte(hostdata->connected, DID_RESET);
+		complete_cmd(instance, hostdata->connected);
+		hostdata->connected = NULL;
+	}
+
+	if (hostdata->sensing) {
+		set_host_byte(hostdata->connected, DID_RESET);
+		complete_cmd(instance, hostdata->sensing);
+		hostdata->sensing = NULL;
+	}
+
+	for (i = 0; i < 8; ++i)
+		hostdata->busy[i] = 0;
+#ifdef REAL_DMA
+	hostdata->dma_len = 0;
+#endif
+
+	queue_work(hostdata->work_q, &hostdata->main_task);
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 
 	return SUCCESS;
