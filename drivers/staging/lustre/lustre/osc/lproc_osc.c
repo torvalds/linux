@@ -480,9 +480,19 @@ static ssize_t contention_seconds_store(struct kobject *kobj,
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct osc_device *od  = obd2osc_dev(obd);
+	int rc;
+	int val;
 
-	return lprocfs_write_helper(buffer, count, &od->od_contention_time) ?:
-		count;
+	rc = kstrtoint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	if (val < 0)
+		return -EINVAL;
+
+	od->od_contention_time = val;
+
+	return count;
 }
 LUSTRE_RW_ATTR(contention_seconds);
 
@@ -505,9 +515,16 @@ static ssize_t lockless_truncate_store(struct kobject *kobj,
 	struct obd_device *obd = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct osc_device *od  = obd2osc_dev(obd);
+	int rc;
+	unsigned int val;
 
-	return lprocfs_write_helper(buffer, count, &od->od_lockless_truncate) ?:
-		count;
+	rc = kstrtouint(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	od->od_lockless_truncate = val;
+
+	return count;
 }
 LUSTRE_RW_ATTR(lockless_truncate);
 
