@@ -252,8 +252,8 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 #include "obd_support.h"
 
 /* function defined in lustre/obdclass/<platform>/<platform>-module.c */
-int obd_ioctl_getdata(char **buf, int *len, void *arg);
-int obd_ioctl_popdata(void *arg, void *data, int len);
+int obd_ioctl_getdata(char **buf, int *len, void __user *arg);
+int obd_ioctl_popdata(void __user *arg, void *data, int len);
 
 static inline void obd_ioctl_freedata(char *buf, int len)
 {

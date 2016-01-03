@@ -74,14 +74,14 @@
 #include "../../include/lustre/lustre_build_version.h"
 
 /* buffer MUST be at least the size of obd_ioctl_hdr */
-int obd_ioctl_getdata(char **buf, int *len, void *arg)
+int obd_ioctl_getdata(char **buf, int *len, void __user *arg)
 {
 	struct obd_ioctl_hdr hdr;
 	struct obd_ioctl_data *data;
 	int err;
 	int offset = 0;
 
-	if (copy_from_user(&hdr, (void *)arg, sizeof(hdr)))
+	if (copy_from_user(&hdr, arg, sizeof(hdr)))
 		return -EFAULT;
 
 	if (hdr.ioc_version != OBD_IOCTL_VERSION) {
@@ -114,7 +114,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	*len = hdr.ioc_len;
 	data = (struct obd_ioctl_data *)*buf;
 
-	if (copy_from_user(*buf, (void *)arg, hdr.ioc_len)) {
+	if (copy_from_user(*buf, arg, hdr.ioc_len)) {
 		err = -EFAULT;
 		goto free_buf;
 	}
@@ -156,7 +156,7 @@ free_buf:
 }
 EXPORT_SYMBOL(obd_ioctl_getdata);
 
-int obd_ioctl_popdata(void *arg, void *data, int len)
+int obd_ioctl_popdata(void __user *arg, void *data, int len)
 {
 	int err;
 

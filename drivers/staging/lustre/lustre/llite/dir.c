@@ -1279,7 +1279,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		char *filename;
 		struct md_op_data *op_data;
 
-		rc = obd_ioctl_getdata(&buf, &len, (void *)arg);
+		rc = obd_ioctl_getdata(&buf, &len, (void __user *)arg);
 		if (rc)
 			return rc;
 		data = (void *)buf;
@@ -1321,7 +1321,7 @@ out_free:
 		int		 len;
 		int		 rc;
 
-		rc = obd_ioctl_getdata(&buf, &len, (void *)arg);
+		rc = obd_ioctl_getdata(&buf, &len, (void __user *)arg);
 		if (rc)
 			return rc;
 
