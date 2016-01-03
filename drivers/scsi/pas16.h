@@ -95,9 +95,6 @@
 #define OPERATION_MODE_1 0xec03
 #define IO_CONFIG_3 0xf002
 
-
-#ifndef ASM
-
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
 #endif
@@ -121,7 +118,6 @@
 #define NCR5380_write(reg, value) ( outb((value),PAS16_io_port(reg)) )
 
 #define NCR5380_intr pas16_intr
-#define do_NCR5380_intr do_pas16_intr
 #define NCR5380_queue_command pas16_queue_command
 #define NCR5380_abort pas16_abort
 #define NCR5380_bus_reset pas16_bus_reset
@@ -134,5 +130,4 @@
    
 #define PAS16_IRQS 0xd4a8 
 
-#endif /* ndef ASM */
 #endif /* PAS16_H */

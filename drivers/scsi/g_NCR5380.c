@@ -82,14 +82,13 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#define NCR_NOT_SET 0
-static int ncr_irq = NCR_NOT_SET;
-static int ncr_dma = NCR_NOT_SET;
-static int ncr_addr = NCR_NOT_SET;
-static int ncr_5380 = NCR_NOT_SET;
-static int ncr_53c400 = NCR_NOT_SET;
-static int ncr_53c400a = NCR_NOT_SET;
-static int dtc_3181e = NCR_NOT_SET;
+static int ncr_irq;
+static int ncr_dma;
+static int ncr_addr;
+static int ncr_5380;
+static int ncr_53c400;
+static int ncr_53c400a;
+static int dtc_3181e;
 
 static struct override {
 	NCR5380_map_type NCR5380_map_name;
@@ -271,19 +270,19 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 	void __iomem *iomem;
 #endif
 
-	if (ncr_irq != NCR_NOT_SET)
+	if (ncr_irq)
 		overrides[0].irq = ncr_irq;
-	if (ncr_dma != NCR_NOT_SET)
+	if (ncr_dma)
 		overrides[0].dma = ncr_dma;
-	if (ncr_addr != NCR_NOT_SET)
+	if (ncr_addr)
 		overrides[0].NCR5380_map_name = (NCR5380_map_type) ncr_addr;
-	if (ncr_5380 != NCR_NOT_SET)
+	if (ncr_5380)
 		overrides[0].board = BOARD_NCR5380;
-	else if (ncr_53c400 != NCR_NOT_SET)
+	else if (ncr_53c400)
 		overrides[0].board = BOARD_NCR53C400;
-	else if (ncr_53c400a != NCR_NOT_SET)
+	else if (ncr_53c400a)
 		overrides[0].board = BOARD_NCR53C400A;
-	else if (dtc_3181e != NCR_NOT_SET)
+	else if (dtc_3181e)
 		overrides[0].board = BOARD_DTC3181E;
 #ifndef SCSI_G_NCR5380_MEM
 	if (!current_override && isapnp_present()) {

@@ -244,8 +244,6 @@
 #define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */
 #define FLAG_TAGGED_QUEUING		64	/* as X3T9.2 spelled it */
 
-#ifndef ASM
-
 #ifdef SUPPORT_TAGS
 struct tag_alloc {
 	DECLARE_BITMAP(allocated, MAX_TAGS);
@@ -443,5 +441,4 @@ static __inline__ int NCR5380_pc_dma_residual(struct Scsi_Host *instance)
 #endif				/* defined(i386) || defined(__alpha__) */
 #endif				/* defined(REAL_DMA)  */
 #endif				/* __KERNEL__ */
-#endif				/* ndef ASM */
 #endif				/* NCR5380_H */

@@ -145,22 +145,6 @@ static const unsigned short  pas16_offset[ 8 ] =
 		    * START_DMA_INITIATOR_RECEIVE_REG wo
 		    */
     };
-/*----------------------------------------------------------------*/
-/* the following will set the monitor border color (useful to find
- where something crashed or gets stuck at */
-/* 1 = blue
- 2 = green
- 3 = cyan
- 4 = red
- 5 = magenta
- 6 = yellow
- 7 = white
-*/
-#if 1
-#define rtrc(i) {inb(0x3da); outb(0x31, 0x3c0); outb((i), 0x3c0);}
-#else
-#define rtrc(i) {}
-#endif
 
 
 /*

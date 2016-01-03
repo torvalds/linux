@@ -67,8 +67,6 @@
 
 #define T_DATA_REG_OFFSET	0x1e00	/* rw 512 bytes long */
 
-#ifndef ASM
-
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
 #endif
@@ -92,7 +90,6 @@
 #define NCR5380_write(reg, value) writeb((value),(T128_address(reg)))
 
 #define NCR5380_intr t128_intr
-#define do_NCR5380_intr do_t128_intr
 #define NCR5380_queue_command t128_queue_command
 #define NCR5380_abort t128_abort
 #define NCR5380_bus_reset t128_bus_reset
@@ -105,5 +102,4 @@
 
 #define T128_IRQS 0xc4a8
 
-#endif /* ndef ASM */
 #endif /* T128_H */

@@ -21,8 +21,6 @@
 #define NCR5380_BIOSPARAM NULL
 #endif
 
-#ifndef ASM
-
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
 #endif
@@ -36,7 +34,6 @@
 
 #ifndef SCSI_G_NCR5380_MEM
 
-#define NCR5380_map_config port
 #define NCR5380_map_type int
 #define NCR5380_map_name port
 #define NCR5380_instance_name io_port
@@ -64,7 +61,6 @@
 #else 
 /* therefore SCSI_G_NCR5380_MEM */
 
-#define NCR5380_map_config memory
 #define NCR5380_map_type unsigned long
 #define NCR5380_map_name base
 #define NCR5380_instance_name base
@@ -103,6 +99,5 @@
 #define BOARD_NCR53C400A 2
 #define BOARD_DTC3181E	3
 
-#endif /* ndef ASM */
 #endif /* GENERIC_NCR5380_H */
 
