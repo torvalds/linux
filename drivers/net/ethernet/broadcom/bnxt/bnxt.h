@@ -528,6 +528,7 @@ struct tx_push_bd {
 };
 
 struct bnxt_tx_ring_info {
+	struct bnxt_napi	*bnapi;
 	u16			tx_prod;
 	u16			tx_cons;
 	void __iomem		*tx_doorbell;
@@ -558,6 +559,7 @@ struct bnxt_tpa_info {
 };
 
 struct bnxt_rx_ring_info {
+	struct bnxt_napi	*bnapi;
 	u16			rx_prod;
 	u16			rx_agg_prod;
 	u16			rx_sw_agg_prod;
@@ -604,8 +606,8 @@ struct bnxt_napi {
 
 	int			index;
 	struct bnxt_cp_ring_info	cp_ring;
-	struct bnxt_rx_ring_info	rx_ring;
-	struct bnxt_tx_ring_info	tx_ring;
+	struct bnxt_rx_ring_info	*rx_ring;
+	struct bnxt_tx_ring_info	*tx_ring;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	atomic_t		poll_state;
@@ -883,6 +885,9 @@ struct bnxt {
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
 
 	struct bnxt_napi	**bnapi;
+
+	struct bnxt_rx_ring_info	*rx_ring;
+	struct bnxt_tx_ring_info	*tx_ring;
 
 	u32			rx_buf_size;
 	u32			rx_buf_use_size;	/* useable size */
