@@ -321,7 +321,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 			break;
 		case BOARD_NCR53C400:
 #ifdef PSEUDO_DMA
-			flags = FLAG_NCR53C400;
+			flags = FLAG_NO_DMA_FIXUP;
 #endif
 			break;
 		case BOARD_NCR53C400A:

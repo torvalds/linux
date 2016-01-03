@@ -226,9 +226,7 @@
 #define NO_IRQ		0
 #endif
 
-#define FLAG_HAS_LAST_BYTE_SENT		1	/* NCR53c81 or better */
-#define FLAG_CHECK_LAST_BYTE_SENT	2	/* Only test once */
-#define FLAG_NCR53C400			4	/* NCR53c400 */
+#define FLAG_NO_DMA_FIXUP		1	/* No DMA errata workarounds */
 #define FLAG_NO_PSEUDO_DMA		8	/* Inhibit DMA */
 #define FLAG_DTC3181E			16	/* DTC3181E */
 #define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */

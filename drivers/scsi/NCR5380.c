@@ -541,7 +541,7 @@ static void prepare_info(struct Scsi_Host *instance)
 	         instance->base, instance->irq,
 	         instance->can_queue, instance->cmd_per_lun,
 	         instance->sg_tablesize, instance->this_id,
-	         hostdata->flags & FLAG_NCR53C400     ? "NCR53C400 "     : "",
+	         hostdata->flags & FLAG_NO_DMA_FIXUP  ? "NO_DMA_FIXUP "  : "",
 	         hostdata->flags & FLAG_DTC3181E      ? "DTC3181E "      : "",
 	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
 	         hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY "  : "",
@@ -702,6 +702,7 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	hostdata->connected = NULL;
 	hostdata->issue_queue = NULL;
 	hostdata->disconnected_queue = NULL;
+	hostdata->flags = flags;
 	
 	INIT_WORK(&hostdata->main_task, NCR5380_main);
 	hostdata->work_q = alloc_workqueue("ncr5380_%d",
@@ -709,12 +710,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	                        1, instance->host_no);
 	if (!hostdata->work_q)
 		return -ENOMEM;
-
-	/* The CHECK code seems to break the 53C400. Will check it later maybe */
-	if (flags & FLAG_NCR53C400)
-		hostdata->flags = FLAG_HAS_LAST_BYTE_SENT | flags;
-	else
-		hostdata->flags = FLAG_CHECK_LAST_BYTE_SENT | flags;
 
 	hostdata->host = instance;
 
@@ -1614,7 +1609,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 	 * before the setting of DMA mode to after transfer of the last byte.
 	 */
 
-	if (hostdata->flags & FLAG_NCR53C400)
+	if (hostdata->flags & FLAG_NO_DMA_FIXUP)
 		NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_MONITOR_BSY |
 		                        MR_ENABLE_EOP_INTR);
 	else
@@ -1734,14 +1729,9 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 	return 0;
 #else				/* defined(REAL_DMA_POLL) */
 	if (p & SR_IO) {
-#ifdef DMA_WORKS_RIGHT
-		foo = NCR5380_pread(instance, d, c);
-#else
-		int diff = 1;
-		if (hostdata->flags & FLAG_NCR53C400) {
-			diff = 0;
-		}
-		if (!(foo = NCR5380_pread(instance, d, c - diff))) {
+		foo = NCR5380_pread(instance, d,
+			hostdata->flags & FLAG_NO_DMA_FIXUP ? c : c - 1);
+		if (!foo && !(hostdata->flags & FLAG_NO_DMA_FIXUP)) {
 			/*
 			 * We can't disable DMA mode after successfully transferring 
 			 * what we plan to be the last byte, since that would open up
@@ -1764,46 +1754,32 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase
 			 * byte.
 			 */
 
-			if (!(hostdata->flags & FLAG_NCR53C400)) {
-				while (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_DRQ));
-				/* Wait for clean handshake */
-				while (NCR5380_read(STATUS_REG) & SR_REQ);
-				d[c - 1] = NCR5380_read(INPUT_DATA_REG);
+			if (NCR5380_poll_politely(instance, BUS_AND_STATUS_REG,
+			                          BASR_DRQ, BASR_DRQ, HZ) < 0) {
+				foo = -1;
+				shost_printk(KERN_ERR, instance, "PDMA read: DRQ timeout\n");
 			}
+			if (NCR5380_poll_politely(instance, STATUS_REG,
+			                          SR_REQ, 0, HZ) < 0) {
+				foo = -1;
+				shost_printk(KERN_ERR, instance, "PDMA read: !REQ timeout\n");
+			}
+			d[c - 1] = NCR5380_read(INPUT_DATA_REG);
 		}
-#endif
 	} else {
-#ifdef DMA_WORKS_RIGHT
 		foo = NCR5380_pwrite(instance, d, c);
-#else
-		int timeout;
-		dprintk(NDEBUG_C400_PWRITE, "About to pwrite %d bytes\n", c);
-		if (!(foo = NCR5380_pwrite(instance, d, c))) {
+		if (!foo && !(hostdata->flags & FLAG_NO_DMA_FIXUP)) {
 			/*
 			 * Wait for the last byte to be sent.  If REQ is being asserted for 
 			 * the byte we're interested, we'll ACK it and it will go false.  
 			 */
-			if (!(hostdata->flags & FLAG_HAS_LAST_BYTE_SENT)) {
-				timeout = 20000;
-				while (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_DRQ) && (NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH));
-
-				if (!timeout)
-					dprintk(NDEBUG_LAST_BYTE_SENT, "scsi%d : timed out on last byte\n", instance->host_no);
-
-				if (hostdata->flags & FLAG_CHECK_LAST_BYTE_SENT) {
-					hostdata->flags &= ~FLAG_CHECK_LAST_BYTE_SENT;
-					if (NCR5380_read(TARGET_COMMAND_REG) & TCR_LAST_BYTE_SENT) {
-						hostdata->flags |= FLAG_HAS_LAST_BYTE_SENT;
-						dprintk(NDEBUG_LAST_BYTE_SENT, "scsi%d : last byte sent works\n", instance->host_no);
-					}
-				}
-			} else {
-				dprintk(NDEBUG_C400_PWRITE, "Waiting for LASTBYTE\n");
-				while (!(NCR5380_read(TARGET_COMMAND_REG) & TCR_LAST_BYTE_SENT));
-				dprintk(NDEBUG_C400_PWRITE, "Got LASTBYTE\n");
+			if (NCR5380_poll_politely2(instance,
+			     BUS_AND_STATUS_REG, BASR_DRQ, BASR_DRQ,
+			     BUS_AND_STATUS_REG, BASR_PHASE_MATCH, 0, HZ) < 0) {
+				foo = -1;
+				shost_printk(KERN_ERR, instance, "PDMA write: DRQ and phase timeout\n");
 			}
 		}
-#endif
 	}
 	NCR5380_write(MODE_REG, MR_BASE);
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
