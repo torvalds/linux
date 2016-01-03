@@ -24,47 +24,7 @@
  * 1+ (800) 334-5454
  */
 
-/*
- * ++roman: To port the 5380 driver to the Atari, I had to do some changes in
- * this file, too:
- *
- *  - Some of the debug statements were incorrect (undefined variables and the
- *    like). I fixed that.
- *
- *  - In information_transfer(), I think a #ifdef was wrong. Looking at the
- *    possible DMA transfer size should also happen for REAL_DMA. I added this
- *    in the #if statement.
- *
- *  - When using real DMA, information_transfer() should return in a DATAOUT
- *    phase after starting the DMA. It has nothing more to do.
- *
- *  - The interrupt service routine should run main after end of DMA, too (not
- *    only after RESELECTION interrupts). Additionally, it should _not_ test
- *    for more interrupts after running main, since a DMA process may have
- *    been started and interrupts are turned on now. The new int could happen
- *    inside the execution of NCR5380_intr(), leading to recursive
- *    calls.
- *
- *  - I've added a function merge_contiguous_buffers() that tries to
- *    merge scatter-gather buffers that are located at contiguous
- *    physical addresses and can be processed with the same DMA setup.
- *    Since most scatter-gather operations work on a page (4K) of
- *    4 buffers (1K), in more than 90% of all cases three interrupts and
- *    DMA setup actions are saved.
- *
- * - I've deleted all the stuff for AUTOPROBE_IRQ, REAL_DMA_POLL, PSEUDO_DMA
- *    and USLEEP, because these were messing up readability and will never be
- *    needed for Atari SCSI.
- *
- * - I've revised the NCR5380_main() calling scheme (relax the 'main_running'
- *   stuff), and 'main' is executed in a bottom half if awoken by an
- *   interrupt.
- *
- * - The code was quite cluttered up by "#if (NDEBUG & NDEBUG_*) printk..."
- *   constructs. In my eyes, this made the source rather unreadable, so I
- *   finally replaced that by the *_PRINTK() macros.
- *
- */
+/* Ported to Atari by Roman Hodek and others. */
 
 /* Adapted for the sun3 by Sam Creasey. */
 
@@ -344,17 +304,15 @@ static void free_all_tags(struct NCR5380_hostdata *hostdata)
 
 #endif /* SUPPORT_TAGS */
 
-
-/*
- * Function: void merge_contiguous_buffers( struct scsi_cmnd *cmd )
+/**
+ * merge_contiguous_buffers - coalesce scatter-gather list entries
+ * @cmd: command requesting IO
  *
- * Purpose: Try to merge several scatter-gather requests into one DMA
- *    transfer. This is possible if the scatter buffers lie on
- *    physical contiguous addresses.
- *
- * Parameters: struct scsi_cmnd *cmd
- *    The command to work on. The first scatter buffer's data are
- *    assumed to be already transferred into ptr/this_residual.
+ * Try to merge several scatter-gather buffers into one DMA transfer.
+ * This is possible if the scatter buffers lie on physically
+ * contiguous addresses. The first scatter-gather buffer's data are
+ * assumed to be already transferred into cmd->SCp.this_residual.
+ * Every buffer merged avoids an interrupt and a DMA setup operation.
  */
 
 static void merge_contiguous_buffers(struct scsi_cmnd *cmd)
@@ -406,9 +364,7 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
 		cmd->SCp.buffers_residual = scsi_sg_count(cmd) - 1;
 		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
-		/* ++roman: Try to merge some scatter-buffers if they are at
-		 * contiguous physical addresses.
-		 */
+
 		merge_contiguous_buffers(cmd);
 	} else {
 		cmd->SCp.buffer = NULL;
@@ -556,8 +512,6 @@ static struct {
  * @instance: adapter to dump
  *
  * Print the current SCSI phase for debugging purposes
- *
- * Locks: none
  */
 
 static void NCR5380_print_phase(struct Scsi_Host *instance)
@@ -583,8 +537,6 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
  * @instance: relevant scsi host instance
  *
  * For use as the host template info() handler.
- *
- * Locks: none
  */
 
 static const char *NCR5380_info(struct Scsi_Host *instance)
@@ -829,20 +781,6 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	cmd->result = 0;
 
 	/*
-	 * Insert the cmd into the issue queue. Note that REQUEST SENSE
-	 * commands are added to the head of the queue since any command will
-	 * clear the contingent allegiance condition that exists and the
-	 * sense data is only guaranteed to be valid while the condition exists.
-	 */
-
-	/* ++guenther: now that the issue queue is being set up, we can lock ST-DMA.
-	 * Otherwise a running NCR5380_main may steal the lock.
-	 * Lock before actually inserting due to fairness reasons explained in
-	 * atari_scsi.c. If we insert first, then it's impossible for this driver
-	 * to release the lock.
-	 * Stop timer for this command while waiting for the lock, or timeouts
-	 * may happen (and they really do), and it's no good if the command doesn't
-	 * appear in any of the queues.
 	 * ++roman: Just disabling the NCR interrupt isn't sufficient here,
 	 * because also a timer int can trigger an abort or reset, which would
 	 * alter queues and touch the lock.
@@ -958,8 +896,6 @@ static void requeue_cmd(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
  * be done on the NCR5380 host adapters in a system.  Both
  * NCR5380_queue_command() and NCR5380_intr() will try to start it
  * in case it is not running.
- *
- * Locks: called as its own thread with no locks held.
  */
 
 static void NCR5380_main(struct work_struct *work)
@@ -1041,7 +977,6 @@ static void NCR5380_main(struct work_struct *work)
  *	mismatch occurs (which would finish the DMA transfer).
  *
  * Inputs : instance - this instance of the NCR5380.
- *
  */
 
 static void NCR5380_dma_complete(struct Scsi_Host *instance)
@@ -1766,7 +1701,6 @@ timeout:
  *	is in same phase.
  *
  *	Also, *phase, *count, *data are modified in place.
- *
  */
 
 
@@ -1968,9 +1902,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					--cmd->SCp.buffers_residual;
 					cmd->SCp.this_residual = cmd->SCp.buffer->length;
 					cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
-					/* ++roman: Try to merge some scatter-buffers if
-					 * they are at contiguous physical addresses.
-					 */
 					merge_contiguous_buffers(cmd);
 					dsprintk(NDEBUG_INFORMATION, instance, "%d bytes and %d buffers left\n",
 					         cmd->SCp.this_residual,
@@ -2007,7 +1938,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						/*
 						 * If the watchdog timer fires, all future
 						 * accesses to this device will use the
-						 * polled-IO. */
+						 * polled-IO.
+						 */
 						scmd_printk(KERN_INFO, cmd,
 							"switching to slow handshake\n");
 						cmd->device->borken = 1;
@@ -2099,10 +2031,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					/* Enable reselect interrupts */
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 
-					/* ++roman: For Falcon SCSI, release the lock on the
-					 * ST-DMA here if no other commands are waiting on the
-					 * disconnected queue.
-					 */
 					maybe_release_dma_irq(instance);
 					return;
 				case MESSAGE_REJECT:
@@ -2164,15 +2092,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					break;
 				case EXTENDED_MESSAGE:
 					/*
-					 * Extended messages are sent in the following format :
-					 * Byte
-					 * 0		EXTENDED_MESSAGE == 1
-					 * 1		length (includes one byte for code, doesn't
-					 *		include first two bytes)
-					 * 2		code
-					 * 3..length+1	arguments
-					 *
-					 * Start the extended message buffer with the EXTENDED_MESSAGE
+					 * Start the message buffer with the EXTENDED_MESSAGE
 					 * byte, since spi_print_msg() wants the whole thing.
 					 */
 					extended_msg[0] = EXTENDED_MESSAGE;
@@ -2299,7 +2219,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
  *	nexus has been reestablished,
  *
  * Inputs : instance - this instance of the NCR5380.
- *
  */
 
 
