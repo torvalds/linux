@@ -262,7 +262,6 @@ struct NCR5380_hostdata {
 	                                   * transfer to handle chip overruns */
 	int retain_dma_intr;
 	struct work_struct main_task;
-	volatile int main_running;
 #ifdef SUPPORT_TAGS
 	struct tag_alloc TagAlloc[8][8];	/* 8 targets and 8 LUNs */
 #endif
