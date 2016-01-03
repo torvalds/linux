@@ -4609,7 +4609,7 @@ int wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *bssid, char tid)
 {
 	int result = 0;
 	struct host_if_msg msg;
-	struct ba_session_info *pBASessionInfo = &msg.body.session_info;
+	struct ba_session_info *ba_session_info = &msg.body.session_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
@@ -4621,8 +4621,8 @@ int wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *bssid, char tid)
 
 	msg.id = HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS;
 
-	memcpy(pBASessionInfo->bssid, bssid, ETH_ALEN);
-	pBASessionInfo->tid = tid;
+	memcpy(ba_session_info->bssid, bssid, ETH_ALEN);
+	ba_session_info->tid = tid;
 	msg.vif = vif;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
