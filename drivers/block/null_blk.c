@@ -219,6 +219,9 @@ static void end_cmd(struct nullb_cmd *cmd)
 {
 	struct request_queue *q = NULL;
 
+	if (cmd->rq)
+		q = cmd->rq->q;
+
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
 		blk_mq_end_request(cmd->rq, 0);
@@ -231,9 +234,6 @@ static void end_cmd(struct nullb_cmd *cmd)
 		bio_endio(cmd->bio);
 		goto free_cmd;
 	}
-
-	if (cmd->rq)
-		q = cmd->rq->q;
 
 	/* Restart queue if needed, as we are freeing a tag */
 	if (q && !q->mq_ops && blk_queue_stopped(q)) {

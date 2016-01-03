@@ -2540,8 +2540,17 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 {
 	bool kill = nvme_io_incapable(ns->dev) && !blk_queue_dying(ns->queue);
 
-	if (kill)
+	if (kill) {
 		blk_set_queue_dying(ns->queue);
+
+		/*
+		 * The controller was shutdown first if we got here through
+		 * device removal. The shutdown may requeue outstanding
+		 * requests. These need to be aborted immediately so
+		 * del_gendisk doesn't block indefinitely for their completion.
+		 */
+		blk_mq_abort_requeue_list(ns->queue);
+	}
 	if (ns->disk->flags & GENHD_FL_UP)
 		del_gendisk(ns->disk);
 	if (kill || !blk_queue_dying(ns->queue)) {
@@ -2977,6 +2986,15 @@ static void nvme_dev_remove(struct nvme_dev *dev)
 {
 	struct nvme_ns *ns, *next;
 
+	if (nvme_io_incapable(dev)) {
+		/*
+		 * If the device is not capable of IO (surprise hot-removal,
+		 * for example), we need to quiesce prior to deleting the
+		 * namespaces. This will end outstanding requests and prevent
+		 * attempts to sync dirty data.
+		 */
+		nvme_dev_shutdown(dev);
+	}
 	list_for_each_entry_safe(ns, next, &dev->namespaces, list)
 		nvme_ns_remove(ns);
 }

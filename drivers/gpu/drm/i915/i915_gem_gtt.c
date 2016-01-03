@@ -2676,6 +2676,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 			return ret;
 		}
 		vma->bound |= GLOBAL_BIND;
+		__i915_vma_set_map_and_fenceable(vma);
 		list_add_tail(&vma->mm_list, &ggtt_vm->inactive_list);
 	}
 
