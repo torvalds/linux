@@ -112,7 +112,7 @@ static const unsigned long vcpu_reg_offsets[VCPU_NR_MODES][15] = {
  */
 unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
 {
-	unsigned long *reg_array = (unsigned long *)&vcpu->arch.regs;
+	unsigned long *reg_array = (unsigned long *)&vcpu->arch.ctxt.gp_regs;
 	unsigned long mode = *vcpu_cpsr(vcpu) & MODE_MASK;
 
 	switch (mode) {
@@ -147,15 +147,15 @@ unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
 	unsigned long mode = *vcpu_cpsr(vcpu) & MODE_MASK;
 	switch (mode) {
 	case SVC_MODE:
-		return &vcpu->arch.regs.KVM_ARM_SVC_spsr;
+		return &vcpu->arch.ctxt.gp_regs.KVM_ARM_SVC_spsr;
 	case ABT_MODE:
-		return &vcpu->arch.regs.KVM_ARM_ABT_spsr;
+		return &vcpu->arch.ctxt.gp_regs.KVM_ARM_ABT_spsr;
 	case UND_MODE:
-		return &vcpu->arch.regs.KVM_ARM_UND_spsr;
+		return &vcpu->arch.ctxt.gp_regs.KVM_ARM_UND_spsr;
 	case IRQ_MODE:
-		return &vcpu->arch.regs.KVM_ARM_IRQ_spsr;
+		return &vcpu->arch.ctxt.gp_regs.KVM_ARM_IRQ_spsr;
 	case FIQ_MODE:
-		return &vcpu->arch.regs.KVM_ARM_FIQ_spsr;
+		return &vcpu->arch.ctxt.gp_regs.KVM_ARM_FIQ_spsr;
 	default:
 		BUG();
 	}

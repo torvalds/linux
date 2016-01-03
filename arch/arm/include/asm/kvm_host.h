@@ -89,6 +89,7 @@ struct kvm_vcpu_fault_info {
 };
 
 struct kvm_cpu_context {
+	struct kvm_regs	gp_regs;
 	struct vfp_hard_struct vfp;
 	u32 cp15[NR_CP15_REGS];
 };
@@ -97,8 +98,6 @@ typedef struct kvm_cpu_context kvm_cpu_context_t;
 
 struct kvm_vcpu_arch {
 	struct kvm_cpu_context ctxt;
-
-	struct kvm_regs regs;
 
 	int target; /* Processor target */
 	DECLARE_BITMAP(features, KVM_VCPU_MAX_FEATURES);

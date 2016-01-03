@@ -1,6 +1,17 @@
 #include <linux/irqchip/arm-gic.h>
 #include <asm/assembler.h>
 
+/* Compat macro, until we get rid of this file entierely */
+#define VCPU_GP_REGS		(VCPU_GUEST_CTXT + CPU_CTXT_GP_REGS)
+#define VCPU_USR_REGS		(VCPU_GP_REGS + GP_REGS_USR)
+#define VCPU_SVC_REGS		(VCPU_GP_REGS + GP_REGS_SVC)
+#define VCPU_ABT_REGS		(VCPU_GP_REGS + GP_REGS_ABT)
+#define VCPU_UND_REGS		(VCPU_GP_REGS + GP_REGS_UND)
+#define VCPU_IRQ_REGS		(VCPU_GP_REGS + GP_REGS_IRQ)
+#define VCPU_FIQ_REGS		(VCPU_GP_REGS + GP_REGS_FIQ)
+#define VCPU_PC			(VCPU_GP_REGS + GP_REGS_PC)
+#define VCPU_CPSR		(VCPU_GP_REGS + GP_REGS_CPSR)
+
 #define VCPU_USR_REG(_reg_nr)	(VCPU_USR_REGS + (_reg_nr * 4))
 #define VCPU_USR_SP		(VCPU_USR_REG(13))
 #define VCPU_USR_LR		(VCPU_USR_REG(14))

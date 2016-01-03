@@ -68,12 +68,12 @@ static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
 
 static inline unsigned long *vcpu_pc(struct kvm_vcpu *vcpu)
 {
-	return &vcpu->arch.regs.usr_regs.ARM_pc;
+	return &vcpu->arch.ctxt.gp_regs.usr_regs.ARM_pc;
 }
 
 static inline unsigned long *vcpu_cpsr(struct kvm_vcpu *vcpu)
 {
-	return &vcpu->arch.regs.usr_regs.ARM_cpsr;
+	return &vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr;
 }
 
 static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
@@ -83,13 +83,13 @@ static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
 
 static inline bool mode_has_spsr(struct kvm_vcpu *vcpu)
 {
-	unsigned long cpsr_mode = vcpu->arch.regs.usr_regs.ARM_cpsr & MODE_MASK;
+	unsigned long cpsr_mode = vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr & MODE_MASK;
 	return (cpsr_mode > USR_MODE && cpsr_mode < SYSTEM_MODE);
 }
 
 static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 {
-	unsigned long cpsr_mode = vcpu->arch.regs.usr_regs.ARM_cpsr & MODE_MASK;
+	unsigned long cpsr_mode = vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr & MODE_MASK;
 	return cpsr_mode > USR_MODE;;
 }
 
