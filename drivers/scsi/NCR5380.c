@@ -1271,7 +1271,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	err = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ);
 	spin_lock_irq(instance->host_lock);
 	
-	if(err) {
+	if (err < 0) {
 		printk(KERN_ERR "scsi%d: timeout at NCR5380.c:%d\n", instance->host_no, __LINE__);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		return -1;
@@ -1490,8 +1490,7 @@ static int do_abort(struct Scsi_Host *instance)
 	 */
 
 	rc = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, 60 * HZ);
-	
-	if(rc < 0)
+	if (rc < 0)
 		return -1;
 
 	tmp = (unsigned char)rc;
@@ -1502,7 +1501,7 @@ static int do_abort(struct Scsi_Host *instance)
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN | ICR_ASSERT_ACK);
 		rc = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, 0, 3 * HZ);
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
-		if(rc == -1)
+		if (rc < 0)
 			return -1;
 	}
 	tmp = ABORT;
@@ -2199,7 +2198,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	 * FIXME: timeout needed and fail to work queeu
 	 */
 
-	if(NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, 2*HZ))
+	if (NCR5380_poll_politely(instance,
+	                          STATUS_REG, SR_REQ, SR_REQ, 2 * HZ) < 0)
 		abort = 1;
 
 	len = 1;
