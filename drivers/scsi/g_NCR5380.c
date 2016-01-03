@@ -323,7 +323,7 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 #endif
 			break;
 		case BOARD_NCR53C400A:
-			flags = FLAG_NO_PSEUDO_DMA;
+			flags = FLAG_NO_DMA_FIXUP;
 			ports = ncr_53c400a_ports;
 			break;
 		case BOARD_DTC3181E:
@@ -405,27 +405,42 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 		 * On NCR53C400 boards, NCR5380 registers are mapped 8 past
 		 * the base address.
 		 */
-		if (overrides[current_override].board == BOARD_NCR53C400) {
+		switch (overrides[current_override].board) {
+		case BOARD_NCR53C400:
 			instance->io_port += 8;
 			hostdata->c400_ctl_status = 0;
 			hostdata->c400_blk_cnt = 1;
 			hostdata->c400_host_buf = 4;
+			break;
+		case BOARD_NCR53C400A:
+			hostdata->c400_ctl_status = 9;
+			hostdata->c400_blk_cnt = 10;
+			hostdata->c400_host_buf = 8;
+			break;
 		}
 #else
 		instance->base = overrides[current_override].NCR5380_map_name;
 		hostdata->iomem = iomem;
-		if (overrides[current_override].board == BOARD_NCR53C400) {
+		switch (overrides[current_override].board) {
+		case BOARD_NCR53C400:
 			hostdata->c400_ctl_status = 0x100;
 			hostdata->c400_blk_cnt = 0x101;
 			hostdata->c400_host_buf = 0x104;
+			break;
+		case BOARD_NCR53C400A:
+			pr_err(DRV_MODULE_NAME ": unknown register offsets\n");
+			goto out_unregister;
 		}
 #endif
 
 		if (NCR5380_init(instance, flags))
 			goto out_unregister;
 
-		if (overrides[current_override].board == BOARD_NCR53C400)
+		switch (overrides[current_override].board) {
+		case BOARD_NCR53C400:
+		case BOARD_NCR53C400A:
 			NCR5380_write(hostdata->c400_ctl_status, CSR_BASE);
+		}
 
 		NCR5380_maybe_reset_bus(instance);
 
