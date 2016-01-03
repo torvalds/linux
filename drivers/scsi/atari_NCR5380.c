@@ -885,7 +885,7 @@ static inline void maybe_release_dma_irq(struct Scsi_Host *instance)
 	    list_empty(&hostdata->unissued) &&
 	    list_empty(&hostdata->autosense) &&
 	    !hostdata->connected &&
-	    !hostdata->retain_dma_intr)
+	    !hostdata->selecting)
 		NCR5380_release_dma_irq(instance);
 }
 
@@ -1006,14 +1006,11 @@ static void NCR5380_main(struct work_struct *work)
 #ifdef SUPPORT_TAGS
 			cmd_get_tag(cmd, cmd->cmnd[0] != REQUEST_SENSE);
 #endif
-			hostdata->retain_dma_intr++;
-			if (!NCR5380_select(instance, cmd)) {
-				dsprintk(NDEBUG_MAIN, instance, "main: selected target %d for command %p\n",
-				         scmd_id(cmd), cmd);
-				hostdata->retain_dma_intr--;
+			cmd = NCR5380_select(instance, cmd);
+			if (!cmd) {
+				dsprintk(NDEBUG_MAIN, instance, "main: select complete\n");
 				maybe_release_dma_irq(instance);
 			} else {
-				hostdata->retain_dma_intr--;
 				dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES, instance,
 				         "main: select failed, returning %p to queue\n", cmd);
 				requeue_cmd(instance, cmd);
@@ -1241,9 +1238,9 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
  * Inputs : instance - instantiation of the 5380 driver on which this
  *	target lives, cmd - SCSI command to execute.
  *
- * Returns : -1 if selection failed but should be retried.
- *      0 if selection failed and should not be retried.
- *      0 if selection succeeded completely (hostdata->connected == cmd).
+ * Returns cmd if selection failed but should be retried,
+ * NULL if selection failed and should not be retried, or
+ * NULL if selection succeeded (hostdata->connected == cmd).
  *
  * Side effects :
  *	If bus busy, arbitration failed, etc, NCR5380_select() will exit
@@ -1259,7 +1256,8 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
  *		cmd->result host byte set to DID_BAD_TARGET.
  */
 
-static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
+static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
+                                        struct scsi_cmnd *cmd)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char tmp[3], phase;
@@ -1270,6 +1268,15 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	NCR5380_dprint(NDEBUG_ARBITRATION, instance);
 	dprintk(NDEBUG_ARBITRATION, "scsi%d: starting arbitration, id = %d\n", HOSTNO,
 		   instance->this_id);
+
+	/*
+	 * Arbitration and selection phases are slow and involve dropping the
+	 * lock, so we have to watch out for EH. An exception handler may
+	 * change 'selecting' to NULL. This function will then return NULL
+	 * so that the caller will forget about 'cmd'. (During information
+	 * transfer phases, EH may change 'connected' to NULL.)
+	 */
+	hostdata->selecting = cmd;
 
 	/*
 	 * Set the phase bits to 0, otherwise the NCR5380 won't drive the
@@ -1296,13 +1303,13 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	spin_lock_irq(&hostdata->lock);
 	if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE)) {
 		/* Reselection interrupt */
-		return -1;
+		goto out;
 	}
 	if (err < 0) {
 		NCR5380_write(MODE_REG, MR_BASE);
 		shost_printk(KERN_ERR, instance,
 		             "select: arbitration timeout\n");
-		return -1;
+		goto out;
 	}
 	spin_unlock_irq(&hostdata->lock);
 
@@ -1317,7 +1324,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		dprintk(NDEBUG_ARBITRATION, "scsi%d: lost arbitration, deasserting MR_ARBITRATE\n",
 			   HOSTNO);
 		spin_lock_irq(&hostdata->lock);
-		return -1;
+		goto out;
 	}
 
 	/* After/during arbitration, BSY should be asserted.
@@ -1341,7 +1348,13 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 
 	/* NCR5380_reselect() clears MODE_REG after a reselection interrupt */
 	if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE))
-		return -1;
+		goto out;
+
+	if (!hostdata->selecting) {
+		NCR5380_write(MODE_REG, MR_BASE);
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+		goto out;
+	}
 
 	dprintk(NDEBUG_ARBITRATION, "scsi%d: won arbitration\n", HOSTNO);
 
@@ -1417,17 +1430,21 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 			NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		printk(KERN_ERR "scsi%d: reselection after won arbitration?\n",
 		       HOSTNO);
-		return -1;
+		goto out;
 	}
 
 	if (err < 0) {
 		spin_lock_irq(&hostdata->lock);
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-		cmd->result = DID_BAD_TARGET << 16;
-		complete_cmd(instance, cmd);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-		dprintk(NDEBUG_SELECTION, "scsi%d: target did not respond within 250ms\n", HOSTNO);
-		return 0;
+		/* Can't touch cmd if it has been reclaimed by the scsi ML */
+		if (hostdata->selecting) {
+			cmd->result = DID_BAD_TARGET << 16;
+			complete_cmd(instance, cmd);
+			dsprintk(NDEBUG_SELECTION, instance, "target did not respond within 250ms\n");
+			cmd = NULL;
+		}
+		goto out;
 	}
 
 	/*
@@ -1463,7 +1480,11 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 		shost_printk(KERN_ERR, instance, "select: REQ timeout\n");
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-		return -1;
+		goto out;
+	}
+	if (!hostdata->selecting) {
+		do_abort(instance);
+		goto out;
 	}
 
 	dprintk(NDEBUG_SELECTION, "scsi%d: target %d selected, going into MESSAGE OUT phase.\n",
@@ -1499,7 +1520,13 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 
 	initialize_SCp(cmd);
 
-	return 0;
+	cmd = NULL;
+
+out:
+	if (!hostdata->selecting)
+		return NULL;
+	hostdata->selecting = NULL;
+	return cmd;
 }
 
 /*
@@ -2563,6 +2590,15 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 		cmd->scsi_done(cmd); /* No tag or busy flag to worry about */
 	}
 
+	if (hostdata->selecting == cmd) {
+		dsprintk(NDEBUG_ABORT, instance,
+		         "abort: cmd %p == selecting\n", cmd);
+		hostdata->selecting = NULL;
+		cmd->result = DID_ABORT << 16;
+		complete_cmd(instance, cmd);
+		goto out;
+	}
+
 	if (list_del_cmd(&hostdata->disconnected, cmd)) {
 		dsprintk(NDEBUG_ABORT, instance,
 		         "abort: removed %p from disconnected list\n", cmd);
@@ -2679,6 +2715,8 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	 * conflicts when the mid-level code tries to wake up the affected
 	 * commands!
 	 */
+
+	hostdata->selecting = NULL;
 
 	if (hostdata->connected)
 		dsprintk(NDEBUG_ABORT, instance, "reset aborted a connected command\n");

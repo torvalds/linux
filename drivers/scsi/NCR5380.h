@@ -255,6 +255,7 @@ struct NCR5380_hostdata {
 #endif
 	unsigned char last_message;		/* last message OUT */
 	struct scsi_cmnd *connected;		/* currently connected cmnd */
+	struct scsi_cmnd *selecting;		/* cmnd to be connected */
 	struct list_head unissued;		/* waiting to be issued */
 	struct list_head autosense;		/* priority issue queue */
 	struct list_head disconnected;		/* waiting for reconnect */
@@ -265,7 +266,6 @@ struct NCR5380_hostdata {
 	char info[256];
 	int read_overruns;                /* number of bytes to cut from a
 	                                   * transfer to handle chip overruns */
-	int retain_dma_intr;
 	struct work_struct main_task;
 #ifdef SUPPORT_TAGS
 	struct tag_alloc TagAlloc[8][8];	/* 8 targets and 8 LUNs */
@@ -329,7 +329,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id);
 static void NCR5380_main(struct work_struct *work);
 static const char *NCR5380_info(struct Scsi_Host *instance);
 static void NCR5380_reselect(struct Scsi_Host *instance);
-static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd);
+static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *, struct scsi_cmnd *);
 #if defined(PSEUDO_DMA) || defined(REAL_DMA) || defined(REAL_DMA_POLL)
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
 #endif
