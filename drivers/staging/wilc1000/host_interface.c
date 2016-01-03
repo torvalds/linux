@@ -4306,7 +4306,7 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 	struct del_all_sta *del_all_sta_info = &msg.body.del_all_sta_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	u8 zero_addr[ETH_ALEN] = {0};
-	u32 i;
+	int i;
 	u8 u8AssocNumb = 0;
 
 	if (!hif_drv) {
