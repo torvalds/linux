@@ -4351,7 +4351,7 @@ s32 wilc_del_allstation(struct wilc_vif *vif, u8 pu8MacAddr[][ETH_ALEN])
 }
 
 int wilc_edit_station(struct wilc_vif *vif,
-		      struct add_sta_param *pstrStaParams)
+		      struct add_sta_param *sta_param)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4370,14 +4370,14 @@ int wilc_edit_station(struct wilc_vif *vif,
 	msg.id = HOST_IF_MSG_EDIT_STATION;
 	msg.vif = vif;
 
-	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(struct add_sta_param));
+	memcpy(pstrAddStationMsg, sta_param, sizeof(struct add_sta_param));
 	if (pstrAddStationMsg->rates_len > 0) {
 		u8 *rates = kmalloc(pstrAddStationMsg->rates_len, GFP_KERNEL);
 
 		if (!rates)
 			return -ENOMEM;
 
-		memcpy(rates, pstrStaParams->rates,
+		memcpy(rates, sta_param->rates,
 		       pstrAddStationMsg->rates_len);
 		pstrAddStationMsg->rates = rates;
 	}
