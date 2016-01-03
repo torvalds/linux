@@ -8,7 +8,7 @@ struct virtio_blk_dev {
 		uint64_t capacity;
 	} config;
 	struct lkl_dev_blk_ops *ops;
-	union lkl_disk_backstore backstore;
+	union lkl_disk disk;
 };
 
 struct virtio_blk_req_header {
@@ -66,7 +66,7 @@ static void blk_queue(struct virtio_dev *dev, struct virtio_dev_req *req)
 	h = req->buf[0].addr;
 	blk_dev = container_of(dev, struct virtio_blk_dev, dev);
 
-	blk_dev->ops->request(blk_dev->backstore, le32toh(h->type),
+	blk_dev->ops->request(blk_dev->disk, le32toh(h->type),
 			      le32toh(h->prio), le32toh(h->sector),
 			      &req->buf[1], req->buf_count - 2);
 }
@@ -76,7 +76,7 @@ static struct virtio_dev_ops blk_ops = {
 	.queue = blk_queue,
 };
 
-int lkl_disk_add(union lkl_disk_backstore backstore)
+int lkl_disk_add(union lkl_disk disk)
 {
 	struct virtio_blk_dev *dev;
 	unsigned long long capacity;
@@ -95,9 +95,9 @@ int lkl_disk_add(union lkl_disk_backstore backstore)
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &blk_ops;
 	dev->ops = &lkl_dev_blk_ops;
-	dev->backstore = backstore;
+	dev->disk = disk;
 
-	ret = dev->ops->get_capacity(backstore, &capacity);
+	ret = dev->ops->get_capacity(disk, &capacity);
 	if (ret) {
 		ret = -LKL_ENOMEM;
 		goto out_free;

@@ -149,18 +149,18 @@ struct lkl_host_operations lkl_host_ops = {
 	.virtio_devices = lkl_virtio_devs,
 };
 
-int handle_get_capacity(union lkl_disk_backstore bs, unsigned long long *res)
+int handle_get_capacity(union lkl_disk disk, unsigned long long *res)
 {
 	LARGE_INTEGER tmp;
 
-	if (!GetFileSizeEx(bs.handle, &tmp))
+	if (!GetFileSizeEx(disk.handle, &tmp))
 		return -1;
 
 	*res = tmp.QuadPart;
 	return 0;
 }
 
-void handle_do_rw(union lkl_disk_backstore bs, unsigned int type,
+void handle_do_rw(union lkl_disk disk, unsigned int type,
 		  unsigned int prio, unsigned long long sector,
 		  struct lkl_dev_buf *bufs, int count)
 {
@@ -181,10 +181,10 @@ void handle_do_rw(union lkl_disk_backstore bs, unsigned int type,
 			ov.OffsetHigh = offset >> 32;
 
 			if (type == LKL_DEV_BLK_TYPE_READ)
-				ret = ReadFile(bs.handle, bufs[i].addr,
+				ret = ReadFile(disk.handle, bufs[i].addr,
 					       bufs[i].len, &res, &ov);
 			else
-				ret = WriteFile(bs.handle, bufs[i].addr,
+				ret = WriteFile(disk.handle, bufs[i].addr,
 						bufs[i].len, &res, &ov);
 			if (!ret) {
 				lkl_printf("%s: I/O error: %d\n", __func__,
@@ -206,7 +206,7 @@ void handle_do_rw(union lkl_disk_backstore bs, unsigned int type,
 	}
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
-		ret = FlushFileBuffers(bs.handle);
+		ret = FlushFileBuffers(disk.handle);
 		if (!ret)
 			err = 1;
 		break;

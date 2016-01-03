@@ -23,7 +23,7 @@ struct lklfuse {
 	const char *file;
 	const char *log;
 	const char *type;
-	union lkl_disk_backstore bs;
+	union lkl_disk disk;
 	int disk_id;
 	int ro;
 	int mb;
@@ -586,9 +586,9 @@ int main(int argc, char **argv)
 		goto out_free;
 	}
 
-	lklfuse.bs.fd = ret;
+	lklfuse.disk.fd = ret;
 
-	ret = lkl_disk_add(lklfuse.bs);
+	ret = lkl_disk_add(lklfuse.disk);
 	if (ret < 0) {
 		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));
 		goto out_close_disk;
@@ -637,7 +637,7 @@ out_fuse_unmount:
 	fuse_unmount(mnt, ch);
 
 out_close_disk:
-	close(lklfuse.bs.fd);
+	close(lklfuse.disk.fd);
 
 out_free:
 	free(mnt);

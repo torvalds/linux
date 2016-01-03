@@ -28,9 +28,9 @@ extern struct lkl_dev_blk_ops lkl_dev_blk_ops;
 #define LKL_DEV_BLK_TYPE_FLUSH_OUT	5
 
 struct lkl_dev_blk_ops {
-	int (*get_capacity)(union lkl_disk_backstore bs,
+	int (*get_capacity)(union lkl_disk disk,
 			    unsigned long long *res);
-	void (*request)(union lkl_disk_backstore bs, unsigned int type,
+	void (*request)(union lkl_disk disk, unsigned int type,
 			unsigned int prio, unsigned long long sector,
 			struct lkl_dev_buf *bufs, int count);
 };

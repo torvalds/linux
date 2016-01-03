@@ -402,7 +402,7 @@ out:
 
 int main(int argc, char **argv)
 {
-	union lkl_disk_backstore bs;
+	union lkl_disk disk;
 	long ret;
 	char mpoint[32], src_path[PATH_MAX], dst_path[PATH_MAX];
 	char *src_path_dir, *src_path_base;
@@ -421,15 +421,15 @@ int main(int argc, char **argv)
 	if (!cla.printk)
 		lkl_host_ops.print = NULL;
 
-	bs.fd = open(cla.fsimg_path, cptofs ? O_RDWR : O_RDONLY);
-	if (bs.fd < 0) {
+	disk.fd = open(cla.fsimg_path, cptofs ? O_RDWR : O_RDONLY);
+	if (disk.fd < 0) {
 		fprintf(stderr, "can't open fsimg %s: %s\n", cla.fsimg_path,
 			strerror(errno));
 		ret = 1;
 		goto out;
 	}
 
-	ret = lkl_disk_add(bs);
+	ret = lkl_disk_add(disk);
 	if (ret < 0) {
 		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));
 		goto out_close;
@@ -463,7 +463,7 @@ int main(int argc, char **argv)
 	ret = lkl_umount_dev(disk_id, 0, 1000);
 
 out_close:
-	close(bs.fd);
+	close(disk.fd);
 
 out:
 	lkl_sys_halt();

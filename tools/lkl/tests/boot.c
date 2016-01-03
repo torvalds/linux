@@ -285,22 +285,22 @@ int test_stat(char *str, int len)
 }
 
 static const char *tmp_file;
-static union lkl_disk_backstore bs;
+static union lkl_disk disk;
 static int disk_id = -1;
 
 int test_disk_add(char *str, int len)
 {
 #ifdef __MINGW32__
-	bs.handle = CreateFile(cla.disk_filename, GENERIC_READ | GENERIC_WRITE,
+	disk.handle = CreateFile(cla.disk_filename, GENERIC_READ | GENERIC_WRITE,
 			       0, NULL, OPEN_EXISTING, 0, NULL);
-	if (!bs.handle)
+	if (!disk.handle)
 #else
-	bs.fd = open(cla.disk_filename, O_RDWR);
-	if (bs.fd < 0)
+	disk.fd = open(cla.disk_filename, O_RDWR);
+	if (disk.fd < 0)
 #endif
 		goto out_unlink;
 
-	disk_id = lkl_disk_add(bs);
+	disk_id = lkl_disk_add(disk);
 	if (disk_id < 0)
 		goto out_close;
 
@@ -308,9 +308,9 @@ int test_disk_add(char *str, int len)
 
 out_close:
 #ifdef __MINGW32__
-	CloseHandle(bs.handle);
+	CloseHandle(disk.handle);
 #else
-	close(bs.fd);
+	close(disk.fd);
 #endif
 
 out_unlink:
@@ -321,7 +321,7 @@ out_unlink:
 #endif
 
 out:
-	snprintf(str, len, "%x %d", bs.fd, disk_id);
+	snprintf(str, len, "%x %d", disk.fd, disk_id);
 
 	if (disk_id >= 0)
 		return 1;
@@ -519,7 +519,7 @@ int main(int argc, char **argv)
 
 	lkl_sys_halt();
 
-	close(bs.fd);
+	close(disk.fd);
 	unlink(tmp_file);
 
 	return g_test_pass;

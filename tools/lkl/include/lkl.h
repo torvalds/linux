@@ -57,12 +57,12 @@ static inline long long lkl_sys_lseek(unsigned int fd, __lkl__kernel_loff_t off,
 const char *lkl_strerror(int err);
 
 /**
- * lkl_disk_backstore - host dependend disk backstore
+ * lkl_disk - host disk handle
  *
  * @fd - a POSIX file descriptor that can be used by preadv/pwritev
  * @handle - an NT file handle that can be used by ReadFile/WriteFile
  */
-union lkl_disk_backstore {
+union lkl_disk {
 	int fd;
 	void *handle;
 };
@@ -72,10 +72,10 @@ union lkl_disk_backstore {
  *
  * Must be called before calling lkl_start_kernel.
  *
- * @backstore - the disk backstore
+ * @disk - the host disk handle
  * @returns a disk id (0 is valid) or a strictly negative value in case of error
  */
-int lkl_disk_add(union lkl_disk_backstore backstore);
+int lkl_disk_add(union lkl_disk disk);
 
 /**
  * lkl_mount_dev - mount a disk

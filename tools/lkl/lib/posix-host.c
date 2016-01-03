@@ -158,11 +158,11 @@ struct lkl_host_operations lkl_host_ops = {
 	.virtio_devices = lkl_virtio_devs,
 };
 
-int fd_get_capacity(union lkl_disk_backstore bs, unsigned long long *res)
+static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
 {
 	off_t off;
 
-	off = lseek(bs.fd, 0, SEEK_END);
+	off = lseek(disk.fd, 0, SEEK_END);
 	if (off < 0)
 		return -1;
 
@@ -170,7 +170,7 @@ int fd_get_capacity(union lkl_disk_backstore bs, unsigned long long *res)
 	return 0;
 }
 
-void fd_do_rw(union lkl_disk_backstore bs, unsigned int type, unsigned int prio,
+void fd_do_rw(union lkl_disk disk, unsigned int type, unsigned int prio,
 	      unsigned long long sector, struct lkl_dev_buf *bufs, int count)
 {
 	int err = 0;
@@ -182,17 +182,17 @@ void fd_do_rw(union lkl_disk_backstore bs, unsigned int type, unsigned int prio,
 	/* TODO: handle short reads/writes */
 	switch (type) {
 	case LKL_DEV_BLK_TYPE_READ:
-		err = preadv(bs.fd, iovec, count, sector * 512);
+		err = preadv(disk.fd, iovec, count, sector * 512);
 		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
-		err = pwritev(bs.fd, iovec, count, sector * 512);
+		err = pwritev(disk.fd, iovec, count, sector * 512);
 		break;
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
 #ifdef __linux__
-		err = fdatasync(bs.fd);
+		err = fdatasync(disk.fd);
 #else
-		err = fsync(bs.fd);
+		err = fsync(disk.fd);
 #endif
 		break;
 	default:
