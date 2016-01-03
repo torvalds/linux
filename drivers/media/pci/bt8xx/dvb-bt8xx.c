@@ -458,7 +458,7 @@ static void or51211_sleep(struct dvb_frontend * fe)
 	bttv_write_gpio(bt->bttv_nr, 0x0001, 0x0000);
 }
 
-static struct or51211_config or51211_config = {
+static const struct or51211_config or51211_config = {
 	.demod_address = 0x15,
 	.request_firmware = or51211_request_firmware,
 	.setmode = or51211_setmode,
