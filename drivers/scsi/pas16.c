@@ -1,6 +1,5 @@
 #define PSEUDO_DMA
 #define UNSAFE  /* Not unsafe for PAS16 -- use it */
-#define PDEBUG 0
 
 /*
  * This driver adapted from Drew Eckhardt's Trantor T128 driver
@@ -377,23 +376,18 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 	}
 	else
 	    for (; !io_port && (current_base < NO_BASES); ++current_base) {
-#if (PDEBUG & PDEBUG_INIT)
-    printk("scsi-pas16 : probing io_port %04x\n", (unsigned int) bases[current_base].io_port);
-#endif
+		dprintk(NDEBUG_INIT, "pas16: probing io_port 0x%04x\n",
+		        (unsigned int)bases[current_base].io_port);
 		if ( !bases[current_base].noauto &&
 		     pas16_hw_detect( current_base ) ){
 			io_port = bases[current_base].io_port;
 			init_board( io_port, default_irqs[ current_base ], 0 ); 
-#if (PDEBUG & PDEBUG_INIT)
-			printk("scsi-pas16 : detected board.\n");
-#endif
+			dprintk(NDEBUG_INIT, "pas16: detected board\n");
 		}
     }
 
-
-#if defined(PDEBUG) && (PDEBUG & PDEBUG_INIT)
-	printk("scsi-pas16 : io_port = %04x\n", (unsigned int) io_port);
-#endif
+	dprintk(NDEBUG_INIT, "pas16: io_port = 0x%04x\n",
+	        (unsigned int)io_port);
 
 	if (!io_port)
 	    break;
@@ -431,9 +425,8 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 	    outb( (inb(io_port + IO_CONFIG_3) & 0x0f), io_port + IO_CONFIG_3 );
 	}
 
-#if defined(PDEBUG) && (PDEBUG & PDEBUG_INIT)
-	printk("scsi%d : irq = %d\n", instance->host_no, instance->irq);
-#endif
+	dprintk(NDEBUG_INIT, "scsi%d : irq = %d\n",
+	        instance->host_no, instance->irq);
 
 	++current_override;
 	++count;

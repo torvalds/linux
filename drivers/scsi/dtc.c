@@ -205,9 +205,8 @@ static int __init dtc_detect(struct scsi_host_template * tpnt)
 				addr = 0;
 		} else
 			for (; !addr && (current_base < NO_BASES); ++current_base) {
-#if (DTCDEBUG & DTCDEBUG_INIT)
-				printk(KERN_DEBUG "scsi-dtc : probing address %08x\n", bases[current_base].address);
-#endif
+				dprintk(NDEBUG_INIT, "dtc: probing address 0x%08x\n",
+				        (unsigned int)bases[current_base].address);
 				if (bases[current_base].noauto)
 					continue;
 				base = ioremap(bases[current_base].address, 0x2000);
@@ -216,18 +215,14 @@ static int __init dtc_detect(struct scsi_host_template * tpnt)
 				for (sig = 0; sig < NO_SIGNATURES; ++sig) {
 					if (check_signature(base + signatures[sig].offset, signatures[sig].string, strlen(signatures[sig].string))) {
 						addr = bases[current_base].address;
-#if (DTCDEBUG & DTCDEBUG_INIT)
-						printk(KERN_DEBUG "scsi-dtc : detected board.\n");
-#endif
+						dprintk(NDEBUG_INIT, "dtc: detected board\n");
 						goto found;
 					}
 				}
 				iounmap(base);
 			}
 
-#if defined(DTCDEBUG) && (DTCDEBUG & DTCDEBUG_INIT)
-		printk(KERN_DEBUG "scsi-dtc : base = %08x\n", addr);
-#endif
+		dprintk(NDEBUG_INIT, "dtc: addr = 0x%08x\n", addr);
 
 		if (!addr)
 			break;
@@ -271,9 +266,8 @@ found:
 			printk(KERN_WARNING "scsi%d : interrupts not used. Might as well not jumper it.\n", instance->host_no);
 		instance->irq = NO_IRQ;
 #endif
-#if defined(DTCDEBUG) && (DTCDEBUG & DTCDEBUG_INIT)
-		printk("scsi%d : irq = %d\n", instance->host_no, instance->irq);
-#endif
+		dprintk(NDEBUG_INIT, "scsi%d : irq = %d\n",
+		        instance->host_no, instance->irq);
 
 		++current_override;
 		++count;

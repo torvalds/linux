@@ -182,9 +182,8 @@ static int __init t128_detect(struct scsi_host_template *tpnt)
 		base = 0;
 	} else 
 	    for (; !base && (current_base < NO_BASES); ++current_base) {
-#if (TDEBUG & TDEBUG_INIT)
-    printk("scsi-t128 : probing address %08x\n", bases[current_base].address);
-#endif
+		dprintk(NDEBUG_INIT, "t128: probing address 0x%08x\n",
+		        bases[current_base].address);
 		if (bases[current_base].noauto)
 			continue;
 		p = ioremap(bases[current_base].address, 0x2000);
@@ -195,17 +194,13 @@ static int __init t128_detect(struct scsi_host_template *tpnt)
 					signatures[sig].string,
 					strlen(signatures[sig].string))) {
 			base = bases[current_base].address;
-#if (TDEBUG & TDEBUG_INIT)
-			printk("scsi-t128 : detected board.\n");
-#endif
+			dprintk(NDEBUG_INIT, "t128: detected board\n");
 			goto found;
 		    }
 		iounmap(p);
 	    }
 
-#if defined(TDEBUG) && (TDEBUG & TDEBUG_INIT)
-	printk("scsi-t128 : base = %08x\n", (unsigned int) base);
-#endif
+	dprintk(NDEBUG_INIT, "t128: base = 0x%08x\n", (unsigned int)base);
 
 	if (!base)
 	    break;
@@ -242,9 +237,8 @@ found:
 	    printk("scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 	}
 
-#if defined(TDEBUG) && (TDEBUG & TDEBUG_INIT)
-	printk("scsi%d : irq = %d\n", instance->host_no, instance->irq);
-#endif
+	dprintk(NDEBUG_INIT, "scsi%d: irq = %d\n",
+	        instance->host_no, instance->irq);
 
 	++current_override;
 	++count;

@@ -10,10 +10,6 @@
 #ifndef DTC3280_H
 #define DTC3280_H
 
-#define DTCDEBUG 0
-#define DTCDEBUG_INIT	0x1
-#define DTCDEBUG_TRANSFER 0x2
-
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
 #endif
@@ -33,31 +29,8 @@
 
 #define DTC_address(reg) (base + DTC_5380_OFFSET + reg)
 
-#define dbNCR5380_read(reg)                                              \
-    (rval=readb(DTC_address(reg)), \
-     (((unsigned char) printk("DTC : read register %d at addr %p is: %02x\n"\
-    , (reg), DTC_address(reg), rval)), rval ) )
-
-#define dbNCR5380_write(reg, value) do {                                  \
-    printk("DTC : write %02x to register %d at address %p\n",         \
-            (value), (reg), DTC_address(reg));     \
-    writeb(value, DTC_address(reg));} while(0)
-
-
-#if !(DTCDEBUG & DTCDEBUG_TRANSFER) 
 #define NCR5380_read(reg) (readb(DTC_address(reg)))
 #define NCR5380_write(reg, value) (writeb(value, DTC_address(reg)))
-#else
-#define NCR5380_read(reg) (readb(DTC_address(reg)))
-#define xNCR5380_read(reg)						\
-    (((unsigned char) printk("DTC : read register %d at address %p\n"\
-    , (reg), DTC_address(reg))), readb(DTC_address(reg)))
-
-#define NCR5380_write(reg, value) do {					\
-    printk("DTC : write %02x to register %d at address %p\n", 	\
-	    (value), (reg), DTC_address(reg));	\
-    writeb(value, DTC_address(reg));} while(0)
-#endif
 
 #define NCR5380_intr			dtc_intr
 #define NCR5380_queue_command		dtc_queue_command

@@ -23,10 +23,6 @@
 #ifndef T128_H
 #define T128_H
 
-#define TDEBUG		0
-#define TDEBUG_INIT	0x1
-#define TDEBUG_TRANSFER 0x2
-
 /*
  * The trantor boards are memory mapped. They use an NCR5380 or
  * equivalent (my sample board had part second sourced from ZILOG).
@@ -92,20 +88,8 @@
 
 #define T128_address(reg) (base + T_5380_OFFSET + ((reg) * 0x20))
 
-#if !(TDEBUG & TDEBUG_TRANSFER)
 #define NCR5380_read(reg) readb(T128_address(reg))
 #define NCR5380_write(reg, value) writeb((value),(T128_address(reg)))
-#else
-#define NCR5380_read(reg)						\
-    (((unsigned char) printk("scsi%d : read register %d at address %08x\n"\
-    , instance->hostno, (reg), T128_address(reg))), readb(T128_address(reg)))
-
-#define NCR5380_write(reg, value) {					\
-    printk("scsi%d : write %02x to register %d at address %08x\n",	\
-	    instance->hostno, (value), (reg), T128_address(reg));	\
-    writeb((value), (T128_address(reg)));				\
-}
-#endif
 
 #define NCR5380_intr t128_intr
 #define do_NCR5380_intr do_t128_intr
