@@ -4605,7 +4605,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 	return (void *)pNewJoinBssParam;
 }
 
-int wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *pBSSID, char TID)
+int wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *bssid, char TID)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -4621,7 +4621,7 @@ int wilc_del_all_rx_ba_session(struct wilc_vif *vif, char *pBSSID, char TID)
 
 	msg.id = HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS;
 
-	memcpy(pBASessionInfo->bssid, pBSSID, ETH_ALEN);
+	memcpy(pBASessionInfo->bssid, bssid, ETH_ALEN);
 	pBASessionInfo->tid = TID;
 	msg.vif = vif;
 
