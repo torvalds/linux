@@ -33,6 +33,9 @@ extern int apcie_assign_irqs(struct pci_dev *dev, int nvec);
 #define apcie_free_irqs irq_domain_free_irqs
 
 extern int apcie_status(void);
+extern int apcie_icc_cmd(u8 major, u16 minor, const void *data,
+			 u16 length, void *reply, u16 reply_length);
+
 
 #else
 
@@ -44,6 +47,11 @@ static inline void apcie_free_irqs(unsigned int virq, unsigned int nvec)
 {
 }
 static inline int apcie_status(void)
+{
+	return -ENODEV;
+}
+static inline int apcie_icc_cmd(u8 major, u16 minor, const void *data,
+				u16 length, void *reply, u16 reply_length)
 {
 	return -ENODEV;
 }

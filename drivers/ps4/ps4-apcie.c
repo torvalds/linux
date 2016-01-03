@@ -376,10 +376,14 @@ static int apcie_glue_resume(struct apcie_dev *sc) {
 
 
 int apcie_uart_init(struct apcie_dev *sc);
+int apcie_icc_init(struct apcie_dev *sc);
 void apcie_uart_remove(struct apcie_dev *sc);
+void apcie_icc_remove(struct apcie_dev *sc);
 #ifdef CONFIG_PM
 void apcie_uart_suspend(struct apcie_dev *sc, pm_message_t state);
+void apcie_icc_suspend(struct apcie_dev *sc, pm_message_t state);
 void apcie_uart_resume(struct apcie_dev *sc);
+void apcie_icc_resume(struct apcie_dev *sc);
 #endif
 
 /* From arch/x86/platform/ps4/ps4.c */
@@ -424,10 +428,14 @@ static int apcie_probe(struct pci_dev *dev, const struct pci_device_id *id) {
 		goto free_bars;
 	if ((ret = apcie_uart_init(sc)) < 0)
 		goto remove_glue;
+	if ((ret = apcie_icc_init(sc)) < 0)
+		goto remove_uart;
 
 	apcie_initialized = true;
 	return 0;
 
+remove_uart:
+	apcie_uart_remove(sc);
 remove_glue:
 	apcie_glue_remove(sc);
 free_bars:
@@ -447,6 +455,7 @@ static void apcie_remove(struct pci_dev *dev) {
 	struct apcie_dev *sc;
 	sc = pci_get_drvdata(dev);
 
+	apcie_icc_remove(sc);
 	apcie_uart_remove(sc);
 	apcie_glue_remove(sc);
 
@@ -465,6 +474,7 @@ static int apcie_suspend(struct pci_dev *dev, pm_message_t state) {
 	struct apcie_dev *sc;
 	sc = pci_get_drvdata(dev);
 
+	apcie_icc_suspend(sc, state);
 	apcie_uart_suspend(sc, state);
 	apcie_glue_suspend(sc, state);
 	return 0;
@@ -474,6 +484,7 @@ static int apcie_resume(struct pci_dev *dev) {
 	struct apcie_dev *sc;
 	sc = pci_get_drvdata(dev);
 
+	apcie_icc_resume(sc);
 	apcie_glue_resume(sc);
 	apcie_uart_resume(sc);
 	return 0;

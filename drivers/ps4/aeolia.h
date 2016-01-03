@@ -63,6 +63,9 @@ enum apcie_subfunc {
 #define APCIE_RGN_PCIE_BASE		0x1c8000
 #define APCIE_RGN_PCIE_SIZE		0x1000
 
+#define APCIE_RGN_ICC_BASE		0x184000
+#define APCIE_RGN_ICC_SIZE		0x1000
+
 #define APCIE_REG_BAR(x)		(APCIE_RGN_PCIE_BASE + (x))
 #define APCIE_REG_BAR_MASK(func, bar)	APCIE_REG_BAR(((func) * 0x30) + \
 						((bar) << 3))
@@ -84,6 +87,59 @@ enum apcie_subfunc {
 #define APCIE_REG_MSI_MASK_FUNC		0x01000000
 #define APCIE_REG_MSI_MASK_FUNC4	0x80000000
 
+#define APCIE_REG_ICC(x)		(APCIE_RGN_ICC_BASE + (x))
+#define APCIE_REG_ICC_DOORBELL		APCIE_REG_ICC(0x804)
+#define APCIE_REG_ICC_STATUS		APCIE_REG_ICC(0x814)
+#define APCIE_REG_ICC_IRQ_MASK		APCIE_REG_ICC(0x824)
+
+/* Apply to both DOORBELL and STATUS */
+#define APCIE_ICC_SEND			0x01
+#define APCIE_ICC_ACK			0x02
+
+/* Relative to func6 BAR5 */
+#define APCIE_SPM_ICC_BASE		0x2c000
+#define APCIE_SPM_ICC_SIZE		0x1000
+
+#define APCIE_SPM_ICC_REQUEST		0x0
+#define APCIE_SPM_ICC_REPLY		0x800
+
+#define ICC_REPLY 0x4000
+#define ICC_EVENT 0x8000
+
+#define ICC_MAGIC 0x42
+#define ICC_EVENT_MAGIC 0x24
+
+struct icc_message_hdr {
+	u8 magic;
+	u8 major;
+	u16 minor;
+	u16 unknown;
+	u16 cookie;
+	u16 length;
+	u16 checksum;
+} __packed;
+
+#define ICC_HDR_SIZE sizeof(struct icc_message_hdr)
+#define ICC_MIN_SIZE 0x20
+#define ICC_MAX_SIZE 0x7f0
+#define ICC_MIN_PAYLOAD (ICC_MIN_SIZE - ICC_HDR_SIZE)
+#define ICC_MAX_PAYLOAD (ICC_MAX_SIZE - ICC_HDR_SIZE)
+
+struct apcie_icc_dev {
+	phys_addr_t spm_base;
+	void __iomem *spm;
+
+	spinlock_t reply_lock;
+	bool reply_pending;
+
+	struct icc_message_hdr request;
+	struct icc_message_hdr reply;
+	u16 reply_extra_checksum;
+	void *reply_buffer;
+	int reply_length;
+	wait_queue_head_t wq;
+};
+
 struct apcie_dev {
 	struct pci_dev *pdev;
 	struct irq_domain *irqdomain;
@@ -93,6 +149,7 @@ struct apcie_dev {
 
 	int nvec;
 	int serial_line[2];
+	struct apcie_icc_dev icc;
 };
 
 #define sc_err(...) dev_err(&sc->pdev->dev, __VA_ARGS__)
@@ -109,5 +166,8 @@ static inline int apcie_irqnum(struct apcie_dev *sc, int index)
 		return sc->pdev->irq;
 	}
 }
+
+int apcie_icc_cmd(u8 major, u16 minor, const void *data, u16 length,
+	    void *reply, u16 reply_length);
 
 #endif
