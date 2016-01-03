@@ -61,7 +61,9 @@ static int hisi_pcie_cfg_read(struct pcie_port *pp, int where, int size,
 		*val = *(u8 __force *) walker;
 	else if (size == 2)
 		*val = *(u16 __force *) walker;
-	else if (size != 4)
+	else if (size == 4)
+		*val = reg_val;
+	else
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	return PCIBIOS_SUCCESSFUL;
