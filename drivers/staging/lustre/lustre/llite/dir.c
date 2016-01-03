@@ -1448,7 +1448,7 @@ free_lmv:
 
 		if (cmd == IOC_MDC_GETFILEINFO ||
 		    cmd == IOC_MDC_GETFILESTRIPE) {
-			filename = ll_getname((const char *)arg);
+			filename = ll_getname((const char __user *)arg);
 			if (IS_ERR(filename))
 				return PTR_ERR(filename);
 
