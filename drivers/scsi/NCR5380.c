@@ -1113,7 +1113,7 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	 * the host and target ID's on the SCSI bus.
 	 */
 
-	NCR5380_write(OUTPUT_DATA_REG, (hostdata->id_mask | (1 << scmd_id(cmd))));
+	NCR5380_write(OUTPUT_DATA_REG, hostdata->id_mask | (1 << scmd_id(cmd)));
 
 	/*
 	 * Raise ATN while SEL is true before BSY goes false from arbitration,
@@ -1121,7 +1121,8 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	 * phase immediately after selection.
 	 */
 
-	NCR5380_write(INITIATOR_COMMAND_REG, (ICR_BASE | ICR_ASSERT_BSY | ICR_ASSERT_DATA | ICR_ASSERT_ATN | ICR_ASSERT_SEL));
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_BSY |
+	              ICR_ASSERT_DATA | ICR_ASSERT_ATN | ICR_ASSERT_SEL);
 	NCR5380_write(MODE_REG, MR_BASE);
 
 	/*
@@ -1139,7 +1140,8 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	udelay(1);        /* wingel -- wait two bus deskew delay >2*45ns */
 
 	/* Reset BSY */
-	NCR5380_write(INITIATOR_COMMAND_REG, (ICR_BASE | ICR_ASSERT_DATA | ICR_ASSERT_ATN | ICR_ASSERT_SEL));
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_DATA |
+	              ICR_ASSERT_ATN | ICR_ASSERT_SEL);
 
 	/*
 	 * Something weird happens when we cease to drive BSY - looks
@@ -1249,7 +1251,7 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	/* XXX need to handle errors here */
 
 	hostdata->connected = cmd;
-	hostdata->busy[cmd->device->id] |= (1 << (cmd->device->lun & 0xFF));
+	hostdata->busy[cmd->device->id] |= 1 << cmd->device->lun;
 
 	initialize_SCp(cmd);
 
@@ -1340,11 +1342,14 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 			if (!((p & SR_MSG) && c > 1)) {
 				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_DATA);
 				NCR5380_dprint(NDEBUG_PIO, instance);
-				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_DATA | ICR_ASSERT_ACK);
+				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE |
+				              ICR_ASSERT_DATA | ICR_ASSERT_ACK);
 			} else {
-				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_DATA | ICR_ASSERT_ATN);
+				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE |
+				              ICR_ASSERT_DATA | ICR_ASSERT_ATN);
 				NCR5380_dprint(NDEBUG_PIO, instance);
-				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_DATA | ICR_ASSERT_ATN | ICR_ASSERT_ACK);
+				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE |
+				              ICR_ASSERT_DATA | ICR_ASSERT_ATN | ICR_ASSERT_ACK);
 			}
 		} else {
 			NCR5380_dprint(NDEBUG_PIO, instance);
@@ -1775,10 +1780,12 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 			if (sink && (phase != PHASE_MSGOUT)) {
 				NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(tmp));
 
-				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN | ICR_ASSERT_ACK);
+				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN |
+				              ICR_ASSERT_ACK);
 				while (NCR5380_read(STATUS_REG) & SR_REQ)
 					;
-				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
+				NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE |
+				              ICR_ASSERT_ATN);
 				sink = 0;
 				continue;
 			}
@@ -1848,8 +1855,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 #endif				/* defined(PSEUDO_DMA) || defined(REAL_DMA_POLL) */
 				{
 					spin_unlock_irq(&hostdata->lock);
-					NCR5380_transfer_pio(instance, &phase, (int *) &cmd->SCp.this_residual, (unsigned char **)
-							     &cmd->SCp.ptr);
+					NCR5380_transfer_pio(instance, &phase,
+					                     (int *)&cmd->SCp.this_residual,
+					                     (unsigned char **)&cmd->SCp.ptr);
 					spin_lock_irq(&hostdata->lock);
 				}
 				break;
