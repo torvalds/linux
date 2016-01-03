@@ -4159,7 +4159,7 @@ int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 	return result;
 }
 
-int wilc_add_beacon(struct wilc_vif *vif, u32 u32Interval, u32 u32DTIMPeriod,
+int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 u32DTIMPeriod,
 		    u32 u32HeadLen, u8 *pu8Head, u32 u32TailLen, u8 *pu8Tail)
 {
 	int result = 0;
@@ -4178,7 +4178,7 @@ int wilc_add_beacon(struct wilc_vif *vif, u32 u32Interval, u32 u32DTIMPeriod,
 
 	msg.id = HOST_IF_MSG_ADD_BEACON;
 	msg.vif = vif;
-	pstrSetBeaconParam->interval = u32Interval;
+	pstrSetBeaconParam->interval = interval;
 	pstrSetBeaconParam->dtim_period = u32DTIMPeriod;
 	pstrSetBeaconParam->head_len = u32HeadLen;
 	pstrSetBeaconParam->head = kmemdup(pu8Head, u32HeadLen, GFP_KERNEL);
