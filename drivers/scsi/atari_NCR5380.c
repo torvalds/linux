@@ -1835,19 +1835,19 @@ static void do_reset(struct Scsi_Host *instance)
 	local_irq_restore(flags);
 }
 
-/*
- * Function : do_abort (Scsi_Host *host)
+/**
+ * do_abort - abort the currently established nexus by going to
+ * MESSAGE OUT phase and sending an ABORT message.
+ * @instance: relevant scsi host instance
  *
- * Purpose : abort the currently established nexus.  Should only be
- *	called from a routine which can drop into a
- *
- * Returns : 0 on success, -1 on failure.
+ * Returns 0 on success, -1 on failure.
  */
 
 static int do_abort(struct Scsi_Host *instance)
 {
 	unsigned char tmp, *msgptr, phase;
 	int len;
+	int rc;
 
 	/* Request message out phase */
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
@@ -1862,16 +1862,20 @@ static int do_abort(struct Scsi_Host *instance)
 	 * the target sees, so we just handshake.
 	 */
 
-	while (!((tmp = NCR5380_read(STATUS_REG)) & SR_REQ))
-		;
+	rc = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, 10 * HZ);
+	if (rc < 0)
+		goto timeout;
+
+	tmp = NCR5380_read(STATUS_REG) & PHASE_MASK;
 
 	NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(tmp));
 
-	if ((tmp & PHASE_MASK) != PHASE_MSGOUT) {
-		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN |
-			      ICR_ASSERT_ACK);
-		while (NCR5380_read(STATUS_REG) & SR_REQ)
-			;
+	if (tmp != PHASE_MSGOUT) {
+		NCR5380_write(INITIATOR_COMMAND_REG,
+		              ICR_BASE | ICR_ASSERT_ATN | ICR_ASSERT_ACK);
+		rc = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, 0, 3 * HZ);
+		if (rc < 0)
+			goto timeout;
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
 	}
 
@@ -1887,6 +1891,10 @@ static int do_abort(struct Scsi_Host *instance)
 	 */
 
 	return len ? -1 : 0;
+
+timeout:
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+	return -1;
 }
 
 #if defined(REAL_DMA)
