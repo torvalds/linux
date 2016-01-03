@@ -534,7 +534,7 @@ static void NCR5380_set_timer(struct NCR5380_hostdata *hostdata, unsigned long t
 }
 
 
-static int probe_irq __initdata = 0;
+static int probe_irq __initdata;
 
 /**
  *	probe_intr	-	helper for IRQ autoprobe

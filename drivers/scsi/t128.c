@@ -126,7 +126,7 @@ static struct signature {
 
 static int __init t128_setup(char *str)
 {
-    static int commandline_current = 0;
+	static int commandline_current;
     int i;
     int ints[10];
 
@@ -165,7 +165,7 @@ __setup("t128=", t128_setup);
 
 static int __init t128_detect(struct scsi_host_template *tpnt)
 {
-    static int current_override = 0, current_base = 0;
+	static int current_override, current_base;
     struct Scsi_Host *instance;
     unsigned long base;
     void __iomem *p;

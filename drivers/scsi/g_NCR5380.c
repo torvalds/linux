@@ -121,7 +121,7 @@ static struct override {
 
 static void __init internal_setup(int board, char *str, int *ints)
 {
-	static int commandline_current = 0;
+	static int commandline_current;
 	switch (board) {
 	case BOARD_NCR5380:
 		if (ints[0] != 2 && ints[0] != 3) {
@@ -251,7 +251,7 @@ static int __init do_DTC3181E_setup(char *str)
 
 static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 {
-	static int current_override = 0;
+	static int current_override;
 	int count;
 	unsigned int *ports;
 #ifndef SCSI_G_NCR5380_MEM

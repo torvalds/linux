@@ -150,7 +150,7 @@ static const struct signature {
 
 static int __init dtc_setup(char *str)
 {
-	static int commandline_current = 0;
+	static int commandline_current;
 	int i;
 	int ints[10];
 
@@ -188,7 +188,7 @@ __setup("dtc=", dtc_setup);
 
 static int __init dtc_detect(struct scsi_host_template * tpnt)
 {
-	static int current_override = 0, current_base = 0;
+	static int current_override, current_base;
 	struct Scsi_Host *instance;
 	unsigned int addr;
 	void __iomem *base;

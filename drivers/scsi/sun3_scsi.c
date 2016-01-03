@@ -100,10 +100,10 @@ static struct scsi_cmnd *sun3_dma_setup_done;
 static unsigned char *sun3_scsi_regp;
 static volatile struct sun3_dma_regs *dregs;
 static struct sun3_udc_regs *udc_regs;
-static unsigned char *sun3_dma_orig_addr = NULL;
-static unsigned long sun3_dma_orig_count = 0;
-static int sun3_dma_active = 0;
-static unsigned long last_residual = 0;
+static unsigned char *sun3_dma_orig_addr;
+static unsigned long sun3_dma_orig_count;
+static int sun3_dma_active;
+static unsigned long last_residual;
 static struct Scsi_Host *default_instance;
 
 /*

@@ -87,8 +87,8 @@
 #include "NCR5380.h"
 
 
-static unsigned short pas16_addr = 0;
-static int pas16_irq = 0;
+static unsigned short pas16_addr;
+static int pas16_irq;
  
 
 static const int scsi_irq_translate[] =
@@ -305,7 +305,7 @@ static int __init
 
 static int __init pas16_setup(char *str)
 {
-    static int commandline_current = 0;
+	static int commandline_current;
     int i;
     int ints[10];
 
@@ -344,8 +344,8 @@ __setup("pas16=", pas16_setup);
 
 static int __init pas16_detect(struct scsi_host_template *tpnt)
 {
-    static int current_override = 0;
-    static unsigned short current_base = 0;
+	static int current_override;
+	static unsigned short current_base;
     struct Scsi_Host *instance;
     unsigned short io_port;
     int  count;
