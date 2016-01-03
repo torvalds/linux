@@ -2496,7 +2496,7 @@ static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 
 static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 {
-	int i, rc, size, arr_size;
+	int i, j, rc, size, arr_size;
 	void *bnapi;
 
 	if (irq_re_init) {
@@ -2535,9 +2535,14 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		if (!bp->tx_ring)
 			return -ENOMEM;
 
-		for (i = 0; i < bp->tx_nr_rings; i++) {
-			bp->tx_ring[i].bnapi = bp->bnapi[i];
-			bp->bnapi[i]->tx_ring = &bp->tx_ring[i];
+		if (bp->flags & BNXT_FLAG_SHARED_RINGS)
+			j = 0;
+		else
+			j = bp->rx_nr_rings;
+
+		for (i = 0; i < bp->tx_nr_rings; i++, j++) {
+			bp->tx_ring[i].bnapi = bp->bnapi[j];
+			bp->bnapi[j]->tx_ring = &bp->tx_ring[i];
 		}
 
 		rc = bnxt_alloc_stats(bp);
@@ -4066,7 +4071,7 @@ static int bnxt_setup_msix(struct bnxt *bp)
 {
 	struct msix_entry *msix_ent;
 	struct net_device *dev = bp->dev;
-	int i, total_vecs, rc = 0;
+	int i, total_vecs, rc = 0, min = 1;
 	const int len = sizeof(bp->irq_tbl[0].name);
 
 	bp->flags &= ~BNXT_FLAG_USING_MSIX;
@@ -4081,7 +4086,10 @@ static int bnxt_setup_msix(struct bnxt *bp)
 		msix_ent[i].vector = 0;
 	}
 
-	total_vecs = pci_enable_msix_range(bp->pdev, msix_ent, 1, total_vecs);
+	if (!(bp->flags & BNXT_FLAG_SHARED_RINGS))
+		min = 2;
+
+	total_vecs = pci_enable_msix_range(bp->pdev, msix_ent, min, total_vecs);
 	if (total_vecs < 0) {
 		rc = -ENODEV;
 		goto msix_setup_exit;
@@ -4093,7 +4101,7 @@ static int bnxt_setup_msix(struct bnxt *bp)
 
 		/* Trim rings based upon num of vectors allocated */
 		rc = bnxt_trim_rings(bp, &bp->rx_nr_rings, &bp->tx_nr_rings,
-				     total_vecs, true);
+				     total_vecs, min == 1);
 		if (rc)
 			goto msix_setup_exit;
 
@@ -4115,12 +4123,21 @@ static int bnxt_setup_msix(struct bnxt *bp)
 				}
 			}
 		}
-		bp->cp_nr_rings = max_t(int, bp->rx_nr_rings, bp->tx_nr_rings);
+		bp->cp_nr_rings = total_vecs;
 
 		for (i = 0; i < bp->cp_nr_rings; i++) {
+			char *attr;
+
 			bp->irq_tbl[i].vector = msix_ent[i].vector;
+			if (bp->flags & BNXT_FLAG_SHARED_RINGS)
+				attr = "TxRx";
+			else if (i < bp->rx_nr_rings)
+				attr = "rx";
+			else
+				attr = "tx";
+
 			snprintf(bp->irq_tbl[i].name, len,
-				 "%s-%s-%d", dev->name, "TxRx", i);
+				 "%s-%s-%d", dev->name, attr, i);
 			bp->irq_tbl[i].handler = bnxt_msix;
 		}
 		rc = bnxt_set_real_num_queues(bp);
@@ -4158,6 +4175,7 @@ static int bnxt_setup_inta(struct bnxt *bp)
 	bp->tx_nr_rings = 1;
 	bp->cp_nr_rings = 1;
 	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
+	bp->flags |= BNXT_FLAG_SHARED_RINGS;
 	bp->irq_tbl[0].vector = bp->pdev->irq;
 	snprintf(bp->irq_tbl[0].name, len,
 		 "%s-%s-%d", bp->dev->name, "TxRx", 0);
@@ -5365,8 +5383,12 @@ static int bnxt_setup_tc(struct net_device *dev, u8 tc)
 
 	if (tc) {
 		int max_rx_rings, max_tx_rings, rc;
+		bool sh = false;
 
-		rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
+		if (bp->flags & BNXT_FLAG_SHARED_RINGS)
+			sh = true;
+
+		rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
 		if (rc || bp->tx_nr_rings_per_tc * tc > max_tx_rings)
 			return -ENOMEM;
 	}
