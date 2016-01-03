@@ -808,22 +808,21 @@ static void NCR5380_exit(struct Scsi_Host *instance)
 }
 
 /**
- *	NCR5380_queue_command 		-	queue a command
- *	@cmd: SCSI command
- *	@done: completion handler
+ * NCR5380_queue_command - queue a command
+ * @instance: the relevant SCSI adapter
+ * @cmd: SCSI command
  *
- *      cmd is added to the per instance issue_queue, with minor 
- *      twiddling done to the host specific fields of cmd.  If the 
- *      main coroutine is not running, it is restarted.
- *
- *	Locks: host lock taken by caller
+ * cmd is added to the per-instance issue queue, with minor
+ * twiddling done to the host specific fields of cmd.  If the
+ * main coroutine is not running, it is restarted.
  */
 
-static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd, void (*done) (struct scsi_cmnd *))
+static int NCR5380_queue_command(struct Scsi_Host *instance,
+                                 struct scsi_cmnd *cmd)
 {
-	struct Scsi_Host *instance = cmd->device->host;
-	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	struct scsi_cmnd *tmp;
+	unsigned long flags;
 
 #if (NDEBUG & NDEBUG_NO_WRITE)
 	switch (cmd->cmnd[0]) {
@@ -831,7 +830,7 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd, void (*done) (struct
 	case WRITE_10:
 		printk("scsi%d : WRITE attempted with NO_WRITE debugging flag set\n", instance->host_no);
 		cmd->result = (DID_ERROR << 16);
-		done(cmd);
+		cmd->scsi_done(cmd);
 		return 0;
 	}
 #endif				/* (NDEBUG & NDEBUG_NO_WRITE) */
@@ -842,8 +841,9 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd, void (*done) (struct
 	 */
 
 	cmd->host_scribble = NULL;
-	cmd->scsi_done = done;
 	cmd->result = 0;
+
+	spin_lock_irqsave(instance->host_lock, flags);
 
 	/* 
 	 * Insert the cmd into the issue queue. Note that REQUEST SENSE 
@@ -861,6 +861,8 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd, void (*done) (struct
 		LIST(cmd, tmp);
 		tmp->host_scribble = (unsigned char *) cmd;
 	}
+	spin_unlock_irqrestore(instance->host_lock, flags);
+
 	dprintk(NDEBUG_QUEUES, "scsi%d : command added to %s of queue\n", instance->host_no, (cmd->cmnd[0] == REQUEST_SENSE) ? "head" : "tail");
 
 	/* Run the coroutine if it isn't already running. */
@@ -868,8 +870,6 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd, void (*done) (struct
 	queue_delayed_work(hostdata->work_q, &hostdata->coroutine, 0);
 	return 0;
 }
-
-static DEF_SCSI_QCMD(NCR5380_queue_command)
 
 /**
  *	NCR5380_main	-	NCR state machines

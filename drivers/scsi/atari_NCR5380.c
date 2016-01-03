@@ -930,7 +930,7 @@ static void NCR5380_exit(struct Scsi_Host *instance)
  * @instance: the relevant SCSI adapter
  * @cmd: SCSI command
  *
- * cmd is added to the per instance issue_queue, with minor
+ * cmd is added to the per-instance issue queue, with minor
  * twiddling done to the host specific fields of cmd.  If the
  * main coroutine is not running, it is restarted.
  */
