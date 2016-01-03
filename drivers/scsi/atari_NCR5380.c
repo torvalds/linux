@@ -1446,11 +1446,9 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	else
 		udelay(2);
 
-	if (hostdata->connected) {
-		NCR5380_write(MODE_REG, MR_BASE);
-		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+	/* NCR5380_reselect() clears MODE_REG after a reselection interrupt */
+	if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE))
 		return -1;
-	}
 
 	dprintk(NDEBUG_ARBITRATION, "scsi%d: won arbitration\n", HOSTNO);
 
@@ -2223,12 +2221,14 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						cmd->scsi_done(cmd);
 					}
 
-					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					/*
 					 * Restore phase bits to 0 so an interrupted selection,
 					 * arbitration can resume.
 					 */
 					NCR5380_write(TARGET_COMMAND_REG, 0);
+
+					/* Enable reselect interrupts */
+					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 
 					/* ++roman: For Falcon SCSI, release the lock on the
 					 * ST-DMA here if no other commands are waiting on the
@@ -2482,17 +2482,22 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	 */
 
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_BSY);
-
-	while (NCR5380_read(STATUS_REG) & SR_SEL)
-		;
+	if (NCR5380_poll_politely(instance,
+	                          STATUS_REG, SR_SEL, 0, 2 * HZ) < 0) {
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+		return;
+	}
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 
 	/*
 	 * Wait for target to go into MSGIN.
 	 */
 
-	while (!(NCR5380_read(STATUS_REG) & SR_REQ))
-		;
+	if (NCR5380_poll_politely(instance,
+	                          STATUS_REG, SR_REQ, SR_REQ, 2 * HZ) < 0) {
+		do_abort(instance);
+		return;
+	}
 
 #if defined(CONFIG_SUN3) && defined(REAL_DMA)
 	/* acknowledge toggle to MSGIN */
@@ -2505,15 +2510,21 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	data = msg;
 	phase = PHASE_MSGIN;
 	NCR5380_transfer_pio(instance, &phase, &len, &data);
-#endif
 
-	if (!(msg[0] & 0x80)) {
-		printk(KERN_DEBUG "scsi%d: expecting IDENTIFY message, got ", HOSTNO);
-		spi_print_msg(msg);
+	if (len) {
 		do_abort(instance);
 		return;
 	}
-	lun = (msg[0] & 0x07);
+#endif
+
+	if (!(msg[0] & 0x80)) {
+		shost_printk(KERN_ERR, instance, "expecting IDENTIFY message, got ");
+		spi_print_msg(msg);
+		printk("\n");
+		do_abort(instance);
+		return;
+	}
+	lun = msg[0] & 0x07;
 
 #if defined(SUPPORT_TAGS) && !defined(CONFIG_SUN3)
 	/* If the phase is still MSGIN, the target wants to send some more
@@ -2541,7 +2552,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 
 	for (tmp = (struct scsi_cmnd *) hostdata->disconnected_queue, prev = NULL;
 	     tmp; prev = tmp, tmp = NEXT(tmp)) {
-		if ((target_mask == (1 << tmp->device->id)) && (lun == tmp->device->lun)
+		if ((target_mask == (1 << tmp->device->id)) && (lun == (u8)tmp->device->lun)
 #ifdef SUPPORT_TAGS
 		    && (tag == tmp->tag)
 #endif
@@ -2559,16 +2570,13 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	}
 
 	if (!tmp) {
-		printk(KERN_WARNING "scsi%d: warning: target bitmask %02x lun %d "
 #ifdef SUPPORT_TAGS
-		       "tag %d "
+		shost_printk(KERN_ERR, instance, "target bitmask 0x%02x lun %d tag %d not in disconnected queue.\n",
+		             target_mask, lun, tag);
+#else
+		shost_printk(KERN_ERR, instance, "target bitmask 0x%02x lun %d not in disconnected queue.\n",
+		             target_mask, lun);
 #endif
-		       "not in disconnected_queue.\n",
-		       HOSTNO, target_mask, lun
-#ifdef SUPPORT_TAGS
-		       , tag
-#endif
-			);
 		/*
 		 * Since we have an established nexus that we can't do anything
 		 * with, we must abort it.

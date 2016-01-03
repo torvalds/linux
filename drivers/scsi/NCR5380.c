@@ -1182,6 +1182,10 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	else
 		udelay(2);
 
+	/* NCR5380_reselect() clears MODE_REG after a reselection interrupt */
+	if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE))
+		return -1;
+
 	dprintk(NDEBUG_ARBITRATION, "scsi%d : won arbitration\n", instance->host_no);
 
 	/* 
@@ -1953,12 +1957,14 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						cmd->scsi_done(cmd);
 					}
 
-					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					/* 
 					 * Restore phase bits to 0 so an interrupted selection, 
 					 * arbitration can resume.
 					 */
 					NCR5380_write(TARGET_COMMAND_REG, 0);
+
+					/* Enable reselect interrupts */
+					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					return;
 				case MESSAGE_REJECT:
 					/* Accept message by clearing ACK */
@@ -2144,7 +2150,6 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	unsigned char msg[3];
 	unsigned char *data;
 	struct scsi_cmnd *tmp = NULL, *prev;
-	int abort = 0;
 
 	/*
 	 * Disable arbitration, etc. since the host adapter obviously
@@ -2154,7 +2159,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	NCR5380_write(MODE_REG, MR_BASE);
 
 	target_mask = NCR5380_read(CURRENT_SCSI_DATA_REG) & ~(hostdata->id_mask);
-	dprintk(NDEBUG_SELECTION, "scsi%d : reselect\n", instance->host_no);
+	dprintk(NDEBUG_RESELECTION, "scsi%d : reselect\n", instance->host_no);
 
 	/* 
 	 * At this point, we have detected that our SCSI ID is on the bus,
@@ -2166,77 +2171,85 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	 */
 
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_BSY);
-
-	/* FIXME: timeout too long, must fail to workqueue */	
-	if(NCR5380_poll_politely(instance, STATUS_REG, SR_SEL, 0, 2*HZ)<0)
-		abort = 1;
-		
+	if (NCR5380_poll_politely(instance,
+	                          STATUS_REG, SR_SEL, 0, 2 * HZ) < 0) {
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+		return;
+	}
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 
 	/*
 	 * Wait for target to go into MSGIN.
-	 * FIXME: timeout needed and fail to work queeu
 	 */
 
 	if (NCR5380_poll_politely(instance,
-	                          STATUS_REG, SR_REQ, SR_REQ, 2 * HZ) < 0)
-		abort = 1;
+	                          STATUS_REG, SR_REQ, SR_REQ, 2 * HZ) < 0) {
+		do_abort(instance);
+		return;
+	}
 
 	len = 1;
 	data = msg;
 	phase = PHASE_MSGIN;
 	NCR5380_transfer_pio(instance, &phase, &len, &data);
 
+	if (len) {
+		do_abort(instance);
+		return;
+	}
+
 	if (!(msg[0] & 0x80)) {
-		printk(KERN_ERR "scsi%d : expecting IDENTIFY message, got ", instance->host_no);
+		shost_printk(KERN_ERR, instance, "expecting IDENTIFY message, got ");
 		spi_print_msg(msg);
-		abort = 1;
-	} else {
-		/* Accept message by clearing ACK */
-		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-		lun = (msg[0] & 0x07);
+		printk("\n");
+		do_abort(instance);
+		return;
+	}
+	lun = msg[0] & 0x07;
 
-		/* 
-		 * We need to add code for SCSI-II to track which devices have
-		 * I_T_L_Q nexuses established, and which have simple I_T_L
-		 * nexuses so we can chose to do additional data transfer.
-		 */
+	/*
+	 * We need to add code for SCSI-II to track which devices have
+	 * I_T_L_Q nexuses established, and which have simple I_T_L
+	 * nexuses so we can chose to do additional data transfer.
+	 */
 
-		/* 
-		 * Find the command corresponding to the I_T_L or I_T_L_Q  nexus we 
-		 * just reestablished, and remove it from the disconnected queue.
-		 */
+	/*
+	 * Find the command corresponding to the I_T_L or I_T_L_Q  nexus we
+	 * just reestablished, and remove it from the disconnected queue.
+	 */
 
-
-		for (tmp = (struct scsi_cmnd *) hostdata->disconnected_queue, prev = NULL; tmp; prev = tmp, tmp = (struct scsi_cmnd *) tmp->host_scribble)
-			if ((target_mask == (1 << tmp->device->id)) && (lun == (u8)tmp->device->lun)
-			    ) {
-				if (prev) {
-					REMOVE(prev, prev->host_scribble, tmp, tmp->host_scribble);
-					prev->host_scribble = tmp->host_scribble;
-				} else {
-					REMOVE(-1, hostdata->disconnected_queue, tmp, tmp->host_scribble);
-					hostdata->disconnected_queue = (struct scsi_cmnd *) tmp->host_scribble;
-				}
-				tmp->host_scribble = NULL;
-				break;
+	for (tmp = (struct scsi_cmnd *) hostdata->disconnected_queue, prev = NULL;
+	     tmp; prev = tmp, tmp = (struct scsi_cmnd *) tmp->host_scribble) {
+		if ((target_mask == (1 << tmp->device->id)) && (lun == (u8)tmp->device->lun)) {
+			if (prev) {
+				REMOVE(prev, prev->host_scribble, tmp, tmp->host_scribble);
+				prev->host_scribble = tmp->host_scribble;
+			} else {
+				REMOVE(-1, hostdata->disconnected_queue, tmp, tmp->host_scribble);
+				hostdata->disconnected_queue =
+					(struct scsi_cmnd *) tmp->host_scribble;
 			}
-		if (!tmp) {
-			printk(KERN_ERR "scsi%d : warning : target bitmask %02x lun %d not in disconnect_queue.\n", instance->host_no, target_mask, lun);
-			/* 
-			 * Since we have an established nexus that we can't do anything with,
-			 * we must abort it.  
-			 */
-			abort = 1;
+			tmp->host_scribble = NULL;
+			break;
 		}
 	}
-
-	if (abort) {
+	if (!tmp) {
+		shost_printk(KERN_ERR, instance, "target bitmask 0x%02x lun %d not in disconnected queue.\n",
+		             target_mask, lun);
+		/*
+		 * Since we have an established nexus that we can't do anything with,
+		 * we must abort it.
+		 */
 		do_abort(instance);
-	} else {
-		hostdata->connected = tmp;
-		dprintk(NDEBUG_RESELECTION, "scsi%d : nexus established, target = %d, lun = %llu, tag = %d\n", instance->host_no, tmp->device->id, tmp->device->lun, tmp->tag);
+		return;
 	}
+
+	/* Accept message by clearing ACK */
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+
+	hostdata->connected = tmp;
+	dprintk(NDEBUG_RESELECTION, "scsi%d : nexus established, target = %d, lun = %llu, tag = %d\n",
+	        instance->host_no, tmp->device->id, tmp->device->lun, tmp->tag);
 }
 
 /*
