@@ -1990,6 +1990,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 					default:
 						break;
 					}
+					break;
 				case DISCONNECT:{
 						/* Accept message by clearing ACK */
 						NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
