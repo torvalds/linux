@@ -1139,13 +1139,13 @@ static void NCR5380_main(struct work_struct *work)
 					cmd_get_tag(tmp, tmp->cmnd[0] != REQUEST_SENSE);
 #endif
 					if (!NCR5380_select(instance, tmp)) {
+						/* OK or bad target */
 						local_irq_disable();
 						hostdata->retain_dma_intr--;
-						/* release if target did not response! */
 						maybe_release_dma_irq(instance);
 						local_irq_restore(flags);
-						break;
 					} else {
+						/* Need to retry */
 						local_irq_disable();
 						LIST(tmp, hostdata->issue_queue);
 						SET_NEXT(tmp, hostdata->issue_queue);
@@ -1157,9 +1157,9 @@ static void NCR5380_main(struct work_struct *work)
 						local_irq_restore(flags);
 						dprintk(NDEBUG_MAIN, "scsi%d: main(): select() failed, "
 							    "returned to issue_queue\n", HOSTNO);
-						if (hostdata->connected)
-							break;
 					}
+					if (hostdata->connected)
+						break;
 				} /* if target/lun/target queue is not busy */
 			} /* for issue_queue */
 		} /* if (!hostdata->connected) */

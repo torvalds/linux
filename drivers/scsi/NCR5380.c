@@ -1007,14 +1007,18 @@ static void NCR5380_main(struct work_struct *work)
 					 */
 
 					if (!NCR5380_select(instance, tmp)) {
-						break;
+						/* OK or bad target */
 					} else {
+						/* Need to retry */
 						LIST(tmp, hostdata->issue_queue);
 						tmp->host_scribble = (unsigned char *) hostdata->issue_queue;
 						hostdata->issue_queue = tmp;
 						done = 0;
 						dprintk(NDEBUG_MAIN|NDEBUG_QUEUES, "scsi%d : main(): select() failed, returned to issue_queue\n", instance->host_no);
 					}
+					if (hostdata->connected ||
+					    hostdata->selecting)
+						break;
 					/* lock held here still */
 				}	/* if target/lun is not busy */
 			}	/* for */
@@ -1024,7 +1028,7 @@ static void NCR5380_main(struct work_struct *work)
 			tmp = (struct scsi_cmnd *) hostdata->selecting;
 			/* Selection will drop and retake the lock */
 			if (!NCR5380_select(instance, tmp)) {
-				/* Ok ?? */
+				/* OK or bad target */
 			} else {
 				/* RvC: device failed, so we wait a long time
 				   this is needed for Mustek scanners, that
