@@ -2026,7 +2026,6 @@ int ll_obd_statfs(struct inode *inode, void *arg)
 	char *buf = NULL;
 	struct obd_ioctl_data *data = NULL;
 	__u32 type;
-	__u32 flags;
 	int len = 0, rc;
 
 	if (!inode) {
@@ -2069,8 +2068,7 @@ int ll_obd_statfs(struct inode *inode, void *arg)
 		goto out_statfs;
 	}
 
-	flags = (type & LL_STATFS_NODELAY) ? OBD_STATFS_NODELAY : 0;
-	rc = obd_iocontrol(IOC_OBD_STATFS, exp, len, buf, &flags);
+	rc = obd_iocontrol(IOC_OBD_STATFS, exp, len, buf, NULL);
 	if (rc)
 		goto out_statfs;
 out_statfs:
