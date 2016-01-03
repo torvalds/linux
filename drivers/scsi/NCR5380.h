@@ -256,6 +256,7 @@ struct NCR5380_hostdata {
 	volatile struct scsi_cmnd *connected;	/* currently connected command */
 	volatile struct scsi_cmnd *issue_queue;	/* waiting to be issued */
 	volatile struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
+	spinlock_t lock;			/* protects this struct */
 	int flags;
 	struct scsi_eh_save ses;
 	char info[256];
