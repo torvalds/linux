@@ -2043,7 +2043,7 @@ static void init_scan_timer(void)
 static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 			  u8 *imask, u8 *omask)
 {
-	static char sigtab[10] = "EeSsPpAaBb";
+	const char sigtab[] = "EeSsPpAaBb";
 	u8 im, om;
 	__u64 m, v;
 
@@ -2053,13 +2053,13 @@ static u8 input_name2mask(const char *name, __u64 *mask, __u64 *value,
 	v = 0ULL;
 	while (*name) {
 		int in, out, bit, neg;
+		const char *idx;
 
-		for (in = 0; (in < sizeof(sigtab)) && (sigtab[in] != *name);
-		     in++)
-			;
-
-		if (in >= sizeof(sigtab))
+		idx = strchr(sigtab, *name);
+		if (!idx)
 			return 0;	/* input name not found */
+
+		in = idx - sigtab;
 		neg = (in & 1);	/* odd (lower) names are negated */
 		in >>= 1;
 		im |= BIT(in);
