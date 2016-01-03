@@ -66,12 +66,6 @@
  *
  */
 
-/*
- * Further development / testing that should be done :
- * 1.  Test linked command handling code after Eric is ready with
- *     the high level code.
- */
-
 /* Adapted for the sun3 by Sam Creasey. */
 
 #include <scsi/scsi_dbg.h>
@@ -96,10 +90,6 @@
 #else
 #define LIST(x,y)
 #define REMOVE(w,x,y,z)
-#endif
-
-#ifndef notyet
-#undef LINKED
 #endif
 
 /*
@@ -171,8 +161,6 @@
  *
  * DIFFERENTIAL - if defined, NCR53c81 chips will use external differential
  *	transceivers.
- *
- * LINKED - if defined, linked commands are supported.
  *
  * REAL_DMA - if defined, REAL DMA is used during the data transfer phases.
  *
@@ -2216,54 +2204,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				cmd->SCp.Message = tmp;
 
 				switch (tmp) {
-				/*
-				 * Linking lets us reduce the time required to get the
-				 * next command out to the device, hopefully this will
-				 * mean we don't waste another revolution due to the delays
-				 * required by ARBITRATION and another SELECTION.
-				 *
-				 * In the current implementation proposal, low level drivers
-				 * merely have to start the next command, pointed to by
-				 * next_link, done() is called as with unlinked commands.
-				 */
-#ifdef LINKED
-				case LINKED_CMD_COMPLETE:
-				case LINKED_FLG_CMD_COMPLETE:
-					/* Accept message by clearing ACK */
-					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-
-					dprintk(NDEBUG_LINKED, "scsi%d: target %d lun %llu linked command "
-						   "complete.\n", HOSTNO, cmd->device->id, cmd->device->lun);
-
-					/* Enable reselect interrupts */
-					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-					/*
-					 * Sanity check : A linked command should only terminate
-					 * with one of these messages if there are more linked
-					 * commands available.
-					 */
-
-					if (!cmd->next_link) {
-						 printk(KERN_NOTICE "scsi%d: target %d lun %llu "
-							"linked command complete, no next_link\n",
-							HOSTNO, cmd->device->id, cmd->device->lun);
-						sink = 1;
-						do_abort(instance);
-						return;
-					}
-
-					initialize_SCp(cmd->next_link);
-					/* The next command is still part of this process; copy it
-					 * and don't free it! */
-					cmd->next_link->tag = cmd->tag;
-					cmd->result = cmd->SCp.Status | (cmd->SCp.Message << 8);
-					dprintk(NDEBUG_LINKED, "scsi%d: target %d lun %llu linked request "
-						   "done, calling scsi_done().\n",
-						   HOSTNO, cmd->device->id, cmd->device->lun);
-					cmd->scsi_done(cmd);
-					cmd = hostdata->connected;
-					break;
-#endif /* def LINKED */
 				case ABORT:
 				case COMMAND_COMPLETE:
 					/* Accept message by clearing ACK */
