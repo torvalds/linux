@@ -5015,31 +5015,47 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	return rc;
 }
 
+static void bnxt_dump_tx_sw_state(struct bnxt_napi *bnapi)
+{
+	struct bnxt_tx_ring_info *txr = &bnapi->tx_ring;
+	int i = bnapi->index;
+
+	netdev_info(bnapi->bp->dev, "[%d]: tx{fw_ring: %d prod: %x cons: %x}\n",
+		    i, txr->tx_ring_struct.fw_ring_id, txr->tx_prod,
+		    txr->tx_cons);
+}
+
+static void bnxt_dump_rx_sw_state(struct bnxt_napi *bnapi)
+{
+	struct bnxt_rx_ring_info *rxr = &bnapi->rx_ring;
+	int i = bnapi->index;
+
+	netdev_info(bnapi->bp->dev, "[%d]: rx{fw_ring: %d prod: %x} rx_agg{fw_ring: %d agg_prod: %x sw_agg_prod: %x}\n",
+		    i, rxr->rx_ring_struct.fw_ring_id, rxr->rx_prod,
+		    rxr->rx_agg_ring_struct.fw_ring_id, rxr->rx_agg_prod,
+		    rxr->rx_sw_agg_prod);
+}
+
+static void bnxt_dump_cp_sw_state(struct bnxt_napi *bnapi)
+{
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	int i = bnapi->index;
+
+	netdev_info(bnapi->bp->dev, "[%d]: cp{fw_ring: %d raw_cons: %x}\n",
+		    i, cpr->cp_ring_struct.fw_ring_id, cpr->cp_raw_cons);
+}
+
 static void bnxt_dbg_dump_states(struct bnxt *bp)
 {
 	int i;
 	struct bnxt_napi *bnapi;
-	struct bnxt_tx_ring_info *txr;
-	struct bnxt_rx_ring_info *rxr;
-	struct bnxt_cp_ring_info *cpr;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		bnapi = bp->bnapi[i];
-		txr = &bnapi->tx_ring;
-		rxr = &bnapi->rx_ring;
-		cpr = &bnapi->cp_ring;
 		if (netif_msg_drv(bp)) {
-			netdev_info(bp->dev, "[%d]: tx{fw_ring: %d prod: %x cons: %x}\n",
-				    i, txr->tx_ring_struct.fw_ring_id,
-				    txr->tx_prod, txr->tx_cons);
-			netdev_info(bp->dev, "[%d]: rx{fw_ring: %d prod: %x} rx_agg{fw_ring: %d agg_prod: %x sw_agg_prod: %x}\n",
-				    i, rxr->rx_ring_struct.fw_ring_id,
-				    rxr->rx_prod,
-				    rxr->rx_agg_ring_struct.fw_ring_id,
-				    rxr->rx_agg_prod, rxr->rx_sw_agg_prod);
-			netdev_info(bp->dev, "[%d]: cp{fw_ring: %d raw_cons: %x}\n",
-				    i, cpr->cp_ring_struct.fw_ring_id,
-				    cpr->cp_raw_cons);
+			bnxt_dump_tx_sw_state(bnapi);
+			bnxt_dump_rx_sw_state(bnapi);
+			bnxt_dump_cp_sw_state(bnapi);
 		}
 	}
 }
