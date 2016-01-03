@@ -245,12 +245,6 @@ static int cumanascsi1_probe(struct expansion_card *ec,
         priv(host)->ctrl = 0;
         writeb(0, priv(host)->base + CTRL);
 
-	host->n_io_port = 255;
-	if (!(request_region(host->io_port, host->n_io_port, "CumanaSCSI-1"))) {
-		ret = -EBUSY;
-		goto out_unmap;
-	}
-
 	ret = request_irq(host->irq, cumanascsi_intr, 0,
 			  "CumanaSCSI-1", host);
 	if (ret) {

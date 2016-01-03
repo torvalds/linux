@@ -255,8 +255,6 @@ static int t128_release(struct Scsi_Host *shost)
 	if (shost->irq != NO_IRQ)
 		free_irq(shost->irq, shost);
 	NCR5380_exit(shost);
-	if (shost->io_port && shost->n_io_port)
-		release_region(shost->io_port, shost->n_io_port);
 	scsi_unregister(shost);
 	iounmap(hostdata->base);
 	return 0;
