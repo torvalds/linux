@@ -2558,7 +2558,7 @@ ERRORHANDLER:
 		hif_drv->remain_on_ch_timer.data = (unsigned long)vif;
 		mod_timer(&hif_drv->remain_on_ch_timer,
 			  jiffies +
-			  msecs_to_jiffies(pstrHostIfRemainOnChan->u32duration));
+			  msecs_to_jiffies(pstrHostIfRemainOnChan->duration));
 
 		if (hif_drv->remain_on_ch.ready)
 			hif_drv->remain_on_ch.ready(hif_drv->remain_on_ch.arg);
@@ -4083,7 +4083,7 @@ s32 wilc_remain_on_channel(struct wilc_vif *vif, u32 u32SessionID,
 	msg.body.remain_on_ch.expired = RemainOnChanExpired;
 	msg.body.remain_on_ch.ready = RemainOnChanReady;
 	msg.body.remain_on_ch.arg = pvUserArg;
-	msg.body.remain_on_ch.u32duration = u32duration;
+	msg.body.remain_on_ch.duration = u32duration;
 	msg.body.remain_on_ch.id = u32SessionID;
 	msg.vif = vif;
 
