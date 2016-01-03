@@ -2374,6 +2374,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 
 	scmd_printk(KERN_WARNING, cmd, "aborting command\n");
 
+	spin_lock_irq(instance->host_lock);
 	NCR5380_print_status(instance);
 
 	dprintk(NDEBUG_ABORT, "scsi%d : abort called\n", instance->host_no);
@@ -2420,6 +2421,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 			REMOVE(5, *prev, tmp, tmp->host_scribble);
 			(*prev) = (struct scsi_cmnd *) tmp->host_scribble;
 			tmp->host_scribble = NULL;
+			spin_unlock_irq(instance->host_lock);
 			tmp->result = DID_ABORT << 16;
 			dprintk(NDEBUG_ABORT, "scsi%d : abort removed command from issue queue.\n", instance->host_no);
 			tmp->scsi_done(tmp);
@@ -2443,6 +2445,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
  */
 
 	if (hostdata->connected) {
+		spin_unlock_irq(instance->host_lock);
 		dprintk(NDEBUG_ABORT, "scsi%d : abort failed, command connected.\n", instance->host_no);
 		return FAILED;
 	}
@@ -2475,8 +2478,10 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 		if (cmd == tmp) {
 			dprintk(NDEBUG_ABORT, "scsi%d : aborting disconnected command.\n", instance->host_no);
 
-			if (NCR5380_select(instance, cmd))
+			if (NCR5380_select(instance, cmd)) {
+				spin_unlock_irq(instance->host_lock);
 				return FAILED;
+			}
 			dprintk(NDEBUG_ABORT, "scsi%d : nexus reestablished.\n", instance->host_no);
 
 			do_abort(instance);
@@ -2486,6 +2491,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 					REMOVE(5, *prev, tmp, tmp->host_scribble);
 					*prev = (struct scsi_cmnd *) tmp->host_scribble;
 					tmp->host_scribble = NULL;
+					spin_unlock_irq(instance->host_lock);
 					tmp->result = DID_ABORT << 16;
 					tmp->scsi_done(tmp);
 					return SUCCESS;
@@ -2500,6 +2506,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
  * so we won't panic, but we will notify the user in case something really
  * broke.
  */
+	spin_unlock_irq(instance->host_lock);
 	printk(KERN_WARNING "scsi%d : warning : SCSI command probably completed successfully\n"
 			"         before abortion\n", instance->host_no);
 	return FAILED;
