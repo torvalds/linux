@@ -257,9 +257,6 @@ struct NCR5380_hostdata {
 	NCR5380_implementation_fields;		/* implementation specific */
 	struct Scsi_Host *host;			/* Host backpointer */
 	unsigned char id_mask, id_higher_mask;	/* 1 << id, all bits greater */
-	unsigned char targets_present;		/* targets we have connected
-						   to, so we can call a select
-						   failure a retryable condition */
 	volatile unsigned char busy[8];		/* index = target, bit = lun */
 #if defined(REAL_DMA) || defined(REAL_DMA_POLL)
 	volatile int dma_len;			/* requested length of DMA */
@@ -268,9 +265,6 @@ struct NCR5380_hostdata {
 	volatile struct scsi_cmnd *connected;	/* currently connected command */
 	volatile struct scsi_cmnd *issue_queue;	/* waiting to be issued */
 	volatile struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
-	volatile int restart_select;		/* we have disconnected,
-						   used to restart 
-						   NCR5380_select() */
 	int flags;
 	unsigned long time_expires;		/* in jiffies, set prior to sleeping */
 	int select_time;			/* timer in select for target response */

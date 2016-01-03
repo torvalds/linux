@@ -790,7 +790,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 #ifdef REAL_DMA
 	hostdata->dmalen = 0;
 #endif
-	hostdata->targets_present = 0;
 	hostdata->connected = NULL;
 	hostdata->issue_queue = NULL;
 	hostdata->disconnected_queue = NULL;
@@ -1186,8 +1185,6 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	if (hostdata->selecting)
 		goto part2;
 
-	hostdata->restart_select = 0;
-
 	NCR5380_dprint(NDEBUG_ARBITRATION, instance);
 	dprintk(NDEBUG_ARBITRATION, "scsi%d : starting arbitration, id = %d\n", instance->host_no, instance->this_id);
 
@@ -1363,21 +1360,12 @@ part2:
 
 	if (!(NCR5380_read(STATUS_REG) & SR_BSY)) {
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-		if (hostdata->targets_present & (1 << scmd_id(cmd))) {
-			printk(KERN_DEBUG "scsi%d : weirdness\n", instance->host_no);
-			if (hostdata->restart_select)
-				printk(KERN_DEBUG "\trestart select\n");
-			NCR5380_dprint(NDEBUG_SELECTION, instance);
-			NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-			return -1;
-		}
 		cmd->result = DID_BAD_TARGET << 16;
 		cmd->scsi_done(cmd);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		dprintk(NDEBUG_SELECTION, "scsi%d : target did not respond within 250ms\n", instance->host_no);
 		return 0;
 	}
-	hostdata->targets_present |= (1 << scmd_id(cmd));
 
 	/*
 	 * Since we followed the SCSI spec, and raised ATN while SEL 
@@ -2382,7 +2370,6 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	 */
 
 	NCR5380_write(MODE_REG, MR_BASE);
-	hostdata->restart_select = 1;
 
 	target_mask = NCR5380_read(CURRENT_SCSI_DATA_REG) & ~(hostdata->id_mask);
 	dprintk(NDEBUG_SELECTION, "scsi%d : reselect\n", instance->host_no);
