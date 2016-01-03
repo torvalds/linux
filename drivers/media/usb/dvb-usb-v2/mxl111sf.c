@@ -856,7 +856,7 @@ static int mxl111sf_ant_hunt(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct mxl111sf_tuner_config mxl_tuner_config = {
+static const struct mxl111sf_tuner_config mxl_tuner_config = {
 	.if_freq         = MXL_IF_6_0, /* applies to external IF output, only */
 	.invert_spectrum = 0,
 	.read_reg        = mxl111sf_read_reg,
