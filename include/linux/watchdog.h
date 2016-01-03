@@ -53,7 +53,6 @@ struct watchdog_ops {
 /** struct watchdog_device - The structure that defines a watchdog device
  *
  * @id:		The watchdog's ID. (Allocated by watchdog_register_device)
- * @dev:	The device for our watchdog
  * @parent:	The parent bus device
  * @groups:	List of sysfs attribute groups to create when creating the
  *		watchdog device.
@@ -82,7 +81,6 @@ struct watchdog_ops {
  */
 struct watchdog_device {
 	int id;
-	struct device *dev;
 	struct device *parent;
 	const struct attribute_group **groups;
 	const struct watchdog_info *info;

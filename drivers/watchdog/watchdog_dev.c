@@ -143,7 +143,8 @@ static int watchdog_stop(struct watchdog_device *wdd)
 		return 0;
 
 	if (test_bit(WDOG_NO_WAY_OUT, &wdd->status)) {
-		dev_info(wdd->dev, "nowayout prevents watchdog being stopped!\n");
+		pr_info("watchdog%d: nowayout prevents watchdog being stopped!\n",
+			wdd->id);
 		return -EBUSY;
 	}
 
@@ -604,7 +605,7 @@ static int watchdog_release(struct inode *inode, struct file *file)
 
 	/* If the watchdog was not stopped, send a keepalive ping */
 	if (err < 0) {
-		dev_crit(wdd->dev, "watchdog did not stop!\n");
+		pr_crit("watchdog%d: watchdog did not stop!\n", wdd->id);
 		watchdog_ping(wdd);
 	}
 
@@ -751,7 +752,6 @@ int watchdog_dev_register(struct watchdog_device *wdd)
 		watchdog_cdev_unregister(wdd);
 		return PTR_ERR(dev);
 	}
-	wdd->dev = dev;
 
 	return ret;
 }
@@ -766,8 +766,7 @@ int watchdog_dev_register(struct watchdog_device *wdd)
 
 void watchdog_dev_unregister(struct watchdog_device *wdd)
 {
-	device_destroy(&watchdog_class, wdd->dev->devt);
-	wdd->dev = NULL;
+	device_destroy(&watchdog_class, wdd->wd_data->cdev.dev);
 	watchdog_cdev_unregister(wdd);
 }
 

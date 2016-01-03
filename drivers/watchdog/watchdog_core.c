@@ -249,8 +249,8 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 
 		ret = register_reboot_notifier(&wdd->reboot_nb);
 		if (ret) {
-			dev_err(wdd->dev, "Cannot register reboot notifier (%d)\n",
-				ret);
+			pr_err("watchdog%d: Cannot register reboot notifier (%d)\n",
+			       wdd->id, ret);
 			watchdog_dev_unregister(wdd);
 			ida_simple_remove(&watchdog_ida, wdd->id);
 			return ret;
@@ -262,8 +262,8 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 
 		ret = register_restart_handler(&wdd->restart_nb);
 		if (ret)
-			dev_warn(wdd->dev, "Cannot register restart handler (%d)\n",
-				 ret);
+			pr_warn("watchog%d: Cannot register restart handler (%d)\n",
+				wdd->id, ret);
 	}
 
 	return 0;

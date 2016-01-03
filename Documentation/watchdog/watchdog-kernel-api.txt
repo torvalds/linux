@@ -44,7 +44,6 @@ The watchdog device structure looks like this:
 
 struct watchdog_device {
 	int id;
-	struct device *dev;
 	struct device *parent;
 	const struct attribute_group **groups;
 	const struct watchdog_info *info;
@@ -66,7 +65,6 @@ It contains following fields:
   /dev/watchdog0 cdev (dynamic major, minor 0) as well as the old
   /dev/watchdog miscdev. The id is set automatically when calling
   watchdog_register_device.
-* dev: device under the watchdog class (created by watchdog_register_device).
 * parent: set this to the parent device (or NULL) before calling
   watchdog_register_device.
 * groups: List of sysfs attribute groups to create when creating the watchdog
