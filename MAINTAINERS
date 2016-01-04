@@ -8829,6 +8829,12 @@ L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/aty/aty128fb.c
 
+RALINK MIPS ARCHITECTURE
+M:	John Crispin <blogic@openwrt.org>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/ralink
+
 RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
