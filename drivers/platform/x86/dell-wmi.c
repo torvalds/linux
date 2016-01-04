@@ -237,6 +237,22 @@ static void dell_wmi_notify(u32 value, void *context)
 
 	buffer_end = buffer_entry + buffer_size;
 
+	/*
+	 * BIOS/ACPI on devices with WMI interface version 0 does not clear
+	 * buffer before filling it. So next time when BIOS/ACPI send WMI event
+	 * which is smaller as previous then it contains garbage in buffer from
+	 * previous event.
+	 *
+	 * BIOS/ACPI on devices with WMI interface version 1 clears buffer and
+	 * sometimes send more events in buffer at one call.
+	 *
+	 * So to prevent reading garbage from buffer we will process only first
+	 * one event on devices with WMI interface version 0.
+	 */
+	if (dell_wmi_interface_version == 0 && buffer_entry < buffer_end)
+		if (buffer_end > buffer_entry + buffer_entry[0] + 1)
+			buffer_end = buffer_entry + buffer_entry[0] + 1;
+
 	while (buffer_entry < buffer_end) {
 
 		len = buffer_entry[0];
