@@ -385,9 +385,11 @@ module_param(qlowmark, long, 0444);
 
 static ulong jiffies_till_first_fqs = ULONG_MAX;
 static ulong jiffies_till_next_fqs = ULONG_MAX;
+static bool rcu_kick_kthreads;
 
 module_param(jiffies_till_first_fqs, ulong, 0644);
 module_param(jiffies_till_next_fqs, ulong, 0644);
+module_param(rcu_kick_kthreads, bool, 0644);
 
 /*
  * How long the grace period must be before we start recruiting
@@ -1251,6 +1253,24 @@ static void rcu_dump_cpu_stacks(struct rcu_state *rsp)
 	}
 }
 
+/*
+ * If too much time has passed in the current grace period, and if
+ * so configured, go kick the relevant kthreads.
+ */
+static void rcu_stall_kick_kthreads(struct rcu_state *rsp)
+{
+	unsigned long j;
+
+	if (!rcu_kick_kthreads)
+		return;
+	j = READ_ONCE(rsp->jiffies_kick_kthreads);
+	if (time_after(jiffies, j) && rsp->gp_kthread) {
+		WARN_ONCE(1, "Kicking %s grace-period kthread\n", rsp->name);
+		wake_up_process(rsp->gp_kthread);
+		WRITE_ONCE(rsp->jiffies_kick_kthreads, j + HZ);
+	}
+}
+
 static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gpnum)
 {
 	int cpu;
@@ -1261,6 +1281,11 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gpnum)
 	int ndetected = 0;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	long totqlen = 0;
+
+	/* Kick and suppress, if so configured. */
+	rcu_stall_kick_kthreads(rsp);
+	if (rcu_cpu_stall_suppress)
+		return;
 
 	/* Only let one CPU complain about others per time interval. */
 
@@ -1335,6 +1360,11 @@ static void print_cpu_stall(struct rcu_state *rsp)
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	long totqlen = 0;
 
+	/* Kick and suppress, if so configured. */
+	rcu_stall_kick_kthreads(rsp);
+	if (rcu_cpu_stall_suppress)
+		return;
+
 	/*
 	 * OK, time to rat on ourselves...
 	 * See Documentation/RCU/stallwarn.txt for info on how to debug
@@ -1379,8 +1409,10 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 	unsigned long js;
 	struct rcu_node *rnp;
 
-	if (rcu_cpu_stall_suppress || !rcu_gp_in_progress(rsp))
+	if ((rcu_cpu_stall_suppress && !rcu_kick_kthreads) ||
+	    !rcu_gp_in_progress(rsp))
 		return;
+	rcu_stall_kick_kthreads(rsp);
 	j = jiffies;
 
 	/*
@@ -2119,8 +2151,11 @@ static int __noreturn rcu_gp_kthread(void *arg)
 		}
 		ret = 0;
 		for (;;) {
-			if (!ret)
+			if (!ret) {
 				rsp->jiffies_force_qs = jiffies + j;
+				WRITE_ONCE(rsp->jiffies_kick_kthreads,
+					   jiffies + 3 * j);
+			}
 			trace_rcu_grace_period(rsp->name,
 					       READ_ONCE(rsp->gpnum),
 					       TPS("fqswait"));

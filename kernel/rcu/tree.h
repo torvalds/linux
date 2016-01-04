@@ -513,6 +513,8 @@ struct rcu_state {
 
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
 						/*  force_quiescent_state(). */
+	unsigned long jiffies_kick_kthreads;	/* Time at which to kick */
+						/*  kthreads, if configured. */
 	unsigned long n_force_qs;		/* Number of calls to */
 						/*  force_quiescent_state(). */
 	unsigned long n_force_qs_lh;		/* ~Number of calls leaving */
