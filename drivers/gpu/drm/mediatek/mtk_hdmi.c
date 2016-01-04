@@ -16,6 +16,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/hdmi.h>
@@ -230,6 +231,17 @@ static void mtk_hdmi_hw_vid_black(struct mtk_hdmi *hdmi, bool black)
 
 static void mtk_hdmi_hw_make_reg_writable(struct mtk_hdmi *hdmi, bool enable)
 {
+	struct arm_smccc_res res;
+
+	/*
+	 * MT8173 HDMI hardware has an output control bit to enable/disable HDMI
+	 * output. This bit can only be controlled in ARM supervisor mode.
+	 * The ARM trusted firmware provides an API for the HDMI driver to set
+	 * this control bit to enable HDMI output in supervisor mode.
+	 */
+	arm_smccc_smc(MTK_SIP_SET_AUTHORIZED_SECURE_REG, 0x14000904, 0x80000000,
+		      0, 0, 0, 0, 0, &res);
+
 	regmap_update_bits(hdmi->sys_regmap, hdmi->sys_offset + HDMI_SYS_CFG20,
 			   HDMI_PCLK_FREE_RUN, enable ? HDMI_PCLK_FREE_RUN : 0);
 	regmap_update_bits(hdmi->sys_regmap, hdmi->sys_offset + HDMI_SYS_CFG1C,
