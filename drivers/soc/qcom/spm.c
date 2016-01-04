@@ -2,6 +2,8 @@
  * Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
  * Copyright (c) 2014,2015, Linaro Ltd.
  *
+ * SAW power controller driver
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -12,7 +14,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -378,8 +379,5 @@ static struct platform_driver spm_driver = {
 		.of_match_table = spm_match_table,
 	},
 };
-module_platform_driver(spm_driver);
 
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("SAW power controller driver");
-MODULE_ALIAS("platform:saw");
+builtin_platform_driver(spm_driver);
