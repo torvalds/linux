@@ -1758,6 +1758,16 @@ out_forget_reply:
 	goto out;
 }
 
+static void
+pnfs_set_plh_return_iomode(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode)
+{
+	if (lo->plh_return_iomode == iomode)
+		return;
+	if (lo->plh_return_iomode != 0)
+		iomode = IOMODE_ANY;
+	lo->plh_return_iomode = iomode;
+}
+
 void
 pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
@@ -1780,6 +1790,7 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				lseg->pls_range.offset,
 				lseg->pls_range.length);
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
+			pnfs_set_plh_return_iomode(lo, return_range->iomode);
 			mark_lseg_invalid(lseg, tmp_list);
 			set_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
 					&lo->plh_flags);
@@ -1801,10 +1812,7 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 	spin_lock(&inode->i_lock);
 	/* set failure bit so that pnfs path will be retried later */
 	pnfs_layout_set_fail_bit(lo, iomode);
-	if (lo->plh_return_iomode == 0)
-		lo->plh_return_iomode = range.iomode;
-	else if (lo->plh_return_iomode != range.iomode)
-		lo->plh_return_iomode = IOMODE_ANY;
+	pnfs_set_plh_return_iomode(lo, range.iomode);
 	/*
 	 * mark all matching lsegs so that we are sure to have no live
 	 * segments at hand when sending layoutreturn. See pnfs_put_lseg()
