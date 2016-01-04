@@ -1372,14 +1372,12 @@ out:
 	return ret;
 }
 
-void nvme_freeze_queues(struct nvme_ctrl *ctrl)
+void nvme_stop_queues(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
 
 	mutex_lock(&ctrl->namespaces_mutex);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
-		blk_mq_freeze_queue_start(ns->queue);
-
 		spin_lock_irq(ns->queue->queue_lock);
 		queue_flag_set(QUEUE_FLAG_STOPPED, ns->queue);
 		spin_unlock_irq(ns->queue->queue_lock);
@@ -1390,14 +1388,13 @@ void nvme_freeze_queues(struct nvme_ctrl *ctrl)
 	mutex_unlock(&ctrl->namespaces_mutex);
 }
 
-void nvme_unfreeze_queues(struct nvme_ctrl *ctrl)
+void nvme_start_queues(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
 
 	mutex_lock(&ctrl->namespaces_mutex);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		queue_flag_clear_unlocked(QUEUE_FLAG_STOPPED, ns->queue);
-		blk_mq_unfreeze_queue(ns->queue);
 		blk_mq_start_stopped_hw_queues(ns->queue, true);
 		blk_mq_kick_requeue_list(ns->queue);
 	}
