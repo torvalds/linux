@@ -459,7 +459,7 @@ void __init ralink_clk_init(void)
 	ralink_clk_add("10000c00.uartlite", periph_rate);
 	ralink_clk_add("10180000.wmac", xtal_rate);
 
-	if (IS_ENABLED(CONFIG_USB) && is_mt76x8()) {
+	if (IS_ENABLED(CONFIG_USB) && !is_mt76x8()) {
 		/*
 		 * When the CPU goes into sleep mode, the BUS clock will be
 		 * too low for USB to function properly. Adjust the busses
