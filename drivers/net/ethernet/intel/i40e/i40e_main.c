@@ -3754,7 +3754,7 @@ static int i40e_vsi_request_irq(struct i40e_vsi *vsi, char *basename)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /**
- * i40e_netpoll - A Polling 'interrupt'handler
+ * i40e_netpoll - A Polling 'interrupt' handler
  * @netdev: network interface device structure
  *
  * This is used by netconsole to send skbs without having to re-enable
