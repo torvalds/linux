@@ -43,4 +43,14 @@ struct lkl_dev_blk_ops {
 	int (*request)(union lkl_disk disk, struct lkl_blk_req *req);
 };
 
+extern struct lkl_dev_net_ops lkl_dev_net_ops;
+
+struct lkl_dev_net_ops {
+	int (*tx)(union lkl_netdev nd, void *data, int len);
+	int (*rx)(union lkl_netdev nd, void *data, int *len);
+#define LKL_DEV_NET_POLL_RX		1
+#define LKL_DEV_NET_POLL_TX		2
+	int (*poll)(union lkl_netdev nd, int events);
+};
+
 #endif

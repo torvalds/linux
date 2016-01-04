@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 #include "endian.h"
 #undef s_addr
 #include <lkl_host.h>
@@ -89,6 +90,7 @@ int lkl_if_set_ipv4(int ifindex, unsigned int addr, unsigned int netmask_len)
 	if (!err) {
 		int netmask = (((1<<netmask_len)-1))<<(32-netmask_len);
 
+		sin = (struct lkl_sockaddr_in *)&ifr.lkl_ifr_netmask;
 		set_sockaddr(sin, htonl(netmask), 0);
 		err = lkl_sys_ioctl(sock, LKL_SIOCSIFNETMASK, (long)&ifr);
 		if (!err) {
@@ -119,4 +121,20 @@ int lkl_set_ipv4_gateway(unsigned int addr)
 	lkl_sys_close(sock);
 
 	return err;
+}
+
+int lkl_netdev_get_ifindex(int id)
+{
+	struct lkl_ifreq ifr;
+	int sock, ret;
+
+	sock = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_DGRAM, 0);
+	if (sock < 0)
+		return sock;
+
+	snprintf(ifr.lkl_ifr_name, sizeof(ifr.lkl_ifr_name), "eth%d", id);
+	ret = lkl_sys_ioctl(sock, LKL_SIOCGIFINDEX, (long)&ifr);
+	lkl_sys_close(sock);
+
+	return ret < 0 ? ret : ifr.lkl_ifr_ifindex;
 }
