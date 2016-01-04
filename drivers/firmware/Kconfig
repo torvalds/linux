@@ -136,6 +136,9 @@ config QCOM_SCM
 	bool
 	depends on ARM || ARM64
 
+config HAVE_ARM_SMCCC
+	bool
+
 source "drivers/firmware/google/Kconfig"
 source "drivers/firmware/efi/Kconfig"
 
