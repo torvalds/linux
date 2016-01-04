@@ -75,14 +75,18 @@ static medusa_answer_t medusa_do_symlink(struct dentry * parent, struct dentry *
 	struct process_kobject process;
 	struct file_kobject file;
 	medusa_answer_t retval;
+        int oldnamelen;
 
         memset(&access, '\0', sizeof(struct symlink_access));
         /* process_kobject process is zeroed by process_kern2kobj function */
         /* file_kobject file is zeroed by file_kern2kobj function */
 
 	file_kobj_dentry2string(dentry, access.filename);
-	memcpy(access.oldname, oldname, sizeof(access.oldname)-1);
-	access.oldname[sizeof(access.oldname)-1] = '\0';
+        oldnamelen = strlen(oldname);
+        if (oldnamelen > NAME_MAX)
+                oldnamelen = NAME_MAX;
+	memcpy(access.oldname, oldname, oldnamelen);
+	access.oldname[oldnamelen] = '\0';
 	process_kern2kobj(&process, current);
 	file_kern2kobj(&file, parent->d_inode);
 	file_kobj_live_add(parent->d_inode);

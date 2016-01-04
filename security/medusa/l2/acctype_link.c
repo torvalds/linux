@@ -60,14 +60,18 @@ static medusa_answer_t medusa_do_link(struct dentry *dentry, const char * newnam
 	struct process_kobject process;
 	struct file_kobject file;
 	medusa_answer_t retval;
+        int newnamelen;
 
         memset(&access, '\0', sizeof(struct link_access));
         /* process_kobject process is zeroed by process_kern2kobj function */
         /* file_kobject file is zeroed by file_kern2kobj function */
 
 	file_kobj_dentry2string(dentry, access.filename);
-	memcpy(access.newname, newname, sizeof(access.newname)-1);
-	access.newname[sizeof(access.newname)-1] = '\0';
+        newnamelen = strlen(newname);
+        if (newnamelen > NAME_MAX)
+                newnamelen = NAME_MAX;
+	memcpy(access.newname, newname, newnamelen);
+	access.newname[newnamelen] = '\0';
 	process_kern2kobj(&process, current);
 	file_kern2kobj(&file, dentry->d_inode);
 	file_kobj_live_add(dentry->d_inode);
