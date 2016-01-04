@@ -627,7 +627,6 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	mutex_lock(&dev->object_name_lock);
-	idr_preload(GFP_KERNEL);
 	/* prevent races with concurrent gem_close. */
 	if (obj->handle_count == 0) {
 		ret = -ENOENT;
@@ -635,7 +634,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (!obj->name) {
-		ret = idr_alloc(&dev->object_name_idr, obj, 1, 0, GFP_NOWAIT);
+		ret = idr_alloc(&dev->object_name_idr, obj, 1, 0, GFP_KERNEL);
 		if (ret < 0)
 			goto err;
 
@@ -646,7 +645,6 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	ret = 0;
 
 err:
-	idr_preload_end();
 	mutex_unlock(&dev->object_name_lock);
 	drm_gem_object_unreference_unlocked(obj);
 	return ret;
