@@ -2277,6 +2277,7 @@ static const struct acpi_device_id rt5640_acpi_match[] = {
 	{ "INT33CA", 0 },
 	{ "10EC5640", 0 },
 	{ "10EC5642", 0 },
+	{ "INTCCFFD", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt5640_acpi_match);
