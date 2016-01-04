@@ -260,11 +260,14 @@ void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     bool update_barrier);
 int pnfs_choose_layoutget_stateid(nfs4_stateid *dst,
 				  struct pnfs_layout_hdr *lo,
-				  struct pnfs_layout_range *range,
+				  const struct pnfs_layout_range *range,
 				  struct nfs4_state *open_state);
 int pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
-				struct pnfs_layout_range *recall_range);
+				const struct pnfs_layout_range *recall_range);
+int pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
+				struct list_head *tmp_list,
+				const struct pnfs_layout_range *recall_range);
 bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
@@ -386,6 +389,12 @@ pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 		smp_mb__after_atomic();
 	}
 	return lseg;
+}
+
+static inline bool
+pnfs_is_valid_lseg(struct pnfs_layout_segment *lseg)
+{
+	return test_bit(NFS_LSEG_VALID, &lseg->pls_flags) != 0;
 }
 
 /* Return true if a layout driver is being used for this mountpoint */
@@ -533,6 +542,26 @@ pnfs_calc_offset_length(u64 offset, u64 end)
 	if (end == NFS4_MAX_UINT64 || end <= offset)
 		return NFS4_MAX_UINT64;
 	return 1 + end - offset;
+}
+
+/**
+ * pnfs_mark_layout_returned_if_empty - marks the layout as returned
+ * @lo: layout header
+ *
+ * Note: Caller must hold inode->i_lock
+ */
+static inline void
+pnfs_mark_layout_returned_if_empty(struct pnfs_layout_hdr *lo)
+{
+	if (list_empty(&lo->plh_segs))
+		set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+}
+
+static inline void
+pnfs_copy_range(struct pnfs_layout_range *dst,
+		const struct pnfs_layout_range *src)
+{
+	memcpy(dst, src, sizeof(*dst));
 }
 
 extern unsigned int layoutstats_timer;
