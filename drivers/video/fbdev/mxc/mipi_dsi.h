@@ -85,14 +85,14 @@ struct mipi_dsi_info {
 	struct backlight_device		*bl;
 	/* callback for lcd panel operation */
 	struct mipi_dsi_lcd_callback	*lcd_callback;
-};
 
-int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi,
-				u8 data_type, const u32 *buf, int len);
-int mipi_dsi_pkt_read(struct mipi_dsi_info *mipi,
-				u8 data_type, u32 *buf, int len);
-int mipi_dsi_dcs_cmd(struct mipi_dsi_info *mipi,
-				u8 cmd, const u32 *param, int num);
+	int (*mipi_dsi_pkt_read)(struct mipi_dsi_info *mipi,
+			u8 data_type, u32 *buf, int len);
+	int (*mipi_dsi_pkt_write)(struct mipi_dsi_info *mipi_dsi,
+			u8 data_type, const u32 *buf, int len);
+	int (*mipi_dsi_dcs_cmd)(struct mipi_dsi_info *mipi,
+			u8 cmd, const u32 *param, int num);
+};
 
 #ifdef CONFIG_FB_MXC_TRULY_WVGA_SYNC_PANEL
 void mipid_hx8369_get_lcd_videomode(struct fb_videomode **mode, int *size,

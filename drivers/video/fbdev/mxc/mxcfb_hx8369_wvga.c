@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2011-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
+#include <linux/mipi_dsi.h>
 #include <linux/mxcfb.h>
 #include <linux/backlight.h>
 #include <video/mipi_display.h>
@@ -192,16 +193,16 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 
 	dev_dbg(&mipi_dsi->pdev->dev, "MIPI DSI LCD setup.\n");
 	buf[0] = HX8369_CMD_SETEXTC | (HX8369_CMD_SETEXTC_PARAM_1 << 8);
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
 					buf, HX8369_CMD_SETEXTC_LEN);
 	CHECK_RETCODE(err);
 	buf[0] = MIPI_DSI_MAX_RET_PACK_SIZE;
-	err = mipi_dsi_pkt_write(mipi_dsi,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi,
 				MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE,
 				buf, 0);
 	CHECK_RETCODE(err);
 	buf[0] = HX8369_CMD_GETHXID;
-	err =  mipi_dsi_pkt_read(mipi_dsi,
+	err =  mipi_dsi->mipi_dsi_pkt_read(mipi_dsi,
 			MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM,
 			buf, HX8369_CMD_GETHXID_LEN);
 	if (!err && ((buf[0] & HX8369_ID_MASK) == HX8369_ID)) {
@@ -232,14 +233,14 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 			(HX8369_CMD_SETDISP_13_FP_PE << 8) |
 			 (HX8369_CMD_SETDISP_14_RTN_PE << 16) |
 			 (HX8369_CMD_SETDISP_15_GON << 24);
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
 						buf, HX8369_CMD_SETDISP_LEN);
 	CHECK_RETCODE(err);
 
 	/* Set display waveform cycle */
 	buf[0] = HX8369_CMD_SETCYC | (HX8369_CMD_SETCYC_PARAM_1 << 8);
 	buf[1] = HX8369_CMD_SETCYC_PARAM_2;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
 						buf, HX8369_CMD_SETCYC_LEN);
 	CHECK_RETCODE(err);
 
@@ -251,7 +252,7 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	buf[4] = HX8369_CMD_SETGIP_PARAM_5;
 	buf[5] = HX8369_CMD_SETGIP_PARAM_6;
 	buf[6] = HX8369_CMD_SETGIP_PARAM_7;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
 				HX8369_CMD_SETGIP_LEN);
 	CHECK_RETCODE(err);
 
@@ -261,19 +262,19 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	buf[2] = HX8369_CMD_SETPOWER_PARAM_3;
 	buf[3] = HX8369_CMD_SETPOWER_PARAM_4;
 	buf[4] = HX8369_CMD_SETPOWER_PARAM_5;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
 				HX8369_CMD_SETPOWER_LEN);
 	CHECK_RETCODE(err);
 
 	/* Set VCOM voltage. */
 	buf[0] = HX8369_CMD_SETVCOM | (HX8369_CMD_SETVCOM_PARAM_1 << 8);
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
 				HX8369_CMD_SETVCOM_LEN);
 	CHECK_RETCODE(err);
 
 	/* Set Panel: BGR/RGB or Inversion. */
 	buf[0] = HX8369_CMD_SETPANEL | (HX8369_CMD_SETPANEL_PARAM_1 << 8);
-	err = mipi_dsi_pkt_write(mipi_dsi,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi,
 		MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM, buf, 0);
 	CHECK_RETCODE(err);
 
@@ -287,7 +288,7 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	buf[6] = HX8369_CMD_SETGAMMA_PARAM_7;
 	buf[7] = HX8369_CMD_SETGAMMA_PARAM_8;
 	buf[8] = HX8369_CMD_SETGAMMA_PARAM_9;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
 				HX8369_CMD_SETGAMMA_LEN);
 	CHECK_RETCODE(err);
 
@@ -300,7 +301,7 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	else
 		buf[2] |= HX8369_CMD_SETMIPI_TWOLANE;
 	buf[3] = HX8369_CMD_SETMIPI_PARAM_4;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE, buf,
 				HX8369_CMD_SETMIPI_LEN);
 	CHECK_RETCODE(err);
 
@@ -326,7 +327,7 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 		buf[0] |= (HX8369_CMD_SETPIXEL_FMT_24BPP << 8);
 		break;
 	}
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
 			buf, 0);
 	CHECK_RETCODE(err);
 
@@ -334,7 +335,7 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	buf[0] = HX8369_CMD_SETCLUMN_ADDR |
 		(HX8369_CMD_SETCLUMN_ADDR_PARAM_1 << 8);
 	buf[1] = HX8369_CMD_SETCLUMN_ADDR_PARAM_2;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
 				buf, HX8369_CMD_SETCLUMN_ADDR_LEN);
 	CHECK_RETCODE(err);
 
@@ -342,32 +343,32 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	buf[0] = HX8369_CMD_SETPAGE_ADDR |
 		(HX8369_CMD_SETPAGE_ADDR_PARAM_1 << 8);
 	buf[1] = HX8369_CMD_SETPAGE_ADDR_PARAM_2;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_LONG_WRITE,
 					buf, HX8369_CMD_SETPAGE_ADDR_LEN);
 	CHECK_RETCODE(err);
 
 	/* Set display brightness related */
 	buf[0] = HX8369_CMD_WRT_DISP_BRIGHT |
 			(HX8369_CMD_WRT_DISP_BRIGHT_PARAM_1 << 8);
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
 		buf, 0);
 	CHECK_RETCODE(err);
 
 	buf[0] = HX8369_CMD_WRT_CABC_CTRL |
 		(HX8369_CMD_WRT_CABC_CTRL_PARAM_1 << 8);
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
 		buf, 0);
 	CHECK_RETCODE(err);
 
 	buf[0] = HX8369_CMD_WRT_CTRL_DISP |
 		(HX8369_CMD_WRT_CTRL_DISP_PARAM_1 << 8);
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
 		buf, 0);
 	CHECK_RETCODE(err);
 
 	/* exit sleep mode and set display on */
 	buf[0] = MIPI_DCS_EXIT_SLEEP_MODE;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM,
 		buf, 0);
 	CHECK_RETCODE(err);
 	/* To allow time for the supply voltages
@@ -375,7 +376,7 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *mipi_dsi)
 	 */
 	msleep(5);
 	buf[0] = MIPI_DCS_SET_DISPLAY_ON;
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM,
 		buf, 0);
 	CHECK_RETCODE(err);
 
@@ -396,7 +397,7 @@ static int mipid_bl_update_status(struct backlight_device *bl)
 
 	buf = HX8369_CMD_WRT_DISP_BRIGHT |
 			((brightness & HX8369BL_MAX_BRIGHT) << 8);
-	err = mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
+	err = mipi_dsi->mipi_dsi_pkt_write(mipi_dsi, MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM,
 		&buf, 0);
 	CHECK_RETCODE(err);
 

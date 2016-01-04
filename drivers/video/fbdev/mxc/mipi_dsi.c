@@ -120,7 +120,7 @@ static inline void mipi_dsi_write_register(struct mipi_dsi_info *mipi_dsi,
 			reg, val);
 }
 
-int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
+static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 				u8 data_type, const u32 *buf, int len)
 {
 	u32 val;
@@ -198,7 +198,7 @@ int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 	return 0;
 }
 
-int mipi_dsi_pkt_read(struct mipi_dsi_info *mipi_dsi,
+static int mipi_dsi_pkt_read(struct mipi_dsi_info *mipi_dsi,
 				u8 data_type, u32 *buf, int len)
 {
 	u32		val;
@@ -259,7 +259,7 @@ int mipi_dsi_pkt_read(struct mipi_dsi_info *mipi_dsi,
 	}
 }
 
-int mipi_dsi_dcs_cmd(struct mipi_dsi_info *mipi_dsi,
+static int mipi_dsi_dcs_cmd(struct mipi_dsi_info *mipi_dsi,
 				u8 cmd, const u32 *param, int num)
 {
 	int err = 0;
@@ -907,6 +907,10 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(mipi_dsi->disp_mipi);
 		goto dispdrv_reg_fail;
 	}
+
+	mipi_dsi->mipi_dsi_pkt_read  = mipi_dsi_pkt_read;
+	mipi_dsi->mipi_dsi_pkt_write = mipi_dsi_pkt_write;
+	mipi_dsi->mipi_dsi_dcs_cmd   = mipi_dsi_dcs_cmd;
 
 	mxc_dispdrv_setdata(mipi_dsi->disp_mipi, mipi_dsi);
 	dev_set_drvdata(&pdev->dev, mipi_dsi);

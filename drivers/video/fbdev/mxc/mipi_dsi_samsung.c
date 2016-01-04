@@ -191,7 +191,7 @@ static void mipi_dsi_long_data_wr(struct mipi_dsi_info *mipi_dsi,
         }
 }
 
-int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
+static int mipi_dsi_pkt_write(struct mipi_dsi_info *mipi_dsi,
 		       u8 data_type, const u32 *buf, int len)
 {
 	int ret = 0;
@@ -231,7 +231,7 @@ static unsigned int mipi_dsi_rd_rx_fifo(struct mipi_dsi_info *mipi_dsi)
 	return readl(mipi_dsi->mmio_base + MIPI_DSI_RXFIFO);
 }
 
-int mipi_dsi_pkt_read(struct mipi_dsi_info *mipi_dsi,
+static int mipi_dsi_pkt_read(struct mipi_dsi_info *mipi_dsi,
 				u8 data_type, u32 *buf, int len)
 {
 	int ret;
@@ -794,6 +794,10 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(mipi_dsi->disp_mipi);
 		goto dispdrv_reg_fail;
 	}
+
+        mipi_dsi->mipi_dsi_pkt_read  = mipi_dsi_pkt_read;
+        mipi_dsi->mipi_dsi_pkt_write = mipi_dsi_pkt_write;
+        mipi_dsi->mipi_dsi_dcs_cmd   = mipi_dsi_dcs_cmd;
 
 	pm_runtime_enable(&pdev->dev);
 
