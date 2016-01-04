@@ -2202,7 +2202,8 @@ done:
 	} else {
 		/* Don't touch the bit rate configuration */
 		scr_val = s->cfg->scscr & (SCSCR_CKE1 | SCSCR_CKE0);
-		smr_val |= serial_port_in(port, SCSMR) & SCSMR_CKS;
+		smr_val |= serial_port_in(port, SCSMR) &
+			   (SCSMR_CKEDG | SCSMR_SRC_MASK | SCSMR_CKS);
 		dev_dbg(port->dev, "SCR 0x%x SMR 0x%x\n", scr_val, smr_val);
 		serial_port_out(port, SCSCR, scr_val);
 		serial_port_out(port, SCSMR, smr_val);
