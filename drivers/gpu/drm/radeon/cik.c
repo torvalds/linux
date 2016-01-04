@@ -1750,6 +1750,7 @@ static const u32 liverpool_golden_registers[] =
 	0x28350, 0xffffffff, 0x2a00161a, /* PA_SC_RASTER_CONFIG */
 	0x28354, 0xffffffff, 0x00000000, /* PA_SC_RASTER_CONFIG_1 */
 	0x5004, 0x00002000, 0x00002000, /* GARLIC_FLUSH_CNTL */
+	0x14d4, 0xffffffff, 0x00000000, /* VM_CONTEXTS_DISABLE */
 };
 
 static const u32 spectre_golden_spm_registers[] =
