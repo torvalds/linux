@@ -536,7 +536,7 @@
 	pinctrl-0 = <&pinctrl_lcdif_dat
 		     &pinctrl_lcdif_ctrl>;
 	display = <&display0>;
-	status = "disabled";
+	status = "okay";
 
 	display0: display {
 		bits-per-pixel = <16>;
