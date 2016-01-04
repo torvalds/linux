@@ -608,7 +608,6 @@
             vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
             product_desc = "ODROID-C1";        /* Max Chars: 16    */
             cec_osd_string = "ODROID-C1";        /* Max Chars: 14    */
-            cec_config = <0x00000f>;
             ao_cec = <0x000001>;
         };
 

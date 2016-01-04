@@ -304,6 +304,18 @@ void cec_node_init(hdmitx_dev_t* hdmitx_device)
             cec_device_vendor_id((cec_rx_message_t*)0);
 
             msleep(150);
+
+	    /* Disable switch TV on automatically */
+	    if (!(hdmitx_device->cec_func_config & (1 << AUTO_POWER_ON_MASK))) {
+		cec_usrcmd_get_device_power_status(CEC_TV_ADDR);
+		wait_event_interruptible(hdmitx_device->cec_wait_rx,
+			cec_global_info.cec_rx_msg_buf.rx_read_pos != cec_global_info.cec_rx_msg_buf.rx_write_pos);
+		cec_isr_post_process();
+
+		if (cec_global_info.tv_power_status)
+		    return;
+	    }
+
             cec_imageview_on_smp();
             msleep(100);
 
@@ -1146,6 +1158,7 @@ void cec_handle_message(cec_rx_message_t* pcec_message)
         case CEC_OC_REPORT_PHYSICAL_ADDRESS:
             break;
         case CEC_OC_REPORT_POWER_STATUS:
+	    cec_global_info.tv_power_status = pcec_message->content.msg.operands[0];
             break;
         case CEC_OC_SET_OSD_NAME:
             break;
