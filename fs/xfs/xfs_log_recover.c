@@ -4159,13 +4159,27 @@ xlog_recover_process(
 	int			error;
 	__le32			crc;
 
-	/*
-	 * Check the CRC and issue a warning if and only if the CRC in the
-	 * header is non-zero. This is an advisory warning and the zero CRC
-	 * check prevents warnings from being emitted when upgrading the kernel
-	 * from one that does not add CRCs by default.
-	 */
 	crc = xlog_cksum(log, rhead, dp, be32_to_cpu(rhead->h_len));
+
+	/*
+	 * Nothing else to do if this is a CRC verification pass. Just return
+	 * if this a record with a non-zero crc. Unfortunately, mkfs always
+	 * sets h_crc to 0 so we must consider this valid even on v5 supers.
+	 * Otherwise, return EFSBADCRC on failure so the callers up the stack
+	 * know precisely what failed.
+	 */
+	if (pass == XLOG_RECOVER_CRCPASS) {
+		if (rhead->h_crc && crc != le32_to_cpu(rhead->h_crc))
+			return -EFSBADCRC;
+		return 0;
+	}
+
+	/*
+	 * We're in the normal recovery path. Issue a warning if and only if the
+	 * CRC in the header is non-zero. This is an advisory warning and the
+	 * zero CRC check prevents warnings from being emitted when upgrading
+	 * the kernel from one that does not add CRCs by default.
+	 */
 	if (crc != le32_to_cpu(rhead->h_crc)) {
 		if (rhead->h_crc || xfs_sb_version_hascrc(&log->l_mp->m_sb)) {
 			xfs_alert(log->l_mp,
