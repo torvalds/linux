@@ -250,8 +250,7 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 
 	blk_queue_split(q, &bio, q->bio_split);
 
-	if (mddev == NULL || mddev->pers == NULL
-	    || !mddev->ready) {
+	if (mddev == NULL || mddev->pers == NULL) {
 		bio_io_error(bio);
 		return BLK_QC_T_NONE;
 	}
@@ -5298,7 +5297,6 @@ int md_run(struct mddev *mddev)
 	smp_wmb();
 	spin_lock(&mddev->lock);
 	mddev->pers = pers;
-	mddev->ready = 1;
 	spin_unlock(&mddev->lock);
 	rdev_for_each(rdev, mddev)
 		if (rdev->raid_disk >= 0)
@@ -5498,7 +5496,6 @@ static void __md_stop(struct mddev *mddev)
 	/* Ensure ->event_work is done */
 	flush_workqueue(md_misc_wq);
 	spin_lock(&mddev->lock);
-	mddev->ready = 0;
 	mddev->pers = NULL;
 	spin_unlock(&mddev->lock);
 	pers->free(mddev, mddev->private);
