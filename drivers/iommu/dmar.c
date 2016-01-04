@@ -1070,6 +1070,12 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 						       intel_iommu_groups,
 						       "%s", iommu->name);
 
+	if (IS_ERR(iommu->iommu_dev)) {
+		drhd->iommu = NULL;
+		err = PTR_ERR(iommu->iommu_dev);
+		goto err_unmap;
+	}
+
 	return 0;
 
 err_unmap:
