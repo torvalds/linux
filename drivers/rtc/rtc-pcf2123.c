@@ -215,6 +215,11 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (ret < 0)
 		return ret;
 
+	if (rxbuf[0] & OSC_HAS_STOPPED) {
+		dev_info(dev, "clock was stopped. Time is not valid\n");
+		return -EINVAL;
+	}
+
 	tm->tm_sec = bcd2bin(rxbuf[0] & 0x7F);
 	tm->tm_min = bcd2bin(rxbuf[1] & 0x7F);
 	tm->tm_hour = bcd2bin(rxbuf[2] & 0x3F); /* rtc hr 0-23 */
@@ -314,6 +319,7 @@ static const struct rtc_class_ops pcf2123_rtc_ops = {
 static int pcf2123_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
+	struct rtc_time tm;
 	struct pcf2123_plat_data *pdata;
 	int ret, i;
 
@@ -323,10 +329,13 @@ static int pcf2123_probe(struct spi_device *spi)
 		return -ENOMEM;
 	spi->dev.platform_data = pdata;
 
-	ret = pcf2123_reset(&spi->dev);
+	ret = pcf2123_rtc_read_time(&spi->dev, &tm);
 	if (ret < 0) {
-		dev_err(&spi->dev, "chip not found\n");
-		goto kfree_exit;
+		ret = pcf2123_reset(&spi->dev);
+		if (ret < 0) {
+			dev_err(&spi->dev, "chip not found\n");
+			goto kfree_exit;
+		}
 	}
 
 	dev_info(&spi->dev, "chip found, driver version " DRV_VERSION "\n");
