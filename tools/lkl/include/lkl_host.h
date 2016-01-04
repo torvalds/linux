@@ -27,18 +27,20 @@ extern struct lkl_dev_blk_ops lkl_dev_blk_ops;
 #define LKL_DEV_BLK_TYPE_FLUSH		4
 #define LKL_DEV_BLK_TYPE_FLUSH_OUT	5
 
-struct lkl_dev_blk_ops {
-	int (*get_capacity)(union lkl_disk disk,
-			    unsigned long long *res);
-	void (*request)(union lkl_disk disk, unsigned int type,
-			unsigned int prio, unsigned long long sector,
-			struct lkl_dev_buf *bufs, int count);
+struct lkl_blk_req {
+	unsigned int type;
+	unsigned int prio;
+	unsigned long long sector;
+	struct lkl_dev_buf *buf;
+	int count;
 };
 
+struct lkl_dev_blk_ops {
+	int (*get_capacity)(union lkl_disk disk, unsigned long long *res);
 #define LKL_DEV_BLK_STATUS_OK		0
 #define LKL_DEV_BLK_STATUS_IOERR	1
 #define LKL_DEV_BLK_STATUS_UNSUP	2
+	int (*request)(union lkl_disk disk, struct lkl_blk_req *req);
+};
 
-void lkl_dev_blk_complete(struct lkl_dev_buf *bufs, unsigned char status,
-			  int len);
 #endif

@@ -170,22 +170,18 @@ static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
 	return 0;
 }
 
-void fd_do_rw(union lkl_disk disk, unsigned int type, unsigned int prio,
-	      unsigned long long sector, struct lkl_dev_buf *bufs, int count)
+static int blk_request(union lkl_disk disk, struct lkl_blk_req *req)
 {
 	int err = 0;
-	struct iovec *iovec = (struct iovec *)bufs;
-
-	if (count > 1)
-		lkl_printf("%s: %d\n", __func__, count);
+	struct iovec *iovec = (struct iovec *)req->buf;
 
 	/* TODO: handle short reads/writes */
-	switch (type) {
+	switch (req->type) {
 	case LKL_DEV_BLK_TYPE_READ:
-		err = preadv(disk.fd, iovec, count, sector * 512);
+		err = preadv(disk.fd, iovec, req->count, req->sector * 512);
 		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
-		err = pwritev(disk.fd, iovec, count, sector * 512);
+		err = pwritev(disk.fd, iovec, req->count, req->sector * 512);
 		break;
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
@@ -196,17 +192,16 @@ void fd_do_rw(union lkl_disk disk, unsigned int type, unsigned int prio,
 #endif
 		break;
 	default:
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_UNSUP, 0);
-		return;
+		return LKL_DEV_BLK_STATUS_UNSUP;
 	}
 
 	if (err < 0)
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_IOERR, 0);
-	else
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_OK, err);
+		return LKL_DEV_BLK_STATUS_IOERR;
+
+	return LKL_DEV_BLK_STATUS_OK;
 }
 
 struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 	.get_capacity = fd_get_capacity,
-	.request = fd_do_rw,
+	.request = blk_request,
 };
