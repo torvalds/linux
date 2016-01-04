@@ -4118,46 +4118,6 @@ xlog_recover_process_iunlinks(
 	mp->m_dmevmask = mp_dmevmask;
 }
 
-/*
- * Upack the log buffer data and crc check it. If the check fails, issue a
- * warning if and only if the CRC in the header is non-zero. This makes the
- * check an advisory warning, and the zero CRC check will prevent failure
- * warnings from being emitted when upgrading the kernel from one that does not
- * add CRCs by default.
- *
- * When filesystems are CRC enabled, this CRC mismatch becomes a fatal log
- * corruption failure
- */
-STATIC int
-xlog_unpack_data_crc(
-	struct xlog_rec_header	*rhead,
-	char			*dp,
-	struct xlog		*log)
-{
-	__le32			crc;
-
-	crc = xlog_cksum(log, rhead, dp, be32_to_cpu(rhead->h_len));
-	if (crc != rhead->h_crc) {
-		if (rhead->h_crc || xfs_sb_version_hascrc(&log->l_mp->m_sb)) {
-			xfs_alert(log->l_mp,
-		"log record CRC mismatch: found 0x%x, expected 0x%x.",
-					le32_to_cpu(rhead->h_crc),
-					le32_to_cpu(crc));
-			xfs_hex_dump(dp, 32);
-		}
-
-		/*
-		 * If we've detected a log record corruption, then we can't
-		 * recover past this point. Abort recovery if we are enforcing
-		 * CRC protection by punting an error back up the stack.
-		 */
-		if (xfs_sb_version_hascrc(&log->l_mp->m_sb))
-			return -EFSCORRUPTED;
-	}
-
-	return 0;
-}
-
 STATIC int
 xlog_unpack_data(
 	struct xlog_rec_header	*rhead,
@@ -4165,11 +4125,6 @@ xlog_unpack_data(
 	struct xlog		*log)
 {
 	int			i, j, k;
-	int			error;
-
-	error = xlog_unpack_data_crc(rhead, dp, log);
-	if (error)
-		return error;
 
 	for (i = 0; i < BTOBB(be32_to_cpu(rhead->h_len)) &&
 		  i < (XLOG_HEADER_CYCLE_SIZE / BBSIZE); i++) {
@@ -4191,7 +4146,7 @@ xlog_unpack_data(
 }
 
 /*
- * Unpack and process a log record.
+ * CRC check, unpack and process a log record.
  */
 STATIC int
 xlog_recover_process(
@@ -4202,6 +4157,31 @@ xlog_recover_process(
 	int			pass)
 {
 	int			error;
+	__le32			crc;
+
+	/*
+	 * Check the CRC and issue a warning if and only if the CRC in the
+	 * header is non-zero. This is an advisory warning and the zero CRC
+	 * check prevents warnings from being emitted when upgrading the kernel
+	 * from one that does not add CRCs by default.
+	 */
+	crc = xlog_cksum(log, rhead, dp, be32_to_cpu(rhead->h_len));
+	if (crc != le32_to_cpu(rhead->h_crc)) {
+		if (rhead->h_crc || xfs_sb_version_hascrc(&log->l_mp->m_sb)) {
+			xfs_alert(log->l_mp,
+		"log record CRC mismatch: found 0x%x, expected 0x%x.",
+					le32_to_cpu(rhead->h_crc),
+					le32_to_cpu(crc));
+			xfs_hex_dump(dp, 32);
+		}
+
+		/*
+		 * If the filesystem is CRC enabled, this mismatch becomes a
+		 * fatal log corruption failure.
+		 */
+		if (xfs_sb_version_hascrc(&log->l_mp->m_sb))
+			return -EFSCORRUPTED;
+	}
 
 	error = xlog_unpack_data(rhead, dp, log);
 	if (error)
