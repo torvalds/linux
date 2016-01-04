@@ -64,6 +64,8 @@ source drivers/virtio/Kconfig
 
 source drivers/block/Kconfig
 
+source drivers/net/Kconfig
+
 source fs/Kconfig
 
 source mm/Kconfig
