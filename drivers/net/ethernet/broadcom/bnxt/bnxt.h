@@ -528,6 +528,7 @@ struct tx_push_bd {
 };
 
 struct bnxt_tx_ring_info {
+	struct bnxt_napi	*bnapi;
 	u16			tx_prod;
 	u16			tx_cons;
 	void __iomem		*tx_doorbell;
@@ -558,6 +559,7 @@ struct bnxt_tpa_info {
 };
 
 struct bnxt_rx_ring_info {
+	struct bnxt_napi	*bnapi;
 	u16			rx_prod;
 	u16			rx_agg_prod;
 	u16			rx_sw_agg_prod;
@@ -604,8 +606,8 @@ struct bnxt_napi {
 
 	int			index;
 	struct bnxt_cp_ring_info	cp_ring;
-	struct bnxt_rx_ring_info	rx_ring;
-	struct bnxt_tx_ring_info	tx_ring;
+	struct bnxt_rx_ring_info	*rx_ring;
+	struct bnxt_tx_ring_info	*tx_ring;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	atomic_t		poll_state;
@@ -875,6 +877,8 @@ struct bnxt {
 	#define BNXT_FLAG_USING_MSIX	0x40
 	#define BNXT_FLAG_MSIX_CAP	0x80
 	#define BNXT_FLAG_RFS		0x100
+	#define BNXT_FLAG_SHARED_RINGS	0x200
+
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
 					    BNXT_FLAG_STRIP_VLAN)
@@ -883,6 +887,9 @@ struct bnxt {
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
 
 	struct bnxt_napi	**bnapi;
+
+	struct bnxt_rx_ring_info	*rx_ring;
+	struct bnxt_tx_ring_info	*tx_ring;
 
 	u32			rx_buf_size;
 	u32			rx_buf_use_size;	/* useable size */
@@ -913,6 +920,8 @@ struct bnxt {
 	int			cp_nr_rings;
 
 	int			num_stat_ctxs;
+
+	/* grp_info indexed by completion ring index */
 	struct bnxt_ring_grp_info	*grp_info;
 	struct bnxt_vnic_info	*vnic_info;
 	int			nr_vnics;
@@ -1089,5 +1098,5 @@ int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_close_nic(struct bnxt *, bool, bool);
-void bnxt_get_max_rings(struct bnxt *, int *, int *);
+int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 #endif
