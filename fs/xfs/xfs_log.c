@@ -2045,12 +2045,14 @@ xlog_print_tic_res(
 	    "QM_DQCLUSTER",
 	    "QM_QINOCREATE",
 	    "QM_QUOTAOFF_END",
-	    "SB_UNIT",
 	    "FSYNC_TS",
 	    "GROWFSRT_ALLOC",
 	    "GROWFSRT_ZERO",
 	    "GROWFSRT_FREE",
-	    "SWAPEXT"
+	    "SWAPEXT",
+	    "CHECKPOINT",
+	    "ICREATE",
+	    "CREATE_TMPFILE"
 	};
 
 	xfs_warn(mp, "xlog_write: reservation summary:");
