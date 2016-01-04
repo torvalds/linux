@@ -38,7 +38,7 @@ enum nv_clk_src {
 	nv_clk_src_hubk06,
 	nv_clk_src_hubk07,
 	nv_clk_src_copy,
-	nv_clk_src_daemon,
+	nv_clk_src_pmu,
 	nv_clk_src_disp,
 	nv_clk_src_vdec,
 
