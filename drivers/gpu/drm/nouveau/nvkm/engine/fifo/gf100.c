@@ -255,7 +255,7 @@ gf100_fifo_fault_engine[] = {
 	{ 0x14, "PMSPDEC", NULL, NVKM_ENGINE_MSPDEC },
 	{ 0x15, "PCE0", NULL, NVKM_ENGINE_CE0 },
 	{ 0x16, "PCE1", NULL, NVKM_ENGINE_CE1 },
-	{ 0x17, "PDAEMON" },
+	{ 0x17, "PMU" },
 	{}
 };
 
@@ -286,7 +286,7 @@ gf100_fifo_fault_hubclient[] = {
 	{ 0x0c, "PMSPPP" },
 	{ 0x0d, "PMSVLD" },
 	{ 0x11, "PCOUNTER" },
-	{ 0x12, "PDAEMON" },
+	{ 0x12, "PMU" },
 	{ 0x14, "CCACHE" },
 	{ 0x15, "CCACHE_POST" },
 	{}
