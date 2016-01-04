@@ -180,7 +180,7 @@ retry_servicing:
 			goto retry_servicing;
 
 		/* op uses shared memory */
-		if (get_bufmap_init() == 0) {
+		if (orangefs_get_bufmap_init() == 0) {
 			/*
 			 * This operation uses the shared memory system AND
 			 * the system is not yet ready. This situation occurs
@@ -194,7 +194,7 @@ retry_servicing:
 				     "Client core in-service status(%d).\n",
 				     is_daemon_in_service());
 			gossip_debug(GOSSIP_WAIT_DEBUG, "bufmap_init:%d.\n",
-				     get_bufmap_init());
+				     orangefs_get_bufmap_init());
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "operation's status is 0x%0x.\n",
 				     op->op_state);
@@ -222,13 +222,13 @@ retry_servicing:
 				     ret);
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "Is shared memory available? (%d).\n",
-				     get_bufmap_init());
+				     orangefs_get_bufmap_init());
 
 			spin_lock_irqsave(&op->lock, irqflags);
 			finish_wait(&orangefs_bufmap_init_waitq, &wait_entry);
 			spin_unlock_irqrestore(&op->lock, irqflags);
 
-			if (get_bufmap_init() == 0) {
+			if (orangefs_get_bufmap_init() == 0) {
 				gossip_err("%s:The shared memory system has not started in %d seconds after the client core restarted.  Aborting user's request(%s).\n",
 					   __func__,
 					   ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS,

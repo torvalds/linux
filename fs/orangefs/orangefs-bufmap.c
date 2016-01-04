@@ -115,14 +115,14 @@ static DECLARE_WAIT_QUEUE_HEAD(bufmap_waitq);
 static DECLARE_WAIT_QUEUE_HEAD(readdir_waitq);
 
 /*
- * get_bufmap_init
+ * orangefs_get_bufmap_init
  *
  * If bufmap_init is 1, then the shared memory system, including the
  * buffer_index_array, is available.  Otherwise, it is not.
  *
  * returns the value of bufmap_init
  */
-int get_bufmap_init(void)
+int orangefs_get_bufmap_init(void)
 {
 	return __orangefs_bufmap ? 1 : 0;
 }
@@ -473,7 +473,7 @@ void orangefs_bufmap_put(struct orangefs_bufmap *bufmap, int buffer_index)
 }
 
 /*
- * readdir_index_get()
+ * orangefs_readdir_index_get()
  *
  * gets a free descriptor, will sleep until one becomes
  * available if necessary.
@@ -483,7 +483,7 @@ void orangefs_bufmap_put(struct orangefs_bufmap *bufmap, int buffer_index)
  *
  * returns 0 on success, -errno on failure
  */
-int readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index)
+int orangefs_readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index)
 {
 	struct orangefs_bufmap *bufmap = orangefs_bufmap_ref();
 	struct slot_args slargs;
@@ -505,7 +505,7 @@ int readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index)
 	return ret;
 }
 
-void readdir_index_put(struct orangefs_bufmap *bufmap, int buffer_index)
+void orangefs_readdir_index_put(struct orangefs_bufmap *bufmap, int buffer_index)
 {
 	struct slot_args slargs;
 

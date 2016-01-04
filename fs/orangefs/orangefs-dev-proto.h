@@ -51,35 +51,13 @@
 #define ORANGEFS_MAX_DEBUG_ARRAY_LEN	0x00000800
 
 /*
- * MAX_DIRENT_COUNT cannot be larger than ORANGEFS_REQ_LIMIT_LISTATTR.
- * The value of ORANGEFS_REQ_LIMIT_LISTATTR has been changed from 113 to 60
- * to accomodate an attribute object with mirrored handles.
- * MAX_DIRENT_COUNT is replaced by MAX_DIRENT_COUNT_READDIR and
- * MAX_DIRENT_COUNT_READDIRPLUS, since readdir doesn't trigger a listattr
- * but readdirplus might.
-*/
-#define MAX_DIRENT_COUNT_READDIR       0x00000060
-#define MAX_DIRENT_COUNT_READDIRPLUS   0x0000003C
+ * The maximum number of directory entries in a single request is 96.
+ * XXX: Why can this not be higher. The client-side code can handle up to 512.
+ * XXX: What happens if we expect more than the client can return?
+ */
+#define ORANGEFS_MAX_DIRENT_COUNT_READDIR 96
 
 #include "upcall.h"
 #include "downcall.h"
-
-/*
- * These macros differ from proto macros in that they don't do any
- * byte-swappings and are used to ensure that kernel-clientcore interactions
- * don't cause any unaligned accesses etc on 64 bit machines
- */
-#ifndef roundup4
-#define roundup4(x) (((x)+3) & ~3)
-#endif
-
-#ifndef roundup8
-#define roundup8(x) (((x)+7) & ~7)
-#endif
-
-struct read_write_x {
-	__s64 off;
-	__s64 len;
-};
 
 #endif

@@ -15,7 +15,7 @@ int orangefs_bufmap_shift_query(void);
 
 int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc);
 
-int get_bufmap_init(void);
+int orangefs_get_bufmap_init(void);
 
 void orangefs_bufmap_finalize(void);
 
@@ -23,9 +23,9 @@ int orangefs_bufmap_get(struct orangefs_bufmap **mapp, int *buffer_index);
 
 void orangefs_bufmap_put(struct orangefs_bufmap *bufmap, int buffer_index);
 
-int readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index);
+int orangefs_readdir_index_get(struct orangefs_bufmap **mapp, int *buffer_index);
 
-void readdir_index_put(struct orangefs_bufmap *bufmap, int buffer_index);
+void orangefs_readdir_index_put(struct orangefs_bufmap *bufmap, int buffer_index);
 
 int orangefs_bufmap_copy_from_iovec(struct orangefs_bufmap *bufmap,
 				struct iov_iter *iter,

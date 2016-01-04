@@ -52,7 +52,11 @@ static long decode_dirents(char *ptr, size_t size,
 		readdir->dirent_array[i].d_name = buf + 4;
 		readdir->dirent_array[i].d_length = len;
 
-		len = roundup8(4 + len + 1);
+		/*
+		 * Round 4 + len + 1, which is the encoded size plus the string
+		 * plus the null terminator to the nearest eight byte boundry.
+		 */
+		len = ((4 + len + 1) + 7) & ~7;
 		if (size < len + 16)
 			goto Einval;
 		size -= len + 16;
@@ -109,7 +113,7 @@ static void readdir_handle_dtor(struct orangefs_bufmap *bufmap,
 	rhandle->readdir_response.dirent_array = NULL;
 
 	if (rhandle->buffer_index >= 0) {
-		readdir_index_put(bufmap, rhandle->buffer_index);
+		orangefs_readdir_index_put(bufmap, rhandle->buffer_index);
 		rhandle->buffer_index = -1;
 	}
 	if (rhandle->dents_buf) {
@@ -175,7 +179,8 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 
 	new_op->uses_shared_memory = 1;
 	new_op->upcall.req.readdir.refn = orangefs_inode->refn;
-	new_op->upcall.req.readdir.max_dirent_count = MAX_DIRENT_COUNT_READDIR;
+	new_op->upcall.req.readdir.max_dirent_count =
+	    ORANGEFS_MAX_DIRENT_COUNT_READDIR;
 
 	gossip_debug(GOSSIP_DIR_DEBUG,
 		     "%s: upcall.req.readdir.refn.khandle: %pU\n",
@@ -185,9 +190,9 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 	new_op->upcall.req.readdir.token = *ptoken;
 
 get_new_buffer_index:
-	ret = readdir_index_get(&bufmap, &buffer_index);
+	ret = orangefs_readdir_index_get(&bufmap, &buffer_index);
 	if (ret < 0) {
-		gossip_lerr("orangefs_readdir: readdir_index_get() failure (%d)\n",
+		gossip_lerr("orangefs_readdir: orangefs_readdir_index_get() failure (%d)\n",
 			    ret);
 		goto out_free_op;
 	}
@@ -211,14 +216,14 @@ get_new_buffer_index:
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			"%s: Getting new buffer_index for retry of readdir..\n",
 			 __func__);
-		readdir_index_put(bufmap, buffer_index);
+		orangefs_readdir_index_put(bufmap, buffer_index);
 		goto get_new_buffer_index;
 	}
 
 	if (ret == -EIO && op_state_purged(new_op)) {
 		gossip_err("%s: Client is down. Aborting readdir call.\n",
 			__func__);
-		readdir_index_put(bufmap, buffer_index);
+		orangefs_readdir_index_put(bufmap, buffer_index);
 		goto out_free_op;
 	}
 
@@ -226,7 +231,7 @@ get_new_buffer_index:
 		gossip_debug(GOSSIP_DIR_DEBUG,
 			     "Readdir request failed.  Status:%d\n",
 			     new_op->downcall.status);
-		readdir_index_put(bufmap, buffer_index);
+		orangefs_readdir_index_put(bufmap, buffer_index);
 		if (ret >= 0)
 			ret = new_op->downcall.status;
 		goto out_free_op;
@@ -241,7 +246,7 @@ get_new_buffer_index:
 		gossip_err("orangefs_readdir: Could not decode trailer buffer into a readdir response %d\n",
 			ret);
 		ret = bytes_decoded;
-		readdir_index_put(bufmap, buffer_index);
+		orangefs_readdir_index_put(bufmap, buffer_index);
 		goto out_free_op;
 	}
 

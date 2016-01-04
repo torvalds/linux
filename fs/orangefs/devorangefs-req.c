@@ -600,7 +600,7 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 		     __func__);
 
 	mutex_lock(&devreq_mutex);
-	if (get_bufmap_init())
+	if (orangefs_get_bufmap_init())
 		orangefs_bufmap_finalize();
 
 	open_access_count--;
@@ -693,7 +693,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				     (struct ORANGEFS_dev_map_desc __user *)
 				     arg,
 				     sizeof(struct ORANGEFS_dev_map_desc));
-		if (get_bufmap_init()) {
+		if (orangefs_get_bufmap_init()) {
 			return -EINVAL;
 		} else {
 			return ret ?
