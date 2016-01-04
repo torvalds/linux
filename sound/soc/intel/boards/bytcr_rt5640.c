@@ -30,6 +30,7 @@
 #include <sound/jack.h>
 #include "../../codecs/rt5640.h"
 #include "../atom/sst-atom-controls.h"
+#include "../common/sst-acpi.h"
 
 static const struct snd_soc_dapm_widget byt_rt5640_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
@@ -326,12 +327,21 @@ static struct snd_soc_card byt_rt5640_card = {
 	.fully_routed = true,
 };
 
+static char byt_rt5640_codec_name[16]; /* i2c-<HID>:00 with HID being 8 chars */
+
 static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
+	struct sst_acpi_mach *mach;
 
 	/* register the soc card */
 	byt_rt5640_card.dev = &pdev->dev;
+	mach = byt_rt5640_card.dev->platform_data;
+
+	/* fixup codec name based on HID */
+	snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
+		 "%s%s%s", "i2c-", mach->id, ":00");
+	byt_rt5640_dais[MERR_DPCM_COMPR+1].codec_name = byt_rt5640_codec_name;
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5640_card);
 
