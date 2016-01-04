@@ -153,7 +153,7 @@ static const struct of_device_id wilc1000_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wilc1000_of_match);
 
-struct spi_driver wilc1000_spi_driver = {
+static struct spi_driver wilc1000_spi_driver = {
 	.driver = {
 		.name = MODALIAS,
 		.of_match_table = wilc1000_of_match,

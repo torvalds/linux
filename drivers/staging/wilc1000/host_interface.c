@@ -225,7 +225,7 @@ struct join_bss_param {
 	u8 start_time[4];
 };
 
-struct host_if_drv *terminated_handle;
+static struct host_if_drv *terminated_handle;
 bool wilc_optaining_ip;
 static u8 P2P_LISTEN_STATE;
 static struct task_struct *hif_thread_handler;
