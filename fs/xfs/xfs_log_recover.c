@@ -4190,6 +4190,26 @@ xlog_unpack_data(
 	return 0;
 }
 
+/*
+ * Unpack and process a log record.
+ */
+STATIC int
+xlog_recover_process(
+	struct xlog		*log,
+	struct hlist_head	rhash[],
+	struct xlog_rec_header	*rhead,
+	char			*dp,
+	int			pass)
+{
+	int			error;
+
+	error = xlog_unpack_data(rhead, dp, log);
+	if (error)
+		return error;
+
+	return xlog_recover_process_data(log, rhash, rhead, dp, pass);
+}
+
 STATIC int
 xlog_valid_rec_header(
 	struct xlog		*log,
@@ -4432,12 +4452,8 @@ xlog_do_recovery_pass(
 					goto bread_err2;
 			}
 
-			error = xlog_unpack_data(rhead, offset, log);
-			if (error)
-				goto bread_err2;
-
-			error = xlog_recover_process_data(log, rhash,
-							rhead, offset, pass);
+			error = xlog_recover_process(log, rhash, rhead, offset,
+						     pass);
 			if (error)
 				goto bread_err2;
 			blk_no += bblks;
@@ -4465,12 +4481,7 @@ xlog_do_recovery_pass(
 		if (error)
 			goto bread_err2;
 
-		error = xlog_unpack_data(rhead, offset, log);
-		if (error)
-			goto bread_err2;
-
-		error = xlog_recover_process_data(log, rhash,
-						rhead, offset, pass);
+		error = xlog_recover_process(log, rhash, rhead, offset, pass);
 		if (error)
 			goto bread_err2;
 		blk_no += bblks + hblks;
