@@ -272,6 +272,40 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static int pcf2123_reset(struct device *dev)
+{
+	int ret;
+	u8  rxbuf[2];
+
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_SW_RESET);
+	if (ret < 0)
+		return ret;
+
+	/* Stop the counter */
+	dev_dbg(dev, "stopping RTC\n");
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_STOP);
+	if (ret < 0)
+		return ret;
+
+	/* See if the counter was actually stopped */
+	dev_dbg(dev, "checking for presence of RTC\n");
+	ret = pcf2123_read(dev, PCF2123_REG_CTRL1, rxbuf, sizeof(rxbuf));
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(dev, "received data from RTC (0x%02X 0x%02X)\n",
+		rxbuf[0], rxbuf[1]);
+	if (!(rxbuf[0] & CTRL1_STOP))
+		return -ENODEV;
+
+	/* Start the counter */
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_CLEAR);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static const struct rtc_class_ops pcf2123_rtc_ops = {
 	.read_time	= pcf2123_rtc_read_time,
 	.set_time	= pcf2123_rtc_set_time,
@@ -281,7 +315,6 @@ static int pcf2123_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
 	struct pcf2123_plat_data *pdata;
-	u8  rxbuf[2];
 	int ret, i;
 
 	pdata = devm_kzalloc(&spi->dev, sizeof(struct pcf2123_plat_data),
@@ -290,40 +323,15 @@ static int pcf2123_probe(struct spi_device *spi)
 		return -ENOMEM;
 	spi->dev.platform_data = pdata;
 
-	/* Send a software reset command */
-	dev_dbg(&spi->dev, "resetting RTC\n");
-	ret = pcf2123_write_reg(&spi->dev, PCF2123_REG_CTRL1, CTRL1_SW_RESET);
-	if (ret < 0)
-		goto kfree_exit;
-
-	/* Stop the counter */
-	dev_dbg(&spi->dev, "stopping RTC\n");
-	ret = pcf2123_write_reg(&spi->dev, PCF2123_REG_CTRL1, CTRL1_STOP);
-	if (ret < 0)
-		goto kfree_exit;
-
-	/* See if the counter was actually stopped */
-	dev_dbg(&spi->dev, "checking for presence of RTC\n");
-	ret = pcf2123_read(&spi->dev, PCF2123_REG_CTRL1, rxbuf, sizeof(rxbuf));
-	dev_dbg(&spi->dev, "received data from RTC (0x%02X 0x%02X)\n",
-			rxbuf[0], rxbuf[1]);
-	if (ret < 0)
-		goto kfree_exit;
-
-	if (!(rxbuf[0] & 0x20)) {
+	ret = pcf2123_reset(&spi->dev);
+	if (ret < 0) {
 		dev_err(&spi->dev, "chip not found\n");
-		ret = -ENODEV;
 		goto kfree_exit;
 	}
 
 	dev_info(&spi->dev, "chip found, driver version " DRV_VERSION "\n");
 	dev_info(&spi->dev, "spiclk %u KHz.\n",
 			(spi->max_speed_hz + 500) / 1000);
-
-	/* Start the counter */
-	ret = pcf2123_write_reg(&spi->dev, PCF2123_REG_CTRL1, CTRL1_CLEAR);
-	if (ret < 0)
-		goto kfree_exit;
 
 	/* Finalize the initialization */
 	rtc = devm_rtc_device_register(&spi->dev, pcf2123_driver.driver.name,
