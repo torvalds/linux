@@ -690,32 +690,24 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 	int halt;
 
 	/* Are we still active? */
-	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE)) {
-		ret = -ENODEV;
-		goto error;
-	}
+	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE))
+		return -ENODEV;
 
 	/* Wait for endpoint to be enabled */
 	ep = epfile->ep;
 	if (!ep) {
-		if (file->f_flags & O_NONBLOCK) {
-			ret = -EAGAIN;
-			goto error;
-		}
+		if (file->f_flags & O_NONBLOCK)
+			return -EAGAIN;
 
 		ret = wait_event_interruptible(epfile->wait, (ep = epfile->ep));
-		if (ret) {
-			ret = -EINTR;
-			goto error;
-		}
+		if (ret)
+			return -EINTR;
 	}
 
 	/* Do we halt? */
 	halt = (!io_data->read == !epfile->in);
-	if (halt && epfile->isoc) {
-		ret = -EINVAL;
-		goto error;
-	}
+	if (halt && epfile->isoc)
+		return -EINVAL;
 
 	/* Allocate & copy */
 	if (!halt) {
