@@ -843,15 +843,15 @@ static int amdgpu_cgs_acpi_eval_object(void *cgs_device,
 	if (info->input_count > 0) {
 		if (info->pinput_argument == NULL)
 			return -EINVAL;
-			argument = info->pinput_argument;
-			func_no = argument->value;
-			for (i = 0; i < info->input_count; i++) {
-				if (((argument->type == ACPI_TYPE_STRING) ||
-					(argument->type == ACPI_TYPE_BUFFER))
-					&& (argument->pointer == NULL))
-					return -EINVAL;
-				argument++;
-			}
+		argument = info->pinput_argument;
+		func_no = argument->value;
+		for (i = 0; i < info->input_count; i++) {
+			if (((argument->type == ACPI_TYPE_STRING) ||
+			     (argument->type == ACPI_TYPE_BUFFER)) &&
+			    (argument->pointer == NULL))
+				return -EINVAL;
+			argument++;
+		}
 	}
 
 	if (info->output_count > 0) {
