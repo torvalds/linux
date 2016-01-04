@@ -686,7 +686,7 @@ static void ov5640_standby(s32 enable)
 	else
 		gpio_set_value(pwn_gpio, 0);
 
-	msleep(2);
+	msleep(100);
 }
 
 static void ov5640_reset(void)
