@@ -72,7 +72,7 @@
 
 /* Highest firmware API version supported */
 #define IWL7260_UCODE_API_MAX	17
-#define IWL7265_UCODE_API_MAX	19
+#define IWL7265_UCODE_API_MAX	17
 #define IWL7265D_UCODE_API_MAX	19
 
 /* Oldest version we won't warn about */
