@@ -385,7 +385,7 @@ static void pnfs_layoutreturn_before_put_lseg(struct pnfs_layout_segment *lseg,
 		enum pnfs_iomode iomode;
 		bool send;
 
-		stateid = lo->plh_stateid;
+		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
 		iomode = lo->plh_return_iomode;
 		send = pnfs_prepare_layoutreturn(lo);
 		spin_unlock(&inode->i_lock);
@@ -1007,7 +1007,7 @@ _pnfs_return_layout(struct inode *ino)
 		dprintk("NFS: %s no layout to return\n", __func__);
 		goto out;
 	}
-	stateid = nfsi->layout->plh_stateid;
+	nfs4_stateid_copy(&stateid, &nfsi->layout->plh_stateid);
 	/* Reference matched in nfs4_layoutreturn_release */
 	pnfs_get_layout_hdr(lo);
 	empty = list_empty(&lo->plh_segs);
@@ -1098,7 +1098,7 @@ bool pnfs_roc(struct inode *ino)
 			goto out_noroc;
 	}
 
-	stateid = lo->plh_stateid;
+	nfs4_stateid_copy(&stateid, &lo->plh_stateid);
 	/* always send layoutreturn if being marked so */
 	if (test_and_clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
 				   &lo->plh_flags))
