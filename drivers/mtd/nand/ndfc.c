@@ -174,7 +174,6 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 		return -ENODEV;
 	nand_set_flash_node(chip, flash_np);
 
-	ppdata.of_node = flash_np;
 	mtd->name = kasprintf(GFP_KERNEL, "%s.%s", dev_name(&ndfc->ofdev->dev),
 			      flash_np->name);
 	if (!mtd->name) {
