@@ -566,7 +566,7 @@ static int mark_lseg_invalid(struct pnfs_layout_segment *lseg,
 int
 pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 			    struct list_head *tmp_list,
-			    struct pnfs_layout_range *recall_range)
+			    const struct pnfs_layout_range *recall_range)
 {
 	struct pnfs_layout_segment *lseg, *next;
 	int remaining = 0;
@@ -828,7 +828,7 @@ pnfs_layoutgets_blocked(const struct pnfs_layout_hdr *lo)
 
 int
 pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
-			      struct pnfs_layout_range *range,
+			      const struct pnfs_layout_range *range,
 			      struct nfs4_state *open_state)
 {
 	int status = 0;
@@ -1771,7 +1771,7 @@ pnfs_set_plh_return_iomode(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode)
 int
 pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
-				struct pnfs_layout_range *return_range)
+				const struct pnfs_layout_range *return_range)
 {
 	struct pnfs_layout_segment *lseg, *next;
 	int remaining = 0;
