@@ -88,6 +88,10 @@ enum SCI_CLKS {
 #define SCI_SR(x)		BIT((x) - 1)
 #define SCI_SR_RANGE(x, y)	GENMASK((y) - 1, (x) - 1)
 
+#define SCI_SR_SCIFAB		SCI_SR(5) | SCI_SR(7) | SCI_SR(11) | \
+				SCI_SR(13) | SCI_SR(16) | SCI_SR(17) | \
+				SCI_SR(19) | SCI_SR(27)
+
 #define min_sr(_port)		ffs((_port)->sampling_rate_mask)
 #define max_sr(_port)		fls((_port)->sampling_rate_mask)
 
@@ -2179,6 +2183,17 @@ done:
 	uart_update_timeout(port, termios->c_cflag, baud);
 
 	if (best_clk >= 0) {
+		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
+			switch (srr + 1) {
+			case 5:  smr_val |= SCSMR_SRC_5;  break;
+			case 7:  smr_val |= SCSMR_SRC_7;  break;
+			case 11: smr_val |= SCSMR_SRC_11; break;
+			case 13: smr_val |= SCSMR_SRC_13; break;
+			case 16: smr_val |= SCSMR_SRC_16; break;
+			case 17: smr_val |= SCSMR_SRC_17; break;
+			case 19: smr_val |= SCSMR_SRC_19; break;
+			case 27: smr_val |= SCSMR_SRC_27; break;
+			}
 		smr_val |= cks;
 		dev_dbg(port->dev,
 			 "SCR 0x%x SMR 0x%x BRR %u CKS 0x%x DL %u SRR %u\n",
@@ -2227,6 +2242,16 @@ done:
 	scr_val |= s->cfg->scscr & ~(SCSCR_CKE1 | SCSCR_CKE0);
 	dev_dbg(port->dev, "SCSCR 0x%x\n", scr_val);
 	serial_port_out(port, SCSCR, scr_val);
+	if ((srr + 1 == 5) &&
+	    (port->type == PORT_SCIFA || port->type == PORT_SCIFB)) {
+		/*
+		 * In asynchronous mode, when the sampling rate is 1/5, first
+		 * received data may become invalid on some SCIFA and SCIFB.
+		 * To avoid this problem wait more than 1 serial data time (1
+		 * bit time x serial data number) after setting SCSCR.RE = 1.
+		 */
+		udelay(DIV_ROUND_UP(10 * 1000000, baud));
+	}
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
@@ -2523,7 +2548,7 @@ static int sci_init_single(struct platform_device *dev,
 		port->fifosize = 256;
 		sci_port->overrun_reg = SCxSR;
 		sci_port->overrun_mask = SCIFA_ORER;
-		sci_port->sampling_rate_mask = SCI_SR(16);
+		sci_port->sampling_rate_mask = SCI_SR_SCIFAB;
 		break;
 	case PORT_HSCIF:
 		port->fifosize = 128;
@@ -2535,7 +2560,7 @@ static int sci_init_single(struct platform_device *dev,
 		port->fifosize = 64;
 		sci_port->overrun_reg = SCxSR;
 		sci_port->overrun_mask = SCIFA_ORER;
-		sci_port->sampling_rate_mask = SCI_SR(16);
+		sci_port->sampling_rate_mask = SCI_SR_SCIFAB;
 		break;
 	case PORT_SCIF:
 		port->fifosize = 16;
