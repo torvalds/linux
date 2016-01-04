@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2005-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 /*
  * The code contained herein is licensed under the GNU General Public
@@ -2315,6 +2315,7 @@ int32_t ipu_enable_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 	uint32_t out_dma;
 	uint32_t sec_dma;
 	uint32_t thrd_dma;
+	uint32_t di = 0;
 
 	mutex_lock(&ipu->mutex_lock);
 
@@ -2330,29 +2331,79 @@ int32_t ipu_enable_channel(struct ipu_soc *ipu, ipu_channel_t channel)
 	in_dma = channel_2_dma(channel, IPU_VIDEO_IN_BUFFER);
 
 	ipu_conf = ipu_cm_read(ipu, IPU_CONF);
-	if (ipu->di_use_count[0] > 0) {
-		ipu_conf |= IPU_CONF_DI0_EN;
+	switch (channel) {
+	case MEM_BG_SYNC:
+		di = ipu->dc_di_assignment[5];
+		if (ipu->di_use_count[di] > 0)
+			ipu_conf |= di ? IPU_CONF_DI1_EN : IPU_CONF_DI0_EN;
+		if (ipu->dp_use_count > 0)
+			ipu_conf |= IPU_CONF_DP_EN;
+		if (ipu->dc_use_count > 0)
+			ipu_conf |= IPU_CONF_DC_EN;
+		if (ipu->dmfc_use_count > 0)
+			ipu_conf |= IPU_CONF_DMFC_EN;
+		break;
+	case MEM_DC_SYNC:
+		di = ipu->dc_di_assignment[1];
+		if (ipu->di_use_count[di] > 0)
+			ipu_conf |= di ? IPU_CONF_DI1_EN : IPU_CONF_DI0_EN;
+		if (ipu->dc_use_count > 0)
+			ipu_conf |= IPU_CONF_DC_EN;
+		if (ipu->dmfc_use_count > 0)
+			ipu_conf |= IPU_CONF_DMFC_EN;
+		break;
+	case MEM_FG_SYNC:
+		if (ipu->dp_use_count > 0)
+			ipu_conf |= IPU_CONF_DP_EN;
+		if (ipu->dc_use_count > 0)
+			ipu_conf |= IPU_CONF_DC_EN;
+		if (ipu->dmfc_use_count > 0)
+			ipu_conf |= IPU_CONF_DMFC_EN;
+		break;
+	case DIRECT_ASYNC0:
+		di = ipu->dc_di_assignment[8];
+		/* fall through */
+	case DIRECT_ASYNC1:
+		di = ipu->dc_di_assignment[9];
+		if (ipu->di_use_count[di] > 0)
+			ipu_conf |= di ? IPU_CONF_DI1_EN : IPU_CONF_DI0_EN;
+		if (ipu->dc_use_count > 0)
+			ipu_conf |= IPU_CONF_DC_EN;
+		break;
+	case MEM_ROT_PP_MEM:
+	case MEM_ROT_ENC_MEM:
+	case MEM_ROT_VF_MEM:
+		if (ipu->rot_use_count > 0)
+			ipu_conf |= IPU_CONF_ROT_EN;
+		/* fall through */
+	case MEM_PP_MEM:
+	case MEM_PRP_ENC_MEM:
+	case MEM_PRP_VF_MEM:
+	case CSI_PRP_ENC_MEM:
+	case CSI_PRP_VF_MEM:
+		if (ipu->ic_use_count > 0)
+			ipu_conf |= IPU_CONF_IC_EN;
+		break;
+	case CSI_MEM0:
+	case CSI_MEM1:
+	case CSI_MEM2:
+	case CSI_MEM3:
+		if (ipu->smfc_use_count > 0)
+			ipu_conf |= IPU_CONF_SMFC_EN;
+		break;
+	case MEM_VDI_PRP_VF_MEM:
+	case MEM_VDI_MEM:
+		if (ipu->vdi_use_count > 0) {
+			ipu_conf |= IPU_CONF_ISP_EN;
+			ipu_conf |= IPU_CONF_VDI_EN;
+			ipu_conf |= IPU_CONF_IC_INPUT;
+		}
+		if (ipu->ic_use_count > 0)
+			ipu_conf |= IPU_CONF_IC_EN;
+		break;
+	default:
+		break;
 	}
-	if (ipu->di_use_count[1] > 0) {
-		ipu_conf |= IPU_CONF_DI1_EN;
-	}
-	if (ipu->dp_use_count > 0)
-		ipu_conf |= IPU_CONF_DP_EN;
-	if (ipu->dc_use_count > 0)
-		ipu_conf |= IPU_CONF_DC_EN;
-	if (ipu->dmfc_use_count > 0)
-		ipu_conf |= IPU_CONF_DMFC_EN;
-	if (ipu->ic_use_count > 0)
-		ipu_conf |= IPU_CONF_IC_EN;
-	if (ipu->vdi_use_count > 0) {
-		ipu_conf |= IPU_CONF_ISP_EN;
-		ipu_conf |= IPU_CONF_VDI_EN;
-		ipu_conf |= IPU_CONF_IC_INPUT;
-	}
-	if (ipu->rot_use_count > 0)
-		ipu_conf |= IPU_CONF_ROT_EN;
-	if (ipu->smfc_use_count > 0)
-		ipu_conf |= IPU_CONF_SMFC_EN;
 	ipu_cm_write(ipu, ipu_conf, IPU_CONF);
 
 	if (idma_is_valid(in_dma)) {
