@@ -693,7 +693,7 @@ static void snoop_recv(struct ib_mad_qp_info *qp_info,
 
 		atomic_inc(&mad_snoop_priv->refcount);
 		spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
-		mad_snoop_priv->agent.recv_handler(&mad_snoop_priv->agent,
+		mad_snoop_priv->agent.recv_handler(&mad_snoop_priv->agent, NULL,
 						   mad_recv_wc);
 		deref_snoop_agent(mad_snoop_priv);
 		spin_lock_irqsave(&qp_info->snoop_lock, flags);
@@ -1994,9 +1994,9 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 				/* user rmpp is in effect
 				 * and this is an active RMPP MAD
 				 */
-				mad_recv_wc->wc->wr_id = 0;
-				mad_agent_priv->agent.recv_handler(&mad_agent_priv->agent,
-								   mad_recv_wc);
+				mad_agent_priv->agent.recv_handler(
+						&mad_agent_priv->agent, NULL,
+						mad_recv_wc);
 				atomic_dec(&mad_agent_priv->refcount);
 			} else {
 				/* not user rmpp, revert to normal behavior and
@@ -2010,9 +2010,10 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 			spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
 			/* Defined behavior is to complete response before request */
-			mad_recv_wc->wc->wr_id = (unsigned long) &mad_send_wr->send_buf;
-			mad_agent_priv->agent.recv_handler(&mad_agent_priv->agent,
-							   mad_recv_wc);
+			mad_agent_priv->agent.recv_handler(
+					&mad_agent_priv->agent,
+					&mad_send_wr->send_buf,
+					mad_recv_wc);
 			atomic_dec(&mad_agent_priv->refcount);
 
 			mad_send_wc.status = IB_WC_SUCCESS;
@@ -2021,7 +2022,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 			ib_mad_complete_send_wr(mad_send_wr, &mad_send_wc);
 		}
 	} else {
-		mad_agent_priv->agent.recv_handler(&mad_agent_priv->agent,
+		mad_agent_priv->agent.recv_handler(&mad_agent_priv->agent, NULL,
 						   mad_recv_wc);
 		deref_mad_agent(mad_agent_priv);
 	}
@@ -2762,6 +2763,7 @@ static void local_completions(struct work_struct *work)
 					   IB_MAD_SNOOP_RECVS);
 			recv_mad_agent->agent.recv_handler(
 						&recv_mad_agent->agent,
+						&local->mad_send_wr->send_buf,
 						&local->mad_priv->header.recv_wc);
 			spin_lock_irqsave(&recv_mad_agent->lock, flags);
 			atomic_dec(&recv_mad_agent->refcount);

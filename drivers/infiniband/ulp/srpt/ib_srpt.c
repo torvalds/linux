@@ -455,6 +455,7 @@ static void srpt_mad_send_handler(struct ib_mad_agent *mad_agent,
  * srpt_mad_recv_handler() - MAD reception callback function.
  */
 static void srpt_mad_recv_handler(struct ib_mad_agent *mad_agent,
+				  struct ib_mad_send_buf *send_buf,
 				  struct ib_mad_recv_wc *mad_wc)
 {
 	struct srpt_port *sport = (struct srpt_port *)mad_agent->context;
