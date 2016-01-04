@@ -6475,13 +6475,11 @@ static void intel_connector_check_state(struct intel_connector *connector)
 
 int intel_connector_init(struct intel_connector *connector)
 {
-	struct drm_connector_state *connector_state;
+	drm_atomic_helper_connector_reset(&connector->base);
 
-	connector_state = kzalloc(sizeof *connector_state, GFP_KERNEL);
-	if (!connector_state)
+	if (!connector->base.state)
 		return -ENOMEM;
 
-	connector->base.state = connector_state;
 	return 0;
 }
 
