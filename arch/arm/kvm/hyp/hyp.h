@@ -21,6 +21,7 @@
 #include <linux/compiler.h>
 #include <linux/kvm_host.h>
 #include <asm/kvm_mmu.h>
+#include <asm/vfp.h>
 
 #define __hyp_text __section(.hyp.text) notrace
 
@@ -31,6 +32,8 @@
 	"mrc", "mcr", __stringify(p15, Op1, %0, CRn, CRm, Op2), u32
 #define __ACCESS_CP15_64(Op1, CRm)		\
 	"mrrc", "mcrr", __stringify(p15, Op1, %Q0, %R0, CRm), u64
+#define __ACCESS_VFP(CRn)			\
+	"mrc", "mcr", __stringify(p10, 7, %0, CRn, cr0, 0), u32
 
 #define __write_sysreg(v, r, w, c, t)	asm volatile(w " " c : : "r" ((t)(v)))
 #define write_sysreg(v, ...)		__write_sysreg(v, __VA_ARGS__)
@@ -53,6 +56,7 @@
 #define VMPIDR		__ACCESS_CP15(c0, 4, c0, 5)
 #define SCTLR		__ACCESS_CP15(c1, 0, c0, 0)
 #define CPACR		__ACCESS_CP15(c1, 0, c0, 2)
+#define HCPTR		__ACCESS_CP15(c1, 4, c1, 2)
 #define TTBCR		__ACCESS_CP15(c2, 0, c0, 2)
 #define DACR		__ACCESS_CP15(c3, 0, c0, 0)
 #define DFSR		__ACCESS_CP15(c5, 0, c0, 0)
@@ -77,6 +81,8 @@
 #define CNTV_CTL	__ACCESS_CP15(c14, 0, c3, 1)
 #define CNTHCTL		__ACCESS_CP15(c14, 4, c1, 0)
 
+#define VFP_FPEXC	__ACCESS_VFP(FPEXC)
+
 void __timer_save_state(struct kvm_vcpu *vcpu);
 void __timer_restore_state(struct kvm_vcpu *vcpu);
 
@@ -85,5 +91,12 @@ void __vgic_v2_restore_state(struct kvm_vcpu *vcpu);
 
 void __sysreg_save_state(struct kvm_cpu_context *ctxt);
 void __sysreg_restore_state(struct kvm_cpu_context *ctxt);
+
+void asmlinkage __vfp_save_state(struct vfp_hard_struct *vfp);
+void asmlinkage __vfp_restore_state(struct vfp_hard_struct *vfp);
+static inline bool __vfp_enabled(void)
+{
+	return !(read_sysreg(HCPTR) & (HCPTR_TCP(11) | HCPTR_TCP(10)));
+}
 
 #endif /* __ARM_KVM_HYP_H__ */
