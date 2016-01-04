@@ -1989,8 +1989,8 @@ static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port)
 	 * own VLANs.
 	 */
 	err = mlxsw_sp_port_kill_vid(dev, 0, 1);
-	if (err)
-		netdev_err(dev, "Failed to remove VID 1\n");
+	if (!err)
+		mlxsw_sp_port->bridged = 1;
 
 	return err;
 }
@@ -1998,16 +1998,13 @@ static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port)
 static int mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct net_device *dev = mlxsw_sp_port->dev;
-	int err;
+
+	mlxsw_sp_port->bridged = 0;
 
 	/* Add implicit VLAN interface in the device, so that untagged
 	 * packets will be classified to the default vFID.
 	 */
-	err = mlxsw_sp_port_add_vid(dev, 0, 1);
-	if (err)
-		netdev_err(dev, "Failed to add VID 1\n");
-
-	return err;
+	return mlxsw_sp_port_add_vid(dev, 0, 1);
 }
 
 static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,
@@ -2362,10 +2359,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 					return NOTIFY_BAD;
 				}
 				mlxsw_sp_master_bridge_inc(mlxsw_sp, upper_dev);
-				mlxsw_sp_port->bridged = 1;
 			} else {
 				err = mlxsw_sp_port_bridge_leave(mlxsw_sp_port);
-				mlxsw_sp_port->bridged = 0;
 				mlxsw_sp_master_bridge_dec(mlxsw_sp, upper_dev);
 				if (err) {
 					netdev_err(dev, "Failed to leave bridge\n");
