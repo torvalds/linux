@@ -74,9 +74,6 @@ static struct watchdog_device stmp3xxx_wdd = {
 static int wdt_notify_sys(struct notifier_block *nb, unsigned long code,
 			  void *unused)
 {
-	struct device *dev = watchdog_get_drvdata(&stmp3xxx_wdd);
-	struct stmp3xxx_wdt_pdata *pdata = dev_get_platdata(dev);
-
 	switch (code) {
 	case SYS_DOWN:	/* keep enabled, system might crash while going down */
 		break;
