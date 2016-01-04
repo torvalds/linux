@@ -252,6 +252,8 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	if (rt->rt_uses_gateway)
 		addr->network = RDMA_NETWORK_IPV4;
 
+	addr->hoplimit = ip4_dst_hoplimit(&rt->dst);
+
 	*prt = rt;
 	return 0;
 out:
@@ -294,6 +296,8 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	 */
 	if (rt->rt6i_flags & RTF_GATEWAY)
 		addr->network = RDMA_NETWORK_IPV6;
+
+	addr->hoplimit = ip6_dst_hoplimit(dst);
 
 	*pdst = dst;
 	return 0;
@@ -543,7 +547,8 @@ static void resolve_cb(int status, struct sockaddr *src_addr,
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *dmac, u16 *vlan_id, int *if_index)
+				 u8 *dmac, u16 *vlan_id, int *if_index,
+				 int *hoplimit)
 {
 	int ret = 0;
 	struct rdma_dev_addr dev_addr;
@@ -582,6 +587,8 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 		*if_index = dev_addr.bound_dev_if;
 	if (vlan_id)
 		*vlan_id = rdma_vlan_dev_vlan_id(dev);
+	if (hoplimit)
+		*hoplimit = dev_addr.hoplimit;
 	dev_put(dev);
 	return ret;
 }

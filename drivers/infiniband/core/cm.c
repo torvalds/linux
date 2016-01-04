@@ -1641,6 +1641,7 @@ static int cm_req_handler(struct cm_work *work)
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 
 	memcpy(work->path[0].dmac, cm_id_priv->av.ah_attr.dmac, ETH_ALEN);
+	work->path[0].hop_limit = cm_id_priv->av.ah_attr.grh.hop_limit;
 	ret = ib_get_cached_gid(work->port->cm_dev->ib_device,
 				work->port->port_num,
 				cm_id_priv->av.ah_attr.grh.sgid_index,

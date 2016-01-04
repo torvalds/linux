@@ -434,6 +434,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 	int ret;
 	enum rdma_network_type net_type = RDMA_NETWORK_IB;
 	enum ib_gid_type gid_type = IB_GID_TYPE_IB;
+	int hoplimit = 0xff;
 	union ib_gid dgid;
 	union ib_gid sgid;
 
@@ -471,7 +472,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 						   ah_attr->dmac,
 						   wc->wc_flags & IB_WC_WITH_VLAN ?
 						   NULL : &vlan_id,
-						   &if_index);
+						   &if_index, &hoplimit);
 		if (ret) {
 			dev_put(idev);
 			return ret;
@@ -520,7 +521,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		ah_attr->grh.sgid_index = (u8) gid_index;
 		flow_class = be32_to_cpu(grh->version_tclass_flow);
 		ah_attr->grh.flow_label = flow_class & 0xFFFFF;
-		ah_attr->grh.hop_limit = 0xFF;
+		ah_attr->grh.hop_limit = hoplimit;
 		ah_attr->grh.traffic_class = (flow_class >> 20) & 0xFF;
 	}
 	return 0;
@@ -1138,6 +1139,7 @@ int ib_resolve_eth_dmac(struct ib_qp *qp,
 			union ib_gid		sgid;
 			struct ib_gid_attr	sgid_attr;
 			int			ifindex;
+			int			hop_limit;
 
 			ret = ib_query_gid(qp->device,
 					   qp_attr->ah_attr.port_num,
@@ -1149,21 +1151,17 @@ int ib_resolve_eth_dmac(struct ib_qp *qp,
 					ret = -ENXIO;
 				goto out;
 			}
-			if (sgid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
-				/* TODO: get the hoplimit from the inet/inet6
-				 * device
-				 */
-				qp_attr->ah_attr.grh.hop_limit =
-							IPV6_DEFAULT_HOPLIMIT;
 
 			ifindex = sgid_attr.ndev->ifindex;
 
 			ret = rdma_addr_find_l2_eth_by_grh(&sgid,
 							   &qp_attr->ah_attr.grh.dgid,
 							   qp_attr->ah_attr.dmac,
-							   NULL, &ifindex);
+							   NULL, &ifindex, &hop_limit);
 
 			dev_put(sgid_attr.ndev);
+
+			qp_attr->ah_attr.grh.hop_limit = hop_limit;
 		}
 	}
 out:
