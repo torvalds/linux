@@ -48,6 +48,7 @@
 
 #define DRV_VERSION "0.6"
 
+/* REGISTERS */
 #define PCF2123_REG_CTRL1	(0x00)	/* Control Register 1 */
 #define PCF2123_REG_CTRL2	(0x01)	/* Control Register 2 */
 #define PCF2123_REG_SC		(0x02)	/* datetime */
@@ -57,10 +58,53 @@
 #define PCF2123_REG_DW		(0x06)
 #define PCF2123_REG_MO		(0x07)
 #define PCF2123_REG_YR		(0x08)
+#define PCF2123_REG_ALRM_MN	(0x09)	/* Alarm Registers */
+#define PCF2123_REG_ALRM_HR	(0x0a)
+#define PCF2123_REG_ALRM_DM	(0x0b)
+#define PCF2123_REG_ALRM_DW	(0x0c)
+#define PCF2123_REG_OFFSET	(0x0d)	/* Clock Rate Offset Register */
+#define PCF2123_REG_TMR_CLKOUT	(0x0e)	/* Timer Registers */
+#define PCF2123_REG_CTDWN_TMR	(0x0f)
 
-#define PCF2123_SUBADDR		(1 << 4)
-#define PCF2123_WRITE		((0 << 7) | PCF2123_SUBADDR)
-#define PCF2123_READ		((1 << 7) | PCF2123_SUBADDR)
+/* PCF2123_REG_CTRL1 BITS */
+#define CTRL1_CLEAR		(0)	/* Clear */
+#define CTRL1_CORR_INT		BIT(1)	/* Correction irq enable */
+#define CTRL1_12_HOUR		BIT(2)	/* 12 hour time */
+#define CTRL1_SW_RESET	(BIT(3) | BIT(4) | BIT(6))	/* Software reset */
+#define CTRL1_STOP		BIT(5)	/* Stop the clock */
+#define CTRL1_EXT_TEST		BIT(7)	/* External clock test mode */
+
+/* PCF2123_REG_CTRL2 BITS */
+#define CTRL2_TIE		BIT(0)	/* Countdown timer irq enable */
+#define CTRL2_AIE		BIT(1)	/* Alarm irq enable */
+#define CTRL2_TF		BIT(2)	/* Countdown timer flag */
+#define CTRL2_AF		BIT(3)	/* Alarm flag */
+#define CTRL2_TI_TP		BIT(4)	/* Irq pin generates pulse */
+#define CTRL2_MSF		BIT(5)	/* Minute or second irq flag */
+#define CTRL2_SI		BIT(6)	/* Second irq enable */
+#define CTRL2_MI		BIT(7)	/* Minute irq enable */
+
+/* PCF2123_REG_SC BITS */
+#define OSC_HAS_STOPPED		BIT(7)	/* Clock has been stopped */
+
+/* PCF2123_REG_ALRM_XX BITS */
+#define ALRM_ENABLE		BIT(7)	/* MN, HR, DM, or DW alarm enable */
+
+/* PCF2123_REG_TMR_CLKOUT BITS */
+#define CD_TMR_4096KHZ		(0)	/* 4096 KHz countdown timer */
+#define CD_TMR_64HZ		(1)	/* 64 Hz countdown timer */
+#define CD_TMR_1HZ		(2)	/* 1 Hz countdown timer */
+#define CD_TMR_60th_HZ		(3)	/* 60th Hz countdown timer */
+#define CD_TMR_TE		BIT(3)	/* Countdown timer enable */
+
+/* PCF2123_REG_OFFSET BITS */
+#define OFFSET_SIGN_BIT		BIT(6)	/* 2's complement sign bit */
+#define OFFSET_COARSE		BIT(7)	/* Coarse mode offset */
+
+/* READ/WRITE ADDRESS BITS */
+#define PCF2123_WRITE		BIT(4)
+#define PCF2123_READ		(BIT(4) | BIT(7))
+
 
 static struct spi_driver pcf2123_driver;
 
