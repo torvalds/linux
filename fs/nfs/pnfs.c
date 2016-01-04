@@ -569,7 +569,7 @@ pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 			    struct pnfs_layout_range *recall_range)
 {
 	struct pnfs_layout_segment *lseg, *next;
-	int invalid = 0, removed = 0;
+	int remaining = 0;
 
 	dprintk("%s:Begin lo %p\n", __func__, lo);
 
@@ -582,11 +582,11 @@ pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 				"offset %llu length %llu\n", __func__,
 				lseg, lseg->pls_range.iomode, lseg->pls_range.offset,
 				lseg->pls_range.length);
-			invalid++;
-			removed += mark_lseg_invalid(lseg, tmp_list);
+			if (!mark_lseg_invalid(lseg, tmp_list))
+				remaining++;
 		}
-	dprintk("%s:Return %i\n", __func__, invalid - removed);
-	return invalid - removed;
+	dprintk("%s:Return %i\n", __func__, remaining);
+	return remaining;
 }
 
 /* note free_me must contain lsegs from a single layout_hdr */
