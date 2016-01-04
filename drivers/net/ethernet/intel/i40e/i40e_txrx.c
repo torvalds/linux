@@ -1226,8 +1226,8 @@ void i40e_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 		}
 
 		dma_sync_single_range_for_device(rx_ring->dev,
-						 bi->dma,
-						 0,
+						 rx_ring->rx_bi[0].dma,
+						 i * rx_ring->rx_hdr_len,
 						 rx_ring->rx_hdr_len,
 						 DMA_FROM_DEVICE);
 		/* Refresh the desc even if buffer_addrs didn't change
@@ -1542,8 +1542,8 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 			skb_record_rx_queue(skb, rx_ring->queue_index);
 			/* we are reusing so sync this buffer for CPU use */
 			dma_sync_single_range_for_cpu(rx_ring->dev,
-						      rx_bi->dma,
-						      0,
+						      rx_ring->rx_bi[0].dma,
+						      i * rx_ring->rx_hdr_len,
 						      rx_ring->rx_hdr_len,
 						      DMA_FROM_DEVICE);
 		}
