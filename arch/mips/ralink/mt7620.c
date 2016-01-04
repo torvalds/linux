@@ -572,7 +572,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	}
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
-		"Ralink %s ver:%u eco:%u",
+		"MediaTek %s ver:%u eco:%u",
 		name,
 		(rev >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK,
 		(rev & CHIP_REV_ECO_MASK));
