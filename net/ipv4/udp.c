@@ -514,7 +514,7 @@ begin:
 				struct sock *sk2;
 				hash = udp_ehashfn(net, daddr, hnum,
 						   saddr, sport);
-				sk2 = reuseport_select_sock(sk, hash);
+				sk2 = reuseport_select_sock(sk, hash, NULL, 0);
 				if (sk2) {
 					result = sk2;
 					goto found;
@@ -553,7 +553,7 @@ found:
  */
 struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 		__be16 sport, __be32 daddr, __be16 dport,
-		int dif, struct udp_table *udptable)
+		int dif, struct udp_table *udptable, struct sk_buff *skb)
 {
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
@@ -602,7 +602,8 @@ begin:
 				struct sock *sk2;
 				hash = udp_ehashfn(net, daddr, hnum,
 						   saddr, sport);
-				sk2 = reuseport_select_sock(sk, hash);
+				sk2 = reuseport_select_sock(sk, hash, skb,
+							sizeof(struct udphdr));
 				if (sk2) {
 					result = sk2;
 					goto found;
@@ -647,14 +648,14 @@ static inline struct sock *__udp4_lib_lookup_skb(struct sk_buff *skb,
 
 	return __udp4_lib_lookup(dev_net(skb_dst(skb)->dev), iph->saddr, sport,
 				 iph->daddr, dport, inet_iif(skb),
-				 udptable);
+				 udptable, skb);
 }
 
 struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 			     __be32 daddr, __be16 dport, int dif)
 {
 	return __udp4_lib_lookup(net, saddr, sport, daddr, dport, dif,
-				 &udp_table);
+				 &udp_table, NULL);
 }
 EXPORT_SYMBOL_GPL(udp4_lib_lookup);
 
@@ -702,7 +703,8 @@ void __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 	struct net *net = dev_net(skb->dev);
 
 	sk = __udp4_lib_lookup(net, iph->daddr, uh->dest,
-			iph->saddr, uh->source, skb->dev->ifindex, udptable);
+			iph->saddr, uh->source, skb->dev->ifindex, udptable,
+			NULL);
 	if (!sk) {
 		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 		return;	/* No socket for error */
