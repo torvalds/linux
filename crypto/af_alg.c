@@ -76,6 +76,8 @@ int af_alg_register_type(const struct af_alg_type *type)
 		goto unlock;
 
 	type->ops->owner = THIS_MODULE;
+	if (type->ops_nokey)
+		type->ops_nokey->owner = THIS_MODULE;
 	node->type = type;
 	list_add(&node->list, &alg_types);
 	err = 0;
@@ -267,6 +269,7 @@ int af_alg_accept(struct sock *sk, struct socket *newsock)
 	const struct af_alg_type *type;
 	struct sock *sk2;
 	int err;
+	bool nokey;
 
 	lock_sock(sk);
 	type = ask->type;
@@ -285,18 +288,26 @@ int af_alg_accept(struct sock *sk, struct socket *newsock)
 	security_sk_clone(sk, sk2);
 
 	err = type->accept(ask->private, sk2);
+
+	nokey = err == -ENOKEY;
+	if (nokey && type->accept_nokey)
+		err = type->accept_nokey(ask->private, sk2);
+
 	if (err)
 		goto unlock;
 
 	sk2->sk_family = PF_ALG;
 
-	if (!ask->refcnt++)
+	if (nokey || !ask->refcnt++)
 		sock_hold(sk);
 	alg_sk(sk2)->parent = sk;
 	alg_sk(sk2)->type = type;
 
 	newsock->ops = type->ops;
 	newsock->state = SS_CONNECTED;
+
+	if (nokey)
+		newsock->ops = type->ops_nokey;
 
 	err = 0;
 
