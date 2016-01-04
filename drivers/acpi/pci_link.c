@@ -877,17 +877,9 @@ static int __init acpi_irq_penalty_update(char *str, int used)
  */
 void acpi_penalize_isa_irq(int irq, int active)
 {
-	int penalty;
-
-	if (irq < 0)
-		return;
-
-	if (active)
-		penalty = PIRQ_PENALTY_ISA_USED;
-	else
-		penalty = PIRQ_PENALTY_PCI_USING;
-
-	acpi_irq_add_penalty(irq, penalty);
+	if (irq >= 0)
+		acpi_irq_add_penalty(irq, active ?
+			PIRQ_PENALTY_ISA_USED : PIRQ_PENALTY_PCI_USING);
 }
 
 bool acpi_isa_irq_available(int irq)
