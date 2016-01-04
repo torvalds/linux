@@ -6171,6 +6171,14 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 			       rdev->vm_manager.saved_table_addr[i]);
 	}
 
+	if (rdev->family == CHIP_LIVERPOOL) {
+		for (i = 2; i < 8; i++) {
+			WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR + (i << 2), 0);
+			WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR + (i << 2),
+			       rdev->vm_manager.max_pfn - 1);
+		}
+	}
+
 	/* enable context1-15 */
 	WREG32(VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR,
 	       (u32)(rdev->dummy_page.addr >> 12));
