@@ -220,6 +220,9 @@ static void drm_gem_object_exported_dma_buf_free(struct drm_gem_object *obj)
 static void
 drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 {
+	struct drm_device *dev = obj->dev;
+	bool final = false;
+
 	if (WARN_ON(obj->handle_count == 0))
 		return;
 
@@ -229,14 +232,16 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 	* checked for a name
 	*/
 
-	mutex_lock(&obj->dev->object_name_lock);
+	mutex_lock(&dev->object_name_lock);
 	if (--obj->handle_count == 0) {
 		drm_gem_object_handle_free(obj);
 		drm_gem_object_exported_dma_buf_free(obj);
+		final = true;
 	}
-	mutex_unlock(&obj->dev->object_name_lock);
+	mutex_unlock(&dev->object_name_lock);
 
-	drm_gem_object_unreference_unlocked(obj);
+	if (final)
+		drm_gem_object_unreference_unlocked(obj);
 }
 
 /**
@@ -329,6 +334,8 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	int ret;
 
 	WARN_ON(!mutex_is_locked(&dev->object_name_lock));
+	if (obj->handle_count++ == 0)
+		drm_gem_object_reference(obj);
 
 	/*
 	 * Get the user-visible handle using idr.  Preload and perform
@@ -338,10 +345,10 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	spin_lock(&file_priv->table_lock);
 
 	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_NOWAIT);
-	drm_gem_object_reference(obj);
-	obj->handle_count++;
+
 	spin_unlock(&file_priv->table_lock);
 	idr_preload_end();
+
 	mutex_unlock(&dev->object_name_lock);
 	if (ret < 0)
 		goto err_unref;
