@@ -2357,16 +2357,20 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 		} else if (netif_is_bridge_master(upper_dev)) {
 			if (info->linking) {
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port);
-				if (err)
+				if (err) {
 					netdev_err(dev, "Failed to join bridge\n");
+					return NOTIFY_BAD;
+				}
 				mlxsw_sp_master_bridge_inc(mlxsw_sp, upper_dev);
 				mlxsw_sp_port->bridged = 1;
 			} else {
 				err = mlxsw_sp_port_bridge_leave(mlxsw_sp_port);
-				if (err)
-					netdev_err(dev, "Failed to leave bridge\n");
 				mlxsw_sp_port->bridged = 0;
 				mlxsw_sp_master_bridge_dec(mlxsw_sp, upper_dev);
+				if (err) {
+					netdev_err(dev, "Failed to leave bridge\n");
+					return NOTIFY_BAD;
+				}
 			}
 		} else if (netif_is_lag_master(upper_dev)) {
 			if (info->linking) {
