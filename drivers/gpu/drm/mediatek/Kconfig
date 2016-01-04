@@ -14,3 +14,11 @@ config DRM_MEDIATEK
 	  The module will be called mediatek-drm
 	  This driver provides kernel mode setting and
 	  buffer management to userspace.
+
+config DRM_MEDIATEK_HDMI
+	tristate "DRM HDMI Support for Mediatek SoCs"
+	depends on DRM_MEDIATEK
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	select GENERIC_PHY
+	help
+	  DRM/KMS HDMI driver for Mediatek SoCs
