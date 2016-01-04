@@ -863,17 +863,9 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status acpi_leave_sleep_state(u8 sleep_state))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vectors
+				acpi_set_firmware_waking_vector
 				(acpi_physical_address physical_address,
 				 acpi_physical_address physical_address64))
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				 acpi_set_firmware_waking_vector(u32
-								 physical_address))
-#if ACPI_MACHINE_WIDTH == 64
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vector64(u64
-								  physical_address))
-#endif
 /*
  * ACPI Timer interfaces
  */
