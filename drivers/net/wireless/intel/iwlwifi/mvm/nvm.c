@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -670,6 +672,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		.source_id = (u8)src_id,
 	};
 	struct iwl_mcc_update_resp *mcc_resp, *resp_cp = NULL;
+	struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = NULL;
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = MCC_UPDATE_CMD,
@@ -681,11 +684,15 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 	u32 status;
 	int resp_len, n_channels;
 	u16 mcc;
+	bool resp_v2 = fw_has_capa(&mvm->fw->ucode_capa,
+				   IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	cmd.len[0] = sizeof(struct iwl_mcc_update_cmd);
+	if (!resp_v2)
+		cmd.len[0] = sizeof(struct iwl_mcc_update_cmd_v1);
 
 	IWL_DEBUG_LAR(mvm, "send MCC update to FW with '%c%c' src = %d\n",
 		      alpha2[0], alpha2[1], src_id);
@@ -697,31 +704,50 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 	pkt = cmd.resp_pkt;
 
 	/* Extract MCC response */
-	mcc_resp = (void *)pkt->data;
-	status = le32_to_cpu(mcc_resp->status);
-
-	mcc = le16_to_cpu(mcc_resp->mcc);
-
-	/* W/A for a FW/NVM issue - returns 0x00 for the world domain */
-	if (mcc == 0) {
-		mcc = 0x3030;  /* "00" - world */
-		mcc_resp->mcc = cpu_to_le16(mcc);
+	if (resp_v2) {
+		mcc_resp = (void *)pkt->data;
+		n_channels =  __le32_to_cpu(mcc_resp->n_channels);
+	} else {
+		mcc_resp_v1 = (void *)pkt->data;
+		n_channels =  __le32_to_cpu(mcc_resp_v1->n_channels);
 	}
 
-	n_channels =  __le32_to_cpu(mcc_resp->n_channels);
-	IWL_DEBUG_LAR(mvm,
-		      "MCC response status: 0x%x. new MCC: 0x%x ('%c%c') change: %d n_chans: %d\n",
-		      status, mcc, mcc >> 8, mcc & 0xff,
-		      !!(status == MCC_RESP_NEW_CHAN_PROFILE), n_channels);
+	resp_len = sizeof(struct iwl_mcc_update_resp) + n_channels *
+		sizeof(__le32);
 
-	resp_len = sizeof(*mcc_resp) + n_channels * sizeof(__le32);
-	resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
+	resp_cp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp_cp) {
 		ret = -ENOMEM;
 		goto exit;
 	}
 
-	ret = 0;
+	if (resp_v2) {
+		memcpy(resp_cp, mcc_resp, resp_len);
+	} else {
+		resp_cp->status = mcc_resp_v1->status;
+		resp_cp->mcc = mcc_resp_v1->mcc;
+		resp_cp->cap = mcc_resp_v1->cap;
+		resp_cp->source_id = mcc_resp_v1->source_id;
+		resp_cp->n_channels = mcc_resp_v1->n_channels;
+		memcpy(resp_cp->channels, mcc_resp_v1->channels,
+		       n_channels * sizeof(__le32));
+	}
+
+	status = le32_to_cpu(resp_cp->status);
+
+	mcc = le16_to_cpu(resp_cp->mcc);
+
+	/* W/A for a FW/NVM issue - returns 0x00 for the world domain */
+	if (mcc == 0) {
+		mcc = 0x3030;  /* "00" - world */
+		resp_cp->mcc = cpu_to_le16(mcc);
+	}
+
+	IWL_DEBUG_LAR(mvm,
+		      "MCC response status: 0x%x. new MCC: 0x%x ('%c%c') change: %d n_chans: %d\n",
+		      status, mcc, mcc >> 8, mcc & 0xff,
+		      !!(status == MCC_RESP_NEW_CHAN_PROFILE), n_channels);
+
 exit:
 	iwl_free_resp(&cmd);
 	if (ret)
