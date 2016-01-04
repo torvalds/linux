@@ -3,8 +3,6 @@
 
 #define NR_IRQS		32
 
-void free_IRQ(void);
-
 #include <uapi/asm/irq.h>
 
 #endif
