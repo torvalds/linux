@@ -1199,36 +1199,6 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_add_affected_planes);
 
 /**
- * drm_atomic_connectors_for_crtc - count number of connected outputs
- * @state: atomic state
- * @crtc: DRM crtc
- *
- * This function counts all connectors which will be connected to @crtc
- * according to @state. Useful to recompute the enable state for @crtc.
- */
-int
-drm_atomic_connectors_for_crtc(struct drm_atomic_state *state,
-			       struct drm_crtc *crtc)
-{
-	struct drm_connector *connector;
-	struct drm_connector_state *conn_state;
-
-	int i, num_connected_connectors = 0;
-
-	for_each_connector_in_state(state, connector, conn_state, i) {
-		if (conn_state->crtc == crtc)
-			num_connected_connectors++;
-	}
-
-	DRM_DEBUG_ATOMIC("State %p has %i connectors for [CRTC:%d:%s]\n",
-			 state, num_connected_connectors,
-			 crtc->base.id, crtc->name);
-
-	return num_connected_connectors;
-}
-EXPORT_SYMBOL(drm_atomic_connectors_for_crtc);
-
-/**
  * drm_atomic_legacy_backoff - locking backoff for legacy ioctls
  * @state: atomic state
  *
