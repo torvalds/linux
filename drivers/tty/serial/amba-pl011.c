@@ -238,7 +238,6 @@ struct uart_amba_port {
 	unsigned int		fifosize;	/* vendor-specific */
 	unsigned int		old_cr;		/* state during shutdown */
 	bool			autorts;
-	bool			access_32b;
 	unsigned int		fixed_baud;	/* vendor-set fixed baud rate */
 	char			type[12];
 #ifdef CONFIG_DMA_ENGINE
@@ -262,7 +261,8 @@ static unsigned int pl011_read(const struct uart_amba_port *uap,
 {
 	void __iomem *addr = uap->port.membase + pl011_reg_to_offset(uap, reg);
 
-	return uap->access_32b ? readl_relaxed(addr) : readw_relaxed(addr);
+	return (uap->port.iotype == UPIO_MEM32) ?
+		readl_relaxed(addr) : readw_relaxed(addr);
 }
 
 static void pl011_write(unsigned int val, const struct uart_amba_port *uap,
@@ -270,7 +270,7 @@ static void pl011_write(unsigned int val, const struct uart_amba_port *uap,
 {
 	void __iomem *addr = uap->port.membase + pl011_reg_to_offset(uap, reg);
 
-	if (uap->access_32b)
+	if (uap->port.iotype == UPIO_MEM32)
 		writel_relaxed(val, addr);
 	else
 		writew_relaxed(val, addr);
@@ -2303,7 +2303,10 @@ static void pl011_putc(struct uart_port *port, int c)
 {
 	while (readl(port->membase + UART01x_FR) & UART01x_FR_TXFF)
 		;
-	writeb(c, port->membase + UART01x_DR);
+	if (port->iotype == UPIO_MEM32)
+		writel(c, port->membase + UART01x_DR);
+	else
+		writeb(c, port->membase + UART01x_DR);
 	while (readl(port->membase + UART01x_FR) & UART01x_FR_BUSY)
 		;
 }
@@ -2416,7 +2419,6 @@ static int pl011_setup_port(struct device *dev, struct uart_amba_port *uap,
 	uap->port.dev = dev;
 	uap->port.mapbase = mmiobase->start;
 	uap->port.membase = base;
-	uap->port.iotype = UPIO_MEM;
 	uap->port.fifosize = uap->fifosize;
 	uap->port.flags = UPF_BOOT_AUTOCONF;
 	uap->port.line = index;
@@ -2470,9 +2472,9 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 		return PTR_ERR(uap->clk);
 
 	uap->reg_offset = vendor->reg_offset;
-	uap->access_32b = vendor->access_32b;
 	uap->vendor = vendor;
 	uap->fifosize = vendor->get_fifosize(dev);
+	uap->port.iotype = vendor->access_32b ? UPIO_MEM32 : UPIO_MEM;
 	uap->port.irq = dev->irq[0];
 	uap->port.ops = &amba_pl011_pops;
 
@@ -2551,9 +2553,9 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	uap->reg_offset	= vendor_sbsa.reg_offset;
-	uap->access_32b = vendor_sbsa.access_32b;
 	uap->vendor	= &vendor_sbsa;
 	uap->fifosize	= 32;
+	uap->port.iotype = vendor_sbsa.access_32b ? UPIO_MEM32 : UPIO_MEM;
 	uap->port.irq	= platform_get_irq(pdev, 0);
 	uap->port.ops	= &sbsa_uart_pops;
 	uap->fixed_baud = baudrate;

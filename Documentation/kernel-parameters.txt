@@ -1003,10 +1003,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unspecified, the h/w is not initialized.
 
 		pl011,<addr>
+		pl011,mmio32,<addr>
 			Start an early, polled-mode console on a pl011 serial
 			port at the specified address. The pl011 serial port
 			must already be setup and configured. Options are not
-			yet supported.
+			yet supported.  If 'mmio32' is specified, then only
+			the driver will use only 32-bit accessors to read/write
+			the device registers.
 
 		msm_serial,<addr>
 			Start an early, polled-mode console on an msm serial
