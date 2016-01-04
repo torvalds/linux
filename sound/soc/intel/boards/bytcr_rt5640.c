@@ -153,6 +153,11 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 
 	card->dapm.idle_bias_off = true;
 
+	rt5640_sel_asrc_clk_src(codec,
+				RT5640_DA_STEREO_FILTER |
+				RT5640_AD_STEREO_FILTER,
+				RT5640_CLK_SEL_ASRC);
+
 	ret = snd_soc_add_card_controls(card, byt_rt5640_controls,
 					ARRAY_SIZE(byt_rt5640_controls));
 	if (ret) {
