@@ -131,6 +131,20 @@ struct drm_crtc_helper_funcs {
 	 * Atomic drivers which need to inspect and adjust more state should
 	 * instead use the @atomic_check callback.
 	 *
+	 * Also beware that neither core nor helpers filter modes before
+	 * passing them to the driver: While the list of modes that is
+	 * advertised to userspace is filtered using the connector's
+	 * ->mode_valid() callback, neither the core nor the helpers do any
+	 * filtering on modes passed in from userspace when setting a mode. It
+	 * is therefore possible for userspace to pass in a mode that was
+	 * previously filtered out using ->mode_valid() or add a custom mode
+	 * that wasn't probed from EDID or similar to begin with.  Even though
+	 * this is an advanced feature and rarely used nowadays, some users rely
+	 * on being able to specify modes manually so drivers must be prepared
+	 * to deal with it. Specifically this means that all drivers need not
+	 * only validate modes in ->mode_valid() but also in ->mode_fixup() to
+	 * make sure invalid modes passed in from userspace are rejected.
+	 *
 	 * RETURNS:
 	 *
 	 * True if an acceptable configuration is possible, false if the modeset
@@ -188,7 +202,9 @@ struct drm_crtc_helper_funcs {
 	 * This callback is used by the legacy CRTC helpers to set a new
 	 * framebuffer and scanout position. It is optional and used as an
 	 * optimized fast-path instead of a full mode set operation with all the
-	 * resulting flickering. Since it can't update other planes it's
+	 * resulting flickering. If it is not present
+	 * drm_crtc_helper_set_config() will fall back to a full modeset, using
+	 * the ->mode_set() callback. Since it can't update other planes it's
 	 * incompatible with atomic modeset support.
 	 *
 	 * This callback is only used by the CRTC helpers and deprecated.
@@ -439,6 +455,20 @@ struct drm_encoder_helper_funcs {
 	 * Atomic drivers which need to inspect and adjust more state should
 	 * instead use the @atomic_check callback.
 	 *
+	 * Also beware that neither core nor helpers filter modes before
+	 * passing them to the driver: While the list of modes that is
+	 * advertised to userspace is filtered using the connector's
+	 * ->mode_valid() callback, neither the core nor the helpers do any
+	 * filtering on modes passed in from userspace when setting a mode. It
+	 * is therefore possible for userspace to pass in a mode that was
+	 * previously filtered out using ->mode_valid() or add a custom mode
+	 * that wasn't probed from EDID or similar to begin with.  Even though
+	 * this is an advanced feature and rarely used nowadays, some users rely
+	 * on being able to specify modes manually so drivers must be prepared
+	 * to deal with it. Specifically this means that all drivers need not
+	 * only validate modes in ->mode_valid() but also in ->mode_fixup() to
+	 * make sure invalid modes passed in from userspace are rejected.
+	 *
 	 * RETURNS:
 	 *
 	 * True if an acceptable configuration is possible, false if the modeset
@@ -640,8 +670,16 @@ struct drm_connector_helper_funcs {
 	 * In this function drivers then parse the modes in the EDID and add
 	 * them by calling drm_add_edid_modes(). But connectors that driver a
 	 * fixed panel can also manually add specific modes using
-	 * drm_mode_probed_add(). Finally drivers that support audio probably
-	 * want to update the ELD data, too, using drm_edid_to_eld().
+	 * drm_mode_probed_add(). Drivers which manually add modes should also
+	 * make sure that the @display_info, @width_mm and @height_mm fields of the
+	 * struct #drm_connector are filled in.
+	 *
+	 * Virtual drivers that just want some standard VESA mode with a given
+	 * resolution can call drm_add_modes_noedid(), and mark the preferred
+	 * one using drm_set_preferred_mode().
+	 *
+	 * Finally drivers that support audio probably want to update the ELD
+	 * data, too, using drm_edid_to_eld().
 	 *
 	 * This function is only called after the ->detect() hook has indicated
 	 * that a sink is connected and when the EDID isn't overridden through
