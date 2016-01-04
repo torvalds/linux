@@ -784,7 +784,7 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 {
 	struct buffer_head map_bh;
 	sector_t start_blk, last_blk;
-	loff_t isize = i_size_read(inode);
+	loff_t isize;
 	u64 logical = 0, phys = 0, size = 0;
 	u32 flags = 0;
 	int ret = 0;
@@ -800,6 +800,8 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	}
 
 	mutex_lock(&inode->i_mutex);
+
+	isize = i_size_read(inode);
 	if (start >= isize)
 		goto out;
 
