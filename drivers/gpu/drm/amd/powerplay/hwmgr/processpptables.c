@@ -735,8 +735,8 @@ static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
 
 	ps->memory.dllOff = (0 != tmp);
 
-	ps->memory.m3arb = (uint8_t)(le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
-						ATOM_PPLIB_M3ARB_MASK) >> ATOM_PPLIB_M3ARB_SHIFT;
+	ps->memory.m3arb = (le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &
+			    ATOM_PPLIB_M3ARB_MASK) >> ATOM_PPLIB_M3ARB_SHIFT;
 
 	ps->temperatures.min = PP_TEMPERATURE_UNITS_PER_CENTIGRADES *
 				     pnon_clock_info->ucMinTemperature;
