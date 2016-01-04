@@ -28,7 +28,6 @@
 #include <linux/wait.h>
 #include <linux/acpi.h>
 #include <linux/freezer.h>
-#include <acpi/actbl2.h>
 #include "tpm.h"
 
 enum tis_access {
