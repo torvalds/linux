@@ -6215,6 +6215,12 @@ S:	Maintained
 F:	net/l3mdev
 F:	include/net/l3mdev.h
 
+LANTIQ MIPS ARCHITECTURE
+M:	John Crispin <blogic@openwrt.org>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/lantiq
+
 LAPB module
 L:	linux-x25@vger.kernel.org
 S:	Orphan
