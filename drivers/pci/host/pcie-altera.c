@@ -55,8 +55,10 @@
 #define TLP_CFG_DW2(bus, devfn, offset)	\
 				(((bus) << 24) | ((devfn) << 16) | (offset))
 #define TLP_REQ_ID(bus, devfn)		(((bus) << 8) | (devfn))
+#define TLP_COMP_STATUS(s)		(((s) >> 12) & 7)
 #define TLP_HDR_SIZE			3
 #define TLP_LOOP			500
+#define RP_DEVFN			0
 
 #define INTX_NUM			4
 
@@ -166,34 +168,41 @@ static bool altera_pcie_valid_config(struct altera_pcie *pcie,
 
 static int tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 {
-	u8 loop;
+	int i;
 	bool sop = 0;
 	u32 ctrl;
 	u32 reg0, reg1;
+	u32 comp_status = 1;
 
 	/*
 	 * Minimum 2 loops to read TLP headers and 1 loop to read data
 	 * payload.
 	 */
-	for (loop = 0; loop < TLP_LOOP; loop++) {
+	for (i = 0; i < TLP_LOOP; i++) {
 		ctrl = cra_readl(pcie, RP_RXCPL_STATUS);
 		if ((ctrl & RP_RXCPL_SOP) || (ctrl & RP_RXCPL_EOP) || sop) {
 			reg0 = cra_readl(pcie, RP_RXCPL_REG0);
 			reg1 = cra_readl(pcie, RP_RXCPL_REG1);
 
-			if (ctrl & RP_RXCPL_SOP)
+			if (ctrl & RP_RXCPL_SOP) {
 				sop = true;
+				comp_status = TLP_COMP_STATUS(reg1);
+			}
 
 			if (ctrl & RP_RXCPL_EOP) {
+				if (comp_status)
+					return PCIBIOS_DEVICE_NOT_FOUND;
+
 				if (value)
 					*value = reg0;
+
 				return PCIBIOS_SUCCESSFUL;
 			}
 		}
 		udelay(5);
 	}
 
-	return -ENOENT;
+	return PCIBIOS_DEVICE_NOT_FOUND;
 }
 
 static void tlp_write_packet(struct altera_pcie *pcie, u32 *headers,
@@ -233,7 +242,7 @@ static int tlp_cfg_dword_read(struct altera_pcie *pcie, u8 bus, u32 devfn,
 	else
 		headers[0] = TLP_CFG_DW0(TLP_FMTTYPE_CFGRD1);
 
-	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, devfn),
+	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, RP_DEVFN),
 					TLP_READ_TAG, byte_en);
 	headers[2] = TLP_CFG_DW2(bus, devfn, where);
 
@@ -253,7 +262,7 @@ static int tlp_cfg_dword_write(struct altera_pcie *pcie, u8 bus, u32 devfn,
 	else
 		headers[0] = TLP_CFG_DW0(TLP_FMTTYPE_CFGWR1);
 
-	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, devfn),
+	headers[1] = TLP_CFG_DW1(TLP_REQ_ID(pcie->root_bus_nr, RP_DEVFN),
 					TLP_WRITE_TAG, byte_en);
 	headers[2] = TLP_CFG_DW2(bus, devfn, where);
 
@@ -458,7 +467,7 @@ static int altera_pcie_init_irq_domain(struct altera_pcie *pcie)
 	struct device_node *node = dev->of_node;
 
 	/* Setup INTx */
-	pcie->irq_domain = irq_domain_add_linear(node, INTX_NUM,
+	pcie->irq_domain = irq_domain_add_linear(node, INTX_NUM + 1,
 					&intx_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");

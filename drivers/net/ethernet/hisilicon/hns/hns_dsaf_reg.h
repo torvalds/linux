@@ -898,7 +898,7 @@
 #define XGMAC_PAUSE_CTL_RSP_MODE_B	2
 #define XGMAC_PAUSE_CTL_TX_XOFF_B	3
 
-static inline void dsaf_write_reg(void *base, u32 reg, u32 value)
+static inline void dsaf_write_reg(void __iomem *base, u32 reg, u32 value)
 {
 	u8 __iomem *reg_addr = ACCESS_ONCE(base);
 
@@ -908,7 +908,7 @@ static inline void dsaf_write_reg(void *base, u32 reg, u32 value)
 #define dsaf_write_dev(a, reg, value) \
 	dsaf_write_reg((a)->io_base, (reg), (value))
 
-static inline u32 dsaf_read_reg(u8 *base, u32 reg)
+static inline u32 dsaf_read_reg(u8 __iomem *base, u32 reg)
 {
 	u8 __iomem *reg_addr = ACCESS_ONCE(base);
 
@@ -927,8 +927,8 @@ static inline u32 dsaf_read_reg(u8 *base, u32 reg)
 #define dsaf_set_bit(origin, shift, val) \
 	dsaf_set_field((origin), (1ull << (shift)), (shift), (val))
 
-static inline void dsaf_set_reg_field(void *base, u32 reg, u32 mask, u32 shift,
-				      u32 val)
+static inline void dsaf_set_reg_field(void __iomem *base, u32 reg, u32 mask,
+				      u32 shift, u32 val)
 {
 	u32 origin = dsaf_read_reg(base, reg);
 
@@ -947,7 +947,8 @@ static inline void dsaf_set_reg_field(void *base, u32 reg, u32 mask, u32 shift,
 #define dsaf_get_bit(origin, shift) \
 	dsaf_get_field((origin), (1ull << (shift)), (shift))
 
-static inline u32 dsaf_get_reg_field(void *base, u32 reg, u32 mask, u32 shift)
+static inline u32 dsaf_get_reg_field(void __iomem *base, u32 reg, u32 mask,
+				     u32 shift)
 {
 	u32 origin;
 

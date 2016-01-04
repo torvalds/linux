@@ -152,8 +152,10 @@ static int rk_spdif_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ret = regmap_update_bits(spdif->regmap, SPDIF_DMACR,
-				   SPDIF_DMACR_TDE_ENABLE,
-				   SPDIF_DMACR_TDE_ENABLE);
+				   SPDIF_DMACR_TDE_ENABLE |
+				   SPDIF_DMACR_TDL_MASK,
+				   SPDIF_DMACR_TDE_ENABLE |
+				   SPDIF_DMACR_TDL(16));
 
 		if (ret != 0)
 			return ret;

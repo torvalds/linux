@@ -813,6 +813,12 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 tx_aborted:
 	if ((stat & (DW_IC_INTR_TX_ABRT | DW_IC_INTR_STOP_DET)) || dev->msg_err)
 		complete(&dev->cmd_complete);
+	else if (unlikely(dev->accessor_flags & ACCESS_INTR_MASK)) {
+		/* workaround to trigger pending interrupt */
+		stat = dw_readl(dev, DW_IC_INTR_MASK);
+		i2c_dw_disable_int(dev);
+		dw_writel(dev, stat, DW_IC_INTR_MASK);
+	}
 
 	return IRQ_HANDLED;
 }

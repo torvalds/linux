@@ -1259,12 +1259,8 @@ int hns_dsaf_set_mac_uc_entry(
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr) ||
 	    MAC_IS_BROADCAST(mac_entry->addr) ||
 	    MAC_IS_MULTICAST(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev,
-			"set_uc %s Mac %02x:%02x:%02x:%02x:%02x:%02x err!\n",
-			dsaf_dev->ae_dev.name, mac_entry->addr[0],
-			mac_entry->addr[1], mac_entry->addr[2],
-			mac_entry->addr[3], mac_entry->addr[4],
-			mac_entry->addr[5]);
+		dev_err(dsaf_dev->dev, "set_uc %s Mac %pM err!\n",
+			dsaf_dev->ae_dev.name, mac_entry->addr);
 		return -EINVAL;
 	}
 
@@ -1331,12 +1327,8 @@ int hns_dsaf_set_mac_mc_entry(
 
 	/* mac addr check */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev,
-			"set uc %s Mac %02x:%02x:%02x:%02x:%02x:%02x err!\n",
-			dsaf_dev->ae_dev.name, mac_entry->addr[0],
-			mac_entry->addr[1], mac_entry->addr[2],
-			mac_entry->addr[3],
-			mac_entry->addr[4], mac_entry->addr[5]);
+		dev_err(dsaf_dev->dev, "set uc %s Mac %pM err!\n",
+			dsaf_dev->ae_dev.name, mac_entry->addr);
 		return -EINVAL;
 	}
 
@@ -1410,11 +1402,8 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 
 	/*chechk mac addr */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev,
-			"set_entry failed,addr %02x:%02x:%02x:%02x:%02x:%02x!\n",
-			mac_entry->addr[0], mac_entry->addr[1],
-			mac_entry->addr[2], mac_entry->addr[3],
-			mac_entry->addr[4], mac_entry->addr[5]);
+		dev_err(dsaf_dev->dev, "set_entry failed,addr %pM!\n",
+			mac_entry->addr);
 		return -EINVAL;
 	}
 
@@ -1497,9 +1486,8 @@ int hns_dsaf_del_mac_entry(struct dsaf_device *dsaf_dev, u16 vlan_id,
 
 	/*check mac addr */
 	if (MAC_IS_ALL_ZEROS(addr) || MAC_IS_BROADCAST(addr)) {
-		dev_err(dsaf_dev->dev,
-			"del_entry failed,addr %02x:%02x:%02x:%02x:%02x:%02x!\n",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+		dev_err(dsaf_dev->dev, "del_entry failed,addr %pM!\n",
+			addr);
 		return -EINVAL;
 	}
 
@@ -1563,11 +1551,8 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 
 	/*check mac addr */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev,
-			"del_port failed, addr %02x:%02x:%02x:%02x:%02x:%02x!\n",
-			mac_entry->addr[0], mac_entry->addr[1],
-			mac_entry->addr[2], mac_entry->addr[3],
-			mac_entry->addr[4], mac_entry->addr[5]);
+		dev_err(dsaf_dev->dev, "del_port failed, addr %pM!\n",
+			mac_entry->addr);
 		return -EINVAL;
 	}
 
@@ -1644,11 +1629,8 @@ int hns_dsaf_get_mac_uc_entry(struct dsaf_device *dsaf_dev,
 	/* check macaddr */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr) ||
 	    MAC_IS_BROADCAST(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev,
-			"get_entry failed,addr %02x:%02x:%02x:%02x:%02x:%02x\n",
-			mac_entry->addr[0], mac_entry->addr[1],
-			mac_entry->addr[2], mac_entry->addr[3],
-			mac_entry->addr[4], mac_entry->addr[5]);
+		dev_err(dsaf_dev->dev, "get_entry failed,addr %pM\n",
+			mac_entry->addr);
 		return -EINVAL;
 	}
 
@@ -1695,11 +1677,8 @@ int hns_dsaf_get_mac_mc_entry(struct dsaf_device *dsaf_dev,
 	/*check mac addr */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr) ||
 	    MAC_IS_BROADCAST(mac_entry->addr)) {
-		dev_err(dsaf_dev->dev,
-			"get_entry failed,addr %02x:%02x:%02x:%02x:%02x:%02x\n",
-			mac_entry->addr[0], mac_entry->addr[1],
-			mac_entry->addr[2], mac_entry->addr[3],
-			mac_entry->addr[4], mac_entry->addr[5]);
+		dev_err(dsaf_dev->dev, "get_entry failed,addr %pM\n",
+			mac_entry->addr);
 		return -EINVAL;
 	}
 

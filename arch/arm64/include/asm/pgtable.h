@@ -276,10 +276,14 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * hardware updates of the pte (ptep_set_access_flags safely changes
 	 * valid ptes without going through an invalid entry).
 	 */
-	if (IS_ENABLED(CONFIG_DEBUG_VM) && IS_ENABLED(CONFIG_ARM64_HW_AFDBM) &&
-	    pte_valid(*ptep)) {
-		BUG_ON(!pte_young(pte));
-		BUG_ON(pte_write(*ptep) && !pte_dirty(pte));
+	if (IS_ENABLED(CONFIG_ARM64_HW_AFDBM) &&
+	    pte_valid(*ptep) && pte_valid(pte)) {
+		VM_WARN_ONCE(!pte_young(pte),
+			     "%s: racy access flag clearing: 0x%016llx -> 0x%016llx",
+			     __func__, pte_val(*ptep), pte_val(pte));
+		VM_WARN_ONCE(pte_write(*ptep) && !pte_dirty(pte),
+			     "%s: racy dirty state clearing: 0x%016llx -> 0x%016llx",
+			     __func__, pte_val(*ptep), pte_val(pte));
 	}
 
 	set_pte(ptep, pte);

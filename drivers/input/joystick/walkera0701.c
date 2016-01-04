@@ -218,6 +218,7 @@ static void walkera0701_attach(struct parport *pp)
 
 	w->parport = pp;
 
+	memset(&walkera0701_parport_cb, 0, sizeof(walkera0701_parport_cb));
 	walkera0701_parport_cb.flags = PARPORT_FLAG_EXCL;
 	walkera0701_parport_cb.irq_func = walkera0701_irq_handler;
 	walkera0701_parport_cb.private = w;

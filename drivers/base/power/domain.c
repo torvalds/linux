@@ -390,6 +390,7 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 	struct generic_pm_domain *genpd;
 	bool (*stop_ok)(struct device *__dev);
 	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
+	bool runtime_pm = pm_runtime_enabled(dev);
 	ktime_t time_start;
 	s64 elapsed_ns;
 	int ret;
@@ -400,12 +401,19 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
+	/*
+	 * A runtime PM centric subsystem/driver may re-use the runtime PM
+	 * callbacks for other purposes than runtime PM. In those scenarios
+	 * runtime PM is disabled. Under these circumstances, we shall skip
+	 * validating/measuring the PM QoS latency.
+	 */
 	stop_ok = genpd->gov ? genpd->gov->stop_ok : NULL;
-	if (stop_ok && !stop_ok(dev))
+	if (runtime_pm && stop_ok && !stop_ok(dev))
 		return -EBUSY;
 
 	/* Measure suspend latency. */
-	time_start = ktime_get();
+	if (runtime_pm)
+		time_start = ktime_get();
 
 	ret = genpd_save_dev(genpd, dev);
 	if (ret)
@@ -418,13 +426,15 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 	}
 
 	/* Update suspend latency value if the measured time exceeds it. */
-	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
-	if (elapsed_ns > td->suspend_latency_ns) {
-		td->suspend_latency_ns = elapsed_ns;
-		dev_dbg(dev, "suspend latency exceeded, %lld ns\n",
-			elapsed_ns);
-		genpd->max_off_time_changed = true;
-		td->constraint_changed = true;
+	if (runtime_pm) {
+		elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
+		if (elapsed_ns > td->suspend_latency_ns) {
+			td->suspend_latency_ns = elapsed_ns;
+			dev_dbg(dev, "suspend latency exceeded, %lld ns\n",
+				elapsed_ns);
+			genpd->max_off_time_changed = true;
+			td->constraint_changed = true;
+		}
 	}
 
 	/*
@@ -453,6 +463,7 @@ static int pm_genpd_runtime_resume(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
+	bool runtime_pm = pm_runtime_enabled(dev);
 	ktime_t time_start;
 	s64 elapsed_ns;
 	int ret;
@@ -479,14 +490,14 @@ static int pm_genpd_runtime_resume(struct device *dev)
 
  out:
 	/* Measure resume latency. */
-	if (timed)
+	if (timed && runtime_pm)
 		time_start = ktime_get();
 
 	genpd_start_dev(genpd, dev);
 	genpd_restore_dev(genpd, dev);
 
 	/* Update resume latency value if the measured time exceeds it. */
-	if (timed) {
+	if (timed && runtime_pm) {
 		elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
 		if (elapsed_ns > td->resume_latency_ns) {
 			td->resume_latency_ns = elapsed_ns;

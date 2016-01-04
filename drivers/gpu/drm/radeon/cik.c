@@ -4173,11 +4173,7 @@ void cik_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	control |= ib->length_dw | (vm_id << 24);
 
 	radeon_ring_write(ring, header);
-	radeon_ring_write(ring,
-#ifdef __BIG_ENDIAN
-			  (2 << 0) |
-#endif
-			  (ib->gpu_addr & 0xFFFFFFFC));
+	radeon_ring_write(ring, (ib->gpu_addr & 0xFFFFFFFC));
 	radeon_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xFFFF);
 	radeon_ring_write(ring, control);
 }

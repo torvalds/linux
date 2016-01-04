@@ -2084,7 +2084,7 @@ struct pcpu_sw_netstats {
 })
 
 #define netdev_alloc_pcpu_stats(type)					\
-	__netdev_alloc_pcpu_stats(type, GFP_KERNEL);
+	__netdev_alloc_pcpu_stats(type, GFP_KERNEL)
 
 #include <linux/notifier.h>
 

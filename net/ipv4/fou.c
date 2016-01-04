@@ -24,6 +24,7 @@ struct fou {
 	u16 type;
 	struct udp_offload udp_offloads;
 	struct list_head list;
+	struct rcu_head rcu;
 };
 
 #define FOU_F_REMCSUM_NOPARTIAL BIT(0)
@@ -417,7 +418,7 @@ static void fou_release(struct fou *fou)
 	list_del(&fou->list);
 	udp_tunnel_sock_release(sock);
 
-	kfree(fou);
+	kfree_rcu(fou, rcu);
 }
 
 static int fou_encap_init(struct sock *sk, struct fou *fou, struct fou_cfg *cfg)

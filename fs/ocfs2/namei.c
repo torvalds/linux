@@ -367,13 +367,11 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	status = posix_acl_create(dir, &mode, &default_acl, &acl);
+	status = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
 	if (status) {
 		mlog_errno(status);
 		goto leave;
 	}
-	/* update inode->i_mode after mask with "umask". */
-	inode->i_mode = mode;
 
 	handle = ocfs2_start_trans(osb, ocfs2_mknod_credits(osb->sb,
 							    S_ISDIR(mode),
