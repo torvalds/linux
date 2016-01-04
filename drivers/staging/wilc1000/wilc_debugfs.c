@@ -89,7 +89,7 @@ static ssize_t wilc_debug_region_read(struct file *file, char __user *userbuf, s
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
 }
 
-static ssize_t wilc_debug_region_write(struct file *filp, const char *buf, size_t count, loff_t *ppos)
+static ssize_t wilc_debug_region_write(struct file *filp, const char __user *buf, size_t count, loff_t *ppos)
 {
 	char buffer[128] = {};
 	int flag;
