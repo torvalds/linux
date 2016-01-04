@@ -46,6 +46,9 @@
 #define TTBR1		__ACCESS_CP15_64(1, c2)
 #define VTTBR		__ACCESS_CP15_64(6, c2)
 #define PAR		__ACCESS_CP15_64(0, c7)
+#define CNTV_CVAL	__ACCESS_CP15_64(3, c14)
+#define CNTVOFF		__ACCESS_CP15_64(4, c14)
+
 #define CSSELR		__ACCESS_CP15(c0, 2, c0, 0)
 #define VMPIDR		__ACCESS_CP15(c0, 4, c0, 5)
 #define SCTLR		__ACCESS_CP15(c1, 0, c0, 0)
@@ -71,6 +74,11 @@
 #define TID_URO		__ACCESS_CP15(c13, 0, c0, 3)
 #define TID_PRIV	__ACCESS_CP15(c13, 0, c0, 4)
 #define CNTKCTL		__ACCESS_CP15(c14, 0, c1, 0)
+#define CNTV_CTL	__ACCESS_CP15(c14, 0, c3, 1)
+#define CNTHCTL		__ACCESS_CP15(c14, 4, c1, 0)
+
+void __timer_save_state(struct kvm_vcpu *vcpu);
+void __timer_restore_state(struct kvm_vcpu *vcpu);
 
 void __sysreg_save_state(struct kvm_cpu_context *ctxt);
 void __sysreg_restore_state(struct kvm_cpu_context *ctxt);
