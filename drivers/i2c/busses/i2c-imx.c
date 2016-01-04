@@ -29,9 +29,6 @@
  *
  */
 
-/** Includes *******************************************************************
-*******************************************************************************/
-
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -56,9 +53,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-
-/** Defines ********************************************************************
-*******************************************************************************/
 
 /* This will be the driver name the kernel reports */
 #define DRIVER_NAME "imx-i2c"
@@ -122,9 +116,6 @@
 #define I2CR_IEN_OPCODE_1	I2CR_IEN
 
 #define I2C_PM_TIMEOUT		10 /* ms */
-
-/** Variables ******************************************************************
-*******************************************************************************/
 
 /*
  * sorted list of clock divider, register value pairs
@@ -418,9 +409,6 @@ static void i2c_imx_dma_free(struct imx_i2c_struct *i2c_imx)
 
 	dma->chan_using = NULL;
 }
-
-/** Functions for IMX I2C adapter driver ***************************************
-*******************************************************************************/
 
 static int i2c_imx_bus_busy(struct imx_i2c_struct *i2c_imx, int for_busy)
 {
