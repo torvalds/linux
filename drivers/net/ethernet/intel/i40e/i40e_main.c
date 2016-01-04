@@ -1937,7 +1937,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
 		del_list_size = filter_list_len *
 			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
-		del_list = kzalloc(del_list_size, GFP_KERNEL);
+		del_list = kzalloc(del_list_size, GFP_ATOMIC);
 		if (!del_list) {
 			i40e_cleanup_add_list(&tmp_add_list);
 
@@ -2015,7 +2015,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			       sizeof(struct i40e_aqc_add_macvlan_element_data),
 		add_list_size = filter_list_len *
 			       sizeof(struct i40e_aqc_add_macvlan_element_data);
-		add_list = kzalloc(add_list_size, GFP_KERNEL);
+		add_list = kzalloc(add_list_size, GFP_ATOMIC);
 		if (!add_list) {
 			/* Purge element from temporary lists */
 			i40e_cleanup_add_list(&tmp_add_list);
