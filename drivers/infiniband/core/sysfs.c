@@ -77,7 +77,7 @@ struct port_table_attribute {
 	struct port_attribute	attr;
 	char			name[8];
 	int			index;
-	int			attr_id;
+	__be16			attr_id;
 };
 
 static ssize_t port_attr_show(struct kobject *kobj,
@@ -413,7 +413,7 @@ struct port_table_attribute port_pma_attr_ext_##_name = {		\
  * Get a Perfmgmt MAD block of data.
  * Returns error code or the number of bytes retrieved.
  */
-static int get_perf_mad(struct ib_device *dev, int port_num, int attr,
+static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 		void *data, int offset, size_t size)
 {
 	struct ib_mad *in_mad;
