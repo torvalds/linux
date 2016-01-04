@@ -245,6 +245,7 @@ xfs_da3_node_read_verify(
 }
 
 const struct xfs_buf_ops xfs_da3_node_buf_ops = {
+	.name = "xfs_da3_node",
 	.verify_read = xfs_da3_node_read_verify,
 	.verify_write = xfs_da3_node_write_verify,
 };

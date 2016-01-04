@@ -1723,10 +1723,11 @@ xfs_bmap_add_extent_delay_real(
 	xfs_filblks_t		temp=0;	/* value for da_new calculations */
 	xfs_filblks_t		temp2=0;/* value for da_new calculations */
 	int			tmp_rval;	/* partial logging flags */
+	int			whichfork = XFS_DATA_FORK;
 	struct xfs_mount	*mp;
 
-	mp  = bma->tp ? bma->tp->t_mountp : NULL;
-	ifp = XFS_IFORK_PTR(bma->ip, XFS_DATA_FORK);
+	mp = bma->ip->i_mount;
+	ifp = XFS_IFORK_PTR(bma->ip, whichfork);
 
 	ASSERT(bma->idx >= 0);
 	ASSERT(bma->idx <= ifp->if_bytes / sizeof(struct xfs_bmbt_rec));
@@ -1785,7 +1786,7 @@ xfs_bmap_add_extent_delay_real(
 	 * Don't set contiguous if the combined extent would be too large.
 	 * Also check for all-three-contiguous being too large.
 	 */
-	if (bma->idx < bma->ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t) - 1) {
+	if (bma->idx < ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t) - 1) {
 		state |= BMAP_RIGHT_VALID;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, bma->idx + 1), &RIGHT);
 
@@ -2016,10 +2017,10 @@ xfs_bmap_add_extent_delay_real(
 			XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
 		}
 
-		if (xfs_bmap_needs_btree(bma->ip, XFS_DATA_FORK)) {
+		if (xfs_bmap_needs_btree(bma->ip, whichfork)) {
 			error = xfs_bmap_extents_to_btree(bma->tp, bma->ip,
 					bma->firstblock, bma->flist,
-					&bma->cur, 1, &tmp_rval, XFS_DATA_FORK);
+					&bma->cur, 1, &tmp_rval, whichfork);
 			rval |= tmp_rval;
 			if (error)
 				goto done;
@@ -2100,10 +2101,10 @@ xfs_bmap_add_extent_delay_real(
 			XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
 		}
 
-		if (xfs_bmap_needs_btree(bma->ip, XFS_DATA_FORK)) {
+		if (xfs_bmap_needs_btree(bma->ip, whichfork)) {
 			error = xfs_bmap_extents_to_btree(bma->tp, bma->ip,
 				bma->firstblock, bma->flist, &bma->cur, 1,
-				&tmp_rval, XFS_DATA_FORK);
+				&tmp_rval, whichfork);
 			rval |= tmp_rval;
 			if (error)
 				goto done;
@@ -2169,10 +2170,10 @@ xfs_bmap_add_extent_delay_real(
 			XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
 		}
 
-		if (xfs_bmap_needs_btree(bma->ip, XFS_DATA_FORK)) {
+		if (xfs_bmap_needs_btree(bma->ip, whichfork)) {
 			error = xfs_bmap_extents_to_btree(bma->tp, bma->ip,
 					bma->firstblock, bma->flist, &bma->cur,
-					1, &tmp_rval, XFS_DATA_FORK);
+					1, &tmp_rval, whichfork);
 			rval |= tmp_rval;
 			if (error)
 				goto done;
@@ -2215,13 +2216,13 @@ xfs_bmap_add_extent_delay_real(
 	}
 
 	/* convert to a btree if necessary */
-	if (xfs_bmap_needs_btree(bma->ip, XFS_DATA_FORK)) {
+	if (xfs_bmap_needs_btree(bma->ip, whichfork)) {
 		int	tmp_logflags;	/* partial log flag return val */
 
 		ASSERT(bma->cur == NULL);
 		error = xfs_bmap_extents_to_btree(bma->tp, bma->ip,
 				bma->firstblock, bma->flist, &bma->cur,
-				da_old > 0, &tmp_logflags, XFS_DATA_FORK);
+				da_old > 0, &tmp_logflags, whichfork);
 		bma->logflags |= tmp_logflags;
 		if (error)
 			goto done;
@@ -2242,7 +2243,7 @@ xfs_bmap_add_extent_delay_real(
 	if (bma->cur)
 		bma->cur->bc_private.b.allocated = 0;
 
-	xfs_bmap_check_leaf_extents(bma->cur, bma->ip, XFS_DATA_FORK);
+	xfs_bmap_check_leaf_extents(bma->cur, bma->ip, whichfork);
 done:
 	bma->logflags |= rval;
 	return error;
@@ -2939,7 +2940,7 @@ xfs_bmap_add_extent_hole_real(
 	int			state;	/* state bits, accessed thru macros */
 	struct xfs_mount	*mp;
 
-	mp = bma->tp ? bma->tp->t_mountp : NULL;
+	mp = bma->ip->i_mount;
 	ifp = XFS_IFORK_PTR(bma->ip, whichfork);
 
 	ASSERT(bma->idx >= 0);
