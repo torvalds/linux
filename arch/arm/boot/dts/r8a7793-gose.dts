@@ -136,6 +136,11 @@
 };
 
 &pfc {
+	i2c2_pins: i2c2 {
+		renesas,groups = "i2c2";
+		renesas,function = "i2c2";
+	};
+
 	scif0_pins: serial0 {
 		renesas,groups = "scif0_data_d";
 		renesas,function = "scif0";
@@ -232,5 +237,19 @@
 				reg = <0x00440000 0x03bc0000>;
 			};
 		};
+	};
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <100000>;
+
+	eeprom@50 {
+		compatible = "renesas,r1ex24002", "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
 	};
 };
