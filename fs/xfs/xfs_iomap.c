@@ -203,15 +203,20 @@ xfs_iomap_write_direct(
 	 * this outside the transaction context, but if we commit and then crash
 	 * we may not have zeroed the blocks and this will be exposed on
 	 * recovery of the allocation. Hence we must zero before commit.
+	 *
 	 * Further, if we are mapping unwritten extents here, we need to zero
 	 * and convert them to written so that we don't need an unwritten extent
 	 * callback for DAX. This also means that we need to be able to dip into
-	 * the reserve block pool if there is no space left but we need to do
-	 * unwritten extent conversion.
+	 * the reserve block pool for bmbt block allocation if there is no space
+	 * left but we need to do unwritten extent conversion.
 	 */
+
 	if (IS_DAX(VFS_I(ip))) {
 		bmapi_flags = XFS_BMAPI_CONVERT | XFS_BMAPI_ZERO;
-		tp->t_flags |= XFS_TRANS_RESERVE;
+		if (ISUNWRITTEN(imap)) {
+			tp->t_flags |= XFS_TRANS_RESERVE;
+			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0) << 1;
+		}
 	}
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
 				  resblks, resrtextents);
