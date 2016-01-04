@@ -467,11 +467,11 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		if (!idev)
 			return -ENODEV;
 
-		ret = rdma_addr_find_dmac_by_grh(&dgid, &sgid,
-						 ah_attr->dmac,
-						 wc->wc_flags & IB_WC_WITH_VLAN ?
-						 NULL : &vlan_id,
-						 &if_index);
+		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid,
+						   ah_attr->dmac,
+						   wc->wc_flags & IB_WC_WITH_VLAN ?
+						   NULL : &vlan_id,
+						   &if_index);
 		if (ret) {
 			dev_put(idev);
 			return ret;
@@ -1158,10 +1158,10 @@ int ib_resolve_eth_dmac(struct ib_qp *qp,
 
 			ifindex = sgid_attr.ndev->ifindex;
 
-			ret = rdma_addr_find_dmac_by_grh(&sgid,
-							 &qp_attr->ah_attr.grh.dgid,
-							 qp_attr->ah_attr.dmac,
-							 NULL, &ifindex);
+			ret = rdma_addr_find_l2_eth_by_grh(&sgid,
+							   &qp_attr->ah_attr.grh.dgid,
+							   qp_attr->ah_attr.dmac,
+							   NULL, &ifindex);
 
 			dev_put(sgid_attr.ndev);
 		}

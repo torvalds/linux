@@ -541,8 +541,9 @@ static void resolve_cb(int status, struct sockaddr *src_addr,
 	complete(&((struct resolve_cb_context *)context)->comp);
 }
 
-int rdma_addr_find_dmac_by_grh(const union ib_gid *sgid, const union ib_gid *dgid,
-			       u8 *dmac, u16 *vlan_id, int *if_index)
+int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
+				 const union ib_gid *dgid,
+				 u8 *dmac, u16 *vlan_id, int *if_index)
 {
 	int ret = 0;
 	struct rdma_dev_addr dev_addr;
@@ -584,7 +585,7 @@ int rdma_addr_find_dmac_by_grh(const union ib_gid *sgid, const union ib_gid *dgi
 	dev_put(dev);
 	return ret;
 }
-EXPORT_SYMBOL(rdma_addr_find_dmac_by_grh);
+EXPORT_SYMBOL(rdma_addr_find_l2_eth_by_grh);
 
 int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id)
 {
