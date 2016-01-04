@@ -140,6 +140,27 @@ static int pcf2123_read(struct device *dev, u8 reg, u8 *rxbuf, size_t size)
 	return ret;
 }
 
+static int pcf2123_write(struct device *dev, u8 *txbuf, size_t size)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	int ret;
+
+	txbuf[0] |= PCF2123_WRITE;
+	ret = spi_write(spi, txbuf, size);
+	pcf2123_delay_trec();
+
+	return ret;
+}
+
+static int pcf2123_write_reg(struct device *dev, u8 reg, u8 val)
+{
+	u8 txbuf[2];
+
+	txbuf[0] = reg;
+	txbuf[1] = val;
+	return pcf2123_write(dev, txbuf, sizeof(txbuf));
+}
+
 static ssize_t pcf2123_show(struct device *dev, struct device_attribute *attr,
 			    char *buffer)
 {
@@ -163,9 +184,7 @@ static ssize_t pcf2123_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
 			     const char *buffer, size_t count) {
-	struct spi_device *spi = to_spi_device(dev);
 	struct pcf2123_sysfs_reg *r;
-	u8 txbuf[2];
 	unsigned long reg;
 	unsigned long val;
 
@@ -181,12 +200,9 @@ static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	txbuf[0] = PCF2123_WRITE | reg;
-	txbuf[1] = val;
-	ret = spi_write(spi, txbuf, sizeof(txbuf));
+	pcf2123_write_reg(dev, reg, val);
 	if (ret < 0)
 		return -EIO;
-	pcf2123_delay_trec();
 	return count;
 }
 
@@ -220,7 +236,6 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct spi_device *spi = to_spi_device(dev);
 	u8 txbuf[8];
 	int ret;
 
@@ -231,15 +246,12 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
 	/* Stop the counter first */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x20;
-	ret = spi_write(spi, txbuf, 2);
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_STOP);
 	if (ret < 0)
 		return ret;
-	pcf2123_delay_trec();
 
 	/* Set the new time */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_SC;
+	txbuf[0] = PCF2123_REG_SC;
 	txbuf[1] = bin2bcd(tm->tm_sec & 0x7F);
 	txbuf[2] = bin2bcd(tm->tm_min & 0x7F);
 	txbuf[3] = bin2bcd(tm->tm_hour & 0x3F);
@@ -248,18 +260,14 @@ static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	txbuf[6] = bin2bcd((tm->tm_mon + 1) & 0x1F); /* rtc mn 1-12 */
 	txbuf[7] = bin2bcd(tm->tm_year < 100 ? tm->tm_year : tm->tm_year - 100);
 
-	ret = spi_write(spi, txbuf, sizeof(txbuf));
+	ret = pcf2123_write(dev, txbuf, sizeof(txbuf));
 	if (ret < 0)
 		return ret;
-	pcf2123_delay_trec();
 
 	/* Start the counter */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x00;
-	ret = spi_write(spi, txbuf, 2);
+	ret = pcf2123_write_reg(dev, PCF2123_REG_CTRL1, CTRL1_CLEAR);
 	if (ret < 0)
 		return ret;
-	pcf2123_delay_trec();
 
 	return 0;
 }
@@ -273,7 +281,7 @@ static int pcf2123_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
 	struct pcf2123_plat_data *pdata;
-	u8 txbuf[2], rxbuf[2];
+	u8  rxbuf[2];
 	int ret, i;
 
 	pdata = devm_kzalloc(&spi->dev, sizeof(struct pcf2123_plat_data),
@@ -283,24 +291,16 @@ static int pcf2123_probe(struct spi_device *spi)
 	spi->dev.platform_data = pdata;
 
 	/* Send a software reset command */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x58;
-	dev_dbg(&spi->dev, "resetting RTC (0x%02X 0x%02X)\n",
-			txbuf[0], txbuf[1]);
-	ret = spi_write(spi, txbuf, 2 * sizeof(u8));
+	dev_dbg(&spi->dev, "resetting RTC\n");
+	ret = pcf2123_write_reg(&spi->dev, PCF2123_REG_CTRL1, CTRL1_SW_RESET);
 	if (ret < 0)
 		goto kfree_exit;
-	pcf2123_delay_trec();
 
 	/* Stop the counter */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x20;
-	dev_dbg(&spi->dev, "stopping RTC (0x%02X 0x%02X)\n",
-			txbuf[0], txbuf[1]);
-	ret = spi_write(spi, txbuf, 2 * sizeof(u8));
+	dev_dbg(&spi->dev, "stopping RTC\n");
+	ret = pcf2123_write_reg(&spi->dev, PCF2123_REG_CTRL1, CTRL1_STOP);
 	if (ret < 0)
 		goto kfree_exit;
-	pcf2123_delay_trec();
 
 	/* See if the counter was actually stopped */
 	dev_dbg(&spi->dev, "checking for presence of RTC\n");
@@ -321,12 +321,9 @@ static int pcf2123_probe(struct spi_device *spi)
 			(spi->max_speed_hz + 500) / 1000);
 
 	/* Start the counter */
-	txbuf[0] = PCF2123_WRITE | PCF2123_REG_CTRL1;
-	txbuf[1] = 0x00;
-	ret = spi_write(spi, txbuf, sizeof(txbuf));
+	ret = pcf2123_write_reg(&spi->dev, PCF2123_REG_CTRL1, CTRL1_CLEAR);
 	if (ret < 0)
 		goto kfree_exit;
-	pcf2123_delay_trec();
 
 	/* Finalize the initialization */
 	rtc = devm_rtc_device_register(&spi->dev, pcf2123_driver.driver.name,
