@@ -605,6 +605,21 @@
 		      (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
+	gpu: rogue-g6110@ffa30000 {
+		compatible = "arm,rogue-G6110", "arm,rk3368-gpu";
+		reg = <0x0 0xffa30000 0x0 0x10000>;
+		clocks =
+			<&cru SCLK_GPU_CORE>,
+			<&cru ACLK_GPU_MEM>,
+			<&cru ACLK_GPU_CFG>;
+		clock-names =
+			"clk_gpu",
+			"aclk_gpu_mem",
+			"aclk_gpu_cfg";
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rogue-g6110-irq";
+	};
+
 	i2s_2ch: i2s-2ch@ff890000 {
 		compatible = "rockchip,rk3368-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff898000 0x0 0x1000>;
