@@ -675,8 +675,10 @@ int ehci_setup(struct usb_hcd *hcd)
 		return retval;
 
 	retval = ehci_halt(ehci);
-	if (retval)
+	if (retval) {
+		ehci_mem_cleanup(ehci);
 		return retval;
+	}
 
 	ehci_reset(ehci);
 
