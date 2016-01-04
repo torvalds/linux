@@ -536,8 +536,8 @@ static bool vce_v3_0_is_idle(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 mask = 0;
 
-	mask |= (adev->vce.harvest_config & (1<<0)) ? 0 : SRBM_STATUS2__VCE0_BUSY_MASK;
-	mask |= (adev->vce.harvest_config & (1<<1)) ? 0 : SRBM_STATUS2__VCE1_BUSY_MASK;
+	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE0) ? 0 : SRBM_STATUS2__VCE0_BUSY_MASK;
+	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE1) ? 0 : SRBM_STATUS2__VCE1_BUSY_MASK;
 
 	return !(RREG32(mmSRBM_STATUS2) & mask);
 }
@@ -559,8 +559,8 @@ static int vce_v3_0_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 mask = 0;
 
-	mask |= (adev->vce.harvest_config & (1<<0)) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
-	mask |= (adev->vce.harvest_config & (1<<1)) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
+	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE0) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
+	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE1) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
 
 	WREG32_P(mmSRBM_SOFT_RESET, mask,
 		 ~(SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK |
