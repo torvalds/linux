@@ -4245,7 +4245,7 @@ xlog_do_recovery_pass(
 	xfs_daddr_t		blk_no;
 	char			*offset;
 	xfs_buf_t		*hbp, *dbp;
-	int			error = 0, h_size;
+	int			error = 0, h_size, h_len;
 	int			bblks, split_bblks;
 	int			hblks, split_hblks, wrapped_hblks;
 	struct hlist_head	rhash[XLOG_RHASH_SIZE];
@@ -4274,7 +4274,31 @@ xlog_do_recovery_pass(
 		error = xlog_valid_rec_header(log, rhead, tail_blk);
 		if (error)
 			goto bread_err1;
+
+		/*
+		 * xfsprogs has a bug where record length is based on lsunit but
+		 * h_size (iclog size) is hardcoded to 32k. Now that we
+		 * unconditionally CRC verify the unmount record, this means the
+		 * log buffer can be too small for the record and cause an
+		 * overrun.
+		 *
+		 * Detect this condition here. Use lsunit for the buffer size as
+		 * long as this looks like the mkfs case. Otherwise, return an
+		 * error to avoid a buffer overrun.
+		 */
 		h_size = be32_to_cpu(rhead->h_size);
+		h_len = be32_to_cpu(rhead->h_len);
+		if (h_len > h_size) {
+			if (h_len <= log->l_mp->m_logbsize &&
+			    be32_to_cpu(rhead->h_num_logops) == 1) {
+				xfs_warn(log->l_mp,
+		"invalid iclog size (%d bytes), using lsunit (%d bytes)",
+					 h_size, log->l_mp->m_logbsize);
+				h_size = log->l_mp->m_logbsize;
+			} else
+				return -EFSCORRUPTED;
+		}
+
 		if ((be32_to_cpu(rhead->h_version) & XLOG_VERSION_2) &&
 		    (h_size > XLOG_HEADER_CYCLE_SIZE)) {
 			hblks = h_size / XLOG_HEADER_CYCLE_SIZE;
