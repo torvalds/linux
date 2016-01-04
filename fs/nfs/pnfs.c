@@ -863,7 +863,7 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 static struct pnfs_layout_segment *
 send_layoutget(struct pnfs_layout_hdr *lo,
 	   struct nfs_open_context *ctx,
-	   struct pnfs_layout_range *range,
+	   const struct pnfs_layout_range *range,
 	   gfp_t gfp_flags)
 {
 	struct inode *ino = lo->plh_inode;
@@ -896,7 +896,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 				lgp->args.minlength = i_size - range->offset;
 		}
 		lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
-		lgp->args.range = *range;
+		pnfs_copy_range(&lgp->args.range, range);
 		lgp->args.type = server->pnfs_curr_ld->id;
 		lgp->args.inode = ino;
 		lgp->args.ctx = get_nfs_open_context(ctx);

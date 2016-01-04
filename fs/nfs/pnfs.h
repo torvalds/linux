@@ -578,6 +578,13 @@ pnfs_mark_layout_returned_if_empty(struct pnfs_layout_hdr *lo)
 		set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
 }
 
+static inline void
+pnfs_copy_range(struct pnfs_layout_range *dst,
+		const struct pnfs_layout_range *src)
+{
+	memcpy(dst, src, sizeof(*dst));
+}
+
 extern unsigned int layoutstats_timer;
 
 #ifdef NFS_DEBUG
