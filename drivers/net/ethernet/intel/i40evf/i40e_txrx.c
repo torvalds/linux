@@ -1471,6 +1471,9 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	u32 l4len;
 	int err;
 
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
 	if (!skb_is_gso(skb))
 		return 0;
 
