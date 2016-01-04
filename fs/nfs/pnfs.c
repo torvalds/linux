@@ -53,7 +53,7 @@ static DEFINE_SPINLOCK(pnfs_spinlock);
 static LIST_HEAD(pnfs_modules_tbl);
 
 static int
-pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
+pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
 		       enum pnfs_iomode iomode, bool sync);
 
 /* Return the registered pnfs layout driver module matching given id */
@@ -391,7 +391,7 @@ static void pnfs_layoutreturn_before_put_lseg(struct pnfs_layout_segment *lseg,
 		spin_unlock(&inode->i_lock);
 		if (send) {
 			/* Send an async layoutreturn so we dont deadlock */
-			pnfs_send_layoutreturn(lo, stateid, iomode, false);
+			pnfs_send_layoutreturn(lo, &stateid, iomode, false);
 		}
 	} else
 		spin_unlock(&inode->i_lock);
@@ -947,7 +947,7 @@ void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo)
 }
 
 static int
-pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
+pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
 		       enum pnfs_iomode iomode, bool sync)
 {
 	struct inode *ino = lo->plh_inode;
@@ -964,7 +964,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
 		goto out;
 	}
 
-	lrp->args.stateid = stateid;
+	nfs4_stateid_copy(&lrp->args.stateid, stateid);
 	lrp->args.layout_type = NFS_SERVER(ino)->pnfs_curr_ld->id;
 	lrp->args.inode = ino;
 	lrp->args.range.iomode = iomode;
@@ -1035,7 +1035,7 @@ _pnfs_return_layout(struct inode *ino)
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
 	if (send)
-		status = pnfs_send_layoutreturn(lo, stateid, IOMODE_ANY, true);
+		status = pnfs_send_layoutreturn(lo, &stateid, IOMODE_ANY, true);
 out_put_layout_hdr:
 	pnfs_put_layout_hdr(lo);
 out:
@@ -1126,7 +1126,7 @@ out_noroc:
 	pnfs_free_lseg_list(&tmp_list);
 	pnfs_layoutcommit_inode(ino, true);
 	if (layoutreturn)
-		pnfs_send_layoutreturn(lo, stateid, IOMODE_ANY, true);
+		pnfs_send_layoutreturn(lo, &stateid, IOMODE_ANY, true);
 	return roc;
 }
 
