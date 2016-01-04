@@ -55,23 +55,20 @@ static inline void virtio_set_avail_event(struct virtio_queue *q, uint16_t val)
 	*((uint16_t *)&q->used->ring[q->num]) = val;
 }
 
-#define ring_entry(q, r, idx) \
-	q->r->ring[idx & (q->num - 1)]
-
 static inline void virtio_deliver_irq(struct virtio_dev *dev)
 {
 	dev->int_status |= VIRTIO_MMIO_INT_VRING;
 	lkl_trigger_irq(dev->irq, NULL);
 }
 
-void virtio_dev_complete(struct virtio_dev_req *req, uint32_t len)
+void virtio_req_complete(struct virtio_req *req, uint32_t len)
 {
 	struct virtio_queue *q = req->q;
 	struct virtio_dev *dev = req->dev;
 	uint16_t idx = le16toh(q->used->idx) & (q->num - 1);
 	int send_irq = 0;
 
-	q->used->ring[idx].id = htole16(req->desc_idx);
+	q->used->ring[idx].id = htole16(req->idx);
 	q->used->ring[idx].len = htole16(len);
 	if (virtio_get_used_event(q) == q->used->idx)
 		send_irq = 1;
@@ -79,64 +76,51 @@ void virtio_dev_complete(struct virtio_dev_req *req, uint32_t len)
 
 	if (send_irq)
 		virtio_deliver_irq(dev);
-
-	lkl_host_ops.mem_free(req);
 }
 
-static void virtio_process_avail_one(struct virtio_dev *dev,
-				     struct virtio_queue *q,
-				     int avail_idx)
+static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
+			      int idx)
 {
-	int j;
-	uint16_t desc_idx;
+	int j, ret;
+	uint16_t prev_flags = VIRTIO_DESC_F_NEXT;
 	struct virtio_desc *i;
-	struct virtio_dev_req *req = NULL;
+	struct virtio_req req = {
+		.dev = dev,
+		.q = q,
+		.idx = q->avail->ring[idx & (q->num - 1)],
+	};
 
-	avail_idx = avail_idx & (q->num - 1);
-	desc_idx = le16toh(q->avail->ring[avail_idx]) & (q->num - 1);
-
-	i = &q->desc[desc_idx];
-	j = 1;
-	while (le16toh(i->flags) & VIRTIO_DESC_F_NEXT) {
-		desc_idx = le16toh(i->next) & (q->num - 1);
-		i = &q->desc[desc_idx];
-		j++;
+	for (i = &q->desc[le16toh(req.idx) & (q->num - 1)], j = 0;
+	     prev_flags & VIRTIO_DESC_F_NEXT;
+	     i = &q->desc[le16toh(i->next) & (q->num - 1)], j++) {
+		prev_flags = le16toh(i->flags);
+		if (j >= VIRTIO_REQ_MAX_BUFS)
+			continue;
+		req.buf[j].addr = (void *)(uintptr_t)le64toh(i->addr);
+		req.buf[j].len = le32toh(i->len);
 	}
 
-	req = lkl_host_ops.mem_alloc((uintptr_t)&req->buf[j]);
-	if (!req)
-		return;
+	req.buf_count = j;
 
-	req->dev = dev;
-	req->q = q;
-	req->desc_idx = q->avail->ring[avail_idx];
-	req->buf_count = j;
-
-	desc_idx = le16toh(q->avail->ring[avail_idx]) & (q->num - 1);
-	i = &q->desc[desc_idx];
-	j = 0;
-	req->buf[j].addr = (void *)(uintptr_t)le64toh(i->addr);
-	req->buf[j].len = le32toh(i->len);
-	while (le16toh(i->flags) & VIRTIO_DESC_F_NEXT) {
-		desc_idx = le16toh(i->next) & (q->num - 1);
-		i = &q->desc[desc_idx];
-		j++;
-		req->buf[j].addr = (void *)(uintptr_t)le64toh(i->addr);
-		req->buf[j].len = le32toh(i->len);
-	}
-
-	dev->ops->queue(dev, req);
+	ret = dev->ops->enqueue(dev, &req);
+	if (ret < 0)
+		return ret;
+	q->last_avail_idx++;
+	return 0;
 }
 
-static void virtio_process_avail(struct virtio_dev *dev, uint32_t qidx)
+void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 {
 	struct virtio_queue *q = &dev->queue[qidx];
+
+	if (!q->ready)
+		return;
 
 	virtio_set_avail_event(q, q->avail->idx);
 
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
-		virtio_process_avail_one(dev, q, q->last_avail_idx);
-		q->last_avail_idx++;
+		if (virtio_process_one(dev, q, q->last_avail_idx) < 0)
+			return;
 	}
 }
 
@@ -279,7 +263,7 @@ static int virtio_write(void *data, int offset, void *res, int size)
 		dev->queue[dev->queue_sel].ready = val;
 		break;
 	case VIRTIO_MMIO_QUEUE_NOTIFY:
-		virtio_process_avail(dev, val);
+		virtio_process_queue(dev, val);
 		break;
 	case VIRTIO_MMIO_INTERRUPT_ACK:
 		dev->int_status = 0;
@@ -288,7 +272,7 @@ static int virtio_write(void *data, int offset, void *res, int size)
 		if (val & VIRTIO_DEV_STATUS_FEATURES_OK &&
 		    (!(dev->driver_features & VIRTIO_F_VERSION_1) ||
 		     !(dev->driver_features & VIRTIO_RING_F_EVENT_IDX) ||
-		     dev->ops->check_features(dev->driver_features & 0xFFFFFF)))
+		     dev->ops->check_features(dev)))
 			val &= ~VIRTIO_DEV_STATUS_FEATURES_OK;
 		dev->status = val;
 		break;

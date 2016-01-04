@@ -21,15 +21,15 @@ struct virtio_blk_req_trailer {
 	uint8_t status;
 };
 
-static int blk_check_features(uint32_t features)
+static int blk_check_features(struct virtio_dev *dev)
 {
-	if (!features)
+	if (dev->driver_features == dev->device_features)
 		return 0;
 
 	return -LKL_EINVAL;
 }
 
-static void blk_enqueue(struct virtio_dev *dev, struct virtio_dev_req *req)
+static int blk_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 {
 	struct virtio_blk_dev *blk_dev;
 	struct virtio_blk_req_header *h;
@@ -66,12 +66,13 @@ static void blk_enqueue(struct virtio_dev *dev, struct virtio_dev_req *req)
 	t->status = blk_dev->ops->request(blk_dev->disk, &lkl_req);
 
 out:
-	virtio_dev_complete(req, 0);
+	virtio_req_complete(req, 0);
+	return 0;
 }
 
 static struct virtio_dev_ops blk_ops = {
 	.check_features = blk_check_features,
-	.queue = blk_enqueue,
+	.enqueue = blk_enqueue,
 };
 
 int lkl_disk_add(union lkl_disk disk)
