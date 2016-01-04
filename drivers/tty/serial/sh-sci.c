@@ -1907,9 +1907,11 @@ static int sci_sck_calc(struct sci_port *s, unsigned int bps,
 	unsigned int min_sr, max_sr, sr;
 	int err, min_err = INT_MAX;
 
+	if (s->port.type != PORT_HSCIF)
+		freq *= 2;
 	if (s->sampling_rate) {
 		/* SCI(F) has a fixed sampling rate */
-		min_sr = max_sr = s->sampling_rate / 2;
+		min_sr = max_sr = s->sampling_rate;
 	} else {
 		/* HSCIF has a variable 1/(8..32) sampling rate */
 		min_sr = 8;
@@ -1940,9 +1942,11 @@ static int sci_brg_calc(struct sci_port *s, unsigned int bps,
 	unsigned int min_sr, max_sr, sr, dl;
 	int err, min_err = INT_MAX;
 
+	if (s->port.type != PORT_HSCIF)
+		freq *= 2;
 	if (s->sampling_rate) {
 		/* SCIF has a fixed sampling rate */
-		min_sr = max_sr = s->sampling_rate / 2;
+		min_sr = max_sr = s->sampling_rate;
 	} else {
 		/* HSCIF has a variable 1/(8..32) sampling rate */
 		min_sr = 8;
@@ -1975,18 +1979,18 @@ static int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 			  unsigned int *brr, unsigned int *srr,
 			  unsigned int *cks)
 {
-	unsigned int min_sr, max_sr, shift, sr, br, prediv, scrate, c;
+	unsigned int min_sr, max_sr, sr, br, prediv, scrate, c;
 	unsigned long freq = s->clk_rates[SCI_FCK];
 	int err, min_err = INT_MAX;
 
+	if (s->port.type != PORT_HSCIF)
+		freq *= 2;
 	if (s->sampling_rate) {
 		min_sr = max_sr = s->sampling_rate;
-		shift = 0;
 	} else {
 		/* HSCIF has a variable sample rate */
 		min_sr = 8;
 		max_sr = 32;
-		shift = 1;
 	}
 
 	/*
@@ -2007,7 +2011,7 @@ static int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 	for (sr = max_sr; sr >= min_sr; sr--) {
 		for (c = 0; c <= 3; c++) {
 			/* integerized formulas from HSCIF documentation */
-			prediv = sr * (1 << (2 * c + shift));
+			prediv = sr * (1 << (2 * c + 1));
 
 			/*
 			 * We need to calculate:
