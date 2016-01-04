@@ -442,7 +442,7 @@ static int flexcan_chip_unfreeze(struct flexcan_priv *priv)
 	flexcan_write(reg, &regs->mcr);
 
 	while (timeout-- && (flexcan_read(&regs->mcr) & FLEXCAN_MCR_FRZ_ACK))
-		udelay(10);
+		udelay(20);
 
 	if (flexcan_read(&regs->mcr) & FLEXCAN_MCR_FRZ_ACK)
 		return -ETIMEDOUT;
