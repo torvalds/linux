@@ -378,14 +378,13 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 	 * write_ports can create the server without actually starting
 	 * any threads--if we get shut down before any threads are
 	 * started, then nfsd_last_thread will be run before any of this
-	 * other initialization has been done.
+	 * other initialization has been done except the rpcb information.
 	 */
+	svc_rpcb_cleanup(serv, net);
 	if (!nn->nfsd_net_up)
 		return;
+
 	nfsd_shutdown_net(net);
-
-	svc_rpcb_cleanup(serv, net);
-
 	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
 			    "cache\n");
 	nfsd_export_flush(net);
