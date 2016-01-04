@@ -128,12 +128,23 @@ static inline void pcf2123_delay_trec(void)
 	ndelay(30);
 }
 
+static int pcf2123_read(struct device *dev, u8 reg, u8 *rxbuf, size_t size)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	int ret;
+
+	reg |= PCF2123_READ;
+	ret = spi_write_then_read(spi, &reg, 1, rxbuf, size);
+	pcf2123_delay_trec();
+
+	return ret;
+}
+
 static ssize_t pcf2123_show(struct device *dev, struct device_attribute *attr,
 			    char *buffer)
 {
-	struct spi_device *spi = to_spi_device(dev);
 	struct pcf2123_sysfs_reg *r;
-	u8 txbuf[1], rxbuf[1];
+	u8 rxbuf[1];
 	unsigned long reg;
 	int ret;
 
@@ -143,11 +154,10 @@ static ssize_t pcf2123_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	txbuf[0] = PCF2123_READ | reg;
-	ret = spi_write_then_read(spi, txbuf, 1, rxbuf, 1);
+	ret = pcf2123_read(dev, reg, rxbuf, 1);
 	if (ret < 0)
 		return -EIO;
-	pcf2123_delay_trec();
+
 	return sprintf(buffer, "0x%x\n", rxbuf[0]);
 }
 
@@ -182,16 +192,12 @@ static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
 
 static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	u8 txbuf[1], rxbuf[7];
+	u8 rxbuf[7];
 	int ret;
 
-	txbuf[0] = PCF2123_READ | PCF2123_REG_SC;
-	ret = spi_write_then_read(spi, txbuf, sizeof(txbuf),
-			rxbuf, sizeof(rxbuf));
+	ret = pcf2123_read(dev, PCF2123_REG_SC, rxbuf, sizeof(rxbuf));
 	if (ret < 0)
 		return ret;
-	pcf2123_delay_trec();
 
 	tm->tm_sec = bcd2bin(rxbuf[0] & 0x7F);
 	tm->tm_min = bcd2bin(rxbuf[1] & 0x7F);
@@ -297,16 +303,12 @@ static int pcf2123_probe(struct spi_device *spi)
 	pcf2123_delay_trec();
 
 	/* See if the counter was actually stopped */
-	txbuf[0] = PCF2123_READ | PCF2123_REG_CTRL1;
-	dev_dbg(&spi->dev, "checking for presence of RTC (0x%02X)\n",
-			txbuf[0]);
-	ret = spi_write_then_read(spi, txbuf, 1 * sizeof(u8),
-					rxbuf, 2 * sizeof(u8));
+	dev_dbg(&spi->dev, "checking for presence of RTC\n");
+	ret = pcf2123_read(&spi->dev, PCF2123_REG_CTRL1, rxbuf, sizeof(rxbuf));
 	dev_dbg(&spi->dev, "received data from RTC (0x%02X 0x%02X)\n",
 			rxbuf[0], rxbuf[1]);
 	if (ret < 0)
 		goto kfree_exit;
-	pcf2123_delay_trec();
 
 	if (!(rxbuf[0] & 0x20)) {
 		dev_err(&spi->dev, "chip not found\n");
