@@ -1364,9 +1364,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port->dev = dev;
 	mlxsw_sp_port->mlxsw_sp = mlxsw_sp;
 	mlxsw_sp_port->local_port = local_port;
-	mlxsw_sp_port->learning = 1;
-	mlxsw_sp_port->learning_sync = 1;
-	mlxsw_sp_port->uc_flood = 1;
 	bytes = DIV_ROUND_UP(VLAN_N_VID, BITS_PER_BYTE);
 	mlxsw_sp_port->active_vlans = kzalloc(bytes, GFP_KERNEL);
 	if (!mlxsw_sp_port->active_vlans) {
@@ -1989,16 +1986,24 @@ static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port)
 	 * own VLANs.
 	 */
 	err = mlxsw_sp_port_kill_vid(dev, 0, 1);
-	if (!err)
-		mlxsw_sp_port->bridged = 1;
+	if (err)
+		return err;
 
-	return err;
+	mlxsw_sp_port->learning = 1;
+	mlxsw_sp_port->learning_sync = 1;
+	mlxsw_sp_port->uc_flood = 1;
+	mlxsw_sp_port->bridged = 1;
+
+	return 0;
 }
 
 static int mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct net_device *dev = mlxsw_sp_port->dev;
 
+	mlxsw_sp_port->learning = 0;
+	mlxsw_sp_port->learning_sync = 0;
+	mlxsw_sp_port->uc_flood = 0;
 	mlxsw_sp_port->bridged = 0;
 
 	/* Add implicit VLAN interface in the device, so that untagged
