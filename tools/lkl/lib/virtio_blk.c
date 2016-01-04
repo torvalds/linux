@@ -103,7 +103,7 @@ int lkl_disk_add(union lkl_disk disk)
 	}
 	dev->config.capacity = capacity;
 
-	ret = virtio_dev_setup(&dev->dev, 1, 65536);
+	ret = virtio_dev_setup(&dev->dev, 1, 32);
 	if (ret)
 		goto out_free;
 
