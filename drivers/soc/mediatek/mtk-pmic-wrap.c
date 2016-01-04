@@ -412,6 +412,20 @@ static bool pwrap_is_fsm_vldclr(struct pmic_wrapper *wrp)
 	return PWRAP_GET_WACS_FSM(val) == PWRAP_WACS_FSM_WFVLDCLR;
 }
 
+/*
+ * Timeout issue sometimes caused by the last read command
+ * failed because pmic wrap could not got the FSM_VLDCLR
+ * in time after finishing WACS2_CMD. It made state machine
+ * still on FSM_VLDCLR and timeout next time.
+ * Check the status of FSM and clear the vldclr to recovery the
+ * error.
+ */
+static inline void pwrap_leave_fsm_vldclr(struct pmic_wrapper *wrp)
+{
+	if (pwrap_is_fsm_vldclr(wrp))
+		pwrap_writel(wrp, 1, PWRAP_WACS2_VLDCLR);
+}
+
 static bool pwrap_is_sync_idle(struct pmic_wrapper *wrp)
 {
 	return pwrap_readl(wrp, PWRAP_WACS2_RDATA) & PWRAP_STATE_SYNC_IDLE0;
@@ -445,8 +459,10 @@ static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 	int ret;
 
 	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
-	if (ret)
+	if (ret) {
+		pwrap_leave_fsm_vldclr(wrp);
 		return ret;
+	}
 
 	pwrap_writel(wrp, (1 << 31) | ((adr >> 1) << 16) | wdata,
 			PWRAP_WACS2_CMD);
@@ -459,8 +475,10 @@ static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 	int ret;
 
 	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
-	if (ret)
+	if (ret) {
+		pwrap_leave_fsm_vldclr(wrp);
 		return ret;
+	}
 
 	pwrap_writel(wrp, (adr >> 1) << 16, PWRAP_WACS2_CMD);
 
