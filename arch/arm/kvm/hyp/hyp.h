@@ -80,6 +80,9 @@
 void __timer_save_state(struct kvm_vcpu *vcpu);
 void __timer_restore_state(struct kvm_vcpu *vcpu);
 
+void __vgic_v2_save_state(struct kvm_vcpu *vcpu);
+void __vgic_v2_restore_state(struct kvm_vcpu *vcpu);
+
 void __sysreg_save_state(struct kvm_cpu_context *ctxt);
 void __sysreg_restore_state(struct kvm_cpu_context *ctxt);
 

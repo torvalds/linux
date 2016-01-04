@@ -5,3 +5,4 @@
 obj-$(CONFIG_KVM_ARM_HOST) += tlb.o
 obj-$(CONFIG_KVM_ARM_HOST) += cp15-sr.o
 obj-$(CONFIG_KVM_ARM_HOST) += timer-sr.o
+obj-$(CONFIG_KVM_ARM_HOST) += vgic-v2-sr.o
