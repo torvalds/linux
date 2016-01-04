@@ -1768,17 +1768,18 @@ pnfs_set_plh_return_iomode(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode)
 	lo->plh_return_iomode = iomode;
 }
 
-void
+int
 pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
 				struct pnfs_layout_range *return_range)
 {
 	struct pnfs_layout_segment *lseg, *next;
+	int remaining = 0;
 
 	dprintk("%s:Begin lo %p\n", __func__, lo);
 
 	if (list_empty(&lo->plh_segs))
-		return;
+		return 0;
 
 	assert_spin_locked(&lo->plh_inode->i_lock);
 
@@ -1791,10 +1792,12 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				lseg->pls_range.length);
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
 			pnfs_set_plh_return_iomode(lo, return_range->iomode);
-			mark_lseg_invalid(lseg, tmp_list);
+			if (!mark_lseg_invalid(lseg, tmp_list))
+				remaining++;
 			set_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
 					&lo->plh_flags);
 		}
+	return remaining;
 }
 
 void pnfs_error_mark_layout_for_return(struct inode *inode,
@@ -1808,6 +1811,7 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 		.length = NFS4_MAX_UINT64,
 	};
 	LIST_HEAD(free_me);
+	bool return_now = false;
 
 	spin_lock(&inode->i_lock);
 	/* set failure bit so that pnfs path will be retried later */
@@ -1818,10 +1822,20 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 	 * segments at hand when sending layoutreturn. See pnfs_put_lseg()
 	 * for how it works.
 	 */
-	pnfs_mark_matching_lsegs_return(lo, &free_me, &range);
-	spin_unlock(&inode->i_lock);
+	if (!pnfs_mark_matching_lsegs_return(lo, &free_me, &range)) {
+		nfs4_stateid stateid;
+		enum pnfs_iomode iomode = lo->plh_return_iomode;
+
+		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
+		return_now = pnfs_prepare_layoutreturn(lo);
+		spin_unlock(&inode->i_lock);
+		if (return_now)
+			pnfs_send_layoutreturn(lo, &stateid, iomode, false);
+	} else {
+		spin_unlock(&inode->i_lock);
+		nfs_commit_inode(inode, 0);
+	}
 	pnfs_free_lseg_list(&free_me);
-	nfs_commit_inode(inode, 0);
 }
 EXPORT_SYMBOL_GPL(pnfs_error_mark_layout_for_return);
 
