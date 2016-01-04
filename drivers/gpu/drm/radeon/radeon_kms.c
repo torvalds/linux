@@ -759,7 +759,7 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 	u32 count;
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (pipe < 0 || pipe >= rdev->num_crtc) {
+	if (pipe >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
