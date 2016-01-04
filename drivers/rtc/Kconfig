@@ -743,6 +743,15 @@ config RTC_DRV_RX4581
 	  This driver can also be built as a module. If so the module
 	  will be called rtc-rx4581.
 
+config RTC_DRV_RX6110
+	tristate "Epson RX-6110"
+	select REGMAP_SPI
+	help
+	  If you say yes here you will get support for the Epson RX-6610.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-rx6110.
+
 config RTC_DRV_MCP795
 	tristate "Microchip MCP795"
 	help
