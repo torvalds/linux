@@ -610,7 +610,9 @@ __xfs_iflock(
 
 STATIC uint
 _xfs_dic2xflags(
-	__uint16_t		di_flags)
+	__uint16_t		di_flags,
+	uint64_t		di_flags2,
+	bool			has_attr)
 {
 	uint			flags = 0;
 
@@ -645,25 +647,32 @@ _xfs_dic2xflags(
 			flags |= FS_XFLAG_FILESTREAM;
 	}
 
+	if (di_flags2 & XFS_DIFLAG2_ANY) {
+		if (di_flags2 & XFS_DIFLAG2_DAX)
+			flags |= FS_XFLAG_DAX;
+	}
+
+	if (has_attr)
+		flags |= FS_XFLAG_HASATTR;
+
 	return flags;
 }
 
 uint
 xfs_ip2xflags(
-	xfs_inode_t		*ip)
+	struct xfs_inode	*ip)
 {
-	xfs_icdinode_t		*dic = &ip->i_d;
+	struct xfs_icdinode	*dic = &ip->i_d;
 
-	return _xfs_dic2xflags(dic->di_flags) |
-				(XFS_IFORK_Q(ip) ? FS_XFLAG_HASATTR : 0);
+	return _xfs_dic2xflags(dic->di_flags, dic->di_flags2, XFS_IFORK_Q(ip));
 }
 
 uint
 xfs_dic2xflags(
-	xfs_dinode_t		*dip)
+	struct xfs_dinode	*dip)
 {
-	return _xfs_dic2xflags(be16_to_cpu(dip->di_flags)) |
-				(XFS_DFORK_Q(dip) ? FS_XFLAG_HASATTR : 0);
+	return _xfs_dic2xflags(be16_to_cpu(dip->di_flags),
+				be64_to_cpu(dip->di_flags2), XFS_DFORK_Q(dip));
 }
 
 /*
@@ -862,7 +871,8 @@ xfs_ialloc(
 	case S_IFREG:
 	case S_IFDIR:
 		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
-			uint	di_flags = 0;
+			uint64_t	di_flags2 = 0;
+			uint		di_flags = 0;
 
 			if (S_ISDIR(mode)) {
 				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
@@ -898,7 +908,11 @@ xfs_ialloc(
 				di_flags |= XFS_DIFLAG_NODEFRAG;
 			if (pip->i_d.di_flags & XFS_DIFLAG_FILESTREAM)
 				di_flags |= XFS_DIFLAG_FILESTREAM;
+			if (pip->i_d.di_flags2 & XFS_DIFLAG2_DAX)
+				di_flags2 |= XFS_DIFLAG2_DAX;
+
 			ip->i_d.di_flags |= di_flags;
+			ip->i_d.di_flags2 |= di_flags2;
 		}
 		/* FALLTHROUGH */
 	case S_IFLNK:
