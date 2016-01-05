@@ -45,6 +45,14 @@
 })
 #define read_sysreg(...)		__read_sysreg(__VA_ARGS__)
 
+#define write_special(v, r)					\
+	asm volatile("msr " __stringify(r) ", %0" : : "r" (v))
+#define read_special(r) ({					\
+	u32 __val;						\
+	asm volatile("mrs %0, " __stringify(r) : "=r" (__val));	\
+	__val;							\
+})
+
 #define TTBR0		__ACCESS_CP15_64(0, c2)
 #define TTBR1		__ACCESS_CP15_64(1, c2)
 #define VTTBR		__ACCESS_CP15_64(6, c2)
@@ -98,5 +106,8 @@ static inline bool __vfp_enabled(void)
 {
 	return !(read_sysreg(HCPTR) & (HCPTR_TCP(11) | HCPTR_TCP(10)));
 }
+
+void __hyp_text __banked_save_state(struct kvm_cpu_context *ctxt);
+void __hyp_text __banked_restore_state(struct kvm_cpu_context *ctxt);
 
 #endif /* __ARM_KVM_HYP_H__ */
