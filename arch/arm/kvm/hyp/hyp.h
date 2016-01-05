@@ -123,4 +123,6 @@ void __hyp_text __banked_restore_state(struct kvm_cpu_context *ctxt);
 
 int asmlinkage __guest_enter(struct kvm_vcpu *vcpu,
 			     struct kvm_cpu_context *host);
+int asmlinkage __hyp_do_panic(const char *, int, u32);
+
 #endif /* __ARM_KVM_HYP_H__ */
