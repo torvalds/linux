@@ -264,6 +264,18 @@
 	};
 };
 
+&i2c2 {
+	status = "okay";
+
+	gt911: gt911@14 {
+		compatible = "goodix,gt911";
+		reg = <0x14>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <12 0>;
+		status = "disabled";
+	};
+};
+
 &pwm0 {
 	status = "okay";
 };
