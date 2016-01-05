@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 driver
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.h 505040 2014-09-26 06:39:18Z $
+ * $Id: wl_cfg80211.h 575651 2015-07-30 13:49:47Z $
  */
 
 #ifndef _wl_cfg80211_h_
@@ -177,6 +177,14 @@ do {									\
 #define WL_SCAN_SUPPRESS_RETRY 3000
 
 #define WL_PM_ENABLE_TIMEOUT 10000
+
+/* cfg80211 wowlan definitions */
+#define WL_WOWLAN_MAX_PATTERNS			8
+#define WL_WOWLAN_MIN_PATTERN_LEN		1
+#define WL_WOWLAN_MAX_PATTERN_LEN		255
+#define WL_WOWLAN_PKT_FILTER_ID_FIRST	201
+#define WL_WOWLAN_PKT_FILTER_ID_LAST	(WL_WOWLAN_PKT_FILTER_ID_FIRST + \
+									WL_WOWLAN_MAX_PATTERNS - 1)
 
 
 /* driver status */
@@ -393,7 +401,7 @@ struct wl_pmk_list {
 
 struct escan_info {
 	u32 escan_state;
-#if defined(STATIC_WL_PRIV_STRUCT)
+#ifdef STATIC_WL_PRIV_STRUCT
 #ifndef CONFIG_DHD_USE_STATIC_BUF
 #error STATIC_WL_PRIV_STRUCT should be used with CONFIG_DHD_USE_STATIC_BUF
 #endif /* CONFIG_DHD_USE_STATIC_BUF */
@@ -404,6 +412,15 @@ struct escan_info {
 	struct wiphy *wiphy;
 	struct net_device *ndev;
 };
+
+#ifdef ESCAN_BUF_OVERFLOW_MGMT
+#define BUF_OVERFLOW_MGMT_COUNT 3
+typedef struct {
+	int RSSI;
+	int length;
+	struct ether_addr BSSID;
+} removal_element_t;
+#endif /* ESCAN_BUF_OVERFLOW_MGMT */
 
 struct ap_info {
 /* Structure to hold WPS, WPA IEs for a AP */
@@ -580,8 +597,10 @@ struct bcm_cfg80211 {
 	struct delayed_work pm_enable_work;
 	vndr_ie_setbuf_t *ibss_vsie;	/* keep the VSIE for IBSS */
 	int ibss_vsie_len;
+#ifdef WL_RELMCAST
 	u32 rmc_event_pid;
 	u32 rmc_event_seq;
+#endif /* WL_RELMCAST */
 	bool roam_offload;
 #ifdef WLTDLS
 	u8 *tdls_mgmt_frame;
@@ -589,6 +608,8 @@ struct bcm_cfg80211 {
 	s32 tdls_mgmt_freq;
 #endif /* WLTDLS */
 	bool nan_running;
+	bool need_wait_afrx;
+	struct ether_addr last_roamed_addr;
 };
 
 
@@ -821,6 +842,12 @@ wl_get_netinfo_by_netdev(struct bcm_cfg80211 *cfg, struct net_device *ndev)
 	true : false)
 #endif /* WL_CFG80211_P2P_DEV_IF */
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0))
+#define scan_req_iftype(req) (req->dev->ieee80211_ptr->iftype)
+#else
+#define scan_req_iftype(req) (req->wdev->iftype)
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0) */
+
 #define wl_to_sr(w) (w->scan_req_int)
 #if defined(STATIC_WL_PRIV_STRUCT)
 #define wl_to_ie(w) (w->ie)
@@ -925,6 +952,7 @@ extern s32 wl_cfg80211_apply_eventbuffer(struct net_device *ndev,
 	struct bcm_cfg80211 *cfg, wl_eventmsg_buf_t *ev);
 extern void get_primary_mac(struct bcm_cfg80211 *cfg, struct ether_addr *mac);
 extern void wl_cfg80211_update_power_mode(struct net_device *dev);
+extern void wl_terminate_event_handler(void);
 #define SCAN_BUF_CNT	2
 #define SCAN_BUF_NEXT	1
 #define WL_SCANTYPE_LEGACY	0x1
@@ -939,13 +967,25 @@ extern void wl_cfg80211_update_power_mode(struct net_device *dev);
 
 extern void wl_cfg80211_ibss_vsie_set_buffer(vndr_ie_setbuf_t *ibss_vsie, int ibss_vsie_len);
 extern s32 wl_cfg80211_ibss_vsie_delete(struct net_device *dev);
+#ifdef WL_RELMCAST
 extern void wl_cfg80211_set_rmc_pid(int pid);
-
+#endif /* WL_RELMCAST */
 
 /* Action frame specific functions */
 extern u8 wl_get_action_category(void *frame, u32 frame_len);
 extern int wl_get_public_action(void *frame, u32 frame_len, u8 *ret_action);
 
+#ifdef WL_SUPPORT_ACS
+#define ACS_MSRMNT_DELAY 1000 /* dump_obss delay in ms */
+#define IOCTL_RETRY_COUNT 5
+#define CHAN_NOISE_DUMMY -80
+#define OBSS_TOKEN_IDX 15
+#define IBSS_TOKEN_IDX 15
+#define TX_TOKEN_IDX 14
+#define CTG_TOKEN_IDX 13
+#define PKT_TOKEN_IDX 15
+#define IDLE_TOKEN_IDX 12
+#endif /* WL_SUPPORT_ACS */
 extern int wl_cfg80211_enable_roam_offload(struct net_device *dev, bool enable);
 #ifdef WL_NAN
 extern int wl_cfg80211_nan_cmd_handler(struct net_device *ndev, char *cmd,
@@ -958,4 +998,8 @@ struct net_device *wl_cfg80211_get_remain_on_channel_ndev(struct bcm_cfg80211 *c
 
 extern int wl_cfg80211_get_ioctl_version(void);
 
-#endif				/* _wl_cfg80211_h_ */
+#ifdef WL_CFG80211_P2P_DEV_IF
+extern void wl_cfg80211_del_p2p_wdev(void);
+#endif /* WL_CFG80211_P2P_DEV_IF */
+
+#endif /* _wl_cfg80211_h_ */

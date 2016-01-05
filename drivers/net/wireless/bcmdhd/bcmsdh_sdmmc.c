@@ -1,7 +1,7 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 457662 2014-02-24 15:07:28Z $
+ * $Id: bcmsdh_sdmmc.c 557203 2015-05-18 02:05:14Z $
  */
 #include <typedefs.h>
 
@@ -59,7 +59,13 @@ static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
 #endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
-static int sdio_reset_comm(struct mmc_card *card);
+//extern int sdio_reset_comm(struct mmc_card *card);
+
+/* workaround to simply return 0 as suggested by Broadcom */
+static int sdio_reset_comm(struct mmc_card *card)
+{
+        return 0;
+}
 
 #define DEFAULT_SDIO_F2_BLKSIZE		512
 #ifndef CUSTOM_SDIO_F2_BLKSIZE
@@ -91,12 +97,6 @@ DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 #define MMC_SDIO_ABORT_RETRY_LIMIT 5
 
 int sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, uint32 regaddr, int regsize, uint32 *data);
-
-/* workaround to simply return 0 as suggested by Broadcom */
-static int sdio_reset_comm(struct mmc_card *card)
-{
-	return 0;
-}
 
 static int
 sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
@@ -952,6 +952,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
 }
 
+#ifdef BCMSDIOH_TXGLOM
 static SDIOH_API_RC
 sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
                      uint addr, void *pkt)
@@ -1074,6 +1075,7 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 	sd_trace(("%s: Exit\n", __FUNCTION__));
 	return SDIOH_API_RC_SUCCESS;
 }
+#endif /* BCMSDIOH_TXGLOM */
 
 static SDIOH_API_RC
 sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
@@ -1142,12 +1144,13 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 
 	if (pkt) {
+#ifdef BCMSDIOH_TXGLOM
 		/* packet chain, only used for tx/rx glom, all packets length
 		 * are aligned, total length is a block multiple
 		 */
 		if (PKTNEXT(sd->osh, pkt))
 			return sdioh_request_packet_chain(sd, fix_inc, write, func, addr, pkt);
-
+#endif /* BCMSDIOH_TXGLOM */
 		/* non-glom mode, ignore the buffer parameter and use the packet pointer
 		 * (this shouldn't happen)
 		 */

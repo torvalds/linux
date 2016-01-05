@@ -2,7 +2,7 @@
  * Misc utility routines for accessing chip-specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: aiutils.c 432226 2013-10-26 04:34:36Z $
+ * $Id: aiutils.c 530682 2015-01-30 18:48:21Z $
  */
 #include <bcm_cfg.h>
 #include <typedefs.h>
@@ -49,6 +49,7 @@ get_erom_ent(si_t *sih, uint32 **eromptr, uint32 mask, uint32 match)
 {
 	uint32 ent;
 	uint inv = 0, nom = 0;
+	uint32 size = 0;
 
 	while (TRUE) {
 		ent = R_REG(si_osh(sih), *eromptr);
@@ -67,6 +68,13 @@ get_erom_ent(si_t *sih, uint32 **eromptr, uint32 mask, uint32 match)
 
 		if ((ent & mask) == match)
 			break;
+
+		/* escape condition related EROM size if it has invalid values */
+		size += sizeof(*eromptr);
+		if (size >= ER_SZ_MAX) {
+			SI_ERROR(("Failed to find end of EROM marker\n"));
+			break;
+		}
 
 		nom++;
 	}

@@ -1,7 +1,7 @@
 /*
  * Common function shared by Linux WEXT, cfg80211 and p2p drivers
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wldev_common.c 513448 2014-11-06 13:44:21Z $
+ * $Id: wldev_common.c 540901 2015-03-13 11:50:58Z $
  */
 
 #include <osl.h>
@@ -358,13 +358,22 @@ int wldev_get_mode(
 	uint16 band = 0;
 	uint16 bandwidth = 0;
 	wl_bss_info_t *bss = NULL;
-	char* buf = kmalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
+	char* buf = NULL;
+
+	buf = kmalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
+
+	if (!buf) {
+		WLDEV_ERROR(("%s:NOMEM\n", __FUNCTION__));
+		return -ENOMEM;
+	}
 
 	*(u32*) buf = htod32(WL_EXTRA_BUF_MAX);
 	error = wldev_ioctl(dev, WLC_GET_BSS_INFO, (void*)buf, WL_EXTRA_BUF_MAX, false);
 	if (error) {
 		WLDEV_ERROR(("%s:failed:%d\n", __FUNCTION__, error));
-		return -1;
+		kfree(buf);
+		buf = NULL;
+		return error;
 	}
 	bss = (struct  wl_bss_info *)(buf + 4);
 	chanspec = wl_chspec_driver_to_host(bss->chanspec);
@@ -391,10 +400,12 @@ int wldev_get_mode(
 				strcpy(cap, "a");
 		} else {
 			WLDEV_ERROR(("%s:Mode get failed\n", __FUNCTION__));
-			return -1;
+			error = BCME_ERROR;
 		}
 
 	}
+	kfree(buf);
+	buf = NULL;
 	return error;
 }
 #define MAX_NUM_OF_ASSOCLIST 64

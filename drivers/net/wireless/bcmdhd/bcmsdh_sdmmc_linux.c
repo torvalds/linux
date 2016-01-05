@@ -1,7 +1,7 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc_linux.c 434724 2013-11-07 05:38:43Z $
+ * $Id: bcmsdh_sdmmc_linux.c 523920 2015-01-05 06:07:16Z $
  */
 
 #include <typedefs.h>
@@ -228,14 +228,18 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 	if (func->num != 2)
 		return 0;
 
+	dhd_mmc_suspend = TRUE;
 	sdioh = sdio_get_drvdata(func);
 	err = bcmsdh_suspend(sdioh->bcmsdh);
-	if (err)
+	if (err) {
+		dhd_mmc_suspend = FALSE;
 		return err;
+	}
 
 	sdio_flags = sdio_get_host_pm_caps(func);
 	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
 		sd_err(("%s: can't keep power while host is suspended\n", __FUNCTION__));
+		dhd_mmc_suspend = FALSE;
 		return  -EINVAL;
 	}
 
@@ -243,12 +247,12 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 	err = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 	if (err) {
 		sd_err(("%s: error while trying to keep power\n", __FUNCTION__));
+		dhd_mmc_suspend = FALSE;
 		return err;
 	}
 #if defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(sdioh->bcmsdh, FALSE);
 #endif 
-	dhd_mmc_suspend = TRUE;
 	smp_mb();
 
 	return 0;

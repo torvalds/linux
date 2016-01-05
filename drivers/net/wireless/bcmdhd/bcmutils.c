@@ -1,7 +1,7 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -20,7 +20,7 @@
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
- * $Id: bcmutils.c 490613 2014-07-11 05:23:34Z $
+ * $Id: bcmutils.c 530682 2015-01-30 18:48:21Z $
  */
 
 #include <bcm_cfg.h>
@@ -266,12 +266,12 @@ pktq_penq(struct pktq *pq, int prec, void *p)
 	struct pktq_prec *q;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(!((PKTLINK(p) != NULL) && (PKTLINK(p) != p)));         /* queueing chains not allowed */
+	/* queueing chains not allowed and no segmented SKB (Kernel-3.18.y) */
+	ASSERT(!((PKTLINK(p) != NULL) && (PKTLINK(p) != p)));
 
 	ASSERT(!pktq_full(pq));
 	ASSERT(!pktq_pfull(pq, prec));
 
-	PKTSETLINK(p, NULL);
 	q = &pq->q[prec];
 
 	if (q->head)
@@ -296,11 +296,11 @@ pktq_penq_head(struct pktq *pq, int prec, void *p)
 	struct pktq_prec *q;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(!((PKTLINK(p) != NULL) && (PKTLINK(p) != p)));         /* queueing chains not allowed */
+	/* queueing chains not allowed and no segmented SKB (Kernel-3.18.y) */
+	ASSERT(!((PKTLINK(p) != NULL) && (PKTLINK(p) != p)));
 
 	ASSERT(!pktq_full(pq));
 	ASSERT(!pktq_pfull(pq, prec));
-	PKTSETLINK(p, NULL);
 
 	q = &pq->q[prec];
 
@@ -1810,7 +1810,9 @@ bcm_parse_tlvs(void *buf, int buflen, uint key)
 	bcm_tlv_t *elt;
 	int totlen;
 
-	elt = (bcm_tlv_t*)buf;
+	if ((elt = (bcm_tlv_t*)buf) == NULL) {
+		return NULL;
+	}
 	totlen = buflen;
 
 	/* find tagged parameter */
@@ -1938,8 +1940,6 @@ bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags, char* buf, int len)
 
 	/* indicate the str was too short */
 	if (flags != 0) {
-		if (len < 2)
-			p -= 2 - len;	/* overwrite last char */
 		p += snprintf(p, 2, ">");
 	}
 
@@ -2120,8 +2120,10 @@ bcm_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 	strncpy(buf, name, buflen);
 
 	/* append data onto the end of the name string */
-	memcpy(&buf[len], data, datalen);
-	len += datalen;
+	if (data) {
+		memcpy(&buf[len], data, datalen);
+		len += datalen;
+	}
 
 	return len;
 }

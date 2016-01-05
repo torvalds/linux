@@ -1,7 +1,7 @@
 /*
  * IP Packet Parser Module.
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_ip.c 486237 2014-06-19 09:22:00Z $
+ * $Id: dhd_ip.c 529177 2015-01-26 12:49:53Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -128,10 +128,14 @@ typedef struct _tdata_psh_info_t {
 } tdata_psh_info_t;
 
 typedef struct {
-	uint8 src_ip_addr[IPV4_ADDR_LEN];	/* SRC ip addrs of this TCP stream */
-	uint8 dst_ip_addr[IPV4_ADDR_LEN];	/* DST ip addrs of this TCP stream */
-	uint8 src_tcp_port[TCP_PORT_LEN];	/* SRC tcp ports of this TCP stream */
-	uint8 dst_tcp_port[TCP_PORT_LEN];	/* DST tcp ports of this TCP stream */
+	struct {
+		uint8 src[IPV4_ADDR_LEN];	/* SRC ip addrs of this TCP stream */
+		uint8 dst[IPV4_ADDR_LEN];	/* DST ip addrs of this TCP stream */
+	} ip_addr;
+	struct {
+		uint8 src[TCP_PORT_LEN];	/* SRC tcp ports of this TCP stream */
+		uint8 dst[TCP_PORT_LEN];	/* DST tcp ports of this TCP stream */
+	} tcp_port;
 	tdata_psh_info_t *tdata_psh_info_head;	/* Head of received TCP PSH DATA chain */
 	tdata_psh_info_t *tdata_psh_info_tail;	/* Tail of received TCP PSH DATA chain */
 	uint32 last_used_time;	/* The last time this tcpdata_info was used(in ms) */
@@ -463,20 +467,20 @@ static INLINE bool dhd_tcpdata_psh_acked(dhd_pub_t *dhdp, uint8 *ip_hdr,
 		tcpdata_info_t *tcpdata_info_tmp = &tcpack_sup_mod->tcpdata_info_tbl[i];
 		DHD_TRACE(("%s %d: data info[%d], IP addr "IPV4_ADDR_STR" "IPV4_ADDR_STR
 			" TCP port %d %d\n", __FUNCTION__, __LINE__, i,
-			IPV4_ADDR_TO_STR(ntoh32_ua(tcpdata_info_tmp->src_ip_addr)),
-			IPV4_ADDR_TO_STR(ntoh32_ua(tcpdata_info_tmp->dst_ip_addr)),
-			ntoh16_ua(tcpdata_info_tmp->src_tcp_port),
-			ntoh16_ua(tcpdata_info_tmp->dst_tcp_port)));
+			IPV4_ADDR_TO_STR(ntoh32_ua(tcpdata_info_tmp->ip_addr.src)),
+			IPV4_ADDR_TO_STR(ntoh32_ua(tcpdata_info_tmp->ip_addr.dst)),
+			ntoh16_ua(tcpdata_info_tmp->tcp_port.src),
+			ntoh16_ua(tcpdata_info_tmp->tcp_port.dst)));
 
 		/* If either IP address or TCP port number does not match, skip. */
 		if (memcmp(&ip_hdr[IPV4_SRC_IP_OFFSET],
-			tcpdata_info_tmp->dst_ip_addr, IPV4_ADDR_LEN) == 0 &&
+			tcpdata_info_tmp->ip_addr.dst, IPV4_ADDR_LEN) == 0 &&
 			memcmp(&ip_hdr[IPV4_DEST_IP_OFFSET],
-			tcpdata_info_tmp->src_ip_addr, IPV4_ADDR_LEN) == 0 &&
+			tcpdata_info_tmp->ip_addr.src, IPV4_ADDR_LEN) == 0 &&
 			memcmp(&tcp_hdr[TCP_SRC_PORT_OFFSET],
-			tcpdata_info_tmp->dst_tcp_port, TCP_PORT_LEN) == 0 &&
+			tcpdata_info_tmp->tcp_port.dst, TCP_PORT_LEN) == 0 &&
 			memcmp(&tcp_hdr[TCP_DEST_PORT_OFFSET],
-			tcpdata_info_tmp->src_tcp_port, TCP_PORT_LEN) == 0) {
+			tcpdata_info_tmp->tcp_port.src, TCP_PORT_LEN) == 0) {
 			tcpdata_info = tcpdata_info_tmp;
 			break;
 		}
@@ -657,7 +661,10 @@ dhd_tcpack_suppress(dhd_pub_t *dhdp, void *pkt)
 			ntoh16_ua(&old_tcp_hdr[TCP_SRC_PORT_OFFSET]),
 			ntoh16_ua(&old_tcp_hdr[TCP_DEST_PORT_OFFSET])));
 
-		/* If either of IP address or TCP port number does not match, skip. */
+		/* If either of IP address or TCP port number does not match, skip.
+		 * Note that src/dst addr fields in ip header are contiguous being 8 bytes in total.
+		 * Also, src/dst port fields in TCP header are contiguous being 4 bytes in total.
+		 */
 		if (memcmp(&new_ip_hdr[IPV4_SRC_IP_OFFSET],
 			&old_ip_hdr[IPV4_SRC_IP_OFFSET], IPV4_ADDR_LEN * 2) ||
 			memcmp(&new_tcp_hdr[TCP_SRC_PORT_OFFSET],
@@ -825,16 +832,19 @@ dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt)
 		uint32 now_in_ms = OSL_SYSUPTIME();
 		DHD_TRACE(("%s %d: data info[%d], IP addr "IPV4_ADDR_STR" "IPV4_ADDR_STR
 			" TCP port %d %d\n", __FUNCTION__, __LINE__, i,
-			IPV4_ADDR_TO_STR(ntoh32_ua(tdata_info_tmp->src_ip_addr)),
-			IPV4_ADDR_TO_STR(ntoh32_ua(tdata_info_tmp->dst_ip_addr)),
-			ntoh16_ua(tdata_info_tmp->src_tcp_port),
-			ntoh16_ua(tdata_info_tmp->dst_tcp_port)));
+			IPV4_ADDR_TO_STR(ntoh32_ua(tdata_info_tmp->ip_addr.src)),
+			IPV4_ADDR_TO_STR(ntoh32_ua(tdata_info_tmp->ip_addr.dst)),
+			ntoh16_ua(tdata_info_tmp->tcp_port.src),
+			ntoh16_ua(tdata_info_tmp->tcp_port.dst)));
 
-		/* If both IP address and TCP port number match, we found it so break. */
+		/* If both IP address and TCP port number match, we found it so break.
+		 * Note that src/dst addr fields in ip header are contiguous being 8 bytes in total.
+		 * Also, src/dst port fields in TCP header are contiguous being 4 bytes in total.
+		 */
 		if (memcmp(&ip_hdr[IPV4_SRC_IP_OFFSET],
-			(void *)tdata_info_tmp->src_ip_addr, IPV4_ADDR_LEN * 2) == 0 &&
+			(void *)&tdata_info_tmp->ip_addr, IPV4_ADDR_LEN * 2) == 0 &&
 			memcmp(&tcp_hdr[TCP_SRC_PORT_OFFSET],
-			(void *)tdata_info_tmp->src_tcp_port, TCP_PORT_LEN * 2) == 0) {
+			(void *)&tdata_info_tmp->tcp_port, TCP_PORT_LEN * 2) == 0) {
 			tcpdata_info = tdata_info_tmp;
 			tcpdata_info->last_used_time = now_in_ms;
 			break;
@@ -865,7 +875,7 @@ dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt)
 				bcopy(last_tdata_info, tdata_info_tmp, sizeof(tcpdata_info_t));
 			}
 			bzero(last_tdata_info, sizeof(tcpdata_info_t));
-			DHD_ERROR(("%s %d: tcpdata_info(idx %d) is aged out. ttl cnt is now %d\n",
+			DHD_INFO(("%s %d: tcpdata_info(idx %d) is aged out. ttl cnt is now %d\n",
 				__FUNCTION__, __LINE__, i, tcpack_sup_mod->tcpdata_info_cnt));
 			/* Don't increase "i" here, so that the prev last tcpdata_info is checked */
 		} else
@@ -894,17 +904,19 @@ dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt)
 		/* No TCP flow with the same IP addr and TCP port is found
 		 * in tcp_data_info_tbl. So add this flow to the table.
 		 */
-		DHD_ERROR(("%s %d: Add data info to tbl[%d]: IP addr "IPV4_ADDR_STR" "IPV4_ADDR_STR
+		DHD_INFO(("%s %d: Add data info to tbl[%d]: IP addr "IPV4_ADDR_STR" "IPV4_ADDR_STR
 			" TCP port %d %d\n",
 			__FUNCTION__, __LINE__, tcpack_sup_mod->tcpdata_info_cnt,
 			IPV4_ADDR_TO_STR(ntoh32_ua(&ip_hdr[IPV4_SRC_IP_OFFSET])),
 			IPV4_ADDR_TO_STR(ntoh32_ua(&ip_hdr[IPV4_DEST_IP_OFFSET])),
 			ntoh16_ua(&tcp_hdr[TCP_SRC_PORT_OFFSET]),
 			ntoh16_ua(&tcp_hdr[TCP_DEST_PORT_OFFSET])));
-
-		bcopy(&ip_hdr[IPV4_SRC_IP_OFFSET], (void *)tcpdata_info->src_ip_addr,
+		/* Note that src/dst addr fields in ip header are contiguous being 8 bytes in total.
+		 * Also, src/dst port fields in TCP header are contiguous being 4 bytes in total.
+		 */
+		bcopy(&ip_hdr[IPV4_SRC_IP_OFFSET], (void *)&tcpdata_info->ip_addr,
 			IPV4_ADDR_LEN * 2);
-		bcopy(&tcp_hdr[TCP_SRC_PORT_OFFSET], (void *)tcpdata_info->src_tcp_port,
+		bcopy(&tcp_hdr[TCP_SRC_PORT_OFFSET], (void *)&tcpdata_info->tcp_port,
 			TCP_PORT_LEN * 2);
 
 		tcpdata_info->last_used_time = OSL_SYSUPTIME();

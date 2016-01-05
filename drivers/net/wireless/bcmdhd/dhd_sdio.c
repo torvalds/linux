@@ -1,7 +1,7 @@
 /*
  * DHD Bus Module for SDIO
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,12 +21,8 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 506047 2014-10-02 12:43:31Z $
+ * $Id: dhd_sdio.c 572232 2015-07-17 12:14:31Z $
  */
-
-#include <linux/mmc/host.h>
-#include <linux/mmc/card.h>
-#include <linux/mmc/sdio_func.h>
 
 #include <typedefs.h>
 #include <osl.h>
@@ -57,7 +53,6 @@
 #include <sbsdpcmdev.h>
 #include <bcmsdpcm.h>
 #include <bcmsdbus.h>
-#include <bcmsdh_sdmmc.h>
 
 #include <proto/ethernet.h>
 #include <proto/802.1d.h>
@@ -148,6 +143,7 @@ extern bool  bcmsdh_fatal_error(void *sdh);
 #if (PMU_MAX_TRANSITION_DLY <= 1000000)
 #undef PMU_MAX_TRANSITION_DLY
 #define PMU_MAX_TRANSITION_DLY 1000000
+#define PMU_TRANSITION_DLY_EXTRA 500000
 #endif
 
 /* hooks for limiting threshold custom tx num in rx processing */
@@ -1132,6 +1128,7 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 	int err;
 	uint8 clkctl, clkreq, devctl;
 	bcmsdh_info_t *sdh;
+	uint32 delay = PMU_MAX_TRANSITION_DLY;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -1205,12 +1202,18 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 			}
 		}
 
+		/* Give the 43362 chip a little bit extra time for HT Avail */
+		if (bus->sih->chip == BCM43362_CHIP_ID) {
+			delay += PMU_TRANSITION_DLY_EXTRA;
+		}
+
 		/* Otherwise, wait here (polling) for HT Avail */
 		if (!SBSDIO_CLKAV(clkctl, bus->alp_only)) {
 			SPINWAIT_SLEEP(sdioh_spinwait_sleep,
 				((clkctl = bcmsdh_cfg_read(sdh, SDIO_FUNC_1,
-			                                    SBSDIO_FUNC1_CHIPCLKCSR, &err)),
-			          !SBSDIO_CLKAV(clkctl, bus->alp_only)), PMU_MAX_TRANSITION_DLY);
+				SBSDIO_FUNC1_CHIPCLKCSR, &err)),
+				!SBSDIO_CLKAV(clkctl, bus->alp_only)),
+				delay);
 		}
 		if (err) {
 			DHD_ERROR(("%s: HT Avail request error: %d\n", __FUNCTION__, err));
@@ -1742,9 +1745,6 @@ static int dhdsdio_txpkt_preprocess(dhd_bus_t *bus, void *pkt, int chan, int txs
 	uint32 swhdr_offset;
 	bool alloc_new_pkt = FALSE;
 	uint8 sdpcm_hdrlen = bus->txglom_enable ? SDPCM_HDRLEN_TXGLOM : SDPCM_HDRLEN;
-	sdioh_info_t *sd = bus->sdh->sdioh;
-	struct sdio_func *sdio_func = sd->func[0];
-	struct mmc_host *host = sdio_func->card->host;
 
 	*new_pkt = NULL;
 	osh = bus->dhd->osh;
@@ -1822,7 +1822,7 @@ static int dhdsdio_txpkt_preprocess(dhd_bus_t *bus, void *pkt, int chan, int txs
 			 * Use the padding packet to avoid memory copy if applicable,
 			 * otherwise, just allocate a new pkt.
 			 */
-			if (bus->pad_pkt && (host->max_segs > 1)) {
+			if (bus->pad_pkt) {
 				*pad_pkt_len = chain_tail_padding;
 				bus->tx_tailpad_chain++;
 			} else {
@@ -1877,10 +1877,9 @@ static int dhdsdio_txpkt_preprocess(dhd_bus_t *bus, void *pkt, int chan, int txs
 		PKTALIGN(osh, tmp_pkt, PKTLEN(osh, pkt), DHD_SDALIGN);
 		bcopy(PKTDATA(osh, pkt), PKTDATA(osh, tmp_pkt), PKTLEN(osh, pkt));
 		*new_pkt = tmp_pkt;
-                /*
-		 * pull back sdpcm_hdrlen length from old skb as new skb here
-		 * is passed to postprocessing
-                 */
+		/* pull back sdpcm_hdrlen length from old skb as new skb here is passed
+		 * to postprocessing
+		 */
 		PKTPULL(osh, pkt, sdpcm_hdrlen);
 		pkt = tmp_pkt;
 	}
@@ -7186,8 +7185,9 @@ dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 		DHD_ERROR(("%s: MALLOC of %d-byte databuf failed\n",
 			__FUNCTION__, MAX_DATA_BUF));
 		/* release rxbuf which was already located as above */
-		if (!bus->rxblen)
-			DHD_OS_PREFREE(bus->dhd, bus->rxbuf, bus->rxblen);
+		if (bus->rxbuf) {
+			DHD_OS_PREFREE(bus->dhd, DHD_PREALLOC_RXBUF, bus->rxbuf, bus->rxblen);
+		}
 		goto fail;
 	}
 

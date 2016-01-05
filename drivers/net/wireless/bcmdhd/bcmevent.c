@@ -1,7 +1,7 @@
 /*
  * bcmevent read-only data shared by kernel or app layers
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -94,10 +94,6 @@ const bcmevent_name_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_RX),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_COMPLETE),
 #endif
-#ifdef BCMWAPI_WAI
-	BCMEVENT_NAME(WLC_E_WAI_STA_EVENT),
-	BCMEVENT_NAME(WLC_E_WAI_MSG),
-#endif /* BCMWAPI_WAI */
 	BCMEVENT_NAME(WLC_E_ESCAN_RESULT),
 	BCMEVENT_NAME(WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE),
 #ifdef WLP2P

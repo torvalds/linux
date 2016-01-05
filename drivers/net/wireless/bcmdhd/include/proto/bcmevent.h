@@ -1,7 +1,7 @@
 /*
  * Broadcom Event  protocol definitions
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -23,7 +23,7 @@
  *
  * Dependencies: proto/bcmeth.h
  *
- * $Id: bcmevent.h 502360 2014-09-12 19:31:22Z $
+ * $Id: bcmevent.h 589976 2015-10-01 07:01:27Z $
  *
  */
 
@@ -343,6 +343,7 @@ typedef struct wl_event_data_if {
 #define WLC_E_IF_ROLE_WDS		2	/* WDS link */
 #define WLC_E_IF_ROLE_P2P_GO		3	/* P2P Group Owner */
 #define WLC_E_IF_ROLE_P2P_CLIENT	4	/* P2P Client */
+#define WLC_E_IF_ROLE_IBSS              8       /* IBSS */
 
 /* WLC_E_RSSI event data */
 typedef struct wl_event_data_rssi {

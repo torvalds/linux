@@ -1,7 +1,7 @@
 /*
  * Linux OS Independent Layer
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.c 513768 2014-11-07 09:12:55Z $
+ * $Id: linux_osl.c 542523 2015-03-20 03:21:32Z $
  */
 
 #define LINUX_PORT
@@ -61,7 +61,7 @@
 #define STATIC_BUF_TOTAL_LEN	(STATIC_BUF_MAX_NUM * STATIC_BUF_SIZE)
 
 typedef struct bcm_static_buf {
-	struct semaphore static_sem;
+	spinlock_t static_lock;
 	unsigned char *buf_ptr;
 	unsigned char buf_use[STATIC_BUF_MAX_NUM];
 } bcm_static_buf_t;
@@ -310,12 +310,11 @@ int osl_static_mem_init(osl_t *osh, void *adapter)
 				ASSERT(osh->magic == OS_HANDLE_MAGIC);
 				kfree(osh);
 				return -ENOMEM;
+			} else {
+				printk("alloc static buf at %p!\n", bcm_static_buf);
 			}
-			else
-				printk("alloc static buf at %x!\n", (unsigned int)bcm_static_buf);
 
-
-			sema_init(&bcm_static_buf->static_sem, 1);
+			spin_lock_init(&bcm_static_buf->static_lock);
 
 			bcm_static_buf->buf_ptr = (unsigned char *)bcm_static_buf + STATIC_BUF_SIZE;
 		}
@@ -849,7 +848,7 @@ osl_pktget_static(osl_t *osh, uint len)
 			bcm_static_skb->pkt_use[i] = 1;
 
 			skb = bcm_static_skb->skb_4k[i];
-			skb->tail = skb->data + len;
+			skb_set_tail_pointer(skb, len);
 			skb->len = len;
 
 			up(&bcm_static_skb->osl_pkt_sem);
@@ -867,7 +866,7 @@ osl_pktget_static(osl_t *osh, uint len)
 		if (i != STATIC_PKT_MAX_NUM) {
 			bcm_static_skb->pkt_use[i + STATIC_PKT_MAX_NUM] = 1;
 			skb = bcm_static_skb->skb_8k[i];
-			skb->tail = skb->data + len;
+			skb_set_tail_pointer(skb, len);
 			skb->len = len;
 
 			up(&bcm_static_skb->osl_pkt_sem);
@@ -880,7 +879,7 @@ osl_pktget_static(osl_t *osh, uint len)
 		bcm_static_skb->pkt_use[STATIC_PKT_MAX_NUM * 2] = 1;
 
 		skb = bcm_static_skb->skb_16k;
-		skb->tail = skb->data + len;
+		skb_set_tail_pointer(skb, len);
 		skb->len = len;
 
 		up(&bcm_static_skb->osl_pkt_sem);
@@ -1031,10 +1030,11 @@ osl_malloc(osl_t *osh, uint size)
 #ifdef CONFIG_DHD_USE_STATIC_BUF
 	if (bcm_static_buf)
 	{
+		unsigned long irq_flags;
 		int i = 0;
 		if ((size >= PAGE_SIZE)&&(size <= STATIC_BUF_SIZE))
 		{
-			down(&bcm_static_buf->static_sem);
+			spin_lock_irqsave(&bcm_static_buf->static_lock, irq_flags);
 
 			for (i = 0; i < STATIC_BUF_MAX_NUM; i++)
 			{
@@ -1044,13 +1044,13 @@ osl_malloc(osl_t *osh, uint size)
 
 			if (i == STATIC_BUF_MAX_NUM)
 			{
-				up(&bcm_static_buf->static_sem);
+				spin_unlock_irqrestore(&bcm_static_buf->static_lock, irq_flags);
 				printk("all static buff in use!\n");
 				goto original;
 			}
 
 			bcm_static_buf->buf_use[i] = 1;
-			up(&bcm_static_buf->static_sem);
+			spin_unlock_irqrestore(&bcm_static_buf->static_lock, irq_flags);
 
 			bzero(bcm_static_buf->buf_ptr+STATIC_BUF_SIZE*i, size);
 			if (osh)
@@ -1092,6 +1092,8 @@ void
 osl_mfree(osl_t *osh, void *addr, uint size)
 {
 #ifdef CONFIG_DHD_USE_STATIC_BUF
+	unsigned long flags;
+
 	if (bcm_static_buf)
 	{
 		if ((addr > (void *)bcm_static_buf) && ((unsigned char *)addr
@@ -1101,9 +1103,9 @@ osl_mfree(osl_t *osh, void *addr, uint size)
 
 			buf_idx = ((unsigned char *)addr - bcm_static_buf->buf_ptr)/STATIC_BUF_SIZE;
 
-			down(&bcm_static_buf->static_sem);
+			spin_lock_irqsave(&bcm_static_buf->static_lock, flags);
 			bcm_static_buf->buf_use[buf_idx] = 0;
-			up(&bcm_static_buf->static_sem);
+			spin_unlock_irqrestore(&bcm_static_buf->static_lock, flags);
 
 			if (osh && osh->cmn) {
 				ASSERT(osh->magic == OS_HANDLE_MAGIC);

@@ -1,7 +1,7 @@
 /*
  * Linux platform device for DHD WLAN adapter
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -45,13 +45,20 @@
 #endif /* CONFIG_DTS */
 
 #if !defined(CONFIG_WIFI_CONTROL_FUNC)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58))
+#define WLAN_PLAT_NODFS_FLAG    0x01
+#endif
 struct wifi_platform_data {
 	int (*set_power)(int val);
 	int (*set_reset)(int val);
 	int (*set_carddetect)(int val);
 	void *(*mem_prealloc)(int section, unsigned long size);
 	int (*get_mac_addr)(unsigned char *buf);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58))
+	void *(*get_country_code)(char *ccode, u32 flags);
+#else
 	void *(*get_country_code)(char *ccode);
+#endif
 };
 #endif /* CONFIG_WIFI_CONTROL_FUNC */
 
@@ -202,36 +209,31 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 }
 
 #if 1
-/* Murata debug: this function is re-worked because "wifi_plat_data" is NULL.  */
-/* Need to investigate how this pointer/data is being passed into probe function. */
-/* "wifi_plat_data" used to be "wifi_ctrl".  */
-/* All this code is done for only one reason -- calling mmc_detect_change() in /drivers/mmc/core/core.c. */
 extern void wifi_card_detect(void);
 int wifi_platform_bus_enumerate(wifi_adapter_info_t *adapter, bool device_present)
 {
-	int err = 0;
-	struct wifi_platform_data *plat_data;
+        int err = 0;
+        struct wifi_platform_data *plat_data;
 
-	if (!adapter) {
-		pr_err("!!!! %s: failed!  adapter variable is NULL!!!!!\n", __FUNCTION__); 
-		return -EINVAL;
-	}
+        if (!adapter) {
+                pr_err("!!!! %s: failed!  adapter variable is NULL!!!!!\n", __FUNCTION__);
+                return -EINVAL;
+        }
 
-	DHD_ERROR(("%s device present %d\n", __FUNCTION__, device_present));
+        DHD_ERROR(("%s device present %d\n", __FUNCTION__, device_present));
 
-	if (!adapter->wifi_plat_data) {
-		wifi_card_detect(); /* hook for card_detect */
-	} else {
-		plat_data = adapter->wifi_plat_data;
-		if (plat_data->set_carddetect)
-			err = plat_data->set_carddetect(device_present);
-	}
+        if (!adapter->wifi_plat_data) {
+                wifi_card_detect(); /* hook for card_detect */
+        } else {
+                plat_data = adapter->wifi_plat_data;
+                if (plat_data->set_carddetect)
+                        err = plat_data->set_carddetect(device_present);
+        }
 
-	return 0; /* force success status returned */
+        return 0; /* force success status returned */
 }
 
 #else
-
 int wifi_platform_bus_enumerate(wifi_adapter_info_t *adapter, bool device_present)
 {
 	int err = 0;
@@ -276,7 +278,11 @@ void *wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode)
 
 	DHD_TRACE(("%s\n", __FUNCTION__));
 	if (plat_data->get_country_code) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58))
+		return plat_data->get_country_code(ccode, WLAN_PLAT_NODFS_FLAG);
+#else
 		return plat_data->get_country_code(ccode);
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 58)) */
 	}
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)) */
 
@@ -288,7 +294,9 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	struct resource *resource;
 	wifi_adapter_info_t *adapter;
 #ifdef CONFIG_DTS
-//	int irq, gpio;
+#if defined(OOB_INTR_ONLY) && defined (HW_OOB)
+	int irq, gpio;
+#endif /* defined(OOB_INTR_ONLY) && defined (HW_OOB) */
 #endif /* CONFIG_DTS */
 
 	/* Android style wifi platform data device ("bcmdhd_wlan" or "bcm4329_wlan")
@@ -313,8 +321,7 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 		DHD_ERROR(("%s regulator is null\n", __FUNCTION__));
 		return -1;
 	}
-
-#if 0
+#if defined(OOB_INTR_ONLY) && defined (HW_OOB)
 	/* This is to get the irq for the OOB */
 	gpio = of_get_gpio(pdev->dev.of_node, 0);
 
@@ -332,7 +339,7 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	/* need to change the flags according to our requirement */
 	adapter->intr_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL |
 		IORESOURCE_IRQ_SHAREABLE;
-#endif
+#endif /* defined(OOB_INTR_ONLY) && defined (HW_OOB) */
 #endif /* CONFIG_DTS */
 
 	wifi_plat_dev_probe_ret = dhd_wifi_platform_load();
@@ -495,12 +502,12 @@ static int wifi_ctrlfunc_register_drv(void)
 
 void wifi_ctrlfunc_unregister_drv(void)
 {
+
 #ifdef CONFIG_DTS
 	DHD_ERROR(("unregister wifi platform drivers\n"));
 	platform_driver_unregister(&wifi_platform_dev_driver);
 #else
 	struct device *dev1, *dev2;
-
 	dev1 = bus_find_device(&platform_bus_type, NULL, WIFI_PLAT_NAME, wifi_platdev_match);
 	dev2 = bus_find_device(&platform_bus_type, NULL, WIFI_PLAT_NAME2, wifi_platdev_match);
 	if (!dts_enabled)

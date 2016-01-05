@@ -89,7 +89,11 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
 
 	/* Alloc the SKB for vendor_event */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
 	skb = cfg80211_vendor_event_alloc(wiphy, NULL, len, event_id, kflags);
+#else
+	skb = cfg80211_vendor_event_alloc(wiphy, len, event_id, kflags);
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) */
 	if (!skb) {
 		WL_ERR(("skb alloc failed"));
 		return -ENOMEM;

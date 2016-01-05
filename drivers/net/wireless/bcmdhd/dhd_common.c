@@ -1,7 +1,7 @@
 /*
  * Broadcom Dongle Host Driver (DHD), common DHD core.
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 496755 2014-08-14 04:56:53Z $
+ * $Id: dhd_common.c 557502 2015-05-19 06:32:03Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -36,6 +36,10 @@
 #include <dhd_ip.h>
 
 #include <proto/bcmevent.h>
+
+#ifdef SHOW_LOGTRACE
+#include <event_log.h>
+#endif /* SHOW_LOGTRACE */
 
 #include <dhd_bus.h>
 #include <dhd_proto.h>
@@ -881,8 +885,332 @@ dhd_ioctl(dhd_pub_t * dhd_pub, dhd_ioctl_t *ioc, void * buf, uint buflen)
 }
 
 #ifdef SHOW_EVENTS
+#ifdef SHOW_LOGTRACE
+
+#define MAX_NO_OF_ARG	16
+
+#define FMTSTR_SIZE	100
+#define SIZE_LOC_STR	50
+#define MIN_DLEN	4
+#define TAG_BYTES	12
+#define TAG_WORDS	3
+
+static int
+check_event_log_sequence_number(uint32 seq_no)
+{
+	int32 diff;
+	uint32 ret;
+	static uint32 logtrace_seqnum_prev = 0;
+
+	diff = ntoh32(seq_no)-logtrace_seqnum_prev;
+	switch (diff)
+	{
+		case 0:
+			ret = -1; /* duplicate packet . drop */
+			break;
+
+		case 1:
+			ret =0; /* in order */
+			break;
+
+		default:
+			if ((ntoh32(seq_no) == 0) &&
+				(logtrace_seqnum_prev == 0xFFFFFFFF) ) { /* in-order - Roll over */
+					ret = 0;
+			} else {
+
+				if (diff > 0) {
+					DHD_EVENT(("WLC_E_TRACE:"
+						"Event lost (log) seqnum %d nblost %d\n",
+						ntoh32(seq_no), (diff-1)));
+				} else {
+					DHD_EVENT(("WLC_E_TRACE:"
+						"Event Packets coming out of order!!\n"));
+				}
+				ret = 0;
+			}
+	}
+
+	logtrace_seqnum_prev = ntoh32(seq_no);
+
+	return ret;
+}
+
 static void
-wl_show_host_event(wl_event_msg_t *event, void *event_data)
+dhd_eventmsg_print(dhd_pub_t *dhd_pub, void *event_data, void *raw_event_ptr,
+	uint datalen, const char *event_name)
+{
+	msgtrace_hdr_t hdr;
+	uint32 nblost;
+	uint8 count;
+	char *s, *p;
+	static uint32 seqnum_prev = 0;
+	uint32 *log_ptr =  NULL;
+	uchar *buf;
+	event_log_hdr_t event_hdr;
+	uint32 i;
+	int32 j;
+
+	dhd_event_log_t *raw_event = (dhd_event_log_t *) raw_event_ptr;
+
+	char fmtstr_loc_buf[FMTSTR_SIZE] = {0};
+	char (*str_buf)[SIZE_LOC_STR] = NULL;
+	char * str_tmpptr = NULL;
+	uint32 addr = 0;
+	uint32 **hdr_ptr = NULL;
+	uint32 h_i = 0;
+	uint32 hdr_ptr_len = 0;
+
+	typedef union {
+		uint32 val;
+		char * addr;
+	} u_arg;
+	u_arg arg[MAX_NO_OF_ARG] = {{0}};
+	char *c_ptr = NULL;
+
+	buf = (uchar *) event_data;
+	memcpy(&hdr, buf, MSGTRACE_HDRLEN);
+
+	if (hdr.version != MSGTRACE_VERSION) {
+		DHD_EVENT(("\nMACEVENT: %s [unsupported version --> "
+			"dhd version:%d dongle version:%d]\n",
+			event_name, MSGTRACE_VERSION, hdr.version));
+		/* Reset datalen to avoid display below */
+		datalen = 0;
+		return;
+	}
+
+	if (hdr.trace_type == MSGTRACE_HDR_TYPE_MSG) {
+		/* There are 2 bytes available at the end of data */
+		buf[MSGTRACE_HDRLEN + ntoh16(hdr.len)] = '\0';
+
+		if (ntoh32(hdr.discarded_bytes) || ntoh32(hdr.discarded_printf)) {
+			DHD_EVENT(("WLC_E_TRACE: [Discarded traces in dongle -->"
+				"discarded_bytes %d discarded_printf %d]\n",
+				ntoh32(hdr.discarded_bytes),
+				ntoh32(hdr.discarded_printf)));
+		}
+
+		nblost = ntoh32(hdr.seqnum) - seqnum_prev - 1;
+		if (nblost > 0) {
+			DHD_EVENT(("WLC_E_TRACE:"
+				"[Event lost (msg) --> seqnum %d nblost %d\n",
+				ntoh32(hdr.seqnum), nblost));
+		}
+		seqnum_prev = ntoh32(hdr.seqnum);
+
+		/* Display the trace buffer. Advance from
+		 * \n to \n to avoid display big
+		 * printf (issue with Linux printk )
+		 */
+		p = (char *)&buf[MSGTRACE_HDRLEN];
+		while (*p != '\0' && (s = strstr(p, "\n")) != NULL) {
+			*s = '\0';
+			DHD_EVENT(("%s\n", p));
+			p = s+1;
+		}
+		if (*p)
+			DHD_EVENT(("%s", p));
+
+		/* Reset datalen to avoid display below */
+		datalen = 0;
+
+	} else if (hdr.trace_type == MSGTRACE_HDR_TYPE_LOG) {
+		/* Let the standard event printing work for now */
+		uint32 timestamp, w;
+
+		if (check_event_log_sequence_number(hdr.seqnum)) {
+			DHD_EVENT(("%s: WLC_E_TRACE:"
+				"[Event duplicate (log) %d] dropping!!\n",
+				__FUNCTION__, hdr.seqnum));
+			return; /* drop duplicate events */
+		}
+
+		p = (char *)&buf[MSGTRACE_HDRLEN];
+		datalen -= MSGTRACE_HDRLEN;
+		w = ntoh32((uint32)*p);
+		p += MIN_DLEN;
+		datalen -= MIN_DLEN;
+		timestamp = ntoh32((uint32)*p);
+		BCM_REFERENCE(timestamp);
+		BCM_REFERENCE(w);
+
+		/*
+		* Allocating max possible number of event TAGs in the received buffer
+		* considering  that  each event requires minimum of TAG_BYTES.
+		*/
+		hdr_ptr_len = ((datalen/TAG_BYTES)+1) * sizeof(uint32*);
+
+		if ((raw_event->fmts)) {
+			if (!(str_buf = MALLOC(dhd_pub->osh, (MAX_NO_OF_ARG * SIZE_LOC_STR)))) {
+				DHD_ERROR(("%s: malloc failed\n", __FUNCTION__));
+			}
+
+			if (!(hdr_ptr = MALLOC(dhd_pub->osh, hdr_ptr_len))) {
+				DHD_ERROR(("%s: malloc failed\n", __FUNCTION__));
+			}
+		}
+
+		DHD_EVENT(("timestamp %x%x\n", timestamp, w));
+		if ((!raw_event->fmts) || (!str_buf) || (!hdr_ptr)) {
+			while (datalen > MIN_DLEN) {
+				p += MIN_DLEN;
+				datalen -= MIN_DLEN;
+				/* Print each word.  DO NOT ntoh it.  */
+				DHD_EVENT((" %8.8x", *((uint32 *) p)));
+			}
+			DHD_EVENT(("\n"));
+			datalen = 0;
+			if (str_buf) {
+				MFREE(dhd_pub->osh, str_buf, (MAX_NO_OF_ARG * SIZE_LOC_STR));
+			}
+			if (hdr_ptr) {
+				MFREE(dhd_pub->osh, hdr_ptr, hdr_ptr_len);
+			}
+			return;
+		}
+
+		/* (raw_event->fmts) has value */
+
+		log_ptr = (uint32 *) (p + datalen);
+
+		while (datalen > MIN_DLEN) {
+			log_ptr--;
+			datalen -= MIN_DLEN;
+			event_hdr.t = *log_ptr;
+			/*
+			 * Check for partially overriten entries
+			 */
+			if (log_ptr - (uint32 *) p < event_hdr.count) {
+					break;
+			}
+			/*
+			* Check for end of the Frame.
+			*/
+			if (event_hdr.tag ==  EVENT_LOG_TAG_NULL) {
+				continue;
+			}
+			/*
+			* Check For Special Time Stamp Packet
+			*/
+			if (event_hdr.tag == EVENT_LOG_TAG_TS) {
+				datalen -= TAG_BYTES;
+				log_ptr = log_ptr - TAG_WORDS;
+				continue;
+			}
+
+			log_ptr[0] = event_hdr.t;
+			if (h_i < (hdr_ptr_len / sizeof(uint32*))) {
+				hdr_ptr[h_i++] = log_ptr;
+			}
+			if (event_hdr.count > MAX_NO_OF_ARG) {
+				break;
+			}
+
+			/* Now place the header at the front
+			* and copy back.
+			*/
+			log_ptr -= event_hdr.count;
+
+			c_ptr = NULL;
+			datalen = datalen - (event_hdr.count * MIN_DLEN);
+		}
+		datalen = 0;
+
+		for (j = (h_i-1); j >= 0; j--) {
+			if (!(hdr_ptr[j])) {
+				break;
+			}
+
+			event_hdr.t = *hdr_ptr[j];
+
+			log_ptr = hdr_ptr[j];
+
+			/* Now place the header at the front
+			* and copy back.
+			*/
+			log_ptr -= event_hdr.count;
+
+			/* Copy the format string to parse %s and add "CONSOLE: "  ??? */
+			if ((event_hdr.fmt_num >> 2) < raw_event->num_fmts) {
+				snprintf(fmtstr_loc_buf, FMTSTR_SIZE,
+					"CONSOLE: [0x%x] %s", log_ptr[event_hdr.count-1],
+					raw_event->fmts[event_hdr.fmt_num >> 2]);
+					c_ptr = fmtstr_loc_buf;
+			}
+
+			for (count = 0; count < (event_hdr.count-1); count++) {
+				if (c_ptr != NULL) {
+					if ((c_ptr = strstr(c_ptr, "%")) != NULL) {
+						c_ptr++;
+					}
+				}
+
+				if ((c_ptr != NULL) && (*c_ptr == 's')) {
+					if ((raw_event->raw_sstr) &&
+						((log_ptr[count] > raw_event->rodata_start) &&
+						(log_ptr[count] < raw_event->rodata_end))) {
+						/* ram static string */
+						addr = log_ptr[count] - raw_event->rodata_start;
+						str_tmpptr = raw_event->raw_sstr + addr;
+						memcpy(str_buf[count], str_tmpptr, SIZE_LOC_STR);
+						str_buf[count][SIZE_LOC_STR-1] = '\0';
+						arg[count].addr = str_buf[count];
+					} else if ((raw_event->rom_raw_sstr) &&
+						((log_ptr[count] >
+						raw_event->rom_rodata_start) &&
+						(log_ptr[count] <
+						raw_event->rom_rodata_end))) {
+						/* rom static string */
+						addr = log_ptr[count] - raw_event->rom_rodata_start;
+						str_tmpptr = raw_event->rom_raw_sstr + addr;
+						memcpy(str_buf[count], str_tmpptr, SIZE_LOC_STR);
+						str_buf[count][SIZE_LOC_STR-1] = '\0';
+						arg[count].addr = str_buf[count];
+					} else {
+						/*
+						*  Dynamic string OR
+						* No data for static string.
+						* So store all string's address as string.
+						*/
+						snprintf(str_buf[count], SIZE_LOC_STR, "(s)0x%x",
+							log_ptr[count]);
+							arg[count].addr = str_buf[count];
+					}
+				} else {
+					/* Other than string */
+					arg[count].val = log_ptr[count];
+				}
+			}
+
+			DHD_EVENT((fmtstr_loc_buf, arg[0], arg[1], arg[2], arg[3],
+				arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], arg[10],
+				arg[11], arg[12], arg[13], arg[14], arg[15]));
+
+			for (i = 0; i < MAX_NO_OF_ARG; i++) {
+				arg[i].addr = 0;
+			}
+			for (i = 0; i < MAX_NO_OF_ARG; i++) {
+				memset(str_buf[i], 0, SIZE_LOC_STR);
+			}
+
+		}
+
+		if (str_buf) {
+			MFREE(dhd_pub->osh, str_buf, (MAX_NO_OF_ARG * SIZE_LOC_STR));
+		}
+
+		if (hdr_ptr) {
+			MFREE(dhd_pub->osh, hdr_ptr, hdr_ptr_len);
+		}
+	}
+}
+
+#endif /* SHOW_LOGTRACE */
+
+static void
+wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
+	void *raw_event_ptr)
 {
 	uint i, status, reason;
 	bool group = FALSE, flush_txq = FALSE, link = FALSE;
@@ -1055,93 +1383,13 @@ wl_show_host_event(wl_event_msg_t *event, void *event_data)
 		break;
 #endif /* WIFI_ACT_FRAME */
 
-	case WLC_E_TRACE: {
-		static uint32 seqnum_prev = 0;
-		static uint32 logtrace_seqnum_prev = 0;
-		msgtrace_hdr_t hdr;
-		uint32 nblost;
-		char *s, *p;
-
-		buf = (uchar *) event_data;
-		memcpy(&hdr, buf, MSGTRACE_HDRLEN);
-
-		if (hdr.version != MSGTRACE_VERSION) {
-			printf("\nMACEVENT: %s [unsupported version --> "
-			       "dhd version:%d dongle version:%d]\n",
-			       event_name, MSGTRACE_VERSION, hdr.version);
-			/* Reset datalen to avoid display below */
-			datalen = 0;
-			break;
-		}
-
-		if (hdr.trace_type == MSGTRACE_HDR_TYPE_MSG) {
-			/* There are 2 bytes available at the end of data */
-			buf[MSGTRACE_HDRLEN + ntoh16(hdr.len)] = '\0';
-
-			if (ntoh32(hdr.discarded_bytes) || ntoh32(hdr.discarded_printf)) {
-				printf("\nWLC_E_TRACE: [Discarded traces in dongle -->"
-				       "discarded_bytes %d discarded_printf %d]\n",
-				       ntoh32(hdr.discarded_bytes), ntoh32(hdr.discarded_printf));
-			}
-
-			nblost = ntoh32(hdr.seqnum) - seqnum_prev - 1;
-			if (nblost > 0) {
-				printf("\nWLC_E_TRACE: [Event lost (msg) --> seqnum %d nblost %d\n",
-				       ntoh32(hdr.seqnum), nblost);
-			}
-			seqnum_prev = ntoh32(hdr.seqnum);
-
-			/* Display the trace buffer. Advance from \n to \n to avoid display big
-			 * printf (issue with Linux printk )
-			 */
-			p = (char *)&buf[MSGTRACE_HDRLEN];
-		while (*p != '\0' && (s = strstr(p, "\n")) != NULL) {
-				*s = '\0';
-				printf("WLC_E_TRACE: %s\n", p);
-				p = s+1;
-			}
-			if (*p) printf("WLC_E_TRACE: %s", p);
-
-			/* Reset datalen to avoid display below */
-			datalen = 0;
-
-		} else if (hdr.trace_type == MSGTRACE_HDR_TYPE_LOG) {
-			/* Let the standard event printing work for now */
-			uint32 timestamp, w;
-			if (ntoh32(hdr.seqnum) == logtrace_seqnum_prev) {
-				printf("\nWLC_E_TRACE: [Event duplicate (log) %d",
-				       logtrace_seqnum_prev);
-			} else {
-				nblost = ntoh32(hdr.seqnum) - logtrace_seqnum_prev - 1;
-				if (nblost > 0) {
-					printf("\nWLC_E_TRACE: [Event lost (log)"
-					       " --> seqnum %d nblost %d\n",
-					       ntoh32(hdr.seqnum), nblost);
-				}
-				logtrace_seqnum_prev = ntoh32(hdr.seqnum);
-
-				p = (char *)&buf[MSGTRACE_HDRLEN];
-				datalen -= MSGTRACE_HDRLEN;
-				w = ntoh32((uint32) *p);
-				p += 4;
-				datalen -= 4;
-				timestamp = ntoh32((uint32) *p);
-				printf("Logtrace %x timestamp %x %x",
-				       logtrace_seqnum_prev, timestamp, w);
-
-				while (datalen > 4) {
-					p += 4;
-					datalen -= 4;
-					/* Print each word.  DO NOT ntoh it.  */
-					printf(" %8.8x", *((uint32 *) p));
-				}
-				printf("\n");
-			}
-			datalen = 0;
-		}
-
+#ifdef SHOW_LOGTRACE
+	case WLC_E_TRACE:
+	{
+		dhd_eventmsg_print(dhd_pub, event_data, raw_event_ptr, datalen, event_name);
 		break;
 	}
+#endif /* SHOW_LOGTRACE */
 
 
 	case WLC_E_RSSI:
@@ -1185,7 +1433,7 @@ wl_show_host_event(wl_event_msg_t *event, void *event_data)
 
 int
 wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
-              wl_event_msg_t *event, void **data_ptr)
+              wl_event_msg_t *event, void **data_ptr, void *raw_event)
 {
 	/* check whether packet is a BRCM event pkt */
 	bcm_event_t *pvt_data = (bcm_event_t *)pktdata;
@@ -1245,7 +1493,10 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 #endif /* DHD_DEBUG */
 #ifdef PROP_TXSTATUS
 	case WLC_E_FIFO_CREDIT_MAP:
-		dhd_wlfc_enable(dhd_pub);
+		if (dhd_wlfc_enable(dhd_pub) != BCME_OK) {
+			DHD_ERROR(("%s: dhd_wlfc_enable failed\n", __FUNCTION__));
+			return (BCME_ERROR);
+		}
 		dhd_wlfc_FIFOcreditmap_event(dhd_pub, event_data);
 		WLFC_DBGMESG(("WLC_E_FIFO_CREDIT_MAP:(AC0,AC1,AC2,AC3),(BC_MC),(OTHER): "
 			"(%d,%d,%d,%d),(%d),(%d)\n", event_data[0], event_data[1],
@@ -1256,7 +1507,7 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 	case WLC_E_BCMC_CREDIT_SUPPORT:
 		dhd_wlfc_BCMCCredit_support_event(dhd_pub);
 		break;
-#endif
+#endif /* PROP_TXSTATUS */
 
 	case WLC_E_IF: {
 		struct wl_event_data_if *ifevent = (struct wl_event_data_if *)event_data;
@@ -1369,7 +1620,7 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 	}
 
 #ifdef SHOW_EVENTS
-	wl_show_host_event(event, (void *)event_data);
+	wl_show_host_event(dhd_pub, event, (void *)event_data, raw_event);
 #endif /* SHOW_EVENTS */
 
 	return (BCME_OK);

@@ -2,7 +2,7 @@
  * Broadcom Dongle Host Driver (DHD), Generic work queue framework
  * Generic interface to handle dhd deferred work events
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux_wq.c 411851 2013-07-10 20:48:00Z $
+ * $Id: dhd_linux_wq.c 589976 2015-10-01 07:01:27Z $
  */
 
 #include <linux/init.h>
@@ -82,7 +82,7 @@ dhd_kfifo_init(u8 *buf, int size, spinlock_t *lock)
 		return NULL;
 	}
 	kfifo_init(fifo, buf, size);
-#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)) */
+#endif 
 	return fifo;
 }
 

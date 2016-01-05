@@ -2,7 +2,7 @@
  * Misc utility routines for accessing chip-specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.c 498632 2014-08-25 14:09:22Z $
+ * $Id: siutils.c 550969 2015-04-22 00:27:43Z $
  */
 
 #include <bcm_cfg.h>
@@ -1150,6 +1150,17 @@ factor6(uint32 x)
 	}
 }
 
+/*
+ * Divide the clock by the divisor with protection for
+ * a zero divisor.
+ */
+static uint32
+divide_clock(uint32 clock, uint32 div)
+{
+	return div ? clock / div : 0;
+}
+
+
 /** calculate the speed the SI would run at given a set of clockcontrol values */
 uint32
 si_clock_rate(uint32 pll_type, uint32 n, uint32 m)
@@ -1207,10 +1218,10 @@ si_clock_rate(uint32 pll_type, uint32 n, uint32 m)
 
 		switch (mc) {
 		case CC_MC_BYPASS:	return (clock);
-		case CC_MC_M1:		return (clock / m1);
-		case CC_MC_M1M2:	return (clock / (m1 * m2));
-		case CC_MC_M1M2M3:	return (clock / (m1 * m2 * m3));
-		case CC_MC_M1M3:	return (clock / (m1 * m3));
+		case CC_MC_M1:		return divide_clock(clock, m1);
+		case CC_MC_M1M2:	return divide_clock(clock, m1 * m2);
+		case CC_MC_M1M2M3:	return divide_clock(clock, m1 * m2 * m3);
+		case CC_MC_M1M3:	return divide_clock(clock, m1 * m3);
 		default:		return (0);
 		}
 	} else {

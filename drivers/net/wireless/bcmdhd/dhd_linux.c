@@ -2,7 +2,7 @@
  * Broadcom Dongle Host Driver (DHD), Linux-specific network interface
  * Basically selected code segments from usb-cdc.c and usb-rndis.c
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,12 +22,16 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 512574 2014-11-04 03:07:46Z $
+ * $Id: dhd_linux.c 589976 2015-10-01 07:01:27Z $
  */
 
 #include <typedefs.h>
 #include <linuxver.h>
 #include <osl.h>
+#ifdef SHOW_LOGTRACE
+#include <linux/syscalls.h>
+#include <event_log.h>
+#endif /* SHOW_LOGTRACE */
 
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -219,6 +223,10 @@ extern wl_iw_extra_params_t  g_wl_iw_params;
 #include <linux/earlysuspend.h>
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND) */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
+#include <linux/nl80211.h>
+#endif /* OEM_ANDROID && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)) */
+
 extern int dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd);
 
 #ifdef PKT_FILTER_SUPPORT
@@ -375,6 +383,9 @@ typedef struct dhd_info {
 	wait_queue_head_t ctrl_wait;
 	atomic_t pend_8021x_cnt;
 	dhd_attach_states_t dhd_state;
+#ifdef SHOW_LOGTRACE
+	dhd_event_log_t event_data;
+#endif /* SHOW_LOGTRACE */
 
 #if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 	struct early_suspend early_suspend;
@@ -811,7 +822,11 @@ _turn_on_arp_filter(dhd_pub_t *dhd, int op_mode)
 		goto exit;
 	}
 	/* In case of P2P GO or GC, apply pkt filter to pass arp pkt to host */
+#if defined(ARP_OFFLOAD_SUPPORT)
 	if ((dhd->arp_version == 1) &&
+#else
+	if (
+#endif
 		(op_mode & (DHD_FLAG_P2P_GC_MODE | DHD_FLAG_P2P_GO_MODE))) {
 		_apply = TRUE;
 		goto exit;
@@ -1360,6 +1375,28 @@ extern struct net_device *ap_net_dev;
 extern tsk_ctl_t ap_eth_ctl; /* ap netdev heper thread ctl */
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
+int32 dhd_role_to_nl80211_iftype(int32 role)
+{
+	switch (role) {
+	case WLC_E_IF_ROLE_STA:
+		return NL80211_IFTYPE_STATION;
+	case WLC_E_IF_ROLE_AP:
+		return NL80211_IFTYPE_AP;
+	case WLC_E_IF_ROLE_WDS:
+		return NL80211_IFTYPE_WDS;
+	case WLC_E_IF_ROLE_P2P_GO:
+		return NL80211_IFTYPE_P2P_GO;
+	case WLC_E_IF_ROLE_P2P_CLIENT:
+		return NL80211_IFTYPE_P2P_CLIENT;
+	case WLC_E_IF_ROLE_IBSS:
+		return NL80211_IFTYPE_ADHOC;
+	default:
+		return NL80211_IFTYPE_UNSPECIFIED;
+	}
+}
+#endif /* OEM_ANDROID && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)) */
+
 static void
 dhd_ifadd_event_handler(void *handle, void *event_info, u8 event)
 {
@@ -1368,6 +1405,10 @@ dhd_ifadd_event_handler(void *handle, void *event_info, u8 event)
 	struct net_device *ndev;
 	int ifidx, bssidx;
 	int ret;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
+	struct wireless_dev *vwdev, *primary_wdev;
+	struct net_device *primary_ndev;
+#endif /* OEM_ANDROID && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)) */
 
 	if (event != DHD_WQ_WORK_IF_ADD) {
 		DHD_ERROR(("%s: unexpected event \n", __FUNCTION__));
@@ -1397,6 +1438,22 @@ dhd_ifadd_event_handler(void *handle, void *event_info, u8 event)
 		DHD_ERROR(("%s: net device alloc failed  \n", __FUNCTION__));
 		goto done;
 	}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
+	vwdev = kzalloc(sizeof(*vwdev), GFP_KERNEL);
+	if (unlikely(!vwdev)) {
+		DHD_ERROR(("Could not allocate wireless device\n"));
+		goto done;
+	}
+	primary_ndev = dhd->pub.info->iflist[0]->net;
+	primary_wdev = ndev_to_wdev(primary_ndev);
+	vwdev->wiphy = primary_wdev->wiphy;
+	vwdev->iftype = dhd_role_to_nl80211_iftype(if_event->event.role);
+	vwdev->netdev = ndev;
+	ndev->ieee80211_ptr = vwdev;
+	SET_NETDEV_DEV(ndev, wiphy_dev(vwdev->wiphy));
+	DHD_ERROR(("virtual interface(%s) is created\n", if_event->name));
+#endif /* OEM_ANDROID && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)) */
 
 	ret = dhd_register_if(&dhd->pub, ifidx, TRUE);
 	if (ret != BCME_OK) {
@@ -2135,8 +2192,6 @@ dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 	dhd_info_t *dhd = (dhd_info_t *)(dhdp->info);
 	struct ether_header *eh;
 	uint16 type;
-	uint datalen;
-	dhd_if_t *ifp;
 
 	dhd_prot_hdrpull(dhdp, NULL, txp, NULL, NULL);
 
@@ -2148,12 +2203,9 @@ dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 
 #ifdef PROP_TXSTATUS
 	if (dhdp->wlfc_state && (dhdp->proptxstatus_mode != WLFC_FCMODE_NONE)) {
-		ifp = dhd->iflist[DHD_PKTTAG_IF(PKTTAG(txp))];
-		/* if the interface is released somewhere just return */
-		if (ifp == NULL)
-			return;
+		dhd_if_t *ifp = dhd->iflist[DHD_PKTTAG_IF(PKTTAG(txp))];
+		uint datalen  = PKTLEN(dhd->pub.osh, txp);
 
-		datalen  = PKTLEN(dhd->pub.osh, txp);
 		if (success) {
 			dhd->pub.tx_packets++;
 			ifp->stats.tx_packets++;
@@ -2387,11 +2439,6 @@ dhd_rxf_thread(void *data)
 		setScheduler(current, SCHED_FIFO, &param);
 	}
 
-	DAEMONIZE("dhd_rxf");
-	/* DHD_OS_WAKE_LOCK is called in dhd_sched_dpc[dhd_linux.c] down below  */
-
-	/*  signal: thread has started */
-	complete(&tsk->completed);
 
 #ifdef CUSTOM_SET_CPUCORE
 	dhd->pub.current_rxf = current;
@@ -3065,11 +3112,13 @@ dhd_stop(struct net_device *net)
 				(dhd->dhd_state & DHD_ATTACH_STATE_CFG80211)) {
 				int i;
 
+
 				dhd_net_if_lock_local(dhd);
 				for (i = 1; i < DHD_MAX_IFS; i++)
 					dhd_remove_if(&dhd->pub, i, FALSE);
 				dhd_net_if_unlock_local(dhd);
 			}
+			cancel_work_sync(dhd->dhd_deferred_wq);
 		}
 	}
 #endif /* WL_CFG80211 */
@@ -3369,7 +3418,11 @@ dhd_event_ifadd(dhd_info_t *dhdinfo, wl_event_data_if_t *ifevent, char *name, ui
 	 */
 	if (ifevent->ifidx > 0) {
 		dhd_if_event_t *if_event = MALLOC(dhdinfo->pub.osh, sizeof(dhd_if_event_t));
-
+		if (if_event == NULL) {
+			DHD_ERROR(("dhd_event_ifadd: Failed MALLOC, malloced %d bytes",
+				MALLOCED(dhdinfo->pub.osh)));
+			return BCME_NOMEM;
+		}
 		memcpy(&if_event->event, ifevent, sizeof(if_event->event));
 		memcpy(if_event->mac, mac, ETHER_ADDR_LEN);
 		strncpy(if_event->name, name, IFNAMSIZ);
@@ -3395,6 +3448,11 @@ dhd_event_ifdel(dhd_info_t *dhdinfo, wl_event_data_if_t *ifevent, char *name, ui
 	 * anything else
 	 */
 	if_event = MALLOC(dhdinfo->pub.osh, sizeof(dhd_if_event_t));
+	if (if_event == NULL) {
+		DHD_ERROR(("dhd_event_ifdel: malloc failed for if_event, malloced %d bytes",
+			MALLOCED(dhdinfo->pub.osh)));
+		return BCME_NOMEM;
+	}
 	memcpy(&if_event->event, ifevent, sizeof(if_event->event));
 	memcpy(if_event->mac, mac, ETHER_ADDR_LEN);
 	strncpy(if_event->name, name, IFNAMSIZ);
@@ -3579,6 +3637,368 @@ extern void debugger_init(void *bus_handle);
 #endif
 
 
+#ifdef SHOW_LOGTRACE
+static char *logstrs_path = "/root/logstrs.bin";
+static char *st_str_file_path = "/root/rtecdc.bin";
+static char *map_file_path = "/root/rtecdc.map";
+static char *rom_st_str_file_path = "/root/roml.bin";
+static char *rom_map_file_path = "/root/roml.map";
+
+#define BYTES_AHEAD_NUM		11	/* address in map file is before these many bytes */
+#define READ_NUM_BYTES		1000 /* read map file each time this No. of bytes */
+#define GO_BACK_FILE_POS_NUM_BYTES	100 /* set file pos back to cur pos */
+static char *ramstart_str = "text_start"; /* string in mapfile has addr ramstart */
+static char *rodata_start_str = "rodata_start"; /* string in mapfile has addr rodata start */
+static char *rodata_end_str = "rodata_end"; /* string in mapfile has addr rodata end */
+static char *ram_file_str = "rtecdc";
+static char *rom_file_str = "roml";
+#define RAMSTART_BIT	0x01
+#define RDSTART_BIT		0x02
+#define RDEND_BIT		0x04
+#define ALL_MAP_VAL		(RAMSTART_BIT | RDSTART_BIT | RDEND_BIT)
+
+module_param(logstrs_path, charp, S_IRUGO);
+module_param(st_str_file_path, charp, S_IRUGO);
+module_param(map_file_path, charp, S_IRUGO);
+module_param(rom_st_str_file_path, charp, S_IRUGO);
+module_param(rom_map_file_path, charp, S_IRUGO);
+
+static void
+dhd_init_logstrs_array(dhd_event_log_t *temp)
+{
+	struct file *filep = NULL;
+	struct kstat stat;
+	mm_segment_t fs;
+	char *raw_fmts =  NULL;
+	int logstrs_size = 0;
+
+	logstr_header_t *hdr = NULL;
+	uint32 *lognums = NULL;
+	char *logstrs = NULL;
+	int ram_index = 0;
+	char **fmts;
+	int num_fmts = 0;
+	uint32 i = 0;
+	int error = 0;
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	filep = filp_open(logstrs_path, O_RDONLY, 0);
+
+	if (IS_ERR(filep)) {
+		DHD_ERROR(("%s: Failed to open the file %s \n", __FUNCTION__, logstrs_path));
+		goto fail;
+	}
+	error = vfs_stat(logstrs_path, &stat);
+	if (error) {
+		DHD_ERROR(("%s: Failed to stat file %s \n", __FUNCTION__, logstrs_path));
+		goto fail;
+	}
+	logstrs_size = (int) stat.size;
+
+	raw_fmts = kmalloc(logstrs_size, GFP_KERNEL);
+	if (raw_fmts == NULL) {
+		DHD_ERROR(("%s: Failed to allocate memory \n", __FUNCTION__));
+		goto fail;
+	}
+	if (vfs_read(filep, raw_fmts, logstrs_size, &filep->f_pos) !=	logstrs_size) {
+		DHD_ERROR(("%s: Failed to read file %s", __FUNCTION__, logstrs_path));
+		goto fail;
+	}
+
+	/* Remember header from the logstrs.bin file */
+	hdr = (logstr_header_t *) (raw_fmts + logstrs_size -
+		sizeof(logstr_header_t));
+
+	if (hdr->log_magic == LOGSTRS_MAGIC) {
+		/*
+		* logstrs.bin start with header.
+		*/
+		num_fmts =	hdr->rom_logstrs_offset / sizeof(uint32);
+		ram_index = (hdr->ram_lognums_offset -
+			hdr->rom_lognums_offset) / sizeof(uint32);
+		lognums = (uint32 *) &raw_fmts[hdr->rom_lognums_offset];
+		logstrs = (char *)	 &raw_fmts[hdr->rom_logstrs_offset];
+	} else {
+		/*
+		 * Legacy logstrs.bin format without header.
+		 */
+		num_fmts = *((uint32 *) (raw_fmts)) / sizeof(uint32);
+		if (num_fmts == 0) {
+			/* Legacy ROM/RAM logstrs.bin format:
+			  *  - ROM 'lognums' section
+			  *   - RAM 'lognums' section
+			  *   - ROM 'logstrs' section.
+			  *   - RAM 'logstrs' section.
+			  *
+			  * 'lognums' is an array of indexes for the strings in the
+			  * 'logstrs' section. The first uint32 is 0 (index of first
+			  * string in ROM 'logstrs' section).
+			  *
+			  * The 4324b5 is the only ROM that uses this legacy format. Use the
+			  * fixed number of ROM fmtnums to find the start of the RAM
+			  * 'lognums' section. Use the fixed first ROM string ("Con\n") to
+			  * find the ROM 'logstrs' section.
+			  */
+			#define NUM_4324B5_ROM_FMTS	186
+			#define FIRST_4324B5_ROM_LOGSTR "Con\n"
+			ram_index = NUM_4324B5_ROM_FMTS;
+			lognums = (uint32 *) raw_fmts;
+			num_fmts =	ram_index;
+			logstrs = (char *) &raw_fmts[num_fmts << 2];
+			while (strncmp(FIRST_4324B5_ROM_LOGSTR, logstrs, 4)) {
+				num_fmts++;
+				logstrs = (char *) &raw_fmts[num_fmts << 2];
+			}
+		} else {
+				/* Legacy RAM-only logstrs.bin format:
+				 *	  - RAM 'lognums' section
+				 *	  - RAM 'logstrs' section.
+				 *
+				 * 'lognums' is an array of indexes for the strings in the
+				 * 'logstrs' section. The first uint32 is an index to the
+				 * start of 'logstrs'. Therefore, if this index is divided
+				 * by 'sizeof(uint32)' it provides the number of logstr
+				 *	entries.
+				 */
+				ram_index = 0;
+				lognums = (uint32 *) raw_fmts;
+				logstrs = (char *)	&raw_fmts[num_fmts << 2];
+			}
+	}
+	fmts = kmalloc(num_fmts  * sizeof(char *), GFP_KERNEL);
+	if (fmts == NULL) {
+		DHD_ERROR(("Failed to allocate fmts memory"));
+		goto fail;
+	}
+
+	for (i = 0; i < num_fmts; i++) {
+		/* ROM lognums index into logstrs using 'rom_logstrs_offset' as a base
+		* (they are 0-indexed relative to 'rom_logstrs_offset').
+		*
+		* RAM lognums are already indexed to point to the correct RAM logstrs (they
+		* are 0-indexed relative to the start of the logstrs.bin file).
+		*/
+		if (i == ram_index) {
+			logstrs = raw_fmts;
+		}
+		fmts[i] = &logstrs[lognums[i]];
+	}
+	temp->fmts = fmts;
+	temp->raw_fmts = raw_fmts;
+	temp->num_fmts = num_fmts;
+	filp_close(filep, NULL);
+	set_fs(fs);
+	return;
+fail:
+	if (raw_fmts) {
+		kfree(raw_fmts);
+		raw_fmts = NULL;
+	}
+	if (!IS_ERR(filep))
+		filp_close(filep, NULL);
+	set_fs(fs);
+	temp->fmts = NULL;
+	return;
+}
+
+static int
+dhd_read_map(char *fname, uint32 *ramstart, uint32 *rodata_start,
+	uint32 *rodata_end)
+{
+	struct file *filep = NULL;
+	mm_segment_t fs;
+	char *raw_fmts =  NULL;
+	uint32 read_size = READ_NUM_BYTES;
+	int error = 0;
+	char * cptr = NULL;
+	char c;
+	uint8 count = 0;
+
+	*ramstart = 0;
+	*rodata_start = 0;
+	*rodata_end = 0;
+
+	if (fname == NULL) {
+		DHD_ERROR(("%s: ERROR fname is NULL \n", __FUNCTION__));
+		return BCME_ERROR;
+	}
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	filep = filp_open(fname, O_RDONLY, 0);
+	if (IS_ERR(filep)) {
+		DHD_ERROR(("%s: Failed to open %s \n",  __FUNCTION__, fname));
+		goto fail;
+	}
+
+	raw_fmts = kmalloc(read_size, GFP_KERNEL);
+	if (raw_fmts == NULL) {
+		DHD_ERROR(("%s: Failed to allocate raw_fmts memory \n", __FUNCTION__));
+		goto fail;
+	}
+
+	/* read ram start, rodata_start and rodata_end values from map  file */
+
+	while (count != ALL_MAP_VAL)
+	{
+		error = vfs_read(filep, raw_fmts, read_size, (&filep->f_pos));
+		if (error < 0) {
+			DHD_ERROR(("%s: read failed %s err:%d \n", __FUNCTION__,
+				map_file_path, error));
+			goto fail;
+		}
+
+		if (error < read_size) {
+			/*
+			* since we reset file pos back to earlier pos by
+			* GO_BACK_FILE_POS_NUM_BYTES bytes we won't reach EOF.
+			* So if ret value is less than read_size, reached EOF don't read further
+			*/
+			break;
+		}
+
+		/* Get ramstart address */
+		if ((cptr = strstr(raw_fmts, ramstart_str))) {
+			cptr = cptr - BYTES_AHEAD_NUM;
+			sscanf(cptr, "%x %c text_start", ramstart, &c);
+			count |= RAMSTART_BIT;
+		}
+
+		/* Get ram rodata start address */
+		if ((cptr = strstr(raw_fmts, rodata_start_str))) {
+			cptr = cptr - BYTES_AHEAD_NUM;
+			sscanf(cptr, "%x %c rodata_start", rodata_start, &c);
+			count |= RDSTART_BIT;
+		}
+
+		/* Get ram rodata end address */
+		if ((cptr = strstr(raw_fmts, rodata_end_str))) {
+			cptr = cptr - BYTES_AHEAD_NUM;
+			sscanf(cptr, "%x %c rodata_end", rodata_end, &c);
+			count |= RDEND_BIT;
+		}
+		memset(raw_fmts, 0, read_size);
+		/*
+		* go back to predefined NUM of bytes so that we won't miss
+		* the string and  addr even if it comes as splited in next read.
+		*/
+		filep->f_pos = filep->f_pos - GO_BACK_FILE_POS_NUM_BYTES;
+	}
+
+	DHD_ERROR(("---ramstart: 0x%x, rodata_start: 0x%x, rodata_end:0x%x\n",
+		*ramstart, *rodata_start, *rodata_end));
+
+	DHD_ERROR(("readmap over \n"));
+
+fail:
+	if (raw_fmts) {
+		kfree(raw_fmts);
+		raw_fmts = NULL;
+	}
+	if (!IS_ERR(filep))
+		filp_close(filep, NULL);
+
+	set_fs(fs);
+	if (count == ALL_MAP_VAL) {
+		return BCME_OK;
+	}
+	DHD_ERROR(("readmap error 0X%x \n", count));
+	return BCME_ERROR;
+}
+
+static void
+dhd_init_static_strs_array(dhd_event_log_t *temp, char *str_file, char *map_file)
+{
+	struct file *filep = NULL;
+	mm_segment_t fs;
+	char *raw_fmts =  NULL;
+	uint32 logstrs_size = 0;
+
+	int error = 0;
+	uint32 ramstart = 0;
+	uint32 rodata_start = 0;
+	uint32 rodata_end = 0;
+	uint32 logfilebase = 0;
+
+	error = dhd_read_map(map_file, &ramstart, &rodata_start, &rodata_end);
+	if (error == BCME_ERROR) {
+		DHD_ERROR(("readmap Error!! \n"));
+		/* don't do event log parsing in actual case */
+		temp->raw_sstr = NULL;
+		return;
+	}
+	DHD_ERROR(("ramstart: 0x%x, rodata_start: 0x%x, rodata_end:0x%x\n",
+		ramstart, rodata_start, rodata_end));
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	filep = filp_open(str_file, O_RDONLY, 0);
+	if (IS_ERR(filep)) {
+		DHD_ERROR(("%s: Failed to open the file %s \n",  __FUNCTION__, str_file));
+		goto fail;
+	}
+
+	/* Full file size is huge. Just read required part */
+	logstrs_size = rodata_end - rodata_start;
+
+	raw_fmts = kmalloc(logstrs_size, GFP_KERNEL);
+	if (raw_fmts == NULL) {
+		DHD_ERROR(("%s: Failed to allocate raw_fmts memory \n", __FUNCTION__));
+		goto fail;
+	}
+
+	logfilebase = rodata_start - ramstart;
+
+	error = generic_file_llseek(filep, logfilebase, SEEK_SET);
+	if (error < 0) {
+		DHD_ERROR(("%s: %s llseek failed %d \n", __FUNCTION__, str_file, error));
+		goto fail;
+	}
+
+	error = vfs_read(filep, raw_fmts, logstrs_size, (&filep->f_pos));
+	if (error != logstrs_size) {
+		DHD_ERROR(("%s: %s read failed %d \n", __FUNCTION__, str_file, error));
+		goto fail;
+	}
+
+	if (strstr(str_file, ram_file_str) != NULL) {
+		temp->raw_sstr = raw_fmts;
+		temp->ramstart = ramstart;
+		temp->rodata_start = rodata_start;
+		temp->rodata_end = rodata_end;
+	} else if (strstr(str_file, rom_file_str) != NULL) {
+		temp->rom_raw_sstr = raw_fmts;
+		temp->rom_ramstart = ramstart;
+		temp->rom_rodata_start = rodata_start;
+		temp->rom_rodata_end = rodata_end;
+	}
+
+	filp_close(filep, NULL);
+	set_fs(fs);
+
+	return;
+fail:
+	if (raw_fmts) {
+		kfree(raw_fmts);
+		raw_fmts = NULL;
+	}
+	if (!IS_ERR(filep))
+		filp_close(filep, NULL);
+	set_fs(fs);
+	if (strstr(str_file, ram_file_str) != NULL) {
+		temp->raw_sstr = NULL;
+	} else if (strstr(str_file, rom_file_str) != NULL) {
+		temp->rom_raw_sstr = NULL;
+	}
+	return;
+}
+
+#endif /* SHOW_LOGTRACE */
+
 dhd_pub_t *
 dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 {
@@ -3743,6 +4163,12 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	dhd_state |= DHD_ATTACH_STATE_WL_ATTACH;
 	}
 #endif /* defined(WL_WIRELESS_EXT) */
+
+#ifdef SHOW_LOGTRACE
+	dhd_init_logstrs_array(&dhd->event_data);
+	dhd_init_static_strs_array(&dhd->event_data, st_str_file_path, map_file_path);
+	dhd_init_static_strs_array(&dhd->event_data, rom_st_str_file_path, rom_map_file_path);
+#endif /* SHOW_LOGTRACE */
 
 
 	/* Set up the watchdog timer */
@@ -4696,6 +5122,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* WL_CFG80211 */
 	setbit(eventmask, WLC_E_TRACE);
+	setbit(eventmask, WLC_E_CSA_COMPLETE_IND);
 
 	/* Write updated Event mask */
 	bcm_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));
@@ -4974,10 +5401,14 @@ static int dhd_inetaddr_notifier_call(struct notifier_block *this,
 
 	dhd_pub = &dhd->pub;
 
+#if defined(ARP_OFFLOAD_SUPPORT)
 	if (dhd_pub->arp_version == 1) {
 		idx = 0;
 	}
 	else {
+#else
+	{
+#endif
 		for (idx = 0; idx < DHD_MAX_IFS; idx++) {
 			if (dhd->iflist[idx] && dhd->iflist[idx]->net == ifa->ifa_dev->dev)
 			break;
@@ -5260,6 +5691,9 @@ dhd_register_if(dhd_pub_t *dhdp, int ifidx, bool need_rtnl_lock)
 		up(&dhd_registration_sem);
 #endif
 		if (!dhd_download_fw_on_driverload) {
+#ifdef WL_CFG80211
+			wl_terminate_event_handler();
+#endif /* WL_CFG80211 */
 #ifdef BCMSDIO
 			dhd_net_bus_devreset(net, TRUE);
 			dhd_net_bus_suspend(net);
@@ -5432,6 +5866,14 @@ void dhd_detach(dhd_pub_t *dhdp)
 	dhd_deferred_work_deinit(dhd->dhd_deferred_wq);
 	dhd->dhd_deferred_wq = NULL;
 
+#ifdef SHOW_LOGTRACE
+	if (dhd->event_data.fmts)
+		kfree(dhd->event_data.fmts);
+	if (dhd->event_data.raw_fmts)
+		kfree(dhd->event_data.raw_fmts);
+	if (dhd->event_data.raw_sstr)
+		kfree(dhd->event_data.raw_sstr);
+#endif /* SHOW_LOGTRACE */
 #ifdef PNO_SUPPORT
 	if (dhdp->pno_state)
 		dhd_pno_deinit(dhdp);
@@ -5821,15 +6263,45 @@ uint8* dhd_os_prealloc(dhd_pub_t *dhdpub, int section, uint size, bool kmalloc_i
 	uint8* buf;
 	gfp_t flags = CAN_SLEEP() ? GFP_KERNEL: GFP_ATOMIC;
 
+	if (section > DHD_PREALLOC_SECTION_MAX) {
+		DHD_ERROR(("%s: Invalid Section ID: %d\n", __FUNCTION__, section));
+		return NULL;
+	}
+
 	buf = (uint8*)wifi_platform_prealloc(dhdpub->info->adapter, section, size);
-	if (buf == NULL && kmalloc_if_fail)
+	if (buf == NULL && kmalloc_if_fail) {
+		if (isset(dhdpub->prealloc_malloc_mask, section)) {
+			DHD_ERROR(("%s: Section %d(size: %d) is already allocated\n",
+				__FUNCTION__, section, size));
+			return NULL;
+		}
+
 		buf = kmalloc(size, flags);
+		if (buf) {
+			DHD_ERROR(("%s: Preallocated memory section %d(size: %d)"
+				"allocated by kmalloc\n", __FUNCTION__,
+				section, size));
+			setbit(dhdpub->prealloc_malloc_mask, section);
+		}
+	}
 
 	return buf;
 }
 
-void dhd_os_prefree(dhd_pub_t *dhdpub, void *addr, uint size)
+void dhd_os_prefree(dhd_pub_t *dhdpub, int section, void *addr, uint size)
 {
+	if (section > DHD_PREALLOC_SECTION_MAX) {
+		DHD_ERROR(("%s: Invalid Section ID: %d\n", __FUNCTION__, section));
+		return;
+	}
+
+	if (addr && isset(dhdpub->prealloc_malloc_mask, section)) {
+		DHD_ERROR(("%s: Preallocated memory section %d(size: %d)"
+			"memory is freed by kfree\n", __FUNCTION__,
+			section, size));
+		clrbit(dhdpub->prealloc_malloc_mask, section);
+		kfree(addr);
+	}
 }
 
 #if defined(WL_WIRELESS_EXT)
@@ -5859,7 +6331,12 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 	int bcmerror = 0;
 	ASSERT(dhd != NULL);
 
-	bcmerror = wl_host_event(&dhd->pub, ifidx, pktdata, event, data);
+#ifdef SHOW_LOGTRACE
+	bcmerror = wl_host_event(&dhd->pub, ifidx, pktdata, event, data, &dhd->event_data);
+#else
+	bcmerror = wl_host_event(&dhd->pub, ifidx, pktdata, event, data, NULL);
+#endif /* SHOW_LOGTRACE */
+
 	if (bcmerror != BCME_OK)
 		return (bcmerror);
 

@@ -4,7 +4,7 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2014, Broadcom Corporation
+ * Copyright (C) 1999-2015, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 502360 2014-09-12 19:31:22Z $
+ * $Id: wlioctl.h 575651 2015-07-30 13:49:47Z $
  */
 
 #ifndef _wlioctl_h_
@@ -616,6 +616,18 @@ typedef struct {
 	uint8 num_secs;		/* How many secs worth of data */
 	cca_congest_t  secs[1];	/* Data */
 } cca_congest_channel_req_t;
+
+typedef struct {
+	uint32 msrmnt_time;	/**< Time for Measurement (msec) */
+	uint32 msrmnt_done;	/**< flag set when measurement complete */
+	char buf[1];
+} cca_stats_n_flags;
+
+typedef struct {
+	uint32 msrmnt_query;    /* host to driver query for measurement done */
+	uint32 time_req;        /* time required for measurement */
+	uint8 report_opt;       /* option to print different stats in report */
+} cca_msrmnt_query;
 
 /* interference sources */
 enum interference_source {
@@ -3352,20 +3364,6 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 #define LOGRRC_FIX_LEN	8
 #define IOBUF_ALLOWED_NUM_OF_LOGREC(type, len) ((len - LOGRRC_FIX_LEN)/sizeof(type))
 
-#ifdef BCMWAPI_WAI
-#define IV_LEN 16
-	struct wapi_sta_msg_t
-	{
-		uint16	msg_type;
-		uint16	datalen;
-		uint8	vap_mac[6];
-		uint8	reserve_data1[2];
-		uint8	sta_mac[6];
-		uint8	reserve_data2[2];
-		uint8	gsn[IV_LEN];
-		uint8	wie[256];
-	};
-#endif /* BCMWAPI_WAI */
 
 	/* chanim acs record */
 	typedef struct {
