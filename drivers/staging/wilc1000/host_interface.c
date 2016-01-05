@@ -3673,7 +3673,7 @@ int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 }
 
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 u8ChnlListLen, const u8 *pu8IEs,
+	      u8 *ch_freq_list, u8 ch_list_len, const u8 *pu8IEs,
 	      size_t IEsLen, wilc_scan_result ScanResult, void *pvUserArg,
 	      struct hidden_network *pstrHiddenNetwork)
 {
@@ -3703,9 +3703,9 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	msg.body.scan_info.result = ScanResult;
 	msg.body.scan_info.arg = pvUserArg;
 
-	msg.body.scan_info.ch_list_len = u8ChnlListLen;
-	msg.body.scan_info.ch_freq_list = kmalloc(u8ChnlListLen, GFP_KERNEL);
-	memcpy(msg.body.scan_info.ch_freq_list, ch_freq_list, u8ChnlListLen);
+	msg.body.scan_info.ch_list_len = ch_list_len;
+	msg.body.scan_info.ch_freq_list = kmalloc(ch_list_len, GFP_KERNEL);
+	memcpy(msg.body.scan_info.ch_freq_list, ch_freq_list, ch_list_len);
 
 	msg.body.scan_info.ies_len = IEsLen;
 	msg.body.scan_info.ies = kmalloc(IEsLen, GFP_KERNEL);
