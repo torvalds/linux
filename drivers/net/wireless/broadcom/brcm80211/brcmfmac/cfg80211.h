@@ -227,6 +227,27 @@ struct brcmf_cfg80211_vif_event {
 };
 
 /**
+ * struct brcmf_cfg80211_wowl - wowl related information.
+ *
+ * @active: set on suspend, cleared on resume.
+ * @pre_pmmode: firmware PM mode at entering suspend.
+ * @nd: net dectect data.
+ * @nd_info: helper struct to pass to cfg80211.
+ * @nd_data_wait: wait queue to sync net detect data.
+ * @nd_data_completed: completion for net detect data.
+ * @nd_enabled: net detect enabled.
+ */
+struct brcmf_cfg80211_wowl {
+	bool active;
+	u32 pre_pmmode;
+	struct cfg80211_wowlan_nd_match *nd;
+	struct cfg80211_wowlan_nd_info *nd_info;
+	wait_queue_head_t nd_data_wait;
+	bool nd_data_completed;
+	bool nd_enabled;
+};
+
+/**
  * struct brcmf_cfg80211_info - dongle private data of cfg80211 interface
  *
  * @wiphy: wiphy object for cfg80211 interface.
@@ -259,8 +280,7 @@ struct brcmf_cfg80211_vif_event {
  * @vif_list: linked list of vif instances.
  * @vif_cnt: number of vif instances.
  * @vif_event: vif event signalling.
- * @wowl_enabled; set during suspend, is wowl used.
- * @pre_wowl_pmmode: intermediate storage of pm mode during wowl.
+ * @wowl: wowl related information.
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
@@ -292,9 +312,8 @@ struct brcmf_cfg80211_info {
 	struct brcmf_cfg80211_vif_event vif_event;
 	struct completion vif_disabled;
 	struct brcmu_d11inf d11inf;
-	bool wowl_enabled;
-	u32 pre_wowl_pmmode;
 	struct brcmf_assoclist_le assoclist;
+	struct brcmf_cfg80211_wowl wowl;
 };
 
 /**

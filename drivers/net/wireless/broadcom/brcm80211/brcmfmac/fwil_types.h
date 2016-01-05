@@ -110,6 +110,8 @@
 #define BRCMF_WOWL_UNASSOC		(1 << 24)
 /* Wakeup if received matched secured pattern: */
 #define BRCMF_WOWL_SECURE		(1 << 25)
+/* Wakeup on finding preferred network */
+#define BRCMF_WOWL_PFN_FOUND		(1 << 26)
 /* Link Down indication in WoWL mode: */
 #define BRCMF_WOWL_LINKDOWN		(1 << 31)
 

@@ -95,6 +95,8 @@
 #define BRCMF_SCAN_UNASSOC_TIME		40
 #define BRCMF_SCAN_PASSIVE_TIME		120
 
+#define BRCMF_ND_INFO_TIMEOUT		msecs_to_jiffies(2000)
+
 #define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
 	(sizeof(struct brcmf_assoc_params_le) - sizeof(u16))
 
@@ -235,6 +237,17 @@ struct parsed_vndr_ies {
 	u32 count;
 	struct parsed_vndr_ie_info ie_info[VNDR_IE_PARSE_LIMIT];
 };
+
+/* Function prototype forward declarations */
+static int
+brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
+				struct net_device *ndev,
+				struct cfg80211_sched_scan_request *request);
+static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,
+					  struct net_device *ndev);
+static s32
+brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
+				const struct brcmf_event_msg *e, void *data);
 
 
 static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
@@ -3116,26 +3129,71 @@ static s32 brcmf_config_wowl_pattern(struct brcmf_if *ifp, u8 cmd[4],
 	return ret;
 }
 
+static s32
+brcmf_wowl_nd_results(struct brcmf_if *ifp, const struct brcmf_event_msg *e,
+		      void *data)
+{
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
+	struct brcmf_pno_scanresults_le *pfn_result;
+	struct brcmf_pno_net_info_le *netinfo;
+
+	brcmf_dbg(SCAN, "Enter\n");
+
+	pfn_result = (struct brcmf_pno_scanresults_le *)data;
+
+	if (e->event_code == BRCMF_E_PFN_NET_LOST) {
+		brcmf_dbg(SCAN, "PFN NET LOST event. Ignore\n");
+		return 0;
+	}
+
+	if (le32_to_cpu(pfn_result->count) < 1) {
+		brcmf_err("Invalid result count, expected 1 (%d)\n",
+			  le32_to_cpu(pfn_result->count));
+		return -EINVAL;
+	}
+
+	data += sizeof(struct brcmf_pno_scanresults_le);
+	netinfo = (struct brcmf_pno_net_info_le *)data;
+	memcpy(cfg->wowl.nd->ssid.ssid, netinfo->SSID, netinfo->SSID_len);
+	cfg->wowl.nd->ssid.ssid_len = netinfo->SSID_len;
+	cfg->wowl.nd->n_channels = 1;
+	cfg->wowl.nd->channels[0] =
+		ieee80211_channel_to_frequency(netinfo->channel,
+			netinfo->channel <= CH_MAX_2G_CHANNEL ?
+					NL80211_BAND_2GHZ : NL80211_BAND_5GHZ);
+	cfg->wowl.nd_info->n_matches = 1;
+	cfg->wowl.nd_info->matches[0] = cfg->wowl.nd;
+
+	/* Inform (the resume task) that the net detect information was recvd */
+	cfg->wowl.nd_data_completed = true;
+	wake_up(&cfg->wowl.nd_data_wait);
+
+	return 0;
+}
+
 #ifdef CONFIG_PM
 
 static void brcmf_report_wowl_wakeind(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_wowl_wakeind_le wake_ind_le;
 	struct cfg80211_wowlan_wakeup wakeup_data;
 	struct cfg80211_wowlan_wakeup *wakeup;
 	u32 wakeind;
 	s32 err;
+	int timeout;
 
 	err = brcmf_fil_iovar_data_get(ifp, "wowl_wakeind", &wake_ind_le,
 				       sizeof(wake_ind_le));
-	if (!err) {
+	if (err) {
 		brcmf_err("Get wowl_wakeind failed, err = %d\n", err);
 		return;
 	}
 
 	wakeind = le32_to_cpu(wake_ind_le.ucode_wakeind);
 	if (wakeind & (BRCMF_WOWL_MAGIC | BRCMF_WOWL_DIS | BRCMF_WOWL_BCN |
-		       BRCMF_WOWL_RETR | BRCMF_WOWL_NET)) {
+		       BRCMF_WOWL_RETR | BRCMF_WOWL_NET |
+		       BRCMF_WOWL_PFN_FOUND)) {
 		wakeup = &wakeup_data;
 		memset(&wakeup_data, 0, sizeof(wakeup_data));
 		wakeup_data.pattern_idx = -1;
@@ -3163,6 +3221,16 @@ static void brcmf_report_wowl_wakeind(struct wiphy *wiphy, struct brcmf_if *ifp)
 			 */
 			wakeup_data.pattern_idx = 0;
 		}
+		if (wakeind & BRCMF_WOWL_PFN_FOUND) {
+			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_PFN_FOUND\n");
+			timeout = wait_event_timeout(cfg->wowl.nd_data_wait,
+				cfg->wowl.nd_data_completed,
+				BRCMF_ND_INFO_TIMEOUT);
+			if (!timeout)
+				brcmf_err("No result for wowl net detect\n");
+			else
+				wakeup_data.net_detect = cfg->wowl.nd_info;
+		}
 	} else {
 		wakeup = NULL;
 	}
@@ -3185,14 +3253,21 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (cfg->wowl_enabled) {
+	if (cfg->wowl.active) {
 		brcmf_report_wowl_wakeind(wiphy, ifp);
 		brcmf_fil_iovar_int_set(ifp, "wowl_clear", 0);
 		brcmf_config_wowl_pattern(ifp, "clr", NULL, 0, NULL, 0);
 		brcmf_configure_arp_offload(ifp, true);
 		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM,
-				      cfg->pre_wowl_pmmode);
-		cfg->wowl_enabled = false;
+				      cfg->wowl.pre_pmmode);
+		cfg->wowl.active = false;
+		if (cfg->wowl.nd_enabled) {
+			brcmf_cfg80211_sched_scan_stop(cfg->wiphy, ifp->ndev);
+			brcmf_fweh_unregister(cfg->pub, BRCMF_E_PFN_NET_FOUND);
+			brcmf_fweh_register(cfg->pub, BRCMF_E_PFN_NET_FOUND,
+					    brcmf_notify_sched_scan_results);
+			cfg->wowl.nd_enabled = false;
+		}
 	}
 	return 0;
 }
@@ -3207,7 +3282,7 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 	brcmf_dbg(TRACE, "Suspend, wowl config.\n");
 
 	brcmf_configure_arp_offload(ifp, false);
-	brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_PM, &cfg->pre_wowl_pmmode);
+	brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_PM, &cfg->wowl.pre_pmmode);
 	brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, PM_MAX);
 
 	wowl_config = 0;
@@ -3225,11 +3300,26 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 				wowl->patterns[i].pkt_offset);
 		}
 	}
+	if (wowl->nd_config) {
+		brcmf_cfg80211_sched_scan_start(cfg->wiphy, ifp->ndev,
+						wowl->nd_config);
+		wowl_config |= BRCMF_WOWL_PFN_FOUND;
+
+		cfg->wowl.nd_data_completed = false;
+		cfg->wowl.nd_enabled = true;
+		/* Now reroute the event for PFN to the wowl function. */
+		brcmf_fweh_unregister(cfg->pub, BRCMF_E_PFN_NET_FOUND);
+		brcmf_fweh_register(cfg->pub, BRCMF_E_PFN_NET_FOUND,
+				    brcmf_wowl_nd_results);
+	}
+	if (!test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
+		wowl_config |= BRCMF_WOWL_UNASSOC;
+
 	brcmf_fil_iovar_data_set(ifp, "wowl_wakeind", "clear", strlen("clear"));
 	brcmf_fil_iovar_int_set(ifp, "wowl", wowl_config);
 	brcmf_fil_iovar_int_set(ifp, "wowl_activate", 1);
 	brcmf_bus_wowl_config(cfg->pub->bus_if, true);
-	cfg->wowl_enabled = true;
+	cfg->wowl.active = true;
 }
 
 static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
@@ -3247,6 +3337,10 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 	 */
 	if (!check_vif_up(ifp->vif))
 		goto exit;
+
+	/* Stop scheduled scan */
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO))
+		brcmf_cfg80211_sched_scan_stop(wiphy, ndev);
 
 	/* end any scanning */
 	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status))
@@ -5329,6 +5423,10 @@ static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
 	cfg->escan_ioctl_buf = NULL;
 	kfree(cfg->extra_buf);
 	cfg->extra_buf = NULL;
+	kfree(cfg->wowl.nd);
+	cfg->wowl.nd = NULL;
+	kfree(cfg->wowl.nd_info);
+	cfg->wowl.nd_info = NULL;
 }
 
 static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
@@ -5341,6 +5439,14 @@ static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
 		goto init_priv_mem_out;
 	cfg->extra_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
 	if (!cfg->extra_buf)
+		goto init_priv_mem_out;
+	cfg->wowl.nd = kzalloc(sizeof(*cfg->wowl.nd) + sizeof(u32), GFP_KERNEL);
+	if (!cfg->wowl.nd)
+		goto init_priv_mem_out;
+	cfg->wowl.nd_info = kzalloc(sizeof(*cfg->wowl.nd_info) +
+				    sizeof(struct cfg80211_wowlan_nd_match *),
+				    GFP_KERNEL);
+	if (!cfg->wowl.nd_info)
 		goto init_priv_mem_out;
 
 	return 0;
@@ -6018,7 +6124,7 @@ static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
 }
 
 #ifdef CONFIG_PM
-static const struct wiphy_wowlan_support brcmf_wowlan_support = {
+static struct wiphy_wowlan_support brcmf_wowlan_support = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
 	.n_patterns = BRCMF_WOWL_MAXPATTERNS,
 	.pattern_max_len = BRCMF_WOWL_MAXPATTERNSIZE,
@@ -6027,10 +6133,23 @@ static const struct wiphy_wowlan_support brcmf_wowlan_support = {
 };
 #endif
 
-static void brcmf_wiphy_wowl_params(struct wiphy *wiphy)
+static void brcmf_wiphy_wowl_params(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
 #ifdef CONFIG_PM
-	/* wowl settings */
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	s32 err;
+	u32 wowl_cap;
+
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO)) {
+		err = brcmf_fil_iovar_int_get(ifp, "wowl_cap", &wowl_cap);
+		if (!err) {
+			if (wowl_cap & BRCMF_WOWL_PFN_FOUND) {
+				brcmf_wowlan_support.flags |=
+							WIPHY_WOWLAN_NET_DETECT;
+				init_waitqueue_head(&cfg->wowl.nd_data_wait);
+			}
+		}
+	}
 	wiphy->wowlan = &brcmf_wowlan_support;
 #endif
 }
@@ -6091,8 +6210,7 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 	wiphy->n_vendor_commands = BRCMF_VNDR_CMDS_LAST - 1;
 
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL))
-		brcmf_wiphy_wowl_params(wiphy);
-
+		brcmf_wiphy_wowl_params(wiphy, ifp);
 	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_BANDLIST, &bandlist,
 				     sizeof(bandlist));
 	if (err) {
