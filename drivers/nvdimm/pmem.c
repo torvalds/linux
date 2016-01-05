@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/memory_hotplug.h>
 #include <linux/moduleparam.h>
+#include <linux/badblocks.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/pmem.h>
@@ -41,6 +42,7 @@ struct pmem_device {
 	phys_addr_t		data_offset;
 	void __pmem		*virt_addr;
 	size_t			size;
+	struct badblocks	bb;
 };
 
 static int pmem_major;
@@ -168,7 +170,6 @@ static int pmem_attach_disk(struct device *dev,
 {
 	int nid = dev_to_node(dev);
 	struct gendisk *disk;
-	int ret;
 
 	pmem->pmem_queue = blk_alloc_queue_node(GFP_KERNEL, nid);
 	if (!pmem->pmem_queue)
@@ -196,10 +197,9 @@ static int pmem_attach_disk(struct device *dev,
 	disk->driverfs_dev = dev;
 	set_capacity(disk, (pmem->size - pmem->data_offset) / 512);
 	pmem->pmem_disk = disk;
-
-	ret = nvdimm_namespace_add_poison(disk, pmem->data_offset, ndns);
-	if (ret)
-		return ret;
+	if (devm_init_badblocks(dev, &pmem->bb))
+		return -ENOMEM;
+	nvdimm_namespace_add_poison(ndns, &pmem->bb, pmem->data_offset);
 
 	add_disk(disk);
 	revalidate_disk(disk);

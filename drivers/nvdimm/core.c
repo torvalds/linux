@@ -11,6 +11,7 @@
  * General Public License for more details.
  */
 #include <linux/libnvdimm.h>
+#include <linux/badblocks.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
@@ -360,21 +361,19 @@ struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 }
 EXPORT_SYMBOL_GPL(__nvdimm_bus_register);
 
-static void set_badblock(struct gendisk *disk, sector_t s, int num)
+static void set_badblock(struct badblocks *bb, sector_t s, int num)
 {
-	struct device *dev = disk->driverfs_dev;
-
-	dev_dbg(dev, "Found a poison range (0x%llx, 0x%llx)\n",
+	dev_dbg(bb->dev, "Found a poison range (0x%llx, 0x%llx)\n",
 			(u64) s * 512, (u64) num * 512);
 	/* this isn't an error as the hardware will still throw an exception */
-	if (disk_set_badblocks(disk, s, num))
-		dev_info_once(dev, "%s: failed for sector %llx\n",
+	if (badblocks_set(bb, s, num, 1))
+		dev_info_once(bb->dev, "%s: failed for sector %llx\n",
 				__func__, (u64) s);
 }
 
 /**
  * __add_badblock_range() - Convert a physical address range to bad sectors
- * @disk:	the disk associated with the namespace
+ * @bb:		badblocks instance to populate
  * @ns_offset:	namespace offset where the error range begins (in bytes)
  * @len:	number of bytes of poison to be added
  *
@@ -382,24 +381,17 @@ static void set_badblock(struct gendisk *disk, sector_t s, int num)
  * the bounds of physical addresses for this namespace, i.e. lies in the
  * interval [ns_start, ns_start + ns_size)
  */
-static int __add_badblock_range(struct gendisk *disk, u64 ns_offset, u64 len)
+static void __add_badblock_range(struct badblocks *bb, u64 ns_offset, u64 len)
 {
-	unsigned int sector_size = queue_logical_block_size(disk->queue);
+	const unsigned int sector_size = 512;
 	sector_t start_sector;
 	u64 num_sectors;
 	u32 rem;
-	int rc;
 
 	start_sector = div_u64(ns_offset, sector_size);
 	num_sectors = div_u64_rem(len, sector_size, &rem);
 	if (rem)
 		num_sectors++;
-
-	if (!disk->bb) {
-		rc = disk_alloc_badblocks(disk);
-		if (rc)
-			return rc;
-	}
 
 	if (unlikely(num_sectors > (u64)INT_MAX)) {
 		u64 remaining = num_sectors;
@@ -408,33 +400,27 @@ static int __add_badblock_range(struct gendisk *disk, u64 ns_offset, u64 len)
 		while (remaining) {
 			int done = min_t(u64, remaining, INT_MAX);
 
-			set_badblock(disk, s, done);
+			set_badblock(bb, s, done);
 			remaining -= done;
 			s += done;
 		}
 	} else
-		set_badblock(disk, start_sector, num_sectors);
-
-	return 0;
+		set_badblock(bb, start_sector, num_sectors);
 }
 
 /**
  * nvdimm_namespace_add_poison() - Convert a list of poison ranges to badblocks
- * @disk:	the gendisk associated with the namespace where badblocks
- *		will be stored
- * @offset:	offset at the start of the namespace before 'sector 0'
  * @ndns:	the namespace containing poison ranges
+ * @bb:		badblocks instance to populate
+ * @offset:	offset at the start of the namespace before 'sector 0'
  *
  * The poison list generated during NFIT initialization may contain multiple,
  * possibly overlapping ranges in the SPA (System Physical Address) space.
  * Compare each of these ranges to the namespace currently being initialized,
  * and add badblocks to the gendisk for all matching sub-ranges
- *
- * Return:
- * 0 - Success
  */
-int nvdimm_namespace_add_poison(struct gendisk *disk, resource_size_t offset,
-		struct nd_namespace_common *ndns)
+void nvdimm_namespace_add_poison(struct nd_namespace_common *ndns,
+		struct badblocks *bb, resource_size_t offset)
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
@@ -442,7 +428,6 @@ int nvdimm_namespace_add_poison(struct gendisk *disk, resource_size_t offset,
 	struct list_head *poison_list;
 	u64 ns_start, ns_end, ns_size;
 	struct nd_poison *pl;
-	int rc;
 
 	ns_size = nvdimm_namespace_capacity(ndns) - offset;
 	ns_start = nsio->res.start + offset;
@@ -451,7 +436,7 @@ int nvdimm_namespace_add_poison(struct gendisk *disk, resource_size_t offset,
 	nvdimm_bus = to_nvdimm_bus(nd_region->dev.parent);
 	poison_list = &nvdimm_bus->poison_list;
 	if (list_empty(poison_list))
-		return 0;
+		return;
 
 	list_for_each_entry(pl, poison_list, list) {
 		u64 pl_end = pl->start + pl->length - 1;
@@ -470,10 +455,7 @@ int nvdimm_namespace_add_poison(struct gendisk *disk, resource_size_t offset,
 				len = pl->length;
 			else
 				len = ns_start + ns_size - pl->start;
-
-			rc = __add_badblock_range(disk, start - ns_start, len);
-			if (rc)
-				return rc;
+			__add_badblock_range(bb, start - ns_start, len);
 			continue;
 		}
 		/* Deal with overlap for poison starting before the namespace */
@@ -484,14 +466,9 @@ int nvdimm_namespace_add_poison(struct gendisk *disk, resource_size_t offset,
 				len = pl->start + pl->length - ns_start;
 			else
 				len = ns_size;
-
-			rc = __add_badblock_range(disk, 0, len);
-			if (rc)
-				return rc;
+			__add_badblock_range(bb, 0, len);
 		}
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(nvdimm_namespace_add_poison);
 
