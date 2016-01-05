@@ -245,6 +245,28 @@ static void regmap_format_32_native(void *buf, unsigned int val,
 	*(u32 *)buf = val << shift;
 }
 
+#ifdef CONFIG_64BIT
+static void regmap_format_64_be(void *buf, unsigned int val, unsigned int shift)
+{
+	__be64 *b = buf;
+
+	b[0] = cpu_to_be64((u64)val << shift);
+}
+
+static void regmap_format_64_le(void *buf, unsigned int val, unsigned int shift)
+{
+	__le64 *b = buf;
+
+	b[0] = cpu_to_le64((u64)val << shift);
+}
+
+static void regmap_format_64_native(void *buf, unsigned int val,
+				    unsigned int shift)
+{
+	*(u64 *)buf = (u64)val << shift;
+}
+#endif
+
 static void regmap_parse_inplace_noop(void *buf)
 {
 }
@@ -331,6 +353,41 @@ static unsigned int regmap_parse_32_native(const void *buf)
 {
 	return *(u32 *)buf;
 }
+
+#ifdef CONFIG_64BIT
+static unsigned int regmap_parse_64_be(const void *buf)
+{
+	const __be64 *b = buf;
+
+	return be64_to_cpu(b[0]);
+}
+
+static unsigned int regmap_parse_64_le(const void *buf)
+{
+	const __le64 *b = buf;
+
+	return le64_to_cpu(b[0]);
+}
+
+static void regmap_parse_64_be_inplace(void *buf)
+{
+	__be64 *b = buf;
+
+	b[0] = be64_to_cpu(b[0]);
+}
+
+static void regmap_parse_64_le_inplace(void *buf)
+{
+	__le64 *b = buf;
+
+	b[0] = le64_to_cpu(b[0]);
+}
+
+static unsigned int regmap_parse_64_native(const void *buf)
+{
+	return *(u64 *)buf;
+}
+#endif
 
 static void regmap_lock_mutex(void *__map)
 {
@@ -712,6 +769,21 @@ struct regmap *__regmap_init(struct device *dev,
 		}
 		break;
 
+#ifdef CONFIG_64BIT
+	case 64:
+		switch (reg_endian) {
+		case REGMAP_ENDIAN_BIG:
+			map->format.format_reg = regmap_format_64_be;
+			break;
+		case REGMAP_ENDIAN_NATIVE:
+			map->format.format_reg = regmap_format_64_native;
+			break;
+		default:
+			goto err_map;
+		}
+		break;
+#endif
+
 	default:
 		goto err_map;
 	}
@@ -771,6 +843,28 @@ struct regmap *__regmap_init(struct device *dev,
 			goto err_map;
 		}
 		break;
+#ifdef CONFIG_64BIT
+	case 64:
+		switch (val_endian) {
+		case REGMAP_ENDIAN_BIG:
+			map->format.format_val = regmap_format_64_be;
+			map->format.parse_val = regmap_parse_64_be;
+			map->format.parse_inplace = regmap_parse_64_be_inplace;
+			break;
+		case REGMAP_ENDIAN_LITTLE:
+			map->format.format_val = regmap_format_64_le;
+			map->format.parse_val = regmap_parse_64_le;
+			map->format.parse_inplace = regmap_parse_64_le_inplace;
+			break;
+		case REGMAP_ENDIAN_NATIVE:
+			map->format.format_val = regmap_format_64_native;
+			map->format.parse_val = regmap_parse_64_native;
+			break;
+		default:
+			goto err_map;
+		}
+		break;
+#endif
 	}
 
 	if (map->format.format_write) {
@@ -2488,11 +2582,19 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 				 * we assume that the values are native
 				 * endian.
 				 */
+#ifdef CONFIG_64BIT
+				u64 *u64 = val;
+#endif
 				u32 *u32 = val;
 				u16 *u16 = val;
 				u8 *u8 = val;
 
 				switch (map->format.val_bytes) {
+#ifdef CONFIG_64BIT
+				case 8:
+					u64[i] = ival;
+					break;
+#endif
 				case 4:
 					u32[i] = ival;
 					break;
