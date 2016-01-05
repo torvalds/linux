@@ -1863,10 +1863,9 @@ static int parse_field_name(char *str, char **event, char **field, char **opt)
 }
 
 /* find match evsel using a given event name.  The event name can be:
- *   1. NULL - only valid for single event session
- *   2. '%' + event index (e.g. '%1' for first event)
- *   3. full event name (e.g. sched:sched_switch)
- *   4. partial event name (should not contain ':')
+ *   1. '%' + event index (e.g. '%1' for first event)
+ *   2. full event name (e.g. sched:sched_switch)
+ *   3. partial event name (should not contain ':')
  */
 static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_name)
 {
@@ -1875,16 +1874,6 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 	bool full_name;
 
 	/* case 1 */
-	if (event_name == NULL) {
-		if (evlist->nr_entries != 1) {
-			pr_debug("event name should be given\n");
-			return NULL;
-		}
-
-		return perf_evlist__first(evlist);
-	}
-
-	/* case 2 */
 	if (event_name[0] == '%') {
 		int nr = strtol(event_name+1, NULL, 0);
 
@@ -1900,10 +1889,10 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 
 	full_name = !!strchr(event_name, ':');
 	evlist__for_each(evlist, pos) {
-		/* case 3 */
+		/* case 2 */
 		if (full_name && !strcmp(pos->name, event_name))
 			return pos;
-		/* case 4 */
+		/* case 3 */
 		if (!full_name && strstr(pos->name, event_name)) {
 			if (evsel) {
 				pr_debug("'%s' event is ambiguous: it can be %s or %s\n",
@@ -1965,6 +1954,28 @@ static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace)
 	return 0;
 }
 
+static int add_all_matching_fields(struct perf_evlist *evlist,
+				   char *field_name, bool raw_trace)
+{
+	int ret = -ESRCH;
+	struct perf_evsel *evsel;
+	struct format_field *field;
+
+	evlist__for_each(evlist, evsel) {
+		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+			continue;
+
+		field = pevent_find_any_field(evsel->tp_format, field_name);
+		if (field == NULL)
+			continue;
+
+		ret = __dynamic_dimension__add(evsel, field, raw_trace);
+		if (ret < 0)
+			break;
+	}
+	return ret;
+}
+
 static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 {
 	char *str, *event_name, *field_name, *opt_name;
@@ -1996,6 +2007,11 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 
 	if (!strcmp(field_name, "trace_fields")) {
 		ret = add_all_dynamic_fields(evlist, raw_trace);
+		goto out;
+	}
+
+	if (event_name == NULL) {
+		ret = add_all_matching_fields(evlist, field_name, raw_trace);
 		goto out;
 	}
 
