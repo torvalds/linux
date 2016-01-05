@@ -244,6 +244,29 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 		drm_gem_object_unreference_unlocked(obj);
 }
 
+/*
+ * Called at device or object close to release the file's
+ * handle references on objects.
+ */
+static int
+drm_gem_object_release_handle(int id, void *ptr, void *data)
+{
+	struct drm_file *file_priv = data;
+	struct drm_gem_object *obj = ptr;
+	struct drm_device *dev = obj->dev;
+
+	if (drm_core_check_feature(dev, DRIVER_PRIME))
+		drm_gem_remove_prime_handles(obj, file_priv);
+	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
+
+	if (dev->driver->gem_close_object)
+		dev->driver->gem_close_object(obj, file_priv);
+
+	drm_gem_object_handle_unreference_unlocked(obj);
+
+	return 0;
+}
+
 /**
  * drm_gem_handle_delete - deletes the given file-private handle
  * @filp: drm file-private structure to use for the handle look up
@@ -282,14 +305,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	idr_remove(&filp->object_idr, handle);
 	spin_unlock(&filp->table_lock);
 
-	if (drm_core_check_feature(dev, DRIVER_PRIME))
-		drm_gem_remove_prime_handles(obj, filp);
-	drm_vma_node_revoke(&obj->vma_node, filp->filp);
-
-	if (dev->driver->gem_close_object)
-		dev->driver->gem_close_object(obj, filp);
-	drm_gem_object_handle_unreference_unlocked(obj);
-
+	drm_gem_object_release_handle(handle, obj, filp);
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_handle_delete);
@@ -724,29 +740,6 @@ drm_gem_open(struct drm_device *dev, struct drm_file *file_private)
 {
 	idr_init(&file_private->object_idr);
 	spin_lock_init(&file_private->table_lock);
-}
-
-/*
- * Called at device close to release the file's
- * handle references on objects.
- */
-static int
-drm_gem_object_release_handle(int id, void *ptr, void *data)
-{
-	struct drm_file *file_priv = data;
-	struct drm_gem_object *obj = ptr;
-	struct drm_device *dev = obj->dev;
-
-	if (drm_core_check_feature(dev, DRIVER_PRIME))
-		drm_gem_remove_prime_handles(obj, file_priv);
-	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
-
-	if (dev->driver->gem_close_object)
-		dev->driver->gem_close_object(obj, file_priv);
-
-	drm_gem_object_handle_unreference_unlocked(obj);
-
-	return 0;
 }
 
 /**
