@@ -18,7 +18,11 @@
 #include "util/sort.h"
 #include "util/data.h"
 #include "util/auxtrace.h"
+#include "util/cpumap.h"
+#include "util/thread_map.h"
+#include "util/stat.h"
 #include <linux/bitmap.h>
+#include "asm/bug.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -606,6 +610,9 @@ struct perf_script {
 	bool			show_task_events;
 	bool			show_mmap_events;
 	bool			show_switch_events;
+	bool			allocated;
+	struct cpu_map		*cpus;
+	struct thread_map	*threads;
 };
 
 static void process_event(struct perf_script *script __maybe_unused, union perf_event *event,
@@ -1682,6 +1689,63 @@ static void script__setup_sample_type(struct perf_script *script)
 	}
 }
 
+static int set_maps(struct perf_script *script)
+{
+	struct perf_evlist *evlist = script->session->evlist;
+
+	if (!script->cpus || !script->threads)
+		return 0;
+
+	if (WARN_ONCE(script->allocated, "stats double allocation\n"))
+		return -EINVAL;
+
+	perf_evlist__set_maps(evlist, script->cpus, script->threads);
+
+	if (perf_evlist__alloc_stats(evlist, true))
+		return -ENOMEM;
+
+	script->allocated = true;
+	return 0;
+}
+
+static
+int process_thread_map_event(struct perf_tool *tool,
+			     union perf_event *event,
+			     struct perf_session *session __maybe_unused)
+{
+	struct perf_script *script = container_of(tool, struct perf_script, tool);
+
+	if (script->threads) {
+		pr_warning("Extra thread map event, ignoring.\n");
+		return 0;
+	}
+
+	script->threads = thread_map__new_event(&event->thread_map);
+	if (!script->threads)
+		return -ENOMEM;
+
+	return set_maps(script);
+}
+
+static
+int process_cpu_map_event(struct perf_tool *tool __maybe_unused,
+			  union perf_event *event,
+			  struct perf_session *session __maybe_unused)
+{
+	struct perf_script *script = container_of(tool, struct perf_script, tool);
+
+	if (script->cpus) {
+		pr_warning("Extra cpu map event, ignoring.\n");
+		return 0;
+	}
+
+	script->cpus = cpu_map__new_data(&event->cpu_map.data);
+	if (!script->cpus)
+		return -ENOMEM;
+
+	return set_maps(script);
+}
+
 int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	bool show_full_info = false;
@@ -1710,6 +1774,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.auxtrace_info	 = perf_event__process_auxtrace_info,
 			.auxtrace	 = perf_event__process_auxtrace,
 			.auxtrace_error	 = perf_event__process_auxtrace_error,
+			.thread_map	 = process_thread_map_event,
+			.cpu_map	 = process_cpu_map_event,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -2063,6 +2129,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	flush_scripting();
 
 out_delete:
+	perf_evlist__free_stats(session->evlist);
 	perf_session__delete(session);
 
 	if (script_started)
