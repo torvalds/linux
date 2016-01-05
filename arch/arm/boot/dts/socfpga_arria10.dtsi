@@ -362,6 +362,7 @@
 						compatible = "altr,socfpga-a10-gate-clk";
 						clocks = <&sdmmc_free_clk>;
 						clk-gate = <0xC8 5>;
+						clk-phase = <0 135>;
 					};
 
 					qspi_clk: qspi_clk {
@@ -589,7 +590,7 @@
 			reg = <0xff808000 0x1000>;
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			fifo-depth = <0x400>;
-			clocks = <&l4_mp_clk>, <&sdmmc_free_clk>;
+			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
 			clock-names = "biu", "ciu";
 			status = "disabled";
 		};
