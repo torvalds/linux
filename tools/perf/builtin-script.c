@@ -221,6 +221,9 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	struct perf_event_attr *attr = &evsel->attr;
 	bool allow_user_set;
 
+	if (perf_header__has_feat(&session->header, HEADER_STAT))
+		return 0;
+
 	allow_user_set = perf_header__has_feat(&session->header,
 					       HEADER_AUXTRACE);
 
@@ -673,6 +676,18 @@ static void process_event(struct perf_script *script __maybe_unused, union perf_
 }
 
 static struct scripting_ops	*scripting_ops;
+
+static void process_stat(struct perf_evsel *counter, u64 tstamp)
+{
+	if (scripting_ops && scripting_ops->process_stat)
+		scripting_ops->process_stat(&stat_config, counter, tstamp);
+}
+
+static void process_stat_interval(u64 tstamp)
+{
+	if (scripting_ops && scripting_ops->process_stat_interval)
+		scripting_ops->process_stat_interval(tstamp);
+}
 
 static void setup_scripting(void)
 {
@@ -1690,6 +1705,22 @@ static void script__setup_sample_type(struct perf_script *script)
 	}
 }
 
+static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
+				    union perf_event *event,
+				    struct perf_session *session)
+{
+	struct stat_round_event *round = &event->stat_round;
+	struct perf_evsel *counter;
+
+	evlist__for_each(session->evlist, counter) {
+		perf_stat_process_counter(&stat_config, counter);
+		process_stat(counter, round->time);
+	}
+
+	process_stat_interval(round->time);
+	return 0;
+}
+
 static int process_stat_config_event(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_session *session __maybe_unused)
@@ -1783,6 +1814,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.auxtrace_info	 = perf_event__process_auxtrace_info,
 			.auxtrace	 = perf_event__process_auxtrace,
 			.auxtrace_error	 = perf_event__process_auxtrace_error,
+			.stat		 = perf_event__process_stat_event,
+			.stat_round	 = process_stat_round_event,
 			.stat_config	 = process_stat_config_event,
 			.thread_map	 = process_thread_map_event,
 			.cpu_map	 = process_cpu_map_event,
