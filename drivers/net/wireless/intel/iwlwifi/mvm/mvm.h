@@ -157,7 +157,7 @@ struct iwl_mvm_dump_desc {
 	struct iwl_fw_error_dump_trigger_desc trig_desc;
 };
 
-extern struct iwl_mvm_dump_desc iwl_mvm_dump_desc_assert;
+extern const struct iwl_mvm_dump_desc iwl_mvm_dump_desc_assert;
 
 struct iwl_mvm_phy_ctxt {
 	u16 id;
@@ -732,8 +732,8 @@ struct iwl_mvm {
 	s8 restart_fw;
 	u8 fw_dbg_conf;
 	struct delayed_work fw_dump_wk;
-	struct iwl_mvm_dump_desc *fw_dump_desc;
-	struct iwl_fw_dbg_trigger_tlv *fw_dump_trig;
+	const struct iwl_mvm_dump_desc *fw_dump_desc;
+	const struct iwl_fw_dbg_trigger_tlv *fw_dump_trig;
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;

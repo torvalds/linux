@@ -2364,7 +2364,7 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 
 static struct iwl_trans_dump_data
 *iwl_trans_pcie_dump_data(struct iwl_trans *trans,
-			  struct iwl_fw_dbg_trigger_tlv *trigger)
+			  const struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_fw_error_dump_data *data;

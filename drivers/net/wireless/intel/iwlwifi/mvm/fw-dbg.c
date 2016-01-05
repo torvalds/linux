@@ -681,15 +681,15 @@ dump_trans_data:
 	clear_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status);
 }
 
-struct iwl_mvm_dump_desc iwl_mvm_dump_desc_assert = {
+const struct iwl_mvm_dump_desc iwl_mvm_dump_desc_assert = {
 	.trig_desc = {
 		.type = cpu_to_le32(FW_DBG_TRIGGER_FW_ASSERT),
 	},
 };
 
 int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
-				struct iwl_mvm_dump_desc *desc,
-				struct iwl_fw_dbg_trigger_tlv *trigger)
+				const struct iwl_mvm_dump_desc *desc,
+				const struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	unsigned int delay = 0;
 
@@ -715,7 +715,7 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 
 int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
 			   const char *str, size_t len,
-			   struct iwl_fw_dbg_trigger_tlv *trigger)
+			   const struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_mvm_dump_desc *desc;
 
