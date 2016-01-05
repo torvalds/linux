@@ -254,6 +254,7 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 	he_stat__decay(&he->stat);
 	if (symbol_conf.cumulate_callchain)
 		he_stat__decay(he->stat_acc);
+	decay_callchain(he->callchain);
 
 	diff = prev_period - he->stat.period;
 
