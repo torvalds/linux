@@ -291,6 +291,8 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@timeout: default timeout value in msecs
  * 	@gc_int: garbage collection interval in msecs
  *	@policy: set parameterization (see enum nft_set_policies)
+ *	@udlen: user data length
+ *	@udata: user data
  * 	@ops: set ops
  * 	@pnet: network namespace
  * 	@flags: set flags
@@ -310,6 +312,8 @@ struct nft_set {
 	u64				timeout;
 	u32				gc_int;
 	u16				policy;
+	u16				udlen;
+	unsigned char			*udata;
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
 	possible_net_t			pnet;
