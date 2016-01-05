@@ -30,8 +30,68 @@
 	};
 
 	core-module@10000000 {
-		compatible = "arm,core-module-versatile", "syscon";
+		compatible = "arm,core-module-versatile", "syscon", "simple-mfd";
 		reg = <0x10000000 0x200>;
+
+		led@08.0 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x01>;
+			label = "versatile:0";
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+		led@08.1 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x02>;
+			label = "versatile:1";
+			linux,default-trigger = "mmc0";
+			default-state = "off";
+		};
+		led@08.2 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x04>;
+			label = "versatile:2";
+			linux,default-trigger = "cpu0";
+			default-state = "off";
+		};
+		led@08.3 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x08>;
+			label = "versatile:3";
+			default-state = "off";
+		};
+		led@08.4 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x10>;
+			label = "versatile:4";
+			default-state = "off";
+		};
+		led@08.5 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x20>;
+			label = "versatile:5";
+			default-state = "off";
+		};
+		led@08.6 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x40>;
+			label = "versatile:6";
+			default-state = "off";
+		};
+		led@08.7 {
+			compatible = "register-bit-led";
+			offset = <0x08>;
+			mask = <0x80>;
+			label = "versatile:7";
+			default-state = "off";
+		};
 
 		/* OSC1 on AB, OSC4 on PB */
 		osc1: cm_aux_osc@24M {
