@@ -140,7 +140,7 @@ int	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 		unsigned char *sense, u64 unpacked_lun,
 		void *fabric_tmr_ptr, unsigned char tm_type,
-		gfp_t, unsigned int, int);
+		gfp_t, u64, int);
 int	transport_handle_cdb_direct(struct se_cmd *);
 sense_reason_t	transport_generic_new_cmd(struct se_cmd *);
 
