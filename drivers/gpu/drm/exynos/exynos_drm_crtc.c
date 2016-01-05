@@ -226,3 +226,29 @@ void exynos_drm_crtc_te_handler(struct drm_crtc *crtc)
 	if (exynos_crtc->ops->te_handler)
 		exynos_crtc->ops->te_handler(exynos_crtc);
 }
+
+void exynos_drm_crtc_cancel_page_flip(struct drm_crtc *crtc,
+					struct drm_file *file)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct drm_pending_vblank_event *e;
+	unsigned long flags;
+
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	e = exynos_crtc->event;
+	if (e && e->base.file_priv == file) {
+		exynos_crtc->event = NULL;
+		/*
+		 * event will be destroyed by core part
+		 * so below line should be removed later with core changes
+		 */
+		e->base.destroy(&e->base);
+		/*
+		 * event_space will be increased by core part
+		 * so below line should be removed later with core changes.
+		 */
+		file->event_space += sizeof(e->event);
+		atomic_dec(&exynos_crtc->pending_update);
+	}
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+}
