@@ -58,6 +58,7 @@ o        `                     ~~~~\___/~~~~    ` controller in FPGA is ,.`
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/basic_mmio_gpio.h>
@@ -126,13 +127,13 @@ static unsigned long bgpio_read32be(void __iomem *reg)
 
 static unsigned long bgpio_pin2mask(struct bgpio_chip *bgc, unsigned int pin)
 {
-	return 1 << pin;
+	return BIT(pin);
 }
 
 static unsigned long bgpio_pin2mask_be(struct bgpio_chip *bgc,
 				       unsigned int pin)
 {
-	return 1 << (bgc->bits - 1 - pin);
+	return BIT(bgc->bits - 1 - pin);
 }
 
 static int bgpio_get_set(struct gpio_chip *gc, unsigned int gpio)
