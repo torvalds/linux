@@ -1147,6 +1147,17 @@ static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
 		if (flags & mask & NFQA_CFG_F_SECCTX)
 			return -EOPNOTSUPP;
 #endif
+		if ((flags & mask & NFQA_CFG_F_CONNTRACK) &&
+		    !rcu_access_pointer(nfnl_ct_hook)) {
+#ifdef CONFIG_MODULES
+			nfnl_unlock(NFNL_SUBSYS_QUEUE);
+			request_module("ip_conntrack_netlink");
+			nfnl_lock(NFNL_SUBSYS_QUEUE);
+			if (rcu_access_pointer(nfnl_ct_hook))
+				return -EAGAIN;
+#endif
+			return -EOPNOTSUPP;
+		}
 	}
 
 	rcu_read_lock();
