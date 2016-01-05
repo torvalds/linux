@@ -3675,7 +3675,7 @@ int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
 	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
-	      struct hidden_network *pstrHiddenNetwork)
+	      struct hidden_network *hidden_network)
 {
 	int result = 0;
 	struct host_if_msg msg;
@@ -3690,12 +3690,12 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 
 	msg.id = HOST_IF_MSG_SCAN;
 
-	if (pstrHiddenNetwork) {
-		msg.body.scan_info.hidden_network.net_info = pstrHiddenNetwork->net_info;
-		msg.body.scan_info.hidden_network.n_ssids = pstrHiddenNetwork->n_ssids;
+	if (hidden_network) {
+		msg.body.scan_info.hidden_network.net_info = hidden_network->net_info;
+		msg.body.scan_info.hidden_network.n_ssids = hidden_network->n_ssids;
 
 	} else
-		PRINT_D(HOSTINF_DBG, "pstrHiddenNetwork IS EQUAL TO NULL\n");
+		PRINT_D(HOSTINF_DBG, "hidden_network IS EQUAL TO NULL\n");
 
 	msg.vif = vif;
 	msg.body.scan_info.src = scan_source;
