@@ -706,6 +706,139 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 		mvm->tz_device.temp_trips[i] = S16_MIN;
 }
 
+static const u32 iwl_mvm_cdev_budgets[] = {
+	2000,	/* cooling state 0 */
+	1800,	/* cooling state 1 */
+	1600,	/* cooling state 2 */
+	1400,	/* cooling state 3 */
+	1200,	/* cooling state 4 */
+	1000,	/* cooling state 5 */
+	900,	/* cooling state 6 */
+	800,	/* cooling state 7 */
+	700,	/* cooling state 8 */
+	650,	/* cooling state 9 */
+	600,	/* cooling state 10 */
+	550,	/* cooling state 11 */
+	500,	/* cooling state 12 */
+	450,	/* cooling state 13 */
+	400,	/* cooling state 14 */
+	350,	/* cooling state 15 */
+	300,	/* cooling state 16 */
+	250,	/* cooling state 17 */
+	200,	/* cooling state 18 */
+	150,	/* cooling state 19 */
+};
+
+int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget)
+{
+	struct iwl_mvm_ctdp_cmd cmd = {
+		.operation = cpu_to_le32(op),
+		.budget = cpu_to_le32(budget),
+		.window_size = 0,
+	};
+	int ret;
+	u32 status;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, WIDE_ID(PHY_OPS_GROUP,
+						       CTDP_CONFIG_CMD),
+					  sizeof(cmd), &cmd, &status);
+
+	if (ret) {
+		IWL_ERR(mvm, "cTDP command failed (err=%d)\n", ret);
+		return ret;
+	}
+
+	if (op == CTDP_CMD_OPERATION_START)
+		mvm->cooling_dev.cur_state = budget;
+
+	else if (op == CTDP_CMD_OPERATION_REPORT)
+		IWL_DEBUG_TEMP(mvm, "cTDP avg energy in mWatt = %d\n", status);
+
+	return 0;
+}
+
+static int iwl_mvm_tcool_get_max_state(struct thermal_cooling_device *cdev,
+				       unsigned long *state)
+{
+	*state = ARRAY_SIZE(iwl_mvm_cdev_budgets) - 1;
+
+	return 0;
+}
+
+static int iwl_mvm_tcool_get_cur_state(struct thermal_cooling_device *cdev,
+				       unsigned long *state)
+{
+	struct iwl_mvm *mvm = (struct iwl_mvm *)(cdev->devdata);
+
+	if (test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status))
+		return -EBUSY;
+
+	*state = mvm->cooling_dev.cur_state;
+	return 0;
+}
+
+static int iwl_mvm_tcool_set_cur_state(struct thermal_cooling_device *cdev,
+				       unsigned long new_state)
+{
+	struct iwl_mvm *mvm = (struct iwl_mvm *)(cdev->devdata);
+	int ret;
+
+	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR))
+		return -EIO;
+
+	if (test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status))
+		return -EBUSY;
+
+	mutex_lock(&mvm->mutex);
+
+	if (new_state >= ARRAY_SIZE(iwl_mvm_cdev_budgets)) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START,
+				   iwl_mvm_cdev_budgets[new_state]);
+
+unlock:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
+static struct thermal_cooling_device_ops tcooling_ops = {
+	.get_max_state = iwl_mvm_tcool_get_max_state,
+	.get_cur_state = iwl_mvm_tcool_get_cur_state,
+	.set_cur_state = iwl_mvm_tcool_set_cur_state,
+};
+
+int iwl_mvm_cooling_device_register(struct iwl_mvm *mvm)
+{
+	char name[] = "iwlwifi";
+
+	if (!iwl_mvm_is_ctdp_supported(mvm)) {
+		mvm->cooling_dev.cdev = NULL;
+
+		return 0;
+	}
+
+	BUILD_BUG_ON(ARRAY_SIZE(name) >= THERMAL_NAME_LENGTH);
+
+	mvm->cooling_dev.cdev =
+		thermal_cooling_device_register(name,
+						mvm,
+						&tcooling_ops);
+
+	if (IS_ERR(mvm->cooling_dev.cdev)) {
+		IWL_DEBUG_TEMP(mvm,
+			       "Failed to register to cooling device (err = %ld)\n",
+			       PTR_ERR(mvm->cooling_dev.cdev));
+		return PTR_ERR(mvm->cooling_dev.cdev);
+	}
+
+	return 0;
+}
+
 static void iwl_mvm_thermal_zone_unregister(struct iwl_mvm *mvm)
 {
 	if (!iwl_mvm_is_tt_in_fw(mvm))
@@ -715,6 +848,18 @@ static void iwl_mvm_thermal_zone_unregister(struct iwl_mvm *mvm)
 		IWL_DEBUG_TEMP(mvm, "Thermal zone device unregister\n");
 		thermal_zone_device_unregister(mvm->tz_device.tzone);
 		mvm->tz_device.tzone = NULL;
+	}
+}
+
+static void iwl_mvm_cooling_device_unregister(struct iwl_mvm *mvm)
+{
+	if (!iwl_mvm_is_ctdp_supported(mvm))
+		return;
+
+	if (mvm->cooling_dev.cdev) {
+		IWL_DEBUG_TEMP(mvm, "Cooling device unregister\n");
+		thermal_cooling_device_unregister(mvm->cooling_dev.cdev);
+		mvm->cooling_dev.cdev = NULL;
 	}
 }
 #endif /* CONFIG_THERMAL */
@@ -736,6 +881,7 @@ void iwl_mvm_thermal_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 	INIT_DELAYED_WORK(&tt->ct_kill_exit, check_exit_ctkill);
 
 #ifdef CONFIG_THERMAL
+	iwl_mvm_cooling_device_register(mvm);
 	iwl_mvm_thermal_zone_register(mvm);
 #endif
 }
@@ -746,6 +892,7 @@ void iwl_mvm_thermal_exit(struct iwl_mvm *mvm)
 	IWL_DEBUG_TEMP(mvm, "Exit Thermal Throttling\n");
 
 #ifdef CONFIG_THERMAL
+	iwl_mvm_cooling_device_unregister(mvm);
 	iwl_mvm_thermal_zone_unregister(mvm);
 #endif
 }

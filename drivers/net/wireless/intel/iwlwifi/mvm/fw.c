@@ -963,6 +963,11 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		/* Initialize tx backoffs to the minimal possible */
 		iwl_mvm_tt_tx_backoff(mvm, 0);
 	}
+
+	/* TODO: read the budget from BIOS / Platform NVM */
+	if (iwl_mvm_is_ctdp_supported(mvm) && mvm->cooling_dev.cur_state > 0)
+		ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START,
+					   mvm->cooling_dev.cur_state);
 #else
 	/* Initialize tx backoffs to the minimal possible */
 	iwl_mvm_tt_tx_backoff(mvm, 0);

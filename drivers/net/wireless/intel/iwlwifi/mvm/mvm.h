@@ -535,6 +535,16 @@ struct iwl_mvm_thermal_device {
 	u8 fw_trips_index[IWL_MAX_DTS_TRIPS];
 	struct thermal_zone_device *tzone;
 };
+
+/*
+ * iwl_mvm_cooling_device
+ * @cur_state: current state in milliwatts
+ * @cdev: struct thermal cooling device
+ */
+struct iwl_mvm_cooling_device {
+	u32 cur_state;
+	struct thermal_cooling_device *cdev;
+};
 #endif
 
 #define IWL_MVM_NUM_LAST_FRAMES_UCODE_RATES 8
@@ -819,6 +829,7 @@ struct iwl_mvm {
 	struct iwl_mvm_tt_mgmt thermal_throttle;
 #ifdef CONFIG_THERMAL
 	struct iwl_mvm_thermal_device tz_device;
+	struct iwl_mvm_cooling_device cooling_dev;
 #endif
 
 	s32 temperature;	/* Celsius */
@@ -1066,6 +1077,12 @@ static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
 #else /* CONFIG_THERMAL */
 	return false;
 #endif /* CONFIG_THERMAL */
+}
+
+static inline bool iwl_mvm_is_ctdp_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_CTDP_SUPPORT);
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1544,6 +1561,8 @@ void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
 int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp);
 void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm);
+int iwl_mvm_cooling_device_register(struct iwl_mvm *mvm);
+int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget);
 
 /* Location Aware Regulatory */
 struct iwl_mcc_update_resp *

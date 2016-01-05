@@ -279,6 +279,7 @@ enum {
  */
 enum iwl_phy_ops_subcmd_ids {
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+	CTDP_CONFIG_CMD = 0x03,
 	TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
 	CT_KILL_NOTIFICATION = 0xFE,
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
@@ -1710,6 +1711,31 @@ struct ct_kill_notif {
 	__le16 temperature;
 	__le16 reserved;
 } __packed; /* GRP_PHY_CT_KILL_NTF */
+
+/**
+* enum ctdp_cmd_operation - CTDP command operations
+* @CTDP_CMD_OPERATION_START: update the current budget
+* @CTDP_CMD_OPERATION_STOP: stop ctdp
+* @CTDP_CMD_OPERATION_REPORT: get the avgerage budget
+*/
+enum iwl_mvm_ctdp_cmd_operation {
+	CTDP_CMD_OPERATION_START	= 0x1,
+	CTDP_CMD_OPERATION_STOP		= 0x2,
+	CTDP_CMD_OPERATION_REPORT	= 0x4,
+};/* CTDP_CMD_OPERATION_TYPE_E */
+
+/**
+ * struct iwl_mvm_ctdp_cmd - track and manage the FW power consumption budget
+ *
+ * @operation: see &enum iwl_mvm_ctdp_cmd_operation
+ * @budget: the budget in milliwatt
+ * @window_size: defined in API but not used
+ */
+struct iwl_mvm_ctdp_cmd {
+	__le32 operation;
+	__le32 budget;
+	__le32 window_size;
+} __packed;
 
 #define IWL_MAX_DTS_TRIPS	8
 
