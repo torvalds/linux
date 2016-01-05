@@ -110,4 +110,6 @@ static inline bool __vfp_enabled(void)
 void __hyp_text __banked_save_state(struct kvm_cpu_context *ctxt);
 void __hyp_text __banked_restore_state(struct kvm_cpu_context *ctxt);
 
+int asmlinkage __guest_enter(struct kvm_vcpu *vcpu,
+			     struct kvm_cpu_context *host);
 #endif /* __ARM_KVM_HYP_H__ */
