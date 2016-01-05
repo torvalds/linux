@@ -117,6 +117,13 @@
 #include <asm/fbio.h>
 #endif
 
+#define convert_in_user(srcptr, dstptr)			\
+({							\
+	typeof(*srcptr) val;				\
+							\
+	get_user(val, srcptr) || put_user(val, dstptr);	\
+})
+
 static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err;
@@ -131,16 +138,17 @@ static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int w_long(struct file *file,
 		unsigned int cmd, compat_ulong_t __user *argp)
 {
-	mm_segment_t old_fs = get_fs();
 	int err;
-	unsigned long val;
+	unsigned long __user *valp = compat_alloc_user_space(sizeof(*valp));
 
-	set_fs (KERNEL_DS);
-	err = do_ioctl(file, cmd, (unsigned long)&val);
-	set_fs (old_fs);
-	if (!err && put_user(val, argp))
+	if (valp == NULL)
 		return -EFAULT;
-	return err;
+	err = do_ioctl(file, cmd, (unsigned long)valp);
+	if (err)
+		return err;
+	if (convert_in_user(valp, argp))
+		return -EFAULT;
+	return 0;
 }
 
 struct compat_video_event {
@@ -155,20 +163,20 @@ struct compat_video_event {
 static int do_video_get_event(struct file *file,
 		unsigned int cmd, struct compat_video_event __user *up)
 {
-	struct video_event kevent;
-	mm_segment_t old_fs = get_fs();
+	struct video_event __user *kevent =
+		compat_alloc_user_space(sizeof(*kevent));
 	int err;
 
-	set_fs(KERNEL_DS);
-	err = do_ioctl(file, cmd, (unsigned long) &kevent);
-	set_fs(old_fs);
+	if (kevent == NULL)
+		return -EFAULT;
 
+	err = do_ioctl(file, cmd, (unsigned long)kevent);
 	if (!err) {
-		err  = put_user(kevent.type, &up->type);
-		err |= put_user(kevent.timestamp, &up->timestamp);
-		err |= put_user(kevent.u.size.w, &up->u.size.w);
-		err |= put_user(kevent.u.size.h, &up->u.size.h);
-		err |= put_user(kevent.u.size.aspect_ratio,
+		err  = convert_in_user(&kevent->type, &up->type);
+		err |= convert_in_user(&kevent->timestamp, &up->timestamp);
+		err |= convert_in_user(&kevent->u.size.w, &up->u.size.w);
+		err |= convert_in_user(&kevent->u.size.h, &up->u.size.h);
+		err |= convert_in_user(&kevent->u.size.aspect_ratio,
 				&up->u.size.aspect_ratio);
 		if (err)
 			err = -EFAULT;
@@ -528,10 +536,10 @@ struct mtpos32 {
 static int mt_ioctl_trans(struct file *file,
 		unsigned int cmd, void __user *argp)
 {
-	mm_segment_t old_fs = get_fs();
-	struct mtget get;
+	/* NULL initialization to make gcc shut up */
+	struct mtget __user *get = NULL;
 	struct mtget32 __user *umget32;
-	struct mtpos pos;
+	struct mtpos __user *pos = NULL;
 	struct mtpos32 __user *upos32;
 	unsigned long kcmd;
 	void *karg;
@@ -540,32 +548,34 @@ static int mt_ioctl_trans(struct file *file,
 	switch(cmd) {
 	case MTIOCPOS32:
 		kcmd = MTIOCPOS;
-		karg = &pos;
+		pos = compat_alloc_user_space(sizeof(*pos));
+		karg = pos;
 		break;
 	default:	/* MTIOCGET32 */
 		kcmd = MTIOCGET;
-		karg = &get;
+		get = compat_alloc_user_space(sizeof(*get));
+		karg = get;
 		break;
 	}
-	set_fs (KERNEL_DS);
+	if (karg == NULL)
+		return -EFAULT;
 	err = do_ioctl(file, kcmd, (unsigned long)karg);
-	set_fs (old_fs);
 	if (err)
 		return err;
 	switch (cmd) {
 	case MTIOCPOS32:
 		upos32 = argp;
-		err = __put_user(pos.mt_blkno, &upos32->mt_blkno);
+		err = convert_in_user(&pos->mt_blkno, &upos32->mt_blkno);
 		break;
 	case MTIOCGET32:
 		umget32 = argp;
-		err = __put_user(get.mt_type, &umget32->mt_type);
-		err |= __put_user(get.mt_resid, &umget32->mt_resid);
-		err |= __put_user(get.mt_dsreg, &umget32->mt_dsreg);
-		err |= __put_user(get.mt_gstat, &umget32->mt_gstat);
-		err |= __put_user(get.mt_erreg, &umget32->mt_erreg);
-		err |= __put_user(get.mt_fileno, &umget32->mt_fileno);
-		err |= __put_user(get.mt_blkno, &umget32->mt_blkno);
+		err = convert_in_user(&get->mt_type, &umget32->mt_type);
+		err |= convert_in_user(&get->mt_resid, &umget32->mt_resid);
+		err |= convert_in_user(&get->mt_dsreg, &umget32->mt_dsreg);
+		err |= convert_in_user(&get->mt_gstat, &umget32->mt_gstat);
+		err |= convert_in_user(&get->mt_erreg, &umget32->mt_erreg);
+		err |= convert_in_user(&get->mt_fileno, &umget32->mt_fileno);
+		err |= convert_in_user(&get->mt_blkno, &umget32->mt_blkno);
 		break;
 	}
 	return err ? -EFAULT: 0;
@@ -624,37 +634,36 @@ static int serial_struct_ioctl(struct file *file,
 {
         typedef struct serial_struct32 SS32;
         int err;
-        struct serial_struct ss;
-        mm_segment_t oldseg = get_fs();
+	struct serial_struct __user *ss = compat_alloc_user_space(sizeof(*ss));
         __u32 udata;
 	unsigned int base;
+	unsigned char *iomem_base;
 
+	if (ss == NULL)
+		return -EFAULT;
         if (cmd == TIOCSSERIAL) {
-                if (!access_ok(VERIFY_READ, ss32, sizeof(SS32)))
-                        return -EFAULT;
-                if (__copy_from_user(&ss, ss32, offsetof(SS32, iomem_base)))
+		if (copy_in_user(ss, ss32, offsetof(SS32, iomem_base)) ||
+		    get_user(udata, &ss32->iomem_base))
 			return -EFAULT;
-                if (__get_user(udata, &ss32->iomem_base))
+		iomem_base = compat_ptr(udata);
+		if (put_user(iomem_base, &ss->iomem_base) ||
+		    convert_in_user(&ss32->iomem_reg_shift,
+		      &ss->iomem_reg_shift) ||
+		    convert_in_user(&ss32->port_high, &ss->port_high) ||
+		    put_user(0UL, &ss->iomap_base))
 			return -EFAULT;
-                ss.iomem_base = compat_ptr(udata);
-                if (__get_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift) ||
-		    __get_user(ss.port_high, &ss32->port_high))
-			return -EFAULT;
-                ss.iomap_base = 0UL;
         }
-        set_fs(KERNEL_DS);
-	err = do_ioctl(file, cmd, (unsigned long)&ss);
-        set_fs(oldseg);
+	err = do_ioctl(file, cmd, (unsigned long)ss);
         if (cmd == TIOCGSERIAL && err >= 0) {
-                if (!access_ok(VERIFY_WRITE, ss32, sizeof(SS32)))
-                        return -EFAULT;
-                if (__copy_to_user(ss32,&ss,offsetof(SS32,iomem_base)))
+		if (copy_in_user(ss32, ss, offsetof(SS32, iomem_base)) ||
+		    get_user(iomem_base, &ss->iomem_base))
 			return -EFAULT;
-		base = (unsigned long)ss.iomem_base  >> 32 ?
-			0xffffffff : (unsigned)(unsigned long)ss.iomem_base;
-		if (__put_user(base, &ss32->iomem_base) ||
-		    __put_user(ss.iomem_reg_shift, &ss32->iomem_reg_shift) ||
-		    __put_user(ss.port_high, &ss32->port_high))
+		base = (unsigned long)iomem_base  >> 32 ?
+			0xffffffff : (unsigned)(unsigned long)iomem_base;
+		if (put_user(base, &ss32->iomem_base) ||
+		    convert_in_user(&ss->iomem_reg_shift,
+		      &ss32->iomem_reg_shift) ||
+		    convert_in_user(&ss->port_high, &ss32->port_high))
 			return -EFAULT;
         }
         return err;
@@ -759,23 +768,20 @@ static int do_i2c_smbus_ioctl(struct file *file,
 static int rtc_ioctl(struct file *file,
 		unsigned cmd, void __user *argp)
 {
-	mm_segment_t oldfs = get_fs();
-	compat_ulong_t val32;
-	unsigned long kval;
+	unsigned long __user *valp = compat_alloc_user_space(sizeof(*valp));
 	int ret;
 
+	if (valp == NULL)
+		return -EFAULT;
 	switch (cmd) {
 	case RTC_IRQP_READ32:
 	case RTC_EPOCH_READ32:
-		set_fs(KERNEL_DS);
 		ret = do_ioctl(file, (cmd == RTC_IRQP_READ32) ?
 					RTC_IRQP_READ : RTC_EPOCH_READ,
-					(unsigned long)&kval);
-		set_fs(oldfs);
+					(unsigned long)valp);
 		if (ret)
 			return ret;
-		val32 = kval;
-		return put_user(val32, (unsigned int __user *)argp);
+		return convert_in_user(valp, (unsigned int __user *)argp);
 	case RTC_IRQP_SET32:
 		return do_ioctl(file, RTC_IRQP_SET, (unsigned long)argp);
 	case RTC_EPOCH_SET32:
