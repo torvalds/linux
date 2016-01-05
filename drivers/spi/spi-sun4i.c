@@ -140,6 +140,9 @@ static void sun4i_spi_set_cs(struct spi_device *spi, bool enable)
 	reg &= ~SUN4I_CTL_CS_MASK;
 	reg |= SUN4I_CTL_CS(spi->chip_select);
 
+	/* We want to control the chip select manually */
+	reg |= SUN4I_CTL_CS_MANUAL;
+
 	if (enable)
 		reg |= SUN4I_CTL_CS_LEVEL;
 	else
@@ -221,9 +224,6 @@ static int sun4i_spi_transfer_one(struct spi_master *master,
 		reg &= ~SUN4I_CTL_DHB;
 	else
 		reg |= SUN4I_CTL_DHB;
-
-	/* We want to control the chip select manually */
-	reg |= SUN4I_CTL_CS_MANUAL;
 
 	sun4i_spi_write(sspi, SUN4I_CTL_REG, reg);
 
