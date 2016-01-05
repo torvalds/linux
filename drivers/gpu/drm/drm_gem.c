@@ -331,6 +331,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 			   u32 *handlep)
 {
 	struct drm_device *dev = obj->dev;
+	u32 handle;
 	int ret;
 
 	WARN_ON(!mutex_is_locked(&dev->object_name_lock));
@@ -353,7 +354,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	if (ret < 0)
 		goto err_unref;
 
-	*handlep = ret;
+	handle = ret;
 
 	ret = drm_vma_node_allow(&obj->vma_node, file_priv->filp);
 	if (ret)
@@ -365,13 +366,14 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 			goto err_revoke;
 	}
 
+	*handlep = handle;
 	return 0;
 
 err_revoke:
 	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
 err_remove:
 	spin_lock(&file_priv->table_lock);
-	idr_remove(&file_priv->object_idr, *handlep);
+	idr_remove(&file_priv->object_idr, handle);
 	spin_unlock(&file_priv->table_lock);
 err_unref:
 	drm_gem_object_handle_unreference_unlocked(obj);
