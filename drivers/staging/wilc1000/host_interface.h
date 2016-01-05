@@ -186,7 +186,7 @@ struct rcvd_net_info {
 };
 
 struct hidden_net_info {
-	u8  *pu8ssid;
+	u8  *ssid;
 	u8 u8ssidlen;
 };
 
