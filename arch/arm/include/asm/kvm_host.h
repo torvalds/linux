@@ -88,6 +88,45 @@ struct kvm_vcpu_fault_info {
 	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
 };
 
+/*
+ * 0 is reserved as an invalid value.
+ * Order should be kept in sync with the save/restore code.
+ */
+enum vcpu_sysreg {
+	__INVALID_SYSREG__,
+	c0_MPIDR,		/* MultiProcessor ID Register */
+	c0_CSSELR,		/* Cache Size Selection Register */
+	c1_SCTLR,		/* System Control Register */
+	c1_ACTLR,		/* Auxiliary Control Register */
+	c1_CPACR,		/* Coprocessor Access Control */
+	c2_TTBR0,		/* Translation Table Base Register 0 */
+	c2_TTBR0_high,		/* TTBR0 top 32 bits */
+	c2_TTBR1,		/* Translation Table Base Register 1 */
+	c2_TTBR1_high,		/* TTBR1 top 32 bits */
+	c2_TTBCR,		/* Translation Table Base Control R. */
+	c3_DACR,		/* Domain Access Control Register */
+	c5_DFSR,		/* Data Fault Status Register */
+	c5_IFSR,		/* Instruction Fault Status Register */
+	c5_ADFSR,		/* Auxilary Data Fault Status R */
+	c5_AIFSR,		/* Auxilary Instrunction Fault Status R */
+	c6_DFAR,		/* Data Fault Address Register */
+	c6_IFAR,		/* Instruction Fault Address Register */
+	c7_PAR,			/* Physical Address Register */
+	c7_PAR_high,		/* PAR top 32 bits */
+	c9_L2CTLR,		/* Cortex A15/A7 L2 Control Register */
+	c10_PRRR,		/* Primary Region Remap Register */
+	c10_NMRR,		/* Normal Memory Remap Register */
+	c12_VBAR,		/* Vector Base Address Register */
+	c13_CID,		/* Context ID Register */
+	c13_TID_URW,		/* Thread ID, User R/W */
+	c13_TID_URO,		/* Thread ID, User R/O */
+	c13_TID_PRIV,		/* Thread ID, Privileged */
+	c14_CNTKCTL,		/* Timer Control Register (PL1) */
+	c10_AMAIR0,		/* Auxilary Memory Attribute Indirection Reg0 */
+	c10_AMAIR1,		/* Auxilary Memory Attribute Indirection Reg1 */
+	NR_CP15_REGS		/* Number of regs (incl. invalid) */
+};
+
 struct kvm_cpu_context {
 	struct kvm_regs	gp_regs;
 	struct vfp_hard_struct vfp;
