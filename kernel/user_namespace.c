@@ -26,6 +26,12 @@
 #include <linux/bsearch.h>
 #include <linux/sort.h>
 
+/*
+ * sysctl determining whether unprivileged users may unshare a new
+ * userns.  Allowed by default
+ */
+int unprivileged_userns_clone = 1;
+
 static struct kmem_cache *user_ns_cachep __read_mostly;
 static DEFINE_MUTEX(userns_state_mutex);
 
