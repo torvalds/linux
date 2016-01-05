@@ -73,7 +73,6 @@
 		timer: timer@10000040 {
 			compatible = "syscon";
 			reg = <0x10000040 0x2c>;
-			little-endian;
 		};
 
 		reboot {

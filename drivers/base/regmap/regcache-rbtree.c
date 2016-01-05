@@ -414,8 +414,8 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 		max = reg + max_dist;
 
 		/* look for an adjacent register to the one we are about to add */
-		for (node = rb_first(&rbtree_ctx->root); node;
-		     node = rb_next(node)) {
+		node = rbtree_ctx->root.rb_node;
+		while (node) {
 			rbnode_tmp = rb_entry(node, struct regcache_rbtree_node,
 					      node);
 
@@ -426,6 +426,11 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 				new_base_reg = min(reg, base_reg);
 				new_top_reg = max(reg, top_reg);
 			} else {
+				if (max < base_reg)
+					node = node->rb_left;
+				else
+					node = node->rb_right;
+
 				continue;
 			}
 
