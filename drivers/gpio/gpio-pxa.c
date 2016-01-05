@@ -646,8 +646,8 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	pchip->irqdomain = irq_domain_add_legacy(pdev->dev.of_node,
 						 pxa_last_gpio + 1, irq_base,
 						 0, &pxa_irq_domain_ops, pchip);
-	if (IS_ERR(pchip->irqdomain))
-		return PTR_ERR(pchip->irqdomain);
+	if (!pchip->irqdomain)
+		return -ENOMEM;
 
 	irq0 = platform_get_irq_byname(pdev, "gpio0");
 	irq1 = platform_get_irq_byname(pdev, "gpio1");
