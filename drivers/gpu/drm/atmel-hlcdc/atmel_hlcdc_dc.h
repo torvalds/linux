@@ -50,6 +50,9 @@
  * @min_height: minimum height supported by the Display Controller
  * @max_width: maximum width supported by the Display Controller
  * @max_height: maximum height supported by the Display Controller
+ * @max_spw: maximum vertical/horizontal pulse width
+ * @max_vpw: maximum vertical back/front porch width
+ * @max_hpw: maximum horizontal back/front porch width
  * @layers: a layer description table describing available layers
  * @nlayers: layer description table size
  */
@@ -58,6 +61,9 @@ struct atmel_hlcdc_dc_desc {
 	int min_height;
 	int max_width;
 	int max_height;
+	int max_spw;
+	int max_vpw;
+	int max_hpw;
 	const struct atmel_hlcdc_layer_desc *layers;
 	int nlayers;
 };

@@ -50,6 +50,9 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9n12 = {
 	.min_height = 0,
 	.max_width = 1280,
 	.max_height = 860,
+	.max_spw = 0x3f,
+	.max_vpw = 0x3f,
+	.max_hpw = 0xff,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9n12_layers),
 	.layers = atmel_hlcdc_at91sam9n12_layers,
 };
@@ -134,6 +137,9 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9x5 = {
 	.min_height = 0,
 	.max_width = 800,
 	.max_height = 600,
+	.max_spw = 0x3f,
+	.max_vpw = 0x3f,
+	.max_hpw = 0xff,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9x5_layers),
 	.layers = atmel_hlcdc_at91sam9x5_layers,
 };
@@ -237,6 +243,9 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_sama5d3 = {
 	.min_height = 0,
 	.max_width = 2048,
 	.max_height = 2048,
+	.max_spw = 0x3f,
+	.max_vpw = 0x3f,
+	.max_hpw = 0x1ff,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_sama5d3_layers),
 	.layers = atmel_hlcdc_sama5d3_layers,
 };
@@ -320,6 +329,9 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_sama5d4 = {
 	.min_height = 0,
 	.max_width = 2048,
 	.max_height = 2048,
+	.max_spw = 0xff,
+	.max_vpw = 0xff,
+	.max_hpw = 0x3ff,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_sama5d4_layers),
 	.layers = atmel_hlcdc_sama5d4_layers,
 };
@@ -358,19 +370,19 @@ int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
 	int hback_porch = mode->htotal - mode->hsync_end;
 	int hsync_len = mode->hsync_end - mode->hsync_start;
 
-	if (hsync_len > 0x40 || hsync_len < 1)
+	if (hsync_len > dc->desc->max_spw + 1 || hsync_len < 1)
 		return MODE_HSYNC;
 
-	if (vsync_len > 0x40 || vsync_len < 1)
+	if (vsync_len > dc->desc->max_spw + 1 || vsync_len < 1)
 		return MODE_VSYNC;
 
-	if (hfront_porch > 0x200 || hfront_porch < 1 ||
-	    hback_porch > 0x200 || hback_porch < 1 ||
+	if (hfront_porch > dc->desc->max_hpw + 1 || hfront_porch < 1 ||
+	    hback_porch > dc->desc->max_hpw + 1 || hback_porch < 1 ||
 	    mode->hdisplay < 1)
 		return MODE_H_ILLEGAL;
 
-	if (vfront_porch > 0x40 || vfront_porch < 1 ||
-	    vback_porch > 0x40 || vback_porch < 0 ||
+	if (vfront_porch > dc->desc->max_vpw + 1 || vfront_porch < 1 ||
+	    vback_porch > dc->desc->max_vpw || vback_porch < 0 ||
 	    mode->vdisplay < 1)
 		return MODE_V_ILLEGAL;
 
