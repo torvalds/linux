@@ -36,6 +36,16 @@ void nv46_pci_msi_rearm(struct nvkm_pci *);
 void g84_pci_init(struct nvkm_pci *pci);
 
 /* pcie functions */
+void g84_pcie_set_version(struct nvkm_pci *, u8);
+int g84_pcie_version(struct nvkm_pci *);
+void g84_pcie_set_link_speed(struct nvkm_pci *, enum nvkm_pcie_speed);
+enum nvkm_pcie_speed g84_pcie_cur_speed(struct nvkm_pci *);
+enum nvkm_pcie_speed g84_pcie_max_speed(struct nvkm_pci *);
+int g84_pcie_init(struct nvkm_pci *);
+int g84_pcie_set_link(struct nvkm_pci *, enum nvkm_pcie_speed, u8);
+
+int g94_pcie_version_supported(struct nvkm_pci *);
+
 int nvkm_pcie_oneinit(struct nvkm_pci *);
 int nvkm_pcie_init(struct nvkm_pci *);
 #endif
