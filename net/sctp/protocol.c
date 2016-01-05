@@ -1416,24 +1416,6 @@ static __init int sctp_init(void)
 	for (order = 0; (1UL << order) < goal; order++)
 		;
 
-	do {
-		sctp_assoc_hashsize = (1UL << order) * PAGE_SIZE /
-					sizeof(struct sctp_hashbucket);
-		if ((sctp_assoc_hashsize > (64 * 1024)) && order > 0)
-			continue;
-		sctp_assoc_hashtable = (struct sctp_hashbucket *)
-			__get_free_pages(GFP_KERNEL | __GFP_NOWARN, order);
-	} while (!sctp_assoc_hashtable && --order > 0);
-	if (!sctp_assoc_hashtable) {
-		pr_err("Failed association hash alloc\n");
-		status = -ENOMEM;
-		goto err_ahash_alloc;
-	}
-	for (i = 0; i < sctp_assoc_hashsize; i++) {
-		rwlock_init(&sctp_assoc_hashtable[i].lock);
-		INIT_HLIST_HEAD(&sctp_assoc_hashtable[i].chain);
-	}
-
 	/* Allocate and initialize the endpoint hash table.  */
 	sctp_ep_hashsize = 64;
 	sctp_ep_hashtable =
@@ -1467,8 +1449,10 @@ static __init int sctp_init(void)
 		INIT_HLIST_HEAD(&sctp_port_hashtable[i].chain);
 	}
 
-	pr_info("Hash tables configured (established %d bind %d)\n",
-		sctp_assoc_hashsize, sctp_port_hashsize);
+	if (sctp_transport_hashtable_init())
+		goto err_thash_alloc;
+
+	pr_info("Hash tables configured (bind %d)\n", sctp_port_hashsize);
 
 	sctp_sysctl_register();
 
@@ -1521,12 +1505,10 @@ err_register_defaults:
 		   get_order(sctp_port_hashsize *
 			     sizeof(struct sctp_bind_hashbucket)));
 err_bhash_alloc:
+	sctp_transport_hashtable_destroy();
+err_thash_alloc:
 	kfree(sctp_ep_hashtable);
 err_ehash_alloc:
-	free_pages((unsigned long)sctp_assoc_hashtable,
-		   get_order(sctp_assoc_hashsize *
-			     sizeof(struct sctp_hashbucket)));
-err_ahash_alloc:
 	percpu_counter_destroy(&sctp_sockets_allocated);
 err_percpu_counter_init:
 	kmem_cache_destroy(sctp_chunk_cachep);
@@ -1560,13 +1542,11 @@ static __exit void sctp_exit(void)
 
 	sctp_sysctl_unregister();
 
-	free_pages((unsigned long)sctp_assoc_hashtable,
-		   get_order(sctp_assoc_hashsize *
-			     sizeof(struct sctp_hashbucket)));
-	kfree(sctp_ep_hashtable);
 	free_pages((unsigned long)sctp_port_hashtable,
 		   get_order(sctp_port_hashsize *
 			     sizeof(struct sctp_bind_hashbucket)));
+	kfree(sctp_ep_hashtable);
+	sctp_transport_hashtable_destroy();
 
 	percpu_counter_destroy(&sctp_sockets_allocated);
 
