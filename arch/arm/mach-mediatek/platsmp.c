@@ -44,6 +44,12 @@ static const struct mtk_smp_boot_info mtk_mt6589_boot = {
 	{ 0x38, 0x3c, 0x40 },
 };
 
+static const struct mtk_smp_boot_info mtk_mt7623_boot = {
+	0x10202000, 0x34,
+	{ 0x534c4131, 0x4c415332, 0x41534c33 },
+	{ 0x38, 0x3c, 0x40 },
+};
+
 static const struct of_device_id mtk_tz_smp_boot_infos[] __initconst = {
 	{ .compatible   = "mediatek,mt8135", .data = &mtk_mt8135_tz_boot },
 	{ .compatible   = "mediatek,mt8127", .data = &mtk_mt8135_tz_boot },
@@ -51,6 +57,7 @@ static const struct of_device_id mtk_tz_smp_boot_infos[] __initconst = {
 
 static const struct of_device_id mtk_smp_boot_infos[] __initconst = {
 	{ .compatible   = "mediatek,mt6589", .data = &mtk_mt6589_boot },
+	{ .compatible   = "mediatek,mt7623", .data = &mtk_mt7623_boot },
 };
 
 static void __iomem *mtk_smp_base;
