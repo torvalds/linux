@@ -26,6 +26,7 @@
 #include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #define DRV_NAME "rcar-pcie"
@@ -994,32 +995,51 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	 if (err)
 		return err;
 
+	of_id = of_match_device(rcar_pcie_of_match, pcie->dev);
+	if (!of_id || !of_id->data)
+		return -EINVAL;
+	hw_init_fn = of_id->data;
+
+	pm_runtime_enable(pcie->dev);
+	err = pm_runtime_get_sync(pcie->dev);
+	if (err < 0) {
+		dev_err(pcie->dev, "pm_runtime_get_sync failed\n");
+		goto err_pm_disable;
+	}
+
+	/* Failure to get a link might just be that no cards are inserted */
+	err = hw_init_fn(pcie);
+	if (err) {
+		dev_info(&pdev->dev, "PCIe link down\n");
+		err = 0;
+		goto err_pm_put;
+	}
+
+	data = rcar_pci_read_reg(pcie, MACSR);
+	dev_info(&pdev->dev, "PCIe x%d: link up\n", (data >> 20) & 0x3f);
+
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = rcar_pcie_enable_msi(pcie);
 		if (err < 0) {
 			dev_err(&pdev->dev,
 				"failed to enable MSI support: %d\n",
 				err);
-			return err;
+			goto err_pm_put;
 		}
 	}
 
-	of_id = of_match_device(rcar_pcie_of_match, pcie->dev);
-	if (!of_id || !of_id->data)
-		return -EINVAL;
-	hw_init_fn = of_id->data;
+	err = rcar_pcie_enable(pcie);
+	if (err)
+		goto err_pm_put;
 
-	/* Failure to get a link might just be that no cards are inserted */
-	err = hw_init_fn(pcie);
-	if (err) {
-		dev_info(&pdev->dev, "PCIe link down\n");
-		return 0;
-	}
+	return 0;
 
-	data = rcar_pci_read_reg(pcie, MACSR);
-	dev_info(&pdev->dev, "PCIe x%d: link up\n", (data >> 20) & 0x3f);
+err_pm_put:
+	pm_runtime_put(pcie->dev);
 
-	return rcar_pcie_enable(pcie);
+err_pm_disable:
+	pm_runtime_disable(pcie->dev);
+	return err;
 }
 
 static struct platform_driver rcar_pcie_driver = {
