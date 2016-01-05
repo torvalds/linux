@@ -72,15 +72,18 @@ static u64 do_reloc(enum aarch64_reloc_op reloc_op, void *place, u64 val)
 
 static int reloc_data(enum aarch64_reloc_op op, void *place, u64 val, int len)
 {
-	u64 imm_mask = (1 << len) - 1;
 	s64 sval = do_reloc(op, place, val);
 
 	switch (len) {
 	case 16:
 		*(s16 *)place = sval;
+		if (sval < S16_MIN || sval > U16_MAX)
+			return -ERANGE;
 		break;
 	case 32:
 		*(s32 *)place = sval;
+		if (sval < S32_MIN || sval > U32_MAX)
+			return -ERANGE;
 		break;
 	case 64:
 		*(s64 *)place = sval;
@@ -89,21 +92,6 @@ static int reloc_data(enum aarch64_reloc_op op, void *place, u64 val, int len)
 		pr_err("Invalid length (%d) for data relocation\n", len);
 		return 0;
 	}
-
-	/*
-	 * Extract the upper value bits (including the sign bit) and
-	 * shift them to bit 0.
-	 */
-	sval = (s64)(sval & ~(imm_mask >> 1)) >> (len - 1);
-
-	/*
-	 * Overflow has occurred if the value is not representable in
-	 * len bits (i.e the bottom len bits are not sign-extended and
-	 * the top bits are not all zero).
-	 */
-	if ((u64)(sval + 1) > 2)
-		return -ERANGE;
-
 	return 0;
 }
 
