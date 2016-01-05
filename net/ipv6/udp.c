@@ -251,7 +251,8 @@ static inline int compute_score2(struct sock *sk, struct net *net,
 static struct sock *udp6_lib_lookup2(struct net *net,
 		const struct in6_addr *saddr, __be16 sport,
 		const struct in6_addr *daddr, unsigned int hnum, int dif,
-		struct udp_hslot *hslot2, unsigned int slot2)
+		struct udp_hslot *hslot2, unsigned int slot2,
+		struct sk_buff *skb)
 {
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
@@ -272,7 +273,8 @@ begin:
 				struct sock *sk2;
 				hash = udp6_ehashfn(net, daddr, hnum,
 						    saddr, sport);
-				sk2 = reuseport_select_sock(sk, hash, NULL, 0);
+				sk2 = reuseport_select_sock(sk, hash, skb,
+							    sizeof(struct udphdr));
 				if (sk2) {
 					result = sk2;
 					goto found;
@@ -331,7 +333,7 @@ struct sock *__udp6_lib_lookup(struct net *net,
 
 		result = udp6_lib_lookup2(net, saddr, sport,
 					  daddr, hnum, dif,
-					  hslot2, slot2);
+					  hslot2, slot2, skb);
 		if (!result) {
 			hash2 = udp6_portaddr_hash(net, &in6addr_any, hnum);
 			slot2 = hash2 & udptable->mask;
@@ -341,7 +343,7 @@ struct sock *__udp6_lib_lookup(struct net *net,
 
 			result = udp6_lib_lookup2(net, saddr, sport,
 						  &in6addr_any, hnum, dif,
-						  hslot2, slot2);
+						  hslot2, slot2, skb);
 		}
 		rcu_read_unlock();
 		return result;

@@ -493,7 +493,8 @@ static u32 udp_ehashfn(const struct net *net, const __be32 laddr,
 static struct sock *udp4_lib_lookup2(struct net *net,
 		__be32 saddr, __be16 sport,
 		__be32 daddr, unsigned int hnum, int dif,
-		struct udp_hslot *hslot2, unsigned int slot2)
+		struct udp_hslot *hslot2, unsigned int slot2,
+		struct sk_buff *skb)
 {
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
@@ -514,7 +515,8 @@ begin:
 				struct sock *sk2;
 				hash = udp_ehashfn(net, daddr, hnum,
 						   saddr, sport);
-				sk2 = reuseport_select_sock(sk, hash, NULL, 0);
+				sk2 = reuseport_select_sock(sk, hash, skb,
+							    sizeof(struct udphdr));
 				if (sk2) {
 					result = sk2;
 					goto found;
@@ -573,7 +575,7 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 
 		result = udp4_lib_lookup2(net, saddr, sport,
 					  daddr, hnum, dif,
-					  hslot2, slot2);
+					  hslot2, slot2, skb);
 		if (!result) {
 			hash2 = udp4_portaddr_hash(net, htonl(INADDR_ANY), hnum);
 			slot2 = hash2 & udptable->mask;
@@ -583,7 +585,7 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 
 			result = udp4_lib_lookup2(net, saddr, sport,
 						  htonl(INADDR_ANY), hnum, dif,
-						  hslot2, slot2);
+						  hslot2, slot2, skb);
 		}
 		rcu_read_unlock();
 		return result;

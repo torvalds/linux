@@ -123,6 +123,8 @@ static void attach_ebpf(int fd, uint16_t mod)
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_REUSEPORT_EBPF, &bpf_fd,
 			sizeof(bpf_fd)))
 		error(1, errno, "failed to set SO_ATTACH_REUSEPORT_EBPF");
+
+	close(bpf_fd);
 }
 
 static void attach_cbpf(int fd, uint16_t mod)
@@ -396,6 +398,9 @@ static void test_filter_without_bind(void)
 int main(void)
 {
 	fprintf(stderr, "---- IPv4 UDP ----\n");
+	/* NOTE: UDP socket lookups traverse a different code path when there
+	 * are > 10 sockets in a group.  Run the bpf test through both paths.
+	 */
 	test_reuseport_ebpf((struct test_params) {
 		.recv_family = AF_INET,
 		.send_family = AF_INET,
@@ -403,11 +408,25 @@ int main(void)
 		.recv_socks = 10,
 		.recv_port = 8000,
 		.send_port_min = 9000});
+	test_reuseport_ebpf((struct test_params) {
+		.recv_family = AF_INET,
+		.send_family = AF_INET,
+		.protocol = SOCK_DGRAM,
+		.recv_socks = 20,
+		.recv_port = 8000,
+		.send_port_min = 9000});
 	test_reuseport_cbpf((struct test_params) {
 		.recv_family = AF_INET,
 		.send_family = AF_INET,
 		.protocol = SOCK_DGRAM,
 		.recv_socks = 10,
+		.recv_port = 8001,
+		.send_port_min = 9020});
+	test_reuseport_cbpf((struct test_params) {
+		.recv_family = AF_INET,
+		.send_family = AF_INET,
+		.protocol = SOCK_DGRAM,
+		.recv_socks = 20,
 		.recv_port = 8001,
 		.send_port_min = 9020});
 	test_extra_filter((struct test_params) {
@@ -427,11 +446,25 @@ int main(void)
 		.recv_socks = 10,
 		.recv_port = 8003,
 		.send_port_min = 9040});
+	test_reuseport_ebpf((struct test_params) {
+		.recv_family = AF_INET6,
+		.send_family = AF_INET6,
+		.protocol = SOCK_DGRAM,
+		.recv_socks = 20,
+		.recv_port = 8003,
+		.send_port_min = 9040});
 	test_reuseport_cbpf((struct test_params) {
 		.recv_family = AF_INET6,
 		.send_family = AF_INET6,
 		.protocol = SOCK_DGRAM,
 		.recv_socks = 10,
+		.recv_port = 8004,
+		.send_port_min = 9060});
+	test_reuseport_cbpf((struct test_params) {
+		.recv_family = AF_INET6,
+		.send_family = AF_INET6,
+		.protocol = SOCK_DGRAM,
+		.recv_socks = 20,
 		.recv_port = 8004,
 		.send_port_min = 9060});
 	test_extra_filter((struct test_params) {
@@ -448,6 +481,13 @@ int main(void)
 		.recv_family = AF_INET6,
 		.send_family = AF_INET,
 		.protocol = SOCK_DGRAM,
+		.recv_socks = 20,
+		.recv_port = 8006,
+		.send_port_min = 9080});
+	test_reuseport_ebpf((struct test_params) {
+		.recv_family = AF_INET6,
+		.send_family = AF_INET,
+		.protocol = SOCK_DGRAM,
 		.recv_socks = 10,
 		.recv_port = 8006,
 		.send_port_min = 9080});
@@ -456,6 +496,13 @@ int main(void)
 		.send_family = AF_INET,
 		.protocol = SOCK_DGRAM,
 		.recv_socks = 10,
+		.recv_port = 8007,
+		.send_port_min = 9100});
+	test_reuseport_cbpf((struct test_params) {
+		.recv_family = AF_INET6,
+		.send_family = AF_INET,
+		.protocol = SOCK_DGRAM,
+		.recv_socks = 20,
 		.recv_port = 8007,
 		.send_port_min = 9100});
 
