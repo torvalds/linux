@@ -6493,7 +6493,7 @@ out_unlock_inode:
 static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		      struct dentry *dentry)
 {
-	struct btrfs_trans_handle *trans;
+	struct btrfs_trans_handle *trans = NULL;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct inode *inode = d_inode(old_dentry);
 	u64 index;
@@ -6519,6 +6519,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	trans = btrfs_start_transaction(root, 5);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
+		trans = NULL;
 		goto fail;
 	}
 
@@ -6552,9 +6553,10 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		btrfs_log_new_name(trans, inode, NULL, parent);
 	}
 
-	btrfs_end_transaction(trans, root);
 	btrfs_balance_delayed_items(root);
 fail:
+	if (trans)
+		btrfs_end_transaction(trans, root);
 	if (drop_inode) {
 		inode_dec_link_count(inode);
 		iput(inode);
