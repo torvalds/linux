@@ -333,5 +333,6 @@
 #define __NR_memfd_create	318
 #define __NR_bpf		319
 #define __NR_execveat		320
+#define __NR_accept4		321
 
 #endif /* _UAPI__ASM_AVR32_UNISTD_H */
