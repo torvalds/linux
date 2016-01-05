@@ -1176,7 +1176,7 @@ static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
 				goto err_out_unlock;
 			}
 			instance_destroy(q, queue);
-			break;
+			goto err_out_unlock;
 		case NFQNL_CFG_CMD_PF_BIND:
 		case NFQNL_CFG_CMD_PF_UNBIND:
 			break;
