@@ -366,7 +366,8 @@ static int ep_queue(struct usb_ep *usb_ep, struct usb_request *usb_req,
 		/* In device DMA mode when gadget perform ep_queue request
 		 * with buffer length 0, Kernel stack dump occurred. For 0
 		 * length buffers perform dma_map_single() with length 4.*/
-		if (usb_req->dma == DWC_DMA_ADDR_INVALID) {
+		if (usb_req->dma == DWC_DMA_ADDR_INVALID &&
+		    ep != NULL) {
 			dma_addr =
 			    dma_map_single(gadget_wrapper->gadget.dev.parent,
 					   usb_req->buf,
@@ -958,7 +959,8 @@ static int _complete(dwc_otg_pcd_t *pcd, void *ep_handle,
 
 	if (GET_CORE_IF(pcd)->dma_enable) {
 		/* if (req->length != 0) */
-		if (req->dma != DWC_DMA_ADDR_INVALID) {
+		if (req->dma != DWC_DMA_ADDR_INVALID &&
+		    ep != NULL) {
 			dma_unmap_single(gadget_wrapper->gadget.dev.parent,
 					 req->dma,
 					 req->length !=
