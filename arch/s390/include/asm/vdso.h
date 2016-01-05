@@ -38,6 +38,8 @@ struct vdso_data {
 struct vdso_per_cpu_data {
 	__u64 ectg_timer_base;
 	__u64 ectg_user_time;
+	__u32 cpu_nr;
+	__u32 node_id;
 };
 
 extern struct vdso_data *vdso_data;

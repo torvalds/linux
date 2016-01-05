@@ -80,6 +80,8 @@ int main(void)
 	OFFSET(__VDSO_TK_SHIFT, vdso_data, tk_shift);
 	OFFSET(__VDSO_ECTG_BASE, vdso_per_cpu_data, ectg_timer_base);
 	OFFSET(__VDSO_ECTG_USER, vdso_per_cpu_data, ectg_user_time);
+	OFFSET(__VDSO_CPU_NR, vdso_per_cpu_data, cpu_nr);
+	OFFSET(__VDSO_NODE_ID, vdso_per_cpu_data, node_id);
 	BLANK();
 	/* constants used by the vdso */
 	DEFINE(__CLOCK_REALTIME, CLOCK_REALTIME);
