@@ -27,7 +27,7 @@
 
 #include "../ion_priv.h"
 
-static struct ion_device *idev;
+struct ion_device *rockchip_ion_dev;
 static struct ion_heap **heaps;
 
 struct ion_heap_desc {
@@ -229,6 +229,7 @@ static int rk_ion_probe(struct platform_device *pdev)
 	int err;
 	int i;
 	struct ion_platform_data *pdata = pdev->dev.platform_data;
+	struct ion_device *idev;
 
 	if (!pdata) {
 		pdata = rk_ion_of(pdev->dev.of_node);
@@ -242,6 +243,8 @@ static int rk_ion_probe(struct platform_device *pdev)
 		kfree(heaps);
 		return PTR_ERR(idev);
 	}
+
+	rockchip_ion_dev = idev;
 
 	/* create the heaps as specified in the board file */
 	for (i = 0; i < pdata->nr; i++) {
@@ -286,12 +289,12 @@ static int rk_ion_remove(struct platform_device *pdev)
 
 struct ion_client *rockchip_ion_client_create(const char *name)
 {
-	if (!idev) {
+	if (!rockchip_ion_dev) {
 		pr_err("rockchip ion idev is NULL\n");
 		return NULL;
 	}
 
-	return ion_client_create(idev, name);
+	return ion_client_create(rockchip_ion_dev, name);
 }
 EXPORT_SYMBOL_GPL(rockchip_ion_client_create);
 

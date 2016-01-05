@@ -34,6 +34,8 @@ struct ion_phys_data {
 #define ION_IOC_GET_PHYS	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 0, \
 						struct ion_phys_data)
 
+extern struct ion_device *rockchip_ion_dev;
+
 struct ion_client *rockchip_ion_client_create(const char *name);
 
 #endif
