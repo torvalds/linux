@@ -252,6 +252,9 @@ static int mlxsw_sp_port_attr_br_flags_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	bool set;
 	int err;
 
+	if (!mlxsw_sp_port->bridged)
+		return -EINVAL;
+
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 

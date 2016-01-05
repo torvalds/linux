@@ -1364,10 +1364,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port->dev = dev;
 	mlxsw_sp_port->mlxsw_sp = mlxsw_sp;
 	mlxsw_sp_port->local_port = local_port;
-	mlxsw_sp_port->learning = 1;
-	mlxsw_sp_port->learning_sync = 1;
-	mlxsw_sp_port->uc_flood = 1;
-	mlxsw_sp_port->pvid = 1;
 	bytes = DIV_ROUND_UP(VLAN_N_VID, BITS_PER_BYTE);
 	mlxsw_sp_port->active_vlans = kzalloc(bytes, GFP_KERNEL);
 	if (!mlxsw_sp_port->active_vlans) {
@@ -1991,24 +1987,29 @@ static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port)
 	 */
 	err = mlxsw_sp_port_kill_vid(dev, 0, 1);
 	if (err)
-		netdev_err(dev, "Failed to remove VID 1\n");
+		return err;
 
-	return err;
+	mlxsw_sp_port->learning = 1;
+	mlxsw_sp_port->learning_sync = 1;
+	mlxsw_sp_port->uc_flood = 1;
+	mlxsw_sp_port->bridged = 1;
+
+	return 0;
 }
 
 static int mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct net_device *dev = mlxsw_sp_port->dev;
-	int err;
+
+	mlxsw_sp_port->learning = 0;
+	mlxsw_sp_port->learning_sync = 0;
+	mlxsw_sp_port->uc_flood = 0;
+	mlxsw_sp_port->bridged = 0;
 
 	/* Add implicit VLAN interface in the device, so that untagged
 	 * packets will be classified to the default vFID.
 	 */
-	err = mlxsw_sp_port_add_vid(dev, 0, 1);
-	if (err)
-		netdev_err(dev, "Failed to add VID 1\n");
-
-	return err;
+	return mlxsw_sp_port_add_vid(dev, 0, 1);
 }
 
 static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,
@@ -2358,16 +2359,18 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 		} else if (netif_is_bridge_master(upper_dev)) {
 			if (info->linking) {
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port);
-				if (err)
+				if (err) {
 					netdev_err(dev, "Failed to join bridge\n");
+					return NOTIFY_BAD;
+				}
 				mlxsw_sp_master_bridge_inc(mlxsw_sp, upper_dev);
-				mlxsw_sp_port->bridged = 1;
 			} else {
 				err = mlxsw_sp_port_bridge_leave(mlxsw_sp_port);
-				if (err)
-					netdev_err(dev, "Failed to leave bridge\n");
-				mlxsw_sp_port->bridged = 0;
 				mlxsw_sp_master_bridge_dec(mlxsw_sp, upper_dev);
+				if (err) {
+					netdev_err(dev, "Failed to leave bridge\n");
+					return NOTIFY_BAD;
+				}
 			}
 		} else if (netif_is_lag_master(upper_dev)) {
 			if (info->linking) {
