@@ -3708,7 +3708,7 @@ static umode_t regulator_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int idx)
 {
 	struct device *dev = kobj_to_dev(kobj);
-	struct regulator_dev *rdev = container_of(dev, struct regulator_dev, dev);
+	struct regulator_dev *rdev = dev_to_rdev(dev);
 	const struct regulator_ops *ops = rdev->desc->ops;
 	umode_t mode = attr->mode;
 
