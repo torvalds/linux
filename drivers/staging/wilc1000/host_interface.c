@@ -829,18 +829,18 @@ static s32 Handle_Scan(struct wilc_vif *vif,
 	strWIDList[u32WidsCount].id = (u16)WID_SSID_PROBE_REQ;
 	strWIDList[u32WidsCount].type = WID_STR;
 
-	for (i = 0; i < pstrHostIFscanAttr->hidden_network.u8ssidnum; i++)
+	for (i = 0; i < pstrHostIFscanAttr->hidden_network.n_ssids; i++)
 		valuesize += ((pstrHostIFscanAttr->hidden_network.net_info[i].ssid_len) + 1);
 	pu8HdnNtwrksWidVal = kmalloc(valuesize + 1, GFP_KERNEL);
 	strWIDList[u32WidsCount].val = pu8HdnNtwrksWidVal;
 	if (strWIDList[u32WidsCount].val) {
 		pu8Buffer = strWIDList[u32WidsCount].val;
 
-		*pu8Buffer++ = pstrHostIFscanAttr->hidden_network.u8ssidnum;
+		*pu8Buffer++ = pstrHostIFscanAttr->hidden_network.n_ssids;
 
-		PRINT_D(HOSTINF_DBG, "In Handle_ProbeRequest number of ssid %d\n", pstrHostIFscanAttr->hidden_network.u8ssidnum);
+		PRINT_D(HOSTINF_DBG, "In Handle_ProbeRequest number of ssid %d\n", pstrHostIFscanAttr->hidden_network.n_ssids);
 
-		for (i = 0; i < pstrHostIFscanAttr->hidden_network.u8ssidnum; i++) {
+		for (i = 0; i < pstrHostIFscanAttr->hidden_network.n_ssids; i++) {
 			*pu8Buffer++ = pstrHostIFscanAttr->hidden_network.net_info[i].ssid_len;
 			memcpy(pu8Buffer, pstrHostIFscanAttr->hidden_network.net_info[i].ssid, pstrHostIFscanAttr->hidden_network.net_info[i].ssid_len);
 			pu8Buffer += pstrHostIFscanAttr->hidden_network.net_info[i].ssid_len;
@@ -3692,7 +3692,7 @@ s32 wilc_scan(struct wilc_vif *vif, u8 u8ScanSource, u8 u8ScanType,
 
 	if (pstrHiddenNetwork) {
 		msg.body.scan_info.hidden_network.net_info = pstrHiddenNetwork->net_info;
-		msg.body.scan_info.hidden_network.u8ssidnum = pstrHiddenNetwork->u8ssidnum;
+		msg.body.scan_info.hidden_network.n_ssids = pstrHiddenNetwork->n_ssids;
 
 	} else
 		PRINT_D(HOSTINF_DBG, "pstrHiddenNetwork IS EQUAL TO NULL\n");
