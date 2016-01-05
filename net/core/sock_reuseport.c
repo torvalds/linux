@@ -173,7 +173,7 @@ static struct sock *run_bpf(struct sock_reuseport *reuse, u16 socks,
 
 	/* temporarily advance data past protocol header */
 	if (!pskb_pull(skb, hdr_len)) {
-		consume_skb(nskb);
+		kfree_skb(nskb);
 		return NULL;
 	}
 	index = bpf_prog_run_save_cb(prog, skb);
