@@ -697,7 +697,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	dev_priv->vbt.psr.tp2_tp3_wakeup_time = psr_table->tp2_tp3_wakeup_time;
 }
 
-static u8 *goto_next_sequence(u8 *data, int *size)
+static u8 *goto_next_sequence(u8 *data, u16 *size)
 {
 	u16 len;
 	int tmp = *size;
@@ -818,15 +818,52 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	dev_priv->vbt.dsi.panel_id = MIPI_DSI_GENERIC_PANEL_ID;
 }
 
+/* Find the sequence block and size for the given panel. */
+static const u8 *
+find_panel_sequence_block(const struct bdb_mipi_sequence *sequence,
+			  u16 panel_id, u16 *seq_size)
+{
+	u32 total = get_blocksize(sequence);
+	const u8 *data = &sequence->data[0];
+	u8 current_id;
+	u16 current_size;
+	int index = 0;
+	int i;
+
+	for (i = 0; i < MAX_MIPI_CONFIGURATIONS && index + 3 < total; i++) {
+		current_id = *(data + index);
+		index++;
+
+		current_size = *((const u16 *)(data + index));
+		index += 2;
+
+		if (index + current_size > total) {
+			DRM_ERROR("Invalid sequence block\n");
+			return NULL;
+		}
+
+		if (current_id == panel_id) {
+			*seq_size = current_size;
+			return data + index;
+		}
+
+		index += current_size;
+	}
+
+	DRM_ERROR("Sequence block detected but no valid configuration\n");
+
+	return NULL;
+}
+
 static void
 parse_mipi_sequence(struct drm_i915_private *dev_priv,
 		    const struct bdb_header *bdb)
 {
 	const struct bdb_mipi_sequence *sequence;
 	const u8 *seq_data;
+	u16 seq_size;
 	u8 *data;
 	u16 block_size;
-	int i, panel_id, seq_size;
 
 	/* Only our generic panel driver uses the sequence block. */
 	if (dev_priv->vbt.dsi.panel_id != MIPI_DSI_GENERIC_PANEL_ID)
@@ -853,40 +890,11 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 	 */
 	dev_priv->vbt.dsi.seq_version = sequence->version;
 
-	seq_data = &sequence->data[0];
-
-	/*
-	 * sequence block is variable length and hence we need to parse and
-	 * get the sequence data for specific panel id
-	 */
-	for (i = 0; i < MAX_MIPI_CONFIGURATIONS; i++) {
-		panel_id = *seq_data;
-		seq_size = *((u16 *) (seq_data + 1));
-		if (panel_id == panel_type)
-			break;
-
-		/* skip the sequence including seq header of 3 bytes */
-		seq_data = seq_data + 3 + seq_size;
-		if ((seq_data - &sequence->data[0]) > block_size) {
-			DRM_ERROR("Sequence start is beyond sequence block size, corrupted sequence block\n");
-			return;
-		}
-	}
-
-	if (i == MAX_MIPI_CONFIGURATIONS) {
-		DRM_ERROR("Sequence block detected but no valid configuration\n");
+	seq_data = find_panel_sequence_block(sequence, panel_type, &seq_size);
+	if (!seq_data)
 		return;
-	}
 
-	/* check if found sequence is completely within the sequence block
-	 * just being paranoid */
-	if (seq_size > block_size) {
-		DRM_ERROR("Corrupted sequence/size, bailing out\n");
-		return;
-	}
-
-	/* skip the panel id(1 byte) and seq size(2 bytes) */
-	dev_priv->vbt.dsi.data = kmemdup(seq_data + 3, seq_size, GFP_KERNEL);
+	dev_priv->vbt.dsi.data = kmemdup(seq_data, seq_size, GFP_KERNEL);
 	if (!dev_priv->vbt.dsi.data)
 		return;
 
