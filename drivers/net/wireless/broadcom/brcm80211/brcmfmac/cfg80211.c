@@ -1454,6 +1454,7 @@ brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
 	}
 
 	brcmf_link_down(ifp->vif, WLAN_REASON_DEAUTH_LEAVING);
+	brcmf_net_setcarrier(ifp, false);
 
 	brcmf_dbg(TRACE, "Exit\n");
 
@@ -5248,12 +5249,13 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 		brcmf_dbg(CONN, "Linkdown\n");
 		if (!brcmf_is_ibssmode(ifp->vif)) {
 			brcmf_bss_connect_done(cfg, ndev, e, false);
+			brcmf_link_down(ifp->vif,
+					brcmf_map_fw_linkdown_reason(e));
+			brcmf_init_prof(ndev_to_prof(ndev));
+			if (ndev != cfg_to_ndev(cfg))
+				complete(&cfg->vif_disabled);
+			brcmf_net_setcarrier(ifp, false);
 		}
-		brcmf_link_down(ifp->vif, brcmf_map_fw_linkdown_reason(e));
-		brcmf_init_prof(ndev_to_prof(ndev));
-		if (ndev != cfg_to_ndev(cfg))
-			complete(&cfg->vif_disabled);
-		brcmf_net_setcarrier(ifp, false);
 	} else if (brcmf_is_nonetwork(cfg, e)) {
 		if (brcmf_is_ibssmode(ifp->vif))
 			clear_bit(BRCMF_VIF_STATUS_CONNECTING,
