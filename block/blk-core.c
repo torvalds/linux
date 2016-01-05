@@ -207,6 +207,22 @@ void blk_delay_queue(struct request_queue *q, unsigned long msecs)
 EXPORT_SYMBOL(blk_delay_queue);
 
 /**
+ * blk_start_queue_async - asynchronously restart a previously stopped queue
+ * @q:    The &struct request_queue in question
+ *
+ * Description:
+ *   blk_start_queue_async() will clear the stop flag on the queue, and
+ *   ensure that the request_fn for the queue is run from an async
+ *   context.
+ **/
+void blk_start_queue_async(struct request_queue *q)
+{
+	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
+	blk_run_queue_async(q);
+}
+EXPORT_SYMBOL(blk_start_queue_async);
+
+/**
  * blk_start_queue - restart a previously stopped queue
  * @q:    The &struct request_queue in question
  *
