@@ -830,7 +830,7 @@ static s32 Handle_Scan(struct wilc_vif *vif,
 	strWIDList[u32WidsCount].type = WID_STR;
 
 	for (i = 0; i < pstrHostIFscanAttr->hidden_network.u8ssidnum; i++)
-		valuesize += ((pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].ssid_len) + 1);
+		valuesize += ((pstrHostIFscanAttr->hidden_network.net_info[i].ssid_len) + 1);
 	pu8HdnNtwrksWidVal = kmalloc(valuesize + 1, GFP_KERNEL);
 	strWIDList[u32WidsCount].val = pu8HdnNtwrksWidVal;
 	if (strWIDList[u32WidsCount].val) {
@@ -841,9 +841,9 @@ static s32 Handle_Scan(struct wilc_vif *vif,
 		PRINT_D(HOSTINF_DBG, "In Handle_ProbeRequest number of ssid %d\n", pstrHostIFscanAttr->hidden_network.u8ssidnum);
 
 		for (i = 0; i < pstrHostIFscanAttr->hidden_network.u8ssidnum; i++) {
-			*pu8Buffer++ = pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].ssid_len;
-			memcpy(pu8Buffer, pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].ssid, pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].ssid_len);
-			pu8Buffer += pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo[i].ssid_len;
+			*pu8Buffer++ = pstrHostIFscanAttr->hidden_network.net_info[i].ssid_len;
+			memcpy(pu8Buffer, pstrHostIFscanAttr->hidden_network.net_info[i].ssid, pstrHostIFscanAttr->hidden_network.net_info[i].ssid_len);
+			pu8Buffer += pstrHostIFscanAttr->hidden_network.net_info[i].ssid_len;
 		}
 
 		strWIDList[u32WidsCount].size = (s32)(valuesize + 1);
@@ -912,8 +912,8 @@ ERRORHANDLER:
 
 	kfree(pstrHostIFscanAttr->ies);
 	pstrHostIFscanAttr->ies = NULL;
-	kfree(pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo);
-	pstrHostIFscanAttr->hidden_network.pstrHiddenNetworkInfo = NULL;
+	kfree(pstrHostIFscanAttr->hidden_network.net_info);
+	pstrHostIFscanAttr->hidden_network.net_info = NULL;
 
 	kfree(pu8HdnNtwrksWidVal);
 
@@ -3691,7 +3691,7 @@ s32 wilc_scan(struct wilc_vif *vif, u8 u8ScanSource, u8 u8ScanType,
 	msg.id = HOST_IF_MSG_SCAN;
 
 	if (pstrHiddenNetwork) {
-		msg.body.scan_info.hidden_network.pstrHiddenNetworkInfo = pstrHiddenNetwork->pstrHiddenNetworkInfo;
+		msg.body.scan_info.hidden_network.net_info = pstrHiddenNetwork->net_info;
 		msg.body.scan_info.hidden_network.u8ssidnum = pstrHiddenNetwork->u8ssidnum;
 
 	} else

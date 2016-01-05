@@ -191,7 +191,7 @@ struct hidden_net_info {
 };
 
 struct hidden_network {
-	struct hidden_net_info *pstrHiddenNetworkInfo;
+	struct hidden_net_info *net_info;
 	u8 u8ssidnum;
 };
 

@@ -644,16 +644,16 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		PRINT_D(CFG80211_DBG, "Number of SSIDs %d\n", request->n_ssids);
 
 		if (request->n_ssids >= 1) {
-			strHiddenNetwork.pstrHiddenNetworkInfo = kmalloc(request->n_ssids * sizeof(struct hidden_network), GFP_KERNEL);
+			strHiddenNetwork.net_info = kmalloc(request->n_ssids * sizeof(struct hidden_network), GFP_KERNEL);
 			strHiddenNetwork.u8ssidnum = request->n_ssids;
 
 
 			for (i = 0; i < request->n_ssids; i++) {
 				if (request->ssids[i].ssid &&
 				    request->ssids[i].ssid_len != 0) {
-					strHiddenNetwork.pstrHiddenNetworkInfo[i].ssid = kmalloc(request->ssids[i].ssid_len, GFP_KERNEL);
-					memcpy(strHiddenNetwork.pstrHiddenNetworkInfo[i].ssid, request->ssids[i].ssid, request->ssids[i].ssid_len);
-					strHiddenNetwork.pstrHiddenNetworkInfo[i].ssid_len = request->ssids[i].ssid_len;
+					strHiddenNetwork.net_info[i].ssid = kmalloc(request->ssids[i].ssid_len, GFP_KERNEL);
+					memcpy(strHiddenNetwork.net_info[i].ssid, request->ssids[i].ssid, request->ssids[i].ssid_len);
+					strHiddenNetwork.net_info[i].ssid_len = request->ssids[i].ssid_len;
 				} else {
 					PRINT_D(CFG80211_DBG, "Received one NULL SSID\n");
 					strHiddenNetwork.u8ssidnum -= 1;
