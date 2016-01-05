@@ -104,9 +104,9 @@
 /* Device instance number, incremented each time a device is probed. */
 static int instance;
 
-struct list_head online_list;
-struct list_head removing_list;
-spinlock_t dev_lock;
+static struct list_head online_list;
+static struct list_head removing_list;
+static spinlock_t dev_lock;
 
 /*
  * Global variable used to hold the major block device number
