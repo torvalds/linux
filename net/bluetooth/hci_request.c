@@ -1737,8 +1737,8 @@ static int le_scan_disable(struct hci_request *req, unsigned long opt)
 static int bredr_inquiry(struct hci_request *req, unsigned long opt)
 {
 	u8 length = opt;
-	/* General inquiry access code (GIAC) */
-	u8 lap[3] = { 0x33, 0x8b, 0x9e };
+	const u8 giac[3] = { 0x33, 0x8b, 0x9e };
+	const u8 liac[3] = { 0x00, 0x8b, 0x9e };
 	struct hci_cp_inquiry cp;
 
 	BT_DBG("%s", req->hdev->name);
@@ -1748,7 +1748,12 @@ static int bredr_inquiry(struct hci_request *req, unsigned long opt)
 	hci_dev_unlock(req->hdev);
 
 	memset(&cp, 0, sizeof(cp));
-	memcpy(&cp.lap, lap, sizeof(cp.lap));
+
+	if (req->hdev->discovery.limited)
+		memcpy(&cp.lap, liac, sizeof(cp.lap));
+	else
+		memcpy(&cp.lap, giac, sizeof(cp.lap));
+
 	cp.length = length;
 
 	hci_req_add(req, HCI_OP_INQUIRY, sizeof(cp), &cp);

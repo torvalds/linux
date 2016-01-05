@@ -77,6 +77,7 @@ struct discovery_state {
 	u8			last_adv_data_len;
 	bool			report_invalid_rssi;
 	bool			result_filtering;
+	bool			limited;
 	s8			rssi;
 	u16			uuid_count;
 	u8			(*uuids)[16];

@@ -103,6 +103,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_ADD_ADVERTISING,
 	MGMT_OP_REMOVE_ADVERTISING,
 	MGMT_OP_GET_ADV_SIZE_INFO,
+	MGMT_OP_START_LIMITED_DISCOVERY,
 };
 
 static const u16 mgmt_events[] = {
@@ -3283,6 +3284,9 @@ void mgmt_start_discovery_complete(struct hci_dev *hdev, u8 status)
 	if (!cmd)
 		cmd = pending_find(MGMT_OP_START_SERVICE_DISCOVERY, hdev);
 
+	if (!cmd)
+		cmd = pending_find(MGMT_OP_START_LIMITED_DISCOVERY, hdev);
+
 	if (cmd) {
 		cmd->cmd_complete(cmd, mgmt_status(status));
 		mgmt_pending_remove(cmd);
@@ -3318,8 +3322,8 @@ static bool discovery_type_is_valid(struct hci_dev *hdev, uint8_t type,
 	return true;
 }
 
-static int start_discovery(struct sock *sk, struct hci_dev *hdev,
-			   void *data, u16 len)
+static int start_discovery_internal(struct sock *sk, struct hci_dev *hdev,
+				    u16 op, void *data, u16 len)
 {
 	struct mgmt_cp_start_discovery *cp = data;
 	struct mgmt_pending_cmd *cmd;
@@ -3331,7 +3335,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
-		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+		err = mgmt_cmd_complete(sk, hdev->id, op,
 					MGMT_STATUS_NOT_POWERED,
 					&cp->type, sizeof(cp->type));
 		goto failed;
@@ -3339,15 +3343,14 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 
 	if (hdev->discovery.state != DISCOVERY_STOPPED ||
 	    hci_dev_test_flag(hdev, HCI_PERIODIC_INQ)) {
-		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_START_DISCOVERY,
-					MGMT_STATUS_BUSY, &cp->type,
-					sizeof(cp->type));
+		err = mgmt_cmd_complete(sk, hdev->id, op, MGMT_STATUS_BUSY,
+					&cp->type, sizeof(cp->type));
 		goto failed;
 	}
 
 	if (!discovery_type_is_valid(hdev, cp->type, &status)) {
-		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_START_DISCOVERY,
-					status, &cp->type, sizeof(cp->type));
+		err = mgmt_cmd_complete(sk, hdev->id, op, status,
+					&cp->type, sizeof(cp->type));
 		goto failed;
 	}
 
@@ -3358,8 +3361,12 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 
 	hdev->discovery.type = cp->type;
 	hdev->discovery.report_invalid_rssi = false;
+	if (op == MGMT_OP_START_LIMITED_DISCOVERY)
+		hdev->discovery.limited = true;
+	else
+		hdev->discovery.limited = false;
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_START_DISCOVERY, hdev, data, len);
+	cmd = mgmt_pending_add(sk, op, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
@@ -3374,6 +3381,21 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 failed:
 	hci_dev_unlock(hdev);
 	return err;
+}
+
+static int start_discovery(struct sock *sk, struct hci_dev *hdev,
+			   void *data, u16 len)
+{
+	return start_discovery_internal(sk, hdev, MGMT_OP_START_DISCOVERY,
+					data, len);
+}
+
+static int start_limited_discovery(struct sock *sk, struct hci_dev *hdev,
+				   void *data, u16 len)
+{
+	return start_discovery_internal(sk, hdev,
+					MGMT_OP_START_LIMITED_DISCOVERY,
+					data, len);
 }
 
 static int service_discovery_cmd_complete(struct mgmt_pending_cmd *cmd,
@@ -6313,6 +6335,7 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 						HCI_MGMT_VAR_LEN },
 	{ remove_advertising,	   MGMT_REMOVE_ADVERTISING_SIZE },
 	{ get_adv_size_info,       MGMT_GET_ADV_SIZE_INFO_SIZE },
+	{ start_limited_discovery, MGMT_START_DISCOVERY_SIZE },
 };
 
 void mgmt_index_added(struct hci_dev *hdev)
@@ -7235,6 +7258,18 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		if (!is_filter_match(hdev, rssi, eir, eir_len, scan_rsp,
 				     scan_rsp_len))
 			return;
+	}
+
+	if (hdev->discovery.limited) {
+		/* Check for limited discoverable bit */
+		if (dev_class) {
+			if (!(dev_class[1] & 0x20))
+				return;
+		} else {
+			u8 *flags = eir_get_data(eir, eir_len, EIR_FLAGS, NULL);
+			if (!flags || !(flags[0] & LE_AD_LIMITED))
+				return;
+		}
 	}
 
 	/* Make sure that the buffer is big enough. The 5 extra bytes
