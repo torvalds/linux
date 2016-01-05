@@ -411,12 +411,14 @@ static ssize_t set_dump_buffer(struct device *dev,
 			u16 xact, yact;
 			int data_format;
 			u32 dsp_addr;
+			int ymirror;
 
 			mutex_unlock(&dev_drv->front_lock);
 
 			if (dev_drv->ops->get_dspbuf_info)
 				dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
-						&yact, &data_format, &dsp_addr);
+						&yact, &data_format, &dsp_addr,
+						&ymirror);
 
 			dump_win(NULL, NULL, dsp_addr, xact, yact, data_format,
 				 0, 0, 0, is_bmp, false);

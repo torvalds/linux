@@ -1805,7 +1805,8 @@ static void rk3368_lcdc_bcsh_path_sel(struct rk_lcdc_driver *dev_drv)
 }
 
 static int rk3368_get_dspbuf_info(struct rk_lcdc_driver *dev_drv, u16 *xact,
-				  u16 *yact, int *format, u32 *dsp_addr)
+				  u16 *yact, int *format, u32 *dsp_addr,
+				  int *ymirror)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
@@ -1819,6 +1820,7 @@ static int rk3368_get_dspbuf_info(struct rk_lcdc_driver *dev_drv, u16 *xact,
 
 	val = lcdc_readl(lcdc_dev, WIN0_CTRL0);
 	*format = (val & m_WIN0_DATA_FMT) >> 1;
+	*ymirror = (val & m_WIN0_Y_MIRROR) >> 22;
 	*dsp_addr = lcdc_readl(lcdc_dev, WIN0_YRGB_MST);
 
 	spin_unlock(&lcdc_dev->reg_lock);
@@ -1827,15 +1829,17 @@ static int rk3368_get_dspbuf_info(struct rk_lcdc_driver *dev_drv, u16 *xact,
 }
 
 static int rk3368_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
-			      int format, u16 xact, u16 yact, u16 xvir)
+			      int format, u16 xact, u16 yact, u16 xvir,
+			      int ymirror)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
 	u32 val, mask;
 	int swap = (format == RGB888) ? 1 : 0;
 
-	mask = m_WIN0_DATA_FMT | m_WIN0_RB_SWAP;
-	val = v_WIN0_DATA_FMT(format) | v_WIN0_RB_SWAP(swap);
+	mask = m_WIN0_DATA_FMT | m_WIN0_RB_SWAP | m_WIN0_Y_MIRROR;
+	val = v_WIN0_DATA_FMT(format) | v_WIN0_RB_SWAP(swap) |
+		v_WIN0_Y_MIRROR(ymirror);
 	lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
 
 	lcdc_msk_reg(lcdc_dev, WIN0_VIR, m_WIN0_VIR_STRIDE,

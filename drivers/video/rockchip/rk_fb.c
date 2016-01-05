@@ -4143,13 +4143,14 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			phys_addr_t start = uboot_logo_base + uboot_logo_offset;
 			unsigned int size = uboot_logo_size - uboot_logo_offset;
 			unsigned int nr_pages;
+			int ymirror = 0;
 			struct page **pages;
 			char *vaddr;
 			int i = 0;
 
 			if (dev_drv->ops->get_dspbuf_info)
 				dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
-					&yact, &format,	&dsp_addr);
+					&yact, &format,	&dsp_addr, &ymirror);
 			nr_pages = size >> PAGE_SHIFT;
 			pages = kzalloc(sizeof(struct page) * nr_pages,
 					GFP_KERNEL);
@@ -4188,7 +4189,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				dev_drv->ops->post_dspbuf(dev_drv,
 					main_fbi->fix.smem_start,
 					rk_fb_data_fmt(0, bits),
-					width, height, width * bits >> 5);
+					width, height, width * bits >> 5,
+					ymirror);
 			}
 			if (dev_drv->iommu_enabled) {
 				rk_fb_poll_wait_frame_complete();
@@ -4201,19 +4203,24 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		} else if (dev_drv->uboot_logo && uboot_logo_base) {
 			u32 start = uboot_logo_base;
 			u32 start_base = start;
-			int logo_len, i = 0;
+			int logo_len, i=0;
+			int y_mirror = 0;
 			unsigned int nr_pages;
 			struct page **pages;
 			char *vaddr;
 
 			dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
-						      &yact, &format, &start);
+					              &yact, &format,
+						      &start,
+						      &y_mirror);
 			logo_len = rk_fb_pixel_width(format) * xact * yact >> 3;
 			if (logo_len > uboot_logo_size ||
 			    logo_len > main_fbi->fix.smem_len) {
 				pr_err("logo size > uboot reserve buffer size\n");
 				return -1;
 			}
+			if (y_mirror)
+				start -= logo_len;
 
 			nr_pages = uboot_logo_size >> PAGE_SHIFT;
 			pages = kzalloc(sizeof(struct page) * nr_pages,
@@ -4239,9 +4246,11 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			if (dev_drv->ops->wait_frame_start)
 				dev_drv->ops->wait_frame_start(dev_drv, 0);
 			dev_drv->ops->post_dspbuf(dev_drv,
-					main_fbi->fix.smem_start,
+					main_fbi->fix.smem_start +
+					(y_mirror ? logo_len : 0),
 					format,	xact, yact,
-					xact * rk_fb_pixel_width(format) >> 5);
+					xact * rk_fb_pixel_width(format) >> 5,
+					y_mirror);
 			if (dev_drv->iommu_enabled) {
 				rk_fb_poll_wait_frame_complete();
 				if (dev_drv->ops->mmu_en)

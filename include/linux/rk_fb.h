@@ -458,9 +458,10 @@ struct rk_lcdc_drv_ops {
 	int (*load_screen) (struct rk_lcdc_driver *dev_drv, bool initscreen);
 	int (*get_dspbuf_info) (struct rk_lcdc_driver *dev_drv,
 				u16 *xact, u16 *yact, int *format,
-				u32 *dsp_addr);
+				u32 *dsp_addr, int *ymirror);
 	int (*post_dspbuf)(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
-			   int format, u16 xact, u16 yact, u16 xvir);
+			   int format, u16 xact, u16 yact, u16 xvir,
+			   int ymirror);
 
 	int (*get_win_state) (struct rk_lcdc_driver *dev_drv, int layer_id, int area_id);
 	int (*ovl_mgr) (struct rk_lcdc_driver *dev_drv, int swap, bool set);	/*overlay manager*/
