@@ -676,7 +676,8 @@ extern int kern_addr_valid(unsigned long addr);
 
 #include <asm-generic/pgtable.h>
 
-#define pgtable_cache_init() do { } while (0)
+void pgd_cache_init(void);
+#define pgtable_cache_init	pgd_cache_init
 
 /*
  * On AArch64, the cache coherency is handled via the set_pte_at() function.
