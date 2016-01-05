@@ -3672,12 +3672,12 @@ int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 	return result;
 }
 
-s32 wilc_scan(struct wilc_vif *vif, u8 u8ScanSource, u8 u8ScanType,
+int wilc_scan(struct wilc_vif *vif, u8 u8ScanSource, u8 u8ScanType,
 	      u8 *pu8ChnlFreqList, u8 u8ChnlListLen, const u8 *pu8IEs,
 	      size_t IEsLen, wilc_scan_result ScanResult, void *pvUserArg,
 	      struct hidden_network *pstrHiddenNetwork)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
