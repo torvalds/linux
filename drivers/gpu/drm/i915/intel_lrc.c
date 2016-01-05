@@ -556,7 +556,9 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 
 	spin_unlock(&ring->execlist_lock);
 
-	WARN(submit_contexts > 2, "More than two context complete events?\n");
+	if (unlikely(submit_contexts > 2))
+		DRM_ERROR("More than two context complete events?\n");
+
 	ring->next_context_status_buffer = write_pointer % GEN8_CSB_ENTRIES;
 
 	/* Update the read pointer to the old write pointer. Manual ringbuffer
