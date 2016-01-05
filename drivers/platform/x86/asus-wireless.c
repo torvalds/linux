@@ -61,6 +61,7 @@ static int asus_wireless_remove(struct acpi_device *adev)
 }
 
 static const struct acpi_device_id device_ids[] = {
+	{"ATK4001", 0},
 	{"ATK4002", 0},
 	{"", 0},
 };
