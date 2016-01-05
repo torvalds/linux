@@ -506,16 +506,6 @@ static int exact_lock(dev_t devt, void *data)
 	return 0;
 }
 
-int disk_alloc_badblocks(struct gendisk *disk)
-{
-	disk->bb = kzalloc(sizeof(*(disk->bb)), GFP_KERNEL);
-	if (!disk->bb)
-		return -ENOMEM;
-
-	return badblocks_init(disk->bb, 1);
-}
-EXPORT_SYMBOL(disk_alloc_badblocks);
-
 static void register_disk(struct gendisk *disk)
 {
 	struct device *ddev = disk_to_dev(disk);
@@ -681,38 +671,6 @@ void del_gendisk(struct gendisk *disk)
 	device_del(disk_to_dev(disk));
 }
 EXPORT_SYMBOL(del_gendisk);
-
-/*
- * The gendisk usage of badblocks does not track acknowledgements for
- * badblocks. We always assume they are acknowledged.
- */
-int disk_check_badblocks(struct gendisk *disk, sector_t s, int sectors,
-		   sector_t *first_bad, int *bad_sectors)
-{
-	if (!disk->bb)
-		return 0;
-
-	return badblocks_check(disk->bb, s, sectors, first_bad, bad_sectors);
-}
-EXPORT_SYMBOL(disk_check_badblocks);
-
-int disk_set_badblocks(struct gendisk *disk, sector_t s, int sectors)
-{
-	if (!disk->bb)
-		return 0;
-
-	return badblocks_set(disk->bb, s, sectors, 1);
-}
-EXPORT_SYMBOL(disk_set_badblocks);
-
-int disk_clear_badblocks(struct gendisk *disk, sector_t s, int sectors)
-{
-	if (!disk->bb)
-		return 0;
-
-	return badblocks_clear(disk->bb, s, sectors);
-}
-EXPORT_SYMBOL(disk_clear_badblocks);
 
 /* sysfs access to bad-blocks list. */
 static ssize_t disk_badblocks_show(struct device *dev,
