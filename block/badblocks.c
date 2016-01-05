@@ -17,6 +17,7 @@
 
 #include <linux/badblocks.h>
 #include <linux/seqlock.h>
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
@@ -522,6 +523,28 @@ ssize_t badblocks_store(struct badblocks *bb, const char *page, size_t len,
 }
 EXPORT_SYMBOL_GPL(badblocks_store);
 
+static int __badblocks_init(struct device *dev, struct badblocks *bb,
+		int enable)
+{
+	bb->dev = dev;
+	bb->count = 0;
+	if (enable)
+		bb->shift = 0;
+	else
+		bb->shift = -1;
+	if (dev)
+		bb->page = devm_kzalloc(dev, PAGE_SIZE, GFP_KERNEL);
+	else
+		bb->page = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!bb->page) {
+		bb->shift = -1;
+		return -ENOMEM;
+	}
+	seqlock_init(&bb->lock);
+
+	return 0;
+}
+
 /**
  * badblocks_init() - initialize the badblocks structure
  * @bb:		the badblocks structure that holds all badblock information
@@ -533,21 +556,17 @@ EXPORT_SYMBOL_GPL(badblocks_store);
  */
 int badblocks_init(struct badblocks *bb, int enable)
 {
-	bb->count = 0;
-	if (enable)
-		bb->shift = 0;
-	else
-		bb->shift = -1;
-	bb->page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (bb->page == (u64 *)0) {
-		bb->shift = -1;
-		return -ENOMEM;
-	}
-	seqlock_init(&bb->lock);
-
-	return 0;
+	return __badblocks_init(NULL, bb, enable);
 }
 EXPORT_SYMBOL_GPL(badblocks_init);
+
+int devm_init_badblocks(struct device *dev, struct badblocks *bb)
+{
+	if (!bb)
+		return -EINVAL;
+	return __badblocks_init(dev, bb, 1);
+}
+EXPORT_SYMBOL_GPL(devm_init_badblocks);
 
 /**
  * badblocks_exit() - free the badblocks structure
@@ -557,7 +576,10 @@ void badblocks_exit(struct badblocks *bb)
 {
 	if (!bb)
 		return;
-	kfree(bb->page);
+	if (bb->dev)
+		devm_kfree(bb->dev, bb->page);
+	else
+		kfree(bb->page);
 	bb->page = NULL;
 }
 EXPORT_SYMBOL_GPL(badblocks_exit);

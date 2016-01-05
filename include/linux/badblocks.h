@@ -2,6 +2,7 @@
 #define _LINUX_BADBLOCKS_H
 
 #include <linux/seqlock.h>
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
@@ -23,6 +24,7 @@
 #define MAX_BADBLOCKS	(PAGE_SIZE/8)
 
 struct badblocks {
+	struct device *dev;	/* set by devm_init_badblocks */
 	int count;		/* count of bad blocks */
 	int unacked_exist;	/* there probably are unacknowledged
 				 * bad blocks.  This is only cleared
@@ -49,5 +51,15 @@ ssize_t badblocks_store(struct badblocks *bb, const char *page, size_t len,
 			int unack);
 int badblocks_init(struct badblocks *bb, int enable);
 void badblocks_exit(struct badblocks *bb);
-
+struct device;
+int devm_init_badblocks(struct device *dev, struct badblocks *bb);
+static inline void devm_exit_badblocks(struct device *dev, struct badblocks *bb)
+{
+	if (bb->dev != dev) {
+		dev_WARN_ONCE(dev, 1, "%s: badblocks instance not associated\n",
+				__func__);
+		return;
+	}
+	badblocks_exit(bb);
+}
 #endif
