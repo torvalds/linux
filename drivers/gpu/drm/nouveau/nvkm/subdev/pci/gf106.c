@@ -30,6 +30,16 @@ gf106_pci_func = {
 	.wr08 = nv40_pci_wr08,
 	.wr32 = nv40_pci_wr32,
 	.msi_rearm = nv40_pci_msi_rearm,
+
+	.pcie.init = gf100_pcie_init,
+	.pcie.set_link = gf100_pcie_set_link,
+
+	.pcie.max_speed = g84_pcie_max_speed,
+	.pcie.cur_speed = g84_pcie_cur_speed,
+
+	.pcie.set_version = gf100_pcie_set_version,
+	.pcie.version = gf100_pcie_version,
+	.pcie.version_supported = g94_pcie_version_supported,
 };
 
 int

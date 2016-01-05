@@ -46,6 +46,13 @@ int g84_pcie_set_link(struct nvkm_pci *, enum nvkm_pcie_speed, u8);
 
 int g94_pcie_version_supported(struct nvkm_pci *);
 
+void gf100_pcie_set_version(struct nvkm_pci *, u8);
+int gf100_pcie_version(struct nvkm_pci *);
+void gf100_pcie_set_cap_speed(struct nvkm_pci *, bool);
+int gf100_pcie_cap_speed(struct nvkm_pci *);
+int gf100_pcie_init(struct nvkm_pci *);
+int gf100_pcie_set_link(struct nvkm_pci *, enum nvkm_pcie_speed, u8);
+
 int nvkm_pcie_oneinit(struct nvkm_pci *);
 int nvkm_pcie_init(struct nvkm_pci *);
 #endif
