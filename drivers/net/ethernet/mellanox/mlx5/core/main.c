@@ -504,6 +504,19 @@ int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id)
 	return mlx5_cmd_status_to_err_v2(out);
 }
 
+cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev)
+{
+	u32 timer_h, timer_h1, timer_l;
+
+	timer_h = ioread32be(&dev->iseg->internal_timer_h);
+	timer_l = ioread32be(&dev->iseg->internal_timer_l);
+	timer_h1 = ioread32be(&dev->iseg->internal_timer_h);
+	if (timer_h != timer_h1) /* wrap around */
+		timer_l = ioread32be(&dev->iseg->internal_timer_l);
+
+	return (cycle_t)timer_l | (cycle_t)timer_h1 << 32;
+}
+
 static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
 {
 	struct mlx5_priv *priv  = &mdev->priv;

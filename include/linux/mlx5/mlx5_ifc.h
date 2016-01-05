@@ -829,9 +829,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_66[0x8];
 	u8         log_uar_page_sz[0x10];
 
-	u8         reserved_67[0xe0];
-
-	u8         reserved_68[0x1f];
+	u8         reserved_67[0x40];
+	u8         device_frequency_khz[0x20];
+	u8         reserved_68[0x5f];
 	u8         cqe_zip[0x1];
 
 	u8         cqe_zip_timeout[0x10];
