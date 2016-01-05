@@ -888,7 +888,7 @@ static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
 			goto out_put;
 		default:
 			ret = -ENOTSUPP;
-			break;
+			goto out_put;
 		}
 	} else if (!inst) {
 		ret = -ENODEV;
