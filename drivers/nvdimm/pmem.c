@@ -229,6 +229,7 @@ static int pmem_attach_disk(struct device *dev,
 	disk->driverfs_dev = dev;
 	set_capacity(disk, (pmem->size - pmem->data_offset) / 512);
 	pmem->pmem_disk = disk;
+	devm_exit_badblocks(dev, &pmem->bb);
 	if (devm_init_badblocks(dev, &pmem->bb))
 		return -ENOMEM;
 	nvdimm_namespace_add_poison(ndns, &pmem->bb, pmem->data_offset);
@@ -250,9 +251,13 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
 		return -EFAULT;
 	}
 
-	if (rw == READ)
+	if (rw == READ) {
+		unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
+
+		if (unlikely(is_bad_pmem(&pmem->bb, offset / 512, sz_align)))
+			return -EIO;
 		memcpy_from_pmem(buf, pmem->virt_addr + offset, size);
-	else {
+	} else {
 		memcpy_to_pmem(pmem->virt_addr + offset, buf, size);
 		wmb_pmem();
 	}
@@ -427,6 +432,9 @@ static int nd_pmem_probe(struct device *dev)
 	pmem->ndns = ndns;
 	dev_set_drvdata(dev, pmem);
 	ndns->rw_bytes = pmem_rw_bytes;
+	if (devm_init_badblocks(dev, &pmem->bb))
+		return -ENOMEM;
+	nvdimm_namespace_add_poison(ndns, &pmem->bb, 0);
 
 	if (is_nd_btt(dev))
 		return nvdimm_namespace_attach_btt(ndns);
