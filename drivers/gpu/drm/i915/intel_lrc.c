@@ -516,7 +516,7 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 	status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(ring));
 
 	read_pointer = ring->next_context_status_buffer;
-	write_pointer = status_pointer & GEN8_CSB_PTR_MASK;
+	write_pointer = GEN8_CSB_WRITE_PTR(status_pointer);
 	if (read_pointer > write_pointer)
 		write_pointer += GEN8_CSB_ENTRIES;
 
@@ -559,10 +559,11 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 	WARN(submit_contexts > 2, "More than two context complete events?\n");
 	ring->next_context_status_buffer = write_pointer % GEN8_CSB_ENTRIES;
 
+	/* Update the read pointer to the old write pointer. Manual ringbuffer
+	 * management ftw </sarcasm> */
 	I915_WRITE(RING_CONTEXT_STATUS_PTR(ring),
-		   _MASKED_FIELD(GEN8_CSB_PTR_MASK << 8,
-				 ((u32)ring->next_context_status_buffer &
-				  GEN8_CSB_PTR_MASK) << 8));
+		   _MASKED_FIELD(GEN8_CSB_READ_PTR_MASK,
+				 ring->next_context_status_buffer << 8));
 }
 
 static int execlists_context_queue(struct drm_i915_gem_request *request)
@@ -1506,9 +1507,11 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 	 *      | Suspend-to-idle (freeze) | Suspend-to-RAM (mem) |
 	 * BDW  | CSB regs not reset       | CSB regs reset       |
 	 * CHT  | CSB regs not reset       | CSB regs not reset   |
+	 * SKL  |         ?                |         ?            |
+	 * BXT  |         ?                |         ?            |
 	 */
-	next_context_status_buffer_hw = (I915_READ(RING_CONTEXT_STATUS_PTR(ring))
-						   & GEN8_CSB_PTR_MASK);
+	next_context_status_buffer_hw =
+		GEN8_CSB_WRITE_PTR(I915_READ(RING_CONTEXT_STATUS_PTR(ring)));
 
 	/*
 	 * When the CSB registers are reset (also after power-up / gpu reset),

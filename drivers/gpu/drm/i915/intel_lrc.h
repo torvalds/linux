@@ -25,8 +25,6 @@
 #define _INTEL_LRC_H_
 
 #define GEN8_LR_CONTEXT_ALIGN 4096
-#define GEN8_CSB_ENTRIES 6
-#define GEN8_CSB_PTR_MASK 0x07
 
 /* Execlists regs */
 #define RING_ELSP(ring)				_MMIO((ring)->mmio_base + 0x230)
@@ -39,6 +37,22 @@
 #define RING_CONTEXT_STATUS_BUF_LO(ring, i)	_MMIO((ring)->mmio_base + 0x370 + (i) * 8)
 #define RING_CONTEXT_STATUS_BUF_HI(ring, i)	_MMIO((ring)->mmio_base + 0x370 + (i) * 8 + 4)
 #define RING_CONTEXT_STATUS_PTR(ring)		_MMIO((ring)->mmio_base + 0x3a0)
+
+/* The docs specify that the write pointer wraps around after 5h, "After status
+ * is written out to the last available status QW at offset 5h, this pointer
+ * wraps to 0."
+ *
+ * Therefore, one must infer than even though there are 3 bits available, 6 and
+ * 7 appear to be * reserved.
+ */
+#define GEN8_CSB_ENTRIES 6
+#define GEN8_CSB_PTR_MASK 0x7
+#define GEN8_CSB_READ_PTR_MASK (GEN8_CSB_PTR_MASK << 8)
+#define GEN8_CSB_WRITE_PTR_MASK (GEN8_CSB_PTR_MASK << 0)
+#define GEN8_CSB_WRITE_PTR(csb_status) \
+	(((csb_status) & GEN8_CSB_WRITE_PTR_MASK) >> 0)
+#define GEN8_CSB_READ_PTR(csb_status) \
+	(((csb_status) & GEN8_CSB_READ_PTR_MASK) >> 8)
 
 /* Logical Rings */
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request);
