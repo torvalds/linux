@@ -1113,6 +1113,7 @@ static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
 	struct nfqnl_instance *queue;
 	struct nfqnl_msg_config_cmd *cmd = NULL;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+	__u32 flags = 0, mask = 0;
 	int ret = 0;
 
 	if (nfqa[NFQA_CFG_CMD]) {
@@ -1123,6 +1124,29 @@ static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
 		case NFQNL_CFG_CMD_PF_BIND: return 0;
 		case NFQNL_CFG_CMD_PF_UNBIND: return 0;
 		}
+	}
+
+	/* Check if we support these flags in first place, dependencies should
+	 * be there too not to break atomicity.
+	 */
+	if (nfqa[NFQA_CFG_FLAGS]) {
+		if (!nfqa[NFQA_CFG_MASK]) {
+			/* A mask is needed to specify which flags are being
+			 * changed.
+			 */
+			return -EINVAL;
+		}
+
+		flags = ntohl(nla_get_be32(nfqa[NFQA_CFG_FLAGS]));
+		mask = ntohl(nla_get_be32(nfqa[NFQA_CFG_MASK]));
+
+		if (flags >= NFQA_CFG_F_MAX)
+			return -EOPNOTSUPP;
+
+#if !IS_ENABLED(CONFIG_NETWORK_SECMARK)
+		if (flags & mask & NFQA_CFG_F_SECCTX)
+			return -EOPNOTSUPP;
+#endif
 	}
 
 	rcu_read_lock();
@@ -1162,60 +1186,28 @@ static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
 		}
 	}
 
-	if (nfqa[NFQA_CFG_PARAMS]) {
-		struct nfqnl_msg_config_params *params;
+	if (!queue) {
+		ret = -ENODEV;
+		goto err_out_unlock;
+	}
 
-		if (!queue) {
-			ret = -ENODEV;
-			goto err_out_unlock;
-		}
-		params = nla_data(nfqa[NFQA_CFG_PARAMS]);
+	if (nfqa[NFQA_CFG_PARAMS]) {
+		struct nfqnl_msg_config_params *params =
+			nla_data(nfqa[NFQA_CFG_PARAMS]);
+
 		nfqnl_set_mode(queue, params->copy_mode,
 				ntohl(params->copy_range));
 	}
 
 	if (nfqa[NFQA_CFG_QUEUE_MAXLEN]) {
-		__be32 *queue_maxlen;
+		__be32 *queue_maxlen = nla_data(nfqa[NFQA_CFG_QUEUE_MAXLEN]);
 
-		if (!queue) {
-			ret = -ENODEV;
-			goto err_out_unlock;
-		}
-		queue_maxlen = nla_data(nfqa[NFQA_CFG_QUEUE_MAXLEN]);
 		spin_lock_bh(&queue->lock);
 		queue->queue_maxlen = ntohl(*queue_maxlen);
 		spin_unlock_bh(&queue->lock);
 	}
 
 	if (nfqa[NFQA_CFG_FLAGS]) {
-		__u32 flags, mask;
-
-		if (!queue) {
-			ret = -ENODEV;
-			goto err_out_unlock;
-		}
-
-		if (!nfqa[NFQA_CFG_MASK]) {
-			/* A mask is needed to specify which flags are being
-			 * changed.
-			 */
-			ret = -EINVAL;
-			goto err_out_unlock;
-		}
-
-		flags = ntohl(nla_get_be32(nfqa[NFQA_CFG_FLAGS]));
-		mask = ntohl(nla_get_be32(nfqa[NFQA_CFG_MASK]));
-
-		if (flags >= NFQA_CFG_F_MAX) {
-			ret = -EOPNOTSUPP;
-			goto err_out_unlock;
-		}
-#if !IS_ENABLED(CONFIG_NETWORK_SECMARK)
-		if (flags & mask & NFQA_CFG_F_SECCTX) {
-			ret = -EOPNOTSUPP;
-			goto err_out_unlock;
-		}
-#endif
 		spin_lock_bh(&queue->lock);
 		queue->flags &= ~mask;
 		queue->flags |= flags & mask;
