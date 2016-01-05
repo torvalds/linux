@@ -2081,7 +2081,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "ansi_cprng",
 		.test = alg_test_cprng,
-		.fips_allowed = 1,
 		.suite = {
 			.cprng = {
 				.vecs = ansi_cprng_aes_tv_template,
