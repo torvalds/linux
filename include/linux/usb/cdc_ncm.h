@@ -138,6 +138,7 @@ struct cdc_ncm_ctx {
 };
 
 u8 cdc_ncm_select_altsetting(struct usb_interface *intf);
+int cdc_ncm_change_mtu(struct net_device *net, int new_mtu);
 int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting, int drvflags);
 void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf);
 struct sk_buff *cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign);
