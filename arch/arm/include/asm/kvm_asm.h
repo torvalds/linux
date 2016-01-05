@@ -55,9 +55,6 @@ struct kvm_vcpu;
 extern char __kvm_hyp_init[];
 extern char __kvm_hyp_init_end[];
 
-extern char __kvm_hyp_exit[];
-extern char __kvm_hyp_exit_end[];
-
 extern char __kvm_hyp_vector[];
 
 extern void __kvm_flush_vm_context(void);
