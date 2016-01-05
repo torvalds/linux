@@ -36,6 +36,7 @@ static bool			print_flags;
 static bool			nanosecs;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+static struct perf_stat_config	stat_config;
 
 unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
@@ -1689,6 +1690,14 @@ static void script__setup_sample_type(struct perf_script *script)
 	}
 }
 
+static int process_stat_config_event(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_session *session __maybe_unused)
+{
+	perf_event__read_stat_config(&stat_config, &event->stat_config);
+	return 0;
+}
+
 static int set_maps(struct perf_script *script)
 {
 	struct perf_evlist *evlist = script->session->evlist;
@@ -1774,6 +1783,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.auxtrace_info	 = perf_event__process_auxtrace_info,
 			.auxtrace	 = perf_event__process_auxtrace,
 			.auxtrace_error	 = perf_event__process_auxtrace_error,
+			.stat_config	 = process_stat_config_event,
 			.thread_map	 = process_thread_map_event,
 			.cpu_map	 = process_cpu_map_event,
 			.ordered_events	 = true,
