@@ -82,18 +82,9 @@ static void bot_enqueue_sense_code(struct f_uas *fu, struct usbg_cmd *cmd)
 {
 	struct bulk_cs_wrap *csw = &fu->bot_status.csw;
 	int ret;
-	u8 *sense;
 	unsigned int csw_stat;
 
 	csw_stat = cmd->csw_code;
-
-	/*
-	 * We can't send SENSE as a response. So we take ASC & ASCQ from our
-	 * sense buffer and queue it and hope the host sends a REQUEST_SENSE
-	 * command where it learns why we failed.
-	 */
-	sense = cmd->sense_iu.sense;
-
 	csw->Tag = cmd->bot_tag;
 	csw->Status = csw_stat;
 	fu->bot_status.req->context = cmd;
@@ -1088,7 +1079,6 @@ static int usbg_submit_command(struct f_uas *fu,
 	struct command_iu *cmd_iu = cmdbuf;
 	struct usbg_cmd *cmd;
 	struct usbg_tpg *tpg;
-	struct se_cmd *se_cmd;
 	struct tcm_usbg_nexus *tv_nexus;
 	u32 cmd_len;
 
@@ -1151,7 +1141,6 @@ static int usbg_submit_command(struct f_uas *fu,
 		break;
 	}
 
-	se_cmd = &cmd->se_cmd;
 	cmd->unpacked_lun = scsilun_to_int(&cmd_iu->lun);
 
 	INIT_WORK(&cmd->work, usbg_cmd_work);
@@ -1202,7 +1191,6 @@ static int bot_submit_command(struct f_uas *fu,
 	struct bulk_cb_wrap *cbw = cmdbuf;
 	struct usbg_cmd *cmd;
 	struct usbg_tpg *tpg;
-	struct se_cmd *se_cmd;
 	struct tcm_usbg_nexus *tv_nexus;
 	u32 cmd_len;
 
@@ -1242,7 +1230,6 @@ static int bot_submit_command(struct f_uas *fu,
 	}
 
 	cmd->prio_attr = TCM_SIMPLE_TAG;
-	se_cmd = &cmd->se_cmd;
 	cmd->unpacked_lun = cbw->Lun;
 	cmd->is_read = cbw->Flags & US_BULK_FLAG_IN ? 1 : 0;
 	cmd->data_len = le32_to_cpu(cbw->DataTransferLength);
@@ -2335,7 +2322,6 @@ static void tcm_unbind(struct usb_configuration *c, struct usb_function *f)
 static struct usb_function *tcm_alloc(struct usb_function_instance *fi)
 {
 	struct f_uas *fu;
-	struct f_tcm_opts *opts;
 	unsigned i;
 
 	mutex_lock(&tpg_instances_lock);
@@ -2346,8 +2332,6 @@ static struct usb_function *tcm_alloc(struct usb_function_instance *fi)
 		mutex_unlock(&tpg_instances_lock);
 		return ERR_PTR(-ENODEV);
 	}
-
-	opts = container_of(fi, struct f_tcm_opts, func_inst);
 
 	fu = kzalloc(sizeof(*fu), GFP_KERNEL);
 	if (!fu) {
