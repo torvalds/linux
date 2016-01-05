@@ -808,7 +808,8 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 
 	/* Search for "opp-microvolt-<name>" */
 	if (dev_opp->prop_name) {
-		sprintf(name, "opp-microvolt-%s", dev_opp->prop_name);
+		snprintf(name, sizeof(name), "opp-microvolt-%s",
+			 dev_opp->prop_name);
 		prop = of_find_property(opp->np, name, NULL);
 	}
 
@@ -849,7 +850,8 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 	/* Search for "opp-microamp-<name>" */
 	prop = NULL;
 	if (dev_opp->prop_name) {
-		sprintf(name, "opp-microamp-%s", dev_opp->prop_name);
+		snprintf(name, sizeof(name), "opp-microamp-%s",
+			 dev_opp->prop_name);
 		prop = of_find_property(opp->np, name, NULL);
 	}
 
