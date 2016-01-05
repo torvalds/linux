@@ -184,11 +184,18 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	 * like tracepoints. Clear it up for counting.
 	 */
 	attr->sample_period = 0;
+
 	/*
 	 * But set sample_type to PERF_SAMPLE_IDENTIFIER, which should be harmless
 	 * while avoiding that older tools show confusing messages.
+	 *
+	 * However for pipe sessions we need to keep it zero,
+	 * because script's perf_evsel__check_attr is triggered
+	 * by attr->sample_type != 0, and we can't run it on
+	 * stat sessions.
 	 */
-	attr->sample_type   = PERF_SAMPLE_IDENTIFIER;
+	if (!(STAT_RECORD && perf_stat.file.is_pipe))
+		attr->sample_type = PERF_SAMPLE_IDENTIFIER;
 
 	/*
 	 * Disabling all counters initially, they will be enabled
