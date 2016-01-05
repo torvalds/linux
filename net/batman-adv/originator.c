@@ -754,19 +754,7 @@ static void batadv_orig_ifinfo_free_rcu(struct rcu_head *rcu)
 }
 
 /**
- * batadv_orig_ifinfo_free_ref - decrement the refcounter and possibly free
- *  the orig_ifinfo (without rcu callback)
- * @orig_ifinfo: the orig_ifinfo object to release
- */
-static void
-batadv_orig_ifinfo_free_ref_now(struct batadv_orig_ifinfo *orig_ifinfo)
-{
-	if (atomic_dec_and_test(&orig_ifinfo->refcount))
-		batadv_orig_ifinfo_free_rcu(&orig_ifinfo->rcu);
-}
-
-/**
- * batadv_orig_ifinfo_free_ref - decrement the refcounter and possibly free
+ * batadv_orig_ifinfo_free_ref - decrement the refcounter and possibly release
  *  the orig_ifinfo
  * @orig_ifinfo: the orig_ifinfo object to release
  */
@@ -776,35 +764,17 @@ void batadv_orig_ifinfo_free_ref(struct batadv_orig_ifinfo *orig_ifinfo)
 		call_rcu(&orig_ifinfo->rcu, batadv_orig_ifinfo_free_rcu);
 }
 
+/**
+ * batadv_orig_node_free_rcu - free the orig_node
+ * @rcu: rcu pointer of the orig_node
+ */
 static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 {
-	struct hlist_node *node_tmp;
-	struct batadv_neigh_node *neigh_node;
 	struct batadv_orig_node *orig_node;
-	struct batadv_orig_ifinfo *orig_ifinfo;
 
 	orig_node = container_of(rcu, struct batadv_orig_node, rcu);
 
-	spin_lock_bh(&orig_node->neigh_list_lock);
-
-	/* for all neighbors towards this originator ... */
-	hlist_for_each_entry_safe(neigh_node, node_tmp,
-				  &orig_node->neigh_list, list) {
-		hlist_del_rcu(&neigh_node->list);
-		batadv_neigh_node_free_ref_now(neigh_node);
-	}
-
-	hlist_for_each_entry_safe(orig_ifinfo, node_tmp,
-				  &orig_node->ifinfo_list, list) {
-		hlist_del_rcu(&orig_ifinfo->list);
-		batadv_orig_ifinfo_free_ref_now(orig_ifinfo);
-	}
-	spin_unlock_bh(&orig_node->neigh_list_lock);
-
 	batadv_mcast_purge_orig(orig_node);
-
-	/* Free nc_nodes */
-	batadv_nc_purge_orig(orig_node->bat_priv, orig_node, NULL);
 
 	batadv_frag_purge_orig(orig_node, NULL);
 
@@ -816,14 +786,47 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 }
 
 /**
+ * batadv_orig_node_release - release orig_node from lists and queue for
+ *  free after rcu grace period
+ * @orig_node: the orig node to free
+ */
+static void batadv_orig_node_release(struct batadv_orig_node *orig_node)
+{
+	struct hlist_node *node_tmp;
+	struct batadv_neigh_node *neigh_node;
+	struct batadv_orig_ifinfo *orig_ifinfo;
+
+	spin_lock_bh(&orig_node->neigh_list_lock);
+
+	/* for all neighbors towards this originator ... */
+	hlist_for_each_entry_safe(neigh_node, node_tmp,
+				  &orig_node->neigh_list, list) {
+		hlist_del_rcu(&neigh_node->list);
+		batadv_neigh_node_free_ref(neigh_node);
+	}
+
+	hlist_for_each_entry_safe(orig_ifinfo, node_tmp,
+				  &orig_node->ifinfo_list, list) {
+		hlist_del_rcu(&orig_ifinfo->list);
+		batadv_orig_ifinfo_free_ref(orig_ifinfo);
+	}
+	spin_unlock_bh(&orig_node->neigh_list_lock);
+
+	/* Free nc_nodes */
+	batadv_nc_purge_orig(orig_node->bat_priv, orig_node, NULL);
+
+	call_rcu(&orig_node->rcu, batadv_orig_node_free_rcu);
+}
+
+/**
  * batadv_orig_node_free_ref - decrement the orig node refcounter and possibly
- * schedule an rcu callback for freeing it
+ *  release it
  * @orig_node: the orig node to free
  */
 void batadv_orig_node_free_ref(struct batadv_orig_node *orig_node)
 {
 	if (atomic_dec_and_test(&orig_node->refcount))
-		call_rcu(&orig_node->rcu, batadv_orig_node_free_rcu);
+		batadv_orig_node_release(orig_node);
 }
 
 /**
