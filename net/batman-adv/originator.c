@@ -781,17 +781,6 @@ void batadv_orig_node_free_ref(struct batadv_orig_node *orig_node)
 		batadv_orig_node_release(orig_node);
 }
 
-/**
- * batadv_orig_node_free_ref_now - decrement the orig node refcounter and
- * possibly free it (without rcu callback)
- * @orig_node: the orig node to free
- */
-void batadv_orig_node_free_ref_now(struct batadv_orig_node *orig_node)
-{
-	if (atomic_dec_and_test(&orig_node->refcount))
-		batadv_orig_node_free_rcu(&orig_node->rcu);
-}
-
 void batadv_originator_free(struct batadv_priv *bat_priv)
 {
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
