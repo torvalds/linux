@@ -152,8 +152,8 @@
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #define BRCMF_SDALIGN	(1 << 6)
 
-/* watchdog polling interval in ms */
-#define BRCMF_WD_POLL_MS	10
+/* watchdog polling interval */
+#define BRCMF_WD_POLL	msecs_to_jiffies(10)
 
 /**
  * enum brcmf_sdiod_state - the state of the bus.

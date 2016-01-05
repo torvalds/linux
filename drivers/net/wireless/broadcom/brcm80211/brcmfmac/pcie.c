@@ -191,7 +191,7 @@ static struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 #define BRCMF_H2D_HOST_D0_INFORM_IN_USE		0x00000008
 #define BRCMF_H2D_HOST_D0_INFORM		0x00000010
 
-#define BRCMF_PCIE_MBDATA_TIMEOUT		2000
+#define BRCMF_PCIE_MBDATA_TIMEOUT		msecs_to_jiffies(2000)
 
 #define BRCMF_PCIE_CFGREG_STATUS_CMD		0x4
 #define BRCMF_PCIE_CFGREG_PM_CSR		0x4C
@@ -1885,9 +1885,8 @@ static int brcmf_pcie_pm_enter_D3(struct device *dev)
 	devinfo->mbdata_completed = false;
 	brcmf_pcie_send_mb_data(devinfo, BRCMF_H2D_HOST_D3_INFORM);
 
-	wait_event_timeout(devinfo->mbdata_resp_wait,
-			   devinfo->mbdata_completed,
-			   msecs_to_jiffies(BRCMF_PCIE_MBDATA_TIMEOUT));
+	wait_event_timeout(devinfo->mbdata_resp_wait, devinfo->mbdata_completed,
+			   BRCMF_PCIE_MBDATA_TIMEOUT);
 	if (!devinfo->mbdata_completed) {
 		brcmf_err("Timeout on response for entering D3 substate\n");
 		return -EIO;

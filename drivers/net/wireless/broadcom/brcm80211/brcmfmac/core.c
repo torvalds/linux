@@ -40,7 +40,7 @@ MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#define MAX_WAIT_FOR_8021X_TX		50	/* msecs */
+#define MAX_WAIT_FOR_8021X_TX			msecs_to_jiffies(50)
 
 /* AMPDU rx reordering definitions */
 #define BRCMF_RXREORDER_FLOWID_OFFSET		0
@@ -1282,7 +1282,7 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 
 	err = wait_event_timeout(ifp->pend_8021x_wait,
 				 !brcmf_get_pend_8021x_cnt(ifp),
-				 msecs_to_jiffies(MAX_WAIT_FOR_8021X_TX));
+				 MAX_WAIT_FOR_8021X_TX);
 
 	WARN_ON(!err);
 

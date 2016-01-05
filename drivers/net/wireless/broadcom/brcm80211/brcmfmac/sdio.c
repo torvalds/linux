@@ -45,8 +45,8 @@
 #include "chip.h"
 #include "firmware.h"
 
-#define DCMD_RESP_TIMEOUT	2000	/* In milli second */
-#define CTL_DONE_TIMEOUT	2000	/* In milli second */
+#define DCMD_RESP_TIMEOUT	msecs_to_jiffies(2000)
+#define CTL_DONE_TIMEOUT	msecs_to_jiffies(2000)
 
 #ifdef DEBUG
 
@@ -1657,7 +1657,7 @@ static int brcmf_sdio_dcmd_resp_wait(struct brcmf_sdio *bus, uint *condition,
 				     bool *pending)
 {
 	DECLARE_WAITQUEUE(wait, current);
-	int timeout = msecs_to_jiffies(DCMD_RESP_TIMEOUT);
+	int timeout = DCMD_RESP_TIMEOUT;
 
 	/* Wait until control frame is available */
 	add_wait_queue(&bus->dcmd_resp_wait, &wait);
@@ -2842,7 +2842,7 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 
 	brcmf_sdio_trigger_dpc(bus);
 	wait_event_interruptible_timeout(bus->ctrl_wait, !bus->ctrl_frame_stat,
-					 msecs_to_jiffies(CTL_DONE_TIMEOUT));
+					 CTL_DONE_TIMEOUT);
 	ret = 0;
 	if (bus->ctrl_frame_stat) {
 		sdio_claim_host(bus->sdiodev->func[1]);
@@ -3552,7 +3552,7 @@ static void brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 	/* Poll for console output periodically */
 	if (bus->sdiodev->state == BRCMF_SDIOD_DATA && BRCMF_FWCON_ON() &&
 	    bus->console_interval != 0) {
-		bus->console.count += BRCMF_WD_POLL_MS;
+		bus->console.count += jiffies_to_msecs(BRCMF_WD_POLL);
 		if (bus->console.count >= bus->console_interval) {
 			bus->console.count -= bus->console_interval;
 			sdio_claim_host(bus->sdiodev->func[1]);
@@ -3909,7 +3909,7 @@ brcmf_sdio_watchdog(unsigned long data)
 		/* Reschedule the watchdog */
 		if (bus->wd_active)
 			mod_timer(&bus->timer,
-				  jiffies + msecs_to_jiffies(BRCMF_WD_POLL_MS));
+				  jiffies + BRCMF_WD_POLL);
 	}
 }
 
@@ -4234,14 +4234,12 @@ void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, bool active)
 			/* Create timer again when watchdog period is
 			   dynamically changed or in the first instance
 			 */
-			bus->timer.expires =
-				jiffies + msecs_to_jiffies(BRCMF_WD_POLL_MS);
+			bus->timer.expires = jiffies + BRCMF_WD_POLL;
 			add_timer(&bus->timer);
 			bus->wd_active = true;
 		} else {
 			/* Re arm the timer, at last watchdog period */
-			mod_timer(&bus->timer,
-				jiffies + msecs_to_jiffies(BRCMF_WD_POLL_MS));
+			mod_timer(&bus->timer, jiffies + BRCMF_WD_POLL);
 		}
 	}
 }

@@ -75,6 +75,8 @@
 #define BRCMF_DEFAULT_BCN_TIMEOUT_ROAM_ON	2
 #define BRCMF_DEFAULT_BCN_TIMEOUT_ROAM_OFF	4
 
+#define BRCMF_VIF_EVENT_TIMEOUT		msecs_to_jiffies(1500)
+
 /**
  * enum brcmf_scan_status - scan engine status
  *
