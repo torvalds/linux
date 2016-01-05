@@ -1182,7 +1182,7 @@ static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
 			break;
 		default:
 			ret = -ENOTSUPP;
-			break;
+			goto err_out_unlock;
 		}
 	}
 
