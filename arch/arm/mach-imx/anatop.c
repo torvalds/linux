@@ -151,7 +151,14 @@ void __init imx_init_revision_from_anatop(void)
 		revision = IMX_CHIP_REVISION_1_5;
 		break;
 	default:
-		revision = IMX_CHIP_REVISION_UNKNOWN;
+		/*
+		 * Fail back to return raw register value instead of 0xff.
+		 * It will be easy to know version information in SOC if it
+		 * can't be recognized by known version. And some chip's (i.MX7D)
+		 * digprog value match linux version format, so it needn't map
+		 * again and we can use register value directly.
+		 */
+		revision = digprog & 0xff;
 	}
 
 	mxc_set_cpu_type(digprog >> 16 & 0xff);
