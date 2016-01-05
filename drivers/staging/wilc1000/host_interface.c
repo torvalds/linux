@@ -3672,7 +3672,7 @@ int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 	return result;
 }
 
-int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 u8ScanType,
+int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	      u8 *pu8ChnlFreqList, u8 u8ChnlListLen, const u8 *pu8IEs,
 	      size_t IEsLen, wilc_scan_result ScanResult, void *pvUserArg,
 	      struct hidden_network *pstrHiddenNetwork)
@@ -3699,7 +3699,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 u8ScanType,
 
 	msg.vif = vif;
 	msg.body.scan_info.src = scan_source;
-	msg.body.scan_info.type = u8ScanType;
+	msg.body.scan_info.type = scan_type;
 	msg.body.scan_info.result = ScanResult;
 	msg.body.scan_info.arg = pvUserArg;
 
