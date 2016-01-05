@@ -953,6 +953,19 @@ out:
 }
 EXPORT_SYMBOL(nfc_se_transaction);
 
+int nfc_se_connectivity(struct nfc_dev *dev, u8 se_idx)
+{
+	int rc;
+
+	pr_debug("connectivity: %x\n", se_idx);
+
+	device_lock(&dev->dev);
+	rc = nfc_genl_se_connectivity(dev, se_idx);
+	device_unlock(&dev->dev);
+	return rc;
+}
+EXPORT_SYMBOL(nfc_se_connectivity);
+
 static void nfc_release(struct device *d)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);

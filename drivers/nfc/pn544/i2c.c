@@ -166,7 +166,6 @@ struct pn544_i2c_phy {
 	struct nfc_hci_dev *hdev;
 
 	unsigned int gpio_en;
-	unsigned int gpio_irq;
 	unsigned int gpio_fw;
 	unsigned int en_polarity;
 
@@ -879,9 +878,8 @@ static int pn544_hci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
 	const struct acpi_device_id *id;
-	struct gpio_desc *gpiod_en, *gpiod_irq, *gpiod_fw;
+	struct gpio_desc *gpiod_en, *gpiod_fw;
 	struct device *dev;
-	int ret;
 
 	if (!client)
 		return -EINVAL;
@@ -914,31 +912,8 @@ static int pn544_hci_i2c_acpi_request_resources(struct i2c_client *client)
 
 	phy->gpio_fw = desc_to_gpio(gpiod_fw);
 
-	/* Get IRQ GPIO */
-	gpiod_irq = devm_gpiod_get_index(dev, PN544_GPIO_NAME_IRQ, 0,
-					 GPIOD_IN);
-	if (IS_ERR(gpiod_irq)) {
-		nfc_err(dev, "Unable to get IRQ GPIO\n");
-		return -ENODEV;
-	}
-
-	phy->gpio_irq = desc_to_gpio(gpiod_irq);
-
-	/* Map the pin to an IRQ */
-	ret = gpiod_to_irq(gpiod_irq);
-	if (ret < 0) {
-		nfc_err(dev, "Fail pin IRQ mapping\n");
-		return ret;
-	}
-
-	nfc_info(dev, "GPIO resource, no:%d irq:%d\n",
-		 desc_to_gpio(gpiod_irq), ret);
-	client->irq = ret;
-
 	return 0;
 }
-
-#ifdef CONFIG_OF
 
 static int pn544_hci_i2c_of_request_resources(struct i2c_client *client)
 {
@@ -996,15 +971,6 @@ static int pn544_hci_i2c_of_request_resources(struct i2c_client *client)
 		goto err_gpio_fw;
 	}
 
-	/* IRQ */
-	ret = irq_of_parse_and_map(pp, 0);
-	if (ret < 0) {
-		nfc_err(&client->dev,
-			"Unable to get irq, error: %d\n", ret);
-		goto err_gpio_fw;
-	}
-	client->irq = ret;
-
 	return 0;
 
 err_gpio_fw:
@@ -1014,15 +980,6 @@ err_gpio_en:
 err_dt:
 	return ret;
 }
-
-#else
-
-static int pn544_hci_i2c_of_request_resources(struct i2c_client *client)
-{
-	return -ENODEV;
-}
-
-#endif
 
 static int pn544_hci_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
@@ -1076,7 +1033,6 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 
 		phy->gpio_en = pdata->get_gpio(NFC_GPIO_ENABLE);
 		phy->gpio_fw = pdata->get_gpio(NFC_GPIO_FW_RESET);
-		phy->gpio_irq = pdata->get_gpio(NFC_GPIO_IRQ);
 	/* Using ACPI */
 	} else if (ACPI_HANDLE(&client->dev)) {
 		r = pn544_hci_i2c_acpi_request_resources(client);
