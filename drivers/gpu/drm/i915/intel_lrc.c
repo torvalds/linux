@@ -2399,6 +2399,20 @@ void intel_lr_context_free(struct intel_context *ctx)
 	}
 }
 
+/**
+ * intel_lr_context_size() - return the size of the context for an engine
+ * @ring: which engine to find the context size for
+ *
+ * Each engine may require a different amount of space for a context image,
+ * so when allocating (or copying) an image, this function can be used to
+ * find the right size for the specific engine.
+ *
+ * Return: size (in bytes) of an engine-specific context image
+ *
+ * Note: this size includes the HWSP, which is part of the context image
+ * in LRC mode, but does not include the "shared data page" used with
+ * GuC submission. The caller should account for this if using the GuC.
+ */
 uint32_t intel_lr_context_size(struct intel_engine_cs *ring)
 {
 	int ret = 0;
