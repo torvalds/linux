@@ -149,8 +149,7 @@ EXPORT_SYMBOL_GPL(bus_remove_file);
 
 static void bus_release(struct kobject *kobj)
 {
-	struct subsys_private *priv =
-		container_of(kobj, typeof(*priv), subsys.kobj);
+	struct subsys_private *priv = to_subsys_private(kobj);
 	struct bus_type *bus = priv->bus;
 
 	kfree(priv);
@@ -1103,7 +1102,7 @@ struct device *subsys_dev_iter_next(struct subsys_dev_iter *iter)
 		knode = klist_next(&iter->ki);
 		if (!knode)
 			return NULL;
-		dev = container_of(knode, struct device_private, knode_bus)->device;
+		dev = to_device_private_bus(knode)->device;
 		if (!iter->type || iter->type == dev->type)
 			return dev;
 	}
