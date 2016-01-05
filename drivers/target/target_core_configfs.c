@@ -893,7 +893,7 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 		pr_err("dev[%p]: Thin Provisioning LBPRZ will not be set"
 		       " because max_unmap_block_desc_count is zero\n",
 		       da->da_dev);
-	       return -ENOSYS;
+		return -ENOSYS;
 	}
 	da->unmap_zeroes_data = flag;
 	pr_debug("dev[%p]: SE Device Thin Provisioning LBPRZ bit: %d\n",
