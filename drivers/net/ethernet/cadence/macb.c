@@ -2770,6 +2770,11 @@ static const struct macb_config emac_config = {
 	.init = at91ether_init,
 };
 
+static const struct macb_config np4_config = {
+	.caps = MACB_CAPS_USRIO_DISABLED,
+	.clk_init = macb_clk_init,
+	.init = macb_init,
+};
 
 static const struct macb_config zynqmp_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_JUMBO,
@@ -2790,6 +2795,7 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "cdns,at32ap7000-macb" },
 	{ .compatible = "cdns,at91sam9260-macb", .data = &at91sam9260_config },
 	{ .compatible = "cdns,macb" },
+	{ .compatible = "cdns,np4-macb", .data = &np4_config },
 	{ .compatible = "cdns,pc302-gem", .data = &pc302gem_config },
 	{ .compatible = "cdns,gem", .data = &pc302gem_config },
 	{ .compatible = "atmel,sama5d2-gem", .data = &sama5d2_config },
