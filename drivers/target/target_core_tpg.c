@@ -219,7 +219,6 @@ static void target_add_node_acl(struct se_node_acl *acl)
 
 	mutex_lock(&tpg->acl_node_mutex);
 	list_add_tail(&acl->acl_list, &tpg->acl_node_list);
-	tpg->num_node_acls++;
 	mutex_unlock(&tpg->acl_node_mutex);
 
 	pr_debug("%s_TPG[%hu] - Added %s ACL with TCQ Depth: %d for %s"
@@ -318,7 +317,6 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 		acl->dynamic_node_acl = 0;
 	}
 	list_del(&acl->acl_list);
-	tpg->num_node_acls--;
 	mutex_unlock(&tpg->acl_node_mutex);
 
 	spin_lock_irqsave(&acl->nacl_sess_lock, flags);
@@ -595,7 +593,6 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 	 */
 	list_for_each_entry_safe(nacl, nacl_tmp, &node_list, acl_list) {
 		list_del(&nacl->acl_list);
-		se_tpg->num_node_acls--;
 
 		core_tpg_wait_for_nacl_pr_ref(nacl);
 		core_free_device_list_for_node(nacl, se_tpg);

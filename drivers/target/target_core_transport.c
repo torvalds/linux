@@ -502,7 +502,6 @@ void transport_deregister_session(struct se_session *se_sess)
 	if (se_nacl && se_nacl->dynamic_node_acl) {
 		if (!se_tfo->tpg_check_demo_mode_cache(se_tpg)) {
 			list_del(&se_nacl->acl_list);
-			se_tpg->num_node_acls--;
 			drop_nacl = true;
 		}
 	}
