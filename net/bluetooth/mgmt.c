@@ -7266,7 +7266,8 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		/* Copy EIR or advertising data into event */
 		memcpy(ev->eir, eir, eir_len);
 
-	if (dev_class && !eir_has_data_type(ev->eir, eir_len, EIR_CLASS_OF_DEV))
+	if (dev_class && !eir_get_data(ev->eir, eir_len, EIR_CLASS_OF_DEV,
+				       NULL))
 		eir_len = eir_append_data(ev->eir, eir_len, EIR_CLASS_OF_DEV,
 					  dev_class, 3);
 
