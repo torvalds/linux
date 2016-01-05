@@ -21,7 +21,7 @@
 #ifdef CONFIG_BNXT_SRIOV
 static int bnxt_vf_ndo_prep(struct bnxt *bp, int vf_id)
 {
-	if (bp->state != BNXT_STATE_OPEN) {
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
 		netdev_err(bp->dev, "vf ndo called though PF is down\n");
 		return -EINVAL;
 	}
@@ -804,10 +804,9 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 	if (!is_valid_ether_addr(resp->perm_mac_address))
 		goto update_vf_mac_exit;
 
-	if (ether_addr_equal(resp->perm_mac_address, bp->vf.mac_addr))
-		goto update_vf_mac_exit;
-
-	memcpy(bp->vf.mac_addr, resp->perm_mac_address, ETH_ALEN);
+	if (!ether_addr_equal(resp->perm_mac_address, bp->vf.mac_addr))
+		memcpy(bp->vf.mac_addr, resp->perm_mac_address, ETH_ALEN);
+	/* overwrite netdev dev_adr with admin VF MAC */
 	memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
 update_vf_mac_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);

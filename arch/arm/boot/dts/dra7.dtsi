@@ -1459,8 +1459,8 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&sdma_xbar 133>, <&sdma_xbar 132>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp3_ahclkx_mux>;
-			clock-names = "fck";
+			clocks = <&mcasp3_aux_gfclk_mux>, <&mcasp3_ahclkx_mux>;
+			clock-names = "fck", "ahclkx";
 			status = "disabled";
 		};
 

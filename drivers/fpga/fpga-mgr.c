@@ -122,12 +122,10 @@ int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
 	}
 
 	ret = fpga_mgr_buf_load(mgr, flags, fw->data, fw->size);
-	if (ret)
-		return ret;
 
 	release_firmware(fw);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_firmware_load);
 
@@ -256,7 +254,6 @@ int fpga_mgr_register(struct device *dev, const char *name,
 		      void *priv)
 {
 	struct fpga_manager *mgr;
-	const char *dt_label;
 	int id, ret;
 
 	if (!mops || !mops->write_init || !mops->write ||
@@ -300,11 +297,9 @@ int fpga_mgr_register(struct device *dev, const char *name,
 	mgr->dev.id = id;
 	dev_set_drvdata(dev, mgr);
 
-	dt_label = of_get_property(mgr->dev.of_node, "label", NULL);
-	if (dt_label)
-		ret = dev_set_name(&mgr->dev, "%s", dt_label);
-	else
-		ret = dev_set_name(&mgr->dev, "fpga%d", id);
+	ret = dev_set_name(&mgr->dev, "fpga%d", id);
+	if (ret)
+		goto error_device;
 
 	ret = device_add(&mgr->dev);
 	if (ret)

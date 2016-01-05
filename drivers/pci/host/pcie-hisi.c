@@ -61,7 +61,9 @@ static int hisi_pcie_cfg_read(struct pcie_port *pp, int where, int size,
 		*val = *(u8 __force *) walker;
 	else if (size == 2)
 		*val = *(u16 __force *) walker;
-	else if (size != 4)
+	else if (size == 4)
+		*val = reg_val;
+	else
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	return PCIBIOS_SUCCESSFUL;
@@ -111,7 +113,7 @@ static struct pcie_host_ops hisi_pcie_host_ops = {
 	.link_up = hisi_pcie_link_up,
 };
 
-static int __init hisi_add_pcie_port(struct pcie_port *pp,
+static int hisi_add_pcie_port(struct pcie_port *pp,
 				     struct platform_device *pdev)
 {
 	int ret;
@@ -139,7 +141,7 @@ static int __init hisi_add_pcie_port(struct pcie_port *pp,
 	return 0;
 }
 
-static int __init hisi_pcie_probe(struct platform_device *pdev)
+static int hisi_pcie_probe(struct platform_device *pdev)
 {
 	struct hisi_pcie *hisi_pcie;
 	struct pcie_port *pp;

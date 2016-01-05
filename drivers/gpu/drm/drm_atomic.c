@@ -1432,6 +1432,45 @@ static int atomic_set_prop(struct drm_atomic_state *state,
 	return ret;
 }
 
+/**
+ * drm_atomic_update_old_fb -- Unset old_fb pointers and set plane->fb pointers.
+ *
+ * @dev: drm device to check.
+ * @plane_mask: plane mask for planes that were updated.
+ * @ret: return value, can be -EDEADLK for a retry.
+ *
+ * Before doing an update plane->old_fb is set to plane->fb,
+ * but before dropping the locks old_fb needs to be set to NULL
+ * and plane->fb updated. This is a common operation for each
+ * atomic update, so this call is split off as a helper.
+ */
+void drm_atomic_clean_old_fb(struct drm_device *dev,
+			     unsigned plane_mask,
+			     int ret)
+{
+	struct drm_plane *plane;
+
+	/* if succeeded, fixup legacy plane crtc/fb ptrs before dropping
+	 * locks (ie. while it is still safe to deref plane->state).  We
+	 * need to do this here because the driver entry points cannot
+	 * distinguish between legacy and atomic ioctls.
+	 */
+	drm_for_each_plane_mask(plane, dev, plane_mask) {
+		if (ret == 0) {
+			struct drm_framebuffer *new_fb = plane->state->fb;
+			if (new_fb)
+				drm_framebuffer_reference(new_fb);
+			plane->fb = new_fb;
+			plane->crtc = plane->state->crtc;
+
+			if (plane->old_fb)
+				drm_framebuffer_unreference(plane->old_fb);
+		}
+		plane->old_fb = NULL;
+	}
+}
+EXPORT_SYMBOL(drm_atomic_clean_old_fb);
+
 int drm_mode_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
 {
@@ -1446,7 +1485,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	unsigned plane_mask = 0;
+	unsigned plane_mask;
 	int ret = 0;
 	unsigned int i, j;
 
@@ -1486,6 +1525,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	state->allow_modeset = !!(arg->flags & DRM_MODE_ATOMIC_ALLOW_MODESET);
 
 retry:
+	plane_mask = 0;
 	copied_objs = 0;
 	copied_props = 0;
 
@@ -1576,24 +1616,7 @@ retry:
 	}
 
 out:
-	/* if succeeded, fixup legacy plane crtc/fb ptrs before dropping
-	 * locks (ie. while it is still safe to deref plane->state).  We
-	 * need to do this here because the driver entry points cannot
-	 * distinguish between legacy and atomic ioctls.
-	 */
-	drm_for_each_plane_mask(plane, dev, plane_mask) {
-		if (ret == 0) {
-			struct drm_framebuffer *new_fb = plane->state->fb;
-			if (new_fb)
-				drm_framebuffer_reference(new_fb);
-			plane->fb = new_fb;
-			plane->crtc = plane->state->crtc;
-
-			if (plane->old_fb)
-				drm_framebuffer_unreference(plane->old_fb);
-		}
-		plane->old_fb = NULL;
-	}
+	drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret && arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		/*

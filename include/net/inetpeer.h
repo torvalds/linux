@@ -78,6 +78,7 @@ void inet_initpeers(void) __init;
 static inline void inetpeer_set_addr_v4(struct inetpeer_addr *iaddr, __be32 ip)
 {
 	iaddr->a4.addr = ip;
+	iaddr->a4.vif = 0;
 	iaddr->family = AF_INET;
 }
 

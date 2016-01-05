@@ -54,6 +54,9 @@ static struct radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
 	/* Intel 82855PM host bridge / Mobility 9600 M10 RV350 Needs AGPMode 1 (lp #195051) */
 	{ PCI_VENDOR_ID_INTEL, 0x3340, PCI_VENDOR_ID_ATI, 0x4e50,
 		PCI_VENDOR_ID_IBM, 0x0550, 1},
+	/* Intel 82855PM host bridge / RV250/M9 GL [Mobility FireGL 9000/Radeon 9000] needs AGPMode 1 (Thinkpad T40p) */
+	{ PCI_VENDOR_ID_INTEL, 0x3340, PCI_VENDOR_ID_ATI, 0x4c66,
+		PCI_VENDOR_ID_IBM, 0x054d, 1},
 	/* Intel 82855PM host bridge / Mobility M7 needs AGPMode 1 */
 	{ PCI_VENDOR_ID_INTEL, 0x3340, PCI_VENDOR_ID_ATI, 0x4c57,
 		PCI_VENDOR_ID_IBM, 0x0530, 1},

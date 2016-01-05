@@ -46,12 +46,14 @@ extern int of_irq_get(struct device_node *dev, int index);
 extern int of_irq_get_byname(struct device_node *dev, const char *name);
 extern int of_irq_to_resource_table(struct device_node *dev,
 		struct resource *res, int nr_irqs);
+extern struct device_node *of_irq_find_parent(struct device_node *child);
 extern struct irq_domain *of_msi_get_domain(struct device *dev,
 					    struct device_node *np,
 					    enum irq_domain_bus_token token);
 extern struct irq_domain *of_msi_map_get_device_domain(struct device *dev,
 						       u32 rid);
 extern void of_msi_configure(struct device *dev, struct device_node *np);
+u32 of_msi_map_rid(struct device *dev, struct device_node *msi_np, u32 rid_in);
 #else
 static inline int of_irq_count(struct device_node *dev)
 {
@@ -70,6 +72,11 @@ static inline int of_irq_to_resource_table(struct device_node *dev,
 {
 	return 0;
 }
+static inline void *of_irq_find_parent(struct device_node *child)
+{
+	return NULL;
+}
+
 static inline struct irq_domain *of_msi_get_domain(struct device *dev,
 						   struct device_node *np,
 						   enum irq_domain_bus_token token)
@@ -84,6 +91,11 @@ static inline struct irq_domain *of_msi_map_get_device_domain(struct device *dev
 static inline void of_msi_configure(struct device *dev, struct device_node *np)
 {
 }
+static inline u32 of_msi_map_rid(struct device *dev,
+				 struct device_node *msi_np, u32 rid_in)
+{
+	return rid_in;
+}
 #endif
 
 #if defined(CONFIG_OF_IRQ) || defined(CONFIG_SPARC)
@@ -93,19 +105,12 @@ static inline void of_msi_configure(struct device *dev, struct device_node *np)
  * so declare it here regardless of the CONFIG_OF_IRQ setting.
  */
 extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
-u32 of_msi_map_rid(struct device *dev, struct device_node *msi_np, u32 rid_in);
 
 #else /* !CONFIG_OF && !CONFIG_SPARC */
 static inline unsigned int irq_of_parse_and_map(struct device_node *dev,
 						int index)
 {
 	return 0;
-}
-
-static inline u32 of_msi_map_rid(struct device *dev,
-				 struct device_node *msi_np, u32 rid_in)
-{
-	return rid_in;
 }
 #endif /* !CONFIG_OF */
 

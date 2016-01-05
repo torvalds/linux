@@ -1430,7 +1430,6 @@ close_file_and_continue:
 
 struct popup_action {
 	struct thread 		*thread;
-	struct dso		*dso;
 	struct map_symbol 	ms;
 	int			socket;
 
@@ -1565,7 +1564,6 @@ add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 		return 0;
 
 	act->ms.map = map;
-	act->dso = map->dso;
 	act->fn = do_zoom_dso;
 	return 1;
 }
@@ -1827,7 +1825,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 	while (1) {
 		struct thread *thread = NULL;
-		struct dso *dso = NULL;
 		struct map *map = NULL;
 		int choice = 0;
 		int socked_id = -1;
@@ -1839,8 +1836,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
 			map = browser->selection->map;
-			if (map)
-				dso = map->dso;
 			socked_id = browser->he_selection->socket;
 		}
 		switch (key) {
@@ -1874,7 +1869,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			hist_browser__dump(browser);
 			continue;
 		case 'd':
-			actions->dso = dso;
+			actions->ms.map = map;
 			do_zoom_dso(browser, actions);
 			continue;
 		case 'V':

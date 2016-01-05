@@ -253,9 +253,6 @@ ipip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	p.i_key = p.o_key = 0;
 	p.i_flags = p.o_flags = 0;
-	if (p.iph.ttl)
-		p.iph.frag_off |= htons(IP_DF);
-
 	err = ip_tunnel_ioctl(dev, &p, cmd);
 	if (err)
 		return err;

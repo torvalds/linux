@@ -3027,8 +3027,13 @@ static void smp_ready_cb(struct l2cap_chan *chan)
 
 	BT_DBG("chan %p", chan);
 
+	/* No need to call l2cap_chan_hold() here since we already own
+	 * the reference taken in smp_new_conn_cb(). This is just the
+	 * first time that we tie it to a specific pointer. The code in
+	 * l2cap_core.c ensures that there's no risk this function wont
+	 * get called if smp_new_conn_cb was previously called.
+	 */
 	conn->smp = chan;
-	l2cap_chan_hold(chan);
 
 	if (hcon->type == ACL_LINK && test_bit(HCI_CONN_ENCRYPT, &hcon->flags))
 		bredr_pairing(chan);

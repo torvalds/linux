@@ -191,6 +191,7 @@ void tipc_link_add_bc_peer(struct tipc_link *snd_l,
 
 	snd_l->ackers++;
 	rcv_l->acked = snd_l->snd_nxt - 1;
+	snd_l->state = LINK_ESTABLISHED;
 	tipc_link_build_bc_init_msg(uc_l, xmitq);
 }
 
@@ -206,6 +207,7 @@ void tipc_link_remove_bc_peer(struct tipc_link *snd_l,
 	rcv_l->state = LINK_RESET;
 	if (!snd_l->ackers) {
 		tipc_link_reset(snd_l);
+		snd_l->state = LINK_RESET;
 		__skb_queue_purge(xmitq);
 	}
 }

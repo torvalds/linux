@@ -84,6 +84,7 @@ struct symbol_conf {
 	unsigned short	priv_size;
 	unsigned short	nr_events;
 	bool		try_vmlinux_path,
+			force,
 			ignore_vmlinux,
 			ignore_vmlinux_buildid,
 			show_kernel_path,

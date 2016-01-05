@@ -654,18 +654,23 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 	struct map_groups *kmaps = map__kmaps(map);
 	struct map *curr_map;
 	struct symbol *pos;
-	int count = 0, moved = 0;
+	int count = 0;
+	struct rb_root old_root = dso->symbols[map->type];
 	struct rb_root *root = &dso->symbols[map->type];
 	struct rb_node *next = rb_first(root);
 
 	if (!kmaps)
 		return -1;
 
+	*root = RB_ROOT;
+
 	while (next) {
 		char *module;
 
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
+
+		rb_erase_init(&pos->rb_node, &old_root);
 
 		module = strchr(pos->name, '\t');
 		if (module)
@@ -674,28 +679,21 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 		curr_map = map_groups__find(kmaps, map->type, pos->start);
 
 		if (!curr_map || (filter && filter(curr_map, pos))) {
-			rb_erase_init(&pos->rb_node, root);
 			symbol__delete(pos);
-		} else {
-			pos->start -= curr_map->start - curr_map->pgoff;
-			if (pos->end)
-				pos->end -= curr_map->start - curr_map->pgoff;
-			if (curr_map->dso != map->dso) {
-				rb_erase_init(&pos->rb_node, root);
-				symbols__insert(
-					&curr_map->dso->symbols[curr_map->type],
-					pos);
-				++moved;
-			} else {
-				++count;
-			}
+			continue;
 		}
+
+		pos->start -= curr_map->start - curr_map->pgoff;
+		if (pos->end)
+			pos->end -= curr_map->start - curr_map->pgoff;
+		symbols__insert(&curr_map->dso->symbols[curr_map->type], pos);
+		++count;
 	}
 
 	/* Symbols have been adjusted */
 	dso->adjust_symbols = 1;
 
-	return count + moved;
+	return count;
 }
 
 /*
@@ -1438,9 +1436,9 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		if (lstat(dso->name, &st) < 0)
 			goto out;
 
-		if (st.st_uid && (st.st_uid != geteuid())) {
+		if (!symbol_conf.force && st.st_uid && (st.st_uid != geteuid())) {
 			pr_warning("File %s not owned by current user or root, "
-				"ignoring it.\n", dso->name);
+				   "ignoring it (use -f to override).\n", dso->name);
 			goto out;
 		}
 

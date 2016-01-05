@@ -3442,6 +3442,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 		goto err_rq;
 	}
 	img_request->rq = rq;
+	snapc = NULL; /* img_request consumes a ref */
 
 	if (op_type == OBJ_OP_DISCARD)
 		result = rbd_img_request_fill(img_request, OBJ_REQUEST_NODATA,

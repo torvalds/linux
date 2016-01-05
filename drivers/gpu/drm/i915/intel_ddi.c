@@ -1286,6 +1286,18 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 		}
 
 		crtc_state->ddi_pll_sel = PORT_CLK_SEL_WRPLL(pll->id);
+	} else if (crtc_state->ddi_pll_sel == PORT_CLK_SEL_SPLL) {
+		struct drm_atomic_state *state = crtc_state->base.state;
+		struct intel_shared_dpll_config *spll =
+			&intel_atomic_get_shared_dpll_state(state)[DPLL_ID_SPLL];
+
+		if (spll->crtc_mask &&
+		    WARN_ON(spll->hw_state.spll != crtc_state->dpll_hw_state.spll))
+			return false;
+
+		crtc_state->shared_dpll = DPLL_ID_SPLL;
+		spll->hw_state.spll = crtc_state->dpll_hw_state.spll;
+		spll->crtc_mask |= 1 << intel_crtc->pipe;
 	}
 
 	return true;
@@ -2437,7 +2449,7 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	}
 }
 
-static void hsw_ddi_pll_enable(struct drm_i915_private *dev_priv,
+static void hsw_ddi_wrpll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
 	I915_WRITE(WRPLL_CTL(pll->id), pll->config.hw_state.wrpll);
@@ -2445,8 +2457,16 @@ static void hsw_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	udelay(20);
 }
 
-static void hsw_ddi_pll_disable(struct drm_i915_private *dev_priv,
+static void hsw_ddi_spll_enable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
+{
+	I915_WRITE(SPLL_CTL, pll->config.hw_state.spll);
+	POSTING_READ(SPLL_CTL);
+	udelay(20);
+}
+
+static void hsw_ddi_wrpll_disable(struct drm_i915_private *dev_priv,
+				  struct intel_shared_dpll *pll)
 {
 	uint32_t val;
 
@@ -2455,9 +2475,19 @@ static void hsw_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	POSTING_READ(WRPLL_CTL(pll->id));
 }
 
-static bool hsw_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
-				     struct intel_shared_dpll *pll,
-				     struct intel_dpll_hw_state *hw_state)
+static void hsw_ddi_spll_disable(struct drm_i915_private *dev_priv,
+				 struct intel_shared_dpll *pll)
+{
+	uint32_t val;
+
+	val = I915_READ(SPLL_CTL);
+	I915_WRITE(SPLL_CTL, val & ~SPLL_PLL_ENABLE);
+	POSTING_READ(SPLL_CTL);
+}
+
+static bool hsw_ddi_wrpll_get_hw_state(struct drm_i915_private *dev_priv,
+				       struct intel_shared_dpll *pll,
+				       struct intel_dpll_hw_state *hw_state)
 {
 	uint32_t val;
 
@@ -2470,25 +2500,50 @@ static bool hsw_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	return val & WRPLL_PLL_ENABLE;
 }
 
+static bool hsw_ddi_spll_get_hw_state(struct drm_i915_private *dev_priv,
+				      struct intel_shared_dpll *pll,
+				      struct intel_dpll_hw_state *hw_state)
+{
+	uint32_t val;
+
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PLLS))
+		return false;
+
+	val = I915_READ(SPLL_CTL);
+	hw_state->spll = val;
+
+	return val & SPLL_PLL_ENABLE;
+}
+
+
 static const char * const hsw_ddi_pll_names[] = {
 	"WRPLL 1",
 	"WRPLL 2",
+	"SPLL"
 };
 
 static void hsw_shared_dplls_init(struct drm_i915_private *dev_priv)
 {
 	int i;
 
-	dev_priv->num_shared_dpll = 2;
+	dev_priv->num_shared_dpll = 3;
 
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+	for (i = 0; i < 2; i++) {
 		dev_priv->shared_dplls[i].id = i;
 		dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
-		dev_priv->shared_dplls[i].disable = hsw_ddi_pll_disable;
-		dev_priv->shared_dplls[i].enable = hsw_ddi_pll_enable;
+		dev_priv->shared_dplls[i].disable = hsw_ddi_wrpll_disable;
+		dev_priv->shared_dplls[i].enable = hsw_ddi_wrpll_enable;
 		dev_priv->shared_dplls[i].get_hw_state =
-			hsw_ddi_pll_get_hw_state;
+			hsw_ddi_wrpll_get_hw_state;
 	}
+
+	/* SPLL is special, but needs to be initialized anyway.. */
+	dev_priv->shared_dplls[i].id = i;
+	dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
+	dev_priv->shared_dplls[i].disable = hsw_ddi_spll_disable;
+	dev_priv->shared_dplls[i].enable = hsw_ddi_spll_enable;
+	dev_priv->shared_dplls[i].get_hw_state = hsw_ddi_spll_get_hw_state;
+
 }
 
 static const char * const skl_ddi_pll_names[] = {

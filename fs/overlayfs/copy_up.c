@@ -195,8 +195,7 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 
 static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 			      struct dentry *dentry, struct path *lowerpath,
-			      struct kstat *stat, struct iattr *attr,
-			      const char *link)
+			      struct kstat *stat, const char *link)
 {
 	struct inode *wdir = workdir->d_inode;
 	struct inode *udir = upperdir->d_inode;
@@ -240,8 +239,6 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 
 	mutex_lock(&newdentry->d_inode->i_mutex);
 	err = ovl_set_attr(newdentry, stat);
-	if (!err && attr)
-		err = notify_change(newdentry, attr, NULL);
 	mutex_unlock(&newdentry->d_inode->i_mutex);
 	if (err)
 		goto out_cleanup;
@@ -286,8 +283,7 @@ out_cleanup:
  * that point the file will have already been copied up anyway.
  */
 int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
-		    struct path *lowerpath, struct kstat *stat,
-		    struct iattr *attr)
+		    struct path *lowerpath, struct kstat *stat)
 {
 	struct dentry *workdir = ovl_workdir(dentry);
 	int err;
@@ -345,26 +341,19 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	}
 	upperdentry = ovl_dentry_upper(dentry);
 	if (upperdentry) {
-		unlock_rename(workdir, upperdir);
+		/* Raced with another copy-up?  Nothing to do, then... */
 		err = 0;
-		/* Raced with another copy-up?  Do the setattr here */
-		if (attr) {
-			mutex_lock(&upperdentry->d_inode->i_mutex);
-			err = notify_change(upperdentry, attr, NULL);
-			mutex_unlock(&upperdentry->d_inode->i_mutex);
-		}
-		goto out_put_cred;
+		goto out_unlock;
 	}
 
 	err = ovl_copy_up_locked(workdir, upperdir, dentry, lowerpath,
-				 stat, attr, link);
+				 stat, link);
 	if (!err) {
 		/* Restore timestamps on parent (best effort) */
 		ovl_set_timestamps(upperdir, &pstat);
 	}
 out_unlock:
 	unlock_rename(workdir, upperdir);
-out_put_cred:
 	revert_creds(old_cred);
 	put_cred(override_cred);
 
@@ -406,7 +395,7 @@ int ovl_copy_up(struct dentry *dentry)
 		ovl_path_lower(next, &lowerpath);
 		err = vfs_getattr(&lowerpath, &stat);
 		if (!err)
-			err = ovl_copy_up_one(parent, next, &lowerpath, &stat, NULL);
+			err = ovl_copy_up_one(parent, next, &lowerpath, &stat);
 
 		dput(parent);
 		dput(next);

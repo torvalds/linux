@@ -68,8 +68,9 @@ struct skl {
 
 	struct skl_dsp_resource resource;
 	struct list_head ppl_list;
-
+	struct list_head dapm_path_list;
 	const char *fw_name;
+	const struct firmware *tplg;
 
 	int supend_active;
 };

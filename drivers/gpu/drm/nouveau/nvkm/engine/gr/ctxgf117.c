@@ -207,6 +207,8 @@ gf117_grctx_generate_attrib(struct gf100_grctx *info)
 			const u32 b =  beta * gr->ppc_tpc_nr[gpc][ppc];
 			const u32 t = timeslice_mode;
 			const u32 o = PPC_UNIT(gpc, ppc, 0);
+			if (!(gr->ppc_mask[gpc] & (1 << ppc)))
+				continue;
 			mmio_skip(info, o + 0xc0, (t << 28) | (b << 16) | ++bo);
 			mmio_wr32(info, o + 0xc0, (t << 28) | (b << 16) | --bo);
 			bo += grctx->attrib_nr_max * gr->ppc_tpc_nr[gpc][ppc];

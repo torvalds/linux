@@ -192,33 +192,6 @@ void show_trace(struct task_struct *task, unsigned long *stack);
  */
 typedef unsigned int elf_caddr_t;
 
-#define start_thread_som(regs, new_pc, new_sp) do {	\
-	unsigned long *sp = (unsigned long *)new_sp;	\
-	__u32 spaceid = (__u32)current->mm->context;	\
-	unsigned long pc = (unsigned long)new_pc;	\
-	/* offset pc for priv. level */			\
-	pc |= 3;					\
-							\
-	regs->iasq[0] = spaceid;			\
-	regs->iasq[1] = spaceid;			\
-	regs->iaoq[0] = pc;				\
-	regs->iaoq[1] = pc + 4;                         \
-	regs->sr[2] = LINUX_GATEWAY_SPACE;              \
-	regs->sr[3] = 0xffff;				\
-	regs->sr[4] = spaceid;				\
-	regs->sr[5] = spaceid;				\
-	regs->sr[6] = spaceid;				\
-	regs->sr[7] = spaceid;				\
-	regs->gr[ 0] = USER_PSW;                        \
-	regs->gr[30] = ((new_sp)+63)&~63;		\
-	regs->gr[31] = pc;				\
-							\
-	get_user(regs->gr[26],&sp[0]);			\
-	get_user(regs->gr[25],&sp[-1]); 		\
-	get_user(regs->gr[24],&sp[-2]); 		\
-	get_user(regs->gr[23],&sp[-3]); 		\
-} while(0)
-
 /* The ELF abi wants things done a "wee bit" differently than
  * som does.  Supporting this behavior here avoids
  * having our own version of create_elf_tables.

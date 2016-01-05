@@ -788,6 +788,9 @@ cputime_t task_gtime(struct task_struct *t)
 	unsigned int seq;
 	cputime_t gtime;
 
+	if (!context_tracking_is_enabled())
+		return t->gtime;
+
 	do {
 		seq = read_seqbegin(&t->vtime_seqlock);
 

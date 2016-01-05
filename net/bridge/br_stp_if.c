@@ -39,7 +39,7 @@ void br_init_port(struct net_bridge_port *p)
 	struct switchdev_attr attr = {
 		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
 		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
-		.u.ageing_time = p->br->ageing_time,
+		.u.ageing_time = jiffies_to_clock_t(p->br->ageing_time),
 	};
 	int err;
 
@@ -50,7 +50,7 @@ void br_init_port(struct net_bridge_port *p)
 	p->config_pending = 0;
 
 	err = switchdev_port_attr_set(p->dev, &attr);
-	if (err)
+	if (err && err != -EOPNOTSUPP)
 		netdev_err(p->dev, "failed to set HW ageing time\n");
 }
 

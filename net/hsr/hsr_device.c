@@ -312,7 +312,7 @@ static void send_hsr_supervision_frame(struct hsr_port *master, u8 type)
 	return;
 
 out:
-	WARN_ON_ONCE("HSR: Could not send supervision frame\n");
+	WARN_ONCE(1, "HSR: Could not send supervision frame\n");
 	kfree_skb(skb);
 }
 

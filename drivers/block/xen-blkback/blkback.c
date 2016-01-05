@@ -950,6 +950,8 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 		goto unmap;
 
 	for (n = 0, i = 0; n < nseg; n++) {
+		uint8_t first_sect, last_sect;
+
 		if ((n % SEGS_PER_INDIRECT_FRAME) == 0) {
 			/* Map indirect segments */
 			if (segments)
@@ -957,15 +959,18 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 			segments = kmap_atomic(pages[n/SEGS_PER_INDIRECT_FRAME]->page);
 		}
 		i = n % SEGS_PER_INDIRECT_FRAME;
+
 		pending_req->segments[n]->gref = segments[i].gref;
-		seg[n].nsec = segments[i].last_sect -
-			segments[i].first_sect + 1;
-		seg[n].offset = (segments[i].first_sect << 9);
-		if ((segments[i].last_sect >= (XEN_PAGE_SIZE >> 9)) ||
-		    (segments[i].last_sect < segments[i].first_sect)) {
+
+		first_sect = READ_ONCE(segments[i].first_sect);
+		last_sect = READ_ONCE(segments[i].last_sect);
+		if (last_sect >= (XEN_PAGE_SIZE >> 9) || last_sect < first_sect) {
 			rc = -EINVAL;
 			goto unmap;
 		}
+
+		seg[n].nsec = last_sect - first_sect + 1;
+		seg[n].offset = first_sect << 9;
 		preq->nr_sects += seg[n].nsec;
 	}
 

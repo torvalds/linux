@@ -229,7 +229,8 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 		mode_flags |= DRM_MODE_FLAG_3D_MASK;
 
 	list_for_each_entry(mode, &connector->modes, head) {
-		mode->status = drm_mode_validate_basic(mode);
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_basic(mode);
 
 		if (mode->status == MODE_OK)
 			mode->status = drm_mode_validate_size(mode, maxX, maxY);

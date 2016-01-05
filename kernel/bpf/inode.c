@@ -34,7 +34,7 @@ static void *bpf_any_get(void *raw, enum bpf_type type)
 		atomic_inc(&((struct bpf_prog *)raw)->aux->refcnt);
 		break;
 	case BPF_TYPE_MAP:
-		atomic_inc(&((struct bpf_map *)raw)->refcnt);
+		bpf_map_inc(raw, true);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -51,7 +51,7 @@ static void bpf_any_put(void *raw, enum bpf_type type)
 		bpf_prog_put(raw);
 		break;
 	case BPF_TYPE_MAP:
-		bpf_map_put(raw);
+		bpf_map_put_with_uref(raw);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -64,7 +64,7 @@ static void *bpf_fd_probe_obj(u32 ufd, enum bpf_type *type)
 	void *raw;
 
 	*type = BPF_TYPE_MAP;
-	raw = bpf_map_get(ufd);
+	raw = bpf_map_get_with_uref(ufd);
 	if (IS_ERR(raw)) {
 		*type = BPF_TYPE_PROG;
 		raw = bpf_prog_get(ufd);
