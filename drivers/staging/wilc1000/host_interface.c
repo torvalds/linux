@@ -3674,15 +3674,15 @@ int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
-	      size_t ies_len, wilc_scan_result ScanResult, void *pvUserArg,
+	      size_t ies_len, wilc_scan_result scan_result, void *pvUserArg,
 	      struct hidden_network *pstrHiddenNetwork)
 {
 	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (!hif_drv || !ScanResult) {
-		PRINT_ER("hif_drv or ScanResult = NULL\n");
+	if (!hif_drv || !scan_result) {
+		PRINT_ER("hif_drv or scan_result = NULL\n");
 		return -EFAULT;
 	}
 
@@ -3700,7 +3700,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	msg.vif = vif;
 	msg.body.scan_info.src = scan_source;
 	msg.body.scan_info.type = scan_type;
-	msg.body.scan_info.result = ScanResult;
+	msg.body.scan_info.result = scan_result;
 	msg.body.scan_info.arg = pvUserArg;
 
 	msg.body.scan_info.ch_list_len = ch_list_len;
