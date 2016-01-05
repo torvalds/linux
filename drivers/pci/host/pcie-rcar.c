@@ -124,16 +124,7 @@ static inline struct rcar_msi *to_rcar_msi(struct msi_controller *chip)
 }
 
 /* Structure representing the PCIe interface */
-/*
- * ARM pcibios functions expect the ARM struct pci_sys_data as the PCI
- * sysdata.  Add pci_sys_data as the first element in struct gen_pci so
- * that when we use a gen_pci pointer as sysdata, it is also a pointer to
- * a struct pci_sys_data.
- */
 struct rcar_pcie {
-#ifdef CONFIG_ARM
-	struct pci_sys_data	sys;
-#endif
 	struct device		*dev;
 	void __iomem		*base;
 	struct list_head	resources;
