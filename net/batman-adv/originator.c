@@ -189,16 +189,16 @@ void batadv_neigh_ifinfo_free_ref(struct batadv_neigh_ifinfo *neigh_ifinfo)
 
 /**
  * batadv_neigh_node_free_rcu - free the neigh_node
- * @rcu: rcu pointer of the neigh_node
+ * batadv_neigh_node_release - release neigh_node from lists and queue for
+ *  free after rcu grace period
+ * @neigh_node: neigh neighbor to free
  */
-static void batadv_neigh_node_free_rcu(struct rcu_head *rcu)
+static void batadv_neigh_node_release(struct batadv_neigh_node *neigh_node)
 {
 	struct hlist_node *node_tmp;
-	struct batadv_neigh_node *neigh_node;
 	struct batadv_neigh_ifinfo *neigh_ifinfo;
 	struct batadv_algo_ops *bao;
 
-	neigh_node = container_of(rcu, struct batadv_neigh_node, rcu);
 	bao = neigh_node->orig_node->bat_priv->bat_algo_ops;
 
 	hlist_for_each_entry_safe(neigh_ifinfo, node_tmp,
@@ -209,9 +209,9 @@ static void batadv_neigh_node_free_rcu(struct rcu_head *rcu)
 	if (bao->bat_neigh_free)
 		bao->bat_neigh_free(neigh_node);
 
-	batadv_hardif_free_ref_now(neigh_node->if_incoming);
+	batadv_hardif_free_ref(neigh_node->if_incoming);
 
-	kfree(neigh_node);
+	kfree_rcu(neigh_node, rcu);
 }
 
 /**
@@ -222,7 +222,7 @@ static void batadv_neigh_node_free_rcu(struct rcu_head *rcu)
 void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node)
 {
 	if (atomic_dec_and_test(&neigh_node->refcount))
-		call_rcu(&neigh_node->rcu, batadv_neigh_node_free_rcu);
+		batadv_neigh_node_release(neigh_node);
 }
 
 /**
