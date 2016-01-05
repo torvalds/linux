@@ -290,8 +290,6 @@ static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
-	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_list_entry *lobj;
 	u64 initial_bytes_moved;
 	int r;
@@ -300,7 +298,6 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 		struct amdgpu_bo *bo = lobj->robj;
 		uint32_t domain;
 
-		lobj->bo_va = amdgpu_vm_bo_find(vm, bo);
 		if (bo->pin_count)
 			continue;
 
@@ -374,6 +371,19 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		goto error_validate;
 
 	r = amdgpu_cs_list_validate(p, &p->validated);
+	if (r)
+		goto error_validate;
+
+	if (p->bo_list) {
+		struct amdgpu_vm *vm = &fpriv->vm;
+		unsigned i;
+
+		for (i = 0; i < p->bo_list->num_entries; i++) {
+			struct amdgpu_bo *bo = p->bo_list->array[i].robj;
+
+			p->bo_list->array[i].bo_va = amdgpu_vm_bo_find(vm, bo);
+		}
+	}
 
 error_validate:
 	if (r) {
