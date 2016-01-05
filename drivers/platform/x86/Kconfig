@@ -587,6 +587,20 @@ config EEEPC_WMI
 	  If you have an ACPI-WMI compatible Eee PC laptop (>= 1000), say Y or M
 	  here.
 
+config ASUS_WIRELESS
+	tristate "Asus Wireless Radio Control Driver"
+	depends on ACPI
+	depends on INPUT
+	---help---
+	  The Asus Wireless Radio Control handles the airplane mode hotkey
+	  present on some Asus laptops.
+
+	  Say Y or M here if you have an ASUS notebook with an airplane mode
+	  hotkey.
+
+	  If you choose to compile this driver as a module the module will be
+	  called asus-wireless.
+
 config ACPI_WMI
 	tristate "WMI"
 	depends on ACPI
