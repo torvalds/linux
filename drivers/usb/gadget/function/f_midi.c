@@ -79,7 +79,6 @@ struct f_midi {
 
 	struct snd_rawmidi_substream *in_substream[MAX_PORTS];
 	struct snd_rawmidi_substream *out_substream[MAX_PORTS];
-	struct gmidi_in_port	*in_port[MAX_PORTS];
 
 	unsigned long		out_triggered;
 	struct tasklet_struct	tasklet;
@@ -91,6 +90,8 @@ struct f_midi {
 	/* This fifo is used as a buffer ring for pre-allocated IN usb_requests */
 	DECLARE_KFIFO_PTR(in_req_fifo, struct usb_request *);
 	unsigned int in_last_port;
+
+	struct gmidi_in_port	in_ports_array[/* in_ports */];
 };
 
 static inline struct f_midi *func_to_midi(struct usb_function *f)
@@ -517,24 +518,17 @@ static void f_midi_drop_out_substreams(struct f_midi *midi)
 {
 	unsigned int i;
 
-	for (i = 0; i < MAX_PORTS; i++) {
-		struct gmidi_in_port *port = midi->in_port[i];
+	for (i = 0; i < midi->in_ports; i++) {
+		struct gmidi_in_port *port = midi->in_ports_array + i;
 		struct snd_rawmidi_substream *substream = midi->in_substream[i];
-
-		if (!port)
-			break;
-
-		if (!port->active || !substream)
-			continue;
-
-		snd_rawmidi_drop_output(substream);
+		if (port->active && substream)
+			snd_rawmidi_drop_output(substream);
 	}
 }
 
 static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 {
 	struct usb_request *req = NULL;
-	struct gmidi_in_port *port;
 	unsigned int len, i;
 	bool active = false;
 	int err;
@@ -558,9 +552,10 @@ static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
 	if (req->length > 0)
 		return 0;
 
-	i = midi->in_last_port;
-	for (; i < MAX_PORTS && (port = midi->in_port[i]); ++i) {
+	for (i = midi->in_last_port; i < midi->in_ports; ++i) {
+		struct gmidi_in_port *port = midi->in_ports_array + i;
 		struct snd_rawmidi_substream *substream = midi->in_substream[i];
+
 		if (!port->active || !substream)
 			continue;
 
@@ -629,12 +624,12 @@ static int f_midi_in_open(struct snd_rawmidi_substream *substream)
 {
 	struct f_midi *midi = substream->rmidi->private_data;
 
-	if (!midi->in_port[substream->number])
+	if (substream->number >= midi->in_ports)
 		return -EINVAL;
 
 	VDBG(midi, "%s()\n", __func__);
 	midi->in_substream[substream->number] = substream;
-	midi->in_port[substream->number]->state = STATE_UNKNOWN;
+	midi->in_ports_array[substream->number].state = STATE_UNKNOWN;
 	return 0;
 }
 
@@ -650,11 +645,11 @@ static void f_midi_in_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	struct f_midi *midi = substream->rmidi->private_data;
 
-	if (!midi->in_port[substream->number])
+	if (substream->number >= midi->in_ports)
 		return;
 
 	VDBG(midi, "%s() %d\n", __func__, up);
-	midi->in_port[substream->number]->active = up;
+	midi->in_ports_array[substream->number].active = up;
 	if (up)
 		tasklet_hi_schedule(&midi->tasklet);
 }
@@ -1130,14 +1125,11 @@ static void f_midi_free(struct usb_function *f)
 {
 	struct f_midi *midi;
 	struct f_midi_opts *opts;
-	int i;
 
 	midi = func_to_midi(f);
 	opts = container_of(f->fi, struct f_midi_opts, func_inst);
 	kfree(midi->id);
 	mutex_lock(&opts->lock);
-	for (i = opts->in_ports - 1; i >= 0; --i)
-		kfree(midi->in_port[i]);
 	kfifo_free(&midi->in_req_fifo);
 	kfree(midi);
 	--opts->refcnt;
@@ -1179,25 +1171,16 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	}
 
 	/* allocate and initialize one new instance */
-	midi = kzalloc(sizeof(*midi), GFP_KERNEL);
+	midi = kzalloc(
+		sizeof(*midi) + opts->in_ports * sizeof(*midi->in_ports_array),
+		GFP_KERNEL);
 	if (!midi) {
 		mutex_unlock(&opts->lock);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	for (i = 0; i < opts->in_ports; i++) {
-		struct gmidi_in_port *port = kzalloc(sizeof(*port), GFP_KERNEL);
-
-		if (!port) {
-			status = -ENOMEM;
-			mutex_unlock(&opts->lock);
-			goto setup_fail;
-		}
-
-		port->active = 0;
-		port->cable = i;
-		midi->in_port[i] = port;
-	}
+	for (i = 0; i < opts->in_ports; i++)
+		midi->in_ports_array[i].cable = i;
 
 	/* set up ALSA midi devices */
 	midi->id = kstrdup(opts->id, GFP_KERNEL);
@@ -1230,8 +1213,6 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	return &midi->func;
 
 setup_fail:
-	for (--i; i >= 0; i--)
-		kfree(midi->in_port[i]);
 	kfree(midi);
 	return ERR_PTR(status);
 }
