@@ -1092,10 +1092,17 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void rtl8192_tx_isr(struct urb *tx_urb)
 {
 	struct sk_buff *skb = (struct sk_buff *)tx_urb->context;
-	struct net_device *dev = (struct net_device *)(skb->cb);
+	struct net_device *dev;
 	struct r8192_priv *priv = NULL;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	u8  queue_index = tcb_desc->queue_index;
+	cb_desc *tcb_desc;
+	u8  queue_index;
+
+	if (!skb)
+		return;
+
+	dev = (struct net_device *)(skb->cb);
+	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	queue_index = tcb_desc->queue_index;
 
 	priv = ieee80211_priv(dev);
 
@@ -1113,11 +1120,9 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 	}
 
 	/* free skb and tx_urb */
-	if (skb != NULL) {
-		dev_kfree_skb_any(skb);
-		usb_free_urb(tx_urb);
-		atomic_dec(&priv->tx_pending[queue_index]);
-	}
+	dev_kfree_skb_any(skb);
+	usb_free_urb(tx_urb);
+	atomic_dec(&priv->tx_pending[queue_index]);
 
 	/*
 	 * Handle HW Beacon:
