@@ -68,32 +68,20 @@ static void exynos_crtc_atomic_begin(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_crtc_state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_plane *plane;
 
 	exynos_crtc->event = crtc->state->event;
 
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-
-		if (exynos_crtc->ops->atomic_begin)
-			exynos_crtc->ops->atomic_begin(exynos_crtc,
-							exynos_plane);
-	}
+	if (exynos_crtc->ops->atomic_begin)
+		exynos_crtc->ops->atomic_begin(exynos_crtc);
 }
 
 static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_crtc_state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_plane *plane;
 
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-
-		if (exynos_crtc->ops->atomic_flush)
-			exynos_crtc->ops->atomic_flush(exynos_crtc,
-							exynos_plane);
-	}
+	if (exynos_crtc->ops->atomic_flush)
+		exynos_crtc->ops->atomic_flush(exynos_crtc);
 }
 
 static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {

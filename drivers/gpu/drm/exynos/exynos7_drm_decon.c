@@ -385,15 +385,16 @@ static void decon_shadow_protect_win(struct decon_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
-					struct exynos_drm_plane *plane)
+static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
+	int i;
 
 	if (ctx->suspended)
 		return;
 
-	decon_shadow_protect_win(ctx, plane->index, true);
+	for (i = 0; i < WINDOWS_NR; i++)
+		decon_shadow_protect_win(ctx, i, true);
 }
 
 static void decon_update_plane(struct exynos_drm_crtc *crtc,
@@ -517,15 +518,16 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->regs + DECON_UPDATE);
 }
 
-static void decon_atomic_flush(struct exynos_drm_crtc *crtc,
-					struct exynos_drm_plane *plane)
+static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
+	int i;
 
 	if (ctx->suspended)
 		return;
 
-	decon_shadow_protect_win(ctx, plane->index, false);
+	for (i = 0; i < WINDOWS_NR; i++)
+		decon_shadow_protect_win(ctx, i, false);
 }
 
 static void decon_init(struct decon_context *ctx)

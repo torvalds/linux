@@ -622,26 +622,28 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 	writel(val, ctx->regs + reg);
 }
 
-static void fimd_atomic_begin(struct exynos_drm_crtc *crtc,
-			       struct exynos_drm_plane *plane)
+static void fimd_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	int i;
 
 	if (ctx->suspended)
 		return;
 
-	fimd_shadow_protect_win(ctx, plane->index, true);
+	for (i = 0; i < WINDOWS_NR; i++)
+		fimd_shadow_protect_win(ctx, i, true);
 }
 
-static void fimd_atomic_flush(struct exynos_drm_crtc *crtc,
-			       struct exynos_drm_plane *plane)
+static void fimd_atomic_flush(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	int i;
 
 	if (ctx->suspended)
 		return;
 
-	fimd_shadow_protect_win(ctx, plane->index, false);
+	for (i = 0; i < WINDOWS_NR; i++)
+		fimd_shadow_protect_win(ctx, i, false);
 }
 
 static void fimd_update_plane(struct exynos_drm_crtc *crtc,

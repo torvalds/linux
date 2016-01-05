@@ -248,15 +248,16 @@ static void decon_shadow_protect_win(struct decon_context *ctx, int win,
 		       protect ? ~0 : 0);
 }
 
-static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
-					struct exynos_drm_plane *plane)
+static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
+	int i;
 
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	decon_shadow_protect_win(ctx, plane->index, true);
+	for (i = ctx->first_win; i < WINDOWS_NR; i++)
+		decon_shadow_protect_win(ctx, i, true);
 }
 
 #define BIT_VAL(x, e, s) (((x) & ((1 << ((e) - (s) + 1)) - 1)) << (s))
@@ -336,15 +337,16 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
 }
 
-static void decon_atomic_flush(struct exynos_drm_crtc *crtc,
-				struct exynos_drm_plane *plane)
+static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
+	int i;
 
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	decon_shadow_protect_win(ctx, plane->index, false);
+	for (i = ctx->first_win; i < WINDOWS_NR; i++)
+		decon_shadow_protect_win(ctx, i, false);
 
 	if (ctx->out_type == IFTYPE_I80)
 		set_bit(BIT_WIN_UPDATED, &ctx->flags);

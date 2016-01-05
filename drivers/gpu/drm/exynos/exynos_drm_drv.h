@@ -123,8 +123,8 @@ struct exynos_drm_plane_config {
  * @wait_for_vblank: wait for vblank interrupt to make sure that
  *	hardware overlay is updated.
  * @atomic_check: validate state
- * @atomic_begin: prepare a window to receive a update
- * @atomic_flush: mark the end of a window update
+ * @atomic_begin: prepare device to receive an update
+ * @atomic_flush: mark the end of device update
  * @update_plane: apply hardware specific overlay data to registers.
  * @disable_plane: disable hardware specific overlay.
  * @te_handler: trigger to transfer video image at the tearing effect
@@ -144,14 +144,12 @@ struct exynos_drm_crtc_ops {
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
 	int (*atomic_check)(struct exynos_drm_crtc *crtc,
 			    struct drm_crtc_state *state);
-	void (*atomic_begin)(struct exynos_drm_crtc *crtc,
-			      struct exynos_drm_plane *plane);
+	void (*atomic_begin)(struct exynos_drm_crtc *crtc);
 	void (*update_plane)(struct exynos_drm_crtc *crtc,
 			     struct exynos_drm_plane *plane);
 	void (*disable_plane)(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane);
-	void (*atomic_flush)(struct exynos_drm_crtc *crtc,
-			      struct exynos_drm_plane *plane);
+	void (*atomic_flush)(struct exynos_drm_crtc *crtc);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
 };
