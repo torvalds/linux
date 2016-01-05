@@ -187,7 +187,7 @@ struct rcvd_net_info {
 
 struct hidden_net_info {
 	u8  *ssid;
-	u8 u8ssidlen;
+	u8 ssid_len;
 };
 
 struct hidden_network {
