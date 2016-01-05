@@ -283,31 +283,35 @@ static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 	if (dev_priv->vbt.dsi.seq_version >= 3)
 		data += 4;
 
-	/* parse each byte till we reach end of sequence byte - 0x00 */
 	while (1) {
 		u8 operation_byte = *data++;
-		if (operation_byte >= ARRAY_SIZE(exec_elem) ||
-		    !exec_elem[operation_byte]) {
+		u8 operation_size = 0;
+
+		if (operation_byte == MIPI_SEQ_ELEM_END)
+			break;
+
+		if (operation_byte < ARRAY_SIZE(exec_elem))
+			mipi_elem_exec = exec_elem[operation_byte];
+		else
+			mipi_elem_exec = NULL;
+
+		/* Size of Operation. */
+		if (dev_priv->vbt.dsi.seq_version >= 3)
+			operation_size = *data++;
+
+		if (mipi_elem_exec) {
+			data = mipi_elem_exec(intel_dsi, data);
+		} else if (operation_size) {
+			/* We have size, skip. */
+			DRM_DEBUG_KMS("Unsupported MIPI operation byte %u\n",
+				      operation_byte);
+			data += operation_size;
+		} else {
+			/* No size, can't skip without parsing. */
 			DRM_ERROR("Unsupported MIPI operation byte %u\n",
 				  operation_byte);
 			return;
 		}
-		mipi_elem_exec = exec_elem[operation_byte];
-
-		/* Skip Size of Operation. */
-		if (dev_priv->vbt.dsi.seq_version >= 3)
-			data++;
-
-		/* execute the element specific rotines */
-		data = mipi_elem_exec(intel_dsi, data);
-
-		/*
-		 * After processing the element, data should point to
-		 * next element or end of sequence
-		 * check if have we reached end of sequence
-		 */
-		if (*data == 0x00)
-			break;
 	}
 }
 
