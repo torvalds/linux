@@ -260,6 +260,14 @@ static struct ft_sess *ft_sess_delete(struct ft_tport *tport, u32 port_id)
 	return NULL;
 }
 
+static void ft_close_sess(struct ft_sess *sess)
+{
+	transport_deregister_session_configfs(sess->se_sess);
+	target_sess_cmd_list_set_waiting(sess->se_sess);
+	target_wait_for_sess_cmds(sess->se_sess);
+	ft_sess_put(sess);
+}
+
 /*
  * Delete all sessions from tport.
  * Caller holds ft_lport_lock.
@@ -273,8 +281,7 @@ static void ft_sess_delete_all(struct ft_tport *tport)
 	     head < &tport->hash[FT_SESS_HASH_SIZE]; head++) {
 		hlist_for_each_entry_rcu(sess, head, hash) {
 			ft_sess_unhash(sess);
-			transport_deregister_session_configfs(sess->se_sess);
-			ft_sess_put(sess);	/* release from table */
+			ft_close_sess(sess);	/* release from table */
 		}
 	}
 }
@@ -313,8 +320,7 @@ void ft_sess_close(struct se_session *se_sess)
 	pr_debug("port_id %x\n", port_id);
 	ft_sess_unhash(sess);
 	mutex_unlock(&ft_lport_lock);
-	transport_deregister_session_configfs(se_sess);
-	ft_sess_put(sess);
+	ft_close_sess(sess);
 	/* XXX Send LOGO or PRLO */
 	synchronize_rcu();		/* let transport deregister happen */
 }
@@ -460,8 +466,7 @@ static void ft_prlo(struct fc_rport_priv *rdata)
 		return;
 	}
 	mutex_unlock(&ft_lport_lock);
-	transport_deregister_session_configfs(sess->se_sess);
-	ft_sess_put(sess);		/* release from table */
+	ft_close_sess(sess);		/* release from table */
 	rdata->prli_count--;
 	/* XXX TBD - clearing actions.  unit attn, see 4.10 */
 }
