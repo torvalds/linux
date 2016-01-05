@@ -3779,9 +3779,9 @@ static void GetPeriodicRSSI(unsigned long arg)
 	mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
 }
 
-s32 wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
+int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 {
-	s32 result = 0;
+	int result = 0;
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;
 	struct wilc *wilc;
