@@ -3704,12 +3704,16 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	msg.body.scan_info.arg = user_arg;
 
 	msg.body.scan_info.ch_list_len = ch_list_len;
-	msg.body.scan_info.ch_freq_list = kmalloc(ch_list_len, GFP_KERNEL);
-	memcpy(msg.body.scan_info.ch_freq_list, ch_freq_list, ch_list_len);
+	msg.body.scan_info.ch_freq_list = kmemdup(ch_freq_list,
+						  ch_list_len,
+						  GFP_KERNEL);
+	if (!msg.body.scan_info.ch_freq_list)
+		return -ENOMEM;
 
 	msg.body.scan_info.ies_len = ies_len;
-	msg.body.scan_info.ies = kmalloc(ies_len, GFP_KERNEL);
-	memcpy(msg.body.scan_info.ies, ies, ies_len);
+	msg.body.scan_info.ies = kmemdup(ies, ies_len, GFP_KERNEL);
+	if (!msg.body.scan_info.ies)
+		return -ENOMEM;
 
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result) {
