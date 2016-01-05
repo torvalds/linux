@@ -493,6 +493,25 @@ static inline void bpf_jit_free(struct bpf_prog *fp)
 
 #define BPF_ANC		BIT(15)
 
+static inline bool bpf_needs_clear_a(const struct sock_filter *first)
+{
+	switch (first->code) {
+	case BPF_RET | BPF_K:
+	case BPF_LD | BPF_W | BPF_LEN:
+		return false;
+
+	case BPF_LD | BPF_W | BPF_ABS:
+	case BPF_LD | BPF_H | BPF_ABS:
+	case BPF_LD | BPF_B | BPF_ABS:
+		if (first->k == SKF_AD_OFF + SKF_AD_ALU_XOR_X)
+			return true;
+		return false;
+
+	default:
+		return true;
+	}
+}
+
 static inline u16 bpf_anc_helper(const struct sock_filter *ftest)
 {
 	BUG_ON(ftest->code & BPF_ANC);
