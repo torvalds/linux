@@ -108,11 +108,6 @@ static inline phys_addr_t kvm_vcpu_get_fault_ipa(struct kvm_vcpu *vcpu)
 	return ((phys_addr_t)vcpu->arch.fault.hpfar & HPFAR_MASK) << 8;
 }
 
-static inline unsigned long kvm_vcpu_get_hyp_pc(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.fault.hyp_pc;
-}
-
 static inline bool kvm_vcpu_dabt_isvalid(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_get_hsr(vcpu) & HSR_ISV;

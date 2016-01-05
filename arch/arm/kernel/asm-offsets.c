@@ -175,7 +175,6 @@ int main(void)
   DEFINE(CPU_CTXT_VFP,		offsetof(struct kvm_cpu_context, vfp));
   DEFINE(CPU_CTXT_GP_REGS,	offsetof(struct kvm_cpu_context, gp_regs));
   DEFINE(GP_REGS_USR,		offsetof(struct kvm_regs, usr_regs));
-  DEFINE(VCPU_HYP_PC,		offsetof(struct kvm_vcpu, arch.fault.hyp_pc));
 #endif
   BLANK();
 #ifdef CONFIG_VDSO

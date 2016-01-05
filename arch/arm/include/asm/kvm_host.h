@@ -85,7 +85,6 @@ struct kvm_vcpu_fault_info {
 	u32 hsr;		/* Hyp Syndrome Register */
 	u32 hxfar;		/* Hyp Data/Inst. Fault Address Register */
 	u32 hpfar;		/* Hyp IPA Fault Address Register */
-	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
 };
 
 /*
