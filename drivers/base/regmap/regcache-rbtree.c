@@ -361,13 +361,14 @@ regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
 		rbnode->base_reg = reg;
 	}
 
-	rbnode->block = kmalloc(rbnode->blklen * map->cache_word_size,
-				GFP_KERNEL);
+	rbnode->block = kmalloc_array(rbnode->blklen, map->cache_word_size,
+				      GFP_KERNEL);
 	if (!rbnode->block)
 		goto err_free;
 
-	rbnode->cache_present = kzalloc(BITS_TO_LONGS(rbnode->blklen) *
-		sizeof(*rbnode->cache_present), GFP_KERNEL);
+	rbnode->cache_present = kcalloc(BITS_TO_LONGS(rbnode->blklen),
+					sizeof(*rbnode->cache_present),
+					GFP_KERNEL);
 	if (!rbnode->cache_present)
 		goto err_free_block;
 
