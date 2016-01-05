@@ -273,11 +273,6 @@ static int __inode_security_revalidate(struct inode *inode,
 	return 0;
 }
 
-static void inode_security_revalidate(struct inode *inode)
-{
-	__inode_security_revalidate(inode, NULL, true);
-}
-
 static struct inode_security_struct *inode_security_novalidate(struct inode *inode)
 {
 	return inode->i_security;
@@ -3277,19 +3272,19 @@ static int selinux_file_permission(struct file *file, int mask)
 {
 	struct inode *inode = file_inode(file);
 	struct file_security_struct *fsec = file->f_security;
-	struct inode_security_struct *isec = inode_security(inode);
+	struct inode_security_struct *isec;
 	u32 sid = current_sid();
 
 	if (!mask)
 		/* No permission to check.  Existence test. */
 		return 0;
 
+	isec = inode_security(inode);
 	if (sid == fsec->sid && fsec->isid == isec->sid &&
 	    fsec->pseqno == avc_policy_seqno())
 		/* No change since file_open check. */
 		return 0;
 
-	inode_security_revalidate(inode);
 	return selinux_revalidate_file_permission(file, mask);
 }
 
@@ -3595,7 +3590,6 @@ static int selinux_file_open(struct file *file, const struct cred *cred)
 	 * new inode label or new policy.
 	 * This check is not redundant - do not remove.
 	 */
-	inode_security_revalidate(file_inode(file));
 	return file_path_has_perm(cred, file, open_file_to_av(file));
 }
 
