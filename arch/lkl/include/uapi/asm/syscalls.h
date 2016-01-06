@@ -106,6 +106,9 @@ typedef __s64			s64;
 
 #include <linux/kdev_t.h>
 #include <asm/irq.h>
+#include <linux/virtio_blk.h>
+#include <linux/virtio_net.h>
+#include <linux/virtio_ring.h>
 
 /* Define data structures used in system calls that are not defined in UAPI
  * headers */
