@@ -555,6 +555,8 @@ EXPORT_SYMBOL_GPL(badblocks_init);
  */
 void badblocks_exit(struct badblocks *bb)
 {
+	if (!bb)
+		return;
 	kfree(bb->page);
 	bb->page = NULL;
 }
