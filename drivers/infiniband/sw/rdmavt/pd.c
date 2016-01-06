@@ -69,7 +69,7 @@ struct ib_pd *rvt_alloc_pd(struct ib_device *ibdev,
 	 */
 
 	spin_lock(&dev->n_pds_lock);
-	if (dev->n_pds_allocated == dev->dparms.max_pds) {
+	if (dev->n_pds_allocated == dev->dparms.props.max_pd) {
 		spin_unlock(&dev->n_pds_lock);
 		kfree(pd);
 		ret = ERR_PTR(-ENOMEM);

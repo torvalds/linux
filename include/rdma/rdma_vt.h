@@ -59,7 +59,45 @@
  * Things that are driver specific, module parameters in hfi1 and qib
  */
 struct rvt_driver_params {
-	int max_pds;
+	/*
+	 * driver required fields:
+	 *	node_guid
+	 *	phys_port_cnt
+	 *	dma_device
+	 *	owner
+	 * driver optional fields (rvt will provide generic value if blank):
+	 *	name
+	 *	node_desc
+	 * rvt fields, driver value ignored:
+	 *	uverbs_abi_ver
+	 *	node_type
+	 *	num_comp_vectors
+	 *	uverbs_cmd_mask
+	 */
+	struct ib_device_attr props;
+
+	/*
+	 * Drivers will need to support a number of notifications to rvt in
+	 * accordance with certain events. This structure should contain a mask
+	 * of the supported events. Such events that the rvt may need to know
+	 * about include:
+	 * port errors
+	 * port active
+	 * lid change
+	 * sm change
+	 * client reregister
+	 * pkey change
+	 *
+	 * There may also be other events that the rvt layers needs to know
+	 * about this is not an exhaustive list. Some events though rvt does not
+	 * need to rely on the driver for such as completion queue error.
+	 */
+	 int rvt_signal_supported;
+
+	/*
+	 * Anything driver specific that is not covered by props
+	 * For instance special module parameters. Goes here.
+	 */
 };
 
 /* Protection domain */
@@ -69,10 +107,25 @@ struct rvt_pd {
 };
 
 struct rvt_dev_info {
+	/*
+	 * Prior to calling for registration the driver will be responsible for
+	 * allocating space for this structure.
+	 *
+	 * The driver will also be responsible for filling in certain members of
+	 * dparms.props
+	 */
+
 	struct ib_device ibdev;
 
-	/* Driver specific */
+	/* Driver specific properties */
 	struct rvt_driver_params dparms;
+
+	/*
+	 * The work to create port files in /sys/class Infiniband is different
+	 * depending on the driver. This should not be extracted away and
+	 * instead drivers are responsible for setting the correct callback for
+	 * this.
+	 */
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
 
 	/* Internal use */
