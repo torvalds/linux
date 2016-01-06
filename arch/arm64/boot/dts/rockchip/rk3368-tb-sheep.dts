@@ -64,3 +64,7 @@
 	status = "okay";
 	#include <dt-bindings/display/screen-timing/lcd-tv080wum-mipi.dtsi>
 };
+
+&rk_key {
+	status = "okay";
+};
