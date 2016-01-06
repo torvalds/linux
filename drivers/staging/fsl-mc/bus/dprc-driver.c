@@ -396,7 +396,9 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		error = fsl_create_mc_io(&mc_dev->dev,
 					 mc_dev->regions[0].start,
 					 region_size,
-					 NULL, 0, &mc_dev->mc_io);
+					 NULL,
+					 FSL_MC_IO_ATOMIC_CONTEXT_PORTAL,
+					 &mc_dev->mc_io);
 		if (error < 0)
 			return error;
 	}
