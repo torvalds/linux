@@ -259,4 +259,37 @@ struct rvt_srq {
 	u32 limit;
 };
 
+#define RVT_QPN_MAX                 BIT(24)
+#define RVT_QPNMAP_ENTRIES          (RVT_QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
+#define RVT_BITS_PER_PAGE           (PAGE_SIZE * BITS_PER_BYTE)
+#define RVT_BITS_PER_PAGE_MASK      (RVT_BITS_PER_PAGE - 1)
+
+/*
+ * QPN-map pages start out as NULL, they get allocated upon
+ * first use and are never deallocated. This way,
+ * large bitmaps are not allocated unless large numbers of QPs are used.
+ */
+struct rvt_qpn_map {
+	void *page;
+};
+
+struct rvt_qpn_table {
+	spinlock_t lock; /* protect changes to the qp table */
+	unsigned flags;         /* flags for QP0/1 allocated for each port */
+	u32 last;               /* last QP number allocated */
+	u32 nmaps;              /* size of the map table */
+	u16 limit;
+	u8  incr;
+	/* bit map of free QP numbers other than 0/1 */
+	struct rvt_qpn_map map[RVT_QPNMAP_ENTRIES];
+};
+
+struct rvt_qp_ibdev {
+	u32 qp_table_size;
+	u32 qp_table_bits;
+	struct rvt_qp __rcu **qp_table;
+	spinlock_t qpt_lock; /* qptable lock */
+	struct rvt_qpn_table qpn_table;
+};
+
 #endif          /* DEF_RDMAVT_INCQP_H */

@@ -45,7 +45,204 @@
  *
  */
 
+#include <linux/bitops.h>
+#include <linux/lockdep.h>
+#include "vt.h"
 #include "qp.h"
+
+static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map)
+{
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
+
+	/*
+	 * Free the page if someone raced with us installing it.
+	 */
+
+	spin_lock(&qpt->lock);
+	if (map->page)
+		free_page(page);
+	else
+		map->page = (void *)page;
+	spin_unlock(&qpt->lock);
+}
+
+/**
+ * init_qpn_table - initialize the QP number table for a device
+ * @qpt: the QPN table
+ */
+static int init_qpn_table(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt)
+{
+	u32 offset, i;
+	struct rvt_qpn_map *map;
+	int ret = 0;
+
+	if (!(rdi->dparms.qpn_res_end > rdi->dparms.qpn_res_start))
+		return -EINVAL;
+
+	spin_lock_init(&qpt->lock);
+
+	qpt->last = rdi->dparms.qpn_start;
+	qpt->incr = rdi->dparms.qpn_inc << rdi->dparms.qos_shift;
+
+	/*
+	 * Drivers may want some QPs beyond what we need for verbs let them use
+	 * our qpn table. No need for two. Lets go ahead and mark the bitmaps
+	 * for those. The reserved range must be *after* the range which verbs
+	 * will pick from.
+	 */
+
+	/* Figure out number of bit maps needed before reserved range */
+	qpt->nmaps = rdi->dparms.qpn_res_start / RVT_BITS_PER_PAGE;
+
+	/* This should always be zero */
+	offset = rdi->dparms.qpn_res_start & RVT_BITS_PER_PAGE_MASK;
+
+	/* Starting with the first reserved bit map */
+	map = &qpt->map[qpt->nmaps];
+
+	rvt_pr_info(rdi, "Reserving QPNs from 0x%x to 0x%x for non-verbs use\n",
+		    rdi->dparms.qpn_res_start, rdi->dparms.qpn_res_end);
+	for (i = rdi->dparms.qpn_res_start; i < rdi->dparms.qpn_res_end; i++) {
+		if (!map->page) {
+			get_map_page(qpt, map);
+			if (!map->page) {
+				ret = -ENOMEM;
+				break;
+			}
+		}
+		set_bit(offset, map->page);
+		offset++;
+		if (offset == RVT_BITS_PER_PAGE) {
+			/* next page */
+			qpt->nmaps++;
+			map++;
+			offset = 0;
+		}
+	}
+	return ret;
+}
+
+/**
+ * free_qpn_table - free the QP number table for a device
+ * @qpt: the QPN table
+ */
+static void free_qpn_table(struct rvt_qpn_table *qpt)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(qpt->map); i++)
+		free_page((unsigned long)qpt->map[i].page);
+}
+
+int rvt_driver_qp_init(struct rvt_dev_info *rdi)
+{
+	int i;
+	int ret = -ENOMEM;
+
+	if (rdi->flags & RVT_FLAG_QP_INIT_DRIVER) {
+		rvt_pr_info(rdi, "Driver is doing QP init.\n");
+		return 0;
+	}
+
+	if (!rdi->dparms.qp_table_size)
+		return -EINVAL;
+
+	/*
+	 * If driver is not doing any QP allocation then make sure it is
+	 * providing the necessary QP functions.
+	 */
+	if (!rdi->driver_f.free_all_qps)
+		return -EINVAL;
+
+	/* allocate parent object */
+	rdi->qp_dev = kzalloc(sizeof(*rdi->qp_dev), GFP_KERNEL);
+	if (!rdi->qp_dev)
+		return -ENOMEM;
+
+	/* allocate hash table */
+	rdi->qp_dev->qp_table_size = rdi->dparms.qp_table_size;
+	rdi->qp_dev->qp_table_bits = ilog2(rdi->dparms.qp_table_size);
+	rdi->qp_dev->qp_table =
+		kmalloc(rdi->qp_dev->qp_table_size *
+			sizeof(*rdi->qp_dev->qp_table),
+			GFP_KERNEL);
+	if (!rdi->qp_dev->qp_table)
+		goto no_qp_table;
+
+	for (i = 0; i < rdi->qp_dev->qp_table_size; i++)
+		RCU_INIT_POINTER(rdi->qp_dev->qp_table[i], NULL);
+
+	spin_lock_init(&rdi->qp_dev->qpt_lock);
+
+	/* initialize qpn map */
+	if (init_qpn_table(rdi, &rdi->qp_dev->qpn_table))
+		goto fail_table;
+
+	return ret;
+
+fail_table:
+	kfree(rdi->qp_dev->qp_table);
+	free_qpn_table(&rdi->qp_dev->qpn_table);
+
+no_qp_table:
+	kfree(rdi->qp_dev);
+
+	return ret;
+}
+
+/**
+ * free_all_qps - check for QPs still in use
+ * @qpt: the QP table to empty
+ *
+ * There should not be any QPs still in use.
+ * Free memory for table.
+ */
+static unsigned free_all_qps(struct rvt_dev_info *rdi)
+{
+	unsigned long flags;
+	struct rvt_qp *qp;
+	unsigned n, qp_inuse = 0;
+	spinlock_t *ql; /* work around too long line below */
+
+	rdi->driver_f.free_all_qps(rdi);
+
+	if (!rdi->qp_dev)
+		return 0;
+
+	ql = &rdi->qp_dev->qpt_lock;
+	spin_lock_irqsave(&rdi->qp_dev->qpt_lock, flags);
+	for (n = 0; n < rdi->qp_dev->qp_table_size; n++) {
+		qp = rcu_dereference_protected(rdi->qp_dev->qp_table[n],
+					       lockdep_is_held(ql));
+		RCU_INIT_POINTER(rdi->qp_dev->qp_table[n], NULL);
+		qp =  rcu_dereference_protected(qp->next,
+						lockdep_is_held(ql));
+		while (qp) {
+			qp_inuse++;
+			qp =  rcu_dereference_protected(qp->next,
+							lockdep_is_held(ql));
+		}
+	}
+	spin_unlock_irqrestore(ql, flags);
+	synchronize_rcu();
+	return qp_inuse;
+}
+
+void rvt_qp_exit(struct rvt_dev_info *rdi)
+{
+	u32 qps_inuse = free_all_qps(rdi);
+
+	qps_inuse = free_all_qps(rdi);
+	if (qps_inuse)
+		rvt_pr_err(rdi, "QP memory leak! %u still in use\n",
+			   qps_inuse);
+	if (!rdi->qp_dev)
+		return;
+
+	kfree(rdi->qp_dev->qp_table);
+	free_qpn_table(&rdi->qp_dev->qpn_table);
+	kfree(rdi->qp_dev);
+}
 
 /**
  * rvt_create_qp - create a queue pair for a device

@@ -50,6 +50,8 @@
 
 #include <rdma/rdma_vt.h>
 
+int rvt_driver_qp_init(struct rvt_dev_info *rdi);
+void rvt_qp_exit(struct rvt_dev_info *rdi);
 struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata);

@@ -172,7 +172,13 @@ struct rvt_driver_params {
 	 * For instance special module parameters. Goes here.
 	 */
 	unsigned int lkey_table_size;
+	unsigned int qp_table_size;
+	int qpn_start;
+	int qpn_inc;
+	int qpn_res_start;
+	int qpn_res_end;
 	int nports;
+	u8 qos_shift;
 };
 
 /* Protection domain */
@@ -205,6 +211,7 @@ struct rvt_driver_provided {
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
 	const char * (*get_card_name)(struct rvt_dev_info *rdi);
 	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
+	void (*free_all_qps)(struct rvt_dev_info *rdi);
 
 	/*--------------------*/
 	/* Optional functions */
@@ -245,6 +252,8 @@ struct rvt_dev_info {
 
 	int flags;
 	struct rvt_ibport **ports;
+
+	struct rvt_qp_ibdev *qp_dev;
 };
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
