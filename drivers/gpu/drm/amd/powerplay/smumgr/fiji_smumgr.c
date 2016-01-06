@@ -1033,7 +1033,7 @@ int fiji_smum_init(struct pp_smumgr *smumgr)
 	fiji_smu = kzalloc(sizeof(struct fiji_smumgr), GFP_KERNEL);
 
 	if (fiji_smu == NULL)
-		return -1;
+		return -ENOMEM;
 
 	smumgr->backend = fiji_smu;
 	smumgr->smumgr_funcs = &fiji_smu_funcs;

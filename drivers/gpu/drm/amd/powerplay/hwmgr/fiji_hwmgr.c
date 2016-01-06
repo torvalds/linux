@@ -914,7 +914,7 @@ static int fiji_trim_voltage_table(struct pp_hwmgr *hwmgr,
 			GFP_KERNEL);
 
 	if (NULL == table)
-		return -EINVAL;
+		return -ENOMEM;
 
 	table->mask_low = vol_table->mask_low;
 	table->phase_delay = vol_table->phase_delay;

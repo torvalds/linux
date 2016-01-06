@@ -168,7 +168,7 @@ static int get_vddc_lookup_table(
 		kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table)
-		return -1;
+		return -ENOMEM;
 
 	memset(table, 0x00, table_size);
 
@@ -206,7 +206,7 @@ static int get_platform_power_management_table(
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
 	if (NULL == ptr)
-		return -1;
+		return -ENOMEM;
 
 	ptr->ppm_design
 		= atom_ppm_table->ucPpmDesign;
@@ -327,7 +327,7 @@ static int get_valid_clk(
 	table = (struct phm_clock_array *)kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table)
-		return -1;
+		return -ENOMEM;
 
 	memset(table, 0x00, table_size);
 
@@ -378,7 +378,7 @@ static int get_mclk_voltage_dependency_table(
 		kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == mclk_table)
-		return -1;
+		return -ENOMEM;
 
 	memset(mclk_table, 0x00, table_size);
 
@@ -421,7 +421,7 @@ static int get_sclk_voltage_dependency_table(
 		kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == sclk_table)
-		return -1;
+		return -ENOMEM;
 
 	memset(sclk_table, 0x00, table_size);
 
@@ -464,7 +464,7 @@ static int get_pcie_table(
 	pcie_table = (phm_ppt_v1_pcie_table *)kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == pcie_table)
-		return -1;
+		return -ENOMEM;
 
 	memset(pcie_table, 0x00, table_size);
 
@@ -506,14 +506,14 @@ static int get_cac_tdp_table(
 	tdp_table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == tdp_table)
-		return -1;
+		return -ENOMEM;
 
 	memset(tdp_table, 0x00, table_size);
 
 	hwmgr->dyn_state.cac_dtp_table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == hwmgr->dyn_state.cac_dtp_table)
-		return -1;
+		return -ENOMEM;
 
 	memset(hwmgr->dyn_state.cac_dtp_table, 0x00, table_size);
 
@@ -614,7 +614,7 @@ static int get_mm_clock_voltage_table(
 		kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == mm_table)
-		return -1;
+		return -ENOMEM;
 
 	memset(mm_table, 0x00, table_size);
 
@@ -943,7 +943,7 @@ int tonga_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 	hwmgr->pptable = kzalloc(sizeof(struct phm_ppt_v1_information), GFP_KERNEL);
 
 	PP_ASSERT_WITH_CODE((NULL != hwmgr->pptable),
-			    "Failed to allocate hwmgr->pptable!", return -1);
+			    "Failed to allocate hwmgr->pptable!", return -ENOMEM);
 
 	memset(hwmgr->pptable, 0x00, sizeof(struct phm_ppt_v1_information));
 

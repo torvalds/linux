@@ -115,9 +115,12 @@ const unsigned long PhwTonga_Magic = (unsigned long)(PHM_VIslands_Magic);
 struct tonga_power_state *cast_phw_tonga_power_state(
 				  struct pp_hw_power_state *hw_ps)
 {
+	if (hw_ps == NULL)
+		return NULL;
+
 	PP_ASSERT_WITH_CODE((PhwTonga_Magic == hw_ps->magic),
 				"Invalid Powerstate Type!",
-				 return NULL;);
+				 return NULL);
 
 	return (struct tonga_power_state *)hw_ps;
 }
@@ -125,9 +128,12 @@ struct tonga_power_state *cast_phw_tonga_power_state(
 const struct tonga_power_state *cast_const_phw_tonga_power_state(
 				 const struct pp_hw_power_state *hw_ps)
 {
+	if (hw_ps == NULL)
+		return NULL;
+
 	PP_ASSERT_WITH_CODE((PhwTonga_Magic == hw_ps->magic),
 				"Invalid Powerstate Type!",
-				 return NULL;);
+				 return NULL);
 
 	return (const struct tonga_power_state *)hw_ps;
 }
@@ -1678,9 +1684,9 @@ static int tonga_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 		CONVERT_FROM_HOST_TO_SMC_UL(table->UvdLevel[count].VclkFrequency);
 		CONVERT_FROM_HOST_TO_SMC_UL(table->UvdLevel[count].DclkFrequency);
 		//CONVERT_FROM_HOST_TO_SMC_UL((uint32_t)table->UvdLevel[count].MinVoltage);
-    }
+	}
 
-    return result;
+	return result;
 
 }
 
@@ -1719,7 +1725,7 @@ static int tonga_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 		PP_ASSERT_WITH_CODE((0 == result),
 				"can not find divide id for VCE engine clock", return result);
 
-		table->VceLevel[count].Divider    = (uint8_t)dividers.pll_post_divider;
+		table->VceLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
 
 		CONVERT_FROM_HOST_TO_SMC_UL(table->VceLevel[count].Frequency);
 	}
@@ -1804,7 +1810,7 @@ static int tonga_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
 		PP_ASSERT_WITH_CODE((0 == result),
 			"can not find divide id for samu clock", return result);
 
-		table->SamuLevel[count].Divider     = (uint8_t)dividers.pll_post_divider;
+		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
 
 		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
 	}
@@ -1847,7 +1853,7 @@ static int tonga_calculate_mclk_params(
 		"Error retrieving Memory Clock Parameters from VBIOS.", return result);
 
 	/* MPLL_FUNC_CNTL setup*/
-	mpll_func_cntl    = PHM_SET_FIELD(mpll_func_cntl, MPLL_FUNC_CNTL, BWCTRL, mpll_param.bw_ctrl);
+	mpll_func_cntl = PHM_SET_FIELD(mpll_func_cntl, MPLL_FUNC_CNTL, BWCTRL, mpll_param.bw_ctrl);
 
 	/* MPLL_FUNC_CNTL_1 setup*/
 	mpll_func_cntl_1  = PHM_SET_FIELD(mpll_func_cntl_1,
@@ -3864,6 +3870,7 @@ int tonga_copy_vbios_smc_reg_table(const pp_atomctrl_mc_reg_table *table, phw_to
 				table->mc_reg_table_entry[i].mc_data[j];
 		}
 	}
+
 	ni_table->num_entries = table->num_entries;
 
 	return 0;
@@ -3989,7 +3996,7 @@ int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	table = kzalloc(sizeof(pp_atomctrl_mc_reg_table), GFP_KERNEL);
 
 	if (NULL == table)
-		return -1;
+		return -ENOMEM;
 
 	/* Program additional LP registers that are no longer programmed by VBIOS */
 	cgs_write_register(hwmgr->device, mmMC_SEQ_RAS_TIMING_LP, cgs_read_register(hwmgr->device, mmMC_SEQ_RAS_TIMING));
@@ -5470,7 +5477,6 @@ static int tonga_generate_dpm_level_enable_mask(struct pp_hwmgr *hwmgr, const vo
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 	const struct tonga_power_state *tonga_ps = cast_const_phw_tonga_power_state(states->pnew_state);
 
-
 	result = tonga_trim_dpm_states(hwmgr, tonga_ps);
 	if (0 != result)
 		return result;
@@ -5732,7 +5738,7 @@ static int tonga_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_
 	if (phm_is_hw_access_blocked(hwmgr))
 		return 0;
 
-    return (0 == smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm) ? 0 : -EINVAL);
+	return (0 == smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm) ? 0 : -1);
 }
 
 int tonga_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
@@ -5826,7 +5832,7 @@ static int tonga_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_
 	if (phm_is_hw_access_blocked(hwmgr))
 		return 0;
 
-	return (0 == smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetFanRpmMax, us_max_fan_pwm) ? 0 : -EINVAL);
+	return (0 == smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetFanRpmMax, us_max_fan_pwm) ? 0 : -1);
 }
 
 uint32_t tonga_get_xclk(struct pp_hwmgr *hwmgr)
@@ -5962,7 +5968,7 @@ int tonga_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_st
 	const struct tonga_power_state *psb = cast_const_phw_tonga_power_state(pstate2);
 	int i;
 
-	if (pstate1 == NULL || pstate2 == NULL || equal == NULL)
+	if (equal == NULL || psa == NULL || psb == NULL)
 		return -EINVAL;
 
 	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
