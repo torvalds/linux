@@ -232,6 +232,12 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, modify_ah);
 	CHECK_DRIVER_OVERRIDE(rdi, query_ah);
 
+	/* Shared Receive Queue */
+	CHECK_DRIVER_OVERRIDE(rdi, create_srq);
+	CHECK_DRIVER_OVERRIDE(rdi, modify_srq);
+	CHECK_DRIVER_OVERRIDE(rdi, destroy_srq);
+	CHECK_DRIVER_OVERRIDE(rdi, query_srq);
+
 	/* Mem Region */
 	CHECK_DRIVER_OVERRIDE(rdi, get_dma_mr);
 	CHECK_DRIVER_OVERRIDE(rdi, reg_user_mr);
