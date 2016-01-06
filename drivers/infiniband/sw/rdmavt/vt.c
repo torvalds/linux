@@ -157,6 +157,27 @@ static int rvt_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 	return 0;
 }
 
+/**
+ * rvt_query_gid - Return a gid from the table
+ * @ibdev: Verbs IB dev
+ * @port: Port number
+ * @index: = Index in table
+ * @gid: Gid to return
+ *
+ * Returns 0 on success
+ */
+static int rvt_query_gid(struct ib_device *ibdev, u8 port,
+			 int index, union ib_gid *gid)
+{
+	/*
+	 * Driver is responsible for updating the guid table. Which will be used
+	 * to craft the return value. This will work similar to how query_pkey()
+	 * is being done.
+	 */
+
+	return -EOPNOTSUPP;
+}
+
 /*
  * Check driver override. If driver passes a value use it, otherwise we use our
  * own value.
@@ -175,6 +196,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, query_port);
 	CHECK_DRIVER_OVERRIDE(rdi, modify_port);
 	CHECK_DRIVER_OVERRIDE(rdi, query_pkey);
+	CHECK_DRIVER_OVERRIDE(rdi, query_gid);
 
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
