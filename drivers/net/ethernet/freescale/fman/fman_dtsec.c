@@ -934,7 +934,7 @@ int dtsec_set_tx_pause_frames(struct fman_mac *dtsec,
 
 	/* FM_BAD_TX_TS_IN_B_2_B_ERRATA_DTSEC_A003 Errata workaround */
 	if (dtsec->fm_rev_info.major == 2)
-		if (pause_time < 0 && pause_time <= 320) {
+		if (pause_time <= 320) {
 			pr_warn("pause-time: %d illegal.Should be > 320\n",
 				pause_time);
 			return -EINVAL;
