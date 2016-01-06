@@ -468,7 +468,7 @@ static int medusa_l1_file_receive(struct file *file)
 
 static int medusa_l1_task_create(unsigned long clone_flags)
 {
-        if(medusa_fork(NULL, clone_flags) == MED_NO)
+        if(medusa_fork(clone_flags) == MED_NO)
                 return -EPERM;   
 	return 0;
 }

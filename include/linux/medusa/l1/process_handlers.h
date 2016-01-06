@@ -15,8 +15,7 @@
 
 extern medusa_answer_t medusa_setresuid(uid_t ruid, uid_t euid, uid_t suid);
 extern medusa_answer_t medusa_capable(int cap);
-extern medusa_answer_t medusa_fork(struct task_struct *new,
-		unsigned long clone_flags);
+extern medusa_answer_t medusa_fork(unsigned long clone_flags);
 extern medusa_answer_t medusa_init_process(struct task_struct *new);
 extern medusa_answer_t medusa_sendsig(int sig, struct siginfo *info,
 		struct task_struct *p); 
