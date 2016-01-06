@@ -349,6 +349,14 @@ struct rvt_qp {
 		____cacheline_aligned_in_smp;
 };
 
+struct rvt_srq {
+	struct ib_srq ibsrq;
+	struct rvt_rq rq;
+	struct rvt_mmap_info *ip;
+	/* send signal when number of RWQEs < limit */
+	u32 limit;
+};
+
 /* End QP section */
 
 /*
@@ -483,6 +491,11 @@ static inline void rvt_put_mr(struct rvt_mregion *mr)
 static inline void rvt_get_mr(struct rvt_mregion *mr)
 {
 	atomic_inc(&mr->refcount);
+}
+
+static inline struct rvt_srq *ibsrq_to_rvtsrq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct rvt_srq, ibsrq);
 }
 
 int rvt_register_device(struct rvt_dev_info *rvd);
