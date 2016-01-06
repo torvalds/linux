@@ -1159,8 +1159,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 			slave->data->phy_id, slave->slave_num);
 		slave->phy = NULL;
 	} else {
-		dev_info(priv->dev, "phy found : id is : 0x%x\n",
-			 slave->phy->phy_id);
+		phy_attached_info(slave->phy);
+
 		phy_start(slave->phy);
 
 		/* Configure GMII_SEL register */

@@ -1163,10 +1163,6 @@ static int smsc9420_mii_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	phydev = pd->mii_bus->phy_map[1];
-	netif_info(pd, probe, pd->dev, "PHY addr %d, phy_id 0x%08X\n",
-		   phydev->addr, phydev->phy_id);
-
 	phydev = phy_connect(dev, phydev_name(phydev),
 			     smsc9420_phy_adjust_link, PHY_INTERFACE_MODE_MII);
 
@@ -1175,13 +1171,12 @@ static int smsc9420_mii_probe(struct net_device *dev)
 		return PTR_ERR(phydev);
 	}
 
-	netdev_info(dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		    phydev->drv->name, phydev_name(phydev), phydev->irq);
-
 	/* mask with MAC supported features */
 	phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
 			      SUPPORTED_Asym_Pause);
 	phydev->advertising = phydev->supported;
+
+	phy_attached_info(phydev);
 
 	pd->phy_dev = phydev;
 	pd->last_duplex = -1;

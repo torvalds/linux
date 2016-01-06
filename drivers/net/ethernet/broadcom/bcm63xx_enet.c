@@ -908,8 +908,7 @@ static int bcm_enet_open(struct net_device *dev)
 		else
 			phydev->advertising &= ~SUPPORTED_Pause;
 
-		dev_info(kdev, "attached PHY at address %d [%s]\n",
-			 phydev->addr, phydev->drv->name);
+		phy_attached_info(phydev);
 
 		priv->old_link = 0;
 		priv->old_duplex = -1;

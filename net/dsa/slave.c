@@ -1080,10 +1080,9 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 			netdev_err(slave_dev, "failed to connect to port %d: %d\n", p->port, ret);
 			return ret;
 		}
-	} else {
-		netdev_info(slave_dev, "attached PHY at address %d [%s]\n",
-			    p->phy->addr, p->phy->drv->name);
 	}
+
+	phy_attached_info(p->phy);
 
 	return 0;
 }

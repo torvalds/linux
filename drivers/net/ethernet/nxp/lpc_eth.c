@@ -816,9 +816,8 @@ static int lpc_mii_probe(struct net_device *ndev)
 	pldat->duplex = -1;
 	pldat->phy_dev = phydev;
 
-	netdev_info(ndev,
-		"attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		phydev->drv->name, phydev_name(phydev), phydev->irq);
+	phy_attached_info(phydev);
+
 	return 0;
 }
 

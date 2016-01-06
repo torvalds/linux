@@ -1826,8 +1826,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 		return PTR_ERR(phydev);
 	}
 
-	netdev_info(ndev, "attached PHY %d (IRQ %d) to driver %s\n",
-		    phydev->addr, phydev->irq, phydev_name(phydev));
+	phy_attached_info(phydev);
 
 	mdp->phydev = phydev;
 

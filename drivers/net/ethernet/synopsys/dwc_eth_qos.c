@@ -972,9 +972,7 @@ static int dwceqos_mii_probe(struct net_device *ndev)
 	}
 
 	if (netif_msg_probe(lp))
-		netdev_dbg(lp->ndev,
-			   "phydev %p, phydev->phy_id 0xa%x, phydev->addr 0x%x\n",
-			   phydev, phydev->phy_id, phydev->addr);
+		phy_attached_info(phydev);
 
 	phydev->supported &= PHY_GBIT_FEATURES;
 
@@ -982,14 +980,6 @@ static int dwceqos_mii_probe(struct net_device *ndev)
 	lp->speed   = 0;
 	lp->duplex  = DUPLEX_UNKNOWN;
 	lp->phy_dev = phydev;
-
-	if (netif_msg_probe(lp)) {
-		netdev_dbg(lp->ndev, "phy_addr 0x%x, phy_id 0x%08x\n",
-			   lp->phy_dev->addr, lp->phy_dev->phy_id);
-
-		netdev_dbg(lp->ndev, "attach [%s] phy driver\n",
-			   lp->phy_dev->drv->name);
-	}
 
 	return 0;
 }

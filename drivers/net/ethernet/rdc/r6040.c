@@ -1061,9 +1061,7 @@ static int r6040_mii_probe(struct net_device *dev)
 	lp->old_link = 0;
 	lp->old_duplex = -1;
 
-	dev_info(&lp->pdev->dev, "attached PHY driver [%s] "
-		"(mii_bus:phy_addr=%s)\n",
-		phydev->drv->name, phydev_name(phydev));
+	phy_attached_info(phydev);
 
 	return 0;
 }

@@ -638,10 +638,8 @@ static int tc_mii_probe(struct net_device *dev)
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
 		return PTR_ERR(phydev);
 	}
-	printk(KERN_INFO "%s: attached PHY driver [%s] "
-		"(mii_bus:phy_addr=%s, id=%x)\n",
-		dev->name, phydev->drv->name, phydev_name(phydev),
-		phydev->phy_id);
+
+	phy_attached_info(phydev);
 
 	/* mask with MAC supported features */
 	phydev->supported &= PHY_BASIC_FEATURES;

@@ -3289,9 +3289,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 	phydev->autoneg = AUTONEG_ENABLE;
 	adapter->phydev = phydev;
 
-	dev_info(&adapter->pdev->dev,
-		 "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
-		 phydev->drv->name, phydev_name(phydev));
+	phy_attached_info(phydev);
 
 	return 0;
 }

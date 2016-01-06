@@ -408,9 +408,7 @@ ltq_etop_mdio_probe(struct net_device *dev)
 
 	phydev->advertising = phydev->supported;
 	priv->phydev = phydev;
-	pr_info("%s: attached PHY [%s] (phy_addr=%s, irq=%d)\n",
-	       dev->name, phydev->drv->name,
-	       phydev_name(phydev), phydev->irq);
+	phy_attached_info(phydev);
 
 	return 0;
 }

@@ -583,9 +583,7 @@ static int au1000_mii_probe(struct net_device *dev)
 	aup->old_duplex = -1;
 	aup->phy_dev = phydev;
 
-	netdev_info(dev, "attached PHY driver [%s] "
-	       "(mii_bus:phy_addr=%s, irq=%d)\n",
-	       phydev->drv->name, phydev_name(phydev), phydev->irq);
+	phy_attached_info(phydev);
 
 	return 0;
 }
