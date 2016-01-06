@@ -22,7 +22,7 @@
 #define DDRC_PSTAT		0x3fc
 #define DDRC_PCTRL_0		0x490
 #define DDRC_DFIMISC		0x1b0
-#defien DDRC_DBGCAM		0x308
+#define DDRC_DBGCAM		0x308
 #define DDRC_SWCTL		0x320
 #define DDRC_SWSTAT		0x324
 #define DDRPHY_LP_CON0		0x18
@@ -72,10 +72,8 @@
 	str	r7, [r4, #DDRC_DBG1]
 
 	ldr	r6, =0x30000000
-	ldr	r8, =0x300
-	orr	r8, r8, #0x8
 3:
-	ldr	r7, [r4, r8]
+	ldr	r7, [r4, #DDRC_DBGCAM]
 	and	r7, r7, r6
 	cmp	r7, r6
 	bne	3b
