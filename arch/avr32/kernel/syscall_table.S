@@ -335,4 +335,7 @@ sys_call_table:
 	.long	sys_bpf
 	.long	sys_execveat		/* 320 */
 	.long	sys_accept4
+	.long	sys_userfaultfd
+	.long	sys_membarrier
+	.long	sys_mlock2
 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */
