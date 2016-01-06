@@ -228,9 +228,9 @@ int fiji_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 	}
 
 	cgs_write_register(smumgr->device, mmSMC_MESSAGE_0, msg);
-    SMUM_WAIT_FIELD_UNEQUAL(smumgr, SMC_RESP_0, SMC_RESP, 0);
+	SMUM_WAIT_FIELD_UNEQUAL(smumgr, SMC_RESP_0, SMC_RESP, 0);
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -557,7 +557,7 @@ static int fiji_request_smu_specific_fw_load(struct pp_smumgr *smumgr, uint32_t 
 	/* For non-virtualization cases,
 	 * SMU loads all FWs at once in fiji_request_smu_load_fw.
 	 */
-    return 0;
+	return 0;
 }
 
 static int fiji_start_smu_in_protection_mode(struct pp_smumgr *smumgr)
@@ -723,7 +723,7 @@ static int fiji_start_avfs_btc(struct pp_smumgr *smumgr)
 	/* clear reset */
 	cgs_write_register(smumgr->device, mmGRBM_SOFT_RESET, 0);
 
-    return result;
+	return result;
 }
 
 int fiji_setup_pm_fuse_for_avfs(struct pp_smumgr *smumgr)

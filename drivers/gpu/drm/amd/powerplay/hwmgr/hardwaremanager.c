@@ -317,4 +317,3 @@ int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 
 	return 0;
 }
-
