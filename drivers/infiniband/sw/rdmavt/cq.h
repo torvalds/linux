@@ -1,5 +1,5 @@
-#ifndef DEF_RDMAVT_H
-#define DEF_RDMAVT_H
+#ifndef DEF_RVTCQ_H
+#define DEF_RVTCQ_H
 
 /*
  * Copyright(c) 2015 Intel Corporation.
@@ -49,14 +49,14 @@
  */
 
 #include <rdma/rdma_vt.h>
-#include "dma.h"
-#include "pd.h"
-#include "qp.h"
-#include "ah.h"
-#include "mr.h"
-#include "srq.h"
-#include "mcast.h"
-#include "mmap.h"
-#include "cq.h"
 
-#endif          /* DEF_RDMAVT_H */
+struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_ucontext *context,
+			    struct ib_udata *udata);
+int rvt_destroy_cq(struct ib_cq *ibcq);
+int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags);
+int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
+int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
+
+#endif          /* DEF_RVTCQ_H */

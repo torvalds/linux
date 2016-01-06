@@ -260,6 +260,13 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, dealloc_fmr);
 	CHECK_DRIVER_OVERRIDE(rdi, mmap);
 
+	/* Completion queues */
+	CHECK_DRIVER_OVERRIDE(rdi, create_cq);
+	CHECK_DRIVER_OVERRIDE(rdi, destroy_cq);
+	CHECK_DRIVER_OVERRIDE(rdi, poll_cq);
+	CHECK_DRIVER_OVERRIDE(rdi, req_notify_cq);
+	CHECK_DRIVER_OVERRIDE(rdi, resize_cq);
+
 	/* DMA Operations */
 	rdi->ibdev.dma_ops =
 		rdi->ibdev.dma_ops ? : &rvt_default_dma_mapping_ops;
