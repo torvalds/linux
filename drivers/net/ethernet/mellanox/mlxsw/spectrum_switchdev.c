@@ -299,6 +299,22 @@ static int mlxsw_sp_port_attr_br_ageing_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_sp_ageing_set(mlxsw_sp, ageing_time);
 }
 
+static int mlxsw_sp_port_attr_br_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					  struct switchdev_trans *trans,
+					  struct net_device *orig_dev,
+					  bool vlan_enabled)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+
+	/* SWITCHDEV_TRANS_PREPARE phase */
+	if ((!vlan_enabled) && (mlxsw_sp->master_bridge.dev == orig_dev)) {
+		netdev_err(mlxsw_sp_port->dev, "Bridge must be vlan-aware\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_port_attr_set(struct net_device *dev,
 				  const struct switchdev_attr *attr,
 				  struct switchdev_trans *trans)
@@ -322,6 +338,11 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
 		err = mlxsw_sp_port_attr_br_ageing_set(mlxsw_sp_port, trans,
 						       attr->u.ageing_time);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
+		err = mlxsw_sp_port_attr_br_vlan_set(mlxsw_sp_port, trans,
+						     attr->orig_dev,
+						     attr->u.vlan_filtering);
 		break;
 	default:
 		err = -EOPNOTSUPP;
