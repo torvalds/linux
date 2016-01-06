@@ -4,41 +4,6 @@
 #include <stdint.h>
 #include <lkl_host.h>
 
-struct virtio_desc {
-	uint64_t addr;
-	uint32_t len;
-	uint16_t flags;
-	uint16_t next;
-};
-
-struct virtio_avail {
-	uint16_t flags;
-	uint16_t idx;
-	uint16_t ring[];
-};
-
-struct virtio_used_elem {
-	uint32_t id;
-	uint32_t len;
-};
-
-struct virtio_used {
-	uint16_t flags;
-	uint16_t idx;
-	struct virtio_used_elem ring[];
-};
-
-struct virtio_queue {
-	uint32_t num_max;
-	uint32_t num;
-	uint32_t ready;
-
-	struct virtio_desc *desc;
-	struct virtio_avail *avail;
-	struct virtio_used *used;
-	uint16_t last_avail_idx;
-};
-
 #define VIRTIO_REQ_MAX_BUFS	4
 
 struct virtio_req {

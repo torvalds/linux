@@ -35,15 +35,19 @@
 #define VIRTIO_MMIO_INT_VRING		0x01
 #define VIRTIO_MMIO_INT_CONFIG		0x02
 
-#define VIRTIO_DEV_STATUS_ACK		0x01
-#define VIRTIO_DEV_STATUS_DRV		0x02
-#define VIRTIO_DEV_STATUS_FEATURES_OK	0x08
-#define VIRTIO_DEV_STATUS_DRV_OK	0x04
-#define VIRTIO_DEV_STATUS_FAILED	0x80
+#define BIT(x) (1ULL << x)
 
-#define VIRTIO_F_VERSION_1		(1ULL << 32)
-#define VIRTIO_RING_F_EVENT_IDX		(1ULL << 29)
-#define VIRTIO_DESC_F_NEXT		1
+struct virtio_queue {
+	uint32_t num_max;
+	uint32_t num;
+	uint32_t ready;
+
+	struct lkl_vring_desc *desc;
+	struct lkl_vring_avail *avail;
+	struct lkl_vring_used *used;
+	uint16_t last_avail_idx;
+};
+
 
 static inline uint16_t virtio_get_used_event(struct virtio_queue *q)
 {
@@ -82,8 +86,8 @@ static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
 			      int idx)
 {
 	int j, ret;
-	uint16_t prev_flags = VIRTIO_DESC_F_NEXT;
-	struct virtio_desc *i;
+	uint16_t prev_flags = LKL_VRING_DESC_F_NEXT;
+	struct lkl_vring_desc *i;
 	struct virtio_req req = {
 		.dev = dev,
 		.q = q,
@@ -91,7 +95,7 @@ static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
 	};
 
 	for (i = &q->desc[le16toh(req.idx) & (q->num - 1)], j = 0;
-	     prev_flags & VIRTIO_DESC_F_NEXT;
+	     prev_flags & LKL_VRING_DESC_F_NEXT;
 	     i = &q->desc[le16toh(i->next) & (q->num - 1)], j++) {
 		prev_flags = le16toh(i->flags);
 		if (j >= VIRTIO_REQ_MAX_BUFS)
@@ -218,6 +222,16 @@ static inline void set_ptr_high(void **ptr, uint32_t val)
 	*ptr = (void *)(long)tmp;
 }
 
+static inline void set_status(struct virtio_dev *dev, uint32_t val)
+{
+	if ((val & LKL_VIRTIO_CONFIG_S_FEATURES_OK) &&
+	    (!(dev->driver_features & BIT(LKL_VIRTIO_F_VERSION_1)) ||
+	     !(dev->driver_features & BIT(LKL_VIRTIO_RING_F_EVENT_IDX)) ||
+	     dev->ops->check_features(dev)))
+		val &= ~LKL_VIRTIO_CONFIG_S_FEATURES_OK;
+	dev->status = val;
+}
+
 static int virtio_write(void *data, int offset, void *res, int size)
 {
 	struct virtio_dev *dev = (struct virtio_dev *)data;
@@ -269,12 +283,7 @@ static int virtio_write(void *data, int offset, void *res, int size)
 		dev->int_status = 0;
 		break;
 	case VIRTIO_MMIO_STATUS:
-		if (val & VIRTIO_DEV_STATUS_FEATURES_OK &&
-		    (!(dev->driver_features & VIRTIO_F_VERSION_1) ||
-		     !(dev->driver_features & VIRTIO_RING_F_EVENT_IDX) ||
-		     dev->ops->check_features(dev)))
-			val &= ~VIRTIO_DEV_STATUS_FEATURES_OK;
-		dev->status = val;
+		set_status(dev, val);
 		break;
 	case VIRTIO_MMIO_QUEUE_DESC_LOW:
 		set_ptr_low((void **)&q->desc, val);
@@ -319,7 +328,8 @@ int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max)
 	if (dev->irq < 0)
 		return dev->irq;
 
-	dev->device_features |= VIRTIO_F_VERSION_1 | VIRTIO_RING_F_EVENT_IDX;
+	dev->device_features |= BIT(LKL_VIRTIO_F_VERSION_1) |
+		BIT(LKL_VIRTIO_RING_F_EVENT_IDX);
 	dev->queue = lkl_host_ops.mem_alloc(qsize);
 	if (!dev->queue)
 		return -LKL_ENOMEM;

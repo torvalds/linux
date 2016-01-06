@@ -3,10 +3,6 @@
 #include "virtio.h"
 #include "endian.h"
 
-#define BIT(x) (1<<x)
-
-#define VIRTIO_NET_F_MAC	BIT(5)
-
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;
 	void *sem;
@@ -15,33 +11,11 @@ struct virtio_net_poll {
 
 struct virtio_net_dev {
 	struct virtio_dev dev;
-	struct {
-		uint8_t mac[6];
-		uint16_t status;
-		uint16_t max_virqueue_pairs;
-	} config __attribute__((packed));
+	struct lkl_virtio_net_config config;
 	struct lkl_dev_net_ops *ops;
 	union lkl_netdev nd;
 	struct virtio_net_poll rx_poll, tx_poll;
 };
-
-#define VIRTIO_NET_HDR_F_NEEDS_CSUM    1
-#define VIRTIO_NET_HDR_GSO_NONE        0
-#define VIRTIO_NET_HDR_GSO_TCPV4       1
-#define VIRTIO_NET_HDR_GSO_UDP         3
-#define VIRTIO_NET_HDR_GSO_TCPV6       4
-#define VIRTIO_NET_HDR_GSO_ECN      0x80
-
-struct virtio_net_header {
-        uint8_t flags;
-        uint8_t gso_type;
-        uint16_t hdr_len;
-        uint16_t gso_size;
-        uint16_t csum_start;
-        uint16_t csum_offset;
-        uint16_t num_buffers;
-	char data[];
-} __attribute((packed));
 
 static int net_check_features(struct virtio_dev *dev)
 {
@@ -51,17 +25,9 @@ static int net_check_features(struct virtio_dev *dev)
 	return -LKL_EINVAL;
 }
 
-#if 0
-static void net_notify(struct virtio_dev *dev, int qidx)
-{
-	if (qidx == 0)
-		virtio_process_queue(dev, qidx);
-}
-#endif
-
 static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 {
-	struct virtio_net_header *h;
+	struct lkl_virtio_net_hdr_v1 *h;
 	struct virtio_net_dev *net_dev;
 	int ret, len;
 	void *buf;
@@ -69,7 +35,8 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 	h = req->buf[0].addr;
 	net_dev = container_of(dev, struct virtio_net_dev, dev);
 	len = req->buf[0].len - sizeof(*h);
-	buf = h->data;
+
+	buf = &h[1];
 
 	if (!len && req->buf_count > 1) {
 		buf = req->buf[1].addr;
@@ -124,11 +91,11 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	if (!dev)
 		return -LKL_ENOMEM;
 
-	dev->dev.device_id = 1;
+	dev->dev.device_id = LKL_VIRTIO_ID_NET;
 	dev->dev.vendor_id = 0;
 	dev->dev.device_features = 0;
 	if (mac)
-		dev->dev.device_features |= VIRTIO_NET_F_MAC;
+		dev->dev.device_features |= LKL_VIRTIO_NET_F_MAC;
 	dev->dev.config_gen = 0;
 	dev->dev.config_data = &dev->config;
 	dev->dev.config_len = sizeof(dev->config);

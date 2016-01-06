@@ -4,17 +4,9 @@
 
 struct virtio_blk_dev {
 	struct virtio_dev dev;
-	struct {
-		uint64_t capacity;
-	} config;
+	struct lkl_virtio_blk_config config;
 	struct lkl_dev_blk_ops *ops;
 	union lkl_disk disk;
-};
-
-struct virtio_blk_req_header {
-	uint32_t type;
-	uint32_t prio;
-	uint64_t sector;
 };
 
 struct virtio_blk_req_trailer {
@@ -32,7 +24,7 @@ static int blk_check_features(struct virtio_dev *dev)
 static int blk_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 {
 	struct virtio_blk_dev *blk_dev;
-	struct virtio_blk_req_header *h;
+	struct lkl_virtio_blk_outhdr *h;
 	struct virtio_blk_req_trailer *t;
 	struct lkl_blk_req lkl_req;
 
@@ -58,7 +50,7 @@ static int blk_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 	}
 
 	lkl_req.type = le32toh(h->type);
-	lkl_req.prio = le32toh(h->prio);
+	lkl_req.prio = le32toh(h->ioprio);
 	lkl_req.sector = le32toh(h->sector);
 	lkl_req.buf = &req->buf[1];
 	lkl_req.count = req->buf_count - 2;
@@ -86,7 +78,7 @@ int lkl_disk_add(union lkl_disk disk)
 	if (!dev)
 		return -LKL_ENOMEM;
 
-	dev->dev.device_id = 2;
+	dev->dev.device_id = LKL_VIRTIO_ID_BLOCK;
 	dev->dev.vendor_id = 0;
 	dev->dev.device_features = 0;
 	dev->dev.config_gen = 0;
