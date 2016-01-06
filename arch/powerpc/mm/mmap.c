@@ -26,6 +26,7 @@
 #include <linux/mm.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <linux/elf-randomize.h>
 
 /*
  * Top of mmap area (just below the process stack).

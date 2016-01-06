@@ -38,6 +38,7 @@
 #include <linux/random.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/uaccess.h>
+#include <linux/elf-randomize.h>
 
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -55,6 +56,7 @@
 #include <asm/firmware.h>
 #endif
 #include <asm/code-patching.h>
+#include <asm/exec.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
