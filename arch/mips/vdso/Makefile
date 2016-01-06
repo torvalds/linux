@@ -26,8 +26,8 @@ aflags-vdso := $(ccflags-vdso) \
 # the comments on that file.
 #
 ifndef CONFIG_CPU_MIPSR6
-  ifeq ($(call ld-ifversion, -gt, 22400000, y),)
-    $(warning MIPS VDSO requires binutils > 2.24)
+  ifeq ($(call ld-ifversion, -lt, 22500000, y),y)
+    $(warning MIPS VDSO requires binutils >= 2.25)
     obj-vdso-y := $(filter-out gettimeofday.o, $(obj-vdso-y))
     ccflags-vdso += -DDISABLE_MIPS_VDSO
   endif
