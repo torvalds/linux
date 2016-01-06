@@ -207,20 +207,14 @@ after_vfp_restore:
 
 	restore_host_regs
 	clrex				@ Clear exclusive monitor
-#ifndef CONFIG_CPU_ENDIAN_BE8
 	mov	r0, r1			@ Return the return code
-	mov	r1, #0			@ Clear upper bits in return value
-#else
-	@ r1 already has return code
-	mov	r0, #0			@ Clear upper bits in return value
-#endif /* CONFIG_CPU_ENDIAN_BE8 */
 	bx	lr			@ return to IOCTL
 
 /********************************************************************
  *  Call function in Hyp mode
  *
  *
- * u64 kvm_call_hyp(void *hypfn, ...);
+ * unsigned long kvm_call_hyp(void *hypfn, ...);
  *
  * This is not really a variadic function in the classic C-way and care must
  * be taken when calling this to ensure parameters are passed in registers
@@ -231,7 +225,7 @@ after_vfp_restore:
  * passed as r0, r1, and r2 (a maximum of 3 arguments in addition to the
  * function pointer can be passed).  The function being called must be mapped
  * in Hyp mode (see init_hyp_mode in arch/arm/kvm/arm.c).  Return values are
- * passed in r0 and r1.
+ * passed in r0 (strictly 32bit).
  *
  * A function pointer with a value of 0xffffffff has a special meaning,
  * and is used to implement __hyp_get_vectors in the same way as in
