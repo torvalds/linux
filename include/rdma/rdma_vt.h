@@ -467,23 +467,6 @@ struct rvt_driver_params {
 	int nports;
 };
 
-/*
- * Functions that drivers are required to support
- */
-struct rvt_dev_info;
-struct rvt_driver_provided {
-	/*
-	 * The work to create port files in /sys/class Infiniband is different
-	 * depending on the driver. This should not be extracted away and
-	 * instead drivers are responsible for setting the correct callback for
-	 * this.
-	 */
-	int (*port_callback)(struct ib_device *, u8, struct kobject *);
-	const char * (*get_card_name)(struct rvt_dev_info *rdi);
-	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
-	int (*check_ah)(struct ib_device *, struct ib_ah_attr *);
-};
-
 /* Protection domain */
 struct rvt_pd {
 	struct ib_pd ibpd;
@@ -495,6 +478,32 @@ struct rvt_ah {
 	struct ib_ah ibah;
 	struct ib_ah_attr attr;
 	atomic_t refcount;
+	u8 vl;
+	u8 log_pmtu;
+};
+
+struct rvt_dev_info;
+struct rvt_driver_provided {
+	/*
+	 * The work to create port files in /sys/class Infiniband is different
+	 * depending on the driver. This should not be extracted away and
+	 * instead drivers are responsible for setting the correct callback for
+	 * this.
+	 */
+
+	/* -------------------*/
+	/* Required functions */
+	/* -------------------*/
+	int (*port_callback)(struct ib_device *, u8, struct kobject *);
+	const char * (*get_card_name)(struct rvt_dev_info *rdi);
+	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
+
+	/*--------------------*/
+	/* Optional functions */
+	/*--------------------*/
+	int (*check_ah)(struct ib_device *, struct ib_ah_attr *);
+	void (*notify_new_ah)(struct ib_device *, struct ib_ah_attr *,
+			      struct rvt_ah *);
 };
 
 struct rvt_dev_info {

@@ -83,8 +83,8 @@ int rvt_check_ah(struct ib_device *ibdev,
 		    !(ah_attr->ah_flags & IB_AH_GRH))
 			return -EINVAL;
 	}
-	if (rdi->driver_f.check_ah(ibdev, ah_attr))
-		return -EINVAL;
+	if (rdi->driver_f.check_ah)
+		return rdi->driver_f.check_ah(ibdev, ah_attr);
 	return 0;
 }
 EXPORT_SYMBOL(rvt_check_ah);
@@ -122,6 +122,9 @@ struct ib_ah *rvt_create_ah(struct ib_pd *pd,
 
 	ah->attr = *ah_attr;
 	atomic_set(&ah->refcount, 0);
+
+	if (dev->driver_f.notify_new_ah)
+		dev->driver_f.notify_new_ah(pd->device, ah_attr, ah);
 
 	return &ah->ibah;
 }
