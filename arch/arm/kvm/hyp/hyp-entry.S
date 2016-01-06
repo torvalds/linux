@@ -75,15 +75,29 @@ __kvm_hyp_vector:
 
 .macro invalid_vector label, cause
 	.align
-\label:	b	.
+\label:	mov	r0, #\cause
+	b	__hyp_panic
 .endm
 
-	invalid_vector	hyp_reset
-	invalid_vector	hyp_undef
-	invalid_vector	hyp_svc
-	invalid_vector	hyp_pabt
-	invalid_vector	hyp_dabt
-	invalid_vector	hyp_fiq
+	invalid_vector	hyp_reset	ARM_EXCEPTION_RESET
+	invalid_vector	hyp_undef	ARM_EXCEPTION_UNDEFINED
+	invalid_vector	hyp_svc		ARM_EXCEPTION_SOFTWARE
+	invalid_vector	hyp_pabt	ARM_EXCEPTION_PREF_ABORT
+	invalid_vector	hyp_dabt	ARM_EXCEPTION_DATA_ABORT
+	invalid_vector	hyp_fiq		ARM_EXCEPTION_FIQ
+
+ENTRY(__hyp_do_panic)
+	mrs	lr, cpsr
+	bic	lr, lr, #MODE_MASK
+	orr	lr, lr, #SVC_MODE
+THUMB(	orr	lr, lr, #PSR_T_BIT	)
+	msr	spsr_cxsf, lr
+	ldr	lr, =panic
+	msr	ELR_hyp, lr
+	ldr	lr, =kvm_call_hyp
+	clrex
+	eret
+ENDPROC(__hyp_do_panic)
 
 hyp_hvc:
 	/*
