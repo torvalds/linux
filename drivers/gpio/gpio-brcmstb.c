@@ -409,6 +409,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	int num_banks = 0;
 	int err;
 	static int gpio_base;
+	unsigned long flags = 0;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -438,6 +439,18 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	if (brcmstb_gpio_sanity_check_banks(dev, np, res))
 		return -EINVAL;
 
+	/*
+	 * MIPS endianness is configured by boot strap, which also reverses all
+	 * bus endianness (i.e., big-endian CPU + big endian bus ==> native
+	 * endian I/O).
+	 *
+	 * Other architectures (e.g., ARM) either do not support big endian, or
+	 * else leave I/O in little endian mode.
+	 */
+#if defined(CONFIG_MIPS) && defined(__BIG_ENDIAN)
+	flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+#endif
+
 	of_property_for_each_u32(np, "brcm,gpio-bank-widths", prop, p,
 			bank_width) {
 		struct brcmstb_gpio_bank *bank;
@@ -466,7 +479,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 		err = bgpio_init(gc, dev, 4,
 				reg_base + GIO_DATA(bank->id),
 				NULL, NULL, NULL,
-				reg_base + GIO_IODIR(bank->id), 0);
+				reg_base + GIO_IODIR(bank->id), flags);
 		if (err) {
 			dev_err(dev, "bgpio_init() failed\n");
 			goto fail;
