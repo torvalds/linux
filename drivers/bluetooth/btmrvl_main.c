@@ -543,7 +543,7 @@ static int btmrvl_setup(struct hci_dev *hdev)
 	if (ret)
 		return ret;
 
-	priv->btmrvl_dev.gpio_gap = 0xffff;
+	priv->btmrvl_dev.gpio_gap = 0xfffe;
 
 	btmrvl_check_device_tree(priv);
 
