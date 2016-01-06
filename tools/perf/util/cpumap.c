@@ -188,8 +188,17 @@ static struct cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 	if (map) {
 		unsigned i;
 
-		for (i = 0; i < cpus->nr; i++)
-			map->map[i] = (int)cpus->cpu[i];
+		for (i = 0; i < cpus->nr; i++) {
+			/*
+			 * Special treatment for -1, which is not real cpu number,
+			 * and we need to use (int) -1 to initialize map[i],
+			 * otherwise it would become 65535.
+			 */
+			if (cpus->cpu[i] == (u16) -1)
+				map->map[i] = -1;
+			else
+				map->map[i] = (int) cpus->cpu[i];
+		}
 	}
 
 	return map;
