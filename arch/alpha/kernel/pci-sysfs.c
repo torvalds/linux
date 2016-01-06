@@ -64,8 +64,7 @@ static int pci_mmap_resource(struct kobject *kobj,
 			     struct bin_attribute *attr,
 			     struct vm_area_struct *vma, int sparse)
 {
-	struct pci_dev *pdev = to_pci_dev(container_of(kobj,
-						       struct device, kobj));
+	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 	struct resource *res = attr->private;
 	enum pci_mmap_state mmap_type;
 	struct pci_bus_region bar;
