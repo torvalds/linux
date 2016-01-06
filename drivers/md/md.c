@@ -2455,15 +2455,20 @@ static int add_bound_rdev(struct md_rdev *rdev)
 {
 	struct mddev *mddev = rdev->mddev;
 	int err = 0;
+	bool add_journal = test_bit(Journal, &rdev->flags);
 
-	if (!mddev->pers->hot_remove_disk) {
+	if (!mddev->pers->hot_remove_disk || add_journal) {
 		/* If there is hot_add_disk but no hot_remove_disk
 		 * then added disks for geometry changes,
 		 * and should be added immediately.
 		 */
 		super_types[mddev->major_version].
 			validate_super(mddev, rdev);
+		if (add_journal)
+			mddev_suspend(mddev);
 		err = mddev->pers->hot_add_disk(mddev, rdev);
+		if (add_journal)
+			mddev_resume(mddev);
 		if (err) {
 			unbind_rdev_from_array(rdev);
 			export_rdev(rdev);
