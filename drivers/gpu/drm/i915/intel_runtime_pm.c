@@ -1851,7 +1851,7 @@ void skl_pw1_misc_io_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *well;
 
-	if (!IS_SKYLAKE(dev_priv))
+	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
 		return;
 
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
@@ -1865,7 +1865,7 @@ void skl_pw1_misc_io_fini(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *well;
 
-	if (!IS_SKYLAKE(dev_priv))
+	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
 		return;
 
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
