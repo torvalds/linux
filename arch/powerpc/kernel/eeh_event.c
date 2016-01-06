@@ -36,7 +36,7 @@
 
 static DEFINE_SPINLOCK(eeh_eventlist_lock);
 static struct semaphore eeh_eventlist_sem;
-LIST_HEAD(eeh_eventlist);
+static LIST_HEAD(eeh_eventlist);
 
 /**
  * eeh_event_handler - Dispatch EEH events.

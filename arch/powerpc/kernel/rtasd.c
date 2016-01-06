@@ -442,7 +442,7 @@ static void do_event_scan(void)
 }
 
 static void rtas_event_scan(struct work_struct *w);
-DECLARE_DELAYED_WORK(event_scan_work, rtas_event_scan);
+static DECLARE_DELAYED_WORK(event_scan_work, rtas_event_scan);
 
 /*
  * Delay should be at least one second since some machines have problems if
