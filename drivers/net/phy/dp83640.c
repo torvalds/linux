@@ -1492,12 +1492,11 @@ static struct phy_driver dp83640_driver = {
 	.hwtstamp	= dp83640_hwtstamp,
 	.rxtstamp	= dp83640_rxtstamp,
 	.txtstamp	= dp83640_txtstamp,
-	.driver		= {.owner = THIS_MODULE,}
 };
 
 static int __init dp83640_init(void)
 {
-	return phy_driver_register(&dp83640_driver);
+	return phy_driver_register(&dp83640_driver, THIS_MODULE);
 }
 
 static void __exit dp83640_exit(void)

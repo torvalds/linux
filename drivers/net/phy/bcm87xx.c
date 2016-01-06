@@ -201,7 +201,6 @@ static struct phy_driver bcm87xx_driver[] = {
 	.config_intr	= bcm87xx_config_intr,
 	.did_interrupt	= bcm87xx_did_interrupt,
 	.match_phy_device = bcm8706_match_phy_device,
-	.driver		= { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_ID_BCM8727,
 	.phy_id_mask	= 0xffffffff,
@@ -214,7 +213,6 @@ static struct phy_driver bcm87xx_driver[] = {
 	.config_intr	= bcm87xx_config_intr,
 	.did_interrupt	= bcm87xx_did_interrupt,
 	.match_phy_device = bcm8727_match_phy_device,
-	.driver		= { .owner = THIS_MODULE },
 } };
 
 module_phy_driver(bcm87xx_driver);

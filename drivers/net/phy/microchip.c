@@ -129,8 +129,6 @@ static struct phy_driver microchip_phy_driver[] = {
 	.suspend	= lan88xx_suspend,
 	.resume		= genphy_resume,
 	.set_wol	= lan88xx_set_wol,
-
-	.driver		= { .owner = THIS_MODULE, }
 } };
 
 module_phy_driver(microchip_phy_driver);

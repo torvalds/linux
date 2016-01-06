@@ -221,7 +221,6 @@ static struct phy_driver icplus_driver[] = {
 	.read_status	= &ip175c_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
-	.driver		= { .owner = THIS_MODULE,},
 }, {
 	.phy_id		= 0x02430d90,
 	.name		= "ICPlus IP1001",
@@ -233,7 +232,6 @@ static struct phy_driver icplus_driver[] = {
 	.read_status	= &genphy_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
-	.driver		= { .owner = THIS_MODULE,},
 }, {
 	.phy_id		= 0x02430c54,
 	.name		= "ICPlus IP101A/G",
@@ -247,7 +245,6 @@ static struct phy_driver icplus_driver[] = {
 	.read_status	= &genphy_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
-	.driver		= { .owner = THIS_MODULE,},
 } };
 
 module_phy_driver(icplus_driver);

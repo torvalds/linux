@@ -310,9 +310,6 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
 }, {
 	/* ATHEROS 8030 */
 	.phy_id			= ATH8030_PHY_ID,
@@ -331,9 +328,6 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
 }, {
 	/* ATHEROS 8031 */
 	.phy_id			= ATH8031_PHY_ID,
@@ -352,9 +346,6 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= genphy_read_status,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
-	.driver			= {
-		.owner = THIS_MODULE,
-	},
 } };
 
 module_phy_driver(at803x_driver);
