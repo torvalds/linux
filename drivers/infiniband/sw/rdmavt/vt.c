@@ -198,6 +198,12 @@ static int rvt_dealloc_ucontext(struct ib_ucontext *context)
 	return -EOPNOTSUPP;
 }
 
+static int rvt_get_port_immutable(struct ib_device *ibdev, u8 port_num,
+				  struct ib_port_immutable *immutable)
+{
+	return -EOPNOTSUPP;
+}
+
 /*
  * Check driver override. If driver passes a value use it, otherwise we use our
  * own value.
@@ -219,6 +225,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	CHECK_DRIVER_OVERRIDE(rdi, query_gid);
 	CHECK_DRIVER_OVERRIDE(rdi, alloc_ucontext);
 	CHECK_DRIVER_OVERRIDE(rdi, dealloc_ucontext);
+	CHECK_DRIVER_OVERRIDE(rdi, get_port_immutable);
 
 	/* Queue Pairs */
 	CHECK_DRIVER_OVERRIDE(rdi, create_qp);
