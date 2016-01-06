@@ -3157,6 +3157,8 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->area[0].yvir = var->yres_virtual;
 	win->area[0].xoff = xoffset;
 	win->area[0].yoff = yoffset;
+	win->state = 1;
+	win->last_state = 1;
 
 	win->area_num = 1;
 	win->alpha_mode = 4;	/* AB_SRC_OVER; */

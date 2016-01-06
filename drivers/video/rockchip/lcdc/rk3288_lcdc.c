@@ -1187,6 +1187,7 @@ static int rk3288_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
 	u32 val, mask;
+	struct rk_lcdc_win *win = dev_drv->win[0];
 	int swap = (format == RGB888) ? 1 : 0;
 
 	mask = m_WIN0_DATA_FMT | m_WIN0_RB_SWAP;
@@ -1201,6 +1202,8 @@ static int rk3288_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
 	lcdc_writel(lcdc_dev, WIN0_YRGB_MST, rgb_mst);
 
 	lcdc_cfg_done(lcdc_dev);
+	win->state = 1;
+	win->last_state = 1;
 
 	return 0;
 }
