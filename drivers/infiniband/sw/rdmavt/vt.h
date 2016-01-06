@@ -50,5 +50,6 @@
 
 #include <rdma/rdma_vt.h>
 #include "dma.h"
+#include "pd.h"
 
 #endif          /* DEF_RDMAVT_H */

@@ -76,9 +76,21 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	 * come up with a better mechanism that simplifies the code at some
 	 * point.
 	 */
+
+	/* DMA Operations */
 	rdi->ibdev.dma_ops =
 		rdi->ibdev.dma_ops ? : &rvt_default_dma_mapping_ops;
 
+	/* Protection Domain */
+	rdi->ibdev.alloc_pd =
+		rdi->ibdev.alloc_pd ? : rvt_alloc_pd;
+	rdi->ibdev.dealloc_pd =
+		rdi->ibdev.dealloc_pd ? : rvt_dealloc_pd;
+
+	spin_lock_init(&rdi->n_pds_lock);
+	rdi->n_pds_allocated = 0;
+
+	/* We are now good to announce we exist */
 	return ib_register_device(&rdi->ibdev, rdi->port_callback);
 }
 EXPORT_SYMBOL(rvt_register_device);

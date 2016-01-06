@@ -1,5 +1,5 @@
-#ifndef DEF_RDMA_VT_H
-#define DEF_RDMA_VT_H
+#ifndef DEF_RDMAVTPD_H
+#define DEF_RDMAVTPD_H
 
 /*
  * Copyright(c) 2015 Intel Corporation.
@@ -48,49 +48,11 @@
  *
  */
 
-/*
- * Structure that low level drivers will populate in order to register with the
- * rdmavt layer.
- */
+#include <rdma/rdma_vt.h>
 
-#include "ib_verbs.h"
+struct ib_pd *rvt_alloc_pd(struct ib_device *ibdev,
+			   struct ib_ucontext *context,
+			   struct ib_udata *udata);
+int rvt_dealloc_pd(struct ib_pd *ibpd);
 
-/*
- * Things that are driver specific, module parameters in hfi1 and qib
- */
-struct rvt_driver_params {
-	int max_pds;
-};
-
-/* Protection domain */
-struct rvt_pd {
-	struct ib_pd ibpd;
-	int user;               /* non-zero if created from user space */
-};
-
-struct rvt_dev_info {
-	struct ib_device ibdev;
-
-	/* Driver specific */
-	struct rvt_driver_params dparms;
-	int (*port_callback)(struct ib_device *, u8, struct kobject *);
-
-	/* Internal use */
-	int n_pds_allocated;
-	spinlock_t n_pds_lock; /* Protect pd allocated count */
-};
-
-static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
-{
-	return container_of(ibpd, struct rvt_pd, ibpd);
-}
-
-static inline struct rvt_dev_info *ib_to_rvt(struct ib_device *ibdev)
-{
-	return  container_of(ibdev, struct rvt_dev_info, ibdev);
-}
-
-int rvt_register_device(struct rvt_dev_info *rvd);
-void rvt_unregister_device(struct rvt_dev_info *rvd);
-
-#endif          /* DEF_RDMA_VT_H */
+#endif          /* DEF_RDMAVTPD_H */
