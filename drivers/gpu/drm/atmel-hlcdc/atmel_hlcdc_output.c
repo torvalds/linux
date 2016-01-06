@@ -27,16 +27,6 @@
 #include "atmel_hlcdc_dc.h"
 
 /**
- * Atmel HLCDC RGB output mode
- */
-enum atmel_hlcdc_connector_rgb_mode {
-	ATMEL_HLCDC_CONNECTOR_RGB444,
-	ATMEL_HLCDC_CONNECTOR_RGB565,
-	ATMEL_HLCDC_CONNECTOR_RGB666,
-	ATMEL_HLCDC_CONNECTOR_RGB888,
-};
-
-/**
  * Atmel HLCDC RGB connector structure
  *
  * This structure stores RGB slave device information.
@@ -89,7 +79,6 @@ static void atmel_hlcdc_panel_encoder_enable(struct drm_encoder *encoder)
 	struct atmel_hlcdc_rgb_output *rgb =
 			drm_encoder_to_atmel_hlcdc_rgb_output(encoder);
 	struct atmel_hlcdc_panel *panel = atmel_hlcdc_rgb_output_to_panel(rgb);
-
 	drm_panel_enable(panel->panel);
 }
 
@@ -102,42 +91,7 @@ static void atmel_hlcdc_panel_encoder_disable(struct drm_encoder *encoder)
 	drm_panel_disable(panel->panel);
 }
 
-static void
-atmel_hlcdc_rgb_encoder_mode_set(struct drm_encoder *encoder,
-				 struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted)
-{
-	struct atmel_hlcdc_rgb_output *rgb =
-			drm_encoder_to_atmel_hlcdc_rgb_output(encoder);
-	struct drm_display_info *info = &rgb->connector.display_info;
-	unsigned int cfg;
-
-	cfg = 0;
-
-	if (info->num_bus_formats) {
-		switch (info->bus_formats[0]) {
-		case MEDIA_BUS_FMT_RGB565_1X16:
-			cfg |= ATMEL_HLCDC_CONNECTOR_RGB565 << 8;
-			break;
-		case MEDIA_BUS_FMT_RGB666_1X18:
-			cfg |= ATMEL_HLCDC_CONNECTOR_RGB666 << 8;
-			break;
-		case MEDIA_BUS_FMT_RGB888_1X24:
-			cfg |= ATMEL_HLCDC_CONNECTOR_RGB888 << 8;
-			break;
-		case MEDIA_BUS_FMT_RGB444_1X12:
-		default:
-			break;
-		}
-	}
-
-	regmap_update_bits(rgb->dc->hlcdc->regmap, ATMEL_HLCDC_CFG(5),
-			   ATMEL_HLCDC_MODE_MASK,
-			   cfg);
-}
-
 static const struct drm_encoder_helper_funcs atmel_hlcdc_panel_encoder_helper_funcs = {
-	.mode_set = atmel_hlcdc_rgb_encoder_mode_set,
 	.disable = atmel_hlcdc_panel_encoder_disable,
 	.enable = atmel_hlcdc_panel_encoder_enable,
 };

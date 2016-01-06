@@ -53,6 +53,8 @@
  * @max_spw: maximum vertical/horizontal pulse width
  * @max_vpw: maximum vertical back/front porch width
  * @max_hpw: maximum horizontal back/front porch width
+ * @conflicting_output_formats: true if RGBXXX output formats conflict with
+ *				each other.
  * @layers: a layer description table describing available layers
  * @nlayers: layer description table size
  */
@@ -64,6 +66,7 @@ struct atmel_hlcdc_dc_desc {
 	int max_spw;
 	int max_vpw;
 	int max_hpw;
+	bool conflicting_output_formats;
 	const struct atmel_hlcdc_layer_desc *layers;
 	int nlayers;
 };

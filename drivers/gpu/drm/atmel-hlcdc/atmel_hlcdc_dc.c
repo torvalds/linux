@@ -53,6 +53,7 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9n12 = {
 	.max_spw = 0x3f,
 	.max_vpw = 0x3f,
 	.max_hpw = 0xff,
+	.conflicting_output_formats = true,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9n12_layers),
 	.layers = atmel_hlcdc_at91sam9n12_layers,
 };
@@ -140,6 +141,7 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9x5 = {
 	.max_spw = 0x3f,
 	.max_vpw = 0x3f,
 	.max_hpw = 0xff,
+	.conflicting_output_formats = true,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9x5_layers),
 	.layers = atmel_hlcdc_at91sam9x5_layers,
 };
@@ -246,6 +248,7 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_sama5d3 = {
 	.max_spw = 0x3f,
 	.max_vpw = 0x3f,
 	.max_hpw = 0x1ff,
+	.conflicting_output_formats = true,
 	.nlayers = ARRAY_SIZE(atmel_hlcdc_sama5d3_layers),
 	.layers = atmel_hlcdc_sama5d3_layers,
 };
