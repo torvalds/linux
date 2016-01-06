@@ -1189,13 +1189,6 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	p->old_link = -1;
 	p->old_duplex = -1;
 
-	ret = dsa_slave_phy_setup(p, slave_dev);
-	if (ret) {
-		netdev_err(master, "error %d setting up slave phy\n", ret);
-		free_netdev(slave_dev);
-		return ret;
-	}
-
 	ds->ports[port] = slave_dev;
 	ret = register_netdev(slave_dev);
 	if (ret) {
@@ -1208,6 +1201,13 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	}
 
 	netif_carrier_off(slave_dev);
+
+	ret = dsa_slave_phy_setup(p, slave_dev);
+	if (ret) {
+		netdev_err(master, "error %d setting up slave phy\n", ret);
+		free_netdev(slave_dev);
+		return ret;
+	}
 
 	return 0;
 }
