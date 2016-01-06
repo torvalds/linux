@@ -613,6 +613,7 @@ enum {
 };
 
 #define IB_LID_PERMISSIVE	cpu_to_be16(0xFFFF)
+#define IB_MULTICAST_LID_BASE	cpu_to_be16(0xC000)
 
 enum ib_ah_flags {
 	IB_AH_GRH	= 1

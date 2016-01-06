@@ -78,8 +78,8 @@ int rvt_check_ah(struct ib_device *ibdev,
 	if (link != IB_LINK_LAYER_ETHERNET) {
 		if (ah_attr->dlid == 0)
 			return -EINVAL;
-		if (ah_attr->dlid >= RVT_MULTICAST_LID_BASE &&
-		    ah_attr->dlid != RVT_PERMISSIVE_LID &&
+		if (ah_attr->dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE) &&
+		    ah_attr->dlid != be16_to_cpu(IB_LID_PERMISSIVE) &&
 		    !(ah_attr->ah_flags & IB_AH_GRH))
 			return -EINVAL;
 	}
