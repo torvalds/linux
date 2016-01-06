@@ -268,12 +268,13 @@ static int octeon_mdiobus_write(struct mii_bus *bus, int phy_id,
 static int octeon_mdiobus_probe(struct platform_device *pdev)
 {
 	struct octeon_mdiobus *bus;
+	struct mii_bus *mii_bus;
 	struct resource *res_mem;
 	union cvmx_smix_en smi_en;
 	int err = -ENOENT;
 
-	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
-	if (!bus)
+	mii_bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*bus));
+	if (!mii_bus)
 		return -ENOMEM;
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -282,6 +283,8 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	bus = mii_bus->priv;
+	bus->mii_bus = mii_bus;
 	bus->mdio_phys = res_mem->start;
 	bus->regsize = resource_size(res_mem);
 
@@ -297,10 +300,6 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "dev_ioremap failed\n");
 		return -ENOMEM;
 	}
-
-	bus->mii_bus = mdiobus_alloc();
-	if (!bus->mii_bus)
-		goto fail;
 
 	smi_en.u64 = 0;
 	smi_en.s.en = 1;
@@ -326,7 +325,6 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 	return 0;
 fail_register:
 	mdiobus_free(bus->mii_bus);
-fail:
 	smi_en.u64 = 0;
 	oct_mdio_writeq(smi_en.u64, bus->register_base + SMI_EN);
 	return err;
