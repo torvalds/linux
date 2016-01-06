@@ -383,6 +383,19 @@ struct rvt_driver_params {
 	 */
 };
 
+/*
+ * Functions that drivers are required to support
+ */
+struct rvt_driver_provided {
+	/*
+	 * The work to create port files in /sys/class Infiniband is different
+	 * depending on the driver. This should not be extracted away and
+	 * instead drivers are responsible for setting the correct callback for
+	 * this.
+	 */
+	int (*port_callback)(struct ib_device *, u8, struct kobject *);
+};
+
 /* Protection domain */
 struct rvt_pd {
 	struct ib_pd ibpd;
@@ -407,13 +420,8 @@ struct rvt_dev_info {
 
 	/* PKey Table goes here */
 
-	/*
-	 * The work to create port files in /sys/class Infiniband is different
-	 * depending on the driver. This should not be extracted away and
-	 * instead drivers are responsible for setting the correct callback for
-	 * this.
-	 */
-	int (*port_callback)(struct ib_device *, u8, struct kobject *);
+	/* Driver specific helper functions */
+	struct rvt_driver_provided driver_f;
 
 	/* Internal use */
 	int n_pds_allocated;

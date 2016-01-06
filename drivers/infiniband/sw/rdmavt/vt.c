@@ -280,8 +280,12 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	spin_lock_init(&rdi->n_pds_lock);
 	rdi->n_pds_allocated = 0;
 
+	/* Validate that drivers have provided the right functions */
+	if (!rdi->driver_f.port_callback)
+		return -EINVAL;
+
 	/* We are now good to announce we exist */
-	return ib_register_device(&rdi->ibdev, rdi->port_callback);
+	return ib_register_device(&rdi->ibdev, rdi->driver_f.port_callback);
 }
 EXPORT_SYMBOL(rvt_register_device);
 
