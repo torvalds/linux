@@ -13,6 +13,7 @@
 #include "../include/mc-sys.h"
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
 #include "dprc-cmd.h"
 
 struct dprc_child_objs {
@@ -398,9 +399,14 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 {
 	int error;
 	size_t region_size;
+	struct device *parent_dev = mc_dev->dev.parent;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
+	bool msi_domain_set = false;
 
 	if (WARN_ON(strcmp(mc_dev->obj_desc.type, "dprc") != 0))
+		return -EINVAL;
+
+	if (WARN_ON(dev_get_msi_domain(&mc_dev->dev)))
 		return -EINVAL;
 
 	if (!mc_dev->mc_io) {
@@ -421,6 +427,30 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 					 &mc_dev->mc_io);
 		if (error < 0)
 			return error;
+		/*
+		 * Inherit parent MSI domain:
+		 */
+		dev_set_msi_domain(&mc_dev->dev,
+				   dev_get_msi_domain(parent_dev));
+		msi_domain_set = true;
+	} else {
+		/*
+		 * This is a root DPRC
+		 */
+		struct irq_domain *mc_msi_domain;
+
+		if (WARN_ON(parent_dev->bus == &fsl_mc_bus_type))
+			return -EINVAL;
+
+		error = fsl_mc_find_msi_domain(parent_dev,
+					       &mc_msi_domain);
+		if (error < 0) {
+			dev_warn(&mc_dev->dev,
+				 "WARNING: MC bus without interrupt support\n");
+		} else {
+			dev_set_msi_domain(&mc_dev->dev, mc_msi_domain);
+			msi_domain_set = true;
+		}
 	}
 
 	error = dprc_open(mc_dev->mc_io, 0, mc_dev->obj_desc.id,
@@ -446,6 +476,9 @@ error_cleanup_open:
 	(void)dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 
 error_cleanup_mc_io:
+	if (msi_domain_set)
+		dev_set_msi_domain(&mc_dev->dev, NULL);
+
 	fsl_destroy_mc_io(mc_dev->mc_io);
 	return error;
 }
@@ -463,6 +496,7 @@ error_cleanup_mc_io:
 static int dprc_remove(struct fsl_mc_device *mc_dev)
 {
 	int error;
+	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
 
 	if (WARN_ON(strcmp(mc_dev->obj_desc.type, "dprc") != 0))
 		return -EINVAL;
@@ -474,6 +508,11 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 	if (error < 0)
 		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);
+
+	if (dev_get_msi_domain(&mc_dev->dev)) {
+		fsl_mc_cleanup_irq_pool(mc_bus);
+		dev_set_msi_domain(&mc_dev->dev, NULL);
+	}
 
 	dev_info(&mc_dev->dev, "DPRC device unbound from driver");
 	return 0;
