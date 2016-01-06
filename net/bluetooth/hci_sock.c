@@ -25,9 +25,8 @@
 /* Bluetooth HCI sockets. */
 
 #include <linux/export.h>
+#include <linux/utsname.h>
 #include <asm/unaligned.h>
-#include <generated/compile.h>
-#include <generated/utsrelease.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -385,17 +384,26 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 	return skb;
 }
 
-static void send_monitor_note(struct sock *sk, const char *text)
+static void __printf(2, 3)
+send_monitor_note(struct sock *sk, const char *fmt, ...)
 {
-	size_t len = strlen(text);
+	size_t len;
 	struct hci_mon_hdr *hdr;
 	struct sk_buff *skb;
+	va_list args;
+
+	va_start(args, fmt);
+	len = vsnprintf(NULL, 0, fmt, args);
+	va_end(args);
 
 	skb = bt_skb_alloc(len + 1, GFP_ATOMIC);
 	if (!skb)
 		return;
 
-	strcpy(skb_put(skb, len + 1), text);
+	va_start(args, fmt);
+	vsprintf(skb_put(skb, len), fmt, args);
+	*skb_put(skb, 1) = 0;
+	va_end(args);
 
 	__net_timestamp(skb);
 
@@ -897,10 +905,11 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 */
 		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
-		send_monitor_note(sk, "Linux version " UTS_RELEASE
-				      " (" UTS_MACHINE ")");
-		send_monitor_note(sk, "Bluetooth subsystem version "
-				      BT_SUBSYS_VERSION);
+		send_monitor_note(sk, "Linux version %s (%s)",
+				  init_utsname()->release,
+				  init_utsname()->machine);
+		send_monitor_note(sk, "Bluetooth subsystem version %s",
+				  BT_SUBSYS_VERSION);
 		send_monitor_replay(sk);
 
 		atomic_inc(&monitor_promisc);
