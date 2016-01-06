@@ -2129,15 +2129,12 @@ error:
 
 static int alps_hw_init_v3(struct psmouse *psmouse)
 {
+	struct alps_data *priv = psmouse->private;
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	int reg_val;
 	unsigned char param[4];
 
-	reg_val = alps_probe_trackstick_v3_v7(psmouse, ALPS_REG_BASE_PINNACLE);
-	if (reg_val == -EIO)
-		goto error;
-
-	if (reg_val == 0 &&
+	if ((priv->flags & ALPS_DUALPOINT) &&
 	    alps_setup_trackstick_v3(psmouse, ALPS_REG_BASE_PINNACLE) == -EIO)
 		goto error;
 
@@ -2614,6 +2611,11 @@ static int alps_set_protocol(struct psmouse *psmouse,
 		priv->decode_fields = alps_decode_pinnacle;
 		priv->nibble_commands = alps_v3_nibble_commands;
 		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
+
+		if (alps_probe_trackstick_v3_v7(psmouse,
+						ALPS_REG_BASE_PINNACLE) < 0)
+			priv->flags &= ~ALPS_DUALPOINT;
+
 		break;
 
 	case ALPS_PROTO_V3_RUSHMORE:
